@@ -8,8 +8,8 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <meta property="article:modified_time" content="2026-04-22T06:13:09+00:00" />
-    <title>YAML Configuration Schema Versioning &#8212; SUEWS 2026.4.18.dev225 documentation</title>
+    <meta property="article:modified_time" content="2026-04-22T21:01:47+00:00" />
+    <title>YAML Configuration Schema Versioning &#8212; SUEWS 2026.4.18.dev229 documentation</title>
   
   
   
@@ -45,7 +45,7 @@
   <link rel="preload" as="script" href="../../_static/scripts/bootstrap.js?digest=8878045cc6db502f8baf" />
 <link rel="preload" as="script" href="../../_static/scripts/pydata-sphinx-theme.js?digest=8878045cc6db502f8baf" />
 
-    <script src="../../_static/documentation_options.js?v=f53d893f"></script>
+    <script src="../../_static/documentation_options.js?v=a8ef88a7"></script>
     <script src="../../_static/doctools.js?v=9bcbadda"></script>
     <script src="../../_static/sphinx_highlight.js?v=dc90522c"></script>
     <script src="../../_static/scripts/sphinx-book-theme.js?v=fab101a9"></script>
@@ -57,7 +57,7 @@
     <link rel="search" title="Search" href="../../search.html" />
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
-  <meta name="docsearch:version" content="2026.4.18.dev225" />
+  <meta name="docsearch:version" content="2026.4.18.dev229" />
     <meta name="docbuild:last-update" content="2026-04-22"/>
   </head>
   
@@ -100,7 +100,7 @@
   <div class="bd-header-announcement__content">
     <div style="background-color: #f0ad4e; border: 1px solid #eea236; border-radius: 4px; padding: 10px; margin: 10px 0;">
         <strong>⚠️ Development Version:</strong> This documentation was built from a development version
-        (2026.4.18.dev225, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/143edbc6efbb631121263ac61adb87a2b3829aa3" style="color: #31708f;">143edbc</a>).
+        (2026.4.18.dev229, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/beab5af0b639298529a9ac2424d75a5189924ea0" style="color: #31708f;">beab5af</a>).
         Features described here may be unstable or subject to change. For stable documentation, please visit the
         <a href="https://docs.suews.io/stable/" style="color: #31708f;">latest release</a>.
     </div>
@@ -147,8 +147,8 @@
       
     
     
-    <img src="../../_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.4.18.dev225 documentation - Home"/>
-    <img src="../../_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.4.18.dev225 documentation - Home"/>
+    <img src="../../_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.4.18.dev229 documentation - Home"/>
+    <img src="../../_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.4.18.dev229 documentation - Home"/>
   
   
 </a></div>
@@ -775,11 +775,47 @@ suews-schema<span class="w"> </span>migrate<span class="w"> </span>config.yml<sp
 the schema that shipped with it via
 <code class="docutils literal notranslate"><span class="pre">supy.util.converter.yaml_upgrade._PACKAGE_TO_SCHEMA</span></code>.</p>
 <dl>
-<dt><strong>Schema 2026.5.dev1</strong> (current; in-development dev bump)</dt><dd><p>Category 5 of #1256 (gh#1327) — eight STEBBS
-<code class="docutils literal notranslate"><span class="pre">ArchetypeProperties</span></code> fields with the fused <code class="docutils literal notranslate"><span class="pre">ext</span></code> fragment
-renamed to the spelt-out <code class="docutils literal notranslate"><span class="pre">External</span></code> form, bringing them into
-line with sibling <code class="docutils literal notranslate"><span class="pre">WallExternalEmissivity</span></code> /
-<code class="docutils literal notranslate"><span class="pre">RoofExternalEmissivity</span></code>:
+<dt><strong>Schema 2026.5.dev2</strong> (current; in-development dev bump; gh#1321)</dt><dd><p>Categories 2 and 3 of #1256 — 15 <code class="docutils literal notranslate"><span class="pre">ModelPhysics</span></code> fields with the
+redundant <code class="docutils literal notranslate"><span class="pre">_method</span></code> / <code class="docutils literal notranslate"><span class="pre">_model</span></code> suffix dropped and/or opaque
+domain abbreviations (SMD, RSL, FAI, RC, GS) expanded into
+self-documenting names. The enum types themselves
+(<code class="docutils literal notranslate"><span class="pre">NetRadiationMethod</span></code>, <code class="docutils literal notranslate"><span class="pre">StabilityMethod</span></code> etc.) already carry
+the “method” context, so the field-level suffix was redundant;
+the abbreviation expansion makes YAMLs readable without
+model-specific jargon:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">net_radiation_method</span></code> -&gt; <code class="docutils literal notranslate"><span class="pre">net_radiation</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">emissions_method</span></code> -&gt; <code class="docutils literal notranslate"><span class="pre">emissions</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">storage_heat_method</span></code> -&gt; <code class="docutils literal notranslate"><span class="pre">storage_heat</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">roughness_length_momentum_method</span></code> -&gt; <code class="docutils literal notranslate"><span class="pre">roughness_length_momentum</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">roughness_length_heat_method</span></code> -&gt; <code class="docutils literal notranslate"><span class="pre">roughness_length_heat</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">stability_method</span></code> -&gt; <code class="docutils literal notranslate"><span class="pre">stability</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">water_use_method</span></code> -&gt; <code class="docutils literal notranslate"><span class="pre">water_use</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">stebbs_method</span></code> -&gt; <code class="docutils literal notranslate"><span class="pre">stebbs</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">setpointmethod</span></code> -&gt; <code class="docutils literal notranslate"><span class="pre">setpoint</span></code> (fused identifier missed by
+Category 1; Pydantic field now also snake_case)</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">smd_method</span></code> -&gt; <code class="docutils literal notranslate"><span class="pre">soil_moisture_deficit</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">rsl_method</span></code> -&gt; <code class="docutils literal notranslate"><span class="pre">roughness_sublayer</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">rsl_level</span></code> -&gt; <code class="docutils literal notranslate"><span class="pre">roughness_sublayer_level</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">fai_method</span></code> -&gt; <code class="docutils literal notranslate"><span class="pre">frontal_area_index</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">rc_method</span></code> -&gt; <code class="docutils literal notranslate"><span class="pre">outer_cap_fraction</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">gs_model</span></code> -&gt; <code class="docutils literal notranslate"><span class="pre">surface_conductance</span></code></p></li>
+</ul>
+<p>Legacy spellings — both the fused form (e.g. <code class="docutils literal notranslate"><span class="pre">netradiationmethod</span></code>)
+and the Category 1 intermediate form (e.g. <code class="docutils literal notranslate"><span class="pre">net_radiation_method</span></code>)
+— continue to load via a <code class="docutils literal notranslate"><span class="pre">&#64;model_validator(mode='before')</span></code> shim
+that emits <code class="docutils literal notranslate"><span class="pre">DeprecationWarning</span></code>. The authoritative mapping lives
+in <code class="docutils literal notranslate"><span class="pre">MODELPHYSICS_RENAMES</span></code> and <code class="docutils literal notranslate"><span class="pre">MODELPHYSICS_SUFFIX_RENAMES</span></code> in
+<code class="docutils literal notranslate"><span class="pre">src/supy/data_model/core/field_renames.py</span></code>. The
+<code class="docutils literal notranslate"><span class="pre">(2026.5.dev1</span> <span class="pre">-&gt;</span> <span class="pre">2026.5.dev2)</span></code> migration is registered in
+<code class="docutils literal notranslate"><span class="pre">src/supy/util/converter/yaml_upgrade.py::_HANDLERS</span></code>.</p>
+<p>DataFrame column names stay in their legacy fused form for the
+Fortran bridge — only the YAML key and Pydantic attribute move.</p>
+</dd>
+<dt><strong>Schema 2026.5.dev1</strong> (gh#1327)</dt><dd><p>Category 5 of #1256 — eight STEBBS <code class="docutils literal notranslate"><span class="pre">ArchetypeProperties</span></code> fields
+with the fused <code class="docutils literal notranslate"><span class="pre">ext</span></code> fragment renamed to the spelt-out
+<code class="docutils literal notranslate"><span class="pre">External</span></code> form, bringing them into line with sibling
+<code class="docutils literal notranslate"><span class="pre">WallExternalEmissivity</span></code> / <code class="docutils literal notranslate"><span class="pre">RoofExternalEmissivity</span></code>:
 <code class="docutils literal notranslate"><span class="pre">Wallext{Thickness,</span> <span class="pre">EffectiveConductivity,</span> <span class="pre">Density,</span> <span class="pre">Cp}</span></code> -&gt;
 <code class="docutils literal notranslate"><span class="pre">WallExternal{Thickness,</span> <span class="pre">EffectiveConductivity,</span> <span class="pre">Density,</span> <span class="pre">Cp}</span></code>;
 <code class="docutils literal notranslate"><span class="pre">Roofext{Thickness,</span> <span class="pre">EffectiveConductivity,</span> <span class="pre">Density,</span> <span class="pre">Cp}</span></code> -&gt;
@@ -796,11 +832,11 @@ reverses the rename before handoff.</p>
 <code class="docutils literal notranslate"><span class="pre">src/supy/util/converter/yaml_upgrade.py::_HANDLERS</span></code>.</p>
 <div class="admonition note">
 <p class="admonition-title">Note</p>
-<p><code class="docutils literal notranslate"><span class="pre">2026.5.dev1</span></code> is a PEP 440 pre-release label used during the
+<p><code class="docutils literal notranslate"><span class="pre">.devN</span></code> labels are PEP 440 pre-release markers used during the
 2026.5 development cycle, per the dev-label convention in
 <code class="docutils literal notranslate"><span class="pre">.claude/rules/python/schema-versioning.md</span></code>. The release PR
-will collapse this label (and any further <code class="docutils literal notranslate"><span class="pre">.devN</span></code> bumps) back
-into a single <code class="docutils literal notranslate"><span class="pre">2026.5</span></code> entry.</p>
+will collapse all <code class="docutils literal notranslate"><span class="pre">.devN</span></code> entries (<code class="docutils literal notranslate"><span class="pre">.dev1</span></code>, <code class="docutils literal notranslate"><span class="pre">.dev2</span></code>, …)
+back into a single <code class="docutils literal notranslate"><span class="pre">2026.5</span></code> entry.</p>
 </div>
 </dd>
 </dl>
@@ -970,8 +1006,8 @@ By SUEWS dev team led by Prof Sue Grimmond
   <div class="footer-item">
     
 <div class="extra_footer">
-  <p>Version: 2026.4.18.dev225 |
-    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/143edbc6efbb631121263ac61adb87a2b3829aa3">143edbc</a> |
+  <p>Version: 2026.4.18.dev229 |
+    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/beab5af0b639298529a9ac2424d75a5189924ea0">beab5af</a> |
     <a href="https://umep-dev.github.io/SUEWS/brand/showcase.html">Brand</a></p>
 </div>
   </div>

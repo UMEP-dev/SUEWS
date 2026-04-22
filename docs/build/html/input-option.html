@@ -7,7 +7,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Input Option Index &#8212; SUEWS 2026.4.18.dev225 documentation</title>
+    <title>Input Option Index &#8212; SUEWS 2026.4.18.dev229 documentation</title>
   
   
   
@@ -43,7 +43,7 @@
   <link rel="preload" as="script" href="_static/scripts/bootstrap.js?digest=8878045cc6db502f8baf" />
 <link rel="preload" as="script" href="_static/scripts/pydata-sphinx-theme.js?digest=8878045cc6db502f8baf" />
 
-    <script src="_static/documentation_options.js?v=f53d893f"></script>
+    <script src="_static/documentation_options.js?v=a8ef88a7"></script>
     <script src="_static/doctools.js?v=9bcbadda"></script>
     <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
     <script src="_static/scripts/sphinx-book-theme.js?v=fab101a9"></script>
@@ -56,7 +56,7 @@
 
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
-  <meta name="docsearch:version" content="2026.4.18.dev225" />
+  <meta name="docsearch:version" content="2026.4.18.dev229" />
 
     <script>
       DOCUMENTATION_OPTIONS.COLLAPSE_INDEX = true;
@@ -104,7 +104,7 @@
   <div class="bd-header-announcement__content">
     <div style="background-color: #f0ad4e; border: 1px solid #eea236; border-radius: 4px; padding: 10px; margin: 10px 0;">
         <strong>⚠️ Development Version:</strong> This documentation was built from a development version
-        (2026.4.18.dev225, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/143edbc6efbb631121263ac61adb87a2b3829aa3" style="color: #31708f;">143edbc</a>).
+        (2026.4.18.dev229, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/beab5af0b639298529a9ac2424d75a5189924ea0" style="color: #31708f;">beab5af</a>).
         Features described here may be unstable or subject to change. For stable documentation, please visit the
         <a href="https://docs.suews.io/stable/" style="color: #31708f;">latest release</a>.
     </div>
@@ -153,8 +153,8 @@
       
     
     
-    <img src="_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.4.18.dev225 documentation - Home"/>
-    <img src="_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.4.18.dev225 documentation - Home"/>
+    <img src="_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.4.18.dev229 documentation - Home"/>
+    <img src="_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.4.18.dev229 documentation - Home"/>
   
   
 </a></div>
@@ -947,7 +947,7 @@
      <tr>
        <td></td>
        <td>
-       <a href="inputs/yaml/config-reference/modelphysics.html#input-option-emissions_method"><code class="xref">emissions_method</code></a></td><td>
+       <a href="inputs/yaml/config-reference/modelphysics.html#input-option-emissions"><code class="xref">emissions</code></a></td><td>
        <em></em></td></tr>
      <tr>
        <td></td>
@@ -986,11 +986,6 @@
        <td></td>
        <td>
        <a href="inputs/yaml/config-reference/evetrproperties.html#input-option-fai_evergreen_tree"><code class="xref">fai_evergreen_tree</code></a></td><td>
-       <em></em></td></tr>
-     <tr>
-       <td></td>
-       <td>
-       <a href="inputs/yaml/config-reference/modelphysics.html#input-option-fai_method"><code class="xref">fai_method</code></a></td><td>
        <em></em></td></tr>
      <tr>
        <td></td>
@@ -1056,6 +1051,11 @@
        <td></td>
        <td>
        <a href="inputs/yaml/config-reference/weeklyprofile.html#input-option-friday"><code class="xref">friday</code></a></td><td>
+       <em></em></td></tr>
+     <tr>
+       <td></td>
+       <td>
+       <a href="inputs/yaml/config-reference/modelphysics.html#input-option-frontal_area_index"><code class="xref">frontal_area_index</code></a></td><td>
        <em></em></td></tr>
      <tr class="pcap"><td></td><td>&#160;</td><td></td></tr>
      <tr class="cap" id="cap-G"><td></td><td>
@@ -1149,11 +1149,6 @@
        <td></td>
        <td>
        <a href="inputs/yaml/config-reference/laipowercoefficients.html#input-option-growth_lai"><code class="xref">growth_lai</code></a></td><td>
-       <em></em></td></tr>
-     <tr>
-       <td></td>
-       <td>
-       <a href="inputs/yaml/config-reference/modelphysics.html#input-option-gs_model"><code class="xref">gs_model</code></a></td><td>
        <em></em></td></tr>
      <tr class="pcap"><td></td><td>&#160;</td><td></td></tr>
      <tr class="cap" id="cap-H"><td></td><td>
@@ -1571,7 +1566,7 @@
      <tr>
        <td></td>
        <td>
-       <a href="inputs/yaml/config-reference/modelphysics.html#input-option-net_radiation_method"><code class="xref">net_radiation_method</code></a></td><td>
+       <a href="inputs/yaml/config-reference/modelphysics.html#input-option-net_radiation"><code class="xref">net_radiation</code></a></td><td>
        <em></em></td></tr>
      <tr>
        <td></td>
@@ -1605,6 +1600,11 @@
        <td></td>
        <td>
        <a href="inputs/yaml/config-reference/waterproperties.html#input-option-ohm_threshold_wet_dry"><code class="xref">ohm_threshold_wet_dry</code></a></td><td>
+       <em></em></td></tr>
+     <tr>
+       <td></td>
+       <td>
+       <a href="inputs/yaml/config-reference/modelphysics.html#input-option-outer_cap_fraction"><code class="xref">outer_cap_fraction</code></a></td><td>
        <em></em></td></tr>
      <tr>
        <td></td>
@@ -1728,11 +1728,6 @@
      <tr>
        <td></td>
        <td>
-       <a href="inputs/yaml/config-reference/modelphysics.html#input-option-rc_method"><code class="xref">rc_method</code></a></td><td>
-       <em></em></td></tr>
-     <tr>
-       <td></td>
-       <td>
        <a href="inputs/yaml/config-reference/weeklyprofile.html#input-option-ref"><code class="xref">ref</code></a></td><td>
        <em></em></td></tr>
      <tr>
@@ -1843,22 +1838,22 @@
      <tr>
        <td></td>
        <td>
-       <a href="inputs/yaml/config-reference/modelphysics.html#input-option-roughness_length_heat_method"><code class="xref">roughness_length_heat_method</code></a></td><td>
+       <a href="inputs/yaml/config-reference/modelphysics.html#input-option-roughness_length_heat"><code class="xref">roughness_length_heat</code></a></td><td>
        <em></em></td></tr>
      <tr>
        <td></td>
        <td>
-       <a href="inputs/yaml/config-reference/modelphysics.html#input-option-roughness_length_momentum_method"><code class="xref">roughness_length_momentum_method</code></a></td><td>
+       <a href="inputs/yaml/config-reference/modelphysics.html#input-option-roughness_length_momentum"><code class="xref">roughness_length_momentum</code></a></td><td>
        <em></em></td></tr>
      <tr>
        <td></td>
        <td>
-       <a href="inputs/yaml/config-reference/modelphysics.html#input-option-rsl_level"><code class="xref">rsl_level</code></a></td><td>
+       <a href="inputs/yaml/config-reference/modelphysics.html#input-option-roughness_sublayer"><code class="xref">roughness_sublayer</code></a></td><td>
        <em></em></td></tr>
      <tr>
        <td></td>
        <td>
-       <a href="inputs/yaml/config-reference/modelphysics.html#input-option-rsl_method"><code class="xref">rsl_method</code></a></td><td>
+       <a href="inputs/yaml/config-reference/modelphysics.html#input-option-roughness_sublayer_level"><code class="xref">roughness_sublayer_level</code></a></td><td>
        <em></em></td></tr>
      <tr>
        <td></td>
@@ -1936,7 +1931,7 @@
      <tr>
        <td></td>
        <td>
-       <a href="inputs/yaml/config-reference/modelphysics.html#input-option-setpointmethod"><code class="xref">setpointmethod</code></a></td><td>
+       <a href="inputs/yaml/config-reference/modelphysics.html#input-option-setpoint"><code class="xref">setpoint</code></a></td><td>
        <em></em></td></tr>
      <tr>
        <td></td>
@@ -1952,11 +1947,6 @@
        <td></td>
        <td>
        <a href="inputs/yaml/config-reference/soilobservationconfig.html#input-option-smcap"><code class="xref">smcap</code></a></td><td>
-       <em></em></td></tr>
-     <tr>
-       <td></td>
-       <td>
-       <a href="inputs/yaml/config-reference/modelphysics.html#input-option-smd_method"><code class="xref">smd_method</code></a></td><td>
        <em></em></td></tr>
      <tr>
        <td></td>
@@ -2046,6 +2036,11 @@
      <tr>
        <td></td>
        <td>
+       <a href="inputs/yaml/config-reference/modelphysics.html#input-option-soil_moisture_deficit"><code class="xref">soil_moisture_deficit</code></a></td><td>
+       <em></em></td></tr>
+     <tr>
+       <td></td>
+       <td>
        <a href="inputs/yaml/config-reference/soilobservationconfig.html#input-option-soil_not_rocks"><code class="xref">soil_not_rocks</code></a></td><td>
        <em></em></td></tr>
      <tr>
@@ -2071,7 +2066,7 @@
      <tr>
        <td></td>
        <td>
-       <a href="inputs/yaml/config-reference/modelphysics.html#input-option-stability_method"><code class="xref">stability_method</code></a></td><td>
+       <a href="inputs/yaml/config-reference/modelphysics.html#input-option-stability"><code class="xref">stability</code></a></td><td>
        <em></em></td></tr>
      <tr>
        <td></td>
@@ -2106,17 +2101,12 @@
      <tr>
        <td></td>
        <td>
-       <a href="inputs/yaml/config-reference/modelphysics.html#input-option-stebbs_method"><code class="xref">stebbs_method</code></a></td><td>
-       <em></em></td></tr>
-     <tr>
-       <td></td>
-       <td>
        <a href="inputs/yaml/config-reference/waterproperties.html#input-option-storage_drain_params"><code class="xref">storage_drain_params</code></a></td><td>
        <em></em></td></tr>
      <tr>
        <td></td>
        <td>
-       <a href="inputs/yaml/config-reference/modelphysics.html#input-option-storage_heat_method"><code class="xref">storage_heat_method</code></a></td><td>
+       <a href="inputs/yaml/config-reference/modelphysics.html#input-option-storage_heat"><code class="xref">storage_heat</code></a></td><td>
        <em></em></td></tr>
      <tr>
        <td></td>
@@ -2147,6 +2137,11 @@
        <td></td>
        <td>
        <a href="inputs/yaml/config-reference/weeklyprofile.html#input-option-sunday"><code class="xref">sunday</code></a></td><td>
+       <em></em></td></tr>
+     <tr>
+       <td></td>
+       <td>
+       <a href="inputs/yaml/config-reference/modelphysics.html#input-option-surface_conductance"><code class="xref">surface_conductance</code></a></td><td>
        <em></em></td></tr>
      <tr>
        <td></td>
@@ -2473,7 +2468,7 @@
      <tr>
        <td></td>
        <td>
-       <a href="inputs/yaml/config-reference/modelphysics.html#input-option-water_use_method"><code class="xref">water_use_method</code></a></td><td>
+       <a href="inputs/yaml/config-reference/modelphysics.html#input-option-water_use"><code class="xref">water_use</code></a></td><td>
        <em></em></td></tr>
      <tr>
        <td></td>
@@ -2666,8 +2661,8 @@ By SUEWS dev team led by Prof Sue Grimmond
   <div class="footer-item">
     
 <div class="extra_footer">
-  <p>Version: 2026.4.18.dev225 |
-    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/143edbc6efbb631121263ac61adb87a2b3829aa3">143edbc</a> |
+  <p>Version: 2026.4.18.dev229 |
+    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/beab5af0b639298529a9ac2424d75a5189924ea0">beab5af</a> |
     <a href="https://umep-dev.github.io/SUEWS/brand/showcase.html">Brand</a></p>
 </div>
   </div>

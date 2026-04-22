@@ -170,14 +170,45 @@ The lineage below mirrors ``SCHEMA_VERSIONS`` in
 the schema that shipped with it via
 ``supy.util.converter.yaml_upgrade._PACKAGE_TO_SCHEMA``.
 
-**Schema 2026.5** (current)
+**Schema 2026.5.dev1** (current; in-development dev bump)
+   Category 5 of #1256 (gh#1327) — eight STEBBS
+   ``ArchetypeProperties`` fields with the fused ``ext`` fragment
+   renamed to the spelt-out ``External`` form, bringing them into
+   line with sibling ``WallExternalEmissivity`` /
+   ``RoofExternalEmissivity``:
+   ``Wallext{Thickness, EffectiveConductivity, Density, Cp}`` ->
+   ``WallExternal{Thickness, EffectiveConductivity, Density, Cp}``;
+   ``Roofext{Thickness, EffectiveConductivity, Density, Cp}`` ->
+   ``RoofExternal{Thickness, EffectiveConductivity, Density, Cp}``.
+   STEBBS PascalCase itself is kept (per
+   ``.claude/rules/00-project-essentials.md``); the Fortran-side
+   identifiers are unchanged and the Python-to-Fortran bridge
+   reverses the rename before handoff.
+
+   Legacy spellings continue to load via a
+   ``@model_validator(mode='before')`` shim that emits
+   ``DeprecationWarning``; the authoritative mapping lives in
+   ``src/supy/data_model/core/field_renames.py``. The
+   ``(2026.5 -> 2026.5.dev1)`` migration is registered in
+   ``src/supy/util/converter/yaml_upgrade.py::_HANDLERS``.
+
+   .. note::
+
+      ``2026.5.dev1`` is a PEP 440 pre-release label used during the
+      2026.5 development cycle, per the dev-label convention in
+      ``.claude/rules/python/schema-versioning.md``. The release PR
+      will collapse this label (and any further ``.devN`` bumps) back
+      into a single ``2026.5`` entry.
+
+**Schema 2026.5** (Category 1 snake_case sweep; unreleased base for
+the 2026.5 dev cycle)
    Category 1 of #1256: 59 fused compound field names in
    ``ModelPhysics``, ``SurfaceProperties``, ``LAIParams``,
    ``VegetatedSurfaceProperties``, ``EvetrProperties``,
    ``DectrProperties``, and ``SnowParams`` renamed to ``snake_case``
-   (for example ``netradiationmethod`` ->
-   ``net_radiation_method``, ``soildepth`` -> ``soil_depth``,
-   ``baset`` -> ``base_temperature``, ``crwmax`` ->
+   (for example ``netradiationmethod`` -> ``net_radiation_method``,
+   ``soildepth`` -> ``soil_depth``, ``baset`` ->
+   ``base_temperature``, ``crwmax`` ->
    ``water_holding_capacity_max``). Legacy spellings continue to load
    via a ``@model_validator(mode='before')`` shim that emits
    ``DeprecationWarning``; the authoritative mapping lives in

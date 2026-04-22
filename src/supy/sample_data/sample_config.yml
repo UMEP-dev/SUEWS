@@ -1,5 +1,5 @@
 name: sample_config
-schema_version: '2026.5'
+schema_version: '2026.5.dev1'
 description: Sample configuration built from benchmark 1a (Ward et al. 2016) model configuration
 model:
   control:
@@ -1126,13 +1126,13 @@ sites:
         value: 1724.7
       WallCp:
         value: 1000.0
-      WallextThickness:
+      WallExternalThickness:
         value: 0.1
-      WallextEffectiveConductivity:
+      WallExternalEffectiveConductivity:
         value: 0.755
-      WallextDensity:
+      WallExternalDensity:
         value: 1724.7
-      WallextCp:
+      WallExternalCp:
         value: 1000.0
       WallOuterCapFrac:
         value: 0.5
@@ -1154,13 +1154,13 @@ sites:
         value: 1222.0
       RoofCp:
         value: 816.1
-      RoofextThickness:
+      RoofExternalThickness:
         value: 0.031
-      RoofextEffectiveConductivity:
+      RoofExternalEffectiveConductivity:
         value: 0.106
-      RoofextDensity:
+      RoofExternalDensity:
         value: 1222.0
-      RoofextCp:
+      RoofExternalCp:
         value: 816.1
       RoofOuterCapFrac:
         value: 0.5

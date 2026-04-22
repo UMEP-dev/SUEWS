@@ -1203,8 +1203,8 @@ def test_validate_model_option_rcmethod2_missing_params(registry):
     }
     results = registry["rcmethod"](ValidationContext(yaml_data=yaml_data))
     required = [
-        "WallextThickness", "WallextEffectiveConductivity", "WallextDensity", "WallextCp",
-        "RoofextThickness", "RoofextEffectiveConductivity", "RoofextDensity", "RoofextCp"
+        "WallExternalThickness", "WallExternalEffectiveConductivity", "WallExternalDensity", "WallExternalCp",
+        "RoofExternalThickness", "RoofExternalEffectiveConductivity", "RoofExternalDensity", "RoofExternalCp"
     ]
     expected = [f"building_archetype.{p}" for p in required]
     error_params = [r.parameter for r in results if r.status == "ERROR"]
@@ -1213,6 +1213,31 @@ def test_validate_model_option_rcmethod2_missing_params(registry):
     assert all(r.status == "ERROR" for r in results if r.parameter in expected)
 
 def test_validate_model_option_rcmethod2_all_params_provided(registry):
+    yaml_data = {
+        "model": {"physics": {"rc_method": {"value": 2}}},
+        "sites": [{
+            "name": "site1",
+            "properties": {
+                "building_archetype": {
+                    "WallExternalThickness": {"value": 0.2},
+                    "WallExternalEffectiveConductivity": {"value": 1.0},
+                    "WallExternalDensity": {"value": 2200},
+                    "WallExternalCp": {"value": 900},
+                    "RoofExternalThickness": {"value": 0.18},
+                    "RoofExternalEffectiveConductivity": {"value": 1.2},
+                    "RoofExternalDensity": {"value": 2300},
+                    "RoofExternalCp": {"value": 1000},
+                }
+            }
+        }],
+    }
+    results = registry["rcmethod"](ValidationContext(yaml_data=yaml_data))
+    warnings = [r for r in results if r.status == "WARNING"]
+    assert any("wall material parameters will be used for parameterisation" in r.message for r in warnings)
+    assert any("roof material parameters will be used for parameterisation" in r.message for r in warnings)
+    assert all(r.status != "ERROR" for r in results)
+
+def test_validate_model_option_rcmethod2_legacy_ext_params_supported(registry):
     yaml_data = {
         "model": {"physics": {"rc_method": {"value": 2}}},
         "sites": [{
@@ -1244,23 +1269,23 @@ def test_validate_model_option_rcmethod2_some_params_missing(registry):
             "name": "site1",
             "properties": {
                 "building_archetype": {
-                    "WallextThickness": {"value": 0.2},
-                    "WallextEffectiveConductivity": {},
-                    "WallextDensity": {"value": 2200},
-                    # WallextCp missing
-                    "RoofextThickness": {"value": 0.18},
-                    # RoofextEffectiveConductivity missing
-                    "RoofextDensity": {"value": 2300},
-                    "RoofextCp": {"value": 1000},
+                    "WallExternalThickness": {"value": 0.2},
+                    "WallExternalEffectiveConductivity": {},
+                    "WallExternalDensity": {"value": 2200},
+                    # WallExternalCp missing
+                    "RoofExternalThickness": {"value": 0.18},
+                    # RoofExternalEffectiveConductivity missing
+                    "RoofExternalDensity": {"value": 2300},
+                    "RoofExternalCp": {"value": 1000},
                 }
             }
         }],
     }
     results = registry["rcmethod"](ValidationContext(yaml_data=yaml_data))
     error_params = [r.parameter for r in results if r.status == "ERROR"]
-    assert "building_archetype.WallextEffectiveConductivity" in error_params
-    assert "building_archetype.WallextCp" in error_params
-    assert "building_archetype.RoofextEffectiveConductivity" in error_params
+    assert "building_archetype.WallExternalEffectiveConductivity" in error_params
+    assert "building_archetype.WallExternalCp" in error_params
+    assert "building_archetype.RoofExternalEffectiveConductivity" in error_params
     assert any(r.status == "WARNING" for r in results)
     assert all("must be provided" in r.message for r in results if r.status == "ERROR")
 

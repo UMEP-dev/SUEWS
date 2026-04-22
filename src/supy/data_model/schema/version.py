@@ -15,8 +15,14 @@ from functools import lru_cache
 from typing import Optional
 import warnings
 
-# Current supported schema version (aligned with SUEWS CalVer: YYYY.MM)
-CURRENT_SCHEMA_VERSION = "2026.5"
+# Current supported schema version (aligned with SUEWS CalVer: YYYY.MM).
+#
+# During a release cycle we carry a PEP 440 `.devN` suffix and only
+# drop it in the release PR itself; see `.claude/rules/python/
+# schema-versioning.md` (Dev-label convention). Every structural PR
+# between releases bumps the dev counter instead of consuming a new
+# CalVer label.
+CURRENT_SCHEMA_VERSION = "2026.5.dev1"
 
 # Schema version history and descriptions.
 #
@@ -59,6 +65,25 @@ SCHEMA_VERSIONS: dict[str, str] = {
         "-> net_radiation_method, soildepth -> soil_depth, baset -> "
         "base_temperature, crwmax -> water_holding_capacity_max). Full "
         "mapping lives in src/supy/data_model/core/field_renames.py."
+    ),
+    "2026.5.dev1": (
+        "Category 5 of #1256 (gh#1327): eight STEBBS "
+        "ArchetypeProperties fields with the fused `ext` fragment "
+        "renamed to the spelt-out `External` form, bringing them into "
+        "line with sibling `WallExternalEmissivity` / "
+        "`RoofExternalEmissivity` — "
+        "Wallext{Thickness, EffectiveConductivity, Density, Cp} -> "
+        "WallExternal{Thickness, EffectiveConductivity, Density, Cp}; "
+        "Roofext{Thickness, EffectiveConductivity, Density, Cp} -> "
+        "RoofExternal{Thickness, EffectiveConductivity, Density, Cp}. "
+        "STEBBS PascalCase itself is kept; Fortran-side identifiers are "
+        "unchanged (reverse rename maps back for the bridge). Rename "
+        "table lives in src/supy/data_model/core/field_renames.py; the "
+        "(2026.5 -> 2026.5.dev1) migration is registered in "
+        "src/supy/util/converter/yaml_upgrade.py::_HANDLERS. First dev "
+        "label in the 2026.5 release cycle (collapse to plain `2026.5` "
+        "in the release PR per `.claude/rules/python/"
+        "schema-versioning.md`)."
     ),
 }
 

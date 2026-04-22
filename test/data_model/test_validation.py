@@ -2592,7 +2592,7 @@ def test_phase_b_model_option_dependencies_comprehensive(registry):
     assert isinstance(results, list)  # Should return a list, not crash
 
 
-def test_phase_b_annual_mean_air_temperature_from_cru():
+def test_phase_b_annual_mean_air_temperature_from_cru(cru_data_available):
     """Test that AnnualMeanAirTemperature is populated from CRU annual mean data."""
     from supy.data_model.validation.pipeline.phase_b import (
         adjust_surface_temperatures,
@@ -2604,13 +2604,7 @@ def test_phase_b_annual_mean_air_temperature_from_cru():
     test_lon = -0.1
     start_date = "2020-01-15"
 
-    # Verify CRU data is available for test coordinates
     annual_temp = get_mean_annual_air_temperature(test_lat, test_lon)
-    if annual_temp is None:
-        # Skip test if CRU data not available
-        import pytest
-
-        pytest.skip("CRU data not available")
 
     # Create test YAML data with STEBBS configuration
     yaml_data = {
@@ -2656,7 +2650,7 @@ def test_phase_b_annual_mean_air_temperature_from_cru():
     assert "1991-2020" in adj.reason
 
 
-def test_phase_b_annual_mean_air_temperature_no_update_if_same():
+def test_phase_b_annual_mean_air_temperature_no_update_if_same(cru_data_available):
     """Test that AnnualMeanAirTemperature is not updated if already correct."""
     from supy.data_model.validation.pipeline.phase_b import (
         adjust_surface_temperatures,
@@ -2668,13 +2662,7 @@ def test_phase_b_annual_mean_air_temperature_no_update_if_same():
     test_lon = -0.1
     start_date = "2020-01-15"
 
-    # Get correct annual temp
     annual_temp = get_mean_annual_air_temperature(test_lat, test_lon)
-    if annual_temp is None:
-        # Skip test if CRU data not available
-        import pytest
-
-        pytest.skip("CRU data not available")
 
     # Create test YAML with already-correct value
     yaml_data = {

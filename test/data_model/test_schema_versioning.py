@@ -88,7 +88,6 @@ class TestSchemaVersioning:
         # Future: test minor version compatibility
         # assert is_schema_compatible("1.0", "1.1") is True  # 1.1 backward compatible with 1.0
 
-    @pytest.mark.skip(reason="Schema versioning needs fix - see GH-991")
     def test_compatibility_messages(self):
         """Test schema compatibility message generation."""
         # No message for current version
@@ -97,13 +96,18 @@ class TestSchemaVersioning:
         # No message for None (assumes current)
         assert get_schema_compatibility_message(None) is None
 
-        # Message for newer version (0.9 > 0.1)
+        # Compatible legacy CalVer (registered migration handler 2025.12 -> 2026.4)
+        msg = get_schema_compatibility_message("2025.12")
+        assert msg is not None
+        assert "compatible" in msg
+
+        # Older incompatible version (no migration handler; float-compare fallback)
         msg = get_schema_compatibility_message("0.9")
         assert msg is not None
-        assert "newer schema" in msg
+        assert "older schema" in msg
 
-        # Message for much newer version
-        msg = get_schema_compatibility_message("2.0")
+        # Hypothetical future schema version
+        msg = get_schema_compatibility_message("9999.0")
         assert msg is not None
         assert "newer schema" in msg
 

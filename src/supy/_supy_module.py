@@ -883,7 +883,7 @@ def _save_supy(
     output_level=1,
     debug=False,
     output_config=None,
-    output_format="txt",
+    output_format=None,
 ) -> list:
     """Save SuPy run results to files.
 
@@ -965,8 +965,10 @@ def _save_supy(
             # Override frequency if specified in config
             if output_config.freq is not None:
                 freq_s = output_config.freq
-            # Get format
-            output_format = str(output_config.format)
+            # Fill format from config only when the caller has not set it
+            # explicitly — an explicit `output_format` kwarg always wins.
+            if output_format is None:
+                output_format = str(output_config.format)
             # Get groups for txt format
             if output_format == "txt" and output_config.groups is not None:
                 output_groups = output_config.groups
@@ -982,8 +984,11 @@ def _save_supy(
                 DeprecationWarning,
                 stacklevel=2,
             )
-            # Fall back to default text format
-            output_format = "txt"
+            if output_format is None:
+                output_format = "txt"
+
+    if output_format is None:
+        output_format = "txt"
 
     # determine `save_snow` option
     snowuse = df_state_final.iloc[-1].loc["snowuse"]
@@ -1050,7 +1055,7 @@ def save_supy(
     output_level=1,
     debug=False,
     output_config=None,
-    output_format="txt",
+    output_format=None,
 ) -> list:
     """Save SuPy run results to files.
 

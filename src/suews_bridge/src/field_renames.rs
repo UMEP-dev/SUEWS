@@ -199,7 +199,10 @@ mod tests {
     #[test]
     fn field_renames_registry_has_expected_size() {
         // Matches the Python ALL_FIELD_RENAMES total (see field_renames.py).
-        assert_eq!(FIELD_RENAMES.len(), 59);
+        // 16 ModelPhysics + 11 SurfaceProperties + 8 LAIParams + 4
+        // VegetatedSurfaceProperties + 2 EvetrProperties + 6 DectrProperties
+        // + 8 ArchetypeProperties (STEBBS PascalCase, gh#1327) + 12 SnowParams.
+        assert_eq!(FIELD_RENAMES.len(), 67);
     }
 
     #[test]

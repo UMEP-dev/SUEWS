@@ -2216,7 +2216,7 @@ mod tests {
         assert!(run_cfg.site.stebbs.wall_internal_convection_coefficient > 0.0);
         assert!(run_cfg.site.stebbs.water_tank_surface_area > 0.0);
         assert!(run_cfg.site.stebbs.hot_water_flow_profile[0][43] >= 0.0);
-        assert!((run_cfg.site.stebbs.daylight_control - 0.0).abs() < 1.0e-12);
+        assert!((run_cfg.site.stebbs.daylight_control - 1.0).abs() < 1.0e-12);
         assert!((run_cfg.site.stebbs.lighting_illuminance_threshold - 300.0).abs() < 1.0e-12);
         assert!((run_cfg.site.building_archtype.lightingpowerdensity - 2.0).abs() < 1.0e-12);
     }

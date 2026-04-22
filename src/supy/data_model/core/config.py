@@ -348,8 +348,11 @@ class SUEWSConfig(BaseModel):
         ### 3) Run any conditional validations (e.g. STEBBS when stebbs_method==1)
         cond_issues = self._validate_conditional_parameters()
 
-        ### 4) Check for critical null physics parameters
+        ### 4) Check for critical null physics parameters (top-level ModelPhysics switches)
         critical_nulls = self._check_critical_null_physics_params()
+
+        ### 4b) Check for critical null site-level parameters (gh#1333)
+        critical_site_nulls = self._check_critical_null_site_params()
 
         ### 5) If we have either conditional issues or critical nulls, raise validation error
         all_critical_issues = []
@@ -357,8 +360,26 @@ class SUEWSConfig(BaseModel):
             all_critical_issues.extend(cond_issues)
         if critical_nulls:
             all_critical_issues.extend(critical_nulls)
+        if critical_site_nulls:
+            all_critical_issues.extend(critical_site_nulls)
 
         if all_critical_issues:
+            # Preserve the annotated-YAML UX on the failure path: if the caller
+            # asked for auto-generation, emit it before raising so users get a
+            # template alongside the error message (gh#1333).
+            yaml_path = getattr(self, "_yaml_path", None)
+            auto_generate = getattr(self, "_auto_generate_annotated", False)
+            if auto_generate and yaml_path and Path(yaml_path).exists():
+                try:
+                    generated_path = self.generate_annotated_yaml(yaml_path)
+                    logger_supy.info(
+                        f"Annotated YAML file generated: {generated_path}"
+                    )
+                except Exception as exc:  # pragma: no cover - best-effort UX
+                    logger_supy.warning(
+                        f"Annotated YAML generation failed: {exc}"
+                    )
+
             # Put each critical issue on its own line for readability
             error_message = "\n".join(all_critical_issues)
             raise ValueError(f"Critical validation failed:\n{error_message}")
@@ -2722,6 +2743,190 @@ class SUEWSConfig(BaseModel):
                     critical_issues.append(
                         f"{param_name} is set to null and will cause runtime crash - must be set to appropriate non-null value"
                     )
+
+        return critical_issues
+
+    def _check_critical_null_site_params(self) -> List[str]:
+        """Check for critical null site-level parameters that silently yield NaN output.
+
+        Complements :meth:`_check_critical_null_physics_params` (which covers
+        the top-level ``ModelPhysics`` switches) by auditing site- and
+        surface-level fields that are presence- or physics-conditional.
+        Missing values here are stripped from the YAML by
+        ``model_dump(exclude_none=True, mode="json")`` and reach the Rust
+        backend as zero; on x86_64 this produces NaN via ``0/0`` and
+        ``0*Inf`` in the Fortran stomatal-conductance and LAI paths. See
+        gh#1333.
+
+        Rules applied per site:
+
+        - For each vegetated surface (``dectr`` / ``evetr`` / ``grass``)
+          with ``sfr > 0``, the surface's ``lai`` block must carry
+          non-None values for ``lai_max``, ``base_temperature``,
+          ``base_temperature_senescence``, ``gdd_full``, ``sdd_full``.
+        - For ``bldgs`` with ``sfr > 0``: ``bldgh`` and ``faibldg`` must
+          be non-None.
+        - For ``evetr`` with ``sfr > 0``: ``height_evergreen_tree`` and
+          ``fai_evergreen_tree`` must be non-None.
+        - For ``dectr`` with ``sfr > 0``: ``height_deciduous_tree`` and
+          ``fai_deciduous_tree`` must be non-None.
+        - If any vegetated surface is active, the site's ``conductance``
+          block must carry non-None values for all eleven fields
+          (``g_max``, ``g_k``, ``g_q_base``, ``g_q_shape``, ``g_t``,
+          ``g_sm``, ``kmax``, ``s1``, ``s2``, ``tl``, ``th``). Both
+          ``GSModel.JARVI`` and ``GSModel.WARD`` consume these.
+
+        CO2 / OHM blocks are out of scope for this check: in the gh#1333
+        reproducer those fields are populated with a sentinel value
+        (``1``), not ``None`` -- a different bug class handled in a
+        follow-up.
+
+        Returns
+        -------
+        List[str]
+            One error string per missing field, naming the site, surface
+            (where applicable), and the governing condition.
+
+        Notes
+        -----
+        Gated on ``self._yaml_path``: fires only for configurations loaded
+        from a YAML file (the user-facing path, where the bug bites) and
+        stays silent for programmatic constructions such as
+        ``SUEWSConfig(sites=[Site(...)])`` in unit tests. Programmatic
+        constructions typically populate only the fields under test and
+        rely on ``default_factory`` to materialise the rest with
+        ``sfr=1/7``; surfacing the check there would flag every minimal
+        test without catching a real user bug.
+        """
+        critical_issues: List[str] = []
+
+        if getattr(self, "_yaml_path", None) is None:
+            return critical_issues
+
+        if not getattr(self, "sites", None):
+            return critical_issues
+
+        lai_required = [
+            "lai_max",
+            "base_temperature",
+            "base_temperature_senescence",
+            "gdd_full",
+            "sdd_full",
+        ]
+        conductance_required = [
+            "g_max",
+            "g_k",
+            "g_q_base",
+            "g_q_shape",
+            "g_t",
+            "g_sm",
+            "kmax",
+            "s1",
+            "s2",
+            "tl",
+            "th",
+        ]
+
+        for i, site in enumerate(self.sites):
+            site_name = getattr(site, "name", f"site[{i}]")
+            props = getattr(site, "properties", None)
+            if props is None:
+                continue
+
+            land_cover = getattr(props, "land_cover", None)
+
+            active_veg: Dict[str, float] = {}
+
+            if land_cover is not None:
+                for surface_name in ("dectr", "evetr", "grass"):
+                    surface = getattr(land_cover, surface_name, None)
+                    if surface is None:
+                        continue
+                    sfr_raw = getattr(surface, "sfr", None)
+                    sfr_value = getattr(sfr_raw, "value", sfr_raw)
+                    if sfr_value is None or sfr_value <= 0:
+                        continue
+
+                    active_veg[surface_name] = sfr_value
+
+                    lai = getattr(surface, "lai", None)
+                    if lai is None:
+                        critical_issues.append(
+                            f"sites[{i}] ({site_name}), land_cover.{surface_name}: "
+                            f"lai block is missing but sfr={sfr_value} > 0"
+                        )
+                        continue
+                    for field_name in lai_required:
+                        raw = getattr(lai, field_name, None)
+                        if getattr(raw, "value", raw) is None:
+                            critical_issues.append(
+                                f"sites[{i}] ({site_name}), land_cover.{surface_name}.lai: "
+                                f"{field_name} is None but {surface_name}.sfr={sfr_value} > 0"
+                            )
+
+                bldgs = getattr(land_cover, "bldgs", None)
+                if bldgs is not None:
+                    sfr_raw = getattr(bldgs, "sfr", None)
+                    sfr_value = getattr(sfr_raw, "value", sfr_raw)
+                    if sfr_value is not None and sfr_value > 0:
+                        for field_name in ("bldgh", "faibldg"):
+                            raw = getattr(bldgs, field_name, None)
+                            if getattr(raw, "value", raw) is None:
+                                critical_issues.append(
+                                    f"sites[{i}] ({site_name}), land_cover.bldgs: "
+                                    f"{field_name} is None but bldgs.sfr={sfr_value} > 0"
+                                )
+
+                evetr = getattr(land_cover, "evetr", None)
+                if evetr is not None:
+                    sfr_raw = getattr(evetr, "sfr", None)
+                    sfr_value = getattr(sfr_raw, "value", sfr_raw)
+                    if sfr_value is not None and sfr_value > 0:
+                        for field_name in (
+                            "height_evergreen_tree",
+                            "fai_evergreen_tree",
+                        ):
+                            raw = getattr(evetr, field_name, None)
+                            if getattr(raw, "value", raw) is None:
+                                critical_issues.append(
+                                    f"sites[{i}] ({site_name}), land_cover.evetr: "
+                                    f"{field_name} is None but evetr.sfr={sfr_value} > 0"
+                                )
+
+                dectr = getattr(land_cover, "dectr", None)
+                if dectr is not None:
+                    sfr_raw = getattr(dectr, "sfr", None)
+                    sfr_value = getattr(sfr_raw, "value", sfr_raw)
+                    if sfr_value is not None and sfr_value > 0:
+                        for field_name in (
+                            "height_deciduous_tree",
+                            "fai_deciduous_tree",
+                        ):
+                            raw = getattr(dectr, field_name, None)
+                            if getattr(raw, "value", raw) is None:
+                                critical_issues.append(
+                                    f"sites[{i}] ({site_name}), land_cover.dectr: "
+                                    f"{field_name} is None but dectr.sfr={sfr_value} > 0"
+                                )
+
+            if active_veg:
+                conductance = getattr(props, "conductance", None)
+                readout = ", ".join(
+                    f"{name}.sfr={sfr}" for name, sfr in active_veg.items()
+                )
+                if conductance is None:
+                    critical_issues.append(
+                        f"sites[{i}] ({site_name}): conductance block is missing "
+                        f"but vegetated surfaces are active ({readout})"
+                    )
+                else:
+                    for field_name in conductance_required:
+                        raw = getattr(conductance, field_name, None)
+                        if getattr(raw, "value", raw) is None:
+                            critical_issues.append(
+                                f"sites[{i}] ({site_name}): conductance.{field_name} "
+                                f"is None but vegetated surfaces are active ({readout})"
+                            )
 
         return critical_issues
 

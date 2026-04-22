@@ -54,6 +54,14 @@ EXAMPLES:
 
 ## 2026
 
+### 22 Apr 2026
+
+- [bugfix] Reject sparse YAML configs that omit physics-required fields (#1333)
+  - Added `SUEWSConfig._check_critical_null_site_params()` to `validate_parameter_completeness`: raises `ValueError` at load when a vegetated surface (`dectr`/`evetr`/`grass`) with `sfr > 0` is missing any of `lai_max`, `base_temperature`, `base_temperature_senescence`, `gdd_full`, `sdd_full`; when `bldgs.sfr > 0` is missing `bldgh`/`faibldg`; when active tree surfaces are missing `height_*_tree` or `fai_*_tree`; or when vegetated surfaces are active but the site's `Conductance` block has any `None` field (all eleven: `g_max`, `g_k`, `g_q_base`, `g_q_shape`, `g_t`, `g_sm`, `kmax`, `s1`, `s2`, `tl`, `th`)
+  - Previously such configs logged `Found N parameter issue(s)` WARNING and ran to completion; on x86_64 the `Optional=None` fields were stripped by `model_dump(exclude_none=True)` and reached the Rust backend as zero, producing all-NaN `T2` / `State` / `QH` via `0/0` and `0*Inf` in `suews_phys_resist.f95::SurfaceResistance` (236/240 NaN on Banbury Linux; 0/240 on macOS arm64 by floating-point luck)
+  - Gated on `self._yaml_path is not None`, so programmatic constructions (`SUEWSConfig(sites=[Site(...)])` in unit tests that rely on `default_factory`-materialised surfaces with `sfr=1/7`) are unaffected
+  - `auto_generate_annotated=True` now also emits the template on the failure path so users get an actionable starting point alongside the error
+
 ### 21 Apr 2026
 
 - [bugfix] Honour explicit `format=` kwarg in `SUEWSSimulation.save` against `OutputConfig.format` (#1318)

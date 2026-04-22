@@ -2240,7 +2240,13 @@ class TestTopDownValidation:
         assert len(w) == 0, f"Component creation generated {len(w)} warnings"
 
     def test_validation_at_config_level(self):
-        """Test that validation happens at config level with clear summary."""
+        """Critical missing physics fields raise on load (gh#1333).
+
+        Previously the validator logged a WARNING summary and let the
+        simulation run; the resulting NaN output was silent on x86_64.
+        Now ``from_yaml`` raises ``ValueError`` with the missing fields
+        named in the message.
+        """
         config_yaml = """
 sites:
   - site_id: test_site
@@ -2256,37 +2262,26 @@ sites:
             yaml_path = Path(f.name)
 
         try:
-            # Capture validation output
-            log_capture = io.StringIO()
-            handler = logging.StreamHandler(log_capture)
-            handler.setLevel(logging.WARNING)
-            logger = logging.getLogger("SuPy")
+            with pytest.raises(ValueError) as exc_info:
+                SUEWSConfig.from_yaml(yaml_path)
 
-            # Ensure logger level allows WARNING messages
-            original_level = logger.level
-            logger.setLevel(logging.WARNING)
-            logger.addHandler(handler)
-
-            # Load config
-            config = SUEWSConfig.from_yaml(yaml_path)
-
-            # Check validation summary was generated
-            log_output = log_capture.getvalue()
-            assert "VALIDATION SUMMARY" in log_output
-            assert "Missing building parameters" in log_output
-            assert "generate_annotated_yaml" in log_output
-
-            logger.removeHandler(handler)
-            logger.setLevel(original_level)
-
+            message = str(exc_info.value)
+            assert "bldgh" in message
+            assert "faibldg" in message
         finally:
             yaml_path.unlink()
 
     def test_annotated_yaml_generation(self):
-        """Test annotated YAML shows missing parameters clearly."""
+        """Annotated YAML surfaces missing parameters clearly.
+
+        Post-gh#1333, ``from_yaml`` on a config missing critical physics
+        fields raises; with ``auto_generate_annotated=True`` the annotated
+        template is emitted before the raise so users get actionable
+        feedback alongside the error.
+        """
         config_yaml = """
 sites:
-  - site_id: test_site  
+  - site_id: test_site
     properties:
       land_cover:
         bldgs:
@@ -2296,13 +2291,12 @@ sites:
         with tempfile.NamedTemporaryFile(mode="w", suffix=".yml", delete=False) as f:
             f.write(config_yaml)
             yaml_path = Path(f.name)
+        annotated_path = yaml_path.parent / f"{yaml_path.stem}_annotated.yml"
 
         try:
-            config = SUEWSConfig.from_yaml(yaml_path)
-            annotated_path = config.generate_annotated_yaml(yaml_path)
+            with pytest.raises(ValueError):
+                SUEWSConfig.from_yaml(yaml_path, auto_generate_annotated=True)
 
-            # Check annotated file exists and contains annotations
-            annotated_path = Path(annotated_path)  # Convert string to Path
             assert annotated_path.exists()
             content = annotated_path.read_text()
 
@@ -2316,10 +2310,10 @@ sites:
             assert "bldgh: 20.0" in content or "bldgh: " in content
             assert "bldgh: {value:" not in content
 
-            annotated_path.unlink()
-
         finally:
             yaml_path.unlink()
+            if annotated_path.exists():
+                annotated_path.unlink()
 
     def test_no_validation_with_complete_config(self):
         """Test no warnings when all required parameters are provided."""
@@ -2328,7 +2322,14 @@ sites:
         pass
 
     def test_auto_generate_annotated_yaml_option(self):
-        """Test auto_generate_annotated parameter works correctly."""
+        """``auto_generate_annotated=True`` emits the template on the failure path.
+
+        Post-gh#1333, a config missing critical physics fields raises at
+        ``from_yaml`` time. When the caller requested
+        ``auto_generate_annotated=True``, the validator still writes the
+        annotated template before raising so users get a helpful starting
+        point alongside the error message.
+        """
         config_yaml = """
 sites:
   - name: Test Site
@@ -2345,33 +2346,33 @@ sites:
         with tempfile.NamedTemporaryFile(mode="w", suffix=".yml", delete=False) as f:
             f.write(config_yaml)
             yaml_path = Path(f.name)
+        annotated_path = yaml_path.parent / f"{yaml_path.stem}_annotated.yml"
 
         try:
-            # Test with auto_generate_annotated=True
-            config = SUEWSConfig.from_yaml(yaml_path, auto_generate_annotated=True)
+            # auto_generate_annotated=True should still emit the template on raise
+            with pytest.raises(ValueError):
+                SUEWSConfig.from_yaml(yaml_path, auto_generate_annotated=True)
 
-            # Check that annotated file was automatically generated
-            annotated_path = yaml_path.parent / f"{yaml_path.stem}_annotated.yml"
             assert annotated_path.exists(), (
-                "Annotated YAML should be generated when auto_generate_annotated=True"
+                "Annotated YAML should be generated even when load raises, "
+                "provided auto_generate_annotated=True"
             )
-
-            # Verify content
             content = annotated_path.read_text()
             assert "ANNOTATED SUEWS CONFIGURATION" in content
             assert "bldgh" in content
-
-            # Clean up
             annotated_path.unlink()
 
-            # Test with auto_generate_annotated=False (default)
-            config2 = SUEWSConfig.from_yaml(yaml_path, auto_generate_annotated=False)
+            # auto_generate_annotated=False should not produce a template.
+            with pytest.raises(ValueError):
+                SUEWSConfig.from_yaml(yaml_path, auto_generate_annotated=False)
             assert not annotated_path.exists(), (
                 "Annotated YAML should not be generated when auto_generate_annotated=False"
             )
 
         finally:
             yaml_path.unlink()
+            if annotated_path.exists():
+                annotated_path.unlink()
 
 
 class TestValidationUtils:
@@ -2407,7 +2408,13 @@ class TestValidationUtils:
 
 # Optional: Integration test
 def test_full_validation_workflow():
-    """Test complete validation workflow from YAML to annotated output."""
+    """End-to-end: annotated YAML generator is callable on an incomplete config.
+
+    Post-gh#1333, ``from_yaml`` on a config missing critical physics fields
+    raises. The annotation generator is still a useful diagnostic tool; the
+    test exercises it via ``use_conditional_validation=False`` so the focus
+    stays on the annotator, not the validator.
+    """
     yaml_content = """
 name: Test Config
 sites:
@@ -2427,8 +2434,7 @@ sites:
         yaml_path = Path(f.name)
 
     try:
-        # Load config (triggers validation)
-        config = SUEWSConfig.from_yaml(yaml_path)
+        config = SUEWSConfig.from_yaml(yaml_path, use_conditional_validation=False)
 
         # Generate annotated YAML
         annotated = config.generate_annotated_yaml(yaml_path)
@@ -3992,3 +3998,71 @@ def test_dls_location_based_informational_messages_in_suews_config():
     )
     assert "startdls for site" in dls_messages[0]
     assert "enddls for site" not in dls_messages[0]
+
+
+# ----------------------------------------------------------------------
+# gh#1333 regression: sparse YAML must raise at load, not warn + run
+# ----------------------------------------------------------------------
+
+
+class TestSparseYmlCriticalMissing:
+    """Regression tests for gh#1333.
+
+    A sparse user YAML that omits physics-required blocks (``conductance``,
+    ``lai``, tree ``fai_*`` / ``height_*``, ``bldgs.faibldg``) must raise
+    ``ValidationError`` at ``SUEWSConfig.from_yaml()`` time. Previously the
+    validator logged a WARNING and let the simulation run, producing
+    all-NaN output on x86_64.
+    """
+
+    SPARSE_FIXTURE = (
+        Path(__file__).parent.parent / "fixtures" / "sparse_site.yml"
+    )
+    SAMPLE_CONFIG = Path(sp.__file__).parent / "sample_data" / "sample_config.yml"
+
+    def test_sparse_yml_raises_validation_error(self):
+        """Sparse config raises on load, naming each missing block.
+
+        ``SUEWSConfig.from_yaml`` intercepts the underlying
+        ``pydantic.ValidationError`` and re-raises as ``ValueError``
+        with a rewritten message, so that's what the public API surfaces.
+        """
+        assert self.SPARSE_FIXTURE.exists(), (
+            f"Fixture missing: {self.SPARSE_FIXTURE}"
+        )
+
+        with pytest.raises(ValueError) as exc_info:
+            SUEWSConfig.from_yaml(str(self.SPARSE_FIXTURE))
+
+        message = str(exc_info.value)
+
+        # Conductance block (Tier 3 — physics-conditional on any active veg).
+        assert "conductance.g_max" in message
+        assert "conductance.g_sm" in message
+
+        # Per-surface structural fields (Tier 2 — surface-presence-conditional).
+        assert "faibldg" in message
+        assert "fai_evergreen_tree" in message
+        assert "height_evergreen_tree" in message
+        assert "fai_deciduous_tree" in message
+        assert "height_deciduous_tree" in message
+
+        # LAI phenology fields on active vegetated surfaces (Tier 2).
+        assert "lai_max" in message
+        assert "base_temperature" in message
+        assert "gdd_full" in message
+        assert "sdd_full" in message
+
+    def test_sample_config_still_loads(self):
+        """Packaged sample config is complete and must not trigger the new check."""
+        assert self.SAMPLE_CONFIG.exists(), (
+            f"Sample config missing: {self.SAMPLE_CONFIG}"
+        )
+        # Must not raise; a successful load is the assertion.
+        config = SUEWSConfig.from_yaml(str(self.SAMPLE_CONFIG))
+        assert config is not None
+
+    def test_site_params_check_returns_empty_on_complete_config(self):
+        """Direct method check — complete config yields no critical issues."""
+        config = SUEWSConfig.from_yaml(str(self.SAMPLE_CONFIG))
+        assert config._check_critical_null_site_params() == []

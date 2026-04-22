@@ -11,27 +11,27 @@ pub type LaiPrmValuesPayload = ValuesPayload;
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct LaiPrm {
-    pub baset: f64,
-    pub gddfull: f64,
-    pub basete: f64,
-    pub sddfull: f64,
-    pub laimin: f64,
-    pub laimax: f64,
-    pub laipower: [f64; 4],
-    pub laitype: i32,
+    pub base_temperature: f64,
+    pub gdd_full: f64,
+    pub base_temperature_senescence: f64,
+    pub sdd_full: f64,
+    pub lai_min: f64,
+    pub lai_max: f64,
+    pub lai_power: [f64; 4],
+    pub lai_type: i32,
 }
 
 impl Default for LaiPrm {
     fn default() -> Self {
         Self {
-            baset: 0.0,
-            gddfull: 0.0,
-            basete: 0.0,
-            sddfull: 0.0,
-            laimin: 0.0,
-            laimax: 0.0,
-            laipower: [0.0; 4],
-            laitype: 0,
+            base_temperature: 0.0,
+            gdd_full: 0.0,
+            base_temperature_senescence: 0.0,
+            sdd_full: 0.0,
+            lai_min: 0.0,
+            lai_max: 0.0,
+            lai_power: [0.0; 4],
+            lai_type: 0,
         }
     }
 }
@@ -57,30 +57,30 @@ impl LaiPrm {
     pub fn from_flat(flat: &[f64]) -> Result<Self, BridgeError> {
         validate_flat_len(flat, LAI_PRM_FLAT_LEN)?;
         Ok(Self {
-            baset: flat[0],
-            gddfull: flat[1],
-            basete: flat[2],
-            sddfull: flat[3],
-            laimin: flat[4],
-            laimax: flat[5],
-            laipower: [flat[6], flat[7], flat[8], flat[9]],
-            laitype: decode_int(flat[10])?,
+            base_temperature: flat[0],
+            gdd_full: flat[1],
+            base_temperature_senescence: flat[2],
+            sdd_full: flat[3],
+            lai_min: flat[4],
+            lai_max: flat[5],
+            lai_power: [flat[6], flat[7], flat[8], flat[9]],
+            lai_type: decode_int(flat[10])?,
         })
     }
 
     pub fn to_flat(&self) -> Vec<f64> {
         vec![
-            self.baset,
-            self.gddfull,
-            self.basete,
-            self.sddfull,
-            self.laimin,
-            self.laimax,
-            self.laipower[0],
-            self.laipower[1],
-            self.laipower[2],
-            self.laipower[3],
-            self.laitype as f64,
+            self.base_temperature,
+            self.gdd_full,
+            self.base_temperature_senescence,
+            self.sdd_full,
+            self.lai_min,
+            self.lai_max,
+            self.lai_power[0],
+            self.lai_power[1],
+            self.lai_power[2],
+            self.lai_power[3],
+            self.lai_type as f64,
         ]
     }
 }
@@ -159,9 +159,9 @@ mod tests {
         mapped.insert("laitype".to_string(), 1.0);
 
         let updated = lai_prm_from_map(&mapped).expect("map to state should succeed");
-        assert!((updated.laimax - 5.0).abs() < 1.0e-12);
-        assert!((updated.laipower[2] - 0.6).abs() < 1.0e-12);
-        assert_eq!(updated.laitype, 1);
+        assert!((updated.lai_max - 5.0).abs() < 1.0e-12);
+        assert!((updated.lai_power[2] - 0.6).abs() < 1.0e-12);
+        assert_eq!(updated.lai_type, 1);
     }
 
     #[test]

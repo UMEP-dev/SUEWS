@@ -356,8 +356,12 @@ def check_rcmethod2_facet(required_params, building_archetype, site_idx, site_gr
     provided_facet = []
     results = []
     for param in required_params:
-        entry = building_archetype.get(param, {})
-        value = entry.get("value") if isinstance(entry, Mapping) else entry
+        entry_or_value = get_value_safe(building_archetype, param)
+        value = (
+            entry_or_value.get("value")
+            if isinstance(entry_or_value, Mapping)
+            else entry_or_value
+        )
         if value in (None, ""):
             results.append(
                 ValidationResult(
@@ -475,16 +479,16 @@ def validate_model_option_rcmethod(context) -> List[ValidationResult]:
 
         elif rcmethod_value == 2:
             required_wall_params = [
-                "WallextThickness",
-                "WallextEffectiveConductivity",
-                "WallextDensity",
-                "WallextCp",
+                "WallExternalThickness",
+                "WallExternalEffectiveConductivity",
+                "WallExternalDensity",
+                "WallExternalCp",
             ]
             required_roof_params = [
-                "RoofextThickness",
-                "RoofextEffectiveConductivity",
-                "RoofextDensity",
-                "RoofextCp",
+                "RoofExternalThickness",
+                "RoofExternalEffectiveConductivity",
+                "RoofExternalDensity",
+                "RoofExternalCp",
             ]
             # Collect provided wall params
             for facet, facet_params in zip(

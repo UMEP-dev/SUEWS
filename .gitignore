@@ -658,3 +658,9 @@ test/fixtures/gh846/*.zip
 
 # Conductor agent collaboration directory
 .context/
+
+# Auto-generated schema-publisher artefacts
+# (produced by `python -m supy.data_model.schema.exporter` /
+# `suews-schema publish`; the canonical committed copy lives at
+# docs/source/inputs/tables/schema.json)
+site/schemas/

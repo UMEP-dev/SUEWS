@@ -48,12 +48,90 @@ need to bump.
 
 ---
 
+## Dev-label convention during a release cycle
+
+Between formal releases we use PEP 440 `.devN` suffixes rather than
+inflating the CalVer number once per PR. This keeps the "target
+release" label stable throughout development while still satisfying
+the CI lint (which only checks that `CURRENT_SCHEMA_VERSION` moves
+*at all* when `src/supy/data_model/` is touched).
+
+**Naming rule:**
+
+- First structural PR after a formal release bumps to
+  `<next-target>.dev1` (e.g. immediately after shipping `2026.4`, the
+  first breaking PR moves to `"2026.5.dev1"` — never directly to
+  `"2026.5"`).
+- Each subsequent structural PR increments the dev counter:
+  `.dev1` -> `.dev2` -> `.dev3` ...
+- Only the **release PR itself** drops the `.devN` suffix, collapsing
+  the dev chain into the final label (`"2026.5.devN"` -> `"2026.5"`).
+
+**Per-PR bookkeeping inside a dev cycle:**
+
+- `SCHEMA_VERSIONS` gains a new entry keyed on the new dev label,
+  describing only the delta this PR introduces (not a cumulative
+  summary).
+- `_HANDLERS` in `yaml_upgrade.py` registers a handler keyed on the
+  previous dev label (or the last released label, for `.dev1`).
+  Example: PR 3 in a cycle adds
+  `("2026.5.dev2", "2026.5.dev3"): _migrate_2026_5_dev2_to_current`.
+- `sample_config.yml`'s `schema_version` follows `CURRENT_SCHEMA_VERSION`
+  at each step.
+- `docs/source/contributing/schema/schema_versioning.rst` and
+  `docs/source/inputs/transition_guide.rst` each get a dedicated
+  per-dev-label entry (the schema-audit CI check requires doc churn
+  in the same PR whenever the version literal moves).
+
+**Release-PR collapse step** (codified in the `prep-release` skill):
+
+- Set `CURRENT_SCHEMA_VERSION` to the plain CalVer label
+  (`"2026.5.devN"` -> `"2026.5"`).
+- Remove every `.devN` entry from `SCHEMA_VERSIONS`; add one
+  consolidated `"2026.5"` entry summarising the union of deltas from
+  all dev labels in the cycle.
+- Remove every `(2026.5.devN, 2026.5.devM)` and
+  `(<prev-release>, 2026.5.devN)` entry from `_HANDLERS`; add a single
+  `(<prev-release>, "2026.5")` handler whose body applies the union
+  of all dev deltas (ordered to match how they applied in sequence,
+  so logged rename/drop lines stay audit-friendly).
+- Update the vendored release fixture under
+  `test/fixtures/release_configs/<release-tag>.yml` to the collapsed
+  shape.
+- Add the release-tag mapping to
+  `yaml_upgrade.py::_PACKAGE_TO_SCHEMA` (e.g.
+  `"2026.5.0": "2026.5"`).
+
+**Rationale:**
+
+- The version number stays semantically tied to the release it's
+  targeting; we don't chew through five CalVer labels for five PRs
+  that all land in the same release.
+- The CI's `check_schema_version_bump.py` gate is satisfied by the
+  `.devN` increment (literal string moves).
+- Released packages never expose dev labels: the collapse happens
+  atomically in the release PR.
+- Users who pull development branches see `2026.5.dev3` (or similar)
+  in their local samples — a clear signal that the schema is still
+  in flux.
+
+**Caveat about `get_schema_compatibility_message`:** the float-parse
+path in `version.py::get_schema_compatibility_message` raises
+`ValueError` on `"5.dev3"` and falls through to a generic message
+via `except (ValueError, IndexError):`. This degrades the "older vs
+newer" judgement but does not crash. Fix is optional; if addressed,
+use `packaging.version.Version` for the comparison.
+
+---
+
 ## How to bump
 
 1. Edit `src/supy/data_model/schema/version.py`:
-   - Set `CURRENT_SCHEMA_VERSION` to the next CalVer label (YYYY.M
-     aligned with the current month; use the shortest form, e.g.
-     `"2026.5"`, not `"2026.05"`).
+   - Set `CURRENT_SCHEMA_VERSION` per the dev-label convention above
+     — `"<target>.dev1"` for the first structural PR of a new cycle,
+     `.devN+1` for subsequent PRs, plain CalVer (e.g. `"2026.5"`)
+     only inside the release PR itself. Use the shortest form
+     (`"2026.5"`, not `"2026.05"`).
    - Add one entry to `SCHEMA_VERSIONS` describing precisely what
      changed, with issue / PR references.
    - (There is no separate compatibility table to update.

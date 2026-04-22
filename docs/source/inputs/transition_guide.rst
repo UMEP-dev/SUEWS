@@ -180,11 +180,60 @@ The sections below summarise what users see change between schemas.
 The authoritative lineage (including release-tag to schema mapping)
 lives in :ref:`schema_version_history`.
 
-Upgrading to Schema 2026.5 (Category 1 fused-identifier rename)
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Upgrading to Schema 2026.5.dev1 (Category 5 of #1256: STEBBS `ext` split)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Schema ``2026.5`` is the current shape. It applies the Category 1
-fused-identifier rename sweep from #1256: 59 compound field names in
+Schema ``2026.5.dev1`` is the current in-development shape. It
+applies Category 5 of #1256 (gh#1327): eight STEBBS
+``ArchetypeProperties`` fields with the fused ``ext`` fragment are
+rewritten to the spelt-out ``External`` form, bringing them into
+line with sibling ``WallExternalEmissivity`` /
+``RoofExternalEmissivity``:
+
+- ``WallextThickness`` -> ``WallExternalThickness``
+- ``WallextEffectiveConductivity`` ->
+  ``WallExternalEffectiveConductivity``
+- ``WallextDensity`` -> ``WallExternalDensity``
+- ``WallextCp`` -> ``WallExternalCp``
+- ``RoofextThickness`` -> ``RoofExternalThickness``
+- ``RoofextEffectiveConductivity`` ->
+  ``RoofExternalEffectiveConductivity``
+- ``RoofextDensity`` -> ``RoofExternalDensity``
+- ``RoofextCp`` -> ``RoofExternalCp``
+
+STEBBS PascalCase itself is kept (it matches the Fortran-side STEBBS
+interface); the Fortran-side identifiers are unchanged and the
+Python-to-Fortran bridge reverses the rename before handoff.
+
+The full mapping lives in
+``src/supy/data_model/core/field_renames.py``. Legacy spellings
+continue to load under a ``DeprecationWarning`` so existing YAMLs
+are not broken, but new configurations should use the new names and
+persisted YAMLs should be migrated. Run:
+
+.. code-block:: bash
+
+   suews-schema migrate your_config.yml --target-version 2026.5.dev1
+
+The migrator accepts any registered intermediate (for example
+``2025.12``, ``2026.1``, ``2026.4`` or ``2026.5``) and walks the
+chain to the current schema in one call. Your values survive the
+rename untouched — only the key names change.
+
+.. note::
+
+   ``2026.5.dev1`` is a PEP 440 pre-release label used during the
+   2026.5 development cycle. The release PR will collapse this label
+   (and any further ``.devN`` increments) into a single ``2026.5``
+   entry; at that point ``--target-version 2026.5`` becomes the
+   canonical invocation for this migration.
+
+Upgrading to Schema 2026.5 (Category 1 of #1256: snake_case sweep)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Schema ``2026.5`` is the Category 1 base on top of which the
+``.devN`` dev cycle builds. It applies Category 1 of #1256: 59
+fused compound field names in
 ``ModelPhysics``, ``SurfaceProperties``, ``LAIParams``,
 ``VegetatedSurfaceProperties``, ``EvetrProperties``,
 ``DectrProperties``, and ``SnowParams`` are rewritten to
@@ -198,20 +247,9 @@ fused-identifier rename sweep from #1256: 59 compound field names in
 - ``crwmax`` -> ``water_holding_capacity_max``
 - ``laimin`` / ``laimax`` -> ``lai_min`` / ``lai_max``
 
-The full mapping lives in
-``src/supy/data_model/core/field_renames.py``. Legacy spellings
-continue to load under a ``DeprecationWarning`` so existing YAMLs
-are not broken, but new configurations should use the new names and
-persisted YAMLs should be migrated. Run:
-
-.. code-block:: bash
-
-   suews-schema migrate your_config.yml --target-version 2026.5
-
-The migrator accepts any registered intermediate (for example
-``2025.12`` or ``2026.4``) and walks the chain to the current schema
-in one call. Your values survive the rename untouched — only the
-key names change.
+Callers pinning ``--target-version 2026.5`` stop here; the default
+``--target-version 2026.6`` picks up the STEBBS ``ext`` rename on
+top.
 
 Upgrading to Schema 2026.4 (SUEWS 2026.4.3)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

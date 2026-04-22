@@ -13,24 +13,70 @@ from typing import Any, Dict
 
 
 # -- ModelPhysics (model.py) -------------------------------------------------
+#
+# MODELPHYSICS_RENAMES maps legacy fused spellings DIRECTLY to the current
+# final names (Category 1 fused -> Category 2+3 bare where applicable).
+# This consolidation keeps ALL_FIELD_RENAMES a one-to-one map between
+# legacy-fused keys and final values — critical for the Rust bridge's
+# reverse lookup (Fortran state is still keyed by the fused spelling).
+#
+# MODELPHYSICS_SUFFIX_RENAMES maps the Category 1 intermediate (shipped
+# in Schema 2026.5 as `net_radiation_method` etc.) to the final bare
+# names. Consumed only by the Pydantic backward-compat shim on
+# ``ModelPhysics`` so users who hand-wrote their YAMLs to the 2026.5
+# snake_case-with-suffix shape still load with a DeprecationWarning.
 
 MODELPHYSICS_RENAMES: Dict[str, str] = {
-    "netradiationmethod": "net_radiation_method",
-    "emissionsmethod": "emissions_method",
-    "storageheatmethod": "storage_heat_method",
+    # Fused -> Category 2+3 final (shadows both Cat 1 and Cat 2+3 for
+    # users arriving from any pre-2026.5.dev2 schema in a single step).
+    "netradiationmethod": "net_radiation",
+    "emissionsmethod": "emissions",
+    "storageheatmethod": "storage_heat",
+    "roughlenmommethod": "roughness_length_momentum",
+    "roughlenheatmethod": "roughness_length_heat",
+    "stabilitymethod": "stability",
+    "smdmethod": "soil_moisture_deficit",
+    "waterusemethod": "water_use",
+    "rslmethod": "roughness_sublayer",
+    "faimethod": "frontal_area_index",
+    "rsllevel": "roughness_sublayer_level",
+    "gsmodel": "surface_conductance",
+    "stebbsmethod": "stebbs",
+    "rcmethod": "outer_cap_fraction",
+    "setpointmethod": "setpoint",  # fused identifier missed by Category 1
+    # Flags/enum choices not touched by Category 2+3 keep their Cat 1 target.
     "ohmincqf": "ohm_inc_qf",
-    "roughlenmommethod": "roughness_length_momentum_method",
-    "roughlenheatmethod": "roughness_length_heat_method",
-    "stabilitymethod": "stability_method",
-    "smdmethod": "smd_method",
-    "waterusemethod": "water_use_method",
-    "rslmethod": "rsl_method",
-    "faimethod": "fai_method",
-    "rsllevel": "rsl_level",
-    "gsmodel": "gs_model",
     "snowuse": "snow_use",
-    "stebbsmethod": "stebbs_method",
-    "rcmethod": "rc_method",
+}
+
+# Category 1 intermediate (snake_case with redundant suffix) -> final bare.
+# Applied in ``ModelPhysics._rename_physics_fields`` after
+# ``MODELPHYSICS_RENAMES`` so YAMLs authored against Schema 2026.5 (15
+# days of release window) keep loading with a deprecation warning.
+# NOT spread into ``ALL_FIELD_RENAMES`` — doing so would introduce a
+# second alias for the same final name and break the one-to-one
+# reverse-mapping the Rust bridge depends on. Users running the Rust
+# CLI (``suews run``) on a Schema 2026.5 YAML should migrate via
+# ``suews-schema migrate --target-version 2026.5.dev2`` first.
+
+MODELPHYSICS_SUFFIX_RENAMES: Dict[str, str] = {
+    # Suffix drop (8) -- enum type (e.g. NetRadiationMethod) carries "method"
+    "net_radiation_method": "net_radiation",
+    "emissions_method": "emissions",
+    "storage_heat_method": "storage_heat",
+    "roughness_length_momentum_method": "roughness_length_momentum",
+    "roughness_length_heat_method": "roughness_length_heat",
+    "stability_method": "stability",
+    "water_use_method": "water_use",
+    "stebbs_method": "stebbs",
+    # Expand opaque domain abbreviations (4)
+    "smd_method": "soil_moisture_deficit",
+    "rsl_method": "roughness_sublayer",
+    "rsl_level": "roughness_sublayer_level",
+    "fai_method": "frontal_area_index",
+    # Expand + semantic rename (2)
+    "rc_method": "outer_cap_fraction",
+    "gs_model": "surface_conductance",
 }
 
 # -- SurfaceProperties (surface.py) ------------------------------------------
@@ -125,6 +171,12 @@ SNOWPARAMS_RENAMES: Dict[str, str] = {
 }
 
 # -- Combined -----------------------------------------------------------------
+#
+# ``ALL_FIELD_RENAMES`` is a one-to-one map from every legacy fused key to
+# its current final name. ``MODELPHYSICS_SUFFIX_RENAMES`` is deliberately
+# NOT spread here — it carries Cat 1 intermediate aliases that would
+# introduce a second alias per final name, which the Rust bridge's
+# reverse lookup (``ALL_FIELD_RENAMES`` inverted) cannot represent.
 
 ALL_FIELD_RENAMES: Dict[str, str] = {
     **MODELPHYSICS_RENAMES,
@@ -137,10 +189,30 @@ ALL_FIELD_RENAMES: Dict[str, str] = {
     **SNOWPARAMS_RENAMES,
 }
 
-# Reverse mapping: new_name -> old_name (for serialisation to Fortran bridge)
+# Reverse mapping: new_name -> old_name (for serialisation to Fortran bridge).
+# The Fortran bridge still indexes state by fused spellings, so `_REVERSE_*`
+# maps each final public name back to its original fused form.
 _REVERSE_RENAMES: Dict[str, str] = {v: k for k, v in ALL_FIELD_RENAMES.items()}
+
+# For raw-YAML preflight checks that bypass Pydantic. Both the fused form
+# (`netradiationmethod`) and the Category 1 intermediate form
+# (`net_radiation_method`) must resolve to the final bare name, so the
+# combined mapping unions MODELPHYSICS_RENAMES (fused -> final) with
+# MODELPHYSICS_SUFFIX_RENAMES (intermediate -> final). The Cat 1
+# intermediate keys are dict-disjoint from the fused keys, so the
+# ``|`` union is safe and order-independent.
+_MODELPHYSICS_ALL_RENAMES: Dict[str, str] = {
+    # Order matters for the reverse map below: spreading SUFFIX first and
+    # RENAMES last means inverting the dict prefers the fused legacy
+    # (``netradiationmethod``) over the Cat 1 intermediate
+    # (``net_radiation_method``) when both claim the same final target.
+    # The Fortran bridge's state is keyed by the fused form, so the
+    # reverse map must point at the fused legacy.
+    **MODELPHYSICS_SUFFIX_RENAMES,
+    **MODELPHYSICS_RENAMES,
+}
 _REVERSE_MODELPHYSICS_RENAMES: Dict[str, str] = {
-    v: k for k, v in MODELPHYSICS_RENAMES.items()
+    v: k for k, v in _MODELPHYSICS_ALL_RENAMES.items()
 }
 _MISSING = object()
 
@@ -202,7 +274,7 @@ def read_physics_key(physics: dict, new_name: str, default: Any = None):
     entry = read_renamed_key(
         physics,
         new_name,
-        renames=MODELPHYSICS_RENAMES,
+        renames=_MODELPHYSICS_ALL_RENAMES,
         reverse_renames=_REVERSE_MODELPHYSICS_RENAMES,
         default=default,
     )
@@ -253,6 +325,15 @@ def read_renamed_key(
     renamed_name = renames.get(name)
     if renamed_name is not None and renamed_name in data:
         return data[renamed_name]
+
+    # A single ``name`` may be the target of more than one legacy alias
+    # (e.g. ``net_radiation`` is reached from both fused ``netradiationmethod``
+    # and Cat 1 intermediate ``net_radiation_method``). The one-to-one
+    # reverse map only captures one of those; walk the full rename dict
+    # to catch any other legacy alias still sitting in ``data``.
+    for old_key, new_key in renames.items():
+        if new_key == name and old_key in data:
+            return data[old_key]
 
     return default
 

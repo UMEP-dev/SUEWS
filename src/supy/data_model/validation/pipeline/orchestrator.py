@@ -87,22 +87,22 @@ def detect_pydantic_defaults(
     """Detect where the validation system applied defaults and separate critical nulls from normal defaults."""
     # Critical physics parameters that get converted to int() in df_state
     CRITICAL_PHYSICS_PARAMS = [
-        "net_radiation_method",
-        "emissions_method",
-        "storage_heat_method",
+        "net_radiation",
+        "emissions",
+        "storage_heat",
         "ohm_inc_qf",
-        "roughness_length_momentum_method",
-        "roughness_length_heat_method",
-        "stability_method",
-        "smd_method",
-        "water_use_method",
-        "rsl_method",
-        "fai_method",
-        "rsl_level",
-        "gs_model",
+        "roughness_length_momentum",
+        "roughness_length_heat",
+        "stability",
+        "soil_moisture_deficit",
+        "water_use",
+        "roughness_sublayer",
+        "frontal_area_index",
+        "roughness_sublayer_level",
+        "surface_conductance",
         "snow_use",
-        "stebbs_method",
-        "rc_method",
+        "stebbs",
+        "outer_cap_fraction",
     ]
 
     # Internal parameters that are not used by SUEWS and should not be reported to users
@@ -1233,10 +1233,10 @@ Modes:
                 )
                 restrictions_violated = []
 
-                stebbs_method = read_physics_key(physics, "stebbs_method")
+                stebbs_method = read_physics_key(physics, "stebbs")
                 if stebbs_method is not None and stebbs_method != 0:
                     restrictions_violated.append(
-                        "STEBBS method is enabled (stebbs_method != 0)"
+                        "STEBBS is enabled (stebbs != 0)"
                     )
 
                 snowuse = read_physics_key(physics, "snow_use")
@@ -1262,7 +1262,7 @@ Modes:
                     print(
                         "  2. Disable developer features in your YAML file and rerun processor:"
                     )
-                    print("     - Set stebbs_method = 0 (if enabled)")
+                    print("     - Set stebbs = 0 (if enabled)")
                     print("     - Set snow_use = 0 (if enabled)")
                     print()
                     print("Processor halted due to mode restrictions")

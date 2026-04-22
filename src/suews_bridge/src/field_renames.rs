@@ -32,28 +32,32 @@ use serde_yaml::Value;
 /// Ordered list of `(new_name, old_name)` pairs.
 ///
 /// Grouped to match the Python registry sections in
-/// `src/supy/data_model/core/field_renames.py`:
-/// ModelPhysics, SurfaceProperties, LAIParams, VegetatedSurfaceProperties,
-/// EvetrProperties, DectrProperties, ArchetypeProperties, SnowParams.
-/// Total: 67 pairs.
+/// `src/supy/data_model/core/field_renames.py`. Each pair maps the
+/// current final name to its legacy fused spelling (what the Fortran
+/// state is keyed by). Category 1 intermediate spellings from Schema
+/// 2026.5 (e.g. `net_radiation_method`) are NOT aliased here — users
+/// still running a 2026.5 YAML through `suews run` should migrate via
+/// `suews-schema migrate --target-version 2026.5.dev2` first.
+/// Total: 68 pairs.
 pub const FIELD_RENAMES: &[(&str, &str)] = &[
-    // ModelPhysics (16)
-    ("net_radiation_method", "netradiationmethod"),
-    ("emissions_method", "emissionsmethod"),
-    ("storage_heat_method", "storageheatmethod"),
+    // ModelPhysics (17) — fused -> final (Cat 2+3, gh#1321) + flags
+    ("net_radiation", "netradiationmethod"),
+    ("emissions", "emissionsmethod"),
+    ("storage_heat", "storageheatmethod"),
     ("ohm_inc_qf", "ohmincqf"),
-    ("roughness_length_momentum_method", "roughlenmommethod"),
-    ("roughness_length_heat_method", "roughlenheatmethod"),
-    ("stability_method", "stabilitymethod"),
-    ("smd_method", "smdmethod"),
-    ("water_use_method", "waterusemethod"),
-    ("rsl_method", "rslmethod"),
-    ("fai_method", "faimethod"),
-    ("rsl_level", "rsllevel"),
-    ("gs_model", "gsmodel"),
+    ("roughness_length_momentum", "roughlenmommethod"),
+    ("roughness_length_heat", "roughlenheatmethod"),
+    ("stability", "stabilitymethod"),
+    ("soil_moisture_deficit", "smdmethod"),
+    ("water_use", "waterusemethod"),
+    ("roughness_sublayer", "rslmethod"),
+    ("frontal_area_index", "faimethod"),
+    ("roughness_sublayer_level", "rsllevel"),
+    ("surface_conductance", "gsmodel"),
     ("snow_use", "snowuse"),
-    ("stebbs_method", "stebbsmethod"),
-    ("rc_method", "rcmethod"),
+    ("stebbs", "stebbsmethod"),
+    ("outer_cap_fraction", "rcmethod"),
+    ("setpoint", "setpointmethod"),
     // SurfaceProperties (11)
     ("soil_depth", "soildepth"),
     ("soil_store_capacity", "soilstorecap"),
@@ -199,7 +203,8 @@ mod tests {
     #[test]
     fn field_renames_registry_has_expected_size() {
         // Matches the Python ALL_FIELD_RENAMES total (see field_renames.py).
-        assert_eq!(FIELD_RENAMES.len(), 59);
+        // Bump when ModelPhysics / SurfaceProperties / ... dicts change.
+        assert_eq!(FIELD_RENAMES.len(), 68);
     }
 
     #[test]
@@ -214,11 +219,11 @@ mod tests {
     #[test]
     fn renames_top_level_new_key_to_legacy() {
         let mut root: Value =
-            from_str("model:\n  physics:\n    net_radiation_method: {value: 3}\n").unwrap();
+            from_str("model:\n  physics:\n    net_radiation: {value: 3}\n").unwrap();
         normalize_field_names(&mut root).unwrap();
         let physics = &root["model"]["physics"];
         assert!(physics.get("netradiationmethod").is_some());
-        assert!(physics.get("net_radiation_method").is_none());
+        assert!(physics.get("net_radiation").is_none());
     }
 
     #[test]
@@ -232,13 +237,13 @@ mod tests {
 
     #[test]
     fn renames_mixed_input_per_key() {
-        let yaml = "model:\n  physics:\n    net_radiation_method: {value: 3}\n    storageheatmethod: {value: 1}\n";
+        let yaml = "model:\n  physics:\n    net_radiation: {value: 3}\n    storageheatmethod: {value: 1}\n";
         let mut root: Value = from_str(yaml).unwrap();
         normalize_field_names(&mut root).unwrap();
         let physics = &root["model"]["physics"];
         assert!(physics.get("netradiationmethod").is_some());
         assert!(physics.get("storageheatmethod").is_some());
-        assert!(physics.get("net_radiation_method").is_none());
+        assert!(physics.get("net_radiation").is_none());
     }
 
     #[test]

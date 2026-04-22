@@ -7,7 +7,11 @@ from enum import Enum
 import inspect
 
 from .type import RefValue, Reference, FlexibleRefValue, df_from_cols
-from .field_renames import MODELPHYSICS_RENAMES, apply_field_renames
+from .field_renames import (
+    MODELPHYSICS_RENAMES,
+    MODELPHYSICS_SUFFIX_RENAMES,
+    apply_field_renames,
+)
 
 
 def _enum_description(enum_class: type[Enum]) -> str:
@@ -674,20 +678,24 @@ class ModelPhysics(BaseModel):
     @classmethod
     def _rename_physics_fields(cls, values):
         if isinstance(values, dict):
-            return apply_field_renames(values, MODELPHYSICS_RENAMES, cls.__name__)
+            # Cat 1 first (fused -> snake_case with suffix), then Cat 2 + 3
+            # (suffix drop + abbreviation expansion). Chaining lets a single
+            # YAML carrying either legacy shape land on the final name.
+            values = apply_field_renames(values, MODELPHYSICS_RENAMES, cls.__name__)
+            values = apply_field_renames(values, MODELPHYSICS_SUFFIX_RENAMES, cls.__name__)
         return values
 
-    net_radiation_method: FlexibleRefValue(NetRadiationMethod) = Field(
+    net_radiation: FlexibleRefValue(NetRadiationMethod) = Field(
         default=NetRadiationMethod.LDOWN_AIR,
         description=_enum_description(NetRadiationMethod),
         json_schema_extra={"unit": "dimensionless"},
     )
-    emissions_method: FlexibleRefValue(EmissionsMethod) = Field(
+    emissions: FlexibleRefValue(EmissionsMethod) = Field(
         default=EmissionsMethod.J11,
         description=_enum_description(EmissionsMethod),
         json_schema_extra={"unit": "dimensionless"},
     )
-    storage_heat_method: FlexibleRefValue(StorageHeatMethod) = Field(
+    storage_heat: FlexibleRefValue(StorageHeatMethod) = Field(
         default=StorageHeatMethod.OHM_WITHOUT_QF,
         description=_enum_description(StorageHeatMethod),
         json_schema_extra={"unit": "dimensionless"},
@@ -697,31 +705,31 @@ class ModelPhysics(BaseModel):
         description=_enum_description(OhmIncQf),
         json_schema_extra={"unit": "dimensionless"},
     )
-    roughness_length_momentum_method: FlexibleRefValue(MomentumRoughnessMethod) = Field(
+    roughness_length_momentum: FlexibleRefValue(MomentumRoughnessMethod) = Field(
         default=MomentumRoughnessMethod.VARIABLE,
         description=_enum_description(MomentumRoughnessMethod),
         json_schema_extra={"unit": "dimensionless"},
     )
-    roughness_length_heat_method: FlexibleRefValue(HeatRoughnessMethod) = Field(
+    roughness_length_heat: FlexibleRefValue(HeatRoughnessMethod) = Field(
         default=HeatRoughnessMethod.KAWAI,
         description=_enum_description(HeatRoughnessMethod),
         json_schema_extra={"unit": "dimensionless"},
     )
-    stability_method: FlexibleRefValue(StabilityMethod) = Field(
+    stability: FlexibleRefValue(StabilityMethod) = Field(
         default=StabilityMethod.CAMPBELL_NORMAN,
         description=_enum_description(StabilityMethod),
         json_schema_extra={
             "unit": "dimensionless",
-            "provides_to": ["rsl_method"],
-            "note": "Provides stability correction functions used by rsl_method calculations",
+            "provides_to": ["roughness_sublayer"],
+            "note": "Provides stability correction functions used by roughness_sublayer calculations",
         },
     )
-    smd_method: FlexibleRefValue(SMDMethod) = Field(
+    soil_moisture_deficit: FlexibleRefValue(SMDMethod) = Field(
         default=SMDMethod.MODELLED,
         description=_enum_description(SMDMethod),
         json_schema_extra={"unit": "dimensionless"},
     )
-    water_use_method: FlexibleRefValue(WaterUseMethod) = Field(
+    water_use: FlexibleRefValue(WaterUseMethod) = Field(
         default=WaterUseMethod.MODELLED,
         description=_enum_description(WaterUseMethod),
         json_schema_extra={"unit": "dimensionless"},
@@ -734,38 +742,38 @@ class ModelPhysics(BaseModel):
             "note": "Set to 0 (OBSERVED) to prescribe LAI from the lai column of the meteorological forcing.",
         },
     )
-    rsl_method: FlexibleRefValue(RSLMethod) = Field(
+    roughness_sublayer: FlexibleRefValue(RSLMethod) = Field(
         default=RSLMethod.VARIABLE,
         description=_enum_description(RSLMethod),
         json_schema_extra={
             "unit": "dimensionless",
-            "depends_on": ["stability_method"],
-            "provides_to": ["rsl_level"],
+            "depends_on": ["stability"],
+            "provides_to": ["roughness_sublayer_level"],
             "note": "Determines how near-surface values (2m temp, 10m wind) are calculated from forcing data",
         },
     )
-    fai_method: FlexibleRefValue(FAIMethod) = Field(
+    frontal_area_index: FlexibleRefValue(FAIMethod) = Field(
         default=FAIMethod.USE_PROVIDED,
         description=_enum_description(FAIMethod),
         json_schema_extra={"unit": "dimensionless"},
     )
-    rsl_level: FlexibleRefValue(RSLLevel) = Field(
+    roughness_sublayer_level: FlexibleRefValue(RSLLevel) = Field(
         default=RSLLevel.NONE,
         description=_enum_description(RSLLevel),
         json_schema_extra={
             "unit": "dimensionless",
-            "depends_on": ["rsl_method"],
-            "provides_to": ["gs_model"],
-            "note": "Uses near-surface values from rsl_method to modify vegetation processes",
+            "depends_on": ["roughness_sublayer"],
+            "provides_to": ["surface_conductance"],
+            "note": "Uses near-surface values from roughness_sublayer to modify vegetation processes",
         },
     )
-    gs_model: FlexibleRefValue(GSModel) = Field(
+    surface_conductance: FlexibleRefValue(GSModel) = Field(
         default=GSModel.WARD,
         description=_enum_description(GSModel),
         json_schema_extra={
             "unit": "dimensionless",
-            "depends_on": ["rsl_level"],
-            "note": "Stomatal conductance model influenced by rsl_level adjustments",
+            "depends_on": ["roughness_sublayer_level"],
+            "note": "Stomatal conductance model influenced by roughness_sublayer_level adjustments",
         },
     )
     snow_use: FlexibleRefValue(SnowUse) = Field(
@@ -773,17 +781,17 @@ class ModelPhysics(BaseModel):
         description=_enum_description(SnowUse),
         json_schema_extra={"unit": "dimensionless"},
     )
-    stebbs_method: FlexibleRefValue(StebbsMethod) = Field(
+    stebbs: FlexibleRefValue(StebbsMethod) = Field(
         default=StebbsMethod.NONE,
         description=_enum_description(StebbsMethod),
         json_schema_extra={"unit": "dimensionless"},
     )
-    rc_method: FlexibleRefValue(RCMethod) = Field(
+    outer_cap_fraction: FlexibleRefValue(RCMethod) = Field(
         default=RCMethod.DEFAULT,
         description=_enum_description(RCMethod),
         json_schema_extra={"unit": "dimensionless"},
     )
-    setpointmethod: FlexibleRefValue(SetpointMethod) = Field(
+    setpoint: FlexibleRefValue(SetpointMethod) = Field(
         default=SetpointMethod.CONSTANT,
         description=_enum_description(SetpointMethod),
         json_schema_extra={"unit": "dimensionless"},
@@ -815,25 +823,27 @@ class ModelPhysics(BaseModel):
     # in the code and return them accordingly in the yml file.
 
     # (Python field name, DataFrame column name for Fortran bridge)
+    # DataFrame columns keep the legacy fused spellings -- the Fortran side
+    # reads state by positional/fused keys. Only the left column moves.
     _FIELD_COL_PAIRS = [
-        ("net_radiation_method", "netradiationmethod"),
-        ("emissions_method", "emissionsmethod"),
-        ("storage_heat_method", "storageheatmethod"),
+        ("net_radiation", "netradiationmethod"),
+        ("emissions", "emissionsmethod"),
+        ("storage_heat", "storageheatmethod"),
         ("ohm_inc_qf", "ohmincqf"),
-        ("roughness_length_momentum_method", "roughlenmommethod"),
-        ("roughness_length_heat_method", "roughlenheatmethod"),
-        ("stability_method", "stabilitymethod"),
-        ("smd_method", "smdmethod"),
-        ("water_use_method", "waterusemethod"),
+        ("roughness_length_momentum", "roughlenmommethod"),
+        ("roughness_length_heat", "roughlenheatmethod"),
+        ("stability", "stabilitymethod"),
+        ("soil_moisture_deficit", "smdmethod"),
+        ("water_use", "waterusemethod"),
         ("laimethod", "laimethod"),
-        ("rsl_method", "rslmethod"),
-        ("fai_method", "faimethod"),
-        ("rsl_level", "rsllevel"),
-        ("gs_model", "gsmodel"),
+        ("roughness_sublayer", "rslmethod"),
+        ("frontal_area_index", "faimethod"),
+        ("roughness_sublayer_level", "rsllevel"),
+        ("surface_conductance", "gsmodel"),
         ("snow_use", "snowuse"),
-        ("stebbs_method", "stebbsmethod"),
-        ("rc_method", "rcmethod"),
-        ("setpointmethod", "setpointmethod"),
+        ("stebbs", "stebbsmethod"),
+        ("outer_cap_fraction", "rcmethod"),
+        ("setpoint", "setpointmethod"),
         ("same_albedo_wall", "same_albedo_wall"),
         ("same_albedo_roof", "same_albedo_roof"),
         ("same_emissivity_wall", "same_emissivity_wall"),

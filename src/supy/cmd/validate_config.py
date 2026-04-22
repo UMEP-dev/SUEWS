@@ -715,7 +715,7 @@ def _check_experimental_features_restriction(user_yaml_file, mode):
     )
     restrictions_violated = []
 
-    stebbs_method = read_physics_key(physics, "stebbs_method")
+    stebbs_method = read_physics_key(physics, "stebbs")
     if stebbs_method is not None and stebbs_method != 0:
         restrictions_violated.append("STEBBS method is enabled (stebbs_method != 0)")
 

@@ -22,7 +22,7 @@ import warnings
 # schema-versioning.md` (Dev-label convention). Every structural PR
 # between releases bumps the dev counter instead of consuming a new
 # CalVer label.
-CURRENT_SCHEMA_VERSION = "2026.5.dev1"
+CURRENT_SCHEMA_VERSION = "2026.5.dev2"
 
 # Schema version history and descriptions.
 #
@@ -84,6 +84,28 @@ SCHEMA_VERSIONS: dict[str, str] = {
         "label in the 2026.5 release cycle (collapse to plain `2026.5` "
         "in the release PR per `.claude/rules/python/"
         "schema-versioning.md`)."
+    ),
+    "2026.5.dev2": (
+        "Categories 2 and 3 of #1256 (gh#1321): 15 ModelPhysics fields "
+        "stripped of the redundant `_method` / `_model` suffix and/or "
+        "expanded out of opaque domain abbreviations — "
+        "net_radiation_method -> net_radiation, emissions_method -> "
+        "emissions, storage_heat_method -> storage_heat, "
+        "roughness_length_{momentum,heat}_method -> "
+        "roughness_length_{momentum,heat}, stability_method -> "
+        "stability, water_use_method -> water_use, stebbs_method -> "
+        "stebbs, setpointmethod -> setpoint (fused leftover from "
+        "Category 1), smd_method -> soil_moisture_deficit, rsl_method "
+        "-> roughness_sublayer, rsl_level -> roughness_sublayer_level, "
+        "fai_method -> frontal_area_index, rc_method -> "
+        "outer_cap_fraction, gs_model -> surface_conductance. "
+        "Enum types are unchanged (NetRadiationMethod etc. still "
+        "carry the `Method` suffix); DataFrame column names keep the "
+        "legacy fused spellings for the Fortran bridge. Rename table "
+        "extends MODELPHYSICS_SUFFIX_RENAMES in "
+        "src/supy/data_model/core/field_renames.py; the "
+        "(2026.5.dev1 -> 2026.5.dev2) migration is registered in "
+        "src/supy/util/converter/yaml_upgrade.py::_HANDLERS."
     ),
 }
 

@@ -138,6 +138,25 @@ class TestSuPy(TestCase):
         ])
         self.assertTrue(test_non_empty)
 
+    def test_debug_mode_exposes_debug_output_group(self):
+        print("\n========================================")
+        print("Testing if debug_mode exposes debug output...")
+
+        df_state_init, df_forcing_tstep = sp.load_SampleData()
+        df_forcing_part = df_forcing_tstep.iloc[:24]
+
+        df_output, df_state = sp.run_supy(
+            df_forcing_part,
+            df_state_init,
+            debug_mode=True,
+        )
+
+        self.assertFalse(df_output.empty)
+        self.assertFalse(df_state.empty)
+        self.assertIn("debug", df_output.columns.get_level_values("group"))
+        self.assertIn("flag_test", df_output["debug"].columns)
+        self.assertTrue(df_output["debug"]["flag_test"].notna().all())
+
     def test_run_with_version(self):
         print("\n========================================")
         print("Testing if state_init with version can be loaded...")

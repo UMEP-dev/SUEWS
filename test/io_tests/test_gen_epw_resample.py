@@ -9,10 +9,14 @@ from conftest import TIMESTEPS_PER_DAY
 
 pytestmark = pytest.mark.api
 
-pytest.importorskip(
-    "pvlib",
-    reason="gen_epw delegates to pvlib for solar geometry; skip the module when the optional dependency is missing rather than wrapping every test in try/except",
-)
+
+@pytest.fixture(scope="module")
+def pvlib_available():
+    """Skip only the gen_epw tests when pvlib is unavailable."""
+    pytest.importorskip(
+        "pvlib",
+        reason="gen_epw delegates to pvlib for solar geometry; skip only the gen_epw tests when the optional dependency is missing",
+    )
 
 
 class TestGenEpwResample:
@@ -71,6 +75,7 @@ class TestGenEpwResample:
             assert var in suews_vars, f"Variable {var} not found in resampled output"
 
 
+@pytest.mark.usefixtures("pvlib_available")
 class TestGenEpwMultiIndexInput:
     """Tests for gen_epw handling MultiIndex input directly."""
 

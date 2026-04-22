@@ -31,7 +31,10 @@ from .field_renames import (
     EVETRPROPERTIES_RENAMES,
     DECTRPROPERTIES_RENAMES,
     ARCHETYPEPROPERTIES_RENAMES,
+    ARCHETYPEPROPERTIES_PASCAL_RENAMES,
+    STEBBSPROPERTIES_RENAMES,
     SNOWPARAMS_RENAMES,
+    SNOWPARAMS_INTERMEDIATE_RENAMES,
     apply_field_renames,
 )
 from .human_activity import AnthropogenicEmissions, IrrigationParams
@@ -1000,25 +1003,25 @@ class SnowParams(BaseModel):
             "display_name": "Minimum Water Retention Capacity",
         },
     )
-    narp_emis_snow: FlexibleRefValue(float) = Field(
+    narp_emissivity_snow: FlexibleRefValue(float) = Field(
         default=0.99,
-        description="Snow surface emissivity",
+        description="Snow surface emissivity used in the NARP net all-wave radiation scheme",
         ge=0.0,
         le=1.0,
-        json_schema_extra={"unit": "dimensionless", "display_name": "Narp Emis Snow"},
+        json_schema_extra={"unit": "dimensionless", "display_name": "NARP Snow Emissivity"},
     )
-    precip_limit: Optional[FlexibleRefValue(float)] = Field(
+    temperature_rain_snow_threshold: Optional[FlexibleRefValue(float)] = Field(
         default=None,
-        description="Temperature threshold for snow vs rain precipitation",
+        description="Temperature threshold below which precipitation falls as snow rather than rain",
         json_schema_extra={
             "unit": "degC",
-            "display_name": "Precipitation Temperature Limit",
+            "display_name": "Rain-Snow Temperature Threshold",
         },
     )
-    precip_limit_albedo: FlexibleRefValue(float) = Field(
+    precipitation_threshold_albedo_reset: FlexibleRefValue(float) = Field(
         default=0.1,
-        description="Precipitation threshold for snow albedo aging",
-        json_schema_extra={"unit": "mm", "display_name": "Precipitation Albedo Limit"},
+        description="Precipitation threshold above which snow albedo resets (cf. aging)",
+        json_schema_extra={"unit": "mm", "display_name": "Precipitation Threshold for Albedo Reset"},
         ge=0.0,
     )
     snow_albedo_max: FlexibleRefValue(float) = Field(
@@ -1047,20 +1050,20 @@ class SnowParams(BaseModel):
         description="Maximum snow density",
         json_schema_extra={"unit": "kg m^-3", "display_name": "Maximum Snow Density"},
     )
-    snow_limit_building: FlexibleRefValue(float) = Field(
+    snow_depth_limit_building: FlexibleRefValue(float) = Field(
         default=0.1,
         description="Maximum snow depth limit on buildings",
-        json_schema_extra={"unit": "m", "display_name": "Snow Limit Building"},
+        json_schema_extra={"unit": "m", "display_name": "Snow Depth Limit (Buildings)"},
     )
-    snow_limit_paved: FlexibleRefValue(float) = Field(
+    snow_depth_limit_paved: FlexibleRefValue(float) = Field(
         default=0.1,
         description="Maximum snow depth limit on paved surfaces",
-        json_schema_extra={"unit": "m", "display_name": "Snow Limit Paved"},
+        json_schema_extra={"unit": "m", "display_name": "Snow Depth Limit (Paved)"},
     )
-    snowprof_24hr: HourlyProfile = Field(
+    snow_profile_24hr: HourlyProfile = Field(
         default_factory=HourlyProfile, description="24-hour snow profile"
     )
-    tau_a: FlexibleRefValue(float) = Field(
+    tau_cold_snow: FlexibleRefValue(float) = Field(
         default=0.018,
         description="Time constant for snow albedo aging in cold snow",
         json_schema_extra={
@@ -1068,7 +1071,7 @@ class SnowParams(BaseModel):
             "display_name": "Snow Albedo Ageing Time (Cold)",
         },
     )
-    tau_f: FlexibleRefValue(float) = Field(
+    tau_melting_snow: FlexibleRefValue(float) = Field(
         default=0.11,
         description="Time constant for snow albedo aging in melting snow",
         json_schema_extra={
@@ -1076,7 +1079,7 @@ class SnowParams(BaseModel):
             "display_name": "Snow Albedo Ageing Time (Melting)",
         },
     )
-    tau_r: FlexibleRefValue(float) = Field(
+    tau_refreezing_snow: FlexibleRefValue(float) = Field(
         default=0.05,
         description="Time constant for snow albedo aging in refreezing snow",
         json_schema_extra={
@@ -1084,7 +1087,7 @@ class SnowParams(BaseModel):
             "display_name": "Snow Albedo Ageing Time (Refreezing)",
         },
     )
-    temp_melt_factor: FlexibleRefValue(float) = Field(
+    temperature_melt_factor: FlexibleRefValue(float) = Field(
         default=0.12,
         description="Hourly temperature melt factor of snow",
         json_schema_extra={
@@ -1092,7 +1095,7 @@ class SnowParams(BaseModel):
             "display_name": "Temperature Melt Factor",
         },
     )
-    rad_melt_factor: FlexibleRefValue(float) = Field(
+    radiation_melt_factor: FlexibleRefValue(float) = Field(
         default=0.0016,
         description="Hourly radiation melt factor of snow",
         json_schema_extra={
@@ -1107,7 +1110,10 @@ class SnowParams(BaseModel):
     @classmethod
     def _rename_snow_fields(cls, values):
         if isinstance(values, dict):
-            return apply_field_renames(values, SNOWPARAMS_RENAMES, cls.__name__)
+            values = apply_field_renames(values, SNOWPARAMS_RENAMES, cls.__name__)
+            values = apply_field_renames(
+                values, SNOWPARAMS_INTERMEDIATE_RENAMES, cls.__name__
+            )
         return values
 
     def to_df_state(self, grid_id: int) -> pd.DataFrame:
@@ -1124,20 +1130,20 @@ class SnowParams(BaseModel):
         scalar_params = {
             "crwmax": self.water_holding_capacity_max,
             "crwmin": self.water_holding_capacity_min,
-            "narp_emis_snow": self.narp_emis_snow,
-            "preciplimit": self.precip_limit,
-            "preciplimitalb": self.precip_limit_albedo,
+            "narp_emis_snow": self.narp_emissivity_snow,
+            "preciplimit": self.temperature_rain_snow_threshold,
+            "preciplimitalb": self.precipitation_threshold_albedo_reset,
             "snowalbmax": self.snow_albedo_max,
             "snowalbmin": self.snow_albedo_min,
             "snowdensmin": self.snow_density_min,
             "snowdensmax": self.snow_density_max,
-            "snowlimbldg": self.snow_limit_building,
-            "snowlimpaved": self.snow_limit_paved,
-            "tau_a": self.tau_a,
-            "tau_f": self.tau_f,
-            "tau_r": self.tau_r,
-            "tempmeltfact": self.temp_melt_factor,
-            "radmeltfact": self.rad_melt_factor,
+            "snowlimbldg": self.snow_depth_limit_building,
+            "snowlimpaved": self.snow_depth_limit_paved,
+            "tau_a": self.tau_cold_snow,
+            "tau_f": self.tau_melting_snow,
+            "tau_r": self.tau_refreezing_snow,
+            "tempmeltfact": self.temperature_melt_factor,
+            "radmeltfact": self.radiation_melt_factor,
         }
         cols = {("gridiv", "0"): grid_id}
         for param_name, value in scalar_params.items():
@@ -1155,7 +1161,7 @@ class SnowParams(BaseModel):
 
         df_state = df_from_cols(cols, index=pd.Index([grid_id], name="grid"))
 
-        df_hourly_profile = self.snowprof_24hr.to_df_state(grid_id, "snowprof_24hr")
+        df_hourly_profile = self.snow_profile_24hr.to_df_state(grid_id, "snowprof_24hr")
         df_state = df_state.combine_first(df_hourly_profile)
 
         return df_state
@@ -1195,7 +1201,8 @@ class SnowParams(BaseModel):
         # Convert scalar parameters to RefValue
         scalar_params = {key: RefValue(value) for key, value in scalar_params.items()}
 
-        # Extract HourlyProfile
+        # Extract HourlyProfile (DF column stays "snowprof_24hr" for the Fortran bridge;
+        # the Pydantic shim renames the kwarg to `snow_profile_24hr` on the way in).
         snowprof_24hr = HourlyProfile.from_df_state(df, grid_id, "snowprof_24hr")
 
         # Construct and return the SnowParams instance
@@ -1309,29 +1316,34 @@ class ArchetypeProperties(BaseModel):
     @classmethod
     def _rename_archetype_fields(cls, values):
         if isinstance(values, dict):
-            return apply_field_renames(values, ARCHETYPEPROPERTIES_RENAMES, cls.__name__)
+            values = apply_field_renames(
+                values, ARCHETYPEPROPERTIES_RENAMES, cls.__name__
+            )
+            values = apply_field_renames(
+                values, ARCHETYPEPROPERTIES_PASCAL_RENAMES, cls.__name__
+            )
         return values
 
     # Not used in STEBBS - DAVE only
     # BuildingCode='1'
     # BuildingClass='SampleClass'
 
-    BuildingType: Optional[str] = Field(
+    building_type: Optional[str] = Field(
         default="SampleType",
         description="Building archetype type [-]",
         json_schema_extra={"display_name": "Building Type"},
     )
-    BuildingName: Optional[str] = Field(
+    building_name: Optional[str] = Field(
         default="SampleBuilding",
         description="Building archetype name [-]",
         json_schema_extra={"display_name": "Building Name"},
     )
-    BuildingCount: Optional[FlexibleRefValue(int)] = Field(
+    building_count: Optional[FlexibleRefValue(int)] = Field(
         default=1,
         description="Number of buildings of this archetype [-]",
         json_schema_extra={"unit": "dimensionless", "display_name": "Building Count"},
     )
-    Occupants: Optional[FlexibleRefValue(int)] = Field(
+    occupants: Optional[FlexibleRefValue(int)] = Field(
         default=1,
         description="Number of occupants present in building [-]",
         json_schema_extra={"unit": "dimensionless", "display_name": "Occupants"},
@@ -1354,25 +1366,25 @@ class ArchetypeProperties(BaseModel):
     # age_19_64: int = Field(default=0, description="")
     # age_65plus: int = Field(default=0, description="")
 
-    stebbs_Height: Optional[FlexibleRefValue(float)] = Field(
+    building_height: Optional[FlexibleRefValue(float)] = Field(
         default=10.0,
-        description="Building height. This should be consistent with WallExternalArea and FootprintArea. [m]",
+        description="Building height. This should be consistent with wall_external_area and footprint_area. [m]",
         json_schema_extra={"unit": "m", "display_name": "Stebbs Height"},
         gt=0.0,
     )
-    FootprintArea: Optional[FlexibleRefValue(float)] = Field(
+    footprint_area: Optional[FlexibleRefValue(float)] = Field(
         default=64.0,
-        description="Building footprint area. This should be consistent with stebbs_Height and WallExternalArea. [m2]",
+        description="Building footprint area. This should be consistent with building_height and wall_external_area. [m2]",
         json_schema_extra={"unit": "m^2", "display_name": "Footprint Area"},
         gt=0.0,
     )
-    WallExternalArea: Optional[FlexibleRefValue(float)] = Field(
+    wall_external_area: Optional[FlexibleRefValue(float)] = Field(
         default=80.0,
-        description="External wall area (including window area). This should be consistent with stebbs_Height and FootprintArea. [m2]",
+        description="External wall area (including window area). This should be consistent with building_height and footprint_area. [m2]",
         json_schema_extra={"unit": "m^2", "display_name": "Wall External Area"},
         gt=0.0,
     )
-    RatioInternalVolume: Optional[FlexibleRefValue(float)] = Field(
+    internal_volume_ratio: Optional[FlexibleRefValue(float)] = Field(
         default=0.01,
         description="Ratio of internal mass volume to total building volume [-]",
         json_schema_extra={
@@ -1382,13 +1394,13 @@ class ArchetypeProperties(BaseModel):
         gt=0.0,
         lt=1.0,
     )
-    InternalMassArea: Optional[FlexibleRefValue(float)] = Field(
+    internal_mass_area: Optional[FlexibleRefValue(float)] = Field(
         default=100,
         description="Surface area of internal mass used for indoor heat exchange [m2]",
         json_schema_extra={"unit": "m^2", "display_name": "Internal Mass Area"},
         gt=0.0,
     )
-    WWR: Optional[FlexibleRefValue(float)] = Field(
+    window_to_wall_ratio: Optional[FlexibleRefValue(float)] = Field(
         default=0.20,
         description="window to wall ratio [-]",
         json_schema_extra={
@@ -1398,13 +1410,13 @@ class ArchetypeProperties(BaseModel):
         ge=0.0,
         le=1.0,
     )
-    WallThickness: Optional[FlexibleRefValue(float)] = Field(
+    wall_thickness: Optional[FlexibleRefValue(float)] = Field(
         default=0.2,
         description="Thickness of external wall [m]",
         json_schema_extra={"unit": "m", "display_name": "Wall Thickness"},
         gt=0.0,
     )
-    WallEffectiveConductivity: Optional[FlexibleRefValue(float)] = Field(
+    wall_effective_conductivity: Optional[FlexibleRefValue(float)] = Field(
         default=0.6,
         description="Effective thermal conductivity of walls [W m-1 K-1]",
         json_schema_extra={
@@ -1413,24 +1425,24 @@ class ArchetypeProperties(BaseModel):
         },
         gt=0.0,
     )
-    WallDensity: Optional[FlexibleRefValue(float)] = Field(
+    wall_density: Optional[FlexibleRefValue(float)] = Field(
         default=1600.0,
         description="Effective density of the walls [kg m-3]",
         json_schema_extra={"unit": "kg m^-3", "display_name": "Wall Density"},
         gt=0.0,
     )
-    WallCp: Optional[FlexibleRefValue(float)] = Field(
+    wall_specific_heat_capacity: Optional[FlexibleRefValue(float)] = Field(
         default=850.0,
         description="Effective specific heat capacity of walls [J kg-1 K-1]",
         gt=0.0,
     )
-    WallExternalThickness: Optional[FlexibleRefValue(float)] = Field(
+    wall_external_thickness: Optional[FlexibleRefValue(float)] = Field(
         default=20.0,
         description="Thickness of layers external to insulation in external wall [m]",
         json_schema_extra={"unit": "m", "display_name": "Wall External Thickness"},
         gt=0.0,
     )
-    WallExternalEffectiveConductivity: Optional[FlexibleRefValue(float)] = Field(
+    wall_external_effective_conductivity: Optional[FlexibleRefValue(float)] = Field(
         default=60.0,
         description="Effective thermal conductivity of layers external to insulation in walls [W m-1 K-1]",
         json_schema_extra={
@@ -1439,13 +1451,13 @@ class ArchetypeProperties(BaseModel):
         },
         gt=0.0,
     )
-    WallExternalDensity: Optional[FlexibleRefValue(float)] = Field(
+    wall_external_density: Optional[FlexibleRefValue(float)] = Field(
         default=1600.0,
         description="Effective density of layers external to insulation in the walls [kg m-3]",
         json_schema_extra={"unit": "kg m^-3", "display_name": "Wall External Density"},
         gt=0.0,
     )
-    WallExternalCp: Optional[FlexibleRefValue(float)] = Field(
+    wall_external_specific_heat_capacity: Optional[FlexibleRefValue(float)] = Field(
         default=850.0,
         description="Effective specific heat capacity of layers external to insulation in walls [J kg-1 K-1]",
         json_schema_extra={
@@ -1454,7 +1466,7 @@ class ArchetypeProperties(BaseModel):
         },
         gt=0.0,
     )
-    WallOuterCapFrac: Optional[FlexibleRefValue(float)] = Field(
+    wall_outer_heat_capacity_fraction: Optional[FlexibleRefValue(float)] = Field(
         default=0.5,
         description="Weighting factor (0-1) representing the fraction of wall heat capacity assigned to the external node, with the remainder assigned to the internal node [-]",
         json_schema_extra={
@@ -1464,7 +1476,7 @@ class ArchetypeProperties(BaseModel):
         gt=0.0,
         lt=1.0,
     )
-    WallExternalEmissivity: Optional[FlexibleRefValue(float)] = Field(
+    wall_external_emissivity: Optional[FlexibleRefValue(float)] = Field(
         default=0.9,
         description="Emissivity of the external surface of walls [-]",
         json_schema_extra={
@@ -1474,7 +1486,7 @@ class ArchetypeProperties(BaseModel):
         ge=0.0,
         le=1.0,
     )
-    WallInternalEmissivity: Optional[FlexibleRefValue(float)] = Field(
+    wall_internal_emissivity: Optional[FlexibleRefValue(float)] = Field(
         default=0.9,
         description="Emissivity of the internal surface of walls [-]",
         json_schema_extra={
@@ -1484,7 +1496,7 @@ class ArchetypeProperties(BaseModel):
         ge=0.0,
         le=1.0,
     )
-    WallTransmissivity: Optional[FlexibleRefValue(float)] = Field(
+    wall_transmissivity: Optional[FlexibleRefValue(float)] = Field(
         default=0.0,
         description="Transmissivity of walls [-]",
         json_schema_extra={
@@ -1494,7 +1506,7 @@ class ArchetypeProperties(BaseModel):
         ge=0.0,
         lt=1.0,
     )
-    WallAbsorbtivity: Optional[FlexibleRefValue(float)] = Field(
+    wall_absorptivity: Optional[FlexibleRefValue(float)] = Field(
         default=0.8,
         description="Absorbtivity of walls [-]",
         json_schema_extra={
@@ -1504,7 +1516,7 @@ class ArchetypeProperties(BaseModel):
         gt=0.0,
         le=1.0,
     )
-    WallReflectivity: Optional[FlexibleRefValue(float)] = Field(
+    wall_reflectivity: Optional[FlexibleRefValue(float)] = Field(
         default=0.2,
         description="Reflectivity of the external surface of walls [-]",
         json_schema_extra={
@@ -1514,13 +1526,13 @@ class ArchetypeProperties(BaseModel):
         ge=0.0,
         lt=1.0,
     )
-    RoofThickness: Optional[FlexibleRefValue(float)] = Field(
+    roof_thickness: Optional[FlexibleRefValue(float)] = Field(
         default=20.0,
         description="Thickness of roof [m]",
         json_schema_extra={"unit": "m", "display_name": "Roof Thickness"},
         gt=0.0,
     )
-    RoofEffectiveConductivity: Optional[FlexibleRefValue(float)] = Field(
+    roof_effective_conductivity: Optional[FlexibleRefValue(float)] = Field(
         default=60.0,
         description="Effective thermal conductivity of roof [W m-1 K-1]",
         json_schema_extra={
@@ -1529,24 +1541,24 @@ class ArchetypeProperties(BaseModel):
         },
         gt=0.0,
     )
-    RoofDensity: Optional[FlexibleRefValue(float)] = Field(
+    roof_density: Optional[FlexibleRefValue(float)] = Field(
         default=1600.0,
         description="Effective density of the roof [kg m-3]",
         json_schema_extra={"unit": "kg m^-3", "display_name": "Roof Density"},
         gt=0.0,
     )
-    RoofCp: Optional[FlexibleRefValue(float)] = Field(
+    roof_specific_heat_capacity: Optional[FlexibleRefValue(float)] = Field(
         default=850.0,
         description="Effective specific heat capacity of roof [J kg-1 K-1]",
         gt=0.0,
     )
-    RoofExternalThickness: Optional[FlexibleRefValue(float)] = Field(
+    roof_external_thickness: Optional[FlexibleRefValue(float)] = Field(
         default=20.0,
         description="Thickness of layers external to insulation in roof [m]",
         json_schema_extra={"unit": "m", "display_name": "Roof External Thickness"},
         gt=0.0,
     )
-    RoofExternalEffectiveConductivity: Optional[FlexibleRefValue(float)] = Field(
+    roof_external_effective_conductivity: Optional[FlexibleRefValue(float)] = Field(
         default=60.0,
         description="Effective thermal conductivity of layers external to insulation in roof [W m-1 K-1]",
         json_schema_extra={
@@ -1555,13 +1567,13 @@ class ArchetypeProperties(BaseModel):
         },
         gt=0.0,
     )
-    RoofExternalDensity: Optional[FlexibleRefValue(float)] = Field(
+    roof_external_density: Optional[FlexibleRefValue(float)] = Field(
         default=1600.0,
         description="Effective density of layers external to insulation in the roof [kg m-3]",
         json_schema_extra={"unit": "kg m^-3", "display_name": "Roof External Density"},
         gt=0.0,
     )
-    RoofExternalCp: Optional[FlexibleRefValue(float)] = Field(
+    roof_external_specific_heat_capacity: Optional[FlexibleRefValue(float)] = Field(
         default=850.0,
         description="Effective specific heat capacity of layers external to insulation in roof [J kg-1 K-1]",
         json_schema_extra={
@@ -1570,7 +1582,7 @@ class ArchetypeProperties(BaseModel):
         },
         gt=0.0,
     )
-    RoofOuterCapFrac: Optional[FlexibleRefValue(float)] = Field(
+    roof_outer_heat_capacity_fraction: Optional[FlexibleRefValue(float)] = Field(
         default=0.5,
         description="Weighting factor (0-1) representing the fraction of roof heat capacity assigned to the external node, with the remainder assigned to the internal node [-]",
         json_schema_extra={
@@ -1580,7 +1592,7 @@ class ArchetypeProperties(BaseModel):
         gt=0.0,
         lt=1.0,
     )
-    RoofExternalEmissivity: Optional[FlexibleRefValue(float)] = Field(
+    roof_external_emissivity: Optional[FlexibleRefValue(float)] = Field(
         default=0.9,
         description="Emissivity of the external surface of roof [-]",
         json_schema_extra={
@@ -1590,7 +1602,7 @@ class ArchetypeProperties(BaseModel):
         ge=0.0,
         le=1.0,
     )
-    RoofInternalEmissivity: Optional[FlexibleRefValue(float)] = Field(
+    roof_internal_emissivity: Optional[FlexibleRefValue(float)] = Field(
         default=0.9,
         description="Emissivity of the internal surface of roof [-]",
         json_schema_extra={
@@ -1600,7 +1612,7 @@ class ArchetypeProperties(BaseModel):
         ge=0.0,
         le=1.0,
     )
-    RoofTransmissivity: Optional[FlexibleRefValue(float)] = Field(
+    roof_transmissivity: Optional[FlexibleRefValue(float)] = Field(
         default=0.0,
         description="Transmissivity of roof [-]",
         json_schema_extra={
@@ -1610,7 +1622,7 @@ class ArchetypeProperties(BaseModel):
         ge=0.0,
         lt=1.0,
     )
-    RoofAbsorbtivity: Optional[FlexibleRefValue(float)] = Field(
+    roof_absorptivity: Optional[FlexibleRefValue(float)] = Field(
         default=0.8,
         description="Absorbtivity of roof [-]",
         json_schema_extra={
@@ -1620,7 +1632,7 @@ class ArchetypeProperties(BaseModel):
         gt=0.0,
         le=1.0,
     )
-    RoofReflectivity: Optional[FlexibleRefValue(float)] = Field(
+    roof_reflectivity: Optional[FlexibleRefValue(float)] = Field(
         default=0.2,
         description="Reflectivity of the external surface of roof [-]",
         json_schema_extra={
@@ -1630,13 +1642,13 @@ class ArchetypeProperties(BaseModel):
         ge=0.0,
         lt=1.0,
     )
-    FloorThickness: Optional[FlexibleRefValue(float)] = Field(
+    ground_floor_thickness: Optional[FlexibleRefValue(float)] = Field(
         default=0.2,
         description="Thickness of ground floor [m]",
         json_schema_extra={"unit": "m", "display_name": "Floor Thickness"},
         gt=0.0,
     )
-    GroundFloorEffectiveConductivity: Optional[FlexibleRefValue(float)] = Field(
+    ground_floor_effective_conductivity: Optional[FlexibleRefValue(float)] = Field(
         default=0.15,
         description="Effective thermal conductivity of ground floor [W m-1 K-1]",
         json_schema_extra={
@@ -1645,13 +1657,13 @@ class ArchetypeProperties(BaseModel):
         },
         gt=0.0,
     )
-    GroundFloorDensity: Optional[FlexibleRefValue(float)] = Field(
+    ground_floor_density: Optional[FlexibleRefValue(float)] = Field(
         default=500.0,
         description="Effective density of the ground floor [kg m-3]",
         json_schema_extra={"unit": "kg m^-3", "display_name": "Ground Floor Density"},
         gt=0.0,
     )
-    GroundFloorCp: Optional[FlexibleRefValue(float)] = Field(
+    ground_floor_specific_heat_capacity: Optional[FlexibleRefValue(float)] = Field(
         default=1500.0,
         description="Effective specific heat capacity of the ground floor [J kg-1 K-1]",
         json_schema_extra={
@@ -1660,13 +1672,13 @@ class ArchetypeProperties(BaseModel):
         },
         gt=0.0,
     )
-    WindowThickness: Optional[FlexibleRefValue(float)] = Field(
+    window_thickness: Optional[FlexibleRefValue(float)] = Field(
         default=0.015,
         description="Window thickness [m]",
         json_schema_extra={"unit": "m", "display_name": "Window Thickness"},
         gt=0.0,
     )
-    WindowEffectiveConductivity: Optional[FlexibleRefValue(float)] = Field(
+    window_effective_conductivity: Optional[FlexibleRefValue(float)] = Field(
         default=1.0,
         description="Effective thermal conductivity of windows [W m-1 K-1]",
         json_schema_extra={
@@ -1675,13 +1687,13 @@ class ArchetypeProperties(BaseModel):
         },
         gt=0.0,
     )
-    WindowDensity: Optional[FlexibleRefValue(float)] = Field(
+    window_density: Optional[FlexibleRefValue(float)] = Field(
         default=2500.0,
         description="Effective density of the windows [kg m-3]",
         json_schema_extra={"unit": "kg m^-3", "display_name": "Window Density"},
         gt=0.0,
     )
-    WindowCp: Optional[FlexibleRefValue(float)] = Field(
+    window_specific_heat_capacity: Optional[FlexibleRefValue(float)] = Field(
         default=840.0,
         description="Effective specific heat capacity of windows [J kg-1 K-1]",
         json_schema_extra={
@@ -1690,7 +1702,7 @@ class ArchetypeProperties(BaseModel):
         },
         gt=0.0,
     )
-    WindowExternalEmissivity: Optional[FlexibleRefValue(float)] = Field(
+    window_external_emissivity: Optional[FlexibleRefValue(float)] = Field(
         default=0.90,
         description="Emissivity of the external surface of windows [-]",
         json_schema_extra={
@@ -1700,7 +1712,7 @@ class ArchetypeProperties(BaseModel):
         ge=0.0,
         le=1.0,
     )
-    WindowInternalEmissivity: Optional[FlexibleRefValue(float)] = Field(
+    window_internal_emissivity: Optional[FlexibleRefValue(float)] = Field(
         default=0.90,
         description="Emissivity of the internal surface of windows [-]",
         json_schema_extra={
@@ -1710,7 +1722,7 @@ class ArchetypeProperties(BaseModel):
         ge=0.0,
         le=1.0,
     )
-    WindowTransmissivity: Optional[FlexibleRefValue(float)] = Field(
+    window_transmissivity: Optional[FlexibleRefValue(float)] = Field(
         default=0.90,
         description="Transmissivity of windows [-]",
         json_schema_extra={
@@ -1720,7 +1732,7 @@ class ArchetypeProperties(BaseModel):
         ge=0.0,
         lt=1.0,
     )
-    WindowAbsorbtivity: Optional[FlexibleRefValue(float)] = Field(
+    window_absorptivity: Optional[FlexibleRefValue(float)] = Field(
         default=0.01,
         description="Absorbtivity of windows [-]",
         json_schema_extra={
@@ -1730,7 +1742,7 @@ class ArchetypeProperties(BaseModel):
         gt=0.0,
         le=1.0,
     )
-    WindowReflectivity: Optional[FlexibleRefValue(float)] = Field(
+    window_reflectivity: Optional[FlexibleRefValue(float)] = Field(
         default=0.09,
         description="Reflectivity of the external surface of windows [-]",
         json_schema_extra={
@@ -1741,13 +1753,13 @@ class ArchetypeProperties(BaseModel):
         lt=1.0,
     )
     # TODO: Add defaults below here
-    InternalMassDensity: Optional[FlexibleRefValue(float)] = Field(
+    internal_mass_density: Optional[FlexibleRefValue(float)] = Field(
         default=1000.0,
         description="Effective density of the internal mass [kg m-3]",
         json_schema_extra={"unit": "kg m^-3", "display_name": "Internal Mass Density"},
         gt=0.0,
     )
-    InternalMassCp: Optional[FlexibleRefValue(float)] = Field(
+    internal_mass_specific_heat_capacity: Optional[FlexibleRefValue(float)] = Field(
         default=1000.0,
         description="Effective specific heat capacity of internal mass [J kg-1 K-1]",
         json_schema_extra={
@@ -1756,7 +1768,7 @@ class ArchetypeProperties(BaseModel):
         },
         gt=0.0,
     )
-    InternalMassEmissivity: Optional[FlexibleRefValue(float)] = Field(
+    internal_mass_emissivity: Optional[FlexibleRefValue(float)] = Field(
         default=0.0,
         description="Emissivity of internal mass [-]",
         ge=0.0,
@@ -1766,19 +1778,19 @@ class ArchetypeProperties(BaseModel):
             "display_name": "Internal Mass Emissivity",
         },
     )
-    MaxHeatingPower: Optional[FlexibleRefValue(float)] = Field(
+    max_heating_power: Optional[FlexibleRefValue(float)] = Field(
         default=0.0,
         description="Maximum power demand of heating system [W]",
         json_schema_extra={"unit": "W", "display_name": "Maximum Heating Power"},
         ge=0.0,
     )
-    WaterTankWaterVolume: Optional[FlexibleRefValue(float)] = Field(
+    water_tank_water_volume: Optional[FlexibleRefValue(float)] = Field(
         default=0.15,
         description="Volume of water in hot water tank [m3]",
         json_schema_extra={"unit": "m^3", "display_name": "Water Tank Water Volume"},
         gt=0.0,
     )
-    MaximumHotWaterHeatingPower: Optional[FlexibleRefValue(float)] = Field(
+    maximum_hot_water_heating_power: Optional[FlexibleRefValue(float)] = Field(
         default=3000.0,
         description="Maximum power demand of water heating system [W]",
         json_schema_extra={
@@ -1787,7 +1799,7 @@ class ArchetypeProperties(BaseModel):
         },
         ge=0.0,
     )
-    HeatingSetpointTemperature: Optional[FlexibleRefValue(float)] = Field(
+    heating_setpoint_temperature: Optional[FlexibleRefValue(float)] = Field(
         default=0.0,
         description="Heating setpoint temperature [degC]",
         json_schema_extra={
@@ -1796,7 +1808,7 @@ class ArchetypeProperties(BaseModel):
         },
         lt=30.0,
     )
-    CoolingSetpointTemperature: Optional[FlexibleRefValue(float)] = Field(
+    cooling_setpoint_temperature: Optional[FlexibleRefValue(float)] = Field(
         default=26.0,
         description="Cooling setpoint temperature [degC]",
         json_schema_extra={
@@ -1805,7 +1817,7 @@ class ArchetypeProperties(BaseModel):
         },
         gt=15.0
     )
-    HeatingSetpointTemperatureProfile: Optional[HeatingSetpointProfile] = Field(
+    heating_setpoint_temperature_profile: Optional[HeatingSetpointProfile] = Field(
         default_factory=HeatingSetpointProfile,
         description="10-minute profile of heating setpoints temperature when Setpointmethod equals to 2 [degC]",
         json_schema_extra={
@@ -1813,7 +1825,7 @@ class ArchetypeProperties(BaseModel):
             "display_name": "Heating setpoint temperature profile",
         },
     )
-    CoolingSetpointTemperatureProfile: Optional[CoolingSetpointProfile] = Field(
+    cooling_setpoint_temperature_profile: Optional[CoolingSetpointProfile] = Field(
         default_factory=CoolingSetpointProfile,
         description="10-minute profile of cooling setpoints temperature when Setpointmethod equals to 2 [degC]",
         json_schema_extra={
@@ -1821,7 +1833,7 @@ class ArchetypeProperties(BaseModel):
             "display_name": "Cooling setpoint temperature profile",
         },
     )
-    MetabolismProfile: Optional[TenMinuteProfile] = Field(
+    metabolism_profile: Optional[TenMinuteProfile] = Field(
         default_factory=TenMinuteProfile,
         description="Profile of occupants metabolism in building [-]",
         json_schema_extra={
@@ -1841,10 +1853,10 @@ class ArchetypeProperties(BaseModel):
     }
 
     def to_df_state(self, grid_id: int) -> pd.DataFrame:
-        string_fields = {"BuildingType", "BuildingName"}
+        string_fields = {"building_type", "building_name"}
         ten_minute_profile_fields = {
-            "MetabolismProfile", "HeatingSetpointTemperatureProfile",
-            "CoolingSetpointTemperatureProfile",
+            "metabolism_profile", "heating_setpoint_temperature_profile",
+            "cooling_setpoint_temperature_profile",
         }
         excluded_fields = string_fields | ten_minute_profile_fields | {"ref"}
 
@@ -1859,7 +1871,8 @@ class ArchetypeProperties(BaseModel):
 
         for field_name in string_fields:
             value = getattr(self, field_name)
-            cols[(field_name.lower(), "0")] = value
+            col_name = self._ARCHETYPE_LEGACY_COL_NAMES.get(field_name, field_name).lower()
+            cols[(col_name, "0")] = value
 
         df_state = df_from_cols(cols, index=pd.Index([grid_id], name="grid"))
 
@@ -1867,19 +1880,20 @@ class ArchetypeProperties(BaseModel):
             profile = getattr(self, field_name)
             if profile is None:
                 continue
-            df_profile = profile.to_df_state(grid_id, field_name.lower())
+            col_name = self._ARCHETYPE_LEGACY_COL_NAMES.get(field_name, field_name).lower()
+            df_profile = profile.to_df_state(grid_id, col_name)
             df_state = df_state.combine_first(df_profile)
 
         return df_state
 
     @classmethod
     def from_df_state(cls, df: pd.DataFrame, grid_id: int) -> "ArchetypeProperties":
-        string_fields = {"BuildingType", "BuildingName"}
-        ten_minute_profile_fields = {"MetabolismProfile", "HeatingSetpointTemperatureProfile", "CoolingSetpointTemperatureProfile",}
+        string_fields = {"building_type", "building_name"}
+        ten_minute_profile_fields = {"metabolism_profile", "heating_setpoint_temperature_profile", "cooling_setpoint_temperature_profile",}
         ten_minute_profile_classes = {
-            "MetabolismProfile": TenMinuteProfile,
-            "HeatingSetpointTemperatureProfile": HeatingSetpointProfile,
-            "CoolingSetpointTemperatureProfile": CoolingSetpointProfile,
+            "metabolism_profile": TenMinuteProfile,
+            "heating_setpoint_temperature_profile": HeatingSetpointProfile,
+            "cooling_setpoint_temperature_profile": CoolingSetpointProfile,
         }
 
         default_instance = cls()
@@ -1890,7 +1904,8 @@ class ArchetypeProperties(BaseModel):
                 continue
 
             if field_name in string_fields:
-                col = (field_name.lower(), "0")
+                col_name = cls._ARCHETYPE_LEGACY_COL_NAMES.get(field_name, field_name).lower()
+                col = (col_name, "0")
                 if col in df.columns:
                     value = df.loc[grid_id, col]
                     params[field_name] = (
@@ -1903,11 +1918,12 @@ class ArchetypeProperties(BaseModel):
                 continue
 
             if field_name in ten_minute_profile_fields:
-                has_profile_columns = any(col[0] == field_name.lower() for col in df.columns)
+                col_name = cls._ARCHETYPE_LEGACY_COL_NAMES.get(field_name, field_name).lower()
+                has_profile_columns = any(col[0] == col_name for col in df.columns)
                 if has_profile_columns:
                     try:
                         params[field_name] = ten_minute_profile_classes[field_name].from_df_state(
-                            df, grid_id, field_name.lower()
+                            df, grid_id, col_name
                         )
                     except KeyError:
                         params[field_name] = getattr(default_instance, field_name)
@@ -1939,7 +1955,28 @@ class StebbsProperties(BaseModel):
 
     model_config = ConfigDict(title="STEBBS")
 
-    WallInternalConvectionCoefficient: Optional[FlexibleRefValue(float)] = Field(
+    # gh#1334: Fortran/Rust bridge DataFrame columns (see
+    # `src/supy/_var_metadata.py`) keep the pre-gh#1334 fused-lowercase
+    # spellings (`dhwwatervolume`, `coolingsystemcop`, etc.). Renaming the
+    # bridge columns to snake_case is Tier B/C work tracked under #1324 /
+    # #1325. Until then, map every snake_case Python attribute back to its
+    # PascalCase legacy form (lowercased downstream by `to_df_state` /
+    # `from_df_state`) so the DataFrame round-trip continues to find the
+    # right column.
+    _STEBBS_LEGACY_COL_NAMES: ClassVar[Dict[str, str]] = {
+        new: old for old, new in STEBBSPROPERTIES_RENAMES.items()
+    }
+
+    @model_validator(mode="before")
+    @classmethod
+    def _rename_stebbs_fields(cls, values):
+        if isinstance(values, dict):
+            return apply_field_renames(
+                values, STEBBSPROPERTIES_RENAMES, cls.__name__
+            )
+        return values
+
+    wall_internal_convection_coefficient: Optional[FlexibleRefValue(float)] = Field(
         default=7.69,  # Default value calculated from the CIBSE GUIDE A, Table 3.47, Page 176
         description="Internal convection coefficient of walls [W m-2 K-1]",
         json_schema_extra={
@@ -1950,7 +1987,7 @@ class StebbsProperties(BaseModel):
         },
         gt=0.0,
     )
-    RoofInternalConvectionCoefficient: Optional[FlexibleRefValue(float)] = Field(
+    roof_internal_convection_coefficient: Optional[FlexibleRefValue(float)] = Field(
         default=10.0,  # Default value calculated from the CIBSE GUIDE A, Table 3.47, Page 176
         description="Internal convection coefficient of roof [W m-2 K-1]",
         json_schema_extra={
@@ -1959,7 +1996,7 @@ class StebbsProperties(BaseModel):
         },
         gt=0.0,
     )
-    InternalMassConvectionCoefficient: Optional[FlexibleRefValue(float)] = Field(
+    internal_mass_convection_coefficient: Optional[FlexibleRefValue(float)] = Field(
         default=7.69,  # Default value calculated from the CIBSE GUIDE A, Table 3.47, Page 176
         description="Convection coefficient of internal mass [W m-2 K-1]",
         json_schema_extra={
@@ -1968,7 +2005,7 @@ class StebbsProperties(BaseModel):
         },
         gt=0.0,
     )
-    FloorInternalConvectionCoefficient: Optional[FlexibleRefValue(float)] = Field(
+    floor_internal_convection_coefficient: Optional[FlexibleRefValue(float)] = Field(
         default=5.88,  # Default value calculated from the CIBSE GUIDE A, Table 3.47, Page 176
         description="Internal convection coefficient of ground floor [W m-2 K-1]",
         json_schema_extra={
@@ -1977,7 +2014,7 @@ class StebbsProperties(BaseModel):
         },
         gt=0.0,
     )
-    WindowInternalConvectionCoefficient: Optional[FlexibleRefValue(float)] = Field(
+    window_internal_convection_coefficient: Optional[FlexibleRefValue(float)] = Field(
         default=7.69,  # Default value calculated from the CIBSE GUIDE A, Table 3.47, Page 176
         description="Internal convection coefficient of windows [W m-2 K-1]",
         json_schema_extra={
@@ -1986,7 +2023,7 @@ class StebbsProperties(BaseModel):
         },
         gt=0.0,
     )
-    WallExternalConvectionCoefficient: Optional[FlexibleRefValue(float)] = Field(
+    wall_external_convection_coefficient: Optional[FlexibleRefValue(float)] = Field(
         default=25.0,  # Default value calculated from the CIBSE GUIDE A, Table 3.47, Page 176
         description="Initial external convection coefficient of walls and roof [W m-2 K-1]",
         json_schema_extra={
@@ -1995,7 +2032,7 @@ class StebbsProperties(BaseModel):
         },
         gt=0.0,
     )
-    RoofExternalConvectionCoefficient: Optional[FlexibleRefValue(float)] = Field(
+    roof_external_convection_coefficient: Optional[FlexibleRefValue(float)] = Field(
         default=25.0,  # Default value calculated from the CIBSE GUIDE A, Table 3.47, Page 176
         description="Initial external convection coefficient of roof [W m-2 K-1]",
         json_schema_extra={
@@ -2004,7 +2041,7 @@ class StebbsProperties(BaseModel):
         },
         gt=0.0,
     )
-    WindowExternalConvectionCoefficient: Optional[FlexibleRefValue(float)] = Field(
+    window_external_convection_coefficient: Optional[FlexibleRefValue(float)] = Field(
         default=25.0,  # Default value calculated from the CIBSE GUIDE A, Table 3.47, Page 176
         description="Initial external convection coefficient of windows [W m-2 K-1]",
         json_schema_extra={
@@ -2013,13 +2050,13 @@ class StebbsProperties(BaseModel):
         },
         gt=0.0,
     )
-    GroundDepth: Optional[FlexibleRefValue(float)] = Field(
+    ground_depth: Optional[FlexibleRefValue(float)] = Field(
         default=3.0,
         description="Depth of external ground (deep soil) [m]",
         json_schema_extra={"unit": "m", "display_name": "Ground Depth"},
         gt=0.0,
     )
-    ExternalGroundConductivity: Optional[FlexibleRefValue(float)] = Field(
+    external_ground_conductivity: Optional[FlexibleRefValue(float)] = Field(
         default=0.193,
         description="External ground thermal conductivity",
         json_schema_extra={
@@ -2028,13 +2065,13 @@ class StebbsProperties(BaseModel):
         },
         gt=0.0,
     )
-    MetabolismThreshold: Optional[FlexibleRefValue(float)] = Field(
+    metabolism_threshold: Optional[FlexibleRefValue(float)] = Field(
         default=74.3,
         description="threshold of metabolic rate to determine occupancy active or inactive [W]",
         json_schema_extra={"unit": "W", "display_name": "Metabolic Rate Threshold"},
         gt=0.0,
     )
-    LatentSensibleRatio: Optional[FlexibleRefValue(float)] = Field(
+    latent_sensible_ratio: Optional[FlexibleRefValue(float)] = Field(
         default=0.0,
         description="Latent-to-sensible ratio of metabolic energy release of occupants [-]",
         json_schema_extra={
@@ -2044,7 +2081,7 @@ class StebbsProperties(BaseModel):
         ge=0.0,
         lt=1.0,
     )
-    DaylightControl: Optional[FlexibleRefValue(int)] = Field(
+    daylight_control: Optional[FlexibleRefValue(int)] = Field(
         default=0,
         description="Integer flag to enable daylight-based lighting control (0 = off, 1 = on)",
         json_schema_extra={
@@ -2052,7 +2089,7 @@ class StebbsProperties(BaseModel):
             "display_name": "Daylight Control",
         },
     )
-    LightingIlluminanceThreshold: Optional[FlexibleRefValue(float)] = Field(
+    lighting_illuminance_threshold: Optional[FlexibleRefValue(float)] = Field(
         default=300.0,
         description="Indoor illuminance threshold above which electric lighting is switched off [lx]",
         json_schema_extra={
@@ -2061,7 +2098,7 @@ class StebbsProperties(BaseModel):
         },
         ge=0.0,
     )
-    HeatingSystemEfficiency: Optional[FlexibleRefValue(float)] = Field(
+    heating_system_efficiency: Optional[FlexibleRefValue(float)] = Field(
         default=0.9,
         description="Efficiency of space heating system [-]",
         json_schema_extra={
@@ -2071,13 +2108,13 @@ class StebbsProperties(BaseModel):
         gt=0.0,
         lt=1.0,
     )
-    MaxCoolingPower: Optional[FlexibleRefValue(float)] = Field(
+    max_cooling_power: Optional[FlexibleRefValue(float)] = Field(
         default=0.0,
         description="Maximum power demand of cooling system [W]",
         json_schema_extra={"unit": "W", "display_name": "Maximum Cooling Power"},
         ge=0.0,
     )
-    CoolingSystemCOP: Optional[FlexibleRefValue(float)] = Field(
+    cooling_system_cop: Optional[FlexibleRefValue(float)] = Field(
         default=3.4,
         description="Coefficient of performance of cooling system [-]",
         json_schema_extra={
@@ -2086,13 +2123,13 @@ class StebbsProperties(BaseModel):
         },
         gt=0.0,
     )
-    VentilationRate: Optional[FlexibleRefValue(float)] = Field(
+    ventilation_rate: Optional[FlexibleRefValue(float)] = Field(
         default=0.0,
         description="Ventilation rate (air changes per hour, ACH) [h-1]",
         json_schema_extra={"unit": "h^-1", "display_name": "Ventilation Rate"},
         ge=0.0,
     )
-    InitialOutdoorTemperature: Optional[FlexibleRefValue(float)] = Field(
+    initial_outdoor_temperature: Optional[FlexibleRefValue(float)] = Field(
         default=0.0,
         description="Initial outdoor temperature [degC]",
         json_schema_extra={
@@ -2100,7 +2137,7 @@ class StebbsProperties(BaseModel):
             "display_name": "Initial Outdoor Temperature",
         },
     )
-    InitialIndoorTemperature: Optional[FlexibleRefValue(float)] = Field(
+    initial_indoor_temperature: Optional[FlexibleRefValue(float)] = Field(
         default=0.0,
         description="Initial indoor temperature [degC]",
         json_schema_extra={
@@ -2108,7 +2145,7 @@ class StebbsProperties(BaseModel):
             "display_name": "Initial Indoor Temperature",
         },
     )
-    AnnualMeanAirTemperature: Optional[FlexibleRefValue(float)] = Field(
+    annual_mean_air_temperature: Optional[FlexibleRefValue(float)] = Field(
         default=10.0,
         description="Annual mean air temperature [degC]",
         json_schema_extra={
@@ -2116,7 +2153,7 @@ class StebbsProperties(BaseModel):
             "display_name": "Annual Mean Air Temperature",
         },
     )
-    MonthMeanAirTemperature_diffmax: Optional[FlexibleRefValue(float)] = Field(
+    month_mean_air_temperature_diffmax: Optional[FlexibleRefValue(float)] = Field(
         default=10.0,
         description="Maximum difference in monthly outdoor air temperature [degC]",
         json_schema_extra={
@@ -2125,24 +2162,24 @@ class StebbsProperties(BaseModel):
         },
         gt = 0.0,
     )
-    WaterTankWallThickness: Optional[FlexibleRefValue(float)] = Field(
+    water_tank_wall_thickness: Optional[FlexibleRefValue(float)] = Field(
         default=0.01,
         description="Hot water tank wall thickness [m]",
         json_schema_extra={"unit": "m", "display_name": "Water Tank Wall Thickness"},
         gt=0.0,
     )
-    MainsWaterTemperature: Optional[FlexibleRefValue(float)] = Field(
+    mains_water_temperature: Optional[FlexibleRefValue(float)] = Field(
         default=0.0,
         description="Temperature of water coming into the water tank [degC]",
         json_schema_extra={"unit": "degC", "display_name": "Mains Water Temperature"},
     )
-    WaterTankSurfaceArea: Optional[FlexibleRefValue(float)] = Field(
+    water_tank_surface_area: Optional[FlexibleRefValue(float)] = Field(
         default=2.0,
         description="Surface area of hot water tank cylinder [m2]",
         json_schema_extra={"unit": "m^2", "display_name": "Water Tank Surface Area"},
         gt=0.0,
     )
-    HotWaterHeatingSetpointTemperature: Optional[FlexibleRefValue(float)] = Field(
+    hot_water_heating_setpoint_temperature: Optional[FlexibleRefValue(float)] = Field(
         default=60.0,
         description="Water tank setpoint temperature [degC]",
         json_schema_extra={
@@ -2151,7 +2188,7 @@ class StebbsProperties(BaseModel):
         },
         lt=100.0,
     )
-    HotWaterTankWallEmissivity: Optional[FlexibleRefValue(float)] = Field(
+    hot_water_tank_wall_emissivity: Optional[FlexibleRefValue(float)] = Field(
         default=0.0,
         description="Effective external wall emissivity of the hot water tank [-]",
         json_schema_extra={
@@ -2161,13 +2198,13 @@ class StebbsProperties(BaseModel):
         ge=0.0,
         le=1.0,
     )
-    DHWVesselWallThickness: Optional[FlexibleRefValue(float)] = Field(
+    dhw_vessel_wall_thickness: Optional[FlexibleRefValue(float)] = Field(
         default=0.005,
         description="Hot water vessel wall thickness [m]",
         json_schema_extra={"unit": "m", "display_name": "DHW Vessel Wall Thickness"},
         gt=0.0,
     )
-    DHWWaterVolume: Optional[FlexibleRefValue(float)] = Field(
+    dhw_water_volume: Optional[FlexibleRefValue(float)] = Field(
         default=0.05,
         description="Volume of water held in use in building [m3]",
         json_schema_extra={
@@ -2178,20 +2215,20 @@ class StebbsProperties(BaseModel):
         },
         gt=0.0,
     )
-    DHWSurfaceArea: Optional[FlexibleRefValue(float)] = Field(
+    dhw_surface_area: Optional[FlexibleRefValue(float)] = Field(
         default=0.5,
         description="Surface area of hot water in vessels in building [m2]",
         json_schema_extra={"unit": "m^2", "display_name": "DHW Surface Area"},
         gt=0.0,
     )
-    HotWaterFlowRate: Optional[FlexibleRefValue(float)] = Field(
+    hot_water_flow_rate: Optional[FlexibleRefValue(float)] = Field(
         default=0.0,
         description="Hot water flow rate from tank to vessel [m3 s-1]",
         json_schema_extra={"unit": "m^3 s^-1", "display_name": "Hot Water Flow Rate"},
         ge=0.0,
     )
 
-    HotWaterFlowProfile: Optional[TenMinuteProfile] = Field(
+    hot_water_flow_profile: Optional[TenMinuteProfile] = Field(
         default_factory=TenMinuteProfile,
         description="Profile of hot water flow rate from tank to vessel [m3 s-1]",
         json_schema_extra={
@@ -2199,7 +2236,7 @@ class StebbsProperties(BaseModel):
         },
     )   
 
-    DHWSpecificHeatCapacity: Optional[FlexibleRefValue(float)] = Field(
+    dhw_specific_heat_capacity: Optional[FlexibleRefValue(float)] = Field(
         default=4186.0,
         description="Specific heat capacity of hot water [J kg-1 K-1]",
         json_schema_extra={
@@ -2208,7 +2245,7 @@ class StebbsProperties(BaseModel):
         },
         gt=0.0,
     )
-    HotWaterTankSpecificHeatCapacity: Optional[FlexibleRefValue(float)] = Field(
+    hot_water_tank_specific_heat_capacity: Optional[FlexibleRefValue(float)] = Field(
         default=500.0,
         description="Specific heat capacity of hot water tank wall [J kg-1 K-1]",
         json_schema_extra={
@@ -2217,7 +2254,7 @@ class StebbsProperties(BaseModel):
         },
         gt=0.0,
     )
-    DHWVesselSpecificHeatCapacity: Optional[FlexibleRefValue(float)] = Field(
+    dhw_vessel_specific_heat_capacity: Optional[FlexibleRefValue(float)] = Field(
         default=500.0,
         description="Specific heat capacity of vessels containing hot water in use in buildings [J kg-1 K-1]",
         json_schema_extra={
@@ -2226,13 +2263,13 @@ class StebbsProperties(BaseModel):
         },
         gt=0.0,
     )
-    DHWDensity: Optional[FlexibleRefValue(float)] = Field(
+    dhw_density: Optional[FlexibleRefValue(float)] = Field(
         default=1000.0,
         description="Density of hot water in use [kg m-3]",
         json_schema_extra={"unit": "kg m^-3", "display_name": "DHW Density"},
         gt=0.0,
     )
-    HotWaterTankWallDensity: Optional[FlexibleRefValue(float)] = Field(
+    hot_water_tank_wall_density: Optional[FlexibleRefValue(float)] = Field(
         default=2500.0,
         description="Density of hot water tank wall [kg m-3]",
         json_schema_extra={
@@ -2241,13 +2278,13 @@ class StebbsProperties(BaseModel):
         },
         gt=0.0,
     )
-    DHWVesselDensity: Optional[FlexibleRefValue(float)] = Field(
+    dhw_vessel_density: Optional[FlexibleRefValue(float)] = Field(
         default=2500.0,
         description="Density of vessels containing hot water in use [kg m-3]",
         json_schema_extra={"unit": "kg m^-3", "display_name": "DHW Vessel Density"},
         gt=0.0,
     )
-    HotWaterTankBuildingWallViewFactor: Optional[FlexibleRefValue(float)] = Field(
+    hot_water_tank_building_wall_view_factor: Optional[FlexibleRefValue(float)] = Field(
         default=0.0,
         description="Water tank/vessel internal building wall/roof view factor [-]",
         json_schema_extra={
@@ -2257,7 +2294,7 @@ class StebbsProperties(BaseModel):
         ge=0.0,
         le=1.0,
     )
-    HotWaterTankInternalMassViewFactor: Optional[FlexibleRefValue(float)] = Field(
+    hot_water_tank_internal_mass_view_factor: Optional[FlexibleRefValue(float)] = Field(
         default=0.0,
         description="Water tank/vessel building internal mass view factor [-]",
         json_schema_extra={
@@ -2267,7 +2304,7 @@ class StebbsProperties(BaseModel):
         ge=0.0,
         le=1.0,
     )
-    HotWaterTankWallConductivity: Optional[FlexibleRefValue(float)] = Field(
+    hot_water_tank_wall_conductivity: Optional[FlexibleRefValue(float)] = Field(
         default=0.5,
         description="Effective wall conductivity of the hot water tank [W m-1 K-1]",
         json_schema_extra={
@@ -2276,7 +2313,7 @@ class StebbsProperties(BaseModel):
         },
         gt=0.0,
     )
-    HotWaterTankInternalWallConvectionCoefficient: Optional[FlexibleRefValue(float)] = (
+    hot_water_tank_internal_wall_convection_coefficient: Optional[FlexibleRefValue(float)] = (
         Field(
             default=7.7,
             description="Effective internal wall convection coefficient of the hot water tank [W m-2 K-1]",
@@ -2287,7 +2324,7 @@ class StebbsProperties(BaseModel):
         gt=0.0,
         )
     )
-    HotWaterTankExternalWallConvectionCoefficient: Optional[FlexibleRefValue(float)] = (
+    hot_water_tank_external_wall_convection_coefficient: Optional[FlexibleRefValue(float)] = (
         Field(
             default=7.7,
             description="Effective external wall convection coefficient of the hot water tank [W m-2 K-1]",
@@ -2298,7 +2335,7 @@ class StebbsProperties(BaseModel):
         gt=0.0,
         )
     )
-    DHWVesselWallConductivity: Optional[FlexibleRefValue(float)] = Field(
+    dhw_vessel_wall_conductivity: Optional[FlexibleRefValue(float)] = Field(
         default=0.5,
         description="Effective wall conductivity of the hot water tank [W m-1 K-1]",
         json_schema_extra={
@@ -2307,7 +2344,7 @@ class StebbsProperties(BaseModel):
         },
         gt=0.0,
     )
-    DHWVesselInternalWallConvectionCoefficient: Optional[FlexibleRefValue(float)] = (
+    dhw_vessel_internal_wall_convection_coefficient: Optional[FlexibleRefValue(float)] = (
         Field(
             default=7.7,
             description="Effective internal wall convection coefficient of the vessels holding hot water in use in building [W m-2 K-1]",
@@ -2318,7 +2355,7 @@ class StebbsProperties(BaseModel):
         gt=0.0,
         )
     )
-    DHWVesselExternalWallConvectionCoefficient: Optional[FlexibleRefValue(float)] = (
+    dhw_vessel_external_wall_convection_coefficient: Optional[FlexibleRefValue(float)] = (
         Field(
             default=7.7,
             description="Effective external wall convection coefficient of the vessels holding hot water in use in building [W m-2 K-1]",
@@ -2329,7 +2366,7 @@ class StebbsProperties(BaseModel):
         gt=0.0,
         )
     )
-    DHWVesselWallEmissivity: Optional[FlexibleRefValue(float)] = Field(
+    dhw_vessel_wall_emissivity: Optional[FlexibleRefValue(float)] = Field(
         default=0.9,
         description="Effective external wall emissivity of hot water being used within building [-]",
         json_schema_extra={
@@ -2339,7 +2376,7 @@ class StebbsProperties(BaseModel):
         ge=0.0,
         le=1.0,
     )
-    HotWaterHeatingEfficiency: Optional[FlexibleRefValue(float)] = Field(
+    hot_water_heating_efficiency: Optional[FlexibleRefValue(float)] = Field(
         default=0.9,
         description="Efficiency of hot water system [-]",
         json_schema_extra={
@@ -2349,7 +2386,7 @@ class StebbsProperties(BaseModel):
         gt=0.0,
         lt=1.0,
     )
-    ApplianceProfile: Optional[TenMinuteProfile] = Field(
+    appliance_profile: Optional[TenMinuteProfile] = Field(
         default_factory=TenMinuteProfile,
         description="10-minute profile of appliance usage factor in building [-]",
         json_schema_extra={
@@ -2357,7 +2394,7 @@ class StebbsProperties(BaseModel):
             "display_name": "Appliance Profile",
         },
     )
-    LightingPowerDensity: Optional[FlexibleRefValue(float)] = (
+    lighting_power_density: Optional[FlexibleRefValue(float)] = (
         Field(
             default=2,
             description="Lighting power per building floor area [W m-2]",
@@ -2372,17 +2409,21 @@ class StebbsProperties(BaseModel):
 
     def to_df_state(self, grid_id: int) -> pd.DataFrame:
         """Convert StebbsProperties to DataFrame state format."""
-        tenmin_profile_fields = {"ApplianceProfile", "HotWaterFlowProfile"}
+        tenmin_profile_fields = {"appliance_profile", "hot_water_flow_profile"}
         excluded_fields = tenmin_profile_fields | {"ref"}
 
-        # scalar fields
+        # scalar fields -- legacy DF column is the lowercased PascalCase form
+        # via `_STEBBS_LEGACY_COL_NAMES` (e.g. `dhw_water_volume` ->
+        # `dhwwatervolume`). The Fortran/Rust bridge still keys on the fused
+        # lowercase spelling; renaming bridge columns is Tier B/C work.
         cols = {("gridiv", "0"): grid_id}
         for field_name in self.model_fields:
             if field_name in excluded_fields:
                 continue
             field_val = getattr(self, field_name)
             value = field_val.value if isinstance(field_val, RefValue) else field_val
-            cols[(field_name.lower(), "0")] = value
+            col_name = self._STEBBS_LEGACY_COL_NAMES.get(field_name, field_name).lower()
+            cols[(col_name, "0")] = value
 
         df_state = df_from_cols(cols, index=pd.Index([grid_id], name="grid"))
 
@@ -2391,7 +2432,8 @@ class StebbsProperties(BaseModel):
             profile = getattr(self, field_name)
             if profile is None:
                 continue
-            df_profile = profile.to_df_state(grid_id, field_name.lower())
+            col_name = self._STEBBS_LEGACY_COL_NAMES.get(field_name, field_name).lower()
+            df_profile = profile.to_df_state(grid_id, col_name)
             df_state = df_state.combine_first(df_profile)
 
         return df_state
@@ -2399,7 +2441,7 @@ class StebbsProperties(BaseModel):
     @classmethod
     def from_df_state(cls, df: pd.DataFrame, grid_id: int) -> "StebbsProperties":
         """Reconstruct StebbsProperties from DataFrame state format."""
-        tenmin_profile_fields = {"ApplianceProfile", "HotWaterFlowProfile"}
+        tenmin_profile_fields = {"appliance_profile", "hot_water_flow_profile"}
         default_instance = cls()
         params: Dict[str, object] = {}
 
@@ -2408,11 +2450,12 @@ class StebbsProperties(BaseModel):
                 continue
 
             if field_name in tenmin_profile_fields:
-                has_profile_columns = any(col[0] == field_name.lower() for col in df.columns)
+                col_name = cls._STEBBS_LEGACY_COL_NAMES.get(field_name, field_name).lower()
+                has_profile_columns = any(col[0] == col_name for col in df.columns)
                 if has_profile_columns:
                     try:
                         params[field_name] = TenMinuteProfile.from_df_state(
-                            df, grid_id, field_name.lower()
+                            df, grid_id, col_name
                         )
                     except KeyError:
                         params[field_name] = getattr(default_instance, field_name)
@@ -2420,7 +2463,8 @@ class StebbsProperties(BaseModel):
                     params[field_name] = getattr(default_instance, field_name)
                 continue
 
-            col = (field_name.lower(), "0")
+            col_name = cls._STEBBS_LEGACY_COL_NAMES.get(field_name, field_name).lower()
+            col = (col_name, "0")
             if col in df.columns:
                 value = df.loc[grid_id, col]
                 if pd.isna(value):

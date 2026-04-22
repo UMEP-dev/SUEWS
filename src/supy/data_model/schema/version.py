@@ -22,7 +22,7 @@ import warnings
 # schema-versioning.md` (Dev-label convention). Every structural PR
 # between releases bumps the dev counter instead of consuming a new
 # CalVer label.
-CURRENT_SCHEMA_VERSION = "2026.5.dev2"
+CURRENT_SCHEMA_VERSION = "2026.5.dev3"
 
 # Schema version history and descriptions.
 #
@@ -106,6 +106,47 @@ SCHEMA_VERSIONS: dict[str, str] = {
         "src/supy/data_model/core/field_renames.py; the "
         "(2026.5.dev1 -> 2026.5.dev2) migration is registered in "
         "src/supy/util/converter/yaml_upgrade.py::_HANDLERS."
+    ),
+    "2026.5.dev3": (
+        "gh#1334: full user-facing YAML surface to snake_case. "
+        "Retires the STEBBS PascalCase exception carried over from "
+        "the Fortran-side STEBBS interface so the YAML is a single "
+        "convention throughout. 124 renames in three classes: "
+        "(a) ArchetypeProperties — 63 fields PascalCase -> snake_case "
+        "(BuildingType -> building_type, stebbs_Height -> "
+        "building_height, WWR -> window_to_wall_ratio, "
+        "WallOuterCapFrac -> wall_outer_heat_capacity_fraction, "
+        "WallCp -> wall_specific_heat_capacity, WallAbsorbtivity -> "
+        "wall_absorptivity (spelling fix), FloorThickness -> "
+        "ground_floor_thickness (alignment), etc.); (b) "
+        "StebbsProperties — 50 fields (WallInternalConvectionCoefficient "
+        "-> wall_internal_convection_coefficient, CoolingSystemCOP -> "
+        "cooling_system_cop, "
+        "MonthMeanAirTemperature_diffmax -> "
+        "month_mean_air_temperature_diffmax, DHW* family lowercased "
+        "to dhw_* so DHWWaterVolume -> dhw_water_volume, "
+        "DHWVesselWallEmissivity -> dhw_vessel_wall_emissivity, etc.; "
+        "the parallel HotWater* family snake-cases to hot_water_*. "
+        "The two prefixes (dhw_*, hot_water_*) and the cop/diffmax "
+        "abbreviations are kept to mirror the Rust bridge structs "
+        "(src/suews_bridge/src/stebbs_prm.rs); unifying them is Tier "
+        "B work tracked under #1324); (c) SnowParams — 11 snake_case clean-ups "
+        "(precip_limit -> temperature_rain_snow_threshold (semantic "
+        "fix: the value is a temperature, unit degC), tau_a/f/r -> "
+        "tau_cold_snow/tau_melting_snow/tau_refreezing_snow, "
+        "snow_limit_building/paved -> snow_depth_limit_*, "
+        "snowprof_24hr -> snow_profile_24hr, narp_emis_snow -> "
+        "narp_emissivity_snow, temp_melt_factor -> "
+        "temperature_melt_factor, rad_melt_factor -> "
+        "radiation_melt_factor). Rename tables extend "
+        "ARCHETYPEPROPERTIES_RENAMES / SNOWPARAMS_RENAMES and add "
+        "STEBBSPROPERTIES_RENAMES in "
+        "src/supy/data_model/core/field_renames.py; the "
+        "(2026.5.dev2 -> 2026.5.dev3) migration is registered in "
+        "src/supy/util/converter/yaml_upgrade.py::_HANDLERS. "
+        ".claude/rules/00-project-essentials.md and "
+        ".claude/rules/python/conventions.md drop the STEBBS "
+        "PascalCase exception in the same PR."
     ),
 }
 

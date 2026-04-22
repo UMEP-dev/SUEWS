@@ -139,9 +139,9 @@ def check_occupants_metabolism(context):
         for site_idx, site in enumerate(sites):
             props = site.get("properties", {})
             building_archetype = props.get("building_archetype", {})
-            occupants_entry = building_archetype.get("Occupants", {})
+            occupants_entry = building_archetype.get("occupants", {})
             occupants = occupants_entry.get("value") if isinstance(occupants_entry, Mapping) else occupants_entry
-            metabolism_profile = building_archetype.get("MetabolismProfile", {})
+            metabolism_profile = building_archetype.get("metabolism_profile", {})
             if occupants == 0.0 and isinstance(metabolism_profile, Mapping):
                 problematic_entries = []
                 for daytype in ("working_day", "holiday"):
@@ -157,13 +157,13 @@ def check_occupants_metabolism(context):
                         ValidationResult(
                             status="ERROR",
                             category="MODEL_OPTIONS",
-                            parameter="building_archetype.MetabolismProfile",
+                            parameter="building_archetype.metabolism_profile",
                             site_index=site_idx,
                             site_gridid=site.get("gridiv"),
                             message=(
-                                f"Occupants is 0.0 but MetabolismProfile has nonzero entries: {', '.join(problematic_entries)} (should all be 0)."
+                                f"occupants is 0.0 but metabolism_profile has nonzero entries: {', '.join(problematic_entries)} (should all be 0)."
                             ),
-                            suggested_value="Set all MetabolismProfile entries to 0 if Occupants is 0.0",
+                            suggested_value="Set all metabolism_profile entries to 0 if occupants is 0.0",
                         )
                     )
     return results
@@ -172,12 +172,12 @@ def check_occupants_metabolism(context):
 @RulesRegistry.add_rule("daylight_control")
 def check_daylight_control(context):
     """
-    Validate the 'DaylightControl' flag and related lighting parameters for each site when STEBBS is active.
+    Validate the 'daylight_control' flag and related lighting parameters for each site when STEBBS is active.
 
-    - Checks that the 'DaylightControl' flag under each site's 'stebbs' properties is set to 0 or 1
+    - Checks that the 'daylight_control' flag under each site's 'stebbs' properties is set to 0 or 1
       (accepting both integer and float representations), but only if the 'stebbs_method' in the model
       physics is set to 1.
-    - If 'DaylightControl' is 1, 'LightingIlluminanceThreshold' must be provided by the user in the YAML.
+    - If 'daylight_control' is 1, 'lighting_illuminance_threshold' must be provided by the user in the YAML.
 
     Parameters
     ----------
@@ -202,37 +202,37 @@ def check_daylight_control(context):
             stebbs = props.get("stebbs", {})
             site_gridid = site.get("gridiv")
 
-            daylight_control = stebbs.get("DaylightControl", {})
+            daylight_control = stebbs.get("daylight_control", {})
             dc_val = daylight_control.get("value") if isinstance(daylight_control, Mapping) else daylight_control
 
-            # Validate DaylightControl value
+            # Validate daylight_control value
             if dc_val not in (0, 1, 0.0, 1.0, None):
                 results.append(
                     ValidationResult(
                         status="ERROR",
                         category="MODEL_OPTIONS",
-                        parameter="stebbs.DaylightControl",
+                        parameter="stebbs.daylight_control",
                         site_index=site_idx,
                         site_gridid=site_gridid,
-                        message=f"DaylightControl flag must be 0 (off) or 1 (on), got '{dc_val}'.",
-                        suggested_value="Set DaylightControl to 0 or 1",
+                        message=f"daylight_control flag must be 0 (off) or 1 (on), got '{dc_val}'.",
+                        suggested_value="Set daylight_control to 0 or 1",
                     )
                 )
 
-            # Check LightingIlluminanceThreshold if DaylightControl is 1
+            # Check lighting_illuminance_threshold if daylight_control is 1
             if dc_val in (1, 1.0):
-                lit = stebbs.get("LightingIlluminanceThreshold", None)
+                lit = stebbs.get("lighting_illuminance_threshold", None)
                 lit_val = lit.get("value") if isinstance(lit, Mapping) else lit
                 if lit_val is None:
                     results.append(
                         ValidationResult(
                             status="ERROR",
                             category="MODEL_OPTIONS",
-                            parameter="stebbs.LightingIlluminanceThreshold",
+                            parameter="stebbs.lighting_illuminance_threshold",
                             site_index=site_idx,
                             site_gridid=site_gridid,
-                            message="LightingIlluminanceThreshold must be provided when DaylightControl is 1.",
-                            suggested_value="Provide a value for LightingIlluminanceThreshold in stebbs.",
+                            message="lighting_illuminance_threshold must be provided when daylight_control is 1.",
+                            suggested_value="Provide a value for lighting_illuminance_threshold in stebbs.",
                         )
                     )
 
@@ -242,10 +242,10 @@ def check_daylight_control(context):
 @RulesRegistry.add_rule("stebbs_props")
 def check_stebbs_properties(context):
     """
-    Validate the 'HotWaterFlowProfile' values in the STEBBS properties for each site.
+    Validate the 'hot_water_flow_profile' values in the STEBBS properties for each site.
 
     Checks that, if the 'stebbs_method' is set to 1 in the model physics configuration,
-    the 'HotWaterFlowProfile' for both 'working_day' and 'holiday' day types contains
+    the 'hot_water_flow_profile' for both 'working_day' and 'holiday' day types contains
     only values of 0 or 1 for each hour. If any value is not 0 or 1, an error is added
     to the results.
 
@@ -258,7 +258,7 @@ def check_stebbs_properties(context):
     -------
     list of ValidationResult
         A list of ValidationResult objects describing any errors found in the
-        'HotWaterFlowProfile' values for each site.
+        'hot_water_flow_profile' values for each site.
     """
 
     yaml_data = context.yaml_data
@@ -273,7 +273,7 @@ def check_stebbs_properties(context):
             props = site.get("properties", {})
             stebbs = props.get("stebbs", {})
             site_gridid = site.get("gridiv")
-            hwfp_entry = stebbs.get("HotWaterFlowProfile", {})
+            hwfp_entry = stebbs.get("hot_water_flow_profile", {})
             for daytype in ("working_day", "holiday"):
                 day_profile = hwfp_entry.get(daytype, {})
                 if isinstance(day_profile, Mapping):
@@ -283,13 +283,13 @@ def check_stebbs_properties(context):
                                 ValidationResult(
                                     status="ERROR",
                                     category="MODEL_OPTIONS",
-                                    parameter=f"stebbs.HotWaterFlowProfile.{daytype}.{hour_str}",
+                                    parameter=f"stebbs.hot_water_flow_profile.{daytype}.{hour_str}",
                                     site_index=site_idx,
                                     site_gridid=site_gridid,
                                     message=(
-                                        f"HotWaterFlowProfile for '{daytype}' hour '{hour_str}' must be 0 or 1, got '{v}'."
+                                        f"hot_water_flow_profile for '{daytype}' hour '{hour_str}' must be 0 or 1, got '{v}'."
                                     ),
-                                    suggested_value="Set HotWaterFlowProfile to 0 or 1"
+                                    suggested_value="Set hot_water_flow_profile to 0 or 1"
                                 )
                             )
 

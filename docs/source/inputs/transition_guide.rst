@@ -180,10 +180,79 @@ The sections below summarise what users see change between schemas.
 The authoritative lineage (including release-tag to schema mapping)
 lives in :ref:`schema_version_history`.
 
+Upgrading to Schema 2026.5.dev3 (gh#1334: STEBBS + Snow user-facing YAML to snake_case)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Schema ``2026.5.dev3`` is the current in-development shape. It
+retires the pre-gh#1334 STEBBS PascalCase exception on the
+user-facing YAML surface — the full ``site.properties.stebbs``,
+``site.properties.building_archetype`` and ``site.properties.snow``
+sub-trees now follow the same ``snake_case`` convention as the rest
+of the config. 124 renames in one schema bump:
+
+- ``ArchetypeProperties`` (62 renames) — ``BuildingType`` ->
+  ``building_type``, ``stebbs_Height`` -> ``building_height``,
+  ``WWR`` -> ``window_to_wall_ratio``, ``WallThickness`` ->
+  ``wall_thickness``, ``WallCp`` -> ``wall_specific_heat_capacity``,
+  ``WallOuterCapFrac`` -> ``wall_outer_heat_capacity_fraction``,
+  ``WallAbsorbtivity`` -> ``wall_absorptivity`` (spelling fix),
+  ``FloorThickness`` -> ``ground_floor_thickness`` (aligned with
+  ``GroundFloor*`` siblings), ``WaterTankWaterVolume`` ->
+  ``water_tank_water_volume``, and so on for every wall/roof/window/
+  floor/internal-mass/setpoint/profile field.
+- ``StebbsProperties`` (50 renames) —
+  ``WallInternalConvectionCoefficient`` ->
+  ``wall_internal_convection_coefficient``, ``CoolingSystemCOP`` ->
+  ``cooling_system_cop``,
+  ``MonthMeanAirTemperature_diffmax`` ->
+  ``month_mean_air_temperature_diffmax``. The ``DHW*`` family becomes
+  ``dhw_*`` (``DHWWaterVolume`` -> ``dhw_water_volume``,
+  ``DHWVesselWallEmissivity`` -> ``dhw_vessel_wall_emissivity``); the
+  parallel ``HotWater*`` family becomes ``hot_water_*``
+  (``HotWaterTankWallDensity`` -> ``hot_water_tank_wall_density``).
+  The two prefixes are kept distinct at the snake_case layer to
+  mirror the Rust bridge structs in
+  ``src/suews_bridge/src/stebbs_prm.rs``; unifying them is tracked
+  as Tier B work under #1324.
+- ``SnowParams`` (11 renames — clarity clean-ups on existing
+  snake_case) — ``precip_limit`` ->
+  ``temperature_rain_snow_threshold`` (semantic fix: the value is a
+  temperature, unit ``degC``, despite the pre-gh#1334 name);
+  ``tau_a``/``tau_f``/``tau_r`` ->
+  ``tau_cold_snow``/``tau_melting_snow``/``tau_refreezing_snow``;
+  ``snow_limit_building``/``_paved`` -> ``snow_depth_limit_*``;
+  ``snowprof_24hr`` -> ``snow_profile_24hr``; ``narp_emis_snow`` ->
+  ``narp_emissivity_snow``; ``temp_melt_factor`` ->
+  ``temperature_melt_factor``; ``rad_melt_factor`` ->
+  ``radiation_melt_factor``.
+
+Fortran TYPE members and Rust struct fields are **not** affected —
+those live in the Tier B/C/D cascade tracked in #1324/#1325/#1326.
+DataFrame column names also stay in their legacy spellings, preserved
+via ``_ARCHETYPE_LEGACY_COL_NAMES`` / ``_STEBBS_LEGACY_COL_NAMES``
+ClassVars on the respective Pydantic models, so the Fortran bridge
+keeps working without changes.
+
+The rename tables live in
+``src/supy/data_model/core/field_renames.py``
+(``ARCHETYPEPROPERTIES_RENAMES``, ``ARCHETYPEPROPERTIES_PASCAL_RENAMES``,
+``STEBBSPROPERTIES_RENAMES``, ``SNOWPARAMS_RENAMES``, and
+``SNOWPARAMS_INTERMEDIATE_RENAMES``). Both legacy shapes (PascalCase
+from Schema 2026.5.dev2 and the pre-gh#1327 fused ``Wallext``/``Roofext``
+cluster) continue to load under a ``DeprecationWarning``. Run:
+
+.. code-block:: bash
+
+   suews-schema migrate your_config.yml --target-version 2026.5.dev3
+
+The migrator accepts any registered intermediate (``2025.12``,
+``2026.1``, ``2026.4``, ``2026.5``, ``2026.5.dev1``, ``2026.5.dev2``)
+and walks the chain to the current schema in one call.
+
 Upgrading to Schema 2026.5.dev2 (Categories 2+3 of #1256: suffix drop, abbreviation expansion)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Schema ``2026.5.dev2`` is the current in-development shape. It applies
+Schema ``2026.5.dev2`` applies
 Categories 2 and 3 of #1256 (gh#1321) to ``model.physics``: 15 fields
 strip the redundant ``_method`` / ``_model`` suffix (the enum type
 itself already carries "method") and expand opaque domain

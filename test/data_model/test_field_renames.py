@@ -20,12 +20,15 @@ pytestmark = pytest.mark.api
 from supy.data_model.core.field_renames import (
     ALL_FIELD_RENAMES,
     ARCHETYPEPROPERTIES_RENAMES,
+    ARCHETYPEPROPERTIES_PASCAL_RENAMES,
     DECTRPROPERTIES_RENAMES,
     EVETRPROPERTIES_RENAMES,
     LAIPARAMS_RENAMES,
     MODELPHYSICS_RENAMES,
     MODELPHYSICS_SUFFIX_RENAMES,
     SNOWPARAMS_RENAMES,
+    SNOWPARAMS_INTERMEDIATE_RENAMES,
+    STEBBSPROPERTIES_RENAMES,
     SURFACEPROPERTIES_RENAMES,
     VEGETATEDSURFACEPROPERTIES_RENAMES,
 )
@@ -36,6 +39,7 @@ from supy.data_model.core.site import (
     EvetrProperties,
     LAIParams,
     SnowParams,
+    StebbsProperties,
 )
 from supy.data_model.core.surface import SurfaceProperties
 from supy.data_model.validation.core.controller import ValidationController
@@ -50,6 +54,7 @@ _RENAMED_CLASSES = [
     (DectrProperties, DECTRPROPERTIES_RENAMES),
     (SnowParams, SNOWPARAMS_RENAMES),
     (ArchetypeProperties, ARCHETYPEPROPERTIES_RENAMES),
+    (StebbsProperties, STEBBSPROPERTIES_RENAMES),
     # VEGETATEDSURFACEPROPERTIES_RENAMES is covered by subclasses EvetrProperties
     # and DectrProperties (both inherit from VegetatedSurfaceProperties).
 ]
@@ -70,6 +75,7 @@ class TestRegistryIntegrity:
             + len(EVETRPROPERTIES_RENAMES)
             + len(DECTRPROPERTIES_RENAMES)
             + len(ARCHETYPEPROPERTIES_RENAMES)
+            + len(STEBBSPROPERTIES_RENAMES)
             + len(SNOWPARAMS_RENAMES)
         )
         assert len(ALL_FIELD_RENAMES) == expected
@@ -79,12 +85,9 @@ class TestRegistryIntegrity:
         assert len(set(values)) == len(values), "Duplicate new names detected"
 
     def test_snake_case_outputs(self):
-        # STEBBS ArchetypeProperties keeps PascalCase by design (matches the
-        # Fortran-side STEBBS interface, see .claude/rules/00-project-essentials.md).
-        archetype_new_names = set(ARCHETYPEPROPERTIES_RENAMES.values())
+        # gh#1334 retires the STEBBS PascalCase exception — every user-facing
+        # YAML field is snake_case throughout.
         for new in ALL_FIELD_RENAMES.values():
-            if new in archetype_new_names:
-                continue
             assert new.islower(), f"New name must be lowercase: {new!r}"
             assert "_" in new or new.isalpha(), (
                 f"New name expected to be snake_case: {new!r}"
@@ -130,7 +133,24 @@ class TestBackwardCompat:
             warnings.simplefilter("ignore", DeprecationWarning)
             snow = SnowParams(crwmax=0.2, tempmeltfact=0.15)
         assert _unwrap(snow.water_holding_capacity_max) == 0.2
-        assert _unwrap(snow.temp_melt_factor) == 0.15
+        # tempmeltfact -> temperature_melt_factor (post-gh#1334: skipped
+        # the 2026.5 intermediate `temp_melt_factor`).
+        assert _unwrap(snow.temperature_melt_factor) == 0.15
+
+    def test_snow_intermediate_names_populate_new_attributes(self):
+        """Schema 2026.5.dev2 intermediate snake_case -> gh#1334 final."""
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", DeprecationWarning)
+            snow = SnowParams(
+                precip_limit=2.5,
+                snow_limit_building=0.1,
+                tau_a=0.02,
+                temp_melt_factor=0.15,
+            )
+        assert _unwrap(snow.temperature_rain_snow_threshold) == 2.5
+        assert _unwrap(snow.snow_depth_limit_building) == 0.1
+        assert _unwrap(snow.tau_cold_snow) == 0.02
+        assert _unwrap(snow.temperature_melt_factor) == 0.15
 
     def test_old_stebbs_ext_names_populate_new_attributes(self):
         with warnings.catch_warnings():
@@ -140,9 +160,41 @@ class TestBackwardCompat:
                 WallextDensity=1800.0,
                 RoofextCp=920.0,
             )
-        assert _unwrap(archetype.WallExternalThickness) == 0.25
-        assert _unwrap(archetype.WallExternalDensity) == 1800.0
-        assert _unwrap(archetype.RoofExternalCp) == 920.0
+        # Post-gh#1334: fused Wallext/Roofext now skip the gh#1329
+        # PascalCase intermediate and land on the snake_case final.
+        assert _unwrap(archetype.wall_external_thickness) == 0.25
+        assert _unwrap(archetype.wall_external_density) == 1800.0
+        assert _unwrap(archetype.roof_external_specific_heat_capacity) == 920.0
+
+    def test_stebbs_pascal_names_populate_new_attributes(self):
+        """Full STEBBS PascalCase -> snake_case (gh#1334)."""
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", DeprecationWarning)
+            archetype = ArchetypeProperties(
+                BuildingType="Office",
+                WWR=0.4,
+                WallThickness=0.3,
+                WallOuterCapFrac=0.6,
+            )
+        assert archetype.building_type == "Office"
+        assert _unwrap(archetype.window_to_wall_ratio) == 0.4
+        assert _unwrap(archetype.wall_thickness) == 0.3
+        assert _unwrap(archetype.wall_outer_heat_capacity_fraction) == 0.6
+
+    def test_stebbs_properties_pascal_names_populate_new_attributes(self):
+        """Full StebbsProperties PascalCase -> snake_case (gh#1334)."""
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", DeprecationWarning)
+            stebbs = StebbsProperties(
+                DHWWaterVolume=0.25,
+                CoolingSystemCOP=3.5,
+                MonthMeanAirTemperature_diffmax=14.0,
+                HotWaterTankWallEmissivity=0.85,
+            )
+        assert _unwrap(stebbs.dhw_water_volume) == 0.25
+        assert _unwrap(stebbs.cooling_system_cop) == 3.5
+        assert _unwrap(stebbs.month_mean_air_temperature_diffmax) == 14.0
+        assert _unwrap(stebbs.hot_water_tank_wall_emissivity) == 0.85
 
 
 class TestDeprecationWarnings:
@@ -164,8 +216,19 @@ class TestDeprecationWarnings:
             (SnowParams, "crwmax", "water_holding_capacity_max", 0.2),
             (EvetrProperties, "evetreeh", "height_evergreen_tree", 12.0),
             (DectrProperties, "capmax_dec", "capacity_max_deciduous", 90.0),
-            (ArchetypeProperties, "WallextThickness", "WallExternalThickness", 0.25),
-            (ArchetypeProperties, "RoofextDensity", "RoofExternalDensity", 1900.0),
+            # gh#1334: fused + PascalCase legacy -> snake_case final.
+            (ArchetypeProperties, "WallextThickness", "wall_external_thickness", 0.25),
+            (ArchetypeProperties, "RoofextDensity", "roof_external_density", 1900.0),
+            (ArchetypeProperties, "WallThickness", "wall_thickness", 0.3),
+            (ArchetypeProperties, "BuildingType", "building_type", "Office"),
+            (ArchetypeProperties, "WWR", "window_to_wall_ratio", 0.4),
+            (ArchetypeProperties, "WallOuterCapFrac", "wall_outer_heat_capacity_fraction", 0.6),
+            (StebbsProperties, "DHWWaterVolume", "dhw_water_volume", 0.25),
+            (StebbsProperties, "CoolingSystemCOP", "cooling_system_cop", 3.5),
+            (StebbsProperties, "MonthMeanAirTemperature_diffmax", "month_mean_air_temperature_diffmax", 14.0),
+            (SnowParams, "tau_a", "tau_cold_snow", 0.02),
+            (SnowParams, "narp_emis_snow", "narp_emissivity_snow", 0.98),
+            (SnowParams, "precip_limit", "temperature_rain_snow_threshold", 2.5),
         ],
     )
     def test_old_name_emits_deprecation_warning(
@@ -295,16 +358,22 @@ class TestDataFrameColumnsPreserveLegacyNames:
 
     def test_archetype_ext_columns(self):
         # The Fortran bridge (src/suews_bridge/src/building_archetype_prm.rs)
-        # reads these columns by their pre-gh#1327 fused spellings; the
+        # reads these columns by their pre-gh#1334 spellings; the
         # to_df_state path must preserve them even though the Python
-        # attributes are now spelt out as WallExternalThickness etc.
+        # attributes are now snake_case (wall_external_thickness etc.).
         df = ArchetypeProperties().to_df_state(grid_id=1)
         flat_cols = {col[0] for col in df.columns}
         for old_name in ARCHETYPEPROPERTIES_RENAMES:
             assert old_name.lower() in flat_cols, (
                 f"Missing legacy column {old_name.lower()!r}"
             )
-        for new_name in ARCHETYPEPROPERTIES_RENAMES.values():
-            assert new_name.lower() not in flat_cols, (
-                f"Unexpected new-name column {new_name.lower()!r} in bridge output"
+        for old_name, new_name in ARCHETYPEPROPERTIES_RENAMES.items():
+            # When lower(old) happens to equal new (e.g. `Occupants` ->
+            # `occupants`), the legacy column and the snake_case attribute
+            # share a name and there is nothing to check — the legacy
+            # assertion above already covered it.
+            if old_name.lower() == new_name:
+                continue
+            assert new_name not in flat_cols, (
+                f"Unexpected new-name column {new_name!r} in bridge output"
             )

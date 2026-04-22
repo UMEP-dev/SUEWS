@@ -1018,7 +1018,7 @@ def adjust_surface_temperatures(
             initial_states[surface_type] = surf
 
         # Update STEBBS temperature parameter values to avg_temp
-        for key in ("InitialOutdoorTemperature", "InitialIndoorTemperature",):
+        for key in ("initial_outdoor_temperature", "initial_indoor_temperature",):
             if key in stebbs and isinstance(stebbs[key], dict):
                 old_val = stebbs[key].get("value")
                 if old_val != avg_temp:
@@ -1034,12 +1034,12 @@ def adjust_surface_temperatures(
                         )
                     )
 
-        # Update MonthMeanTemperature_diffmax in stebbs if present
+        # Update month_mean_air_temperature_diffmax in stebbs if present
         diffmax_val = get_monthly_air_temperature_diffmax(lat, lng)
         if diffmax_val is None:
             logger_supy.debug("Skipping diffmax update - CRU data not available")
         else:
-            for key in ("MonthMeanAirTemperature_diffmax",):
+            for key in ("month_mean_air_temperature_diffmax",):
                 if key in stebbs and isinstance(stebbs[key], dict):
                     old_val = stebbs[key].get("value")
                     if old_val != diffmax_val:
@@ -1055,16 +1055,16 @@ def adjust_surface_temperatures(
                             )
                         )
 
-        # Update STEBBS OutdoorAirAnnualTemperature using annual mean from CRU data
+        # Update STEBBS annual_mean_air_temperature using annual mean from CRU data
         annual_temp = get_mean_annual_air_temperature(lat, lng)
-        if annual_temp is not None and "AnnualMeanAirTemperature" in stebbs:
-            if isinstance(stebbs["AnnualMeanAirTemperature"], dict):
-                old_annual_val = stebbs["AnnualMeanAirTemperature"].get("value")
+        if annual_temp is not None and "annual_mean_air_temperature" in stebbs:
+            if isinstance(stebbs["annual_mean_air_temperature"], dict):
+                old_annual_val = stebbs["annual_mean_air_temperature"].get("value")
                 if old_annual_val != annual_temp:
-                    stebbs["AnnualMeanAirTemperature"]["value"] = annual_temp
+                    stebbs["annual_mean_air_temperature"]["value"] = annual_temp
                     adjustments.append(
                         ScientificAdjustment(
-                            parameter="stebbs.AnnualMeanAirTemperature",
+                            parameter="stebbs.annual_mean_air_temperature",
                             site_index=site_idx,
                             site_gridid=site_gridid,
                             old_value=str(old_annual_val),
@@ -1789,11 +1789,12 @@ def adjust_seasonal_parameters(
 
 def adjust_model_option_rcmethod(yaml_data: dict) -> Tuple[dict, List[ScientificAdjustment]]:
     """
-    Adjust RoofOuterCapFrac and WallOuterCapFrac for all sites if rcmethod == 0.
+    Adjust roof_outer_heat_capacity_fraction and wall_outer_heat_capacity_fraction if rcmethod == 0.
 
-    If the model physics option 'rcmethod' is set to 0, this function sets
-    'RoofOuterCapFrac' and 'WallOuterCapFrac' to 0.5 for all sites' building_archetype
-    blocks, as required by the model specification.
+    If the model physics option 'outer_cap_fraction' is set to 0, this function sets
+    'roof_outer_heat_capacity_fraction' and 'wall_outer_heat_capacity_fraction' to
+    0.5 for all sites' building_archetype blocks, as required by the model
+    specification.
 
     Parameters
     ----------
@@ -1809,7 +1810,7 @@ def adjust_model_option_rcmethod(yaml_data: dict) -> Tuple[dict, List[Scientific
 
     Notes
     -----
-    - Only applies the adjustment if 'rcmethod' is exactly 0.
+    - Only applies the adjustment if 'outer_cap_fraction' is exactly 0.
     - Records each parameter change in the adjustments list for reporting.
     """
     adjustments = []
@@ -1823,35 +1824,39 @@ def adjust_model_option_rcmethod(yaml_data: dict) -> Tuple[dict, List[Scientific
             building_archetype = props.get("building_archetype", {})
             site_gridid = get_site_gridid(site)
 
-            # RoofOuterCapFrac
-            roof_frac_entry = building_archetype.get("RoofOuterCapFrac", {})
+            # roof_outer_heat_capacity_fraction
+            roof_frac_entry = building_archetype.get(
+                "roof_outer_heat_capacity_fraction", {}
+            )
             old_roof_frac = roof_frac_entry.get("value") if isinstance(roof_frac_entry, dict) else roof_frac_entry
             if old_roof_frac != 0.5:
-                building_archetype["RoofOuterCapFrac"] = {"value": 0.5}
+                building_archetype["roof_outer_heat_capacity_fraction"] = {"value": 0.5}
                 adjustments.append(
                     ScientificAdjustment(
-                        parameter="building_archetype.RoofOuterCapFrac",
+                        parameter="building_archetype.roof_outer_heat_capacity_fraction",
                         site_index=site_idx,
                         site_gridid=site_gridid,
                         old_value=str(old_roof_frac),
                         new_value="0.5",
-                        reason="rcmethod == 0, set RoofOuterCapFrac to 0.5"
+                        reason="outer_cap_fraction == 0, set roof_outer_heat_capacity_fraction to 0.5"
                     )
                 )
 
-            # WallOuterCapFrac
-            wall_frac_entry = building_archetype.get("WallOuterCapFrac", {})
+            # wall_outer_heat_capacity_fraction
+            wall_frac_entry = building_archetype.get(
+                "wall_outer_heat_capacity_fraction", {}
+            )
             old_wall_frac = wall_frac_entry.get("value") if isinstance(wall_frac_entry, dict) else wall_frac_entry
             if old_wall_frac != 0.5:
-                building_archetype["WallOuterCapFrac"] = {"value": 0.5}
+                building_archetype["wall_outer_heat_capacity_fraction"] = {"value": 0.5}
                 adjustments.append(
                     ScientificAdjustment(
-                        parameter="building_archetype.WallOuterCapFrac",
+                        parameter="building_archetype.wall_outer_heat_capacity_fraction",
                         site_index=site_idx,
                         site_gridid=site_gridid,
                         old_value=str(old_wall_frac),
                         new_value="0.5",
-                        reason="rcmethod == 0, set WallOuterCapFrac to 0.5"
+                        reason="outer_cap_fraction == 0, set wall_outer_heat_capacity_fraction to 0.5"
                     )
                 )
 
@@ -1879,7 +1884,7 @@ def adjust_model_option_setpointmethod(yaml_data: dict) -> Tuple[dict, List[Scie
         site_gridid = get_site_gridid(site)
 
         if setpointmethod == 2:
-            for param in ["HeatingSetpointTemperature", "CoolingSetpointTemperature"]:
+            for param in ["heating_setpoint_temperature", "cooling_setpoint_temperature"]:
                 entry = building_archetype.get(param)
                 if isinstance(entry, dict):
                     old_val = entry.get("value")
@@ -1896,7 +1901,7 @@ def adjust_model_option_setpointmethod(yaml_data: dict) -> Tuple[dict, List[Scie
                             )
                         )
         elif setpointmethod == 0 or setpointmethod == 1:
-            for prof_param in ["HeatingSetpointTemperatureProfile", "CoolingSetpointTemperatureProfile"]:
+            for prof_param in ["heating_setpoint_temperature_profile", "cooling_setpoint_temperature_profile"]:
                 profile = building_archetype.get(prof_param)
                 if isinstance(profile, dict):
                     for daytype in ("working_day", "holiday"):
@@ -1964,24 +1969,24 @@ def adjust_model_option_stebbsmethod(yaml_data: dict) -> Tuple[dict, List[Scient
 
             site_gridid = get_site_gridid(site)
 
-            wwr_entry = bldgarc.get("WWR", {})
+            wwr_entry = bldgarc.get("window_to_wall_ratio", {})
             wwr = wwr_entry.get("value") if isinstance(wwr_entry, dict) else wwr_entry
 
             if wwr == 0.0:
                 window_params_stebbs = [
-                    "WindowInternalConvectionCoefficient",
-                    "WindowExternalConvectionCoefficient",
+                    "window_internal_convection_coefficient",
+                    "window_external_convection_coefficient",
                 ]
                 window_params_bldgarc = [
-                    "WindowThickness",
-                    "WindowEffectiveConductivity",
-                    "WindowDensity",
-                    "WindowCp",
-                    "WindowExternalEmissivity",
-                    "WindowInternalEmissivity",
-                    "WindowTransmissivity",
-                    "WindowAbsorbtivity",
-                    "WindowReflectivity",
+                    "window_thickness",
+                    "window_effective_conductivity",
+                    "window_density",
+                    "window_specific_heat_capacity",
+                    "window_external_emissivity",
+                    "window_internal_emissivity",
+                    "window_transmissivity",
+                    "window_absorptivity",
+                    "window_reflectivity",
                 ]
                 # Nullify in stebbs
                 for param in window_params_stebbs:
@@ -2023,19 +2028,19 @@ def adjust_model_option_stebbsmethod(yaml_data: dict) -> Tuple[dict, List[Scient
             elif wwr == 1.0:
                 # Nullify external wall parameters in stebbs and building_archetype
                 wall_params_stebbs = [
-                    "WallExternalConvectionCoefficient",
-                    "WallInternalConvectionCoefficient",
+                    "wall_external_convection_coefficient",
+                    "wall_internal_convection_coefficient",
                     ]
                 wall_params_bldgarc = [
-                    "WallExternalEmissivity",
-                    "WallInternalEmissivity",
-                    "WallTransmissivity",
-                    "WallAbsorbtivity",
-                    "WallReflectivity",
-                    "WallThickness",
-                    "WallEffectiveConductivity",
-                    "WallDensity",
-                    "WallCp",
+                    "wall_external_emissivity",
+                    "wall_internal_emissivity",
+                    "wall_transmissivity",
+                    "wall_absorptivity",
+                    "wall_reflectivity",
+                    "wall_thickness",
+                    "wall_effective_conductivity",
+                    "wall_density",
+                    "wall_specific_heat_capacity",
                     ]
                 for param in wall_params_stebbs:
                     entry = stebbs.get(param)

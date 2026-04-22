@@ -112,54 +112,73 @@ pub const FIELD_RENAMES: &[(&str, &str)] = &[
 /// - Mappings are walked entry by entry. When a key matches a `new_name`
 ///   in `FIELD_RENAMES` and the corresponding `old_name` is not already
 ///   present in the same mapping, the entry is reinserted under
-///   `old_name`. If both spellings are present the legacy entry wins and
-///   the new entry is dropped; the parser's hardcoded legacy path reads
-///   the intended value either way.
+///   `old_name`.
+/// - If both spellings are present in the same mapping, the walk stops
+///   with an error instead of silently choosing one. This matches the
+///   Python rename helpers, which reject the same ambiguous user input.
 /// - Sequences are walked element by element.
 /// - Scalars are left untouched.
 ///
 /// The walk is in place, so callers that keep the tree around see the
 /// renamed keys on subsequent reads. Idempotent — running twice on the
 /// same tree is a no-op.
-pub fn normalize_field_names(root: &mut Value) {
+pub fn normalize_field_names(root: &mut Value) -> Result<(), String> {
+    normalize_field_names_at(root, "<root>")
+}
+
+fn normalize_field_names_at(root: &mut Value, path: &str) -> Result<(), String> {
     match root {
         Value::Mapping(map) => {
-            let rename_candidates: Vec<(Value, &'static str)> = map
+            let rename_candidates: Vec<(Value, &'static str, &'static str)> = map
                 .iter()
                 .filter_map(|(key, _)| match key {
                     Value::String(k) => FIELD_RENAMES
                         .iter()
                         .find(|(new_name, _)| *new_name == k.as_str())
-                        .map(|(_, old_name)| (key.clone(), *old_name)),
+                        .map(|(new_name, old_name)| (key.clone(), *new_name, *old_name)),
                     _ => None,
                 })
                 .collect();
 
-            for (new_key, old_name) in rename_candidates {
+            for (new_key, new_name, old_name) in rename_candidates {
                 let old_key = Value::String(old_name.to_string());
                 if map.contains_key(&old_key) {
-                    // Both spellings present: legacy entry is what the
-                    // parser reads; drop the redundant new entry rather
-                    // than overwrite the explicit legacy value.
-                    map.remove(&new_key);
-                    continue;
+                    return Err(format!(
+                        "Both '{old_name}' (deprecated) and '{new_name}' are present at {path}. Use only '{new_name}'."
+                    ));
                 }
                 if let Some(value) = map.remove(&new_key) {
                     map.insert(old_key, value);
                 }
             }
 
-            for (_, value) in map.iter_mut() {
-                normalize_field_names(value);
+            for (key, value) in map.iter_mut() {
+                let child_path = match key {
+                    Value::String(k) => {
+                        if path == "<root>" {
+                            k.clone()
+                        } else {
+                            format!("{path}.{k}")
+                        }
+                    }
+                    _ => path.to_string(),
+                };
+                normalize_field_names_at(value, &child_path)?;
             }
         }
         Value::Sequence(seq) => {
-            for item in seq.iter_mut() {
-                normalize_field_names(item);
+            for (idx, item) in seq.iter_mut().enumerate() {
+                let child_path = if path == "<root>" {
+                    format!("[{idx}]")
+                } else {
+                    format!("{path}[{idx}]")
+                };
+                normalize_field_names_at(item, &child_path)?;
             }
         }
         _ => {}
     }
+    Ok(())
 }
 
 #[cfg(test)]
@@ -184,11 +203,9 @@ mod tests {
 
     #[test]
     fn renames_top_level_new_key_to_legacy() {
-        let mut root: Value = from_str(
-            "model:\n  physics:\n    net_radiation_method: {value: 3}\n",
-        )
-        .unwrap();
-        normalize_field_names(&mut root);
+        let mut root: Value =
+            from_str("model:\n  physics:\n    net_radiation_method: {value: 3}\n").unwrap();
+        normalize_field_names(&mut root).unwrap();
         let physics = &root["model"]["physics"];
         assert!(physics.get("netradiationmethod").is_some());
         assert!(physics.get("net_radiation_method").is_none());
@@ -199,7 +216,7 @@ mod tests {
         let yaml = "model:\n  physics:\n    netradiationmethod: {value: 3}\n    storageheatmethod: {value: 1}\n";
         let mut root: Value = from_str(yaml).unwrap();
         let before = root.clone();
-        normalize_field_names(&mut root);
+        normalize_field_names(&mut root).unwrap();
         assert_eq!(root, before, "idempotent on already-legacy YAML");
     }
 
@@ -207,7 +224,7 @@ mod tests {
     fn renames_mixed_input_per_key() {
         let yaml = "model:\n  physics:\n    net_radiation_method: {value: 3}\n    storageheatmethod: {value: 1}\n";
         let mut root: Value = from_str(yaml).unwrap();
-        normalize_field_names(&mut root);
+        normalize_field_names(&mut root).unwrap();
         let physics = &root["model"]["physics"];
         assert!(physics.get("netradiationmethod").is_some());
         assert!(physics.get("storageheatmethod").is_some());
@@ -215,15 +232,14 @@ mod tests {
     }
 
     #[test]
-    fn legacy_wins_when_both_spellings_present() {
-        // When both are provided, the legacy entry stays and the new
-        // entry is dropped — the parser reads the legacy path.
+    fn rejects_when_both_spellings_present() {
         let yaml = "sites:\n  - properties:\n      land_cover:\n        paved:\n          soildepth: {value: 0.5}\n          soil_depth: {value: 0.2}\n";
         let mut root: Value = from_str(yaml).unwrap();
-        normalize_field_names(&mut root);
-        let paved = &root["sites"][0]["properties"]["land_cover"]["paved"];
-        assert_eq!(paved.get("soildepth").unwrap()["value"], Value::from(0.5));
-        assert!(paved.get("soil_depth").is_none());
+        let err = normalize_field_names(&mut root).expect_err("duplicate spellings must fail");
+        assert_eq!(
+            err,
+            "Both 'soildepth' (deprecated) and 'soil_depth' are present at sites[0].properties.land_cover.paved. Use only 'soil_depth'."
+        );
     }
 
     #[test]
@@ -231,7 +247,7 @@ mod tests {
         // Renames inside a list entry are still applied.
         let yaml = "sites:\n  - properties:\n      land_cover:\n        paved:\n          soil_depth: {value: 0.35}\n";
         let mut root: Value = from_str(yaml).unwrap();
-        normalize_field_names(&mut root);
+        normalize_field_names(&mut root).unwrap();
         let paved = &root["sites"][0]["properties"]["land_cover"]["paved"];
         assert!(paved.get("soildepth").is_some());
         assert!(paved.get("soil_depth").is_none());
@@ -241,15 +257,18 @@ mod tests {
     fn handles_missing_keys_without_panic() {
         let mut root: Value = from_str("model:\n  control:\n    tstep: 300\n").unwrap();
         let before = root.clone();
-        normalize_field_names(&mut root);
-        assert_eq!(root, before, "mapping without renamed keys must be untouched");
+        normalize_field_names(&mut root).unwrap();
+        assert_eq!(
+            root, before,
+            "mapping without renamed keys must be untouched"
+        );
     }
 
     #[test]
     fn normalises_nested_lai_and_snow_params() {
         let yaml = "sites:\n  - properties:\n      land_cover:\n        grass:\n          lai:\n            base_temperature: {value: 5.0}\n            lai_max: {value: 6.0}\n      snow:\n        snow_albedo_max: {value: 0.85}\n        temp_melt_factor: {value: 0.12}\n";
         let mut root: Value = from_str(yaml).unwrap();
-        normalize_field_names(&mut root);
+        normalize_field_names(&mut root).unwrap();
         let lai = &root["sites"][0]["properties"]["land_cover"]["grass"]["lai"];
         assert!(lai.get("baset").is_some());
         assert!(lai.get("laimax").is_some());
@@ -262,11 +281,12 @@ mod tests {
 
     #[test]
     fn idempotent_on_second_pass() {
-        let yaml = "model:\n  physics:\n    net_radiation_method: {value: 3}\n    snow_use: {value: 0}\n";
+        let yaml =
+            "model:\n  physics:\n    net_radiation_method: {value: 3}\n    snow_use: {value: 0}\n";
         let mut root: Value = from_str(yaml).unwrap();
-        normalize_field_names(&mut root);
+        normalize_field_names(&mut root).unwrap();
         let after_first = root.clone();
-        normalize_field_names(&mut root);
+        normalize_field_names(&mut root).unwrap();
         assert_eq!(root, after_first);
     }
 }

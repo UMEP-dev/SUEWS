@@ -197,6 +197,11 @@ build_suews = custom_target(
 rust_bridge_enabled = get_option('with_rust_bridge')
 if rust_bridge_enabled
     find_program('cargo', required: true)
+    rust_bridge_dep_files = files(
+        '../suews_bridge/Cargo.toml',
+        '../suews_bridge/build.rs',
+        '../suews_bridge/src/field_renames.rs',
+    )
     # abi3 filename: one wheel covers cp39..cp3xx. The PyO3 feature
     # abi3-py39 makes the cargo artefact itself ABI-stable; the filename
     # just needs to be Python-version-agnostic so meson-python tags the
@@ -220,6 +225,7 @@ if rust_bridge_enabled
         ],
         output: [rust_bridge_ext_name, rust_bridge_cli_name],
         depends: build_suews,
+        depend_files: rust_bridge_dep_files,
         build_by_default: true,
         install: true,
         install_dir: [py.get_install_dir() / 'supy', py.get_install_dir() / 'supy/bin'],

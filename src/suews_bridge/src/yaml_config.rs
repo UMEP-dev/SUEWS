@@ -336,9 +336,17 @@ fn resize_site_variable_arrays(site: &mut SuewsSite, nlayer: usize) {
     ensure_len_with_default(&mut site.spartacus_layer.veg_frac, nlayer, 0.0);
     ensure_len_with_default(&mut site.spartacus_layer.veg_scale, nlayer, 10.0);
     ensure_len_with_default(&mut site.spartacus_layer.alb_roof, nlayer, 0.15);
-    ensure_len_with_default(&mut site.spartacus_layer.emis_roof, nlayer, site.lc_bldg.emis);
+    ensure_len_with_default(
+        &mut site.spartacus_layer.emis_roof,
+        nlayer,
+        site.lc_bldg.emis,
+    );
     ensure_len_with_default(&mut site.spartacus_layer.alb_wall, nlayer, 0.15);
-    ensure_len_with_default(&mut site.spartacus_layer.emis_wall, nlayer, site.lc_bldg.emis);
+    ensure_len_with_default(
+        &mut site.spartacus_layer.emis_wall,
+        nlayer,
+        site.lc_bldg.emis,
+    );
 
     let matrix_len = nlayer * nspec;
     ensure_len_with_default(
@@ -346,7 +354,11 @@ fn resize_site_variable_arrays(site: &mut SuewsSite, nlayer: usize) {
         matrix_len,
         1.0,
     );
-    ensure_len_with_default(&mut site.spartacus_layer.wall_specular_frac, matrix_len, 0.0);
+    ensure_len_with_default(
+        &mut site.spartacus_layer.wall_specular_frac,
+        matrix_len,
+        0.0,
+    );
 }
 
 fn set_spartacus_layer_all_specs(
@@ -1529,7 +1541,10 @@ fn apply_ehc_overrides(site: &mut SuewsSite, site_root: &Value, ndepth: usize) {
     }
 }
 
-fn apply_building_archetype_overrides(site: &mut SuewsSite, site_root: &Value) -> Result<(), String> {
+fn apply_building_archetype_overrides(
+    site: &mut SuewsSite,
+    site_root: &Value,
+) -> Result<(), String> {
     let Some(archetype_root) = get_path(site_root, &["properties", "building_archetype"]) else {
         return Ok(());
     };
@@ -1548,22 +1563,12 @@ fn apply_building_archetype_overrides(site: &mut SuewsSite, site_root: &Value) -
         let field_name = normalise_field_name(field_name_raw);
 
         if field_name == "metabolism_profile" {
-            apply_day_profile_overrides(
-                &mut mapped,
-                field_value,
-                "metabolismprofile",
-                144,
-            )?;
+            apply_day_profile_overrides(&mut mapped, field_value, "metabolismprofile", 144)?;
             continue;
         }
 
         if field_name == "appliance_profile" {
-            apply_day_profile_overrides(
-                &mut mapped,
-                field_value,
-                "applianceprofile",
-                144,
-            )?;
+            apply_day_profile_overrides(&mut mapped, field_value, "applianceprofile", 144)?;
             continue;
         }
 
@@ -1616,12 +1621,7 @@ fn apply_stebbs_overrides(site: &mut SuewsSite, site_root: &Value) -> Result<(),
         let field_name = normalise_field_name(field_name_raw);
 
         if field_name == "hot_water_flow_profile" {
-            apply_day_profile_overrides(
-                &mut mapped,
-                field_value,
-                "hot_water_flow_profile",
-                144,
-            )?;
+            apply_day_profile_overrides(&mut mapped, field_value, "hot_water_flow_profile", 144)?;
             continue;
         }
 
@@ -1692,10 +1692,8 @@ fn apply_state_overrides(state: &mut SuewsState, site_root: &Value) {
             read_normalized_numeric_from_mapping(stebbs_root, "annual_mean_air_temperature");
         let deep_soil = read_normalized_numeric_from_mapping(stebbs_root, "deep_soil_temperature")
             .or(annual_mean_air_temperature);
-        let month_mean_air_temperature_diffmax = read_normalized_numeric_from_mapping(
-            stebbs_root,
-            "month_mean_air_temperature_diffmax",
-        );
+        let month_mean_air_temperature_diffmax =
+            read_normalized_numeric_from_mapping(stebbs_root, "month_mean_air_temperature_diffmax");
         let mains_water =
             read_normalized_numeric_from_mapping(stebbs_root, "mains_water_temperature");
         let hot_water_setpoint = read_normalized_numeric_from_mapping(
@@ -1743,7 +1741,9 @@ fn apply_state_overrides(state: &mut SuewsState, site_root: &Value) {
             state.stebbs_state.internal_wall_water_tank_temperature = v;
             state.stebbs_state.external_wall_water_tank_temperature = v;
             let dhw_init = mains_water.unwrap_or(v);
-            state.stebbs_state.domestic_hot_water_temperature_in_use_in_building = dhw_init;
+            state
+                .stebbs_state
+                .domestic_hot_water_temperature_in_use_in_building = dhw_init;
             state.stebbs_state.internal_wall_dhw_vessel_temperature = dhw_init;
             state.stebbs_state.external_wall_dhw_vessel_temperature = dhw_init;
         }
@@ -2053,7 +2053,7 @@ pub fn load_run_config_from_value(root: &mut Value) -> Result<RunConfig, String>
     // Callers of the Rust CLI bypass Python's `@model_validator` shim; this
     // is the single seam that makes `suews run config.yml` tolerate both
     // spellings end-to-end. See `field_renames.rs` for the registry.
-    normalize_field_names(root);
+    normalize_field_names(root)?;
 
     let mut timer = suews_timer_default_from_fortran().map_err(|e| e.to_string())?;
     let mut config = suews_config_default_from_fortran().map_err(|e| e.to_string())?;
@@ -2069,13 +2069,7 @@ pub fn load_run_config_from_value(root: &mut Value) -> Result<RunConfig, String>
     let nlayer = read_i32(site_root, &["properties", "vertical_layers", "nlayer"]).unwrap_or(5);
     let ndepth = read_i32(site_root, &["properties", "vertical_layers", "ndepth"]).unwrap_or(5);
 
-    apply_site_overrides(
-        &mut site,
-        root,
-        site_root,
-        nlayer as usize,
-        ndepth as usize,
-    )?;
+    apply_site_overrides(&mut site, root, site_root, nlayer as usize, ndepth as usize)?;
     apply_site_scalar_overrides(&mut site_scalars, site_root);
 
     if let Some(tstep) = read_i32(root, &["model", "control", "tstep"]) {
@@ -2212,8 +2206,7 @@ mod tests {
     fn parses_stebbs_and_building_archetype_sections() {
         let yaml_str =
             include_str!("../../../test/fixtures/data_test/stebbs_test/sample_config.yml");
-        let mut root: Value =
-            serde_yaml::from_str(yaml_str).expect("fixture YAML should parse");
+        let mut root: Value = serde_yaml::from_str(yaml_str).expect("fixture YAML should parse");
         let run_cfg = load_run_config_from_value(&mut root).expect("run config should parse");
 
         assert!(run_cfg.site.building_archtype.wallthickness > 0.0);
@@ -2232,8 +2225,7 @@ mod tests {
     fn parses_ohm_legacy_surface_field_names() {
         let yaml_str =
             include_str!("../../../test/fixtures/data_test/stebbs_test/sample_config.yml");
-        let mut root: Value =
-            serde_yaml::from_str(yaml_str).expect("fixture YAML should parse");
+        let mut root: Value = serde_yaml::from_str(yaml_str).expect("fixture YAML should parse");
         let run_cfg = load_run_config_from_value(&mut root).expect("run config should parse");
 
         // Legacy yaml uses ch_anohm/rho_cp_anohm/k_anohm in land_cover.
@@ -2246,8 +2238,7 @@ mod tests {
     fn maps_vertical_layer_thermal_parameters_into_ehc() {
         let yaml_str =
             include_str!("../../../test/fixtures/data_test/stebbs_test/sample_config.yml");
-        let mut root: Value =
-            serde_yaml::from_str(yaml_str).expect("fixture YAML should parse");
+        let mut root: Value = serde_yaml::from_str(yaml_str).expect("fixture YAML should parse");
         let run_cfg = load_run_config_from_value(&mut root).expect("run config should parse");
 
         let ndepth = run_cfg.ndepth as usize;
@@ -2298,7 +2289,9 @@ mod tests {
 
         let err =
             load_run_config_from_value(&mut root).expect_err("incomplete profile should fail");
-        assert!(err.contains("HeatingSetpointTemperatureProfile.working_day is missing 1 entries: 144"));
+        assert!(
+            err.contains("HeatingSetpointTemperatureProfile.working_day is missing 1 entries: 144")
+        );
     }
 
     #[test]
@@ -2326,8 +2319,7 @@ mod tests {
             .expect("fixture should contain slice 1");
         working_day_map.insert(Value::String("0".to_string()), valid_value);
 
-        let err =
-            load_run_config_from_value(&mut root).expect_err("out-of-range step should fail");
+        let err = load_run_config_from_value(&mut root).expect_err("out-of-range step should fail");
         assert!(err.contains("CoolingSetpointTemperatureProfile.working_day has invalid step `0`"));
     }
 
@@ -2371,7 +2363,7 @@ mod tests {
         // `load_run_config_from_value`.
         let mut root: Value =
             serde_yaml::from_str(FIXTURE_NEW_NAMES).expect("fixture YAML should parse");
-        normalize_field_names(&mut root);
+        normalize_field_names(&mut root).expect("fixture should normalise to legacy keys");
 
         let run_cfg = load_run_config_from_value(&mut root)
             .expect("legacy-spelling YAML should parse without error");
@@ -2418,7 +2410,7 @@ mod tests {
             serde_yaml::from_str(FIXTURE_NEW_NAMES).expect("fixture YAML should parse");
         let mut root_old: Value =
             serde_yaml::from_str(FIXTURE_NEW_NAMES).expect("fixture YAML should parse");
-        normalize_field_names(&mut root_old);
+        normalize_field_names(&mut root_old).expect("fixture should normalise to legacy keys");
 
         let cfg_new = load_run_config_from_value(&mut root_new).expect("parse new-spelling");
         let cfg_old = load_run_config_from_value(&mut root_old).expect("parse legacy-spelling");
@@ -2446,6 +2438,30 @@ mod tests {
             (cfg_new.site.lc_paved.soil.soilstorecap - cfg_old.site.lc_paved.soil.soilstorecap)
                 .abs()
                 < 1.0e-12
+        );
+    }
+
+    #[test]
+    fn load_run_config_rejects_duplicate_old_and_new_names() {
+        let mut root: Value =
+            serde_yaml::from_str(FIXTURE_NEW_NAMES).expect("fixture YAML should parse");
+
+        let physics = get_path_mut(&mut root, &["model", "physics"])
+            .expect("fixture should contain model.physics");
+        let Value::Mapping(map) = physics else {
+            panic!("model.physics should be a mapping");
+        };
+        let new_value = map
+            .get(Value::String("net_radiation_method".into()))
+            .cloned()
+            .expect("fixture should contain net_radiation_method");
+        map.insert(Value::String("netradiationmethod".into()), new_value);
+
+        let err = load_run_config_from_value(&mut root)
+            .expect_err("duplicate old/new spellings must fail");
+        assert_eq!(
+            err,
+            "Both 'netradiationmethod' (deprecated) and 'net_radiation_method' are present at model.physics. Use only 'net_radiation_method'."
         );
     }
 }

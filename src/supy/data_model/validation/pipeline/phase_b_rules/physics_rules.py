@@ -55,27 +55,27 @@ def validate_physics_parameters(context) -> List[ValidationResult]:
         return results
 
     required_physics_params = [
-        "net_radiation_method",
-        "emissions_method",
-        "storage_heat_method",
+        "net_radiation",
+        "emissions",
+        "storage_heat",
         "ohm_inc_qf",
-        "roughness_length_momentum_method",
-        "roughness_length_heat_method",
-        "stability_method",
-        "smd_method",
-        "water_use_method",
-        "rsl_method",
-        "fai_method",
-        "rsl_level",
-        "gs_model",
+        "roughness_length_momentum",
+        "roughness_length_heat",
+        "stability",
+        "soil_moisture_deficit",
+        "water_use",
+        "roughness_sublayer",
+        "frontal_area_index",
+        "roughness_sublayer_level",
+        "surface_conductance",
         "snow_use",
-        "stebbs_method",
-        "rc_method",
+        "stebbs",
+        "outer_cap_fraction",
         "same_albedo_wall",
         "same_albedo_roof",
         "same_emissivity_wall",
         "same_emissivity_roof",
-        "setpointmethod",
+        "setpoint",
     ]
 
     missing_params = [
@@ -304,11 +304,11 @@ def validate_model_option_dependencies(context) -> List[ValidationResult]:
     results = []
     physics = yaml_data.get("model", {}).get("physics", {})
 
-    rslmethod = get_value_safe(physics, "rsl_method")
-    stabilitymethod = get_value_safe(physics, "stability_method")
-    storageheatmethod = get_value_safe(physics, "storage_heat_method")
+    rslmethod = get_value_safe(physics, "roughness_sublayer")
+    stabilitymethod = get_value_safe(physics, "stability")
+    storageheatmethod = get_value_safe(physics, "storage_heat")
     ohmincqf = get_value_safe(physics, "ohm_inc_qf")
-    smdmethod = get_value_safe(physics, "smd_method")
+    smdmethod = get_value_safe(physics, "soil_moisture_deficit")
 
     # RSL method and stability method dependencies
     result = validate_rslmethod_dependency(rslmethod=rslmethod, stabilitymethod=stabilitymethod)
@@ -461,7 +461,7 @@ def validate_model_option_rcmethod(context) -> List[ValidationResult]:
 
     results = []
     physics = yaml_data.get("model", {}).get("physics", {})
-    rcmethod_value = get_value_safe(physics, "rc_method")
+    rcmethod_value = get_value_safe(physics, "outer_cap_fraction")
 
     sites = yaml_data.get("sites", [])
     for site_idx, site in enumerate(sites):
@@ -747,13 +747,13 @@ def validate_forcing_height_vs_buildings(context) -> List[ValidationResult]:
 
     physics = yaml_data.get("model", {}).get("physics", {})
 
-    stebbsmethod_val = _unwrap_nested_value(physics.get("stebbs_method"))
+    stebbsmethod_val = _unwrap_nested_value(physics.get("stebbs"))
     try:
         stebbsmethod_val = int(stebbsmethod_val)
     except (TypeError, ValueError):
         stebbsmethod_val = None
 
-    netradiationmethod_val = _unwrap_nested_value(physics.get("net_radiation_method"))
+    netradiationmethod_val = _unwrap_nested_value(physics.get("net_radiation"))
     try:
         netradiationmethod_val = int(netradiationmethod_val)
     except (TypeError, ValueError):

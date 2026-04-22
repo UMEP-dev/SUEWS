@@ -48,13 +48,13 @@ def analyze_config_methods(config_data: Dict[str, Any]) -> Dict[str, bool]:
         physics = config_data.get("model", {}).get("physics", {})
 
         # Extract method values
-        rslmethod_val = read_physics_key(physics, "rsl_method", 0)
+        rslmethod_val = read_physics_key(physics, "roughness_sublayer", 0)
         roughmethod_val = read_physics_key(
-            physics, "roughness_length_momentum_method", 1
+            physics, "roughness_length_momentum", 1
         )
-        netrad_val = read_physics_key(physics, "net_radiation_method", 0)
-        emissions_val = read_physics_key(physics, "emissions_method", 0)
-        storage_val = read_physics_key(physics, "storage_heat_method", 0)
+        netrad_val = read_physics_key(physics, "net_radiation", 0)
+        emissions_val = read_physics_key(physics, "emissions", 0)
+        storage_val = read_physics_key(physics, "storage_heat", 0)
 
         # Determine active methods
         methods = {
@@ -171,7 +171,7 @@ def validate_storage_heat_parameters(
     errors = []
 
     storage_method_val = _extract_value(
-        read_physics_key(physics, "storage_heat_method", 0)
+        read_physics_key(physics, "storage_heat", 0)
     )
     ohmincqf_val = _extract_value(read_physics_key(physics, "ohm_inc_qf", 0))
 
@@ -203,7 +203,7 @@ def validate_netradiation_parameters(
     """Validate net radiation method parameters."""
     errors = []
 
-    netrad_val = _extract_value(read_physics_key(physics, "net_radiation_method", 0))
+    netrad_val = _extract_value(read_physics_key(physics, "net_radiation", 0))
 
     if method_type == "SPARTACUS":
         # SPARTACUS methods (≥1000) - validate SPARTACUS-specific parameters
@@ -234,7 +234,7 @@ def validate_emissions_parameters(
     """Validate emissions method parameters."""
     errors = []
 
-    emissions_val = _extract_value(read_physics_key(physics, "emissions_method", 0))
+    emissions_val = _extract_value(read_physics_key(physics, "emissions", 0))
 
     if method_type == "ADVANCED":
         # Advanced emissions methods (≥4)

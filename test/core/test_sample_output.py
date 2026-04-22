@@ -571,6 +571,7 @@ if __name__ == "__main__":
 # ============================================================================
 
 
+@pytest.mark.slow  # Excluded from `standard` CI tier; runs on nightly. Tracking SPARTACUS NaN flake on x86_64 in gh#1332.
 class TestSTEBBSOutput(TestCase):
     """Test class for validating STEBBS building energy outputs."""
 

@@ -1274,7 +1274,7 @@ def adjust_model_dependent_nullification(
     physics = yaml_data.get("model", {}).get("physics", {})
 
     # --- STEBBS ---
-    stebbsmethod = get_value_safe(physics, "stebbs_method")
+    stebbsmethod = get_value_safe(physics, "stebbs")
 
     if stebbsmethod == 0:
         sites = yaml_data.get("sites", [])
@@ -1349,7 +1349,7 @@ def adjust_model_dependent_nullification(
                 yaml_data["sites"][site_idx] = site
 
     # --- ANTHROPOGENIC CO2 ---
-    emissionsmethod = get_value_safe(physics, "emissions_method")
+    emissionsmethod = get_value_safe(physics, "emissions")
 
     if emissionsmethod is not None and emissionsmethod in [0, 1, 2, 3, 4]:
         sites = yaml_data.get("sites", [])
@@ -1814,7 +1814,7 @@ def adjust_model_option_rcmethod(yaml_data: dict) -> Tuple[dict, List[Scientific
     """
     adjustments = []
     physics = yaml_data.get("model", {}).get("physics", {})
-    rcmethod_value = get_value_safe(physics, "rc_method")
+    rcmethod_value = get_value_safe(physics, "outer_cap_fraction")
 
     if rcmethod_value == 0:
         sites = yaml_data.get("sites", [])
@@ -1863,14 +1863,14 @@ def adjust_model_option_rcmethod(yaml_data: dict) -> Tuple[dict, List[Scientific
 
 def adjust_model_option_setpointmethod(yaml_data: dict) -> Tuple[dict, List[ScientificAdjustment]]:
     """
-    If setpointmethod == 0 or 1, set all entries in HeatingSetpointTemperatureProfile and
+    If setpoint == 0 or 1, set all entries in HeatingSetpointTemperatureProfile and
     CoolingSetpointTemperatureProfile in building_archetype to null for all sites.
-    If setpointmethod == 2, set HeatingSetpointTemperature and CoolingSetpointTemperature
+    If setpoint == 2, set HeatingSetpointTemperature and CoolingSetpointTemperature
     in building_archetype to null for all sites (they are not needed).
     """
     adjustments = []
     physics = yaml_data.get("model", {}).get("physics", {})
-    setpointmethod = get_value_safe(physics, "setpointmethod")
+    setpointmethod = get_value_safe(physics, "setpoint")
 
     sites = yaml_data.get("sites", [])
     for site_idx, site in enumerate(sites):
@@ -1892,7 +1892,7 @@ def adjust_model_option_setpointmethod(yaml_data: dict) -> Tuple[dict, List[Scie
                                 site_gridid=site_gridid,
                                 old_value=str(old_val),
                                 new_value="null",
-                                reason="setpointmethod == 2, parameter not needed"
+                                reason="setpoint == 2, parameter not needed"
                             )
                         )
         elif setpointmethod == 0 or setpointmethod == 1:
@@ -1916,7 +1916,7 @@ def adjust_model_option_setpointmethod(yaml_data: dict) -> Tuple[dict, List[Scie
                                         site_gridid=site_gridid,
                                         old_value="non-null profile entries",
                                         new_value="null",
-                                        reason="setpointmethod == 0 or 1, profile entries not needed",
+                                        reason="setpoint == 0 or 1, profile entries not needed",
                                     )
                                 )
         props["building_archetype"] = building_archetype
@@ -1953,7 +1953,7 @@ def adjust_model_option_stebbsmethod(yaml_data: dict) -> Tuple[dict, List[Scient
     """
     adjustments = []
     physics = yaml_data.get("model", {}).get("physics", {})
-    stebbsmethod = get_value_safe(physics, "stebbs_method")
+    stebbsmethod = get_value_safe(physics, "stebbs")
 
     if stebbsmethod == 1:
         sites = yaml_data.get("sites", [])

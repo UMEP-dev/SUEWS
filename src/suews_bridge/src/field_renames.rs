@@ -34,7 +34,8 @@ use serde_yaml::Value;
 /// Grouped to match the Python registry sections in
 /// `src/supy/data_model/core/field_renames.py`:
 /// ModelPhysics, SurfaceProperties, LAIParams, VegetatedSurfaceProperties,
-/// EvetrProperties, DectrProperties, SnowParams. Total: 59 pairs.
+/// EvetrProperties, DectrProperties, ArchetypeProperties, SnowParams.
+/// Total: 67 pairs.
 pub const FIELD_RENAMES: &[(&str, &str)] = &[
     // ModelPhysics (16)
     ("net_radiation_method", "netradiationmethod"),
@@ -89,6 +90,15 @@ pub const FIELD_RENAMES: &[(&str, &str)] = &[
     ("porosity_max_deciduous", "pormax_dec"),
     ("capacity_max_deciduous", "capmax_dec"),
     ("capacity_min_deciduous", "capmin_dec"),
+    // ArchetypeProperties (8) — STEBBS PascalCase, split fused `ext` (gh#1327)
+    ("WallExternalThickness", "WallextThickness"),
+    ("WallExternalEffectiveConductivity", "WallextEffectiveConductivity"),
+    ("WallExternalDensity", "WallextDensity"),
+    ("WallExternalCp", "WallextCp"),
+    ("RoofExternalThickness", "RoofextThickness"),
+    ("RoofExternalEffectiveConductivity", "RoofextEffectiveConductivity"),
+    ("RoofExternalDensity", "RoofextDensity"),
+    ("RoofExternalCp", "RoofextCp"),
     // SnowParams (12)
     ("water_holding_capacity_max", "crwmax"),
     ("water_holding_capacity_min", "crwmin"),

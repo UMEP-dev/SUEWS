@@ -18,17 +18,17 @@ pub type LcEvetrPrmValuesPayload = ValuesPayload;
 pub struct LcEvetrPrm {
     pub sfr: f64,
     pub emis: f64,
-    pub faievetree: f64,
-    pub evetreeh: f64,
+    pub fai_evergreen_tree: f64,
+    pub height_evergreen_tree: f64,
     pub alb_min: f64,
     pub alb_max: f64,
     pub ohm: OhmPrm,
     pub soil: SoilPrm,
-    pub statelimit: f64,
+    pub state_limit: f64,
     pub irrfracevetr: f64,
-    pub wetthresh: f64,
+    pub wet_threshold: f64,
     pub bioco2: BioCo2Prm,
-    pub maxconductance: f64,
+    pub max_conductance: f64,
     pub lai: LaiPrm,
     pub waterdist: WaterDistPrm,
 }
@@ -38,17 +38,17 @@ impl Default for LcEvetrPrm {
         Self {
             sfr: 0.0,
             emis: 0.0,
-            faievetree: 0.0,
-            evetreeh: 0.0,
+            fai_evergreen_tree: 0.0,
+            height_evergreen_tree: 0.0,
             alb_min: 0.0,
             alb_max: 0.0,
             ohm: OhmPrm::default(),
             soil: SoilPrm::default(),
-            statelimit: 0.0,
+            state_limit: 0.0,
             irrfracevetr: 0.0,
-            wetthresh: 0.0,
+            wet_threshold: 0.0,
             bioco2: BioCo2Prm::default(),
-            maxconductance: 0.0,
+            max_conductance: 0.0,
             lai: LaiPrm::default(),
             waterdist: WaterDistPrm::default(),
         }
@@ -62,17 +62,17 @@ impl LcEvetrPrm {
         Ok(Self {
             sfr: flat[0],
             emis: flat[1],
-            faievetree: flat[2],
-            evetreeh: flat[3],
+            fai_evergreen_tree: flat[2],
+            height_evergreen_tree: flat[3],
             alb_min: flat[4],
             alb_max: flat[5],
             ohm: OhmPrm::from_flat(&flat[6..23])?,
             soil: SoilPrm::from_flat(&flat[23..26])?,
-            statelimit: flat[26],
+            state_limit: flat[26],
             irrfracevetr: flat[27],
-            wetthresh: flat[28],
+            wet_threshold: flat[28],
             bioco2: BioCo2Prm::from_flat(&flat[29..37])?,
-            maxconductance: flat[37],
+            max_conductance: flat[37],
             lai: LaiPrm::from_flat(&flat[38..49])?,
             waterdist: WaterDistPrm::from_flat(&flat[49..57])?,
         })
@@ -82,18 +82,18 @@ impl LcEvetrPrm {
         let mut out = vec![
             self.sfr,
             self.emis,
-            self.faievetree,
-            self.evetreeh,
+            self.fai_evergreen_tree,
+            self.height_evergreen_tree,
             self.alb_min,
             self.alb_max,
         ];
         out.extend(self.ohm.to_flat());
         out.extend(self.soil.to_flat());
-        out.push(self.statelimit);
+        out.push(self.state_limit);
         out.push(self.irrfracevetr);
-        out.push(self.wetthresh);
+        out.push(self.wet_threshold);
         out.extend(self.bioco2.to_flat());
-        out.push(self.maxconductance);
+        out.push(self.max_conductance);
         out.extend(self.lai.to_flat());
         out.extend(self.waterdist.to_flat());
         out
@@ -199,7 +199,7 @@ mod tests {
         let updated = lc_evetr_prm_from_map(&mapped).expect("map to state should succeed");
         assert!((updated.irrfracevetr - 0.3).abs() < 1.0e-12);
         assert!((updated.bioco2.resp_b - 0.02).abs() < 1.0e-12);
-        assert!((updated.lai.laipower[1] - 0.7).abs() < 1.0e-12);
+        assert!((updated.lai.lai_power[1] - 0.7).abs() < 1.0e-12);
         assert!((updated.waterdist.to_evetr - 0.5).abs() < 1.0e-12);
     }
 

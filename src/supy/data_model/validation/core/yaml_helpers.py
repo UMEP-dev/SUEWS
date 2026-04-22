@@ -30,7 +30,7 @@ from copy import deepcopy
 from datetime import datetime
 import pytz
 from ...core.field_renames import (
-    ALL_FIELD_RENAMES,
+    RAW_YAML_FIELD_RENAMES,
     has_renamed_key,
     read_physics_key,
     read_renamed_key,
@@ -837,20 +837,20 @@ def precheck_model_physics_params(data: dict) -> dict:
     is skipped (used to allow partial configurations during early stages).
 
     Required fields include:
-        - net_radiation_method
-        - emissions_method
-        - storage_heat_method
+        - net_radiation
+        - emissions
+        - storage_heat
         - ohm_inc_qf
-        - roughness_length_momentum_method
-        - roughness_length_heat_method
-        - stability_method
-        - smd_method
-        - water_use_method
-        - rsl_method
-        - fai_method
-        - rsl_level
+        - roughness_length_momentum
+        - roughness_length_heat
+        - stability
+        - soil_moisture_deficit
+        - water_use
+        - roughness_sublayer
+        - frontal_area_index
+        - roughness_sublayer_level
         - snow_use
-        - stebbs_method
+        - stebbs
 
     Args:
         data (dict): YAML configuration data loaded as a dictionary.
@@ -869,20 +869,20 @@ def precheck_model_physics_params(data: dict) -> dict:
         return data
 
     required = [
-        "net_radiation_method",
-        "emissions_method",
-        "storage_heat_method",
+        "net_radiation",
+        "emissions",
+        "storage_heat",
         "ohm_inc_qf",
-        "roughness_length_momentum_method",
-        "roughness_length_heat_method",
-        "stability_method",
-        "smd_method",
-        "water_use_method",
-        "rsl_method",
-        "fai_method",
-        "rsl_level",
+        "roughness_length_momentum",
+        "roughness_length_heat",
+        "stability",
+        "soil_moisture_deficit",
+        "water_use",
+        "roughness_sublayer",
+        "frontal_area_index",
+        "roughness_sublayer_level",
         "snow_use",
-        "stebbs_method",
+        "stebbs",
     ]
 
     missing = [k for k in required if not has_renamed_key(physics, k)]
@@ -902,7 +902,7 @@ def precheck_model_options_constraints(data: dict) -> dict:
     Enforce internal consistency between model physics options.
 
     This function verifies logical dependencies between selected model physics methods.
-    Specifically, if 'rsl_method' is set to 2, it enforces that 'stability_method' equals 3,
+    Specifically, if 'roughness_sublayer' is set to 2, it enforces that 'stability' equals 3,
     as required for diagnostic aerodynamic calculations.
 
     Args:
@@ -917,15 +917,15 @@ def precheck_model_options_constraints(data: dict) -> dict:
 
     physics = data.get("model", {}).get("physics", {})
 
-    diag = read_physics_key(physics, "rsl_method")
-    stability = read_physics_key(physics, "stability_method")
+    diag = read_physics_key(physics, "roughness_sublayer")
+    stability = read_physics_key(physics, "stability")
 
     if diag == 2 and stability != 3:
         raise ValueError(
-            "[model.physics] If rsl_method == 2, stability_method must be 3."
+            "[model.physics] If roughness_sublayer == 2, stability must be 3."
         )
 
-    logger_supy.debug("rsl_method-stability_method constraint passed.")
+    logger_supy.debug("roughness_sublayer-stability constraint passed.")
     return data
 
 
@@ -1539,11 +1539,11 @@ def precheck_model_option_rules(data: dict) -> dict:
                 else:
                     block[idx] = None
 
-    # --- STEBBSMETHOD RULE: when stebbs_method == 0, wipe out all stebbs params ---
-    stebbsmethod = get_value_safe(physics, "stebbs_method")
+    # --- STEBBS RULE: when stebbs == 0, wipe out all stebbs params ---
+    stebbsmethod = get_value_safe(physics, "stebbs")
     if stebbsmethod == 0:
         logger_supy.info(
-            "[precheck] stebbs_method==0 detected -> nullifying all 'stebbs' values."
+            "[precheck] stebbs==0 detected -> nullifying all 'stebbs' values."
         )
         for site_idx, site in enumerate(data.get("sites", [])):
             props = site.get("properties", {}) or {}
@@ -1562,11 +1562,11 @@ def precheck_model_option_rules(data: dict) -> dict:
                 site["properties"] = props
                 data["sites"][site_idx] = site
 
-    # --- EMISSIONS / CO2 RULE: when emissions_method 0..4, CO2 is not computed, nullify co2 params ---
-    emissionsmethod = get_value_safe(physics, "emissions_method")
+    # --- EMISSIONS / CO2 RULE: when emissions 0..4, CO2 is not computed, nullify co2 params ---
+    emissionsmethod = get_value_safe(physics, "emissions")
     if emissionsmethod is not None and emissionsmethod in (0, 1, 2, 3, 4):
         logger_supy.info(
-            "[precheck] emissions_method 0..4 detected -> nullifying 'anthropogenic_emissions.co2' values."
+            "[precheck] emissions 0..4 detected -> nullifying 'anthropogenic_emissions.co2' values."
         )
 
         for site_idx, site in enumerate(data.get("sites", [])):
@@ -1637,7 +1637,7 @@ def run_precheck(path: str) -> dict:
         data = yaml.load(file, Loader=yaml.FullLoader)
 
     original_data = deepcopy(data)
-    data = rename_keys_recursive(data, ALL_FIELD_RENAMES)
+    data = rename_keys_recursive(data, RAW_YAML_FIELD_RENAMES)
 
     # ---- Step 1: Print start message ----
     data = precheck_printing(data)

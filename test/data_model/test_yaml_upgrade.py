@@ -469,8 +469,9 @@ class TestPreSetpointSplitMigration:
         assert "CoolingSetpointTemperatureProfile" in arch
         assert isinstance(arch["HeatingSetpointTemperature"], dict)
         assert "value" in arch["HeatingSetpointTemperature"]
-        # Profile intent is preserved by defaulting setpointmethod to SCHEDULED=2
-        assert payload["model"]["physics"]["setpointmethod"]["value"] == 2
+        # Profile intent is preserved by defaulting setpoint to SCHEDULED=2
+        # (key was renamed from fused `setpointmethod` to `setpoint` in #1321)
+        assert payload["model"]["physics"]["setpoint"]["value"] == 2
         # #1240 rename lives under the stebbs sub-tree, not building_archetype.
         assert "DeepSoilTemperature" not in stebbs
         assert "AnnualMeanAirTemperature" in stebbs

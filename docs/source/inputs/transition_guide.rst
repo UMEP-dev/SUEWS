@@ -180,6 +180,52 @@ The sections below summarise what users see change between schemas.
 The authoritative lineage (including release-tag to schema mapping)
 lives in :ref:`schema_version_history`.
 
+Upgrading to Schema 2026.5.dev2 (Categories 2+3 of #1256: suffix drop, abbreviation expansion)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Schema ``2026.5.dev2`` is the current in-development shape. It applies
+Categories 2 and 3 of #1256 (gh#1321) to ``model.physics``: 15 fields
+strip the redundant ``_method`` / ``_model`` suffix (the enum type
+itself already carries "method") and expand opaque domain
+abbreviations (``SMD``, ``RSL``, ``FAI``, ``RC``, ``GS``) into
+self-documenting names:
+
+- ``net_radiation_method`` -> ``net_radiation``
+- ``emissions_method`` -> ``emissions``
+- ``storage_heat_method`` -> ``storage_heat``
+- ``roughness_length_momentum_method`` -> ``roughness_length_momentum``
+- ``roughness_length_heat_method`` -> ``roughness_length_heat``
+- ``stability_method`` -> ``stability``
+- ``water_use_method`` -> ``water_use``
+- ``stebbs_method`` -> ``stebbs``
+- ``setpointmethod`` -> ``setpoint`` (fused leftover from Category 1)
+- ``smd_method`` -> ``soil_moisture_deficit``
+- ``rsl_method`` -> ``roughness_sublayer``
+- ``rsl_level`` -> ``roughness_sublayer_level``
+- ``fai_method`` -> ``frontal_area_index``
+- ``rc_method`` -> ``outer_cap_fraction``
+- ``gs_model`` -> ``surface_conductance``
+
+Enum types (``NetRadiationMethod``, ``SMDMethod`` etc.) are unchanged;
+only the YAML key and Pydantic attribute move. DataFrame column names
+stay in their legacy fused spellings for the Fortran bridge.
+
+The full mapping lives in
+``src/supy/data_model/core/field_renames.py``
+(``MODELPHYSICS_RENAMES`` folds fused legacy directly to the final,
+``MODELPHYSICS_SUFFIX_RENAMES`` catches the Category 1 intermediate
+spellings from Schema 2026.5). Both legacy shapes continue to load
+under a ``DeprecationWarning``. Run:
+
+.. code-block:: bash
+
+   suews-schema migrate your_config.yml --target-version 2026.5.dev2
+
+The migrator accepts any registered intermediate (``2025.12``,
+``2026.1``, ``2026.4``, ``2026.5``, ``2026.5.dev1``) and walks the
+chain to the current schema in one call. Your values survive the
+rename untouched.
+
 Upgrading to Schema 2026.5.dev1 (Category 5 of #1256: STEBBS `ext` split)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 

@@ -20,6 +20,13 @@ import yaml
 from ...data_model.core.field_renames import (
     ALL_FIELD_RENAMES,
     ARCHETYPEPROPERTIES_RENAMES,
+    DECTRPROPERTIES_RENAMES,
+    EVETRPROPERTIES_RENAMES,
+    LAIPARAMS_RENAMES,
+    MODELPHYSICS_SUFFIX_RENAMES,
+    SNOWPARAMS_RENAMES,
+    SURFACEPROPERTIES_RENAMES,
+    VEGETATEDSURFACEPROPERTIES_RENAMES,
     rename_keys_recursive,
 )
 from ...data_model.schema import CURRENT_SCHEMA_VERSION
@@ -259,16 +266,56 @@ _ARCH_EXT_RENAMES_2026_5_TO_DEV1: tuple[tuple[str, str], ...] = tuple(
     ARCHETYPEPROPERTIES_RENAMES.items()
 )
 
-# Category 1 pairs only — i.e. `ALL_FIELD_RENAMES` with the
-# ARCHETYPEPROPERTIES pairs removed. The 2026.4 -> 2026.5 step flows
-# through `rename_keys_recursive`; if it saw the ext pairs too they
-# would rename silently and defeat the per-field log that the 2026.5
-# -> 2026.6 handler relies on (TestNoSilentFieldDrops enforces that).
-_CATEGORY1_ONLY_RENAMES: dict[str, str] = {
-    old: new
-    for old, new in ALL_FIELD_RENAMES.items()
-    if old not in ARCHETYPEPROPERTIES_RENAMES
+# Category 1 pairs only — fused -> Cat-1 snake_case-with-suffix (e.g.
+# `netradiationmethod` -> `net_radiation_method`). This mapping is
+# declared inline (not imported from field_renames.py) because the
+# Python registry's ``MODELPHYSICS_RENAMES`` now short-circuits straight
+# to the Cat 2+3 final (``net_radiation`` etc.). The migrator still
+# needs an explicit Cat 1 stop when a caller pins
+# ``--target-version 2026.5``. ARCHETYPEPROPERTIES_RENAMES is excluded
+# — those land separately via `_apply_arch_ext_renames` so each rename
+# emits its own log line (TestNoSilentFieldDrops gate).
+_MODELPHYSICS_CAT1_RENAMES: dict[str, str] = {
+    "netradiationmethod": "net_radiation_method",
+    "emissionsmethod": "emissions_method",
+    "storageheatmethod": "storage_heat_method",
+    "ohmincqf": "ohm_inc_qf",
+    "roughlenmommethod": "roughness_length_momentum_method",
+    "roughlenheatmethod": "roughness_length_heat_method",
+    "stabilitymethod": "stability_method",
+    "smdmethod": "smd_method",
+    "waterusemethod": "water_use_method",
+    "rslmethod": "rsl_method",
+    "faimethod": "fai_method",
+    "rsllevel": "rsl_level",
+    "gsmodel": "gs_model",
+    "snowuse": "snow_use",
+    "stebbsmethod": "stebbs_method",
+    "rcmethod": "rc_method",
 }
+_CATEGORY1_ONLY_RENAMES: dict[str, str] = {
+    **_MODELPHYSICS_CAT1_RENAMES,
+    **SURFACEPROPERTIES_RENAMES,
+    **LAIPARAMS_RENAMES,
+    **VEGETATEDSURFACEPROPERTIES_RENAMES,
+    **EVETRPROPERTIES_RENAMES,
+    **DECTRPROPERTIES_RENAMES,
+    **SNOWPARAMS_RENAMES,
+}
+
+# Categories 2 + 3 of #1256 (gh#1321), shipping under the 2026.5.dev2
+# schema label: 15 ModelPhysics fields with the redundant `_method` /
+# `_model` suffix stripped and/or domain abbreviations expanded. Sourced
+# from MODELPHYSICS_SUFFIX_RENAMES so field_renames.py stays the single
+# registry for the Pydantic shim. The extra ``(setpointmethod, setpoint)``
+# pair is appended because the Schema 2026.5 shape still carries the
+# fused ``setpointmethod`` key (missed by Category 1) — only the 2026.5
+# -> 2026.5.dev2 migrator needs to rewrite it since the Pydantic shim
+# already handles the fused -> final case via MODELPHYSICS_RENAMES.
+# Every rename emits its own log line (TestNoSilentFieldDrops gate).
+_MODELPHYSICS_SUFFIX_RENAMES_TABLE: tuple[tuple[str, str], ...] = tuple(
+    MODELPHYSICS_SUFFIX_RENAMES.items()
+) + (("setpointmethod", "setpoint"),)
 
 
 # ---------------------------------------------------------------------------
@@ -417,6 +464,23 @@ def _apply_arch_ext_renames(cfg: dict) -> None:
             _rename_field(arch, old, new)
 
 
+def _apply_modelphysics_suffix_renames(cfg: dict) -> None:
+    """Apply the 15 Category 2+3 renames under ``model.physics`` in place.
+
+    Per-field logging via ``_rename_field`` keeps each rename visible to
+    the ``TestNoSilentFieldDrops`` audit (the same reason the ext rename
+    uses this helper rather than ``rename_keys_recursive``).
+    """
+    model = cfg.get("model")
+    if not isinstance(model, dict):
+        return
+    physics = model.get("physics")
+    if not isinstance(physics, dict):
+        return
+    for old, new in _MODELPHYSICS_SUFFIX_RENAMES_TABLE:
+        _rename_field(physics, old, new)
+
+
 def _migrate_2026_4_to_2026_5(cfg: dict) -> dict:
     """Upgrade 2026.4-shaped YAMLs to the ``2026.5`` schema.
 
@@ -437,31 +501,49 @@ def _migrate_2026_4_to_2026_5(cfg: dict) -> dict:
 
 
 def _migrate_2026_5_to_current(cfg: dict) -> dict:
-    """Upgrade 2026.5-shaped YAMLs to the current ``2026.5.dev1`` schema.
+    """Upgrade 2026.5-shaped YAMLs to the current ``2026.5.dev2`` schema.
 
-    Applies Category 5 of #1256 (gh#1327): eight STEBBS
-    ``ArchetypeProperties`` fields with the fused ``ext`` fragment
-    rewritten to the spelt-out ``External`` form
-    (``WallextThickness`` -> ``WallExternalThickness`` and seven
-    siblings). STEBBS PascalCase itself is kept. Each rename flows
-    through ``_rename_field`` so a dedicated log line is emitted per
-    field — ``TestNoSilentFieldDrops`` enforces that. The Pydantic
-    backward-compat shim still accepts the legacy names at load time,
-    but YAMLs that round-trip through the migrator come out in the
+    Chains two dev-label deltas:
+
+    * 2026.5 -> 2026.5.dev1 (Category 5 of #1256, gh#1327): eight STEBBS
+      ``ArchetypeProperties`` ``ext`` fields rewritten to ``External``.
+    * 2026.5.dev1 -> 2026.5.dev2 (Categories 2 + 3 of #1256, gh#1321):
+      15 ``ModelPhysics`` fields with the redundant ``_method`` /
+      ``_model`` suffix dropped and/or domain abbreviations expanded.
+
+    Each rename flows through ``_rename_field`` so a dedicated log line
+    is emitted per field — ``TestNoSilentFieldDrops`` enforces that. The
+    Pydantic backward-compat shim still accepts legacy names at load
+    time, but YAMLs that round-trip through the migrator come out in the
     new spellings and no longer emit deprecation warnings.
 
     Under the dev-label convention
-    (``.claude/rules/python/schema-versioning.md``) this is the first
-    dev bump in the ``2026.5`` release cycle; the release PR will
-    collapse this handler into a single ``(<prev>, 2026.5)`` migration.
+    (``.claude/rules/python/schema-versioning.md``) the release PR will
+    collapse both steps into a single ``(<prev>, 2026.5)`` migration.
     """
     cfg = _strip_internal_only_fields(cfg)
     _apply_arch_ext_renames(cfg)
+    _apply_modelphysics_suffix_renames(cfg)
+    return cfg
+
+
+def _migrate_2026_5_dev1_to_current(cfg: dict) -> dict:
+    """Upgrade 2026.5.dev1-shaped YAMLs to the current ``2026.5.dev2`` schema.
+
+    Applies Categories 2 + 3 of #1256 (gh#1321): 15 ``ModelPhysics``
+    fields under ``model.physics`` with redundant ``_method`` / ``_model``
+    suffixes dropped and opaque domain abbreviations (SMD, RSL, FAI, RC,
+    GS) expanded. Rename table is sourced from
+    ``MODELPHYSICS_SUFFIX_RENAMES`` in
+    ``src/supy/data_model/core/field_renames.py``.
+    """
+    cfg = _strip_internal_only_fields(cfg)
+    _apply_modelphysics_suffix_renames(cfg)
     return cfg
 
 
 def _migrate_2026_4_to_current(cfg: dict) -> dict:
-    """Chain 2026.4 -> 2026.5 Category 1 -> 2026.5.dev1 STEBBS ext rename."""
+    """Chain 2026.4 -> 2026.5 Cat. 1 -> dev1 STEBBS ext -> dev2 suffix renames."""
     cfg = _migrate_2026_4_to_2026_5(cfg)
     return _migrate_2026_5_to_current(cfg)
 
@@ -491,13 +573,13 @@ def _migrate_2025_12_to_2026_4(cfg: dict) -> dict:
 
 
 def _migrate_2025_12_to_current(cfg: dict) -> dict:
-    """Chain #879 clean-up -> 2026.1 delta -> 2026.5 Cat. 1 -> 2026.5.dev1 ext."""
+    """Chain #879 clean-up -> 2026.1 delta -> 2026.5 Cat. 1 -> dev1 ext -> dev2 suffix."""
     cfg = _migrate_2025_12_to_2026_4(cfg)
     return _migrate_2026_4_to_current(cfg)
 
 
 def _migrate_2026_1_to_current(cfg: dict) -> dict:
-    """Chain 2026.1 delta -> 2026.5 Category 1 -> 2026.5.dev1 STEBBS ext."""
+    """Chain 2026.1 delta -> 2026.5 Cat. 1 -> dev1 STEBBS ext -> dev2 suffix."""
     cfg = _migrate_2026_1_to_2026_4(cfg)
     return _migrate_2026_4_to_current(cfg)
 
@@ -512,7 +594,9 @@ _HANDLERS: dict[tuple[str, str], Handler] = {
     ("2025.12", "2026.4"): _migrate_2025_12_to_2026_4,
     # Intermediate stops at 2026.5 (callers pinning Category 1 only).
     ("2026.4", "2026.5"): _migrate_2026_4_to_2026_5,
-    # Chains to the current schema (2026.5.dev1, STEBBS ext split).
+    # Chains to the current schema (2026.5.dev2: Cat 1 snake_case sweep
+    # + Cat 5 STEBBS ext rename + Cat 2+3 ModelPhysics suffix drop).
+    ("2026.5.dev1", CURRENT_SCHEMA_VERSION): _migrate_2026_5_dev1_to_current,
     ("2026.5", CURRENT_SCHEMA_VERSION): _migrate_2026_5_to_current,
     ("2026.4", CURRENT_SCHEMA_VERSION): _migrate_2026_4_to_current,
     ("2026.1", CURRENT_SCHEMA_VERSION): _migrate_2026_1_to_current,

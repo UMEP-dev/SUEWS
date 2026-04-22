@@ -2385,10 +2385,10 @@ mod tests {
         let physics = get_path_mut(&mut root, &["model", "physics"])
             .expect("fixture should contain model.physics");
         if let Value::Mapping(map) = physics {
-            if let Some(v) = map.remove(Value::String("net_radiation_method".into())) {
+            if let Some(v) = map.remove(Value::String("net_radiation".into())) {
                 map.insert(Value::String("netradiationmethod".into()), v);
             }
-            if let Some(v) = map.remove(Value::String("storage_heat_method".into())) {
+            if let Some(v) = map.remove(Value::String("storage_heat".into())) {
                 map.insert(Value::String("storageheatmethod".into()), v);
             }
         }
@@ -2402,6 +2402,33 @@ mod tests {
         // The rest remain in new spelling and must still be read.
         assert_eq!(run_cfg.config.emissions_method, 2);
         assert!((run_cfg.site.lc_paved.statelimit - 0.48).abs() < 1.0e-12);
+    }
+
+    #[test]
+    fn load_run_config_accepts_2026_5_intermediate_names() {
+        let mut root: Value =
+            serde_yaml::from_str(FIXTURE_NEW_NAMES).expect("fixture YAML should parse");
+
+        let physics = get_path_mut(&mut root, &["model", "physics"])
+            .expect("fixture should contain model.physics");
+        if let Value::Mapping(map) = physics {
+            if let Some(v) = map.remove(Value::String("net_radiation".into())) {
+                map.insert(Value::String("net_radiation_method".into()), v);
+            }
+            if let Some(v) = map.remove(Value::String("storage_heat".into())) {
+                map.insert(Value::String("storage_heat_method".into()), v);
+            }
+            if let Some(v) = map.remove(Value::String("roughness_sublayer".into())) {
+                map.insert(Value::String("rsl_method".into()), v);
+            }
+        }
+
+        let run_cfg = load_run_config_from_value(&mut root)
+            .expect("schema-2026.5 intermediate names should parse without error");
+
+        assert_eq!(run_cfg.config.net_radiation_method, 1003);
+        assert_eq!(run_cfg.config.storage_heat_method, 7);
+        assert_eq!(run_cfg.config.rsl_method, 2);
     }
 
     #[test]
@@ -2452,16 +2479,16 @@ mod tests {
             panic!("model.physics should be a mapping");
         };
         let new_value = map
-            .get(Value::String("net_radiation_method".into()))
+            .get(Value::String("net_radiation".into()))
             .cloned()
-            .expect("fixture should contain net_radiation_method");
+            .expect("fixture should contain net_radiation");
         map.insert(Value::String("netradiationmethod".into()), new_value);
 
         let err = load_run_config_from_value(&mut root)
             .expect_err("duplicate old/new spellings must fail");
         assert_eq!(
             err,
-            "Both 'netradiationmethod' (deprecated) and 'net_radiation_method' are present at model.physics. Use only 'net_radiation_method'."
+            "Both 'netradiationmethod' (deprecated) and 'net_radiation' are present at model.physics. Use only 'net_radiation'."
         );
     }
 }

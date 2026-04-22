@@ -27,39 +27,39 @@ model:
     start_time: '2021-01-01'
     end_time: '2023-12-31'
   physics:
-    net_radiation_method:
+    net_radiation:
       value: 1
-    emissions_method:
+    emissions:
       value: 2
-    storage_heat_method:
+    storage_heat:
       value: 1
     ohm_inc_qf:
       value: 0
-    roughness_length_momentum_method:
+    roughness_length_momentum:
       value: 1
-    roughness_length_heat_method:
+    roughness_length_heat:
       value: 5
-    stability_method:
+    stability:
       value: 3
-    smd_method:
+    soil_moisture_deficit:
       value: 0
-    water_use_method:
+    water_use:
       value: 0
-    rsl_method:
+    roughness_sublayer:
       value: 2
-    fai_method:
+    frontal_area_index:
       value: 0
-    rsl_level:
+    roughness_sublayer_level:
       value: 0
     snow_use:
       value: 0
-    stebbs_method:
+    stebbs:
       value: 0
-    gs_model:
+    surface_conductance:
       value: 2
-    rc_method:
+    outer_cap_fraction:
       value: 1
-    setpointmethod:
+    setpoint:
       value: 0
 sites:
 - name: ROTH

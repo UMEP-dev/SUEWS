@@ -1,4 +1,4 @@
-"""Tests for Category 1 field renames (issue #1256).
+"""Tests for field renames (issues #1256, #1321).
 
 Verifies:
 - New field names are accessible as Pydantic attributes.
@@ -6,6 +6,8 @@ Verifies:
 - Deprecation warnings are emitted when old names are used.
 - ``to_df_state()`` emits DataFrame columns under legacy names (Fortran bridge).
 - Providing both old and new names raises ``ValueError``.
+- Category 1 intermediate spellings (Schema 2026.5 shape) still load with a
+  deprecation warning via MODELPHYSICS_SUFFIX_RENAMES (#1321).
 """
 
 import warnings
@@ -22,6 +24,7 @@ from supy.data_model.core.field_renames import (
     EVETRPROPERTIES_RENAMES,
     LAIPARAMS_RENAMES,
     MODELPHYSICS_RENAMES,
+    MODELPHYSICS_SUFFIX_RENAMES,
     SNOWPARAMS_RENAMES,
     SURFACEPROPERTIES_RENAMES,
     VEGETATEDSURFACEPROPERTIES_RENAMES,
@@ -102,7 +105,18 @@ class TestBackwardCompat:
         with warnings.catch_warnings():
             warnings.simplefilter("ignore", DeprecationWarning)
             m = ModelPhysics(netradiationmethod=3)
-        assert _unwrap(m.net_radiation_method) == 3
+        assert _unwrap(m.net_radiation) == 3
+
+    def test_cat1_intermediate_name_populates_new_attribute(self):
+        """Users on Schema 2026.5 supply net_radiation_method (Cat 1 intermediate);
+        the Cat 2+3 suffix shim (#1321) maps it to the final `net_radiation`.
+        """
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", DeprecationWarning)
+            m = ModelPhysics(net_radiation_method=3, rsl_method=2, gs_model=2)
+        assert _unwrap(m.net_radiation) == 3
+        assert _unwrap(m.roughness_sublayer) == 2
+        assert _unwrap(m.surface_conductance) == 2
 
     def test_old_lai_names_populate_new_attributes(self):
         with warnings.catch_warnings():
@@ -135,7 +149,16 @@ class TestDeprecationWarnings:
     @pytest.mark.parametrize(
         "model_cls, old_name, new_name, sample_value",
         [
-            (ModelPhysics, "netradiationmethod", "net_radiation_method", 3),
+            # Fused -> final (Cat 1 + Cat 2+3 consolidated in MODELPHYSICS_RENAMES).
+            (ModelPhysics, "netradiationmethod", "net_radiation", 3),
+            (ModelPhysics, "setpointmethod", "setpoint", 2),
+            # Cat 1 intermediate -> final (MODELPHYSICS_SUFFIX_RENAMES, #1321).
+            (ModelPhysics, "net_radiation_method", "net_radiation", 3),
+            (ModelPhysics, "rsl_method", "roughness_sublayer", 2),
+            (ModelPhysics, "gs_model", "surface_conductance", 2),
+            (ModelPhysics, "smd_method", "soil_moisture_deficit", 0),
+            (ModelPhysics, "rc_method", "outer_cap_fraction", 1),
+            # Other classes (Cat 1 only).
             (SurfaceProperties, "soildepth", "soil_depth", 150.0),
             (LAIParams, "baset", "base_temperature", 5.0),
             (SnowParams, "crwmax", "water_holding_capacity_max", 0.2),
@@ -159,20 +182,49 @@ class TestDeprecationWarnings:
     def test_new_name_does_not_warn(self):
         with warnings.catch_warnings(record=True) as captured:
             warnings.simplefilter("always", DeprecationWarning)
-            ModelPhysics(net_radiation_method=3)
+            ModelPhysics(net_radiation=3)
         messages = [str(w.message) for w in captured if issubclass(w.category, DeprecationWarning)]
-        # Allow unrelated Pydantic deprecations; assert none mention our rename.
+        # Allow unrelated Pydantic deprecations; assert none mention our renames.
         assert not any("netradiationmethod" in m for m in messages)
+        assert not any("net_radiation_method" in m for m in messages)
 
 
 class TestConflictDetection:
-    def test_both_old_and_new_raises(self):
+    def test_both_fused_and_final_raises(self):
         with pytest.raises(ValueError, match="both .* and .* are present"):
-            ModelPhysics(netradiationmethod=3, net_radiation_method=2)
+            ModelPhysics(netradiationmethod=3, net_radiation=2)
+
+    def test_both_cat1_intermediate_and_final_raises(self):
+        """Schema 2026.5 spelling clashes with Schema 2026.5.dev2 spelling (#1321)."""
+        with pytest.raises(ValueError, match="both .* and .* are present"):
+            ModelPhysics(net_radiation_method=3, net_radiation=2)
 
 
 class TestRawDictCompatibility:
-    def test_analyze_config_methods_accepts_snake_case(self):
+    def test_analyze_config_methods_accepts_final_names(self):
+        """Schema 2026.5.dev2 (#1321) final names resolve via `read_physics_key`."""
+        config = {
+            "model": {
+                "physics": {
+                    "roughness_sublayer": {"value": 2},
+                    "roughness_length_momentum": {"value": 2},
+                    "net_radiation": {"value": 1001},
+                    "emissions": {"value": 4},
+                    "storage_heat": {"value": 4},
+                }
+            }
+        }
+
+        methods = analyze_config_methods(config)
+
+        assert methods["rslmethod_variable"] is True
+        assert methods["roughness_variable"] is True
+        assert methods["netradiation_spartacus"] is True
+        assert methods["emissions_advanced"] is True
+        assert methods["storage_estm"] is True
+
+    def test_analyze_config_methods_accepts_cat1_intermediate(self):
+        """Schema 2026.5 (Cat 1 intermediate) names still resolve via the rename registry."""
         config = {
             "model": {
                 "physics": {

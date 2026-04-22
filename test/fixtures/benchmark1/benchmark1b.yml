@@ -7,35 +7,35 @@ model:
       value: forcing/
     output_file: output.txt
   physics:
-    net_radiation_method:
+    net_radiation:
       value: 3
-    emissions_method:
+    emissions:
       value: 2
-    storage_heat_method:
+    storage_heat:
       value: 6
     ohm_inc_qf:
       value: 0
-    roughness_length_momentum_method:
+    roughness_length_momentum:
       value: 1
-    roughness_length_heat_method:
+    roughness_length_heat:
       value: 2
-    stability_method:
+    stability:
       value: 3
-    smd_method:
+    soil_moisture_deficit:
       value: 0
-    water_use_method:
+    water_use:
       value: 0
-    rsl_method:
+    roughness_sublayer:
       value: 2
-    fai_method:
+    frontal_area_index:
       value: 0
-    rsl_level:
+    roughness_sublayer_level:
       value: 1
     snow_use:
       value: 0
-    stebbs_method:
+    stebbs:
       value: 0
-    rc_method:
+    outer_cap_fraction:
       value: 0
     same_albedo_wall:
       value: 0
@@ -45,7 +45,7 @@ model:
       value: 0
     same_emissivity_roof:
       value: 0
-    setpointmethod:
+    setpoint:
       value: 0
 sites:
 - name: KCL
@@ -1207,7 +1207,7 @@ sites:
         value: 0.05
       kmax:
         value: 1200.0
-      gs_model:
+      surface_conductance:
         value: 2
       s1:
         value: 5.56

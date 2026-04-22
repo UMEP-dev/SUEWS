@@ -480,7 +480,7 @@ class SUEWSConfig(BaseModel):
             If net_radiation_method=1 is used with a sample forcing file.
         """
         # Use the helper for consistent unwrapping
-        net_radiation_method_val = _unwrap_value(self.model.physics.net_radiation_method)
+        net_radiation_method_val = _unwrap_value(self.model.physics.net_radiation)
         forcing_file_val = _unwrap_value(self.model.control.forcing_file)
 
         # Check for the sample forcing file - this is still based on filename
@@ -1534,15 +1534,15 @@ class SUEWSConfig(BaseModel):
     def _needs_stebbs_validation(self) -> bool:
         """
         Return True if STEBBS should be validated,
-        i.e. physics.stebbs_method == 1.
+        i.e. physics.stebbs == 1.
         """
 
         if not hasattr(self.model, "physics") or not hasattr(
-            self.model.physics, "stebbs_method"
+            self.model.physics, "stebbs"
         ):
             return False
 
-        stebbs_method = self.model.physics.stebbs_method
+        stebbs_method = self.model.physics.stebbs
 
         if hasattr(stebbs_method, "value"):
             stebbs_method = stebbs_method.value
@@ -1596,7 +1596,7 @@ class SUEWSConfig(BaseModel):
 
         ## Must have a stebbs block
         if not hasattr(props, "stebbs") or props.stebbs is None:
-            issues.append("Missing 'stebbs' section (required when stebbs_method=1)")
+            issues.append("Missing 'stebbs' section (required when stebbs=1)")
             return issues
 
         ## Must have a building_archetype block
@@ -1662,8 +1662,8 @@ class SUEWSConfig(BaseModel):
             "WallCp",
         ]
 
-        # Check setpointmethod value
-        setpointmethod = getattr(self.model.physics, "setpointmethod", None)
+        # Check setpoint value
+        setpointmethod = getattr(self.model.physics, "setpoint", None)
         setpointmethod_val = _unwrap_value(setpointmethod) if setpointmethod is not None else None
         try:
             setpointmethod_val = int(setpointmethod_val)
@@ -1728,7 +1728,7 @@ class SUEWSConfig(BaseModel):
         if missing_params:
             param_list = ", ".join(missing_params)
             issues.append(
-                f"Missing required STEBBS parameters: {param_list} (required when stebbs_method=1)"
+                f"Missing required STEBBS parameters: {param_list} (required when stebbs=1)"
             )
 
         return issues
@@ -1750,11 +1750,11 @@ class SUEWSConfig(BaseModel):
         - Uses Pydantic's `model_fields_set` to distinguish user-provided values from defaults.
         """
         if not hasattr(self.model, "physics") or not hasattr(
-            self.model.physics, "rsl_method"
+            self.model.physics, "roughness_sublayer"
         ):
             return False
 
-        rm = self.model.physics.rsl_method
+        rm = self.model.physics.roughness_sublayer
         method = getattr(rm, "value", rm)
         try:
             method = int(method)
@@ -1763,7 +1763,7 @@ class SUEWSConfig(BaseModel):
 
         # Only validate if method == 2 AND it was explicitly set
         if method == 2:
-            return self._is_physics_explicitly_configured("rsl_method")
+            return self._is_physics_explicitly_configured("roughness_sublayer")
         return False
 
     def _validate_rsl(self, site: Site, site_index: int) -> List[str]:
@@ -1834,11 +1834,11 @@ class SUEWSConfig(BaseModel):
         - Uses Pydantic's `model_fields_set` to distinguish user-provided values from defaults.
         """
         if not hasattr(self.model, "physics") or not hasattr(
-            self.model.physics, "storage_heat_method"
+            self.model.physics, "storage_heat"
         ):
             return False
 
-        shm = getattr(self.model.physics.storage_heat_method, "value", None)
+        shm = getattr(self.model.physics.storage_heat, "value", None)
         try:
             shm = int(shm)
         except (TypeError, ValueError):
@@ -1846,7 +1846,7 @@ class SUEWSConfig(BaseModel):
 
         # Only validate if method == 6 or 7 AND it was explicitly set
         if shm == 6 or shm == 7:
-            return self._is_physics_explicitly_configured("storage_heat_method")
+            return self._is_physics_explicitly_configured("storage_heat")
         return False
     
     def _needs_same_albedo_wall_validation(self) -> bool:
@@ -2286,7 +2286,7 @@ class SUEWSConfig(BaseModel):
         is set to one of the following values: 1001, 1002, or 1003.
         """
         spartacus_methods = {1001, 1002, 1003}
-        netrad_method = _unwrap_value(getattr(self.model.physics, "net_radiation_method", None))
+        netrad_method = _unwrap_value(getattr(self.model.physics, "net_radiation", None))
         try:
             netrad_method = int(netrad_method)
         except (TypeError, ValueError):
@@ -2343,8 +2343,8 @@ class SUEWSConfig(BaseModel):
                     f"Site '{site_name}' has bldgh={bldgh} exceeding SPARTACUS domain top (height[{nlayer}]={spartacus_top})."
                 )
 
-            # If stebbs_method == 1, also check stebbs_Height
-            stebbs_method = _unwrap_value(getattr(self.model.physics, "stebbs_method", None))
+            # If stebbs == 1, also check stebbs_Height
+            stebbs_method = _unwrap_value(getattr(self.model.physics, "stebbs", None))
 
             try:
                 stebbs_method_val = int(stebbs_method)
@@ -2678,23 +2678,23 @@ class SUEWSConfig(BaseModel):
         """
         # Critical physics parameters that get converted to int() in df_state
         CRITICAL_PHYSICS_PARAMS = [
-            "net_radiation_method",
-            "emissions_method",
-            "storage_heat_method",
+            "net_radiation",
+            "emissions",
+            "storage_heat",
             "ohm_inc_qf",
-            "roughness_length_momentum_method",
-            "roughness_length_heat_method",
-            "stability_method",
-            "smd_method",
-            "water_use_method",
-            "rsl_method",
-            "fai_method",
-            "rsl_level",
-            "gs_model",
+            "roughness_length_momentum",
+            "roughness_length_heat",
+            "stability",
+            "soil_moisture_deficit",
+            "water_use",
+            "roughness_sublayer",
+            "frontal_area_index",
+            "roughness_sublayer_level",
+            "surface_conductance",
             "snow_use",
-            "stebbs_method",
-            "rc_method",
-            "setpointmethod",
+            "stebbs",
+            "outer_cap_fraction",
+            "setpoint",
             "same_albedo_wall",
             "same_albedo_roof",
             "same_emissivity_wall",

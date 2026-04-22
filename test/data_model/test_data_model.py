@@ -56,8 +56,8 @@ class TestSUEWSConfig(unittest.TestCase):
             self.config.model.control.tstep, config_reconst.model.control.tstep
         )
         self.assertEqual(
-            self.config.model.physics.net_radiation_method.value,
-            config_reconst.model.physics.net_radiation_method.value,
+            self.config.model.physics.net_radiation.value,
+            config_reconst.model.physics.net_radiation.value,
         )
         self.assertEqual(
             self.config.sites[0].properties.lat.value,
@@ -120,7 +120,7 @@ class TestSUEWSConfig(unittest.TestCase):
     def test_setpoint_profiles_survive_trimmed_df_state_roundtrip(self):
         """Test scheduled STEBBS setpoint fields persist through trimmed df_state roundtrip."""
         config = SUEWSConfig(
-            model={"physics": {"setpointmethod": 2}},
+            model={"physics": {"setpoint": 2}},
             sites=[
                 {
                     "properties": {
@@ -143,7 +143,7 @@ class TestSUEWSConfig(unittest.TestCase):
         df_state_trimmed = trim_df_state(df_state)
         config_reconst = SUEWSConfig.from_df_state(df_state_trimmed)
 
-        self.assertEqual(config_reconst.model.physics.setpointmethod.value.value, 2)
+        self.assertEqual(config_reconst.model.physics.setpoint.value.value, 2)
         self.assertEqual(
             config_reconst.sites[0]
             .properties.building_archetype.HeatingSetpointTemperatureProfile
@@ -202,7 +202,7 @@ class TestSUEWSConfig(unittest.TestCase):
             sites=[{}],
             model={
                 "physics": {
-                    "storage_heat_method": {"value": 1},
+                    "storage_heat": {"value": 1},
                     "ohm_inc_qf": {
                         "value": 1
                     },  # This incompatible combination is now allowed at config level
@@ -520,7 +520,7 @@ def test_flexible_refvalue_with_cleaning():
         ("tstep", lambda c: c.model.control.tstep),
         ("forcing_file", lambda c: c.model.control.forcing_file),
         ("lat", lambda c: c.sites[0].properties.lat),
-        ("emissions_method", lambda c: c.model.physics.emissions_method),
+        ("emissions", lambda c: c.model.physics.emissions),
         ("raincover", lambda c: c.sites[0].properties.lumps.raincover),
         ("g_max", lambda c: c.sites[0].properties.conductance.g_max),
     ]

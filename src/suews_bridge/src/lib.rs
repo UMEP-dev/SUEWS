@@ -13,6 +13,7 @@ mod error;
 mod error_entry;
 mod error_state;
 mod ffi;
+mod field_renames;
 mod flag;
 mod forcing;
 #[cfg(feature = "physics")]
@@ -73,6 +74,7 @@ pub use ehc_prm::*;
 pub use error::*;
 pub use error_entry::*;
 pub use error_state::*;
+pub use field_renames::*;
 pub use flag::*;
 pub use forcing::*;
 #[cfg(feature = "physics")]

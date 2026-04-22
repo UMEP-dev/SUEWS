@@ -251,6 +251,15 @@ Callers pinning ``--target-version 2026.5`` stop here; the default
 ``--target-version 2026.6`` picks up the STEBBS ``ext`` rename on
 top.
 
+.. note::
+
+   The standalone Rust CLI (``suews run config.yml``) accepts both the
+   new ``snake_case`` spellings and the legacy fused spellings
+   transparently (gh#1322). You do not need to run ``suews-schema
+   migrate`` purely to use the CLI — migration is only required when
+   persisting a canonical 2026.5-shaped YAML, for example alongside a
+   release fixture or before sharing a config with collaborators.
+
 Upgrading to Schema 2026.4 (SUEWS 2026.4.3)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 

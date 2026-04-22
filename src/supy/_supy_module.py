@@ -883,7 +883,7 @@ def _save_supy(
     output_level=1,
     debug=False,
     output_config=None,
-    output_format="txt",
+    output_format=None,
 ) -> list:
     """Save SuPy run results to files.
 

@@ -762,8 +762,11 @@ def _run_supy(
     # Preprocess forcing for observed soil moisture if needed
     try:
         # SMDMethod is a physics option in the validated config schema.
-        # Keep a fallback to legacy `model.options` for compatibility.
-        smd_val = getattr(config.model.physics, "smdmethod", None)
+        # Prefer the renamed Pydantic field; keep the legacy attribute and
+        # old `model.options` fallback for older in-memory callers.
+        smd_val = getattr(config.model.physics, "smd_method", None)
+        if smd_val is None:
+            smd_val = getattr(config.model.physics, "smdmethod", None)
         if smd_val is None:
             smd_val = getattr(getattr(config.model, "options", None), "smdmethod", None)
         if hasattr(smd_val, "value"):

@@ -1274,7 +1274,7 @@ def adjust_model_dependent_nullification(
     physics = yaml_data.get("model", {}).get("physics", {})
 
     # --- STEBBS ---
-    stebbsmethod = get_value_safe(physics, "stebbsmethod")
+    stebbsmethod = get_value_safe(physics, "stebbs_method")
 
     if stebbsmethod == 0:
         sites = yaml_data.get("sites", [])
@@ -1349,7 +1349,7 @@ def adjust_model_dependent_nullification(
                 yaml_data["sites"][site_idx] = site
 
     # --- ANTHROPOGENIC CO2 ---
-    emissionsmethod = get_value_safe(physics, "emissionsmethod")
+    emissionsmethod = get_value_safe(physics, "emissions_method")
 
     if emissionsmethod is not None and emissionsmethod in [0, 1, 2, 3, 4]:
         sites = yaml_data.get("sites", [])
@@ -1630,8 +1630,12 @@ def adjust_seasonal_parameters(
 
             if sfr > 0:
                 lai = dectr.get("lai", {})
-                laimin = get_value_safe(lai, "laimin")
-                laimax = get_value_safe(lai, "laimax")
+                laimin = get_value_safe(lai, "lai_min")
+                if laimin is None:
+                    laimin = get_value_safe(lai, "laimin")
+                laimax = get_value_safe(lai, "lai_max")
+                if laimax is None:
+                    laimax = get_value_safe(lai, "laimax")
 
                 if laimin is not None and laimax is not None:
                     if season == "summer":
@@ -1810,7 +1814,7 @@ def adjust_model_option_rcmethod(yaml_data: dict) -> Tuple[dict, List[Scientific
     """
     adjustments = []
     physics = yaml_data.get("model", {}).get("physics", {})
-    rcmethod_value = get_value_safe(physics, "rcmethod")
+    rcmethod_value = get_value_safe(physics, "rc_method")
 
     if rcmethod_value == 0:
         sites = yaml_data.get("sites", [])
@@ -1949,7 +1953,7 @@ def adjust_model_option_stebbsmethod(yaml_data: dict) -> Tuple[dict, List[Scient
     """
     adjustments = []
     physics = yaml_data.get("model", {}).get("physics", {})
-    stebbsmethod = get_value_safe(physics, "stebbsmethod")
+    stebbsmethod = get_value_safe(physics, "stebbs_method")
 
     if stebbsmethod == 1:
         sites = yaml_data.get("sites", [])

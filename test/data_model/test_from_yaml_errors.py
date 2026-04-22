@@ -4,7 +4,7 @@ Tests for SUEWSConfig.from_yaml error handling.
 Covers the schema-drift hints added in #1303:
   * raw TypeError / AttributeError from Pydantic union validation gets
     wrapped into a ValueError that names detected/current schema versions
-    and the `suews-convert yaml-upgrade` command
+    and the unified `suews-convert` command
   * ValidationError carrying `extra_forbidden` on a top-level key gains
     the same drift hint
   * a valid YAML still parses without raising
@@ -72,7 +72,7 @@ class TestFromYamlDriftHints:
             SUEWSConfig.from_yaml(str(path))
 
         message = str(excinfo.value)
-        assert "suews-convert yaml-upgrade" in message
+        assert "suews-convert -i <old.yml>" in message
         assert f"Current schema version:  {CURRENT_SCHEMA_VERSION}" in message
         assert "Detected schema version:" in message
 
@@ -100,7 +100,7 @@ class TestFromYamlDriftHints:
         # ASSERT
         message = str(excinfo.value)
         assert "suspected schema drift" in message
-        assert "suews-convert yaml-upgrade" in message
+        assert "suews-convert -i <old.yml>" in message
         assert "RefValue.__init__()" in message
         assert f"Current schema version:  {CURRENT_SCHEMA_VERSION}" in message
 
@@ -124,9 +124,9 @@ class TestFromYamlDriftHints:
     def test_unsigned_yaml_hint_requests_from_ver(
         self, sample_config_dict, tmp_path
     ):
-        """Unsigned YAMLs must not be told to run the bare yaml-upgrade command.
+        """Unsigned YAMLs must not be told to run the bare suews-convert command.
 
-        The CLI rejects unsigned YAMLs unless `-f/--from-ver` is supplied, so
+        The CLI rejects unsigned YAMLs unless `-f/--from` is supplied, so
         the hint must advertise that flag and must not claim a spurious
         "Detected schema version: <current>" that was only there because
         from_yaml stamped CURRENT_SCHEMA_VERSION as a default.

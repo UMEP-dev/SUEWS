@@ -165,6 +165,165 @@ The converter intelligently handles various directory structures by reading the 
   
 This ensures compatibility with various SUEWS installation structures while respecting user configurations.
 
+YAML Schema Migrations
+----------------------
+
+Once your configuration is in YAML, subsequent SUEWS releases may bump
+the YAML *schema* — the structure of the file itself. Each bump is
+backed by a registered migration handler, so ``suews-convert`` (for
+combined legacy+schema upgrades) and ``suews-schema migrate`` (for
+schema-only upgrades) will move old YAMLs onto the current shape
+without losing data. Every drop is logged with a human-readable
+reason so you can reconstruct intent if needed.
+
+The sections below summarise what users see change between schemas.
+The authoritative lineage (including release-tag to schema mapping)
+lives in :ref:`schema_version_history`.
+
+Upgrading to Schema 2026.5.dev1 (Category 5 of #1256: STEBBS `ext` split)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Schema ``2026.5.dev1`` is the current in-development shape. It
+applies Category 5 of #1256 (gh#1327): eight STEBBS
+``ArchetypeProperties`` fields with the fused ``ext`` fragment are
+rewritten to the spelt-out ``External`` form, bringing them into
+line with sibling ``WallExternalEmissivity`` /
+``RoofExternalEmissivity``:
+
+- ``WallextThickness`` -> ``WallExternalThickness``
+- ``WallextEffectiveConductivity`` ->
+  ``WallExternalEffectiveConductivity``
+- ``WallextDensity`` -> ``WallExternalDensity``
+- ``WallextCp`` -> ``WallExternalCp``
+- ``RoofextThickness`` -> ``RoofExternalThickness``
+- ``RoofextEffectiveConductivity`` ->
+  ``RoofExternalEffectiveConductivity``
+- ``RoofextDensity`` -> ``RoofExternalDensity``
+- ``RoofextCp`` -> ``RoofExternalCp``
+
+STEBBS PascalCase itself is kept (it matches the Fortran-side STEBBS
+interface); the Fortran-side identifiers are unchanged and the
+Python-to-Fortran bridge reverses the rename before handoff.
+
+The full mapping lives in
+``src/supy/data_model/core/field_renames.py``. Legacy spellings
+continue to load under a ``DeprecationWarning`` so existing YAMLs
+are not broken, but new configurations should use the new names and
+persisted YAMLs should be migrated. Run:
+
+.. code-block:: bash
+
+   suews-schema migrate your_config.yml --target-version 2026.5.dev1
+
+The migrator accepts any registered intermediate (for example
+``2025.12``, ``2026.1``, ``2026.4`` or ``2026.5``) and walks the
+chain to the current schema in one call. Your values survive the
+rename untouched — only the key names change.
+
+.. note::
+
+   ``2026.5.dev1`` is a PEP 440 pre-release label used during the
+   2026.5 development cycle. The release PR will collapse this label
+   (and any further ``.devN`` increments) into a single ``2026.5``
+   entry; at that point ``--target-version 2026.5`` becomes the
+   canonical invocation for this migration.
+
+Upgrading to Schema 2026.5 (Category 1 of #1256: snake_case sweep)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Schema ``2026.5`` is the Category 1 base on top of which the
+``.devN`` dev cycle builds. It applies Category 1 of #1256: 59
+fused compound field names in
+``ModelPhysics``, ``SurfaceProperties``, ``LAIParams``,
+``VegetatedSurfaceProperties``, ``EvetrProperties``,
+``DectrProperties``, and ``SnowParams`` are rewritten to
+``snake_case``. Examples:
+
+- ``netradiationmethod`` -> ``net_radiation_method``
+- ``storageheatmethod`` -> ``storage_heat_method``
+- ``soildepth`` -> ``soil_depth``
+- ``soilstorecap`` -> ``soil_store_capacity``
+- ``baset`` -> ``base_temperature``
+- ``crwmax`` -> ``water_holding_capacity_max``
+- ``laimin`` / ``laimax`` -> ``lai_min`` / ``lai_max``
+
+Callers pinning ``--target-version 2026.5`` stop here; the default
+``--target-version 2026.6`` picks up the STEBBS ``ext`` rename on
+top.
+
+Upgrading to Schema 2026.4 (SUEWS 2026.4.3)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Upgrading from ``2026.1`` (shipped with 2026.1.28) or earlier applies
+the following deltas:
+
+- ``DeepSoilTemperature`` → ``AnnualMeanAirTemperature``
+  (rename; user-supplied value preserved, #1240).
+- ``MinimumVolumeOfDHWinUse`` and ``MaximumVolumeOfDHWinUse`` dropped;
+  DHW volume is no longer bounded in the config (#1242). Any values
+  present in your YAML are discarded with a logged reason.
+- STEBBS setpoint fields split: the scalar
+  ``HeatingSetpointTemperature`` and ``CoolingSetpointTemperature``
+  continue to work, but are now gated on
+  ``model.physics.setpointmethod``. When the profile branch is
+  selected, use the new ``HeatingSetpointTemperatureProfile`` and
+  ``CoolingSetpointTemperatureProfile`` siblings (#1261).
+- New daylight-control and lighting/metabolism fields are available
+  as optional additions — they default to sensible values if absent.
+
+Run:
+
+.. code-block:: bash
+
+   suews-schema migrate your_config.yml --target-version 2026.4
+
+The migrator accepts any registered intermediate (for example
+``2025.12``) and walks the chain to the 2026.4 schema. To upgrade
+further to the current 2026.5 schema, use
+``--target-version 2026.5`` (or omit the flag to reach the latest).
+
+Upgrading to Schema 2026.1 (SUEWS 2026.1.28)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Landed with the STEBBS clean-up (#879). If you are moving from the
+``2025.12`` shape (2025.10.15 or 2025.11.20):
+
+- Building archetype wall/roof fields: ``Wallx1`` →
+  ``WallOuterCapFrac`` and ``Roofx1`` → ``RoofOuterCapFrac``.
+- Initial temperature fields renamed: ``IndoorAirStartTemperature`` →
+  ``InitialIndoorTemperature``; ``OutdoorAirStartTemperature`` →
+  ``InitialOutdoorTemperature``.
+- ``DHWVesselEmissivity`` removed — the vessel emissivity is now
+  derived internally rather than carried in the config.
+- Runtime-state view-factor and temperature slots removed from user
+  YAML (they were never user-tunable; #879 finally cleaned them up).
+- STEBBS hourly profiles added for setpoints, appliance, occupants and
+  hot water (#1038). Existing configs that omit them continue to
+  work; the profiles default to previous scalar behaviour.
+
+If you are targeting 2026.1.28 exactly:
+
+.. code-block:: bash
+
+   suews-schema migrate your_config.yml --target-version 2026.1
+
+Otherwise the 2026.4 -> 2026.5 chain above is applied in one pass.
+
+Preserving Your Values Through Renames
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The rename handlers preserve the user's value. When both the old and
+the new key happen to be present in the same YAML (for example if
+you've partially hand-edited), the newer value wins and the stale
+key is logged and dropped so you can spot the intent conflict.
+
+For a dry-run that shows every rename and drop without writing the
+upgraded file, pass ``--dry-run``:
+
+.. code-block:: bash
+
+   suews-schema migrate your_config.yml --dry-run
+
 Troubleshooting
 ~~~~~~~~~~~~~~~
 

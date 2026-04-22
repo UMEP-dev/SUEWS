@@ -1,6 +1,6 @@
 # PR Review Workflow Steps
 
-## Step 1: PR Context
+## PR Context
 
 ```bash
 gh pr diff {pr} --name-only
@@ -10,13 +10,13 @@ gh api repos/UMEP-dev/SUEWS/pulls/{pr}/files --jq '.[] | {filename, status, addi
 
 ---
 
-## Step 2: Code Style
+## Code Style
 
 Apply lint-code checks. See `style-checks.md`.
 
 ---
 
-## Step 3: Scientific Review
+## Scientific Review
 
 **Only for physics changes** (`suews_phys_*.f95`).
 
@@ -45,7 +45,7 @@ Flag for extra scrutiny - verify physical reasoning.
 
 ---
 
-## Step 4: Testing Review
+## Testing Review
 
 | Requirement | Target |
 |-------------|--------|
@@ -57,17 +57,20 @@ Check: FIRST principles, AAA pattern, tolerance assertions.
 
 ---
 
-## Step 5: Documentation Review
+## Documentation Review
 
-| Check | Requirement |
-|-------|-------------|
-| CHANGELOG | Entry with correct category |
-| PR description | Scientific rationale (if physics) |
-| User docs | Updated if user-facing |
+- **CHANGELOG** — entry with correct category
+- **PR description** — scientific rationale (if physics)
+- **User docs** — updated if user-facing
+- **Schema bump trigger** — if `src/supy/data_model/schema/version.py`
+  moved `CURRENT_SCHEMA_VERSION`, the PR must also touch
+  `docs/source/contributing/schema/schema_versioning.rst` and
+  `docs/source/inputs/transition_guide.rst`. See the full trigger-specific
+  checklist in `review-checklist.md` → "Schema version bump".
 
 ---
 
-## Step 6: Build Review
+## Build Review
 
 ```bash
 gh pr checks {pr}
@@ -76,7 +79,7 @@ gh pr checks {pr}
 
 ---
 
-## Step 7-9: Draft, Approve, Post
+## Draft, Approve, Post
 
 ### Draft Comments
 

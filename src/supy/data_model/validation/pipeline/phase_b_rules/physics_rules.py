@@ -55,22 +55,22 @@ def validate_physics_parameters(context) -> List[ValidationResult]:
         return results
 
     required_physics_params = [
-        "netradiationmethod",
-        "emissionsmethod",
-        "storageheatmethod",
-        "ohmincqf",
-        "roughlenmommethod",
-        "roughlenheatmethod",
-        "stabilitymethod",
-        "smdmethod",
-        "waterusemethod",
-        "rslmethod",
-        "faimethod",
-        "rsllevel",
-        "gsmodel",
-        "snowuse",
-        "stebbsmethod",
-        "rcmethod",
+        "net_radiation_method",
+        "emissions_method",
+        "storage_heat_method",
+        "ohm_inc_qf",
+        "roughness_length_momentum_method",
+        "roughness_length_heat_method",
+        "stability_method",
+        "smd_method",
+        "water_use_method",
+        "rsl_method",
+        "fai_method",
+        "rsl_level",
+        "gs_model",
+        "snow_use",
+        "stebbs_method",
+        "rc_method",
         "same_albedo_wall",
         "same_albedo_roof",
         "same_emissivity_wall",
@@ -304,11 +304,11 @@ def validate_model_option_dependencies(context) -> List[ValidationResult]:
     results = []
     physics = yaml_data.get("model", {}).get("physics", {})
 
-    rslmethod = get_value_safe(physics, "rslmethod")
-    stabilitymethod = get_value_safe(physics, "stabilitymethod")
-    storageheatmethod = get_value_safe(physics, "storageheatmethod")
-    ohmincqf = get_value_safe(physics, "ohmincqf")
-    smdmethod = get_value_safe(physics, "smdmethod")
+    rslmethod = get_value_safe(physics, "rsl_method")
+    stabilitymethod = get_value_safe(physics, "stability_method")
+    storageheatmethod = get_value_safe(physics, "storage_heat_method")
+    ohmincqf = get_value_safe(physics, "ohm_inc_qf")
+    smdmethod = get_value_safe(physics, "smd_method")
 
     # RSL method and stability method dependencies
     result = validate_rslmethod_dependency(rslmethod=rslmethod, stabilitymethod=stabilitymethod)
@@ -356,8 +356,12 @@ def check_rcmethod2_facet(required_params, building_archetype, site_idx, site_gr
     provided_facet = []
     results = []
     for param in required_params:
-        entry = building_archetype.get(param, {})
-        value = entry.get("value") if isinstance(entry, Mapping) else entry
+        entry_or_value = get_value_safe(building_archetype, param)
+        value = (
+            entry_or_value.get("value")
+            if isinstance(entry_or_value, Mapping)
+            else entry_or_value
+        )
         if value in (None, ""):
             results.append(
                 ValidationResult(
@@ -457,7 +461,7 @@ def validate_model_option_rcmethod(context) -> List[ValidationResult]:
 
     results = []
     physics = yaml_data.get("model", {}).get("physics", {})
-    rcmethod_value = get_value_safe(physics, "rcmethod")
+    rcmethod_value = get_value_safe(physics, "rc_method")
 
     sites = yaml_data.get("sites", [])
     for site_idx, site in enumerate(sites):
@@ -475,16 +479,16 @@ def validate_model_option_rcmethod(context) -> List[ValidationResult]:
 
         elif rcmethod_value == 2:
             required_wall_params = [
-                "WallextThickness",
-                "WallextEffectiveConductivity",
-                "WallextDensity",
-                "WallextCp",
+                "WallExternalThickness",
+                "WallExternalEffectiveConductivity",
+                "WallExternalDensity",
+                "WallExternalCp",
             ]
             required_roof_params = [
-                "RoofextThickness",
-                "RoofextEffectiveConductivity",
-                "RoofextDensity",
-                "RoofextCp",
+                "RoofExternalThickness",
+                "RoofExternalEffectiveConductivity",
+                "RoofExternalDensity",
+                "RoofExternalCp",
             ]
             # Collect provided wall params
             for facet, facet_params in zip(
@@ -743,13 +747,13 @@ def validate_forcing_height_vs_buildings(context) -> List[ValidationResult]:
 
     physics = yaml_data.get("model", {}).get("physics", {})
 
-    stebbsmethod_val = _unwrap_nested_value(physics.get("stebbsmethod"))
+    stebbsmethod_val = _unwrap_nested_value(physics.get("stebbs_method"))
     try:
         stebbsmethod_val = int(stebbsmethod_val)
     except (TypeError, ValueError):
         stebbsmethod_val = None
 
-    netradiationmethod_val = _unwrap_nested_value(physics.get("netradiationmethod"))
+    netradiationmethod_val = _unwrap_nested_value(physics.get("net_radiation_method"))
     try:
         netradiationmethod_val = int(netradiationmethod_val)
     except (TypeError, ValueError):

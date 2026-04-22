@@ -102,7 +102,7 @@ model:
     start_time: '2021-01-01'
     end_time: '2021-12-31'
   physics:
-    netradiationmethod:
+    net_radiation_method:
       value: 1
 sites:
   - name: test_site

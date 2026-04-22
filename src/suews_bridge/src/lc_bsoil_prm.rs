@@ -18,9 +18,9 @@ pub struct LcBsoilPrm {
     pub emis: f64,
     pub ohm: OhmPrm,
     pub soil: SoilPrm,
-    pub statelimit: f64,
+    pub state_limit: f64,
     pub irrfracbsoil: f64,
-    pub wetthresh: f64,
+    pub wet_threshold: f64,
     pub waterdist: WaterDistPrm,
 }
 
@@ -31,9 +31,9 @@ impl Default for LcBsoilPrm {
             emis: 0.0,
             ohm: OhmPrm::default(),
             soil: SoilPrm::default(),
-            statelimit: 0.0,
+            state_limit: 0.0,
             irrfracbsoil: 0.0,
-            wetthresh: 0.0,
+            wet_threshold: 0.0,
             waterdist: WaterDistPrm::default(),
         }
     }
@@ -48,9 +48,9 @@ impl LcBsoilPrm {
             emis: flat[1],
             ohm: OhmPrm::from_flat(&flat[2..19])?,
             soil: SoilPrm::from_flat(&flat[19..22])?,
-            statelimit: flat[22],
+            state_limit: flat[22],
             irrfracbsoil: flat[23],
-            wetthresh: flat[24],
+            wet_threshold: flat[24],
             waterdist: WaterDistPrm::from_flat(&flat[25..33])?,
         })
     }
@@ -59,9 +59,9 @@ impl LcBsoilPrm {
         let mut out = vec![self.sfr, self.emis];
         out.extend(self.ohm.to_flat());
         out.extend(self.soil.to_flat());
-        out.push(self.statelimit);
+        out.push(self.state_limit);
         out.push(self.irrfracbsoil);
-        out.push(self.wetthresh);
+        out.push(self.wet_threshold);
         out.extend(self.waterdist.to_flat());
         out
     }
@@ -147,8 +147,8 @@ mod tests {
         mapped.insert("waterdist.to_bsoil".to_string(), 0.6);
 
         let updated = lc_bsoil_prm_from_map(&mapped).expect("map to state should succeed");
-        assert!((updated.statelimit - 20.0).abs() < 1.0e-12);
-        assert!((updated.soil.soilstorecap - 120.0).abs() < 1.0e-12);
+        assert!((updated.state_limit - 20.0).abs() < 1.0e-12);
+        assert!((updated.soil.soil_store_capacity - 120.0).abs() < 1.0e-12);
         assert!((updated.waterdist.to_bsoil - 0.6).abs() < 1.0e-12);
     }
 

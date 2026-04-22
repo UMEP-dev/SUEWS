@@ -90,7 +90,7 @@ def check_archetype_properties(context):
 
     results = []
     physics = yaml_data.get("model", {}).get("physics", {})
-    stebbsmethod = get_value_safe(physics, "stebbs_method")
+    stebbsmethod = get_value_safe(physics, "stebbs")
 
     if stebbsmethod == 1:
         sites = yaml_data.get("sites", [])
@@ -132,7 +132,7 @@ def check_occupants_metabolism(context):
 
     results = []
     physics = yaml_data.get("model", {}).get("physics", {})
-    stebbsmethod = get_value_safe(physics, "stebbs_method")
+    stebbsmethod = get_value_safe(physics, "stebbs")
 
     if stebbsmethod == 1:
         sites = yaml_data.get("sites", [])
@@ -193,7 +193,7 @@ def check_daylight_control(context):
 
     results = []
     physics = yaml_data.get("model", {}).get("physics", {})
-    stebbsmethod = get_value_safe(physics, "stebbs_method")
+    stebbsmethod = get_value_safe(physics, "stebbs")
 
     if stebbsmethod == 1:
         sites = yaml_data.get("sites", [])
@@ -265,7 +265,7 @@ def check_stebbs_properties(context):
 
     results = []
     physics = yaml_data.get("model", {}).get("physics", {})
-    stebbsmethod = get_value_safe(physics, "stebbs_method")
+    stebbsmethod = get_value_safe(physics, "stebbs")
 
     if stebbsmethod == 1:
         sites = yaml_data.get("sites", [])
@@ -295,7 +295,7 @@ def check_stebbs_properties(context):
 
     return results
 
-@RulesRegistry.add_rule("setpointmethod")
+@RulesRegistry.add_rule("setpoint")
 def validate_model_option_setpoint(context) -> List[ValidationResult]:
     """
     Validate setpoint temperature configuration for buildings.
@@ -325,8 +325,8 @@ def validate_model_option_setpoint(context) -> List[ValidationResult]:
     yaml_data = context.yaml_data
     physics = yaml_data.get("model", {}).get("physics", {})
 
-    setpointmethod = get_value_safe(physics, "setpointmethod")
-    stebbsmethod = get_value_safe(physics, "stebbs_method")
+    setpointmethod = get_value_safe(physics, "setpoint")
+    stebbsmethod = get_value_safe(physics, "stebbs")
 
     if stebbsmethod != 1:
         return results

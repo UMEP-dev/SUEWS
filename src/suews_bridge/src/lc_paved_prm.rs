@@ -19,9 +19,9 @@ pub struct LcPavedPrm {
     pub ohm: OhmPrm,
     pub soil: SoilPrm,
     pub state: f64,
-    pub statelimit: f64,
+    pub state_limit: f64,
     pub irrfracpaved: f64,
-    pub wetthresh: f64,
+    pub wet_threshold: f64,
     pub waterdist: WaterDistPrm,
 }
 
@@ -33,9 +33,9 @@ impl Default for LcPavedPrm {
             ohm: OhmPrm::default(),
             soil: SoilPrm::default(),
             state: 0.0,
-            statelimit: 0.0,
+            state_limit: 0.0,
             irrfracpaved: 0.0,
-            wetthresh: 0.0,
+            wet_threshold: 0.0,
             waterdist: WaterDistPrm::default(),
         }
     }
@@ -51,9 +51,9 @@ impl LcPavedPrm {
             ohm: OhmPrm::from_flat(&flat[2..19])?,
             soil: SoilPrm::from_flat(&flat[19..22])?,
             state: flat[22],
-            statelimit: flat[23],
+            state_limit: flat[23],
             irrfracpaved: flat[24],
-            wetthresh: flat[25],
+            wet_threshold: flat[25],
             waterdist: WaterDistPrm::from_flat(&flat[26..34])?,
         })
     }
@@ -63,9 +63,9 @@ impl LcPavedPrm {
         out.extend(self.ohm.to_flat());
         out.extend(self.soil.to_flat());
         out.push(self.state);
-        out.push(self.statelimit);
+        out.push(self.state_limit);
         out.push(self.irrfracpaved);
-        out.push(self.wetthresh);
+        out.push(self.wet_threshold);
         out.extend(self.waterdist.to_flat());
         out
     }
@@ -153,7 +153,7 @@ mod tests {
 
         let updated = lc_paved_prm_from_map(&mapped).expect("map to state should succeed");
         assert!((updated.state - 0.4).abs() < 1.0e-12);
-        assert!((updated.ohm.ohm_threshsw - 12.0).abs() < 1.0e-12);
+        assert!((updated.ohm.ohm_threshold_summer_winter - 12.0).abs() < 1.0e-12);
         assert!((updated.waterdist.to_soilstore - 0.8).abs() < 1.0e-12);
     }
 

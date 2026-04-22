@@ -170,12 +170,50 @@ The lineage below mirrors ``SCHEMA_VERSIONS`` in
 the schema that shipped with it via
 ``supy.util.converter.yaml_upgrade._PACKAGE_TO_SCHEMA``.
 
-**Schema 2026.5.dev1** (current; in-development dev bump)
-   Category 5 of #1256 (gh#1327) — eight STEBBS
-   ``ArchetypeProperties`` fields with the fused ``ext`` fragment
-   renamed to the spelt-out ``External`` form, bringing them into
-   line with sibling ``WallExternalEmissivity`` /
-   ``RoofExternalEmissivity``:
+**Schema 2026.5.dev2** (current; in-development dev bump; gh#1321)
+   Categories 2 and 3 of #1256 — 15 ``ModelPhysics`` fields with the
+   redundant ``_method`` / ``_model`` suffix dropped and/or opaque
+   domain abbreviations (SMD, RSL, FAI, RC, GS) expanded into
+   self-documenting names. The enum types themselves
+   (``NetRadiationMethod``, ``StabilityMethod`` etc.) already carry
+   the "method" context, so the field-level suffix was redundant;
+   the abbreviation expansion makes YAMLs readable without
+   model-specific jargon:
+
+   - ``net_radiation_method`` -> ``net_radiation``
+   - ``emissions_method`` -> ``emissions``
+   - ``storage_heat_method`` -> ``storage_heat``
+   - ``roughness_length_momentum_method`` -> ``roughness_length_momentum``
+   - ``roughness_length_heat_method`` -> ``roughness_length_heat``
+   - ``stability_method`` -> ``stability``
+   - ``water_use_method`` -> ``water_use``
+   - ``stebbs_method`` -> ``stebbs``
+   - ``setpointmethod`` -> ``setpoint`` (fused identifier missed by
+     Category 1; Pydantic field now also snake_case)
+   - ``smd_method`` -> ``soil_moisture_deficit``
+   - ``rsl_method`` -> ``roughness_sublayer``
+   - ``rsl_level`` -> ``roughness_sublayer_level``
+   - ``fai_method`` -> ``frontal_area_index``
+   - ``rc_method`` -> ``outer_cap_fraction``
+   - ``gs_model`` -> ``surface_conductance``
+
+   Legacy spellings — both the fused form (e.g. ``netradiationmethod``)
+   and the Category 1 intermediate form (e.g. ``net_radiation_method``)
+   — continue to load via a ``@model_validator(mode='before')`` shim
+   that emits ``DeprecationWarning``. The authoritative mapping lives
+   in ``MODELPHYSICS_RENAMES`` and ``MODELPHYSICS_SUFFIX_RENAMES`` in
+   ``src/supy/data_model/core/field_renames.py``. The
+   ``(2026.5.dev1 -> 2026.5.dev2)`` migration is registered in
+   ``src/supy/util/converter/yaml_upgrade.py::_HANDLERS``.
+
+   DataFrame column names stay in their legacy fused form for the
+   Fortran bridge — only the YAML key and Pydantic attribute move.
+
+**Schema 2026.5.dev1** (gh#1327)
+   Category 5 of #1256 — eight STEBBS ``ArchetypeProperties`` fields
+   with the fused ``ext`` fragment renamed to the spelt-out
+   ``External`` form, bringing them into line with sibling
+   ``WallExternalEmissivity`` / ``RoofExternalEmissivity``:
    ``Wallext{Thickness, EffectiveConductivity, Density, Cp}`` ->
    ``WallExternal{Thickness, EffectiveConductivity, Density, Cp}``;
    ``Roofext{Thickness, EffectiveConductivity, Density, Cp}`` ->
@@ -194,11 +232,11 @@ the schema that shipped with it via
 
    .. note::
 
-      ``2026.5.dev1`` is a PEP 440 pre-release label used during the
+      ``.devN`` labels are PEP 440 pre-release markers used during the
       2026.5 development cycle, per the dev-label convention in
       ``.claude/rules/python/schema-versioning.md``. The release PR
-      will collapse this label (and any further ``.devN`` bumps) back
-      into a single ``2026.5`` entry.
+      will collapse all ``.devN`` entries (``.dev1``, ``.dev2``, ...)
+      back into a single ``2026.5`` entry.
 
 **Schema 2026.5** (Category 1 snake_case sweep; unreleased base for
 the 2026.5 dev cycle)

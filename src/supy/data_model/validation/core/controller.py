@@ -71,7 +71,7 @@ class ValidationController(BaseModel):
 
             # Analyze roughness method
             roughmethod_val = read_physics_key(
-                physics, "roughness_length_momentum_method", 1
+                physics, "roughness_length_momentum", 1
             )
 
             # Convert to enum if it's not already
@@ -84,7 +84,7 @@ class ValidationController(BaseModel):
                 self.roughness_variable_enabled = True
 
             # Analyze net radiation method for SPARTACUS
-            netrad_val = read_physics_key(physics, "net_radiation_method", 0)
+            netrad_val = read_physics_key(physics, "net_radiation", 0)
 
             # Convert to enum if it's not already
             if isinstance(netrad_val, NetRadiationMethod):
@@ -94,7 +94,7 @@ class ValidationController(BaseModel):
                 self.netradiation_spartacus_enabled = True
 
             # Analyze emissions method for advanced features
-            emissions_val = read_physics_key(physics, "emissions_method", 0)
+            emissions_val = read_physics_key(physics, "emissions", 0)
 
             # Convert to enum if it's not already
             if isinstance(emissions_val, EmissionsMethod):
@@ -104,7 +104,7 @@ class ValidationController(BaseModel):
                 self.emissions_advanced_enabled = True
 
             # Analyze storage heat method for ESTM
-            storage_val = read_physics_key(physics, "storage_heat_method", 0)
+            storage_val = read_physics_key(physics, "storage_heat", 0)
 
             # Convert to enum if it's not already
             if isinstance(storage_val, StorageHeatMethod):

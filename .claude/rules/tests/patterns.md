@@ -150,6 +150,47 @@ test/
 - Warning suppression in setUp methods (use autouse fixtures)
 - Relative imports for shared test utilities from subdirectories
 - Magic numbers without named constants (e.g., `288` for timesteps/day)
+- Skipping without a documented reason (see "Skipping Tests" below)
+- `try/except Exception: pytest.skip(...)` to hide real failures
+- `try/except ImportError: pytest.skip(...)` — use `pytest.importorskip` instead
+
+---
+
+## Skipping Tests
+
+Every `pytest.skip`, `@pytest.mark.skip`, `@pytest.mark.skipif`, and `pytest.importorskip` **must** carry a concrete `reason=` string that tells a future reader *why* the skip exists and *under what condition* it fires. Skips without rationale become permanent dead code (#912).
+
+### Required rationale
+
+- **Conditional skip** (`skipif`) — name the missing dependency, credential, platform, or fixture:
+  ```python
+  @pytest.mark.skipif(
+      not has_cds_credentials(),
+      reason="Requires CDS API credentials (~/.cdsapirc)",
+  )
+  ```
+- **In-body skip** (`pytest.skip(...)`) — name the missing resource:
+  ```python
+  if not fixture_path.exists():
+      pytest.skip(f"Fixture data not available at {fixture_path}")
+  ```
+- **Unconditional skip** (`@pytest.mark.skip`) — only acceptable with a tracking issue reference and a real failure-mode description. "Pre-existing issue" is not a reason.
+  ```python
+  @pytest.mark.skip(
+      reason="from_state(parquet) round-trip drops metadata; see #NNNN",
+  )
+  ```
+
+### Choose the right primitive
+
+- **Optional import** → `pytest.importorskip("pvlib")` at module scope (or per-test). Never `try/except ImportError: pytest.skip(...)`.
+- **Required-but-optional resource** (data file, binary, credentials) → a fixture in `conftest.py` that probes the resource once and calls `pytest.skip` with a concrete reason. See `cru_data_available` in `test/conftest.py`.
+- **Never** wrap the test body in `try/except Exception: pytest.skip(...)`. This swallows real regressions silently. Let failures surface; use a targeted `skipif` guard if the test genuinely cannot run in some environments.
+
+### When to delete rather than skip
+
+- If a test has been permanently skipped for more than one release cycle with no tracking issue, delete it. Zombie tests are worse than missing tests — they imply coverage that doesn't exist.
+- If a test's only job is to `print(...)` and `assert True`, it is documentation, not a test. Delete it; put the concern in lint config or a dedicated check.
 
 ---
 

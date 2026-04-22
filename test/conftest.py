@@ -47,6 +47,26 @@ except ImportError:
 TIMESTEPS_PER_DAY = 288  # 24*60/5 = 288 five-minute intervals
 
 
+@pytest.fixture
+def cru_data_available():
+    """Skip the test when CRU climatology data is not available.
+
+    Several phase-B validation helpers (`get_mean_annual_air_temperature`,
+    `get_mean_monthly_air_temperature`, `get_monthly_air_temperature_diffmax`)
+    read from a CRU NetCDF that is not vendored with the repository. CI
+    runners and contributor environments without the file should treat the
+    dependent tests as skipped, not failed.
+
+    The probe uses a known-good mid-latitude land cell (45 N, 10 E).
+    """
+    from supy.data_model.validation.pipeline.phase_b import (
+        get_mean_annual_air_temperature,
+    )
+
+    if get_mean_annual_air_temperature(45.0, 10.0) is None:
+        pytest.skip("CRU climatology data not available")
+
+
 @pytest.fixture(autouse=True)
 def suppress_import_warnings():
     """Suppress ImportWarning globally for all tests.

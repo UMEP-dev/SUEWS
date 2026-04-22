@@ -2346,19 +2346,14 @@ def build_minimal_yaml_for_surface_temp():
     }
 
 
-def test_precheck_update_temperature():
+def test_precheck_update_temperature(cru_data_available):
     data = build_minimal_yaml_for_surface_temp()
     start_date = data["model"]["control"]["start_time"]
     month = datetime.strptime(start_date, "%Y-%m-%d").month
     lat = data["sites"][0]["properties"]["lat"]["value"]
     lng = data["sites"][0]["properties"]["lng"]["value"]
 
-    # Get the expected temperature value from the function
-    try:
-        expected_temp = get_mean_monthly_air_temperature(lat, lng, month)
-    except FileNotFoundError:
-        # If CRU data is not available, skip this test
-        pytest.skip("CRU data file not available for temperature calculation")
+    expected_temp = get_mean_monthly_air_temperature(lat, lng, month)
 
     updated = precheck_update_temperature(deepcopy(data), start_date=start_date)
 
@@ -2394,20 +2389,14 @@ def test_precheck_update_temperature_missing_lat():
         )
 
 
-def test_get_mean_monthly_air_temperature_with_cru_data():
+def test_get_mean_monthly_air_temperature_with_cru_data(cru_data_available):
     """Test that get_mean_monthly_air_temperature works with CRU data when available."""
-    # This test verifies the function returns a reasonable temperature value
-    # when CRU data is available (development/test environments)
-    try:
-        temp = get_mean_monthly_air_temperature(45.0, 10.0, 7)
-        # Temperature for mid-latitudes in July should be reasonable (0-40°C range)
-        assert isinstance(temp, float), "Temperature should be a float"
-        assert -50 <= temp <= 50, (
-            f"Temperature {temp}°C seems unreasonable for lat=45°, month=7"
-        )
-    except FileNotFoundError:
-        # If CRU data is not available, we expect this error - that's fine
-        pytest.skip("CRU data file not available in this environment")
+    temp = get_mean_monthly_air_temperature(45.0, 10.0, 7)
+    # Temperature for mid-latitudes in July should be reasonable (0-40°C range)
+    assert isinstance(temp, float), "Temperature should be a float"
+    assert -50 <= temp <= 50, (
+        f"Temperature {temp}°C seems unreasonable for lat=45°, month=7"
+    )
 
 
 def test_get_mean_monthly_air_temperature_invalid_month():
@@ -2422,24 +2411,18 @@ def test_get_mean_monthly_air_temperature_invalid_latitude():
         get_mean_monthly_air_temperature(95.0, 10.0, 7)
 
 
-def test_get_mean_annual_air_temperature_with_cru_data():
+def test_get_mean_annual_air_temperature_with_cru_data(cru_data_available):
     """Test that get_mean_annual_air_temperature works with CRU data when available."""
-    # This test verifies the function returns a reasonable annual temperature value
-    # when CRU data is available (development/test environments)
-    try:
-        temp = get_mean_annual_air_temperature(45.0, 10.0)
-        # Annual temperature for mid-latitudes should be reasonable (0-40°C range)
-        assert isinstance(temp, float), "Temperature should be a float"
-        assert -50 <= temp <= 50, (
-            f"Annual temperature {temp}°C seems unreasonable for lat=45°"
-        )
-        # Annual temp should be between coldest and warmest month
-        # For sanity check, compare with a summer month
-        summer_temp = get_mean_monthly_air_temperature(45.0, 10.0, 7)
-        assert temp < summer_temp, "Annual mean should be cooler than summer month"
-    except FileNotFoundError:
-        # If CRU data is not available, we expect this error - that's fine
-        pytest.skip("CRU data file not available in this environment")
+    temp = get_mean_annual_air_temperature(45.0, 10.0)
+    # Annual temperature for mid-latitudes should be reasonable (0-40°C range)
+    assert isinstance(temp, float), "Temperature should be a float"
+    assert -50 <= temp <= 50, (
+        f"Annual temperature {temp}°C seems unreasonable for lat=45°"
+    )
+    # Annual temp should be between coldest and warmest month
+    # For sanity check, compare with a summer month
+    summer_temp = get_mean_monthly_air_temperature(45.0, 10.0, 7)
+    assert temp < summer_temp, "Annual mean should be cooler than summer month"
 
 
 def test_get_mean_annual_air_temperature_invalid_latitude():
@@ -2453,14 +2436,11 @@ def test_get_mean_annual_air_temperature_invalid_longitude():
     with pytest.raises(ValueError, match="Longitude must be between -180 and 180"):
         get_mean_annual_air_temperature(45.0, 185.0)
 
-def test_get_monthly_air_temperature_diffmax_valid():
+def test_get_monthly_air_temperature_diffmax_valid(cru_data_available):
     """Test get_monthly_air_temperature_diffmax returns a float for valid input."""
-    try:
-        diff = get_monthly_air_temperature_diffmax(45.0, 10.0)
-        assert isinstance(diff, float)
-        assert -50 <= diff <= 50  # Reasonable temperature difference range
-    except FileNotFoundError:
-        pytest.skip("CRU data file not available for temperature calculation")
+    diff = get_monthly_air_temperature_diffmax(45.0, 10.0)
+    assert isinstance(diff, float)
+    assert -50 <= diff <= 50  # Reasonable temperature difference range
 
 def test_get_monthly_air_temperature_diffmax_invalid():
     """Test get_monthly_air_temperature_diffmax raises ValueError for invalid input."""
@@ -2872,55 +2852,12 @@ Robust design principles:
 import shutil
 from unittest.mock import MagicMock, patch
 
-# Import modules under test - use proper package imports
-uptodate_yaml = None
-science_check = None
-phase_c_reports = None
-suews_yaml_processor = None
-
-try:
-    from supy.data_model.validation.pipeline import (
-        phase_a as uptodate_yaml,
-    )
-
-    has_uptodate_yaml = True
-except ImportError:
-    has_uptodate_yaml = False
-
-try:
-    from supy.data_model.validation.pipeline import (
-        phase_b as science_check,
-    )
-
-    has_science_check = True
-except ImportError:
-    has_science_check = False
-
-try:
-    from supy.data_model.validation.pipeline import (
-        phase_c as phase_c_reports,
-    )
-
-    has_phase_c_reports = True
-except ImportError:
-    has_phase_c_reports = False
-
-try:
-    from supy.data_model.validation.pipeline import orchestrator
-
-    suews_yaml_processor = orchestrator  # Keep the alias for compatibility
-    has_suews_yaml_processor = True
-except ImportError:
-    has_suews_yaml_processor = False
-
-# Skip entire module if no processor modules are available
-if not any([
-    has_uptodate_yaml,
-    has_science_check,
-    has_phase_c_reports,
-    has_suews_yaml_processor,
-]):
-    pytest.skip("No processor modules available for testing", allow_module_level=True)
+from supy.data_model.validation.pipeline import (
+    orchestrator as suews_yaml_processor,
+    phase_a as uptodate_yaml,
+    phase_b as science_check,
+    phase_c as phase_c_reports,
+)
 
 
 class TestProcessorFixtures:
@@ -3050,9 +2987,6 @@ class TestPhaseAUptoDateYaml(TestProcessorFixtures):
         self, minimal_user_config, sample_standard_config
     ):
         """Test basic missing parameter detection."""
-        if not has_uptodate_yaml:
-            pytest.skip("uptodate_yaml module not available")
-
         missing_params = uptodate_yaml.find_missing_parameters(
             minimal_user_config, sample_standard_config
         )
@@ -3066,9 +3000,6 @@ class TestPhaseAUptoDateYaml(TestProcessorFixtures):
 
     def test_physics_parameter_classification(self):
         """Test that physics parameters are correctly classified as critical."""
-        if not has_uptodate_yaml:
-            pytest.skip("uptodate_yaml module not available")
-
         # Test known physics options
         assert uptodate_yaml.is_physics_option("model.physics.net_radiation_method")
         assert uptodate_yaml.is_physics_option("model.physics.gs_model")
@@ -3080,9 +3011,6 @@ class TestPhaseAUptoDateYaml(TestProcessorFixtures):
 
     def test_renamed_parameters_detection(self):
         """Test detection and renaming of outdated parameters."""
-        if not has_uptodate_yaml:
-            pytest.skip("uptodate_yaml module not available")
-
         yaml_content = """
         model:
           physics:
@@ -3130,9 +3058,6 @@ class TestPhaseAUptoDateYaml(TestProcessorFixtures):
 
     def test_path_resolution_insertion_point(self):
         """Test that missing parameters are inserted in the correct path location."""
-        if not has_uptodate_yaml:
-            pytest.skip("uptodate_yaml module not available")
-
         # Create a YAML with multiple summer_wet sections to test path resolution
         yaml_content = """sites:
 - name: TestSite
@@ -3191,9 +3116,6 @@ class TestPhaseAUptoDateYaml(TestProcessorFixtures):
 
     def test_find_section_position_helper(self):
         """Test the find_section_position helper function."""
-        if not has_uptodate_yaml:
-            pytest.skip("uptodate_yaml module not available")
-
         yaml_lines = [
             "root:",
             "  section1:",
@@ -3218,9 +3140,6 @@ class TestPhaseAUptoDateYaml(TestProcessorFixtures):
 
     def test_find_array_section_position_helper(self):
         """Test the find_array_section_position helper function."""
-        if not has_uptodate_yaml:
-            pytest.skip("uptodate_yaml module not available")
-
         yaml_lines = [
             "sites:",
             "- name: Site1",
@@ -3570,9 +3489,6 @@ class TestPhaseBScienceCheck(TestProcessorFixtures):
 
     def test_physics_parameters_validation_success(self, registry):
         """Test successful physics parameter validation."""
-        if not has_science_check:
-            pytest.skip("science_check module not available")
-
         # Use a known set of physics options for testing
         physics_options = {
             "net_radiation_method",
@@ -3614,9 +3530,6 @@ class TestPhaseBScienceCheck(TestProcessorFixtures):
 
     def test_physics_parameters_validation_missing(self, registry):
         """Test physics parameter validation with missing parameters."""
-        if not has_science_check:
-            pytest.skip("science_check module not available")
-
         incomplete_yaml = {
             "model": {
                 "physics": {
@@ -3647,9 +3560,6 @@ class TestPhaseBScienceCheck(TestProcessorFixtures):
 
     def test_physics_parameters_validation_null_values(self, registry):
         """Test physics parameter validation with null values."""
-        if not has_science_check:
-            pytest.skip("science_check module not available")
-
         physics_options = {
             "net_radiation_method",
             "emissions_method",
@@ -3816,9 +3726,6 @@ class TestPhaseBScienceCheck(TestProcessorFixtures):
     )
     def test_stebbs_temperature_parameter_updates(self, mock_cru):
         """Test STEBBS InitialOutdoorTemperature updates."""
-        if not has_science_check:
-            pytest.skip("science_check module not available")
-
         # Mock CRU temperature data
         mock_cru.return_value = 12.5  # Test temperature value
 
@@ -3866,9 +3773,6 @@ class TestPhaseBScienceCheck(TestProcessorFixtures):
     )
     def test_stebbs_temperature_updates_different_months(self, mock_cru):
         """Test STEBBS temperature updates for different months."""
-        if not has_science_check:
-            pytest.skip("science_check module not available")
-
         # Test different months with different temperatures
         test_cases = [
             ("2025-01-15", 1, 2.3),  # January
@@ -3911,9 +3815,6 @@ class TestPhaseBScienceCheck(TestProcessorFixtures):
     )
     def test_stebbs_temperature_updates_multi_site(self, mock_cru):
         """Test STEBBS temperature updates for multiple sites with different coordinates."""
-        if not has_science_check:
-            pytest.skip("science_check module not available")
-
         # Different temperatures for different sites
         def mock_temp_func(lat, lng, month):
             # Return different temperatures based on coordinates
@@ -3968,9 +3869,6 @@ class TestPhaseBScienceCheck(TestProcessorFixtures):
     )
     def test_stebbs_temperature_updates_missing_parameters(self, mock_cru):
         """Test STEBBS temperature updates when some parameters are missing."""
-        if not has_science_check:
-            pytest.skip("science_check module not available")
-
         mock_cru.return_value = 15.8
 
         yaml_input = {
@@ -4008,9 +3906,6 @@ class TestPhaseBScienceCheck(TestProcessorFixtures):
     )
     def test_stebbs_temperature_updates_no_change_needed(self, mock_cru):
         """Test STEBBS temperature updates when values already match CRU temperature."""
-        if not has_science_check:
-            pytest.skip("science_check module not available")
-
         cru_temp = 16.7
         mock_cru.return_value = cru_temp
 
@@ -4042,9 +3937,6 @@ class TestPhaseBScienceCheck(TestProcessorFixtures):
 
     def test_stebbs_temperature_updates_no_stebbs_block(self):
         """Test STEBBS temperature updates when no stebbs block exists."""
-        if not has_science_check:
-            pytest.skip("science_check module not available")
-
         yaml_input = {
             "sites": [
                 {
@@ -4136,13 +4028,10 @@ class TestPhaseCPydanticValidation(TestProcessorFixtures):
             ],
         }
 
-        try:
-            from supy.data_model.core import SUEWSConfig
+        from supy.data_model.core import SUEWSConfig
 
-            config = SUEWSConfig.model_validate(complete_config)
-            assert config is not None
-        except ImportError:
-            pytest.skip("Core module not available for direct testing")
+        config = SUEWSConfig.model_validate(complete_config)
+        assert config is not None
 
     def test_pydantic_validation_missing_required_fields(self):
         """Test Pydantic validation with missing required fields."""
@@ -4150,21 +4039,17 @@ class TestPhaseCPydanticValidation(TestProcessorFixtures):
             # Missing name, model, and sites - truly incomplete
         }
 
+        from pydantic_core import ValidationError
+
+        from supy.data_model.core import SUEWSConfig
+
+        # Validation may either succeed with defaults or raise ValidationError;
+        # both are acceptable evidence that validation ran.
         try:
-            from pydantic_core import ValidationError
-
-            from supy.data_model.core import SUEWSConfig
-
-            # Test that validation occurs - might be warnings instead of errors
-            try:
-                result = SUEWSConfig.model_validate(incomplete_config)
-                # If it doesn't raise an error, at least verify validation occurred
-                assert result is not None
-            except ValidationError:
-                # This is also acceptable - validation caught the incomplete config
-                pass
-        except ImportError:
-            pytest.skip("Core module not available for direct testing")
+            result = SUEWSConfig.model_validate(incomplete_config)
+            assert result is not None
+        except ValidationError:
+            pass
 
     def test_conditional_validation_rsl_method(self):
         """Test RSL method conditional validation."""
@@ -4233,24 +4118,18 @@ class TestPhaseCPydanticValidation(TestProcessorFixtures):
             ],
         }
 
+        from pydantic_core import ValidationError
+
+        from supy.data_model.core import SUEWSConfig
+
+        # Validation either succeeds with defaults or raises ValidationError;
+        # both are acceptable evidence that conditional validation ran.
         try:
-            from pydantic_core import ValidationError
-
-            from supy.data_model.core import SUEWSConfig
-
-            # Test that validation occurs - may not specifically mention faibldg
-            # but should have some validation behavior
-            try:
-                result = SUEWSConfig.model_validate(rsl_config)
-                # If validation succeeds, that's also valid behavior
-                assert result is not None
-            except ValidationError as e:
-                # If it raises validation errors, check if it mentions relevant issues
-                error_messages = str(e).lower()
-                # Accept any validation error as evidence that validation occurred
-                assert len(error_messages) > 0
-        except ImportError:
-            pytest.skip("Core module not available for direct testing")
+            result = SUEWSConfig.model_validate(rsl_config)
+            assert result is not None
+        except ValidationError as e:
+            error_messages = str(e).lower()
+            assert len(error_messages) > 0
 
 
 class TestPhaseCReporting(TestProcessorFixtures):
@@ -4258,90 +4137,64 @@ class TestPhaseCReporting(TestProcessorFixtures):
 
     def test_pydantic_error_report_generation(self, temp_directory):
         """Test generation of Pydantic validation error reports."""
-        if not has_phase_c_reports:
-            pytest.skip("phase_c_reports module not available")
+        mock_error = MagicMock()
+        mock_error.errors.return_value = [
+            {
+                "type": "missing",
+                "loc": ("model", "physics", "net_radiation_method"),
+                "msg": "Field required",
+                "input": None,
+            }
+        ]
 
-        try:
-            from pydantic_core import ValidationError
+        output_file = os.path.join(temp_directory, "test_report.txt")
 
-            # Create a mock ValidationError
-            mock_error = MagicMock()
-            mock_error.errors.return_value = [
-                {
-                    "type": "missing",
-                    "loc": ("model", "physics", "net_radiation_method"),
-                    "msg": "Field required",
-                    "input": None,
-                }
-            ]
+        result = phase_c_reports.generate_phase_c_report(
+            validation_error=mock_error,
+            input_yaml_file="test_config.yml",
+            output_report_file=output_file,
+            mode="public",
+        )
 
-            output_file = os.path.join(temp_directory, "test_report.txt")
+        assert result is None
+        assert os.path.exists(output_file), "Report file should be created"
 
-            # Function writes to file and returns None
-            result = phase_c_reports.generate_phase_c_report(
-                validation_error=mock_error,
-                input_yaml_file="test_config.yml",
-                output_report_file=output_file,
-                mode="public",
-            )
+        with open(output_file) as f:
+            report_content = f.read()
 
-            assert result is None  # Function returns None
-
-            # Check that report file was created and has expected content
-            assert os.path.exists(output_file), "Report file should be created"
-
-            with open(output_file) as f:
-                report_content = f.read()
-
-            assert "# SUEWS Validation Report" in report_content
-            assert "ACTION NEEDED" in report_content
-            assert "net_radiation_method" in report_content
-
-        except ImportError:
-            pytest.skip("Phase C reporting dependencies not available")
+        assert "# SUEWS Validation Report" in report_content
+        assert "ACTION NEEDED" in report_content
+        assert "net_radiation_method" in report_content
 
     def test_report_consolidation_with_previous_phases(self, temp_directory):
         """Test report consolidation with Phase A and B information."""
-        if not has_phase_c_reports:
-            pytest.skip("phase_c_reports module not available")
+        phase_a_report = os.path.join(temp_directory, "reportA_test.txt")
+        with open(phase_a_report, "w") as f:
+            f.write("# SUEWS - Phase A Report\n")
+            f.write("## ACTION NEEDED\n")
+            f.write("- Found (1) missing parameter: gsmodel\n")
+            f.write("## NO ACTION NEEDED\n")
+            f.write("- diagmethod changed to rslmethod\n")
 
-        try:
-            from pydantic_core import ValidationError
+        mock_error = MagicMock()
+        mock_error.errors.return_value = []
 
-            # Create a Phase A report file to test consolidation
-            phase_a_report = os.path.join(temp_directory, "reportA_test.txt")
-            with open(phase_a_report, "w") as f:
-                f.write("# SUEWS - Phase A Report\n")
-                f.write("## ACTION NEEDED\n")
-                f.write("- Found (1) missing parameter: gs_model\n")
-                f.write("## NO ACTION NEEDED\n")
-                f.write("- diagmethod changed to rsl_method\n")
+        output_file = os.path.join(temp_directory, "test_report.txt")
 
-            mock_error = MagicMock()
-            mock_error.errors.return_value = []
+        result = phase_c_reports.generate_phase_c_report(
+            validation_error=mock_error,
+            input_yaml_file="test_config.yml",
+            output_report_file=output_file,
+            mode="public",
+            phase_a_report_file=phase_a_report,
+        )
 
-            output_file = os.path.join(temp_directory, "test_report.txt")
+        assert result is None
 
-            result = phase_c_reports.generate_phase_c_report(
-                validation_error=mock_error,
-                input_yaml_file="test_config.yml",
-                output_report_file=output_file,
-                mode="public",
-                phase_a_report_file=phase_a_report,
-            )
+        with open(output_file) as f:
+            report_content = f.read()
 
-            assert result is None  # Function returns None
-
-            # Check the generated report content
-            with open(output_file) as f:
-                report_content = f.read()
-
-            assert "# SUEWS Validation Report" in report_content
-            # Should consolidate info from Phase A report if supported
-            # (exact consolidation behavior depends on implementation)
-
-        except ImportError:
-            pytest.skip("Phase C reporting dependencies not available")
+        assert "# SUEWS Validation Report" in report_content
 
 
 class TestSuewsYamlProcessorOrchestrator(TestProcessorFixtures):
@@ -4349,9 +4202,6 @@ class TestSuewsYamlProcessorOrchestrator(TestProcessorFixtures):
 
     def test_individual_phase_execution(self, temp_yaml_files):
         """Test individual phase execution (A, B, C)."""
-        if not has_suews_yaml_processor:
-            pytest.skip("suews_yaml_processor module not available")
-
         # Test that the run_phase_a function exists and can be called
         if hasattr(suews_yaml_processor, "run_phase_a"):
             try:
@@ -4375,9 +4225,6 @@ class TestSuewsYamlProcessorOrchestrator(TestProcessorFixtures):
 
     def test_combined_workflow_execution(self, temp_yaml_files):
         """Test combined workflow execution (AB, AC, BC, ABC)."""
-        if not has_suews_yaml_processor:
-            pytest.skip("suews_yaml_processor module not available")
-
         # Test basic orchestrator functionality
         if hasattr(suews_yaml_processor, "main"):
             # Test that main function exists (this is the primary orchestrator entry point)
@@ -4407,24 +4254,17 @@ class TestSuewsYamlProcessorOrchestrator(TestProcessorFixtures):
             "sites": [{"properties": {"lat": 51.5, "lng": -0.12}}],
         }
 
-        try:
-            defaults = suews_yaml_processor.detect_pydantic_defaults(
-                original_data, updated_data
-            )
+        defaults = suews_yaml_processor.detect_pydantic_defaults(
+            original_data, updated_data
+        )
 
-            # Should detect added fields
-            assert "emissions_method" in str(defaults) or len(defaults) > 0
-            assert "lng" in str(defaults) or len(defaults) > 0
-
-        except Exception as e:
-            pytest.skip(f"Pydantic defaults detection not available: {e}")
+        # Should detect added fields
+        assert "emissions_method" in str(defaults) or len(defaults) > 0
+        assert "lng" in str(defaults) or len(defaults) > 0
 
     @pytest.mark.parametrize("workflow", ["A", "B", "C", "AB", "AC", "BC", "ABC"])
     def test_all_workflow_combinations(self, temp_yaml_files, workflow):
         """Test all possible workflow combinations."""
-        if not has_suews_yaml_processor:
-            pytest.skip("suews_yaml_processor module not available")
-
         # Test that workflow concept exists in the orchestrator
         # This validates the processor supports different phase combinations
         available_functions = dir(suews_yaml_processor)
@@ -4473,9 +4313,6 @@ class TestSuewsYamlProcessorOrchestrator(TestProcessorFixtures):
 
     def test_file_cleanup_after_workflow(self, temp_yaml_files):
         """Test that intermediate files are properly cleaned up."""
-        if not has_suews_yaml_processor:
-            pytest.skip("suews_yaml_processor module not available")
-
         # Test file handling concepts rather than specific implementation
         output_dir = Path(temp_yaml_files["temp_dir"])
 
@@ -4495,172 +4332,6 @@ class TestSuewsYamlProcessorOrchestrator(TestProcessorFixtures):
         assert not test_file.exists(), "Should be able to cleanup test files"
 
 
-class TestCodeQualityAndCleanup(TestProcessorFixtures):
-    """Test suite for code quality issues identified in CODE_CLEANUP_REVIEW.md."""
-
-    def test_no_unused_imports_in_processor(self):
-        """Test that orchestrator.py doesn't have unused imports from CODE_CLEANUP_REVIEW.md."""
-        if not has_suews_yaml_processor:
-            pytest.skip("suews_yaml_processor module not available")
-
-        # Get the source file path - use resolve() to get absolute path
-        processor_file = (
-            Path(__file__).resolve().parent.parent.parent  # Go up to repo root
-            / "src"
-            / "supy"
-            / "data_model"
-            / "yaml_processor"
-            / "orchestrator.py"
-        )
-
-        if not processor_file.exists():
-            pytest.skip(f"orchestrator.py source file not found at {processor_file}")
-
-        # Read and parse the source code
-        with open(processor_file) as f:
-            source = f.read()
-
-        # Check for specific unused imports mentioned in CODE_CLEANUP_REVIEW.md
-        unused_imports = []
-
-        # Check for unused tempfile import
-        if "import tempfile" in source:
-            if "tempfile." not in source and "from tempfile" not in source:
-                unused_imports.append("tempfile")
-
-        # Check for unused Path import
-        if "from pathlib import Path" in source:
-            # Count actual Path usages (excluding the import line)
-            path_usage_count = source.count("Path(") + source.count("Path ")
-            if path_usage_count <= 1:  # Only the import counts as 1
-                unused_imports.append("Path")
-
-        # Report unused imports - this test documents current state
-        if unused_imports:
-            print(
-                f"\nWARNING: Found unused imports mentioned in CODE_CLEANUP_REVIEW.md: {unused_imports}"
-            )
-            # For now, just document - don't fail the test
-
-        # Test passes - this is a documentation test for cleanup opportunities
-        assert True, (
-            "Code quality test completed - check output for cleanup opportunities"
-        )
-
-    def test_detect_pydantic_defaults_function_complexity(self):
-        """Test that detect_pydantic_defaults is not overly complex (from CODE_CLEANUP_REVIEW.md)."""
-        if not has_suews_yaml_processor:
-            pytest.skip("suews_yaml_processor module not available")
-
-        import inspect
-
-        # Get the function source
-        try:
-            source_lines = inspect.getsourcelines(
-                suews_yaml_processor.detect_pydantic_defaults
-            )
-            line_count = len(source_lines[0])
-
-            # CODE_CLEANUP_REVIEW.md mentions it's 200+ lines
-            print(f"\ndetect_pydantic_defaults function has {line_count} lines")
-
-            # Document current state - this helps track if cleanup is done
-            if line_count > 200:
-                print(
-                    "WARNING: Function is very long as noted in CODE_CLEANUP_REVIEW.md"
-                )
-                print(
-                    "Consider breaking into smaller functions for better maintainability"
-                )
-
-            # Test passes - this is a documentation test
-            assert line_count > 0, "Function should have some content"
-
-        except Exception as e:
-            pytest.skip(f"Could not analyze function complexity: {e}")
-
-    def test_outdated_comments_detection(self):
-        """Test to detect outdated comments mentioned in CODE_CLEANUP_REVIEW.md."""
-        if not has_suews_yaml_processor:
-            pytest.skip("suews_yaml_processor module not available")
-
-        processor_file = (
-            Path(__file__).resolve().parent.parent.parent  # Go up to repo root
-            / "src"
-            / "supy"
-            / "data_model"
-            / "yaml_processor"
-            / "orchestrator.py"
-        )
-
-        if not processor_file.exists():
-            pytest.skip("orchestrator.py source file not found")
-
-        with open(processor_file) as f:
-            lines = f.readlines()
-
-        outdated_comments = []
-
-        for i, line in enumerate(lines, 1):
-            # Check for specific issues mentioned in CODE_CLEANUP_REVIEW.md
-            if (
-                "Parameter detection" in line and i < 10
-            ):  # Check early lines for docstring
-                outdated_comments.append(
-                    f"Line {i}: Still mentions 'Parameter detection'"
-                )
-
-            if "# A→B workflow (default)" in line:
-                outdated_comments.append(
-                    f"Line {i}: Should be 'A→B→C workflow (default)'"
-                )
-
-            if "print(" in line and line.strip().startswith("#"):
-                outdated_comments.append(
-                    f"Line {i}: Commented print statement should be removed"
-                )
-
-        if outdated_comments:
-            print("\nFound outdated comments mentioned in CODE_CLEANUP_REVIEW.md:")
-            for comment in outdated_comments:
-                print(f"  - {comment}")
-
-        # Test passes - documents current state for cleanup
-        assert True, "Comment quality check completed"
-
-    def test_import_consolidation_opportunities(self):
-        """Test for redundant imports mentioned in CODE_CLEANUP_REVIEW.md."""
-        if not has_suews_yaml_processor:
-            pytest.skip("suews_yaml_processor module not available")
-
-        processor_file = (
-            Path(__file__).resolve().parent.parent.parent  # Go up to repo root
-            / "src"
-            / "supy"
-            / "data_model"
-            / "yaml_processor"
-            / "orchestrator.py"
-        )
-
-        if not processor_file.exists():
-            pytest.skip("orchestrator.py source file not found")
-
-        with open(processor_file) as f:
-            content = f.read()
-
-        # Count shutil imports as mentioned in CODE_CLEANUP_REVIEW.md
-        shutil_imports = content.count("import shutil")
-
-        if shutil_imports > 1:
-            print(
-                f"\nFound {shutil_imports} shutil imports - CODE_CLEANUP_REVIEW.md suggests consolidation"
-            )
-            print("Consider using the main import instead of importing in functions")
-
-        # Test passes - documents current state
-        assert shutil_imports >= 1, "Should have at least one shutil import"
-
-
 class TestProcessorRobustnessAndRegression(TestProcessorFixtures):
     """Test suite for robustness, edge cases, and regression testing."""
 
@@ -4669,19 +4340,10 @@ class TestProcessorRobustnessAndRegression(TestProcessorFixtures):
         empty_config = {}
         minimal_config = {"name": "Minimal"}
 
-        try:
-            # Should handle gracefully without crashing
-            if has_uptodate_yaml:
-                missing_params = uptodate_yaml.find_missing_parameters(
-                    empty_config, minimal_config
-                )
-                assert isinstance(missing_params, list)
-            else:
-                pytest.skip("uptodate_yaml not available for robustness testing")
-
-        except Exception:
-            # Some exceptions are acceptable for truly invalid input
-            pass
+        missing_params = uptodate_yaml.find_missing_parameters(
+            empty_config, minimal_config
+        )
+        assert isinstance(missing_params, list)
 
     def test_large_configuration_performance(self, sample_standard_config):
         """Test performance with large multi-site configurations."""
@@ -4693,18 +4355,10 @@ class TestProcessorRobustnessAndRegression(TestProcessorFixtures):
         for i, site in enumerate(large_config["sites"]):
             site["site_name"] = {"value": f"Site_{i}"}
 
-        try:
-            # Should handle large configurations efficiently
-            if has_uptodate_yaml:
-                missing_params = uptodate_yaml.find_missing_parameters(
-                    large_config, sample_standard_config
-                )
-                assert isinstance(missing_params, list)
-            else:
-                pytest.skip("uptodate_yaml not available for performance testing")
-
-        except Exception as e:
-            pytest.skip(f"Large configuration testing not available: {e}")
+        missing_params = uptodate_yaml.find_missing_parameters(
+            large_config, sample_standard_config
+        )
+        assert isinstance(missing_params, list)
 
     def test_unicode_and_special_characters(self):
         """Test handling of Unicode and special characters in configuration."""
@@ -4719,19 +4373,10 @@ class TestProcessorRobustnessAndRegression(TestProcessorFixtures):
             ],
         }
 
-        try:
-            # Should handle Unicode gracefully
-            if has_uptodate_yaml:
-                missing_params = uptodate_yaml.find_missing_parameters(
-                    unicode_config, unicode_config
-                )
-                assert isinstance(missing_params, list)
-            else:
-                pytest.skip("uptodate_yaml not available for Unicode testing")
-
-        except Exception:
-            # Some Unicode handling issues might be acceptable
-            pass
+        missing_params = uptodate_yaml.find_missing_parameters(
+            unicode_config, unicode_config
+        )
+        assert isinstance(missing_params, list)
 
     def test_version_compatibility(self):
         """Test compatibility with different YAML and Python versions."""
@@ -4755,14 +4400,9 @@ class TestProcessorRobustnessAndRegression(TestProcessorFixtures):
             ],
         }
 
-        try:
-            # Should handle various data types consistently
-            yaml_str = yaml.dump(version_test_config)
-            reloaded = yaml.safe_load(yaml_str)
-            assert reloaded["name"] == version_test_config["name"]
-
-        except Exception as e:
-            pytest.skip(f"Version compatibility testing not available: {e}")
+        yaml_str = yaml.dump(version_test_config)
+        reloaded = yaml.safe_load(yaml_str)
+        assert reloaded["name"] == version_test_config["name"]
 
     def test_concurrent_processing_safety(self, temp_yaml_files):
         """Test thread safety for concurrent processing."""
@@ -4773,75 +4413,55 @@ class TestProcessorRobustnessAndRegression(TestProcessorFixtures):
 
         def run_processor():
             try:
-                if has_uptodate_yaml:
-                    result = uptodate_yaml.annotate_missing_parameters(
-                        user_file=temp_yaml_files["user_file"],
-                        standard_file=temp_yaml_files["standard_file"],
-                        uptodate_file=os.path.join(
-                            temp_yaml_files["temp_dir"],
-                            f"updated_thread_{threading.current_thread().ident}.yml",
-                        ),
-                        report_file=os.path.join(
-                            temp_yaml_files["temp_dir"],
-                            f"report_thread_{threading.current_thread().ident}.txt",
-                        ),
-                        mode="public",
-                        phase="A",
-                    )
-                    results.append(result)
-                else:
-                    results.append("skipped")
+                result = uptodate_yaml.annotate_missing_parameters(
+                    user_file=temp_yaml_files["user_file"],
+                    standard_file=temp_yaml_files["standard_file"],
+                    uptodate_file=os.path.join(
+                        temp_yaml_files["temp_dir"],
+                        f"updated_thread_{threading.current_thread().ident}.yml",
+                    ),
+                    report_file=os.path.join(
+                        temp_yaml_files["temp_dir"],
+                        f"report_thread_{threading.current_thread().ident}.txt",
+                    ),
+                    mode="public",
+                    phase="A",
+                )
+                results.append(result)
             except Exception as e:
                 errors.append(e)
 
-        try:
-            # Run multiple threads
-            threads = [threading.Thread(target=run_processor) for _ in range(3)]
+        threads = [threading.Thread(target=run_processor) for _ in range(3)]
 
-            for thread in threads:
-                thread.start()
+        for thread in threads:
+            thread.start()
 
-            for thread in threads:
-                thread.join()
+        for thread in threads:
+            thread.join()
 
-            # Should complete without major issues
-            assert len(results) > 0 or len(errors) == len(
-                threads
-            )  # All succeeded or all failed consistently
-
-        except Exception as e:
-            pytest.skip(f"Concurrent processing testing not available: {e}")
+        # All threads should either succeed or fail consistently.
+        assert len(results) > 0 or len(errors) == len(threads)
 
     def test_memory_usage_stability(self, sample_standard_config):
         """Test memory usage stability with repeated processing."""
         import gc
 
-        try:
-            initial_objects = len(gc.get_objects())
+        initial_objects = len(gc.get_objects())
 
-            # Perform processing multiple times
-            for i in range(5):
-                test_config = deepcopy(sample_standard_config)
-                test_config["name"] = f"Memory Test {i}"
+        for i in range(5):
+            test_config = deepcopy(sample_standard_config)
+            test_config["name"] = f"Memory Test {i}"
 
-                if has_uptodate_yaml:
-                    missing_params = uptodate_yaml.find_missing_parameters(
-                        test_config, sample_standard_config
-                    )
-                else:
-                    missing_params = []  # Empty list for testing purposes
+            uptodate_yaml.find_missing_parameters(
+                test_config, sample_standard_config
+            )
 
-                # Force garbage collection
-                gc.collect()
+            gc.collect()
 
-            final_objects = len(gc.get_objects())
+        final_objects = len(gc.get_objects())
 
-            # Memory usage should not grow excessively
-            object_growth = final_objects - initial_objects
-            assert object_growth < 1000  # Reasonable threshold
-
-        except Exception as e:
-            pytest.skip(f"Memory usage testing not available: {e}")
+        object_growth = final_objects - initial_objects
+        assert object_growth < 1000
 
 
 if __name__ == "__main__":

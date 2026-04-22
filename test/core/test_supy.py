@@ -4,7 +4,7 @@ import platform
 import sys
 import tempfile
 from time import time
-from unittest import TestCase, skipIf
+from unittest import TestCase
 
 import numpy as np
 import pandas as pd
@@ -138,26 +138,24 @@ class TestSuPy(TestCase):
         ])
         self.assertTrue(test_non_empty)
 
-    #  test if flag_test can be set to True
-    @skipIf(
-        True,
-        "Skipping debug mode test due to STEBBS debug structure issues in YL/fixstebbs-rebase branch",
-    )
-    def test_is_flag_test_working(self):
+    def test_debug_mode_exposes_debug_output_group(self):
         print("\n========================================")
-        print("Testing if flag_test can be set to True...")
+        print("Testing if debug_mode exposes debug output...")
 
-        # Load sample data
         df_state_init, df_forcing_tstep = sp.load_SampleData()
+        df_forcing_part = df_forcing_tstep.iloc[:24]
 
-        df_forcing_part = df_forcing_tstep.iloc[: TIMESTEPS_PER_DAY * 10]
-        df_output, df_state, df_debug, res_state = sp.run_supy(
+        df_output, df_state = sp.run_supy(
             df_forcing_part,
             df_state_init,
             debug_mode=True,
         )
-        # check if `flag_test` in `df_output.debug` equals 1.0
-        self.assertTrue((df_output.debug.flag_test == 1.0).all())
+
+        self.assertFalse(df_output.empty)
+        self.assertFalse(df_state.empty)
+        self.assertIn("debug", df_output.columns.get_level_values("group"))
+        self.assertIn("flag_test", df_output["debug"].columns)
+        self.assertTrue(df_output["debug"]["flag_test"].notna().all())
 
     def test_run_with_version(self):
         print("\n========================================")

@@ -170,7 +170,7 @@ The lineage below mirrors ``SCHEMA_VERSIONS`` in
 the schema that shipped with it via
 ``supy.util.converter.yaml_upgrade._PACKAGE_TO_SCHEMA``.
 
-**Schema 2026.6** (current; shipping with the next release)
+**Schema 2026.5.dev1** (current; in-development dev bump)
    Category 5 of #1256 (gh#1327) — eight STEBBS
    ``ArchetypeProperties`` fields with the fused ``ext`` fragment
    renamed to the spelt-out ``External`` form, bringing them into
@@ -189,10 +189,19 @@ the schema that shipped with it via
    ``@model_validator(mode='before')`` shim that emits
    ``DeprecationWarning``; the authoritative mapping lives in
    ``src/supy/data_model/core/field_renames.py``. The
-   ``(2026.5 -> 2026.6)`` migration is registered in
+   ``(2026.5 -> 2026.5.dev1)`` migration is registered in
    ``src/supy/util/converter/yaml_upgrade.py::_HANDLERS``.
 
-**Schema 2026.5** (intermediate, also shipping with the next release)
+   .. note::
+
+      ``2026.5.dev1`` is a PEP 440 pre-release label used during the
+      2026.5 development cycle, per the dev-label convention in
+      ``.claude/rules/python/schema-versioning.md``. The release PR
+      will collapse this label (and any further ``.devN`` bumps) back
+      into a single ``2026.5`` entry.
+
+**Schema 2026.5** (Category 1 snake_case sweep; unreleased base for
+the 2026.5 dev cycle)
    Category 1 of #1256: 59 fused compound field names in
    ``ModelPhysics``, ``SurfaceProperties``, ``LAIParams``,
    ``VegetatedSurfaceProperties``, ``EvetrProperties``,

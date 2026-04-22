@@ -246,15 +246,16 @@ _PROFILE_RENAME_PAIRS: tuple[tuple[str, float], ...] = (
     ("CoolingSetpointTemperature", 27.0),
 )
 
-# Category 5 of #1256 (gh#1327), shipping under the 2026.6 schema as a
-# dedicated bump on top of the 2026.5 Category 1 snake_case sweep:
-# Eight STEBBS ArchetypeProperties fields with the fused `ext` fragment
+# Category 5 of #1256 (gh#1327), shipping under the 2026.5.dev1 schema
+# label — the first dev bump after 2026.5 Category 1, following the
+# dev-label convention in `.claude/rules/python/schema-versioning.md`:
+# eight STEBBS ArchetypeProperties fields with the fused `ext` fragment
 # renamed to the spelt-out `External` form. Sourced from
 # ARCHETYPEPROPERTIES_RENAMES so the single registry in
 # `field_renames.py` remains the authoritative mapping; the tuple form
 # here is only what the `_rename_field` helper consumes so every rename
 # lands in the migration log (TestNoSilentFieldDrops enforces that).
-_ARCH_EXT_RENAMES_2026_5_TO_2026_6: tuple[tuple[str, str], ...] = tuple(
+_ARCH_EXT_RENAMES_2026_5_TO_DEV1: tuple[tuple[str, str], ...] = tuple(
     ARCHETYPEPROPERTIES_RENAMES.items()
 )
 
@@ -412,7 +413,7 @@ def _apply_arch_ext_renames(cfg: dict) -> None:
     generic recursive helper would fail that gate.
     """
     for arch in _walk_site_container(cfg, "building_archetype"):
-        for old, new in _ARCH_EXT_RENAMES_2026_5_TO_2026_6:
+        for old, new in _ARCH_EXT_RENAMES_2026_5_TO_DEV1:
             _rename_field(arch, old, new)
 
 
@@ -436,7 +437,7 @@ def _migrate_2026_4_to_2026_5(cfg: dict) -> dict:
 
 
 def _migrate_2026_5_to_current(cfg: dict) -> dict:
-    """Upgrade 2026.5-shaped YAMLs to the current ``2026.6`` schema.
+    """Upgrade 2026.5-shaped YAMLs to the current ``2026.5.dev1`` schema.
 
     Applies Category 5 of #1256 (gh#1327): eight STEBBS
     ``ArchetypeProperties`` fields with the fused ``ext`` fragment
@@ -448,6 +449,11 @@ def _migrate_2026_5_to_current(cfg: dict) -> dict:
     backward-compat shim still accepts the legacy names at load time,
     but YAMLs that round-trip through the migrator come out in the
     new spellings and no longer emit deprecation warnings.
+
+    Under the dev-label convention
+    (``.claude/rules/python/schema-versioning.md``) this is the first
+    dev bump in the ``2026.5`` release cycle; the release PR will
+    collapse this handler into a single ``(<prev>, 2026.5)`` migration.
     """
     cfg = _strip_internal_only_fields(cfg)
     _apply_arch_ext_renames(cfg)
@@ -455,7 +461,7 @@ def _migrate_2026_5_to_current(cfg: dict) -> dict:
 
 
 def _migrate_2026_4_to_current(cfg: dict) -> dict:
-    """Chain 2026.4 -> 2026.5 Category 1 rename -> 2026.6 STEBBS ext rename."""
+    """Chain 2026.4 -> 2026.5 Category 1 -> 2026.5.dev1 STEBBS ext rename."""
     cfg = _migrate_2026_4_to_2026_5(cfg)
     return _migrate_2026_5_to_current(cfg)
 
@@ -485,13 +491,13 @@ def _migrate_2025_12_to_2026_4(cfg: dict) -> dict:
 
 
 def _migrate_2025_12_to_current(cfg: dict) -> dict:
-    """Chain #879 clean-up -> 2026.1 delta -> 2026.5 Category 1 -> 2026.6 STEBBS ext."""
+    """Chain #879 clean-up -> 2026.1 delta -> 2026.5 Cat. 1 -> 2026.5.dev1 ext."""
     cfg = _migrate_2025_12_to_2026_4(cfg)
     return _migrate_2026_4_to_current(cfg)
 
 
 def _migrate_2026_1_to_current(cfg: dict) -> dict:
-    """Chain 2026.1 delta -> 2026.5 Category 1 -> 2026.6 STEBBS ext."""
+    """Chain 2026.1 delta -> 2026.5 Category 1 -> 2026.5.dev1 STEBBS ext."""
     cfg = _migrate_2026_1_to_2026_4(cfg)
     return _migrate_2026_4_to_current(cfg)
 
@@ -506,7 +512,7 @@ _HANDLERS: dict[tuple[str, str], Handler] = {
     ("2025.12", "2026.4"): _migrate_2025_12_to_2026_4,
     # Intermediate stops at 2026.5 (callers pinning Category 1 only).
     ("2026.4", "2026.5"): _migrate_2026_4_to_2026_5,
-    # Chains to the current schema (2026.6, STEBBS ext split).
+    # Chains to the current schema (2026.5.dev1, STEBBS ext split).
     ("2026.5", CURRENT_SCHEMA_VERSION): _migrate_2026_5_to_current,
     ("2026.4", CURRENT_SCHEMA_VERSION): _migrate_2026_4_to_current,
     ("2026.1", CURRENT_SCHEMA_VERSION): _migrate_2026_1_to_current,

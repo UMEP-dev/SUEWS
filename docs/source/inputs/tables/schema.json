@@ -12861,7 +12861,7 @@
     }
   },
   "additionalProperties": true,
-  "description": "JSON Schema for SUEWS YAML configuration files. Schema version 2026.6. Category 5 of #1256 (gh#1327): eight STEBBS ArchetypeProperties fields with the fused `ext` fragment renamed to the spelt-out `External` form, bringing them into line with sibling `WallExternalEmissivity` / `RoofExternalEmissivity` \u2014 Wallext{Thickness, EffectiveConductivity, Density, Cp} -> WallExternal{Thickness, EffectiveConductivity, Density, Cp}; Roofext{Thickness, EffectiveConductivity, Density, Cp} -> RoofExternal{Thickness, EffectiveConductivity, Density, Cp}. STEBBS PascalCase itself is kept; Fortran-side identifiers are unchanged (reverse rename maps back for the bridge). Rename table lives in src/supy/data_model/core/field_renames.py; the (2026.5 -> 2026.6) migration is registered in src/supy/util/converter/yaml_upgrade.py::_HANDLERS.",
+  "description": "JSON Schema for SUEWS YAML configuration files. Schema version 2026.5.dev1. Category 5 of #1256 (gh#1327): eight STEBBS ArchetypeProperties fields with the fused `ext` fragment renamed to the spelt-out `External` form, bringing them into line with sibling `WallExternalEmissivity` / `RoofExternalEmissivity` \u2014 Wallext{Thickness, EffectiveConductivity, Density, Cp} -> WallExternal{Thickness, EffectiveConductivity, Density, Cp}; Roofext{Thickness, EffectiveConductivity, Density, Cp} -> RoofExternal{Thickness, EffectiveConductivity, Density, Cp}. STEBBS PascalCase itself is kept; Fortran-side identifiers are unchanged (reverse rename maps back for the bridge). Rename table lives in src/supy/data_model/core/field_renames.py; the (2026.5 -> 2026.5.dev1) migration is registered in src/supy/util/converter/yaml_upgrade.py::_HANDLERS. First dev label in the 2026.5 release cycle (collapse to plain `2026.5` in the release PR per `.claude/rules/python/schema-versioning.md`).",
   "properties": {
     "name": {
       "default": "sample config",
@@ -12907,20 +12907,20 @@
       "type": "array"
     }
   },
-  "title": "SUEWS Configuration Schema v2026.6",
+  "title": "SUEWS Configuration Schema v2026.5.dev1",
   "type": "object",
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://umep-dev.github.io/SUEWS/schema/suews-config/2026.6.json",
-  "version": "2026.6",
+  "$id": "https://umep-dev.github.io/SUEWS/schema/suews-config/2026.5.dev1.json",
+  "version": "2026.5.dev1",
   "$comment": {
     "generator": "supy.util.schema_publisher",
     "suews_version": "unknown",
-    "schema_version": "2026.6"
+    "schema_version": "2026.5.dev1"
   },
   "examples": [
     {
       "name": "minimal_config",
-      "schema_version": "2026.6",
+      "schema_version": "2026.5.dev1",
       "description": "Minimal SUEWS configuration example",
       "model": {
         "control": {

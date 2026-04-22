@@ -1,9 +1,14 @@
 #!/usr/bin/env python3
-"""Guard: Rust YAML preprocessor registry must mirror the Python registry.
+"""Guard: Rust YAML preprocessor registry must mirror the Python registry,
+AND Rust parameter struct field identifiers must use the canonical
+snake_case names (no legacy fused spellings leaking into Rust internals).
 
 Usage
 -----
     python scripts/lint/check_rust_yaml_aliases.py
+
+Check 1 — preprocessor parity (gh#1322)
+......................................
 
 The Rust bridge (`src/suews_bridge/src/field_renames.rs`) keeps a
 `FIELD_RENAMES` constant that the YAML preprocessor consults to fold
@@ -15,15 +20,26 @@ the CLI and the SuPy/Pydantic pipeline disagree about which YAML
 spellings are accepted — exactly the silent-fallback hole gh#1322
 closes.
 
-This script imports the Python registry directly (no regex) and
+This check imports the Python registry directly (no regex) and
 regex-parses the Rust constant (no `cargo` required). It compares
 the two as sets of ``(new_name, old_name)`` pairs and exits non-zero
 with a per-pair diff when they differ.
 
+Check 2 — Rust struct identifier parity (gh#1324)
+................................................
+
+With the preprocessor layer in place, the next cognitive-tax source
+is Rust parameter structs still exposing legacy fused identifiers
+(``pub soildepth: f64``, ``pub laimax: f64``, etc.). Any `pub <ident>`
+that appears in the Python registry as an ``old_name`` is a failure:
+the Rust internals should use the canonical snake_case name instead.
+The preprocessor keeps YAML keys tolerant — this check keeps Rust
+source-reading honest.
+
 Exit codes
 ----------
-* 0 — registries agree.
-* 1 — registries disagree (drift).
+* 0 — both checks pass.
+* 1 — drift detected in either check.
 * 2 — script failure (Python import error, Rust constant missing).
 """
 
@@ -195,6 +211,90 @@ def _load_rust_registry() -> dict[str, str]:
     return rust_renames
 
 
+_RUST_PARAM_MODULES = (
+    "src/suews_bridge/src/soil.rs",
+    "src/suews_bridge/src/lai.rs",
+    "src/suews_bridge/src/snow_prm.rs",
+    "src/suews_bridge/src/ohm_prm.rs",
+    "src/suews_bridge/src/bioco2.rs",
+    "src/suews_bridge/src/lc_paved_prm.rs",
+    "src/suews_bridge/src/lc_bldg_prm.rs",
+    "src/suews_bridge/src/lc_evetr_prm.rs",
+    "src/suews_bridge/src/lc_dectr_prm.rs",
+    "src/suews_bridge/src/lc_grass_prm.rs",
+    "src/suews_bridge/src/lc_bsoil_prm.rs",
+    "src/suews_bridge/src/lc_water_prm.rs",
+)
+
+# Capture every `pub <ident>: <type>` struct-field declaration. The type may
+# span several tokens (`[f64; NSURF]`, `[OhmCoefLc; 3]`, `BioCo2Prm`), so the
+# pattern is permissive after the colon and only the identifier is harvested.
+_RUST_PUB_FIELD_PATTERN = re.compile(
+    r"^\s*pub\s+(?P<ident>[a-z_][A-Za-z0-9_]*)\s*:",
+    re.MULTILINE,
+)
+
+
+def _collect_rust_struct_fields(
+    module_paths: tuple[str, ...],
+) -> dict[str, list[tuple[str, int]]]:
+    """Return ``{module_path: [(field_ident, line_no), ...]}``.
+
+    Skips files that do not exist — the check should tolerate the module
+    list drifting ahead of the repository layout during refactoring.
+    Identifiers matching Rust keywords or types (``self``, ``Self``, ...)
+    would never survive the ``pub <ident>:`` shape so no extra filtering
+    is needed.
+    """
+    collected: dict[str, list[tuple[str, int]]] = {}
+    for rel_path in module_paths:
+        path = Path(rel_path)
+        try:
+            source = path.read_text(encoding="utf-8")
+        except FileNotFoundError:
+            continue
+        fields: list[tuple[str, int]] = []
+        for match in _RUST_PUB_FIELD_PATTERN.finditer(source):
+            ident = match.group("ident")
+            line_no = source.count("\n", 0, match.start()) + 1
+            fields.append((ident, line_no))
+        collected[rel_path] = fields
+    return collected
+
+
+def _find_rust_legacy_identifiers(
+    python_renames: dict[str, str],
+    rust_struct_fields: dict[str, list[tuple[str, int]]],
+) -> list[tuple[str, int, str, str]]:
+    """Flag Rust struct fields whose identifier is the legacy fused spelling.
+
+    ``python_renames`` is ``{new_name: old_name}``. Any Rust identifier
+    that matches an ``old_name`` in the Python registry is a failure:
+    the canonical snake_case ``new_name`` should be used instead.
+
+    Returns a list of ``(path, line_no, legacy_ident, canonical_ident)``.
+    """
+    legacy_to_canonical = {old: new for new, old in python_renames.items()}
+    findings: list[tuple[str, int, str, str]] = []
+    for path, fields in rust_struct_fields.items():
+        for ident, line_no in fields:
+            canonical = legacy_to_canonical.get(ident)
+            if canonical is not None:
+                findings.append((path, line_no, ident, canonical))
+    findings.sort()
+    return findings
+
+
+def _format_struct_diff(findings: list[tuple[str, int, str, str]]) -> str:
+    """Return a human-readable block describing struct-identifier drift."""
+    if not findings:
+        return ""
+    lines = ["Rust struct fields still using legacy fused identifiers:"]
+    for path, line_no, legacy, canonical in findings:
+        lines.append(f"  - {path}:{line_no}: {legacy!r} -> should be {canonical!r}")
+    return "\n".join(lines)
+
+
 def _format_diff(
     python_renames: dict[str, str], rust_renames: dict[str, str]
 ) -> str:
@@ -233,27 +333,53 @@ def main(argv: list[str] | None = None) -> int:
 
     python_renames = _load_python_registry()
     rust_renames = _load_rust_registry()
+    rust_struct_fields = _collect_rust_struct_fields(_RUST_PARAM_MODULES)
+    struct_findings = _find_rust_legacy_identifiers(
+        python_renames, rust_struct_fields
+    )
 
-    if python_renames == rust_renames:
+    registries_match = python_renames == rust_renames
+    structs_clean = not struct_findings
+
+    if registries_match and structs_clean:
         print(
             "[rust-yaml-aliases-audit] OK: "
-            f"{len(python_renames)} (new, old) pairs match."
+            f"{len(python_renames)} (new, old) pairs match; "
+            f"{sum(len(f) for f in rust_struct_fields.values())} "
+            "Rust struct fields all use canonical identifiers."
         )
         return 0
 
-    diff = _format_diff(python_renames, rust_renames)
-    print(
-        "[rust-yaml-aliases-audit] FAILED — Python ALL_FIELD_RENAMES "
-        "and Rust FIELD_RENAMES are out of sync.\n"
-        "\n"
-        f"{diff}\n"
-        "\n"
-        "Update the smaller registry to match the larger one, or add "
-        "matching entries on both sides. The Python registry lives at "
-        "src/supy/data_model/core/field_renames.py; the Rust registry "
-        f"lives at {_RUST_REGISTRY_FILE}.",
-        file=sys.stderr,
-    )
+    if not registries_match:
+        diff = _format_diff(python_renames, rust_renames)
+        print(
+            "[rust-yaml-aliases-audit] FAILED — Python ALL_FIELD_RENAMES "
+            "and Rust FIELD_RENAMES are out of sync.\n"
+            "\n"
+            f"{diff}\n"
+            "\n"
+            "Update the smaller registry to match the larger one, or add "
+            "matching entries on both sides. The Python registry lives at "
+            "src/supy/data_model/core/field_renames.py; the Rust registry "
+            f"lives at {_RUST_REGISTRY_FILE}.",
+            file=sys.stderr,
+        )
+
+    if not structs_clean:
+        struct_diff = _format_struct_diff(struct_findings)
+        print(
+            "[rust-yaml-aliases-audit] FAILED — Rust parameter structs "
+            "still expose legacy fused field identifiers.\n"
+            "\n"
+            f"{struct_diff}\n"
+            "\n"
+            "Rename the struct fields to the canonical snake_case names "
+            "listed above. Assignment sites in yaml_config.rs should write "
+            "to the new identifier; YAML path strings stay on the legacy "
+            "spelling (the field_renames.rs preprocessor normalises them).",
+            file=sys.stderr,
+        )
+
     return 1
 
 

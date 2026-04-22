@@ -17,9 +17,9 @@ pub struct LcWaterPrm {
     pub emis: f64,
     pub ohm: OhmPrm,
     pub soil: SoilPrm,
-    pub statelimit: f64,
+    pub state_limit: f64,
     pub irrfracwater: f64,
-    pub wetthresh: f64,
+    pub wet_threshold: f64,
     pub flowchange: f64,
 }
 
@@ -30,9 +30,9 @@ impl Default for LcWaterPrm {
             emis: 0.0,
             ohm: OhmPrm::default(),
             soil: SoilPrm::default(),
-            statelimit: 0.0,
+            state_limit: 0.0,
             irrfracwater: 0.0,
-            wetthresh: 0.0,
+            wet_threshold: 0.0,
             flowchange: 0.0,
         }
     }
@@ -47,9 +47,9 @@ impl LcWaterPrm {
             emis: flat[1],
             ohm: OhmPrm::from_flat(&flat[2..19])?,
             soil: SoilPrm::from_flat(&flat[19..22])?,
-            statelimit: flat[22],
+            state_limit: flat[22],
             irrfracwater: flat[23],
-            wetthresh: flat[24],
+            wet_threshold: flat[24],
             flowchange: flat[25],
         })
     }
@@ -58,9 +58,9 @@ impl LcWaterPrm {
         let mut out = vec![self.sfr, self.emis];
         out.extend(self.ohm.to_flat());
         out.extend(self.soil.to_flat());
-        out.push(self.statelimit);
+        out.push(self.state_limit);
         out.push(self.irrfracwater);
-        out.push(self.wetthresh);
+        out.push(self.wet_threshold);
         out.push(self.flowchange);
         out
     }

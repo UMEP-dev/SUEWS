@@ -21,9 +21,9 @@ pub struct LcBldgPrm {
     pub ohm: OhmPrm,
     pub soil: SoilPrm,
     pub state: f64,
-    pub statelimit: f64,
+    pub state_limit: f64,
     pub irrfracbldgs: f64,
-    pub wetthresh: f64,
+    pub wet_threshold: f64,
     pub waterdist: WaterDistPrm,
 }
 
@@ -37,9 +37,9 @@ impl Default for LcBldgPrm {
             ohm: OhmPrm::default(),
             soil: SoilPrm::default(),
             state: 0.0,
-            statelimit: 0.0,
+            state_limit: 0.0,
             irrfracbldgs: 0.0,
-            wetthresh: 0.0,
+            wet_threshold: 0.0,
             waterdist: WaterDistPrm::default(),
         }
     }
@@ -57,9 +57,9 @@ impl LcBldgPrm {
             ohm: OhmPrm::from_flat(&flat[4..21])?,
             soil: SoilPrm::from_flat(&flat[21..24])?,
             state: flat[24],
-            statelimit: flat[25],
+            state_limit: flat[25],
             irrfracbldgs: flat[26],
-            wetthresh: flat[27],
+            wet_threshold: flat[27],
             waterdist: WaterDistPrm::from_flat(&flat[28..36])?,
         })
     }
@@ -69,9 +69,9 @@ impl LcBldgPrm {
         out.extend(self.ohm.to_flat());
         out.extend(self.soil.to_flat());
         out.push(self.state);
-        out.push(self.statelimit);
+        out.push(self.state_limit);
         out.push(self.irrfracbldgs);
-        out.push(self.wetthresh);
+        out.push(self.wet_threshold);
         out.extend(self.waterdist.to_flat());
         out
     }

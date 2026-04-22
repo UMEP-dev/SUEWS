@@ -11,17 +11,17 @@ pub type SoilPrmValuesPayload = ValuesPayload;
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct SoilPrm {
-    pub soildepth: f64,
-    pub soilstorecap: f64,
-    pub sathydraulicconduct: f64,
+    pub soil_depth: f64,
+    pub soil_store_capacity: f64,
+    pub saturated_hydraulic_conductivity: f64,
 }
 
 impl Default for SoilPrm {
     fn default() -> Self {
         Self {
-            soildepth: 0.0,
-            soilstorecap: 0.0,
-            sathydraulicconduct: 0.0,
+            soil_depth: 0.0,
+            soil_store_capacity: 0.0,
+            saturated_hydraulic_conductivity: 0.0,
         }
     }
 }
@@ -30,14 +30,18 @@ impl SoilPrm {
     pub fn from_flat(flat: &[f64]) -> Result<Self, BridgeError> {
         validate_flat_len(flat, SOIL_PRM_FLAT_LEN)?;
         Ok(Self {
-            soildepth: flat[0],
-            soilstorecap: flat[1],
-            sathydraulicconduct: flat[2],
+            soil_depth: flat[0],
+            soil_store_capacity: flat[1],
+            saturated_hydraulic_conductivity: flat[2],
         })
     }
 
     pub fn to_flat(&self) -> Vec<f64> {
-        vec![self.soildepth, self.soilstorecap, self.sathydraulicconduct]
+        vec![
+            self.soil_depth,
+            self.soil_store_capacity,
+            self.saturated_hydraulic_conductivity,
+        ]
     }
 }
 
@@ -106,8 +110,8 @@ mod tests {
         mapped.insert("sathydraulicconduct".to_string(), 0.003);
 
         let updated = soil_prm_from_map(&mapped).expect("map to state should succeed");
-        assert!((updated.soildepth - 450.0).abs() < 1.0e-12);
-        assert!((updated.sathydraulicconduct - 0.003).abs() < 1.0e-12);
+        assert!((updated.soil_depth - 450.0).abs() < 1.0e-12);
+        assert!((updated.saturated_hydraulic_conductivity - 0.003).abs() < 1.0e-12);
     }
 
     #[test]

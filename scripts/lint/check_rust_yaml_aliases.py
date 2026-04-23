@@ -385,36 +385,28 @@ def _load_rust_physics_families() -> dict[str, dict[str, frozenset[int]]]:
 def _format_physics_families_diff(
     python_families: dict[str, dict[str, frozenset[int]]],
     rust_families: dict[str, dict[str, frozenset[int]]],
-    python_renames: dict[str, str],
 ) -> str:
     """Return a human-readable diff of the two PHYSICS_FAMILIES registries.
 
-    Python keys are the canonical snake_case field names; Rust keys are
-    the fused spellings. ``python_renames`` (``{new: old}``) translates
-    between them so the comparison is apples-to-apples.
+    Both sides are keyed by the canonical snake_case field name.
     """
     lines: list[str] = []
-    # Translate Python keys to fused for comparison.
-    py_as_fused: dict[str, dict[str, frozenset[int]]] = {}
-    for field, fams in python_families.items():
-        fused = python_renames.get(field, field)
-        py_as_fused[fused] = fams
 
-    missing_in_rust = sorted(set(py_as_fused) - set(rust_families))
-    missing_in_python = sorted(set(rust_families) - set(py_as_fused))
-    in_both = set(py_as_fused) & set(rust_families)
+    missing_in_rust = sorted(set(python_families) - set(rust_families))
+    missing_in_python = sorted(set(rust_families) - set(python_families))
+    in_both = set(python_families) & set(rust_families)
 
     if missing_in_rust:
         lines.append("PHYSICS_FAMILIES fields present in Python, missing in Rust:")
         for field in missing_in_rust:
-            lines.append(f"  + {field!r}: {dict(py_as_fused[field])}")
+            lines.append(f"  + {field!r}: {dict(python_families[field])}")
     if missing_in_python:
         lines.append("PHYSICS_FAMILIES fields present in Rust, missing in Python:")
         for field in missing_in_python:
             lines.append(f"  - {field!r}: {dict(rust_families[field])}")
 
     for field in sorted(in_both):
-        py_fams = {k: set(v) for k, v in py_as_fused[field].items()}
+        py_fams = {k: set(v) for k, v in python_families[field].items()}
         rs_fams = {k: set(v) for k, v in rust_families[field].items()}
         if py_fams != rs_fams:
             lines.append(f"Family drift at {field!r}:")
@@ -481,17 +473,18 @@ def main(argv: list[str] | None = None) -> int:
 
     registries_match = python_renames == rust_renames
     structs_clean = not struct_findings
-    # Families: Python keyed by snake_case, Rust by fused — translate Python
-    # through the rename map before comparing.
-    py_fams_translated = {
-        python_renames.get(field, field): {k: set(v) for k, v in fams.items()}
+    # Families: both sides keyed by snake_case field names (Rust collapse
+    # runs before the legacy-name rewrite, so family tags like `stebbs`
+    # don't collide with ModelPhysics field names — gh#972).
+    py_fams_as_sets = {
+        field: {k: set(v) for k, v in fams.items()}
         for field, fams in python_families.items()
     }
     rs_fams_as_sets = {
         field: {k: set(v) for k, v in fams.items()}
         for field, fams in rust_families.items()
     }
-    families_match = py_fams_translated == rs_fams_as_sets
+    families_match = py_fams_as_sets == rs_fams_as_sets
 
     if registries_match and structs_clean and families_match:
         print(
@@ -535,7 +528,7 @@ def main(argv: list[str] | None = None) -> int:
 
     if not families_match:
         families_diff = _format_physics_families_diff(
-            python_families, rust_families, python_renames
+            python_families, rust_families
         )
         print(
             "[rust-yaml-aliases-audit] FAILED -- Python PHYSICS_FAMILIES and "
@@ -545,8 +538,7 @@ def main(argv: list[str] | None = None) -> int:
             "\n"
             "Python registry: src/supy/data_model/core/physics_families.py; "
             f"Rust registry: {_RUST_REGISTRY_FILE}. "
-            "Python keys are snake_case field names; Rust keys are the fused "
-            "spellings (post-rename).",
+            "Both sides key by the canonical snake_case field name.",
             file=sys.stderr,
         )
 

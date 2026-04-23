@@ -2491,4 +2491,70 @@ mod tests {
             "Both 'netradiationmethod' (deprecated) and 'net_radiation' are present at model.physics. Use only 'net_radiation'."
         );
     }
+
+    #[test]
+    fn load_run_config_accepts_nested_family_form() {
+        // gh#972: family-tagged nested shape must collapse to the flat
+        // form through the full parse path — equivalent to the legacy
+        // flat test above, with the input re-wrapped under `spartacus`.
+        let mut root: Value =
+            serde_yaml::from_str(FIXTURE_NEW_NAMES).expect("fixture YAML should parse");
+
+        let physics = get_path_mut(&mut root, &["model", "physics"])
+            .expect("fixture should contain model.physics");
+        if let Value::Mapping(map) = physics {
+            // Rewrite net_radiation: {value: 1003} -> net_radiation: {spartacus: {value: 1003}}
+            if let Some(flat) = map.remove(Value::String("net_radiation".into())) {
+                let mut nested = serde_yaml::Mapping::new();
+                nested.insert(Value::String("spartacus".into()), flat);
+                map.insert(
+                    Value::String("net_radiation".into()),
+                    Value::Mapping(nested),
+                );
+            }
+            // storage_heat: {value: 7} -> storage_heat: {stebbs: {value: 7}}
+            if let Some(flat) = map.remove(Value::String("storage_heat".into())) {
+                let mut nested = serde_yaml::Mapping::new();
+                nested.insert(Value::String("stebbs".into()), flat);
+                map.insert(
+                    Value::String("storage_heat".into()),
+                    Value::Mapping(nested),
+                );
+            }
+        }
+
+        let run_cfg = load_run_config_from_value(&mut root)
+            .expect("family-tagged YAML should parse without error");
+
+        assert_eq!(run_cfg.config.net_radiation_method, 1003);
+        assert_eq!(run_cfg.config.storage_heat_method, 7);
+    }
+
+    #[test]
+    fn load_run_config_rejects_wrong_family_code() {
+        // gh#972: a spartacus code (1003) inside the narp family must fail loud.
+        let mut root: Value =
+            serde_yaml::from_str(FIXTURE_NEW_NAMES).expect("fixture YAML should parse");
+
+        let physics = get_path_mut(&mut root, &["model", "physics"])
+            .expect("fixture should contain model.physics");
+        if let Value::Mapping(map) = physics {
+            map.remove(Value::String("net_radiation".into()));
+            let mut inner = serde_yaml::Mapping::new();
+            inner.insert(Value::String("value".into()), Value::Number(1003.into()));
+            let mut nested = serde_yaml::Mapping::new();
+            nested.insert(Value::String("narp".into()), Value::Mapping(inner));
+            map.insert(
+                Value::String("net_radiation".into()),
+                Value::Mapping(nested),
+            );
+        }
+
+        let err = load_run_config_from_value(&mut root)
+            .expect_err("narp cannot carry a spartacus code");
+        assert!(
+            err.contains("expects one of"),
+            "error was: {err}"
+        );
+    }
 }

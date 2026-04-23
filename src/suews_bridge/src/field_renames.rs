@@ -281,19 +281,26 @@ pub const FIELD_COMPAT_ALIASES: &[(&str, &str)] = &[
 /// Family registry for nested `model.physics` sub-options (gh#972).
 ///
 /// Mirrors `PHYSICS_FAMILIES` in
-/// `src/supy/data_model/core/physics_families.py`. Each entry gives the
-/// ModelPhysics field name *after* the legacy-name rename (fused spelling)
-/// plus the families covered. Drift with the Python side is caught by
+/// `src/supy/data_model/core/physics_families.py` 1:1 — same snake_case
+/// field keys, same family tags, same numeric codes. Drift is caught by
 /// `scripts/lint/check_rust_yaml_aliases.py`.
 ///
 /// `emissions` is trimmed to codes 0-5 to match the current
 /// `EmissionsMethod` enum — biogen variants (11-45) live in the Python
 /// docstring but are not yet enum members.
+///
+/// Keyed by the canonical snake_case field name because
+/// `collapse_nested_physics` runs BEFORE the legacy-name rewrite
+/// (`normalize_field_names_at`). That ordering matters: some family
+/// tags (notably `stebbs` under `storage_heat`) collide with
+/// ModelPhysics field names that the recursive rename walker would
+/// otherwise rewrite (`stebbs` -> `stebbsmethod`). Collapsing first
+/// consumes the family tag before the walker can see it.
 type FamilyCodes = &'static [i64];
 
 pub const PHYSICS_FAMILIES_RS: &[(&str, &[(&str, FamilyCodes)])] = &[
     (
-        "netradiationmethod",
+        "net_radiation",
         &[
             ("forcing", &[0]),
             ("narp", &[1, 2, 3, 11, 12, 13, 100, 200, 300]),
@@ -301,7 +308,7 @@ pub const PHYSICS_FAMILIES_RS: &[(&str, &[(&str, FamilyCodes)])] = &[
         ],
     ),
     (
-        "storageheatmethod",
+        "storage_heat",
         &[
             ("observed", &[0]),
             ("ohm", &[1]),
@@ -313,7 +320,7 @@ pub const PHYSICS_FAMILIES_RS: &[(&str, &[(&str, FamilyCodes)])] = &[
         ],
     ),
     (
-        "emissionsmethod",
+        "emissions",
         &[
             ("observed", &[0]),
             ("simple", &[1, 2, 3, 4, 5]),
@@ -471,8 +478,13 @@ fn legacy_name_for(key: &str) -> Option<(&'static str, &'static str)> {
 /// renamed keys on subsequent reads. Idempotent — running twice on the
 /// same tree is a no-op.
 pub fn normalize_field_names(root: &mut Value) -> Result<(), String> {
-    normalize_field_names_at(root, "<root>")?;
+    // Nested family form must be collapsed BEFORE the recursive rename
+    // walker runs — some family tags (e.g. `stebbs` under `storage_heat`)
+    // collide with ModelPhysics field names that the walker would
+    // otherwise rewrite (`stebbs` -> `stebbsmethod`). See
+    // `PHYSICS_FAMILIES_RS` for the full rationale (gh#972).
     collapse_nested_physics(root)?;
+    normalize_field_names_at(root, "<root>")?;
     Ok(())
 }
 

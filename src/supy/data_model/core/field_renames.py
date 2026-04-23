@@ -216,9 +216,11 @@ ARCHETYPEPROPERTIES_RENAMES: Dict[str, str] = {
     "InternalMassDensity": "internal_mass_density",
     "InternalMassCp": "internal_mass_specific_heat_capacity",
     "InternalMassEmissivity": "internal_mass_emissivity",
-    # HVAC / hot water
+    # HVAC / hot water. `water_tank_water_volume` unified into
+    # `hot_water_tank_volume` — same fluid, tank is just the storage
+    # component of the hot-water subsystem (see StebbsProperties below).
     "MaxHeatingPower": "max_heating_power",
-    "WaterTankWaterVolume": "water_tank_water_volume",
+    "WaterTankWaterVolume": "hot_water_tank_volume",
     "MaximumHotWaterHeatingPower": "maximum_hot_water_heating_power",
     "HeatingSetpointTemperature": "heating_setpoint_temperature",
     "CoolingSetpointTemperature": "cooling_setpoint_temperature",
@@ -242,6 +244,16 @@ ARCHETYPEPROPERTIES_PASCAL_RENAMES: Dict[str, str] = {
     "RoofExternalEffectiveConductivity": "roof_external_effective_conductivity",
     "RoofExternalDensity": "roof_external_density",
     "RoofExternalCp": "roof_external_specific_heat_capacity",
+}
+
+# Schema 2026.5.dev3 `water_tank_water_volume` -> unified `hot_water_tank_volume`
+# (drop the double-`water` redundancy and fold under the `hot_water_tank_*`
+# component prefix). NOT spread into ALL_FIELD_RENAMES — keeping the
+# one-to-one invariant; the ArchetypeProperties Pydantic shim runs this
+# after the main dict so dev3 YAMLs still load with a DeprecationWarning.
+
+ARCHETYPEPROPERTIES_DEV3_RENAMES: Dict[str, str] = {
+    "water_tank_water_volume": "hot_water_tank_volume",
 }
 
 # -- StebbsProperties (site.py) ----------------------------------------------
@@ -283,36 +295,39 @@ STEBBSPROPERTIES_RENAMES: Dict[str, str] = {
     "VentilationRate": "ventilation_rate",
     "InitialOutdoorTemperature": "initial_outdoor_temperature",
     "InitialIndoorTemperature": "initial_indoor_temperature",
-    # Hot-water system. The Rust bridge carries two parallel prefixes
-    # (`water_tank_*` and `dhw_*` for the draw-off vessel), which we
-    # mirror here until Tier B (#1324) can unify them. `DHWWaterVolume`
-    # -> `dhw_water_volume` keeps the trailing "water" to match the Rust
-    # struct field; see the Rust comment for the rationale.
-    "WaterTankWallThickness": "water_tank_wall_thickness",
+    # Hot-water system. All `DHW*` and `WaterTank*` legacy fields
+    # unify under `hot_water_*`: the tank (storage) keeps its
+    # `hot_water_tank_*` component prefix, the point-of-use vessel gets
+    # `hot_water_vessel_*`, and the bulk fluid properties (density, Cp,
+    # volume in use, surface area in use) drop the vessel/tank qualifier
+    # since the water is the same fluid in both places. DHW is just an
+    # opaque acronym for "domestic hot water" which this prefix already
+    # conveys without the abbreviation.
+    "WaterTankWallThickness": "hot_water_tank_wall_thickness",
     "MainsWaterTemperature": "mains_water_temperature",
-    "WaterTankSurfaceArea": "water_tank_surface_area",
+    "WaterTankSurfaceArea": "hot_water_tank_surface_area",
     "HotWaterHeatingSetpointTemperature": "hot_water_heating_setpoint_temperature",
     "HotWaterTankWallEmissivity": "hot_water_tank_wall_emissivity",
-    "DHWVesselWallThickness": "dhw_vessel_wall_thickness",
-    "DHWWaterVolume": "dhw_water_volume",
-    "DHWSurfaceArea": "dhw_surface_area",
+    "DHWVesselWallThickness": "hot_water_vessel_wall_thickness",
+    "DHWWaterVolume": "hot_water_volume",
+    "DHWSurfaceArea": "hot_water_surface_area",
     "HotWaterFlowRate": "hot_water_flow_rate",
     "HotWaterFlowProfile": "hot_water_flow_profile",
-    "DHWSpecificHeatCapacity": "dhw_specific_heat_capacity",
+    "DHWSpecificHeatCapacity": "hot_water_specific_heat_capacity",
     "HotWaterTankSpecificHeatCapacity": "hot_water_tank_specific_heat_capacity",
-    "DHWVesselSpecificHeatCapacity": "dhw_vessel_specific_heat_capacity",
-    "DHWDensity": "dhw_density",
+    "DHWVesselSpecificHeatCapacity": "hot_water_vessel_specific_heat_capacity",
+    "DHWDensity": "hot_water_density",
     "HotWaterTankWallDensity": "hot_water_tank_wall_density",
-    "DHWVesselDensity": "dhw_vessel_density",
+    "DHWVesselDensity": "hot_water_vessel_density",
     "HotWaterTankBuildingWallViewFactor": "hot_water_tank_building_wall_view_factor",
     "HotWaterTankInternalMassViewFactor": "hot_water_tank_internal_mass_view_factor",
     "HotWaterTankWallConductivity": "hot_water_tank_wall_conductivity",
     "HotWaterTankInternalWallConvectionCoefficient": "hot_water_tank_internal_wall_convection_coefficient",
     "HotWaterTankExternalWallConvectionCoefficient": "hot_water_tank_external_wall_convection_coefficient",
-    "DHWVesselWallConductivity": "dhw_vessel_wall_conductivity",
-    "DHWVesselInternalWallConvectionCoefficient": "dhw_vessel_internal_wall_convection_coefficient",
-    "DHWVesselExternalWallConvectionCoefficient": "dhw_vessel_external_wall_convection_coefficient",
-    "DHWVesselWallEmissivity": "dhw_vessel_wall_emissivity",
+    "DHWVesselWallConductivity": "hot_water_vessel_wall_conductivity",
+    "DHWVesselInternalWallConvectionCoefficient": "hot_water_vessel_internal_wall_convection_coefficient",
+    "DHWVesselExternalWallConvectionCoefficient": "hot_water_vessel_external_wall_convection_coefficient",
+    "DHWVesselWallEmissivity": "hot_water_vessel_wall_emissivity",
     "HotWaterHeatingEfficiency": "hot_water_heating_efficiency",
     # Profiles
     "ApplianceProfile": "appliance_profile",
@@ -368,6 +383,30 @@ SNOWPARAMS_INTERMEDIATE_RENAMES: Dict[str, str] = {
     "rad_melt_factor": "radiation_melt_factor",
 }
 
+# Schema 2026.5.dev3 `dhw_*` / `water_tank_*` intermediate -> unified
+# `hot_water_*`. Drops the opaque `dhw` acronym (= domestic hot water,
+# which the `hot_water_` prefix already conveys) and aligns the tank
+# storage component with the `hot_water_tank_*` sibling fields that
+# were already canonical at dev3. NOT spread into ALL_FIELD_RENAMES —
+# the StebbsProperties Pydantic shim runs this after the main dict so
+# dev3 YAMLs still load with a DeprecationWarning.
+
+STEBBSPROPERTIES_DEV3_RENAMES: Dict[str, str] = {
+    "water_tank_wall_thickness": "hot_water_tank_wall_thickness",
+    "water_tank_surface_area": "hot_water_tank_surface_area",
+    "dhw_vessel_wall_thickness": "hot_water_vessel_wall_thickness",
+    "dhw_water_volume": "hot_water_volume",
+    "dhw_surface_area": "hot_water_surface_area",
+    "dhw_specific_heat_capacity": "hot_water_specific_heat_capacity",
+    "dhw_vessel_specific_heat_capacity": "hot_water_vessel_specific_heat_capacity",
+    "dhw_density": "hot_water_density",
+    "dhw_vessel_density": "hot_water_vessel_density",
+    "dhw_vessel_wall_conductivity": "hot_water_vessel_wall_conductivity",
+    "dhw_vessel_internal_wall_convection_coefficient": "hot_water_vessel_internal_wall_convection_coefficient",
+    "dhw_vessel_external_wall_convection_coefficient": "hot_water_vessel_external_wall_convection_coefficient",
+    "dhw_vessel_wall_emissivity": "hot_water_vessel_wall_emissivity",
+}
+
 # -- Combined -----------------------------------------------------------------
 #
 # ``ALL_FIELD_RENAMES`` is a one-to-one map from every legacy fused key to
@@ -402,7 +441,9 @@ ALL_FIELD_RENAMES: Dict[str, str] = {
 RAW_YAML_FIELD_RENAMES: Dict[str, str] = {
     **MODELPHYSICS_SUFFIX_RENAMES,
     **ARCHETYPEPROPERTIES_PASCAL_RENAMES,
+    **ARCHETYPEPROPERTIES_DEV3_RENAMES,
     **SNOWPARAMS_INTERMEDIATE_RENAMES,
+    **STEBBSPROPERTIES_DEV3_RENAMES,
     **ALL_FIELD_RENAMES,
 }
 

@@ -1,5 +1,5 @@
 name: sample_config
-schema_version: '2026.5.dev3'
+schema_version: '2026.5.dev4'
 description: Sample configuration built from benchmark 1a (Ward et al. 2016) model configuration
 model:
   control:
@@ -467,21 +467,21 @@ sites:
         value: 10.0
       month_mean_air_temperature_diffmax:
         value: 10.0        
-      water_tank_wall_thickness:
+      hot_water_tank_wall_thickness:
         value: 0.055
       mains_water_temperature:
         value: 10.0
-      water_tank_surface_area:
+      hot_water_tank_surface_area:
         value: 20.0
       hot_water_heating_setpoint_temperature:
         value: 20.0
       hot_water_tank_wall_emissivity:
         value: 0.9
-      dhw_vessel_wall_thickness:
+      hot_water_vessel_wall_thickness:
         value: 0.01
-      dhw_water_volume:
+      hot_water_volume:
         value: 15.0
-      dhw_surface_area:
+      hot_water_surface_area:
         value: 1.5
       hot_water_flow_rate:
         value: 0.0
@@ -776,17 +776,17 @@ sites:
           '142': 1.0
           '143': 1.0
           '144': 1.0
-      dhw_specific_heat_capacity:
+      hot_water_specific_heat_capacity:
         value: 5000.0
       hot_water_tank_specific_heat_capacity:
         value: 1500.0
-      dhw_vessel_specific_heat_capacity:
+      hot_water_vessel_specific_heat_capacity:
         value: 1500.0
-      dhw_density:
+      hot_water_density:
         value: 1000.0
       hot_water_tank_wall_density:
         value: 1000.0
-      dhw_vessel_density:
+      hot_water_vessel_density:
         value: 1500.0
       hot_water_tank_building_wall_view_factor:
         value: 0.1
@@ -798,13 +798,13 @@ sites:
         value: 0.1
       hot_water_tank_external_wall_convection_coefficient:
         value: 0.1
-      dhw_vessel_wall_conductivity:
+      hot_water_vessel_wall_conductivity:
         value: 0.5
-      dhw_vessel_internal_wall_convection_coefficient:
+      hot_water_vessel_internal_wall_convection_coefficient:
         value: 300.0
-      dhw_vessel_external_wall_convection_coefficient:
+      hot_water_vessel_external_wall_convection_coefficient:
         value: 1.0
-      dhw_vessel_wall_emissivity:
+      hot_water_vessel_wall_emissivity:
         value: 0.8
       hot_water_heating_efficiency:
         value: 0.8
@@ -1208,7 +1208,7 @@ sites:
         value: 0.91
       max_heating_power:
         value: 12510
-      water_tank_water_volume:
+      hot_water_tank_volume:
         value: 0.3
       maximum_hot_water_heating_power:
         value: 50000.0

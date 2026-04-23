@@ -191,7 +191,7 @@ class TestBackwardCompat:
                 MonthMeanAirTemperature_diffmax=14.0,
                 HotWaterTankWallEmissivity=0.85,
             )
-        assert _unwrap(stebbs.dhw_water_volume) == 0.25
+        assert _unwrap(stebbs.hot_water_volume) == 0.25
         assert _unwrap(stebbs.cooling_system_cop) == 3.5
         assert _unwrap(stebbs.month_mean_air_temperature_diffmax) == 14.0
         assert _unwrap(stebbs.hot_water_tank_wall_emissivity) == 0.85
@@ -223,7 +223,7 @@ class TestDeprecationWarnings:
             (ArchetypeProperties, "BuildingType", "building_type", "Office"),
             (ArchetypeProperties, "WWR", "window_to_wall_ratio", 0.4),
             (ArchetypeProperties, "WallOuterCapFrac", "wall_outer_heat_capacity_fraction", 0.6),
-            (StebbsProperties, "DHWWaterVolume", "dhw_water_volume", 0.25),
+            (StebbsProperties, "DHWWaterVolume", "hot_water_volume", 0.25),
             (StebbsProperties, "CoolingSystemCOP", "cooling_system_cop", 3.5),
             (StebbsProperties, "MonthMeanAirTemperature_diffmax", "month_mean_air_temperature_diffmax", 14.0),
             (SnowParams, "tau_a", "tau_cold_snow", 0.02),

@@ -170,7 +170,54 @@ The lineage below mirrors ``SCHEMA_VERSIONS`` in
 the schema that shipped with it via
 ``supy.util.converter.yaml_upgrade._PACKAGE_TO_SCHEMA``.
 
-**Schema 2026.5.dev3** (current; in-development dev bump; gh#1334)
+**Schema 2026.5.dev4** (current; in-development dev bump; gh#1334 follow-through)
+   Unifies the STEBBS hot-water subsystem under the ``hot_water_*``
+   prefix, retiring the opaque ``dhw_`` acronym and the split
+   ``water_tank_*`` sibling that survived the gh#1334 PascalCase
+   sweep. Tank vs vessel physical separation stays real — preserved
+   through the ``_tank_`` and ``_vessel_`` component qualifiers —
+   only the prefix becomes consistent.
+
+   ``ArchetypeProperties`` (1 field):
+
+   - ``water_tank_water_volume`` -> ``hot_water_tank_volume`` (drops
+     the redundant trailing ``water``)
+
+   ``StebbsProperties`` (13 fields):
+
+   - ``water_tank_wall_thickness`` -> ``hot_water_tank_wall_thickness``
+   - ``water_tank_surface_area`` -> ``hot_water_tank_surface_area``
+   - ``dhw_vessel_wall_thickness`` -> ``hot_water_vessel_wall_thickness``
+   - ``dhw_water_volume`` -> ``hot_water_volume``
+   - ``dhw_surface_area`` -> ``hot_water_surface_area``
+   - ``dhw_specific_heat_capacity`` ->
+     ``hot_water_specific_heat_capacity``
+   - ``dhw_vessel_specific_heat_capacity`` ->
+     ``hot_water_vessel_specific_heat_capacity``
+   - ``dhw_density`` -> ``hot_water_density``
+   - ``dhw_vessel_density`` -> ``hot_water_vessel_density``
+   - ``dhw_vessel_wall_conductivity`` ->
+     ``hot_water_vessel_wall_conductivity``
+   - ``dhw_vessel_internal_wall_convection_coefficient`` ->
+     ``hot_water_vessel_internal_wall_convection_coefficient``
+   - ``dhw_vessel_external_wall_convection_coefficient`` ->
+     ``hot_water_vessel_external_wall_convection_coefficient``
+   - ``dhw_vessel_wall_emissivity`` ->
+     ``hot_water_vessel_wall_emissivity``
+
+   Legacy ``dhw_*`` and ``water_tank_*`` YAMLs continue to load via
+   the Pydantic shim (``ARCHETYPEPROPERTIES_DEV3_RENAMES`` and
+   ``STEBBSPROPERTIES_DEV3_RENAMES`` in
+   ``src/supy/data_model/core/field_renames.py``) with a
+   ``DeprecationWarning``. The ``(2026.5.dev3 -> 2026.5.dev4)``
+   migration handler is registered in
+   ``src/supy/util/converter/yaml_upgrade.py::_HANDLERS``. Rust
+   struct fields (``src/suews_bridge/src/stebbs_prm.rs``) and the
+   c_api shadow (``src/suews_bridge/c_api/stebbs_prm.f95``) keep
+   ``dhw_*`` internally — cross-layer work remains tracked under
+   #1324.
+
+**Schema 2026.5.dev3** (gh#1334)
    Retires the STEBBS PascalCase exception on the user-facing YAML
    surface. 124 renames across ``building_archetype``, ``stebbs`` and
    ``snow`` containers, bringing the full YAML into a single snake_case

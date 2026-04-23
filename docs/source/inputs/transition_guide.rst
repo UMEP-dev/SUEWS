@@ -180,6 +180,38 @@ The sections below summarise what users see change between schemas.
 The authoritative lineage (including release-tag to schema mapping)
 lives in :ref:`schema_version_history`.
 
+Upgrading to Schema 2026.5.dev4 (gh#1334 follow-through: STEBBS hot-water prefix unification)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Schema ``2026.5.dev4`` unifies the STEBBS hot-water subsystem under
+a single ``hot_water_*`` prefix, dropping the opaque ``dhw_``
+acronym and the redundant ``water_tank_*`` sibling that survived
+the gh#1334 PascalCase sweep at dev3. Tank vs vessel physical
+separation is preserved through ``_tank_`` and ``_vessel_``
+component qualifiers; only the prefix becomes consistent.
+
+- ``ArchetypeProperties`` (1 rename) — ``water_tank_water_volume``
+  -> ``hot_water_tank_volume`` (drops redundant trailing
+  ``water``).
+- ``StebbsProperties`` (13 renames) —
+  ``water_tank_wall_thickness`` -> ``hot_water_tank_wall_thickness``,
+  ``water_tank_surface_area`` -> ``hot_water_tank_surface_area``,
+  ``dhw_water_volume`` -> ``hot_water_volume``,
+  ``dhw_surface_area`` -> ``hot_water_surface_area``,
+  ``dhw_specific_heat_capacity`` ->
+  ``hot_water_specific_heat_capacity``,
+  ``dhw_density`` -> ``hot_water_density``, plus the seven
+  ``dhw_vessel_*`` -> ``hot_water_vessel_*`` renames
+  (``wall_thickness``, ``specific_heat_capacity``, ``density``,
+  ``wall_conductivity``, ``internal_wall_convection_coefficient``,
+  ``external_wall_convection_coefficient``, ``wall_emissivity``).
+
+Legacy ``dhw_*`` and ``water_tank_*`` spellings continue to load
+via the Pydantic shim with a ``DeprecationWarning``. Run
+``suews-schema migrate --target-version 2026.5.dev4 <your.yml>``
+to rewrite them in place. Rust struct fields and the c_api shadow
+keep ``dhw_*`` internally — cross-layer work is tracked in #1324.
+
 Upgrading to Schema 2026.5.dev3 (gh#1334: STEBBS + Snow user-facing YAML to snake_case)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 

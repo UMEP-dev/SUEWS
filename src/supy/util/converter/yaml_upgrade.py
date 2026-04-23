@@ -27,6 +27,8 @@ from ...data_model.core.field_renames import (
     MODELPHYSICS_SUFFIX_RENAMES,
     SNOWPARAMS_RENAMES,
     SNOWPARAMS_INTERMEDIATE_RENAMES,
+    ARCHETYPEPROPERTIES_DEV3_RENAMES,
+    STEBBSPROPERTIES_DEV3_RENAMES,
     STEBBSPROPERTIES_RENAMES,
     SURFACEPROPERTIES_RENAMES,
     VEGETATEDSURFACEPROPERTIES_RENAMES,
@@ -386,6 +388,20 @@ _SNOW_RENAMES_DEV2_TO_DEV3: tuple[tuple[str, str], ...] = tuple(
     ("narp_emis_snow", "narp_emissivity_snow"),
 )
 
+# gh#1334 follow-through (2026.5.dev3 -> 2026.5.dev4): unify the STEBBS
+# hot-water subsystem under a single `hot_water_*` prefix. Drops the
+# opaque `dhw_` acronym and the split `water_tank_*` sibling so the
+# YAML surface carries one prefix with `_tank_` / `_vessel_` component
+# qualifiers. Sourced from the intermediate dicts in field_renames.py
+# so that registry remains the single authoritative mapping.
+_ARCH_RENAMES_DEV3_TO_DEV4: tuple[tuple[str, str], ...] = tuple(
+    ARCHETYPEPROPERTIES_DEV3_RENAMES.items()
+)
+
+_STEBBS_RENAMES_DEV3_TO_DEV4: tuple[tuple[str, str], ...] = tuple(
+    STEBBSPROPERTIES_DEV3_RENAMES.items()
+)
+
 
 # ---------------------------------------------------------------------------
 # Handlers
@@ -577,8 +593,7 @@ def _apply_stebbs_snake_renames(cfg: dict) -> None:
     * ``building_archetype`` — 62 PascalCase ArchetypeProperties fields
       (plus the eight ``WallExternal``/``RoofExternal`` intermediate pairs
       from the Cat 5 gh#1327 sweep) rewritten to snake_case.
-    * ``stebbs`` — 50 StebbsProperties fields rewritten to snake_case,
-      including the ``DHW*`` -> ``hot_water_*`` unification.
+    * ``stebbs`` — 50 StebbsProperties fields rewritten to snake_case.
     * ``snow`` — 11 snake_case -> snake_case clean-ups (semantic fix for
       ``precip_limit`` -> ``temperature_rain_snow_threshold`` plus
       clarity renames for ``tau_a/f/r``, ``snowprof_24hr``,
@@ -598,16 +613,46 @@ def _apply_stebbs_snake_renames(cfg: dict) -> None:
             _rename_field(snow, old, new)
 
 
-def _migrate_2026_5_dev2_to_current(cfg: dict) -> dict:
-    """Upgrade 2026.5.dev2-shaped YAMLs to the current ``2026.5.dev3`` schema.
+def _apply_hot_water_unification_renames(cfg: dict) -> None:
+    """Apply gh#1334 follow-through dev3 -> dev4 hot-water prefix unification.
 
-    Applies gh#1334: retires the STEBBS PascalCase exception on the
-    user-facing YAML surface. 124 renames total across
-    ``building_archetype``, ``stebbs``, and ``snow`` containers. See
-    ``_apply_stebbs_snake_renames`` for the per-container breakdown.
+    Rewrites the thirteen STEBBS ``dhw_*`` / ``water_tank_*`` fields
+    and the one ArchetypeProperties ``water_tank_water_volume`` field
+    to the unified ``hot_water_*`` prefix. Tank vs vessel separation is
+    preserved through ``_tank_`` / ``_vessel_`` component qualifiers.
+
+    Each rename flows through ``_rename_field`` so a per-field log line
+    is emitted (``TestNoSilentFieldDrops`` enforces this).
+    """
+    for arch in _walk_site_container(cfg, "building_archetype"):
+        for old, new in _ARCH_RENAMES_DEV3_TO_DEV4:
+            _rename_field(arch, old, new)
+    for stebbs in _walk_site_container(cfg, "stebbs"):
+        for old, new in _STEBBS_RENAMES_DEV3_TO_DEV4:
+            _rename_field(stebbs, old, new)
+
+
+def _migrate_2026_5_dev3_to_current(cfg: dict) -> dict:
+    """Upgrade 2026.5.dev3-shaped YAMLs to the current ``2026.5.dev4`` schema.
+
+    Applies the gh#1334 follow-through hot-water unification: 14 renames
+    under ``site.properties.building_archetype`` and ``.stebbs``.
+    """
+    cfg = _strip_internal_only_fields(cfg)
+    _apply_hot_water_unification_renames(cfg)
+    return cfg
+
+
+def _migrate_2026_5_dev2_to_current(cfg: dict) -> dict:
+    """Upgrade 2026.5.dev2-shaped YAMLs to the current ``2026.5.dev4`` schema.
+
+    Chains gh#1334 (dev2 -> dev3: retires STEBBS PascalCase; 124 renames)
+    and the gh#1334 follow-through (dev3 -> dev4: hot-water prefix
+    unification; 14 renames).
     """
     cfg = _strip_internal_only_fields(cfg)
     _apply_stebbs_snake_renames(cfg)
+    _apply_hot_water_unification_renames(cfg)
     return cfg
 
 
@@ -632,24 +677,27 @@ def _migrate_2026_5_to_current(cfg: dict) -> dict:
 
     Under the dev-label convention
     (``.claude/rules/python/schema-versioning.md``) the release PR will
-    collapse all three steps into a single ``(<prev>, 2026.5)`` migration.
+    collapse all four steps into a single ``(<prev>, 2026.5)`` migration.
     """
     cfg = _strip_internal_only_fields(cfg)
     _apply_arch_ext_renames(cfg)
     _apply_modelphysics_suffix_renames(cfg)
     _apply_stebbs_snake_renames(cfg)
+    _apply_hot_water_unification_renames(cfg)
     return cfg
 
 
 def _migrate_2026_5_dev1_to_current(cfg: dict) -> dict:
-    """Upgrade 2026.5.dev1-shaped YAMLs to the current ``2026.5.dev3`` schema.
+    """Upgrade 2026.5.dev1-shaped YAMLs to the current ``2026.5.dev4`` schema.
 
-    Chains the Cat 2+3 ModelPhysics suffix/abbreviation rewrite (gh#1321)
-    and the gh#1334 STEBBS/Snow snake_case sweep.
+    Chains the Cat 2+3 ModelPhysics suffix/abbreviation rewrite (gh#1321),
+    the gh#1334 STEBBS/Snow snake_case sweep, and the gh#1334 follow-through
+    hot-water prefix unification.
     """
     cfg = _strip_internal_only_fields(cfg)
     _apply_modelphysics_suffix_renames(cfg)
     _apply_stebbs_snake_renames(cfg)
+    _apply_hot_water_unification_renames(cfg)
     return cfg
 
 
@@ -705,9 +753,11 @@ _HANDLERS: dict[tuple[str, str], Handler] = {
     ("2025.12", "2026.4"): _migrate_2025_12_to_2026_4,
     # Intermediate stops at 2026.5 (callers pinning Category 1 only).
     ("2026.4", "2026.5"): _migrate_2026_4_to_2026_5,
-    # Chains to the current schema (2026.5.dev3: Cat 1 snake_case sweep
+    # Chains to the current schema (2026.5.dev4: Cat 1 snake_case sweep
     # + Cat 5 STEBBS ext rename + Cat 2+3 ModelPhysics suffix drop
-    # + gh#1334 STEBBS/Snow snake_case).
+    # + gh#1334 STEBBS/Snow snake_case + gh#1334 follow-through hot-water
+    # prefix unification).
+    ("2026.5.dev3", CURRENT_SCHEMA_VERSION): _migrate_2026_5_dev3_to_current,
     ("2026.5.dev2", CURRENT_SCHEMA_VERSION): _migrate_2026_5_dev2_to_current,
     ("2026.5.dev1", CURRENT_SCHEMA_VERSION): _migrate_2026_5_dev1_to_current,
     ("2026.5", CURRENT_SCHEMA_VERSION): _migrate_2026_5_to_current,

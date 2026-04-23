@@ -22,7 +22,7 @@ import warnings
 # schema-versioning.md` (Dev-label convention). Every structural PR
 # between releases bumps the dev counter instead of consuming a new
 # CalVer label.
-CURRENT_SCHEMA_VERSION = "2026.5.dev3"
+CURRENT_SCHEMA_VERSION = "2026.5.dev4"
 
 # Schema version history and descriptions.
 #
@@ -147,6 +147,33 @@ SCHEMA_VERSIONS: dict[str, str] = {
         ".claude/rules/00-project-essentials.md and "
         ".claude/rules/python/conventions.md drop the STEBBS "
         "PascalCase exception in the same PR."
+    ),
+    "2026.5.dev4": (
+        "gh#1334 follow-through: the STEBBS hot-water subsystem unifies "
+        "under the `hot_water_*` prefix. Drops the opaque `dhw_` acronym "
+        "and the redundant `water_tank_*` leftover — 14 renames: "
+        "water_tank_wall_thickness -> hot_water_tank_wall_thickness, "
+        "water_tank_surface_area -> hot_water_tank_surface_area, "
+        "water_tank_water_volume -> hot_water_tank_volume (drop "
+        "redundant `water`), dhw_water_volume -> hot_water_volume, "
+        "dhw_surface_area -> hot_water_surface_area, "
+        "dhw_specific_heat_capacity -> hot_water_specific_heat_capacity, "
+        "dhw_density -> hot_water_density, and the seven dhw_vessel_* "
+        "fields -> hot_water_vessel_* (wall_thickness, "
+        "specific_heat_capacity, density, wall_conductivity, "
+        "internal_wall_convection_coefficient, "
+        "external_wall_convection_coefficient, wall_emissivity). Tank "
+        "vs vessel physical separation is preserved (storage vs "
+        "point-of-consumption); only the `dhw` acronym and the "
+        "`water_tank_` sibling drop in favour of a single `hot_water_` "
+        "prefix with `_tank_` / `_vessel_` component qualifiers. Rename "
+        "tables ARCHETYPEPROPERTIES_DEV3_RENAMES and "
+        "STEBBSPROPERTIES_DEV3_RENAMES added in "
+        "src/supy/data_model/core/field_renames.py; the "
+        "(2026.5.dev3 -> 2026.5.dev4) migration is registered in "
+        "src/supy/util/converter/yaml_upgrade.py::_HANDLERS. Rust struct "
+        "fields and c_api shadow TYPE keep `dhw_*` internally — "
+        "cross-layer tracked in #1324."
     ),
 }
 

@@ -11,6 +11,8 @@ import warnings
 from collections.abc import Mapping
 from typing import Any, Dict
 
+from .physics_families import coerce_nested_to_flat
+
 
 # -- ModelPhysics (model.py) -------------------------------------------------
 #
@@ -830,8 +832,9 @@ def read_physics_key(physics: dict, new_name: str, default: Any = None):
     accepts both spellings, so these gates must as well, or users on either
     spelling can silently bypass them.
 
-    Unwraps RefValue-style ``{"value": X}`` wrappers. Returns ``default``
-    when neither spelling is present.
+    Unwraps both flat RefValue-style ``{"value": X}`` wrappers and the
+    family-tagged nested physics form introduced in gh#972. Returns
+    ``default`` when neither spelling is present.
     """
     entry = read_renamed_key(
         physics,
@@ -840,6 +843,7 @@ def read_physics_key(physics: dict, new_name: str, default: Any = None):
         reverse_renames=_REVERSE_MODELPHYSICS_RENAMES,
         default=default,
     )
+    entry = coerce_nested_to_flat(new_name, entry)
     if isinstance(entry, dict) and "value" in entry:
         return entry["value"]
     return entry

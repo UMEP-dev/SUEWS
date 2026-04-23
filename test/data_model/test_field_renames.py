@@ -356,6 +356,27 @@ class TestRawDictCompatibility:
         assert methods["emissions_advanced"] is True
         assert methods["storage_estm"] is True
 
+    def test_analyze_config_methods_accepts_nested_family_form(self):
+        config = {
+            "model": {
+                "physics": {
+                    "roughness_sublayer": {"value": 2},
+                    "roughness_length_momentum": {"value": 2},
+                    "net_radiation": {"spartacus": {"value": 1001}},
+                    "emissions": {"simple": {"value": 4}},
+                    "storage_heat": {"estm": {"value": 4}},
+                }
+            }
+        }
+
+        methods = analyze_config_methods(config)
+
+        assert methods["rslmethod_variable"] is True
+        assert methods["roughness_variable"] is True
+        assert methods["netradiation_spartacus"] is True
+        assert methods["emissions_advanced"] is True
+        assert methods["storage_estm"] is True
+
     def test_validation_controller_accepts_legacy_physics_names(self):
         config = {
             "model": {
@@ -364,6 +385,26 @@ class TestRawDictCompatibility:
                     "netradiationmethod": {"value": 1001},
                     "emissionsmethod": {"value": 4},
                     "storageheatmethod": {"value": 4},
+                }
+            }
+        }
+
+        controller = ValidationController(config_data=config)
+        active_methods = controller.get_active_methods()
+
+        assert active_methods["roughness_variable"] is True
+        assert active_methods["netradiation_spartacus"] is True
+        assert active_methods["emissions_advanced"] is True
+        assert active_methods["storage_estm"] is True
+
+    def test_validation_controller_accepts_nested_legacy_physics_names(self):
+        config = {
+            "model": {
+                "physics": {
+                    "roughlenmommethod": {"value": 2},
+                    "netradiationmethod": {"spartacus": {"value": 1001}},
+                    "emissions_method": {"simple": {"value": 4}},
+                    "storage_heat_method": {"estm": {"value": 4}},
                 }
             }
         }

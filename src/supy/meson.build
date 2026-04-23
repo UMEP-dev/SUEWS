@@ -88,6 +88,7 @@ py.install_sources(
             'data_model/core/hydro.py',
             'data_model/core/model.py',
             'data_model/core/ohm.py',
+            'data_model/core/physics_families.py',
             'data_model/core/profile.py',
             'data_model/core/site.py',
             'data_model/core/state.py',

@@ -55,6 +55,7 @@ import sys
 
 _PY_REGISTRY_FILE = Path("src/supy/data_model/core/field_renames.py")
 _RUST_REGISTRY_FILE = Path("src/suews_bridge/src/field_renames.rs")
+_PY_FAMILIES_FILE = Path("src/supy/data_model/core/physics_families.py")
 
 
 def _collect_str_dict_assignments(tree: ast.Module) -> dict[str, dict[str, str]]:
@@ -172,7 +173,7 @@ _RUST_CONST_PATTERN = re.compile(
     re.DOTALL,
 )
 _RUST_PAIR_PATTERN = re.compile(
-    r'\(\s*"(?P<new>[^"]+)"\s*,\s*"(?P<old>[^"]+)"\s*\)'
+    r'\(\s*"(?P<new>[^"]+)"\s*,\s*"(?P<old>[^"]+)"\s*,?\s*\)'
 )
 
 
@@ -286,6 +287,135 @@ def _find_rust_legacy_identifiers(
     return findings
 
 
+_PY_FAMILIES_FIELD_PATTERN = re.compile(
+    r'"(?P<field>[a-z_]+)"\s*:\s*\{(?P<inner>[^{}]*?(?:\{[^{}]*\}[^{}]*?)*)\}',
+    re.DOTALL,
+)
+_PY_FAMILIES_FAMILY_PATTERN = re.compile(
+    r'"(?P<fam>[a-z_]+)"\s*:\s*frozenset\(\{(?P<codes>[0-9,\s]+)\}\)'
+)
+_RUST_FAMILIES_FIELD_PATTERN = re.compile(
+    r'\(\s*"(?P<field>[a-z_]+)"\s*,\s*&\[\s*(?P<inner>(?:\([^)]*\)\s*,?\s*)+)\]\s*,?\s*\)',
+    re.DOTALL,
+)
+_RUST_FAMILIES_FAMILY_PATTERN = re.compile(
+    r'\(\s*"(?P<fam>[a-z_]+)"\s*,\s*&\[(?P<codes>[0-9,\s]*)\]\s*\)'
+)
+
+
+def _load_python_physics_families() -> dict[str, dict[str, frozenset[int]]]:
+    """Parse PHYSICS_FAMILIES from the Python module via regex.
+
+    Avoids importing ``supy`` so this lint stays runnable in a bare CI
+    checkout without a Rust+Fortran build (same rationale as
+    ``_load_python_registry``).
+    """
+    try:
+        source = _PY_FAMILIES_FILE.read_text(encoding="utf-8")
+    except FileNotFoundError as exc:
+        raise SystemExit(
+            f"[rust-yaml-aliases-audit] missing Python families file: {_PY_FAMILIES_FILE}"
+        ) from exc
+
+    # Find the PHYSICS_FAMILIES literal body.
+    body_match = re.search(
+        r"PHYSICS_FAMILIES\s*:\s*[^=]*=\s*\{(?P<body>.*?)^\}",
+        source,
+        re.DOTALL | re.MULTILINE,
+    )
+    if body_match is None:
+        raise SystemExit(
+            "[rust-yaml-aliases-audit] could not locate PHYSICS_FAMILIES in "
+            f"{_PY_FAMILIES_FILE}."
+        )
+
+    body = body_match.group("body")
+    result: dict[str, dict[str, frozenset[int]]] = {}
+    for field_match in _PY_FAMILIES_FIELD_PATTERN.finditer(body):
+        field = field_match.group("field")
+        inner = field_match.group("inner")
+        fams: dict[str, frozenset[int]] = {}
+        for fm in _PY_FAMILIES_FAMILY_PATTERN.finditer(inner):
+            codes = {int(c.strip()) for c in fm.group("codes").split(",") if c.strip()}
+            fams[fm.group("fam")] = frozenset(codes)
+        if fams:
+            result[field] = fams
+    return result
+
+
+def _load_rust_physics_families() -> dict[str, dict[str, frozenset[int]]]:
+    """Parse PHYSICS_FAMILIES_RS from the Rust source via regex."""
+    try:
+        source = _RUST_REGISTRY_FILE.read_text(encoding="utf-8")
+    except FileNotFoundError as exc:
+        raise SystemExit(
+            f"[rust-yaml-aliases-audit] missing Rust registry file: {_RUST_REGISTRY_FILE}"
+        ) from exc
+
+    body_match = re.search(
+        r"PHYSICS_FAMILIES_RS\s*:\s*&\[\(&str,\s*&\[\(&str,\s*FamilyCodes\)\]\)\]\s*=\s*&\[(?P<body>.*?)\];",
+        source,
+        re.DOTALL,
+    )
+    if body_match is None:
+        raise SystemExit(
+            "[rust-yaml-aliases-audit] could not locate PHYSICS_FAMILIES_RS in "
+            f"{_RUST_REGISTRY_FILE}."
+        )
+
+    body = body_match.group("body")
+    result: dict[str, dict[str, frozenset[int]]] = {}
+    for field_match in _RUST_FAMILIES_FIELD_PATTERN.finditer(body):
+        field = field_match.group("field")
+        inner = field_match.group("inner")
+        fams: dict[str, frozenset[int]] = {}
+        for fm in _RUST_FAMILIES_FAMILY_PATTERN.finditer(inner):
+            codes_str = fm.group("codes").strip()
+            codes = (
+                {int(c.strip()) for c in codes_str.split(",") if c.strip()}
+                if codes_str
+                else set()
+            )
+            fams[fm.group("fam")] = frozenset(codes)
+        if fams:
+            result[field] = fams
+    return result
+
+
+def _format_physics_families_diff(
+    python_families: dict[str, dict[str, frozenset[int]]],
+    rust_families: dict[str, dict[str, frozenset[int]]],
+) -> str:
+    """Return a human-readable diff of the two PHYSICS_FAMILIES registries.
+
+    Both sides are keyed by the canonical snake_case field name.
+    """
+    lines: list[str] = []
+
+    missing_in_rust = sorted(set(python_families) - set(rust_families))
+    missing_in_python = sorted(set(rust_families) - set(python_families))
+    in_both = set(python_families) & set(rust_families)
+
+    if missing_in_rust:
+        lines.append("PHYSICS_FAMILIES fields present in Python, missing in Rust:")
+        for field in missing_in_rust:
+            lines.append(f"  + {field!r}: {dict(python_families[field])}")
+    if missing_in_python:
+        lines.append("PHYSICS_FAMILIES fields present in Rust, missing in Python:")
+        for field in missing_in_python:
+            lines.append(f"  - {field!r}: {dict(rust_families[field])}")
+
+    for field in sorted(in_both):
+        py_fams = {k: set(v) for k, v in python_families[field].items()}
+        rs_fams = {k: set(v) for k, v in rust_families[field].items()}
+        if py_fams != rs_fams:
+            lines.append(f"Family drift at {field!r}:")
+            lines.append(f"  Python: {py_fams}")
+            lines.append(f"  Rust:   {rs_fams}")
+
+    return "\n".join(lines)
+
+
 def _format_struct_diff(findings: list[tuple[str, int, str, str]]) -> str:
     """Return a human-readable block describing struct-identifier drift."""
     if not findings:
@@ -338,16 +468,31 @@ def main(argv: list[str] | None = None) -> int:
     struct_findings = _find_rust_legacy_identifiers(
         python_renames, rust_struct_fields
     )
+    python_families = _load_python_physics_families()
+    rust_families = _load_rust_physics_families()
 
     registries_match = python_renames == rust_renames
     structs_clean = not struct_findings
+    # Families: both sides keyed by snake_case field names (Rust collapse
+    # runs before the legacy-name rewrite, so family tags like `stebbs`
+    # don't collide with ModelPhysics field names — gh#972).
+    py_fams_as_sets = {
+        field: {k: set(v) for k, v in fams.items()}
+        for field, fams in python_families.items()
+    }
+    rs_fams_as_sets = {
+        field: {k: set(v) for k, v in fams.items()}
+        for field, fams in rust_families.items()
+    }
+    families_match = py_fams_as_sets == rs_fams_as_sets
 
-    if registries_match and structs_clean:
+    if registries_match and structs_clean and families_match:
         print(
             "[rust-yaml-aliases-audit] OK: "
             f"{len(python_renames)} (new, old) pairs match; "
             f"{sum(len(f) for f in rust_struct_fields.values())} "
-            "Rust struct fields all use canonical identifiers."
+            "Rust struct fields all use canonical identifiers; "
+            f"{len(python_families)} physics-family entries match."
         )
         return 0
 
@@ -378,6 +523,22 @@ def main(argv: list[str] | None = None) -> int:
             "listed above. Assignment sites in yaml_config.rs should write "
             "to the new identifier; YAML path strings stay on the legacy "
             "spelling (the field_renames.rs preprocessor normalises them).",
+            file=sys.stderr,
+        )
+
+    if not families_match:
+        families_diff = _format_physics_families_diff(
+            python_families, rust_families
+        )
+        print(
+            "[rust-yaml-aliases-audit] FAILED -- Python PHYSICS_FAMILIES and "
+            "Rust PHYSICS_FAMILIES_RS are out of sync (gh#972).\n"
+            "\n"
+            f"{families_diff}\n"
+            "\n"
+            "Python registry: src/supy/data_model/core/physics_families.py; "
+            f"Rust registry: {_RUST_REGISTRY_FILE}. "
+            "Both sides key by the canonical snake_case field name.",
             file=sys.stderr,
         )
 

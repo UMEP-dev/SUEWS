@@ -753,10 +753,14 @@ _HANDLERS: dict[tuple[str, str], Handler] = {
     ("2025.12", "2026.4"): _migrate_2025_12_to_2026_4,
     # Intermediate stops at 2026.5 (callers pinning Category 1 only).
     ("2026.4", "2026.5"): _migrate_2026_4_to_2026_5,
-    # Chains to the current schema (2026.5.dev4: Cat 1 snake_case sweep
+    # Chains to the current schema (2026.5.dev5: Cat 1 snake_case sweep
     # + Cat 5 STEBBS ext rename + Cat 2+3 ModelPhysics suffix drop
     # + gh#1334 STEBBS/Snow snake_case + gh#1334 follow-through hot-water
-    # prefix unification).
+    # prefix unification + gh#972 accept-only nested physics sub-options).
+    # The dev4 -> dev5 delta is accept-only (widening, no YAML rewrite),
+    # so that edge is an identity handler — presence in the registry is
+    # what grants dev4 compatibility under is_schema_compatible.
+    ("2026.5.dev4", CURRENT_SCHEMA_VERSION): _identity,
     ("2026.5.dev3", CURRENT_SCHEMA_VERSION): _migrate_2026_5_dev3_to_current,
     ("2026.5.dev2", CURRENT_SCHEMA_VERSION): _migrate_2026_5_dev2_to_current,
     ("2026.5.dev1", CURRENT_SCHEMA_VERSION): _migrate_2026_5_dev1_to_current,

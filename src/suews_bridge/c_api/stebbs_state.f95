@@ -21,19 +21,19 @@ integer(c_int), parameter, public :: SUEWS_CAPI_STEBBS_STATE_LEN = 155_c_int
 integer(c_int), parameter, public :: SUEWS_CAPI_STEBBS_STATE_SCHEMA_VERSION = 2_c_int
 
 type :: stebbs_state_shadow
-   real(c_double) :: kdown2d = 0.0_c_double
-   real(c_double) :: kup2d = 0.0_c_double
-   real(c_double) :: kwest = 0.0_c_double
-   real(c_double) :: ksouth = 0.0_c_double
-   real(c_double) :: knorth = 0.0_c_double
-   real(c_double) :: keast = 0.0_c_double
-   real(c_double) :: ldown2d = 0.0_c_double
-   real(c_double) :: lup2d = 0.0_c_double
-   real(c_double) :: lwest = 0.0_c_double
-   real(c_double) :: lsouth = 0.0_c_double
-   real(c_double) :: lnorth = 0.0_c_double
-   real(c_double) :: least = 0.0_c_double
-   real(c_double), dimension(30) :: zarray = -999.0_c_double
+   real(c_double) :: kdown_2d = 0.0_c_double
+   real(c_double) :: kup_2d = 0.0_c_double
+   real(c_double) :: k_west = 0.0_c_double
+   real(c_double) :: k_south = 0.0_c_double
+   real(c_double) :: k_north = 0.0_c_double
+   real(c_double) :: k_east = 0.0_c_double
+   real(c_double) :: ldown_2d = 0.0_c_double
+   real(c_double) :: lup_2d = 0.0_c_double
+   real(c_double) :: l_west = 0.0_c_double
+   real(c_double) :: l_south = 0.0_c_double
+   real(c_double) :: l_north = 0.0_c_double
+   real(c_double) :: l_east = 0.0_c_double
+   real(c_double), dimension(30) :: z_array = -999.0_c_double
    real(c_double), dimension(30) :: dataout_line_ursl = -999.0_c_double
    real(c_double), dimension(30) :: dataout_line_trsl = -999.0_c_double
    real(c_double), dimension(30) :: dataout_line_qrsl = -999.0_c_double
@@ -123,21 +123,21 @@ subroutine stebbs_state_pack(state, flat, n_flat, err)
 
    idx = 1_c_int
 
-   flat(idx) = state%kdown2d; idx = idx + 1_c_int
-   flat(idx) = state%kup2d; idx = idx + 1_c_int
-   flat(idx) = state%kwest; idx = idx + 1_c_int
-   flat(idx) = state%ksouth; idx = idx + 1_c_int
-   flat(idx) = state%knorth; idx = idx + 1_c_int
-   flat(idx) = state%keast; idx = idx + 1_c_int
-   flat(idx) = state%ldown2d; idx = idx + 1_c_int
-   flat(idx) = state%lup2d; idx = idx + 1_c_int
-   flat(idx) = state%lwest; idx = idx + 1_c_int
-   flat(idx) = state%lsouth; idx = idx + 1_c_int
-   flat(idx) = state%lnorth; idx = idx + 1_c_int
-   flat(idx) = state%least; idx = idx + 1_c_int
+   flat(idx) = state%kdown_2d; idx = idx + 1_c_int
+   flat(idx) = state%kup_2d; idx = idx + 1_c_int
+   flat(idx) = state%k_west; idx = idx + 1_c_int
+   flat(idx) = state%k_south; idx = idx + 1_c_int
+   flat(idx) = state%k_north; idx = idx + 1_c_int
+   flat(idx) = state%k_east; idx = idx + 1_c_int
+   flat(idx) = state%ldown_2d; idx = idx + 1_c_int
+   flat(idx) = state%lup_2d; idx = idx + 1_c_int
+   flat(idx) = state%l_west; idx = idx + 1_c_int
+   flat(idx) = state%l_south; idx = idx + 1_c_int
+   flat(idx) = state%l_north; idx = idx + 1_c_int
+   flat(idx) = state%l_east; idx = idx + 1_c_int
 
    do i = 1_c_int, SUEWS_CAPI_STEBBS_STATE_RSL_LEN
-      flat(idx) = state%zarray(i)
+      flat(idx) = state%z_array(i)
       idx = idx + 1_c_int
    end do
    do i = 1_c_int, SUEWS_CAPI_STEBBS_STATE_RSL_LEN
@@ -199,56 +199,56 @@ subroutine stebbs_state_unpack(flat, n_flat, state, err)
 
    idx = 1_c_int
 
-   state%kdown2d = flat(idx); idx = idx + 1_c_int
-   state%kup2d = flat(idx); idx = idx + 1_c_int
-   state%kwest = flat(idx); idx = idx + 1_c_int
-   state%ksouth = flat(idx); idx = idx + 1_c_int
-   state%knorth = flat(idx); idx = idx + 1_c_int
-   state%keast = flat(idx); idx = idx + 1_c_int
-   state%ldown2d = flat(idx); idx = idx + 1_c_int
-   state%lup2d = flat(idx); idx = idx + 1_c_int
-   state%lwest = flat(idx); idx = idx + 1_c_int
-   state%lsouth = flat(idx); idx = idx + 1_c_int
-   state%lnorth = flat(idx); idx = idx + 1_c_int
-   state%least = flat(idx); idx = idx + 1_c_int
+   state%kdown_2d = flat(idx); idx = idx + 1_c_int
+   state%kup_2d = flat(idx); idx = idx + 1_c_int
+   state%k_west = flat(idx); idx = idx + 1_c_int
+   state%k_south = flat(idx); idx = idx + 1_c_int
+   state%k_north = flat(idx); idx = idx + 1_c_int
+   state%k_east = flat(idx); idx = idx + 1_c_int
+   state%ldown_2d = flat(idx); idx = idx + 1_c_int
+   state%lup_2d = flat(idx); idx = idx + 1_c_int
+   state%l_west = flat(idx); idx = idx + 1_c_int
+   state%l_south = flat(idx); idx = idx + 1_c_int
+   state%l_north = flat(idx); idx = idx + 1_c_int
+   state%l_east = flat(idx); idx = idx + 1_c_int
 
    do i = 1_c_int, SUEWS_CAPI_STEBBS_STATE_RSL_LEN
-      state%zarray(i) = flat(idx)
+      state%z_array(i) = flat(idx)
       idx = idx + 1_c_int
    end do
    do i = 1_c_int, SUEWS_CAPI_STEBBS_STATE_RSL_LEN
-      state%dataoutlineursl(i) = flat(idx)
+      state%dataout_line_u_rsl(i) = flat(idx)
       idx = idx + 1_c_int
    end do
    do i = 1_c_int, SUEWS_CAPI_STEBBS_STATE_RSL_LEN
-      state%dataoutlinetrsl(i) = flat(idx)
+      state%dataout_line_t_rsl(i) = flat(idx)
       idx = idx + 1_c_int
    end do
    do i = 1_c_int, SUEWS_CAPI_STEBBS_STATE_RSL_LEN
-      state%dataoutlineqrsl(i) = flat(idx)
+      state%dataout_line_q_rsl(i) = flat(idx)
       idx = idx + 1_c_int
    end do
 
-   state%deepsoiltemperature = flat(idx); idx = idx + 1_c_int
+   state%deep_soil_temperature = flat(idx); idx = idx + 1_c_int
    state%monthmeanairtemperature_diffmax = flat(idx); idx = idx + 1_c_int
-   state%outdoorairstarttemperature = flat(idx); idx = idx + 1_c_int
-   state%indoorairstarttemperature = flat(idx); idx = idx + 1_c_int
-   state%indoormassstarttemperature = flat(idx); idx = idx + 1_c_int
-   state%wallindoorsurfacetemperature = flat(idx); idx = idx + 1_c_int
-   state%walloutdoorsurfacetemperature = flat(idx); idx = idx + 1_c_int
-   state%roofindoorsurfacetemperature = flat(idx); idx = idx + 1_c_int
-   state%roofoutdoorsurfacetemperature = flat(idx); idx = idx + 1_c_int
-   state%windowindoorsurfacetemperature = flat(idx); idx = idx + 1_c_int
-   state%windowoutdoorsurfacetemperature = flat(idx); idx = idx + 1_c_int
-   state%groundfloorindoorsurfacetemperature = flat(idx); idx = idx + 1_c_int
-   state%groundflooroutdoorsurfacetemperature = flat(idx); idx = idx + 1_c_int
-   state%watertanktemperature = flat(idx); idx = idx + 1_c_int
-   state%internalwallwatertanktemperature = flat(idx); idx = idx + 1_c_int
-   state%externalwallwatertanktemperature = flat(idx); idx = idx + 1_c_int
-   state%mainswatertemperature = flat(idx); idx = idx + 1_c_int
-   state%domestichotwatertemperatureinuseinbuilding = flat(idx); idx = idx + 1_c_int
-   state%internalwalldhwvesseltemperature = flat(idx); idx = idx + 1_c_int
-   state%externalwalldhwvesseltemperature = flat(idx); idx = idx + 1_c_int
+   state%outdoor_air_start_temperature = flat(idx); idx = idx + 1_c_int
+   state%indoor_air_start_temperature = flat(idx); idx = idx + 1_c_int
+   state%indoor_mass_start_temperature = flat(idx); idx = idx + 1_c_int
+   state%wall_indoor_surface_temperature = flat(idx); idx = idx + 1_c_int
+   state%wall_outdoor_surface_temperature = flat(idx); idx = idx + 1_c_int
+   state%roof_indoor_surface_temperature = flat(idx); idx = idx + 1_c_int
+   state%roof_outdoor_surface_temperature = flat(idx); idx = idx + 1_c_int
+   state%window_indoor_surface_temperature = flat(idx); idx = idx + 1_c_int
+   state%window_outdoor_surface_temperature = flat(idx); idx = idx + 1_c_int
+   state%ground_floor_indoor_surface_temperature = flat(idx); idx = idx + 1_c_int
+   state%ground_floor_outdoor_surface_temperature = flat(idx); idx = idx + 1_c_int
+   state%water_tank_temperature_state = flat(idx); idx = idx + 1_c_int
+   state%internal_wall_water_tank_temperature = flat(idx); idx = idx + 1_c_int
+   state%external_wall_water_tank_temperature = flat(idx); idx = idx + 1_c_int
+   state%mains_water_temperature = flat(idx); idx = idx + 1_c_int
+   state%domestic_hot_water_temperature_in_use_in_building = flat(idx); idx = idx + 1_c_int
+   state%internal_wall_dhw_vessel_temperature = flat(idx); idx = idx + 1_c_int
+   state%external_wall_dhw_vessel_temperature = flat(idx); idx = idx + 1_c_int
    state%qs_stebbs = flat(idx); idx = idx + 1_c_int
    state%iter_safe = flat(idx + 1_c_int)>=0.5_c_double
 

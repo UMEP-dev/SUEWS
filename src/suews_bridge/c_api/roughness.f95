@@ -20,9 +20,9 @@ integer(c_int), parameter, public :: SUEWS_CAPI_ROUGHNESS_STATE_LEN = 11_c_int
 integer(c_int), parameter, public :: SUEWS_CAPI_ROUGHNESS_STATE_SCHEMA_VERSION = 1_c_int
 
 type :: roughness_state_shadow
-   real(c_double) :: faibldg_use = 0.0_c_double
-   real(c_double) :: faievetree_use = 0.0_c_double
-   real(c_double) :: faidectree_use = 0.0_c_double
+   real(c_double) :: fai_bldg_use = 0.0_c_double
+   real(c_double) :: fai_evetree_use = 0.0_c_double
+   real(c_double) :: fai_dectree_use = 0.0_c_double
    real(c_double) :: fai = 0.0_c_double
    real(c_double) :: pai = 0.0_c_double
    real(c_double) :: zh = 0.0_c_double
@@ -89,9 +89,9 @@ subroutine roughness_state_pack(state, flat, n_flat, err)
       return
    end if
 
-   flat(1) = state%faibldg_use
-   flat(2) = state%faievetree_use
-   flat(3) = state%faidectree_use
+   flat(1) = state%fai_bldg_use
+   flat(2) = state%fai_evetree_use
+   flat(3) = state%fai_dectree_use
    flat(4) = state%fai
    flat(5) = state%pai
    flat(6) = state%zh
@@ -118,9 +118,9 @@ subroutine roughness_state_unpack(flat, n_flat, state, err)
       return
    end if
 
-   state%faibldg_use = flat(1)
-   state%faievetree_use = flat(2)
-   state%faidectree_use = flat(3)
+   state%fai_bldg_use = flat(1)
+   state%fai_evetree_use = flat(2)
+   state%fai_dectree_use = flat(3)
    state%fai = flat(4)
    state%pai = flat(5)
    state%zh = flat(6)

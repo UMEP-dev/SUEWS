@@ -264,6 +264,10 @@ class TestPydanticRegistryMirror:
         stebbs_legacy = set(ARCHETYPEPROPERTIES_RENAMES.keys()) | set(
             STEBBSPROPERTIES_RENAMES.keys()
         )
+        # gh#1326 Tier D Fortran-internal renames live in
+        # FORTRAN_INTERNAL_RENAMES, not ALL_FIELD_RENAMES, so no exclusion
+        # block is needed here — iterating ALL_FIELD_RENAMES already skips
+        # them.
         for legacy, new in ALL_FIELD_RENAMES.items():
             if legacy in stebbs_legacy:
                 # STEBBS (Archetype + StebbsProperties) lowercases its

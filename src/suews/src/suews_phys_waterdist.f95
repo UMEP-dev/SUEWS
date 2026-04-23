@@ -841,21 +841,21 @@ CONTAINS
             grassPrm => siteInfo%lc_grass, &
             bsoilPrm => siteInfo%lc_bsoil, &
             waterPrm => siteInfo%lc_water, &
-            SoilMoistCap => hydroState%SoilMoistCap, &
-            SoilState => hydroState%SoilState, &
+            SoilMoistCap => hydroState%soil_moist_cap, &
+            SoilState => hydroState%soil_state, &
             vsmd => hydroState%vsmd, &
             smd => hydroState%smd)
 
-            soilstore_surf = hydroState%soilstore_surf
+            soilstore_surf = hydroState%soil_store_surf
 
             ! sfr_surf = [pavedPrm%sfr, bldgPrm%sfr, evetrPrm%sfr, dectrPrm%sfr, grassPrm%sfr, bsoilPrm%sfr, waterPrm%sfr]
-            SoilStoreCap(1) = pavedPrm%soil%soilstorecap
-            SoilStoreCap(2) = bldgPrm%soil%soilstorecap
-            SoilStoreCap(3) = evetrPrm%soil%soilstorecap
-            SoilStoreCap(4) = dectrPrm%soil%soilstorecap
-            SoilStoreCap(5) = grassPrm%soil%soilstorecap
-            SoilStoreCap(6) = bsoilPrm%soil%soilstorecap
-            SoilStoreCap(7) = waterPrm%soil%soilstorecap
+            SoilStoreCap(1) = pavedPrm%soil%soil_store_capacity
+            SoilStoreCap(2) = bldgPrm%soil%soil_store_capacity
+            SoilStoreCap(3) = evetrPrm%soil%soil_store_capacity
+            SoilStoreCap(4) = dectrPrm%soil%soil_store_capacity
+            SoilStoreCap(5) = grassPrm%soil%soil_store_capacity
+            SoilStoreCap(6) = bsoilPrm%soil%soil_store_capacity
+            SoilStoreCap(7) = waterPrm%soil%soil_store_capacity
 
             SoilMoistCap = 0 !Maximum capacity of soil store [mm] for whole surface
             SoilState = 0 !Area-averaged soil moisture [mm] for whole surface
@@ -990,7 +990,7 @@ CONTAINS
       )
       !Transfers water in soil stores of land surfaces LJ (2010)
       !Change the model to use varying hydraulic conductivity instead of constant value LJ (7/2011)
-      !If one of the surface's soildepth is zero, no water movement is considered
+      !If one of the surface's soil_depth is zero, no water movement is considered
       ! LJ  15/06/2017 Modification:   - Moved location of runoffSoil_per_tstep within previous if-loop to avoid dividing with zero with 100% water surface
       ! HCW 22/02/2017 Modifications:  - Minor bug fixed in VWC1/B_r1 comparison - if statements reversed
       ! HCW 13/08/2014 Modifications:  - Order of surfaces reversed (for both is and jj loops)
@@ -1210,7 +1210,7 @@ CONTAINS
 
       !Transfers water in soil stores of land surfaces LJ (2010)
       !Change the model to use varying hydraulic conductivity instead of constant value LJ (7/2011)
-      !If one of the surface's soildepth is zero, no water movement is considered
+      !If one of the surface's soil_depth is zero, no water movement is considered
       ! LJ  15/06/2017 Modification:   - Moved location of runoffSoil_per_tstep within previous if-loop to avoid dividing with zero with 100% water surface
       ! HCW 22/02/2017 Modifications:  - Minor bug fixed in VWC1/B_r1 comparison - if statements reversed
       ! HCW 13/08/2014 Modifications:  - Order of surfaces reversed (for both is and jj loops)
@@ -1285,42 +1285,42 @@ CONTAINS
          snowPrm => siteInfo%snow, &
          PipeCapacity => siteInfo%PipeCapacity, &
          RunoffToWater => siteInfo%RunoffToWater, &
-         FlowChange => siteInfo%FlowChange, &
+         FlowChange => siteInfo%flow_change, &
          PervFraction => siteInfo%PervFraction, &
          vegfraction => siteInfo%vegfraction, &
          NonWaterFraction => siteInfo%NonWaterFraction, &
          tstep_real => timer%tstep_real, &
-         soilstore_surf => hydroState%soilstore_surf, &
-         runoffSoil_surf => hydroState%runoffSoil, &
-         runoffSoil_per_tstep => hydroState%runoffSoil_per_tstep, &
+         soilstore_surf => hydroState%soil_store_surf, &
+         runoffSoil_surf => hydroState%runoff_soil, &
+         runoffSoil_per_tstep => hydroState%runoff_soil_per_tstep, &
          Diagnose => config%Diagnose &
          )
          runoffSoil_surf = 0
          runoffSoil_per_tstep = 0
 
-         SoilStoreCap_surf(1) = pavedPrm%soil%soilstorecap
-         SoilStoreCap_surf(2) = bldgPrm%soil%soilstorecap
-         SoilStoreCap_surf(3) = evetrPrm%soil%soilstorecap
-         SoilStoreCap_surf(4) = dectrPrm%soil%soilstorecap
-         SoilStoreCap_surf(5) = grassPrm%soil%soilstorecap
-         SoilStoreCap_surf(6) = bsoilPrm%soil%soilstorecap
-         SoilStoreCap_surf(7) = waterPrm%soil%soilstorecap
+         SoilStoreCap_surf(1) = pavedPrm%soil%soil_store_capacity
+         SoilStoreCap_surf(2) = bldgPrm%soil%soil_store_capacity
+         SoilStoreCap_surf(3) = evetrPrm%soil%soil_store_capacity
+         SoilStoreCap_surf(4) = dectrPrm%soil%soil_store_capacity
+         SoilStoreCap_surf(5) = grassPrm%soil%soil_store_capacity
+         SoilStoreCap_surf(6) = bsoilPrm%soil%soil_store_capacity
+         SoilStoreCap_surf(7) = waterPrm%soil%soil_store_capacity
 
-         SoilDepth_surf(1) = pavedPrm%soil%soildepth
-         SoilDepth_surf(2) = bldgPrm%soil%soildepth
-         SoilDepth_surf(3) = evetrPrm%soil%soildepth
-         SoilDepth_surf(4) = dectrPrm%soil%soildepth
-         SoilDepth_surf(5) = grassPrm%soil%soildepth
-         SoilDepth_surf(6) = bsoilPrm%soil%soildepth
-         SoilDepth_surf(7) = waterPrm%soil%soildepth
+         SoilDepth_surf(1) = pavedPrm%soil%soil_depth
+         SoilDepth_surf(2) = bldgPrm%soil%soil_depth
+         SoilDepth_surf(3) = evetrPrm%soil%soil_depth
+         SoilDepth_surf(4) = dectrPrm%soil%soil_depth
+         SoilDepth_surf(5) = grassPrm%soil%soil_depth
+         SoilDepth_surf(6) = bsoilPrm%soil%soil_depth
+         SoilDepth_surf(7) = waterPrm%soil%soil_depth
 
-         SatHydraulicConduct_surf(1) = pavedPrm%soil%sathydraulicconduct
-         SatHydraulicConduct_surf(2) = bldgPrm%soil%sathydraulicconduct
-         SatHydraulicConduct_surf(3) = evetrPrm%soil%sathydraulicconduct
-         SatHydraulicConduct_surf(4) = dectrPrm%soil%sathydraulicconduct
-         SatHydraulicConduct_surf(5) = grassPrm%soil%sathydraulicconduct
-         SatHydraulicConduct_surf(6) = bsoilPrm%soil%sathydraulicconduct
-         SatHydraulicConduct_surf(7) = waterPrm%soil%sathydraulicconduct
+         SatHydraulicConduct_surf(1) = pavedPrm%soil%saturated_hydraulic_conductivity
+         SatHydraulicConduct_surf(2) = bldgPrm%soil%saturated_hydraulic_conductivity
+         SatHydraulicConduct_surf(3) = evetrPrm%soil%saturated_hydraulic_conductivity
+         SatHydraulicConduct_surf(4) = dectrPrm%soil%saturated_hydraulic_conductivity
+         SatHydraulicConduct_surf(5) = grassPrm%soil%saturated_hydraulic_conductivity
+         SatHydraulicConduct_surf(6) = bsoilPrm%soil%saturated_hydraulic_conductivity
+         SatHydraulicConduct_surf(7) = waterPrm%soil%saturated_hydraulic_conductivity
 
          CALL SUEWS_cal_HorizontalSoilWater( &
             sfr_surf, & ! input: ! surface fractions
@@ -1462,9 +1462,9 @@ CONTAINS
 
                ! Irrigated Fraction of each surface
                ! TS: 20200409, add irrigation fractions for all surfaces
-               IrrFrac = [pavedPrm%IrrFracPaved, bldgPrm%IrrFracBldgs, &
-                          evetrPrm%IrrFracEveTr, dectrPrm%IrrFracDecTr, grassPrm%IrrFracGrass, &
-                          bsoilPrm%IrrFracBSoil, waterPrm%IrrFracWater]
+               IrrFrac = [pavedPrm%irrigation_fraction_paved, bldgPrm%irrigation_fraction_bldgs, &
+                          evetrPrm%irrigation_fraction_evetr, dectrPrm%irrigation_fraction_dectr, grassPrm%irrigation_fraction_grass, &
+                          bsoilPrm%irrigation_fraction_bsoil, waterPrm%irrigation_fraction_water]
 
                ! --------------------------------------------------------------------------------
                ! If water used is observed and provided in the met forcing file, units are m3

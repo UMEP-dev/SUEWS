@@ -12,6 +12,7 @@ from .field_renames import (
     MODELPHYSICS_SUFFIX_RENAMES,
     apply_field_renames,
 )
+from .physics_families import PHYSICS_FAMILIES, coerce_nested_to_flat
 
 
 def _enum_description(enum_class: type[Enum]) -> str:
@@ -684,6 +685,14 @@ class ModelPhysics(BaseModel):
             values = apply_field_renames(values, MODELPHYSICS_RENAMES, cls.__name__)
             values = apply_field_renames(values, MODELPHYSICS_SUFFIX_RENAMES, cls.__name__)
         return values
+
+    @field_validator(*PHYSICS_FAMILIES.keys(), mode="before")
+    @classmethod
+    def _coerce_nested_physics(cls, value, info):
+        # Widens accepted input: `{family: {value: N}}` collapses to the
+        # flat `{value: N}` shape before the FlexibleRefValue union resolves.
+        # Family tag is a validation gate — see physics_families.py (gh#972).
+        return coerce_nested_to_flat(info.field_name, value)
 
     net_radiation: FlexibleRefValue(NetRadiationMethod) = Field(
         default=NetRadiationMethod.LDOWN_AIR,

@@ -29,9 +29,8 @@ class TestRegistryShape:
 
     def test_emissions_families(self):
         fams = PHYSICS_FAMILIES["emissions"]
-        assert set(fams) == {
-            "observed", "simple", "biogen_rect", "biogen_nrect", "biogen_cond",
-        }
+        assert set(fams) == {"observed", "simple"}
+        assert fams["simple"] == frozenset({1, 2, 3, 4, 5})
 
     def test_families_disjoint(self):
         for field_name, fams in PHYSICS_FAMILIES.items():
@@ -95,10 +94,10 @@ class TestCoerceNestedHappyPath:
             "storage_heat", {"ehc": {"value": 5}}
         ) == {"value": 5}
 
-    def test_emissions_biogen_cond(self):
+    def test_emissions_simple_j11(self):
         assert coerce_nested_to_flat(
-            "emissions", {"biogen_cond": {"value": 43}}
-        ) == {"value": 43}
+            "emissions", {"simple": {"value": 2}}
+        ) == {"value": 2}
 
 
 class TestCoerceErrorPaths:

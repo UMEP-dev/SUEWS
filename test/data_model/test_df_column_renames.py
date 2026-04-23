@@ -36,6 +36,7 @@ from supy.data_model.core.df_column_renames import (
     LAIPARAMS_DF_RENAMES,
     MODELPHYSICS_DF_RENAMES,
     SNOWPARAMS_DF_RENAMES,
+    STEBBSPROPERTIES_DF_RENAMES,
     SURFACEPROPERTIES_DF_RENAMES,
     VEGETATEDSURFACEPROPERTIES_DF_RENAMES,
     read_df_column,
@@ -68,6 +69,7 @@ class TestRegistryIntegrity:
             + len(EVETRPROPERTIES_DF_RENAMES)
             + len(DECTRPROPERTIES_DF_RENAMES)
             + len(ARCHETYPEPROPERTIES_DF_RENAMES)
+            + len(STEBBSPROPERTIES_DF_RENAMES)
             + len(SNOWPARAMS_DF_RENAMES)
         )
         assert len(ALL_DF_COLUMN_RENAMES) == expected
@@ -109,8 +111,10 @@ class TestArchetypePropertiesLowercasing:
     mirrors that casing so the helper works against real DataFrames."""
 
     def test_wall_external_thickness_lowercased(self):
+        # gh#1334 target is snake_case (wall_external_thickness);
+        # lowercasing the Pydantic attribute preserves the underscores.
         assert ARCHETYPEPROPERTIES_DF_RENAMES["wallextthickness"] == (
-            "wallexternalthickness"
+            "wall_external_thickness"
         )
 
     def test_all_keys_and_values_lowercase(self):
@@ -193,7 +197,13 @@ class TestRustBridgeAlignment:
 
     def test_every_non_stebbs_legacy_column_listed_in_rust(self):
         rust_text = _rust_field_renames_text()
-        stebbs_legacy = set(ARCHETYPEPROPERTIES_DF_RENAMES.keys())
+        # Both ArchetypeProperties and StebbsProperties DF columns use the
+        # lowercased-PascalCase pattern; the Rust table keeps the
+        # PascalCase Pydantic spelling, so both are covered by the
+        # STEBBS-specific check below.
+        stebbs_legacy = set(ARCHETYPEPROPERTIES_DF_RENAMES.keys()) | set(
+            STEBBSPROPERTIES_DF_RENAMES.keys()
+        )
         missing = []
         for legacy in ALL_DF_COLUMN_RENAMES.keys():
             if legacy in stebbs_legacy:
@@ -248,12 +258,16 @@ class TestPydanticRegistryMirror:
     def test_non_stebbs_df_renames_match_field_renames(self):
         from supy.data_model.core.field_renames import (
             ARCHETYPEPROPERTIES_RENAMES,
+            STEBBSPROPERTIES_RENAMES,
         )
 
-        stebbs_legacy = set(ARCHETYPEPROPERTIES_RENAMES.keys())
+        stebbs_legacy = set(ARCHETYPEPROPERTIES_RENAMES.keys()) | set(
+            STEBBSPROPERTIES_RENAMES.keys()
+        )
         for legacy, new in ALL_FIELD_RENAMES.items():
             if legacy in stebbs_legacy:
-                # STEBBS is the lowercased exception, covered by its own test.
+                # STEBBS (Archetype + StebbsProperties) lowercases its
+                # DF columns and is covered by a dedicated test.
                 continue
             assert ALL_DF_COLUMN_RENAMES.get(legacy) == new, (
                 f"Pydantic rename {legacy!r} -> {new!r} missing or divergent "

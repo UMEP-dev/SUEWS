@@ -10,6 +10,8 @@ from pydantic import ValidationError
 
 from supy.data_model.core.model import ModelPhysics, NetRadiationMethod
 
+pytestmark = pytest.mark.api
+
 
 _FIXTURES = Path(__file__).parent.parent / "fixtures" / "nested_physics"
 

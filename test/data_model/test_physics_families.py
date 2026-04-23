@@ -9,6 +9,8 @@ from supy.data_model.core.physics_families import (
     coerce_nested_to_flat,
 )
 
+pytestmark = pytest.mark.api
+
 
 class TestRegistryShape:
     def test_exemplar_fields_present(self):

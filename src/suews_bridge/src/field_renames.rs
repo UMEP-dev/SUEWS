@@ -31,17 +31,19 @@ use serde_yaml::Value;
 
 /// Ordered list of `(new_name, old_name)` pairs.
 ///
-/// Grouped to match the Python registry sections in
-/// `src/supy/data_model/core/field_renames.py`. Each pair maps the
-/// current final name to its legacy fused spelling (what the Fortran
-/// state is keyed by).
-/// Total: ~100 pairs (expanded for gh#1334 STEBBS + Snow snake_case sweep).
+/// Mirrors `ALL_FIELD_RENAMES` in
+/// `src/supy/data_model/core/field_renames.py` one-to-one, by section.
+/// Every pair maps the current final snake_case name to the legacy
+/// spelling the Pydantic shim accepts (case-preserving — what users
+/// wrote in legacy YAMLs). The preprocessor's downstream
+/// `normalise_field_name` then lowercases/fuses before the hand-written
+/// parser reads the Fortran-indexed key.
+/// Total: 177 pairs (gh#1334 full STEBBS + Snow snake_case sweep).
 pub const FIELD_RENAMES: &[(&str, &str)] = &[
     // ModelPhysics (17) — fused -> final (Cat 2+3, gh#1321) + flags
     ("net_radiation", "netradiationmethod"),
     ("emissions", "emissionsmethod"),
     ("storage_heat", "storageheatmethod"),
-    ("ohm_inc_qf", "ohmincqf"),
     ("roughness_length_momentum", "roughlenmommethod"),
     ("roughness_length_heat", "roughlenheatmethod"),
     ("stability", "stabilitymethod"),
@@ -51,10 +53,11 @@ pub const FIELD_RENAMES: &[(&str, &str)] = &[
     ("frontal_area_index", "faimethod"),
     ("roughness_sublayer_level", "rsllevel"),
     ("surface_conductance", "gsmodel"),
-    ("snow_use", "snowuse"),
     ("stebbs", "stebbsmethod"),
     ("outer_cap_fraction", "rcmethod"),
     ("setpoint", "setpointmethod"),
+    ("ohm_inc_qf", "ohmincqf"),
+    ("snow_use", "snowuse"),
     // SurfaceProperties (11)
     ("soil_depth", "soildepth"),
     ("soil_store_capacity", "soilstorecap"),
@@ -91,49 +94,129 @@ pub const FIELD_RENAMES: &[(&str, &str)] = &[
     ("porosity_max_deciduous", "pormax_dec"),
     ("capacity_max_deciduous", "capmax_dec"),
     ("capacity_min_deciduous", "capmin_dec"),
-    // ArchetypeProperties — gh#1334 expansion renames where the compact
-    // strip-underscores match against the Rust struct field fails. The new
-    // snake_case name must be rewritten to the legacy Rust field name
-    // before the yaml_config parser runs. Fields whose new name compact-
-    // matches directly (e.g. `wall_thickness` -> `wallthickness`) are not
-    // listed — `set_mapped_value` resolves them automatically.
-    //
-    // External (Wallext / Roofext) cluster from gh#1327 — the new name
-    // jumped straight to snake_case under gh#1334 (skipping the Cat 5
-    // PascalCase intermediate); the compat aliases section below keeps
-    // the PascalCase intermediate loading for users on Schema 2026.5.dev1.
-    ("wall_external_thickness", "wallextthickness"),
-    ("wall_external_effective_conductivity", "wallexteffectiveconductivity"),
-    ("wall_external_density", "wallextdensity"),
-    ("wall_external_specific_heat_capacity", "wallextcp"),
-    ("roof_external_thickness", "roofextthickness"),
-    ("roof_external_effective_conductivity", "roofexteffectiveconductivity"),
-    ("roof_external_density", "roofextdensity"),
-    ("roof_external_specific_heat_capacity", "roofextcp"),
-    // Archetype abbreviation expansions (Cp -> specific_heat_capacity,
-    // Cap -> heat_capacity, Frac -> fraction, WWR / Ratio / stebbs_Height /
-    // FloorThickness semantic renames, Absorbtivity spelling fix)
-    ("wall_specific_heat_capacity", "wallcp"),
-    ("roof_specific_heat_capacity", "roofcp"),
-    ("window_specific_heat_capacity", "windowcp"),
-    ("internal_mass_specific_heat_capacity", "internalmasscp"),
-    ("ground_floor_specific_heat_capacity", "groundfloorcp"),
-    ("wall_outer_heat_capacity_fraction", "walloutercapfrac"),
-    ("roof_outer_heat_capacity_fraction", "roofoutercapfrac"),
-    ("window_to_wall_ratio", "wwr"),
-    ("internal_volume_ratio", "ratiointernalvolume"),
-    ("building_height", "stebbs_height"),
-    ("ground_floor_thickness", "floorthickness"),
-    ("wall_absorptivity", "wallabsorbtivity"),
-    ("roof_absorptivity", "roofabsorbtivity"),
-    ("window_absorptivity", "windowabsorbtivity"),
-    // SnowParams — legacy fused -> gh#1334 final snake_case.
-    //
-    // Six entries retarget from the 2026.5 intermediate to the #1334
-    // final (preciplimit -> temperature_rain_snow_threshold etc.); five
-    // new entries are for fields whose 2026.5 shape had no fused
-    // predecessor (tau_a, narp_emis_snow, etc.) — the "legacy" name is
-    // what the Fortran bridge still reads.
+    // ArchetypeProperties (62) — gh#1334 snake_case targets mapped back to
+    // the user's legacy YAML spelling. Pre-gh#1327 fused Wallext/Roofext
+    // cluster is preserved here; the gh#1329 PascalCase intermediate
+    // (WallExternalThickness etc.) lives in FIELD_COMPAT_ALIASES below.
+    ("wall_external_thickness", "WallextThickness"),
+    ("wall_external_effective_conductivity", "WallextEffectiveConductivity"),
+    ("wall_external_density", "WallextDensity"),
+    ("wall_external_specific_heat_capacity", "WallextCp"),
+    ("roof_external_thickness", "RoofextThickness"),
+    ("roof_external_effective_conductivity", "RoofextEffectiveConductivity"),
+    ("roof_external_density", "RoofextDensity"),
+    ("roof_external_specific_heat_capacity", "RoofextCp"),
+    ("building_type", "BuildingType"),
+    ("building_name", "BuildingName"),
+    ("building_count", "BuildingCount"),
+    ("occupants", "Occupants"),
+    ("building_height", "stebbs_Height"),
+    ("footprint_area", "FootprintArea"),
+    ("wall_external_area", "WallExternalArea"),
+    ("internal_volume_ratio", "RatioInternalVolume"),
+    ("internal_mass_area", "InternalMassArea"),
+    ("window_to_wall_ratio", "WWR"),
+    ("wall_thickness", "WallThickness"),
+    ("wall_effective_conductivity", "WallEffectiveConductivity"),
+    ("wall_density", "WallDensity"),
+    ("wall_specific_heat_capacity", "WallCp"),
+    ("wall_outer_heat_capacity_fraction", "WallOuterCapFrac"),
+    ("wall_external_emissivity", "WallExternalEmissivity"),
+    ("wall_internal_emissivity", "WallInternalEmissivity"),
+    ("wall_transmissivity", "WallTransmissivity"),
+    ("wall_absorptivity", "WallAbsorbtivity"),
+    ("wall_reflectivity", "WallReflectivity"),
+    ("roof_thickness", "RoofThickness"),
+    ("roof_effective_conductivity", "RoofEffectiveConductivity"),
+    ("roof_density", "RoofDensity"),
+    ("roof_specific_heat_capacity", "RoofCp"),
+    ("roof_outer_heat_capacity_fraction", "RoofOuterCapFrac"),
+    ("roof_external_emissivity", "RoofExternalEmissivity"),
+    ("roof_internal_emissivity", "RoofInternalEmissivity"),
+    ("roof_transmissivity", "RoofTransmissivity"),
+    ("roof_absorptivity", "RoofAbsorbtivity"),
+    ("roof_reflectivity", "RoofReflectivity"),
+    ("ground_floor_thickness", "FloorThickness"),
+    ("ground_floor_effective_conductivity", "GroundFloorEffectiveConductivity"),
+    ("ground_floor_density", "GroundFloorDensity"),
+    ("ground_floor_specific_heat_capacity", "GroundFloorCp"),
+    ("window_thickness", "WindowThickness"),
+    ("window_effective_conductivity", "WindowEffectiveConductivity"),
+    ("window_density", "WindowDensity"),
+    ("window_specific_heat_capacity", "WindowCp"),
+    ("window_external_emissivity", "WindowExternalEmissivity"),
+    ("window_internal_emissivity", "WindowInternalEmissivity"),
+    ("window_transmissivity", "WindowTransmissivity"),
+    ("window_absorptivity", "WindowAbsorbtivity"),
+    ("window_reflectivity", "WindowReflectivity"),
+    ("internal_mass_density", "InternalMassDensity"),
+    ("internal_mass_specific_heat_capacity", "InternalMassCp"),
+    ("internal_mass_emissivity", "InternalMassEmissivity"),
+    ("max_heating_power", "MaxHeatingPower"),
+    ("water_tank_water_volume", "WaterTankWaterVolume"),
+    ("maximum_hot_water_heating_power", "MaximumHotWaterHeatingPower"),
+    ("heating_setpoint_temperature", "HeatingSetpointTemperature"),
+    ("cooling_setpoint_temperature", "CoolingSetpointTemperature"),
+    ("heating_setpoint_temperature_profile", "HeatingSetpointTemperatureProfile"),
+    ("cooling_setpoint_temperature_profile", "CoolingSetpointTemperatureProfile"),
+    ("metabolism_profile", "MetabolismProfile"),
+    // StebbsProperties (50) — PascalCase was the sole legacy form for the
+    // full STEBBS surface pre-gh#1334.
+    ("wall_internal_convection_coefficient", "WallInternalConvectionCoefficient"),
+    ("roof_internal_convection_coefficient", "RoofInternalConvectionCoefficient"),
+    ("internal_mass_convection_coefficient", "InternalMassConvectionCoefficient"),
+    ("floor_internal_convection_coefficient", "FloorInternalConvectionCoefficient"),
+    ("window_internal_convection_coefficient", "WindowInternalConvectionCoefficient"),
+    ("wall_external_convection_coefficient", "WallExternalConvectionCoefficient"),
+    ("roof_external_convection_coefficient", "RoofExternalConvectionCoefficient"),
+    ("window_external_convection_coefficient", "WindowExternalConvectionCoefficient"),
+    ("ground_depth", "GroundDepth"),
+    ("external_ground_conductivity", "ExternalGroundConductivity"),
+    ("month_mean_air_temperature_diffmax", "MonthMeanAirTemperature_diffmax"),
+    ("annual_mean_air_temperature", "AnnualMeanAirTemperature"),
+    ("metabolism_threshold", "MetabolismThreshold"),
+    ("latent_sensible_ratio", "LatentSensibleRatio"),
+    ("daylight_control", "DaylightControl"),
+    ("lighting_illuminance_threshold", "LightingIlluminanceThreshold"),
+    ("heating_system_efficiency", "HeatingSystemEfficiency"),
+    ("max_cooling_power", "MaxCoolingPower"),
+    ("cooling_system_cop", "CoolingSystemCOP"),
+    ("ventilation_rate", "VentilationRate"),
+    ("initial_outdoor_temperature", "InitialOutdoorTemperature"),
+    ("initial_indoor_temperature", "InitialIndoorTemperature"),
+    ("water_tank_wall_thickness", "WaterTankWallThickness"),
+    ("mains_water_temperature", "MainsWaterTemperature"),
+    ("water_tank_surface_area", "WaterTankSurfaceArea"),
+    ("hot_water_heating_setpoint_temperature", "HotWaterHeatingSetpointTemperature"),
+    ("hot_water_tank_wall_emissivity", "HotWaterTankWallEmissivity"),
+    ("dhw_vessel_wall_thickness", "DHWVesselWallThickness"),
+    ("dhw_water_volume", "DHWWaterVolume"),
+    ("dhw_surface_area", "DHWSurfaceArea"),
+    ("hot_water_flow_rate", "HotWaterFlowRate"),
+    ("hot_water_flow_profile", "HotWaterFlowProfile"),
+    ("dhw_specific_heat_capacity", "DHWSpecificHeatCapacity"),
+    ("hot_water_tank_specific_heat_capacity", "HotWaterTankSpecificHeatCapacity"),
+    ("dhw_vessel_specific_heat_capacity", "DHWVesselSpecificHeatCapacity"),
+    ("dhw_density", "DHWDensity"),
+    ("hot_water_tank_wall_density", "HotWaterTankWallDensity"),
+    ("dhw_vessel_density", "DHWVesselDensity"),
+    ("hot_water_tank_building_wall_view_factor", "HotWaterTankBuildingWallViewFactor"),
+    ("hot_water_tank_internal_mass_view_factor", "HotWaterTankInternalMassViewFactor"),
+    ("hot_water_tank_wall_conductivity", "HotWaterTankWallConductivity"),
+    ("hot_water_tank_internal_wall_convection_coefficient", "HotWaterTankInternalWallConvectionCoefficient"),
+    ("hot_water_tank_external_wall_convection_coefficient", "HotWaterTankExternalWallConvectionCoefficient"),
+    ("dhw_vessel_wall_conductivity", "DHWVesselWallConductivity"),
+    ("dhw_vessel_internal_wall_convection_coefficient", "DHWVesselInternalWallConvectionCoefficient"),
+    ("dhw_vessel_external_wall_convection_coefficient", "DHWVesselExternalWallConvectionCoefficient"),
+    ("dhw_vessel_wall_emissivity", "DHWVesselWallEmissivity"),
+    ("hot_water_heating_efficiency", "HotWaterHeatingEfficiency"),
+    ("appliance_profile", "ApplianceProfile"),
+    ("lighting_power_density", "LightingPowerDensity"),
+    // SnowParams (17) — six entries retarget from the 2026.5 intermediate
+    // (preciplimit -> temperature_rain_snow_threshold etc.); five new
+    // entries are for fields whose 2026.5 shape had no fused predecessor
+    // (tau_a, narp_emis_snow, etc.) — the "legacy" name is what the
+    // Fortran bridge still reads.
     ("water_holding_capacity_max", "crwmax"),
     ("water_holding_capacity_min", "crwmin"),
     ("temperature_rain_snow_threshold", "preciplimit"),
@@ -290,7 +373,7 @@ mod tests {
     fn field_renames_registry_has_expected_size() {
         // Matches the Python ALL_FIELD_RENAMES total (see field_renames.py).
         // Bump when ModelPhysics / SurfaceProperties / ... dicts change.
-        assert_eq!(FIELD_RENAMES.len(), 68);
+        assert_eq!(FIELD_RENAMES.len(), 177);
     }
 
     #[test]

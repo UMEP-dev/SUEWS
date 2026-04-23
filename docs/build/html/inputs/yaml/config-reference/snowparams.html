@@ -10,7 +10,7 @@
 <meta content="SUEWS YAML configuration for snow parameters" name="description" />
 <meta content="SUEWS, YAML, snowparams, parameters, configuration" name="keywords" />
 
-    <title>4.3.43. Snow &#8212; SUEWS 2026.4.23.dev9006 documentation</title>
+    <title>4.3.43. Snow &#8212; SUEWS 2026.4.23.dev9009 documentation</title>
   
   
   
@@ -46,7 +46,7 @@
   <link rel="preload" as="script" href="../../../_static/scripts/bootstrap.js?digest=8878045cc6db502f8baf" />
 <link rel="preload" as="script" href="../../../_static/scripts/pydata-sphinx-theme.js?digest=8878045cc6db502f8baf" />
 
-    <script src="../../../_static/documentation_options.js?v=0fb9ed37"></script>
+    <script src="../../../_static/documentation_options.js?v=451f6cc9"></script>
     <script src="../../../_static/doctools.js?v=9bcbadda"></script>
     <script src="../../../_static/sphinx_highlight.js?v=dc90522c"></script>
     <script src="../../../_static/scripts/sphinx-book-theme.js?v=fab101a9"></script>
@@ -60,7 +60,7 @@
     <link rel="prev" title="4.3.42. Site Properties" href="siteproperties.html" />
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
-  <meta name="docsearch:version" content="2026.4.23.dev9006" />
+  <meta name="docsearch:version" content="2026.4.23.dev9009" />
   </head>
   
   
@@ -102,7 +102,7 @@
   <div class="bd-header-announcement__content">
     <div style="background-color: #f0ad4e; border: 1px solid #eea236; border-radius: 4px; padding: 10px; margin: 10px 0;">
         <strong>⚠️ Development Version:</strong> This documentation was built from a development version
-        (2026.4.23.dev9006, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/602adcf047fbea2fa6a05664c04774c7557bc591" style="color: #31708f;">602adcf</a>).
+        (2026.4.23.dev9009, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/57402eee220ecfb9b9527789b44403109efc18f6" style="color: #31708f;">57402ee</a>).
         Features described here may be unstable or subject to change. For stable documentation, please visit the
         <a href="https://docs.suews.io/stable/" style="color: #31708f;">latest release</a>.
     </div>
@@ -149,8 +149,8 @@
       
     
     
-    <img src="../../../_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.4.23.dev9006 documentation - Home"/>
-    <img src="../../../_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.4.23.dev9006 documentation - Home"/>
+    <img src="../../../_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.4.23.dev9009 documentation - Home"/>
+    <img src="../../../_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.4.23.dev9009 documentation - Home"/>
   
   
 </a></div>
@@ -570,23 +570,23 @@
 </dd></dl>
 
 <dl class="input option" id="index-3">
-<dt class="sig sig-object input" id="input-option-narp_emis_snow">
-<span class="sig-name descname"><span class="pre">narp_emis_snow</span></span><a class="headerlink" href="#input-option-narp_emis_snow" title="Link to this definition">#</a></dt>
-<dd><p>Snow surface emissivity</p>
+<dt class="sig sig-object input" id="input-option-narp_emissivity_snow">
+<span class="sig-name descname"><span class="pre">narp_emissivity_snow</span></span><a class="headerlink" href="#input-option-narp_emissivity_snow" title="Link to this definition">#</a></dt>
+<dd><p>Snow surface emissivity used in the NARP net all-wave radiation scheme</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
 <dd class="field-odd"><p>dimensionless</p>
 </dd>
-<dt class="field-even">Default<span class="colon">:</span></dt>
+<dt class="field-even">Example<span class="colon">:</span></dt>
 <dd class="field-even"><p><code class="docutils literal notranslate"><span class="pre">0.99</span></code></p>
 </dd>
 </dl>
 </dd></dl>
 
 <dl class="input option" id="index-4">
-<dt class="sig sig-object input" id="input-option-precip_limit">
-<span class="sig-name descname"><span class="pre">precip_limit</span></span><a class="headerlink" href="#input-option-precip_limit" title="Link to this definition">#</a></dt>
-<dd><p>Temperature threshold for snow vs rain precipitation</p>
+<dt class="sig sig-object input" id="input-option-temperature_rain_snow_threshold">
+<span class="sig-name descname"><span class="pre">temperature_rain_snow_threshold</span></span><a class="headerlink" href="#input-option-temperature_rain_snow_threshold" title="Link to this definition">#</a></dt>
+<dd><p>Temperature threshold below which precipitation falls as snow rather than rain</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
 <dd class="field-odd"><p>degC</p>
@@ -598,9 +598,9 @@
 </dd></dl>
 
 <dl class="input option" id="index-5">
-<dt class="sig sig-object input" id="input-option-precip_limit_albedo">
-<span class="sig-name descname"><span class="pre">precip_limit_albedo</span></span><a class="headerlink" href="#input-option-precip_limit_albedo" title="Link to this definition">#</a></dt>
-<dd><p>Precipitation threshold for snow albedo aging</p>
+<dt class="sig sig-object input" id="input-option-precipitation_threshold_albedo_reset">
+<span class="sig-name descname"><span class="pre">precipitation_threshold_albedo_reset</span></span><a class="headerlink" href="#input-option-precipitation_threshold_albedo_reset" title="Link to this definition">#</a></dt>
+<dd><p>Precipitation threshold above which snow albedo resets (cf. aging)</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
 <dd class="field-odd"><p>mm</p>
@@ -668,43 +668,43 @@
 </dd></dl>
 
 <dl class="input option" id="index-10">
-<dt class="sig sig-object input" id="input-option-snow_limit_building">
-<span class="sig-name descname"><span class="pre">snow_limit_building</span></span><a class="headerlink" href="#input-option-snow_limit_building" title="Link to this definition">#</a></dt>
+<dt class="sig sig-object input" id="input-option-snow_depth_limit_building">
+<span class="sig-name descname"><span class="pre">snow_depth_limit_building</span></span><a class="headerlink" href="#input-option-snow_depth_limit_building" title="Link to this definition">#</a></dt>
 <dd><p>Maximum snow depth limit on buildings</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
 <dd class="field-odd"><p>m</p>
 </dd>
-<dt class="field-even">Default<span class="colon">:</span></dt>
+<dt class="field-even">Example<span class="colon">:</span></dt>
 <dd class="field-even"><p><code class="docutils literal notranslate"><span class="pre">0.1</span></code></p>
 </dd>
 </dl>
 </dd></dl>
 
 <dl class="input option" id="index-11">
-<dt class="sig sig-object input" id="input-option-snow_limit_paved">
-<span class="sig-name descname"><span class="pre">snow_limit_paved</span></span><a class="headerlink" href="#input-option-snow_limit_paved" title="Link to this definition">#</a></dt>
+<dt class="sig sig-object input" id="input-option-snow_depth_limit_paved">
+<span class="sig-name descname"><span class="pre">snow_depth_limit_paved</span></span><a class="headerlink" href="#input-option-snow_depth_limit_paved" title="Link to this definition">#</a></dt>
 <dd><p>Maximum snow depth limit on paved surfaces</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
 <dd class="field-odd"><p>m</p>
 </dd>
-<dt class="field-even">Default<span class="colon">:</span></dt>
+<dt class="field-even">Example<span class="colon">:</span></dt>
 <dd class="field-even"><p><code class="docutils literal notranslate"><span class="pre">0.1</span></code></p>
 </dd>
 </dl>
 </dd></dl>
 
 <dl class="input option" id="index-12">
-<dt class="sig sig-object input" id="input-option-snowprof_24hr">
-<span class="sig-name descname"><span class="pre">snowprof_24hr</span></span><a class="headerlink" href="#input-option-snowprof_24hr" title="Link to this definition">#</a></dt>
+<dt class="sig sig-object input" id="input-option-snow_profile_24hr">
+<span class="sig-name descname"><span class="pre">snow_profile_24hr</span></span><a class="headerlink" href="#input-option-snow_profile_24hr" title="Link to this definition">#</a></dt>
 <dd><p>24-hour snow profile</p>
-<p>The <code class="docutils literal notranslate"><span class="pre">snowprof_24hr</span></code> parameter group is defined by the <a class="reference internal" href="hourlyprofile.html"><span class="doc">Hourly Profile</span></a> structure.</p>
+<p>The <code class="docutils literal notranslate"><span class="pre">snow_profile_24hr</span></code> parameter group is defined by the <a class="reference internal" href="hourlyprofile.html"><span class="doc">Hourly Profile</span></a> structure.</p>
 </dd></dl>
 
 <dl class="input option" id="index-13">
-<dt class="sig sig-object input" id="input-option-tau_a">
-<span class="sig-name descname"><span class="pre">tau_a</span></span><a class="headerlink" href="#input-option-tau_a" title="Link to this definition">#</a></dt>
+<dt class="sig sig-object input" id="input-option-tau_cold_snow">
+<span class="sig-name descname"><span class="pre">tau_cold_snow</span></span><a class="headerlink" href="#input-option-tau_cold_snow" title="Link to this definition">#</a></dt>
 <dd><p>Time constant for snow albedo aging in cold snow</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
@@ -717,8 +717,8 @@
 </dd></dl>
 
 <dl class="input option" id="index-14">
-<dt class="sig sig-object input" id="input-option-tau_f">
-<span class="sig-name descname"><span class="pre">tau_f</span></span><a class="headerlink" href="#input-option-tau_f" title="Link to this definition">#</a></dt>
+<dt class="sig sig-object input" id="input-option-tau_melting_snow">
+<span class="sig-name descname"><span class="pre">tau_melting_snow</span></span><a class="headerlink" href="#input-option-tau_melting_snow" title="Link to this definition">#</a></dt>
 <dd><p>Time constant for snow albedo aging in melting snow</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
@@ -731,22 +731,22 @@
 </dd></dl>
 
 <dl class="input option" id="index-15">
-<dt class="sig sig-object input" id="input-option-tau_r">
-<span class="sig-name descname"><span class="pre">tau_r</span></span><a class="headerlink" href="#input-option-tau_r" title="Link to this definition">#</a></dt>
+<dt class="sig sig-object input" id="input-option-tau_refreezing_snow">
+<span class="sig-name descname"><span class="pre">tau_refreezing_snow</span></span><a class="headerlink" href="#input-option-tau_refreezing_snow" title="Link to this definition">#</a></dt>
 <dd><p>Time constant for snow albedo aging in refreezing snow</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
 <dd class="field-odd"><p>dimensionless</p>
 </dd>
-<dt class="field-even">Default<span class="colon">:</span></dt>
+<dt class="field-even">Example<span class="colon">:</span></dt>
 <dd class="field-even"><p><code class="docutils literal notranslate"><span class="pre">0.05</span></code></p>
 </dd>
 </dl>
 </dd></dl>
 
 <dl class="input option" id="index-16">
-<dt class="sig sig-object input" id="input-option-temp_melt_factor">
-<span class="sig-name descname"><span class="pre">temp_melt_factor</span></span><a class="headerlink" href="#input-option-temp_melt_factor" title="Link to this definition">#</a></dt>
+<dt class="sig sig-object input" id="input-option-temperature_melt_factor">
+<span class="sig-name descname"><span class="pre">temperature_melt_factor</span></span><a class="headerlink" href="#input-option-temperature_melt_factor" title="Link to this definition">#</a></dt>
 <dd><p>Hourly temperature melt factor of snow</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
@@ -759,8 +759,8 @@
 </dd></dl>
 
 <dl class="input option" id="index-17">
-<dt class="sig sig-object input" id="input-option-rad_melt_factor">
-<span class="sig-name descname"><span class="pre">rad_melt_factor</span></span><a class="headerlink" href="#input-option-rad_melt_factor" title="Link to this definition">#</a></dt>
+<dt class="sig sig-object input" id="input-option-radiation_melt_factor">
+<span class="sig-name descname"><span class="pre">radiation_melt_factor</span></span><a class="headerlink" href="#input-option-radiation_melt_factor" title="Link to this definition">#</a></dt>
 <dd><p>Hourly radiation melt factor of snow</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
@@ -849,8 +849,8 @@ By SUEWS dev team led by Prof Sue Grimmond
   <div class="footer-item">
     
 <div class="extra_footer">
-  <p>Version: 2026.4.23.dev9006 |
-    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/602adcf047fbea2fa6a05664c04774c7557bc591">602adcf</a> |
+  <p>Version: 2026.4.23.dev9009 |
+    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/57402eee220ecfb9b9527789b44403109efc18f6">57402ee</a> |
     <a href="https://umep-dev.github.io/SUEWS/brand/showcase.html">Brand</a></p>
 </div>
   </div>

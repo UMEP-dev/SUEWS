@@ -8,8 +8,8 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <meta property="article:modified_time" content="2026-04-22T21:01:47+00:00" />
-    <title>YAML Configuration Schema Versioning &#8212; SUEWS 2026.4.23.dev9006 documentation</title>
+    <meta property="article:modified_time" content="2026-04-23T12:12:24+00:00" />
+    <title>YAML Configuration Schema Versioning &#8212; SUEWS 2026.4.23.dev9009 documentation</title>
   
   
   
@@ -45,7 +45,7 @@
   <link rel="preload" as="script" href="../../_static/scripts/bootstrap.js?digest=8878045cc6db502f8baf" />
 <link rel="preload" as="script" href="../../_static/scripts/pydata-sphinx-theme.js?digest=8878045cc6db502f8baf" />
 
-    <script src="../../_static/documentation_options.js?v=0fb9ed37"></script>
+    <script src="../../_static/documentation_options.js?v=451f6cc9"></script>
     <script src="../../_static/doctools.js?v=9bcbadda"></script>
     <script src="../../_static/sphinx_highlight.js?v=dc90522c"></script>
     <script src="../../_static/scripts/sphinx-book-theme.js?v=fab101a9"></script>
@@ -57,8 +57,8 @@
     <link rel="search" title="Search" href="../../search.html" />
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
-  <meta name="docsearch:version" content="2026.4.23.dev9006" />
-    <meta name="docbuild:last-update" content="2026-04-22"/>
+  <meta name="docsearch:version" content="2026.4.23.dev9009" />
+    <meta name="docbuild:last-update" content="2026-04-23"/>
   </head>
   
   
@@ -100,7 +100,7 @@
   <div class="bd-header-announcement__content">
     <div style="background-color: #f0ad4e; border: 1px solid #eea236; border-radius: 4px; padding: 10px; margin: 10px 0;">
         <strong>⚠️ Development Version:</strong> This documentation was built from a development version
-        (2026.4.23.dev9006, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/602adcf047fbea2fa6a05664c04774c7557bc591" style="color: #31708f;">602adcf</a>).
+        (2026.4.23.dev9009, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/57402eee220ecfb9b9527789b44403109efc18f6" style="color: #31708f;">57402ee</a>).
         Features described here may be unstable or subject to change. For stable documentation, please visit the
         <a href="https://docs.suews.io/stable/" style="color: #31708f;">latest release</a>.
     </div>
@@ -147,8 +147,8 @@
       
     
     
-    <img src="../../_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.4.23.dev9006 documentation - Home"/>
-    <img src="../../_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.4.23.dev9006 documentation - Home"/>
+    <img src="../../_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.4.23.dev9009 documentation - Home"/>
+    <img src="../../_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.4.23.dev9009 documentation - Home"/>
   
   
 </a></div>
@@ -775,7 +775,105 @@ suews-schema<span class="w"> </span>migrate<span class="w"> </span>config.yml<sp
 the schema that shipped with it via
 <code class="docutils literal notranslate"><span class="pre">supy.util.converter.yaml_upgrade._PACKAGE_TO_SCHEMA</span></code>.</p>
 <dl>
-<dt><strong>Schema 2026.5.dev2</strong> (current; in-development dev bump; gh#1321)</dt><dd><p>Categories 2 and 3 of #1256 — 15 <code class="docutils literal notranslate"><span class="pre">ModelPhysics</span></code> fields with the
+<dt><strong>Schema 2026.5.dev4</strong> (current; in-development dev bump; gh#1334 follow-through via PR #1337)</dt><dd><p>Unifies the STEBBS hot-water subsystem under the <code class="docutils literal notranslate"><span class="pre">hot_water_*</span></code>
+prefix, retiring the opaque <code class="docutils literal notranslate"><span class="pre">dhw_</span></code> acronym and the split
+<code class="docutils literal notranslate"><span class="pre">water_tank_*</span></code> sibling that survived the gh#1334 PascalCase
+sweep. Tank vs vessel physical separation stays real — preserved
+through the <code class="docutils literal notranslate"><span class="pre">_tank_</span></code> and <code class="docutils literal notranslate"><span class="pre">_vessel_</span></code> component qualifiers —
+only the prefix becomes consistent.</p>
+<p><code class="docutils literal notranslate"><span class="pre">ArchetypeProperties</span></code> (1 field):</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">water_tank_water_volume</span></code> -&gt; <code class="docutils literal notranslate"><span class="pre">hot_water_tank_volume</span></code> (drops
+the redundant trailing <code class="docutils literal notranslate"><span class="pre">water</span></code>)</p></li>
+</ul>
+<p><code class="docutils literal notranslate"><span class="pre">StebbsProperties</span></code> (13 fields):</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">water_tank_wall_thickness</span></code> -&gt; <code class="docutils literal notranslate"><span class="pre">hot_water_tank_wall_thickness</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">water_tank_surface_area</span></code> -&gt; <code class="docutils literal notranslate"><span class="pre">hot_water_tank_surface_area</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">dhw_vessel_wall_thickness</span></code> -&gt; <code class="docutils literal notranslate"><span class="pre">hot_water_vessel_wall_thickness</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">dhw_water_volume</span></code> -&gt; <code class="docutils literal notranslate"><span class="pre">hot_water_volume</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">dhw_surface_area</span></code> -&gt; <code class="docutils literal notranslate"><span class="pre">hot_water_surface_area</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">dhw_specific_heat_capacity</span></code> -&gt;
+<code class="docutils literal notranslate"><span class="pre">hot_water_specific_heat_capacity</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">dhw_vessel_specific_heat_capacity</span></code> -&gt;
+<code class="docutils literal notranslate"><span class="pre">hot_water_vessel_specific_heat_capacity</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">dhw_density</span></code> -&gt; <code class="docutils literal notranslate"><span class="pre">hot_water_density</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">dhw_vessel_density</span></code> -&gt; <code class="docutils literal notranslate"><span class="pre">hot_water_vessel_density</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">dhw_vessel_wall_conductivity</span></code> -&gt;
+<code class="docutils literal notranslate"><span class="pre">hot_water_vessel_wall_conductivity</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">dhw_vessel_internal_wall_convection_coefficient</span></code> -&gt;
+<code class="docutils literal notranslate"><span class="pre">hot_water_vessel_internal_wall_convection_coefficient</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">dhw_vessel_external_wall_convection_coefficient</span></code> -&gt;
+<code class="docutils literal notranslate"><span class="pre">hot_water_vessel_external_wall_convection_coefficient</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">dhw_vessel_wall_emissivity</span></code> -&gt;
+<code class="docutils literal notranslate"><span class="pre">hot_water_vessel_wall_emissivity</span></code></p></li>
+</ul>
+<p>Legacy <code class="docutils literal notranslate"><span class="pre">dhw_*</span></code> and <code class="docutils literal notranslate"><span class="pre">water_tank_*</span></code> YAMLs continue to load via
+the Pydantic shim (<code class="docutils literal notranslate"><span class="pre">ARCHETYPEPROPERTIES_DEV3_RENAMES</span></code> and
+<code class="docutils literal notranslate"><span class="pre">STEBBSPROPERTIES_DEV3_RENAMES</span></code> in
+<code class="docutils literal notranslate"><span class="pre">src/supy/data_model/core/field_renames.py</span></code>) with a
+<code class="docutils literal notranslate"><span class="pre">DeprecationWarning</span></code>. The <code class="docutils literal notranslate"><span class="pre">(2026.5.dev3</span> <span class="pre">-&gt;</span> <span class="pre">2026.5.dev4)</span></code>
+migration handler is registered in
+<code class="docutils literal notranslate"><span class="pre">src/supy/util/converter/yaml_upgrade.py::_HANDLERS</span></code>. Rust
+struct fields (<code class="docutils literal notranslate"><span class="pre">src/suews_bridge/src/stebbs_prm.rs</span></code>) and the
+c_api shadow (<code class="docutils literal notranslate"><span class="pre">src/suews_bridge/c_api/stebbs_prm.f95</span></code>) keep
+<code class="docutils literal notranslate"><span class="pre">dhw_*</span></code> internally — cross-layer work remains tracked under
+#1324.</p>
+</dd>
+<dt><strong>Schema 2026.5.dev3</strong> (gh#1334)</dt><dd><p>Retires the STEBBS PascalCase exception on the user-facing YAML
+surface. 124 renames across <code class="docutils literal notranslate"><span class="pre">building_archetype</span></code>, <code class="docutils literal notranslate"><span class="pre">stebbs</span></code> and
+<code class="docutils literal notranslate"><span class="pre">snow</span></code> containers, bringing the full YAML into a single snake_case
+convention. Fortran TYPE members and Rust struct fields are not
+touched — those live in Tier B/C/D (#1324/#1325/#1326).</p>
+<p><code class="docutils literal notranslate"><span class="pre">ArchetypeProperties</span></code> (62 fields): <code class="docutils literal notranslate"><span class="pre">BuildingType</span></code> -&gt;
+<code class="docutils literal notranslate"><span class="pre">building_type</span></code>, <code class="docutils literal notranslate"><span class="pre">stebbs_Height</span></code> -&gt; <code class="docutils literal notranslate"><span class="pre">building_height</span></code>,
+<code class="docutils literal notranslate"><span class="pre">WWR</span></code> -&gt; <code class="docutils literal notranslate"><span class="pre">window_to_wall_ratio</span></code>, <code class="docutils literal notranslate"><span class="pre">WallThickness</span></code> -&gt;
+<code class="docutils literal notranslate"><span class="pre">wall_thickness</span></code>, <code class="docutils literal notranslate"><span class="pre">WallCp</span></code> -&gt; <code class="docutils literal notranslate"><span class="pre">wall_specific_heat_capacity</span></code>,
+<code class="docutils literal notranslate"><span class="pre">WallOuterCapFrac</span></code> -&gt; <code class="docutils literal notranslate"><span class="pre">wall_outer_heat_capacity_fraction</span></code>,
+<code class="docutils literal notranslate"><span class="pre">WallAbsorbtivity</span></code> -&gt; <code class="docutils literal notranslate"><span class="pre">wall_absorptivity</span></code> (spelling fix),
+<code class="docutils literal notranslate"><span class="pre">FloorThickness</span></code> -&gt; <code class="docutils literal notranslate"><span class="pre">ground_floor_thickness</span></code>,
+<code class="docutils literal notranslate"><span class="pre">WaterTankWaterVolume</span></code> -&gt; <code class="docutils literal notranslate"><span class="pre">water_tank_water_volume</span></code>, and so on
+for the full set of walls/roof/window/floor/internal mass/setpoint/
+metabolism fields.</p>
+<p><code class="docutils literal notranslate"><span class="pre">StebbsProperties</span></code> (50 fields): <code class="docutils literal notranslate"><span class="pre">WallInternalConvectionCoefficient</span></code>
+-&gt; <code class="docutils literal notranslate"><span class="pre">wall_internal_convection_coefficient</span></code>, <code class="docutils literal notranslate"><span class="pre">CoolingSystemCOP</span></code>
+-&gt; <code class="docutils literal notranslate"><span class="pre">cooling_system_cop</span></code>,
+<code class="docutils literal notranslate"><span class="pre">MonthMeanAirTemperature_diffmax</span></code> -&gt;
+<code class="docutils literal notranslate"><span class="pre">month_mean_air_temperature_diffmax</span></code>, and a snake_case
+pass over the <code class="docutils literal notranslate"><span class="pre">DHW*</span></code> family (<code class="docutils literal notranslate"><span class="pre">DHWWaterVolume</span></code> -&gt;
+<code class="docutils literal notranslate"><span class="pre">dhw_water_volume</span></code>, <code class="docutils literal notranslate"><span class="pre">DHWVesselWallEmissivity</span></code> -&gt;
+<code class="docutils literal notranslate"><span class="pre">dhw_vessel_wall_emissivity</span></code>, etc.). The <code class="docutils literal notranslate"><span class="pre">DHW*</span></code> /
+<code class="docutils literal notranslate"><span class="pre">HotWater*</span></code> naming split is preserved at the snake_case
+layer (<code class="docutils literal notranslate"><span class="pre">dhw_*</span></code> and <code class="docutils literal notranslate"><span class="pre">hot_water_*</span></code> coexist) to mirror the
+Rust bridge structs in
+<code class="docutils literal notranslate"><span class="pre">src/suews_bridge/src/stebbs_prm.rs</span></code>; unifying them is
+tracked as Tier B work under #1324.</p>
+<p><code class="docutils literal notranslate"><span class="pre">SnowParams</span></code> (11 fields — clarity clean-ups on existing
+snake_case): <code class="docutils literal notranslate"><span class="pre">precip_limit</span></code> -&gt; <code class="docutils literal notranslate"><span class="pre">temperature_rain_snow_threshold</span></code>
+(semantic fix — the value is a temperature, unit degC, despite the
+pre-gh#1334 name), <code class="docutils literal notranslate"><span class="pre">tau_a/f/r</span></code> -&gt;
+<code class="docutils literal notranslate"><span class="pre">tau_cold_snow</span></code>/<code class="docutils literal notranslate"><span class="pre">tau_melting_snow</span></code>/<code class="docutils literal notranslate"><span class="pre">tau_refreezing_snow</span></code>,
+<code class="docutils literal notranslate"><span class="pre">snow_limit_building/paved</span></code> -&gt; <code class="docutils literal notranslate"><span class="pre">snow_depth_limit_*</span></code>,
+<code class="docutils literal notranslate"><span class="pre">snowprof_24hr</span></code> -&gt; <code class="docutils literal notranslate"><span class="pre">snow_profile_24hr</span></code>, <code class="docutils literal notranslate"><span class="pre">narp_emis_snow</span></code> -&gt;
+<code class="docutils literal notranslate"><span class="pre">narp_emissivity_snow</span></code>, <code class="docutils literal notranslate"><span class="pre">temp_melt_factor</span></code> -&gt;
+<code class="docutils literal notranslate"><span class="pre">temperature_melt_factor</span></code>, <code class="docutils literal notranslate"><span class="pre">rad_melt_factor</span></code> -&gt;
+<code class="docutils literal notranslate"><span class="pre">radiation_melt_factor</span></code>.</p>
+<p>Legacy spellings — both the PascalCase from Schema 2026.5.dev2 and
+the pre-gh#1327 fused <code class="docutils literal notranslate"><span class="pre">Wallext</span></code>/<code class="docutils literal notranslate"><span class="pre">Roofext</span></code> cluster — continue to
+load via the Pydantic <code class="docutils literal notranslate"><span class="pre">&#64;model_validator(mode='before')</span></code> shim that
+emits <code class="docutils literal notranslate"><span class="pre">DeprecationWarning</span></code>. The authoritative mapping lives in
+<code class="docutils literal notranslate"><span class="pre">ARCHETYPEPROPERTIES_RENAMES</span></code>, <code class="docutils literal notranslate"><span class="pre">ARCHETYPEPROPERTIES_PASCAL_RENAMES</span></code>,
+<code class="docutils literal notranslate"><span class="pre">STEBBSPROPERTIES_RENAMES</span></code>, <code class="docutils literal notranslate"><span class="pre">SNOWPARAMS_RENAMES</span></code>, and
+<code class="docutils literal notranslate"><span class="pre">SNOWPARAMS_INTERMEDIATE_RENAMES</span></code> in
+<code class="docutils literal notranslate"><span class="pre">src/supy/data_model/core/field_renames.py</span></code>. The
+<code class="docutils literal notranslate"><span class="pre">(2026.5.dev2</span> <span class="pre">-&gt;</span> <span class="pre">2026.5.dev3)</span></code> migration is registered in
+<code class="docutils literal notranslate"><span class="pre">src/supy/util/converter/yaml_upgrade.py::_HANDLERS</span></code>.</p>
+<p>DataFrame column names stay in their legacy spellings (preserved
+via <code class="docutils literal notranslate"><span class="pre">_ARCHETYPE_LEGACY_COL_NAMES</span></code> / <code class="docutils literal notranslate"><span class="pre">_STEBBS_LEGACY_COL_NAMES</span></code>
+ClassVars on the respective models) for the Fortran bridge — only
+the YAML key and Pydantic attribute move.</p>
+</dd>
+<dt><strong>Schema 2026.5.dev2</strong> (gh#1321)</dt><dd><p>Categories 2 and 3 of #1256 — 15 <code class="docutils literal notranslate"><span class="pre">ModelPhysics</span></code> fields with the
 redundant <code class="docutils literal notranslate"><span class="pre">_method</span></code> / <code class="docutils literal notranslate"><span class="pre">_model</span></code> suffix dropped and/or opaque
 domain abbreviations (SMD, RSL, FAI, RC, GS) expanded into
 self-documenting names. The enum types themselves
@@ -998,7 +1096,7 @@ By SUEWS dev team led by Prof Sue Grimmond
   
   <div class="footer-item">
     <p class="last-updated">
-  Last updated on 2026-04-22.
+  Last updated on 2026-04-23.
   <br/>
 </p>
   </div>
@@ -1006,8 +1104,8 @@ By SUEWS dev team led by Prof Sue Grimmond
   <div class="footer-item">
     
 <div class="extra_footer">
-  <p>Version: 2026.4.23.dev9006 |
-    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/602adcf047fbea2fa6a05664c04774c7557bc591">602adcf</a> |
+  <p>Version: 2026.4.23.dev9009 |
+    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/57402eee220ecfb9b9527789b44403109efc18f6">57402ee</a> |
     <a href="https://umep-dev.github.io/SUEWS/brand/showcase.html">Brand</a></p>
 </div>
   </div>

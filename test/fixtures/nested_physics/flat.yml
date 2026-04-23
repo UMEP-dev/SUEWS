@@ -1,0 +1,10 @@
+name: flat_physics
+schema_version: '2026.5.dev4'
+model:
+  physics:
+    net_radiation:
+      value: 1001
+    storage_heat:
+      value: 5
+    emissions:
+      value: 2

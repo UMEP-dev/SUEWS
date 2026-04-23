@@ -424,6 +424,12 @@ EHC_RENAMES: Dict[str, str] = {
 # (Tier D). Distinct from ``SNOWPARAMS_RENAMES`` which covers SNOW_PRM
 # (the user-facing YAML side).
 
+# -- IRRIGATION_PRM (suews_type_waterdist.f95) --------------------------------
+
+WATERDIST_RENAMES: Dict[str, str] = {
+    "faut": "f_aut",
+}
+
 SNOWSTATE_RENAMES: Dict[str, str] = {
     "snowfallCum": "snowfall_cum",
     "snowalb": "snow_albedo",
@@ -465,6 +471,7 @@ ALL_FIELD_RENAMES: Dict[str, str] = {
     **SNOWPARAMS_RENAMES,
     **EHC_RENAMES,
     **SNOWSTATE_RENAMES,
+    **WATERDIST_RENAMES,
 }
 
 # Raw-YAML structural checks (Phase A / precheck) need a wider view than the

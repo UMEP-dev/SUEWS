@@ -4951,7 +4951,7 @@ CONTAINS
       ahemisPrm%TraffProf_24hr_holiday = TraffProf_24hr(:, 2)
 
       irrPrm%h_maintain = H_maintain
-      irrPrm%faut = Faut
+      irrPrm%f_aut = Faut
       irrPrm%ie_a = Ie_a
       irrPrm%ie_m = Ie_m
       irrPrm%ie_start = Ie_start

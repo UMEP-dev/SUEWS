@@ -179,7 +179,7 @@ CONTAINS
                WaterUseMethod => config%WaterUseMethod, &
                Ie_start => irrPrm%Ie_start, &
                Ie_end => irrPrm%Ie_end, &
-               Faut => irrPrm%Faut, &
+               Faut => irrPrm%f_aut, &
                Ie_a => irrPrm%Ie_a, &
                Ie_m => irrPrm%Ie_m, &
                H_maintain => irrPrm%H_maintain, &

@@ -39,9 +39,9 @@ MODULE module_c_api_anthro_heat_prm
       REAL(c_double) :: ah_slope_heating_holiday = 0.0_c_double
       REAL(c_double), DIMENSION(24) :: ahprof_24hr_working = 0.0_c_double
       REAL(c_double), DIMENSION(24) :: ahprof_24hr_holiday = 0.0_c_double
-      REAL(c_double) :: popdensdaytime_working = 0.0_c_double
-      REAL(c_double) :: popdensdaytime_holiday = 0.0_c_double
-      REAL(c_double) :: popdensnighttime = 0.0_c_double
+      REAL(c_double) :: pop_density_daytime_working = 0.0_c_double
+      REAL(c_double) :: pop_density_daytime_holiday = 0.0_c_double
+      REAL(c_double) :: pop_density_nighttime = 0.0_c_double
       REAL(c_double), DIMENSION(24) :: popprof_24hr_working = 0.0_c_double
       REAL(c_double), DIMENSION(24) :: popprof_24hr_holiday = 0.0_c_double
    END TYPE anthro_heat_prm_shadow
@@ -137,9 +137,9 @@ CONTAINS
          idx = idx + 1
       END DO
 
-      flat(idx) = state%popdensdaytime_working; idx = idx + 1
-      flat(idx) = state%popdensdaytime_holiday; idx = idx + 1
-      flat(idx) = state%popdensnighttime; idx = idx + 1
+      flat(idx) = state%pop_density_daytime_working; idx = idx + 1
+      flat(idx) = state%pop_density_daytime_holiday; idx = idx + 1
+      flat(idx) = state%pop_density_nighttime; idx = idx + 1
 
       DO i = 1, 24
          flat(idx) = state%popprof_24hr_working(i)

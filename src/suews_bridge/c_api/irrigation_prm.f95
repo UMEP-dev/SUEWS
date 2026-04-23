@@ -38,7 +38,7 @@ end type irrig_daywater_shadow
 
 type :: irrigation_prm_shadow
    real(c_double) :: h_maintain = 0.0_c_double
-   real(c_double) :: faut = 0.0_c_double
+   real(c_double) :: f_aut = 0.0_c_double
    real(c_double), dimension(3) :: ie_a = 0.0_c_double
    real(c_double), dimension(3) :: ie_m = 0.0_c_double
    integer(c_int) :: ie_start = 0_c_int
@@ -112,7 +112,7 @@ subroutine irrigation_prm_pack(state, flat, n_flat, err)
 
    idx = 1
    flat(idx) = state%h_maintain; idx = idx + 1
-   flat(idx) = state%faut; idx = idx + 1
+   flat(idx) = state%f_aut; idx = idx + 1
 
    do i = 1, 3
       flat(idx) = state%ie_a(i)
@@ -181,7 +181,7 @@ subroutine irrigation_prm_unpack(flat, n_flat, state, err)
 
    idx = 1_c_int
    state%h_maintain = flat(idx); idx = idx + 1_c_int
-   state%faut = flat(idx); idx = idx + 1_c_int
+   state%f_aut = flat(idx); idx = idx + 1_c_int
 
    do i = 1_c_int, 3_c_int
       state%ie_a(i) = flat(idx)

@@ -55,10 +55,10 @@ type :: heat_state_shadow
 
    real(c_double) :: qh_lumps = 0.0_c_double
    real(c_double) :: qe_lumps = 0.0_c_double
-   real(c_double) :: kclear = 0.0_c_double
-   real(c_double) :: kup = 0.0_c_double
-   real(c_double) :: ldown = 0.0_c_double
-   real(c_double) :: lup = 0.0_c_double
+   real(c_double) :: k_clear = 0.0_c_double
+   real(c_double) :: k_up = 0.0_c_double
+   real(c_double) :: l_down = 0.0_c_double
+   real(c_double) :: l_up = 0.0_c_double
    real(c_double) :: qe = 0.0_c_double
    real(c_double) :: qf = 0.0_c_double
    real(c_double) :: qf_sahp = 0.0_c_double
@@ -586,10 +586,10 @@ subroutine heat_state_pack(state, flat, n_flat, nlayer, ndepth, err)
 
    flat(idx) = state%qh_lumps; idx = idx + 1_c_int
    flat(idx) = state%qe_lumps; idx = idx + 1_c_int
-   flat(idx) = state%kclear; idx = idx + 1_c_int
-   flat(idx) = state%kup; idx = idx + 1_c_int
-   flat(idx) = state%ldown; idx = idx + 1_c_int
-   flat(idx) = state%lup; idx = idx + 1_c_int
+   flat(idx) = state%k_clear; idx = idx + 1_c_int
+   flat(idx) = state%k_up; idx = idx + 1_c_int
+   flat(idx) = state%l_down; idx = idx + 1_c_int
+   flat(idx) = state%l_up; idx = idx + 1_c_int
    flat(idx) = state%qe; idx = idx + 1_c_int
    flat(idx) = state%qf; idx = idx + 1_c_int
    flat(idx) = state%qf_sahp; idx = idx + 1_c_int
@@ -751,10 +751,10 @@ subroutine heat_state_unpack(flat, n_flat, nlayer, ndepth, state, err)
 
    state%qh_lumps = flat(idx); idx = idx + 1_c_int
    state%qe_lumps = flat(idx); idx = idx + 1_c_int
-   state%kclear = flat(idx); idx = idx + 1_c_int
-   state%kup = flat(idx); idx = idx + 1_c_int
-   state%ldown = flat(idx); idx = idx + 1_c_int
-   state%lup = flat(idx); idx = idx + 1_c_int
+   state%k_clear = flat(idx); idx = idx + 1_c_int
+   state%k_up = flat(idx); idx = idx + 1_c_int
+   state%l_down = flat(idx); idx = idx + 1_c_int
+   state%l_up = flat(idx); idx = idx + 1_c_int
    state%qe = flat(idx); idx = idx + 1_c_int
    state%qf = flat(idx); idx = idx + 1_c_int
    state%qf_sahp = flat(idx); idx = idx + 1_c_int

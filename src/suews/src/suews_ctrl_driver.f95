@@ -166,14 +166,14 @@ CONTAINS
             QH_Init => heatState%QH_Init, &
             ! snowState
             chSnow_per_interval => snowState%chSnow_per_interval, &
-            SnowRemoval => snowState%SnowRemoval, &
+            SnowRemoval => snowState%snow_removal, &
             swe => snowState%swe, &
-            Qm => snowState%Qm, &
-            QmFreez => snowState%QmFreez, &
-            QmRain => snowState%QmRain, &
-            NWstate_per_tstep => hydroState%NWstate_per_tstep, &
+            Qm => snowState%qm, &
+            QmFreez => snowState%qm_freeze, &
+            QmRain => snowState%qm_rain, &
+            NWstate_per_tstep => hydroState%nw_state_per_tstep, &
             mwh => snowState%mwh, &
-            mwstore => snowState%mwstore &
+            mwstore => snowState%melt_water_store &
             )
 
             ! IF (Diagnose == 1) WRITE (*, *) 'dectime', dectime
@@ -206,18 +206,18 @@ CONTAINS
 
             ! force several snow related state variables to zero if snow module is off
             IF (config%snowuse == 0) THEN
-               snowState%SnowDens = 0.
-               snowState%SnowFrac = 0.
-               snowState%SnowWater = 0.
-               snowState%SnowAlb = 0.
-               snowState%IceFrac = 0.
-               snowState%SnowPack = 0.
+               snowState%snow_density = 0.
+               snowState%snow_fraction = 0.
+               snowState%snow_water = 0.
+               snowState%snow_albedo = 0.
+               snowState%ice_frac = 0.
+               snowState%snow_pack = 0.
             END IF
 
             ! ########################################################################################
             ! save initial values of inout variables
             ! snowState = snowState
-            snowState%snowfrac = MERGE(forcing%snowfrac, snowState%SnowFrac, config%NetRadiationMethod == 0)
+            snowState%snow_fraction = MERGE(forcing%snow_fraction, snowState%snow_fraction, config%NetRadiationMethod == 0)
 
             ! initialise output variables
             dataOutLineSnow = -999.
@@ -473,7 +473,7 @@ CONTAINS
             END DO ! end iteration for tsurf calculations
 
             ! MP: Add test for QH zL signs - recalculate zL if the same
-            IF (modState%heatState%QH*modState%atmState%zL > 0) THEN
+            IF (modState%heatState%QH*modState%atmState%z_l > 0) THEN
                IF (Diagnose == 1) WRITE (*, *) 'Calling SUEWS_cal_Resistance...'
                CALL SUEWS_cal_Resistance( &
                   timer, config, forcing, siteInfo, & ! input
@@ -624,8 +624,8 @@ CONTAINS
       INTEGER :: ir, col_offset
 
       ! Initialise anthropogenic heat parameters for DLS calculation
-      ahemisPrm%startDLS = siteInfo%anthroemis%startDLS
-      ahemisPrm%endDLS = siteInfo%anthroemis%endDLS
+      ahemisPrm%start_dls = siteInfo%anthroemis%start_dls
+      ahemisPrm%end_dls = siteInfo%anthroemis%end_dls
 
       ! Loop over timesteps
       DO ir = 1, len_sim, 1
@@ -653,9 +653,9 @@ CONTAINS
          forcing%pres = MetForcingBlock(ir, 13)
          forcing%rain = MetForcingBlock(ir, 14)
          forcing%kdown = MetForcingBlock(ir, 15)
-         forcing%snowfrac = MetForcingBlock(ir, 16)
-         forcing%ldown = MetForcingBlock(ir, 17)
-         forcing%fcld = MetForcingBlock(ir, 18)
+         forcing%snow_fraction = MetForcingBlock(ir, 16)
+         forcing%l_down = MetForcingBlock(ir, 17)
+         forcing%f_cloud = MetForcingBlock(ir, 18)
          forcing%Wu_m3 = MetForcingBlock(ir, 19)
          forcing%xsmd = MetForcingBlock(ir, 20)
          forcing%LAI_obs = MetForcingBlock(ir, 21)
@@ -779,7 +779,7 @@ CONTAINS
             RS => atmState%RS, &
             RA_h => atmState%RA_h, &
             RB => atmState%RB, &
-            RAsnow => snowState%RAsnow, &
+            RAsnow => snowState%ra_snow, &
             rss_surf => atmState%rss_surf, &
             vsmd => hydroState%vsmd, &
             g_kdown => phenState%g_kdown, &
@@ -789,14 +789,14 @@ CONTAINS
             g_lai => phenState%g_lai, &
             vpd_hPa => atmState%vpd_hPa, &
             lv_J_kg => atmState%lv_J_kg, &
-            avdens => atmState%avdens, &
-            avcp => atmState%avcp, &
+            avdens => atmState%av_density, &
+            avcp => atmState%av_cp, &
             s_hPa => atmState%s_hPa, &
             psyc_hPa => atmState%psyc_hPa, &
             i_iter => flagState%i_iter, &
-            FAIBldg_use => roughnessState%FAIBldg_use, &
-            FAIEveTree_use => roughnessState%FAIEveTree_use, &
-            FAIDecTree_use => roughnessState%FAIDecTree_use, &
+            FAIBldg_use => roughnessState%fai_bldg_use, &
+            FAIEveTree_use => roughnessState%fai_evetree_use, &
+            FAIDecTree_use => roughnessState%fai_dectree_use, &
             FAI => roughnessState%FAI &
             )
 
@@ -806,7 +806,7 @@ CONTAINS
                 qn_surf, qs_surf, qe0_surf, qe_surf, qh_surf, & ! energy balance
                 wu_surf, ev0_surf, ev_surf, drain_surf, &
                 modState_init%hydroState%state_surf, hydroState%state_surf, &
-                modState_init%hydroState%soilstore_surf, hydroState%soilstore_surf, & ! water balance
+                modState_init%hydroState%soil_store_surf, hydroState%soil_store_surf, & ! water balance
                 RS, RA_h, RB, RAsnow, rss_surf, & ! for debugging QE
                 vsmd, conductancePrm%S1/conductancePrm%G_sm + conductancePrm%S2, &
                 conductancePrm%G_sm, &
@@ -853,8 +853,8 @@ CONTAINS
             diagnose => config%diagnose, &
             StorageHeatMethod => config%StorageHeatMethod, &
             nlayer => siteInfo%nlayer, &
-            avdens => atmState%avdens, &
-            avcp => atmState%avcp, &
+            avdens => atmState%av_density, &
+            avcp => atmState%av_cp, &
             RA_h => atmState%RA_h, &
             TSfc_C => heatState%TSfc_C, &
             QH_surf => heatState%QH_surf, &
@@ -965,7 +965,7 @@ CONTAINS
             QS_surf => heatState%qs_surf, &
             k_surf => ehcPrm%k_surf, &
             cp_surf => ehcPrm%cp_surf, &
-            T_bottom => stebbsState%DeepSoilTemperature &
+            T_bottom => stebbsState%deep_soil_temperature &
             )
 
             !============= calculate surface temperature based on QS ===============
@@ -1062,16 +1062,16 @@ CONTAINS
             ASSOCIATE ( &
                EmissionsMethod => config%EmissionsMethod, &
                RSLLevel => config%RSLLevel, &
-               EF_umolCO2perJ => ahemisPrm%EF_umolCO2perJ, &
-               EnEF_v_Jkm => ahemisPrm%EnEF_v_Jkm, &
-               FcEF_v_kgkm => ahemisPrm%FcEF_v_kgkm, &
-               FrFossilFuel_Heat => ahemisPrm%FrFossilFuel_Heat, &
-               FrFossilFuel_NonHeat => ahemisPrm%FrFossilFuel_NonHeat, &
-               MaxFCMetab => ahemisPrm%MaxFCMetab, &
-               MaxQFMetab => ahemisPrm%MaxQFMetab, &
-               MinFCMetab => ahemisPrm%MinFCMetab, &
-               MinQFMetab => ahemisPrm%MinQFMetab, &
-               PopDensNighttime => ahemisPrm%anthroheat%popdensnighttime, &
+               EF_umolCO2perJ => ahemisPrm%ef_umol_co2_per_j, &
+               EnEF_v_Jkm => ahemisPrm%en_ef_v_jkm, &
+               FcEF_v_kgkm => ahemisPrm%fc_ef_v_kgkm, &
+               FrFossilFuel_Heat => ahemisPrm%fr_fossil_fuel_heat, &
+               FrFossilFuel_NonHeat => ahemisPrm%fr_fossil_fuel_non_heat, &
+               MaxFCMetab => ahemisPrm%max_fc_metab, &
+               MaxQFMetab => ahemisPrm%max_qf_metab, &
+               MinFCMetab => ahemisPrm%min_fc_metab, &
+               MinQFMetab => ahemisPrm%min_qf_metab, &
+               PopDensNighttime => ahemisPrm%anthro_heat%pop_density_nighttime, &
                CO2PointSource => siteInfo%CO2PointSource, &
                SurfaceArea => siteInfo%SurfaceArea, &
                HDD_id => anthroEmisState%HDD_id, &
@@ -1090,40 +1090,40 @@ CONTAINS
                QF_obs => forcing%QF_obs &
                )
 
-               AH_MIN(1) = ahemisPrm%anthroheat%ah_min_working
-               AH_MIN(2) = ahemisPrm%anthroheat%ah_min_holiday
-               AH_SLOPE_Heating(1) = ahemisPrm%anthroheat%ah_slope_heating_working
-               AH_SLOPE_Heating(2) = ahemisPrm%anthroheat%ah_slope_heating_holiday
-               AH_SLOPE_Cooling(1) = ahemisPrm%anthroheat%ah_slope_cooling_working
-               AH_SLOPE_Cooling(2) = ahemisPrm%anthroheat%ah_slope_cooling_holiday
+               AH_MIN(1) = ahemisPrm%anthro_heat%ah_min_working
+               AH_MIN(2) = ahemisPrm%anthro_heat%ah_min_holiday
+               AH_SLOPE_Heating(1) = ahemisPrm%anthro_heat%ah_slope_heating_working
+               AH_SLOPE_Heating(2) = ahemisPrm%anthro_heat%ah_slope_heating_holiday
+               AH_SLOPE_Cooling(1) = ahemisPrm%anthro_heat%ah_slope_cooling_working
+               AH_SLOPE_Cooling(2) = ahemisPrm%anthro_heat%ah_slope_cooling_holiday
 
-               TrafficRate(1) = ahemisPrm%TrafficRate_working
-               TrafficRate(2) = ahemisPrm%TrafficRate_holiday
+               TrafficRate(1) = ahemisPrm%traffic_rate_working
+               TrafficRate(2) = ahemisPrm%traffic_rate_holiday
 
-               PopDensDaytime(1) = ahemisPrm%anthroheat%popdensdaytime_working
-               PopDensDaytime(2) = ahemisPrm%anthroheat%popdensdaytime_holiday
-               QF0_BEU(1) = ahemisPrm%anthroheat%qf0_beu_working
-               QF0_BEU(2) = ahemisPrm%anthroheat%qf0_beu_holiday
-               Qf_A(1) = ahemisPrm%anthroheat%qf_a_working
-               Qf_A(2) = ahemisPrm%anthroheat%qf_a_holiday
-               Qf_B(1) = ahemisPrm%anthroheat%qf_b_working
-               Qf_B(2) = ahemisPrm%anthroheat%qf_b_holiday
-               Qf_C(1) = ahemisPrm%anthroheat%qf_c_working
-               Qf_C(2) = ahemisPrm%anthroheat%qf_c_holiday
-               BaseT_Heating(1) = ahemisPrm%anthroheat%baset_heating_working
-               BaseT_Heating(2) = ahemisPrm%anthroheat%baset_heating_holiday
-               BaseT_Cooling(1) = ahemisPrm%anthroheat%baset_cooling_working
-               BaseT_Cooling(2) = ahemisPrm%anthroheat%baset_cooling_holiday
+               PopDensDaytime(1) = ahemisPrm%anthro_heat%pop_density_daytime_working
+               PopDensDaytime(2) = ahemisPrm%anthro_heat%pop_density_daytime_holiday
+               QF0_BEU(1) = ahemisPrm%anthro_heat%qf0_beu_working
+               QF0_BEU(2) = ahemisPrm%anthro_heat%qf0_beu_holiday
+               Qf_A(1) = ahemisPrm%anthro_heat%qf_a_working
+               Qf_A(2) = ahemisPrm%anthro_heat%qf_a_holiday
+               Qf_B(1) = ahemisPrm%anthro_heat%qf_b_working
+               Qf_B(2) = ahemisPrm%anthro_heat%qf_b_holiday
+               Qf_C(1) = ahemisPrm%anthro_heat%qf_c_working
+               Qf_C(2) = ahemisPrm%anthro_heat%qf_c_holiday
+               BaseT_Heating(1) = ahemisPrm%anthro_heat%baset_heating_working
+               BaseT_Heating(2) = ahemisPrm%anthro_heat%baset_heating_holiday
+               BaseT_Cooling(1) = ahemisPrm%anthro_heat%baset_cooling_working
+               BaseT_Cooling(2) = ahemisPrm%anthro_heat%baset_cooling_holiday
 
-               AHProf_24hr(:, 1) = ahemisPrm%anthroheat%ahprof_24hr_working
-               AHProf_24hr(:, 2) = ahemisPrm%anthroheat%ahprof_24hr_holiday
-               HumActivity_24hr(:, 1) = ahemisPrm%HumActivity_24hr_working
-               HumActivity_24hr(:, 2) = ahemisPrm%HumActivity_24hr_holiday
-               PopProf_24hr(:, 1) = ahemisPrm%anthroheat%popprof_24hr_working
-               PopProf_24hr(:, 2) = ahemisPrm%anthroheat%popprof_24hr_holiday
-               TraffProf_24hr(:, 1) = ahemisPrm%TraffProf_24hr_working
-               TraffProf_24hr(:, 2) = ahemisPrm%TraffProf_24hr_holiday
-               TrafficUnits = ahemisPrm%TrafficUnits
+               AHProf_24hr(:, 1) = ahemisPrm%anthro_heat%ahprof_24hr_working
+               AHProf_24hr(:, 2) = ahemisPrm%anthro_heat%ahprof_24hr_holiday
+               HumActivity_24hr(:, 1) = ahemisPrm%hum_activity_24hr_working
+               HumActivity_24hr(:, 2) = ahemisPrm%hum_activity_24hr_holiday
+               PopProf_24hr(:, 1) = ahemisPrm%anthro_heat%popprof_24hr_working
+               PopProf_24hr(:, 2) = ahemisPrm%anthro_heat%popprof_24hr_holiday
+               TraffProf_24hr(:, 1) = ahemisPrm%traff_prof_24hr_working
+               TraffProf_24hr(:, 2) = ahemisPrm%traff_prof_24hr_holiday
+               TrafficUnits = ahemisPrm%traffic_units
 
                IF (EmissionsMethod == 0) THEN ! use observed qf
                   qf = QF_obs
@@ -1243,7 +1243,7 @@ CONTAINS
             t2_C => atmState%t2_C, &
             T_half_bldg_C => atmState%T_half_bldg_C, &
             LAI_id => phenState%LAI_id, &
-            gfunc => phenState%gfunc, &
+            gfunc => phenState%g_func, &
             vsmd => hydroState%vsmd, &
             id => timer%id, &
             it => timer%it, &
@@ -1253,7 +1253,7 @@ CONTAINS
             Fc_biogen => anthroEmisState%Fc_biogen, &
             Fc_photo => anthroEmisState%Fc_photo, &
             Fc_respi => anthroEmisState%Fc_respi, &
-            SnowFrac => snowState%SnowFrac, &
+            SnowFrac => snowState%snow_fraction, &
             SMDMethod => config%SMDMethod, &
             EmissionsMethod => config%EmissionsMethod, &
             RSLLevel => config%RSLLevel, &
@@ -1273,8 +1273,8 @@ CONTAINS
                beta_enh_bioCO2 => [evetrPrm%bioco2%beta_enh_bioco2, &
                                    dectrPrm%bioco2%beta_enh_bioco2, &
                                    grassPrm%bioco2%beta_enh_bioco2], &
-               LAIMin => [evetrPrm%lai%laimin, dectrPrm%lai%laimin, grassPrm%lai%laimin], &
-               LAIMax => [evetrPrm%lai%laimax, dectrPrm%lai%laimax, grassPrm%lai%laimax], &
+               LAIMin => [evetrPrm%lai%lai_min, dectrPrm%lai%lai_min, grassPrm%lai%lai_min], &
+               LAIMax => [evetrPrm%lai%lai_max, dectrPrm%lai%lai_max, grassPrm%lai%lai_max], &
                min_res_bioCO2 => [evetrPrm%bioco2%min_res_bioCO2, &
                                   dectrPrm%bioco2%min_res_bioCO2, &
                                   grassPrm%bioco2%min_res_bioCO2], &
@@ -1283,15 +1283,15 @@ CONTAINS
                theta_bioCO2 => [evetrPrm%bioco2%theta_bioCO2, &
                                 dectrPrm%bioco2%theta_bioCO2, &
                                 grassPrm%bioco2%theta_bioco2], &
-               MaxConductance => [evetrPrm%MaxConductance, dectrPrm%MaxConductance, grassPrm%MaxConductance], &
+               MaxConductance => [evetrPrm%max_conductance, dectrPrm%max_conductance, grassPrm%max_conductance], &
                G_max => conductancePrm%g_max, &
                G_k => conductancePrm%g_k, &
                G_q_base => conductancePrm%g_q_base, &
                G_q_shape => conductancePrm%g_q_shape, &
                G_t => conductancePrm%g_t, &
                G_sm => conductancePrm%g_sm, &
-               gsmodel => conductancePrm%gsmodel, &
-               Kmax => conductancePrm%Kmax, &
+               gsmodel => conductancePrm%gs_model, &
+               Kmax => conductancePrm%k_max, &
                S1 => conductancePrm%S1, &
                S2 => conductancePrm%S2, &
                TH => conductancePrm%TH, &
@@ -1472,31 +1472,31 @@ CONTAINS
             Diagnose => config%Diagnose, &
             use_sw_direct_albedo => config%use_sw_direct_albedo, &
             tstep => timer%tstep, &
-            ldown_obs => forcing%ldown, &
-            fcld_obs => forcing%fcld, &
+            ldown_obs => forcing%l_down, &
+            fcld_obs => forcing%f_cloud, &
             kdown => forcing%kdown, &
             Tair_C => forcing%Temp_C, &
             avRH => forcing%RH, &
             qn1_obs => forcing%qn1_obs, &
-            SnowPack_prev => snowState%SnowPack, &
-            SnowAlb_prev => snowState%snowalb, &
-            snowFrac_prev => snowState%snowFrac, &
-            IceFrac => snowState%IceFrac, &
+            SnowPack_prev => snowState%snow_pack, &
+            SnowAlb_prev => snowState%snow_albedo, &
+            snowFrac_prev => snowState%snow_fraction, &
+            IceFrac => snowState%ice_frac, &
             qn_snow => snowState%qn_snow, &
             qn_ind_snow => snowState%qn_ind_snow, &
             kup_ind_snow => snowState%kup_ind_snow, &
             Tsurf_ind_snow => snowState%Tsurf_ind_snow, &
             dectime => timer%dectime, &
-            ZENITH_deg => solarState%ZENITH_deg, &
+            ZENITH_deg => solarState%zenith_deg, &
             ea_hPa => atmState%ea_hPa, &
-            fcld => atmState%fcld, &
+            fcld => atmState%f_cloud, &
             qn => heatState%qn, &
-            kclear => heatState%kclear, &
-            kup => heatState%kup, &
-            lup => heatState%lup, &
+            kclear => heatState%k_clear, &
+            kup => heatState%k_up, &
+            lup => heatState%l_up, &
             tsurf => heatState%tsurf, &
             qn_snowfree => heatState%qn_snowfree, &
-            ldown => heatState%ldown, &
+            ldown => heatState%l_down, &
             qn_surf => heatState%qn_surf, &
             qn_roof => heatState%qn_roof, &
             qn_wall => heatState%qn_wall, &
@@ -1545,8 +1545,8 @@ CONTAINS
                height => spartacusPrm%height, &
                tau_a => snowPrm%tau_a, &
                tau_f => snowPrm%tau_f, &
-               SnowAlbMax => snowPrm%SnowAlbMax, &
-               SnowAlbMin => snowPrm%SnowAlbMin, &
+               SnowAlbMax => snowPrm%snow_albedo_max, &
+               SnowAlbMin => snowPrm%snow_albedo_min, &
                NARP_EMIS_SNOW => snowPrm%NARP_EMIS_SNOW, &
                roof_in_sw_spc => heatState%roof_in_sw_spc, &
                roof_in_lw_spc => heatState%roof_in_lw_spc, &
@@ -1672,7 +1672,7 @@ CONTAINS
                ! translate values
                ! alb_next = alb
                phenState%alb = alb
-               snowState%SnowAlb = SnowAlb
+               snowState%snow_albedo = SnowAlb
             END ASSOCIATE
          END ASSOCIATE
       END ASSOCIATE
@@ -1768,7 +1768,7 @@ CONTAINS
             qn => heatState%qn, &
             qn_surf => heatState%qn_surf, &
             qs => heatState%qs, &
-            ldown => heatState%ldown, &
+            ldown => heatState%l_down, &
             tsfc_roof => heatState%tsfc_roof, &
             tsfc_wall => heatState%tsfc_wall, &
             tsfc_surf => heatState%tsfc_surf, &
@@ -1780,9 +1780,9 @@ CONTAINS
             QS_surf => heatState%QS_surf, &
             QS_stebbs => stebbsState%QS_stebbs, &
             qn_snow => snowState%qn_snow, &
-            deltaQi => snowState%deltaQi, &
-            SnowFrac => snowState%SnowFrac, &
-            soilstore_id => hydroState%soilstore_surf, &
+            deltaQi => snowState%delta_qi, &
+            SnowFrac => snowState%snow_fraction, &
+            soilstore_id => hydroState%soil_store_surf, &
             state_id => hydroState%state_surf, &
             HDD_id => anthroEmisState%HDD_id, &
             a1 => ohmState%a1, &
@@ -1813,7 +1813,7 @@ CONTAINS
             ws_rav => ohmState%ws_rav, &
             qn_rav => ohmState%qn_rav, &
             alb => phenState%alb, &
-            StoreDrainPrm => phenState%StoreDrainPrm, &
+            StoreDrainPrm => phenState%storage_drain_params, &
             id => timer%id, &
             tstep => timer%tstep, &
             dt_since_start => timer%dt_since_start &
@@ -1831,7 +1831,7 @@ CONTAINS
                k_surf => ehcPrm%k_surf, &
                cp_surf => ehcPrm%cp_surf, &
                dz_surf => ehcPrm%dz_surf, &
-               bldgh => bldgPrm%bldgh &
+               bldgh => bldgPrm%height_building &
                )
 
                ! sfr_surf = [pavedPrm%sfr, bldgPrm%sfr, evetrPrm%sfr, dectrPrm%sfr, grassPrm%sfr, bsoilPrm%sfr, waterPrm%sfr]
@@ -1974,13 +1974,13 @@ CONTAINS
                OHM_threshWD(6) = bsoilPrm%ohm%ohm_threshwd
                OHM_threshWD(7) = waterPrm%ohm%ohm_threshwd
 
-               SoilStoreCap(1) = pavedPrm%soil%soilstorecap
-               SoilStoreCap(2) = bldgPrm%soil%soilstorecap
-               SoilStoreCap(3) = evetrPrm%soil%soilstorecap
-               SoilStoreCap(4) = dectrPrm%soil%soilstorecap
-               SoilStoreCap(5) = grassPrm%soil%soilstorecap
-               SoilStoreCap(6) = bsoilPrm%soil%soilstorecap
-               SoilStoreCap(7) = waterPrm%soil%soilstorecap
+               SoilStoreCap(1) = pavedPrm%soil%soil_store_capacity
+               SoilStoreCap(2) = bldgPrm%soil%soil_store_capacity
+               SoilStoreCap(3) = evetrPrm%soil%soil_store_capacity
+               SoilStoreCap(4) = dectrPrm%soil%soil_store_capacity
+               SoilStoreCap(5) = grassPrm%soil%soil_store_capacity
+               SoilStoreCap(6) = bsoilPrm%soil%soil_store_capacity
+               SoilStoreCap(7) = waterPrm%soil%soil_store_capacity
 
                emis(1) = pavedPrm%emis
                emis(2) = bldgPrm%emis
@@ -1990,29 +1990,29 @@ CONTAINS
                emis(6) = bsoilPrm%emis
                emis(7) = waterPrm%emis
 
-               cpAnOHM(1) = pavedPrm%ohm%cpanohm
-               cpAnOHM(2) = bldgPrm%ohm%cpanohm
-               cpAnOHM(3) = evetrPrm%ohm%cpanohm
-               cpAnOHM(4) = dectrPrm%ohm%cpanohm
-               cpAnOHM(5) = grassPrm%ohm%cpanohm
-               cpAnOHM(6) = bsoilPrm%ohm%cpanohm
-               cpAnOHM(7) = waterPrm%ohm%cpanohm
+               cpAnOHM(1) = pavedPrm%ohm%cp_anohm
+               cpAnOHM(2) = bldgPrm%ohm%cp_anohm
+               cpAnOHM(3) = evetrPrm%ohm%cp_anohm
+               cpAnOHM(4) = dectrPrm%ohm%cp_anohm
+               cpAnOHM(5) = grassPrm%ohm%cp_anohm
+               cpAnOHM(6) = bsoilPrm%ohm%cp_anohm
+               cpAnOHM(7) = waterPrm%ohm%cp_anohm
 
-               kkAnOHM(1) = pavedPrm%ohm%kkanohm
-               kkAnOHM(2) = bldgPrm%ohm%kkanohm
-               kkAnOHM(3) = evetrPrm%ohm%kkanohm
-               kkAnOHM(4) = dectrPrm%ohm%kkanohm
-               kkAnOHM(5) = grassPrm%ohm%kkanohm
-               kkAnOHM(6) = bsoilPrm%ohm%kkanohm
-               kkAnOHM(7) = waterPrm%ohm%kkanohm
+               kkAnOHM(1) = pavedPrm%ohm%kk_anohm
+               kkAnOHM(2) = bldgPrm%ohm%kk_anohm
+               kkAnOHM(3) = evetrPrm%ohm%kk_anohm
+               kkAnOHM(4) = dectrPrm%ohm%kk_anohm
+               kkAnOHM(5) = grassPrm%ohm%kk_anohm
+               kkAnOHM(6) = bsoilPrm%ohm%kk_anohm
+               kkAnOHM(7) = waterPrm%ohm%kk_anohm
 
-               chAnOHM(1) = pavedPrm%ohm%chanohm
-               chAnOHM(2) = bldgPrm%ohm%chanohm
-               chAnOHM(3) = evetrPrm%ohm%chanohm
-               chAnOHM(4) = dectrPrm%ohm%chanohm
-               chAnOHM(5) = grassPrm%ohm%chanohm
-               chAnOHM(6) = bsoilPrm%ohm%chanohm
-               chAnOHM(7) = waterPrm%ohm%chanohm
+               chAnOHM(1) = pavedPrm%ohm%ch_anohm
+               chAnOHM(2) = bldgPrm%ohm%ch_anohm
+               chAnOHM(3) = evetrPrm%ohm%ch_anohm
+               chAnOHM(4) = dectrPrm%ohm%ch_anohm
+               chAnOHM(5) = grassPrm%ohm%ch_anohm
+               chAnOHM(6) = bsoilPrm%ohm%ch_anohm
+               chAnOHM(7) = waterPrm%ohm%ch_anohm
 
                ! WRITE (*, *) 'OHM_coef = ', OHM_coef
 
@@ -2214,17 +2214,17 @@ CONTAINS
             NonWaterFraction => siteInfo%NonWaterFraction, &
             nsh_real => timer%nsh_real, &
             Diagnose => config%Diagnose, &
-            addPipes => hydroState%addPipes, &
-            addImpervious => hydroState%addImpervious, &
-            addVeg => hydroState%addVeg, &
-            addWaterBody => hydroState%addWaterBody, &
+            addPipes => hydroState%add_pipes, &
+            addImpervious => hydroState%add_impervious, &
+            addVeg => hydroState%add_veg, &
+            addWaterBody => hydroState%add_water_body, &
             drain_per_tstep => hydroState%drain_per_tstep, &
             drain_surf => hydroState%drain_surf, &
             frac_water2runoff => hydroState%frac_water2runoff, &
-            AdditionalWater => hydroState%AdditionalWater, &
-            runoffPipes => hydroState%runoffPipes, &
+            AdditionalWater => hydroState%additional_water, &
+            runoffPipes => hydroState%runoff_pipes, &
             runoff_per_interval => hydroState%runoff_per_interval, &
-            AddWater => hydroState%AddWater, &
+            AddWater => hydroState%add_water, &
             SnowUse => config%SnowUse &
             )
 
@@ -2235,7 +2235,7 @@ CONTAINS
             ! SnowUse = config%SnowUse
 
             state_id = hydroState%state_surf
-            StoreDrainPrm = phenState%StoreDrainPrm
+            StoreDrainPrm = phenState%storage_drain_params
 
             ! sfr_surf = [pavedPrm%sfr, bldgPrm%sfr, evetrPrm%sfr, dectrPrm%sfr, grassPrm%sfr, bsoilPrm%sfr, waterPrm%sfr]
             WaterDist(1, 1) = pavedPrm%waterdist%to_paved
@@ -2463,7 +2463,7 @@ CONTAINS
          nlayer => siteInfo%nlayer, &
          PipeCapacity => siteInfo%PipeCapacity, &
          RunoffToWater => siteInfo%RunoffToWater, &
-         FlowChange => siteInfo%FlowChange, &
+         FlowChange => siteInfo%flow_change, &
          PervFraction => siteInfo%PervFraction, &
          vegfraction => siteInfo%vegfraction, &
          avRh => forcing%RH, &
@@ -2491,28 +2491,28 @@ CONTAINS
          snowState_next = snowState
 
          ASSOCIATE ( &
-            avdens => atmState%avdens, &
-            avcp => atmState%avcp, &
+            avdens => atmState%av_density, &
+            avcp => atmState%av_cp, &
             lv_J_kg => atmState%lv_J_kg, &
-            lvS_J_kg => atmState%lvS_J_kg, &
+            lvS_J_kg => atmState%lv_s_j_kg, &
             psyc_hPa => atmState%psyc_hPa, &
-            sIce_hPa => atmState%sIce_hPa, &
+            sIce_hPa => atmState%s_ice_hpa, &
             vpd_hPa => atmState%vpd_hPa, &
             s_hPa => atmState%s_hPa, &
             RS => atmState%RS, &
             RA_h => atmState%RA_h, &
             RB => atmState%RB, &
             rss_surf => atmState%rss_surf, &
-            RAsnow => snowState%RAsnow, &
+            RAsnow => snowState%ra_snow, &
             qn_ind_snow => snowState%qn_ind_snow, &
             kup_ind_snow => snowState%kup_ind_snow, &
-            deltaQi => snowState%deltaQi, &
+            deltaQi => snowState%delta_qi, &
             Tsurf_ind_snow => snowState%Tsurf_ind_snow, &
-            SnowRemoval => snowState%SnowRemoval, &
-            NWstate_per_tstep => hydroState%NWstate_per_tstep, &
+            SnowRemoval => snowState%snow_removal, &
+            NWstate_per_tstep => hydroState%nw_state_per_tstep, &
             swe => snowState%swe, &
             chSnow_per_interval => snowState%chSnow_per_interval, &
-            mwstore => snowState%mwstore, &
+            mwstore => snowState%melt_water_store, &
             Tsurf_ind => heatState%Tsurf_ind, &
             qn_snowfree => heatState%qn_snowfree, &
             qf => heatState%qf, &
@@ -2523,53 +2523,53 @@ CONTAINS
             qe_surf => heatState%qe_surf, &
             qe_roof => heatState%qe_roof, &
             qe_wall => heatState%qe_wall, &
-            addimpervious => hydroState%addimpervious, &
-            addVeg => hydroState%addVeg, &
+            addimpervious => hydroState%add_impervious, &
+            addVeg => hydroState%add_veg, &
             drain => hydroState%drain_surf, &
-            AddWater => hydroState%AddWater, &
+            AddWater => hydroState%add_water, &
             frac_water2runoff => hydroState%frac_water2runoff, &
             state_per_tstep => hydroState%state_per_tstep, &
             ev_per_tstep => hydroState%ev_per_tstep, &
             runoff_per_tstep => hydroState%runoff_per_tstep, &
             surf_chang_per_tstep => hydroState%surf_chang_per_tstep, &
-            runoffAGveg => hydroState%runoffAGveg, &
-            runoffAGimpervious => hydroState%runoffAGimpervious, &
-            runoffPipes => hydroState%runoffPipes, &
-            runoffwaterbody => hydroState%runoffwaterbody, &
+            runoffAGveg => hydroState%runoff_ag_veg, &
+            runoffAGimpervious => hydroState%runoff_ag_impervious, &
+            runoffPipes => hydroState%runoff_pipes, &
+            runoffwaterbody => hydroState%runoff_waterbody, &
             state_id_in => hydroState_prev%state_surf, &
-            soilstore_id_in => hydroState_prev%soilstore_surf, &
-            StoreDrainPrm => phenState%StoreDrainPrm, &
-            SnowPack_in => snowState_prev%SnowPack, &
-            SnowFrac_in => snowState_prev%snowFrac, &
-            SnowWater_in => snowState_prev%SnowWater, &
-            iceFrac_in => snowState_prev%IceFrac, &
-            SnowDens_in => snowState_prev%SnowDens, &
-            SnowfallCum_in => snowState_prev%SnowfallCum, &
-            SnowAlb_in => snowState_next%SnowAlb, &
+            soilstore_id_in => hydroState_prev%soil_store_surf, &
+            StoreDrainPrm => phenState%storage_drain_params, &
+            SnowPack_in => snowState_prev%snow_pack, &
+            SnowFrac_in => snowState_prev%snow_fraction, &
+            SnowWater_in => snowState_prev%snow_water, &
+            iceFrac_in => snowState_prev%ice_frac, &
+            SnowDens_in => snowState_prev%snow_density, &
+            SnowfallCum_in => snowState_prev%snowfall_cum, &
+            SnowAlb_in => snowState_next%snow_albedo, &
             EvapMethod => config%EvapMethod, &
             Diagnose => config%Diagnose &
             )
 
             ! Diagnose = config%Diagnose
             ASSOCIATE ( &
-               WetThresh_surf => [pavedPrm%wetthresh, bldgPrm%wetthresh, evetrPrm%wetthresh, dectrPrm%wetthresh, &
-                                  grassPrm%wetthresh, bsoilPrm%wetthresh, waterPrm%wetthresh], &
-               SoilStoreCap => [pavedPrm%soil%soilstorecap, bldgPrm%soil%soilstorecap, &
-                                evetrPrm%soil%soilstorecap, dectrPrm%soil%soilstorecap, &
-                                grassPrm%soil%soilstorecap, bsoilPrm%soil%soilstorecap, waterPrm%soil%soilstorecap], &
+               WetThresh_surf => [pavedPrm%wet_threshold, bldgPrm%wet_threshold, evetrPrm%wet_threshold, dectrPrm%wet_threshold, &
+                                  grassPrm%wet_threshold, bsoilPrm%wet_threshold, waterPrm%wet_threshold], &
+               SoilStoreCap => [pavedPrm%soil%soil_store_capacity, bldgPrm%soil%soil_store_capacity, &
+                                evetrPrm%soil%soil_store_capacity, dectrPrm%soil%soil_store_capacity, &
+                                grassPrm%soil%soil_store_capacity, bsoilPrm%soil%soil_store_capacity, waterPrm%soil%soil_store_capacity], &
                tau_r => snowPrm%tau_r, &
-               CRWmin => snowPrm%CRWmin, &
-               CRWmax => snowPrm%CRWmax, &
-               SnowAlbMax => snowPrm%SnowAlbMax, &
-               PrecipLimit => snowPrm%PrecipLimit, &
-               PrecipLimitAlb => snowPrm%PrecipLimitAlb, &
-               SnowDensMax => snowPrm%SnowDensMax, &
-               SnowDensMin => snowPrm%snowdensmin, &
-               RadMeltFact => snowPrm%RadMeltFact, &
-               TempMeltFact => snowPrm%TempMeltFact, &
-               SnowLimPaved => snowPrm%SnowLimPaved, &
-               SnowLimBldg => snowPrm%SnowLimBldg, &
-               SnowPackLimit => snowPrm%SnowPackLimit, &
+               CRWmin => snowPrm%water_holding_capacity_min, &
+               CRWmax => snowPrm%water_holding_capacity_max, &
+               SnowAlbMax => snowPrm%snow_albedo_max, &
+               PrecipLimit => snowPrm%temperature_rain_snow_threshold, &
+               PrecipLimitAlb => snowPrm%precipitation_threshold_albedo_reset, &
+               SnowDensMax => snowPrm%snow_density_max, &
+               SnowDensMin => snowPrm%snow_density_min, &
+               RadMeltFact => snowPrm%radiation_melt_factor, &
+               TempMeltFact => snowPrm%temperature_melt_factor, &
+               SnowLimPaved => snowPrm%snow_depth_limit_paved, &
+               SnowLimBldg => snowPrm%snow_depth_limit_building, &
+               SnowPackLimit => snowPrm%snowpack_limit, &
                SnowProf_24hr_working => snowPrm%snowprof_24hr_working, &
                SnowProf_24hr_holiday => snowPrm%snowprof_24hr_holiday &
                )
@@ -2709,26 +2709,26 @@ CONTAINS
                ! runoffPipes_m3 = runoffPipes/1000*SurfaceArea
 
                hydroState_next%state_surf = state_id_surf
-               hydroState_next%soilstore_surf = soilstore_id
+               hydroState_next%soil_store_surf = soilstore_id
 
-               snowState_next%SnowWater = SnowWater
-               snowState_next%iceFrac = iceFrac
+               snowState_next%snow_water = SnowWater
+               snowState_next%ice_frac = iceFrac
 
-               snowState_next%SnowAlb = SnowAlb
-               snowState_next%SnowDens = SnowDens
-               snowState_next%SnowPack = SnowPack
-               snowState_next%SnowFrac = SnowFrac
-               snowState_next%SnowfallCum = SnowfallCum
+               snowState_next%snow_albedo = SnowAlb
+               snowState_next%snow_density = SnowDens
+               snowState_next%snow_pack = SnowPack
+               snowState_next%snow_fraction = SnowFrac
+               snowState_next%snowfall_cum = SnowfallCum
 
                ! pack output into one line
                dataOutLineSnow = [ &
-                                 snowState_next%SnowPack(1:nsurf), mw_ind(1:nsurf), Qm_melt(1:nsurf), & !26
-                                 Qm_rain(1:nsurf), Qm_freezState(1:nsurf), snowState_next%SnowFrac(1:(nsurf - 1)), & !46
+                                 snowState_next%snow_pack(1:nsurf), mw_ind(1:nsurf), Qm_melt(1:nsurf), & !26
+                                 Qm_rain(1:nsurf), Qm_freezState(1:nsurf), snowState_next%snow_fraction(1:(nsurf - 1)), & !46
                                  rainOnSnow(1:nsurf), & !53
                                  qn_ind_snow(1:nsurf), kup_ind_snow(1:nsurf), freezMelt(1:nsurf), & !74
-                                 SnowWater(1:nsurf), snowState_next%SnowDens(1:nsurf), & !88
+                                 SnowWater(1:nsurf), snowState_next%snow_density(1:nsurf), & !88
                                  snowDepth(1:nsurf), Tsurf_ind_snow(1:nsurf), &
-                                 snowState_next%SnowAlb]
+                                 snowState_next%snow_albedo]
 
             END ASSOCIATE
          END ASSOCIATE
@@ -2790,9 +2790,9 @@ CONTAINS
       REAL(KIND(1D0)), DIMENSION(7) :: capStore_surf ! current storage capacity [mm]
 
       ! CALL hydroState_next%allocHydro(nlayer)
-      ! ALLOCATE (hydroState%soilstore_roof(nlayer))
+      ! ALLOCATE (hydroState%soil_store_roof(nlayer))
       ! ALLOCATE (hydroState%state_roof(nlayer))
-      ! ALLOCATE (hydroState%soilstore_wall(nlayer))
+      ! ALLOCATE (hydroState%soil_store_wall(nlayer))
       ! ALLOCATE (hydroState%state_wall(nlayer))
 
       ! load dim constants
@@ -2830,7 +2830,7 @@ CONTAINS
             snowPrm => siteInfo%snow, &
             PipeCapacity => siteInfo%PipeCapacity, &
             RunoffToWater => siteInfo%RunoffToWater, &
-            FlowChange => siteInfo%FlowChange, &
+            FlowChange => siteInfo%flow_change, &
             PervFraction => siteInfo%PervFraction, &
             vegfraction => siteInfo%vegfraction, &
             NonWaterFraction => siteInfo%NonWaterFraction, &
@@ -2847,8 +2847,8 @@ CONTAINS
             tstep_real => timer%tstep_real, &
             dayofWeek_id => timer%dayofWeek_id, &
             nsh_real => timer%nsh_real, &
-            avdens => atmState%avdens, &
-            avcp => atmState%avcp, &
+            avdens => atmState%av_density, &
+            avcp => atmState%av_cp, &
             lv_J_kg => atmState%lv_J_kg, &
             psyc_hPa => atmState%psyc_hPa, &
             vpd_hPa => atmState%vpd_hPa, &
@@ -2870,47 +2870,47 @@ CONTAINS
             qe_wall => heatState%qe_wall, &
             qe0_surf => heatState%qe0_surf, &
             WU_surf => hydroState%WU_surf, &
-            addVeg => hydroState%addVeg, &
-            addWaterBody => hydroState%addWaterBody, &
-            AddWater_surf => hydroState%AddWater, &
+            addVeg => hydroState%add_veg, &
+            addWaterBody => hydroState%add_water_body, &
+            AddWater_surf => hydroState%add_water, &
             drain_surf => hydroState%drain_surf, &
             frac_water2runoff_surf => hydroState%frac_water2runoff, &
             ev_surf => hydroState%ev_surf, &
             ev_roof => hydroState%ev_roof, &
             state_roof => hydroState%state_roof, &
-            soilstore_roof => hydroState%soilstore_roof, &
+            soilstore_roof => hydroState%soil_store_roof, &
             ev_wall => hydroState%ev_wall, &
             state_wall => hydroState%state_wall, &
-            soilstore_wall => hydroState%soilstore_wall, &
+            soilstore_wall => hydroState%soil_store_wall, &
             ev0_surf => hydroState%ev0_surf, &
             state_per_tstep => hydroState%state_per_tstep, &
-            NWstate_per_tstep => hydroState%NWstate_per_tstep, &
+            NWstate_per_tstep => hydroState%nw_state_per_tstep, &
             ev_per_tstep => hydroState%ev_per_tstep, &
             runoff_per_tstep => hydroState%runoff_per_tstep, &
             surf_chang_per_tstep => hydroState%surf_chang_per_tstep, &
-            runoffPipes => hydroState%runoffPipes, &
-            runoffwaterbody => hydroState%runoffwaterbody, &
-            runoffAGveg => hydroState%runoffAGveg, &
-            runoffAGimpervious => hydroState%runoffAGimpervious, &
+            runoffPipes => hydroState%runoff_pipes, &
+            runoffwaterbody => hydroState%runoff_waterbody, &
+            runoffAGveg => hydroState%runoff_ag_veg, &
+            runoffAGimpervious => hydroState%runoff_ag_impervious, &
             storageheatmethod => config%storageheatmethod, &
-            addimpervious => hydroState%addimpervious, &
+            addimpervious => hydroState%add_impervious, &
             state_surf_in => hydroState_in%state_surf, &
-            soilstore_surf_in => hydroState_in%soilstore_surf, &
+            soilstore_surf_in => hydroState_in%soil_store_surf, &
             state_roof_in => hydroState_in%state_roof, &
-            soilstore_roof_in => hydroState_in%soilstore_roof, &
+            soilstore_roof_in => hydroState_in%soil_store_roof, &
             state_wall_in => hydroState_in%state_wall, &
-            soilstore_wall_in => hydroState_in%soilstore_wall, &
+            soilstore_wall_in => hydroState_in%soil_store_wall, &
             state_surf => hydroState%state_surf, &
-            soilstore_surf => hydroState%soilstore_surf, &
-            runoffSoil_surf => hydroState%runoffSoil, &
-            runoffSoil_per_tstep => hydroState%runoffSoil_per_tstep, &
-            SoilMoistCap => hydroState%SoilMoistCap, &
+            soilstore_surf => hydroState%soil_store_surf, &
+            runoffSoil_surf => hydroState%runoff_soil, &
+            runoffSoil_per_tstep => hydroState%runoff_soil_per_tstep, &
+            SoilMoistCap => hydroState%soil_moist_cap, &
             smd_surf => hydroState%smd_surf, &
             smd => hydroState%smd, &
             tot_chang_per_tstep => hydroState%tot_chang_per_tstep, &
-            SoilState => hydroState%SoilState, &
-            StoreDrainPrm => phenState%StoreDrainPrm, &
-            snowfrac_in => snowstate%SnowFrac, &
+            SoilState => hydroState%soil_state, &
+            StoreDrainPrm => phenState%storage_drain_params, &
+            snowfrac_in => snowstate%snow_fraction, &
             SMDMethod => config%SMDMethod, &
             EvapMethod => config%EvapMethod, &
             Diagnose => config%Diagnose &
@@ -2918,26 +2918,26 @@ CONTAINS
 
             ASSOCIATE ( &
                StateLimit_roof => ehcPrm%state_limit_roof, &
-               SoilStoreCap_roof => ehcPrm%soil_storecap_roof, &
+               SoilStoreCap_roof => ehcPrm%soil_store_capacity_roof, &
                WetThresh_roof => ehcPrm%wet_thresh_roof, &
                StateLimit_wall => ehcPrm%state_limit_wall, &
-               SoilStoreCap_wall => ehcPrm%soil_storecap_wall, &
+               SoilStoreCap_wall => ehcPrm%soil_store_capacity_wall, &
                WetThresh_wall => ehcPrm%wet_thresh_wall, &
-               StateLimit_surf => [pavedPrm%statelimit, bldgPrm%statelimit, evetrPrm%statelimit, &
-                                   dectrPrm%statelimit, grassPrm%statelimit, bsoilPrm%statelimit, waterPrm%statelimit], &
-               SoilStoreCap_surf => [pavedPrm%soil%soilstorecap, bldgPrm%soil%soilstorecap, &
-                                     evetrPrm%soil%soilstorecap, dectrPrm%soil%soilstorecap, &
-                                     grassPrm%soil%soilstorecap, bsoilPrm%soil%soilstorecap, waterPrm%soil%soilstorecap], &
+               StateLimit_surf => [pavedPrm%state_limit, bldgPrm%state_limit, evetrPrm%state_limit, &
+                                   dectrPrm%state_limit, grassPrm%state_limit, bsoilPrm%state_limit, waterPrm%state_limit], &
+               SoilStoreCap_surf => [pavedPrm%soil%soil_store_capacity, bldgPrm%soil%soil_store_capacity, &
+                                     evetrPrm%soil%soil_store_capacity, dectrPrm%soil%soil_store_capacity, &
+                                     grassPrm%soil%soil_store_capacity, bsoilPrm%soil%soil_store_capacity, waterPrm%soil%soil_store_capacity], &
                SoilDepth_surf => [ &
-               pavedPrm%soil%soildepth, bldgPrm%soil%soildepth, evetrPrm%soil%soildepth, &
-               dectrPrm%soil%soildepth, &
-               grassPrm%soil%soildepth, bsoilPrm%soil%soildepth, waterPrm%soil%soildepth], &
-               SatHydraulicConduct_surf => [pavedPrm%soil%sathydraulicconduct, bldgPrm%soil%sathydraulicconduct, &
-                                            evetrPrm%soil%sathydraulicconduct, dectrPrm%soil%sathydraulicconduct, &
-                                            grassPrm%soil%sathydraulicconduct, bsoilPrm%soil%sathydraulicconduct, &
-                                            waterPrm%soil%sathydraulicconduct], &
-               WetThresh_surf => [pavedPrm%wetthresh, bldgPrm%wetthresh, evetrPrm%wetthresh, &
-                                  dectrPrm%wetthresh, grassPrm%wetthresh, bsoilPrm%wetthresh, waterPrm%wetthresh] &
+               pavedPrm%soil%soil_depth, bldgPrm%soil%soil_depth, evetrPrm%soil%soil_depth, &
+               dectrPrm%soil%soil_depth, &
+               grassPrm%soil%soil_depth, bsoilPrm%soil%soil_depth, waterPrm%soil%soil_depth], &
+               SatHydraulicConduct_surf => [pavedPrm%soil%saturated_hydraulic_conductivity, bldgPrm%soil%saturated_hydraulic_conductivity, &
+                                            evetrPrm%soil%saturated_hydraulic_conductivity, dectrPrm%soil%saturated_hydraulic_conductivity, &
+                                            grassPrm%soil%saturated_hydraulic_conductivity, bsoilPrm%soil%saturated_hydraulic_conductivity, &
+                                            waterPrm%soil%saturated_hydraulic_conductivity], &
+               WetThresh_surf => [pavedPrm%wet_threshold, bldgPrm%wet_threshold, evetrPrm%wet_threshold, &
+                                  dectrPrm%wet_threshold, grassPrm%wet_threshold, bsoilPrm%wet_threshold, waterPrm%wet_threshold] &
                )
 
                state_surf = state_surf_in
@@ -3144,7 +3144,7 @@ CONTAINS
             snowPrm => siteInfo%snow, &
             PipeCapacity => siteInfo%PipeCapacity, &
             RunoffToWater => siteInfo%RunoffToWater, &
-            FlowChange => siteInfo%FlowChange, &
+            FlowChange => siteInfo%flow_change, &
             PervFraction => siteInfo%PervFraction, &
             vegfraction => siteInfo%vegfraction, &
             NonWaterFraction => siteInfo%NonWaterFraction, &
@@ -3156,14 +3156,14 @@ CONTAINS
             qf => heatState%qf, &
             qe => heatState%qe, &
             qs => heatState%qs, &
-            QmRain => snowState%QmRain, &
-            QmFreez => snowState%QmFreez, &
-            Qm => snowState%Qm, &
+            QmRain => snowState%qm_rain, &
+            QmFreez => snowState%qm_freeze, &
+            Qm => snowState%qm, &
             xsmd => forcing%xsmd, &
             Temp_C => forcing%Temp_C, &
             RA_h => atmState%RA_h, &
-            avdens => atmState%avdens, &
-            avcp => atmState%avcp, &
+            avdens => atmState%av_density, &
+            avcp => atmState%av_cp, &
             qh_resist_surf => heatState%qh_resist_surf, &
             qh_resist_roof => heatState%qh_resist_roof, &
             qh_resist_wall => heatState%qh_resist_wall, &
@@ -3309,12 +3309,12 @@ CONTAINS
             avkdn => forcing%kdown, &
             xsmd => forcing%xsmd, &
             vsmd => hydroState%vsmd, &
-            avdens => atmState%avdens, &
-            avcp => atmState%avcp, &
+            avdens => atmState%av_density, &
+            avcp => atmState%av_cp, &
             dq => atmState%dq, &
-            TStar => atmState%TStar, &
-            UStar => atmState%UStar, &
-            zL => atmState%zL, &
+            TStar => atmState%t_star, &
+            UStar => atmState%u_star, &
+            zL => atmState%z_l, &
             RS => atmState%RS, &
             RA => atmState%RA_h, &
             L_mod => atmState%L_mod, &
@@ -3332,11 +3332,11 @@ CONTAINS
             g_smd => phenState%g_smd, &
             g_lai => phenState%g_lai, &
             gsc => phenState%gsc, &
-            gfunc => phenState%gfunc, &
+            gfunc => phenState%g_func, &
             LAI_id => phenState%LAI_id, &
-            RASnow => snowState%RASnow, &
-            z0vSnow => snowState%z0vSnow, &
-            SnowFrac => snowState%SnowFrac, &
+            RASnow => snowState%ra_snow, &
+            z0vSnow => snowState%z0v_snow, &
+            SnowFrac => snowState%snow_fraction, &
             Diagnose => config%Diagnose, &
             StabilityMethod => config%StabilityMethod, &
             RoughLenHeatMethod => config%RoughLenHeatMethod, &
@@ -3345,10 +3345,10 @@ CONTAINS
             SMDMethod => config%SMDMethod &
             )
             ASSOCIATE ( &
-               LAIMax => [evetrPrm%lai%laimax, dectrPrm%lai%laimax, grassPrm%lai%laimax], &
-               MaxConductance => [evetrPrm%maxconductance, dectrPrm%maxconductance, grassPrm%maxconductance], &
-               gsModel => conductancePrm%gsModel, &
-               Kmax => conductancePrm%Kmax, &
+               LAIMax => [evetrPrm%lai%lai_max, dectrPrm%lai%lai_max, grassPrm%lai%lai_max], &
+               MaxConductance => [evetrPrm%max_conductance, dectrPrm%max_conductance, grassPrm%max_conductance], &
+               gsModel => conductancePrm%gs_model, &
+               Kmax => conductancePrm%k_max, &
                G_max => conductancePrm%g_max, &
                G_k => conductancePrm%g_k, &
                G_q_base => conductancePrm%g_q_base, &
@@ -3492,23 +3492,23 @@ CONTAINS
          ASSOCIATE ( &
             alb => phenState%alb, &
             LAI_id => phenState%LAI_id, &
-            FlowChange => siteInfo%FlowChange, &
+            FlowChange => siteInfo%flow_change, &
             sfr_surf => siteInfo%sfr_surf, &
             id => timer%id, &
             imin => timer%imin, &
             it => timer%it, &
             iy => timer%iy, &
-            AdditionalWater => hydroState%AdditionalWater, &
+            AdditionalWater => hydroState%additional_water, &
             avU10_ms => atmState%U10_ms, &
             azimuth => solarState%azimuth_deg, &
-            SnowAlb => snowState%SnowAlb, &
+            SnowAlb => snowState%snow_albedo, &
             chSnow_per_interval => snowState%chSnow_per_interval, &
             dectime => timer%dectime, &
             drain_per_tstep => hydroState%drain_per_tstep, &
             QE_LUMPS => heatState%QE_LUMPS, &
             ev_per_tstep => hydroState%ev_per_tstep, &
             wu_ext => hydroState%wu_ext, &
-            fcld => forcing%fcld, &
+            fcld => forcing%f_cloud, &
             Fc => anthroemisState%Fc, &
             Fc_build => anthroemisState%Fc_build, &
             Fc_metab => anthroemisState%Fc_metab, &
@@ -3518,23 +3518,23 @@ CONTAINS
             Fc_traff => anthroemisState%Fc_traff, &
             QH_LUMPS => heatState%QH_LUMPS, &
             wu_int => hydroState%wu_int, &
-            kup => heatState%kup, &
-            ldown => heatState%ldown, &
+            kup => heatState%k_up, &
+            ldown => heatState%l_down, &
             l_mod => atmState%l_mod, &
-            lup => heatState%lup, &
+            lup => heatState%l_up, &
             mwh => snowState%mwh, &
-            MwStore => snowState%MwStore, &
+            MwStore => snowState%melt_water_store, &
             nsh_real => timer%nsh_real, &
-            NWstate_per_tstep => hydroState%NWstate_per_tstep, &
+            NWstate_per_tstep => hydroState%nw_state_per_tstep, &
             q2_gkg => atmState%q2_gkg, &
             qe => heatState%qe, &
             qf => heatState%qf, &
             qh => heatState%qh, &
             QH_init => heatState%QH_init, &
             qh_resist => heatState%qh_resist, &
-            Qm => snowState%Qm, &
-            QmFreez => snowState%QmFreez, &
-            QmRain => snowState%QmRain, &
+            Qm => snowState%qm, &
+            QmFreez => snowState%qm_freeze, &
+            QmRain => snowState%qm_rain, &
             qn => heatState%qn, &
             qn_surf => heatState%qn_surf, &
             qn_snow => snowState%qn_snow, &
@@ -3544,15 +3544,15 @@ CONTAINS
             RA => atmState%RA_h, &
             RS => atmState%RS, &
             RH2 => atmState%RH2, &
-            runoffAGimpervious => hydroState%runoffAGimpervious, &
-            runoffAGveg => hydroState%runoffAGveg, &
+            runoffAGimpervious => hydroState%runoff_ag_impervious, &
+            runoffAGveg => hydroState%runoff_ag_veg, &
             runoff_per_tstep => hydroState%runoff_per_tstep, &
-            runoffPipes => hydroState%runoffPipes, &
-            runoffSoil_per_tstep => hydroState%runoffSoil_per_tstep, &
-            runoffWaterBody => hydroState%runoffWaterBody, &
+            runoffPipes => hydroState%runoff_pipes, &
+            runoffSoil_per_tstep => hydroState%runoff_soil_per_tstep, &
+            runoffWaterBody => hydroState%runoff_waterbody, &
             smd => hydroState%smd, &
             smd_surf => hydroState%smd_surf, &
-            SnowRemoval => snowState%SnowRemoval, &
+            SnowRemoval => snowState%snow_removal, &
             state_per_tstep => hydroState%state_per_tstep, &
             surf_chang_per_tstep => hydroState%surf_chang_per_tstep, &
             swe => snowState%swe, &
@@ -3562,12 +3562,12 @@ CONTAINS
             tsurf => heatState%tsurf, &
             Tsfc_surf => heatState%Tsfc_surf, &
             Tsfc_surf_dyohm => heatState%Tsfc_surf_dyohm, &
-            UStar => atmState%UStar, &
-            TStar => atmState%TStar, &
+            UStar => atmState%u_star, &
+            TStar => atmState%t_star, &
             wu_surf => hydroState%wu_surf, &
             z0m => roughnessState%z0m, &
             zdm => roughnessState%zdm, &
-            zL => atmState%zL, &
+            zL => atmState%z_l, &
             zenith_deg => solarState%zenith_deg, &
             kdown => forcing%kdown, &
             rain => forcing%rain, &
@@ -3793,14 +3793,14 @@ CONTAINS
             QE_roof => heatState%QE_roof, &
             QH_roof => heatState%QH_roof, &
             state_roof => hydroState%state_roof, &
-            soilstore_roof => hydroState%soilstore_roof, &
+            soilstore_roof => hydroState%soil_store_roof, &
             tsfc_out_wall => heatState%tsfc_wall, &
             Qn_wall => heatState%Qn_wall, &
             QS_wall => heatState%QS_wall, &
             QE_wall => heatState%QE_wall, &
             QH_wall => heatState%QH_wall, &
             state_wall => hydroState%state_wall, &
-            soilstore_wall => hydroState%soilstore_wall &
+            soilstore_wall => hydroState%soil_store_wall &
             &)
 
             ! date & time:
@@ -4809,7 +4809,7 @@ CONTAINS
       siteInfo%runofftowater = RunoffToWater
       siteInfo%narp_trans_site = NARP_TRANS_SITE
       siteInfo%CO2PointSource = CO2PointSource
-      siteInfo%flowchange = FlowChange
+      siteInfo%flow_change = FlowChange
       siteInfo%sfr_surf = sfr_surf
       siteInfo%nlayer = nlayer
       siteInfo%n_buildings = n_buildings
@@ -4851,15 +4851,15 @@ CONTAINS
       config%flag_test = flag_test
 
       ! lumps parameters
-      lumpsPrm%raincover = RAINCOVER
-      lumpsPrm%rainmaxres = RainMaxRes
-      lumpsPrm%drainrt = DRAINRT
+      lumpsPrm%rain_cover = RAINCOVER
+      lumpsPrm%rain_max_res = RainMaxRes
+      lumpsPrm%drain_rate = DRAINRT
       lumpsPrm%veg_type = veg_type
 
       ! ESTM_ehc
       CALL ehcPrm%ALLOCATE(nlayer, ndepth)
-      ehcPrm%soil_storecap_roof = SoilStoreCap_roof
-      ehcPrm%soil_storecap_wall = SoilStoreCap_wall
+      ehcPrm%soil_store_capacity_roof = SoilStoreCap_roof
+      ehcPrm%soil_store_capacity_wall = SoilStoreCap_wall
       ehcPrm%state_limit_roof = StateLimit_roof
       ehcPrm%state_limit_wall = StateLimit_wall
       ehcPrm%wet_thresh_roof = WetThresh_roof
@@ -4906,52 +4906,52 @@ CONTAINS
       spartacusLayerPrm%roof_albedo_dir_mult_fact = roof_albedo_dir_mult_fact
       spartacusLayerPrm%wall_specular_frac = wall_specular_frac
 
-      ahemisPrm%startdls = startDLS
-      ahemisPrm%enddls = endDLS
-      ahemisPrm%anthroheat%qf0_beu_working = QF0_BEU(1)
-      ahemisPrm%anthroheat%qf0_beu_holiday = QF0_BEU(2)
-      ahemisPrm%anthroheat%qf_a_working = Qf_A(1)
-      ahemisPrm%anthroheat%qf_a_holiday = Qf_A(2)
-      ahemisPrm%anthroheat%qf_b_working = Qf_B(1)
-      ahemisPrm%anthroheat%qf_b_holiday = Qf_B(2)
-      ahemisPrm%anthroheat%qf_c_working = Qf_C(1)
-      ahemisPrm%anthroheat%qf_c_holiday = Qf_C(2)
-      ahemisPrm%anthroheat%baset_cooling_working = BaseT_Cooling(1)
-      ahemisPrm%anthroheat%baset_cooling_holiday = BaseT_Cooling(2)
-      ahemisPrm%anthroheat%baset_heating_working = BaseT_Heating(1)
-      ahemisPrm%anthroheat%baset_heating_holiday = BaseT_Heating(2)
-      ahemisPrm%anthroheat%popdensdaytime_working = PopDensDaytime(1)
-      ahemisPrm%anthroheat%popdensdaytime_holiday = PopDensDaytime(2)
-      ahemisPrm%anthroheat%popdensnighttime = PopDensNighttime
-      ahemisPrm%anthroheat%popprof_24hr_working = PopProf_24hr(:, 1)
-      ahemisPrm%anthroheat%popprof_24hr_holiday = PopProf_24hr(:, 2)
-      ahemisPrm%anthroheat%ah_min_working = AH_MIN(1)
-      ahemisPrm%anthroheat%ah_min_holiday = AH_MIN(2)
-      ahemisPrm%anthroheat%ahprof_24hr_working = AHProf_24hr(:, 1)
-      ahemisPrm%anthroheat%ahprof_24hr_holiday = AHProf_24hr(:, 2)
-      ahemisPrm%anthroheat%ah_slope_cooling_working = AH_SLOPE_Cooling(1)
-      ahemisPrm%anthroheat%ah_slope_cooling_holiday = AH_SLOPE_Cooling(2)
-      ahemisPrm%anthroheat%ah_slope_heating_working = AH_SLOPE_Heating(1)
-      ahemisPrm%anthroheat%ah_slope_heating_holiday = AH_SLOPE_Heating(2)
-      ahemisPrm%EF_umolCO2perJ = EF_umolCO2perJ
-      ahemisPrm%EnEF_v_Jkm = EnEF_v_Jkm
-      ahemisPrm%FrFossilFuel_Heat = FrFossilFuel_Heat
-      ahemisPrm%FrFossilFuel_NonHeat = FrFossilFuel_NonHeat
-      ahemisPrm%FcEF_v_kgkm = FcEF_v_kgkm
-      ahemisPrm%HumActivity_24hr_working = HumActivity_24hr(:, 1)
-      ahemisPrm%HumActivity_24hr_holiday = HumActivity_24hr(:, 2)
-      ahemisPrm%MaxFCMetab = MaxFCMetab
-      ahemisPrm%MaxQFMetab = MaxQFMetab
-      ahemisPrm%MinFCMetab = MinFCMetab
-      ahemisPrm%MinQFMetab = MinQFMetab
-      ahemisPrm%TrafficRate_working = TrafficRate(1)
-      ahemisPrm%TrafficRate_holiday = TrafficRate(2)
-      ahemisPrm%TrafficUnits = TrafficUnits
-      ahemisPrm%TraffProf_24hr_working = TraffProf_24hr(:, 1)
-      ahemisPrm%TraffProf_24hr_holiday = TraffProf_24hr(:, 2)
+      ahemisPrm%start_dls = startDLS
+      ahemisPrm%end_dls = endDLS
+      ahemisPrm%anthro_heat%qf0_beu_working = QF0_BEU(1)
+      ahemisPrm%anthro_heat%qf0_beu_holiday = QF0_BEU(2)
+      ahemisPrm%anthro_heat%qf_a_working = Qf_A(1)
+      ahemisPrm%anthro_heat%qf_a_holiday = Qf_A(2)
+      ahemisPrm%anthro_heat%qf_b_working = Qf_B(1)
+      ahemisPrm%anthro_heat%qf_b_holiday = Qf_B(2)
+      ahemisPrm%anthro_heat%qf_c_working = Qf_C(1)
+      ahemisPrm%anthro_heat%qf_c_holiday = Qf_C(2)
+      ahemisPrm%anthro_heat%baset_cooling_working = BaseT_Cooling(1)
+      ahemisPrm%anthro_heat%baset_cooling_holiday = BaseT_Cooling(2)
+      ahemisPrm%anthro_heat%baset_heating_working = BaseT_Heating(1)
+      ahemisPrm%anthro_heat%baset_heating_holiday = BaseT_Heating(2)
+      ahemisPrm%anthro_heat%pop_density_daytime_working = PopDensDaytime(1)
+      ahemisPrm%anthro_heat%pop_density_daytime_holiday = PopDensDaytime(2)
+      ahemisPrm%anthro_heat%pop_density_nighttime = PopDensNighttime
+      ahemisPrm%anthro_heat%popprof_24hr_working = PopProf_24hr(:, 1)
+      ahemisPrm%anthro_heat%popprof_24hr_holiday = PopProf_24hr(:, 2)
+      ahemisPrm%anthro_heat%ah_min_working = AH_MIN(1)
+      ahemisPrm%anthro_heat%ah_min_holiday = AH_MIN(2)
+      ahemisPrm%anthro_heat%ahprof_24hr_working = AHProf_24hr(:, 1)
+      ahemisPrm%anthro_heat%ahprof_24hr_holiday = AHProf_24hr(:, 2)
+      ahemisPrm%anthro_heat%ah_slope_cooling_working = AH_SLOPE_Cooling(1)
+      ahemisPrm%anthro_heat%ah_slope_cooling_holiday = AH_SLOPE_Cooling(2)
+      ahemisPrm%anthro_heat%ah_slope_heating_working = AH_SLOPE_Heating(1)
+      ahemisPrm%anthro_heat%ah_slope_heating_holiday = AH_SLOPE_Heating(2)
+      ahemisPrm%ef_umol_co2_per_j = EF_umolCO2perJ
+      ahemisPrm%en_ef_v_jkm = EnEF_v_Jkm
+      ahemisPrm%fr_fossil_fuel_heat = FrFossilFuel_Heat
+      ahemisPrm%fr_fossil_fuel_non_heat = FrFossilFuel_NonHeat
+      ahemisPrm%fc_ef_v_kgkm = FcEF_v_kgkm
+      ahemisPrm%hum_activity_24hr_working = HumActivity_24hr(:, 1)
+      ahemisPrm%hum_activity_24hr_holiday = HumActivity_24hr(:, 2)
+      ahemisPrm%max_fc_metab = MaxFCMetab
+      ahemisPrm%max_qf_metab = MaxQFMetab
+      ahemisPrm%min_fc_metab = MinFCMetab
+      ahemisPrm%min_qf_metab = MinQFMetab
+      ahemisPrm%traffic_rate_working = TrafficRate(1)
+      ahemisPrm%traffic_rate_holiday = TrafficRate(2)
+      ahemisPrm%traffic_units = TrafficUnits
+      ahemisPrm%traff_prof_24hr_working = TraffProf_24hr(:, 1)
+      ahemisPrm%traff_prof_24hr_holiday = TraffProf_24hr(:, 2)
 
       irrPrm%h_maintain = H_maintain
-      irrPrm%faut = Faut
+      irrPrm%f_aut = Faut
       irrPrm%ie_a = Ie_a
       irrPrm%ie_m = Ie_m
       irrPrm%ie_start = Ie_start
@@ -4976,25 +4976,25 @@ CONTAINS
       irrPrm%wuprofm_24hr_working = WUProfM_24hr(:, 1)
       irrPrm%wuprofm_24hr_holiday = WUProfM_24hr(:, 2)
 
-      snowPrm%crwmax = CRWmax
-      snowPrm%crwmin = CRWmin
+      snowPrm%water_holding_capacity_max = CRWmax
+      snowPrm%water_holding_capacity_min = CRWmin
       snowPrm%narp_emis_snow = NARP_EMIS_SNOW
-      snowPrm%preciplimit = PrecipLimit
-      snowPrm%preciplimitalb = PrecipLimitAlb
-      snowPrm%snowalbmax = SnowAlbMax
-      snowPrm%snowalbmin = SnowAlbMin
-      snowPrm%snowdensmax = SnowDensMax
-      snowPrm%snowdensmin = SnowDensMin
-      snowPrm%snowlimbldg = SnowLimBldg
-      snowPrm%snowlimpaved = SnowLimPaved
-      snowPrm%snowpacklimit = SnowPackLimit
+      snowPrm%temperature_rain_snow_threshold = PrecipLimit
+      snowPrm%precipitation_threshold_albedo_reset = PrecipLimitAlb
+      snowPrm%snow_albedo_max = SnowAlbMax
+      snowPrm%snow_albedo_min = SnowAlbMin
+      snowPrm%snow_density_max = SnowDensMax
+      snowPrm%snow_density_min = SnowDensMin
+      snowPrm%snow_depth_limit_building = SnowLimBldg
+      snowPrm%snow_depth_limit_paved = SnowLimPaved
+      snowPrm%snowpack_limit = SnowPackLimit
       snowPrm%snowprof_24hr_working = SnowProf_24hr(:, 1)
       snowPrm%snowprof_24hr_holiday = SnowProf_24hr(:, 2)
       snowPrm%tau_a = tau_a
       snowPrm%tau_f = tau_f
       snowPrm%tau_r = tau_r
-      snowPrm%tempmeltfact = TempMeltFact
-      snowPrm%radmeltfact = RadMeltFact
+      snowPrm%temperature_melt_factor = TempMeltFact
+      snowPrm%radiation_melt_factor = RadMeltFact
 
       conductancePrm%g_max = g_max
       conductancePrm%g_k = g_k
@@ -5002,8 +5002,8 @@ CONTAINS
       conductancePrm%g_q_shape = g_q_shape
       conductancePrm%g_t = g_t
       conductancePrm%g_sm = g_sm
-      conductancePrm%kmax = Kmax
-      conductancePrm%gsmodel = gsModel
+      conductancePrm%k_max = Kmax
+      conductancePrm%gs_model = gsModel
       conductancePrm%s1 = S1
       conductancePrm%s2 = S2
       conductancePrm%TH = TH
@@ -5011,9 +5011,9 @@ CONTAINS
 
       pavedPrm%sfr = sfr_surf(PavSurf)
       pavedPrm%emis = emis(PavSurf)
-      pavedPrm%ohm%chanohm = chAnOHM(PavSurf)
-      pavedPrm%ohm%cpanohm = cpAnOHM(PavSurf)
-      pavedPrm%ohm%kkanohm = kkAnOHM(PavSurf)
+      pavedPrm%ohm%ch_anohm = chAnOHM(PavSurf)
+      pavedPrm%ohm%cp_anohm = cpAnOHM(PavSurf)
+      pavedPrm%ohm%kk_anohm = kkAnOHM(PavSurf)
       pavedPrm%ohm%ohm_threshsw = OHM_threshSW(PavSurf)
       pavedPrm%ohm%ohm_threshwd = OHM_threshWD(PavSurf)
 
@@ -5035,12 +5035,12 @@ CONTAINS
       pavedPrm%ohm%ohm_coef_lc(3)%winter_dry = OHM_coef(PavSurf, 4, 3)
       ! WRITE(*,*) 'PavSurf_OHM_COEF_A3', pavedPrm%ohm%ohm_coef_lc(3)
 
-      pavedPrm%soil%soildepth = SoilDepth(PavSurf)
-      pavedPrm%soil%soilstorecap = SoilStoreCap_surf(PavSurf)
-      pavedPrm%soil%sathydraulicconduct = SatHydraulicConduct(PavSurf)
-      pavedPrm%statelimit = StateLimit_surf(PavSurf)
-      pavedPrm%irrfracpaved = IrrFracPaved
-      pavedPrm%wetthresh = WetThresh_surf(PavSurf)
+      pavedPrm%soil%soil_depth = SoilDepth(PavSurf)
+      pavedPrm%soil%soil_store_capacity = SoilStoreCap_surf(PavSurf)
+      pavedPrm%soil%saturated_hydraulic_conductivity = SatHydraulicConduct(PavSurf)
+      pavedPrm%state_limit = StateLimit_surf(PavSurf)
+      pavedPrm%irrigation_fraction_paved = IrrFracPaved
+      pavedPrm%wet_threshold = WetThresh_surf(PavSurf)
       pavedPrm%waterdist%to_paved = WaterDist(1, PavSurf)
       pavedPrm%waterdist%to_bldg = WaterDist(2, PavSurf)
       pavedPrm%waterdist%to_evetr = WaterDist(3, PavSurf)
@@ -5051,12 +5051,12 @@ CONTAINS
       pavedPrm%waterdist%to_soilstore = WaterDist(8, PavSurf)
 
       bldgPrm%sfr = sfr_surf(BldgSurf)
-      bldgPrm%faibldg = FAIBldg
-      bldgPrm%bldgh = bldgH
+      bldgPrm%fai_building = FAIBldg
+      bldgPrm%height_building = bldgH
       bldgPrm%emis = emis(BldgSurf)
-      bldgPrm%ohm%chanohm = chAnOHM(BldgSurf)
-      bldgPrm%ohm%cpanohm = cpAnOHM(BldgSurf)
-      bldgPrm%ohm%kkanohm = kkAnOHM(BldgSurf)
+      bldgPrm%ohm%ch_anohm = chAnOHM(BldgSurf)
+      bldgPrm%ohm%cp_anohm = cpAnOHM(BldgSurf)
+      bldgPrm%ohm%kk_anohm = kkAnOHM(BldgSurf)
       bldgPrm%ohm%ohm_threshsw = OHM_threshSW(BldgSurf)
       bldgPrm%ohm%ohm_threshwd = OHM_threshWD(BldgSurf)
       bldgPrm%ohm%ohm_coef_lc(1)%summer_wet = OHM_coef(BldgSurf, 1, 1)
@@ -5074,12 +5074,12 @@ CONTAINS
       bldgPrm%ohm%ohm_coef_lc(3)%winter_wet = OHM_coef(BldgSurf, 3, 3)
       bldgPrm%ohm%ohm_coef_lc(3)%winter_dry = OHM_coef(BldgSurf, 4, 3)
 
-      bldgPrm%soil%soildepth = SoilDepth(BldgSurf)
-      bldgPrm%soil%soilstorecap = SoilStoreCap_surf(BldgSurf)
-      bldgPrm%soil%sathydraulicconduct = SatHydraulicConduct(BldgSurf)
-      bldgPrm%statelimit = StateLimit_surf(BldgSurf)
-      bldgPrm%irrfracbldgs = IrrFracBldgs
-      bldgPrm%wetthresh = WetThresh_surf(BldgSurf)
+      bldgPrm%soil%soil_depth = SoilDepth(BldgSurf)
+      bldgPrm%soil%soil_store_capacity = SoilStoreCap_surf(BldgSurf)
+      bldgPrm%soil%saturated_hydraulic_conductivity = SatHydraulicConduct(BldgSurf)
+      bldgPrm%state_limit = StateLimit_surf(BldgSurf)
+      bldgPrm%irrigation_fraction_bldgs = IrrFracBldgs
+      bldgPrm%wet_threshold = WetThresh_surf(BldgSurf)
       bldgPrm%waterdist%to_paved = WaterDist(1, BldgSurf)
       bldgPrm%waterdist%to_bldg = WaterDist(2, BldgSurf)
       bldgPrm%waterdist%to_evetr = WaterDist(3, BldgSurf)
@@ -5091,15 +5091,15 @@ CONTAINS
 
       dectrPrm%sfr = sfr_surf(DecidSurf)
       dectrPrm%emis = emis(DecidSurf)
-      dectrPrm%faidectree = FAIDecTree
-      dectrPrm%dectreeh = DecTreeH
-      dectrPrm%pormin_dec = PorMin_dec
-      dectrPrm%pormax_dec = PorMax_dec
+      dectrPrm%fai_deciduous_tree = FAIDecTree
+      dectrPrm%height_deciduous_tree = DecTreeH
+      dectrPrm%porosity_min_deciduous = PorMin_dec
+      dectrPrm%porosity_max_deciduous = PorMax_dec
       dectrPrm%alb_min = AlbMin_DecTr
       dectrPrm%alb_max = AlbMax_DecTr
-      dectrPrm%ohm%chanohm = chAnOHM(DecidSurf)
-      dectrPrm%ohm%cpanohm = cpAnOHM(DecidSurf)
-      dectrPrm%ohm%kkanohm = kkAnOHM(DecidSurf)
+      dectrPrm%ohm%ch_anohm = chAnOHM(DecidSurf)
+      dectrPrm%ohm%cp_anohm = cpAnOHM(DecidSurf)
+      dectrPrm%ohm%kk_anohm = kkAnOHM(DecidSurf)
       dectrPrm%ohm%ohm_threshsw = OHM_threshSW(DecidSurf)
       dectrPrm%ohm%ohm_threshwd = OHM_threshWD(DecidSurf)
 
@@ -5121,14 +5121,14 @@ CONTAINS
       dectrPrm%ohm%ohm_coef_lc(3)%winter_dry = OHM_coef(DecidSurf, 4, 3)
       ! WRITE(*,*) 'dectrPrm_OHM_COEF_A3', dectrPrm%ohm%ohm_coef_lc(3)
 
-      dectrPrm%soil%soildepth = SoilDepth(DecidSurf)
-      dectrPrm%soil%soilstorecap = SoilStoreCap_surf(DecidSurf)
-      dectrPrm%soil%sathydraulicconduct = SatHydraulicConduct(DecidSurf)
-      ! dectrPrm%statelimit = StateLimit_surf(DecidSurf)
-      dectrPrm%capmax_dec = CapMax_dec
-      dectrPrm%capmin_dec = CapMin_dec
-      dectrPrm%irrfracdectr = IrrFracDecTr
-      dectrPrm%wetthresh = WetThresh_surf(DecidSurf)
+      dectrPrm%soil%soil_depth = SoilDepth(DecidSurf)
+      dectrPrm%soil%soil_store_capacity = SoilStoreCap_surf(DecidSurf)
+      dectrPrm%soil%saturated_hydraulic_conductivity = SatHydraulicConduct(DecidSurf)
+      ! dectrPrm%state_limit = StateLimit_surf(DecidSurf)
+      dectrPrm%capacity_max_deciduous = CapMax_dec
+      dectrPrm%capacity_min_deciduous = CapMin_dec
+      dectrPrm%irrigation_fraction_dectr = IrrFracDecTr
+      dectrPrm%wet_threshold = WetThresh_surf(DecidSurf)
       dectrPrm%bioco2%beta_bioco2 = beta_bioCO2(ivDecid)
       dectrPrm%bioco2%beta_enh_bioco2 = beta_enh_bioCO2(ivDecid)
       dectrPrm%bioco2%alpha_bioco2 = alpha_bioCO2(ivDecid)
@@ -5137,15 +5137,15 @@ CONTAINS
       dectrPrm%bioco2%resp_b = resp_b(ivDecid)
       dectrPrm%bioco2%min_res_bioCO2 = min_res_bioCO2(ivDecid)
       dectrPrm%bioco2%theta_bioco2 = theta_bioCO2(ivDecid)
-      dectrPrm%maxconductance = MaxConductance(ivDecid)
-      dectrPrm%lai%baset = BaseT(ivDecid)
-      dectrPrm%lai%gddfull = GDDFull(ivDecid)
-      dectrPrm%lai%basete = BaseTe(ivDecid)
-      dectrPrm%lai%sddfull = SDDFull(ivDecid)
-      dectrPrm%lai%laimin = LAIMin(ivDecid)
-      dectrPrm%lai%laimax = LAIMax(ivDecid)
-      dectrPrm%lai%laipower = LAIPower(:, ivDecid)
-      dectrPrm%lai%laitype = LAIType(ivDecid)
+      dectrPrm%max_conductance = MaxConductance(ivDecid)
+      dectrPrm%lai%base_temperature = BaseT(ivDecid)
+      dectrPrm%lai%gdd_full = GDDFull(ivDecid)
+      dectrPrm%lai%base_temperature_senescence = BaseTe(ivDecid)
+      dectrPrm%lai%sdd_full = SDDFull(ivDecid)
+      dectrPrm%lai%lai_min = LAIMin(ivDecid)
+      dectrPrm%lai%lai_max = LAIMax(ivDecid)
+      dectrPrm%lai%lai_power = LAIPower(:, ivDecid)
+      dectrPrm%lai%lai_type = LAIType(ivDecid)
       dectrPrm%waterdist%to_paved = WaterDist(1, DecidSurf)
       dectrPrm%waterdist%to_bldg = WaterDist(2, DecidSurf)
       dectrPrm%waterdist%to_evetr = WaterDist(3, DecidSurf)
@@ -5157,13 +5157,13 @@ CONTAINS
 
       evetrPrm%sfr = sfr_surf(ConifSurf)
       evetrPrm%emis = emis(ConifSurf)
-      evetrPrm%faievetree = FAIEveTree
-      evetrPrm%evetreeh = EveTreeH
+      evetrPrm%fai_evergreen_tree = FAIEveTree
+      evetrPrm%height_evergreen_tree = EveTreeH
       evetrPrm%alb_min = AlbMin_EveTr
       evetrPrm%alb_max = AlbMax_EveTr
-      evetrPrm%ohm%chanohm = chAnOHM(ConifSurf)
-      evetrPrm%ohm%cpanohm = cpAnOHM(ConifSurf)
-      evetrPrm%ohm%kkanohm = kkAnOHM(ConifSurf)
+      evetrPrm%ohm%ch_anohm = chAnOHM(ConifSurf)
+      evetrPrm%ohm%cp_anohm = cpAnOHM(ConifSurf)
+      evetrPrm%ohm%kk_anohm = kkAnOHM(ConifSurf)
       evetrPrm%ohm%ohm_threshsw = OHM_threshSW(ConifSurf)
       evetrPrm%ohm%ohm_threshwd = OHM_threshWD(ConifSurf)
       evetrPrm%ohm%ohm_coef_lc(1)%summer_wet = OHM_coef(ConifSurf, 1, 1)
@@ -5184,12 +5184,12 @@ CONTAINS
       evetrPrm%ohm%ohm_coef_lc(3)%winter_dry = OHM_coef(ConifSurf, 4, 3)
       ! WRITE(*,*) 'evetrPrm_OHM_COEF_A3', evetrPrm%ohm%ohm_coef_lc(3)
 
-      evetrPrm%soil%soildepth = SoilDepth(ConifSurf)
-      evetrPrm%soil%soilstorecap = SoilStoreCap_surf(ConifSurf)
-      evetrPrm%soil%sathydraulicconduct = SatHydraulicConduct(ConifSurf)
-      evetrPrm%statelimit = StateLimit_surf(ConifSurf)
-      evetrPrm%irrfracevetr = IrrFracEveTr
-      evetrPrm%wetthresh = WetThresh_surf(ConifSurf)
+      evetrPrm%soil%soil_depth = SoilDepth(ConifSurf)
+      evetrPrm%soil%soil_store_capacity = SoilStoreCap_surf(ConifSurf)
+      evetrPrm%soil%saturated_hydraulic_conductivity = SatHydraulicConduct(ConifSurf)
+      evetrPrm%state_limit = StateLimit_surf(ConifSurf)
+      evetrPrm%irrigation_fraction_evetr = IrrFracEveTr
+      evetrPrm%wet_threshold = WetThresh_surf(ConifSurf)
       evetrPrm%bioco2%beta_bioco2 = beta_bioCO2(ivConif)
       evetrPrm%bioco2%beta_enh_bioco2 = beta_enh_bioCO2(ivConif)
       evetrPrm%bioco2%alpha_bioco2 = alpha_bioCO2(ivConif)
@@ -5198,15 +5198,15 @@ CONTAINS
       evetrPrm%bioco2%resp_b = resp_b(ivConif)
       evetrPrm%bioco2%min_res_bioCO2 = min_res_bioCO2(ivConif)
       evetrPrm%bioco2%theta_bioco2 = theta_bioCO2(ivConif)
-      evetrPrm%maxconductance = MaxConductance(ivConif)
-      evetrPrm%lai%baset = BaseT(ivConif)
-      evetrPrm%lai%gddfull = GDDFull(ivConif)
-      evetrPrm%lai%basete = BaseTe(ivConif)
-      evetrPrm%lai%sddfull = SDDFull(ivConif)
-      evetrPrm%lai%laimin = LAIMin(ivConif)
-      evetrPrm%lai%laimax = LAIMax(ivConif)
-      evetrPrm%lai%laipower = LAIPower(:, ivConif)
-      evetrPrm%lai%laitype = LAIType(ivConif)
+      evetrPrm%max_conductance = MaxConductance(ivConif)
+      evetrPrm%lai%base_temperature = BaseT(ivConif)
+      evetrPrm%lai%gdd_full = GDDFull(ivConif)
+      evetrPrm%lai%base_temperature_senescence = BaseTe(ivConif)
+      evetrPrm%lai%sdd_full = SDDFull(ivConif)
+      evetrPrm%lai%lai_min = LAIMin(ivConif)
+      evetrPrm%lai%lai_max = LAIMax(ivConif)
+      evetrPrm%lai%lai_power = LAIPower(:, ivConif)
+      evetrPrm%lai%lai_type = LAIType(ivConif)
       evetrPrm%waterdist%to_paved = WaterDist(1, ConifSurf)
       evetrPrm%waterdist%to_bldg = WaterDist(2, ConifSurf)
       evetrPrm%waterdist%to_evetr = WaterDist(3, ConifSurf)
@@ -5220,9 +5220,9 @@ CONTAINS
       grassPrm%emis = emis(GrassSurf)
       grassPrm%alb_min = AlbMin_Grass
       grassPrm%alb_max = AlbMax_Grass
-      grassPrm%ohm%chanohm = chAnOHM(GrassSurf)
-      grassPrm%ohm%cpanohm = cpAnOHM(GrassSurf)
-      grassPrm%ohm%kkanohm = kkAnOHM(GrassSurf)
+      grassPrm%ohm%ch_anohm = chAnOHM(GrassSurf)
+      grassPrm%ohm%cp_anohm = cpAnOHM(GrassSurf)
+      grassPrm%ohm%kk_anohm = kkAnOHM(GrassSurf)
       grassPrm%ohm%ohm_threshsw = OHM_threshSW(GrassSurf)
       grassPrm%ohm%ohm_threshwd = OHM_threshWD(GrassSurf)
       grassPrm%ohm%ohm_coef_lc(1)%summer_wet = OHM_coef(GrassSurf, 1, 1)
@@ -5243,12 +5243,12 @@ CONTAINS
       grassPrm%ohm%ohm_coef_lc(3)%winter_dry = OHM_coef(GrassSurf, 4, 3)
       !WRITE(*,*) 'grassPrm_OHM_COEF_A3', grassPrm%ohm%ohm_coef_lc(3)
 
-      grassPrm%soil%soildepth = SoilDepth(GrassSurf)
-      grassPrm%soil%soilstorecap = SoilStoreCap_surf(GrassSurf)
-      grassPrm%soil%sathydraulicconduct = SatHydraulicConduct(GrassSurf)
-      grassPrm%statelimit = StateLimit_surf(GrassSurf)
-      grassPrm%irrfracgrass = IrrFracGrass
-      grassPrm%wetthresh = WetThresh_surf(GrassSurf)
+      grassPrm%soil%soil_depth = SoilDepth(GrassSurf)
+      grassPrm%soil%soil_store_capacity = SoilStoreCap_surf(GrassSurf)
+      grassPrm%soil%saturated_hydraulic_conductivity = SatHydraulicConduct(GrassSurf)
+      grassPrm%state_limit = StateLimit_surf(GrassSurf)
+      grassPrm%irrigation_fraction_grass = IrrFracGrass
+      grassPrm%wet_threshold = WetThresh_surf(GrassSurf)
       grassPrm%bioco2%beta_bioco2 = beta_bioCO2(ivGrass)
       grassPrm%bioco2%beta_enh_bioco2 = beta_enh_bioCO2(ivGrass)
       grassPrm%bioco2%alpha_bioco2 = alpha_bioCO2(ivGrass)
@@ -5257,15 +5257,15 @@ CONTAINS
       grassPrm%bioco2%resp_b = resp_b(ivGrass)
       grassPrm%bioco2%min_res_bioCO2 = min_res_bioCO2(ivGrass)
       grassPrm%bioco2%theta_bioco2 = theta_bioCO2(ivGrass)
-      grassPrm%maxconductance = MaxConductance(ivGrass)
-      grassPrm%lai%baset = BaseT(ivGrass)
-      grassPrm%lai%gddfull = GDDFull(ivGrass)
-      grassPrm%lai%basete = BaseTe(ivGrass)
-      grassPrm%lai%sddfull = SDDFull(ivGrass)
-      grassPrm%lai%laimin = LAIMin(ivGrass)
-      grassPrm%lai%laimax = LAIMax(ivGrass)
-      grassPrm%lai%laipower = LAIPower(:, ivGrass)
-      grassPrm%lai%laitype = LAIType(ivGrass)
+      grassPrm%max_conductance = MaxConductance(ivGrass)
+      grassPrm%lai%base_temperature = BaseT(ivGrass)
+      grassPrm%lai%gdd_full = GDDFull(ivGrass)
+      grassPrm%lai%base_temperature_senescence = BaseTe(ivGrass)
+      grassPrm%lai%sdd_full = SDDFull(ivGrass)
+      grassPrm%lai%lai_min = LAIMin(ivGrass)
+      grassPrm%lai%lai_max = LAIMax(ivGrass)
+      grassPrm%lai%lai_power = LAIPower(:, ivGrass)
+      grassPrm%lai%lai_type = LAIType(ivGrass)
       grassPrm%waterdist%to_paved = WaterDist(1, GrassSurf)
       grassPrm%waterdist%to_bldg = WaterDist(2, GrassSurf)
       grassPrm%waterdist%to_evetr = WaterDist(3, GrassSurf)
@@ -5277,9 +5277,9 @@ CONTAINS
 
       bsoilPrm%sfr = sfr_surf(BSoilSurf)
       bsoilPrm%emis = emis(BSoilSurf)
-      bsoilPrm%ohm%chanohm = chAnOHM(BSoilSurf)
-      bsoilPrm%ohm%cpanohm = cpAnOHM(BSoilSurf)
-      bsoilPrm%ohm%kkanohm = kkAnOHM(BSoilSurf)
+      bsoilPrm%ohm%ch_anohm = chAnOHM(BSoilSurf)
+      bsoilPrm%ohm%cp_anohm = cpAnOHM(BSoilSurf)
+      bsoilPrm%ohm%kk_anohm = kkAnOHM(BSoilSurf)
       bsoilPrm%ohm%ohm_threshsw = OHM_threshSW(BSoilSurf)
       bsoilPrm%ohm%ohm_threshwd = OHM_threshWD(BSoilSurf)
       bsoilPrm%ohm%ohm_coef_lc(1)%summer_wet = OHM_coef(BSoilSurf, 1, 1)
@@ -5300,18 +5300,18 @@ CONTAINS
       bsoilPrm%ohm%ohm_coef_lc(3)%winter_dry = OHM_coef(BSoilSurf, 4, 3)
       !WRITE(*,*) 'bsoilPrm_OHM_COEF_A3', bsoilPrm%ohm%ohm_coef_lc(3)
 
-      bsoilPrm%soil%soildepth = SoilDepth(BSoilSurf)
-      bsoilPrm%soil%soilstorecap = SoilStoreCap_surf(BSoilSurf)
-      bsoilPrm%soil%sathydraulicconduct = SatHydraulicConduct(BSoilSurf)
-      bsoilPrm%statelimit = StateLimit_surf(BSoilSurf)
-      bsoilPrm%irrfracbsoil = IrrFracBSoil
-      bsoilPrm%wetthresh = WetThresh_surf(BSoilSurf)
-      ! bsoilPrm%storedrainprm%store_min = StoreDrainPrm(1, BSoilSurf)
-      ! bsoilPrm%storedrainprm%drain_eq = StoreDrainPrm(2, BSoilSurf)
-      ! bsoilPrm%storedrainprm%drain_coef_1 = StoreDrainPrm(3, BSoilSurf)
-      ! bsoilPrm%storedrainprm%drain_coef_2 = StoreDrainPrm(4, BSoilSurf)
-      ! bsoilPrm%storedrainprm%store_max = StoreDrainPrm(5, BSoilSurf)
-      ! bsoilPrm%storedrainprm%store_cap = StoreDrainPrm(6, BSoilSurf)
+      bsoilPrm%soil%soil_depth = SoilDepth(BSoilSurf)
+      bsoilPrm%soil%soil_store_capacity = SoilStoreCap_surf(BSoilSurf)
+      bsoilPrm%soil%saturated_hydraulic_conductivity = SatHydraulicConduct(BSoilSurf)
+      bsoilPrm%state_limit = StateLimit_surf(BSoilSurf)
+      bsoilPrm%irrigation_fraction_bsoil = IrrFracBSoil
+      bsoilPrm%wet_threshold = WetThresh_surf(BSoilSurf)
+      ! bsoilPrm%storage_drain_params%store_min = StoreDrainPrm(1, BSoilSurf)
+      ! bsoilPrm%storage_drain_params%drain_eq = StoreDrainPrm(2, BSoilSurf)
+      ! bsoilPrm%storage_drain_params%drain_coef_1 = StoreDrainPrm(3, BSoilSurf)
+      ! bsoilPrm%storage_drain_params%drain_coef_2 = StoreDrainPrm(4, BSoilSurf)
+      ! bsoilPrm%storage_drain_params%store_max = StoreDrainPrm(5, BSoilSurf)
+      ! bsoilPrm%storage_drain_params%store_cap = StoreDrainPrm(6, BSoilSurf)
       bsoilPrm%waterdist%to_paved = WaterDist(1, BSoilSurf)
       bsoilPrm%waterdist%to_bldg = WaterDist(2, BSoilSurf)
       bsoilPrm%waterdist%to_evetr = WaterDist(3, BSoilSurf)
@@ -5323,9 +5323,9 @@ CONTAINS
 
       waterPrm%sfr = sfr_surf(WaterSurf)
       waterPrm%emis = emis(WaterSurf)
-      waterPrm%ohm%chanohm = chAnOHM(WaterSurf)
-      waterPrm%ohm%cpanohm = cpAnOHM(WaterSurf)
-      waterPrm%ohm%kkanohm = kkAnOHM(WaterSurf)
+      waterPrm%ohm%ch_anohm = chAnOHM(WaterSurf)
+      waterPrm%ohm%cp_anohm = cpAnOHM(WaterSurf)
+      waterPrm%ohm%kk_anohm = kkAnOHM(WaterSurf)
       waterPrm%ohm%ohm_threshsw = OHM_threshSW(WaterSurf)
       waterPrm%ohm%ohm_threshwd = OHM_threshWD(WaterSurf)
       waterPrm%ohm%ohm_coef_lc(1)%summer_wet = OHM_coef(WaterSurf, 1, 1)
@@ -5346,18 +5346,18 @@ CONTAINS
       waterPrm%ohm%ohm_coef_lc(3)%winter_dry = OHM_coef(WaterSurf, 4, 3)
       !WRITE(*,*) 'waterPrm_OHM_COEF_A3', waterPrm%ohm%ohm_coef_lc(3)
 
-      waterPrm%soil%soildepth = SoilDepth(WaterSurf)
-      waterPrm%soil%soilstorecap = SoilStoreCap_surf(WaterSurf)
-      waterPrm%soil%sathydraulicconduct = SatHydraulicConduct(WaterSurf)
-      waterPrm%statelimit = StateLimit_surf(WaterSurf)
-      waterPrm%irrfracwater = IrrFracWater
-      ! waterPrm%wetthresh = WetThresh_surf(WaterSurf)
-      ! waterPrm%storedrainprm%store_min = StoreDrainPrm(1, WaterSurf)
-      ! waterPrm%storedrainprm%drain_eq = StoreDrainPrm(2, WaterSurf)
-      ! waterPrm%storedrainprm%drain_coef_1 = StoreDrainPrm(3, WaterSurf)
-      ! waterPrm%storedrainprm%drain_coef_2 = StoreDrainPrm(4, WaterSurf)
-      ! waterPrm%storedrainprm%store_max = StoreDrainPrm(5, WaterSurf)
-      ! waterPrm%storedrainprm%store_cap = StoreDrainPrm(6, WaterSurf)
+      waterPrm%soil%soil_depth = SoilDepth(WaterSurf)
+      waterPrm%soil%soil_store_capacity = SoilStoreCap_surf(WaterSurf)
+      waterPrm%soil%saturated_hydraulic_conductivity = SatHydraulicConduct(WaterSurf)
+      waterPrm%state_limit = StateLimit_surf(WaterSurf)
+      waterPrm%irrigation_fraction_water = IrrFracWater
+      ! waterPrm%wet_threshold = WetThresh_surf(WaterSurf)
+      ! waterPrm%storage_drain_params%store_min = StoreDrainPrm(1, WaterSurf)
+      ! waterPrm%storage_drain_params%drain_eq = StoreDrainPrm(2, WaterSurf)
+      ! waterPrm%storage_drain_params%drain_coef_1 = StoreDrainPrm(3, WaterSurf)
+      ! waterPrm%storage_drain_params%drain_coef_2 = StoreDrainPrm(4, WaterSurf)
+      ! waterPrm%storage_drain_params%store_max = StoreDrainPrm(5, WaterSurf)
+      ! waterPrm%storage_drain_params%store_cap = StoreDrainPrm(6, WaterSurf)
 
       ! ********** SUEWS_stateVariables **********
       atmState%Tair_av = Tair_av
@@ -5369,11 +5369,11 @@ CONTAINS
       ! Remove non-existing surface type from surface and soil outputs   ! Added back in with NANs by HCW 24 Aug 2016
       state_surf = UNPACK(SPREAD(0.0D0, dim=1, ncopies=SIZE(sfr_surf)), mask=(sfr_surf < 0.00001), field=state_surf)
       smd_surf = UNPACK(SPREAD(0.0D0, dim=1, ncopies=SIZE(sfr_surf)), mask=(sfr_surf < 0.00001), field=smd_surf)
-      hydroState%soilstore_roof = soilstore_roof
+      hydroState%soil_store_roof = soilstore_roof
       hydroState%state_roof = state_roof
-      hydroState%soilstore_wall = soilstore_wall
+      hydroState%soil_store_wall = soilstore_wall
       hydroState%state_wall = state_wall
-      hydroState%soilstore_surf = soilstore_surf
+      hydroState%soil_store_surf = soilstore_surf
       hydroState%state_surf = state_surf
       hydroState%smd_surf = smd_surf
       hydroState%WUDay_id = WUDay_id
@@ -5423,13 +5423,13 @@ CONTAINS
       ohmState%a3_water = 0.0 ! Dynamic OHM coefficients
 
       ! snow related:
-      snowState%snowfallCum = SnowfallCum
-      snowState%snowalb = SnowAlb
-      snowState%icefrac = IceFrac
-      snowState%snowdens = SnowDens
-      snowState%snowfrac = SnowFrac
-      snowState%snowpack = SnowPack
-      snowState%snowwater = SnowWater
+      snowState%snowfall_cum = SnowfallCum
+      snowState%snow_albedo = SnowAlb
+      snowState%ice_frac = IceFrac
+      snowState%snow_density = SnowDens
+      snowState%snow_fraction = SnowFrac
+      snowState%snow_pack = SnowPack
+      snowState%snow_water = SnowWater
 
       ! phenology related:
       phenState%alb = alb
@@ -5444,77 +5444,77 @@ CONTAINS
       phenState%Tmin_id = Tmin_id
       phenState%Tmax_id = Tmax_id
       phenState%lenDay_id = lenDay_id
-      phenState%StoreDrainPrm = StoreDrainPrm
+      phenState%storage_drain_params = StoreDrainPrm
 
       ! assign stebbs values
       ! parameters - invariant during the simulation
-      stebbsPrm%WallInternalConvectionCoefficient = WallInternalConvectionCoefficient
-      stebbsPrm%RoofInternalConvectionCoefficient = RoofInternalConvectionCoefficient
-      stebbsPrm%InternalMassConvectionCoefficient = InternalMassConvectionCoefficient
-      stebbsPrm%FloorInternalConvectionCoefficient = FloorInternalConvectionCoefficient
-      stebbsPrm%WindowInternalConvectionCoefficient = WindowInternalConvectionCoefficient
-      stebbsPrm%WallExternalConvectionCoefficient = WallExternalConvectionCoefficient
-      stebbsPrm%RoofExternalConvectionCoefficient = RoofExternalConvectionCoefficient
-      stebbsPrm%WindowExternalConvectionCoefficient = WindowExternalConvectionCoefficient
-      stebbsPrm%GroundDepth = GroundDepth
-      stebbsPrm%ExternalGroundConductivity = ExternalGroundConductivity
-      stebbsPrm%MetabolismThreshold = MetabolismThreshold
-      stebbsPrm%LatentSensibleRatio = LatentSensibleRatio
-      stebbsPrm%DaylightControl = DaylightControl
-      stebbsPrm%LightingIlluminanceThreshold = LightingIlluminanceThreshold
-      stebbsPrm%HeatingSystemEfficiency = HeatingSystemEfficiency
-      stebbsPrm%MaxCoolingPower = MaxCoolingPower
-      stebbsPrm%CoolingSystemCOP = CoolingSystemCOP
-      stebbsPrm%VentilationRate = VentilationRate
-      stebbsPrm%WaterTankWallThickness = WaterTankWallThickness
-      stebbsPrm%WaterTankSurfaceArea = WaterTankSurfaceArea
-      stebbsPrm%HotWaterHeatingSetpointTemperature = HotWaterHeatingSetpointTemperature
-      stebbsPrm%HotWaterTankWallEmissivity = HotWaterTankWallEmissivity
-      stebbsPrm%DHWVesselWallThickness = DHWVesselWallThickness
-      stebbsPrm%DHWWaterVolume = DHWWaterVolume
-      stebbsPrm%DHWSurfaceArea = DHWSurfaceArea
-      stebbsPrm%HotWaterFlowRate = HotWaterFlowRate
-      stebbsPrm%HotWaterFlowProfile = HotWaterFlowProfile
-      stebbsPrm%DHWSpecificHeatCapacity = DHWSpecificHeatCapacity
-      stebbsPrm%HotWaterTankSpecificHeatCapacity = HotWaterTankSpecificHeatCapacity
-      stebbsPrm%DHWVesselSpecificHeatCapacity = DHWVesselSpecificHeatCapacity
-      stebbsPrm%DHWDensity = DHWDensity
-      stebbsPrm%HotWaterTankWallDensity = HotWaterTankWallDensity
-      stebbsPrm%DHWVesselDensity = DHWVesselDensity
-      stebbsPrm%HotWaterTankBuildingWallViewFactor = HotWaterTankBuildingWallViewFactor
-      stebbsPrm%HotWaterTankInternalMassViewFactor = HotWaterTankInternalMassViewFactor
-      stebbsPrm%HotWaterTankWallConductivity = HotWaterTankWallConductivity
-      stebbsPrm%HotWaterTankInternalWallConvectionCoefficient = HotWaterTankInternalWallConvectionCoefficient
-      stebbsPrm%HotWaterTankExternalWallConvectionCoefficient = HotWaterTankExternalWallConvectionCoefficient
-      stebbsPrm%DHWVesselWallConductivity = DHWVesselWallConductivity
-      stebbsPrm%DHWVesselInternalWallConvectionCoefficient = DHWVesselInternalWallConvectionCoefficient
-      stebbsPrm%DHWVesselExternalWallConvectionCoefficient = DHWVesselExternalWallConvectionCoefficient
-      stebbsPrm%DHWVesselWallEmissivity = DHWVesselWallEmissivity
-      stebbsPrm%HotWaterHeatingEfficiency = HotWaterHeatingEfficiency
+      stebbsPrm%wall_internal_convection_coefficient = WallInternalConvectionCoefficient
+      stebbsPrm%roof_internal_convection_coefficient = RoofInternalConvectionCoefficient
+      stebbsPrm%internal_mass_convection_coefficient = InternalMassConvectionCoefficient
+      stebbsPrm%floor_internal_convection_coefficient = FloorInternalConvectionCoefficient
+      stebbsPrm%window_internal_convection_coefficient = WindowInternalConvectionCoefficient
+      stebbsPrm%wall_external_convection_coefficient = WallExternalConvectionCoefficient
+      stebbsPrm%roof_external_convection_coefficient = RoofExternalConvectionCoefficient
+      stebbsPrm%window_external_convection_coefficient = WindowExternalConvectionCoefficient
+      stebbsPrm%ground_depth = GroundDepth
+      stebbsPrm%external_ground_conductivity = ExternalGroundConductivity
+      stebbsPrm%metabolism_threshold = MetabolismThreshold
+      stebbsPrm%latent_sensible_ratio = LatentSensibleRatio
+      stebbsPrm%daylight_control = DaylightControl
+      stebbsPrm%lighting_illuminance_threshold = LightingIlluminanceThreshold
+      stebbsPrm%heating_system_efficiency = HeatingSystemEfficiency
+      stebbsPrm%max_cooling_power = MaxCoolingPower
+      stebbsPrm%cooling_system_cop = CoolingSystemCOP
+      stebbsPrm%ventilation_rate = VentilationRate
+      stebbsPrm%hot_water_tank_wall_thickness = WaterTankWallThickness
+      stebbsPrm%hot_water_tank_surface_area = WaterTankSurfaceArea
+      stebbsPrm%hot_water_heating_setpoint_temperature = HotWaterHeatingSetpointTemperature
+      stebbsPrm%hot_water_tank_wall_emissivity = HotWaterTankWallEmissivity
+      stebbsPrm%hot_water_vessel_wall_thickness = DHWVesselWallThickness
+      stebbsPrm%hot_water_volume = DHWWaterVolume
+      stebbsPrm%hot_water_surface_area = DHWSurfaceArea
+      stebbsPrm%hot_water_flow_rate = HotWaterFlowRate
+      stebbsPrm%hot_water_flow_profile = HotWaterFlowProfile
+      stebbsPrm%hot_water_specific_heat_capacity = DHWSpecificHeatCapacity
+      stebbsPrm%hot_water_tank_specific_heat_capacity = HotWaterTankSpecificHeatCapacity
+      stebbsPrm%hot_water_vessel_specific_heat_capacity = DHWVesselSpecificHeatCapacity
+      stebbsPrm%hot_water_density = DHWDensity
+      stebbsPrm%hot_water_tank_wall_density = HotWaterTankWallDensity
+      stebbsPrm%hot_water_vessel_density = DHWVesselDensity
+      stebbsPrm%hot_water_tank_building_wall_view_factor = HotWaterTankBuildingWallViewFactor
+      stebbsPrm%hot_water_tank_internal_mass_view_factor = HotWaterTankInternalMassViewFactor
+      stebbsPrm%hot_water_tank_wall_conductivity = HotWaterTankWallConductivity
+      stebbsPrm%hot_water_tank_internal_wall_convection_coefficient = HotWaterTankInternalWallConvectionCoefficient
+      stebbsPrm%hot_water_tank_external_wall_convection_coefficient = HotWaterTankExternalWallConvectionCoefficient
+      stebbsPrm%hot_water_vessel_wall_conductivity = DHWVesselWallConductivity
+      stebbsPrm%hot_water_vessel_internal_wall_convection_coefficient = DHWVesselInternalWallConvectionCoefficient
+      stebbsPrm%hot_water_vessel_external_wall_convection_coefficient = DHWVesselExternalWallConvectionCoefficient
+      stebbsPrm%hot_water_vessel_wall_emissivity = DHWVesselWallEmissivity
+      stebbsPrm%hot_water_heating_efficiency = HotWaterHeatingEfficiency
 
       ! states - updated during the simulation
       ! TODO: STEBBS States act as parameters for building generation (move all but allocation?)
       CALL stebbsState%ALLOCATE(nbtypes, nlayer)
-      stebbsState%DeepSoilTemperature = AnnualMeanAirTemperature
+      stebbsState%deep_soil_temperature = AnnualMeanAirTemperature
       stebbsState%MonthMeanAirTemperature_diffmax = MonthMeanAirTemperature_diffmax
-      stebbsState%OutdoorAirStartTemperature = InitialOutdoorTemperature
-      stebbsState%IndoorAirStartTemperature = InitialIndoorTemperature
-      stebbsState%IndoorMassStartTemperature = InitialIndoorTemperature
-      stebbsState%WallIndoorSurfaceTemperature = InitialIndoorTemperature
-      stebbsState%WallOutdoorSurfaceTemperature = InitialOutdoorTemperature
-      stebbsState%RoofIndoorSurfaceTemperature = InitialIndoorTemperature
-      stebbsState%RoofOutdoorSurfaceTemperature = InitialOutdoorTemperature
-      stebbsState%WindowIndoorSurfaceTemperature = InitialIndoorTemperature
-      stebbsState%WindowOutdoorSurfaceTemperature = InitialOutdoorTemperature
-      stebbsState%GroundFloorIndoorSurfaceTemperature = InitialIndoorTemperature
-      stebbsState%GroundFloorOutdoorSurfaceTemperature = AnnualMeanAirTemperature
-      stebbsState%WaterTankTemperature = HotWaterHeatingSetpointTemperature
-      stebbsState%InternalWallWaterTankTemperature = HotWaterHeatingSetpointTemperature
-      stebbsState%ExternalWallWaterTankTemperature = InitialIndoorTemperature
-      stebbsState%MainsWaterTemperature = MainsWaterTemperature
-      stebbsState%DomesticHotWaterTemperatureInUseInBuilding = HotWaterHeatingSetpointTemperature
-      stebbsState%InternalWallDHWVesselTemperature = HotWaterHeatingSetpointTemperature
-      stebbsState%ExternalWallDHWVesselTemperature = InitialIndoorTemperature
+      stebbsState%outdoor_air_start_temperature = InitialOutdoorTemperature
+      stebbsState%indoor_air_start_temperature = InitialIndoorTemperature
+      stebbsState%indoor_mass_start_temperature = InitialIndoorTemperature
+      stebbsState%wall_indoor_surface_temperature = InitialIndoorTemperature
+      stebbsState%wall_outdoor_surface_temperature = InitialOutdoorTemperature
+      stebbsState%roof_indoor_surface_temperature = InitialIndoorTemperature
+      stebbsState%roof_outdoor_surface_temperature = InitialOutdoorTemperature
+      stebbsState%window_indoor_surface_temperature = InitialIndoorTemperature
+      stebbsState%window_outdoor_surface_temperature = InitialOutdoorTemperature
+      stebbsState%ground_floor_indoor_surface_temperature = InitialIndoorTemperature
+      stebbsState%ground_floor_outdoor_surface_temperature = AnnualMeanAirTemperature
+      stebbsState%water_tank_temperature_state = HotWaterHeatingSetpointTemperature
+      stebbsState%internal_wall_water_tank_temperature = HotWaterHeatingSetpointTemperature
+      stebbsState%external_wall_water_tank_temperature = InitialIndoorTemperature
+      stebbsState%mains_water_temperature = MainsWaterTemperature
+      stebbsState%domestic_hot_water_temperature_in_use_in_building = HotWaterHeatingSetpointTemperature
+      stebbsState%internal_wall_dhw_vessel_temperature = HotWaterHeatingSetpointTemperature
+      stebbsState%external_wall_dhw_vessel_temperature = InitialIndoorTemperature
 
       ! ! transfer states into modState
       mod_State%anthroemisState = anthroEmisState
@@ -5548,68 +5548,68 @@ CONTAINS
       siteInfo%stebbs = stebbsPrm
 
       ! assign stebbs building parameters
-      building_archtype%BuildingCount = BuildingCount
-      building_archtype%Occupants = Occupants
+      building_archtype%building_count = BuildingCount
+      building_archtype%occupants_state = Occupants
       building_archtype%stebbs_Height = stebbs_Height
-      building_archtype%FootprintArea = FootprintArea
-      building_archtype%WallExternalArea = WallExternalArea
-      building_archtype%RatioInternalVolume = RatioInternalVolume
-      building_archtype%InternalMassArea = InternalMassArea
+      building_archtype%footprint_area = FootprintArea
+      building_archtype%wall_external_area = WallExternalArea
+      building_archtype%internal_volume_ratio = RatioInternalVolume
+      building_archtype%internal_mass_area = InternalMassArea
       building_archtype%WWR = WWR
-      building_archtype%WallThickness = WallThickness
-      building_archtype%WallEffectiveConductivity = WallEffectiveConductivity
-      building_archtype%WallDensity = WallDensity
-      building_archtype%WallCp = WallCp
-      building_archtype%WallextThickness = WallextThickness
-      building_archtype%WallextEffectiveConductivity = WallextEffectiveConductivity
-      building_archtype%WallextDensity = WallextDensity
-      building_archtype%WallextCp = WallextCp
-      building_archtype%WallOuterCapFrac = WallOuterCapFrac
-      building_archtype%WallExternalEmissivity = WallExternalEmissivity
-      building_archtype%WallInternalEmissivity = WallInternalEmissivity
-      building_archtype%WallTransmissivity = WallTransmissivity
-      building_archtype%WallAbsorbtivity = WallAbsorbtivity
-      building_archtype%WallReflectivity = WallReflectivity
-      building_archtype%RoofThickness = RoofThickness
-      building_archtype%RoofEffectiveConductivity = RoofEffectiveConductivity
-      building_archtype%RoofDensity = RoofDensity
-      building_archtype%RoofCp = RoofCp
-      building_archtype%RoofextThickness = RoofextThickness
-      building_archtype%RoofextEffectiveConductivity = RoofextEffectiveConductivity
-      building_archtype%RoofextDensity = RoofextDensity
-      building_archtype%RoofextCp = RoofextCp
-      building_archtype%RoofOuterCapFrac = RoofOuterCapFrac
-      building_archtype%RoofExternalEmissivity = RoofExternalEmissivity
-      building_archtype%RoofInternalEmissivity = RoofInternalEmissivity
-      building_archtype%RoofTransmissivity = RoofTransmissivity
-      building_archtype%RoofAbsorbtivity = RoofAbsorbtivity
-      building_archtype%RoofReflectivity = RoofReflectivity
-      building_archtype%FloorThickness = FloorThickness
-      building_archtype%GroundFloorEffectiveConductivity = GroundFloorEffectiveConductivity
-      building_archtype%GroundFloorDensity = GroundFloorDensity
-      building_archtype%GroundFloorCp = GroundFloorCp
-      building_archtype%WindowThickness = WindowThickness
-      building_archtype%WindowEffectiveConductivity = WindowEffectiveConductivity
-      building_archtype%WindowDensity = WindowDensity
-      building_archtype%WindowCp = WindowCp
-      building_archtype%WindowExternalEmissivity = WindowExternalEmissivity
-      building_archtype%WindowInternalEmissivity = WindowInternalEmissivity
-      building_archtype%WindowTransmissivity = WindowTransmissivity
-      building_archtype%WindowAbsorbtivity = WindowAbsorbtivity
-      building_archtype%WindowReflectivity = WindowReflectivity
-      building_archtype%InternalMassDensity = InternalMassDensity
-      building_archtype%InternalMassCp = InternalMassCp
-      building_archtype%InternalMassEmissivity = InternalMassEmissivity
-      building_archtype%MaxHeatingPower = MaxHeatingPower
-      building_archtype%WaterTankWaterVolume = WaterTankWaterVolume
-      building_archtype%MaximumHotWaterHeatingPower = MaximumHotWaterHeatingPower
-      building_archtype%HeatingSetpointTemperature = HeatingSetpointTemperature
-      building_archtype%CoolingSetpointTemperature = CoolingSetpointTemperature
-      building_archtype%HeatingSetpointTemperatureProfile = HeatingSetpointTemperatureProfile
-      building_archtype%CoolingSetpointTemperatureProfile = CoolingSetpointTemperatureProfile
-      building_archtype%MetabolismProfile = MetabolismProfile
-      building_archtype%ApplianceProfile = ApplianceProfile
-      building_archtype%LightingPowerDensity = LightingPowerDensity
+      building_archtype%wall_thickness = WallThickness
+      building_archtype%wall_effective_conductivity = WallEffectiveConductivity
+      building_archtype%wall_density = WallDensity
+      building_archtype%wall_specific_heat_capacity = WallCp
+      building_archtype%wall_external_thickness = WallextThickness
+      building_archtype%wall_external_effective_conductivity = WallextEffectiveConductivity
+      building_archtype%wall_external_density = WallextDensity
+      building_archtype%wall_external_specific_heat_capacity = WallextCp
+      building_archtype%wall_outer_heat_capacity_fraction = WallOuterCapFrac
+      building_archtype%wall_external_emissivity = WallExternalEmissivity
+      building_archtype%wall_internal_emissivity = WallInternalEmissivity
+      building_archtype%wall_transmissivity = WallTransmissivity
+      building_archtype%wall_absorptivity = WallAbsorbtivity
+      building_archtype%wall_reflectivity = WallReflectivity
+      building_archtype%roof_thickness = RoofThickness
+      building_archtype%roof_effective_conductivity = RoofEffectiveConductivity
+      building_archtype%roof_density = RoofDensity
+      building_archtype%roof_specific_heat_capacity = RoofCp
+      building_archtype%roof_external_thickness = RoofextThickness
+      building_archtype%roof_external_effective_conductivity = RoofextEffectiveConductivity
+      building_archtype%roof_external_density = RoofextDensity
+      building_archtype%roof_external_specific_heat_capacity = RoofextCp
+      building_archtype%roof_outer_heat_capacity_fraction = RoofOuterCapFrac
+      building_archtype%roof_external_emissivity = RoofExternalEmissivity
+      building_archtype%roof_internal_emissivity = RoofInternalEmissivity
+      building_archtype%roof_transmissivity = RoofTransmissivity
+      building_archtype%roof_absorptivity = RoofAbsorbtivity
+      building_archtype%roof_reflectivity = RoofReflectivity
+      building_archtype%ground_floor_thickness = FloorThickness
+      building_archtype%ground_floor_effective_conductivity = GroundFloorEffectiveConductivity
+      building_archtype%ground_floor_density = GroundFloorDensity
+      building_archtype%ground_floor_specific_heat_capacity = GroundFloorCp
+      building_archtype%window_thickness = WindowThickness
+      building_archtype%window_effective_conductivity = WindowEffectiveConductivity
+      building_archtype%window_density = WindowDensity
+      building_archtype%window_specific_heat_capacity = WindowCp
+      building_archtype%window_external_emissivity = WindowExternalEmissivity
+      building_archtype%window_internal_emissivity = WindowInternalEmissivity
+      building_archtype%window_transmissivity = WindowTransmissivity
+      building_archtype%window_absorptivity = WindowAbsorbtivity
+      building_archtype%window_reflectivity = WindowReflectivity
+      building_archtype%internal_mass_density = InternalMassDensity
+      building_archtype%internal_mass_specific_heat_capacity = InternalMassCp
+      building_archtype%internal_mass_emissivity = InternalMassEmissivity
+      building_archtype%max_heating_power = MaxHeatingPower
+      building_archtype%hot_water_tank_volume = WaterTankWaterVolume
+      building_archtype%maximum_hot_water_heating_power = MaximumHotWaterHeatingPower
+      building_archtype%heating_setpoint_temperature = HeatingSetpointTemperature
+      building_archtype%cooling_setpoint_temperature = CoolingSetpointTemperature
+      building_archtype%heating_setpoint_temperature_profile = HeatingSetpointTemperatureProfile
+      building_archtype%cooling_setpoint_temperature_profile = CoolingSetpointTemperatureProfile
+      building_archtype%metabolism_profile = MetabolismProfile
+      building_archtype%appliance_profile = ApplianceProfile
+      building_archtype%lighting_power_density = LightingPowerDensity
       siteInfo%building_archtype = building_archtype
 
       IF (mod_state%flagState%stebbs_bldg_init == 0) THEN
@@ -5663,9 +5663,9 @@ CONTAINS
          forcing%pres = MetForcingBlock(ir, 13)
          forcing%rain = MetForcingBlock(ir, 14)
          forcing%kdown = MetForcingBlock(ir, 15)
-         forcing%snowfrac = MetForcingBlock(ir, 16)
-         forcing%ldown = MetForcingBlock(ir, 17)
-         forcing%fcld = MetForcingBlock(ir, 18)
+         forcing%snow_fraction = MetForcingBlock(ir, 16)
+         forcing%l_down = MetForcingBlock(ir, 17)
+         forcing%f_cloud = MetForcingBlock(ir, 18)
          forcing%Wu_m3 = MetForcingBlock(ir, 19)
          forcing%xsmd = MetForcingBlock(ir, 20)
          forcing%LAI_obs = MetForcingBlock(ir, 21)
@@ -5742,15 +5742,15 @@ CONTAINS
       qn_s_av = ohmState%qn_s_av
       dqnsdt = ohmState%dqnsdt
 
-      SnowfallCum = snowState%SnowfallCum
-      SnowAlb = snowState%SnowAlb
-      IceFrac = snowState%IceFrac
-      SnowWater = snowState%SnowWater
-      SnowDens = snowState%SnowDens
-      SnowFrac = snowState%SnowFrac
-      SnowPack = snowState%SnowPack
+      SnowfallCum = snowState%snowfall_cum
+      SnowAlb = snowState%snow_albedo
+      IceFrac = snowState%ice_frac
+      SnowWater = snowState%snow_water
+      SnowDens = snowState%snow_density
+      SnowFrac = snowState%snow_fraction
+      SnowPack = snowState%snow_pack
 
-      soilstore_surf = hydroState%soilstore_surf
+      soilstore_surf = hydroState%soil_store_surf
       state_surf = hydroState%state_surf
       temp_surf = heatState%temp_surf
       tsfc_surf = heatState%tsfc_surf
@@ -5768,7 +5768,7 @@ CONTAINS
       albEveTr_id = phenState%albEveTr_id
       albGrass_id = phenState%albGrass_id
       porosity_id = phenState%porosity_id
-      StoreDrainPrm = phenState%StoreDrainPrm
+      StoreDrainPrm = phenState%storage_drain_params
 
       IF (config%StorageHeatMethod == 5) THEN
          ! ESTM_ehc related
@@ -5777,9 +5777,9 @@ CONTAINS
          tsfc_roof = heatState%tsfc_roof
          tsfc_wall = heatState%tsfc_wall
 
-         soilstore_roof = hydroState%soilstore_roof
+         soilstore_roof = hydroState%soil_store_roof
          state_roof = hydroState%state_roof
-         soilstore_wall = hydroState%soilstore_wall
+         soilstore_wall = hydroState%soil_store_wall
          state_wall = hydroState%state_wall
       END IF
 

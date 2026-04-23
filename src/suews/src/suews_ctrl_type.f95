@@ -93,7 +93,7 @@ MODULE module_ctrl_type
       REAL(KIND(1D0)) :: runofftowater = 0.0D0 ! fraction of above-ground runoff flowing to water surface during flooding [-]
       REAL(KIND(1D0)) :: narp_trans_site = 0.0D0 ! atmospheric transmissivity for NARP [-]
       REAL(KIND(1D0)) :: CO2PointSource = 0.0D0 ! CO2 emission factor [kg km-1]
-      REAL(KIND(1D0)) :: flowchange = 0.0D0 ! Difference in input and output flows for water surface
+      REAL(KIND(1D0)) :: flow_change = 0.0D0 ! Difference in input and output flows for water surface
       REAL(KIND(1D0)) :: n_buildings = 0.0D0 ! n_buildings
       REAL(KIND(1D0)) :: h_std = 0.0D0 ! zStd_RSL
       REAL(KIND(1D0)) :: lambda_c = 0.0D0 ! Building surface to plan area ratio [-]
@@ -190,16 +190,16 @@ MODULE module_ctrl_type
    ! ********** SUEWS_forcing schema **********
    TYPE, PUBLIC :: SUEWS_FORCING
       REAL(KIND(1D0)) :: kdown = 0.0D0 !
-      REAL(KIND(1D0)) :: ldown = 0.0D0 !
+      REAL(KIND(1D0)) :: l_down = 0.0D0 !
       REAL(KIND(1D0)) :: RH = 0.0D0 !
       REAL(KIND(1D0)) :: pres = 0.0D0 !
       REAL(KIND(1D0)) :: Tair_av_5d = 0.0D0 ! 5-day moving average of air temperature [degC]
       REAL(KIND(1D0)) :: U = 0.0D0 !
       REAL(KIND(1D0)) :: rain = 0.0D0 !
       REAL(KIND(1D0)) :: Wu_m3 = 0.0D0 !  external water use amount in m3 for each timestep
-      REAL(KIND(1D0)) :: fcld = 0.0D0 !
+      REAL(KIND(1D0)) :: f_cloud = 0.0D0 !
       REAL(KIND(1D0)) :: LAI_obs = 0.0D0 !
-      REAL(KIND(1D0)) :: snowfrac = 0.0D0 !
+      REAL(KIND(1D0)) :: snow_fraction = 0.0D0 !
       REAL(KIND(1D0)) :: xsmd = 0.0D0 !
       REAL(KIND(1D0)) :: qf_obs = 0.0D0 !
       REAL(KIND(1D0)) :: qn1_obs = 0.0D0 !
@@ -557,11 +557,11 @@ CONTAINS
       ! Reset the critical atmospheric state variables that cause QE/QH discrepancies
       self%atmState%RA_h = 0.0D0
       self%atmState%RS = 0.0D0
-      self%atmState%UStar = 0.0D0
-      self%atmState%TStar = 0.0D0
+      self%atmState%u_star = 0.0D0
+      self%atmState%t_star = 0.0D0
       self%atmState%RB = 0.0D0
       self%atmState%L_mod = 0.0D0
-      self%atmState%zL = 0.0D0
+      self%atmState%z_l = 0.0D0
       self%atmState%rss_surf = 0.0D0
 
    END SUBROUTINE reset_atm_state

@@ -171,7 +171,7 @@ CONTAINS
             Qm => snowState%qm, &
             QmFreez => snowState%qm_freeze, &
             QmRain => snowState%qm_rain, &
-            NWstate_per_tstep => hydroState%NWstate_per_tstep, &
+            NWstate_per_tstep => hydroState%nw_state_per_tstep, &
             mwh => snowState%mwh, &
             mwstore => snowState%melt_water_store &
             )
@@ -806,7 +806,7 @@ CONTAINS
                 qn_surf, qs_surf, qe0_surf, qe_surf, qh_surf, & ! energy balance
                 wu_surf, ev0_surf, ev_surf, drain_surf, &
                 modState_init%hydroState%state_surf, hydroState%state_surf, &
-                modState_init%hydroState%soilstore_surf, hydroState%soilstore_surf, & ! water balance
+                modState_init%hydroState%soil_store_surf, hydroState%soil_store_surf, & ! water balance
                 RS, RA_h, RB, RAsnow, rss_surf, & ! for debugging QE
                 vsmd, conductancePrm%S1/conductancePrm%G_sm + conductancePrm%S2, &
                 conductancePrm%G_sm, &
@@ -1782,7 +1782,7 @@ CONTAINS
             qn_snow => snowState%qn_snow, &
             deltaQi => snowState%delta_qi, &
             SnowFrac => snowState%snow_fraction, &
-            soilstore_id => hydroState%soilstore_surf, &
+            soilstore_id => hydroState%soil_store_surf, &
             state_id => hydroState%state_surf, &
             HDD_id => anthroEmisState%HDD_id, &
             a1 => ohmState%a1, &
@@ -2214,17 +2214,17 @@ CONTAINS
             NonWaterFraction => siteInfo%NonWaterFraction, &
             nsh_real => timer%nsh_real, &
             Diagnose => config%Diagnose, &
-            addPipes => hydroState%addPipes, &
-            addImpervious => hydroState%addImpervious, &
-            addVeg => hydroState%addVeg, &
-            addWaterBody => hydroState%addWaterBody, &
+            addPipes => hydroState%add_pipes, &
+            addImpervious => hydroState%add_impervious, &
+            addVeg => hydroState%add_veg, &
+            addWaterBody => hydroState%add_water_body, &
             drain_per_tstep => hydroState%drain_per_tstep, &
             drain_surf => hydroState%drain_surf, &
             frac_water2runoff => hydroState%frac_water2runoff, &
-            AdditionalWater => hydroState%AdditionalWater, &
-            runoffPipes => hydroState%runoffPipes, &
+            AdditionalWater => hydroState%additional_water, &
+            runoffPipes => hydroState%runoff_pipes, &
             runoff_per_interval => hydroState%runoff_per_interval, &
-            AddWater => hydroState%AddWater, &
+            AddWater => hydroState%add_water, &
             SnowUse => config%SnowUse &
             )
 
@@ -2509,7 +2509,7 @@ CONTAINS
             deltaQi => snowState%delta_qi, &
             Tsurf_ind_snow => snowState%Tsurf_ind_snow, &
             SnowRemoval => snowState%snow_removal, &
-            NWstate_per_tstep => hydroState%NWstate_per_tstep, &
+            NWstate_per_tstep => hydroState%nw_state_per_tstep, &
             swe => snowState%swe, &
             chSnow_per_interval => snowState%chSnow_per_interval, &
             mwstore => snowState%melt_water_store, &
@@ -2523,21 +2523,21 @@ CONTAINS
             qe_surf => heatState%qe_surf, &
             qe_roof => heatState%qe_roof, &
             qe_wall => heatState%qe_wall, &
-            addimpervious => hydroState%addimpervious, &
-            addVeg => hydroState%addVeg, &
+            addimpervious => hydroState%add_impervious, &
+            addVeg => hydroState%add_veg, &
             drain => hydroState%drain_surf, &
-            AddWater => hydroState%AddWater, &
+            AddWater => hydroState%add_water, &
             frac_water2runoff => hydroState%frac_water2runoff, &
             state_per_tstep => hydroState%state_per_tstep, &
             ev_per_tstep => hydroState%ev_per_tstep, &
             runoff_per_tstep => hydroState%runoff_per_tstep, &
             surf_chang_per_tstep => hydroState%surf_chang_per_tstep, &
-            runoffAGveg => hydroState%runoffAGveg, &
-            runoffAGimpervious => hydroState%runoffAGimpervious, &
-            runoffPipes => hydroState%runoffPipes, &
-            runoffwaterbody => hydroState%runoffwaterbody, &
+            runoffAGveg => hydroState%runoff_ag_veg, &
+            runoffAGimpervious => hydroState%runoff_ag_impervious, &
+            runoffPipes => hydroState%runoff_pipes, &
+            runoffwaterbody => hydroState%runoff_waterbody, &
             state_id_in => hydroState_prev%state_surf, &
-            soilstore_id_in => hydroState_prev%soilstore_surf, &
+            soilstore_id_in => hydroState_prev%soil_store_surf, &
             StoreDrainPrm => phenState%storage_drain_params, &
             SnowPack_in => snowState_prev%snow_pack, &
             SnowFrac_in => snowState_prev%snow_fraction, &
@@ -2709,7 +2709,7 @@ CONTAINS
                ! runoffPipes_m3 = runoffPipes/1000*SurfaceArea
 
                hydroState_next%state_surf = state_id_surf
-               hydroState_next%soilstore_surf = soilstore_id
+               hydroState_next%soil_store_surf = soilstore_id
 
                snowState_next%snow_water = SnowWater
                snowState_next%ice_frac = iceFrac
@@ -2790,9 +2790,9 @@ CONTAINS
       REAL(KIND(1D0)), DIMENSION(7) :: capStore_surf ! current storage capacity [mm]
 
       ! CALL hydroState_next%allocHydro(nlayer)
-      ! ALLOCATE (hydroState%soilstore_roof(nlayer))
+      ! ALLOCATE (hydroState%soil_store_roof(nlayer))
       ! ALLOCATE (hydroState%state_roof(nlayer))
-      ! ALLOCATE (hydroState%soilstore_wall(nlayer))
+      ! ALLOCATE (hydroState%soil_store_wall(nlayer))
       ! ALLOCATE (hydroState%state_wall(nlayer))
 
       ! load dim constants
@@ -2870,45 +2870,45 @@ CONTAINS
             qe_wall => heatState%qe_wall, &
             qe0_surf => heatState%qe0_surf, &
             WU_surf => hydroState%WU_surf, &
-            addVeg => hydroState%addVeg, &
-            addWaterBody => hydroState%addWaterBody, &
-            AddWater_surf => hydroState%AddWater, &
+            addVeg => hydroState%add_veg, &
+            addWaterBody => hydroState%add_water_body, &
+            AddWater_surf => hydroState%add_water, &
             drain_surf => hydroState%drain_surf, &
             frac_water2runoff_surf => hydroState%frac_water2runoff, &
             ev_surf => hydroState%ev_surf, &
             ev_roof => hydroState%ev_roof, &
             state_roof => hydroState%state_roof, &
-            soilstore_roof => hydroState%soilstore_roof, &
+            soilstore_roof => hydroState%soil_store_roof, &
             ev_wall => hydroState%ev_wall, &
             state_wall => hydroState%state_wall, &
-            soilstore_wall => hydroState%soilstore_wall, &
+            soilstore_wall => hydroState%soil_store_wall, &
             ev0_surf => hydroState%ev0_surf, &
             state_per_tstep => hydroState%state_per_tstep, &
-            NWstate_per_tstep => hydroState%NWstate_per_tstep, &
+            NWstate_per_tstep => hydroState%nw_state_per_tstep, &
             ev_per_tstep => hydroState%ev_per_tstep, &
             runoff_per_tstep => hydroState%runoff_per_tstep, &
             surf_chang_per_tstep => hydroState%surf_chang_per_tstep, &
-            runoffPipes => hydroState%runoffPipes, &
-            runoffwaterbody => hydroState%runoffwaterbody, &
-            runoffAGveg => hydroState%runoffAGveg, &
-            runoffAGimpervious => hydroState%runoffAGimpervious, &
+            runoffPipes => hydroState%runoff_pipes, &
+            runoffwaterbody => hydroState%runoff_waterbody, &
+            runoffAGveg => hydroState%runoff_ag_veg, &
+            runoffAGimpervious => hydroState%runoff_ag_impervious, &
             storageheatmethod => config%storageheatmethod, &
-            addimpervious => hydroState%addimpervious, &
+            addimpervious => hydroState%add_impervious, &
             state_surf_in => hydroState_in%state_surf, &
-            soilstore_surf_in => hydroState_in%soilstore_surf, &
+            soilstore_surf_in => hydroState_in%soil_store_surf, &
             state_roof_in => hydroState_in%state_roof, &
-            soilstore_roof_in => hydroState_in%soilstore_roof, &
+            soilstore_roof_in => hydroState_in%soil_store_roof, &
             state_wall_in => hydroState_in%state_wall, &
-            soilstore_wall_in => hydroState_in%soilstore_wall, &
+            soilstore_wall_in => hydroState_in%soil_store_wall, &
             state_surf => hydroState%state_surf, &
-            soilstore_surf => hydroState%soilstore_surf, &
-            runoffSoil_surf => hydroState%runoffSoil, &
-            runoffSoil_per_tstep => hydroState%runoffSoil_per_tstep, &
-            SoilMoistCap => hydroState%SoilMoistCap, &
+            soilstore_surf => hydroState%soil_store_surf, &
+            runoffSoil_surf => hydroState%runoff_soil, &
+            runoffSoil_per_tstep => hydroState%runoff_soil_per_tstep, &
+            SoilMoistCap => hydroState%soil_moist_cap, &
             smd_surf => hydroState%smd_surf, &
             smd => hydroState%smd, &
             tot_chang_per_tstep => hydroState%tot_chang_per_tstep, &
-            SoilState => hydroState%SoilState, &
+            SoilState => hydroState%soil_state, &
             StoreDrainPrm => phenState%storage_drain_params, &
             snowfrac_in => snowstate%snow_fraction, &
             SMDMethod => config%SMDMethod, &
@@ -3498,7 +3498,7 @@ CONTAINS
             imin => timer%imin, &
             it => timer%it, &
             iy => timer%iy, &
-            AdditionalWater => hydroState%AdditionalWater, &
+            AdditionalWater => hydroState%additional_water, &
             avU10_ms => atmState%U10_ms, &
             azimuth => solarState%azimuth_deg, &
             SnowAlb => snowState%snow_albedo, &
@@ -3525,7 +3525,7 @@ CONTAINS
             mwh => snowState%mwh, &
             MwStore => snowState%melt_water_store, &
             nsh_real => timer%nsh_real, &
-            NWstate_per_tstep => hydroState%NWstate_per_tstep, &
+            NWstate_per_tstep => hydroState%nw_state_per_tstep, &
             q2_gkg => atmState%q2_gkg, &
             qe => heatState%qe, &
             qf => heatState%qf, &
@@ -3544,12 +3544,12 @@ CONTAINS
             RA => atmState%RA_h, &
             RS => atmState%RS, &
             RH2 => atmState%RH2, &
-            runoffAGimpervious => hydroState%runoffAGimpervious, &
-            runoffAGveg => hydroState%runoffAGveg, &
+            runoffAGimpervious => hydroState%runoff_ag_impervious, &
+            runoffAGveg => hydroState%runoff_ag_veg, &
             runoff_per_tstep => hydroState%runoff_per_tstep, &
-            runoffPipes => hydroState%runoffPipes, &
-            runoffSoil_per_tstep => hydroState%runoffSoil_per_tstep, &
-            runoffWaterBody => hydroState%runoffWaterBody, &
+            runoffPipes => hydroState%runoff_pipes, &
+            runoffSoil_per_tstep => hydroState%runoff_soil_per_tstep, &
+            runoffWaterBody => hydroState%runoff_waterbody, &
             smd => hydroState%smd, &
             smd_surf => hydroState%smd_surf, &
             SnowRemoval => snowState%snow_removal, &
@@ -3793,14 +3793,14 @@ CONTAINS
             QE_roof => heatState%QE_roof, &
             QH_roof => heatState%QH_roof, &
             state_roof => hydroState%state_roof, &
-            soilstore_roof => hydroState%soilstore_roof, &
+            soilstore_roof => hydroState%soil_store_roof, &
             tsfc_out_wall => heatState%tsfc_wall, &
             Qn_wall => heatState%Qn_wall, &
             QS_wall => heatState%QS_wall, &
             QE_wall => heatState%QE_wall, &
             QH_wall => heatState%QH_wall, &
             state_wall => hydroState%state_wall, &
-            soilstore_wall => hydroState%soilstore_wall &
+            soilstore_wall => hydroState%soil_store_wall &
             &)
 
             ! date & time:
@@ -5369,11 +5369,11 @@ CONTAINS
       ! Remove non-existing surface type from surface and soil outputs   ! Added back in with NANs by HCW 24 Aug 2016
       state_surf = UNPACK(SPREAD(0.0D0, dim=1, ncopies=SIZE(sfr_surf)), mask=(sfr_surf < 0.00001), field=state_surf)
       smd_surf = UNPACK(SPREAD(0.0D0, dim=1, ncopies=SIZE(sfr_surf)), mask=(sfr_surf < 0.00001), field=smd_surf)
-      hydroState%soilstore_roof = soilstore_roof
+      hydroState%soil_store_roof = soilstore_roof
       hydroState%state_roof = state_roof
-      hydroState%soilstore_wall = soilstore_wall
+      hydroState%soil_store_wall = soilstore_wall
       hydroState%state_wall = state_wall
-      hydroState%soilstore_surf = soilstore_surf
+      hydroState%soil_store_surf = soilstore_surf
       hydroState%state_surf = state_surf
       hydroState%smd_surf = smd_surf
       hydroState%WUDay_id = WUDay_id
@@ -5750,7 +5750,7 @@ CONTAINS
       SnowFrac = snowState%snow_fraction
       SnowPack = snowState%snow_pack
 
-      soilstore_surf = hydroState%soilstore_surf
+      soilstore_surf = hydroState%soil_store_surf
       state_surf = hydroState%state_surf
       temp_surf = heatState%temp_surf
       tsfc_surf = heatState%tsfc_surf
@@ -5777,9 +5777,9 @@ CONTAINS
          tsfc_roof = heatState%tsfc_roof
          tsfc_wall = heatState%tsfc_wall
 
-         soilstore_roof = hydroState%soilstore_roof
+         soilstore_roof = hydroState%soil_store_roof
          state_roof = hydroState%state_roof
-         soilstore_wall = hydroState%soilstore_wall
+         soilstore_wall = hydroState%soil_store_wall
          state_wall = hydroState%state_wall
       END IF
 

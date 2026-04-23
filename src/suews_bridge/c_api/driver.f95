@@ -1686,7 +1686,7 @@ subroutine pack_hydro_state(s, nlayer_c, flat, n_flat, err)
    idx = 1_c_int
 
    do i = 1_c_int, int(nsurf, c_int)
-      flat(idx) = s%soilstore_surf(i); idx = idx + 1_c_int
+      flat(idx) = s%soil_store_surf(i); idx = idx + 1_c_int
    end do
    do i = 1_c_int, int(nsurf, c_int)
       flat(idx) = s%state_surf(i); idx = idx + 1_c_int
@@ -1696,13 +1696,13 @@ subroutine pack_hydro_state(s, nlayer_c, flat, n_flat, err)
    end do
 
    do i = 1_c_int, nlayer_c
-      flat(idx) = s%soilstore_roof(i); idx = idx + 1_c_int
+      flat(idx) = s%soil_store_roof(i); idx = idx + 1_c_int
    end do
    do i = 1_c_int, nlayer_c
       flat(idx) = s%state_roof(i); idx = idx + 1_c_int
    end do
    do i = 1_c_int, nlayer_c
-      flat(idx) = s%soilstore_wall(i); idx = idx + 1_c_int
+      flat(idx) = s%soil_store_wall(i); idx = idx + 1_c_int
    end do
    do i = 1_c_int, nlayer_c
       flat(idx) = s%state_wall(i); idx = idx + 1_c_int
@@ -1724,7 +1724,7 @@ subroutine pack_hydro_state(s, nlayer_c, flat, n_flat, err)
       flat(idx) = s%wu_surf(i); idx = idx + 1_c_int
    end do
    do i = 1_c_int, int(nsurf, c_int)
-      flat(idx) = s%runoffsoil(i); idx = idx + 1_c_int
+      flat(idx) = s%runoff_soil(i); idx = idx + 1_c_int
    end do
    do i = 1_c_int, int(nsurf, c_int)
       flat(idx) = s%smd_surf(i); idx = idx + 1_c_int
@@ -1738,31 +1738,31 @@ subroutine pack_hydro_state(s, nlayer_c, flat, n_flat, err)
    flat(idx) = s%wu_ext; idx = idx + 1_c_int
    flat(idx) = s%wu_int; idx = idx + 1_c_int
 
-   flat(idx) = s%runoffagveg; idx = idx + 1_c_int
-   flat(idx) = s%runoffagimpervious; idx = idx + 1_c_int
+   flat(idx) = s%runoff_ag_veg; idx = idx + 1_c_int
+   flat(idx) = s%runoff_ag_impervious; idx = idx + 1_c_int
    flat(idx) = s%runoff_per_tstep; idx = idx + 1_c_int
-   flat(idx) = s%runoffpipes; idx = idx + 1_c_int
-   flat(idx) = s%runoffsoil_per_tstep; idx = idx + 1_c_int
-   flat(idx) = s%runoffwaterbody; idx = idx + 1_c_int
+   flat(idx) = s%runoff_pipes; idx = idx + 1_c_int
+   flat(idx) = s%runoff_soil_per_tstep; idx = idx + 1_c_int
+   flat(idx) = s%runoff_waterbody; idx = idx + 1_c_int
    flat(idx) = s%smd; idx = idx + 1_c_int
-   flat(idx) = s%soilstate; idx = idx + 1_c_int
+   flat(idx) = s%soil_state; idx = idx + 1_c_int
    flat(idx) = s%state_per_tstep; idx = idx + 1_c_int
    flat(idx) = s%surf_chang_per_tstep; idx = idx + 1_c_int
    flat(idx) = s%tot_chang_per_tstep; idx = idx + 1_c_int
    flat(idx) = s%runoff_per_interval; idx = idx + 1_c_int
-   flat(idx) = s%nwstate_per_tstep; idx = idx + 1_c_int
+   flat(idx) = s%nw_state_per_tstep; idx = idx + 1_c_int
 
-   flat(idx) = s%soilmoistcap; idx = idx + 1_c_int
+   flat(idx) = s%soil_moist_cap; idx = idx + 1_c_int
    flat(idx) = s%vsmd; idx = idx + 1_c_int
 
-   flat(idx) = s%additionalwater; idx = idx + 1_c_int
-   flat(idx) = s%addimpervious; idx = idx + 1_c_int
-   flat(idx) = s%addpipes; idx = idx + 1_c_int
-   flat(idx) = s%addveg; idx = idx + 1_c_int
-   flat(idx) = s%addwaterbody; idx = idx + 1_c_int
+   flat(idx) = s%additional_water; idx = idx + 1_c_int
+   flat(idx) = s%add_impervious; idx = idx + 1_c_int
+   flat(idx) = s%add_pipes; idx = idx + 1_c_int
+   flat(idx) = s%add_veg; idx = idx + 1_c_int
+   flat(idx) = s%add_water_body; idx = idx + 1_c_int
 
    do i = 1_c_int, int(nsurf, c_int)
-      flat(idx) = s%addwater(i); idx = idx + 1_c_int
+      flat(idx) = s%add_water(i); idx = idx + 1_c_int
    end do
    do i = 1_c_int, int(nsurf, c_int)
       flat(idx) = s%frac_water2runoff(i); idx = idx + 1_c_int

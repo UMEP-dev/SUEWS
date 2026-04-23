@@ -174,7 +174,7 @@ CONTAINS
                porosity_id => phenState%porosity_id, &
                HDD_id => anthroEmisState%HDD_id, &
                state_surf => hydroState%state_surf, &
-               soilstore_surf => hydroState%soilstore_surf, &
+               soilstore_surf => hydroState%soil_store_surf, &
                WUDay_id => hydroState%WUDay_id, &
                WaterUseMethod => config%WaterUseMethod, &
                Ie_start => irrPrm%Ie_start, &

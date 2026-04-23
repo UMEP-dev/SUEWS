@@ -476,6 +476,29 @@ HEATSTATE_RENAMES: Dict[str, str] = {
     "lup": "l_up",
 }
 
+# -- HYDRO_STATE (suews_type_hydro.f95) ---------------------------------------
+
+HYDROSTATE_RENAMES: Dict[str, str] = {
+    "soilstore_surf": "soil_store_surf",
+    "soilstore_roof": "soil_store_roof",
+    "soilstore_wall": "soil_store_wall",
+    "runoffSoil": "runoff_soil",
+    "runoffAGveg": "runoff_ag_veg",
+    "runoffAGimpervious": "runoff_ag_impervious",
+    "runoffPipes": "runoff_pipes",
+    "runoffwaterbody": "runoff_waterbody",
+    "runoffSoil_per_tstep": "runoff_soil_per_tstep",
+    "SoilState": "soil_state",
+    "SoilMoistCap": "soil_moist_cap",
+    "AdditionalWater": "additional_water",
+    "addImpervious": "add_impervious",
+    "addPipes": "add_pipes",
+    "addVeg": "add_veg",
+    "addWaterBody": "add_water_body",
+    "AddWater": "add_water",
+    "NWstate_per_tstep": "nw_state_per_tstep",
+}
+
 # -- surface types (suews_type_surface.f95) -----------------------------------
 #
 # ``gsmodel`` is NOT added here: MODELPHYSICS_RENAMES already owns
@@ -570,6 +593,7 @@ ALL_FIELD_RENAMES: Dict[str, str] = {
     **ATMOSPHERE_RENAMES,
     **SURFACE_RENAMES,
     **HEATSTATE_RENAMES,
+    **HYDROSTATE_RENAMES,
 }
 
 # Raw-YAML structural checks (Phase A / precheck) need a wider view than the

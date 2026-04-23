@@ -841,12 +841,12 @@ CONTAINS
             grassPrm => siteInfo%lc_grass, &
             bsoilPrm => siteInfo%lc_bsoil, &
             waterPrm => siteInfo%lc_water, &
-            SoilMoistCap => hydroState%SoilMoistCap, &
-            SoilState => hydroState%SoilState, &
+            SoilMoistCap => hydroState%soil_moist_cap, &
+            SoilState => hydroState%soil_state, &
             vsmd => hydroState%vsmd, &
             smd => hydroState%smd)
 
-            soilstore_surf = hydroState%soilstore_surf
+            soilstore_surf = hydroState%soil_store_surf
 
             ! sfr_surf = [pavedPrm%sfr, bldgPrm%sfr, evetrPrm%sfr, dectrPrm%sfr, grassPrm%sfr, bsoilPrm%sfr, waterPrm%sfr]
             SoilStoreCap(1) = pavedPrm%soil%soil_store_capacity
@@ -1290,9 +1290,9 @@ CONTAINS
          vegfraction => siteInfo%vegfraction, &
          NonWaterFraction => siteInfo%NonWaterFraction, &
          tstep_real => timer%tstep_real, &
-         soilstore_surf => hydroState%soilstore_surf, &
-         runoffSoil_surf => hydroState%runoffSoil, &
-         runoffSoil_per_tstep => hydroState%runoffSoil_per_tstep, &
+         soilstore_surf => hydroState%soil_store_surf, &
+         runoffSoil_surf => hydroState%runoff_soil, &
+         runoffSoil_per_tstep => hydroState%runoff_soil_per_tstep, &
          Diagnose => config%Diagnose &
          )
          runoffSoil_surf = 0

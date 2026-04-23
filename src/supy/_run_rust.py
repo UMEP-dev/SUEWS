@@ -487,13 +487,20 @@ def run_suews_rust_chunked(
     df_forcing: pd.DataFrame,
     chunk_day: int = 366,
     serial_mode: bool = False,
+    initial_state_json_by_grid: dict[int, str] | None = None,
 ) -> tuple[pd.DataFrame, dict[int, str] | None]:
     """Run SUEWS via Rust bridge with multi-chunk state chaining.
 
     Splits forcing into chunks of *chunk_day* days, runs each chunk
     sequentially, and threads the final state of chunk N into chunk N+1
-    for every grid.  Single-chunk forcing delegates without overhead.
+    for every grid.  When *initial_state_json_by_grid* is provided, the first
+    chunk also runs through ``run_suews_with_state`` for those grids.
     """
+    initial_state_json_by_grid = {
+        _normalise_grid_id(grid_id): state_json
+        for grid_id, state_json in (initial_state_json_by_grid or {}).items()
+    }
+
     # Group forcing into chunks (same logic as traditional backend)
     idx_start = df_forcing.index.min()
     idx_all = df_forcing.index
@@ -502,16 +509,17 @@ def run_suews_rust_chunked(
     )
 
     n_chunk = len(grp_forcing_chunk)
-    if n_chunk <= 1:
+    if n_chunk <= 1 and not initial_state_json_by_grid:
         return run_suews_rust_multi(
             config, df_forcing, serial_mode=serial_mode
         )
 
-    logger_supy.info(
-        "Rust backend: forcing split into %d chunks of <= %d days.",
-        n_chunk,
-        chunk_day,
-    )
+    if n_chunk > 1:
+        logger_supy.info(
+            "Rust backend: forcing split into %d chunks of <= %d days.",
+            n_chunk,
+            chunk_day,
+        )
 
     sites = config.sites
     list_gridiv = [s.gridiv for s in sites]
@@ -519,7 +527,7 @@ def run_suews_rust_chunked(
     if list_dupes:
         raise ValueError(f"Duplicate gridiv values in config.sites: {set(list_dupes)}")
 
-    dict_state_json: dict[int, str] = {}
+    dict_state_json: dict[int, str] = dict(initial_state_json_by_grid)
     list_df_output: list[pd.DataFrame] = []
 
     for chunk_idx, grp in enumerate(grp_forcing_chunk.groups):

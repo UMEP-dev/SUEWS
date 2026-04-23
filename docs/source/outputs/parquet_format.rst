@@ -18,12 +18,13 @@ large-scale SUEWS simulations.
 Output Files
 ------------
 
-When using parquet format, SUEWS produces two output files:
+When using parquet format through the object-oriented API, SUEWS produces
+Parquet output plus a checkpoint JSON file:
 
 - **SSss_SUEWS_output.parquet** - All simulation output in a single file, including
   all output groups and years. See :doc:`variables/index` for variable details.
 
-- **SSss_SUEWS_state_final.parquet** - Final model state for restart runs.
+- **SSss_SUEWS_checkpoint.json** - Typed state for restart runs.
   See :ref:`State Persistence <state-persistence>` for details.
 
 

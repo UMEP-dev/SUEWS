@@ -59,10 +59,9 @@ print(soil_cols[:5])
 # Run a short simulation to see state evolution
 _ = sim.run()
 
-# Compare initial and final states for soil moisture
-print("State evolution during simulation:")
-print(f"  Initial soil moisture (mean): {sim.state_init.filter(like='soilstore').mean().mean():.1f} mm")
-print(f"  Final soil moisture (mean): {sim.state_final.filter(like='soilstore').mean().mean():.1f} mm")
+# The typed checkpoint is the restart artifact created by the run.
+print("State checkpoint created:")
+print(f"  Last timestamp: {sim.checkpoint.last_timestamp}")
 
 # %%
 # Method 1: Full Year Spin-Up
@@ -75,14 +74,14 @@ print(f"  Final soil moisture (mean): {sim.state_final.filter(like='soilstore').
 sim_spinup = SUEWSSimulation.from_sample_data()
 _ = sim_spinup.run()
 
-# Step 2: Get equilibrated state
-state_equilibrated = sim_spinup.state_final.copy()
+# Step 2: Save the typed checkpoint
+checkpoint_equilibrated = sim_spinup.checkpoint
 
 print("Spin-up complete!")
-print("Equilibrated state ready for analysis period")
+print("Checkpoint ready for analysis period")
 
 # Step 3: Use for analysis (in practice, you'd load new forcing data)
-# sim_analysis = SUEWSSimulation.from_state(state_equilibrated)
+# sim_analysis = SUEWSSimulation.from_checkpoint(sim_spinup.config, checkpoint_equilibrated)
 # sim_analysis.update_forcing('forcing_2015.txt')
 # sim_analysis.run()
 
@@ -93,49 +92,40 @@ print("Equilibrated state ready for analysis period")
 # For limited forcing data, repeat the same year until states converge.
 # Typically 2-3 iterations are sufficient.
 
-# Track soil moisture convergence
-soil_history = []
+# Track checkpoint timestamps for each iteration.
+checkpoint_times = []
 sim = SUEWSSimulation.from_sample_data()
 
 # Initial run
 _ = sim.run()
-soil_history.append(sim.state_final.filter(like="soilstore").mean().mean())
+checkpoint_times.append(sim.checkpoint.last_timestamp)
 
 # Capture forcing once -- it stays the same across all spin-up iterations.
 forcing_data = sim.forcing
 
-# Spin-up iterations: reuse the same forcing but transfer evolved state.
-# Typically 2-3 iterations suffice for convergence (change < 1 mm).
+# Spin-up iterations: reuse the same forcing but transfer typed checkpoint state.
 n_spinup = 3
 for i in range(n_spinup):
-    # Create new simulation from final state and re-attach forcing
-    sim_next = SUEWSSimulation.from_state(sim.state_final)
+    # Create new simulation from checkpoint and re-attach forcing
+    sim_next = SUEWSSimulation.from_checkpoint(sim.config, sim.checkpoint)
     sim_next.update_forcing(forcing_data)
     _ = sim_next.run()
-    soil_history.append(sim_next.state_final.filter(like="soilstore").mean().mean())
-
-    # Check convergence
-    change = abs(soil_history[-1] - soil_history[-2])
-    print(f"Spin-up {i+1}: Soil moisture = {soil_history[-1]:.1f} mm (change: {change:.2f} mm)")
+    checkpoint_times.append(sim_next.checkpoint.last_timestamp)
+    print(f"Spin-up {i+1}: checkpoint timestamp = {checkpoint_times[-1]}")
 
     # Carry forward for next iteration
     sim = sim_next
 
 # %%
-# Visualise Spin-Up Convergence
-# -----------------------------
+# Inspect the Checkpoint Chain
+# ----------------------------
 #
 # Plot how soil moisture evolves across spin-up iterations.
 
-fig, ax = plt.subplots(figsize=(8, 5))
-ax.plot(range(len(soil_history)), soil_history, "bo-", markersize=10, linewidth=2)
-ax.set_xlabel("Spin-up Iteration")
-ax.set_ylabel("Mean Soil Moisture (mm)")
-ax.set_title("Soil Moisture Convergence During Spin-Up")
-ax.set_xticks(range(len(soil_history)))
-ax.set_xticklabels(["Initial"] + [f"Year {i+1}" for i in range(n_spinup)])
-ax.grid(True, alpha=0.3)
-plt.tight_layout()
+print("Checkpoint chain:")
+for i, timestamp in enumerate(checkpoint_times):
+    label = "Initial" if i == 0 else f"Year {i}"
+    print(f"  {label}: {timestamp}")
 
 # %%
 # Seasonal Initial Conditions

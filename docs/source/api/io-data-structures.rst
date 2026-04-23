@@ -6,7 +6,8 @@ Key IO Data Structures
 Introduction
 ------------
 
-The Python API uses four key pandas DataFrame structures for simulation input and output:
+The Python API uses YAML configuration, a forcing DataFrame, an output
+DataFrame, and a typed checkpoint for restart/continuation workflows:
 
 .. code-block:: python
 
@@ -17,20 +18,25 @@ The Python API uses four key pandas DataFrame structures for simulation input an
    sim.run()
 
    # Access the data structures
-   df_state_init = sim.df_state_init   # Input: initial states
-   df_forcing = sim.df_forcing         # Input: forcing data
-   df_output = sim.results             # Output: simulation results
-   df_state_final = sim.df_state_final # Output: final states
+   config = sim.config                 # Input: YAML-backed configuration
+   df_forcing = sim.forcing.df         # Input: forcing data
+   df_output = output.df               # Output: simulation results
+   checkpoint = output.checkpoint      # Output: restart state
 
 **Input DataFrames:**
 
-- ``df_state_init``: Model initial states and configuration parameters
+- YAML ``SUEWSConfig``: User-facing model configuration
 - ``df_forcing``: Meteorological forcing data time series
 
 **Output DataFrames:**
 
 - ``df_output`` (or ``sim.results``): Model output results for scientific analysis
-- ``df_state_final``: Model final states, usable as initial conditions for subsequent simulations
+- ``SUEWSCheckpoint``: Typed restart state, used together with the YAML
+  configuration for subsequent simulations
+
+``df_state_init`` and ``df_state_final`` are retained as legacy compatibility
+structures for older tools and file converters. New restart workflows should
+use ``config.yml`` plus ``*_SUEWS_checkpoint.json``.
 
 
 Input
@@ -141,34 +147,37 @@ Output is recorded at the same temporal resolution as the forcing data:
    True
 
 
+.. _suews_checkpoint:
 .. _df_state_final:
 
-``df_state_final``: model final states
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+``SUEWSCheckpoint``: restart state
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-``df_state_final`` has the identical data structure as ``df_state_init`` except for an
-extra ``datetime`` level in the index, which stores temporal information associated with
-model states.
+``SUEWSCheckpoint`` stores the Rust backend's typed ``state_json`` payload by
+``grid_id``. It is the canonical restart artifact for new workflows and must be
+used with the original YAML configuration:
 
 .. code-block:: python
 
-   >>> df_state_final.head()
-   var                      ah_min       ah_slope_cooling  ...  z z0m_in zdm_in
-   ind_dim                    (0,)  (1,)             (0,)  ...  0      0      0
-   datetime            grid
-   2012-01-01 00:05:00 98     15.0  15.0              2.7  ... 49.6   1.9   14.2
-   2013-01-01 00:05:00 98     15.0  15.0              2.7  ... 49.6   1.9   14.2
+   >>> output = sim.run()
+   >>> output.checkpoint.to_file("Kc_SUEWS_checkpoint.json")
+   PosixPath('Kc_SUEWS_checkpoint.json')
+   >>> sim_next = SUEWSSimulation.from_checkpoint(
+   ...     "config.yml",
+   ...     "Kc_SUEWS_checkpoint.json",
+   ... )
 
-   [2 rows x 1200 columns]
+The checkpoint contains:
 
-This structure facilitates reuse as initial model states for subsequent simulations:
+- ``supy_version``
+- ``state_schema_version``
+- ``created_at``
+- ``last_timestamp``
+- ``grid_states`` keyed by ``grid_id``
 
-- **Runtime diagnostics**: Save intermediate states with ``save_state=True`` in ``run_supy``
-- **Chained simulations**: Use end state as initial conditions for future runs starting
-  at the ending time of previous runs
-
-The meanings of state variables in ``df_state_final`` are the same as in ``df_state_init``,
-documented in :doc:`/data-structures/df_state`.
+``df_state_final`` remains available as a legacy DataFrame for compatibility
+with older DFState files and developer tools, but it is no longer the preferred
+restart artifact.
 
 
 Related Documentation

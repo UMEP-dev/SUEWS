@@ -35,7 +35,7 @@ use serde_yaml::Value;
 /// `src/supy/data_model/core/field_renames.py`. Each pair maps the
 /// current final name to its legacy fused spelling (what the Fortran
 /// state is keyed by).
-/// Total: 68 pairs.
+/// Total: ~100 pairs (expanded for gh#1334 STEBBS + Snow snake_case sweep).
 pub const FIELD_RENAMES: &[(&str, &str)] = &[
     // ModelPhysics (17) — fused -> final (Cat 2+3, gh#1321) + flags
     ("net_radiation", "netradiationmethod"),
@@ -91,28 +91,66 @@ pub const FIELD_RENAMES: &[(&str, &str)] = &[
     ("porosity_max_deciduous", "pormax_dec"),
     ("capacity_max_deciduous", "capmax_dec"),
     ("capacity_min_deciduous", "capmin_dec"),
-    // ArchetypeProperties (8) — STEBBS PascalCase, split fused `ext` (gh#1327)
-    ("WallExternalThickness", "WallextThickness"),
-    ("WallExternalEffectiveConductivity", "WallextEffectiveConductivity"),
-    ("WallExternalDensity", "WallextDensity"),
-    ("WallExternalCp", "WallextCp"),
-    ("RoofExternalThickness", "RoofextThickness"),
-    ("RoofExternalEffectiveConductivity", "RoofextEffectiveConductivity"),
-    ("RoofExternalDensity", "RoofextDensity"),
-    ("RoofExternalCp", "RoofextCp"),
-    // SnowParams (12)
+    // ArchetypeProperties — gh#1334 expansion renames where the compact
+    // strip-underscores match against the Rust struct field fails. The new
+    // snake_case name must be rewritten to the legacy Rust field name
+    // before the yaml_config parser runs. Fields whose new name compact-
+    // matches directly (e.g. `wall_thickness` -> `wallthickness`) are not
+    // listed — `set_mapped_value` resolves them automatically.
+    //
+    // External (Wallext / Roofext) cluster from gh#1327 — the new name
+    // jumped straight to snake_case under gh#1334 (skipping the Cat 5
+    // PascalCase intermediate); the compat aliases section below keeps
+    // the PascalCase intermediate loading for users on Schema 2026.5.dev1.
+    ("wall_external_thickness", "wallextthickness"),
+    ("wall_external_effective_conductivity", "wallexteffectiveconductivity"),
+    ("wall_external_density", "wallextdensity"),
+    ("wall_external_specific_heat_capacity", "wallextcp"),
+    ("roof_external_thickness", "roofextthickness"),
+    ("roof_external_effective_conductivity", "roofexteffectiveconductivity"),
+    ("roof_external_density", "roofextdensity"),
+    ("roof_external_specific_heat_capacity", "roofextcp"),
+    // Archetype abbreviation expansions (Cp -> specific_heat_capacity,
+    // Cap -> heat_capacity, Frac -> fraction, WWR / Ratio / stebbs_Height /
+    // FloorThickness semantic renames, Absorbtivity spelling fix)
+    ("wall_specific_heat_capacity", "wallcp"),
+    ("roof_specific_heat_capacity", "roofcp"),
+    ("window_specific_heat_capacity", "windowcp"),
+    ("internal_mass_specific_heat_capacity", "internalmasscp"),
+    ("ground_floor_specific_heat_capacity", "groundfloorcp"),
+    ("wall_outer_heat_capacity_fraction", "walloutercapfrac"),
+    ("roof_outer_heat_capacity_fraction", "roofoutercapfrac"),
+    ("window_to_wall_ratio", "wwr"),
+    ("internal_volume_ratio", "ratiointernalvolume"),
+    ("building_height", "stebbs_height"),
+    ("ground_floor_thickness", "floorthickness"),
+    ("wall_absorptivity", "wallabsorbtivity"),
+    ("roof_absorptivity", "roofabsorbtivity"),
+    ("window_absorptivity", "windowabsorbtivity"),
+    // SnowParams — legacy fused -> gh#1334 final snake_case.
+    //
+    // Six entries retarget from the 2026.5 intermediate to the #1334
+    // final (preciplimit -> temperature_rain_snow_threshold etc.); five
+    // new entries are for fields whose 2026.5 shape had no fused
+    // predecessor (tau_a, narp_emis_snow, etc.) — the "legacy" name is
+    // what the Fortran bridge still reads.
     ("water_holding_capacity_max", "crwmax"),
     ("water_holding_capacity_min", "crwmin"),
-    ("precip_limit", "preciplimit"),
-    ("precip_limit_albedo", "preciplimitalb"),
+    ("temperature_rain_snow_threshold", "preciplimit"),
+    ("precipitation_threshold_albedo_reset", "preciplimitalb"),
     ("snow_albedo_max", "snowalbmax"),
     ("snow_albedo_min", "snowalbmin"),
     ("snow_density_min", "snowdensmin"),
     ("snow_density_max", "snowdensmax"),
-    ("snow_limit_building", "snowlimbldg"),
-    ("snow_limit_paved", "snowlimpaved"),
-    ("temp_melt_factor", "tempmeltfact"),
-    ("rad_melt_factor", "radmeltfact"),
+    ("snow_depth_limit_building", "snowlimbldg"),
+    ("snow_depth_limit_paved", "snowlimpaved"),
+    ("temperature_melt_factor", "tempmeltfact"),
+    ("radiation_melt_factor", "radmeltfact"),
+    ("tau_cold_snow", "tau_a"),
+    ("tau_melting_snow", "tau_f"),
+    ("tau_refreezing_snow", "tau_r"),
+    ("snow_profile_24hr", "snowprof_24hr"),
+    ("narp_emissivity_snow", "narp_emis_snow"),
 ];
 
 /// Additional compatibility aliases for the short-lived Schema 2026.5
@@ -122,6 +160,7 @@ pub const FIELD_RENAMES: &[(&str, &str)] = &[
 /// Rust/Python parity lint can continue to compare the one-to-one
 /// final-name registry against Python `ALL_FIELD_RENAMES`.
 pub const FIELD_COMPAT_ALIASES: &[(&str, &str)] = &[
+    // Schema 2026.5 ModelPhysics intermediate (gh#1321)
     ("net_radiation_method", "netradiationmethod"),
     ("emissions_method", "emissionsmethod"),
     ("storage_heat_method", "storageheatmethod"),
@@ -136,6 +175,24 @@ pub const FIELD_COMPAT_ALIASES: &[(&str, &str)] = &[
     ("fai_method", "faimethod"),
     ("rc_method", "rcmethod"),
     ("gs_model", "gsmodel"),
+    // Schema 2026.5.dev1 STEBBS ArchetypeProperties Cat 5 intermediate
+    // (gh#1327). After gh#1334 the final names are snake_case; the
+    // PascalCase intermediate stays accepted for back-compat.
+    ("WallExternalThickness", "wallextthickness"),
+    ("WallExternalEffectiveConductivity", "wallexteffectiveconductivity"),
+    ("WallExternalDensity", "wallextdensity"),
+    ("WallExternalCp", "wallextcp"),
+    ("RoofExternalThickness", "roofextthickness"),
+    ("RoofExternalEffectiveConductivity", "roofexteffectiveconductivity"),
+    ("RoofExternalDensity", "roofextdensity"),
+    ("RoofExternalCp", "roofextcp"),
+    // Schema 2026.5.dev2 SnowParams intermediate (gh#1334)
+    ("precip_limit", "preciplimit"),
+    ("precip_limit_albedo", "preciplimitalb"),
+    ("snow_limit_building", "snowlimbldg"),
+    ("snow_limit_paved", "snowlimpaved"),
+    ("temp_melt_factor", "tempmeltfact"),
+    ("rad_melt_factor", "radmeltfact"),
 ];
 
 fn legacy_name_for(key: &str) -> Option<(&'static str, &'static str)> {

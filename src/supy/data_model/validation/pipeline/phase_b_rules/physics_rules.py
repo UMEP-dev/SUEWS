@@ -721,7 +721,7 @@ def validate_forcing_height_vs_buildings(context) -> List[ValidationResult]:
 
     - The maximum building height is defined as the largest of:
         - land_cover.bldgs.bldgh
-        - building_archetype.stebbs_Height (if stebbsmethod == 1)
+        - building_archetype.building_height (if stebbsmethod == 1)
         - The last non-zero value in vertical_layers.height
           (SPARTACUS top height, if enabled)
     """

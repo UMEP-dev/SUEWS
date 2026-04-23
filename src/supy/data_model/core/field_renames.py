@@ -286,9 +286,8 @@ STEBBSPROPERTIES_RENAMES: Dict[str, str] = {
     # Hot-water system. The Rust bridge carries two parallel prefixes
     # (`water_tank_*` and `dhw_*` for the draw-off vessel), which we
     # mirror here until Tier B (#1324) can unify them. `DHWWaterVolume`
-    # drops the redundant "Water" to match the Rust struct's
-    # `dhw_water_volume` -> sorry, that one keeps the trailing "water";
-    # see the Rust comment for the rationale.
+    # -> `dhw_water_volume` keeps the trailing "water" to match the Rust
+    # struct field; see the Rust comment for the rationale.
     "WaterTankWallThickness": "water_tank_wall_thickness",
     "MainsWaterTemperature": "mains_water_temperature",
     "WaterTankSurfaceArea": "water_tank_surface_area",

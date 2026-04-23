@@ -1369,7 +1369,7 @@ class ArchetypeProperties(BaseModel):
     building_height: Optional[FlexibleRefValue(float)] = Field(
         default=10.0,
         description="Building height. This should be consistent with wall_external_area and footprint_area. [m]",
-        json_schema_extra={"unit": "m", "display_name": "Stebbs Height"},
+        json_schema_extra={"unit": "m", "display_name": "Building Height"},
         gt=0.0,
     )
     footprint_area: Optional[FlexibleRefValue(float)] = Field(
@@ -1508,7 +1508,7 @@ class ArchetypeProperties(BaseModel):
     )
     wall_absorptivity: Optional[FlexibleRefValue(float)] = Field(
         default=0.8,
-        description="Absorbtivity of walls [-]",
+        description="Absorptivity of walls [-]",
         json_schema_extra={
             "unit": "dimensionless",
             "display_name": "Wall Absorptivity",
@@ -1624,7 +1624,7 @@ class ArchetypeProperties(BaseModel):
     )
     roof_absorptivity: Optional[FlexibleRefValue(float)] = Field(
         default=0.8,
-        description="Absorbtivity of roof [-]",
+        description="Absorptivity of roof [-]",
         json_schema_extra={
             "unit": "dimensionless",
             "display_name": "Roof Absorptivity",
@@ -1734,7 +1734,7 @@ class ArchetypeProperties(BaseModel):
     )
     window_absorptivity: Optional[FlexibleRefValue(float)] = Field(
         default=0.01,
-        description="Absorbtivity of windows [-]",
+        description="Absorptivity of windows [-]",
         json_schema_extra={
             "unit": "dimensionless",
             "display_name": "Window Absorptivity",

@@ -519,9 +519,9 @@ class SetpointMethod(Enum):
     """
     Method to determine the approach of space heating/cooling setpoints in STEBBS.
 
-    0: Constant - Use the user-provided HeatingSetpointTemperature and CoolingSetpointTemperature throughout the day.
+    0: Constant - Use the user-provided heating_setpoint_temperature and cooling_setpoint_temperature throughout the day.
     1: Dependent - Use the user-provided setpoints; but it depends on occupants activity status and use unrealistic switch-off setpoints when occupant is inactive.
-    2: Scheduled - Use the user-provided HeatingSetpointTemperatureProfile and CoolingSetpointTemperatureProfile.
+    2: Scheduled - Use the user-provided heating_setpoint_temperature_profile and cooling_setpoint_temperature_profile.
     """
 
     CONSTANT = 0

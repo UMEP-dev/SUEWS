@@ -1296,8 +1296,8 @@ def test_validate_model_option_setpointmethod_0_or_1_all_params(registry):
             "name": "site1",
             "properties": {
                 "building_archetype": {
-                    "HeatingSetpointTemperature": {"value": 21.0},
-                    "CoolingSetpointTemperature": {"value": 25.0},
+                    "heating_setpoint_temperature": {"value": 21.0},
+                    "cooling_setpoint_temperature": {"value": 25.0},
                 }
             }
         }],
@@ -1312,15 +1312,15 @@ def test_validate_model_option_setpointmethod_0_or_1_missing_params(registry):
             "name": "site1",
             "properties": {
                 "building_archetype": {
-                    # "HeatingSetpointTemperature" missing
-                    "CoolingSetpointTemperature": {"value": 25.0},
+                    # "heating_setpoint_temperature" missing
+                    "cooling_setpoint_temperature": {"value": 25.0},
                 }
             }
         }],
     }
     results = registry["setpoint"](ValidationContext(yaml_data=yaml_data))
     error_params = [r.parameter for r in results if r.status == "ERROR"]
-    assert "HeatingSetpointTemperature" in error_params
+    assert "heating_setpoint_temperature" in error_params
     assert all("must be set" in r.message for r in results if r.status == "ERROR")
 
 def test_validate_model_option_setpointmethod_2_all_profiles_valid(registry):
@@ -1334,11 +1334,11 @@ def test_validate_model_option_setpointmethod_2_all_profiles_valid(registry):
             "name": "site1",
             "properties": {
                 "building_archetype": {
-                    "HeatingSetpointTemperatureProfile": {
+                    "heating_setpoint_temperature_profile": {
                         "working_day": heating_working,
                         "holiday": heating_holiday,
                     },
-                    "CoolingSetpointTemperatureProfile": {
+                    "cooling_setpoint_temperature_profile": {
                         "working_day": cooling_working,
                         "holiday": cooling_holiday,
                     },
@@ -1356,11 +1356,11 @@ def test_validate_model_option_setpointmethod_2_missing_profile_entries(registry
             "name": "site1",
             "properties": {
                 "building_archetype": {
-                    "HeatingSetpointTemperatureProfile": {
+                    "heating_setpoint_temperature_profile": {
                         "working_day": {"0": None, "1": 19.5},
                         "holiday": {"0": 19.0, "1": None},
                     },
-                    "CoolingSetpointTemperatureProfile": {
+                    "cooling_setpoint_temperature_profile": {
                         "working_day": {"0": 26.0, "1": None},
                         "holiday": {"0": None, "1": 26.5},
                     },
@@ -1370,8 +1370,8 @@ def test_validate_model_option_setpointmethod_2_missing_profile_entries(registry
     }
     results = registry["setpoint"](ValidationContext(yaml_data=yaml_data))
     error_params = [r.parameter for r in results if r.status == "ERROR"]
-    assert "HeatingSetpointTemperatureProfile" in error_params
-    assert "CoolingSetpointTemperatureProfile" in error_params
+    assert "heating_setpoint_temperature_profile" in error_params
+    assert "cooling_setpoint_temperature_profile" in error_params
     assert any("null entries" in r.message for r in results if r.status == "ERROR")
 
 def test_validate_model_option_setpointmethod_2_out_of_range(registry):
@@ -1381,11 +1381,11 @@ def test_validate_model_option_setpointmethod_2_out_of_range(registry):
             "name": "site1",
             "properties": {
                 "building_archetype": {
-                    "HeatingSetpointTemperatureProfile": {
+                    "heating_setpoint_temperature_profile": {
                         "working_day": {"0": 31.0, "1": 19.5},
                         "holiday": {"0": 19.0, "1": 30.0},
                     },
-                    "CoolingSetpointTemperatureProfile": {
+                    "cooling_setpoint_temperature_profile": {
                         "working_day": {"0": 14.0, "1": 27.0},
                         "holiday": {"0": 25.5, "1": 15.0},
                     },
@@ -1394,8 +1394,8 @@ def test_validate_model_option_setpointmethod_2_out_of_range(registry):
         }],
     }
     results = registry["setpoint"](ValidationContext(yaml_data=yaml_data))
-    heating_errors = [r for r in results if r.parameter == "HeatingSetpointTemperatureProfile" and r.status == "ERROR"]
-    cooling_errors = [r for r in results if r.parameter == "CoolingSetpointTemperatureProfile" and r.status == "ERROR"]
+    heating_errors = [r for r in results if r.parameter == "heating_setpoint_temperature_profile" and r.status == "ERROR"]
+    cooling_errors = [r for r in results if r.parameter == "cooling_setpoint_temperature_profile" and r.status == "ERROR"]
     assert any("values >= 30.0" in r.message for r in heating_errors)
     assert any("values <= 15.0" in r.message for r in cooling_errors)
 
@@ -1406,11 +1406,11 @@ def test_validate_model_option_setpointmethod_2_invalid_slice_keys(registry):
             "name": "site1",
             "properties": {
                 "building_archetype": {
-                    "HeatingSetpointTemperatureProfile": {
+                    "heating_setpoint_temperature_profile": {
                         "working_day": {"0": 20.0, "1": 19.5},
                         "holiday": {"1": 19.0, "2": 18.5},
                     },
-                    "CoolingSetpointTemperatureProfile": {
+                    "cooling_setpoint_temperature_profile": {
                         "working_day": {"1": 26.0, "145": 27.0},
                         "holiday": {"1": 25.5, "2": 26.5},
                     },
@@ -1420,8 +1420,8 @@ def test_validate_model_option_setpointmethod_2_invalid_slice_keys(registry):
     }
     results = registry["setpoint"](ValidationContext(yaml_data=yaml_data))
     error_params = [r.parameter for r in results if r.status == "ERROR"]
-    assert "HeatingSetpointTemperatureProfile.working_day" in error_params
-    assert "CoolingSetpointTemperatureProfile.working_day" in error_params
+    assert "heating_setpoint_temperature_profile.working_day" in error_params
+    assert "cooling_setpoint_temperature_profile.working_day" in error_params
     assert any(
         "Only entries 1-144 are valid." in r.message
         for r in results
@@ -1710,8 +1710,8 @@ def test_validate_model_option_stebbsmethod_occupants_zero_metabolismprofile_all
             "name": "site1",
             "properties": {
                 "building_archetype": {
-                    "Occupants": {"value": 0.0},
-                    "MetabolismProfile": {
+                    "occupants": {"value": 0.0},
+                    "metabolism_profile": {
                         "working_day": {"0": 0, "1": 0.0, "2": None},
                         "holiday": {"0": 0, "1": 0.0, "2": None},
                     },
@@ -1732,8 +1732,8 @@ def test_validate_model_option_stebbsmethod_occupants_nonzero_metabolismprofile_
             "name": "site1",
             "properties": {
                 "building_archetype": {
-                    "Occupants": {"value": 2.0},
-                    "MetabolismProfile": {
+                    "occupants": {"value": 2.0},
+                    "metabolism_profile": {
                         "working_day": {"0": 1.1, "1": 1.2},
                         "holiday": {"0": 0.9, "1": 1.0},
                     },
@@ -1909,9 +1909,9 @@ def test_validate_spartacus_building_height_no_error():
     cfg = make_cfg(net_radiation=1001, stebbs=1)
     cfg.model.physics.stebbs = 1
 
-    # bldgh and stebbs_Height do not exceed height[nlayer]
+    # bldgh and building_height do not exceed height[nlayer]
     bldgs = SimpleNamespace(bldgh=8.0)
-    building_archetype = SimpleNamespace(stebbs_Height=9.0)
+    building_archetype = SimpleNamespace(building_height=9.0)
     vertical_layers = SimpleNamespace(height=[5.0, 10.0, 12.0], nlayer=1)
     props = SimpleNamespace(
         land_cover=SimpleNamespace(bldgs=bldgs),
@@ -1924,12 +1924,12 @@ def test_validate_spartacus_building_height_no_error():
 
 
 def test_validate_spartacus_building_height_stebbs_off():
-    """stebbs_Height should NOT be checked when stebbsmethod != 1."""
+    """building_height should NOT be checked when stebbsmethod != 1."""
     cfg = make_cfg(net_radiation=1001, stebbs=0)
 
-    # stebbs_Height exceeds domain top, but stebbsmethod is off
+    # building_height exceeds domain top, but stebbsmethod is off
     bldgs = SimpleNamespace(bldgh=8.0)
-    building_archetype = SimpleNamespace(stebbs_Height=20.0)
+    building_archetype = SimpleNamespace(building_height=20.0)
     vertical_layers = SimpleNamespace(height=[5.0, 10.0, 12.0], nlayer=1)
     props = SimpleNamespace(
         land_cover=SimpleNamespace(bldgs=bldgs),

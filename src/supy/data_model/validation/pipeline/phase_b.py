@@ -1868,9 +1868,9 @@ def adjust_model_option_rcmethod(yaml_data: dict) -> Tuple[dict, List[Scientific
 
 def adjust_model_option_setpointmethod(yaml_data: dict) -> Tuple[dict, List[ScientificAdjustment]]:
     """
-    If setpoint == 0 or 1, set all entries in HeatingSetpointTemperatureProfile and
-    CoolingSetpointTemperatureProfile in building_archetype to null for all sites.
-    If setpoint == 2, set HeatingSetpointTemperature and CoolingSetpointTemperature
+    If setpoint == 0 or 1, set all entries in heating_setpoint_temperature_profile and
+    cooling_setpoint_temperature_profile in building_archetype to null for all sites.
+    If setpoint == 2, set heating_setpoint_temperature and cooling_setpoint_temperature
     in building_archetype to null for all sites (they are not needed).
     """
     adjustments = []

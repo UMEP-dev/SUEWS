@@ -2299,7 +2299,7 @@ class SUEWSConfig(BaseModel):
 
         If SPARTACUS is enabled, this function enforces that:
         - The building height (bldgh) does not exceed the domain top (height[nlayer]).
-        - If stebbs_method == 1, the archetype's stebbs_Height also does not exceed the domain top.
+        - If stebbs_method == 1, the archetype's building_height also does not exceed the domain top.
 
         Parameters
         ----------
@@ -2316,7 +2316,7 @@ class SUEWSConfig(BaseModel):
         Notes
         -----
         - The domain top is defined as the last entry in the vertical_layers.height array (height[nlayer]).
-        - If stebbs_method == 1, both bldgh and stebbs_Height are checked.
+        - If stebbs_method == 1, both bldgh and building_height are checked.
         - All issues are reported with the site name for clarity.
         """
         issues: List[str] = []
@@ -2343,7 +2343,7 @@ class SUEWSConfig(BaseModel):
                     f"Site '{site_name}' has bldgh={bldgh} exceeding SPARTACUS domain top (height[{nlayer}]={spartacus_top})."
                 )
 
-            # If stebbs == 1, also check stebbs_Height
+            # If stebbs == 1, also check building_height
             stebbs_method = _unwrap_value(getattr(self.model.physics, "stebbs", None))
 
             try:

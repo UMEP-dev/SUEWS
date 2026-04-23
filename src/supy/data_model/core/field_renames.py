@@ -674,14 +674,31 @@ SNOWSTATE_RENAMES: Dict[str, str] = {
 # -- Combined -----------------------------------------------------------------
 #
 # ``ALL_FIELD_RENAMES`` is a one-to-one map from every legacy fused key to
-# its current final name. ``MODELPHYSICS_SUFFIX_RENAMES``,
-# ``ARCHETYPEPROPERTIES_PASCAL_RENAMES``, and
-# ``SNOWPARAMS_INTERMEDIATE_RENAMES`` are deliberately NOT spread here — they
-# carry schema-intermediate aliases that would introduce a second alias per
-# final name, which the Rust bridge's reverse lookup (``ALL_FIELD_RENAMES``
-# inverted) cannot represent. The Pydantic shim on each affected class runs
-# both the main dict and its intermediate dict in sequence so users on any
-# prior dev-cycle shape still load with a DeprecationWarning.
+# its current final name on the user-facing YAML / Pydantic surface. It
+# flows into ``RAW_YAML_FIELD_RENAMES`` (Phase A preflight) and into the
+# Rust preprocessor via ``src/suews_bridge/src/field_renames.rs`` (parity
+# enforced by ``scripts/lint/check_rust_yaml_aliases.py``), so every entry
+# has to be a real YAML key a user might write.
+#
+# ``MODELPHYSICS_SUFFIX_RENAMES``, ``ARCHETYPEPROPERTIES_PASCAL_RENAMES``,
+# and ``SNOWPARAMS_INTERMEDIATE_RENAMES`` are deliberately NOT spread here
+# — they carry schema-intermediate aliases that would introduce a second
+# alias per final name, which the Rust bridge's reverse lookup
+# (``ALL_FIELD_RENAMES`` inverted) cannot represent. The Pydantic shim on
+# each affected class runs both the main dict and its intermediate dict
+# in sequence so users on any prior dev-cycle shape still load with a
+# DeprecationWarning.
+#
+# The gh#1326 Tier D sub-dicts (``EHC_RENAMES`` … ``STEBBSSTATE_RENAMES``)
+# are deliberately NOT spread here either — they describe Fortran TYPE
+# members that the Rust↔Fortran bridge reaches via positional (indexed)
+# access, not by name. Adding them to ``ALL_FIELD_RENAMES`` would
+# (a) pollute the raw-YAML preflight with identifiers the YAML surface
+# never carried, and (b) introduce genuine collisions with user-facing
+# final names already reachable from a different sub-dict (e.g.
+# ``STEBBSSTATE_RENAMES["occupants"]`` vs.
+# ``ARCHETYPEPROPERTIES_RENAMES["Occupants"] -> "occupants"``). They live
+# under ``FORTRAN_INTERNAL_RENAMES`` below for registry completeness.
 
 ALL_FIELD_RENAMES: Dict[str, str] = {
     **MODELPHYSICS_RENAMES,
@@ -693,6 +710,18 @@ ALL_FIELD_RENAMES: Dict[str, str] = {
     **ARCHETYPEPROPERTIES_RENAMES,
     **STEBBSPROPERTIES_RENAMES,
     **SNOWPARAMS_RENAMES,
+}
+
+# -- Fortran-internal rename registry (gh#1326 Tier D) ------------------------
+#
+# Sibling registry to ``ALL_FIELD_RENAMES`` covering Fortran TYPE-member
+# renames that do NOT surface on the user-facing YAML / Pydantic boundary.
+# Kept here so the rename history for every cross-layer identifier is
+# discoverable from a single source of truth, without leaking
+# Fortran-internal identifiers into the YAML preflight or Rust
+# preprocessor. Per gh#1326 the Fortran bridge uses positional access
+# only — these sub-dicts are documentation, not an input-shape contract.
+FORTRAN_INTERNAL_RENAMES: Dict[str, str] = {
     **EHC_RENAMES,
     **SNOWSTATE_RENAMES,
     **WATERDIST_RENAMES,

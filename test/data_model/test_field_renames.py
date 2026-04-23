@@ -26,6 +26,7 @@ from supy.data_model.core.field_renames import (
     DECTRPROPERTIES_RENAMES,
     EHC_RENAMES,
     EVETRPROPERTIES_RENAMES,
+    FORTRAN_INTERNAL_RENAMES,
     HEATSTATE_RENAMES,
     HYDROSTATE_RENAMES,
     LAIPARAMS_RENAMES,
@@ -79,7 +80,9 @@ def _unwrap(value):
 class TestRegistryIntegrity:
     def test_all_renames_combines_per_class_dicts(self):
         expected = (
-            # User-facing (Pydantic YAML surface)
+            # User-facing (Pydantic YAML surface). gh#1326 Tier D
+            # Fortran-only internals live in FORTRAN_INTERNAL_RENAMES
+            # instead — see that registry's dedicated test below.
             len(MODELPHYSICS_RENAMES)
             + len(SURFACEPROPERTIES_RENAMES)
             + len(LAIPARAMS_RENAMES)
@@ -89,9 +92,12 @@ class TestRegistryIntegrity:
             + len(ARCHETYPEPROPERTIES_RENAMES)
             + len(STEBBSPROPERTIES_RENAMES)
             + len(SNOWPARAMS_RENAMES)
-            # gh#1326 Tier D: Fortran-only internals added to make the
-            # registry authoritative across all four layers.
-            + len(EHC_RENAMES)
+        )
+        assert len(ALL_FIELD_RENAMES) == expected
+
+    def test_fortran_internal_renames_combines_per_class_dicts(self):
+        expected = (
+            len(EHC_RENAMES)
             + len(SNOWSTATE_RENAMES)
             + len(WATERDIST_RENAMES)
             + len(PHENOLOGYSTATE_RENAMES)
@@ -103,11 +109,28 @@ class TestRegistryIntegrity:
             + len(LANDCOVER_RENAMES)
             + len(STEBBSSTATE_RENAMES)
         )
-        assert len(ALL_FIELD_RENAMES) == expected
+        assert len(FORTRAN_INTERNAL_RENAMES) == expected
 
     def test_no_duplicate_new_names(self):
         values = list(ALL_FIELD_RENAMES.values())
         assert len(set(values)) == len(values), "Duplicate new names detected"
+
+    def test_legacy_and_new_sets_disjoint(self):
+        """No string can simultaneously be a legacy key and a final name.
+
+        The Rust bridge reverse lookup inverts ``ALL_FIELD_RENAMES`` into
+        a ``{new_name: old_name}`` map and the raw-YAML preflight runs the
+        forward map recursively. An identifier that plays both roles
+        (e.g. ``occupants`` as both the Archetype final name and a
+        STEBBS-state legacy key) causes silent value rewrites — gh#1326
+        surfaced the failure mode, this test locks it down.
+        """
+        legacy = set(ALL_FIELD_RENAMES.keys())
+        new = set(ALL_FIELD_RENAMES.values())
+        overlap = sorted(legacy & new)
+        assert not overlap, (
+            f"Legacy and new name sets in ALL_FIELD_RENAMES overlap: {overlap}"
+        )
 
     def test_snake_case_outputs(self):
         # gh#1334 retires the STEBBS PascalCase exception — every user-facing

@@ -14,6 +14,14 @@
 
 **Blockers cleared:** gh#1321 shipped in #1330 (clean field names); gh#1322 shipped in #1328 (Rust serde alias infrastructure). Branch off `master`.
 
+**Post-merge drift audit (2026-04-23):** Plan re-verified after merging #1331 (Tier B Rust-internal rename), #1336 (Tier C DataFrame scaffolding), and #1337 (STEBBS + SnowParams snake_case, gh#1334). Net effect on this plan:
+
+- `CURRENT_SCHEMA_VERSION` advanced `2026.5.dev2` -> `2026.5.dev4`; all fixture YAMLs use the `dev4` label.
+- `src/supy/data_model/core/model.py`: anchor lines 10-14 (imports) and 677-686 (`_rename_physics_fields`) unchanged — Task 3 edits apply verbatim.
+- `src/suews_bridge/src/field_renames.rs` grew to 509 lines (gh#1334 compat aliases, gh#1331 Tier B). `FIELD_COMPAT_ALIASES` now ends at line 279; `pub fn normalize_field_names` now at line 307. Task 5 line references updated accordingly.
+- STEBBS PascalCase exception retired (gh#1334): no effect on this plan — the three exemplar fields are ModelPhysics, not STEBBS.
+- Rust `yaml_config.rs` still reads the three target physics fields via `read_i32` at the fused spellings (`netradiationmethod`, `storageheatmethod`, `emissionsmethod`) — Task 5's post-rename dispatch pattern is still correct.
+
 **Non-goals (follow-up issues, not this plan):**
 
 - Orthogonal two-axis decomposition (`net_radiation: {scheme: narp, ldown: air}`) — belongs in Scope B.
@@ -570,7 +578,7 @@ Create `test/fixtures/nested_physics/flat.yml`:
 
 ```yaml
 name: flat_physics
-schema_version: '2026.5.dev2'
+schema_version: '2026.5.dev4'
 model:
   physics:
     net_radiation:
@@ -585,7 +593,7 @@ Create `test/fixtures/nested_physics/nested.yml`:
 
 ```yaml
 name: nested_physics
-schema_version: '2026.5.dev2'
+schema_version: '2026.5.dev4'
 model:
   physics:
     net_radiation:
@@ -603,7 +611,7 @@ Create `test/fixtures/nested_physics/mixed_reject.yml`:
 
 ```yaml
 name: mixed_reject
-schema_version: '2026.5.dev2'
+schema_version: '2026.5.dev4'
 model:
   physics:
     net_radiation:
@@ -769,7 +777,7 @@ Expected: the four new tests fail. `nested_family_collapses_to_flat` and `nested
 
 - [ ] **Step 3: Add the registry + collapse function**
 
-Edit `src/suews_bridge/src/field_renames.rs`. Below the existing `FIELD_COMPAT_ALIASES` constant (around line 139), add:
+Edit `src/suews_bridge/src/field_renames.rs`. Below the existing `FIELD_COMPAT_ALIASES` constant (closes at line 279; insert between the closing `];` and the `fn legacy_name_for` helper at line 281), add:
 
 ```rust
 /// Family registry mirroring `PHYSICS_FAMILIES` in
@@ -943,7 +951,7 @@ fn collapse_nested_physics(root: &mut Value) -> Result<(), String> {
 
 - [ ] **Step 4: Wire it into the public entry point**
 
-Still in `field_renames.rs`, find `pub fn normalize_field_names` (around line 167):
+Still in `field_renames.rs`, find `pub fn normalize_field_names` (around line 307):
 
 ```rust
 pub fn normalize_field_names(root: &mut Value) -> Result<(), String> {

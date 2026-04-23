@@ -173,7 +173,7 @@ _RUST_CONST_PATTERN = re.compile(
     re.DOTALL,
 )
 _RUST_PAIR_PATTERN = re.compile(
-    r'\(\s*"(?P<new>[^"]+)"\s*,\s*"(?P<old>[^"]+)"\s*\)'
+    r'\(\s*"(?P<new>[^"]+)"\s*,\s*"(?P<old>[^"]+)"\s*,?\s*\)'
 )
 
 

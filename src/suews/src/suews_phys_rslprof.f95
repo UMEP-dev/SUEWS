@@ -420,10 +420,10 @@ CONTAINS
             RSLMethod => config%RSLMethod, &
             StabilityMethod => config%StabilityMethod, &
             Diagnose => config%Diagnose, &
-            zarray => stebbsState%zarray, &
-            dataoutLineURSL => stebbsState%dataoutLineURSL, &
-            dataoutLineTRSL => stebbsState%dataoutLineTRSL, &
-            dataoutLineqRSL => stebbsState%dataoutLineqRSL &
+            zarray => stebbsState%z_array, &
+            dataoutLineURSL => stebbsState%dataout_line_u_rsl, &
+            dataoutLineTRSL => stebbsState%dataout_line_t_rsl, &
+            dataoutLineqRSL => stebbsState%dataout_line_q_rsl &
             )
 
             ! RSLMethod = config%RSLMethod

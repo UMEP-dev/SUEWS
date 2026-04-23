@@ -467,6 +467,92 @@ ANTHRO_RENAMES: Dict[str, str] = {
 # registry entry is added here (adding one would break the one-to-one
 # fused->final invariant the Rust bridge reverse lookup depends on).
 
+# -- STEBBS state (suews_type_stebbs.f95) -------------------------------------
+#
+# STEBBS_PRM + BUILDING_ARCHETYPE_PRM user-facing fields are covered by
+# STEBBSPROPERTIES_RENAMES and ARCHETYPEPROPERTIES_RENAMES (gh#1334).
+# This dict holds the Fortran-only internal-state members under
+# STEBBS_STATE / NHOOD_STATE that the Tier D sweep also renames.
+
+STEBBSSTATE_RENAMES: Dict[str, str] = {
+    "IndoorAirDensity": "indoor_air_density",
+    "IndoorAirCp": "indoor_air_cp",
+    "Afootprint": "a_footprint",
+    "wallExternalArea": "wall_external_area_state",
+    "ratioInternalVolume": "ratio_internal_volume_state",
+    "windowTransmissivity": "window_transmissivity_state",
+    "windowAbsorbtivity": "window_absorbtivity_state",
+    "windowReflectivity": "window_reflectivity_state",
+    "wallTransmisivity": "wall_transmissivity_state",
+    "wallAbsorbtivity": "wall_absorbtivity_state",
+    "wallReflectivity": "wall_reflectivity_state",
+    "roofTransmisivity": "roof_transmissivity_state",
+    "roofAbsorbtivity": "roof_absorbtivity_state",
+    "roofReflectivity": "roof_reflectivity_state",
+    "occupants": "occupants_state",
+    "Awall": "a_wall",
+    "Aroof": "a_roof",
+    "Vwall": "v_wall",
+    "Vroof": "v_roof",
+    "Vgroundfloor": "v_ground_floor",
+    "Awindow": "a_window",
+    "Vwindow": "v_window",
+    "Vindoormass": "v_indoor_mass",
+    "Aindoormass": "a_indoor_mass",
+    "Tindoormass": "t_indoor_mass",
+    "Tintwall": "t_int_wall",
+    "Tintroof": "t_int_roof",
+    "Textwall": "t_ext_wall",
+    "Textroof": "t_ext_roof",
+    "Tintwindow": "t_int_window",
+    "Textwindow": "t_ext_window",
+    "Tintgroundfloor": "t_int_ground_floor",
+    "Textgroundfloor": "t_ext_ground_floor",
+    "Ts": "ts",
+    "Cp": "cp",
+    "wiTAR": "witar",
+    "HTsAverage": "h_ts_average",
+    "HWPowerAverage": "hw_power_average",
+    "EnergyExchanges": "energy_exchanges",
+    "Kdown2d": "kdown_2d",
+    "Kup2d": "kup_2d",
+    "Kwest": "k_west",
+    "Ksouth": "k_south",
+    "Knorth": "k_north",
+    "Keast": "k_east",
+    "Ldown2d": "ldown_2d",
+    "Lup2d": "lup_2d",
+    "Lwest": "l_west",
+    "Lsouth": "l_south",
+    "Lnorth": "l_north",
+    "Least": "l_east",
+    "zarray": "z_array",
+    "dataoutLineURSL": "dataout_line_u_rsl",
+    "dataoutLineTRSL": "dataout_line_t_rsl",
+    "dataoutLineqRSL": "dataout_line_q_rsl",
+    "DeepSoilTemperature": "deep_soil_temperature",
+    "OutdoorAirStartTemperature": "outdoor_air_start_temperature",
+    "IndoorAirStartTemperature": "indoor_air_start_temperature",
+    "IndoorMassStartTemperature": "indoor_mass_start_temperature",
+    "WallIndoorSurfaceTemperature": "wall_indoor_surface_temperature",
+    "WallOutdoorSurfaceTemperature": "wall_outdoor_surface_temperature",
+    "RoofIndoorSurfaceTemperature": "roof_indoor_surface_temperature",
+    "RoofOutdoorSurfaceTemperature": "roof_outdoor_surface_temperature",
+    "WindowIndoorSurfaceTemperature": "window_indoor_surface_temperature",
+    "WindowOutdoorSurfaceTemperature": "window_outdoor_surface_temperature",
+    "GroundFloorIndoorSurfaceTemperature": "ground_floor_indoor_surface_temperature",
+    "GroundFloorOutdoorSurfaceTemperature": "ground_floor_outdoor_surface_temperature",
+    "WaterTankTemperature": "water_tank_temperature_state",
+    "InternalWallWaterTankTemperature": "internal_wall_water_tank_temperature",
+    "ExternalWallWaterTankTemperature": "external_wall_water_tank_temperature",
+    "DomesticHotWaterTemperatureInUseInBuilding": "domestic_hot_water_temperature_in_use_in_building",
+    "InternalWallDHWVesselTemperature": "internal_wall_dhw_vessel_temperature",
+    "ExternalWallDHWVesselTemperature": "external_wall_dhw_vessel_temperature",
+    "fnmlLBM": "fnml_lbm",
+    "idLBM": "id_lbm",
+    "CASE": "case_id",
+}
+
 # -- Landcover types (suews_type_landcover.f95) -------------------------------
 #
 # ``statelimit``, ``wetthresh``, ``maxconductance``, ``capmax_dec``,
@@ -617,6 +703,7 @@ ALL_FIELD_RENAMES: Dict[str, str] = {
     **HEATSTATE_RENAMES,
     **HYDROSTATE_RENAMES,
     **LANDCOVER_RENAMES,
+    **STEBBSSTATE_RENAMES,
 }
 
 # Raw-YAML structural checks (Phase A / precheck) need a wider view than the

@@ -19,18 +19,29 @@ pytestmark = pytest.mark.api
 
 from supy.data_model.core.field_renames import (
     ALL_FIELD_RENAMES,
+    ANTHRO_RENAMES,
     ARCHETYPEPROPERTIES_RENAMES,
     ARCHETYPEPROPERTIES_PASCAL_RENAMES,
+    ATMOSPHERE_RENAMES,
     DECTRPROPERTIES_RENAMES,
+    EHC_RENAMES,
     EVETRPROPERTIES_RENAMES,
+    HEATSTATE_RENAMES,
+    HYDROSTATE_RENAMES,
     LAIPARAMS_RENAMES,
+    LANDCOVER_RENAMES,
     MODELPHYSICS_RENAMES,
     MODELPHYSICS_SUFFIX_RENAMES,
+    PHENOLOGYSTATE_RENAMES,
     SNOWPARAMS_RENAMES,
     SNOWPARAMS_INTERMEDIATE_RENAMES,
+    SNOWSTATE_RENAMES,
     STEBBSPROPERTIES_RENAMES,
+    STEBBSSTATE_RENAMES,
+    SURFACE_RENAMES,
     SURFACEPROPERTIES_RENAMES,
     VEGETATEDSURFACEPROPERTIES_RENAMES,
+    WATERDIST_RENAMES,
 )
 from supy.data_model.core.model import ModelPhysics
 from supy.data_model.core.site import (
@@ -68,6 +79,7 @@ def _unwrap(value):
 class TestRegistryIntegrity:
     def test_all_renames_combines_per_class_dicts(self):
         expected = (
+            # User-facing (Pydantic YAML surface)
             len(MODELPHYSICS_RENAMES)
             + len(SURFACEPROPERTIES_RENAMES)
             + len(LAIPARAMS_RENAMES)
@@ -77,6 +89,19 @@ class TestRegistryIntegrity:
             + len(ARCHETYPEPROPERTIES_RENAMES)
             + len(STEBBSPROPERTIES_RENAMES)
             + len(SNOWPARAMS_RENAMES)
+            # gh#1326 Tier D: Fortran-only internals added to make the
+            # registry authoritative across all four layers.
+            + len(EHC_RENAMES)
+            + len(SNOWSTATE_RENAMES)
+            + len(WATERDIST_RENAMES)
+            + len(PHENOLOGYSTATE_RENAMES)
+            + len(ANTHRO_RENAMES)
+            + len(ATMOSPHERE_RENAMES)
+            + len(SURFACE_RENAMES)
+            + len(HEATSTATE_RENAMES)
+            + len(HYDROSTATE_RENAMES)
+            + len(LANDCOVER_RENAMES)
+            + len(STEBBSSTATE_RENAMES)
         )
         assert len(ALL_FIELD_RENAMES) == expected
 

@@ -1931,52 +1931,52 @@ subroutine pack_stebbs_state(s, flat, n_flat, err)
 
    idx = 1_c_int
 
-   flat(idx) = s%kdown2d; idx = idx + 1_c_int
-   flat(idx) = s%kup2d; idx = idx + 1_c_int
-   flat(idx) = s%kwest; idx = idx + 1_c_int
-   flat(idx) = s%ksouth; idx = idx + 1_c_int
-   flat(idx) = s%knorth; idx = idx + 1_c_int
-   flat(idx) = s%keast; idx = idx + 1_c_int
-   flat(idx) = s%ldown2d; idx = idx + 1_c_int
-   flat(idx) = s%lup2d; idx = idx + 1_c_int
-   flat(idx) = s%lwest; idx = idx + 1_c_int
-   flat(idx) = s%lsouth; idx = idx + 1_c_int
-   flat(idx) = s%lnorth; idx = idx + 1_c_int
-   flat(idx) = s%least; idx = idx + 1_c_int
+   flat(idx) = s%kdown_2d; idx = idx + 1_c_int
+   flat(idx) = s%kup_2d; idx = idx + 1_c_int
+   flat(idx) = s%k_west; idx = idx + 1_c_int
+   flat(idx) = s%k_south; idx = idx + 1_c_int
+   flat(idx) = s%k_north; idx = idx + 1_c_int
+   flat(idx) = s%k_east; idx = idx + 1_c_int
+   flat(idx) = s%ldown_2d; idx = idx + 1_c_int
+   flat(idx) = s%lup_2d; idx = idx + 1_c_int
+   flat(idx) = s%l_west; idx = idx + 1_c_int
+   flat(idx) = s%l_south; idx = idx + 1_c_int
+   flat(idx) = s%l_north; idx = idx + 1_c_int
+   flat(idx) = s%l_east; idx = idx + 1_c_int
 
    do i = 1_c_int, SUEWS_CAPI_STEBBS_STATE_RSL_LEN
-      flat(idx) = s%zarray(i); idx = idx + 1_c_int
+      flat(idx) = s%z_array(i); idx = idx + 1_c_int
    end do
    do i = 1_c_int, SUEWS_CAPI_STEBBS_STATE_RSL_LEN
-      flat(idx) = s%dataoutlineursl(i); idx = idx + 1_c_int
+      flat(idx) = s%dataout_line_u_rsl(i); idx = idx + 1_c_int
    end do
    do i = 1_c_int, SUEWS_CAPI_STEBBS_STATE_RSL_LEN
-      flat(idx) = s%dataoutlinetrsl(i); idx = idx + 1_c_int
+      flat(idx) = s%dataout_line_t_rsl(i); idx = idx + 1_c_int
    end do
    do i = 1_c_int, SUEWS_CAPI_STEBBS_STATE_RSL_LEN
-      flat(idx) = s%dataoutlineqrsl(i); idx = idx + 1_c_int
+      flat(idx) = s%dataout_line_q_rsl(i); idx = idx + 1_c_int
    end do
 
-   flat(idx) = s%deepsoiltemperature; idx = idx + 1_c_int
+   flat(idx) = s%deep_soil_temperature; idx = idx + 1_c_int
    flat(idx) = s%monthmeanairtemperature_diffmax; idx = idx + 1_c_int
-   flat(idx) = s%outdoorairstarttemperature; idx = idx + 1_c_int
-   flat(idx) = s%indoorairstarttemperature; idx = idx + 1_c_int
-   flat(idx) = s%indoormassstarttemperature; idx = idx + 1_c_int
-   flat(idx) = s%wallindoorsurfacetemperature; idx = idx + 1_c_int
-   flat(idx) = s%walloutdoorsurfacetemperature; idx = idx + 1_c_int
-   flat(idx) = s%roofindoorsurfacetemperature; idx = idx + 1_c_int
-   flat(idx) = s%roofoutdoorsurfacetemperature; idx = idx + 1_c_int
-   flat(idx) = s%windowindoorsurfacetemperature; idx = idx + 1_c_int
-   flat(idx) = s%windowoutdoorsurfacetemperature; idx = idx + 1_c_int
-   flat(idx) = s%groundfloorindoorsurfacetemperature; idx = idx + 1_c_int
-   flat(idx) = s%groundflooroutdoorsurfacetemperature; idx = idx + 1_c_int
-   flat(idx) = s%watertanktemperature; idx = idx + 1_c_int
-   flat(idx) = s%internalwallwatertanktemperature; idx = idx + 1_c_int
-   flat(idx) = s%externalwallwatertanktemperature; idx = idx + 1_c_int
-   flat(idx) = s%mainswatertemperature; idx = idx + 1_c_int
-   flat(idx) = s%domestichotwatertemperatureinuseinbuilding; idx = idx + 1_c_int
-   flat(idx) = s%internalwalldhwvesseltemperature; idx = idx + 1_c_int
-   flat(idx) = s%externalwalldhwvesseltemperature; idx = idx + 1_c_int
+   flat(idx) = s%outdoor_air_start_temperature; idx = idx + 1_c_int
+   flat(idx) = s%indoor_air_start_temperature; idx = idx + 1_c_int
+   flat(idx) = s%indoor_mass_start_temperature; idx = idx + 1_c_int
+   flat(idx) = s%wall_indoor_surface_temperature; idx = idx + 1_c_int
+   flat(idx) = s%wall_outdoor_surface_temperature; idx = idx + 1_c_int
+   flat(idx) = s%roof_indoor_surface_temperature; idx = idx + 1_c_int
+   flat(idx) = s%roof_outdoor_surface_temperature; idx = idx + 1_c_int
+   flat(idx) = s%window_indoor_surface_temperature; idx = idx + 1_c_int
+   flat(idx) = s%window_outdoor_surface_temperature; idx = idx + 1_c_int
+   flat(idx) = s%ground_floor_indoor_surface_temperature; idx = idx + 1_c_int
+   flat(idx) = s%ground_floor_outdoor_surface_temperature; idx = idx + 1_c_int
+   flat(idx) = s%water_tank_temperature_state; idx = idx + 1_c_int
+   flat(idx) = s%internal_wall_water_tank_temperature; idx = idx + 1_c_int
+   flat(idx) = s%external_wall_water_tank_temperature; idx = idx + 1_c_int
+   flat(idx) = s%mains_water_temperature; idx = idx + 1_c_int
+   flat(idx) = s%domestic_hot_water_temperature_in_use_in_building; idx = idx + 1_c_int
+   flat(idx) = s%internal_wall_dhw_vessel_temperature; idx = idx + 1_c_int
+   flat(idx) = s%external_wall_dhw_vessel_temperature; idx = idx + 1_c_int
    flat(idx) = s%qs_stebbs; idx = idx + 1_c_int
 
    bldg_count = 0_c_int

@@ -257,17 +257,50 @@ class TestPydanticRegistryMirror:
 
     def test_non_stebbs_df_renames_match_field_renames(self):
         from supy.data_model.core.field_renames import (
+            ANTHRO_RENAMES,
             ARCHETYPEPROPERTIES_RENAMES,
+            ATMOSPHERE_RENAMES,
+            EHC_RENAMES,
+            HEATSTATE_RENAMES,
+            HYDROSTATE_RENAMES,
+            LANDCOVER_RENAMES,
+            PHENOLOGYSTATE_RENAMES,
+            SNOWSTATE_RENAMES,
             STEBBSPROPERTIES_RENAMES,
+            STEBBSSTATE_RENAMES,
+            SURFACE_RENAMES,
+            WATERDIST_RENAMES,
         )
 
         stebbs_legacy = set(ARCHETYPEPROPERTIES_RENAMES.keys()) | set(
             STEBBSPROPERTIES_RENAMES.keys()
         )
+        # gh#1326 Tier D: Fortran TYPE-member renames added to keep the
+        # registry authoritative across all four layers (Fortran, Rust,
+        # Python, DataFrame). These have NO DataFrame counterpart because
+        # they describe internal Fortran state not exposed to SuPy's
+        # to_df_state()/from_df_state() boundary.
+        tier_d_legacy = (
+            set(EHC_RENAMES.keys())
+            | set(SNOWSTATE_RENAMES.keys())
+            | set(WATERDIST_RENAMES.keys())
+            | set(PHENOLOGYSTATE_RENAMES.keys())
+            | set(ANTHRO_RENAMES.keys())
+            | set(ATMOSPHERE_RENAMES.keys())
+            | set(SURFACE_RENAMES.keys())
+            | set(HEATSTATE_RENAMES.keys())
+            | set(HYDROSTATE_RENAMES.keys())
+            | set(LANDCOVER_RENAMES.keys())
+            | set(STEBBSSTATE_RENAMES.keys())
+        )
         for legacy, new in ALL_FIELD_RENAMES.items():
             if legacy in stebbs_legacy:
                 # STEBBS (Archetype + StebbsProperties) lowercases its
                 # DF columns and is covered by a dedicated test.
+                continue
+            if legacy in tier_d_legacy:
+                # Fortran-only internal-state renames — not a DataFrame
+                # column concern.
                 continue
             assert ALL_DF_COLUMN_RENAMES.get(legacy) == new, (
                 f"Pydantic rename {legacy!r} -> {new!r} missing or divergent "

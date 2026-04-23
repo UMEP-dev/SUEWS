@@ -20,9 +20,9 @@ integer(c_int), parameter, public :: SUEWS_CAPI_LUMPS_PRM_LEN = 4_c_int
 integer(c_int), parameter, public :: SUEWS_CAPI_LUMPS_PRM_SCHEMA_VERSION = 1_c_int
 
 type :: lumps_prm_shadow
-   real(c_double) :: raincover = 0.0_c_double
-   real(c_double) :: rainmaxres = 0.0_c_double
-   real(c_double) :: drainrt = 0.0_c_double
+   real(c_double) :: rain_cover = 0.0_c_double
+   real(c_double) :: rain_max_res = 0.0_c_double
+   real(c_double) :: drain_rate = 0.0_c_double
    integer(c_int) :: veg_type = 0_c_int
 end type lumps_prm_shadow
 
@@ -82,9 +82,9 @@ subroutine lumps_prm_pack(state, flat, n_flat, err)
       return
    end if
 
-   flat(1) = state%raincover
-   flat(2) = state%rainmaxres
-   flat(3) = state%drainrt
+   flat(1) = state%rain_cover
+   flat(2) = state%rain_max_res
+   flat(3) = state%drain_rate
    flat(4) = real(state%veg_type, c_double)
 
    err = SUEWS_CAPI_OK
@@ -104,9 +104,9 @@ subroutine lumps_prm_unpack(flat, n_flat, state, err)
       return
    end if
 
-   state%raincover = flat(1)
-   state%rainmaxres = flat(2)
-   state%drainrt = flat(3)
+   state%rain_cover = flat(1)
+   state%rain_max_res = flat(2)
+   state%drain_rate = flat(3)
    state%veg_type = int(nint(flat(4)))
 
    err = SUEWS_CAPI_OK

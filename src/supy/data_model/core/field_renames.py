@@ -409,17 +409,298 @@ STEBBSPROPERTIES_DEV3_RENAMES: Dict[str, str] = {
     "dhw_vessel_wall_emissivity": "hot_water_vessel_wall_emissivity",
 }
 
+# -- EHC (suews_type_ehc.f95) -------------------------------------------------
+#
+# Fortran-only internal-state members added to the registry for gh#1326
+# (Tier D). These are roof/wall-qualified variants of SURFACEPROPERTIES's
+# ``soilstorecap`` and keep the same ``soil_store_capacity`` naming.
+
+EHC_RENAMES: Dict[str, str] = {
+    "soil_storecap_roof": "soil_store_capacity_roof",
+    "soil_storecap_wall": "soil_store_capacity_wall",
+}
+
+# -- SNOW_STATE (suews_type_snow.f95) -----------------------------------------
+#
+# Fortran-only internal-state members of SNOW_STATE. Added for gh#1326
+# (Tier D). Distinct from ``SNOWPARAMS_RENAMES`` which covers SNOW_PRM
+# (the user-facing YAML side).
+
+# -- IRRIGATION_PRM (suews_type_waterdist.f95) --------------------------------
+
+WATERDIST_RENAMES: Dict[str, str] = {
+    "faut": "f_aut",
+}
+
+# -- anthroHEAT_PRM + anthroEMIS_PRM (suews_type_anthro.f95) ------------------
+
+ANTHRO_RENAMES: Dict[str, str] = {
+    # anthroHEAT_PRM
+    "popdensnighttime": "pop_density_nighttime",
+    "popdensdaytime_working": "pop_density_daytime_working",
+    "popdensdaytime_holiday": "pop_density_daytime_holiday",
+    # anthroEMIS_PRM
+    "startdls": "start_dls",
+    "enddls": "end_dls",
+    "anthroheat": "anthro_heat",
+    "EF_umolCO2perJ": "ef_umol_co2_per_j",
+    "EnEF_v_Jkm": "en_ef_v_jkm",
+    "FrFossilFuel_Heat": "fr_fossil_fuel_heat",
+    "FrFossilFuel_NonHeat": "fr_fossil_fuel_non_heat",
+    "FcEF_v_kgkm": "fc_ef_v_kgkm",
+    "HumActivity_24hr_working": "hum_activity_24hr_working",
+    "HumActivity_24hr_holiday": "hum_activity_24hr_holiday",
+    "MaxFCMetab": "max_fc_metab",
+    "MaxQFMetab": "max_qf_metab",
+    "MinFCMetab": "min_fc_metab",
+    "MinQFMetab": "min_qf_metab",
+    "TrafficRate_working": "traffic_rate_working",
+    "TrafficRate_holiday": "traffic_rate_holiday",
+    "TrafficUnits": "traffic_units",
+    "TraffProf_24hr_working": "traff_prof_24hr_working",
+    "TraffProf_24hr_holiday": "traff_prof_24hr_holiday",
+}
+
+# -- PHENOLOGY_STATE (suews_type_vegetation.f95) ------------------------------
+#
+# Fortran-only internal-state members. LAI_PRM members live under
+# ``LAIPARAMS_RENAMES`` already; ``StoreDrainPrm`` reuses the
+# ``storage_drain_params`` target from ``SURFACEPROPERTIES_RENAMES`` so no
+# registry entry is added here (adding one would break the one-to-one
+# fused->final invariant the Rust bridge reverse lookup depends on).
+
+# -- STEBBS state (suews_type_stebbs.f95) -------------------------------------
+#
+# STEBBS_PRM + BUILDING_ARCHETYPE_PRM user-facing fields are covered by
+# STEBBSPROPERTIES_RENAMES and ARCHETYPEPROPERTIES_RENAMES (gh#1334).
+# This dict holds the Fortran-only internal-state members under
+# STEBBS_STATE / NHOOD_STATE that the Tier D sweep also renames.
+
+STEBBSSTATE_RENAMES: Dict[str, str] = {
+    "IndoorAirDensity": "indoor_air_density",
+    "IndoorAirCp": "indoor_air_cp",
+    "Afootprint": "a_footprint",
+    "wallExternalArea": "wall_external_area_state",
+    "ratioInternalVolume": "ratio_internal_volume_state",
+    "windowTransmissivity": "window_transmissivity_state",
+    "windowAbsorbtivity": "window_absorbtivity_state",
+    "windowReflectivity": "window_reflectivity_state",
+    "wallTransmisivity": "wall_transmissivity_state",
+    "wallAbsorbtivity": "wall_absorbtivity_state",
+    "wallReflectivity": "wall_reflectivity_state",
+    "roofTransmisivity": "roof_transmissivity_state",
+    "roofAbsorbtivity": "roof_absorbtivity_state",
+    "roofReflectivity": "roof_reflectivity_state",
+    "occupants": "occupants_state",
+    "Awall": "a_wall",
+    "Aroof": "a_roof",
+    "Vwall": "v_wall",
+    "Vroof": "v_roof",
+    "Vgroundfloor": "v_ground_floor",
+    "Awindow": "a_window",
+    "Vwindow": "v_window",
+    "Vindoormass": "v_indoor_mass",
+    "Aindoormass": "a_indoor_mass",
+    "Tindoormass": "t_indoor_mass",
+    "Tintwall": "t_int_wall",
+    "Tintroof": "t_int_roof",
+    "Textwall": "t_ext_wall",
+    "Textroof": "t_ext_roof",
+    "Tintwindow": "t_int_window",
+    "Textwindow": "t_ext_window",
+    "Tintgroundfloor": "t_int_ground_floor",
+    "Textgroundfloor": "t_ext_ground_floor",
+    "Ts": "ts",
+    "Cp": "cp",
+    "wiTAR": "witar",
+    "HTsAverage": "h_ts_average",
+    "HWPowerAverage": "hw_power_average",
+    "EnergyExchanges": "energy_exchanges",
+    "Kdown2d": "kdown_2d",
+    "Kup2d": "kup_2d",
+    "Kwest": "k_west",
+    "Ksouth": "k_south",
+    "Knorth": "k_north",
+    "Keast": "k_east",
+    "Ldown2d": "ldown_2d",
+    "Lup2d": "lup_2d",
+    "Lwest": "l_west",
+    "Lsouth": "l_south",
+    "Lnorth": "l_north",
+    "Least": "l_east",
+    "zarray": "z_array",
+    "dataoutLineURSL": "dataout_line_u_rsl",
+    "dataoutLineTRSL": "dataout_line_t_rsl",
+    "dataoutLineqRSL": "dataout_line_q_rsl",
+    "DeepSoilTemperature": "deep_soil_temperature",
+    "OutdoorAirStartTemperature": "outdoor_air_start_temperature",
+    "IndoorAirStartTemperature": "indoor_air_start_temperature",
+    "IndoorMassStartTemperature": "indoor_mass_start_temperature",
+    "WallIndoorSurfaceTemperature": "wall_indoor_surface_temperature",
+    "WallOutdoorSurfaceTemperature": "wall_outdoor_surface_temperature",
+    "RoofIndoorSurfaceTemperature": "roof_indoor_surface_temperature",
+    "RoofOutdoorSurfaceTemperature": "roof_outdoor_surface_temperature",
+    "WindowIndoorSurfaceTemperature": "window_indoor_surface_temperature",
+    "WindowOutdoorSurfaceTemperature": "window_outdoor_surface_temperature",
+    "GroundFloorIndoorSurfaceTemperature": "ground_floor_indoor_surface_temperature",
+    "GroundFloorOutdoorSurfaceTemperature": "ground_floor_outdoor_surface_temperature",
+    "WaterTankTemperature": "water_tank_temperature_state",
+    "InternalWallWaterTankTemperature": "internal_wall_water_tank_temperature",
+    "ExternalWallWaterTankTemperature": "external_wall_water_tank_temperature",
+    "DomesticHotWaterTemperatureInUseInBuilding": "domestic_hot_water_temperature_in_use_in_building",
+    "InternalWallDHWVesselTemperature": "internal_wall_dhw_vessel_temperature",
+    "ExternalWallDHWVesselTemperature": "external_wall_dhw_vessel_temperature",
+    "fnmlLBM": "fnml_lbm",
+    "idLBM": "id_lbm",
+    "CASE": "case_id",
+}
+
+# -- Landcover types (suews_type_landcover.f95) -------------------------------
+#
+# ``statelimit``, ``wetthresh``, ``maxconductance``, ``capmax_dec``,
+# ``capmin_dec``, ``pormin_dec``, ``pormax_dec``, ``faidectree``,
+# ``dectreeh``, ``faievetree``, ``evetreeh`` are already handled by
+# existing registry entries (SURFACEPROPERTIES_RENAMES,
+# VEGETATEDSURFACEPROPERTIES_RENAMES, DECTRPROPERTIES_RENAMES, ...).
+# Only the gaps are registered here.
+
+LANDCOVER_RENAMES: Dict[str, str] = {
+    "irrfracpaved": "irrigation_fraction_paved",
+    "irrfracbldgs": "irrigation_fraction_bldgs",
+    "irrfracdectr": "irrigation_fraction_dectr",
+    "irrfracevetr": "irrigation_fraction_evetr",
+    "irrfracgrass": "irrigation_fraction_grass",
+    "irrfracbsoil": "irrigation_fraction_bsoil",
+    "irrfracwater": "irrigation_fraction_water",
+    "faibldg": "fai_building",
+    "bldgh": "height_building",
+    "flowchange": "flow_change",
+}
+
+# -- HEAT_STATE (suews_type_heat.f95) -----------------------------------------
+
+HEATSTATE_RENAMES: Dict[str, str] = {
+    "kclear": "k_clear",
+    "kup": "k_up",
+    "ldown": "l_down",
+    "lup": "l_up",
+}
+
+# -- HYDRO_STATE (suews_type_hydro.f95) ---------------------------------------
+
+HYDROSTATE_RENAMES: Dict[str, str] = {
+    "soilstore_surf": "soil_store_surf",
+    "soilstore_roof": "soil_store_roof",
+    "soilstore_wall": "soil_store_wall",
+    "runoffSoil": "runoff_soil",
+    "runoffAGveg": "runoff_ag_veg",
+    "runoffAGimpervious": "runoff_ag_impervious",
+    "runoffPipes": "runoff_pipes",
+    "runoffwaterbody": "runoff_waterbody",
+    "runoffSoil_per_tstep": "runoff_soil_per_tstep",
+    "SoilState": "soil_state",
+    "SoilMoistCap": "soil_moist_cap",
+    "AdditionalWater": "additional_water",
+    "addImpervious": "add_impervious",
+    "addPipes": "add_pipes",
+    "addVeg": "add_veg",
+    "addWaterBody": "add_water_body",
+    "AddWater": "add_water",
+    "NWstate_per_tstep": "nw_state_per_tstep",
+}
+
+# -- surface types (suews_type_surface.f95) -----------------------------------
+#
+# ``gsmodel`` is NOT added here: MODELPHYSICS_RENAMES already owns
+# ``gsmodel -> surface_conductance`` for the Python YAML side. The
+# Fortran CONDUCTANCE_PRM.gsmodel member has different semantics
+# (holds the model choice integer) and is renamed to ``gs_model``
+# only in Fortran source — registering a second entry with the same
+# key would break the one-to-one invariant.
+
+SURFACE_RENAMES: Dict[str, str] = {
+    # LUMPS_PRM
+    "raincover": "rain_cover",
+    "rainmaxres": "rain_max_res",
+    "drainrt": "drain_rate",
+    # OHM_PRM
+    "chanohm": "ch_anohm",
+    "cpanohm": "cp_anohm",
+    "kkanohm": "kk_anohm",
+    # CONDUCTANCE_PRM
+    "kmax": "k_max",
+    # ROUGHNESS_STATE
+    "FAIBldg_use": "fai_bldg_use",
+    "FAIEveTree_use": "fai_evetree_use",
+    "FAIDecTree_use": "fai_dectree_use",
+}
+
+# -- atm_state + solar_State (suews_type_atmosphere.f95) ----------------------
+
+ATMOSPHERE_RENAMES: Dict[str, str] = {
+    "fcld": "f_cloud",
+    "avcp": "av_cp",
+    "avdens": "av_density",
+    "zL": "z_l",
+    "UStar": "u_star",
+    "TStar": "t_star",
+    "ZENITH_deg": "zenith_deg",
+    "psycIce_hPa": "psyc_ice_h_pa",
+    "sIce_hpa": "s_ice_hpa",
+    "lvS_J_kg": "lv_s_j_kg",
+}
+
+PHENOLOGYSTATE_RENAMES: Dict[str, str] = {
+    "VegPhenLumps": "veg_phen_lumps",
+    "TempVeg": "temp_veg",
+    "gfunc": "g_func",
+}
+
+SNOWSTATE_RENAMES: Dict[str, str] = {
+    "snowfallCum": "snowfall_cum",
+    "snowalb": "snow_albedo",
+    "mwstore": "melt_water_store",
+    "QmFreez": "qm_freeze",
+    "QmRain": "qm_rain",
+    "z0vSnow": "z0v_snow",
+    "RAsnow": "ra_snow",
+    "SnowRemoval": "snow_removal",
+    "icefrac": "ice_frac",
+    "snowdens": "snow_density",
+    "snowfrac": "snow_fraction",
+    "snowpack": "snow_pack",
+    "snowwater": "snow_water",
+    "deltaQi": "delta_qi",
+}
+
 # -- Combined -----------------------------------------------------------------
 #
 # ``ALL_FIELD_RENAMES`` is a one-to-one map from every legacy fused key to
-# its current final name. ``MODELPHYSICS_SUFFIX_RENAMES``,
-# ``ARCHETYPEPROPERTIES_PASCAL_RENAMES``, and
-# ``SNOWPARAMS_INTERMEDIATE_RENAMES`` are deliberately NOT spread here — they
-# carry schema-intermediate aliases that would introduce a second alias per
-# final name, which the Rust bridge's reverse lookup (``ALL_FIELD_RENAMES``
-# inverted) cannot represent. The Pydantic shim on each affected class runs
-# both the main dict and its intermediate dict in sequence so users on any
-# prior dev-cycle shape still load with a DeprecationWarning.
+# its current final name on the user-facing YAML / Pydantic surface. It
+# flows into ``RAW_YAML_FIELD_RENAMES`` (Phase A preflight) and into the
+# Rust preprocessor via ``src/suews_bridge/src/field_renames.rs`` (parity
+# enforced by ``scripts/lint/check_rust_yaml_aliases.py``), so every entry
+# has to be a real YAML key a user might write.
+#
+# ``MODELPHYSICS_SUFFIX_RENAMES``, ``ARCHETYPEPROPERTIES_PASCAL_RENAMES``,
+# and ``SNOWPARAMS_INTERMEDIATE_RENAMES`` are deliberately NOT spread here
+# — they carry schema-intermediate aliases that would introduce a second
+# alias per final name, which the Rust bridge's reverse lookup
+# (``ALL_FIELD_RENAMES`` inverted) cannot represent. The Pydantic shim on
+# each affected class runs both the main dict and its intermediate dict
+# in sequence so users on any prior dev-cycle shape still load with a
+# DeprecationWarning.
+#
+# The gh#1326 Tier D sub-dicts (``EHC_RENAMES`` … ``STEBBSSTATE_RENAMES``)
+# are deliberately NOT spread here either — they describe Fortran TYPE
+# members that the Rust↔Fortran bridge reaches via positional (indexed)
+# access, not by name. Adding them to ``ALL_FIELD_RENAMES`` would
+# (a) pollute the raw-YAML preflight with identifiers the YAML surface
+# never carried, and (b) introduce genuine collisions with user-facing
+# final names already reachable from a different sub-dict (e.g.
+# ``STEBBSSTATE_RENAMES["occupants"]`` vs.
+# ``ARCHETYPEPROPERTIES_RENAMES["Occupants"] -> "occupants"``). They live
+# under ``FORTRAN_INTERNAL_RENAMES`` below for registry completeness.
 
 ALL_FIELD_RENAMES: Dict[str, str] = {
     **MODELPHYSICS_RENAMES,
@@ -431,6 +712,29 @@ ALL_FIELD_RENAMES: Dict[str, str] = {
     **ARCHETYPEPROPERTIES_RENAMES,
     **STEBBSPROPERTIES_RENAMES,
     **SNOWPARAMS_RENAMES,
+}
+
+# -- Fortran-internal rename registry (gh#1326 Tier D) ------------------------
+#
+# Sibling registry to ``ALL_FIELD_RENAMES`` covering Fortran TYPE-member
+# renames that do NOT surface on the user-facing YAML / Pydantic boundary.
+# Kept here so the rename history for every cross-layer identifier is
+# discoverable from a single source of truth, without leaking
+# Fortran-internal identifiers into the YAML preflight or Rust
+# preprocessor. Per gh#1326 the Fortran bridge uses positional access
+# only — these sub-dicts are documentation, not an input-shape contract.
+FORTRAN_INTERNAL_RENAMES: Dict[str, str] = {
+    **EHC_RENAMES,
+    **SNOWSTATE_RENAMES,
+    **WATERDIST_RENAMES,
+    **PHENOLOGYSTATE_RENAMES,
+    **ANTHRO_RENAMES,
+    **ATMOSPHERE_RENAMES,
+    **SURFACE_RENAMES,
+    **HEATSTATE_RENAMES,
+    **HYDROSTATE_RENAMES,
+    **LANDCOVER_RENAMES,
+    **STEBBSSTATE_RENAMES,
 }
 
 # Raw-YAML structural checks (Phase A / precheck) need a wider view than the

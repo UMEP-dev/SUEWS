@@ -40,33 +40,33 @@ type :: anthro_heat_prm_shadow
    real(c_double) :: ah_slope_heating_holiday = 0.0_c_double
    real(c_double), dimension(24) :: ahprof_24hr_working = 0.0_c_double
    real(c_double), dimension(24) :: ahprof_24hr_holiday = 0.0_c_double
-   real(c_double) :: popdensdaytime_working = 0.0_c_double
-   real(c_double) :: popdensdaytime_holiday = 0.0_c_double
-   real(c_double) :: popdensnighttime = 0.0_c_double
+   real(c_double) :: pop_density_daytime_working = 0.0_c_double
+   real(c_double) :: pop_density_daytime_holiday = 0.0_c_double
+   real(c_double) :: pop_density_nighttime = 0.0_c_double
    real(c_double), dimension(24) :: popprof_24hr_working = 0.0_c_double
    real(c_double), dimension(24) :: popprof_24hr_holiday = 0.0_c_double
 end type anthro_heat_prm_shadow
 
 type :: anthro_emis_prm_shadow
-   integer(c_int) :: startdls = 0_c_int
-   integer(c_int) :: enddls = 0_c_int
-   type(anthro_heat_prm_shadow) :: anthroheat
-   real(c_double) :: ef_umolco2perj = 0.0_c_double
-   real(c_double) :: enef_v_jkm = 0.0_c_double
-   real(c_double) :: frfossilfuel_heat = 0.0_c_double
-   real(c_double) :: frfossilfuel_nonheat = 0.0_c_double
-   real(c_double), dimension(2) :: fcef_v_kgkm = 0.0_c_double
-   real(c_double), dimension(24) :: humactivity_24hr_working = 0.0_c_double
-   real(c_double), dimension(24) :: humactivity_24hr_holiday = 0.0_c_double
-   real(c_double) :: maxfcmetab = 0.0_c_double
-   real(c_double) :: maxqfmetab = 0.0_c_double
-   real(c_double) :: minfcmetab = 0.0_c_double
-   real(c_double) :: minqfmetab = 0.0_c_double
-   real(c_double) :: trafficrate_working = 0.0_c_double
-   real(c_double) :: trafficrate_holiday = 0.0_c_double
-   real(c_double) :: trafficunits = 0.0_c_double
-   real(c_double), dimension(24) :: traffprof_24hr_working = 0.0_c_double
-   real(c_double), dimension(24) :: traffprof_24hr_holiday = 0.0_c_double
+   integer(c_int) :: start_dls = 0_c_int
+   integer(c_int) :: end_dls = 0_c_int
+   type(anthro_heat_prm_shadow) :: anthro_heat
+   real(c_double) :: ef_umol_co2_per_j = 0.0_c_double
+   real(c_double) :: en_ef_v_jkm = 0.0_c_double
+   real(c_double) :: fr_fossil_fuel_heat = 0.0_c_double
+   real(c_double) :: fr_fossil_fuel_non_heat = 0.0_c_double
+   real(c_double), dimension(2) :: fc_ef_v_kgkm = 0.0_c_double
+   real(c_double), dimension(24) :: hum_activity_24hr_working = 0.0_c_double
+   real(c_double), dimension(24) :: hum_activity_24hr_holiday = 0.0_c_double
+   real(c_double) :: max_fc_metab = 0.0_c_double
+   real(c_double) :: max_qf_metab = 0.0_c_double
+   real(c_double) :: min_fc_metab = 0.0_c_double
+   real(c_double) :: min_qf_metab = 0.0_c_double
+   real(c_double) :: traffic_rate_working = 0.0_c_double
+   real(c_double) :: traffic_rate_holiday = 0.0_c_double
+   real(c_double) :: traffic_units = 0.0_c_double
+   real(c_double), dimension(24) :: traff_prof_24hr_working = 0.0_c_double
+   real(c_double), dimension(24) :: traff_prof_24hr_holiday = 0.0_c_double
 end type anthro_emis_prm_shadow
 
 public :: suews_anthro_emis_prm_len
@@ -129,87 +129,87 @@ subroutine anthro_emis_prm_pack(state, flat, n_flat, err)
    end if
 
    idx = 1
-   flat(idx) = real(state%startdls, c_double); idx = idx + 1
-   flat(idx) = real(state%enddls, c_double); idx = idx + 1
+   flat(idx) = real(state%start_dls, c_double); idx = idx + 1
+   flat(idx) = real(state%end_dls, c_double); idx = idx + 1
 
-   flat(idx) = state%anthroheat%qf0_beu_working; idx = idx + 1
-   flat(idx) = state%anthroheat%qf0_beu_holiday; idx = idx + 1
-   flat(idx) = state%anthroheat%qf_a_working; idx = idx + 1
-   flat(idx) = state%anthroheat%qf_a_holiday; idx = idx + 1
-   flat(idx) = state%anthroheat%qf_b_working; idx = idx + 1
-   flat(idx) = state%anthroheat%qf_b_holiday; idx = idx + 1
-   flat(idx) = state%anthroheat%qf_c_working; idx = idx + 1
-   flat(idx) = state%anthroheat%qf_c_holiday; idx = idx + 1
-   flat(idx) = state%anthroheat%baset_cooling_working; idx = idx + 1
-   flat(idx) = state%anthroheat%baset_cooling_holiday; idx = idx + 1
-   flat(idx) = state%anthroheat%baset_heating_working; idx = idx + 1
-   flat(idx) = state%anthroheat%baset_heating_holiday; idx = idx + 1
-   flat(idx) = state%anthroheat%ah_min_working; idx = idx + 1
-   flat(idx) = state%anthroheat%ah_min_holiday; idx = idx + 1
-   flat(idx) = state%anthroheat%ah_slope_cooling_working; idx = idx + 1
-   flat(idx) = state%anthroheat%ah_slope_cooling_holiday; idx = idx + 1
-   flat(idx) = state%anthroheat%ah_slope_heating_working; idx = idx + 1
-   flat(idx) = state%anthroheat%ah_slope_heating_holiday; idx = idx + 1
+   flat(idx) = state%anthro_heat%qf0_beu_working; idx = idx + 1
+   flat(idx) = state%anthro_heat%qf0_beu_holiday; idx = idx + 1
+   flat(idx) = state%anthro_heat%qf_a_working; idx = idx + 1
+   flat(idx) = state%anthro_heat%qf_a_holiday; idx = idx + 1
+   flat(idx) = state%anthro_heat%qf_b_working; idx = idx + 1
+   flat(idx) = state%anthro_heat%qf_b_holiday; idx = idx + 1
+   flat(idx) = state%anthro_heat%qf_c_working; idx = idx + 1
+   flat(idx) = state%anthro_heat%qf_c_holiday; idx = idx + 1
+   flat(idx) = state%anthro_heat%baset_cooling_working; idx = idx + 1
+   flat(idx) = state%anthro_heat%baset_cooling_holiday; idx = idx + 1
+   flat(idx) = state%anthro_heat%baset_heating_working; idx = idx + 1
+   flat(idx) = state%anthro_heat%baset_heating_holiday; idx = idx + 1
+   flat(idx) = state%anthro_heat%ah_min_working; idx = idx + 1
+   flat(idx) = state%anthro_heat%ah_min_holiday; idx = idx + 1
+   flat(idx) = state%anthro_heat%ah_slope_cooling_working; idx = idx + 1
+   flat(idx) = state%anthro_heat%ah_slope_cooling_holiday; idx = idx + 1
+   flat(idx) = state%anthro_heat%ah_slope_heating_working; idx = idx + 1
+   flat(idx) = state%anthro_heat%ah_slope_heating_holiday; idx = idx + 1
 
    do i = 1, 24
-      flat(idx) = state%anthroheat%ahprof_24hr_working(i)
+      flat(idx) = state%anthro_heat%ahprof_24hr_working(i)
       idx = idx + 1
    end do
 
    do i = 1, 24
-      flat(idx) = state%anthroheat%ahprof_24hr_holiday(i)
+      flat(idx) = state%anthro_heat%ahprof_24hr_holiday(i)
       idx = idx + 1
    end do
 
-   flat(idx) = state%anthroheat%popdensdaytime_working; idx = idx + 1
-   flat(idx) = state%anthroheat%popdensdaytime_holiday; idx = idx + 1
-   flat(idx) = state%anthroheat%popdensnighttime; idx = idx + 1
+   flat(idx) = state%anthro_heat%pop_density_daytime_working; idx = idx + 1
+   flat(idx) = state%anthro_heat%pop_density_daytime_holiday; idx = idx + 1
+   flat(idx) = state%anthro_heat%pop_density_nighttime; idx = idx + 1
 
    do i = 1, 24
-      flat(idx) = state%anthroheat%popprof_24hr_working(i)
+      flat(idx) = state%anthro_heat%popprof_24hr_working(i)
       idx = idx + 1
    end do
 
    do i = 1, 24
-      flat(idx) = state%anthroheat%popprof_24hr_holiday(i)
+      flat(idx) = state%anthro_heat%popprof_24hr_holiday(i)
       idx = idx + 1
    end do
 
-   flat(idx) = state%ef_umolco2perj; idx = idx + 1
-   flat(idx) = state%enef_v_jkm; idx = idx + 1
-   flat(idx) = state%frfossilfuel_heat; idx = idx + 1
-   flat(idx) = state%frfossilfuel_nonheat; idx = idx + 1
+   flat(idx) = state%ef_umol_co2_per_j; idx = idx + 1
+   flat(idx) = state%en_ef_v_jkm; idx = idx + 1
+   flat(idx) = state%fr_fossil_fuel_heat; idx = idx + 1
+   flat(idx) = state%fr_fossil_fuel_non_heat; idx = idx + 1
 
    do i = 1, 2
-      flat(idx) = state%fcef_v_kgkm(i)
+      flat(idx) = state%fc_ef_v_kgkm(i)
       idx = idx + 1
    end do
 
    do i = 1, 24
-      flat(idx) = state%humactivity_24hr_working(i)
+      flat(idx) = state%hum_activity_24hr_working(i)
       idx = idx + 1
    end do
 
    do i = 1, 24
-      flat(idx) = state%humactivity_24hr_holiday(i)
+      flat(idx) = state%hum_activity_24hr_holiday(i)
       idx = idx + 1
    end do
 
-   flat(idx) = state%maxfcmetab; idx = idx + 1
-   flat(idx) = state%maxqfmetab; idx = idx + 1
-   flat(idx) = state%minfcmetab; idx = idx + 1
-   flat(idx) = state%minqfmetab; idx = idx + 1
-   flat(idx) = state%trafficrate_working; idx = idx + 1
-   flat(idx) = state%trafficrate_holiday; idx = idx + 1
-   flat(idx) = state%trafficunits; idx = idx + 1
+   flat(idx) = state%max_fc_metab; idx = idx + 1
+   flat(idx) = state%max_qf_metab; idx = idx + 1
+   flat(idx) = state%min_fc_metab; idx = idx + 1
+   flat(idx) = state%min_qf_metab; idx = idx + 1
+   flat(idx) = state%traffic_rate_working; idx = idx + 1
+   flat(idx) = state%traffic_rate_holiday; idx = idx + 1
+   flat(idx) = state%traffic_units; idx = idx + 1
 
    do i = 1, 24
-      flat(idx) = state%traffprof_24hr_working(i)
+      flat(idx) = state%traff_prof_24hr_working(i)
       idx = idx + 1
    end do
 
    do i = 1, 24
-      flat(idx) = state%traffprof_24hr_holiday(i)
+      flat(idx) = state%traff_prof_24hr_holiday(i)
       idx = idx + 1
    end do
 
@@ -234,87 +234,87 @@ subroutine anthro_emis_prm_unpack(flat, n_flat, state, err)
    end if
 
    idx = 1_c_int
-   state%startdls = int(nint(flat(idx))); idx = idx + 1_c_int
-   state%enddls = int(nint(flat(idx))); idx = idx + 1_c_int
+   state%start_dls = int(nint(flat(idx))); idx = idx + 1_c_int
+   state%end_dls = int(nint(flat(idx))); idx = idx + 1_c_int
 
-   state%anthroheat%qf0_beu_working = flat(idx); idx = idx + 1_c_int
-   state%anthroheat%qf0_beu_holiday = flat(idx); idx = idx + 1_c_int
-   state%anthroheat%qf_a_working = flat(idx); idx = idx + 1_c_int
-   state%anthroheat%qf_a_holiday = flat(idx); idx = idx + 1_c_int
-   state%anthroheat%qf_b_working = flat(idx); idx = idx + 1_c_int
-   state%anthroheat%qf_b_holiday = flat(idx); idx = idx + 1_c_int
-   state%anthroheat%qf_c_working = flat(idx); idx = idx + 1_c_int
-   state%anthroheat%qf_c_holiday = flat(idx); idx = idx + 1_c_int
-   state%anthroheat%baset_cooling_working = flat(idx); idx = idx + 1_c_int
-   state%anthroheat%baset_cooling_holiday = flat(idx); idx = idx + 1_c_int
-   state%anthroheat%baset_heating_working = flat(idx); idx = idx + 1_c_int
-   state%anthroheat%baset_heating_holiday = flat(idx); idx = idx + 1_c_int
-   state%anthroheat%ah_min_working = flat(idx); idx = idx + 1_c_int
-   state%anthroheat%ah_min_holiday = flat(idx); idx = idx + 1_c_int
-   state%anthroheat%ah_slope_cooling_working = flat(idx); idx = idx + 1_c_int
-   state%anthroheat%ah_slope_cooling_holiday = flat(idx); idx = idx + 1_c_int
-   state%anthroheat%ah_slope_heating_working = flat(idx); idx = idx + 1_c_int
-   state%anthroheat%ah_slope_heating_holiday = flat(idx); idx = idx + 1_c_int
+   state%anthro_heat%qf0_beu_working = flat(idx); idx = idx + 1_c_int
+   state%anthro_heat%qf0_beu_holiday = flat(idx); idx = idx + 1_c_int
+   state%anthro_heat%qf_a_working = flat(idx); idx = idx + 1_c_int
+   state%anthro_heat%qf_a_holiday = flat(idx); idx = idx + 1_c_int
+   state%anthro_heat%qf_b_working = flat(idx); idx = idx + 1_c_int
+   state%anthro_heat%qf_b_holiday = flat(idx); idx = idx + 1_c_int
+   state%anthro_heat%qf_c_working = flat(idx); idx = idx + 1_c_int
+   state%anthro_heat%qf_c_holiday = flat(idx); idx = idx + 1_c_int
+   state%anthro_heat%baset_cooling_working = flat(idx); idx = idx + 1_c_int
+   state%anthro_heat%baset_cooling_holiday = flat(idx); idx = idx + 1_c_int
+   state%anthro_heat%baset_heating_working = flat(idx); idx = idx + 1_c_int
+   state%anthro_heat%baset_heating_holiday = flat(idx); idx = idx + 1_c_int
+   state%anthro_heat%ah_min_working = flat(idx); idx = idx + 1_c_int
+   state%anthro_heat%ah_min_holiday = flat(idx); idx = idx + 1_c_int
+   state%anthro_heat%ah_slope_cooling_working = flat(idx); idx = idx + 1_c_int
+   state%anthro_heat%ah_slope_cooling_holiday = flat(idx); idx = idx + 1_c_int
+   state%anthro_heat%ah_slope_heating_working = flat(idx); idx = idx + 1_c_int
+   state%anthro_heat%ah_slope_heating_holiday = flat(idx); idx = idx + 1_c_int
 
    do i = 0_c_int, 23_c_int
-      state%anthroheat%ahprof_24hr_working(i) = flat(idx)
+      state%anthro_heat%ahprof_24hr_working(i) = flat(idx)
       idx = idx + 1_c_int
    end do
 
    do i = 0_c_int, 23_c_int
-      state%anthroheat%ahprof_24hr_holiday(i) = flat(idx)
+      state%anthro_heat%ahprof_24hr_holiday(i) = flat(idx)
       idx = idx + 1_c_int
    end do
 
-   state%anthroheat%popdensdaytime_working = flat(idx); idx = idx + 1_c_int
-   state%anthroheat%popdensdaytime_holiday = flat(idx); idx = idx + 1_c_int
-   state%anthroheat%popdensnighttime = flat(idx); idx = idx + 1_c_int
+   state%anthro_heat%pop_density_daytime_working = flat(idx); idx = idx + 1_c_int
+   state%anthro_heat%pop_density_daytime_holiday = flat(idx); idx = idx + 1_c_int
+   state%anthro_heat%pop_density_nighttime = flat(idx); idx = idx + 1_c_int
 
    do i = 0_c_int, 23_c_int
-      state%anthroheat%popprof_24hr_working(i) = flat(idx)
+      state%anthro_heat%popprof_24hr_working(i) = flat(idx)
       idx = idx + 1_c_int
    end do
 
    do i = 0_c_int, 23_c_int
-      state%anthroheat%popprof_24hr_holiday(i) = flat(idx)
+      state%anthro_heat%popprof_24hr_holiday(i) = flat(idx)
       idx = idx + 1_c_int
    end do
 
-   state%EF_umolCO2perJ = flat(idx); idx = idx + 1_c_int
-   state%EnEF_v_Jkm = flat(idx); idx = idx + 1_c_int
-   state%FrFossilFuel_Heat = flat(idx); idx = idx + 1_c_int
-   state%FrFossilFuel_NonHeat = flat(idx); idx = idx + 1_c_int
+   state%ef_umol_co2_per_j = flat(idx); idx = idx + 1_c_int
+   state%en_ef_v_jkm = flat(idx); idx = idx + 1_c_int
+   state%fr_fossil_fuel_heat = flat(idx); idx = idx + 1_c_int
+   state%fr_fossil_fuel_non_heat = flat(idx); idx = idx + 1_c_int
 
    do i = 1_c_int, 2_c_int
-      state%FcEF_v_kgkm(i) = flat(idx)
+      state%fc_ef_v_kgkm(i) = flat(idx)
       idx = idx + 1_c_int
    end do
 
    do i = 0_c_int, 23_c_int
-      state%HumActivity_24hr_working(i) = flat(idx)
+      state%hum_activity_24hr_working(i) = flat(idx)
       idx = idx + 1_c_int
    end do
 
    do i = 0_c_int, 23_c_int
-      state%HumActivity_24hr_holiday(i) = flat(idx)
+      state%hum_activity_24hr_holiday(i) = flat(idx)
       idx = idx + 1_c_int
    end do
 
-   state%MaxFCMetab = flat(idx); idx = idx + 1_c_int
-   state%MaxQFMetab = flat(idx); idx = idx + 1_c_int
-   state%MinFCMetab = flat(idx); idx = idx + 1_c_int
-   state%MinQFMetab = flat(idx); idx = idx + 1_c_int
-   state%TrafficRate_working = flat(idx); idx = idx + 1_c_int
-   state%TrafficRate_holiday = flat(idx); idx = idx + 1_c_int
-   state%TrafficUnits = flat(idx); idx = idx + 1_c_int
+   state%max_fc_metab = flat(idx); idx = idx + 1_c_int
+   state%max_qf_metab = flat(idx); idx = idx + 1_c_int
+   state%min_fc_metab = flat(idx); idx = idx + 1_c_int
+   state%min_qf_metab = flat(idx); idx = idx + 1_c_int
+   state%traffic_rate_working = flat(idx); idx = idx + 1_c_int
+   state%traffic_rate_holiday = flat(idx); idx = idx + 1_c_int
+   state%traffic_units = flat(idx); idx = idx + 1_c_int
 
    do i = 0_c_int, 23_c_int
-      state%TraffProf_24hr_working(i) = flat(idx)
+      state%traff_prof_24hr_working(i) = flat(idx)
       idx = idx + 1_c_int
    end do
 
    do i = 0_c_int, 23_c_int
-      state%TraffProf_24hr_holiday(i) = flat(idx)
+      state%traff_prof_24hr_holiday(i) = flat(idx)
       idx = idx + 1_c_int
    end do
 

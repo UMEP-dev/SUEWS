@@ -804,8 +804,8 @@ CONTAINS
             MonthMeanAirTemperature_diffmax_sout => stebbsState%MonthMeanAirTemperature_diffmax, &
             pres => forcing%pres, &
             RH => forcing%RH, &
-            cp_air => atmState%avcp, &
-            density_air => atmState%avdens, &
+            cp_air => atmState%av_cp, &
+            density_air => atmState%av_density, &
             ss_height => spartacus_Prm%height, &
             z0m => roughnessState%z0m, &
             zdm => roughnessState%zdm &

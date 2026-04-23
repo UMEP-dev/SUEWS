@@ -391,8 +391,8 @@ CONTAINS
             avRH => forcing%RH, &
             Press_hPa => forcing%pres, &
             RA_h => atmState%RA_h, &
-            avdens => atmState%avdens, &
-            avcp => atmState%avcp, &
+            avdens => atmState%av_density, &
+            avcp => atmState%av_cp, &
             lv_J_kg => atmState%lv_J_kg, &
             L_MOD => atmState%L_MOD, &
             T2_C => atmState%T2_C, &

@@ -33,7 +33,7 @@ type :: snow_state_shadow
    real(c_double) :: swe = 0.0_c_double
    real(c_double) :: z0v_snow = 0.0_c_double
    real(c_double) :: ra_snow = 0.0_c_double
-   real(c_double) :: sice_hpa = 0.0_c_double
+   real(c_double) :: s_ice_hpa = 0.0_c_double
    real(c_double), dimension(2) :: snow_removal = 0.0_c_double
    real(c_double), dimension(nsurf) :: ice_frac = 0.0_c_double
    real(c_double), dimension(nsurf) :: snow_density = 0.0_c_double
@@ -120,7 +120,7 @@ subroutine snow_state_pack(state, flat, n_flat, err)
    flat(idx) = state%swe; idx = idx + 1
    flat(idx) = state%z0v_snow; idx = idx + 1
    flat(idx) = state%ra_snow; idx = idx + 1
-   flat(idx) = state%sice_hpa; idx = idx + 1
+   flat(idx) = state%s_ice_hpa; idx = idx + 1
 
    do i = 1, 2
       flat(idx) = state%snow_removal(i)
@@ -207,7 +207,7 @@ subroutine snow_state_unpack(flat, n_flat, state, err)
    state%swe = flat(idx); idx = idx + 1_c_int
    state%z0v_snow = flat(idx); idx = idx + 1_c_int
    state%ra_snow = flat(idx); idx = idx + 1_c_int
-   state%sice_hpa = flat(idx); idx = idx + 1_c_int
+   state%s_ice_hpa = flat(idx); idx = idx + 1_c_int
 
    do i = 1_c_int, 2_c_int
       state%snow_removal(i) = flat(idx)

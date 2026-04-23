@@ -1490,21 +1490,21 @@ subroutine pack_atm_state(s, flat, n_flat, err)
    end if
 
    idx = 1_c_int
-   flat(idx) = s%fcld; idx = idx + 1_c_int
-   flat(idx) = s%avcp; idx = idx + 1_c_int
+   flat(idx) = s%f_cloud; idx = idx + 1_c_int
+   flat(idx) = s%av_cp; idx = idx + 1_c_int
    flat(idx) = s%dens_dry; idx = idx + 1_c_int
-   flat(idx) = s%avdens; idx = idx + 1_c_int
+   flat(idx) = s%av_density; idx = idx + 1_c_int
    flat(idx) = s%dq; idx = idx + 1_c_int
    flat(idx) = s%ea_hpa; idx = idx + 1_c_int
    flat(idx) = s%es_hpa; idx = idx + 1_c_int
    flat(idx) = s%lv_j_kg; idx = idx + 1_c_int
-   flat(idx) = s%lvs_j_kg; idx = idx + 1_c_int
+   flat(idx) = s%lv_s_j_kg; idx = idx + 1_c_int
    flat(idx) = s%tlv; idx = idx + 1_c_int
    flat(idx) = s%psyc_hpa; idx = idx + 1_c_int
-   flat(idx) = s%psycice_hpa; idx = idx + 1_c_int
+   flat(idx) = s%psyc_ice_h_pa; idx = idx + 1_c_int
    flat(idx) = s%s_pa; idx = idx + 1_c_int
    flat(idx) = s%s_hpa; idx = idx + 1_c_int
-   flat(idx) = s%sice_hpa; idx = idx + 1_c_int
+   flat(idx) = s%s_ice_hpa; idx = idx + 1_c_int
    flat(idx) = s%vpd_hpa; idx = idx + 1_c_int
    flat(idx) = s%vpd_pa; idx = idx + 1_c_int
    flat(idx) = s%u10_ms; idx = idx + 1_c_int
@@ -1514,11 +1514,11 @@ subroutine pack_atm_state(s, flat, n_flat, err)
    flat(idx) = s%q2_gkg; idx = idx + 1_c_int
    flat(idx) = s%rh2; idx = idx + 1_c_int
    flat(idx) = s%l_mod; idx = idx + 1_c_int
-   flat(idx) = s%zl; idx = idx + 1_c_int
+   flat(idx) = s%z_l; idx = idx + 1_c_int
    flat(idx) = s%ra_h; idx = idx + 1_c_int
    flat(idx) = s%rs; idx = idx + 1_c_int
-   flat(idx) = s%ustar; idx = idx + 1_c_int
-   flat(idx) = s%tstar; idx = idx + 1_c_int
+   flat(idx) = s%u_star; idx = idx + 1_c_int
+   flat(idx) = s%t_star; idx = idx + 1_c_int
    flat(idx) = s%rb; idx = idx + 1_c_int
    flat(idx) = s%tair_av; idx = idx + 1_c_int
 
@@ -1626,7 +1626,7 @@ subroutine pack_snow_state(s, flat, n_flat, err)
    flat(idx) = s%swe; idx = idx + 1_c_int
    flat(idx) = s%z0v_snow; idx = idx + 1_c_int
    flat(idx) = s%ra_snow; idx = idx + 1_c_int
-   flat(idx) = s%sice_hpa; idx = idx + 1_c_int
+   flat(idx) = s%s_ice_hpa; idx = idx + 1_c_int
 
    do i = 1_c_int, 2_c_int
       flat(idx) = s%snow_removal(i)

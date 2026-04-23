@@ -124,11 +124,11 @@ CONTAINS
             VegFraction => siteInfo%vegFraction, &
             tstep_real => timer%tstep_real, &
             nsh_real => timer%nsh_real, &
-            avcp => atmState%avcp, &
+            avcp => atmState%av_cp, &
             lv_J_kg => atmState%lv_J_kg, &
             psyc_hPa => atmState%psyc_hPa, &
             s_hPa => atmState%s_hPa, &
-            sIce_hpa => atmState%sIce_hpa, &
+            sIce_hpa => atmState%s_ice_hpa, &
             qn => heatState%qn, &
             qf => heatState%qf, &
             qs => heatState%qs, &

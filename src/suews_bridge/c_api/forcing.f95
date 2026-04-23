@@ -27,7 +27,7 @@ MODULE module_c_api_forcing
       REAL(c_double) :: u = 0.0_c_double
       REAL(c_double) :: rain = 0.0_c_double
       REAL(c_double) :: wu_m3 = 0.0_c_double
-      REAL(c_double) :: fcld = 0.0_c_double
+      REAL(c_double) :: f_cloud = 0.0_c_double
       REAL(c_double) :: lai_obs = 0.0_c_double
       REAL(c_double) :: snow_fraction = 0.0_c_double
       REAL(c_double) :: xsmd = 0.0_c_double
@@ -137,7 +137,7 @@ CONTAINS
       flat(idx) = state%u; idx = idx + 1
       flat(idx) = state%rain; idx = idx + 1
       flat(idx) = state%wu_m3; idx = idx + 1
-      flat(idx) = state%fcld; idx = idx + 1
+      flat(idx) = state%f_cloud; idx = idx + 1
       flat(idx) = state%lai_obs; idx = idx + 1
       flat(idx) = state%snow_fraction; idx = idx + 1
       flat(idx) = state%xsmd; idx = idx + 1

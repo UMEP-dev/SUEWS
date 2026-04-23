@@ -197,7 +197,7 @@ MODULE module_ctrl_type
       REAL(KIND(1D0)) :: U = 0.0D0 !
       REAL(KIND(1D0)) :: rain = 0.0D0 !
       REAL(KIND(1D0)) :: Wu_m3 = 0.0D0 !  external water use amount in m3 for each timestep
-      REAL(KIND(1D0)) :: fcld = 0.0D0 !
+      REAL(KIND(1D0)) :: f_cloud = 0.0D0 !
       REAL(KIND(1D0)) :: LAI_obs = 0.0D0 !
       REAL(KIND(1D0)) :: snow_fraction = 0.0D0 !
       REAL(KIND(1D0)) :: xsmd = 0.0D0 !
@@ -557,11 +557,11 @@ CONTAINS
       ! Reset the critical atmospheric state variables that cause QE/QH discrepancies
       self%atmState%RA_h = 0.0D0
       self%atmState%RS = 0.0D0
-      self%atmState%UStar = 0.0D0
-      self%atmState%TStar = 0.0D0
+      self%atmState%u_star = 0.0D0
+      self%atmState%t_star = 0.0D0
       self%atmState%RB = 0.0D0
       self%atmState%L_mod = 0.0D0
-      self%atmState%zL = 0.0D0
+      self%atmState%z_l = 0.0D0
       self%atmState%rss_surf = 0.0D0
 
    END SUBROUTINE reset_atm_state

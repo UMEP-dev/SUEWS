@@ -467,6 +467,21 @@ ANTHRO_RENAMES: Dict[str, str] = {
 # registry entry is added here (adding one would break the one-to-one
 # fused->final invariant the Rust bridge reverse lookup depends on).
 
+# -- atm_state + solar_State (suews_type_atmosphere.f95) ----------------------
+
+ATMOSPHERE_RENAMES: Dict[str, str] = {
+    "fcld": "f_cloud",
+    "avcp": "av_cp",
+    "avdens": "av_density",
+    "zL": "z_l",
+    "UStar": "u_star",
+    "TStar": "t_star",
+    "ZENITH_deg": "zenith_deg",
+    "psycIce_hPa": "psyc_ice_h_pa",
+    "sIce_hpa": "s_ice_hpa",
+    "lvS_J_kg": "lv_s_j_kg",
+}
+
 PHENOLOGYSTATE_RENAMES: Dict[str, str] = {
     "VegPhenLumps": "veg_phen_lumps",
     "TempVeg": "temp_veg",
@@ -517,6 +532,7 @@ ALL_FIELD_RENAMES: Dict[str, str] = {
     **WATERDIST_RENAMES,
     **PHENOLOGYSTATE_RENAMES,
     **ANTHRO_RENAMES,
+    **ATMOSPHERE_RENAMES,
 }
 
 # Raw-YAML structural checks (Phase A / precheck) need a wider view than the

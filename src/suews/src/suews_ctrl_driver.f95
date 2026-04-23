@@ -473,7 +473,7 @@ CONTAINS
             END DO ! end iteration for tsurf calculations
 
             ! MP: Add test for QH zL signs - recalculate zL if the same
-            IF (modState%heatState%QH*modState%atmState%zL > 0) THEN
+            IF (modState%heatState%QH*modState%atmState%z_l > 0) THEN
                IF (Diagnose == 1) WRITE (*, *) 'Calling SUEWS_cal_Resistance...'
                CALL SUEWS_cal_Resistance( &
                   timer, config, forcing, siteInfo, & ! input
@@ -655,7 +655,7 @@ CONTAINS
          forcing%kdown = MetForcingBlock(ir, 15)
          forcing%snow_fraction = MetForcingBlock(ir, 16)
          forcing%ldown = MetForcingBlock(ir, 17)
-         forcing%fcld = MetForcingBlock(ir, 18)
+         forcing%f_cloud = MetForcingBlock(ir, 18)
          forcing%Wu_m3 = MetForcingBlock(ir, 19)
          forcing%xsmd = MetForcingBlock(ir, 20)
          forcing%LAI_obs = MetForcingBlock(ir, 21)
@@ -789,8 +789,8 @@ CONTAINS
             g_lai => phenState%g_lai, &
             vpd_hPa => atmState%vpd_hPa, &
             lv_J_kg => atmState%lv_J_kg, &
-            avdens => atmState%avdens, &
-            avcp => atmState%avcp, &
+            avdens => atmState%av_density, &
+            avcp => atmState%av_cp, &
             s_hPa => atmState%s_hPa, &
             psyc_hPa => atmState%psyc_hPa, &
             i_iter => flagState%i_iter, &
@@ -853,8 +853,8 @@ CONTAINS
             diagnose => config%diagnose, &
             StorageHeatMethod => config%StorageHeatMethod, &
             nlayer => siteInfo%nlayer, &
-            avdens => atmState%avdens, &
-            avcp => atmState%avcp, &
+            avdens => atmState%av_density, &
+            avcp => atmState%av_cp, &
             RA_h => atmState%RA_h, &
             TSfc_C => heatState%TSfc_C, &
             QH_surf => heatState%QH_surf, &
@@ -1473,7 +1473,7 @@ CONTAINS
             use_sw_direct_albedo => config%use_sw_direct_albedo, &
             tstep => timer%tstep, &
             ldown_obs => forcing%ldown, &
-            fcld_obs => forcing%fcld, &
+            fcld_obs => forcing%f_cloud, &
             kdown => forcing%kdown, &
             Tair_C => forcing%Temp_C, &
             avRH => forcing%RH, &
@@ -1487,9 +1487,9 @@ CONTAINS
             kup_ind_snow => snowState%kup_ind_snow, &
             Tsurf_ind_snow => snowState%Tsurf_ind_snow, &
             dectime => timer%dectime, &
-            ZENITH_deg => solarState%ZENITH_deg, &
+            ZENITH_deg => solarState%zenith_deg, &
             ea_hPa => atmState%ea_hPa, &
-            fcld => atmState%fcld, &
+            fcld => atmState%f_cloud, &
             qn => heatState%qn, &
             kclear => heatState%kclear, &
             kup => heatState%kup, &
@@ -2491,12 +2491,12 @@ CONTAINS
          snowState_next = snowState
 
          ASSOCIATE ( &
-            avdens => atmState%avdens, &
-            avcp => atmState%avcp, &
+            avdens => atmState%av_density, &
+            avcp => atmState%av_cp, &
             lv_J_kg => atmState%lv_J_kg, &
-            lvS_J_kg => atmState%lvS_J_kg, &
+            lvS_J_kg => atmState%lv_s_j_kg, &
             psyc_hPa => atmState%psyc_hPa, &
-            sIce_hPa => atmState%sIce_hPa, &
+            sIce_hPa => atmState%s_ice_hpa, &
             vpd_hPa => atmState%vpd_hPa, &
             s_hPa => atmState%s_hPa, &
             RS => atmState%RS, &
@@ -2847,8 +2847,8 @@ CONTAINS
             tstep_real => timer%tstep_real, &
             dayofWeek_id => timer%dayofWeek_id, &
             nsh_real => timer%nsh_real, &
-            avdens => atmState%avdens, &
-            avcp => atmState%avcp, &
+            avdens => atmState%av_density, &
+            avcp => atmState%av_cp, &
             lv_J_kg => atmState%lv_J_kg, &
             psyc_hPa => atmState%psyc_hPa, &
             vpd_hPa => atmState%vpd_hPa, &
@@ -3162,8 +3162,8 @@ CONTAINS
             xsmd => forcing%xsmd, &
             Temp_C => forcing%Temp_C, &
             RA_h => atmState%RA_h, &
-            avdens => atmState%avdens, &
-            avcp => atmState%avcp, &
+            avdens => atmState%av_density, &
+            avcp => atmState%av_cp, &
             qh_resist_surf => heatState%qh_resist_surf, &
             qh_resist_roof => heatState%qh_resist_roof, &
             qh_resist_wall => heatState%qh_resist_wall, &
@@ -3309,12 +3309,12 @@ CONTAINS
             avkdn => forcing%kdown, &
             xsmd => forcing%xsmd, &
             vsmd => hydroState%vsmd, &
-            avdens => atmState%avdens, &
-            avcp => atmState%avcp, &
+            avdens => atmState%av_density, &
+            avcp => atmState%av_cp, &
             dq => atmState%dq, &
-            TStar => atmState%TStar, &
-            UStar => atmState%UStar, &
-            zL => atmState%zL, &
+            TStar => atmState%t_star, &
+            UStar => atmState%u_star, &
+            zL => atmState%z_l, &
             RS => atmState%RS, &
             RA => atmState%RA_h, &
             L_mod => atmState%L_mod, &
@@ -3508,7 +3508,7 @@ CONTAINS
             QE_LUMPS => heatState%QE_LUMPS, &
             ev_per_tstep => hydroState%ev_per_tstep, &
             wu_ext => hydroState%wu_ext, &
-            fcld => forcing%fcld, &
+            fcld => forcing%f_cloud, &
             Fc => anthroemisState%Fc, &
             Fc_build => anthroemisState%Fc_build, &
             Fc_metab => anthroemisState%Fc_metab, &
@@ -3562,12 +3562,12 @@ CONTAINS
             tsurf => heatState%tsurf, &
             Tsfc_surf => heatState%Tsfc_surf, &
             Tsfc_surf_dyohm => heatState%Tsfc_surf_dyohm, &
-            UStar => atmState%UStar, &
-            TStar => atmState%TStar, &
+            UStar => atmState%u_star, &
+            TStar => atmState%t_star, &
             wu_surf => hydroState%wu_surf, &
             z0m => roughnessState%z0m, &
             zdm => roughnessState%zdm, &
-            zL => atmState%zL, &
+            zL => atmState%z_l, &
             zenith_deg => solarState%zenith_deg, &
             kdown => forcing%kdown, &
             rain => forcing%rain, &
@@ -5665,7 +5665,7 @@ CONTAINS
          forcing%kdown = MetForcingBlock(ir, 15)
          forcing%snow_fraction = MetForcingBlock(ir, 16)
          forcing%ldown = MetForcingBlock(ir, 17)
-         forcing%fcld = MetForcingBlock(ir, 18)
+         forcing%f_cloud = MetForcingBlock(ir, 18)
          forcing%Wu_m3 = MetForcingBlock(ir, 19)
          forcing%xsmd = MetForcingBlock(ir, 20)
          forcing%LAI_obs = MetForcingBlock(ir, 21)

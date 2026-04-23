@@ -42,7 +42,7 @@ module module_type_snow
        REAL(KIND(1D0)) :: swe = 0.0D0 ! Overall snow water equivalent [mm]
        REAL(KIND(1D0)) :: z0v_snow = 0.0D0 ! Roughness for heat [m]
        REAL(KIND(1D0)) :: ra_snow = 0.0D0 ! Aerodynamic resistance for snow [s m-1]
-       REAL(KIND(1D0)) :: sIce_hpa = 0.0D0 ! Saturated vapour pressure on snow [hPa]
+       REAL(KIND(1D0)) :: s_ice_hpa = 0.0D0 ! Saturated vapour pressure on snow [hPa]
        REAL(KIND(1D0)), DIMENSION(2) :: snow_removal = 0.0D0 ! Snow removal [mm]
        REAL(KIND(1D0)), DIMENSION(nsurf) :: ice_frac = 0.0D0 ! Fraction of ice in snowpack [-]
        REAL(KIND(1D0)), DIMENSION(nsurf) :: snow_density = 0.0D0 ! Snow density [kg m-3]

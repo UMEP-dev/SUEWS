@@ -17,6 +17,8 @@ continues to validate and round-trips byte-identically.
 from __future__ import annotations
 
 from collections.abc import Mapping
+from enum import Enum
+from numbers import Integral, Real
 from typing import Any
 
 
@@ -108,13 +110,27 @@ def coerce_nested_to_flat(field_name: str, value: Any) -> Any:
             f"'{field_name}.{family}.value' must be a scalar numeric code, "
             f"not a nested mapping."
         )
-    try:
+
+    if isinstance(code, Enum):
+        code = code.value
+
+    if isinstance(code, bool):
         code_int = int(code)
-    except (TypeError, ValueError) as exc:
+    elif isinstance(code, Integral):
+        code_int = int(code)
+    elif isinstance(code, Real):
+        code_real = float(code)
+        if not code_real.is_integer():
+            raise ValueError(
+                f"'{field_name}.{family}.value' must be an integer code "
+                f"(got {code!r})."
+            )
+        code_int = int(code_real)
+    else:
         raise ValueError(
             f"'{field_name}.{family}.value' must be an integer code "
             f"(got {code!r})."
-        ) from exc
+        )
 
     if code_int not in families[family]:
         valid = sorted(families[family])

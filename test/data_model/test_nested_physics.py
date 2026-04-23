@@ -42,6 +42,16 @@ class TestModelPhysicsNested:
             ModelPhysics(net_radiation={"narp": {"value": 1001}})
         assert "expects one of" in str(exc.value)
 
+    def test_non_integral_nested_code_rejected(self):
+        with pytest.raises(ValidationError) as exc:
+            ModelPhysics(net_radiation={"narp": {"value": 3.7}})
+        assert "must be an integer code" in str(exc.value)
+
+    def test_stringified_nested_code_rejected(self):
+        with pytest.raises(ValidationError) as exc:
+            ModelPhysics(net_radiation={"narp": {"value": "3"}})
+        assert "must be an integer code" in str(exc.value)
+
     def test_non_registered_field_unaffected(self):
         phys = ModelPhysics(snow_use={"value": 1})
         assert int(_unwrap(phys.snow_use)) == 1

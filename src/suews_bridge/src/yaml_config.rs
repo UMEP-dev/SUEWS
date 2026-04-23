@@ -2462,7 +2462,8 @@ mod tests {
             (cfg_new.site.lc_paved.state_limit - cfg_old.site.lc_paved.state_limit).abs() < 1.0e-12
         );
         assert!(
-            (cfg_new.site.lc_paved.soil.soil_store_capacity - cfg_old.site.lc_paved.soil.soil_store_capacity)
+            (cfg_new.site.lc_paved.soil.soil_store_capacity
+                - cfg_old.site.lc_paved.soil.soil_store_capacity)
                 .abs()
                 < 1.0e-12
         );
@@ -2516,10 +2517,7 @@ mod tests {
             if let Some(flat) = map.remove(Value::String("storage_heat".into())) {
                 let mut nested = serde_yaml::Mapping::new();
                 nested.insert(Value::String("stebbs".into()), flat);
-                map.insert(
-                    Value::String("storage_heat".into()),
-                    Value::Mapping(nested),
-                );
+                map.insert(Value::String("storage_heat".into()), Value::Mapping(nested));
             }
         }
 
@@ -2550,11 +2548,41 @@ mod tests {
             );
         }
 
-        let err = load_run_config_from_value(&mut root)
-            .expect_err("narp cannot carry a spartacus code");
-        assert!(
-            err.contains("expects one of"),
-            "error was: {err}"
-        );
+        let err =
+            load_run_config_from_value(&mut root).expect_err("narp cannot carry a spartacus code");
+        assert!(err.contains("expects one of"), "error was: {err}");
+    }
+
+    #[test]
+    fn load_run_config_accepts_nested_family_form_under_legacy_outer_keys() {
+        let mut root: Value =
+            serde_yaml::from_str(FIXTURE_NEW_NAMES).expect("fixture YAML should parse");
+
+        let physics = get_path_mut(&mut root, &["model", "physics"])
+            .expect("fixture should contain model.physics");
+        if let Value::Mapping(map) = physics {
+            if let Some(flat) = map.remove(Value::String("net_radiation".into())) {
+                let mut nested = serde_yaml::Mapping::new();
+                nested.insert(Value::String("spartacus".into()), flat);
+                map.insert(
+                    Value::String("net_radiation_method".into()),
+                    Value::Mapping(nested),
+                );
+            }
+            if let Some(flat) = map.remove(Value::String("storage_heat".into())) {
+                let mut nested = serde_yaml::Mapping::new();
+                nested.insert(Value::String("stebbs".into()), flat);
+                map.insert(
+                    Value::String("storageheatmethod".into()),
+                    Value::Mapping(nested),
+                );
+            }
+        }
+
+        let run_cfg = load_run_config_from_value(&mut root)
+            .expect("nested family form under legacy/intermediate keys should parse");
+
+        assert_eq!(run_cfg.config.net_radiation_method, 1003);
+        assert_eq!(run_cfg.config.storage_heat_method, 7);
     }
 }

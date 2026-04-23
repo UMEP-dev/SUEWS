@@ -101,6 +101,11 @@ class TestCoerceNestedHappyPath:
             "emissions", {"simple": {"value": 2}}
         ) == {"value": 2}
 
+    def test_integral_float_matches_flat_acceptance(self):
+        assert coerce_nested_to_flat(
+            "net_radiation", {"narp": {"value": 3.0}}
+        ) == {"value": 3}
+
 
 class TestCoerceErrorPaths:
     def test_multiple_family_tags_rejected(self):
@@ -135,6 +140,18 @@ class TestCoerceErrorPaths:
         with pytest.raises(ValueError, match="must be an integer code"):
             coerce_nested_to_flat(
                 "net_radiation", {"narp": {"value": "abc"}}
+            )
+
+    def test_stringified_integer_rejected(self):
+        with pytest.raises(ValueError, match="must be an integer code"):
+            coerce_nested_to_flat(
+                "net_radiation", {"narp": {"value": "3"}}
+            )
+
+    def test_non_integral_float_rejected(self):
+        with pytest.raises(ValueError, match="must be an integer code"):
+            coerce_nested_to_flat(
+                "net_radiation", {"narp": {"value": 3.7}}
             )
 
     def test_code_wrong_family_rejected(self):

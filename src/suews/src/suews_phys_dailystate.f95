@@ -144,10 +144,10 @@ CONTAINS
             )
 
             ASSOCIATE ( &
-               BaseT_Heating => [ahemisPrm%anthroheat%BaseT_Heating_working, &
-                                 ahemisPrm%anthroheat%BaseT_Heating_holiday], &
-               BaseT_Cooling => [ahemisPrm%anthroheat%BaseT_Cooling_working, &
-                                 ahemisPrm%anthroheat%BaseT_Cooling_holiday], &
+               BaseT_Heating => [ahemisPrm%anthro_heat%BaseT_Heating_working, &
+                                 ahemisPrm%anthro_heat%BaseT_Heating_holiday], &
+               BaseT_Cooling => [ahemisPrm%anthro_heat%BaseT_Cooling_working, &
+                                 ahemisPrm%anthro_heat%BaseT_Cooling_holiday], &
                Tmin_id_prev => phenState_prev%Tmin_id, &
                Tmax_id_prev => phenState_prev%Tmax_id, &
                lenDay_id_prev => phenState_prev%lenDay_id, &

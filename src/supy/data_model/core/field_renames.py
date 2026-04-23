@@ -430,6 +430,35 @@ WATERDIST_RENAMES: Dict[str, str] = {
     "faut": "f_aut",
 }
 
+# -- anthroHEAT_PRM + anthroEMIS_PRM (suews_type_anthro.f95) ------------------
+
+ANTHRO_RENAMES: Dict[str, str] = {
+    # anthroHEAT_PRM
+    "popdensnighttime": "pop_density_nighttime",
+    "popdensdaytime_working": "pop_density_daytime_working",
+    "popdensdaytime_holiday": "pop_density_daytime_holiday",
+    # anthroEMIS_PRM
+    "startdls": "start_dls",
+    "enddls": "end_dls",
+    "anthroheat": "anthro_heat",
+    "EF_umolCO2perJ": "ef_umol_co2_per_j",
+    "EnEF_v_Jkm": "en_ef_v_jkm",
+    "FrFossilFuel_Heat": "fr_fossil_fuel_heat",
+    "FrFossilFuel_NonHeat": "fr_fossil_fuel_non_heat",
+    "FcEF_v_kgkm": "fc_ef_v_kgkm",
+    "HumActivity_24hr_working": "hum_activity_24hr_working",
+    "HumActivity_24hr_holiday": "hum_activity_24hr_holiday",
+    "MaxFCMetab": "max_fc_metab",
+    "MaxQFMetab": "max_qf_metab",
+    "MinFCMetab": "min_fc_metab",
+    "MinQFMetab": "min_qf_metab",
+    "TrafficRate_working": "traffic_rate_working",
+    "TrafficRate_holiday": "traffic_rate_holiday",
+    "TrafficUnits": "traffic_units",
+    "TraffProf_24hr_working": "traff_prof_24hr_working",
+    "TraffProf_24hr_holiday": "traff_prof_24hr_holiday",
+}
+
 # -- PHENOLOGY_STATE (suews_type_vegetation.f95) ------------------------------
 #
 # Fortran-only internal-state members. LAI_PRM members live under
@@ -487,6 +516,7 @@ ALL_FIELD_RENAMES: Dict[str, str] = {
     **SNOWSTATE_RENAMES,
     **WATERDIST_RENAMES,
     **PHENOLOGYSTATE_RENAMES,
+    **ANTHRO_RENAMES,
 }
 
 # Raw-YAML structural checks (Phase A / precheck) need a wider view than the

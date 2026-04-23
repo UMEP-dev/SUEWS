@@ -39,6 +39,7 @@ from .field_renames import (
     SNOWPARAMS_INTERMEDIATE_RENAMES,
     apply_field_renames,
 )
+from .df_column_renames import read_df_column
 from .human_activity import AnthropogenicEmissions, IrrigationParams
 from .hydro import (
     WaterDistribution,
@@ -53,6 +54,12 @@ from pytz import timezone
 from pytz.exceptions import AmbiguousTimeError, NonExistentTimeError
 import pytz
 import warnings
+
+
+def _df_state_value(
+    df: pd.DataFrame, grid_id: int, col_name: str, ind_dim: str
+):
+    return read_df_column(df, col_name).loc[grid_id, ind_dim]
 
 
 class VegetationParams(BaseModel):
@@ -343,11 +350,12 @@ class LAIPowerCoefficients(BaseModel):
             LAIPowerCoefficients: Instance of LAIPowerCoefficients
         """
         # Map each coefficient to its corresponding index
+        lai_power = read_df_column(df, "lai_power")
         coefficients = [
-            RefValue(df.loc[grid_id, ("laipower", f"(0, {veg_idx})")]),
-            RefValue(df.loc[grid_id, ("laipower", f"(1, {veg_idx})")]),
-            RefValue(df.loc[grid_id, ("laipower", f"(2, {veg_idx})")]),
-            RefValue(df.loc[grid_id, ("laipower", f"(3, {veg_idx})")]),
+            RefValue(lai_power.loc[grid_id, f"(0, {veg_idx})"]),
+            RefValue(lai_power.loc[grid_id, f"(1, {veg_idx})"]),
+            RefValue(lai_power.loc[grid_id, f"(2, {veg_idx})"]),
+            RefValue(lai_power.loc[grid_id, f"(3, {veg_idx})"]),
         ]
 
         # Return the instance with coefficients
@@ -503,17 +511,19 @@ class LAIParams(BaseModel):
         # Helper function to extract values from DataFrame
         def get_df_value(col_name: str, indices: Union[Tuple, int]) -> float:
             idx_str = str(indices) if isinstance(indices, int) else str(indices)
-            return df.loc[grid_id, (col_name, idx_str)]
+            return _df_state_value(df, grid_id, col_name, idx_str)
 
         # Extract basic LAI parameters
         lai_params = {
-            "baset": get_df_value("baset", (veg_idx,)),
-            "gddfull": get_df_value("gddfull", (veg_idx,)),
-            "basete": get_df_value("basete", (veg_idx,)),
-            "sddfull": get_df_value("sddfull", (veg_idx,)),
-            "laimin": get_df_value("laimin", (veg_idx,)),
-            "laimax": get_df_value("laimax", (veg_idx,)),
-            "laitype": int(get_df_value("laitype", (veg_idx,))),
+            "base_temperature": get_df_value("base_temperature", (veg_idx,)),
+            "gdd_full": get_df_value("gdd_full", (veg_idx,)),
+            "base_temperature_senescence": get_df_value(
+                "base_temperature_senescence", (veg_idx,)
+            ),
+            "sdd_full": get_df_value("sdd_full", (veg_idx,)),
+            "lai_min": get_df_value("lai_min", (veg_idx,)),
+            "lai_max": get_df_value("lai_max", (veg_idx,)),
+            "lai_type": int(get_df_value("lai_type", (veg_idx,))),
         }
 
         # Convert scalar parameters to RefValue
@@ -687,20 +697,24 @@ class VegetatedSurfaceProperties(SurfaceProperties):
         instance = super().from_df_state(df, grid_id, surf_idx)
         # add ordinary float properties
         for new_attr, col_name in [
-            ("beta_bio_co2", "beta_bioco2"),
+            ("beta_bio_co2", "beta_bio_co2"),
             ("beta_enh_bioco2", "beta_enh_bioco2"),
-            ("alpha_bio_co2", "alpha_bioco2"),
+            ("alpha_bio_co2", "alpha_bio_co2"),
             ("alpha_enh_bioco2", "alpha_enh_bioco2"),
             ("resp_a", "resp_a"),
             ("resp_b", "resp_b"),
-            ("theta_bio_co2", "theta_bioco2"),
-            ("max_conductance", "maxconductance"),
+            ("theta_bio_co2", "theta_bio_co2"),
+            ("max_conductance", "max_conductance"),
             ("min_res_bioco2", "min_res_bioco2"),
             ("ie_a", "ie_a"),
             ("ie_m", "ie_m"),
         ]:
             setattr(
-                instance, new_attr, RefValue(df.loc[grid_id, (col_name, f"({surf_idx - 2},)")])
+                instance,
+                new_attr,
+                RefValue(
+                    _df_state_value(df, grid_id, col_name, f"({surf_idx - 2},)")
+                ),
             )
 
         instance.lai = LAIParams.from_df_state(df, grid_id, surf_idx)
@@ -770,9 +784,9 @@ class EvetrProperties(VegetatedSurfaceProperties):  # TODO: Move waterdist VWD h
         )
 
         # Create new columns DataFrame and merge (avoids PerformanceWarning)
-        new_cols = {col: [val] for col, val in values_to_assign.items()}
-        new_df = pd.DataFrame(new_cols, index=[grid_id])
-        new_df.columns = pd.MultiIndex.from_tuples(new_df.columns)
+        new_df = df_from_cols(
+            values_to_assign, index=pd.Index([grid_id], name="grid")
+        )
 
         # Drop existing columns from df_state that we're updating, then concat
         cols_to_drop = [c for c in new_df.columns if c in df_state.columns]
@@ -788,8 +802,12 @@ class EvetrProperties(VegetatedSurfaceProperties):  # TODO: Move waterdist VWD h
         surf_idx = 2
         instance = super().from_df_state(df, grid_id, surf_idx)
 
-        instance.fai_evergreen_tree = RefValue(df.loc[grid_id, ("faievetree", "0")])
-        instance.height_evergreen_tree = RefValue(df.loc[grid_id, ("evetreeh", "0")])
+        instance.fai_evergreen_tree = RefValue(
+            _df_state_value(df, grid_id, "fai_evergreen_tree", "0")
+        )
+        instance.height_evergreen_tree = RefValue(
+            _df_state_value(df, grid_id, "height_evergreen_tree", "0")
+        )
 
         instance.alb_min = RefValue(df.loc[grid_id, ("albmin_evetr", "0")])
         instance.alb_max = RefValue(df.loc[grid_id, ("albmax_evetr", "0")])
@@ -896,9 +914,9 @@ class DectrProperties(VegetatedSurfaceProperties):
         )
 
         # Create new columns DataFrame and merge (avoids PerformanceWarning)
-        new_cols = {col: [val] for col, val in values_to_assign.items()}
-        new_df = pd.DataFrame(new_cols, index=[grid_id])
-        new_df.columns = pd.MultiIndex.from_tuples(new_df.columns)
+        new_df = df_from_cols(
+            values_to_assign, index=pd.Index([grid_id], name="grid")
+        )
 
         # Drop existing columns from df_state that we're updating, then concat
         cols_to_drop = [c for c in new_df.columns if c in df_state.columns]
@@ -914,12 +932,24 @@ class DectrProperties(VegetatedSurfaceProperties):
         surf_idx = 3
         instance = super().from_df_state(df, grid_id, surf_idx)
 
-        instance.fai_deciduous_tree = RefValue(df.loc[grid_id, ("faidectree", "0")])
-        instance.height_deciduous_tree = RefValue(df.loc[grid_id, ("dectreeh", "0")])
-        instance.porosity_min_deciduous = RefValue(df.loc[grid_id, ("pormin_dec", "0")])
-        instance.porosity_max_deciduous = RefValue(df.loc[grid_id, ("pormax_dec", "0")])
-        instance.capacity_max_deciduous = RefValue(df.loc[grid_id, ("capmax_dec", "0")])
-        instance.capacity_min_deciduous = RefValue(df.loc[grid_id, ("capmin_dec", "0")])
+        instance.fai_deciduous_tree = RefValue(
+            _df_state_value(df, grid_id, "fai_deciduous_tree", "0")
+        )
+        instance.height_deciduous_tree = RefValue(
+            _df_state_value(df, grid_id, "height_deciduous_tree", "0")
+        )
+        instance.porosity_min_deciduous = RefValue(
+            _df_state_value(df, grid_id, "porosity_min_deciduous", "0")
+        )
+        instance.porosity_max_deciduous = RefValue(
+            _df_state_value(df, grid_id, "porosity_max_deciduous", "0")
+        )
+        instance.capacity_max_deciduous = RefValue(
+            _df_state_value(df, grid_id, "capacity_max_deciduous", "0")
+        )
+        instance.capacity_min_deciduous = RefValue(
+            _df_state_value(df, grid_id, "capacity_min_deciduous", "0")
+        )
 
         instance.alb_min = RefValue(df.loc[grid_id, ("albmin_dectr", "0")])
         instance.alb_max = RefValue(df.loc[grid_id, ("albmax_dectr", "0")])
@@ -962,9 +992,9 @@ class GrassProperties(VegetatedSurfaceProperties):
         }
 
         # Create new columns DataFrame and merge (avoids PerformanceWarning)
-        new_cols = {col: [val] for col, val in values_to_assign.items()}
-        new_df = pd.DataFrame(new_cols, index=[grid_id])
-        new_df.columns = pd.MultiIndex.from_tuples(new_df.columns)
+        new_df = df_from_cols(
+            values_to_assign, index=pd.Index([grid_id], name="grid")
+        )
 
         # Drop existing columns from df_state that we're updating, then concat
         cols_to_drop = [c for c in new_df.columns if c in df_state.columns]
@@ -1182,33 +1212,54 @@ class SnowParams(BaseModel):
         """
         # Extract scalar attributes
         scalar_params = {
-            "crwmax": df.loc[grid_id, ("crwmax", "0")],
-            "crwmin": df.loc[grid_id, ("crwmin", "0")],
-            "narp_emis_snow": df.loc[grid_id, ("narp_emis_snow", "0")],
-            "preciplimit": df.loc[grid_id, ("preciplimit", "0")],
-            "preciplimitalb": df.loc[grid_id, ("preciplimitalb", "0")],
-            "snowalbmax": df.loc[grid_id, ("snowalbmax", "0")],
-            "snowalbmin": df.loc[grid_id, ("snowalbmin", "0")],
-            "snowdensmin": df.loc[grid_id, ("snowdensmin", "0")],
-            "snowdensmax": df.loc[grid_id, ("snowdensmax", "0")],
-            "snowlimbldg": df.loc[grid_id, ("snowlimbldg", "0")],
-            "snowlimpaved": df.loc[grid_id, ("snowlimpaved", "0")],
-            "tau_a": df.loc[grid_id, ("tau_a", "0")],
-            "tau_f": df.loc[grid_id, ("tau_f", "0")],
-            "tau_r": df.loc[grid_id, ("tau_r", "0")],
-            "tempmeltfact": df.loc[grid_id, ("tempmeltfact", "0")],
-            "radmeltfact": df.loc[grid_id, ("radmeltfact", "0")],
+            "water_holding_capacity_max": _df_state_value(
+                df, grid_id, "water_holding_capacity_max", "0"
+            ),
+            "water_holding_capacity_min": _df_state_value(
+                df, grid_id, "water_holding_capacity_min", "0"
+            ),
+            "narp_emissivity_snow": _df_state_value(
+                df, grid_id, "narp_emissivity_snow", "0"
+            ),
+            "temperature_rain_snow_threshold": _df_state_value(
+                df, grid_id, "temperature_rain_snow_threshold", "0"
+            ),
+            "precipitation_threshold_albedo_reset": _df_state_value(
+                df, grid_id, "precipitation_threshold_albedo_reset", "0"
+            ),
+            "snow_albedo_max": _df_state_value(df, grid_id, "snow_albedo_max", "0"),
+            "snow_albedo_min": _df_state_value(df, grid_id, "snow_albedo_min", "0"),
+            "snow_density_min": _df_state_value(df, grid_id, "snow_density_min", "0"),
+            "snow_density_max": _df_state_value(df, grid_id, "snow_density_max", "0"),
+            "snow_depth_limit_building": _df_state_value(
+                df, grid_id, "snow_depth_limit_building", "0"
+            ),
+            "snow_depth_limit_paved": _df_state_value(
+                df, grid_id, "snow_depth_limit_paved", "0"
+            ),
+            "tau_cold_snow": _df_state_value(df, grid_id, "tau_cold_snow", "0"),
+            "tau_melting_snow": _df_state_value(df, grid_id, "tau_melting_snow", "0"),
+            "tau_refreezing_snow": _df_state_value(
+                df, grid_id, "tau_refreezing_snow", "0"
+            ),
+            "temperature_melt_factor": _df_state_value(
+                df, grid_id, "temperature_melt_factor", "0"
+            ),
+            "radiation_melt_factor": _df_state_value(
+                df, grid_id, "radiation_melt_factor", "0"
+            ),
         }
 
         # Convert scalar parameters to RefValue
         scalar_params = {key: RefValue(value) for key, value in scalar_params.items()}
 
-        # Extract HourlyProfile (DF column stays "snowprof_24hr" for the Fortran bridge;
-        # the Pydantic shim renames the kwarg to `snow_profile_24hr` on the way in).
-        snowprof_24hr = HourlyProfile.from_df_state(df, grid_id, "snowprof_24hr")
+        # Extract HourlyProfile using the new name while accepting legacy frames.
+        snowprof_24hr = HourlyProfile.from_df_state(
+            df, grid_id, "snow_profile_24hr"
+        )
 
         # Construct and return the SnowParams instance
-        return cls(snowprof_24hr=snowprof_24hr, **scalar_params)
+        return cls(snow_profile_24hr=snowprof_24hr, **scalar_params)
 
 
 class LandCover(BaseModel):
@@ -1909,42 +1960,36 @@ class ArchetypeProperties(BaseModel):
                 continue
 
             if field_name in string_fields:
-                col_name = cls._ARCHETYPE_LEGACY_COL_NAMES.get(field_name, field_name).lower()
-                col = (col_name, "0")
-                if col in df.columns:
-                    value = df.loc[grid_id, col]
+                col_name = field_name.lower()
+                try:
+                    value = _df_state_value(df, grid_id, col_name, "0")
                     params[field_name] = (
                         getattr(default_instance, field_name)
                         if pd.isna(value)
                         else value
                     )
-                else:
+                except KeyError:
                     params[field_name] = getattr(default_instance, field_name)
                 continue
 
             if field_name in ten_minute_profile_fields:
-                col_name = cls._ARCHETYPE_LEGACY_COL_NAMES.get(field_name, field_name).lower()
-                has_profile_columns = any(col[0] == col_name for col in df.columns)
-                if has_profile_columns:
-                    try:
-                        params[field_name] = ten_minute_profile_classes[field_name].from_df_state(
-                            df, grid_id, col_name
-                        )
-                    except KeyError:
-                        params[field_name] = getattr(default_instance, field_name)
-                else:
+                col_name = field_name.lower()
+                try:
+                    params[field_name] = ten_minute_profile_classes[
+                        field_name
+                    ].from_df_state(df, grid_id, col_name)
+                except KeyError:
                     params[field_name] = getattr(default_instance, field_name)
                 continue
 
-            col_name = cls._ARCHETYPE_LEGACY_COL_NAMES.get(field_name, field_name).lower()
-            col = (col_name, "0")
-            if col in df.columns:
-                value = df.loc[grid_id, col]
+            col_name = field_name.lower()
+            try:
+                value = _df_state_value(df, grid_id, col_name, "0")
                 if pd.isna(value):
                     params[field_name] = getattr(default_instance, field_name)
                 else:
                     params[field_name] = RefValue(value)
-            else:
+            except KeyError:
                 params[field_name] = getattr(default_instance, field_name)
 
         return cls(**params)
@@ -2458,28 +2503,23 @@ class StebbsProperties(BaseModel):
                 continue
 
             if field_name in tenmin_profile_fields:
-                col_name = cls._STEBBS_LEGACY_COL_NAMES.get(field_name, field_name).lower()
-                has_profile_columns = any(col[0] == col_name for col in df.columns)
-                if has_profile_columns:
-                    try:
-                        params[field_name] = TenMinuteProfile.from_df_state(
-                            df, grid_id, col_name
-                        )
-                    except KeyError:
-                        params[field_name] = getattr(default_instance, field_name)
-                else:
+                col_name = field_name.lower()
+                try:
+                    params[field_name] = TenMinuteProfile.from_df_state(
+                        df, grid_id, col_name
+                    )
+                except KeyError:
                     params[field_name] = getattr(default_instance, field_name)
                 continue
 
-            col_name = cls._STEBBS_LEGACY_COL_NAMES.get(field_name, field_name).lower()
-            col = (col_name, "0")
-            if col in df.columns:
-                value = df.loc[grid_id, col]
+            col_name = field_name.lower()
+            try:
+                value = _df_state_value(df, grid_id, col_name, "0")
                 if pd.isna(value):
                     params[field_name] = getattr(default_instance, field_name)
                 else:
                     params[field_name] = RefValue(value)
-            else:
+            except KeyError:
                 params[field_name] = getattr(default_instance, field_name)
 
         return cls(**params)

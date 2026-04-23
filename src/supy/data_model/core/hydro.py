@@ -1,7 +1,8 @@
 from pydantic import ConfigDict, BaseModel, Field, PrivateAttr
 from typing import Optional
 import pandas as pd
-from .type import RefValue, Reference, SurfaceType, FlexibleRefValue
+from .type import RefValue, Reference, SurfaceType, FlexibleRefValue, df_from_cols
+from .df_column_renames import read_df_column
 import math
 
 
@@ -289,20 +290,13 @@ class WaterDistribution(BaseModel):
                 param_tuples.append(("waterdist", f"({i}, {surf_idx})"))
                 values.append(value)
 
-        # Create MultiIndex columns
-        columns = pd.MultiIndex.from_tuples(param_tuples, names=["var", "ind_dim"])
-
         # Convert RefValue to float
         values = [
             value.value if isinstance(value, RefValue) else value for value in values
         ]
 
-        # Create DataFrame with single row
-        df = pd.DataFrame(
-            index=pd.Index([grid_id], name="grid"),
-            columns=columns,
-            data=[values],
-            dtype=float,
+        df = df_from_cols(
+            dict(zip(param_tuples, values)), index=pd.Index([grid_id], name="grid")
         )
 
         return df
@@ -349,8 +343,9 @@ class WaterDistribution(BaseModel):
         }
 
         # Extract the values from the DataFrame
+        waterdist = read_df_column(df, "waterdist")
         params = {
-            param: df.loc[grid_id, ("waterdist", f"({idx}, {surf_idx})")]
+            param: waterdist.loc[grid_id, f"({idx}, {surf_idx})"]
             for param, idx in param_map.items()
         }
         for param, value in params.items():
@@ -359,7 +354,7 @@ class WaterDistribution(BaseModel):
                 setattr(instance, param, value)
 
         # set the last to_soilstore or to_runoff
-        waterdist_last = df.loc[grid_id, ("waterdist", f"(7, {surf_idx})")]
+        waterdist_last = waterdist.loc[grid_id, f"(7, {surf_idx})"]
         waterdist_last = RefValue(waterdist_last)
         if getattr(instance, "to_soilstore") is None:
             setattr(instance, "to_runoff", waterdist_last)
@@ -439,15 +434,7 @@ class StorageDrainParams(BaseModel):
             ])
         ]
 
-        # Create MultiIndex columns
-        columns = pd.MultiIndex.from_tuples(param_tuples, names=["var", "ind_dim"])
-
-        # Create DataFrame with single row
-        df = pd.DataFrame(
-            index=pd.Index([grid_id], name="grid"), columns=columns, dtype=float
-        )
-
-        # Fill values
+        cols = {}
         for i, var in enumerate([
             "store_min",
             "drain_eq",
@@ -461,9 +448,9 @@ class StorageDrainParams(BaseModel):
                 val = field_val.value if isinstance(field_val, RefValue) else field_val
             else:
                 val = 0.0  # Default to 0.0 for DataFrame compatibility
-            df.loc[grid_id, ("storedrainprm", f"({i}, {surf_idx})")] = val
+            cols[("storedrainprm", f"({i}, {surf_idx})")] = val
 
-        return df
+        return df_from_cols(cols, index=pd.Index([grid_id], name="grid"))
 
     @classmethod
     def from_df_state(
@@ -491,8 +478,9 @@ class StorageDrainParams(BaseModel):
         }
 
         # Extract the values from the DataFrame
+        storedrainprm = read_df_column(df, "storage_drain_params")
         params = {
-            param: df.loc[grid_id, ("storedrainprm", f"({idx}, {surf_idx})")]
+            param: storedrainprm.loc[grid_id, f"({idx}, {surf_idx})"]
             for param, idx in param_map.items()
         }
 

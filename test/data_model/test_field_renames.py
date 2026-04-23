@@ -4,7 +4,7 @@ Verifies:
 - New field names are accessible as Pydantic attributes.
 - Old field names still work via ``@model_validator(mode='before')`` (backward compat).
 - Deprecation warnings are emitted when old names are used.
-- ``to_df_state()`` emits DataFrame columns under legacy names (Fortran bridge).
+- ``to_df_state()`` emits legacy and new DataFrame columns during Tier C dual-write.
 - Providing both old and new names raises ``ValueError``.
 - Category 1 intermediate spellings (Schema 2026.5 shape) still load with a
   deprecation warning via MODELPHYSICS_SUFFIX_RENAMES (#1321).
@@ -330,15 +330,14 @@ class TestRawDictCompatibility:
 
 
 class TestDataFrameColumnsPreserveLegacyNames:
-    """DataFrame column names must stay as the old (fused) names so the Rust /
-    Fortran bridge keeps working. Only the Python attribute names change.
-    """
+    """DataFrame output keeps bridge legacy names and emits snake_case aliases."""
 
     def test_model_physics_columns(self):
         df = ModelPhysics().to_df_state(grid_id=1)
         flat_cols = {col[0] for col in df.columns}
-        for old_name in MODELPHYSICS_RENAMES:
+        for old_name, new_name in MODELPHYSICS_RENAMES.items():
             assert old_name in flat_cols, f"Missing legacy column {old_name!r}"
+            assert new_name in flat_cols, f"Missing new column {new_name!r}"
 
     def test_lai_params_columns(self):
         df = LAIParams(base_temperature=5.0).to_df_state(grid_id=1, surf_idx=2)
@@ -346,6 +345,9 @@ class TestDataFrameColumnsPreserveLegacyNames:
         # LAIPowerCoefficients column is separate; only top-level LAI scalars here.
         for old_name in ("baset", "gddfull", "basete", "sddfull", "laimin", "laimax", "laitype"):
             assert old_name in flat_cols, f"Missing legacy column {old_name!r}"
+            assert LAIPARAMS_RENAMES[old_name] in flat_cols, (
+                f"Missing new column {LAIPARAMS_RENAMES[old_name]!r}"
+            )
 
     def test_snow_params_columns(self):
         df = SnowParams().to_df_state(grid_id=1)
@@ -355,6 +357,9 @@ class TestDataFrameColumnsPreserveLegacyNames:
         }
         for old_name in scalar_old_names:
             assert old_name in flat_cols, f"Missing legacy column {old_name!r}"
+            assert SNOWPARAMS_RENAMES[old_name] in flat_cols, (
+                f"Missing new column {SNOWPARAMS_RENAMES[old_name]!r}"
+            )
 
     def test_archetype_ext_columns(self):
         # The Fortran bridge (src/suews_bridge/src/building_archetype_prm.rs)
@@ -374,6 +379,4 @@ class TestDataFrameColumnsPreserveLegacyNames:
             # assertion above already covered it.
             if old_name.lower() == new_name:
                 continue
-            assert new_name not in flat_cols, (
-                f"Unexpected new-name column {new_name!r} in bridge output"
-            )
+            assert new_name in flat_cols, f"Missing new column {new_name!r}"

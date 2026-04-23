@@ -401,6 +401,8 @@ class TestObservedSoilMoistureIntegration:
         # Configure for observed soil moisture
         df_state_obs = df_state.copy()
         df_state_obs[("smdmethod", "0")] = 1
+        if ("soil_moisture_deficit", "0") in df_state_obs.columns:
+            df_state_obs[("soil_moisture_deficit", "0")] = 1
         df_state_obs[("obs_sm_depth", "0")] = 150.0
         df_state_obs[("obs_sm_smcap", "0")] = 0.35
         df_state_obs[("obs_sm_soil_not_rocks", "0")] = 0.85
@@ -432,6 +434,8 @@ class TestObservedSoilMoistureIntegration:
         df_state, df_forcing = sp.load_sample_data()
         df_state_obs = df_state.copy()
         df_state_obs[("smdmethod", "0")] = 1
+        if ("soil_moisture_deficit", "0") in df_state_obs.columns:
+            df_state_obs[("soil_moisture_deficit", "0")] = 1
         df_state_obs[("obs_sm_depth", "0")] = 150.0
         df_state_obs[("obs_sm_smcap", "0")] = 0.35
         df_state_obs[("obs_sm_soil_not_rocks", "0")] = 0.85

@@ -27,6 +27,7 @@ seam to route through.
 from __future__ import annotations
 
 import warnings
+from collections.abc import Mapping
 from typing import Any, Dict
 
 import pandas as pd
@@ -159,9 +160,115 @@ def _assert_registry_invariants() -> None:
 _assert_registry_invariants()
 
 
-# -- Dual-read helper --------------------------------------------------------
+# -- Dual-write / dual-read helpers -----------------------------------------
 
 _MISSING = object()
+_STRUCTURED_SUFFIXES = ("_surf", "_roof", "_wall")
+_SURFACE_IRRIGATION_SUFFIXES = (
+    "paved",
+    "bldgs",
+    "evetr",
+    "dectr",
+    "grass",
+    "bsoil",
+    "water",
+)
+
+
+def _new_alias_for_legacy_name(name: str) -> str | None:
+    new_name = ALL_DF_COLUMN_RENAMES.get(name)
+    if new_name is not None:
+        return new_name
+
+    for structured_suffix in _STRUCTURED_SUFFIXES:
+        if not name.endswith(structured_suffix):
+            continue
+        base = name[: -len(structured_suffix)]
+        new_base = ALL_DF_COLUMN_RENAMES.get(base)
+        if new_base is not None:
+            return f"{new_base}{structured_suffix}"
+
+    for suffix in _SURFACE_IRRIGATION_SUFFIXES:
+        if name == f"irrfrac{suffix}":
+            return f"irrigation_fraction{suffix}"
+
+    return None
+
+
+def _legacy_alias_for_new_name(name: str) -> str | None:
+    legacy_name = _REVERSE_DF_COLUMN_RENAMES.get(name)
+    if legacy_name is not None:
+        return legacy_name
+
+    for structured_suffix in _STRUCTURED_SUFFIXES:
+        if not name.endswith(structured_suffix):
+            continue
+        base = name[: -len(structured_suffix)]
+        legacy_base = _REVERSE_DF_COLUMN_RENAMES.get(base)
+        if legacy_base is not None:
+            return f"{legacy_base}{structured_suffix}"
+
+    for suffix in _SURFACE_IRRIGATION_SUFFIXES:
+        if name == f"irrigation_fraction{suffix}":
+            return f"irrfrac{suffix}"
+
+    return None
+
+
+def _aliased_column_key(column: Any) -> Any:
+    """Return the new-name alias for a column key, or ``None``.
+
+    State columns are normally ``MultiIndex`` tuples with the variable
+    name at level 0 and the index dimension at level 1. A few tests and
+    helper call sites use plain string columns, so both shapes are
+    handled here.
+    """
+    if isinstance(column, tuple):
+        if not column:
+            return None
+        new_name = _new_alias_for_legacy_name(column[0])
+        if new_name is None:
+            return None
+        return (new_name, *column[1:])
+
+    new_name = _new_alias_for_legacy_name(column)
+    if new_name is None:
+        return None
+    return new_name
+
+
+def dual_write_df_column_aliases(cols: Mapping[Any, Any]) -> dict[Any, Any]:
+    """Return ``cols`` plus new-name aliases for registered legacy keys.
+
+    Existing new-name columns are never overwritten. This lets specialised
+    ``to_df_state`` implementations keep writing their bridge-compatible
+    legacy names while emitting the Phase 3 snake_case aliases in parallel.
+    """
+    out = dict(cols)
+    for column, value in cols.items():
+        alias = _aliased_column_key(column)
+        if alias is not None and alias not in out:
+            out[alias] = value
+    return out
+
+
+def dual_write_df_columns(df: pd.DataFrame) -> pd.DataFrame:
+    """Return ``df`` plus new-name aliases for registered legacy columns."""
+    alias_cols = {}
+    for column in df.columns:
+        alias = _aliased_column_key(column)
+        if alias is not None and alias not in df.columns and alias not in alias_cols:
+            alias_cols[alias] = df[column]
+
+    if not alias_cols:
+        return df
+
+    aliases = pd.DataFrame(alias_cols, index=df.index)
+    if isinstance(df.columns, pd.MultiIndex):
+        aliases.columns = pd.MultiIndex.from_tuples(
+            aliases.columns, names=df.columns.names
+        )
+    return pd.concat([df, aliases], axis=1)
 
 
 def _has_top_level_column(df: pd.DataFrame, name: str) -> bool:
@@ -218,7 +325,7 @@ def read_df_column(
     if _has_top_level_column(df, new_name):
         return df[new_name]
 
-    legacy_name = _REVERSE_DF_COLUMN_RENAMES.get(new_name)
+    legacy_name = _legacy_alias_for_new_name(new_name)
     if legacy_name is not None and _has_top_level_column(df, legacy_name):
         warnings.warn(
             f"DataFrame column '{legacy_name}' is deprecated; "

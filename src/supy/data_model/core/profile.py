@@ -2,6 +2,7 @@ from pydantic import ConfigDict, BaseModel, Field, field_validator, model_valida
 from typing import Optional, Dict
 import pandas as pd
 from .type import Reference, df_from_cols
+from .df_column_renames import read_df_column
 
 
 class DayProfile(BaseModel):
@@ -63,13 +64,14 @@ class DayProfile(BaseModel):
         }
 
         # Extract values for working day and holiday from the DataFrame
+        param_df = read_df_column(df, param_name)
         params = {}
         for day, idx in day_map.items():
-            col = (param_name, f"({idx},)")
-            if col in df.columns:
-                params[day] = df.loc[grid_id, col]
+            col = f"({idx},)"
+            if col in param_df.columns:
+                params[day] = param_df.loc[grid_id, col]
             else:
-                raise KeyError(f"Column {col} not found in DataFrame")
+                raise KeyError(f"Column ({param_name}, {col}) not found in DataFrame")
 
         return cls(**params)
 
@@ -142,8 +144,9 @@ class WeeklyProfile(BaseModel):
         }
 
         # Extract values from DataFrame for each day
+        param_df = read_df_column(df, param_name)
         params = {
-            day: df.loc[grid_id, (param_name, f"({idx},)")]
+            day: param_df.loc[grid_id, f"({idx},)"]
             for day, idx in day_map.items()
         }
 
@@ -233,14 +236,15 @@ class HourlyProfile(BaseModel):
             HourlyProfile: Instance of HourlyProfile
         """
         # Extract working day values (index 0)
+        param_df = read_df_column(df, param_name)
         working_day = {
-            str(hour + 1): df.loc[grid_id, (param_name, f"({hour}, 0)")]
+            str(hour + 1): param_df.loc[grid_id, f"({hour}, 0)"]
             for hour in range(24)
         }
 
         # Extract holiday values (index 1)
         holiday = {
-            str(hour + 1): df.loc[grid_id, (param_name, f"({hour}, 1)")]
+            str(hour + 1): param_df.loc[grid_id, f"({hour}, 1)"]
             for hour in range(24)
         }
 
@@ -328,14 +332,15 @@ class TenMinuteProfile(BaseModel):
             TenMinuteProfile: Instance of TenMinuteProfile
         """
         # Extract working day values (index 0)
+        param_df = read_df_column(df, param_name)
         working_day = {
-            str(i + 1): df.loc[grid_id, (param_name, f"({i}, 0)")]
+            str(i + 1): param_df.loc[grid_id, f"({i}, 0)"]
             for i in range(144)
         }
 
         # Extract holiday values (index 1)
         holiday = {
-            str(i + 1): df.loc[grid_id, (param_name, f"({i}, 1)")]
+            str(i + 1): param_df.loc[grid_id, f"({i}, 1)"]
             for i in range(144)
         }
 

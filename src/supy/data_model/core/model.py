@@ -12,6 +12,7 @@ from .field_renames import (
     MODELPHYSICS_SUFFIX_RENAMES,
     apply_field_renames,
 )
+from .df_column_renames import read_df_column
 
 
 def _enum_description(enum_class: type[Enum]) -> str:
@@ -874,23 +875,23 @@ class ModelPhysics(BaseModel):
         properties: dict = {}
 
         required_attrs = [
-            "netradiationmethod",
-            "emissionsmethod",
-            "storageheatmethod",
-            "ohmincqf",
-            "roughlenmommethod",
-            "roughlenheatmethod",
-            "stabilitymethod",
-            "smdmethod",
-            "waterusemethod",
-            "rslmethod",
-            "faimethod",
-            "rsllevel",
-            "gsmodel",
-            "snowuse",
-            "stebbsmethod",
-            "rcmethod",
-            "setpointmethod",
+            "net_radiation",
+            "emissions",
+            "storage_heat",
+            "ohm_inc_qf",
+            "roughness_length_momentum",
+            "roughness_length_heat",
+            "stability",
+            "soil_moisture_deficit",
+            "water_use",
+            "roughness_sublayer",
+            "frontal_area_index",
+            "roughness_sublayer_level",
+            "surface_conductance",
+            "snow_use",
+            "stebbs",
+            "outer_cap_fraction",
+            "setpoint",
         ]
 
         # New options: optional in legacy DataFrames, default if missing
@@ -904,14 +905,16 @@ class ModelPhysics(BaseModel):
 
         for attr in required_attrs:
             try:
-                properties[attr] = RefValue(int(df.loc[grid_id, (attr, "0")]))
+                properties[attr] = RefValue(
+                    int(read_df_column(df, attr).loc[grid_id, "0"])
+                )
             except KeyError:
                 raise ValueError(f"Missing attribute '{attr}' in the DataFrame")
 
         # Optional new attributes
         for attr, default_enum in optional_new_attrs_with_defaults.items():
             try:
-                value = df.loc[grid_id, (attr, "0")]
+                value = read_df_column(df, attr).loc[grid_id, "0"]
                 properties[attr] = RefValue(int(value))
             except KeyError:
                 properties[attr] = RefValue(int(default_enum))

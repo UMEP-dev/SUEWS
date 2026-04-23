@@ -20,6 +20,13 @@ from .type import SurfaceType
 
 from .hydro import WaterDistribution, StorageDrainParams
 from .field_renames import SURFACEPROPERTIES_RENAMES, apply_field_renames
+from .df_column_renames import read_df_column
+
+
+def _df_state_value(
+    df: pd.DataFrame, grid_id: int, col_name: str, ind_dim: str
+):
+    return read_df_column(df, col_name).loc[grid_id, ind_dim]
 
 
 class ThermalLayers(BaseModel):
@@ -452,9 +459,7 @@ class SurfaceProperties(BaseModel):
             "water",
         ][surf_idx]
 
-        # (old/DataFrame column name, new Python field name) pairs.
-        # Old names are used as constructor kwargs — the model_validator
-        # converts them to new field names automatically.
+        # (new/DataFrame column name, new Python field name) pairs.
         _from_df_mapping = [
             ("sfr", "sfr"),
             ("emis", "emis"),
@@ -462,81 +467,84 @@ class SurfaceProperties(BaseModel):
             ("rho_cp_anohm", "rho_cp_anohm"),
             ("k_anohm", "k_anohm"),
             ("ohm_coef", "ohm_coef"),
-            ("ohm_threshsw", "ohm_threshold_summer_winter"),
-            ("ohm_threshwd", "ohm_threshold_wet_dry"),
-            ("soildepth", "soil_depth"),
-            ("soilstorecap", "soil_store_capacity"),
-            ("statelimit", "state_limit"),
-            ("wetthresh", "wet_threshold"),
-            ("sathydraulicconduct", "saturated_hydraulic_conductivity"),
-            ("soildensity", "soil_density"),
+            ("ohm_threshold_summer_winter", "ohm_threshold_summer_winter"),
+            ("ohm_threshold_wet_dry", "ohm_threshold_wet_dry"),
+            ("soil_depth", "soil_depth"),
+            ("soil_store_capacity", "soil_store_capacity"),
+            ("state_limit", "state_limit"),
+            ("wet_threshold", "wet_threshold"),
+            ("saturated_hydraulic_conductivity", "saturated_hydraulic_conductivity"),
+            ("soil_density", "soil_density"),
             ("waterdist", "waterdist"),
-            ("storedrainprm", "storage_drain_params"),
-            ("snowpacklimit", "snowpack_limit"),
+            ("storage_drain_params", "storage_drain_params"),
+            ("snowpack_limit", "snowpack_limit"),
             ("thermal_layers", "thermal_layers"),
-            ("irrfrac", "irrigation_fraction"),
+            ("irrigation_fraction", "irrigation_fraction"),
         ]
 
         # Create a dictionary to hold the properties and their values.
-        # Keys use old names — model_validator handles old->new conversion.
         property_values = {}
 
         # Process each property
         for col_name, field_name in _from_df_mapping:
             # Handle nested properties with their own from_df_state methods
-            if col_name in [
+            if field_name in [
                 "waterdist",
-                "storedrainprm",
+                "storage_drain_params",
                 # "ohm_coef",
                 # "lai",
             ]:
                 nested_obj = cls.model_fields[field_name].annotation
                 if nested_obj is not None and hasattr(nested_obj, "from_df_state"):
-                    property_values[col_name] = nested_obj.from_df_state(
+                    property_values[field_name] = nested_obj.from_df_state(
                         df, grid_id, surf_idx
                     )
                 continue
             elif col_name == "ohm_coef":  # moved seperately as optional fails hasattr()
                 if cls.model_fields[field_name].annotation is not None:
-                    property_values[col_name] = (
+                    property_values[field_name] = (
                         OHM_Coefficient_season_wetness.from_df_state(
                             df, grid_id, surf_idx
                         )
                     )
             elif col_name == "thermal_layers":
-                property_values[col_name] = cls.model_fields[
+                property_values[field_name] = cls.model_fields[
                     field_name
                 ].annotation.from_df_state(df, grid_id, surf_idx, surf_name)
-            elif col_name == "irrfrac":
-                value = df.loc[grid_id, (f"{col_name}{surf_name}", "0")]
-                property_values[col_name] = RefValue(value)
-            elif col_name in ["sfr", "soilstorecap", "statelimit", "wetthresh"]:
-                value = df.loc[grid_id, (f"{col_name}_surf", f"({surf_idx},)")]
-                property_values[col_name] = RefValue(value)
+            elif col_name == "irrigation_fraction":
+                value = _df_state_value(df, grid_id, f"{col_name}{surf_name}", "0")
+                property_values[field_name] = RefValue(value)
+            elif col_name in ["sfr", "soil_store_capacity", "state_limit", "wet_threshold"]:
+                value = _df_state_value(df, grid_id, f"{col_name}_surf", f"({surf_idx},)")
+                property_values[field_name] = RefValue(value)
             elif col_name == "rho_cp_anohm":  # Moved to cp in df_state
                 value = df.loc[grid_id, ("cpanohm", f"({surf_idx},)")]
-                property_values[col_name] = RefValue(value)
+                property_values[field_name] = RefValue(value)
             elif col_name == "ch_anohm":  # Moved to ch in df_state
                 value = df.loc[grid_id, ("chanohm", f"({surf_idx},)")]
-                property_values[col_name] = RefValue(value)
+                property_values[field_name] = RefValue(value)
             elif col_name == "k_anohm":  # Moved to k in df_state
                 value = df.loc[grid_id, ("kkanohm", f"({surf_idx},)")]
-                property_values[col_name] = RefValue(value)
+                property_values[field_name] = RefValue(value)
             else:
                 # Check if column exists (for backwards compatibility with old tables)
                 col_key = (col_name, f"({surf_idx},)")
-                if col_key in df.columns:
-                    value = df.loc[grid_id, col_key]
-                    property_values[col_name] = RefValue(value)
-                else:
-                    # Column doesn't exist - skip if optional, raise if required
-                    field_info = cls.model_fields.get(field_name)
-                    if field_info and not field_info.is_required():
-                        logger_supy.debug(
-                            f"Column {col_key} not found for surface {surf_idx}, "
-                            "using None (backwards compatibility)"
-                        )
-                        property_values[col_name] = None
+                try:
+                    value = _df_state_value(df, grid_id, col_name, f"({surf_idx},)")
+                    property_values[field_name] = RefValue(value)
+                except KeyError:
+                    if col_key in df.columns:
+                        value = df.loc[grid_id, col_key]
+                        property_values[field_name] = RefValue(value)
+                    else:
+                        # Column doesn't exist - skip if optional, raise if required
+                        field_info = cls.model_fields.get(field_name)
+                        if field_info and not field_info.is_required():
+                            logger_supy.debug(
+                                f"Column {col_key} not found for surface {surf_idx}, "
+                                "using None (backwards compatibility)"
+                            )
+                            property_values[field_name] = None
                     # If required, let Pydantic validation catch it later
 
         return cls(**property_values)
@@ -638,12 +646,9 @@ class PavedProperties(
                     values.append(value)
 
         if param_tuples:  # Only create DataFrame if we have properties to add
-            columns = pd.MultiIndex.from_tuples(param_tuples, names=["var", "ind_dim"])
-            df = pd.DataFrame(
+            df = df_from_cols(
+                dict(zip(param_tuples, values)),
                 index=pd.Index([grid_id], name="grid"),
-                columns=columns,
-                data=[values],
-                dtype=float,
             )
             dfs.append(df)
 
@@ -841,9 +846,15 @@ class BuildingLayer(
         params = {
             "alb": df.loc[grid_id, (f"alb_{prefix}", layer_idx_str)],
             "emis": df.loc[grid_id, (f"emis_{prefix}", layer_idx_str)],
-            "statelimit": df.loc[grid_id, (f"statelimit_{prefix}", layer_idx_str)],
-            "soilstorecap": df.loc[grid_id, (f"soilstorecap_{prefix}", layer_idx_str)],
-            "wetthresh": df.loc[grid_id, (f"wetthresh_{prefix}", layer_idx_str)],
+            "state_limit": _df_state_value(
+                df, grid_id, f"state_limit_{prefix}", layer_idx_str
+            ),
+            "soil_store_capacity": _df_state_value(
+                df, grid_id, f"soil_store_capacity_{prefix}", layer_idx_str
+            ),
+            "wet_threshold": _df_state_value(
+                df, grid_id, f"wet_threshold_{prefix}", layer_idx_str
+            ),
         }
 
         # Extract optional parameters

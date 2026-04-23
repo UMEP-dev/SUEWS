@@ -25,6 +25,7 @@ from pathlib import Path
 
 import pandas as pd
 import pytest
+from supy.data_model import SUEWSConfig
 
 pytestmark = pytest.mark.api
 
@@ -39,6 +40,8 @@ from supy.data_model.core.df_column_renames import (
     STEBBSPROPERTIES_DF_RENAMES,
     SURFACEPROPERTIES_DF_RENAMES,
     VEGETATEDSURFACEPROPERTIES_DF_RENAMES,
+    dual_write_df_column_aliases,
+    dual_write_df_columns,
     read_df_column,
 )
 from supy.data_model.core.field_renames import ALL_FIELD_RENAMES
@@ -57,6 +60,35 @@ _RUST_FIELD_RENAMES_PATH = (
 def _rust_field_renames_text() -> str:
     """Return the full text of ``field_renames.rs`` for static alignment checks."""
     return _RUST_FIELD_RENAMES_PATH.read_text(encoding="utf-8")
+
+
+def _aliased_name(name: str) -> str | None:
+    if name in ALL_DF_COLUMN_RENAMES:
+        return ALL_DF_COLUMN_RENAMES[name]
+    for structured_suffix in ("_surf", "_roof", "_wall"):
+        if not name.endswith(structured_suffix):
+            continue
+        base = name[: -len(structured_suffix)]
+        if base in ALL_DF_COLUMN_RENAMES:
+            return f"{ALL_DF_COLUMN_RENAMES[base]}{structured_suffix}"
+    for suffix in ("paved", "bldgs", "evetr", "dectr", "grass", "bsoil", "water"):
+        if name == f"irrfrac{suffix}":
+            return f"irrigation_fraction{suffix}"
+    return None
+
+
+def _drop_aliased_columns(df: pd.DataFrame, *, keep: str) -> pd.DataFrame:
+    columns_to_drop = []
+    for col in df.columns:
+        legacy_name = col[0]
+        new_name = _aliased_name(legacy_name)
+        if new_name is not None:
+            new_col = (new_name, *col[1:])
+            if new_col in df.columns and keep == "new":
+                columns_to_drop.append(col)
+            elif new_col in df.columns and keep == "legacy":
+                columns_to_drop.append(new_col)
+    return df.drop(columns=list(dict.fromkeys(columns_to_drop)))
 
 
 class TestRegistryIntegrity:
@@ -123,6 +155,46 @@ class TestArchetypePropertiesLowercasing:
             assert new == new.lower()
 
 
+class TestDualWriteHelpers:
+    def test_dual_write_aliases_multiindex_keys(self):
+        cols = {
+            ("gridiv", "0"): 1,
+            ("netradiationmethod", "0"): 3,
+            ("soilstorecap_surf", "(0,)"): 150.0,
+            ("irrfracpaved", "0"): 0.2,
+        }
+
+        out = dual_write_df_column_aliases(cols)
+
+        assert out[("net_radiation", "0")] == 3
+        assert out[("soil_store_capacity_surf", "(0,)")] == 150.0
+        assert out[("irrigation_fractionpaved", "0")] == 0.2
+        assert out[("netradiationmethod", "0")] == 3
+
+    def test_dual_write_aliases_plain_keys(self):
+        out = dual_write_df_column_aliases({"soildepth": 0.2})
+        assert out["soil_depth"] == 0.2
+
+    def test_dual_write_does_not_overwrite_existing_new_name(self):
+        out = dual_write_df_column_aliases(
+            {
+                ("netradiationmethod", "0"): 3,
+                ("net_radiation", "0"): 4,
+            }
+        )
+        assert out[("net_radiation", "0")] == 4
+
+    def test_dual_write_df_columns_multiindex(self):
+        df = pd.DataFrame({("netradiationmethod", "0"): [3]})
+        df.columns = pd.MultiIndex.from_tuples(df.columns)
+
+        out = dual_write_df_columns(df)
+
+        assert ("netradiationmethod", "0") in out.columns
+        assert ("net_radiation", "0") in out.columns
+        assert out.loc[0, ("net_radiation", "0")] == 3
+
+
 class TestHelperNewName:
     def test_new_name_single_index_returns_series_silently(self):
         df = pd.DataFrame({"net_radiation": [3]})
@@ -183,6 +255,65 @@ class TestHelperMissing:
         df = pd.DataFrame({"unrelated": [1]})
         with pytest.raises(KeyError, match="net_radiation"):
             read_df_column(df, "net_radiation")
+
+
+class TestConfigRoundTrips:
+    sample_config_path = (
+        Path(__file__).resolve().parents[2]
+        / "src"
+        / "supy"
+        / "sample_data"
+        / "sample_config.yml"
+    )
+
+    def test_generated_dual_write_frame_round_trips(self):
+        config = SUEWSConfig.from_yaml(self.sample_config_path)
+        df_state = config.to_df_state()
+
+        config_roundtrip = SUEWSConfig.from_df_state(df_state)
+
+        assert config_roundtrip.model.physics.net_radiation.value == (
+            config.model.physics.net_radiation.value
+        )
+        assert config_roundtrip.sites[0].properties.snow.snow_albedo_max.value == (
+            config.sites[0].properties.snow.snow_albedo_max.value
+        )
+
+    def test_new_name_only_frame_round_trips_without_rename_warning(self):
+        config = SUEWSConfig.from_yaml(self.sample_config_path)
+        df_state = _drop_aliased_columns(config.to_df_state(), keep="new")
+
+        with warnings.catch_warnings():
+            warnings.simplefilter("error", DeprecationWarning)
+            config_roundtrip = SUEWSConfig.from_df_state(df_state)
+
+        assert config_roundtrip.model.physics.net_radiation.value == (
+            config.model.physics.net_radiation.value
+        )
+        assert config_roundtrip.sites[0].properties.snow.snow_albedo_max.value == (
+            config.sites[0].properties.snow.snow_albedo_max.value
+        )
+
+    def test_legacy_name_only_frame_round_trips_with_deprecation_warning(self):
+        config = SUEWSConfig.from_yaml(self.sample_config_path)
+        df_state = _drop_aliased_columns(config.to_df_state(), keep="legacy")
+
+        with warnings.catch_warnings(record=True) as captured:
+            warnings.simplefilter("always", DeprecationWarning)
+            config_roundtrip = SUEWSConfig.from_df_state(df_state)
+
+        messages = [
+            str(w.message)
+            for w in captured
+            if issubclass(w.category, DeprecationWarning)
+        ]
+        assert any("netradiationmethod" in message for message in messages)
+        assert config_roundtrip.model.physics.net_radiation.value == (
+            config.model.physics.net_radiation.value
+        )
+        assert config_roundtrip.sites[0].properties.snow.snow_albedo_max.value == (
+            config.sites[0].properties.snow.snow_albedo_max.value
+        )
 
 
 class TestRustBridgeAlignment:

@@ -181,6 +181,9 @@ def FlexibleRefValue(type_param):
 
 
 def df_from_cols(cols: dict, index: pd.Index) -> pd.DataFrame:
+    from .df_column_renames import dual_write_df_column_aliases
+
+    cols = dual_write_df_column_aliases(cols)
     df_state = pd.DataFrame(cols, index=index)
     df_state.columns = pd.MultiIndex.from_tuples(
         df_state.columns, names=["var", "ind_dim"]

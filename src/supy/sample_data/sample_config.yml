@@ -1,5 +1,5 @@
 name: sample_config
-schema_version: '2026.5.dev4'
+schema_version: '2026.5.dev5'
 description: Sample configuration built from benchmark 1a (Ward et al. 2016) model configuration
 model:
   control:
@@ -15,6 +15,13 @@ model:
       groups:
         - "SUEWS"
   physics:
+    # Three fields (net_radiation, storage_heat, emissions) accept a
+    # family-tagged nested form too (gh#972), e.g.:
+    #   net_radiation:
+    #     narp:
+    #       value: 3
+    # The family tag is validated against its numeric codes; round-trip
+    # always emits the flat form below.
     net_radiation:
       value: 3
     emissions:

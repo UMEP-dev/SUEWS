@@ -22,7 +22,7 @@ import warnings
 # schema-versioning.md` (Dev-label convention). Every structural PR
 # between releases bumps the dev counter instead of consuming a new
 # CalVer label.
-CURRENT_SCHEMA_VERSION = "2026.5.dev4"
+CURRENT_SCHEMA_VERSION = "2026.5.dev5"
 
 # Schema version history and descriptions.
 #
@@ -174,6 +174,23 @@ SCHEMA_VERSIONS: dict[str, str] = {
         "src/supy/util/converter/yaml_upgrade.py::_HANDLERS. Rust struct "
         "fields and c_api shadow TYPE keep `dhw_*` internally — "
         "cross-layer tracked in #1324."
+    ),
+    "2026.5.dev5": (
+        "gh#972: accept-only widening for three model.physics fields "
+        "(net_radiation, storage_heat, emissions). Users may now "
+        "supply a family-tagged nested shape "
+        "(`net_radiation: {spartacus: {value: 1001}}`) alongside the "
+        "existing flat `{value: N}` form. Family tag is validated "
+        "against its numeric codes at load time. Canonical internal "
+        "representation stays flat; YAML dump and suews-schema "
+        "migrate continue to emit the flat form unchanged — every "
+        "previously valid YAML round-trips byte-identically. The "
+        "(2026.5.dev4 -> 2026.5.dev5) migration is an identity "
+        "transform (no rewriting needed); its presence in _HANDLERS "
+        "grants compatibility with dev4 under the registry-driven "
+        "is_schema_compatible check. Rust CLI acceptance lives in "
+        "src/suews_bridge/src/field_renames.rs::collapse_nested_physics; "
+        "Python-side helper in src/supy/data_model/core/physics_families.py."
     ),
 }
 

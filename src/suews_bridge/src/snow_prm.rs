@@ -16,7 +16,7 @@ pub type SnowPrmValuesPayload = ValuesPayload;
 pub struct SnowPrm {
     pub water_holding_capacity_max: f64,
     pub water_holding_capacity_min: f64,
-    pub narp_emis_snow: f64,
+    pub narp_emissivity_snow: f64,
     pub precip_limit: f64,
     pub precip_limit_albedo: f64,
     pub snow_albedo_max: f64,
@@ -28,9 +28,9 @@ pub struct SnowPrm {
     pub snowpack_limit: [f64; NSURF],
     pub snowprof_24hr_working: [f64; HOURS_PER_DAY],
     pub snowprof_24hr_holiday: [f64; HOURS_PER_DAY],
-    pub tau_a: f64,
-    pub tau_f: f64,
-    pub tau_r: f64,
+    pub tau_cold_snow: f64,
+    pub tau_melting_snow: f64,
+    pub tau_refreezing_snow: f64,
     pub temp_melt_factor: f64,
     pub rad_melt_factor: f64,
 }
@@ -40,7 +40,7 @@ impl Default for SnowPrm {
         Self {
             water_holding_capacity_max: 0.0,
             water_holding_capacity_min: 0.0,
-            narp_emis_snow: 0.0,
+            narp_emissivity_snow: 0.0,
             precip_limit: 0.0,
             precip_limit_albedo: 0.0,
             snow_albedo_max: 0.0,
@@ -52,9 +52,9 @@ impl Default for SnowPrm {
             snowpack_limit: [0.0; NSURF],
             snowprof_24hr_working: [0.0; HOURS_PER_DAY],
             snowprof_24hr_holiday: [0.0; HOURS_PER_DAY],
-            tau_a: 0.0,
-            tau_f: 0.0,
-            tau_r: 0.0,
+            tau_cold_snow: 0.0,
+            tau_melting_snow: 0.0,
+            tau_refreezing_snow: 0.0,
             temp_melt_factor: 0.0,
             rad_melt_factor: 0.0,
         }
@@ -78,7 +78,7 @@ impl SnowPrm {
         Ok(Self {
             water_holding_capacity_max: flat[0],
             water_holding_capacity_min: flat[1],
-            narp_emis_snow: flat[2],
+            narp_emissivity_snow: flat[2],
             precip_limit: flat[3],
             precip_limit_albedo: flat[4],
             snow_albedo_max: flat[5],
@@ -90,9 +90,9 @@ impl SnowPrm {
             snowpack_limit: copy_fixed(&flat[11..18])?,
             snowprof_24hr_working: copy_fixed(&flat[18..42])?,
             snowprof_24hr_holiday: copy_fixed(&flat[42..66])?,
-            tau_a: flat[66],
-            tau_f: flat[67],
-            tau_r: flat[68],
+            tau_cold_snow: flat[66],
+            tau_melting_snow: flat[67],
+            tau_refreezing_snow: flat[68],
             temp_melt_factor: flat[69],
             rad_melt_factor: flat[70],
         })
@@ -103,7 +103,7 @@ impl SnowPrm {
 
         out.push(self.water_holding_capacity_max);
         out.push(self.water_holding_capacity_min);
-        out.push(self.narp_emis_snow);
+        out.push(self.narp_emissivity_snow);
         out.push(self.precip_limit);
         out.push(self.precip_limit_albedo);
         out.push(self.snow_albedo_max);
@@ -115,9 +115,9 @@ impl SnowPrm {
         out.extend_from_slice(&self.snowpack_limit);
         out.extend_from_slice(&self.snowprof_24hr_working);
         out.extend_from_slice(&self.snowprof_24hr_holiday);
-        out.push(self.tau_a);
-        out.push(self.tau_f);
-        out.push(self.tau_r);
+        out.push(self.tau_cold_snow);
+        out.push(self.tau_melting_snow);
+        out.push(self.tau_refreezing_snow);
         out.push(self.temp_melt_factor);
         out.push(self.rad_melt_factor);
 

@@ -312,7 +312,7 @@ def _needs_spartacus_validation(self) -> bool:
 
 def _validate_spartacus_building_height(self, site: Site, site_index: int) -> List[str]:
     """
-    If SPARTACUS is enabled, enforce that bldgh and (if stebbsmethod==1) stebbs_Height do not exceed the domain top (height[nlayer]).
+    If SPARTACUS is enabled, enforce that bldgh and (if stebbsmethod==1) building_height do not exceed the domain top (height[nlayer]).
     Returns a list of issue messages.
     """
 ```

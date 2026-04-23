@@ -38,6 +38,7 @@ from .field_renames import (
     LAIPARAMS_RENAMES,
     MODELPHYSICS_RENAMES,
     SNOWPARAMS_RENAMES,
+    STEBBSPROPERTIES_RENAMES,
     SURFACEPROPERTIES_RENAMES,
     VEGETATEDSURFACEPROPERTIES_RENAMES,
 )
@@ -64,15 +65,35 @@ EVETRPROPERTIES_DF_RENAMES: Dict[str, str] = dict(EVETRPROPERTIES_RENAMES)
 DECTRPROPERTIES_DF_RENAMES: Dict[str, str] = dict(DECTRPROPERTIES_RENAMES)
 SNOWPARAMS_DF_RENAMES: Dict[str, str] = dict(SNOWPARAMS_RENAMES)
 
-# STEBBS (``ArchetypeProperties``) is a special case: the Pydantic field
-# names are PascalCase by design (to match the Fortran-side STEBBS
-# interface, see ``.claude/rules/00-project-essentials.md``), and
-# ``to_df_state`` on that class lowercases the field name before writing
-# it into the DataFrame (see ``site.py`` ``ArchetypeProperties.to_df_state``).
+# ``ArchetypeProperties``: ``to_df_state`` lowercases the Pydantic
+# attribute name before writing it into the DataFrame (see ``site.py``
+# ``ArchetypeProperties.to_df_state`` and ``_ARCHETYPE_LEGACY_COL_NAMES``).
 # We mirror that lowercasing here so the registry keys match the actual
 # column names the DataFrame carries today and will carry after Tier C.
+#
+# Self-mappings (single-word identifiers where the legacy PascalCase and
+# the new snake_case collapse to the same lowercased string — e.g.
+# gh#1334's ``Occupants`` -> ``occupants``) are filtered out: the
+# DataFrame column name is already identical on both sides of the rename
+# so there is nothing to migrate.
 ARCHETYPEPROPERTIES_DF_RENAMES: Dict[str, str] = {
-    old.lower(): new.lower() for old, new in ARCHETYPEPROPERTIES_RENAMES.items()
+    old.lower(): new.lower()
+    for old, new in ARCHETYPEPROPERTIES_RENAMES.items()
+    if old.lower() != new.lower()
+}
+
+# ``StebbsProperties`` uses the same lowercased-legacy pattern as
+# ``ArchetypeProperties`` — ``to_df_state`` lowercases the PascalCase
+# legacy attribute name before writing the DataFrame column (see
+# ``_STEBBS_LEGACY_COL_NAMES`` in ``site.py``). gh#1334 converts the
+# 50 Pydantic attributes to snake_case; the DataFrame column names
+# migrate from the lowered PascalCase legacy to the snake_case target.
+# Same self-mapping filter as ArchetypeProperties catches any identifier
+# that collapses to the same string on both sides.
+STEBBSPROPERTIES_DF_RENAMES: Dict[str, str] = {
+    old.lower(): new.lower()
+    for old, new in STEBBSPROPERTIES_RENAMES.items()
+    if old.lower() != new.lower()
 }
 
 
@@ -86,6 +107,7 @@ ALL_DF_COLUMN_RENAMES: Dict[str, str] = {
     **EVETRPROPERTIES_DF_RENAMES,
     **DECTRPROPERTIES_DF_RENAMES,
     **ARCHETYPEPROPERTIES_DF_RENAMES,
+    **STEBBSPROPERTIES_DF_RENAMES,
     **SNOWPARAMS_DF_RENAMES,
 }
 
@@ -111,6 +133,7 @@ def _assert_registry_invariants() -> None:
         + len(EVETRPROPERTIES_DF_RENAMES)
         + len(DECTRPROPERTIES_DF_RENAMES)
         + len(ARCHETYPEPROPERTIES_DF_RENAMES)
+        + len(STEBBSPROPERTIES_DF_RENAMES)
         + len(SNOWPARAMS_DF_RENAMES)
     )
     if len(ALL_DF_COLUMN_RENAMES) != per_class_total:

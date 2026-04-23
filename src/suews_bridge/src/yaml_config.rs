@@ -740,7 +740,7 @@ fn apply_snow_overrides(site: &mut SuewsSite, site_root: &Value) {
         site.snow.water_holding_capacity_min = v;
     }
     if let Some(v) = read_numeric(site_root, &["properties", "snow", "narp_emis_snow"]) {
-        site.snow.narp_emis_snow = v;
+        site.snow.narp_emissivity_snow = v;
     }
     if let Some(v) = read_numeric(site_root, &["properties", "snow", "preciplimit"]) {
         site.snow.precip_limit = v;
@@ -767,13 +767,13 @@ fn apply_snow_overrides(site: &mut SuewsSite, site_root: &Value) {
         site.snow.snow_limit_paved = v;
     }
     if let Some(v) = read_numeric(site_root, &["properties", "snow", "tau_a"]) {
-        site.snow.tau_a = v;
+        site.snow.tau_cold_snow = v;
     }
     if let Some(v) = read_numeric(site_root, &["properties", "snow", "tau_f"]) {
-        site.snow.tau_f = v;
+        site.snow.tau_melting_snow = v;
     }
     if let Some(v) = read_numeric(site_root, &["properties", "snow", "tau_r"]) {
-        site.snow.tau_r = v;
+        site.snow.tau_refreezing_snow = v;
     }
     if let Some(v) = read_numeric(site_root, &["properties", "snow", "tempmeltfact"]) {
         site.snow.temp_melt_factor = v;

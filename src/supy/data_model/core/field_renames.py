@@ -407,6 +407,17 @@ STEBBSPROPERTIES_DEV3_RENAMES: Dict[str, str] = {
     "dhw_vessel_wall_emissivity": "hot_water_vessel_wall_emissivity",
 }
 
+# -- EHC (suews_type_ehc.f95) -------------------------------------------------
+#
+# Fortran-only internal-state members added to the registry for gh#1326
+# (Tier D). These are roof/wall-qualified variants of SURFACEPROPERTIES's
+# ``soilstorecap`` and keep the same ``soil_store_capacity`` naming.
+
+EHC_RENAMES: Dict[str, str] = {
+    "soil_storecap_roof": "soil_store_capacity_roof",
+    "soil_storecap_wall": "soil_store_capacity_wall",
+}
+
 # -- Combined -----------------------------------------------------------------
 #
 # ``ALL_FIELD_RENAMES`` is a one-to-one map from every legacy fused key to
@@ -429,6 +440,7 @@ ALL_FIELD_RENAMES: Dict[str, str] = {
     **ARCHETYPEPROPERTIES_RENAMES,
     **STEBBSPROPERTIES_RENAMES,
     **SNOWPARAMS_RENAMES,
+    **EHC_RENAMES,
 }
 
 # Raw-YAML structural checks (Phase A / precheck) need a wider view than the

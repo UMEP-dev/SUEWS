@@ -2918,10 +2918,10 @@ CONTAINS
 
             ASSOCIATE ( &
                StateLimit_roof => ehcPrm%state_limit_roof, &
-               SoilStoreCap_roof => ehcPrm%soil_storecap_roof, &
+               SoilStoreCap_roof => ehcPrm%soil_store_capacity_roof, &
                WetThresh_roof => ehcPrm%wet_thresh_roof, &
                StateLimit_wall => ehcPrm%state_limit_wall, &
-               SoilStoreCap_wall => ehcPrm%soil_storecap_wall, &
+               SoilStoreCap_wall => ehcPrm%soil_store_capacity_wall, &
                WetThresh_wall => ehcPrm%wet_thresh_wall, &
                StateLimit_surf => [pavedPrm%statelimit, bldgPrm%statelimit, evetrPrm%statelimit, &
                                    dectrPrm%statelimit, grassPrm%statelimit, bsoilPrm%statelimit, waterPrm%statelimit], &
@@ -4858,8 +4858,8 @@ CONTAINS
 
       ! ESTM_ehc
       CALL ehcPrm%ALLOCATE(nlayer, ndepth)
-      ehcPrm%soil_storecap_roof = SoilStoreCap_roof
-      ehcPrm%soil_storecap_wall = SoilStoreCap_wall
+      ehcPrm%soil_store_capacity_roof = SoilStoreCap_roof
+      ehcPrm%soil_store_capacity_wall = SoilStoreCap_wall
       ehcPrm%state_limit_roof = StateLimit_roof
       ehcPrm%state_limit_wall = StateLimit_wall
       ehcPrm%wet_thresh_roof = WetThresh_roof

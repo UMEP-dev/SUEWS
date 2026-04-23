@@ -430,6 +430,20 @@ WATERDIST_RENAMES: Dict[str, str] = {
     "faut": "f_aut",
 }
 
+# -- PHENOLOGY_STATE (suews_type_vegetation.f95) ------------------------------
+#
+# Fortran-only internal-state members. LAI_PRM members live under
+# ``LAIPARAMS_RENAMES`` already; ``StoreDrainPrm`` reuses the
+# ``storage_drain_params`` target from ``SURFACEPROPERTIES_RENAMES`` so no
+# registry entry is added here (adding one would break the one-to-one
+# fused->final invariant the Rust bridge reverse lookup depends on).
+
+PHENOLOGYSTATE_RENAMES: Dict[str, str] = {
+    "VegPhenLumps": "veg_phen_lumps",
+    "TempVeg": "temp_veg",
+    "gfunc": "g_func",
+}
+
 SNOWSTATE_RENAMES: Dict[str, str] = {
     "snowfallCum": "snowfall_cum",
     "snowalb": "snow_albedo",
@@ -472,6 +486,7 @@ ALL_FIELD_RENAMES: Dict[str, str] = {
     **EHC_RENAMES,
     **SNOWSTATE_RENAMES,
     **WATERDIST_RENAMES,
+    **PHENOLOGYSTATE_RENAMES,
 }
 
 # Raw-YAML structural checks (Phase A / precheck) need a wider view than the

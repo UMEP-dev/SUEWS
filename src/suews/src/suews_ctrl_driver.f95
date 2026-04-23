@@ -1243,7 +1243,7 @@ CONTAINS
             t2_C => atmState%t2_C, &
             T_half_bldg_C => atmState%T_half_bldg_C, &
             LAI_id => phenState%LAI_id, &
-            gfunc => phenState%gfunc, &
+            gfunc => phenState%g_func, &
             vsmd => hydroState%vsmd, &
             id => timer%id, &
             it => timer%it, &
@@ -1273,8 +1273,8 @@ CONTAINS
                beta_enh_bioCO2 => [evetrPrm%bioco2%beta_enh_bioco2, &
                                    dectrPrm%bioco2%beta_enh_bioco2, &
                                    grassPrm%bioco2%beta_enh_bioco2], &
-               LAIMin => [evetrPrm%lai%laimin, dectrPrm%lai%laimin, grassPrm%lai%laimin], &
-               LAIMax => [evetrPrm%lai%laimax, dectrPrm%lai%laimax, grassPrm%lai%laimax], &
+               LAIMin => [evetrPrm%lai%lai_min, dectrPrm%lai%lai_min, grassPrm%lai%lai_min], &
+               LAIMax => [evetrPrm%lai%lai_max, dectrPrm%lai%lai_max, grassPrm%lai%lai_max], &
                min_res_bioCO2 => [evetrPrm%bioco2%min_res_bioCO2, &
                                   dectrPrm%bioco2%min_res_bioCO2, &
                                   grassPrm%bioco2%min_res_bioCO2], &
@@ -1813,7 +1813,7 @@ CONTAINS
             ws_rav => ohmState%ws_rav, &
             qn_rav => ohmState%qn_rav, &
             alb => phenState%alb, &
-            StoreDrainPrm => phenState%StoreDrainPrm, &
+            StoreDrainPrm => phenState%storage_drain_params, &
             id => timer%id, &
             tstep => timer%tstep, &
             dt_since_start => timer%dt_since_start &
@@ -2235,7 +2235,7 @@ CONTAINS
             ! SnowUse = config%SnowUse
 
             state_id = hydroState%state_surf
-            StoreDrainPrm = phenState%StoreDrainPrm
+            StoreDrainPrm = phenState%storage_drain_params
 
             ! sfr_surf = [pavedPrm%sfr, bldgPrm%sfr, evetrPrm%sfr, dectrPrm%sfr, grassPrm%sfr, bsoilPrm%sfr, waterPrm%sfr]
             WaterDist(1, 1) = pavedPrm%waterdist%to_paved
@@ -2538,7 +2538,7 @@ CONTAINS
             runoffwaterbody => hydroState%runoffwaterbody, &
             state_id_in => hydroState_prev%state_surf, &
             soilstore_id_in => hydroState_prev%soilstore_surf, &
-            StoreDrainPrm => phenState%StoreDrainPrm, &
+            StoreDrainPrm => phenState%storage_drain_params, &
             SnowPack_in => snowState_prev%snow_pack, &
             SnowFrac_in => snowState_prev%snow_fraction, &
             SnowWater_in => snowState_prev%snow_water, &
@@ -2909,7 +2909,7 @@ CONTAINS
             smd => hydroState%smd, &
             tot_chang_per_tstep => hydroState%tot_chang_per_tstep, &
             SoilState => hydroState%SoilState, &
-            StoreDrainPrm => phenState%StoreDrainPrm, &
+            StoreDrainPrm => phenState%storage_drain_params, &
             snowfrac_in => snowstate%snow_fraction, &
             SMDMethod => config%SMDMethod, &
             EvapMethod => config%EvapMethod, &
@@ -3332,7 +3332,7 @@ CONTAINS
             g_smd => phenState%g_smd, &
             g_lai => phenState%g_lai, &
             gsc => phenState%gsc, &
-            gfunc => phenState%gfunc, &
+            gfunc => phenState%g_func, &
             LAI_id => phenState%LAI_id, &
             RASnow => snowState%ra_snow, &
             z0vSnow => snowState%z0v_snow, &
@@ -3345,7 +3345,7 @@ CONTAINS
             SMDMethod => config%SMDMethod &
             )
             ASSOCIATE ( &
-               LAIMax => [evetrPrm%lai%laimax, dectrPrm%lai%laimax, grassPrm%lai%laimax], &
+               LAIMax => [evetrPrm%lai%lai_max, dectrPrm%lai%lai_max, grassPrm%lai%lai_max], &
                MaxConductance => [evetrPrm%maxconductance, dectrPrm%maxconductance, grassPrm%maxconductance], &
                gsModel => conductancePrm%gsModel, &
                Kmax => conductancePrm%Kmax, &
@@ -5138,14 +5138,14 @@ CONTAINS
       dectrPrm%bioco2%min_res_bioCO2 = min_res_bioCO2(ivDecid)
       dectrPrm%bioco2%theta_bioco2 = theta_bioCO2(ivDecid)
       dectrPrm%maxconductance = MaxConductance(ivDecid)
-      dectrPrm%lai%baset = BaseT(ivDecid)
-      dectrPrm%lai%gddfull = GDDFull(ivDecid)
-      dectrPrm%lai%basete = BaseTe(ivDecid)
-      dectrPrm%lai%sddfull = SDDFull(ivDecid)
-      dectrPrm%lai%laimin = LAIMin(ivDecid)
-      dectrPrm%lai%laimax = LAIMax(ivDecid)
-      dectrPrm%lai%laipower = LAIPower(:, ivDecid)
-      dectrPrm%lai%laitype = LAIType(ivDecid)
+      dectrPrm%lai%base_temperature = BaseT(ivDecid)
+      dectrPrm%lai%gdd_full = GDDFull(ivDecid)
+      dectrPrm%lai%base_temperature_senescence = BaseTe(ivDecid)
+      dectrPrm%lai%sdd_full = SDDFull(ivDecid)
+      dectrPrm%lai%lai_min = LAIMin(ivDecid)
+      dectrPrm%lai%lai_max = LAIMax(ivDecid)
+      dectrPrm%lai%lai_power = LAIPower(:, ivDecid)
+      dectrPrm%lai%lai_type = LAIType(ivDecid)
       dectrPrm%waterdist%to_paved = WaterDist(1, DecidSurf)
       dectrPrm%waterdist%to_bldg = WaterDist(2, DecidSurf)
       dectrPrm%waterdist%to_evetr = WaterDist(3, DecidSurf)
@@ -5199,14 +5199,14 @@ CONTAINS
       evetrPrm%bioco2%min_res_bioCO2 = min_res_bioCO2(ivConif)
       evetrPrm%bioco2%theta_bioco2 = theta_bioCO2(ivConif)
       evetrPrm%maxconductance = MaxConductance(ivConif)
-      evetrPrm%lai%baset = BaseT(ivConif)
-      evetrPrm%lai%gddfull = GDDFull(ivConif)
-      evetrPrm%lai%basete = BaseTe(ivConif)
-      evetrPrm%lai%sddfull = SDDFull(ivConif)
-      evetrPrm%lai%laimin = LAIMin(ivConif)
-      evetrPrm%lai%laimax = LAIMax(ivConif)
-      evetrPrm%lai%laipower = LAIPower(:, ivConif)
-      evetrPrm%lai%laitype = LAIType(ivConif)
+      evetrPrm%lai%base_temperature = BaseT(ivConif)
+      evetrPrm%lai%gdd_full = GDDFull(ivConif)
+      evetrPrm%lai%base_temperature_senescence = BaseTe(ivConif)
+      evetrPrm%lai%sdd_full = SDDFull(ivConif)
+      evetrPrm%lai%lai_min = LAIMin(ivConif)
+      evetrPrm%lai%lai_max = LAIMax(ivConif)
+      evetrPrm%lai%lai_power = LAIPower(:, ivConif)
+      evetrPrm%lai%lai_type = LAIType(ivConif)
       evetrPrm%waterdist%to_paved = WaterDist(1, ConifSurf)
       evetrPrm%waterdist%to_bldg = WaterDist(2, ConifSurf)
       evetrPrm%waterdist%to_evetr = WaterDist(3, ConifSurf)
@@ -5258,14 +5258,14 @@ CONTAINS
       grassPrm%bioco2%min_res_bioCO2 = min_res_bioCO2(ivGrass)
       grassPrm%bioco2%theta_bioco2 = theta_bioCO2(ivGrass)
       grassPrm%maxconductance = MaxConductance(ivGrass)
-      grassPrm%lai%baset = BaseT(ivGrass)
-      grassPrm%lai%gddfull = GDDFull(ivGrass)
-      grassPrm%lai%basete = BaseTe(ivGrass)
-      grassPrm%lai%sddfull = SDDFull(ivGrass)
-      grassPrm%lai%laimin = LAIMin(ivGrass)
-      grassPrm%lai%laimax = LAIMax(ivGrass)
-      grassPrm%lai%laipower = LAIPower(:, ivGrass)
-      grassPrm%lai%laitype = LAIType(ivGrass)
+      grassPrm%lai%base_temperature = BaseT(ivGrass)
+      grassPrm%lai%gdd_full = GDDFull(ivGrass)
+      grassPrm%lai%base_temperature_senescence = BaseTe(ivGrass)
+      grassPrm%lai%sdd_full = SDDFull(ivGrass)
+      grassPrm%lai%lai_min = LAIMin(ivGrass)
+      grassPrm%lai%lai_max = LAIMax(ivGrass)
+      grassPrm%lai%lai_power = LAIPower(:, ivGrass)
+      grassPrm%lai%lai_type = LAIType(ivGrass)
       grassPrm%waterdist%to_paved = WaterDist(1, GrassSurf)
       grassPrm%waterdist%to_bldg = WaterDist(2, GrassSurf)
       grassPrm%waterdist%to_evetr = WaterDist(3, GrassSurf)
@@ -5306,12 +5306,12 @@ CONTAINS
       bsoilPrm%statelimit = StateLimit_surf(BSoilSurf)
       bsoilPrm%irrfracbsoil = IrrFracBSoil
       bsoilPrm%wetthresh = WetThresh_surf(BSoilSurf)
-      ! bsoilPrm%storedrainprm%store_min = StoreDrainPrm(1, BSoilSurf)
-      ! bsoilPrm%storedrainprm%drain_eq = StoreDrainPrm(2, BSoilSurf)
-      ! bsoilPrm%storedrainprm%drain_coef_1 = StoreDrainPrm(3, BSoilSurf)
-      ! bsoilPrm%storedrainprm%drain_coef_2 = StoreDrainPrm(4, BSoilSurf)
-      ! bsoilPrm%storedrainprm%store_max = StoreDrainPrm(5, BSoilSurf)
-      ! bsoilPrm%storedrainprm%store_cap = StoreDrainPrm(6, BSoilSurf)
+      ! bsoilPrm%storage_drain_params%store_min = StoreDrainPrm(1, BSoilSurf)
+      ! bsoilPrm%storage_drain_params%drain_eq = StoreDrainPrm(2, BSoilSurf)
+      ! bsoilPrm%storage_drain_params%drain_coef_1 = StoreDrainPrm(3, BSoilSurf)
+      ! bsoilPrm%storage_drain_params%drain_coef_2 = StoreDrainPrm(4, BSoilSurf)
+      ! bsoilPrm%storage_drain_params%store_max = StoreDrainPrm(5, BSoilSurf)
+      ! bsoilPrm%storage_drain_params%store_cap = StoreDrainPrm(6, BSoilSurf)
       bsoilPrm%waterdist%to_paved = WaterDist(1, BSoilSurf)
       bsoilPrm%waterdist%to_bldg = WaterDist(2, BSoilSurf)
       bsoilPrm%waterdist%to_evetr = WaterDist(3, BSoilSurf)
@@ -5352,12 +5352,12 @@ CONTAINS
       waterPrm%statelimit = StateLimit_surf(WaterSurf)
       waterPrm%irrfracwater = IrrFracWater
       ! waterPrm%wetthresh = WetThresh_surf(WaterSurf)
-      ! waterPrm%storedrainprm%store_min = StoreDrainPrm(1, WaterSurf)
-      ! waterPrm%storedrainprm%drain_eq = StoreDrainPrm(2, WaterSurf)
-      ! waterPrm%storedrainprm%drain_coef_1 = StoreDrainPrm(3, WaterSurf)
-      ! waterPrm%storedrainprm%drain_coef_2 = StoreDrainPrm(4, WaterSurf)
-      ! waterPrm%storedrainprm%store_max = StoreDrainPrm(5, WaterSurf)
-      ! waterPrm%storedrainprm%store_cap = StoreDrainPrm(6, WaterSurf)
+      ! waterPrm%storage_drain_params%store_min = StoreDrainPrm(1, WaterSurf)
+      ! waterPrm%storage_drain_params%drain_eq = StoreDrainPrm(2, WaterSurf)
+      ! waterPrm%storage_drain_params%drain_coef_1 = StoreDrainPrm(3, WaterSurf)
+      ! waterPrm%storage_drain_params%drain_coef_2 = StoreDrainPrm(4, WaterSurf)
+      ! waterPrm%storage_drain_params%store_max = StoreDrainPrm(5, WaterSurf)
+      ! waterPrm%storage_drain_params%store_cap = StoreDrainPrm(6, WaterSurf)
 
       ! ********** SUEWS_stateVariables **********
       atmState%Tair_av = Tair_av
@@ -5444,7 +5444,7 @@ CONTAINS
       phenState%Tmin_id = Tmin_id
       phenState%Tmax_id = Tmax_id
       phenState%lenDay_id = lenDay_id
-      phenState%StoreDrainPrm = StoreDrainPrm
+      phenState%storage_drain_params = StoreDrainPrm
 
       ! assign stebbs values
       ! parameters - invariant during the simulation
@@ -5768,7 +5768,7 @@ CONTAINS
       albEveTr_id = phenState%albEveTr_id
       albGrass_id = phenState%albGrass_id
       porosity_id = phenState%porosity_id
-      StoreDrainPrm = phenState%StoreDrainPrm
+      StoreDrainPrm = phenState%storage_drain_params
 
       IF (config%StorageHeatMethod == 5) THEN
          ! ESTM_ehc related

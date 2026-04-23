@@ -1569,7 +1569,7 @@ subroutine pack_phenology_state(s, flat, n_flat, err)
       idx = idx + 1_c_int
    end do
 
-   flat(idx) = s%vegphenlumps; idx = idx + 1_c_int
+   flat(idx) = s%veg_phen_lumps; idx = idx + 1_c_int
    flat(idx) = s%porosity_id; idx = idx + 1_c_int
    flat(idx) = s%decidcap_id; idx = idx + 1_c_int
    flat(idx) = s%albdectr_id; idx = idx + 1_c_int
@@ -1578,16 +1578,16 @@ subroutine pack_phenology_state(s, flat, n_flat, err)
    flat(idx) = s%tmin_id; idx = idx + 1_c_int
    flat(idx) = s%tmax_id; idx = idx + 1_c_int
    flat(idx) = s%lenday_id; idx = idx + 1_c_int
-   flat(idx) = s%tempveg; idx = idx + 1_c_int
+   flat(idx) = s%temp_veg; idx = idx + 1_c_int
 
    do j = 1_c_int, int(nsurf, c_int)
       do i = 1_c_int, 6_c_int
-         flat(idx) = s%storedrainprm(i, j)
+         flat(idx) = s%storage_drain_params(i, j)
          idx = idx + 1_c_int
       end do
    end do
 
-   flat(idx) = s%gfunc; idx = idx + 1_c_int
+   flat(idx) = s%g_func; idx = idx + 1_c_int
    flat(idx) = s%gsc; idx = idx + 1_c_int
    flat(idx) = s%g_kdown; idx = idx + 1_c_int
    flat(idx) = s%g_dq; idx = idx + 1_c_int

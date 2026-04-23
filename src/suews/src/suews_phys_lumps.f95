@@ -136,8 +136,8 @@ CONTAINS
             QE_LUMPS => heatState%QE_LUMPS, &
             qh_init => heatState%qh_init, &
             QH => heatState%QH, &
-            TempVeg => phenState%TempVeg, &
-            VegPhenLumps => phenState%VegPhenLumps, &
+            TempVeg => phenState%temp_veg, &
+            VegPhenLumps => phenState%veg_phen_lumps, &
             SnowUse => config%SnowUse, &
             lumpsPrm => siteInfo%lumps, &
             Qm => snowState%qm &
@@ -159,8 +159,8 @@ CONTAINS
                LAI_id_prev = phenState%LAI_id
 
                ! sfr_surf = [pavedPrm%sfr, bldgPrm%sfr, evetrPrm%sfr, dectrPrm%sfr, grassPrm%sfr, bsoilPrm%sfr, waterPrm%sfr]
-               LAImax = [evetrPrm%lai%laimax, dectrPrm%lai%laimax, grassPrm%lai%laimax]
-               LAImin = [evetrPrm%lai%laimin, dectrPrm%lai%laimin, grassPrm%lai%laimin]
+               LAImax = [evetrPrm%lai%lai_max, dectrPrm%lai%lai_max, grassPrm%lai%lai_max]
+               LAImin = [evetrPrm%lai%lai_min, dectrPrm%lai%lai_min, grassPrm%lai%lai_min]
 
                tlv = lv_J_kg/tstep_real !Latent heat of vapourisation per timestep
                ! initialize VegPhenLumps to output

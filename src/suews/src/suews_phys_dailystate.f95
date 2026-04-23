@@ -152,7 +152,7 @@ CONTAINS
                Tmax_id_prev => phenState_prev%Tmax_id, &
                lenDay_id_prev => phenState_prev%lenDay_id, &
                DecidCap_id_prev => phenState_prev%DecidCap_id, &
-               StoreDrainPrm_prev => phenState_prev%StoreDrainPrm, &
+               StoreDrainPrm_prev => phenState_prev%storage_drain_params, &
                LAI_id_prev => phenState_prev%LAI_id, &
                GDD_id_prev => phenState_prev%GDD_id, &
                SDD_id_prev => phenState_prev%SDD_id, &
@@ -164,7 +164,7 @@ CONTAINS
                Tmax_id => phenState%Tmax_id, &
                lenDay_id => phenState%lenDay_id, &
                DecidCap_id => phenState%DecidCap_id, &
-               StoreDrainPrm => phenState%StoreDrainPrm, &
+               StoreDrainPrm => phenState%storage_drain_params, &
                LAI_id => phenState%LAI_id, &
                GDD_id => phenState%GDD_id, &
                SDD_id => phenState%SDD_id, &
@@ -199,37 +199,37 @@ CONTAINS
                           irrPrm%irr_daywater%sunday_flag], &
                AlbMax_EveTr => evetrPrm%Alb_Max, &
                AlbMin_EveTr => evetrPrm%Alb_Min, &
-               evetrLAIPower => evetrPrm%lai%laipower, &
+               evetrLAIPower => evetrPrm%lai%lai_power, &
                AlbMax_DecTr => dectrPrm%Alb_Max, &
                AlbMin_DecTr => dectrPrm%Alb_Min, &
                CapMax_dec => dectrPrm%CapMax_dec, &
                CapMin_dec => dectrPrm%CapMin_dec, &
                PorMax_dec => dectrPrm%PorMax_dec, &
                PorMin_dec => dectrPrm%PorMin_dec, &
-               dectrLAIPower => dectrPrm%lai%laipower, &
+               dectrLAIPower => dectrPrm%lai%lai_power, &
                AlbMax_Grass => grassPrm%Alb_Max, &
                AlbMin_Grass => grassPrm%Alb_Min, &
-               LAIType => [evetrPrm%lai%laitype, &
-                           dectrPrm%lai%laitype, &
-                           grassPrm%lai%laitype], &
-               BaseT => [evetrPrm%lai%BaseT, &
-                         dectrPrm%lai%BaseT, &
-                         grassPrm%lai%BaseT], &
-               BaseTe => [evetrPrm%lai%BaseTe, &
-                          dectrPrm%lai%BaseTe, &
-                          grassPrm%lai%BaseTe], &
-               GDDFull => [evetrPrm%lai%gddfull, &
-                           dectrPrm%lai%gddfull, &
-                           grassPrm%lai%gddfull], &
-               SDDFull => [evetrPrm%lai%sddfull, &
-                           dectrPrm%lai%sddfull, &
-                           grassPrm%lai%sddfull], &
-               LAIMin => [evetrPrm%lai%laimin, &
-                          dectrPrm%lai%laimin, &
-                          grassPrm%lai%laimin], &
-               LAIMax => [evetrPrm%lai%laimax, &
-                          dectrPrm%lai%laimax, &
-                          grassPrm%lai%laimax], &
+               LAIType => [evetrPrm%lai%lai_type, &
+                           dectrPrm%lai%lai_type, &
+                           grassPrm%lai%lai_type], &
+               BaseT => [evetrPrm%lai%base_temperature, &
+                         dectrPrm%lai%base_temperature, &
+                         grassPrm%lai%base_temperature], &
+               BaseTe => [evetrPrm%lai%base_temperature_senescence, &
+                          dectrPrm%lai%base_temperature_senescence, &
+                          grassPrm%lai%base_temperature_senescence], &
+               GDDFull => [evetrPrm%lai%gdd_full, &
+                           dectrPrm%lai%gdd_full, &
+                           grassPrm%lai%gdd_full], &
+               SDDFull => [evetrPrm%lai%sdd_full, &
+                           dectrPrm%lai%sdd_full, &
+                           grassPrm%lai%sdd_full], &
+               LAIMin => [evetrPrm%lai%lai_min, &
+                          dectrPrm%lai%lai_min, &
+                          grassPrm%lai%lai_min], &
+               LAIMax => [evetrPrm%lai%lai_max, &
+                          dectrPrm%lai%lai_max, &
+                          grassPrm%lai%lai_max], &
                SoilStoreCap => [pavedPrm%soil%soil_store_capacity, &
                                 bldgPrm%soil%soil_store_capacity, &
                                 evetrPrm%soil%soil_store_capacity, &
@@ -237,7 +237,7 @@ CONTAINS
                                 grassPrm%soil%soil_store_capacity, &
                                 bsoilPrm%soil%soil_store_capacity, &
                                 waterPrm%soil%soil_store_capacity], &
-               grassLAIPower => grassPrm%lai%laipower &
+               grassLAIPower => grassPrm%lai%lai_power &
                )
 
                ! before
@@ -972,7 +972,7 @@ CONTAINS
             SnowAlb => snowState%snow_albedo, &
             SnowDens => snowState%snow_density, &
             HDD_id => anthroEmisState%HDD_id, &
-            VegPhenLumps => phenState%VegPhenLumps, &
+            VegPhenLumps => phenState%veg_phen_lumps, &
             a1 => OHMState%a1, &
             a2 => OHMState%a2, &
             a3 => OHMState%a3, &

@@ -53,14 +53,14 @@ type :: bioco2_prm_shadow
 end type bioco2_prm_shadow
 
 type :: lai_prm_shadow
-   real(c_double) :: baset = 0.0_c_double
-   real(c_double) :: gddfull = 0.0_c_double
-   real(c_double) :: basete = 0.0_c_double
-   real(c_double) :: sddfull = 0.0_c_double
-   real(c_double) :: laimin = 0.0_c_double
-   real(c_double) :: laimax = 0.0_c_double
-   real(c_double), dimension(4) :: laipower = 0.0_c_double
-   integer(c_int) :: laitype = 0_c_int
+   real(c_double) :: base_temperature = 0.0_c_double
+   real(c_double) :: gdd_full = 0.0_c_double
+   real(c_double) :: base_temperature_senescence = 0.0_c_double
+   real(c_double) :: sdd_full = 0.0_c_double
+   real(c_double) :: lai_min = 0.0_c_double
+   real(c_double) :: lai_max = 0.0_c_double
+   real(c_double), dimension(4) :: lai_power = 0.0_c_double
+   integer(c_int) :: lai_type = 0_c_int
 end type lai_prm_shadow
 
 type :: water_dist_prm_shadow
@@ -190,16 +190,16 @@ subroutine lc_evetr_prm_pack(state, flat, n_flat, err)
 
    flat(idx) = state%maxconductance; idx = idx + 1
 
-   flat(idx) = state%lai%baset; idx = idx + 1
-   flat(idx) = state%lai%gddfull; idx = idx + 1
-   flat(idx) = state%lai%basete; idx = idx + 1
-   flat(idx) = state%lai%sddfull; idx = idx + 1
-   flat(idx) = state%lai%laimin; idx = idx + 1
-   flat(idx) = state%lai%laimax; idx = idx + 1
+   flat(idx) = state%lai%base_temperature; idx = idx + 1
+   flat(idx) = state%lai%gdd_full; idx = idx + 1
+   flat(idx) = state%lai%base_temperature_senescence; idx = idx + 1
+   flat(idx) = state%lai%sdd_full; idx = idx + 1
+   flat(idx) = state%lai%lai_min; idx = idx + 1
+   flat(idx) = state%lai%lai_max; idx = idx + 1
    do i = 1, 4
-      flat(idx) = state%lai%laipower(i); idx = idx + 1
+      flat(idx) = state%lai%lai_power(i); idx = idx + 1
    end do
-   flat(idx) = real(state%lai%laitype, c_double); idx = idx + 1
+   flat(idx) = real(state%lai%lai_type, c_double); idx = idx + 1
 
    flat(idx) = state%waterdist%to_paved; idx = idx + 1
    flat(idx) = state%waterdist%to_bldg; idx = idx + 1
@@ -269,17 +269,17 @@ subroutine lc_evetr_prm_unpack(flat, n_flat, state, err)
 
    state%maxconductance = flat(idx); idx = idx + 1_c_int
 
-   state%lai%baset = flat(idx); idx = idx + 1_c_int
-   state%lai%gddfull = flat(idx); idx = idx + 1_c_int
-   state%lai%basete = flat(idx); idx = idx + 1_c_int
-   state%lai%sddfull = flat(idx); idx = idx + 1_c_int
-   state%lai%laimin = flat(idx); idx = idx + 1_c_int
-   state%lai%laimax = flat(idx); idx = idx + 1_c_int
+   state%lai%base_temperature = flat(idx); idx = idx + 1_c_int
+   state%lai%gdd_full = flat(idx); idx = idx + 1_c_int
+   state%lai%base_temperature_senescence = flat(idx); idx = idx + 1_c_int
+   state%lai%sdd_full = flat(idx); idx = idx + 1_c_int
+   state%lai%lai_min = flat(idx); idx = idx + 1_c_int
+   state%lai%lai_max = flat(idx); idx = idx + 1_c_int
    do i = 1_c_int, 4_c_int
-      state%lai%laipower(i) = flat(idx)
+      state%lai%lai_power(i) = flat(idx)
       idx = idx + 1_c_int
    end do
-   state%lai%laitype = int(nint(flat(idx))); idx = idx + 1_c_int
+   state%lai%lai_type = int(nint(flat(idx))); idx = idx + 1_c_int
 
    state%waterdist%to_paved = flat(idx); idx = idx + 1_c_int
    state%waterdist%to_bldg = flat(idx); idx = idx + 1_c_int

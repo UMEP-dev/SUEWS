@@ -453,7 +453,7 @@ CONTAINS
             avRH => forcing%RH, &
             Press_hPa => forcing%pres, &
             LAI_id => phenState%LAI_id, &
-            gfunc => phenState%gfunc, &
+            gfunc => phenState%g_func, &
             PAI => roughnessState%PAI, &
             FAI => roughnessState%FAI, &
             ldown => heatState%ldown, &

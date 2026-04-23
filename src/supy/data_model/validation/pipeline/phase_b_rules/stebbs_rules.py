@@ -8,9 +8,9 @@ from typing import Dict, List, Optional, Union, Any, Tuple
 
 def check_archetype_radiation_properties(archetype_data, facet):
     """
-    Validate that the sum of reflectivity, absorbtivity, and transmissivity for a given facet equals 1.
+    Validate that the sum of reflectivity, absorptivity, and transmissivity for a given facet equals 1.
 
-    This function checks the radiation properties (reflectivity, absorbtivity, and transmissivity) of a specified facet
+    This function checks the radiation properties (reflectivity, absorptivity, and transmissivity) of a specified facet
     in the provided archetype data. If any property is missing, validation is skipped. If properties are provided as
     dictionaries (e.g., with a "value" key), their values are extracted. The function returns a ValidationResult indicating
     whether the sum of the three properties equals 1.
@@ -20,7 +20,7 @@ def check_archetype_radiation_properties(archetype_data, facet):
     archetype_data : dict
         Dictionary containing the radiation properties for different facets.
     facet : str
-        The facet name (e.g., "Wall", "Roof") whose radiation properties are to be validated.
+        The facet name (e.g., "wall", "roof") whose radiation properties are to be validated.
 
     Returns
     -------
@@ -28,33 +28,33 @@ def check_archetype_radiation_properties(archetype_data, facet):
         Returns a ValidationResult with status "PASS" if the sum is 1, "ERROR" otherwise.
         Returns None if any property is missing.
     """
-    archetype_facet_reflectivity = archetype_data.get(f"{facet}Reflectivity")
-    archetype_facet_absorbtivity = archetype_data.get(f"{facet}Absorbtivity")
-    archetype_facet_transmissivity = archetype_data.get(f"{facet}Transmissivity")
+    archetype_facet_reflectivity = archetype_data.get(f"{facet}_reflectivity")
+    archetype_facet_absorptivity = archetype_data.get(f"{facet}_absorptivity")
+    archetype_facet_transmissivity = archetype_data.get(f"{facet}_transmissivity")
 
     # Skip validation if any radiation property is missing
-    if any(v is None for v in (archetype_facet_reflectivity, archetype_facet_absorbtivity, archetype_facet_transmissivity)):
+    if any(v is None for v in (archetype_facet_reflectivity, archetype_facet_absorptivity, archetype_facet_transmissivity)):
         return None
 
     # Extract values from RefValue dicts if needed
     if isinstance(archetype_facet_reflectivity, Mapping):
         archetype_facet_reflectivity = archetype_facet_reflectivity.get("value", archetype_facet_reflectivity)
-    if isinstance(archetype_facet_absorbtivity, Mapping):
-        archetype_facet_absorbtivity = archetype_facet_absorbtivity.get("value", archetype_facet_absorbtivity)
+    if isinstance(archetype_facet_absorptivity, Mapping):
+        archetype_facet_absorptivity = archetype_facet_absorptivity.get("value", archetype_facet_absorptivity)
     if isinstance(archetype_facet_transmissivity, Mapping):
         archetype_facet_transmissivity = archetype_facet_transmissivity.get("value", archetype_facet_transmissivity)
 
     result = ValidationResult(
         status="PASS",
         category="Archetype",
-        parameter=f"{facet}Reflectivity, {facet}Absorbtivity, {facet}Transmissivity",
+        parameter=f"{facet}_reflectivity, {facet}_absorptivity, {facet}_transmissivity",
     )
 
-    radiation_properties_total = archetype_facet_reflectivity + archetype_facet_absorbtivity + archetype_facet_transmissivity
+    radiation_properties_total = archetype_facet_reflectivity + archetype_facet_absorptivity + archetype_facet_transmissivity
 
     if radiation_properties_total != 1.0:
         result.status="ERROR"
-        result.message = f"Facet reflectivity, absorbtivity and transmissivity must sum to 1. Current total = {radiation_properties_total}"
+        result.message = f"Facet reflectivity, absorptivity and transmissivity must sum to 1. Current total = {radiation_properties_total}"
 
     return result
 
@@ -98,7 +98,7 @@ def check_archetype_properties(context):
             site_props = site.get("properties", {})
             archetype_props = site_props.get("building_archetype", {})
 
-            for facet in ["Wall", "Roof"]:
+            for facet in ["wall", "roof"]:
                 result = check_archetype_radiation_properties(archetype_props, facet=facet)
                 if result is not None:
                     result.site_index = i
@@ -113,8 +113,8 @@ def check_occupants_metabolism(context):
     Check for inconsistency between the number of occupants and metabolism profile.
 
     This rule validates that if the number of occupants is set to 0.0 in the building archetype,
-    then all entries in the MetabolismProfile must also be zero. If any nonzero values are found
-    in the MetabolismProfile when occupants are zero, an error is reported for each problematic entry.
+    then all entries in the metabolism_profile must also be zero. If any nonzero values are found
+    in the metabolism_profile when occupants are zero, an error is reported for each problematic entry.
 
     Parameters
     ----------
@@ -124,7 +124,7 @@ def check_occupants_metabolism(context):
     Returns
     -------
     list of ValidationResult
-        A list of validation results indicating errors where the MetabolismProfile contains
+        A list of validation results indicating errors where the metabolism_profile contains
         nonzero entries while the number of occupants is zero. Each result includes details
         about the site, parameter, and suggested correction.
     """
@@ -139,9 +139,9 @@ def check_occupants_metabolism(context):
         for site_idx, site in enumerate(sites):
             props = site.get("properties", {})
             building_archetype = props.get("building_archetype", {})
-            occupants_entry = building_archetype.get("Occupants", {})
+            occupants_entry = building_archetype.get("occupants", {})
             occupants = occupants_entry.get("value") if isinstance(occupants_entry, Mapping) else occupants_entry
-            metabolism_profile = building_archetype.get("MetabolismProfile", {})
+            metabolism_profile = building_archetype.get("metabolism_profile", {})
             if occupants == 0.0 and isinstance(metabolism_profile, Mapping):
                 problematic_entries = []
                 for daytype in ("working_day", "holiday"):
@@ -157,13 +157,13 @@ def check_occupants_metabolism(context):
                         ValidationResult(
                             status="ERROR",
                             category="MODEL_OPTIONS",
-                            parameter="building_archetype.MetabolismProfile",
+                            parameter="building_archetype.metabolism_profile",
                             site_index=site_idx,
                             site_gridid=site.get("gridiv"),
                             message=(
-                                f"Occupants is 0.0 but MetabolismProfile has nonzero entries: {', '.join(problematic_entries)} (should all be 0)."
+                                f"occupants is 0.0 but metabolism_profile has nonzero entries: {', '.join(problematic_entries)} (should all be 0)."
                             ),
-                            suggested_value="Set all MetabolismProfile entries to 0 if Occupants is 0.0",
+                            suggested_value="Set all metabolism_profile entries to 0 if occupants is 0.0",
                         )
                     )
     return results
@@ -172,12 +172,12 @@ def check_occupants_metabolism(context):
 @RulesRegistry.add_rule("daylight_control")
 def check_daylight_control(context):
     """
-    Validate the 'DaylightControl' flag and related lighting parameters for each site when STEBBS is active.
+    Validate the 'daylight_control' flag and related lighting parameters for each site when STEBBS is active.
 
-    - Checks that the 'DaylightControl' flag under each site's 'stebbs' properties is set to 0 or 1
+    - Checks that the 'daylight_control' flag under each site's 'stebbs' properties is set to 0 or 1
       (accepting both integer and float representations), but only if the 'stebbs_method' in the model
       physics is set to 1.
-    - If 'DaylightControl' is 1, 'LightingIlluminanceThreshold' must be provided by the user in the YAML.
+    - If 'daylight_control' is 1, 'lighting_illuminance_threshold' must be provided by the user in the YAML.
 
     Parameters
     ----------
@@ -202,37 +202,37 @@ def check_daylight_control(context):
             stebbs = props.get("stebbs", {})
             site_gridid = site.get("gridiv")
 
-            daylight_control = stebbs.get("DaylightControl", {})
+            daylight_control = stebbs.get("daylight_control", {})
             dc_val = daylight_control.get("value") if isinstance(daylight_control, Mapping) else daylight_control
 
-            # Validate DaylightControl value
+            # Validate daylight_control value
             if dc_val not in (0, 1, 0.0, 1.0, None):
                 results.append(
                     ValidationResult(
                         status="ERROR",
                         category="MODEL_OPTIONS",
-                        parameter="stebbs.DaylightControl",
+                        parameter="stebbs.daylight_control",
                         site_index=site_idx,
                         site_gridid=site_gridid,
-                        message=f"DaylightControl flag must be 0 (off) or 1 (on), got '{dc_val}'.",
-                        suggested_value="Set DaylightControl to 0 or 1",
+                        message=f"daylight_control flag must be 0 (off) or 1 (on), got '{dc_val}'.",
+                        suggested_value="Set daylight_control to 0 or 1",
                     )
                 )
 
-            # Check LightingIlluminanceThreshold if DaylightControl is 1
+            # Check lighting_illuminance_threshold if daylight_control is 1
             if dc_val in (1, 1.0):
-                lit = stebbs.get("LightingIlluminanceThreshold", None)
+                lit = stebbs.get("lighting_illuminance_threshold", None)
                 lit_val = lit.get("value") if isinstance(lit, Mapping) else lit
                 if lit_val is None:
                     results.append(
                         ValidationResult(
                             status="ERROR",
                             category="MODEL_OPTIONS",
-                            parameter="stebbs.LightingIlluminanceThreshold",
+                            parameter="stebbs.lighting_illuminance_threshold",
                             site_index=site_idx,
                             site_gridid=site_gridid,
-                            message="LightingIlluminanceThreshold must be provided when DaylightControl is 1.",
-                            suggested_value="Provide a value for LightingIlluminanceThreshold in stebbs.",
+                            message="lighting_illuminance_threshold must be provided when daylight_control is 1.",
+                            suggested_value="Provide a value for lighting_illuminance_threshold in stebbs.",
                         )
                     )
 
@@ -242,10 +242,10 @@ def check_daylight_control(context):
 @RulesRegistry.add_rule("stebbs_props")
 def check_stebbs_properties(context):
     """
-    Validate the 'HotWaterFlowProfile' values in the STEBBS properties for each site.
+    Validate the 'hot_water_flow_profile' values in the STEBBS properties for each site.
 
     Checks that, if the 'stebbs_method' is set to 1 in the model physics configuration,
-    the 'HotWaterFlowProfile' for both 'working_day' and 'holiday' day types contains
+    the 'hot_water_flow_profile' for both 'working_day' and 'holiday' day types contains
     only values of 0 or 1 for each hour. If any value is not 0 or 1, an error is added
     to the results.
 
@@ -258,7 +258,7 @@ def check_stebbs_properties(context):
     -------
     list of ValidationResult
         A list of ValidationResult objects describing any errors found in the
-        'HotWaterFlowProfile' values for each site.
+        'hot_water_flow_profile' values for each site.
     """
 
     yaml_data = context.yaml_data
@@ -273,7 +273,7 @@ def check_stebbs_properties(context):
             props = site.get("properties", {})
             stebbs = props.get("stebbs", {})
             site_gridid = site.get("gridiv")
-            hwfp_entry = stebbs.get("HotWaterFlowProfile", {})
+            hwfp_entry = stebbs.get("hot_water_flow_profile", {})
             for daytype in ("working_day", "holiday"):
                 day_profile = hwfp_entry.get(daytype, {})
                 if isinstance(day_profile, Mapping):
@@ -283,13 +283,13 @@ def check_stebbs_properties(context):
                                 ValidationResult(
                                     status="ERROR",
                                     category="MODEL_OPTIONS",
-                                    parameter=f"stebbs.HotWaterFlowProfile.{daytype}.{hour_str}",
+                                    parameter=f"stebbs.hot_water_flow_profile.{daytype}.{hour_str}",
                                     site_index=site_idx,
                                     site_gridid=site_gridid,
                                     message=(
-                                        f"HotWaterFlowProfile for '{daytype}' hour '{hour_str}' must be 0 or 1, got '{v}'."
+                                        f"hot_water_flow_profile for '{daytype}' hour '{hour_str}' must be 0 or 1, got '{v}'."
                                     ),
-                                    suggested_value="Set HotWaterFlowProfile to 0 or 1"
+                                    suggested_value="Set hot_water_flow_profile to 0 or 1"
                                 )
                             )
 
@@ -312,10 +312,10 @@ def validate_model_option_setpoint(context) -> List[ValidationResult]:
 
     Notes
     -----
-    - For `setpointmethod` 0 or 1, checks that `HeatingSetpointTemperature` and
-      `CoolingSetpointTemperature` are set in each site's `building_archetype`.
+    - For `setpointmethod` 0 or 1, checks that `heating_setpoint_temperature` and
+      `cooling_setpoint_temperature` are set in each site's `building_archetype`.
     - For `setpointmethod` 2, checks that all entries in
-      `HeatingSetpointTemperatureProfile` and `CoolingSetpointTemperatureProfile`
+      `heating_setpoint_temperature_profile` and `cooling_setpoint_temperature_profile`
       are present (not null), that heating values are less than 30.0, and cooling
       values are greater than 15.0 for all 144 ten-minute slices in both
       `working_day` and `holiday` profiles.
@@ -335,18 +335,18 @@ def validate_model_option_setpoint(context) -> List[ValidationResult]:
         for site in yaml_data.get("sites", []):
             site_name = site.get("name", "Unknown")
             building_archetype = site.get("properties", {}).get("building_archetype", {})
-            heating = get_value_safe(building_archetype, "HeatingSetpointTemperature")
-            cooling = get_value_safe(building_archetype, "CoolingSetpointTemperature")
+            heating = get_value_safe(building_archetype, "heating_setpoint_temperature")
+            cooling = get_value_safe(building_archetype, "cooling_setpoint_temperature")
             if heating is None:
                 results.append(
                     ValidationResult(
                         status="ERROR",
                         category="MODEL_OPTIONS",
-                        parameter="HeatingSetpointTemperature",
+                        parameter="heating_setpoint_temperature",
                         site_gridid=site_name,
                         site_index=None,
-                        message="HeatingSetpointTemperature must be set when setpointmethod == 0 or 1.",
-                        suggested_value="Set HeatingSetpointTemperature to a valid temperature value."
+                        message="heating_setpoint_temperature must be set when setpointmethod == 0 or 1.",
+                        suggested_value="Set heating_setpoint_temperature to a valid temperature value."
                     )
                 )
             if cooling is None:
@@ -354,19 +354,19 @@ def validate_model_option_setpoint(context) -> List[ValidationResult]:
                     ValidationResult(
                         status="ERROR",
                         category="MODEL_OPTIONS",
-                        parameter="CoolingSetpointTemperature",
+                        parameter="cooling_setpoint_temperature",
                         site_gridid=site_name,
                         site_index=None,
-                        message="CoolingSetpointTemperature must be set when setpointmethod == 0 or 1.",
-                        suggested_value="Set CoolingSetpointTemperature to a valid temperature value."
+                        message="cooling_setpoint_temperature must be set when setpointmethod == 0 or 1.",
+                        suggested_value="Set cooling_setpoint_temperature to a valid temperature value."
                     )
                 )
     elif setpointmethod == 2:
         for site_idx, site in enumerate(yaml_data.get("sites", [])):
             site_name = site.get("name", "Unknown")
             building_archetype = site.get("properties", {}).get("building_archetype", {})
-            heating_profile = building_archetype.get("HeatingSetpointTemperatureProfile", {})
-            cooling_profile = building_archetype.get("CoolingSetpointTemperatureProfile", {})
+            heating_profile = building_archetype.get("heating_setpoint_temperature_profile", {})
+            cooling_profile = building_archetype.get("cooling_setpoint_temperature_profile", {})
 
             # Check heating profile
             heating_missing_entries = []
@@ -376,11 +376,11 @@ def validate_model_option_setpoint(context) -> List[ValidationResult]:
                     ValidationResult(
                         status="ERROR",
                         category="MODEL_OPTIONS",
-                        parameter="HeatingSetpointTemperatureProfile",
+                        parameter="heating_setpoint_temperature_profile",
                         site_gridid=site_name,
                         site_index=site_idx,
-                        message="HeatingSetpointTemperatureProfile must be a mapping with daytype keys when setpointmethod == 2.",
-                        suggested_value="Set HeatingSetpointTemperatureProfile to a mapping with working_day and holiday keys, each mapping ten-minute slices to temperature.",
+                        message="heating_setpoint_temperature_profile must be a mapping with daytype keys when setpointmethod == 2.",
+                        suggested_value="Set heating_setpoint_temperature_profile to a mapping with working_day and holiday keys, each mapping ten-minute slices to temperature.",
                     )
                 )
             else:
@@ -391,10 +391,10 @@ def validate_model_option_setpoint(context) -> List[ValidationResult]:
                             ValidationResult(
                                 status="ERROR",
                                 category="MODEL_OPTIONS",
-                                parameter=f"HeatingSetpointTemperatureProfile.{daytype}",
+                                parameter=f"heating_setpoint_temperature_profile.{daytype}",
                                 site_gridid=site_name,
                                 site_index=site_idx,
-                                message=f"HeatingSetpointTemperatureProfile.{daytype} must be a mapping of ten-minute slice to value.",
+                                message=f"heating_setpoint_temperature_profile.{daytype} must be a mapping of ten-minute slice to value.",
                                 suggested_value="Set each daytype to a mapping of ten-minute slice (as string) to temperature value.",
                             )
                         )
@@ -419,10 +419,10 @@ def validate_model_option_setpoint(context) -> List[ValidationResult]:
                                 ValidationResult(
                                     status="ERROR",
                                     category="MODEL_OPTIONS",
-                                    parameter=f"HeatingSetpointTemperatureProfile.{daytype}",
+                                    parameter=f"heating_setpoint_temperature_profile.{daytype}",
                                     site_gridid=site_name,
                                     site_index=site_idx,
-                                    message=f"HeatingSetpointTemperatureProfile.{daytype} is missing {len(missing_slices)} entries: {', '.join(sorted(missing_slices))}. Must have all 144 entries.",
+                                    message=f"heating_setpoint_temperature_profile.{daytype} is missing {len(missing_slices)} entries: {', '.join(sorted(missing_slices))}. Must have all 144 entries.",
                                     suggested_value="Define all 144 ten-minutes slice entries in the profile.",
                                 )
                             )
@@ -431,10 +431,10 @@ def validate_model_option_setpoint(context) -> List[ValidationResult]:
                                 ValidationResult(
                                     status="ERROR",
                                     category="MODEL_OPTIONS",
-                                    parameter=f"HeatingSetpointTemperatureProfile.{daytype}",
+                                    parameter=f"heating_setpoint_temperature_profile.{daytype}",
                                     site_gridid=site_name,
                                     site_index=site_idx,
-                                    message=f"HeatingSetpointTemperatureProfile.{daytype} has {len(extra_slices)} unexpected entries: {', '.join(sorted(extra_slices))}. Only entries 1-144 are valid.",
+                                    message=f"heating_setpoint_temperature_profile.{daytype} has {len(extra_slices)} unexpected entries: {', '.join(sorted(extra_slices))}. Only entries 1-144 are valid.",
                                     suggested_value="Remove any keys not in the range 1-144.",
                                 )
                             )
@@ -444,11 +444,11 @@ def validate_model_option_setpoint(context) -> List[ValidationResult]:
                         ValidationResult(
                             status="ERROR",
                             category="MODEL_OPTIONS",
-                            parameter="HeatingSetpointTemperatureProfile",
+                            parameter="heating_setpoint_temperature_profile",
                             site_gridid=site_name,
                             site_index=site_idx,
-                            message=f"HeatingSetpointTemperatureProfile has null entries at: {', '.join(heating_missing_entries)}. All entries must be set when setpointmethod == 2.",
-                            suggested_value="Set all entries in HeatingSetpointTemperatureProfile to valid temperature values.",
+                            message=f"heating_setpoint_temperature_profile has null entries at: {', '.join(heating_missing_entries)}. All entries must be set when setpointmethod == 2.",
+                            suggested_value="Set all entries in heating_setpoint_temperature_profile to valid temperature values.",
                         )
                     )
                 if heating_out_of_range:
@@ -456,11 +456,11 @@ def validate_model_option_setpoint(context) -> List[ValidationResult]:
                         ValidationResult(
                             status="ERROR",
                             category="MODEL_OPTIONS",
-                            parameter="HeatingSetpointTemperatureProfile",
+                            parameter="heating_setpoint_temperature_profile",
                             site_gridid=site_name,
                             site_index=site_idx,
-                            message=f"HeatingSetpointTemperatureProfile has values >= 30.0 at: {', '.join(heating_out_of_range)}. All heating setpoints must be less than 30.0.",
-                            suggested_value="Set all entries in HeatingSetpointTemperatureProfile to values less than 30.0.",
+                            message=f"heating_setpoint_temperature_profile has values >= 30.0 at: {', '.join(heating_out_of_range)}. All heating setpoints must be less than 30.0.",
+                            suggested_value="Set all entries in heating_setpoint_temperature_profile to values less than 30.0.",
                         )
                     )
 
@@ -472,11 +472,11 @@ def validate_model_option_setpoint(context) -> List[ValidationResult]:
                     ValidationResult(
                         status="ERROR",
                         category="MODEL_OPTIONS",
-                        parameter="CoolingSetpointTemperatureProfile",
+                        parameter="cooling_setpoint_temperature_profile",
                         site_gridid=site_name,
                         site_index=site_idx,
-                        message="CoolingSetpointTemperatureProfile must be a mapping with daytype keys when setpointmethod == 2.",
-                        suggested_value="Set CoolingSetpointTemperatureProfile to a mapping with working_day and holiday keys, each mapping ten-minutes slice to temperature.",
+                        message="cooling_setpoint_temperature_profile must be a mapping with daytype keys when setpointmethod == 2.",
+                        suggested_value="Set cooling_setpoint_temperature_profile to a mapping with working_day and holiday keys, each mapping ten-minutes slice to temperature.",
                     )
                 )
             else:
@@ -487,10 +487,10 @@ def validate_model_option_setpoint(context) -> List[ValidationResult]:
                             ValidationResult(
                                 status="ERROR",
                                 category="MODEL_OPTIONS",
-                                parameter=f"CoolingSetpointTemperatureProfile.{daytype}",
+                                parameter=f"cooling_setpoint_temperature_profile.{daytype}",
                                 site_gridid=site_name,
                                 site_index=site_idx,
-                                message=f"CoolingSetpointTemperatureProfile.{daytype} must be a mapping of ten-minute slice to value.",
+                                message=f"cooling_setpoint_temperature_profile.{daytype} must be a mapping of ten-minute slice to value.",
                                 suggested_value="Set each daytype to a mapping of ten-minute slice (as string) to temperature value.",
                             )
                         )
@@ -515,10 +515,10 @@ def validate_model_option_setpoint(context) -> List[ValidationResult]:
                                 ValidationResult(
                                     status="ERROR",
                                     category="MODEL_OPTIONS",
-                                    parameter=f"CoolingSetpointTemperatureProfile.{daytype}",
+                                    parameter=f"cooling_setpoint_temperature_profile.{daytype}",
                                     site_gridid=site_name,
                                     site_index=site_idx,
-                                    message=f"CoolingSetpointTemperatureProfile.{daytype} is missing {len(missing_slices)} entries: {', '.join(sorted(missing_slices))}. Must have all 144 entries.",
+                                    message=f"cooling_setpoint_temperature_profile.{daytype} is missing {len(missing_slices)} entries: {', '.join(sorted(missing_slices))}. Must have all 144 entries.",
                                     suggested_value="Define all 144 ten-minute slice entries in the profile.",
                                 )
                             )
@@ -527,10 +527,10 @@ def validate_model_option_setpoint(context) -> List[ValidationResult]:
                                 ValidationResult(
                                     status="ERROR",
                                     category="MODEL_OPTIONS",
-                                    parameter=f"CoolingSetpointTemperatureProfile.{daytype}",
+                                    parameter=f"cooling_setpoint_temperature_profile.{daytype}",
                                     site_gridid=site_name,
                                     site_index=site_idx,
-                                    message=f"CoolingSetpointTemperatureProfile.{daytype} has {len(extra_slices)} unexpected entries: {', '.join(sorted(extra_slices))}. Only entries 1-144 are valid.",
+                                    message=f"cooling_setpoint_temperature_profile.{daytype} has {len(extra_slices)} unexpected entries: {', '.join(sorted(extra_slices))}. Only entries 1-144 are valid.",
                                     suggested_value="Remove any keys not in the range 1-144.",
                                 )
                             )
@@ -540,11 +540,11 @@ def validate_model_option_setpoint(context) -> List[ValidationResult]:
                         ValidationResult(
                             status="ERROR",
                             category="MODEL_OPTIONS",
-                            parameter="CoolingSetpointTemperatureProfile",
+                            parameter="cooling_setpoint_temperature_profile",
                             site_gridid=site_name,
                             site_index=site_idx,
-                            message=f"CoolingSetpointTemperatureProfile has null entries at: {', '.join(cooling_missing_entries)}. All entries must be set when setpointmethod == 2.",
-                            suggested_value="Set all entries in CoolingSetpointTemperatureProfile to valid temperature values.",
+                            message=f"cooling_setpoint_temperature_profile has null entries at: {', '.join(cooling_missing_entries)}. All entries must be set when setpointmethod == 2.",
+                            suggested_value="Set all entries in cooling_setpoint_temperature_profile to valid temperature values.",
                         )
                     )
                 if cooling_out_of_range:
@@ -552,11 +552,11 @@ def validate_model_option_setpoint(context) -> List[ValidationResult]:
                         ValidationResult(
                             status="ERROR",
                             category="MODEL_OPTIONS",
-                            parameter="CoolingSetpointTemperatureProfile",
+                            parameter="cooling_setpoint_temperature_profile",
                             site_gridid=site_name,
                             site_index=site_idx,
-                            message=f"CoolingSetpointTemperatureProfile has values <= 15.0 at: {', '.join(cooling_out_of_range)}. All cooling setpoints must be greater than 15.0.",
-                            suggested_value="Set all entries in CoolingSetpointTemperatureProfile to values greater than 15.0.",
+                            message=f"cooling_setpoint_temperature_profile has values <= 15.0 at: {', '.join(cooling_out_of_range)}. All cooling setpoints must be greater than 15.0.",
+                            suggested_value="Set all entries in cooling_setpoint_temperature_profile to values greater than 15.0.",
                         )
                     )
     return results

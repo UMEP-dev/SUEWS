@@ -170,7 +170,113 @@ The lineage below mirrors ``SCHEMA_VERSIONS`` in
 the schema that shipped with it via
 ``supy.util.converter.yaml_upgrade._PACKAGE_TO_SCHEMA``.
 
-**Schema 2026.5.dev2** (current; in-development dev bump; gh#1321)
+**Schema 2026.5.dev4** (current; in-development dev bump; gh#1334 follow-through via PR #1337)
+   Unifies the STEBBS hot-water subsystem under the ``hot_water_*``
+   prefix, retiring the opaque ``dhw_`` acronym and the split
+   ``water_tank_*`` sibling that survived the gh#1334 PascalCase
+   sweep. Tank vs vessel physical separation stays real — preserved
+   through the ``_tank_`` and ``_vessel_`` component qualifiers —
+   only the prefix becomes consistent.
+
+   ``ArchetypeProperties`` (1 field):
+
+   - ``water_tank_water_volume`` -> ``hot_water_tank_volume`` (drops
+     the redundant trailing ``water``)
+
+   ``StebbsProperties`` (13 fields):
+
+   - ``water_tank_wall_thickness`` -> ``hot_water_tank_wall_thickness``
+   - ``water_tank_surface_area`` -> ``hot_water_tank_surface_area``
+   - ``dhw_vessel_wall_thickness`` -> ``hot_water_vessel_wall_thickness``
+   - ``dhw_water_volume`` -> ``hot_water_volume``
+   - ``dhw_surface_area`` -> ``hot_water_surface_area``
+   - ``dhw_specific_heat_capacity`` ->
+     ``hot_water_specific_heat_capacity``
+   - ``dhw_vessel_specific_heat_capacity`` ->
+     ``hot_water_vessel_specific_heat_capacity``
+   - ``dhw_density`` -> ``hot_water_density``
+   - ``dhw_vessel_density`` -> ``hot_water_vessel_density``
+   - ``dhw_vessel_wall_conductivity`` ->
+     ``hot_water_vessel_wall_conductivity``
+   - ``dhw_vessel_internal_wall_convection_coefficient`` ->
+     ``hot_water_vessel_internal_wall_convection_coefficient``
+   - ``dhw_vessel_external_wall_convection_coefficient`` ->
+     ``hot_water_vessel_external_wall_convection_coefficient``
+   - ``dhw_vessel_wall_emissivity`` ->
+     ``hot_water_vessel_wall_emissivity``
+
+   Legacy ``dhw_*`` and ``water_tank_*`` YAMLs continue to load via
+   the Pydantic shim (``ARCHETYPEPROPERTIES_DEV3_RENAMES`` and
+   ``STEBBSPROPERTIES_DEV3_RENAMES`` in
+   ``src/supy/data_model/core/field_renames.py``) with a
+   ``DeprecationWarning``. The ``(2026.5.dev3 -> 2026.5.dev4)``
+   migration handler is registered in
+   ``src/supy/util/converter/yaml_upgrade.py::_HANDLERS``. Rust
+   struct fields (``src/suews_bridge/src/stebbs_prm.rs``) and the
+   c_api shadow (``src/suews_bridge/c_api/stebbs_prm.f95``) keep
+   ``dhw_*`` internally — cross-layer work remains tracked under
+   #1324.
+
+**Schema 2026.5.dev3** (gh#1334)
+   Retires the STEBBS PascalCase exception on the user-facing YAML
+   surface. 124 renames across ``building_archetype``, ``stebbs`` and
+   ``snow`` containers, bringing the full YAML into a single snake_case
+   convention. Fortran TYPE members and Rust struct fields are not
+   touched — those live in Tier B/C/D (#1324/#1325/#1326).
+
+   ``ArchetypeProperties`` (62 fields): ``BuildingType`` ->
+   ``building_type``, ``stebbs_Height`` -> ``building_height``,
+   ``WWR`` -> ``window_to_wall_ratio``, ``WallThickness`` ->
+   ``wall_thickness``, ``WallCp`` -> ``wall_specific_heat_capacity``,
+   ``WallOuterCapFrac`` -> ``wall_outer_heat_capacity_fraction``,
+   ``WallAbsorbtivity`` -> ``wall_absorptivity`` (spelling fix),
+   ``FloorThickness`` -> ``ground_floor_thickness``,
+   ``WaterTankWaterVolume`` -> ``water_tank_water_volume``, and so on
+   for the full set of walls/roof/window/floor/internal mass/setpoint/
+   metabolism fields.
+
+   ``StebbsProperties`` (50 fields): ``WallInternalConvectionCoefficient``
+   -> ``wall_internal_convection_coefficient``, ``CoolingSystemCOP``
+   -> ``cooling_system_cop``,
+   ``MonthMeanAirTemperature_diffmax`` ->
+   ``month_mean_air_temperature_diffmax``, and a snake_case
+   pass over the ``DHW*`` family (``DHWWaterVolume`` ->
+   ``dhw_water_volume``, ``DHWVesselWallEmissivity`` ->
+   ``dhw_vessel_wall_emissivity``, etc.). The ``DHW*`` /
+   ``HotWater*`` naming split is preserved at the snake_case
+   layer (``dhw_*`` and ``hot_water_*`` coexist) to mirror the
+   Rust bridge structs in
+   ``src/suews_bridge/src/stebbs_prm.rs``; unifying them is
+   tracked as Tier B work under #1324.
+
+   ``SnowParams`` (11 fields — clarity clean-ups on existing
+   snake_case): ``precip_limit`` -> ``temperature_rain_snow_threshold``
+   (semantic fix — the value is a temperature, unit degC, despite the
+   pre-gh#1334 name), ``tau_a/f/r`` ->
+   ``tau_cold_snow``/``tau_melting_snow``/``tau_refreezing_snow``,
+   ``snow_limit_building/paved`` -> ``snow_depth_limit_*``,
+   ``snowprof_24hr`` -> ``snow_profile_24hr``, ``narp_emis_snow`` ->
+   ``narp_emissivity_snow``, ``temp_melt_factor`` ->
+   ``temperature_melt_factor``, ``rad_melt_factor`` ->
+   ``radiation_melt_factor``.
+
+   Legacy spellings — both the PascalCase from Schema 2026.5.dev2 and
+   the pre-gh#1327 fused ``Wallext``/``Roofext`` cluster — continue to
+   load via the Pydantic ``@model_validator(mode='before')`` shim that
+   emits ``DeprecationWarning``. The authoritative mapping lives in
+   ``ARCHETYPEPROPERTIES_RENAMES``, ``ARCHETYPEPROPERTIES_PASCAL_RENAMES``,
+   ``STEBBSPROPERTIES_RENAMES``, ``SNOWPARAMS_RENAMES``, and
+   ``SNOWPARAMS_INTERMEDIATE_RENAMES`` in
+   ``src/supy/data_model/core/field_renames.py``. The
+   ``(2026.5.dev2 -> 2026.5.dev3)`` migration is registered in
+   ``src/supy/util/converter/yaml_upgrade.py::_HANDLERS``.
+
+   DataFrame column names stay in their legacy spellings (preserved
+   via ``_ARCHETYPE_LEGACY_COL_NAMES`` / ``_STEBBS_LEGACY_COL_NAMES``
+   ClassVars on the respective models) for the Fortran bridge — only
+   the YAML key and Pydantic attribute move.
+
+**Schema 2026.5.dev2** (gh#1321)
    Categories 2 and 3 of #1256 — 15 ``ModelPhysics`` fields with the
    redundant ``_method`` / ``_model`` suffix dropped and/or opaque
    domain abbreviations (SMD, RSL, FAI, RC, GS) expanded into

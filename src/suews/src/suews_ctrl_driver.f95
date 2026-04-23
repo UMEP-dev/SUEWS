@@ -1974,13 +1974,13 @@ CONTAINS
                OHM_threshWD(6) = bsoilPrm%ohm%ohm_threshwd
                OHM_threshWD(7) = waterPrm%ohm%ohm_threshwd
 
-               SoilStoreCap(1) = pavedPrm%soil%soilstorecap
-               SoilStoreCap(2) = bldgPrm%soil%soilstorecap
-               SoilStoreCap(3) = evetrPrm%soil%soilstorecap
-               SoilStoreCap(4) = dectrPrm%soil%soilstorecap
-               SoilStoreCap(5) = grassPrm%soil%soilstorecap
-               SoilStoreCap(6) = bsoilPrm%soil%soilstorecap
-               SoilStoreCap(7) = waterPrm%soil%soilstorecap
+               SoilStoreCap(1) = pavedPrm%soil%soil_store_capacity
+               SoilStoreCap(2) = bldgPrm%soil%soil_store_capacity
+               SoilStoreCap(3) = evetrPrm%soil%soil_store_capacity
+               SoilStoreCap(4) = dectrPrm%soil%soil_store_capacity
+               SoilStoreCap(5) = grassPrm%soil%soil_store_capacity
+               SoilStoreCap(6) = bsoilPrm%soil%soil_store_capacity
+               SoilStoreCap(7) = waterPrm%soil%soil_store_capacity
 
                emis(1) = pavedPrm%emis
                emis(2) = bldgPrm%emis
@@ -2554,9 +2554,9 @@ CONTAINS
             ASSOCIATE ( &
                WetThresh_surf => [pavedPrm%wetthresh, bldgPrm%wetthresh, evetrPrm%wetthresh, dectrPrm%wetthresh, &
                                   grassPrm%wetthresh, bsoilPrm%wetthresh, waterPrm%wetthresh], &
-               SoilStoreCap => [pavedPrm%soil%soilstorecap, bldgPrm%soil%soilstorecap, &
-                                evetrPrm%soil%soilstorecap, dectrPrm%soil%soilstorecap, &
-                                grassPrm%soil%soilstorecap, bsoilPrm%soil%soilstorecap, waterPrm%soil%soilstorecap], &
+               SoilStoreCap => [pavedPrm%soil%soil_store_capacity, bldgPrm%soil%soil_store_capacity, &
+                                evetrPrm%soil%soil_store_capacity, dectrPrm%soil%soil_store_capacity, &
+                                grassPrm%soil%soil_store_capacity, bsoilPrm%soil%soil_store_capacity, waterPrm%soil%soil_store_capacity], &
                tau_r => snowPrm%tau_r, &
                CRWmin => snowPrm%CRWmin, &
                CRWmax => snowPrm%CRWmax, &
@@ -2925,17 +2925,17 @@ CONTAINS
                WetThresh_wall => ehcPrm%wet_thresh_wall, &
                StateLimit_surf => [pavedPrm%statelimit, bldgPrm%statelimit, evetrPrm%statelimit, &
                                    dectrPrm%statelimit, grassPrm%statelimit, bsoilPrm%statelimit, waterPrm%statelimit], &
-               SoilStoreCap_surf => [pavedPrm%soil%soilstorecap, bldgPrm%soil%soilstorecap, &
-                                     evetrPrm%soil%soilstorecap, dectrPrm%soil%soilstorecap, &
-                                     grassPrm%soil%soilstorecap, bsoilPrm%soil%soilstorecap, waterPrm%soil%soilstorecap], &
+               SoilStoreCap_surf => [pavedPrm%soil%soil_store_capacity, bldgPrm%soil%soil_store_capacity, &
+                                     evetrPrm%soil%soil_store_capacity, dectrPrm%soil%soil_store_capacity, &
+                                     grassPrm%soil%soil_store_capacity, bsoilPrm%soil%soil_store_capacity, waterPrm%soil%soil_store_capacity], &
                SoilDepth_surf => [ &
-               pavedPrm%soil%soildepth, bldgPrm%soil%soildepth, evetrPrm%soil%soildepth, &
-               dectrPrm%soil%soildepth, &
-               grassPrm%soil%soildepth, bsoilPrm%soil%soildepth, waterPrm%soil%soildepth], &
-               SatHydraulicConduct_surf => [pavedPrm%soil%sathydraulicconduct, bldgPrm%soil%sathydraulicconduct, &
-                                            evetrPrm%soil%sathydraulicconduct, dectrPrm%soil%sathydraulicconduct, &
-                                            grassPrm%soil%sathydraulicconduct, bsoilPrm%soil%sathydraulicconduct, &
-                                            waterPrm%soil%sathydraulicconduct], &
+               pavedPrm%soil%soil_depth, bldgPrm%soil%soil_depth, evetrPrm%soil%soil_depth, &
+               dectrPrm%soil%soil_depth, &
+               grassPrm%soil%soil_depth, bsoilPrm%soil%soil_depth, waterPrm%soil%soil_depth], &
+               SatHydraulicConduct_surf => [pavedPrm%soil%saturated_hydraulic_conductivity, bldgPrm%soil%saturated_hydraulic_conductivity, &
+                                            evetrPrm%soil%saturated_hydraulic_conductivity, dectrPrm%soil%saturated_hydraulic_conductivity, &
+                                            grassPrm%soil%saturated_hydraulic_conductivity, bsoilPrm%soil%saturated_hydraulic_conductivity, &
+                                            waterPrm%soil%saturated_hydraulic_conductivity], &
                WetThresh_surf => [pavedPrm%wetthresh, bldgPrm%wetthresh, evetrPrm%wetthresh, &
                                   dectrPrm%wetthresh, grassPrm%wetthresh, bsoilPrm%wetthresh, waterPrm%wetthresh] &
                )
@@ -5035,9 +5035,9 @@ CONTAINS
       pavedPrm%ohm%ohm_coef_lc(3)%winter_dry = OHM_coef(PavSurf, 4, 3)
       ! WRITE(*,*) 'PavSurf_OHM_COEF_A3', pavedPrm%ohm%ohm_coef_lc(3)
 
-      pavedPrm%soil%soildepth = SoilDepth(PavSurf)
-      pavedPrm%soil%soilstorecap = SoilStoreCap_surf(PavSurf)
-      pavedPrm%soil%sathydraulicconduct = SatHydraulicConduct(PavSurf)
+      pavedPrm%soil%soil_depth = SoilDepth(PavSurf)
+      pavedPrm%soil%soil_store_capacity = SoilStoreCap_surf(PavSurf)
+      pavedPrm%soil%saturated_hydraulic_conductivity = SatHydraulicConduct(PavSurf)
       pavedPrm%statelimit = StateLimit_surf(PavSurf)
       pavedPrm%irrfracpaved = IrrFracPaved
       pavedPrm%wetthresh = WetThresh_surf(PavSurf)
@@ -5074,9 +5074,9 @@ CONTAINS
       bldgPrm%ohm%ohm_coef_lc(3)%winter_wet = OHM_coef(BldgSurf, 3, 3)
       bldgPrm%ohm%ohm_coef_lc(3)%winter_dry = OHM_coef(BldgSurf, 4, 3)
 
-      bldgPrm%soil%soildepth = SoilDepth(BldgSurf)
-      bldgPrm%soil%soilstorecap = SoilStoreCap_surf(BldgSurf)
-      bldgPrm%soil%sathydraulicconduct = SatHydraulicConduct(BldgSurf)
+      bldgPrm%soil%soil_depth = SoilDepth(BldgSurf)
+      bldgPrm%soil%soil_store_capacity = SoilStoreCap_surf(BldgSurf)
+      bldgPrm%soil%saturated_hydraulic_conductivity = SatHydraulicConduct(BldgSurf)
       bldgPrm%statelimit = StateLimit_surf(BldgSurf)
       bldgPrm%irrfracbldgs = IrrFracBldgs
       bldgPrm%wetthresh = WetThresh_surf(BldgSurf)
@@ -5121,9 +5121,9 @@ CONTAINS
       dectrPrm%ohm%ohm_coef_lc(3)%winter_dry = OHM_coef(DecidSurf, 4, 3)
       ! WRITE(*,*) 'dectrPrm_OHM_COEF_A3', dectrPrm%ohm%ohm_coef_lc(3)
 
-      dectrPrm%soil%soildepth = SoilDepth(DecidSurf)
-      dectrPrm%soil%soilstorecap = SoilStoreCap_surf(DecidSurf)
-      dectrPrm%soil%sathydraulicconduct = SatHydraulicConduct(DecidSurf)
+      dectrPrm%soil%soil_depth = SoilDepth(DecidSurf)
+      dectrPrm%soil%soil_store_capacity = SoilStoreCap_surf(DecidSurf)
+      dectrPrm%soil%saturated_hydraulic_conductivity = SatHydraulicConduct(DecidSurf)
       ! dectrPrm%statelimit = StateLimit_surf(DecidSurf)
       dectrPrm%capmax_dec = CapMax_dec
       dectrPrm%capmin_dec = CapMin_dec
@@ -5184,9 +5184,9 @@ CONTAINS
       evetrPrm%ohm%ohm_coef_lc(3)%winter_dry = OHM_coef(ConifSurf, 4, 3)
       ! WRITE(*,*) 'evetrPrm_OHM_COEF_A3', evetrPrm%ohm%ohm_coef_lc(3)
 
-      evetrPrm%soil%soildepth = SoilDepth(ConifSurf)
-      evetrPrm%soil%soilstorecap = SoilStoreCap_surf(ConifSurf)
-      evetrPrm%soil%sathydraulicconduct = SatHydraulicConduct(ConifSurf)
+      evetrPrm%soil%soil_depth = SoilDepth(ConifSurf)
+      evetrPrm%soil%soil_store_capacity = SoilStoreCap_surf(ConifSurf)
+      evetrPrm%soil%saturated_hydraulic_conductivity = SatHydraulicConduct(ConifSurf)
       evetrPrm%statelimit = StateLimit_surf(ConifSurf)
       evetrPrm%irrfracevetr = IrrFracEveTr
       evetrPrm%wetthresh = WetThresh_surf(ConifSurf)
@@ -5243,9 +5243,9 @@ CONTAINS
       grassPrm%ohm%ohm_coef_lc(3)%winter_dry = OHM_coef(GrassSurf, 4, 3)
       !WRITE(*,*) 'grassPrm_OHM_COEF_A3', grassPrm%ohm%ohm_coef_lc(3)
 
-      grassPrm%soil%soildepth = SoilDepth(GrassSurf)
-      grassPrm%soil%soilstorecap = SoilStoreCap_surf(GrassSurf)
-      grassPrm%soil%sathydraulicconduct = SatHydraulicConduct(GrassSurf)
+      grassPrm%soil%soil_depth = SoilDepth(GrassSurf)
+      grassPrm%soil%soil_store_capacity = SoilStoreCap_surf(GrassSurf)
+      grassPrm%soil%saturated_hydraulic_conductivity = SatHydraulicConduct(GrassSurf)
       grassPrm%statelimit = StateLimit_surf(GrassSurf)
       grassPrm%irrfracgrass = IrrFracGrass
       grassPrm%wetthresh = WetThresh_surf(GrassSurf)
@@ -5300,9 +5300,9 @@ CONTAINS
       bsoilPrm%ohm%ohm_coef_lc(3)%winter_dry = OHM_coef(BSoilSurf, 4, 3)
       !WRITE(*,*) 'bsoilPrm_OHM_COEF_A3', bsoilPrm%ohm%ohm_coef_lc(3)
 
-      bsoilPrm%soil%soildepth = SoilDepth(BSoilSurf)
-      bsoilPrm%soil%soilstorecap = SoilStoreCap_surf(BSoilSurf)
-      bsoilPrm%soil%sathydraulicconduct = SatHydraulicConduct(BSoilSurf)
+      bsoilPrm%soil%soil_depth = SoilDepth(BSoilSurf)
+      bsoilPrm%soil%soil_store_capacity = SoilStoreCap_surf(BSoilSurf)
+      bsoilPrm%soil%saturated_hydraulic_conductivity = SatHydraulicConduct(BSoilSurf)
       bsoilPrm%statelimit = StateLimit_surf(BSoilSurf)
       bsoilPrm%irrfracbsoil = IrrFracBSoil
       bsoilPrm%wetthresh = WetThresh_surf(BSoilSurf)
@@ -5346,9 +5346,9 @@ CONTAINS
       waterPrm%ohm%ohm_coef_lc(3)%winter_dry = OHM_coef(WaterSurf, 4, 3)
       !WRITE(*,*) 'waterPrm_OHM_COEF_A3', waterPrm%ohm%ohm_coef_lc(3)
 
-      waterPrm%soil%soildepth = SoilDepth(WaterSurf)
-      waterPrm%soil%soilstorecap = SoilStoreCap_surf(WaterSurf)
-      waterPrm%soil%sathydraulicconduct = SatHydraulicConduct(WaterSurf)
+      waterPrm%soil%soil_depth = SoilDepth(WaterSurf)
+      waterPrm%soil%soil_store_capacity = SoilStoreCap_surf(WaterSurf)
+      waterPrm%soil%saturated_hydraulic_conductivity = SatHydraulicConduct(WaterSurf)
       waterPrm%statelimit = StateLimit_surf(WaterSurf)
       waterPrm%irrfracwater = IrrFracWater
       ! waterPrm%wetthresh = WetThresh_surf(WaterSurf)

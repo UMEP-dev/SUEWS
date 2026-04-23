@@ -36,9 +36,9 @@ type :: ohm_prm_shadow
 end type ohm_prm_shadow
 
 type :: soil_prm_shadow
-   real(c_double) :: soildepth = 0.0_c_double
-   real(c_double) :: soilstorecap = 0.0_c_double
-   real(c_double) :: sathydraulicconduct = 0.0_c_double
+   real(c_double) :: soil_depth = 0.0_c_double
+   real(c_double) :: soil_store_capacity = 0.0_c_double
+   real(c_double) :: saturated_hydraulic_conductivity = 0.0_c_double
 end type soil_prm_shadow
 
 type :: bioco2_prm_shadow
@@ -167,9 +167,9 @@ subroutine lc_grass_prm_pack(state, flat, n_flat, err)
       flat(idx) = state%ohm%ohm_coef_lc(i)%winter_wet; idx = idx + 1
    end do
 
-   flat(idx) = state%soil%soildepth; idx = idx + 1
-   flat(idx) = state%soil%soilstorecap; idx = idx + 1
-   flat(idx) = state%soil%sathydraulicconduct; idx = idx + 1
+   flat(idx) = state%soil%soil_depth; idx = idx + 1
+   flat(idx) = state%soil%soil_store_capacity; idx = idx + 1
+   flat(idx) = state%soil%saturated_hydraulic_conductivity; idx = idx + 1
 
    flat(idx) = state%statelimit; idx = idx + 1
    flat(idx) = state%irrfracgrass; idx = idx + 1
@@ -244,9 +244,9 @@ subroutine lc_grass_prm_unpack(flat, n_flat, state, err)
       state%ohm%ohm_coef_lc(i)%winter_wet = flat(idx); idx = idx + 1_c_int
    end do
 
-   state%soil%soildepth = flat(idx); idx = idx + 1_c_int
-   state%soil%soilstorecap = flat(idx); idx = idx + 1_c_int
-   state%soil%sathydraulicconduct = flat(idx); idx = idx + 1_c_int
+   state%soil%soil_depth = flat(idx); idx = idx + 1_c_int
+   state%soil%soil_store_capacity = flat(idx); idx = idx + 1_c_int
+   state%soil%saturated_hydraulic_conductivity = flat(idx); idx = idx + 1_c_int
 
    state%statelimit = flat(idx); idx = idx + 1_c_int
    state%irrfracgrass = flat(idx); idx = idx + 1_c_int

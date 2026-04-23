@@ -230,13 +230,13 @@ CONTAINS
                LAIMax => [evetrPrm%lai%laimax, &
                           dectrPrm%lai%laimax, &
                           grassPrm%lai%laimax], &
-               SoilStoreCap => [pavedPrm%soil%soilstorecap, &
-                                bldgPrm%soil%soilstorecap, &
-                                evetrPrm%soil%soilstorecap, &
-                                dectrPrm%soil%soilstorecap, &
-                                grassPrm%soil%soilstorecap, &
-                                bsoilPrm%soil%soilstorecap, &
-                                waterPrm%soil%soilstorecap], &
+               SoilStoreCap => [pavedPrm%soil%soil_store_capacity, &
+                                bldgPrm%soil%soil_store_capacity, &
+                                evetrPrm%soil%soil_store_capacity, &
+                                dectrPrm%soil%soil_store_capacity, &
+                                grassPrm%soil%soil_store_capacity, &
+                                bsoilPrm%soil%soil_store_capacity, &
+                                waterPrm%soil%soil_store_capacity], &
                grassLAIPower => grassPrm%lai%laipower &
                )
 

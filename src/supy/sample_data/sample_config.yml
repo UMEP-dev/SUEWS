@@ -15,6 +15,13 @@ model:
       groups:
         - "SUEWS"
   physics:
+    # Three fields (net_radiation, storage_heat, emissions) accept a
+    # family-tagged nested form too (gh#972), e.g.:
+    #   net_radiation:
+    #     narp:
+    #       value: 3
+    # The family tag is validated against its numeric codes; round-trip
+    # always emits the flat form below.
     net_radiation:
       value: 3
     emissions:

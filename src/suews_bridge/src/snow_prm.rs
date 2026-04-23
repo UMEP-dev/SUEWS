@@ -14,49 +14,49 @@ pub type SnowPrmValuesPayload = ValuesPayload;
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct SnowPrm {
-    pub crwmax: f64,
-    pub crwmin: f64,
-    pub narp_emis_snow: f64,
-    pub preciplimit: f64,
-    pub preciplimitalb: f64,
-    pub snowalbmax: f64,
-    pub snowalbmin: f64,
-    pub snowdensmax: f64,
-    pub snowdensmin: f64,
-    pub snowlimbldg: f64,
-    pub snowlimpaved: f64,
-    pub snowpacklimit: [f64; NSURF],
+    pub water_holding_capacity_max: f64,
+    pub water_holding_capacity_min: f64,
+    pub narp_emissivity_snow: f64,
+    pub precip_limit: f64,
+    pub precip_limit_albedo: f64,
+    pub snow_albedo_max: f64,
+    pub snow_albedo_min: f64,
+    pub snow_density_max: f64,
+    pub snow_density_min: f64,
+    pub snow_limit_building: f64,
+    pub snow_limit_paved: f64,
+    pub snowpack_limit: [f64; NSURF],
     pub snowprof_24hr_working: [f64; HOURS_PER_DAY],
     pub snowprof_24hr_holiday: [f64; HOURS_PER_DAY],
-    pub tau_a: f64,
-    pub tau_f: f64,
-    pub tau_r: f64,
-    pub tempmeltfact: f64,
-    pub radmeltfact: f64,
+    pub tau_cold_snow: f64,
+    pub tau_melting_snow: f64,
+    pub tau_refreezing_snow: f64,
+    pub temp_melt_factor: f64,
+    pub rad_melt_factor: f64,
 }
 
 impl Default for SnowPrm {
     fn default() -> Self {
         Self {
-            crwmax: 0.0,
-            crwmin: 0.0,
-            narp_emis_snow: 0.0,
-            preciplimit: 0.0,
-            preciplimitalb: 0.0,
-            snowalbmax: 0.0,
-            snowalbmin: 0.0,
-            snowdensmax: 0.0,
-            snowdensmin: 0.0,
-            snowlimbldg: 0.0,
-            snowlimpaved: 0.0,
-            snowpacklimit: [0.0; NSURF],
+            water_holding_capacity_max: 0.0,
+            water_holding_capacity_min: 0.0,
+            narp_emissivity_snow: 0.0,
+            precip_limit: 0.0,
+            precip_limit_albedo: 0.0,
+            snow_albedo_max: 0.0,
+            snow_albedo_min: 0.0,
+            snow_density_max: 0.0,
+            snow_density_min: 0.0,
+            snow_limit_building: 0.0,
+            snow_limit_paved: 0.0,
+            snowpack_limit: [0.0; NSURF],
             snowprof_24hr_working: [0.0; HOURS_PER_DAY],
             snowprof_24hr_holiday: [0.0; HOURS_PER_DAY],
-            tau_a: 0.0,
-            tau_f: 0.0,
-            tau_r: 0.0,
-            tempmeltfact: 0.0,
-            radmeltfact: 0.0,
+            tau_cold_snow: 0.0,
+            tau_melting_snow: 0.0,
+            tau_refreezing_snow: 0.0,
+            temp_melt_factor: 0.0,
+            rad_melt_factor: 0.0,
         }
     }
 }
@@ -76,50 +76,50 @@ impl SnowPrm {
         validate_flat_len(flat, SNOW_PRM_FLAT_LEN)?;
 
         Ok(Self {
-            crwmax: flat[0],
-            crwmin: flat[1],
-            narp_emis_snow: flat[2],
-            preciplimit: flat[3],
-            preciplimitalb: flat[4],
-            snowalbmax: flat[5],
-            snowalbmin: flat[6],
-            snowdensmax: flat[7],
-            snowdensmin: flat[8],
-            snowlimbldg: flat[9],
-            snowlimpaved: flat[10],
-            snowpacklimit: copy_fixed(&flat[11..18])?,
+            water_holding_capacity_max: flat[0],
+            water_holding_capacity_min: flat[1],
+            narp_emissivity_snow: flat[2],
+            precip_limit: flat[3],
+            precip_limit_albedo: flat[4],
+            snow_albedo_max: flat[5],
+            snow_albedo_min: flat[6],
+            snow_density_max: flat[7],
+            snow_density_min: flat[8],
+            snow_limit_building: flat[9],
+            snow_limit_paved: flat[10],
+            snowpack_limit: copy_fixed(&flat[11..18])?,
             snowprof_24hr_working: copy_fixed(&flat[18..42])?,
             snowprof_24hr_holiday: copy_fixed(&flat[42..66])?,
-            tau_a: flat[66],
-            tau_f: flat[67],
-            tau_r: flat[68],
-            tempmeltfact: flat[69],
-            radmeltfact: flat[70],
+            tau_cold_snow: flat[66],
+            tau_melting_snow: flat[67],
+            tau_refreezing_snow: flat[68],
+            temp_melt_factor: flat[69],
+            rad_melt_factor: flat[70],
         })
     }
 
     pub fn to_flat(&self) -> Vec<f64> {
         let mut out = Vec::with_capacity(SNOW_PRM_FLAT_LEN);
 
-        out.push(self.crwmax);
-        out.push(self.crwmin);
-        out.push(self.narp_emis_snow);
-        out.push(self.preciplimit);
-        out.push(self.preciplimitalb);
-        out.push(self.snowalbmax);
-        out.push(self.snowalbmin);
-        out.push(self.snowdensmax);
-        out.push(self.snowdensmin);
-        out.push(self.snowlimbldg);
-        out.push(self.snowlimpaved);
-        out.extend_from_slice(&self.snowpacklimit);
+        out.push(self.water_holding_capacity_max);
+        out.push(self.water_holding_capacity_min);
+        out.push(self.narp_emissivity_snow);
+        out.push(self.precip_limit);
+        out.push(self.precip_limit_albedo);
+        out.push(self.snow_albedo_max);
+        out.push(self.snow_albedo_min);
+        out.push(self.snow_density_max);
+        out.push(self.snow_density_min);
+        out.push(self.snow_limit_building);
+        out.push(self.snow_limit_paved);
+        out.extend_from_slice(&self.snowpack_limit);
         out.extend_from_slice(&self.snowprof_24hr_working);
         out.extend_from_slice(&self.snowprof_24hr_holiday);
-        out.push(self.tau_a);
-        out.push(self.tau_f);
-        out.push(self.tau_r);
-        out.push(self.tempmeltfact);
-        out.push(self.radmeltfact);
+        out.push(self.tau_cold_snow);
+        out.push(self.tau_melting_snow);
+        out.push(self.tau_refreezing_snow);
+        out.push(self.temp_melt_factor);
+        out.push(self.rad_melt_factor);
 
         out
     }
@@ -219,8 +219,8 @@ mod tests {
         mapped.insert("snowprof_24hr_working_07".to_string(), 0.3);
 
         let updated = snow_prm_from_map(&mapped).expect("map to state should succeed");
-        assert!((updated.snowalbmax - 0.91).abs() < 1.0e-12);
-        assert!((updated.snowpacklimit[6] - 12.5).abs() < 1.0e-12);
+        assert!((updated.snow_albedo_max - 0.91).abs() < 1.0e-12);
+        assert!((updated.snowpack_limit[6] - 12.5).abs() < 1.0e-12);
         assert!((updated.snowprof_24hr_working[7] - 0.3).abs() < 1.0e-12);
     }
 

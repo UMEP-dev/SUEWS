@@ -59,7 +59,7 @@ SUEWS-specific Python conventions. Complements ruff for standard linting.
 - **Underscore between every word**: `soil_depth` not `soildepth`, `lai_max` not `laimax`
 - **Domain abbreviations** are single tokens separated by underscores: `ohm_inc_qf`, `rsl_method`
 - **No redundant suffixes**: avoid appending `method`/`model` when the enum type already conveys this
-- **Exception**: STEBBS archetype parameters use PascalCase to match Fortran conventions
+- **YAML surface is snake_case throughout** — the pre-gh#1334 STEBBS PascalCase exception is retired; cross-layer naming (Fortran TYPE members, Rust struct fields) is tracked in #1324/#1325/#1326
 - See `00-project-essentials.md` for full naming rules and legacy migration policy
 
 ## Style Guidelines

@@ -203,101 +203,101 @@ class SUEWSConfig(BaseModel):
 
     # Class-level constant for STEBBS validation parameters
     STEBBS_REQUIRED_PARAMS: ClassVar[List[str]] = [
-        "WallInternalConvectionCoefficient",
-        "InternalMassConvectionCoefficient",
-        "FloorInternalConvectionCoefficient",
-        "WindowInternalConvectionCoefficient",
-        "WallExternalConvectionCoefficient",
-        "WindowExternalConvectionCoefficient",
-        "GroundDepth",
-        "ExternalGroundConductivity",
-        "MetabolismThreshold",
-        "LatentSensibleRatio",
-        "DaylightControl",
-        "LightingIlluminanceThreshold",
-        "ApplianceProfile",
-        "LightingPowerDensity",
-        "HeatingSystemEfficiency",
-        "MaxCoolingPower",
-        "CoolingSystemCOP",
-        "VentilationRate",
-        "InitialOutdoorTemperature",
-        "InitialIndoorTemperature",
-        "AnnualMeanAirTemperature",
-        "MonthMeanAirTemperature_diffmax",
-        "WaterTankWallThickness",
-        "MainsWaterTemperature",
-        "WaterTankSurfaceArea",
-        "HotWaterHeatingSetpointTemperature",
-        "HotWaterTankWallEmissivity",
-        "DHWVesselWallThickness",
-        "DHWWaterVolume",
-        "DHWSurfaceArea",
-        "HotWaterFlowRate",
-        "HotWaterFlowProfile",
-        "DHWSpecificHeatCapacity",
-        "HotWaterTankSpecificHeatCapacity",
-        "DHWVesselSpecificHeatCapacity",
-        "DHWDensity",
-        "HotWaterTankWallDensity",
-        "DHWVesselDensity",
-        "HotWaterTankBuildingWallViewFactor",
-        "HotWaterTankInternalMassViewFactor",
-        "HotWaterTankWallConductivity",
-        "HotWaterTankInternalWallConvectionCoefficient",
-        "HotWaterTankExternalWallConvectionCoefficient",
-        "DHWVesselWallConductivity",
-        "DHWVesselInternalWallConvectionCoefficient",
-        "DHWVesselExternalWallConvectionCoefficient",
-        "DHWVesselWallEmissivity",
-        "HotWaterHeatingEfficiency",
+        "wall_internal_convection_coefficient",
+        "internal_mass_convection_coefficient",
+        "floor_internal_convection_coefficient",
+        "window_internal_convection_coefficient",
+        "wall_external_convection_coefficient",
+        "window_external_convection_coefficient",
+        "ground_depth",
+        "external_ground_conductivity",
+        "metabolism_threshold",
+        "latent_sensible_ratio",
+        "daylight_control",
+        "lighting_illuminance_threshold",
+        "appliance_profile",
+        "lighting_power_density",
+        "heating_system_efficiency",
+        "max_cooling_power",
+        "cooling_system_cop",
+        "ventilation_rate",
+        "initial_outdoor_temperature",
+        "initial_indoor_temperature",
+        "annual_mean_air_temperature",
+        "month_mean_air_temperature_diffmax",
+        "hot_water_tank_wall_thickness",
+        "mains_water_temperature",
+        "hot_water_tank_surface_area",
+        "hot_water_heating_setpoint_temperature",
+        "hot_water_tank_wall_emissivity",
+        "hot_water_vessel_wall_thickness",
+        "hot_water_volume",
+        "hot_water_surface_area",
+        "hot_water_flow_rate",
+        "hot_water_flow_profile",
+        "hot_water_specific_heat_capacity",
+        "hot_water_tank_specific_heat_capacity",
+        "hot_water_vessel_specific_heat_capacity",
+        "hot_water_density",
+        "hot_water_tank_wall_density",
+        "hot_water_vessel_density",
+        "hot_water_tank_building_wall_view_factor",
+        "hot_water_tank_internal_mass_view_factor",
+        "hot_water_tank_wall_conductivity",
+        "hot_water_tank_internal_wall_convection_coefficient",
+        "hot_water_tank_external_wall_convection_coefficient",
+        "hot_water_vessel_wall_conductivity",
+        "hot_water_vessel_internal_wall_convection_coefficient",
+        "hot_water_vessel_external_wall_convection_coefficient",
+        "hot_water_vessel_wall_emissivity",
+        "hot_water_heating_efficiency",
     ]
 
     ARCHETYPE_REQUIRED_PARAMS: ClassVar[List[str]] = [
-        "BuildingType",
-        "BuildingName",
-        "BuildingCount",
-        "Occupants",
-        "MetabolismProfile",
-        "stebbs_Height",
-        "FootprintArea",
-        "WallExternalArea",
-        "RatioInternalVolume",
-        "InternalMassArea",
-        "WWR",
-        "WallThickness",
-        "WallEffectiveConductivity",
-        "WallDensity",
-        "WallCp",
-        "WallOuterCapFrac",
-        "WallExternalEmissivity",
-        "WallInternalEmissivity",
-        "WallTransmissivity",
-        "WallAbsorbtivity",
-        "WallReflectivity",
-        "FloorThickness",
-        "GroundFloorEffectiveConductivity",
-        "GroundFloorDensity",
-        "GroundFloorCp",
-        "WindowThickness",
-        "WindowEffectiveConductivity",
-        "WindowDensity",
-        "WindowCp",
-        "WindowExternalEmissivity",
-        "WindowInternalEmissivity",
-        "WindowTransmissivity",
-        "WindowAbsorbtivity",
-        "WindowReflectivity",
-        "InternalMassDensity",
-        "InternalMassCp",
-        "InternalMassEmissivity",
-        "MaxHeatingPower",
-        "WaterTankWaterVolume",
-        "MaximumHotWaterHeatingPower",
-        "HeatingSetpointTemperature",
-        "CoolingSetpointTemperature",
-        "HeatingSetpointTemperatureProfile",
-        "CoolingSetpointTemperatureProfile",
+        "building_type",
+        "building_name",
+        "building_count",
+        "occupants",
+        "metabolism_profile",
+        "building_height",
+        "footprint_area",
+        "wall_external_area",
+        "internal_volume_ratio",
+        "internal_mass_area",
+        "window_to_wall_ratio",
+        "wall_thickness",
+        "wall_effective_conductivity",
+        "wall_density",
+        "wall_specific_heat_capacity",
+        "wall_outer_heat_capacity_fraction",
+        "wall_external_emissivity",
+        "wall_internal_emissivity",
+        "wall_transmissivity",
+        "wall_absorptivity",
+        "wall_reflectivity",
+        "ground_floor_thickness",
+        "ground_floor_effective_conductivity",
+        "ground_floor_density",
+        "ground_floor_specific_heat_capacity",
+        "window_thickness",
+        "window_effective_conductivity",
+        "window_density",
+        "window_specific_heat_capacity",
+        "window_external_emissivity",
+        "window_internal_emissivity",
+        "window_transmissivity",
+        "window_absorptivity",
+        "window_reflectivity",
+        "internal_mass_density",
+        "internal_mass_specific_heat_capacity",
+        "internal_mass_emissivity",
+        "max_heating_power",
+        "hot_water_tank_volume",
+        "maximum_hot_water_heating_power",
+        "heating_setpoint_temperature",
+        "cooling_setpoint_temperature",
+        "heating_setpoint_temperature_profile",
+        "cooling_setpoint_temperature_profile",
     ]
 
     # Sort the filtered columns numerically
@@ -1624,42 +1624,42 @@ class SUEWSConfig(BaseModel):
                 if val is None:
                     missing_params.append(param)
 
-        # Check if WWR (Window-to-Wall Ratio) is present and zero or one
-        wwr = getattr(building_archetype, "WWR", None)
+        # Check if window_to_wall_ratio is present and zero or one
+        wwr = getattr(building_archetype, "window_to_wall_ratio", None)
         wwr_val = _unwrap_value(wwr) if wwr is not None else None
 
         # Window parameter lists
         window_params_stebbs = [
-            "WindowInternalConvectionCoefficient",
-            "WindowExternalConvectionCoefficient",
+            "window_internal_convection_coefficient",
+            "window_external_convection_coefficient",
         ]
         window_params_bldgarc = [
-            "WindowThickness",
-            "WindowEffectiveConductivity",
-            "WindowDensity",
-            "WindowCp",
-            "WindowExternalEmissivity",
-            "WindowInternalEmissivity",
-            "WindowTransmissivity",
-            "WindowAbsorbtivity",
-            "WindowReflectivity",
+            "window_thickness",
+            "window_effective_conductivity",
+            "window_density",
+            "window_specific_heat_capacity",
+            "window_external_emissivity",
+            "window_internal_emissivity",
+            "window_transmissivity",
+            "window_absorptivity",
+            "window_reflectivity",
         ]
 
-        # Wall parameter lists for WWR == 1.0
+        # Wall parameter lists for window_to_wall_ratio == 1.0
         wall_params_stebbs = [
-            "WallExternalConvectionCoefficient",
-            "WallInternalConvectionCoefficient",
+            "wall_external_convection_coefficient",
+            "wall_internal_convection_coefficient",
             ]
         wall_params_bldgarc = [
-            "WallExternalEmissivity",
-            "WallInternalEmissivity",
-            "WallTransmissivity",
-            "WallAbsorbtivity",
-            "WallReflectivity",
-            "WallThickness",
-            "WallEffectiveConductivity",
-            "WallDensity",
-            "WallCp",
+            "wall_external_emissivity",
+            "wall_internal_emissivity",
+            "wall_transmissivity",
+            "wall_absorptivity",
+            "wall_reflectivity",
+            "wall_thickness",
+            "wall_effective_conductivity",
+            "wall_density",
+            "wall_specific_heat_capacity",
         ]
 
         # Check setpoint value
@@ -1672,23 +1672,23 @@ class SUEWSConfig(BaseModel):
 
         # Setpoint parameter groups
         setpoint_params_bldgarc = [
-            "HeatingSetpointTemperature",
-            "CoolingSetpointTemperature",
+            "heating_setpoint_temperature",
+            "cooling_setpoint_temperature",
         ]
         setpoint_profile_params_bldgarc = [
-            "HeatingSetpointTemperatureProfile",
-            "CoolingSetpointTemperatureProfile",
+            "heating_setpoint_temperature_profile",
+            "cooling_setpoint_temperature_profile",
         ]
 
         # Daylight control parameter groups
-        daylightcontrol = getattr(stebbs, "DaylightControl", None)
+        daylightcontrol = getattr(stebbs, "daylight_control", None)
         daylightcontrol_val = _unwrap_value(daylightcontrol) if daylightcontrol is not None else None
         try:
             daylightcontrol_val = int(daylightcontrol_val)
         except (TypeError, ValueError):
             daylightcontrol_val = None
 
-        daylightcontrol_params_stebbs = ["LightingIlluminanceThreshold"]
+        daylightcontrol_params_stebbs = ["lighting_illuminance_threshold"]
 
         # Determine which params to require based on WWR
         if wwr_val == 0.0:
@@ -2099,7 +2099,7 @@ class SUEWSConfig(BaseModel):
         layer_field : str
             Attribute name on each layer object (e.g. "alb", "emis").
         archetype_attr : str
-            Attribute name on building_archetype (e.g. "WallReflectivity").
+            Attribute name on building_archetype (e.g. "wall_reflectivity").
         property_name : str
             Human-readable name for messages (e.g. "albedo", "emissivity").
         """
@@ -2203,11 +2203,11 @@ class SUEWSConfig(BaseModel):
         Notes
         -----
         - Checks that all wall albedo values in vertical_layers.walls are identical (within tolerance).
-        - Checks that the common wall albedo matches properties.building_archetype.WallReflectivity.
+        - Checks that the common wall albedo matches properties.building_archetype.wall_reflectivity.
         - Used when same_albedo_wall option is enabled.
         """
         return self._validate_same_surface_property(
-            site, site_index, "wall", "walls", "alb", "WallReflectivity",
+            site, site_index, "wall", "walls", "alb", "wall_reflectivity",
             "same_albedo_wall", "albedo",
         )
 
@@ -2223,11 +2223,11 @@ class SUEWSConfig(BaseModel):
         Notes
         -----
         - Checks that all roof albedo values in vertical_layers.roofs are identical (within tolerance).
-        - Checks that the common roof albedo matches properties.building_archetype.RoofReflectivity.
+        - Checks that the common roof albedo matches properties.building_archetype.roof_reflectivity.
         - Used when same_albedo_roof option is enabled.
         """
         return self._validate_same_surface_property(
-            site, site_index, "roof", "roofs", "alb", "RoofReflectivity",
+            site, site_index, "roof", "roofs", "alb", "roof_reflectivity",
             "same_albedo_roof", "albedo",
         )
 
@@ -2243,11 +2243,11 @@ class SUEWSConfig(BaseModel):
         Notes
         -----
         - Checks that all wall emissivity values in vertical_layers.walls are identical (within tolerance).
-        - Checks that the common wall emissivity matches properties.building_archetype.WallExternalEmissivity.
+        - Checks that the common wall emissivity matches properties.building_archetype.wall_external_emissivity.
         - Used when same_emissivity_wall option is enabled.
         """
         return self._validate_same_surface_property(
-            site, site_index, "wall", "walls", "emis", "WallExternalEmissivity",
+            site, site_index, "wall", "walls", "emis", "wall_external_emissivity",
             "same_emissivity_wall", "emissivity",
         )
 
@@ -2263,11 +2263,11 @@ class SUEWSConfig(BaseModel):
         Notes
         -----
         - Checks that all roof emissivity values in vertical_layers.roofs are identical (within tolerance).
-        - Checks that the common roof emissivity matches properties.building_archetype.RoofExternalEmissivity.
+        - Checks that the common roof emissivity matches properties.building_archetype.roof_external_emissivity.
         - Used when same_emissivity_roof option is enabled.
         """
         return self._validate_same_surface_property(
-            site, site_index, "roof", "roofs", "emis", "RoofExternalEmissivity",
+            site, site_index, "roof", "roofs", "emis", "roof_external_emissivity",
             "same_emissivity_roof", "emissivity",
         )
 
@@ -2299,7 +2299,7 @@ class SUEWSConfig(BaseModel):
 
         If SPARTACUS is enabled, this function enforces that:
         - The building height (bldgh) does not exceed the domain top (height[nlayer]).
-        - If stebbs_method == 1, the archetype's stebbs_Height also does not exceed the domain top.
+        - If stebbs_method == 1, the archetype's building_height also does not exceed the domain top.
 
         Parameters
         ----------
@@ -2316,7 +2316,7 @@ class SUEWSConfig(BaseModel):
         Notes
         -----
         - The domain top is defined as the last entry in the vertical_layers.height array (height[nlayer]).
-        - If stebbs_method == 1, both bldgh and stebbs_Height are checked.
+        - If stebbs_method == 1, both bldgh and building_height are checked.
         - All issues are reported with the site name for clarity.
         """
         issues: List[str] = []
@@ -2343,7 +2343,7 @@ class SUEWSConfig(BaseModel):
                     f"Site '{site_name}' has bldgh={bldgh} exceeding SPARTACUS domain top (height[{nlayer}]={spartacus_top})."
                 )
 
-            # If stebbs == 1, also check stebbs_Height
+            # If stebbs == 1, also check building_height
             stebbs_method = _unwrap_value(getattr(self.model.physics, "stebbs", None))
 
             try:
@@ -2353,10 +2353,10 @@ class SUEWSConfig(BaseModel):
 
             if stebbs_method_val == 1:
                 building_archetype = getattr(props, "building_archetype", None)
-                stebbs_height = _unwrap_value(getattr(building_archetype, "stebbs_Height", None)) if building_archetype else None
-                if stebbs_height is not None and stebbs_height > spartacus_top:
+                building_height = _unwrap_value(getattr(building_archetype, "building_height", None)) if building_archetype else None
+                if building_height is not None and building_height > spartacus_top:
                     issues.append(
-                        f"Site '{site_name}' has stebbs_Height={stebbs_height} exceeding SPARTACUS domain top (height[{nlayer}]={spartacus_top})."
+                        f"Site '{site_name}' has building_height={building_height} exceeding SPARTACUS domain top (height[{nlayer}]={spartacus_top})."
                     )
         return issues
 
@@ -3391,8 +3391,8 @@ class SUEWSConfig(BaseModel):
             # Snow profiles
             if site.properties and site.properties.snow:
                 hourly_profiles.append((
-                    "snow.snowprof_24hr",
-                    site.properties.snow.snowprof_24hr,
+                    "snow.snow_profile_24hr",
+                    site.properties.snow.snow_profile_24hr,
                 ))
 
             # Irrigation profiles

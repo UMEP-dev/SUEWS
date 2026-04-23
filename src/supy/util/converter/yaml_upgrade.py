@@ -20,11 +20,16 @@ import yaml
 from ...data_model.core.field_renames import (
     ALL_FIELD_RENAMES,
     ARCHETYPEPROPERTIES_RENAMES,
+    ARCHETYPEPROPERTIES_PASCAL_RENAMES,
     DECTRPROPERTIES_RENAMES,
     EVETRPROPERTIES_RENAMES,
     LAIPARAMS_RENAMES,
     MODELPHYSICS_SUFFIX_RENAMES,
     SNOWPARAMS_RENAMES,
+    SNOWPARAMS_INTERMEDIATE_RENAMES,
+    ARCHETYPEPROPERTIES_DEV3_RENAMES,
+    STEBBSPROPERTIES_DEV3_RENAMES,
+    STEBBSPROPERTIES_RENAMES,
     SURFACEPROPERTIES_RENAMES,
     VEGETATEDSURFACEPROPERTIES_RENAMES,
     rename_keys_recursive,
@@ -257,13 +262,19 @@ _PROFILE_RENAME_PAIRS: tuple[tuple[str, float], ...] = (
 # label — the first dev bump after 2026.5 Category 1, following the
 # dev-label convention in `.claude/rules/python/schema-versioning.md`:
 # eight STEBBS ArchetypeProperties fields with the fused `ext` fragment
-# renamed to the spelt-out `External` form. Sourced from
-# ARCHETYPEPROPERTIES_RENAMES so the single registry in
-# `field_renames.py` remains the authoritative mapping; the tuple form
-# here is only what the `_rename_field` helper consumes so every rename
-# lands in the migration log (TestNoSilentFieldDrops enforces that).
-_ARCH_EXT_RENAMES_2026_5_TO_DEV1: tuple[tuple[str, str], ...] = tuple(
-    ARCHETYPEPROPERTIES_RENAMES.items()
+# renamed to the spelt-out `External` form. Declared inline (not sourced
+# from ARCHETYPEPROPERTIES_RENAMES after gh#1334) because ARCHETYPEPROPERTIES_RENAMES
+# now maps directly to the 2026.5.dev3 snake_case final — the Cat 5 stop
+# at the intermediate PascalCase shape has to live somewhere.
+_ARCH_EXT_RENAMES_2026_5_TO_DEV1: tuple[tuple[str, str], ...] = (
+    ("WallextThickness", "WallExternalThickness"),
+    ("WallextEffectiveConductivity", "WallExternalEffectiveConductivity"),
+    ("WallextDensity", "WallExternalDensity"),
+    ("WallextCp", "WallExternalCp"),
+    ("RoofextThickness", "RoofExternalThickness"),
+    ("RoofextEffectiveConductivity", "RoofExternalEffectiveConductivity"),
+    ("RoofextDensity", "RoofExternalDensity"),
+    ("RoofextCp", "RoofExternalCp"),
 )
 
 # Category 1 pairs only — fused -> Cat-1 snake_case-with-suffix (e.g.
@@ -293,6 +304,27 @@ _MODELPHYSICS_CAT1_RENAMES: dict[str, str] = {
     "stebbsmethod": "stebbs_method",
     "rcmethod": "rc_method",
 }
+# Snow Category 1 pairs only — fused -> Cat 1 snake_case (e.g.
+# `preciplimit` -> `precip_limit`). Declared inline because
+# SNOWPARAMS_RENAMES now short-circuits straight to the 2026.5.dev3 final
+# (`preciplimit` -> `temperature_rain_snow_threshold` etc.); the migrator
+# still needs an explicit Cat 1 stop when a caller pins
+# ``--target-version 2026.5``.
+_SNOWPARAMS_CAT1_RENAMES: dict[str, str] = {
+    "crwmax": "water_holding_capacity_max",
+    "crwmin": "water_holding_capacity_min",
+    "preciplimit": "precip_limit",
+    "preciplimitalb": "precip_limit_albedo",
+    "snowalbmax": "snow_albedo_max",
+    "snowalbmin": "snow_albedo_min",
+    "snowdensmin": "snow_density_min",
+    "snowdensmax": "snow_density_max",
+    "snowlimbldg": "snow_limit_building",
+    "snowlimpaved": "snow_limit_paved",
+    "tempmeltfact": "temp_melt_factor",
+    "radmeltfact": "rad_melt_factor",
+}
+
 _CATEGORY1_ONLY_RENAMES: dict[str, str] = {
     **_MODELPHYSICS_CAT1_RENAMES,
     **SURFACEPROPERTIES_RENAMES,
@@ -300,7 +332,7 @@ _CATEGORY1_ONLY_RENAMES: dict[str, str] = {
     **VEGETATEDSURFACEPROPERTIES_RENAMES,
     **EVETRPROPERTIES_RENAMES,
     **DECTRPROPERTIES_RENAMES,
-    **SNOWPARAMS_RENAMES,
+    **_SNOWPARAMS_CAT1_RENAMES,
 }
 
 # Categories 2 + 3 of #1256 (gh#1321), shipping under the 2026.5.dev2
@@ -316,6 +348,59 @@ _CATEGORY1_ONLY_RENAMES: dict[str, str] = {
 _MODELPHYSICS_SUFFIX_RENAMES_TABLE: tuple[tuple[str, str], ...] = tuple(
     MODELPHYSICS_SUFFIX_RENAMES.items()
 ) + (("setpointmethod", "setpoint"),)
+
+
+# gh#1334 (2026.5.dev2 -> 2026.5.dev3): convert STEBBS PascalCase to snake_case
+# on the full user-facing YAML surface plus opaque-abbreviation clean-ups in
+# SnowParams. Three tables — one per container affected under `site.properties`.
+# Sourced from the class dicts in field_renames.py so that registry stays the
+# single authoritative mapping.
+_ARCH_RENAMES_DEV2_TO_DEV3: tuple[tuple[str, str], ...] = tuple(
+    # Iterate only over the PascalCase entries (skip the pre-gh#1327 `Wallext`
+    # legacy fused keys — a 2026.5.dev2 YAML has already been upgraded past
+    # those through the Cat 5 intermediate handler, so they will not appear
+    # here). The `WallExternal*` / `RoofExternal*` pairs come from
+    # ARCHETYPEPROPERTIES_PASCAL_RENAMES; everything else is in
+    # ARCHETYPEPROPERTIES_RENAMES keyed by its own PascalCase form.
+    (old, new)
+    for old, new in ARCHETYPEPROPERTIES_RENAMES.items()
+    if not (old.startswith("Wallext") or old.startswith("Roofext"))
+) + tuple(ARCHETYPEPROPERTIES_PASCAL_RENAMES.items())
+
+_STEBBS_RENAMES_DEV2_TO_DEV3: tuple[tuple[str, str], ...] = tuple(
+    STEBBSPROPERTIES_RENAMES.items()
+)
+
+# SnowParams: the six pre-existing intermediate renames (precip_limit ->
+# temperature_rain_snow_threshold etc.) PLUS the five new snake_case
+# renames for fields that had no fused predecessor (tau_a -> tau_cold_snow,
+# etc.). A 2026.5.dev2 YAML carries the intermediate snake_case keys, not
+# the fused legacy, so the migrator sources from
+# SNOWPARAMS_INTERMEDIATE_RENAMES for the first six and picks out the
+# "self-keyed" entries in SNOWPARAMS_RENAMES for the remaining five.
+_SNOW_RENAMES_DEV2_TO_DEV3: tuple[tuple[str, str], ...] = tuple(
+    SNOWPARAMS_INTERMEDIATE_RENAMES.items()
+) + (
+    ("tau_a", "tau_cold_snow"),
+    ("tau_f", "tau_melting_snow"),
+    ("tau_r", "tau_refreezing_snow"),
+    ("snowprof_24hr", "snow_profile_24hr"),
+    ("narp_emis_snow", "narp_emissivity_snow"),
+)
+
+# gh#1334 follow-through (2026.5.dev3 -> 2026.5.dev4): unify the STEBBS
+# hot-water subsystem under a single `hot_water_*` prefix. Drops the
+# opaque `dhw_` acronym and the split `water_tank_*` sibling so the
+# YAML surface carries one prefix with `_tank_` / `_vessel_` component
+# qualifiers. Sourced from the intermediate dicts in field_renames.py
+# so that registry remains the single authoritative mapping.
+_ARCH_RENAMES_DEV3_TO_DEV4: tuple[tuple[str, str], ...] = tuple(
+    ARCHETYPEPROPERTIES_DEV3_RENAMES.items()
+)
+
+_STEBBS_RENAMES_DEV3_TO_DEV4: tuple[tuple[str, str], ...] = tuple(
+    STEBBSPROPERTIES_DEV3_RENAMES.items()
+)
 
 
 # ---------------------------------------------------------------------------
@@ -500,16 +585,89 @@ def _migrate_2026_4_to_2026_5(cfg: dict) -> dict:
         raise YamlUpgradeError(str(exc)) from exc
 
 
-def _migrate_2026_5_to_current(cfg: dict) -> dict:
-    """Upgrade 2026.5-shaped YAMLs to the current ``2026.5.dev2`` schema.
+def _apply_stebbs_snake_renames(cfg: dict) -> None:
+    """Apply gh#1334 STEBBS + Snow + Archetype PascalCase -> snake_case in place.
 
-    Chains two dev-label deltas:
+    Walks three containers under ``site.properties``:
+
+    * ``building_archetype`` — 62 PascalCase ArchetypeProperties fields
+      (plus the eight ``WallExternal``/``RoofExternal`` intermediate pairs
+      from the Cat 5 gh#1327 sweep) rewritten to snake_case.
+    * ``stebbs`` — 50 StebbsProperties fields rewritten to snake_case.
+    * ``snow`` — 11 snake_case -> snake_case clean-ups (semantic fix for
+      ``precip_limit`` -> ``temperature_rain_snow_threshold`` plus
+      clarity renames for ``tau_a/f/r``, ``snowprof_24hr``,
+      ``narp_emis_snow``, ``temp_melt_factor``, ``rad_melt_factor``).
+
+    Each rename flows through ``_rename_field`` so a per-field log line
+    is emitted (``TestNoSilentFieldDrops`` enforces this).
+    """
+    for arch in _walk_site_container(cfg, "building_archetype"):
+        for old, new in _ARCH_RENAMES_DEV2_TO_DEV3:
+            _rename_field(arch, old, new)
+    for stebbs in _walk_site_container(cfg, "stebbs"):
+        for old, new in _STEBBS_RENAMES_DEV2_TO_DEV3:
+            _rename_field(stebbs, old, new)
+    for snow in _walk_site_container(cfg, "snow"):
+        for old, new in _SNOW_RENAMES_DEV2_TO_DEV3:
+            _rename_field(snow, old, new)
+
+
+def _apply_hot_water_unification_renames(cfg: dict) -> None:
+    """Apply gh#1334 follow-through dev3 -> dev4 hot-water prefix unification.
+
+    Rewrites the thirteen STEBBS ``dhw_*`` / ``water_tank_*`` fields
+    and the one ArchetypeProperties ``water_tank_water_volume`` field
+    to the unified ``hot_water_*`` prefix. Tank vs vessel separation is
+    preserved through ``_tank_`` / ``_vessel_`` component qualifiers.
+
+    Each rename flows through ``_rename_field`` so a per-field log line
+    is emitted (``TestNoSilentFieldDrops`` enforces this).
+    """
+    for arch in _walk_site_container(cfg, "building_archetype"):
+        for old, new in _ARCH_RENAMES_DEV3_TO_DEV4:
+            _rename_field(arch, old, new)
+    for stebbs in _walk_site_container(cfg, "stebbs"):
+        for old, new in _STEBBS_RENAMES_DEV3_TO_DEV4:
+            _rename_field(stebbs, old, new)
+
+
+def _migrate_2026_5_dev3_to_current(cfg: dict) -> dict:
+    """Upgrade 2026.5.dev3-shaped YAMLs to the current ``2026.5.dev4`` schema.
+
+    Applies the gh#1334 follow-through hot-water unification: 14 renames
+    under ``site.properties.building_archetype`` and ``.stebbs``.
+    """
+    cfg = _strip_internal_only_fields(cfg)
+    _apply_hot_water_unification_renames(cfg)
+    return cfg
+
+
+def _migrate_2026_5_dev2_to_current(cfg: dict) -> dict:
+    """Upgrade 2026.5.dev2-shaped YAMLs to the current ``2026.5.dev4`` schema.
+
+    Chains gh#1334 (dev2 -> dev3: retires STEBBS PascalCase; 124 renames)
+    and the gh#1334 follow-through (dev3 -> dev4: hot-water prefix
+    unification; 14 renames).
+    """
+    cfg = _strip_internal_only_fields(cfg)
+    _apply_stebbs_snake_renames(cfg)
+    _apply_hot_water_unification_renames(cfg)
+    return cfg
+
+
+def _migrate_2026_5_to_current(cfg: dict) -> dict:
+    """Upgrade 2026.5-shaped YAMLs to the current ``2026.5.dev3`` schema.
+
+    Chains three dev-label deltas:
 
     * 2026.5 -> 2026.5.dev1 (Category 5 of #1256, gh#1327): eight STEBBS
       ``ArchetypeProperties`` ``ext`` fields rewritten to ``External``.
     * 2026.5.dev1 -> 2026.5.dev2 (Categories 2 + 3 of #1256, gh#1321):
       15 ``ModelPhysics`` fields with the redundant ``_method`` /
       ``_model`` suffix dropped and/or domain abbreviations expanded.
+    * 2026.5.dev2 -> 2026.5.dev3 (gh#1334): full STEBBS + Snow YAML
+      surface converted to snake_case (124 renames).
 
     Each rename flows through ``_rename_field`` so a dedicated log line
     is emitted per field — ``TestNoSilentFieldDrops`` enforces that. The
@@ -519,31 +677,32 @@ def _migrate_2026_5_to_current(cfg: dict) -> dict:
 
     Under the dev-label convention
     (``.claude/rules/python/schema-versioning.md``) the release PR will
-    collapse both steps into a single ``(<prev>, 2026.5)`` migration.
+    collapse all four steps into a single ``(<prev>, 2026.5)`` migration.
     """
     cfg = _strip_internal_only_fields(cfg)
     _apply_arch_ext_renames(cfg)
     _apply_modelphysics_suffix_renames(cfg)
+    _apply_stebbs_snake_renames(cfg)
+    _apply_hot_water_unification_renames(cfg)
     return cfg
 
 
 def _migrate_2026_5_dev1_to_current(cfg: dict) -> dict:
-    """Upgrade 2026.5.dev1-shaped YAMLs to the current ``2026.5.dev2`` schema.
+    """Upgrade 2026.5.dev1-shaped YAMLs to the current ``2026.5.dev4`` schema.
 
-    Applies Categories 2 + 3 of #1256 (gh#1321): 15 ``ModelPhysics``
-    fields under ``model.physics`` with redundant ``_method`` / ``_model``
-    suffixes dropped and opaque domain abbreviations (SMD, RSL, FAI, RC,
-    GS) expanded. Rename table is sourced from
-    ``MODELPHYSICS_SUFFIX_RENAMES`` in
-    ``src/supy/data_model/core/field_renames.py``.
+    Chains the Cat 2+3 ModelPhysics suffix/abbreviation rewrite (gh#1321),
+    the gh#1334 STEBBS/Snow snake_case sweep, and the gh#1334 follow-through
+    hot-water prefix unification.
     """
     cfg = _strip_internal_only_fields(cfg)
     _apply_modelphysics_suffix_renames(cfg)
+    _apply_stebbs_snake_renames(cfg)
+    _apply_hot_water_unification_renames(cfg)
     return cfg
 
 
 def _migrate_2026_4_to_current(cfg: dict) -> dict:
-    """Chain 2026.4 -> 2026.5 Cat. 1 -> dev1 STEBBS ext -> dev2 suffix renames."""
+    """Chain 2026.4 -> 2026.5 Cat 1 -> dev1 ext -> dev2 suffix -> dev3 STEBBS snake."""
     cfg = _migrate_2026_4_to_2026_5(cfg)
     return _migrate_2026_5_to_current(cfg)
 
@@ -594,8 +753,12 @@ _HANDLERS: dict[tuple[str, str], Handler] = {
     ("2025.12", "2026.4"): _migrate_2025_12_to_2026_4,
     # Intermediate stops at 2026.5 (callers pinning Category 1 only).
     ("2026.4", "2026.5"): _migrate_2026_4_to_2026_5,
-    # Chains to the current schema (2026.5.dev2: Cat 1 snake_case sweep
-    # + Cat 5 STEBBS ext rename + Cat 2+3 ModelPhysics suffix drop).
+    # Chains to the current schema (2026.5.dev4: Cat 1 snake_case sweep
+    # + Cat 5 STEBBS ext rename + Cat 2+3 ModelPhysics suffix drop
+    # + gh#1334 STEBBS/Snow snake_case + gh#1334 follow-through hot-water
+    # prefix unification).
+    ("2026.5.dev3", CURRENT_SCHEMA_VERSION): _migrate_2026_5_dev3_to_current,
+    ("2026.5.dev2", CURRENT_SCHEMA_VERSION): _migrate_2026_5_dev2_to_current,
     ("2026.5.dev1", CURRENT_SCHEMA_VERSION): _migrate_2026_5_dev1_to_current,
     ("2026.5", CURRENT_SCHEMA_VERSION): _migrate_2026_5_to_current,
     ("2026.4", CURRENT_SCHEMA_VERSION): _migrate_2026_4_to_current,

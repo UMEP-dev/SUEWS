@@ -394,13 +394,13 @@ def check_rcmethod2_facet(required_params, building_archetype, site_idx, site_gr
 
 def check_outercapfrac_facet(building_archetype, facet, site_idx, site_gridid):
     """
-    Validate that the OuterCapFrac parameter for a given building facet is explicitly provided and within the valid range when rcmethod is set to 1.
+    Validate that the outer_heat_capacity_fraction parameter for a given building facet is explicitly provided and within the valid range when rcmethod is set to 1.
     Parameters
     ----------
     building_archetype : dict
         Dictionary containing building archetype properties and their values.
     facet : str
-        Name of the building facet (e.g., 'Wall', 'Roof') for which OuterCapFrac is being validated.
+        Name of the building facet (e.g., 'wall', 'roof') for which outer_heat_capacity_fraction is being validated.
     site_idx : int
         Index of the site being validated.
     site_gridid : str
@@ -408,30 +408,31 @@ def check_outercapfrac_facet(building_archetype, facet, site_idx, site_gridid):
     Returns
     -------
     ValidationResult
-        A validation result indicating an error if OuterCapFrac is missing or out of the valid range (0, 1), with a suggested value for correction.
+        A validation result indicating an error if outer_heat_capacity_fraction is missing or out of the valid range (0, 1), with a suggested value for correction.
     Notes
     -----
-    - When rcmethod is set to 1, the {facet}OuterCapFrac parameter must be explicitly set and strictly between 0 and 1.
+    - When rcmethod is set to 1, the {facet}_outer_heat_capacity_fraction parameter must be explicitly set and strictly between 0 and 1.
     - Returns an error if the parameter is missing or outside the valid range, including a message and suggested value.
     """
-    facet_frac_entry = building_archetype.get(f"{facet}OuterCapFrac", {})
+    key = f"{facet}_outer_heat_capacity_fraction"
+    facet_frac_entry = building_archetype.get(key, {})
     facet_frac = facet_frac_entry.get("value") if isinstance(facet_frac_entry, Mapping) else facet_frac_entry
-    
+
     result = ValidationResult(
         status="ERROR",
         category="MODEL_OPTIONS",
-        parameter=f"building_archetype.{facet}OuterCapFrac",
+        parameter=f"building_archetype.{key}",
         site_index=site_idx,
         site_gridid=site_gridid,
     )
-    
+
     if facet_frac is None:
-        result.message=f"{facet}OuterCapFrac must be explicitly provided when rcmethod == 1."
-        result.suggested_value=f"Set {facet}OuterCapFrac to a value between 0 and 1 (exclusive)."
+        result.message=f"{key} must be explicitly provided when rcmethod == 1."
+        result.suggested_value=f"Set {key} to a value between 0 and 1 (exclusive)."
         return result
     elif not (0 < facet_frac < 1):
-        result.message=f"{facet}OuterCapFrac value {facet_frac} is out of valid range (0, 1) when rcmethod == 1."
-        result.suggested_value=f"Set {facet}OuterCapFrac to a value strictly between 0 and 1."
+        result.message=f"{key} value {facet_frac} is out of valid range (0, 1) when rcmethod == 1."
+        result.suggested_value=f"Set {key} to a value strictly between 0 and 1."
         return result
 
 @RulesRegistry.add_rule("rcmethod")
@@ -469,7 +470,7 @@ def validate_model_option_rcmethod(context) -> List[ValidationResult]:
         building_archetype = props.get("building_archetype", {})
         site_gridid = get_value_safe(site, "gridiv")
 
-        facets = ["Roof", "Wall"]
+        facets = ["roof", "wall"]
 
         if rcmethod_value == 1:
             for facet in facets:
@@ -479,16 +480,16 @@ def validate_model_option_rcmethod(context) -> List[ValidationResult]:
 
         elif rcmethod_value == 2:
             required_wall_params = [
-                "WallExternalThickness",
-                "WallExternalEffectiveConductivity",
-                "WallExternalDensity",
-                "WallExternalCp",
+                "wall_external_thickness",
+                "wall_external_effective_conductivity",
+                "wall_external_density",
+                "wall_external_specific_heat_capacity",
             ]
             required_roof_params = [
-                "RoofExternalThickness",
-                "RoofExternalEffectiveConductivity",
-                "RoofExternalDensity",
-                "RoofExternalCp",
+                "roof_external_thickness",
+                "roof_external_effective_conductivity",
+                "roof_external_density",
+                "roof_external_specific_heat_capacity",
             ]
             # Collect provided wall params
             for facet, facet_params in zip(
@@ -539,9 +540,10 @@ def validate_model_option_same_albedo_facet(site_data, facet):
         if alb_val is not None:
             found_albedos.append(alb_val)
     building_archetype = site_data.get("properties", {}).get("building_archetype", {})
-    facetrefl_val = get_value_safe(building_archetype, f"{facet}Reflectivity")
+    facetrefl_key = f"{facet.lower()}_reflectivity"
+    facetrefl_val = get_value_safe(building_archetype, facetrefl_key)
     msg = (
-        f"same_albedo_{facet.lower()} == 0. No check of consistency between {facet.lower()}s albedo (found values: {found_albedos}) and {facet}Reflectivity (found value: {facetrefl_val})."
+        f"same_albedo_{facet.lower()} == 0. No check of consistency between {facet.lower()}s albedo (found values: {found_albedos}) and {facetrefl_key} (found value: {facetrefl_val})."
     )
     return ValidationResult(
         status="WARNING",
@@ -639,9 +641,9 @@ def validate_model_option_same_emissivity(context) -> List[ValidationResult]:
                 if emis_val is not None:
                     found_emissivities.append(emis_val)
             building_archetype = site.get("properties", {}).get("building_archetype", {})
-            wallemis_val = get_value_safe(building_archetype, "WallExternalEmissivity")
+            wallemis_val = get_value_safe(building_archetype, "wall_external_emissivity")
             msg = (
-                f"same_emissivity_wall == 0. No check of consistency between walls emissivity (found values: {found_emissivities}) and WallExternalEmissivity (found value: {wallemis_val})."
+                f"same_emissivity_wall == 0. No check of consistency between walls emissivity (found values: {found_emissivities}) and wall_external_emissivity (found value: {wallemis_val})."
             )
             results.append(
                 ValidationResult(
@@ -668,9 +670,9 @@ def validate_model_option_same_emissivity(context) -> List[ValidationResult]:
                 if emis_val is not None:
                     found_emissivities.append(emis_val)
             building_archetype = site.get("properties", {}).get("building_archetype", {})
-            roofemis_val = get_value_safe(building_archetype, "RoofExternalEmissivity")
+            roofemis_val = get_value_safe(building_archetype, "roof_external_emissivity")
             msg = (
-                f"same_emissivity_roof == 0. No check of consistency between roofs emissivity (found values: {found_emissivities}) and RoofExternalEmissivity (found value: {roofemis_val})."
+                f"same_emissivity_roof == 0. No check of consistency between roofs emissivity (found values: {found_emissivities}) and roof_external_emissivity (found value: {roofemis_val})."
             )
             results.append(
                 ValidationResult(
@@ -719,7 +721,7 @@ def validate_forcing_height_vs_buildings(context) -> List[ValidationResult]:
 
     - The maximum building height is defined as the largest of:
         - land_cover.bldgs.bldgh
-        - building_archetype.stebbs_Height (if stebbsmethod == 1)
+        - building_archetype.building_height (if stebbsmethod == 1)
         - The last non-zero value in vertical_layers.height
           (SPARTACUS top height, if enabled)
     """
@@ -780,7 +782,7 @@ def validate_forcing_height_vs_buildings(context) -> List[ValidationResult]:
         if stebbsmethod_val == 1:
             archetype = _unwrap_nested_value(props.get("building_archetype"))
             if isinstance(archetype, Mapping):
-                stebbs_height = _as_float(_unwrap_nested_value(archetype.get("stebbs_Height")))
+                stebbs_height = _as_float(_unwrap_nested_value(archetype.get("building_height")))
 
         # SPARTACUS heights (only if SPARTACUS is enabled via netradiationmethod)
         spartacus_top = None

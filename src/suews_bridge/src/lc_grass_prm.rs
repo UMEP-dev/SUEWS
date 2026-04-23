@@ -22,11 +22,11 @@ pub struct LcGrassPrm {
     pub alb_max: f64,
     pub ohm: OhmPrm,
     pub soil: SoilPrm,
-    pub statelimit: f64,
+    pub state_limit: f64,
     pub irrfracgrass: f64,
-    pub wetthresh: f64,
+    pub wet_threshold: f64,
     pub bioco2: BioCo2Prm,
-    pub maxconductance: f64,
+    pub max_conductance: f64,
     pub lai: LaiPrm,
     pub waterdist: WaterDistPrm,
 }
@@ -40,11 +40,11 @@ impl Default for LcGrassPrm {
             alb_max: 0.0,
             ohm: OhmPrm::default(),
             soil: SoilPrm::default(),
-            statelimit: 0.0,
+            state_limit: 0.0,
             irrfracgrass: 0.0,
-            wetthresh: 0.0,
+            wet_threshold: 0.0,
             bioco2: BioCo2Prm::default(),
-            maxconductance: 0.0,
+            max_conductance: 0.0,
             lai: LaiPrm::default(),
             waterdist: WaterDistPrm::default(),
         }
@@ -62,11 +62,11 @@ impl LcGrassPrm {
             alb_max: flat[3],
             ohm: OhmPrm::from_flat(&flat[4..21])?,
             soil: SoilPrm::from_flat(&flat[21..24])?,
-            statelimit: flat[24],
+            state_limit: flat[24],
             irrfracgrass: flat[25],
-            wetthresh: flat[26],
+            wet_threshold: flat[26],
             bioco2: BioCo2Prm::from_flat(&flat[27..35])?,
-            maxconductance: flat[35],
+            max_conductance: flat[35],
             lai: LaiPrm::from_flat(&flat[36..47])?,
             waterdist: WaterDistPrm::from_flat(&flat[47..55])?,
         })
@@ -76,11 +76,11 @@ impl LcGrassPrm {
         let mut out = vec![self.sfr, self.emis, self.alb_min, self.alb_max];
         out.extend(self.ohm.to_flat());
         out.extend(self.soil.to_flat());
-        out.push(self.statelimit);
+        out.push(self.state_limit);
         out.push(self.irrfracgrass);
-        out.push(self.wetthresh);
+        out.push(self.wet_threshold);
         out.extend(self.bioco2.to_flat());
-        out.push(self.maxconductance);
+        out.push(self.max_conductance);
         out.extend(self.lai.to_flat());
         out.extend(self.waterdist.to_flat());
         out
@@ -183,8 +183,8 @@ mod tests {
 
         let updated = lc_grass_prm_from_map(&mapped).expect("map to state should succeed");
         assert!((updated.irrfracgrass - 0.25).abs() < 1.0e-12);
-        assert!((updated.bioco2.theta_bioco2 - 0.85).abs() < 1.0e-12);
-        assert_eq!(updated.lai.laitype, 1);
+        assert!((updated.bioco2.theta_bio_co2 - 0.85).abs() < 1.0e-12);
+        assert_eq!(updated.lai.lai_type, 1);
         assert!((updated.waterdist.to_grass - 0.45).abs() < 1.0e-12);
     }
 

@@ -149,7 +149,7 @@ SCHEMA_VERSIONS: dict[str, str] = {
         "PascalCase exception in the same PR."
     ),
     "2026.5.dev4": (
-        "gh#1334 follow-through: the STEBBS hot-water subsystem unifies "
+        "gh#1334 follow-through via PR #1337: the STEBBS hot-water subsystem unifies "
         "under the `hot_water_*` prefix. Drops the opaque `dhw_` acronym "
         "and the redundant `water_tank_*` leftover — 14 renames: "
         "water_tank_wall_thickness -> hot_water_tank_wall_thickness, "

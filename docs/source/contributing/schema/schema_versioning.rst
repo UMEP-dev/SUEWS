@@ -170,7 +170,7 @@ The lineage below mirrors ``SCHEMA_VERSIONS`` in
 the schema that shipped with it via
 ``supy.util.converter.yaml_upgrade._PACKAGE_TO_SCHEMA``.
 
-**Schema 2026.5.dev4** (current; in-development dev bump; gh#1334 follow-through)
+**Schema 2026.5.dev4** (current; in-development dev bump; gh#1334 follow-through via PR #1337)
    Unifies the STEBBS hot-water subsystem under the ``hot_water_*``
    prefix, retiring the opaque ``dhw_`` acronym and the split
    ``water_tank_*`` sibling that survived the gh#1334 PascalCase

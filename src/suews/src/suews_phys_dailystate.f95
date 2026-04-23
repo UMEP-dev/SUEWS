@@ -969,8 +969,8 @@ CONTAINS
             albGrass_id => phenState%albGrass_id, &
             porosity_id => phenState%porosity_id, &
             WUDay_id => hydroState%WUDay_id, &
-            SnowAlb => snowState%SnowAlb, &
-            SnowDens => snowState%SnowDens, &
+            SnowAlb => snowState%snow_albedo, &
+            SnowDens => snowState%snow_density, &
             HDD_id => anthroEmisState%HDD_id, &
             VegPhenLumps => phenState%VegPhenLumps, &
             a1 => OHMState%a1, &

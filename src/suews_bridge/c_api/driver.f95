@@ -1614,39 +1614,39 @@ subroutine pack_snow_state(s, flat, n_flat, err)
    end if
 
    idx = 1_c_int
-   flat(idx) = s%snowfallcum; idx = idx + 1_c_int
-   flat(idx) = s%snowalb; idx = idx + 1_c_int
+   flat(idx) = s%snowfall_cum; idx = idx + 1_c_int
+   flat(idx) = s%snow_albedo; idx = idx + 1_c_int
    flat(idx) = s%chsnow_per_interval; idx = idx + 1_c_int
    flat(idx) = s%mwh; idx = idx + 1_c_int
-   flat(idx) = s%mwstore; idx = idx + 1_c_int
+   flat(idx) = s%melt_water_store; idx = idx + 1_c_int
    flat(idx) = s%qn_snow; idx = idx + 1_c_int
    flat(idx) = s%qm; idx = idx + 1_c_int
-   flat(idx) = s%qmfreez; idx = idx + 1_c_int
-   flat(idx) = s%qmrain; idx = idx + 1_c_int
+   flat(idx) = s%qm_freeze; idx = idx + 1_c_int
+   flat(idx) = s%qm_rain; idx = idx + 1_c_int
    flat(idx) = s%swe; idx = idx + 1_c_int
-   flat(idx) = s%z0vsnow; idx = idx + 1_c_int
-   flat(idx) = s%rasnow; idx = idx + 1_c_int
+   flat(idx) = s%z0v_snow; idx = idx + 1_c_int
+   flat(idx) = s%ra_snow; idx = idx + 1_c_int
    flat(idx) = s%sice_hpa; idx = idx + 1_c_int
 
    do i = 1_c_int, 2_c_int
-      flat(idx) = s%snowremoval(i)
+      flat(idx) = s%snow_removal(i)
       idx = idx + 1_c_int
    end do
 
    do i = 1_c_int, int(nsurf, c_int)
-      flat(idx) = s%icefrac(i); idx = idx + 1_c_int
+      flat(idx) = s%ice_frac(i); idx = idx + 1_c_int
    end do
    do i = 1_c_int, int(nsurf, c_int)
-      flat(idx) = s%snowdens(i); idx = idx + 1_c_int
+      flat(idx) = s%snow_density(i); idx = idx + 1_c_int
    end do
    do i = 1_c_int, int(nsurf, c_int)
-      flat(idx) = s%snowfrac(i); idx = idx + 1_c_int
+      flat(idx) = s%snow_fraction(i); idx = idx + 1_c_int
    end do
    do i = 1_c_int, int(nsurf, c_int)
-      flat(idx) = s%snowpack(i); idx = idx + 1_c_int
+      flat(idx) = s%snow_pack(i); idx = idx + 1_c_int
    end do
    do i = 1_c_int, int(nsurf, c_int)
-      flat(idx) = s%snowwater(i); idx = idx + 1_c_int
+      flat(idx) = s%snow_water(i); idx = idx + 1_c_int
    end do
    do i = 1_c_int, int(nsurf, c_int)
       flat(idx) = s%kup_ind_snow(i); idx = idx + 1_c_int
@@ -1655,7 +1655,7 @@ subroutine pack_snow_state(s, flat, n_flat, err)
       flat(idx) = s%qn_ind_snow(i); idx = idx + 1_c_int
    end do
    do i = 1_c_int, int(nsurf, c_int)
-      flat(idx) = s%deltaqi(i); idx = idx + 1_c_int
+      flat(idx) = s%delta_qi(i); idx = idx + 1_c_int
    end do
    do i = 1_c_int, int(nsurf, c_int)
       flat(idx) = s%tsurf_ind_snow(i); idx = idx + 1_c_int

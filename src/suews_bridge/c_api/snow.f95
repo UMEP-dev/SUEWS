@@ -21,28 +21,28 @@ integer(c_int), parameter, public :: SUEWS_CAPI_SNOW_STATE_LEN = 79_c_int
 integer(c_int), parameter, public :: SUEWS_CAPI_SNOW_STATE_SCHEMA_VERSION = 1_c_int
 
 type :: snow_state_shadow
-   real(c_double) :: snowfallcum = 0.0_c_double
-   real(c_double) :: snowalb = 0.0_c_double
+   real(c_double) :: snowfall_cum = 0.0_c_double
+   real(c_double) :: snow_albedo = 0.0_c_double
    real(c_double) :: chsnow_per_interval = 0.0_c_double
    real(c_double) :: mwh = 0.0_c_double
-   real(c_double) :: mwstore = 0.0_c_double
+   real(c_double) :: melt_water_store = 0.0_c_double
    real(c_double) :: qn_snow = 0.0_c_double
    real(c_double) :: qm = 0.0_c_double
-   real(c_double) :: qmfreez = 0.0_c_double
-   real(c_double) :: qmrain = 0.0_c_double
+   real(c_double) :: qm_freeze = 0.0_c_double
+   real(c_double) :: qm_rain = 0.0_c_double
    real(c_double) :: swe = 0.0_c_double
-   real(c_double) :: z0vsnow = 0.0_c_double
-   real(c_double) :: rasnow = 0.0_c_double
+   real(c_double) :: z0v_snow = 0.0_c_double
+   real(c_double) :: ra_snow = 0.0_c_double
    real(c_double) :: sice_hpa = 0.0_c_double
-   real(c_double), dimension(2) :: snowremoval = 0.0_c_double
-   real(c_double), dimension(nsurf) :: icefrac = 0.0_c_double
-   real(c_double), dimension(nsurf) :: snowdens = 0.0_c_double
-   real(c_double), dimension(nsurf) :: snowfrac = 0.0_c_double
-   real(c_double), dimension(nsurf) :: snowpack = 0.0_c_double
-   real(c_double), dimension(nsurf) :: snowwater = 0.0_c_double
+   real(c_double), dimension(2) :: snow_removal = 0.0_c_double
+   real(c_double), dimension(nsurf) :: ice_frac = 0.0_c_double
+   real(c_double), dimension(nsurf) :: snow_density = 0.0_c_double
+   real(c_double), dimension(nsurf) :: snow_fraction = 0.0_c_double
+   real(c_double), dimension(nsurf) :: snow_pack = 0.0_c_double
+   real(c_double), dimension(nsurf) :: snow_water = 0.0_c_double
    real(c_double), dimension(nsurf) :: kup_ind_snow = 0.0_c_double
    real(c_double), dimension(nsurf) :: qn_ind_snow = 0.0_c_double
-   real(c_double), dimension(nsurf) :: deltaqi = 0.0_c_double
+   real(c_double), dimension(nsurf) :: delta_qi = 0.0_c_double
    real(c_double), dimension(nsurf) :: tsurf_ind_snow = 0.0_c_double
    logical :: iter_safe = .false.
 end type snow_state_shadow
@@ -108,47 +108,47 @@ subroutine snow_state_pack(state, flat, n_flat, err)
 
    idx = 1
 
-   flat(idx) = state%snowfallcum; idx = idx + 1
-   flat(idx) = state%snowalb; idx = idx + 1
+   flat(idx) = state%snowfall_cum; idx = idx + 1
+   flat(idx) = state%snow_albedo; idx = idx + 1
    flat(idx) = state%chsnow_per_interval; idx = idx + 1
    flat(idx) = state%mwh; idx = idx + 1
-   flat(idx) = state%mwstore; idx = idx + 1
+   flat(idx) = state%melt_water_store; idx = idx + 1
    flat(idx) = state%qn_snow; idx = idx + 1
    flat(idx) = state%qm; idx = idx + 1
-   flat(idx) = state%qmfreez; idx = idx + 1
-   flat(idx) = state%qmrain; idx = idx + 1
+   flat(idx) = state%qm_freeze; idx = idx + 1
+   flat(idx) = state%qm_rain; idx = idx + 1
    flat(idx) = state%swe; idx = idx + 1
-   flat(idx) = state%z0vsnow; idx = idx + 1
-   flat(idx) = state%rasnow; idx = idx + 1
+   flat(idx) = state%z0v_snow; idx = idx + 1
+   flat(idx) = state%ra_snow; idx = idx + 1
    flat(idx) = state%sice_hpa; idx = idx + 1
 
    do i = 1, 2
-      flat(idx) = state%snowremoval(i)
+      flat(idx) = state%snow_removal(i)
       idx = idx + 1
    end do
 
    do i = 1, nsurf
-      flat(idx) = state%icefrac(i)
+      flat(idx) = state%ice_frac(i)
       idx = idx + 1
    end do
 
    do i = 1, nsurf
-      flat(idx) = state%snowdens(i)
+      flat(idx) = state%snow_density(i)
       idx = idx + 1
    end do
 
    do i = 1, nsurf
-      flat(idx) = state%snowfrac(i)
+      flat(idx) = state%snow_fraction(i)
       idx = idx + 1
    end do
 
    do i = 1, nsurf
-      flat(idx) = state%snowpack(i)
+      flat(idx) = state%snow_pack(i)
       idx = idx + 1
    end do
 
    do i = 1, nsurf
-      flat(idx) = state%snowwater(i)
+      flat(idx) = state%snow_water(i)
       idx = idx + 1
    end do
 
@@ -163,7 +163,7 @@ subroutine snow_state_pack(state, flat, n_flat, err)
    end do
 
    do i = 1, nsurf
-      flat(idx) = state%deltaqi(i)
+      flat(idx) = state%delta_qi(i)
       idx = idx + 1
    end do
 
@@ -195,43 +195,43 @@ subroutine snow_state_unpack(flat, n_flat, state, err)
    end if
 
    idx = 1_c_int
-   state%snowfallcum = flat(idx); idx = idx + 1_c_int
-   state%snowalb = flat(idx); idx = idx + 1_c_int
+   state%snowfall_cum = flat(idx); idx = idx + 1_c_int
+   state%snow_albedo = flat(idx); idx = idx + 1_c_int
    state%chsnow_per_interval = flat(idx); idx = idx + 1_c_int
    state%mwh = flat(idx); idx = idx + 1_c_int
-   state%mwstore = flat(idx); idx = idx + 1_c_int
+   state%melt_water_store = flat(idx); idx = idx + 1_c_int
    state%qn_snow = flat(idx); idx = idx + 1_c_int
    state%qm = flat(idx); idx = idx + 1_c_int
-   state%qmfreez = flat(idx); idx = idx + 1_c_int
-   state%qmrain = flat(idx); idx = idx + 1_c_int
+   state%qm_freeze = flat(idx); idx = idx + 1_c_int
+   state%qm_rain = flat(idx); idx = idx + 1_c_int
    state%swe = flat(idx); idx = idx + 1_c_int
-   state%z0vsnow = flat(idx); idx = idx + 1_c_int
-   state%rasnow = flat(idx); idx = idx + 1_c_int
+   state%z0v_snow = flat(idx); idx = idx + 1_c_int
+   state%ra_snow = flat(idx); idx = idx + 1_c_int
    state%sice_hpa = flat(idx); idx = idx + 1_c_int
 
    do i = 1_c_int, 2_c_int
-      state%snowremoval(i) = flat(idx)
+      state%snow_removal(i) = flat(idx)
       idx = idx + 1_c_int
    end do
 
    do i = 1_c_int, int(nsurf, c_int)
-      state%icefrac(i) = flat(idx)
+      state%ice_frac(i) = flat(idx)
       idx = idx + 1_c_int
    end do
    do i = 1_c_int, int(nsurf, c_int)
-      state%snowdens(i) = flat(idx)
+      state%snow_density(i) = flat(idx)
       idx = idx + 1_c_int
    end do
    do i = 1_c_int, int(nsurf, c_int)
-      state%snowfrac(i) = flat(idx)
+      state%snow_fraction(i) = flat(idx)
       idx = idx + 1_c_int
    end do
    do i = 1_c_int, int(nsurf, c_int)
-      state%snowpack(i) = flat(idx)
+      state%snow_pack(i) = flat(idx)
       idx = idx + 1_c_int
    end do
    do i = 1_c_int, int(nsurf, c_int)
-      state%snowwater(i) = flat(idx)
+      state%snow_water(i) = flat(idx)
       idx = idx + 1_c_int
    end do
    do i = 1_c_int, int(nsurf, c_int)
@@ -243,7 +243,7 @@ subroutine snow_state_unpack(flat, n_flat, state, err)
       idx = idx + 1_c_int
    end do
    do i = 1_c_int, int(nsurf, c_int)
-      state%deltaqi(i) = flat(idx)
+      state%delta_qi(i) = flat(idx)
       idx = idx + 1_c_int
    end do
    do i = 1_c_int, int(nsurf, c_int)

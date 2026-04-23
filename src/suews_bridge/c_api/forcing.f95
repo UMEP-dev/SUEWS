@@ -29,7 +29,7 @@ MODULE module_c_api_forcing
       REAL(c_double) :: wu_m3 = 0.0_c_double
       REAL(c_double) :: fcld = 0.0_c_double
       REAL(c_double) :: lai_obs = 0.0_c_double
-      REAL(c_double) :: snowfrac = 0.0_c_double
+      REAL(c_double) :: snow_fraction = 0.0_c_double
       REAL(c_double) :: xsmd = 0.0_c_double
       REAL(c_double) :: qf_obs = 0.0_c_double
       REAL(c_double) :: qn1_obs = 0.0_c_double
@@ -139,7 +139,7 @@ CONTAINS
       flat(idx) = state%wu_m3; idx = idx + 1
       flat(idx) = state%fcld; idx = idx + 1
       flat(idx) = state%lai_obs; idx = idx + 1
-      flat(idx) = state%snowfrac; idx = idx + 1
+      flat(idx) = state%snow_fraction; idx = idx + 1
       flat(idx) = state%xsmd; idx = idx + 1
       flat(idx) = state%qf_obs; idx = idx + 1
       flat(idx) = state%qn1_obs; idx = idx + 1

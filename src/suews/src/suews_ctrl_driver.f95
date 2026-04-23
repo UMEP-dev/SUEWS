@@ -166,14 +166,14 @@ CONTAINS
             QH_Init => heatState%QH_Init, &
             ! snowState
             chSnow_per_interval => snowState%chSnow_per_interval, &
-            SnowRemoval => snowState%SnowRemoval, &
+            SnowRemoval => snowState%snow_removal, &
             swe => snowState%swe, &
-            Qm => snowState%Qm, &
-            QmFreez => snowState%QmFreez, &
-            QmRain => snowState%QmRain, &
+            Qm => snowState%qm, &
+            QmFreez => snowState%qm_freeze, &
+            QmRain => snowState%qm_rain, &
             NWstate_per_tstep => hydroState%NWstate_per_tstep, &
             mwh => snowState%mwh, &
-            mwstore => snowState%mwstore &
+            mwstore => snowState%melt_water_store &
             )
 
             ! IF (Diagnose == 1) WRITE (*, *) 'dectime', dectime
@@ -206,18 +206,18 @@ CONTAINS
 
             ! force several snow related state variables to zero if snow module is off
             IF (config%snowuse == 0) THEN
-               snowState%SnowDens = 0.
-               snowState%SnowFrac = 0.
-               snowState%SnowWater = 0.
-               snowState%SnowAlb = 0.
-               snowState%IceFrac = 0.
-               snowState%SnowPack = 0.
+               snowState%snow_density = 0.
+               snowState%snow_fraction = 0.
+               snowState%snow_water = 0.
+               snowState%snow_albedo = 0.
+               snowState%ice_frac = 0.
+               snowState%snow_pack = 0.
             END IF
 
             ! ########################################################################################
             ! save initial values of inout variables
             ! snowState = snowState
-            snowState%snowfrac = MERGE(forcing%snowfrac, snowState%SnowFrac, config%NetRadiationMethod == 0)
+            snowState%snow_fraction = MERGE(forcing%snow_fraction, snowState%snow_fraction, config%NetRadiationMethod == 0)
 
             ! initialise output variables
             dataOutLineSnow = -999.
@@ -653,7 +653,7 @@ CONTAINS
          forcing%pres = MetForcingBlock(ir, 13)
          forcing%rain = MetForcingBlock(ir, 14)
          forcing%kdown = MetForcingBlock(ir, 15)
-         forcing%snowfrac = MetForcingBlock(ir, 16)
+         forcing%snow_fraction = MetForcingBlock(ir, 16)
          forcing%ldown = MetForcingBlock(ir, 17)
          forcing%fcld = MetForcingBlock(ir, 18)
          forcing%Wu_m3 = MetForcingBlock(ir, 19)
@@ -779,7 +779,7 @@ CONTAINS
             RS => atmState%RS, &
             RA_h => atmState%RA_h, &
             RB => atmState%RB, &
-            RAsnow => snowState%RAsnow, &
+            RAsnow => snowState%ra_snow, &
             rss_surf => atmState%rss_surf, &
             vsmd => hydroState%vsmd, &
             g_kdown => phenState%g_kdown, &
@@ -1253,7 +1253,7 @@ CONTAINS
             Fc_biogen => anthroEmisState%Fc_biogen, &
             Fc_photo => anthroEmisState%Fc_photo, &
             Fc_respi => anthroEmisState%Fc_respi, &
-            SnowFrac => snowState%SnowFrac, &
+            SnowFrac => snowState%snow_fraction, &
             SMDMethod => config%SMDMethod, &
             EmissionsMethod => config%EmissionsMethod, &
             RSLLevel => config%RSLLevel, &
@@ -1478,10 +1478,10 @@ CONTAINS
             Tair_C => forcing%Temp_C, &
             avRH => forcing%RH, &
             qn1_obs => forcing%qn1_obs, &
-            SnowPack_prev => snowState%SnowPack, &
-            SnowAlb_prev => snowState%snowalb, &
-            snowFrac_prev => snowState%snowFrac, &
-            IceFrac => snowState%IceFrac, &
+            SnowPack_prev => snowState%snow_pack, &
+            SnowAlb_prev => snowState%snow_albedo, &
+            snowFrac_prev => snowState%snow_fraction, &
+            IceFrac => snowState%ice_frac, &
             qn_snow => snowState%qn_snow, &
             qn_ind_snow => snowState%qn_ind_snow, &
             kup_ind_snow => snowState%kup_ind_snow, &
@@ -1545,8 +1545,8 @@ CONTAINS
                height => spartacusPrm%height, &
                tau_a => snowPrm%tau_a, &
                tau_f => snowPrm%tau_f, &
-               SnowAlbMax => snowPrm%SnowAlbMax, &
-               SnowAlbMin => snowPrm%SnowAlbMin, &
+               SnowAlbMax => snowPrm%snow_albedo_max, &
+               SnowAlbMin => snowPrm%snow_albedo_min, &
                NARP_EMIS_SNOW => snowPrm%NARP_EMIS_SNOW, &
                roof_in_sw_spc => heatState%roof_in_sw_spc, &
                roof_in_lw_spc => heatState%roof_in_lw_spc, &
@@ -1672,7 +1672,7 @@ CONTAINS
                ! translate values
                ! alb_next = alb
                phenState%alb = alb
-               snowState%SnowAlb = SnowAlb
+               snowState%snow_albedo = SnowAlb
             END ASSOCIATE
          END ASSOCIATE
       END ASSOCIATE
@@ -1780,8 +1780,8 @@ CONTAINS
             QS_surf => heatState%QS_surf, &
             QS_stebbs => stebbsState%QS_stebbs, &
             qn_snow => snowState%qn_snow, &
-            deltaQi => snowState%deltaQi, &
-            SnowFrac => snowState%SnowFrac, &
+            deltaQi => snowState%delta_qi, &
+            SnowFrac => snowState%snow_fraction, &
             soilstore_id => hydroState%soilstore_surf, &
             state_id => hydroState%state_surf, &
             HDD_id => anthroEmisState%HDD_id, &
@@ -2503,16 +2503,16 @@ CONTAINS
             RA_h => atmState%RA_h, &
             RB => atmState%RB, &
             rss_surf => atmState%rss_surf, &
-            RAsnow => snowState%RAsnow, &
+            RAsnow => snowState%ra_snow, &
             qn_ind_snow => snowState%qn_ind_snow, &
             kup_ind_snow => snowState%kup_ind_snow, &
-            deltaQi => snowState%deltaQi, &
+            deltaQi => snowState%delta_qi, &
             Tsurf_ind_snow => snowState%Tsurf_ind_snow, &
-            SnowRemoval => snowState%SnowRemoval, &
+            SnowRemoval => snowState%snow_removal, &
             NWstate_per_tstep => hydroState%NWstate_per_tstep, &
             swe => snowState%swe, &
             chSnow_per_interval => snowState%chSnow_per_interval, &
-            mwstore => snowState%mwstore, &
+            mwstore => snowState%melt_water_store, &
             Tsurf_ind => heatState%Tsurf_ind, &
             qn_snowfree => heatState%qn_snowfree, &
             qf => heatState%qf, &
@@ -2539,13 +2539,13 @@ CONTAINS
             state_id_in => hydroState_prev%state_surf, &
             soilstore_id_in => hydroState_prev%soilstore_surf, &
             StoreDrainPrm => phenState%StoreDrainPrm, &
-            SnowPack_in => snowState_prev%SnowPack, &
-            SnowFrac_in => snowState_prev%snowFrac, &
-            SnowWater_in => snowState_prev%SnowWater, &
-            iceFrac_in => snowState_prev%IceFrac, &
-            SnowDens_in => snowState_prev%SnowDens, &
-            SnowfallCum_in => snowState_prev%SnowfallCum, &
-            SnowAlb_in => snowState_next%SnowAlb, &
+            SnowPack_in => snowState_prev%snow_pack, &
+            SnowFrac_in => snowState_prev%snow_fraction, &
+            SnowWater_in => snowState_prev%snow_water, &
+            iceFrac_in => snowState_prev%ice_frac, &
+            SnowDens_in => snowState_prev%snow_density, &
+            SnowfallCum_in => snowState_prev%snowfall_cum, &
+            SnowAlb_in => snowState_next%snow_albedo, &
             EvapMethod => config%EvapMethod, &
             Diagnose => config%Diagnose &
             )
@@ -2558,18 +2558,18 @@ CONTAINS
                                 evetrPrm%soil%soil_store_capacity, dectrPrm%soil%soil_store_capacity, &
                                 grassPrm%soil%soil_store_capacity, bsoilPrm%soil%soil_store_capacity, waterPrm%soil%soil_store_capacity], &
                tau_r => snowPrm%tau_r, &
-               CRWmin => snowPrm%CRWmin, &
-               CRWmax => snowPrm%CRWmax, &
-               SnowAlbMax => snowPrm%SnowAlbMax, &
-               PrecipLimit => snowPrm%PrecipLimit, &
-               PrecipLimitAlb => snowPrm%PrecipLimitAlb, &
-               SnowDensMax => snowPrm%SnowDensMax, &
-               SnowDensMin => snowPrm%snowdensmin, &
-               RadMeltFact => snowPrm%RadMeltFact, &
-               TempMeltFact => snowPrm%TempMeltFact, &
-               SnowLimPaved => snowPrm%SnowLimPaved, &
-               SnowLimBldg => snowPrm%SnowLimBldg, &
-               SnowPackLimit => snowPrm%SnowPackLimit, &
+               CRWmin => snowPrm%water_holding_capacity_min, &
+               CRWmax => snowPrm%water_holding_capacity_max, &
+               SnowAlbMax => snowPrm%snow_albedo_max, &
+               PrecipLimit => snowPrm%temperature_rain_snow_threshold, &
+               PrecipLimitAlb => snowPrm%precipitation_threshold_albedo_reset, &
+               SnowDensMax => snowPrm%snow_density_max, &
+               SnowDensMin => snowPrm%snow_density_min, &
+               RadMeltFact => snowPrm%radiation_melt_factor, &
+               TempMeltFact => snowPrm%temperature_melt_factor, &
+               SnowLimPaved => snowPrm%snow_depth_limit_paved, &
+               SnowLimBldg => snowPrm%snow_depth_limit_building, &
+               SnowPackLimit => snowPrm%snowpack_limit, &
                SnowProf_24hr_working => snowPrm%snowprof_24hr_working, &
                SnowProf_24hr_holiday => snowPrm%snowprof_24hr_holiday &
                )
@@ -2711,24 +2711,24 @@ CONTAINS
                hydroState_next%state_surf = state_id_surf
                hydroState_next%soilstore_surf = soilstore_id
 
-               snowState_next%SnowWater = SnowWater
-               snowState_next%iceFrac = iceFrac
+               snowState_next%snow_water = SnowWater
+               snowState_next%ice_frac = iceFrac
 
-               snowState_next%SnowAlb = SnowAlb
-               snowState_next%SnowDens = SnowDens
-               snowState_next%SnowPack = SnowPack
-               snowState_next%SnowFrac = SnowFrac
-               snowState_next%SnowfallCum = SnowfallCum
+               snowState_next%snow_albedo = SnowAlb
+               snowState_next%snow_density = SnowDens
+               snowState_next%snow_pack = SnowPack
+               snowState_next%snow_fraction = SnowFrac
+               snowState_next%snowfall_cum = SnowfallCum
 
                ! pack output into one line
                dataOutLineSnow = [ &
-                                 snowState_next%SnowPack(1:nsurf), mw_ind(1:nsurf), Qm_melt(1:nsurf), & !26
-                                 Qm_rain(1:nsurf), Qm_freezState(1:nsurf), snowState_next%SnowFrac(1:(nsurf - 1)), & !46
+                                 snowState_next%snow_pack(1:nsurf), mw_ind(1:nsurf), Qm_melt(1:nsurf), & !26
+                                 Qm_rain(1:nsurf), Qm_freezState(1:nsurf), snowState_next%snow_fraction(1:(nsurf - 1)), & !46
                                  rainOnSnow(1:nsurf), & !53
                                  qn_ind_snow(1:nsurf), kup_ind_snow(1:nsurf), freezMelt(1:nsurf), & !74
-                                 SnowWater(1:nsurf), snowState_next%SnowDens(1:nsurf), & !88
+                                 SnowWater(1:nsurf), snowState_next%snow_density(1:nsurf), & !88
                                  snowDepth(1:nsurf), Tsurf_ind_snow(1:nsurf), &
-                                 snowState_next%SnowAlb]
+                                 snowState_next%snow_albedo]
 
             END ASSOCIATE
          END ASSOCIATE
@@ -2910,7 +2910,7 @@ CONTAINS
             tot_chang_per_tstep => hydroState%tot_chang_per_tstep, &
             SoilState => hydroState%SoilState, &
             StoreDrainPrm => phenState%StoreDrainPrm, &
-            snowfrac_in => snowstate%SnowFrac, &
+            snowfrac_in => snowstate%snow_fraction, &
             SMDMethod => config%SMDMethod, &
             EvapMethod => config%EvapMethod, &
             Diagnose => config%Diagnose &
@@ -3156,9 +3156,9 @@ CONTAINS
             qf => heatState%qf, &
             qe => heatState%qe, &
             qs => heatState%qs, &
-            QmRain => snowState%QmRain, &
-            QmFreez => snowState%QmFreez, &
-            Qm => snowState%Qm, &
+            QmRain => snowState%qm_rain, &
+            QmFreez => snowState%qm_freeze, &
+            Qm => snowState%qm, &
             xsmd => forcing%xsmd, &
             Temp_C => forcing%Temp_C, &
             RA_h => atmState%RA_h, &
@@ -3334,9 +3334,9 @@ CONTAINS
             gsc => phenState%gsc, &
             gfunc => phenState%gfunc, &
             LAI_id => phenState%LAI_id, &
-            RASnow => snowState%RASnow, &
-            z0vSnow => snowState%z0vSnow, &
-            SnowFrac => snowState%SnowFrac, &
+            RASnow => snowState%ra_snow, &
+            z0vSnow => snowState%z0v_snow, &
+            SnowFrac => snowState%snow_fraction, &
             Diagnose => config%Diagnose, &
             StabilityMethod => config%StabilityMethod, &
             RoughLenHeatMethod => config%RoughLenHeatMethod, &
@@ -3501,7 +3501,7 @@ CONTAINS
             AdditionalWater => hydroState%AdditionalWater, &
             avU10_ms => atmState%U10_ms, &
             azimuth => solarState%azimuth_deg, &
-            SnowAlb => snowState%SnowAlb, &
+            SnowAlb => snowState%snow_albedo, &
             chSnow_per_interval => snowState%chSnow_per_interval, &
             dectime => timer%dectime, &
             drain_per_tstep => hydroState%drain_per_tstep, &
@@ -3523,7 +3523,7 @@ CONTAINS
             l_mod => atmState%l_mod, &
             lup => heatState%lup, &
             mwh => snowState%mwh, &
-            MwStore => snowState%MwStore, &
+            MwStore => snowState%melt_water_store, &
             nsh_real => timer%nsh_real, &
             NWstate_per_tstep => hydroState%NWstate_per_tstep, &
             q2_gkg => atmState%q2_gkg, &
@@ -3532,9 +3532,9 @@ CONTAINS
             qh => heatState%qh, &
             QH_init => heatState%QH_init, &
             qh_resist => heatState%qh_resist, &
-            Qm => snowState%Qm, &
-            QmFreez => snowState%QmFreez, &
-            QmRain => snowState%QmRain, &
+            Qm => snowState%qm, &
+            QmFreez => snowState%qm_freeze, &
+            QmRain => snowState%qm_rain, &
             qn => heatState%qn, &
             qn_surf => heatState%qn_surf, &
             qn_snow => snowState%qn_snow, &
@@ -3552,7 +3552,7 @@ CONTAINS
             runoffWaterBody => hydroState%runoffWaterBody, &
             smd => hydroState%smd, &
             smd_surf => hydroState%smd_surf, &
-            SnowRemoval => snowState%SnowRemoval, &
+            SnowRemoval => snowState%snow_removal, &
             state_per_tstep => hydroState%state_per_tstep, &
             surf_chang_per_tstep => hydroState%surf_chang_per_tstep, &
             swe => snowState%swe, &
@@ -4976,25 +4976,25 @@ CONTAINS
       irrPrm%wuprofm_24hr_working = WUProfM_24hr(:, 1)
       irrPrm%wuprofm_24hr_holiday = WUProfM_24hr(:, 2)
 
-      snowPrm%crwmax = CRWmax
-      snowPrm%crwmin = CRWmin
+      snowPrm%water_holding_capacity_max = CRWmax
+      snowPrm%water_holding_capacity_min = CRWmin
       snowPrm%narp_emis_snow = NARP_EMIS_SNOW
-      snowPrm%preciplimit = PrecipLimit
-      snowPrm%preciplimitalb = PrecipLimitAlb
-      snowPrm%snowalbmax = SnowAlbMax
-      snowPrm%snowalbmin = SnowAlbMin
-      snowPrm%snowdensmax = SnowDensMax
-      snowPrm%snowdensmin = SnowDensMin
-      snowPrm%snowlimbldg = SnowLimBldg
-      snowPrm%snowlimpaved = SnowLimPaved
-      snowPrm%snowpacklimit = SnowPackLimit
+      snowPrm%temperature_rain_snow_threshold = PrecipLimit
+      snowPrm%precipitation_threshold_albedo_reset = PrecipLimitAlb
+      snowPrm%snow_albedo_max = SnowAlbMax
+      snowPrm%snow_albedo_min = SnowAlbMin
+      snowPrm%snow_density_max = SnowDensMax
+      snowPrm%snow_density_min = SnowDensMin
+      snowPrm%snow_depth_limit_building = SnowLimBldg
+      snowPrm%snow_depth_limit_paved = SnowLimPaved
+      snowPrm%snowpack_limit = SnowPackLimit
       snowPrm%snowprof_24hr_working = SnowProf_24hr(:, 1)
       snowPrm%snowprof_24hr_holiday = SnowProf_24hr(:, 2)
       snowPrm%tau_a = tau_a
       snowPrm%tau_f = tau_f
       snowPrm%tau_r = tau_r
-      snowPrm%tempmeltfact = TempMeltFact
-      snowPrm%radmeltfact = RadMeltFact
+      snowPrm%temperature_melt_factor = TempMeltFact
+      snowPrm%radiation_melt_factor = RadMeltFact
 
       conductancePrm%g_max = g_max
       conductancePrm%g_k = g_k
@@ -5423,13 +5423,13 @@ CONTAINS
       ohmState%a3_water = 0.0 ! Dynamic OHM coefficients
 
       ! snow related:
-      snowState%snowfallCum = SnowfallCum
-      snowState%snowalb = SnowAlb
-      snowState%icefrac = IceFrac
-      snowState%snowdens = SnowDens
-      snowState%snowfrac = SnowFrac
-      snowState%snowpack = SnowPack
-      snowState%snowwater = SnowWater
+      snowState%snowfall_cum = SnowfallCum
+      snowState%snow_albedo = SnowAlb
+      snowState%ice_frac = IceFrac
+      snowState%snow_density = SnowDens
+      snowState%snow_fraction = SnowFrac
+      snowState%snow_pack = SnowPack
+      snowState%snow_water = SnowWater
 
       ! phenology related:
       phenState%alb = alb
@@ -5663,7 +5663,7 @@ CONTAINS
          forcing%pres = MetForcingBlock(ir, 13)
          forcing%rain = MetForcingBlock(ir, 14)
          forcing%kdown = MetForcingBlock(ir, 15)
-         forcing%snowfrac = MetForcingBlock(ir, 16)
+         forcing%snow_fraction = MetForcingBlock(ir, 16)
          forcing%ldown = MetForcingBlock(ir, 17)
          forcing%fcld = MetForcingBlock(ir, 18)
          forcing%Wu_m3 = MetForcingBlock(ir, 19)
@@ -5742,13 +5742,13 @@ CONTAINS
       qn_s_av = ohmState%qn_s_av
       dqnsdt = ohmState%dqnsdt
 
-      SnowfallCum = snowState%SnowfallCum
-      SnowAlb = snowState%SnowAlb
-      IceFrac = snowState%IceFrac
-      SnowWater = snowState%SnowWater
-      SnowDens = snowState%SnowDens
-      SnowFrac = snowState%SnowFrac
-      SnowPack = snowState%SnowPack
+      SnowfallCum = snowState%snowfall_cum
+      SnowAlb = snowState%snow_albedo
+      IceFrac = snowState%ice_frac
+      SnowWater = snowState%snow_water
+      SnowDens = snowState%snow_density
+      SnowFrac = snowState%snow_fraction
+      SnowPack = snowState%snow_pack
 
       soilstore_surf = hydroState%soilstore_surf
       state_surf = hydroState%state_surf

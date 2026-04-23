@@ -140,7 +140,7 @@ CONTAINS
             VegPhenLumps => phenState%VegPhenLumps, &
             SnowUse => config%SnowUse, &
             lumpsPrm => siteInfo%lumps, &
-            Qm => snowState%Qm &
+            Qm => snowState%qm &
             )
 
             IF (i_iter == 1) THEN

@@ -20,25 +20,25 @@ integer(c_int), parameter, public :: SUEWS_CAPI_SNOW_PRM_LEN = 71_c_int
 integer(c_int), parameter, public :: SUEWS_CAPI_SNOW_PRM_SCHEMA_VERSION = 1_c_int
 
 type :: snow_prm_shadow
-   real(c_double) :: crwmax = 0.0_c_double
-   real(c_double) :: crwmin = 0.0_c_double
+   real(c_double) :: water_holding_capacity_max = 0.0_c_double
+   real(c_double) :: water_holding_capacity_min = 0.0_c_double
    real(c_double) :: narp_emis_snow = 0.0_c_double
-   real(c_double) :: preciplimit = 0.0_c_double
-   real(c_double) :: preciplimitalb = 0.0_c_double
-   real(c_double) :: snowalbmax = 0.0_c_double
-   real(c_double) :: snowalbmin = 0.0_c_double
-   real(c_double) :: snowdensmax = 0.0_c_double
-   real(c_double) :: snowdensmin = 0.0_c_double
-   real(c_double) :: snowlimbldg = 0.0_c_double
-   real(c_double) :: snowlimpaved = 0.0_c_double
-   real(c_double), dimension(7) :: snowpacklimit = 0.0_c_double
+   real(c_double) :: temperature_rain_snow_threshold = 0.0_c_double
+   real(c_double) :: precipitation_threshold_albedo_reset = 0.0_c_double
+   real(c_double) :: snow_albedo_max = 0.0_c_double
+   real(c_double) :: snow_albedo_min = 0.0_c_double
+   real(c_double) :: snow_density_max = 0.0_c_double
+   real(c_double) :: snow_density_min = 0.0_c_double
+   real(c_double) :: snow_depth_limit_building = 0.0_c_double
+   real(c_double) :: snow_depth_limit_paved = 0.0_c_double
+   real(c_double), dimension(7) :: snowpack_limit = 0.0_c_double
    real(c_double), dimension(24) :: snowprof_24hr_working = 0.0_c_double
    real(c_double), dimension(24) :: snowprof_24hr_holiday = 0.0_c_double
    real(c_double) :: tau_a = 0.0_c_double
    real(c_double) :: tau_f = 0.0_c_double
    real(c_double) :: tau_r = 0.0_c_double
-   real(c_double) :: tempmeltfact = 0.0_c_double
-   real(c_double) :: radmeltfact = 0.0_c_double
+   real(c_double) :: temperature_melt_factor = 0.0_c_double
+   real(c_double) :: radiation_melt_factor = 0.0_c_double
 end type snow_prm_shadow
 
 public :: suews_snow_prm_len
@@ -101,20 +101,20 @@ subroutine snow_prm_pack(state, flat, n_flat, err)
    end if
 
    idx = 1
-   flat(idx) = state%crwmax; idx = idx + 1
-   flat(idx) = state%crwmin; idx = idx + 1
+   flat(idx) = state%water_holding_capacity_max; idx = idx + 1
+   flat(idx) = state%water_holding_capacity_min; idx = idx + 1
    flat(idx) = state%narp_emis_snow; idx = idx + 1
-   flat(idx) = state%preciplimit; idx = idx + 1
-   flat(idx) = state%preciplimitalb; idx = idx + 1
-   flat(idx) = state%snowalbmax; idx = idx + 1
-   flat(idx) = state%snowalbmin; idx = idx + 1
-   flat(idx) = state%snowdensmax; idx = idx + 1
-   flat(idx) = state%snowdensmin; idx = idx + 1
-   flat(idx) = state%snowlimbldg; idx = idx + 1
-   flat(idx) = state%snowlimpaved; idx = idx + 1
+   flat(idx) = state%temperature_rain_snow_threshold; idx = idx + 1
+   flat(idx) = state%precipitation_threshold_albedo_reset; idx = idx + 1
+   flat(idx) = state%snow_albedo_max; idx = idx + 1
+   flat(idx) = state%snow_albedo_min; idx = idx + 1
+   flat(idx) = state%snow_density_max; idx = idx + 1
+   flat(idx) = state%snow_density_min; idx = idx + 1
+   flat(idx) = state%snow_depth_limit_building; idx = idx + 1
+   flat(idx) = state%snow_depth_limit_paved; idx = idx + 1
 
    do i = 1, 7
-      flat(idx) = state%snowpacklimit(i)
+      flat(idx) = state%snowpack_limit(i)
       idx = idx + 1
    end do
 
@@ -131,8 +131,8 @@ subroutine snow_prm_pack(state, flat, n_flat, err)
    flat(idx) = state%tau_a; idx = idx + 1
    flat(idx) = state%tau_f; idx = idx + 1
    flat(idx) = state%tau_r; idx = idx + 1
-   flat(idx) = state%tempmeltfact; idx = idx + 1
-   flat(idx) = state%radmeltfact
+   flat(idx) = state%temperature_melt_factor; idx = idx + 1
+   flat(idx) = state%radiation_melt_factor
 
    err = SUEWS_CAPI_OK
 
@@ -155,20 +155,20 @@ subroutine snow_prm_unpack(flat, n_flat, state, err)
    end if
 
    idx = 1_c_int
-   state%crwmax = flat(idx); idx = idx + 1_c_int
-   state%crwmin = flat(idx); idx = idx + 1_c_int
+   state%water_holding_capacity_max = flat(idx); idx = idx + 1_c_int
+   state%water_holding_capacity_min = flat(idx); idx = idx + 1_c_int
    state%narp_emis_snow = flat(idx); idx = idx + 1_c_int
-   state%preciplimit = flat(idx); idx = idx + 1_c_int
-   state%preciplimitalb = flat(idx); idx = idx + 1_c_int
-   state%snowalbmax = flat(idx); idx = idx + 1_c_int
-   state%snowalbmin = flat(idx); idx = idx + 1_c_int
-   state%snowdensmax = flat(idx); idx = idx + 1_c_int
-   state%snowdensmin = flat(idx); idx = idx + 1_c_int
-   state%snowlimbldg = flat(idx); idx = idx + 1_c_int
-   state%snowlimpaved = flat(idx); idx = idx + 1_c_int
+   state%temperature_rain_snow_threshold = flat(idx); idx = idx + 1_c_int
+   state%precipitation_threshold_albedo_reset = flat(idx); idx = idx + 1_c_int
+   state%snow_albedo_max = flat(idx); idx = idx + 1_c_int
+   state%snow_albedo_min = flat(idx); idx = idx + 1_c_int
+   state%snow_density_max = flat(idx); idx = idx + 1_c_int
+   state%snow_density_min = flat(idx); idx = idx + 1_c_int
+   state%snow_depth_limit_building = flat(idx); idx = idx + 1_c_int
+   state%snow_depth_limit_paved = flat(idx); idx = idx + 1_c_int
 
    do i = 1_c_int, 7_c_int
-      state%snowpacklimit(i) = flat(idx)
+      state%snowpack_limit(i) = flat(idx)
       idx = idx + 1_c_int
    end do
 
@@ -185,8 +185,8 @@ subroutine snow_prm_unpack(flat, n_flat, state, err)
    state%tau_a = flat(idx); idx = idx + 1_c_int
    state%tau_f = flat(idx); idx = idx + 1_c_int
    state%tau_r = flat(idx); idx = idx + 1_c_int
-   state%tempmeltfact = flat(idx); idx = idx + 1_c_int
-   state%radmeltfact = flat(idx)
+   state%temperature_melt_factor = flat(idx); idx = idx + 1_c_int
+   state%radiation_melt_factor = flat(idx)
 
    err = SUEWS_CAPI_OK
 

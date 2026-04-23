@@ -418,6 +418,29 @@ EHC_RENAMES: Dict[str, str] = {
     "soil_storecap_wall": "soil_store_capacity_wall",
 }
 
+# -- SNOW_STATE (suews_type_snow.f95) -----------------------------------------
+#
+# Fortran-only internal-state members of SNOW_STATE. Added for gh#1326
+# (Tier D). Distinct from ``SNOWPARAMS_RENAMES`` which covers SNOW_PRM
+# (the user-facing YAML side).
+
+SNOWSTATE_RENAMES: Dict[str, str] = {
+    "snowfallCum": "snowfall_cum",
+    "snowalb": "snow_albedo",
+    "mwstore": "melt_water_store",
+    "QmFreez": "qm_freeze",
+    "QmRain": "qm_rain",
+    "z0vSnow": "z0v_snow",
+    "RAsnow": "ra_snow",
+    "SnowRemoval": "snow_removal",
+    "icefrac": "ice_frac",
+    "snowdens": "snow_density",
+    "snowfrac": "snow_fraction",
+    "snowpack": "snow_pack",
+    "snowwater": "snow_water",
+    "deltaQi": "delta_qi",
+}
+
 # -- Combined -----------------------------------------------------------------
 #
 # ``ALL_FIELD_RENAMES`` is a one-to-one map from every legacy fused key to
@@ -441,6 +464,7 @@ ALL_FIELD_RENAMES: Dict[str, str] = {
     **STEBBSPROPERTIES_RENAMES,
     **SNOWPARAMS_RENAMES,
     **EHC_RENAMES,
+    **SNOWSTATE_RENAMES,
 }
 
 # Raw-YAML structural checks (Phase A / precheck) need a wider view than the

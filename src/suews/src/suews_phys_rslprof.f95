@@ -374,7 +374,7 @@ CONTAINS
             snowPrm => siteInfo%snow, &
             PipeCapacity => siteInfo%PipeCapacity, &
             RunoffToWater => siteInfo%RunoffToWater, &
-            FlowChange => siteInfo%FlowChange, &
+            FlowChange => siteInfo%flow_change, &
             PervFraction => siteInfo%PervFraction, &
             vegfraction => siteInfo%vegfraction, &
             NonWaterFraction => siteInfo%NonWaterFraction, &

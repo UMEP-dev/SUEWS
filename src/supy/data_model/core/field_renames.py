@@ -467,6 +467,28 @@ ANTHRO_RENAMES: Dict[str, str] = {
 # registry entry is added here (adding one would break the one-to-one
 # fused->final invariant the Rust bridge reverse lookup depends on).
 
+# -- Landcover types (suews_type_landcover.f95) -------------------------------
+#
+# ``statelimit``, ``wetthresh``, ``maxconductance``, ``capmax_dec``,
+# ``capmin_dec``, ``pormin_dec``, ``pormax_dec``, ``faidectree``,
+# ``dectreeh``, ``faievetree``, ``evetreeh`` are already handled by
+# existing registry entries (SURFACEPROPERTIES_RENAMES,
+# VEGETATEDSURFACEPROPERTIES_RENAMES, DECTRPROPERTIES_RENAMES, ...).
+# Only the gaps are registered here.
+
+LANDCOVER_RENAMES: Dict[str, str] = {
+    "irrfracpaved": "irrigation_fraction_paved",
+    "irrfracbldgs": "irrigation_fraction_bldgs",
+    "irrfracdectr": "irrigation_fraction_dectr",
+    "irrfracevetr": "irrigation_fraction_evetr",
+    "irrfracgrass": "irrigation_fraction_grass",
+    "irrfracbsoil": "irrigation_fraction_bsoil",
+    "irrfracwater": "irrigation_fraction_water",
+    "faibldg": "fai_building",
+    "bldgh": "height_building",
+    "flowchange": "flow_change",
+}
+
 # -- HEAT_STATE (suews_type_heat.f95) -----------------------------------------
 
 HEATSTATE_RENAMES: Dict[str, str] = {
@@ -594,6 +616,7 @@ ALL_FIELD_RENAMES: Dict[str, str] = {
     **SURFACE_RENAMES,
     **HEATSTATE_RENAMES,
     **HYDROSTATE_RENAMES,
+    **LANDCOVER_RENAMES,
 }
 
 # Raw-YAML structural checks (Phase A / precheck) need a wider view than the

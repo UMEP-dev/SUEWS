@@ -571,24 +571,24 @@ CONTAINS
             RoughLenMomMethod => config%RoughLenMomMethod, &
             FAImethod => config%FAImethod, &
             sfr_surf => [pavedPrm%sfr, bldgPrm%sfr, evetrPrm%sfr, dectrPrm%sfr, grassPrm%sfr, bsoilPrm%sfr, waterPrm%sfr], &
-            bldgH => bldgPrm%bldgH, &
-            EveTreeH => evetrPrm%EveTreeH, &
-            DecTreeH => dectrPrm%DecTreeH, &
-            FAIBldg => bldgPrm%FAIBldg, &
-            FAIEveTree => evetrPrm%FAIEveTree, &
-            FAIDecTree => dectrPrm%FAIDecTree &
+            bldgH => bldgPrm%height_building, &
+            EveTreeH => evetrPrm%height_evergreen_tree, &
+            DecTreeH => dectrPrm%height_deciduous_tree, &
+            FAIBldg => bldgPrm%fai_building, &
+            FAIEveTree => evetrPrm%fai_evergreen_tree, &
+            FAIDecTree => dectrPrm%fai_deciduous_tree &
             )
 
             ! RoughLenMomMethod = methodPrm%RoughLenMomMethod
             ! FAImethod = methodPrm%FAImethod
 
             ! sfr_surf = [pavedPrm%sfr, bldgPrm%sfr, evetrPrm%sfr, dectrPrm%sfr, grassPrm%sfr, bsoilPrm%sfr, waterPrm%sfr]
-            ! bldgH = bldgPrm%bldgH
-            ! EveTreeH = evetrPrm%EveTreeH
-            ! DecTreeH = dectrPrm%DecTreeH
-            ! FAIBldg = bldgPrm%FAIBldg
-            ! FAIEveTree = evetrPrm%FAIEveTree
-            ! FAIDecTree = dectrPrm%FAIDecTree
+            ! bldgH = bldgPrm%height_building
+            ! EveTreeH = evetrPrm%height_evergreen_tree
+            ! DecTreeH = dectrPrm%height_deciduous_tree
+            ! FAIBldg = bldgPrm%fai_building
+            ! FAIEveTree = evetrPrm%fai_evergreen_tree
+            ! FAIDecTree = dectrPrm%fai_deciduous_tree
 
             ! surfacearea = siteInfo%surfacearea ! surface area of whole grid cell
             ! z0m_in = siteInfo%z0m_in

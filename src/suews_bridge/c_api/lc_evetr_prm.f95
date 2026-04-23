@@ -77,17 +77,17 @@ end type water_dist_prm_shadow
 type :: lc_evetr_prm_shadow
    real(c_double) :: sfr = 0.0_c_double
    real(c_double) :: emis = 0.0_c_double
-   real(c_double) :: faievetree = 0.0_c_double
-   real(c_double) :: evetreeh = 0.0_c_double
+   real(c_double) :: fai_evergreen_tree = 0.0_c_double
+   real(c_double) :: height_evergreen_tree = 0.0_c_double
    real(c_double) :: alb_min = 0.0_c_double
    real(c_double) :: alb_max = 0.0_c_double
    type(ohm_prm_shadow) :: ohm
    type(soil_prm_shadow) :: soil
-   real(c_double) :: statelimit = 0.0_c_double
-   real(c_double) :: irrfracevetr = 0.0_c_double
-   real(c_double) :: wetthresh = 0.0_c_double
+   real(c_double) :: state_limit = 0.0_c_double
+   real(c_double) :: irrigation_fraction_evetr = 0.0_c_double
+   real(c_double) :: wet_threshold = 0.0_c_double
    type(bioco2_prm_shadow) :: bioco2
-   real(c_double) :: maxconductance = 0.0_c_double
+   real(c_double) :: max_conductance = 0.0_c_double
    type(lai_prm_shadow) :: lai
    type(water_dist_prm_shadow) :: waterdist
 end type lc_evetr_prm_shadow
@@ -154,8 +154,8 @@ subroutine lc_evetr_prm_pack(state, flat, n_flat, err)
    idx = 1
    flat(idx) = state%sfr; idx = idx + 1
    flat(idx) = state%emis; idx = idx + 1
-   flat(idx) = state%faievetree; idx = idx + 1
-   flat(idx) = state%evetreeh; idx = idx + 1
+   flat(idx) = state%fai_evergreen_tree; idx = idx + 1
+   flat(idx) = state%height_evergreen_tree; idx = idx + 1
    flat(idx) = state%alb_min; idx = idx + 1
    flat(idx) = state%alb_max; idx = idx + 1
 
@@ -175,9 +175,9 @@ subroutine lc_evetr_prm_pack(state, flat, n_flat, err)
    flat(idx) = state%soil%soil_store_capacity; idx = idx + 1
    flat(idx) = state%soil%saturated_hydraulic_conductivity; idx = idx + 1
 
-   flat(idx) = state%statelimit; idx = idx + 1
-   flat(idx) = state%irrfracevetr; idx = idx + 1
-   flat(idx) = state%wetthresh; idx = idx + 1
+   flat(idx) = state%state_limit; idx = idx + 1
+   flat(idx) = state%irrigation_fraction_evetr; idx = idx + 1
+   flat(idx) = state%wet_threshold; idx = idx + 1
 
    flat(idx) = state%bioco2%beta_bioco2; idx = idx + 1
    flat(idx) = state%bioco2%beta_enh_bioco2; idx = idx + 1
@@ -188,7 +188,7 @@ subroutine lc_evetr_prm_pack(state, flat, n_flat, err)
    flat(idx) = state%bioco2%theta_bioco2; idx = idx + 1
    flat(idx) = state%bioco2%min_res_bioco2; idx = idx + 1
 
-   flat(idx) = state%maxconductance; idx = idx + 1
+   flat(idx) = state%max_conductance; idx = idx + 1
 
    flat(idx) = state%lai%base_temperature; idx = idx + 1
    flat(idx) = state%lai%gdd_full; idx = idx + 1
@@ -233,8 +233,8 @@ subroutine lc_evetr_prm_unpack(flat, n_flat, state, err)
    idx = 1_c_int
    state%sfr = flat(idx); idx = idx + 1_c_int
    state%emis = flat(idx); idx = idx + 1_c_int
-   state%faievetree = flat(idx); idx = idx + 1_c_int
-   state%evetreeh = flat(idx); idx = idx + 1_c_int
+   state%fai_evergreen_tree = flat(idx); idx = idx + 1_c_int
+   state%height_evergreen_tree = flat(idx); idx = idx + 1_c_int
    state%alb_min = flat(idx); idx = idx + 1_c_int
    state%alb_max = flat(idx); idx = idx + 1_c_int
 
@@ -254,9 +254,9 @@ subroutine lc_evetr_prm_unpack(flat, n_flat, state, err)
    state%soil%soil_store_capacity = flat(idx); idx = idx + 1_c_int
    state%soil%saturated_hydraulic_conductivity = flat(idx); idx = idx + 1_c_int
 
-   state%statelimit = flat(idx); idx = idx + 1_c_int
-   state%irrfracevetr = flat(idx); idx = idx + 1_c_int
-   state%wetthresh = flat(idx); idx = idx + 1_c_int
+   state%state_limit = flat(idx); idx = idx + 1_c_int
+   state%irrigation_fraction_evetr = flat(idx); idx = idx + 1_c_int
+   state%wet_threshold = flat(idx); idx = idx + 1_c_int
 
    state%bioco2%beta_bioco2 = flat(idx); idx = idx + 1_c_int
    state%bioco2%beta_enh_bioco2 = flat(idx); idx = idx + 1_c_int
@@ -267,7 +267,7 @@ subroutine lc_evetr_prm_unpack(flat, n_flat, state, err)
    state%bioco2%theta_bioco2 = flat(idx); idx = idx + 1_c_int
    state%bioco2%min_res_bioco2 = flat(idx); idx = idx + 1_c_int
 
-   state%maxconductance = flat(idx); idx = idx + 1_c_int
+   state%max_conductance = flat(idx); idx = idx + 1_c_int
 
    state%lai%base_temperature = flat(idx); idx = idx + 1_c_int
    state%lai%gdd_full = flat(idx); idx = idx + 1_c_int

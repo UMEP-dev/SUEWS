@@ -1283,7 +1283,7 @@ CONTAINS
                theta_bioCO2 => [evetrPrm%bioco2%theta_bioCO2, &
                                 dectrPrm%bioco2%theta_bioCO2, &
                                 grassPrm%bioco2%theta_bioco2], &
-               MaxConductance => [evetrPrm%MaxConductance, dectrPrm%MaxConductance, grassPrm%MaxConductance], &
+               MaxConductance => [evetrPrm%max_conductance, dectrPrm%max_conductance, grassPrm%max_conductance], &
                G_max => conductancePrm%g_max, &
                G_k => conductancePrm%g_k, &
                G_q_base => conductancePrm%g_q_base, &
@@ -1831,7 +1831,7 @@ CONTAINS
                k_surf => ehcPrm%k_surf, &
                cp_surf => ehcPrm%cp_surf, &
                dz_surf => ehcPrm%dz_surf, &
-               bldgh => bldgPrm%bldgh &
+               bldgh => bldgPrm%height_building &
                )
 
                ! sfr_surf = [pavedPrm%sfr, bldgPrm%sfr, evetrPrm%sfr, dectrPrm%sfr, grassPrm%sfr, bsoilPrm%sfr, waterPrm%sfr]
@@ -2463,7 +2463,7 @@ CONTAINS
          nlayer => siteInfo%nlayer, &
          PipeCapacity => siteInfo%PipeCapacity, &
          RunoffToWater => siteInfo%RunoffToWater, &
-         FlowChange => siteInfo%FlowChange, &
+         FlowChange => siteInfo%flow_change, &
          PervFraction => siteInfo%PervFraction, &
          vegfraction => siteInfo%vegfraction, &
          avRh => forcing%RH, &
@@ -2552,8 +2552,8 @@ CONTAINS
 
             ! Diagnose = config%Diagnose
             ASSOCIATE ( &
-               WetThresh_surf => [pavedPrm%wetthresh, bldgPrm%wetthresh, evetrPrm%wetthresh, dectrPrm%wetthresh, &
-                                  grassPrm%wetthresh, bsoilPrm%wetthresh, waterPrm%wetthresh], &
+               WetThresh_surf => [pavedPrm%wet_threshold, bldgPrm%wet_threshold, evetrPrm%wet_threshold, dectrPrm%wet_threshold, &
+                                  grassPrm%wet_threshold, bsoilPrm%wet_threshold, waterPrm%wet_threshold], &
                SoilStoreCap => [pavedPrm%soil%soil_store_capacity, bldgPrm%soil%soil_store_capacity, &
                                 evetrPrm%soil%soil_store_capacity, dectrPrm%soil%soil_store_capacity, &
                                 grassPrm%soil%soil_store_capacity, bsoilPrm%soil%soil_store_capacity, waterPrm%soil%soil_store_capacity], &
@@ -2830,7 +2830,7 @@ CONTAINS
             snowPrm => siteInfo%snow, &
             PipeCapacity => siteInfo%PipeCapacity, &
             RunoffToWater => siteInfo%RunoffToWater, &
-            FlowChange => siteInfo%FlowChange, &
+            FlowChange => siteInfo%flow_change, &
             PervFraction => siteInfo%PervFraction, &
             vegfraction => siteInfo%vegfraction, &
             NonWaterFraction => siteInfo%NonWaterFraction, &
@@ -2923,8 +2923,8 @@ CONTAINS
                StateLimit_wall => ehcPrm%state_limit_wall, &
                SoilStoreCap_wall => ehcPrm%soil_store_capacity_wall, &
                WetThresh_wall => ehcPrm%wet_thresh_wall, &
-               StateLimit_surf => [pavedPrm%statelimit, bldgPrm%statelimit, evetrPrm%statelimit, &
-                                   dectrPrm%statelimit, grassPrm%statelimit, bsoilPrm%statelimit, waterPrm%statelimit], &
+               StateLimit_surf => [pavedPrm%state_limit, bldgPrm%state_limit, evetrPrm%state_limit, &
+                                   dectrPrm%state_limit, grassPrm%state_limit, bsoilPrm%state_limit, waterPrm%state_limit], &
                SoilStoreCap_surf => [pavedPrm%soil%soil_store_capacity, bldgPrm%soil%soil_store_capacity, &
                                      evetrPrm%soil%soil_store_capacity, dectrPrm%soil%soil_store_capacity, &
                                      grassPrm%soil%soil_store_capacity, bsoilPrm%soil%soil_store_capacity, waterPrm%soil%soil_store_capacity], &
@@ -2936,8 +2936,8 @@ CONTAINS
                                             evetrPrm%soil%saturated_hydraulic_conductivity, dectrPrm%soil%saturated_hydraulic_conductivity, &
                                             grassPrm%soil%saturated_hydraulic_conductivity, bsoilPrm%soil%saturated_hydraulic_conductivity, &
                                             waterPrm%soil%saturated_hydraulic_conductivity], &
-               WetThresh_surf => [pavedPrm%wetthresh, bldgPrm%wetthresh, evetrPrm%wetthresh, &
-                                  dectrPrm%wetthresh, grassPrm%wetthresh, bsoilPrm%wetthresh, waterPrm%wetthresh] &
+               WetThresh_surf => [pavedPrm%wet_threshold, bldgPrm%wet_threshold, evetrPrm%wet_threshold, &
+                                  dectrPrm%wet_threshold, grassPrm%wet_threshold, bsoilPrm%wet_threshold, waterPrm%wet_threshold] &
                )
 
                state_surf = state_surf_in
@@ -3144,7 +3144,7 @@ CONTAINS
             snowPrm => siteInfo%snow, &
             PipeCapacity => siteInfo%PipeCapacity, &
             RunoffToWater => siteInfo%RunoffToWater, &
-            FlowChange => siteInfo%FlowChange, &
+            FlowChange => siteInfo%flow_change, &
             PervFraction => siteInfo%PervFraction, &
             vegfraction => siteInfo%vegfraction, &
             NonWaterFraction => siteInfo%NonWaterFraction, &
@@ -3346,7 +3346,7 @@ CONTAINS
             )
             ASSOCIATE ( &
                LAIMax => [evetrPrm%lai%lai_max, dectrPrm%lai%lai_max, grassPrm%lai%lai_max], &
-               MaxConductance => [evetrPrm%maxconductance, dectrPrm%maxconductance, grassPrm%maxconductance], &
+               MaxConductance => [evetrPrm%max_conductance, dectrPrm%max_conductance, grassPrm%max_conductance], &
                gsModel => conductancePrm%gs_model, &
                Kmax => conductancePrm%k_max, &
                G_max => conductancePrm%g_max, &
@@ -3492,7 +3492,7 @@ CONTAINS
          ASSOCIATE ( &
             alb => phenState%alb, &
             LAI_id => phenState%LAI_id, &
-            FlowChange => siteInfo%FlowChange, &
+            FlowChange => siteInfo%flow_change, &
             sfr_surf => siteInfo%sfr_surf, &
             id => timer%id, &
             imin => timer%imin, &
@@ -4809,7 +4809,7 @@ CONTAINS
       siteInfo%runofftowater = RunoffToWater
       siteInfo%narp_trans_site = NARP_TRANS_SITE
       siteInfo%CO2PointSource = CO2PointSource
-      siteInfo%flowchange = FlowChange
+      siteInfo%flow_change = FlowChange
       siteInfo%sfr_surf = sfr_surf
       siteInfo%nlayer = nlayer
       siteInfo%n_buildings = n_buildings
@@ -5038,9 +5038,9 @@ CONTAINS
       pavedPrm%soil%soil_depth = SoilDepth(PavSurf)
       pavedPrm%soil%soil_store_capacity = SoilStoreCap_surf(PavSurf)
       pavedPrm%soil%saturated_hydraulic_conductivity = SatHydraulicConduct(PavSurf)
-      pavedPrm%statelimit = StateLimit_surf(PavSurf)
-      pavedPrm%irrfracpaved = IrrFracPaved
-      pavedPrm%wetthresh = WetThresh_surf(PavSurf)
+      pavedPrm%state_limit = StateLimit_surf(PavSurf)
+      pavedPrm%irrigation_fraction_paved = IrrFracPaved
+      pavedPrm%wet_threshold = WetThresh_surf(PavSurf)
       pavedPrm%waterdist%to_paved = WaterDist(1, PavSurf)
       pavedPrm%waterdist%to_bldg = WaterDist(2, PavSurf)
       pavedPrm%waterdist%to_evetr = WaterDist(3, PavSurf)
@@ -5051,8 +5051,8 @@ CONTAINS
       pavedPrm%waterdist%to_soilstore = WaterDist(8, PavSurf)
 
       bldgPrm%sfr = sfr_surf(BldgSurf)
-      bldgPrm%faibldg = FAIBldg
-      bldgPrm%bldgh = bldgH
+      bldgPrm%fai_building = FAIBldg
+      bldgPrm%height_building = bldgH
       bldgPrm%emis = emis(BldgSurf)
       bldgPrm%ohm%ch_anohm = chAnOHM(BldgSurf)
       bldgPrm%ohm%cp_anohm = cpAnOHM(BldgSurf)
@@ -5077,9 +5077,9 @@ CONTAINS
       bldgPrm%soil%soil_depth = SoilDepth(BldgSurf)
       bldgPrm%soil%soil_store_capacity = SoilStoreCap_surf(BldgSurf)
       bldgPrm%soil%saturated_hydraulic_conductivity = SatHydraulicConduct(BldgSurf)
-      bldgPrm%statelimit = StateLimit_surf(BldgSurf)
-      bldgPrm%irrfracbldgs = IrrFracBldgs
-      bldgPrm%wetthresh = WetThresh_surf(BldgSurf)
+      bldgPrm%state_limit = StateLimit_surf(BldgSurf)
+      bldgPrm%irrigation_fraction_bldgs = IrrFracBldgs
+      bldgPrm%wet_threshold = WetThresh_surf(BldgSurf)
       bldgPrm%waterdist%to_paved = WaterDist(1, BldgSurf)
       bldgPrm%waterdist%to_bldg = WaterDist(2, BldgSurf)
       bldgPrm%waterdist%to_evetr = WaterDist(3, BldgSurf)
@@ -5091,10 +5091,10 @@ CONTAINS
 
       dectrPrm%sfr = sfr_surf(DecidSurf)
       dectrPrm%emis = emis(DecidSurf)
-      dectrPrm%faidectree = FAIDecTree
-      dectrPrm%dectreeh = DecTreeH
-      dectrPrm%pormin_dec = PorMin_dec
-      dectrPrm%pormax_dec = PorMax_dec
+      dectrPrm%fai_deciduous_tree = FAIDecTree
+      dectrPrm%height_deciduous_tree = DecTreeH
+      dectrPrm%porosity_min_deciduous = PorMin_dec
+      dectrPrm%porosity_max_deciduous = PorMax_dec
       dectrPrm%alb_min = AlbMin_DecTr
       dectrPrm%alb_max = AlbMax_DecTr
       dectrPrm%ohm%ch_anohm = chAnOHM(DecidSurf)
@@ -5124,11 +5124,11 @@ CONTAINS
       dectrPrm%soil%soil_depth = SoilDepth(DecidSurf)
       dectrPrm%soil%soil_store_capacity = SoilStoreCap_surf(DecidSurf)
       dectrPrm%soil%saturated_hydraulic_conductivity = SatHydraulicConduct(DecidSurf)
-      ! dectrPrm%statelimit = StateLimit_surf(DecidSurf)
-      dectrPrm%capmax_dec = CapMax_dec
-      dectrPrm%capmin_dec = CapMin_dec
-      dectrPrm%irrfracdectr = IrrFracDecTr
-      dectrPrm%wetthresh = WetThresh_surf(DecidSurf)
+      ! dectrPrm%state_limit = StateLimit_surf(DecidSurf)
+      dectrPrm%capacity_max_deciduous = CapMax_dec
+      dectrPrm%capacity_min_deciduous = CapMin_dec
+      dectrPrm%irrigation_fraction_dectr = IrrFracDecTr
+      dectrPrm%wet_threshold = WetThresh_surf(DecidSurf)
       dectrPrm%bioco2%beta_bioco2 = beta_bioCO2(ivDecid)
       dectrPrm%bioco2%beta_enh_bioco2 = beta_enh_bioCO2(ivDecid)
       dectrPrm%bioco2%alpha_bioco2 = alpha_bioCO2(ivDecid)
@@ -5137,7 +5137,7 @@ CONTAINS
       dectrPrm%bioco2%resp_b = resp_b(ivDecid)
       dectrPrm%bioco2%min_res_bioCO2 = min_res_bioCO2(ivDecid)
       dectrPrm%bioco2%theta_bioco2 = theta_bioCO2(ivDecid)
-      dectrPrm%maxconductance = MaxConductance(ivDecid)
+      dectrPrm%max_conductance = MaxConductance(ivDecid)
       dectrPrm%lai%base_temperature = BaseT(ivDecid)
       dectrPrm%lai%gdd_full = GDDFull(ivDecid)
       dectrPrm%lai%base_temperature_senescence = BaseTe(ivDecid)
@@ -5157,8 +5157,8 @@ CONTAINS
 
       evetrPrm%sfr = sfr_surf(ConifSurf)
       evetrPrm%emis = emis(ConifSurf)
-      evetrPrm%faievetree = FAIEveTree
-      evetrPrm%evetreeh = EveTreeH
+      evetrPrm%fai_evergreen_tree = FAIEveTree
+      evetrPrm%height_evergreen_tree = EveTreeH
       evetrPrm%alb_min = AlbMin_EveTr
       evetrPrm%alb_max = AlbMax_EveTr
       evetrPrm%ohm%ch_anohm = chAnOHM(ConifSurf)
@@ -5187,9 +5187,9 @@ CONTAINS
       evetrPrm%soil%soil_depth = SoilDepth(ConifSurf)
       evetrPrm%soil%soil_store_capacity = SoilStoreCap_surf(ConifSurf)
       evetrPrm%soil%saturated_hydraulic_conductivity = SatHydraulicConduct(ConifSurf)
-      evetrPrm%statelimit = StateLimit_surf(ConifSurf)
-      evetrPrm%irrfracevetr = IrrFracEveTr
-      evetrPrm%wetthresh = WetThresh_surf(ConifSurf)
+      evetrPrm%state_limit = StateLimit_surf(ConifSurf)
+      evetrPrm%irrigation_fraction_evetr = IrrFracEveTr
+      evetrPrm%wet_threshold = WetThresh_surf(ConifSurf)
       evetrPrm%bioco2%beta_bioco2 = beta_bioCO2(ivConif)
       evetrPrm%bioco2%beta_enh_bioco2 = beta_enh_bioCO2(ivConif)
       evetrPrm%bioco2%alpha_bioco2 = alpha_bioCO2(ivConif)
@@ -5198,7 +5198,7 @@ CONTAINS
       evetrPrm%bioco2%resp_b = resp_b(ivConif)
       evetrPrm%bioco2%min_res_bioCO2 = min_res_bioCO2(ivConif)
       evetrPrm%bioco2%theta_bioco2 = theta_bioCO2(ivConif)
-      evetrPrm%maxconductance = MaxConductance(ivConif)
+      evetrPrm%max_conductance = MaxConductance(ivConif)
       evetrPrm%lai%base_temperature = BaseT(ivConif)
       evetrPrm%lai%gdd_full = GDDFull(ivConif)
       evetrPrm%lai%base_temperature_senescence = BaseTe(ivConif)
@@ -5246,9 +5246,9 @@ CONTAINS
       grassPrm%soil%soil_depth = SoilDepth(GrassSurf)
       grassPrm%soil%soil_store_capacity = SoilStoreCap_surf(GrassSurf)
       grassPrm%soil%saturated_hydraulic_conductivity = SatHydraulicConduct(GrassSurf)
-      grassPrm%statelimit = StateLimit_surf(GrassSurf)
-      grassPrm%irrfracgrass = IrrFracGrass
-      grassPrm%wetthresh = WetThresh_surf(GrassSurf)
+      grassPrm%state_limit = StateLimit_surf(GrassSurf)
+      grassPrm%irrigation_fraction_grass = IrrFracGrass
+      grassPrm%wet_threshold = WetThresh_surf(GrassSurf)
       grassPrm%bioco2%beta_bioco2 = beta_bioCO2(ivGrass)
       grassPrm%bioco2%beta_enh_bioco2 = beta_enh_bioCO2(ivGrass)
       grassPrm%bioco2%alpha_bioco2 = alpha_bioCO2(ivGrass)
@@ -5257,7 +5257,7 @@ CONTAINS
       grassPrm%bioco2%resp_b = resp_b(ivGrass)
       grassPrm%bioco2%min_res_bioCO2 = min_res_bioCO2(ivGrass)
       grassPrm%bioco2%theta_bioco2 = theta_bioCO2(ivGrass)
-      grassPrm%maxconductance = MaxConductance(ivGrass)
+      grassPrm%max_conductance = MaxConductance(ivGrass)
       grassPrm%lai%base_temperature = BaseT(ivGrass)
       grassPrm%lai%gdd_full = GDDFull(ivGrass)
       grassPrm%lai%base_temperature_senescence = BaseTe(ivGrass)
@@ -5303,9 +5303,9 @@ CONTAINS
       bsoilPrm%soil%soil_depth = SoilDepth(BSoilSurf)
       bsoilPrm%soil%soil_store_capacity = SoilStoreCap_surf(BSoilSurf)
       bsoilPrm%soil%saturated_hydraulic_conductivity = SatHydraulicConduct(BSoilSurf)
-      bsoilPrm%statelimit = StateLimit_surf(BSoilSurf)
-      bsoilPrm%irrfracbsoil = IrrFracBSoil
-      bsoilPrm%wetthresh = WetThresh_surf(BSoilSurf)
+      bsoilPrm%state_limit = StateLimit_surf(BSoilSurf)
+      bsoilPrm%irrigation_fraction_bsoil = IrrFracBSoil
+      bsoilPrm%wet_threshold = WetThresh_surf(BSoilSurf)
       ! bsoilPrm%storage_drain_params%store_min = StoreDrainPrm(1, BSoilSurf)
       ! bsoilPrm%storage_drain_params%drain_eq = StoreDrainPrm(2, BSoilSurf)
       ! bsoilPrm%storage_drain_params%drain_coef_1 = StoreDrainPrm(3, BSoilSurf)
@@ -5349,9 +5349,9 @@ CONTAINS
       waterPrm%soil%soil_depth = SoilDepth(WaterSurf)
       waterPrm%soil%soil_store_capacity = SoilStoreCap_surf(WaterSurf)
       waterPrm%soil%saturated_hydraulic_conductivity = SatHydraulicConduct(WaterSurf)
-      waterPrm%statelimit = StateLimit_surf(WaterSurf)
-      waterPrm%irrfracwater = IrrFracWater
-      ! waterPrm%wetthresh = WetThresh_surf(WaterSurf)
+      waterPrm%state_limit = StateLimit_surf(WaterSurf)
+      waterPrm%irrigation_fraction_water = IrrFracWater
+      ! waterPrm%wet_threshold = WetThresh_surf(WaterSurf)
       ! waterPrm%storage_drain_params%store_min = StoreDrainPrm(1, WaterSurf)
       ! waterPrm%storage_drain_params%drain_eq = StoreDrainPrm(2, WaterSurf)
       ! waterPrm%storage_drain_params%drain_coef_1 = StoreDrainPrm(3, WaterSurf)

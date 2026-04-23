@@ -202,10 +202,10 @@ CONTAINS
                evetrLAIPower => evetrPrm%lai%lai_power, &
                AlbMax_DecTr => dectrPrm%Alb_Max, &
                AlbMin_DecTr => dectrPrm%Alb_Min, &
-               CapMax_dec => dectrPrm%CapMax_dec, &
-               CapMin_dec => dectrPrm%CapMin_dec, &
-               PorMax_dec => dectrPrm%PorMax_dec, &
-               PorMin_dec => dectrPrm%PorMin_dec, &
+               CapMax_dec => dectrPrm%capacity_max_deciduous, &
+               CapMin_dec => dectrPrm%capacity_min_deciduous, &
+               PorMax_dec => dectrPrm%porosity_max_deciduous, &
+               PorMin_dec => dectrPrm%porosity_min_deciduous, &
                dectrLAIPower => dectrPrm%lai%lai_power, &
                AlbMax_Grass => grassPrm%Alb_Max, &
                AlbMin_Grass => grassPrm%Alb_Min, &

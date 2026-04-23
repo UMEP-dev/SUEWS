@@ -57,9 +57,9 @@ type :: lc_bsoil_prm_shadow
    real(c_double) :: emis = 0.0_c_double
    type(ohm_prm_shadow) :: ohm
    type(soil_prm_shadow) :: soil
-   real(c_double) :: statelimit = 0.0_c_double
-   real(c_double) :: irrfracbsoil = 0.0_c_double
-   real(c_double) :: wetthresh = 0.0_c_double
+   real(c_double) :: state_limit = 0.0_c_double
+   real(c_double) :: irrigation_fraction_bsoil = 0.0_c_double
+   real(c_double) :: wet_threshold = 0.0_c_double
    type(water_dist_prm_shadow) :: waterdist
 end type lc_bsoil_prm_shadow
 
@@ -142,9 +142,9 @@ subroutine lc_bsoil_prm_pack(state, flat, n_flat, err)
    flat(idx) = state%soil%soil_store_capacity; idx = idx + 1
    flat(idx) = state%soil%saturated_hydraulic_conductivity; idx = idx + 1
 
-   flat(idx) = state%statelimit; idx = idx + 1
-   flat(idx) = state%irrfracbsoil; idx = idx + 1
-   flat(idx) = state%wetthresh; idx = idx + 1
+   flat(idx) = state%state_limit; idx = idx + 1
+   flat(idx) = state%irrigation_fraction_bsoil; idx = idx + 1
+   flat(idx) = state%wet_threshold; idx = idx + 1
 
    flat(idx) = state%waterdist%to_paved; idx = idx + 1
    flat(idx) = state%waterdist%to_bldg; idx = idx + 1
@@ -195,9 +195,9 @@ subroutine lc_bsoil_prm_unpack(flat, n_flat, state, err)
    state%soil%soil_store_capacity = flat(idx); idx = idx + 1_c_int
    state%soil%saturated_hydraulic_conductivity = flat(idx); idx = idx + 1_c_int
 
-   state%statelimit = flat(idx); idx = idx + 1_c_int
-   state%irrfracbsoil = flat(idx); idx = idx + 1_c_int
-   state%wetthresh = flat(idx); idx = idx + 1_c_int
+   state%state_limit = flat(idx); idx = idx + 1_c_int
+   state%irrigation_fraction_bsoil = flat(idx); idx = idx + 1_c_int
+   state%wet_threshold = flat(idx); idx = idx + 1_c_int
 
    state%waterdist%to_paved = flat(idx); idx = idx + 1_c_int
    state%waterdist%to_bldg = flat(idx); idx = idx + 1_c_int

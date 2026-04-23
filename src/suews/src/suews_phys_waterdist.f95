@@ -1285,7 +1285,7 @@ CONTAINS
          snowPrm => siteInfo%snow, &
          PipeCapacity => siteInfo%PipeCapacity, &
          RunoffToWater => siteInfo%RunoffToWater, &
-         FlowChange => siteInfo%FlowChange, &
+         FlowChange => siteInfo%flow_change, &
          PervFraction => siteInfo%PervFraction, &
          vegfraction => siteInfo%vegfraction, &
          NonWaterFraction => siteInfo%NonWaterFraction, &
@@ -1462,9 +1462,9 @@ CONTAINS
 
                ! Irrigated Fraction of each surface
                ! TS: 20200409, add irrigation fractions for all surfaces
-               IrrFrac = [pavedPrm%IrrFracPaved, bldgPrm%IrrFracBldgs, &
-                          evetrPrm%IrrFracEveTr, dectrPrm%IrrFracDecTr, grassPrm%IrrFracGrass, &
-                          bsoilPrm%IrrFracBSoil, waterPrm%IrrFracWater]
+               IrrFrac = [pavedPrm%irrigation_fraction_paved, bldgPrm%irrigation_fraction_bldgs, &
+                          evetrPrm%irrigation_fraction_evetr, dectrPrm%irrigation_fraction_dectr, grassPrm%irrigation_fraction_grass, &
+                          bsoilPrm%irrigation_fraction_bsoil, waterPrm%irrigation_fraction_water]
 
                ! --------------------------------------------------------------------------------
                ! If water used is observed and provided in the met forcing file, units are m3

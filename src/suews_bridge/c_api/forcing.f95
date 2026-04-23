@@ -20,7 +20,7 @@ MODULE module_c_api_forcing
 
    TYPE :: suews_forcing_shadow
       REAL(c_double) :: kdown = 0.0_c_double
-      REAL(c_double) :: ldown = 0.0_c_double
+      REAL(c_double) :: l_down = 0.0_c_double
       REAL(c_double) :: rh = 0.0_c_double
       REAL(c_double) :: pres = 0.0_c_double
       REAL(c_double) :: tair_av_5d = 0.0_c_double
@@ -130,7 +130,7 @@ CONTAINS
 
       idx = 1
       flat(idx) = state%kdown; idx = idx + 1
-      flat(idx) = state%ldown; idx = idx + 1
+      flat(idx) = state%l_down; idx = idx + 1
       flat(idx) = state%rh; idx = idx + 1
       flat(idx) = state%pres; idx = idx + 1
       flat(idx) = state%tair_av_5d; idx = idx + 1

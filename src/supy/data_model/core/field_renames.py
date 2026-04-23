@@ -467,6 +467,15 @@ ANTHRO_RENAMES: Dict[str, str] = {
 # registry entry is added here (adding one would break the one-to-one
 # fused->final invariant the Rust bridge reverse lookup depends on).
 
+# -- HEAT_STATE (suews_type_heat.f95) -----------------------------------------
+
+HEATSTATE_RENAMES: Dict[str, str] = {
+    "kclear": "k_clear",
+    "kup": "k_up",
+    "ldown": "l_down",
+    "lup": "l_up",
+}
+
 # -- surface types (suews_type_surface.f95) -----------------------------------
 #
 # ``gsmodel`` is NOT added here: MODELPHYSICS_RENAMES already owns
@@ -560,6 +569,7 @@ ALL_FIELD_RENAMES: Dict[str, str] = {
     **ANTHRO_RENAMES,
     **ATMOSPHERE_RENAMES,
     **SURFACE_RENAMES,
+    **HEATSTATE_RENAMES,
 }
 
 # Raw-YAML structural checks (Phase A / precheck) need a wider view than the

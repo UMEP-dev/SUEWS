@@ -654,7 +654,7 @@ CONTAINS
          forcing%rain = MetForcingBlock(ir, 14)
          forcing%kdown = MetForcingBlock(ir, 15)
          forcing%snow_fraction = MetForcingBlock(ir, 16)
-         forcing%ldown = MetForcingBlock(ir, 17)
+         forcing%l_down = MetForcingBlock(ir, 17)
          forcing%f_cloud = MetForcingBlock(ir, 18)
          forcing%Wu_m3 = MetForcingBlock(ir, 19)
          forcing%xsmd = MetForcingBlock(ir, 20)
@@ -1472,7 +1472,7 @@ CONTAINS
             Diagnose => config%Diagnose, &
             use_sw_direct_albedo => config%use_sw_direct_albedo, &
             tstep => timer%tstep, &
-            ldown_obs => forcing%ldown, &
+            ldown_obs => forcing%l_down, &
             fcld_obs => forcing%f_cloud, &
             kdown => forcing%kdown, &
             Tair_C => forcing%Temp_C, &
@@ -1491,12 +1491,12 @@ CONTAINS
             ea_hPa => atmState%ea_hPa, &
             fcld => atmState%f_cloud, &
             qn => heatState%qn, &
-            kclear => heatState%kclear, &
-            kup => heatState%kup, &
-            lup => heatState%lup, &
+            kclear => heatState%k_clear, &
+            kup => heatState%k_up, &
+            lup => heatState%l_up, &
             tsurf => heatState%tsurf, &
             qn_snowfree => heatState%qn_snowfree, &
-            ldown => heatState%ldown, &
+            ldown => heatState%l_down, &
             qn_surf => heatState%qn_surf, &
             qn_roof => heatState%qn_roof, &
             qn_wall => heatState%qn_wall, &
@@ -1768,7 +1768,7 @@ CONTAINS
             qn => heatState%qn, &
             qn_surf => heatState%qn_surf, &
             qs => heatState%qs, &
-            ldown => heatState%ldown, &
+            ldown => heatState%l_down, &
             tsfc_roof => heatState%tsfc_roof, &
             tsfc_wall => heatState%tsfc_wall, &
             tsfc_surf => heatState%tsfc_surf, &
@@ -3518,10 +3518,10 @@ CONTAINS
             Fc_traff => anthroemisState%Fc_traff, &
             QH_LUMPS => heatState%QH_LUMPS, &
             wu_int => hydroState%wu_int, &
-            kup => heatState%kup, &
-            ldown => heatState%ldown, &
+            kup => heatState%k_up, &
+            ldown => heatState%l_down, &
             l_mod => atmState%l_mod, &
-            lup => heatState%lup, &
+            lup => heatState%l_up, &
             mwh => snowState%mwh, &
             MwStore => snowState%melt_water_store, &
             nsh_real => timer%nsh_real, &
@@ -5664,7 +5664,7 @@ CONTAINS
          forcing%rain = MetForcingBlock(ir, 14)
          forcing%kdown = MetForcingBlock(ir, 15)
          forcing%snow_fraction = MetForcingBlock(ir, 16)
-         forcing%ldown = MetForcingBlock(ir, 17)
+         forcing%l_down = MetForcingBlock(ir, 17)
          forcing%f_cloud = MetForcingBlock(ir, 18)
          forcing%Wu_m3 = MetForcingBlock(ir, 19)
          forcing%xsmd = MetForcingBlock(ir, 20)

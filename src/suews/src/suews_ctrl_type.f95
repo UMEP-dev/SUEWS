@@ -190,7 +190,7 @@ MODULE module_ctrl_type
    ! ********** SUEWS_forcing schema **********
    TYPE, PUBLIC :: SUEWS_FORCING
       REAL(KIND(1D0)) :: kdown = 0.0D0 !
-      REAL(KIND(1D0)) :: ldown = 0.0D0 !
+      REAL(KIND(1D0)) :: l_down = 0.0D0 !
       REAL(KIND(1D0)) :: RH = 0.0D0 !
       REAL(KIND(1D0)) :: pres = 0.0D0 !
       REAL(KIND(1D0)) :: Tair_av_5d = 0.0D0 ! 5-day moving average of air temperature [degC]

@@ -456,7 +456,7 @@ CONTAINS
             gfunc => phenState%g_func, &
             PAI => roughnessState%PAI, &
             FAI => roughnessState%FAI, &
-            ldown => heatState%ldown, &
+            ldown => heatState%l_down, &
             TSfc_C => heatState%TSfc_C, &
             zenith_deg => solarState%zenith_deg, &
             azimuth_deg => solarState%azimuth_deg, &

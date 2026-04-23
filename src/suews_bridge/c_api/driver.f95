@@ -1852,10 +1852,10 @@ subroutine pack_heat_state(s, nlayer_c, ndepth_c, flat, n_flat, err)
 
    flat(idx) = s%qh_lumps; idx = idx + 1_c_int
    flat(idx) = s%qe_lumps; idx = idx + 1_c_int
-   flat(idx) = s%kclear; idx = idx + 1_c_int
-   flat(idx) = s%kup; idx = idx + 1_c_int
-   flat(idx) = s%ldown; idx = idx + 1_c_int
-   flat(idx) = s%lup; idx = idx + 1_c_int
+   flat(idx) = s%k_clear; idx = idx + 1_c_int
+   flat(idx) = s%k_up; idx = idx + 1_c_int
+   flat(idx) = s%l_down; idx = idx + 1_c_int
+   flat(idx) = s%l_up; idx = idx + 1_c_int
    flat(idx) = s%qe; idx = idx + 1_c_int
    flat(idx) = s%qf; idx = idx + 1_c_int
    flat(idx) = s%qf_sahp; idx = idx + 1_c_int

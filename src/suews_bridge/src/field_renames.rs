@@ -278,6 +278,172 @@ pub const FIELD_COMPAT_ALIASES: &[(&str, &str)] = &[
     ("rad_melt_factor", "radmeltfact"),
 ];
 
+/// Family registry for nested `model.physics` sub-options (gh#972).
+///
+/// Mirrors `PHYSICS_FAMILIES` in
+/// `src/supy/data_model/core/physics_families.py`. Each entry gives the
+/// ModelPhysics field name *after* the legacy-name rename (fused spelling)
+/// plus the families covered. Drift with the Python side is caught by
+/// `scripts/lint/check_rust_yaml_aliases.py`.
+///
+/// `emissions` is trimmed to codes 0-5 to match the current
+/// `EmissionsMethod` enum — biogen variants (11-45) live in the Python
+/// docstring but are not yet enum members.
+type FamilyCodes = &'static [i64];
+
+pub const PHYSICS_FAMILIES_RS: &[(&str, &[(&str, FamilyCodes)])] = &[
+    (
+        "netradiationmethod",
+        &[
+            ("forcing", &[0]),
+            ("narp", &[1, 2, 3, 11, 12, 13, 100, 200, 300]),
+            ("spartacus", &[1001, 1002, 1003]),
+        ],
+    ),
+    (
+        "storageheatmethod",
+        &[
+            ("observed", &[0]),
+            ("ohm", &[1]),
+            ("anohm", &[3]),
+            ("estm", &[4]),
+            ("ehc", &[5]),
+            ("dyohm", &[6]),
+            ("stebbs", &[7]),
+        ],
+    ),
+    (
+        "emissionsmethod",
+        &[
+            ("observed", &[0]),
+            ("simple", &[1, 2, 3, 4, 5]),
+        ],
+    ),
+];
+
+/// Collapse family-tagged nested physics input to the flat `{value: N}`
+/// shape underneath `model.physics.<field>`. Called from
+/// `normalize_field_names` after the legacy-name rewrite so the target
+/// field is already at its fused spelling (`netradiationmethod` etc.).
+///
+/// Returns `Err(String)` when the family tag is unknown, multiple family
+/// keys are present, the inner mapping lacks `value`, or the numeric code
+/// does not belong to the declared family. Matches the Python-side error
+/// surface in `physics_families.coerce_nested_to_flat`.
+fn collapse_nested_physics(root: &mut Value) -> Result<(), String> {
+    let physics = match root
+        .get_mut("model")
+        .and_then(|m| m.as_mapping_mut())
+        .and_then(|m| m.get_mut(Value::String("physics".into())))
+        .and_then(|p| p.as_mapping_mut())
+    {
+        Some(p) => p,
+        None => return Ok(()),
+    };
+
+    for (field_name, families) in PHYSICS_FAMILIES_RS.iter() {
+        let field_key = Value::String((*field_name).to_string());
+        let entry = match physics.get_mut(&field_key) {
+            Some(v) => v,
+            None => continue,
+        };
+        let map = match entry.as_mapping_mut() {
+            Some(m) => m,
+            None => continue,
+        };
+
+        let matched: Vec<&str> = families
+            .iter()
+            .filter_map(|(fam, _)| {
+                let fam_key = Value::String((*fam).to_string());
+                if map.contains_key(&fam_key) {
+                    Some(*fam)
+                } else {
+                    None
+                }
+            })
+            .collect();
+
+        if matched.is_empty() {
+            continue;
+        }
+        if matched.len() > 1 {
+            return Err(format!(
+                "'{field_name}' received multiple family tags ({matched:?}); supply exactly one."
+            ));
+        }
+
+        let family = matched[0];
+        let fam_codes = families
+            .iter()
+            .find(|(f, _)| *f == family)
+            .map(|(_, codes)| *codes)
+            .expect("family just matched");
+
+        let foreign: Vec<String> = map
+            .iter()
+            .filter_map(|(k, _)| {
+                k.as_str()
+                    .filter(|s| *s != family && *s != "ref")
+                    .map(|s| s.to_string())
+            })
+            .collect();
+        if !foreign.is_empty() {
+            return Err(format!(
+                "'{field_name}.{family}' cannot be combined with sibling keys {foreign:?}."
+            ));
+        }
+
+        let fam_key = Value::String(family.to_string());
+        let inner = map.remove(&fam_key).expect("family key present");
+        let inner_map = inner.as_mapping().ok_or_else(|| {
+            format!("'{field_name}.{family}' must be a mapping with a 'value' key")
+        })?;
+        let code_value = inner_map
+            .get(Value::String("value".into()))
+            .ok_or_else(|| {
+                format!("'{field_name}.{family}' must be a mapping with a 'value' key")
+            })?;
+
+        let code = match code_value {
+            Value::Number(n) => n.as_i64().ok_or_else(|| {
+                format!("'{field_name}.{family}.value' must be an integer code")
+            })?,
+            _ => {
+                return Err(format!(
+                    "'{field_name}.{family}.value' must be a scalar integer code"
+                ));
+            }
+        };
+
+        if !fam_codes.contains(&code) {
+            return Err(format!(
+                "'{field_name}.{family}' expects one of {fam_codes:?}, got {code}."
+            ));
+        }
+
+        // Preserve inner `ref` (if any) when rewriting to the flat shape.
+        let carried_ref = inner_map.get(Value::String("ref".into())).cloned();
+        let mut flat = serde_yaml::Mapping::new();
+        flat.insert(
+            Value::String("value".into()),
+            Value::Number(code.into()),
+        );
+        if let Some(r) = carried_ref {
+            flat.insert(Value::String("ref".into()), r);
+        }
+        // Drop any remaining non-family keys on the outer map (e.g. the
+        // outer `ref`) — family-gated shape intentionally narrows to
+        // `{value: N, ref?: ...}`.
+        map.clear();
+        for (k, v) in flat {
+            map.insert(k, v);
+        }
+    }
+
+    Ok(())
+}
+
 fn legacy_name_for(key: &str) -> Option<(&'static str, &'static str)> {
     FIELD_RENAMES
         .iter()
@@ -305,7 +471,9 @@ fn legacy_name_for(key: &str) -> Option<(&'static str, &'static str)> {
 /// renamed keys on subsequent reads. Idempotent — running twice on the
 /// same tree is a no-op.
 pub fn normalize_field_names(root: &mut Value) -> Result<(), String> {
-    normalize_field_names_at(root, "<root>")
+    normalize_field_names_at(root, "<root>")?;
+    collapse_nested_physics(root)?;
+    Ok(())
 }
 
 fn normalize_field_names_at(root: &mut Value, path: &str) -> Result<(), String> {
@@ -504,6 +672,83 @@ mod tests {
         assert_eq!(
             err,
             "Both 'netradiationmethod' (deprecated) and 'net_radiation_method' are present at model.physics. Use only 'net_radiation_method'."
+        );
+    }
+
+    #[test]
+    fn nested_family_collapses_to_flat() {
+        let yaml = "\
+model:
+  physics:
+    net_radiation:
+      spartacus:
+        value: 1001
+";
+        let mut root: Value = from_str(yaml).unwrap();
+        normalize_field_names(&mut root).unwrap();
+        let physics = &root["model"]["physics"];
+        let netrad = physics
+            .get(Value::String("netradiationmethod".into()))
+            .expect("renamed to fused spelling");
+        let v = netrad
+            .get(Value::String("value".into()))
+            .expect("flat value key");
+        assert_eq!(v.as_i64(), Some(1001));
+        assert!(
+            netrad.get(Value::String("spartacus".into())).is_none(),
+            "family tag should be discarded"
+        );
+    }
+
+    #[test]
+    fn nested_storage_heat_ehc_collapses() {
+        let yaml = "model:\n  physics:\n    storage_heat:\n      ehc:\n        value: 5\n";
+        let mut root: Value = from_str(yaml).unwrap();
+        normalize_field_names(&mut root).unwrap();
+        let v = root["model"]["physics"]["storageheatmethod"]
+            .get(Value::String("value".into()))
+            .unwrap();
+        assert_eq!(v.as_i64(), Some(5));
+    }
+
+    #[test]
+    fn nested_emissions_simple_collapses() {
+        let yaml = "model:\n  physics:\n    emissions:\n      simple:\n        value: 2\n";
+        let mut root: Value = from_str(yaml).unwrap();
+        normalize_field_names(&mut root).unwrap();
+        let v = root["model"]["physics"]["emissionsmethod"]
+            .get(Value::String("value".into()))
+            .unwrap();
+        assert_eq!(v.as_i64(), Some(2));
+    }
+
+    #[test]
+    fn wrong_family_rejected() {
+        let yaml = "model:\n  physics:\n    net_radiation:\n      narp:\n        value: 1001\n";
+        let mut root: Value = from_str(yaml).unwrap();
+        let err = normalize_field_names(&mut root).expect_err("wrong family must fail");
+        assert!(err.contains("expects one of"), "error was: {err}");
+    }
+
+    #[test]
+    fn flat_value_form_untouched_by_collapse() {
+        let yaml = "model:\n  physics:\n    net_radiation:\n      value: 3\n";
+        let mut root: Value = from_str(yaml).unwrap();
+        normalize_field_names(&mut root).unwrap();
+        let v = root["model"]["physics"]["netradiationmethod"]
+            .get(Value::String("value".into()))
+            .unwrap();
+        assert_eq!(v.as_i64(), Some(3));
+    }
+
+    #[test]
+    fn multiple_family_tags_rejected() {
+        let yaml = "model:\n  physics:\n    net_radiation:\n      narp: {value: 3}\n      spartacus: {value: 1001}\n";
+        let mut root: Value = from_str(yaml).unwrap();
+        let err = normalize_field_names(&mut root).expect_err("multi-tag must fail");
+        assert!(
+            err.contains("multiple family tags"),
+            "error was: {err}"
         );
     }
 }

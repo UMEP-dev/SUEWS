@@ -54,6 +54,15 @@ EXAMPLES:
 
 ## 2026
 
+### 23 Apr 2026
+
+- [feature][experimental] Accept nested family-tagged form on `model.physics.{net_radiation, storage_heat, emissions}` (#972)
+  - `net_radiation: {spartacus: {value: 1001}}` is now accepted alongside the existing flat `{value: 1001}` form. Family tag is validated against its numeric codes at load time — wrong-family codes fail loud with a pointer to the correct family
+  - Canonical internal shape stays flat; `SUEWSConfig.to_yaml` and `suews-schema migrate` emit the flat form unchanged
+  - Rust CLI (`suews run`) handles both shapes via a new `collapse_nested_physics` in `src/suews_bridge/src/field_renames.rs`, ordered before the legacy-name rewrite so family tags like `stebbs` don't collide with ModelPhysics field names
+  - Accept-only widening — every previously valid YAML round-trips byte-identically. Schema version bumps `2026.5.dev4 -> 2026.5.dev5` with an identity migration handler, satisfying the schema-audit gate
+  - Rust↔Python parity lint extended to cover the new `PHYSICS_FAMILIES_RS` registry
+
 ### 21 Apr 2026
 
 - [bugfix] Honour explicit `format=` kwarg in `SUEWSSimulation.save` against `OutputConfig.format` (#1318)

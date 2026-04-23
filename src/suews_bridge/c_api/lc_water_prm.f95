@@ -27,9 +27,9 @@ type :: ohm_coef_lc_shadow
 end type ohm_coef_lc_shadow
 
 type :: ohm_prm_shadow
-   real(c_double) :: chanohm = 0.0_c_double
-   real(c_double) :: cpanohm = 0.0_c_double
-   real(c_double) :: kkanohm = 0.0_c_double
+   real(c_double) :: ch_anohm = 0.0_c_double
+   real(c_double) :: cp_anohm = 0.0_c_double
+   real(c_double) :: kk_anohm = 0.0_c_double
    real(c_double) :: ohm_threshsw = 0.0_c_double
    real(c_double) :: ohm_threshwd = 0.0_c_double
    type(ohm_coef_lc_shadow), dimension(3) :: ohm_coef_lc
@@ -115,9 +115,9 @@ subroutine lc_water_prm_pack(state, flat, n_flat, err)
    flat(idx) = state%sfr; idx = idx + 1
    flat(idx) = state%emis; idx = idx + 1
 
-   flat(idx) = state%ohm%chanohm; idx = idx + 1
-   flat(idx) = state%ohm%cpanohm; idx = idx + 1
-   flat(idx) = state%ohm%kkanohm; idx = idx + 1
+   flat(idx) = state%ohm%ch_anohm; idx = idx + 1
+   flat(idx) = state%ohm%cp_anohm; idx = idx + 1
+   flat(idx) = state%ohm%kk_anohm; idx = idx + 1
    flat(idx) = state%ohm%ohm_threshsw; idx = idx + 1
    flat(idx) = state%ohm%ohm_threshwd; idx = idx + 1
    do i = 1, 3
@@ -160,9 +160,9 @@ subroutine lc_water_prm_unpack(flat, n_flat, state, err)
    state%sfr = flat(idx); idx = idx + 1_c_int
    state%emis = flat(idx); idx = idx + 1_c_int
 
-   state%ohm%chanohm = flat(idx); idx = idx + 1_c_int
-   state%ohm%cpanohm = flat(idx); idx = idx + 1_c_int
-   state%ohm%kkanohm = flat(idx); idx = idx + 1_c_int
+   state%ohm%ch_anohm = flat(idx); idx = idx + 1_c_int
+   state%ohm%cp_anohm = flat(idx); idx = idx + 1_c_int
+   state%ohm%kk_anohm = flat(idx); idx = idx + 1_c_int
    state%ohm%ohm_threshsw = flat(idx); idx = idx + 1_c_int
    state%ohm%ohm_threshwd = flat(idx); idx = idx + 1_c_int
    do i = 1_c_int, 3_c_int

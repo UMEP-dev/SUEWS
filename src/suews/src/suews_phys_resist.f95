@@ -565,9 +565,9 @@ CONTAINS
             z0m => roughnessState%z0m, &
             zdm => roughnessState%zdm, &
             ZZD => roughnessState%ZZD, &
-            FAIBldg_use => roughnessState%FAIBldg_use, &
-            FAIEveTree_use => roughnessState%FAIEveTree_use, &
-            FAIDecTree_use => roughnessState%FAIDecTree_use, &
+            FAIBldg_use => roughnessState%fai_bldg_use, &
+            FAIEveTree_use => roughnessState%fai_evetree_use, &
+            FAIDecTree_use => roughnessState%fai_dectree_use, &
             RoughLenMomMethod => config%RoughLenMomMethod, &
             FAImethod => config%FAImethod, &
             sfr_surf => [pavedPrm%sfr, bldgPrm%sfr, evetrPrm%sfr, dectrPrm%sfr, grassPrm%sfr, bsoilPrm%sfr, waterPrm%sfr], &

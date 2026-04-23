@@ -146,15 +146,15 @@ CONTAINS
             IF (i_iter == 1) THEN
 
                veg_type = lumpsPrm%veg_type
-               DRAINRT = lumpsPrm%drainrt
+               DRAINRT = lumpsPrm%drain_rate
 
                ! SnowUse = config%SnowUse
 
                Temp_C = forcing%Temp_C
                Press_hPa = forcing%pres
                Precip = forcing%rain
-               RainMaxRes = lumpsPrm%rainmaxres
-               RAINCOVER = lumpsPrm%raincover
+               RainMaxRes = lumpsPrm%rain_max_res
+               RAINCOVER = lumpsPrm%rain_cover
 
                LAI_id_prev = phenState%LAI_id
 

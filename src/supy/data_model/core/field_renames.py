@@ -467,6 +467,32 @@ ANTHRO_RENAMES: Dict[str, str] = {
 # registry entry is added here (adding one would break the one-to-one
 # fused->final invariant the Rust bridge reverse lookup depends on).
 
+# -- surface types (suews_type_surface.f95) -----------------------------------
+#
+# ``gsmodel`` is NOT added here: MODELPHYSICS_RENAMES already owns
+# ``gsmodel -> surface_conductance`` for the Python YAML side. The
+# Fortran CONDUCTANCE_PRM.gsmodel member has different semantics
+# (holds the model choice integer) and is renamed to ``gs_model``
+# only in Fortran source — registering a second entry with the same
+# key would break the one-to-one invariant.
+
+SURFACE_RENAMES: Dict[str, str] = {
+    # LUMPS_PRM
+    "raincover": "rain_cover",
+    "rainmaxres": "rain_max_res",
+    "drainrt": "drain_rate",
+    # OHM_PRM
+    "chanohm": "ch_anohm",
+    "cpanohm": "cp_anohm",
+    "kkanohm": "kk_anohm",
+    # CONDUCTANCE_PRM
+    "kmax": "k_max",
+    # ROUGHNESS_STATE
+    "FAIBldg_use": "fai_bldg_use",
+    "FAIEveTree_use": "fai_evetree_use",
+    "FAIDecTree_use": "fai_dectree_use",
+}
+
 # -- atm_state + solar_State (suews_type_atmosphere.f95) ----------------------
 
 ATMOSPHERE_RENAMES: Dict[str, str] = {
@@ -533,6 +559,7 @@ ALL_FIELD_RENAMES: Dict[str, str] = {
     **PHENOLOGYSTATE_RENAMES,
     **ANTHRO_RENAMES,
     **ATMOSPHERE_RENAMES,
+    **SURFACE_RENAMES,
 }
 
 # Raw-YAML structural checks (Phase A / precheck) need a wider view than the

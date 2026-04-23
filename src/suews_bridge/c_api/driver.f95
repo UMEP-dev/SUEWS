@@ -1899,9 +1899,9 @@ subroutine pack_roughness_state(s, flat, n_flat, err)
       return
    end if
 
-   flat(1) = s%faibldg_use
-   flat(2) = s%faievetree_use
-   flat(3) = s%faidectree_use
+   flat(1) = s%fai_bldg_use
+   flat(2) = s%fai_evetree_use
+   flat(3) = s%fai_dectree_use
    flat(4) = s%fai
    flat(5) = s%pai
    flat(6) = s%zh

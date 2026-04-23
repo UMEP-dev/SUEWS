@@ -794,9 +794,9 @@ CONTAINS
             s_hPa => atmState%s_hPa, &
             psyc_hPa => atmState%psyc_hPa, &
             i_iter => flagState%i_iter, &
-            FAIBldg_use => roughnessState%FAIBldg_use, &
-            FAIEveTree_use => roughnessState%FAIEveTree_use, &
-            FAIDecTree_use => roughnessState%FAIDecTree_use, &
+            FAIBldg_use => roughnessState%fai_bldg_use, &
+            FAIEveTree_use => roughnessState%fai_evetree_use, &
+            FAIDecTree_use => roughnessState%fai_dectree_use, &
             FAI => roughnessState%FAI &
             )
 
@@ -1290,8 +1290,8 @@ CONTAINS
                G_q_shape => conductancePrm%g_q_shape, &
                G_t => conductancePrm%g_t, &
                G_sm => conductancePrm%g_sm, &
-               gsmodel => conductancePrm%gsmodel, &
-               Kmax => conductancePrm%Kmax, &
+               gsmodel => conductancePrm%gs_model, &
+               Kmax => conductancePrm%k_max, &
                S1 => conductancePrm%S1, &
                S2 => conductancePrm%S2, &
                TH => conductancePrm%TH, &
@@ -1990,29 +1990,29 @@ CONTAINS
                emis(6) = bsoilPrm%emis
                emis(7) = waterPrm%emis
 
-               cpAnOHM(1) = pavedPrm%ohm%cpanohm
-               cpAnOHM(2) = bldgPrm%ohm%cpanohm
-               cpAnOHM(3) = evetrPrm%ohm%cpanohm
-               cpAnOHM(4) = dectrPrm%ohm%cpanohm
-               cpAnOHM(5) = grassPrm%ohm%cpanohm
-               cpAnOHM(6) = bsoilPrm%ohm%cpanohm
-               cpAnOHM(7) = waterPrm%ohm%cpanohm
+               cpAnOHM(1) = pavedPrm%ohm%cp_anohm
+               cpAnOHM(2) = bldgPrm%ohm%cp_anohm
+               cpAnOHM(3) = evetrPrm%ohm%cp_anohm
+               cpAnOHM(4) = dectrPrm%ohm%cp_anohm
+               cpAnOHM(5) = grassPrm%ohm%cp_anohm
+               cpAnOHM(6) = bsoilPrm%ohm%cp_anohm
+               cpAnOHM(7) = waterPrm%ohm%cp_anohm
 
-               kkAnOHM(1) = pavedPrm%ohm%kkanohm
-               kkAnOHM(2) = bldgPrm%ohm%kkanohm
-               kkAnOHM(3) = evetrPrm%ohm%kkanohm
-               kkAnOHM(4) = dectrPrm%ohm%kkanohm
-               kkAnOHM(5) = grassPrm%ohm%kkanohm
-               kkAnOHM(6) = bsoilPrm%ohm%kkanohm
-               kkAnOHM(7) = waterPrm%ohm%kkanohm
+               kkAnOHM(1) = pavedPrm%ohm%kk_anohm
+               kkAnOHM(2) = bldgPrm%ohm%kk_anohm
+               kkAnOHM(3) = evetrPrm%ohm%kk_anohm
+               kkAnOHM(4) = dectrPrm%ohm%kk_anohm
+               kkAnOHM(5) = grassPrm%ohm%kk_anohm
+               kkAnOHM(6) = bsoilPrm%ohm%kk_anohm
+               kkAnOHM(7) = waterPrm%ohm%kk_anohm
 
-               chAnOHM(1) = pavedPrm%ohm%chanohm
-               chAnOHM(2) = bldgPrm%ohm%chanohm
-               chAnOHM(3) = evetrPrm%ohm%chanohm
-               chAnOHM(4) = dectrPrm%ohm%chanohm
-               chAnOHM(5) = grassPrm%ohm%chanohm
-               chAnOHM(6) = bsoilPrm%ohm%chanohm
-               chAnOHM(7) = waterPrm%ohm%chanohm
+               chAnOHM(1) = pavedPrm%ohm%ch_anohm
+               chAnOHM(2) = bldgPrm%ohm%ch_anohm
+               chAnOHM(3) = evetrPrm%ohm%ch_anohm
+               chAnOHM(4) = dectrPrm%ohm%ch_anohm
+               chAnOHM(5) = grassPrm%ohm%ch_anohm
+               chAnOHM(6) = bsoilPrm%ohm%ch_anohm
+               chAnOHM(7) = waterPrm%ohm%ch_anohm
 
                ! WRITE (*, *) 'OHM_coef = ', OHM_coef
 
@@ -3347,8 +3347,8 @@ CONTAINS
             ASSOCIATE ( &
                LAIMax => [evetrPrm%lai%lai_max, dectrPrm%lai%lai_max, grassPrm%lai%lai_max], &
                MaxConductance => [evetrPrm%maxconductance, dectrPrm%maxconductance, grassPrm%maxconductance], &
-               gsModel => conductancePrm%gsModel, &
-               Kmax => conductancePrm%Kmax, &
+               gsModel => conductancePrm%gs_model, &
+               Kmax => conductancePrm%k_max, &
                G_max => conductancePrm%g_max, &
                G_k => conductancePrm%g_k, &
                G_q_base => conductancePrm%g_q_base, &
@@ -4851,9 +4851,9 @@ CONTAINS
       config%flag_test = flag_test
 
       ! lumps parameters
-      lumpsPrm%raincover = RAINCOVER
-      lumpsPrm%rainmaxres = RainMaxRes
-      lumpsPrm%drainrt = DRAINRT
+      lumpsPrm%rain_cover = RAINCOVER
+      lumpsPrm%rain_max_res = RainMaxRes
+      lumpsPrm%drain_rate = DRAINRT
       lumpsPrm%veg_type = veg_type
 
       ! ESTM_ehc
@@ -5002,8 +5002,8 @@ CONTAINS
       conductancePrm%g_q_shape = g_q_shape
       conductancePrm%g_t = g_t
       conductancePrm%g_sm = g_sm
-      conductancePrm%kmax = Kmax
-      conductancePrm%gsmodel = gsModel
+      conductancePrm%k_max = Kmax
+      conductancePrm%gs_model = gsModel
       conductancePrm%s1 = S1
       conductancePrm%s2 = S2
       conductancePrm%TH = TH
@@ -5011,9 +5011,9 @@ CONTAINS
 
       pavedPrm%sfr = sfr_surf(PavSurf)
       pavedPrm%emis = emis(PavSurf)
-      pavedPrm%ohm%chanohm = chAnOHM(PavSurf)
-      pavedPrm%ohm%cpanohm = cpAnOHM(PavSurf)
-      pavedPrm%ohm%kkanohm = kkAnOHM(PavSurf)
+      pavedPrm%ohm%ch_anohm = chAnOHM(PavSurf)
+      pavedPrm%ohm%cp_anohm = cpAnOHM(PavSurf)
+      pavedPrm%ohm%kk_anohm = kkAnOHM(PavSurf)
       pavedPrm%ohm%ohm_threshsw = OHM_threshSW(PavSurf)
       pavedPrm%ohm%ohm_threshwd = OHM_threshWD(PavSurf)
 
@@ -5054,9 +5054,9 @@ CONTAINS
       bldgPrm%faibldg = FAIBldg
       bldgPrm%bldgh = bldgH
       bldgPrm%emis = emis(BldgSurf)
-      bldgPrm%ohm%chanohm = chAnOHM(BldgSurf)
-      bldgPrm%ohm%cpanohm = cpAnOHM(BldgSurf)
-      bldgPrm%ohm%kkanohm = kkAnOHM(BldgSurf)
+      bldgPrm%ohm%ch_anohm = chAnOHM(BldgSurf)
+      bldgPrm%ohm%cp_anohm = cpAnOHM(BldgSurf)
+      bldgPrm%ohm%kk_anohm = kkAnOHM(BldgSurf)
       bldgPrm%ohm%ohm_threshsw = OHM_threshSW(BldgSurf)
       bldgPrm%ohm%ohm_threshwd = OHM_threshWD(BldgSurf)
       bldgPrm%ohm%ohm_coef_lc(1)%summer_wet = OHM_coef(BldgSurf, 1, 1)
@@ -5097,9 +5097,9 @@ CONTAINS
       dectrPrm%pormax_dec = PorMax_dec
       dectrPrm%alb_min = AlbMin_DecTr
       dectrPrm%alb_max = AlbMax_DecTr
-      dectrPrm%ohm%chanohm = chAnOHM(DecidSurf)
-      dectrPrm%ohm%cpanohm = cpAnOHM(DecidSurf)
-      dectrPrm%ohm%kkanohm = kkAnOHM(DecidSurf)
+      dectrPrm%ohm%ch_anohm = chAnOHM(DecidSurf)
+      dectrPrm%ohm%cp_anohm = cpAnOHM(DecidSurf)
+      dectrPrm%ohm%kk_anohm = kkAnOHM(DecidSurf)
       dectrPrm%ohm%ohm_threshsw = OHM_threshSW(DecidSurf)
       dectrPrm%ohm%ohm_threshwd = OHM_threshWD(DecidSurf)
 
@@ -5161,9 +5161,9 @@ CONTAINS
       evetrPrm%evetreeh = EveTreeH
       evetrPrm%alb_min = AlbMin_EveTr
       evetrPrm%alb_max = AlbMax_EveTr
-      evetrPrm%ohm%chanohm = chAnOHM(ConifSurf)
-      evetrPrm%ohm%cpanohm = cpAnOHM(ConifSurf)
-      evetrPrm%ohm%kkanohm = kkAnOHM(ConifSurf)
+      evetrPrm%ohm%ch_anohm = chAnOHM(ConifSurf)
+      evetrPrm%ohm%cp_anohm = cpAnOHM(ConifSurf)
+      evetrPrm%ohm%kk_anohm = kkAnOHM(ConifSurf)
       evetrPrm%ohm%ohm_threshsw = OHM_threshSW(ConifSurf)
       evetrPrm%ohm%ohm_threshwd = OHM_threshWD(ConifSurf)
       evetrPrm%ohm%ohm_coef_lc(1)%summer_wet = OHM_coef(ConifSurf, 1, 1)
@@ -5220,9 +5220,9 @@ CONTAINS
       grassPrm%emis = emis(GrassSurf)
       grassPrm%alb_min = AlbMin_Grass
       grassPrm%alb_max = AlbMax_Grass
-      grassPrm%ohm%chanohm = chAnOHM(GrassSurf)
-      grassPrm%ohm%cpanohm = cpAnOHM(GrassSurf)
-      grassPrm%ohm%kkanohm = kkAnOHM(GrassSurf)
+      grassPrm%ohm%ch_anohm = chAnOHM(GrassSurf)
+      grassPrm%ohm%cp_anohm = cpAnOHM(GrassSurf)
+      grassPrm%ohm%kk_anohm = kkAnOHM(GrassSurf)
       grassPrm%ohm%ohm_threshsw = OHM_threshSW(GrassSurf)
       grassPrm%ohm%ohm_threshwd = OHM_threshWD(GrassSurf)
       grassPrm%ohm%ohm_coef_lc(1)%summer_wet = OHM_coef(GrassSurf, 1, 1)
@@ -5277,9 +5277,9 @@ CONTAINS
 
       bsoilPrm%sfr = sfr_surf(BSoilSurf)
       bsoilPrm%emis = emis(BSoilSurf)
-      bsoilPrm%ohm%chanohm = chAnOHM(BSoilSurf)
-      bsoilPrm%ohm%cpanohm = cpAnOHM(BSoilSurf)
-      bsoilPrm%ohm%kkanohm = kkAnOHM(BSoilSurf)
+      bsoilPrm%ohm%ch_anohm = chAnOHM(BSoilSurf)
+      bsoilPrm%ohm%cp_anohm = cpAnOHM(BSoilSurf)
+      bsoilPrm%ohm%kk_anohm = kkAnOHM(BSoilSurf)
       bsoilPrm%ohm%ohm_threshsw = OHM_threshSW(BSoilSurf)
       bsoilPrm%ohm%ohm_threshwd = OHM_threshWD(BSoilSurf)
       bsoilPrm%ohm%ohm_coef_lc(1)%summer_wet = OHM_coef(BSoilSurf, 1, 1)
@@ -5323,9 +5323,9 @@ CONTAINS
 
       waterPrm%sfr = sfr_surf(WaterSurf)
       waterPrm%emis = emis(WaterSurf)
-      waterPrm%ohm%chanohm = chAnOHM(WaterSurf)
-      waterPrm%ohm%cpanohm = cpAnOHM(WaterSurf)
-      waterPrm%ohm%kkanohm = kkAnOHM(WaterSurf)
+      waterPrm%ohm%ch_anohm = chAnOHM(WaterSurf)
+      waterPrm%ohm%cp_anohm = cpAnOHM(WaterSurf)
+      waterPrm%ohm%kk_anohm = kkAnOHM(WaterSurf)
       waterPrm%ohm%ohm_threshsw = OHM_threshSW(WaterSurf)
       waterPrm%ohm%ohm_threshwd = OHM_threshWD(WaterSurf)
       waterPrm%ohm%ohm_coef_lc(1)%summer_wet = OHM_coef(WaterSurf, 1, 1)

@@ -26,8 +26,8 @@ type :: conductance_prm_shadow
    real(c_double) :: g_q_shape = 0.0_c_double
    real(c_double) :: g_t = 0.0_c_double
    real(c_double) :: g_sm = 0.0_c_double
-   real(c_double) :: kmax = 0.0_c_double
-   integer(c_int) :: gsmodel = 0_c_int
+   real(c_double) :: k_max = 0.0_c_double
+   integer(c_int) :: gs_model = 0_c_int
    real(c_double) :: s1 = 0.0_c_double
    real(c_double) :: s2 = 0.0_c_double
    real(c_double) :: th = 0.0_c_double
@@ -96,8 +96,8 @@ subroutine conductance_prm_pack(state, flat, n_flat, err)
    flat(4) = state%g_q_shape
    flat(5) = state%g_t
    flat(6) = state%g_sm
-   flat(7) = state%kmax
-   flat(8) = real(state%gsmodel, c_double)
+   flat(7) = state%k_max
+   flat(8) = real(state%gs_model, c_double)
    flat(9) = state%s1
    flat(10) = state%s2
    flat(11) = state%th
@@ -126,8 +126,8 @@ subroutine conductance_prm_unpack(flat, n_flat, state, err)
    state%g_q_shape = flat(4)
    state%g_t = flat(5)
    state%g_sm = flat(6)
-   state%kmax = flat(7)
-   state%gsmodel = int(nint(flat(8)))
+   state%k_max = flat(7)
+   state%gs_model = int(nint(flat(8)))
    state%s1 = flat(9)
    state%s2 = flat(10)
    state%TH = flat(11)

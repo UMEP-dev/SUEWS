@@ -504,7 +504,57 @@ Troubleshooting
    - Check that profile IDs in tables match those in ``SUEWS_Profiles.txt``
 
 4. **"Conversion chain failed"**
-   
+
    - Use ``-d debug_dir`` to save intermediate files
    - Check the debug directory to identify which conversion step failed
    - Report issues with the specific version transition that failed
+
+Nested Physics Sub-Options (accept-only, gh#972)
+-------------------------------------------------
+
+Three ``model.physics`` fields accept a family-tagged nested form
+alongside the existing flat ``{value: N}`` shape:
+
+- ``net_radiation`` — families ``forcing``, ``narp``, ``spartacus``.
+- ``storage_heat`` — families ``observed``, ``ohm``, ``anohm``,
+  ``estm``, ``ehc``, ``dyohm``, ``stebbs``.
+- ``emissions`` — families ``observed``, ``simple``.
+
+Family-tagged form:
+
+.. code-block:: yaml
+
+   model:
+     physics:
+       net_radiation:
+         spartacus:
+           value: 1001
+
+Equivalent flat form — the canonical internal representation, and
+what ``SUEWSConfig.to_yaml`` emits:
+
+.. code-block:: yaml
+
+   model:
+     physics:
+       net_radiation:
+         value: 1001
+
+The family tag is a validation gate. Submitting a code that does
+not belong to the declared family raises a ``ValidationError``
+pointing at the correct family. For example, ``{narp: {value:
+1001}}`` is rejected because ``1001`` is a ``spartacus`` code.
+
+Accept-only widening — no schema version bump. Every previously
+valid YAML continues to validate and round-trips byte-identically.
+Writing in the nested form is optional and serves as in-file
+documentation of intent; YAMLs that round-trip through
+``suews-schema migrate`` or ``SUEWSConfig.to_yaml`` are always
+emitted in the flat form.
+
+The Rust CLI (``suews run``) accepts the same two shapes via the
+bridge-side normaliser in ``src/suews_bridge/src/field_renames.rs``.
+Orthogonal-axis decomposition (``net_radiation: {scheme: narp,
+ldown: air}``) and human-readable code names (``ohm``, ``K09``,
+``CN98``) are planned as follow-up work and will track under a
+separate issue once this plumbing is proven.

@@ -8,8 +8,8 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <meta property="article:modified_time" content="2026-04-23T12:12:24+00:00" />
-    <title>4.5. Transitioning to YAML-based Configuration &#8212; SUEWS 2026.4.23.dev9012 documentation</title>
+    <meta property="article:modified_time" content="2026-04-23T23:50:05+00:00" />
+    <title>4.5. Transitioning to YAML-based Configuration &#8212; SUEWS 2026.4.23.dev9015 documentation</title>
   
   
   
@@ -45,7 +45,7 @@
   <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=8878045cc6db502f8baf" />
 <link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=8878045cc6db502f8baf" />
 
-    <script src="../_static/documentation_options.js?v=ee657fdb"></script>
+    <script src="../_static/documentation_options.js?v=7b70fd0a"></script>
     <script src="../_static/doctools.js?v=9bcbadda"></script>
     <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
     <script src="../_static/scripts/sphinx-book-theme.js?v=fab101a9"></script>
@@ -59,7 +59,7 @@
     <link rel="prev" title="4.4. SUEWS Format Converter" href="converter.html" />
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
-  <meta name="docsearch:version" content="2026.4.23.dev9012" />
+  <meta name="docsearch:version" content="2026.4.23.dev9015" />
     <meta name="docbuild:last-update" content="2026-04-23"/>
   </head>
   
@@ -102,7 +102,7 @@
   <div class="bd-header-announcement__content">
     <div style="background-color: #f0ad4e; border: 1px solid #eea236; border-radius: 4px; padding: 10px; margin: 10px 0;">
         <strong>⚠️ Development Version:</strong> This documentation was built from a development version
-        (2026.4.23.dev9012, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/55f4247a18bf60cfdca290e51ec13bc51278bd2a" style="color: #31708f;">55f4247</a>).
+        (2026.4.23.dev9015, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/967b21f6545a48b40e9fb79b1b0807083b8b6995" style="color: #31708f;">967b21f</a>).
         Features described here may be unstable or subject to change. For stable documentation, please visit the
         <a href="https://docs.suews.io/stable/" style="color: #31708f;">latest release</a>.
     </div>
@@ -149,8 +149,8 @@
       
     
     
-    <img src="../_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.4.23.dev9012 documentation - Home"/>
-    <img src="../_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.4.23.dev9012 documentation - Home"/>
+    <img src="../_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.4.23.dev9015 documentation - Home"/>
+    <img src="../_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.4.23.dev9015 documentation - Home"/>
   
   
 </a></div>
@@ -620,6 +620,7 @@
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#troubleshooting">4.5.4.9. Troubleshooting</a></li>
 </ul>
 </li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#nested-physics-sub-options-accept-only-gh-972">4.5.5. Nested Physics Sub-Options (accept-only, gh#972)</a></li>
 </ul>
             </nav>
         </div>
@@ -1107,6 +1108,49 @@ upgraded file, pass <code class="docutils literal notranslate"><span class="pre"
 </ol>
 </section>
 </section>
+<section id="nested-physics-sub-options-accept-only-gh-972">
+<h2><span class="section-number">4.5.5. </span>Nested Physics Sub-Options (accept-only, gh#972)<a class="headerlink" href="#nested-physics-sub-options-accept-only-gh-972" title="Link to this heading">#</a></h2>
+<p>Three <code class="docutils literal notranslate"><span class="pre">model.physics</span></code> fields accept a family-tagged nested form
+alongside the existing flat <code class="docutils literal notranslate"><span class="pre">{value:</span> <span class="pre">N}</span></code> shape:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">net_radiation</span></code> — families <code class="docutils literal notranslate"><span class="pre">forcing</span></code>, <code class="docutils literal notranslate"><span class="pre">narp</span></code>, <code class="docutils literal notranslate"><span class="pre">spartacus</span></code>.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">storage_heat</span></code> — families <code class="docutils literal notranslate"><span class="pre">observed</span></code>, <code class="docutils literal notranslate"><span class="pre">ohm</span></code>, <code class="docutils literal notranslate"><span class="pre">anohm</span></code>,
+<code class="docutils literal notranslate"><span class="pre">estm</span></code>, <code class="docutils literal notranslate"><span class="pre">ehc</span></code>, <code class="docutils literal notranslate"><span class="pre">dyohm</span></code>, <code class="docutils literal notranslate"><span class="pre">stebbs</span></code>.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">emissions</span></code> — families <code class="docutils literal notranslate"><span class="pre">observed</span></code>, <code class="docutils literal notranslate"><span class="pre">simple</span></code>.</p></li>
+</ul>
+<p>Family-tagged form:</p>
+<div class="highlight-yaml notranslate"><div class="highlight"><pre><span></span><span class="nt">model</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">physics</span><span class="p">:</span>
+<span class="w">    </span><span class="nt">net_radiation</span><span class="p">:</span>
+<span class="w">      </span><span class="nt">spartacus</span><span class="p">:</span>
+<span class="w">        </span><span class="nt">value</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">1001</span>
+</pre></div>
+</div>
+<p>Equivalent flat form — the canonical internal representation, and
+what <code class="docutils literal notranslate"><span class="pre">SUEWSConfig.to_yaml</span></code> emits:</p>
+<div class="highlight-yaml notranslate"><div class="highlight"><pre><span></span><span class="nt">model</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">physics</span><span class="p">:</span>
+<span class="w">    </span><span class="nt">net_radiation</span><span class="p">:</span>
+<span class="w">      </span><span class="nt">value</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">1001</span>
+</pre></div>
+</div>
+<p>The family tag is a validation gate. Submitting a code that does
+not belong to the declared family raises a <code class="docutils literal notranslate"><span class="pre">ValidationError</span></code>
+pointing at the correct family. For example, <code class="docutils literal notranslate"><span class="pre">{narp:</span> <span class="pre">{value:</span>
+<span class="pre">1001}}</span></code> is rejected because <code class="docutils literal notranslate"><span class="pre">1001</span></code> is a <code class="docutils literal notranslate"><span class="pre">spartacus</span></code> code.</p>
+<p>Accept-only widening — no schema version bump. Every previously
+valid YAML continues to validate and round-trips byte-identically.
+Writing in the nested form is optional and serves as in-file
+documentation of intent; YAMLs that round-trip through
+<code class="docutils literal notranslate"><span class="pre">suews-schema</span> <span class="pre">migrate</span></code> or <code class="docutils literal notranslate"><span class="pre">SUEWSConfig.to_yaml</span></code> are always
+emitted in the flat form.</p>
+<p>The Rust CLI (<code class="docutils literal notranslate"><span class="pre">suews</span> <span class="pre">run</span></code>) accepts the same two shapes via the
+bridge-side normaliser in <code class="docutils literal notranslate"><span class="pre">src/suews_bridge/src/field_renames.rs</span></code>.
+Orthogonal-axis decomposition (<code class="docutils literal notranslate"><span class="pre">net_radiation:</span> <span class="pre">{scheme:</span> <span class="pre">narp,</span>
+<span class="pre">ldown:</span> <span class="pre">air}</span></code>) and human-readable code names (<code class="docutils literal notranslate"><span class="pre">ohm</span></code>, <code class="docutils literal notranslate"><span class="pre">K09</span></code>,
+<code class="docutils literal notranslate"><span class="pre">CN98</span></code>) are planned as follow-up work and will track under a
+separate issue once this plumbing is proven.</p>
+</section>
 </section>
 
 
@@ -1183,6 +1227,7 @@ upgraded file, pass <code class="docutils literal notranslate"><span class="pre"
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#troubleshooting">4.5.4.9. Troubleshooting</a></li>
 </ul>
 </li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#nested-physics-sub-options-accept-only-gh-972">4.5.5. Nested Physics Sub-Options (accept-only, gh#972)</a></li>
 </ul>
   </nav></div>
 
@@ -1224,8 +1269,8 @@ By SUEWS dev team led by Prof Sue Grimmond
   <div class="footer-item">
     
 <div class="extra_footer">
-  <p>Version: 2026.4.23.dev9012 |
-    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/55f4247a18bf60cfdca290e51ec13bc51278bd2a">55f4247</a> |
+  <p>Version: 2026.4.23.dev9015 |
+    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/967b21f6545a48b40e9fb79b1b0807083b8b6995">967b21f</a> |
     <a href="https://umep-dev.github.io/SUEWS/brand/showcase.html">Brand</a></p>
 </div>
   </div>

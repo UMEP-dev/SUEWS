@@ -117,6 +117,21 @@ class TestDatabasePrepareAPI(TestCase):
         finally:
             temp_path.unlink()
 
+    def test_validate_single_file_sparse_config_is_invalid(self):
+        """Sparse YAML must fail file-backed model validation."""
+        from supy.cmd.validate_config import validate_single_file
+        from supy.data_model.schema.publisher import generate_json_schema
+
+        schema = generate_json_schema()
+        sparse_config = Path(__file__).parent.parent / "fixtures" / "sparse_site.yml"
+
+        is_valid, errors = validate_single_file(sparse_config, schema)
+
+        self.assertFalse(is_valid)
+        messages = "\n".join(getattr(err, "message", str(err)) for err in errors)
+        self.assertIn("faibldg", messages)
+        self.assertIn("conductance.g_max", messages)
+
 
 class TestERA5DownloadAPI(TestCase):
     """Test functions used by UMEP ERA5 Download.

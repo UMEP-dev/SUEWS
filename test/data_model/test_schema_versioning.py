@@ -40,6 +40,7 @@ def load_supy_resource(resource_path: str) -> str:
 
 
 from supy.data_model.core import SUEWSConfig
+from supy.cmd.schema_cli import validate_file_against_schema
 from supy.data_model.schema import (
     CURRENT_SCHEMA_VERSION,
     is_schema_compatible,
@@ -120,6 +121,17 @@ class TestSchemaVersioning:
         with pytest.raises(ValueError) as exc:
             validate_schema_version("2.0", strict=True)
         assert "incompatible" in str(exc.value).lower()
+
+    def test_schema_cli_validate_rejects_sparse_yaml(self):
+        """schema_cli validation should mirror from_yaml() on sparse configs."""
+        sparse_config = Path(__file__).parent.parent / "fixtures" / "sparse_site.yml"
+
+        is_valid, errors = validate_file_against_schema(sparse_config)
+
+        assert is_valid is False
+        message = "\n".join(errors)
+        assert "faibldg" in message
+        assert "conductance.g_max" in message
 
     def test_validate_schema_version_warnings(self):
         """Test schema validation warnings in non-strict mode."""

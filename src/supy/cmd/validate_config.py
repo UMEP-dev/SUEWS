@@ -127,9 +127,11 @@ def validate_single_file(
                 else:
                     errors.append(f"{path}: {error.message}")
 
-        # Try configuration consistency validation for additional checks
+        # Try configuration consistency validation for additional checks.
+        # Use the path-aware loader so file-backed validation runs the same
+        # sparse-YAML completeness checks as the public loading API.
         try:
-            SUEWSConfig(**config)
+            SUEWSConfig.from_yaml(str(file_path))
         except Exception as e:
             if ValidationError:
                 errors.append(

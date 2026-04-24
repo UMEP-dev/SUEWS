@@ -2746,8 +2746,8 @@ class SUEWSConfig(BaseModel):
 
         return critical_issues
 
-    def _check_critical_null_site_params(self) -> List[str]:
-        """Check for critical null site-level parameters that silently yield NaN output.
+    def _iter_critical_null_site_param_issues(self) -> List[Dict[str, str]]:
+        """Return structured issues for critical null site-level parameters.
 
         Complements :meth:`_check_critical_null_physics_params` (which covers
         the top-level ``ModelPhysics`` switches) by auditing site- and
@@ -2783,9 +2783,11 @@ class SUEWSConfig(BaseModel):
 
         Returns
         -------
-        List[str]
-            One error string per missing field, naming the site, surface
-            (where applicable), and the governing condition.
+        List[Dict[str, str]]
+            One structured issue per missing field. Each issue carries an
+            ``error_text`` for the raised exception plus the ``path`` /
+            ``param`` / ``message`` / ``fix`` metadata used by the
+            annotated-YAML generator.
 
         Notes
         -----
@@ -2811,13 +2813,13 @@ class SUEWSConfig(BaseModel):
         configurations where the intent is to run SUEWS and the missing
         fields would silently produce NaN.
         """
-        critical_issues: List[str] = []
+        issues: List[Dict[str, str]] = []
 
         if getattr(self, "_yaml_path", None) is None:
-            return critical_issues
+            return issues
 
         if not getattr(self, "sites", None):
-            return critical_issues
+            return issues
 
         yaml_raw = getattr(self, "_yaml_raw", None)
 
@@ -2836,6 +2838,17 @@ class SUEWSConfig(BaseModel):
             if not isinstance(raw_props, dict):
                 return {}
             return raw_props
+
+        def _raw_surface(site_index: int, surface_name: str) -> Dict[str, Any]:
+            """Return the raw ``sites[i].properties.land_cover.<surface>`` dict."""
+            raw_props = _raw_site_properties(site_index)
+            raw_lc = raw_props.get("land_cover")
+            if not isinstance(raw_lc, dict):
+                return {}
+            raw_surface = raw_lc.get(surface_name)
+            if not isinstance(raw_surface, dict):
+                return {}
+            return raw_surface
 
         def _user_declared_surface(site_index: int, surface_name: str) -> bool:
             """True if the user explicitly declared this surface as a
@@ -2856,26 +2869,122 @@ class SUEWSConfig(BaseModel):
                 return False
             return isinstance(raw_lc.get(surface_name), dict)
 
-        lai_required = [
-            "lai_max",
-            "base_temperature",
-            "base_temperature_senescence",
-            "gdd_full",
-            "sdd_full",
-        ]
-        conductance_required = [
-            "g_max",
-            "g_k",
-            "g_q_base",
-            "g_q_shape",
-            "g_t",
-            "g_sm",
-            "kmax",
-            "s1",
-            "s2",
-            "tl",
-            "th",
-        ]
+        lai_required = {
+            "lai_max": (
+                "Maximum LAI is required for active vegetation",
+                "Add maximum leaf area index for full leaf-on conditions",
+            ),
+            "base_temperature": (
+                "Base temperature is required for active vegetation",
+                "Add the base temperature for growing degree day accumulation",
+            ),
+            "base_temperature_senescence": (
+                "Senescence base temperature is required for active vegetation",
+                "Add the base temperature for senescence degree day accumulation",
+            ),
+            "gdd_full": (
+                "Growing degree days for full LAI are required for active vegetation",
+                "Add the growing degree day threshold for full leaf-on conditions",
+            ),
+            "sdd_full": (
+                "Senescence degree days are required for active vegetation",
+                "Add the senescence degree day threshold for leaf-off conditions",
+            ),
+        }
+        conductance_required = {
+            "g_max": (
+                "Maximum surface conductance is required for active vegetation",
+                "Add g_max for evapotranspiration calculations",
+            ),
+            "g_k": (
+                "Solar radiation response parameter is required for active vegetation",
+                "Add g_k for evapotranspiration calculations",
+            ),
+            "g_q_base": (
+                "Vapour pressure deficit base parameter is required for active vegetation",
+                "Add g_q_base for evapotranspiration calculations",
+            ),
+            "g_q_shape": (
+                "Vapour pressure deficit shape parameter is required for active vegetation",
+                "Add g_q_shape for evapotranspiration calculations",
+            ),
+            "g_t": (
+                "Temperature response parameter is required for active vegetation",
+                "Add g_t for evapotranspiration calculations",
+            ),
+            "g_sm": (
+                "Soil moisture response parameter is required for active vegetation",
+                "Add g_sm for evapotranspiration calculations",
+            ),
+            "kmax": (
+                "Maximum shortwave radiation parameter is required for active vegetation",
+                "Add kmax for evapotranspiration calculations",
+            ),
+            "s1": (
+                "Lower soil moisture threshold is required for active vegetation",
+                "Add s1 for evapotranspiration calculations",
+            ),
+            "s2": (
+                "Soil moisture dependence parameter is required for active vegetation",
+                "Add s2 for evapotranspiration calculations",
+            ),
+            "tl": (
+                "Lower temperature threshold is required for active vegetation",
+                "Add tl for evapotranspiration calculations",
+            ),
+            "th": (
+                "Upper temperature threshold is required for active vegetation",
+                "Add th for evapotranspiration calculations",
+            ),
+        }
+        building_required = {
+            "bldgh": (
+                "Building height is required when buildings are active",
+                "Add building height in meters",
+            ),
+            "faibldg": (
+                "Building frontal area index is required when buildings are active",
+                "Add frontal area index for wind and roughness calculations",
+            ),
+        }
+        evergreen_required = {
+            "height_evergreen_tree": (
+                "Evergreen tree height is required when evergreen vegetation is active",
+                "Add evergreen tree height in meters",
+            ),
+            "fai_evergreen_tree": (
+                "Evergreen tree frontal area index is required when evergreen vegetation is active",
+                "Add evergreen tree frontal area index",
+            ),
+        }
+        deciduous_required = {
+            "height_deciduous_tree": (
+                "Deciduous tree height is required when deciduous vegetation is active",
+                "Add deciduous tree height in meters",
+            ),
+            "fai_deciduous_tree": (
+                "Deciduous tree frontal area index is required when deciduous vegetation is active",
+                "Add deciduous tree frontal area index",
+            ),
+        }
+
+        def _add_issue(
+            *,
+            error_text: str,
+            path: str,
+            param: str,
+            message: str,
+            fix: str,
+        ) -> None:
+            issues.append(
+                {
+                    "error_text": error_text,
+                    "path": path,
+                    "param": param,
+                    "message": message,
+                    "fix": fix,
+                }
+            )
 
         for i, site in enumerate(self.sites):
             site_name = getattr(site, "name", f"site[{i}]")
@@ -2901,19 +3010,55 @@ class SUEWSConfig(BaseModel):
 
                     active_veg[surface_name] = sfr_value
 
+                    raw_surface = _raw_surface(i, surface_name)
+                    if not isinstance(raw_surface.get("lai"), dict):
+                        _add_issue(
+                            error_text="",
+                            path=(
+                                f"sites[{i}]/properties/land_cover/{surface_name}"
+                            ),
+                            param="lai",
+                            message=(
+                                f"LAI block is required when {surface_name}.sfr > 0"
+                            ),
+                            fix=(
+                                "Add an lai block with phenology parameters for the active vegetated surface"
+                            ),
+                        )
+
                     lai = getattr(surface, "lai", None)
                     if lai is None:
-                        critical_issues.append(
-                            f"sites[{i}] ({site_name}), land_cover.{surface_name}: "
-                            f"lai block is missing but sfr={sfr_value} > 0"
+                        _add_issue(
+                            error_text=(
+                                f"sites[{i}] ({site_name}), land_cover.{surface_name}: "
+                                f"lai block is missing but sfr={sfr_value} > 0"
+                            ),
+                            path=(
+                                f"sites[{i}]/properties/land_cover/{surface_name}"
+                            ),
+                            param="lai",
+                            message=(
+                                f"LAI block is required when {surface_name}.sfr > 0"
+                            ),
+                            fix=(
+                                "Add an lai block with phenology parameters for the active vegetated surface"
+                            ),
                         )
                         continue
-                    for field_name in lai_required:
+                    for field_name, (message, fix) in lai_required.items():
                         raw = getattr(lai, field_name, None)
                         if getattr(raw, "value", raw) is None:
-                            critical_issues.append(
-                                f"sites[{i}] ({site_name}), land_cover.{surface_name}.lai: "
-                                f"{field_name} is None but {surface_name}.sfr={sfr_value} > 0"
+                            _add_issue(
+                                error_text=(
+                                    f"sites[{i}] ({site_name}), land_cover.{surface_name}.lai: "
+                                    f"{field_name} is None but {surface_name}.sfr={sfr_value} > 0"
+                                ),
+                                path=(
+                                    f"sites[{i}]/properties/land_cover/{surface_name}/lai"
+                                ),
+                                param=field_name,
+                                message=message,
+                                fix=fix,
                             )
 
                 if _user_declared_surface(i, "bldgs"):
@@ -2922,12 +3067,18 @@ class SUEWSConfig(BaseModel):
                         sfr_raw = getattr(bldgs, "sfr", None)
                         sfr_value = getattr(sfr_raw, "value", sfr_raw)
                         if sfr_value is not None and sfr_value > 0:
-                            for field_name in ("bldgh", "faibldg"):
+                            for field_name, (message, fix) in building_required.items():
                                 raw = getattr(bldgs, field_name, None)
                                 if getattr(raw, "value", raw) is None:
-                                    critical_issues.append(
-                                        f"sites[{i}] ({site_name}), land_cover.bldgs: "
-                                        f"{field_name} is None but bldgs.sfr={sfr_value} > 0"
+                                    _add_issue(
+                                        error_text=(
+                                            f"sites[{i}] ({site_name}), land_cover.bldgs: "
+                                            f"{field_name} is None but bldgs.sfr={sfr_value} > 0"
+                                        ),
+                                        path=f"sites[{i}]/properties/land_cover/bldgs",
+                                        param=field_name,
+                                        message=message,
+                                        fix=fix,
                                     )
 
                 if _user_declared_surface(i, "evetr"):
@@ -2936,15 +3087,18 @@ class SUEWSConfig(BaseModel):
                         sfr_raw = getattr(evetr, "sfr", None)
                         sfr_value = getattr(sfr_raw, "value", sfr_raw)
                         if sfr_value is not None and sfr_value > 0:
-                            for field_name in (
-                                "height_evergreen_tree",
-                                "fai_evergreen_tree",
-                            ):
+                            for field_name, (message, fix) in evergreen_required.items():
                                 raw = getattr(evetr, field_name, None)
                                 if getattr(raw, "value", raw) is None:
-                                    critical_issues.append(
-                                        f"sites[{i}] ({site_name}), land_cover.evetr: "
-                                        f"{field_name} is None but evetr.sfr={sfr_value} > 0"
+                                    _add_issue(
+                                        error_text=(
+                                            f"sites[{i}] ({site_name}), land_cover.evetr: "
+                                            f"{field_name} is None but evetr.sfr={sfr_value} > 0"
+                                        ),
+                                        path=f"sites[{i}]/properties/land_cover/evetr",
+                                        param=field_name,
+                                        message=message,
+                                        fix=fix,
                                     )
 
                 if _user_declared_surface(i, "dectr"):
@@ -2953,37 +3107,77 @@ class SUEWSConfig(BaseModel):
                         sfr_raw = getattr(dectr, "sfr", None)
                         sfr_value = getattr(sfr_raw, "value", sfr_raw)
                         if sfr_value is not None and sfr_value > 0:
-                            for field_name in (
-                                "height_deciduous_tree",
-                                "fai_deciduous_tree",
-                            ):
+                            for field_name, (message, fix) in deciduous_required.items():
                                 raw = getattr(dectr, field_name, None)
                                 if getattr(raw, "value", raw) is None:
-                                    critical_issues.append(
-                                        f"sites[{i}] ({site_name}), land_cover.dectr: "
-                                        f"{field_name} is None but dectr.sfr={sfr_value} > 0"
+                                    _add_issue(
+                                        error_text=(
+                                            f"sites[{i}] ({site_name}), land_cover.dectr: "
+                                            f"{field_name} is None but dectr.sfr={sfr_value} > 0"
+                                        ),
+                                        path=f"sites[{i}]/properties/land_cover/dectr",
+                                        param=field_name,
+                                        message=message,
+                                        fix=fix,
                                     )
 
             if active_veg:
                 conductance = getattr(props, "conductance", None)
+                raw_props = _raw_site_properties(i)
                 readout = ", ".join(
                     f"{name}.sfr={sfr}" for name, sfr in active_veg.items()
                 )
+                if not isinstance(raw_props.get("conductance"), dict):
+                    _add_issue(
+                        error_text="",
+                        path=f"sites[{i}]/properties",
+                        param="conductance",
+                        message=(
+                            "Conductance block is required when vegetated surfaces are active"
+                        ),
+                        fix=(
+                            "Add a conductance block with the required evapotranspiration parameters"
+                        ),
+                    )
                 if conductance is None:
-                    critical_issues.append(
-                        f"sites[{i}] ({site_name}): conductance block is missing "
-                        f"but vegetated surfaces are active ({readout})"
+                    _add_issue(
+                        error_text=(
+                            f"sites[{i}] ({site_name}): conductance block is missing "
+                            f"but vegetated surfaces are active ({readout})"
+                        ),
+                        path=f"sites[{i}]/properties",
+                        param="conductance",
+                        message=(
+                            "Conductance block is required when vegetated surfaces are active"
+                        ),
+                        fix=(
+                            "Add a conductance block with the required evapotranspiration parameters"
+                        ),
                     )
                 else:
-                    for field_name in conductance_required:
+                    for field_name, (message, fix) in conductance_required.items():
                         raw = getattr(conductance, field_name, None)
                         if getattr(raw, "value", raw) is None:
-                            critical_issues.append(
-                                f"sites[{i}] ({site_name}): conductance.{field_name} "
-                                f"is None but vegetated surfaces are active ({readout})"
+                            _add_issue(
+                                error_text=(
+                                    f"sites[{i}] ({site_name}): conductance.{field_name} "
+                                    f"is None but vegetated surfaces are active ({readout})"
+                                ),
+                                path=f"sites[{i}]/properties/conductance",
+                                param=field_name,
+                                message=message,
+                                fix=fix,
                             )
 
-        return critical_issues
+        return issues
+
+    def _check_critical_null_site_params(self) -> List[str]:
+        """Check for critical null site-level parameters that silently yield NaN output."""
+        return [
+            issue["error_text"]
+            for issue in self._iter_critical_null_site_param_issues()
+            if issue["error_text"]
+        ]
 
     def generate_annotated_yaml(
         self, yaml_path: str, output_path: Optional[str] = None
@@ -3040,6 +3234,21 @@ class SUEWSConfig(BaseModel):
 
         if not hasattr(site, "properties") or not site.properties:
             return
+
+        # Mirror the hard-failure sparse-YAML checks in the annotated output so
+        # auto_generate_annotated=True remains actionable on the raise path.
+        site_prefix = f"sites[{site_index}]"
+        for issue in self._iter_critical_null_site_param_issues():
+            if issue["path"] == site_prefix or issue["path"].startswith(
+                f"{site_prefix}/"
+            ):
+                annotator.add_issue(
+                    path=issue["path"],
+                    param=issue["param"],
+                    message=issue["message"],
+                    fix=issue["fix"],
+                    level="ERROR",
+                )
 
         # Check conductance
         if hasattr(site.properties, "conductance") and site.properties.conductance:
@@ -3130,7 +3339,7 @@ class SUEWSConfig(BaseModel):
                         )
 
                         # Building-specific checks
-                        if surface_type == "bldgs" and sfr_value > 0.05:
+                        if surface_type == "bldgs" and sfr_value > 0:
                             if not hasattr(surface, "bldgh") or surface.bldgh is None:
                                 annotator.add_issue(
                                     path=path,

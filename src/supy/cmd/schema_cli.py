@@ -107,10 +107,12 @@ def validate_file_against_schema(
                 path = " → ".join(str(p) for p in error.path) if error.path else "root"
                 errors.append(f"{path}: {error.message}")
 
-        # Pydantic validation for additional checks (only if current version)
+        # Pydantic validation for additional checks (only if current version).
+        # Use the path-aware loader so file-backed validation runs the same
+        # sparse-YAML completeness checks as the public loading API.
         if version == CURRENT_SCHEMA_VERSION:
             try:
-                SUEWSConfig(**config)
+                SUEWSConfig.from_yaml(str(file_path))
             except Exception as e:
                 errors.append(f"Model validation: {str(e)}")
 

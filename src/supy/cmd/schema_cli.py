@@ -80,7 +80,8 @@ def validate_file_against_schema(
 
     Args:
         file_path: Path to the configuration file
-        schema_version: Schema version to validate against (None = current)
+        schema_version: Schema version to validate against
+            (None = file schema version if present, otherwise current)
         show_details: Whether to show detailed error messages
 
     Returns:
@@ -107,10 +108,12 @@ def validate_file_against_schema(
                 path = " → ".join(str(p) for p in error.path) if error.path else "root"
                 errors.append(f"{path}: {error.message}")
 
-        # Pydantic validation for additional checks (only if current version).
-        # Use the path-aware loader so file-backed validation runs the same
-        # sparse-YAML completeness checks as the public loading API.
-        if version == CURRENT_SCHEMA_VERSION:
+        # Default file-backed validation should mirror ``from_yaml()`` so
+        # compatible older schema stamps still exercise the current loader's
+        # semantic checks (for example gh#1333's sparse-YAML hard failure).
+        # When the caller explicitly validates against an older target schema,
+        # keep this as a schema-only check.
+        if schema_version is None or schema_version == CURRENT_SCHEMA_VERSION:
             try:
                 SUEWSConfig.from_yaml(str(file_path))
             except Exception as e:

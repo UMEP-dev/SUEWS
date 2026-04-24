@@ -39,6 +39,16 @@ def load_supy_resource(resource_path: str) -> str:
     return resource.read_text()
 
 
+def write_temp_sparse_schema_file(schema_version: str) -> Path:
+    """Write the sparse fixture with an explicit schema stamp."""
+    sparse_config = Path(__file__).parent.parent / "fixtures" / "sparse_site.yml"
+    sparse_text = sparse_config.read_text()
+
+    with tempfile.NamedTemporaryFile(mode="w", suffix=".yml", delete=False) as f:
+        f.write(f"schema_version: '{schema_version}'\n{sparse_text}")
+        return Path(f.name)
+
+
 from supy.data_model.core import SUEWSConfig
 from supy.cmd.schema_cli import validate_file_against_schema
 from supy.data_model.schema import (
@@ -132,6 +142,34 @@ class TestSchemaVersioning:
         message = "\n".join(errors)
         assert "faibldg" in message
         assert "conductance.g_max" in message
+
+    def test_schema_cli_validate_rejects_sparse_yaml_with_compatible_older_stamp(self):
+        """Default validation should still mirror from_yaml() for compatible older stamps."""
+        sparse_config = write_temp_sparse_schema_file("2026.5.dev5")
+
+        try:
+            is_valid, errors = validate_file_against_schema(sparse_config)
+        finally:
+            sparse_config.unlink()
+
+        assert is_valid is False
+        message = "\n".join(errors)
+        assert "faibldg" in message
+        assert "conductance.g_max" in message
+
+    def test_schema_cli_explicit_older_schema_stays_schema_only(self):
+        """Explicit old-target validation keeps the historical schema-only contract."""
+        sparse_config = write_temp_sparse_schema_file("2026.5.dev5")
+
+        try:
+            is_valid, errors = validate_file_against_schema(
+                sparse_config, schema_version="2026.5.dev5"
+            )
+        finally:
+            sparse_config.unlink()
+
+        assert is_valid is True
+        assert errors == []
 
     def test_validate_schema_version_warnings(self):
         """Test schema validation warnings in non-strict mode."""

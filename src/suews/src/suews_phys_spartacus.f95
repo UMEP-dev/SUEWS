@@ -163,7 +163,7 @@ CONTAINS
       ! --------------------------------------------------------------------------------
       ! these will be in the SPARTACUS output array
       REAL(KIND(1D0)) :: alb_spc, emis_spc, lw_emission_spc, lw_up_spc, sw_up_spc, qn_spc
-      REAL(KIND(1D0)) :: lw_flat_net_spc, sw_flat_net_spc
+      REAL(KIND(1D0)) :: lw_flat_net_spc, sw_flat_net_spc, lw_up_grnd_fallback
       REAL(KIND(1D0)) :: top_net_lw_spc
       REAL(KIND(1D0)) :: grnd_net_lw_spc
       REAL(KIND(1D0)) :: top_dn_lw_spc
@@ -572,15 +572,12 @@ CONTAINS
       !!!!!!!!!!!!!! run calc_monochromatic_emission !!!!!!!!!!!!!!
 
       CALL lw_spectral_props%calc_monochromatic_emission(canopy_props)
+      lw_up_grnd_fallback = emis_no_tree_bldg*SBConst*tair_K**4
+      IF (invalid_real(lw_up_grnd_fallback)) lw_up_grnd_fallback = 0.0D0
       IF (invalid_real(lw_spectral_props%ground_emission(nspec, ncol))) THEN
-         lw_spectral_props%ground_emission(nspec, ncol) = &
-            SBConst*emis_no_tree_bldg*canopy_props%ground_temperature(ncol)**4
+         lw_spectral_props%ground_emission(nspec, ncol) = lw_up_grnd_fallback
       END IF
-      IF (invalid_real(lw_spectral_props%ground_emission(nspec, ncol))) THEN
-         lw_spectral_props%ground_emission(nspec, ncol) = 0.0D0
-      END IF
-      lw_flat_net_spc = emis_no_tree_bldg*ldown &
-         - lw_spectral_props%ground_emission(nspec, ncol)
+      lw_flat_net_spc = emis_no_tree_bldg*ldown - lw_up_grnd_fallback
       sw_flat_net_spc = MAX(kdown, 0.0D0)*(1.0D0 - alb_no_tree_bldg)
       IF (invalid_real(lw_flat_net_spc)) lw_flat_net_spc = 0.0D0
       IF (invalid_real(sw_flat_net_spc)) sw_flat_net_spc = 0.0D0
@@ -640,7 +637,7 @@ CONTAINS
             lw_flux%top_dn(nspec, ncol) = ldown
             lw_flux%ground_net(nspec, ncol) = lw_flat_net_spc
             lw_flux%ground_dn(nspec, ncol) = ldown
-            bc_out%lw_emission(nspec, ncol) = lw_spectral_props%ground_emission(nspec, ncol)
+            bc_out%lw_emission(nspec, ncol) = lw_up_grnd_fallback
             bc_out%lw_emissivity(nspec, ncol) = emis_no_tree_bldg
          ELSE IF (ANY(invalid_real(lw_flux%wall_net(nspec, :nlayer))) &
                   .OR. ANY(invalid_real(lw_flux%roof_net(nspec, :nlayer)))) THEN
@@ -682,7 +679,7 @@ CONTAINS
          lw_flux%top_dn(nspec, ncol) = ldown
          lw_flux%ground_net(nspec, ncol) = lw_flat_net_spc
          lw_flux%ground_dn(nspec, ncol) = ldown
-         bc_out%lw_emission(nspec, ncol) = lw_spectral_props%ground_emission(nspec, ncol)
+         bc_out%lw_emission(nspec, ncol) = lw_up_grnd_fallback
          bc_out%lw_emissivity(nspec, ncol) = emis_no_tree_bldg
          qn_spc = sw_flat_net_spc + lw_flat_net_spc
       END IF

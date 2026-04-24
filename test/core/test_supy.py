@@ -240,16 +240,16 @@ class TestSuPy(TestCase):
         print("Metadata columns correctly stored as plain strings")
 
     def test_version_tracking_save_load_cycle(self):
-        """Test complete save→load→run cycle with version tracking.
+        """Test complete checkpoint save/load/run cycle with version tracking.
 
         This test verifies that:
         1. Version info is automatically saved with state
-        2. Saved state (with version) can be loaded
-        3. Loaded state can be used to continue simulation
+        2. A typed checkpoint can be saved and loaded
+        3. Loaded checkpoint can be used to continue simulation
         4. Version info persists through the cycle
         """
         print("\n========================================")
-        print("Testing complete save→load→run cycle with version tracking...")
+        print("Testing complete checkpoint save/load/run cycle with version tracking...")
 
         # Run 1: Initial simulation
         sim1 = SUEWSSimulation.from_sample_data()
@@ -260,17 +260,28 @@ class TestSuPy(TestCase):
         version_from_run1 = sim1.state_final[("version", "0")].iloc[0]
         self.assertEqual(version_from_run1, sp.__version__)
 
-        # Save state to temporary location
+        # Save checkpoint to temporary location
         with tempfile.TemporaryDirectory() as tmpdir:
             save_path = Path(tmpdir)
             sim1.save(save_path)
 
-            # Verify state file was created
+            # Verify checkpoint file was created as the restart artifact
+            checkpoint_files = list(save_path.glob("*_checkpoint.json"))
+            self.assertGreater(
+                len(checkpoint_files),
+                0,
+                "Checkpoint file should be created",
+            )
             state_files = list(save_path.glob("*_state_*.csv"))
-            self.assertGreater(len(state_files), 0, "State file should be created")
+            self.assertEqual(
+                state_files,
+                [],
+                "OOP save should not create legacy DFState CSV by default",
+            )
 
-            # Run 2: Load saved state and continue simulation
-            sim2 = SUEWSSimulation.from_state(sim1.state_final)
+            # Run 2: Load saved checkpoint and continue simulation
+            checkpoint = sp.SUEWSCheckpoint.from_file(checkpoint_files[0])
+            sim2 = SUEWSSimulation.from_checkpoint(sim1.config, checkpoint)
 
             # Load forcing for continuation (using remaining timesteps)
             sim2.update_forcing(sim1.forcing.iloc[12:24])  # Next 12 timesteps
@@ -288,10 +299,11 @@ class TestSuPy(TestCase):
             self.assertEqual(
                 version_from_run2,
                 sp.__version__,
-                "Version should persist through save→load→run cycle",
+                "Version should persist through checkpoint save/load/run cycle",
             )
+            self.assertEqual(sim2.checkpoint.supy_version, sp.__version__)
 
-        print("✓ Version tracking works correctly through save→load→run cycle")
+        print("Version tracking works correctly through checkpoint save/load/run cycle")
 
     # # test if single-tstep and multi-tstep modes can produce the same SUEWS results
     # @skipUnless(flag_full_test, "Full test is not required.")

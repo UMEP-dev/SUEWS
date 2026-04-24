@@ -572,6 +572,9 @@ CONTAINS
       !!!!!!!!!!!!!! run calc_monochromatic_emission !!!!!!!!!!!!!!
 
       CALL lw_spectral_props%calc_monochromatic_emission(canopy_props)
+      ! Keep the crash fallback independent of SPARTACUS ground emission:
+      ! if the radiation solve fails, air-temperature Planck emission gives
+      ! a finite flat-tile longwave term for the OHM handoff.
       lw_up_grnd_fallback = emis_no_tree_bldg*SBConst*tair_K**4
       IF (invalid_real(lw_up_grnd_fallback)) lw_up_grnd_fallback = 0.0D0
       IF (invalid_real(lw_spectral_props%ground_emission(nspec, ncol))) THEN

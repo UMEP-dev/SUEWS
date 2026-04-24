@@ -423,11 +423,11 @@ export_df = get_vars(output, export_vars)
 print(f"Export DataFrame shape: {export_df.shape}")
 print(f"Ready to save with: export_df.to_csv('suews_output.csv')")
 
-# Export final state for restart runs
-final_state = sim.state_final
-# final_state.to_csv('final_state.csv')  # Uncomment to save
-print(f"\nFinal state shape: {final_state.shape}")
-print("Ready to save with: final_state.to_csv('final_state.csv')")
+# Save typed checkpoint for restart runs
+checkpoint = output.checkpoint
+# checkpoint.to_file('Kc_SUEWS_checkpoint.json')  # Uncomment to save
+print("\nCheckpoint ready for restart runs")
+print("Ready to save with: checkpoint.to_file('Kc_SUEWS_checkpoint.json')")
 
 # %%
 # Summary

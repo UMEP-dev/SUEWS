@@ -145,6 +145,8 @@ markers = [
     # Nature axis (gh#1300) -- orthogonal to tier.
     "physics: Numerical/binary correctness; sufficient to run once per (OS, arch) on the canonical Python",
     "api: Python wrapper correctness; run across (platform x Python) because pandas/numpy/pydantic surface varies",
+    # Scenario axis
+    "e2e: Scenario-level workflow tests that bind a persona, action, expected warning/error, and final artefact",
     # Tier axis
     "smoke: Minimal wheel validation (~6 tests, ~60s)",
     "smoke_bridge: Bridge-loading subset run across cp39..cp3xx after a single abi3 build",

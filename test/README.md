@@ -1,149 +1,96 @@
 # SUEWS Test Suite
 
-This directory contains the test suite for SUEWS/SuPy, organised by functionality to improve maintainability and clarity.
+The test suite is organised around two ideas:
+
+- Functional areas, which keep related assertions close to the code they protect.
+- Cross-cutting markers, which decide where each test runs in the CI matrix.
+
+Every collected test file must carry at least one nature marker: `api` or `physics`.
 
 ## Test Organisation
 
-### Core Tests (`core/`)
-Essential core functionality tests including:
-- **test_sample_output.py** - Tolerance-based validation (runs first in CI fast-fail)
-- **test_fortran_state_persistence.py** - Ensures Fortran state isolation between runs
-- **test_floating_point_stability.py** - Numerical stability and reproducibility tests
-- **test_suews_simulation.py** - High-level API interface tests
-- **test_supy.py** - Comprehensive test suite (runs during wheel building)
-- **test_spurious_warnings.py** - Ensures clean imports without warnings
-
-### Data Model Tests (`data_model/`)
-Configuration and data model validation tests:
-- **test_data_model.py** - Data model structure and conversion tests
-- **test_precheck.py** - Pre-run validation and checks
-- **test_conditional_validation.py** - Physics option compatibility validation
-- **test_validation_topdown.py** - Top-down configuration validation
-- **test_validation_utils.py** - Validation utility functions
-- **test_flexible_refvalue_clean.py** - RefValue wrapper functionality
-
-### Physics Tests (`physics/`)
-Scientific and physics validation tests:
-- **test_core_physics.py** - Physical consistency checks (runs during wheel building)
-
-### I/O Tests (`io_tests/`)
-Input/output and data handling tests:
-- **test_output_config.py** - Output configuration options
-- **test_save_supy.py** - Output saving functionality
-- **test_resample_output.py** - Output resampling capabilities
-- **test_dailystate_output.py** - Daily state output handling
-- **test_forcing_file_list.py** - Forcing file list handling
-- **test_yaml_annotation.py** - YAML annotation features
-
-### UMEP/QGIS Tests (`umep/`)
-UMEP plugin compatibility tests (Windows + Python 3.12 only, GH-901):
-- **test_preprocessor.py** - Database Manager, Database Prepare, ERA5 Download APIs
-- **test_processor.py** - SUEWS model runs (init, run, save)
-- **test_postprocessor.py** - Output path handling
-- **test_environment.py** - QGIS-specific environment (None stdout/stderr)
-- **test_imports.py** - Import path verification
-
-### Test Fixtures (`fixtures/`)
-Test data and resources:
-- **benchmark1/** - Benchmark test configuration and data
-- **data_test/** - Sample data for various tests
-- **precheck_testcase/** - Test cases for precheck functionality
+- `test_api_surface.py` - import-surface guard that runs first.
+- `cmd/` - command helper and conversion internals.
+- `core/` - public APIs, CLI wiring, simulation workflows, runtime state, utilities, and key regression tests.
+- `data_model/` - schema, YAML processing, validation, release compatibility, and migration checks.
+- `e2e/` - scenario-level tests written as user or maintainer stories.
+- `io_tests/` - output configuration, saving, resampling, annotations, and file-format behaviour.
+- `physics/` - scientific and numerical validation.
+- `umep/` - QGIS/UMEP integration surface, gated to Windows + Python 3.12 with the `qgis` marker.
+- `fixtures/` - vendored inputs and expected outputs used by the tests.
 
 ## Running Tests
 
+Use the Makefile targets after `make dev` has installed the editable package:
+
 ```bash
-# Run all tests
-pytest test/ -v
-
-# Run tests by category
-pytest test/core/ -v              # Core functionality
-pytest test/data_model/ -v        # Data model tests
-pytest test/physics/ -v           # Physics validation
-pytest test/io_tests/ -v          # I/O tests
-pytest test/umep/ -v -m qgis      # UMEP/QGIS tests (Windows + Python 3.12 only)
-
-# Run specific key tests
-pytest test/core/test_sample_output.py -v    # Fast validation
-pytest test/physics/test_core_physics.py -v  # Physics checks
+make test-smoke
+make test
+make test-e2e
+make test-e2e-all
+make test-all
 ```
+
+Direct pytest examples:
+
+```bash
+pytest test/core -v
+pytest test/data_model -v
+pytest test/e2e -m "not slow" -v
+pytest test/physics -v
+pytest test/umep -m qgis -v
+```
+
+The Makefile autodetects the active virtual environment, `.venv/bin/python`, or `python3`.
+If `pytest` or the editable `supy` package is missing, the test targets stop with setup guidance.
 
 ## Markers
 
-Markers sit on two orthogonal axes (gh#1300). Every test file must carry at
-least one marker from the **nature** axis; markers from the **tier** axis
-compose on top.
+Markers sit on three axes.
 
-### Nature axis — what is the test actually exercising?
+### Nature Axis
 
-- `physics` — numerical / binary correctness. Outputs are determined by the
-  compiled artefact and CPU floating-point, so running once per
-  `(OS, arch)` on the canonical Python is sufficient. Examples: mass /
-  energy balance, DailyState accumulation, surface-temperature regression.
-- `api` — Python wrapper correctness. Exercises the pandas / numpy /
-  pydantic surface, config validation, CLI UX, or `SUEWSSimulation`
-  methods. Runs across `(platform × Python)` because the dependency
-  surface varies per interpreter.
+- `physics` - numerical or binary correctness. These outputs are mostly determined by the compiled artefact and CPU floating-point behaviour.
+- `api` - Python wrapper, CLI, pandas/numpy/pydantic, schema, validation, or user-facing API behaviour.
 
-Rare files belong on **both** axes (e.g. the main integration test that
-runs the model *and* heavily exercises the wrapper). Use list form:
+Rare files belong on both axes:
 
 ```python
 pytestmark = [pytest.mark.physics, pytest.mark.api]
 ```
 
-UMEP tests pick up `api` automatically via `test/umep/conftest.py`; they
-are gated to Windows + Python 3.12 by the existing `qgis` marker.
+### Scenario Axis
 
-### Tier axis — how fast or expensive is the test?
+- `e2e` - scenario-level workflow tests. Each E2E test states the persona, starting condition, user action, expected warning/error, and final result.
 
-- `smoke` — minimal wheel validation (~6 tests, ~60s).
-- `smoke_bridge` — legacy marker for the bridge-loading subset; still
-  registered, but CI no longer selects on it directly. Post-gh#1300,
-  cross-CPython coverage is driven by `-m "api and <tier>"` in the
-  `test_api_cross_python` job.
-- `core` — core physics and logic tests (Fortran, driver).
-- `rust` — Rust bridge backend tests (requires `suews_bridge` with the
-  `physics` feature).
-- `util` — utility function tests (non-critical).
-- `cfg` — config / schema validation tests.
-- `slow` — tests taking more than 30s individually.
-- `qgis` — UMEP plugin tests in `test/umep/` (Windows + Python 3.12).
+E2E tests still need `api` or `physics`. Most current scenarios are `api` tests because they exercise user-facing Python and CLI workflows.
 
-### Selecting a subset
+### Tier Axis
 
-```bash
-pytest -m physics                  # numerical / binary correctness only
-pytest -m api                      # wrapper surface only
-pytest -m "physics and smoke"      # physics tests in the smoke tier
-pytest -m "api and not slow"       # wrapper surface, skip slow tests
-pytest -m "physics and api"        # files that straddle both axes
-```
+- `smoke` - minimal fast validation.
+- `smoke_bridge` - legacy bridge-loading subset marker.
+- `core` - core physics and driver logic.
+- `rust` - Rust bridge backend tests requiring the physics-enabled bridge.
+- `util` - utility function tests.
+- `cfg` - configuration and schema validation tests.
+- `slow` - tests taking more than 30 seconds individually.
+- `qgis` - UMEP plugin tests in `test/umep/`.
 
-### Adding a new test file
+## Scenario Tests
 
-Decide which axis the file belongs on, then add one of:
+Scenario-level tests live in `test/e2e/` and complement, rather than replace, focused functional tests. They are for complete workflows where the useful question is:
 
-```python
-pytestmark = pytest.mark.api        # or pytest.mark.physics
-# or, for a file that straddles both axes:
-pytestmark = [pytest.mark.physics, pytest.mark.api]
-```
+- Can the user or maintainer complete the job?
+- Did the intended warning or error appear?
+- Did the expected output, report, or migrated artefact exist and contain meaningful content?
 
-A collection-time lint in `test/conftest.py` fails any full-tree
-invocation that encounters a test file lacking both `physics` and `api`.
-Subset runs (`pytest test/core/test_x.py`) are unaffected.
-
-## Test Order
-
-The test suite uses `conftest.py` to ensure `test_sample_output.py` runs first. This is necessary because the Fortran model maintains internal state between test runs, and running this benchmark test first ensures consistent results.
+Keep default E2E scenarios short. Mark heavier full-run scenarios as `slow` so `make test-e2e` remains suitable for normal development.
 
 ## Adding New Tests
 
-When adding new tests:
-1. Place them in the appropriate category directory
-2. Follow the existing naming convention: `test_<functionality>.py`
-3. Use descriptive test names that explain what is being tested
-4. Add docstrings to explain complex test logic
-5. Update this README if adding a new test category
-
-For detailed testing approach, see docstrings in test files or `docs/source/contributing/testing_guide.rst`.
+1. Put focused component tests in the relevant functional directory.
+2. Put whole workflow tests in `test/e2e/`.
+3. Add `pytestmark = pytest.mark.api` or `pytestmark = pytest.mark.physics` at module level.
+4. Add `pytest.mark.e2e` to scenario files or classes.
+5. Use `slow` only when the individual test is expensive enough to keep out of normal development loops.
+6. Update `test/e2e/README.md` when adding or changing a scenario.

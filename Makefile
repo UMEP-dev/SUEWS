@@ -1,8 +1,19 @@
 # SUEWS Simplified Makefile - Essential recipes only
-.PHONY: help setup submodules dev docs-setup reinstall test test-smoke test-all audit-deps docs livehtml clean format bridge
+.PHONY: help setup submodules dev docs-setup reinstall check-test-env test test-smoke test-e2e test-e2e-all test-all audit-deps docs livehtml clean format bridge
 
-# Default Python
-PYTHON := python
+# Default Python: prefer the active environment, then the repo .venv, then system Python.
+PYTHON ?= $(shell \
+	if [ -n "$$VIRTUAL_ENV" ] && [ -x "$$VIRTUAL_ENV/bin/python" ]; then \
+		printf '%s\n' "$$VIRTUAL_ENV/bin/python"; \
+	elif [ -x ".venv/bin/python" ]; then \
+		printf '%s\n' ".venv/bin/python"; \
+	elif command -v python3 >/dev/null 2>&1; then \
+		command -v python3; \
+	elif command -v python >/dev/null 2>&1; then \
+		command -v python; \
+	else \
+		printf '%s\n' "python"; \
+	fi)
 
 help:
 	@echo "SUEWS Development - Essential Commands"
@@ -12,6 +23,8 @@ help:
 	@echo "  docs-setup - Install documentation dependencies and strip legacy .pth hooks"
 	@echo "  test       - Run standard tests (excludes slow, ~2-3 min)"
 	@echo "  test-smoke - Run smoke tests only (fast CI validation, ~30-60 sec)"
+	@echo "  test-e2e   - Run scenario-level end-to-end tests (excludes slow)"
+	@echo "  test-e2e-all - Run ALL scenario-level end-to-end tests"
 	@echo "  test-all   - Run ALL tests including slow (~4-5 min)"
 	@echo "  audit-deps - Audit Python dependencies and startup hooks"
 	@echo "  docs       - Build documentation"
@@ -190,11 +203,17 @@ rebuild-meson:
 		fi; \
 	fi
 
-# Run tests - Three tiers available:
+# Preflight for test targets. Keeps local failures actionable when the shell
+# has no `python`, or when `.venv` exists but has not been built with `make dev`.
+check-test-env:
+	@$(PYTHON) scripts/lint/check_test_env.py
+
+# Run tests - Four tiers available:
 # - test-smoke: Fast critical tests (~30-60 sec) - used in CI wheel validation
 # - test: Standard tests excluding slow (~2-3 min) - default for development
+# - test-e2e: Scenario-level user/toolchain tests excluding slow
 # - test-all: All tests including slow (~4-5 min) - comprehensive validation
-test:
+test: check-test-env
 	@echo "Running standard tests (excluding slow tests)..."
 	@echo "NOTE: Slow tests (e.g., Fortran state persistence ~3-4 min) are skipped."
 	@echo "      Run 'make test-all' for comprehensive testing."
@@ -202,14 +221,25 @@ test:
 	$(PYTHON) -m pytest test -m "not slow" -v --tb=short --durations=10
 
 # Smoke tests - fast critical path tests for CI
-test-smoke:
+test-smoke: check-test-env
 	@echo "Running smoke tests (critical path only)..."
 	@echo "This is the fastest test tier for CI wheel validation."
 	@echo ""
 	$(PYTHON) -m pytest test -m "smoke" -v --tb=short --durations=10
 
+# Scenario-level end-to-end tests
+test-e2e: check-test-env
+	@echo "Running scenario-level end-to-end tests (excluding slow tests)..."
+	@echo ""
+	$(PYTHON) -m pytest test/e2e -m "not slow" -v --tb=short --durations=10
+
+test-e2e-all: check-test-env
+	@echo "Running ALL scenario-level end-to-end tests..."
+	@echo ""
+	$(PYTHON) -m pytest test/e2e -v --tb=short --durations=10
+
 # All tests including slow tests
-test-all:
+test-all: check-test-env
 	@echo "Running ALL tests including slow tests..."
 	@echo "This may take 4-5 minutes."
 	@echo ""

@@ -884,6 +884,7 @@ def _save_supy(
     debug=False,
     output_config=None,
     output_format=None,
+    save_state: bool = True,
 ) -> list:
     """Save SuPy run results to files.
 
@@ -914,6 +915,10 @@ def _save_supy(
         whether to enable debug mode (e.g., writing out in serial mode, and other debug uses), by default False.
     output_config : OutputConfig, optional
         Output configuration object specifying format, frequency, and groups to save. If provided, overrides freq_s parameter.
+    save_state : bool, optional
+        Whether to write the legacy DFState restart artifact. Legacy callers
+        keep the historical default ``True``; the OOP API writes typed
+        checkpoint JSON instead.
 
 
     Returns
@@ -1013,6 +1018,7 @@ def _save_supy(
             site,
             path_dir_save,
             save_tstep,
+            save_state=save_state,
         )
     else:
         # Save as text files (existing behavior)
@@ -1030,11 +1036,11 @@ def _save_supy(
 
         # MP: Parquet saves this already - breaks the parquet save check
         # save df_state
-        if path_runcontrol is not None:
+        if save_state and path_runcontrol is not None:
             # save as nml as SUEWS binary
             list_path_nml = save_initcond_nml(df_state_final, site, path_dir_save)
             list_path_save += list_path_nml
-        else:
+        elif save_state:
             # save as supy csv for later use
             path_state_save = save_df_state(df_state_final, site, path_dir_save)
             # update list_path_save

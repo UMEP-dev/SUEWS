@@ -8,8 +8,8 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <meta property="article:modified_time" content="2026-04-19T09:20:59+00:00" />
-    <title>2. Getting Started &#8212; SUEWS 2026.4.24.dev9014 documentation</title>
+    <meta property="article:modified_time" content="2026-04-24T12:58:49+00:00" />
+    <title>2. Getting Started &#8212; SUEWS 2026.4.24.dev9017 documentation</title>
   
   
   
@@ -45,7 +45,7 @@
   <link rel="preload" as="script" href="_static/scripts/bootstrap.js?digest=8878045cc6db502f8baf" />
 <link rel="preload" as="script" href="_static/scripts/pydata-sphinx-theme.js?digest=8878045cc6db502f8baf" />
 
-    <script src="_static/documentation_options.js?v=5f4fc906"></script>
+    <script src="_static/documentation_options.js?v=483b4960"></script>
     <script src="_static/doctools.js?v=9bcbadda"></script>
     <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
     <script src="_static/scripts/sphinx-book-theme.js?v=fab101a9"></script>
@@ -59,8 +59,8 @@
     <link rel="prev" title="1. Installation" href="installation.html" />
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
-  <meta name="docsearch:version" content="2026.4.24.dev9014" />
-    <meta name="docbuild:last-update" content="2026-04-19"/>
+  <meta name="docsearch:version" content="2026.4.24.dev9017" />
+    <meta name="docbuild:last-update" content="2026-04-24"/>
   </head>
   
   
@@ -102,7 +102,7 @@
   <div class="bd-header-announcement__content">
     <div style="background-color: #f0ad4e; border: 1px solid #eea236; border-radius: 4px; padding: 10px; margin: 10px 0;">
         <strong>⚠️ Development Version:</strong> This documentation was built from a development version
-        (2026.4.24.dev9014, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/aa54929bee1f27b1a95cf1776922c924a201051d" style="color: #31708f;">aa54929</a>).
+        (2026.4.24.dev9017, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/60c7f36c76cf9f25e272611be47456d1a77aca18" style="color: #31708f;">60c7f36</a>).
         Features described here may be unstable or subject to change. For stable documentation, please visit the
         <a href="https://docs.suews.io/stable/" style="color: #31708f;">latest release</a>.
     </div>
@@ -149,8 +149,8 @@
       
     
     
-    <img src="_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.4.24.dev9014 documentation - Home"/>
-    <img src="_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.4.24.dev9014 documentation - Home"/>
+    <img src="_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.4.24.dev9017 documentation - Home"/>
+    <img src="_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.4.24.dev9017 documentation - Home"/>
   
   
 </a></div>
@@ -950,15 +950,36 @@ suews-validate<span class="w"> </span>config.yml
 <span class="n">sim</span> <span class="o">=</span> <span class="n">SUEWSSimulation</span><span class="p">(</span><span class="s2">&quot;path/to/your/config_suews.yml&quot;</span><span class="p">)</span>
 
 <span class="c1"># Run simulation (forcing data loaded from config)</span>
-<span class="n">sim</span><span class="o">.</span><span class="n">run</span><span class="p">()</span>
+<span class="n">output</span> <span class="o">=</span> <span class="n">sim</span><span class="o">.</span><span class="n">run</span><span class="p">()</span>
 
 <span class="c1"># Access results</span>
 <span class="nb">print</span><span class="p">(</span><span class="n">sim</span><span class="o">.</span><span class="n">results</span><span class="p">)</span>
 
 <span class="c1"># Save outputs</span>
 <span class="n">sim</span><span class="o">.</span><span class="n">save</span><span class="p">(</span><span class="s2">&quot;output_directory/&quot;</span><span class="p">)</span>
+
+<span class="c1"># Save the typed restart artefact explicitly</span>
+<span class="n">checkpoint_path</span> <span class="o">=</span> <span class="n">output</span><span class="o">.</span><span class="n">checkpoint</span><span class="o">.</span><span class="n">to_file</span><span class="p">(</span>
+    <span class="s2">&quot;output_directory/</span><span class="si">{site}</span><span class="s2">_SUEWS_checkpoint.json&quot;</span>
+<span class="p">)</span>
 </pre></div>
 </div>
+<p>To continue a simulation, pair the same YAML configuration with the checkpoint
+from the previous run and the next forcing period:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">supy</span><span class="w"> </span><span class="kn">import</span> <span class="n">SUEWSSimulation</span>
+
+<span class="n">sim_next</span> <span class="o">=</span> <span class="n">SUEWSSimulation</span><span class="o">.</span><span class="n">from_checkpoint</span><span class="p">(</span>
+    <span class="s2">&quot;path/to/your/config_suews.yml&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;output_directory/</span><span class="si">{site}</span><span class="s2">_SUEWS_checkpoint.json&quot;</span><span class="p">,</span>
+<span class="p">)</span>
+<span class="n">sim_next</span><span class="o">.</span><span class="n">update_forcing</span><span class="p">(</span><span class="s2">&quot;forcing_next_period.txt&quot;</span><span class="p">)</span>
+<span class="n">output_next</span> <span class="o">=</span> <span class="n">sim_next</span><span class="o">.</span><span class="n">run</span><span class="p">()</span>
+</pre></div>
+</div>
+<p>The checkpoint is intentionally only the typed runtime state. To continue a
+run, load the same YAML configuration, attach the next forcing period, and run
+from <code class="docutils literal notranslate"><span class="pre">SUEWSSimulation.from_checkpoint(...)</span></code>. Checkpoints are keyed by grid ID,
+so checkpoint/configuration grid mismatches are rejected by the runtime.</p>
 <p>For detailed examples, see <a class="reference internal" href="sub-tutorials/suews-simulation-tutorial.html"><span class="doc">SUEWSSimulation Tutorial</span></a>.</p>
 </section>
 <section id="data-requirements-and-quality">
@@ -995,8 +1016,8 @@ suews-validate<span class="w"> </span>config.yml
 <span class="k">def</span><span class="w"> </span><span class="nf">run_site</span><span class="p">(</span><span class="n">config_file</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Run SUEWS for a single site configuration&quot;&quot;&quot;</span>
     <span class="n">sim</span> <span class="o">=</span> <span class="n">SUEWSSimulation</span><span class="p">(</span><span class="n">config_file</span><span class="p">)</span>
-    <span class="n">sim</span><span class="o">.</span><span class="n">run</span><span class="p">()</span>
-    <span class="k">return</span> <span class="n">config_file</span><span class="p">,</span> <span class="p">(</span><span class="n">sim</span><span class="o">.</span><span class="n">results</span><span class="p">,</span> <span class="n">sim</span><span class="o">.</span><span class="n">state_final</span><span class="p">)</span>
+    <span class="n">output</span> <span class="o">=</span> <span class="n">sim</span><span class="o">.</span><span class="n">run</span><span class="p">()</span>
+    <span class="k">return</span> <span class="n">config_file</span><span class="p">,</span> <span class="n">output</span>
 
 <span class="c1"># Configuration files for different sites</span>
 <span class="n">site_configs</span> <span class="o">=</span> <span class="p">[</span>
@@ -1009,19 +1030,15 @@ suews-validate<span class="w"> </span>config.yml
 <span class="k">with</span> <span class="n">Pool</span><span class="p">()</span> <span class="k">as</span> <span class="n">pool</span><span class="p">:</span>
     <span class="n">results</span> <span class="o">=</span> <span class="n">pool</span><span class="o">.</span><span class="n">map</span><span class="p">(</span><span class="n">run_site</span><span class="p">,</span> <span class="n">site_configs</span><span class="p">)</span>
 
-<span class="c1"># Note: Each result tuple contains (df_output, df_state_final)</span>
-<span class="c1"># We need to access variables using the simulation object or helper</span>
+<span class="c1"># Note: Each result tuple contains a SUEWSOutput object. Its checkpoint</span>
+<span class="c1"># can be saved or passed to SUEWSSimulation.from_checkpoint(...) later.</span>
 
-<span class="c1"># Create simulations from stored states to access get_variable()</span>
 <span class="n">monthly_temps</span> <span class="o">=</span> <span class="p">{}</span>
-<span class="k">for</span> <span class="n">name</span><span class="p">,</span> <span class="p">(</span><span class="n">output</span><span class="p">,</span> <span class="n">state</span><span class="p">)</span> <span class="ow">in</span> <span class="n">results</span><span class="p">:</span>
-    <span class="c1"># Recreate sim with results for get_variable() access</span>
-    <span class="n">sim_temp</span> <span class="o">=</span> <span class="n">SUEWSSimulation</span><span class="p">()</span>
-    <span class="n">sim_temp</span><span class="o">.</span><span class="n">_df_output</span> <span class="o">=</span> <span class="n">output</span>
-    <span class="n">sim_temp</span><span class="o">.</span><span class="n">_run_completed</span> <span class="o">=</span> <span class="kc">True</span>
-
-    <span class="n">t2</span> <span class="o">=</span> <span class="n">sim_temp</span><span class="o">.</span><span class="n">get_variable</span><span class="p">(</span><span class="s1">&#39;T2&#39;</span><span class="p">,</span> <span class="n">group</span><span class="o">=</span><span class="s1">&#39;SUEWS&#39;</span><span class="p">)</span>
+<span class="n">checkpoints</span> <span class="o">=</span> <span class="p">{}</span>
+<span class="k">for</span> <span class="n">name</span><span class="p">,</span> <span class="n">output</span> <span class="ow">in</span> <span class="n">results</span><span class="p">:</span>
+    <span class="n">t2</span> <span class="o">=</span> <span class="n">output</span><span class="o">.</span><span class="n">get_variable</span><span class="p">(</span><span class="s1">&#39;T2&#39;</span><span class="p">,</span> <span class="n">group</span><span class="o">=</span><span class="s1">&#39;SUEWS&#39;</span><span class="p">)</span>
     <span class="n">monthly_temps</span><span class="p">[</span><span class="n">name</span><span class="p">]</span> <span class="o">=</span> <span class="n">t2</span><span class="o">.</span><span class="n">iloc</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">groupby</span><span class="p">(</span><span class="n">t2</span><span class="o">.</span><span class="n">index</span><span class="o">.</span><span class="n">month</span><span class="p">)</span><span class="o">.</span><span class="n">mean</span><span class="p">()</span>
+    <span class="n">checkpoints</span><span class="p">[</span><span class="n">name</span><span class="p">]</span> <span class="o">=</span> <span class="n">output</span><span class="o">.</span><span class="n">checkpoint</span>
 
 <span class="n">temp_comparison</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">(</span><span class="n">monthly_temps</span><span class="p">)</span>
 <span class="n">temp_comparison</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">kind</span><span class="o">=</span><span class="s1">&#39;bar&#39;</span><span class="p">,</span> <span class="n">title</span><span class="o">=</span><span class="s1">&#39;Monthly Temperature Comparison&#39;</span><span class="p">)</span>
@@ -1351,7 +1368,7 @@ By SUEWS dev team led by Prof Sue Grimmond
   
   <div class="footer-item">
     <p class="last-updated">
-  Last updated on 2026-04-19.
+  Last updated on 2026-04-24.
   <br/>
 </p>
   </div>
@@ -1359,8 +1376,8 @@ By SUEWS dev team led by Prof Sue Grimmond
   <div class="footer-item">
     
 <div class="extra_footer">
-  <p>Version: 2026.4.24.dev9014 |
-    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/aa54929bee1f27b1a95cf1776922c924a201051d">aa54929</a> |
+  <p>Version: 2026.4.24.dev9017 |
+    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/60c7f36c76cf9f25e272611be47456d1a77aca18">60c7f36</a> |
     <a href="https://umep-dev.github.io/SUEWS/brand/showcase.html">Brand</a></p>
 </div>
   </div>

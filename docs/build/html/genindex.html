@@ -7,7 +7,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Index &#8212; SUEWS 2026.4.24.dev9014 documentation</title>
+    <title>Index &#8212; SUEWS 2026.4.24.dev9017 documentation</title>
   
   
   
@@ -43,7 +43,7 @@
   <link rel="preload" as="script" href="_static/scripts/bootstrap.js?digest=8878045cc6db502f8baf" />
 <link rel="preload" as="script" href="_static/scripts/pydata-sphinx-theme.js?digest=8878045cc6db502f8baf" />
 
-    <script src="_static/documentation_options.js?v=5f4fc906"></script>
+    <script src="_static/documentation_options.js?v=483b4960"></script>
     <script src="_static/doctools.js?v=9bcbadda"></script>
     <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
     <script src="_static/scripts/sphinx-book-theme.js?v=fab101a9"></script>
@@ -55,7 +55,7 @@
     <link rel="search" title="Search" href="search.html" />
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
-  <meta name="docsearch:version" content="2026.4.24.dev9014" />
+  <meta name="docsearch:version" content="2026.4.24.dev9017" />
   </head>
   
   
@@ -97,7 +97,7 @@
   <div class="bd-header-announcement__content">
     <div style="background-color: #f0ad4e; border: 1px solid #eea236; border-radius: 4px; padding: 10px; margin: 10px 0;">
         <strong>⚠️ Development Version:</strong> This documentation was built from a development version
-        (2026.4.24.dev9014, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/aa54929bee1f27b1a95cf1776922c924a201051d" style="color: #31708f;">aa54929</a>).
+        (2026.4.24.dev9017, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/60c7f36c76cf9f25e272611be47456d1a77aca18" style="color: #31708f;">60c7f36</a>).
         Features described here may be unstable or subject to change. For stable documentation, please visit the
         <a href="https://docs.suews.io/stable/" style="color: #31708f;">latest release</a>.
     </div>
@@ -146,8 +146,8 @@
       
     
     
-    <img src="_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.4.24.dev9014 documentation - Home"/>
-    <img src="_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.4.24.dev9014 documentation - Home"/>
+    <img src="_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.4.24.dev9017 documentation - Home"/>
+    <img src="_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.4.24.dev9017 documentation - Home"/>
   
   
 </a></div>
@@ -1751,6 +1751,8 @@
         <li><a href="data-structures/df_state.html#cmdoption-arg-chanohm">command line option</a>
 </li>
       </ul></li>
+      <li><a href="api/simulation.html#supy.SUEWSSimulation.checkpoint">checkpoint (supy.SUEWSSimulation property)</a>
+</li>
       <li>
     CI
 
@@ -4064,6 +4066,8 @@
 </li>
       <li><a href="api/simulation.html#supy.SUEWSSimulation.config">config (supy.SUEWSSimulation property)</a>
 </li>
+      <li><a href="api/simulation.html#supy.SUEWSSimulation.continue_from">continue_from() (supy.SUEWSSimulation method)</a>
+</li>
       <li><a href="api/_autosummary/supy.util.AttributionResult.html#supy.util.AttributionResult.contributions">contributions (supy.util.AttributionResult attribute)</a>
 </li>
       <li><a href="inputs/yaml/config-reference/model.html#index-1">control (YAML parameter)</a>
@@ -6127,8 +6131,6 @@
       </ul></li>
       <li><a href="outputs/variables/snow.html#index-86">fr_BSoil (output variable)</a>
 </li>
-  </ul></td>
-  <td style="width: 33%; vertical-align: top;"><ul>
       <li>
     Fr_DecTr
 
@@ -6136,6 +6138,8 @@
         <li><a href="inputs/tables/SUEWS_SiteInfo/Input_Options.html#cmdoption-arg-Fr_DecTr">command line option</a>
 </li>
       </ul></li>
+  </ul></td>
+  <td style="width: 33%; vertical-align: top;"><ul>
       <li>
     fr_DecTr
 
@@ -6410,6 +6414,10 @@
 </li>
       </ul></li>
       <li><a href="outputs/variables/snow.html#index-85">frMelt_Water (output variable)</a>
+</li>
+      <li><a href="api/simulation.html#supy.SUEWSSimulation.from_checkpoint">from_checkpoint() (supy.SUEWSSimulation class method)</a>
+</li>
+      <li><a href="api/io-data-structures.html#supy.SUEWSCheckpoint.from_file">from_file() (supy.SUEWSCheckpoint class method)</a>
 </li>
       <li><a href="api/simulation.html#supy.SUEWSSimulation.from_output">from_output() (supy.SUEWSSimulation class method)</a>
 </li>
@@ -13767,6 +13775,8 @@
 </li>
       <li><a href="inputs/yaml/config-reference/initialstatebldgs.html#index-1">state (YAML parameter)</a>, <a href="inputs/yaml/config-reference/initialstatebsoil.html#index-1">[1]</a>, <a href="inputs/yaml/config-reference/initialstatedectr.html#index-1">[2]</a>, <a href="inputs/yaml/config-reference/initialstateevetr.html#index-1">[3]</a>, <a href="inputs/yaml/config-reference/initialstategrass.html#index-1">[4]</a>, <a href="inputs/yaml/config-reference/initialstatepaved.html#index-1">[5]</a>, <a href="inputs/yaml/config-reference/initialstateveg.html#index-1">[6]</a>, <a href="inputs/yaml/config-reference/initialstatewater.html#index-1">[7]</a>, <a href="inputs/yaml/config-reference/surfaceinitialstate.html#index-1">[8]</a>
 </li>
+      <li><a href="api/simulation.html#supy.SUEWSSimulation.state_checkpoint">state_checkpoint (supy.SUEWSSimulation property)</a>
+</li>
       <li><a href="api/simulation.html#supy.SUEWSSimulation.state_final">state_final (supy.SUEWSSimulation property)</a>
 </li>
       <li><a href="api/simulation.html#supy.SUEWSSimulation.state_init">state_init (supy.SUEWSSimulation property)</a>
@@ -14437,6 +14447,8 @@
 </li>
       </ul></li>
       <li><a href="outputs/variables/suews.html#index-0">SUEWS (output group)</a>
+</li>
+      <li><a href="api/io-data-structures.html#supy.SUEWSCheckpoint">SUEWSCheckpoint (class in supy)</a>
 </li>
       <li>
     SUEWSConfig
@@ -15333,8 +15345,6 @@
         <li><a href="inputs/tables/SUEWS_SiteInfo/Input_Options.html#cmdoption-arg-Timezone">command line option</a>
 </li>
       </ul></li>
-  </ul></td>
-  <td style="width: 33%; vertical-align: top;"><ul>
       <li>
     timezone
 
@@ -15342,6 +15352,8 @@
         <li><a href="data-structures/df_state.html#cmdoption-arg-timezone">command line option</a>
 </li>
       </ul></li>
+  </ul></td>
+  <td style="width: 33%; vertical-align: top;"><ul>
       <li><a href="inputs/yaml/config-reference/siteproperties.html#index-4">timezone (YAML parameter)</a>
 </li>
       <li><a href="inputs/yaml/config-reference/initialstatebldgs.html#index-10">tin (YAML parameter)</a>, <a href="inputs/yaml/config-reference/initialstatebsoil.html#index-10">[1]</a>, <a href="inputs/yaml/config-reference/initialstatedectr.html#index-10">[2]</a>, <a href="inputs/yaml/config-reference/initialstateevetr.html#index-10">[3]</a>, <a href="inputs/yaml/config-reference/initialstategrass.html#index-10">[4]</a>, <a href="inputs/yaml/config-reference/initialstatepaved.html#index-10">[5]</a>, <a href="inputs/yaml/config-reference/initialstateveg.html#index-10">[6]</a>, <a href="inputs/yaml/config-reference/initialstatewater.html#index-10">[7]</a>, <a href="inputs/yaml/config-reference/surfaceinitialstate.html#index-10">[8]</a>
@@ -15413,6 +15425,8 @@
       <li><a href="inputs/yaml/config-reference/waterdistribution.html#index-3">to_dectr (YAML parameter)</a>
 </li>
       <li><a href="inputs/yaml/config-reference/waterdistribution.html#index-4">to_evetr (YAML parameter)</a>
+</li>
+      <li><a href="api/io-data-structures.html#supy.SUEWSCheckpoint.to_file">to_file() (supy.SUEWSCheckpoint method)</a>
 </li>
       <li><a href="inputs/yaml/config-reference/waterdistribution.html#index-5">to_grass (YAML parameter)</a>
 </li>
@@ -17648,8 +17662,8 @@ By SUEWS dev team led by Prof Sue Grimmond
   <div class="footer-item">
     
 <div class="extra_footer">
-  <p>Version: 2026.4.24.dev9014 |
-    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/aa54929bee1f27b1a95cf1776922c924a201051d">aa54929</a> |
+  <p>Version: 2026.4.24.dev9017 |
+    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/60c7f36c76cf9f25e272611be47456d1a77aca18">60c7f36</a> |
     <a href="https://umep-dev.github.io/SUEWS/brand/showcase.html">Brand</a></p>
 </div>
   </div>

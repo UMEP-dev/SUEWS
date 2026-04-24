@@ -8,8 +8,8 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <meta property="article:modified_time" content="2026-01-22T11:56:16+00:00" />
-    <title>5. Output Files &#8212; SUEWS 2026.4.24.dev9014 documentation</title>
+    <meta property="article:modified_time" content="2026-04-24T12:58:49+00:00" />
+    <title>5. Output Files &#8212; SUEWS 2026.4.24.dev9017 documentation</title>
   
   
   
@@ -45,7 +45,7 @@
   <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=8878045cc6db502f8baf" />
 <link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=8878045cc6db502f8baf" />
 
-    <script src="../_static/documentation_options.js?v=5f4fc906"></script>
+    <script src="../_static/documentation_options.js?v=483b4960"></script>
     <script src="../_static/doctools.js?v=9bcbadda"></script>
     <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
     <script src="../_static/scripts/sphinx-book-theme.js?v=fab101a9"></script>
@@ -59,8 +59,8 @@
     <link rel="prev" title="4.7.3.4.5. Snow related parameters" href="../inputs/tables/Initial_Conditions/Snow_related_parameters.html" />
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
-  <meta name="docsearch:version" content="2026.4.24.dev9014" />
-    <meta name="docbuild:last-update" content="2026-01-22"/>
+  <meta name="docsearch:version" content="2026.4.24.dev9017" />
+    <meta name="docbuild:last-update" content="2026-04-24"/>
   </head>
   
   
@@ -102,7 +102,7 @@
   <div class="bd-header-announcement__content">
     <div style="background-color: #f0ad4e; border: 1px solid #eea236; border-radius: 4px; padding: 10px; margin: 10px 0;">
         <strong>⚠️ Development Version:</strong> This documentation was built from a development version
-        (2026.4.24.dev9014, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/aa54929bee1f27b1a95cf1776922c924a201051d" style="color: #31708f;">aa54929</a>).
+        (2026.4.24.dev9017, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/60c7f36c76cf9f25e272611be47456d1a77aca18" style="color: #31708f;">60c7f36</a>).
         Features described here may be unstable or subject to change. For stable documentation, please visit the
         <a href="https://docs.suews.io/stable/" style="color: #31708f;">latest release</a>.
     </div>
@@ -149,8 +149,8 @@
       
     
     
-    <img src="../_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.4.24.dev9014 documentation - Home"/>
-    <img src="../_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.4.24.dev9014 documentation - Home"/>
+    <img src="../_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.4.24.dev9017 documentation - Home"/>
+    <img src="../_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.4.24.dev9017 documentation - Home"/>
   
   
 </a></div>
@@ -593,8 +593,8 @@
             </div>
             <nav aria-label="Page">
                 <ul class="visible nav section-nav flex-column">
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#state-output">5.6. State Output</a><ul class="nav section-nav flex-column">
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#df-state-ssss-csv">5.6.1. df_state_SSss.csv</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#restart-checkpoint">5.6. Restart Checkpoint</a><ul class="nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#site-suews-checkpoint-json">5.6.1. {site}_SUEWS_checkpoint.json</a></li>
 </ul>
 </li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#temporal-information">5.7. Temporal Information</a></li>
@@ -643,17 +643,19 @@ See <a class="reference internal" href="../inputs/yaml/index.html"><span class="
 <li class="toctree-l1"><a class="reference internal" href="legacy_text_columns.html">5.5. Legacy Text Column Reference</a></li>
 </ul>
 </div>
-<section id="state-output">
-<h2><span class="section-number">5.6. </span>State Output<a class="headerlink" href="#state-output" title="Link to this heading">#</a></h2>
-<section id="df-state-ssss-csv">
-<h3><span class="section-number">5.6.1. </span>df_state_SSss.csv<a class="headerlink" href="#df-state-ssss-csv" title="Link to this heading">#</a></h3>
-<p>SUEWS automatically outputs a df_state_SSss.csv file containing:</p>
-<ul class="simple">
-<li><p>Model configuration parameters</p></li>
-<li><p>Initial and final states</p></li>
-<li><p>Simulation metadata (SUEWS version, timestamps, etc.)</p></li>
-</ul>
-<p>This file preserves model state for analysis and restart purposes.</p>
+<section id="restart-checkpoint">
+<h2><span class="section-number">5.6. </span>Restart Checkpoint<a class="headerlink" href="#restart-checkpoint" title="Link to this heading">#</a></h2>
+<section id="site-suews-checkpoint-json">
+<h3><span class="section-number">5.6.1. </span>{site}_SUEWS_checkpoint.json<a class="headerlink" href="#site-suews-checkpoint-json" title="Link to this heading">#</a></h3>
+<p>Object-oriented SUEWS runs save <code class="docutils literal notranslate"><span class="pre">{site}_SUEWS_checkpoint.json</span></code> as the
+preferred restart artefact. It contains typed runtime state from the backend,
+keyed by grid ID.</p>
+<p>The checkpoint is intentionally only the typed runtime state. To continue a run,
+load the same YAML configuration, attach the next forcing period, and run from
+<code class="docutils literal notranslate"><span class="pre">SUEWSSimulation.from_checkpoint(...)</span></code>.</p>
+<p>Legacy <code class="docutils literal notranslate"><span class="pre">df_state_SSss.csv</span></code> and state parquet files remain documented for
+backwards compatibility and developer inspection, but they are not the preferred
+restart artefact for new object-oriented workflows.</p>
 </section>
 </section>
 <section id="temporal-information">
@@ -717,8 +719,8 @@ day-start labelling for readability. See <a class="reference internal" href="tex
   </div>
   <nav id="pst-page-toc-nav" class="page-toc" aria-labelledby="pst-page-navigation-heading-2">
     <ul class="visible nav section-nav flex-column">
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#state-output">5.6. State Output</a><ul class="nav section-nav flex-column">
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#df-state-ssss-csv">5.6.1. df_state_SSss.csv</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#restart-checkpoint">5.6. Restart Checkpoint</a><ul class="nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#site-suews-checkpoint-json">5.6.1. {site}_SUEWS_checkpoint.json</a></li>
 </ul>
 </li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#temporal-information">5.7. Temporal Information</a></li>
@@ -755,7 +757,7 @@ By SUEWS dev team led by Prof Sue Grimmond
   
   <div class="footer-item">
     <p class="last-updated">
-  Last updated on 2026-01-22.
+  Last updated on 2026-04-24.
   <br/>
 </p>
   </div>
@@ -763,8 +765,8 @@ By SUEWS dev team led by Prof Sue Grimmond
   <div class="footer-item">
     
 <div class="extra_footer">
-  <p>Version: 2026.4.24.dev9014 |
-    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/aa54929bee1f27b1a95cf1776922c924a201051d">aa54929</a> |
+  <p>Version: 2026.4.24.dev9017 |
+    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/60c7f36c76cf9f25e272611be47456d1a77aca18">60c7f36</a> |
     <a href="https://umep-dev.github.io/SUEWS/brand/showcase.html">Brand</a></p>
 </div>
   </div>

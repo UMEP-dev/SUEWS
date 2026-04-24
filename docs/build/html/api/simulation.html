@@ -8,8 +8,8 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <meta property="article:modified_time" content="2026-01-28T15:54:16+00:00" />
-    <title>6.1. SUEWSSimulation Class &#8212; SUEWS 2026.4.24.dev9014 documentation</title>
+    <meta property="article:modified_time" content="2026-04-24T12:58:49+00:00" />
+    <title>6.1. SUEWSSimulation Class &#8212; SUEWS 2026.4.24.dev9017 documentation</title>
   
   
   
@@ -45,7 +45,7 @@
   <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=8878045cc6db502f8baf" />
 <link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=8878045cc6db502f8baf" />
 
-    <script src="../_static/documentation_options.js?v=5f4fc906"></script>
+    <script src="../_static/documentation_options.js?v=483b4960"></script>
     <script src="../_static/doctools.js?v=9bcbadda"></script>
     <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
     <script src="../_static/scripts/sphinx-book-theme.js?v=fab101a9"></script>
@@ -59,8 +59,8 @@
     <link rel="prev" title="6. Python API Reference" href="../api.html" />
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
-  <meta name="docsearch:version" content="2026.4.24.dev9014" />
-    <meta name="docbuild:last-update" content="2026-01-28"/>
+  <meta name="docsearch:version" content="2026.4.24.dev9017" />
+    <meta name="docbuild:last-update" content="2026-04-24"/>
   </head>
   
   
@@ -102,7 +102,7 @@
   <div class="bd-header-announcement__content">
     <div style="background-color: #f0ad4e; border: 1px solid #eea236; border-radius: 4px; padding: 10px; margin: 10px 0;">
         <strong>⚠️ Development Version:</strong> This documentation was built from a development version
-        (2026.4.24.dev9014, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/aa54929bee1f27b1a95cf1776922c924a201051d" style="color: #31708f;">aa54929</a>).
+        (2026.4.24.dev9017, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/60c7f36c76cf9f25e272611be47456d1a77aca18" style="color: #31708f;">60c7f36</a>).
         Features described here may be unstable or subject to change. For stable documentation, please visit the
         <a href="https://docs.suews.io/stable/" style="color: #31708f;">latest release</a>.
     </div>
@@ -149,8 +149,8 @@
       
     
     
-    <img src="../_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.4.24.dev9014 documentation - Home"/>
-    <img src="../_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.4.24.dev9014 documentation - Home"/>
+    <img src="../_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.4.24.dev9017 documentation - Home"/>
+    <img src="../_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.4.24.dev9017 documentation - Home"/>
   
   
 </a></div>
@@ -600,11 +600,14 @@
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#setup-methods">6.1.2.3. Setup Methods</a></li>
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#execution-methods">6.1.2.4. Execution Methods</a></li>
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#output-methods">6.1.2.5. Output Methods</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#full-class-reference">6.1.2.6. Full Class Reference</a><ul class="nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#run-output">6.1.2.6. Run Output</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#full-class-reference">6.1.2.7. Full Class Reference</a><ul class="nav section-nav flex-column">
 <li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#supy.SUEWSSimulation"><code class="docutils literal notranslate"><span class="pre">SUEWSSimulation</span></code></a><ul class="nav section-nav flex-column">
+<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#supy.SUEWSSimulation.from_checkpoint"><code class="docutils literal notranslate"><span class="pre">SUEWSSimulation.from_checkpoint()</span></code></a></li>
 <li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#supy.SUEWSSimulation.from_output"><code class="docutils literal notranslate"><span class="pre">SUEWSSimulation.from_output()</span></code></a></li>
 <li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#supy.SUEWSSimulation.from_sample_data"><code class="docutils literal notranslate"><span class="pre">SUEWSSimulation.from_sample_data()</span></code></a></li>
 <li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#supy.SUEWSSimulation.from_state"><code class="docutils literal notranslate"><span class="pre">SUEWSSimulation.from_state()</span></code></a></li>
+<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#supy.SUEWSSimulation.continue_from"><code class="docutils literal notranslate"><span class="pre">SUEWSSimulation.continue_from()</span></code></a></li>
 <li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#supy.SUEWSSimulation.get_variable"><code class="docutils literal notranslate"><span class="pre">SUEWSSimulation.get_variable()</span></code></a></li>
 <li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#supy.SUEWSSimulation.is_complete"><code class="docutils literal notranslate"><span class="pre">SUEWSSimulation.is_complete()</span></code></a></li>
 <li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#supy.SUEWSSimulation.is_ready"><code class="docutils literal notranslate"><span class="pre">SUEWSSimulation.is_ready()</span></code></a></li>
@@ -613,10 +616,12 @@
 <li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#supy.SUEWSSimulation.save"><code class="docutils literal notranslate"><span class="pre">SUEWSSimulation.save()</span></code></a></li>
 <li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#supy.SUEWSSimulation.update_config"><code class="docutils literal notranslate"><span class="pre">SUEWSSimulation.update_config()</span></code></a></li>
 <li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#supy.SUEWSSimulation.update_forcing"><code class="docutils literal notranslate"><span class="pre">SUEWSSimulation.update_forcing()</span></code></a></li>
+<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#supy.SUEWSSimulation.checkpoint"><code class="docutils literal notranslate"><span class="pre">SUEWSSimulation.checkpoint</span></code></a></li>
 <li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#supy.SUEWSSimulation.config"><code class="docutils literal notranslate"><span class="pre">SUEWSSimulation.config</span></code></a></li>
 <li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#supy.SUEWSSimulation.forcing"><code class="docutils literal notranslate"><span class="pre">SUEWSSimulation.forcing</span></code></a></li>
 <li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#supy.SUEWSSimulation.output"><code class="docutils literal notranslate"><span class="pre">SUEWSSimulation.output</span></code></a></li>
 <li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#supy.SUEWSSimulation.results"><code class="docutils literal notranslate"><span class="pre">SUEWSSimulation.results</span></code></a></li>
+<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#supy.SUEWSSimulation.state_checkpoint"><code class="docutils literal notranslate"><span class="pre">SUEWSSimulation.state_checkpoint</span></code></a></li>
 <li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#supy.SUEWSSimulation.state_final"><code class="docutils literal notranslate"><span class="pre">SUEWSSimulation.state_final</span></code></a></li>
 <li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#supy.SUEWSSimulation.state_init"><code class="docutils literal notranslate"><span class="pre">SUEWSSimulation.state_init</span></code></a></li>
 </ul>
@@ -655,6 +660,7 @@
 <li><p><strong>YAML Configuration</strong>: Load configurations from YAML files</p></li>
 <li><p><strong>Configuration Updates</strong>: Update configuration with dictionaries or YAML files</p></li>
 <li><p><strong>Forcing Management</strong>: Load single files, lists of files, or DataFrames</p></li>
+<li><p><strong>Checkpoint Restarts</strong>: Continue YAML-based runs from typed checkpoint JSON</p></li>
 <li><p><strong>Simple API</strong>: Clean interface focused on essential functionality</p></li>
 <li><p><strong>Format Support</strong>: Save results in txt or parquet formats via OutputConfig</p></li>
 </ul>
@@ -695,7 +701,13 @@
 <td><p>Initial state DataFrame for simulation.</p></td>
 </tr>
 <tr class="row-even"><td><p><a class="reference internal" href="#supy.SUEWSSimulation.state_final" title="supy.SUEWSSimulation.state_final"><code class="xref py py-obj docutils literal notranslate"><span class="pre">state_final</span></code></a></p></td>
-<td><p>Final state DataFrame after simulation.</p></td>
+<td><p>Legacy final state DataFrame after simulation.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#supy.SUEWSSimulation.checkpoint" title="supy.SUEWSSimulation.checkpoint"><code class="xref py py-obj docutils literal notranslate"><span class="pre">checkpoint</span></code></a></p></td>
+<td><p>Typed checkpoint produced by the most recent run.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#supy.SUEWSSimulation.state_checkpoint" title="supy.SUEWSSimulation.state_checkpoint"><code class="xref py py-obj docutils literal notranslate"><span class="pre">state_checkpoint</span></code></a></p></td>
+<td><p>Alias for <code class="docutils literal notranslate"><span class="pre">checkpoint</span></code>.</p></td>
 </tr>
 </tbody>
 </table>
@@ -715,8 +727,14 @@
 <tr class="row-odd"><td><p><a class="reference internal" href="#supy.SUEWSSimulation.from_sample_data" title="supy.SUEWSSimulation.from_sample_data"><code class="xref py py-obj docutils literal notranslate"><span class="pre">from_sample_data</span></code></a></p></td>
 <td><p>Create SUEWSSimulation instance with built-in sample data.</p></td>
 </tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#supy.SUEWSSimulation.from_checkpoint" title="supy.SUEWSSimulation.from_checkpoint"><code class="xref py py-obj docutils literal notranslate"><span class="pre">from_checkpoint</span></code></a></p></td>
+<td><p>Create a continuation simulation from YAML config and checkpoint.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#supy.SUEWSSimulation.continue_from" title="supy.SUEWSSimulation.continue_from"><code class="xref py py-obj docutils literal notranslate"><span class="pre">continue_from</span></code></a></p></td>
+<td><p>Use a typed checkpoint as the initial runtime state.</p></td>
+</tr>
 <tr class="row-even"><td><p><a class="reference internal" href="#supy.SUEWSSimulation.from_state" title="supy.SUEWSSimulation.from_state"><code class="xref py py-obj docutils literal notranslate"><span class="pre">from_state</span></code></a></p></td>
-<td><p>Create SUEWSSimulation from saved state for continuation runs.</p></td>
+<td><p>Create SUEWSSimulation from legacy DFState.</p></td>
 </tr>
 </tbody>
 </table>
@@ -752,8 +770,28 @@
 </table>
 </div>
 </section>
+<section id="run-output">
+<h3><span class="section-number">6.1.2.6. </span>Run Output<a class="headerlink" href="#run-output" title="Link to this heading">#</a></h3>
+<p><code class="docutils literal notranslate"><span class="pre">run()</span></code> returns a <code class="xref py py-class docutils literal notranslate"><span class="pre">SUEWSOutput</span></code> object. Use its <code class="docutils literal notranslate"><span class="pre">checkpoint</span></code> property
+as the restart artefact for continuation runs; <code class="docutils literal notranslate"><span class="pre">state_final</span></code> is retained as a
+legacy/developer DataFrame view.</p>
+<div class="pst-scrollable-table-container"><table class="autosummary longtable table">
+<tbody>
+<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">checkpoint</span></code></p></td>
+<td><p>Typed checkpoint for restart/continuation runs.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">state_checkpoint</span></code></p></td>
+<td><p>Alias for <code class="docutils literal notranslate"><span class="pre">checkpoint</span></code>.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">state_final</span></code></p></td>
+<td><p>Legacy final model state DataFrame.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
 <section id="full-class-reference">
-<h3><span class="section-number">6.1.2.6. </span>Full Class Reference<a class="headerlink" href="#full-class-reference" title="Link to this heading">#</a></h3>
+<h3><span class="section-number">6.1.2.7. </span>Full Class Reference<a class="headerlink" href="#full-class-reference" title="Link to this heading">#</a></h3>
 <dl class="py class">
 <dt class="sig sig-object py" id="supy.SUEWSSimulation">
 <em class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">supy.</span></span><span class="sig-name descname"><span class="pre">SUEWSSimulation</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">config</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/pathlib.html#pathlib.Path" title="(in Python v3.14)"><span class="pre">Path</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.14)"><span class="pre">dict</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Any" title="(in Python v3.14)"><span class="pre">Any</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/supy/suews_sim.html#SUEWSSimulation"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#supy.SUEWSSimulation" title="Link to this definition">#</a></dt>
@@ -779,6 +817,12 @@
 </pre></div>
 </div>
 <dl class="py method">
+<dt class="sig sig-object py" id="supy.SUEWSSimulation.from_checkpoint">
+<em class="property"><span class="k"><span class="pre">classmethod</span></span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">from_checkpoint</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">config</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/pathlib.html#pathlib.Path" title="(in Python v3.14)"><span class="pre">Path</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.14)"><span class="pre">dict</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">SUEWSConfig</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">checkpoint</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/pathlib.html#pathlib.Path" title="(in Python v3.14)"><span class="pre">Path</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference internal" href="io-data-structures.html#supy.SUEWSCheckpoint" title="supy.suews_checkpoint.SUEWSCheckpoint"><span class="pre">SUEWSCheckpoint</span></a></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference internal" href="#supy.SUEWSSimulation" title="supy.suews_sim.SUEWSSimulation"><span class="pre">SUEWSSimulation</span></a></span></span><a class="reference internal" href="../_modules/supy/suews_sim.html#SUEWSSimulation.from_checkpoint"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#supy.SUEWSSimulation.from_checkpoint" title="Link to this definition">#</a></dt>
+<dd><p>Create a continuation simulation from YAML config and checkpoint.</p>
+</dd></dl>
+
+<dl class="py method">
 <dt class="sig sig-object py" id="supy.SUEWSSimulation.from_output">
 <em class="property"><span class="k"><span class="pre">classmethod</span></span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">from_output</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">output</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">SUEWSOutput</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference internal" href="#supy.SUEWSSimulation" title="supy.suews_sim.SUEWSSimulation"><span class="pre">SUEWSSimulation</span></a></span></span><a class="reference internal" href="../_modules/supy/suews_sim.html#SUEWSSimulation.from_output"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#supy.SUEWSSimulation.from_output" title="Link to this definition">#</a></dt>
 <dd><p>Create SUEWSSimulation from previous output for continuation runs.</p>
@@ -789,7 +833,7 @@ object and creates a new simulation ready for continuation.</p>
 <dd class="field-odd"><p><strong>output</strong> (<em>SUEWSOutput</em>) – Output object from a previous simulation run.</p>
 </dd>
 <dt class="field-even">Returns<span class="colon">:</span></dt>
-<dd class="field-even"><p>Simulation instance initialised with final state from output,
+<dd class="field-even"><p>Simulation instance initialised with checkpoint from output,
 ready for new forcing data and run.</p>
 </dd>
 <dt class="field-odd">Return type<span class="colon">:</span></dt>
@@ -804,7 +848,7 @@ ready for new forcing data and run.</p>
 <span class="gp">&gt;&gt;&gt; </span><span class="n">output1</span> <span class="o">=</span> <span class="n">sim1</span><span class="o">.</span><span class="n">run</span><span class="p">()</span>
 </pre></div>
 </div>
-<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="c1"># Continue from output state</span>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="c1"># Continue from output checkpoint</span>
 <span class="gp">&gt;&gt;&gt; </span><span class="n">sim2</span> <span class="o">=</span> <span class="n">SUEWSSimulation</span><span class="o">.</span><span class="n">from_output</span><span class="p">(</span><span class="n">output1</span><span class="p">)</span>
 <span class="gp">&gt;&gt;&gt; </span><span class="n">sim2</span><span class="o">.</span><span class="n">update_forcing</span><span class="p">(</span><span class="s2">&quot;forcing_2024.txt&quot;</span><span class="p">)</span>
 <span class="gp">&gt;&gt;&gt; </span><span class="n">output2</span> <span class="o">=</span> <span class="n">sim2</span><span class="o">.</span><span class="n">run</span><span class="p">()</span>
@@ -813,9 +857,9 @@ ready for new forcing data and run.</p>
 <div class="admonition seealso">
 <p class="admonition-title">See also</p>
 <dl class="simple">
-<dt><a class="reference internal" href="#supy.SUEWSSimulation.from_state" title="supy.SUEWSSimulation.from_state"><code class="xref py py-obj docutils literal notranslate"><span class="pre">from_state</span></code></a></dt><dd><p>Create from saved state file or DataFrame</p>
+<dt><a class="reference internal" href="#supy.SUEWSSimulation.from_checkpoint" title="supy.SUEWSSimulation.from_checkpoint"><code class="xref py py-obj docutils literal notranslate"><span class="pre">from_checkpoint</span></code></a></dt><dd><p>Create from YAML config and checkpoint</p>
 </dd>
-<dt><code class="xref py py-obj docutils literal notranslate"><span class="pre">SUEWSOutput.state_final</span></code></dt><dd><p>Final state property for restart</p>
+<dt><code class="xref py py-obj docutils literal notranslate"><span class="pre">SUEWSOutput.checkpoint</span></code></dt><dd><p>Typed checkpoint property for restart</p>
 </dd>
 </dl>
 </div>
@@ -849,10 +893,10 @@ testing, and learning the SUEWS workflow.</p>
 <dl class="py method">
 <dt class="sig sig-object py" id="supy.SUEWSSimulation.from_state">
 <em class="property"><span class="k"><span class="pre">classmethod</span></span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">from_state</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">state</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/pathlib.html#pathlib.Path" title="(in Python v3.14)"><span class="pre">Path</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="http://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.DataFrame.html#pandas.DataFrame" title="(in pandas v3.0.2)"><span class="pre">DataFrame</span></a></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/supy/suews_sim.html#SUEWSSimulation.from_state"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#supy.SUEWSSimulation.from_state" title="Link to this definition">#</a></dt>
-<dd><p>Create SUEWSSimulation from saved state for continuation runs.</p>
-<p>Load a previously saved model state to continue simulation from where
-it left off. Useful for multi-period runs or scenario testing with
-different forcing data.</p>
+<dd><p>Create SUEWSSimulation from legacy DFState.</p>
+<p>This compatibility adapter reads older DFState CSV/parquet/DataFrame
+artifacts. New continuation workflows should use
+<code class="docutils literal notranslate"><span class="pre">from_checkpoint(config,</span> <span class="pre">checkpoint)</span></code>.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><p><strong>state</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a><em>, </em><em>Path</em><em>, or </em><a class="reference external" href="http://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.DataFrame.html#pandas.DataFrame" title="(in pandas v3.0.2)"><em>pandas.DataFrame</em></a>) – <p>State to load for continuation. Can be:</p>
@@ -877,7 +921,7 @@ new forcing data and run.</p>
 a warning is issued about potential compatibility issues.</p>
 </div>
 <p class="rubric">Examples</p>
-<p>Continue from saved file:</p>
+<p>Legacy import from saved file:</p>
 <div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="c1"># Period 1</span>
 <span class="gp">&gt;&gt;&gt; </span><span class="n">sim1</span> <span class="o">=</span> <span class="n">SUEWSSimulation</span><span class="p">(</span><span class="s2">&quot;config.yaml&quot;</span><span class="p">)</span>
 <span class="gp">&gt;&gt;&gt; </span><span class="n">sim1</span><span class="o">.</span><span class="n">update_forcing</span><span class="p">(</span><span class="s2">&quot;forcing_2023.txt&quot;</span><span class="p">)</span>
@@ -885,13 +929,13 @@ a warning is issued about potential compatibility issues.</p>
 <span class="gp">&gt;&gt;&gt; </span><span class="n">paths</span> <span class="o">=</span> <span class="n">sim1</span><span class="o">.</span><span class="n">save</span><span class="p">(</span><span class="s2">&quot;output/&quot;</span><span class="p">)</span>
 </pre></div>
 </div>
-<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="c1"># Period 2 - continue from saved state</span>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="c1"># Period 2 - legacy DFState continuation</span>
 <span class="gp">&gt;&gt;&gt; </span><span class="n">sim2</span> <span class="o">=</span> <span class="n">SUEWSSimulation</span><span class="o">.</span><span class="n">from_state</span><span class="p">(</span><span class="s2">&quot;output/df_state.csv&quot;</span><span class="p">)</span>
 <span class="gp">&gt;&gt;&gt; </span><span class="n">sim2</span><span class="o">.</span><span class="n">update_forcing</span><span class="p">(</span><span class="s2">&quot;forcing_2024.txt&quot;</span><span class="p">)</span>
 <span class="gp">&gt;&gt;&gt; </span><span class="n">sim2</span><span class="o">.</span><span class="n">run</span><span class="p">()</span>
 </pre></div>
 </div>
-<p>Continue from DataFrame directly:</p>
+<p>Legacy import from DataFrame directly:</p>
 <div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="c1"># In-memory continuation without saving to file</span>
 <span class="gp">&gt;&gt;&gt; </span><span class="n">sim1</span> <span class="o">=</span> <span class="n">SUEWSSimulation</span><span class="o">.</span><span class="n">from_sample_data</span><span class="p">()</span>
 <span class="gp">&gt;&gt;&gt; </span><span class="n">sim1</span><span class="o">.</span><span class="n">run</span><span class="p">()</span>
@@ -912,14 +956,22 @@ a warning is issued about potential compatibility issues.</p>
 <div class="admonition seealso">
 <p class="admonition-title">See also</p>
 <dl class="simple">
-<dt><a class="reference internal" href="#supy.SUEWSSimulation.save" title="supy.SUEWSSimulation.save"><code class="xref py py-obj docutils literal notranslate"><span class="pre">save</span></code></a></dt><dd><p>Save simulation results and state</p>
+<dt><a class="reference internal" href="#supy.SUEWSSimulation.from_checkpoint" title="supy.SUEWSSimulation.from_checkpoint"><code class="xref py py-obj docutils literal notranslate"><span class="pre">from_checkpoint</span></code></a></dt><dd><p>Create continuation from YAML config and checkpoint</p>
+</dd>
+<dt><a class="reference internal" href="#supy.SUEWSSimulation.save" title="supy.SUEWSSimulation.save"><code class="xref py py-obj docutils literal notranslate"><span class="pre">save</span></code></a></dt><dd><p>Save simulation results and checkpoint</p>
 </dd>
 <dt><a class="reference internal" href="#supy.SUEWSSimulation.reset" title="supy.SUEWSSimulation.reset"><code class="xref py py-obj docutils literal notranslate"><span class="pre">reset</span></code></a></dt><dd><p>Clear results and reset to initial state</p>
 </dd>
-<dt><a class="reference internal" href="#supy.SUEWSSimulation.state_final" title="supy.SUEWSSimulation.state_final"><code class="xref py py-obj docutils literal notranslate"><span class="pre">state_final</span></code></a></dt><dd><p>Access final state from completed simulation</p>
+<dt><a class="reference internal" href="#supy.SUEWSSimulation.checkpoint" title="supy.SUEWSSimulation.checkpoint"><code class="xref py py-obj docutils literal notranslate"><span class="pre">checkpoint</span></code></a></dt><dd><p>Access typed checkpoint from completed simulation</p>
 </dd>
 </dl>
 </div>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="supy.SUEWSSimulation.continue_from">
+<span class="sig-name descname"><span class="pre">continue_from</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">checkpoint</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/pathlib.html#pathlib.Path" title="(in Python v3.14)"><span class="pre">Path</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference internal" href="io-data-structures.html#supy.SUEWSCheckpoint" title="supy.suews_checkpoint.SUEWSCheckpoint"><span class="pre">SUEWSCheckpoint</span></a></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference internal" href="#supy.SUEWSSimulation" title="supy.suews_sim.SUEWSSimulation"><span class="pre">SUEWSSimulation</span></a></span></span><a class="reference internal" href="../_modules/supy/suews_sim.html#SUEWSSimulation.continue_from"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#supy.SUEWSSimulation.continue_from" title="Link to this definition">#</a></dt>
+<dd><p>Use a typed checkpoint as the initial runtime state.</p>
 </dd></dl>
 
 <dl class="py method">
@@ -1209,6 +1261,12 @@ If no configuration is loaded, defaults to 300 seconds (5 minutes).</p>
 </dd></dl>
 
 <dl class="py property">
+<dt class="sig sig-object py" id="supy.SUEWSSimulation.checkpoint">
+<em class="property"><span class="k"><span class="pre">property</span></span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">checkpoint</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference internal" href="io-data-structures.html#supy.SUEWSCheckpoint" title="supy.suews_checkpoint.SUEWSCheckpoint"><span class="pre">SUEWSCheckpoint</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.14)"><span class="pre">None</span></a></em><a class="headerlink" href="#supy.SUEWSSimulation.checkpoint" title="Link to this definition">#</a></dt>
+<dd><p>Typed checkpoint produced by the most recent run.</p>
+</dd></dl>
+
+<dl class="py property">
 <dt class="sig sig-object py" id="supy.SUEWSSimulation.config">
 <em class="property"><span class="k"><span class="pre">property</span></span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">config</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">SUEWSConfig</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.14)"><span class="pre">None</span></a></em><a class="headerlink" href="#supy.SUEWSSimulation.config" title="Link to this definition">#</a></dt>
 <dd><p>Access to simulation configuration.</p>
@@ -1340,14 +1398,19 @@ None if simulation hasn’t been run yet.</p>
 </dd></dl>
 
 <dl class="py property">
+<dt class="sig sig-object py" id="supy.SUEWSSimulation.state_checkpoint">
+<em class="property"><span class="k"><span class="pre">property</span></span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">state_checkpoint</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference internal" href="io-data-structures.html#supy.SUEWSCheckpoint" title="supy.suews_checkpoint.SUEWSCheckpoint"><span class="pre">SUEWSCheckpoint</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.14)"><span class="pre">None</span></a></em><a class="headerlink" href="#supy.SUEWSSimulation.state_checkpoint" title="Link to this definition">#</a></dt>
+<dd><p>Alias for <code class="docutils literal notranslate"><span class="pre">checkpoint</span></code>.</p>
+</dd></dl>
+
+<dl class="py property">
 <dt class="sig sig-object py" id="supy.SUEWSSimulation.state_final">
 <em class="property"><span class="k"><span class="pre">property</span></span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">state_final</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference external" href="http://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.DataFrame.html#pandas.DataFrame" title="(in pandas v3.0.2)"><span class="pre">DataFrame</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/constants.html#None" title="(in Python v3.14)"><span class="pre">None</span></a></em><a class="headerlink" href="#supy.SUEWSSimulation.state_final" title="Link to this definition">#</a></dt>
-<dd><p>Final state DataFrame after simulation.</p>
-<p>Available only after running simulation. Contains evolved
-state variables that can be used to continue simulation.</p>
+<dd><p>Legacy final state DataFrame after simulation.</p>
+<p>Prefer <code class="docutils literal notranslate"><span class="pre">checkpoint</span></code> for restart/continuation workflows.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Returns<span class="colon">:</span></dt>
-<dd class="field-odd"><p>Final state after simulation run.
+<dd class="field-odd"><p>Legacy final state after simulation run.
 None if simulation hasn’t been run yet.</p>
 </dd>
 <dt class="field-even">Return type<span class="colon">:</span></dt>
@@ -1363,7 +1426,9 @@ None if simulation hasn’t been run yet.</p>
 </dd>
 <dt><a class="reference internal" href="#supy.SUEWSSimulation.reset" title="supy.SUEWSSimulation.reset"><code class="xref py py-obj docutils literal notranslate"><span class="pre">reset</span></code></a></dt><dd><p>Clear results and reset to initial state</p>
 </dd>
-<dt><a class="reference internal" href="#supy.SUEWSSimulation.from_state" title="supy.SUEWSSimulation.from_state"><code class="xref py py-obj docutils literal notranslate"><span class="pre">from_state</span></code></a></dt><dd><p>Create new simulation from this final state</p>
+<dt><a class="reference internal" href="#supy.SUEWSSimulation.checkpoint" title="supy.SUEWSSimulation.checkpoint"><code class="xref py py-obj docutils literal notranslate"><span class="pre">checkpoint</span></code></a></dt><dd><p>Typed restart artifact</p>
+</dd>
+<dt><a class="reference internal" href="#supy.SUEWSSimulation.from_checkpoint" title="supy.SUEWSSimulation.from_checkpoint"><code class="xref py py-obj docutils literal notranslate"><span class="pre">from_checkpoint</span></code></a></dt><dd><p>Create new simulation from checkpoint</p>
 </dd>
 </dl>
 </div>
@@ -1394,9 +1459,9 @@ None if no configuration loaded.</p>
 <dl class="simple">
 <dt><a class="reference internal" href="../data-structures/df_state.html#df-state-var"><span class="std std-ref">df_state variables</span></a></dt><dd><p>Complete state data structure and variable descriptions</p>
 </dd>
-<dt><a class="reference internal" href="#supy.SUEWSSimulation.state_final" title="supy.SUEWSSimulation.state_final"><code class="xref py py-obj docutils literal notranslate"><span class="pre">state_final</span></code></a></dt><dd><p>Final state after simulation</p>
+<dt><a class="reference internal" href="#supy.SUEWSSimulation.checkpoint" title="supy.SUEWSSimulation.checkpoint"><code class="xref py py-obj docutils literal notranslate"><span class="pre">checkpoint</span></code></a></dt><dd><p>Typed checkpoint after simulation</p>
 </dd>
-<dt><a class="reference internal" href="#supy.SUEWSSimulation.from_state" title="supy.SUEWSSimulation.from_state"><code class="xref py py-obj docutils literal notranslate"><span class="pre">from_state</span></code></a></dt><dd><p>Create simulation from existing state</p>
+<dt><a class="reference internal" href="#supy.SUEWSSimulation.from_checkpoint" title="supy.SUEWSSimulation.from_checkpoint"><code class="xref py py-obj docutils literal notranslate"><span class="pre">from_checkpoint</span></code></a></dt><dd><p>Create simulation from checkpoint</p>
 </dd>
 </dl>
 </div>
@@ -1419,7 +1484,7 @@ None if no configuration loaded.</p>
 <span class="c1"># Create and run simulation</span>
 <span class="n">sim</span> <span class="o">=</span> <span class="n">SUEWSSimulation</span><span class="p">(</span><span class="s1">&#39;config.yml&#39;</span><span class="p">)</span>
 <span class="n">sim</span><span class="o">.</span><span class="n">update_forcing</span><span class="p">(</span><span class="s1">&#39;forcing_data.txt&#39;</span><span class="p">)</span>
-<span class="n">sim</span><span class="o">.</span><span class="n">run</span><span class="p">()</span>
+<span class="n">output</span> <span class="o">=</span> <span class="n">sim</span><span class="o">.</span><span class="n">run</span><span class="p">()</span>
 
 <span class="c1"># Access results - use get_variable() for safe extraction</span>
 <span class="n">qh</span> <span class="o">=</span> <span class="n">sim</span><span class="o">.</span><span class="n">get_variable</span><span class="p">(</span><span class="s1">&#39;QH&#39;</span><span class="p">)</span>              <span class="c1"># Sensible heat flux</span>
@@ -1430,6 +1495,15 @@ None if no configuration loaded.</p>
 
 <span class="c1"># Save results</span>
 <span class="n">sim</span><span class="o">.</span><span class="n">save</span><span class="p">(</span><span class="s1">&#39;output_dir/&#39;</span><span class="p">)</span>
+
+<span class="c1"># Continue from the typed checkpoint and the next forcing period</span>
+<span class="n">output</span><span class="o">.</span><span class="n">checkpoint</span><span class="o">.</span><span class="n">to_file</span><span class="p">(</span><span class="s1">&#39;output_dir/</span><span class="si">{site}</span><span class="s1">_SUEWS_checkpoint.json&#39;</span><span class="p">)</span>
+<span class="n">sim_next</span> <span class="o">=</span> <span class="n">SUEWSSimulation</span><span class="o">.</span><span class="n">from_checkpoint</span><span class="p">(</span>
+    <span class="s1">&#39;config.yml&#39;</span><span class="p">,</span>
+    <span class="s1">&#39;output_dir/</span><span class="si">{site}</span><span class="s1">_SUEWS_checkpoint.json&#39;</span><span class="p">,</span>
+<span class="p">)</span>
+<span class="n">sim_next</span><span class="o">.</span><span class="n">update_forcing</span><span class="p">(</span><span class="s1">&#39;forcing_next_period.txt&#39;</span><span class="p">)</span>
+<span class="n">output_next</span> <span class="o">=</span> <span class="n">sim_next</span><span class="o">.</span><span class="n">run</span><span class="p">()</span>
 
 <span class="c1"># Update configuration and re-run</span>
 <span class="n">sim</span><span class="o">.</span><span class="n">update_config</span><span class="p">({</span><span class="s1">&#39;model&#39;</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;control&#39;</span><span class="p">:</span> <span class="p">{</span><span class="s1">&#39;tstep&#39;</span><span class="p">:</span> <span class="mi">600</span><span class="p">}}})</span>
@@ -1450,6 +1524,7 @@ Use the <code class="docutils literal notranslate"><span class="pre">get_variabl
 </ul>
 <ul class="simple">
 <li><p><a class="reference internal" href="../inputs/yaml/index.html"><span class="doc">YAML Configuration Format</span></a> - YAML configuration guide</p></li>
+<li><p><a class="reference internal" href="io-data-structures.html#suews-checkpoint"><span class="std std-ref">SUEWSCheckpoint: typed restart state</span></a> - Typed checkpoint restart artefact</p></li>
 <li><p><a class="reference internal" href="../data-structures/df_forcing.html"><span class="doc">df_forcing variables</span></a> - Forcing data format</p></li>
 <li><p><a class="reference internal" href="../data-structures/df_output.html"><span class="doc">df_output variables</span></a> - Output data format</p></li>
 </ul>
@@ -1510,11 +1585,14 @@ Use the <code class="docutils literal notranslate"><span class="pre">get_variabl
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#setup-methods">6.1.2.3. Setup Methods</a></li>
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#execution-methods">6.1.2.4. Execution Methods</a></li>
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#output-methods">6.1.2.5. Output Methods</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#full-class-reference">6.1.2.6. Full Class Reference</a><ul class="nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#run-output">6.1.2.6. Run Output</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#full-class-reference">6.1.2.7. Full Class Reference</a><ul class="nav section-nav flex-column">
 <li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#supy.SUEWSSimulation"><code class="docutils literal notranslate"><span class="pre">SUEWSSimulation</span></code></a><ul class="nav section-nav flex-column">
+<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#supy.SUEWSSimulation.from_checkpoint"><code class="docutils literal notranslate"><span class="pre">SUEWSSimulation.from_checkpoint()</span></code></a></li>
 <li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#supy.SUEWSSimulation.from_output"><code class="docutils literal notranslate"><span class="pre">SUEWSSimulation.from_output()</span></code></a></li>
 <li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#supy.SUEWSSimulation.from_sample_data"><code class="docutils literal notranslate"><span class="pre">SUEWSSimulation.from_sample_data()</span></code></a></li>
 <li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#supy.SUEWSSimulation.from_state"><code class="docutils literal notranslate"><span class="pre">SUEWSSimulation.from_state()</span></code></a></li>
+<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#supy.SUEWSSimulation.continue_from"><code class="docutils literal notranslate"><span class="pre">SUEWSSimulation.continue_from()</span></code></a></li>
 <li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#supy.SUEWSSimulation.get_variable"><code class="docutils literal notranslate"><span class="pre">SUEWSSimulation.get_variable()</span></code></a></li>
 <li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#supy.SUEWSSimulation.is_complete"><code class="docutils literal notranslate"><span class="pre">SUEWSSimulation.is_complete()</span></code></a></li>
 <li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#supy.SUEWSSimulation.is_ready"><code class="docutils literal notranslate"><span class="pre">SUEWSSimulation.is_ready()</span></code></a></li>
@@ -1523,10 +1601,12 @@ Use the <code class="docutils literal notranslate"><span class="pre">get_variabl
 <li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#supy.SUEWSSimulation.save"><code class="docutils literal notranslate"><span class="pre">SUEWSSimulation.save()</span></code></a></li>
 <li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#supy.SUEWSSimulation.update_config"><code class="docutils literal notranslate"><span class="pre">SUEWSSimulation.update_config()</span></code></a></li>
 <li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#supy.SUEWSSimulation.update_forcing"><code class="docutils literal notranslate"><span class="pre">SUEWSSimulation.update_forcing()</span></code></a></li>
+<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#supy.SUEWSSimulation.checkpoint"><code class="docutils literal notranslate"><span class="pre">SUEWSSimulation.checkpoint</span></code></a></li>
 <li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#supy.SUEWSSimulation.config"><code class="docutils literal notranslate"><span class="pre">SUEWSSimulation.config</span></code></a></li>
 <li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#supy.SUEWSSimulation.forcing"><code class="docutils literal notranslate"><span class="pre">SUEWSSimulation.forcing</span></code></a></li>
 <li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#supy.SUEWSSimulation.output"><code class="docutils literal notranslate"><span class="pre">SUEWSSimulation.output</span></code></a></li>
 <li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#supy.SUEWSSimulation.results"><code class="docutils literal notranslate"><span class="pre">SUEWSSimulation.results</span></code></a></li>
+<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#supy.SUEWSSimulation.state_checkpoint"><code class="docutils literal notranslate"><span class="pre">SUEWSSimulation.state_checkpoint</span></code></a></li>
 <li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#supy.SUEWSSimulation.state_final"><code class="docutils literal notranslate"><span class="pre">SUEWSSimulation.state_final</span></code></a></li>
 <li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#supy.SUEWSSimulation.state_init"><code class="docutils literal notranslate"><span class="pre">SUEWSSimulation.state_init</span></code></a></li>
 </ul>
@@ -1570,7 +1650,7 @@ By SUEWS dev team led by Prof Sue Grimmond
   
   <div class="footer-item">
     <p class="last-updated">
-  Last updated on 2026-01-28.
+  Last updated on 2026-04-24.
   <br/>
 </p>
   </div>
@@ -1578,8 +1658,8 @@ By SUEWS dev team led by Prof Sue Grimmond
   <div class="footer-item">
     
 <div class="extra_footer">
-  <p>Version: 2026.4.24.dev9014 |
-    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/aa54929bee1f27b1a95cf1776922c924a201051d">aa54929</a> |
+  <p>Version: 2026.4.24.dev9017 |
+    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/60c7f36c76cf9f25e272611be47456d1a77aca18">60c7f36</a> |
     <a href="https://umep-dev.github.io/SUEWS/brand/showcase.html">Brand</a></p>
 </div>
   </div>

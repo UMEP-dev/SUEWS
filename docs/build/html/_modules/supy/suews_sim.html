@@ -7,7 +7,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>supy.suews_sim &#8212; SUEWS 2026.4.24.dev9014 documentation</title>
+    <title>supy.suews_sim &#8212; SUEWS 2026.4.24.dev9017 documentation</title>
   
   
   
@@ -43,7 +43,7 @@
   <link rel="preload" as="script" href="../../_static/scripts/bootstrap.js?digest=8878045cc6db502f8baf" />
 <link rel="preload" as="script" href="../../_static/scripts/pydata-sphinx-theme.js?digest=8878045cc6db502f8baf" />
 
-    <script src="../../_static/documentation_options.js?v=5f4fc906"></script>
+    <script src="../../_static/documentation_options.js?v=483b4960"></script>
     <script src="../../_static/doctools.js?v=9bcbadda"></script>
     <script src="../../_static/sphinx_highlight.js?v=dc90522c"></script>
     <script src="../../_static/scripts/sphinx-book-theme.js?v=fab101a9"></script>
@@ -55,7 +55,7 @@
     <link rel="search" title="Search" href="../../search.html" />
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
-  <meta name="docsearch:version" content="2026.4.24.dev9014" />
+  <meta name="docsearch:version" content="2026.4.24.dev9017" />
   </head>
   
   
@@ -97,7 +97,7 @@
   <div class="bd-header-announcement__content">
     <div style="background-color: #f0ad4e; border: 1px solid #eea236; border-radius: 4px; padding: 10px; margin: 10px 0;">
         <strong>⚠️ Development Version:</strong> This documentation was built from a development version
-        (2026.4.24.dev9014, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/aa54929bee1f27b1a95cf1776922c924a201051d" style="color: #31708f;">aa54929</a>).
+        (2026.4.24.dev9017, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/60c7f36c76cf9f25e272611be47456d1a77aca18" style="color: #31708f;">60c7f36</a>).
         Features described here may be unstable or subject to change. For stable documentation, please visit the
         <a href="https://docs.suews.io/stable/" style="color: #31708f;">latest release</a>.
     </div>
@@ -146,8 +146,8 @@
       
     
     
-    <img src="../../_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.4.24.dev9014 documentation - Home"/>
-    <img src="../../_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.4.24.dev9014 documentation - Home"/>
+    <img src="../../_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.4.24.dev9017 documentation - Home"/>
+    <img src="../../_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.4.24.dev9017 documentation - Home"/>
   
   
 </a></div>
@@ -552,6 +552,7 @@
 <span class="kn">from</span><span class="w"> </span><span class="nn">.data_model.core</span><span class="w"> </span><span class="kn">import</span> <span class="n">SUEWSConfig</span>
 
 <span class="c1"># Import new OOP classes</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">.suews_checkpoint</span><span class="w"> </span><span class="kn">import</span> <span class="n">SUEWSCheckpoint</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">.suews_forcing</span><span class="w"> </span><span class="kn">import</span> <span class="n">SUEWSForcing</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">.suews_output</span><span class="w"> </span><span class="kn">import</span> <span class="n">SUEWSOutput</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">.util._io</span><span class="w"> </span><span class="kn">import</span> <span class="n">read_forcing</span>
@@ -613,6 +614,7 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">_df_forcing</span> <span class="o">=</span> <span class="kc">None</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_df_output</span> <span class="o">=</span> <span class="kc">None</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_df_state_final</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_checkpoint</span> <span class="o">=</span> <span class="kc">None</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_run_completed</span> <span class="o">=</span> <span class="kc">False</span>
 
         <span class="k">if</span> <span class="n">config</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
@@ -1080,14 +1082,26 @@
             <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Invalid forcing data: </span><span class="si">{</span><span class="n">issues_summary</span><span class="si">}{</span><span class="n">suffix</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
 
         <span class="c1"># Run simulation via Rust bridge</span>
-        <span class="n">df_output</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">run_suews_rust_chunked</span><span class="p">(</span>
+        <span class="n">initial_state_json_by_grid</span> <span class="o">=</span> <span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_checkpoint</span><span class="o">.</span><span class="n">grid_states</span> <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_checkpoint</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="k">else</span> <span class="kc">None</span>
+        <span class="p">)</span>
+        <span class="n">df_output</span><span class="p">,</span> <span class="n">dict_state_json</span> <span class="o">=</span> <span class="n">run_suews_rust_chunked</span><span class="p">(</span>
             <span class="n">config</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_config</span><span class="p">,</span>
             <span class="n">df_forcing</span><span class="o">=</span><span class="n">df_forcing_slice</span><span class="p">,</span>
             <span class="n">chunk_day</span><span class="o">=</span><span class="n">chunk_day</span><span class="p">,</span>
+            <span class="n">initial_state_json_by_grid</span><span class="o">=</span><span class="n">initial_state_json_by_grid</span><span class="p">,</span>
         <span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_df_output</span> <span class="o">=</span> <span class="n">df_output</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_checkpoint</span> <span class="o">=</span> <span class="p">(</span>
+            <span class="n">SUEWSCheckpoint</span><span class="o">.</span><span class="n">from_grid_states</span><span class="p">(</span>
+                <span class="n">dict_state_json</span><span class="p">,</span>
+                <span class="n">last_timestamp</span><span class="o">=</span><span class="n">df_forcing_slice</span><span class="o">.</span><span class="n">index</span><span class="o">.</span><span class="n">max</span><span class="p">(),</span>
+            <span class="p">)</span>
+            <span class="k">if</span> <span class="n">dict_state_json</span>
+            <span class="k">else</span> <span class="kc">None</span>
+        <span class="p">)</span>
 
-        <span class="c1"># Build state_final: copy initial state + version metadata</span>
+        <span class="c1"># Keep a legacy DFState-shaped final state for compatibility only.</span>
         <span class="kn">from</span><span class="w"> </span><span class="nn">._version</span><span class="w"> </span><span class="kn">import</span> <span class="n">__version__</span>
 
         <span class="n">df_state_final</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_df_state_init</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
@@ -1101,6 +1115,7 @@
             <span class="n">df_output</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_df_output</span><span class="p">,</span>
             <span class="n">df_state_final</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_df_state_final</span><span class="p">,</span>
             <span class="n">config</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_config</span><span class="p">,</span>
+            <span class="n">checkpoint</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_checkpoint</span><span class="p">,</span>
         <span class="p">)</span></div>
 
 
@@ -1219,7 +1234,16 @@
             <span class="c1"># **save_kwargs # Problematic, save_supy expects explicit arguments</span>
             <span class="n">output_config</span><span class="o">=</span><span class="n">output_config</span><span class="p">,</span>
             <span class="n">output_format</span><span class="o">=</span><span class="n">output_format</span><span class="p">,</span>
+            <span class="n">save_state</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
         <span class="p">)</span>
+
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_checkpoint</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">checkpoint_name</span> <span class="o">=</span> <span class="p">(</span>
+                <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">site</span><span class="si">}</span><span class="s2">_SUEWS_checkpoint.json&quot;</span> <span class="k">if</span> <span class="n">site</span> <span class="k">else</span> <span class="s2">&quot;SUEWS_checkpoint.json&quot;</span>
+            <span class="p">)</span>
+            <span class="n">checkpoint_path</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_checkpoint</span><span class="o">.</span><span class="n">to_file</span><span class="p">(</span><span class="n">output_path</span> <span class="o">/</span> <span class="n">checkpoint_name</span><span class="p">)</span>
+            <span class="n">list_path_save</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">checkpoint_path</span><span class="p">)</span>
+
         <span class="k">return</span> <span class="n">list_path_save</span></div>
 
 
@@ -1240,6 +1264,7 @@
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_df_output</span> <span class="o">=</span> <span class="kc">None</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_df_state_final</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_checkpoint</span> <span class="o">=</span> <span class="kc">None</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_run_completed</span> <span class="o">=</span> <span class="kc">False</span>
         <span class="k">return</span> <span class="bp">self</span></div>
 
@@ -1305,15 +1330,70 @@
         <span class="k">return</span> <span class="n">sim</span></div>
 
 
+    <span class="nd">@staticmethod</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">_coerce_checkpoint</span><span class="p">(</span>
+        <span class="n">checkpoint</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Path</span><span class="p">,</span> <span class="n">SUEWSCheckpoint</span><span class="p">],</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">SUEWSCheckpoint</span><span class="p">:</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">checkpoint</span><span class="p">,</span> <span class="n">SUEWSCheckpoint</span><span class="p">):</span>
+            <span class="k">return</span> <span class="n">checkpoint</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">checkpoint</span><span class="p">,</span> <span class="p">(</span><span class="nb">str</span><span class="p">,</span> <span class="n">Path</span><span class="p">)):</span>
+            <span class="k">return</span> <span class="n">SUEWSCheckpoint</span><span class="o">.</span><span class="n">from_file</span><span class="p">(</span><span class="n">checkpoint</span><span class="p">)</span>
+        <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span>
+            <span class="s2">&quot;checkpoint must be a SUEWSCheckpoint, str, or Path, &quot;</span>
+            <span class="sa">f</span><span class="s2">&quot;got </span><span class="si">{</span><span class="nb">type</span><span class="p">(</span><span class="n">checkpoint</span><span class="p">)</span><span class="o">.</span><span class="vm">__name__</span><span class="si">}</span><span class="s2">&quot;</span>
+        <span class="p">)</span>
+
+<div class="viewcode-block" id="SUEWSSimulation.from_checkpoint">
+<a class="viewcode-back" href="../../api/simulation.html#supy.SUEWSSimulation.from_checkpoint">[docs]</a>
+    <span class="nd">@classmethod</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">from_checkpoint</span><span class="p">(</span>
+        <span class="bp">cls</span><span class="p">,</span>
+        <span class="n">config</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Path</span><span class="p">,</span> <span class="nb">dict</span><span class="p">,</span> <span class="n">SUEWSConfig</span><span class="p">],</span>
+        <span class="n">checkpoint</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Path</span><span class="p">,</span> <span class="n">SUEWSCheckpoint</span><span class="p">],</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="s2">&quot;SUEWSSimulation&quot;</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Create a continuation simulation from YAML config and checkpoint.&quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">config</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                <span class="s2">&quot;Checkpoint continuation requires a YAML/SUEWSConfig &quot;</span>
+                <span class="s2">&quot;configuration as well as the checkpoint.&quot;</span>
+            <span class="p">)</span>
+
+        <span class="n">sim</span> <span class="o">=</span> <span class="bp">cls</span><span class="p">()</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">config</span><span class="p">,</span> <span class="p">(</span><span class="nb">str</span><span class="p">,</span> <span class="n">Path</span><span class="p">,</span> <span class="nb">dict</span><span class="p">)):</span>
+            <span class="n">config</span> <span class="o">=</span> <span class="n">copy</span><span class="o">.</span><span class="n">deepcopy</span><span class="p">(</span><span class="n">config</span><span class="p">)</span>
+        <span class="n">sim</span><span class="o">.</span><span class="n">update_config</span><span class="p">(</span><span class="n">config</span><span class="p">,</span> <span class="n">auto_load_forcing</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">sim</span><span class="o">.</span><span class="n">continue_from</span><span class="p">(</span><span class="n">checkpoint</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="SUEWSSimulation.continue_from">
+<a class="viewcode-back" href="../../api/simulation.html#supy.SUEWSSimulation.continue_from">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">continue_from</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span> <span class="n">checkpoint</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Path</span><span class="p">,</span> <span class="n">SUEWSCheckpoint</span><span class="p">]</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="s2">&quot;SUEWSSimulation&quot;</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Use a typed checkpoint as the initial runtime state.&quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_config</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span>
+                <span class="s2">&quot;Checkpoint continuation requires a loaded configuration. &quot;</span>
+                <span class="s2">&quot;Use SUEWSSimulation.from_checkpoint(config, checkpoint) or &quot;</span>
+                <span class="s2">&quot;call update_config() before continue_from().&quot;</span>
+            <span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_checkpoint</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_coerce_checkpoint</span><span class="p">(</span><span class="n">checkpoint</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_df_output</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_df_state_final</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_run_completed</span> <span class="o">=</span> <span class="kc">False</span>
+        <span class="k">return</span> <span class="bp">self</span></div>
+
+
 <div class="viewcode-block" id="SUEWSSimulation.from_state">
 <a class="viewcode-back" href="../../api/simulation.html#supy.SUEWSSimulation.from_state">[docs]</a>
     <span class="nd">@classmethod</span>
     <span class="k">def</span><span class="w"> </span><span class="nf">from_state</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">state</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Path</span><span class="p">,</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">]):</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Create SUEWSSimulation from saved state for continuation runs.</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Create SUEWSSimulation from legacy DFState.</span>
 
-<span class="sd">        Load a previously saved model state to continue simulation from where</span>
-<span class="sd">        it left off. Useful for multi-period runs or scenario testing with</span>
-<span class="sd">        different forcing data.</span>
+<span class="sd">        This compatibility adapter reads older DFState CSV/parquet/DataFrame</span>
+<span class="sd">        artifacts. New continuation workflows should use</span>
+<span class="sd">        ``from_checkpoint(config, checkpoint)``.</span>
 
 <span class="sd">        Parameters</span>
 <span class="sd">        ----------</span>
@@ -1337,7 +1417,7 @@
 
 <span class="sd">        Examples</span>
 <span class="sd">        --------</span>
-<span class="sd">        Continue from saved file:</span>
+<span class="sd">        Legacy import from saved file:</span>
 
 <span class="sd">        &gt;&gt;&gt; # Period 1</span>
 <span class="sd">        &gt;&gt;&gt; sim1 = SUEWSSimulation(&quot;config.yaml&quot;)</span>
@@ -1345,12 +1425,12 @@
 <span class="sd">        &gt;&gt;&gt; sim1.run()</span>
 <span class="sd">        &gt;&gt;&gt; paths = sim1.save(&quot;output/&quot;)</span>
 
-<span class="sd">        &gt;&gt;&gt; # Period 2 - continue from saved state</span>
+<span class="sd">        &gt;&gt;&gt; # Period 2 - legacy DFState continuation</span>
 <span class="sd">        &gt;&gt;&gt; sim2 = SUEWSSimulation.from_state(&quot;output/df_state.csv&quot;)</span>
 <span class="sd">        &gt;&gt;&gt; sim2.update_forcing(&quot;forcing_2024.txt&quot;)</span>
 <span class="sd">        &gt;&gt;&gt; sim2.run()</span>
 
-<span class="sd">        Continue from DataFrame directly:</span>
+<span class="sd">        Legacy import from DataFrame directly:</span>
 
 <span class="sd">        &gt;&gt;&gt; # In-memory continuation without saving to file</span>
 <span class="sd">        &gt;&gt;&gt; sim1 = SUEWSSimulation.from_sample_data()</span>
@@ -1370,10 +1450,19 @@
 
 <span class="sd">        See Also</span>
 <span class="sd">        --------</span>
-<span class="sd">        save : Save simulation results and state</span>
+<span class="sd">        from_checkpoint : Create continuation from YAML config and checkpoint</span>
+<span class="sd">        save : Save simulation results and checkpoint</span>
 <span class="sd">        reset : Clear results and reset to initial state</span>
-<span class="sd">        state_final : Access final state from completed simulation</span>
+<span class="sd">        checkpoint : Access typed checkpoint from completed simulation</span>
 <span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">warnings</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span>
+            <span class="s2">&quot;SUEWSSimulation.from_state() is a legacy DFState compatibility &quot;</span>
+            <span class="s2">&quot;adapter. Use SUEWSSimulation.from_checkpoint(config, checkpoint) &quot;</span>
+            <span class="s2">&quot;for restart/continuation runs.&quot;</span><span class="p">,</span>
+            <span class="ne">DeprecationWarning</span><span class="p">,</span>
+            <span class="n">stacklevel</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span>
+        <span class="p">)</span>
+
         <span class="kn">from</span><span class="w"> </span><span class="nn">._version</span><span class="w"> </span><span class="kn">import</span> <span class="n">__version__</span> <span class="k">as</span> <span class="n">current_version</span>
 
         <span class="c1"># Load state from file or use DataFrame directly</span>
@@ -1456,7 +1545,7 @@
 <span class="sd">        Returns</span>
 <span class="sd">        -------</span>
 <span class="sd">        SUEWSSimulation</span>
-<span class="sd">            Simulation instance initialised with final state from output,</span>
+<span class="sd">            Simulation instance initialised with checkpoint from output,</span>
 <span class="sd">            ready for new forcing data and run.</span>
 
 <span class="sd">        Examples</span>
@@ -1468,24 +1557,34 @@
 <span class="sd">        &gt;&gt;&gt; sim1.update_forcing(&quot;forcing_2023.txt&quot;)</span>
 <span class="sd">        &gt;&gt;&gt; output1 = sim1.run()</span>
 
-<span class="sd">        &gt;&gt;&gt; # Continue from output state</span>
+<span class="sd">        &gt;&gt;&gt; # Continue from output checkpoint</span>
 <span class="sd">        &gt;&gt;&gt; sim2 = SUEWSSimulation.from_output(output1)</span>
 <span class="sd">        &gt;&gt;&gt; sim2.update_forcing(&quot;forcing_2024.txt&quot;)</span>
 <span class="sd">        &gt;&gt;&gt; output2 = sim2.run()</span>
 
 <span class="sd">        See Also</span>
 <span class="sd">        --------</span>
-<span class="sd">        from_state : Create from saved state file or DataFrame</span>
-<span class="sd">        SUEWSOutput.state_final : Final state property for restart</span>
+<span class="sd">        from_checkpoint : Create from YAML config and checkpoint</span>
+<span class="sd">        SUEWSOutput.checkpoint : Typed checkpoint property for restart</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="n">df_state_init</span> <span class="o">=</span> <span class="n">output</span><span class="o">.</span><span class="n">state_final</span>
-        <span class="n">sim</span> <span class="o">=</span> <span class="bp">cls</span><span class="p">()</span>
-        <span class="n">sim</span><span class="o">.</span><span class="n">_df_state_init</span> <span class="o">=</span> <span class="n">df_state_init</span>
-        <span class="c1"># Deep copy config to avoid shared state issues</span>
-        <span class="k">if</span> <span class="n">output</span><span class="o">.</span><span class="n">config</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
-            <span class="n">sim</span><span class="o">.</span><span class="n">_config</span> <span class="o">=</span> <span class="n">copy</span><span class="o">.</span><span class="n">deepcopy</span><span class="p">(</span><span class="n">output</span><span class="o">.</span><span class="n">config</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">output</span><span class="o">.</span><span class="n">checkpoint</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">output</span><span class="o">.</span><span class="n">config</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span>
+                    <span class="s2">&quot;SUEWSOutput has a checkpoint but no configuration. &quot;</span>
+                    <span class="s2">&quot;Use SUEWSSimulation.from_checkpoint(config, checkpoint).&quot;</span>
+                <span class="p">)</span>
+            <span class="k">return</span> <span class="bp">cls</span><span class="o">.</span><span class="n">from_checkpoint</span><span class="p">(</span>
+                <span class="n">copy</span><span class="o">.</span><span class="n">deepcopy</span><span class="p">(</span><span class="n">output</span><span class="o">.</span><span class="n">config</span><span class="p">),</span>
+                <span class="n">output</span><span class="o">.</span><span class="n">checkpoint</span><span class="p">,</span>
+            <span class="p">)</span>
 
-        <span class="k">return</span> <span class="n">sim</span></div>
+        <span class="n">warnings</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span>
+            <span class="s2">&quot;SUEWSSimulation.from_output() is falling back to legacy DFState. &quot;</span>
+            <span class="s2">&quot;Prefer SUEWSSimulation.from_checkpoint(config, output.checkpoint).&quot;</span><span class="p">,</span>
+            <span class="ne">DeprecationWarning</span><span class="p">,</span>
+            <span class="n">stacklevel</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span>
+        <span class="p">)</span>
+        <span class="k">return</span> <span class="bp">cls</span><span class="o">.</span><span class="n">from_state</span><span class="p">(</span><span class="n">output</span><span class="o">.</span><span class="n">state_final</span><span class="p">)</span></div>
 
 
     <span class="k">def</span><span class="w"> </span><span class="fm">__repr__</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
@@ -1805,6 +1904,7 @@
             <span class="n">df_output</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_df_output</span><span class="p">,</span>
             <span class="n">df_state_final</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_df_state_final</span><span class="p">,</span>
             <span class="n">config</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_config</span><span class="p">,</span>
+            <span class="n">checkpoint</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_checkpoint</span><span class="p">,</span>
         <span class="p">)</span>
 
     <span class="nd">@property</span>
@@ -1820,8 +1920,8 @@
 <span class="sd">        See Also</span>
 <span class="sd">        --------</span>
 <span class="sd">        :ref:`df_state_var` : Complete state data structure and variable descriptions</span>
-<span class="sd">        state_final : Final state after simulation</span>
-<span class="sd">        from_state : Create simulation from existing state</span>
+<span class="sd">        checkpoint : Typed checkpoint after simulation</span>
+<span class="sd">        from_checkpoint : Create simulation from checkpoint</span>
 
 <span class="sd">        Examples</span>
 <span class="sd">        --------</span>
@@ -1833,15 +1933,14 @@
 
     <span class="nd">@property</span>
     <span class="k">def</span><span class="w"> </span><span class="nf">state_final</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Optional</span><span class="p">[</span><span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">]:</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Final state DataFrame after simulation.</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Legacy final state DataFrame after simulation.</span>
 
-<span class="sd">        Available only after running simulation. Contains evolved</span>
-<span class="sd">        state variables that can be used to continue simulation.</span>
+<span class="sd">        Prefer ``checkpoint`` for restart/continuation workflows.</span>
 
 <span class="sd">        Returns</span>
 <span class="sd">        -------</span>
 <span class="sd">        pandas.DataFrame or None</span>
-<span class="sd">            Final state after simulation run.</span>
+<span class="sd">            Legacy final state after simulation run.</span>
 <span class="sd">            None if simulation hasn&#39;t been run yet.</span>
 
 <span class="sd">        See Also</span>
@@ -1849,7 +1948,8 @@
 <span class="sd">        :ref:`df_state_var` : Complete state data structure and variable descriptions</span>
 <span class="sd">        state_init : Initial state before simulation</span>
 <span class="sd">        reset : Clear results and reset to initial state</span>
-<span class="sd">        from_state : Create new simulation from this final state</span>
+<span class="sd">        checkpoint : Typed restart artifact</span>
+<span class="sd">        from_checkpoint : Create new simulation from checkpoint</span>
 
 <span class="sd">        Examples</span>
 <span class="sd">        --------</span>
@@ -1858,7 +1958,17 @@
 <span class="sd">        &gt;&gt;&gt; sim.state_final is not None</span>
 <span class="sd">        True</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_df_state_final</span></div>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_df_state_final</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">checkpoint</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Optional</span><span class="p">[</span><span class="n">SUEWSCheckpoint</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Typed checkpoint produced by the most recent run.&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_checkpoint</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">state_checkpoint</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Optional</span><span class="p">[</span><span class="n">SUEWSCheckpoint</span><span class="p">]:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Alias for ``checkpoint``.&quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_checkpoint</span></div>
 
 </pre></div>
 
@@ -1912,8 +2022,8 @@ By SUEWS dev team led by Prof Sue Grimmond
   <div class="footer-item">
     
 <div class="extra_footer">
-  <p>Version: 2026.4.24.dev9014 |
-    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/aa54929bee1f27b1a95cf1776922c924a201051d">aa54929</a> |
+  <p>Version: 2026.4.24.dev9017 |
+    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/60c7f36c76cf9f25e272611be47456d1a77aca18">60c7f36</a> |
     <a href="https://umep-dev.github.io/SUEWS/brand/showcase.html">Brand</a></p>
 </div>
   </div>

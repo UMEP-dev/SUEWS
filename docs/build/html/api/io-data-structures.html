@@ -8,8 +8,8 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <meta property="article:modified_time" content="2026-01-28T15:54:16+00:00" />
-    <title>6.7. Key IO Data Structures &#8212; SUEWS 2026.4.24.dev9014 documentation</title>
+    <meta property="article:modified_time" content="2026-04-24T12:58:49+00:00" />
+    <title>6.7. Key IO Data Structures &#8212; SUEWS 2026.4.24.dev9017 documentation</title>
   
   
   
@@ -45,7 +45,7 @@
   <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=8878045cc6db502f8baf" />
 <link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=8878045cc6db502f8baf" />
 
-    <script src="../_static/documentation_options.js?v=5f4fc906"></script>
+    <script src="../_static/documentation_options.js?v=483b4960"></script>
     <script src="../_static/doctools.js?v=9bcbadda"></script>
     <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
     <script src="../_static/scripts/sphinx-book-theme.js?v=fab101a9"></script>
@@ -59,8 +59,8 @@
     <link rel="prev" title="6.6. Data Structures" href="data-structures.html" />
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
-  <meta name="docsearch:version" content="2026.4.24.dev9014" />
-    <meta name="docbuild:last-update" content="2026-01-28"/>
+  <meta name="docsearch:version" content="2026.4.24.dev9017" />
+    <meta name="docbuild:last-update" content="2026-04-24"/>
   </head>
   
   
@@ -102,7 +102,7 @@
   <div class="bd-header-announcement__content">
     <div style="background-color: #f0ad4e; border: 1px solid #eea236; border-radius: 4px; padding: 10px; margin: 10px 0;">
         <strong>⚠️ Development Version:</strong> This documentation was built from a development version
-        (2026.4.24.dev9014, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/aa54929bee1f27b1a95cf1776922c924a201051d" style="color: #31708f;">aa54929</a>).
+        (2026.4.24.dev9017, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/60c7f36c76cf9f25e272611be47456d1a77aca18" style="color: #31708f;">60c7f36</a>).
         Features described here may be unstable or subject to change. For stable documentation, please visit the
         <a href="https://docs.suews.io/stable/" style="color: #31708f;">latest release</a>.
     </div>
@@ -149,8 +149,8 @@
       
     
     
-    <img src="../_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.4.24.dev9014 documentation - Home"/>
-    <img src="../_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.4.24.dev9014 documentation - Home"/>
+    <img src="../_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.4.24.dev9017 documentation - Home"/>
+    <img src="../_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.4.24.dev9017 documentation - Home"/>
   
   
 </a></div>
@@ -602,6 +602,14 @@
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#output">6.7.3. Output</a><ul class="nav section-nav flex-column">
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#df-output-model-output-results">6.7.3.1. <code class="docutils literal notranslate"><span class="pre">df_output</span></code>: model output results</a></li>
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#df-state-final-model-final-states">6.7.3.2. <code class="docutils literal notranslate"><span class="pre">df_state_final</span></code>: model final states</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#suewscheckpoint-typed-restart-state">6.7.3.3. <code class="docutils literal notranslate"><span class="pre">SUEWSCheckpoint</span></code>: typed restart state</a><ul class="nav section-nav flex-column">
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#supy.SUEWSCheckpoint"><code class="docutils literal notranslate"><span class="pre">SUEWSCheckpoint</span></code></a><ul class="nav section-nav flex-column">
+<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#supy.SUEWSCheckpoint.from_file"><code class="docutils literal notranslate"><span class="pre">SUEWSCheckpoint.from_file()</span></code></a></li>
+<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#supy.SUEWSCheckpoint.to_file"><code class="docutils literal notranslate"><span class="pre">SUEWSCheckpoint.to_file()</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
 </ul>
 </li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#related-documentation">6.7.4. Related Documentation</a></li>
@@ -628,18 +636,20 @@
 <span id="io-data-structures"></span><h1><span class="section-number">6.7. </span>Key IO Data Structures<a class="headerlink" href="#key-io-data-structures" title="Link to this heading">#</a></h1>
 <section id="introduction">
 <h2><span class="section-number">6.7.1. </span>Introduction<a class="headerlink" href="#introduction" title="Link to this heading">#</a></h2>
-<p>The Python API uses four key pandas DataFrame structures for simulation input and output:</p>
+<p>The Python API uses pandas DataFrame structures for analysis data and a typed
+checkpoint object for restart workflows:</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">supy</span><span class="w"> </span><span class="kn">import</span> <span class="n">SUEWSSimulation</span>
 
 <span class="c1"># Load sample data and run simulation</span>
 <span class="n">sim</span> <span class="o">=</span> <span class="n">SUEWSSimulation</span><span class="o">.</span><span class="n">from_sample_data</span><span class="p">()</span>
-<span class="n">sim</span><span class="o">.</span><span class="n">run</span><span class="p">()</span>
+<span class="n">output</span> <span class="o">=</span> <span class="n">sim</span><span class="o">.</span><span class="n">run</span><span class="p">()</span>
 
 <span class="c1"># Access the data structures</span>
 <span class="n">df_state_init</span> <span class="o">=</span> <span class="n">sim</span><span class="o">.</span><span class="n">df_state_init</span>   <span class="c1"># Input: initial states</span>
 <span class="n">df_forcing</span> <span class="o">=</span> <span class="n">sim</span><span class="o">.</span><span class="n">df_forcing</span>         <span class="c1"># Input: forcing data</span>
 <span class="n">df_output</span> <span class="o">=</span> <span class="n">sim</span><span class="o">.</span><span class="n">results</span>             <span class="c1"># Output: simulation results</span>
-<span class="n">df_state_final</span> <span class="o">=</span> <span class="n">sim</span><span class="o">.</span><span class="n">df_state_final</span> <span class="c1"># Output: final states</span>
+<span class="n">df_state_final</span> <span class="o">=</span> <span class="n">sim</span><span class="o">.</span><span class="n">df_state_final</span> <span class="c1"># Legacy/developer final states</span>
+<span class="n">checkpoint</span> <span class="o">=</span> <span class="n">output</span><span class="o">.</span><span class="n">checkpoint</span>      <span class="c1"># Preferred restart artefact</span>
 </pre></div>
 </div>
 <p><strong>Input DataFrames:</strong></p>
@@ -647,10 +657,11 @@
 <li><p><code class="docutils literal notranslate"><span class="pre">df_state_init</span></code>: Model initial states and configuration parameters</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">df_forcing</span></code>: Meteorological forcing data time series</p></li>
 </ul>
-<p><strong>Output DataFrames:</strong></p>
+<p><strong>Output and restart objects:</strong></p>
 <ul class="simple">
 <li><p><code class="docutils literal notranslate"><span class="pre">df_output</span></code> (or <code class="docutils literal notranslate"><span class="pre">sim.results</span></code>): Model output results for scientific analysis</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">df_state_final</span></code>: Model final states, usable as initial conditions for subsequent simulations</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">df_state_final</span></code>: Legacy/developer final states for compatibility and inspection</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">SUEWSCheckpoint</span></code>: Typed runtime state for continuation runs</p></li>
 </ul>
 </section>
 <section id="input">
@@ -749,14 +760,58 @@ model states.</p>
 <span class="go">[2 rows x 1200 columns]</span>
 </pre></div>
 </div>
-<p>This structure facilitates reuse as initial model states for subsequent simulations:</p>
+<p>This structure is retained for compatibility and state inspection:</p>
 <ul class="simple">
 <li><p><strong>Runtime diagnostics</strong>: Save intermediate states with <code class="docutils literal notranslate"><span class="pre">save_state=True</span></code> in <code class="docutils literal notranslate"><span class="pre">run_supy</span></code></p></li>
-<li><p><strong>Chained simulations</strong>: Use end state as initial conditions for future runs starting
-at the ending time of previous runs</p></li>
+<li><p><strong>Developer inspection</strong>: Examine flattened state variables in DataFrame form</p></li>
 </ul>
 <p>The meanings of state variables in <code class="docutils literal notranslate"><span class="pre">df_state_final</span></code> are the same as in <code class="docutils literal notranslate"><span class="pre">df_state_init</span></code>,
 documented in <a class="reference internal" href="../data-structures/df_state.html"><span class="doc">df_state variables</span></a>.</p>
+<p>For new object-oriented continuation workflows, use <code class="docutils literal notranslate"><span class="pre">SUEWSCheckpoint</span></code> rather
+than <code class="docutils literal notranslate"><span class="pre">df_state_final</span></code> as the restart artefact.</p>
+</section>
+<section id="suewscheckpoint-typed-restart-state">
+<span id="suews-checkpoint"></span><h3><span class="section-number">6.7.3.3. </span><code class="docutils literal notranslate"><span class="pre">SUEWSCheckpoint</span></code>: typed restart state<a class="headerlink" href="#suewscheckpoint-typed-restart-state" title="Link to this heading">#</a></h3>
+<p><code class="docutils literal notranslate"><span class="pre">SUEWSCheckpoint</span></code> carries typed backend runtime state keyed by grid ID. It is
+the preferred restart artefact for new object-oriented workflows.</p>
+<p>The checkpoint is intentionally only the typed runtime state. It does not
+contain the full YAML configuration or forcing data. To continue a run, load the
+same YAML configuration, attach the next forcing period, and run from
+<code class="docutils literal notranslate"><span class="pre">SUEWSSimulation.from_checkpoint(...)</span></code>:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">supy</span><span class="w"> </span><span class="kn">import</span> <span class="n">SUEWSCheckpoint</span><span class="p">,</span> <span class="n">SUEWSSimulation</span>
+
+<span class="n">checkpoint</span> <span class="o">=</span> <span class="n">SUEWSCheckpoint</span><span class="o">.</span><span class="n">from_file</span><span class="p">(</span><span class="s2">&quot;</span><span class="si">{site}</span><span class="s2">_SUEWS_checkpoint.json&quot;</span><span class="p">)</span>
+
+<span class="n">sim_next</span> <span class="o">=</span> <span class="n">SUEWSSimulation</span><span class="o">.</span><span class="n">from_checkpoint</span><span class="p">(</span>
+    <span class="s2">&quot;config.yml&quot;</span><span class="p">,</span>
+    <span class="n">checkpoint</span><span class="p">,</span>
+<span class="p">)</span>
+<span class="n">sim_next</span><span class="o">.</span><span class="n">update_forcing</span><span class="p">(</span><span class="s2">&quot;forcing_next_period.txt&quot;</span><span class="p">)</span>
+<span class="n">output_next</span> <span class="o">=</span> <span class="n">sim_next</span><span class="o">.</span><span class="n">run</span><span class="p">()</span>
+</pre></div>
+</div>
+<p>Use <code class="docutils literal notranslate"><span class="pre">checkpoint.to_file(path)</span></code> to write the checkpoint explicitly, or
+<code class="docutils literal notranslate"><span class="pre">sim.save(path)</span></code> to save it alongside the configured output files. Checkpoints
+are keyed by grid ID, so checkpoint/configuration grid mismatches are rejected
+by the runtime.</p>
+<dl class="py class">
+<dt class="sig sig-object py" id="supy.SUEWSCheckpoint">
+<em class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">supy.</span></span><span class="sig-name descname"><span class="pre">SUEWSCheckpoint</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="pre">grid_states:</span> <span class="pre">dict[int,</span> <span class="pre">str],</span> <span class="pre">supy_version:</span> <span class="pre">str</span> <span class="pre">=</span> <span class="pre">'2026.4.24.dev9017',</span> <span class="pre">state_schema_version:</span> <span class="pre">int</span> <span class="pre">|</span> <span class="pre">None</span> <span class="pre">=</span> <span class="pre">None,</span> <span class="pre">created_at:</span> <span class="pre">str</span> <span class="pre">=</span> <span class="pre">&lt;factory&gt;,</span> <span class="pre">last_timestamp:</span> <span class="pre">str</span> <span class="pre">|</span> <span class="pre">None</span> <span class="pre">=</span> <span class="pre">None</span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/supy/suews_checkpoint.html#SUEWSCheckpoint"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#supy.SUEWSCheckpoint" title="Link to this definition">#</a></dt>
+<dd><p>Typed restart artifact carrying Rust SUEWS state JSON by grid ID.</p>
+<dl class="py method">
+<dt class="sig sig-object py" id="supy.SUEWSCheckpoint.from_file">
+<em class="property"><span class="k"><span class="pre">classmethod</span></span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">from_file</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">path</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/pathlib.html#pathlib.Path" title="(in Python v3.14)"><span class="pre">Path</span></a></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference internal" href="#supy.SUEWSCheckpoint" title="supy.suews_checkpoint.SUEWSCheckpoint"><span class="pre">SUEWSCheckpoint</span></a></span></span><a class="reference internal" href="../_modules/supy/suews_checkpoint.html#SUEWSCheckpoint.from_file"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#supy.SUEWSCheckpoint.from_file" title="Link to this definition">#</a></dt>
+<dd><p>Read a checkpoint JSON file.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="supy.SUEWSCheckpoint.to_file">
+<span class="sig-name descname"><span class="pre">to_file</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">path</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><span class="pre">str</span></a><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><a class="reference external" href="https://docs.python.org/3/library/pathlib.html#pathlib.Path" title="(in Python v3.14)"><span class="pre">Path</span></a></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference external" href="https://docs.python.org/3/library/pathlib.html#pathlib.Path" title="(in Python v3.14)"><span class="pre">Path</span></a></span></span><a class="reference internal" href="../_modules/supy/suews_checkpoint.html#SUEWSCheckpoint.to_file"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#supy.SUEWSCheckpoint.to_file" title="Link to this definition">#</a></dt>
+<dd><p>Write the checkpoint JSON file and return its path.</p>
+</dd></dl>
+
+</dd></dl>
+
 </section>
 </section>
 <section id="related-documentation">
@@ -765,6 +820,7 @@ documented in <a class="reference internal" href="../data-structures/df_state.ht
 <li><p><a class="reference internal" href="../data-structures/df_state.html"><span class="doc">df_state variables</span></a> - Complete state variable reference</p></li>
 <li><p><a class="reference internal" href="../data-structures/df_forcing.html"><span class="doc">df_forcing variables</span></a> - Forcing variable reference</p></li>
 <li><p><a class="reference internal" href="../data-structures/df_output.html"><span class="doc">df_output variables</span></a> - Output variable reference</p></li>
+<li><p><a class="reference internal" href="#suews-checkpoint"><span class="std std-ref">SUEWSCheckpoint: typed restart state</span></a> - Typed checkpoint restart artefact</p></li>
 <li><p><a class="reference internal" href="../auto_examples/tutorial_01_quick_start.html"><span class="doc">SUEWS Quick Start Tutorial</span></a> - Interactive tutorial with DataFrame examples</p></li>
 </ul>
 </section>
@@ -826,6 +882,14 @@ documented in <a class="reference internal" href="../data-structures/df_state.ht
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#output">6.7.3. Output</a><ul class="nav section-nav flex-column">
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#df-output-model-output-results">6.7.3.1. <code class="docutils literal notranslate"><span class="pre">df_output</span></code>: model output results</a></li>
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#df-state-final-model-final-states">6.7.3.2. <code class="docutils literal notranslate"><span class="pre">df_state_final</span></code>: model final states</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#suewscheckpoint-typed-restart-state">6.7.3.3. <code class="docutils literal notranslate"><span class="pre">SUEWSCheckpoint</span></code>: typed restart state</a><ul class="nav section-nav flex-column">
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#supy.SUEWSCheckpoint"><code class="docutils literal notranslate"><span class="pre">SUEWSCheckpoint</span></code></a><ul class="nav section-nav flex-column">
+<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#supy.SUEWSCheckpoint.from_file"><code class="docutils literal notranslate"><span class="pre">SUEWSCheckpoint.from_file()</span></code></a></li>
+<li class="toc-h5 nav-item toc-entry"><a class="reference internal nav-link" href="#supy.SUEWSCheckpoint.to_file"><code class="docutils literal notranslate"><span class="pre">SUEWSCheckpoint.to_file()</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
 </ul>
 </li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#related-documentation">6.7.4. Related Documentation</a></li>
@@ -862,7 +926,7 @@ By SUEWS dev team led by Prof Sue Grimmond
   
   <div class="footer-item">
     <p class="last-updated">
-  Last updated on 2026-01-28.
+  Last updated on 2026-04-24.
   <br/>
 </p>
   </div>
@@ -870,8 +934,8 @@ By SUEWS dev team led by Prof Sue Grimmond
   <div class="footer-item">
     
 <div class="extra_footer">
-  <p>Version: 2026.4.24.dev9014 |
-    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/aa54929bee1f27b1a95cf1776922c924a201051d">aa54929</a> |
+  <p>Version: 2026.4.24.dev9017 |
+    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/60c7f36c76cf9f25e272611be47456d1a77aca18">60c7f36</a> |
     <a href="https://umep-dev.github.io/SUEWS/brand/showcase.html">Brand</a></p>
 </div>
   </div>

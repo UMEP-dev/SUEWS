@@ -3,14 +3,17 @@
 Text Format Output
 ==================
 
-Since version ``2025.10.15`` (see :ref:`release notes <new_2025.10.15>`), when using
-text format (default), SUEWS produces two types of output files:
+Since version ``2025.10.15`` (see :ref:`release notes <new_2025.10.15>`), text
+format output is organised as tab-delimited simulation files by output group and
+simulation year. Current object-oriented workflows also save a typed checkpoint
+JSON file for continuation runs:
 
-1. **Simulation output files** - Tab-delimited files organised by output group and
-   simulation year. See :ref:`Output Groups <output-groups>` for details.
+- **Simulation output files** - Tab-delimited files organised by output group and
+  simulation year. See :ref:`Output Groups <output-groups>` for details.
 
-2. **State persistence file** - A CSV file (``df_state_SSss.csv``) containing model
-   state for restart and analysis. See :ref:`State Persistence <state-persistence>`.
+- **Restart checkpoint** - A JSON file (``{site}_SUEWS_checkpoint.json``)
+  containing typed runtime state for continuation runs. See
+  :ref:`State Persistence <state-persistence>`.
 
 .. note::
 
@@ -18,8 +21,9 @@ text format (default), SUEWS produces two types of output files:
    Some features are retained in the modern format (e.g., output level control via
    ``groups``), while others have been adapted:
 
-   - **State persistence**: Legacy ``InitialConditionsSSss_YYYY.nml`` files replaced
-     by modern ``df_state_SSss.csv``
+   - **State persistence**: Legacy ``InitialConditionsSSss_YYYY.nml`` files are
+     replaced by typed checkpoint JSON in new object-oriented workflows.
+     ``df_state_SSss.csv`` remains available for legacy and developer workflows.
    - **Error/warning messages**: Legacy ``problems.txt`` and ``warnings.txt`` files
      are no longer written; diagnostics are emitted to stdout/stderr and handled by
      the Python runtime logger (SuPy).
@@ -213,22 +217,31 @@ Group Details
 State Persistence
 -----------------
 
-SUEWS automatically saves model state for restart and analysis purposes using the
-modern CSV-based state file format.
+SUEWS saves typed runtime state for continuation runs using checkpoint JSON.
 
-At the end of each simulation, SUEWS writes a ``df_state_SSss.csv`` file containing:
+At the end of each object-oriented simulation, ``sim.run()`` exposes
+``output.checkpoint`` and ``sim.save(...)`` writes
+``{site}_SUEWS_checkpoint.json``. The checkpoint contains:
 
-- Model configuration parameters
-- Initial and final states for all surface types
-- Simulation metadata (SUEWS version, timestamps, etc.)
+- Backend runtime state keyed by grid ID
+- SUEWS/SuPy version metadata
+- The last forcing timestamp represented by the checkpoint
 
 This file can be used to:
 
 1. **Restart simulations** - Continue from a saved state
-2. **Analyse model state** - Inspect internal variables
-3. **Chain simulations** - Use end state as input for subsequent runs
+2. **Chain simulations** - Use end state as input for subsequent runs
+3. **Preserve typed backend state** - Avoid lossy DataFrame restart conversion
 
-See `df_state_final: model final states <../api/io-data-structures.html#df-state-final>`_ for details on the state data structure.
+The checkpoint is intentionally only the typed runtime state. To continue a run,
+load the same YAML configuration, attach the next forcing period, and run from
+``SUEWSSimulation.from_checkpoint(...)``.
+
+``df_state_SSss.csv`` and ``df_state_final`` remain legacy/developer-facing
+DataFrame structures for backwards compatibility and state inspection. They are
+not the preferred restart artefact for new object-oriented workflows. See
+`SUEWSCheckpoint: typed restart state <../api/io-data-structures.html#suews-checkpoint>`_
+for details.
 
 
 .. _legacy-output-control:
@@ -274,7 +287,9 @@ Legacy Initial Conditions Output
 
 **InitialConditionsSSss_YYYY.nml**
    The legacy namelist-based initial conditions files are deprecated.
-   Use the modern ``df_state_SSss.csv`` files instead (see :ref:`State Persistence <state-persistence>`).
+   Use checkpoint JSON for new object-oriented restart workflows (see
+   :ref:`State Persistence <state-persistence>`). ``df_state_SSss.csv`` remains
+   a legacy/developer compatibility file.
 
 See :doc:`variables/index` for the complete list of output variables.
 

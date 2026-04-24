@@ -134,6 +134,21 @@ def test_from_checkpoint_requires_config():
         SUEWSSimulation().continue_from(checkpoint)
 
 
+def test_checkpoint_grid_ids_must_match_config():
+    """Checkpoint continuation rejects missing and unexpected grid states."""
+    config_path = files("supy").joinpath("sample_data/sample_config.yml")
+    sim = SUEWSSimulation(str(config_path))
+    forcing = sim.forcing.df.iloc[:12]
+    sim.update_forcing(forcing)
+    checkpoint = SUEWSCheckpoint.from_grid_states(
+        {2: {"schema_version": 1, "members": {}}}
+    )
+    sim.continue_from(checkpoint)
+
+    with pytest.raises(ValueError, match="missing checkpoint states.*unexpected"):
+        sim.run()
+
+
 def test_checkpoint_file_continuation_roundtrip(tmp_path):
     """Checkpoint JSON files can be read back into continuation runs."""
     config_path = files("supy").joinpath("sample_data/sample_config.yml")

@@ -522,10 +522,26 @@ def run_suews_rust_chunked(
         )
 
     sites = config.sites
-    list_gridiv = [s.gridiv for s in sites]
+    list_gridiv = [_normalise_grid_id(s.gridiv) for s in sites]
     list_dupes = [g for g in list_gridiv if list_gridiv.count(g) > 1]
     if list_dupes:
         raise ValueError(f"Duplicate gridiv values in config.sites: {set(list_dupes)}")
+
+    if initial_state_json_by_grid:
+        checkpoint_grid_ids = set(initial_state_json_by_grid)
+        config_grid_ids = set(list_gridiv)
+        if checkpoint_grid_ids != config_grid_ids:
+            parts = []
+            missing = sorted(config_grid_ids - checkpoint_grid_ids)
+            unexpected = sorted(checkpoint_grid_ids - config_grid_ids)
+            if missing:
+                parts.append(f"missing checkpoint states for grids {missing}")
+            if unexpected:
+                parts.append(f"unexpected checkpoint states for grids {unexpected}")
+            raise ValueError(
+                "Checkpoint grid IDs do not match config.sites: "
+                + "; ".join(parts)
+            )
 
     dict_state_json: dict[int, str] = dict(initial_state_json_by_grid)
     list_df_output: list[pd.DataFrame] = []

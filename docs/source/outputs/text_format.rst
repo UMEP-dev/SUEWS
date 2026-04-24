@@ -4,13 +4,13 @@ Text Format Output
 ==================
 
 Since version ``2025.10.15`` (see :ref:`release notes <new_2025.10.15>`), when using
-text format (default), the object-oriented API produces two types of output files:
+text format (default), SUEWS produces two types of output files:
 
 1. **Simulation output files** - Tab-delimited files organised by output group and
    simulation year. See :ref:`Output Groups <output-groups>` for details.
 
-2. **Checkpoint file** - A JSON file (``SSss_SUEWS_checkpoint.json``) containing
-   typed restart state. See :ref:`State Persistence <state-persistence>`.
+2. **State persistence file** - A CSV file (``df_state_SSss.csv``) containing model
+   state for restart and analysis. See :ref:`State Persistence <state-persistence>`.
 
 .. note::
 
@@ -18,9 +18,8 @@ text format (default), the object-oriented API produces two types of output file
    Some features are retained in the modern format (e.g., output level control via
    ``groups``), while others have been adapted:
 
-   - **State persistence**: Legacy ``InitialConditionsSSss_YYYY.nml`` files are
-     replaced by typed checkpoint JSON for new runs. Legacy ``save_supy()`` can
-     still write ``df_state_SSss.csv`` for compatibility.
+   - **State persistence**: Legacy ``InitialConditionsSSss_YYYY.nml`` files replaced
+     by modern ``df_state_SSss.csv``
    - **Error/warning messages**: Legacy ``problems.txt`` and ``warnings.txt`` files
      are no longer written; diagnostics are emitted to stdout/stderr and handled by
      the Python runtime logger (SuPy).
@@ -214,28 +213,22 @@ Group Details
 State Persistence
 -----------------
 
-SUEWS restart/continuation now uses a typed checkpoint JSON file together with
-the YAML configuration file.
+SUEWS automatically saves model state for restart and analysis purposes using the
+modern CSV-based state file format.
 
-At the end of an object-oriented simulation, ``SUEWSSimulation.save()`` writes a
-``{site}_SUEWS_checkpoint.json`` file containing:
+At the end of each simulation, SUEWS writes a ``df_state_SSss.csv`` file containing:
 
-- ``supy_version``
-- ``state_schema_version``
-- ``created_at``
-- ``last_timestamp``
-- typed Rust state payloads in ``grid_states``
+- Model configuration parameters
+- Initial and final states for all surface types
+- Simulation metadata (SUEWS version, timestamps, etc.)
 
 This file can be used to:
 
-1. **Restart simulations** - Continue from ``config.yml`` plus checkpoint JSON
-2. **Chain simulations** - Use the final typed backend state as the next initial state
+1. **Restart simulations** - Continue from a saved state
+2. **Analyse model state** - Inspect internal variables
+3. **Chain simulations** - Use end state as input for subsequent runs
 
-Legacy ``save_supy()`` callers may still write ``df_state_SSss.csv`` for
-backwards compatibility. New workflows should not use DFState CSV as the
-restart artifact.
-
-See :ref:`suews_checkpoint` for details.
+See `df_state_final: model final states <../api/io-data-structures.html#df-state-final>`_ for details on the state data structure.
 
 
 .. _legacy-output-control:
@@ -281,7 +274,7 @@ Legacy Initial Conditions Output
 
 **InitialConditionsSSss_YYYY.nml**
    The legacy namelist-based initial conditions files are deprecated.
-   Use checkpoint JSON files instead (see :ref:`State Persistence <state-persistence>`).
+   Use the modern ``df_state_SSss.csv`` files instead (see :ref:`State Persistence <state-persistence>`).
 
 See :doc:`variables/index` for the complete list of output variables.
 

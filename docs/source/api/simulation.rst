@@ -13,7 +13,6 @@ Key Features
 - **YAML Configuration**: Load configurations from YAML files
 - **Configuration Updates**: Update configuration with dictionaries or YAML files
 - **Forcing Management**: Load single files, lists of files, or DataFrames
-- **Typed Restarts**: Continue runs from ``SUEWSCheckpoint`` JSON plus YAML config
 - **Simple API**: Clean interface focused on essential functionality
 - **Format Support**: Save results in txt or parquet formats via OutputConfig
 
@@ -53,8 +52,6 @@ For spin-up runs, state continuation, and deep model inspection.
 
     ~SUEWSSimulation.state_init
     ~SUEWSSimulation.state_final
-    ~SUEWSSimulation.checkpoint
-    ~SUEWSSimulation.state_checkpoint
 
 .. _sim_setup_methods:
 
@@ -69,8 +66,6 @@ Configure simulations, load forcing data, and initialise from various sources.
     ~SUEWSSimulation.update_config
     ~SUEWSSimulation.update_forcing
     ~SUEWSSimulation.from_sample_data
-    ~SUEWSSimulation.from_checkpoint
-    ~SUEWSSimulation.continue_from
     ~SUEWSSimulation.from_state
 
 .. _sim_execution_methods:

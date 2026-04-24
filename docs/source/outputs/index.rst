@@ -30,22 +30,19 @@ See :doc:`../inputs/yaml/index` for configuration details.
    legacy_text_columns
 
 
-Restart Output
---------------
+State Output
+------------
 
-SSss_SUEWS_checkpoint.json
-^^^^^^^^^^^^^^^^^^^^^^^^^^
+df_state_SSss.csv
+^^^^^^^^^^^^^^^^^
 
-The object-oriented API writes a typed checkpoint JSON file containing:
+SUEWS automatically outputs a df_state_SSss.csv file containing:
 
-- SUEWS/SuPy version metadata
-- State schema version
-- Last simulated timestamp
-- Typed Rust backend state for each grid
+- Model configuration parameters
+- Initial and final states
+- Simulation metadata (SUEWS version, timestamps, etc.)
 
-Use this file together with the YAML configuration to restart or continue a
-simulation. Legacy ``save_supy()`` workflows may still produce
-``df_state_SSss.csv`` for backwards compatibility.
+This file preserves model state for analysis and restart purposes.
 
 
 Temporal Information

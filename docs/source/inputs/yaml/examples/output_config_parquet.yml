@@ -33,4 +33,4 @@ sites:
 
 # Output files created:
 # - {site}_SUEWS_output.parquet - All output data (all years, all groups)
-# - {site}_SUEWS_checkpoint.json - Typed state for restart runs
+# - {site}_SUEWS_state_final.parquet - Final model state for restart runs

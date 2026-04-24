@@ -12,6 +12,7 @@ You will learn:
 
 1. **Understanding state variables** - What SUEWS tracks and why it matters
 2. **Spin-up strategies** - Equilibrating the model before analysis
+   and carrying typed checkpoints forward
 3. **Seasonal adjustments** - Setting appropriate states for different start dates
 4. **Common pitfalls** - Avoiding unrealistic initial conditions
 
@@ -68,21 +69,21 @@ print(f"  Final soil moisture (mean): {sim.state_final.filter(like='soilstore').
 # Method 1: Full Year Spin-Up
 # ---------------------------
 #
-# Run one year before your analysis period and use the final state as
-# initial conditions. This is the most robust approach.
+# Run one year before your analysis period and use the typed checkpoint as
+# the restart artefact. This is the most robust approach.
 
 # Step 1: Run spin-up year
 sim_spinup = SUEWSSimulation.from_sample_data()
 _ = sim_spinup.run()
 
-# Step 2: Get equilibrated state
-state_equilibrated = sim_spinup.state_final.copy()
+# Step 2: Get equilibrated typed checkpoint
+checkpoint_equilibrated = sim_spinup.checkpoint
 
 print("Spin-up complete!")
-print("Equilibrated state ready for analysis period")
+print("Equilibrated checkpoint ready for analysis period")
 
 # Step 3: Use for analysis (in practice, you'd load new forcing data)
-# sim_analysis = SUEWSSimulation.from_state(state_equilibrated)
+# sim_analysis = SUEWSSimulation.from_checkpoint(sim_spinup.config, checkpoint_equilibrated)
 # sim_analysis.update_forcing('forcing_2015.txt')
 # sim_analysis.run()
 
@@ -104,12 +105,12 @@ soil_history.append(sim.state_final.filter(like="soilstore").mean().mean())
 # Capture forcing once -- it stays the same across all spin-up iterations.
 forcing_data = sim.forcing
 
-# Spin-up iterations: reuse the same forcing but transfer evolved state.
+# Spin-up iterations: reuse the same forcing but transfer evolved checkpoints.
 # Typically 2-3 iterations suffice for convergence (change < 1 mm).
 n_spinup = 3
 for i in range(n_spinup):
-    # Create new simulation from final state and re-attach forcing
-    sim_next = SUEWSSimulation.from_state(sim.state_final)
+    # Create new simulation from checkpoint and re-attach forcing
+    sim_next = SUEWSSimulation.from_checkpoint(sim.config, sim.checkpoint)
     sim_next.update_forcing(forcing_data)
     _ = sim_next.run()
     soil_history.append(sim_next.state_final.filter(like="soilstore").mean().mean())

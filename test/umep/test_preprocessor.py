@@ -132,6 +132,29 @@ class TestDatabasePrepareAPI(TestCase):
         self.assertIn("faibldg", messages)
         self.assertIn("conductance.g_max", messages)
 
+    def test_validate_single_file_explicit_older_schema_stays_schema_only(self):
+        """Explicit older targets should not run current-schema semantic checks."""
+        from supy.cmd.validate_config import validate_single_file
+        from supy.data_model.schema.publisher import generate_json_schema
+
+        sparse_config = Path(__file__).parent.parent / "fixtures" / "sparse_site.yml"
+        schema = generate_json_schema(version="2026.5.dev5")
+
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".yml", delete=False) as f:
+            f.write(f"schema_version: '2026.5.dev5'\n{sparse_config.read_text()}")
+            temp_path = Path(f.name)
+
+        try:
+            is_valid, errors = validate_single_file(
+                temp_path,
+                schema,
+                schema_version="2026.5.dev5",
+            )
+            self.assertTrue(is_valid)
+            self.assertEqual(errors, [])
+        finally:
+            temp_path.unlink()
+
 
 class TestERA5DownloadAPI(TestCase):
     """Test functions used by UMEP ERA5 Download.

@@ -4066,3 +4066,240 @@ class TestSparseYmlCriticalMissing:
         """Direct method check — complete config yields no critical issues."""
         config = SUEWSConfig.from_yaml(str(self.SAMPLE_CONFIG))
         assert config._check_critical_null_site_params() == []
+
+    def test_partial_land_cover_still_checks_omitted_active_defaults(self, tmp_path):
+        """Omitted surfaces in an explicit land_cover block must not bypass checks."""
+        config_yaml = """
+name: partial_land_cover
+model:
+  control:
+    tstep: 300
+    start_time: '2012-07-01'
+    end_time: '2012-07-10'
+    forcing_file: {value: ./forcing.txt}
+    output_file:
+      format: parquet
+      freq: 3600
+      path: ./out
+  physics:
+    netradiationmethod: {value: 3}
+    emissionsmethod: {value: 2}
+    storageheatmethod: {value: 1}
+    ohmincqf: {value: 0}
+    roughlenmommethod: {value: 1}
+    roughlenheatmethod: {value: 2}
+    stabilitymethod: {value: 3}
+    smdmethod: {value: 0}
+    waterusemethod: {value: 0}
+    rslmethod: {value: 1}
+    rsllevel: {value: 1}
+    gsmodel: {value: 2}
+    snowuse: {value: 0}
+    stebbsmethod: {value: 0}
+    rcmethod: {value: 0}
+    setpointmethod: {value: 0}
+    same_albedo_wall: {value: 0}
+    same_albedo_roof: {value: 0}
+    same_emissivity_wall: {value: 0}
+    same_emissivity_roof: {value: 0}
+sites:
+  - name: site
+    gridiv: 1
+    properties:
+      lat: {value: 51.5}
+      lng: {value: -0.1}
+      alt: {value: 50.0}
+      surfacearea: {value: 100000.0}
+      z: {value: 100.0}
+      land_cover:
+        paved:
+          sfr: {value: 0.5}
+          soildepth: {value: 350.0}
+          soilstorecap: {value: 150.0}
+          statelimit: {value: 0.48}
+          alb: {value: 0.08}
+        bldgs:
+          sfr: {value: 0.5}
+          soildepth: {value: 350.0}
+          soilstorecap: {value: 150.0}
+          statelimit: {value: 0.25}
+          alb: {value: 0.15}
+          bldgh: {value: 3.5}
+          faibldg: {value: 0.3}
+"""
+        config_path = tmp_path / "partial_land_cover.yml"
+        config_path.write_text(config_yaml)
+
+        with pytest.raises(ValueError) as exc_info:
+            SUEWSConfig.from_yaml(str(config_path))
+
+        message = str(exc_info.value)
+        assert "conductance.g_max" in message
+        assert "land_cover.dectr.lai: lai_max" in message
+        assert "land_cover.evetr.lai: lai_max" in message
+        assert "land_cover.grass.lai: lai_max" in message
+
+    def test_fai_simple_scheme_allows_missing_explicit_fai(self, tmp_path):
+        """FAI should not be required when the simple scheme derives it."""
+        config_yaml = """
+name: fai_simple_scheme
+model:
+  control:
+    tstep: 300
+    start_time: '2012-07-01'
+    end_time: '2012-07-10'
+    forcing_file: {value: ./forcing.txt}
+    output_file:
+      format: parquet
+      freq: 3600
+      path: ./out
+  physics:
+    netradiationmethod: {value: 3}
+    emissionsmethod: {value: 2}
+    storageheatmethod: {value: 1}
+    ohmincqf: {value: 0}
+    roughlenmommethod: {value: 1}
+    roughlenheatmethod: {value: 2}
+    stabilitymethod: {value: 3}
+    smdmethod: {value: 0}
+    waterusemethod: {value: 0}
+    rslmethod: {value: 1}
+    faimethod: {value: 1}
+    rsllevel: {value: 1}
+    gsmodel: {value: 2}
+    snowuse: {value: 0}
+    stebbsmethod: {value: 0}
+    rcmethod: {value: 0}
+    setpointmethod: {value: 0}
+    same_albedo_wall: {value: 0}
+    same_albedo_roof: {value: 0}
+    same_emissivity_wall: {value: 0}
+    same_emissivity_roof: {value: 0}
+sites:
+  - name: site
+    gridiv: 1
+    properties:
+      lat: {value: 51.5}
+      lng: {value: -0.1}
+      alt: {value: 50.0}
+      surfacearea: {value: 100000.0}
+      z: {value: 100.0}
+      land_cover:
+        paved:
+          sfr: {value: 0.5}
+          soildepth: {value: 350.0}
+          soilstorecap: {value: 150.0}
+          statelimit: {value: 0.48}
+          alb: {value: 0.08}
+        bldgs:
+          sfr: {value: 0.5}
+          soildepth: {value: 350.0}
+          soilstorecap: {value: 150.0}
+          statelimit: {value: 0.25}
+          alb: {value: 0.15}
+          bldgh: {value: 3.5}
+        dectr:
+          sfr: {value: 0.0}
+        evetr:
+          sfr: {value: 0.0}
+        grass:
+          sfr: {value: 0.0}
+        bsoil:
+          sfr: {value: 0.0}
+        water:
+          sfr: {value: 0.0}
+"""
+        config_path = tmp_path / "fai_simple_scheme.yml"
+        config_path.write_text(config_yaml)
+
+        config = SUEWSConfig.from_yaml(str(config_path))
+        assert config is not None
+
+        annotated_path = Path(config.generate_annotated_yaml(str(config_path)))
+        try:
+            annotated = annotated_path.read_text()
+            assert "faibldg:" not in annotated
+        finally:
+            annotated_path.unlink(missing_ok=True)
+
+    def test_observed_lai_allows_missing_gdd_sdd_thresholds(self, tmp_path):
+        """Observed LAI mode should not require calculated-phenology fields."""
+        config_yaml = """
+name: lai_observed
+model:
+  control:
+    tstep: 300
+    start_time: '2012-07-01'
+    end_time: '2012-07-10'
+    forcing_file: {value: ./forcing.txt}
+    output_file:
+      format: parquet
+      freq: 3600
+      path: ./out
+  physics:
+    netradiationmethod: {value: 3}
+    emissionsmethod: {value: 2}
+    storageheatmethod: {value: 1}
+    ohmincqf: {value: 0}
+    roughlenmommethod: {value: 1}
+    roughlenheatmethod: {value: 2}
+    stabilitymethod: {value: 3}
+    smdmethod: {value: 0}
+    waterusemethod: {value: 0}
+    rslmethod: {value: 1}
+    faimethod: {value: 1}
+    rsllevel: {value: 1}
+    gsmodel: {value: 2}
+    laimethod: {value: 0}
+    snowuse: {value: 0}
+    stebbsmethod: {value: 0}
+    rcmethod: {value: 0}
+    setpointmethod: {value: 0}
+    same_albedo_wall: {value: 0}
+    same_albedo_roof: {value: 0}
+    same_emissivity_wall: {value: 0}
+    same_emissivity_roof: {value: 0}
+sites:
+  - name: site
+    gridiv: 1
+    properties:
+      lat: {value: 51.5}
+      lng: {value: -0.1}
+      alt: {value: 50.0}
+      surfacearea: {value: 100000.0}
+      z: {value: 100.0}
+      conductance:
+        g_max: {value: 3.5}
+        g_k: {value: 200.0}
+        g_q_base: {value: 0.13}
+        g_q_shape: {value: 0.7}
+        g_t: {value: 30.0}
+        g_sm: {value: 0.05}
+        kmax: {value: 1200.0}
+        s1: {value: 5.56}
+        s2: {value: 0.0}
+        tl: {value: -10.0}
+        th: {value: 55.0}
+      land_cover:
+        paved:
+          sfr: {value: 0.0}
+        bldgs:
+          sfr: {value: 0.0}
+        dectr:
+          sfr: {value: 0.0}
+        evetr:
+          sfr: {value: 0.0}
+        grass:
+          sfr: {value: 1.0}
+          lai:
+            lai_max: {value: 4.5}
+        bsoil:
+          sfr: {value: 0.0}
+        water:
+          sfr: {value: 0.0}
+"""
+        config_path = tmp_path / "lai_observed.yml"
+        config_path.write_text(config_yaml)
+
+        config = SUEWSConfig.from_yaml(str(config_path))
+        assert config is not None

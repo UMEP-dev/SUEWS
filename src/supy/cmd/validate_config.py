@@ -69,7 +69,10 @@ console = Console()
 
 
 def validate_single_file(
-    file_path: Path, schema: dict, show_details: bool = True
+    file_path: Path,
+    schema: dict,
+    show_details: bool = True,
+    schema_version: Optional[str] = None,
 ) -> tuple[bool, List]:
     """
     Validate a single configuration file.
@@ -85,8 +88,13 @@ def validate_single_file(
         with open(file_path, "r") as f:
             config = yaml.safe_load(f)
 
-        # Check if migration needed
-        if check_migration_needed(str(file_path)):
+        target_is_current = (
+            schema_version is None or schema_version == CURRENT_SCHEMA_VERSION
+        )
+
+        # Only flag migration pressure when validating against the current
+        # schema. An explicit older target version is a schema-only check.
+        if target_is_current and check_migration_needed(str(file_path)):
             if ValidationError:
                 errors.append(
                     ValidationError(
@@ -128,22 +136,25 @@ def validate_single_file(
                     errors.append(f"{path}: {error.message}")
 
         # Try configuration consistency validation for additional checks.
-        # Use the path-aware loader so file-backed validation runs the same
-        # sparse-YAML completeness checks as the public loading API.
-        try:
-            SUEWSConfig.from_yaml(str(file_path))
-        except Exception as e:
-            if ValidationError:
-                errors.append(
-                    ValidationError(
-                        code=ErrorCode.VALIDATION_FAILED,
-                        message=str(e),
-                        location=str(file_path),
-                        details={"validation_type": "pydantic"},
+        # Mirror schema_cli: explicit older target versions stay schema-only,
+        # while default/current validation follows the public from_yaml() path.
+        if target_is_current:
+            try:
+                SUEWSConfig.from_yaml(str(file_path))
+            except Exception as e:
+                if ValidationError:
+                    errors.append(
+                        ValidationError(
+                            code=ErrorCode.VALIDATION_FAILED,
+                            message=str(e),
+                            location=str(file_path),
+                            details={"validation_type": "pydantic"},
+                        )
                     )
-                )
-            else:
-                errors.append(f"Configuration consistency validation: {str(e)}")
+                else:
+                    errors.append(
+                        f"Configuration consistency validation: {str(e)}"
+                    )
 
         return (len(errors) == 0, errors)
 
@@ -260,7 +271,10 @@ def cli(ctx, files, pipeline, mode, dry_run, out_format, schema_version, forcing
                 for file_path in files:
                     path = Path(file_path)
                     is_valid, errors = validate_single_file(
-                        path, schema, show_details=True
+                        path,
+                        schema,
+                        show_details=True,
+                        schema_version=target_version,
                     )
                     if not is_valid:
                         all_valid = False
@@ -324,7 +338,12 @@ def cli(ctx, files, pipeline, mode, dry_run, out_format, schema_version, forcing
                 )
                 ctx.exit(2)
             path = Path(files[0])
-            is_valid, errors = validate_single_file(path, schema, show_details=True)
+            is_valid, errors = validate_single_file(
+                path,
+                schema,
+                show_details=True,
+                schema_version=target_version,
+            )
 
             # Convert ValidationError objects to dicts for JSON serialization
             error_list = []
@@ -414,7 +433,12 @@ def validate(files, schema_version, verbose, quiet, format):
         files, description="Validating...", disable=(quiet or format == "json")
     ):
         path = Path(file_path)
-        is_valid, errors = validate_single_file(path, schema, show_details=verbose)
+        is_valid, errors = validate_single_file(
+            path,
+            schema,
+            show_details=verbose,
+            schema_version=schema_version,
+        )
 
         # Convert ValidationError objects to dicts for JSON serialization
         error_list = []
@@ -521,7 +545,12 @@ def migrate(file, output, to_version):
 
         # Validate migrated config
         schema = generate_json_schema(version=target_version)
-        is_valid, _ = validate_single_file(output_path, schema, show_details=False)
+        is_valid, _ = validate_single_file(
+            output_path,
+            schema,
+            show_details=False,
+            schema_version=target_version,
+        )
 
         if is_valid:
             console.print("[green]✓ Migrated configuration is valid[/green]")

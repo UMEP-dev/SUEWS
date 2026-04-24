@@ -33,7 +33,7 @@ from copy import deepcopy
 from pathlib import Path
 import warnings
 
-from .model import Model, OutputConfig
+from .model import FAIMethod, LAIMethod, Model, OutputConfig
 from .site import Site, SiteProperties, InitialStates, LandCover, LAIParams
 from .type import SurfaceType
 
@@ -2791,27 +2791,27 @@ class SUEWSConfig(BaseModel):
 
         Notes
         -----
-        Gated on ``self._yaml_path`` AND on explicit user declaration in
-        the raw YAML source (``self._yaml_raw``). The check fires only
-        when:
+        Gated on ``self._yaml_path`` AND on raw-YAML presence in
+        ``self._yaml_raw``. The check fires only when:
 
         1. The configuration was loaded from a YAML file (not a
            programmatic ``SUEWSConfig(sites=[Site(...)])`` construction),
            AND
-        2. The user explicitly declared the surface (or conductance) as
-           a mapping in the raw YAML. Surfaces that were populated by
-           ``default_factory`` because the user omitted them are skipped.
+        2. The site carries an explicit ``land_cover`` mapping in the raw
+           YAML. Within that block, both user-declared surface mappings
+           and omitted surfaces that remain active through
+           ``default_factory`` are checked. Sites that omit
+           ``land_cover`` entirely are skipped.
 
         Rationale: the pydantic default factories materialise every
         surface with ``sfr=1/7`` and every phenology/conductance field
         as ``None``, so a naive check fires on any sparse YAML — test
         fixtures that only exercise timezone/schema-version handling,
-        docs examples that illustrate a single feature, etc. By
-        requiring the user to have explicitly written a mapping for the
-        surface (or the conductance block) before demanding physics
-        completeness, the check stays focused on real user-assembled
-        configurations where the intent is to run SUEWS and the missing
-        fields would silently produce NaN.
+        docs examples that illustrate a single feature, etc. Restricting
+        the check to sites with an explicit ``land_cover`` block keeps it
+        focused on real user-assembled land-cover configurations, while
+        still catching omitted surfaces that would otherwise stay active
+        at their default fractions and silently produce NaN.
         """
         issues: List[Dict[str, str]] = []
 
@@ -2822,6 +2822,22 @@ class SUEWSConfig(BaseModel):
             return issues
 
         yaml_raw = getattr(self, "_yaml_raw", None)
+        physics = getattr(getattr(self, "model", None), "physics", None)
+
+        def _scalar_value(value: Any) -> Any:
+            """Unwrap FlexibleRefValue / Enum layers to a plain scalar."""
+            value = getattr(value, "value", value)
+            return getattr(value, "value", value)
+
+        lai_method = _scalar_value(
+            getattr(physics, "laimethod", LAIMethod.CALCULATED)
+        )
+        require_calculated_lai = lai_method != LAIMethod.OBSERVED.value
+
+        fai_method = _scalar_value(
+            getattr(physics, "frontal_area_index", FAIMethod.USE_PROVIDED)
+        )
+        require_provided_fai = fai_method == FAIMethod.USE_PROVIDED.value
 
         def _raw_site_properties(site_index: int) -> Dict[str, Any]:
             """Return the raw ``sites[i].properties`` dict, or an empty
@@ -2839,41 +2855,47 @@ class SUEWSConfig(BaseModel):
                 return {}
             return raw_props
 
-        def _raw_surface(site_index: int, surface_name: str) -> Dict[str, Any]:
-            """Return the raw ``sites[i].properties.land_cover.<surface>`` dict."""
+        def _raw_land_cover(site_index: int) -> Optional[Dict[str, Any]]:
+            """Return the raw ``sites[i].properties.land_cover`` dict."""
             raw_props = _raw_site_properties(site_index)
             raw_lc = raw_props.get("land_cover")
             if not isinstance(raw_lc, dict):
+                return None
+            return raw_lc
+
+        def _raw_surface(site_index: int, surface_name: str) -> Dict[str, Any]:
+            """Return the raw ``sites[i].properties.land_cover.<surface>`` dict."""
+            raw_lc = _raw_land_cover(site_index)
+            if raw_lc is None:
                 return {}
             raw_surface = raw_lc.get(surface_name)
             if not isinstance(raw_surface, dict):
                 return {}
             return raw_surface
 
-        def _user_declared_surface(site_index: int, surface_name: str) -> bool:
-            """True if the user explicitly declared this surface as a
-            mapping in the raw YAML. Invalid shorthand (``bldgs: 0.3``)
-            is treated as not declared, since pydantic silently dropped
-            the value to the factory default.
+        def _surface_requires_validation(site_index: int, surface_name: str) -> bool:
+            """True if this surface should participate in hard-fail checks.
 
-            The conductance block does not need its own gate: the outer
-            ``active_veg`` test already covers it, because a non-empty
-            ``active_veg`` implies at least one user-declared vegetated
-            surface with ``sfr > 0`` — at which point conductance is
-            required regardless of whether the user wrote a
-            ``conductance`` block explicitly.
+            Covers both explicitly declared mappings and surfaces omitted
+            from an explicit ``land_cover`` block, because omitted
+            surfaces still materialise with ``sfr=1/7`` via
+            ``default_factory``. Invalid shorthand (for example
+            ``bldgs: 0.3``) is excluded here; pydantic rejects it before
+            these checks run.
             """
-            raw_props = _raw_site_properties(site_index)
-            raw_lc = raw_props.get("land_cover")
-            if not isinstance(raw_lc, dict):
+            raw_lc = _raw_land_cover(site_index)
+            if raw_lc is None:
                 return False
-            return isinstance(raw_lc.get(surface_name), dict)
+            raw_surface = raw_lc.get(surface_name)
+            return raw_surface is None or isinstance(raw_surface, dict)
 
         lai_required = {
             "lai_max": (
                 "Maximum LAI is required for active vegetation",
                 "Add maximum leaf area index for full leaf-on conditions",
             ),
+        }
+        lai_calculated_only_required = {
             "base_temperature": (
                 "Base temperature is required for active vegetation",
                 "Add the base temperature for growing degree day accumulation",
@@ -2942,31 +2964,34 @@ class SUEWSConfig(BaseModel):
                 "Building height is required when buildings are active",
                 "Add building height in meters",
             ),
-            "faibldg": (
+        }
+        if require_provided_fai:
+            building_required["faibldg"] = (
                 "Building frontal area index is required when buildings are active",
                 "Add frontal area index for wind and roughness calculations",
-            ),
-        }
+            )
         evergreen_required = {
             "height_evergreen_tree": (
                 "Evergreen tree height is required when evergreen vegetation is active",
                 "Add evergreen tree height in meters",
             ),
-            "fai_evergreen_tree": (
+        }
+        if require_provided_fai:
+            evergreen_required["fai_evergreen_tree"] = (
                 "Evergreen tree frontal area index is required when evergreen vegetation is active",
                 "Add evergreen tree frontal area index",
-            ),
-        }
+            )
         deciduous_required = {
             "height_deciduous_tree": (
                 "Deciduous tree height is required when deciduous vegetation is active",
                 "Add deciduous tree height in meters",
             ),
-            "fai_deciduous_tree": (
+        }
+        if require_provided_fai:
+            deciduous_required["fai_deciduous_tree"] = (
                 "Deciduous tree frontal area index is required when deciduous vegetation is active",
                 "Add deciduous tree frontal area index",
-            ),
-        }
+            )
 
         def _add_issue(
             *,
@@ -2998,7 +3023,7 @@ class SUEWSConfig(BaseModel):
 
             if land_cover is not None:
                 for surface_name in ("dectr", "evetr", "grass"):
-                    if not _user_declared_surface(i, surface_name):
+                    if not _surface_requires_validation(i, surface_name):
                         continue
                     surface = getattr(land_cover, surface_name, None)
                     if surface is None:
@@ -3045,7 +3070,11 @@ class SUEWSConfig(BaseModel):
                             ),
                         )
                         continue
-                    for field_name, (message, fix) in lai_required.items():
+                    lai_required_fields = dict(lai_required)
+                    if require_calculated_lai:
+                        lai_required_fields.update(lai_calculated_only_required)
+
+                    for field_name, (message, fix) in lai_required_fields.items():
                         raw = getattr(lai, field_name, None)
                         if getattr(raw, "value", raw) is None:
                             _add_issue(
@@ -3061,7 +3090,7 @@ class SUEWSConfig(BaseModel):
                                 fix=fix,
                             )
 
-                if _user_declared_surface(i, "bldgs"):
+                if _surface_requires_validation(i, "bldgs"):
                     bldgs = getattr(land_cover, "bldgs", None)
                     if bldgs is not None:
                         sfr_raw = getattr(bldgs, "sfr", None)
@@ -3081,7 +3110,7 @@ class SUEWSConfig(BaseModel):
                                         fix=fix,
                                     )
 
-                if _user_declared_surface(i, "evetr"):
+                if _surface_requires_validation(i, "evetr"):
                     evetr = getattr(land_cover, "evetr", None)
                     if evetr is not None:
                         sfr_raw = getattr(evetr, "sfr", None)
@@ -3101,7 +3130,7 @@ class SUEWSConfig(BaseModel):
                                         fix=fix,
                                     )
 
-                if _user_declared_surface(i, "dectr"):
+                if _surface_requires_validation(i, "dectr"):
                     dectr = getattr(land_cover, "dectr", None)
                     if dectr is not None:
                         sfr_raw = getattr(dectr, "sfr", None)
@@ -3322,6 +3351,17 @@ class SUEWSConfig(BaseModel):
         self, land_cover, site_name: str, site_index: int, annotator: YAMLAnnotator
     ) -> None:
         """Collect land cover validation issues."""
+        physics = getattr(getattr(self, "model", None), "physics", None)
+
+        def _scalar_value(value: Any) -> Any:
+            value = getattr(value, "value", value)
+            return getattr(value, "value", value)
+
+        fai_method = _scalar_value(
+            getattr(physics, "frontal_area_index", FAIMethod.USE_PROVIDED)
+        )
+        require_provided_fai = fai_method == FAIMethod.USE_PROVIDED.value
+
         surface_types = ["bldgs", "grass", "dectr", "evetr", "bsoil", "paved", "water"]
 
         for surface_type in surface_types:
@@ -3349,7 +3389,7 @@ class SUEWSConfig(BaseModel):
                                     level="WARNING",
                                 )
 
-                            if (
+                            if require_provided_fai and (
                                 not hasattr(surface, "faibldg")
                                 or surface.faibldg is None
                             ):

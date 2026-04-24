@@ -73,7 +73,7 @@ module.exports = async ({ github, context }) => {
     'smoke': 'smoke (critical tests only)',
     'cfg': 'cfg (configuration + smoke)',
     'core': 'core (physics + smoke)',
-    'standard': 'standard (all except slow)',
+    'standard': 'standard (non-slow + core physics regressions)',
     'all': 'all (full suite)'
   };
 

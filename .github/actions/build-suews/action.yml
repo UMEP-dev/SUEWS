@@ -172,7 +172,7 @@ runs:
           ${{ inputs.test_tier == 'smoke' && '-m "physics and smoke"' ||
               inputs.test_tier == 'core' && '-m "physics and (smoke or core)"' ||
               inputs.test_tier == 'cfg' && '-m "physics and (smoke or cfg)"' ||
-              inputs.test_tier == 'standard' && '-m "physics and not slow"' ||
+              inputs.test_tier == 'standard' && '-m "physics and (not slow or core)"' ||
               inputs.test_tier == 'all' && '-m physics' ||
               '-m physics' }}
         MACOSX_DEPLOYMENT_TARGET: '15.0'

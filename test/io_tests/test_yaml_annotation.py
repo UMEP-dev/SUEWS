@@ -46,22 +46,20 @@ sites:
         f.write(yaml_content)
         test_file = Path(f.name)
 
+    # Post-gh#1333, declaring ``bldgs`` / ``grass`` with ``sfr > 0`` but
+    # omitting physics-required fields raises at load time. Passing
+    # ``auto_generate_annotated=True`` keeps the annotator path exercised:
+    # the validator emits the annotated YAML before raising, so both the
+    # error contract AND the annotation output are checked.
+    annotated_path = test_file.parent / f"{test_file.stem}_annotated.yml"
     try:
-        # Load config (will trigger validation)
-        config = SUEWSConfig.from_yaml(test_file)
-
-        # Generate annotated file
-        annotated_file = config.generate_annotated_yaml(test_file)
+        with pytest.raises(ValueError):
+            SUEWSConfig.from_yaml(test_file, auto_generate_annotated=True)
 
         # Check if annotation was successful (Windows compatibility)
-        if annotated_file is not None:
-            annotated_path = Path(annotated_file)
-
-            # Verify annotated file exists
-            assert annotated_path.exists()
-
+        if annotated_path.exists():
             # Read annotated content
-            with open(annotated_file, "r") as f:
+            with open(annotated_path, "r") as f:
                 annotated_content = f.read()
 
             # Verify annotations are present
@@ -85,12 +83,11 @@ sites:
 
             # Cleanup
             annotated_path.unlink()
-        else:
-            # If annotation generation failed, we can still verify config was loaded
-            assert config.name == "Test Config"
 
     finally:
         test_file.unlink()
+        if annotated_path.exists():
+            annotated_path.unlink()
 
 
 def test_annotation_with_sample_config():

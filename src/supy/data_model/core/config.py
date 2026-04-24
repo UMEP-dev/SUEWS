@@ -2789,14 +2789,27 @@ class SUEWSConfig(BaseModel):
 
         Notes
         -----
-        Gated on ``self._yaml_path``: fires only for configurations loaded
-        from a YAML file (the user-facing path, where the bug bites) and
-        stays silent for programmatic constructions such as
-        ``SUEWSConfig(sites=[Site(...)])`` in unit tests. Programmatic
-        constructions typically populate only the fields under test and
-        rely on ``default_factory`` to materialise the rest with
-        ``sfr=1/7``; surfacing the check there would flag every minimal
-        test without catching a real user bug.
+        Gated on ``self._yaml_path`` AND on explicit user declaration in
+        the raw YAML source (``self._yaml_raw``). The check fires only
+        when:
+
+        1. The configuration was loaded from a YAML file (not a
+           programmatic ``SUEWSConfig(sites=[Site(...)])`` construction),
+           AND
+        2. The user explicitly declared the surface (or conductance) as
+           a mapping in the raw YAML. Surfaces that were populated by
+           ``default_factory`` because the user omitted them are skipped.
+
+        Rationale: the pydantic default factories materialise every
+        surface with ``sfr=1/7`` and every phenology/conductance field
+        as ``None``, so a naive check fires on any sparse YAML — test
+        fixtures that only exercise timezone/schema-version handling,
+        docs examples that illustrate a single feature, etc. By
+        requiring the user to have explicitly written a mapping for the
+        surface (or the conductance block) before demanding physics
+        completeness, the check stays focused on real user-assembled
+        configurations where the intent is to run SUEWS and the missing
+        fields would silently produce NaN.
         """
         critical_issues: List[str] = []
 
@@ -2805,6 +2818,43 @@ class SUEWSConfig(BaseModel):
 
         if not getattr(self, "sites", None):
             return critical_issues
+
+        yaml_raw = getattr(self, "_yaml_raw", None)
+
+        def _raw_site_properties(site_index: int) -> Dict[str, Any]:
+            """Return the raw ``sites[i].properties`` dict, or an empty
+            dict if absent or malformed."""
+            if not isinstance(yaml_raw, dict):
+                return {}
+            raw_sites = yaml_raw.get("sites")
+            if not isinstance(raw_sites, list) or site_index >= len(raw_sites):
+                return {}
+            raw_site = raw_sites[site_index]
+            if not isinstance(raw_site, dict):
+                return {}
+            raw_props = raw_site.get("properties")
+            if not isinstance(raw_props, dict):
+                return {}
+            return raw_props
+
+        def _user_declared_surface(site_index: int, surface_name: str) -> bool:
+            """True if the user explicitly declared this surface as a
+            mapping in the raw YAML. Invalid shorthand (``bldgs: 0.3``)
+            is treated as not declared, since pydantic silently dropped
+            the value to the factory default.
+
+            The conductance block does not need its own gate: the outer
+            ``active_veg`` test already covers it, because a non-empty
+            ``active_veg`` implies at least one user-declared vegetated
+            surface with ``sfr > 0`` — at which point conductance is
+            required regardless of whether the user wrote a
+            ``conductance`` block explicitly.
+            """
+            raw_props = _raw_site_properties(site_index)
+            raw_lc = raw_props.get("land_cover")
+            if not isinstance(raw_lc, dict):
+                return False
+            return isinstance(raw_lc.get(surface_name), dict)
 
         lai_required = [
             "lai_max",
@@ -2839,6 +2889,8 @@ class SUEWSConfig(BaseModel):
 
             if land_cover is not None:
                 for surface_name in ("dectr", "evetr", "grass"):
+                    if not _user_declared_surface(i, surface_name):
+                        continue
                     surface = getattr(land_cover, surface_name, None)
                     if surface is None:
                         continue
@@ -2864,50 +2916,53 @@ class SUEWSConfig(BaseModel):
                                 f"{field_name} is None but {surface_name}.sfr={sfr_value} > 0"
                             )
 
-                bldgs = getattr(land_cover, "bldgs", None)
-                if bldgs is not None:
-                    sfr_raw = getattr(bldgs, "sfr", None)
-                    sfr_value = getattr(sfr_raw, "value", sfr_raw)
-                    if sfr_value is not None and sfr_value > 0:
-                        for field_name in ("bldgh", "faibldg"):
-                            raw = getattr(bldgs, field_name, None)
-                            if getattr(raw, "value", raw) is None:
-                                critical_issues.append(
-                                    f"sites[{i}] ({site_name}), land_cover.bldgs: "
-                                    f"{field_name} is None but bldgs.sfr={sfr_value} > 0"
-                                )
+                if _user_declared_surface(i, "bldgs"):
+                    bldgs = getattr(land_cover, "bldgs", None)
+                    if bldgs is not None:
+                        sfr_raw = getattr(bldgs, "sfr", None)
+                        sfr_value = getattr(sfr_raw, "value", sfr_raw)
+                        if sfr_value is not None and sfr_value > 0:
+                            for field_name in ("bldgh", "faibldg"):
+                                raw = getattr(bldgs, field_name, None)
+                                if getattr(raw, "value", raw) is None:
+                                    critical_issues.append(
+                                        f"sites[{i}] ({site_name}), land_cover.bldgs: "
+                                        f"{field_name} is None but bldgs.sfr={sfr_value} > 0"
+                                    )
 
-                evetr = getattr(land_cover, "evetr", None)
-                if evetr is not None:
-                    sfr_raw = getattr(evetr, "sfr", None)
-                    sfr_value = getattr(sfr_raw, "value", sfr_raw)
-                    if sfr_value is not None and sfr_value > 0:
-                        for field_name in (
-                            "height_evergreen_tree",
-                            "fai_evergreen_tree",
-                        ):
-                            raw = getattr(evetr, field_name, None)
-                            if getattr(raw, "value", raw) is None:
-                                critical_issues.append(
-                                    f"sites[{i}] ({site_name}), land_cover.evetr: "
-                                    f"{field_name} is None but evetr.sfr={sfr_value} > 0"
-                                )
+                if _user_declared_surface(i, "evetr"):
+                    evetr = getattr(land_cover, "evetr", None)
+                    if evetr is not None:
+                        sfr_raw = getattr(evetr, "sfr", None)
+                        sfr_value = getattr(sfr_raw, "value", sfr_raw)
+                        if sfr_value is not None and sfr_value > 0:
+                            for field_name in (
+                                "height_evergreen_tree",
+                                "fai_evergreen_tree",
+                            ):
+                                raw = getattr(evetr, field_name, None)
+                                if getattr(raw, "value", raw) is None:
+                                    critical_issues.append(
+                                        f"sites[{i}] ({site_name}), land_cover.evetr: "
+                                        f"{field_name} is None but evetr.sfr={sfr_value} > 0"
+                                    )
 
-                dectr = getattr(land_cover, "dectr", None)
-                if dectr is not None:
-                    sfr_raw = getattr(dectr, "sfr", None)
-                    sfr_value = getattr(sfr_raw, "value", sfr_raw)
-                    if sfr_value is not None and sfr_value > 0:
-                        for field_name in (
-                            "height_deciduous_tree",
-                            "fai_deciduous_tree",
-                        ):
-                            raw = getattr(dectr, field_name, None)
-                            if getattr(raw, "value", raw) is None:
-                                critical_issues.append(
-                                    f"sites[{i}] ({site_name}), land_cover.dectr: "
-                                    f"{field_name} is None but dectr.sfr={sfr_value} > 0"
-                                )
+                if _user_declared_surface(i, "dectr"):
+                    dectr = getattr(land_cover, "dectr", None)
+                    if dectr is not None:
+                        sfr_raw = getattr(dectr, "sfr", None)
+                        sfr_value = getattr(sfr_raw, "value", sfr_raw)
+                        if sfr_value is not None and sfr_value > 0:
+                            for field_name in (
+                                "height_deciduous_tree",
+                                "fai_deciduous_tree",
+                            ):
+                                raw = getattr(dectr, field_name, None)
+                                if getattr(raw, "value", raw) is None:
+                                    critical_issues.append(
+                                        f"sites[{i}] ({site_name}), land_cover.dectr: "
+                                        f"{field_name} is None but dectr.sfr={sfr_value} > 0"
+                                    )
 
             if active_veg:
                 conductance = getattr(props, "conductance", None)
@@ -4036,9 +4091,16 @@ class SUEWSConfig(BaseModel):
         with open(path, "r") as file:
             config_data = yaml.load(file, Loader=yaml.FullLoader)
 
+        # Snapshot the raw user YAML so site-level completeness checks can
+        # distinguish user-declared surfaces from pydantic-factory defaults
+        # (gh#1333 follow-up). Deep-copied so later mutations of
+        # ``config_data`` do not bleed into the validator's view.
+        yaml_raw_snapshot = deepcopy(config_data)
+
         # Store yaml path in config data for later use
         config_data["_yaml_path"] = path
         config_data["_auto_generate_annotated"] = auto_generate_annotated
+        config_data["_yaml_raw"] = yaml_raw_snapshot
 
         # Log schema version information if present
         from ..schema import CURRENT_SCHEMA_VERSION, get_schema_compatibility_message
@@ -4298,7 +4360,7 @@ class SUEWSConfig(BaseModel):
         config_dict = self.model_dump(exclude_none=True, mode="json")
 
         # Strip private implementation fields
-        for key in ("_yaml_path", "_auto_generate_annotated"):
+        for key in ("_yaml_path", "_auto_generate_annotated", "_yaml_raw"):
             config_dict.pop(key, None)
 
         if not include_internal:

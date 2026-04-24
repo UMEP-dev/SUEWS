@@ -180,6 +180,74 @@ The sections below summarise what users see change between schemas.
 The authoritative lineage (including release-tag to schema mapping)
 lives in :ref:`schema_version_history`.
 
+Upgrading to Schema 2026.5.dev6 (gh#1333 site-level completeness validator)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Schema ``2026.5.dev6`` is the current in-development shape. The YAML
+shape is byte-for-byte identical to ``2026.5.dev5`` — this is a pure
+validator-contract tightening, not a structural rename.
+
+Previously, declaring a vegetated or building surface with
+``sfr > 0`` but omitting the physics-required completion fields
+produced a WARNING summary at load time, then silently ran to
+all-NaN output on x86_64. From ``2026.5.dev6`` onwards,
+:py:meth:`SUEWSConfig.from_yaml` raises ``ValueError`` instead, naming
+every missing field. Affected blocks:
+
+- **Phenology** (``lai_max``, ``base_temperature``,
+  ``base_temperature_senescence``, ``gdd_full``, ``sdd_full``) on any
+  active vegetated surface (``dectr`` / ``evetr`` / ``grass`` with
+  ``sfr > 0``).
+- **Conductance** (all eleven ``g_max`` / ``g_k`` / ``g_q_base`` /
+  ``g_q_shape`` / ``g_t`` / ``g_sm`` / ``kmax`` / ``s1`` / ``s2`` /
+  ``tl`` / ``th`` fields) whenever any vegetated surface is active,
+  for both ``GSModel.JARVI`` and ``GSModel.WARD``.
+- **Building morphology** (``bldgh``, ``faibldg``) when
+  ``bldgs.sfr > 0``.
+- **Tree morphology** (``height_evergreen_tree`` / ``fai_evergreen_tree``
+  when ``evetr.sfr > 0``; ``height_deciduous_tree`` /
+  ``fai_deciduous_tree`` when ``dectr.sfr > 0``).
+
+Trigger conditions: the check fires only when the configuration is
+loaded from a YAML file via :py:meth:`SUEWSConfig.from_yaml` and the
+user explicitly declared the surface as a mapping in the raw YAML.
+Surfaces that pydantic materialised from ``default_factory`` because
+the user omitted them are skipped, so programmatic
+``SUEWSConfig(sites=[Site(...)])`` constructions and sparse test /
+docs YAMLs that only exercise unrelated aspects (timezone, output
+configuration, ...) remain permissive.
+
+Because the YAML shape is unchanged, no ``suews-schema migrate`` run
+is strictly required to move to ``2026.5.dev6``. Run the migrator
+only to refresh the ``schema_version`` stamp if you pin the field:
+
+.. code-block:: bash
+
+   suews-schema migrate your_config.yml --target-version 2026.5.dev6
+
+Users hitting the new raise should either (a) fill in the missing
+fields the error message names, or (b) remove the offending surface
+declaration entirely (``sfr: 0``, or drop the block) if the
+simulation was never meant to include that cover type.
+
+Upgrading to Schema 2026.5.dev5 (gh#972 nested physics family tags)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Schema ``2026.5.dev5`` widens acceptance for three
+``model.physics`` fields: ``net_radiation``, ``storage_heat``, and
+``emissions``. Users may now provide a family-tagged nested form such
+as ``net_radiation: {spartacus: {value: 1001}}`` alongside the
+existing flat ``{value: 1001}`` form. Family tag is validated against
+its numeric codes at load time; canonical internal shape remains flat,
+and YAML dump / migration continue to emit the flat form unchanged.
+
+Because the change is accept-only, the ``2026.5.dev4 ->
+2026.5.dev5`` migration is an identity pass. Run:
+
+.. code-block:: bash
+
+   suews-schema migrate your_config.yml --target-version 2026.5.dev5
+
 Upgrading to Schema 2026.5.dev4 (gh#1334 follow-through via PR #1337: STEBBS hot-water prefix unification)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -215,12 +283,12 @@ keep ``dhw_*`` internally — cross-layer work is tracked in #1324.
 Upgrading to Schema 2026.5.dev3 (gh#1334: STEBBS + Snow user-facing YAML to snake_case)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Schema ``2026.5.dev3`` is the current in-development shape. It
-retires the pre-gh#1334 STEBBS PascalCase exception on the
-user-facing YAML surface — the full ``site.properties.stebbs``,
-``site.properties.building_archetype`` and ``site.properties.snow``
-sub-trees now follow the same ``snake_case`` convention as the rest
-of the config. 124 renames in one schema bump:
+Schema ``2026.5.dev3`` retires the pre-gh#1334 STEBBS PascalCase
+exception on the user-facing YAML surface — the full
+``site.properties.stebbs``, ``site.properties.building_archetype``
+and ``site.properties.snow`` sub-trees now follow the same
+``snake_case`` convention as the rest of the config. 124 renames in
+one schema bump:
 
 - ``ArchetypeProperties`` (62 renames) — ``BuildingType`` ->
   ``building_type``, ``stebbs_Height`` -> ``building_height``,
@@ -277,9 +345,9 @@ cluster) continue to load under a ``DeprecationWarning``. Run:
 
    suews-schema migrate your_config.yml --target-version 2026.5.dev3
 
-The migrator accepts any registered intermediate (``2025.12``,
-``2026.1``, ``2026.4``, ``2026.5``, ``2026.5.dev1``, ``2026.5.dev2``)
-and walks the chain to the current schema in one call.
+Use this historical target when you specifically want the pre-hot-water
+unification ``2026.5.dev3`` spellings. To land on the current schema
+instead, omit ``--target-version`` or point it at ``2026.5.dev6``.
 
 Upgrading to Schema 2026.5.dev2 (Categories 2+3 of #1256: suffix drop, abbreviation expansion)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

@@ -13,6 +13,7 @@ Key Features
 - **YAML Configuration**: Load configurations from YAML files
 - **Configuration Updates**: Update configuration with dictionaries or YAML files
 - **Forcing Management**: Load single files, lists of files, or DataFrames
+- **Checkpoint Restarts**: Continue YAML-based runs from typed checkpoint JSON
 - **Simple API**: Clean interface focused on essential functionality
 - **Format Support**: Save results in txt or parquet formats via OutputConfig
 
@@ -52,6 +53,8 @@ For spin-up runs, state continuation, and deep model inspection.
 
     ~SUEWSSimulation.state_init
     ~SUEWSSimulation.state_final
+    ~SUEWSSimulation.checkpoint
+    ~SUEWSSimulation.state_checkpoint
 
 .. _sim_setup_methods:
 
@@ -66,6 +69,8 @@ Configure simulations, load forcing data, and initialise from various sources.
     ~SUEWSSimulation.update_config
     ~SUEWSSimulation.update_forcing
     ~SUEWSSimulation.from_sample_data
+    ~SUEWSSimulation.from_checkpoint
+    ~SUEWSSimulation.continue_from
     ~SUEWSSimulation.from_state
 
 .. _sim_execution_methods:
@@ -94,6 +99,20 @@ Save results to files and extract specific variables from output groups.
     ~SUEWSSimulation.save
     ~SUEWSSimulation.get_variable
 
+Run Output
+^^^^^^^^^^
+
+``run()`` returns a :class:`SUEWSOutput` object. Use its ``checkpoint`` property
+as the restart artefact for continuation runs; ``state_final`` is retained as a
+legacy/developer DataFrame view.
+
+.. autosummary::
+    :nosignatures:
+
+    ~SUEWSOutput.checkpoint
+    ~SUEWSOutput.state_checkpoint
+    ~SUEWSOutput.state_final
+
 
 Full Class Reference
 ^^^^^^^^^^^^^^^^^^^^
@@ -115,7 +134,7 @@ Quick Example
     # Create and run simulation
     sim = SUEWSSimulation('config.yml')
     sim.update_forcing('forcing_data.txt')
-    sim.run()
+    output = sim.run()
 
     # Access results - use get_variable() for safe extraction
     qh = sim.get_variable('QH')              # Sensible heat flux
@@ -126,6 +145,15 @@ Quick Example
 
     # Save results
     sim.save('output_dir/')
+
+    # Continue from the typed checkpoint and the next forcing period
+    output.checkpoint.to_file('output_dir/{site}_SUEWS_checkpoint.json')
+    sim_next = SUEWSSimulation.from_checkpoint(
+        'config.yml',
+        'output_dir/{site}_SUEWS_checkpoint.json',
+    )
+    sim_next.update_forcing('forcing_next_period.txt')
+    output_next = sim_next.run()
 
     # Update configuration and re-run
     sim.update_config({'model': {'control': {'tstep': 600}}})
@@ -147,5 +175,6 @@ Related Documentation
    - :doc:`dts` - DTS backend for performance-optimised execution
 
 - :doc:`/inputs/yaml/index` - YAML configuration guide
+- :ref:`suews_checkpoint` - Typed checkpoint restart artefact
 - :doc:`/data-structures/df_forcing` - Forcing data format
 - :doc:`/data-structures/df_output` - Output data format

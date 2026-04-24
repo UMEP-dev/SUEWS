@@ -19,8 +19,8 @@ public :: SUEWS_CAPI_BAD_STATE
 integer(c_int), parameter, public :: SUEWS_CAPI_EHC_PRM_SCHEMA_VERSION = 1_c_int
 
 type :: ehc_prm_shadow
-   real(c_double), dimension(:), allocatable :: soil_storecap_roof
-   real(c_double), dimension(:), allocatable :: soil_storecap_wall
+   real(c_double), dimension(:), allocatable :: soil_store_capacity_roof
+   real(c_double), dimension(:), allocatable :: soil_store_capacity_wall
    real(c_double), dimension(:), allocatable :: state_limit_roof
    real(c_double), dimension(:), allocatable :: state_limit_wall
    real(c_double), dimension(:), allocatable :: wet_thresh_roof
@@ -195,8 +195,8 @@ subroutine ehc_prm_layout(state, n_flat, nlayer, ndepth, err)
    ndepth = 0_c_int
    err = SUEWS_CAPI_OK
 
-   call update_len_from_vec(state%soil_storecap_roof, nlayer, err)
-   call update_len_from_vec(state%soil_storecap_wall, nlayer, err)
+   call update_len_from_vec(state%soil_store_capacity_roof, nlayer, err)
+   call update_len_from_vec(state%soil_store_capacity_wall, nlayer, err)
    call update_len_from_vec(state%state_limit_roof, nlayer, err)
    call update_len_from_vec(state%state_limit_wall, nlayer, err)
    call update_len_from_vec(state%wet_thresh_roof, nlayer, err)
@@ -215,8 +215,8 @@ subroutine ehc_prm_layout(state, n_flat, nlayer, ndepth, err)
    call update_len_from_mat(state%dz_wall, nlayer, ndepth, err)
    call update_len_from_mat(state%dz_surf, nlayer, ndepth, err)
 
-   call require_vec_layout(state%soil_storecap_roof, nlayer, err)
-   call require_vec_layout(state%soil_storecap_wall, nlayer, err)
+   call require_vec_layout(state%soil_store_capacity_roof, nlayer, err)
+   call require_vec_layout(state%soil_store_capacity_wall, nlayer, err)
    call require_vec_layout(state%state_limit_roof, nlayer, err)
    call require_vec_layout(state%state_limit_wall, nlayer, err)
    call require_vec_layout(state%wet_thresh_roof, nlayer, err)
@@ -396,8 +396,8 @@ subroutine ehc_prm_pack(state, flat, n_flat, nlayer, ndepth, err)
    end if
 
    idx = 1_c_int
-   call pack_vec(state%soil_storecap_roof, flat, idx, nlayer)
-   call pack_vec(state%soil_storecap_wall, flat, idx, nlayer)
+   call pack_vec(state%soil_store_capacity_roof, flat, idx, nlayer)
+   call pack_vec(state%soil_store_capacity_wall, flat, idx, nlayer)
    call pack_vec(state%state_limit_roof, flat, idx, nlayer)
    call pack_vec(state%state_limit_wall, flat, idx, nlayer)
    call pack_vec(state%wet_thresh_roof, flat, idx, nlayer)
@@ -445,8 +445,8 @@ subroutine ehc_prm_unpack(flat, n_flat, nlayer, ndepth, state, err)
    end if
 
    err = SUEWS_CAPI_OK
-   call ensure_vec_alloc(state%soil_storecap_roof, nlayer, err)
-   call ensure_vec_alloc(state%soil_storecap_wall, nlayer, err)
+   call ensure_vec_alloc(state%soil_store_capacity_roof, nlayer, err)
+   call ensure_vec_alloc(state%soil_store_capacity_wall, nlayer, err)
    call ensure_vec_alloc(state%state_limit_roof, nlayer, err)
    call ensure_vec_alloc(state%state_limit_wall, nlayer, err)
    call ensure_vec_alloc(state%wet_thresh_roof, nlayer, err)
@@ -467,8 +467,8 @@ subroutine ehc_prm_unpack(flat, n_flat, nlayer, ndepth, state, err)
    if (err/=SUEWS_CAPI_OK) return
 
    idx = 1_c_int
-   call unpack_vec(flat, idx, state%soil_storecap_roof, nlayer)
-   call unpack_vec(flat, idx, state%soil_storecap_wall, nlayer)
+   call unpack_vec(flat, idx, state%soil_store_capacity_roof, nlayer)
+   call unpack_vec(flat, idx, state%soil_store_capacity_wall, nlayer)
    call unpack_vec(flat, idx, state%state_limit_roof, nlayer)
    call unpack_vec(flat, idx, state%state_limit_wall, nlayer)
    call unpack_vec(flat, idx, state%wet_thresh_roof, nlayer)

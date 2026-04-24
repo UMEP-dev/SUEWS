@@ -30,19 +30,23 @@ See :doc:`../inputs/yaml/index` for configuration details.
    legacy_text_columns
 
 
-State Output
-------------
+Restart Checkpoint
+------------------
 
-df_state_SSss.csv
-^^^^^^^^^^^^^^^^^
+{site}_SUEWS_checkpoint.json
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-SUEWS automatically outputs a df_state_SSss.csv file containing:
+Object-oriented SUEWS runs save ``{site}_SUEWS_checkpoint.json`` as the
+preferred restart artefact. It contains typed runtime state from the backend,
+keyed by grid ID.
 
-- Model configuration parameters
-- Initial and final states
-- Simulation metadata (SUEWS version, timestamps, etc.)
+The checkpoint is intentionally only the typed runtime state. To continue a run,
+load the same YAML configuration, attach the next forcing period, and run from
+``SUEWSSimulation.from_checkpoint(...)``.
 
-This file preserves model state for analysis and restart purposes.
+Legacy ``df_state_SSss.csv`` and state parquet files remain documented for
+backwards compatibility and developer inspection, but they are not the preferred
+restart artefact for new object-oriented workflows.
 
 
 Temporal Information

@@ -11,6 +11,8 @@ import warnings
 from collections.abc import Mapping
 from typing import Any, Dict
 
+from .physics_families import coerce_nested_to_flat
+
 
 # -- ModelPhysics (model.py) -------------------------------------------------
 #
@@ -137,46 +139,568 @@ DECTRPROPERTIES_RENAMES: Dict[str, str] = {
 
 # -- ArchetypeProperties (site.py) -------------------------------------------
 #
-# STEBBS keeps PascalCase (to match the Fortran-side STEBBS interface), but
-# the exemplar in `.claude/rules/00-project-essentials.md` spells "External"
-# out in full (`RoofExternalEmissivity`). These pairs bring the fused
-# `ext` cluster into line with that exemplar (gh#1327).
+# gh#1334 retires the STEBBS PascalCase exception: the full ArchetypeProperties
+# surface converts to snake_case. Keys in this dict are the legacy spellings
+# users encounter in older YAMLs; values are the gh#1334 final snake_case
+# names. Two legacy families are collapsed into a one-to-one map here:
+#
+#   * The fused `Wallext` / `Roofext` cluster from pre-gh#1327 (2025.10/11/12,
+#     2026.1, 2026.4 releases). These skip the gh#1327 intermediate and go
+#     straight to snake_case.
+#   * The PascalCase names shipped through Schema 2026.5.dev2 (the form every
+#     user has today). For fields that never had a fused predecessor the
+#     PascalCase IS the sole legacy spelling.
+#
+# Users on the Cat 5 (#1329) intermediate PascalCase (`WallExternalThickness`,
+# etc.) are caught by ARCHETYPEPROPERTIES_PASCAL_RENAMES below — those cannot
+# live in this dict without breaking the one-to-one invariant the Rust bridge
+# depends on (every final name must have exactly one reverse-lookup key).
 
 ARCHETYPEPROPERTIES_RENAMES: Dict[str, str] = {
-    "WallextThickness": "WallExternalThickness",
-    "WallextEffectiveConductivity": "WallExternalEffectiveConductivity",
-    "WallextDensity": "WallExternalDensity",
-    "WallextCp": "WallExternalCp",
-    "RoofextThickness": "RoofExternalThickness",
-    "RoofextEffectiveConductivity": "RoofExternalEffectiveConductivity",
-    "RoofextDensity": "RoofExternalDensity",
-    "RoofextCp": "RoofExternalCp",
+    # Pre-gh#1327 fused -> gh#1334 snake_case (skipping the gh#1329 intermediate)
+    "WallextThickness": "wall_external_thickness",
+    "WallextEffectiveConductivity": "wall_external_effective_conductivity",
+    "WallextDensity": "wall_external_density",
+    "WallextCp": "wall_external_specific_heat_capacity",
+    "RoofextThickness": "roof_external_thickness",
+    "RoofextEffectiveConductivity": "roof_external_effective_conductivity",
+    "RoofextDensity": "roof_external_density",
+    "RoofextCp": "roof_external_specific_heat_capacity",
+    # Building metadata / geometry
+    "BuildingType": "building_type",
+    "BuildingName": "building_name",
+    "BuildingCount": "building_count",
+    "Occupants": "occupants",
+    "stebbs_Height": "building_height",
+    "FootprintArea": "footprint_area",
+    "WallExternalArea": "wall_external_area",
+    "RatioInternalVolume": "internal_volume_ratio",
+    "InternalMassArea": "internal_mass_area",
+    "WWR": "window_to_wall_ratio",
+    # Wall (non-ext)
+    "WallThickness": "wall_thickness",
+    "WallEffectiveConductivity": "wall_effective_conductivity",
+    "WallDensity": "wall_density",
+    "WallCp": "wall_specific_heat_capacity",
+    "WallOuterCapFrac": "wall_outer_heat_capacity_fraction",
+    "WallExternalEmissivity": "wall_external_emissivity",
+    "WallInternalEmissivity": "wall_internal_emissivity",
+    "WallTransmissivity": "wall_transmissivity",
+    "WallAbsorbtivity": "wall_absorptivity",  # spelling fix
+    "WallReflectivity": "wall_reflectivity",
+    # Roof (non-ext)
+    "RoofThickness": "roof_thickness",
+    "RoofEffectiveConductivity": "roof_effective_conductivity",
+    "RoofDensity": "roof_density",
+    "RoofCp": "roof_specific_heat_capacity",
+    "RoofOuterCapFrac": "roof_outer_heat_capacity_fraction",
+    "RoofExternalEmissivity": "roof_external_emissivity",
+    "RoofInternalEmissivity": "roof_internal_emissivity",
+    "RoofTransmissivity": "roof_transmissivity",
+    "RoofAbsorbtivity": "roof_absorptivity",  # spelling fix
+    "RoofReflectivity": "roof_reflectivity",
+    # Ground floor (align FloorThickness with GroundFloor* siblings)
+    "FloorThickness": "ground_floor_thickness",
+    "GroundFloorEffectiveConductivity": "ground_floor_effective_conductivity",
+    "GroundFloorDensity": "ground_floor_density",
+    "GroundFloorCp": "ground_floor_specific_heat_capacity",
+    # Window
+    "WindowThickness": "window_thickness",
+    "WindowEffectiveConductivity": "window_effective_conductivity",
+    "WindowDensity": "window_density",
+    "WindowCp": "window_specific_heat_capacity",
+    "WindowExternalEmissivity": "window_external_emissivity",
+    "WindowInternalEmissivity": "window_internal_emissivity",
+    "WindowTransmissivity": "window_transmissivity",
+    "WindowAbsorbtivity": "window_absorptivity",  # spelling fix
+    "WindowReflectivity": "window_reflectivity",
+    # Internal mass
+    "InternalMassDensity": "internal_mass_density",
+    "InternalMassCp": "internal_mass_specific_heat_capacity",
+    "InternalMassEmissivity": "internal_mass_emissivity",
+    # HVAC / hot water. `water_tank_water_volume` unified into
+    # `hot_water_tank_volume` — same fluid, tank is just the storage
+    # component of the hot-water subsystem (see StebbsProperties below).
+    "MaxHeatingPower": "max_heating_power",
+    "WaterTankWaterVolume": "hot_water_tank_volume",
+    "MaximumHotWaterHeatingPower": "maximum_hot_water_heating_power",
+    "HeatingSetpointTemperature": "heating_setpoint_temperature",
+    "CoolingSetpointTemperature": "cooling_setpoint_temperature",
+    "HeatingSetpointTemperatureProfile": "heating_setpoint_temperature_profile",
+    "CoolingSetpointTemperatureProfile": "cooling_setpoint_temperature_profile",
+    "MetabolismProfile": "metabolism_profile",
+}
+
+# gh#1329 intermediate PascalCase (`WallExternalThickness`, etc.) -> gh#1334
+# final snake_case. NOT spread into ALL_FIELD_RENAMES (keeping the one-to-one
+# invariant); the Pydantic shim on ArchetypeProperties runs this after the
+# main dict so YAMLs authored at the Schema 2026.5.dev1 / dev2 shape still
+# load with a DeprecationWarning.
+
+ARCHETYPEPROPERTIES_PASCAL_RENAMES: Dict[str, str] = {
+    "WallExternalThickness": "wall_external_thickness",
+    "WallExternalEffectiveConductivity": "wall_external_effective_conductivity",
+    "WallExternalDensity": "wall_external_density",
+    "WallExternalCp": "wall_external_specific_heat_capacity",
+    "RoofExternalThickness": "roof_external_thickness",
+    "RoofExternalEffectiveConductivity": "roof_external_effective_conductivity",
+    "RoofExternalDensity": "roof_external_density",
+    "RoofExternalCp": "roof_external_specific_heat_capacity",
+}
+
+# Schema 2026.5.dev3 `water_tank_water_volume` -> unified `hot_water_tank_volume`
+# (drop the double-`water` redundancy and fold under the `hot_water_tank_*`
+# component prefix). NOT spread into ALL_FIELD_RENAMES — keeping the
+# one-to-one invariant; the ArchetypeProperties Pydantic shim runs this
+# after the main dict so dev3 YAMLs still load with a DeprecationWarning.
+
+ARCHETYPEPROPERTIES_DEV3_RENAMES: Dict[str, str] = {
+    "water_tank_water_volume": "hot_water_tank_volume",
+}
+
+# -- StebbsProperties (site.py) ----------------------------------------------
+#
+# gh#1334: PascalCase -> snake_case for the full StebbsProperties surface.
+# No fused predecessor — every field's PascalCase is the sole legacy form,
+# so each entry maps directly into ALL_FIELD_RENAMES without an intermediate
+# dict (contrast with ArchetypeProperties).
+
+STEBBSPROPERTIES_RENAMES: Dict[str, str] = {
+    # Convection coefficients
+    "WallInternalConvectionCoefficient": "wall_internal_convection_coefficient",
+    "RoofInternalConvectionCoefficient": "roof_internal_convection_coefficient",
+    "InternalMassConvectionCoefficient": "internal_mass_convection_coefficient",
+    "FloorInternalConvectionCoefficient": "floor_internal_convection_coefficient",
+    "WindowInternalConvectionCoefficient": "window_internal_convection_coefficient",
+    "WallExternalConvectionCoefficient": "wall_external_convection_coefficient",
+    "RoofExternalConvectionCoefficient": "roof_external_convection_coefficient",
+    "WindowExternalConvectionCoefficient": "window_external_convection_coefficient",
+    # Ground & environment. `diffmax` stays as a compound token (cross-layer
+    # naming parity with the Rust bridge — expanding it further would cross
+    # into Tier B, #1324); the `month` -> `monthly` expansion is kept.
+    "GroundDepth": "ground_depth",
+    "ExternalGroundConductivity": "external_ground_conductivity",
+    "MonthMeanAirTemperature_diffmax": "month_mean_air_temperature_diffmax",
+    "AnnualMeanAirTemperature": "annual_mean_air_temperature",
+    # Behaviour & controls. `cop` kept as a lowercase acronym (matches the
+    # Rust bridge struct `cooling_system_cop`; an expansion to
+    # `coefficient_of_performance` would require a Rust-side rename in
+    # Tier B, out of scope for gh#1334).
+    "MetabolismThreshold": "metabolism_threshold",
+    "LatentSensibleRatio": "latent_sensible_ratio",
+    "DaylightControl": "daylight_control",
+    "LightingIlluminanceThreshold": "lighting_illuminance_threshold",
+    "HeatingSystemEfficiency": "heating_system_efficiency",
+    "MaxCoolingPower": "max_cooling_power",
+    "CoolingSystemCOP": "cooling_system_cop",
+    # Ventilation & initial state
+    "VentilationRate": "ventilation_rate",
+    "InitialOutdoorTemperature": "initial_outdoor_temperature",
+    "InitialIndoorTemperature": "initial_indoor_temperature",
+    # Hot-water system. All `DHW*` and `WaterTank*` legacy fields
+    # unify under `hot_water_*`: the tank (storage) keeps its
+    # `hot_water_tank_*` component prefix, the point-of-use vessel gets
+    # `hot_water_vessel_*`, and the bulk fluid properties (density, Cp,
+    # volume in use, surface area in use) drop the vessel/tank qualifier
+    # since the water is the same fluid in both places. DHW is just an
+    # opaque acronym for "domestic hot water" which this prefix already
+    # conveys without the abbreviation.
+    "WaterTankWallThickness": "hot_water_tank_wall_thickness",
+    "MainsWaterTemperature": "mains_water_temperature",
+    "WaterTankSurfaceArea": "hot_water_tank_surface_area",
+    "HotWaterHeatingSetpointTemperature": "hot_water_heating_setpoint_temperature",
+    "HotWaterTankWallEmissivity": "hot_water_tank_wall_emissivity",
+    "DHWVesselWallThickness": "hot_water_vessel_wall_thickness",
+    "DHWWaterVolume": "hot_water_volume",
+    "DHWSurfaceArea": "hot_water_surface_area",
+    "HotWaterFlowRate": "hot_water_flow_rate",
+    "HotWaterFlowProfile": "hot_water_flow_profile",
+    "DHWSpecificHeatCapacity": "hot_water_specific_heat_capacity",
+    "HotWaterTankSpecificHeatCapacity": "hot_water_tank_specific_heat_capacity",
+    "DHWVesselSpecificHeatCapacity": "hot_water_vessel_specific_heat_capacity",
+    "DHWDensity": "hot_water_density",
+    "HotWaterTankWallDensity": "hot_water_tank_wall_density",
+    "DHWVesselDensity": "hot_water_vessel_density",
+    "HotWaterTankBuildingWallViewFactor": "hot_water_tank_building_wall_view_factor",
+    "HotWaterTankInternalMassViewFactor": "hot_water_tank_internal_mass_view_factor",
+    "HotWaterTankWallConductivity": "hot_water_tank_wall_conductivity",
+    "HotWaterTankInternalWallConvectionCoefficient": "hot_water_tank_internal_wall_convection_coefficient",
+    "HotWaterTankExternalWallConvectionCoefficient": "hot_water_tank_external_wall_convection_coefficient",
+    "DHWVesselWallConductivity": "hot_water_vessel_wall_conductivity",
+    "DHWVesselInternalWallConvectionCoefficient": "hot_water_vessel_internal_wall_convection_coefficient",
+    "DHWVesselExternalWallConvectionCoefficient": "hot_water_vessel_external_wall_convection_coefficient",
+    "DHWVesselWallEmissivity": "hot_water_vessel_wall_emissivity",
+    "HotWaterHeatingEfficiency": "hot_water_heating_efficiency",
+    # Profiles
+    "ApplianceProfile": "appliance_profile",
+    "LightingPowerDensity": "lighting_power_density",
 }
 
 # -- SnowParams (site.py) ----------------------------------------------------
+#
+# gh#1334 updates:
+#   * Six existing entries (preciplimit/preciplimitalb/snowlim*/tempmeltfact/
+#     radmeltfact) retarget to the new snake_case names. `preciplimit` becomes
+#     `temperature_rain_snow_threshold` (semantic fix — the value is a
+#     temperature, unit degC, despite the name).
+#   * Five new entries for fields that had no fused predecessor
+#     (tau_a/f/r, snowprof_24hr, narp_emis_snow). Their "legacy" key is the
+#     Schema 2026.5.dev2 snake_case name, which also happens to be the
+#     Fortran-bridge column name so the reverse-lookup into the DataFrame
+#     layer still resolves.
 
 SNOWPARAMS_RENAMES: Dict[str, str] = {
     "crwmax": "water_holding_capacity_max",
     "crwmin": "water_holding_capacity_min",
-    "preciplimit": "precip_limit",
-    "preciplimitalb": "precip_limit_albedo",
+    "preciplimit": "temperature_rain_snow_threshold",
+    "preciplimitalb": "precipitation_threshold_albedo_reset",
     "snowalbmax": "snow_albedo_max",
     "snowalbmin": "snow_albedo_min",
     "snowdensmin": "snow_density_min",
     "snowdensmax": "snow_density_max",
-    "snowlimbldg": "snow_limit_building",
-    "snowlimpaved": "snow_limit_paved",
-    "tempmeltfact": "temp_melt_factor",
-    "radmeltfact": "rad_melt_factor",
+    "snowlimbldg": "snow_depth_limit_building",
+    "snowlimpaved": "snow_depth_limit_paved",
+    "tempmeltfact": "temperature_melt_factor",
+    "radmeltfact": "radiation_melt_factor",
+    # New #1334 renames for fields without a fused predecessor.
+    "tau_a": "tau_cold_snow",
+    "tau_f": "tau_melting_snow",
+    "tau_r": "tau_refreezing_snow",
+    "snowprof_24hr": "snow_profile_24hr",
+    "narp_emis_snow": "narp_emissivity_snow",
+}
+
+# Schema 2026.5.dev2 snake_case intermediate -> gh#1334 final snake_case.
+# Users who hand-wrote YAMLs against the intermediate shape (the six fields
+# that already had a fused predecessor in SNOWPARAMS_RENAMES) need this
+# additional alias. NOT spread into ALL_FIELD_RENAMES for the same
+# one-to-one reason as ARCHETYPEPROPERTIES_PASCAL_RENAMES.
+
+SNOWPARAMS_INTERMEDIATE_RENAMES: Dict[str, str] = {
+    "precip_limit": "temperature_rain_snow_threshold",
+    "precip_limit_albedo": "precipitation_threshold_albedo_reset",
+    "snow_limit_building": "snow_depth_limit_building",
+    "snow_limit_paved": "snow_depth_limit_paved",
+    "temp_melt_factor": "temperature_melt_factor",
+    "rad_melt_factor": "radiation_melt_factor",
+}
+
+# Schema 2026.5.dev3 `dhw_*` / `water_tank_*` intermediate -> unified
+# `hot_water_*`. Drops the opaque `dhw` acronym (= domestic hot water,
+# which the `hot_water_` prefix already conveys) and aligns the tank
+# storage component with the `hot_water_tank_*` sibling fields that
+# were already canonical at dev3. NOT spread into ALL_FIELD_RENAMES —
+# the StebbsProperties Pydantic shim runs this after the main dict so
+# dev3 YAMLs still load with a DeprecationWarning.
+
+STEBBSPROPERTIES_DEV3_RENAMES: Dict[str, str] = {
+    "water_tank_wall_thickness": "hot_water_tank_wall_thickness",
+    "water_tank_surface_area": "hot_water_tank_surface_area",
+    "dhw_vessel_wall_thickness": "hot_water_vessel_wall_thickness",
+    "dhw_water_volume": "hot_water_volume",
+    "dhw_surface_area": "hot_water_surface_area",
+    "dhw_specific_heat_capacity": "hot_water_specific_heat_capacity",
+    "dhw_vessel_specific_heat_capacity": "hot_water_vessel_specific_heat_capacity",
+    "dhw_density": "hot_water_density",
+    "dhw_vessel_density": "hot_water_vessel_density",
+    "dhw_vessel_wall_conductivity": "hot_water_vessel_wall_conductivity",
+    "dhw_vessel_internal_wall_convection_coefficient": "hot_water_vessel_internal_wall_convection_coefficient",
+    "dhw_vessel_external_wall_convection_coefficient": "hot_water_vessel_external_wall_convection_coefficient",
+    "dhw_vessel_wall_emissivity": "hot_water_vessel_wall_emissivity",
+}
+
+# -- EHC (suews_type_ehc.f95) -------------------------------------------------
+#
+# Fortran-only internal-state members added to the registry for gh#1326
+# (Tier D). These are roof/wall-qualified variants of SURFACEPROPERTIES's
+# ``soilstorecap`` and keep the same ``soil_store_capacity`` naming.
+
+EHC_RENAMES: Dict[str, str] = {
+    "soil_storecap_roof": "soil_store_capacity_roof",
+    "soil_storecap_wall": "soil_store_capacity_wall",
+}
+
+# -- SNOW_STATE (suews_type_snow.f95) -----------------------------------------
+#
+# Fortran-only internal-state members of SNOW_STATE. Added for gh#1326
+# (Tier D). Distinct from ``SNOWPARAMS_RENAMES`` which covers SNOW_PRM
+# (the user-facing YAML side).
+
+# -- IRRIGATION_PRM (suews_type_waterdist.f95) --------------------------------
+
+WATERDIST_RENAMES: Dict[str, str] = {
+    "faut": "f_aut",
+}
+
+# -- anthroHEAT_PRM + anthroEMIS_PRM (suews_type_anthro.f95) ------------------
+
+ANTHRO_RENAMES: Dict[str, str] = {
+    # anthroHEAT_PRM
+    "popdensnighttime": "pop_density_nighttime",
+    "popdensdaytime_working": "pop_density_daytime_working",
+    "popdensdaytime_holiday": "pop_density_daytime_holiday",
+    # anthroEMIS_PRM
+    "startdls": "start_dls",
+    "enddls": "end_dls",
+    "anthroheat": "anthro_heat",
+    "EF_umolCO2perJ": "ef_umol_co2_per_j",
+    "EnEF_v_Jkm": "en_ef_v_jkm",
+    "FrFossilFuel_Heat": "fr_fossil_fuel_heat",
+    "FrFossilFuel_NonHeat": "fr_fossil_fuel_non_heat",
+    "FcEF_v_kgkm": "fc_ef_v_kgkm",
+    "HumActivity_24hr_working": "hum_activity_24hr_working",
+    "HumActivity_24hr_holiday": "hum_activity_24hr_holiday",
+    "MaxFCMetab": "max_fc_metab",
+    "MaxQFMetab": "max_qf_metab",
+    "MinFCMetab": "min_fc_metab",
+    "MinQFMetab": "min_qf_metab",
+    "TrafficRate_working": "traffic_rate_working",
+    "TrafficRate_holiday": "traffic_rate_holiday",
+    "TrafficUnits": "traffic_units",
+    "TraffProf_24hr_working": "traff_prof_24hr_working",
+    "TraffProf_24hr_holiday": "traff_prof_24hr_holiday",
+}
+
+# -- PHENOLOGY_STATE (suews_type_vegetation.f95) ------------------------------
+#
+# Fortran-only internal-state members. LAI_PRM members live under
+# ``LAIPARAMS_RENAMES`` already; ``StoreDrainPrm`` reuses the
+# ``storage_drain_params`` target from ``SURFACEPROPERTIES_RENAMES`` so no
+# registry entry is added here (adding one would break the one-to-one
+# fused->final invariant the Rust bridge reverse lookup depends on).
+
+# -- STEBBS state (suews_type_stebbs.f95) -------------------------------------
+#
+# STEBBS_PRM + BUILDING_ARCHETYPE_PRM user-facing fields are covered by
+# STEBBSPROPERTIES_RENAMES and ARCHETYPEPROPERTIES_RENAMES (gh#1334).
+# This dict holds the Fortran-only internal-state members under
+# STEBBS_STATE / NHOOD_STATE that the Tier D sweep also renames.
+
+STEBBSSTATE_RENAMES: Dict[str, str] = {
+    "IndoorAirDensity": "indoor_air_density",
+    "IndoorAirCp": "indoor_air_cp",
+    "Afootprint": "a_footprint",
+    "wallExternalArea": "wall_external_area_state",
+    "ratioInternalVolume": "ratio_internal_volume_state",
+    "windowTransmissivity": "window_transmissivity_state",
+    "windowAbsorbtivity": "window_absorbtivity_state",
+    "windowReflectivity": "window_reflectivity_state",
+    "wallTransmisivity": "wall_transmissivity_state",
+    "wallAbsorbtivity": "wall_absorbtivity_state",
+    "wallReflectivity": "wall_reflectivity_state",
+    "roofTransmisivity": "roof_transmissivity_state",
+    "roofAbsorbtivity": "roof_absorbtivity_state",
+    "roofReflectivity": "roof_reflectivity_state",
+    "occupants": "occupants_state",
+    "Awall": "a_wall",
+    "Aroof": "a_roof",
+    "Vwall": "v_wall",
+    "Vroof": "v_roof",
+    "Vgroundfloor": "v_ground_floor",
+    "Awindow": "a_window",
+    "Vwindow": "v_window",
+    "Vindoormass": "v_indoor_mass",
+    "Aindoormass": "a_indoor_mass",
+    "Tindoormass": "t_indoor_mass",
+    "Tintwall": "t_int_wall",
+    "Tintroof": "t_int_roof",
+    "Textwall": "t_ext_wall",
+    "Textroof": "t_ext_roof",
+    "Tintwindow": "t_int_window",
+    "Textwindow": "t_ext_window",
+    "Tintgroundfloor": "t_int_ground_floor",
+    "Textgroundfloor": "t_ext_ground_floor",
+    "Ts": "ts",
+    "Cp": "cp",
+    "wiTAR": "witar",
+    "HTsAverage": "h_ts_average",
+    "HWPowerAverage": "hw_power_average",
+    "EnergyExchanges": "energy_exchanges",
+    "Kdown2d": "kdown_2d",
+    "Kup2d": "kup_2d",
+    "Kwest": "k_west",
+    "Ksouth": "k_south",
+    "Knorth": "k_north",
+    "Keast": "k_east",
+    "Ldown2d": "ldown_2d",
+    "Lup2d": "lup_2d",
+    "Lwest": "l_west",
+    "Lsouth": "l_south",
+    "Lnorth": "l_north",
+    "Least": "l_east",
+    "zarray": "z_array",
+    "dataoutLineURSL": "dataout_line_u_rsl",
+    "dataoutLineTRSL": "dataout_line_t_rsl",
+    "dataoutLineqRSL": "dataout_line_q_rsl",
+    "DeepSoilTemperature": "deep_soil_temperature",
+    "OutdoorAirStartTemperature": "outdoor_air_start_temperature",
+    "IndoorAirStartTemperature": "indoor_air_start_temperature",
+    "IndoorMassStartTemperature": "indoor_mass_start_temperature",
+    "WallIndoorSurfaceTemperature": "wall_indoor_surface_temperature",
+    "WallOutdoorSurfaceTemperature": "wall_outdoor_surface_temperature",
+    "RoofIndoorSurfaceTemperature": "roof_indoor_surface_temperature",
+    "RoofOutdoorSurfaceTemperature": "roof_outdoor_surface_temperature",
+    "WindowIndoorSurfaceTemperature": "window_indoor_surface_temperature",
+    "WindowOutdoorSurfaceTemperature": "window_outdoor_surface_temperature",
+    "GroundFloorIndoorSurfaceTemperature": "ground_floor_indoor_surface_temperature",
+    "GroundFloorOutdoorSurfaceTemperature": "ground_floor_outdoor_surface_temperature",
+    "WaterTankTemperature": "water_tank_temperature_state",
+    "InternalWallWaterTankTemperature": "internal_wall_water_tank_temperature",
+    "ExternalWallWaterTankTemperature": "external_wall_water_tank_temperature",
+    "DomesticHotWaterTemperatureInUseInBuilding": "domestic_hot_water_temperature_in_use_in_building",
+    "InternalWallDHWVesselTemperature": "internal_wall_dhw_vessel_temperature",
+    "ExternalWallDHWVesselTemperature": "external_wall_dhw_vessel_temperature",
+    "fnmlLBM": "fnml_lbm",
+    "idLBM": "id_lbm",
+    "CASE": "case_id",
+}
+
+# -- Landcover types (suews_type_landcover.f95) -------------------------------
+#
+# ``statelimit``, ``wetthresh``, ``maxconductance``, ``capmax_dec``,
+# ``capmin_dec``, ``pormin_dec``, ``pormax_dec``, ``faidectree``,
+# ``dectreeh``, ``faievetree``, ``evetreeh`` are already handled by
+# existing registry entries (SURFACEPROPERTIES_RENAMES,
+# VEGETATEDSURFACEPROPERTIES_RENAMES, DECTRPROPERTIES_RENAMES, ...).
+# Only the gaps are registered here.
+
+LANDCOVER_RENAMES: Dict[str, str] = {
+    "irrfracpaved": "irrigation_fraction_paved",
+    "irrfracbldgs": "irrigation_fraction_bldgs",
+    "irrfracdectr": "irrigation_fraction_dectr",
+    "irrfracevetr": "irrigation_fraction_evetr",
+    "irrfracgrass": "irrigation_fraction_grass",
+    "irrfracbsoil": "irrigation_fraction_bsoil",
+    "irrfracwater": "irrigation_fraction_water",
+    "faibldg": "fai_building",
+    "bldgh": "height_building",
+    "flowchange": "flow_change",
+}
+
+# -- HEAT_STATE (suews_type_heat.f95) -----------------------------------------
+
+HEATSTATE_RENAMES: Dict[str, str] = {
+    "kclear": "k_clear",
+    "kup": "k_up",
+    "ldown": "l_down",
+    "lup": "l_up",
+}
+
+# -- HYDRO_STATE (suews_type_hydro.f95) ---------------------------------------
+
+HYDROSTATE_RENAMES: Dict[str, str] = {
+    "soilstore_surf": "soil_store_surf",
+    "soilstore_roof": "soil_store_roof",
+    "soilstore_wall": "soil_store_wall",
+    "runoffSoil": "runoff_soil",
+    "runoffAGveg": "runoff_ag_veg",
+    "runoffAGimpervious": "runoff_ag_impervious",
+    "runoffPipes": "runoff_pipes",
+    "runoffwaterbody": "runoff_waterbody",
+    "runoffSoil_per_tstep": "runoff_soil_per_tstep",
+    "SoilState": "soil_state",
+    "SoilMoistCap": "soil_moist_cap",
+    "AdditionalWater": "additional_water",
+    "addImpervious": "add_impervious",
+    "addPipes": "add_pipes",
+    "addVeg": "add_veg",
+    "addWaterBody": "add_water_body",
+    "AddWater": "add_water",
+    "NWstate_per_tstep": "nw_state_per_tstep",
+}
+
+# -- surface types (suews_type_surface.f95) -----------------------------------
+#
+# ``gsmodel`` is NOT added here: MODELPHYSICS_RENAMES already owns
+# ``gsmodel -> surface_conductance`` for the Python YAML side. The
+# Fortran CONDUCTANCE_PRM.gsmodel member has different semantics
+# (holds the model choice integer) and is renamed to ``gs_model``
+# only in Fortran source — registering a second entry with the same
+# key would break the one-to-one invariant.
+
+SURFACE_RENAMES: Dict[str, str] = {
+    # LUMPS_PRM
+    "raincover": "rain_cover",
+    "rainmaxres": "rain_max_res",
+    "drainrt": "drain_rate",
+    # OHM_PRM
+    "chanohm": "ch_anohm",
+    "cpanohm": "cp_anohm",
+    "kkanohm": "kk_anohm",
+    # CONDUCTANCE_PRM
+    "kmax": "k_max",
+    # ROUGHNESS_STATE
+    "FAIBldg_use": "fai_bldg_use",
+    "FAIEveTree_use": "fai_evetree_use",
+    "FAIDecTree_use": "fai_dectree_use",
+}
+
+# -- atm_state + solar_State (suews_type_atmosphere.f95) ----------------------
+
+ATMOSPHERE_RENAMES: Dict[str, str] = {
+    "fcld": "f_cloud",
+    "avcp": "av_cp",
+    "avdens": "av_density",
+    "zL": "z_l",
+    "UStar": "u_star",
+    "TStar": "t_star",
+    "ZENITH_deg": "zenith_deg",
+    "psycIce_hPa": "psyc_ice_h_pa",
+    "sIce_hpa": "s_ice_hpa",
+    "lvS_J_kg": "lv_s_j_kg",
+}
+
+PHENOLOGYSTATE_RENAMES: Dict[str, str] = {
+    "VegPhenLumps": "veg_phen_lumps",
+    "TempVeg": "temp_veg",
+    "gfunc": "g_func",
+}
+
+SNOWSTATE_RENAMES: Dict[str, str] = {
+    "snowfallCum": "snowfall_cum",
+    "snowalb": "snow_albedo",
+    "mwstore": "melt_water_store",
+    "QmFreez": "qm_freeze",
+    "QmRain": "qm_rain",
+    "z0vSnow": "z0v_snow",
+    "RAsnow": "ra_snow",
+    "SnowRemoval": "snow_removal",
+    "icefrac": "ice_frac",
+    "snowdens": "snow_density",
+    "snowfrac": "snow_fraction",
+    "snowpack": "snow_pack",
+    "snowwater": "snow_water",
+    "deltaQi": "delta_qi",
 }
 
 # -- Combined -----------------------------------------------------------------
 #
 # ``ALL_FIELD_RENAMES`` is a one-to-one map from every legacy fused key to
-# its current final name. ``MODELPHYSICS_SUFFIX_RENAMES`` is deliberately
-# NOT spread here — it carries Cat 1 intermediate aliases that would
-# introduce a second alias per final name, which the Rust bridge's
-# reverse lookup (``ALL_FIELD_RENAMES`` inverted) cannot represent.
+# its current final name on the user-facing YAML / Pydantic surface. It
+# flows into ``RAW_YAML_FIELD_RENAMES`` (Phase A preflight) and into the
+# Rust preprocessor via ``src/suews_bridge/src/field_renames.rs`` (parity
+# enforced by ``scripts/lint/check_rust_yaml_aliases.py``), so every entry
+# has to be a real YAML key a user might write.
+#
+# ``MODELPHYSICS_SUFFIX_RENAMES``, ``ARCHETYPEPROPERTIES_PASCAL_RENAMES``,
+# and ``SNOWPARAMS_INTERMEDIATE_RENAMES`` are deliberately NOT spread here
+# — they carry schema-intermediate aliases that would introduce a second
+# alias per final name, which the Rust bridge's reverse lookup
+# (``ALL_FIELD_RENAMES`` inverted) cannot represent. The Pydantic shim on
+# each affected class runs both the main dict and its intermediate dict
+# in sequence so users on any prior dev-cycle shape still load with a
+# DeprecationWarning.
+#
+# The gh#1326 Tier D sub-dicts (``EHC_RENAMES`` … ``STEBBSSTATE_RENAMES``)
+# are deliberately NOT spread here either — they describe Fortran TYPE
+# members that the Rust↔Fortran bridge reaches via positional (indexed)
+# access, not by name. Adding them to ``ALL_FIELD_RENAMES`` would
+# (a) pollute the raw-YAML preflight with identifiers the YAML surface
+# never carried, and (b) introduce genuine collisions with user-facing
+# final names already reachable from a different sub-dict (e.g.
+# ``STEBBSSTATE_RENAMES["occupants"]`` vs.
+# ``ARCHETYPEPROPERTIES_RENAMES["Occupants"] -> "occupants"``). They live
+# under ``FORTRAN_INTERNAL_RENAMES`` below for registry completeness.
 
 ALL_FIELD_RENAMES: Dict[str, str] = {
     **MODELPHYSICS_RENAMES,
@@ -186,17 +710,46 @@ ALL_FIELD_RENAMES: Dict[str, str] = {
     **EVETRPROPERTIES_RENAMES,
     **DECTRPROPERTIES_RENAMES,
     **ARCHETYPEPROPERTIES_RENAMES,
+    **STEBBSPROPERTIES_RENAMES,
     **SNOWPARAMS_RENAMES,
+}
+
+# -- Fortran-internal rename registry (gh#1326 Tier D) ------------------------
+#
+# Sibling registry to ``ALL_FIELD_RENAMES`` covering Fortran TYPE-member
+# renames that do NOT surface on the user-facing YAML / Pydantic boundary.
+# Kept here so the rename history for every cross-layer identifier is
+# discoverable from a single source of truth, without leaking
+# Fortran-internal identifiers into the YAML preflight or Rust
+# preprocessor. Per gh#1326 the Fortran bridge uses positional access
+# only — these sub-dicts are documentation, not an input-shape contract.
+FORTRAN_INTERNAL_RENAMES: Dict[str, str] = {
+    **EHC_RENAMES,
+    **SNOWSTATE_RENAMES,
+    **WATERDIST_RENAMES,
+    **PHENOLOGYSTATE_RENAMES,
+    **ANTHRO_RENAMES,
+    **ATMOSPHERE_RENAMES,
+    **SURFACE_RENAMES,
+    **HEATSTATE_RENAMES,
+    **HYDROSTATE_RENAMES,
+    **LANDCOVER_RENAMES,
+    **STEBBSSTATE_RENAMES,
 }
 
 # Raw-YAML structural checks (Phase A / precheck) need a wider view than the
 # one-to-one public registry above: they must accept both the final public
-# names and the short-lived Schema 2026.5 intermediate ModelPhysics aliases.
+# names and the short-lived Schema 2026.5 intermediate ModelPhysics aliases
+# plus the gh#1334 Archetype/Snow intermediate aliases.
 # Keeping this separate preserves the bridge-safe one-to-one contract of
 # ``ALL_FIELD_RENAMES`` while letting raw-dict callers normalise older YAMLs
 # before they compare against the current sample schema.
 RAW_YAML_FIELD_RENAMES: Dict[str, str] = {
     **MODELPHYSICS_SUFFIX_RENAMES,
+    **ARCHETYPEPROPERTIES_PASCAL_RENAMES,
+    **ARCHETYPEPROPERTIES_DEV3_RENAMES,
+    **SNOWPARAMS_INTERMEDIATE_RENAMES,
+    **STEBBSPROPERTIES_DEV3_RENAMES,
     **ALL_FIELD_RENAMES,
 }
 
@@ -279,8 +832,9 @@ def read_physics_key(physics: dict, new_name: str, default: Any = None):
     accepts both spellings, so these gates must as well, or users on either
     spelling can silently bypass them.
 
-    Unwraps RefValue-style ``{"value": X}`` wrappers. Returns ``default``
-    when neither spelling is present.
+    Unwraps both flat RefValue-style ``{"value": X}`` wrappers and the
+    family-tagged nested physics form introduced in gh#972. Returns
+    ``default`` when neither spelling is present.
     """
     entry = read_renamed_key(
         physics,
@@ -289,6 +843,7 @@ def read_physics_key(physics: dict, new_name: str, default: Any = None):
         reverse_renames=_REVERSE_MODELPHYSICS_RENAMES,
         default=default,
     )
+    entry = coerce_nested_to_flat(new_name, entry)
     if isinstance(entry, dict) and "value" in entry:
         return entry["value"]
     return entry

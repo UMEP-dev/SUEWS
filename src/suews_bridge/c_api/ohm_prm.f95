@@ -26,9 +26,9 @@ MODULE module_c_api_ohm_prm
    END TYPE ohm_coef_lc_shadow
 
    TYPE :: ohm_prm_shadow
-      REAL(c_double) :: chanohm = 0.0_c_double
-      REAL(c_double) :: cpanohm = 0.0_c_double
-      REAL(c_double) :: kkanohm = 0.0_c_double
+      REAL(c_double) :: ch_anohm = 0.0_c_double
+      REAL(c_double) :: cp_anohm = 0.0_c_double
+      REAL(c_double) :: kk_anohm = 0.0_c_double
       REAL(c_double) :: ohm_threshsw = 0.0_c_double
       REAL(c_double) :: ohm_threshwd = 0.0_c_double
       TYPE(ohm_coef_lc_shadow), DIMENSION(3) :: ohm_coef_lc
@@ -92,9 +92,9 @@ CONTAINS
          RETURN
       END IF
 
-      flat(1) = state%chanohm
-      flat(2) = state%cpanohm
-      flat(3) = state%kkanohm
+      flat(1) = state%ch_anohm
+      flat(2) = state%cp_anohm
+      flat(3) = state%kk_anohm
       flat(4) = state%ohm_threshsw
       flat(5) = state%ohm_threshwd
       flat(6) = state%ohm_coef_lc(1)%summer_dry

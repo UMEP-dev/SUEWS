@@ -138,8 +138,8 @@ def validate_model_option_dependencies(yaml_data: dict) -> List[ValidationResult
 
 Validates the `setpointmethod` parameter and related setpoint temperature options:
 
-- **For `setpointmethod` 0 or 1**: Requires `HeatingSetpointTemperature` and `CoolingSetpointTemperature` to be set in `building_archetype` for each site.
-- **For `setpointmethod` 2**: Requires all entries in `HeatingSetpointTemperatureProfile` and `CoolingSetpointTemperatureProfile` (for both `working_day` and `holiday`) to be set (not null); heating values must be less than 30.0 °C, cooling values must be greater than 15.0 °C.
+- **For `setpointmethod` 0 or 1**: Requires `heating_setpoint_temperature` and `cooling_setpoint_temperature` to be set in `building_archetype` for each site.
+- **For `setpointmethod` 2**: Requires all entries in `heating_setpoint_temperature_profile` and `cooling_setpoint_temperature_profile` (for both `working_day` and `holiday`) to be set (not null); heating values must be less than 30.0 °C, cooling values must be greater than 15.0 °C.
 - **Error Handling**: Missing or out-of-range values generate ERROR status in the validation report, specifying the site, parameter, and suggested correction.
 
 ### RCMethod Validation
@@ -153,9 +153,9 @@ Validates the `rcmethod` parameter and related roof/wall options:
 
 Validates the `stebbsmethod` parameter and related STEBBS and building archetype options:
 
-- **HotWaterFlowProfile Validation**: If `stebbsmethod == 1`, checks that all hourly values in `HotWaterFlowProfile` for each site and day type (`working_day`, `holiday`) are either 0 or 1 (integer or float). Any invalid value generates an ERROR in the validation report, specifying the site, hour, and suggested correction.
+- **hot_water_flow_profile Validation**: If `stebbsmethod == 1`, checks that all hourly values in `hot_water_flow_profile` for each site and day type (`working_day`, `holiday`) are either 0 or 1 (integer or float). Any invalid value generates an ERROR in the validation report, specifying the site, hour, and suggested correction.
 
-- **Occupants and MetabolismProfile Validation**: If `Occupants` is set to `0.0` for a site, all values in the corresponding `MetabolismProfile` (for both `working_day` and `holiday`) must be `0`, `0.0`, or `None`. If any nonzero value is found, an ERROR is generated, listing the problematic entries and suggesting that all values be set to 0.
+- **occupants and metabolism_profile Validation**: If `occupants` is set to `0.0` for a site, all values in the corresponding `metabolism_profile` (for both `working_day` and `holiday`) must be `0`, `0.0`, or `None`. If any nonzero value is found, an ERROR is generated, listing the problematic entries and suggesting that all values be set to 0.
 
 - **Error Handling**: All validation errors specify the site, parameter, and suggested correction in the validation report.
 
@@ -167,7 +167,7 @@ Validates that the forcing height `z` is physically consistent with the mean bui
     - **ERROR** if `z` is less than 2 × mean building height (`land_cover.bldgs.bldgh`).
     - **WARNING** if `z` is less than 2 × the maximum configured building height, where the maximum is the largest of:
         - `land_cover.bldgs.bldgh`
-        - `building_archetype.stebbs_Height` (if `stebbsmethod == 1`)
+        - `building_archetype.building_height` (if `stebbsmethod == 1`)
         - The last non-zero entry in `vertical_layers.height` (SPARTACUS top height, if enabled).
     - This check ensures the forcing height is physically appropriate relative to the urban morphology.
 - **Error Handling**: If `z` is not above the mean building height, an ERROR is reported; if not above the max building height, a WARNING is reported. Both include site, parameter, and suggested correction.
@@ -347,8 +347,8 @@ Phase B makes scientific adjustments that improve model realism without changing
 ### Setpoint Method Integration
 
 - **Conditional Logic**: Applies automatic cleanup of setpoint temperature parameters in `building_archetype` based on `setpointmethod`:
-    - If `setpointmethod == 0` or `1`: All entries in `HeatingSetpointTemperatureProfile` and `CoolingSetpointTemperatureProfile` (for both `working_day` and `holiday`) are set to `null` for all sites.
-    - If `setpointmethod == 2`: The scalar `HeatingSetpointTemperature` and `CoolingSetpointTemperature` parameters are set to `null` for all sites.
+    - If `setpointmethod == 0` or `1`: All entries in `heating_setpoint_temperature_profile` and `cooling_setpoint_temperature_profile` (for both `working_day` and `holiday`) are set to `null` for all sites.
+    - If `setpointmethod == 2`: The scalar `heating_setpoint_temperature` and `cooling_setpoint_temperature` parameters are set to `null` for all sites.
 
 ### RC Method Integration
 

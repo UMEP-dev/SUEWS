@@ -19,9 +19,9 @@ MODULE module_c_api_soil
    INTEGER(c_int), PARAMETER, PUBLIC :: SUEWS_CAPI_SOIL_PRM_SCHEMA_VERSION = 1_c_int
 
    TYPE :: soil_prm_shadow
-      REAL(c_double) :: soildepth = 0.0_c_double
-      REAL(c_double) :: soilstorecap = 0.0_c_double
-      REAL(c_double) :: sathydraulicconduct = 0.0_c_double
+      REAL(c_double) :: soil_depth = 0.0_c_double
+      REAL(c_double) :: soil_store_capacity = 0.0_c_double
+      REAL(c_double) :: saturated_hydraulic_conductivity = 0.0_c_double
    END TYPE soil_prm_shadow
 
    PUBLIC :: suews_soil_prm_len
@@ -82,9 +82,9 @@ CONTAINS
          RETURN
       END IF
 
-      flat(1) = state%soildepth
-      flat(2) = state%soilstorecap
-      flat(3) = state%sathydraulicconduct
+      flat(1) = state%soil_depth
+      flat(2) = state%soil_store_capacity
+      flat(3) = state%saturated_hydraulic_conductivity
 
       err = SUEWS_CAPI_OK
 

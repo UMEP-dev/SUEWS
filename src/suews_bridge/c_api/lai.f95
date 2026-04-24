@@ -19,14 +19,14 @@ MODULE module_c_api_lai
    INTEGER(c_int), PARAMETER, PUBLIC :: SUEWS_CAPI_LAI_PRM_SCHEMA_VERSION = 1_c_int
 
    TYPE :: lai_prm_shadow
-      REAL(c_double) :: baset = 0.0_c_double
-      REAL(c_double) :: gddfull = 0.0_c_double
-      REAL(c_double) :: basete = 0.0_c_double
-      REAL(c_double) :: sddfull = 0.0_c_double
-      REAL(c_double) :: laimin = 0.0_c_double
-      REAL(c_double) :: laimax = 0.0_c_double
-      REAL(c_double), DIMENSION(4) :: laipower = 0.0_c_double
-      INTEGER(c_int) :: laitype = 0_c_int
+      REAL(c_double) :: base_temperature = 0.0_c_double
+      REAL(c_double) :: gdd_full = 0.0_c_double
+      REAL(c_double) :: base_temperature_senescence = 0.0_c_double
+      REAL(c_double) :: sdd_full = 0.0_c_double
+      REAL(c_double) :: lai_min = 0.0_c_double
+      REAL(c_double) :: lai_max = 0.0_c_double
+      REAL(c_double), DIMENSION(4) :: lai_power = 0.0_c_double
+      INTEGER(c_int) :: lai_type = 0_c_int
    END TYPE lai_prm_shadow
 
    PUBLIC :: suews_lai_prm_len
@@ -87,17 +87,17 @@ CONTAINS
          RETURN
       END IF
 
-      flat(1) = state%baset
-      flat(2) = state%gddfull
-      flat(3) = state%basete
-      flat(4) = state%sddfull
-      flat(5) = state%laimin
-      flat(6) = state%laimax
-      flat(7) = state%laipower(1)
-      flat(8) = state%laipower(2)
-      flat(9) = state%laipower(3)
-      flat(10) = state%laipower(4)
-      flat(11) = REAL(state%laitype, c_double)
+      flat(1) = state%base_temperature
+      flat(2) = state%gdd_full
+      flat(3) = state%base_temperature_senescence
+      flat(4) = state%sdd_full
+      flat(5) = state%lai_min
+      flat(6) = state%lai_max
+      flat(7) = state%lai_power(1)
+      flat(8) = state%lai_power(2)
+      flat(9) = state%lai_power(3)
+      flat(10) = state%lai_power(4)
+      flat(11) = REAL(state%lai_type, c_double)
 
       err = SUEWS_CAPI_OK
 

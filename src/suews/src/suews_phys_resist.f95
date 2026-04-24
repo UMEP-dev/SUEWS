@@ -565,30 +565,30 @@ CONTAINS
             z0m => roughnessState%z0m, &
             zdm => roughnessState%zdm, &
             ZZD => roughnessState%ZZD, &
-            FAIBldg_use => roughnessState%FAIBldg_use, &
-            FAIEveTree_use => roughnessState%FAIEveTree_use, &
-            FAIDecTree_use => roughnessState%FAIDecTree_use, &
+            FAIBldg_use => roughnessState%fai_bldg_use, &
+            FAIEveTree_use => roughnessState%fai_evetree_use, &
+            FAIDecTree_use => roughnessState%fai_dectree_use, &
             RoughLenMomMethod => config%RoughLenMomMethod, &
             FAImethod => config%FAImethod, &
             sfr_surf => [pavedPrm%sfr, bldgPrm%sfr, evetrPrm%sfr, dectrPrm%sfr, grassPrm%sfr, bsoilPrm%sfr, waterPrm%sfr], &
-            bldgH => bldgPrm%bldgH, &
-            EveTreeH => evetrPrm%EveTreeH, &
-            DecTreeH => dectrPrm%DecTreeH, &
-            FAIBldg => bldgPrm%FAIBldg, &
-            FAIEveTree => evetrPrm%FAIEveTree, &
-            FAIDecTree => dectrPrm%FAIDecTree &
+            bldgH => bldgPrm%height_building, &
+            EveTreeH => evetrPrm%height_evergreen_tree, &
+            DecTreeH => dectrPrm%height_deciduous_tree, &
+            FAIBldg => bldgPrm%fai_building, &
+            FAIEveTree => evetrPrm%fai_evergreen_tree, &
+            FAIDecTree => dectrPrm%fai_deciduous_tree &
             )
 
             ! RoughLenMomMethod = methodPrm%RoughLenMomMethod
             ! FAImethod = methodPrm%FAImethod
 
             ! sfr_surf = [pavedPrm%sfr, bldgPrm%sfr, evetrPrm%sfr, dectrPrm%sfr, grassPrm%sfr, bsoilPrm%sfr, waterPrm%sfr]
-            ! bldgH = bldgPrm%bldgH
-            ! EveTreeH = evetrPrm%EveTreeH
-            ! DecTreeH = dectrPrm%DecTreeH
-            ! FAIBldg = bldgPrm%FAIBldg
-            ! FAIEveTree = evetrPrm%FAIEveTree
-            ! FAIDecTree = dectrPrm%FAIDecTree
+            ! bldgH = bldgPrm%height_building
+            ! EveTreeH = evetrPrm%height_evergreen_tree
+            ! DecTreeH = dectrPrm%height_deciduous_tree
+            ! FAIBldg = bldgPrm%fai_building
+            ! FAIEveTree = evetrPrm%fai_evergreen_tree
+            ! FAIDecTree = dectrPrm%fai_deciduous_tree
 
             ! surfacearea = siteInfo%surfacearea ! surface area of whole grid cell
             ! z0m_in = siteInfo%z0m_in

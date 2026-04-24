@@ -12,6 +12,7 @@ from .field_renames import (
     MODELPHYSICS_SUFFIX_RENAMES,
     apply_field_renames,
 )
+from .physics_families import PHYSICS_FAMILIES, coerce_nested_to_flat
 
 
 def _enum_description(enum_class: type[Enum]) -> str:
@@ -498,10 +499,10 @@ class StebbsMethod(Enum):
 
 class RCMethod(Enum):
     """
-    Method to determine the two weighting factors (WallOuterCapFrac and RoofOuterCapFrac) splitting heat capacity of building envelope into two nodes in STEBBS.
+    Method to determine the two weighting factors (wall_outer_heat_capacity_fraction and roof_outer_heat_capacity_fraction) splitting heat capacity of building envelope into two nodes in STEBBS.
 
     0: DEFAULT - Default value of 0.5 is used
-    1: PROVIDED - Use user defined value (WallOuterCapFrac and RoofOuterCapFrac) between 0 and 1
+    1: PROVIDED - Use user defined value (wall_outer_heat_capacity_fraction and roof_outer_heat_capacity_fraction) between 0 and 1
     2: PARAMETERISE - Use building material thermal property to parameterise the weighting factor
     """
 
@@ -519,9 +520,9 @@ class SetpointMethod(Enum):
     """
     Method to determine the approach of space heating/cooling setpoints in STEBBS.
 
-    0: Constant - Use the user-provided HeatingSetpointTemperature and CoolingSetpointTemperature throughout the day.
+    0: Constant - Use the user-provided heating_setpoint_temperature and cooling_setpoint_temperature throughout the day.
     1: Dependent - Use the user-provided setpoints; but it depends on occupants activity status and use unrealistic switch-off setpoints when occupant is inactive.
-    2: Scheduled - Use the user-provided HeatingSetpointTemperatureProfile and CoolingSetpointTemperatureProfile.
+    2: Scheduled - Use the user-provided heating_setpoint_temperature_profile and cooling_setpoint_temperature_profile.
     """
 
     CONSTANT = 0
@@ -684,6 +685,14 @@ class ModelPhysics(BaseModel):
             values = apply_field_renames(values, MODELPHYSICS_RENAMES, cls.__name__)
             values = apply_field_renames(values, MODELPHYSICS_SUFFIX_RENAMES, cls.__name__)
         return values
+
+    @field_validator(*PHYSICS_FAMILIES.keys(), mode="before")
+    @classmethod
+    def _coerce_nested_physics(cls, value, info):
+        # Widens accepted input: `{family: {value: N}}` collapses to the
+        # flat `{value: N}` shape before the FlexibleRefValue union resolves.
+        # Family tag is a validation gate — see physics_families.py (gh#972).
+        return coerce_nested_to_flat(info.field_name, value)
 
     net_radiation: FlexibleRefValue(NetRadiationMethod) = Field(
         default=NetRadiationMethod.LDOWN_AIR,

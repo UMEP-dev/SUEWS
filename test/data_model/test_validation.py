@@ -549,7 +549,7 @@ def test_validate_same_albedo_wall_requires_identical_wall_albedos():
         SimpleNamespace(alb=SimpleNamespace(value=0.6)),  # mismatch
     ]
     vl = SimpleNamespace(walls=walls)
-    ba = SimpleNamespace(WallReflectivity=SimpleNamespace(value=0.5))
+    ba = SimpleNamespace(wall_reflectivity=SimpleNamespace(value=0.5))
     props = SimpleNamespace(vertical_layers=vl, building_archetype=ba)
     site = DummySite(properties=props, name="SiteWallMismatch")
 
@@ -571,14 +571,14 @@ def test_validate_same_albedo_wall_requires_match_with_wallreflectivity():
         SimpleNamespace(alb=SimpleNamespace(value=0.5)),
     ]
     vl = SimpleNamespace(walls=walls)
-    ba = SimpleNamespace(WallReflectivity=SimpleNamespace(value=0.345))
+    ba = SimpleNamespace(wall_reflectivity=SimpleNamespace(value=0.345))
     props = SimpleNamespace(vertical_layers=vl, building_archetype=ba)
     site = DummySite(properties=props, name="SiteRefMismatch")
 
     msgs = SUEWSConfig._validate_same_albedo_wall(cfg, site, 0)
     assert len(msgs) == 1
     msg = msgs[0]
-    assert "must equal properties.building_archetype.WallReflectivity (0.345)" in msg
+    assert "must equal properties.building_archetype.wall_reflectivity (0.345)" in msg
     assert "walls[0]=0.5" in msg
 
 def test_validate_same_albedo_roof_requires_match_with_roofreflectivity():
@@ -593,14 +593,14 @@ def test_validate_same_albedo_roof_requires_match_with_roofreflectivity():
         SimpleNamespace(alb=SimpleNamespace(value=0.5)),
     ]
     vl = SimpleNamespace(roofs=roofs)
-    ba = SimpleNamespace(RoofReflectivity=SimpleNamespace(value=0.345))
+    ba = SimpleNamespace(roof_reflectivity=SimpleNamespace(value=0.345))
     props = SimpleNamespace(vertical_layers=vl, building_archetype=ba)
     site = DummySite(properties=props, name="SiteRefMismatch")
 
     msgs = SUEWSConfig._validate_same_albedo_roof(cfg, site, 0)
     assert len(msgs) == 1
     msg = msgs[0]
-    assert "must equal properties.building_archetype.RoofReflectivity (0.345)" in msg
+    assert "must equal properties.building_archetype.roof_reflectivity (0.345)" in msg
     assert "roofs[0]=0.5" in msg
 
 def test_validate_same_albedo_roof_requires_identical_roof_albedos():
@@ -615,7 +615,7 @@ def test_validate_same_albedo_roof_requires_identical_roof_albedos():
         SimpleNamespace(alb=SimpleNamespace(value=0.6)),  # mismatch
     ]
     vl = SimpleNamespace(roofs=roofs)
-    ba = SimpleNamespace(RoofReflectivity=SimpleNamespace(value=0.5))
+    ba = SimpleNamespace(roof_reflectivity=SimpleNamespace(value=0.5))
     props = SimpleNamespace(vertical_layers=vl, building_archetype=ba)
     site = DummySite(properties=props, name="SiteRoofMismatch")
 
@@ -648,7 +648,7 @@ def test_validate_same_emissivity_wall_requires_identical_wall_emissivities():
         SimpleNamespace(emis=SimpleNamespace(value=0.6)),  # mismatch
     ]
     vl = SimpleNamespace(walls=walls)
-    ba = SimpleNamespace(WallExternalEmissivity=SimpleNamespace(value=0.5))
+    ba = SimpleNamespace(wall_external_emissivity=SimpleNamespace(value=0.5))
     props = SimpleNamespace(vertical_layers=vl, building_archetype=ba)
     site = DummySite(properties=props, name="SiteWallMismatch")
 
@@ -669,7 +669,7 @@ def test_validate_same_emissivity_wall_requires_match_with_wallexternalemissivit
         SimpleNamespace(emis=SimpleNamespace(value=0.9)),
     ]
     vl = SimpleNamespace(walls=walls)
-    ba = SimpleNamespace(WallExternalEmissivity=SimpleNamespace(value=0.8))
+    ba = SimpleNamespace(wall_external_emissivity=SimpleNamespace(value=0.8))
     props = SimpleNamespace(vertical_layers=vl, building_archetype=ba)
     site = DummySite(properties=props, name="SiteEmisRefMismatch")
 
@@ -677,7 +677,7 @@ def test_validate_same_emissivity_wall_requires_match_with_wallexternalemissivit
     assert len(msgs) == 1
     msg = msgs[0]
     assert (
-        "must equal properties.building_archetype.WallExternalEmissivity (0.8)" in msg
+        "must equal properties.building_archetype.wall_external_emissivity (0.8)" in msg
     )
     assert "walls[0]=0.9" in msg
     assert "SiteEmisRefMismatch" in msg
@@ -694,7 +694,7 @@ def test_validate_same_emissivity_roof_requires_match_with_roofexternalemissivit
         SimpleNamespace(emis=SimpleNamespace(value=0.7)),
     ]
     vl = SimpleNamespace(roofs=roofs)
-    ba = SimpleNamespace(RoofExternalEmissivity=SimpleNamespace(value=0.5))
+    ba = SimpleNamespace(roof_external_emissivity=SimpleNamespace(value=0.5))
     props = SimpleNamespace(vertical_layers=vl, building_archetype=ba)
     site = DummySite(properties=props, name="SiteRoofEmisRefMismatch")
 
@@ -702,7 +702,7 @@ def test_validate_same_emissivity_roof_requires_match_with_roofexternalemissivit
     assert len(msgs) == 1
     msg = msgs[0]
     assert (
-        "must equal properties.building_archetype.RoofExternalEmissivity (0.5)" in msg
+        "must equal properties.building_archetype.roof_external_emissivity (0.5)" in msg
     )
     assert "roofs[0]=0.7" in msg
     assert "SiteRoofEmisRefMismatch" in msg
@@ -719,7 +719,7 @@ def test_validate_same_emissivity_roof_requires_identical_roof_emissivities():
         SimpleNamespace(emis=SimpleNamespace(value=0.9)),  # mismatch
     ]
     vl = SimpleNamespace(roofs=roofs)
-    ba = SimpleNamespace(RoofExternalEmissivity=SimpleNamespace(value=0.8))
+    ba = SimpleNamespace(roof_external_emissivity=SimpleNamespace(value=0.8))
     props = SimpleNamespace(vertical_layers=vl, building_archetype=ba)
     site = DummySite(properties=props, name="SiteRoofEmisMismatch")
 
@@ -827,7 +827,7 @@ def test_phase_b_forcing_height_error_and_warning(registry):
                     "land_cover": {
                         "bldgs": {"bldgh": {"value": 6.0}, "sfr": {"value": 0.4}},
                     },
-                    "building_archetype": {"stebbs_Height": {"value": 8.0}},
+                    "building_archetype": {"building_height": {"value": 8.0}},
                     "vertical_layers": {"height": {"value": [0, 5, 12, 0]}},
                 },
             }
@@ -867,7 +867,7 @@ def test_phase_b_forcing_height_valid(registry):
                     "land_cover": {
                         "bldgs": {"bldgh": {"value": 10.0}, "sfr": {"value": 0.3}},
                     },
-                    "building_archetype": {"stebbs_Height": {"value": 12.0}},
+                    "building_archetype": {"building_height": {"value": 12.0}},
                     "vertical_layers": {"height": {"value": [0, 5, 12, 15]}},
                 },
             }
@@ -878,7 +878,7 @@ def test_phase_b_forcing_height_valid(registry):
     assert not results
 
 def test_phase_b_forcing_height_only_stebbs_height(registry):
-    """Test validate_forcing_height_vs_buildings uses stebbs_Height if present."""
+    """Test validate_forcing_height_vs_buildings uses building_height if present."""
     yaml_data = {
         "model": {
             "physics": {
@@ -894,7 +894,7 @@ def test_phase_b_forcing_height_only_stebbs_height(registry):
                     "land_cover": {
                         "bldgs": {"bldgh": {"value": 7.0}, "sfr": {"value": 0.4}},
                     },
-                    "building_archetype": {"stebbs_Height": {"value": 7.0}},
+                    "building_archetype": {"building_height": {"value": 7.0}},
                 },
             }
         ],
@@ -981,7 +981,7 @@ def test_phase_b_forcing_height_above_max(registry):
                 "properties": {
                     "z": {"value": 100.0},  # way above
                     "land_cover": {"bldgs": {"bldgh": {"value": 10.0}, "sfr": {"value": 0.4}}},
-                    "building_archetype": {"stebbs_Height": {"value": 15.0}},
+                    "building_archetype": {"building_height": {"value": 15.0}},
                 },
             }
         ],
@@ -1025,8 +1025,8 @@ def test_validate_model_option_rcmethod_missing_params(registry):
     }
     results = registry["rcmethod"](ValidationContext(yaml_data=yaml_data))
     params = [r.parameter for r in results]
-    assert any("RoofOuterCapFrac" in p for p in params)
-    assert any("WallOuterCapFrac" in p for p in params)
+    assert any("roof_outer_heat_capacity_fraction" in p for p in params)
+    assert any("wall_outer_heat_capacity_fraction" in p for p in params)
     assert all(r.status == "ERROR" for r in results)
 
 def test_validate_model_option_rcmethod_enabled_invalid_values(registry):
@@ -1036,8 +1036,8 @@ def test_validate_model_option_rcmethod_enabled_invalid_values(registry):
             "name": "site1",
             "properties": {
                 "building_archetype": {
-                    "RoofOuterCapFrac": {"value": 1.5},
-                    "WallOuterCapFrac": {"value": -0.2},
+                    "roof_outer_heat_capacity_fraction": {"value": 1.5},
+                    "wall_outer_heat_capacity_fraction": {"value": -0.2},
                 },
             }
         }],
@@ -1053,8 +1053,8 @@ def test_validate_model_option_rcmethod_enabled_valid_values(registry):
             "name": "site1",
             "properties": {
                 "building_archetype": {
-                    "RoofOuterCapFrac": {"value": 0.5},
-                    "WallOuterCapFrac": {"value": 0.5},
+                    "roof_outer_heat_capacity_fraction": {"value": 0.5},
+                    "wall_outer_heat_capacity_fraction": {"value": 0.5},
                 },
             }
         }],
@@ -1074,10 +1074,10 @@ def test_adjust_model_option_rcmethod_sets_defaults():
     }
     updated_data, adjustments = adjust_model_option_rcmethod(yaml_data)
     ba = updated_data["sites"][0]["properties"]["building_archetype"]
-    assert ba["RoofOuterCapFrac"]["value"] == 0.5
-    assert ba["WallOuterCapFrac"]["value"] == 0.5
-    assert any(adj.parameter == "building_archetype.RoofOuterCapFrac" for adj in adjustments)
-    assert any(adj.parameter == "building_archetype.WallOuterCapFrac" for adj in adjustments)
+    assert ba["roof_outer_heat_capacity_fraction"]["value"] == 0.5
+    assert ba["wall_outer_heat_capacity_fraction"]["value"] == 0.5
+    assert any(adj.parameter == "building_archetype.roof_outer_heat_capacity_fraction" for adj in adjustments)
+    assert any(adj.parameter == "building_archetype.wall_outer_heat_capacity_fraction" for adj in adjustments)
 
 def test_adjust_model_option_rcmethod_no_action_when_already_set():
     yaml_data = {
@@ -1086,8 +1086,8 @@ def test_adjust_model_option_rcmethod_no_action_when_already_set():
             "name": "site1",
             "properties": {
                 "building_archetype": {
-                    "RoofOuterCapFrac": {"value": 0.5},
-                    "WallOuterCapFrac": {"value": 0.5},
+                    "roof_outer_heat_capacity_fraction": {"value": 0.5},
+                    "wall_outer_heat_capacity_fraction": {"value": 0.5},
                 },
             }
         }],
@@ -1103,11 +1103,11 @@ def test_adjust_model_option_setpointmethod_sets_profiles_to_null_when_0_or_1():
             "name": "site1",
             "properties": {
                 "building_archetype": {
-                    "HeatingSetpointTemperatureProfile": {
+                    "heating_setpoint_temperature_profile": {
                         "working_day": {"0": 21.0, "1": 22.0},
                         "holiday": {"0": 20.0, "1": 21.0},
                     },
-                    "CoolingSetpointTemperatureProfile": {
+                    "cooling_setpoint_temperature_profile": {
                         "working_day": {"0": 25.0, "1": 26.0},
                         "holiday": {"0": 24.0, "1": 25.0},
                     },
@@ -1117,12 +1117,12 @@ def test_adjust_model_option_setpointmethod_sets_profiles_to_null_when_0_or_1():
     }
     updated, adjustments = adjust_model_option_setpointmethod(yaml_data)
     ba = updated["sites"][0]["properties"]["building_archetype"]
-    for prof in ["HeatingSetpointTemperatureProfile", "CoolingSetpointTemperatureProfile"]:
+    for prof in ["heating_setpoint_temperature_profile", "cooling_setpoint_temperature_profile"]:
         for daytype in ["working_day", "holiday"]:
             for hour in ba[prof][daytype]:
                 assert ba[prof][daytype][hour] is None
-    assert any(a.parameter == "building_archetype.HeatingSetpointTemperatureProfile.working_day" for a in adjustments)
-    assert any(a.parameter == "building_archetype.CoolingSetpointTemperatureProfile.holiday" for a in adjustments)
+    assert any(a.parameter == "building_archetype.heating_setpoint_temperature_profile.working_day" for a in adjustments)
+    assert any(a.parameter == "building_archetype.cooling_setpoint_temperature_profile.holiday" for a in adjustments)
 
 def test_adjust_model_option_setpointmethod_sets_profiles_to_null_when_1():
     # setpoint == 1: should nullify all profile entries
@@ -1132,11 +1132,11 @@ def test_adjust_model_option_setpointmethod_sets_profiles_to_null_when_1():
             "name": "site1",
             "properties": {
                 "building_archetype": {
-                    "HeatingSetpointTemperatureProfile": {
+                    "heating_setpoint_temperature_profile": {
                         "working_day": {"0": 21.0},
                         "holiday": {"0": 20.0},
                     },
-                    "CoolingSetpointTemperatureProfile": {
+                    "cooling_setpoint_temperature_profile": {
                         "working_day": {"0": 25.0},
                         "holiday": {"0": 24.0},
                     },
@@ -1146,32 +1146,32 @@ def test_adjust_model_option_setpointmethod_sets_profiles_to_null_when_1():
     }
     updated, adjustments = adjust_model_option_setpointmethod(yaml_data)
     ba = updated["sites"][0]["properties"]["building_archetype"]
-    for prof in ["HeatingSetpointTemperatureProfile", "CoolingSetpointTemperatureProfile"]:
+    for prof in ["heating_setpoint_temperature_profile", "cooling_setpoint_temperature_profile"]:
         for daytype in ["working_day", "holiday"]:
             for hour in ba[prof][daytype]:
                 assert ba[prof][daytype][hour] is None
-    assert any(a.parameter == "building_archetype.HeatingSetpointTemperatureProfile.working_day" for a in adjustments)
+    assert any(a.parameter == "building_archetype.heating_setpoint_temperature_profile.working_day" for a in adjustments)
 
 def test_adjust_model_option_setpointmethod_sets_temps_to_null_when_2():
-    # setpoint == 2: should nullify HeatingSetpointTemperature and CoolingSetpointTemperature
+    # setpoint == 2: should nullify heating_setpoint_temperature and cooling_setpoint_temperature
     yaml_data = {
         "model": {"physics": {"setpoint": {"value": 2}}},
         "sites": [{
             "name": "site1",
             "properties": {
                 "building_archetype": {
-                    "HeatingSetpointTemperature": {"value": 21.0},
-                    "CoolingSetpointTemperature": {"value": 25.0},
+                    "heating_setpoint_temperature": {"value": 21.0},
+                    "cooling_setpoint_temperature": {"value": 25.0},
                 }
             }
         }],
     }
     updated, adjustments = adjust_model_option_setpointmethod(yaml_data)
     ba = updated["sites"][0]["properties"]["building_archetype"]
-    assert ba["HeatingSetpointTemperature"]["value"] is None
-    assert ba["CoolingSetpointTemperature"]["value"] is None
-    assert any(a.parameter == "building_archetype.HeatingSetpointTemperature" for a in adjustments)
-    assert any(a.parameter == "building_archetype.CoolingSetpointTemperature" for a in adjustments)
+    assert ba["heating_setpoint_temperature"]["value"] is None
+    assert ba["cooling_setpoint_temperature"]["value"] is None
+    assert any(a.parameter == "building_archetype.heating_setpoint_temperature" for a in adjustments)
+    assert any(a.parameter == "building_archetype.cooling_setpoint_temperature" for a in adjustments)
 
 def test_adjust_model_option_setpointmethod_no_action_when_already_null():
     # Should not add adjustments if already null
@@ -1181,16 +1181,16 @@ def test_adjust_model_option_setpointmethod_no_action_when_already_null():
             "name": "site1",
             "properties": {
                 "building_archetype": {
-                    "HeatingSetpointTemperature": {"value": None},
-                    "CoolingSetpointTemperature": {"value": None},
+                    "heating_setpoint_temperature": {"value": None},
+                    "cooling_setpoint_temperature": {"value": None},
                 }
             }
         }],
     }
     updated, adjustments = adjust_model_option_setpointmethod(yaml_data)
     ba = updated["sites"][0]["properties"]["building_archetype"]
-    assert ba["HeatingSetpointTemperature"]["value"] is None
-    assert ba["CoolingSetpointTemperature"]["value"] is None
+    assert ba["heating_setpoint_temperature"]["value"] is None
+    assert ba["cooling_setpoint_temperature"]["value"] is None
     assert len(adjustments) == 0
 
 def test_validate_model_option_rcmethod2_missing_params(registry):
@@ -1203,8 +1203,8 @@ def test_validate_model_option_rcmethod2_missing_params(registry):
     }
     results = registry["rcmethod"](ValidationContext(yaml_data=yaml_data))
     required = [
-        "WallExternalThickness", "WallExternalEffectiveConductivity", "WallExternalDensity", "WallExternalCp",
-        "RoofExternalThickness", "RoofExternalEffectiveConductivity", "RoofExternalDensity", "RoofExternalCp"
+        "wall_external_thickness", "wall_external_effective_conductivity", "wall_external_density", "wall_external_specific_heat_capacity",
+        "roof_external_thickness", "roof_external_effective_conductivity", "roof_external_density", "roof_external_specific_heat_capacity"
     ]
     expected = [f"building_archetype.{p}" for p in required]
     error_params = [r.parameter for r in results if r.status == "ERROR"]
@@ -1219,14 +1219,14 @@ def test_validate_model_option_rcmethod2_all_params_provided(registry):
             "name": "site1",
             "properties": {
                 "building_archetype": {
-                    "WallExternalThickness": {"value": 0.2},
-                    "WallExternalEffectiveConductivity": {"value": 1.0},
-                    "WallExternalDensity": {"value": 2200},
-                    "WallExternalCp": {"value": 900},
-                    "RoofExternalThickness": {"value": 0.18},
-                    "RoofExternalEffectiveConductivity": {"value": 1.2},
-                    "RoofExternalDensity": {"value": 2300},
-                    "RoofExternalCp": {"value": 1000},
+                    "wall_external_thickness": {"value": 0.2},
+                    "wall_external_effective_conductivity": {"value": 1.0},
+                    "wall_external_density": {"value": 2200},
+                    "wall_external_specific_heat_capacity": {"value": 900},
+                    "roof_external_thickness": {"value": 0.18},
+                    "roof_external_effective_conductivity": {"value": 1.2},
+                    "roof_external_density": {"value": 2300},
+                    "roof_external_specific_heat_capacity": {"value": 1000},
                 }
             }
         }],
@@ -1269,23 +1269,23 @@ def test_validate_model_option_rcmethod2_some_params_missing(registry):
             "name": "site1",
             "properties": {
                 "building_archetype": {
-                    "WallExternalThickness": {"value": 0.2},
-                    "WallExternalEffectiveConductivity": {},
-                    "WallExternalDensity": {"value": 2200},
-                    # WallExternalCp missing
-                    "RoofExternalThickness": {"value": 0.18},
-                    # RoofExternalEffectiveConductivity missing
-                    "RoofExternalDensity": {"value": 2300},
-                    "RoofExternalCp": {"value": 1000},
+                    "wall_external_thickness": {"value": 0.2},
+                    "wall_external_effective_conductivity": {},
+                    "wall_external_density": {"value": 2200},
+                    # wall_external_specific_heat_capacity missing
+                    "roof_external_thickness": {"value": 0.18},
+                    # roof_external_effective_conductivity missing
+                    "roof_external_density": {"value": 2300},
+                    "roof_external_specific_heat_capacity": {"value": 1000},
                 }
             }
         }],
     }
     results = registry["rcmethod"](ValidationContext(yaml_data=yaml_data))
     error_params = [r.parameter for r in results if r.status == "ERROR"]
-    assert "building_archetype.WallExternalEffectiveConductivity" in error_params
-    assert "building_archetype.WallExternalCp" in error_params
-    assert "building_archetype.RoofExternalEffectiveConductivity" in error_params
+    assert "building_archetype.wall_external_effective_conductivity" in error_params
+    assert "building_archetype.wall_external_specific_heat_capacity" in error_params
+    assert "building_archetype.roof_external_effective_conductivity" in error_params
     assert any(r.status == "WARNING" for r in results)
     assert all("must be provided" in r.message for r in results if r.status == "ERROR")
 
@@ -1296,8 +1296,8 @@ def test_validate_model_option_setpointmethod_0_or_1_all_params(registry):
             "name": "site1",
             "properties": {
                 "building_archetype": {
-                    "HeatingSetpointTemperature": {"value": 21.0},
-                    "CoolingSetpointTemperature": {"value": 25.0},
+                    "heating_setpoint_temperature": {"value": 21.0},
+                    "cooling_setpoint_temperature": {"value": 25.0},
                 }
             }
         }],
@@ -1312,15 +1312,15 @@ def test_validate_model_option_setpointmethod_0_or_1_missing_params(registry):
             "name": "site1",
             "properties": {
                 "building_archetype": {
-                    # "HeatingSetpointTemperature" missing
-                    "CoolingSetpointTemperature": {"value": 25.0},
+                    # "heating_setpoint_temperature" missing
+                    "cooling_setpoint_temperature": {"value": 25.0},
                 }
             }
         }],
     }
     results = registry["setpoint"](ValidationContext(yaml_data=yaml_data))
     error_params = [r.parameter for r in results if r.status == "ERROR"]
-    assert "HeatingSetpointTemperature" in error_params
+    assert "heating_setpoint_temperature" in error_params
     assert all("must be set" in r.message for r in results if r.status == "ERROR")
 
 def test_validate_model_option_setpointmethod_2_all_profiles_valid(registry):
@@ -1334,11 +1334,11 @@ def test_validate_model_option_setpointmethod_2_all_profiles_valid(registry):
             "name": "site1",
             "properties": {
                 "building_archetype": {
-                    "HeatingSetpointTemperatureProfile": {
+                    "heating_setpoint_temperature_profile": {
                         "working_day": heating_working,
                         "holiday": heating_holiday,
                     },
-                    "CoolingSetpointTemperatureProfile": {
+                    "cooling_setpoint_temperature_profile": {
                         "working_day": cooling_working,
                         "holiday": cooling_holiday,
                     },
@@ -1356,11 +1356,11 @@ def test_validate_model_option_setpointmethod_2_missing_profile_entries(registry
             "name": "site1",
             "properties": {
                 "building_archetype": {
-                    "HeatingSetpointTemperatureProfile": {
+                    "heating_setpoint_temperature_profile": {
                         "working_day": {"0": None, "1": 19.5},
                         "holiday": {"0": 19.0, "1": None},
                     },
-                    "CoolingSetpointTemperatureProfile": {
+                    "cooling_setpoint_temperature_profile": {
                         "working_day": {"0": 26.0, "1": None},
                         "holiday": {"0": None, "1": 26.5},
                     },
@@ -1370,8 +1370,8 @@ def test_validate_model_option_setpointmethod_2_missing_profile_entries(registry
     }
     results = registry["setpoint"](ValidationContext(yaml_data=yaml_data))
     error_params = [r.parameter for r in results if r.status == "ERROR"]
-    assert "HeatingSetpointTemperatureProfile" in error_params
-    assert "CoolingSetpointTemperatureProfile" in error_params
+    assert "heating_setpoint_temperature_profile" in error_params
+    assert "cooling_setpoint_temperature_profile" in error_params
     assert any("null entries" in r.message for r in results if r.status == "ERROR")
 
 def test_validate_model_option_setpointmethod_2_out_of_range(registry):
@@ -1381,11 +1381,11 @@ def test_validate_model_option_setpointmethod_2_out_of_range(registry):
             "name": "site1",
             "properties": {
                 "building_archetype": {
-                    "HeatingSetpointTemperatureProfile": {
+                    "heating_setpoint_temperature_profile": {
                         "working_day": {"0": 31.0, "1": 19.5},
                         "holiday": {"0": 19.0, "1": 30.0},
                     },
-                    "CoolingSetpointTemperatureProfile": {
+                    "cooling_setpoint_temperature_profile": {
                         "working_day": {"0": 14.0, "1": 27.0},
                         "holiday": {"0": 25.5, "1": 15.0},
                     },
@@ -1394,8 +1394,8 @@ def test_validate_model_option_setpointmethod_2_out_of_range(registry):
         }],
     }
     results = registry["setpoint"](ValidationContext(yaml_data=yaml_data))
-    heating_errors = [r for r in results if r.parameter == "HeatingSetpointTemperatureProfile" and r.status == "ERROR"]
-    cooling_errors = [r for r in results if r.parameter == "CoolingSetpointTemperatureProfile" and r.status == "ERROR"]
+    heating_errors = [r for r in results if r.parameter == "heating_setpoint_temperature_profile" and r.status == "ERROR"]
+    cooling_errors = [r for r in results if r.parameter == "cooling_setpoint_temperature_profile" and r.status == "ERROR"]
     assert any("values >= 30.0" in r.message for r in heating_errors)
     assert any("values <= 15.0" in r.message for r in cooling_errors)
 
@@ -1406,11 +1406,11 @@ def test_validate_model_option_setpointmethod_2_invalid_slice_keys(registry):
             "name": "site1",
             "properties": {
                 "building_archetype": {
-                    "HeatingSetpointTemperatureProfile": {
+                    "heating_setpoint_temperature_profile": {
                         "working_day": {"0": 20.0, "1": 19.5},
                         "holiday": {"1": 19.0, "2": 18.5},
                     },
-                    "CoolingSetpointTemperatureProfile": {
+                    "cooling_setpoint_temperature_profile": {
                         "working_day": {"1": 26.0, "145": 27.0},
                         "holiday": {"1": 25.5, "2": 26.5},
                     },
@@ -1420,8 +1420,8 @@ def test_validate_model_option_setpointmethod_2_invalid_slice_keys(registry):
     }
     results = registry["setpoint"](ValidationContext(yaml_data=yaml_data))
     error_params = [r.parameter for r in results if r.status == "ERROR"]
-    assert "HeatingSetpointTemperatureProfile.working_day" in error_params
-    assert "CoolingSetpointTemperatureProfile.working_day" in error_params
+    assert "heating_setpoint_temperature_profile.working_day" in error_params
+    assert "cooling_setpoint_temperature_profile.working_day" in error_params
     assert any(
         "Only entries 1-144 are valid." in r.message
         for r in results
@@ -1429,7 +1429,7 @@ def test_validate_model_option_setpointmethod_2_invalid_slice_keys(registry):
     )
     
 def test_validate_model_option_stebbsmethod_hotwaterflowprofile_valid(registry):
-    """Test HotWaterFlowProfile accepts only 0 or 1 values."""
+    """Test hot_water_flow_profile accepts only 0 or 1 values."""
 
     yaml_data = {
         "model": {"physics": {"stebbs": {"value": 1}}},
@@ -1437,7 +1437,7 @@ def test_validate_model_option_stebbsmethod_hotwaterflowprofile_valid(registry):
             "name": "site1",
             "properties": {
                 "stebbs": {
-                    "HotWaterFlowProfile": {
+                    "hot_water_flow_profile": {
                         "working_day": {"0": 0, "1": 1, "2": 0.0, "3": 1.0},
                         "holiday": {"0": 1, "1": 0, "2": 1.0, "3": 0.0},
                     }
@@ -1446,10 +1446,10 @@ def test_validate_model_option_stebbsmethod_hotwaterflowprofile_valid(registry):
         }],
     }
     results = registry["stebbs_props"](ValidationContext(yaml_data=yaml_data))
-    assert not results, "Should not return errors for valid HotWaterFlowProfile values"
+    assert not results, "Should not return errors for valid hot_water_flow_profile values"
 
 def test_validate_model_option_stebbsmethod_hotwaterflowprofile_invalid(registry):
-    """Test HotWaterFlowProfile returns ERROR for invalid values."""
+    """Test hot_water_flow_profile returns ERROR for invalid values."""
 
     yaml_data = {
         "model": {"physics": {"stebbs": {"value": 1}}},
@@ -1457,7 +1457,7 @@ def test_validate_model_option_stebbsmethod_hotwaterflowprofile_invalid(registry
             "name": "site1",
             "properties": {
                 "stebbs": {
-                    "HotWaterFlowProfile": {
+                    "hot_water_flow_profile": {
                         "working_day": {"0": 2, "1": -1, "2": 0.5},
                         "holiday": {"0": "yes", "1": None},
                     }
@@ -1467,16 +1467,16 @@ def test_validate_model_option_stebbsmethod_hotwaterflowprofile_invalid(registry
     }
     results = registry["stebbs_props"](ValidationContext(yaml_data=yaml_data))
     error_params = [r.parameter for r in results]
-    assert "stebbs.HotWaterFlowProfile.working_day.0" in error_params
-    assert "stebbs.HotWaterFlowProfile.working_day.1" in error_params
-    assert "stebbs.HotWaterFlowProfile.working_day.2" in error_params
-    assert "stebbs.HotWaterFlowProfile.holiday.0" in error_params
-    assert "stebbs.HotWaterFlowProfile.holiday.1" in error_params
+    assert "stebbs.hot_water_flow_profile.working_day.0" in error_params
+    assert "stebbs.hot_water_flow_profile.working_day.1" in error_params
+    assert "stebbs.hot_water_flow_profile.working_day.2" in error_params
+    assert "stebbs.hot_water_flow_profile.holiday.0" in error_params
+    assert "stebbs.hot_water_flow_profile.holiday.1" in error_params
     assert all(r.status == "ERROR" for r in results)
     assert all("must be 0 or 1" in r.message for r in results)
 
 def test_validate_model_option_stebbsmethod_hotwaterflowprofile_missing(registry):
-    """Test HotWaterFlowProfile missing returns no errors."""
+    """Test hot_water_flow_profile missing returns no errors."""
 
     yaml_data = {
         "model": {"physics": {"stebbs": {"value": 1}}},
@@ -1484,16 +1484,16 @@ def test_validate_model_option_stebbsmethod_hotwaterflowprofile_missing(registry
             "name": "site1",
             "properties": {
                 "stebbs": {
-                    # HotWaterFlowProfile missing
+                    # hot_water_flow_profile missing
                 }
             }
         }],
     }
     results = registry["stebbs_props"](ValidationContext(yaml_data=yaml_data))
-    assert not results, "Should not return errors if HotWaterFlowProfile is missing"
+    assert not results, "Should not return errors if hot_water_flow_profile is missing"
 
 def test_validate_model_option_stebbsmethod_hotwaterflowprofile_partial(registry):
-    """Test HotWaterFlowProfile with partial valid/invalid values."""
+    """Test hot_water_flow_profile with partial valid/invalid values."""
 
     yaml_data = {
         "model": {"physics": {"stebbs": {"value": 1}}},
@@ -1501,7 +1501,7 @@ def test_validate_model_option_stebbsmethod_hotwaterflowprofile_partial(registry
             "name": "site1",
             "properties": {
                 "stebbs": {
-                    "HotWaterFlowProfile": {
+                    "hot_water_flow_profile": {
                         "working_day": {"0": 1, "1": 0, "2": 2},
                         "holiday": {"0": 0, "1": 1, "2": -1},
                     }
@@ -1511,8 +1511,8 @@ def test_validate_model_option_stebbsmethod_hotwaterflowprofile_partial(registry
     }
     results = registry["stebbs_props"](ValidationContext(yaml_data=yaml_data))
     error_params = [r.parameter for r in results]
-    assert "stebbs.HotWaterFlowProfile.working_day.2" in error_params
-    assert "stebbs.HotWaterFlowProfile.holiday.2" in error_params
+    assert "stebbs.hot_water_flow_profile.working_day.2" in error_params
+    assert "stebbs.hot_water_flow_profile.holiday.2" in error_params
     assert all(r.status == "ERROR" for r in results)
     assert len(results) == 2
 
@@ -1552,60 +1552,60 @@ def test_validate_model_option_stebbsmethod_daylightcontrol_valid(registry):
     assert not results, "Should not return errors for valid DaylightControl=1.0 with LightingIlluminanceThreshold"
 
 def test_validate_model_option_stebbsmethod_daylightcontrol_missing_lit(registry):
-    """Test DaylightControl == 1 but LightingIlluminanceThreshold missing returns error."""
+    """Test daylight_control == 1 but lighting_illuminance_threshold missing returns error."""
     yaml_data = {
         "model": {"physics": {"stebbs": {"value": 1}}},
         "sites": [{
             "name": "site1",
             "properties": {
                 "stebbs": {
-                    "DaylightControl": {"value": 1}
-                    # LightingIlluminanceThreshold missing
+                    "daylight_control": {"value": 1}
+                    # lighting_illuminance_threshold missing
                 }
             }
         }],
     }
     results = registry["daylight_control"](ValidationContext(yaml_data=yaml_data))
     assert len(results) == 1
-    assert results[0].parameter == "stebbs.LightingIlluminanceThreshold"
+    assert results[0].parameter == "stebbs.lighting_illuminance_threshold"
     assert results[0].status == "ERROR"
     assert "must be provided" in results[0].message
 
 def test_validate_model_option_stebbsmethod_daylightcontrol_invalid(registry):
-    """Test DaylightControl returns ERROR for invalid values."""
+    """Test daylight_control returns ERROR for invalid values."""
     yaml_data = {
         "model": {"physics": {"stebbs": {"value": 1}}},
         "sites": [{
             "name": "site1",
             "properties": {
                 "stebbs": {
-                    "DaylightControl": {"value": 2}
+                    "daylight_control": {"value": 2}
                 }
             }
         }],
     }
     results = registry["daylight_control"](ValidationContext(yaml_data=yaml_data))
     assert len(results) == 1
-    assert results[0].parameter == "stebbs.DaylightControl"
+    assert results[0].parameter == "stebbs.daylight_control"
     assert results[0].status == "ERROR"
     assert "must be 0 (off) or 1 (on)" in results[0].message
 
 def test_validate_model_option_stebbsmethod_daylightcontrol_string_value(registry):
-    """Test DaylightControl returns ERROR for string or unexpected values."""
+    """Test daylight_control returns ERROR for string or unexpected values."""
     yaml_data = {
         "model": {"physics": {"stebbs": {"value": 1}}},
         "sites": [{
             "name": "site1",
             "properties": {
                 "stebbs": {
-                    "DaylightControl": {"value": "yes"}
+                    "daylight_control": {"value": "yes"}
                 }
             }
         }],
     }
     results = registry["daylight_control"](ValidationContext(yaml_data=yaml_data))
     assert len(results) == 1
-    assert results[0].parameter == "stebbs.DaylightControl"
+    assert results[0].parameter == "stebbs.daylight_control"
     assert results[0].status == "ERROR"
     assert "must be 0 (off) or 1 (on)" in results[0].message
 
@@ -1677,7 +1677,7 @@ def test_daylight_control_daylightcontrol_zero(registry):
 
 
 def test_validate_model_option_stebbsmethod_occupants_zero_metabolismprofile_nonzero(registry):
-    """Test error when Occupants=0.0 but MetabolismProfile has nonzero values."""
+    """Test error when occupants=0.0 but metabolism_profile has nonzero values."""
 
     yaml_data = {
         "model": {"physics": {"stebbs": {"value": 1}}},
@@ -1685,8 +1685,8 @@ def test_validate_model_option_stebbsmethod_occupants_zero_metabolismprofile_non
             "name": "site1",
             "properties": {
                 "building_archetype": {
-                    "Occupants": {"value": 0.0},
-                    "MetabolismProfile": {
+                    "occupants": {"value": 0.0},
+                    "metabolism_profile": {
                         "working_day": {"0": 0, "1": 1.2, "2": 0},
                         "holiday": {"0": 0, "1": 0, "2": 0.5},
                     },
@@ -1697,7 +1697,7 @@ def test_validate_model_option_stebbsmethod_occupants_zero_metabolismprofile_non
     }
     results = registry["occupants_metabolism"](ValidationContext(yaml_data=yaml_data))
     error_params = [r.parameter for r in results]
-    assert "building_archetype.MetabolismProfile" in error_params
+    assert "building_archetype.metabolism_profile" in error_params
     assert any("nonzero entries" in r.message for r in results)
     assert all(r.status == "ERROR" for r in results)
 
@@ -1710,8 +1710,8 @@ def test_validate_model_option_stebbsmethod_occupants_zero_metabolismprofile_all
             "name": "site1",
             "properties": {
                 "building_archetype": {
-                    "Occupants": {"value": 0.0},
-                    "MetabolismProfile": {
+                    "occupants": {"value": 0.0},
+                    "metabolism_profile": {
                         "working_day": {"0": 0, "1": 0.0, "2": None},
                         "holiday": {"0": 0, "1": 0.0, "2": None},
                     },
@@ -1732,8 +1732,8 @@ def test_validate_model_option_stebbsmethod_occupants_nonzero_metabolismprofile_
             "name": "site1",
             "properties": {
                 "building_archetype": {
-                    "Occupants": {"value": 2.0},
-                    "MetabolismProfile": {
+                    "occupants": {"value": 2.0},
+                    "metabolism_profile": {
                         "working_day": {"0": 1.1, "1": 1.2},
                         "holiday": {"0": 0.9, "1": 1.0},
                     },
@@ -1748,49 +1748,49 @@ def test_validate_model_option_stebbsmethod_occupants_nonzero_metabolismprofile_
 @pytest.mark.parametrize(
     "wwr, nullify, keep",
     [
-        (0.0,  # WWR==0: nullify window params
-         ["WindowInternalConvectionCoefficient", "WindowExternalConvectionCoefficient"],
-         ["WallExternalConvectionCoefficient", "WallInternalConvectionCoefficient"]),
-        (1.0,  # WWR==1: nullify wall params
-         ["WallExternalConvectionCoefficient", "WallInternalConvectionCoefficient"],
-         ["WindowInternalConvectionCoefficient", "WindowExternalConvectionCoefficient"]),
-        (0.5,  # WWR!=0,1: nullify nothing
-         [], ["WindowInternalConvectionCoefficient", "WindowExternalConvectionCoefficient",
-              "WallExternalConvectionCoefficient", "WallInternalConvectionCoefficient"]),
+        (0.0,  # window_to_wall_ratio==0: nullify window params
+         ["window_internal_convection_coefficient", "window_external_convection_coefficient"],
+         ["wall_external_convection_coefficient", "wall_internal_convection_coefficient"]),
+        (1.0,  # window_to_wall_ratio==1: nullify wall params
+         ["wall_external_convection_coefficient", "wall_internal_convection_coefficient"],
+         ["window_internal_convection_coefficient", "window_external_convection_coefficient"]),
+        (0.5,  # window_to_wall_ratio!=0,1: nullify nothing
+         [], ["window_internal_convection_coefficient", "window_external_convection_coefficient",
+              "wall_external_convection_coefficient", "wall_internal_convection_coefficient"]),
     ],
 )
 def test_adjust_model_option_stebbsmethod_nullification(wwr, nullify, keep):
-    """Test adjust_model_option_stebbsmethod nullifies correct params based on WWR."""
+    """Test adjust_model_option_stebbsmethod nullifies correct params based on window_to_wall_ratio."""
     yaml_data = {
         "model": {"physics": {"stebbs": {"value": 1}}},
         "sites": [{
             "properties": {
                 "stebbs": {
-                    "WindowInternalConvectionCoefficient": {"value": 5.0},
-                    "WindowExternalConvectionCoefficient": {"value": 6.0},
-                    "WallExternalConvectionCoefficient": {"value": 8.0},
-                    "WallInternalConvectionCoefficient": {"value": 9.0},
+                    "window_internal_convection_coefficient": {"value": 5.0},
+                    "window_external_convection_coefficient": {"value": 6.0},
+                    "wall_external_convection_coefficient": {"value": 8.0},
+                    "wall_internal_convection_coefficient": {"value": 9.0},
                 },
                 "building_archetype": {
-                    "WWR": {"value": wwr},
-                    "WindowThickness": {"value": 0.2},
-                    "WindowEffectiveConductivity": {"value": 1.1},
-                    "WindowDensity": {"value": 2500},
-                    "WindowCp": {"value": 900},
-                    "WindowExternalEmissivity": {"value": 0.85},
-                    "WindowInternalEmissivity": {"value": 0.9},
-                    "WindowTransmissivity": {"value": 0.7},
-                    "WindowAbsorbtivity": {"value": 0.1},
-                    "WindowReflectivity": {"value": 0.2},
-                    "WallExternalEmissivity": {"value": 0.88},
-                    "WallInternalEmissivity": {"value": 0.89},
-                    "WallTransmissivity": {"value": 0.5},
-                    "WallAbsorbtivity": {"value": 0.15},
-                    "WallReflectivity": {"value": 0.25},
-                    "WallThickness": {"value": 0.35},
-                    "WallEffectiveConductivity": {"value": 1.3},
-                    "WallDensity": {"value": 2400},
-                    "WallCp": {"value": 920},
+                    "window_to_wall_ratio": {"value": wwr},
+                    "window_thickness": {"value": 0.2},
+                    "window_effective_conductivity": {"value": 1.1},
+                    "window_density": {"value": 2500},
+                    "window_specific_heat_capacity": {"value": 900},
+                    "window_external_emissivity": {"value": 0.85},
+                    "window_internal_emissivity": {"value": 0.9},
+                    "window_transmissivity": {"value": 0.7},
+                    "window_absorptivity": {"value": 0.1},
+                    "window_reflectivity": {"value": 0.2},
+                    "wall_external_emissivity": {"value": 0.88},
+                    "wall_internal_emissivity": {"value": 0.89},
+                    "wall_transmissivity": {"value": 0.5},
+                    "wall_absorptivity": {"value": 0.15},
+                    "wall_reflectivity": {"value": 0.25},
+                    "wall_thickness": {"value": 0.35},
+                    "wall_effective_conductivity": {"value": 1.3},
+                    "wall_density": {"value": 2400},
+                    "wall_specific_heat_capacity": {"value": 920},
                 },
             }
         }],
@@ -1809,28 +1809,28 @@ def test_adjust_model_option_stebbsmethod_nullification(wwr, nullify, keep):
     # Check building_archetype nullification
     if wwr == 0.0:
         for param in [
-            "WindowThickness", "WindowEffectiveConductivity", "WindowDensity", "WindowCp",
-            "WindowExternalEmissivity", "WindowInternalEmissivity", "WindowTransmissivity",
-            "WindowAbsorbtivity", "WindowReflectivity"
+            "window_thickness", "window_effective_conductivity", "window_density", "window_specific_heat_capacity",
+            "window_external_emissivity", "window_internal_emissivity", "window_transmissivity",
+            "window_absorptivity", "window_reflectivity"
         ]:
             assert bldgarc[param]["value"] is None
         for param in [
-            "WallExternalEmissivity", "WallInternalEmissivity", "WallTransmissivity",
-            "WallAbsorbtivity", "WallReflectivity", "WallThickness", "WallEffectiveConductivity",
-            "WallDensity", "WallCp"
+            "wall_external_emissivity", "wall_internal_emissivity", "wall_transmissivity",
+            "wall_absorptivity", "wall_reflectivity", "wall_thickness", "wall_effective_conductivity",
+            "wall_density", "wall_specific_heat_capacity"
         ]:
             assert bldgarc[param]["value"] == yaml_data["sites"][0]["properties"]["building_archetype"][param]["value"]
     elif wwr == 1.0:
         for param in [
-            "WallExternalEmissivity", "WallInternalEmissivity", "WallTransmissivity",
-            "WallAbsorbtivity", "WallReflectivity", "WallThickness", "WallEffectiveConductivity",
-            "WallDensity", "WallCp"
+            "wall_external_emissivity", "wall_internal_emissivity", "wall_transmissivity",
+            "wall_absorptivity", "wall_reflectivity", "wall_thickness", "wall_effective_conductivity",
+            "wall_density", "wall_specific_heat_capacity"
         ]:
             assert bldgarc[param]["value"] is None
         for param in [
-            "WindowThickness", "WindowEffectiveConductivity", "WindowDensity", "WindowCp",
-            "WindowExternalEmissivity", "WindowInternalEmissivity", "WindowTransmissivity",
-            "WindowAbsorbtivity", "WindowReflectivity"
+            "window_thickness", "window_effective_conductivity", "window_density", "window_specific_heat_capacity",
+            "window_external_emissivity", "window_internal_emissivity", "window_transmissivity",
+            "window_absorptivity", "window_reflectivity"
         ]:
             assert bldgarc[param]["value"] == yaml_data["sites"][0]["properties"]["building_archetype"][param]["value"]
     else:
@@ -1853,22 +1853,22 @@ def test_adjust_model_option_stebbsmethod_not_one_no_action():
         "sites": [{
             "properties": {
                 "stebbs": {
-                    "WindowInternalConvectionCoefficient": {"value": 5.0},
-                    "WallExternalConvectionCoefficient": {"value": 8.0},
+                    "window_internal_convection_coefficient": {"value": 5.0},
+                    "wall_external_convection_coefficient": {"value": 8.0},
                 },
                 "building_archetype": {
-                    "WWR": {"value": 0.0},
-                    "WindowThickness": {"value": 0.2},
-                    "WallThickness": {"value": 0.35},
+                    "window_to_wall_ratio": {"value": 0.0},
+                    "window_thickness": {"value": 0.2},
+                    "wall_thickness": {"value": 0.35},
                 },
             }
         }],
     }
     updated, adjustments = adjust_model_option_stebbsmethod(yaml_data)
     props = updated["sites"][0]["properties"]
-    for param in ["WindowInternalConvectionCoefficient", "WallExternalConvectionCoefficient"]:
+    for param in ["window_internal_convection_coefficient", "wall_external_convection_coefficient"]:
         assert props["stebbs"][param]["value"] == yaml_data["sites"][0]["properties"]["stebbs"][param]["value"]
-    for param in ["WindowThickness", "WallThickness"]:
+    for param in ["window_thickness", "wall_thickness"]:
         assert props["building_archetype"][param]["value"] == yaml_data["sites"][0]["properties"]["building_archetype"][param]["value"]
     assert adjustments == []
 
@@ -1888,9 +1888,9 @@ def test_validate_spartacus_building_height_error():
     # set stebbsmethod as a raw int so the validator can parse it.
     cfg.model.physics.stebbs = 1
 
-    # bldgh and stebbs_Height both exceed height[nlayer]
+    # bldgh and building_height both exceed height[nlayer]
     bldgs = SimpleNamespace(bldgh=15.0)
-    building_archetype = SimpleNamespace(stebbs_Height=20.0)
+    building_archetype = SimpleNamespace(building_height=20.0)
     vertical_layers = SimpleNamespace(height=[5.0, 10.0, 12.0], nlayer=1)
     props = SimpleNamespace(
         land_cover=SimpleNamespace(bldgs=bldgs),
@@ -1902,16 +1902,16 @@ def test_validate_spartacus_building_height_error():
 
     assert len(msgs) == 2
     assert any("bldgh=15.0" in m and "height[1]=10.0" in m for m in msgs)
-    assert any("stebbs_Height=20.0" in m and "height[1]=10.0" in m for m in msgs)
+    assert any("building_height=20.0" in m and "height[1]=10.0" in m for m in msgs)
 
 
 def test_validate_spartacus_building_height_no_error():
     cfg = make_cfg(net_radiation=1001, stebbs=1)
     cfg.model.physics.stebbs = 1
 
-    # bldgh and stebbs_Height do not exceed height[nlayer]
+    # bldgh and building_height do not exceed height[nlayer]
     bldgs = SimpleNamespace(bldgh=8.0)
-    building_archetype = SimpleNamespace(stebbs_Height=9.0)
+    building_archetype = SimpleNamespace(building_height=9.0)
     vertical_layers = SimpleNamespace(height=[5.0, 10.0, 12.0], nlayer=1)
     props = SimpleNamespace(
         land_cover=SimpleNamespace(bldgs=bldgs),
@@ -1924,12 +1924,12 @@ def test_validate_spartacus_building_height_no_error():
 
 
 def test_validate_spartacus_building_height_stebbs_off():
-    """stebbs_Height should NOT be checked when stebbsmethod != 1."""
+    """building_height should NOT be checked when stebbsmethod != 1."""
     cfg = make_cfg(net_radiation=1001, stebbs=0)
 
-    # stebbs_Height exceeds domain top, but stebbsmethod is off
+    # building_height exceeds domain top, but stebbsmethod is off
     bldgs = SimpleNamespace(bldgh=8.0)
-    building_archetype = SimpleNamespace(stebbs_Height=20.0)
+    building_archetype = SimpleNamespace(building_height=20.0)
     vertical_layers = SimpleNamespace(height=[5.0, 10.0, 12.0], nlayer=1)
     props = SimpleNamespace(
         land_cover=SimpleNamespace(bldgs=bldgs),
@@ -2599,7 +2599,7 @@ def test_phase_b_model_option_dependencies_comprehensive(registry):
 
 
 def test_phase_b_annual_mean_air_temperature_from_cru(cru_data_available):
-    """Test that AnnualMeanAirTemperature is populated from CRU annual mean data."""
+    """Test that annual_mean_air_temperature is populated from CRU annual mean data."""
     from supy.data_model.validation.pipeline.phase_b import (
         adjust_surface_temperatures,
         get_mean_annual_air_temperature,
@@ -2620,10 +2620,10 @@ def test_phase_b_annual_mean_air_temperature_from_cru(cru_data_available):
                     "lat": {"value": test_lat},
                     "lng": {"value": test_lon},
                     "stebbs": {
-                        "AnnualMeanAirTemperature": {
+                        "annual_mean_air_temperature": {
                             "value": 999.0
                         },  # Wrong value to be updated
-                        "InitialOutdoorTemperature": {
+                        "initial_outdoor_temperature": {
                             "value": 999.0
                         },  # Will be updated with monthly temp
                     },
@@ -2636,9 +2636,9 @@ def test_phase_b_annual_mean_air_temperature_from_cru(cru_data_available):
     # Run adjustment
     updated_data, adjustments = adjust_surface_temperatures(yaml_data, start_date)
 
-    # Check that AnnualMeanAirTemperature was updated
+    # Check that annual_mean_air_temperature was updated
     updated_annual_temp = updated_data["sites"][0]["properties"]["stebbs"][
-        "AnnualMeanAirTemperature"
+        "annual_mean_air_temperature"
     ]["value"]
     assert updated_annual_temp == annual_temp, (
         f"Expected {annual_temp}, got {updated_annual_temp}"
@@ -2646,7 +2646,7 @@ def test_phase_b_annual_mean_air_temperature_from_cru(cru_data_available):
 
     # Check that adjustment was recorded
     annual_temp_adjustments = [
-        adj for adj in adjustments if adj.parameter == "stebbs.AnnualMeanAirTemperature"
+        adj for adj in adjustments if adj.parameter == "stebbs.annual_mean_air_temperature"
     ]
     assert len(annual_temp_adjustments) == 1
     adj = annual_temp_adjustments[0]
@@ -2657,7 +2657,7 @@ def test_phase_b_annual_mean_air_temperature_from_cru(cru_data_available):
 
 
 def test_phase_b_annual_mean_air_temperature_no_update_if_same(cru_data_available):
-    """Test that AnnualMeanAirTemperature is not updated if already correct."""
+    """Test that annual_mean_air_temperature is not updated if already correct."""
     from supy.data_model.validation.pipeline.phase_b import (
         adjust_surface_temperatures,
         get_mean_annual_air_temperature,
@@ -2678,7 +2678,7 @@ def test_phase_b_annual_mean_air_temperature_no_update_if_same(cru_data_availabl
                     "lat": {"value": test_lat},
                     "lng": {"value": test_lon},
                     "stebbs": {
-                        "AnnualMeanAirTemperature": {
+                        "annual_mean_air_temperature": {
                             "value": annual_temp
                         },  # Already correct
                     },
@@ -2693,7 +2693,7 @@ def test_phase_b_annual_mean_air_temperature_no_update_if_same(cru_data_availabl
 
     # Check that NO adjustment was made (value already correct)
     annual_temp_adjustments = [
-        adj for adj in adjustments if adj.parameter == "stebbs.AnnualMeanAirTemperature"
+        adj for adj in adjustments if adj.parameter == "stebbs.annual_mean_air_temperature"
     ]
     assert len(annual_temp_adjustments) == 0, (
         "Should not adjust if value already correct"
@@ -2701,7 +2701,7 @@ def test_phase_b_annual_mean_air_temperature_no_update_if_same(cru_data_availabl
 
 
 def test_phase_b_annual_mean_air_temperature_missing_stebbs():
-    """Test graceful handling when AnnualMeanAirTemperature is not in stebbs."""
+    """Test graceful handling when annual_mean_air_temperature is not in stebbs."""
     from supy.data_model.validation.pipeline.phase_b import adjust_surface_temperatures
 
     # Test coordinates
@@ -2709,7 +2709,7 @@ def test_phase_b_annual_mean_air_temperature_missing_stebbs():
     test_lon = -0.1
     start_date = "2020-01-15"
 
-    # Create test YAML without AnnualMeanAirTemperature
+    # Create test YAML without annual_mean_air_temperature
     yaml_data = {
         "sites": [
             {
@@ -2717,8 +2717,8 @@ def test_phase_b_annual_mean_air_temperature_missing_stebbs():
                     "lat": {"value": test_lat},
                     "lng": {"value": test_lon},
                     "stebbs": {
-                        "InitialOutdoorTemperature": {"value": 10.0},
-                        # AnnualMeanAirTemperature NOT present
+                        "initial_outdoor_temperature": {"value": 10.0},
+                        # annual_mean_air_temperature NOT present
                     },
                 },
                 "initial_states": {},
@@ -2729,9 +2729,9 @@ def test_phase_b_annual_mean_air_temperature_missing_stebbs():
     # Run adjustment - should not crash
     updated_data, adjustments = adjust_surface_temperatures(yaml_data, start_date)
 
-    # Check that no AnnualMeanAirTemperature adjustment was attempted
+    # Check that no annual_mean_air_temperature adjustment was attempted
     annual_temp_adjustments = [
-        adj for adj in adjustments if adj.parameter == "stebbs.AnnualMeanAirTemperature"
+        adj for adj in adjustments if adj.parameter == "stebbs.annual_mean_air_temperature"
     ]
     assert len(annual_temp_adjustments) == 0
 

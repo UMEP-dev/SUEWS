@@ -44,7 +44,7 @@ module module_type_waterdist
 
     TYPE, PUBLIC :: IRRIGATION_PRM
        REAL(KIND(1D0)) :: h_maintain = 0.0D0 ! Ponding water depth to maintain [mm]
-       REAL(KIND(1D0)) :: faut = 0.0D0 ! Fraction of irrigated area using automatic irrigation [-]
+       REAL(KIND(1D0)) :: f_aut = 0.0D0 ! Fraction of irrigated area using automatic irrigation [-]
        REAL(KIND(1D0)), DIMENSION(3) :: ie_a = 0.0D0 ! Coefficient for automatic irrigation model [-]
        REAL(KIND(1D0)), DIMENSION(3) :: ie_m = 0.0D0 ! Coefficient for manual irrigation model [-]
        INTEGER :: ie_start = 0 ! Starting time of water use [DOY]

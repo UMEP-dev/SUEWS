@@ -25,12 +25,26 @@ py.install_sources(
         [
             'cmd/__init__.py',
             'cmd/SUEWS.py',
+            'cmd/compare_runs.py',
+            'cmd/diagnose_run.py',
+            'cmd/init_case.py',
+            'cmd/inspect_config.py',
+            'cmd/json_envelope.py',
             'cmd/json_output.py',
             'cmd/rust_bridge.py',
+            'cmd/skill_install.py',
+            'cmd/suews_cli.py',
+            'cmd/summarise_output.py',
             'cmd/table_converter.py',
             'cmd/to_yaml.py',
             'cmd/validate_config.py',
             'cmd/schema_cli.py',
+        ],
+        [
+            'diagnostics/__init__.py',
+        ],
+        [
+            'metrics/__init__.py',
         ],
         [
             'util/_UMEP2epw.py',

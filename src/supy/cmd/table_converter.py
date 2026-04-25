@@ -4,6 +4,7 @@ import sys
 from pathlib import Path
 
 from ..util.converter import list_ver_from
+from .json_envelope import EXIT_USER_ERROR, Envelope, _now_iso
 
 # Try to import the current version from the project
 try:
@@ -81,6 +82,14 @@ except ImportError:
         "(table/df_state paths only)."
     ),
 )
+@click.option(
+    "--format",
+    "output_format",
+    type=click.Choice(["text", "json"], case_sensitive=False),
+    default="text",
+    show_default=True,
+    help="Output format. 'json' emits the standard SUEWS envelope on stdout.",
+)
 @click.pass_context
 def convert_table_cmd(
     ctx: click.Context,
@@ -89,6 +98,7 @@ def convert_table_cmd(
     output_file: str,
     debug_dir: str = None,
     no_validate_profiles: bool = False,
+    output_format: str = "text",
 ):
     """Convert any supported SUEWS input to a current-schema YAML.
 
@@ -109,7 +119,37 @@ def convert_table_cmd(
         # Older YAML without a schema_version field -> explicit source tag
         suews-convert -i old.yml -o new.yml -f 2026.1.28
     """
+    json_mode = output_format.lower() == "json"
+    started_at = _now_iso()
+    command = " ".join(["suews", "convert"] + sys.argv[1:])
+
+    def _emit_error(message: str, exit_code: int = 1) -> None:
+        if json_mode:
+            Envelope.error(
+                errors=[message],
+                command=command,
+                data={"input": input_file, "output": output_file},
+                started_at=started_at,
+            ).emit()
+        else:
+            click.secho(message, fg="red", err=True)
+        sys.exit(exit_code)
+
+    def _say(msg: str, *, fg: str | None = None) -> None:
+        """Human-readable progress; suppressed in JSON mode."""
+        if json_mode:
+            return
+        if fg:
+            click.secho(msg, fg=fg)
+        else:
+            click.echo(msg)
+
     if input_file is None or output_file is None:
+        if json_mode:
+            _emit_error(
+                "Both --input/-i and --output/-o are required.",
+                exit_code=EXIT_USER_ERROR,
+            )
         click.echo(ctx.get_help())
         sys.exit(0 if (input_file is None and output_file is None) else 2)
 
@@ -127,13 +167,12 @@ def convert_table_cmd(
     try:
         input_type = detect_input_type(input_path)
     except ValueError as e:
-        click.secho(str(e), fg="red", err=True)
-        sys.exit(1)
+        _emit_error(str(e))
 
     # Validate output has correct extension
     if output_path.suffix not in [".yml", ".yaml"]:
-        click.echo(
-            f"Warning: Output file should have .yml or .yaml extension", err=True
+        _say(
+            "Warning: Output file should have .yml or .yaml extension",
         )
 
     # Dispatch on input type
@@ -147,48 +186,51 @@ def convert_table_cmd(
                 from_ver=fromVer,
             )
         except YamlUpgradeError as e:
-            click.secho(f"[ERROR] {e}", fg="red", err=True)
-            sys.exit(1)
+            _emit_error(f"[ERROR] {e}")
         except Exception as e:  # noqa: BLE001 - surface unexpected failures verbatim
-            click.secho(f"[ERROR] YAML upgrade failed: {e}", fg="red", err=True)
-            sys.exit(1)
+            _emit_error(f"[ERROR] YAML upgrade failed: {e}")
 
-        click.secho(f"\n[OK] Successfully created: {output_path}", fg="green")
+        _say(f"\n[OK] Successfully created: {output_path}", fg="green")
+        if json_mode:
+            Envelope.success(
+                data={
+                    "input": str(input_path),
+                    "output": str(output_path),
+                    "input_type": input_type,
+                    "from_version": fromVer,
+                },
+                command=command,
+                started_at=started_at,
+            ).emit()
         return
 
     if input_type == "nml":
         # Table conversion
-        click.echo(f"Converting SUEWS tables to YAML")
-        click.echo(f"  Input: {input_path}")
-        click.echo(f"  Tables directory: {input_path.parent}")
+        _say("Converting SUEWS tables to YAML")
+        _say(f"  Input: {input_path}")
+        _say(f"  Tables directory: {input_path.parent}")
 
         # Auto-detect version if needed
         if not fromVer:
-            click.echo("  Auto-detecting table version...")
+            _say("  Auto-detecting table version...")
             fromVer = detect_table_version(input_path.parent)
             if fromVer:
-                click.echo(f"  Detected version: {fromVer}")
+                _say(f"  Detected version: {fromVer}")
             else:
-                click.secho(
-                    "Could not detect version. Use -f to specify.", fg="red", err=True
-                )
-                sys.exit(1)
+                _emit_error("Could not detect version. Use -f to specify.")
         elif fromVer not in list_ver_from:
-            click.secho(
+            _emit_error(
                 f"Unsupported table release: {fromVer}. "
-                f"Supported: {', '.join(list_ver_from)}",
-                fg="red",
-                err=True,
+                f"Supported: {', '.join(list_ver_from)}"
             )
-            sys.exit(1)
 
     elif input_type == "df_state":
         # df_state conversion
-        click.echo(f"Converting df_state to YAML")
-        click.echo(f"  Input: {input_path}")
+        _say("Converting df_state to YAML")
+        _say(f"  Input: {input_path}")
 
         if fromVer:
-            click.echo("  Note: Version specification ignored for df_state")
+            _say("  Note: Version specification ignored for df_state")
 
     # Perform table / df_state conversion
     try:
@@ -199,11 +241,22 @@ def convert_table_cmd(
             debug_dir=debug_dir,
             validate_profiles=not no_validate_profiles,
         )
-        click.secho(f"\n[OK] Successfully created: {output_path}", fg="green")
+        _say(f"\n[OK] Successfully created: {output_path}", fg="green")
 
     except Exception as e:
-        click.secho(f"\n[ERROR] Conversion failed: {e}", fg="red", err=True)
-        sys.exit(1)
+        _emit_error(f"\n[ERROR] Conversion failed: {e}")
+
+    if json_mode:
+        Envelope.success(
+            data={
+                "input": str(input_path),
+                "output": str(output_path),
+                "input_type": input_type,
+                "from_version": fromVer,
+            },
+            command=command,
+            started_at=started_at,
+        ).emit()
 
 
 if __name__ == "__main__":

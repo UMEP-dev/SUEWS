@@ -1,10 +1,21 @@
 # command line tools
 import click
+import hashlib
+import json as _json
 import logging
 import multiprocessing
 import os
 import sys
 from pathlib import Path
+
+from .json_envelope import (
+    EXIT_OK,
+    EXIT_RUN_FAILURE,
+    EXIT_USER_ERROR,
+    Envelope,
+    _build_meta,
+    _now_iso,
+)
 
 # Get logger for CLI warnings (configured in _env.py when heavy imports load)
 logger_cli = logging.getLogger("SuPy.CLI")
@@ -80,59 +91,92 @@ def _detect_config_format(config_path):
         return "namelist"
 
 
-def _run_with_yaml(config_path):
-    """Run SUEWS simulation using YAML configuration.
+def _run_yaml_core(config_path: Path, output_dir: Path | None = None) -> dict:
+    """Run a YAML config and return a structured summary.
+
+    Silent — never prints. Raises on error. Used by both the human-prose path
+    (``_run_with_yaml``) and the JSON path (``_run_yaml_json``).
 
     Parameters
     ----------
     config_path : Path
-        Path to YAML configuration file
+        Path to YAML configuration file.
+    output_dir : Path, optional
+        Explicit output directory. When ``None``, the config's default is used.
+
+    Returns
+    -------
+    dict
+        ``{sim, output_files, output_dir, period_start, period_end, n_steps}``
     """
     _load_heavy_imports()
 
     if not YAML_SUPPORT:
-        click.echo(
-            "Error: YAML support not available. Please install required dependencies.",
-            err=True,
+        raise RuntimeError(
+            "YAML support not available. Please install required dependencies."
         )
-        sys.exit(1)
 
+    sim = SUEWSSimulation(str(config_path))
+    if sim.forcing is None:
+        raise ValueError(
+            "No forcing data found in configuration. "
+            "Ensure 'forcing_file' is specified in the YAML config."
+        )
+
+    idx_dt = sim.forcing.index
+    period_start = idx_dt.min()
+    period_end = idx_dt.max()
+
+    sim.run()
+
+    output_files = (
+        sim.save(output_path=str(output_dir)) if output_dir is not None else sim.save()
+    )
+
+    if output_files:
+        actual_out_dir = Path(output_files[0]).parent
+    else:
+        actual_out_dir = output_dir if output_dir is not None else Path(".")
+
+    return {
+        "sim": sim,
+        "output_files": [str(p) for p in output_files],
+        "output_dir": str(actual_out_dir),
+        "period_start": period_start.isoformat()
+        if hasattr(period_start, "isoformat")
+        else str(period_start),
+        "period_end": period_end.isoformat()
+        if hasattr(period_end, "isoformat")
+        else str(period_end),
+        "n_steps": int(len(idx_dt)),
+    }
+
+
+def _run_with_yaml(config_path):
+    """Human-prose YAML run flow (legacy default).
+
+    Parameters
+    ----------
+    config_path : Path
+        Path to YAML configuration file.
+    """
     try:
-        # Load configuration and run simulation
         click.echo("Loading YAML configuration ...")
-        sim = SUEWSSimulation(str(config_path))
+        result = _run_yaml_core(config_path)
 
-        # Check if forcing is loaded
-        if sim.forcing is None:
-            click.echo("Error: No forcing data found in configuration.", err=True)
-            click.echo(
-                "Please ensure 'forcing_file' is specified in the YAML config.",
-                err=True,
-            )
-            sys.exit(1)
+        click.echo("\nSimulation period:")
+        click.echo(f"{result['period_start']} - {result['period_end']}")
 
-        # Display simulation info
-        click.echo(f"\nSimulation period:")
-        idx_dt = sim.forcing.index
-        start, end = idx_dt.min(), idx_dt.max()
-        click.echo(f"{start} - {end}")
-
-        # Run simulation
-        click.echo("\nRunning simulation ...")
-        results = sim.run()
-
-        # Save results
-        click.echo("\nSaving results ...")
-        output_files = sim.save()
-
-        # Show output files
         click.echo("\nThe following files have been written out:")
-        for file in output_files:
-            click.echo(file)
+        for path_out in result["output_files"]:
+            click.echo(path_out)
 
         click.echo("\nSUEWS run successfully done!")
 
     except FileNotFoundError as e:
+        click.echo(f"Error: {e}", err=True)
+        sys.exit(1)
+    except (RuntimeError, ValueError) as e:
         click.echo(f"Error: {e}", err=True)
         sys.exit(1)
     except KeyboardInterrupt:
@@ -145,6 +189,107 @@ def _run_with_yaml(config_path):
         click.echo("\nFull traceback:", err=True)
         click.echo(traceback.format_exc(), err=True)
         sys.exit(1)
+
+
+def _hash_config_file(path_config: Path) -> str:
+    """SHA256 of the config input bytes.
+
+    Phase-1 approach: hash the input YAML the user provided. A future iteration
+    will hash the canonical-form resolved YAML (Pydantic round-trip) for
+    stronger reproducibility guarantees; the input-bytes hash is sufficient
+    for now and avoids depending on the model dump format.
+    """
+    return hashlib.sha256(path_config.read_bytes()).hexdigest()
+
+
+def _write_provenance(
+    path_out_dir: Path,
+    config_path: Path,
+    result: dict,
+    started_at: str,
+    command: str,
+) -> Path:
+    """Write ``provenance.json`` next to the run output. Returns the path."""
+    meta = _build_meta(command=command, started_at=started_at)
+    provenance = {
+        "command": command,
+        "config_path": str(config_path),
+        "config_hash_sha256": _hash_config_file(config_path),
+        "output_dir": result["output_dir"],
+        "output_files": result["output_files"],
+        "period_start": result["period_start"],
+        "period_end": result["period_end"],
+        "n_steps": result["n_steps"],
+        "started_at": meta["started_at"],
+        "ended_at": meta["ended_at"],
+        "schema_version": meta["schema_version"],
+        "suews_version": meta["suews_version"],
+        "supy_version": meta["supy_version"],
+        "git_commit": meta["git_commit"],
+    }
+    path_provenance = path_out_dir / "provenance.json"
+    path_provenance.write_text(
+        _json.dumps(provenance, indent=2, ensure_ascii=False), encoding="utf-8"
+    )
+    return path_provenance
+
+
+def _run_yaml_json(
+    config_path: Path,
+    output_dir: Path | None,
+    started_at: str,
+    command: str,
+) -> None:
+    """JSON-mode YAML run. Emits an Envelope and writes provenance.json."""
+    try:
+        result = _run_yaml_core(config_path, output_dir=output_dir)
+    except FileNotFoundError as e:
+        Envelope.error(
+            errors=[str(e)],
+            command=command,
+            data={"config_path": str(config_path)},
+            started_at=started_at,
+        ).emit()
+        sys.exit(EXIT_USER_ERROR)
+    except (RuntimeError, ValueError) as e:
+        Envelope.error(
+            errors=[str(e)],
+            command=command,
+            data={"config_path": str(config_path)},
+            started_at=started_at,
+        ).emit()
+        sys.exit(EXIT_USER_ERROR)
+    except Exception as e:
+        Envelope.error(
+            errors=[f"{type(e).__name__}: {e}"],
+            command=command,
+            data={"config_path": str(config_path)},
+            started_at=started_at,
+        ).emit()
+        sys.exit(EXIT_RUN_FAILURE)
+
+    path_out_dir = Path(result["output_dir"])
+    path_provenance = _write_provenance(
+        path_out_dir,
+        config_path,
+        result,
+        started_at=started_at,
+        command=command,
+    )
+
+    Envelope.success(
+        data={
+            "output_dir": str(path_out_dir),
+            "output_files": result["output_files"],
+            "provenance_path": str(path_provenance),
+            "period_start": result["period_start"],
+            "period_end": result["period_end"],
+            "n_steps": result["n_steps"],
+            "config_hash_sha256": _hash_config_file(config_path),
+        },
+        command=command,
+        started_at=started_at,
+    ).emit()
 
 
 def _run_with_namelist(path_runcontrol):
@@ -299,19 +444,40 @@ For more information, see: https://docs.suews.io/
     type=click.Path(exists=True),
     help="[DEPRECATED] Path to RunControl namelist file. Use positional argument instead.",
 )
-def SUEWS(config_file, path_runcontrol):
+@click.option(
+    "--format",
+    "output_format",
+    type=click.Choice(["text", "json"], case_sensitive=False),
+    default="text",
+    show_default=True,
+    help="Output format. 'json' emits the standard SUEWS envelope on stdout "
+    "and writes a 'provenance.json' sidecar in the output directory.",
+)
+@click.option(
+    "--output",
+    "-o",
+    "output_dir",
+    type=click.Path(file_okay=False, dir_okay=True),
+    default=None,
+    help="Output directory. When omitted, the config's default location is used.",
+)
+def SUEWS(config_file, path_runcontrol, output_format, output_dir):
     """Run SUEWS simulation using YAML or namelist configuration."""
 
-    # show version info (using lightweight version getter)
-    click.echo(
-        f"""
+    started_at = _now_iso()
+    json_mode = output_format.lower() == "json"
+
+    # In JSON mode, suppress the human banner so stdout stays parseable.
+    if not json_mode:
+        click.echo(
+            f"""
 ===========================================
 SUEWS version: {_get_version()}
 
 Website: https://suews.io/
 ===========================================
     """
-    )
+        )
 
     # Handle backward compatibility with -p option
     if path_runcontrol is not None:
@@ -349,6 +515,24 @@ Website: https://suews.io/
 
     # Auto-detect format and run appropriate workflow
     config_format = _detect_config_format(config_file)
+
+    if json_mode:
+        if config_format != "yaml":
+            command = " ".join(["suews", "run"] + sys.argv[1:])
+            Envelope.error(
+                errors=[
+                    "JSON output mode requires a YAML config; "
+                    "namelist runs are deprecated and unsupported under --format json."
+                ],
+                command=command,
+                data={"config_path": str(config_file)},
+                started_at=started_at,
+            ).emit()
+            sys.exit(EXIT_USER_ERROR)
+        path_out_dir = Path(output_dir) if output_dir else None
+        command = " ".join(["suews", "run"] + sys.argv[1:])
+        _run_yaml_json(config_file, path_out_dir, started_at, command)
+        return
 
     if config_format == "yaml":
         _run_with_yaml(config_file)

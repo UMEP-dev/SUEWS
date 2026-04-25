@@ -7,7 +7,7 @@ _lazy_cache = {}
 
 
 def __getattr__(name):
-    """Lazy attribute loader for CLI commands."""
+    """Lazy attribute loader for CLI commands and submodules."""
     if name in _lazy_cache:
         return _lazy_cache[name]
 
@@ -39,7 +39,20 @@ def __getattr__(name):
             _lazy_cache[name] = None
             return None
 
-    raise AttributeError(f"module 'supy.cmd' has no attribute {name!r}")
+    # Fallback: allow `from supy.cmd import <submodule>` for any module file
+    # under cmd/ without enumerating each one explicitly. Used by suews_cli,
+    # rust_bridge, json_envelope, and the future init/inspect/diagnose/compare
+    # subcommand modules.
+    import importlib
+
+    try:
+        module = importlib.import_module(f".{name}", __name__)
+    except ImportError as exc:
+        raise AttributeError(
+            f"module 'supy.cmd' has no attribute {name!r}"
+        ) from exc
+    _lazy_cache[name] = module
+    return module
 
 
 # to_yaml is used internally by table_converter but not exposed as a command

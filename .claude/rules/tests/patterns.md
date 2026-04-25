@@ -93,7 +93,9 @@ When unsure, pick `api` — it's the broader coverage axis and safer if
 the test is genuinely mixed.
 
 UMEP tests (`test/umep/*.py`) pick up `api` automatically via
-`test/umep/conftest.py`; no file-level declaration needed there.
+`test/umep/conftest.py`; no file-level declaration needed there. These remain
+needed with the Rust backend because they guard the UMEP/QGIS plugin-facing API
+contracts rather than model physics.
 
 **A static CI lint (`scripts/lint/check_test_markers.py`) and a
 `pytest_collection_finish` hook in `test/conftest.py` both fail any PR
@@ -114,6 +116,21 @@ not bypass.
 The tier axis composes with the nature axis. CI expressions like
 `-m "api and smoke"` and `-m "physics and not slow"` select the right
 subset per matrix cell.
+
+### PR/CR placement
+
+- `smoke`: minimal fail-fast checks only. Keep this tier small enough for quick
+  wheel validation.
+- `core`: essential guardrails that are fast enough for draft PRs and merge
+  queue. Do not mark a test `core` merely because the feature matters; use
+  `slow` if the regression is important but expensive.
+- `standard`: all non-slow tests for the relevant nature axis.
+- `slow`: long regressions and reproductions. These belong in `make test-all`,
+  scheduled/release builds, or explicit manual validation, not normal PR/CR.
+- `qgis`: UMEP/QGIS tests only. These target Windows + Python 3.12, which
+  matches the current Windows runtime line for both QGIS 3 LTR and QGIS 4.
+  They should stay out of local `make test` and normal PR/CR tiers unless
+  selected explicitly.
 
 ---
 

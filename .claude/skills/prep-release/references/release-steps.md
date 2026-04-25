@@ -185,6 +185,7 @@ Edit the new file to:
 - Replace the narrative summary and highlights with the new release details
 - Keep `.. _new_latest:` on the new file and remove it from the previous latest
 - **Use `:pr:` roles for GitHub references** (configured in `conf.py` via `extlinks`)
+- **Exclude `[experimental]` and `[internal]` entries** -- only include `[stable]`, untagged features/changes, and all bugfixes/maintenance/docs. Experimental features are not ready for public announcement.
 
 Update `docs/source/version-history/version-history.rst` to add the new file at the top of the toctree.
 
@@ -302,8 +303,8 @@ git push origin "$VERSION"
 ## Step 7: Post-Release Verification
 
 **Monitor (~20 min):**
-- GitHub Actions: build_wheels, build_umep, publish
-- PyPI: supy `YYYY.M.D` and `YYYY.M.Drc1` both appear
+- GitHub Actions: build_wheels, test_api_cross_python, publish
+- PyPI: supy `YYYY.M.D` appears (one cp39-abi3 wheel per platform)
 - GitHub Release: created automatically after successful publish
 - Zenodo DOI appears on the dashboard
 - ReadTheDocs build succeeds

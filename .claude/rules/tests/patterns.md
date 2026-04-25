@@ -62,6 +62,47 @@ with pytest.raises(ValueError, match="must be positive"):
 
 ## Pytest Markers
 
+Markers sit on two orthogonal axes (gh#1300). Every new test file **must**
+declare the nature axis at module level; tier markers compose on top as
+per-test decorators.
+
+### Nature axis — REQUIRED on every file
+
+Pick exactly one (or both, rarely) and declare at module level:
+
+```python
+import pytest
+
+pytestmark = pytest.mark.api        # Python wrapper surface
+# or:
+pytestmark = pytest.mark.physics    # numerical / binary correctness
+# or (file straddles both):
+pytestmark = [pytest.mark.physics, pytest.mark.api]
+```
+
+- `physics` — outputs determined by the compiled artefact + CPU
+  floating-point. CI runs these once per `(OS, arch)` on the build
+  Python. Typical: mass/energy balance, DailyState accumulation, Fortran
+  state persistence.
+- `api` — exercises the pandas / numpy / pydantic / click surface. CI
+  runs these across `(platform x Python)` because the dependency
+  surface varies per interpreter. Typical: config validation, CLI, YAML
+  round-trip, `SUEWSSimulation` methods.
+
+When unsure, pick `api` — it's the broader coverage axis and safer if
+the test is genuinely mixed.
+
+UMEP tests (`test/umep/*.py`) pick up `api` automatically via
+`test/umep/conftest.py`; no file-level declaration needed there.
+
+**A static CI lint (`scripts/lint/check_test_markers.py`) and a
+`pytest_collection_finish` hook in `test/conftest.py` both fail any PR
+that introduces a test file without a nature marker.** If you see the
+lint fire, add a `pytestmark = pytest.mark.api` (or physics) line — do
+not bypass.
+
+### Tier axis — per-test decorators
+
 ```python
 @pytest.mark.smoke   # Critical, fast tests (~60s total)
 @pytest.mark.core    # Core physics/logic tests
@@ -69,6 +110,10 @@ with pytest.raises(ValueError, match="must be positive"):
 @pytest.mark.util    # Utility function tests (non-critical)
 @pytest.mark.cfg     # Config/schema validation tests
 ```
+
+The tier axis composes with the nature axis. CI expressions like
+`-m "api and smoke"` and `-m "physics and not slow"` select the right
+subset per matrix cell.
 
 ---
 
@@ -105,6 +150,59 @@ test/
 - Warning suppression in setUp methods (use autouse fixtures)
 - Relative imports for shared test utilities from subdirectories
 - Magic numbers without named constants (e.g., `288` for timesteps/day)
+- Skipping without a documented reason (see "Skipping Tests" below)
+- `try/except Exception: pytest.skip(...)` to hide real failures
+- `try/except ImportError: pytest.skip(...)` — use `pytest.importorskip` instead
+
+---
+
+## Skipping Tests
+
+Every `pytest.skip`, `@pytest.mark.skip`, `@pytest.mark.skipif`, and `pytest.importorskip` **must** carry a concrete `reason=` string that tells a future reader *why* the skip exists and *under what condition* it fires. Skips without rationale become permanent dead code (#912).
+
+### Required rationale
+
+- **Conditional skip** (`skipif`) — name the missing dependency, credential, platform, or fixture:
+  ```python
+  @pytest.mark.skipif(
+      not has_cds_credentials(),
+      reason="Requires CDS API credentials (~/.cdsapirc)",
+  )
+  ```
+- **In-body skip** (`pytest.skip(...)`) — name the missing resource:
+  ```python
+  if not fixture_path.exists():
+      pytest.skip(f"Fixture data not available at {fixture_path}")
+  ```
+- **Unconditional skip** (`@pytest.mark.skip`) — only acceptable with a tracking issue reference and a real failure-mode description. "Pre-existing issue" is not a reason.
+  ```python
+  @pytest.mark.skip(
+      reason="from_state(parquet) round-trip drops metadata; see #NNNN",
+  )
+  ```
+
+### Choose the right primitive
+
+- **Optional import** → `pytest.importorskip("pvlib")` at module scope (or per-test). Never `try/except ImportError: pytest.skip(...)`.
+- **Required-but-optional resource** (data file, binary, credentials) → a fixture in `conftest.py` that probes the resource once and calls `pytest.skip` with a concrete reason. See `cru_data_available` in `test/conftest.py`.
+- **Never** wrap the test body in `try/except Exception: pytest.skip(...)`. This swallows real regressions silently. Let failures surface; use a targeted `skipif` guard if the test genuinely cannot run in some environments.
+
+### When to delete rather than skip
+
+- If a test has been permanently skipped for more than one release cycle with no tracking issue, delete it. Zombie tests are worse than missing tests — they imply coverage that doesn't exist.
+- If a test's only job is to `print(...)` and `assert True`, it is documentation, not a test. Delete it; put the concern in lint config or a dedicated check.
+
+---
+
+## Validation Edge Cases
+
+When a change tightens an input contract, add explicit regressions for all relevant invalid forms, not just the obvious one:
+
+- Negative values
+- Canonical sentinel values (for example `-999`)
+- `NaN` / missing values
+
+If the feature is available through more than one public API, include at least one regression per API path. Covering only the modern interface is not enough if deprecated or legacy entry points still exist.
 
 ---
 

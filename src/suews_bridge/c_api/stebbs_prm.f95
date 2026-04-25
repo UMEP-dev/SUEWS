@@ -19,7 +19,7 @@ public :: SUEWS_CAPI_BAD_STATE
 integer(c_int), parameter, public :: SUEWS_CAPI_STEBBS_PRM_PROFILE_STEPS = 144_c_int
 integer(c_int), parameter, public :: SUEWS_CAPI_STEBBS_PRM_PROFILE_GROUPS = 2_c_int
 integer(c_int), parameter, public :: SUEWS_CAPI_STEBBS_PRM_LEN = 333_c_int
-integer(c_int), parameter, public :: SUEWS_CAPI_STEBBS_PRM_SCHEMA_VERSION = 1_c_int
+integer(c_int), parameter, public :: SUEWS_CAPI_STEBBS_PRM_SCHEMA_VERSION = 3_c_int
 
 type :: stebbs_prm_shadow
    real(c_double) :: wall_internal_convection_coefficient = 0.0_c_double
@@ -36,6 +36,8 @@ type :: stebbs_prm_shadow
    real(c_double) :: indoor_air_cp = 0.0_c_double
    real(c_double) :: metabolism_threshold = 0.0_c_double
    real(c_double) :: latent_sensible_ratio = 0.0_c_double
+   real(c_double) :: daylight_control = 0.0_c_double
+   real(c_double) :: lighting_illuminance_threshold = 300.0_c_double
    real(c_double) :: heating_system_efficiency = 0.0_c_double
    real(c_double) :: max_cooling_power = 0.0_c_double
    real(c_double) :: cooling_system_cop = 0.0_c_double
@@ -65,8 +67,6 @@ type :: stebbs_prm_shadow
    real(c_double) :: dhw_vessel_external_wall_convection_coefficient = 0.0_c_double
    real(c_double) :: dhw_vessel_wall_emissivity = 0.0_c_double
    real(c_double) :: hot_water_heating_efficiency = 0.0_c_double
-   real(c_double) :: minimum_volume_of_dhw_in_use = 0.0_c_double
-   real(c_double) :: maximum_volume_of_dhw_in_use = 0.0_c_double
    logical :: iter_safe = .true.
 end type stebbs_prm_shadow
 
@@ -146,6 +146,8 @@ subroutine stebbs_prm_pack(state, flat, n_flat, err)
    flat(idx) = state%indoor_air_cp; idx = idx + 1_c_int
    flat(idx) = state%metabolism_threshold; idx = idx + 1_c_int
    flat(idx) = state%latent_sensible_ratio; idx = idx + 1_c_int
+   flat(idx) = state%daylight_control; idx = idx + 1_c_int
+   flat(idx) = state%lighting_illuminance_threshold; idx = idx + 1_c_int
    flat(idx) = state%heating_system_efficiency; idx = idx + 1_c_int
    flat(idx) = state%max_cooling_power; idx = idx + 1_c_int
    flat(idx) = state%cooling_system_cop; idx = idx + 1_c_int
@@ -182,8 +184,6 @@ subroutine stebbs_prm_pack(state, flat, n_flat, err)
    flat(idx) = state%dhw_vessel_external_wall_convection_coefficient; idx = idx + 1_c_int
    flat(idx) = state%dhw_vessel_wall_emissivity; idx = idx + 1_c_int
    flat(idx) = state%hot_water_heating_efficiency; idx = idx + 1_c_int
-   flat(idx) = state%minimum_volume_of_dhw_in_use; idx = idx + 1_c_int
-   flat(idx) = state%maximum_volume_of_dhw_in_use; idx = idx + 1_c_int
    flat(idx) = merge(1.0_c_double, 0.0_c_double, state%iter_safe)
 
    err = SUEWS_CAPI_OK
@@ -208,58 +208,58 @@ subroutine stebbs_prm_unpack(flat, n_flat, state, err)
    end if
 
    idx = 1_c_int
-   state%wallinternalconvectioncoefficient = flat(idx); idx = idx + 1_c_int
-   state%roofinternalconvectioncoefficient = flat(idx); idx = idx + 1_c_int
-   state%internalmassconvectioncoefficient = flat(idx); idx = idx + 1_c_int
-   state%floorinternalconvectioncoefficient = flat(idx); idx = idx + 1_c_int
-   state%windowinternalconvectioncoefficient = flat(idx); idx = idx + 1_c_int
-   state%wallexternalconvectioncoefficient = flat(idx); idx = idx + 1_c_int
-   state%roofexternalconvectioncoefficient = flat(idx); idx = idx + 1_c_int
-   state%windowexternalconvectioncoefficient = flat(idx); idx = idx + 1_c_int
-   state%grounddepth = flat(idx); idx = idx + 1_c_int
-   state%externalgroundconductivity = flat(idx); idx = idx + 1_c_int
-   state%indoorairdensity = flat(idx); idx = idx + 1_c_int
-   state%indooraircp = flat(idx); idx = idx + 1_c_int
-   state%metabolismthreshold = flat(idx); idx = idx + 1_c_int
-   state%latentsensibleratio = flat(idx); idx = idx + 1_c_int
-   state%heatingsystemefficiency = flat(idx); idx = idx + 1_c_int
-   state%maxcoolingpower = flat(idx); idx = idx + 1_c_int
-   state%coolingsystemcop = flat(idx); idx = idx + 1_c_int
-   state%ventilationrate = flat(idx); idx = idx + 1_c_int
-   state%watertankwallthickness = flat(idx); idx = idx + 1_c_int
-   state%watertanksurfacearea = flat(idx); idx = idx + 1_c_int
-   state%hotwaterheatingsetpointtemperature = flat(idx); idx = idx + 1_c_int
-   state%hotwatertankwallemissivity = flat(idx); idx = idx + 1_c_int
-   state%dhwvesselwallthickness = flat(idx); idx = idx + 1_c_int
-   state%dhwwatervolume = flat(idx); idx = idx + 1_c_int
-   state%dhwsurfacearea = flat(idx); idx = idx + 1_c_int
-   state%hotwaterflowrate = flat(idx); idx = idx + 1_c_int
+   state%wall_internal_convection_coefficient = flat(idx); idx = idx + 1_c_int
+   state%roof_internal_convection_coefficient = flat(idx); idx = idx + 1_c_int
+   state%internal_mass_convection_coefficient = flat(idx); idx = idx + 1_c_int
+   state%floor_internal_convection_coefficient = flat(idx); idx = idx + 1_c_int
+   state%window_internal_convection_coefficient = flat(idx); idx = idx + 1_c_int
+   state%wall_external_convection_coefficient = flat(idx); idx = idx + 1_c_int
+   state%roof_external_convection_coefficient = flat(idx); idx = idx + 1_c_int
+   state%window_external_convection_coefficient = flat(idx); idx = idx + 1_c_int
+   state%ground_depth = flat(idx); idx = idx + 1_c_int
+   state%external_ground_conductivity = flat(idx); idx = idx + 1_c_int
+   state%indoor_air_density = flat(idx); idx = idx + 1_c_int
+   state%indoor_air_cp = flat(idx); idx = idx + 1_c_int
+   state%metabolism_threshold = flat(idx); idx = idx + 1_c_int
+   state%latent_sensible_ratio = flat(idx); idx = idx + 1_c_int
+   state%daylight_control = flat(idx); idx = idx + 1_c_int
+   state%lighting_illuminance_threshold = flat(idx); idx = idx + 1_c_int
+   state%heating_system_efficiency = flat(idx); idx = idx + 1_c_int
+   state%max_cooling_power = flat(idx); idx = idx + 1_c_int
+   state%cooling_system_cop = flat(idx); idx = idx + 1_c_int
+   state%ventilation_rate = flat(idx); idx = idx + 1_c_int
+   state%hot_water_tank_wall_thickness = flat(idx); idx = idx + 1_c_int
+   state%hot_water_tank_surface_area = flat(idx); idx = idx + 1_c_int
+   state%hot_water_heating_setpoint_temperature = flat(idx); idx = idx + 1_c_int
+   state%hot_water_tank_wall_emissivity = flat(idx); idx = idx + 1_c_int
+   state%hot_water_vessel_wall_thickness = flat(idx); idx = idx + 1_c_int
+   state%hot_water_volume = flat(idx); idx = idx + 1_c_int
+   state%hot_water_surface_area = flat(idx); idx = idx + 1_c_int
+   state%hot_water_flow_rate = flat(idx); idx = idx + 1_c_int
 
    do j = 1_c_int, SUEWS_CAPI_STEBBS_PRM_PROFILE_GROUPS
       do i = 0_c_int, SUEWS_CAPI_STEBBS_PRM_PROFILE_STEPS - 1_c_int
-         state%hotwaterflowprofile(i, j) = flat(idx)
+         state%hot_water_flow_profile(i, j) = flat(idx)
          idx = idx + 1_c_int
       end do
    end do
 
-   state%dhwspecificheatcapacity = flat(idx); idx = idx + 1_c_int
-   state%hotwatertankspecificheatcapacity = flat(idx); idx = idx + 1_c_int
-   state%dhwvesselspecificheatcapacity = flat(idx); idx = idx + 1_c_int
-   state%dhwdensity = flat(idx); idx = idx + 1_c_int
-   state%hotwatertankwalldensity = flat(idx); idx = idx + 1_c_int
-   state%dhwvesseldensity = flat(idx); idx = idx + 1_c_int
-   state%hotwatertankbuildingwallviewfactor = flat(idx); idx = idx + 1_c_int
-   state%hotwatertankinternalmassviewfactor = flat(idx); idx = idx + 1_c_int
-   state%hotwatertankwallconductivity = flat(idx); idx = idx + 1_c_int
-   state%hotwatertankinternalwallconvectioncoefficient = flat(idx); idx = idx + 1_c_int
-   state%hotwatertankexternalwallconvectioncoefficient = flat(idx); idx = idx + 1_c_int
-   state%dhwvesselwallconductivity = flat(idx); idx = idx + 1_c_int
-   state%dhwvesselinternalwallconvectioncoefficient = flat(idx); idx = idx + 1_c_int
-   state%dhwvesselexternalwallconvectioncoefficient = flat(idx); idx = idx + 1_c_int
-   state%dhwvesselwallemissivity = flat(idx); idx = idx + 1_c_int
-   state%hotwaterheatingefficiency = flat(idx); idx = idx + 1_c_int
-   !state%minimumvolumeofdhwinuse = flat(idx); idx = idx + 1_c_int
-   !state%maximumvolumeofdhwinuse = flat(idx); idx = idx + 1_c_int
+   state%hot_water_specific_heat_capacity = flat(idx); idx = idx + 1_c_int
+   state%hot_water_tank_specific_heat_capacity = flat(idx); idx = idx + 1_c_int
+   state%hot_water_vessel_specific_heat_capacity = flat(idx); idx = idx + 1_c_int
+   state%hot_water_density = flat(idx); idx = idx + 1_c_int
+   state%hot_water_tank_wall_density = flat(idx); idx = idx + 1_c_int
+   state%hot_water_vessel_density = flat(idx); idx = idx + 1_c_int
+   state%hot_water_tank_building_wall_view_factor = flat(idx); idx = idx + 1_c_int
+   state%hot_water_tank_internal_mass_view_factor = flat(idx); idx = idx + 1_c_int
+   state%hot_water_tank_wall_conductivity = flat(idx); idx = idx + 1_c_int
+   state%hot_water_tank_internal_wall_convection_coefficient = flat(idx); idx = idx + 1_c_int
+   state%hot_water_tank_external_wall_convection_coefficient = flat(idx); idx = idx + 1_c_int
+   state%hot_water_vessel_wall_conductivity = flat(idx); idx = idx + 1_c_int
+   state%hot_water_vessel_internal_wall_convection_coefficient = flat(idx); idx = idx + 1_c_int
+   state%hot_water_vessel_external_wall_convection_coefficient = flat(idx); idx = idx + 1_c_int
+   state%hot_water_vessel_wall_emissivity = flat(idx); idx = idx + 1_c_int
+   state%hot_water_heating_efficiency = flat(idx); idx = idx + 1_c_int
    state%iter_safe = flat(idx)>=0.5_c_double
 
    err = SUEWS_CAPI_OK

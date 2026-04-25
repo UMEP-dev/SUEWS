@@ -59,7 +59,7 @@ SUEWS-specific Python conventions. Complements ruff for standard linting.
 - **Underscore between every word**: `soil_depth` not `soildepth`, `lai_max` not `laimax`
 - **Domain abbreviations** are single tokens separated by underscores: `ohm_inc_qf`, `rsl_method`
 - **No redundant suffixes**: avoid appending `method`/`model` when the enum type already conveys this
-- **Exception**: STEBBS archetype parameters use PascalCase to match Fortran conventions
+- **YAML surface is snake_case throughout** — the pre-gh#1334 STEBBS PascalCase exception is retired; cross-layer naming (Fortran TYPE members, Rust struct fields) is tracked in #1324/#1325/#1326
 - See `00-project-essentials.md` for full naming rules and legacy migration policy
 
 ## Style Guidelines
@@ -96,6 +96,16 @@ logger_supy.info("Processing %s", path_file)
 ---
 
 ## Docstring Format
+
+NumPy-style is **machine-enforced** via `ruff check --select D` with
+`convention = "numpy"` in `.ruff.toml`. New offenders fail ruff; any finding
+surfaced under `/lint-code`'s `=== Docstrings ===` section is new debt.
+
+Legacy debt is parked per-file in `[lint.per-file-ignores]` in `.ruff.toml`
+(see the `# --- BEGIN legacy docstring debt (gh1294) ---` block). To clean a
+file: fix its docstrings, delete its line from that block, then confirm
+`ruff check --select D <file>` exits 0. Regenerate the block end-to-end via
+`uv run python scripts/lint/audit_docstrings.py` if many files change at once.
 
 ```python
 def calculate_flux(

@@ -8,8 +8,8 @@ use std::collections::BTreeMap;
 
 pub const BUILDING_ARCHETYPE_PRM_PROFILE_STEPS: usize = 144;
 pub const BUILDING_ARCHETYPE_PRM_PROFILE_GROUPS: usize = 2;
-pub const BUILDING_ARCHETYPE_PRM_FLAT_LEN: usize = 639;
-pub const BUILDING_ARCHETYPE_PRM_SCHEMA_VERSION: u32 = 1;
+pub const BUILDING_ARCHETYPE_PRM_FLAT_LEN: usize = 1217;
+pub const BUILDING_ARCHETYPE_PRM_SCHEMA_VERSION: u32 = 4;
 
 pub type BuildingArchetypePrmSchema = crate::codec::SimpleSchema;
 
@@ -29,6 +29,7 @@ pub struct BuildingArchetypePrm {
     pub footprintarea: f64,
     pub wallexternalarea: f64,
     pub ratiointernalvolume: f64,
+    pub internalmassarea: f64,
     pub wwr: f64,
     pub wallthickness: f64,
     pub walleffectiveconductivity: f64,
@@ -79,10 +80,15 @@ pub struct BuildingArchetypePrm {
     pub maximumhotwaterheatingpower: f64,
     pub heatingsetpointtemperature: f64,
     pub coolingsetpointtemperature: f64,
+    pub heatingsetpointtemperatureprofile:
+        [[f64; BUILDING_ARCHETYPE_PRM_PROFILE_STEPS]; BUILDING_ARCHETYPE_PRM_PROFILE_GROUPS],
+    pub coolingsetpointtemperatureprofile:
+        [[f64; BUILDING_ARCHETYPE_PRM_PROFILE_STEPS]; BUILDING_ARCHETYPE_PRM_PROFILE_GROUPS],
     pub metabolismprofile:
         [[f64; BUILDING_ARCHETYPE_PRM_PROFILE_STEPS]; BUILDING_ARCHETYPE_PRM_PROFILE_GROUPS],
     pub applianceprofile:
         [[f64; BUILDING_ARCHETYPE_PRM_PROFILE_STEPS]; BUILDING_ARCHETYPE_PRM_PROFILE_GROUPS],
+    pub lightingpowerdensity: f64,
     pub iter_safe: bool,
 }
 
@@ -101,6 +107,7 @@ impl Default for BuildingArchetypePrm {
             footprintarea: 0.0,
             wallexternalarea: 0.0,
             ratiointernalvolume: 0.0,
+            internalmassarea: 0.0,
             wwr: 0.0,
             wallthickness: 0.0,
             walleffectiveconductivity: 0.0,
@@ -151,10 +158,15 @@ impl Default for BuildingArchetypePrm {
             maximumhotwaterheatingpower: 0.0,
             heatingsetpointtemperature: 0.0,
             coolingsetpointtemperature: 0.0,
+            heatingsetpointtemperatureprofile: [[0.0; BUILDING_ARCHETYPE_PRM_PROFILE_STEPS];
+                BUILDING_ARCHETYPE_PRM_PROFILE_GROUPS],
+            coolingsetpointtemperatureprofile: [[0.0; BUILDING_ARCHETYPE_PRM_PROFILE_STEPS];
+                BUILDING_ARCHETYPE_PRM_PROFILE_GROUPS],
             metabolismprofile: [[0.0; BUILDING_ARCHETYPE_PRM_PROFILE_STEPS];
                 BUILDING_ARCHETYPE_PRM_PROFILE_GROUPS],
             applianceprofile: [[0.0; BUILDING_ARCHETYPE_PRM_PROFILE_STEPS];
                 BUILDING_ARCHETYPE_PRM_PROFILE_GROUPS],
+            lightingpowerdensity: 0.0,
             iter_safe: true,
         }
     }
@@ -183,6 +195,7 @@ impl BuildingArchetypePrm {
         let footprintarea = next();
         let wallexternalarea = next();
         let ratiointernalvolume = next();
+        let internalmassarea = next();
         let wwr = next();
         let wallthickness = next();
         let walleffectiveconductivity = next();
@@ -234,6 +247,24 @@ impl BuildingArchetypePrm {
         let heatingsetpointtemperature = next();
         let coolingsetpointtemperature = next();
 
+        let mut heatingsetpointtemperatureprofile =
+            [[0.0_f64; BUILDING_ARCHETYPE_PRM_PROFILE_STEPS];
+                BUILDING_ARCHETYPE_PRM_PROFILE_GROUPS];
+        for day_type in 0..BUILDING_ARCHETYPE_PRM_PROFILE_GROUPS {
+            for step in 0..BUILDING_ARCHETYPE_PRM_PROFILE_STEPS {
+                heatingsetpointtemperatureprofile[day_type][step] = next();
+            }
+        }
+
+        let mut coolingsetpointtemperatureprofile =
+            [[0.0_f64; BUILDING_ARCHETYPE_PRM_PROFILE_STEPS];
+                BUILDING_ARCHETYPE_PRM_PROFILE_GROUPS];
+        for day_type in 0..BUILDING_ARCHETYPE_PRM_PROFILE_GROUPS {
+            for step in 0..BUILDING_ARCHETYPE_PRM_PROFILE_STEPS {
+                coolingsetpointtemperatureprofile[day_type][step] = next();
+            }
+        }
+
         let mut metabolismprofile = [[0.0_f64; BUILDING_ARCHETYPE_PRM_PROFILE_STEPS];
             BUILDING_ARCHETYPE_PRM_PROFILE_GROUPS];
         for day_type in 0..BUILDING_ARCHETYPE_PRM_PROFILE_GROUPS {
@@ -250,6 +281,8 @@ impl BuildingArchetypePrm {
             }
         }
 
+        let lightingpowerdensity = next();
+
         Ok(Self {
             buildingcount,
             occupants,
@@ -263,6 +296,7 @@ impl BuildingArchetypePrm {
             footprintarea,
             wallexternalarea,
             ratiointernalvolume,
+            internalmassarea,
             wwr,
             wallthickness,
             walleffectiveconductivity,
@@ -313,8 +347,11 @@ impl BuildingArchetypePrm {
             maximumhotwaterheatingpower,
             heatingsetpointtemperature,
             coolingsetpointtemperature,
+            heatingsetpointtemperatureprofile,
+            coolingsetpointtemperatureprofile,
             metabolismprofile,
             applianceprofile,
+            lightingpowerdensity,
             iter_safe: next() >= 0.5,
         })
     }
@@ -334,6 +371,7 @@ impl BuildingArchetypePrm {
         flat.push(self.footprintarea);
         flat.push(self.wallexternalarea);
         flat.push(self.ratiointernalvolume);
+        flat.push(self.internalmassarea);
         flat.push(self.wwr);
         flat.push(self.wallthickness);
         flat.push(self.walleffectiveconductivity);
@@ -386,6 +424,14 @@ impl BuildingArchetypePrm {
         flat.push(self.coolingsetpointtemperature);
 
         for day_type in 0..BUILDING_ARCHETYPE_PRM_PROFILE_GROUPS {
+            flat.extend_from_slice(&self.heatingsetpointtemperatureprofile[day_type]);
+        }
+
+        for day_type in 0..BUILDING_ARCHETYPE_PRM_PROFILE_GROUPS {
+            flat.extend_from_slice(&self.coolingsetpointtemperatureprofile[day_type]);
+        }
+
+        for day_type in 0..BUILDING_ARCHETYPE_PRM_PROFILE_GROUPS {
             flat.extend_from_slice(&self.metabolismprofile[day_type]);
         }
 
@@ -393,6 +439,7 @@ impl BuildingArchetypePrm {
             flat.extend_from_slice(&self.applianceprofile[day_type]);
         }
 
+        flat.push(self.lightingpowerdensity);
         flat.push(if self.iter_safe { 1.0 } else { 0.0 });
 
         flat
@@ -465,6 +512,7 @@ pub fn building_archetype_prm_field_names() -> Vec<String> {
         "footprintarea".to_string(),
         "wallexternalarea".to_string(),
         "ratiointernalvolume".to_string(),
+        "internalmassarea".to_string(),
         "wwr".to_string(),
         "wallthickness".to_string(),
         "walleffectiveconductivity".to_string(),
@@ -519,6 +567,24 @@ pub fn building_archetype_prm_field_names() -> Vec<String> {
 
     for day_type in 0..BUILDING_ARCHETYPE_PRM_PROFILE_GROUPS {
         for step in 0..BUILDING_ARCHETYPE_PRM_PROFILE_STEPS {
+            names.push(format!(
+                "heatingsetpointtemperatureprofile.{step:03}.{}",
+                day_type + 1
+            ));
+        }
+    }
+
+    for day_type in 0..BUILDING_ARCHETYPE_PRM_PROFILE_GROUPS {
+        for step in 0..BUILDING_ARCHETYPE_PRM_PROFILE_STEPS {
+            names.push(format!(
+                "coolingsetpointtemperatureprofile.{step:03}.{}",
+                day_type + 1
+            ));
+        }
+    }
+
+    for day_type in 0..BUILDING_ARCHETYPE_PRM_PROFILE_GROUPS {
+        for step in 0..BUILDING_ARCHETYPE_PRM_PROFILE_STEPS {
             names.push(format!("metabolismprofile.{step:03}.{}", day_type + 1));
         }
     }
@@ -529,6 +595,7 @@ pub fn building_archetype_prm_field_names() -> Vec<String> {
         }
     }
 
+    names.push("lightingpowerdensity".to_string());
     names.push("iter_safe".to_string());
 
     names
@@ -646,12 +713,14 @@ mod tests {
         let mut mapped = building_archetype_prm_to_map(&state);
         mapped.insert("buildingcount".to_string(), 12.0);
         mapped.insert("metabolismprofile.012.2".to_string(), 55.0);
+        mapped.insert("lightingpowerdensity".to_string(), 2.0);
         mapped.insert("iter_safe".to_string(), 0.0);
 
         let updated =
             building_archetype_prm_from_map(&mapped).expect("map to state should succeed");
         assert!((updated.buildingcount - 12.0).abs() < 1.0e-12);
         assert!((updated.metabolismprofile[1][12] - 55.0).abs() < 1.0e-12);
+        assert!((updated.lightingpowerdensity - 2.0).abs() < 1.0e-12);
         assert!(!updated.iter_safe);
     }
 

@@ -7,18 +7,20 @@
 # Required environment variables:
 #   DETECT_CHANGES_RESULT -- needs.detect-changes.result
 #   BUILD_WHEELS_RESULT   -- needs.build_wheels.result
-#   BUILD_UMEP_RESULT     -- needs.build_umep.result
+#   TEST_BRIDGE_RESULT    -- needs.test_api_cross_python.result
+#   CHECK_MARKERS_RESULT  -- needs.check_test_markers.result
 #   NEEDS_BUILD           -- needs.detect-changes.outputs.needs-build
-#   NEEDS_UMEP_BUILD      -- needs.detect-changes.outputs.needs-umep-build
 
 set -euo pipefail
+
+CHECK_MARKERS_RESULT="${CHECK_MARKERS_RESULT:-skipped}"
 
 echo "=== Job Results ==="
 echo "detect-changes: ${DETECT_CHANGES_RESULT}"
 echo "build_wheels: ${BUILD_WHEELS_RESULT}"
-echo "build_umep: ${BUILD_UMEP_RESULT}"
+echo "test_api_cross_python: ${TEST_BRIDGE_RESULT}"
+echo "check_test_markers: ${CHECK_MARKERS_RESULT}"
 echo "needs-build: ${NEEDS_BUILD}"
-echo "needs-umep-build: ${NEEDS_UMEP_BUILD}"
 echo ""
 
 # Handle cancelled detect-changes (e.g. superseded by cancel-in-progress)
@@ -37,6 +39,18 @@ fi
 
 VALIDATION_PASSED=true
 
+# Marker-axis lint (gh#1300) runs on every PR regardless of needs-build.
+echo "Validating test marker axis (gh#1300)..."
+if [[ "${CHECK_MARKERS_RESULT}" == "success" ]]; then
+  echo "[OK] Every test file declares physics or api"
+elif [[ "${CHECK_MARKERS_RESULT}" == "skipped" ]]; then
+  echo "[OK] Marker lint skipped (not a PR/merge-queue/dispatch run)"
+else
+  echo "[X] Marker lint failed - some test file is missing physics/api marker"
+  echo "  check_test_markers: ${CHECK_MARKERS_RESULT}"
+  VALIDATION_PASSED=false
+fi
+
 if [[ "${NEEDS_BUILD}" == "true" ]]; then
   echo "Code changes detected - validating standard build..."
   if [[ "${BUILD_WHEELS_RESULT}" == "success" ]]; then
@@ -47,49 +61,31 @@ if [[ "${NEEDS_BUILD}" == "true" ]]; then
     VALIDATION_PASSED=false
   fi
 
-  # UMEP build required only when compiled extension changed
-  if [[ "${NEEDS_UMEP_BUILD}" == "true" ]]; then
-    echo "Compiled extension changed - validating UMEP build..."
-    if [[ "${BUILD_UMEP_RESULT}" == "success" ]]; then
-      echo "[OK] UMEP build passed"
-    else
-      echo "[X] UMEP build failed"
-      echo "  build_umep: ${BUILD_UMEP_RESULT}"
-      VALIDATION_PASSED=false
-    fi
+  echo "Validating api cross-CPython tests..."
+  if [[ "${TEST_BRIDGE_RESULT}" == "success" ]]; then
+    echo "[OK] API tests passed on all matrix cells"
   else
-    echo "No compiled extension changes - UMEP build not required"
-    if [[ "${BUILD_UMEP_RESULT}" == "skipped" ]]; then
-      echo "[OK] UMEP build correctly skipped"
-    else
-      echo "Note: UMEP build ran unexpectedly (result: ${BUILD_UMEP_RESULT})"
-      # Non-fatal: accept success or skipped
-      if [[ "${BUILD_UMEP_RESULT}" != "success" ]] && \
-         [[ "${BUILD_UMEP_RESULT}" != "skipped" ]]; then
-        VALIDATION_PASSED=false
-      fi
-    fi
+    echo "[X] API cross-CPython tests failed"
+    echo "  test_api_cross_python: ${TEST_BRIDGE_RESULT}"
+    VALIDATION_PASSED=false
   fi
 
 else
   echo "No code changes - builds not required"
 
   if [[ "${BUILD_WHEELS_RESULT}" == "skipped" ]] && \
-     [[ "${BUILD_UMEP_RESULT}" == "skipped" ]]; then
+     [[ "${TEST_BRIDGE_RESULT}" == "skipped" ]]; then
     echo "[OK] Code builds correctly skipped"
   else
     echo "Note: Unexpected build activity for non-code PR"
     echo "  build_wheels: ${BUILD_WHEELS_RESULT}"
-    echo "  build_umep: ${BUILD_UMEP_RESULT}"
+    echo "  test_api_cross_python: ${TEST_BRIDGE_RESULT}"
     # Still pass if builds succeeded (conservative)
-    if [[ "${BUILD_WHEELS_RESULT}" != "success" ]] && \
-       [[ "${BUILD_WHEELS_RESULT}" != "skipped" ]]; then
-      VALIDATION_PASSED=false
-    fi
-    if [[ "${BUILD_UMEP_RESULT}" != "success" ]] && \
-       [[ "${BUILD_UMEP_RESULT}" != "skipped" ]]; then
-      VALIDATION_PASSED=false
-    fi
+    for result in "${BUILD_WHEELS_RESULT}" "${TEST_BRIDGE_RESULT}"; do
+      if [[ "$result" != "success" ]] && [[ "$result" != "skipped" ]]; then
+        VALIDATION_PASSED=false
+      fi
+    done
   fi
 fi
 

@@ -2,6 +2,8 @@
 MODULE module_phys_dailystate
    USE module_ctrl_const_allocate, ONLY: &
       ndays, nsurf, nvegsurf, ivConif, ivDecid, ivGrass, DecidSurf, ncolumnsDataOutDailyState
+   USE module_ctrl_error_state, ONLY: set_supy_error, supy_error_flag
+   USE, INTRINSIC :: ieee_arithmetic, ONLY: IEEE_IS_NAN
 
    IMPLICIT NONE
 
@@ -80,7 +82,7 @@ CONTAINS
       TYPE(SUEWS_STATE), INTENT(INOUT) :: modState
 
 
-      INTEGER, PARAMETER :: LAICalcYes = 1 ! boolean to determine if calculate LAI [-]
+      INTEGER :: LAICalcYes ! 1 = calculate LAI internally (GDD), 0 = use forcing%LAI_obs [-]
 
       REAL(KIND(1D0)), DIMENSION(2) :: BaseT_Heating
 
@@ -108,6 +110,10 @@ CONTAINS
 
          ! save initial values
          phenState_prev = phenState
+
+         ! LAI calculation switch: pulled from config (model.physics.laimethod in YAML).
+         ! 0 = use forcing%LAI_obs (observed/prescribed), 1 = compute internally via GDD/SDD.
+         LAICalcYes = config%LAImethod
 
          ASSOCIATE ( &
             lat => siteInfo%lat, &
@@ -138,15 +144,15 @@ CONTAINS
             )
 
             ASSOCIATE ( &
-               BaseT_Heating => [ahemisPrm%anthroheat%BaseT_Heating_working, &
-                                 ahemisPrm%anthroheat%BaseT_Heating_holiday], &
-               BaseT_Cooling => [ahemisPrm%anthroheat%BaseT_Cooling_working, &
-                                 ahemisPrm%anthroheat%BaseT_Cooling_holiday], &
+               BaseT_Heating => [ahemisPrm%anthro_heat%BaseT_Heating_working, &
+                                 ahemisPrm%anthro_heat%BaseT_Heating_holiday], &
+               BaseT_Cooling => [ahemisPrm%anthro_heat%BaseT_Cooling_working, &
+                                 ahemisPrm%anthro_heat%BaseT_Cooling_holiday], &
                Tmin_id_prev => phenState_prev%Tmin_id, &
                Tmax_id_prev => phenState_prev%Tmax_id, &
                lenDay_id_prev => phenState_prev%lenDay_id, &
                DecidCap_id_prev => phenState_prev%DecidCap_id, &
-               StoreDrainPrm_prev => phenState_prev%StoreDrainPrm, &
+               StoreDrainPrm_prev => phenState_prev%storage_drain_params, &
                LAI_id_prev => phenState_prev%LAI_id, &
                GDD_id_prev => phenState_prev%GDD_id, &
                SDD_id_prev => phenState_prev%SDD_id, &
@@ -158,7 +164,7 @@ CONTAINS
                Tmax_id => phenState%Tmax_id, &
                lenDay_id => phenState%lenDay_id, &
                DecidCap_id => phenState%DecidCap_id, &
-               StoreDrainPrm => phenState%StoreDrainPrm, &
+               StoreDrainPrm => phenState%storage_drain_params, &
                LAI_id => phenState%LAI_id, &
                GDD_id => phenState%GDD_id, &
                SDD_id => phenState%SDD_id, &
@@ -168,12 +174,12 @@ CONTAINS
                porosity_id => phenState%porosity_id, &
                HDD_id => anthroEmisState%HDD_id, &
                state_surf => hydroState%state_surf, &
-               soilstore_surf => hydroState%soilstore_surf, &
+               soilstore_surf => hydroState%soil_store_surf, &
                WUDay_id => hydroState%WUDay_id, &
                WaterUseMethod => config%WaterUseMethod, &
                Ie_start => irrPrm%Ie_start, &
                Ie_end => irrPrm%Ie_end, &
-               Faut => irrPrm%Faut, &
+               Faut => irrPrm%f_aut, &
                Ie_a => irrPrm%Ie_a, &
                Ie_m => irrPrm%Ie_m, &
                H_maintain => irrPrm%H_maintain, &
@@ -193,45 +199,45 @@ CONTAINS
                           irrPrm%irr_daywater%sunday_flag], &
                AlbMax_EveTr => evetrPrm%Alb_Max, &
                AlbMin_EveTr => evetrPrm%Alb_Min, &
-               evetrLAIPower => evetrPrm%lai%laipower, &
+               evetrLAIPower => evetrPrm%lai%lai_power, &
                AlbMax_DecTr => dectrPrm%Alb_Max, &
                AlbMin_DecTr => dectrPrm%Alb_Min, &
-               CapMax_dec => dectrPrm%CapMax_dec, &
-               CapMin_dec => dectrPrm%CapMin_dec, &
-               PorMax_dec => dectrPrm%PorMax_dec, &
-               PorMin_dec => dectrPrm%PorMin_dec, &
-               dectrLAIPower => dectrPrm%lai%laipower, &
+               CapMax_dec => dectrPrm%capacity_max_deciduous, &
+               CapMin_dec => dectrPrm%capacity_min_deciduous, &
+               PorMax_dec => dectrPrm%porosity_max_deciduous, &
+               PorMin_dec => dectrPrm%porosity_min_deciduous, &
+               dectrLAIPower => dectrPrm%lai%lai_power, &
                AlbMax_Grass => grassPrm%Alb_Max, &
                AlbMin_Grass => grassPrm%Alb_Min, &
-               LAIType => [evetrPrm%lai%laitype, &
-                           dectrPrm%lai%laitype, &
-                           grassPrm%lai%laitype], &
-               BaseT => [evetrPrm%lai%BaseT, &
-                         dectrPrm%lai%BaseT, &
-                         grassPrm%lai%BaseT], &
-               BaseTe => [evetrPrm%lai%BaseTe, &
-                          dectrPrm%lai%BaseTe, &
-                          grassPrm%lai%BaseTe], &
-               GDDFull => [evetrPrm%lai%gddfull, &
-                           dectrPrm%lai%gddfull, &
-                           grassPrm%lai%gddfull], &
-               SDDFull => [evetrPrm%lai%sddfull, &
-                           dectrPrm%lai%sddfull, &
-                           grassPrm%lai%sddfull], &
-               LAIMin => [evetrPrm%lai%laimin, &
-                          dectrPrm%lai%laimin, &
-                          grassPrm%lai%laimin], &
-               LAIMax => [evetrPrm%lai%laimax, &
-                          dectrPrm%lai%laimax, &
-                          grassPrm%lai%laimax], &
-               SoilStoreCap => [pavedPrm%soil%soilstorecap, &
-                                bldgPrm%soil%soilstorecap, &
-                                evetrPrm%soil%soilstorecap, &
-                                dectrPrm%soil%soilstorecap, &
-                                grassPrm%soil%soilstorecap, &
-                                bsoilPrm%soil%soilstorecap, &
-                                waterPrm%soil%soilstorecap], &
-               grassLAIPower => grassPrm%lai%laipower &
+               LAIType => [evetrPrm%lai%lai_type, &
+                           dectrPrm%lai%lai_type, &
+                           grassPrm%lai%lai_type], &
+               BaseT => [evetrPrm%lai%base_temperature, &
+                         dectrPrm%lai%base_temperature, &
+                         grassPrm%lai%base_temperature], &
+               BaseTe => [evetrPrm%lai%base_temperature_senescence, &
+                          dectrPrm%lai%base_temperature_senescence, &
+                          grassPrm%lai%base_temperature_senescence], &
+               GDDFull => [evetrPrm%lai%gdd_full, &
+                           dectrPrm%lai%gdd_full, &
+                           grassPrm%lai%gdd_full], &
+               SDDFull => [evetrPrm%lai%sdd_full, &
+                           dectrPrm%lai%sdd_full, &
+                           grassPrm%lai%sdd_full], &
+               LAIMin => [evetrPrm%lai%lai_min, &
+                          dectrPrm%lai%lai_min, &
+                          grassPrm%lai%lai_min], &
+               LAIMax => [evetrPrm%lai%lai_max, &
+                          dectrPrm%lai%lai_max, &
+                          grassPrm%lai%lai_max], &
+               SoilStoreCap => [pavedPrm%soil%soil_store_capacity, &
+                                bldgPrm%soil%soil_store_capacity, &
+                                evetrPrm%soil%soil_store_capacity, &
+                                dectrPrm%soil%soil_store_capacity, &
+                                grassPrm%soil%soil_store_capacity, &
+                                bsoilPrm%soil%soil_store_capacity, &
+                                waterPrm%soil%soil_store_capacity], &
+               grassLAIPower => grassPrm%lai%lai_power &
                )
 
                ! before
@@ -333,6 +339,7 @@ CONTAINS
                         LAI_id_prev, &
                         GDD_id, SDD_id, & !inout
                         LAI_id) !output
+                     IF (supy_error_flag) RETURN
 
                      CALL update_Veg( &
                         LAImax, LAIMin, & !input
@@ -577,6 +584,17 @@ CONTAINS
 
       critDays = 50 !Critical limit for GDD when GDD or SDD is set to zero
 
+      IF (LAICalcYes == 0 .AND. (IEEE_IS_NAN(LAI_obs) .OR. LAI_obs < 0.0D0)) THEN
+         ! Invalid LAI_obs slipped past pre-flight — raise an error via the
+         ! SuPy error-state channel before mutating phenology state.
+         ! Assign a safe sentinel to the INTENT(OUT) array before RETURN.
+         LAI_id_next = -999.0D0
+         CALL set_supy_error( &
+            105, &
+            'update_GDDLAI: laimethod=0 requires a non-missing lai >= 0 at every timestep')
+         RETURN
+      END IF
+
       ! Loop through vegetation types (iv)
       DO iv = 1, NVegSurf
          ! Calculate GDD for each day from the minimum and maximum air temperature
@@ -680,9 +698,35 @@ CONTAINS
 
       END DO !End of loop over veg surfaces
 
-      IF (LAICalcYes == 0) THEN ! moved to SUEWS_cal_DailyState, TS 18 Sep 2017
-         ! LAI(id-1,:)=LAI_obs ! check -- this is going to be a problem as it is not for each vegetation class
+      ! Observed-LAI override: when LAICalcYes == 0, every timestep's forcing
+      ! value must be a non-missing, non-negative observation (LAI_obs >= 0).
+      ! A genuine
+      ! zero observation (e.g. complete winter dieback) is valid — the
+      ! site-specific clamp then raises it to LAImin if the configuration
+      ! retains a positive floor. Missing/NaN values and strictly negative
+      ! values — including the -999 missing sentinel — are rejected;
+      ! choosing this path commits the user to providing an observation for
+      ! every timestep.
+      ! The Python pre-flight validator (supy._check.check_forcing) enforces
+      ! this contract before a run starts; the guard below is a defensive
+      ! backstop for callers that bypass preflight. Reports via
+      ! module_ctrl_error_state so SuPy can surface a clean exception —
+      ! never WRITE(*,...) + STOP, which kills the embedding Python process.
+      ! The scalar-to-all-veg-classes limitation is tracked in #1292.
+      IF (LAICalcYes == 0) THEN
          LAI_id_next = LAI_obs
+         ! Clamp observed LAI to each vegetation class's [LAImin, LAImax]
+         ! envelope so that downstream ``LAI_id / LAImax`` ratios in
+         ! ``suews_phys_resist`` and ``suews_phys_biogenco2`` stay within
+         ! the site-specific canopy envelope. The pre-flight validator
+         ! warns when forcing values would be clamped.
+         DO iv = 1, NVegSurf
+            IF (LAI_id_next(iv) > LAImax(iv)) THEN
+               LAI_id_next(iv) = LAImax(iv)
+            ELSEIF (LAI_id_next(iv) < LAImin(iv)) THEN
+               LAI_id_next(iv) = LAImin(iv)
+            END IF
+         END DO
       END IF
       !------------------------------------------------------------------------------
 
@@ -925,10 +969,10 @@ CONTAINS
             albGrass_id => phenState%albGrass_id, &
             porosity_id => phenState%porosity_id, &
             WUDay_id => hydroState%WUDay_id, &
-            SnowAlb => snowState%SnowAlb, &
-            SnowDens => snowState%SnowDens, &
+            SnowAlb => snowState%snow_albedo, &
+            SnowDens => snowState%snow_density, &
             HDD_id => anthroEmisState%HDD_id, &
-            VegPhenLumps => phenState%VegPhenLumps, &
+            VegPhenLumps => phenState%veg_phen_lumps, &
             a1 => OHMState%a1, &
             a2 => OHMState%a2, &
             a3 => OHMState%a3, &

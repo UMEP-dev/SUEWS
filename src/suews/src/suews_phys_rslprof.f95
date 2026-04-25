@@ -374,7 +374,7 @@ CONTAINS
             snowPrm => siteInfo%snow, &
             PipeCapacity => siteInfo%PipeCapacity, &
             RunoffToWater => siteInfo%RunoffToWater, &
-            FlowChange => siteInfo%FlowChange, &
+            FlowChange => siteInfo%flow_change, &
             PervFraction => siteInfo%PervFraction, &
             vegfraction => siteInfo%vegfraction, &
             NonWaterFraction => siteInfo%NonWaterFraction, &
@@ -391,8 +391,8 @@ CONTAINS
             avRH => forcing%RH, &
             Press_hPa => forcing%pres, &
             RA_h => atmState%RA_h, &
-            avdens => atmState%avdens, &
-            avcp => atmState%avcp, &
+            avdens => atmState%av_density, &
+            avcp => atmState%av_cp, &
             lv_J_kg => atmState%lv_J_kg, &
             L_MOD => atmState%L_MOD, &
             T2_C => atmState%T2_C, &
@@ -420,10 +420,10 @@ CONTAINS
             RSLMethod => config%RSLMethod, &
             StabilityMethod => config%StabilityMethod, &
             Diagnose => config%Diagnose, &
-            zarray => stebbsState%zarray, &
-            dataoutLineURSL => stebbsState%dataoutLineURSL, &
-            dataoutLineTRSL => stebbsState%dataoutLineTRSL, &
-            dataoutLineqRSL => stebbsState%dataoutLineqRSL &
+            zarray => stebbsState%z_array, &
+            dataoutLineURSL => stebbsState%dataout_line_u_rsl, &
+            dataoutLineTRSL => stebbsState%dataout_line_t_rsl, &
+            dataoutLineqRSL => stebbsState%dataout_line_q_rsl &
             )
 
             ! RSLMethod = config%RSLMethod
@@ -493,11 +493,15 @@ CONTAINS
                zd_RSL = zdm
                IF (IEEE_IS_NAN(z0_RSL) .OR. z0_RSL <= 0D0) THEN
                   z0_RSL = MAX(z0m_in, 0.03D0)
-                  CALL add_supy_warning('RSLProfile: invalid MOST roughness length, using site z0m_in')
+                  CALL modState%errorstate%report( &
+                     message='RSLProfile: invalid MOST roughness length, using site z0m_in', &
+                     location='RSLProfile', is_fatal=.FALSE.)
                END IF
                IF (IEEE_IS_NAN(zd_RSL) .OR. zd_RSL < 0D0) THEN
                   zd_RSL = MAX(zdm_in, 0D0)
-                  CALL add_supy_warning('RSLProfile: invalid MOST displacement height, using site zdm_in')
+                  CALL modState%errorstate%report( &
+                     message='RSLProfile: invalid MOST displacement height, using site zdm_in', &
+                     location='RSLProfile', is_fatal=.FALSE.)
                END IF
 
                ! Generate MOST height array from sanitised roughness values

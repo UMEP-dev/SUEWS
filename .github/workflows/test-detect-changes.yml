@@ -25,6 +25,9 @@ on:
         required: true
         default: 'master'
 
+permissions:
+  contents: read
+
 jobs:
   detect-changes:
     name: Detect code changes
@@ -34,8 +37,6 @@ jobs:
       # The real CI workflow classifies pyproject.toml by content (see build-publish_to_pypi.yml).
       # SYNC-NOTE: update if needs-build categories change in build-publish_to_pypi.yml
       needs-build: ${{ steps.filter.outputs.fortran == 'true' || steps.filter.outputs.rust == 'true' || steps.filter.outputs.python == 'true' || steps.filter.outputs.util == 'true' || steps.filter.outputs.build == 'true' || steps.filter.outputs.pyproject == 'true' || steps.filter.outputs.ci == 'true' || steps.filter.outputs.tests == 'true' }}
-      # SYNC-NOTE: UMEP build only needed when compiled extension ABI may differ
-      needs-umep-build: ${{ steps.filter.outputs.fortran == 'true' || steps.filter.outputs.rust == 'true' || steps.filter.outputs.build == 'true' }}
       fortran-changed: ${{ steps.filter.outputs.fortran }}
       rust-changed: ${{ steps.filter.outputs.rust }}
       python-changed: ${{ steps.filter.outputs.python }}
@@ -47,11 +48,12 @@ jobs:
       docs-changed: ${{ steps.filter.outputs.docs }}
       site-changed: ${{ steps.filter.outputs.site }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
         with:
           fetch-depth: 0
+          persist-credentials: false
 
-      - uses: dorny/paths-filter@v3
+      - uses: dorny/paths-filter@de90cc6fb38fc0963ad72b210f1f284cd68cea36 # v3
         id: filter
         with:
           base: ${{ inputs.base }}
@@ -64,30 +66,51 @@ jobs:
           echo "::warning::pyproject.toml changed. This local test treats ALL pyproject.toml changes as build-triggering. The real CI classifies by content (build-system/cibuildwheel -> multiplatform, dependencies -> single-platform, tooling -> no build)."
 
       - name: Show results
+        env:
+          FORTRAN_FILES: ${{ steps.filter.outputs.fortran_files }}
+          RUST_FILES: ${{ steps.filter.outputs.rust_files }}
+          PYTHON_FILES: ${{ steps.filter.outputs.python_files }}
+          UTIL_FILES: ${{ steps.filter.outputs.util_files }}
+          BUILD_FILES: ${{ steps.filter.outputs.build_files }}
+          PYPROJECT_FILES: ${{ steps.filter.outputs.pyproject_files }}
+          CI_FILES: ${{ steps.filter.outputs.ci_files }}
+          TESTS_FILES: ${{ steps.filter.outputs.tests_files }}
+          DOCS_FILES: ${{ steps.filter.outputs.docs_files }}
+          SITE_FILES: ${{ steps.filter.outputs.site_files }}
+          FORTRAN_CHANGED: ${{ steps.filter.outputs.fortran }}
+          RUST_CHANGED: ${{ steps.filter.outputs.rust }}
+          PYTHON_CHANGED: ${{ steps.filter.outputs.python }}
+          UTIL_CHANGED: ${{ steps.filter.outputs.util }}
+          BUILD_CHANGED: ${{ steps.filter.outputs.build }}
+          PYPROJECT_CHANGED: ${{ steps.filter.outputs.pyproject }}
+          CI_CHANGED: ${{ steps.filter.outputs.ci }}
+          TESTS_CHANGED: ${{ steps.filter.outputs.tests }}
+          DOCS_CHANGED: ${{ steps.filter.outputs.docs }}
+          SITE_CHANGED: ${{ steps.filter.outputs.site }}
         run: |
           echo "=== Changed Files ==="
-          echo "fortran files:   ${{ steps.filter.outputs.fortran_files }}"
-          echo "rust files:      ${{ steps.filter.outputs.rust_files }}"
-          echo "python files:    ${{ steps.filter.outputs.python_files }}"
-          echo "util files:      ${{ steps.filter.outputs.util_files }}"
-          echo "build files:     ${{ steps.filter.outputs.build_files }}"
-          echo "pyproject files: ${{ steps.filter.outputs.pyproject_files }}"
-          echo "ci files:        ${{ steps.filter.outputs.ci_files }}"
-          echo "tests files:     ${{ steps.filter.outputs.tests_files }}"
-          echo "docs files:      ${{ steps.filter.outputs.docs_files }}"
-          echo "site files:      ${{ steps.filter.outputs.site_files }}"
+          echo "fortran files:   ${FORTRAN_FILES}"
+          echo "rust files:      ${RUST_FILES}"
+          echo "python files:    ${PYTHON_FILES}"
+          echo "util files:      ${UTIL_FILES}"
+          echo "build files:     ${BUILD_FILES}"
+          echo "pyproject files: ${PYPROJECT_FILES}"
+          echo "ci files:        ${CI_FILES}"
+          echo "tests files:     ${TESTS_FILES}"
+          echo "docs files:      ${DOCS_FILES}"
+          echo "site files:      ${SITE_FILES}"
           echo ""
           echo "=== Category Results ==="
-          echo "fortran:   ${{ steps.filter.outputs.fortran }}"
-          echo "rust:      ${{ steps.filter.outputs.rust }}"
-          echo "python:    ${{ steps.filter.outputs.python }}"
-          echo "util:      ${{ steps.filter.outputs.util }}"
-          echo "build:     ${{ steps.filter.outputs.build }}"
-          echo "pyproject: ${{ steps.filter.outputs.pyproject }}"
-          echo "ci:        ${{ steps.filter.outputs.ci }}"
-          echo "tests:     ${{ steps.filter.outputs.tests }}"
-          echo "docs:      ${{ steps.filter.outputs.docs }}"
-          echo "site:      ${{ steps.filter.outputs.site }}"
+          echo "fortran:   ${FORTRAN_CHANGED}"
+          echo "rust:      ${RUST_CHANGED}"
+          echo "python:    ${PYTHON_CHANGED}"
+          echo "util:      ${UTIL_CHANGED}"
+          echo "build:     ${BUILD_CHANGED}"
+          echo "pyproject: ${PYPROJECT_CHANGED}"
+          echo "ci:        ${CI_CHANGED}"
+          echo "tests:     ${TESTS_CHANGED}"
+          echo "docs:      ${DOCS_CHANGED}"
+          echo "site:      ${SITE_CHANGED}"
 
   show-build-decision:
     name: Show build decision
@@ -110,13 +133,6 @@ jobs:
         run: |
           echo "=== Build Decision ==="
           echo "needs-build: $NEEDS_BUILD"
-
-          # UMEP build needed only when compiled extension ABI may differ
-          NEEDS_UMEP_BUILD=false
-          if [[ "$FORTRAN" == "true" ]] || [[ "$RUST" == "true" ]] || [[ "$BUILD" == "true" ]]; then
-            NEEDS_UMEP_BUILD=true
-          fi
-          echo "needs-umep-build: $NEEDS_UMEP_BUILD"
           echo ""
 
           # Determine multiplatform requirement
@@ -166,12 +182,7 @@ jobs:
           if [[ "$DOCS" == "true" ]]; then echo "- docs build (pages-deploy.yml)"; TRIGGERED=true; fi
           if [[ "$SITE" == "true" ]]; then echo "- site deploy (pages-deploy.yml)"; TRIGGERED=true; fi
           if [[ "$NEEDS_BUILD" == "true" ]]; then
-            echo "- wheel build (build_wheels)"
+            echo "- wheel build (build_wheels): cp39-abi3 wheel per platform"
             TRIGGERED=true
-            if [[ "$FORTRAN" == "true" ]] || [[ "$RUST" == "true" ]] || [[ "$BUILD" == "true" ]]; then
-              echo "- UMEP build (build_umep) [compiled extension changed]"
-            else
-              echo "- UMEP build skipped [no compiled extension changes]"
-            fi
           fi
           if [[ "$TRIGGERED" == "false" ]]; then echo "- nothing (all skipped)"; fi

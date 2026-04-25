@@ -1,0 +1,70 @@
+name: Dependency and startup audit
+
+on:
+  pull_request:
+    paths:
+      - pyproject.toml
+      - Makefile
+      - scripts/security/**
+      - .github/workflows/dependency-audit.yml
+      - .github/workflows/build-publish_to_pypi.yml
+      - .github/actions/build-suews/action.yml
+  schedule:
+    - cron: '30 5 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    name: Audit Python dependency intake
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6
+        with:
+          python-version: '3.13'
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@d0cc045d04ccac9d8b7881df0226f9e82c39688e # v6
+
+      - name: Export dependency set
+        run: |
+          python scripts/security/export_pyproject_requirements.py --extra dev --extra docs > requirements-audit.txt
+          echo "Exported $(wc -l < requirements-audit.txt) requirement lines"
+
+      - name: Create isolated audit environment
+        run: |
+          uv venv .audit-venv
+          uv pip install --python .audit-venv/bin/python -r requirements-audit.txt
+          uv pip install --python .audit-venv/bin/python pip-audit
+
+      - name: Audit Python startup hooks
+        run: .audit-venv/bin/python scripts/security/audit_python_startup.py
+
+      - name: Remove legacy namespace-package pth files
+        run: .audit-venv/bin/python scripts/security/remove_legacy_namespace_pth.py
+
+      - name: Audit declared dependencies (advisory)
+        continue-on-error: true
+        run: |
+          set -o pipefail
+          .audit-venv/bin/python -m pip_audit | tee pip-audit.txt
+
+      - name: Add advisory scan summary
+        if: always()
+        run: |
+          {
+            echo "## pip-audit";
+            echo;
+            if [ -f pip-audit.txt ]; then
+              cat pip-audit.txt;
+            else
+              echo "pip-audit did not produce output.";
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"

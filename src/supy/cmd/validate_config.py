@@ -69,7 +69,10 @@ console = Console()
 
 
 def validate_single_file(
-    file_path: Path, schema: dict, show_details: bool = True
+    file_path: Path,
+    schema: dict,
+    show_details: bool = True,
+    schema_version: Optional[str] = None,
 ) -> tuple[bool, List]:
     """
     Validate a single configuration file.
@@ -85,8 +88,13 @@ def validate_single_file(
         with open(file_path, "r") as f:
             config = yaml.safe_load(f)
 
-        # Check if migration needed
-        if check_migration_needed(str(file_path)):
+        target_is_current = (
+            schema_version is None or schema_version == CURRENT_SCHEMA_VERSION
+        )
+
+        # Only flag migration pressure when validating against the current
+        # schema. An explicit older target version is a schema-only check.
+        if target_is_current and check_migration_needed(str(file_path)):
             if ValidationError:
                 errors.append(
                     ValidationError(
@@ -127,21 +135,26 @@ def validate_single_file(
                 else:
                     errors.append(f"{path}: {error.message}")
 
-        # Try configuration consistency validation for additional checks
-        try:
-            SUEWSConfig(**config)
-        except Exception as e:
-            if ValidationError:
-                errors.append(
-                    ValidationError(
-                        code=ErrorCode.VALIDATION_FAILED,
-                        message=str(e),
-                        location=str(file_path),
-                        details={"validation_type": "pydantic"},
+        # Try configuration consistency validation for additional checks.
+        # Mirror schema_cli: explicit older target versions stay schema-only,
+        # while default/current validation follows the public from_yaml() path.
+        if target_is_current:
+            try:
+                SUEWSConfig.from_yaml(str(file_path))
+            except Exception as e:
+                if ValidationError:
+                    errors.append(
+                        ValidationError(
+                            code=ErrorCode.VALIDATION_FAILED,
+                            message=str(e),
+                            location=str(file_path),
+                            details={"validation_type": "pydantic"},
+                        )
                     )
-                )
-            else:
-                errors.append(f"Configuration consistency validation: {str(e)}")
+                else:
+                    errors.append(
+                        f"Configuration consistency validation: {str(e)}"
+                    )
 
         return (len(errors) == 0, errors)
 
@@ -258,7 +271,10 @@ def cli(ctx, files, pipeline, mode, dry_run, out_format, schema_version, forcing
                 for file_path in files:
                     path = Path(file_path)
                     is_valid, errors = validate_single_file(
-                        path, schema, show_details=True
+                        path,
+                        schema,
+                        show_details=True,
+                        schema_version=target_version,
                     )
                     if not is_valid:
                         all_valid = False
@@ -322,7 +338,12 @@ def cli(ctx, files, pipeline, mode, dry_run, out_format, schema_version, forcing
                 )
                 ctx.exit(2)
             path = Path(files[0])
-            is_valid, errors = validate_single_file(path, schema, show_details=True)
+            is_valid, errors = validate_single_file(
+                path,
+                schema,
+                show_details=True,
+                schema_version=target_version,
+            )
 
             # Convert ValidationError objects to dicts for JSON serialization
             error_list = []
@@ -412,7 +433,12 @@ def validate(files, schema_version, verbose, quiet, format):
         files, description="Validating...", disable=(quiet or format == "json")
     ):
         path = Path(file_path)
-        is_valid, errors = validate_single_file(path, schema, show_details=verbose)
+        is_valid, errors = validate_single_file(
+            path,
+            schema,
+            show_details=verbose,
+            schema_version=schema_version,
+        )
 
         # Convert ValidationError objects to dicts for JSON serialization
         error_list = []
@@ -519,7 +545,12 @@ def migrate(file, output, to_version):
 
         # Validate migrated config
         schema = generate_json_schema(version=target_version)
-        is_valid, _ = validate_single_file(output_path, schema, show_details=False)
+        is_valid, _ = validate_single_file(
+            output_path,
+            schema,
+            show_details=False,
+            schema_version=target_version,
+        )
 
         if is_valid:
             console.print("[green]✓ Migrated configuration is valid[/green]")
@@ -703,33 +734,25 @@ def _check_experimental_features_restriction(user_yaml_file, mode):
         console.print(f"[red]✗ Error reading YAML file: {e}[/red]")
         return False
 
+    # Read physics keys via read_physics_key, which accepts both the new
+    # snake_case name and its legacy alias — the Pydantic shim accepts both,
+    # so this gate must as well.
+    from ..data_model.core.field_renames import read_physics_key
+
+    physics = (
+        user_yaml_data.get("model", {}).get("physics", {})
+        if isinstance(user_yaml_data, dict)
+        else {}
+    )
     restrictions_violated = []
 
-    # Check STEBBS method restriction
-    stebbs_method = None
-    if (
-        user_yaml_data
-        and isinstance(user_yaml_data, dict)
-        and "model" in user_yaml_data
-        and isinstance(user_yaml_data["model"], dict)
-        and "physics" in user_yaml_data["model"]
-        and isinstance(user_yaml_data["model"]["physics"], dict)
-        and "stebbsmethod" in user_yaml_data["model"]["physics"]
-    ):
-        stebbs_entry = user_yaml_data["model"]["physics"]["stebbsmethod"]
-        # Handle both direct values and RefValue format
-        if isinstance(stebbs_entry, dict) and "value" in stebbs_entry:
-            stebbs_method = stebbs_entry["value"]
-        else:
-            stebbs_method = stebbs_entry
-
+    stebbs_method = read_physics_key(physics, "stebbs")
     if stebbs_method is not None and stebbs_method != 0:
-        restrictions_violated.append("STEBBS method is enabled (stebbsmethod != 0)")
+        restrictions_violated.append("STEBBS method is enabled (stebbs_method != 0)")
 
-    # Add more restriction checks here as needed
-    # Example for future experimental features:
-    # if other_experimental_feature_enabled:
-    #     restrictions_violated.append("Other experimental feature is enabled")
+    snowuse = read_physics_key(physics, "snow_use")
+    if snowuse is not None and snowuse != 0:
+        restrictions_violated.append("Snow calculations are enabled (snow_use != 0)")
 
     # If any restrictions are violated, halt execution
     if restrictions_violated:
@@ -741,7 +764,7 @@ def _check_experimental_features_restriction(user_yaml_file, mode):
         console.print("\n[yellow]Options to resolve:[/yellow]")
         console.print("  1. Switch to dev mode: [cyan]--mode dev[/cyan]")
         console.print("  2. Disable experimental features in your YAML file and rerun")
-        console.print("     Example: Set [cyan]stebbsmethod: {value: 0}[/cyan]")
+        console.print("     Example: Set [cyan]stebbs_method: {value: 0}[/cyan]")
         return False
 
     return True

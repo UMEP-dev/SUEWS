@@ -26,6 +26,7 @@ EXAMPLES:
 
 ## Table of Contents
 
+- [2026](#2026)
 - [2025](#2025)
 - [2024](#2024)
 - [2023](#2023)
@@ -40,7 +41,7 @@ EXAMPLES:
 
 | Year | Features | Bugfixes | Changes | Maintenance | Docs | Total |
 |------|----------|----------|---------|-------------|------|-------|
-| 2026 | 71 | 78 | 30 | 79 | 40 | 298 |
+| 2026 | 74 | 82 | 29 | 80 | 40 | 306 |
 | 2025 | 60 | 68 | 22 | 71 | 36 | 256 |
 | 2024 | 12 | 17 | 1 | 12 | 1 | 43 |
 | 2023 | 11 | 14 | 3 | 9 | 1 | 38 |
@@ -53,22 +54,172 @@ EXAMPLES:
 
 ## 2026
 
+### 22 Apr 2026
+
+- [bugfix] Reject sparse YAML configs that omit physics-required fields (#1333)
+  - Added `SUEWSConfig._check_critical_null_site_params()` to `validate_parameter_completeness`: raises `ValueError` at load when a vegetated surface (`dectr`/`evetr`/`grass`) with `sfr > 0` is missing any of `lai_max`, `base_temperature`, `base_temperature_senescence`, `gdd_full`, `sdd_full`; when `bldgs.sfr > 0` is missing `bldgh`/`faibldg`; when active tree surfaces are missing `height_*_tree` or `fai_*_tree`; or when vegetated surfaces are active but the site's `Conductance` block has any `None` field (all eleven: `g_max`, `g_k`, `g_q_base`, `g_q_shape`, `g_t`, `g_sm`, `kmax`, `s1`, `s2`, `tl`, `th`)
+  - Previously such configs logged `Found N parameter issue(s)` WARNING and ran to completion; on x86_64 the `Optional=None` fields were stripped by `model_dump(exclude_none=True)` and reached the Rust backend as zero, producing all-NaN `T2` / `State` / `QH` via `0/0` and `0*Inf` in `suews_phys_resist.f95::SurfaceResistance` (236/240 NaN on Banbury Linux; 0/240 on macOS arm64 by floating-point luck)
+  - Gated on `self._yaml_path is not None`, so programmatic constructions (`SUEWSConfig(sites=[Site(...)])` in unit tests that rely on `default_factory`-materialised surfaces with `sfr=1/7`) are unaffected
+  - `auto_generate_annotated=True` now also emits the template on the failure path so users get an actionable starting point alongside the error
+
+### 23 Apr 2026
+
+- [feature][experimental] Accept nested family-tagged form on `model.physics.{net_radiation, storage_heat, emissions}` (#972)
+  - `net_radiation: {spartacus: {value: 1001}}` is now accepted alongside the existing flat `{value: 1001}` form. Family tag is validated against its numeric codes at load time — wrong-family codes fail loud with a pointer to the correct family
+  - Canonical internal shape stays flat; `SUEWSConfig.to_yaml` and `suews-schema migrate` emit the flat form unchanged
+  - Rust CLI (`suews run`) handles both shapes via a new `collapse_nested_physics` in `src/suews_bridge/src/field_renames.rs`, ordered before the legacy-name rewrite so family tags like `stebbs` don't collide with ModelPhysics field names
+  - Accept-only widening — every previously valid YAML round-trips byte-identically. Schema version bumps `2026.5.dev4 -> 2026.5.dev5` with an identity migration handler, satisfying the schema-audit gate
+  - Rust↔Python parity lint extended to cover the new `PHYSICS_FAMILIES_RS` registry
+
+### 21 Apr 2026
+
+- [bugfix] Honour explicit `format=` kwarg in `SUEWSSimulation.save` against `OutputConfig.format` (#1318)
+  - `_save_supy` was unconditionally overwriting the caller-supplied `output_format` with `output_config.format` whenever a config was attached, so `sim.save(path, format="parquet")` silently wrote text when the config declared `format: txt` (the default in `sample_config.yml`). This was the root cause behind the `test_from_state_parquet` skip re-surfaced by gh#912; the parquet round-trip itself works — only the dispatcher was wrong
+  - Defaults for `output_format` in `_save_supy` and the deprecated `save_supy` shim move from `"txt"` to `None`, and `output_config.format` only fills in when the caller did not pass an explicit format. Legacy callers that rely on the config's format (no explicit kwarg) are unchanged
+  - Re-enabled `test_from_state_parquet` in `test/core/test_suews_simulation.py`; the test now exercises save-parquet → `from_state` → continuation end-to-end
+- [maintenance] Resolve skipped-test debt (#1318, closes #912)
+  - Deleted `TestCodeQualityAndCleanup` from `test/data_model/test_yaml_processing.py` (four `assert True`/`assert > 0` "documentation" tests already covered by ruff F401/F811)
+  - Deleted `test_is_flag_test_working` in `test/core/test_supy.py` (permanently gated behind a stale `YL/fixstebbs-rebase` branch reference)
+  - Replaced per-test `try/except ImportError: pytest.skip(...)` in `test/io_tests/test_gen_epw_resample.py` with a module-level `pytest.importorskip("pvlib", reason=...)`
+  - Replaced per-test `try/except FileNotFoundError` around CRU helpers in `test/data_model/test_validation.py` and `test/data_model/test_yaml_processing.py` with a single `cru_data_available` fixture in `test/conftest.py`
+  - Removed the `has_<module>` optional-import scaffolding in `test_yaml_processing.py` (masked real regressions after the `yaml_processor` → `validation/pipeline` rename) and the seven blanket `try/except Exception: pytest.skip(...)` wrappers in robustness/regression tests
+  - Un-skipped `test_compatibility_messages` and rewrote assertions against the current `_HANDLERS` registry (#1304); rewrote the `test_from_state_parquet` skip reason to describe the real failure mode before fixing it above
+- [maintenance] New test-patterns rule: `.claude/rules/tests/patterns.md` §Skipping Tests requires every `pytest.skip`/`skipif`/`importorskip` to carry a concrete `reason=`, mandates `pytest.importorskip` for optional imports and `conftest.py` fixtures for shared resource probes, and forbids blanket `try/except Exception: pytest.skip(...)` (#1318)
+
+### 20 Apr 2026
+
+- [doc] Sync user-facing schema documentation with the retrospective 2026.1 / 2026.4 bumps (#1304)
+  - Rewrote `docs/source/contributing/schema/schema_versioning.rst` from the outdated major.minor policy (`1.0` / `1.1` / `2.0`) to the actual CalVer lineage, with the `SCHEMA_VERSIONS` entries for `2025.12` / `2026.1` / `2026.4` and compatibility now described via the migration-registry model introduced in #1304
+  - Added a `YAML Schema Migrations` section to `docs/source/inputs/transition_guide.rst` walking users through the 2026.1 (STEBBS clean-up #879) and 2026.4 (DeepSoilTemperature rename #1240, DHW volume-bound removal #1242, setpoint split #1261) upgrades with the exact `suews-schema migrate` invocations
+  - Refreshed `docs/source/contributing/schema/schema-developer.rst` and `schema_cli.rst` to match the new audit gate (`schema-version-audit.yml`) and the unified `suews-convert` entry point; CLI examples rebased onto CalVer labels
+  - Added the migration chain as a Breaking Change line in `docs/source/version-history/v2026.4.3.rst`
+- [maintenance] Extend schema-version audit to enforce docs synchronisation (#1304)
+  - `scripts/lint/check_schema_version_bump.py` now fails when `CURRENT_SCHEMA_VERSION` moves without a matching edit to `docs/source/contributing/schema/schema_versioning.rst` or `docs/source/inputs/transition_guide.rst`; the workflow's path filter picks up schema doc changes too so the gate still fires
+  - `.claude/rules/python/schema-versioning.md` gains a Step 6 listing the exact RST files that must move with every bump; PR review gate and CI gate sections updated to flag silent documentation as a review blocker
+  - `.claude/skills/audit-pr/references/review-checklist.md` and `workflow-steps.md` now carry a trigger-specific schema bump checklist mirroring the rule
+- [maintenance] Fold `COMPATIBLE_VERSIONS` into the migration handler registry (#1304)
+  - Deleted the hand-maintained `COMPATIBLE_VERSIONS` dict in `src/supy/data_model/schema/version.py`; it had degenerated into a parallel line to `_HANDLERS` in `src/supy/util/converter/yaml_upgrade.py`, encoding the same `(from -> current)` edges in a less expressive form and prone to drifting out of sync (the root cause of the gap gh#1304 originally retrofitted)
+  - `is_schema_compatible` now consults `SchemaMigrator.migration_handlers` directly: a version is compatible iff it equals the current schema or a `(from, current)` handler is registered that actually migrates the YAML forward. Registering a handler is what grants compatibility — no second table to update
+  - Updated `.claude/rules/python/schema-versioning.md`, `scripts/lint/check_schema_version_bump.py`, and the `prep-release` skill to stop asking contributors to edit `COMPATIBLE_VERSIONS`; the audit now terminates at `_HANDLERS`
+- [maintenance] Guardrails against schema-version drift (#1304)
+  - New pytest regression `test/data_model/test_schema_version_sync.py` asserts `src/supy/sample_data/sample_config.yml::schema_version` equals `CURRENT_SCHEMA_VERSION` on every test run; the `verify-build` shell recipe is no longer the only line of defence
+  - New CI gate `.github/workflows/schema-version-audit.yml` runs on every PR that touches `src/supy/data_model/**` or `src/supy/sample_data/sample_config.yml` and fails unless `src/supy/data_model/schema/version.py` is also modified. Backed by `scripts/lint/check_schema_version_bump.py`. Maintainers can add the `schema-audit-ok` label to bypass the gate for genuinely cosmetic diffs
+  - New rule `.claude/rules/python/schema-versioning.md` documents when to bump, how to bump, pre-release audit, PR review gate, and the bypass-label workflow; `prep-release` skill gained a schema-audit step, `audit-pr` skill acknowledges the CI gate
+- [change][experimental] Retrospective schema version bump closes the gap from #1240 / #1242 / #1261 (#1304)
+  - `CURRENT_SCHEMA_VERSION` stayed at `2025.12` through the STEBBS clean-up (#879 Nov 2025), the `DeepSoilTemperature` rename (#1240), the DHW volume-bound removal (#1242), and the setpoint split (#1261); the YAML upgrade dispatcher had no real schema versions to key on and had to fall back on synthetic labels that sorted numerically below `CURRENT_SCHEMA_VERSION`
+  - Bumped `CURRENT_SCHEMA_VERSION` to `2026.4`, populated `SCHEMA_VERSIONS` with the three real shapes (`2025.12` = 2025.10.15 / 2025.11.20 release shape, `2026.1` = 2026.1.28 release shape, `2026.4` = 2026.4.3 release shape = current), and extended `COMPATIBLE_VERSIONS` so every vendored release maps forward through migration
+  - `src/supy/sample_data/sample_config.yml` restamped to `schema_version: '2026.4'`
+- [bugfix][experimental] Broaden YAML upgrade coverage so pre-drift fixtures migrate structurally instead of silently dropping fields (#1304)
+  - `StebbsProperties` uses Pydantic default `extra="ignore"`, so older YAMLs that still carried `Wallx1` / `Roofx1`, `DHWVesselEmissivity`, `DeepSoilTemperature`, the DHW volume bounds, or any of the #879-era runtime-state temperature / view-factor fields passed validation but lost the user's values without trace; the upgrade handler now surfaces every rename or drop on stderr
+  - `_PACKAGE_TO_SCHEMA` maps release tags to their real schema versions (`2025.10.15` / `2025.11.20` -> `2025.12`, `2026.1.28` -> `2026.1`, `2026.4.3` -> `2026.4`) and `_HANDLERS` keys on real schema versions monotonically
+  - New handler `_migrate_2025_12_to_2026_1` absorbs the full #879 STEBBS clean-up (`Wallx1`/`Roofx1` -> `WallOuterCapFrac`/`RoofOuterCapFrac`; `IndoorAirStartTemperature` / `OutdoorAirStartTemperature` -> `InitialIndoorTemperature` / `InitialOutdoorTemperature`; drops `DHWVesselEmissivity`, the runtime-state surface temperatures, view-factor fields, appliance-usage fields, and internal constants, all with logged reason lines)
+  - Extended `_migrate_2026_1_to_current` to cover #1240 (rename `DeepSoilTemperature` -> `AnnualMeanAirTemperature`), #1242 (drop `MinimumVolumeOfDHWinUse` / `MaximumVolumeOfDHWinUse`), and the incidental `ApplianceRating` / `MetabolicRate` / `OccupantsProfile` drops
+  - `TestNoSilentFieldDrops` asserts that for every vendored pre-drift fixture, each STEBBS source key either survives to the upgraded YAML or appears in a rename/drop/split log line — a new schema delta without a matching handler now fails CI instead of silently swallowing data
+
+### 19 Apr 2026
+
+- [change][experimental] Consolidate `suews-convert` under a single unified entry point (#1304)
+  - Dropped the `yaml-upgrade` subcommand introduced in #1306; the top-level `suews-convert -i <in> -o <out> [-f <from>]` now auto-detects the input type from the file extension and dispatches to the table/`df_state`/YAML-upgrade path accordingly. Output is always a current-schema YAML, regardless of the source format
+  - `-f/--from` loses the `click.Choice(list_ver_from)` constraint so the same flag can carry a table release (`2024a`), a supy release tag (`2026.1.28`) or a schema version (`2025.12`); per-input validation moved into the command body
+  - Loader drift hint in `SUEWSConfig.from_yaml` updated to `suews-convert -i <old.yml> -o <new.yml> [-f <release-tag>]`
+- [feature][experimental] Register `2026.1.28 -> 2025.12` YAML upgrade handler (#1304)
+  - New handler `_migrate_2026_1_to_current` in `src/supy/util/converter/yaml_upgrade.py` migrates profile-shaped `HeatingSetpointTemperature` / `CoolingSetpointTemperature` fields (pre-#1261) into the post-split `*Profile` + scalar pair, and sets `model.physics.setpointmethod = 2` (SCHEDULED) to preserve the user's profile intent
+  - Vendored every formal supy release sample_config under `test/fixtures/release_configs/` (`2025.10.15`, `2025.11.20`, `2026.1.28`, `2026.4.3`); `test_release_compat.py` now covers identity-path fixtures alongside the `2026.1.28` pre-drift upgrade regression
+  - Retrofit schema label `2026.1` for pre-#1261 YAMLs; registered in `_PACKAGE_TO_SCHEMA` for release tag `2026.1.28`
+- [maintenance] Split CI matrix on the physics/api marker axis (#1300)
+  - `CIBW_TEST_COMMAND` now runs `-m "physics and <tier>"` on the build Python only; physics tests are binary-determined, so one run per `(OS, arch)` is sufficient
+  - New reusable workflow `test-api-cross-python-reusable.yml` runs `-m "api and <tier>"` across the cross-CPython matrix (BOOKEND for PRs, ALL for nightly/tag); picks up the Python wrapper surface variations that vary per interpreter
+  - Renamed job `test_bridge_loading` → `test_api_cross_python`, workflow file `test-bridge-reusable.yml` → `test-api-cross-python-reusable.yml`, and `determine-matrix.sh` output `test_python` → `api_python`
+  - Added standalone `check_test_markers` CI job (AST-based lint in `scripts/lint/check_test_markers.py`) that fails any PR whose test tree has a file lacking both `physics` and `api`; gated into `pr-gate` alongside build and API checks
+  - Updated `pr-gate.sh` and release docs (`RELEASE_MANUAL.md`, `prep-release` skill) to reflect the renamed job
+
+### 18 Apr 2026
+
+- [maintenance] Register `physics` / `api` pytest markers as an orthogonal axis to the existing tier markers (#1300)
+  - `physics` covers numerical / binary correctness (one canonical Python per `(OS, arch)` suffices post-abi3); `api` covers Python wrapper surface (pandas / numpy / pydantic, CLI, `SUEWSSimulation`) and needs full `(platform x Python)` coverage
+  - Applied module-level `pytestmark` to all 43 non-UMEP test files; the 5 UMEP test files pick up `api` via the existing `pytest_collection_modifyitems` hook
+  - Added a collection-time lint in `test/conftest.py` that fails any full-tree run where a test file lacks both markers; subset runs (`pytest test/core/test_x.py`) are unaffected
+  - `.github/actions/build-suews/action.yml` carries a breadcrumb for the follow-up CI matrix split; this PR registers and applies markers only, no CI behaviour change
+- [change][experimental] Collapse wheel-build matrix via abi3 and retire the UMEP (NumPy<2) variant (#1299)
+  - One cp39-abi3 wheel per (OS, arch) now covers cp39..cp3xx (standard nightly: 24 → 4 build jobs); enabled by `tool.meson-python.limited-api = true` plus the Rust bridge's PyO3 `abi3-py39` ABI
+  - Loosened runtime pin to `numpy>=1.22` so the same wheel installs cleanly into QGIS 3 LTR (NumPy 1.26.4), QGIS 4 (NumPy 2.x), and modern Python environments — the compiled extension has no NumPy C-ABI dependency, so the separate UMEP variant is no longer needed
+  - Removed the `BUILD_UMEP_VARIANT` / `rc1` code path in `get_ver_git.py` and the `retag_umep` CI job; `deploy_pypi` now publishes one wheel per platform
+  - Pinned `meson>=1.3.0` in `[build-system].requires` and `meson_version` (root `meson.build`) so a stale local meson fails fast rather than silently dropping the abi3 tag
+  - Added `test_bridge_loading` CI job that installs the single abi3 wheel into cp39..cp3xx and runs `pytest -m smoke_bridge`; gated into `pr-gate`, `deploy_testpypi`, and `deploy_pypi` so a failing cross-CPython smoke blocks publication
+
+### 17 Apr 2026
+
+- [maintenance] Remove NumPy build-time dependency (post-f2py cleanup) (#1298)
+- [maintenance] Enforce numpy-style docstrings via ruff `D` rules (#1294)
+  - Removed D100-D105/D107 from the global gradual-adoption ignore list in `.ruff.toml`
+  - Parked legacy docstring debt in `[lint.per-file-ignores]` (78 files) so new code is held to the rule
+  - Added `scripts/lint/audit_docstrings.py` helper to regenerate the per-file-ignores seed
+  - Wired `ruff check --select D` into the `/lint-code` skill under a `=== Docstrings ===` section
+
+### 9 Apr 2026
+
+- [bugfix][experimental] Fix missing if branch in setpointmethod rule, and move setpointmethod rule in stebbs_rules.py (PR #1284)
+- [bugfix] Allow ref and ref sub-keys in user YAML for both public and dev validator modes (PR #1286)
+- [feature][experimental] Refine forcing height (z) rule to use building surface fraction (sfr) as plan area fraction, applying regime-based ranges from Grimmond & Oke, 1999, Fig. 1 (PR #1287).
+
+### 8 Apr 2026
+
+- [change][experimental] Replace the STEBBS cube-based internal mass area assumption with an explicit `InternalMassArea` building archetype input.
+- [bugfix][experimental] Correct the sign of Q_BAE (heat emission via building air exchange) in STEBBS.
+
+### 3 Apr 2026
+
+- [doc] Release 2026.4.3: Rust FFI bridge, T2 attribution, RSL physics, STEBBS enhancements, validation improvements (PR #1250)
+- [feature][experimental] Add checks for DaylightControl in STEBBS validation (#1270)
+
+### 29 Mar 2026
+
+- [maintenance] Add and improve docstrings for all relevant validator rules across codebase to follow numpy style project convention (PR #1267).
+
+### 26 Mar 2026
+
+- [feature][experimental] Add `setpointmethod` model option and heating/cooling setpoint profiles in STEBBS, supporting constant, dependent, and scheduled setpoint approaches (PR #1261).
+- [bugfix] Skip STEBBS wall or window surface-temperature calculations for the extreme `WWR` cases, avoiding non-existent surface calculations when `WWR = 0` or `WWR = 1` (PR #1261).
+- [feature][experimental] Added rule to validate forcing height (`z`) against mean building height (`bldgh`) and maximum building height (max of `bldgh`, `stebbs_Height` if STEBBS enabled, and last non-zero `height` if SPARTACUS enabled) (#1255, PR #1266).
+- [maintenance] Moved `unwrap_value` from `config.py` to `yaml_helpers.py` and added `unwrap_nested_value` for array-like YAML structures (PR #1266).
+
+### 25 Mar 2026
+
+- [doc] Revise README as science-first landing page (#1265)
+- [maintenance] Harden CI and dependency supply chain after LiteLLM incident with startup hook auditing (#1264)
+
+### 23 Mar 2026
+
+- [feature][experimental] Add stebbs_Height guard to SPARTACUS building height validation when stebbsmethod is enabled (#1259, PR #1262)
+- [doc] Improve project branding with logo and favicon (#1260).
+
 ### 20 Mar 2026
 
+- [feature][experimental] Add calculation of electrical lighting energy and optional lighting control driven by daylighting STEBBS (PR #1254).
+- [bugfix][experimental] Fix STEBBS 10-minute profile indexing to use the full-day slot (`0-143`) rather than repeating the first hour each hour, correcting metabolism, appliance, and hot water profile application (PR #1254).
 - [change][experimental] Improve STEBBS height, external wall and footprint area descriptions, linking them together (PR #1257).
+- [feature][stable] Add draft rules registry to the validator with two test rules (#1246)
 
 ### 19 Mar 2026
+
 - [feature][experimental] Added `same_emissivity_wall` and `same_emissivity_roof` model options for roof and wall emissivity validation (PR #1253)
   - When enabled (`=1`), enforces all roof/wall emissivity values match their respective external roof/wall STEBBS parameters; errors reported if inconsistent as ACTION NEEDED in the report.
   - When disabled (`=0`), skips consistency checks and issues a user warning listing current emissivities values in NO ACTION NEEDED section of the report.
+- [feature][stable] Add seasonal adjustment of `alb_id` for vegetated surfaces based on phenology state (#1211)
 
 ### 18 Mar 2026
 
 - [feature][experimental] Add dynamic calculation of water mains (cold) temperature in STEBBS and relevant new tests (PR #1249).
 
+### 17 Mar 2026
+
+- [maintenance] Add interaction limits and contribution policy (#1251)
+
 ### 16 Mar 2026
 
-- [feature][experimental] Refine `_is_physics_explicitly_configured` to use Pydantic v2 `model_fields_set`, enabling conditional validation when physics options are explicitly set by user inputs (PR #1247).
+- [feature][stable] Refine `_is_physics_explicitly_configured` to use Pydantic v2 `model_fields_set`, enabling conditional validation when physics options are explicitly set by user inputs (PR #1247).
+- [feature][experimental] Add Occupants/MetabolismProfile consistency validation to STEBBSMethod check (PR #1245)
+- [doc] Updated PHASE_B_DETAILED.md with Occupants/MetabolismProfile validation description (PR #1245)
 
 ### 15 Mar 2026
 
@@ -79,11 +230,6 @@ EXAMPLES:
 - [change][experimental] Remove STEBBS MinimumVolumeOfDHWinUse and MaximumVolumeOfDHWinUse across codebase (PR #1242).
 - [feature][experimental] Add new validation function for STEBBS and implement HotWaterFlowProfile consistency checks when STEBBS method is on (PR #1243).
 
-### 16 Mar 2026
-
-- [feature][experimental] Add Occupants/MetabolismProfile consistency validation to STEBBSMethod check (PR #1245)
-- [doc] Updated PHASE_B_DETAILED.md with Occupants/MetabolismProfile validation description (PR #1245)
-
 ### 12 Mar 2026
 - [feature][experimental] Update STEBBS InitialIndoorTemperature with mean monthly air temperature from CRU dataset (PR #1241)
 - [change][experimental] Replace STEBBS DeepSoilTemperature with AnnualMeanAirTemperature across codebase (PR #1240)
@@ -93,6 +239,22 @@ EXAMPLES:
 ### 11 Mar 2026
 
 - [feature][experimental] Add new Pydantic Field ranges and defaults for STEBBS parameters (PR #1233)
+- [bugfix] Fix interpolation bounds error in RSL profiles (GH#1223, #1228)
+- [feature][stable] Refine RSL c2m/c2h with explicit R=beta*hd/elm parameterisation (GH#1055, #1232)
+- [maintenance] Consolidate CLI validation test coverage (#1238)
+- [bugfix] Auto-repair stale refs in fetch_origin conductor (#1239)
+
+### 10 Mar 2026
+
+- [feature][stable] Compute c2m/c2h dynamically from Harman and Finnigan (2008) RSL theory (#1116)
+- [bugfix] Fix division-by-zero pitfalls in RSL/resistance chain (GH#1223, #1229)
+- [bugfix] Handle Pydantic dict format in YAML numeric parser (GH#1235, #1236)
+- [doc] Add anthropogenic emission defaults and parameter guidance (GH#138, #1231)
+
+### 9 Mar 2026
+
+- [feature][stable] Add upper limit to `nlayer` to avoid run crashes (#1206)
+- [bugfix] Validate Rust output layout against Fortran metadata (#1226)
 
 ### 24 Feb 2026
 
@@ -103,34 +265,96 @@ EXAMPLES:
 
 - [bugfix][experimental] Fix double-counted heating efficiency in STEBBS load calculation; correct unused heating setpoint to prevent spurious activation (PR #1221)
 
+### 22 Feb 2026
+
+- [maintenance] Extend Cargo cache to macOS and Windows builds (#1219)
+
+### 21 Feb 2026
+
+- [maintenance] Remove stale wrap_dts_types flag, add Rust change detection, and cache Cargo builds (#1217)
+
 ### 20 Feb 2026
 
+- [feature][stable] Replace f90wrap with Rust FFI bridge as sole simulation backend (#1209)
+- [feature][stable] Install Rust CLI to PATH and unify CLI interface (#1215)
+- [feature][experimental] Add `_validate_spartacus_sfr` to conditional validation (#1208)
 - [bugfix] Guard SPARTACUS LW solver NaN from matrix singularity in certain urban canopy geometries (#1212)
+- [bugfix] Pin pydantic>=2.12 to prevent OSGeo4W version conflict (#1213)
 - [changes] Removed internal-only parameters (diagnose, dqndt, dqnsdt, dt_since_start, lenday_id, qn_av, qn_s_av, tair_av, tmax_id, tmin_id, tstep_prev, snowfallcum) from sample_config.yml. (PR #1216)
 
 ### 19 Feb 2026
 
-- [feature][experimental] Add update logic under seasonal adjustments in phase_b.py to handle different alb_id behaviour across vegetated surface types (PR #1211).
+- [feature][stable] Add update logic under seasonal adjustments in phase_b.py to handle different alb_id behaviour across vegetated surface types (PR #1211).
 - [doc] Updated PHASE_B_DETAILED.md with new seasonal adjustment logic (PR #1211).
 
 ### 18 Feb 2026
 
-- [feature][experimental] Add attribution module for diagnosing T2, q2, and U10 changes by decomposing model output into physical process contributions, with diurnal cycle and heatmap visualisation helpers (#918)
+- [feature][stable] Add attribution module for diagnosing T2, q2, and U10 changes by decomposing model output into physical process contributions, with diurnal cycle and heatmap visualisation helpers (#918)
 
 ### 13 Feb 2026
 
 - [feature][experimental] Add new conditional validation logic for SPARTACUS to check consistency between SUEWS bldgh and SPARTACUS height entries (PR #1205).
 - [docs] Updated PHASE_C_DETAILED.md with new conditional validation logic for SPARTACUS (PR #1205).
 
+### 10 Feb 2026
+
+- [doc] Link community forum URLs to invite page (#1201)
+
+### 7 Feb 2026
+
+- [bugfix] Fail fast on SUEWS output packing overflow (GH#1191, #1198)
+- [bugfix] Serialise Pydantic models across multiprocessing spawn boundaries for DTS (#1197)
+
+### 6 Feb 2026
+
+- [maintenance] Handle tag update failures in discourse-to-issue workflow (#1196)
+- [maintenance] Skip parallel DTS tests in CI environments (#1192)
+
 ### 5 Feb 2026
 
 - [change][experimental] Replace OccupantsProfile with MetabolismProfile and add metabolism threshold for occupancy activity classification in STEBBS; fix missing appliance energy in QEC_bldg and uninitialised heating/cooling load accumulators (PR #1194)
 - [change] Refactor error message in validate_albedo_ranges to explicitly declare that range comes from alb_min and alb_max (PR #1193)
+- [doc] Add umep-reqs update step to release workflow (#1185)
+- [bugfix] Fix optional qn_surfs and dqndt_surf but required in DyOHM settings (#1189)
 
 ### 4 Feb 2026
 
 - [bugfix] Fix conflict in the validation logic when vegetated surfaces are active (sfr > 0) but carbon is disabled (PR #1188)
 - [bugfix] Fix a bug in the phase_b.py required physics options, adding the new same_albedo_roof and same_albedo_wall to the list (PR #1188).
+- [feature][stable] Add SUEWSOutput index property (#1178)
+- [feature][stable] Add status tags for changelog entries (governance) (#1181)
+- [bugfix] Correct DTS availability check and remove unsupported param (#1187)
+- [doc] Align 2026.1.28 release notes with stable RTD docs (#1179)
+
+### 2 Feb 2026
+
+- [maintenance] Clean up STEBBS outputs (#1175)
+- [bugfix] Harden parallel multi-grid DTS execution and unify return shape (#1176)
+- [maintenance] Use repo label scheme for docs-sync merge conflict issues (#1177)
+- [bugfix] Add information in error message for timezone and startdls/enddls (#1174)
+
+### 30 Jan 2026
+
+- [feature][stable] Add chunk_day parameter for long DTS simulations (#1172)
+- [feature][stable] Add run_dts_multi for multi-grid DTS simulation support (#1173)
+- [maintenance] Use reusable workflow to fix unresolved matrix names (#1171)
+- [maintenance] Pre-build docs HTML on CI, serve from rtd branch (#1167)
+- [maintenance] Protect rtd branch with PAT auth and file-scope validation (#1165)
+- [maintenance] Allow .gitignore divergence in rtd branch validation (#1166)
+- [change][stable] Deprecate env.yml and conda/mamba build pathway (#1163)
+- [maintenance] UMEP build filter for compiled extension ABI changes (#1164)
+- [maintenance] Gate tag-triggered deployments on master ancestry (#1162)
+- [maintenance] Granular path filters and pyproject classification (#1161)
+- [maintenance] Clean up Sphinx deps for Sphinx 8 compatibility (#1157)
+
+### 29 Jan 2026
+
+- [feature][stable] Auto-initialise vegetation albedo from phenology state (#1133)
+- [maintenance] Add GitHub workflow skills and pre-commit quality gate (#1160)
+- [bugfix] Update Sphinx and docs dependencies for Sphinx 8 compatibility (#1159)
+- [bugfix] Deduplicate Discourse-to-GitHub issue pipeline (#1153)
+- [maintenance] Pre-built docs branch for RTD (#1137)
+- [feature][stable] Bridge Discourse topics to GitHub issues with webhook sync (#1138)
 
 ### 28 Jan 2026
 
@@ -150,7 +374,7 @@ EXAMPLES:
 
 ### 26 Jan 2026
 
-- [feature] Added separate surfaces for dyOHM (dynamic Objective Hysteresis Model) calculation (#1122)
+- [feature][experimental] Added separate surfaces for dyOHM (dynamic Objective Hysteresis Model) calculation (#1122)
 - [maintenance] Refactored albedo handling for vegetated surfaces (#1100)
 - [maintenance] Fixed conductor.json to use current branch instead of hardcoded master (#1124)
 

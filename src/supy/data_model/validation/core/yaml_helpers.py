@@ -29,6 +29,13 @@ import os
 from copy import deepcopy
 from datetime import datetime
 import pytz
+from ...core.field_renames import (
+    RAW_YAML_FIELD_RENAMES,
+    has_renamed_key,
+    read_physics_key,
+    read_renamed_key,
+    rename_keys_recursive,
+)
 
 # Use tzfpy instead of timezonefinder for Windows compatibility
 # tzfpy has pre-built Windows wheels and provides similar functionality
@@ -103,11 +110,72 @@ def get_value_safe(param_dict, param_key, default=None):
     Returns:
         The parameter value, handling both RefValue {"value": X} and plain X formats
     """
-    param = param_dict.get(param_key, default)
+    param = read_renamed_key(param_dict, param_key, default=default)
     if isinstance(param, Mapping) and "value" in param:
         return param["value"]  # RefValue format: {"value": 1}
     else:
         return param  # Plain format: 1
+
+
+def unwrap_value(val):
+    """
+    Unwrap RefValue and Enum values consistently.
+
+    This helper ensures consistent handling of RefValue wrappers and Enum values
+    throughout the validation logic.
+
+    Args:
+        val: The value to unwrap (could be RefValue, Enum, or raw value)
+
+    Returns:
+        The unwrapped raw value
+    """
+    # Handle RefValue wrapper
+    if (
+        hasattr(val, "value")
+        and hasattr(val, "__class__")
+        and "RefValue" in val.__class__.__name__
+    ):
+        val = val.value
+
+    # Handle Enum values (which also have .value attribute)
+    if (
+        hasattr(val, "value")
+        and hasattr(val, "__class__")
+        and "Enum" in str(val.__class__.__bases__)
+    ):
+        val = val.value
+
+    return val
+
+
+def unwrap_nested_value(x: Any) -> Any:
+    """Unwrap RefValue-like objects or {"value": ...} dicts recursively.
+
+    Handles dicts with a "value" key nested within other dicts or objects
+    that have a "value" attribute, recursively unwrapping up to 10 levels deep.
+
+    Args:
+        x (Any): The value to unwrap. Can be a dict with a "value" key,
+            an object with a "value" attribute, or any other type.
+
+    Returns:
+        Any: The unwrapped value, or None if input is None.
+    """
+    cur = x
+    for _ in range(10):
+        if cur is None:
+            return None
+        # dict YAML form
+        if isinstance(cur, Mapping) and "value" in cur:
+            cur = cur["value"]
+            continue
+        # RefValue-like form
+        if hasattr(cur, "value"):
+            cur = cur.value
+            continue
+        break
+    return cur
 
 
 class SeasonCheck(BaseModel):
@@ -769,20 +837,20 @@ def precheck_model_physics_params(data: dict) -> dict:
     is skipped (used to allow partial configurations during early stages).
 
     Required fields include:
-        - netradiationmethod
-        - emissionsmethod
-        - storageheatmethod
-        - ohmincqf
-        - roughlenmommethod
-        - roughlenheatmethod
-        - stabilitymethod
-        - smdmethod
-        - waterusemethod
-        - rslmethod
-        - faimethod
-        - rsllevel
-        - snowuse
-        - stebbsmethod
+        - net_radiation
+        - emissions
+        - storage_heat
+        - ohm_inc_qf
+        - roughness_length_momentum
+        - roughness_length_heat
+        - stability
+        - soil_moisture_deficit
+        - water_use
+        - roughness_sublayer
+        - frontal_area_index
+        - roughness_sublayer_level
+        - snow_use
+        - stebbs
 
     Args:
         data (dict): YAML configuration data loaded as a dictionary.
@@ -801,27 +869,27 @@ def precheck_model_physics_params(data: dict) -> dict:
         return data
 
     required = [
-        "netradiationmethod",
-        "emissionsmethod",
-        "storageheatmethod",
-        "ohmincqf",
-        "roughlenmommethod",
-        "roughlenheatmethod",
-        "stabilitymethod",
-        "smdmethod",
-        "waterusemethod",
-        "rslmethod",
-        "faimethod",
-        "rsllevel",
-        "snowuse",
-        "stebbsmethod",
+        "net_radiation",
+        "emissions",
+        "storage_heat",
+        "ohm_inc_qf",
+        "roughness_length_momentum",
+        "roughness_length_heat",
+        "stability",
+        "soil_moisture_deficit",
+        "water_use",
+        "roughness_sublayer",
+        "frontal_area_index",
+        "roughness_sublayer_level",
+        "snow_use",
+        "stebbs",
     ]
 
-    missing = [k for k in required if k not in physics]
+    missing = [k for k in required if not has_renamed_key(physics, k)]
     if missing:
         raise ValueError(f"[model.physics] Missing required params: {missing}")
 
-    empty = [k for k in required if get_value_safe(physics, k) in ("", None)]
+    empty = [k for k in required if read_physics_key(physics, k) in ("", None)]
     if empty:
         raise ValueError(f"[model.physics] Empty or null values for: {empty}")
 
@@ -834,7 +902,7 @@ def precheck_model_options_constraints(data: dict) -> dict:
     Enforce internal consistency between model physics options.
 
     This function verifies logical dependencies between selected model physics methods.
-    Specifically, if 'rslmethod' is set to 2, it enforces that 'stabilitymethod' equals 3,
+    Specifically, if 'roughness_sublayer' is set to 2, it enforces that 'stability' equals 3,
     as required for diagnostic aerodynamic calculations.
 
     Args:
@@ -849,15 +917,15 @@ def precheck_model_options_constraints(data: dict) -> dict:
 
     physics = data.get("model", {}).get("physics", {})
 
-    diag = get_value_safe(physics, "rslmethod")
-    stability = get_value_safe(physics, "stabilitymethod")
+    diag = read_physics_key(physics, "roughness_sublayer")
+    stability = read_physics_key(physics, "stability")
 
     if diag == 2 and stability != 3:
         raise ValueError(
-            "[model.physics] If rslmethod == 2, stabilitymethod must be 3."
+            "[model.physics] If roughness_sublayer == 2, stability must be 3."
         )
 
-    logger_supy.debug("rslmethod-stabilitymethod constraint passed.")
+    logger_supy.debug("roughness_sublayer-stability constraint passed.")
     return data
 
 
@@ -967,8 +1035,8 @@ def precheck_site_season_adjustments(
 
         if sfr > 0:
             lai = dectr.get("lai", {})
-            laimin = get_value_safe(lai, "laimin")
-            laimax = get_value_safe(lai, "laimax")
+            laimin = get_value_safe(lai, "lai_min")
+            laimax = get_value_safe(lai, "lai_max")
             lai_val = None
 
             if laimin is not None and laimax is not None:
@@ -1471,11 +1539,11 @@ def precheck_model_option_rules(data: dict) -> dict:
                 else:
                     block[idx] = None
 
-    # --- STEBBSMETHOD RULE: when stebbsmethod == 0, wipe out all stebbs params ---
-    stebbsmethod = get_value_safe(physics, "stebbsmethod")
+    # --- STEBBS RULE: when stebbs == 0, wipe out all stebbs params ---
+    stebbsmethod = get_value_safe(physics, "stebbs")
     if stebbsmethod == 0:
         logger_supy.info(
-            "[precheck] stebbsmethod==0 detected → nullifying all 'stebbs' values."
+            "[precheck] stebbs==0 detected -> nullifying all 'stebbs' values."
         )
         for site_idx, site in enumerate(data.get("sites", [])):
             props = site.get("properties", {}) or {}
@@ -1494,11 +1562,11 @@ def precheck_model_option_rules(data: dict) -> dict:
                 site["properties"] = props
                 data["sites"][site_idx] = site
 
-    # --- EMISSIONS / CO2 RULE: when emissionsmethod 0..4, CO2 is not computed, nullify co2 params ---
-    emissionsmethod = get_value_safe(physics, "emissionsmethod")
+    # --- EMISSIONS / CO2 RULE: when emissions 0..4, CO2 is not computed, nullify co2 params ---
+    emissionsmethod = get_value_safe(physics, "emissions")
     if emissionsmethod is not None and emissionsmethod in (0, 1, 2, 3, 4):
         logger_supy.info(
-            "[precheck] emissionsmethod 0..4 detected → nullifying 'anthropogenic_emissions.co2' values."
+            "[precheck] emissions 0..4 detected -> nullifying 'anthropogenic_emissions.co2' values."
         )
 
         for site_idx, site in enumerate(data.get("sites", [])):
@@ -1569,6 +1637,7 @@ def run_precheck(path: str) -> dict:
         data = yaml.load(file, Loader=yaml.FullLoader)
 
     original_data = deepcopy(data)
+    data = rename_keys_recursive(data, RAW_YAML_FIELD_RENAMES)
 
     # ---- Step 1: Print start message ----
     data = precheck_printing(data)

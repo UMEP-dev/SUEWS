@@ -11,26 +11,26 @@ pub type BioCo2PrmValuesPayload = ValuesPayload;
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct BioCo2Prm {
-    pub beta_bioco2: f64,
+    pub beta_bio_co2: f64,
     pub beta_enh_bioco2: f64,
-    pub alpha_bioco2: f64,
+    pub alpha_bio_co2: f64,
     pub alpha_enh_bioco2: f64,
     pub resp_a: f64,
     pub resp_b: f64,
-    pub theta_bioco2: f64,
+    pub theta_bio_co2: f64,
     pub min_res_bioco2: f64,
 }
 
 impl Default for BioCo2Prm {
     fn default() -> Self {
         Self {
-            beta_bioco2: 0.0,
+            beta_bio_co2: 0.0,
             beta_enh_bioco2: 0.0,
-            alpha_bioco2: 0.0,
+            alpha_bio_co2: 0.0,
             alpha_enh_bioco2: 0.0,
             resp_a: 0.0,
             resp_b: 0.0,
-            theta_bioco2: 0.0,
+            theta_bio_co2: 0.0,
             min_res_bioco2: 0.0,
         }
     }
@@ -40,26 +40,26 @@ impl BioCo2Prm {
     pub fn from_flat(flat: &[f64]) -> Result<Self, BridgeError> {
         validate_flat_len(flat, BIOCO2_PRM_FLAT_LEN)?;
         Ok(Self {
-            beta_bioco2: flat[0],
+            beta_bio_co2: flat[0],
             beta_enh_bioco2: flat[1],
-            alpha_bioco2: flat[2],
+            alpha_bio_co2: flat[2],
             alpha_enh_bioco2: flat[3],
             resp_a: flat[4],
             resp_b: flat[5],
-            theta_bioco2: flat[6],
+            theta_bio_co2: flat[6],
             min_res_bioco2: flat[7],
         })
     }
 
     pub fn to_flat(&self) -> Vec<f64> {
         vec![
-            self.beta_bioco2,
+            self.beta_bio_co2,
             self.beta_enh_bioco2,
-            self.alpha_bioco2,
+            self.alpha_bio_co2,
             self.alpha_enh_bioco2,
             self.resp_a,
             self.resp_b,
-            self.theta_bioco2,
+            self.theta_bio_co2,
             self.min_res_bioco2,
         ]
     }
@@ -135,7 +135,7 @@ mod tests {
         mapped.insert("resp_b".to_string(), 0.02);
 
         let updated = bioco2_prm_from_map(&mapped).expect("map to state should succeed");
-        assert!((updated.beta_bioco2 - 0.8).abs() < 1.0e-12);
+        assert!((updated.beta_bio_co2 - 0.8).abs() < 1.0e-12);
         assert!((updated.resp_b - 0.02).abs() < 1.0e-12);
     }
 

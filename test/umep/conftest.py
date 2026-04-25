@@ -25,11 +25,17 @@ except ImportError:
 
 
 def pytest_collection_modifyitems(items):
-    """Apply qgis marker and skip condition to all tests in this directory."""
+    """Auto-apply qgis + api markers and skip condition to all tests in this directory.
+
+    UMEP tests are Python wrapper tests (pydantic/pandas/QGIS plugin glue), so they
+    carry the `api` nature marker (gh#1300). The `qgis` tier gates them to Windows +
+    Python 3.12; the platform skip below enforces that at runtime.
+    """
     for item in items:
         # Only apply to tests in test/umep/
         if "test/umep" in str(item.fspath) or "test\\umep" in str(item.fspath):
             item.add_marker(pytest.mark.qgis)
+            item.add_marker(pytest.mark.api)
             if not _IS_QGIS_TARGET:
                 item.add_marker(
                     pytest.mark.skip(

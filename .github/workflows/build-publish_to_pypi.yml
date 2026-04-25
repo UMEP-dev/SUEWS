@@ -7,12 +7,14 @@ name: Build and Publish Python wheels to PyPI and TestPyPI
 #   tags      -- Any tag push: full matrix build -> PyPI (non-dev) or TestPyPI (dev)
 #   PR        -- Validation only with adaptive matrix (draft=minimal, ready=reduced)
 #   merge_group -- Merge queue validation (reduced matrix)
-#   dispatch  -- Manual with configurable matrix, deploy target, UMEP toggle, test tier
+#   dispatch  -- Manual with configurable matrix, deploy target, test tier
 #
-# Dual-build strategy:
-#   Standard -- NumPy >=2.0, all Python versions. pip install supy
-#   UMEP     -- NumPy 1.x (QGIS 3.40 LTR), cp312 only. Version X.Y.Zrc1 (production)
-#               or X.Y.Z.dev1 (nightly). Pre-release tag keeps it hidden from default pip.
+# Build strategy:
+#   One cp39-abi3 wheel per (OS, arch). The Rust bridge (PyO3 abi3-py39)
+#   makes the binary ABI-stable, so a single wheel installs on cp39..cp3xx.
+#   Covers QGIS 3 LTR (NumPy 1.26.4), QGIS 4 (NumPy 2.x), and general users
+#   — the runtime pin is numpy>=1.22 (Rust bridge has no NumPy C-ABI
+#   dependency; pure-Python code uses only NumPy 1.22-compatible APIs).
 #
 # Nightly version: Tag YYYY.M.D.dev created BEFORE build for version consistency.
 # See get_ver_git.py for version string logic, .github/path-filters.yml for categories.
@@ -63,29 +65,32 @@ on:
         type: boolean
         default: true
 
-      # Python toggles (custom only)
+      # Python toggles drive the cross-CPython api-test matrix (gh#1300).
+      # The build is always cp39-abi3 (one wheel covers all supported CPythons),
+      # so these toggles only affect which interpreters install the wheel and
+      # run `-m "api and <tier>"` in test_api_cross_python.
       py39:
-        description: '[custom] Python 3.9'
+        description: '[custom] Test on Python 3.9 (build is always cp39-abi3)'
         type: boolean
         default: true
       py310:
-        description: '[custom] Python 3.10'
+        description: '[custom] Test on Python 3.10'
         type: boolean
         default: false
       py311:
-        description: '[custom] Python 3.11'
+        description: '[custom] Test on Python 3.11'
         type: boolean
         default: false
       py312:
-        description: '[custom] Python 3.12'
+        description: '[custom] Test on Python 3.12'
         type: boolean
         default: false
       py313:
-        description: '[custom] Python 3.13'
+        description: '[custom] Test on Python 3.13'
         type: boolean
         default: false
       py314:
-        description: '[custom] Python 3.14'
+        description: '[custom] Test on Python 3.14'
         type: boolean
         default: true
 
@@ -97,11 +102,6 @@ on:
         options:
           - none
           - testpypi
-      include_umep:
-        description: 'Build UMEP variant (NumPy 1.x compatible)'
-        required: true
-        default: true
-        type: boolean
       test_tier:
         description: 'Test suite level'
         required: true
@@ -113,6 +113,9 @@ on:
           - core
           - cfg
           - smoke
+
+permissions:
+  contents: read
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
@@ -126,15 +129,18 @@ jobs:
     outputs:
       on-master: ${{ steps.check.outputs.on-master }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
         with:
           fetch-depth: 0
+          persist-credentials: false
       - id: check
+        env:
+          TAG_NAME: ${{ github.ref_name }}
         run: |
           if git merge-base --is-ancestor $GITHUB_SHA refs/remotes/origin/master; then
             echo "on-master=true" >> $GITHUB_OUTPUT
           else
-            echo "::warning::Tag ${{ github.ref_name }} not on master — skipping release"
+            echo "::warning::Tag ${TAG_NAME} not on master — skipping release"
             echo "on-master=false" >> $GITHUB_OUTPUT
           fi
 
@@ -145,11 +151,14 @@ jobs:
     permissions:
       contents: write
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
         with:
           fetch-depth: 0
+          persist-credentials: false
 
       - name: Create and push nightly tag
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           set -e
           YEAR=$(date -u +%Y)
@@ -165,7 +174,7 @@ jobs:
             echo "Tag ${DEV_TAG} already exists on remote, skipping"
           else
             git tag -a "${DEV_TAG}" -m "Nightly build ${YEAR}-${MONTH}-${DAY}"
-            git push origin "${DEV_TAG}"
+            git push "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" "${DEV_TAG}"
             echo "Successfully created and pushed tag ${DEV_TAG}"
           fi
 
@@ -175,7 +184,6 @@ jobs:
     if: github.event_name == 'pull_request' || github.event_name == 'merge_group'
     outputs:
       needs-build: ${{ steps.decide.outputs.needs-build }}
-      needs-umep-build: ${{ steps.decide.outputs.needs-umep-build }}
       fortran-changed: ${{ steps.filter.outputs.fortran }}
       rust-changed: ${{ steps.filter.outputs.rust }}
       python-changed: ${{ steps.decide.outputs.python-changed }}
@@ -196,9 +204,11 @@ jobs:
       site-files: ${{ steps.filter.outputs.site_files }}
       pyproject-files: ${{ steps.filter.outputs.pyproject_files }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          persist-credentials: false
 
-      - uses: dorny/paths-filter@v3
+      - uses: dorny/paths-filter@de90cc6fb38fc0963ad72b210f1f284cd68cea36 # v3
         id: filter
         with:
           filters: .github/path-filters.yml
@@ -219,26 +229,36 @@ jobs:
 
       - name: Compute build decision
         id: decide
+        env:
+          FILTER_BUILD: ${{ steps.filter.outputs.build }}
+          BUILD_RELEVANT: ${{ steps.classify-pyproject.outputs.build_relevant || 'false' }}
+          FILTER_PYTHON: ${{ steps.filter.outputs.python }}
+          PACKAGE_RELEVANT: ${{ steps.classify-pyproject.outputs.package_relevant || 'false' }}
+          FILTER_FORTRAN: ${{ steps.filter.outputs.fortran }}
+          FILTER_RUST: ${{ steps.filter.outputs.rust }}
+          FILTER_UTIL: ${{ steps.filter.outputs.util }}
+          FILTER_CI: ${{ steps.filter.outputs.ci }}
+          FILTER_TESTS: ${{ steps.filter.outputs.tests }}
         run: |
           BUILD_CHANGED=false
-          if [[ "${{ steps.filter.outputs.build }}" == "true" ]] || \
-             [[ "${{ steps.classify-pyproject.outputs.build_relevant || 'false' }}" == "true" ]]; then
+          if [[ "${FILTER_BUILD}" == "true" ]] || \
+             [[ "${BUILD_RELEVANT}" == "true" ]]; then
             BUILD_CHANGED=true
           fi
           echo "build-changed=$BUILD_CHANGED" >> $GITHUB_OUTPUT
 
           PYTHON_CHANGED=false
-          if [[ "${{ steps.filter.outputs.python }}" == "true" ]] || \
-             [[ "${{ steps.classify-pyproject.outputs.package_relevant || 'false' }}" == "true" ]]; then
+          if [[ "${FILTER_PYTHON}" == "true" ]] || \
+             [[ "${PACKAGE_RELEVANT}" == "true" ]]; then
             PYTHON_CHANGED=true
           fi
           echo "python-changed=$PYTHON_CHANGED" >> $GITHUB_OUTPUT
 
-          FORTRAN="${{ steps.filter.outputs.fortran }}"
-          RUST="${{ steps.filter.outputs.rust }}"
-          UTIL="${{ steps.filter.outputs.util }}"
-          CI="${{ steps.filter.outputs.ci }}"
-          TESTS="${{ steps.filter.outputs.tests }}"
+          FORTRAN="${FILTER_FORTRAN}"
+          RUST="${FILTER_RUST}"
+          UTIL="${FILTER_UTIL}"
+          CI="${FILTER_CI}"
+          TESTS="${FILTER_TESTS}"
 
           NEEDS_BUILD=false
           if [[ "$FORTRAN" == "true" ]] || \
@@ -252,15 +272,6 @@ jobs:
           fi
           echo "needs-build=$NEEDS_BUILD" >> $GITHUB_OUTPUT
 
-          # UMEP build only when compiled extension ABI may differ
-          NEEDS_UMEP_BUILD=false
-          if [[ "$FORTRAN" == "true" ]] || \
-             [[ "$RUST" == "true" ]] || \
-             [[ "$BUILD_CHANGED" == "true" ]]; then
-            NEEDS_UMEP_BUILD=true
-          fi
-          echo "needs-umep-build=$NEEDS_UMEP_BUILD" >> $GITHUB_OUTPUT
-
   determine_matrix:
     name: Determine build matrix
     runs-on: ubuntu-latest
@@ -269,14 +280,14 @@ jobs:
     outputs:
       buildplat: ${{ steps.set-matrix.outputs.buildplat }}
       python: ${{ steps.set-matrix.outputs.python }}
-      umep_buildplat: ${{ steps.set-matrix.outputs.umep_buildplat }}
-      umep_python: ${{ steps.set-matrix.outputs.umep_python }}
+      api_python: ${{ steps.set-matrix.outputs.api_python }}
       test_tier: ${{ steps.set-matrix.outputs.test_tier }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
         with:
           sparse-checkout: .github/scripts
           sparse-checkout-cone-mode: false
+          persist-credentials: false
 
       - name: Set matrix based on trigger type
         id: set-matrix
@@ -315,13 +326,14 @@ jobs:
       pull-requests: write
       issues: write
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
         with:
           sparse-checkout: .github/scripts
           sparse-checkout-cone-mode: false
+          persist-credentials: false
 
       - name: Post or update CI summary comment
-        uses: actions/github-script@v7
+        uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b # v7
         env:
           FORTRAN_CHANGED: ${{ needs.detect-changes.outputs.fortran-changed }}
           RUST_CHANGED: ${{ needs.detect-changes.outputs.rust-changed }}
@@ -343,7 +355,6 @@ jobs:
           SITE_FILES: ${{ needs.detect-changes.outputs.site-files || '[]' }}
           PYPROJECT_FILES: ${{ needs.detect-changes.outputs.pyproject-files || '[]' }}
           NEEDS_BUILD: ${{ needs.detect-changes.outputs.needs-build }}
-          NEEDS_UMEP_BUILD: ${{ needs.detect-changes.outputs.needs-umep-build }}
           TEST_TIER: ${{ needs.determine_matrix.outputs.test_tier }}
           BUILDPLAT_JSON: ${{ needs.determine_matrix.outputs.buildplat }}
           PYTHON_JSON: ${{ needs.determine_matrix.outputs.python }}
@@ -367,49 +378,66 @@ jobs:
       buildplat_json: ${{ needs.determine_matrix.outputs.buildplat }}
       python_json: ${{ needs.determine_matrix.outputs.python }}
       test_tier: ${{ needs.determine_matrix.outputs.test_tier }}
-      is_umep_variant: 'false'
-      wheel_name_suffix: ''
       is_testpypi_build: ${{ github.event_name == 'schedule' || (startsWith(github.ref, 'refs/tags/') && contains(github.ref, 'dev')) }}
 
-  build_umep:
-    name: Build UMEP wheels
-    needs: [determine_matrix, create_nightly_tag, detect-changes, verify-release-tag]
-    # PRs skip UMEP unless compiled extension ABI may differ (fortran/build-system)
-    if: |
-      always() &&
-      needs.determine_matrix.result == 'success' &&
-      (needs.create_nightly_tag.result == 'success' || needs.create_nightly_tag.result == 'skipped') &&
-      (needs.detect-changes.result == 'skipped' || needs.detect-changes.outputs.needs-umep-build == 'true') &&
-      (needs.verify-release-tag.result == 'skipped' || needs.verify-release-tag.outputs.on-master == 'true') &&
-      (github.event_name != 'workflow_dispatch' || inputs.include_umep == true)
-    uses: ./.github/workflows/build-wheels-reusable.yml
+  test_api_cross_python:
+    name: API cross-CPython tests
+    needs: [determine_matrix, build_wheels]
+    if: always() && needs.build_wheels.result == 'success'
+    uses: ./.github/workflows/test-api-cross-python-reusable.yml
     with:
-      buildplat_json: ${{ needs.determine_matrix.outputs.umep_buildplat }}
-      python_json: ${{ needs.determine_matrix.outputs.umep_python }}
+      buildplat_json: ${{ needs.determine_matrix.outputs.buildplat }}
+      api_python_json: ${{ needs.determine_matrix.outputs.api_python }}
       test_tier: ${{ needs.determine_matrix.outputs.test_tier }}
-      is_umep_variant: 'true'
-      wheel_name_suffix: '-umep'
-      is_testpypi_build: ${{ github.event_name == 'schedule' || (startsWith(github.ref, 'refs/tags/') && contains(github.ref, 'dev')) }}
+
+  # Standalone lint: every test file must declare `physics` or `api`
+  # (gh#1300). Uses a static AST-based script so CI can verify marker
+  # coverage without building supy — keeps the check cheap for
+  # test-only PRs. The runtime counterpart is a pytest_collection_finish
+  # hook in test/conftest.py, which catches the same thing during normal
+  # full-tree pytest runs.
+  check_test_markers:
+    name: Check pytest marker axis
+    runs-on: ubuntu-latest
+    if: >-
+      always() &&
+      (github.event_name == 'pull_request' ||
+       github.event_name == 'merge_group' ||
+       github.event_name == 'schedule' ||
+       github.event_name == 'workflow_dispatch')
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6
+        with:
+          python-version: '3.12'
+
+      - name: Lint physics/api marker coverage
+        shell: bash
+        run: python scripts/lint/check_test_markers.py
 
   # Single consolidated check for branch protection (always runs for PRs/merge queue)
   pr-gate:
     name: PR build validation
     runs-on: ubuntu-latest
     if: always() && (github.event_name == 'pull_request' || github.event_name == 'merge_group')
-    needs: [build_wheels, build_umep, detect-changes]
+    needs: [build_wheels, test_api_cross_python, check_test_markers, detect-changes]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
         with:
           sparse-checkout: .github/scripts
           sparse-checkout-cone-mode: false
+          persist-credentials: false
 
       - name: Check build results
         env:
           DETECT_CHANGES_RESULT: ${{ needs.detect-changes.result }}
           BUILD_WHEELS_RESULT: ${{ needs.build_wheels.result }}
-          BUILD_UMEP_RESULT: ${{ needs.build_umep.result }}
+          TEST_BRIDGE_RESULT: ${{ needs.test_api_cross_python.result }}
+          CHECK_MARKERS_RESULT: ${{ needs.check_test_markers.result }}
           NEEDS_BUILD: ${{ needs.detect-changes.outputs.needs-build }}
-          NEEDS_UMEP_BUILD: ${{ needs.detect-changes.outputs.needs-umep-build }}
         run: bash .github/scripts/pr-gate.sh
 
   deploy_testpypi:
@@ -418,12 +446,17 @@ jobs:
     needs:
       - determine_matrix
       - build_wheels
+      - test_api_cross_python
       - create_nightly_tag
       - verify-release-tag
-    # Deploy for nightly/dev-tag/manual-dispatch even if some platforms fail
+    # Publish only when every platform wheel built AND the cross-CPython
+    # api tests passed on every matrix cell. A partial build (one leg
+    # fails) would leave test_api_cross_python skipped; allowing that
+    # would ship un-validated wheels, so both must be explicit successes.
     if: |
       always() &&
-      needs.build_wheels.result != 'cancelled' &&
+      needs.build_wheels.result == 'success' &&
+      needs.test_api_cross_python.result == 'success' &&
       (needs.create_nightly_tag.result == 'success' || needs.create_nightly_tag.result == 'skipped') &&
       (needs.verify-release-tag.result == 'skipped' || needs.verify-release-tag.outputs.on-master == 'true') &&
       (
@@ -437,13 +470,13 @@ jobs:
 
     steps:
       - name: Download all wheels for TestPyPI
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
         with:
           path: dist/
           merge-multiple: true
 
       - name: Publish wheels to Test PyPI
-        uses: pypa/gh-action-pypi-publish@release/v1.8
+        uses: pypa/gh-action-pypi-publish@81e9d935c883d0b210363ab89cf05f3894778450 # release/v1.8
         with:
           packages-dir: dist/
           verbose: true
@@ -456,16 +489,18 @@ jobs:
     needs:
       - determine_matrix
       - build_wheels
-      - build_umep
+      - test_api_cross_python
       - create_nightly_tag
       - verify-release-tag
-    # Production tags only: both standard and UMEP builds must succeed
+    # Production tags only: all platform wheels must succeed AND the
+    # cross-CPython api tests must pass (the only signal the cp39-abi3
+    # wheel imports on cp310..cp314 after the build matrix collapse).
     if: |
       always() &&
       startsWith(github.ref, 'refs/tags') &&
       !contains(github.ref, 'dev') &&
       needs.build_wheels.result == 'success' &&
-      needs.build_umep.result == 'success' &&
+      needs.test_api_cross_python.result == 'success' &&
       (needs.create_nightly_tag.result == 'success' || needs.create_nightly_tag.result == 'skipped') &&
       (needs.verify-release-tag.result == 'skipped' || needs.verify-release-tag.outputs.on-master == 'true')
 
@@ -473,14 +508,14 @@ jobs:
       id-token: write
 
     steps:
-      - name: Download all wheels (standard + UMEP)
-        uses: actions/download-artifact@v4
+      - name: Download all wheels
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
         with:
           path: dist/
           merge-multiple: true
 
       - name: Publish all wheels to PyPI
-        uses: pypa/gh-action-pypi-publish@release/v1.8
+        uses: pypa/gh-action-pypi-publish@81e9d935c883d0b210363ab89cf05f3894778450 # release/v1.8
         with:
           packages-dir: dist/
           verbose: true
@@ -496,9 +531,10 @@ jobs:
       contents: write
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
         with:
           fetch-depth: 0
+          persist-credentials: false
 
       - name: Extract version from tag
         id: get_version
@@ -509,8 +545,9 @@ jobs:
 
       - name: Prepare release notes
         id: release_notes
+        env:
+          VERSION: ${{ steps.get_version.outputs.version }}
         run: |
-          VERSION="${{ steps.get_version.outputs.version }}"
           RELEASE_FILE=".github/releases/${VERSION}.md"
 
           if [ -f "$RELEASE_FILE" ]; then
@@ -563,8 +600,8 @@ jobs:
       - name: Create GitHub Release
         env:
           GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ steps.get_version.outputs.version }}
         run: |
-          VERSION="${{ steps.get_version.outputs.version }}"
           TITLE=$(git tag -l --format='%(contents:subject)' "$VERSION" || echo "SUEWS Release")
           gh release create "$VERSION" \
             --title "SUEWS v$VERSION: $TITLE" \

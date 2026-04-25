@@ -12,7 +12,26 @@ from typing import Dict, List, Optional, Union, Any, Tuple
 SFR_FRACTION_TOL = 1e-4
 
 def _check_surface_parameters(surface_props: dict, surface_type: str) -> List[str]:
-    """Check for missing/empty parameters in surface configuration."""
+    """
+    Check for missing or empty parameters in a surface configuration dictionary.
+
+    This function recursively traverses the given surface properties dictionary and identifies
+    any parameters (with a "value" key) that are missing (None) or empty (""). It skips any
+    key named "sfr". The function returns a list of parameter paths (dot-separated) that are
+    missing or empty.
+
+    Parameters
+    ----------
+    surface_props : dict
+        The dictionary containing surface properties to be checked.
+    surface_type : str
+        The type of surface being checked (not used in the function logic, but may be used for context).
+
+    Returns
+    -------
+    List[str]
+        A list of dot-separated parameter paths that are missing or empty in the surface configuration.
+    """
     missing_params = []
 
     def _check_recursively(props: dict, path: str = ""):
@@ -40,7 +59,32 @@ def _check_surface_parameters(surface_props: dict, surface_type: str) -> List[st
 
 @RulesRegistry.add_rule("land_cover")
 def validate_land_cover_consistency(context) -> List[ValidationResult]:
-    """Validate land cover fractions and parameters."""
+    """
+    Validate land cover fractions and associated parameters for each site.
+
+    This function checks the consistency of land cover surface fractions (`sfr`) and the presence of required parameters
+    for each active surface type in the provided YAML configuration. It ensures that the sum of all surface fractions
+    equals 1.0 within a specified tolerance, and that all necessary parameters are set for surfaces with nonzero fractions.
+    Special handling is included for biogenic CO2 parameters depending on the model's emissions method.
+    Warnings are issued for parameters defined under surfaces with zero fraction.
+
+    Parameters
+    ----------
+    context : object
+        An object containing the parsed YAML data as `context.yaml_data`.
+
+    Returns
+    -------
+    List[ValidationResult]
+        A list of `ValidationResult` objects indicating errors, warnings, or pass status for each site and surface.
+
+    Notes
+    -----
+    - If the sum of surface fractions deviates from 1.0 beyond the allowed tolerance, an error is reported.
+    - For surfaces with `sfr > 0`, all required parameters must be present; missing parameters trigger errors.
+    - Biogenic CO2 parameters are only required if the emissions method enables CO2 for the relevant surfaces.
+    - Parameters under surfaces with `sfr == 0` are not validated, but a warning is issued if such parameters exist.
+    """
     yaml_data = context.yaml_data
 
     results = []
@@ -114,7 +158,7 @@ def validate_land_cover_consistency(context) -> List[ValidationResult]:
 
         # Determine if biogenic CO2 parameters should be required
         physics = yaml_data.get("model", {}).get("physics", {})
-        emissionsmethod = get_value_safe(physics, "emissionsmethod")
+        emissionsmethod = get_value_safe(physics, "emissions")
         biogenic_params = {
             "alpha_bioco2",
             "alpha_enh_bioco2",
@@ -221,7 +265,33 @@ def validate_land_cover_consistency(context) -> List[ValidationResult]:
 
 @RulesRegistry.add_rule("geographic")
 def validate_geographic_parameters(context) -> List[ValidationResult]:
-    """Validate geographic coordinates and location parameters."""
+    """
+    Validate geographic coordinates and related location parameters for each site.
+
+    This function checks the presence, type, and valid range of latitude and longitude
+    for each site in the provided context. It also verifies the presence of timezone
+    and daylight saving parameters, issuing warnings if they are missing (as they can
+    be calculated automatically). Validation results are returned for each issue found,
+    and a PASS result is added if no errors are detected.
+
+    Parameters
+    ----------
+    context : object
+        An object containing the YAML data to be validated. Must have a `yaml_data`
+        attribute with a "sites" key, where each site is a dictionary of properties.
+
+    Returns
+    -------
+    List[ValidationResult]
+        A list of ValidationResult objects describing errors, warnings, or a pass
+        status for the geographic parameters of each site.
+
+    Notes
+    -----
+    - Latitude must be a numeric value between -90 and 90.
+    - Longitude must be a numeric value between -180 and 180.
+    - Timezone and daylight saving parameters are optional; warnings are issued if missing.
+    """
     yaml_data = context.yaml_data
     
     results = []
@@ -364,26 +434,34 @@ def validate_irrigation_doy(
     site_name: str,
 ) -> List[ValidationResult]:
     """
-    Validate irrigation DOY parameters with leap year, hemisphere, and tropical awareness.
+    Validates irrigation Day-Of-Year (DOY) parameters with consideration for leap years, hemisphere, and tropical regions.
 
-    This validator ensures irrigation timing parameters are logically consistent
-    and appropriate for the site's location. It checks:
-    1. DOY values are within valid range (1-365 or 1-366 for leap years)
-    2. Both parameters are set together or both disabled
-    3. Warm season appropriateness based on hemisphere and latitude:
-       - Tropical regions (|lat| < 23.5): No restrictions, irrigation allowed year-round
-       - Northern Hemisphere (lat >= 23.5): Warm season is May-September (DOY 121-273)
-       - Southern Hemisphere (lat <= -23.5): Warm season is November-March (DOY 305-90)
+    Parameters
+    ----------
+    ie_start : float or None
+        Irrigation start day of year.
+    ie_end : float or None
+        Irrigation end day of year.
+    lat : float
+        Site latitude (used for hemisphere and tropical detection).
+    model_year : int
+        Simulation year (used for leap year detection).
+    site_name : str
+        Site identifier for error messages.
 
-    Args:
-        ie_start: Irrigation start day of year
-        ie_end: Irrigation end day of year
-        lat: Site latitude (for hemisphere and tropical detection)
-        model_year: Simulation year (for leap year detection)
-        site_name: Site identifier for error messages
+    Returns
+    -------
+    List[ValidationResult]
+        List of ValidationResult objects (errors, warnings, or empty).
 
-    Returns:
-        List of ValidationResult objects (errors, warnings, or empty)
+    Notes
+    -----
+    - Checks that DOY values are within valid range (1-365 or 1-366 for leap years).
+    - Ensures both parameters are set together or both disabled.
+    - Checks warm season appropriateness based on hemisphere and latitude:
+        * Tropical regions (|lat| < 23.5): No restrictions, irrigation allowed year-round.
+        * Northern Hemisphere (lat >= 23.5): Warm season is May-September (DOY 121-273).
+        * Southern Hemisphere (lat <= -23.5): Warm season is November-March (DOY 305-90).
     """
     results = []
 
@@ -442,8 +520,22 @@ def validate_irrigation_doy(
     # Helper function to check if DOY is in warm season
     def is_in_warm_season(doy: float, latitude: float) -> bool:
         """
-        Check if a DOY falls within the warm season for the given hemisphere.
+        Determine if a given Day-Of-Year (DOY) falls within the warm season for the specified hemisphere.
 
+        Parameters
+        ----------
+        doy : float
+            Day of year to check.
+        latitude : float
+            Site latitude (positive for Northern Hemisphere, negative for Southern Hemisphere).
+
+        Returns
+        -------
+        bool
+            True if DOY is within the warm season for the given hemisphere, False otherwise.
+
+        Notes
+        -----
         Warm season definitions:
         - Northern Hemisphere (lat >= 23.5): May-September (DOY 121-273)
         - Southern Hemisphere (lat <= -23.5): November-March (DOY 305-90, wraps year boundary)
@@ -516,12 +608,15 @@ def validate_irrigation_parameters(context) -> List[ValidationResult]:
     Extracts irrigation parameters from each site configuration and validates
     them using context-aware checks (leap year, hemisphere).
 
-    Args:
-        yaml_data: Complete YAML configuration
-        model_year: Simulation year for leap year detection
+    Parameters
+    ----------
+    context : object
+        An object containing the YAML data (`yaml_data`) and simulation year (`model_year`).
 
-    Returns:
-        List of ValidationResult objects for all sites
+    Returns
+    -------
+    List[ValidationResult]
+        List of ValidationResult objects for all sites.
     """
     yaml_data = context.yaml_data
     model_year = context.model_year
@@ -560,12 +655,19 @@ def validate_irrigation_parameters(context) -> List[ValidationResult]:
 
 @RulesRegistry.add_rule("veg_albedo")
 def check_missing_vegetation_albedo(context) -> List[ValidationResult]:
-    """Report when vegetated surfaces have null alb_id.
+    """
+    Report when vegetated surfaces have null alb_id.
 
-    This is informational: SUEWSConfig will auto-calculate alb_id from
-    LAI state before the model run. Trees use a direct LAI-albedo
-    relationship (higher LAI -> higher albedo); grass uses a reversed
-    relationship (higher LAI -> lower albedo).
+    This is informational only: SUEWSConfig will auto-calculate alb_id from
+    LAI state before the model run.
+
+    Trees use a direct LAI-albedo relationship (higher LAI -> higher albedo).
+    Grass uses a reversed relationship (higher LAI -> lower albedo).
+
+    Returns
+    -------
+    List[ValidationResult]
+        Informational results for each vegetated surface with null alb_id.
     """
     yaml_data = context.yaml_data
 

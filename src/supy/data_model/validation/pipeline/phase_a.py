@@ -1,41 +1,94 @@
 import yaml
 import os
 import subprocess
+from typing import Optional
 import pandas as pd
 from pathlib import Path
 
 from .report_writer import REPORT_WRITER
+from ...core.field_renames import RAW_YAML_FIELD_RENAMES
 
 RENAMED_PARAMS = {
     "cp": "rho_cp",
-    "diagmethod": "rslmethod",
-    "localclimatemethod": "rsllevel",
+    "diagmethod": "roughness_sublayer",
+    "localclimatemethod": "roughness_sublayer_level",
     "chanohm": "ch_anohm",
     "cpanohm": "rho_cp_anohm",
     "kkanohm": "k_anohm",
+    # Phase 2 + 3 renames: fused -> snake_case -> final (#1256, #1321)
+    **RAW_YAML_FIELD_RENAMES,
 }
 PHYSICS_OPTIONS = {
-    "netradiationmethod",
-    "emissionsmethod",
-    "storageheatmethod",
-    "ohmincqf",
-    "roughlenmommethod",
-    "roughlenheatmethod",
-    "stabilitymethod",
-    "smdmethod",
-    "waterusemethod",
-    "rslmethod",
-    "faimethod",
-    "rsllevel",
-    "gsmodel",
-    "snowuse",
-    "stebbsmethod",
-    "rcmethod",
+    "net_radiation",
+    "emissions",
+    "storage_heat",
+    "ohm_inc_qf",
+    "roughness_length_momentum",
+    "roughness_length_heat",
+    "stability",
+    "soil_moisture_deficit",
+    "water_use",
+    "roughness_sublayer",
+    "frontal_area_index",
+    "roughness_sublayer_level",
+    "surface_conductance",
+    "snow_use",
+    "stebbs",
+    "outer_cap_fraction",
     "same_albedo_wall",
     "same_albedo_roof",
     "same_emissivity_wall",
     "same_emissivity_roof",
+    "setpoint",
 }
+
+ALLOWED_REF_KEYS = {"desc", "DOI", "ID"}
+
+def _strip_ref_blocks(obj):
+    """
+    Recursively transform the config tree for structural checks.
+
+    This function processes the configuration tree to handle 'ref' sections and their keys
+    according to the following rules:
+
+    - 'ref' sections are allowed anywhere in the tree.
+    - Inside a 'ref' section, keys listed in ALLOWED_REF_KEYS are ignored (not compared).
+    - Any other key under 'ref' is kept so it can be flagged as extra.
+
+    Parameters
+    ----------
+    obj : Any
+        The configuration object (dict, list, or other) to process.
+
+    Returns
+    -------
+    Any
+        The processed configuration object with allowed 'ref' keys removed, 
+        so they can pass structural checks against sample config.
+    """
+    if isinstance(obj, dict):
+        new = {}
+        for k, v in obj.items():
+            if k == "ref":
+                if isinstance(v, dict):
+                    invalid = {}
+                    for subk, subv in v.items():
+                        if subk in ALLOWED_REF_KEYS:
+                            continue
+                        invalid[subk] = _strip_ref_blocks(subv)
+                    if invalid:
+                        new["ref"] = invalid
+                else:
+                    new["ref"] = _strip_ref_blocks(v)
+            else:
+                new[k] = _strip_ref_blocks(v)
+        return new
+
+    if isinstance(obj, list):
+        return [_strip_ref_blocks(v) for v in obj]
+
+    return obj
+
 
 
 def handle_renamed_parameters(yaml_content: str):
@@ -719,19 +772,32 @@ def create_null_roof_wall_template(reference_element: dict) -> dict:
 
 
 def validate_nlayer_dimensions(user_data: dict, nlayer: int) -> tuple:
-    """Validate that vertical layer array dimensions match nlayer value.
+    """
+    Validate that vertical layer array dimensions match the specified nlayer value.
 
-    Pads arrays with null values when dimensions don't match, but records errors
-    so validation fails and user is asked to replace nulls with actual values.
+    This function checks that certain arrays in the user_data dictionary have the correct
+    length according to the nlayer parameter. If arrays are too short, they are padded
+    with null values (None), and if they are too long, an error is recorded but the array
+    is not modified. For nested arrays (e.g., roofs, walls), missing elements are padded
+    with a null template matching the structure of the first element if available.
 
-    Args:
-        user_data: User YAML data (dict)
-        nlayer: Detected nlayer value
+    Parameters
+    ----------
+    user_data : dict
+        The user YAML data as a dictionary.
+    nlayer : int
+        The expected number of vertical layers.
 
-    Returns:
-        Tuple of (modified_user_data, dimension_errors) where dimension_errors is a list of
-        (path, expected_length, actual_length, nulls_added) tuples describing validation errors.
-        User must replace the null values with actual values.
+    Returns
+    -------
+    tuple
+        A tuple (modified_user_data, dimension_errors), where:
+        - modified_user_data : dict
+            The user_data dictionary with arrays padded as needed.
+        - dimension_errors : list of tuple
+            Each tuple is (path, expected_length, actual_length, nulls_added), describing
+            the location and nature of any dimension mismatch. The user must replace any
+            null values with actual values.
     """
     dimension_errors = []
 
@@ -946,9 +1012,17 @@ def validate_nlayer_dimensions(user_data: dict, nlayer: int) -> tuple:
 
 def validate_nlayer_limit(user_data: dict) -> list:
     """
-    Validate that nlayer is less than 15 for each site.
+    Validate that the 'nlayer' parameter does not exceed the supported limit (15) for each site.
 
-    Returns a list of (path, nlayer_value, error_message) tuples for each site where nlayer >= 15.
+    Parameters
+    ----------
+    user_data : dict
+        The user YAML data as a dictionary.
+
+    Returns
+    -------
+    errors : list of tuple
+        Each tuple is (path, nlayer_value, error_message) for each site where nlayer > 15 or cannot be interpreted.
     """
     errors = []
     if not user_data or "sites" not in user_data:
@@ -978,18 +1052,84 @@ def validate_nlayer_limit(user_data: dict) -> list:
                 errors.append((path, nlayer, "Could not interpret nlayer value for limit check."))
     return errors
 
+def _extract_lai_bounds_from_user_data(user_data: dict) -> Optional[dict]:
+    """Collect per-site per-veg-class LAI bounds from a parsed YAML config.
+
+    Returns ``{'laimin': [[eve, dec, grass], ...], 'laimax': [[...], ...]}`` or
+    ``None`` if the configuration lacks the expected structure. Used to seed
+    ``check_forcing``'s pre-flight clamp warning on the YAML validation path.
+    """
+    if not isinstance(user_data, dict):
+        return None
+    sites = user_data.get("sites")
+    if not isinstance(sites, list) or not sites:
+        return None
+
+    def _unwrap(value):
+        if isinstance(value, dict) and "value" in value:
+            return value["value"]
+        return value
+
+    laimin_rows: list = []
+    laimax_rows: list = []
+    for site in sites:
+        if not isinstance(site, dict):
+            continue
+        land_cover = (
+            site.get("properties", {}).get("land_cover", {})
+            if isinstance(site.get("properties"), dict)
+            else {}
+        )
+        class_mins: list = []
+        class_maxs: list = []
+        for veg in ("evetr", "dectr", "grass"):
+            params = land_cover.get(veg, {}) if isinstance(land_cover, dict) else {}
+            lai_params = params.get("lai", {}) if isinstance(params, dict) else {}
+            if not isinstance(lai_params, dict):
+                continue
+            laimin = _unwrap(lai_params.get("lai_min", lai_params.get("laimin")))
+            laimax = _unwrap(lai_params.get("lai_max", lai_params.get("laimax")))
+            if laimin is None or laimax is None:
+                continue
+            try:
+                class_mins.append(float(laimin))
+                class_maxs.append(float(laimax))
+            except (TypeError, ValueError):
+                continue
+        if class_mins and class_maxs:
+            laimin_rows.append(class_mins)
+            laimax_rows.append(class_maxs)
+    if not laimin_rows or not laimax_rows:
+        return None
+    return {"laimin": laimin_rows, "laimax": laimax_rows}
+
+
 def _validate_single_forcing_file(
-    forcing_path: Path, yaml_dir: Path, physics: dict = None
+    forcing_path: Path, yaml_dir: Path, physics: dict = None,
+    lai_bounds: dict = None,
 ) -> list:
-    """Validate a single forcing data file.
+    """
+    Validate a single forcing data file.
 
-    Args:
-        forcing_path: Path to forcing file (relative or absolute)
-        yaml_dir: Directory containing the YAML config (for resolving relative paths)
-        physics: Optional physics configuration dict for physics-specific validation
+    Parameters
+    ----------
+    forcing_path : Path
+        Path to the forcing file (can be relative or absolute).
+    yaml_dir : Path
+        Directory containing the YAML configuration file (used to resolve relative paths).
+    physics : dict, optional
+        Physics configuration dictionary for physics-specific validation (default is None).
 
-    Returns:
-        List of error messages (empty if valid)
+    Returns
+    -------
+    list of str
+        List of error messages. Returns an empty list if the file is valid.
+
+    Notes
+    -----
+    - This function attempts to resolve the forcing file path relative to the YAML directory if not absolute.
+    - It loads the forcing data and runs validation using SuPy's `check_forcing` function.
+    - Error messages are cleaned and contextualized with file information.
     """
     import re
     import logging
@@ -1030,7 +1170,9 @@ def _validate_single_forcing_file(
         logger_supy.setLevel(logging.CRITICAL + 1)  # Disable all logging
 
         try:
-            issues = check_forcing(df_forcing, fix=False, physics=physics)
+            issues = check_forcing(
+                df_forcing, fix=False, physics=physics, lai_bounds=lai_bounds
+            )
             if issues:
                 # Clean up error messages: remove extra whitespace and newlines, clarify indices
                 cleaned_issues = []
@@ -1074,16 +1216,34 @@ def _validate_single_forcing_file(
     return forcing_errors
 
 
-def validate_forcing_data(user_yaml_file: str, physics: dict = None) -> tuple:
-    """Validate forcing data file(s) referenced in user YAML.
+def validate_forcing_data(
+    user_yaml_file: str, physics: dict = None, lai_bounds: dict = None
+) -> tuple:
+    """
+    Validate forcing data file(s) referenced in the user YAML configuration.
 
-    Args:
-        user_yaml_file: Path to user YAML configuration file
-        physics: Optional physics configuration dict for physics-specific validation
+    Parameters
+    ----------
+    user_yaml_file : str
+        Path to the user YAML configuration file.
+    physics : dict, optional
+        Physics configuration dictionary for physics-specific validation (default is None).
 
-    Returns:
-        Tuple of (forcing_errors, forcing_file_paths) where forcing_errors is a list of error messages
-        and forcing_file_paths is the path(s) to the forcing file(s) (or None if not found).
+    Returns
+    -------
+    tuple
+        A tuple (forcing_errors, forcing_file_paths) where:
+        - forcing_errors : list of str
+            List of error messages encountered during validation. Empty if no errors.
+        - forcing_file_paths : str or list or None
+            The path(s) to the forcing file(s) as specified in the YAML, or None if not found.
+
+    Notes
+    -----
+    This function loads the user YAML file, extracts the forcing file(s) path(s) from
+    `model.control.forcing_file`, and validates each file using SuPy's forcing checker.
+    It supports both single file and list of files. Error messages are contextualized
+    and cleaned for user readability.
     """
     forcing_errors = []
     forcing_file_paths = None
@@ -1130,7 +1290,7 @@ def validate_forcing_data(user_yaml_file: str, physics: dict = None) -> tuple:
             # Validate all files in the list
             for fpath in forcing_file_path:
                 file_errors = _validate_single_forcing_file(
-                    Path(fpath), yaml_dir, physics=physics
+                    Path(fpath), yaml_dir, physics=physics, lai_bounds=lai_bounds
                 )
                 forcing_errors.extend(file_errors)
 
@@ -1140,7 +1300,7 @@ def validate_forcing_data(user_yaml_file: str, physics: dict = None) -> tuple:
         forcing_file_paths = forcing_file_path
         yaml_dir = Path(user_yaml_file).parent
         file_errors = _validate_single_forcing_file(
-            Path(forcing_file_path), yaml_dir, physics=physics
+            Path(forcing_file_path), yaml_dir, physics=physics, lai_bounds=lai_bounds
         )
         forcing_errors.extend(file_errors)
 
@@ -1449,7 +1609,7 @@ def create_analysis_report(
             param_name = param_path.split(".")[-1]
             report_lines.append(f"-- {param_name} at level {param_path}")
             report_lines.append(
-                f"   Suggested fix: You selected Public mode. Consider either to switch to Dev mode, or remove this extra parameter since this is not in the standard yaml."
+                f"   Suggested fix: You are in Public mode. Consider switching to Dev mode, or remove this extra parameter as it is not in the standard yaml."
             )
         report_lines.append("")
 
@@ -1581,10 +1741,18 @@ def annotate_missing_parameters(
         physics_config = None
         if user_data and "model" in user_data and "physics" in user_data["model"]:
             physics_config = user_data["model"]["physics"]
-        forcing_errors, _ = validate_forcing_data(user_file, physics=physics_config)
+        # Seed the pre-flight LAI-bounds check with per-site laimin/laimax so
+        # ``check_forcing`` can warn when observed LAI will be clamped.
+        lai_bounds = _extract_lai_bounds_from_user_data(user_data)
+        forcing_errors, _ = validate_forcing_data(
+            user_file, physics=physics_config, lai_bounds=lai_bounds
+        )
 
-    missing_params = find_missing_parameters(user_data, standard_data)
-    extra_params = find_extra_parameters(user_data, standard_data)
+    user_data_no_ref = _strip_ref_blocks(user_data)
+    standard_data_no_ref = _strip_ref_blocks(standard_data)
+
+    missing_params = find_missing_parameters(user_data_no_ref, standard_data_no_ref)
+    extra_params = find_extra_parameters(user_data_no_ref, standard_data_no_ref)
 
     # Generate content for both files
     if (

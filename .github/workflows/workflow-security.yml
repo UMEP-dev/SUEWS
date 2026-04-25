@@ -1,0 +1,63 @@
+name: Workflow security
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/**'
+      - '.github/actions/**'
+      - '.github/scripts/check_action_pins.py'
+      - '.github/CODEOWNERS'
+  push:
+    branches: [master]
+    paths:
+      - '.github/workflows/**'
+      - '.github/actions/**'
+      - '.github/scripts/check_action_pins.py'
+      - '.github/CODEOWNERS'
+  schedule:
+    - cron: '15 6 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  enforce-sha-pins:
+    name: Enforce SHA-pinned actions
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          persist-credentials: false
+
+      - name: Check action pins
+        run: python3 .github/scripts/check_action_pins.py
+
+  zizmor:
+    name: Advisory workflow audit
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          persist-credentials: false
+
+      - uses: astral-sh/setup-uv@d0cc045d04ccac9d8b7881df0226f9e82c39688e # v6
+
+      - name: Run zizmor
+        run: |
+          set -o pipefail
+          uv tool run zizmor --no-online-audits --format=plain .github/workflows .github/actions | tee zizmor.txt
+
+      - name: Add zizmor summary
+        if: always()
+        run: |
+          {
+            echo "## zizmor";
+            echo;
+            if [ -f zizmor.txt ]; then
+              cat zizmor.txt;
+            else
+              echo "zizmor did not produce output.";
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"

@@ -15,8 +15,8 @@ pub struct OhmPrm {
     pub chanohm: f64,
     pub cpanohm: f64,
     pub kkanohm: f64,
-    pub ohm_threshsw: f64,
-    pub ohm_threshwd: f64,
+    pub ohm_threshold_summer_winter: f64,
+    pub ohm_threshold_wet_dry: f64,
     pub ohm_coef_lc: [OhmCoefLc; 3],
 }
 
@@ -26,8 +26,8 @@ impl Default for OhmPrm {
             chanohm: 0.0,
             cpanohm: 0.0,
             kkanohm: 0.0,
-            ohm_threshsw: 0.0,
-            ohm_threshwd: 0.0,
+            ohm_threshold_summer_winter: 0.0,
+            ohm_threshold_wet_dry: 0.0,
             ohm_coef_lc: [
                 OhmCoefLc::default(),
                 OhmCoefLc::default(),
@@ -45,8 +45,8 @@ impl OhmPrm {
             chanohm: flat[0],
             cpanohm: flat[1],
             kkanohm: flat[2],
-            ohm_threshsw: flat[3],
-            ohm_threshwd: flat[4],
+            ohm_threshold_summer_winter: flat[3],
+            ohm_threshold_wet_dry: flat[4],
             ohm_coef_lc: [
                 OhmCoefLc::from_flat(&flat[5..9])?,
                 OhmCoefLc::from_flat(&flat[9..13])?,
@@ -60,8 +60,8 @@ impl OhmPrm {
             self.chanohm,
             self.cpanohm,
             self.kkanohm,
-            self.ohm_threshsw,
-            self.ohm_threshwd,
+            self.ohm_threshold_summer_winter,
+            self.ohm_threshold_wet_dry,
         ];
         out.extend(self.ohm_coef_lc[0].to_flat());
         out.extend(self.ohm_coef_lc[1].to_flat());
@@ -150,7 +150,7 @@ mod tests {
         mapped.insert("ohm_coef_lc_2.winter_wet".to_string(), 0.25);
 
         let updated = ohm_prm_from_map(&mapped).expect("map to state should succeed");
-        assert!((updated.ohm_threshsw - 15.0).abs() < 1.0e-12);
+        assert!((updated.ohm_threshold_summer_winter - 15.0).abs() < 1.0e-12);
         assert!((updated.ohm_coef_lc[1].winter_wet - 0.25).abs() < 1.0e-12);
     }
 

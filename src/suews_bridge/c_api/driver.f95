@@ -57,7 +57,7 @@ implicit none
 private
 
 integer(c_int), parameter :: SUEWS_CAPI_TIMER_LEN = 18_c_int
-integer(c_int), parameter :: SUEWS_CAPI_CONFIG_LEN = 21_c_int
+integer(c_int), parameter :: SUEWS_CAPI_CONFIG_LEN = 22_c_int
 integer(c_int), parameter :: SUEWS_CAPI_SITE_SCALARS_LEN = 24_c_int
 integer(c_int), parameter :: SUEWS_CAPI_FORCING_COLS = 21_c_int
 
@@ -1046,7 +1046,8 @@ subroutine unpack_config(flat, n_flat, config, err)
    config%RSLLevel = int(nint(flat(18)))
    config%stebbsmethod = int(nint(flat(19)))
    config%rcmethod = int(nint(flat(20)))
-   config%flag_test = flat(21)>=0.5_c_double
+   config%setpointmethod = int(nint(flat(21)))
+   config%flag_test = flat(22)>=0.5_c_double
 
    err = SUEWS_CAPI_OK
 
@@ -1077,7 +1078,7 @@ subroutine unpack_site_scalars(flat, n_flat, site, err)
    site%runofftowater = flat(10)
    site%narp_trans_site = flat(11)
    site%co2pointsource = flat(12)
-   site%flowchange = flat(13)
+   site%flow_change = flat(13)
    site%n_buildings = flat(14)
    site%h_std = flat(15)
    site%lambda_c = flat(16)
@@ -1489,21 +1490,21 @@ subroutine pack_atm_state(s, flat, n_flat, err)
    end if
 
    idx = 1_c_int
-   flat(idx) = s%fcld; idx = idx + 1_c_int
-   flat(idx) = s%avcp; idx = idx + 1_c_int
+   flat(idx) = s%f_cloud; idx = idx + 1_c_int
+   flat(idx) = s%av_cp; idx = idx + 1_c_int
    flat(idx) = s%dens_dry; idx = idx + 1_c_int
-   flat(idx) = s%avdens; idx = idx + 1_c_int
+   flat(idx) = s%av_density; idx = idx + 1_c_int
    flat(idx) = s%dq; idx = idx + 1_c_int
    flat(idx) = s%ea_hpa; idx = idx + 1_c_int
    flat(idx) = s%es_hpa; idx = idx + 1_c_int
    flat(idx) = s%lv_j_kg; idx = idx + 1_c_int
-   flat(idx) = s%lvs_j_kg; idx = idx + 1_c_int
+   flat(idx) = s%lv_s_j_kg; idx = idx + 1_c_int
    flat(idx) = s%tlv; idx = idx + 1_c_int
    flat(idx) = s%psyc_hpa; idx = idx + 1_c_int
-   flat(idx) = s%psycice_hpa; idx = idx + 1_c_int
+   flat(idx) = s%psyc_ice_h_pa; idx = idx + 1_c_int
    flat(idx) = s%s_pa; idx = idx + 1_c_int
    flat(idx) = s%s_hpa; idx = idx + 1_c_int
-   flat(idx) = s%sice_hpa; idx = idx + 1_c_int
+   flat(idx) = s%s_ice_hpa; idx = idx + 1_c_int
    flat(idx) = s%vpd_hpa; idx = idx + 1_c_int
    flat(idx) = s%vpd_pa; idx = idx + 1_c_int
    flat(idx) = s%u10_ms; idx = idx + 1_c_int
@@ -1513,11 +1514,11 @@ subroutine pack_atm_state(s, flat, n_flat, err)
    flat(idx) = s%q2_gkg; idx = idx + 1_c_int
    flat(idx) = s%rh2; idx = idx + 1_c_int
    flat(idx) = s%l_mod; idx = idx + 1_c_int
-   flat(idx) = s%zl; idx = idx + 1_c_int
+   flat(idx) = s%z_l; idx = idx + 1_c_int
    flat(idx) = s%ra_h; idx = idx + 1_c_int
    flat(idx) = s%rs; idx = idx + 1_c_int
-   flat(idx) = s%ustar; idx = idx + 1_c_int
-   flat(idx) = s%tstar; idx = idx + 1_c_int
+   flat(idx) = s%u_star; idx = idx + 1_c_int
+   flat(idx) = s%t_star; idx = idx + 1_c_int
    flat(idx) = s%rb; idx = idx + 1_c_int
    flat(idx) = s%tair_av; idx = idx + 1_c_int
 
@@ -1568,7 +1569,7 @@ subroutine pack_phenology_state(s, flat, n_flat, err)
       idx = idx + 1_c_int
    end do
 
-   flat(idx) = s%vegphenlumps; idx = idx + 1_c_int
+   flat(idx) = s%veg_phen_lumps; idx = idx + 1_c_int
    flat(idx) = s%porosity_id; idx = idx + 1_c_int
    flat(idx) = s%decidcap_id; idx = idx + 1_c_int
    flat(idx) = s%albdectr_id; idx = idx + 1_c_int
@@ -1577,16 +1578,16 @@ subroutine pack_phenology_state(s, flat, n_flat, err)
    flat(idx) = s%tmin_id; idx = idx + 1_c_int
    flat(idx) = s%tmax_id; idx = idx + 1_c_int
    flat(idx) = s%lenday_id; idx = idx + 1_c_int
-   flat(idx) = s%tempveg; idx = idx + 1_c_int
+   flat(idx) = s%temp_veg; idx = idx + 1_c_int
 
    do j = 1_c_int, int(nsurf, c_int)
       do i = 1_c_int, 6_c_int
-         flat(idx) = s%storedrainprm(i, j)
+         flat(idx) = s%storage_drain_params(i, j)
          idx = idx + 1_c_int
       end do
    end do
 
-   flat(idx) = s%gfunc; idx = idx + 1_c_int
+   flat(idx) = s%g_func; idx = idx + 1_c_int
    flat(idx) = s%gsc; idx = idx + 1_c_int
    flat(idx) = s%g_kdown; idx = idx + 1_c_int
    flat(idx) = s%g_dq; idx = idx + 1_c_int
@@ -1613,39 +1614,39 @@ subroutine pack_snow_state(s, flat, n_flat, err)
    end if
 
    idx = 1_c_int
-   flat(idx) = s%snowfallcum; idx = idx + 1_c_int
-   flat(idx) = s%snowalb; idx = idx + 1_c_int
+   flat(idx) = s%snowfall_cum; idx = idx + 1_c_int
+   flat(idx) = s%snow_albedo; idx = idx + 1_c_int
    flat(idx) = s%chsnow_per_interval; idx = idx + 1_c_int
    flat(idx) = s%mwh; idx = idx + 1_c_int
-   flat(idx) = s%mwstore; idx = idx + 1_c_int
+   flat(idx) = s%melt_water_store; idx = idx + 1_c_int
    flat(idx) = s%qn_snow; idx = idx + 1_c_int
    flat(idx) = s%qm; idx = idx + 1_c_int
-   flat(idx) = s%qmfreez; idx = idx + 1_c_int
-   flat(idx) = s%qmrain; idx = idx + 1_c_int
+   flat(idx) = s%qm_freeze; idx = idx + 1_c_int
+   flat(idx) = s%qm_rain; idx = idx + 1_c_int
    flat(idx) = s%swe; idx = idx + 1_c_int
-   flat(idx) = s%z0vsnow; idx = idx + 1_c_int
-   flat(idx) = s%rasnow; idx = idx + 1_c_int
-   flat(idx) = s%sice_hpa; idx = idx + 1_c_int
+   flat(idx) = s%z0v_snow; idx = idx + 1_c_int
+   flat(idx) = s%ra_snow; idx = idx + 1_c_int
+   flat(idx) = s%s_ice_hpa; idx = idx + 1_c_int
 
    do i = 1_c_int, 2_c_int
-      flat(idx) = s%snowremoval(i)
+      flat(idx) = s%snow_removal(i)
       idx = idx + 1_c_int
    end do
 
    do i = 1_c_int, int(nsurf, c_int)
-      flat(idx) = s%icefrac(i); idx = idx + 1_c_int
+      flat(idx) = s%ice_frac(i); idx = idx + 1_c_int
    end do
    do i = 1_c_int, int(nsurf, c_int)
-      flat(idx) = s%snowdens(i); idx = idx + 1_c_int
+      flat(idx) = s%snow_density(i); idx = idx + 1_c_int
    end do
    do i = 1_c_int, int(nsurf, c_int)
-      flat(idx) = s%snowfrac(i); idx = idx + 1_c_int
+      flat(idx) = s%snow_fraction(i); idx = idx + 1_c_int
    end do
    do i = 1_c_int, int(nsurf, c_int)
-      flat(idx) = s%snowpack(i); idx = idx + 1_c_int
+      flat(idx) = s%snow_pack(i); idx = idx + 1_c_int
    end do
    do i = 1_c_int, int(nsurf, c_int)
-      flat(idx) = s%snowwater(i); idx = idx + 1_c_int
+      flat(idx) = s%snow_water(i); idx = idx + 1_c_int
    end do
    do i = 1_c_int, int(nsurf, c_int)
       flat(idx) = s%kup_ind_snow(i); idx = idx + 1_c_int
@@ -1654,7 +1655,7 @@ subroutine pack_snow_state(s, flat, n_flat, err)
       flat(idx) = s%qn_ind_snow(i); idx = idx + 1_c_int
    end do
    do i = 1_c_int, int(nsurf, c_int)
-      flat(idx) = s%deltaqi(i); idx = idx + 1_c_int
+      flat(idx) = s%delta_qi(i); idx = idx + 1_c_int
    end do
    do i = 1_c_int, int(nsurf, c_int)
       flat(idx) = s%tsurf_ind_snow(i); idx = idx + 1_c_int
@@ -1685,7 +1686,7 @@ subroutine pack_hydro_state(s, nlayer_c, flat, n_flat, err)
    idx = 1_c_int
 
    do i = 1_c_int, int(nsurf, c_int)
-      flat(idx) = s%soilstore_surf(i); idx = idx + 1_c_int
+      flat(idx) = s%soil_store_surf(i); idx = idx + 1_c_int
    end do
    do i = 1_c_int, int(nsurf, c_int)
       flat(idx) = s%state_surf(i); idx = idx + 1_c_int
@@ -1695,13 +1696,13 @@ subroutine pack_hydro_state(s, nlayer_c, flat, n_flat, err)
    end do
 
    do i = 1_c_int, nlayer_c
-      flat(idx) = s%soilstore_roof(i); idx = idx + 1_c_int
+      flat(idx) = s%soil_store_roof(i); idx = idx + 1_c_int
    end do
    do i = 1_c_int, nlayer_c
       flat(idx) = s%state_roof(i); idx = idx + 1_c_int
    end do
    do i = 1_c_int, nlayer_c
-      flat(idx) = s%soilstore_wall(i); idx = idx + 1_c_int
+      flat(idx) = s%soil_store_wall(i); idx = idx + 1_c_int
    end do
    do i = 1_c_int, nlayer_c
       flat(idx) = s%state_wall(i); idx = idx + 1_c_int
@@ -1723,7 +1724,7 @@ subroutine pack_hydro_state(s, nlayer_c, flat, n_flat, err)
       flat(idx) = s%wu_surf(i); idx = idx + 1_c_int
    end do
    do i = 1_c_int, int(nsurf, c_int)
-      flat(idx) = s%runoffsoil(i); idx = idx + 1_c_int
+      flat(idx) = s%runoff_soil(i); idx = idx + 1_c_int
    end do
    do i = 1_c_int, int(nsurf, c_int)
       flat(idx) = s%smd_surf(i); idx = idx + 1_c_int
@@ -1737,31 +1738,31 @@ subroutine pack_hydro_state(s, nlayer_c, flat, n_flat, err)
    flat(idx) = s%wu_ext; idx = idx + 1_c_int
    flat(idx) = s%wu_int; idx = idx + 1_c_int
 
-   flat(idx) = s%runoffagveg; idx = idx + 1_c_int
-   flat(idx) = s%runoffagimpervious; idx = idx + 1_c_int
+   flat(idx) = s%runoff_ag_veg; idx = idx + 1_c_int
+   flat(idx) = s%runoff_ag_impervious; idx = idx + 1_c_int
    flat(idx) = s%runoff_per_tstep; idx = idx + 1_c_int
-   flat(idx) = s%runoffpipes; idx = idx + 1_c_int
-   flat(idx) = s%runoffsoil_per_tstep; idx = idx + 1_c_int
-   flat(idx) = s%runoffwaterbody; idx = idx + 1_c_int
+   flat(idx) = s%runoff_pipes; idx = idx + 1_c_int
+   flat(idx) = s%runoff_soil_per_tstep; idx = idx + 1_c_int
+   flat(idx) = s%runoff_waterbody; idx = idx + 1_c_int
    flat(idx) = s%smd; idx = idx + 1_c_int
-   flat(idx) = s%soilstate; idx = idx + 1_c_int
+   flat(idx) = s%soil_state; idx = idx + 1_c_int
    flat(idx) = s%state_per_tstep; idx = idx + 1_c_int
    flat(idx) = s%surf_chang_per_tstep; idx = idx + 1_c_int
    flat(idx) = s%tot_chang_per_tstep; idx = idx + 1_c_int
    flat(idx) = s%runoff_per_interval; idx = idx + 1_c_int
-   flat(idx) = s%nwstate_per_tstep; idx = idx + 1_c_int
+   flat(idx) = s%nw_state_per_tstep; idx = idx + 1_c_int
 
-   flat(idx) = s%soilmoistcap; idx = idx + 1_c_int
+   flat(idx) = s%soil_moist_cap; idx = idx + 1_c_int
    flat(idx) = s%vsmd; idx = idx + 1_c_int
 
-   flat(idx) = s%additionalwater; idx = idx + 1_c_int
-   flat(idx) = s%addimpervious; idx = idx + 1_c_int
-   flat(idx) = s%addpipes; idx = idx + 1_c_int
-   flat(idx) = s%addveg; idx = idx + 1_c_int
-   flat(idx) = s%addwaterbody; idx = idx + 1_c_int
+   flat(idx) = s%additional_water; idx = idx + 1_c_int
+   flat(idx) = s%add_impervious; idx = idx + 1_c_int
+   flat(idx) = s%add_pipes; idx = idx + 1_c_int
+   flat(idx) = s%add_veg; idx = idx + 1_c_int
+   flat(idx) = s%add_water_body; idx = idx + 1_c_int
 
    do i = 1_c_int, int(nsurf, c_int)
-      flat(idx) = s%addwater(i); idx = idx + 1_c_int
+      flat(idx) = s%add_water(i); idx = idx + 1_c_int
    end do
    do i = 1_c_int, int(nsurf, c_int)
       flat(idx) = s%frac_water2runoff(i); idx = idx + 1_c_int
@@ -1851,10 +1852,10 @@ subroutine pack_heat_state(s, nlayer_c, ndepth_c, flat, n_flat, err)
 
    flat(idx) = s%qh_lumps; idx = idx + 1_c_int
    flat(idx) = s%qe_lumps; idx = idx + 1_c_int
-   flat(idx) = s%kclear; idx = idx + 1_c_int
-   flat(idx) = s%kup; idx = idx + 1_c_int
-   flat(idx) = s%ldown; idx = idx + 1_c_int
-   flat(idx) = s%lup; idx = idx + 1_c_int
+   flat(idx) = s%k_clear; idx = idx + 1_c_int
+   flat(idx) = s%k_up; idx = idx + 1_c_int
+   flat(idx) = s%l_down; idx = idx + 1_c_int
+   flat(idx) = s%l_up; idx = idx + 1_c_int
    flat(idx) = s%qe; idx = idx + 1_c_int
    flat(idx) = s%qf; idx = idx + 1_c_int
    flat(idx) = s%qf_sahp; idx = idx + 1_c_int
@@ -1898,9 +1899,9 @@ subroutine pack_roughness_state(s, flat, n_flat, err)
       return
    end if
 
-   flat(1) = s%faibldg_use
-   flat(2) = s%faievetree_use
-   flat(3) = s%faidectree_use
+   flat(1) = s%fai_bldg_use
+   flat(2) = s%fai_evetree_use
+   flat(3) = s%fai_dectree_use
    flat(4) = s%fai
    flat(5) = s%pai
    flat(6) = s%zh
@@ -1930,52 +1931,52 @@ subroutine pack_stebbs_state(s, flat, n_flat, err)
 
    idx = 1_c_int
 
-   flat(idx) = s%kdown2d; idx = idx + 1_c_int
-   flat(idx) = s%kup2d; idx = idx + 1_c_int
-   flat(idx) = s%kwest; idx = idx + 1_c_int
-   flat(idx) = s%ksouth; idx = idx + 1_c_int
-   flat(idx) = s%knorth; idx = idx + 1_c_int
-   flat(idx) = s%keast; idx = idx + 1_c_int
-   flat(idx) = s%ldown2d; idx = idx + 1_c_int
-   flat(idx) = s%lup2d; idx = idx + 1_c_int
-   flat(idx) = s%lwest; idx = idx + 1_c_int
-   flat(idx) = s%lsouth; idx = idx + 1_c_int
-   flat(idx) = s%lnorth; idx = idx + 1_c_int
-   flat(idx) = s%least; idx = idx + 1_c_int
+   flat(idx) = s%kdown_2d; idx = idx + 1_c_int
+   flat(idx) = s%kup_2d; idx = idx + 1_c_int
+   flat(idx) = s%k_west; idx = idx + 1_c_int
+   flat(idx) = s%k_south; idx = idx + 1_c_int
+   flat(idx) = s%k_north; idx = idx + 1_c_int
+   flat(idx) = s%k_east; idx = idx + 1_c_int
+   flat(idx) = s%ldown_2d; idx = idx + 1_c_int
+   flat(idx) = s%lup_2d; idx = idx + 1_c_int
+   flat(idx) = s%l_west; idx = idx + 1_c_int
+   flat(idx) = s%l_south; idx = idx + 1_c_int
+   flat(idx) = s%l_north; idx = idx + 1_c_int
+   flat(idx) = s%l_east; idx = idx + 1_c_int
 
    do i = 1_c_int, SUEWS_CAPI_STEBBS_STATE_RSL_LEN
-      flat(idx) = s%zarray(i); idx = idx + 1_c_int
+      flat(idx) = s%z_array(i); idx = idx + 1_c_int
    end do
    do i = 1_c_int, SUEWS_CAPI_STEBBS_STATE_RSL_LEN
-      flat(idx) = s%dataoutlineursl(i); idx = idx + 1_c_int
+      flat(idx) = s%dataout_line_u_rsl(i); idx = idx + 1_c_int
    end do
    do i = 1_c_int, SUEWS_CAPI_STEBBS_STATE_RSL_LEN
-      flat(idx) = s%dataoutlinetrsl(i); idx = idx + 1_c_int
+      flat(idx) = s%dataout_line_t_rsl(i); idx = idx + 1_c_int
    end do
    do i = 1_c_int, SUEWS_CAPI_STEBBS_STATE_RSL_LEN
-      flat(idx) = s%dataoutlineqrsl(i); idx = idx + 1_c_int
+      flat(idx) = s%dataout_line_q_rsl(i); idx = idx + 1_c_int
    end do
 
-   flat(idx) = s%deepsoiltemperature; idx = idx + 1_c_int
+   flat(idx) = s%deep_soil_temperature; idx = idx + 1_c_int
    flat(idx) = s%monthmeanairtemperature_diffmax; idx = idx + 1_c_int
-   flat(idx) = s%outdoorairstarttemperature; idx = idx + 1_c_int
-   flat(idx) = s%indoorairstarttemperature; idx = idx + 1_c_int
-   flat(idx) = s%indoormassstarttemperature; idx = idx + 1_c_int
-   flat(idx) = s%wallindoorsurfacetemperature; idx = idx + 1_c_int
-   flat(idx) = s%walloutdoorsurfacetemperature; idx = idx + 1_c_int
-   flat(idx) = s%roofindoorsurfacetemperature; idx = idx + 1_c_int
-   flat(idx) = s%roofoutdoorsurfacetemperature; idx = idx + 1_c_int
-   flat(idx) = s%windowindoorsurfacetemperature; idx = idx + 1_c_int
-   flat(idx) = s%windowoutdoorsurfacetemperature; idx = idx + 1_c_int
-   flat(idx) = s%groundfloorindoorsurfacetemperature; idx = idx + 1_c_int
-   flat(idx) = s%groundflooroutdoorsurfacetemperature; idx = idx + 1_c_int
-   flat(idx) = s%watertanktemperature; idx = idx + 1_c_int
-   flat(idx) = s%internalwallwatertanktemperature; idx = idx + 1_c_int
-   flat(idx) = s%externalwallwatertanktemperature; idx = idx + 1_c_int
-   flat(idx) = s%mainswatertemperature; idx = idx + 1_c_int
-   flat(idx) = s%domestichotwatertemperatureinuseinbuilding; idx = idx + 1_c_int
-   flat(idx) = s%internalwalldhwvesseltemperature; idx = idx + 1_c_int
-   flat(idx) = s%externalwalldhwvesseltemperature; idx = idx + 1_c_int
+   flat(idx) = s%outdoor_air_start_temperature; idx = idx + 1_c_int
+   flat(idx) = s%indoor_air_start_temperature; idx = idx + 1_c_int
+   flat(idx) = s%indoor_mass_start_temperature; idx = idx + 1_c_int
+   flat(idx) = s%wall_indoor_surface_temperature; idx = idx + 1_c_int
+   flat(idx) = s%wall_outdoor_surface_temperature; idx = idx + 1_c_int
+   flat(idx) = s%roof_indoor_surface_temperature; idx = idx + 1_c_int
+   flat(idx) = s%roof_outdoor_surface_temperature; idx = idx + 1_c_int
+   flat(idx) = s%window_indoor_surface_temperature; idx = idx + 1_c_int
+   flat(idx) = s%window_outdoor_surface_temperature; idx = idx + 1_c_int
+   flat(idx) = s%ground_floor_indoor_surface_temperature; idx = idx + 1_c_int
+   flat(idx) = s%ground_floor_outdoor_surface_temperature; idx = idx + 1_c_int
+   flat(idx) = s%water_tank_temperature_state; idx = idx + 1_c_int
+   flat(idx) = s%internal_wall_water_tank_temperature; idx = idx + 1_c_int
+   flat(idx) = s%external_wall_water_tank_temperature; idx = idx + 1_c_int
+   flat(idx) = s%mains_water_temperature; idx = idx + 1_c_int
+   flat(idx) = s%domestic_hot_water_temperature_in_use_in_building; idx = idx + 1_c_int
+   flat(idx) = s%internal_wall_dhw_vessel_temperature; idx = idx + 1_c_int
+   flat(idx) = s%external_wall_dhw_vessel_temperature; idx = idx + 1_c_int
    flat(idx) = s%qs_stebbs; idx = idx + 1_c_int
 
    bldg_count = 0_c_int

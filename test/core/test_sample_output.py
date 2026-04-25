@@ -38,6 +38,8 @@ import supy as sp
 
 from conftest import TIMESTEPS_PER_DAY
 
+pytestmark = pytest.mark.physics
+
 # Get the test data directory
 test_data_dir = Path(__file__).parent.parent / "fixtures" / "data_test"
 p_df_sample = Path(test_data_dir) / "sample_output.csv.gz"
@@ -569,6 +571,8 @@ if __name__ == "__main__":
 # ============================================================================
 
 
+@pytest.mark.core
+@pytest.mark.slow  # Runs in wheel CI core/standard tiers to catch SPARTACUS/STEBBS regressions early.
 class TestSTEBBSOutput(TestCase):
     """Test class for validating STEBBS building energy outputs."""
 
@@ -674,6 +678,7 @@ class TestSTEBBSOutput(TestCase):
             # Building loads - higher tolerance due to control logic
             "QHload_heating_FA": {"rtol": 0.05, "atol": 5.0},  # 5% / 5W tolerance
             "QHload_cooling_FA": {"rtol": 0.05, "atol": 5.0},  # 5% / 5W tolerance
+            "QH_lighting_FA": {"rtol": 0.05, "atol": 5.0},  # 5% / 5W tolerance
         }
 
         print(f"\nValidating STEBBS variables: {', '.join(stebbs_variables.keys())}")

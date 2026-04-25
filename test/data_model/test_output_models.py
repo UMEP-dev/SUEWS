@@ -11,6 +11,8 @@ from pathlib import Path
 
 import pytest
 
+pytestmark = pytest.mark.api
+
 # Add src/supy/data_model directly to path to avoid importing full supy package
 # This allows testing the output variable definitions without building the Fortran components
 _DATA_MODEL_PATH = (
@@ -57,7 +59,7 @@ EXPECTED_COUNTS = {
     OutputGroup.DEBUG: 131,  # Debug variables (matches Fortran dataOutLineDebug)
     OutputGroup.EHC: 224,  # EHC variables (2 + 7×15 roof + 7×15 wall)
     OutputGroup.SPARTACUS: 194,  # SPARTACUS variables (10 scalars + 12×15 layers)
-    OutputGroup.STEBBS: 81,  # STEBBS variables (matches Fortran truncated names)
+    OutputGroup.STEBBS: 82,  # STEBBS variables (matches Fortran truncated names)
     OutputGroup.NHOOD: 1,  # Neighbourhood variables
 }
 

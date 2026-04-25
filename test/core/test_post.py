@@ -8,10 +8,13 @@ output resampling, aggregation, and data manipulation utilities.
 from unittest import TestCase
 
 import pandas as pd
+import pytest
 
 import supy as sp
 from conftest import TIMESTEPS_PER_DAY
 from supy._post import dict_var_aggm, resample_output  # noqa: PLC2701
+
+pytestmark = pytest.mark.api
 
 
 class TestResampleOutput(TestCase):

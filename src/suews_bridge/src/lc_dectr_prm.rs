@@ -18,21 +18,21 @@ pub type LcDectrPrmValuesPayload = ValuesPayload;
 pub struct LcDectrPrm {
     pub sfr: f64,
     pub emis: f64,
-    pub faidectree: f64,
-    pub dectreeh: f64,
-    pub pormin_dec: f64,
-    pub pormax_dec: f64,
+    pub fai_deciduous_tree: f64,
+    pub height_deciduous_tree: f64,
+    pub porosity_min_deciduous: f64,
+    pub porosity_max_deciduous: f64,
     pub alb_min: f64,
     pub alb_max: f64,
     pub ohm: OhmPrm,
     pub soil: SoilPrm,
-    pub statelimit: f64,
-    pub capmax_dec: f64,
-    pub capmin_dec: f64,
+    pub state_limit: f64,
+    pub capacity_max_deciduous: f64,
+    pub capacity_min_deciduous: f64,
     pub irrfracdectr: f64,
-    pub wetthresh: f64,
+    pub wet_threshold: f64,
     pub bioco2: BioCo2Prm,
-    pub maxconductance: f64,
+    pub max_conductance: f64,
     pub lai: LaiPrm,
     pub waterdist: WaterDistPrm,
 }
@@ -42,21 +42,21 @@ impl Default for LcDectrPrm {
         Self {
             sfr: 0.0,
             emis: 0.0,
-            faidectree: 0.0,
-            dectreeh: 0.0,
-            pormin_dec: 0.0,
-            pormax_dec: 0.0,
+            fai_deciduous_tree: 0.0,
+            height_deciduous_tree: 0.0,
+            porosity_min_deciduous: 0.0,
+            porosity_max_deciduous: 0.0,
             alb_min: 0.0,
             alb_max: 0.0,
             ohm: OhmPrm::default(),
             soil: SoilPrm::default(),
-            statelimit: 0.0,
-            capmax_dec: 0.0,
-            capmin_dec: 0.0,
+            state_limit: 0.0,
+            capacity_max_deciduous: 0.0,
+            capacity_min_deciduous: 0.0,
             irrfracdectr: 0.0,
-            wetthresh: 0.0,
+            wet_threshold: 0.0,
             bioco2: BioCo2Prm::default(),
-            maxconductance: 0.0,
+            max_conductance: 0.0,
             lai: LaiPrm::default(),
             waterdist: WaterDistPrm::default(),
         }
@@ -70,21 +70,21 @@ impl LcDectrPrm {
         Ok(Self {
             sfr: flat[0],
             emis: flat[1],
-            faidectree: flat[2],
-            dectreeh: flat[3],
-            pormin_dec: flat[4],
-            pormax_dec: flat[5],
+            fai_deciduous_tree: flat[2],
+            height_deciduous_tree: flat[3],
+            porosity_min_deciduous: flat[4],
+            porosity_max_deciduous: flat[5],
             alb_min: flat[6],
             alb_max: flat[7],
             ohm: OhmPrm::from_flat(&flat[8..25])?,
             soil: SoilPrm::from_flat(&flat[25..28])?,
-            statelimit: flat[28],
-            capmax_dec: flat[29],
-            capmin_dec: flat[30],
+            state_limit: flat[28],
+            capacity_max_deciduous: flat[29],
+            capacity_min_deciduous: flat[30],
             irrfracdectr: flat[31],
-            wetthresh: flat[32],
+            wet_threshold: flat[32],
             bioco2: BioCo2Prm::from_flat(&flat[33..41])?,
-            maxconductance: flat[41],
+            max_conductance: flat[41],
             lai: LaiPrm::from_flat(&flat[42..53])?,
             waterdist: WaterDistPrm::from_flat(&flat[53..61])?,
         })
@@ -94,22 +94,22 @@ impl LcDectrPrm {
         let mut out = vec![
             self.sfr,
             self.emis,
-            self.faidectree,
-            self.dectreeh,
-            self.pormin_dec,
-            self.pormax_dec,
+            self.fai_deciduous_tree,
+            self.height_deciduous_tree,
+            self.porosity_min_deciduous,
+            self.porosity_max_deciduous,
             self.alb_min,
             self.alb_max,
         ];
         out.extend(self.ohm.to_flat());
         out.extend(self.soil.to_flat());
-        out.push(self.statelimit);
-        out.push(self.capmax_dec);
-        out.push(self.capmin_dec);
+        out.push(self.state_limit);
+        out.push(self.capacity_max_deciduous);
+        out.push(self.capacity_min_deciduous);
         out.push(self.irrfracdectr);
-        out.push(self.wetthresh);
+        out.push(self.wet_threshold);
         out.extend(self.bioco2.to_flat());
-        out.push(self.maxconductance);
+        out.push(self.max_conductance);
         out.extend(self.lai.to_flat());
         out.extend(self.waterdist.to_flat());
         out
@@ -217,9 +217,9 @@ mod tests {
         mapped.insert("waterdist.to_dectr".to_string(), 0.4);
 
         let updated = lc_dectr_prm_from_map(&mapped).expect("map to state should succeed");
-        assert!((updated.capmax_dec - 1.2).abs() < 1.0e-12);
-        assert!((updated.bioco2.beta_bioco2 - 0.9).abs() < 1.0e-12);
-        assert!((updated.lai.laimax - 5.5).abs() < 1.0e-12);
+        assert!((updated.capacity_max_deciduous - 1.2).abs() < 1.0e-12);
+        assert!((updated.bioco2.beta_bio_co2 - 0.9).abs() < 1.0e-12);
+        assert!((updated.lai.lai_max - 5.5).abs() < 1.0e-12);
         assert!((updated.waterdist.to_dectr - 0.4).abs() < 1.0e-12);
     }
 

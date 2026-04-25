@@ -1,8 +1,8 @@
-# Reusable workflow: build SUEWS wheels with a matrix strategy.
+# Reusable workflow: build SUEWS abi3 wheels with a matrix strategy.
 #
-# Called by build-publish_to_pypi.yml for both standard and UMEP variants.
-# By isolating the matrix here, the caller jobs can use static names that
-# display cleanly when skipped (no unresolved ${{ matrix.* }} literals).
+# Called by build-publish_to_pypi.yml. One cp39-abi3 wheel per (OS, arch)
+# covers cp39..cp3xx. By isolating the matrix here, the caller job can use
+# a static name that displays cleanly when skipped.
 
 name: Build wheels (reusable)
 
@@ -14,27 +14,21 @@ on:
         required: true
         type: string
       python_json:
-        description: 'JSON array of Python versions (e.g. ["cp312","cp313"])'
+        description: 'JSON array of CPython tags used by cibuildwheel (always ["cp39"] — abi3)'
         required: true
         type: string
       test_tier:
         description: 'Test tier: smoke, core, cfg, standard, or all'
         required: true
         type: string
-      is_umep_variant:
-        description: 'Whether this is a UMEP variant build'
-        required: true
-        type: string
-      wheel_name_suffix:
-        description: 'Suffix for wheel artifact name (e.g. "", "-umep")'
-        required: false
-        type: string
-        default: ''
       is_testpypi_build:
         description: 'Whether this is a TestPyPI build'
         required: false
         type: string
         default: 'false'
+
+permissions:
+  contents: read
 
 jobs:
   build:
@@ -47,10 +41,11 @@ jobs:
       fail-fast: false
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
         with:
           fetch-depth: 0
           submodules: recursive
+          persist-credentials: false
 
       - name: Build SUEWS wheels
         uses: ./.github/actions/build-suews
@@ -59,7 +54,5 @@ jobs:
           buildplat_name: ${{ matrix.buildplat[1] }}
           buildplat_arch: ${{ matrix.buildplat[2] }}
           python: ${{ matrix.python }}
-          is_umep_variant: ${{ inputs.is_umep_variant }}
-          wheel_name_suffix: ${{ inputs.wheel_name_suffix }}
           test_tier: ${{ inputs.test_tier }}
           is_testpypi_build: ${{ inputs.is_testpypi_build }}

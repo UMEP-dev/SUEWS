@@ -10,21 +10,24 @@
 !   102: STEBBS - Invalid thermal parameters (d, cp, rho must be positive; x1 in [0,1])
 !   103: RSL - Interpolation bounds error in interp_z
 !   104: Build/ABI mismatch - output array size disagreement across compilation units
+!   105: DailyState - laimethod=0 requires non-missing lai >= 0 at every timestep (GH#1296)
 !
-! Note: Error state uses SAVE variables, so is NOT thread-safe.
-!       Do not call SUEWS from multiple threads simultaneously.
+! Thread Safety:
+!   Fatal errors use module-level SAVE variables (supy_error_flag/code/message).
+!   These are acceptable because a fatal error terminates the simulation.
+!   Non-fatal warnings are routed through modState%errorstate (thread-safe).
+!   For multi-grid parallelism, use process-based isolation or ensure each
+!   thread has its own Fortran address space.
 !==================================================================================================
 MODULE module_ctrl_error_state
    IMPLICIT NONE
 
-   ! Error state variables exposed to Python via f90wrap
+   ! Error state variables for fatal errors — exposed to Python via Rust bridge.
+   ! These use SAVE because fatal errors terminate the run; concurrent writes
+   ! are not a concern in practice (only one fatal error matters).
    LOGICAL, SAVE :: supy_error_flag = .FALSE.
    INTEGER, SAVE :: supy_error_code = 0
    CHARACTER(LEN=512), SAVE :: supy_error_message = ''
-
-   ! Warning state variables for non-fatal issues (module-level fallback)
-   INTEGER, SAVE :: supy_warning_count = 0
-   CHARACTER(LEN=512), SAVE :: supy_last_warning_message = ''
 
 CONTAINS
 
@@ -32,8 +35,6 @@ CONTAINS
       supy_error_flag = .FALSE.
       supy_error_code = 0
       supy_error_message = ''
-      supy_warning_count = 0
-      supy_last_warning_message = ''
    END SUBROUTINE reset_supy_error
 
    SUBROUTINE set_supy_error(code, message)
@@ -48,13 +49,12 @@ CONTAINS
    END SUBROUTINE set_supy_error
 
    SUBROUTINE add_supy_warning(message)
-      !> Add a warning to the warning state (non-fatal, module-level fallback)
+      !> No-op stub: warnings should use modState%errorstate%report() instead.
+      !> Retained for backward compatibility with call sites that do not yet
+      !> have modState in scope. These warnings are silently dropped.
+      !> TODO: Thread modState through remaining callers and remove this stub.
       CHARACTER(LEN=*), INTENT(IN) :: message
-      INTEGER :: msg_len
-
-      supy_warning_count = supy_warning_count + 1
-      msg_len = MIN(LEN_TRIM(message), 512)
-      supy_last_warning_message = message(1:msg_len)
+      ! Intentionally empty — no module-level SAVE state for thread safety.
    END SUBROUTINE add_supy_warning
 
 END MODULE module_ctrl_error_state
@@ -71,8 +71,9 @@ SUBROUTINE ErrorHint(errh, ProblemFile, VALUE, value2, valueI, modState)
    !value       -- Error value (real number with correct type)
    !value2      -- Second error value (real number with correct type)
    !valueI      -- Error value (integer)
-   !modState    -- Optional SUEWS_STATE for state-based warning logging
+   !modState    -- Optional SUEWS_STATE for thread-safe warning logging
    ! Last modified -----------------------------------------------------
+   ! TS  03 Apr 2026: Remove module-level warning fallback for thread safety
    ! TS  17 Jan 2026: Add optional modState for state-based warning logging
    ! TS  17 Dec 2025: Remove legacy problems.txt/warnings.txt output (Python handles logging)
    ! MH  12 Apr 2017: Error code for stability added
@@ -84,14 +85,13 @@ SUBROUTINE ErrorHint(errh, ProblemFile, VALUE, value2, valueI, modState)
    ! LJ  08 Feb 2013
    !--------------------------------------------------------------------
    !
-   ! Thread Safety (GH#1042):
-   !   When modState is provided, warnings are logged to state%errorstate (thread-safe).
-   !   Otherwise, falls back to module-level warning state (NOT thread-safe).
-   !   Do not call the SUEWS kernel concurrently from multiple threads without state.
-   !   Use process-based parallelism or serialize calls with a lock in the caller.
+   ! Thread Safety:
+   !   Warnings are logged to modState%errorstate when provided (thread-safe).
+   !   If modState is absent, warnings are silently dropped (no module-level state).
+   !   Fatal errors still use module-level set_supy_error (acceptable: run terminates).
 
    USE module_ctrl_const_datain
-   USE module_ctrl_error_state, ONLY: set_supy_error, add_supy_warning
+   USE module_ctrl_error_state, ONLY: set_supy_error
    USE module_ctrl_type, ONLY: SUEWS_STATE
    ! USE module_ctrl_const_wherewhen
 
@@ -435,15 +435,13 @@ SUBROUTINE ErrorHint(errh, ProblemFile, VALUE, value2, valueI, modState)
          CALL wrf_debug(100, message)
          CALL wrf_debug(100, Errmessage)
 #else
-         ! SuPy: use state-based logging if available (thread-safe, full history)
+         ! SuPy: use state-based logging when available (thread-safe)
+         ! If modState is absent (e.g. dead code paths), warning is silently dropped.
          IF (PRESENT(modState)) THEN
             CALL modState%errorstate%report( &
                message=TRIM(text1)//': '//TRIM(ProblemFile), &
                location='ErrorHint', &
                is_fatal=.FALSE.)
-         ELSE
-            ! Fallback to module-level warning state (not thread-safe)
-            CALL add_supy_warning(TRIM(text1)//': '//TRIM(ProblemFile))
          END IF
 #endif
       END IF

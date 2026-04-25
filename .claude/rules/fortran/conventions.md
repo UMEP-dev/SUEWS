@@ -100,6 +100,14 @@ When investigating "stack smashing detected" or similar buffer overruns:
 
 ---
 
+## Numerical Guarding
+
+- Comparisons like `< 0.0D0` do not catch `NaN`.
+- When validating floating-point inputs that must be finite or non-missing, check `IEEE_IS_NAN(...)` explicitly (import from intrinsic `ieee_arithmetic` as needed).
+- Add the `NaN` branch to the same fatal-error path as the ordinary invalid values unless the algorithm has a clearly documented recovery path.
+
+---
+
 ## Legacy Patterns (Track for Migration)
 
 When reviewing existing code, note these patterns for future migration:

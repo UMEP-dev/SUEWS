@@ -3,7 +3,7 @@ CBLUse=0
 SnowUse=0
 NetRadiationMethod=1003 ! anything larger than 1000 for SU
 BaseTMethod=1
-EmissionsMethod=0
+EmissionsMethod=2
 StorageHeatMethod=5
 OHMIncQF=0
 StabilityMethod=3
@@ -33,4 +33,5 @@ DiagMethod=2 ! (0=MOST, 1=RSL, 2=Auto, RSL+MOST)
 KdownZen=0
 diagnose=0
 rcmethod=1
+setpointmethod=0
 /

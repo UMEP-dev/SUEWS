@@ -22,6 +22,8 @@ from conftest import TIMESTEPS_PER_DAY
 import pytest
 import supy as sp
 
+pytestmark = pytest.mark.physics
+
 # Suppress logging to get clean output
 logging.getLogger("SuPy").setLevel(logging.CRITICAL)
 

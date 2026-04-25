@@ -15,6 +15,7 @@ import pandas as pd
 import pytest
 
 import supy as sp
+from supy._load import trim_df_state
 from supy.data_model import (
     InitialStates,
     RefValue,
@@ -23,6 +24,8 @@ from supy.data_model import (
     SUEWSConfig,
 )
 from supy.data_model.core.model import ModelControl
+
+pytestmark = pytest.mark.api
 
 
 class TestSUEWSConfig(unittest.TestCase):
@@ -53,8 +56,8 @@ class TestSUEWSConfig(unittest.TestCase):
             self.config.model.control.tstep, config_reconst.model.control.tstep
         )
         self.assertEqual(
-            self.config.model.physics.netradiationmethod.value,
-            config_reconst.model.physics.netradiationmethod.value,
+            self.config.model.physics.net_radiation.value,
+            config_reconst.model.physics.net_radiation.value,
         )
         self.assertEqual(
             self.config.sites[0].properties.lat.value,
@@ -113,6 +116,81 @@ class TestSUEWSConfig(unittest.TestCase):
             df_state_init, df_state_reconst, check_dtype=False, check_like=True
         )
 
+    @pytest.mark.cfg
+    def test_setpoint_profiles_survive_trimmed_df_state_roundtrip(self):
+        """Test scheduled STEBBS setpoint fields persist through trimmed df_state roundtrip."""
+        config = SUEWSConfig(
+            model={"physics": {"setpoint": 2}},
+            sites=[
+                {
+                    "properties": {
+                        "building_archetype": {
+                            "heating_setpoint_temperature_profile": {
+                                "working_day": {str(i): 18.0 for i in range(1, 145)},
+                                "holiday": {str(i): 17.0 for i in range(1, 145)},
+                            },
+                            "cooling_setpoint_temperature_profile": {
+                                "working_day": {str(i): 26.0 for i in range(1, 145)},
+                                "holiday": {str(i): 27.0 for i in range(1, 145)},
+                            },
+                        }
+                    }
+                }
+            ],
+        )
+
+        df_state = config.to_df_state()
+        df_state_trimmed = trim_df_state(df_state)
+        config_reconst = SUEWSConfig.from_df_state(df_state_trimmed)
+
+        self.assertEqual(config_reconst.model.physics.setpoint.value.value, 2)
+        self.assertEqual(
+            config_reconst.sites[0]
+            .properties.building_archetype.heating_setpoint_temperature_profile
+            .working_day["1"],
+            18.0,
+        )
+        self.assertEqual(
+            config_reconst.sites[0]
+            .properties.building_archetype.cooling_setpoint_temperature_profile
+            .holiday["144"],
+            27.0,
+        )
+
+    def test_setpoint_profile_defaults_use_off_values(self):
+        config = SUEWSConfig(sites=[{}])
+        archetype = config.sites[0].properties.building_archetype
+
+        self.assertEqual(archetype.heating_setpoint_temperature_profile.working_day["1"], 0.0)
+        self.assertEqual(archetype.heating_setpoint_temperature_profile.holiday["144"], 0.0)
+        self.assertEqual(archetype.cooling_setpoint_temperature_profile.working_day["1"], 100.0)
+        self.assertEqual(archetype.cooling_setpoint_temperature_profile.holiday["144"], 100.0)
+
+    def test_internal_mass_area_roundtrip(self):
+        config = SUEWSConfig(
+            sites=[
+                {
+                    "properties": {
+                        "building_archetype": {
+                            "internal_mass_area": {"value": 100.0},
+                        }
+                    }
+                }
+            ]
+        )
+
+        self.assertEqual(
+            config.sites[0].properties.building_archetype.internal_mass_area.value,
+            100.0,
+        )
+
+        config_reconst = SUEWSConfig.from_df_state(config.to_df_state())
+
+        self.assertEqual(
+            config_reconst.sites[0].properties.building_archetype.internal_mass_area.value,
+            100.0,
+        )
+
     def test_model_physics_validation(self):
         """Test that SUEWSConfig allows physics combinations - validation moved to Phase B.
 
@@ -124,8 +202,8 @@ class TestSUEWSConfig(unittest.TestCase):
             sites=[{}],
             model={
                 "physics": {
-                    "storageheatmethod": {"value": 1},
-                    "ohmincqf": {
+                    "storage_heat": {"value": 1},
+                    "ohm_inc_qf": {
                         "value": 1
                     },  # This incompatible combination is now allowed at config level
                 }
@@ -133,7 +211,7 @@ class TestSUEWSConfig(unittest.TestCase):
         )
         self.assertIsInstance(config1, SUEWSConfig)
 
-        config2 = SUEWSConfig(sites=[{}], model={"physics": {"snowuse": {"value": 1}}})
+        config2 = SUEWSConfig(sites=[{}], model={"physics": {"snow_use": {"value": 1}}})
         self.assertIsInstance(config2, SUEWSConfig)
 
         # Note: These physics compatibility checks now happen in Phase B validation
@@ -442,7 +520,7 @@ def test_flexible_refvalue_with_cleaning():
         ("tstep", lambda c: c.model.control.tstep),
         ("forcing_file", lambda c: c.model.control.forcing_file),
         ("lat", lambda c: c.sites[0].properties.lat),
-        ("emissionsmethod", lambda c: c.model.physics.emissionsmethod),
+        ("emissions", lambda c: c.model.physics.emissions),
         ("raincover", lambda c: c.sites[0].properties.lumps.raincover),
         ("g_max", lambda c: c.sites[0].properties.conductance.g_max),
     ]

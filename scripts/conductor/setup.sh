@@ -35,4 +35,10 @@ uv venv --clear
 echo "[setup] Activating virtual environment..."
 source .venv/bin/activate
 
+echo "[setup] Building supy in editable mode (make dev)..."
+make dev
+
+echo "[setup] Installing documentation dependencies (make docs-setup)..."
+make docs-setup
+
 echo "[setup] Done."

@@ -6,6 +6,8 @@ import pytest
 
 from supy.util._ohm import derive_ohm_coef, sim_ohm
 
+pytestmark = pytest.mark.api
+
 
 class TestOHMCalculations:
     """Test OHM coefficient derivation and heat storage calculations."""

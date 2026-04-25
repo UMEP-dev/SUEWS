@@ -75,6 +75,7 @@ MODULE module_ctrl_type
       INTEGER :: RSLLevel = 0 ! method to choose local climate variables [-] 0: not use; 1: use local climate variables
       INTEGER :: stebbsmethod = 0 ! method to calculate building energy [-]
       INTEGER :: rcmethod = 0 ! method to split building envelope heat capacity in STEBBS [-]
+      INTEGER :: setpointmethod = 0 ! method to determine heating/cooling setpoints in STEBBS [-]
       LOGICAL :: flag_test = .FALSE. ! FOR DEBUGGING ONLY: boolean to test specific functions [-]
    END TYPE SUEWS_CONFIG
 
@@ -92,7 +93,7 @@ MODULE module_ctrl_type
       REAL(KIND(1D0)) :: runofftowater = 0.0D0 ! fraction of above-ground runoff flowing to water surface during flooding [-]
       REAL(KIND(1D0)) :: narp_trans_site = 0.0D0 ! atmospheric transmissivity for NARP [-]
       REAL(KIND(1D0)) :: CO2PointSource = 0.0D0 ! CO2 emission factor [kg km-1]
-      REAL(KIND(1D0)) :: flowchange = 0.0D0 ! Difference in input and output flows for water surface
+      REAL(KIND(1D0)) :: flow_change = 0.0D0 ! Difference in input and output flows for water surface
       REAL(KIND(1D0)) :: n_buildings = 0.0D0 ! n_buildings
       REAL(KIND(1D0)) :: h_std = 0.0D0 ! zStd_RSL
       REAL(KIND(1D0)) :: lambda_c = 0.0D0 ! Building surface to plan area ratio [-]
@@ -189,16 +190,16 @@ MODULE module_ctrl_type
    ! ********** SUEWS_forcing schema **********
    TYPE, PUBLIC :: SUEWS_FORCING
       REAL(KIND(1D0)) :: kdown = 0.0D0 !
-      REAL(KIND(1D0)) :: ldown = 0.0D0 !
+      REAL(KIND(1D0)) :: l_down = 0.0D0 !
       REAL(KIND(1D0)) :: RH = 0.0D0 !
       REAL(KIND(1D0)) :: pres = 0.0D0 !
       REAL(KIND(1D0)) :: Tair_av_5d = 0.0D0 ! 5-day moving average of air temperature [degC]
       REAL(KIND(1D0)) :: U = 0.0D0 !
       REAL(KIND(1D0)) :: rain = 0.0D0 !
       REAL(KIND(1D0)) :: Wu_m3 = 0.0D0 !  external water use amount in m3 for each timestep
-      REAL(KIND(1D0)) :: fcld = 0.0D0 !
+      REAL(KIND(1D0)) :: f_cloud = 0.0D0 !
       REAL(KIND(1D0)) :: LAI_obs = 0.0D0 !
-      REAL(KIND(1D0)) :: snowfrac = 0.0D0 !
+      REAL(KIND(1D0)) :: snow_fraction = 0.0D0 !
       REAL(KIND(1D0)) :: xsmd = 0.0D0 !
       REAL(KIND(1D0)) :: qf_obs = 0.0D0 !
       REAL(KIND(1D0)) :: qn1_obs = 0.0D0 !
@@ -351,13 +352,17 @@ CONTAINS
    END FUNCTION has_error_state
 
    SUBROUTINE report_error_impl(self, message, location, is_fatal, timer)
-      !> Report an error/warning to the error log
+      !> Report an error/warning to the error log.
+      !> Non-fatal warnings are capped at MAX_WARNING_LOG entries to prevent
+      !> unbounded memory growth in long simulations.  Fatal entries are
+      !> always stored regardless of the cap.
       CLASS(error_state), INTENT(INOUT) :: self
       CHARACTER(LEN=*), INTENT(IN) :: message
       CHARACTER(LEN=*), INTENT(IN) :: location
       LOGICAL, INTENT(IN), OPTIONAL :: is_fatal
       TYPE(SUEWS_TIMER), INTENT(IN), OPTIONAL :: timer
 
+      INTEGER, PARAMETER :: MAX_WARNING_LOG = 512
       TYPE(error_entry), ALLOCATABLE :: temp(:)
       TYPE(SUEWS_TIMER) :: timer_use
       INTEGER :: new_size
@@ -365,6 +370,15 @@ CONTAINS
 
       fatal = .FALSE.
       IF (PRESENT(is_fatal)) fatal = is_fatal
+
+      IF (fatal) THEN
+         self%has_fatal = .TRUE.
+         self%flag = .TRUE.
+         self%message = message
+      END IF
+
+      ! Cap non-fatal entries to avoid unbounded allocation in year-long runs
+      IF (.NOT. fatal .AND. self%count >= MAX_WARNING_LOG) RETURN
 
       ! Use provided timer or default to zeros
       IF (PRESENT(timer)) THEN
@@ -392,12 +406,6 @@ CONTAINS
       self%log(self%count)%message = message
       self%log(self%count)%location = location
       self%log(self%count)%is_fatal = fatal
-
-      IF (fatal) THEN
-         self%has_fatal = .TRUE.
-         self%flag = .TRUE.
-         self%message = message
-      END IF
    END SUBROUTINE report_error_impl
 
    SUBROUTINE clear_error_log(self)
@@ -549,11 +557,11 @@ CONTAINS
       ! Reset the critical atmospheric state variables that cause QE/QH discrepancies
       self%atmState%RA_h = 0.0D0
       self%atmState%RS = 0.0D0
-      self%atmState%UStar = 0.0D0
-      self%atmState%TStar = 0.0D0
+      self%atmState%u_star = 0.0D0
+      self%atmState%t_star = 0.0D0
       self%atmState%RB = 0.0D0
       self%atmState%L_mod = 0.0D0
-      self%atmState%zL = 0.0D0
+      self%atmState%z_l = 0.0D0
       self%atmState%rss_surf = 0.0D0
 
    END SUBROUTINE reset_atm_state
@@ -723,4 +731,3 @@ CONTAINS
    END SUBROUTINE check_and_reset_unsafe_states
 
 END MODULE module_ctrl_type
-

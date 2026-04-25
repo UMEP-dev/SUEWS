@@ -21,6 +21,8 @@ from supy.suews_sim import SUEWSSimulation
 # The conftest.py saves deprecated versions before monkeypatching
 # We'll access those to test the actual public API wrappers
 
+pytestmark = pytest.mark.api
+
 
 class TestPublicAPIFunctionality:
     """Test that deprecated public API functions still work correctly."""

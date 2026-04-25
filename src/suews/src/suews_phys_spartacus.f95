@@ -68,6 +68,11 @@ CONTAINS
 
    END SUBROUTINE SPARTACUS_Initialise
 
+   ELEMENTAL LOGICAL FUNCTION invalid_real(value)
+      REAL(KIND(1D0)), INTENT(IN) :: value
+      invalid_real = IEEE_IS_NAN(value) .OR. value /= value
+   END FUNCTION invalid_real
+
    SUBROUTINE SPARTACUS( &
       DiagQN, & !input:
       sfr_surf, zenith_deg, nlayer, & !input:
@@ -158,6 +163,7 @@ CONTAINS
       ! --------------------------------------------------------------------------------
       ! these will be in the SPARTACUS output array
       REAL(KIND(1D0)) :: alb_spc, emis_spc, lw_emission_spc, lw_up_spc, sw_up_spc, qn_spc
+      REAL(KIND(1D0)) :: lw_flat_net_spc, sw_flat_net_spc, lw_up_grnd_fallback
       REAL(KIND(1D0)) :: top_net_lw_spc
       REAL(KIND(1D0)) :: grnd_net_lw_spc
       REAL(KIND(1D0)) :: top_dn_lw_spc
@@ -206,6 +212,7 @@ CONTAINS
       REAL(KIND(1D0)) :: tair_K
       ! top-of-canopy diffuse sw downward
       REAL(KIND(1D0)) :: top_flux_dn_diffuse_sw
+      REAL(KIND(1D0)) :: ground_frac_spc, surface_frac_sum
       ! plan area weighted albedo and emissivity of surfaces not including buildings and trees
       REAL(KIND(1D0)) :: alb_no_tree_bldg, emis_no_tree_bldg
       ! vegetation emissivity
@@ -386,8 +393,12 @@ CONTAINS
       tair_K = Tair_C + 273.15 ! convert air temperature to Kelvin
 
       ! set ground temperature as the area-weighted average of the surface temperature of all land covers but buildings
-      canopy_props%ground_temperature = (DOT_PRODUCT(tsfc_surf_K, sfr_surf) - tsfc_surf_K(BldgSurf)*sfr_surf(BldgSurf)) &
-                                        /(1 - sfr_surf(BldgSurf))
+      IF (1.0D0 - sfr_surf(BldgSurf) > eps_fp) THEN
+         canopy_props%ground_temperature = (DOT_PRODUCT(tsfc_surf_K, sfr_surf) - tsfc_surf_K(BldgSurf)*sfr_surf(BldgSurf)) &
+                                           /(1 - sfr_surf(BldgSurf))
+      ELSE
+         canopy_props%ground_temperature = tsfc_surf_K(BldgSurf)
+      END IF
 
       canopy_props%roof_temperature = tsfc_roof_K
       canopy_props%wall_temperature = tsfc_wall_K
@@ -449,9 +460,18 @@ CONTAINS
       CALL sw_spectral_props%ALLOCATE(config, ncol, nlayer, nspec, canopy_props%i_representation)
 
       ! albedo of the ground
-      alb_no_tree_bldg = (alb_surf(1)*sfr_surf(PavSurf) + alb_surf(5)*sfr_surf(GrassSurf) + &
-                          alb_surf(6)*sfr_surf(BSoilSurf) + alb_surf(7)*sfr_surf(WaterSurf))/ &
-                         (sfr_surf(PavSurf) + sfr_surf(GrassSurf) + sfr_surf(BSoilSurf) + sfr_surf(WaterSurf))
+      ground_frac_spc = sfr_surf(PavSurf) + sfr_surf(GrassSurf) + sfr_surf(BSoilSurf) + sfr_surf(WaterSurf)
+      surface_frac_sum = SUM(sfr_surf)
+      IF (ground_frac_spc > eps_fp) THEN
+         alb_no_tree_bldg = (alb_surf(PavSurf)*sfr_surf(PavSurf) + alb_surf(GrassSurf)*sfr_surf(GrassSurf) + &
+                             alb_surf(BSoilSurf)*sfr_surf(BSoilSurf) + alb_surf(WaterSurf)*sfr_surf(WaterSurf))/ &
+                            ground_frac_spc
+      ELSE IF (surface_frac_sum > eps_fp) THEN
+         alb_no_tree_bldg = DOT_PRODUCT(alb_surf, sfr_surf)/surface_frac_sum
+      ELSE
+         alb_no_tree_bldg = 0.0D0
+      END IF
+      IF (invalid_real(alb_no_tree_bldg)) alb_no_tree_bldg = 0.0D0
       sw_spectral_props%air_ext = air_ext_sw
       sw_spectral_props%air_ssa = air_ssa_sw
       ! Ensure conditionally-allocated arrays exist for downstream radsurf.
@@ -481,9 +501,16 @@ CONTAINS
       CALL lw_spectral_props%DEALLOCATE()
       CALL lw_spectral_props%ALLOCATE(config, nspec, ncol, nlayer, canopy_props%i_representation)
 
-      emis_no_tree_bldg = (emis_surf(1)*sfr_surf(PavSurf) + emis_surf(5)*sfr_surf(GrassSurf) + &
-                           emis_surf(6)*sfr_surf(BSoilSurf) + emis_surf(7)*sfr_surf(WaterSurf))/ &
-                          (sfr_surf(PavSurf) + sfr_surf(GrassSurf) + sfr_surf(BSoilSurf) + sfr_surf(WaterSurf)) ! emissivity of the ground
+      IF (ground_frac_spc > eps_fp) THEN
+         emis_no_tree_bldg = (emis_surf(PavSurf)*sfr_surf(PavSurf) + emis_surf(GrassSurf)*sfr_surf(GrassSurf) + &
+                              emis_surf(BSoilSurf)*sfr_surf(BSoilSurf) + emis_surf(WaterSurf)*sfr_surf(WaterSurf))/ &
+                             ground_frac_spc
+      ELSE IF (surface_frac_sum > eps_fp) THEN
+         emis_no_tree_bldg = DOT_PRODUCT(emis_surf, sfr_surf)/surface_frac_sum
+      ELSE
+         emis_no_tree_bldg = 1.0D0
+      END IF
+      IF (invalid_real(emis_no_tree_bldg)) emis_no_tree_bldg = 1.0D0
       lw_spectral_props%air_ext = air_ext_lw
       lw_spectral_props%air_ssa = air_ssa_lw
       ! Ensure conditionally-allocated veg arrays exist for downstream radsurf.
@@ -545,6 +572,18 @@ CONTAINS
       !!!!!!!!!!!!!! run calc_monochromatic_emission !!!!!!!!!!!!!!
 
       CALL lw_spectral_props%calc_monochromatic_emission(canopy_props)
+      ! Keep the crash fallback independent of SPARTACUS ground emission:
+      ! if the radiation solve fails, air-temperature Planck emission gives
+      ! a finite flat-tile longwave term for the OHM handoff.
+      lw_up_grnd_fallback = emis_no_tree_bldg*SBConst*tair_K**4
+      IF (invalid_real(lw_up_grnd_fallback)) lw_up_grnd_fallback = 0.0D0
+      IF (invalid_real(lw_spectral_props%ground_emission(nspec, ncol))) THEN
+         lw_spectral_props%ground_emission(nspec, ncol) = lw_up_grnd_fallback
+      END IF
+      lw_flat_net_spc = emis_no_tree_bldg*ldown - lw_up_grnd_fallback
+      sw_flat_net_spc = MAX(kdown, 0.0D0)*(1.0D0 - alb_no_tree_bldg)
+      IF (invalid_real(lw_flat_net_spc)) lw_flat_net_spc = 0.0D0
+      IF (invalid_real(sw_flat_net_spc)) sw_flat_net_spc = 0.0D0
 
       !!!!!!!!!!!!!! CALL radsurf !!!!!!!!!!!!!!
 
@@ -578,28 +617,33 @@ CONTAINS
          END IF
       END DO
 
+      ! At night the normalised SW solver may retain NaNs that survive
+      ! multiplication by zero incoming shortwave on some x86 runners.
+      ! No incoming SW means the physical contribution is exactly zero.
+      IF (config%do_sw .AND. top_flux_dn_sw(nspec, ncol) <= eps_fp) THEN
+         CALL sw_flux%zero_all()
+      END IF
+
       ! Guard: the SPARTACUS LW eigenvalue solver can produce NaN for
       ! certain urban canopy geometries due to matrix singularity.
       ! Detect NaN in the critical outputs and replace with a simple
       ! flat-tile LW radiation approximation to prevent downstream
       ! crashes (e.g. OHM error code 21 from NaN qn).
       IF (config%do_lw) THEN
-         IF (IEEE_IS_NAN(lw_flux%top_net(nspec, ncol))) THEN
+         IF (invalid_real(lw_flux%top_net(nspec, ncol))) THEN
             ! Full NaN from solver source-term singularity: replace all
             ! LW outputs with flat-tile approximation (net = absorbed
             ! incoming minus emitted upward).
             CALL add_supy_warning('SPARTACUS: LW full NaN detected -- using flat-tile fallback')
             CALL lw_flux%zero_all()
-            lw_flux%top_net(nspec, ncol) = emis_no_tree_bldg*ldown &
-               - lw_spectral_props%ground_emission(nspec, ncol)
+            lw_flux%top_net(nspec, ncol) = lw_flat_net_spc
             lw_flux%top_dn(nspec, ncol) = ldown
-            lw_flux%ground_net(nspec, ncol) = emis_no_tree_bldg*ldown &
-               - lw_spectral_props%ground_emission(nspec, ncol)
+            lw_flux%ground_net(nspec, ncol) = lw_flat_net_spc
             lw_flux%ground_dn(nspec, ncol) = ldown
-            bc_out%lw_emission(nspec, ncol) = lw_spectral_props%ground_emission(nspec, ncol)
+            bc_out%lw_emission(nspec, ncol) = lw_up_grnd_fallback
             bc_out%lw_emissivity(nspec, ncol) = emis_no_tree_bldg
-         ELSE IF (ANY(IEEE_IS_NAN(lw_flux%wall_net(nspec, :nlayer))) &
-                  .OR. ANY(IEEE_IS_NAN(lw_flux%roof_net(nspec, :nlayer)))) THEN
+         ELSE IF (ANY(invalid_real(lw_flux%wall_net(nspec, :nlayer))) &
+                  .OR. ANY(invalid_real(lw_flux%roof_net(nspec, :nlayer)))) THEN
             ! Partial NaN from integrated-flux singularity: per-layer
             ! fields (wall, roof, clear-air) are contaminated; top-level
             ! fluxes remain valid.
@@ -613,6 +657,34 @@ CONTAINS
             lw_flux%roof_net(nspec, :nlayer) = 0.0D0
             lw_flux%roof_in(nspec, :nlayer) = 0.0D0
          END IF
+      END IF
+
+      ! A final guard at the SUEWS handoff keeps invalid SPARTACUS
+      ! intermediates from reaching OHM/STEBBS as NaN all-wave radiation.
+      IF (config%do_sw) THEN
+         qn_spc = sw_flux%top_net(nspec, ncol) + lw_flux%top_net(nspec, ncol)
+      ELSE
+         qn_spc = lw_flux%top_net(nspec, ncol)
+      END IF
+      IF (invalid_real(qn_spc)) THEN
+         CALL add_supy_warning('SPARTACUS: all-wave NaN detected -- using flat-tile fallback')
+         CALL sw_flux%zero_all()
+         sw_flux%top_dn(nspec, ncol) = MAX(kdown, 0.0D0)
+         sw_flux%top_dn_dir(nspec, ncol) = MAX(top_flux_dn_direct_sw(nspec, ncol), 0.0D0)
+         sw_flux%ground_dn(nspec, ncol) = MAX(kdown, 0.0D0)
+         sw_flux%ground_dn_dir(nspec, ncol) = MAX(top_flux_dn_direct_sw(nspec, ncol), 0.0D0)
+         sw_flux%top_net(nspec, ncol) = sw_flat_net_spc
+         sw_flux%ground_net(nspec, ncol) = sw_flat_net_spc
+         bc_out%sw_albedo(nspec, ncol) = alb_no_tree_bldg
+         bc_out%sw_albedo_dir(nspec, ncol) = alb_no_tree_bldg
+         CALL lw_flux%zero_all()
+         lw_flux%top_net(nspec, ncol) = lw_flat_net_spc
+         lw_flux%top_dn(nspec, ncol) = ldown
+         lw_flux%ground_net(nspec, ncol) = lw_flat_net_spc
+         lw_flux%ground_dn(nspec, ncol) = ldown
+         bc_out%lw_emission(nspec, ncol) = lw_up_grnd_fallback
+         bc_out%lw_emissivity(nspec, ncol) = emis_no_tree_bldg
+         qn_spc = sw_flat_net_spc + lw_flat_net_spc
       END IF
 
       ! albedo
@@ -640,13 +712,6 @@ CONTAINS
       ! shortwave upward = downward diffuse * diffuse albedo + downward direct * direct albedo
       sw_up_spc = 0.0
       sw_up_spc = kdown*alb_spc ! or more simply: alb_spc*avKdn
-      ! net all = net sw + net lw
-      IF (config%do_sw) THEN
-         qn_spc = sw_flux%top_net(nspec, ncol) + lw_flux%top_net(nspec, ncol)
-      ELSE
-         qn_spc = lw_flux%top_net(nspec, ncol)
-      END IF
-
       ! lw arrays
       clear_air_abs_lw_spc = -999
       clear_air_abs_lw_spc(:nlayer) = lw_flux%clear_air_abs(nspec, :nlayer)
@@ -696,16 +761,36 @@ CONTAINS
 
       ! De-normalise the fluxes
       IF (config%do_sw) THEN
-         wall_in_sw_spc(:nlayer) = wall_in_sw_spc(:nlayer)/sfr_wall_spc(:nlayer)
-         wall_net_sw_spc(:nlayer) = wall_net_sw_spc(:nlayer)/sfr_wall_spc(:nlayer)
-         roof_in_sw_spc(:nlayer) = roof_in_sw_spc(:nlayer)/sfr_roof_spc(:nlayer)
-         roof_net_sw_spc(:nlayer) = roof_net_sw_spc(:nlayer)/sfr_roof_spc(:nlayer)
+         WHERE (sfr_wall_spc(:nlayer) > eps_fp)
+            wall_in_sw_spc(:nlayer) = wall_in_sw_spc(:nlayer)/sfr_wall_spc(:nlayer)
+            wall_net_sw_spc(:nlayer) = wall_net_sw_spc(:nlayer)/sfr_wall_spc(:nlayer)
+         ELSEWHERE
+            wall_in_sw_spc(:nlayer) = 0.0D0
+            wall_net_sw_spc(:nlayer) = 0.0D0
+         END WHERE
+         WHERE (sfr_roof_spc(:nlayer) > eps_fp)
+            roof_in_sw_spc(:nlayer) = roof_in_sw_spc(:nlayer)/sfr_roof_spc(:nlayer)
+            roof_net_sw_spc(:nlayer) = roof_net_sw_spc(:nlayer)/sfr_roof_spc(:nlayer)
+         ELSEWHERE
+            roof_in_sw_spc(:nlayer) = 0.0D0
+            roof_net_sw_spc(:nlayer) = 0.0D0
+         END WHERE
       END IF
 
-      wall_in_lw_spc(:nlayer) = wall_in_lw_spc(:nlayer)/sfr_wall_spc(:nlayer)
-      wall_net_lw_spc(:nlayer) = wall_net_lw_spc(:nlayer)/sfr_wall_spc(:nlayer)
-      roof_in_lw_spc(:nlayer) = roof_in_lw_spc(:nlayer)/sfr_roof_spc(:nlayer)
-      roof_net_lw_spc(:nlayer) = roof_net_lw_spc(:nlayer)/sfr_roof_spc(:nlayer)
+      WHERE (sfr_wall_spc(:nlayer) > eps_fp)
+         wall_in_lw_spc(:nlayer) = wall_in_lw_spc(:nlayer)/sfr_wall_spc(:nlayer)
+         wall_net_lw_spc(:nlayer) = wall_net_lw_spc(:nlayer)/sfr_wall_spc(:nlayer)
+      ELSEWHERE
+         wall_in_lw_spc(:nlayer) = 0.0D0
+         wall_net_lw_spc(:nlayer) = 0.0D0
+      END WHERE
+      WHERE (sfr_roof_spc(:nlayer) > eps_fp)
+         roof_in_lw_spc(:nlayer) = roof_in_lw_spc(:nlayer)/sfr_roof_spc(:nlayer)
+         roof_net_lw_spc(:nlayer) = roof_net_lw_spc(:nlayer)/sfr_roof_spc(:nlayer)
+      ELSEWHERE
+         roof_in_lw_spc(:nlayer) = 0.0D0
+         roof_net_lw_spc(:nlayer) = 0.0D0
+      END WHERE
 
       !!!!!!!!!!!!!! Bulk KUP, LUP, QSTAR for SUEWS !!!!!!!!!!!!!!
 
@@ -714,7 +799,9 @@ CONTAINS
       kup = sw_up_spc
       ! print *, 'sw_up_spc', sw_up_spc
       ! limit the lower limit of qn to avoid issue when used with OHM
+      IF (invalid_real(qn_spc)) qn_spc = -600D0
       qn = MAX(qn_spc, -600D0)
+      IF (invalid_real(qn)) qn = -600D0
       ! print *, 'qn_spc', qn_spc
 
       ! ============================================================
@@ -763,7 +850,16 @@ CONTAINS
 
       ! average between roof and wall for the building surface: a simple treatment
       ! qn_surf(BldgSurf) = (DOT_PRODUCT(qn_roof, sfr_roof)/SUM(sfr_roof) + DOT_PRODUCT(qn_wall, sfr_wall)/SUM(sfr_wall))
-      qn_surf(BldgSurf) = (qn_spc - DOT_PRODUCT(qn_grnd_ind, sfr_grnd_ind))/sfr_surf(BldgSurf)
+      IF (sfr_surf(BldgSurf) > eps_fp) THEN
+         qn_surf(BldgSurf) = (qn_spc - DOT_PRODUCT(qn_grnd_ind, sfr_grnd_ind))/sfr_surf(BldgSurf)
+      ELSE
+         qn_surf(BldgSurf) = 0.0D0
+      END IF
+
+      IF (ANY(invalid_real(qn_surf))) THEN
+         CALL add_supy_warning('SPARTACUS: surface radiation NaN detected -- using bulk fallback')
+         qn_surf = qn
+      END IF
 
       dataOutLineSPARTACUS = &
          [alb_spc, emis_spc, &

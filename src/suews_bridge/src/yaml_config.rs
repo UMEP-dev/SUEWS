@@ -1613,17 +1613,6 @@ fn apply_state_overrides(state: &mut SuewsState, site_root: &Value) {
             "hot_water_heating_setpoint_temperature",
         );
 
-        eprintln!(
-            "DEBUG_STATE_MAP init_out={:?} init_in={:?} annual={:?} deep={:?} month_diffmax={:?} mains={:?} hwt_set={:?}",
-            init_out,
-            init_in,
-            annual_mean_air_temperature,
-            deep_soil,
-            month_mean_air_temperature_diffmax,
-            mains_water,
-            hot_water_setpoint
-        );
-
         if let Some(v) = init_out {
             state.stebbs_state.outdoor_air_start_temperature = v;
             state.stebbs_state.wall_outdoor_surface_temperature = v;

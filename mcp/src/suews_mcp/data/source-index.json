@@ -1,0 +1,4867 @@
+{
+  "generated_at": "2026-02-24T22:58:09.838545+00:00",
+  "files": {
+    "suews_ctrl_const.f95": {
+      "category": "control",
+      "lines": 2354,
+      "modules": [
+        "module_ctrl_const_allocate",
+        "allocateArray",
+        "module_ctrl_const_initial",
+        "Initial",
+        "module_ctrl_const_datain",
+        "data_in",
+        "module_ctrl_const_snow",
+        "snowMod",
+        "module_ctrl_const_default",
+        "defaultNotUsed",
+        "module_ctrl_const_time",
+        "time",
+        "module_ctrl_const_grav",
+        "mod_grav",
+        "module_ctrl_const_thresh",
+        "Thresh",
+        "module_ctrl_const_gas",
+        "gas",
+        "module_ctrl_const_z",
+        "mod_z",
+        "module_ctrl_const_resist",
+        "resist",
+        "module_ctrl_const_moist",
+        "moist",
+        "module_ctrl_const_gis",
+        "gis_data",
+        "module_ctrl_const_sues",
+        "sues_data",
+        "module_ctrl_const_phenology",
+        "VegPhenogy",
+        "module_ctrl_const_filename",
+        "filename",
+        "module_ctrl_const_initialcond",
+        "InitialCond",
+        "module_ctrl_const_colnames_daily",
+        "ColNamesModelDailyState",
+        "module_ctrl_const_colnames_input",
+        "ColNamesInputFiles",
+        "module_ctrl_const_wherewhen",
+        "WhereWhen",
+        "module_ctrl_const_mathconst",
+        "MathConstants",
+        "module_ctrl_const_physconst",
+        "PhysConstants"
+      ],
+      "description": "MH 21 Jun 2017 - Added anthropogenic CO2 and edited Site_Select",
+      "subroutines": [],
+      "uses": [
+        "module_ctrl_const_allocate",
+        "module_ctrl_const_initial",
+        "module_ctrl_const_datain",
+        "module_ctrl_const_snow",
+        "module_ctrl_const_default",
+        "module_ctrl_const_time",
+        "module_ctrl_const_grav",
+        "module_ctrl_const_thresh",
+        "module_ctrl_const_gas",
+        "module_ctrl_const_z",
+        "module_ctrl_const_resist",
+        "module_ctrl_const_moist",
+        "module_ctrl_const_gis",
+        "module_ctrl_const_sues",
+        "module_ctrl_const_phenology",
+        "module_ctrl_const_filename",
+        "module_ctrl_const_initialcond",
+        "module_ctrl_const_colnames_daily",
+        "module_ctrl_const_colnames_input",
+        "module_ctrl_const_wherewhen",
+        "module_ctrl_const_mathconst",
+        "module_ctrl_const_physconst"
+      ]
+    },
+    "suews_ctrl_driver.f95": {
+      "category": "control",
+      "lines": 6004,
+      "modules": [
+        "SUEWS_Driver"
+      ],
+      "description": "- Additional atmospheric variables passed from WRF",
+      "subroutines": [
+        {
+          "name": "SUEWS_cal_Main",
+          "line_start": 85,
+          "line_end": 185,
+          "signature": "SUBROUTINE SUEWS_cal_Main( & timer, forcing, config, siteInfo, & modState, & outputLine, & debugState)",
+          "doc": "",
+          "calls": [
+            "validate_outputline_layout",
+            "modState_tstepstart",
+            "debugState"
+          ],
+          "called_by": [
+            "suews_ctrl_driver.f95:SUEWS_cal_multitsteps_dts"
+          ],
+          "kind": "subroutine"
+        },
+        {
+          "name": "SUEWS_cal_multitsteps_dts",
+          "line_start": 597,
+          "line_end": 729,
+          "signature": "SUBROUTINE SUEWS_cal_multitsteps_dts( & timer, MetForcingBlock, len_sim, & config, siteInfo, & modState, & dataOutBlockAll, ncols_all)",
+          "doc": "",
+          "calls": [
+            "SUEWS_cal_dectime_DTS",
+            "SUEWS_cal_tstep_DTS",
+            "SUEWS_cal_weekday_DTS",
+            "SUEWS_cal_DLS",
+            "SUEWS_cal_Main"
+          ],
+          "called_by": [],
+          "kind": "subroutine"
+        },
+        {
+          "name": "update_debug_info",
+          "line_start": 734,
+          "line_end": 820,
+          "signature": "SUBROUTINE update_debug_info( & timer, config, forcing, siteInfo, & modState_init, & modState, & dataoutlineDebug)",
+          "doc": "",
+          "calls": [],
+          "called_by": [],
+          "kind": "subroutine"
+        },
+        {
+          "name": "suews_update_tsurf",
+          "line_start": 827,
+          "line_end": 880,
+          "signature": "SUBROUTINE suews_update_tsurf( & timer, config, forcing, siteInfo, & modState)",
+          "doc": "",
+          "calls": [],
+          "called_by": [],
+          "kind": "subroutine"
+        },
+        {
+          "name": "suews_update_tsurf_dyohm",
+          "line_start": 929,
+          "line_end": 991,
+          "signature": "SUBROUTINE suews_update_tsurf_dyohm( & timer, config, forcing, siteInfo, & modState)",
+          "doc": "",
+          "calls": [],
+          "called_by": [],
+          "kind": "subroutine"
+        },
+        {
+          "name": "SUEWS_cal_AnthropogenicEmission",
+          "line_start": 998,
+          "line_end": 1153,
+          "signature": "SUBROUTINE SUEWS_cal_AnthropogenicEmission( & timer, config, forcing, siteInfo, & modState)",
+          "doc": "",
+          "calls": [
+            "AnthropogenicEmissions",
+            "ErrorHint"
+          ],
+          "called_by": [],
+          "kind": "subroutine"
+        },
+        {
+          "name": "SUEWS_cal_BiogenCO2",
+          "line_start": 1173,
+          "line_end": 1321,
+          "signature": "SUBROUTINE SUEWS_cal_BiogenCO2( & timer, config, forcing, siteInfo, & modState)",
+          "doc": "",
+          "calls": [
+            "cal_AtmMoist",
+            "SurfaceResistance"
+          ],
+          "called_by": [],
+          "kind": "subroutine"
+        },
+        {
+          "name": "SUEWS_cal_Qn",
+          "line_start": 1381,
+          "line_end": 1450,
+          "signature": "SUBROUTINE SUEWS_cal_Qn( & timer, config, forcing, siteInfo, & modState, & dataOutLineSPARTACUS)",
+          "doc": "",
+          "calls": [],
+          "called_by": [],
+          "kind": "subroutine"
+        },
+        {
+          "name": "SUEWS_cal_Qs",
+          "line_start": 1682,
+          "line_end": 1943,
+          "signature": "SUBROUTINE SUEWS_cal_Qs( & timer, config, forcing, siteInfo, datetimeLine, & modState, & dataOutLineESTM, dataOutLineSTEBBS)",
+          "doc": "",
+          "calls": [],
+          "called_by": [],
+          "kind": "subroutine"
+        },
+        {
+          "name": "SUEWS_cal_Water",
+          "line_start": 2175,
+          "line_end": 2329,
+          "signature": "SUBROUTINE SUEWS_cal_Water( & timer, config, forcing, siteInfo, & modState)",
+          "doc": "",
+          "calls": [
+            "drainage"
+          ],
+          "called_by": [],
+          "kind": "subroutine"
+        },
+        {
+          "name": "SUEWS_cal_snow",
+          "line_start": 2354,
+          "line_end": 2686,
+          "signature": "SUBROUTINE SUEWS_cal_snow( & timer, config, forcing, siteInfo, & modState, & dataOutLineSnow)",
+          "doc": "",
+          "calls": [
+            "MeltHeat",
+            "SnowCalc"
+          ],
+          "called_by": [],
+          "kind": "subroutine"
+        },
+        {
+          "name": "SUEWS_cal_QE",
+          "line_start": 2739,
+          "line_end": 3008,
+          "signature": "SUBROUTINE SUEWS_cal_QE( & timer, config, forcing, siteInfo, & modState)",
+          "doc": "",
+          "calls": [
+            "cal_evap_multi",
+            "cal_water_storage_building"
+          ],
+          "called_by": [],
+          "kind": "subroutine"
+        },
+        {
+          "name": "SUEWS_cal_QH",
+          "line_start": 3100,
+          "line_end": 3214,
+          "signature": "SUBROUTINE SUEWS_cal_QH( & timer, config, forcing, siteInfo, & modState)",
+          "doc": "",
+          "calls": [],
+          "called_by": [],
+          "kind": "subroutine"
+        },
+        {
+          "name": "SUEWS_cal_Resistance",
+          "line_start": 3256,
+          "line_end": 3408,
+          "signature": "SUBROUTINE SUEWS_cal_Resistance( & timer, config, forcing, siteInfo, & modState)",
+          "doc": "",
+          "calls": [
+            "cal_Stab",
+            "AerodynamicResistance"
+          ],
+          "called_by": [],
+          "kind": "subroutine"
+        },
+        {
+          "name": "SUEWS_update_outputLine",
+          "line_start": 3436,
+          "line_end": 3689,
+          "signature": "SUBROUTINE SUEWS_update_outputLine( & timer, config, forcing, siteInfo, & modState, & datetimeLine, dataOutLineSUEWS)",
+          "doc": "",
+          "calls": [
+            "push_scalar",
+            "push_vec",
+            "check_packed_size"
+          ],
+          "called_by": [],
+          "kind": "subroutine"
+        },
+        {
+          "name": "push_scalar",
+          "line_start": 3693,
+          "line_end": 3701,
+          "signature": "SUBROUTINE push_scalar(val)",
+          "doc": "",
+          "calls": [
+            "raise_pack_overflow"
+          ],
+          "called_by": [
+            "suews_ctrl_driver.f95:SUEWS_update_outputLine"
+          ],
+          "kind": "subroutine"
+        },
+        {
+          "name": "push_vec",
+          "line_start": 3706,
+          "line_end": 3716,
+          "signature": "SUBROUTINE push_vec(vals)",
+          "doc": "",
+          "calls": [
+            "raise_pack_overflow"
+          ],
+          "called_by": [
+            "suews_ctrl_driver.f95:SUEWS_update_outputLine"
+          ],
+          "kind": "subroutine"
+        },
+        {
+          "name": "check_packed_size",
+          "line_start": 3721,
+          "line_end": 3732,
+          "signature": "SUBROUTINE check_packed_size()",
+          "doc": "",
+          "calls": [
+            "set_supy_error"
+          ],
+          "called_by": [
+            "suews_ctrl_driver.f95:SUEWS_update_outputLine"
+          ],
+          "kind": "subroutine"
+        },
+        {
+          "name": "raise_pack_overflow",
+          "line_start": 3735,
+          "line_end": 3746,
+          "signature": "SUBROUTINE raise_pack_overflow(nvals)",
+          "doc": "",
+          "calls": [
+            "set_supy_error"
+          ],
+          "called_by": [
+            "suews_ctrl_driver.f95:push_scalar",
+            "suews_ctrl_driver.f95:push_vec"
+          ],
+          "kind": "subroutine"
+        },
+        {
+          "name": "EHC_update_outputLine",
+          "line_start": 3752,
+          "line_end": 3829,
+          "signature": "SUBROUTINE EHC_update_outputLine( & timer, & modState, & datetimeLine, dataOutLineEHC)",
+          "doc": "",
+          "calls": [],
+          "called_by": [],
+          "kind": "subroutine"
+        },
+        {
+          "name": "fill_sim_res",
+          "line_start": 3834,
+          "line_end": 3843,
+          "signature": "FUNCTION fill_sim_res(res_valid, n_fill) RESULT(res_filled)",
+          "doc": "",
+          "calls": [],
+          "called_by": [],
+          "kind": "function"
+        },
+        {
+          "name": "SUEWS_update_output",
+          "line_start": 3846,
+          "line_end": 3906,
+          "signature": "SUBROUTINE SUEWS_update_output( & SnowUse, storageheatmethod, & ReadLinesMetdata, NumberOfGrids, & ir, gridiv, & dataOutLineSUEWS, dataOutLineSnow, dataOutLineESTM, dataoutLineRSL, dataOutLineBEERS, & dataoutlineDebug, dataoutlineSPARTACUS, dataOutLineEHC, & dataOutLineSTEBBS, & dataOutLineNHood, & dataOutSUEWS, dataOutSnow, dataOutESTM, dataOutRSL, dataOutBEERS, dataOutDebug, dataOutSPARTACUS, & dataOutEHC, & dataOutSTEBBS, & dataOutNHood & )",
+          "doc": "",
+          "calls": [],
+          "called_by": [],
+          "kind": "subroutine"
+        },
+        {
+          "name": "SUEWS_cal_surf",
+          "line_start": 3922,
+          "line_end": 3992,
+          "signature": "SUBROUTINE SUEWS_cal_surf( & StorageHeatMethod, NetRadiationMethod, & nlayer, & sfr_paved, sfr_bldg, sfr_evetr, sfr_dectr, sfr_grass, sfr_bsoil, sfr_water, & building_frac, building_scale, height, & vegfraction, ImpervFraction, PervFraction, NonWaterFraction, & sfr_roof, sfr_wall)",
+          "doc": "",
+          "calls": [],
+          "called_by": [],
+          "kind": "subroutine"
+        },
+        {
+          "name": "set_nan",
+          "line_start": 3997,
+          "line_end": 4011,
+          "signature": "ELEMENTAL FUNCTION set_nan(x) RESULT(xx)",
+          "doc": "",
+          "calls": [],
+          "called_by": [],
+          "kind": "function"
+        },
+        {
+          "name": "validate_outputline_layout",
+          "line_start": 4016,
+          "line_end": 4059,
+          "signature": "SUBROUTINE validate_outputline_layout(outputLine)",
+          "doc": "Validate output_line storage against compile-time column constants. This detects stale/mixed compilation units (e.g., partial rebuilds) before any output assignment can corrupt memory.",
+          "calls": [
+            "check_size",
+            "set_supy_error"
+          ],
+          "called_by": [
+            "suews_ctrl_driver.f95:SUEWS_cal_Main"
+          ],
+          "kind": "subroutine"
+        },
+        {
+          "name": "output_ncolumns",
+          "line_start": 4063,
+          "line_end": 4100,
+          "signature": "SUBROUTINE output_ncolumns(group_name, ncols)",
+          "doc": "Returns the number of data columns (excluding datetime) for a given output group. Used by Python tests to verify OUTPUT_REGISTRY matches Fortran array sizes.",
+          "calls": [],
+          "called_by": [],
+          "kind": "subroutine"
+        },
+        {
+          "name": "SUEWS_cal_multitsteps",
+          "line_start": 4104,
+          "line_end": 4782,
+          "signature": "SUBROUTINE SUEWS_cal_multitsteps( & n_buildings, h_std, & flag_test, & MetForcingBlock, len_sim, & AH_MIN, AHProf_24hr, AH_SLOPE_Cooling, & AH_SLOPE_Heating, & alb, AlbMax_DecTr, AlbMax_EveTr, AlbMax_Grass, & AlbMin_DecTr, AlbMin_EveTr, AlbMin_Grass, & alpha_bioCO2, alpha_enh_bioCO2, alt, BaseT, BaseTe, & beta_bioCO2, beta_enh_bioCO2, bldgH, CapMax_dec, CapMin_dec, & chAnOHM, CO2PointSource, cpAnOHM, CRWmax, CRWmin, DayWat, DayWatPer, & DecTreeH, RSLMethod, Diagnose, DRAINRT, & dt_since_start, dqndt, qn_av, dqndt_surf, qn_surfs, dqnsdt, qn_s_av, & EF_umolCO2perJ, emis, EmissionsMethod, EnEF_v_Jkm, endDLS, EveTreeH, FAIBldg, & FAIDecTree, FAIEveTree, FAIMethod, Faut, FcEF_v_kgkm, FlowChange, & FrFossilFuel_Heat, FrFossilFuel_NonHeat, G_max, G_k, G_q_base, G_q_shape, G_t, G_sm, GDD_id, & GDDFull, Gridiv, gsModel, H_maintain, HDD_id, HumActivity_24hr, & IceFrac, Ie_a, Ie_end, Ie_m, Ie_start, & InternalWaterUse_h, & IrrFracPaved, IrrFracBldgs, & IrrFracEveTr, IrrFracDecTr, IrrFracGrass, & IrrFracBSoil, IrrFracWater, & kkAnOHM, Kmax, LAI_id, LAIMax, LAIMin, & LAIPower, LAIType, lat, lng, RSLLevel, MaxConductance, MaxFCMetab, MaxQFMetab, & SnowWater, MinFCMetab, MinQFMetab, min_res_bioCO2, & NARP_EMIS_SNOW, NARP_TRANS_SITE, NetRadiationMethod, & OHM_coef, OHMIncQF, OHM_threshSW, & OHM_threshWD, PipeCapacity, PopDensDaytime, & PopDensNighttime, PopProf_24hr, PorMax_dec, PorMin_dec, & PrecipLimit, PrecipLimitAlb, & QF0_BEU, Qf_A, Qf_B, Qf_C, & nlayer, & n_vegetation_region_urban, & n_stream_sw_urban, n_stream_lw_urban, & sw_dn_direct_frac, air_ext_sw, air_ssa_sw, & veg_ssa_sw, air_ext_lw, air_ssa_lw, veg_ssa_lw, & veg_fsd_const, veg_contact_fraction_const, & ground_albedo_dir_mult_fact, use_sw_direct_albedo, & lambda_c, & stebbsmethod, rcmethod, & buildingname, buildingtype, & BuildingCount, Occupants, &",
+          "doc": "",
+          "calls": [
+            "block_mod_state"
+          ],
+          "called_by": [],
+          "kind": "subroutine"
+        },
+        {
+          "name": "SUEWS_cal_sunposition",
+          "line_start": 5798,
+          "line_end": 5811,
+          "signature": "SUBROUTINE SUEWS_cal_sunposition( & year, idectime, UTC, locationlatitude, locationlongitude, locationaltitude, & sunazimuth, sunzenith)",
+          "doc": "",
+          "calls": [
+            "NARP_cal_SunPosition"
+          ],
+          "called_by": [],
+          "kind": "subroutine"
+        },
+        {
+          "name": "cal_tair_av",
+          "line_start": 5813,
+          "line_end": 5835,
+          "signature": "FUNCTION cal_tair_av(tair_av_prev, dt_since_start, tstep, temp_c) RESULT(tair_av_next)",
+          "doc": "calculate mean air temperature of past 24 hours TS, 17 Sep 2019",
+          "calls": [],
+          "called_by": [],
+          "kind": "function"
+        },
+        {
+          "name": "cal_tsfc",
+          "line_start": 5841,
+          "line_end": 5854,
+          "signature": "FUNCTION cal_tsfc(qh, dens_air, vcp_air, RA, temp_c) RESULT(tsfc_C)",
+          "doc": "calculate surface/skin temperature TS, 23 Oct 2019",
+          "calls": [],
+          "called_by": [],
+          "kind": "function"
+        },
+        {
+          "name": "cal_tsfc_dyohm",
+          "line_start": 5856,
+          "line_end": 5898,
+          "signature": "FUNCTION cal_tsfc_dyohm(Temp_in, Qs, K, C, z, nz, T_bottom, dt) RESULT(Temp_out)",
+          "doc": "-------------------------------------------------------------------- Updates the soil temperature profile for one timestep using an explicit finite-difference scheme under prescribed surface heat flux and fixed deep-soil temperature. Inputs: K           - thermal conductivity [W/m K] C           - volumetric heat capacity [J/m3 K] z(nz)       - depth coordinates [m], start=0, increasing downward Qs          - storage heat flux/conductive heat flux at top [W/m2], positive downward T_bottom    - fixed temperature of deep ground[\u00b0C] dt          - timestep [s] Input: Temp_in(nz)    - soil temperature profile from previous timestep [\u00b0C] Result: Temp_out(nz) - soil temperature profile for next timestep [\u00b0C] Notes: Stability criterion: alpha*dt/dz_min^2 \u2264 0.5 --------------------------------------------------------------------",
+          "calls": [
+            "add_supy_warning"
+          ],
+          "called_by": [],
+          "kind": "function"
+        },
+        {
+          "name": "restore_state",
+          "line_start": 5930,
+          "line_end": 5981,
+          "signature": "SUBROUTINE restore_state(mod_state, mod_state_stepstart)",
+          "doc": "restore model state from the beginning of the time step while keeping the surface temperature updated from last iteration TS, 03 Mar 2025",
+          "calls": [],
+          "called_by": [],
+          "kind": "subroutine"
+        },
+        {
+          "name": "sync_error_to_state",
+          "line_start": 5989,
+          "line_end": 6000,
+          "signature": "SUBROUTINE sync_error_to_state(modState)",
+          "doc": "",
+          "calls": [
+            "modState"
+          ],
+          "called_by": [],
+          "kind": "subroutine"
+        }
+      ],
+      "uses": [
+        "module_ctrl_type",
+        "meteo",
+        "module_phys_atmmoiststab",
+        "module_phys_narp",
+        "module_phys_spartacus",
+        "module_phys_resist",
+        "module_phys_ohm",
+        "module_phys_estm",
+        "module_phys_ehc",
+        "module_phys_snow",
+        "module_phys_dailystate",
+        "module_phys_waterdist",
+        "module_phys_lumps",
+        "module_phys_evap",
+        "module_phys_rslprof",
+        "module_phys_anthro",
+        "module_phys_biogenco2",
+        "module_ctrl_const_allocate",
+        "module_ctrl_const_moist",
+        "module_phys_solweig",
+        "module_phys_beers",
+        "module_phys_stebbs",
+        "module_ctrl_version",
+        "module_util_time",
+        "module_ctrl_error_state",
+        "module_ctrl_error"
+      ]
+    },
+    "suews_ctrl_error.f95": {
+      "category": "control",
+      "lines": 476,
+      "modules": [
+        "module_ctrl_error_state",
+        "module_ctrl_error"
+      ],
+      "description": "Do not call SUEWS from multiple threads simultaneously.",
+      "subroutines": [
+        {
+          "name": "reset_supy_error",
+          "line_start": 31,
+          "line_end": 37,
+          "signature": "SUBROUTINE reset_supy_error()",
+          "doc": "",
+          "calls": [],
+          "called_by": [],
+          "kind": "subroutine"
+        },
+        {
+          "name": "set_supy_error",
+          "line_start": 39,
+          "line_end": 48,
+          "signature": "SUBROUTINE set_supy_error(code, message)",
+          "doc": "",
+          "calls": [],
+          "called_by": [
+            "suews_ctrl_driver.f95:check_packed_size",
+            "suews_ctrl_driver.f95:raise_pack_overflow",
+            "suews_ctrl_driver.f95:validate_outputline_layout",
+            "suews_phys_ohm.f95:calculate_a1",
+            "suews_phys_ohm.f95:calculate_a2",
+            "suews_phys_rslprof.f95:interp_z",
+            "suews_phys_stebbs.f95:calculate_x1"
+          ],
+          "kind": "subroutine"
+        },
+        {
+          "name": "add_supy_warning",
+          "line_start": 50,
+          "line_end": 58,
+          "signature": "SUBROUTINE add_supy_warning(message)",
+          "doc": "> Add a warning to the warning state (non-fatal, module-level fallback)",
+          "calls": [],
+          "called_by": [
+            "suews_ctrl_driver.f95:cal_tsfc_dyohm",
+            "suews_phys_rslprof.f95:interp_z",
+            "suews_phys_stebbs.f95:gen_building"
+          ],
+          "kind": "subroutine"
+        },
+        {
+          "name": "ErrorHint",
+          "line_start": 68,
+          "line_end": 402,
+          "signature": "SUBROUTINE ErrorHint(errh, ProblemFile, VALUE, value2, valueI, modState)",
+          "doc": "errh        -- Create a numbered code for the situation so get a unique message to help solve the problem ProblemFile -- Filename where the problem occurs/error message value       -- Error value (real number with correct type) value2      -- Second error value (real number with correct type) valueI      -- Error value (integer) modState    -- Optional SUEWS_STATE for state-based warning logging Last modified ----------------------------------------------------- TS  17 Jan 2026: Add optional modState for state-based warning logging TS  17 Dec 2025: Remove legacy problems.txt/warnings.txt output (Python handles logging) MH  12 Apr 2017: Error code for stability added HCW 17 Feb 2017: Write (serious) errors to problems.txt; write warnings to warnings.txt (program continues) HCW 13 Dec 2016: Tidied up and improved error hints HCW 25 May 2016: Added warning/error labels to distinguish serious errors (that stop program) LJ  02 Oct 2014: addition of comments sg  29 Jul 2014: close (500) LJ  08 Feb 2013 -------------------------------------------------------------------- Thread Safety (GH#1042): When modState is provided, warnings are logged to state%errorstate (thread-safe). Otherwise, falls back to module-level warning state (NOT thread-safe). Do not call the SUEWS kernel concurrently from multiple threads without state. Use process-based parallelism or serialize calls with a lock in the caller.",
+          "calls": [],
+          "called_by": [
+            "suews_ctrl_driver.f95:SUEWS_cal_AnthropogenicEmission",
+            "suews_phys_atmmoiststab.f95:cal_Stab",
+            "suews_phys_bluews.f95:CBL_initial",
+            "suews_phys_bluews.f95:NBL",
+            "suews_phys_bluews.f95:diff",
+            "suews_phys_waterdist.f95:SUEWS_cal_SoilState",
+            "suews_util_meteo.f95:Lat_vap",
+            "suews_util_meteo.f95:psyc_const",
+            "suews_util_meteo.f95:qsatf",
+            "suews_util_meteo.f95:sat_vap_pressIce",
+            "suews_util_meteo.f95:sat_vap_press_x",
+            "suews_util_meteo.f95:spec_heat_beer"
+          ],
+          "kind": "subroutine"
+        }
+      ],
+      "uses": []
+    },
+    "suews_ctrl_type.f95": {
+      "category": "control",
+      "lines": 726,
+      "modules": [
+        "module_ctrl_type"
+      ],
+      "description": "Fortran source file",
+      "subroutines": [
+        {
+          "name": "set_error_state",
+          "line_start": 321,
+          "line_end": 332,
+          "signature": "SUBROUTINE set_error_state(self, code, message)",
+          "doc": "> Set error state with code and message",
+          "calls": [],
+          "called_by": [],
+          "kind": "subroutine"
+        },
+        {
+          "name": "reset_error_state",
+          "line_start": 334,
+          "line_end": 343,
+          "signature": "SUBROUTINE reset_error_state(self)",
+          "doc": "> Reset error state to default (no error)",
+          "calls": [],
+          "called_by": [],
+          "kind": "subroutine"
+        },
+        {
+          "name": "has_error_state",
+          "line_start": 345,
+          "line_end": 351,
+          "signature": "FUNCTION has_error_state(self) RESULT(has_err)",
+          "doc": "> Check if error state indicates an error",
+          "calls": [],
+          "called_by": [],
+          "kind": "function"
+        },
+        {
+          "name": "report_error_impl",
+          "line_start": 353,
+          "line_end": 377,
+          "signature": "SUBROUTINE report_error_impl(self, message, location, is_fatal, timer)",
+          "doc": "> Report an error/warning to the error log",
+          "calls": [],
+          "called_by": [],
+          "kind": "subroutine"
+        },
+        {
+          "name": "clear_error_log",
+          "line_start": 403,
+          "line_end": 413,
+          "signature": "SUBROUTINE clear_error_log(self)",
+          "doc": "> Clear the error log and reset all error state",
+          "calls": [],
+          "called_by": [],
+          "kind": "subroutine"
+        },
+        {
+          "name": "init_suews_state_block",
+          "line_start": 417,
+          "line_end": 429,
+          "signature": "SUBROUTINE init_suews_state_block(self, nlayer, ndepth, len_sim)",
+          "doc": "",
+          "calls": [
+            "self"
+          ],
+          "called_by": [],
+          "kind": "subroutine"
+        },
+        {
+          "name": "init_suews_debug",
+          "line_start": 433,
+          "line_end": 452,
+          "signature": "SUBROUTINE init_suews_debug(self, nlayer, ndepth)",
+          "doc": "",
+          "calls": [
+            "self"
+          ],
+          "called_by": [],
+          "kind": "subroutine"
+        },
+        {
+          "name": "output_line_init",
+          "line_start": 454,
+          "line_end": 470,
+          "signature": "SUBROUTINE output_line_init(self)",
+          "doc": "",
+          "calls": [],
+          "called_by": [],
+          "kind": "subroutine"
+        },
+        {
+          "name": "output_block_init",
+          "line_start": 472,
+          "line_end": 502,
+          "signature": "SUBROUTINE output_block_init(self, len)",
+          "doc": "",
+          "calls": [],
+          "called_by": [],
+          "kind": "subroutine"
+        },
+        {
+          "name": "output_block_finalize",
+          "line_start": 504,
+          "line_end": 520,
+          "signature": "SUBROUTINE output_block_finalize(self)",
+          "doc": "",
+          "calls": [],
+          "called_by": [],
+          "kind": "subroutine"
+        },
+        {
+          "name": "allocSUEWSState_c",
+          "line_start": 522,
+          "line_end": 532,
+          "signature": "SUBROUTINE allocSUEWSState_c(self, nlayer, ndepth)",
+          "doc": "",
+          "calls": [
+            "self"
+          ],
+          "called_by": [],
+          "kind": "subroutine"
+        },
+        {
+          "name": "deallocSUEWSState_c",
+          "line_start": 534,
+          "line_end": 541,
+          "signature": "SUBROUTINE deallocSUEWSState_c(self)",
+          "doc": "",
+          "calls": [
+            "self"
+          ],
+          "called_by": [],
+          "kind": "subroutine"
+        },
+        {
+          "name": "reset_atm_state",
+          "line_start": 543,
+          "line_end": 559,
+          "signature": "SUBROUTINE reset_atm_state(self)",
+          "doc": "Reset atmospheric state variables to prevent state pollution between different simulation runs in the same Python process",
+          "calls": [],
+          "called_by": [],
+          "kind": "subroutine"
+        },
+        {
+          "name": "allocate_site_prm_c",
+          "line_start": 565,
+          "line_end": 572,
+          "signature": "SUBROUTINE allocate_site_prm_c(self, nlayer)",
+          "doc": "",
+          "calls": [
+            "self"
+          ],
+          "called_by": [],
+          "kind": "subroutine"
+        },
+        {
+          "name": "deallocate_site_prm_c",
+          "line_start": 574,
+          "line_end": 582,
+          "signature": "SUBROUTINE deallocate_site_prm_c(self)",
+          "doc": "",
+          "calls": [],
+          "called_by": [],
+          "kind": "subroutine"
+        },
+        {
+          "name": "SUEWS_cal_surf_DTS",
+          "line_start": 586,
+          "line_end": 665,
+          "signature": "SUBROUTINE SUEWS_cal_surf_DTS( & self, & config & )",
+          "doc": "",
+          "calls": [],
+          "called_by": [],
+          "kind": "subroutine"
+        },
+        {
+          "name": "check_and_reset_unsafe_states",
+          "line_start": 671,
+          "line_end": 678,
+          "signature": "SUBROUTINE check_and_reset_unsafe_states(self, ref_state)",
+          "doc": "",
+          "calls": [],
+          "called_by": [],
+          "kind": "subroutine"
+        }
+      ],
+      "uses": [
+        "module_ctrl_const_allocate",
+        "module_type_stebbs",
+        "module_type_soil",
+        "module_type_landcover",
+        "module_type_surface",
+        "module_type_vegetation",
+        "module_type_anthro",
+        "module_type_waterdist",
+        "module_type_snow",
+        "module_type_spartacus",
+        "module_type_ehc",
+        "module_type_heat",
+        "module_type_hydro",
+        "module_type_atmosphere"
+      ]
+    },
+    "suews_ctrl_ver.f95": {
+      "category": "control",
+      "lines": 10,
+      "modules": [
+        "module_ctrl_version",
+        "version"
+      ],
+      "description": "Fortran source file",
+      "subroutines": [],
+      "uses": [
+        "module_ctrl_version"
+      ]
+    },
+    "suews_phys_anohm.f95": {
+      "category": "physics",
+      "lines": 1466,
+      "modules": [
+        "module_phys_anohm",
+        "AnOHM_module"
+      ],
+      "description": "Main module following naming standard: matches filename",
+      "subroutines": [
+        {
+          "name": "AnOHM",
+          "line_start": 39,
+          "line_end": 120,
+          "signature": "SUBROUTINE AnOHM( & tstep, dt_since_start, & qn1, qn_av_prev, dqndt_prev, qf, & MetForcingData_grid, moist_surf, & alb, emis, cpAnOHM, kkAnOHM, chAnOHM, & sfr_surf, nsurf, EmissionsMethod, id, Gridiv, & qn_av_next, dqndt_next, & a1, a2, a3, qs, deltaQi, & modState)",
+          "doc": "",
+          "calls": [],
+          "called_by": [],
+          "kind": "subroutine"
+        },
+        {
+          "name": "AnOHM_coef",
+          "line_start": 161,
+          "line_end": 289,
+          "signature": "SUBROUTINE AnOHM_coef( & sfc_typ, xid, xgrid, & MetForcingData_grid, moist, EmissionsMethod, qf, & alb, emis, cpAnOHM, kkAnOHM, chAnOHM, & xa1, xa2, xa3)",
+          "doc": "",
+          "calls": [
+            "AnOHM_Fc",
+            "AnOHM_FcLoad",
+            "AnOHM_Bo_cal",
+            "AnOHM_coef_land_cal",
+            "AnOHM_coef_water_cal"
+          ],
+          "called_by": [],
+          "kind": "subroutine"
+        },
+        {
+          "name": "AnOHM_xTs",
+          "line_start": 302,
+          "line_end": 366,
+          "signature": "SUBROUTINE AnOHM_xTs( & sfc_typ, & ASd, mSd, ATa, mTa, tau, mWS, mWF, mAH, & xalb, xemis, xcp, xk, xch, xBo, & tSd, & xTHr, & xTs)",
+          "doc": "",
+          "calls": [
+            "AnOHM_coef_land_cal",
+            "AnOHM_coef_water_cal"
+          ],
+          "called_by": [
+            "suews_phys_anohm.f95:fcnBo"
+          ],
+          "kind": "subroutine"
+        },
+        {
+          "name": "AnOHM_coef_land_cal",
+          "line_start": 375,
+          "line_end": 454,
+          "signature": "SUBROUTINE AnOHM_coef_land_cal( & ASd, mSd, ATa, mTa, tau, mWS, mWF, mAH, & xalb, xemis, xcp, xk, xch, xBo, & xa1, xa2, xa3, ATs, mTs, gamma)",
+          "doc": "",
+          "calls": [],
+          "called_by": [
+            "suews_phys_anohm.f95:AnOHM_coef",
+            "suews_phys_anohm.f95:AnOHM_xTs"
+          ],
+          "kind": "subroutine"
+        },
+        {
+          "name": "AnOHM_coef_water_cal",
+          "line_start": 532,
+          "line_end": 675,
+          "signature": "SUBROUTINE AnOHM_coef_water_cal( & ASd, mSd, ATa, mTa, tau, mWS, mWF, mAH, & xalb, xemis, xcp, xk, xch, xBo, xeta, xmu, & xa1, xa2, xa3, ATs, mTs, gamma)",
+          "doc": "",
+          "calls": [],
+          "called_by": [
+            "suews_phys_anohm.f95:AnOHM_coef",
+            "suews_phys_anohm.f95:AnOHM_xTs"
+          ],
+          "kind": "subroutine"
+        },
+        {
+          "name": "AnOHM_Fc",
+          "line_start": 679,
+          "line_end": 724,
+          "signature": "SUBROUTINE AnOHM_Fc( & xid, MetForcingData_grid, EmissionsMethod, qf, & ASd, mSd, tSd, ATa, mTa, tTa, tau, mWS, mWF, mAH)",
+          "doc": "",
+          "calls": [
+            "AnOHM_FcLoad",
+            "AnOHM_FcCal"
+          ],
+          "called_by": [
+            "suews_phys_anohm.f95:AnOHM_coef"
+          ],
+          "kind": "subroutine"
+        },
+        {
+          "name": "AnOHM_FcLoad",
+          "line_start": 729,
+          "line_end": 812,
+          "signature": "SUBROUTINE AnOHM_FcLoad( & xid, MetForcingData_grid, EmissionsMethod, qf, & Sd, Ta, RH, pres, WS, WF, AH, tHr)",
+          "doc": "",
+          "calls": [],
+          "called_by": [
+            "suews_phys_anohm.f95:AnOHM_Fc",
+            "suews_phys_anohm.f95:AnOHM_coef"
+          ],
+          "kind": "subroutine"
+        },
+        {
+          "name": "AnOHM_FcCal",
+          "line_start": 820,
+          "line_end": 899,
+          "signature": "SUBROUTINE AnOHM_FcCal( & Sd, Ta, WS, WF, AH, tHr, & ASd, mSd, tSd, ATa, mTa, tTa, tau, mWS, mWF, mAH)",
+          "doc": "",
+          "calls": [
+            "AnOHM_ShapeFit"
+          ],
+          "called_by": [
+            "suews_phys_anohm.f95:AnOHM_Fc"
+          ],
+          "kind": "subroutine"
+        },
+        {
+          "name": "AnOHM_ShapeFit",
+          "line_start": 949,
+          "line_end": 1004,
+          "signature": "SUBROUTINE AnOHM_ShapeFit( & tHr, obs, & amp, mean, tpeak)",
+          "doc": "",
+          "calls": [
+            "lmdif1"
+          ],
+          "called_by": [
+            "suews_phys_anohm.f95:AnOHM_FcCal"
+          ],
+          "kind": "subroutine"
+        },
+        {
+          "name": "fSin",
+          "line_start": 1014,
+          "line_end": 1033,
+          "signature": "SUBROUTINE fSin(m, n, x, xdat, ydat, fvec, iflag)",
+          "doc": "",
+          "calls": [],
+          "called_by": [],
+          "kind": "subroutine"
+        },
+        {
+          "name": "AnOHM_Bo_cal",
+          "line_start": 1046,
+          "line_end": 1174,
+          "signature": "SUBROUTINE AnOHM_Bo_cal( & sfc_typ, & Sd, Ta, RH, pres, tHr, & ASd, mSd, ATa, mTa, tau, mWS, mWF, mAH, & xalb, xemis, xcp, xk, xch, xSM, & tSd, & xBo)",
+          "doc": "",
+          "calls": [
+            "hybrd1"
+          ],
+          "called_by": [
+            "suews_phys_anohm.f95:AnOHM_coef"
+          ],
+          "kind": "subroutine"
+        },
+        {
+          "name": "fcnBo",
+          "line_start": 1179,
+          "line_end": 1360,
+          "signature": "SUBROUTINE fcnBo(n, x, fvec, iflag, m, prms)",
+          "doc": "",
+          "calls": [
+            "r8vec_print",
+            "AnOHM_xTs"
+          ],
+          "called_by": [],
+          "kind": "subroutine"
+        },
+        {
+          "name": "esat_fn",
+          "line_start": 1409,
+          "line_end": 1418,
+          "signature": "FUNCTION esat_fn(Ta) RESULT(esat)",
+          "doc": "",
+          "calls": [],
+          "called_by": [],
+          "kind": "function"
+        },
+        {
+          "name": "qsat_fn",
+          "line_start": 1425,
+          "line_end": 1436,
+          "signature": "FUNCTION qsat_fn(Ta, pres) RESULT(qsat)",
+          "doc": "",
+          "calls": [],
+          "called_by": [],
+          "kind": "function"
+        },
+        {
+          "name": "qa_fn",
+          "line_start": 1442,
+          "line_end": 1457,
+          "signature": "FUNCTION qa_fn(Ta, RH, pres) RESULT(qa)",
+          "doc": "",
+          "calls": [],
+          "called_by": [],
+          "kind": "function"
+        }
+      ],
+      "uses": [
+        "module_phys_ohm",
+        "module_ctrl_error_state",
+        "module_ctrl_error",
+        "module_ctrl_type",
+        "module_phys_anohm"
+      ]
+    },
+    "suews_phys_anthro.f95": {
+      "category": "physics",
+      "lines": 362,
+      "modules": [
+        "module_phys_anthro",
+        "AnEmsn_module"
+      ],
+      "description": "Main module following naming standard: matches filename",
+      "subroutines": [
+        {
+          "name": "AnthropogenicEmissions",
+          "line_start": 35,
+          "line_end": 197,
+          "signature": "SUBROUTINE AnthropogenicEmissions( & CO2PointSource, EmissionsMethod, & it, imin, DLS, DayofWeek_id, & EF_umolCO2perJ, FcEF_v_kgkm, EnEF_v_Jkm, TrafficUnits, & FrFossilFuel_Heat, FrFossilFuel_NonHeat, & MinFCMetab, MaxFCMetab, MinQFMetab, MaxQFMetab, & PopDensDaytime, PopDensNighttime, & Tair, HDD_id, Qf_A, Qf_B, Qf_C, & AH_MIN, AH_SLOPE_Heating, AH_SLOPE_Cooling, & BaseT_Heating, BaseT_Cooling, & TrafficRate, & QF0_BEU, QF_SAHP, & Fc_anthro, Fc_metab, Fc_traff, Fc_build, Fc_point, & AHProf_24hr, HumActivity_24hr, TraffProf_24hr, PopProf_24hr, SurfaceArea, & modState)",
+          "doc": "Simple anthropogenic heat parameterisation and co2 calculation Calculates QF_SAHP and Fc_anthro",
+          "calls": [],
+          "called_by": [
+            "suews_ctrl_driver.f95:SUEWS_cal_AnthropogenicEmission"
+          ],
+          "kind": "subroutine"
+        }
+      ],
+      "uses": [
+        "module_ctrl_input_profile",
+        "module_ctrl_error_state",
+        "module_ctrl_error",
+        "module_ctrl_type",
+        "module_phys_anthro"
+      ]
+    },
+    "suews_phys_atmmoiststab.f95": {
+      "category": "physics",
+      "lines": 981,
+      "modules": [
+        "module_phys_atmmoiststab",
+        "AtmMoistStab_module"
+      ],
+      "description": "Main module following naming standard: matches filename",
+      "subroutines": [
+        {
+          "name": "SUEWS_update_atmState",
+          "line_start": 18,
+          "line_end": 50,
+          "signature": "SUBROUTINE SUEWS_update_atmState(timer, forcing, modState)",
+          "doc": "",
+          "calls": [
+            "cal_AtmMoist"
+          ],
+          "called_by": [],
+          "kind": "subroutine"
+        },
+        {
+          "name": "update_tair_av",
+          "line_start": 55,
+          "line_end": 77,
+          "signature": "FUNCTION update_tair_av(tair_av_prev, dt_since_start, tstep, temp_c) RESULT(tair_av_next)",
+          "doc": "calculate mean air temperature of past 24 hours TS, 17 Sep 2019",
+          "calls": [],
+          "called_by": [],
+          "kind": "function"
+        },
+        {
+          "name": "cal_AtmMoist",
+          "line_start": 86,
+          "line_end": 162,
+          "signature": "SUBROUTINE cal_AtmMoist( & Temp_C, Press_hPa, avRh, dectime, & lv_J_kg, lvS_J_kg, & es_hPa, Ea_hPa, VPd_hpa, VPD_Pa, dq, dens_dry, avcp, air_dens, & modState)",
+          "doc": "",
+          "calls": [],
+          "called_by": [
+            "suews_ctrl_driver.f95:SUEWS_cal_BiogenCO2",
+            "suews_phys_atmmoiststab.f95:SUEWS_update_atmState"
+          ],
+          "kind": "subroutine"
+        },
+        {
+          "name": "cal_Stab",
+          "line_start": 183,
+          "line_end": 245,
+          "signature": "SUBROUTINE cal_Stab( & StabilityMethod, & zzd, & z0m, & zdm, & avU1, & Temp_C, & QH_init, & avdens, & avcp, & L_MOD, & TStar, & UStar, & zL, & modState)",
+          "doc": "",
+          "calls": [
+            "ErrorHint"
+          ],
+          "called_by": [
+            "suews_ctrl_driver.f95:SUEWS_cal_Resistance"
+          ],
+          "kind": "subroutine"
+        },
+        {
+          "name": "stab_psi_mom",
+          "line_start": 381,
+          "line_end": 400,
+          "signature": "FUNCTION stab_psi_mom(StabilityMethod, ZL) RESULT(psim)",
+          "doc": "",
+          "calls": [],
+          "called_by": [],
+          "kind": "function"
+        },
+        {
+          "name": "stab_psi_heat",
+          "line_start": 405,
+          "line_end": 424,
+          "signature": "FUNCTION stab_psi_heat(StabilityMethod, ZL) RESULT(psih)",
+          "doc": "",
+          "calls": [],
+          "called_by": [],
+          "kind": "function"
+        },
+        {
+          "name": "stab_phi_mom",
+          "line_start": 429,
+          "line_end": 445,
+          "signature": "FUNCTION stab_phi_mom(StabilityMethod, ZL) RESULT(phim)",
+          "doc": "",
+          "calls": [],
+          "called_by": [],
+          "kind": "function"
+        },
+        {
+          "name": "stab_phi_heat",
+          "line_start": 450,
+          "line_end": 466,
+          "signature": "FUNCTION stab_phi_heat(StabilityMethod, ZL) RESULT(phih)",
+          "doc": "",
+          "calls": [],
+          "called_by": [],
+          "kind": "function"
+        },
+        {
+          "name": "psi_mom_J12",
+          "line_start": 473,
+          "line_end": 488,
+          "signature": "FUNCTION psi_mom_J12(ZL) RESULT(psim)",
+          "doc": "Jimenez et al. (2012), eqn 17 and 18",
+          "calls": [],
+          "called_by": [],
+          "kind": "function"
+        },
+        {
+          "name": "phi_mom_J12",
+          "line_start": 492,
+          "line_end": 505,
+          "signature": "FUNCTION phi_mom_J12(ZL) RESULT(phim)",
+          "doc": "not directly provided by J12 equations below are derived from related original formulations",
+          "calls": [],
+          "called_by": [],
+          "kind": "function"
+        },
+        {
+          "name": "psi_heat_J12",
+          "line_start": 509,
+          "line_end": 522,
+          "signature": "FUNCTION psi_heat_J12(ZL) RESULT(psih)",
+          "doc": "Jimenez et al. (2012), eqn 17 and 19",
+          "calls": [],
+          "called_by": [],
+          "kind": "function"
+        },
+        {
+          "name": "phi_heat_J12",
+          "line_start": 526,
+          "line_end": 535,
+          "signature": "FUNCTION phi_heat_J12(ZL) RESULT(phih)",
+          "doc": "",
+          "calls": [],
+          "called_by": [],
+          "kind": "function"
+        },
+        {
+          "name": "psi_mom_G00",
+          "line_start": 545,
+          "line_end": 563,
+          "signature": "FUNCTION psi_mom_G00(ZL) RESULT(psim)",
+          "doc": "Grachev et al. (2000), eqn 18 determination of `am` see sect. 4.1 of G00",
+          "calls": [],
+          "called_by": [],
+          "kind": "function"
+        },
+        {
+          "name": "psi_heat_G00",
+          "line_start": 567,
+          "line_end": 587,
+          "signature": "FUNCTION psi_heat_G00(ZL) RESULT(psih)",
+          "doc": "Grachev et al. (2000), eqn 18 determination of `ah` see sect. 4.1 of G00",
+          "calls": [],
+          "called_by": [],
+          "kind": "function"
+        },
+        {
+          "name": "phi_mom_G00",
+          "line_start": 598,
+          "line_end": 624,
+          "signature": "FUNCTION phi_mom_G00(ZL) RESULT(phim)",
+          "doc": "",
+          "calls": [],
+          "called_by": [],
+          "kind": "function"
+        },
+        {
+          "name": "phi_heat_G00",
+          "line_start": 628,
+          "line_end": 650,
+          "signature": "FUNCTION phi_heat_G00(ZL) RESULT(phih)",
+          "doc": "",
+          "calls": [],
+          "called_by": [],
+          "kind": "function"
+        },
+        {
+          "name": "psi_conv",
+          "line_start": 654,
+          "line_end": 662,
+          "signature": "FUNCTION psi_conv(ZL, ax) RESULT(psiC)",
+          "doc": "Grachev et al. (2000), eqn 12",
+          "calls": [],
+          "called_by": [],
+          "kind": "function"
+        },
+        {
+          "name": "phi_conv",
+          "line_start": 664,
+          "line_end": 676,
+          "signature": "FUNCTION phi_conv(ZL, ax) RESULT(phiC)",
+          "doc": "Grachev et al. (2000), eqn 15",
+          "calls": [],
+          "called_by": [],
+          "kind": "function"
+        },
+        {
+          "name": "dPsi_dzL_G00",
+          "line_start": 678,
+          "line_end": 700,
+          "signature": "FUNCTION dPsi_dzL_G00(ZL, psiK, phiK, psiC, phiC) RESULT(dPsi)",
+          "doc": "Grachev et al. (2000), eqn 15 note: Psi is a zL-weighted sum of Kansas and convective components derived from d(Psi)/d(zL)=d((psiK+zL**2*psiC)/(1+zL**2))/d(zL)",
+          "calls": [],
+          "called_by": [],
+          "kind": "function"
+        },
+        {
+          "name": "psi_CB05",
+          "line_start": 708,
+          "line_end": 712,
+          "signature": "FUNCTION psi_CB05(ZL, k1, k2) RESULT(psi)",
+          "doc": "Cheng and Brutsaert (2005), eqn 21/23",
+          "calls": [],
+          "called_by": [],
+          "kind": "function"
+        },
+        {
+          "name": "psi_mom_CB05",
+          "line_start": 714,
+          "line_end": 724,
+          "signature": "FUNCTION psi_mom_CB05(ZL) RESULT(psim)",
+          "doc": "Cheng and Brutsaert (2005), eqn 21",
+          "calls": [],
+          "called_by": [],
+          "kind": "function"
+        },
+        {
+          "name": "psi_heat_CB05",
+          "line_start": 728,
+          "line_end": 738,
+          "signature": "FUNCTION psi_heat_CB05(ZL) RESULT(psih)",
+          "doc": "Cheng and Brutsaert (2005), eqn 23",
+          "calls": [],
+          "called_by": [],
+          "kind": "function"
+        },
+        {
+          "name": "phi_CB05",
+          "line_start": 742,
+          "line_end": 750,
+          "signature": "FUNCTION phi_CB05(ZL, k1, k2) RESULT(phi)",
+          "doc": "Cheng and Brutsaert (2005), eqn 22/24",
+          "calls": [],
+          "called_by": [],
+          "kind": "function"
+        },
+        {
+          "name": "phi_mom_CB05",
+          "line_start": 752,
+          "line_end": 762,
+          "signature": "FUNCTION phi_mom_CB05(ZL) RESULT(phim)",
+          "doc": "Cheng and Brutsaert (2005), eqn 22",
+          "calls": [],
+          "called_by": [],
+          "kind": "function"
+        },
+        {
+          "name": "phi_heat_CB05",
+          "line_start": 766,
+          "line_end": 777,
+          "signature": "FUNCTION phi_heat_CB05(ZL) RESULT(phih)",
+          "doc": "Cheng and Brutsaert (2005), eqn 24",
+          "calls": [],
+          "called_by": [],
+          "kind": "function"
+        },
+        {
+          "name": "phi_mom_K75",
+          "line_start": 785,
+          "line_end": 795,
+          "signature": "FUNCTION phi_mom_K75(ZL) RESULT(phim)",
+          "doc": "Kondo (1975) adopted by Campbell & Norman eqn 7.22 and 7.23 p 97",
+          "calls": [],
+          "called_by": [],
+          "kind": "function"
+        },
+        {
+          "name": "phi_heat_K75",
+          "line_start": 799,
+          "line_end": 809,
+          "signature": "FUNCTION phi_heat_K75(ZL) RESULT(phih)",
+          "doc": "Kondo (1975) adopted by Campbell & Norman eqn 7.22 and 7.23 p 97",
+          "calls": [],
+          "called_by": [],
+          "kind": "function"
+        },
+        {
+          "name": "psi_mom_K75",
+          "line_start": 813,
+          "line_end": 823,
+          "signature": "FUNCTION psi_mom_K75(ZL) RESULT(psim)",
+          "doc": "Kondo (1975) adopted by Campbell & Norman eqn 7.26 and 7.27 p 97",
+          "calls": [],
+          "called_by": [],
+          "kind": "function"
+        },
+        {
+          "name": "psi_heat_K75",
+          "line_start": 827,
+          "line_end": 837,
+          "signature": "FUNCTION psi_heat_K75(ZL) RESULT(psih)",
+          "doc": "Kondo (1975) adopted by Campbell & Norman eqn 7.26 and 7.27 p 97",
+          "calls": [],
+          "called_by": [],
+          "kind": "function"
+        },
+        {
+          "name": "phi_mom_B71",
+          "line_start": 845,
+          "line_end": 856,
+          "signature": "FUNCTION phi_mom_B71(ZL) RESULT(phim)",
+          "doc": "Businger et al. (1971) modified by Hogstrom (1988): see Table VI",
+          "calls": [],
+          "called_by": [],
+          "kind": "function"
+        },
+        {
+          "name": "phi_heat_B71",
+          "line_start": 860,
+          "line_end": 871,
+          "signature": "FUNCTION phi_heat_B71(ZL) RESULT(phih)",
+          "doc": "Businger et al. (1971) modified by Hogstrom (1988): see Table VII",
+          "calls": [],
+          "called_by": [],
+          "kind": "function"
+        },
+        {
+          "name": "psi_mom_B71",
+          "line_start": 875,
+          "line_end": 889,
+          "signature": "FUNCTION psi_mom_B71(ZL) RESULT(psim)",
+          "doc": "integral form of phi_mom_B71",
+          "calls": [],
+          "called_by": [],
+          "kind": "function"
+        },
+        {
+          "name": "psi_heat_B71",
+          "line_start": 893,
+          "line_end": 907,
+          "signature": "FUNCTION psi_heat_B71(ZL) RESULT(psih)",
+          "doc": "integral form of phi_heat_B71",
+          "calls": [],
+          "called_by": [],
+          "kind": "function"
+        },
+        {
+          "name": "psi_mom_W16",
+          "line_start": 914,
+          "line_end": 943,
+          "signature": "FUNCTION psi_mom_W16(ZL) RESULT(psym)",
+          "doc": "PSYM - stability FUNCTION for momentum Modified by LJ Mar 2010 Input: Stability (z-d)/L Note: Unstable part corresponds to Dyer (1974) mod. Hogstrom (1988) Note: Stable part corresponds to Van Ulden & Holtslag (1985) p 1206 in original code",
+          "calls": [],
+          "called_by": [],
+          "kind": "function"
+        },
+        {
+          "name": "psi_heat_W16",
+          "line_start": 949,
+          "line_end": 972,
+          "signature": "FUNCTION psi_heat_W16(ZL) RESULT(psyh)",
+          "doc": "Based on stab_fn_heat for StabilityMethod == 2 PSYH - stability function for heat Input: Stability (z-d)/L Note: Unstable part corresponds to Dyer (1974) mod. Hogstrom (1988) Note: Stable part corresponds to Dyer (1974) mod. Hogstrom (1988) (implicit else case)",
+          "calls": [],
+          "called_by": [],
+          "kind": "function"
+        }
+      ],
+      "uses": [
+        "module_ctrl_type",
+        "module_ctrl_const_physconst",
+        "module_ctrl_error",
+        "module_phys_atmmoiststab"
+      ]
+    },
+    "suews_phys_beers.f95": {
+      "category": "physics",
+      "lines": 1620,
+      "modules": [
+        "module_phys_beers",
+        "beers_module"
+      ],
+      "description": "Main module following naming standard: matches filename",
+      "subroutines": [
+        {
+          "name": "BEERS_cal_main",
+          "line_start": 41,
+          "line_end": 198,
+          "signature": "SUBROUTINE BEERS_cal_main(iy, id, dectime, lamdaP, lamdaF, avkdn, ldown, Temp_C, avrh, & Press_hPa, Tsurf, lat, lng, alt, timezone, zenith_deg, azimuth, & alb_ground, alb_bldg, emis_ground, emis_wall, &",
+          "doc": "",
+          "calls": [
+            "DAYLEN",
+            "clearnessindex_2013b",
+            "diffusefraction"
+          ],
+          "called_by": [],
+          "kind": "subroutine"
+        },
+        {
+          "name": "BEERS_cal_main_DTS",
+          "line_start": 343,
+          "line_end": 550,
+          "signature": "SUBROUTINE BEERS_cal_main_DTS( & timer, config, forcing, siteInfo, & modState, & dataOutLineBEERS)",
+          "doc": "",
+          "calls": [
+            "DAYLEN",
+            "clearnessindex_2013b",
+            "diffusefraction"
+          ],
+          "called_by": [],
+          "kind": "subroutine"
+        },
+        {
+          "name": "cal_CI_latenight",
+          "line_start": 702,
+          "line_end": 739,
+          "signature": "SUBROUTINE cal_CI_latenight(iy, DOY, Ta_degC, RH_frac, radG, lat, P_kPa, & CIlatenight, dectime_sunrise, zen_sunrise, I0_sunrise)",
+          "doc": "subroutine to calculate nighttime clearness index Offerle et al. (2003) used sunset value but here a value after sunrise is calculated TODO: a value at sunset can be retained using module variables",
+          "calls": [
+            "DAYLEN",
+            "NARP_cal_SunPosition",
+            "clearnessindex_2013b"
+          ],
+          "called_by": [],
+          "kind": "subroutine"
+        },
+        {
+          "name": "KRoof",
+          "line_start": 741,
+          "line_end": 783,
+          "signature": "SUBROUTINE KRoof( & radI, radD, radG, F_sh, altitude, svfr, svfveg, shadow, psi, alb_bldg, & Kdown)",
+          "doc": "",
+          "calls": [],
+          "called_by": [],
+          "kind": "subroutine"
+        },
+        {
+          "name": "cal_svfalfa",
+          "line_start": 785,
+          "line_end": 799,
+          "signature": "SUBROUTINE cal_svfalfa(svfr, svfveg, svfalfa, tmp)",
+          "doc": "",
+          "calls": [],
+          "called_by": [],
+          "kind": "subroutine"
+        },
+        {
+          "name": "cal_ratio_height2width",
+          "line_start": 801,
+          "line_end": 818,
+          "signature": "FUNCTION cal_ratio_height2width(lamdaP, lamdaF) RESULT(HW)",
+          "doc": "",
+          "calls": [],
+          "called_by": [],
+          "kind": "function"
+        },
+        {
+          "name": "hwToSVF_ground",
+          "line_start": 820,
+          "line_end": 833,
+          "signature": "FUNCTION hwToSVF_ground(hw) RESULT(svfGround)",
+          "doc": "",
+          "calls": [],
+          "called_by": [],
+          "kind": "function"
+        },
+        {
+          "name": "hwToSVF_roof",
+          "line_start": 835,
+          "line_end": 847,
+          "signature": "FUNCTION hwToSVF_roof(hw) RESULT(svfRoof)",
+          "doc": "",
+          "calls": [],
+          "called_by": [],
+          "kind": "function"
+        },
+        {
+          "name": "tSurfBEERS",
+          "line_start": 849,
+          "line_end": 883,
+          "signature": "SUBROUTINE tSurfBEERS(iy, Ta, RH, radI, I0, dectime, SNUP, altitude, zen, timezone, lat, lng, alt, & Tg, Tgwall, altmax)",
+          "doc": "Ground surface temperature wave from SOLWEIG",
+          "calls": [
+            "NARP_cal_SunPosition"
+          ],
+          "called_by": [],
+          "kind": "subroutine"
+        },
+        {
+          "name": "shadowGroundKusaka",
+          "line_start": 907,
+          "line_end": 935,
+          "signature": "SUBROUTINE shadowGroundKusaka(HW, azimuth, zen, shadowground, shadowwalls)",
+          "doc": "Translated from Python! Should be checked by fortran person! FL This function calculates sunlit fractions on ground and walls for an infinite long, rotating canyon (Kusaka) (hw, azimuth, zen) DEG2RAD = np.pi / 180.",
+          "calls": [],
+          "called_by": [],
+          "kind": "subroutine"
+        },
+        {
+          "name": "clearnessindex_2013b",
+          "line_start": 948,
+          "line_end": 986,
+          "signature": "SUBROUTINE clearnessindex_2013b(zen, DOY, Ta_degC, RH_frac, radG, lat, P_kPa, & I0, CI, Kt, I0et, CIuncorr)",
+          "doc": "Clearness Index at the Earth's surface calculated from Crawford and Duchon 1999",
+          "calls": [],
+          "called_by": [
+            "suews_phys_beers.f95:BEERS_cal_main",
+            "suews_phys_beers.f95:BEERS_cal_main_DTS",
+            "suews_phys_beers.f95:cal_CI_latenight"
+          ],
+          "kind": "subroutine"
+        },
+        {
+          "name": "sun_distance",
+          "line_start": 1055,
+          "line_end": 1067,
+          "signature": "SUBROUTINE sun_distance(jday, D)",
+          "doc": "Calculates solar irradiance variation based on mean earth sun distance with day of year as input. Partridge and Platt, 1975",
+          "calls": [],
+          "called_by": [],
+          "kind": "subroutine"
+        },
+        {
+          "name": "cylindric_wedge",
+          "line_start": 1069,
+          "line_end": 1115,
+          "signature": "SUBROUTINE cylindric_wedge(zen, svfalfa, F_sh)",
+          "doc": "Fraction of sunlit walls based on sun altitude and svf wieghted building angles",
+          "calls": [],
+          "called_by": [
+            "suews_phys_solweig.f95:Lside_veg_v2"
+          ],
+          "kind": "subroutine"
+        },
+        {
+          "name": "diffusefraction",
+          "line_start": 1140,
+          "line_end": 1161,
+          "signature": "SUBROUTINE diffusefraction(radG, altitude, Kt, Ta, RH, radI, radD)",
+          "doc": "",
+          "calls": [],
+          "called_by": [
+            "suews_phys_beers.f95:BEERS_cal_main",
+            "suews_phys_beers.f95:BEERS_cal_main_DTS"
+          ],
+          "kind": "subroutine"
+        },
+        {
+          "name": "KWalls",
+          "line_start": 1185,
+          "line_end": 1238,
+          "signature": "SUBROUTINE KWalls( & svf, svfveg, shadow, F_sh, & radI, radG, radD, azimuth, altitude, psi, t, alb_ground, alb_bldg, & Keast, Knorth, Ksouth, Kwest)",
+          "doc": "",
+          "calls": [],
+          "called_by": [],
+          "kind": "subroutine"
+        },
+        {
+          "name": "Kvikt_veg",
+          "line_start": 1285,
+          "line_end": 1310,
+          "signature": "SUBROUTINE Kvikt_veg(svf, svfveg, vikttot, & viktveg, viktwall)",
+          "doc": "",
+          "calls": [],
+          "called_by": [
+            "suews_phys_solweig.f95:Kside_veg_v24"
+          ],
+          "kind": "subroutine"
+        },
+        {
+          "name": "cal_vikt",
+          "line_start": 1312,
+          "line_end": 1322,
+          "signature": "FUNCTION cal_vikt(svf_x, vikttot) RESULT(vikt)",
+          "doc": "",
+          "calls": [],
+          "called_by": [],
+          "kind": "function"
+        },
+        {
+          "name": "LWalls",
+          "line_start": 1324,
+          "line_end": 1415,
+          "signature": "SUBROUTINE LWalls(svf, svfveg, svfaveg, & Ldown2d, Lup2d, & altitude, Ta, Tw, SBC, emis_wall, emis_sky, t, CI, azimuth, ldown, svfalfa, F_sh_in, & Least, Lnorth, Lsouth, Lwest)",
+          "doc": "",
+          "calls": [],
+          "called_by": [],
+          "kind": "subroutine"
+        },
+        {
+          "name": "Lvikt_veg",
+          "line_start": 1552,
+          "line_end": 1595,
+          "signature": "SUBROUTINE Lvikt_veg(isvf, isvfveg, isvfaveg, vikttot, & viktveg, viktsky, viktrefl, viktwall)",
+          "doc": "",
+          "calls": [],
+          "called_by": [],
+          "kind": "subroutine"
+        },
+        {
+          "name": "set_nan",
+          "line_start": 1596,
+          "line_end": 1610,
+          "signature": "ELEMENTAL FUNCTION set_nan(x) RESULT(xx)",
+          "doc": "",
+          "calls": [],
+          "called_by": [],
+          "kind": "function"
+        }
+      ],
+      "uses": [
+        "module_phys_narp",
+        "module_ctrl_const_allocate",
+        "module_util_time",
+        "module_phys_beers"
+      ]
+    },
+    "suews_phys_biogenco2.f95": {
+      "category": "physics",
+      "lines": 239,
+      "modules": [
+        "module_phys_biogenco2",
+        "CO2_module"
+      ],
+      "description": "Main module following naming standard: matches filename",
+      "subroutines": [
+        {
+          "name": "CO2_biogen",
+          "line_start": 35,
+          "line_end": 111,
+          "signature": "SUBROUTINE CO2_biogen( & alpha_bioCO2, alpha_enh_bioCO2, avkdn, beta_bioCO2, beta_enh_bioCO2, BSoilSurf, & ConifSurf, DecidSurf, dectime, EmissionsMethod, gfunc, gfunc2, GrassSurf, gsmodel, & id, it, ivConif, ivDecid, ivGrass, LAI_id, LAIMin, LAIMax, min_res_bioCO2, nsurf, & NVegSurf, resp_a, resp_b, sfr_surf, SnowFrac, t2, theta_bioCO2, & Fc_biogen, Fc_photo, Fc_respi)",
+          "doc": "",
+          "calls": [],
+          "called_by": [],
+          "kind": "subroutine"
+        }
+      ],
+      "uses": [
+        "module_ctrl_error",
+        "module_phys_biogenco2"
+      ]
+    },
+    "suews_phys_bluews.f95": {
+      "category": "physics",
+      "lines": 930,
+      "modules": [
+        "module_phys_bluews_cbl",
+        "cbl_MODULE",
+        "module_phys_bluews",
+        "BLUEWS_module"
+      ],
+      "description": "Main module following naming standard: matches filename",
+      "subroutines": [
+        {
+          "name": "CBL",
+          "line_start": 77,
+          "line_end": 147,
+          "signature": "SUBROUTINE CBL(iy, id, it, imin, ir, Gridiv, qh_choice, dectime, Temp_C, Press_hPa, avkdn, avu1, avrh, & avcp, avdens, es_hPa, lv_J_kg, nsh_real, tstep, UStar, psih, is, NumberOfGrids, qhforCBL, qeforCBL, & ReadLinesMetdata, dataOutBL)",
+          "doc": "",
+          "calls": [
+            "NBL"
+          ],
+          "called_by": [],
+          "kind": "subroutine"
+        },
+        {
+          "name": "CBL_ReadInputData",
+          "line_start": 308,
+          "line_end": 341,
+          "signature": "SUBROUTINE CBL_ReadInputData(FileInputPath, qh_choice)",
+          "doc": "",
+          "calls": [],
+          "called_by": [],
+          "kind": "subroutine"
+        },
+        {
+          "name": "CBL_initial",
+          "line_start": 369,
+          "line_end": 395,
+          "signature": "SUBROUTINE CBL_initial(qh_use, qe_use, tm_K_zm, qm_gkg_zm, startflag, ir, Gridiv)",
+          "doc": "",
+          "calls": [
+            "ErrorHint"
+          ],
+          "called_by": [],
+          "kind": "subroutine"
+        },
+        {
+          "name": "NBL",
+          "line_start": 490,
+          "line_end": 517,
+          "signature": "SUBROUTINE NBL(iy, id, it, imin, dectime, ir, qh_choice, qh_use, qe_use, & tm_K_zm, qm_gkg_zm, startflag, Gridiv, & psih, UStar, Temp_C, NumberOfGrids, qhforCBL, qeforCBL, Press_hPa, avu1, avrh, & ReadLinesMetdata, dataOutBL, & avcp, avdens, es_hPa, lv_J_kg)",
+          "doc": "",
+          "calls": [
+            "ErrorHint"
+          ],
+          "called_by": [
+            "suews_phys_bluews.f95:CBL"
+          ],
+          "kind": "subroutine"
+        },
+        {
+          "name": "RKUTTA",
+          "line_start": 639,
+          "line_end": 684,
+          "signature": "SUBROUTINE RKUTTA(neqn_use, XA, XB, y_use, NSTEPS)",
+          "doc": "XA=s0 XB=s1 Y(1)=blh_m Y(2)=tm_K Y(3)=qm_kgkg Y(4)=cm Y(5)=tp_K Y(6)=qp_kgkg JOHN KNIGHT, 1985 (AMENDED BY MRR, 23-SEP-85) EXPLICIT FOURTH-ORDER RUNGE-KUTTA METHOD FOR FIRST-ORDER ODE SYSTEM OF NE EQUATIONS, WITH INITIAL VALUES SUPPLIED. MEANING OF PARAMETERS: NE     = NUMBER OF EQUATIONS (MAX 21) XA     = VALUE OF INDEPENDENT VARIABLE ON ENTRY XB     = VALUE OF INDEPENDENT VARIABLE AT END OF INTERVAL Y(NE)  = ON ENTRY: INITIAL VALUES OF DEPENDENT VARIABLES AT XA ON EXIT:  CALCULATED VALUES OF DEPENDENT VARIABLES AT XB NSTEPS = NUMBER OF INTEGRATION STEPS OVER INTERVAL (XA,XB) DIFF  = NAME OF USER-SUPPLIED SUBROUTINE TO CALCULATE DERIVATIVES DYDX (DIFF MUST BE DECLARED EXTERNAL IN CALLING PROGRAM). PARAMETERS IN SUBROUTINE DIFF(NE,X,Y,DYDX): NEqn = NUMBER OF EQUATIONS X = INDEPENDENT VARIABLE Y = ARRAY (LENGTH NE) OF VALUES OF DEPENDENT VARIABLES DYDX = ON EXIT, ARRAY (LENGTH NE) OF VALUES OF DERIVATIVES IMPLICIT real*8 (A-H,O-Z)",
+          "calls": [],
+          "called_by": [],
+          "kind": "subroutine"
+        },
+        {
+          "name": "diff",
+          "line_start": 716,
+          "line_end": 790,
+          "signature": "SUBROUTINE diff(s, y1, dyds)",
+          "doc": "in y1,neqn out dyds",
+          "calls": [
+            "errorHint"
+          ],
+          "called_by": [],
+          "kind": "subroutine"
+        },
+        {
+          "name": "sonde",
+          "line_start": 861,
+          "line_end": 882,
+          "signature": "SUBROUTINE sonde(id)",
+          "doc": "read sonde or vertical profile data - when available USE module_ctrl_const_allocate",
+          "calls": [],
+          "called_by": [],
+          "kind": "subroutine"
+        },
+        {
+          "name": "gamma_sonde",
+          "line_start": 895,
+          "line_end": 909,
+          "signature": "SUBROUTINE gamma_sonde",
+          "doc": "",
+          "calls": [],
+          "called_by": [],
+          "kind": "subroutine"
+        }
+      ],
+      "uses": [
+        "module_phys_bluews_cbl",
+        "meteo",
+        "module_ctrl_error",
+        "module_phys_bluews"
+      ]
+    },
+    "suews_phys_dailystate.f95": {
+      "category": "physics",
+      "lines": 984,
+      "modules": [
+        "module_phys_dailystate",
+        "DailyState_module"
+      ],
+      "description": "Main module following naming standard: matches filename",
+      "subroutines": [
+        {
+          "name": "SUEWS_cal_DailyState",
+          "line_start": 56,
+          "line_end": 270,
+          "signature": "SUBROUTINE SUEWS_cal_DailyState( & timer, config, forcing, siteInfo, & modState)",
+          "doc": "atmState, & !inout phenState, & !inout anthroEmisState, & !inout hydroState) !inout",
+          "calls": [
+            "update_DailyState_Start"
+          ],
+          "called_by": [],
+          "kind": "subroutine"
+        },
+        {
+          "name": "update_DailyState_Day",
+          "line_start": 358,
+          "line_end": 403,
+          "signature": "SUBROUTINE update_DailyState_Day( & DayofWeek_id, & avkdn, & Tair, & Precip, & BaseT_Heating, BaseT_Cooling, & nsh_real, & Tmin_id, Tmax_id, lenDay_id, & HDD_id)",
+          "doc": "use time, only: id, id_prev_t",
+          "calls": [],
+          "called_by": [],
+          "kind": "subroutine"
+        },
+        {
+          "name": "update_Veg",
+          "line_start": 419,
+          "line_end": 491,
+          "signature": "SUBROUTINE update_Veg( & LAImax, LAIMin, & AlbMax_DecTr, AlbMax_EveTr, AlbMax_Grass, & AlbMin_DecTr, AlbMin_EveTr, AlbMin_Grass, & CapMax_dec, CapMin_dec, & PorMax_dec, PorMin_dec, & LAI_id, LAI_id_prev, & DecidCap_id, & albDecTr_id, & albEveTr_id, & albGrass_id, & porosity_id, & StoreDrainPrm)",
+          "doc": "",
+          "calls": [],
+          "called_by": [],
+          "kind": "subroutine"
+        },
+        {
+          "name": "update_GDDLAI",
+          "line_start": 521,
+          "line_end": 591,
+          "signature": "SUBROUTINE update_GDDLAI( & id, LAICalcYes, & lat, LAI_obs, & Tmin_id_prev, Tmax_id_prev, lenDay_id_prev, & BaseT_GDD, BaseT_SDD, & GDDFull, SDDFull, & LAIMin, LAIMax, LAIPower, LAIType, & LAI_id_prev, & GDD_id, SDD_id, & LAI_id_next)",
+          "doc": "",
+          "calls": [],
+          "called_by": [],
+          "kind": "subroutine"
+        },
+        {
+          "name": "update_WaterUse",
+          "line_start": 691,
+          "line_end": 757,
+          "signature": "SUBROUTINE update_WaterUse( & id, WaterUseMethod, DayofWeek_id, lat, FrIrriAuto, HDD_id, & state_surf, soilstore_surf, SoilStoreCap_surf, H_maintain, & Ie_a, Ie_m, Ie_start, Ie_end, DayWatPer, DayWat, & WUDay_id)",
+          "doc": "",
+          "calls": [],
+          "called_by": [],
+          "kind": "subroutine"
+        },
+        {
+          "name": "update_HDD",
+          "line_start": 798,
+          "line_end": 827,
+          "signature": "SUBROUTINE update_HDD( & dt_since_start, it, imin, tstep, & HDD_id)",
+          "doc": "",
+          "calls": [],
+          "called_by": [],
+          "kind": "subroutine"
+        },
+        {
+          "name": "update_DailyState_Start",
+          "line_start": 834,
+          "line_end": 853,
+          "signature": "SUBROUTINE update_DailyState_Start( & it, imin, & HDD_id)",
+          "doc": "",
+          "calls": [],
+          "called_by": [
+            "suews_phys_dailystate.f95:SUEWS_cal_DailyState"
+          ],
+          "kind": "subroutine"
+        },
+        {
+          "name": "SUEWS_update_DailyState",
+          "line_start": 857,
+          "line_end": 882,
+          "signature": "SUBROUTINE SUEWS_update_DailyState( & id, datetimeline, & Gridiv, NumberOfGrids, & DailyStateLine, & dataOutDailyState)",
+          "doc": "",
+          "calls": [],
+          "called_by": [],
+          "kind": "subroutine"
+        },
+        {
+          "name": "update_DailyStateLine_DTS",
+          "line_start": 885,
+          "line_end": 971,
+          "signature": "SUBROUTINE update_DailyStateLine_DTS( & timer, config, forcing, siteInfo, & modState, & DailyStateLine)",
+          "doc": "",
+          "calls": [],
+          "called_by": [],
+          "kind": "subroutine"
+        }
+      ],
+      "uses": [
+        "module_ctrl_const_allocate",
+        "module_phys_dailystate"
+      ]
+    },
+    "suews_phys_ehc.f95": {
+      "category": "physics",
+      "lines": 753,
+      "modules": [
+        "module_phys_ehc_heatflux",
+        "heatflux",
+        "module_phys_ehc",
+        "EHC_module"
+      ],
+      "description": "EHC heatflux calculations module",
+      "subroutines": [
+        {
+          "name": "thomas_triMat",
+          "line_start": 5,
+          "line_end": 19,
+          "signature": "SUBROUTINE thomas_triMat(lw, diag, up, rhs, n, x)",
+          "doc": "",
+          "calls": [],
+          "called_by": [],
+          "kind": "subroutine"
+        },
+        {
+          "name": "heatcond1d_vstep",
+          "line_start": 29,
+          "line_end": 66,
+          "signature": "SUBROUTINE heatcond1d_vstep(T, Qs, dx, dt, k, rhocp, bc)",
+          "doc": "",
+          "calls": [],
+          "called_by": [],
+          "kind": "subroutine"
+        },
+        {
+          "name": "heatcond1d_CN",
+          "line_start": 116,
+          "line_end": 158,
+          "signature": "RECURSIVE SUBROUTINE heatcond1d_CN(T, Qs, dx, dt, k, rhocp, bc)",
+          "doc": "",
+          "calls": [],
+          "called_by": [],
+          "kind": "subroutine"
+        },
+        {
+          "name": "heatcond1d_CN_dense",
+          "line_start": 228,
+          "line_end": 276,
+          "signature": "SUBROUTINE heatcond1d_CN_dense(T, Qs, dx, dt, k, rhocp, bc)",
+          "doc": "",
+          "calls": [],
+          "called_by": [],
+          "kind": "subroutine"
+        },
+        {
+          "name": "EHC",
+          "line_start": 382,
+          "line_end": 506,
+          "signature": "SUBROUTINE EHC( & tstep, & nlayer, & tsfc_roof, tin_roof, temp_in_roof, k_roof, cp_roof, dz_roof, sfr_roof, & tsfc_wall, tin_wall, temp_in_wall, k_wall, cp_wall, dz_wall, sfr_wall, & tsfc_surf, tin_surf, temp_in_surf, k_surf, cp_surf, dz_surf, sfr_surf, & temp_out_roof, QS_roof, & temp_out_wall, QS_wall, & temp_out_surf, QS_surf, & QS)",
+          "doc": "",
+          "calls": [],
+          "called_by": [],
+          "kind": "subroutine"
+        }
+      ],
+      "uses": [
+        "module_phys_ehc_heatflux",
+        "module_phys_ehc"
+      ]
+    },
+    "suews_phys_estm.f95": {
+      "category": "physics",
+      "lines": 2207,
+      "modules": [
+        "module_phys_estm_data",
+        "ESTM_data",
+        "module_phys_estm_interp",
+        "mod_interp",
+        "module_phys_estm_solver",
+        "mod_solver",
+        "module_phys_estm_solarcalc",
+        "modSolarCalc",
+        "heatflux",
+        "module_phys_estm",
+        "ESTM_module"
+      ],
+      "description": "Fortran source file",
+      "subroutines": [
+        {
+          "name": "interp1d",
+          "line_start": 189,
+          "line_end": 198,
+          "signature": "ELEMENTAL FUNCTION interp1d(x1, x2, y1, y2, xi) RESULT(yi)",
+          "doc": "",
+          "calls": [],
+          "called_by": [],
+          "kind": "function"
+        },
+        {
+          "name": "NewtonPolynomial",
+          "line_start": 216,
+          "line_end": 242,
+          "signature": "FUNCTION NewtonPolynomial(x0, Pcoeff, conv, maxiter) RESULT(x)",
+          "doc": "Solves Newton's Method for a polynomial of the form f(x)=Pcoeff(1)*x^n+Pcoeff(2)*x^n-1+...+Pcoeff(n+1) f(x(i)) x(i+1) = x(i)- ------- f'(x(i)) conv is the level required for convergence maxiter is the maximum allowed iterations ----------------------------------------------------",
+          "calls": [],
+          "called_by": [],
+          "kind": "function"
+        },
+        {
+          "name": "min_zenith",
+          "line_start": 276,
+          "line_end": 286,
+          "signature": "FUNCTION min_zenith(lat, doy) RESULT(zmin)",
+          "doc": "returns max zenith returns zenith in radians for lat, lng in degrees",
+          "calls": [],
+          "called_by": [],
+          "kind": "function"
+        },
+        {
+          "name": "Local_apparent_time",
+          "line_start": 290,
+          "line_end": 300,
+          "signature": "FUNCTION Local_apparent_time(lng, dectime) RESULT(la_time)",
+          "doc": "Oke, 1989, equation of time elsewhere",
+          "calls": [],
+          "called_by": [],
+          "kind": "function"
+        },
+        {
+          "name": "Solar_angles",
+          "line_start": 303,
+          "line_end": 331,
+          "signature": "SUBROUTINE Solar_angles(lat, lng, timezone, dectime, decl, zenith, azimuth)",
+          "doc": "",
+          "calls": [],
+          "called_by": [],
+          "kind": "subroutine"
+        },
+        {
+          "name": "Solar_Times",
+          "line_start": 334,
+          "line_end": 357,
+          "signature": "SUBROUTINE Solar_Times(lat, lng, timezone, dectime, sunrise, sunset, snoon)",
+          "doc": "for sunrise and sunset ha = ha(zenith=90) timezone is offset to GMT e.g. -5 for EST",
+          "calls": [],
+          "called_by": [],
+          "kind": "subroutine"
+        },
+        {
+          "name": "kdown_surface",
+          "line_start": 359,
+          "line_end": 375,
+          "signature": "FUNCTION kdown_surface(doy, zenith) RESULT(Isurf)",
+          "doc": "Calculates ground level solar irradiance clear sky assuming transmissivity = 1 let it report zero if zenith >= 90",
+          "calls": [],
+          "called_by": [],
+          "kind": "function"
+        },
+        {
+          "name": "transmissivity_CD",
+          "line_start": 380,
+          "line_end": 396,
+          "signature": "FUNCTION transmissivity_CD(P, Td, G, zenith) RESULT(trans)",
+          "doc": "bulk atmospheric transmissivity (Crawford and Duchon, 1999) P = pressure (hPa) Td = dewpoint (C) G parameter is empirical value from Smith 1966 (JAM) zenith in radians",
+          "calls": [],
+          "called_by": [],
+          "kind": "function"
+        },
+        {
+          "name": "solar_ESdist",
+          "line_start": 408,
+          "line_end": 421,
+          "signature": "FUNCTION solar_ESdist(doy) RESULT(Rse)",
+          "doc": "from Stull, 1998",
+          "calls": [],
+          "called_by": [],
+          "kind": "function"
+        },
+        {
+          "name": "heatcond1d",
+          "line_start": 436,
+          "line_end": 457,
+          "signature": "SUBROUTINE heatcond1d(T, Qs, dx, dt, k, rhocp, bc, bctype)",
+          "doc": "",
+          "calls": [],
+          "called_by": [],
+          "kind": "subroutine"
+        },
+        {
+          "name": "heatcond1d_ext",
+          "line_start": 485,
+          "line_end": 515,
+          "signature": "RECURSIVE SUBROUTINE heatcond1d_ext(T, Qs, Tsfc, dx, dt, k, rhocp, bc, bctype, debug)",
+          "doc": "",
+          "calls": [],
+          "called_by": [],
+          "kind": "subroutine"
+        },
+        {
+          "name": "SUEWS_GetESTMData",
+          "line_start": 592,
+          "line_end": 624,
+          "signature": "SUBROUTINE SUEWS_GetESTMData(lunit, modState)",
+          "doc": "",
+          "calls": [
+            "skipHeader"
+          ],
+          "called_by": [],
+          "kind": "subroutine"
+        },
+        {
+          "name": "ESTM_initials",
+          "line_start": 656,
+          "line_end": 701,
+          "signature": "SUBROUTINE ESTM_initials",
+          "doc": "Last modified HCW 30 Jun 2016 - reading in now done by SUEWS_GetESTMData subroutine. ESTM_initials now only runs once per run at the very start. Last modified HCW 15 Jun 2016 - code now reads in 5-min file (interpolation done beforehand, outside of SUEWS itself)",
+          "calls": [],
+          "called_by": [],
+          "kind": "subroutine"
+        },
+        {
+          "name": "load_GridLayout",
+          "line_start": 703,
+          "line_end": 808,
+          "signature": "SUBROUTINE load_GridLayout(gridIV, MultipleLayoutFiles, diagnose)",
+          "doc": "",
+          "calls": [],
+          "called_by": [],
+          "kind": "subroutine"
+        },
+        {
+          "name": "ESTM_ehc_initialise",
+          "line_start": 1073,
+          "line_end": 1094,
+          "signature": "SUBROUTINE ESTM_ehc_initialise",
+          "doc": "Last modified HCW 30 Jun 2016 - reading in now done by SUEWS_GetESTMData subroutine. ESTM_initials now only runs once per run at the very start. Last modified HCW 15 Jun 2016 - code now reads in 5-min file (interpolation done beforehand, outside of SUEWS itself)",
+          "calls": [],
+          "called_by": [],
+          "kind": "subroutine"
+        },
+        {
+          "name": "ESTM_ehc_finalise",
+          "line_start": 1153,
+          "line_end": 1201,
+          "signature": "SUBROUTINE ESTM_ehc_finalise",
+          "doc": "",
+          "calls": [],
+          "called_by": [],
+          "kind": "subroutine"
+        },
+        {
+          "name": "ESTM_translate",
+          "line_start": 1204,
+          "line_end": 1278,
+          "signature": "SUBROUTINE ESTM_translate(Gridiv)",
+          "doc": "HCW 30 Jun 2016",
+          "calls": [],
+          "called_by": [],
+          "kind": "subroutine"
+        },
+        {
+          "name": "ESTM",
+          "line_start": 1542,
+          "line_end": 1810,
+          "signature": "SUBROUTINE ESTM( & Gridiv, & tstep, & avkdn, avu1, temp_c, zenith_deg, avrh, press_hpa, ldown, & bldgh, Ts5mindata_ir, & Tair_av, & dataOutLineESTM, QS)",
+          "doc": "NB: HCW Questions: - should TFloor be set in namelist instead of hard-coded here? - zref used for radiation calculation and fair is set to 2*BldgH here. For compatibility with the rest of the SUEWS model, should this be the (wind speed) measurement height z specified in RunControl.nml? - In SUEWS_translate, fwall=AreaWall/SurfaceArea. Is this correct? - If froof=1 (i.e. whole grid is building), is HW=0 correct? - Then is an IF(Fground ==0) option needed? - alb_wall=0.23 and em_wall=0.9 are set in LUMPS_module_constants. Shouldn't these be provided as input? - Do the LUP calculations here need to be compatible with those in LUMPS_NARP? - File opening rewritten using existing error handling in SUEWS - can delete mod_error module from SUEWS_ESTM_functions - In SUEWS_ESTM_v2016, the first row is set to -999. This may be acceptable at the start of the run but should be handled properly between blocks of met data? - need to check what's actually happening here. - Many duplicate functions in SUEWS_ESTM_functions need changing to the existing SUEWS versions. - Are the following correctly initialised? T0_ibld, T0_ground, T0_wall, T0_roof, TN_wall, TN_roof, Tground, Twall, Troof, Tibld - What are Nalb, sumalb, Nemis and Sumemis for? Are they used correctly?",
+          "calls": [],
+          "called_by": [],
+          "kind": "subroutine"
+        },
+        {
+          "name": "set_nan",
+          "line_start": 2186,
+          "line_end": 2197,
+          "signature": "ELEMENTAL FUNCTION set_nan(x) RESULT(xx)",
+          "doc": "",
+          "calls": [],
+          "called_by": [],
+          "kind": "function"
+        }
+      ],
+      "uses": [
+        "module_phys_estm_data",
+        "module_phys_estm_interp",
+        "module_ctrl_const_physconst",
+        "module_ctrl_error_state",
+        "module_phys_estm_solver",
+        "module_ctrl_const_mathconst",
+        "module_phys_estm_solarcalc",
+        "module_ctrl_error",
+        "module_ctrl_type",
+        "module_phys_estm"
+      ]
+    },
+    "suews_phys_evap.f95": {
+      "category": "physics",
+      "lines": 181,
+      "modules": [
+        "module_phys_evap",
+        "evap_module"
+      ],
+      "description": "Main module following naming standard: matches filename",
+      "subroutines": [
+        {
+          "name": "cal_evap",
+          "line_start": 6,
+          "line_end": 96,
+          "signature": "SUBROUTINE cal_evap( & EvapMethod, state_is, WetThresh_is, capStore_is, & vpd_hPa, avdens, avcp, qn_e, s_hPa, psyc_hPa, RS, RA, RB, tlv, & RSS, ev, qe)",
+          "doc": "RSS, ev, qe) !output ------------------------------------------------------------------------------ -Calculates evaporation for each surface from modified Penman-Monteith eqn -State determines whether each surface type is dry or wet (wet/transition) -Wet surfaces below storage capacity are in transition and QE depends on the state and storage capacity (i.e. varies with surface); for wet or dry surfaces QE does not vary between surface types -See Sect 2.4 of Jarvi et al. (2011) Ja11 Last modified: HCW 06 Jul 2016 Moved rss declaration to LUMPS_Module_Constants so it can be written out HCW 11 Jun 2015 Added WetThresh to distinguish wet/partially wet surfaces from the storage capacities used in SUEWS_drain HCW 30 Jan 2015 Removed StorCap input because it is provided by module allocateArray Tidied and commented code LJ 10/2010 ------------------------------------------------------------------------------",
+          "calls": [],
+          "called_by": [
+            "suews_phys_evap.f95:cal_evap_multi"
+          ],
+          "kind": "subroutine"
+        },
+        {
+          "name": "cal_evap_multi",
+          "line_start": 121,
+          "line_end": 168,
+          "signature": "SUBROUTINE cal_evap_multi( & EvapMethod, & sfr_multi, state_multi, WetThresh_multi, capStore_multi, & vpd_hPa, avdens, avcp, qn_e_multi, s_hPa, psyc_hPa, RS, RA, RB, tlv, & RSS_multi, ev_multi, qe_multi)",
+          "doc": "",
+          "calls": [
+            "cal_evap"
+          ],
+          "called_by": [
+            "suews_ctrl_driver.f95:SUEWS_cal_QE"
+          ],
+          "kind": "subroutine"
+        }
+      ],
+      "uses": [
+        "module_phys_evap"
+      ]
+    },
+    "suews_phys_lumps.f95": {
+      "category": "physics",
+      "lines": 280,
+      "modules": [
+        "module_phys_lumps",
+        "lumps_module"
+      ],
+      "description": "Main module following naming standard: matches filename",
+      "subroutines": [
+        {
+          "name": "LUMPS_cal_QHQE",
+          "line_start": 7,
+          "line_end": 187,
+          "signature": "SUBROUTINE LUMPS_cal_QHQE( & timer, config, forcing, siteInfo, & modState)",
+          "doc": "heatState, & atmState, & phenState) Calculates QH and QE for LUMPS. See Loridan et al. (2011) ref: Grimmond and Oke (2002) JAM and references within that Offerle (2003) -- add water bucket ref: Loridan et al. (2011) JAMC dynamic water & vegetation Last modified: LJ 27 Jan 2016  - Removal of tabs, cleaning the code HCW 04 Mar 2015 - Modified to account for model timestep (rather than hourly resolution) LJ Feb 2014     - The bug related to VegMax has been fixed (cannot divide by zero) LJ/SG May 2012  - Changed phenology to be consistent with SUEWS LAI. No longer Loridan et al. (2011) LJ June 2012    - Modified to work with snow (Qm added in the equations!) SG Feb 2012     - added some comments --------------------------------------------------------------",
+          "calls": [],
+          "called_by": [],
+          "kind": "subroutine"
+        }
+      ],
+      "uses": [
+        "module_phys_lumps"
+      ]
+    },
+    "suews_phys_narp.f95": {
+      "category": "physics",
+      "lines": 1618,
+      "modules": [
+        "module_phys_narp",
+        "NARP_MODULE"
+      ],
+      "description": "Main module following naming standard: matches filename",
+      "subroutines": [
+        {
+          "name": "RadMethod",
+          "line_start": 49,
+          "line_end": 70,
+          "signature": "SUBROUTINE RadMethod( & NetRadiationMethod, & SnowUse, & NetRadiationMethod_use, AlbedoChoice, ldown_option)",
+          "doc": "",
+          "calls": [],
+          "called_by": [],
+          "kind": "subroutine"
+        },
+        {
+          "name": "NARP",
+          "line_start": 132,
+          "line_end": 303,
+          "signature": "SUBROUTINE NARP( & nsurf, sfr_surf, tsfc_surf, SnowFrac, alb, emis, IceFrac, & NARP_TRANS_SITE, NARP_EMIS_SNOW, & DTIME, ZENITH_deg, kdown, Temp_C, RH, Press_hPa, qn1_obs, ldown_obs, & SnowAlb, & AlbedoChoice, ldown_option, & NetRadiationMethod_use, DiagQN, & qn_surf, & QSTARall, QSTAR_SF, QSTAR_S, kclear, KUPall, LDOWN, LUPall, fcld, TSURFall, & qn1_ind_snow, kup_ind_snow, Tsurf_ind_snow, Tsurf_surf, & albedo_snowfree)",
+          "doc": "KCLEAR,FCLD,DTIME,KDOWN,QSTARall,KUPall,LDOWN,LUPall,TSURFall,& AlbedoChoice,ldown_option,Temp_C,Press_hPa,Ea_hPa,qn1_obs,RH,& ,zenith_degnetRadiationChoice,",
+          "calls": [],
+          "called_by": [],
+          "kind": "subroutine"
+        },
+        {
+          "name": "NARP_cal_SunPosition",
+          "line_start": 532,
+          "line_end": 638,
+          "signature": "SUBROUTINE NARP_cal_SunPosition(year, idectime, UTC, & locationlatitude, locationlongitude, locationaltitude, & sunazimuth, sunzenith)",
+          "doc": "",
+          "calls": [
+            "dectime_to_timevec",
+            "day2month",
+            "julian_calculation",
+            "earth_heliocentric_position_calculation",
+            "sun_geocentric_position_calculation",
+            "nutation_calculation",
+            "corr_obliquity_calculation",
+            "abberation_correction_calculation",
+            "apparent_sun_longitude_calculation",
+            "apparent_stime_at_greenwich_calculation",
+            "sun_rigth_ascension_calculation",
+            "sun_geocentric_declination_calculation",
+            "observer_local_hour_calculation",
+            "topocentric_sun_position_calculate",
+            "topocentric_local_hour_calculate",
+            "sun_topocentric_zenith_angle_calculate"
+          ],
+          "called_by": [
+            "suews_ctrl_driver.f95:SUEWS_cal_sunposition",
+            "suews_phys_beers.f95:cal_CI_latenight",
+            "suews_phys_beers.f95:tSurfBEERS"
+          ],
+          "kind": "subroutine"
+        },
+        {
+          "name": "NARP_cal_SunPosition_DTS",
+          "line_start": 640,
+          "line_end": 775,
+          "signature": "SUBROUTINE NARP_cal_SunPosition_DTS( & timer, config, forcing, siteInfo, & modState)",
+          "doc": "solarState) sunazimuth, sunzenith)",
+          "calls": [
+            "dectime_to_timevec",
+            "day2month",
+            "julian_calculation",
+            "earth_heliocentric_position_calculation",
+            "sun_geocentric_position_calculation",
+            "nutation_calculation",
+            "corr_obliquity_calculation",
+            "abberation_correction_calculation",
+            "apparent_sun_longitude_calculation",
+            "apparent_stime_at_greenwich_calculation",
+            "sun_rigth_ascension_calculation",
+            "sun_geocentric_declination_calculation",
+            "observer_local_hour_calculation",
+            "topocentric_sun_position_calculate",
+            "topocentric_local_hour_calculate",
+            "sun_topocentric_zenith_angle_calculate"
+          ],
+          "called_by": [],
+          "kind": "subroutine"
+        },
+        {
+          "name": "julian_calculation",
+          "line_start": 780,
+          "line_end": 805,
+          "signature": "SUBROUTINE julian_calculation(year, month, day, hour, min, sec, UTC, juliancentury, julianday, julianephemeris_century& &, julianephemeris_day, julianephemeris_millenium)",
+          "doc": "",
+          "calls": [],
+          "called_by": [
+            "suews_phys_narp.f95:NARP_cal_SunPosition",
+            "suews_phys_narp.f95:NARP_cal_SunPosition_DTS"
+          ],
+          "kind": "subroutine"
+        },
+        {
+          "name": "earth_heliocentric_position_calculation",
+          "line_start": 850,
+          "line_end": 1030,
+          "signature": "SUBROUTINE earth_heliocentric_position_calculation(julianephemeris_millenium, earth_heliocentric_positionlatitude& &, earth_heliocentric_positionlongitude, earth_heliocentric_positionradius)",
+          "doc": "",
+          "calls": [],
+          "called_by": [
+            "suews_phys_narp.f95:NARP_cal_SunPosition",
+            "suews_phys_narp.f95:NARP_cal_SunPosition_DTS"
+          ],
+          "kind": "subroutine"
+        },
+        {
+          "name": "sun_geocentric_position_calculation",
+          "line_start": 1032,
+          "line_end": 1051,
+          "signature": "SUBROUTINE sun_geocentric_position_calculation(earth_heliocentric_positionlongitude,& &earth_heliocentric_positionlatitude, sun_geocentric_positionlatitude, & &sun_geocentric_positionlongitude)",
+          "doc": "",
+          "calls": [],
+          "called_by": [
+            "suews_phys_narp.f95:NARP_cal_SunPosition",
+            "suews_phys_narp.f95:NARP_cal_SunPosition_DTS"
+          ],
+          "kind": "subroutine"
+        },
+        {
+          "name": "nutation_calculation",
+          "line_start": 1053,
+          "line_end": 1161,
+          "signature": "SUBROUTINE nutation_calculation(julianephemeris_century, nutationlongitude, nutationobliquity)",
+          "doc": "",
+          "calls": [],
+          "called_by": [
+            "suews_phys_narp.f95:NARP_cal_SunPosition",
+            "suews_phys_narp.f95:NARP_cal_SunPosition_DTS"
+          ],
+          "kind": "subroutine"
+        },
+        {
+          "name": "corr_obliquity_calculation",
+          "line_start": 1174,
+          "line_end": 1195,
+          "signature": "SUBROUTINE corr_obliquity_calculation(julianephemeris_millenium, nutationobliquity, corr_obliquity)",
+          "doc": "",
+          "calls": [],
+          "called_by": [
+            "suews_phys_narp.f95:NARP_cal_SunPosition",
+            "suews_phys_narp.f95:NARP_cal_SunPosition_DTS"
+          ],
+          "kind": "subroutine"
+        },
+        {
+          "name": "abberation_correction_calculation",
+          "line_start": 1197,
+          "line_end": 1208,
+          "signature": "SUBROUTINE abberation_correction_calculation(earth_heliocentric_positionradius, aberration_correction)",
+          "doc": "",
+          "calls": [],
+          "called_by": [
+            "suews_phys_narp.f95:NARP_cal_SunPosition",
+            "suews_phys_narp.f95:NARP_cal_SunPosition_DTS"
+          ],
+          "kind": "subroutine"
+        },
+        {
+          "name": "apparent_sun_longitude_calculation",
+          "line_start": 1210,
+          "line_end": 1223,
+          "signature": "SUBROUTINE apparent_sun_longitude_calculation(sun_geocentric_positionlongitude, nutationlongitude,& & aberration_correction, apparent_sun_longitude)",
+          "doc": "",
+          "calls": [],
+          "called_by": [
+            "suews_phys_narp.f95:NARP_cal_SunPosition",
+            "suews_phys_narp.f95:NARP_cal_SunPosition_DTS"
+          ],
+          "kind": "subroutine"
+        },
+        {
+          "name": "apparent_stime_at_greenwich_calculation",
+          "line_start": 1225,
+          "line_end": 1251,
+          "signature": "SUBROUTINE apparent_stime_at_greenwich_calculation(julianday, juliancentury, nutationlongitude,& & corr_obliquity, apparent_stime_at_greenwich)",
+          "doc": "",
+          "calls": [],
+          "called_by": [
+            "suews_phys_narp.f95:NARP_cal_SunPosition",
+            "suews_phys_narp.f95:NARP_cal_SunPosition_DTS"
+          ],
+          "kind": "subroutine"
+        },
+        {
+          "name": "sun_rigth_ascension_calculation",
+          "line_start": 1253,
+          "line_end": 1274,
+          "signature": "SUBROUTINE sun_rigth_ascension_calculation(apparent_sun_longitude, corr_obliquity, & &sun_geocentric_positionlatitude, sun_rigth_ascension)",
+          "doc": "",
+          "calls": [],
+          "called_by": [
+            "suews_phys_narp.f95:NARP_cal_SunPosition",
+            "suews_phys_narp.f95:NARP_cal_SunPosition_DTS"
+          ],
+          "kind": "subroutine"
+        },
+        {
+          "name": "sun_geocentric_declination_calculation",
+          "line_start": 1276,
+          "line_end": 1291,
+          "signature": "SUBROUTINE sun_geocentric_declination_calculation(apparent_sun_longitude, corr_obliquity, & &sun_geocentric_positionlatitude, sun_geocentric_declination)",
+          "doc": "",
+          "calls": [],
+          "called_by": [
+            "suews_phys_narp.f95:NARP_cal_SunPosition",
+            "suews_phys_narp.f95:NARP_cal_SunPosition_DTS"
+          ],
+          "kind": "subroutine"
+        },
+        {
+          "name": "observer_local_hour_calculation",
+          "line_start": 1293,
+          "line_end": 1305,
+          "signature": "SUBROUTINE observer_local_hour_calculation(apparent_stime_at_greenwich, locationlongitude, & &sun_rigth_ascension, observer_local_hour)",
+          "doc": "",
+          "calls": [],
+          "called_by": [
+            "suews_phys_narp.f95:NARP_cal_SunPosition",
+            "suews_phys_narp.f95:NARP_cal_SunPosition_DTS"
+          ],
+          "kind": "subroutine"
+        },
+        {
+          "name": "topocentric_sun_position_calculate",
+          "line_start": 1307,
+          "line_end": 1364,
+          "signature": "SUBROUTINE topocentric_sun_position_calculate(topocentric_sun_positionrigth_ascension & &, topocentric_sun_positionrigth_ascension_parallax, topocentric_sun_positiondeclination,& &locationaltitude, locationlatitude, observer_local_hour, sun_rigth_ascension,& &sun_geocentric_declination, earth_heliocentric_positionradius)",
+          "doc": "",
+          "calls": [],
+          "called_by": [
+            "suews_phys_narp.f95:NARP_cal_SunPosition",
+            "suews_phys_narp.f95:NARP_cal_SunPosition_DTS"
+          ],
+          "kind": "subroutine"
+        },
+        {
+          "name": "topocentric_local_hour_calculate",
+          "line_start": 1366,
+          "line_end": 1377,
+          "signature": "SUBROUTINE topocentric_local_hour_calculate(observer_local_hour, topocentric_sun_positionrigth_ascension_parallax,& & topocentric_local_hour)",
+          "doc": "",
+          "calls": [],
+          "called_by": [
+            "suews_phys_narp.f95:NARP_cal_SunPosition",
+            "suews_phys_narp.f95:NARP_cal_SunPosition_DTS"
+          ],
+          "kind": "subroutine"
+        },
+        {
+          "name": "sun_topocentric_zenith_angle_calculate",
+          "line_start": 1379,
+          "line_end": 1428,
+          "signature": "SUBROUTINE sun_topocentric_zenith_angle_calculate(locationlatitude, topocentric_sun_positiondeclination, & &topocentric_local_hour, sunazimuth, sunzenith)",
+          "doc": "",
+          "calls": [],
+          "called_by": [
+            "suews_phys_narp.f95:NARP_cal_SunPosition",
+            "suews_phys_narp.f95:NARP_cal_SunPosition_DTS"
+          ],
+          "kind": "subroutine"
+        },
+        {
+          "name": "set_to_range",
+          "line_start": 1430,
+          "line_end": 1445,
+          "signature": "FUNCTION set_to_range(var) RESULT(vari)",
+          "doc": "This function make sure the variable is in the specified range.",
+          "calls": [],
+          "called_by": [],
+          "kind": "function"
+        },
+        {
+          "name": "dewpoint_narp",
+          "line_start": 1450,
+          "line_end": 1462,
+          "signature": "FUNCTION dewpoint_narp(Temp_C, rh) RESULT(td)",
+          "doc": "ea = vapor pressure (hPa) td = dewpoint (oC) calculates dewpoint in degC from http://www.atd.ucar.edu/weather_fl/dewpoint.html dewpoint = (237.3 * ln(e_vp/6.1078)) / (17.27 - (ln(e_vp/6.1078)))",
+          "calls": [],
+          "called_by": [],
+          "kind": "function"
+        },
+        {
+          "name": "PRATA_EMIS",
+          "line_start": 1464,
+          "line_end": 1471,
+          "signature": "FUNCTION PRATA_EMIS(Temp_K, EA_hPa) RESULT(EMIS_A)",
+          "doc": "clear sky emissivity function Prata 1996",
+          "calls": [],
+          "called_by": [],
+          "kind": "function"
+        },
+        {
+          "name": "EMIS_CLOUD",
+          "line_start": 1473,
+          "line_end": 1479,
+          "signature": "FUNCTION EMIS_CLOUD(EMIS_A, FCLD) RESULT(em_adj)",
+          "doc": "calculates adjusted emissivity due to clouds",
+          "calls": [],
+          "called_by": [],
+          "kind": "function"
+        },
+        {
+          "name": "EMIS_CLOUD_SQ",
+          "line_start": 1481,
+          "line_end": 1485,
+          "signature": "FUNCTION EMIS_CLOUD_SQ(EMIS_A, FCLD) RESULT(em_adj)",
+          "doc": "calculates adjusted emissivity due to clouds",
+          "calls": [],
+          "called_by": [],
+          "kind": "function"
+        },
+        {
+          "name": "cloud_fraction",
+          "line_start": 1487,
+          "line_end": 1493,
+          "signature": "FUNCTION cloud_fraction(KDOWN, KCLEAR) RESULT(FCLD)",
+          "doc": "",
+          "calls": [],
+          "called_by": [],
+          "kind": "function"
+        },
+        {
+          "name": "WC_fraction",
+          "line_start": 1495,
+          "line_end": 1515,
+          "signature": "FUNCTION WC_fraction(RH, Temp) RESULT(FWC)",
+          "doc": "Thomas Loridan, King's College London: June 2009 Parameterisation of fraction water content using the relative humidity",
+          "calls": [],
+          "called_by": [],
+          "kind": "function"
+        },
+        {
+          "name": "ISURFACE",
+          "line_start": 1518,
+          "line_end": 1535,
+          "signature": "FUNCTION ISURFACE(doy, zenith) RESULT(Isurf)",
+          "doc": "Calculates ground level solar irradiance clear sky assuming transmissivity = 1 let it report zero if zenith >= 90",
+          "calls": [],
+          "called_by": [],
+          "kind": "function"
+        },
+        {
+          "name": "solar_ESdist",
+          "line_start": 1540,
+          "line_end": 1553,
+          "signature": "FUNCTION solar_ESdist(doy) RESULT(Rse)",
+          "doc": "from Stull, 1998   Keep! called from SOLWEIG_clearnessindex_2013b",
+          "calls": [],
+          "called_by": [],
+          "kind": "function"
+        },
+        {
+          "name": "SmithLambda",
+          "line_start": 1556,
+          "line_end": 1572,
+          "signature": "FUNCTION SmithLambda(lat, modState) RESULT(G)",
+          "doc": "",
+          "calls": [],
+          "called_by": [],
+          "kind": "function"
+        },
+        {
+          "name": "transmissivity",
+          "line_start": 1582,
+          "line_end": 1599,
+          "signature": "FUNCTION transmissivity(Press_hPa, Temp_C_dew, G, zenith) RESULT(trans)",
+          "doc": "bulk atmospheric transmissivity (Crawford and Duchon, 1999) P = pressure (hPa) Td = dewpoint (C) G parameter is empirical value from Smith 1966 (JAM) zenith in radians if zenith > 80 use the value for 80.",
+          "calls": [],
+          "called_by": [],
+          "kind": "function"
+        }
+      ],
+      "uses": [
+        "module_util_time",
+        "module_ctrl_error_state",
+        "module_ctrl_error",
+        "module_ctrl_type",
+        "module_phys_narp"
+      ]
+    },
+    "suews_phys_ohm.f95": {
+      "category": "physics",
+      "lines": 880,
+      "modules": [
+        "module_phys_ohm",
+        "OHM_module"
+      ],
+      "description": "Main module following naming standard: matches filename",
+      "subroutines": [
+        {
+          "name": "OHM",
+          "line_start": 16,
+          "line_end": 199,
+          "signature": "SUBROUTINE OHM(qn1, qn1_surf, qn_av_prev, dqndt_prev, qn_av_next, dqndt_next, & qn_surf_prev, dqndt_surf_prev, qn_surf_next, dqndt_surf_next, & qn1_S, qn_s_av_prev, dqnsdt_prev, qn_s_av_next, dqnsdt_next, & tstep, dt_since_start, & sfr_surf, nsurf, & Tair_mav_5d, & OHM_coef, & OHM_threshSW, OHM_threshWD, & soilstore_id, SoilStoreCap, state_id, & BldgSurf, WaterSurf, & SnowUse, SnowFrac, & ws, T_half_bldg_C, T_prev, & ws_rav, qn_rav, nlayer, & dz_roof, cp_roof, k_roof, & dz_wall, cp_wall, k_wall, & dz_surf, cp_surf, k_surf, & lambda_c, & StorageHeatMethod, DiagQS, timer, & a1_bldg, a2_bldg, a3_bldg, & a1_paved, a2_paved, a3_paved, & a1_evetr, a2_evetr, a3_evetr, & a1_dectr, a2_dectr, a3_dectr, & a1_grass, a2_grass, a3_grass, & a1_bsoil, a2_bsoil, a3_bsoil, & a1_water, a2_water, a3_water, & a1, a2, a3, qs, qs_surf, deltaQi, & modState)",
+          "doc": "Made by HCW Jan 2015 to replace OHMnew (no longer needed). Calculates net storage heat flux (QS) from Eq 4, Grimmond et al. 1991, Atm Env. Accounts for variable timesteps in dQ*/dt term. BareSoilSurfFraction removed so bare soil is now handled like other surfaces. Snow part changed from summer wet to winter wet coefficients. Changed -333 checks to -999 checks and added error handling Gradient now calculated for t-1 (was previously calculated for t-2). TS 28 Jun 2018: improved and tested the phase-in method for calculating dqndt TS & SG 30 Apr 2018: a new calculation scheme of dqndt by using a phase-in approach that releases the requirement for storeing multiple qn values for adapting SUEWS into WRF TS 07 Aug 2017: 1. interface changed to account for explict passing 2. calculation refactorization. HCW 25 Feb 2015: Adapted q1,q2,q3 & r1,r2,r3 for multiple grids HCW 14 Dec 2016: Thresholds for Summer/Winter and Wet/Dry now provided in input files Calculation of dqndt now uses hourly running mean rather than instantaneous values To Do: - No canyons implemented at the moment [OHM_coef(nsurf+1,,)] ========================================================================================",
+          "calls": [],
+          "called_by": [],
+          "kind": "subroutine"
+        },
+        {
+          "name": "OHM_coef_cal",
+          "line_start": 508,
+          "line_end": 549,
+          "signature": "SUBROUTINE OHM_coef_cal(sfr_surf, nsurf, & Tair_mav_5d, OHM_coef, OHM_threshSW, OHM_threshWD, & soilstore_id, SoilStoreCap, state_id, & BldgSurf, WaterSurf, & SnowUse, SnowFrac, & a1, a2, a3)",
+          "doc": "",
+          "calls": [],
+          "called_by": [],
+          "kind": "subroutine"
+        },
+        {
+          "name": "OHM_dqndt_cal_X",
+          "line_start": 577,
+          "line_end": 599,
+          "signature": "SUBROUTINE OHM_dqndt_cal_X(dt, dt_since_start, qn1_av_prev, qn1, dqndt_prev, qn1_av_next, dqndt_next)",
+          "doc": "",
+          "calls": [],
+          "called_by": [],
+          "kind": "subroutine"
+        },
+        {
+          "name": "OHM_dqndt_cal",
+          "line_start": 614,
+          "line_end": 636,
+          "signature": "SUBROUTINE OHM_dqndt_cal(nsh, qn, qn_store_grid, qn_av_store_grid, dqndt)",
+          "doc": "",
+          "calls": [],
+          "called_by": [],
+          "kind": "subroutine"
+        },
+        {
+          "name": "OHM_QS_cal",
+          "line_start": 653,
+          "line_end": 660,
+          "signature": "SUBROUTINE OHM_QS_cal(qn1, dqndt, a1, a2, a3, qs)",
+          "doc": "",
+          "calls": [],
+          "called_by": [],
+          "kind": "subroutine"
+        },
+        {
+          "name": "OHM_yl_cal",
+          "line_start": 662,
+          "line_end": 710,
+          "signature": "SUBROUTINE OHM_yl_cal(dt_since_start, & ws, t_now, t_prev, qstar, & d, C, k, lambda_c, & a1, a2, a3 & )",
+          "doc": "Liu (2025) parameterisation of objective hysteresis model coefficients to improve building storage heat flux accuracy",
+          "calls": [],
+          "called_by": [],
+          "kind": "subroutine"
+        },
+        {
+          "name": "calculate_a1",
+          "line_start": 741,
+          "line_end": 769,
+          "signature": "SUBROUTINE calculate_a1(d, C, k, lambda_c, WS, QStar, a1)",
+          "doc": "",
+          "calls": [
+            "set_supy_error"
+          ],
+          "called_by": [],
+          "kind": "subroutine"
+        },
+        {
+          "name": "calculate_a2",
+          "line_start": 793,
+          "line_end": 826,
+          "signature": "SUBROUTINE calculate_a2(d, C, k, WS, QStar, lambda_c, a2)",
+          "doc": "",
+          "calls": [
+            "set_supy_error"
+          ],
+          "called_by": [],
+          "kind": "subroutine"
+        },
+        {
+          "name": "calculate_a3",
+          "line_start": 852,
+          "line_end": 872,
+          "signature": "SUBROUTINE calculate_a3(QStar, dTair, a1, lambda_c, a3)",
+          "doc": "",
+          "calls": [],
+          "called_by": [],
+          "kind": "subroutine"
+        }
+      ],
+      "uses": [
+        "module_ctrl_error_state",
+        "module_ctrl_error",
+        "module_ctrl_type",
+        "module_phys_ohm"
+      ]
+    },
+    "suews_phys_resist.f95": {
+      "category": "physics",
+      "lines": 758,
+      "modules": [
+        "module_phys_resist",
+        "resist_module"
+      ],
+      "description": "Main module following naming standard: matches filename",
+      "subroutines": [
+        {
+          "name": "AerodynamicResistance",
+          "line_start": 7,
+          "line_end": 92,
+          "signature": "SUBROUTINE AerodynamicResistance( & ZZD, & z0m, & AVU1, & L_mod, & UStar, & VegFraction, & AerodynamicResistanceMethod, & StabilityMethod, & RoughLenHeatMethod, & RA_h, z0V)",
+          "doc": "Returns Aerodynamic resistance (RA) to the main program SUEWS_Calculations All RA equations reported in Thom & Oliver (1977) Modified by TS 08 Aug 2017 - interface modified Modified by LJ -Removal of tabs and cleaning the code Modified by HCW 03 Dec 2015 - changed lower limit on RA from 2 s m-1 to 10 s m-1 (to avoid unrealistically high evaporation rates) Modified by LJ in 12 April to not to be used with global variables To Do: - Check whether the thresholds 2-200 s m-1 are suitable over a range of z0!! HCW 04 Mar 2015 OUTPUT: RA - Aerodynamic resistance [s m^-1] INPUT:  AerodynamicResistanceMethod = Method to calculate RA StabilityMethod = defines the method to calculate atmospheric stability RoughLenHeatMethod = Method to calculate heat roughness length *Measurement height minus* Displacement height (m) (was incorrectly labelled, corrected HCW 25 May 2016 z0m = Aerodynamic roughness length (m) k2 = Power of Van Karman's constant (= 0.16 = 0.4^2) AVU1 = Mean wind speed L_mod = Obukhov length (m) UStar = Friction velocity (m s-1) VegFraction = Fraction of vegetation (changed from veg_fr which also includes water surface by HCW 05 Nov 2015)",
+          "calls": [],
+          "called_by": [
+            "suews_ctrl_driver.f95:SUEWS_cal_Resistance"
+          ],
+          "kind": "subroutine"
+        },
+        {
+          "name": "SurfaceResistance",
+          "line_start": 112,
+          "line_end": 236,
+          "signature": "SUBROUTINE SurfaceResistance( & id, it, & SMDMethod, SnowFrac, sfr_surf, avkdn, Tair, dq, xsmd, vsmd, MaxConductance, & LAIMax, LAI_id, gsModel, Kmax, & G_max, G_k, g_q_base, g_q_shape, G_t, G_sm, TH, TL, S1, S2, & g_kdown, g_dq, g_ta, g_smd, g_lai, & gfunc, gsc, RS)",
+          "doc": "Calculates bulk surface resistance (ResistSurf [s m-1]) based on Jarvis 1976 approach Last modified ----------------------------------------------------- MH  01 Feb 2019: gsModel choices to model with air temperature or 2 meter temperature. Added gfunc for photosynthesis calculations HCW 21 Jul 2016: If no veg surfaces, vsmd = NaN so QE & QH = NaN; if water surfaces only, smd = NaN so QE & QH = NaN. Add checks here so that gs (soil part) = 0 in either of these situations. This shouldn't change results but handles NaN error. HCW 01 Mar 2016: SM dependence is now on modelled smd for vegetated surfaces only (vsmd) (Note: obs smd still not operational!) HCW 18 Jun 2015: Alternative gs parameterisation added using different functional forms and new coefficients HCW 31 Jul 2014: Modified condition on g6 part to select meas/mod smd LJ  24 Apr 2013: Added impact of snow fraction in LAI and in soil moisture deficit -------------------------------------------------------------------",
+          "calls": [],
+          "called_by": [
+            "suews_ctrl_driver.f95:SUEWS_cal_BiogenCO2"
+          ],
+          "kind": "subroutine"
+        },
+        {
+          "name": "BoundaryLayerResistance",
+          "line_start": 417,
+          "line_end": 443,
+          "signature": "SUBROUTINE BoundaryLayerResistance( & zzd, & z0m, & avU1, & UStar, & rb)",
+          "doc": "",
+          "calls": [],
+          "called_by": [],
+          "kind": "subroutine"
+        },
+        {
+          "name": "SUEWS_cal_RoughnessParameters",
+          "line_start": 445,
+          "line_end": 632,
+          "signature": "SUBROUTINE SUEWS_cal_RoughnessParameters( & timer, config, forcing, siteInfo, & modState)",
+          "doc": "phenState, & roughnessState) FAIBldg_use, FAIEveTree_use, FAIDecTree_use, & ! output: FAI, PAI, & ! output: Zh, z0m, zdm, ZZD) Get surface covers and frontal area fractions (LJ 11/2010) Last modified: TS  18 Sep 2017 - added explicit interface HCW 08 Feb 2017 - fixed bug in Zh between grids, added default z0m, zdm HCW 03 Mar 2015 sg feb 2012 - made separate subroutine --------------------------------------------------------------------------------",
+          "calls": [],
+          "called_by": [],
+          "kind": "subroutine"
+        },
+        {
+          "name": "cal_z0V",
+          "line_start": 704,
+          "line_end": 738,
+          "signature": "FUNCTION cal_z0V(RoughLenHeatMethod, z0m, VegFraction, UStar) RESULT(z0V)",
+          "doc": "TS 31 Jul 2018: make this a separate funciton for reuse Z0V roughness length for vapour",
+          "calls": [],
+          "called_by": [],
+          "kind": "function"
+        },
+        {
+          "name": "sigmoid",
+          "line_start": 743,
+          "line_end": 750,
+          "signature": "FUNCTION sigmoid(x) RESULT(res)",
+          "doc": "",
+          "calls": [],
+          "called_by": [],
+          "kind": "function"
+        }
+      ],
+      "uses": [
+        "module_ctrl_error",
+        "module_phys_resist"
+      ]
+    },
+    "suews_phys_rslprof.f95": {
+      "category": "physics",
+      "lines": 1328,
+      "modules": [
+        "module_phys_rslprof",
+        "rsl_module"
+      ],
+      "description": "Main module following naming standard: matches filename",
+      "subroutines": [
+        {
+          "name": "cal_profile_MOST",
+          "line_start": 17,
+          "line_end": 67,
+          "signature": "SUBROUTINE cal_profile_MOST( & StabilityMethod, nz, zMeas, zdm, z0m, z0v, L_MOD, & avU1, Temp_C, & TStar, qStar, qa_gkg, & zarray, dataoutLineURSL, dataoutLineTRSL, dataoutLineqRSL)",
+          "doc": "",
+          "calls": [
+            "setup_MOST_heights"
+          ],
+          "called_by": [],
+          "kind": "subroutine"
+        },
+        {
+          "name": "cal_profile_RSL",
+          "line_start": 71,
+          "line_end": 119,
+          "signature": "SUBROUTINE cal_profile_RSL( & StabilityMethod, nz, nz_can, zMeas, zH_RSL, & L_MOD_RSL, zd_RSL, z0_RSL, & beta, elm, Scc, fx, & Temp_C, & UStar_RSL, TStar_RSL, qStar_RSL, qa_gkg, & psihatm_z, psihath_z, & zarray, dataoutLineURSL, dataoutLineTRSL, dataoutLineqRSL)",
+          "doc": "",
+          "calls": [
+            "setup_RSL_heights"
+          ],
+          "called_by": [],
+          "kind": "subroutine"
+        },
+        {
+          "name": "setup_MOST_heights",
+          "line_start": 138,
+          "line_end": 160,
+          "signature": "SUBROUTINE setup_MOST_heights(nz, zdm, z0m, zMeas, zarray)",
+          "doc": "",
+          "calls": [],
+          "called_by": [
+            "suews_phys_rslprof.f95:cal_profile_MOST"
+          ],
+          "kind": "subroutine"
+        },
+        {
+          "name": "setup_RSL_heights",
+          "line_start": 198,
+          "line_end": 221,
+          "signature": "SUBROUTINE setup_RSL_heights(nz, nz_can, zH_RSL, zMeas, zarray)",
+          "doc": "",
+          "calls": [],
+          "called_by": [
+            "suews_phys_rslprof.f95:cal_profile_RSL"
+          ],
+          "kind": "subroutine"
+        },
+        {
+          "name": "RSLProfile",
+          "line_start": 242,
+          "line_end": 458,
+          "signature": "SUBROUTINE RSLProfile( & timer, config, forcing, siteInfo, & modState, & dataoutLineRSL)",
+          "doc": "----------------------------------------------------- calculates windprofiles using MOST with a RSL-correction based on Harman & Finnigan 2007 last modified by: NT 16 Mar 2019: initial version TS 16 Oct 2019: improved consistency in parameters/varaibles within SUEWS TODO how to improve the speed of this code -----------------------------------------------------",
+          "calls": [],
+          "called_by": [],
+          "kind": "subroutine"
+        },
+        {
+          "name": "interp_z",
+          "line_start": 620,
+          "line_end": 667,
+          "signature": "FUNCTION interp_z(z_x, z, v) RESULT(v_x)",
+          "doc": "",
+          "calls": [
+            "add_supy_warning",
+            "set_supy_error"
+          ],
+          "called_by": [],
+          "kind": "function"
+        },
+        {
+          "name": "cal_elm_RSL",
+          "line_start": 671,
+          "line_end": 681,
+          "signature": "FUNCTION cal_elm_RSL(beta, Lc) RESULT(elm)",
+          "doc": "",
+          "calls": [],
+          "called_by": [],
+          "kind": "function"
+        },
+        {
+          "name": "cal_psim_hat",
+          "line_start": 683,
+          "line_end": 733,
+          "signature": "RECURSIVE FUNCTION cal_psim_hat(StabilityMethod, & psihatm_top, psihatm_mid, & z_top, z_mid, z_btm, & cm, c2, & zh_RSL, zd_RSL, L_MOD, beta, elm, Lc) & RESULT(psihatm_btm)",
+          "doc": "TS, 23 Oct 2019: calculate psi_hat for momentum TS 30 Jun 2022: revised calculation logic for better calculation performance",
+          "calls": [],
+          "called_by": [],
+          "kind": "function"
+        },
+        {
+          "name": "cal_psih_hat",
+          "line_start": 758,
+          "line_end": 809,
+          "signature": "RECURSIVE FUNCTION cal_psih_hat(StabilityMethod, & psihath_top, psihath_mid, & z_top, z_mid, z_btm, & ch, c2h, & zh_RSL, zd_RSL, L_MOD, beta, elm, Lc) & RESULT(psihath_btm)",
+          "doc": "TS, 23 Oct 2019: calculate psi_hat for momentum TS 30 Jun 2022: revised calculation logic for better calculation performance",
+          "calls": [],
+          "called_by": [],
+          "kind": "function"
+        },
+        {
+          "name": "cal_phim_hat",
+          "line_start": 834,
+          "line_end": 857,
+          "signature": "FUNCTION cal_phim_hat(StabilityMethod, z, zh_RSL, L_MOD, beta, lc) RESULT(phim_hat)",
+          "doc": "",
+          "calls": [
+            "cal_cm"
+          ],
+          "called_by": [],
+          "kind": "function"
+        },
+        {
+          "name": "cal_cm",
+          "line_start": 859,
+          "line_end": 894,
+          "signature": "SUBROUTINE cal_cm(StabilityMethod, zh_RSL, zd_RSL, Lc, beta, L_MOD, c2, cm)",
+          "doc": "",
+          "calls": [],
+          "called_by": [
+            "suews_phys_rslprof.f95:cal_phim_hat"
+          ],
+          "kind": "subroutine"
+        },
+        {
+          "name": "cal_ch",
+          "line_start": 912,
+          "line_end": 946,
+          "signature": "SUBROUTINE cal_ch(StabilityMethod, zh_RSL, zd_RSL, Lc, beta, L_MOD, Scc, f, c2h, ch)",
+          "doc": "",
+          "calls": [],
+          "called_by": [],
+          "kind": "subroutine"
+        },
+        {
+          "name": "cal_zd_RSL",
+          "line_start": 965,
+          "line_end": 979,
+          "signature": "FUNCTION cal_zd_RSL(zh_RSL, beta, Lc) RESULT(zd_RSL)",
+          "doc": "",
+          "calls": [],
+          "called_by": [],
+          "kind": "function"
+        },
+        {
+          "name": "cal_z0_RSL",
+          "line_start": 981,
+          "line_end": 1019,
+          "signature": "FUNCTION cal_z0_RSL(StabilityMethod, zH_RSL, zd_RSL, beta, L_MOD_RSL, psihatm_Zh) RESULT(z0_RSL)",
+          "doc": "calculate z0 iteratively TS, 23 Oct 2019",
+          "calls": [],
+          "called_by": [],
+          "kind": "function"
+        },
+        {
+          "name": "RSL_cal_prms",
+          "line_start": 1026,
+          "line_end": 1135,
+          "signature": "SUBROUTINE RSL_cal_prms( & StabilityMethod, nz_above, z_array, zh, zStd, L_MOD, sfr_surf, FAI, PAI, SurfaceArea, nBuildings, & psihatm_array, psihath_array, zH_RSL, L_MOD_RSL, Lc, beta, zd_RSL, z0_RSL, elm, Scc, fx)",
+          "doc": "",
+          "calls": [],
+          "called_by": [],
+          "kind": "subroutine"
+        },
+        {
+          "name": "cal_beta_RSL",
+          "line_start": 1219,
+          "line_end": 1268,
+          "signature": "FUNCTION cal_beta_RSL(StabilityMethod, zH_RSL, zStd, FAI, PAI, sfr_tr, lc_over_L) RESULT(beta)",
+          "doc": "Step 2: Parameterise beta according to Harman 2012 with upper limit of 0.5",
+          "calls": [],
+          "called_by": [],
+          "kind": "function"
+        },
+        {
+          "name": "cal_beta_lc",
+          "line_start": 1287,
+          "line_end": 1317,
+          "signature": "FUNCTION cal_beta_lc(stabilityMethod, beta0, lc_over_l) RESULT(beta_x)",
+          "doc": "TS, 03 Aug 2020: iterative determination of beta depending on Lc/L ref: eqn 10 & 11 in Harman (2012, BLM)",
+          "calls": [],
+          "called_by": [],
+          "kind": "function"
+        }
+      ],
+      "uses": [
+        "module_phys_atmmoiststab",
+        "meteo",
+        "module_ctrl_const_allocate",
+        "module_ctrl_const_physconst",
+        "module_ctrl_error_state",
+        "module_ctrl_error",
+        "module_phys_rslprof"
+      ]
+    },
+    "suews_phys_snow.f95": {
+      "category": "physics",
+      "lines": 1564,
+      "modules": [
+        "module_phys_snow",
+        "Snow_module"
+      ],
+      "description": "Main module following naming standard: matches filename",
+      "subroutines": [
+        {
+          "name": "MeltHeat",
+          "line_start": 195,
+          "line_end": 337,
+          "signature": "SUBROUTINE MeltHeat( & lvS_J_kg, & lv_J_kg, & tstep_real, & RadMeltFact, & TempMeltFact, & SnowAlbMax, & SnowDensMin, & Temp_C, & Precip, & PrecipLimit, & PrecipLimitAlb, & nsh_real, & sfr_surf, & Tsurf_ind, & state_id, & qn1_ind_snow, & SnowWater, & deltaQi, & SnowPack, & SnowFrac, & SnowAlb, & SnowDens, & SnowfallCum, & mwh, & fwh, & Qm, & QmFreez, & QmRain, & snowCalcSwitch, & Qm_melt, & Qm_freezState, & Qm_rain, & FreezMelt, & FreezState, & FreezStateVol, & rainOnSnow, & SnowDepth, & mw_ind)",
+          "doc": "",
+          "calls": [],
+          "called_by": [
+            "suews_ctrl_driver.f95:SUEWS_cal_snow"
+          ],
+          "kind": "subroutine"
+        },
+        {
+          "name": "SnowCalc",
+          "line_start": 476,
+          "line_end": 688,
+          "signature": "SUBROUTINE SnowCalc( & tstep, imin, it, dectime, is, & snowCalcSwitch, & EvapMethod, CRWmin, CRWmax, nsh_real, lvS_J_kg, avdens, & avRh, Press_hPa, Temp_C, RAsnow, psyc_hPa, avcp, sIce_hPa, & PervFraction, vegfraction, addimpervious, & vpd_hPa, qn_e, s_hPa, ResistSurf, RA, rb, tlv, snowdensmin, SnowProf_24hr, precip, & PipeCapacity, RunoffToWater, & addVeg, SnowLimPaved, SnowLimBldg, FlowChange, drain, & WetThresh, stateOld, mw_ind, SoilStoreCap, rainonsnow, & freezmelt, freezstate, freezstatevol, & Qm_Melt, Qm_rain, Tsurf_ind, sfr_surf, dayofWeek_id, StoreDrainPrm, SnowPackLimit, & AddWater, addwaterrunoff, & soilstore_id, SnowPack, SurplusEvap, & SnowFrac, SnowWater, iceFrac, SnowDens, & runoffAGimpervious, runoffAGveg, surplusWaterBody, & ev_tot, qe_tot, runoff_tot, surf_chang_tot, chSnow_tot, & rss_surf, & runoff_snowfree, chang, changSnow, SnowToSurf, state_id, ev_snow, & SnowRemoval, swe, & runoffPipes, mwstore, runoffwaterbody)",
+          "doc": "Calculation of snow and water balance on 5 min timestep. Treats snowfree and snow covered areas separately. Weighting is taken into account in the overall values. Last modified: LJ in 6 May 2015 - Modified to run with timestep HCW 06 Mar 2015 - Unused variable 'i' removed. HCW 26 Jan 2015 - Added weekday/weekend option for snow clearing profiles LJ in 24 May 2013 ========================================================================",
+          "calls": [],
+          "called_by": [
+            "suews_ctrl_driver.f95:SUEWS_cal_snow"
+          ],
+          "kind": "subroutine"
+        },
+        {
+          "name": "Evap_SUEWS_Snow",
+          "line_start": 1220,
+          "line_end": 1271,
+          "signature": "SUBROUTINE Evap_SUEWS_Snow(Qm, QP, lvS_J_kg, avdens, avRh, Press_hPa, Temp_C, RAsnow, psyc_hPa, & tstep, avcp, sIce_hPa, dectime, ev_snow, tlv_sub)",
+          "doc": "",
+          "calls": [],
+          "called_by": [],
+          "kind": "subroutine"
+        },
+        {
+          "name": "snow_removal",
+          "line_start": 1276,
+          "line_end": 1295,
+          "signature": "SUBROUTINE snow_removal( & is, & SnowFrac, sfr_surf, & SnowPack, SnowRemoval, & SnowLimPaved, SnowLimBldg)",
+          "doc": "",
+          "calls": [],
+          "called_by": [],
+          "kind": "subroutine"
+        },
+        {
+          "name": "SnowDepletionCurve",
+          "line_start": 1310,
+          "line_end": 1333,
+          "signature": "FUNCTION SnowDepletionCurve(is, swe, sweD) RESULT(asc)",
+          "doc": "This function calculates surface coverage of snow according to the depletion curves in Valeo and Ho (2004). INPUT: is   Surface type number swe  Snow water content sweD Limit for",
+          "calls": [],
+          "called_by": [],
+          "kind": "function"
+        },
+        {
+          "name": "veg_fr_snow",
+          "line_start": 1366,
+          "line_end": 1379,
+          "signature": "SUBROUTINE veg_fr_snow( & sfr_surf, SnowFrac, & veg_fr)",
+          "doc": "",
+          "calls": [],
+          "called_by": [],
+          "kind": "subroutine"
+        },
+        {
+          "name": "SnowUpdate",
+          "line_start": 1391,
+          "line_end": 1476,
+          "signature": "SUBROUTINE SnowUpdate( & tstep, & Temp_C, & tau_a, & tau_f, & tau_r, & SnowDensMax, & SnowDensMin, & SnowAlbMax, & SnowAlbMin, & SnowPack_prev, SnowAlb_prev, SnowDens_prev, & SnowAlb_next, SnowDens_next & )",
+          "doc": "",
+          "calls": [],
+          "called_by": [],
+          "kind": "subroutine"
+        },
+        {
+          "name": "update_snow_albedo",
+          "line_start": 1478,
+          "line_end": 1510,
+          "signature": "FUNCTION update_snow_albedo( & tstep, SnowPack_prev, SnowAlb_prev, Temp_C, & tau_a, tau_f, SnowAlbMax, SnowAlbMin) & RESULT(SnowAlb_next)",
+          "doc": "",
+          "calls": [],
+          "called_by": [],
+          "kind": "function"
+        },
+        {
+          "name": "update_snow_dens",
+          "line_start": 1521,
+          "line_end": 1553,
+          "signature": "FUNCTION update_snow_dens( & tstep, SnowPack_prev, SnowDens_prev, & tau_r, SnowDensMax, SnowDensMin) & RESULT(SnowDens_next)",
+          "doc": "",
+          "calls": [],
+          "called_by": [],
+          "kind": "function"
+        }
+      ],
+      "uses": [
+        "module_phys_evap",
+        "module_ctrl_const_allocate",
+        "module_phys_snow"
+      ]
+    },
+    "suews_phys_solweig.f95": {
+      "category": "physics",
+      "lines": 1462,
+      "modules": [
+        "module_phys_solweig",
+        "solweig_module"
+      ],
+      "description": "Main module following naming standard: matches filename",
+      "subroutines": [
+        {
+          "name": "SOLWEIG_cal_main",
+          "line_start": 54,
+          "line_end": 176,
+          "signature": "SUBROUTINE SOLWEIG_cal_main( & id, & it, & dectime, & lamdaP, & lamdaF, & avkdn, & ldown, & Temp_C, & avrh, & Press_hPa, & Tg, & lat, & zenith_deg, & azimuth, & scale, & alb_ground, & alb_bldg, & emis_ground, & emis_wall, & heightgravity, & dataOutLineSOLWEIG)",
+          "doc": "USE matsize USE module_phys_solweig",
+          "calls": [],
+          "called_by": [],
+          "kind": "subroutine"
+        },
+        {
+          "name": "cal_ratio_height2width",
+          "line_start": 463,
+          "line_end": 479,
+          "signature": "FUNCTION cal_ratio_height2width(lamdaP, lamdaF) RESULT(HW)",
+          "doc": "",
+          "calls": [],
+          "called_by": [],
+          "kind": "function"
+        },
+        {
+          "name": "hwToSVF_ground",
+          "line_start": 481,
+          "line_end": 494,
+          "signature": "FUNCTION hwToSVF_ground(hw) RESULT(svfGround)",
+          "doc": "",
+          "calls": [],
+          "called_by": [],
+          "kind": "function"
+        },
+        {
+          "name": "hwToSVF_roof",
+          "line_start": 496,
+          "line_end": 508,
+          "signature": "FUNCTION hwToSVF_roof(hw) RESULT(svfRoof)",
+          "doc": "",
+          "calls": [],
+          "called_by": [],
+          "kind": "function"
+        },
+        {
+          "name": "clearnessindex_2013b",
+          "line_start": 511,
+          "line_end": 554,
+          "signature": "SUBROUTINE clearnessindex_2013b(zen, DOY, Ta, RH, radG, lat, P_kPa, I0, CI, Kt, I0et, CIuncorr)",
+          "doc": "Last modified: LJ 27 Jan 2016 - Removal of tabs",
+          "calls": [],
+          "called_by": [
+            "suews_phys_beers.f95:BEERS_cal_main",
+            "suews_phys_beers.f95:BEERS_cal_main_DTS",
+            "suews_phys_beers.f95:cal_CI_latenight"
+          ],
+          "kind": "subroutine"
+        },
+        {
+          "name": "sun_distance",
+          "line_start": 627,
+          "line_end": 639,
+          "signature": "SUBROUTINE sun_distance(jday, D)",
+          "doc": "Calculates solar irradiance variation based on mean earth sun distance with day of year as input. Partridge and Platt, 1975",
+          "calls": [],
+          "called_by": [],
+          "kind": "subroutine"
+        },
+        {
+          "name": "cylindric_wedge",
+          "line_start": 641,
+          "line_end": 684,
+          "signature": "SUBROUTINE cylindric_wedge(zen, svfalfa, F_sh)",
+          "doc": "Fraction of sunlit walls based on sun altitude and svf wieghted building angles",
+          "calls": [],
+          "called_by": [
+            "suews_phys_solweig.f95:Lside_veg_v2"
+          ],
+          "kind": "subroutine"
+        },
+        {
+          "name": "diffusefraction",
+          "line_start": 724,
+          "line_end": 746,
+          "signature": "SUBROUTINE diffusefraction(radG, altitude, Kt, Ta, RH, radI, radD)",
+          "doc": "",
+          "calls": [],
+          "called_by": [
+            "suews_phys_beers.f95:BEERS_cal_main",
+            "suews_phys_beers.f95:BEERS_cal_main_DTS"
+          ],
+          "kind": "subroutine"
+        },
+        {
+          "name": "Kside_veg_v24",
+          "line_start": 781,
+          "line_end": 833,
+          "signature": "SUBROUTINE Kside_veg_v24( & shadow, F_sh, & radI, radG, radD, azimuth, altitude, psi, t, albedo, & Keast, Knorth, Ksouth, Kwest)",
+          "doc": "",
+          "calls": [
+            "Kvikt_veg"
+          ],
+          "called_by": [],
+          "kind": "subroutine"
+        },
+        {
+          "name": "Kvikt_veg",
+          "line_start": 865,
+          "line_end": 887,
+          "signature": "SUBROUTINE Kvikt_veg(isvf, isvfveg, vikttot, & viktveg, viktwall)",
+          "doc": "",
+          "calls": [],
+          "called_by": [
+            "suews_phys_solweig.f95:Kside_veg_v24"
+          ],
+          "kind": "subroutine"
+        },
+        {
+          "name": "Lside_veg_v2",
+          "line_start": 889,
+          "line_end": 981,
+          "signature": "SUBROUTINE Lside_veg_v2( & Ldown2d, Lup2d, & altitude, Ta, Tw, SBC, emis_wall, emis_sky, t, CI, azimuth, zen, ldown, svfalfa, & Least, Lnorth, Lsouth, Lwest)",
+          "doc": "This m-file is the current one that estimates L from the four cardinal points 20100414",
+          "calls": [
+            "cylindric_wedge"
+          ],
+          "called_by": [],
+          "kind": "subroutine"
+        },
+        {
+          "name": "Lvikt_veg",
+          "line_start": 1107,
+          "line_end": 1157,
+          "signature": "SUBROUTINE Lvikt_veg(isvf, isvfveg, isvfaveg, vikttot, & viktveg, viktsky, viktrefl, viktwall)",
+          "doc": "",
+          "calls": [],
+          "called_by": [],
+          "kind": "subroutine"
+        },
+        {
+          "name": "issign",
+          "line_start": 1160,
+          "line_end": 1166,
+          "signature": "SUBROUTINE issign(IX, MAXPOS, ISIGNM)",
+          "doc": "",
+          "calls": [],
+          "called_by": [
+            "suews_phys_solweig.f95:shadowingfunction_urban"
+          ],
+          "kind": "subroutine"
+        },
+        {
+          "name": "shadowingfunction_urban",
+          "line_start": 1179,
+          "line_end": 1261,
+          "signature": "SUBROUTINE shadowingfunction_urban(azimuth, altitude, scale, shadow)",
+          "doc": "This m.file calculates shadows on a DSM Code originate from Carlo Rattis thesis This code is translated from Matlab by Fredrik Lindberg, Gothenburg University Last modified LJ 27 Jan 2016 - Removal of tabs and fixing real-int conversions",
+          "calls": [
+            "issign"
+          ],
+          "called_by": [],
+          "kind": "subroutine"
+        },
+        {
+          "name": "sunonsurface_veg",
+          "line_start": 1296,
+          "line_end": 1345,
+          "signature": "SUBROUTINE sunonsurface_veg(iazimuthA, scale, buildings, first, second, psi, sos)",
+          "doc": "This m-file creates a boolean image of sunlit walls. Shadows from both buildings and vegetation is accounted for moving building in the direction of the sun Last modified: LJ 27 Jan 2016 - Removal of tabs and fixing real-int conversions",
+          "calls": [],
+          "called_by": [],
+          "kind": "subroutine"
+        }
+      ],
+      "uses": [
+        "module_util_time",
+        "module_ctrl_const_allocate",
+        "module_ctrl_const_default",
+        "module_phys_solweig"
+      ]
+    },
+    "suews_phys_spartacus.f95": {
+      "category": "physics",
+      "lines": 838,
+      "modules": [
+        "module_phys_spartacus",
+        "SPARTACUS_MODULE"
+      ],
+      "description": "Main module following naming standard: matches filename",
+      "subroutines": [
+        {
+          "name": "SPARTACUS_Initialise",
+          "line_start": 47,
+          "line_end": 69,
+          "signature": "SUBROUTINE SPARTACUS_Initialise",
+          "doc": "",
+          "calls": [],
+          "called_by": [],
+          "kind": "subroutine"
+        },
+        {
+          "name": "SPARTACUS",
+          "line_start": 71,
+          "line_end": 299,
+          "signature": "SUBROUTINE SPARTACUS( & DiagQN, & sfr_surf, zenith_deg, nlayer, & tsfc_surf, tsfc_roof, tsfc_wall, & kdown, ldown, Tair_C, alb_surf, emis_surf, LAI_id, & n_vegetation_region_urban, & n_stream_sw_urban, n_stream_lw_urban, & sw_dn_direct_frac, air_ext_sw, air_ssa_sw, & veg_ssa_sw, air_ext_lw, air_ssa_lw, veg_ssa_lw, & veg_fsd_const, veg_contact_fraction_const, & ground_albedo_dir_mult_fact, use_sw_direct_albedo, & height, building_frac, veg_frac, sfr_roof, sfr_wall, & building_scale, veg_scale, & alb_roof, emis_roof, alb_wall, emis_wall, & roof_albedo_dir_mult_fact, wall_specular_frac, & qn, kup, lup, qn_roof, qn_wall, qn_surf, & roof_in_sw_spc, roof_in_lw_spc, & wall_in_sw_spc, wall_in_lw_spc, & dataOutLineSPARTACUS)",
+          "doc": "",
+          "calls": [],
+          "called_by": [],
+          "kind": "subroutine"
+        }
+      ],
+      "uses": [
+        "module_ctrl_const_allocate",
+        "module_ctrl_const_physconst",
+        "module_phys_spartacus"
+      ]
+    },
+    "suews_phys_stebbs.f95": {
+      "category": "physics",
+      "lines": 2669,
+      "modules": [
+        "module_phys_stebbs_precision",
+        "module_phys_stebbs_core",
+        "module_phys_stebbs_func",
+        "module_phys_stebbs_couple",
+        "module_phys_stebbs"
+      ],
+      "description": "Fortran source file",
+      "subroutines": [
+        {
+          "name": "waterUseEnergyLossToDrains",
+          "line_start": 40,
+          "line_end": 47,
+          "signature": "FUNCTION waterUseEnergyLossToDrains(rho, Cp, vFRo, Tout, timeResolution) RESULT(q_wt)",
+          "doc": "",
+          "calls": [],
+          "called_by": [],
+          "kind": "function"
+        },
+        {
+          "name": "indoorConvectionHeatTransfer",
+          "line_start": 59,
+          "line_end": 65,
+          "signature": "FUNCTION indoorConvectionHeatTransfer(h, A, Twi, Ti) RESULT(ind_cht)",
+          "doc": "",
+          "calls": [],
+          "called_by": [],
+          "kind": "function"
+        },
+        {
+          "name": "internalConvectionHeatTransfer",
+          "line_start": 77,
+          "line_end": 83,
+          "signature": "FUNCTION internalConvectionHeatTransfer(h, A, Tio, Ti) RESULT(int_cht)",
+          "doc": "",
+          "calls": [],
+          "called_by": [],
+          "kind": "function"
+        },
+        {
+          "name": "indoorRadiativeHeatTransfer",
+          "line_start": 91,
+          "line_end": 97,
+          "signature": "FUNCTION indoorRadiativeHeatTransfer() RESULT(q)",
+          "doc": "",
+          "calls": [],
+          "called_by": [],
+          "kind": "function"
+        },
+        {
+          "name": "outdoorConvectionHeatTransfer",
+          "line_start": 109,
+          "line_end": 116,
+          "signature": "FUNCTION outdoorConvectionHeatTransfer(h, A, Two, Ta) RESULT(out_cht)",
+          "doc": "",
+          "calls": [],
+          "called_by": [],
+          "kind": "function"
+        },
+        {
+          "name": "outdoorRadiativeHeatTransfer",
+          "line_start": 129,
+          "line_end": 137,
+          "signature": "FUNCTION outdoorRadiativeHeatTransfer(f, A, emis, Two, Ts) RESULT(q)",
+          "doc": "",
+          "calls": [],
+          "called_by": [],
+          "kind": "function"
+        },
+        {
+          "name": "lwoutdoorRadiativeHeatTransfer",
+          "line_start": 149,
+          "line_end": 157,
+          "signature": "FUNCTION lwoutdoorRadiativeHeatTransfer(A, emis, Two, lw) RESULT(q)",
+          "doc": "",
+          "calls": [],
+          "called_by": [],
+          "kind": "function"
+        },
+        {
+          "name": "lwoutgoingradiation",
+          "line_start": 159,
+          "line_end": 168,
+          "signature": "FUNCTION lwoutgoingradiation(A, emis, Two, lw) RESULT(q)",
+          "doc": "calculate only longwave outgoing radiation only",
+          "calls": [],
+          "called_by": [],
+          "kind": "function"
+        },
+        {
+          "name": "windowInsolation",
+          "line_start": 179,
+          "line_end": 186,
+          "signature": "FUNCTION windowInsolation(Irr, Tr, A) RESULT(wi_in)",
+          "doc": "",
+          "calls": [],
+          "called_by": [],
+          "kind": "function"
+        },
+        {
+          "name": "wallInsolation",
+          "line_start": 197,
+          "line_end": 204,
+          "signature": "FUNCTION wallInsolation(Irr, Ab, A) RESULT(wa_in)",
+          "doc": "",
+          "calls": [],
+          "called_by": [],
+          "kind": "function"
+        },
+        {
+          "name": "wallConduction",
+          "line_start": 217,
+          "line_end": 223,
+          "signature": "FUNCTION wallConduction(k_eff, A, Twi, Two, L) RESULT(wa_co)",
+          "doc": "",
+          "calls": [],
+          "called_by": [],
+          "kind": "function"
+        },
+        {
+          "name": "windowConduction",
+          "line_start": 236,
+          "line_end": 242,
+          "signature": "FUNCTION windowConduction(k_eff, A, Twi, Two, L) RESULT(wi_co)",
+          "doc": "",
+          "calls": [],
+          "called_by": [],
+          "kind": "function"
+        },
+        {
+          "name": "heating",
+          "line_start": 254,
+          "line_end": 262,
+          "signature": "FUNCTION heating(Ts, Ti, epsilon, P) RESULT(q_heating)",
+          "doc": "",
+          "calls": [],
+          "called_by": [],
+          "kind": "function"
+        },
+        {
+          "name": "ventilationHeatTransfer",
+          "line_start": 276,
+          "line_end": 282,
+          "signature": "FUNCTION ventilationHeatTransfer(rho, Cp, V, To, Ti) RESULT(q_in)",
+          "doc": "",
+          "calls": [],
+          "called_by": [],
+          "kind": "function"
+        },
+        {
+          "name": "additionalSystemHeatingEnergy",
+          "line_start": 292,
+          "line_end": 299,
+          "signature": "FUNCTION additionalSystemHeatingEnergy(q_heating, epsilon) RESULT(qH_additional)",
+          "doc": "",
+          "calls": [],
+          "called_by": [],
+          "kind": "function"
+        },
+        {
+          "name": "cooling",
+          "line_start": 311,
+          "line_end": 319,
+          "signature": "FUNCTION cooling(Ts, Ti, COP, P) RESULT(q_cooling)",
+          "doc": "",
+          "calls": [],
+          "called_by": [],
+          "kind": "function"
+        },
+        {
+          "name": "additionalSystemCoolingEnergy",
+          "line_start": 330,
+          "line_end": 336,
+          "signature": "FUNCTION additionalSystemCoolingEnergy(q_cooling, COP) RESULT(qC_additional)",
+          "doc": "",
+          "calls": [],
+          "called_by": [],
+          "kind": "function"
+        },
+        {
+          "name": "internalOccupancyGains",
+          "line_start": 347,
+          "line_end": 356,
+          "signature": "FUNCTION internalOccupancyGains(metRate, LSR) RESULT(qSL)",
+          "doc": "2026.02.05 The metabolism profile is used, which already accounts for number of occupants",
+          "calls": [],
+          "called_by": [],
+          "kind": "function"
+        },
+        {
+          "name": "ext_conv_coeff",
+          "line_start": 366,
+          "line_end": 378,
+          "signature": "FUNCTION ext_conv_coeff(wind_speed, dT) RESULT(hc)",
+          "doc": "",
+          "calls": [],
+          "called_by": [],
+          "kind": "function"
+        },
+        {
+          "name": "int_conv_coeff",
+          "line_start": 380,
+          "line_end": 397,
+          "signature": "FUNCTION int_conv_coeff(dT, surf_type) RESULT(h)",
+          "doc": "TARP Algorithm, derived from Walton (1983) surf-type == 1: vertical surface, wall or windows surf_type == 2: horizontal surface, roof, downward (internal side) surf_type == 3: horizontal surface, floor, upward dT = surface temperature  -  air temperature",
+          "calls": [],
+          "called_by": [],
+          "kind": "function"
+        },
+        {
+          "name": "calculate_x1",
+          "line_start": 400,
+          "line_end": 429,
+          "signature": "FUNCTION calculate_x1(d, cp, rho, d_ext, cp_ext, rho_ext, k_ext) RESULT(x1)",
+          "doc": "",
+          "calls": [
+            "set_supy_error"
+          ],
+          "called_by": [],
+          "kind": "function"
+        },
+        {
+          "name": "indoor_airdensity",
+          "line_start": 453,
+          "line_end": 470,
+          "signature": "FUNCTION indoor_airdensity(Ta_outdoor, Ta_indoor, P_hpa, RH_outdoor) RESULT(air_dens)",
+          "doc": "assume indoor and outdoor vapour pressure are identical",
+          "calls": [],
+          "called_by": [],
+          "kind": "function"
+        },
+        {
+          "name": "find_layer",
+          "line_start": 472,
+          "line_end": 491,
+          "signature": "Function find_layer(h, layer_h, nlayer) RESULT(i_layer)",
+          "doc": "",
+          "calls": [],
+          "called_by": [],
+          "kind": "function"
+        },
+        {
+          "name": "setdatetime",
+          "line_start": 537,
+          "line_end": 553,
+          "signature": "SUBROUTINE setdatetime(datetimeLine)",
+          "doc": "",
+          "calls": [],
+          "called_by": [],
+          "kind": "subroutine"
+        },
+        {
+          "name": "stebbsonlinecouple",
+          "line_start": 578,
+          "line_end": 764,
+          "signature": "SUBROUTINE stebbsonlinecouple( & timer, config, forcing, siteInfo, & modState, & datetimeLine, nlayer, & dataOutLineSTEBBS)",
+          "doc": "",
+          "calls": [],
+          "called_by": [],
+          "kind": "subroutine"
+        },
+        {
+          "name": "suewsstebbscouple",
+          "line_start": 921,
+          "line_end": 1065,
+          "signature": "SUBROUTINE suewsstebbscouple(self, datetimeLine, & Tair_ind, Tindoormass, Tintwall, Tintroof, Textwall, Textroof, & Tintwindow, Textwindow, Tintgroundfloor, Textgroundfloor, & Qsw_transmitted_window_tstepFA, Qsw_absorbed_window_tstepFA, Qsw_absorbed_wall_tstepFA, & Qsw_absorbed_roof_tstepFA, Qlw_net_wall_tstepFA, Qlw_net_roof_tstepFA, Qlw_net_window_tstepFA, & Qlw_net_exttankwall_to_indoormass_tstepFA, Qlw_net_extvesselwall_to_indoormass_tstepFA, & QHconv_extwall_to_outair_tstepFA, QHconv_extroof_to_outair_tstepFA, QHconv_extwindow_to_outair_tstepFA, & QHconv_indair_to_intwall_tstepFA, QHconv_indair_to_introof_tstepFA, QHconv_indair_to_intwindow_tstepFA, & QHconv_indair_to_intgroundfloor_tstepFA, QHconv_indair_to_indoormass_tstepFA, & QHconv_exttankwall_to_indair_tstepFA, QHconv_water_to_inttankwall_tstepFA, & QHconv_water_to_intvesselwall_tstepFA, QHconv_extvesselwall_to_indair_tstepFA, & QHcond_wall_tstepFA, QHcond_roof_tstepFA, QHcond_window_tstepFA, QHcond_groundfloor_tstepFA, & QHcond_ground_tstepFA, QHcond_tankwall_tstepFA, QHcond_vesselwall_tstepFA, & QH_appliance_tstepFA, QH_metabolism_tstepFA, QHwaste_heating_tstepFA, & QHwaste_dhw_tstepFA, QH_ventilation_tstepFA, QHload_heating_tstepFA, QHload_cooling_tstepFA, & QHload_dhw_tstepFA, QHwaste_cooling_tstepFA, Qloss_drain_tstepFA, QS_wall_tstepFA, QS_roof_tstepFA, & QS_groundfloor_tstepFA, QS_window_tstepFA, QS_indoormass_tstepFA, QS_air_tstepFA, & QN_bldg_tstepFA, QEC_bldg_tstepFA, QS_total_tstepFA, QH_bldg_tstepFA, QBAE_bldg_tstepFA, & QWaste_bldg_tstepFA, QS_bldg_tstepFA, QS_dhw_tstepFA, QS_ground_tstepFA, & QEC_heating_tstepFA, QEC_cooling_tstepFA, QEC_dhw_tstepFA, & TWater_tank, TWater_vessel, Vwater_vessel, Vwater_tank & )",
+          "doc": "",
+          "calls": [],
+          "called_by": [],
+          "kind": "subroutine"
+        },
+        {
+          "name": "timeStepCalculation",
+          "line_start": 1217,
+          "line_end": 1351,
+          "signature": "SUBROUTINE timeStepCalculation(self, Tair_out, Tair_out_bh, Tair_out_hbh, Tground_deep, Tsurf, & density_air_out, cp_air_out, & Qsw_dn_extroof, Qsw_dn_extwall, & Qlw_dn_extwall, Qlw_dn_extroof, & timestep, resolution, datetimeLine &",
+          "doc": "",
+          "calls": [
+            "tstep"
+          ],
+          "called_by": [],
+          "kind": "subroutine"
+        },
+        {
+          "name": "tstep",
+          "line_start": 1353,
+          "line_end": 1798,
+          "signature": "SUBROUTINE tstep( &",
+          "doc": "",
+          "calls": [],
+          "called_by": [
+            "suews_phys_stebbs.f95:timeStepCalculation"
+          ],
+          "kind": "subroutine"
+        },
+        {
+          "name": "reinitialiseTemperatures",
+          "line_start": 2265,
+          "line_end": 2266,
+          "signature": "SUBROUTINE reinitialiseTemperatures",
+          "doc": "",
+          "calls": [],
+          "called_by": [],
+          "kind": "subroutine"
+        },
+        {
+          "name": "gen_building",
+          "line_start": 2268,
+          "line_end": 2482,
+          "signature": "SUBROUTINE gen_building(stebbsState, stebbsPrm, building_archtype, config, self, num_layer)",
+          "doc": "",
+          "calls": [
+            "self",
+            "add_supy_warning"
+          ],
+          "called_by": [],
+          "kind": "subroutine"
+        },
+        {
+          "name": "create_building",
+          "line_start": 2489,
+          "line_end": 2669,
+          "signature": "SUBROUTINE create_building(CASE, self, icase)",
+          "doc": "",
+          "calls": [],
+          "called_by": [],
+          "kind": "subroutine"
+        }
+      ],
+      "uses": [
+        "ISO_FORTRAN_ENV",
+        "module_phys_stebbs_precision",
+        "module_ctrl_error_state"
+      ]
+    },
+    "suews_phys_waterdist.f95": {
+      "category": "physics",
+      "lines": 1607,
+      "modules": [
+        "module_phys_waterdist",
+        "WaterDist_module"
+      ],
+      "description": "Main module following naming standard: matches filename",
+      "subroutines": [
+        {
+          "name": "drainage",
+          "line_start": 14,
+          "line_end": 58,
+          "signature": "SUBROUTINE drainage( & is, & state_is, & StorCap, & DrainEq, & DrainCoef1, & DrainCoef2, & nsh_real, & drain_is, & modState)",
+          "doc": "Calculation of drainage for each land surface. INPUT: Storage capacity, type of drainage equation used, drainage coefficients used in the equation Modified by HCW 16 Feb 2015 Removed option of Eq 4 (calculation needs to be checked before re-implementing). Code writes an error if calculated drainage exceeds surface state_id (but code continues). This may indicate inappropriate drainage equation, storage capacities or model tstep. Modified by LJ in Aug 2011. Drainage cannot exceed the surface storage. Modified LJ in 10/2010 ------------------------------------------------------------------------------",
+          "calls": [],
+          "called_by": [
+            "suews_ctrl_driver.f95:SUEWS_cal_Water"
+          ],
+          "kind": "subroutine"
+        },
+        {
+          "name": "cal_water_storage",
+          "line_start": 88,
+          "line_end": 217,
+          "signature": "SUBROUTINE cal_water_storage( & is, sfr_surf, PipeCapacity, RunoffToWater, pin, & WU_surf, & drain_surf, AddWater, addImpervious, nsh_real, state_in, frac_water2runoff, & PervFraction, addVeg, SoilStoreCap, addWaterBody, FlowChange, StateLimit, & runoffAGimpervious, runoffAGveg, runoffPipes, ev, soilstore, & surplusWaterBody, SurplusEvap, runoffWaterBody, & runoff, state_out, & modState)",
+          "doc": "------------------------------------------------------------------------------ Calculation of storage change TS 30 Nov 2019 - Allow irrigation on all surfaces (previously only on vegetated surfaces) LJ 27 Jan 2016 - Removed tabs and cleaned the code HCW 08 Dec 2015 -Added if-loop check for no Paved surfaces LJ 6 May 2015 - Calculations of the piperunoff exceedings moved to separate subroutine updateFlood. - Now also called from snow subroutine - Evaporation is modified using EvapPart - when no water on impervious surfaces, evap occurs above pervious surfaces instead Rewritten by HCW 12 Feb 2015 - Old variable 'p' for water input to the surface renamed to 'p_mm' - All water now added to p_mm first, before threshold checks or other calculations - Water from other grids now added to p_mm (instead of state_id for impervious surfaces) - Removed division of runoff by nsh, as whole model now runs at the same timestep - Adjusted transfer of ev between surfaces to conserve mass (not depth) - Volumes used for water transport between grids to account for SurfaceArea changing between grids - Added threshold check for state_id(WaterSurf) - was going negative Last modified HCW 09 Feb 2015 - Removed StorCap input because it is provided by module allocateArray - Tidied and commented code Modified by LJ in November 2012: - P>10 was not taken into account for impervious surfaces - Was fixed. - Above impervious surfaces possibility of the state_id to exceed max capacity was limited although this should be possible - was fixed Modified by LJ 10/2010 Rewritten mostly by LJ in 2010 To do: - Finish area normalisation for RG2G & finish coding GridConnections - What is the 10 mm hr-1 threshold for? - Decide upon and correct storage capacities here & in evap subroutine - FlowChange units should be mm hr-1 - need to update everywhere - Add SurfaceFlood(is)? - What happens if sfr_surf(is) = 0 or 1? - Consider how irrigated trees actually works... ------------------------------------------------------------------------------",
+          "calls": [],
+          "called_by": [
+            "suews_phys_waterdist.f95:cal_water_storage_surf"
+          ],
+          "kind": "subroutine"
+        },
+        {
+          "name": "cal_water_storage_surf",
+          "line_start": 398,
+          "line_end": 490,
+          "signature": "SUBROUTINE cal_water_storage_surf( & pin, nsh_real, SnowFrac_in, & PipeCapacity, RunoffToWater, & addImpervious, addVeg, addWaterBody, FlowChange, & SoilStoreCap_surf, StateLimit_surf, & PervFraction, & sfr_surf, drain_surf, AddWater_surf, frac_water2runoff_surf, WU_surf, & ev_surf_in, state_surf_in, soilstore_surf_in, & runoffAGimpervious_grid, runoffAGveg_grid, runoffPipes_grid, runoffWaterBody_grid, & ev_surf_out, state_surf_out, soilstore_surf_out, & runoff_surf & )",
+          "doc": "",
+          "calls": [
+            "cal_water_storage"
+          ],
+          "called_by": [],
+          "kind": "subroutine"
+        },
+        {
+          "name": "cal_water_storage_building",
+          "line_start": 503,
+          "line_end": 601,
+          "signature": "SUBROUTINE cal_water_storage_building( & pin, nsh_real, nlayer, & sfr_roof, StateLimit_roof, SoilStoreCap_roof, WetThresh_roof, & ev_roof, state_roof_in, soilstore_roof_in, & sfr_wall, StateLimit_wall, SoilStoreCap_wall, WetThresh_wall, & ev_wall, state_wall_in, soilstore_wall_in, &",
+          "doc": "",
+          "calls": [],
+          "called_by": [
+            "suews_ctrl_driver.f95:SUEWS_cal_QE"
+          ],
+          "kind": "subroutine"
+        },
+        {
+          "name": "updateFlood",
+          "line_start": 703,
+          "line_end": 731,
+          "signature": "SUBROUTINE updateFlood( & is, runoff, & sfr_surf, PipeCapacity, RunoffToWater, & runoffAGimpervious, surplusWaterBody, runoffAGveg, runoffPipes)",
+          "doc": "",
+          "calls": [],
+          "called_by": [],
+          "kind": "subroutine"
+        },
+        {
+          "name": "ReDistributeWater",
+          "line_start": 752,
+          "line_end": 776,
+          "signature": "SUBROUTINE ReDistributeWater( & SnowUse, WaterDist, sfr_surf, Drain, & AddWaterRunoff, AddWater)",
+          "doc": "Drainage moves into different parts defined by WaterDistSS_YYYY.txt. LJ 2010 AddWater(is) is that amount of water that is gained for each surface Latest update takes snow into account. 22/03/2013 LJ -------------------------------------------------------------------",
+          "calls": [],
+          "called_by": [],
+          "kind": "subroutine"
+        },
+        {
+          "name": "SUEWS_update_SoilMoist",
+          "line_start": 809,
+          "line_end": 867,
+          "signature": "SUBROUTINE SUEWS_update_SoilMoist( & timer, config, forcing, siteInfo, & modState)",
+          "doc": "",
+          "calls": [],
+          "called_by": [],
+          "kind": "subroutine"
+        },
+        {
+          "name": "cal_smd_veg",
+          "line_start": 880,
+          "line_end": 903,
+          "signature": "FUNCTION cal_smd_veg(SoilStoreCap, soilstore_id, sfr_surf) RESULT(vsmd)",
+          "doc": "",
+          "calls": [],
+          "called_by": [],
+          "kind": "function"
+        },
+        {
+          "name": "SUEWS_cal_SoilState",
+          "line_start": 906,
+          "line_end": 948,
+          "signature": "SUBROUTINE SUEWS_cal_SoilState( & SMDMethod, xsmd, NonWaterFraction, SoilMoistCap, & SoilStoreCap_surf, surf_chang_per_tstep, & soilstore_surf, soilstore_surf_in, sfr_surf, & smd, smd_surf, tot_chang_per_tstep, SoilState, & modState)",
+          "doc": "",
+          "calls": [
+            "ErrorHint"
+          ],
+          "called_by": [],
+          "kind": "subroutine"
+        },
+        {
+          "name": "SUEWS_cal_HorizontalSoilWater",
+          "line_start": 979,
+          "line_end": 1082,
+          "signature": "SUBROUTINE SUEWS_cal_HorizontalSoilWater( & sfr_surf, & SoilStoreCap_surf, & SoilDepth_surf, & SatHydraulicConduct_surf, & SurfaceArea, & NonWaterFraction, & tstep_real, & soilstore_surf, & runoffSoil_surf, & runoffSoil_per_tstep & )",
+          "doc": "Transfers water in soil stores of land surfaces LJ (2010) Change the model to use varying hydraulic conductivity instead of constant value LJ (7/2011) If one of the surface's soildepth is zero, no water movement is considered LJ  15/06/2017 Modification:   - Moved location of runoffSoil_per_tstep within previous if-loop to avoid dividing with zero with 100% water surface HCW 22/02/2017 Modifications:  - Minor bug fixed in VWC1/B_r1 comparison - if statements reversed HCW 13/08/2014 Modifications:  - Order of surfaces reversed (for both is and jj loops) - Number of units (e.g. properties) added to distance calculation HCW 12/08/2014 Modifications:  - Distance changed from m to mm in dI_dt calculation - dI_dt [mm s-1] multiplied by no. seconds in timestep -> dI [mm] - if MatPot is set to max. value (100000 mm), Km set to 0 mm s-1 - Provide parameters for residual volumetric soil moisture [m3 m-3] (currently hard coded as 0.1 m3 m-3 for testing) ------------------------------------------------------",
+          "calls": [],
+          "called_by": [
+            "suews_phys_waterdist.f95:SUEWS_cal_HorizontalSoilWater_DTS"
+          ],
+          "kind": "subroutine"
+        },
+        {
+          "name": "SUEWS_cal_HorizontalSoilWater_DTS",
+          "line_start": 1207,
+          "line_end": 1338,
+          "signature": "SUBROUTINE SUEWS_cal_HorizontalSoilWater_DTS( & timer, config, forcing, siteInfo, & hydroState)",
+          "doc": "Transfers water in soil stores of land surfaces LJ (2010) Change the model to use varying hydraulic conductivity instead of constant value LJ (7/2011) If one of the surface's soildepth is zero, no water movement is considered LJ  15/06/2017 Modification:   - Moved location of runoffSoil_per_tstep within previous if-loop to avoid dividing with zero with 100% water surface HCW 22/02/2017 Modifications:  - Minor bug fixed in VWC1/B_r1 comparison - if statements reversed HCW 13/08/2014 Modifications:  - Order of surfaces reversed (for both is and jj loops) - Number of units (e.g. properties) added to distance calculation HCW 12/08/2014 Modifications:  - Distance changed from m to mm in dI_dt calculation - dI_dt [mm s-1] multiplied by no. seconds in timestep -> dI [mm] - if MatPot is set to max. value (100000 mm), Km set to 0 mm s-1 - Provide parameters for residual volumetric soil moisture [m3 m-3] (currently hard coded as 0.1 m3 m-3 for testing) ------------------------------------------------------",
+          "calls": [
+            "SUEWS_cal_HorizontalSoilWater"
+          ],
+          "called_by": [],
+          "kind": "subroutine"
+        },
+        {
+          "name": "SUEWS_cal_WaterUse",
+          "line_start": 1342,
+          "line_end": 1494,
+          "signature": "SUBROUTINE SUEWS_cal_WaterUse( & timer, config, forcing, siteInfo, & modState)",
+          "doc": "anthroEmisState, hydroState) ! INout: Conversion of water use (irrigation) Last modified: TS 30 Nov 2019  - allow external water use for all surfaces (previously only on vegetated surfaces) TS 30 Oct 2018  - fixed a bug in external water use TS 08 Aug 2017  - addded explicit interface LJ  6 Apr 2017  - WUchoice changed to WaterUseMethod TK 14 Mar 2017  - Corrected the variable name WUAreaEveTr_m2 -> WUAreaGrass_m2 (row 35) Corrected conversion from m to mm /1000 -> *1000 (row 47 and 60) LJ 27 Jan 2016  - Removing Tab:s and cleaning the code HCW 12 Feb 2015 - Water use [mm] now inidcates the amount of water supplied for each surface HCW 26 Jan 2015 - Water use [mm] is the same for each surface at the moment and indicates the amount of water supplied for each irrigated area To Do: - Add functionality for water on paved surfaces (street cleaning, fountains) ------------------------------------------------------------------------------",
+          "calls": [],
+          "called_by": [],
+          "kind": "subroutine"
+        },
+        {
+          "name": "get_Prof_SpecTime_sum",
+          "line_start": 1574,
+          "line_end": 1599,
+          "signature": "FUNCTION get_Prof_SpecTime_sum(Hour, Min, Sec, Prof_24h, dt) RESULT(Prof_CurrTime)",
+          "doc": "",
+          "calls": [],
+          "called_by": [],
+          "kind": "function"
+        }
+      ],
+      "uses": [
+        "module_ctrl_const_allocate",
+        "module_ctrl_error_state",
+        "module_ctrl_error",
+        "module_ctrl_type",
+        "module_phys_waterdist"
+      ]
+    },
+    "suews_type_anthro.f95": {
+      "category": "types",
+      "lines": 92,
+      "modules": [
+        "module_type_anthro"
+      ],
+      "description": "Fortran source file",
+      "subroutines": [],
+      "uses": []
+    },
+    "suews_type_atmosphere.f95": {
+      "category": "types",
+      "lines": 56,
+      "modules": [
+        "module_type_atmosphere"
+      ],
+      "description": "Fortran source file",
+      "subroutines": [],
+      "uses": [
+        "module_ctrl_const_allocate"
+      ]
+    },
+    "suews_type_ehc.f95": {
+      "category": "types",
+      "lines": 83,
+      "modules": [
+        "module_type_ehc"
+      ],
+      "description": "Fortran source file",
+      "subroutines": [
+        {
+          "name": "allocate_ehc_prm_c",
+          "line_start": 31,
+          "line_end": 56,
+          "signature": "SUBROUTINE allocate_ehc_prm_c(self, nlayer, ndepth)",
+          "doc": "",
+          "calls": [
+            "self"
+          ],
+          "called_by": [],
+          "kind": "subroutine"
+        },
+        {
+          "name": "deallocate_ehc_prm_c",
+          "line_start": 58,
+          "line_end": 81,
+          "signature": "SUBROUTINE deallocate_ehc_prm_c(self)",
+          "doc": "",
+          "calls": [],
+          "called_by": [],
+          "kind": "subroutine"
+        }
+      ],
+      "uses": []
+    },
+    "suews_type_heat.f95": {
+      "category": "types",
+      "lines": 145,
+      "modules": [
+        "module_type_heat"
+      ],
+      "description": "Fortran source file",
+      "subroutines": [
+        {
+          "name": "allocHeatState_c",
+          "line_start": 80,
+          "line_end": 114,
+          "signature": "SUBROUTINE allocHeatState_c(self, num_surf, num_layer, num_depth)",
+          "doc": "",
+          "calls": [
+            "self"
+          ],
+          "called_by": [],
+          "kind": "subroutine"
+        },
+        {
+          "name": "deallocHeatState_c",
+          "line_start": 116,
+          "line_end": 143,
+          "signature": "SUBROUTINE deallocHeatState_c(self)",
+          "doc": "",
+          "calls": [],
+          "called_by": [],
+          "kind": "subroutine"
+        }
+      ],
+      "uses": [
+        "module_ctrl_const_allocate"
+      ]
+    },
+    "suews_type_hydro.f95": {
+      "category": "types",
+      "lines": 115,
+      "modules": [
+        "module_type_hydro"
+      ],
+      "description": "Fortran source file",
+      "subroutines": [
+        {
+          "name": "allocHydroState_c",
+          "line_start": 85,
+          "line_end": 99,
+          "signature": "SUBROUTINE allocHydroState_c(self, nlayer)",
+          "doc": "",
+          "calls": [
+            "self"
+          ],
+          "called_by": [],
+          "kind": "subroutine"
+        },
+        {
+          "name": "deallocHydroState_c",
+          "line_start": 101,
+          "line_end": 113,
+          "signature": "SUBROUTINE deallocHydroState_c(self)",
+          "doc": "",
+          "calls": [],
+          "called_by": [],
+          "kind": "subroutine"
+        }
+      ],
+      "uses": [
+        "module_ctrl_const_allocate"
+      ]
+    },
+    "suews_type_landcover.f95": {
+      "category": "types",
+      "lines": 124,
+      "modules": [
+        "module_type_landcover"
+      ],
+      "description": "Fortran source file",
+      "subroutines": [],
+      "uses": [
+        "module_type_surface",
+        "module_type_soil",
+        "module_type_waterdist",
+        "module_type_vegetation"
+      ]
+    },
+    "suews_type_snow.f95": {
+      "category": "types",
+      "lines": 61,
+      "modules": [
+        "module_type_snow"
+      ],
+      "description": "Fortran source file",
+      "subroutines": [],
+      "uses": [
+        "module_ctrl_const_allocate"
+      ]
+    },
+    "suews_type_soil.f95": {
+      "category": "types",
+      "lines": 11,
+      "modules": [
+        "module_type_soil"
+      ],
+      "description": "Fortran source file",
+      "subroutines": [],
+      "uses": []
+    },
+    "suews_type_spartacus.f95": {
+      "category": "types",
+      "lines": 105,
+      "modules": [
+        "module_type_spartacus"
+      ],
+      "description": "Fortran source file",
+      "subroutines": [
+        {
+          "name": "allocate_spartacus_layer_prm_c",
+          "line_start": 49,
+          "line_end": 66,
+          "signature": "SUBROUTINE allocate_spartacus_layer_prm_c(self, nlayer)",
+          "doc": "",
+          "calls": [
+            "self"
+          ],
+          "called_by": [],
+          "kind": "subroutine"
+        },
+        {
+          "name": "deallocate_spartacus_layer_prm_c",
+          "line_start": 68,
+          "line_end": 83,
+          "signature": "SUBROUTINE deallocate_spartacus_layer_prm_c(self)",
+          "doc": "",
+          "calls": [],
+          "called_by": [],
+          "kind": "subroutine"
+        },
+        {
+          "name": "allocate_spartacus_prm",
+          "line_start": 85,
+          "line_end": 95,
+          "signature": "SUBROUTINE allocate_spartacus_prm(self, nlayer)",
+          "doc": "",
+          "calls": [
+            "self"
+          ],
+          "called_by": [],
+          "kind": "subroutine"
+        },
+        {
+          "name": "deallocate_spartacus_prm",
+          "line_start": 97,
+          "line_end": 103,
+          "signature": "SUBROUTINE deallocate_spartacus_prm(self)",
+          "doc": "",
+          "calls": [],
+          "called_by": [],
+          "kind": "subroutine"
+        }
+      ],
+      "uses": [
+        "module_ctrl_const_allocate"
+      ]
+    },
+    "suews_type_stebbs.f95": {
+      "category": "types",
+      "lines": 447,
+      "modules": [
+        "module_type_stebbs"
+      ],
+      "description": "Fortran source file",
+      "subroutines": [
+        {
+          "name": "allocSTEBBS_bldgState",
+          "line_start": 396,
+          "line_end": 407,
+          "signature": "SUBROUTINE allocSTEBBS_bldgState(self, num_layer)",
+          "doc": "",
+          "calls": [
+            "self"
+          ],
+          "called_by": [],
+          "kind": "subroutine"
+        },
+        {
+          "name": "deallocSTEBBS_bldgState",
+          "line_start": 409,
+          "line_end": 417,
+          "signature": "SUBROUTINE deallocSTEBBS_bldgState(self)",
+          "doc": "",
+          "calls": [],
+          "called_by": [],
+          "kind": "subroutine"
+        },
+        {
+          "name": "allocSTEBBS_bldg",
+          "line_start": 421,
+          "line_end": 435,
+          "signature": "SUBROUTINE allocSTEBBS_bldg(self, ntypes, num_layer)",
+          "doc": "",
+          "calls": [
+            "self"
+          ],
+          "called_by": [],
+          "kind": "subroutine"
+        },
+        {
+          "name": "deallocSTEBBS_bldg",
+          "line_start": 439,
+          "line_end": 445,
+          "signature": "SUBROUTINE deallocSTEBBS_bldg(self)",
+          "doc": "",
+          "calls": [],
+          "called_by": [],
+          "kind": "subroutine"
+        }
+      ],
+      "uses": []
+    },
+    "suews_type_surface.f95": {
+      "category": "types",
+      "lines": 107,
+      "modules": [
+        "module_type_surface"
+      ],
+      "description": "Fortran source file",
+      "subroutines": [],
+      "uses": [
+        "module_ctrl_const_allocate"
+      ]
+    },
+    "suews_type_vegetation.f95": {
+      "category": "types",
+      "lines": 58,
+      "modules": [
+        "module_type_vegetation"
+      ],
+      "description": "Fortran source file",
+      "subroutines": [],
+      "uses": [
+        "module_ctrl_const_allocate"
+      ]
+    },
+    "suews_type_waterdist.f95": {
+      "category": "types",
+      "lines": 60,
+      "modules": [
+        "module_type_waterdist"
+      ],
+      "description": "Fortran source file",
+      "subroutines": [],
+      "uses": []
+    },
+    "suews_util_datetime.f95": {
+      "category": "utilities",
+      "lines": 1788,
+      "modules": [
+        "module_util_datetime_strftime",
+        "mod_strftime",
+        "module_util_datetime_const",
+        "mod_constants",
+        "module_util_datetime_timedelta",
+        "mod_timedelta",
+        "module_util_datetime_core",
+        "mod_datetime",
+        "module_util_datetime_clock",
+        "mod_clock",
+        "module_util_datetime",
+        "datetime_module"
+      ],
+      "description": "Licensed under the BSD 3-clause license. See LICENSE for details.",
+      "subroutines": [
+        {
+          "name": "c_strftime",
+          "line_start": 52,
+          "line_end": 71,
+          "signature": "FUNCTION c_strftime(str, slen, FORMAT, tm) & BIND(c, name='strftime') RESULT(rc)",
+          "doc": "! Returns a formatted time string, given input time struct and ! format. Refer to C standard library documentation for more ! information.",
+          "calls": [],
+          "called_by": [],
+          "kind": "function"
+        },
+        {
+          "name": "c_strptime",
+          "line_start": 73,
+          "line_end": 90,
+          "signature": "FUNCTION c_strptime(str, FORMAT, tm) BIND(c, name='strptime') RESULT(rc)",
+          "doc": "! Returns a time struct object based on the input time string str, ! formatted using format. Refer to C standard library documentation ! for more information.",
+          "calls": [],
+          "called_by": [],
+          "kind": "function"
+        },
+        {
+          "name": "timedelta_plus_timedelta",
+          "line_start": 319,
+          "line_end": 334,
+          "signature": "PURE ELEMENTAL FUNCTION timedelta_plus_timedelta(t0, t1) RESULT(t)",
+          "doc": "! Adds two `timedelta` instances together and returns a `timedelta` ! instance. Overloads the operator `+`.",
+          "calls": [],
+          "called_by": [],
+          "kind": "function"
+        },
+        {
+          "name": "timedelta_minus_timedelta",
+          "line_start": 336,
+          "line_end": 347,
+          "signature": "PURE ELEMENTAL FUNCTION timedelta_minus_timedelta(t0, t1) RESULT(t)",
+          "doc": "! Subtracts a `timedelta` instance from another. Returns a ! `timedelta` instance. Overloads the operator `-`.",
+          "calls": [],
+          "called_by": [],
+          "kind": "function"
+        },
+        {
+          "name": "unary_minus_timedelta",
+          "line_start": 349,
+          "line_end": 363,
+          "signature": "PURE ELEMENTAL FUNCTION unary_minus_timedelta(t0) RESULT(t)",
+          "doc": "! Takes a negative of a `timedelta` instance. Overloads the operator ! `-`.",
+          "calls": [],
+          "called_by": [],
+          "kind": "function"
+        },
+        {
+          "name": "addMilliseconds",
+          "line_start": 686,
+          "line_end": 705,
+          "signature": "PURE ELEMENTAL SUBROUTINE addMilliseconds(self, ms)",
+          "doc": "! Adds an integer number of milliseconds to self. Called by `datetime` ! addition (`+`) and subtraction (`-`) operators.",
+          "calls": [
+            "self"
+          ],
+          "called_by": [],
+          "kind": "subroutine"
+        },
+        {
+          "name": "addSeconds",
+          "line_start": 713,
+          "line_end": 732,
+          "signature": "PURE ELEMENTAL SUBROUTINE addSeconds(self, s)",
+          "doc": "! Adds an integer number of seconds to self. Called by `datetime` ! addition (`+`) and subtraction (`-`) operators.",
+          "calls": [
+            "self"
+          ],
+          "called_by": [],
+          "kind": "subroutine"
+        },
+        {
+          "name": "addMinutes",
+          "line_start": 737,
+          "line_end": 756,
+          "signature": "PURE ELEMENTAL SUBROUTINE addMinutes(self, m)",
+          "doc": "! Adds an integer number of minutes to self. Called by `datetime` ! addition (`+`) and subtraction (`-`) operators.",
+          "calls": [
+            "self"
+          ],
+          "called_by": [],
+          "kind": "subroutine"
+        },
+        {
+          "name": "addHours",
+          "line_start": 761,
+          "line_end": 780,
+          "signature": "PURE ELEMENTAL SUBROUTINE addHours(self, h)",
+          "doc": "! Adds an integer number of hours to self. Called by `datetime` ! addition (`+`) and subtraction (`-`) operators.",
+          "calls": [
+            "self"
+          ],
+          "called_by": [],
+          "kind": "subroutine"
+        },
+        {
+          "name": "addDays",
+          "line_start": 785,
+          "line_end": 804,
+          "signature": "PURE ELEMENTAL SUBROUTINE addDays(self, d)",
+          "doc": "! Adds an integer number of dayss to self. Called by `datetime` ! addition (`+`) and subtraction (`-`) operators.",
+          "calls": [],
+          "called_by": [],
+          "kind": "subroutine"
+        },
+        {
+          "name": "isocalendar",
+          "line_start": 1042,
+          "line_end": 1064,
+          "signature": "FUNCTION isocalendar(self)",
+          "doc": "! Returns an array of 3 integers, year, week number, and week day, ! as defined by ISO 8601 week date. Essentially a wrapper around C ! `strftime` function.",
+          "calls": [],
+          "called_by": [],
+          "kind": "function"
+        },
+        {
+          "name": "strftime",
+          "line_start": 1082,
+          "line_end": 1101,
+          "signature": "FUNCTION strftime(self, FORMAT)",
+          "doc": "! Wrapper around C/C++ `strftime` function.",
+          "calls": [],
+          "called_by": [],
+          "kind": "function"
+        },
+        {
+          "name": "datetime_plus_timedelta",
+          "line_start": 1184,
+          "line_end": 1216,
+          "signature": "PURE ELEMENTAL FUNCTION datetime_plus_timedelta(d0, t) RESULT(d)",
+          "doc": "! Adds a `timedelta` instance to a `datetime` instance, and returns a ! new `datetime` instance. Overloads the operator `+`.",
+          "calls": [
+            "d"
+          ],
+          "called_by": [],
+          "kind": "function"
+        },
+        {
+          "name": "timedelta_plus_datetime",
+          "line_start": 1218,
+          "line_end": 1229,
+          "signature": "PURE ELEMENTAL FUNCTION timedelta_plus_datetime(t, d0) RESULT(d)",
+          "doc": "! Adds a `timedelta` instance to a `datetime` instance, and returns a ! new `datetime` instance. Overloads the operator `+`.",
+          "calls": [],
+          "called_by": [],
+          "kind": "function"
+        },
+        {
+          "name": "datetime_minus_timedelta",
+          "line_start": 1231,
+          "line_end": 1242,
+          "signature": "PURE ELEMENTAL FUNCTION datetime_minus_timedelta(d0, t) RESULT(d)",
+          "doc": "! Subtracts a `timedelta` instance from a `datetime` instance and ! returns a new `datetime` instance. Overloads the operator `-`.",
+          "calls": [],
+          "called_by": [],
+          "kind": "function"
+        },
+        {
+          "name": "datetime_minus_datetime",
+          "line_start": 1244,
+          "line_end": 1264,
+          "signature": "PURE ELEMENTAL FUNCTION datetime_minus_datetime(d0, d1) RESULT(t)",
+          "doc": "! Subtracts a `datetime` instance from another `datetime` instance, ! and returns a `timedelta` instance. Overloads the operator `-`.",
+          "calls": [],
+          "called_by": [],
+          "kind": "function"
+        },
+        {
+          "name": "datetimeRange",
+          "line_start": 1439,
+          "line_end": 1470,
+          "signature": "PURE FUNCTION datetimeRange(d0, d1, t)",
+          "doc": "! Given start and end `datetime` instances `d0` and `d1` and time ! increment as `timedelta` instance `t`, returns an array of ! `datetime` instances. The number of elements is the number of whole ! time increments contained between datetimes `d0` and `d1`.",
+          "calls": [],
+          "called_by": [],
+          "kind": "function"
+        },
+        {
+          "name": "int2str",
+          "line_start": 1647,
+          "line_end": 1661,
+          "signature": "PURE FUNCTION int2str(i, length)",
+          "doc": "! Converts an integer `i` into a character string of requested length, ! pre-pending zeros if necessary.",
+          "calls": [],
+          "called_by": [],
+          "kind": "function"
+        },
+        {
+          "name": "reset",
+          "line_start": 1724,
+          "line_end": 1735,
+          "signature": "PURE ELEMENTAL SUBROUTINE reset(self)",
+          "doc": "! Resets the clock to its start time.",
+          "calls": [],
+          "called_by": [],
+          "kind": "subroutine"
+        },
+        {
+          "name": "tick",
+          "line_start": 1739,
+          "line_end": 1747,
+          "signature": "PURE ELEMENTAL SUBROUTINE tick(self)",
+          "doc": "! Increments the currentTime of the clock instance by one tickInterval.",
+          "calls": [],
+          "called_by": [],
+          "kind": "subroutine"
+        }
+      ],
+      "uses": [
+        "module_util_datetime_strftime",
+        "module_util_datetime_const",
+        "module_util_datetime_timedelta",
+        "module_util_datetime_core",
+        "module_util_datetime_clock",
+        "module_util_datetime"
+      ]
+    },
+    "suews_util_meteo.f95": {
+      "category": "utilities",
+      "lines": 574,
+      "modules": [
+        "module_util_meteo",
+        "METEO"
+      ],
+      "description": "Main module following naming standard: matches filename",
+      "subroutines": [
+        {
+          "name": "sat_vap_press",
+          "line_start": 29,
+          "line_end": 38,
+          "signature": "FUNCTION sat_vap_press(TK, P) RESULT(es)",
+          "doc": "c sg sept 99 f90 c     This uses eqns from Buck (1981) JAM 20, 1527-1532 c     units T (K) e (mb) P (mb) c     f corrects for the fact that we are not dealing with pure water",
+          "calls": [],
+          "called_by": [],
+          "kind": "function"
+        },
+        {
+          "name": "sat_vap_press_x",
+          "line_start": 151,
+          "line_end": 170,
+          "signature": "FUNCTION sat_vap_press_x(Temp_c, PRESS_hPa, from, dectime, modState) RESULT(es_hPa)",
+          "doc": "USE module_ctrl_const_time USE defaultnotUsed",
+          "calls": [
+            "errorHint"
+          ],
+          "called_by": [],
+          "kind": "function"
+        },
+        {
+          "name": "sat_vap_pressIce",
+          "line_start": 199,
+          "line_end": 218,
+          "signature": "FUNCTION sat_vap_pressIce(Temp_c, PRESS_hPa, from, dectime, modState) RESULT(es_hPa)",
+          "doc": "USE module_ctrl_const_time USE defaultnotUsed",
+          "calls": [
+            "errorHint"
+          ],
+          "called_by": [],
+          "kind": "function"
+        },
+        {
+          "name": "spec_hum_def",
+          "line_start": 240,
+          "line_end": 246,
+          "signature": "FUNCTION spec_hum_def(vpd_hPa, press_hPa) RESULT(dq)",
+          "doc": "USE module_ctrl_const_gas",
+          "calls": [],
+          "called_by": [],
+          "kind": "function"
+        },
+        {
+          "name": "spec_heat_beer",
+          "line_start": 249,
+          "line_end": 271,
+          "signature": "FUNCTION spec_heat_beer(Temp_C, rh, rho_v, rho_d, modState) RESULT(cp)",
+          "doc": "Input: Air temperature, relative humidity, water vapour and dry air densities Output: heat capacity in units J kg-1 K-1 Reference: Tom Beer, CSIRO, 1990. Applied Environmetrics Meteorological Tables. Can be found from SG:s office from Atmmos Moist map -------------------------------------------------------------------------------",
+          "calls": [
+            "ErrorHint"
+          ],
+          "called_by": [],
+          "kind": "function"
+        },
+        {
+          "name": "Lat_vap",
+          "line_start": 283,
+          "line_end": 314,
+          "signature": "FUNCTION Lat_vap(Temp_C, Ea_hPa, Press_hPa, cp, dectime, modState) RESULT(lv_J_kg)",
+          "doc": "Input: Air temperature, Water vapour pressure, Air pressure, heat capacity Output: latent heat of vaporization",
+          "calls": [
+            "ErrorHint"
+          ],
+          "called_by": [],
+          "kind": "function"
+        },
+        {
+          "name": "Lat_vapSublim",
+          "line_start": 355,
+          "line_end": 409,
+          "signature": "FUNCTION Lat_vapSublim(Temp_C, Ea_hPa, Press_hPa, cp) RESULT(lvS_J_kg)",
+          "doc": "Input: Air temperature, Water vapour pressure, Air pressure, heat capacity Output: latent heat of sublimation in units J/kg",
+          "calls": [],
+          "called_by": [],
+          "kind": "function"
+        },
+        {
+          "name": "psyc_const",
+          "line_start": 416,
+          "line_end": 427,
+          "signature": "FUNCTION psyc_const(cp, Press_hPa, lv_J_kg) RESULT(psyc_hPa)",
+          "doc": "",
+          "calls": [
+            "errorHint"
+          ],
+          "called_by": [],
+          "kind": "function"
+        },
+        {
+          "name": "dewpoint",
+          "line_start": 440,
+          "line_end": 449,
+          "signature": "FUNCTION dewpoint(ea_hPa) RESULT(Temp_C_dew)",
+          "doc": "ea = vapor pressure (hPa) td = dewpoint (oC) calculates dewpoint in degC from http://www.atd.ucar.edu/weather_fl/dewpoint.html dewpoint = (237.3 * ln(e_vp/6.1078)) / (17.27 - (ln(e_vp/6.1078)))",
+          "calls": [],
+          "called_by": [],
+          "kind": "function"
+        },
+        {
+          "name": "slope_svp",
+          "line_start": 451,
+          "line_end": 475,
+          "signature": "FUNCTION slope_svp(temp_C) RESULT(s_hPa)",
+          "doc": "COEFFICENTS FOR CALCULATING desat/dT Slope of the saturation vapor pressure vst air temperature curve",
+          "calls": [],
+          "called_by": [],
+          "kind": "function"
+        },
+        {
+          "name": "slopeIce_svp",
+          "line_start": 478,
+          "line_end": 499,
+          "signature": "FUNCTION slopeIce_svp(temp_C) RESULT(s_hPa)",
+          "doc": "COEFFICENTS FOR CALCULATING desat/dT Slope of the saturation vapor pressure vst air temperature curve",
+          "calls": [],
+          "called_by": [],
+          "kind": "function"
+        },
+        {
+          "name": "qsatf",
+          "line_start": 502,
+          "line_end": 520,
+          "signature": "FUNCTION qsatf(T, PMB, modState) RESULT(qsat)",
+          "doc": "MRR, 1987 AT TEMPERATURE T (DEG C) AND PRESSURE PMB (MB), GET SATURATION SPECIFIC HUMIDITY (KG/KG) FROM TETEN FORMULA",
+          "calls": [
+            "ErrorHint"
+          ],
+          "called_by": [],
+          "kind": "function"
+        },
+        {
+          "name": "RH2qa",
+          "line_start": 526,
+          "line_end": 542,
+          "signature": "FUNCTION RH2qa(RH_dec, pres_hPa, Ta_degC) RESULT(qa_gkg)",
+          "doc": "convert relative humidity to specific humidity TS 31 Jul 2018: initial version Brutsaert (2005) section 2.1.2, eqn 2.2, 2.4 and 2.5.",
+          "calls": [],
+          "called_by": [],
+          "kind": "function"
+        },
+        {
+          "name": "qa2RH",
+          "line_start": 544,
+          "line_end": 566,
+          "signature": "FUNCTION qa2RH(qa_gkg, pres_hPa, Ta_degC) RESULT(RH)",
+          "doc": "convert specific humidity to relative humidity TS 31 Jul 2018: initial version Brutsaert (2005) section 2.1.2, eqn 2.2, 2.4 and 2.5.",
+          "calls": [],
+          "called_by": [],
+          "kind": "function"
+        }
+      ],
+      "uses": [
+        "module_ctrl_const_mathconst",
+        "module_ctrl_error",
+        "module_ctrl_type",
+        "module_util_meteo"
+      ]
+    },
+    "suews_util_profile.f95": {
+      "category": "utilities",
+      "lines": 130,
+      "modules": [
+        "module_ctrl_input_profile"
+      ],
+      "description": "TS Dec 2024: Extracted from suews_ctrl_input.f95 as part of dead code cleanup (#1039)",
+      "subroutines": [
+        {
+          "name": "get_Prof_SpecTime_inst",
+          "line_start": 18,
+          "line_end": 39,
+          "signature": "FUNCTION get_Prof_SpecTime_inst(Hour, Min, Sec, Prof_24h) RESULT(Prof_CurrTime)",
+          "doc": "",
+          "calls": [],
+          "called_by": [],
+          "kind": "function"
+        },
+        {
+          "name": "get_Prof_SpecTime_mean",
+          "line_start": 44,
+          "line_end": 71,
+          "signature": "FUNCTION get_Prof_SpecTime_mean(Hour, Min, Sec, Prof_24h) RESULT(Prof_CurrTime)",
+          "doc": "",
+          "calls": [],
+          "called_by": [],
+          "kind": "function"
+        },
+        {
+          "name": "get_Prof_SpecTime_sum",
+          "line_start": 76,
+          "line_end": 101,
+          "signature": "FUNCTION get_Prof_SpecTime_sum(Hour, Min, Sec, Prof_24h, dt) RESULT(Prof_CurrTime)",
+          "doc": "",
+          "calls": [],
+          "called_by": [],
+          "kind": "function"
+        },
+        {
+          "name": "SkipHeader",
+          "line_start": 109,
+          "line_end": 123,
+          "signature": "SUBROUTINE SkipHeader(lfn, skip, modState)",
+          "doc": "",
+          "calls": [],
+          "called_by": [
+            "suews_phys_estm.f95:SUEWS_GetESTMData"
+          ],
+          "kind": "subroutine"
+        }
+      ],
+      "uses": []
+    },
+    "suews_util_time.f95": {
+      "category": "utilities",
+      "lines": 444,
+      "modules": [
+        "module_util_time",
+        "time_module"
+      ],
+      "description": "Main module following naming standard: matches filename",
+      "subroutines": [
+        {
+          "name": "day2month",
+          "line_start": 27,
+          "line_end": 52,
+          "signature": "SUBROUTINE day2month(b, mb, md, seas, year, latitude)",
+          "doc": "",
+          "calls": [],
+          "called_by": [
+            "suews_phys_narp.f95:NARP_cal_SunPosition",
+            "suews_phys_narp.f95:NARP_cal_SunPosition_DTS",
+            "suews_util_time.f95:SUEWS_cal_weekday",
+            "suews_util_time.f95:SUEWS_cal_weekday_DTS"
+          ],
+          "kind": "subroutine"
+        },
+        {
+          "name": "month2day",
+          "line_start": 109,
+          "line_end": 138,
+          "signature": "SUBROUTINE month2day(mon, ne, k, b)",
+          "doc": "",
+          "calls": [],
+          "called_by": [],
+          "kind": "subroutine"
+        },
+        {
+          "name": "LeapYearCalc",
+          "line_start": 142,
+          "line_end": 154,
+          "signature": "SUBROUTINE LeapYearCalc(year_int, nroDays)",
+          "doc": "",
+          "calls": [],
+          "called_by": [],
+          "kind": "subroutine"
+        },
+        {
+          "name": "Days_of_Year",
+          "line_start": 160,
+          "line_end": 171,
+          "signature": "ELEMENTAL FUNCTION Days_of_Year(year_int) RESULT(nDays)",
+          "doc": "",
+          "calls": [],
+          "called_by": [],
+          "kind": "function"
+        },
+        {
+          "name": "Day_Of_Week",
+          "line_start": 177,
+          "line_end": 201,
+          "signature": "SUBROUTINE Day_Of_Week(DATE, MONTH, YEAR, DOW)",
+          "doc": "Calculate weekday from year, month and day information. DOW: Sunday=1,...Saturday=7 YEAR fixed to integer, LJ March 2015",
+          "calls": [],
+          "called_by": [
+            "suews_util_time.f95:SUEWS_cal_weekday",
+            "suews_util_time.f95:SUEWS_cal_weekday_DTS"
+          ],
+          "kind": "subroutine"
+        },
+        {
+          "name": "dectime_to_timevec",
+          "line_start": 206,
+          "line_end": 224,
+          "signature": "SUBROUTINE dectime_to_timevec(dectime, HOURS, MINS, SECS)",
+          "doc": "This subroutine converts dectime to individual hours, minutes and seconds",
+          "calls": [],
+          "called_by": [
+            "suews_phys_narp.f95:NARP_cal_SunPosition",
+            "suews_phys_narp.f95:NARP_cal_SunPosition_DTS"
+          ],
+          "kind": "subroutine"
+        },
+        {
+          "name": "DAYLEN",
+          "line_start": 230,
+          "line_end": 257,
+          "signature": "SUBROUTINE DAYLEN(DOY, XLAT, DAYL, DEC, SNDN, SNUP)",
+          "doc": "======================================================================= DAYLEN, Real Function, N.B. Pickering, 09/23/1993 Computes solar day length (Spitters, 1986). ======================================================================= -----------------------------------------------------------------------",
+          "calls": [],
+          "called_by": [
+            "suews_phys_beers.f95:BEERS_cal_main",
+            "suews_phys_beers.f95:BEERS_cal_main_DTS",
+            "suews_phys_beers.f95:cal_CI_latenight"
+          ],
+          "kind": "subroutine"
+        },
+        {
+          "name": "SUEWS_cal_dectime",
+          "line_start": 274,
+          "line_end": 287,
+          "signature": "SUBROUTINE SUEWS_cal_dectime( & id, it, imin, isec, & dectime)",
+          "doc": "",
+          "calls": [],
+          "called_by": [],
+          "kind": "subroutine"
+        },
+        {
+          "name": "SUEWS_cal_dectime_DTS",
+          "line_start": 289,
+          "line_end": 315,
+          "signature": "SUBROUTINE SUEWS_cal_dectime_DTS( & timer, & dectime)",
+          "doc": "",
+          "calls": [],
+          "called_by": [
+            "suews_ctrl_driver.f95:SUEWS_cal_multitsteps_dts"
+          ],
+          "kind": "subroutine"
+        },
+        {
+          "name": "SUEWS_cal_tstep",
+          "line_start": 318,
+          "line_end": 331,
+          "signature": "SUBROUTINE SUEWS_cal_tstep( & tstep, & nsh, nsh_real, tstep_real)",
+          "doc": "",
+          "calls": [],
+          "called_by": [],
+          "kind": "subroutine"
+        },
+        {
+          "name": "SUEWS_cal_tstep_DTS",
+          "line_start": 333,
+          "line_end": 353,
+          "signature": "SUBROUTINE SUEWS_cal_tstep_DTS( & timer, & nsh, nsh_real, tstep_real)",
+          "doc": "",
+          "calls": [],
+          "called_by": [
+            "suews_ctrl_driver.f95:SUEWS_cal_multitsteps_dts"
+          ],
+          "kind": "subroutine"
+        },
+        {
+          "name": "SUEWS_cal_weekday",
+          "line_start": 355,
+          "line_end": 378,
+          "signature": "SUBROUTINE SUEWS_cal_weekday( & iy, id, lat, & dayofWeek_id)",
+          "doc": "",
+          "calls": [
+            "day2month",
+            "Day_of_Week"
+          ],
+          "called_by": [],
+          "kind": "subroutine"
+        },
+        {
+          "name": "SUEWS_cal_weekday_DTS",
+          "line_start": 380,
+          "line_end": 413,
+          "signature": "SUBROUTINE SUEWS_cal_weekday_DTS( & timer, siteInfo, & dayofWeek_id)",
+          "doc": "",
+          "calls": [
+            "day2month",
+            "Day_of_Week"
+          ],
+          "called_by": [
+            "suews_ctrl_driver.f95:SUEWS_cal_multitsteps_dts"
+          ],
+          "kind": "subroutine"
+        },
+        {
+          "name": "SUEWS_cal_DLS",
+          "line_start": 415,
+          "line_end": 431,
+          "signature": "SUBROUTINE SUEWS_cal_DLS( & timer, ahemisPrm, & DLS)",
+          "doc": "",
+          "calls": [],
+          "called_by": [
+            "suews_ctrl_driver.f95:SUEWS_cal_multitsteps_dts"
+          ],
+          "kind": "subroutine"
+        }
+      ],
+      "uses": [
+        "module_util_time"
+      ]
+    }
+  },
+  "scheme_map": {
+    "anohm": "suews_phys_anohm.f95",
+    "anthro": "suews_type_anthro.f95",
+    "atmmoiststab": "suews_phys_atmmoiststab.f95",
+    "atmosphere": "suews_type_atmosphere.f95",
+    "beers": "suews_phys_beers.f95",
+    "biogenco2": "suews_phys_biogenco2.f95",
+    "bluews": "suews_phys_bluews.f95",
+    "const": "suews_ctrl_const.f95",
+    "dailystate": "suews_phys_dailystate.f95",
+    "datetime": "suews_util_datetime.f95",
+    "driver": "suews_ctrl_driver.f95",
+    "ehc": "suews_type_ehc.f95",
+    "error": "suews_ctrl_error.f95",
+    "estm": "suews_phys_estm.f95",
+    "evap": "suews_phys_evap.f95",
+    "heat": "suews_type_heat.f95",
+    "hydro": "suews_type_hydro.f95",
+    "landcover": "suews_type_landcover.f95",
+    "lumps": "suews_phys_lumps.f95",
+    "meteo": "suews_util_meteo.f95",
+    "narp": "suews_phys_narp.f95",
+    "ohm": "suews_phys_ohm.f95",
+    "profile": "suews_util_profile.f95",
+    "resist": "suews_phys_resist.f95",
+    "rslprof": "suews_phys_rslprof.f95",
+    "snow": "suews_type_snow.f95",
+    "soil": "suews_type_soil.f95",
+    "solweig": "suews_phys_solweig.f95",
+    "spartacus": "suews_type_spartacus.f95",
+    "stebbs": "suews_type_stebbs.f95",
+    "surface": "suews_type_surface.f95",
+    "time": "suews_util_time.f95",
+    "type": "suews_ctrl_type.f95",
+    "vegetation": "suews_type_vegetation.f95",
+    "ver": "suews_ctrl_ver.f95",
+    "waterdist": "suews_type_waterdist.f95"
+  }
+}

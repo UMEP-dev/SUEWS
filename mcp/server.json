@@ -1,0 +1,14 @@
+{
+  "name": "io.github.umep-dev/suews",
+  "description": "MCP server for conversational SUEWS discovery and simulation",
+  "packages": [
+    {
+      "registry_name": "pypi",
+      "name": "suews-mcp",
+      "version": "latest"
+    }
+  ],
+  "transport": {
+    "type": "stdio"
+  }
+}

@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "suews": {
+      "command": "uvx",
+      "args": ["suews-mcp"]
+    }
+  }
+}

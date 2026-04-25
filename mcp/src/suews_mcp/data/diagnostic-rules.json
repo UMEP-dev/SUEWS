@@ -1,0 +1,170 @@
+{
+  "variables": {
+    "LAI": {
+      "description": "Leaf Area Index and phenology state progression.",
+      "physics_module": "suews_ctrl_driver / phenology state updates",
+      "output_columns": ["LAI_EveTr", "LAI_DecTr", "LAI_Grass"],
+      "daily_state_columns": ["GDD_EveTr", "GDD_DecTr", "GDD_Grass", "SDD_EveTr", "SDD_DecTr", "SDD_Grass"],
+      "controlling_params": [
+        {"type": "lai-prm", "field": "baset", "description": "Base temperature for GDD", "effect": "Higher baset delays spring onset."},
+        {"type": "lai-prm", "field": "gddfull", "description": "GDD threshold for full canopy", "effect": "Higher gddfull delays peak LAI."},
+        {"type": "lai-prm", "field": "basete", "description": "Base temperature for SDD", "effect": "Higher basete can trigger earlier senescence."},
+        {"type": "lai-prm", "field": "sddfull", "description": "SDD threshold for leaf-off", "effect": "Higher sddfull lengthens autumn decline."},
+        {"type": "lai-prm", "field": "laimin", "description": "Minimum seasonal LAI", "effect": "Controls winter baseline."},
+        {"type": "lai-prm", "field": "laimax", "description": "Maximum seasonal LAI", "effect": "Caps summer canopy."}
+      ],
+      "config_switches": ["laimethod"],
+      "symptoms": {
+        "peaks_too_early": {
+          "likely_cause": "baset or gddfull too low for local climate.",
+          "suggestion": "Increase baset by about 2-3 degC and/or gddfull by about 100-200 degC.",
+          "parameter_hints": [
+            {"type": "lai-prm", "field": "baset", "suggested": "current + 2 to 3", "reason": "Delays GDD accumulation start."},
+            {"type": "lai-prm", "field": "gddfull", "suggested": "current + 100 to 200", "reason": "Requires more warmth before full canopy."}
+          ]
+        },
+        "peaks_too_late": {
+          "likely_cause": "baset or gddfull too high.",
+          "suggestion": "Decrease baset or gddfull.",
+          "parameter_hints": [
+            {"type": "lai-prm", "field": "baset", "suggested": "current - 1 to 3", "reason": "Advances onset timing."},
+            {"type": "lai-prm", "field": "gddfull", "suggested": "current - 50 to 150", "reason": "Reaches peak sooner."}
+          ]
+        },
+        "too_high_in_winter": {
+          "likely_cause": "laimin too high or senescence thresholds not allowing full decline.",
+          "suggestion": "Reduce laimin and review basete/sddfull.",
+          "parameter_hints": [
+            {"type": "lai-prm", "field": "laimin", "suggested": "lower by 0.2 to 0.8", "reason": "Reduces winter baseline LAI."}
+          ]
+        },
+        "flat_no_seasonal_cycle": {
+          "likely_cause": "Phenology switching disabled or thresholds unattainable.",
+          "suggestion": "Check laimethod and ensure forcing temperatures can cross baset/basete."
+        }
+      },
+      "related_outputs": ["QE", "QH", "albedo"],
+      "search_calls": [
+        "search(type_name='lai-prm', detail_level='schema')",
+        "search(type_name='phenology-state', detail_level='schema')"
+      ]
+    },
+    "QH": {
+      "description": "Sensible heat flux partitioning.",
+      "physics_module": "suews_phys_resist + energy partitioning in driver",
+      "output_columns": ["QH"],
+      "controlling_params": [
+        {"type": "suews-config", "field": "storageheatmethod", "effect": "Changes QS estimation and residual partitioning."},
+        {"type": "ohm-prm", "field": "a1/a2/a3", "effect": "OHM coefficients control storage heat and influence QH."},
+        {"type": "conductance-prm", "field": "gsmax,g1-g6", "effect": "Higher conductance tends to increase QE and reduce QH."},
+        {"type": "suews-site", "field": "z0m,zdm", "effect": "Roughness alters aerodynamic resistance and flux magnitude."}
+      ],
+      "symptoms": {
+        "too_high_daytime": {
+          "likely_cause": "QE too low or QS too low.",
+          "suggestion": "Check conductance, irrigation, and OHM coefficients."
+        },
+        "negative_at_night": {
+          "likely_cause": "Usually expected from nocturnal cooling; excessive magnitude may indicate forcing issues.",
+          "suggestion": "Verify Ldown and cloud-related forcing."
+        },
+        "too_low": {
+          "likely_cause": "Too much energy routed to QE or QS.",
+          "suggestion": "Review moisture status, irrigation, and storage parameters."
+        }
+      }
+    },
+    "QE": {
+      "description": "Latent heat flux and evaporation/transpiration response.",
+      "physics_module": "suews_phys_evap + resistance network",
+      "output_columns": ["QE"],
+      "controlling_params": [
+        {"type": "conductance-prm", "field": "gsmax,g1-g6", "effect": "Controls transpiration potential."},
+        {"type": "soil-prm", "field": "soilstorecap,wp", "effect": "Controls water availability to evaporation."},
+        {"type": "irrigation-prm", "field": "h_maintain", "effect": "Can boost QE during dry periods."}
+      ],
+      "symptoms": {
+        "too_low": {
+          "likely_cause": "Water limitation or low conductance.",
+          "suggestion": "Check moisture forcing, irrigation, and conductance parameters."
+        },
+        "too_high": {
+          "likely_cause": "Excess available water or high conductance settings.",
+          "suggestion": "Review irrigation and plant/soil controls."
+        }
+      }
+    },
+    "QS": {
+      "description": "Storage heat flux.",
+      "physics_module": "suews_phys_ohm / suews_phys_estm / suews_phys_ehc",
+      "output_columns": ["QS"],
+      "controlling_params": [
+        {"type": "suews-config", "field": "storageheatmethod", "effect": "Switches storage model family."},
+        {"type": "ohm-prm", "field": "a1/a2/a3", "effect": "Directly controls OHM storage response."},
+        {"type": "ehc-prm", "field": "k_layer,cp_layer", "effect": "Thermal inertia settings for EHC."}
+      ],
+      "symptoms": {
+        "too_high": {
+          "likely_cause": "Storage coefficients too strong.",
+          "suggestion": "Reduce OHM/EHC storage sensitivity."
+        },
+        "too_low": {
+          "likely_cause": "Storage representation too weak.",
+          "suggestion": "Increase storage coefficients after checking forcing quality."
+        }
+      }
+    },
+    "Tsurf": {
+      "description": "Surface or skin temperature behaviour.",
+      "physics_module": "surface energy balance and material thermal response",
+      "output_columns": ["Tsurf"],
+      "controlling_params": [
+        {"type": "lc-*-prm", "field": "albedo,emis", "effect": "Radiative properties govern heating/cooling."},
+        {"type": "ehc-prm", "field": "thermal properties", "effect": "Thermal mass damps diurnal range."}
+      ],
+      "symptoms": {
+        "too_high_daytime": {"likely_cause": "Low albedo or insufficient evaporative cooling.", "suggestion": "Revisit albedo and moisture controls."},
+        "too_low": {"likely_cause": "Too reflective surfaces or excessive evaporative cooling.", "suggestion": "Review surface optical properties and conductance."}
+      }
+    },
+    "snow": {
+      "description": "Snowpack depth, SWE, and melt timing.",
+      "physics_module": "suews_phys_snow",
+      "output_columns": ["SWE", "SnowDepth", "Qm"],
+      "controlling_params": [
+        {"type": "snow-prm", "field": "snowdensmin,snowdensmax", "effect": "Controls depth-density relationship."},
+        {"type": "snow-prm", "field": "radmeltfact,tempmeltfact", "effect": "Controls melt sensitivity."}
+      ],
+      "symptoms": {
+        "melts_too_fast": {"likely_cause": "Melt factors too aggressive.", "suggestion": "Reduce radmeltfact and/or tempmeltfact."},
+        "melts_too_slow": {"likely_cause": "Melt factors too weak.", "suggestion": "Increase melt factors and inspect forcing temperatures."}
+      }
+    },
+    "runoff": {
+      "description": "Surface runoff and drainage response.",
+      "physics_module": "suews_phys_waterdist",
+      "output_columns": ["Runoff"],
+      "controlling_params": [
+        {"type": "surf-store-prm", "field": "store capacities", "effect": "Sets depression storage before runoff."},
+        {"type": "water-dist-prm", "field": "drainage parameters", "effect": "Controls routing and release."}
+      ],
+      "symptoms": {
+        "too_high": {"likely_cause": "Insufficient storage or excessive impervious routing.", "suggestion": "Increase storage and review land-cover fractions."},
+        "too_low": {"likely_cause": "Excess retention/infiltration assumptions.", "suggestion": "Review soil and drainage settings."}
+      }
+    },
+    "albedo": {
+      "description": "Surface reflectance and seasonality.",
+      "physics_module": "radiation + snow albedo updates",
+      "output_columns": ["Albedo"],
+      "controlling_params": [
+        {"type": "lc-*-prm", "field": "albedo", "effect": "Baseline reflectance per surface type."},
+        {"type": "snow-prm", "field": "snowalbmax", "effect": "Upper bound for fresh snow albedo."}
+      ],
+      "symptoms": {
+        "too_low": {"likely_cause": "Baseline albedo too dark or snow ageing too strong.", "suggestion": "Increase relevant albedo parameters."},
+        "too_high": {"likely_cause": "Overly bright baseline values.", "suggestion": "Reduce affected surface albedo values."}
+      }
+    }
+  }
+}

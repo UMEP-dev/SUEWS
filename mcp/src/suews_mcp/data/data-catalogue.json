@@ -1,0 +1,362 @@
+{
+  "version": "1.0",
+  "description": "Data catalogue for SUEWS MCP search tool. Describes sample datasets, forcing requirements, surface parameter groups, and external data sources.",
+
+  "sample_datasets": [
+    {
+      "id": "kcl-2012",
+      "name": "King's College London (KCL)",
+      "description": "Urban flux tower site in central London. Benchmark 1a from Ward et al. (2016).",
+      "location": {"lat": 51.51, "lon": -0.12, "alt_m": 10.7},
+      "period": {"start": "2012-01-01", "end": "2012-12-29"},
+      "temporal_resolution_min": 60,
+      "land_cover": {
+        "paved": "high",
+        "building": "high",
+        "grass": "low",
+        "deciduous_tree": "low",
+        "evergreen_tree": "low",
+        "bare_soil": "minimal",
+        "water": "minimal"
+      },
+      "files": {
+        "config": "sample_data/sample_config.yml",
+        "forcing": "sample_data/Kc_2012_data_60.txt"
+      },
+      "forcing_columns_populated": ["U", "RH", "Tair", "pres", "rain", "kdown"],
+      "access": "Bundled with supy. Load via SUEWSSimulation.from_sample_data() or execute() with empty config."
+    }
+  ],
+
+  "forcing_variables": {
+    "description": "Meteorological forcing time series aligned with the model timestep. All columns must be present; use -999 for missing values that the model can compute internally.",
+    "supported_timesteps_min": [1, 5, 10, 15, 20, 30, 60],
+    "file_format": "Space-separated text with header row. Columns: iy id it imin <variables>.",
+    "timestamp_columns": [
+      {"name": "iy", "description": "Year", "type": "time"},
+      {"name": "id", "description": "Day of year (1-366)", "type": "time"},
+      {"name": "it", "description": "Hour (0-23)", "type": "time"},
+      {"name": "imin", "description": "Minute (0-59)", "type": "time"}
+    ],
+    "required_variables": [
+      {
+        "name": "kdown",
+        "description": "Incoming shortwave radiation",
+        "unit": "W m-2",
+        "range": [0, 1400],
+        "aggregation": "avg",
+        "required": true,
+        "missing_ok": false,
+        "notes": "Primary radiation driver. Must be observed or from reanalysis."
+      },
+      {
+        "name": "Tair",
+        "description": "Air temperature at measurement height",
+        "unit": "degC",
+        "range": [-60, 90],
+        "aggregation": "inst",
+        "required": true,
+        "missing_ok": false,
+        "notes": "Used throughout energy balance and phenology."
+      },
+      {
+        "name": "RH",
+        "description": "Relative humidity",
+        "unit": "%",
+        "range": [0.0001, 105],
+        "aggregation": "inst",
+        "required": true,
+        "missing_ok": false,
+        "notes": "Controls latent heat partitioning."
+      },
+      {
+        "name": "pres",
+        "description": "Atmospheric pressure",
+        "unit": "hPa",
+        "range": [680, 1300],
+        "aggregation": "inst",
+        "required": true,
+        "missing_ok": false,
+        "notes": "Used for density and psychrometric calculations."
+      },
+      {
+        "name": "U",
+        "description": "Wind speed at measurement height",
+        "unit": "m s-1",
+        "range": [0.01, 60],
+        "aggregation": "inst",
+        "required": true,
+        "missing_ok": false,
+        "notes": "Drives turbulent transfer. Must be > 0."
+      },
+      {
+        "name": "rain",
+        "description": "Precipitation rate",
+        "unit": "mm",
+        "range": [0, "inf"],
+        "aggregation": "sum",
+        "required": true,
+        "missing_ok": false,
+        "notes": "Accumulated over timestep. Drives hydrology and wet/dry surface state."
+      }
+    ],
+    "optional_variables": [
+      {
+        "name": "ldown",
+        "description": "Incoming longwave radiation",
+        "unit": "W m-2",
+        "range": [100, 600],
+        "aggregation": "avg",
+        "missing_ok": true,
+        "notes": "If missing (-999), estimated internally from cloud fraction or temperature."
+      },
+      {
+        "name": "fcld",
+        "description": "Cloud fraction",
+        "unit": "fraction (0-1)",
+        "range": [0, 1],
+        "aggregation": "inst",
+        "missing_ok": true,
+        "notes": "Used to estimate ldown if ldown is missing. If both missing, estimated from kdown."
+      },
+      {
+        "name": "snow",
+        "description": "Snowfall flag or rate",
+        "unit": "mm or flag",
+        "range": [0, 1],
+        "aggregation": "inst",
+        "missing_ok": true,
+        "notes": "If missing, estimated from Tair and rain."
+      },
+      {
+        "name": "wdir",
+        "description": "Wind direction",
+        "unit": "degree",
+        "range": [0, 360],
+        "aggregation": "inst",
+        "missing_ok": true,
+        "notes": "Used for source area calculations. Not needed for basic runs."
+      },
+      {
+        "name": "xsmd",
+        "description": "External soil moisture deficit or measurement",
+        "unit": "varies",
+        "range": [0, "inf"],
+        "aggregation": "inst",
+        "missing_ok": true,
+        "notes": "Only needed if soil moisture method uses external observations."
+      },
+      {
+        "name": "lai",
+        "description": "Observed leaf area index",
+        "unit": "m2 m-2",
+        "range": [0, 10],
+        "aggregation": "inst",
+        "missing_ok": true,
+        "notes": "Only needed if LAI method uses external observations. Usually modelled internally."
+      },
+      {
+        "name": "kdiff",
+        "description": "Diffuse shortwave radiation",
+        "unit": "W m-2",
+        "range": [0, 1000],
+        "aggregation": "avg",
+        "missing_ok": true,
+        "notes": "Used by SPARTACUS radiation scheme. Estimated from kdown if missing."
+      },
+      {
+        "name": "kdir",
+        "description": "Direct shortwave radiation",
+        "unit": "W m-2",
+        "range": [0, 1400],
+        "aggregation": "avg",
+        "missing_ok": true,
+        "notes": "Used by SPARTACUS radiation scheme. Estimated from kdown if missing."
+      },
+      {
+        "name": "Wuh",
+        "description": "External water use",
+        "unit": "m3",
+        "range": [0, 10],
+        "aggregation": "sum",
+        "missing_ok": true,
+        "notes": "Only needed if external water supply data is available."
+      },
+      {
+        "name": "qn",
+        "description": "Observed net all-wave radiation",
+        "unit": "W m-2",
+        "range": [-500, 1300],
+        "aggregation": "avg",
+        "missing_ok": true,
+        "notes": "Only required if netradiationmethod=0 (use observed). Usually modelled."
+      },
+      {
+        "name": "qh",
+        "description": "Observed sensible heat flux",
+        "unit": "W m-2",
+        "range": [-500, 1300],
+        "aggregation": "avg",
+        "missing_ok": true,
+        "notes": "Reference only. Not used as model input."
+      },
+      {
+        "name": "qe",
+        "description": "Observed latent heat flux",
+        "unit": "W m-2",
+        "range": [-500, 1300],
+        "aggregation": "avg",
+        "missing_ok": true,
+        "notes": "Reference only. Not used as model input."
+      },
+      {
+        "name": "qs",
+        "description": "Observed storage heat flux",
+        "unit": "W m-2",
+        "range": [-100, 650],
+        "aggregation": "avg",
+        "missing_ok": true,
+        "notes": "Reference only. Not used as model input."
+      },
+      {
+        "name": "qf",
+        "description": "Observed anthropogenic heat flux",
+        "unit": "W m-2",
+        "range": [-500, 1300],
+        "aggregation": "avg",
+        "missing_ok": true,
+        "notes": "Only required if emissionsmethod=0 (use observed QF)."
+      }
+    ],
+    "minimum_forcing_set": {
+      "description": "The minimum set of variables needed for a basic SUEWS run. All other columns can be -999.",
+      "variables": ["kdown", "Tair", "RH", "pres", "U", "rain"],
+      "notes": "This is sufficient when the model estimates ldown internally (from Tair/fcld/kdown) and uses modelled LAI, soil moisture, and radiation partitioning."
+    }
+  },
+
+  "surface_parameter_groups": {
+    "description": "SUEWS requires parameters for each land cover type present at the site. Fractions must be specified for all 7 types (can be 0).",
+    "land_cover_types": [
+      {
+        "name": "paved",
+        "schema_type": "lc-paved-prm",
+        "description": "Impervious paved surfaces (roads, car parks, pavements)",
+        "key_parameters": ["albedo", "emissivity", "storage capacity", "drainage", "OHM coefficients"]
+      },
+      {
+        "name": "building",
+        "schema_type": "lc-bldg-prm",
+        "description": "Building rooftops and walls",
+        "key_parameters": ["albedo", "emissivity", "storage capacity", "building height", "OHM coefficients", "EHC thermal layers"]
+      },
+      {
+        "name": "evergreen_tree",
+        "schema_type": "lc-evetr-prm",
+        "description": "Evergreen trees and tall vegetation",
+        "key_parameters": ["albedo", "emissivity", "LAI parameters", "tree height", "conductance", "OHM coefficients"]
+      },
+      {
+        "name": "deciduous_tree",
+        "schema_type": "lc-dectr-prm",
+        "description": "Deciduous trees with seasonal leaf cycle",
+        "key_parameters": ["albedo", "emissivity", "LAI parameters", "tree height", "conductance", "phenology dates", "OHM coefficients"]
+      },
+      {
+        "name": "grass",
+        "schema_type": "lc-grass-prm",
+        "description": "Grass and low vegetation",
+        "key_parameters": ["albedo", "emissivity", "LAI parameters", "conductance", "irrigation", "OHM coefficients"]
+      },
+      {
+        "name": "bare_soil",
+        "schema_type": "lc-bsoil-prm",
+        "description": "Bare soil or unvegetated ground",
+        "key_parameters": ["albedo", "emissivity", "storage capacity", "soil hydraulic parameters", "OHM coefficients"]
+      },
+      {
+        "name": "water",
+        "schema_type": "lc-water-prm",
+        "description": "Open water bodies (ponds, rivers, lakes)",
+        "key_parameters": ["albedo", "emissivity", "water depth"]
+      }
+    ],
+    "site_geometry": {
+      "schema_type": "suews-site",
+      "required": [
+        {"name": "lat", "description": "Latitude", "unit": "degrees"},
+        {"name": "lng", "description": "Longitude", "unit": "degrees"},
+        {"name": "alt", "description": "Altitude above sea level", "unit": "m"},
+        {"name": "timezone", "description": "UTC offset", "unit": "hours"},
+        {"name": "surfacearea", "description": "Grid cell area", "unit": "m2"},
+        {"name": "z", "description": "Measurement/reference height above ground", "unit": "m"},
+        {"name": "z0m_in", "description": "Roughness length for momentum", "unit": "m"},
+        {"name": "zdm_in", "description": "Zero-plane displacement height", "unit": "m"}
+      ],
+      "notes": "Use search(type_name='suews-site', detail_level='schema') for full field listing."
+    }
+  },
+
+  "external_data_sources": [
+    {
+      "id": "era5",
+      "name": "ERA5 Reanalysis",
+      "provider": "Copernicus Climate Data Store (CDS)",
+      "description": "Global atmospheric reanalysis. Primary source for generating SUEWS forcing data at any location worldwide.",
+      "variables_provided": ["Tair", "RH", "U", "pres", "kdown", "ldown", "rain"],
+      "spatial_resolution": "0.25 deg (~31 km)",
+      "temporal_resolution": "hourly",
+      "coverage": "1940-present, global",
+      "supy_integration": "supy.util.gen_forcing_era5(lat, lon, start, end, dir_save) downloads and formats automatically. Requires CDS API credentials (~/.cdsapirc).",
+      "typical_download_time": "~26 seconds for 30 years of point data via timeseries API",
+      "notes": "Includes vertical extrapolation for temperature (lapse rate), wind (log profile), and pressure (barometric formula)."
+    },
+    {
+      "id": "epw",
+      "name": "EPW Weather Files",
+      "provider": "Various (EnergyPlus, ASHRAE, climate.onebuilding.org)",
+      "description": "EnergyPlus Weather format files containing typical meteorological year data. Widely available for cities worldwide.",
+      "variables_provided": ["Tair", "RH", "U", "pres", "kdown", "ldown", "rain", "wdir"],
+      "spatial_resolution": "point (weather station)",
+      "temporal_resolution": "hourly",
+      "coverage": "Thousands of stations worldwide",
+      "supy_integration": "supy.util.read_epw(path_epw) reads and converts to SUEWS format. Optional height correction for wind speed.",
+      "notes": "TMY data represents typical conditions, not specific years. Good for design studies, not event analysis."
+    },
+    {
+      "id": "wudapt",
+      "name": "WUDAPT / Local Climate Zones",
+      "provider": "World Urban Database and Portal Tools",
+      "description": "Global urban morphology classification based on Local Climate Zone (LCZ) framework. Maps cities into standardised urban form categories.",
+      "variables_provided": ["land cover fractions", "building height", "plan area fraction", "albedo estimates"],
+      "spatial_resolution": "100 m",
+      "coverage": "Most major cities worldwide",
+      "supy_integration": "Via UMEP plugin LCZ Converter. Converts LCZ classification to SUEWS site parameters.",
+      "notes": "Provides reasonable first-estimate parameters. Site-specific measurements are always more accurate."
+    },
+    {
+      "id": "umep",
+      "name": "UMEP Pre-processors",
+      "provider": "UMEP (Urban Multi-scale Environmental Predictor)",
+      "description": "QGIS plugin suite for preparing SUEWS inputs from geospatial data.",
+      "tools": [
+        "Morphometric Calculator: building height, plan area fraction, frontal area from DSM",
+        "Land Cover Reclassifier: classify raster into SUEWS land cover types",
+        "Land Cover Fraction: compute surface type fractions from classified raster",
+        "Source Area Model: flux footprint analysis"
+      ],
+      "input_data_needed": ["Digital Surface Model (DSM)", "land cover classification raster", "building footprints"],
+      "notes": "DSM typically from LiDAR or national elevation datasets. Building footprints from OpenStreetMap or national cadastre."
+    }
+  ],
+
+  "search_aliases": {
+    "forcing": ["forcing", "meteorological", "met data", "weather", "input data", "driving data"],
+    "sample": ["sample", "example", "demo", "tutorial", "KCL", "London", "benchmark"],
+    "era5": ["ERA5", "reanalysis", "CDS", "Copernicus", "download forcing"],
+    "epw": ["EPW", "EnergyPlus", "weather file", "TMY", "typical year"],
+    "wudapt": ["WUDAPT", "LCZ", "local climate zone", "urban morphology"],
+    "land_cover": ["land cover", "surface fraction", "surface type", "paved", "building", "grass", "tree"],
+    "site": ["site", "geometry", "location", "latitude", "longitude", "measurement height"]
+  }
+}

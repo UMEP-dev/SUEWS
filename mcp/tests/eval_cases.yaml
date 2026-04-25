@@ -1,0 +1,335 @@
+# SUEWS MCP End-to-End Evaluation Cases
+#
+# Each case tests whether an AI agent, given access to the SUEWS MCP tools
+# (search, execute, explain), can correctly interpret a natural-language query,
+# call the right tools with appropriate parameters, and produce a factually
+# correct response.
+#
+# Structure per case:
+#   id:              unique identifier (tier.case)
+#   tier:            complexity level (1-4)
+#   title:           short label
+#   query:           the natural-language prompt given to the AI
+#   expected_tools:  ordered list of tool calls with parameter patterns
+#   tool_criteria:   what to verify about the tool call sequence
+#   answer_criteria: facts/keywords that MUST appear in the final response
+#   anti_criteria:   things that must NOT appear (hallucinations, wrong tools)
+
+# ---------------------------------------------------------------------------
+# Tier 1: Single-Tool, Direct Answer
+# ---------------------------------------------------------------------------
+
+- id: "1.1"
+  tier: 1
+  title: "Forcing variable discovery"
+  query: "What forcing variables does SUEWS need?"
+  expected_tools:
+    - tool: search
+      params:
+        query: "forcing"
+        type_name: null
+  tool_criteria:
+    - "calls search (not explain)"
+    - "query relates to forcing"
+    - "does not specify type_name (browsing mode)"
+  answer_criteria:
+    - "lists required variables: kdown, Tair, RH, pres, U, rain"
+    - "distinguishes required from optional"
+    - "mentions at least one optional variable (ldown, qh, qe, qa, or co2)"
+  anti_criteria:
+    - "does not fabricate variables not in the catalogue"
+    - "does not call execute"
+
+- id: "1.2"
+  tier: 1
+  title: "OHM parameter schema"
+  query: "Show me the schema for OHM parameters."
+  expected_tools:
+    - tool: search
+      params:
+        type_name: "ohm-prm"
+        detail_level: "schema"
+  tool_criteria:
+    - "resolves to ohm-prm (not ohm-state or ohm-coef-lc)"
+    - "uses detail_level='schema'"
+  answer_criteria:
+    - "presents field names and types from the JSON Schema"
+    - "mentions OHM coefficients (a1, a2, a3)"
+  anti_criteria:
+    - "does not confuse ohm-prm with ohm-state"
+    - "does not fabricate schema fields"
+
+- id: "1.3"
+  tier: 1
+  title: "OHM conceptual explanation"
+  query: "Explain how the OHM storage heat scheme works."
+  expected_tools:
+    - tool: explain
+      params:
+        topic: "ohm"
+        show_source: false
+  tool_criteria:
+    - "calls explain (not search)"
+    - "show_source is false or absent"
+  answer_criteria:
+    - "mentions phase lag relationship"
+    - "references a1, a2, a3 coefficients"
+    - "explains dependency on net radiation"
+  anti_criteria:
+    - "does not call execute"
+    - "does not confuse OHM with ESTM or ANOHM"
+
+- id: "1.4"
+  tier: 1
+  title: "Run sample simulation"
+  query: "Run the sample SUEWS simulation."
+  expected_tools:
+    - tool: execute
+      params:
+        config_yaml: "sample"
+  tool_criteria:
+    - "uses literal 'sample' keyword"
+    - "does not attempt to write custom YAML"
+  answer_criteria:
+    - "reports number of timesteps"
+    - "reports mean flux values for at least Kdown, QH, QE, QS"
+    - "confirms the run succeeded (returncode 0)"
+  anti_criteria:
+    - "does not claim the run failed when it succeeded"
+    - "does not fabricate flux values without running"
+
+- id: "1.5"
+  tier: 1
+  title: "Fortran source for snow physics"
+  query: "Show me the Fortran source code for snow physics."
+  expected_tools:
+    - tool: explain
+      params:
+        topic: "snow"
+        show_source: true
+  tool_criteria:
+    - "sets show_source=true"
+    - "topic relates to snow"
+  answer_criteria:
+    - "returns Fortran code excerpt"
+    - "names a source file (e.g. suews_phys_snow.f95)"
+  anti_criteria:
+    - "does not return knowledge-base prose when source was requested"
+
+# ---------------------------------------------------------------------------
+# Tier 2: Single-Tool, Requires Judgement
+# ---------------------------------------------------------------------------
+
+- id: "2.1"
+  tier: 2
+  title: "Vegetation-related parameter types"
+  query: "What parameter types relate to vegetation?"
+  expected_tools:
+    - tool: search
+      params:
+        query: "vegetation"
+        type_name: null
+  tool_criteria:
+    - "uses search in browsing mode (no type_name)"
+    - "query relates to vegetation/plant/tree/grass"
+  answer_criteria:
+    - "mentions lai-prm"
+    - "mentions deciduous and/or evergreen tree land cover types"
+    - "mentions at least one of: bioco2-prm, phenology-state"
+  anti_criteria:
+    - "does not limit to a single type when multiple are relevant"
+
+- id: "2.2"
+  tier: 2
+  title: "Land cover types"
+  query: "What land cover types does SUEWS support?"
+  expected_tools:
+    - tool: search
+      params:
+        query: "land cover"
+  tool_criteria:
+    - "hits data catalogue (not type-specific search)"
+  answer_criteria:
+    - "lists all 7 types: paved, building, bare soil, water, deciduous tree, evergreen tree, grass"
+  anti_criteria:
+    - "does not fabricate additional land cover types"
+    - "does not omit any of the 7"
+
+- id: "2.3"
+  tier: 2
+  title: "LAI peaks too early diagnostic"
+  query: "My LAI peaks in February, what's wrong?"
+  expected_tools:
+    - tool: explain
+      params:
+        topic: "LAI peaks too early"
+        context:
+          peak_month: 2
+  tool_criteria:
+    - "uses diagnostic mode (passes context dict)"
+    - "infers symptom from query (peaks_too_early)"
+    - "includes peak_month in context"
+  answer_criteria:
+    - "identifies baset as controlling parameter"
+    - "suggests baset is too low"
+    - "recommends a specific adjustment direction"
+  anti_criteria:
+    - "does not suggest unrelated parameters"
+    - "does not call execute"
+
+- id: "2.4"
+  tier: 2
+  title: "Latent heat flux physics"
+  query: "How does SUEWS calculate latent heat flux?"
+  expected_tools:
+    - tool: explain
+      params:
+        topic: "QE"
+  tool_criteria:
+    - "maps 'latent heat flux' to QE or evaporation topic"
+    - "uses explain (not search)"
+  answer_criteria:
+    - "mentions Penman-Monteith or resistance approach"
+    - "references the relevant Fortran module or physics scheme"
+  anti_criteria:
+    - "does not confuse QE with QH (sensible heat)"
+
+# ---------------------------------------------------------------------------
+# Tier 3: Multi-Tool Sequential
+# ---------------------------------------------------------------------------
+
+- id: "3.1"
+  tier: 3
+  title: "Run sample and interpret output"
+  query: "Run the sample simulation and explain what the output columns mean."
+  expected_tools:
+    - tool: execute
+      params:
+        config_yaml: "sample"
+    - tool: explain
+      params:
+        topic: "output variables"
+  tool_criteria:
+    - "runs execute first, then explain"
+    - "uses column names from execute result to contextualise the explanation"
+  answer_criteria:
+    - "maps QH, QE, QS, Kdown to their physical meaning"
+    - "mentions sign conventions or units"
+    - "uses actual output from the sample run"
+  anti_criteria:
+    - "does not explain columns without running the simulation first"
+
+- id: "3.2"
+  tier: 3
+  title: "LAI schema then Fortran source"
+  query: "Find the LAI parameter schema and show me the Fortran code that uses it."
+  expected_tools:
+    - tool: search
+      params:
+        type_name: "lai-prm"
+        detail_level: "schema"
+    - tool: explain
+      params:
+        topic: "LAI"
+        show_source: true
+  tool_criteria:
+    - "calls search for schema first"
+    - "calls explain with show_source=true second"
+    - "resolves to lai-prm (not a different type)"
+  answer_criteria:
+    - "presents LAI parameter schema fields"
+    - "shows Fortran source excerpt"
+    - "connects schema fields to Fortran variable usage"
+  anti_criteria:
+    - "does not skip either step"
+
+- id: "3.3"
+  tier: 3
+  title: "Run sample then diagnose QH"
+  query: "Run the sample simulation, then diagnose why QH looks high."
+  expected_tools:
+    - tool: execute
+      params:
+        config_yaml: "sample"
+    - tool: explain
+      params:
+        topic: "QH too high"
+        context: "{mean fluxes from execute result}"
+  tool_criteria:
+    - "passes actual output metrics from execute into explain's context"
+    - "does not fabricate context values"
+  answer_criteria:
+    - "names controlling parameters for QH"
+    - "suggests parameter adjustments"
+    - "mentions related outputs to cross-check (e.g. QE, Kdown)"
+  anti_criteria:
+    - "does not diagnose without first running the simulation"
+    - "does not fabricate diagnostic output"
+
+# ---------------------------------------------------------------------------
+# Tier 4: Multi-Tool with Config Authoring
+# ---------------------------------------------------------------------------
+
+- id: "4.1"
+  tier: 4
+  title: "Author config for a new site"
+  query: >
+    Set up a SUEWS simulation for a site at 35 deg N, 139 deg E
+    with 70% impervious surface (50% paved, 20% building),
+    20% grass, and 10% deciduous trees.
+  expected_tools:
+    - tool: search
+      params:
+        type_name: "suews-config"
+        detail_level: "sample"
+    - tool: search
+      params:
+        type_name: "suews-site"
+        detail_level: "schema"
+    - tool: execute
+      params:
+        config_yaml: "{authored YAML}"
+  tool_criteria:
+    - "searches for config structure before writing YAML"
+    - "coordinates lat/lon and land cover fractions"
+    - "land cover fractions in authored YAML sum to 1.0"
+    - "attempts to execute the authored config"
+  answer_criteria:
+    - "produces syntactically valid YAML"
+    - "lat=35, lon=139"
+    - "paved=0.5, building=0.2, grass=0.2, deciduous_tree=0.1"
+    - "remaining types (bare soil, water, evergreen tree) set to 0"
+  anti_criteria:
+    - "fractions do not sum to != 1.0"
+    - "does not skip the execute step"
+    - "does not hardcode values without consulting schema"
+
+- id: "4.2"
+  tier: 4
+  title: "Compare baseline vs modified building fraction"
+  query: >
+    Run the sample simulation as a baseline, then modify it to double
+    the building fraction (reducing paved to compensate). Compare the
+    results and explain the differences.
+  expected_tools:
+    - tool: execute
+      params:
+        config_yaml: "sample"
+    - tool: search
+      params:
+        query: "site land cover"
+    - tool: execute
+      params:
+        config_yaml: "{modified YAML}"
+  tool_criteria:
+    - "runs two separate executions"
+    - "correctly modifies building fraction while keeping sum = 1.0"
+    - "reduces paved to compensate for increased building"
+  answer_criteria:
+    - "compares flux values between runs quantitatively"
+    - "explains physical reasoning for differences"
+    - "references how building fraction affects energy balance (e.g. more storage heat, anthropogenic heat)"
+  anti_criteria:
+    - "does not fabricate comparison numbers"
+    - "fractions do not sum to != 1.0 in modified config"
+    - "does not skip the baseline run"

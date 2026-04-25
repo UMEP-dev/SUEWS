@@ -22,7 +22,7 @@ import warnings
 # schema-versioning.md` (Dev-label convention). Every structural PR
 # between releases bumps the dev counter instead of consuming a new
 # CalVer label.
-CURRENT_SCHEMA_VERSION = "2026.5.dev5"
+CURRENT_SCHEMA_VERSION = "2026.5.dev6"
 
 # Schema version history and descriptions.
 #
@@ -191,6 +191,24 @@ SCHEMA_VERSIONS: dict[str, str] = {
         "is_schema_compatible check. Rust CLI acceptance lives in "
         "src/suews_bridge/src/field_renames.rs::collapse_nested_physics; "
         "Python-side helper in src/supy/data_model/core/physics_families.py."
+    ),
+    "2026.5.dev6": (
+        "gh#1333: validator contract change only (no YAML rewrite). "
+        "Site-level completeness now raises instead of warning when a "
+        "user-declared active surface omits physics-required phenology "
+        "(`lai_max`, `base_temperature`, "
+        "`base_temperature_senescence`, `gdd_full`, `sdd_full`), "
+        "conductance (`g_*`, `s_*`, `kmax`, `tl`, `th`), building "
+        "morphology (`bldgh`, `faibldg`), or tree FAI/height "
+        "(`height_{evergreen,deciduous}_tree`, "
+        "`fai_{evergreen,deciduous}_tree`) inputs. The YAML shape "
+        "accepted at 2026.5.dev5 is byte-identical here; the "
+        "(2026.5.dev5 -> 2026.5.dev6) migration is therefore an "
+        "identity transform whose presence signals the tightened load "
+        "contract to users pinning `schema_version`. The check is gated "
+        "on `_yaml_path` and explicit user declaration in the raw YAML "
+        "so programmatic constructions and default_factory-only sparse "
+        "fixtures remain permissive."
     ),
 }
 

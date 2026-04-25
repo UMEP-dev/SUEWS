@@ -33,7 +33,7 @@ from copy import deepcopy
 from pathlib import Path
 import warnings
 
-from .model import Model, OutputConfig
+from .model import FAIMethod, LAIMethod, Model, OutputConfig
 from .site import Site, SiteProperties, InitialStates, LandCover, LAIParams
 from .type import SurfaceType
 
@@ -348,8 +348,11 @@ class SUEWSConfig(BaseModel):
         ### 3) Run any conditional validations (e.g. STEBBS when stebbs_method==1)
         cond_issues = self._validate_conditional_parameters()
 
-        ### 4) Check for critical null physics parameters
+        ### 4) Check for critical null physics parameters (top-level ModelPhysics switches)
         critical_nulls = self._check_critical_null_physics_params()
+
+        ### 4b) Check for critical null site-level parameters (gh#1333)
+        critical_site_nulls = self._check_critical_null_site_params()
 
         ### 5) If we have either conditional issues or critical nulls, raise validation error
         all_critical_issues = []
@@ -357,8 +360,26 @@ class SUEWSConfig(BaseModel):
             all_critical_issues.extend(cond_issues)
         if critical_nulls:
             all_critical_issues.extend(critical_nulls)
+        if critical_site_nulls:
+            all_critical_issues.extend(critical_site_nulls)
 
         if all_critical_issues:
+            # Preserve the annotated-YAML UX on the failure path: if the caller
+            # asked for auto-generation, emit it before raising so users get a
+            # template alongside the error message (gh#1333).
+            yaml_path = getattr(self, "_yaml_path", None)
+            auto_generate = getattr(self, "_auto_generate_annotated", False)
+            if auto_generate and yaml_path and Path(yaml_path).exists():
+                try:
+                    generated_path = self.generate_annotated_yaml(yaml_path)
+                    logger_supy.info(
+                        f"Annotated YAML file generated: {generated_path}"
+                    )
+                except Exception as exc:  # pragma: no cover - best-effort UX
+                    logger_supy.warning(
+                        f"Annotated YAML generation failed: {exc}"
+                    )
+
             # Put each critical issue on its own line for readability
             error_message = "\n".join(all_critical_issues)
             raise ValueError(f"Critical validation failed:\n{error_message}")
@@ -2725,6 +2746,468 @@ class SUEWSConfig(BaseModel):
 
         return critical_issues
 
+    def _iter_critical_null_site_param_issues(self) -> List[Dict[str, str]]:
+        """Return structured issues for critical null site-level parameters.
+
+        Complements :meth:`_check_critical_null_physics_params` (which covers
+        the top-level ``ModelPhysics`` switches) by auditing site- and
+        surface-level fields that are presence- or physics-conditional.
+        Missing values here are stripped from the YAML by
+        ``model_dump(exclude_none=True, mode="json")`` and reach the Rust
+        backend as zero; on x86_64 this produces NaN via ``0/0`` and
+        ``0*Inf`` in the Fortran stomatal-conductance and LAI paths. See
+        gh#1333.
+
+        Rules applied per site:
+
+        - For each vegetated surface (``dectr`` / ``evetr`` / ``grass``)
+          with ``sfr > 0``, the surface's ``lai`` block must carry
+          non-None values for ``lai_max``, ``base_temperature``,
+          ``base_temperature_senescence``, ``gdd_full``, ``sdd_full``.
+        - For ``bldgs`` with ``sfr > 0``: ``bldgh`` and ``faibldg`` must
+          be non-None.
+        - For ``evetr`` with ``sfr > 0``: ``height_evergreen_tree`` and
+          ``fai_evergreen_tree`` must be non-None.
+        - For ``dectr`` with ``sfr > 0``: ``height_deciduous_tree`` and
+          ``fai_deciduous_tree`` must be non-None.
+        - If any vegetated surface is active, the site's ``conductance``
+          block must carry non-None values for all eleven fields
+          (``g_max``, ``g_k``, ``g_q_base``, ``g_q_shape``, ``g_t``,
+          ``g_sm``, ``kmax``, ``s1``, ``s2``, ``tl``, ``th``). Both
+          ``GSModel.JARVI`` and ``GSModel.WARD`` consume these.
+
+        CO2 / OHM blocks are out of scope for this check: in the gh#1333
+        reproducer those fields are populated with a sentinel value
+        (``1``), not ``None`` -- a different bug class handled in a
+        follow-up.
+
+        Returns
+        -------
+        List[Dict[str, str]]
+            One structured issue per missing field. Each issue carries an
+            ``error_text`` for the raised exception plus the ``path`` /
+            ``param`` / ``message`` / ``fix`` metadata used by the
+            annotated-YAML generator.
+
+        Notes
+        -----
+        Gated on ``self._yaml_path`` AND on raw-YAML presence in
+        ``self._yaml_raw``. The check fires only when:
+
+        1. The configuration was loaded from a YAML file (not a
+           programmatic ``SUEWSConfig(sites=[Site(...)])`` construction),
+           AND
+        2. The site carries an explicit ``land_cover`` mapping in the raw
+           YAML. Within that block, both user-declared surface mappings
+           and omitted surfaces that remain active through
+           ``default_factory`` are checked. Sites that omit
+           ``land_cover`` entirely are skipped.
+
+        Rationale: the pydantic default factories materialise every
+        surface with ``sfr=1/7`` and every phenology/conductance field
+        as ``None``, so a naive check fires on any sparse YAML — test
+        fixtures that only exercise timezone/schema-version handling,
+        docs examples that illustrate a single feature, etc. Restricting
+        the check to sites with an explicit ``land_cover`` block keeps it
+        focused on real user-assembled land-cover configurations, while
+        still catching omitted surfaces that would otherwise stay active
+        at their default fractions and silently produce NaN.
+        """
+        issues: List[Dict[str, str]] = []
+
+        if getattr(self, "_yaml_path", None) is None:
+            return issues
+
+        if not getattr(self, "sites", None):
+            return issues
+
+        yaml_raw = getattr(self, "_yaml_raw", None)
+        physics = getattr(getattr(self, "model", None), "physics", None)
+
+        def _scalar_value(value: Any) -> Any:
+            """Unwrap FlexibleRefValue / Enum layers to a plain scalar."""
+            value = getattr(value, "value", value)
+            return getattr(value, "value", value)
+
+        lai_method = _scalar_value(
+            getattr(physics, "laimethod", LAIMethod.CALCULATED)
+        )
+        require_calculated_lai = lai_method != LAIMethod.OBSERVED.value
+
+        fai_method = _scalar_value(
+            getattr(physics, "frontal_area_index", FAIMethod.USE_PROVIDED)
+        )
+        require_provided_fai = fai_method == FAIMethod.USE_PROVIDED.value
+
+        def _raw_site_properties(site_index: int) -> Dict[str, Any]:
+            """Return the raw ``sites[i].properties`` dict, or an empty
+            dict if absent or malformed."""
+            if not isinstance(yaml_raw, dict):
+                return {}
+            raw_sites = yaml_raw.get("sites")
+            if not isinstance(raw_sites, list) or site_index >= len(raw_sites):
+                return {}
+            raw_site = raw_sites[site_index]
+            if not isinstance(raw_site, dict):
+                return {}
+            raw_props = raw_site.get("properties")
+            if not isinstance(raw_props, dict):
+                return {}
+            return raw_props
+
+        def _raw_land_cover(site_index: int) -> Optional[Dict[str, Any]]:
+            """Return the raw ``sites[i].properties.land_cover`` dict."""
+            raw_props = _raw_site_properties(site_index)
+            raw_lc = raw_props.get("land_cover")
+            if not isinstance(raw_lc, dict):
+                return None
+            return raw_lc
+
+        def _raw_surface(site_index: int, surface_name: str) -> Dict[str, Any]:
+            """Return the raw ``sites[i].properties.land_cover.<surface>`` dict."""
+            raw_lc = _raw_land_cover(site_index)
+            if raw_lc is None:
+                return {}
+            raw_surface = raw_lc.get(surface_name)
+            if not isinstance(raw_surface, dict):
+                return {}
+            return raw_surface
+
+        def _surface_requires_validation(site_index: int, surface_name: str) -> bool:
+            """True if this surface should participate in hard-fail checks.
+
+            Covers both explicitly declared mappings and surfaces omitted
+            from an explicit ``land_cover`` block, because omitted
+            surfaces still materialise with ``sfr=1/7`` via
+            ``default_factory``. Invalid shorthand (for example
+            ``bldgs: 0.3``) is excluded here; pydantic rejects it before
+            these checks run.
+            """
+            raw_lc = _raw_land_cover(site_index)
+            if raw_lc is None:
+                return False
+            raw_surface = raw_lc.get(surface_name)
+            return raw_surface is None or isinstance(raw_surface, dict)
+
+        lai_required = {
+            "lai_max": (
+                "Maximum LAI is required for active vegetation",
+                "Add maximum leaf area index for full leaf-on conditions",
+            ),
+        }
+        lai_calculated_only_required = {
+            "base_temperature": (
+                "Base temperature is required for active vegetation",
+                "Add the base temperature for growing degree day accumulation",
+            ),
+            "base_temperature_senescence": (
+                "Senescence base temperature is required for active vegetation",
+                "Add the base temperature for senescence degree day accumulation",
+            ),
+            "gdd_full": (
+                "Growing degree days for full LAI are required for active vegetation",
+                "Add the growing degree day threshold for full leaf-on conditions",
+            ),
+            "sdd_full": (
+                "Senescence degree days are required for active vegetation",
+                "Add the senescence degree day threshold for leaf-off conditions",
+            ),
+        }
+        conductance_required = {
+            "g_max": (
+                "Maximum surface conductance is required for active vegetation",
+                "Add g_max for evapotranspiration calculations",
+            ),
+            "g_k": (
+                "Solar radiation response parameter is required for active vegetation",
+                "Add g_k for evapotranspiration calculations",
+            ),
+            "g_q_base": (
+                "Vapour pressure deficit base parameter is required for active vegetation",
+                "Add g_q_base for evapotranspiration calculations",
+            ),
+            "g_q_shape": (
+                "Vapour pressure deficit shape parameter is required for active vegetation",
+                "Add g_q_shape for evapotranspiration calculations",
+            ),
+            "g_t": (
+                "Temperature response parameter is required for active vegetation",
+                "Add g_t for evapotranspiration calculations",
+            ),
+            "g_sm": (
+                "Soil moisture response parameter is required for active vegetation",
+                "Add g_sm for evapotranspiration calculations",
+            ),
+            "kmax": (
+                "Maximum shortwave radiation parameter is required for active vegetation",
+                "Add kmax for evapotranspiration calculations",
+            ),
+            "s1": (
+                "Lower soil moisture threshold is required for active vegetation",
+                "Add s1 for evapotranspiration calculations",
+            ),
+            "s2": (
+                "Soil moisture dependence parameter is required for active vegetation",
+                "Add s2 for evapotranspiration calculations",
+            ),
+            "tl": (
+                "Lower temperature threshold is required for active vegetation",
+                "Add tl for evapotranspiration calculations",
+            ),
+            "th": (
+                "Upper temperature threshold is required for active vegetation",
+                "Add th for evapotranspiration calculations",
+            ),
+        }
+        building_required = {
+            "bldgh": (
+                "Building height is required when buildings are active",
+                "Add building height in meters",
+            ),
+        }
+        if require_provided_fai:
+            building_required["faibldg"] = (
+                "Building frontal area index is required when buildings are active",
+                "Add frontal area index for wind and roughness calculations",
+            )
+        evergreen_required = {
+            "height_evergreen_tree": (
+                "Evergreen tree height is required when evergreen vegetation is active",
+                "Add evergreen tree height in meters",
+            ),
+        }
+        if require_provided_fai:
+            evergreen_required["fai_evergreen_tree"] = (
+                "Evergreen tree frontal area index is required when evergreen vegetation is active",
+                "Add evergreen tree frontal area index",
+            )
+        deciduous_required = {
+            "height_deciduous_tree": (
+                "Deciduous tree height is required when deciduous vegetation is active",
+                "Add deciduous tree height in meters",
+            ),
+        }
+        if require_provided_fai:
+            deciduous_required["fai_deciduous_tree"] = (
+                "Deciduous tree frontal area index is required when deciduous vegetation is active",
+                "Add deciduous tree frontal area index",
+            )
+
+        def _add_issue(
+            *,
+            error_text: str,
+            path: str,
+            param: str,
+            message: str,
+            fix: str,
+        ) -> None:
+            issues.append(
+                {
+                    "error_text": error_text,
+                    "path": path,
+                    "param": param,
+                    "message": message,
+                    "fix": fix,
+                }
+            )
+
+        for i, site in enumerate(self.sites):
+            site_name = getattr(site, "name", f"site[{i}]")
+            props = getattr(site, "properties", None)
+            if props is None:
+                continue
+
+            land_cover = getattr(props, "land_cover", None)
+
+            active_veg: Dict[str, float] = {}
+
+            if land_cover is not None:
+                for surface_name in ("dectr", "evetr", "grass"):
+                    if not _surface_requires_validation(i, surface_name):
+                        continue
+                    surface = getattr(land_cover, surface_name, None)
+                    if surface is None:
+                        continue
+                    sfr_raw = getattr(surface, "sfr", None)
+                    sfr_value = getattr(sfr_raw, "value", sfr_raw)
+                    if sfr_value is None or sfr_value <= 0:
+                        continue
+
+                    active_veg[surface_name] = sfr_value
+
+                    raw_surface = _raw_surface(i, surface_name)
+                    if not isinstance(raw_surface.get("lai"), dict):
+                        _add_issue(
+                            error_text="",
+                            path=(
+                                f"sites[{i}]/properties/land_cover/{surface_name}"
+                            ),
+                            param="lai",
+                            message=(
+                                f"LAI block is required when {surface_name}.sfr > 0"
+                            ),
+                            fix=(
+                                "Add an lai block with phenology parameters for the active vegetated surface"
+                            ),
+                        )
+
+                    lai = getattr(surface, "lai", None)
+                    if lai is None:
+                        _add_issue(
+                            error_text=(
+                                f"sites[{i}] ({site_name}), land_cover.{surface_name}: "
+                                f"lai block is missing but sfr={sfr_value} > 0"
+                            ),
+                            path=(
+                                f"sites[{i}]/properties/land_cover/{surface_name}"
+                            ),
+                            param="lai",
+                            message=(
+                                f"LAI block is required when {surface_name}.sfr > 0"
+                            ),
+                            fix=(
+                                "Add an lai block with phenology parameters for the active vegetated surface"
+                            ),
+                        )
+                        continue
+                    lai_required_fields = dict(lai_required)
+                    if require_calculated_lai:
+                        lai_required_fields.update(lai_calculated_only_required)
+
+                    for field_name, (message, fix) in lai_required_fields.items():
+                        raw = getattr(lai, field_name, None)
+                        if getattr(raw, "value", raw) is None:
+                            _add_issue(
+                                error_text=(
+                                    f"sites[{i}] ({site_name}), land_cover.{surface_name}.lai: "
+                                    f"{field_name} is None but {surface_name}.sfr={sfr_value} > 0"
+                                ),
+                                path=(
+                                    f"sites[{i}]/properties/land_cover/{surface_name}/lai"
+                                ),
+                                param=field_name,
+                                message=message,
+                                fix=fix,
+                            )
+
+                if _surface_requires_validation(i, "bldgs"):
+                    bldgs = getattr(land_cover, "bldgs", None)
+                    if bldgs is not None:
+                        sfr_raw = getattr(bldgs, "sfr", None)
+                        sfr_value = getattr(sfr_raw, "value", sfr_raw)
+                        if sfr_value is not None and sfr_value > 0:
+                            for field_name, (message, fix) in building_required.items():
+                                raw = getattr(bldgs, field_name, None)
+                                if getattr(raw, "value", raw) is None:
+                                    _add_issue(
+                                        error_text=(
+                                            f"sites[{i}] ({site_name}), land_cover.bldgs: "
+                                            f"{field_name} is None but bldgs.sfr={sfr_value} > 0"
+                                        ),
+                                        path=f"sites[{i}]/properties/land_cover/bldgs",
+                                        param=field_name,
+                                        message=message,
+                                        fix=fix,
+                                    )
+
+                if _surface_requires_validation(i, "evetr"):
+                    evetr = getattr(land_cover, "evetr", None)
+                    if evetr is not None:
+                        sfr_raw = getattr(evetr, "sfr", None)
+                        sfr_value = getattr(sfr_raw, "value", sfr_raw)
+                        if sfr_value is not None and sfr_value > 0:
+                            for field_name, (message, fix) in evergreen_required.items():
+                                raw = getattr(evetr, field_name, None)
+                                if getattr(raw, "value", raw) is None:
+                                    _add_issue(
+                                        error_text=(
+                                            f"sites[{i}] ({site_name}), land_cover.evetr: "
+                                            f"{field_name} is None but evetr.sfr={sfr_value} > 0"
+                                        ),
+                                        path=f"sites[{i}]/properties/land_cover/evetr",
+                                        param=field_name,
+                                        message=message,
+                                        fix=fix,
+                                    )
+
+                if _surface_requires_validation(i, "dectr"):
+                    dectr = getattr(land_cover, "dectr", None)
+                    if dectr is not None:
+                        sfr_raw = getattr(dectr, "sfr", None)
+                        sfr_value = getattr(sfr_raw, "value", sfr_raw)
+                        if sfr_value is not None and sfr_value > 0:
+                            for field_name, (message, fix) in deciduous_required.items():
+                                raw = getattr(dectr, field_name, None)
+                                if getattr(raw, "value", raw) is None:
+                                    _add_issue(
+                                        error_text=(
+                                            f"sites[{i}] ({site_name}), land_cover.dectr: "
+                                            f"{field_name} is None but dectr.sfr={sfr_value} > 0"
+                                        ),
+                                        path=f"sites[{i}]/properties/land_cover/dectr",
+                                        param=field_name,
+                                        message=message,
+                                        fix=fix,
+                                    )
+
+            if active_veg:
+                conductance = getattr(props, "conductance", None)
+                raw_props = _raw_site_properties(i)
+                readout = ", ".join(
+                    f"{name}.sfr={sfr}" for name, sfr in active_veg.items()
+                )
+                if not isinstance(raw_props.get("conductance"), dict):
+                    _add_issue(
+                        error_text="",
+                        path=f"sites[{i}]/properties",
+                        param="conductance",
+                        message=(
+                            "Conductance block is required when vegetated surfaces are active"
+                        ),
+                        fix=(
+                            "Add a conductance block with the required evapotranspiration parameters"
+                        ),
+                    )
+                if conductance is None:
+                    _add_issue(
+                        error_text=(
+                            f"sites[{i}] ({site_name}): conductance block is missing "
+                            f"but vegetated surfaces are active ({readout})"
+                        ),
+                        path=f"sites[{i}]/properties",
+                        param="conductance",
+                        message=(
+                            "Conductance block is required when vegetated surfaces are active"
+                        ),
+                        fix=(
+                            "Add a conductance block with the required evapotranspiration parameters"
+                        ),
+                    )
+                else:
+                    for field_name, (message, fix) in conductance_required.items():
+                        raw = getattr(conductance, field_name, None)
+                        if getattr(raw, "value", raw) is None:
+                            _add_issue(
+                                error_text=(
+                                    f"sites[{i}] ({site_name}): conductance.{field_name} "
+                                    f"is None but vegetated surfaces are active ({readout})"
+                                ),
+                                path=f"sites[{i}]/properties/conductance",
+                                param=field_name,
+                                message=message,
+                                fix=fix,
+                            )
+
+        return issues
+
+    def _check_critical_null_site_params(self) -> List[str]:
+        """Check for critical null site-level parameters that silently yield NaN output."""
+        return [
+            issue["error_text"]
+            for issue in self._iter_critical_null_site_param_issues()
+            if issue["error_text"]
+        ]
+
     def generate_annotated_yaml(
         self, yaml_path: str, output_path: Optional[str] = None
     ) -> str:
@@ -2780,6 +3263,21 @@ class SUEWSConfig(BaseModel):
 
         if not hasattr(site, "properties") or not site.properties:
             return
+
+        # Mirror the hard-failure sparse-YAML checks in the annotated output so
+        # auto_generate_annotated=True remains actionable on the raise path.
+        site_prefix = f"sites[{site_index}]"
+        for issue in self._iter_critical_null_site_param_issues():
+            if issue["path"] == site_prefix or issue["path"].startswith(
+                f"{site_prefix}/"
+            ):
+                annotator.add_issue(
+                    path=issue["path"],
+                    param=issue["param"],
+                    message=issue["message"],
+                    fix=issue["fix"],
+                    level="ERROR",
+                )
 
         # Check conductance
         if hasattr(site.properties, "conductance") and site.properties.conductance:
@@ -2853,6 +3351,17 @@ class SUEWSConfig(BaseModel):
         self, land_cover, site_name: str, site_index: int, annotator: YAMLAnnotator
     ) -> None:
         """Collect land cover validation issues."""
+        physics = getattr(getattr(self, "model", None), "physics", None)
+
+        def _scalar_value(value: Any) -> Any:
+            value = getattr(value, "value", value)
+            return getattr(value, "value", value)
+
+        fai_method = _scalar_value(
+            getattr(physics, "frontal_area_index", FAIMethod.USE_PROVIDED)
+        )
+        require_provided_fai = fai_method == FAIMethod.USE_PROVIDED.value
+
         surface_types = ["bldgs", "grass", "dectr", "evetr", "bsoil", "paved", "water"]
 
         for surface_type in surface_types:
@@ -2870,7 +3379,7 @@ class SUEWSConfig(BaseModel):
                         )
 
                         # Building-specific checks
-                        if surface_type == "bldgs" and sfr_value > 0.05:
+                        if surface_type == "bldgs" and sfr_value > 0:
                             if not hasattr(surface, "bldgh") or surface.bldgh is None:
                                 annotator.add_issue(
                                     path=path,
@@ -2880,7 +3389,7 @@ class SUEWSConfig(BaseModel):
                                     level="WARNING",
                                 )
 
-                            if (
+                            if require_provided_fai and (
                                 not hasattr(surface, "faibldg")
                                 or surface.faibldg is None
                             ):
@@ -3831,9 +4340,16 @@ class SUEWSConfig(BaseModel):
         with open(path, "r") as file:
             config_data = yaml.load(file, Loader=yaml.FullLoader)
 
+        # Snapshot the raw user YAML so site-level completeness checks can
+        # distinguish user-declared surfaces from pydantic-factory defaults
+        # (gh#1333 follow-up). Deep-copied so later mutations of
+        # ``config_data`` do not bleed into the validator's view.
+        yaml_raw_snapshot = deepcopy(config_data)
+
         # Store yaml path in config data for later use
         config_data["_yaml_path"] = path
         config_data["_auto_generate_annotated"] = auto_generate_annotated
+        config_data["_yaml_raw"] = yaml_raw_snapshot
 
         # Log schema version information if present
         from ..schema import CURRENT_SCHEMA_VERSION, get_schema_compatibility_message
@@ -4093,7 +4609,7 @@ class SUEWSConfig(BaseModel):
         config_dict = self.model_dump(exclude_none=True, mode="json")
 
         # Strip private implementation fields
-        for key in ("_yaml_path", "_auto_generate_annotated"):
+        for key in ("_yaml_path", "_auto_generate_annotated", "_yaml_raw"):
             config_dict.pop(key, None)
 
         if not include_internal:

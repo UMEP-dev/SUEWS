@@ -633,7 +633,7 @@ def _apply_hot_water_unification_renames(cfg: dict) -> None:
 
 
 def _migrate_2026_5_dev3_to_current(cfg: dict) -> dict:
-    """Upgrade 2026.5.dev3-shaped YAMLs to the current ``2026.5.dev4`` schema.
+    """Upgrade 2026.5.dev3-shaped YAMLs to the current schema.
 
     Applies the gh#1334 follow-through hot-water unification: 14 renames
     under ``site.properties.building_archetype`` and ``.stebbs``.
@@ -644,7 +644,7 @@ def _migrate_2026_5_dev3_to_current(cfg: dict) -> dict:
 
 
 def _migrate_2026_5_dev2_to_current(cfg: dict) -> dict:
-    """Upgrade 2026.5.dev2-shaped YAMLs to the current ``2026.5.dev4`` schema.
+    """Upgrade 2026.5.dev2-shaped YAMLs to the current schema.
 
     Chains gh#1334 (dev2 -> dev3: retires STEBBS PascalCase; 124 renames)
     and the gh#1334 follow-through (dev3 -> dev4: hot-water prefix
@@ -657,7 +657,7 @@ def _migrate_2026_5_dev2_to_current(cfg: dict) -> dict:
 
 
 def _migrate_2026_5_to_current(cfg: dict) -> dict:
-    """Upgrade 2026.5-shaped YAMLs to the current ``2026.5.dev3`` schema.
+    """Upgrade 2026.5-shaped YAMLs to the current schema.
 
     Chains three dev-label deltas:
 
@@ -668,6 +668,12 @@ def _migrate_2026_5_to_current(cfg: dict) -> dict:
       ``_model`` suffix dropped and/or domain abbreviations expanded.
     * 2026.5.dev2 -> 2026.5.dev3 (gh#1334): full STEBBS + Snow YAML
       surface converted to snake_case (124 renames).
+    * 2026.5.dev3 -> 2026.5.dev4 (gh#1334 follow-through): hot-water
+      prefix unification (14 renames).
+    * 2026.5.dev4 -> 2026.5.dev5 (gh#972): nested physics acceptance
+      widening, identity migration.
+    * 2026.5.dev5 -> 2026.5.dev6 (gh#1333): site-level completeness
+      validator tightening, identity migration.
 
     Each rename flows through ``_rename_field`` so a dedicated log line
     is emitted per field — ``TestNoSilentFieldDrops`` enforces that. The
@@ -677,7 +683,7 @@ def _migrate_2026_5_to_current(cfg: dict) -> dict:
 
     Under the dev-label convention
     (``.claude/rules/python/schema-versioning.md``) the release PR will
-    collapse all four steps into a single ``(<prev>, 2026.5)`` migration.
+    collapse all six steps into a single ``(<prev>, 2026.5)`` migration.
     """
     cfg = _strip_internal_only_fields(cfg)
     _apply_arch_ext_renames(cfg)
@@ -688,7 +694,7 @@ def _migrate_2026_5_to_current(cfg: dict) -> dict:
 
 
 def _migrate_2026_5_dev1_to_current(cfg: dict) -> dict:
-    """Upgrade 2026.5.dev1-shaped YAMLs to the current ``2026.5.dev4`` schema.
+    """Upgrade 2026.5.dev1-shaped YAMLs to the current schema.
 
     Chains the Cat 2+3 ModelPhysics suffix/abbreviation rewrite (gh#1321),
     the gh#1334 STEBBS/Snow snake_case sweep, and the gh#1334 follow-through
@@ -753,13 +759,16 @@ _HANDLERS: dict[tuple[str, str], Handler] = {
     ("2025.12", "2026.4"): _migrate_2025_12_to_2026_4,
     # Intermediate stops at 2026.5 (callers pinning Category 1 only).
     ("2026.4", "2026.5"): _migrate_2026_4_to_2026_5,
-    # Chains to the current schema (2026.5.dev5: Cat 1 snake_case sweep
+    # Chains to the current schema (2026.5.dev6: Cat 1 snake_case sweep
     # + Cat 5 STEBBS ext rename + Cat 2+3 ModelPhysics suffix drop
     # + gh#1334 STEBBS/Snow snake_case + gh#1334 follow-through hot-water
-    # prefix unification + gh#972 accept-only nested physics sub-options).
-    # The dev4 -> dev5 delta is accept-only (widening, no YAML rewrite),
-    # so that edge is an identity handler — presence in the registry is
-    # what grants dev4 compatibility under is_schema_compatible.
+    # prefix unification + gh#972 accept-only nested physics sub-options
+    # + gh#1333 site-level completeness validator tightening).
+    # The dev4 -> dev5 and dev5 -> dev6 deltas are accept-only / contract
+    # tightening changes with no YAML rewrite, so identity handlers are
+    # sufficient and their presence in the registry is what grants
+    # compatibility under is_schema_compatible.
+    ("2026.5.dev5", CURRENT_SCHEMA_VERSION): _identity,
     ("2026.5.dev4", CURRENT_SCHEMA_VERSION): _identity,
     ("2026.5.dev3", CURRENT_SCHEMA_VERSION): _migrate_2026_5_dev3_to_current,
     ("2026.5.dev2", CURRENT_SCHEMA_VERSION): _migrate_2026_5_dev2_to_current,

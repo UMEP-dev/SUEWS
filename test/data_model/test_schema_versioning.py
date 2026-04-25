@@ -39,7 +39,18 @@ def load_supy_resource(resource_path: str) -> str:
     return resource.read_text()
 
 
+def write_temp_sparse_schema_file(schema_version: str) -> Path:
+    """Write the sparse fixture with an explicit schema stamp."""
+    sparse_config = Path(__file__).parent.parent / "fixtures" / "sparse_site.yml"
+    sparse_text = sparse_config.read_text()
+
+    with tempfile.NamedTemporaryFile(mode="w", suffix=".yml", delete=False) as f:
+        f.write(f"schema_version: '{schema_version}'\n{sparse_text}")
+        return Path(f.name)
+
+
 from supy.data_model.core import SUEWSConfig
+from supy.cmd.schema_cli import validate_file_against_schema
 from supy.data_model.schema import (
     CURRENT_SCHEMA_VERSION,
     is_schema_compatible,
@@ -120,6 +131,45 @@ class TestSchemaVersioning:
         with pytest.raises(ValueError) as exc:
             validate_schema_version("2.0", strict=True)
         assert "incompatible" in str(exc.value).lower()
+
+    def test_schema_cli_validate_rejects_sparse_yaml(self):
+        """schema_cli validation should mirror from_yaml() on sparse configs."""
+        sparse_config = Path(__file__).parent.parent / "fixtures" / "sparse_site.yml"
+
+        is_valid, errors = validate_file_against_schema(sparse_config)
+
+        assert is_valid is False
+        message = "\n".join(errors)
+        assert "faibldg" in message
+        assert "conductance.g_max" in message
+
+    def test_schema_cli_validate_rejects_sparse_yaml_with_compatible_older_stamp(self):
+        """Default validation should still mirror from_yaml() for compatible older stamps."""
+        sparse_config = write_temp_sparse_schema_file("2026.5.dev5")
+
+        try:
+            is_valid, errors = validate_file_against_schema(sparse_config)
+        finally:
+            sparse_config.unlink()
+
+        assert is_valid is False
+        message = "\n".join(errors)
+        assert "faibldg" in message
+        assert "conductance.g_max" in message
+
+    def test_schema_cli_explicit_older_schema_stays_schema_only(self):
+        """Explicit old-target validation keeps the historical schema-only contract."""
+        sparse_config = write_temp_sparse_schema_file("2026.5.dev5")
+
+        try:
+            is_valid, errors = validate_file_against_schema(
+                sparse_config, schema_version="2026.5.dev5"
+            )
+        finally:
+            sparse_config.unlink()
+
+        assert is_valid is True
+        assert errors == []
 
     def test_validate_schema_version_warnings(self):
         """Test schema validation warnings in non-strict mode."""

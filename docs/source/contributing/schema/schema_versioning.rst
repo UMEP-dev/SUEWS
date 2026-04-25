@@ -170,7 +170,37 @@ The lineage below mirrors ``SCHEMA_VERSIONS`` in
 the schema that shipped with it via
 ``supy.util.converter.yaml_upgrade._PACKAGE_TO_SCHEMA``.
 
-**Schema 2026.5.dev4** (current; in-development dev bump; gh#1334 follow-through via PR #1337)
+**Schema 2026.5.dev6** (current; in-development dev bump; gh#1333)
+   Validator contract change only — the YAML shape is unchanged from
+   ``2026.5.dev5``, but site-level completeness checks now raise
+   instead of warning when a user-declared active surface omits
+   physics-required phenology, conductance, building morphology, or
+   tree FAI / height inputs. The ``(2026.5.dev5 -> 2026.5.dev6)``
+   migration in ``src/supy/util/converter/yaml_upgrade.py::_HANDLERS``
+   is therefore an identity pass whose presence signals the tightened
+   load contract to users pinning ``schema_version``.
+
+   The check fires only for YAML loaded from disk (``_yaml_path`` set)
+   and only for surfaces the user explicitly declared in the raw YAML.
+   Programmatic ``SUEWSConfig(sites=[Site(...)])`` constructions and
+   ``default_factory``-materialised sparse fixtures remain permissive.
+
+**Schema 2026.5.dev5** (gh#972)
+   Accept-only widening for three ``model.physics`` fields:
+   ``net_radiation``, ``storage_heat``, and ``emissions``. Users may
+   now supply a family-tagged nested shape such as
+   ``net_radiation: {spartacus: {value: 1001}}`` alongside the existing
+   flat ``{value: 1001}`` form. Family tag is validated against its
+   numeric codes at load time; canonical internal shape remains flat,
+   and YAML dump / migration continue to emit the flat form unchanged.
+
+   The ``(2026.5.dev4 -> 2026.5.dev5)`` migration is an identity
+   transform because no rewrite is required. Rust CLI acceptance lives
+   in ``src/suews_bridge/src/field_renames.rs::collapse_nested_physics``;
+   Python-side family metadata lives in
+   ``src/supy/data_model/core/physics_families.py``.
+
+**Schema 2026.5.dev4** (gh#1334 follow-through via PR #1337)
    Unifies the STEBBS hot-water subsystem under the ``hot_water_*``
    prefix, retiring the opaque ``dhw_`` acronym and the split
    ``water_tank_*`` sibling that survived the gh#1334 PascalCase

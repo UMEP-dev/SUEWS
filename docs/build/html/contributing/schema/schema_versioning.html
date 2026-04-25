@@ -8,8 +8,8 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <meta property="article:modified_time" content="2026-04-23T12:12:24+00:00" />
-    <title>YAML Configuration Schema Versioning &#8212; SUEWS 2026.4.24.dev9017 documentation</title>
+    <meta property="article:modified_time" content="2026-04-25T05:39:08+00:00" />
+    <title>YAML Configuration Schema Versioning &#8212; SUEWS 2026.4.25.dev9018 documentation</title>
   
   
   
@@ -45,7 +45,7 @@
   <link rel="preload" as="script" href="../../_static/scripts/bootstrap.js?digest=8878045cc6db502f8baf" />
 <link rel="preload" as="script" href="../../_static/scripts/pydata-sphinx-theme.js?digest=8878045cc6db502f8baf" />
 
-    <script src="../../_static/documentation_options.js?v=483b4960"></script>
+    <script src="../../_static/documentation_options.js?v=ffedf7d8"></script>
     <script src="../../_static/doctools.js?v=9bcbadda"></script>
     <script src="../../_static/sphinx_highlight.js?v=dc90522c"></script>
     <script src="../../_static/scripts/sphinx-book-theme.js?v=fab101a9"></script>
@@ -57,8 +57,8 @@
     <link rel="search" title="Search" href="../../search.html" />
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
-  <meta name="docsearch:version" content="2026.4.24.dev9017" />
-    <meta name="docbuild:last-update" content="2026-04-23"/>
+  <meta name="docsearch:version" content="2026.4.25.dev9018" />
+    <meta name="docbuild:last-update" content="2026-04-25"/>
   </head>
   
   
@@ -100,7 +100,7 @@
   <div class="bd-header-announcement__content">
     <div style="background-color: #f0ad4e; border: 1px solid #eea236; border-radius: 4px; padding: 10px; margin: 10px 0;">
         <strong>⚠️ Development Version:</strong> This documentation was built from a development version
-        (2026.4.24.dev9017, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/60c7f36c76cf9f25e272611be47456d1a77aca18" style="color: #31708f;">60c7f36</a>).
+        (2026.4.25.dev9018, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/60aeaea151ecf9ee4207c7e242324cd0dabe34e8" style="color: #31708f;">60aeaea</a>).
         Features described here may be unstable or subject to change. For stable documentation, please visit the
         <a href="https://docs.suews.io/stable/" style="color: #31708f;">latest release</a>.
     </div>
@@ -147,8 +147,8 @@
       
     
     
-    <img src="../../_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.4.24.dev9017 documentation - Home"/>
-    <img src="../../_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.4.24.dev9017 documentation - Home"/>
+    <img src="../../_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.4.25.dev9018 documentation - Home"/>
+    <img src="../../_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.4.25.dev9018 documentation - Home"/>
   
   
 </a></div>
@@ -775,7 +775,33 @@ suews-schema<span class="w"> </span>migrate<span class="w"> </span>config.yml<sp
 the schema that shipped with it via
 <code class="docutils literal notranslate"><span class="pre">supy.util.converter.yaml_upgrade._PACKAGE_TO_SCHEMA</span></code>.</p>
 <dl>
-<dt><strong>Schema 2026.5.dev4</strong> (current; in-development dev bump; gh#1334 follow-through via PR #1337)</dt><dd><p>Unifies the STEBBS hot-water subsystem under the <code class="docutils literal notranslate"><span class="pre">hot_water_*</span></code>
+<dt><strong>Schema 2026.5.dev6</strong> (current; in-development dev bump; gh#1333)</dt><dd><p>Validator contract change only — the YAML shape is unchanged from
+<code class="docutils literal notranslate"><span class="pre">2026.5.dev5</span></code>, but site-level completeness checks now raise
+instead of warning when a user-declared active surface omits
+physics-required phenology, conductance, building morphology, or
+tree FAI / height inputs. The <code class="docutils literal notranslate"><span class="pre">(2026.5.dev5</span> <span class="pre">-&gt;</span> <span class="pre">2026.5.dev6)</span></code>
+migration in <code class="docutils literal notranslate"><span class="pre">src/supy/util/converter/yaml_upgrade.py::_HANDLERS</span></code>
+is therefore an identity pass whose presence signals the tightened
+load contract to users pinning <code class="docutils literal notranslate"><span class="pre">schema_version</span></code>.</p>
+<p>The check fires only for YAML loaded from disk (<code class="docutils literal notranslate"><span class="pre">_yaml_path</span></code> set)
+and only for surfaces the user explicitly declared in the raw YAML.
+Programmatic <code class="docutils literal notranslate"><span class="pre">SUEWSConfig(sites=[Site(...)])</span></code> constructions and
+<code class="docutils literal notranslate"><span class="pre">default_factory</span></code>-materialised sparse fixtures remain permissive.</p>
+</dd>
+<dt><strong>Schema 2026.5.dev5</strong> (gh#972)</dt><dd><p>Accept-only widening for three <code class="docutils literal notranslate"><span class="pre">model.physics</span></code> fields:
+<code class="docutils literal notranslate"><span class="pre">net_radiation</span></code>, <code class="docutils literal notranslate"><span class="pre">storage_heat</span></code>, and <code class="docutils literal notranslate"><span class="pre">emissions</span></code>. Users may
+now supply a family-tagged nested shape such as
+<code class="docutils literal notranslate"><span class="pre">net_radiation:</span> <span class="pre">{spartacus:</span> <span class="pre">{value:</span> <span class="pre">1001}}</span></code> alongside the existing
+flat <code class="docutils literal notranslate"><span class="pre">{value:</span> <span class="pre">1001}</span></code> form. Family tag is validated against its
+numeric codes at load time; canonical internal shape remains flat,
+and YAML dump / migration continue to emit the flat form unchanged.</p>
+<p>The <code class="docutils literal notranslate"><span class="pre">(2026.5.dev4</span> <span class="pre">-&gt;</span> <span class="pre">2026.5.dev5)</span></code> migration is an identity
+transform because no rewrite is required. Rust CLI acceptance lives
+in <code class="docutils literal notranslate"><span class="pre">src/suews_bridge/src/field_renames.rs::collapse_nested_physics</span></code>;
+Python-side family metadata lives in
+<code class="docutils literal notranslate"><span class="pre">src/supy/data_model/core/physics_families.py</span></code>.</p>
+</dd>
+<dt><strong>Schema 2026.5.dev4</strong> (gh#1334 follow-through via PR #1337)</dt><dd><p>Unifies the STEBBS hot-water subsystem under the <code class="docutils literal notranslate"><span class="pre">hot_water_*</span></code>
 prefix, retiring the opaque <code class="docutils literal notranslate"><span class="pre">dhw_</span></code> acronym and the split
 <code class="docutils literal notranslate"><span class="pre">water_tank_*</span></code> sibling that survived the gh#1334 PascalCase
 sweep. Tank vs vessel physical separation stays real — preserved
@@ -1096,7 +1122,7 @@ By SUEWS dev team led by Prof Sue Grimmond
   
   <div class="footer-item">
     <p class="last-updated">
-  Last updated on 2026-04-23.
+  Last updated on 2026-04-25.
   <br/>
 </p>
   </div>
@@ -1104,8 +1130,8 @@ By SUEWS dev team led by Prof Sue Grimmond
   <div class="footer-item">
     
 <div class="extra_footer">
-  <p>Version: 2026.4.24.dev9017 |
-    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/60c7f36c76cf9f25e272611be47456d1a77aca18">60c7f36</a> |
+  <p>Version: 2026.4.25.dev9018 |
+    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/60aeaea151ecf9ee4207c7e242324cd0dabe34e8">60aeaea</a> |
     <a href="https://umep-dev.github.io/SUEWS/brand/showcase.html">Brand</a></p>
 </div>
   </div>

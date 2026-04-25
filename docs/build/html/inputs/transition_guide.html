@@ -8,8 +8,8 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <meta property="article:modified_time" content="2026-04-23T23:50:05+00:00" />
-    <title>4.5. Transitioning to YAML-based Configuration &#8212; SUEWS 2026.4.24.dev9017 documentation</title>
+    <meta property="article:modified_time" content="2026-04-25T05:39:08+00:00" />
+    <title>4.5. Transitioning to YAML-based Configuration &#8212; SUEWS 2026.4.25.dev9018 documentation</title>
   
   
   
@@ -45,7 +45,7 @@
   <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=8878045cc6db502f8baf" />
 <link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=8878045cc6db502f8baf" />
 
-    <script src="../_static/documentation_options.js?v=483b4960"></script>
+    <script src="../_static/documentation_options.js?v=ffedf7d8"></script>
     <script src="../_static/doctools.js?v=9bcbadda"></script>
     <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
     <script src="../_static/scripts/sphinx-book-theme.js?v=fab101a9"></script>
@@ -59,8 +59,8 @@
     <link rel="prev" title="4.4. SUEWS Format Converter" href="converter.html" />
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
-  <meta name="docsearch:version" content="2026.4.24.dev9017" />
-    <meta name="docbuild:last-update" content="2026-04-23"/>
+  <meta name="docsearch:version" content="2026.4.25.dev9018" />
+    <meta name="docbuild:last-update" content="2026-04-25"/>
   </head>
   
   
@@ -102,7 +102,7 @@
   <div class="bd-header-announcement__content">
     <div style="background-color: #f0ad4e; border: 1px solid #eea236; border-radius: 4px; padding: 10px; margin: 10px 0;">
         <strong>⚠️ Development Version:</strong> This documentation was built from a development version
-        (2026.4.24.dev9017, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/60c7f36c76cf9f25e272611be47456d1a77aca18" style="color: #31708f;">60c7f36</a>).
+        (2026.4.25.dev9018, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/60aeaea151ecf9ee4207c7e242324cd0dabe34e8" style="color: #31708f;">60aeaea</a>).
         Features described here may be unstable or subject to change. For stable documentation, please visit the
         <a href="https://docs.suews.io/stable/" style="color: #31708f;">latest release</a>.
     </div>
@@ -149,8 +149,8 @@
       
     
     
-    <img src="../_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.4.24.dev9017 documentation - Home"/>
-    <img src="../_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.4.24.dev9017 documentation - Home"/>
+    <img src="../_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.4.25.dev9018 documentation - Home"/>
+    <img src="../_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.4.25.dev9018 documentation - Home"/>
   
   
 </a></div>
@@ -609,15 +609,17 @@
 </ul>
 </li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#yaml-schema-migrations">4.5.4. YAML Schema Migrations</a><ul class="nav section-nav flex-column">
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#upgrading-to-schema-2026-5-dev4-gh-1334-follow-through-via-pr-1337-stebbs-hot-water-prefix-unification">4.5.4.1. Upgrading to Schema 2026.5.dev4 (gh#1334 follow-through via PR #1337: STEBBS hot-water prefix unification)</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#upgrading-to-schema-2026-5-dev3-gh-1334-stebbs-snow-user-facing-yaml-to-snake-case">4.5.4.2. Upgrading to Schema 2026.5.dev3 (gh#1334: STEBBS + Snow user-facing YAML to snake_case)</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#upgrading-to-schema-2026-5-dev2-categories-2-3-of-1256-suffix-drop-abbreviation-expansion">4.5.4.3. Upgrading to Schema 2026.5.dev2 (Categories 2+3 of #1256: suffix drop, abbreviation expansion)</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#upgrading-to-schema-2026-5-dev1-category-5-of-1256-stebbs-ext-split">4.5.4.4. Upgrading to Schema 2026.5.dev1 (Category 5 of #1256: STEBBS <code class="xref any docutils literal notranslate"><span class="pre">ext</span></code> split)</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#upgrading-to-schema-2026-5-category-1-of-1256-snake-case-sweep">4.5.4.5. Upgrading to Schema 2026.5 (Category 1 of #1256: snake_case sweep)</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#upgrading-to-schema-2026-4-suews-2026-4-3">4.5.4.6. Upgrading to Schema 2026.4 (SUEWS 2026.4.3)</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#upgrading-to-schema-2026-1-suews-2026-1-28">4.5.4.7. Upgrading to Schema 2026.1 (SUEWS 2026.1.28)</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#preserving-your-values-through-renames">4.5.4.8. Preserving Your Values Through Renames</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#troubleshooting">4.5.4.9. Troubleshooting</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#upgrading-to-schema-2026-5-dev6-gh-1333-site-level-completeness-validator">4.5.4.1. Upgrading to Schema 2026.5.dev6 (gh#1333 site-level completeness validator)</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#upgrading-to-schema-2026-5-dev5-gh-972-nested-physics-family-tags">4.5.4.2. Upgrading to Schema 2026.5.dev5 (gh#972 nested physics family tags)</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#upgrading-to-schema-2026-5-dev4-gh-1334-follow-through-via-pr-1337-stebbs-hot-water-prefix-unification">4.5.4.3. Upgrading to Schema 2026.5.dev4 (gh#1334 follow-through via PR #1337: STEBBS hot-water prefix unification)</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#upgrading-to-schema-2026-5-dev3-gh-1334-stebbs-snow-user-facing-yaml-to-snake-case">4.5.4.4. Upgrading to Schema 2026.5.dev3 (gh#1334: STEBBS + Snow user-facing YAML to snake_case)</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#upgrading-to-schema-2026-5-dev2-categories-2-3-of-1256-suffix-drop-abbreviation-expansion">4.5.4.5. Upgrading to Schema 2026.5.dev2 (Categories 2+3 of #1256: suffix drop, abbreviation expansion)</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#upgrading-to-schema-2026-5-dev1-category-5-of-1256-stebbs-ext-split">4.5.4.6. Upgrading to Schema 2026.5.dev1 (Category 5 of #1256: STEBBS <code class="xref any docutils literal notranslate"><span class="pre">ext</span></code> split)</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#upgrading-to-schema-2026-5-category-1-of-1256-snake-case-sweep">4.5.4.7. Upgrading to Schema 2026.5 (Category 1 of #1256: snake_case sweep)</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#upgrading-to-schema-2026-4-suews-2026-4-3">4.5.4.8. Upgrading to Schema 2026.4 (SUEWS 2026.4.3)</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#upgrading-to-schema-2026-1-suews-2026-1-28">4.5.4.9. Upgrading to Schema 2026.1 (SUEWS 2026.1.28)</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#preserving-your-values-through-renames">4.5.4.10. Preserving Your Values Through Renames</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#troubleshooting">4.5.4.11. Troubleshooting</a></li>
 </ul>
 </li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#nested-physics-sub-options-accept-only-gh-972">4.5.5. Nested Physics Sub-Options (accept-only, gh#972)</a></li>
@@ -796,8 +798,68 @@ reason so you can reconstruct intent if needed.</p>
 <p>The sections below summarise what users see change between schemas.
 The authoritative lineage (including release-tag to schema mapping)
 lives in <a class="reference internal" href="../contributing/schema/schema_versioning.html#schema-version-history"><span class="std std-ref">Version History</span></a>.</p>
+<section id="upgrading-to-schema-2026-5-dev6-gh-1333-site-level-completeness-validator">
+<h3><span class="section-number">4.5.4.1. </span>Upgrading to Schema 2026.5.dev6 (gh#1333 site-level completeness validator)<a class="headerlink" href="#upgrading-to-schema-2026-5-dev6-gh-1333-site-level-completeness-validator" title="Link to this heading">#</a></h3>
+<p>Schema <code class="docutils literal notranslate"><span class="pre">2026.5.dev6</span></code> is the current in-development shape. The YAML
+shape is byte-for-byte identical to <code class="docutils literal notranslate"><span class="pre">2026.5.dev5</span></code> — this is a pure
+validator-contract tightening, not a structural rename.</p>
+<p>Previously, declaring a vegetated or building surface with
+<code class="docutils literal notranslate"><span class="pre">sfr</span> <span class="pre">&gt;</span> <span class="pre">0</span></code> but omitting the physics-required completion fields
+produced a WARNING summary at load time, then silently ran to
+all-NaN output on x86_64. From <code class="docutils literal notranslate"><span class="pre">2026.5.dev6</span></code> onwards,
+<code class="xref py py-meth docutils literal notranslate"><span class="pre">SUEWSConfig.from_yaml()</span></code> raises <code class="docutils literal notranslate"><span class="pre">ValueError</span></code> instead, naming
+every missing field. Affected blocks:</p>
+<ul class="simple">
+<li><p><strong>Phenology</strong> (<code class="docutils literal notranslate"><span class="pre">lai_max</span></code>, <code class="docutils literal notranslate"><span class="pre">base_temperature</span></code>,
+<code class="docutils literal notranslate"><span class="pre">base_temperature_senescence</span></code>, <code class="docutils literal notranslate"><span class="pre">gdd_full</span></code>, <code class="docutils literal notranslate"><span class="pre">sdd_full</span></code>) on any
+active vegetated surface (<code class="docutils literal notranslate"><span class="pre">dectr</span></code> / <code class="docutils literal notranslate"><span class="pre">evetr</span></code> / <code class="docutils literal notranslate"><span class="pre">grass</span></code> with
+<code class="docutils literal notranslate"><span class="pre">sfr</span> <span class="pre">&gt;</span> <span class="pre">0</span></code>).</p></li>
+<li><p><strong>Conductance</strong> (all eleven <code class="docutils literal notranslate"><span class="pre">g_max</span></code> / <code class="docutils literal notranslate"><span class="pre">g_k</span></code> / <code class="docutils literal notranslate"><span class="pre">g_q_base</span></code> /
+<code class="docutils literal notranslate"><span class="pre">g_q_shape</span></code> / <code class="docutils literal notranslate"><span class="pre">g_t</span></code> / <code class="docutils literal notranslate"><span class="pre">g_sm</span></code> / <code class="docutils literal notranslate"><span class="pre">kmax</span></code> / <code class="docutils literal notranslate"><span class="pre">s1</span></code> / <code class="docutils literal notranslate"><span class="pre">s2</span></code> /
+<code class="docutils literal notranslate"><span class="pre">tl</span></code> / <code class="docutils literal notranslate"><span class="pre">th</span></code> fields) whenever any vegetated surface is active,
+for both <code class="docutils literal notranslate"><span class="pre">GSModel.JARVI</span></code> and <code class="docutils literal notranslate"><span class="pre">GSModel.WARD</span></code>.</p></li>
+<li><p><strong>Building morphology</strong> (<code class="docutils literal notranslate"><span class="pre">bldgh</span></code>, <code class="docutils literal notranslate"><span class="pre">faibldg</span></code>) when
+<code class="docutils literal notranslate"><span class="pre">bldgs.sfr</span> <span class="pre">&gt;</span> <span class="pre">0</span></code>.</p></li>
+<li><p><strong>Tree morphology</strong> (<code class="docutils literal notranslate"><span class="pre">height_evergreen_tree</span></code> / <code class="docutils literal notranslate"><span class="pre">fai_evergreen_tree</span></code>
+when <code class="docutils literal notranslate"><span class="pre">evetr.sfr</span> <span class="pre">&gt;</span> <span class="pre">0</span></code>; <code class="docutils literal notranslate"><span class="pre">height_deciduous_tree</span></code> /
+<code class="docutils literal notranslate"><span class="pre">fai_deciduous_tree</span></code> when <code class="docutils literal notranslate"><span class="pre">dectr.sfr</span> <span class="pre">&gt;</span> <span class="pre">0</span></code>).</p></li>
+</ul>
+<p>Trigger conditions: the check fires only when the configuration is
+loaded from a YAML file via <code class="xref py py-meth docutils literal notranslate"><span class="pre">SUEWSConfig.from_yaml()</span></code> and the
+user explicitly declared the surface as a mapping in the raw YAML.
+Surfaces that pydantic materialised from <code class="docutils literal notranslate"><span class="pre">default_factory</span></code> because
+the user omitted them are skipped, so programmatic
+<code class="docutils literal notranslate"><span class="pre">SUEWSConfig(sites=[Site(...)])</span></code> constructions and sparse test /
+docs YAMLs that only exercise unrelated aspects (timezone, output
+configuration, …) remain permissive.</p>
+<p>Because the YAML shape is unchanged, no <code class="docutils literal notranslate"><span class="pre">suews-schema</span> <span class="pre">migrate</span></code> run
+is strictly required to move to <code class="docutils literal notranslate"><span class="pre">2026.5.dev6</span></code>. Run the migrator
+only to refresh the <code class="docutils literal notranslate"><span class="pre">schema_version</span></code> stamp if you pin the field:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>suews-schema<span class="w"> </span>migrate<span class="w"> </span>your_config.yml<span class="w"> </span>--target-version<span class="w"> </span><span class="m">2026</span>.5.dev6
+</pre></div>
+</div>
+<p>Users hitting the new raise should either (a) fill in the missing
+fields the error message names, or (b) remove the offending surface
+declaration entirely (<code class="docutils literal notranslate"><span class="pre">sfr:</span> <span class="pre">0</span></code>, or drop the block) if the
+simulation was never meant to include that cover type.</p>
+</section>
+<section id="upgrading-to-schema-2026-5-dev5-gh-972-nested-physics-family-tags">
+<h3><span class="section-number">4.5.4.2. </span>Upgrading to Schema 2026.5.dev5 (gh#972 nested physics family tags)<a class="headerlink" href="#upgrading-to-schema-2026-5-dev5-gh-972-nested-physics-family-tags" title="Link to this heading">#</a></h3>
+<p>Schema <code class="docutils literal notranslate"><span class="pre">2026.5.dev5</span></code> widens acceptance for three
+<code class="docutils literal notranslate"><span class="pre">model.physics</span></code> fields: <code class="docutils literal notranslate"><span class="pre">net_radiation</span></code>, <code class="docutils literal notranslate"><span class="pre">storage_heat</span></code>, and
+<code class="docutils literal notranslate"><span class="pre">emissions</span></code>. Users may now provide a family-tagged nested form such
+as <code class="docutils literal notranslate"><span class="pre">net_radiation:</span> <span class="pre">{spartacus:</span> <span class="pre">{value:</span> <span class="pre">1001}}</span></code> alongside the
+existing flat <code class="docutils literal notranslate"><span class="pre">{value:</span> <span class="pre">1001}</span></code> form. Family tag is validated against
+its numeric codes at load time; canonical internal shape remains flat,
+and YAML dump / migration continue to emit the flat form unchanged.</p>
+<p>Because the change is accept-only, the <code class="docutils literal notranslate"><span class="pre">2026.5.dev4</span> <span class="pre">-&gt;</span>
+<span class="pre">2026.5.dev5</span></code> migration is an identity pass. Run:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>suews-schema<span class="w"> </span>migrate<span class="w"> </span>your_config.yml<span class="w"> </span>--target-version<span class="w"> </span><span class="m">2026</span>.5.dev5
+</pre></div>
+</div>
+</section>
 <section id="upgrading-to-schema-2026-5-dev4-gh-1334-follow-through-via-pr-1337-stebbs-hot-water-prefix-unification">
-<h3><span class="section-number">4.5.4.1. </span>Upgrading to Schema 2026.5.dev4 (gh#1334 follow-through via PR #1337: STEBBS hot-water prefix unification)<a class="headerlink" href="#upgrading-to-schema-2026-5-dev4-gh-1334-follow-through-via-pr-1337-stebbs-hot-water-prefix-unification" title="Link to this heading">#</a></h3>
+<h3><span class="section-number">4.5.4.3. </span>Upgrading to Schema 2026.5.dev4 (gh#1334 follow-through via PR #1337: STEBBS hot-water prefix unification)<a class="headerlink" href="#upgrading-to-schema-2026-5-dev4-gh-1334-follow-through-via-pr-1337-stebbs-hot-water-prefix-unification" title="Link to this heading">#</a></h3>
 <p>Schema <code class="docutils literal notranslate"><span class="pre">2026.5.dev4</span></code> unifies the STEBBS hot-water subsystem under
 a single <code class="docutils literal notranslate"><span class="pre">hot_water_*</span></code> prefix, dropping the opaque <code class="docutils literal notranslate"><span class="pre">dhw_</span></code>
 acronym and the redundant <code class="docutils literal notranslate"><span class="pre">water_tank_*</span></code> sibling that survived
@@ -828,13 +890,13 @@ to rewrite them in place. Rust struct fields and the c_api shadow
 keep <code class="docutils literal notranslate"><span class="pre">dhw_*</span></code> internally — cross-layer work is tracked in #1324.</p>
 </section>
 <section id="upgrading-to-schema-2026-5-dev3-gh-1334-stebbs-snow-user-facing-yaml-to-snake-case">
-<h3><span class="section-number">4.5.4.2. </span>Upgrading to Schema 2026.5.dev3 (gh#1334: STEBBS + Snow user-facing YAML to snake_case)<a class="headerlink" href="#upgrading-to-schema-2026-5-dev3-gh-1334-stebbs-snow-user-facing-yaml-to-snake-case" title="Link to this heading">#</a></h3>
-<p>Schema <code class="docutils literal notranslate"><span class="pre">2026.5.dev3</span></code> is the current in-development shape. It
-retires the pre-gh#1334 STEBBS PascalCase exception on the
-user-facing YAML surface — the full <code class="docutils literal notranslate"><span class="pre">site.properties.stebbs</span></code>,
-<code class="docutils literal notranslate"><span class="pre">site.properties.building_archetype</span></code> and <code class="docutils literal notranslate"><span class="pre">site.properties.snow</span></code>
-sub-trees now follow the same <code class="docutils literal notranslate"><span class="pre">snake_case</span></code> convention as the rest
-of the config. 124 renames in one schema bump:</p>
+<h3><span class="section-number">4.5.4.4. </span>Upgrading to Schema 2026.5.dev3 (gh#1334: STEBBS + Snow user-facing YAML to snake_case)<a class="headerlink" href="#upgrading-to-schema-2026-5-dev3-gh-1334-stebbs-snow-user-facing-yaml-to-snake-case" title="Link to this heading">#</a></h3>
+<p>Schema <code class="docutils literal notranslate"><span class="pre">2026.5.dev3</span></code> retires the pre-gh#1334 STEBBS PascalCase
+exception on the user-facing YAML surface — the full
+<code class="docutils literal notranslate"><span class="pre">site.properties.stebbs</span></code>, <code class="docutils literal notranslate"><span class="pre">site.properties.building_archetype</span></code>
+and <code class="docutils literal notranslate"><span class="pre">site.properties.snow</span></code> sub-trees now follow the same
+<code class="docutils literal notranslate"><span class="pre">snake_case</span></code> convention as the rest of the config. 124 renames in
+one schema bump:</p>
 <ul class="simple">
 <li><p><code class="docutils literal notranslate"><span class="pre">ArchetypeProperties</span></code> (62 renames) — <code class="docutils literal notranslate"><span class="pre">BuildingType</span></code> -&gt;
 <code class="docutils literal notranslate"><span class="pre">building_type</span></code>, <code class="docutils literal notranslate"><span class="pre">stebbs_Height</span></code> -&gt; <code class="docutils literal notranslate"><span class="pre">building_height</span></code>,
@@ -888,12 +950,12 @@ cluster) continue to load under a <code class="docutils literal notranslate"><sp
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>suews-schema<span class="w"> </span>migrate<span class="w"> </span>your_config.yml<span class="w"> </span>--target-version<span class="w"> </span><span class="m">2026</span>.5.dev3
 </pre></div>
 </div>
-<p>The migrator accepts any registered intermediate (<code class="docutils literal notranslate"><span class="pre">2025.12</span></code>,
-<code class="docutils literal notranslate"><span class="pre">2026.1</span></code>, <code class="docutils literal notranslate"><span class="pre">2026.4</span></code>, <code class="docutils literal notranslate"><span class="pre">2026.5</span></code>, <code class="docutils literal notranslate"><span class="pre">2026.5.dev1</span></code>, <code class="docutils literal notranslate"><span class="pre">2026.5.dev2</span></code>)
-and walks the chain to the current schema in one call.</p>
+<p>Use this historical target when you specifically want the pre-hot-water
+unification <code class="docutils literal notranslate"><span class="pre">2026.5.dev3</span></code> spellings. To land on the current schema
+instead, omit <code class="docutils literal notranslate"><span class="pre">--target-version</span></code> or point it at <code class="docutils literal notranslate"><span class="pre">2026.5.dev6</span></code>.</p>
 </section>
 <section id="upgrading-to-schema-2026-5-dev2-categories-2-3-of-1256-suffix-drop-abbreviation-expansion">
-<h3><span class="section-number">4.5.4.3. </span>Upgrading to Schema 2026.5.dev2 (Categories 2+3 of #1256: suffix drop, abbreviation expansion)<a class="headerlink" href="#upgrading-to-schema-2026-5-dev2-categories-2-3-of-1256-suffix-drop-abbreviation-expansion" title="Link to this heading">#</a></h3>
+<h3><span class="section-number">4.5.4.5. </span>Upgrading to Schema 2026.5.dev2 (Categories 2+3 of #1256: suffix drop, abbreviation expansion)<a class="headerlink" href="#upgrading-to-schema-2026-5-dev2-categories-2-3-of-1256-suffix-drop-abbreviation-expansion" title="Link to this heading">#</a></h3>
 <p>Schema <code class="docutils literal notranslate"><span class="pre">2026.5.dev2</span></code> applies
 Categories 2 and 3 of #1256 (gh#1321) to <code class="docutils literal notranslate"><span class="pre">model.physics</span></code>: 15 fields
 strip the redundant <code class="docutils literal notranslate"><span class="pre">_method</span></code> / <code class="docutils literal notranslate"><span class="pre">_model</span></code> suffix (the enum type
@@ -935,7 +997,7 @@ chain to the current schema in one call. Your values survive the
 rename untouched.</p>
 </section>
 <section id="upgrading-to-schema-2026-5-dev1-category-5-of-1256-stebbs-ext-split">
-<h3><span class="section-number">4.5.4.4. </span>Upgrading to Schema 2026.5.dev1 (Category 5 of #1256: STEBBS <code class="xref any docutils literal notranslate"><span class="pre">ext</span></code> split)<a class="headerlink" href="#upgrading-to-schema-2026-5-dev1-category-5-of-1256-stebbs-ext-split" title="Link to this heading">#</a></h3>
+<h3><span class="section-number">4.5.4.6. </span>Upgrading to Schema 2026.5.dev1 (Category 5 of #1256: STEBBS <code class="xref any docutils literal notranslate"><span class="pre">ext</span></code> split)<a class="headerlink" href="#upgrading-to-schema-2026-5-dev1-category-5-of-1256-stebbs-ext-split" title="Link to this heading">#</a></h3>
 <p>Schema <code class="docutils literal notranslate"><span class="pre">2026.5.dev1</span></code> is the current in-development shape. It
 applies Category 5 of #1256 (gh#1327): eight STEBBS
 <code class="docutils literal notranslate"><span class="pre">ArchetypeProperties</span></code> fields with the fused <code class="docutils literal notranslate"><span class="pre">ext</span></code> fragment are
@@ -979,7 +1041,7 @@ canonical invocation for this migration.</p>
 </div>
 </section>
 <section id="upgrading-to-schema-2026-5-category-1-of-1256-snake-case-sweep">
-<h3><span class="section-number">4.5.4.5. </span>Upgrading to Schema 2026.5 (Category 1 of #1256: snake_case sweep)<a class="headerlink" href="#upgrading-to-schema-2026-5-category-1-of-1256-snake-case-sweep" title="Link to this heading">#</a></h3>
+<h3><span class="section-number">4.5.4.7. </span>Upgrading to Schema 2026.5 (Category 1 of #1256: snake_case sweep)<a class="headerlink" href="#upgrading-to-schema-2026-5-category-1-of-1256-snake-case-sweep" title="Link to this heading">#</a></h3>
 <p>Schema <code class="docutils literal notranslate"><span class="pre">2026.5</span></code> is the Category 1 base on top of which the
 <code class="docutils literal notranslate"><span class="pre">.devN</span></code> dev cycle builds. It applies Category 1 of #1256: 59
 fused compound field names in
@@ -1010,7 +1072,7 @@ release fixture or before sharing a config with collaborators.</p>
 </div>
 </section>
 <section id="upgrading-to-schema-2026-4-suews-2026-4-3">
-<h3><span class="section-number">4.5.4.6. </span>Upgrading to Schema 2026.4 (SUEWS 2026.4.3)<a class="headerlink" href="#upgrading-to-schema-2026-4-suews-2026-4-3" title="Link to this heading">#</a></h3>
+<h3><span class="section-number">4.5.4.8. </span>Upgrading to Schema 2026.4 (SUEWS 2026.4.3)<a class="headerlink" href="#upgrading-to-schema-2026-4-suews-2026-4-3" title="Link to this heading">#</a></h3>
 <p>Upgrading from <code class="docutils literal notranslate"><span class="pre">2026.1</span></code> (shipped with 2026.1.28) or earlier applies
 the following deltas:</p>
 <ul class="simple">
@@ -1038,7 +1100,7 @@ further to the current 2026.5 schema, use
 <code class="docutils literal notranslate"><span class="pre">--target-version</span> <span class="pre">2026.5</span></code> (or omit the flag to reach the latest).</p>
 </section>
 <section id="upgrading-to-schema-2026-1-suews-2026-1-28">
-<h3><span class="section-number">4.5.4.7. </span>Upgrading to Schema 2026.1 (SUEWS 2026.1.28)<a class="headerlink" href="#upgrading-to-schema-2026-1-suews-2026-1-28" title="Link to this heading">#</a></h3>
+<h3><span class="section-number">4.5.4.9. </span>Upgrading to Schema 2026.1 (SUEWS 2026.1.28)<a class="headerlink" href="#upgrading-to-schema-2026-1-suews-2026-1-28" title="Link to this heading">#</a></h3>
 <p>Landed with the STEBBS clean-up (#879). If you are moving from the
 <code class="docutils literal notranslate"><span class="pre">2025.12</span></code> shape (2025.10.15 or 2025.11.20):</p>
 <ul class="simple">
@@ -1062,7 +1124,7 @@ work; the profiles default to previous scalar behaviour.</p></li>
 <p>Otherwise the 2026.4 -&gt; 2026.5 chain above is applied in one pass.</p>
 </section>
 <section id="preserving-your-values-through-renames">
-<h3><span class="section-number">4.5.4.8. </span>Preserving Your Values Through Renames<a class="headerlink" href="#preserving-your-values-through-renames" title="Link to this heading">#</a></h3>
+<h3><span class="section-number">4.5.4.10. </span>Preserving Your Values Through Renames<a class="headerlink" href="#preserving-your-values-through-renames" title="Link to this heading">#</a></h3>
 <p>The rename handlers preserve the user’s value. When both the old and
 the new key happen to be present in the same YAML (for example if
 you’ve partially hand-edited), the newer value wins and the stale
@@ -1074,7 +1136,7 @@ upgraded file, pass <code class="docutils literal notranslate"><span class="pre"
 </div>
 </section>
 <section id="troubleshooting">
-<h3><span class="section-number">4.5.4.9. </span>Troubleshooting<a class="headerlink" href="#troubleshooting" title="Link to this heading">#</a></h3>
+<h3><span class="section-number">4.5.4.11. </span>Troubleshooting<a class="headerlink" href="#troubleshooting" title="Link to this heading">#</a></h3>
 <p><strong>Common Issues and Solutions:</strong></p>
 <ol class="arabic simple">
 <li><p><strong>“Could not auto-detect version”</strong></p>
@@ -1216,15 +1278,17 @@ separate issue once this plumbing is proven.</p>
 </ul>
 </li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#yaml-schema-migrations">4.5.4. YAML Schema Migrations</a><ul class="nav section-nav flex-column">
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#upgrading-to-schema-2026-5-dev4-gh-1334-follow-through-via-pr-1337-stebbs-hot-water-prefix-unification">4.5.4.1. Upgrading to Schema 2026.5.dev4 (gh#1334 follow-through via PR #1337: STEBBS hot-water prefix unification)</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#upgrading-to-schema-2026-5-dev3-gh-1334-stebbs-snow-user-facing-yaml-to-snake-case">4.5.4.2. Upgrading to Schema 2026.5.dev3 (gh#1334: STEBBS + Snow user-facing YAML to snake_case)</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#upgrading-to-schema-2026-5-dev2-categories-2-3-of-1256-suffix-drop-abbreviation-expansion">4.5.4.3. Upgrading to Schema 2026.5.dev2 (Categories 2+3 of #1256: suffix drop, abbreviation expansion)</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#upgrading-to-schema-2026-5-dev1-category-5-of-1256-stebbs-ext-split">4.5.4.4. Upgrading to Schema 2026.5.dev1 (Category 5 of #1256: STEBBS <code class="xref any docutils literal notranslate"><span class="pre">ext</span></code> split)</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#upgrading-to-schema-2026-5-category-1-of-1256-snake-case-sweep">4.5.4.5. Upgrading to Schema 2026.5 (Category 1 of #1256: snake_case sweep)</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#upgrading-to-schema-2026-4-suews-2026-4-3">4.5.4.6. Upgrading to Schema 2026.4 (SUEWS 2026.4.3)</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#upgrading-to-schema-2026-1-suews-2026-1-28">4.5.4.7. Upgrading to Schema 2026.1 (SUEWS 2026.1.28)</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#preserving-your-values-through-renames">4.5.4.8. Preserving Your Values Through Renames</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#troubleshooting">4.5.4.9. Troubleshooting</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#upgrading-to-schema-2026-5-dev6-gh-1333-site-level-completeness-validator">4.5.4.1. Upgrading to Schema 2026.5.dev6 (gh#1333 site-level completeness validator)</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#upgrading-to-schema-2026-5-dev5-gh-972-nested-physics-family-tags">4.5.4.2. Upgrading to Schema 2026.5.dev5 (gh#972 nested physics family tags)</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#upgrading-to-schema-2026-5-dev4-gh-1334-follow-through-via-pr-1337-stebbs-hot-water-prefix-unification">4.5.4.3. Upgrading to Schema 2026.5.dev4 (gh#1334 follow-through via PR #1337: STEBBS hot-water prefix unification)</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#upgrading-to-schema-2026-5-dev3-gh-1334-stebbs-snow-user-facing-yaml-to-snake-case">4.5.4.4. Upgrading to Schema 2026.5.dev3 (gh#1334: STEBBS + Snow user-facing YAML to snake_case)</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#upgrading-to-schema-2026-5-dev2-categories-2-3-of-1256-suffix-drop-abbreviation-expansion">4.5.4.5. Upgrading to Schema 2026.5.dev2 (Categories 2+3 of #1256: suffix drop, abbreviation expansion)</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#upgrading-to-schema-2026-5-dev1-category-5-of-1256-stebbs-ext-split">4.5.4.6. Upgrading to Schema 2026.5.dev1 (Category 5 of #1256: STEBBS <code class="xref any docutils literal notranslate"><span class="pre">ext</span></code> split)</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#upgrading-to-schema-2026-5-category-1-of-1256-snake-case-sweep">4.5.4.7. Upgrading to Schema 2026.5 (Category 1 of #1256: snake_case sweep)</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#upgrading-to-schema-2026-4-suews-2026-4-3">4.5.4.8. Upgrading to Schema 2026.4 (SUEWS 2026.4.3)</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#upgrading-to-schema-2026-1-suews-2026-1-28">4.5.4.9. Upgrading to Schema 2026.1 (SUEWS 2026.1.28)</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#preserving-your-values-through-renames">4.5.4.10. Preserving Your Values Through Renames</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#troubleshooting">4.5.4.11. Troubleshooting</a></li>
 </ul>
 </li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#nested-physics-sub-options-accept-only-gh-972">4.5.5. Nested Physics Sub-Options (accept-only, gh#972)</a></li>
@@ -1261,7 +1325,7 @@ By SUEWS dev team led by Prof Sue Grimmond
   
   <div class="footer-item">
     <p class="last-updated">
-  Last updated on 2026-04-23.
+  Last updated on 2026-04-25.
   <br/>
 </p>
   </div>
@@ -1269,8 +1333,8 @@ By SUEWS dev team led by Prof Sue Grimmond
   <div class="footer-item">
     
 <div class="extra_footer">
-  <p>Version: 2026.4.24.dev9017 |
-    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/60c7f36c76cf9f25e272611be47456d1a77aca18">60c7f36</a> |
+  <p>Version: 2026.4.25.dev9018 |
+    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/60aeaea151ecf9ee4207c7e242324cd0dabe34e8">60aeaea</a> |
     <a href="https://umep-dev.github.io/SUEWS/brand/showcase.html">Brand</a></p>
 </div>
   </div>

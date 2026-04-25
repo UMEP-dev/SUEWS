@@ -190,23 +190,24 @@ rebuild-meson:
 		fi; \
 	fi
 
-# Run tests - Three tiers available:
+# Run tests - Four local entry points available:
 # - test-smoke: Fast critical tests (~30-60 sec) - used in CI wheel validation
 # - test: Standard tests excluding slow (~2-3 min) - default for development
 # - test-all: All tests including slow (~4-5 min) - comprehensive validation
+# - test-qgis: UMEP/QGIS compatibility tests (Windows + Python 3.12 target)
 test:
 	@echo "Running standard tests (excluding slow tests)..."
 	@echo "NOTE: Slow tests (e.g., Fortran state persistence ~3-4 min) are skipped."
 	@echo "      Run 'make test-all' for comprehensive testing."
 	@echo ""
-	$(PYTHON) -m pytest test -m "not slow" -v --tb=short --durations=10
+	$(PYTHON) -m pytest test -m "not slow and not qgis" -v --tb=short --durations=10
 
 # Smoke tests - fast critical path tests for CI
 test-smoke:
 	@echo "Running smoke tests (critical path only)..."
 	@echo "This is the fastest test tier for CI wheel validation."
 	@echo ""
-	$(PYTHON) -m pytest test -m "smoke" -v --tb=short --durations=10
+	$(PYTHON) -m pytest test -m "smoke and not slow and not qgis" -v --tb=short --durations=10
 
 # All tests including slow tests
 test-all:
@@ -214,6 +215,14 @@ test-all:
 	@echo "This may take 4-5 minutes."
 	@echo ""
 	$(PYTHON) -m pytest test -v --tb=short --durations=10
+
+# UMEP/QGIS compatibility tests
+test-qgis:
+	@echo "Running UMEP/QGIS compatibility tests..."
+	@echo "Target runtime is Windows + Python 3.12 (current QGIS 3 LTR / QGIS 4)."
+	@echo "Other platforms/interpreters collect these tests as skipped."
+	@echo ""
+	$(PYTHON) -m pytest test/umep -m "qgis and api" -v --tb=short --durations=10
 
 # Audit installed dependency hooks and declared dependency advisories
 audit-deps:

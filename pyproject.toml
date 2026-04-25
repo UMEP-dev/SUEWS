@@ -30,7 +30,7 @@ readme = "README.md"
 dependencies = [
     # Data processing
     "pandas",
-    "numpy>=1.22",  # NumPy 1.22+ covers QGIS 3.40 LTR (1.26.4) through 2.x; no ABI constraint (Rust bridge is NumPy-free)
+    "numpy>=1.22",  # Covers current QGIS 3 LTR / QGIS 4 NumPy stacks; no ABI constraint (Rust bridge is NumPy-free)
     "scipy<1.15; python_version >= '3.11' and python_version < '3.13' and platform_system == 'Linux'",  # manylinux2014 wheels
     "scipy; python_version < '3.11' or python_version >= '3.13' or platform_system != 'Linux'",  # Others use latest
     # xarray removed - only needed for gridded ERA5 (install separately)
@@ -153,7 +153,7 @@ markers = [
     "util: Utility function tests (non-critical)",
     "cfg: Config/schema validation tests",
     "slow: Tests taking >30s individually",
-    "qgis: UMEP plugin tests in test/umep/ (Windows + Python 3.12 only)",
+    "qgis: UMEP plugin integration tests in test/umep/ (Windows + Python 3.12 target)",
 ]
 
 [tool.ruff]

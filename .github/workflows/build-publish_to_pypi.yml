@@ -12,9 +12,12 @@ name: Build and Publish Python wheels to PyPI and TestPyPI
 # Build strategy:
 #   One cp39-abi3 wheel per (OS, arch). The Rust bridge (PyO3 abi3-py39)
 #   makes the binary ABI-stable, so a single wheel installs on cp39..cp3xx.
-#   Covers QGIS 3 LTR (NumPy 1.26.4), QGIS 4 (NumPy 2.x), and general users
-#   — the runtime pin is numpy>=1.22 (Rust bridge has no NumPy C-ABI
-#   dependency; pure-Python code uses only NumPy 1.22-compatible APIs).
+#   Covers current Windows QGIS 3 LTR, QGIS 4, and general users — the runtime
+#   pin is numpy>=1.22 (Rust bridge has no NumPy C-ABI dependency; pure-Python
+#   code uses only NumPy 1.22-compatible APIs).
+#   UMEP/QGIS tests are integration-contract tests, not physics tests; normal
+#   PR tiers exclude qgis and scheduled/release/manual `all` runs cover the
+#   Windows + Python 3.12 runtime shared by current QGIS 3 LTR and QGIS 4.
 #
 # Nightly version: Tag YYYY.M.D.dev created BEFORE build for version consistency.
 # See get_ver_git.py for version string logic, .github/path-filters.yml for categories.

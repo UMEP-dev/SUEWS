@@ -1,5 +1,8 @@
 # Reusable workflow: install the cp39-abi3 wheel into each supported CPython
-# version and run `pytest -m "api and <tier>"`.
+# version and run `pytest -m "api and <tier>"`. Normal tiers exclude the
+# QGIS/UMEP integration lane; `all` keeps it for scheduled/release/manual
+# validation where the Windows + Python 3.12 cell matches current QGIS 3 LTR
+# and QGIS 4 Windows runtimes.
 #
 # Called by build-publish_to_pypi.yml. The `api` marker (gh#1300) covers the
 # Python wrapper surface — pandas/numpy/pydantic, CLI, SUEWSSimulation —
@@ -69,10 +72,10 @@ jobs:
           TIER: ${{ inputs.test_tier }}
         run: |
           case "$TIER" in
-            smoke)    EXPR='api and smoke and not slow' ;;
-            core)     EXPR='api and (smoke or core) and not slow' ;;
-            cfg)      EXPR='api and (smoke or cfg) and not slow' ;;
-            standard) EXPR='api and not slow' ;;
+            smoke)    EXPR='api and smoke and not slow and not qgis' ;;
+            core)     EXPR='api and (smoke or core) and not slow and not qgis' ;;
+            cfg)      EXPR='api and (smoke or cfg) and not slow and not qgis' ;;
+            standard) EXPR='api and not slow and not qgis' ;;
             all)      EXPR='api' ;;
             *)        echo "::error::Unknown test_tier: $TIER"; exit 1 ;;
           esac

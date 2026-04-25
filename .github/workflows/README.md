@@ -63,15 +63,20 @@ When triggering via Actions tab → "Run workflow", you can configure:
 - **deploy_target**: `none` (validation) or `testpypi` (PyPI restricted to tags)
 - **test_tier**: `smoke`, `core`, `cfg`, `standard`, or `all`
 
-Every cp39-abi3 wheel also covers QGIS 3 LTR (NumPy 1.26.4) — the runtime
-pin is `numpy>=1.22` and the Rust bridge has no NumPy C-ABI dependency.
+Every cp39-abi3 wheel also covers the current Windows QGIS 3 LTR and QGIS 4
+Python line. Both use Python 3.12 on Windows; the runtime pin is
+`numpy>=1.22` and the Rust bridge has no NumPy C-ABI dependency.
 
 **Test tier routing:**
 - Wheel-build jobs run `physics` tests once per selected platform/architecture.
 - API cross-CPython jobs install the built wheel and run `api` tests across the
   selected Python versions.
-- `smoke`, `core`, `cfg`, and `standard` all exclude `slow`; `all` is reserved
-  for scheduled builds, tagged releases, and explicit manual validation.
+- `smoke`, `core`, `cfg`, and `standard` all exclude `slow` and `qgis`; `all`
+  is reserved for scheduled builds, tagged releases, and explicit manual
+  validation.
+- UMEP/QGIS tests are `api + qgis`: they are not physics backend tests, and
+  run only when `all` reaches the Windows + Python 3.12 compatibility cell or
+  when selected explicitly.
 
 ### 4. GitHub Pages Deploy (`pages-deploy.yml`)
 Deploys static site content to GitHub Pages at suews.io:

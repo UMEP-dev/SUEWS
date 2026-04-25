@@ -36,12 +36,19 @@ Input/output and data handling tests:
 - **test_yaml_annotation.py** - YAML annotation features
 
 ### UMEP/QGIS Tests (`umep/`)
-UMEP plugin compatibility tests (Windows + Python 3.12 only, GH-901):
+UMEP plugin compatibility tests (Windows + Python 3.12 target, GH-901):
 - **test_preprocessor.py** - Database Manager, Database Prepare, ERA5 Download APIs
 - **test_processor.py** - SUEWS model runs (init, run, save)
 - **test_postprocessor.py** - Output path handling
 - **test_environment.py** - QGIS-specific environment (None stdout/stderr)
 - **test_imports.py** - Import path verification
+
+These tests are still needed with the Rust backend. They do not duplicate the
+physics guardrails; they protect the UMEP/QGIS integration surface: import
+paths, YAML-backed runtime construction, output path handling, `run_supy`
+calling patterns, and QGIS stdout/stderr behaviour. Current Windows QGIS 3 LTR
+and QGIS 4 runtimes both use Python 3.12, so a single Windows + Python 3.12
+lane is enough for this repository's plugin-facing compatibility checks.
 
 ### Test Fixtures (`fixtures/`)
 Test data and resources:
@@ -60,7 +67,8 @@ pytest test/core/ -v              # Core functionality
 pytest test/data_model/ -v        # Data model tests
 pytest test/physics/ -v           # Physics validation
 pytest test/io_tests/ -v          # I/O tests
-pytest test/umep/ -v -m qgis      # UMEP/QGIS tests (Windows + Python 3.12 only)
+pytest test/umep/ -v -m qgis      # UMEP/QGIS tests (Windows + Python 3.12 target)
+make test-qgis                    # Same QGIS/UMEP lane via Makefile
 
 # Run specific key tests
 pytest test/core/test_sample_output.py -v    # Fast validation
@@ -92,7 +100,9 @@ pytestmark = [pytest.mark.physics, pytest.mark.api]
 ```
 
 UMEP tests pick up `api` automatically via `test/umep/conftest.py`; they
-are gated to Windows + Python 3.12 by the existing `qgis` marker.
+are gated to Windows + Python 3.12 by the existing `qgis` marker. This matches
+the current Windows runtime for both QGIS 3 LTR and QGIS 4; the Qt/PyQt
+difference is outside this repository's direct test surface.
 
 ### Tier axis — how fast or expensive is the test?
 
@@ -107,7 +117,7 @@ are gated to Windows + Python 3.12 by the existing `qgis` marker.
 - `util` — utility function tests (non-critical).
 - `cfg` — config / schema validation tests.
 - `slow` — tests taking more than 30s individually.
-- `qgis` — UMEP plugin tests in `test/umep/` (Windows + Python 3.12).
+- `qgis` — UMEP plugin tests in `test/umep/` (Windows + Python 3.12 target).
 
 ### Selecting a subset
 
@@ -130,6 +140,10 @@ pytest -m "physics and api"        # files that straddle both axes
 - Mark long regression or reproduction tests `slow`. Slow tests run in
   `test-all`, scheduled builds, release builds, or explicit manual validation;
   they are excluded from smoke, core, cfg, standard, and local `make test`.
+- Keep UMEP/QGIS tests under `test/umep/` with the auto-applied `api` + `qgis`
+  markers. They run in `all` validation on the Windows + Python 3.12 cell or
+  through `make test-qgis`; keep them out of normal PR/CR tiers unless a change
+  directly touches the UMEP/QGIS integration contract.
 - Keep `smoke` tiny: imports, one short model run, and the minimum output
   validation needed to fail fast.
 

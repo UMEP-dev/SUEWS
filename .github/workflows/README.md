@@ -66,6 +66,13 @@ When triggering via Actions tab → "Run workflow", you can configure:
 Every cp39-abi3 wheel also covers QGIS 3 LTR (NumPy 1.26.4) — the runtime
 pin is `numpy>=1.22` and the Rust bridge has no NumPy C-ABI dependency.
 
+**Test tier routing:**
+- Wheel-build jobs run `physics` tests once per selected platform/architecture.
+- API cross-CPython jobs install the built wheel and run `api` tests across the
+  selected Python versions.
+- `smoke`, `core`, `cfg`, and `standard` all exclude `slow`; `all` is reserved
+  for scheduled builds, tagged releases, and explicit manual validation.
+
 ### 4. GitHub Pages Deploy (`pages-deploy.yml`)
 Deploys static site content to GitHub Pages at suews.io:
 - Deploys `site/` directory content on push to master

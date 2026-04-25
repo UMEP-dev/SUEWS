@@ -69,9 +69,9 @@ jobs:
           TIER: ${{ inputs.test_tier }}
         run: |
           case "$TIER" in
-            smoke)    EXPR='api and smoke' ;;
-            core)     EXPR='api and (smoke or core)' ;;
-            cfg)      EXPR='api and (smoke or cfg)' ;;
+            smoke)    EXPR='api and smoke and not slow' ;;
+            core)     EXPR='api and (smoke or core) and not slow' ;;
+            cfg)      EXPR='api and (smoke or cfg) and not slow' ;;
             standard) EXPR='api and not slow' ;;
             all)      EXPR='api' ;;
             *)        echo "::error::Unknown test_tier: $TIER"; exit 1 ;;

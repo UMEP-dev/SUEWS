@@ -35,7 +35,7 @@ flag_full_test = True
 # Note: Sample data loading moved to individual test methods to avoid test interference
 # This prevents caching issues when tests run in sequence
 
-pytestmark = [pytest.mark.physics, pytest.mark.api]
+pytestmark = pytest.mark.api
 
 
 class TestSuPy(TestCase):

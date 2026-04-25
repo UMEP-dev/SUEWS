@@ -199,14 +199,14 @@ test:
 	@echo "NOTE: Slow tests (e.g., Fortran state persistence ~3-4 min) are skipped."
 	@echo "      Run 'make test-all' for comprehensive testing."
 	@echo ""
-	$(PYTHON) -m pytest test -m "not slow" -v --tb=short --durations=10
+	$(PYTHON) -m pytest test -m "not slow and not qgis" -v --tb=short --durations=10
 
 # Smoke tests - fast critical path tests for CI
 test-smoke:
 	@echo "Running smoke tests (critical path only)..."
 	@echo "This is the fastest test tier for CI wheel validation."
 	@echo ""
-	$(PYTHON) -m pytest test -m "smoke" -v --tb=short --durations=10
+	$(PYTHON) -m pytest test -m "smoke and not slow and not qgis" -v --tb=short --durations=10
 
 # All tests including slow tests
 test-all:

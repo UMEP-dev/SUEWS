@@ -28,20 +28,19 @@ import pytest
 import supy as sp
 from conftest import TIMESTEPS_PER_DAY
 
-pytestmark = pytest.mark.physics
+pytestmark = [pytest.mark.physics, pytest.mark.core]
 
 
 class TestPhysicalValidation(TestCase):
     """Test physical validity of SUEWS outputs."""
 
-    def setUp(self):
-        """Set up test data."""
-        # Load and run a short simulation for testing
-        self.df_state_init, self.df_forcing = sp.load_SampleData()
-        # Run for 7 days to get meaningful statistics
-        self.df_forcing_week = self.df_forcing.iloc[: TIMESTEPS_PER_DAY * 7]
-        self.df_output, self.df_state_final = sp.run_supy(
-            self.df_forcing_week, self.df_state_init
+    @classmethod
+    def setUpClass(cls):
+        """Run the shared weekly simulation once for all physical checks."""
+        cls.df_state_init, cls.df_forcing = sp.load_SampleData()
+        cls.df_forcing_week = cls.df_forcing.iloc[: TIMESTEPS_PER_DAY * 7]
+        cls.df_output, cls.df_state_final = sp.run_supy(
+            cls.df_forcing_week, cls.df_state_init
         )
 
     def test_physical_bounds(self):

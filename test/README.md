@@ -119,6 +119,20 @@ pytest -m "api and not slow"       # wrapper surface, skip slow tests
 pytest -m "physics and api"        # files that straddle both axes
 ```
 
+### PR/CR placement rules
+
+- Put numerical guardrails in `test/physics/` or a clearly named physics file
+  under `test/core/`, mark them `physics`, and add `core` only when they are
+  fast enough for draft PRs and merge-queue checks.
+- Put pandas / numpy / pydantic / CLI / wrapper behaviour in `api` tests. These
+  run across the CPython bookends because the dependency surface varies by
+  interpreter.
+- Mark long regression or reproduction tests `slow`. Slow tests run in
+  `test-all`, scheduled builds, release builds, or explicit manual validation;
+  they are excluded from smoke, core, cfg, standard, and local `make test`.
+- Keep `smoke` tiny: imports, one short model run, and the minimum output
+  validation needed to fail fast.
+
 ### Adding a new test file
 
 Decide which axis the file belongs on, then add one of:

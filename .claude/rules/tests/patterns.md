@@ -115,6 +115,19 @@ The tier axis composes with the nature axis. CI expressions like
 `-m "api and smoke"` and `-m "physics and not slow"` select the right
 subset per matrix cell.
 
+### PR/CR placement
+
+- `smoke`: minimal fail-fast checks only. Keep this tier small enough for quick
+  wheel validation.
+- `core`: essential guardrails that are fast enough for draft PRs and merge
+  queue. Do not mark a test `core` merely because the feature matters; use
+  `slow` if the regression is important but expensive.
+- `standard`: all non-slow tests for the relevant nature axis.
+- `slow`: long regressions and reproductions. These belong in `make test-all`,
+  scheduled/release builds, or explicit manual validation, not normal PR/CR.
+- `qgis`: UMEP/QGIS tests only. These are Windows + Python 3.12 specific and
+  should stay out of local `make test` unless selected explicitly.
+
 ---
 
 ## Test File Locations

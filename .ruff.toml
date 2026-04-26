@@ -110,7 +110,7 @@ dummy-variable-rgx = "^(_+|(_+[a-zA-Z0-9_]*[a-zA-Z0-9]+?))$"
     "PLR2004", # Magic values are fine in tests
     "S101",   # Assert is fine in tests
 ]
-"packages/**/tests/**/*.py" = [
+"mcp/tests/**/*.py" = [
     "D",      # Don't require docstrings in tests
     "PLR2004", # Magic values are fine in tests
     "S101",   # Assert is fine in tests

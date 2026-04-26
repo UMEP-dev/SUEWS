@@ -40,6 +40,7 @@ pytestmark = pytest.mark.api
 
 class TestSuPy(TestCase):
     # test if single-tstep mode can run
+    @pytest.mark.physics
     @pytest.mark.smoke
     @pytest.mark.smoke_bridge
     def test_is_supy_running_single_step(self):

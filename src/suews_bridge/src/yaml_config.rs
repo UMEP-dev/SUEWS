@@ -1701,17 +1701,6 @@ fn apply_state_overrides(state: &mut SuewsState, site_root: &Value) {
             "hot_water_heating_setpoint_temperature",
         );
 
-        eprintln!(
-            "DEBUG_STATE_MAP init_out={:?} init_in={:?} annual={:?} deep={:?} month_diffmax={:?} mains={:?} hwt_set={:?}",
-            init_out,
-            init_in,
-            annual_mean_air_temperature,
-            deep_soil,
-            month_mean_air_temperature_diffmax,
-            mains_water,
-            hot_water_setpoint
-        );
-
         if let Some(v) = init_out {
             state.stebbs_state.outdoor_air_start_temperature = v;
             state.stebbs_state.wall_outdoor_surface_temperature = v;
@@ -2219,6 +2208,22 @@ mod tests {
         assert!((run_cfg.site.stebbs.daylight_control - 1.0).abs() < 1.0e-12);
         assert!((run_cfg.site.stebbs.lighting_illuminance_threshold - 300.0).abs() < 1.0e-12);
         assert!((run_cfg.site.building_archtype.lightingpowerdensity - 2.0).abs() < 1.0e-12);
+
+        assert!((run_cfg.state.stebbs_state.deep_soil_temperature - 10.738).abs() < 1.0e-12);
+        assert!(
+            (run_cfg
+                .state
+                .stebbs_state
+                .month_mean_air_temperature_diffmax
+                - 12.947)
+                .abs()
+                < 1.0e-12
+        );
+        assert!(
+            (run_cfg.state.stebbs_state.indoor_air_start_temperature - 17.540002822875977).abs()
+                < 1.0e-12
+        );
+        assert!((run_cfg.state.stebbs_state.mains_water_temperature - 10.0).abs() < 1.0e-12);
     }
 
     #[test]

@@ -573,6 +573,14 @@ fn legacy_name_for(key: &str) -> Option<(&'static str, &'static str)> {
         .map(|(new_name, old_name)| (*new_name, *old_name))
 }
 
+fn should_rename_key_at_path(new_name: &str, path: &str) -> bool {
+    // `stebbs` is both a ModelPhysics option and a site-properties section.
+    // Only the physics option should be folded to `stebbsmethod`; the
+    // `sites[].properties.stebbs` section must keep its name so the STEBBS
+    // parser can read the parameter and initial-state overrides.
+    new_name != "stebbs" || path == "model.physics"
+}
+
 /// Recursively rewrite new snake_case keys to their legacy fused spellings
 /// so the downstream parser in `yaml_config.rs` keeps seeing the keys it
 /// has always read.
@@ -609,6 +617,7 @@ fn normalize_field_names_at(root: &mut Value, path: &str) -> Result<(), String> 
                 .iter()
                 .filter_map(|(key, _)| match key {
                     Value::String(k) => legacy_name_for(k.as_str())
+                        .filter(|(new_name, _)| should_rename_key_at_path(new_name, path))
                         .map(|(new_name, old_name)| (key.clone(), new_name, old_name)),
                     _ => None,
                 })
@@ -747,6 +756,29 @@ mod tests {
         let paved = &root["sites"][0]["properties"]["land_cover"]["paved"];
         assert!(paved.get("soildepth").is_some());
         assert!(paved.get("soil_depth").is_none());
+    }
+
+    #[test]
+    fn preserves_site_stebbs_section_name() {
+        let yaml = "\
+model:
+  physics:
+    stebbs: {value: 1}
+sites:
+  - properties:
+      stebbs:
+        annual_mean_air_temperature: {value: 10.0}
+";
+        let mut root: Value = from_str(yaml).unwrap();
+        normalize_field_names(&mut root).unwrap();
+
+        let physics = &root["model"]["physics"];
+        assert!(physics.get("stebbsmethod").is_some());
+        assert!(physics.get("stebbs").is_none());
+
+        let properties = &root["sites"][0]["properties"];
+        assert!(properties.get("stebbs").is_some());
+        assert!(properties.get("stebbsmethod").is_none());
     }
 
     #[test]

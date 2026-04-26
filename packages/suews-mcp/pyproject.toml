@@ -1,0 +1,33 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "suews-mcp"
+version = "2026.4.25.dev0"
+description = "Model Context Protocol server for SUEWS"
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "GPL-V3.0" }
+authors = [
+    { name = "Dr Ting Sun", email = "ting.sun@ucl.ac.uk" },
+]
+dependencies = [
+    "supy>=2026.4.25.dev0,<2026.5",
+    "mcp[cli]>=1.27,<2",
+]
+classifiers = [
+    "Programming Language :: Python :: 3 :: Only",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
+    "Intended Audience :: Science/Research",
+]
+
+[project.scripts]
+suews-mcp = "suews_mcp.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]

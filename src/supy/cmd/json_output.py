@@ -63,7 +63,12 @@ class ValidationError:
         result = {
             "code": self.code.value,
             "code_name": self.code.name,
+            "severity": "ERROR",
+            "path": self.field or self.location,
+            "site_gridid": None,
             "message": self.message,
+            "suggested_value": self.details.get("suggested_value"),
+            "source": self.details.get("source", "suews-validate"),
         }
         if self.field:
             result["field"] = self.field
@@ -88,6 +93,35 @@ class JSONOutput:
         self.version = version
         self.start_time = datetime.utcnow()
 
+    @staticmethod
+    def _normalise_issue(issue: Any, severity: str) -> Dict[str, Any]:
+        """Return the stable validation issue shape used by JSON output."""
+        if isinstance(issue, str):
+            return {
+                "code": ErrorCode.VALIDATION_FAILED.value,
+                "code_name": ErrorCode.VALIDATION_FAILED.name,
+                "severity": severity,
+                "path": None,
+                "site_gridid": None,
+                "message": issue,
+                "suggested_value": None,
+                "source": "suews-validate",
+            }
+        if isinstance(issue, ValidationError):
+            result = issue.to_dict()
+        elif hasattr(issue, "to_dict"):
+            result = issue.to_dict()
+        else:
+            result = dict(issue)
+
+        result.setdefault("severity", severity)
+        result.setdefault("path", result.get("field") or result.get("location"))
+        result.setdefault("site_gridid", None)
+        result.setdefault("message", "")
+        result.setdefault("suggested_value", None)
+        result.setdefault("source", "suews-validate")
+        return result
+
     def validation_result(
         self,
         files: List[Dict[str, Any]],
@@ -107,26 +141,26 @@ class JSONOutput:
         # Calculate summary statistics
         total_files = len(files)
         valid_files = sum(1 for f in files if f.get("valid", False))
-        total_errors = sum(f.get("error_count", 0) for f in files)
+        total_errors = sum(f.get("error_count", len(f.get("errors", []))) for f in files)
+        total_warnings = sum(len(f.get("warnings", [])) for f in files)
+        total_suggestions = sum(len(f.get("suggestions", [])) for f in files)
+        total_applied = sum(len(f.get("applied_fixes", [])) for f in files)
 
-        # Structure errors properly
+        # Structure issue arrays properly and keep all expected arrays present.
         for file_result in files:
-            if "errors" in file_result and isinstance(file_result["errors"], list):
-                # Convert string errors to structured format
-                structured_errors = []
-                for error in file_result["errors"]:
-                    if isinstance(error, str):
-                        # Parse error string to extract field and message
-                        structured_errors.append({
-                            "code": ErrorCode.VALIDATION_FAILED.value,
-                            "code_name": ErrorCode.VALIDATION_FAILED.name,
-                            "message": error,
-                        })
-                    elif isinstance(error, ValidationError):
-                        structured_errors.append(error.to_dict())
-                    else:
-                        structured_errors.append(error)
-                file_result["errors"] = structured_errors
+            for field_name, severity in (
+                ("errors", "ERROR"),
+                ("warnings", "WARNING"),
+                ("suggestions", "SUGGESTION"),
+                ("applied_fixes", "APPLIED_FIX"),
+                ("info", "INFO"),
+            ):
+                issues = file_result.get(field_name, [])
+                if not isinstance(issues, list):
+                    issues = [issues]
+                file_result[field_name] = [
+                    self._normalise_issue(issue, severity) for issue in issues
+                ]
 
         return {
             "status": "success" if valid_files == total_files else "failure",
@@ -143,6 +177,9 @@ class JSONOutput:
                 "valid_files": valid_files,
                 "invalid_files": total_files - valid_files,
                 "total_errors": total_errors,
+                "total_warnings": total_warnings,
+                "total_suggestions": total_suggestions,
+                "total_applied_fixes": total_applied,
                 "success_rate": valid_files / total_files if total_files > 0 else 0.0,
             },
             "results": files,
@@ -157,6 +194,9 @@ class JSONOutput:
         report_file: Optional[str] = None,
         errors: Optional[List[Union[str, ValidationError]]] = None,
         warnings: Optional[List[str]] = None,
+        suggestions: Optional[List[Any]] = None,
+        applied_fixes: Optional[List[Any]] = None,
+        info: Optional[List[Any]] = None,
     ) -> Dict[str, Any]:
         """Format phase processing results for JSON output.
 
@@ -172,20 +212,23 @@ class JSONOutput:
         Returns:
             Structured JSON-serializable dictionary
         """
-        # Structure errors
-        structured_errors = []
-        if errors:
-            for error in errors:
-                if isinstance(error, str):
-                    structured_errors.append({
-                        "code": ErrorCode.PROCESSING_ERROR.value,
-                        "code_name": ErrorCode.PROCESSING_ERROR.name,
-                        "message": error,
-                    })
-                elif isinstance(error, ValidationError):
-                    structured_errors.append(error.to_dict())
-                else:
-                    structured_errors.append(error)
+        structured_errors = [
+            self._normalise_issue(error, "ERROR") for error in (errors or [])
+        ]
+        structured_warnings = [
+            self._normalise_issue(warning, "WARNING") for warning in (warnings or [])
+        ]
+        structured_suggestions = [
+            self._normalise_issue(suggestion, "SUGGESTION")
+            for suggestion in (suggestions or [])
+        ]
+        structured_applied = [
+            self._normalise_issue(applied, "APPLIED_FIX")
+            for applied in (applied_fixes or [])
+        ]
+        structured_info = [
+            self._normalise_issue(info_item, "INFO") for info_item in (info or [])
+        ]
 
         return {
             "status": "success" if success else "failure",
@@ -196,7 +239,9 @@ class JSONOutput:
             "summary": {
                 "success": success,
                 "error_count": len(structured_errors),
-                "warning_count": len(warnings) if warnings else 0,
+                "warning_count": len(structured_warnings),
+                "suggestion_count": len(structured_suggestions),
+                "applied_fix_count": len(structured_applied),
             },
             "files": {
                 "input": input_file,
@@ -204,7 +249,10 @@ class JSONOutput:
                 "report": report_file,
             },
             "errors": structured_errors if structured_errors else [],
-            "warnings": warnings if warnings else [],
+            "warnings": structured_warnings if structured_warnings else [],
+            "suggestions": structured_suggestions if structured_suggestions else [],
+            "applied_fixes": structured_applied if structured_applied else [],
+            "info": structured_info if structured_info else [],
         }
 
     def schema_operation_result(

@@ -14,6 +14,15 @@ from .data_model.core.field_renames import read_physics_key
 logger = logging.getLogger(__name__)
 
 
+def _warn_deprecated():
+    warnings.warn(
+        "supy.validation is deprecated and will be removed in a future release; "
+        "use supy.data_model.validation instead.",
+        DeprecationWarning,
+        stacklevel=3,
+    )
+
+
 class ValidationResult:
     """Simple validation result class."""
 
@@ -33,6 +42,19 @@ class ValidationResult:
         self.validated_methods = validated_methods or set()
         self.skipped_methods = skipped_methods or set()
 
+    def __getitem__(self, item):
+        return getattr(self, item)
+
+    def to_dict(self):
+        return {
+            "status": self.status,
+            "errors": self.errors,
+            "warnings": self.warnings,
+            "skipped": self.skipped,
+            "validated_methods": sorted(self.validated_methods),
+            "skipped_methods": sorted(self.skipped_methods),
+        }
+
 
 def analyze_config_methods(config_data: Dict[str, Any]) -> Dict[str, bool]:
     """
@@ -44,6 +66,7 @@ def analyze_config_methods(config_data: Dict[str, Any]) -> Dict[str, bool]:
     Returns:
         Dictionary of method flags
     """
+    _warn_deprecated()
     try:
         physics = config_data.get("model", {}).get("physics", {})
 
@@ -293,6 +316,7 @@ def validate_suews_config_conditional(
     Returns:
         ValidationResult object
     """
+    _warn_deprecated()
     if verbose:
         print("=== SUEWS Conditional Validation ===")
 
@@ -430,11 +454,11 @@ def enhanced_from_yaml_validation(
     """Enhanced YAML validation for SUEWSConfig.from_yaml integration."""
     result = validate_suews_config_conditional(config_data, verbose=True)
 
-    if result["errors"]:
+    if result.errors:
         error_msg = (
-            f"SUEWS Configuration Validation Failed: {len(result['errors'])} errors\n"
+            f"SUEWS Configuration Validation Failed: {len(result.errors)} errors\n"
         )
-        error_msg += "\n".join(f"  - {err}" for err in result["errors"])
+        error_msg += "\n".join(f"  - {err}" for err in result.errors)
 
         if strict:
             raise ValueError(error_msg)
@@ -450,12 +474,15 @@ def enhanced_to_df_state_validation(
     """Enhanced validation for to_df_state integration."""
     result = validate_suews_config_conditional(config_data, verbose=False)
 
-    if result["errors"]:
-        error_msg = f"Configuration validation found {len(result['errors'])} issues before to_df_state conversion"
+    if result.errors:
+        error_msg = (
+            f"Configuration validation found {len(result.errors)} issues before "
+            "to_df_state conversion"
+        )
 
         if strict:
             detailed_msg = f"\n{error_msg}:\n" + "\n".join(
-                f"  - {err}" for err in result["errors"]
+                f"  - {err}" for err in result.errors
             )
             raise ValueError(detailed_msg)
         else:

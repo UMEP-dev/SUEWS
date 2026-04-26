@@ -107,6 +107,24 @@ def handle_renamed_parameters(yaml_content: str):
     return "\n".join(lines), replacements
 
 
+def handle_renamed_parameters_in_parsed_yaml(obj):
+    """Rename deprecated keys in parsed YAML structures where line matching misses."""
+    replacements = []
+
+    if isinstance(obj, dict):
+        for old_key, new_key in list(RENAMED_PARAMS.items()):
+            if old_key in obj and new_key not in obj:
+                obj[new_key] = obj.pop(old_key)
+                replacements.append((old_key, new_key))
+        for value in obj.values():
+            replacements.extend(handle_renamed_parameters_in_parsed_yaml(value))
+    elif isinstance(obj, list):
+        for item in obj:
+            replacements.extend(handle_renamed_parameters_in_parsed_yaml(item))
+
+    return replacements
+
+
 def is_physics_option(param_path):
     param_name = param_path.split(".")[-1]
     return "model.physics" in param_path and param_name in PHYSICS_OPTIONS
@@ -129,7 +147,6 @@ def get_allowed_nested_sections_in_properties():
         "model",
         "state",
         "site",
-        "core",
         "ohm",
         "profile",
         "surface",
@@ -143,7 +160,7 @@ def get_allowed_nested_sections_in_properties():
         try:
             # Import the module dynamically
             module = importlib.import_module(
-                f".{module_name}", package="supy.data_model"
+                f".{module_name}", package="supy.data_model.core"
             )
 
             # Find all classes in the module that are BaseModel subclasses
@@ -189,7 +206,7 @@ def get_allowed_nested_sections_in_properties():
 
         # Validate these exist in the actual models (best effort)
         try:
-            from .site import SiteProperties
+            from ...core.site import SiteProperties
 
             actual_fields = set(SiteProperties.model_fields.keys())
             validated_sections = static_sections.intersection(actual_fields)
@@ -1716,6 +1733,24 @@ def annotate_missing_parameters(
             original_yaml_content
         )
         user_data = yaml.safe_load(original_yaml_content)
+        parsed_renames = handle_renamed_parameters_in_parsed_yaml(user_data)
+        if parsed_renames:
+            seen_replacements = set(renamed_replacements)
+            for replacement in parsed_renames:
+                if replacement not in seen_replacements:
+                    renamed_replacements.append(replacement)
+                    seen_replacements.add(replacement)
+            import io
+
+            stream = io.StringIO()
+            yaml.dump(
+                user_data,
+                stream,
+                default_flow_style=False,
+                sort_keys=False,
+                allow_unicode=True,
+            )
+            original_yaml_content = stream.getvalue()
         with open(standard_file, "r") as f:
             standard_data = yaml.safe_load(f)
     except FileNotFoundError as e:

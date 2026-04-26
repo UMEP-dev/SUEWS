@@ -342,8 +342,18 @@ def setup_output_paths(
     )
 
 
+REPORT_SUMMARY_SECTIONS = (
+    "ACTION NEEDED",
+    "REVIEW ADVISED",
+    "SUGGESTED UPDATES",
+    "APPLIED UPDATES",
+    "INFO",
+    "NO ACTION NEEDED",
+)
+
+
 def extract_no_action_messages_from_report(report_file: str) -> list:
-    """Extract NO ACTION NEEDED messages from a report file."""
+    """Extract non-blocking summary messages from a validation report."""
     messages = []
 
     if not report_file or not os.path.exists(report_file):
@@ -352,21 +362,23 @@ def extract_no_action_messages_from_report(report_file: str) -> list:
     try:
         content = REPORT_WRITER.read(report_file)
 
-        # Extract NO ACTION NEEDED section
         lines = content.split("\n")
-        in_no_action = False
+        current_section = None
 
         for line in lines:
-            if line.strip().startswith("## NO ACTION NEEDED"):
-                in_no_action = True
+            stripped = line.strip()
+            if stripped.startswith("## "):
+                section = stripped[3:].strip()
+                if section in REPORT_SUMMARY_SECTIONS:
+                    current_section = "INFO" if section == "NO ACTION NEEDED" else section
+                    messages.append(f"## {current_section}")
+                else:
+                    current_section = None
                 continue
-            elif line.strip().startswith("##") and in_no_action:
-                # Hit another section, stop collecting
-                break
-            elif line.strip().startswith("#") and in_no_action:
+            elif stripped.startswith("#") and current_section:
                 # Skip any separator lines (like # ==================================================)
                 continue
-            elif in_no_action and line.strip():
+            elif current_section and stripped:
                 messages.append(line)
 
     except Exception:
@@ -381,7 +393,7 @@ def create_consolidated_report(
     final_report_file: str,
     mode: str = "public",
 ) -> None:
-    """Create final consolidated report with all NO ACTION NEEDED messages."""
+    """Create final consolidated report preserving non-blocking sections."""
     import sys
 
     debug = os.environ.get("SUEWS_DEBUG", "").lower() in ("1", "true", "yes")
@@ -396,53 +408,78 @@ def create_consolidated_report(
     # Use unified report title for all validation phases
     title = "SUEWS Validation Report"
 
-    # Deduplicate messages while preserving order
-    # Also filter out the generic "All validations passed" message if there are other messages
-    seen = set()
-    deduplicated_messages = []
-    for message in no_action_messages:
-        # Skip the generic "all passed" message - it will be added later if needed
-        if message.strip() == "- All validations passed with no issues detected":
-            continue
-        if message not in seen:
-            seen.add(message)
-            deduplicated_messages.append(message)
+    section_messages = {
+        "ACTION NEEDED": [],
+        "REVIEW ADVISED": [],
+        "SUGGESTED UPDATES": [],
+        "APPLIED UPDATES": [],
+        "INFO": [],
+    }
+    current_section = "INFO"
 
-    # Remove orphaned headers (headers ending with : that have no following detail lines starting with --)
-    filtered_messages = []
-    i = 0
-    while i < len(deduplicated_messages):
-        msg = deduplicated_messages[i]
-        # Check if this is a header line (starts with - but not --, ends with :)
-        if (
-            msg.strip().startswith("- ")
-            and not msg.strip().startswith("-- ")
-            and msg.strip().endswith(":")
-        ):
-            # Check if next line exists and is a detail line (starts with --)
-            if i + 1 < len(deduplicated_messages) and deduplicated_messages[
-                i + 1
-            ].strip().startswith("-- "):
-                # Has following details, keep it
+    for message in no_action_messages:
+        stripped = str(message).strip()
+        if stripped == "- All validations passed with no issues detected":
+            continue
+        if stripped.startswith("## "):
+            section = stripped[3:].strip()
+            current_section = "INFO" if section == "NO ACTION NEEDED" else section
+            if current_section not in section_messages:
+                current_section = "INFO"
+            continue
+        section_messages[current_section].append(message)
+
+    filtered_sections = {}
+    for section, messages in section_messages.items():
+        seen = set()
+        deduplicated_messages = []
+        for message in messages:
+            if message not in seen:
+                seen.add(message)
+                deduplicated_messages.append(message)
+
+        filtered_messages = []
+        i = 0
+        while i < len(deduplicated_messages):
+            msg = deduplicated_messages[i]
+            if (
+                msg.strip().startswith("- ")
+                and not msg.strip().startswith("-- ")
+                and msg.strip().endswith(":")
+            ):
+                if i + 1 < len(deduplicated_messages) and deduplicated_messages[
+                    i + 1
+                ].strip().startswith("-- "):
+                    filtered_messages.append(msg)
+            else:
                 filtered_messages.append(msg)
-            # else: orphaned header, skip it
-        else:
-            # Not a header, keep it
-            filtered_messages.append(msg)
-        i += 1
+            i += 1
+        filtered_sections[section] = filtered_messages
 
     # Build final report content
     report_content = f"""# {title}
 # {"=" * 50}
 # Mode: {"Public" if mode.lower() == "public" else mode.title()}
-# {"=" * 50}
+# {"=" * 50}"""
 
-## NO ACTION NEEDED"""
-
-    if filtered_messages:
-        for message in filtered_messages:
+    has_messages = False
+    for section in (
+        "ACTION NEEDED",
+        "REVIEW ADVISED",
+        "SUGGESTED UPDATES",
+        "APPLIED UPDATES",
+        "INFO",
+    ):
+        messages = filtered_sections.get(section, [])
+        if not messages:
+            continue
+        has_messages = True
+        report_content += f"\n\n## {section}"
+        for message in messages:
             report_content += f"\n{message}"
-    else:
+
+    if not has_messages:
+        report_content += "\n\n## INFO"
         report_content += "\n- All validations passed with no issues detected"
 
     report_content += f"\n\n# {'=' * 50}"
@@ -598,8 +635,9 @@ def run_phase_b(
     mode: str = "public",
     phase: str = "B",
     silent: bool = False,
+    science_fixes: str = "suggest",
 ) -> bool:
-    """Execute Phase B: Physics validation checks and automatic adjustments."""
+    """Execute Phase B: physics validation and optional scientific fixes."""
     try:
         with redirect_stdout(io.StringIO()), redirect_stderr(io.StringIO()):
             science_checked_data = run_science_check(
@@ -612,6 +650,7 @@ def run_phase_b(
                 phase_a_performed=phase_a_performed,
                 mode=mode,
                 phase=phase,
+                science_fixes=science_fixes,
             )
 
         # Check if Phase B produced output files
@@ -781,10 +820,10 @@ def run_phase_c(
                         print(f"Updated YAML: {pydantic_yaml_file}")
                     return False
 
-                # Build NO ACTION NEEDED section if any defaults were detected
+                # Build INFO section if any defaults were detected
                 no_action_info = ""
                 if normal_defaults:
-                    no_action_info = "\n\n## NO ACTION NEEDED\n"
+                    no_action_info = "\n\n## INFO\n"
                     for default_app in normal_defaults:
                         field_name = default_app.get("field_name", "unknown")
                         default_value = default_app.get("default_value", "unknown")
@@ -803,7 +842,7 @@ def run_phase_c(
                 # Use unified report title for all validation phases
                 title = "SUEWS Validation Report"
 
-                # Extract NO ACTION NEEDED content from previous phases to consolidate properly
+                # Extract INFO content from previous phases to consolidate properly
                 consolidated_no_action = []
 
                 # Add any validation summary messages from Phase C (e.g., hemisphere warnings)
@@ -816,9 +855,9 @@ def run_phase_c(
                 if no_action_info:
                     # Remove the leading newlines and header, parse the content
                     no_action_content = no_action_info.strip()
-                    if no_action_content.startswith("## NO ACTION NEEDED"):
+                    if no_action_content.startswith("## INFO"):
                         no_action_content = no_action_content.replace(
-                            "## NO ACTION NEEDED", "", 1
+                            "## INFO", "", 1
                         )
 
                     consolidated_no_action.extend([
@@ -834,11 +873,11 @@ def run_phase_c(
                         "## PREVIOUS PHASES INFORMATION CONSOLIDATED\nSee below for prior phase results.\n",
                         "",
                     )
-                    # Remove redundant headers and extract only NO ACTION NEEDED content
+                    # Remove redundant headers and extract only non-blocking content
                     lines = phase_content.split("\n")
                     in_no_action = False
                     for line in lines:
-                        if line.strip().startswith("## NO ACTION NEEDED"):
+                        if line.strip().startswith("## INFO"):
                             in_no_action = True
                             continue
                         elif line.strip().startswith("##"):
@@ -851,14 +890,14 @@ def run_phase_c(
                         ):
                             consolidated_no_action.append(line.strip())
 
-                # Only add NO ACTION NEEDED section if there are items to show
+                # Only add INFO section if there are items to show
                 if consolidated_no_action:
                     success_report = f"""# {title}
 # ============================================
 # Mode: {"Public" if mode.lower() == "public" else mode.title()}
 # ============================================
 
-## NO ACTION NEEDED
+## INFO
 {chr(10).join(consolidated_no_action)}
 
 # =================================================="""
@@ -944,7 +983,7 @@ def run_phase_c(
 # Mode: {"Public" if mode.lower() == "public" else mode.title()}
 # ============================================
 
-## NO ACTION NEEDED
+## INFO
 {chr(10).join(consolidated_no_action)}
 
 # =================================================="""
@@ -1141,7 +1180,7 @@ Examples:
 
 Phases:
   Phase A: Configuration structure checks and parameter updates
-  Phase B: Physics validation checks and automatic adjustments
+  Phase B: Physics validation checks and optional scientific initialisation updates
   Phase C: Configuration consistency checks based on model physics options
 
 Modes:
@@ -1168,10 +1207,18 @@ Modes:
         help="Processing mode: public (standard validation mode, default) or dev (developer mode with extended options - available)",
     )
 
+    parser.add_argument(
+        "--science-fixes",
+        choices=["suggest", "apply", "off"],
+        default="suggest",
+        help="Handle Phase B scientific transformations: suggest, apply, or off (default: suggest)",
+    )
+
     args = parser.parse_args()
     user_yaml_file = args.yaml_file
     phase = args.phase
     mode = args.mode
+    science_fixes = args.science_fixes
 
     # Use mode directly - no mapping needed
     internal_mode = mode
@@ -1338,6 +1385,7 @@ Modes:
                 mode=internal_mode,
                 phase="B",
                 silent=True,  # Suppress phase function output, main function handles terminal output
+                science_fixes=science_fixes,
             )
 
             # Always create final user files with simple names
@@ -1412,6 +1460,7 @@ Modes:
                 mode=internal_mode,
                 phase="AB",
                 silent=True,
+                science_fixes=science_fixes,
             )
 
             if not phase_a_success:
@@ -1438,6 +1487,7 @@ Modes:
                 mode=internal_mode,
                 phase="AB",
                 silent=True,
+                science_fixes=science_fixes,
             )
 
             if not phase_b_success:
@@ -1633,6 +1683,7 @@ Modes:
                 mode=internal_mode,
                 phase="BC",
                 silent=True,
+                science_fixes=science_fixes,
             )
 
             if not phase_b_success:
@@ -1694,12 +1745,12 @@ Modes:
                                 lines.pop()
                             phase_c_content = "\n".join(lines)
 
-                            # Ensure proper spacing before NO ACTION NEEDED section
+                            # Ensure proper spacing before INFO section
                             if not phase_c_content.endswith("\n\n"):
                                 phase_c_content += "\n"
 
-                            # Add NO ACTION NEEDED section
-                            phase_c_content += "\n## NO ACTION NEEDED"
+                            # Add INFO section
+                            phase_c_content += "\n## INFO"
 
                             # Add Phase B messages
                             for msg in phase_b_messages:
@@ -1780,6 +1831,7 @@ Modes:
                 mode=internal_mode,
                 phase="ABC",
                 silent=True,
+                science_fixes=science_fixes,
             )
 
             if not phase_a_success:
@@ -1828,6 +1880,7 @@ Modes:
                 mode=internal_mode,
                 phase="ABC",
                 silent=True,
+                science_fixes=science_fixes,
             )
 
             if not phase_b_success:

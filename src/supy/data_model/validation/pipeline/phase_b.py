@@ -7,10 +7,10 @@ that have already been processed by Phase A.
 Phase B focuses on:
 - Physics parameter validation
 - Geographic coordinate and timezone validation
-- Seasonal parameter adjustments (LAI, snowalb, surface temperatures)
+- Seasonal parameter checks (LAI, snowalb, surface temperatures)
 - Land cover fraction validation and consistency
 - Model physics option interdependency checks
-- Automatic physics-based corrections where appropriate
+- Optional scientific initialisation suggestions and corrections
 
 Phase B assumes Phase A has completed successfully and builds upon clean YAML output
 without duplicating parameter detection or YAML structure validation.
@@ -76,6 +76,133 @@ class ScientificAdjustment:
     old_value: Any = None
     new_value: Any = None
     reason: str = ""
+
+
+@dataclass
+class ScienceSuggestion:
+    """
+    Scientific transformation proposed by Phase B.
+
+    Suggestions describe values that can help initialise a SUEWS run, but they are
+    not treated as scientific truth. They are reported by default and only written
+    to YAML when the user explicitly selects apply mode.
+    """
+
+    parameter: str
+    site_index: Optional[int] = None
+    site_gridid: Optional[int] = None
+    old_value: Any = None
+    suggested_value: Any = None
+    message: str = ""
+    source: str = ""
+    code: Optional[str] = None
+    severity: str = "SUGGESTION"
+    path: Optional[str] = None
+
+    def __post_init__(self):
+        self.severity = self.severity.upper()
+        if self.code is None:
+            normalised_parameter = self.parameter.replace(".", "_").replace(" ", "_")
+            self.code = f"SCIENCE.{normalised_parameter}".upper()
+        if self.path is None:
+            self.path = self.parameter
+
+    def to_dict(self) -> dict:
+        return {
+            "code": self.code,
+            "severity": self.severity,
+            "path": self.path,
+            "site_gridid": self.site_gridid,
+            "message": self.message,
+            "suggested_value": self.suggested_value,
+            "source": self.source,
+        }
+
+
+VALID_SCIENCE_FIX_MODES = {"suggest", "apply", "off"}
+
+
+def _normalise_science_fixes(science_fixes: str) -> str:
+    science_fixes = (science_fixes or "suggest").lower()
+    if science_fixes not in VALID_SCIENCE_FIX_MODES:
+        raise ValueError(
+            "science_fixes must be one of: suggest, apply, off"
+        )
+    return science_fixes
+
+
+def _science_source(parameter: str, reason: str) -> str:
+    parameter_lower = parameter.lower()
+    reason_lower = reason.lower()
+
+    if parameter_lower.startswith("initial_states") or "air_temperature" in parameter_lower:
+        return (
+            "CRU TS climatology-derived initialisation heuristic; may be inappropriate "
+            "for observed initial states, spin-up workflows, historical weather cases, "
+            "or specialist case studies."
+        )
+    if parameter_lower.startswith("stebbs.") and "temperature" in parameter_lower:
+        return (
+            "CRU TS climatology-derived STEBBS initialisation heuristic; review against "
+            "observed building states, spin-up workflows, and case-specific assumptions."
+        )
+    if parameter_lower in {"timezone", "anthropogenic_emissions.startdls", "anthropogenic_emissions.enddls"}:
+        return (
+            "Timezone and daylight-saving calculation from site coordinates; review for "
+            "historical timezone settings, policy changes, and local case-study choices."
+        )
+    if parameter_lower.endswith(".lai_id"):
+        return (
+            "Seasonal deciduous LAI initialisation based on start date and configured "
+            "LAI bounds; review for observed phenology or specialist vegetation studies."
+        )
+    if parameter_lower.endswith(".alb_id"):
+        return (
+            "Seasonal vegetation albedo initialisation based on configured albedo bounds; "
+            "review against observed surface state and site-specific calibration."
+        )
+    if parameter_lower == "snowalb":
+        return (
+            "Seasonal snow-albedo initialisation heuristic; review for observed snow cover, "
+            "cold-season spin-up, and unusual local conditions."
+        )
+    if parameter_lower.endswith(".sfr"):
+        return (
+            f"Land-cover fractions must sum to 1.0 for SUEWS runtime consistency; "
+            f"this suggestion only covers rounding drift within {SFR_FRACTION_TOL:g}."
+        )
+    if "stebbs" in parameter_lower or "wwr" in reason_lower:
+        return (
+            "Model-option dependency for STEBBS and window-to-wall-ratio parameters; "
+            "review before removing case-specific building physics inputs."
+        )
+    if "co2" in parameter_lower or "biogenic" in parameter_lower:
+        return (
+            "Model-option dependency for emissions and CO2/STEBBS coupling; review "
+            "before removing inputs needed by a specialist emissions workflow."
+        )
+    if parameter_lower.startswith("building_archetype"):
+        return (
+            "Model-option dependency for building archetype, setpoint, and RC settings; "
+            "review before replacing calibrated building parameters."
+        )
+    return (
+        "SUEWS option-dependent initialisation suggestion; review against the modelling "
+        "purpose before applying."
+    )
+
+
+def _adjustment_to_suggestion(adjustment: ScientificAdjustment) -> ScienceSuggestion:
+    source = _science_source(adjustment.parameter, adjustment.reason)
+    return ScienceSuggestion(
+        parameter=adjustment.parameter,
+        site_index=adjustment.site_index,
+        site_gridid=adjustment.site_gridid,
+        old_value=adjustment.old_value,
+        suggested_value=adjustment.new_value,
+        message=f"{adjustment.reason}. Current value: {adjustment.old_value}; suggested value: {adjustment.new_value}.",
+        source=source,
+    )
 
 
 def get_site_gridid(site_data: dict) -> int:
@@ -755,7 +882,7 @@ def get_mean_monthly_air_temperature(
     # Only catch availability errors, not validation errors
     try:
         return _get_mean_monthly_air_temperature(lat, lon, month, spatial_res)
-    except (FileNotFoundError, IOError, OSError) as e:
+    except (FileNotFoundError, IOError, OSError, ImportError) as e:
         logger_supy.warning(
             f"CRU data file not available: {e}. Temperature validation skipped."
         )
@@ -808,7 +935,7 @@ def get_monthly_air_temperature_diffmax(
 
     try:
         return _get_monthly_air_temperature_diffmax(lat, lon, spatial_res)
-    except (FileNotFoundError, IOError, OSError) as e:
+    except (FileNotFoundError, IOError, OSError, ImportError) as e:
         logger_supy.warning(
             f"CRU data file not available: {e}. Temperature diffmax validation skipped."
         )
@@ -860,7 +987,7 @@ def get_mean_annual_air_temperature(
     # Only catch availability errors, not validation errors
     try:
         return _get_mean_annual_air_temperature(lat, lon, spatial_res)
-    except (FileNotFoundError, IOError, OSError) as e:
+    except (FileNotFoundError, IOError, OSError, ImportError) as e:
         logger_supy.warning(
             f"CRU data file not available: {e}. Temperature validation skipped."
         )
@@ -2133,13 +2260,48 @@ def run_scientific_adjustment_pipeline(
     return updated_data, adjustments
 
 
+def collect_science_suggestions(
+    yaml_data: dict, start_date: str, model_year: int
+) -> List[ScienceSuggestion]:
+    """
+    Collect scientific initialisation suggestions without mutating the input data.
+
+    The underlying adjustment functions operate on a deep copy, so callers can use
+    this in the default validator path without silently overwriting user-provided
+    or scientifically curated values.
+    """
+    _, adjustments = run_scientific_adjustment_pipeline(
+        yaml_data, start_date, model_year
+    )
+    return [_adjustment_to_suggestion(adjustment) for adjustment in adjustments]
+
+
+def apply_science_suggestions(
+    yaml_data: dict,
+    suggestions: List[ScienceSuggestion],
+    start_date: str,
+    model_year: int,
+) -> Tuple[dict, List[ScientificAdjustment]]:
+    """
+    Apply the scientific transformation pipeline explicitly requested by the user.
+
+    The suggestions argument anchors the public API around the collect/apply split;
+    the transformations are recalculated from the same input data to avoid path
+    mutation code that would duplicate the existing domain logic.
+    """
+    del suggestions
+    return run_scientific_adjustment_pipeline(yaml_data, start_date, model_year)
+
+
 def create_science_report(
     validation_results: List[ValidationResult],
     adjustments: List[ScientificAdjustment],
+    suggestions: Optional[List[ScienceSuggestion]] = None,
     science_yaml_filename: str = None,
     phase_a_report_file: str = None,
     mode: str = "public",
     phase: str = "B",
+    science_fixes: str = "suggest",
 ) -> str:
     """
     Generate a comprehensive scientific validation report.
@@ -2170,6 +2332,8 @@ def create_science_report(
     - Integrates Phase A report highlights if available.
     - Designed for both human readability and traceability.
     """
+    suggestions = suggestions or []
+    science_fixes = _normalise_science_fixes(science_fixes)
     report_lines = []
 
     # Use unified report title for all validation phases
@@ -2212,9 +2376,15 @@ def create_science_report(
             # If we can't read Phase A report, continue without it
             pass
 
-    errors = [r for r in validation_results if r.status == "ERROR"]
-    warnings = [r for r in validation_results if r.status == "WARNING"]
-    passed = [r for r in validation_results if r.status == "PASS"]
+    errors = [
+        r for r in validation_results if getattr(r, "severity", r.status) == "ERROR"
+    ]
+    warnings = [
+        r for r in validation_results if getattr(r, "severity", r.status) == "WARNING"
+    ]
+    infos = [
+        r for r in validation_results if getattr(r, "severity", r.status) == "INFO"
+    ]
 
     if errors:
         report_lines.append("## ACTION NEEDED")
@@ -2232,12 +2402,54 @@ def create_science_report(
                 report_lines.append(f"   Suggested fix: {error.suggested_value}")
         report_lines.append("")
 
-    report_lines.append("## NO ACTION NEEDED")
+    if warnings:
+        report_lines.append("## REVIEW ADVISED")
+        report_lines.append(f"- Review ({len(warnings)}) scientific warning(s):")
+        for warning in warnings:
+            site_ref = (
+                f" at site [{warning.site_gridid}]"
+                if warning.site_gridid is not None
+                else ""
+            )
+            report_lines.append(
+                f"-- {warning.parameter}{site_ref}: {warning.message}"
+            )
+        report_lines.append("")
 
+    if suggestions:
+        report_lines.append("## SUGGESTED UPDATES")
+        report_lines.append(
+            f"- Suggested ({len(suggestions)}) scientific initialisation update(s)."
+        )
+        report_lines.append(
+            "- These suggestions were not written to YAML. They may be inappropriate "
+            "for observed initial states, spin-up workflows, historical timezone "
+            "settings, or specialist case studies."
+        )
+        if science_fixes == "suggest":
+            report_lines.append(
+                "- Re-run with --science-fixes apply to apply them, or "
+                "--science-fixes off to suppress scientific transformation suggestions."
+            )
+        for suggestion in suggestions:
+            site_ref = (
+                f" at site [{suggestion.site_gridid}]"
+                if suggestion.site_gridid is not None
+                else ""
+            )
+            report_lines.append(
+                f"-- {suggestion.parameter}{site_ref}: {suggestion.old_value} -> "
+                f"{suggestion.suggested_value} ({suggestion.message} Source: "
+                f"{suggestion.source})"
+            )
+        report_lines.append("")
+
+    applied_lines = []
     if adjustments:
         total_params_changed = 0
         for adjustment in adjustments:
-            if "temperature, tsfc, tin" in adjustment.old_value:
+            old_value_text = str(adjustment.old_value)
+            if "temperature, tsfc, tin" in old_value_text:
                 total_params_changed += 3
             elif adjustment.parameter == "stebbs" and "nullified" in adjustment.reason:
                 import re
@@ -2255,14 +2467,16 @@ def create_science_report(
             else:
                 total_params_changed += 1
 
-        report_lines.append(f"- Updated ({total_params_changed}) parameter(s):")
+        applied_lines.append(
+            f"- Applied ({total_params_changed}) scientific update(s):"
+        )
         for adjustment in adjustments:
             site_ref = (
                 f" at site [{adjustment.site_gridid}]"
                 if adjustment.site_gridid is not None
                 else ""
             )
-            report_lines.append(
+            applied_lines.append(
                 f"-- {adjustment.parameter}{site_ref}: {adjustment.old_value} -> {adjustment.new_value} ({adjustment.reason})"
             )
 
@@ -2289,32 +2503,15 @@ def create_science_report(
             phase_a_items.append(f"-- {param}")
 
     if phase_a_items:
-        report_lines.extend(phase_a_items)
-        if warnings or (not adjustments and not errors):
-            report_lines.append("")
+        applied_lines.extend(phase_a_items)
 
-    infos = [r for r in validation_results if r.status == "INFO"]
-
-    if warnings:
-        report_lines.append(f"- Revise ({len(warnings)}) warnings:")
-        for warning in warnings:
-            site_ref = (
-                f" at site [{warning.site_gridid}]"
-                if warning.site_gridid is not None
-                else ""
-            )
-            report_lines.append(f"-- {warning.parameter}{site_ref}: {warning.message}")
-        # Skip adding generic "passed" message when there are warnings
-    else:
-        if not adjustments and not errors:
-            if not phase_a_items:
-                report_lines.append("- All scientific validations passed")
-                report_lines.append("- Model physics parameters are consistent")
-                report_lines.append("- Geographic parameters are valid")
-            # Skip generic messages when phase A items exist
-        # Skip generic messages when there are no errors
+    if applied_lines:
+        report_lines.append("## APPLIED UPDATES")
+        report_lines.extend(applied_lines)
+        report_lines.append("")
 
     if infos:
+        report_lines.append("## INFO")
         report_lines.append(f"- Note ({len(infos)}):")
         for info in infos:
             site_ref = (
@@ -2323,6 +2520,15 @@ def create_science_report(
                 else ""
             )
             report_lines.append(f"-- {info.parameter}{site_ref}: {info.message}")
+        report_lines.append("")
+
+    if not errors and not warnings and not suggestions and not applied_lines and not infos:
+        report_lines.append("## INFO")
+        report_lines.append("- All scientific validation checks passed.")
+        if science_fixes == "off":
+            report_lines.append("- Scientific transformation suggestions were disabled.")
+        report_lines.append("- Model physics parameters are consistent.")
+        report_lines.append("- Geographic parameters are valid.")
 
     report_lines.append("")
 
@@ -2377,7 +2583,10 @@ def print_critical_halt_message(critical_errors: List[ValidationResult]):
 
 
 def print_science_check_results(
-    validation_results: List[ValidationResult], adjustments: List[ScientificAdjustment]
+    validation_results: List[ValidationResult],
+    adjustments: List[ScientificAdjustment],
+    suggestions: Optional[List[ScienceSuggestion]] = None,
+    science_fixes: str = "suggest",
 ):
     """
     Print concise terminal output for Phase B scientific validation results.
@@ -2399,6 +2608,7 @@ def print_science_check_results(
     errors = [r for r in validation_results if r.status == "ERROR"]
     warnings = [r for r in validation_results if r.status == "WARNING"]
     infos = [r for r in validation_results if r.status == "INFO"]
+    suggestions = suggestions or []
 
     if errors:
         print("PHASE B -- SCIENTIFIC ERRORS FOUND:")
@@ -2416,11 +2626,17 @@ def print_science_check_results(
         print(f"PHASE B -- SCIENTIFIC WARNINGS ({len(warnings)} found)")
         if adjustments:
             print(f"Applied {len(adjustments)} automatic scientific adjustments")
+        if suggestions and science_fixes == "suggest":
+            print(f"Suggested {len(suggestions)} scientific initialisation updates")
         print("Check science_report_user.txt for details")
     else:
         print("PHASE B -- PASSED")
         if adjustments:
             print(f"Applied {len(adjustments)} automatic scientific adjustments")
+        if suggestions and science_fixes == "suggest":
+            print(f"Suggested {len(suggestions)} scientific initialisation updates")
+        elif science_fixes == "off":
+            print("Scientific transformation suggestions were disabled")
 
     if infos:
         for info in infos:
@@ -2475,6 +2691,7 @@ def run_science_check(
     phase_a_performed: bool = True,
     mode: str = "public",
     phase: str = "B",
+    science_fixes: str = "suggest",
 ) -> dict:
     """
     Main Phase B workflow: perform scientific validation and scientific adjustments.
@@ -2518,6 +2735,7 @@ def run_science_check(
     - Writes a detailed report and optionally the updated YAML file.
     - Halts with a clear message if critical scientific errors are detected.
     """
+    science_fixes = _normalise_science_fixes(science_fixes)
     try:
         uptodate_data, user_data, standard_data = validate_phase_b_inputs(
             uptodate_yaml_file, user_yaml_file, standard_yaml_file
@@ -2571,12 +2789,14 @@ def run_science_check(
             os.path.basename(science_yaml_file) if science_yaml_file else None
         )
         report_content = create_science_report(
-            validation_results,
-            [],  # No adjustments since we failed early
-            science_yaml_filename,
-            phase_a_report_file,
-            mode,
-            phase,
+            validation_results=validation_results,
+            adjustments=[],  # No adjustments since we failed early
+            suggestions=[],
+            science_yaml_filename=science_yaml_filename,
+            phase_a_report_file=phase_a_report_file,
+            mode=mode,
+            phase=phase,
+            science_fixes=science_fixes,
         )
 
         # Write error report file
@@ -2587,24 +2807,38 @@ def run_science_check(
         raise e
 
     critical_errors = [r for r in validation_results if r.status == "ERROR"]
+    suggestions = []
+    adjustments = []
     if not critical_errors:
-        science_checked_data, adjustments = run_scientific_adjustment_pipeline(
-            uptodate_data, start_date, model_year
-        )
+        if science_fixes == "apply":
+            suggestions = collect_science_suggestions(
+                uptodate_data, start_date, model_year
+            )
+            science_checked_data, adjustments = apply_science_suggestions(
+                uptodate_data, suggestions, start_date, model_year
+            )
+        elif science_fixes == "suggest":
+            suggestions = collect_science_suggestions(
+                uptodate_data, start_date, model_year
+            )
+            science_checked_data = deepcopy(uptodate_data)
+        else:
+            science_checked_data = deepcopy(uptodate_data)
     else:
         science_checked_data = deepcopy(uptodate_data)
-        adjustments = []
 
     science_yaml_filename = (
         os.path.basename(science_yaml_file) if science_yaml_file else None
     )
     report_content = create_science_report(
-        validation_results,
-        adjustments,
-        science_yaml_filename,
-        phase_a_report_file,
-        mode,
-        phase,
+        validation_results=validation_results,
+        adjustments=adjustments,
+        suggestions=suggestions if science_fixes == "suggest" else [],
+        science_yaml_filename=science_yaml_filename,
+        phase_a_report_file=phase_a_report_file,
+        mode=mode,
+        phase=phase,
+        science_fixes=science_fixes,
     )
 
     if science_report_file:
@@ -2614,7 +2848,9 @@ def run_science_check(
         print_critical_halt_message(critical_errors)
         raise ValueError("Critical scientific errors detected - Phase B halted")
 
-    print_science_check_results(validation_results, adjustments)
+    print_science_check_results(
+        validation_results, adjustments, suggestions, science_fixes
+    )
 
     if science_yaml_file and not critical_errors:
         header = create_science_yaml_header(phase_a_performed)

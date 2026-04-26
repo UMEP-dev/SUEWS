@@ -21,16 +21,26 @@ def function_name(context):
     return errors
 """
 
-from dataclasses import dataclass, fields
+from dataclasses import asdict, dataclass, fields
 from types import MappingProxyType
 from typing import Any, Mapping, Tuple, Optional
+
+
+VALID_SEVERITIES = {
+    "ERROR",
+    "WARNING",
+    "SUGGESTION",
+    "APPLIED_FIX",
+    "INFO",
+    "PASS",
+}
 
 
 @dataclass
 class ValidationResult:
     """Structured result from scientific validation checks."""
 
-    status: str  # 'PASS', 'WARNING', 'ERROR'
+    status: str  # 'ERROR', 'WARNING', 'SUGGESTION', 'APPLIED_FIX', 'INFO', 'PASS'
     category: str  # 'PHYSICS', 'GEOGRAPHY', 'SEASONAL', 'LAND_COVER', 'MODEL_OPTIONS'
     parameter: str
     site_index: Optional[int] = None  # Array index (for internal use)
@@ -38,6 +48,37 @@ class ValidationResult:
     message: str = ""
     suggested_value: Any = None
     applied_fix: bool = False
+    code: Optional[str] = None
+    severity: Optional[str] = None
+    path: Optional[str] = None
+    source: str = "phase_b"
+
+    def __setattr__(self, name, value):
+        if name == "status" and isinstance(value, str):
+            value = value.upper()
+            object.__setattr__(self, name, value)
+            if "severity" in self.__dict__:
+                object.__setattr__(self, "severity", value)
+            return
+        object.__setattr__(self, name, value)
+
+    def __post_init__(self):
+        self.status = (self.status or "INFO").upper()
+        self.severity = (self.severity or self.status).upper()
+        if self.severity not in VALID_SEVERITIES:
+            raise ValueError(
+                f"Invalid validation severity '{self.severity}'. "
+                f"Expected one of {sorted(VALID_SEVERITIES)}."
+            )
+        if self.code is None:
+            normalised_parameter = self.parameter.replace(".", "_").replace(" ", "_")
+            self.code = f"{self.category}.{normalised_parameter}".upper()
+        if self.path is None:
+            self.path = self.parameter
+
+    def to_dict(self) -> dict:
+        """Return a stable serialisable representation for reports and JSON."""
+        return asdict(self)
 
 
 @dataclass(frozen=True)
@@ -71,14 +112,37 @@ class RulesRegistry:
 
     rules = {}
 
-    def __init__(self, context:ValidationContext=None):
+    def __init__(self, context:ValidationContext=None, rule_order=None):
         self.context = context
+        self.rule_order = tuple(rule_order) if rule_order is not None else None
 
     def __getitem__(self, item):
         return self.rules[item]
 
     def get(self, key):
         return self.rules.get(key)
+
+    def ordered_rule_items(self):
+        rule_order = self.rule_order
+        if rule_order is None:
+            try:
+                from . import DEFAULT_RULE_ORDER
+
+                rule_order = DEFAULT_RULE_ORDER
+            except ImportError:
+                rule_order = tuple(self.rules.keys())
+
+        seen = set()
+        for rule_id in rule_order:
+            rule_fn = self.rules.get(rule_id)
+            if rule_fn is None:
+                continue
+            seen.add(rule_id)
+            yield rule_id, rule_fn
+
+        for rule_id, rule_fn in self.rules.items():
+            if rule_id not in seen:
+                yield rule_id, rule_fn
 
 
     @classmethod
@@ -96,7 +160,7 @@ class RulesRegistry:
                 raise ValueError("Must provide context of type ValidationContext to run validation registry.")
             context = self.context
 
-        for rule_id, rule_fn in self.rules.items():
+        for rule_id, rule_fn in self.ordered_rule_items():
             validation_results.extend(
                 rule_fn(context)
             )

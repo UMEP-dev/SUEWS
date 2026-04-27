@@ -26,7 +26,12 @@ import numpy as np
 import pandas
 import pandas as pd
 
-from ._check import check_forcing, check_state
+from ._check import (
+    FORCING_REQUIREMENTS,
+    _check_observed_lai_nonneg,
+    check_forcing,
+    check_state,
+)
 from ._env import logger_supy, trv_supy_module
 from ._load import (
     load_df_state,
@@ -581,6 +586,44 @@ def init_config(df_state: pd.DataFrame = None):
 ##############################################################################
 
 
+def _physics_dict_from_df_state(df_state: pd.DataFrame) -> dict:
+    """Extract physics-option values from a df_state_init DataFrame.
+
+    Returns a dict keyed by option name (e.g. ``"laimethod"``). A single-grid
+    state stores a scalar ``int`` so existing callers continue to work; a
+    multi-grid state stores a sorted list of the unique per-grid values so
+    ``check_forcing`` can enforce the forcing requirement whenever any grid
+    selects the triggering value. Only the options referenced by
+    ``FORCING_REQUIREMENTS`` are considered.
+    """
+    physics_dict: dict = {}
+    top_level = set(df_state.columns.get_level_values(0))
+    option_names = {option for option, _ in FORCING_REQUIREMENTS.keys()}
+    for option in option_names:
+        if option in top_level:
+            values = df_state[option].values.ravel()
+            if len(values) > 0:
+                unique = sorted({int(v) for v in values})
+                physics_dict[option] = unique[0] if len(unique) == 1 else unique
+    return physics_dict
+
+
+def _lai_bounds_from_df_state(df_state: pd.DataFrame) -> dict:
+    """Extract per-grid per-veg-class LAI bounds from a df_state DataFrame.
+
+    Returns a dict ``{'laimin': [...], 'laimax': [...]}`` where each value is a
+    list-of-lists (outer = per grid row, inner = per vegetation class). Returns
+    ``None`` if the expected columns are missing.
+    """
+    top_level = set(df_state.columns.get_level_values(0))
+    if "laimin" not in top_level or "laimax" not in top_level:
+        return None
+    return {
+        "laimin": df_state["laimin"].astype(float).values.tolist(),
+        "laimax": df_state["laimax"].astype(float).values.tolist(),
+    }
+
+
 ##############################################################################
 # 2. compact wrapper for running a whole simulation
 # # main calculation
@@ -641,8 +684,14 @@ def _run_supy(
     """
     # validate input dataframes
     if check_input:
-        # forcing:
-        list_issues_forcing = check_forcing(df_forcing)
+        # Build a physics dict from df_state_init so physics-gated forcing
+        # requirements (see `FORCING_REQUIREMENTS`) are enforced on the legacy
+        # path as well as the modern SUEWSSimulation path.
+        physics_dict = _physics_dict_from_df_state(df_state_init)
+        lai_bounds = _lai_bounds_from_df_state(df_state_init)
+        list_issues_forcing = check_forcing(
+            df_forcing, physics=physics_dict, lai_bounds=lai_bounds
+        )
         if isinstance(list_issues_forcing, list):
             logger_supy.critical("`df_forcing` is NOT valid to drive SuPy!")
             raise RuntimeError(
@@ -693,11 +742,31 @@ def _run_supy(
 
     config = SUEWSConfig.from_df_state(df_state_init)
 
+    try:
+        lai_val = getattr(config.model.physics, "laimethod", None)
+        if hasattr(lai_val, "value"):
+            lai_val = lai_val.value
+        lai_int = int(lai_val) if lai_val is not None else 1
+    except (AttributeError, TypeError, ValueError):
+        lai_int = 1
+
+    if lai_int == 0:
+        lai_issues = []
+        if _check_observed_lai_nonneg(df_forcing, lai_issues):
+            logger_supy.critical(
+                "`df_forcing` violates the observed-LAI contract under "
+                "`laimethod=0`."
+            )
+            raise RuntimeError(lai_issues[0])
+
     # Preprocess forcing for observed soil moisture if needed
     try:
         # SMDMethod is a physics option in the validated config schema.
-        # Keep a fallback to legacy `model.options` for compatibility.
-        smd_val = getattr(config.model.physics, "smdmethod", None)
+        # Prefer the renamed Pydantic field; keep the legacy attribute and
+        # old `model.options` fallback for older in-memory callers.
+        smd_val = getattr(config.model.physics, "soil_moisture_deficit", None)
+        if smd_val is None:
+            smd_val = getattr(config.model.physics, "smdmethod", None)
         if smd_val is None:
             smd_val = getattr(getattr(config.model, "options", None), "smdmethod", None)
         if hasattr(smd_val, "value"):
@@ -713,7 +782,9 @@ def _run_supy(
         )
 
     # Run via Rust bridge
-    df_output, _ = run_suews_rust_chunked(config, df_forcing_processed, chunk_day)
+    df_output, _ = run_suews_rust_chunked(
+        config, df_forcing_processed, chunk_day, serial_mode=serial_mode
+    )
 
     # Build state_final: copy initial state + version metadata
     df_state_final = df_state_init.copy()
@@ -812,7 +883,8 @@ def _save_supy(
     output_level=1,
     debug=False,
     output_config=None,
-    output_format="txt",
+    output_format=None,
+    save_state: bool = True,
 ) -> list:
     """Save SuPy run results to files.
 
@@ -843,6 +915,10 @@ def _save_supy(
         whether to enable debug mode (e.g., writing out in serial mode, and other debug uses), by default False.
     output_config : OutputConfig, optional
         Output configuration object specifying format, frequency, and groups to save. If provided, overrides freq_s parameter.
+    save_state : bool, optional
+        Whether to write the legacy DFState restart artifact. Legacy callers
+        keep the historical default ``True``; the OOP API writes typed
+        checkpoint JSON instead.
 
 
     Returns
@@ -894,8 +970,10 @@ def _save_supy(
             # Override frequency if specified in config
             if output_config.freq is not None:
                 freq_s = output_config.freq
-            # Get format
-            output_format = str(output_config.format)
+            # Fill format from config only when the caller has not set it
+            # explicitly — an explicit `output_format` kwarg always wins.
+            if output_format is None:
+                output_format = str(output_config.format)
             # Get groups for txt format
             if output_format == "txt" and output_config.groups is not None:
                 output_groups = output_config.groups
@@ -911,8 +989,11 @@ def _save_supy(
                 DeprecationWarning,
                 stacklevel=2,
             )
-            # Fall back to default text format
-            output_format = "txt"
+            if output_format is None:
+                output_format = "txt"
+
+    if output_format is None:
+        output_format = "txt"
 
     # determine `save_snow` option
     snowuse = df_state_final.iloc[-1].loc["snowuse"]
@@ -937,6 +1018,7 @@ def _save_supy(
             site,
             path_dir_save,
             save_tstep,
+            save_state=save_state,
         )
     else:
         # Save as text files (existing behavior)
@@ -954,11 +1036,11 @@ def _save_supy(
 
         # MP: Parquet saves this already - breaks the parquet save check
         # save df_state
-        if path_runcontrol is not None:
+        if save_state and path_runcontrol is not None:
             # save as nml as SUEWS binary
             list_path_nml = save_initcond_nml(df_state_final, site, path_dir_save)
             list_path_save += list_path_nml
-        else:
+        elif save_state:
             # save as supy csv for later use
             path_state_save = save_df_state(df_state_final, site, path_dir_save)
             # update list_path_save
@@ -979,7 +1061,7 @@ def save_supy(
     output_level=1,
     debug=False,
     output_config=None,
-    output_format="txt",
+    output_format=None,
 ) -> list:
     """Save SuPy run results to files.
 

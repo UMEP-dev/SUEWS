@@ -20,14 +20,15 @@ This workflow is **workspace-independent** - run from any worktree.
 0. **Assess necessity** - Use assessment criteria, check timing and user needs
 1. **Select dev tag** - Pick a CI-verified dev tag as release base
 2. **Create release branch** - `git checkout -b release/YYYY.M.D origin/master`
-3. **CHANGELOG analysis** - Use log-changes or manual (current format)
-4. **Update docs** - CHANGELOG.md, version history RST (`:pr:` syntax), toctree
-5. **GitHub Release notes** - Create `.github/releases/YYYY.M.D.md` (Markdown)
-6. **Issue tracking** - Update the release issue, create sub-issues for manual steps
-7. **Submit PR** - Create PR, wait for CI, merge to master
-8. **Tag release** - Tag the merge commit on master
-9. **Verify** - Monitor Actions, PyPI, GitHub Release, Zenodo
-10. **Update umep-reqs** - PR to update supy version in UMEP-dev/umep-reqs
+3. **Schema version audit** - `git log <last-release-tag>..HEAD -- src/supy/data_model/`. If any commit is a structural change (see `.claude/rules/python/schema-versioning.md` for triggers), confirm that `CURRENT_SCHEMA_VERSION` was bumped, `SCHEMA_VERSIONS` has a matching entry, `sample_config.yml` carries the new version, and `yaml_upgrade.py::_HANDLERS` has a `(previous_schema -> current_schema)` handler (the handler registry is the single source of truth for compatibility; `is_schema_compatible` derives from it). Stop and fix if any are missing — this was the gap closed in gh#1304.
+4. **CHANGELOG analysis** - Use log-changes or manual (current format)
+5. **Update docs** - CHANGELOG.md, version history RST (`:pr:` syntax), toctree
+6. **GitHub Release notes** - Create `.github/releases/YYYY.M.D.md` (Markdown)
+7. **Issue tracking** - Update the release issue, create sub-issues for manual steps
+8. **Submit PR** - Create PR, wait for CI, merge to master
+9. **Tag release** - Tag the merge commit on master
+10. **Verify** - Monitor Actions, PyPI, GitHub Release, Zenodo
+11. **Update umep-reqs** - PR to update supy version in UMEP-dev/umep-reqs
 
 Details: `references/release-steps.md`
 
@@ -97,7 +98,8 @@ Selection criteria:
 [PASS/FAIL] CI status: All workflows passed
 [PASS/FAIL] On master lineage
 [PASS/FAIL] Release branch created
-[PASS/FAIL] Schema version sync (run /verify-build check)
+[PASS/FAIL] Schema version sync (sample_config.yml matches CURRENT_SCHEMA_VERSION; run /verify-build)
+[PASS/FAIL] Schema version bump covers every structural data_model change since last tag (see .claude/rules/python/schema-versioning.md)
 [PASS/FAIL] Docs updated (CHANGELOG, version-history RST)
 [PASS/FAIL] GitHub Release notes created (.github/releases/)
 [PASS/FAIL] Release issue updated, sub-issues created for manual steps
@@ -177,13 +179,15 @@ git push origin "$VERSION"
 git tag -d "$VERSION" && git push origin ":refs/tags/$VERSION"
 ```
 
-## Dual-Build System
+## Single Wheel per Platform
 
-Each tag triggers two PyPI uploads via GitHub Actions:
-- `YYYY.M.D` - Standard build (NumPy ≥2.0, modern environments)
-- `YYYY.M.Drc1` - UMEP build (NumPy 1.x compatibility for QGIS plugin)
+Each tag triggers one PyPI upload per platform via GitHub Actions:
+- `YYYY.M.D` - cp39-abi3 wheel (installs on cp39..cp3xx)
 
-The `rc1` variant is created automatically by the `build_umep` workflow - no manual RC tagging required for standard releases.
+The runtime pin is `numpy>=1.22`, so the same wheel works in QGIS 3 LTR
+(NumPy 1.26.4), QGIS 4 (NumPy 2.x), and any modern Python environment.
+The UMEP (`rc1`) variant was retired in 2026-04 once the Rust bridge
+removed all NumPy C-ABI dependencies.
 
 ## References
 

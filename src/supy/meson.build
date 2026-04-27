@@ -13,6 +13,7 @@ py.install_sources(
         '_var_metadata.py',
         '_version.py',
         '_version_scm.py',
+        'suews_checkpoint.py',
         'suews_forcing.py',
         'suews_output.py',
         'suews_sim.py',
@@ -66,6 +67,7 @@ py.install_sources(
             'util/converter/table/profile_manager.py',
             'util/converter/table/rules.csv',
             'util/converter/yaml.py',
+            'util/converter/yaml_upgrade.py',
         ],
         [
             'sample_data/sample_config.yml',
@@ -81,10 +83,13 @@ py.install_sources(
             'data_model/doc_utils.py',
             'data_model/core/__init__.py',
             'data_model/core/config.py',
+            'data_model/core/df_column_renames.py',
+            'data_model/core/field_renames.py',
             'data_model/core/human_activity.py',
             'data_model/core/hydro.py',
             'data_model/core/model.py',
             'data_model/core/ohm.py',
+            'data_model/core/physics_families.py',
             'data_model/core/profile.py',
             'data_model/core/site.py',
             'data_model/core/state.py',
@@ -195,16 +200,21 @@ build_suews = custom_target(
 rust_bridge_enabled = get_option('with_rust_bridge')
 if rust_bridge_enabled
     find_program('cargo', required: true)
-    rust_bridge_ext_suffix = run_command(
-        py,
-        '-c',
-        'import sysconfig; print(sysconfig.get_config_var("EXT_SUFFIX") or ".so")',
-        check: true,
-    ).stdout().strip()
-    rust_bridge_ext_name = 'suews_bridge' + rust_bridge_ext_suffix
-    rust_bridge_cli_name = 'suews'
+    rust_bridge_dep_files = files(
+        '../suews_bridge/Cargo.toml',
+        '../suews_bridge/build.rs',
+        '../suews_bridge/src/field_renames.rs',
+    )
+    # abi3 filename: one wheel covers cp39..cp3xx. The PyO3 feature
+    # abi3-py39 makes the cargo artefact itself ABI-stable; the filename
+    # just needs to be Python-version-agnostic so meson-python tags the
+    # wheel cp39-abi3-<plat> rather than cp313-cp313-<plat>.
     if host_machine.system() == 'windows'
+        rust_bridge_ext_name = 'suews_bridge.pyd'
         rust_bridge_cli_name = 'suews.exe'
+    else
+        rust_bridge_ext_name = 'suews_bridge.abi3.so'
+        rust_bridge_cli_name = 'suews'
     endif
 
     rust_bridge_artifacts = custom_target(
@@ -218,6 +228,7 @@ if rust_bridge_enabled
         ],
         output: [rust_bridge_ext_name, rust_bridge_cli_name],
         depends: build_suews,
+        depend_files: rust_bridge_dep_files,
         build_by_default: true,
         install: true,
         install_dir: [py.get_install_dir() / 'supy', py.get_install_dir() / 'supy/bin'],

@@ -592,6 +592,7 @@ def save_df_output_parquet(
     site: str = "",
     path_dir_save: Path = Path("."),
     save_tstep=False,
+    save_state: bool = True,
 ) -> list:
     """Save supy output to Parquet format.
 
@@ -672,15 +673,17 @@ def save_df_output_parquet(
     )
     list_path_save.append(path_output)
 
-    # Save final state separately
-    filename_state = (
-        f"{site}_SUEWS_state_final.parquet" if site else "SUEWS_state_final.parquet"
-    )
-    path_state = path_dir_save / filename_state
-    df_state_final.to_parquet(
-        path_state, engine=engine, compression="snappy", index=True
-    )
-    list_path_save.append(path_state)
+    if save_state:
+        filename_state = (
+            f"{site}_SUEWS_state_final.parquet"
+            if site
+            else "SUEWS_state_final.parquet"
+        )
+        path_state = path_dir_save / filename_state
+        df_state_final.to_parquet(
+            path_state, engine=engine, compression="snappy", index=True
+        )
+        list_path_save.append(path_state)
 
     # Save metadata as a separate small parquet file
     filename_meta = (

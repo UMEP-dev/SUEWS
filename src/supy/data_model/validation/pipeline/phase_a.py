@@ -1,41 +1,45 @@
 import yaml
 import os
 import subprocess
+from typing import Optional
 import pandas as pd
 from pathlib import Path
 
 from .report_writer import REPORT_WRITER
+from ...core.field_renames import RAW_YAML_FIELD_RENAMES
 
 RENAMED_PARAMS = {
     "cp": "rho_cp",
-    "diagmethod": "rslmethod",
-    "localclimatemethod": "rsllevel",
+    "diagmethod": "roughness_sublayer",
+    "localclimatemethod": "roughness_sublayer_level",
     "chanohm": "ch_anohm",
     "cpanohm": "rho_cp_anohm",
     "kkanohm": "k_anohm",
+    # Phase 2 + 3 renames: fused -> snake_case -> final (#1256, #1321)
+    **RAW_YAML_FIELD_RENAMES,
 }
 PHYSICS_OPTIONS = {
-    "netradiationmethod",
-    "emissionsmethod",
-    "storageheatmethod",
-    "ohmincqf",
-    "roughlenmommethod",
-    "roughlenheatmethod",
-    "stabilitymethod",
-    "smdmethod",
-    "waterusemethod",
-    "rslmethod",
-    "faimethod",
-    "rsllevel",
-    "gsmodel",
-    "snowuse",
-    "stebbsmethod",
-    "rcmethod",
+    "net_radiation",
+    "emissions",
+    "storage_heat",
+    "ohm_inc_qf",
+    "roughness_length_momentum",
+    "roughness_length_heat",
+    "stability",
+    "soil_moisture_deficit",
+    "water_use",
+    "roughness_sublayer",
+    "frontal_area_index",
+    "roughness_sublayer_level",
+    "surface_conductance",
+    "snow_use",
+    "stebbs",
+    "outer_cap_fraction",
     "same_albedo_wall",
     "same_albedo_roof",
     "same_emissivity_wall",
     "same_emissivity_roof",
-    "setpointmethod",
+    "setpoint",
 }
 
 ALLOWED_REF_KEYS = {"desc", "DOI", "ID"}
@@ -1048,8 +1052,61 @@ def validate_nlayer_limit(user_data: dict) -> list:
                 errors.append((path, nlayer, "Could not interpret nlayer value for limit check."))
     return errors
 
+def _extract_lai_bounds_from_user_data(user_data: dict) -> Optional[dict]:
+    """Collect per-site per-veg-class LAI bounds from a parsed YAML config.
+
+    Returns ``{'laimin': [[eve, dec, grass], ...], 'laimax': [[...], ...]}`` or
+    ``None`` if the configuration lacks the expected structure. Used to seed
+    ``check_forcing``'s pre-flight clamp warning on the YAML validation path.
+    """
+    if not isinstance(user_data, dict):
+        return None
+    sites = user_data.get("sites")
+    if not isinstance(sites, list) or not sites:
+        return None
+
+    def _unwrap(value):
+        if isinstance(value, dict) and "value" in value:
+            return value["value"]
+        return value
+
+    laimin_rows: list = []
+    laimax_rows: list = []
+    for site in sites:
+        if not isinstance(site, dict):
+            continue
+        land_cover = (
+            site.get("properties", {}).get("land_cover", {})
+            if isinstance(site.get("properties"), dict)
+            else {}
+        )
+        class_mins: list = []
+        class_maxs: list = []
+        for veg in ("evetr", "dectr", "grass"):
+            params = land_cover.get(veg, {}) if isinstance(land_cover, dict) else {}
+            lai_params = params.get("lai", {}) if isinstance(params, dict) else {}
+            if not isinstance(lai_params, dict):
+                continue
+            laimin = _unwrap(lai_params.get("lai_min", lai_params.get("laimin")))
+            laimax = _unwrap(lai_params.get("lai_max", lai_params.get("laimax")))
+            if laimin is None or laimax is None:
+                continue
+            try:
+                class_mins.append(float(laimin))
+                class_maxs.append(float(laimax))
+            except (TypeError, ValueError):
+                continue
+        if class_mins and class_maxs:
+            laimin_rows.append(class_mins)
+            laimax_rows.append(class_maxs)
+    if not laimin_rows or not laimax_rows:
+        return None
+    return {"laimin": laimin_rows, "laimax": laimax_rows}
+
+
 def _validate_single_forcing_file(
-    forcing_path: Path, yaml_dir: Path, physics: dict = None
+    forcing_path: Path, yaml_dir: Path, physics: dict = None,
+    lai_bounds: dict = None,
 ) -> list:
     """
     Validate a single forcing data file.
@@ -1113,7 +1170,9 @@ def _validate_single_forcing_file(
         logger_supy.setLevel(logging.CRITICAL + 1)  # Disable all logging
 
         try:
-            issues = check_forcing(df_forcing, fix=False, physics=physics)
+            issues = check_forcing(
+                df_forcing, fix=False, physics=physics, lai_bounds=lai_bounds
+            )
             if issues:
                 # Clean up error messages: remove extra whitespace and newlines, clarify indices
                 cleaned_issues = []
@@ -1157,7 +1216,9 @@ def _validate_single_forcing_file(
     return forcing_errors
 
 
-def validate_forcing_data(user_yaml_file: str, physics: dict = None) -> tuple:
+def validate_forcing_data(
+    user_yaml_file: str, physics: dict = None, lai_bounds: dict = None
+) -> tuple:
     """
     Validate forcing data file(s) referenced in the user YAML configuration.
 
@@ -1229,7 +1290,7 @@ def validate_forcing_data(user_yaml_file: str, physics: dict = None) -> tuple:
             # Validate all files in the list
             for fpath in forcing_file_path:
                 file_errors = _validate_single_forcing_file(
-                    Path(fpath), yaml_dir, physics=physics
+                    Path(fpath), yaml_dir, physics=physics, lai_bounds=lai_bounds
                 )
                 forcing_errors.extend(file_errors)
 
@@ -1239,7 +1300,7 @@ def validate_forcing_data(user_yaml_file: str, physics: dict = None) -> tuple:
         forcing_file_paths = forcing_file_path
         yaml_dir = Path(user_yaml_file).parent
         file_errors = _validate_single_forcing_file(
-            Path(forcing_file_path), yaml_dir, physics=physics
+            Path(forcing_file_path), yaml_dir, physics=physics, lai_bounds=lai_bounds
         )
         forcing_errors.extend(file_errors)
 
@@ -1680,7 +1741,12 @@ def annotate_missing_parameters(
         physics_config = None
         if user_data and "model" in user_data and "physics" in user_data["model"]:
             physics_config = user_data["model"]["physics"]
-        forcing_errors, _ = validate_forcing_data(user_file, physics=physics_config)
+        # Seed the pre-flight LAI-bounds check with per-site laimin/laimax so
+        # ``check_forcing`` can warn when observed LAI will be clamped.
+        lai_bounds = _extract_lai_bounds_from_user_data(user_data)
+        forcing_errors, _ = validate_forcing_data(
+            user_file, physics=physics_config, lai_bounds=lai_bounds
+        )
 
     user_data_no_ref = _strip_ref_blocks(user_data)
     standard_data_no_ref = _strip_ref_blocks(standard_data)

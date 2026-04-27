@@ -22,6 +22,7 @@ from .data_model import RefValue
 from .data_model.core import SUEWSConfig
 
 # Import new OOP classes
+from .suews_checkpoint import SUEWSCheckpoint
 from .suews_forcing import SUEWSForcing
 from .suews_output import SUEWSOutput
 from .util._io import read_forcing
@@ -81,6 +82,7 @@ class SUEWSSimulation:
         self._df_forcing = None
         self._df_output = None
         self._df_state_final = None
+        self._checkpoint = None
         self._run_completed = False
 
         if config is not None:
@@ -515,8 +517,23 @@ class SUEWSSimulation:
         # Slice forcing data
         df_forcing_slice = self._df_forcing.loc[start_date:end_date]
 
-        # Validate forcing data
-        list_issues = check_forcing(df_forcing_slice)
+        # Validate forcing data, including physics-specific forcing requirements
+        # (e.g. laimethod=0 requires a populated `lai` column). When observed
+        # LAI is selected, pass per-site LAI bounds so the validator can warn
+        # about forcing values that will be clamped at runtime.
+        physics_dict = None
+        lai_bounds = None
+        if self._config is not None and hasattr(self._config, "model"):
+            physics = getattr(self._config.model, "physics", None)
+            if physics is not None and hasattr(physics, "model_dump"):
+                physics_dict = physics.model_dump(mode="python")
+        if self._df_state_init is not None:
+            from ._supy_module import _lai_bounds_from_df_state
+
+            lai_bounds = _lai_bounds_from_df_state(self._df_state_init)
+        list_issues = check_forcing(
+            df_forcing_slice, physics=physics_dict, lai_bounds=lai_bounds
+        )
         if isinstance(list_issues, list) and len(list_issues) > 0:
             issues_summary = list_issues[:3] if len(list_issues) > 3 else list_issues
             suffix = (
@@ -525,14 +542,26 @@ class SUEWSSimulation:
             raise ValueError(f"Invalid forcing data: {issues_summary}{suffix}")
 
         # Run simulation via Rust bridge
-        df_output, _ = run_suews_rust_chunked(
+        initial_state_json_by_grid = (
+            self._checkpoint.grid_states if self._checkpoint is not None else None
+        )
+        df_output, dict_state_json = run_suews_rust_chunked(
             config=self._config,
             df_forcing=df_forcing_slice,
             chunk_day=chunk_day,
+            initial_state_json_by_grid=initial_state_json_by_grid,
         )
         self._df_output = df_output
+        self._checkpoint = (
+            SUEWSCheckpoint.from_grid_states(
+                dict_state_json,
+                last_timestamp=df_forcing_slice.index.max(),
+            )
+            if dict_state_json
+            else None
+        )
 
-        # Build state_final: copy initial state + version metadata
+        # Keep a legacy DFState-shaped final state for compatibility only.
         from ._version import __version__
 
         df_state_final = self._df_state_init.copy()
@@ -546,6 +575,7 @@ class SUEWSSimulation:
             df_output=self._df_output,
             df_state_final=self._df_state_final,
             config=self._config,
+            checkpoint=self._checkpoint,
         )
 
     def save(
@@ -661,7 +691,16 @@ class SUEWSSimulation:
             # **save_kwargs # Problematic, save_supy expects explicit arguments
             output_config=output_config,
             output_format=output_format,
+            save_state=False,
         )
+
+        if self._checkpoint is not None:
+            checkpoint_name = (
+                f"{site}_SUEWS_checkpoint.json" if site else "SUEWS_checkpoint.json"
+            )
+            checkpoint_path = self._checkpoint.to_file(output_path / checkpoint_name)
+            list_path_save.append(checkpoint_path)
+
         return list_path_save
 
     def reset(self) -> "SUEWSSimulation":
@@ -679,6 +718,7 @@ class SUEWSSimulation:
         """
         self._df_output = None
         self._df_state_final = None
+        self._checkpoint = None
         self._run_completed = False
         return self
 
@@ -740,13 +780,62 @@ class SUEWSSimulation:
         sim._df_forcing = df_forcing
         return sim
 
+    @staticmethod
+    def _coerce_checkpoint(
+        checkpoint: Union[str, Path, SUEWSCheckpoint],
+    ) -> SUEWSCheckpoint:
+        if isinstance(checkpoint, SUEWSCheckpoint):
+            return checkpoint
+        if isinstance(checkpoint, (str, Path)):
+            return SUEWSCheckpoint.from_file(checkpoint)
+        raise TypeError(
+            "checkpoint must be a SUEWSCheckpoint, str, or Path, "
+            f"got {type(checkpoint).__name__}"
+        )
+
+    @classmethod
+    def from_checkpoint(
+        cls,
+        config: Union[str, Path, dict, SUEWSConfig],
+        checkpoint: Union[str, Path, SUEWSCheckpoint],
+    ) -> "SUEWSSimulation":
+        """Create a continuation simulation from YAML config and checkpoint."""
+        if config is None:
+            raise ValueError(
+                "Checkpoint continuation requires a YAML/SUEWSConfig "
+                "configuration as well as the checkpoint."
+            )
+
+        sim = cls()
+        if not isinstance(config, (str, Path, dict)):
+            config = copy.deepcopy(config)
+        sim.update_config(config, auto_load_forcing=False)
+        return sim.continue_from(checkpoint)
+
+    def continue_from(
+        self, checkpoint: Union[str, Path, SUEWSCheckpoint]
+    ) -> "SUEWSSimulation":
+        """Use a typed checkpoint as the initial runtime state."""
+        if self._config is None:
+            raise RuntimeError(
+                "Checkpoint continuation requires a loaded configuration. "
+                "Use SUEWSSimulation.from_checkpoint(config, checkpoint) or "
+                "call update_config() before continue_from()."
+            )
+
+        self._checkpoint = self._coerce_checkpoint(checkpoint)
+        self._df_output = None
+        self._df_state_final = None
+        self._run_completed = False
+        return self
+
     @classmethod
     def from_state(cls, state: Union[str, Path, pd.DataFrame]):
-        """Create SUEWSSimulation from saved state for continuation runs.
+        """Create SUEWSSimulation from legacy DFState.
 
-        Load a previously saved model state to continue simulation from where
-        it left off. Useful for multi-period runs or scenario testing with
-        different forcing data.
+        This compatibility adapter reads older DFState CSV/parquet/DataFrame
+        artifacts. New continuation workflows should use
+        ``from_checkpoint(config, checkpoint)``.
 
         Parameters
         ----------
@@ -770,7 +859,7 @@ class SUEWSSimulation:
 
         Examples
         --------
-        Continue from saved file:
+        Legacy import from saved file:
 
         >>> # Period 1
         >>> sim1 = SUEWSSimulation("config.yaml")
@@ -778,12 +867,12 @@ class SUEWSSimulation:
         >>> sim1.run()
         >>> paths = sim1.save("output/")
 
-        >>> # Period 2 - continue from saved state
+        >>> # Period 2 - legacy DFState continuation
         >>> sim2 = SUEWSSimulation.from_state("output/df_state.csv")
         >>> sim2.update_forcing("forcing_2024.txt")
         >>> sim2.run()
 
-        Continue from DataFrame directly:
+        Legacy import from DataFrame directly:
 
         >>> # In-memory continuation without saving to file
         >>> sim1 = SUEWSSimulation.from_sample_data()
@@ -803,10 +892,19 @@ class SUEWSSimulation:
 
         See Also
         --------
-        save : Save simulation results and state
+        from_checkpoint : Create continuation from YAML config and checkpoint
+        save : Save simulation results and checkpoint
         reset : Clear results and reset to initial state
-        state_final : Access final state from completed simulation
+        checkpoint : Access typed checkpoint from completed simulation
         """
+        warnings.warn(
+            "SUEWSSimulation.from_state() is a legacy DFState compatibility "
+            "adapter. Use SUEWSSimulation.from_checkpoint(config, checkpoint) "
+            "for restart/continuation runs.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+
         from ._version import __version__ as current_version
 
         # Load state from file or use DataFrame directly
@@ -886,7 +984,7 @@ class SUEWSSimulation:
         Returns
         -------
         SUEWSSimulation
-            Simulation instance initialised with final state from output,
+            Simulation instance initialised with checkpoint from output,
             ready for new forcing data and run.
 
         Examples
@@ -898,24 +996,34 @@ class SUEWSSimulation:
         >>> sim1.update_forcing("forcing_2023.txt")
         >>> output1 = sim1.run()
 
-        >>> # Continue from output state
+        >>> # Continue from output checkpoint
         >>> sim2 = SUEWSSimulation.from_output(output1)
         >>> sim2.update_forcing("forcing_2024.txt")
         >>> output2 = sim2.run()
 
         See Also
         --------
-        from_state : Create from saved state file or DataFrame
-        SUEWSOutput.state_final : Final state property for restart
+        from_checkpoint : Create from YAML config and checkpoint
+        SUEWSOutput.checkpoint : Typed checkpoint property for restart
         """
-        df_state_init = output.state_final
-        sim = cls()
-        sim._df_state_init = df_state_init
-        # Deep copy config to avoid shared state issues
-        if output.config is not None:
-            sim._config = copy.deepcopy(output.config)
+        if output.checkpoint is not None:
+            if output.config is None:
+                raise RuntimeError(
+                    "SUEWSOutput has a checkpoint but no configuration. "
+                    "Use SUEWSSimulation.from_checkpoint(config, checkpoint)."
+                )
+            return cls.from_checkpoint(
+                copy.deepcopy(output.config),
+                output.checkpoint,
+            )
 
-        return sim
+        warnings.warn(
+            "SUEWSSimulation.from_output() is falling back to legacy DFState. "
+            "Prefer SUEWSSimulation.from_checkpoint(config, output.checkpoint).",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        return cls.from_state(output.state_final)
 
     def __repr__(self) -> str:
         """Concise representation showing simulation status.
@@ -1225,6 +1333,7 @@ class SUEWSSimulation:
             df_output=self._df_output,
             df_state_final=self._df_state_final,
             config=self._config,
+            checkpoint=self._checkpoint,
         )
 
     @property
@@ -1240,8 +1349,8 @@ class SUEWSSimulation:
         See Also
         --------
         :ref:`df_state_var` : Complete state data structure and variable descriptions
-        state_final : Final state after simulation
-        from_state : Create simulation from existing state
+        checkpoint : Typed checkpoint after simulation
+        from_checkpoint : Create simulation from checkpoint
 
         Examples
         --------
@@ -1253,15 +1362,14 @@ class SUEWSSimulation:
 
     @property
     def state_final(self) -> Optional[pd.DataFrame]:
-        """Final state DataFrame after simulation.
+        """Legacy final state DataFrame after simulation.
 
-        Available only after running simulation. Contains evolved
-        state variables that can be used to continue simulation.
+        Prefer ``checkpoint`` for restart/continuation workflows.
 
         Returns
         -------
         pandas.DataFrame or None
-            Final state after simulation run.
+            Legacy final state after simulation run.
             None if simulation hasn't been run yet.
 
         See Also
@@ -1269,7 +1377,8 @@ class SUEWSSimulation:
         :ref:`df_state_var` : Complete state data structure and variable descriptions
         state_init : Initial state before simulation
         reset : Clear results and reset to initial state
-        from_state : Create new simulation from this final state
+        checkpoint : Typed restart artifact
+        from_checkpoint : Create new simulation from checkpoint
 
         Examples
         --------
@@ -1279,3 +1388,13 @@ class SUEWSSimulation:
         True
         """
         return self._df_state_final
+
+    @property
+    def checkpoint(self) -> Optional[SUEWSCheckpoint]:
+        """Typed checkpoint produced by the most recent run."""
+        return self._checkpoint
+
+    @property
+    def state_checkpoint(self) -> Optional[SUEWSCheckpoint]:
+        """Alias for ``checkpoint``."""
+        return self._checkpoint

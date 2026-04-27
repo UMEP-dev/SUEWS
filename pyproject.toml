@@ -1,10 +1,19 @@
 [build-system]
 requires = [
     "wheel",
-    "numpy>=2.0",
-    "meson-python>=0.12.0",
+    "meson-python>=0.17",
+    "meson>=1.3.0",  # required for tool.meson-python.limited-api support
 ]
 build-backend = 'mesonpy'
+
+[tool.meson-python]
+# Emit cp39-abi3 wheel tag when built under CPython 3.9.
+# The Rust bridge uses PyO3 with abi3-py39 (stable ABI), so one wheel
+# covers cp39..cp3xx. See src/suews_bridge/Cargo.toml.
+limited-api = true
+
+[tool.meson-python.args]
+setup = ["-Dpython.allow_limited_api=true"]
 
 [project]
 name = "supy"
@@ -21,7 +30,7 @@ readme = "README.md"
 dependencies = [
     # Data processing
     "pandas",
-    "numpy>=2.0",
+    "numpy>=1.22",  # Covers current QGIS 3 LTR / QGIS 4 NumPy stacks; no ABI constraint (Rust bridge is NumPy-free)
     "scipy<1.15; python_version >= '3.11' and python_version < '3.13' and platform_system == 'Linux'",  # manylinux2014 wheels
     "scipy; python_version < '3.11' or python_version >= '3.13' or platform_system != 'Linux'",  # Others use latest
     # xarray removed - only needed for gridded ERA5 (install separately)
@@ -126,15 +135,25 @@ suews-schema = "supy.cmd.schema_cli:main"
 filterwarnings = [
     "ignore::UserWarning:pydantic.main",
 ]
-# Test markers for tiered CI testing
+# Test markers.
+# Two orthogonal axes (gh#1300):
+#   nature:  physics | api   -- what the test actually exercises
+#   tier:    smoke | core | cfg | slow | util -- how fast/expensive it is
+# Every test file must carry at least one of {physics, api}; tier markers
+# compose with the nature axis.
 markers = [
+    # Nature axis (gh#1300) -- orthogonal to tier.
+    "physics: Numerical/binary correctness; sufficient to run once per (OS, arch) on the canonical Python",
+    "api: Python wrapper correctness; run across (platform x Python) because pandas/numpy/pydantic surface varies",
+    # Tier axis
     "smoke: Minimal wheel validation (~6 tests, ~60s)",
+    "smoke_bridge: Bridge-loading subset run across cp39..cp3xx after a single abi3 build",
     "core: Core physics & logic tests (Fortran, driver)",
     "rust: Rust bridge backend tests (requires suews_bridge with physics feature)",
     "util: Utility function tests (non-critical)",
     "cfg: Config/schema validation tests",
     "slow: Tests taking >30s individually",
-    "qgis: UMEP plugin tests in test/umep/ (Windows + Python 3.12 only)",
+    "qgis: UMEP plugin integration tests in test/umep/ (Windows + Python 3.12 target)",
 ]
 
 [tool.ruff]

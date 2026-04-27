@@ -38,6 +38,8 @@ import supy as sp
 
 from conftest import TIMESTEPS_PER_DAY
 
+pytestmark = pytest.mark.physics
+
 # Get the test data directory
 test_data_dir = Path(__file__).parent.parent / "fixtures" / "data_test"
 p_df_sample = Path(test_data_dir) / "sample_output.csv.gz"
@@ -50,7 +52,7 @@ def _get_fail_fast_steps(default_steps: int = DEFAULT_FAIL_FAST_STEPS) -> int:
     """Return validation timesteps for fail-fast execution."""
     raw = os.environ.get(FAIL_FAST_STEPS_ENV)
     if raw is None or raw == "":
-        return default_steps
+        return TIMESTEPS_PER_DAY if default_steps <= 0 else default_steps
     try:
         steps = int(raw)
     except ValueError as exc:
@@ -58,7 +60,7 @@ def _get_fail_fast_steps(default_steps: int = DEFAULT_FAIL_FAST_STEPS) -> int:
             f"{FAIL_FAST_STEPS_ENV} must be an integer, got: {raw!r}"
         ) from exc
 
-    # Non-positive value means "disable fail-fast", use full day window.
+    # Non-positive value means "disable fail-fast", use the full validation day.
     if steps <= 0:
         return TIMESTEPS_PER_DAY
     return steps
@@ -300,7 +302,6 @@ def compare_arrays_with_tolerance(actual, expected, rtol, atol, var_name=""):
 # ============================================================================
 
 
-@pytest.mark.smoke
 class TestSampleOutput(TestCase):
     """Dedicated test class for validating SUEWS outputs against reference data."""
 
@@ -389,6 +390,7 @@ class TestSampleOutput(TestCase):
 
     @pytest.mark.core
     @pytest.mark.rust
+    @pytest.mark.smoke
     def test_sample_output_validation(self):
         """
         Test SUEWS output against reference data with appropriate tolerances.
@@ -569,6 +571,8 @@ if __name__ == "__main__":
 # ============================================================================
 
 
+@pytest.mark.core
+@pytest.mark.slow  # Runs in test-all, scheduled builds, release builds, or manual all-tier validation.
 class TestSTEBBSOutput(TestCase):
     """Test class for validating STEBBS building energy outputs."""
 

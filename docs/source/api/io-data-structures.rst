@@ -6,7 +6,8 @@ Key IO Data Structures
 Introduction
 ------------
 
-The Python API uses four key pandas DataFrame structures for simulation input and output:
+The Python API uses pandas DataFrame structures for analysis data and a typed
+checkpoint object for restart workflows:
 
 .. code-block:: python
 
@@ -14,23 +15,25 @@ The Python API uses four key pandas DataFrame structures for simulation input an
 
    # Load sample data and run simulation
    sim = SUEWSSimulation.from_sample_data()
-   sim.run()
+   output = sim.run()
 
    # Access the data structures
    df_state_init = sim.df_state_init   # Input: initial states
    df_forcing = sim.df_forcing         # Input: forcing data
    df_output = sim.results             # Output: simulation results
-   df_state_final = sim.df_state_final # Output: final states
+   df_state_final = sim.df_state_final # Legacy/developer final states
+   checkpoint = output.checkpoint      # Preferred restart artefact
 
 **Input DataFrames:**
 
 - ``df_state_init``: Model initial states and configuration parameters
 - ``df_forcing``: Meteorological forcing data time series
 
-**Output DataFrames:**
+**Output and restart objects:**
 
 - ``df_output`` (or ``sim.results``): Model output results for scientific analysis
-- ``df_state_final``: Model final states, usable as initial conditions for subsequent simulations
+- ``df_state_final``: Legacy/developer final states for compatibility and inspection
+- ``SUEWSCheckpoint``: Typed runtime state for continuation runs
 
 
 Input
@@ -161,14 +164,52 @@ model states.
 
    [2 rows x 1200 columns]
 
-This structure facilitates reuse as initial model states for subsequent simulations:
+This structure is retained for compatibility and state inspection:
 
 - **Runtime diagnostics**: Save intermediate states with ``save_state=True`` in ``run_supy``
-- **Chained simulations**: Use end state as initial conditions for future runs starting
-  at the ending time of previous runs
+- **Developer inspection**: Examine flattened state variables in DataFrame form
 
 The meanings of state variables in ``df_state_final`` are the same as in ``df_state_init``,
 documented in :doc:`/data-structures/df_state`.
+
+For new object-oriented continuation workflows, use ``SUEWSCheckpoint`` rather
+than ``df_state_final`` as the restart artefact.
+
+
+.. _suews_checkpoint:
+
+``SUEWSCheckpoint``: typed restart state
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+``SUEWSCheckpoint`` carries typed backend runtime state keyed by grid ID. It is
+the preferred restart artefact for new object-oriented workflows.
+
+The checkpoint is intentionally only the typed runtime state. It does not
+contain the full YAML configuration or forcing data. To continue a run, load the
+same YAML configuration, attach the next forcing period, and run from
+``SUEWSSimulation.from_checkpoint(...)``:
+
+.. code-block:: python
+
+   from supy import SUEWSCheckpoint, SUEWSSimulation
+
+   checkpoint = SUEWSCheckpoint.from_file("{site}_SUEWS_checkpoint.json")
+
+   sim_next = SUEWSSimulation.from_checkpoint(
+       "config.yml",
+       checkpoint,
+   )
+   sim_next.update_forcing("forcing_next_period.txt")
+   output_next = sim_next.run()
+
+Use ``checkpoint.to_file(path)`` to write the checkpoint explicitly, or
+``sim.save(path)`` to save it alongside the configured output files. Checkpoints
+are keyed by grid ID, so checkpoint/configuration grid mismatches are rejected
+by the runtime.
+
+.. autoclass:: supy.SUEWSCheckpoint
+   :members: from_file, to_file
+   :undoc-members:
 
 
 Related Documentation
@@ -177,4 +218,5 @@ Related Documentation
 - :doc:`/data-structures/df_state` - Complete state variable reference
 - :doc:`/data-structures/df_forcing` - Forcing variable reference
 - :doc:`/data-structures/df_output` - Output variable reference
+- :ref:`suews_checkpoint` - Typed checkpoint restart artefact
 - :doc:`/auto_examples/tutorial_01_quick_start` - Interactive tutorial with DataFrame examples

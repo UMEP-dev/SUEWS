@@ -1,0 +1,137 @@
+name: example_sparse_site
+description: |
+  Minimal user-assembled config. Deliberately omits physics-required blocks
+  (conductance, LAI, tree FAI/heights, bldgh/faibldg) so that gh#1333's
+  validator escalation is exercised. Must raise on load.
+model:
+  control:
+    tstep: 300
+    start_time: '2012-07-01'
+    end_time: '2012-07-10'
+    forcing_file:
+      value: ./forcing.txt
+    output_file:
+      format: parquet
+      freq: 3600
+      path: ./out
+  physics:
+    netradiationmethod:
+      value: 3
+    emissionsmethod:
+      value: 2
+    storageheatmethod:
+      value: 1
+    ohmincqf:
+      value: 0
+    roughlenmommethod:
+      value: 1
+    roughlenheatmethod:
+      value: 2
+    stabilitymethod:
+      value: 3
+    smdmethod:
+      value: 0
+    waterusemethod:
+      value: 0
+    rslmethod:
+      value: 1
+    faimethod:
+      value: 0
+    rsllevel:
+      value: 1
+    gsmodel:
+      value: 2
+    snowuse:
+      value: 0
+    stebbsmethod:
+      value: 0
+    rcmethod:
+      value: 0
+    setpointmethod:
+      value: 0
+    same_albedo_wall:
+      value: 0
+    same_albedo_roof:
+      value: 0
+    same_emissivity_wall:
+      value: 0
+    same_emissivity_roof:
+      value: 0
+sites:
+- name: example_sparse_site
+  gridiv: 7
+  properties:
+    lat:
+      value: 51.5
+    lng:
+      value: -0.1
+    alt:
+      value: 50.0
+    surfacearea:
+      value: 100000.0
+    z:
+      value: 100.0
+    land_cover:
+      paved:
+        sfr:
+          value: 0.22
+        soildepth:
+          value: 350.0
+        soilstorecap:
+          value: 150.0
+        statelimit:
+          value: 0.48
+        alb:
+          value: 0.08
+      bldgs:
+        sfr:
+          value: 0.50
+        soildepth:
+          value: 350.0
+        soilstorecap:
+          value: 150.0
+        statelimit:
+          value: 0.25
+        alb:
+          value: 0.15
+        bldgh:
+          value: 3.5
+      dectr:
+        sfr:
+          value: 0.27
+        beta_bioco2:
+          value: 1
+        alpha_bioco2:
+          value: 1
+        resp_a:
+          value: 1
+        resp_b:
+          value: 1
+      evetr:
+        sfr:
+          value: 0.01
+        beta_bioco2:
+          value: 1
+        alpha_bioco2:
+          value: 1
+        resp_a:
+          value: 1
+        resp_b:
+          value: 1
+      grass:
+        sfr:
+          value: 0.0
+        beta_bioco2:
+          value: 1
+        alpha_bioco2:
+          value: 1
+        resp_a:
+          value: 1
+        resp_b:
+          value: 1
+      bsoil:
+        sfr:
+          value: 0.0
+      water:
+        sfr:
+          value: 0.0

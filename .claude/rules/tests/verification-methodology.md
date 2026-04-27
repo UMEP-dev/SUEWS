@@ -10,16 +10,18 @@ Rules for numerical comparisons, test validation, and diagnostic investigations.
 
 2. **Run the existing test before writing custom scripts.** If a test exists for the comparison you need, run it (`pytest path::Class::method -v`). Only write custom code if no test covers the question.
 
+3. **Trace every public execution path before declaring a fix complete.** When a behavioural contract changes, verify the recommended API, deprecated APIs, and any unchecked/bypass mode separately. Shared validators are not enough unless every public path actually reaches them.
+
 ## When results look unexpected
 
-3. **Question your script, not the production code.** Ad-hoc comparison scripts are the most likely source of error — misaligned indices, wrong column parsing, off-by-one rows. Verify your comparison is correct before drawing conclusions about the code.
+4. **Question your script, not the production code.** Ad-hoc comparison scripts are the most likely source of error — misaligned indices, wrong column parsing, off-by-one rows. Verify your comparison is correct before drawing conclusions about the code.
 
-4. **Never fabricate explanations.** If you don't know why something differs, say "I don't know yet, let me verify." Do not construct plausible-sounding narratives from unverified data.
+5. **Never fabricate explanations.** If you don't know why something differs, say "I don't know yet, let me verify." Do not construct plausible-sounding narratives from unverified data.
 
-5. **When challenged, don't double down with another guess.** Stop, go back to basics, re-examine your data loading, and verify from scratch.
+6. **When challenged, don't double down with another guess.** Stop, go back to basics, re-examine your data loading, and verify from scratch.
 
 ## Reporting
 
-6. **State what you verified and how.** "I ran `pytest test_X` and it passed" is trustworthy. "The difference is because of X" without running any test is not.
+7. **State what you verified and how.** "I ran `pytest test_X` and it passed" is trustworthy. "The difference is because of X" without running any test is not.
 
-7. **Distinguish between verified facts and hypotheses.** If you haven't confirmed something, label it as a hypothesis, not a conclusion.
+8. **Distinguish between verified facts and hypotheses.** If you haven't confirmed something, label it as a hypothesis, not a conclusion.

@@ -7,6 +7,8 @@ Regression test for Issue #240: NaN QF due to zero population density.
 import pytest
 import supy as sp
 
+pytestmark = pytest.mark.physics
+
 
 @pytest.mark.parametrize(
     "scenario",

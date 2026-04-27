@@ -278,7 +278,7 @@ Urban Site Configuration
 Tips for Success
 ----------------
 
-1. **Start with the sample**: Always begin with ``sample_config.yml`` and modify it
+1. **Start with the sample**: Always begin with ``sample_config.yml`` and modify it — configs that omit physics-required blocks (``conductance``, per-surface ``lai``, tree ``fai_*``/``height_*``, ``bldgs.bldgh``/``faibldg``) raise a :class:`ValueError` at load (gh#1333)
 2. **Validate early**: Run validation before long simulations
 3. **Check the report**: Understand what the validator changed
 4. **Use meaningful names**: Help yourself remember what each simulation is for

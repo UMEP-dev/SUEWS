@@ -11,7 +11,10 @@ except ImportError:
     from importlib_resources import files
 
 import supy as sp
+from supy.suews_checkpoint import SUEWSCheckpoint
 from supy.suews_sim import SUEWSSimulation
+
+pytestmark = pytest.mark.api
 
 
 class TestInit:
@@ -498,6 +501,8 @@ class TestSave:
         assert isinstance(paths, list)
         assert len(paths) > 0
         assert any(Path(p).exists() for p in paths)
+        assert any("checkpoint.json" in Path(p).name for p in paths)
+        assert not any("df_state" in Path(p).name for p in paths)
 
     def test_save_without_results(self):
         """Test save fails without results."""
@@ -773,10 +778,10 @@ class TestPathResolution:
 
 
 class TestContinuationRuns:
-    """Test continuation runs using from_state() method."""
+    """Test continuation runs using typed checkpoints."""
 
-    def test_from_state_csv(self, tmp_path):
-        """Test loading state from CSV for continuation."""
+    def test_from_checkpoint_file(self, tmp_path):
+        """Test loading typed checkpoint JSON for continuation."""
         # Run initial simulation
         sim1 = SUEWSSimulation.from_sample_data()
 
@@ -785,18 +790,18 @@ class TestContinuationRuns:
 
         df_forcing = df_forcing_full.iloc[:TIMESTEPS_PER_DAY]  # First day only
         sim1.update_forcing(df_forcing)
-        sim1.run()
+        output1 = sim1.run()
+        assert isinstance(output1.checkpoint, SUEWSCheckpoint)
 
-        # Save state
+        # Save checkpoint
         paths = sim1.save(str(tmp_path))
 
-        # Find state file
-        state_file = [p for p in paths if "df_state" in str(p)][0]
-        assert Path(state_file).exists()
+        checkpoint_file = [p for p in paths if "checkpoint.json" in str(p)][0]
+        assert Path(checkpoint_file).exists()
 
         # Load state for continuation
-        sim2 = SUEWSSimulation.from_state(state_file)
-        assert sim2._df_state_init is not None
+        sim2 = SUEWSSimulation.from_checkpoint(sim1.config, checkpoint_file)
+        assert sim2.checkpoint is not None
         assert sim2.is_ready() is False  # No forcing yet
 
         # Add forcing and run continuation
@@ -809,11 +814,8 @@ class TestContinuationRuns:
         sim2.run()
         assert sim2.is_complete() is True
 
-    @pytest.mark.skip(
-        reason="Parquet format parameter not being passed correctly - pre-existing issue"
-    )
-    def test_from_state_parquet(self, tmp_path):
-        """Test loading state from Parquet for continuation."""
+    def test_save_parquet_writes_checkpoint_not_df_state(self, tmp_path):
+        """Test OOP parquet save writes checkpoint as the restart artifact."""
         pytest.importorskip("pyarrow", reason="Parquet support requires pyarrow")
 
         # Run initial simulation
@@ -826,16 +828,16 @@ class TestContinuationRuns:
         sim1.update_forcing(df_forcing)
         sim1.run()
 
-        # Save state in Parquet format
+        # Save output in Parquet format
         paths = sim1.save(str(tmp_path), format="parquet")
 
-        # Find state file (looks for pattern: {site}_SUEWS_state_final.parquet)
-        state_file = [p for p in paths if "SUEWS_state_final.parquet" in str(p)][0]
-        assert Path(state_file).exists()
+        checkpoint_file = [p for p in paths if "checkpoint.json" in str(p)][0]
+        assert Path(checkpoint_file).exists()
+        assert not any("SUEWS_state_final.parquet" in str(p) for p in paths)
 
         # Load state for continuation
-        sim2 = SUEWSSimulation.from_state(state_file)
-        assert sim2._df_state_init is not None
+        sim2 = SUEWSSimulation.from_checkpoint(sim1.config, checkpoint_file)
+        assert sim2.checkpoint is not None
 
         # Continue simulation
         df_forcing_2 = df_forcing_full.iloc[
@@ -861,7 +863,8 @@ class TestContinuationRuns:
         df_state_final = sim1.state_final
 
         # Create new simulation from DataFrame
-        sim2 = SUEWSSimulation.from_state(df_state_final)
+        with pytest.warns(DeprecationWarning, match="legacy DFState"):
+            sim2 = SUEWSSimulation.from_state(df_state_final)
         assert sim2._df_state_init is not None
         assert sim2.is_ready() is False  # No forcing yet
 
@@ -886,10 +889,13 @@ class TestContinuationRuns:
         state_file = tmp_path / "df_state_old.csv"
         df_state.to_csv(state_file)
 
-        # Loading should trigger version warning
-        with pytest.warns(UserWarning, match="compatibility issues"):
+        # Loading should trigger legacy and version warnings
+        with pytest.warns(Warning) as warning_record:
             sim2 = SUEWSSimulation.from_state(state_file)
 
+        warning_messages = [str(item.message) for item in warning_record]
+        assert any("legacy DFState" in msg for msg in warning_messages)
+        assert any("compatibility issues" in msg for msg in warning_messages)
         assert sim2._df_state_init is not None
 
     def test_from_state_file_not_found(self):

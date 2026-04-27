@@ -51,6 +51,7 @@ __all__ = [
     "ValidationResult",
     # Modern interface
     "SUEWSSimulation",
+    "SUEWSCheckpoint",
     "SUEWSForcing",
     "SUEWSOutput",
     # Exceptions
@@ -145,6 +146,15 @@ def __getattr__(name):
             from .suews_sim import SUEWSSimulation
 
             _lazy_cache[name] = SUEWSSimulation
+            return _lazy_cache[name]
+        except ImportError:
+            return None
+
+    if name == "SUEWSCheckpoint":
+        try:
+            from .suews_checkpoint import SUEWSCheckpoint
+
+            _lazy_cache[name] = SUEWSCheckpoint
             return _lazy_cache[name]
         except ImportError:
             return None

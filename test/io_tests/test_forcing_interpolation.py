@@ -5,6 +5,8 @@ import pandas as pd
 import pytest
 from supy._load import resample_forcing_met
 
+pytestmark = [pytest.mark.physics, pytest.mark.api]
+
 
 class TestForcingInterpolation:
     """Test suite for forcing data interpolation issues."""

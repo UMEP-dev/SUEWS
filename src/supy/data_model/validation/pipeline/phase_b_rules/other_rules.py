@@ -158,7 +158,7 @@ def validate_land_cover_consistency(context) -> List[ValidationResult]:
 
         # Determine if biogenic CO2 parameters should be required
         physics = yaml_data.get("model", {}).get("physics", {})
-        emissionsmethod = get_value_safe(physics, "emissionsmethod")
+        emissionsmethod = get_value_safe(physics, "emissions")
         biogenic_params = {
             "alpha_bioco2",
             "alpha_enh_bioco2",

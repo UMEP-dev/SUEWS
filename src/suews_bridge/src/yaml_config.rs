@@ -3,6 +3,7 @@ use crate::building_archetype_prm::{
 };
 use crate::config::{suews_config_default_from_fortran, SuewsConfig};
 use crate::core::NSURF;
+use crate::field_renames::normalize_field_names;
 use crate::sim::SiteScalars;
 use crate::stebbs_prm::{stebbs_prm_from_map, stebbs_prm_to_map};
 use crate::suews_site::{suews_site_default_from_fortran, SuewsSite};
@@ -335,9 +336,17 @@ fn resize_site_variable_arrays(site: &mut SuewsSite, nlayer: usize) {
     ensure_len_with_default(&mut site.spartacus_layer.veg_frac, nlayer, 0.0);
     ensure_len_with_default(&mut site.spartacus_layer.veg_scale, nlayer, 10.0);
     ensure_len_with_default(&mut site.spartacus_layer.alb_roof, nlayer, 0.15);
-    ensure_len_with_default(&mut site.spartacus_layer.emis_roof, nlayer, site.lc_bldg.emis);
+    ensure_len_with_default(
+        &mut site.spartacus_layer.emis_roof,
+        nlayer,
+        site.lc_bldg.emis,
+    );
     ensure_len_with_default(&mut site.spartacus_layer.alb_wall, nlayer, 0.15);
-    ensure_len_with_default(&mut site.spartacus_layer.emis_wall, nlayer, site.lc_bldg.emis);
+    ensure_len_with_default(
+        &mut site.spartacus_layer.emis_wall,
+        nlayer,
+        site.lc_bldg.emis,
+    );
 
     let matrix_len = nlayer * nspec;
     ensure_len_with_default(
@@ -345,7 +354,11 @@ fn resize_site_variable_arrays(site: &mut SuewsSite, nlayer: usize) {
         matrix_len,
         1.0,
     );
-    ensure_len_with_default(&mut site.spartacus_layer.wall_specular_frac, matrix_len, 0.0);
+    ensure_len_with_default(
+        &mut site.spartacus_layer.wall_specular_frac,
+        matrix_len,
+        0.0,
+    );
 }
 
 fn set_spartacus_layer_all_specs(
@@ -400,10 +413,10 @@ fn apply_ohm_overrides(ohm: &mut crate::ohm_prm::OhmPrm, lc_root: &Value) {
         ohm.kkanohm = v;
     }
     if let Some(v) = read_numeric(lc_root, &["ohm_threshsw"]) {
-        ohm.ohm_threshsw = v;
+        ohm.ohm_threshold_summer_winter = v;
     }
     if let Some(v) = read_numeric(lc_root, &["ohm_threshwd"]) {
-        ohm.ohm_threshwd = v;
+        ohm.ohm_threshold_wet_dry = v;
     }
 
     for (coef_index, coef_key) in [(0_usize, "a1"), (1_usize, "a2"), (2_usize, "a3")] {
@@ -417,13 +430,13 @@ fn apply_ohm_overrides(ohm: &mut crate::ohm_prm::OhmPrm, lc_root: &Value) {
 
 fn apply_soil_overrides(soil: &mut crate::soil::SoilPrm, lc_root: &Value) {
     if let Some(v) = read_numeric(lc_root, &["soildepth"]) {
-        soil.soildepth = v;
+        soil.soil_depth = v;
     }
     if let Some(v) = read_numeric(lc_root, &["soilstorecap"]) {
-        soil.soilstorecap = v;
+        soil.soil_store_capacity = v;
     }
     if let Some(v) = read_numeric(lc_root, &["sathydraulicconduct"]) {
-        soil.sathydraulicconduct = v;
+        soil.saturated_hydraulic_conductivity = v;
     }
 }
 
@@ -460,49 +473,49 @@ fn apply_waterdist_overrides(waterdist: &mut crate::water_dist::WaterDistPrm, lc
 
 fn apply_lai_overrides(lai: &mut crate::lai::LaiPrm, lc_root: &Value) {
     if let Some(v) = read_numeric(lc_root, &["lai", "baset"]) {
-        lai.baset = v;
+        lai.base_temperature = v;
     }
     if let Some(v) = read_numeric(lc_root, &["lai", "gddfull"]) {
-        lai.gddfull = v;
+        lai.gdd_full = v;
     }
     if let Some(v) = read_numeric(lc_root, &["lai", "basete"]) {
-        lai.basete = v;
+        lai.base_temperature_senescence = v;
     }
     if let Some(v) = read_numeric(lc_root, &["lai", "sddfull"]) {
-        lai.sddfull = v;
+        lai.sdd_full = v;
     }
     if let Some(v) = read_numeric(lc_root, &["lai", "laimin"]) {
-        lai.laimin = v;
+        lai.lai_min = v;
     }
     if let Some(v) = read_numeric(lc_root, &["lai", "laimax"]) {
-        lai.laimax = v;
+        lai.lai_max = v;
     }
     if let Some(v) = read_numeric(lc_root, &["lai", "laipower", "growth_lai"]) {
-        lai.laipower[0] = v;
+        lai.lai_power[0] = v;
     }
     if let Some(v) = read_numeric(lc_root, &["lai", "laipower", "growth_gdd"]) {
-        lai.laipower[1] = v;
+        lai.lai_power[1] = v;
     }
     if let Some(v) = read_numeric(lc_root, &["lai", "laipower", "senescence_lai"]) {
-        lai.laipower[2] = v;
+        lai.lai_power[2] = v;
     }
     if let Some(v) = read_numeric(lc_root, &["lai", "laipower", "senescence_sdd"]) {
-        lai.laipower[3] = v;
+        lai.lai_power[3] = v;
     }
     if let Some(v) = read_i32(lc_root, &["lai", "laitype"]) {
-        lai.laitype = v;
+        lai.lai_type = v;
     }
 }
 
 fn apply_bioco2_overrides(bioco2: &mut crate::bioco2::BioCo2Prm, lc_root: &Value) {
     if let Some(v) = read_numeric(lc_root, &["beta_bioco2"]) {
-        bioco2.beta_bioco2 = v;
+        bioco2.beta_bio_co2 = v;
     }
     if let Some(v) = read_numeric(lc_root, &["beta_enh_bioco2"]) {
         bioco2.beta_enh_bioco2 = v;
     }
     if let Some(v) = read_numeric(lc_root, &["alpha_bioco2"]) {
-        bioco2.alpha_bioco2 = v;
+        bioco2.alpha_bio_co2 = v;
     }
     if let Some(v) = read_numeric(lc_root, &["alpha_enh_bioco2"]) {
         bioco2.alpha_enh_bioco2 = v;
@@ -514,7 +527,7 @@ fn apply_bioco2_overrides(bioco2: &mut crate::bioco2::BioCo2Prm, lc_root: &Value
         bioco2.resp_b = v;
     }
     if let Some(v) = read_numeric(lc_root, &["theta_bioco2"]) {
-        bioco2.theta_bioco2 = v;
+        bioco2.theta_bio_co2 = v;
     }
     if let Some(v) = read_numeric(lc_root, &["min_res_bioco2"]) {
         bioco2.min_res_bioco2 = v;
@@ -721,52 +734,52 @@ fn apply_lumps_overrides(site: &mut SuewsSite, site_root: &Value) {
 
 fn apply_snow_overrides(site: &mut SuewsSite, site_root: &Value) {
     if let Some(v) = read_numeric(site_root, &["properties", "snow", "crwmax"]) {
-        site.snow.crwmax = v;
+        site.snow.water_holding_capacity_max = v;
     }
     if let Some(v) = read_numeric(site_root, &["properties", "snow", "crwmin"]) {
-        site.snow.crwmin = v;
+        site.snow.water_holding_capacity_min = v;
     }
     if let Some(v) = read_numeric(site_root, &["properties", "snow", "narp_emis_snow"]) {
-        site.snow.narp_emis_snow = v;
+        site.snow.narp_emissivity_snow = v;
     }
     if let Some(v) = read_numeric(site_root, &["properties", "snow", "preciplimit"]) {
-        site.snow.preciplimit = v;
+        site.snow.precip_limit = v;
     }
     if let Some(v) = read_numeric(site_root, &["properties", "snow", "preciplimitalb"]) {
-        site.snow.preciplimitalb = v;
+        site.snow.precip_limit_albedo = v;
     }
     if let Some(v) = read_numeric(site_root, &["properties", "snow", "snowalbmax"]) {
-        site.snow.snowalbmax = v;
+        site.snow.snow_albedo_max = v;
     }
     if let Some(v) = read_numeric(site_root, &["properties", "snow", "snowalbmin"]) {
-        site.snow.snowalbmin = v;
+        site.snow.snow_albedo_min = v;
     }
     if let Some(v) = read_numeric(site_root, &["properties", "snow", "snowdensmax"]) {
-        site.snow.snowdensmax = v;
+        site.snow.snow_density_max = v;
     }
     if let Some(v) = read_numeric(site_root, &["properties", "snow", "snowdensmin"]) {
-        site.snow.snowdensmin = v;
+        site.snow.snow_density_min = v;
     }
     if let Some(v) = read_numeric(site_root, &["properties", "snow", "snowlimbldg"]) {
-        site.snow.snowlimbldg = v;
+        site.snow.snow_limit_building = v;
     }
     if let Some(v) = read_numeric(site_root, &["properties", "snow", "snowlimpaved"]) {
-        site.snow.snowlimpaved = v;
+        site.snow.snow_limit_paved = v;
     }
     if let Some(v) = read_numeric(site_root, &["properties", "snow", "tau_a"]) {
-        site.snow.tau_a = v;
+        site.snow.tau_cold_snow = v;
     }
     if let Some(v) = read_numeric(site_root, &["properties", "snow", "tau_f"]) {
-        site.snow.tau_f = v;
+        site.snow.tau_melting_snow = v;
     }
     if let Some(v) = read_numeric(site_root, &["properties", "snow", "tau_r"]) {
-        site.snow.tau_r = v;
+        site.snow.tau_refreezing_snow = v;
     }
     if let Some(v) = read_numeric(site_root, &["properties", "snow", "tempmeltfact"]) {
-        site.snow.tempmeltfact = v;
+        site.snow.temp_melt_factor = v;
     }
     if let Some(v) = read_numeric(site_root, &["properties", "snow", "radmeltfact"]) {
-        site.snow.radmeltfact = v;
+        site.snow.rad_melt_factor = v;
     }
 
     for hour in 1..=24 {
@@ -802,7 +815,7 @@ fn apply_snow_overrides(site: &mut SuewsSite, site_root: &Value) {
             site_root,
             &["properties", "land_cover", surface_name, "snowpacklimit"],
         ) {
-            site.snow.snowpacklimit[surface_idx] = v;
+            site.snow.snowpack_limit[surface_idx] = v;
         }
     }
 }
@@ -816,10 +829,10 @@ fn apply_land_cover_overrides(site: &mut SuewsSite, site_root: &Value) {
             site.lc_paved.emis = v;
         }
         if let Some(v) = read_numeric(lc_root, &["statelimit"]) {
-            site.lc_paved.statelimit = v;
+            site.lc_paved.state_limit = v;
         }
         if let Some(v) = read_numeric(lc_root, &["wetthresh"]) {
-            site.lc_paved.wetthresh = v;
+            site.lc_paved.wet_threshold = v;
         }
         if let Some(v) = read_numeric(lc_root, &["irrfrac"]) {
             site.lc_paved.irrfracpaved = v;
@@ -843,10 +856,10 @@ fn apply_land_cover_overrides(site: &mut SuewsSite, site_root: &Value) {
             site.lc_bldg.bldgh = v;
         }
         if let Some(v) = read_numeric(lc_root, &["statelimit"]) {
-            site.lc_bldg.statelimit = v;
+            site.lc_bldg.state_limit = v;
         }
         if let Some(v) = read_numeric(lc_root, &["wetthresh"]) {
-            site.lc_bldg.wetthresh = v;
+            site.lc_bldg.wet_threshold = v;
         }
         if let Some(v) = read_numeric(lc_root, &["irrfrac"]) {
             site.lc_bldg.irrfracbldgs = v;
@@ -864,10 +877,10 @@ fn apply_land_cover_overrides(site: &mut SuewsSite, site_root: &Value) {
             site.lc_evetr.emis = v;
         }
         if let Some(v) = read_numeric(lc_root, &["faievetree"]) {
-            site.lc_evetr.faievetree = v;
+            site.lc_evetr.fai_evergreen_tree = v;
         }
         if let Some(v) = read_numeric(lc_root, &["evetreeh"]) {
-            site.lc_evetr.evetreeh = v;
+            site.lc_evetr.height_evergreen_tree = v;
         }
         if let Some(v) = read_numeric(lc_root, &["alb_min"]) {
             site.lc_evetr.alb_min = v;
@@ -876,16 +889,16 @@ fn apply_land_cover_overrides(site: &mut SuewsSite, site_root: &Value) {
             site.lc_evetr.alb_max = v;
         }
         if let Some(v) = read_numeric(lc_root, &["statelimit"]) {
-            site.lc_evetr.statelimit = v;
+            site.lc_evetr.state_limit = v;
         }
         if let Some(v) = read_numeric(lc_root, &["wetthresh"]) {
-            site.lc_evetr.wetthresh = v;
+            site.lc_evetr.wet_threshold = v;
         }
         if let Some(v) = read_numeric(lc_root, &["irrfrac"]) {
             site.lc_evetr.irrfracevetr = v;
         }
         if let Some(v) = read_numeric(lc_root, &["maxconductance"]) {
-            site.lc_evetr.maxconductance = v;
+            site.lc_evetr.max_conductance = v;
         }
         apply_ohm_overrides(&mut site.lc_evetr.ohm, lc_root);
         apply_soil_overrides(&mut site.lc_evetr.soil, lc_root);
@@ -902,22 +915,22 @@ fn apply_land_cover_overrides(site: &mut SuewsSite, site_root: &Value) {
             site.lc_dectr.emis = v;
         }
         if let Some(v) = read_numeric(lc_root, &["faidectree"]) {
-            site.lc_dectr.faidectree = v;
+            site.lc_dectr.fai_deciduous_tree = v;
         }
         if let Some(v) = read_numeric(lc_root, &["dectreeh"]) {
-            site.lc_dectr.dectreeh = v;
+            site.lc_dectr.height_deciduous_tree = v;
         }
         if let Some(v) = read_numeric(lc_root, &["pormin_dec"]) {
-            site.lc_dectr.pormin_dec = v;
+            site.lc_dectr.porosity_min_deciduous = v;
         }
         if let Some(v) = read_numeric(lc_root, &["pormax_dec"]) {
-            site.lc_dectr.pormax_dec = v;
+            site.lc_dectr.porosity_max_deciduous = v;
         }
         if let Some(v) = read_numeric(lc_root, &["capmax_dec"]) {
-            site.lc_dectr.capmax_dec = v;
+            site.lc_dectr.capacity_max_deciduous = v;
         }
         if let Some(v) = read_numeric(lc_root, &["capmin_dec"]) {
-            site.lc_dectr.capmin_dec = v;
+            site.lc_dectr.capacity_min_deciduous = v;
         }
         if let Some(v) = read_numeric(lc_root, &["alb_min"]) {
             site.lc_dectr.alb_min = v;
@@ -926,16 +939,16 @@ fn apply_land_cover_overrides(site: &mut SuewsSite, site_root: &Value) {
             site.lc_dectr.alb_max = v;
         }
         if let Some(v) = read_numeric(lc_root, &["statelimit"]) {
-            site.lc_dectr.statelimit = v;
+            site.lc_dectr.state_limit = v;
         }
         if let Some(v) = read_numeric(lc_root, &["wetthresh"]) {
-            site.lc_dectr.wetthresh = v;
+            site.lc_dectr.wet_threshold = v;
         }
         if let Some(v) = read_numeric(lc_root, &["irrfrac"]) {
             site.lc_dectr.irrfracdectr = v;
         }
         if let Some(v) = read_numeric(lc_root, &["maxconductance"]) {
-            site.lc_dectr.maxconductance = v;
+            site.lc_dectr.max_conductance = v;
         }
         apply_ohm_overrides(&mut site.lc_dectr.ohm, lc_root);
         apply_soil_overrides(&mut site.lc_dectr.soil, lc_root);
@@ -958,16 +971,16 @@ fn apply_land_cover_overrides(site: &mut SuewsSite, site_root: &Value) {
             site.lc_grass.alb_max = v;
         }
         if let Some(v) = read_numeric(lc_root, &["statelimit"]) {
-            site.lc_grass.statelimit = v;
+            site.lc_grass.state_limit = v;
         }
         if let Some(v) = read_numeric(lc_root, &["wetthresh"]) {
-            site.lc_grass.wetthresh = v;
+            site.lc_grass.wet_threshold = v;
         }
         if let Some(v) = read_numeric(lc_root, &["irrfrac"]) {
             site.lc_grass.irrfracgrass = v;
         }
         if let Some(v) = read_numeric(lc_root, &["maxconductance"]) {
-            site.lc_grass.maxconductance = v;
+            site.lc_grass.max_conductance = v;
         }
         apply_ohm_overrides(&mut site.lc_grass.ohm, lc_root);
         apply_soil_overrides(&mut site.lc_grass.soil, lc_root);
@@ -984,10 +997,10 @@ fn apply_land_cover_overrides(site: &mut SuewsSite, site_root: &Value) {
             site.lc_bsoil.emis = v;
         }
         if let Some(v) = read_numeric(lc_root, &["statelimit"]) {
-            site.lc_bsoil.statelimit = v;
+            site.lc_bsoil.state_limit = v;
         }
         if let Some(v) = read_numeric(lc_root, &["wetthresh"]) {
-            site.lc_bsoil.wetthresh = v;
+            site.lc_bsoil.wet_threshold = v;
         }
         if let Some(v) = read_numeric(lc_root, &["irrfrac"]) {
             site.lc_bsoil.irrfracbsoil = v;
@@ -1005,10 +1018,10 @@ fn apply_land_cover_overrides(site: &mut SuewsSite, site_root: &Value) {
             site.lc_water.emis = v;
         }
         if let Some(v) = read_numeric(lc_root, &["statelimit"]) {
-            site.lc_water.statelimit = v;
+            site.lc_water.state_limit = v;
         }
         if let Some(v) = read_numeric(lc_root, &["wetthresh"]) {
-            site.lc_water.wetthresh = v;
+            site.lc_water.wet_threshold = v;
         }
         if let Some(v) = read_numeric(lc_root, &["irrfrac"]) {
             site.lc_water.irrfracwater = v;
@@ -1023,9 +1036,9 @@ fn apply_land_cover_overrides(site: &mut SuewsSite, site_root: &Value) {
 
 fn apply_conductance_overrides(site: &mut SuewsSite, root: &Value, site_root: &Value) {
     if let Some(v) = read_i32(root, &["model", "physics", "gsmodel"]) {
-        site.conductance.gsmodel = v;
+        site.conductance.gs_model = v;
     } else if let Some(v) = read_i32(site_root, &["properties", "conductance", "gsmodel"]) {
-        site.conductance.gsmodel = v;
+        site.conductance.gs_model = v;
     }
 
     if let Some(v) = read_numeric(site_root, &["properties", "conductance", "g_max"]) {
@@ -1528,7 +1541,10 @@ fn apply_ehc_overrides(site: &mut SuewsSite, site_root: &Value, ndepth: usize) {
     }
 }
 
-fn apply_building_archetype_overrides(site: &mut SuewsSite, site_root: &Value) -> Result<(), String> {
+fn apply_building_archetype_overrides(
+    site: &mut SuewsSite,
+    site_root: &Value,
+) -> Result<(), String> {
     let Some(archetype_root) = get_path(site_root, &["properties", "building_archetype"]) else {
         return Ok(());
     };
@@ -1547,22 +1563,12 @@ fn apply_building_archetype_overrides(site: &mut SuewsSite, site_root: &Value) -
         let field_name = normalise_field_name(field_name_raw);
 
         if field_name == "metabolism_profile" {
-            apply_day_profile_overrides(
-                &mut mapped,
-                field_value,
-                "metabolismprofile",
-                144,
-            )?;
+            apply_day_profile_overrides(&mut mapped, field_value, "metabolismprofile", 144)?;
             continue;
         }
 
         if field_name == "appliance_profile" {
-            apply_day_profile_overrides(
-                &mut mapped,
-                field_value,
-                "applianceprofile",
-                144,
-            )?;
+            apply_day_profile_overrides(&mut mapped, field_value, "applianceprofile", 144)?;
             continue;
         }
 
@@ -1615,12 +1621,7 @@ fn apply_stebbs_overrides(site: &mut SuewsSite, site_root: &Value) -> Result<(),
         let field_name = normalise_field_name(field_name_raw);
 
         if field_name == "hot_water_flow_profile" {
-            apply_day_profile_overrides(
-                &mut mapped,
-                field_value,
-                "hot_water_flow_profile",
-                144,
-            )?;
+            apply_day_profile_overrides(&mut mapped, field_value, "hot_water_flow_profile", 144)?;
             continue;
         }
 
@@ -1691,26 +1692,13 @@ fn apply_state_overrides(state: &mut SuewsState, site_root: &Value) {
             read_normalized_numeric_from_mapping(stebbs_root, "annual_mean_air_temperature");
         let deep_soil = read_normalized_numeric_from_mapping(stebbs_root, "deep_soil_temperature")
             .or(annual_mean_air_temperature);
-        let month_mean_air_temperature_diffmax = read_normalized_numeric_from_mapping(
-            stebbs_root,
-            "month_mean_air_temperature_diffmax",
-        );
+        let month_mean_air_temperature_diffmax =
+            read_normalized_numeric_from_mapping(stebbs_root, "month_mean_air_temperature_diffmax");
         let mains_water =
             read_normalized_numeric_from_mapping(stebbs_root, "mains_water_temperature");
         let hot_water_setpoint = read_normalized_numeric_from_mapping(
             stebbs_root,
             "hot_water_heating_setpoint_temperature",
-        );
-
-        eprintln!(
-            "DEBUG_STATE_MAP init_out={:?} init_in={:?} annual={:?} deep={:?} month_diffmax={:?} mains={:?} hwt_set={:?}",
-            init_out,
-            init_in,
-            annual_mean_air_temperature,
-            deep_soil,
-            month_mean_air_temperature_diffmax,
-            mains_water,
-            hot_water_setpoint
         );
 
         if let Some(v) = init_out {
@@ -1742,7 +1730,9 @@ fn apply_state_overrides(state: &mut SuewsState, site_root: &Value) {
             state.stebbs_state.internal_wall_water_tank_temperature = v;
             state.stebbs_state.external_wall_water_tank_temperature = v;
             let dhw_init = mains_water.unwrap_or(v);
-            state.stebbs_state.domestic_hot_water_temperature_in_use_in_building = dhw_init;
+            state
+                .stebbs_state
+                .domestic_hot_water_temperature_in_use_in_building = dhw_init;
             state.stebbs_state.internal_wall_dhw_vessel_temperature = dhw_init;
             state.stebbs_state.external_wall_dhw_vessel_temperature = dhw_init;
         }
@@ -2046,31 +2036,32 @@ fn read_forcing_rel(root: &Value) -> Option<String> {
         .or_else(|| read_string(root, &["model", "control", "forcing_file", "value"]))
 }
 
-pub fn load_run_config_from_value(root: &Value) -> Result<RunConfig, String> {
+pub fn load_run_config_from_value(root: &mut Value) -> Result<RunConfig, String> {
+    // Accept Python-side snake_case spellings by folding every renamed key
+    // back to the legacy fused spelling the parser below still indexes by.
+    // Callers of the Rust CLI bypass Python's `@model_validator` shim; this
+    // is the single seam that makes `suews run config.yml` tolerate both
+    // spellings end-to-end. See `field_renames.rs` for the registry.
+    normalize_field_names(root)?;
+
     let mut timer = suews_timer_default_from_fortran().map_err(|e| e.to_string())?;
     let mut config = suews_config_default_from_fortran().map_err(|e| e.to_string())?;
     let mut site = suews_site_default_from_fortran().map_err(|e| e.to_string())?;
     let mut site_scalars = SiteScalars::default();
     let mut state = suews_state_default_from_fortran().map_err(|e| e.to_string())?;
 
-    let site_root = read_sites_indexed(&root, 0)
+    let site_root = read_sites_indexed(root, 0)
         .ok_or_else(|| "config must contain at least one site under `sites`".to_string())?;
 
-    apply_config_overrides(&mut config, &root);
+    apply_config_overrides(&mut config, root);
 
     let nlayer = read_i32(site_root, &["properties", "vertical_layers", "nlayer"]).unwrap_or(5);
     let ndepth = read_i32(site_root, &["properties", "vertical_layers", "ndepth"]).unwrap_or(5);
 
-    apply_site_overrides(
-        &mut site,
-        &root,
-        site_root,
-        nlayer as usize,
-        ndepth as usize,
-    )?;
+    apply_site_overrides(&mut site, root, site_root, nlayer as usize, ndepth as usize)?;
     apply_site_scalar_overrides(&mut site_scalars, site_root);
 
-    if let Some(tstep) = read_i32(&root, &["model", "control", "tstep"]) {
+    if let Some(tstep) = read_i32(root, &["model", "control", "tstep"]) {
         timer.tstep = tstep;
         timer.tstep_prev = tstep;
     }
@@ -2103,8 +2094,9 @@ pub fn load_run_config_from_value(root: &Value) -> Result<RunConfig, String> {
 pub fn load_run_config(path: &Path) -> Result<RunConfig, String> {
     let yaml_text = fs::read_to_string(path)
         .map_err(|e| format!("failed to read config {}: {e}", path.display()))?;
-    let root: Value = serde_yaml::from_str(&yaml_text).map_err(|e| format!("invalid YAML: {e}"))?;
-    let mut run_cfg = load_run_config_from_value(&root)?;
+    let mut root: Value =
+        serde_yaml::from_str(&yaml_text).map_err(|e| format!("invalid YAML: {e}"))?;
+    let mut run_cfg = load_run_config_from_value(&mut root)?;
 
     let forcing_rel = read_forcing_rel(&root)
         .ok_or_else(|| "`model.control.forcing_file` is missing".to_string())?;
@@ -2126,8 +2118,9 @@ pub fn load_run_config(path: &Path) -> Result<RunConfig, String> {
 }
 
 pub fn load_run_config_from_str(yaml_str: &str) -> Result<RunConfig, String> {
-    let root: Value = serde_yaml::from_str(yaml_str).map_err(|e| format!("invalid YAML: {e}"))?;
-    load_run_config_from_value(&root)
+    let mut root: Value =
+        serde_yaml::from_str(yaml_str).map_err(|e| format!("invalid YAML: {e}"))?;
+    load_run_config_from_value(&mut root)
 }
 
 /// Resize variable-length arrays in HydroState and HeatState to match nlayer/ndepth.
@@ -2202,8 +2195,8 @@ mod tests {
     fn parses_stebbs_and_building_archetype_sections() {
         let yaml_str =
             include_str!("../../../test/fixtures/data_test/stebbs_test/sample_config.yml");
-        let root: Value = serde_yaml::from_str(yaml_str).expect("fixture YAML should parse");
-        let run_cfg = load_run_config_from_value(&root).expect("run config should parse");
+        let mut root: Value = serde_yaml::from_str(yaml_str).expect("fixture YAML should parse");
+        let run_cfg = load_run_config_from_value(&mut root).expect("run config should parse");
 
         assert!(run_cfg.site.building_archtype.wallthickness > 0.0);
         assert!(run_cfg.site.building_archtype.wallextthickness > 0.0);
@@ -2212,17 +2205,33 @@ mod tests {
         assert!(run_cfg.site.stebbs.wall_internal_convection_coefficient > 0.0);
         assert!(run_cfg.site.stebbs.water_tank_surface_area > 0.0);
         assert!(run_cfg.site.stebbs.hot_water_flow_profile[0][43] >= 0.0);
-        assert!((run_cfg.site.stebbs.daylight_control - 0.0).abs() < 1.0e-12);
+        assert!((run_cfg.site.stebbs.daylight_control - 1.0).abs() < 1.0e-12);
         assert!((run_cfg.site.stebbs.lighting_illuminance_threshold - 300.0).abs() < 1.0e-12);
         assert!((run_cfg.site.building_archtype.lightingpowerdensity - 2.0).abs() < 1.0e-12);
+
+        assert!((run_cfg.state.stebbs_state.deep_soil_temperature - 10.738).abs() < 1.0e-12);
+        assert!(
+            (run_cfg
+                .state
+                .stebbs_state
+                .month_mean_air_temperature_diffmax
+                - 12.947)
+                .abs()
+                < 1.0e-12
+        );
+        assert!(
+            (run_cfg.state.stebbs_state.indoor_air_start_temperature - 17.540002822875977).abs()
+                < 1.0e-12
+        );
+        assert!((run_cfg.state.stebbs_state.mains_water_temperature - 10.0).abs() < 1.0e-12);
     }
 
     #[test]
     fn parses_ohm_legacy_surface_field_names() {
         let yaml_str =
             include_str!("../../../test/fixtures/data_test/stebbs_test/sample_config.yml");
-        let root: Value = serde_yaml::from_str(yaml_str).expect("fixture YAML should parse");
-        let run_cfg = load_run_config_from_value(&root).expect("run config should parse");
+        let mut root: Value = serde_yaml::from_str(yaml_str).expect("fixture YAML should parse");
+        let run_cfg = load_run_config_from_value(&mut root).expect("run config should parse");
 
         // Legacy yaml uses ch_anohm/rho_cp_anohm/k_anohm in land_cover.
         assert!(run_cfg.site.lc_paved.ohm.chanohm > 0.0);
@@ -2234,8 +2243,8 @@ mod tests {
     fn maps_vertical_layer_thermal_parameters_into_ehc() {
         let yaml_str =
             include_str!("../../../test/fixtures/data_test/stebbs_test/sample_config.yml");
-        let root: Value = serde_yaml::from_str(yaml_str).expect("fixture YAML should parse");
-        let run_cfg = load_run_config_from_value(&root).expect("run config should parse");
+        let mut root: Value = serde_yaml::from_str(yaml_str).expect("fixture YAML should parse");
+        let run_cfg = load_run_config_from_value(&mut root).expect("run config should parse");
 
         let ndepth = run_cfg.ndepth as usize;
         assert!(ndepth > 0);
@@ -2283,8 +2292,11 @@ mod tests {
         };
         working_day_map.remove(Value::String("144".to_string()));
 
-        let err = load_run_config_from_value(&root).expect_err("incomplete profile should fail");
-        assert!(err.contains("HeatingSetpointTemperatureProfile.working_day is missing 1 entries: 144"));
+        let err =
+            load_run_config_from_value(&mut root).expect_err("incomplete profile should fail");
+        assert!(
+            err.contains("HeatingSetpointTemperatureProfile.working_day is missing 1 entries: 144")
+        );
     }
 
     #[test]
@@ -2312,7 +2324,270 @@ mod tests {
             .expect("fixture should contain slice 1");
         working_day_map.insert(Value::String("0".to_string()), valid_value);
 
-        let err = load_run_config_from_value(&root).expect_err("out-of-range step should fail");
+        let err = load_run_config_from_value(&mut root).expect_err("out-of-range step should fail");
         assert!(err.contains("CoolingSetpointTemperatureProfile.working_day has invalid step `0`"));
+    }
+
+    // --- Integration tests for YAML key preprocessor (gh#1322) --------------
+    //
+    // The four tests below exercise the end-to-end CLI load path
+    // (`load_run_config_from_value`) with YAML inputs that use the new
+    // snake_case spellings (#1308), the legacy fused spellings (pre-#1308),
+    // and a mix of both. They pin the CLI contract: `suews run config.yml`
+    // accepts either spelling transparently and returns the same
+    // `RunConfig` regardless of which one the user wrote.
+    //
+    // The fixture already carries new-style names; the legacy variant is
+    // produced by running `normalize_field_names` on a cloned tree first.
+
+    const FIXTURE_NEW_NAMES: &str =
+        include_str!("../../../test/fixtures/data_test/stebbs_test/sample_config.yml");
+
+    #[test]
+    fn load_run_config_accepts_new_names() {
+        let mut root: Value =
+            serde_yaml::from_str(FIXTURE_NEW_NAMES).expect("fixture YAML should parse");
+        let run_cfg = load_run_config_from_value(&mut root)
+            .expect("new-spelling YAML should parse without error");
+
+        // Physics fields — sourced from `model.physics.<new_name>` in the
+        // fixture. Without the preprocessor these fall back to Fortran
+        // defaults (0 / 1) and the simulation runs wrong physics.
+        assert_eq!(run_cfg.config.net_radiation_method, 1003);
+        assert_eq!(run_cfg.config.storage_heat_method, 7);
+        assert_eq!(run_cfg.config.emissions_method, 2);
+
+        // Surface fields — paved `state_limit` = 0.48 in the fixture.
+        assert!((run_cfg.site.lc_paved.state_limit - 0.48).abs() < 1.0e-12);
+    }
+
+    #[test]
+    fn load_run_config_accepts_old_names() {
+        // Pre-normalise to produce a legacy-spelling tree, then let the
+        // preprocessor run idempotently at the top of
+        // `load_run_config_from_value`.
+        let mut root: Value =
+            serde_yaml::from_str(FIXTURE_NEW_NAMES).expect("fixture YAML should parse");
+        normalize_field_names(&mut root).expect("fixture should normalise to legacy keys");
+
+        let run_cfg = load_run_config_from_value(&mut root)
+            .expect("legacy-spelling YAML should parse without error");
+
+        assert_eq!(run_cfg.config.net_radiation_method, 1003);
+        assert_eq!(run_cfg.config.storage_heat_method, 7);
+        assert_eq!(run_cfg.config.emissions_method, 2);
+        assert!((run_cfg.site.lc_paved.state_limit - 0.48).abs() < 1.0e-12);
+    }
+
+    #[test]
+    fn load_run_config_accepts_mixed_names() {
+        let mut root: Value =
+            serde_yaml::from_str(FIXTURE_NEW_NAMES).expect("fixture YAML should parse");
+
+        // Hand-rename a handful of keys to their legacy spellings so the
+        // tree ends up mixed. The preprocessor must leave the legacy ones
+        // alone and fold the remaining new ones back.
+        let physics = get_path_mut(&mut root, &["model", "physics"])
+            .expect("fixture should contain model.physics");
+        if let Value::Mapping(map) = physics {
+            if let Some(v) = map.remove(Value::String("net_radiation".into())) {
+                map.insert(Value::String("netradiationmethod".into()), v);
+            }
+            if let Some(v) = map.remove(Value::String("storage_heat".into())) {
+                map.insert(Value::String("storageheatmethod".into()), v);
+            }
+        }
+
+        let run_cfg = load_run_config_from_value(&mut root)
+            .expect("mixed-spelling YAML should parse without error");
+
+        // The two keys we flipped to legacy must still be read.
+        assert_eq!(run_cfg.config.net_radiation_method, 1003);
+        assert_eq!(run_cfg.config.storage_heat_method, 7);
+        // The rest remain in new spelling and must still be read.
+        assert_eq!(run_cfg.config.emissions_method, 2);
+        assert!((run_cfg.site.lc_paved.state_limit - 0.48).abs() < 1.0e-12);
+    }
+
+    #[test]
+    fn load_run_config_accepts_2026_5_intermediate_names() {
+        let mut root: Value =
+            serde_yaml::from_str(FIXTURE_NEW_NAMES).expect("fixture YAML should parse");
+
+        let physics = get_path_mut(&mut root, &["model", "physics"])
+            .expect("fixture should contain model.physics");
+        if let Value::Mapping(map) = physics {
+            if let Some(v) = map.remove(Value::String("net_radiation".into())) {
+                map.insert(Value::String("net_radiation_method".into()), v);
+            }
+            if let Some(v) = map.remove(Value::String("storage_heat".into())) {
+                map.insert(Value::String("storage_heat_method".into()), v);
+            }
+            if let Some(v) = map.remove(Value::String("roughness_sublayer".into())) {
+                map.insert(Value::String("rsl_method".into()), v);
+            }
+        }
+
+        let run_cfg = load_run_config_from_value(&mut root)
+            .expect("schema-2026.5 intermediate names should parse without error");
+
+        assert_eq!(run_cfg.config.net_radiation_method, 1003);
+        assert_eq!(run_cfg.config.storage_heat_method, 7);
+        assert_eq!(run_cfg.config.rsl_method, 2);
+    }
+
+    #[test]
+    fn load_run_config_new_and_old_parse_identically() {
+        let mut root_new: Value =
+            serde_yaml::from_str(FIXTURE_NEW_NAMES).expect("fixture YAML should parse");
+        let mut root_old: Value =
+            serde_yaml::from_str(FIXTURE_NEW_NAMES).expect("fixture YAML should parse");
+        normalize_field_names(&mut root_old).expect("fixture should normalise to legacy keys");
+
+        let cfg_new = load_run_config_from_value(&mut root_new).expect("parse new-spelling");
+        let cfg_old = load_run_config_from_value(&mut root_old).expect("parse legacy-spelling");
+
+        // Representative sample across rename categories in FIELD_RENAMES —
+        // if these agree, the preprocessor walks the tree consistently
+        // regardless of which spelling the caller submitted.
+        assert_eq!(
+            cfg_new.config.net_radiation_method,
+            cfg_old.config.net_radiation_method
+        );
+        assert_eq!(
+            cfg_new.config.storage_heat_method,
+            cfg_old.config.storage_heat_method
+        );
+        assert_eq!(
+            cfg_new.config.emissions_method,
+            cfg_old.config.emissions_method
+        );
+        assert_eq!(cfg_new.config.snow_use, cfg_old.config.snow_use);
+        assert!(
+            (cfg_new.site.lc_paved.state_limit - cfg_old.site.lc_paved.state_limit).abs() < 1.0e-12
+        );
+        assert!(
+            (cfg_new.site.lc_paved.soil.soil_store_capacity
+                - cfg_old.site.lc_paved.soil.soil_store_capacity)
+                .abs()
+                < 1.0e-12
+        );
+    }
+
+    #[test]
+    fn load_run_config_rejects_duplicate_old_and_new_names() {
+        let mut root: Value =
+            serde_yaml::from_str(FIXTURE_NEW_NAMES).expect("fixture YAML should parse");
+
+        let physics = get_path_mut(&mut root, &["model", "physics"])
+            .expect("fixture should contain model.physics");
+        let Value::Mapping(map) = physics else {
+            panic!("model.physics should be a mapping");
+        };
+        let new_value = map
+            .get(Value::String("net_radiation".into()))
+            .cloned()
+            .expect("fixture should contain net_radiation");
+        map.insert(Value::String("netradiationmethod".into()), new_value);
+
+        let err = load_run_config_from_value(&mut root)
+            .expect_err("duplicate old/new spellings must fail");
+        assert_eq!(
+            err,
+            "Both 'netradiationmethod' (deprecated) and 'net_radiation' are present at model.physics. Use only 'net_radiation'."
+        );
+    }
+
+    #[test]
+    fn load_run_config_accepts_nested_family_form() {
+        // gh#972: family-tagged nested shape must collapse to the flat
+        // form through the full parse path — equivalent to the legacy
+        // flat test above, with the input re-wrapped under `spartacus`.
+        let mut root: Value =
+            serde_yaml::from_str(FIXTURE_NEW_NAMES).expect("fixture YAML should parse");
+
+        let physics = get_path_mut(&mut root, &["model", "physics"])
+            .expect("fixture should contain model.physics");
+        if let Value::Mapping(map) = physics {
+            // Rewrite net_radiation: {value: 1003} -> net_radiation: {spartacus: {value: 1003}}
+            if let Some(flat) = map.remove(Value::String("net_radiation".into())) {
+                let mut nested = serde_yaml::Mapping::new();
+                nested.insert(Value::String("spartacus".into()), flat);
+                map.insert(
+                    Value::String("net_radiation".into()),
+                    Value::Mapping(nested),
+                );
+            }
+            // storage_heat: {value: 7} -> storage_heat: {stebbs: {value: 7}}
+            if let Some(flat) = map.remove(Value::String("storage_heat".into())) {
+                let mut nested = serde_yaml::Mapping::new();
+                nested.insert(Value::String("stebbs".into()), flat);
+                map.insert(Value::String("storage_heat".into()), Value::Mapping(nested));
+            }
+        }
+
+        let run_cfg = load_run_config_from_value(&mut root)
+            .expect("family-tagged YAML should parse without error");
+
+        assert_eq!(run_cfg.config.net_radiation_method, 1003);
+        assert_eq!(run_cfg.config.storage_heat_method, 7);
+    }
+
+    #[test]
+    fn load_run_config_rejects_wrong_family_code() {
+        // gh#972: a spartacus code (1003) inside the narp family must fail loud.
+        let mut root: Value =
+            serde_yaml::from_str(FIXTURE_NEW_NAMES).expect("fixture YAML should parse");
+
+        let physics = get_path_mut(&mut root, &["model", "physics"])
+            .expect("fixture should contain model.physics");
+        if let Value::Mapping(map) = physics {
+            map.remove(Value::String("net_radiation".into()));
+            let mut inner = serde_yaml::Mapping::new();
+            inner.insert(Value::String("value".into()), Value::Number(1003.into()));
+            let mut nested = serde_yaml::Mapping::new();
+            nested.insert(Value::String("narp".into()), Value::Mapping(inner));
+            map.insert(
+                Value::String("net_radiation".into()),
+                Value::Mapping(nested),
+            );
+        }
+
+        let err =
+            load_run_config_from_value(&mut root).expect_err("narp cannot carry a spartacus code");
+        assert!(err.contains("expects one of"), "error was: {err}");
+    }
+
+    #[test]
+    fn load_run_config_accepts_nested_family_form_under_legacy_outer_keys() {
+        let mut root: Value =
+            serde_yaml::from_str(FIXTURE_NEW_NAMES).expect("fixture YAML should parse");
+
+        let physics = get_path_mut(&mut root, &["model", "physics"])
+            .expect("fixture should contain model.physics");
+        if let Value::Mapping(map) = physics {
+            if let Some(flat) = map.remove(Value::String("net_radiation".into())) {
+                let mut nested = serde_yaml::Mapping::new();
+                nested.insert(Value::String("spartacus".into()), flat);
+                map.insert(
+                    Value::String("net_radiation_method".into()),
+                    Value::Mapping(nested),
+                );
+            }
+            if let Some(flat) = map.remove(Value::String("storage_heat".into())) {
+                let mut nested = serde_yaml::Mapping::new();
+                nested.insert(Value::String("stebbs".into()), flat);
+                map.insert(
+                    Value::String("storageheatmethod".into()),
+                    Value::Mapping(nested),
+                );
+            }
+        }
+
+        let run_cfg = load_run_config_from_value(&mut root)
+            .expect("nested family form under legacy/intermediate keys should parse");
+
+        assert_eq!(run_cfg.config.net_radiation_method, 1003);
+        assert_eq!(run_cfg.config.storage_heat_method, 7);
     }
 }

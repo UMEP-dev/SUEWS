@@ -12,6 +12,8 @@ from supy.data_model.core.config import SUEWSConfig
 from pathlib import Path
 import yaml
 
+pytestmark = pytest.mark.api
+
 
 def test_output_config_creation():
     """Test creating OutputConfig objects"""

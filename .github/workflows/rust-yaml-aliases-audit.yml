@@ -1,0 +1,39 @@
+name: Rust YAML aliases audit
+
+# Enforce that the Rust YAML preprocessor registry in
+# `src/suews_bridge/src/field_renames.rs` stays in lockstep with the
+# Python-side `ALL_FIELD_RENAMES` in
+# `src/supy/data_model/core/field_renames.py`. Drift between the two
+# reopens the silent-fallback hole gh#1322 closed.
+
+on:
+  pull_request:
+    paths:
+      - 'src/supy/data_model/core/field_renames.py'
+      - 'src/suews_bridge/src/field_renames.rs'
+      - 'scripts/lint/check_rust_yaml_aliases.py'
+      - '.github/workflows/rust-yaml-aliases-audit.yml'
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  check-rust-yaml-aliases:
+    name: Require Rust/Python registry parity
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: '3.12'
+
+      - name: Run Rust/Python aliases audit
+        run: |
+          set -eu
+          python scripts/lint/check_rust_yaml_aliases.py

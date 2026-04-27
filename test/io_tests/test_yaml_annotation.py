@@ -13,6 +13,8 @@ import tempfile
 from pathlib import Path
 from supy.data_model import SUEWSConfig
 
+pytestmark = pytest.mark.api
+
 
 def test_json_based_yaml_annotation():
     """Test JSON-based YAML annotation for precise positioning."""
@@ -44,22 +46,20 @@ sites:
         f.write(yaml_content)
         test_file = Path(f.name)
 
+    # Post-gh#1333, declaring ``bldgs`` / ``grass`` with ``sfr > 0`` but
+    # omitting physics-required fields raises at load time. Passing
+    # ``auto_generate_annotated=True`` keeps the annotator path exercised:
+    # the validator emits the annotated YAML before raising, so both the
+    # error contract AND the annotation output are checked.
+    annotated_path = test_file.parent / f"{test_file.stem}_annotated.yml"
     try:
-        # Load config (will trigger validation)
-        config = SUEWSConfig.from_yaml(test_file)
-
-        # Generate annotated file
-        annotated_file = config.generate_annotated_yaml(test_file)
+        with pytest.raises(ValueError):
+            SUEWSConfig.from_yaml(test_file, auto_generate_annotated=True)
 
         # Check if annotation was successful (Windows compatibility)
-        if annotated_file is not None:
-            annotated_path = Path(annotated_file)
-
-            # Verify annotated file exists
-            assert annotated_path.exists()
-
+        if annotated_path.exists():
             # Read annotated content
-            with open(annotated_file, "r") as f:
+            with open(annotated_path, "r") as f:
                 annotated_content = f.read()
 
             # Verify annotations are present
@@ -69,6 +69,17 @@ sites:
             # Verify specific missing parameters are annotated
             assert "bldgh:" in annotated_content
             assert "building height in meters" in annotated_content
+            assert "g_q_base:" in annotated_content
+            assert "g_q_shape:" in annotated_content
+            assert "g_t:" in annotated_content
+            assert "kmax:" in annotated_content
+            assert "tl:" in annotated_content
+            assert "th:" in annotated_content
+            assert "lai_max:" in annotated_content
+            assert "base_temperature:" in annotated_content
+            assert "base_temperature_senescence:" in annotated_content
+            assert "gdd_full:" in annotated_content
+            assert "sdd_full:" in annotated_content
 
             # Parse the annotated YAML to verify structure
             # (removing comments for parsing)
@@ -83,12 +94,69 @@ sites:
 
             # Cleanup
             annotated_path.unlink()
-        else:
-            # If annotation generation failed, we can still verify config was loaded
-            assert config.name == "Test Config"
 
     finally:
         test_file.unlink()
+        if annotated_path.exists():
+            annotated_path.unlink()
+
+
+def test_annotation_includes_low_fraction_building_requirements():
+    """Low but non-zero building fractions still get actionable hints."""
+    yaml_content = """name: Test Config
+sites:
+  - name: Urban Site
+    gridiv: 1
+    properties:
+      lat: {value: 51.5}
+      lng: {value: -0.1}
+      alt: {value: 10.0}
+      land_cover:
+        bldgs:
+          sfr: {value: 0.01}
+"""
+
+    with tempfile.NamedTemporaryFile(mode="w", suffix=".yml", delete=False) as f:
+        f.write(yaml_content)
+        test_file = Path(f.name)
+
+    annotated_path = test_file.parent / f"{test_file.stem}_annotated.yml"
+    try:
+        with pytest.raises(ValueError):
+            SUEWSConfig.from_yaml(test_file, auto_generate_annotated=True)
+
+        assert annotated_path.exists()
+        annotated_content = annotated_path.read_text()
+        assert "bldgh:" in annotated_content
+        assert "faibldg:" in annotated_content
+
+    finally:
+        test_file.unlink()
+        if annotated_path.exists():
+            annotated_path.unlink()
+
+
+def test_annotation_includes_tree_and_lai_requirements_from_sparse_fixture(tmp_path):
+    """Annotated sparse fixture should include the new tree and LAI placeholders."""
+    sparse_fixture = Path("test/fixtures/sparse_site.yml")
+    test_file = tmp_path / sparse_fixture.name
+    test_file.write_text(sparse_fixture.read_text())
+    annotated_path = tmp_path / f"{test_file.stem}_annotated.yml"
+
+    with pytest.raises(ValueError):
+        SUEWSConfig.from_yaml(test_file, auto_generate_annotated=True)
+
+    assert annotated_path.exists()
+    annotated_content = annotated_path.read_text()
+    assert "fai_evergreen_tree:" in annotated_content
+    assert "height_evergreen_tree:" in annotated_content
+    assert "fai_deciduous_tree:" in annotated_content
+    assert "height_deciduous_tree:" in annotated_content
+    assert "lai_max:" in annotated_content
+    assert "base_temperature:" in annotated_content
+    assert "base_temperature_senescence:" in annotated_content
+    assert "gdd_full:" in annotated_content
+    assert "sdd_full:" in annotated_content
 
 
 def test_annotation_with_sample_config():

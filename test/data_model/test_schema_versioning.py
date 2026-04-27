@@ -8,6 +8,8 @@ import warnings
 from unittest.mock import patch, MagicMock
 import sys
 
+pytestmark = pytest.mark.api
+
 # Add parent directory to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
@@ -37,7 +39,18 @@ def load_supy_resource(resource_path: str) -> str:
     return resource.read_text()
 
 
+def write_temp_sparse_schema_file(schema_version: str) -> Path:
+    """Write the sparse fixture with an explicit schema stamp."""
+    sparse_config = Path(__file__).parent.parent / "fixtures" / "sparse_site.yml"
+    sparse_text = sparse_config.read_text()
+
+    with tempfile.NamedTemporaryFile(mode="w", suffix=".yml", delete=False) as f:
+        f.write(f"schema_version: '{schema_version}'\n{sparse_text}")
+        return Path(f.name)
+
+
 from supy.data_model.core import SUEWSConfig
+from supy.cmd.schema_cli import validate_file_against_schema
 from supy.data_model.schema import (
     CURRENT_SCHEMA_VERSION,
     is_schema_compatible,
@@ -86,7 +99,6 @@ class TestSchemaVersioning:
         # Future: test minor version compatibility
         # assert is_schema_compatible("1.0", "1.1") is True  # 1.1 backward compatible with 1.0
 
-    @pytest.mark.skip(reason="Schema versioning needs fix - see GH-991")
     def test_compatibility_messages(self):
         """Test schema compatibility message generation."""
         # No message for current version
@@ -95,13 +107,18 @@ class TestSchemaVersioning:
         # No message for None (assumes current)
         assert get_schema_compatibility_message(None) is None
 
-        # Message for newer version (0.9 > 0.1)
+        # Compatible legacy CalVer (registered migration handler 2025.12 -> 2026.4)
+        msg = get_schema_compatibility_message("2025.12")
+        assert msg is not None
+        assert "compatible" in msg
+
+        # Older incompatible version (no migration handler; float-compare fallback)
         msg = get_schema_compatibility_message("0.9")
         assert msg is not None
-        assert "newer schema" in msg
+        assert "older schema" in msg
 
-        # Message for much newer version
-        msg = get_schema_compatibility_message("2.0")
+        # Hypothetical future schema version
+        msg = get_schema_compatibility_message("9999.0")
         assert msg is not None
         assert "newer schema" in msg
 
@@ -114,6 +131,45 @@ class TestSchemaVersioning:
         with pytest.raises(ValueError) as exc:
             validate_schema_version("2.0", strict=True)
         assert "incompatible" in str(exc.value).lower()
+
+    def test_schema_cli_validate_rejects_sparse_yaml(self):
+        """schema_cli validation should mirror from_yaml() on sparse configs."""
+        sparse_config = Path(__file__).parent.parent / "fixtures" / "sparse_site.yml"
+
+        is_valid, errors = validate_file_against_schema(sparse_config)
+
+        assert is_valid is False
+        message = "\n".join(errors)
+        assert "faibldg" in message
+        assert "conductance.g_max" in message
+
+    def test_schema_cli_validate_rejects_sparse_yaml_with_compatible_older_stamp(self):
+        """Default validation should still mirror from_yaml() for compatible older stamps."""
+        sparse_config = write_temp_sparse_schema_file("2026.5.dev5")
+
+        try:
+            is_valid, errors = validate_file_against_schema(sparse_config)
+        finally:
+            sparse_config.unlink()
+
+        assert is_valid is False
+        message = "\n".join(errors)
+        assert "faibldg" in message
+        assert "conductance.g_max" in message
+
+    def test_schema_cli_explicit_older_schema_stays_schema_only(self):
+        """Explicit old-target validation keeps the historical schema-only contract."""
+        sparse_config = write_temp_sparse_schema_file("2026.5.dev5")
+
+        try:
+            is_valid, errors = validate_file_against_schema(
+                sparse_config, schema_version="2026.5.dev5"
+            )
+        finally:
+            sparse_config.unlink()
+
+        assert is_valid is True
+        assert errors == []
 
     def test_validate_schema_version_warnings(self):
         """Test schema validation warnings in non-strict mode."""
@@ -201,6 +257,79 @@ class TestSchemaMigration:
         # No path needed for same version
         path = migrator._find_migration_path("0.1", "0.1")
         assert path is None or path == []
+
+    def test_calver_path_uses_registered_handler(self):
+        """CalVer hops resolve to the directly-registered handler, not a
+        synthesised numeric-fallback path (gh#1304).
+        """
+        migrator = SchemaMigrator()
+
+        assert migrator._find_migration_path("2025.12", "2026.4") == ["2026.4"]
+        assert migrator._find_migration_path("2026.1", "2026.4") == ["2026.4"]
+
+    def test_intermediate_calver_target_rejected_when_unregistered(self):
+        """A CalVer target without a registered handler chain must not
+        silently fall through to `_generic_migration` (gh#1304 follow-up).
+
+        Before this guard, `2025.12 -> 2026.1` walked a synthesised
+        `[2026.0]` path with no registered handler, the generic fallback
+        no-op'd, and the caller got a config stamped with `2026.1` but
+        still carrying 2025.12 field names.
+        """
+        migrator = SchemaMigrator()
+
+        # Path discovery rejects the synthetic hop.
+        assert migrator._find_migration_path("2025.12", "2026.1") is None
+        assert migrator._find_migration_path("2026.4", "2027.0") is None
+
+        # `migrate()` raises rather than returning a half-migrated dict.
+        payload = {
+            "schema_version": "2025.12",
+            "sites": [
+                {
+                    "properties": {
+                        "building_archetype": {"Wallx1": {"value": 0.25}},
+                    }
+                }
+            ],
+        }
+        with pytest.raises(ValueError, match="No migration path available"):
+            migrator.migrate(payload, from_version="2025.12", to_version="2026.1")
+
+    def test_calver_migration_applies_structural_renames(self):
+        """Migrating 2025.12 -> 2026.4 applies the registered renames rather
+        than falling through to the generic label-only migration (gh#1304).
+        """
+        migrator = SchemaMigrator()
+        payload = {
+            "schema_version": "2025.12",
+            "sites": [
+                {
+                    "properties": {
+                        "building_archetype": {
+                            "Wallx1": {"value": 0.25},
+                            "Roofx1": {"value": 0.25},
+                        },
+                        "stebbs": {
+                            "DHWVesselEmissivity": {"value": 0.9},
+                        },
+                    }
+                }
+            ],
+        }
+
+        migrated = migrator.migrate(
+            payload, from_version="2025.12", to_version="2026.4"
+        )
+
+        arch = migrated["sites"][0]["properties"]["building_archetype"]
+        stebbs = migrated["sites"][0]["properties"]["stebbs"]
+        assert "Wallx1" not in arch
+        assert "Roofx1" not in arch
+        assert arch["WallOuterCapFrac"] == {"value": 0.25}
+        assert arch["RoofOuterCapFrac"] == {"value": 0.25}
+        assert "DHWVesselEmissivity" not in stebbs
+        assert migrated["schema_version"] == "2026.4"
 
 
 class TestSchemaVersionUtility:

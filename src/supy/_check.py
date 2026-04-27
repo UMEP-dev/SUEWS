@@ -147,8 +147,8 @@ list_col_forcing = list(dict_var_type_forcing.keys())
 
 # Requirements mapping: links physics options to required forcing columns
 # Format: (physics_option_name, option_value): [list of required columns]
-# Reference: https://docs.suews.io/en/latest/input_files/RunControl/RunControl.html#scheme-options
-# and https://docs.suews.io/en/latest/input_files/met_forcing.html
+# Reference: https://docs.suews.io/stable/inputs/tables/RunControl/RunControl.html
+# and https://docs.suews.io/stable/inputs/forcing-data.html
 FORCING_REQUIREMENTS = {
     ("netradiationmethod", 0): ["qn"],  # Uses observed Q*
     ("netradiationmethod", 1): ["ldown"],  # Q* modelled with L↓ observations
@@ -161,10 +161,172 @@ FORCING_REQUIREMENTS = {
     ("emissionsmethod", 0): ["qf"],  # Uses observed anthropogenic heat flux
     ("smdmethod", 1): ["xsmd"],  # Uses observed volumetric soil moisture
     ("smdmethod", 2): ["xsmd"],  # Uses observed gravimetric soil moisture
+    ("laimethod", 0): ["lai"],  # Uses observed LAI from forcing
 }
 
 
-def check_forcing(df_forcing: pd.DataFrame, fix=False, physics=None):
+def _matches_option_value(actual_value, option_value) -> bool:
+    """Return True if ``actual_value`` selects ``option_value``.
+
+    ``actual_value`` is typically a scalar (single-grid or global config) but
+    can also be an iterable of per-grid values produced by
+    ``_physics_dict_from_df_state`` when the legacy multi-grid df_state path is
+    validated. The trigger applies if any grid sets the option to the value
+    that requires the forcing column.
+    """
+    if isinstance(actual_value, (list, tuple, set, frozenset)):
+        return option_value in actual_value
+    return actual_value == option_value
+
+
+def _check_observed_lai_nonneg(
+    df_forcing: pd.DataFrame, list_issues: list
+) -> bool:
+    """Reject missing or negative ``lai`` rows when ``laimethod=0`` is active.
+
+    Under the observed-LAI path every timestep must carry a non-missing,
+    non-negative observation (``lai >= 0``). A genuine zero observation
+    is valid and is clamped to each vegetation class's ``laimin`` at
+    runtime. Any missing value, strictly negative value, or sentinel
+    placeholder — including ``NaN`` and the ``-999`` missing sentinel
+    (and anything at or below ``SUEWS_MISSING_THRESHOLD``) — is refused:
+    users who cannot observe every timestep should use ``laimethod=1``
+    or gap-fill their forcing.
+
+    Parameters
+    ----------
+    df_forcing : pd.DataFrame
+        Forcing DataFrame. Must contain a ``lai`` column.
+    list_issues : list
+        Issue accumulator; a single summary message is appended when
+        invalid rows are present.
+
+    Returns
+    -------
+    bool
+        ``True`` when invalid rows were found and an issue was appended,
+        ``False`` otherwise.
+    """
+    from .util._missing import SUEWS_MISSING_THRESHOLD
+
+    if "lai" not in df_forcing.columns:
+        return False
+
+    ser_lai = df_forcing["lai"]
+    mask_missing = ser_lai.isna()
+    mask_negative = ser_lai < 0.0
+    mask_invalid = mask_missing | mask_negative
+    n_invalid = int(mask_invalid.sum())
+    if n_invalid == 0:
+        return False
+
+    mask_sentinel = (ser_lai <= SUEWS_MISSING_THRESHOLD).fillna(False)
+    n_missing = int(mask_missing.sum())
+    n_sentinel = int(mask_sentinel.sum())
+    n_physically_invalid = int((mask_negative & ~mask_sentinel).sum())
+
+    parts = []
+    if n_missing > 0:
+        parts.append(f"{n_missing} row(s) with missing/NaN values")
+    if n_sentinel > 0:
+        parts.append(f"{n_sentinel} row(s) at/below the missing sentinel (-999)")
+    if n_physically_invalid > 0:
+        parts.append(
+            f"{n_physically_invalid} row(s) with negative values in "
+            f"({SUEWS_MISSING_THRESHOLD:g}, 0)"
+        )
+
+    sample_rows = [
+        f"{ts}={'nan' if pd.isna(val) else f'{val:g}'}"
+        for ts, val in ser_lai[mask_invalid].head(5).items()
+    ]
+    sample_note = ", ".join(sample_rows)
+    if n_invalid > len(sample_rows):
+        sample_note += f", ... (+{n_invalid - len(sample_rows)} more)"
+
+    str_issue = (
+        f"Physics option 'laimethod=0' requires every 'lai' forcing value "
+        f"to be a non-missing, non-negative observation (>= 0); "
+        f"NaN, -999 and other sentinels are not permitted on this path. "
+        f"Found {n_invalid} invalid row(s): "
+        f"{'; '.join(parts)}. First offenders: {sample_note}. "
+        f"Use 'laimethod=1' or gap-fill the 'lai' column with non-negative "
+        f"observations. See documentation: "
+        f"https://docs.suews.io/stable/inputs/tables/RunControl/scheme_options.html"
+    )
+    list_issues.append(str_issue)
+    return True
+
+
+def _warn_observed_lai_clamping(
+    df_forcing: pd.DataFrame, lai_bounds: dict
+) -> None:
+    """Emit a warning if forcing ``lai`` values would be clamped at runtime.
+
+    ``lai_bounds`` is a mapping with per-grid arrays of per-veg-class bounds::
+
+        {'laimin': [[eve, dec, grass], ...], 'laimax': [[eve, dec, grass], ...]}
+
+    The Fortran runtime clamps observed LAI into each vegetation class's
+    ``[LAImin, LAImax]`` envelope. This function pre-computes the tightest
+    thresholds across every grid/class pair and warns when the forcing column
+    strays outside them — users see once that their observations are being
+    silently altered instead of discovering it through unexpected outputs.
+    """
+    from .util._missing import SUEWS_MISSING_THRESHOLD
+
+    if "lai" not in df_forcing.columns:
+        return
+
+    laimin_nested = lai_bounds.get("laimin") or []
+    laimax_nested = lai_bounds.get("laimax") or []
+    laimin_flat = [float(v) for row in laimin_nested for v in row]
+    laimax_flat = [float(v) for row in laimax_nested for v in row]
+    if not laimin_flat or not laimax_flat:
+        return
+
+    # Any class's lower bound activates when forcing < highest LAImin across
+    # grids/classes; any class's upper bound activates when forcing > lowest
+    # LAImax across grids/classes.
+    warn_below = max(laimin_flat)
+    warn_above = min(laimax_flat)
+
+    ser_lai = df_forcing["lai"]
+    mask_valid = ser_lai > SUEWS_MISSING_THRESHOLD
+    ser_valid = ser_lai[mask_valid]
+    if ser_valid.empty:
+        return
+
+    n_below = int((ser_valid < warn_below).sum())
+    n_above = int((ser_valid > warn_above).sum())
+    if n_below == 0 and n_above == 0:
+        return
+
+    parts = []
+    if n_below > 0:
+        parts.append(
+            f"{n_below} value(s) below the highest LAImin "
+            f"({warn_below:g}) across configured vegetation classes"
+        )
+    if n_above > 0:
+        parts.append(
+            f"{n_above} value(s) above the lowest LAImax "
+            f"({warn_above:g}) across configured vegetation classes"
+        )
+    logger_supy.warning(
+        "Observed LAI forcing will be clamped at runtime: %s. "
+        "Adjust per-class laimin/laimax in the site configuration if the "
+        "observations are intended to pass through unchanged.",
+        "; ".join(parts),
+    )
+
+
+def check_forcing(
+    df_forcing: pd.DataFrame,
+    fix=False,
+    physics=None,
+    lai_bounds=None,
+):
     if fix:
         df_forcing_fix = df_forcing.copy()
     logger_supy.info("SuPy is validating `df_forcing`...")
@@ -256,13 +418,49 @@ def check_forcing(df_forcing: pd.DataFrame, fix=False, physics=None):
                     if "Enum" in str(actual_value.__class__.__bases__):
                         actual_value = actual_value.value
 
-                # Check if this physics option requires specific columns
-                if actual_value == option_value:
+                # Check if this physics option requires specific columns.
+                # ``actual_value`` is a scalar for single-grid configs but can be
+                # an iterable of per-grid values on the legacy df_state path —
+                # treat the requirement as active if any grid selects the
+                # option value that triggers it.
+                if _matches_option_value(actual_value, option_value):
+                    is_observed_lai = (
+                        option_name == "laimethod" and option_value == 0
+                    )
+                    # Under laimethod=0 the completeness/non-negative check
+                    # is strictly stronger than the generic "all-missing"
+                    # rejection — it runs first and shadows the per-column
+                    # loop for the ``lai`` column.
+                    lai_nonneg_issue = False
+                    if is_observed_lai:
+                        lai_nonneg_issue = _check_observed_lai_nonneg(
+                            df_forcing, list_issues
+                        )
+                        if lai_nonneg_issue:
+                            flag_valid = False
+                        # Pre-flight warning: observed LAI will be clamped
+                        # into each vegetation class's ``[LAImin, LAImax]``
+                        # envelope. Skip when the non-negative check already
+                        # failed — a forcing full of sentinels will otherwise
+                        # trigger a noisy "below LAImin" warning on top of
+                        # the real error.
+                        if lai_bounds is not None and not lai_nonneg_issue:
+                            _warn_observed_lai_clamping(df_forcing, lai_bounds)
                     for col in required_cols:
                         if col in df_forcing.columns:
-                            # Check if column contains only missing data (-999)
+                            # Under laimethod=0 the completeness/non-negative
+                            # helper already diagnoses the ``lai`` column —
+                            # skip the generic "all-missing" check to avoid
+                            # duplicate issues.
+                            if is_observed_lai and col == "lai":
+                                continue
+                            # Treat any value at or below the missing
+                            # threshold (-900) as missing, matching the Fortran
+                            # runtime's defensive sentinel handling.
                             col_data = df_forcing[col]
-                            is_all_missing = (col_data == -999).all()
+                            from .util._missing import SUEWS_MISSING_THRESHOLD
+
+                            is_all_missing = (col_data <= SUEWS_MISSING_THRESHOLD).all()
 
                             if is_all_missing:
                                 # Add helpful note for emissionsmethod about setting to zero
@@ -280,7 +478,7 @@ def check_forcing(df_forcing: pd.DataFrame, fix=False, physics=None):
                                     f"values (-999). Please provide valid forcing data or change "
                                     f"the physics option.{extra_help} "
                                     f"See documentation: "
-                                    f"https://docs.suews.io/en/latest/input_files/RunControl/RunControl.html#scheme-options"
+                                    f"https://docs.suews.io/stable/inputs/tables/RunControl/scheme_options.html"
                                 )
                                 list_issues.append(str_issue)
                                 flag_valid = False

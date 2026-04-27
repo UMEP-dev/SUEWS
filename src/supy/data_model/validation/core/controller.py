@@ -21,6 +21,7 @@ from ...core.model import (
     ModelPhysics,
     Model,
 )
+from ...core.field_renames import read_physics_key
 
 logger = logging.getLogger(__name__)
 
@@ -69,9 +70,9 @@ class ValidationController(BaseModel):
             # Skip diagnose-specific validation for now
 
             # Analyze roughness method
-            roughmethod_val = physics.get("roughlenmommethod", 1)
-            if isinstance(roughmethod_val, dict):
-                roughmethod_val = roughmethod_val.get("value", 1)
+            roughmethod_val = read_physics_key(
+                physics, "roughness_length_momentum", 1
+            )
 
             # Convert to enum if it's not already
             if isinstance(roughmethod_val, MomentumRoughnessMethod):
@@ -83,9 +84,7 @@ class ValidationController(BaseModel):
                 self.roughness_variable_enabled = True
 
             # Analyze net radiation method for SPARTACUS
-            netrad_val = physics.get("netradiationmethod", 0)
-            if isinstance(netrad_val, dict):
-                netrad_val = netrad_val.get("value", 0)
+            netrad_val = read_physics_key(physics, "net_radiation", 0)
 
             # Convert to enum if it's not already
             if isinstance(netrad_val, NetRadiationMethod):
@@ -95,9 +94,7 @@ class ValidationController(BaseModel):
                 self.netradiation_spartacus_enabled = True
 
             # Analyze emissions method for advanced features
-            emissions_val = physics.get("emissionsmethod", 0)
-            if isinstance(emissions_val, dict):
-                emissions_val = emissions_val.get("value", 0)
+            emissions_val = read_physics_key(physics, "emissions", 0)
 
             # Convert to enum if it's not already
             if isinstance(emissions_val, EmissionsMethod):
@@ -107,9 +104,7 @@ class ValidationController(BaseModel):
                 self.emissions_advanced_enabled = True
 
             # Analyze storage heat method for ESTM
-            storage_val = physics.get("storageheatmethod", 0)
-            if isinstance(storage_val, dict):
-                storage_val = storage_val.get("value", 0)
+            storage_val = read_physics_key(physics, "storage_heat", 0)
 
             # Convert to enum if it's not already
             if isinstance(storage_val, StorageHeatMethod):

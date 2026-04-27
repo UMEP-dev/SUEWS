@@ -21,13 +21,13 @@ integer(c_int), parameter, public :: SUEWS_CAPI_HYDRO_STATE_BASE_LEN = 10_c_int 
 integer(c_int), parameter, public :: SUEWS_CAPI_HYDRO_STATE_SCHEMA_VERSION = 1_c_int
 
 type :: hydro_state_shadow
-   real(c_double), dimension(nsurf) :: soilstore_surf = 0.0_c_double
+   real(c_double), dimension(nsurf) :: soil_store_surf = 0.0_c_double
    real(c_double), dimension(nsurf) :: state_surf = 0.0_c_double
    real(c_double), dimension(9) :: wuday_id = 0.0_c_double
 
-   real(c_double), dimension(:), allocatable :: soilstore_roof
+   real(c_double), dimension(:), allocatable :: soil_store_roof
    real(c_double), dimension(:), allocatable :: state_roof
-   real(c_double), dimension(:), allocatable :: soilstore_wall
+   real(c_double), dimension(:), allocatable :: soil_store_wall
    real(c_double), dimension(:), allocatable :: state_wall
    real(c_double), dimension(:), allocatable :: ev_roof
    real(c_double), dimension(:), allocatable :: ev_wall
@@ -56,7 +56,7 @@ type :: hydro_state_shadow
    real(c_double) :: surf_chang_per_tstep = 0.0_c_double
    real(c_double) :: tot_chang_per_tstep = 0.0_c_double
    real(c_double) :: runoff_per_interval = 0.0_c_double
-   real(c_double) :: nwstate_per_tstep = 0.0_c_double
+   real(c_double) :: nw_state_per_tstep = 0.0_c_double
 
    real(c_double) :: soil_moist_cap = 0.0_c_double
    real(c_double) :: vsmd = 0.0_c_double
@@ -163,9 +163,9 @@ subroutine hydro_state_layout( &
    ev_roof_len = 0_c_int
    ev_wall_len = 0_c_int
 
-   if (allocated(state%soilstore_roof)) soilstore_roof_len = int(size(state%soilstore_roof), c_int)
+   if (allocated(state%soil_store_roof)) soilstore_roof_len = int(size(state%soil_store_roof), c_int)
    if (allocated(state%state_roof)) state_roof_len = int(size(state%state_roof), c_int)
-   if (allocated(state%soilstore_wall)) soilstore_wall_len = int(size(state%soilstore_wall), c_int)
+   if (allocated(state%soil_store_wall)) soilstore_wall_len = int(size(state%soil_store_wall), c_int)
    if (allocated(state%state_wall)) state_wall_len = int(size(state%state_wall), c_int)
    if (allocated(state%ev_roof)) ev_roof_len = int(size(state%ev_roof), c_int)
    if (allocated(state%ev_wall)) ev_wall_len = int(size(state%ev_wall), c_int)
@@ -213,7 +213,7 @@ subroutine hydro_state_pack( &
    idx = 1
 
    do i = 1, nsurf
-      flat(idx) = state%soilstore_surf(i)
+      flat(idx) = state%soil_store_surf(i)
       idx = idx + 1
    end do
 
@@ -229,7 +229,7 @@ subroutine hydro_state_pack( &
 
    if (soilstore_roof_len>0_c_int) then
       do i = 1, int(soilstore_roof_len)
-         flat(idx) = state%soilstore_roof(i)
+         flat(idx) = state%soil_store_roof(i)
          idx = idx + 1
       end do
    end if
@@ -243,7 +243,7 @@ subroutine hydro_state_pack( &
 
    if (soilstore_wall_len>0_c_int) then
       do i = 1, int(soilstore_wall_len)
-         flat(idx) = state%soilstore_wall(i)
+         flat(idx) = state%soil_store_wall(i)
          idx = idx + 1
       end do
    end if
@@ -316,7 +316,7 @@ subroutine hydro_state_pack( &
    flat(idx) = state%surf_chang_per_tstep; idx = idx + 1
    flat(idx) = state%tot_chang_per_tstep; idx = idx + 1
    flat(idx) = state%runoff_per_interval; idx = idx + 1
-   flat(idx) = state%nwstate_per_tstep; idx = idx + 1
+   flat(idx) = state%nw_state_per_tstep; idx = idx + 1
 
    flat(idx) = state%soil_moist_cap; idx = idx + 1
    flat(idx) = state%vsmd; idx = idx + 1
@@ -393,9 +393,9 @@ subroutine hydro_state_unpack(flat, n_flat, nlayer, state, err)
    end if
 
    err = SUEWS_CAPI_OK
-   call ensure_vec_alloc(state%soilstore_roof, nlayer, err)
+   call ensure_vec_alloc(state%soil_store_roof, nlayer, err)
    call ensure_vec_alloc(state%state_roof, nlayer, err)
-   call ensure_vec_alloc(state%soilstore_wall, nlayer, err)
+   call ensure_vec_alloc(state%soil_store_wall, nlayer, err)
    call ensure_vec_alloc(state%state_wall, nlayer, err)
    call ensure_vec_alloc(state%ev_roof, nlayer, err)
    call ensure_vec_alloc(state%ev_wall, nlayer, err)
@@ -404,7 +404,7 @@ subroutine hydro_state_unpack(flat, n_flat, nlayer, state, err)
    idx = 1_c_int
 
    do i = 1_c_int, int(nsurf, c_int)
-      state%soilstore_surf(i) = flat(idx)
+      state%soil_store_surf(i) = flat(idx)
       idx = idx + 1_c_int
    end do
 
@@ -419,7 +419,7 @@ subroutine hydro_state_unpack(flat, n_flat, nlayer, state, err)
    end do
 
    do i = 1_c_int, nlayer
-      state%soilstore_roof(i) = flat(idx)
+      state%soil_store_roof(i) = flat(idx)
       idx = idx + 1_c_int
    end do
 
@@ -429,7 +429,7 @@ subroutine hydro_state_unpack(flat, n_flat, nlayer, state, err)
    end do
 
    do i = 1_c_int, nlayer
-      state%soilstore_wall(i) = flat(idx)
+      state%soil_store_wall(i) = flat(idx)
       idx = idx + 1_c_int
    end do
 
@@ -461,7 +461,7 @@ subroutine hydro_state_unpack(flat, n_flat, nlayer, state, err)
       idx = idx + 1_c_int
    end do
    do i = 1_c_int, int(nsurf, c_int)
-      state%runoffsoil(i) = flat(idx)
+      state%runoff_soil(i) = flat(idx)
       idx = idx + 1_c_int
    end do
    do i = 1_c_int, int(nsurf, c_int)
@@ -478,31 +478,31 @@ subroutine hydro_state_unpack(flat, n_flat, nlayer, state, err)
    state%wu_ext = flat(idx); idx = idx + 1_c_int
    state%wu_int = flat(idx); idx = idx + 1_c_int
 
-   state%runoffagveg = flat(idx); idx = idx + 1_c_int
-   state%runoffagimpervious = flat(idx); idx = idx + 1_c_int
+   state%runoff_ag_veg = flat(idx); idx = idx + 1_c_int
+   state%runoff_ag_impervious = flat(idx); idx = idx + 1_c_int
    state%runoff_per_tstep = flat(idx); idx = idx + 1_c_int
-   state%runoffpipes = flat(idx); idx = idx + 1_c_int
-   state%runoffsoil_per_tstep = flat(idx); idx = idx + 1_c_int
-   state%runoffwaterbody = flat(idx); idx = idx + 1_c_int
+   state%runoff_pipes = flat(idx); idx = idx + 1_c_int
+   state%runoff_soil_per_tstep = flat(idx); idx = idx + 1_c_int
+   state%runoff_waterbody = flat(idx); idx = idx + 1_c_int
    state%smd = flat(idx); idx = idx + 1_c_int
-   state%soilstate = flat(idx); idx = idx + 1_c_int
+   state%soil_state = flat(idx); idx = idx + 1_c_int
    state%state_per_tstep = flat(idx); idx = idx + 1_c_int
    state%surf_chang_per_tstep = flat(idx); idx = idx + 1_c_int
    state%tot_chang_per_tstep = flat(idx); idx = idx + 1_c_int
    state%runoff_per_interval = flat(idx); idx = idx + 1_c_int
-   state%nwstate_per_tstep = flat(idx); idx = idx + 1_c_int
+   state%nw_state_per_tstep = flat(idx); idx = idx + 1_c_int
 
-   state%soilmoistcap = flat(idx); idx = idx + 1_c_int
+   state%soil_moist_cap = flat(idx); idx = idx + 1_c_int
    state%vsmd = flat(idx); idx = idx + 1_c_int
 
-   state%additionalwater = flat(idx); idx = idx + 1_c_int
-   state%addimpervious = flat(idx); idx = idx + 1_c_int
-   state%addpipes = flat(idx); idx = idx + 1_c_int
-   state%addveg = flat(idx); idx = idx + 1_c_int
-   state%addwaterbody = flat(idx); idx = idx + 1_c_int
+   state%additional_water = flat(idx); idx = idx + 1_c_int
+   state%add_impervious = flat(idx); idx = idx + 1_c_int
+   state%add_pipes = flat(idx); idx = idx + 1_c_int
+   state%add_veg = flat(idx); idx = idx + 1_c_int
+   state%add_water_body = flat(idx); idx = idx + 1_c_int
 
    do i = 1_c_int, int(nsurf, c_int)
-      state%addwater(i) = flat(idx)
+      state%add_water(i) = flat(idx)
       idx = idx + 1_c_int
    end do
 

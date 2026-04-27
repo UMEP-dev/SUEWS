@@ -6,6 +6,10 @@ import importlib.util
 from pathlib import Path
 import sys
 
+import pytest
+
+pytestmark = pytest.mark.api
+
 
 SCRIPT_PATH = Path(__file__).resolve().parents[2] / "scripts" / "security" / "audit_python_startup.py"
 SCRIPT_SPEC = importlib.util.spec_from_file_location("audit_python_startup", SCRIPT_PATH)

@@ -2,6 +2,7 @@
 
 import subprocess
 import warnings
+from pathlib import Path
 
 import pytest
 import supy
@@ -44,6 +45,26 @@ except ImportError:
 
 # Named constants for test clarity
 TIMESTEPS_PER_DAY = 288  # 24*60/5 = 288 five-minute intervals
+
+
+@pytest.fixture
+def cru_data_available():
+    """Skip the test when CRU climatology data is not available.
+
+    Several phase-B validation helpers (`get_mean_annual_air_temperature`,
+    `get_mean_monthly_air_temperature`, `get_monthly_air_temperature_diffmax`)
+    read from a CRU NetCDF that is not vendored with the repository. CI
+    runners and contributor environments without the file should treat the
+    dependent tests as skipped, not failed.
+
+    The probe uses a known-good mid-latitude land cell (45 N, 10 E).
+    """
+    from supy.data_model.validation.pipeline.phase_b import (
+        get_mean_annual_air_temperature,
+    )
+
+    if get_mean_annual_air_temperature(45.0, 10.0) is None:
+        pytest.skip("CRU climatology data not available")
 
 
 @pytest.fixture(autouse=True)
@@ -245,3 +266,67 @@ def pytest_collection_modifyitems(items):
         + api_equivalence_tests
         + other_tests
     )
+
+
+# =============================================================================
+# gh#1300 — enforce the physics/api nature axis on full-tree runs.
+# =============================================================================
+
+
+def _invocation_targets_full_test_tree(config):
+    """True when the pytest invocation covers the whole `test/` tree.
+
+    The lint below should fire on CI-style invocations (`pytest test`,
+    `pytest` from rootdir, or with marker-only filters) and stay out of the
+    way during local iteration on a single file or subdirectory.
+    """
+    args = list(config.invocation_params.args or ())
+    path_args = [a for a in args if not a.startswith("-")]
+    if not path_args:
+        return True
+    test_dir = (Path(str(config.rootpath)) / "test").resolve()
+    for arg in path_args:
+        try:
+            resolved = Path(arg).resolve()
+        except (OSError, ValueError):
+            return False
+        if resolved != test_dir:
+            return False
+    return True
+
+
+def pytest_collection_finish(session):
+    """Enforce that every collected test carries `physics` or `api` (gh#1300).
+
+    Rationale: the two-axis taxonomy only works if every file declares which
+    axis it belongs to. A missing nature marker would silently drop a file
+    out of CI once the matrix is split in a follow-up PR. Fail loudly at
+    collection time on full-tree runs so the gap is caught before CI.
+    """
+    if not _invocation_targets_full_test_tree(session.config):
+        return
+
+    missing_files = []
+    for item in session.items:
+        marker_names = {m.name for m in item.iter_markers()}
+        if "physics" in marker_names or "api" in marker_names:
+            continue
+        try:
+            rel = Path(str(item.fspath)).resolve().relative_to(
+                Path(str(session.config.rootpath)).resolve()
+            )
+        except ValueError:
+            rel = Path(str(item.fspath))
+        rel_str = str(rel)
+        if rel_str not in missing_files:
+            missing_files.append(rel_str)
+
+    if missing_files:
+        bullet = "\n  - ".join(missing_files)
+        raise pytest.UsageError(
+            "gh#1300 marker lint: these test files are missing both "
+            "`physics` and `api` markers. Every test file must carry at "
+            "least one of the two nature markers (use `pytestmark = "
+            "pytest.mark.api` or `pytest.mark.physics` at module level, or "
+            "auto-apply via `pytest_collection_modifyitems`):\n  - " + bullet
+        )

@@ -4,7 +4,7 @@ import platform
 import sys
 import tempfile
 from time import time
-from unittest import TestCase, skipIf
+from unittest import TestCase
 
 import numpy as np
 import pandas as pd
@@ -35,10 +35,14 @@ flag_full_test = True
 # Note: Sample data loading moved to individual test methods to avoid test interference
 # This prevents caching issues when tests run in sequence
 
+pytestmark = pytest.mark.api
+
 
 class TestSuPy(TestCase):
     # test if single-tstep mode can run
+    @pytest.mark.physics
     @pytest.mark.smoke
+    @pytest.mark.smoke_bridge
     def test_is_supy_running_single_step(self):
         print("\n========================================")
         print("Testing if single-tstep mode can run...")
@@ -135,26 +139,24 @@ class TestSuPy(TestCase):
         ])
         self.assertTrue(test_non_empty)
 
-    #  test if flag_test can be set to True
-    @skipIf(
-        True,
-        "Skipping debug mode test due to STEBBS debug structure issues in YL/fixstebbs-rebase branch",
-    )
-    def test_is_flag_test_working(self):
+    def test_debug_mode_exposes_debug_output_group(self):
         print("\n========================================")
-        print("Testing if flag_test can be set to True...")
+        print("Testing if debug_mode exposes debug output...")
 
-        # Load sample data
         df_state_init, df_forcing_tstep = sp.load_SampleData()
+        df_forcing_part = df_forcing_tstep.iloc[:24]
 
-        df_forcing_part = df_forcing_tstep.iloc[: TIMESTEPS_PER_DAY * 10]
-        df_output, df_state, df_debug, res_state = sp.run_supy(
+        df_output, df_state = sp.run_supy(
             df_forcing_part,
             df_state_init,
             debug_mode=True,
         )
-        # check if `flag_test` in `df_output.debug` equals 1.0
-        self.assertTrue((df_output.debug.flag_test == 1.0).all())
+
+        self.assertFalse(df_output.empty)
+        self.assertFalse(df_state.empty)
+        self.assertIn("debug", df_output.columns.get_level_values("group"))
+        self.assertIn("flag_test", df_output["debug"].columns)
+        self.assertTrue(df_output["debug"]["flag_test"].notna().all())
 
     def test_run_with_version(self):
         print("\n========================================")
@@ -239,16 +241,16 @@ class TestSuPy(TestCase):
         print("Metadata columns correctly stored as plain strings")
 
     def test_version_tracking_save_load_cycle(self):
-        """Test complete save→load→run cycle with version tracking.
+        """Test complete checkpoint save/load/run cycle with version tracking.
 
         This test verifies that:
         1. Version info is automatically saved with state
-        2. Saved state (with version) can be loaded
-        3. Loaded state can be used to continue simulation
+        2. A typed checkpoint can be saved and loaded
+        3. Loaded checkpoint can be used to continue simulation
         4. Version info persists through the cycle
         """
         print("\n========================================")
-        print("Testing complete save→load→run cycle with version tracking...")
+        print("Testing complete checkpoint save/load/run cycle with version tracking...")
 
         # Run 1: Initial simulation
         sim1 = SUEWSSimulation.from_sample_data()
@@ -259,17 +261,28 @@ class TestSuPy(TestCase):
         version_from_run1 = sim1.state_final[("version", "0")].iloc[0]
         self.assertEqual(version_from_run1, sp.__version__)
 
-        # Save state to temporary location
+        # Save checkpoint to temporary location
         with tempfile.TemporaryDirectory() as tmpdir:
             save_path = Path(tmpdir)
             sim1.save(save_path)
 
-            # Verify state file was created
+            # Verify checkpoint file was created as the restart artifact
+            checkpoint_files = list(save_path.glob("*_checkpoint.json"))
+            self.assertGreater(
+                len(checkpoint_files),
+                0,
+                "Checkpoint file should be created",
+            )
             state_files = list(save_path.glob("*_state_*.csv"))
-            self.assertGreater(len(state_files), 0, "State file should be created")
+            self.assertEqual(
+                state_files,
+                [],
+                "OOP save should not create legacy DFState CSV by default",
+            )
 
-            # Run 2: Load saved state and continue simulation
-            sim2 = SUEWSSimulation.from_state(sim1.state_final)
+            # Run 2: Load saved checkpoint and continue simulation
+            checkpoint = sp.SUEWSCheckpoint.from_file(checkpoint_files[0])
+            sim2 = SUEWSSimulation.from_checkpoint(sim1.config, checkpoint)
 
             # Load forcing for continuation (using remaining timesteps)
             sim2.update_forcing(sim1.forcing.iloc[12:24])  # Next 12 timesteps
@@ -287,10 +300,11 @@ class TestSuPy(TestCase):
             self.assertEqual(
                 version_from_run2,
                 sp.__version__,
-                "Version should persist through save→load→run cycle",
+                "Version should persist through checkpoint save/load/run cycle",
             )
+            self.assertEqual(sim2.checkpoint.supy_version, sp.__version__)
 
-        print("✓ Version tracking works correctly through save→load→run cycle")
+        print("Version tracking works correctly through checkpoint save/load/run cycle")
 
     # # test if single-tstep and multi-tstep modes can produce the same SUEWS results
     # @skipUnless(flag_full_test, "Full test is not required.")

@@ -6,6 +6,8 @@ import sys
 
 import pytest
 
+pytestmark = pytest.mark.api
+
 
 # Locate the CLI; skip tests if not available
 @pytest.fixture(scope="module")
@@ -100,7 +102,7 @@ model:
     start_time: '2021-01-01'
     end_time: '2021-12-31'
   physics:
-    netradiationmethod:
+    net_radiation_method:
       value: 1
 sites:
   - name: test_site

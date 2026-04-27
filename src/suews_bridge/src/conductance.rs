@@ -18,7 +18,7 @@ pub struct ConductancePrm {
     pub g_t: f64,
     pub g_sm: f64,
     pub kmax: f64,
-    pub gsmodel: i32,
+    pub gs_model: i32,
     pub s1: f64,
     pub s2: f64,
     pub th: f64,
@@ -35,7 +35,7 @@ impl Default for ConductancePrm {
             g_t: 0.0,
             g_sm: 0.0,
             kmax: 0.0,
-            gsmodel: 0,
+            gs_model: 0,
             s1: 0.0,
             s2: 0.0,
             th: 0.0,
@@ -72,7 +72,7 @@ impl ConductancePrm {
             g_t: flat[4],
             g_sm: flat[5],
             kmax: flat[6],
-            gsmodel: decode_int(flat[7])?,
+            gs_model: decode_int(flat[7])?,
             s1: flat[8],
             s2: flat[9],
             th: flat[10],
@@ -89,7 +89,7 @@ impl ConductancePrm {
             self.g_t,
             self.g_sm,
             self.kmax,
-            self.gsmodel as f64,
+            self.gs_model as f64,
             self.s1,
             self.s2,
             self.th,
@@ -176,7 +176,7 @@ mod tests {
 
         let updated = conductance_prm_from_map(&mapped).expect("map to state should succeed");
         assert!((updated.g_max - 7.5).abs() < 1.0e-12);
-        assert_eq!(updated.gsmodel, 2);
+        assert_eq!(updated.gs_model, 2);
     }
 
     #[test]

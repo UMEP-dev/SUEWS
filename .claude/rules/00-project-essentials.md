@@ -48,9 +48,11 @@ Domain abbreviations (OHM, RSL, FAI, SMD, LAI, GDD, SDD) are acceptable as singl
 
 Avoid appending `method` or `model` to field names when the enum type already conveys this. If both the field and the enum type exist, the redundancy is acceptable only in legacy code.
 
-### PascalCase fields
+### YAML surface is single-convention snake_case
 
-STEBBS building archetype parameters use PascalCase (e.g. `WallReflectivity`, `RoofExternalEmissivity`) to match Fortran/legacy conventions. New STEBBS parameters should follow this pattern for consistency within that subsystem. All other Python code uses `snake_case`.
+All user-facing YAML fields — including STEBBS `building_archetype` and `stebbs` blocks — use `snake_case`. The pre-gh#1334 PascalCase exception for STEBBS is retired; mixing two conventions in the same YAML confused users more than it aligned with Fortran TYPE members, and the Fortran/Rust bridge preserves legacy column names via `_ARCHETYPE_LEGACY_COL_NAMES` / `_STEBBS_LEGACY_COL_NAMES` ClassVars without any user-visible cost.
+
+Fortran TYPE members and Rust struct field names are cross-layer naming concerns tracked separately in #1324/#1325/#1326 (Tier B/C/D).
 
 ### Legacy identifiers
 

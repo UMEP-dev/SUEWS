@@ -333,7 +333,7 @@ CONTAINS
                   IF (execute_subroutines) THEN
                      CALL update_GDDLAI( &
                         id, LAICalcYes, & !input
-                        lat, [lai_dectr, lai_evetr, lai_grass], &
+                        lat, [lai_evetr, lai_dectr, lai_grass], &
                         Tmin_id, Tmax_id, lenDay_id, &
                         BaseT, BaseTe, &
                         GDDFull, SDDFull, &

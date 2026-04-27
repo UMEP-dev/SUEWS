@@ -59,7 +59,7 @@ private
 integer(c_int), parameter :: SUEWS_CAPI_TIMER_LEN = 18_c_int
 integer(c_int), parameter :: SUEWS_CAPI_CONFIG_LEN = 22_c_int
 integer(c_int), parameter :: SUEWS_CAPI_SITE_SCALARS_LEN = 24_c_int
-integer(c_int), parameter :: SUEWS_CAPI_FORCING_COLS = 21_c_int
+integer(c_int), parameter :: SUEWS_CAPI_FORCING_COLS = 23_c_int
 
 integer(c_int), parameter :: SUEWS_CAPI_SITE_MEMBER_COUNT = 18_c_int
 integer(c_int), parameter :: SUEWS_CAPI_STATE_MEMBER_COUNT = 13_c_int

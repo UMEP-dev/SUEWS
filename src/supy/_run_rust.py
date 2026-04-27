@@ -172,7 +172,7 @@ def _build_datetime_index(output_block: np.ndarray) -> pd.DatetimeIndex:
 def _prepare_forcing_block(df_forcing: pd.DataFrame) -> np.ndarray:
     """Prepare forcing DataFrame as a Fortran-order array for the Rust bridge."""
     len_sim = len(df_forcing)
-    block = np.zeros((len_sim, 21), dtype=np.float64, order="F")
+    block = np.zeros((len_sim, 23), dtype=np.float64, order="F")
 
     block[:, 0] = df_forcing.index.year
     block[:, 1] = df_forcing.index.dayofyear
@@ -196,7 +196,9 @@ def _prepare_forcing_block(df_forcing: pd.DataFrame) -> np.ndarray:
         (17, "fcld", 0.0),
         (18, "Wuh", 0.0),
         (19, "xsmd", 0.0),
-        (20, "lai", 0.0),
+        (20, "lai_dectr", 0.0),
+        (21, "lai_evetr", 0.0),
+        (22, "lai_grass", 0.0),
     ]
 
     for idx, col, default in col_map:

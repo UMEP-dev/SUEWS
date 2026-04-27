@@ -906,7 +906,25 @@
         },
         "unit": "1"
     },
-    "lai": {
+    "lai_dectr": {
+        "cat": "grid",
+        "logic": "range",
+        "param": {
+            "max": 10,
+            "min": 0
+        },
+        "unit": "m2 m-2"
+    },
+    "lai_evetr": {
+        "cat": "grid",
+        "logic": "range",
+        "param": {
+            "max": 10,
+            "min": 0
+        },
+        "unit": "m2 m-2"
+    },
+    "lai_grass": {
         "cat": "grid",
         "logic": "range",
         "param": {

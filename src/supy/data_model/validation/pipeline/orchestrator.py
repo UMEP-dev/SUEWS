@@ -112,7 +112,11 @@ def detect_pydantic_defaults(
         "rho_cp_anohm",
         "k_anohm",  # Unused ANOHM (Analytical OHM) parameters
         "_yaml_path",
-        "_auto_generate_annotated",  # Internal Pydantic metadata fields
+        "_auto_generate_annotated",
+        "_yaml_raw",  # Raw-YAML snapshot stored as a Pydantic extra (gh#1333 follow-up).
+                     # If walked, every field inside it gets falsely flagged
+                     # "found missing" because the parallel original_data has no
+                     # `_yaml_raw` key (gh#1353).
     ]
 
     def parameter_exists_in_standard(param_path: str, standard_data: dict) -> bool:
@@ -149,6 +153,12 @@ def detect_pydantic_defaults(
 
     if isinstance(processed_data, dict) and isinstance(original_data, dict):
         for key, processed_value in processed_data.items():
+            # Skip pydantic extras that mirror raw YAML / carry private metadata.
+            # Without this guard, dict-valued internals (e.g. `_yaml_raw`) are
+            # recursed into and every nested user-set field gets flagged
+            # "found missing" because `original_data` has no parallel key (gh#1353).
+            if key.startswith("_") or key in INTERNAL_UNUSED_PARAMS:
+                continue
             current_path = f"{path}.{key}" if path else key
             original_value = original_data.get(key)
 
@@ -705,6 +715,20 @@ def run_phase_c(
 
                 # Get the Pydantic-processed data (with defaults applied)
                 processed_data = config.model_dump()
+
+                # SUEWSConfig has `extra="allow"`, so private items injected by
+                # `from_yaml` (`_yaml_path`, `_auto_generate_annotated`,
+                # `_yaml_raw`) round-trip through model_dump(). Drop them before
+                # comparison — `_yaml_raw` in particular is a deep-copy of the
+                # user's YAML and would otherwise mirror every user-set field
+                # back as "found missing" against an empty parallel branch
+                # (gh#1353). Mirrors the strip done by SUEWSConfig.to_yaml.
+                for _internal_key in (
+                    "_yaml_path",
+                    "_auto_generate_annotated",
+                    "_yaml_raw",
+                ):
+                    processed_data.pop(_internal_key, None)
 
                 # Load standard config for comparison
                 try:

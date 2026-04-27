@@ -2388,7 +2388,7 @@ class SUEWSConfig(BaseModel):
         If SPARTACUS is enabled, this function checks that:
         - The building surface fraction (bldgs.sfr) matches the first entry of vertical_layers.building_frac.
         - The sum of evergreen and deciduous tree surface fractions (evetr.sfr + dectr.sfr)
-          matches the maximum value in vertical_layers.veg_frac.
+          matches the first entry of vertical_layers.veg_frac.
 
         Returns
         -------
@@ -2437,13 +2437,15 @@ class SUEWSConfig(BaseModel):
                     f"vertical_layers.building_frac[0] ({building_frac[0]})"
                 )
 
-        # Vegetation: surface fraction vs maximum veg_frac across layers
-        if isinstance(veg_frac, (list, tuple)) and len(veg_frac) > 0:
-            veg_frac_max = max(veg_frac)
-            if not np.isclose(veg_sfr, veg_frac_max, atol=tol):
+        # Vegetation: sum of fractions vs first veg_frac entry
+        if (
+            isinstance(veg_frac, (list, tuple))
+            and len(veg_frac) > 0
+        ):
+            if not np.isclose(veg_sfr, veg_frac[0], atol=tol):
                 issues.append(
                     f"{site_name}: evetr.sfr + dectr.sfr ({veg_sfr}) does not match "
-                    f"max(vertical_layers.veg_frac) ({veg_frac_max})"
+                    f"vertical_layers.veg_frac[0] ({veg_frac[0]})"
                 )
 
         return issues

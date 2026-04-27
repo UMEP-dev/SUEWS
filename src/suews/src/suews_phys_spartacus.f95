@@ -168,6 +168,7 @@ CONTAINS
       REAL(KIND(1D0)) :: grnd_dn_dir_sw_spc
       REAL(KIND(1D0)) :: grnd_net_sw_spc
       REAL(KIND(1D0)) :: grnd_vertical_diff
+      REAL(KIND(1D0)) :: grnd_dn_sw_spc
       REAL(KIND(1D0)), DIMENSION(15) :: clear_air_abs_lw_spc
       REAL(KIND(1D0)), DIMENSION(15) :: clear_air_abs_sw_spc
       REAL(KIND(1D0)), DIMENSION(15), INTENT(OUT) :: roof_in_sw_spc
@@ -817,6 +818,7 @@ CONTAINS
          roof_in_sw_spc(:nlayer) = sw_flux%roof_in(nspec, :nlayer)
          top_dn_dir_sw_spc = sw_flux%top_dn_dir(nspec, ncol)
          top_net_sw_spc = sw_flux%top_net(nspec, ncol)
+         grnd_dn_sw_spc = sw_flux%ground_dn(nspec, ncol)   ! NEW: total downward SW at the ground
          grnd_dn_dir_sw_spc = sw_flux%ground_dn_dir(nspec, ncol)
          grnd_net_sw_spc = sw_flux%ground_net(nspec, ncol)
          grnd_vertical_diff = sw_flux%ground_vertical_diff(nspec, ncol)
@@ -828,6 +830,7 @@ CONTAINS
          roof_in_sw_spc(:nlayer) = 0.0
          top_dn_dir_sw_spc = 0.0
          top_net_sw_spc = 0.0
+         grnd_dn_sw_spc = 0.0
          grnd_dn_dir_sw_spc = 0.0
          grnd_net_sw_spc = 0.0
          grnd_vertical_diff = 0.0
@@ -914,6 +917,7 @@ CONTAINS
           top_net_sw_spc, &
           top_net_lw_spc, &
           lw_emission_spc, &
+          grnd_dn_sw_spc, &
           grnd_dn_dir_sw_spc, &
           grnd_vertical_diff, &
           grnd_net_sw_spc, &

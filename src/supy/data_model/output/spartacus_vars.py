@@ -18,6 +18,7 @@ LEGACY_SPARTACUS_DEFS = [
     ("KTopNet", "W m-2", "sw net radiation at top-of-canopy", 0),
     ("LTopNet", "W m-2", "lw net radiation at top-of-canopy", 0),
     ("Lemission", "W m-2", "lw emission from spartacus", 0),
+    ("GrndDnSWSpc", "W m-2", "total downward SW at the ground", 0),
     ("KDnDir_Grnd", "W m-2", "sw downwelling direct radiation at ground", 0),
     ("KVtlDif_Grnd", "W m-2", "sw diffuse flux at ground into a vertical surface", 0),
     ("KNet_Grnd", "W m-2", "sw net radiation at ground", 0),

@@ -57,6 +57,12 @@ class ValidationController(BaseModel):
 
     def __init__(self, config_data: Dict[str, Any], **data):
         """Initialize controller with configuration data."""
+        warnings.warn(
+            "ValidationController is deprecated; use supy.data_model.validation "
+            "pipeline APIs for current validation behaviour.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         super().__init__(config_data=config_data, **data)
         self._analyze_config()
 
@@ -161,10 +167,12 @@ class ValidationController(BaseModel):
         # Validate advanced method parameters
         if self.netradiation_spartacus_enabled:
             if verbose:
-                print("SPARTACUS radiation is ON: checking SPARTACUS parameters")
-            spartacus_errors = self._validate_spartacus_parameters()
-            result.errors.extend(spartacus_errors)
-            result.validated_methods.add("SPARTACUS")
+                print("SPARTACUS radiation is ON: validation deferred")
+            result.warnings.append(
+                "SPARTACUS-specific checks are not implemented in "
+                "ValidationController; use supy.data_model.validation."
+            )
+            result.skipped_methods.add("SPARTACUS")
         else:
             result.skipped.append("SPARTACUS validation (NetRadiationMethod < 1000)")
             result.skipped_methods.add("SPARTACUS")
@@ -181,10 +189,12 @@ class ValidationController(BaseModel):
 
         if self.storage_estm_enabled:
             if verbose:
-                print("ESTM storage is ON: checking ESTM parameters")
-            estm_errors = self._validate_estm_parameters()
-            result.errors.extend(estm_errors)
-            result.validated_methods.add("ESTM")
+                print("ESTM storage is ON: validation deferred")
+            result.warnings.append(
+                "ESTM-specific checks are not implemented in ValidationController; "
+                "use supy.data_model.validation."
+            )
+            result.skipped_methods.add("ESTM")
         else:
             result.skipped.append("ESTM validation (StorageHeatMethod != ESTM)")
             result.skipped_methods.add("ESTM")
@@ -284,21 +294,14 @@ class ValidationController(BaseModel):
         return errors
 
     def _validate_spartacus_parameters(self) -> List[str]:
-        """Validate parameters for SPARTACUS radiation scheme."""
-        errors = []
-
-        sites = self.config_data.get("sites", [])
-        for i, site in enumerate(sites):
-            site_props = site.get("properties", {})
-
-            # SPARTACUS needs specific radiation parameters
-            spartacus_params = site_props.get("spartacus_params")
-            if spartacus_params is not None:
-                # Add specific SPARTACUS parameter validation here
-                # This is a placeholder for actual SPARTACUS parameter checks
-                pass
-
-        return errors
+        """Deprecated placeholder retained for import compatibility."""
+        warnings.warn(
+            "ValidationController SPARTACUS checks are deprecated and not used; "
+            "use supy.data_model.validation.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        return []
 
     def _validate_advanced_emissions_parameters(self) -> List[str]:
         """Validate parameters for advanced emissions calculations."""
@@ -320,18 +323,14 @@ class ValidationController(BaseModel):
         return errors
 
     def _validate_estm_parameters(self) -> List[str]:
-        """Validate parameters for ESTM (Element Surface Temperature Method)."""
-        errors = []
-
-        sites = self.config_data.get("sites", [])
-        for i, site in enumerate(sites):
-            site_props = site.get("properties", {})
-
-            # ESTM needs thermal parameters
-            # This is a placeholder for actual ESTM parameter validation
-            pass
-
-        return errors
+        """Deprecated placeholder retained for import compatibility."""
+        warnings.warn(
+            "ValidationController ESTM checks are deprecated and not used; "
+            "use supy.data_model.validation.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        return []
 
     def _validate_core_parameters(self) -> List[str]:
         """Validate core parameters that are always required."""
@@ -417,6 +416,12 @@ def validate_suews_config_conditional(
     Raises:
         ValueError: If strict=True and validation fails
     """
+    warnings.warn(
+        "validate_suews_config_conditional from validation.core.controller is "
+        "deprecated; use supy.data_model.validation.",
+        DeprecationWarning,
+        stacklevel=2,
+    )
     controller = ValidationController(config_data=config_data)
     result = controller.validate_config(verbose=verbose)
 

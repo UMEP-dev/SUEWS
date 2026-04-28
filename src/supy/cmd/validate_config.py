@@ -238,8 +238,25 @@ def validate_single_file(
     default="on",
     help="Enable/disable forcing data validation (default: on)",
 )
+@click.option(
+    "--science-fixes",
+    type=click.Choice(["suggest", "apply", "off"]),
+    default="suggest",
+    show_default=True,
+    help="Handle Phase B scientific transformations: suggest, apply, or off",
+)
 @click.pass_context
-def cli(ctx, files, pipeline, mode, dry_run, out_format, schema_version, forcing):
+def cli(
+    ctx,
+    files,
+    pipeline,
+    mode,
+    dry_run,
+    out_format,
+    schema_version,
+    forcing,
+    science_fixes,
+):
     """SUEWS Configuration Validator.
 
     Default behavior: run the complete validation pipeline on FILE. Use subcommands
@@ -397,7 +414,11 @@ def cli(ctx, files, pipeline, mode, dry_run, out_format, schema_version, forcing
             )
             ctx.exit(2)
         code = _execute_pipeline(
-            file=files[0], pipeline=pipeline, mode=mode, forcing=forcing
+            file=files[0],
+            pipeline=pipeline,
+            mode=mode,
+            forcing=forcing,
+            science_fixes=science_fixes,
         )
         ctx.exit(code)
 
@@ -788,7 +809,7 @@ def _format_phase_output(
     return None
 
 
-def _execute_pipeline(file, pipeline, mode, forcing="on"):
+def _execute_pipeline(file, pipeline, mode, forcing="on", science_fixes="suggest"):
     """Run YAML validation pipeline to validate and generate reports/YAML.
 
     The validation system uses multiple internal phases:
@@ -804,6 +825,7 @@ def _execute_pipeline(file, pipeline, mode, forcing="on"):
         print(f"[DEBUG]   file: {file}", file=sys.stderr)
         print(f"[DEBUG]   pipeline: {pipeline}", file=sys.stderr)
         print(f"[DEBUG]   mode: {mode}", file=sys.stderr)
+        print(f"[DEBUG]   science_fixes: {science_fixes}", file=sys.stderr)
 
     # Ensure processor is importable
     if not all([
@@ -895,6 +917,7 @@ def _execute_pipeline(file, pipeline, mode, forcing="on"):
             mode=mode,
             phase="B",
             silent=True,
+            science_fixes=science_fixes,
         )
         console.print(
             "[green]✓ Validation completed[/green]"
@@ -969,6 +992,7 @@ def _execute_pipeline(file, pipeline, mode, forcing="on"):
             mode=mode,
             phase="AB",
             silent=True,
+            science_fixes=science_fixes,
         )
 
         if not b_ok:
@@ -1163,6 +1187,7 @@ def _execute_pipeline(file, pipeline, mode, forcing="on"):
             mode=mode,
             phase="BC",
             silent=True,
+            science_fixes=science_fixes,
         )
         if not b_ok:
             # Phase B failed in BC workflow - create final user files from Phase B outputs
@@ -1235,12 +1260,12 @@ def _execute_pipeline(file, pipeline, mode, forcing="on"):
                             lines.pop()
                         phase_c_content = "\n".join(lines)
 
-                        # Ensure proper spacing before NO ACTION NEEDED section
+                        # Ensure proper spacing before INFO section
                         if not phase_c_content.endswith("\n\n"):
                             phase_c_content += "\n"
 
-                        # Add NO ACTION NEEDED section
-                        phase_c_content += "\n## NO ACTION NEEDED"
+                        # Add INFO section
+                        phase_c_content += "\n## INFO"
 
                         # Add Phase B messages
                         for msg in phase_b_messages:
@@ -1360,6 +1385,7 @@ def _execute_pipeline(file, pipeline, mode, forcing="on"):
         mode=mode,
         phase="ABC",
         silent=True,
+        science_fixes=science_fixes,
     )
 
     if not b_ok:

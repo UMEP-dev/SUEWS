@@ -19,6 +19,7 @@ import types
 import copy
 
 import pytest
+import yaml
 
 import supy as sp
 from supy._env import trv_supy_module
@@ -4303,3 +4304,239 @@ sites:
 
         config = SUEWSConfig.from_yaml(str(config_path))
         assert config is not None
+
+
+def _phase_b_science_fixture():
+    return {
+        "model": {
+            "physics": {
+                "emissions": {"value": 5},
+                "stebbs": {"value": 1},
+                "outer_cap_fraction": {"value": 1},
+                "setpoint": {"value": 0},
+            }
+        },
+        "sites": [
+            {
+                "gridiv": {"value": 101},
+                "properties": {
+                    "lat": {"value": 51.5},
+                    "lng": {"value": -0.1},
+                    "land_cover": {
+                        "paved": {"sfr": {"value": 0.99995}},
+                    },
+                    "stebbs": {
+                        "initial_outdoor_temperature": {"value": 0.0},
+                        "annual_mean_air_temperature": {"value": 0.0},
+                    },
+                },
+                "initial_states": {
+                    "paved": {
+                        "temperature": {"value": [0.0] * 5},
+                        "tsfc": {"value": 0.0},
+                        "tin": {"value": 0.0},
+                    },
+                    "snowalb": {"value": 0.8},
+                },
+            }
+        ],
+    }
+
+
+def test_phase_b_collect_science_suggestions_does_not_mutate(monkeypatch):
+    from supy.data_model.validation.pipeline import phase_b
+
+    monkeypatch.setattr(
+        phase_b, "get_mean_monthly_air_temperature", lambda *args: 15.5
+    )
+    monkeypatch.setattr(
+        phase_b, "get_monthly_air_temperature_diffmax", lambda *args: 9.0
+    )
+    monkeypatch.setattr(
+        phase_b, "get_mean_annual_air_temperature", lambda *args: 11.2
+    )
+
+    yaml_data = _phase_b_science_fixture()
+    original = copy.deepcopy(yaml_data)
+
+    suggestions = phase_b.collect_science_suggestions(
+        yaml_data, start_date="2020-07-01", model_year=2020
+    )
+
+    assert yaml_data == original
+    assert any(s.parameter == "initial_states.paved" for s in suggestions)
+    assert any(s.parameter == "paved.sfr" for s in suggestions)
+    assert any(s.parameter == "snowalb" for s in suggestions)
+    assert all(s.severity == "SUGGESTION" for s in suggestions)
+    assert all(s.source for s in suggestions)
+
+
+def test_phase_b_apply_science_suggestions_mutates_copy(monkeypatch):
+    from supy.data_model.validation.pipeline import phase_b
+
+    monkeypatch.setattr(
+        phase_b, "get_mean_monthly_air_temperature", lambda *args: 15.5
+    )
+    monkeypatch.setattr(
+        phase_b, "get_monthly_air_temperature_diffmax", lambda *args: 9.0
+    )
+    monkeypatch.setattr(
+        phase_b, "get_mean_annual_air_temperature", lambda *args: 11.2
+    )
+
+    yaml_data = _phase_b_science_fixture()
+    suggestions = phase_b.collect_science_suggestions(
+        yaml_data, start_date="2020-07-01", model_year=2020
+    )
+    updated, adjustments = phase_b.apply_science_suggestions(
+        yaml_data, suggestions, start_date="2020-07-01", model_year=2020
+    )
+
+    paved_state = updated["sites"][0]["initial_states"]["paved"]
+    paved_sfr = updated["sites"][0]["properties"]["land_cover"]["paved"]["sfr"]
+
+    assert paved_state["tsfc"]["value"] == 15.5
+    assert paved_sfr["value"] == pytest.approx(1.0)
+    assert updated["sites"][0]["initial_states"]["snowalb"]["value"] is None
+    assert len(adjustments) == len(suggestions)
+    assert yaml_data["sites"][0]["initial_states"]["paved"]["tsfc"]["value"] == 0.0
+
+
+@pytest.mark.parametrize(
+    ("science_fixes", "expect_mutation", "expected_section", "unexpected_section"),
+    [
+        ("suggest", False, "## SUGGESTED UPDATES", "## APPLIED UPDATES"),
+        ("apply", True, "## APPLIED UPDATES", "## SUGGESTED UPDATES"),
+        ("off", False, "## INFO", "## SUGGESTED UPDATES"),
+    ],
+)
+def test_phase_b_run_science_check_science_fixes_modes(
+    tmp_path,
+    monkeypatch,
+    science_fixes,
+    expect_mutation,
+    expected_section,
+    unexpected_section,
+):
+    from supy.data_model.validation.pipeline import phase_b
+
+    monkeypatch.setattr(
+        phase_b, "get_mean_monthly_air_temperature", lambda *args: 15.5
+    )
+    monkeypatch.setattr(
+        phase_b, "get_monthly_air_temperature_diffmax", lambda *args: 9.0
+    )
+    monkeypatch.setattr(
+        phase_b, "get_mean_annual_air_temperature", lambda *args: 11.2
+    )
+    monkeypatch.setattr(phase_b.RulesRegistry, "run_validation", lambda self: [])
+
+    yaml_data = _phase_b_science_fixture()
+    yaml_data["model"]["control"] = {
+        "start_time": "2020-07-01",
+        "end_time": "2020-07-02",
+    }
+
+    input_file = tmp_path / "config.yml"
+    output_file = tmp_path / "updated_config.yml"
+    report_file = tmp_path / "report_config.txt"
+    input_file.write_text(yaml.safe_dump(yaml_data), encoding="utf-8")
+
+    phase_b.run_science_check(
+        uptodate_yaml_file=str(input_file),
+        user_yaml_file=str(input_file),
+        standard_yaml_file=str(input_file),
+        science_yaml_file=str(output_file),
+        science_report_file=str(report_file),
+        science_fixes=science_fixes,
+    )
+
+    updated = yaml.safe_load(output_file.read_text(encoding="utf-8"))
+    report = report_file.read_text(encoding="utf-8")
+
+    updated_tsfc = updated["sites"][0]["initial_states"]["paved"]["tsfc"]["value"]
+    expected_tsfc = 15.5 if expect_mutation else 0.0
+
+    assert updated_tsfc == expected_tsfc
+    assert expected_section in report
+    assert unexpected_section not in report
+
+
+def test_phase_b_report_uses_review_and_suggestion_sections():
+    from supy.data_model.validation.pipeline.phase_b import (
+        ScienceSuggestion,
+        ValidationResult,
+        create_science_report,
+    )
+
+    report = create_science_report(
+        validation_results=[
+            ValidationResult(
+                status="WARNING",
+                category="GEOGRAPHY",
+                parameter="timezone",
+                message="Review timezone choice",
+            )
+        ],
+        adjustments=[],
+        suggestions=[
+            ScienceSuggestion(
+                parameter="snowalb",
+                old_value=0.8,
+                suggested_value=None,
+                message="Seasonal initialisation suggestion",
+                source="Seasonal snow-albedo initialisation heuristic.",
+            )
+        ],
+    )
+
+    assert "## REVIEW ADVISED" in report
+    assert "## SUGGESTED UPDATES" in report
+    assert "## NO ACTION NEEDED" not in report
+
+
+def test_phase_b_structured_result_and_rule_order():
+    from supy.data_model.validation.pipeline.phase_b_rules import (
+        DEFAULT_RULE_ORDER,
+        RulesRegistry,
+        ValidationResult,
+    )
+
+    result = ValidationResult(
+        status="warning",
+        category="LAND_COVER",
+        parameter="land_cover.paved.sfr",
+        message="Review surface fractions",
+    )
+    payload = result.to_dict()
+
+    assert payload["severity"] == "WARNING"
+    assert payload["path"] == "land_cover.paved.sfr"
+    assert payload["code"] == "LAND_COVER.LAND_COVER_PAVED_SFR"
+
+    ordered_rule_names = [name for name, _ in RulesRegistry().ordered_rule_items()]
+    expected_prefix = [
+        name for name in DEFAULT_RULE_ORDER if name in RulesRegistry.rules
+    ]
+    assert ordered_rule_names[: len(expected_prefix)] == expected_prefix
+
+
+def test_supy_validation_backward_compatibility_warns():
+    import supy.validation as legacy_validation
+
+    with pytest.warns(DeprecationWarning):
+        result = legacy_validation.validate_suews_config_conditional(
+            {"model": {"physics": {}}, "sites": []}
+        )
+
+    assert result["errors"] == result.errors
+    assert "errors" in result.to_dict()
+
+
+def test_suews_validate_help_exposes_science_fixes(cli_runner):
+    from supy.cmd.validate_config import cli as validate_cli
+
+    result = cli_runner.invoke(validate_cli, ["--help"])
+
+    assert result.exit_code == 0
+    assert "--science-fixes" in result.output

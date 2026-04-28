@@ -8,8 +8,8 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <meta property="article:modified_time" content="2025-11-20T13:50:51+00:00" />
-    <title>4.6. Validation Tool Reference &#8212; SUEWS 2026.4.27.dev9024 documentation</title>
+    <meta property="article:modified_time" content="2026-04-28T21:36:42+00:00" />
+    <title>4.6. Validation Tool Reference &#8212; SUEWS 2026.4.28.dev9026 documentation</title>
   
   
   
@@ -45,7 +45,7 @@
   <link rel="preload" as="script" href="../../_static/scripts/bootstrap.js?digest=8878045cc6db502f8baf" />
 <link rel="preload" as="script" href="../../_static/scripts/pydata-sphinx-theme.js?digest=8878045cc6db502f8baf" />
 
-    <script src="../../_static/documentation_options.js?v=27683e60"></script>
+    <script src="../../_static/documentation_options.js?v=9266693e"></script>
     <script src="../../_static/doctools.js?v=9bcbadda"></script>
     <script src="../../_static/sphinx_highlight.js?v=dc90522c"></script>
     <script src="../../_static/scripts/sphinx-book-theme.js?v=fab101a9"></script>
@@ -59,8 +59,8 @@
     <link rel="prev" title="4.5. Transitioning to YAML-based Configuration" href="../transition_guide.html" />
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
-  <meta name="docsearch:version" content="2026.4.27.dev9024" />
-    <meta name="docbuild:last-update" content="2025-11-20"/>
+  <meta name="docsearch:version" content="2026.4.28.dev9026" />
+    <meta name="docbuild:last-update" content="2026-04-28"/>
   </head>
   
   
@@ -102,7 +102,7 @@
   <div class="bd-header-announcement__content">
     <div style="background-color: #f0ad4e; border: 1px solid #eea236; border-radius: 4px; padding: 10px; margin: 10px 0;">
         <strong>⚠️ Development Version:</strong> This documentation was built from a development version
-        (2026.4.27.dev9024, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/8e2e80bb291eb4badc614fce955902bec6e844ac" style="color: #31708f;">8e2e80b</a>).
+        (2026.4.28.dev9026, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/c8ed03c0cb4d3c2efabd3151ee40cdf229d76cdd" style="color: #31708f;">c8ed03c</a>).
         Features described here may be unstable or subject to change. For stable documentation, please visit the
         <a href="https://docs.suews.io/stable/" style="color: #31708f;">latest release</a>.
     </div>
@@ -149,8 +149,8 @@
       
     
     
-    <img src="../../_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.4.27.dev9024 documentation - Home"/>
-    <img src="../../_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.4.27.dev9024 documentation - Home"/>
+    <img src="../../_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.4.28.dev9026 documentation - Home"/>
+    <img src="../../_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.4.28.dev9026 documentation - Home"/>
   
   
 </a></div>
@@ -595,15 +595,16 @@
                 <ul class="visible nav section-nav flex-column">
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#what-the-validator-does">4.6.1. What the Validator Does</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#basic-usage">4.6.2. Basic Usage</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#output-files">4.6.3. Output Files</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#understanding-reports">4.6.4. Understanding Reports</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#exit-codes">4.6.5. Exit Codes</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#ci-cd-integration">4.6.6. CI/CD Integration</a><ul class="nav section-nav flex-column">
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#github-actions-example">4.6.6.1. GitHub Actions Example</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#batch-processing">4.6.6.2. Batch Processing</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#phase-b-scientific-fix-policy">4.6.3. Phase B Scientific Fix Policy</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#output-files">4.6.4. Output Files</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#understanding-reports">4.6.5. Understanding Reports</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#exit-codes">4.6.6. Exit Codes</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#json-output">4.6.7. JSON Output</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#ci-cd-integration">4.6.8. CI/CD Integration</a><ul class="nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#batch-processing">4.6.8.1. Batch Processing</a></li>
 </ul>
 </li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#troubleshooting">4.6.7. Troubleshooting</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#troubleshooting">4.6.9. Troubleshooting</a></li>
 </ul>
             </nav>
         </div>
@@ -625,22 +626,37 @@
 </div>
 <section id="validation-tool-reference">
 <span id="validation"></span><h1><span class="section-number">4.6. </span>Validation Tool Reference<a class="headerlink" href="#validation-tool-reference" title="Link to this heading">#</a></h1>
-<p>The <code class="docutils literal notranslate"><span class="pre">suews-validate</span></code> command is a comprehensive validation system that automatically checks and updates SUEWS YAML configuration files. It ensures your configuration is complete, scientifically valid, and compatible with the SUEWS model.</p>
+<p>The <code class="docutils literal notranslate"><span class="pre">suews-validate</span></code> command checks SUEWS YAML configuration files and writes
+an updated YAML file plus a validation report. It is a validator first: structural
+updates are applied where they are mechanical, while scientific initialisation
+changes are only applied when explicitly requested.</p>
 <section id="what-the-validator-does">
 <h2><span class="section-number">4.6.1. </span>What the Validator Does<a class="headerlink" href="#what-the-validator-does" title="Link to this heading">#</a></h2>
-<p>The validation system performs multiple checks on your configuration:</p>
+<p>The validation system performs three groups of checks:</p>
 <ul class="simple">
-<li><p><strong>Completeness Check</strong>: Detects missing parameters, updates deprecated parameter names to current standards and validates forcing data (see <a class="reference internal" href="../forcing-data.html"><span class="doc">Meteorological Forcing Data</span></a> for detailed reference on forcing data validation)</p></li>
-<li><p><strong>Scientific Validation</strong>: Applies automatic scientific corrections and validates physics options compatibility</p></li>
-<li><p><strong>Model Compatibility</strong>: Ensures configuration compatibility with SUEWS computational engine</p></li>
+<li><p><strong>Completeness check</strong>: detects missing parameters, updates deprecated parameter
+names to current snake_case names, and validates forcing data (see
+<a class="reference internal" href="../forcing-data.html"><span class="doc">Meteorological Forcing Data</span></a> for forcing data validation details).</p></li>
+<li><p><strong>Scientific validation</strong>: checks physics options, land-cover fractions,
+geography, irrigation, STEBBS, radiation, albedo, emissivity, and forcing-height
+consistency. Scientific initialisation transformations are suggestions by
+default.</p></li>
+<li><p><strong>Model compatibility</strong>: validates the resulting configuration against the
+SUEWS data model.</p></li>
 </ul>
 </section>
 <section id="basic-usage">
 <h2><span class="section-number">4.6.2. </span>Basic Usage<a class="headerlink" href="#basic-usage" title="Link to this heading">#</a></h2>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="c1"># Validate and fix configuration (creates corrected file)</span>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="c1"># Validate configuration and write updated_config.yml plus report_config.txt</span>
 suews-validate<span class="w"> </span>config.yml
 
-<span class="c1"># Check configuration without making changes</span>
+<span class="c1"># Apply Phase B scientific initialisation updates to the output YAML</span>
+suews-validate<span class="w"> </span>--science-fixes<span class="w"> </span>apply<span class="w"> </span>config.yml
+
+<span class="c1"># Run Phase B scientific checks without suggestions or scientific updates</span>
+suews-validate<span class="w"> </span>--science-fixes<span class="w"> </span>off<span class="w"> </span>config.yml
+
+<span class="c1"># Check configuration without writing files</span>
 suews-validate<span class="w"> </span>validate<span class="w"> </span>config.yml
 
 <span class="c1"># Check without writing files (read-only validation)</span>
@@ -648,84 +664,103 @@ suews-validate<span class="w"> </span>--dry-run<span class="w"> </span>config.ym
 </pre></div>
 </div>
 <p>For complete usage options and advanced features, use:</p>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="c1"># View all available options and commands</span>
-suews-validate<span class="w"> </span>--help
-
-<span class="c1"># View help for specific subcommands</span>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>suews-validate<span class="w"> </span>--help
 suews-validate<span class="w"> </span>validate<span class="w"> </span>--help
 suews-validate<span class="w"> </span>migrate<span class="w"> </span>--help
 suews-validate<span class="w"> </span>version<span class="w"> </span>--help
 </pre></div>
 </div>
 </section>
+<section id="phase-b-scientific-fix-policy">
+<h2><span class="section-number">4.6.3. </span>Phase B Scientific Fix Policy<a class="headerlink" href="#phase-b-scientific-fix-policy" title="Link to this heading">#</a></h2>
+<p><code class="docutils literal notranslate"><span class="pre">--science-fixes</span></code> controls transformations that can change scientific or
+user-provided values:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">suggest</span></code> (default): report CRU-derived initial temperatures, annual/monthly
+temperature metrics, DLS/timezone, deciduous LAI seasonality, vegetation albedo,
+snow albedo nullification, CO2/STEBBS nullification, setpoint/profile cleanup,
+WWR-dependent nullification, and small land-cover fraction normalisation as
+suggested updates. They are not written to YAML.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">apply</span></code>: apply the same transformations to the output YAML and record each
+change under <strong>APPLIED UPDATES</strong>.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">off</span></code>: run scientific validation checks only. No scientific transformation
+suggestions are collected or applied.</p></li>
+</ul>
+<p>Climatology-derived values are initialisation suggestions, not scientific truth.
+They may be inappropriate for observed initial states, spin-up workflows,
+historical timezone settings, or specialist case studies.</p>
+</section>
 <section id="output-files">
-<h2><span class="section-number">4.6.3. </span>Output Files<a class="headerlink" href="#output-files" title="Link to this heading">#</a></h2>
+<h2><span class="section-number">4.6.4. </span>Output Files<a class="headerlink" href="#output-files" title="Link to this heading">#</a></h2>
 <p>When you run <code class="docutils literal notranslate"><span class="pre">suews-validate</span> <span class="pre">config.yml</span></code>, it creates:</p>
-<p><strong>Final Files (ready to use):</strong>
-- <code class="docutils literal notranslate"><span class="pre">updated_config.yml</span></code> - Your corrected configuration (ready to use with SUEWS)
-- <code class="docutils literal notranslate"><span class="pre">report_config.txt</span></code> - Consolidated validation report showing all changes</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">updated_config.yml</span></code> - the updated configuration from the last successful
+validation phase</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">report_config.txt</span></code> - the consolidated validation report</p></li>
+</ul>
 </section>
 <section id="understanding-reports">
-<h2><span class="section-number">4.6.4. </span>Understanding Reports<a class="headerlink" href="#understanding-reports" title="Link to this heading">#</a></h2>
-<p>The validation report provides comprehensive details about every change made to your configuration.</p>
+<h2><span class="section-number">4.6.5. </span>Understanding Reports<a class="headerlink" href="#understanding-reports" title="Link to this heading">#</a></h2>
+<p>Reports use stable action sections:</p>
+<ul class="simple">
+<li><p><strong>ACTION NEEDED</strong>: blocking validation errors that must be fixed before the
+configuration can be used.</p></li>
+<li><p><strong>REVIEW ADVISED</strong>: warnings that are not blockers but should be reviewed.</p></li>
+<li><p><strong>SUGGESTED UPDATES</strong>: scientific initialisation changes proposed by Phase B
+when <code class="docutils literal notranslate"><span class="pre">--science-fixes</span> <span class="pre">suggest</span></code> is used.</p></li>
+<li><p><strong>APPLIED UPDATES</strong>: structural updates and any scientific transformations
+applied because <code class="docutils literal notranslate"><span class="pre">--science-fixes</span> <span class="pre">apply</span></code> was selected.</p></li>
+<li><p><strong>INFO</strong>: non-blocking notes and successful validation summaries.</p></li>
+</ul>
+<p>Example excerpt:</p>
 <div class="highlight-text notranslate"><div class="highlight"><pre><span></span># SUEWS Validation Report
 # ==================================================
 # Mode: Public
 # ==================================================
 
 ## ACTION NEEDED
-- Found (3) forcing data validation error(s):
--- In &#39;forcing_data.txt&#39;: Wind speed (`U`) must be &gt;= 0.01 m/s to avoid division by zero errors in atmospheric calculations. 1 values below 0.01 m/s found at line(s): [670]
--- In &#39;forcing_data.txt&#39;: `rh` should be between [0.0001, 105] but 25 outliers are found at line(s): [5, 118, 156, 157, ...]
--- In &#39;forcing_data.txt&#39;: `kdown` should be between [0, 1400] but 6 outliers are found at line(s): [176, 406, 655, 693, 847, 1558]
-   Required fix: Review and correct forcing data file.
-   Suggestion: You may want to plot the time series of your input data.
-
-Note: Line numbers refer to actual lines in the forcing .txt file (including header)
-Note: When multiple forcing files are provided, all files are validated and errors include the filename
-
 - Found (1) critical missing parameter(s):
--- netradiationmethod has been added to updated YAML and set to null
-   Location: model.physics.netradiationmethod
+-- net_radiation has been added to updated YAML and set to null
+   Location: model.physics.net_radiation
 
-## NO ACTION NEEDED
-- Updated (3) optional missing parameter(s) with null values:
--- holiday added to updated YAML and set to null
--- wetthresh added to updated YAML and set to null
--- roughlenmommethod added to updated YAML and set to null
+## REVIEW ADVISED
+- Review (1) scientific warning(s):
+-- forcing_height at site [1]: Measurement height is close to roof level.
 
-- Updated (2) renamed parameter(s):
--- diagmethod changed to rslmethod
+## SUGGESTED UPDATES
+- Suggested (3) scientific initialisation update(s).
+- These suggestions were not written to YAML. They may be inappropriate for observed initial states, spin-up workflows, historical timezone settings, or specialist case studies.
+-- initial_states.paved at site [1]: temperature, tsfc, tin -&gt; 12.4 C (Set from CRU data for coordinates (51.51, -0.13) for month 1. Source: CRU TS climatology-derived initialisation heuristic.)
+-- anthropogenic_emissions.startdls at site [1]: 0 -&gt; 86 (Calculated DLS start for coordinates (51.51, -0.13). Source: Timezone and daylight-saving calculation from site coordinates.)
+
+## APPLIED UPDATES
+- Updated (2) renamed parameter(s) to current standards:
+-- diagmethod changed to roughness_sublayer
 -- cp changed to rho_cp
-
-- Updated (7) parameter(s):
--- initial_states.paved: temperature, tsfc, tin → 12.4°C (Set from CRU data for coordinates (51.51, -0.13) for month 1)
--- initial_states.bldgs: temperature, tsfc, tin → 12.4°C (Set from CRU data for coordinates (51.51, -0.13) for month 1)
--- anthropogenic_emissions.startdls: 15.0 → 86 (Calculated DLS start for coordinates (51.51, -0.13))
 
 # ==================================================
 </pre></div>
 </div>
-<p><strong>Report Structure:</strong></p>
-<p>The report is organised into two main sections:</p>
-<ul class="simple">
-<li><p><strong>NO ACTION NEEDED</strong>: Changes that were automatically applied to your configuration and warnings. These are informational and require no further action from you.</p></li>
-<li><p><strong>ACTION NEEDED</strong>: Critical issues that require your attention before the configuration can be used.</p></li>
-</ul>
 </section>
 <section id="exit-codes">
-<h2><span class="section-number">4.6.5. </span>Exit Codes<a class="headerlink" href="#exit-codes" title="Link to this heading">#</a></h2>
+<h2><span class="section-number">4.6.6. </span>Exit Codes<a class="headerlink" href="#exit-codes" title="Link to this heading">#</a></h2>
 <p>For scripting and CI/CD:</p>
 <ul class="simple">
-<li><p><code class="docutils literal notranslate"><span class="pre">0</span></code> - Configuration is valid (or was successfully fixed)</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">1</span></code> - Validation failed (manual fixes needed)</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">2</span></code> - Invalid command or file not found</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">0</span></code> - configuration is valid, including configurations with warnings or
+suggestions</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">1</span></code> - blocking validation errors were found</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">2</span></code> - command usage or file errors</p></li>
 </ul>
 </section>
+<section id="json-output">
+<h2><span class="section-number">4.6.7. </span>JSON Output<a class="headerlink" href="#json-output" title="Link to this heading">#</a></h2>
+<p>JSON output exposes separate issue arrays with stable fields:
+<code class="docutils literal notranslate"><span class="pre">errors</span></code>, <code class="docutils literal notranslate"><span class="pre">warnings</span></code>, <code class="docutils literal notranslate"><span class="pre">suggestions</span></code>, <code class="docutils literal notranslate"><span class="pre">applied_fixes</span></code>, and <code class="docutils literal notranslate"><span class="pre">info</span></code>.
+Each issue includes <code class="docutils literal notranslate"><span class="pre">code</span></code>, <code class="docutils literal notranslate"><span class="pre">severity</span></code>, <code class="docutils literal notranslate"><span class="pre">path</span></code>, <code class="docutils literal notranslate"><span class="pre">site_gridid</span></code>,
+<code class="docutils literal notranslate"><span class="pre">message</span></code>, <code class="docutils literal notranslate"><span class="pre">suggested_value</span></code>, and <code class="docutils literal notranslate"><span class="pre">source</span></code> where available.</p>
+</section>
 <section id="ci-cd-integration">
-<h2><span class="section-number">4.6.6. </span>CI/CD Integration<a class="headerlink" href="#ci-cd-integration" title="Link to this heading">#</a></h2>
-<section id="github-actions-example">
-<h3><span class="section-number">4.6.6.1. </span>GitHub Actions Example<a class="headerlink" href="#github-actions-example" title="Link to this heading">#</a></h3>
+<h2><span class="section-number">4.6.8. </span>CI/CD Integration<a class="headerlink" href="#ci-cd-integration" title="Link to this heading">#</a></h2>
 <div class="highlight-yaml notranslate"><div class="highlight"><pre><span></span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Validate SUEWS Configuration</span>
 <span class="w">  </span><span class="nt">run</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">|</span>
 <span class="w">    </span><span class="no">suews-validate validate config.yml --format json &gt; results.json</span>
@@ -735,16 +770,14 @@ Note: When multiple forcing files are provided, all files are validated and erro
 <span class="w">    </span><span class="no">fi</span>
 </pre></div>
 </div>
-</section>
 <section id="batch-processing">
-<h3><span class="section-number">4.6.6.2. </span>Batch Processing<a class="headerlink" href="#batch-processing" title="Link to this heading">#</a></h3>
+<h3><span class="section-number">4.6.8.1. </span>Batch Processing<a class="headerlink" href="#batch-processing" title="Link to this heading">#</a></h3>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="ch">#!/bin/bash</span>
-<span class="c1"># Validate all configurations</span>
 <span class="k">for</span><span class="w"> </span>config<span class="w"> </span><span class="k">in</span><span class="w"> </span>configs/*.yml<span class="p">;</span><span class="w"> </span><span class="k">do</span>
 <span class="w">    </span><span class="k">if</span><span class="w"> </span>suews-validate<span class="w"> </span>validate<span class="w"> </span><span class="s2">&quot;</span><span class="nv">$config</span><span class="s2">&quot;</span><span class="w"> </span>--quiet<span class="p">;</span><span class="w"> </span><span class="k">then</span>
-<span class="w">        </span><span class="nb">echo</span><span class="w"> </span><span class="s2">&quot;✓ </span><span class="nv">$config</span><span class="s2">&quot;</span>
+<span class="w">        </span><span class="nb">echo</span><span class="w"> </span><span class="s2">&quot;OK </span><span class="nv">$config</span><span class="s2">&quot;</span>
 <span class="w">    </span><span class="k">else</span>
-<span class="w">        </span><span class="nb">echo</span><span class="w"> </span><span class="s2">&quot;✗ </span><span class="nv">$config</span><span class="s2"> - needs attention&quot;</span>
+<span class="w">        </span><span class="nb">echo</span><span class="w"> </span><span class="s2">&quot;FAILED </span><span class="nv">$config</span><span class="s2"> - needs attention&quot;</span>
 <span class="w">    </span><span class="k">fi</span>
 <span class="k">done</span>
 </pre></div>
@@ -752,21 +785,19 @@ Note: When multiple forcing files are provided, all files are validated and erro
 </section>
 </section>
 <section id="troubleshooting">
-<h2><span class="section-number">4.6.7. </span>Troubleshooting<a class="headerlink" href="#troubleshooting" title="Link to this heading">#</a></h2>
+<h2><span class="section-number">4.6.9. </span>Troubleshooting<a class="headerlink" href="#troubleshooting" title="Link to this heading">#</a></h2>
 <dl class="simple">
 <dt><strong>“Command not found”</strong></dt><dd><p>Install SuPy: <code class="docutils literal notranslate"><span class="pre">pip</span> <span class="pre">install</span> <span class="pre">supy</span></code></p>
 </dd>
-<dt><strong>“File not found”</strong></dt><dd><p>Check the file path and ensure the file exists</p>
+<dt><strong>“File not found”</strong></dt><dd><p>Check the file path and ensure the file exists.</p>
 </dd>
-<dt><strong>“Validation failed after fixes”</strong></dt><dd><p>Some issues need manual intervention. Check the <strong>ACTION NEEDED</strong> section in <code class="docutils literal notranslate"><span class="pre">report_config.txt</span></code> for specific issues requiring your attention.</p>
+<dt><strong>“Validation failed after updates”</strong></dt><dd><p>Some issues need manual intervention. Check the <strong>ACTION NEEDED</strong> section in
+<code class="docutils literal notranslate"><span class="pre">report_config.txt</span></code>.</p>
 </dd>
-<dt><strong>“Unknown parameter”</strong></dt><dd><p>You may have a typo or be using an outdated configuration format. The validator will suggest corrections for renamed parameters.</p>
+<dt><strong>“Unknown parameter”</strong></dt><dd><p>You may have a typo or be using an outdated configuration format. The
+validator reports renamed parameters using current snake_case names.</p>
 </dd>
 </dl>
-<p>For more detailed usage examples and advanced options, always refer to:</p>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>suews-validate<span class="w"> </span>--help
-</pre></div>
-</div>
 </section>
 </section>
 
@@ -819,15 +850,16 @@ Note: When multiple forcing files are provided, all files are validated and erro
     <ul class="visible nav section-nav flex-column">
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#what-the-validator-does">4.6.1. What the Validator Does</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#basic-usage">4.6.2. Basic Usage</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#output-files">4.6.3. Output Files</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#understanding-reports">4.6.4. Understanding Reports</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#exit-codes">4.6.5. Exit Codes</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#ci-cd-integration">4.6.6. CI/CD Integration</a><ul class="nav section-nav flex-column">
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#github-actions-example">4.6.6.1. GitHub Actions Example</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#batch-processing">4.6.6.2. Batch Processing</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#phase-b-scientific-fix-policy">4.6.3. Phase B Scientific Fix Policy</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#output-files">4.6.4. Output Files</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#understanding-reports">4.6.5. Understanding Reports</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#exit-codes">4.6.6. Exit Codes</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#json-output">4.6.7. JSON Output</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#ci-cd-integration">4.6.8. CI/CD Integration</a><ul class="nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#batch-processing">4.6.8.1. Batch Processing</a></li>
 </ul>
 </li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#troubleshooting">4.6.7. Troubleshooting</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#troubleshooting">4.6.9. Troubleshooting</a></li>
 </ul>
   </nav></div>
 
@@ -861,7 +893,7 @@ By SUEWS dev team led by Prof Sue Grimmond
   
   <div class="footer-item">
     <p class="last-updated">
-  Last updated on 2025-11-20.
+  Last updated on 2026-04-28.
   <br/>
 </p>
   </div>
@@ -869,8 +901,8 @@ By SUEWS dev team led by Prof Sue Grimmond
   <div class="footer-item">
     
 <div class="extra_footer">
-  <p>Version: 2026.4.27.dev9024 |
-    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/8e2e80bb291eb4badc614fce955902bec6e844ac">8e2e80b</a> |
+  <p>Version: 2026.4.28.dev9026 |
+    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/c8ed03c0cb4d3c2efabd3151ee40cdf229d76cdd">c8ed03c</a> |
     <a href="https://umep-dev.github.io/SUEWS/brand/showcase.html">Brand</a></p>
 </div>
   </div>

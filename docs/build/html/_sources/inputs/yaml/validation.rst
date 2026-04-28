@@ -3,26 +3,41 @@
 Validation Tool Reference
 =========================
 
-The ``suews-validate`` command is a comprehensive validation system that automatically checks and updates SUEWS YAML configuration files. It ensures your configuration is complete, scientifically valid, and compatible with the SUEWS model.
+The ``suews-validate`` command checks SUEWS YAML configuration files and writes
+an updated YAML file plus a validation report. It is a validator first: structural
+updates are applied where they are mechanical, while scientific initialisation
+changes are only applied when explicitly requested.
 
 What the Validator Does
 -----------------------
 
-The validation system performs multiple checks on your configuration:
+The validation system performs three groups of checks:
 
-- **Completeness Check**: Detects missing parameters, updates deprecated parameter names to current standards and validates forcing data (see :doc:`/inputs/forcing-data` for detailed reference on forcing data validation)
-- **Scientific Validation**: Applies automatic scientific corrections and validates physics options compatibility
-- **Model Compatibility**: Ensures configuration compatibility with SUEWS computational engine
+- **Completeness check**: detects missing parameters, updates deprecated parameter
+  names to current snake_case names, and validates forcing data (see
+  :doc:`/inputs/forcing-data` for forcing data validation details).
+- **Scientific validation**: checks physics options, land-cover fractions,
+  geography, irrigation, STEBBS, radiation, albedo, emissivity, and forcing-height
+  consistency. Scientific initialisation transformations are suggestions by
+  default.
+- **Model compatibility**: validates the resulting configuration against the
+  SUEWS data model.
 
 Basic Usage
 -----------
 
 .. code-block:: bash
 
-    # Validate and fix configuration (creates corrected file)
+    # Validate configuration and write updated_config.yml plus report_config.txt
     suews-validate config.yml
 
-    # Check configuration without making changes
+    # Apply Phase B scientific initialisation updates to the output YAML
+    suews-validate --science-fixes apply config.yml
+
+    # Run Phase B scientific checks without suggestions or scientific updates
+    suews-validate --science-fixes off config.yml
+
+    # Check configuration without writing files
     suews-validate validate config.yml
 
     # Check without writing files (read-only validation)
@@ -32,27 +47,55 @@ For complete usage options and advanced features, use:
 
 .. code-block:: bash
 
-    # View all available options and commands
     suews-validate --help
-
-    # View help for specific subcommands
     suews-validate validate --help
     suews-validate migrate --help
     suews-validate version --help
+
+Phase B Scientific Fix Policy
+-----------------------------
+
+``--science-fixes`` controls transformations that can change scientific or
+user-provided values:
+
+- ``suggest`` (default): report CRU-derived initial temperatures, annual/monthly
+  temperature metrics, DLS/timezone, deciduous LAI seasonality, vegetation albedo,
+  snow albedo nullification, CO2/STEBBS nullification, setpoint/profile cleanup,
+  WWR-dependent nullification, and small land-cover fraction normalisation as
+  suggested updates. They are not written to YAML.
+- ``apply``: apply the same transformations to the output YAML and record each
+  change under **APPLIED UPDATES**.
+- ``off``: run scientific validation checks only. No scientific transformation
+  suggestions are collected or applied.
+
+Climatology-derived values are initialisation suggestions, not scientific truth.
+They may be inappropriate for observed initial states, spin-up workflows,
+historical timezone settings, or specialist case studies.
 
 Output Files
 ------------
 
 When you run ``suews-validate config.yml``, it creates:
 
-**Final Files (ready to use):**
-- ``updated_config.yml`` - Your corrected configuration (ready to use with SUEWS)
-- ``report_config.txt`` - Consolidated validation report showing all changes
+- ``updated_config.yml`` - the updated configuration from the last successful
+  validation phase
+- ``report_config.txt`` - the consolidated validation report
 
 Understanding Reports
 ---------------------
 
-The validation report provides comprehensive details about every change made to your configuration. 
+Reports use stable action sections:
+
+- **ACTION NEEDED**: blocking validation errors that must be fixed before the
+  configuration can be used.
+- **REVIEW ADVISED**: warnings that are not blockers but should be reviewed.
+- **SUGGESTED UPDATES**: scientific initialisation changes proposed by Phase B
+  when ``--science-fixes suggest`` is used.
+- **APPLIED UPDATES**: structural updates and any scientific transformations
+  applied because ``--science-fixes apply`` was selected.
+- **INFO**: non-blocking notes and successful validation summaries.
+
+Example excerpt:
 
 .. code-block:: text
 
@@ -62,60 +105,47 @@ The validation report provides comprehensive details about every change made to 
     # ==================================================
 
     ## ACTION NEEDED
-    - Found (3) forcing data validation error(s):
-    -- In 'forcing_data.txt': Wind speed (`U`) must be >= 0.01 m/s to avoid division by zero errors in atmospheric calculations. 1 values below 0.01 m/s found at line(s): [670]
-    -- In 'forcing_data.txt': `rh` should be between [0.0001, 105] but 25 outliers are found at line(s): [5, 118, 156, 157, ...]
-    -- In 'forcing_data.txt': `kdown` should be between [0, 1400] but 6 outliers are found at line(s): [176, 406, 655, 693, 847, 1558]
-       Required fix: Review and correct forcing data file.
-       Suggestion: You may want to plot the time series of your input data.
-
-    Note: Line numbers refer to actual lines in the forcing .txt file (including header)
-    Note: When multiple forcing files are provided, all files are validated and errors include the filename
-
     - Found (1) critical missing parameter(s):
-    -- netradiationmethod has been added to updated YAML and set to null
-       Location: model.physics.netradiationmethod
+    -- net_radiation has been added to updated YAML and set to null
+       Location: model.physics.net_radiation
 
-    ## NO ACTION NEEDED
-    - Updated (3) optional missing parameter(s) with null values:
-    -- holiday added to updated YAML and set to null
-    -- wetthresh added to updated YAML and set to null
-    -- roughlenmommethod added to updated YAML and set to null
+    ## REVIEW ADVISED
+    - Review (1) scientific warning(s):
+    -- forcing_height at site [1]: Measurement height is close to roof level.
 
-    - Updated (2) renamed parameter(s):
-    -- diagmethod changed to rslmethod
+    ## SUGGESTED UPDATES
+    - Suggested (3) scientific initialisation update(s).
+    - These suggestions were not written to YAML. They may be inappropriate for observed initial states, spin-up workflows, historical timezone settings, or specialist case studies.
+    -- initial_states.paved at site [1]: temperature, tsfc, tin -> 12.4 C (Set from CRU data for coordinates (51.51, -0.13) for month 1. Source: CRU TS climatology-derived initialisation heuristic.)
+    -- anthropogenic_emissions.startdls at site [1]: 0 -> 86 (Calculated DLS start for coordinates (51.51, -0.13). Source: Timezone and daylight-saving calculation from site coordinates.)
+
+    ## APPLIED UPDATES
+    - Updated (2) renamed parameter(s) to current standards:
+    -- diagmethod changed to roughness_sublayer
     -- cp changed to rho_cp
 
-    - Updated (7) parameter(s):
-    -- initial_states.paved: temperature, tsfc, tin → 12.4°C (Set from CRU data for coordinates (51.51, -0.13) for month 1)
-    -- initial_states.bldgs: temperature, tsfc, tin → 12.4°C (Set from CRU data for coordinates (51.51, -0.13) for month 1)
-    -- anthropogenic_emissions.startdls: 15.0 → 86 (Calculated DLS start for coordinates (51.51, -0.13))
-
     # ==================================================
-
-**Report Structure:**
-
-The report is organised into two main sections:
-
-- **NO ACTION NEEDED**: Changes that were automatically applied to your configuration and warnings. These are informational and require no further action from you. 
-
-- **ACTION NEEDED**: Critical issues that require your attention before the configuration can be used. 
-
 
 Exit Codes
 ----------
 
 For scripting and CI/CD:
 
-- ``0`` - Configuration is valid (or was successfully fixed)
-- ``1`` - Validation failed (manual fixes needed)
-- ``2`` - Invalid command or file not found
+- ``0`` - configuration is valid, including configurations with warnings or
+  suggestions
+- ``1`` - blocking validation errors were found
+- ``2`` - command usage or file errors
+
+JSON Output
+-----------
+
+JSON output exposes separate issue arrays with stable fields:
+``errors``, ``warnings``, ``suggestions``, ``applied_fixes``, and ``info``.
+Each issue includes ``code``, ``severity``, ``path``, ``site_gridid``,
+``message``, ``suggested_value``, and ``source`` where available.
 
 CI/CD Integration
 -----------------
-
-GitHub Actions Example
-~~~~~~~~~~~~~~~~~~~~~~
 
 .. code-block:: yaml
 
@@ -133,12 +163,11 @@ Batch Processing
 .. code-block:: bash
 
     #!/bin/bash
-    # Validate all configurations
     for config in configs/*.yml; do
         if suews-validate validate "$config" --quiet; then
-            echo "✓ $config"
+            echo "OK $config"
         else
-            echo "✗ $config - needs attention"
+            echo "FAILED $config - needs attention"
         fi
     done
 
@@ -149,16 +178,12 @@ Troubleshooting
    Install SuPy: ``pip install supy``
 
 **"File not found"**
-   Check the file path and ensure the file exists
+   Check the file path and ensure the file exists.
 
-**"Validation failed after fixes"**
-   Some issues need manual intervention. Check the **ACTION NEEDED** section in ``report_config.txt`` for specific issues requiring your attention.
+**"Validation failed after updates"**
+   Some issues need manual intervention. Check the **ACTION NEEDED** section in
+   ``report_config.txt``.
 
 **"Unknown parameter"**
-   You may have a typo or be using an outdated configuration format. The validator will suggest corrections for renamed parameters.
-
-For more detailed usage examples and advanced options, always refer to:
-
-.. code-block:: bash
-
-    suews-validate --help
+   You may have a typo or be using an outdated configuration format. The
+   validator reports renamed parameters using current snake_case names.

@@ -281,8 +281,8 @@ bridge:
 	fi
 	@echo "Building Rust bridge CLI..."
 	cd src/suews_bridge && cargo build --release
-	@echo "Binary at: src/suews_bridge/target/release/suews"
-	@echo "Run: src/suews_bridge/target/release/suews --help"
+	@echo "Binary at: src/suews_bridge/target/release/suews-engine"
+	@echo "Run: src/suews_bridge/target/release/suews-engine --help"
 
 # Format code
 format:

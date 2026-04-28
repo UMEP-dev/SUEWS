@@ -35,7 +35,7 @@ def _find_extension_artifact(target_dir: Path) -> Path:
 
 
 def _find_cli_artifact(target_dir: Path) -> Path:
-    binary = target_dir / ("suews.exe" if os.name == "nt" else "suews")
+    binary = target_dir / ("suews-engine.exe" if os.name == "nt" else "suews-engine")
     if not binary.exists():
         raise FileNotFoundError(f"Rust bridge CLI artifact not found: {binary}")
     return binary

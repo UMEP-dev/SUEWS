@@ -412,7 +412,7 @@ class TestSampleOutput(TestCase):
         # installed package location (used by CI/cibuildwheel where the
         # binary is bundled inside supy/bin/).
         repo_root = Path(__file__).parent.parent.parent
-        dev_binary = repo_root / "src" / "suews_bridge" / "target" / "release" / "suews"
+        dev_binary = repo_root / "src" / "suews_bridge" / "target" / "release" / "suews-engine"
 
         if dev_binary.exists():
             rust_binary = dev_binary

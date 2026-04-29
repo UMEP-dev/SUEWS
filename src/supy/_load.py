@@ -131,6 +131,42 @@ dict_var_type_forcing = {
 }
 
 
+# gh#1372 -- canonical forcing column name set (Python side, 24 cols),
+# baseline-required subset, per-landcover whitelist, and surface short
+# codes. Column names are matched case-insensitively against the
+# lower-cased canonical set; the DataFrame uses the canonical (cased)
+# names below. Whitelist must stay in sync with the Rust constants in
+# src/suews_bridge/src/forcing_io.rs.
+CANONICAL_FORCING_COLUMNS: list[str] = [
+    "iy", "id", "it", "imin",
+    "qn", "qh", "qe", "qs", "qf",
+    "U", "RH", "Tair", "pres", "rain", "kdown",
+    "snow", "ldown", "fcld", "Wuh", "xsmd", "lai",
+    "kdiff", "kdir", "wdir",
+]
+BASELINE_FORCING_COLUMNS: frozenset[str] = frozenset({
+    "iy", "id", "it", "imin", "Tair", "RH", "U", "pres", "kdown", "rain",
+})
+PER_LANDCOVER_FORCING_VARS: frozenset[str] = frozenset({"lai", "xsmd"})
+LANDCOVER_SUFFIXES: tuple[str, ...] = (
+    "paved", "bldgs", "evetr", "dectr", "grass", "bsoil", "water",
+)
+FORCING_OPTIONAL_FILL: float = -999.0
+
+
+def _is_per_landcover_column(name: str) -> bool:
+    """Return True if ``name`` matches the ``<var>_<surface>`` whitelist."""
+    lowered = name.lower()
+    for var in PER_LANDCOVER_FORCING_VARS:
+        prefix = f"{var}_"
+        if not lowered.startswith(prefix):
+            continue
+        suffix = lowered[len(prefix):]
+        if suffix in LANDCOVER_SUFFIXES:
+            return True
+    return False
+
+
 ######################################################################
 # Variable type information from static metadata
 from ._var_metadata import get_df_var_info
@@ -691,56 +727,99 @@ def load_SUEWS_Forcing_met_df_raw(
 
 # caching loaded met df for better performance in initialisation
 def load_SUEWS_Forcing_met_df_pattern(path_input, file_pattern):
-    """Short summary.
+    """Load and concatenate SUEWS forcing files by *column name*.
+
+    Header row is required and is read by name. Baseline-required columns
+    raise ValueError when missing; optional canonical columns are filled
+    with -999.0; whitelisted per-landcover columns (``<var>_<surface>``,
+    ``var in {lai, xsmd}``) are preserved with their original lower-cased
+    names; unknown columns produce a UserWarning and are dropped.
 
     Parameters
     ----------
-    path_input: path-like object
-        path to SUEWS input folder, where met forcing files are placed
-
-    file_pattern : basestring
-        Description of parameter `file_pattern`.
+    path_input : path-like object
+        Path to SUEWS input folder, where met forcing files are placed.
+    file_pattern : str
+        Glob pattern to locate forcing files within ``path_input``.
 
     Returns
     -------
-    type
-        Description of returned object.
-
+    pd.DataFrame
+        Datetime-indexed DataFrame with the canonical 24-column set
+        (canonical case) plus any whitelisted per-landcover columns.
     """
-    # from dask import dataframe as dd
+    import warnings
     from pathlib import Path
     from .util._io import read_suews
 
-    # list of met forcing files
     path_input = Path(path_input).resolve()
-    # forcingfile_met_pattern = os.path.abspath(forcingfile_met_pattern)
     list_file_MetForcing = sorted([
         f for f in path_input.glob(file_pattern) if "ESTM" not in f.name
     ])
 
-    # load met data
+    # Read all files; each retains its original case-sensitive header.
     df_forcing_met = pd.concat([read_suews(fn) for fn in list_file_MetForcing])
-    # `drop_duplicates` in case some duplicates mixed
     df_forcing_met = df_forcing_met.drop_duplicates()
-    # drop `isec`: redundant for this dataframe
-    col_suews_met_forcing = list(dict_var_type_forcing.keys())[:-1]
-    # rename these columns to match variables via the driver interface
-    df_forcing_met.columns = col_suews_met_forcing
 
-    # convert unit from kPa to hPa
-    df_forcing_met["pres"] *= 10
+    # Build a lowercase -> original-case header map for case-insensitive matching.
+    header_map = {col.lower(): col for col in df_forcing_met.columns}
+    canonical_lower = {c.lower() for c in CANONICAL_FORCING_COLUMNS}
 
-    # add `isec` for WRF-SUEWS interface
-    df_forcing_met["isec"] = 0
+    # 1) Baseline-required columns must be present (case-insensitive).
+    missing_baseline = [
+        canon for canon in CANONICAL_FORCING_COLUMNS
+        if canon in BASELINE_FORCING_COLUMNS and canon.lower() not in header_map
+    ]
+    if missing_baseline:
+        raise ValueError(
+            "forcing file(s) missing required baseline columns: "
+            f"{missing_baseline}. Required baseline (case-insensitive): "
+            f"{sorted(BASELINE_FORCING_COLUMNS)}."
+        )
 
-    # set correct data types
-    df_forcing_met[["iy", "id", "it", "imin", "isec"]] = df_forcing_met[
+    # 2) Pull canonical columns out (rename to the canonical case).
+    canonical_present: dict[str, pd.Series] = {}
+    for canon in CANONICAL_FORCING_COLUMNS:
+        actual = header_map.get(canon.lower())
+        if actual is not None:
+            canonical_present[canon] = df_forcing_met[actual]
+
+    # 3) Per-landcover columns kept under their lower-cased names; unknowns warn.
+    extras_present: dict[str, pd.Series] = {}
+    for col in df_forcing_met.columns:
+        if col.lower() in canonical_lower:
+            continue
+        if _is_per_landcover_column(col):
+            extras_present[col.lower()] = df_forcing_met[col]
+        else:
+            warnings.warn(
+                f"Unknown forcing column '{col}' will be ignored.",
+                UserWarning,
+                stacklevel=2,
+            )
+
+    # 4) Assemble the canonical 24-column DataFrame; fill missing optionals.
+    n_rows = len(df_forcing_met)
+    out_cols: dict[str, np.ndarray] = {}
+    for canon in CANONICAL_FORCING_COLUMNS:
+        if canon in canonical_present:
+            out_cols[canon] = canonical_present[canon].to_numpy()
+        else:
+            out_cols[canon] = np.full(n_rows, FORCING_OPTIONAL_FILL, dtype=np.float64)
+    df_canonical = pd.DataFrame(out_cols, index=df_forcing_met.index)
+
+    # 5) Append per-landcover extras (preserved as float).
+    for name, series in extras_present.items():
+        df_canonical[name] = series.to_numpy()
+
+    # 6) Existing post-processing.
+    df_canonical["pres"] *= 10  # kPa -> hPa
+    df_canonical["isec"] = 0
+    df_canonical[["iy", "id", "it", "imin", "isec"]] = df_canonical[
         ["iy", "id", "it", "imin", "isec"]
     ].astype(np.int64)
-
-    df_forcing_met = set_index_dt(df_forcing_met)
-
-    return df_forcing_met
+    df_canonical = set_index_dt(df_canonical)
+    return df_canonical
 
 
 def load_SUEWS_Forcing_met_df_yaml(path_forcing):

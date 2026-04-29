@@ -8,8 +8,9 @@ model:
     tstep: 300
     start_time: '2012-07-01'
     end_time: '2012-07-10'
-    forcing_file:
-      value: ./forcing.txt
+    forcing:
+      file:
+        value: ./forcing.txt
     output_file:
       format: parquet
       freq: 3600

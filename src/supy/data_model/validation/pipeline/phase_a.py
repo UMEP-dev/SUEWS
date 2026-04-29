@@ -1282,10 +1282,15 @@ def validate_forcing_data(
         if not isinstance(control, dict):
             return forcing_errors, forcing_file_paths
 
-        forcing_file = control.get("forcing_file", None)
+        forcing_file = control.get("forcing_file")
+        if forcing_file is None:
+            forcing_block = control.get("forcing")
+            if isinstance(forcing_block, dict):
+                forcing_file = forcing_block.get("file")
         if forcing_file is None:
             forcing_errors.append(
-                "Forcing file path not found in model.control.forcing_file"
+                "Forcing file path not found in model.control.forcing.file "
+                "(also accepts legacy model.control.forcing_file)"
             )
             return forcing_errors, forcing_file_paths
 

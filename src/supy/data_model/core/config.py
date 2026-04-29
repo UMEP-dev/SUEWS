@@ -502,7 +502,7 @@ class SUEWSConfig(BaseModel):
         """
         # Use the helper for consistent unwrapping
         net_radiation_method_val = _unwrap_value(self.model.physics.net_radiation)
-        forcing_file_val = _unwrap_value(self.model.control.forcing_file)
+        forcing_file_val = _unwrap_value(self.model.control.forcing.file)
 
         # Check for the sample forcing file - this is still based on filename
         # TODO: Future improvement - add a flag to indicate sample forcing or check actual column presence
@@ -3573,7 +3573,7 @@ class SUEWSConfig(BaseModel):
     # @model_validator(mode="after")
     # def check_forcing(self):
     #     from .._load import load_SUEWS_Forcing_met_df_yaml
-    #     forcing = load_SUEWS_Forcing_met_df_yaml(self.model.control.forcing_file.value)
+    #     forcing = load_SUEWS_Forcing_met_df_yaml(self.model.control.forcing.file.value)
     #
     #     # Cut the forcing data to model period
     #     cut_forcing = forcing.loc[self.model.control.start_time: self.model.control.end_time]

@@ -290,9 +290,7 @@ class SUEWSSimulation:
             if hasattr(self._config, "model") and hasattr(
                 self._config.model, "control"
             ):
-                forcing_file_obj = getattr(
-                    self._config.model.control, "forcing_file", None
-                )
+                forcing_file_obj = self._config.model.control.forcing.file
 
                 if forcing_file_obj is not None:
                     # Handle RefValue wrapper

@@ -320,9 +320,9 @@ def _load_forcing_grid(
                 config = init_config_from_yaml(path=path_init)
             path_site = path_init.parent
             forcing_file_val = (
-                config.model.control.forcing_file.value
-                if hasattr(config.model.control.forcing_file, "value")
-                else config.model.control.forcing_file
+                config.model.control.forcing.file.value
+                if hasattr(config.model.control.forcing.file, "value")
+                else config.model.control.forcing.file
             )
             if isinstance(forcing_file_val, list):
                 # Handle list of files

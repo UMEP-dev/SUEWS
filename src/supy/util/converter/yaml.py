@@ -102,7 +102,7 @@ def _configure_forcing_and_output(
             rel_path = os.path.relpath(forcing_file, output_dir)
         except ValueError:
             rel_path = str(forcing_file)
-        config.model.control.forcing_file = rel_path
+        config.model.control.forcing.file = rel_path
         click.echo(
             f"  - Set forcing file to: {forcing_file} (from FileCode='{filecode}')"
         )

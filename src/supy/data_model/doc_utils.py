@@ -517,7 +517,7 @@ class ModelDocExtractor:
             "z",
             "z_meas",
             "tstep",
-            "forcing_file",
+            "forcing",
             "output_file",
             "start_time",
             "end_time",

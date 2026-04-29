@@ -450,8 +450,16 @@ class TestSampleOutput(TestCase):
             with open(tmp_config, "w") as f:
                 yaml.dump(cfg, f, default_flow_style=False, sort_keys=False)
 
-            # Symlink the forcing file so the CLI can find it
-            forcing_name = cfg["model"]["control"]["forcing_file"]
+            # Symlink the forcing file so the CLI can find it.
+            # Accept both the new model.control.forcing.file shape (gh#1372)
+            # and the legacy model.control.forcing_file shape so this test
+            # works against pre- and post-migration sample configs.
+            control = cfg["model"]["control"]
+            forcing_name = None
+            if isinstance(control.get("forcing"), dict):
+                forcing_name = control["forcing"].get("file")
+            if forcing_name is None:
+                forcing_name = control.get("forcing_file")
             if isinstance(forcing_name, dict):
                 forcing_name = forcing_name["value"]
             forcing_src = sample_dir / forcing_name

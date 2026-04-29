@@ -7,7 +7,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>supy.suews_sim &#8212; SUEWS 2026.4.29.dev9032 documentation</title>
+    <title>supy.suews_sim &#8212; SUEWS 2026.4.29.dev9035 documentation</title>
   
   
   
@@ -43,7 +43,7 @@
   <link rel="preload" as="script" href="../../_static/scripts/bootstrap.js?digest=8878045cc6db502f8baf" />
 <link rel="preload" as="script" href="../../_static/scripts/pydata-sphinx-theme.js?digest=8878045cc6db502f8baf" />
 
-    <script src="../../_static/documentation_options.js?v=8ecac494"></script>
+    <script src="../../_static/documentation_options.js?v=1bdf4645"></script>
     <script src="../../_static/doctools.js?v=9bcbadda"></script>
     <script src="../../_static/sphinx_highlight.js?v=dc90522c"></script>
     <script src="../../_static/scripts/sphinx-book-theme.js?v=fab101a9"></script>
@@ -55,7 +55,7 @@
     <link rel="search" title="Search" href="../../search.html" />
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
-  <meta name="docsearch:version" content="2026.4.29.dev9032" />
+  <meta name="docsearch:version" content="2026.4.29.dev9035" />
   </head>
   
   
@@ -97,7 +97,7 @@
   <div class="bd-header-announcement__content">
     <div style="background-color: #f0ad4e; border: 1px solid #eea236; border-radius: 4px; padding: 10px; margin: 10px 0;">
         <strong>⚠️ Development Version:</strong> This documentation was built from a development version
-        (2026.4.29.dev9032, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/dc9663f6355b82bc7b049149d7fb70280930ec31" style="color: #31708f;">dc9663f</a>).
+        (2026.4.29.dev9035, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/9575119dd498da9c56f364dd0471d8b7614397aa" style="color: #31708f;">9575119</a>).
         Features described here may be unstable or subject to change. For stable documentation, please visit the
         <a href="https://docs.suews.io/stable/" style="color: #31708f;">latest release</a>.
     </div>
@@ -146,8 +146,8 @@
       
     
     
-    <img src="../../_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.4.29.dev9032 documentation - Home"/>
-    <img src="../../_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.4.29.dev9032 documentation - Home"/>
+    <img src="../../_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.4.29.dev9035 documentation - Home"/>
+    <img src="../../_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.4.29.dev9035 documentation - Home"/>
   
   
 </a></div>
@@ -566,6 +566,15 @@
 <span class="p">]</span>  <span class="c1"># Valid forcing file extensions</span>
 
 
+<span class="k">def</span><span class="w"> </span><span class="nf">_validate_n_jobs</span><span class="p">(</span><span class="n">n_jobs</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Return a Rust worker cap for a public ``n_jobs`` value.&quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">n_jobs</span><span class="p">,</span> <span class="nb">bool</span><span class="p">)</span> <span class="ow">or</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">n_jobs</span><span class="p">,</span> <span class="nb">int</span><span class="p">):</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;n_jobs must be an integer: -1, 1, or a positive value&quot;</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">n_jobs</span> <span class="o">==</span> <span class="mi">0</span> <span class="ow">or</span> <span class="n">n_jobs</span> <span class="o">&lt;</span> <span class="o">-</span><span class="mi">1</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;n_jobs must be -1, 1, or a positive integer&quot;</span><span class="p">)</span>
+    <span class="k">return</span> <span class="kc">None</span> <span class="k">if</span> <span class="n">n_jobs</span> <span class="o">==</span> <span class="o">-</span><span class="mi">1</span> <span class="k">else</span> <span class="n">n_jobs</span>
+
+
 <div class="viewcode-block" id="SUEWSSimulation">
 <a class="viewcode-back" href="../../api/simulation.html#supy.SUEWSSimulation">[docs]</a>
 <span class="k">class</span><span class="w"> </span><span class="nc">SUEWSSimulation</span><span class="p">:</span>
@@ -788,7 +797,9 @@
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_config</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
             <span class="k">try</span><span class="p">:</span>
                 <span class="n">tstep_val</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_config</span><span class="o">.</span><span class="n">model</span><span class="o">.</span><span class="n">control</span><span class="o">.</span><span class="n">tstep</span>
-                <span class="n">tstep_mod</span> <span class="o">=</span> <span class="n">tstep_val</span><span class="o">.</span><span class="n">value</span> <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">tstep_val</span><span class="p">,</span> <span class="s2">&quot;value&quot;</span><span class="p">)</span> <span class="k">else</span> <span class="n">tstep_val</span>
+                <span class="n">tstep_mod</span> <span class="o">=</span> <span class="p">(</span>
+                    <span class="n">tstep_val</span><span class="o">.</span><span class="n">value</span> <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">tstep_val</span><span class="p">,</span> <span class="s2">&quot;value&quot;</span><span class="p">)</span> <span class="k">else</span> <span class="n">tstep_val</span>
+                <span class="p">)</span>
             <span class="k">except</span> <span class="ne">AttributeError</span><span class="p">:</span>
                 <span class="n">logger_supy</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span>
                     <span class="s2">&quot;Could not extract tstep from config; using default </span><span class="si">%d</span><span class="s2">s&quot;</span><span class="p">,</span>
@@ -968,6 +979,7 @@
         <span class="n">start_date</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
         <span class="n">end_date</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
         <span class="n">chunk_day</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">3660</span><span class="p">,</span>
+        <span class="n">n_jobs</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="o">-</span><span class="mi">1</span><span class="p">,</span>
         <span class="o">**</span><span class="n">run_kwargs</span><span class="p">,</span>
     <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">SUEWSOutput</span><span class="p">:</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
@@ -983,6 +995,10 @@
 <span class="sd">            Chunk size in days for splitting long simulations, by default 3660</span>
 <span class="sd">            (~10 years). Smaller values reduce peak memory at a small overhead</span>
 <span class="sd">            cost.</span>
+<span class="sd">        n_jobs : int, optional</span>
+<span class="sd">            Parallel worker control for multi-grid runs. ``-1`` (default) uses</span>
+<span class="sd">            Rayon default parallelism, ``1`` forces serial execution, and</span>
+<span class="sd">            values greater than ``1`` cap Rayon to that many threads.</span>
 
 <span class="sd">        Returns</span>
 <span class="sd">        -------</span>
@@ -1012,6 +1028,9 @@
                 <span class="sa">f</span><span class="s2">&quot;Only the &#39;rust&#39; backend is available. &quot;</span>
                 <span class="sa">f</span><span class="s2">&quot;Remove the backend parameter or use backend=&#39;rust&#39;.&quot;</span>
             <span class="p">)</span>
+
+        <span class="n">max_workers</span> <span class="o">=</span> <span class="n">_validate_n_jobs</span><span class="p">(</span><span class="n">n_jobs</span><span class="p">)</span>
+        <span class="n">serial_mode</span> <span class="o">=</span> <span class="n">n_jobs</span> <span class="o">==</span> <span class="mi">1</span>
 
         <span class="n">_check_rust_available</span><span class="p">()</span>
 
@@ -1089,6 +1108,8 @@
             <span class="n">config</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_config</span><span class="p">,</span>
             <span class="n">df_forcing</span><span class="o">=</span><span class="n">df_forcing_slice</span><span class="p">,</span>
             <span class="n">chunk_day</span><span class="o">=</span><span class="n">chunk_day</span><span class="p">,</span>
+            <span class="n">serial_mode</span><span class="o">=</span><span class="n">serial_mode</span><span class="p">,</span>
+            <span class="n">max_workers</span><span class="o">=</span><span class="n">max_workers</span><span class="p">,</span>
             <span class="n">initial_state_json_by_grid</span><span class="o">=</span><span class="n">initial_state_json_by_grid</span><span class="p">,</span>
         <span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_df_output</span> <span class="o">=</span> <span class="n">df_output</span>
@@ -2022,8 +2043,8 @@ By SUEWS dev team led by Prof Sue Grimmond
   <div class="footer-item">
     
 <div class="extra_footer">
-  <p>Version: 2026.4.29.dev9032 |
-    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/dc9663f6355b82bc7b049149d7fb70280930ec31">dc9663f</a> |
+  <p>Version: 2026.4.29.dev9035 |
+    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/9575119dd498da9c56f364dd0471d8b7614397aa">9575119</a> |
     <a href="https://umep-dev.github.io/SUEWS/brand/showcase.html">Brand</a></p>
 </div>
   </div>

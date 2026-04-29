@@ -1,5 +1,6 @@
 """Tests for typed SUEWS restart checkpoints."""
 
+import importlib
 import json
 from pathlib import Path
 
@@ -50,25 +51,25 @@ def test_run_stores_non_empty_checkpoint():
 
 
 def test_checkpoint_continuation_calls_rust_state_path(monkeypatch):
-    """Continuation from checkpoint uses run_suews_with_state."""
-    import supy._run_rust as rust_module
-
+    """Continuation from checkpoint uses the Rust state bridge API."""
+    rust_module = importlib.import_module("supy._run_rust")
     sim1 = SUEWSSimulation.from_sample_data()
     forcing = sim1.forcing.df.iloc[:24]
     sim1.update_forcing(forcing.iloc[:12])
     sim1.run()
 
     calls = {"count": 0}
-    original = rust_module.run_suews_rust_with_state
+    bridge_module = rust_module._check_rust_available()
+    original = bridge_module.run_suews_with_state
 
-    def wrapped_run_suews_rust_with_state(*args, **kwargs):
+    def wrapped_run_suews_with_state(*args, **kwargs):
         calls["count"] += 1
         return original(*args, **kwargs)
 
     monkeypatch.setattr(
-        rust_module,
-        "run_suews_rust_with_state",
-        wrapped_run_suews_rust_with_state,
+        bridge_module,
+        "run_suews_with_state",
+        wrapped_run_suews_with_state,
     )
 
     sim2 = SUEWSSimulation.from_checkpoint(sim1.config, sim1.checkpoint)
@@ -123,9 +124,9 @@ def test_split_run_matches_continuous_run_with_checkpoint():
 
 def test_from_checkpoint_requires_config():
     """A checkpoint alone is not enough to continue a run."""
-    checkpoint = SUEWSCheckpoint.from_grid_states(
-        {1: {"schema_version": 1, "members": {}}}
-    )
+    checkpoint = SUEWSCheckpoint.from_grid_states({
+        1: {"schema_version": 1, "members": {}}
+    })
 
     with pytest.raises(ValueError, match="requires a YAML/SUEWSConfig"):
         SUEWSSimulation.from_checkpoint(None, checkpoint)
@@ -140,12 +141,12 @@ def test_checkpoint_grid_ids_must_match_config():
     sim = SUEWSSimulation(str(config_path))
     forcing = sim.forcing.df.iloc[:12]
     sim.update_forcing(forcing)
-    checkpoint = SUEWSCheckpoint.from_grid_states(
-        {2: {"schema_version": 1, "members": {}}}
-    )
+    checkpoint = SUEWSCheckpoint.from_grid_states({
+        2: {"schema_version": 1, "members": {}}
+    })
     sim.continue_from(checkpoint)
 
-    with pytest.raises(ValueError, match="missing checkpoint states.*unexpected"):
+    with pytest.raises(ValueError, match=r"missing checkpoint states.*unexpected"):
         sim.run()
 
 

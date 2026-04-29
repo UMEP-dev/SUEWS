@@ -303,23 +303,46 @@ add information.
 A few words have multiple plausible spellings; these are the
 canonical choices.
 
-- **Layer position on a wall, roof, or surface** — use `outer` /
-  `inner`, not `external` / `internal`. `external` is reserved for
-  fields that genuinely refer to a property *external to the
-  building* (e.g. `external_ground_conductivity` for the ground
-  outside the building footprint).
-- **Layer position inside a room** — use `internal` (so a wall
-  internal surface is `wall_internal`, while the wall outer layer is
-  `wall_outer`). Yes, this means `wall_internal` and `wall_outer` can
-  both exist; they refer to different parts of the same wall.
+- **Layer vs. surface for walls / roofs / windows** — these are two
+  distinct physical concepts, and the convention preserves both:
+  - **`outer` / `inner`** for layer-resolved *bulk* properties of the
+    multilayer construction (thickness, density, conductivity,
+    specific heat capacity, heat capacity fraction). Examples:
+    `thickness_wall_outer`, `density_wall_outer`,
+    `conductivity_roof_inner`.
+  - **`external` / `internal`** for the *surface itself* — the
+    radiative or boundary-layer face of the wall, roof, or window
+    (emissivity, transmissivity, absorptivity, reflectivity).
+    Examples: `emissivity_wall_external`,
+    `transmissivity_window_internal`.
+  - The two coexist by design: a wall has both an *outer layer* (a
+    slab of material with a thickness) and an *external surface* (the
+    radiative face of that slab). They are different things and the
+    field names must reflect that.
+  - `external` also covers fields genuinely *outside the building
+    footprint* (e.g. `external_ground_conductivity` for the ground
+    beyond the building). The wall / roof / window context
+    disambiguates.
 - **Building floor at ground level** — `ground_floor` (two words),
   not `groundfloor`. Snake_case applies.
 - **Heating / cooling distinguishers** — when a STEBBS field could
-  apply to either air or water systems, use the explicit form:
-  `air_heating_setpoint_temperature`,
-  `water_heating_setpoint_temperature`,
-  `max_air_heating_power`, `max_water_heating_power`. Do not leave
-  the qualifier out.
+  apply to either air or water systems, the qualifier must be
+  explicit. Combined with Rule 2 (physical quantity first), the
+  resulting forms are:
+  - Setpoint temperatures: `temperature_air_heating_setpoint`,
+    `temperature_air_cooling_setpoint`,
+    `temperature_water_heating_setpoint`. The physical quantity is
+    `temperature`; `setpoint` is a sub-class qualifier (a target
+    temperature, as opposed to an observed or controlled one), so it
+    falls at the end. Setpoint *profiles* extend this:
+    `temperature_air_heating_setpoint_profile`.
+  - Maximum powers: `power_air_heating_max`, `power_air_cooling_max`,
+    `power_water_heating_max`. The physical quantity is `power`;
+    `max` is the sub-class qualifier. Same shape as `lai_max`,
+    `snow_density_max`, etc.
+  - Do not leave the `air_` / `water_` qualifier out — bare
+    `temperature_heating_setpoint` is ambiguous between air-system
+    and DHW-system control.
 - **`effective_` qualifier** — drop it unless the partner parameters
   for the same component (density, specific heat capacity) also use
   it. The current STEBBS use of `effective_conductivity` next to
@@ -389,6 +412,8 @@ stebbs:
       cooling_setpoint_temperature: 24.0
       max_heating_power: 8000.0
       max_cooling_power: 6000.0
+      hot_water_heating_setpoint_temperature: 55.0
+      maximum_hot_water_heating_power: 4000.0
       appliance_profile: [...]
       daylight_control: true
       internal_volume_ratio: 0.3
@@ -405,11 +430,14 @@ stebbs:
       conductivity_wall_outer: 0.6      # 'effective_' dropped
       density_wall_outer: 1800
       specific_heat_capacity_wall_outer: 920
-      emissivity_wall_internal: 0.93
-      air_heating_setpoint_temperature: 19.0
-      air_cooling_setpoint_temperature: 24.0
-      max_air_heating_power: 8000.0
-      max_air_cooling_power: 6000.0
+      emissivity_wall_external: 0.92             # surface property
+      emissivity_wall_internal: 0.93             # surface property
+      temperature_air_heating_setpoint: 19.0     # Rule 2: temperature leads
+      temperature_air_cooling_setpoint: 24.0
+      temperature_water_heating_setpoint: 55.0
+      power_air_heating_max: 8000.0              # Rule 2: power leads
+      power_air_cooling_max: 6000.0
+      power_water_heating_max: 4000.0
       profile_appliance: [...]
       control_daylight: true
       ratio_internal_volume: 0.3
@@ -419,11 +447,19 @@ Notes on the diff:
 
 - `building_name` / `building_count` / `stebbs_height` use the
   `archetype_*` namespace exception (Rule 2).
-- `wall_external_*` → `*_wall_outer` (Rule 2 + Specific tokens).
+- `wall_external_*` (bulk-material rows) → `*_wall_outer`
+  (Rule 2 + Specific tokens — `outer` for layer, distinct from
+  `external` for surface).
+- `wall_external_emissivity` → `emissivity_wall_external` (Rule 2
+  alone — surface property keeps `external`).
 - `effective_conductivity` → `conductivity` (Specific tokens).
 - `heating_setpoint_temperature` →
-  `air_heating_setpoint_temperature` to disambiguate from
-  `water_heating_setpoint_temperature` (Specific tokens).
+  `temperature_air_heating_setpoint`. Three changes at once:
+  Rule 2 puts `temperature` first; the `air_` qualifier
+  disambiguates from DHW (`temperature_water_heating_setpoint`);
+  `setpoint` becomes the trailing sub-class qualifier.
+- `max_heating_power` → `power_air_heating_max`. Rule 2 puts
+  `power` first; `max` is the sub-class qualifier.
 - `appliance_profile` → `profile_appliance` (Rule 2 —
   non-physical-quantity, category leads).
 - `daylight_control` → `control_daylight` (same reason).

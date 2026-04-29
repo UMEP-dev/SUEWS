@@ -35,3 +35,47 @@ def test_current_schema_version_bumped_for_forcing_restructure():
     desc = SCHEMA_VERSIONS["2026.5.dev7"]
     assert "forcing" in desc.lower()
     assert "1372" in desc
+
+
+def test_validate_forcing_columns_against_physics_raises_for_missing_ldown():
+    """T7: pure helper raises when net_radiation==11 and ldown is missing."""
+    from types import SimpleNamespace
+
+    from supy.data_model.core.forcing_validation import (
+        validate_forcing_columns_against_physics,
+    )
+
+    physics = SimpleNamespace(net_radiation=SimpleNamespace(value=11))
+    columns = {"iy", "id", "it", "imin", "Tair", "RH", "U", "pres", "kdown", "rain"}
+    with pytest.raises(ValueError, match=r"\bldown\b.*\bnet_radiation=11\b"):
+        validate_forcing_columns_against_physics(columns, physics)
+
+
+def test_validate_forcing_columns_against_physics_accepts_when_present():
+    """Helper is silent when required column is present."""
+    from types import SimpleNamespace
+
+    from supy.data_model.core.forcing_validation import (
+        validate_forcing_columns_against_physics,
+    )
+
+    physics = SimpleNamespace(net_radiation=SimpleNamespace(value=11))
+    columns = {
+        "iy", "id", "it", "imin", "Tair", "RH", "U", "pres", "kdown", "rain", "ldown",
+    }
+    # No exception expected.
+    validate_forcing_columns_against_physics(columns, physics)
+
+
+def test_validate_forcing_columns_against_physics_handles_plain_int_physics():
+    """Helper accepts both RefValue-wrapped and bare int physics values."""
+    from types import SimpleNamespace
+
+    from supy.data_model.core.forcing_validation import (
+        validate_forcing_columns_against_physics,
+    )
+
+    physics = SimpleNamespace(net_radiation=11)  # bare int, not RefValue
+    columns = {"iy", "id", "it", "imin", "Tair", "RH", "U", "pres", "kdown", "rain"}
+    with pytest.raises(ValueError, match=r"\bldown\b"):
+        validate_forcing_columns_against_physics(columns, physics)

@@ -525,6 +525,16 @@ class SUEWSSimulation:
             physics = getattr(self._config.model, "physics", None)
             if physics is not None and hasattr(physics, "model_dump"):
                 physics_dict = physics.model_dump(mode="python")
+            # Cross-check physics path against forcing columns (gh#1372).
+            # Helper is silent on success; raises ValueError on mismatch.
+            if physics is not None:
+                from .data_model.core.forcing_validation import (
+                    validate_forcing_columns_against_physics,
+                )
+
+                validate_forcing_columns_against_physics(
+                    set(df_forcing_slice.columns), physics
+                )
         if self._df_state_init is not None:
             from ._supy_module import _lai_bounds_from_df_state
 

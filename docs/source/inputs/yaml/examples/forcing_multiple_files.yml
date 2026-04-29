@@ -5,10 +5,11 @@
 model:
   control:
     tstep: 3600
-    forcing_file:   # List of forcing files
-      - "forcing_2020.txt"
-      - "forcing_2021.txt"
-      - "forcing_2022.txt"
+    forcing:
+      file:   # List of forcing files
+        - "forcing_2020.txt"
+        - "forcing_2021.txt"
+        - "forcing_2022.txt"
     output_file: "output_2020_2022.txt"
   physics:
     netradiationmethod: 3

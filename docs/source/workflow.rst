@@ -232,8 +232,9 @@ Modern SUEWS uses YAML configuration files that organise all model parameters in
    model:
      control:
        tstep: 300  # 5-minute time steps
-       forcing_file:
-         value: "Input/Met_Data.txt"
+       forcing:
+         file:
+           value: "Input/Met_Data.txt"
        start_date: "2015-01-01"
        end_date: "2015-12-31"
      physics:

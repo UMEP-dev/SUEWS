@@ -4,7 +4,8 @@
 model:
   control:
     tstep: 300  # 5-minute timestep
-    forcing_file: "forcing_2020.txt"
+    forcing:
+      file: "forcing_2020.txt"
     
     # Simple output configuration (backward compatible)
     # When using a simple string value, SUEWS automatically applies these defaults:

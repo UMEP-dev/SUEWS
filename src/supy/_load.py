@@ -767,6 +767,21 @@ def load_SUEWS_Forcing_met_df_pattern(path_input, file_pattern):
         for fn in list_file_MetForcing
     ])
     df_forcing_met = df_forcing_met.drop_duplicates()
+    return _apply_named_column_matching(df_forcing_met)
+
+
+def _apply_named_column_matching(df_forcing_met: pd.DataFrame) -> pd.DataFrame:
+    """Reindex a raw forcing DataFrame against canonical names (gh#1372).
+
+    Shared between :func:`load_SUEWS_Forcing_met_df_pattern` and
+    :func:`load_SUEWS_Forcing_met_df_yaml` so both entry points apply
+    the same baseline-required, sentinel-fill, per-landcover, and
+    unknown-column policies. Input is the raw concatenation of one or
+    more forcing files (header content preserved); output is the
+    canonical 24-column DataFrame plus any whitelisted per-landcover
+    columns, datetime-indexed.
+    """
+    import warnings
 
     # Build a lowercase -> original-case header map for case-insensitive matching.
     header_map = {col.lower(): col for col in df_forcing_met.columns}
@@ -831,42 +846,27 @@ def load_SUEWS_Forcing_met_df_pattern(path_input, file_pattern):
 
 def load_SUEWS_Forcing_met_df_yaml(path_forcing):
     from pathlib import Path
-    from .util._io import read_suews
 
     if isinstance(path_forcing, (str, Path)):
         path_forcing = Path(path_forcing).resolve()
         if path_forcing.is_dir():
             path_forcing = sorted(path_forcing.glob("*"))
         else:
-            df_forcing_met = read_suews(path_forcing)
+            df_forcing_met = pd.read_csv(
+                path_forcing, sep=r"\s+", comment="!", on_bad_lines="error"
+            )
     if isinstance(path_forcing, list):
         path_forcing = [Path(p).resolve() for p in path_forcing]
-        df_forcing_met = pd.concat([read_suews(fn) for fn in path_forcing])
+        df_forcing_met = pd.concat([
+            pd.read_csv(fn, sep=r"\s+", comment="!", on_bad_lines="error")
+            for fn in path_forcing
+        ])
     if not isinstance(path_forcing, (str, Path)) and not isinstance(path_forcing, list):
-        import pdb
-
-        pdb.set_trace()
-    # `drop_duplicates` in case some duplicates mixed
+        raise TypeError(
+            f"path_forcing must be a str, Path, or list — got {type(path_forcing).__name__}"
+        )
     df_forcing_met = df_forcing_met.drop_duplicates()
-    # drop `isec`: redundant for this dataframe
-    col_suews_met_forcing = list(dict_var_type_forcing.keys())[:-1]
-    # rename these columns to match variables via the driver interface
-    df_forcing_met.columns = col_suews_met_forcing
-
-    # convert unit from kPa to hPa
-    df_forcing_met["pres"] *= 10
-
-    # add `isec` for WRF-SUEWS interface
-    df_forcing_met["isec"] = 0
-
-    # set correct data types
-    df_forcing_met[["iy", "id", "it", "imin", "isec"]] = df_forcing_met[
-        ["iy", "id", "it", "imin", "isec"]
-    ].astype(np.int64)
-
-    df_forcing_met = set_index_dt(df_forcing_met)
-
-    return df_forcing_met
+    return _apply_named_column_matching(df_forcing_met)
 
 
 # TODO: add support for loading multi-grid forcing datasets

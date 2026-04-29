@@ -4,6 +4,8 @@ import pytest
 
 from supy.data_model.core.model import ForcingControl, ModelControl
 
+pytestmark = pytest.mark.api
+
 
 def test_forcing_control_accepts_single_path():
     """ForcingControl accepts a bare string path under .file."""
@@ -65,6 +67,40 @@ def test_validate_forcing_columns_against_physics_accepts_when_present():
     }
     # No exception expected.
     validate_forcing_columns_against_physics(columns, physics)
+
+
+def test_python_rust_whitelist_parity():
+    """gh#1372 cross-language guard: Python and Rust must agree on the
+    per-landcover whitelist, surface short codes, baseline-required set,
+    and the -999 sentinel. Drift would silently produce divergent
+    forcing handling in the two readers.
+    """
+    import re
+    from pathlib import Path
+
+    from supy._load import (
+        BASELINE_FORCING_COLUMNS,
+        FORCING_OPTIONAL_FILL,
+        LANDCOVER_SUFFIXES,
+        PER_LANDCOVER_FORCING_VARS,
+    )
+
+    rust_src = Path(__file__).resolve().parents[2] / "src" / "suews_bridge" / "src" / "forcing_io.rs"
+    text = rust_src.read_text()
+
+    def _list(name: str) -> set[str]:
+        match = re.search(rf"const {name}: &\[&str\] = &\[(.*?)\];", text, re.DOTALL)
+        if match is None:
+            raise AssertionError(f"const {name} not found in forcing_io.rs")
+        return set(re.findall(r'"([^"]+)"', match.group(1)))
+
+    assert _list("PER_LANDCOVER_FORCING_VARS") == set(PER_LANDCOVER_FORCING_VARS)
+    assert _list("LANDCOVER_SUFFIXES") == set(LANDCOVER_SUFFIXES)
+    assert _list("BASELINE_FORCING_COLUMNS") == {c.lower() for c in BASELINE_FORCING_COLUMNS}
+
+    fill_match = re.search(r"const FORCING_OPTIONAL_FILL: f64 = ([-\d.]+);", text)
+    assert fill_match is not None, "FORCING_OPTIONAL_FILL not found in forcing_io.rs"
+    assert float(fill_match.group(1)) == FORCING_OPTIONAL_FILL
 
 
 def test_validate_forcing_columns_against_physics_handles_plain_int_physics():

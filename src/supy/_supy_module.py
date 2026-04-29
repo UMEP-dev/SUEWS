@@ -62,6 +62,8 @@ _FUNCTIONAL_DEPRECATIONS = {
     "init_supy": "the object-oriented `SUEWSSimulation` interface (see `supy.suews_sim.SUEWSSimulation`)",
     "load_forcing_grid": "`SUEWSSimulation.update_forcing` or `read_forcing` utilities",
     "load_sample_data": "`SUEWSSimulation` helpers (e.g., `SUEWSSimulation('sample_config.yml')`)",
+    "load_SampleData": "`SUEWSSimulation` helpers (e.g., `SUEWSSimulation('sample_config.yml')`)",
+    "load_config_from_df": "`SUEWSConfig.from_df_state(df_state)` (or `SUEWSSimulation.from_state(df_state).config`)",
     "run_supy": "`SUEWSSimulation.run`",
     "run_supy_sample": "`SUEWSSimulation` sample workflows",
     "save_supy": "`SUEWSSimulation.save`",
@@ -71,12 +73,20 @@ _FUNCTIONAL_DEPRECATIONS = {
 
 
 def _warn_functional_deprecation(name: str) -> None:
-    """Emit a standardized deprecation warning for the legacy functional API."""
+    """Emit a standardized deprecation warning for the legacy functional API.
+
+    Uses ``FutureWarning`` so the message is visible to end users by default
+    (CPython filters ``DeprecationWarning`` outside ``__main__``). The
+    procedural API in this module is end-user-facing, not a developer-only
+    surface, so ``FutureWarning`` is the right Python-level signal — see
+    https://docs.python.org/3/library/warnings.html#warning-categories.
+    Tracked under gh#1370 (Phase 2: visibility).
+    """
     replacement = _FUNCTIONAL_DEPRECATIONS.get(name, "the object-oriented API")
     warnings.warn(
         f"`supy.{name}` is deprecated and will be removed in a future release. "
         f"Please migrate to {replacement}.",
-        DeprecationWarning,
+        FutureWarning,
         stacklevel=3,
     )
 
@@ -462,10 +472,14 @@ def load_forcing_grid(
 
 
 def load_SampleData() -> tuple[pandas.DataFrame, pandas.DataFrame]:
-    logger_supy.warning(
-        "This function name will be deprecated. Please use `load_sample_data()` instead.",
-        stacklevel=2,
-    )
+    """Legacy alias for :func:`load_sample_data`.
+
+    .. deprecated:: 2025.11.20
+        Use the object-oriented :class:`~supy.suews_sim.SUEWSSimulation`
+        interface (e.g. ``SUEWSSimulation('sample_config.yml')``) or the
+        snake_case alias :func:`load_sample_data` while migrating.
+    """
+    _warn_functional_deprecation("load_SampleData")
     return _load_sample_data()
 
 
@@ -522,6 +536,12 @@ def load_sample_data() -> tuple[pandas.DataFrame, pandas.DataFrame]:
 def load_config_from_df(df_state: pd.DataFrame):
     """Load SUEWS configuration from `df_state`.
 
+    .. deprecated:: 2025.11.20
+        This function is deprecated and will be removed in a future release.
+        Please migrate to ``SUEWSConfig.from_df_state(df_state)`` directly,
+        or to the object-oriented ``SUEWSSimulation.from_state(df_state)``
+        interface (whose ``.config`` attribute exposes the same object).
+
     Parameters
     ----------
     df_state : pandas.DataFrame
@@ -538,6 +558,7 @@ def load_config_from_df(df_state: pd.DataFrame):
     >>> config = supy.load_config_from_df(df_state_init)
 
     """
+    _warn_functional_deprecation("load_config_from_df")
     from .util._config import SUEWSConfig
 
     config = SUEWSConfig.from_df_state(df_state)

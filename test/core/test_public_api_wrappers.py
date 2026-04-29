@@ -40,8 +40,8 @@ class TestPublicAPIFunctionality:
 
             # Verify deprecation warning was emitted
             assert any(
-                issubclass(warning.category, DeprecationWarning) for warning in w
-            ), "load_sample_data should emit DeprecationWarning"
+                issubclass(warning.category, FutureWarning) for warning in w
+            ), "load_sample_data should emit FutureWarning"
 
             # Verify return types and shapes
             assert isinstance(df_state, pd.DataFrame), (
@@ -68,8 +68,8 @@ class TestPublicAPIFunctionality:
 
             # Verify deprecation warning
             assert any(
-                issubclass(warning.category, DeprecationWarning) for warning in w
-            ), "init_supy should emit DeprecationWarning"
+                issubclass(warning.category, FutureWarning) for warning in w
+            ), "init_supy should emit FutureWarning"
 
             # Verify result
             assert isinstance(df_state, pd.DataFrame)
@@ -93,8 +93,8 @@ class TestPublicAPIFunctionality:
 
             # Verify deprecation warning
             assert any(
-                issubclass(warning.category, DeprecationWarning) for warning in w
-            ), "run_supy should emit DeprecationWarning"
+                issubclass(warning.category, FutureWarning) for warning in w
+            ), "run_supy should emit FutureWarning"
 
             # Verify results
             assert isinstance(df_output, pd.DataFrame)
@@ -119,8 +119,8 @@ class TestPublicAPIFunctionality:
 
             # Verify deprecation warning
             assert any(
-                issubclass(warning.category, DeprecationWarning) for warning in w
-            ), "save_supy should emit DeprecationWarning"
+                issubclass(warning.category, FutureWarning) for warning in w
+            ), "save_supy should emit FutureWarning"
 
             # Verify files were created
             assert isinstance(paths, list)
@@ -187,7 +187,7 @@ class TestPublicAPIDeprecationMessages:
             dep_warnings = [
                 warning
                 for warning in w
-                if issubclass(warning.category, DeprecationWarning)
+                if issubclass(warning.category, FutureWarning)
             ]
             assert len(dep_warnings) > 0, "Should emit deprecation warning"
 
@@ -242,5 +242,5 @@ class TestPublicAPIDeprecationMessages:
 
             # Verify warning was emitted
             assert any(
-                issubclass(warning.category, DeprecationWarning) for warning in w
-            ), f"{func_name} should emit DeprecationWarning"
+                issubclass(warning.category, FutureWarning) for warning in w
+            ), f"{func_name} should emit FutureWarning"

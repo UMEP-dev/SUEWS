@@ -45,6 +45,15 @@ def _validate_n_jobs(n_jobs: int) -> Optional[int]:
     return None if n_jobs == -1 else n_jobs
 
 
+def _validate_n_sites(n_sites: int) -> int:
+    """Return a validated positive integer site count."""
+    if isinstance(n_sites, bool) or not isinstance(n_sites, int):
+        raise ValueError("n_sites must be a positive integer")
+    if n_sites < 1:
+        raise ValueError(f"n_sites must be >= 1, got {n_sites}")
+    return n_sites
+
+
 class SUEWSSimulation:
     """
     Simplified SUEWS simulation class for urban climate modelling.
@@ -795,8 +804,7 @@ class SUEWSSimulation:
         >>> output = sim.run(n_jobs=-1)
 
         """
-        if n_sites < 1:
-            raise ValueError(f"n_sites must be >= 1, got {n_sites}")
+        n_sites = _validate_n_sites(n_sites)
 
         from ._env import trv_supy_module
         from ._supy_module import _load_sample_data

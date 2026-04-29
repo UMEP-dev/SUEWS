@@ -113,10 +113,11 @@ class TestInit:
         assert len(sim_explicit.config.sites) == 1
         assert sim_default._df_state_init.shape == sim_explicit._df_state_init.shape
 
-    def test_from_sample_data_invalid_n_sites(self):
-        """`n_sites < 1` is rejected with a clear message."""
-        with pytest.raises(ValueError, match="n_sites must be >= 1"):
-            SUEWSSimulation.from_sample_data(n_sites=0)
+    @pytest.mark.parametrize("n_sites", [True, False, 0, -1, 1.5, "2"])
+    def test_from_sample_data_invalid_n_sites(self, n_sites):
+        """Invalid `n_sites` values are rejected with a clear message."""
+        with pytest.raises(ValueError, match="n_sites must be"):
+            SUEWSSimulation.from_sample_data(n_sites=n_sites)
 
 
 class TestConfig:

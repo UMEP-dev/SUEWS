@@ -212,9 +212,9 @@ plt.tight_layout()
 #    uses the Rust/Rayon default and is the normal choice for production
 #    runs. ``n_jobs=1`` forces serial execution for debugging or
 #    benchmarking, while values greater than 1 cap the Rayon worker count.
-# 4. **Windows fallback**. Parallel execution is a no-op on Windows; the
-#    run completes serially. Code written for the multi-site path remains
-#    portable -- only the wall-clock changes.
+#    The Rust/Rayon bridge runs in parallel on Windows the same as on
+#    macOS/Linux; the legacy ``supy.run_supy(serial_mode=...)`` functional
+#    API is the path that falls back to serial on Windows.
 #
 # **Next steps**:
 #

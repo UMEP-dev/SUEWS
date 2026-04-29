@@ -36,7 +36,7 @@ DEFAULT_FORCING_FILE_PATTERNS = [
 ]  # Valid forcing file extensions
 
 
-def _validate_n_jobs(n_jobs: int) -> int | None:
+def _validate_n_jobs(n_jobs: int) -> Optional[int]:
     """Return a Rust worker cap for a public ``n_jobs`` value."""
     if isinstance(n_jobs, bool) or not isinstance(n_jobs, int):
         raise ValueError("n_jobs must be an integer: -1, 1, or a positive value")

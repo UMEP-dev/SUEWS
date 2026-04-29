@@ -22,7 +22,7 @@ import warnings
 # schema-versioning.md` (Dev-label convention). Every structural PR
 # between releases bumps the dev counter instead of consuming a new
 # CalVer label.
-CURRENT_SCHEMA_VERSION = "2026.5.dev6"
+CURRENT_SCHEMA_VERSION = "2026.5.dev7"
 
 # Schema version history and descriptions.
 #
@@ -209,6 +209,25 @@ SCHEMA_VERSIONS: dict[str, str] = {
         "on `_yaml_path` and explicit user declaration in the raw YAML "
         "so programmatic constructions and default_factory-only sparse "
         "fixtures remain permissive."
+    ),
+    "2026.5.dev7": (
+        "gh#1372: structural restructure of forcing configuration. "
+        "model.control.forcing_file (str | list[str]) is moved to "
+        "model.control.forcing.file under a new ForcingControl sub-object, "
+        "creating a stable home for future forcing fields (gh#1373 "
+        "sub-hourly disaggregation; resampling policy). The "
+        "(2026.5.dev6 -> 2026.5.dev7) migration is registered in "
+        "src/supy/util/converter/yaml_upgrade.py::_HANDLERS via "
+        "_apply_forcing_subobject_restructure, which moves the value "
+        "(whether a bare string or a RefValue mapping) under the new "
+        "key. Forcing-file *content* semantics also tighten in this "
+        "label: header column names are now read (previously discarded) "
+        "and matched against the canonical 21-column set; baseline-10 "
+        "columns (iy, id, it, imin, Tair, RH, U, pres, kdown, rain) are "
+        "required; missing optional canonical columns are filled with "
+        "-999; whitelisted per-landcover columns "
+        "(lai_<surface>, xsmd_<surface>) are loaded into "
+        "SUEWSForcing.extras / ForcingData.extras."
     ),
 }
 

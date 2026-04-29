@@ -24,3 +24,14 @@ def test_model_control_holds_forcing_subobject():
     control = ModelControl(forcing={"file": "forcing.txt"})
     assert isinstance(control.forcing, ForcingControl)
     assert not hasattr(control, "forcing_file")
+
+
+def test_current_schema_version_bumped_for_forcing_restructure():
+    """gh#1372 forcing.file restructure must move the schema label."""
+    from supy.data_model.schema.version import CURRENT_SCHEMA_VERSION, SCHEMA_VERSIONS
+
+    assert CURRENT_SCHEMA_VERSION == "2026.5.dev7"
+    assert "2026.5.dev7" in SCHEMA_VERSIONS
+    desc = SCHEMA_VERSIONS["2026.5.dev7"]
+    assert "forcing" in desc.lower()
+    assert "1372" in desc

@@ -78,3 +78,33 @@ def test_missing_optional_column_filled_with_sentinel(tmp_path):
     df = read_forcing(str(path), tstep_mod=None)
     assert "snow" in df.columns
     assert (df["snow"] == -999.0).all()
+
+
+def test_per_landcover_columns_separated_into_extras(tmp_path):
+    """T3/T4: lai_evetr/dectr/grass and xsmd_paved end up in SUEWSForcing.extras,
+    not in the kernel-facing DataFrame; main DataFrame shape unchanged."""
+    from supy.suews_forcing import SUEWSForcing
+
+    text = CANONICAL_FIXTURE.read_text()
+    lines = text.splitlines()
+    header = lines[0] + " lai_evetr lai_dectr lai_grass xsmd_paved"
+    new_lines = [header]
+    for row in lines[1:]:
+        new_lines.append(row + " 1.5 2.5 3.5 0.25")
+    p = tmp_path / "kc_per_landcover.txt"
+    p.write_text("\n".join(new_lines))
+
+    forcing = SUEWSForcing.from_file(str(p))
+    assert hasattr(forcing, "extras")
+    assert set(forcing.extras.keys()) == {
+        "lai_evetr", "lai_dectr", "lai_grass", "xsmd_paved",
+    }
+    # Each extras series matches the appended constant value
+    assert (forcing.extras["lai_evetr"] == 1.5).all()
+    assert (forcing.extras["xsmd_paved"] == 0.25).all()
+    # Main DataFrame retains canonical columns; per-landcover ones are gone.
+    canonical = {"iy", "id", "it", "imin", "Tair", "RH", "U", "pres", "rain",
+                 "kdown", "snow", "ldown", "fcld", "Wuh", "xsmd", "lai",
+                 "qn", "qh", "qe", "qs", "qf", "isec"}
+    assert canonical.issubset(set(forcing.df.columns))
+    assert "lai_evetr" not in forcing.df.columns

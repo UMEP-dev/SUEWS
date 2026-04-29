@@ -204,6 +204,13 @@ class SUEWSForcing:
     ...     print(result.errors)
     """
 
+    # gh#1372 -- per-landcover whitelist (mirrors src/supy/_load.py and
+    # src/suews_bridge/src/forcing_io.rs).
+    _PER_LANDCOVER_VARS: frozenset = frozenset({"lai", "xsmd"})
+    _LANDCOVER_SUFFIXES: tuple = (
+        "paved", "bldgs", "evetr", "dectr", "grass", "bsoil", "water",
+    )
+
     def __init__(self, data: pd.DataFrame, source: Optional[str] = None):
         """
         Initialise SUEWSForcing with validated DataFrame.
@@ -252,7 +259,7 @@ class SUEWSForcing:
 
         >>> forcing = SUEWSForcing.from_file(["2023.txt", "2024.txt"])
         """
-        from .util._io import _read_forcing_impl
+        from .util._io import read_forcing
 
         # Handle list of paths
         if isinstance(path, list):
@@ -264,21 +271,56 @@ class SUEWSForcing:
                 file_path = Path(p).expanduser().resolve()
                 if not file_path.exists():
                     raise FileNotFoundError(f"Forcing file not found: {file_path}")
-                df = _read_forcing_impl(str(file_path), tstep_mod=tstep_mod)
+                df = read_forcing(str(file_path), tstep_mod=tstep_mod)
                 dfs.append(df)
 
             combined = pd.concat(dfs, axis=0).sort_index()
             # Remove any duplicates
             combined = combined[~combined.index.duplicated(keep="first")]
-            return cls(combined, source=f"[{len(path)} files]")
+            df_main, extras = cls._split_per_landcover_columns(
+                combined, cls._PER_LANDCOVER_VARS, cls._LANDCOVER_SUFFIXES
+            )
+            instance = cls(df_main, source=f"[{len(path)} files]")
+            instance._extras = extras
+            return instance
 
         # Handle single path
         file_path = Path(path).expanduser().resolve()
         if not file_path.exists():
             raise FileNotFoundError(f"Forcing file not found: {file_path}")
 
-        df = _read_forcing_impl(str(file_path), tstep_mod=tstep_mod)
-        return cls(df, source=str(file_path))
+        df = read_forcing(str(file_path), tstep_mod=tstep_mod)
+        df_main, extras = cls._split_per_landcover_columns(
+            df, cls._PER_LANDCOVER_VARS, cls._LANDCOVER_SUFFIXES
+        )
+        instance = cls(df_main, source=str(file_path))
+        instance._extras = extras
+        return instance
+
+    @staticmethod
+    def _split_per_landcover_columns(
+        df_forcing: pd.DataFrame,
+        per_landcover_vars: frozenset,
+        landcover_suffixes: tuple,
+    ) -> Tuple[pd.DataFrame, Dict[str, np.ndarray]]:
+        """Pop whitelisted ``<var>_<surface>`` columns into an extras dict.
+
+        Returns the kernel-facing DataFrame (with extras removed) and a
+        dict mapping the lower-cased canonical name to the column values.
+        """
+        extras: Dict[str, np.ndarray] = {}
+        drop_cols: List[str] = []
+        for col in df_forcing.columns:
+            lowered = col.lower()
+            for var in per_landcover_vars:
+                prefix = f"{var}_"
+                if lowered.startswith(prefix) and lowered[len(prefix):] in landcover_suffixes:
+                    extras[lowered] = df_forcing[col].to_numpy()
+                    drop_cols.append(col)
+                    break
+        if drop_cols:
+            df_forcing = df_forcing.drop(columns=drop_cols)
+        return df_forcing, extras
 
     # =========================================================================
     # Core data access
@@ -302,6 +344,23 @@ class SUEWSForcing:
             Copy of the underlying DataFrame
         """
         return self._data.copy()
+
+    @property
+    def extras(self) -> Dict[str, np.ndarray]:
+        """Per-landcover forcing columns (gh#1372).
+
+        Maps lower-cased ``<var>_<surface>`` names to time-aligned arrays
+        of length ``len(self.df)``. Empty when the file carries no
+        whitelisted per-landcover columns. Kernel does not yet consume
+        these; reserved for follow-up physics work.
+
+        Returns
+        -------
+        dict of str to numpy.ndarray
+            Mapping from lower-cased ``<var>_<surface>`` column name to
+            the corresponding time-aligned array.
+        """
+        return getattr(self, "_extras", {})
 
     @property
     def index(self) -> pd.DatetimeIndex:

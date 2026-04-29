@@ -632,14 +632,71 @@ def _apply_hot_water_unification_renames(cfg: dict) -> None:
             _rename_field(stebbs, old, new)
 
 
+def _apply_forcing_subobject_restructure(cfg: dict) -> dict:
+    """Move ``model.control.forcing_file`` under ``model.control.forcing.file``.
+
+    gh#1372: introduces a ForcingControl sub-object so future forcing-related
+    fields (gh#1373 disaggregation; resampling policy) have a stable home.
+    The old value is preserved verbatim under ``forcing.file`` — bare string,
+    list of strings, or ``{value: ...}`` RefValue mapping all round-trip.
+    """
+    model = cfg.get("model")
+    if not isinstance(model, dict):
+        return cfg
+    control = model.get("control")
+    if not isinstance(control, dict):
+        return cfg
+    if "forcing_file" not in control:
+        return cfg
+
+    old_value = control.pop("forcing_file")
+    forcing = control.setdefault("forcing", {})
+    if not isinstance(forcing, dict):
+        # User has manually set forcing to a non-dict; preserve their value
+        # under .file rather than overwrite their structure.
+        forcing = {"file": old_value}
+        control["forcing"] = forcing
+    else:
+        forcing["file"] = old_value
+    _log("Migrated model.control.forcing_file -> model.control.forcing.file (gh#1372)")
+    return cfg
+
+
+def _migrate_2026_5_dev6_to_current(cfg: dict) -> dict:
+    """Upgrade 2026.5.dev6-shaped YAMLs to the current schema.
+
+    Applies the gh#1372 forcing-config restructure: forcing_file is moved
+    under a new forcing sub-object.
+    """
+    cfg = _strip_internal_only_fields(cfg)
+    _apply_forcing_subobject_restructure(cfg)
+    return cfg
+
+
+def _migrate_2026_5_dev5_to_current(cfg: dict) -> dict:
+    """Upgrade 2026.5.dev5 YAMLs to current (gh#1372 forcing restructure)."""
+    cfg = _strip_internal_only_fields(cfg)
+    _apply_forcing_subobject_restructure(cfg)
+    return cfg
+
+
+def _migrate_2026_5_dev4_to_current(cfg: dict) -> dict:
+    """Upgrade 2026.5.dev4 YAMLs to current (gh#1372 forcing restructure)."""
+    cfg = _strip_internal_only_fields(cfg)
+    _apply_forcing_subobject_restructure(cfg)
+    return cfg
+
+
 def _migrate_2026_5_dev3_to_current(cfg: dict) -> dict:
     """Upgrade 2026.5.dev3-shaped YAMLs to the current schema.
 
     Applies the gh#1334 follow-through hot-water unification: 14 renames
-    under ``site.properties.building_archetype`` and ``.stebbs``.
+    under ``site.properties.building_archetype`` and ``.stebbs``. Also
+    applies the gh#1372 forcing-config restructure on the way through.
     """
     cfg = _strip_internal_only_fields(cfg)
     _apply_hot_water_unification_renames(cfg)
+    _apply_forcing_subobject_restructure(cfg)
     return cfg
 
 
@@ -648,11 +705,13 @@ def _migrate_2026_5_dev2_to_current(cfg: dict) -> dict:
 
     Chains gh#1334 (dev2 -> dev3: retires STEBBS PascalCase; 124 renames)
     and the gh#1334 follow-through (dev3 -> dev4: hot-water prefix
-    unification; 14 renames).
+    unification; 14 renames). Also applies the gh#1372 forcing-config
+    restructure on the way through.
     """
     cfg = _strip_internal_only_fields(cfg)
     _apply_stebbs_snake_renames(cfg)
     _apply_hot_water_unification_renames(cfg)
+    _apply_forcing_subobject_restructure(cfg)
     return cfg
 
 
@@ -690,6 +749,7 @@ def _migrate_2026_5_to_current(cfg: dict) -> dict:
     _apply_modelphysics_suffix_renames(cfg)
     _apply_stebbs_snake_renames(cfg)
     _apply_hot_water_unification_renames(cfg)
+    _apply_forcing_subobject_restructure(cfg)
     return cfg
 
 
@@ -697,13 +757,15 @@ def _migrate_2026_5_dev1_to_current(cfg: dict) -> dict:
     """Upgrade 2026.5.dev1-shaped YAMLs to the current schema.
 
     Chains the Cat 2+3 ModelPhysics suffix/abbreviation rewrite (gh#1321),
-    the gh#1334 STEBBS/Snow snake_case sweep, and the gh#1334 follow-through
-    hot-water prefix unification.
+    the gh#1334 STEBBS/Snow snake_case sweep, the gh#1334 follow-through
+    hot-water prefix unification, and the gh#1372 forcing-config
+    restructure.
     """
     cfg = _strip_internal_only_fields(cfg)
     _apply_modelphysics_suffix_renames(cfg)
     _apply_stebbs_snake_renames(cfg)
     _apply_hot_water_unification_renames(cfg)
+    _apply_forcing_subobject_restructure(cfg)
     return cfg
 
 
@@ -759,17 +821,19 @@ _HANDLERS: dict[tuple[str, str], Handler] = {
     ("2025.12", "2026.4"): _migrate_2025_12_to_2026_4,
     # Intermediate stops at 2026.5 (callers pinning Category 1 only).
     ("2026.4", "2026.5"): _migrate_2026_4_to_2026_5,
-    # Chains to the current schema (2026.5.dev6: Cat 1 snake_case sweep
+    # Chains to the current schema (2026.5.dev7: Cat 1 snake_case sweep
     # + Cat 5 STEBBS ext rename + Cat 2+3 ModelPhysics suffix drop
     # + gh#1334 STEBBS/Snow snake_case + gh#1334 follow-through hot-water
     # prefix unification + gh#972 accept-only nested physics sub-options
-    # + gh#1333 site-level completeness validator tightening).
+    # + gh#1333 site-level completeness validator tightening
+    # + gh#1372 ForcingControl sub-object restructure).
     # The dev4 -> dev5 and dev5 -> dev6 deltas are accept-only / contract
-    # tightening changes with no YAML rewrite, so identity handlers are
-    # sufficient and their presence in the registry is what grants
-    # compatibility under is_schema_compatible.
-    ("2026.5.dev5", CURRENT_SCHEMA_VERSION): _identity,
-    ("2026.5.dev4", CURRENT_SCHEMA_VERSION): _identity,
+    # tightening changes with no YAML rewrite, but the dev6 -> dev7 delta
+    # rewrites forcing_file -> forcing.file, so dev4/dev5 identity shortcuts
+    # have been replaced with proper handlers that apply the new restructure.
+    ("2026.5.dev6", CURRENT_SCHEMA_VERSION): _migrate_2026_5_dev6_to_current,
+    ("2026.5.dev5", CURRENT_SCHEMA_VERSION): _migrate_2026_5_dev5_to_current,
+    ("2026.5.dev4", CURRENT_SCHEMA_VERSION): _migrate_2026_5_dev4_to_current,
     ("2026.5.dev3", CURRENT_SCHEMA_VERSION): _migrate_2026_5_dev3_to_current,
     ("2026.5.dev2", CURRENT_SCHEMA_VERSION): _migrate_2026_5_dev2_to_current,
     ("2026.5.dev1", CURRENT_SCHEMA_VERSION): _migrate_2026_5_dev1_to_current,

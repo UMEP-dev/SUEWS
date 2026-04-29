@@ -570,3 +570,48 @@ class TestNoSilentFieldDrops:
             f"{sorted(missing_without_log)}. Add a handler delta in "
             f"src/supy/util/converter/yaml_upgrade.py."
         )
+
+
+def test_forcing_file_string_migrates_to_forcing_subobject():
+    """gh#1372: forcing_file: 'x.txt' -> forcing: {file: 'x.txt'}."""
+    from supy.util.converter.yaml_upgrade import _apply_forcing_subobject_restructure
+
+    cfg = {
+        "schema_version": "2026.5.dev6",
+        "model": {"control": {"forcing_file": "forcing.txt"}},
+    }
+    out = _apply_forcing_subobject_restructure(cfg)
+    assert "forcing_file" not in out["model"]["control"]
+    assert out["model"]["control"]["forcing"] == {"file": "forcing.txt"}
+
+
+def test_forcing_file_refvalue_migrates_to_forcing_subobject():
+    """RefValue-wrapped forcing_file ({value: ...}) is preserved under .file."""
+    from supy.util.converter.yaml_upgrade import _apply_forcing_subobject_restructure
+
+    cfg = {
+        "schema_version": "2026.5.dev6",
+        "model": {"control": {"forcing_file": {"value": "forcing.txt"}}},
+    }
+    out = _apply_forcing_subobject_restructure(cfg)
+    assert out["model"]["control"]["forcing"] == {"file": {"value": "forcing.txt"}}
+
+
+def test_forcing_file_list_migrates_to_forcing_subobject():
+    """List-of-paths forcing_file is preserved under .file."""
+    from supy.util.converter.yaml_upgrade import _apply_forcing_subobject_restructure
+
+    cfg = {
+        "schema_version": "2026.5.dev6",
+        "model": {"control": {"forcing_file": ["a.txt", "b.txt"]}},
+    }
+    out = _apply_forcing_subobject_restructure(cfg)
+    assert out["model"]["control"]["forcing"] == {"file": ["a.txt", "b.txt"]}
+
+
+def test_dev6_to_current_handler_registered():
+    """Compatibility from 2026.5.dev6 must be granted via _HANDLERS."""
+    from supy.data_model.schema.version import CURRENT_SCHEMA_VERSION
+    from supy.util.converter.yaml_upgrade import _HANDLERS
+
+    assert ("2026.5.dev6", CURRENT_SCHEMA_VERSION) in _HANDLERS

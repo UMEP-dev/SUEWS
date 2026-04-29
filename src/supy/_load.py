@@ -750,15 +750,22 @@ def load_SUEWS_Forcing_met_df_pattern(path_input, file_pattern):
     """
     import warnings
     from pathlib import Path
-    from .util._io import read_suews
 
     path_input = Path(path_input).resolve()
     list_file_MetForcing = sorted([
         f for f in path_input.glob(file_pattern) if "ESTM" not in f.name
     ])
 
-    # Read all files; each retains its original case-sensitive header.
-    df_forcing_met = pd.concat([read_suews(fn) for fn in list_file_MetForcing])
+    # Read all files at the raw-CSV layer. We deliberately do NOT call
+    # `read_suews` here because that function eagerly applies
+    # `set_index_dt`, which uses `iloc[:, :4]` to identify the time
+    # columns. With header-driven matching we may receive shuffled
+    # column order — the time columns can sit anywhere — so we reindex
+    # against the canonical names first, then datetime-index at the end.
+    df_forcing_met = pd.concat([
+        pd.read_csv(fn, sep=r"\s+", comment="!", on_bad_lines="error")
+        for fn in list_file_MetForcing
+    ])
     df_forcing_met = df_forcing_met.drop_duplicates()
 
     # Build a lowercase -> original-case header map for case-insensitive matching.

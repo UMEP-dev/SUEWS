@@ -108,3 +108,20 @@ def test_per_landcover_columns_separated_into_extras(tmp_path):
                  "qn", "qh", "qe", "qs", "qf", "isec"}
     assert canonical.issubset(set(forcing.df.columns))
     assert "lai_evetr" not in forcing.df.columns
+
+
+def test_shuffled_header_yields_same_dataframe_as_canonical():
+    """T2: a fixture with shuffled column order produces the same DataFrame
+    (canonical order, same values) as the canonical-ordered fixture."""
+    from supy.util._io import read_forcing
+
+    canonical_path = CANONICAL_FIXTURE
+    shuffled_path = (
+        Path(__file__).resolve().parent.parent
+        / "fixtures" / "forcing" / "kc_shuffled.txt"
+    )
+    df_canonical = read_forcing(str(canonical_path), tstep_mod=None)
+    df_shuffled = read_forcing(str(shuffled_path), tstep_mod=None)
+
+    assert list(df_canonical.columns) == list(df_shuffled.columns)
+    pd.testing.assert_frame_equal(df_canonical, df_shuffled)

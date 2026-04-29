@@ -125,11 +125,15 @@ docs = [
 ]
 
 [project.scripts]
-suews = "supy.cmd.rust_bridge:main"
-suews-run = "supy.cmd.SUEWS:SUEWS"
-suews-convert = "supy.cmd.table_converter:convert_table_cmd"
-suews-validate = "supy.cmd.validate_config:main"
-suews-schema = "supy.cmd.schema_cli:main"
+# Unified CLI dispatcher. `suews <subcmd>` is the canonical entry point;
+# the hyphenated scripts below are deprecated aliases that print a notice
+# and forward to the matching subcommand. The Rust engine binary is
+# exposed as `suews rust ...` (was previously the bare `suews` invocation).
+suews = "supy.cmd.suews_cli:main"
+suews-run = "supy.cmd.suews_cli:run_alias"
+suews-convert = "supy.cmd.suews_cli:convert_alias"
+suews-validate = "supy.cmd.suews_cli:validate_alias"
+suews-schema = "supy.cmd.suews_cli:schema_alias"
 
 [tool.pytest.ini_options]
 filterwarnings = [

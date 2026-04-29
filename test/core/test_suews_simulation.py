@@ -2,8 +2,9 @@
 
 from pathlib import Path
 
-import pytest
 from conftest import TIMESTEPS_PER_DAY
+import pandas as pd
+import pytest
 
 try:
     from importlib.resources import files
@@ -11,7 +12,9 @@ except ImportError:
     from importlib_resources import files
 
 import supy as sp
+import supy._run_rust as run_rust_module
 from supy.suews_checkpoint import SUEWSCheckpoint
+import supy.suews_sim as suews_sim_module
 from supy.suews_sim import SUEWSSimulation
 
 pytestmark = pytest.mark.api
@@ -404,6 +407,255 @@ class TestForcing:
 
 class TestRun:
     """Test simulation execution."""
+
+    @staticmethod
+    def _multi_site_config():
+        """Return a sample config with two distinct grids."""
+        config = SUEWSSimulation.from_sample_data().config.model_copy(deep=True)
+        site2 = config.sites[0].model_copy(deep=True)
+        site2.gridiv = 2
+        site2.name = "Grid 2"
+        config.sites.append(site2)
+        return config
+
+    @staticmethod
+    def _fake_output_for_config(config, df_forcing):
+        """Return a minimal multi-grid output frame for chunking tests."""
+        list_df_output = []
+        for site in config.sites:
+            grid_id = run_rust_module._normalise_grid_id(site.gridiv)
+            index = pd.MultiIndex.from_product(
+                [[grid_id], df_forcing.index],
+                names=["grid", "datetime"],
+            )
+            list_df_output.append(pd.DataFrame({"QH": 0.0}, index=index))
+        return pd.concat(list_df_output)
+
+    @staticmethod
+    def _patch_run_suews_rust_chunked(monkeypatch):
+        """Patch the Rust runner and return captured parallelism kwargs."""
+        captured = {}
+
+        def fake_check_rust_available():
+            return object()
+
+        def fake_check_forcing(*args, **kwargs):
+            return []
+
+        def fake_run_suews_rust_chunked(
+            config,
+            df_forcing,
+            chunk_day,
+            serial_mode=False,
+            max_workers=None,
+            initial_state_json_by_grid=None,
+        ):
+            captured["serial_mode"] = serial_mode
+            captured["max_workers"] = max_workers
+            captured["initial_state_json_by_grid"] = initial_state_json_by_grid
+            return pd.DataFrame(index=df_forcing.index), None
+
+        monkeypatch.setattr(
+            suews_sim_module, "_check_rust_available", fake_check_rust_available
+        )
+        monkeypatch.setattr(suews_sim_module, "check_forcing", fake_check_forcing)
+        monkeypatch.setattr(
+            suews_sim_module,
+            "run_suews_rust_chunked",
+            fake_run_suews_rust_chunked,
+        )
+        return captured
+
+    def test_run_n_jobs_defaults_to_rayon_default(self, monkeypatch):
+        """Test default n_jobs preserves uncapped parallel execution."""
+        sim = SUEWSSimulation.from_sample_data()
+        sim._df_forcing = sim._df_forcing.iloc[:2]
+        captured = self._patch_run_suews_rust_chunked(monkeypatch)
+
+        sim.run()
+
+        assert captured["serial_mode"] is False
+        assert captured["max_workers"] is None
+
+    def test_run_n_jobs_one_forces_serial(self, monkeypatch):
+        """Test n_jobs=1 disables the multi-grid Rayon path."""
+        sim = SUEWSSimulation.from_sample_data()
+        sim._df_forcing = sim._df_forcing.iloc[:2]
+        captured = self._patch_run_suews_rust_chunked(monkeypatch)
+
+        sim.run(n_jobs=1)
+
+        assert captured["serial_mode"] is True
+        assert captured["max_workers"] == 1
+
+    def test_run_n_jobs_positive_caps_workers(self, monkeypatch):
+        """Test positive n_jobs reaches the Rust bridge as max_workers."""
+        sim = SUEWSSimulation.from_sample_data()
+        sim._df_forcing = sim._df_forcing.iloc[:2]
+        captured = self._patch_run_suews_rust_chunked(monkeypatch)
+
+        sim.run(n_jobs=3)
+
+        assert captured["serial_mode"] is False
+        assert captured["max_workers"] == 3
+
+    @pytest.mark.parametrize("n_jobs", [True, False, 0, -2, 1.5, "2"])
+    def test_run_n_jobs_rejects_invalid_values(self, n_jobs):
+        """Test n_jobs validation rejects ambiguous worker controls."""
+        sim = SUEWSSimulation()
+
+        with pytest.raises(ValueError, match="n_jobs must be"):
+            sim.run(n_jobs=n_jobs)
+
+    def test_chunked_run_forwards_worker_cap_per_chunk(self, monkeypatch):
+        """Test chunked multi-grid runs keep n_jobs after the first chunk."""
+        config = self._multi_site_config()
+        df_forcing = SUEWSSimulation.from_sample_data()._df_forcing.iloc[
+            : TIMESTEPS_PER_DAY + 1
+        ]
+        calls = []
+
+        def fake_run_suews_rust_multi(
+            config, df_forcing, serial_mode=False, max_workers=None
+        ):
+            calls.append(("fresh", serial_mode, max_workers))
+            dict_state_json = {
+                run_rust_module._normalise_grid_id(site.gridiv): "state"
+                for site in config.sites
+            }
+            return self._fake_output_for_config(config, df_forcing), dict_state_json
+
+        def fake_run_suews_rust_multi_with_state(
+            config,
+            df_forcing,
+            dict_state_json_by_grid,
+            serial_mode=False,
+            max_workers=None,
+        ):
+            calls.append(("state", serial_mode, max_workers))
+            assert sorted(dict_state_json_by_grid) == [1, 2]
+            return (
+                self._fake_output_for_config(config, df_forcing),
+                dict_state_json_by_grid,
+            )
+
+        monkeypatch.setattr(
+            run_rust_module, "run_suews_rust_multi", fake_run_suews_rust_multi
+        )
+        monkeypatch.setattr(
+            run_rust_module,
+            "run_suews_rust_multi_with_state",
+            fake_run_suews_rust_multi_with_state,
+        )
+
+        run_rust_module.run_suews_rust_chunked(
+            config=config,
+            df_forcing=df_forcing,
+            chunk_day=1,
+            serial_mode=False,
+            max_workers=3,
+        )
+
+        assert calls == [("fresh", False, 3), ("state", False, 3)]
+
+    def test_checkpointed_run_forwards_worker_cap(self, monkeypatch):
+        """Test resumed multi-grid runs keep n_jobs on the first chunk."""
+        config = self._multi_site_config()
+        df_forcing = SUEWSSimulation.from_sample_data()._df_forcing.iloc[:2]
+        calls = []
+
+        def fail_run_suews_rust_multi(*args, **kwargs):
+            raise AssertionError("checkpointed runs should use the state-aware path")
+
+        def fake_run_suews_rust_multi_with_state(
+            config,
+            df_forcing,
+            dict_state_json_by_grid,
+            serial_mode=False,
+            max_workers=None,
+        ):
+            calls.append(("state", serial_mode, max_workers))
+            assert sorted(dict_state_json_by_grid) == [1, 2]
+            return (
+                self._fake_output_for_config(config, df_forcing),
+                dict_state_json_by_grid,
+            )
+
+        monkeypatch.setattr(
+            run_rust_module, "run_suews_rust_multi", fail_run_suews_rust_multi
+        )
+        monkeypatch.setattr(
+            run_rust_module,
+            "run_suews_rust_multi_with_state",
+            fake_run_suews_rust_multi_with_state,
+        )
+
+        run_rust_module.run_suews_rust_chunked(
+            config=config,
+            df_forcing=df_forcing,
+            chunk_day=3660,
+            serial_mode=False,
+            max_workers=4,
+            initial_state_json_by_grid={1: "state-1", 2: "state-2"},
+        )
+
+        assert calls == [("state", False, 4)]
+
+    def test_multi_with_state_passes_worker_cap_to_rust(self, monkeypatch):
+        """Test state-aware multi-grid wrapper forwards max_workers."""
+        config = self._multi_site_config()
+        df_forcing = SUEWSSimulation.from_sample_data()._df_forcing.iloc[:2]
+        captured = {}
+
+        class FakeRustModule:
+            def run_suews_multi_with_state(
+                self,
+                list_config_jsons,
+                forcing_flat,
+                len_forcing,
+                list_state_jsons,
+                max_workers,
+            ):
+                captured["n_config"] = len(list_config_jsons)
+                captured["len_forcing"] = len_forcing
+                captured["list_state_jsons"] = list_state_jsons
+                captured["max_workers"] = max_workers
+                return [
+                    (idx, [], f"new-state-{idx}", len_forcing)
+                    for idx in range(len(list_config_jsons))
+                ]
+
+        def fake_parse_output_block(output_flat, len_sim, grid_id):
+            index = pd.MultiIndex.from_product(
+                [[grid_id], df_forcing.index[:len_sim]],
+                names=["grid", "datetime"],
+            )
+            return pd.DataFrame({"QH": 0.0}, index=index)
+
+        monkeypatch.setattr(
+            run_rust_module, "_check_rust_available", lambda: FakeRustModule()
+        )
+        monkeypatch.setattr(
+            run_rust_module, "_validate_output_layout", lambda rust_module: None
+        )
+        monkeypatch.setattr(
+            run_rust_module, "_parse_output_block", fake_parse_output_block
+        )
+
+        _, dict_state_json = run_rust_module.run_suews_rust_multi_with_state(
+            config=config,
+            df_forcing=df_forcing,
+            dict_state_json_by_grid={1: "state-1", 2: "state-2"},
+            max_workers=5,
+        )
+
+        assert captured == {
+            "n_config": 2,
+            "len_forcing": 2,
+            "list_state_jsons": ["state-1", "state-2"],
+            "max_workers": 5,
+        }
+        assert dict_state_json == {1: "new-state-0", 2: "new-state-1"}
 
     def test_basic_run(self):
         """Test basic simulation run."""

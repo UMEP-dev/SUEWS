@@ -170,7 +170,29 @@ The lineage below mirrors ``SCHEMA_VERSIONS`` in
 the schema that shipped with it via
 ``supy.util.converter.yaml_upgrade._PACKAGE_TO_SCHEMA``.
 
-**Schema 2026.5.dev6** (current; in-development dev bump; gh#1333)
+**Schema 2026.5.dev7** (current; in-development dev bump; gh#1372)
+   Two-part bump. (1) ``model.control.forcing_file`` is restructured
+   to ``model.control.forcing.file`` under a new ``ForcingControl``
+   sub-object, creating a stable home for future forcing fields
+   (e.g. sub-hourly disaggregation policy). (2) The forcing-file
+   reader switches from positional to **named-column** matching: the
+   header line is parsed and matched case-insensitively against
+   canonical names; the baseline-10 set ``iy``, ``id``, ``it``,
+   ``imin``, ``Tair``, ``RH``, ``U``, ``pres``, ``kdown``, ``rain``
+   is required; missing optional canonicals are filled with
+   ``-999.0``; whitelisted per-landcover variants of ``lai`` and
+   ``xsmd`` (``<var>_<surface>`` for surface in
+   ``{paved, bldgs, evetr, dectr, grass, bsoil, water}``) are
+   plumbed through ``SUEWSForcing.extras`` /
+   ``ForcingData.extras``; unknown columns emit a ``UserWarning``
+   and are dropped. The ``(2026.5.dev6 -> 2026.5.dev7)`` migration
+   handler ``_apply_forcing_subobject_restructure`` in
+   ``src/supy/util/converter/yaml_upgrade.py::_HANDLERS`` rewrites
+   the YAML key whether the value is a bare string or a ``RefValue``
+   mapping. See :ref:`named_column_forcing` and the
+   :ref:`transition_guide` entry for the user-facing walkthrough.
+
+**Schema 2026.5.dev6** (gh#1333)
    Validator contract change only — the YAML shape is unchanged from
    ``2026.5.dev5``, but site-level completeness checks now raise
    instead of warning when a user-declared active surface omits

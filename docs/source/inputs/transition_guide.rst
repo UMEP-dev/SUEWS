@@ -180,12 +180,49 @@ The sections below summarise what users see change between schemas.
 The authoritative lineage (including release-tag to schema mapping)
 lives in :ref:`schema_version_history`.
 
+Upgrading to Schema 2026.5.dev7 (gh#1372 forcing config restructure and named-column reader)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Two changes ship together (gh#1372):
+
+* **YAML rename**: ``model.control.forcing_file`` moves under a new
+  ``forcing`` sub-object. Update existing configs:
+
+  .. code-block:: yaml
+     :caption: Before
+
+     model:
+       control:
+         forcing_file: forcing.txt
+
+  .. code-block:: yaml
+     :caption: After
+
+     model:
+       control:
+         forcing:
+           file: forcing.txt
+
+  ``suews-convert`` upgrades the YAML automatically; manual edit is
+  also straightforward.
+
+* **Forcing-file header semantics**: column names in the forcing file
+  header are now read and used to match canonical variable names.
+  Files whose headers already use the canonical names (the standard
+  SUEWS distribution shape) continue to work unchanged. Files with
+  custom or mis-typed headers (for example ``temperature`` instead of
+  ``Tair``) will now raise ``ValueError`` at load time citing the
+  expected canonical name. See :ref:`named_column_forcing` for the
+  full canonical name list.
+
 Upgrading to Schema 2026.5.dev6 (gh#1333 site-level completeness validator)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Schema ``2026.5.dev6`` is the current in-development shape. The YAML
-shape is byte-for-byte identical to ``2026.5.dev5`` — this is a pure
-validator-contract tightening, not a structural rename.
+Schema ``2026.5.dev6`` is an intermediate dev label (the current
+in-development shape is ``2026.5.dev7``; see the section above). The
+YAML shape at dev6 is byte-for-byte identical to ``2026.5.dev5`` —
+this is a pure validator-contract tightening, not a structural
+rename.
 
 Previously, declaring a vegetated or building surface with
 ``sfr > 0`` but omitting the physics-required completion fields

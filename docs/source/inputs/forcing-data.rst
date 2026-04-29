@@ -117,6 +117,35 @@ Where:
    2020  1  1  60  -999  -999  -999  -999  -999  2.3  84  5.3  101.3  0.2  0  -999  318  -999  -999  -999  -999  -999  -999  -999
    2020  1  2   0  -999  -999  -999  -999  -999  2.0  86  5.1  101.2  0.0  0  -999  312  -999  -999  -999  -999  -999  -999  -999
 
+.. _named_column_forcing:
+
+Named-column forcing files (gh#1372)
+------------------------------------
+
+Since schema 2026.5.dev7, SUEWS reads forcing files by **column name**,
+not by column position. The header line is required and its content is
+matched, case-insensitively, against the canonical column list above.
+
+* **Required (baseline)**: ``iy``, ``id``, ``it``, ``imin``, ``Tair``,
+  ``RH``, ``U``, ``pres``, ``kdown``, ``rain``. Missing any of these
+  raises ``ValueError`` at load time.
+* **Required (physics-conditional)**: depending on the chosen physics
+  path, additional columns become mandatory. For example,
+  ``model.physics.net_radiation = 11`` requires ``ldown``;
+  ``net_radiation = 1`` or ``2`` requires ``fcld``. The error message
+  cites the offending column and the physics method that requires it.
+* **Optional canonical columns**: missing canonical columns outside the
+  required set are filled with ``-999.0`` (the SUEWS sentinel). Column
+  order is irrelevant.
+* **Per-landcover variants**: the loader also accepts whitelisted
+  ``<var>_<surface>`` columns where ``var`` is one of ``lai`` or
+  ``xsmd`` and ``surface`` is one of ``paved``, ``bldgs``, ``evetr``,
+  ``dectr``, ``grass``, ``bsoil``, ``water``. These are preserved on
+  ``SUEWSForcing.extras`` for downstream physics work; the kernel
+  itself continues to use the bulk ``lai`` and ``xsmd`` columns.
+* **Unknown columns**: any column not in the canonical or whitelisted
+  sets emits a ``UserWarning`` and is dropped.
+
 Important Requirements
 ----------------------
 
@@ -157,19 +186,24 @@ Examples:
 YAML Configuration
 ------------------
 
-In your YAML configuration, specify the forcing file(s):
+In your YAML configuration, specify the forcing file(s) under the
+``forcing`` sub-object (schema 2026.5.dev7 onwards; see
+:ref:`transition_guide` for the rename of the legacy
+``model.control.forcing_file`` key):
 
 .. code-block:: yaml
 
    model:
      control:
-       forcing_file: "forcing/Kc_2020_data_60.txt"
-       
+       forcing:
+         file: "forcing/Kc_2020_data_60.txt"
+
        # Or multiple files for continuous multi-year runs:
-       forcing_file:
-         - "forcing/Kc_2020_data_60.txt"
-         - "forcing/Kc_2021_data_60.txt"
-         - "forcing/Kc_2022_data_60.txt"
+       forcing:
+         file:
+           - "forcing/Kc_2020_data_60.txt"
+           - "forcing/Kc_2021_data_60.txt"
+           - "forcing/Kc_2022_data_60.txt"
 
 Optional Variables
 ------------------

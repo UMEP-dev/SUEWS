@@ -54,6 +54,23 @@ EXAMPLES:
 
 ## 2026
 
+### 29 Apr 2026
+
+- [feature][experimental] Read forcing files by **column name** rather than position (#1372)
+  - Header line is now required and matched case-insensitively against the canonical column list. Files with the standard SUEWS canonical headers (`iy`, `id`, `it`, `imin`, `Tair`, `RH`, `U`, `pres`, `kdown`, `rain`, plus optional canonicals) continue to load unchanged
+  - Baseline-required set raises `ValueError` if any of the ten time/met columns is absent; physics-conditional columns (e.g. `ldown` for `net_radiation = 11`, `fcld` for `net_radiation = 1` or `2`) are checked against the resolved physics path and the error message names the requesting method
+  - Missing optional canonical columns are filled with `-999.0` (the SUEWS sentinel); unknown columns emit a `UserWarning` and are dropped
+- [feature][experimental] Per-landcover variants of `lai` and `xsmd` plumbed into the forcing readers (#1372)
+  - Whitelisted `<var>_<surface>` columns (`var` in `{lai, xsmd}`; `surface` in `{paved, bldgs, evetr, dectr, grass, bsoil, water}`) are loaded into `SUEWSForcing.extras` / `ForcingData.extras` for downstream physics work; the kernel itself still uses the bulk `lai` and `xsmd` columns in this release
+- [change][experimental] `model.control.forcing_file` moved to `model.control.forcing.file` (#1372)
+  - Restructure under a new `ForcingControl` sub-object creates a stable home for future forcing fields (sub-hourly disaggregation, resampling policy)
+  - `suews-convert` and `suews-schema migrate` upgrade existing configs automatically via the `(2026.5.dev6 -> 2026.5.dev7)` handler; manual edit is also straightforward
+  - Schema bump `2026.5.dev6 -> 2026.5.dev7`; `sample_config.yml` and the vendored release fixtures are updated accordingly
+- [doc] Document named-column forcing reader and `forcing.file` restructure (#1372)
+  - Added a Named-column forcing files section to `docs/source/inputs/forcing-data.rst` with the canonical name list, baseline-required set, optional/whitelisted/unknown column behaviour, and a cross-reference anchor `named_column_forcing`
+  - Added a 2026.5.dev7 entry to `docs/source/inputs/transition_guide.rst` with the YAML rename example and the named-column header semantics
+  - Added the corresponding 2026.5.dev7 entry to `docs/source/contributing/schema/schema_versioning.rst` Version History; demoted the dev6 entry from "current" to an intermediate dev label
+
 ### 22 Apr 2026
 
 - [bugfix] Reject sparse YAML configs that omit physics-required fields (#1333)

@@ -754,8 +754,7 @@ def _run_supy(
         lai_issues = []
         if _check_observed_lai_nonneg(df_forcing, lai_issues):
             logger_supy.critical(
-                "`df_forcing` violates the observed-LAI contract under "
-                "`laimethod=0`."
+                "`df_forcing` violates the observed-LAI contract under `laimethod=0`."
             )
             raise RuntimeError(lai_issues[0])
 
@@ -838,6 +837,11 @@ def run_supy(
         If set to `True`, SuPy simulation will be conducted in serial mode;
         a `False` flag will try parallel simulation if possible (Windows not supported, i.e., always serial).
         (the default is `False`).
+        See :doc:`/auto_examples/tutorial_08_parallel_multi_grid` for a worked
+        example of multi-grid execution. The modern OOP entry point
+        :meth:`~supy.SUEWSSimulation.run` exposes ``n_jobs`` instead:
+        ``n_jobs=-1`` keeps the default Rayon thread pool, ``n_jobs=1`` forces
+        serial execution, and values greater than 1 cap the Rayon worker count.
     debug_mode : bool, optional
         If set to `True`, SuPy simulation will be conducted in debug mode, which will write out additional information for debugging purposes.
 

@@ -138,6 +138,7 @@ dummy-variable-rgx = "^(_+|(_+[a-zA-Z0-9_]*[a-zA-Z0-9]+?))$"
 "docs/source/tutorials/tutorial_05_results_analysis.py" = ["D205", "D400"]
 "docs/source/tutorials/tutorial_06_external_coupling.py" = ["D205", "D301", "D400"]
 "docs/source/tutorials/tutorial_07_attribution.py" = ["D205", "D400"]
+"docs/source/tutorials/tutorial_08_parallel_multi_grid.py" = ["D205", "D400"]
 "docs/table.py" = ["D412"]
 "get_ver_git.py" = ["D103", "D400", "D406", "D407"]
 "scripts/lint/audit_docstrings.py" = ["D103"]

@@ -75,6 +75,49 @@ class TestInit:
         assert len(results) == 24
         assert sim._run_completed is True
 
+    @pytest.mark.core
+    def test_from_sample_data_multi_site_shape(self):
+        """`n_sites=N` populates N sites with distinct names and gridivs."""
+        sim = SUEWSSimulation.from_sample_data(n_sites=4)
+
+        # Config layer
+        assert len(sim.config.sites) == 4
+        names = [s.name for s in sim.config.sites]
+        gridivs = [s.gridiv for s in sim.config.sites]
+        assert len(set(names)) == 4, f"Site names not unique: {names}"
+        assert len(set(gridivs)) == 4, f"gridiv values not unique: {gridivs}"
+
+        # State DataFrame layer (one row per site, indexed by grid)
+        assert sim._df_state_init.shape[0] == 4
+        assert set(sim._df_state_init.index) == set(gridivs)
+
+    def test_from_sample_data_multi_site_can_run(self):
+        """`n_sites=N` produces a runnable simulation with output rows per grid."""
+        sim = SUEWSSimulation.from_sample_data(n_sites=4)
+
+        # Short run to keep the test fast
+        results = sim.run(end_date=sim._df_forcing.index[23], n_jobs=2)
+
+        assert results is not None
+        # SUEWSOutput exposes the grid level via the underlying DataFrame index
+        df = results.df
+        grids_in_output = df.index.get_level_values("grid").unique()
+        assert len(grids_in_output) == 4
+
+    def test_from_sample_data_default_unchanged(self):
+        """Calling without `n_sites` keeps single-site behaviour."""
+        sim_default = SUEWSSimulation.from_sample_data()
+        sim_explicit = SUEWSSimulation.from_sample_data(n_sites=1)
+
+        assert len(sim_default.config.sites) == 1
+        assert len(sim_explicit.config.sites) == 1
+        assert sim_default._df_state_init.shape == sim_explicit._df_state_init.shape
+
+    def test_from_sample_data_invalid_n_sites(self):
+        """`n_sites < 1` is rejected with a clear message."""
+        with pytest.raises(ValueError, match="n_sites must be >= 1"):
+            SUEWSSimulation.from_sample_data(n_sites=0)
+
 
 class TestConfig:
     """Test configuration updates."""

@@ -85,7 +85,8 @@ def get_var(out, name, group="SUEWS"):
         if n_grids != 1:
             raise ValueError(
                 f"Expected single-grid output, but found {n_grids} grids. "
-                "Use MultiIndex indexing directly for multi-grid runs."
+                "Use MultiIndex indexing directly for multi-grid runs "
+                "(see tutorial_08_parallel_multi_grid for a worked example)."
             )
         ser = ser.droplevel("grid")
     return ser

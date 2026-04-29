@@ -472,6 +472,17 @@ class SUEWSSimulation:
         RuntimeError
             If configuration or forcing data is missing.
 
+        Notes
+        -----
+        Configurations with more than one entry in ``config.sites`` are
+        executed with the Rust/Rayon backend. Use ``n_jobs=-1`` for the
+        default Rayon thread pool, ``n_jobs=1`` for serial execution, or a
+        positive value greater than 1 to cap the Rayon worker count. The
+        forcing array is cloned per thread so Fortran kernel writes stay
+        isolated.
+        See :doc:`/auto_examples/tutorial_08_parallel_multi_grid` for a
+        worked example.
+
         Examples
         --------
         >>> sim = SUEWSSimulation.from_sample_data()
@@ -744,12 +755,24 @@ class SUEWSSimulation:
         return self
 
     @classmethod
-    def from_sample_data(cls):
+    def from_sample_data(cls, n_sites: int = 1):
         """Create SUEWSSimulation instance with built-in sample data.
 
         This factory method provides a quick way to create a simulation object
         pre-loaded with sample configuration and forcing data, ideal for tutorials,
         testing, and learning the SUEWS workflow.
+
+        Parameters
+        ----------
+        n_sites : int, optional
+            Number of sites to populate in the returned simulation. The default
+            of ``1`` returns the single-site sample (existing behaviour). Values
+            greater than 1 duplicate the sample site to produce ``n_sites``
+            entries with distinct names (e.g. ``KCL_01``, ``KCL_02``, ...) and
+            unique ``gridiv`` IDs. The shared sample forcing is reused for all
+            sites. Useful for exploring multi-grid execution controlled by the
+            ``n_jobs`` parameter on :meth:`~supy.SUEWSSimulation.run` (see
+            :doc:`/auto_examples/tutorial_08_parallel_multi_grid`).
 
         Returns
         -------
@@ -762,10 +785,19 @@ class SUEWSSimulation:
 
         >>> from supy import SUEWSSimulation
         >>> sim = SUEWSSimulation.from_sample_data()
-        >>> sim.run()
-        >>> results = sim.results
+        >>> output = sim.run()
+
+        Multi-site ensemble (runs with the default Rayon thread pool):
+
+        >>> sim = SUEWSSimulation.from_sample_data(n_sites=4)
+        >>> len(sim.config.sites)
+        4
+        >>> output = sim.run(n_jobs=-1)
 
         """
+        if n_sites < 1:
+            raise ValueError(f"n_sites must be >= 1, got {n_sites}")
+
         from ._env import trv_supy_module
         from ._supy_module import _load_sample_data
 
@@ -799,7 +831,41 @@ class SUEWSSimulation:
         # Set core simulation data (overrides any config-derived state)
         sim._df_state_init = df_state_init
         sim._df_forcing = df_forcing
+
+        if n_sites > 1:
+            sim._expand_to_multi_site(n_sites)
+
         return sim
+
+    def _expand_to_multi_site(self, n_sites: int) -> None:
+        """Replicate the first configured site into ``n_sites`` entries.
+
+        Each replica gets a distinct name (``<base>_NN``) and a unique
+        ``gridiv`` derived from the template site's ``gridiv``. The
+        ``df_state_init`` DataFrame is regenerated from the expanded config
+        so it stays consistent with ``config.sites``.
+        """
+        if self._config is None or not getattr(self._config, "sites", None):
+            raise RuntimeError(
+                "Cannot expand to multiple sites: configuration has no sites loaded."
+            )
+
+        template = self._config.sites[0]
+        base_name = template.name
+        base_gridiv = template.gridiv
+
+        new_sites = []
+        for i in range(n_sites):
+            replica = copy.deepcopy(template)
+            replica.name = f"{base_name}_{i + 1:02d}"
+            replica.gridiv = base_gridiv + i
+            new_sites.append(replica)
+
+        self._config.sites = new_sites
+        # Regenerate state DataFrame from the expanded config so the row index
+        # carries one entry per gridiv (downstream code that inspects
+        # ``sim.state_init`` sees the multi-grid shape).
+        self._df_state_init = self._config.to_df_state()
 
     @staticmethod
     def _coerce_checkpoint(

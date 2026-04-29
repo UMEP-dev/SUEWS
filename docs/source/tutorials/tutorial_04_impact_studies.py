@@ -40,7 +40,9 @@ sim = SUEWSSimulation.from_sample_data()
 forcing_sliced = sim.forcing["2012-01":"2012-03"].iloc[1:]
 
 print("Sample data loaded using SUEWSSimulation.from_sample_data()")
-print(f"Simulation period: {forcing_sliced.df.index[0]} to {forcing_sliced.df.index[-1]}")
+print(
+    f"Simulation period: {forcing_sliced.df.index[0]} to {forcing_sliced.df.index[-1]}"
+)
 
 # %%
 # Part 1: Surface Properties - Albedo Study
@@ -111,7 +113,9 @@ print(f"Completed {n_albedo} albedo simulations")
 # Examine the temperature response to albedo changes using the OOP output interface.
 
 # Combine T2 results from all scenarios
-dict_T2 = {alb: output.SUEWS.T2.droplevel("grid") for alb, output in dict_outputs.items()}
+dict_T2 = {
+    alb: output.SUEWS.T2.droplevel("grid") for alb, output in dict_outputs.items()
+}
 df_T2_all = pd.concat(dict_T2, axis=1, names=["albedo"])
 
 # Select last month for analysis
@@ -178,9 +182,11 @@ plt.tight_layout()
 #
 # .. note::
 #
-#    For larger studies, these simulations could be run in parallel using
-#    ``concurrent.futures.ThreadPoolExecutor``. We use a simple loop here
-#    for clarity.
+#    A loop over scenarios is the right tool when each scenario uses
+#    different forcing. When the *same* forcing applies across many sites
+#    (e.g. land-cover ensembles), populate ``config.sites`` instead and
+#    run the multi-site simulation with ``sim.run(n_jobs=-1)`` -- see
+#    :doc:`tutorial_08_parallel_multi_grid`.
 
 # Temperature offsets to test
 n_climate = 3
@@ -206,7 +212,9 @@ for temp_offset in list_temp_offset:
     list_outputs.append((temp_offset, output))
 
 print(f"Completed {n_climate} climate scenarios")
-print(f"Temperature offsets: {list_temp_offset[0]:.1f} to {list_temp_offset[-1]:.1f} deg C")
+print(
+    f"Temperature offsets: {list_temp_offset[0]:.1f} to {list_temp_offset[-1]:.1f} deg C"
+)
 
 # %%
 # Combine and Analyse Climate Results
@@ -249,7 +257,9 @@ df_temp_diff_stats.plot(ax=ax, marker="o")
 ax.set_ylabel(r"$\Delta T_2$ ($^\circ$C)")
 ax.set_xlabel(r"$\Delta T_{a}$ ($^\circ$C)")
 ax.set_aspect("equal")
-ax.set_title(f"Temperature Response to Background Climate Change ({last_month_climate})")
+ax.set_title(
+    f"Temperature Response to Background Climate Change ({last_month_climate})"
+)
 ax.legend(title="Statistic")
 plt.tight_layout()
 

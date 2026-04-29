@@ -4,7 +4,7 @@ This crate is a minimal end-to-end bridge for one SUEWS OHM timestep:
 
 - Fortran `bind(c)` facade in `src/suews_bridge/fortran/suews_c_api_ohm.f95`
 - Rust FFI + safe wrappers in `src/suews_bridge/src/`
-- CLI binary (`suews`)
+- CLI binary (`suews-engine`)
 - Optional Python module via PyO3 (`maturin develop`)
 
 It now includes a first derived-type bridge for `OHM_STATE` using explicit

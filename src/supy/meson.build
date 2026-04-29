@@ -25,6 +25,7 @@ py.install_sources(
         [
             'cmd/__init__.py',
             'cmd/SUEWS.py',
+            'cmd/json_envelope.py',
             'cmd/json_output.py',
             'cmd/rust_bridge.py',
             'cmd/table_converter.py',
@@ -211,10 +212,10 @@ if rust_bridge_enabled
     # wheel cp39-abi3-<plat> rather than cp313-cp313-<plat>.
     if host_machine.system() == 'windows'
         rust_bridge_ext_name = 'suews_bridge.pyd'
-        rust_bridge_cli_name = 'suews.exe'
+        rust_bridge_cli_name = 'suews-engine.exe'
     else
         rust_bridge_ext_name = 'suews_bridge.abi3.so'
-        rust_bridge_cli_name = 'suews'
+        rust_bridge_cli_name = 'suews-engine'
     endif
 
     rust_bridge_artifacts = custom_target(

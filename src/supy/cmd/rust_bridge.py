@@ -10,7 +10,7 @@ from pathlib import Path
 
 
 def _bridge_binary() -> Path:
-    binary_name = "suews.exe" if os.name == "nt" else "suews"
+    binary_name = "suews-engine.exe" if os.name == "nt" else "suews-engine"
     binary = files("supy").joinpath("bin").joinpath(binary_name)
     with as_file(binary) as path_obj:
         path = Path(path_obj)

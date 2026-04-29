@@ -68,6 +68,9 @@ _PACKAGE_TO_SCHEMA: dict[str, str] = {
     # original schema label and upgrades to the new one via the registered
     # handler below, not by silent remapping.
     "2026.4.3": "2026.4",
+    # Dev-cycle vendored fixtures: filename stem maps to its own schema label
+    # so test_release_compat.py exercises the (label -> current) handler.
+    "2026.5.dev6": "2026.5.dev6",
 }
 
 

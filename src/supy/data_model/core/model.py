@@ -978,15 +978,39 @@ class OutputConfig(BaseModel):
         return v
 
 
+class ForcingControl(BaseModel):
+    """Configuration block for meteorological forcing input.
+
+    Created in gh#1372 so future forcing-related fields (sub-hourly
+    disaggregation, gh#1373; resampling policy; etc.) have a stable
+    home rather than accreting flat ``forcing_*`` siblings under
+    :class:`ModelControl`.
+    """
+
+    model_config = ConfigDict(title="Forcing Control")
+
+    file: Union[FlexibleRefValue(str), FlexibleRefValue(List[str])] = Field(
+        default="forcing.txt",
+        description=(
+            "Path(s) to meteorological forcing data file(s). This can be "
+            "either: (1) A single file path as a string (e.g., 'forcing.txt'), "
+            "or (2) A list of file paths (e.g., ['forcing_2020.txt', "
+            "'forcing_2021.txt']). When multiple files are provided, they "
+            "are concatenated in chronological order. For details, see "
+            ":ref:`met_input`."
+        ),
+    )
+
+
 class ModelControl(BaseModel):
     model_config = ConfigDict(title="Model Control")
 
     tstep: FlexibleRefValue(int) = Field(
         default=300, description="Time step in seconds for model calculations"
     )
-    forcing_file: Union[FlexibleRefValue(str), FlexibleRefValue(List[str])] = Field(
-        default="forcing.txt",
-        description="Path(s) to meteorological forcing data file(s). This can be either: (1) A single file path as a string (e.g., 'forcing.txt'), or (2) A list of file paths (e.g., ['forcing_2020.txt', 'forcing_2021.txt', 'forcing_2022.txt']). When multiple files are provided, they will be automatically concatenated in chronological order. The forcing data contains time-series meteorological measurements that drive SUEWS simulations. For detailed information about required variables, file format, and data preparation guidelines, see :ref:`met_input`.",
+    forcing: ForcingControl = Field(
+        default_factory=ForcingControl,
+        description="Meteorological forcing configuration (file path(s) and related options).",
     )
     kdownzen: Optional[FlexibleRefValue(int)] = Field(
         default=None,

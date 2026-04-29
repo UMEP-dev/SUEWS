@@ -36,6 +36,15 @@ DEFAULT_FORCING_FILE_PATTERNS = [
 ]  # Valid forcing file extensions
 
 
+def _validate_n_jobs(n_jobs: int) -> int | None:
+    """Return a Rust worker cap for a public ``n_jobs`` value."""
+    if isinstance(n_jobs, bool) or not isinstance(n_jobs, int):
+        raise ValueError("n_jobs must be an integer: -1, 1, or a positive value")
+    if n_jobs == 0 or n_jobs < -1:
+        raise ValueError("n_jobs must be -1, 1, or a positive integer")
+    return None if n_jobs == -1 else n_jobs
+
+
 class SUEWSSimulation:
     """
     Simplified SUEWS simulation class for urban climate modelling.
@@ -251,7 +260,9 @@ class SUEWSSimulation:
         if self._config is not None:
             try:
                 tstep_val = self._config.model.control.tstep
-                tstep_mod = tstep_val.value if hasattr(tstep_val, "value") else tstep_val
+                tstep_mod = (
+                    tstep_val.value if hasattr(tstep_val, "value") else tstep_val
+                )
             except AttributeError:
                 logger_supy.debug(
                     "Could not extract tstep from config; using default %ds",
@@ -428,6 +439,7 @@ class SUEWSSimulation:
         start_date=None,
         end_date=None,
         chunk_day: int = 3660,
+        n_jobs: int = -1,
         **run_kwargs,
     ) -> SUEWSOutput:
         """
@@ -443,6 +455,10 @@ class SUEWSSimulation:
             Chunk size in days for splitting long simulations, by default 3660
             (~10 years). Smaller values reduce peak memory at a small overhead
             cost.
+        n_jobs : int, optional
+            Parallel worker control for multi-grid runs. ``-1`` (default) uses
+            Rayon default parallelism, ``1`` forces serial execution, and
+            values greater than ``1`` cap Rayon to that many threads.
 
         Returns
         -------
@@ -472,6 +488,9 @@ class SUEWSSimulation:
                 f"Only the 'rust' backend is available. "
                 f"Remove the backend parameter or use backend='rust'."
             )
+
+        max_workers = _validate_n_jobs(n_jobs)
+        serial_mode = n_jobs == 1
 
         _check_rust_available()
 
@@ -549,6 +568,8 @@ class SUEWSSimulation:
             config=self._config,
             df_forcing=df_forcing_slice,
             chunk_day=chunk_day,
+            serial_mode=serial_mode,
+            max_workers=max_workers,
             initial_state_json_by_grid=initial_state_json_by_grid,
         )
         self._df_output = df_output

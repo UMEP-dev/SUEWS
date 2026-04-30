@@ -16,15 +16,17 @@ unambiguous.
 
 from __future__ import annotations
 
+from contextlib import contextmanager
 import copy
+from importlib.resources import as_file, files
 import json
 import math
 from pathlib import Path
-from typing import Any, Callable, Dict
+from typing import Any, Callable, Dict, Iterator
 
+from click.testing import CliRunner
 import pytest
 import yaml
-from click.testing import CliRunner
 
 pytestmark = pytest.mark.api
 
@@ -34,18 +36,19 @@ pytestmark = pytest.mark.api
 # ---------------------------------------------------------------------------
 
 
-def _sample_yaml_path() -> Path:
-    import supy
-
-    return Path(supy.__file__).parent / "sample_data" / "sample_config.yml"
+@contextmanager
+def _sample_yaml_path() -> Iterator[Path]:
+    """Yield the bundled sample config as a filesystem path for Click."""
+    resource = files("supy").joinpath("sample_data", "sample_config.yml")
+    with as_file(resource) as path_sample:
+        yield path_sample
 
 
 def _load_sample_dict() -> Dict[str, Any]:
-    sample = _sample_yaml_path()
-    if not sample.exists():
-        pytest.skip(f"Sample config not available at {sample}")
-    with sample.open("r", encoding="utf-8") as handle:
-        return yaml.safe_load(handle)
+    resource = files("supy").joinpath("sample_data", "sample_config.yml")
+    if not resource.is_file():
+        pytest.skip(f"Sample config not available at {resource}")
+    return yaml.safe_load(resource.read_text(encoding="utf-8"))
 
 
 def _write_yaml(path: Path, payload: Dict[str, Any]) -> None:
@@ -78,22 +81,22 @@ def test_validate_sample_config_emits_envelope() -> None:
     """``suews validate <sample> --format json`` emits the canonical envelope."""
     from supy.cmd.validate_config import cli as validate_cli
 
-    sample = _sample_yaml_path()
-    if not sample.exists():
-        pytest.skip(f"Sample config not available at {sample}")
+    with _sample_yaml_path() as sample:
+        if not sample.exists():
+            pytest.skip(f"Sample config not available at {sample}")
 
-    runner = CliRunner()
-    result = runner.invoke(
-        validate_cli,
-        [
-            "--pipeline",
-            "ABC",
-            "--dry-run",
-            "--format",
-            "json",
-            str(sample),
-        ],
-    )
+        runner = CliRunner()
+        result = runner.invoke(
+            validate_cli,
+            [
+                "--pipeline",
+                "ABC",
+                "--dry-run",
+                "--format",
+                "json",
+                str(sample),
+            ],
+        )
     assert result.exit_code in {0, 1}, result.output
     envelope = json.loads(result.stdout)
     assert set(envelope.keys()) == {"status", "data", "errors", "warnings", "meta"}
@@ -109,6 +112,33 @@ def test_validate_sample_config_emits_envelope() -> None:
         "ended_at",
     ):
         assert key in meta, f"meta key {key!r} missing from envelope"
+
+
+def test_validate_pipeline_c_json_accepts_multiple_files() -> None:
+    """Pipeline C dry-run JSON mode validates more than one file."""
+    from supy.cmd.validate_config import cli as validate_cli
+
+    with _sample_yaml_path() as sample:
+        if not sample.exists():
+            pytest.skip(f"Sample config not available at {sample}")
+
+        runner = CliRunner()
+        result = runner.invoke(
+            validate_cli,
+            [
+                "--pipeline",
+                "C",
+                "--dry-run",
+                "--format",
+                "json",
+                str(sample),
+                str(sample),
+            ],
+        )
+    assert result.exit_code == 0, result.output
+    envelope = json.loads(result.stdout)
+    assert envelope["status"] == "success"
+    assert len(envelope["data"]["files"]) == 2
 
 
 # ---------------------------------------------------------------------------

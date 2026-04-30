@@ -366,10 +366,11 @@ def cli(
                     ctx.exit(2)
                 results = []
                 all_valid = True
-                _silencer = silent_supy_logger() if out_format == "json" else _nullcontext()
                 for file_path in files:
                     path = Path(file_path)
-                    with _silencer:
+                    with (
+                        silent_supy_logger() if out_format == "json" else _nullcontext()
+                    ):
                         is_valid, errors = validate_single_file(
                             path,
                             schema,
@@ -520,12 +521,11 @@ def validate(files, schema_version, verbose, quiet, format):
     valid_files = 0
     results = []
 
-    _silencer = silent_supy_logger() if format == "json" else _nullcontext()
     for file_path in track(
         files, description="Validating...", disable=(quiet or format == "json")
     ):
         path = Path(file_path)
-        with _silencer:
+        with (silent_supy_logger() if format == "json" else _nullcontext()):
             is_valid, errors = validate_single_file(
                 path,
                 schema,

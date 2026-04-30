@@ -13,9 +13,9 @@ even on configs that reference multi-GB forcing archives.
 
 from __future__ import annotations
 
-import sys
 from contextlib import nullcontext as _nullcontext
 from pathlib import Path
+import sys
 from typing import Any, Dict, List, Optional
 
 import click
@@ -85,19 +85,49 @@ def _surface_fractions(
             )
             out[surf] = None
             continue
-        sfr_raw = block.get("sfr") if isinstance(block, dict) else getattr(block, "sfr", None)
+        sfr_raw = (
+            block.get("sfr") if isinstance(block, dict) else getattr(block, "sfr", None)
+        )
         sfr_value = _ref_value(sfr_raw)
         if sfr_value is None:
             list_warnings.append(
                 "site '%s': land_cover.%s.sfr missing." % (site_name, surf)
             )
-        out[surf] = (
-            float(sfr_value) if isinstance(sfr_value, (int, float)) else None
-        )
+        out[surf] = float(sfr_value) if isinstance(sfr_value, (int, float)) else None
     return out
 
 
-def _forcing_summary(model_data: Dict[str, Any]) -> Dict[str, Any]:
+def _resolve_forcing_path(path_value: str, path_config_dir: Path) -> Path:
+    """Resolve a forcing path relative to the inspected config."""
+    path_forcing = Path(path_value)
+    if not path_forcing.is_absolute():
+        path_forcing = path_config_dir / path_forcing
+    return path_forcing
+
+
+def _peek_forcing_header(path_value: str, path_config_dir: Path) -> Dict[str, Any]:
+    """Return a cheap header summary for one forcing file path."""
+    summary: Dict[str, Any] = {
+        "file": path_value,
+        "n_columns": None,
+        "columns": [],
+    }
+    path_forcing = _resolve_forcing_path(path_value, path_config_dir)
+    if path_forcing.exists() and path_forcing.is_file():
+        try:
+            with path_forcing.open("r", encoding="utf-8") as handle:
+                header = handle.readline().strip()
+            if header:
+                cols = header.split()
+                summary["n_columns"] = len(cols)
+                summary["columns"] = cols
+        except OSError:
+            # Treat unreadable forcing as unknown rather than fatal.
+            pass
+    return summary
+
+
+def _forcing_summary(model_data: Dict[str, Any], path_config_dir: Path) -> Dict[str, Any]:
     """Extract a forcing file summary from ``model.control``.
 
     We deliberately do NOT open the forcing file — that's an I/O cost we
@@ -115,18 +145,26 @@ def _forcing_summary(model_data: Dict[str, Any]) -> Dict[str, Any]:
         "columns": [],
     }
     if isinstance(forcing_value, str):
-        path_forcing = Path(forcing_value)
-        if path_forcing.exists() and path_forcing.is_file():
-            try:
-                with path_forcing.open("r", encoding="utf-8") as handle:
-                    header = handle.readline().strip()
-                if header:
-                    cols = header.split()
-                    summary["n_columns"] = len(cols)
-                    summary["columns"] = cols
-            except OSError:
-                # Treat unreadable forcing as unknown rather than fatal.
-                pass
+        summary.update(_peek_forcing_header(forcing_value, path_config_dir))
+    elif isinstance(forcing_value, list):
+        list_files = [
+            _peek_forcing_header(item, path_config_dir)
+            for item in forcing_value
+            if isinstance(item, str)
+        ]
+        summary["files"] = list_files
+        list_columns = [
+            item["columns"]
+            for item in list_files
+            if item["n_columns"] is not None and item["columns"]
+        ]
+        if (
+            list_files
+            and len(list_columns) == len(list_files)
+            and all(cols == list_columns[0] for cols in list_columns)
+        ):
+            summary["columns"] = list_columns[0]
+            summary["n_columns"] = len(list_columns[0])
     return summary
 
 
@@ -184,7 +222,10 @@ def inspect_config_cmd(config_path: str, output_format: str) -> None:
     """Implementation of ``suews inspect``."""
     started_at = _now_iso()
     json_mode = output_format.lower() == "json"
-    command = " ".join(["suews", "inspect"] + sys.argv[1:])
+    list_args = sys.argv[1:]
+    if list_args and list_args[0] == "inspect":
+        list_args = list_args[1:]
+    command = " ".join(["suews", "inspect"] + list_args)
 
     path_config = Path(config_path)
 
@@ -236,7 +277,7 @@ def inspect_config_cmd(config_path: str, output_format: str) -> None:
             )
 
     model_data = config_dict.get("model", {}) or {}
-    forcing_summary = _forcing_summary(model_data)
+    forcing_summary = _forcing_summary(model_data, path_config.resolve().parent)
 
     schema_version = config_dict.get("schema_version")
 

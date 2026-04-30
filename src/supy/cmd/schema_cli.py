@@ -9,49 +9,53 @@ This module addresses GitHub issues #612 and #613, providing a single entry poin
 for all schema-related operations that will integrate with the future suews-wizard (#544).
 """
 
-import click
-import yaml
-import json
-import sys
-from pathlib import Path
-from typing import Optional, List, Tuple
-import logging
 from datetime import datetime
+import json
+import logging
+from pathlib import Path
+import sys
+from typing import List, Optional, Tuple
+
+import click
+import jsonschema
 from rich.console import Console
-from rich.table import Table
 from rich.panel import Panel
 from rich.progress import track
 from rich.syntax import Syntax
-import jsonschema
+from rich.table import Table
+import yaml
 
 # Import from supy modules
 try:
     from ..data_model.core.config import SUEWSConfig
+    from ..data_model.schema.migration import SchemaMigrator, check_migration_needed
+    from ..data_model.schema.publisher import generate_json_schema, save_schema
     from ..data_model.schema.version import (
         CURRENT_SCHEMA_VERSION,
         SCHEMA_VERSIONS,
-        is_schema_compatible,
         get_schema_compatibility_message,
+        is_schema_compatible,
     )
-    from ..data_model.schema.publisher import generate_json_schema, save_schema
-    from ..data_model.schema.migration import SchemaMigrator, check_migration_needed
 except ImportError:
     # Fallback for direct script execution
     import sys
 
     sys.path.append(str(Path(__file__).parent.parent.parent))
     from supy.data_model.core.config import SUEWSConfig
+    from supy.data_model.schema.migration import SchemaMigrator, check_migration_needed
+    from supy.data_model.schema.publisher import generate_json_schema, save_schema
     from supy.data_model.schema.version import (
         CURRENT_SCHEMA_VERSION,
         SCHEMA_VERSIONS,
-        is_schema_compatible,
         get_schema_compatibility_message,
+        is_schema_compatible,
     )
-    from supy.data_model.schema.publisher import generate_json_schema, save_schema
-    from supy.data_model.schema.migration import SchemaMigrator, check_migration_needed
 
 # Canonical SUEWS CLI JSON envelope (gh#1360 / gh#1368).
-from .json_envelope import Envelope, _now_iso
+try:
+    from .json_envelope import Envelope, _now_iso
+except ImportError:  # pragma: no cover - direct script execution fallback
+    from supy.cmd.json_envelope import Envelope, _now_iso
 
 console = Console()
 logger = logging.getLogger(__name__)

@@ -8,8 +8,8 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <meta property="article:modified_time" content="2026-04-25T05:39:08+00:00" />
-    <title>4.5. Transitioning to YAML-based Configuration &#8212; SUEWS 2026.4.29.dev9035 documentation</title>
+    <meta property="article:modified_time" content="2026-04-30T18:48:45+00:00" />
+    <title>4.5. Transitioning to YAML-based Configuration &#8212; SUEWS 2026.4.30.dev9034 documentation</title>
   
   
   
@@ -45,7 +45,7 @@
   <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=8878045cc6db502f8baf" />
 <link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=8878045cc6db502f8baf" />
 
-    <script src="../_static/documentation_options.js?v=1bdf4645"></script>
+    <script src="../_static/documentation_options.js?v=44548cb0"></script>
     <script src="../_static/doctools.js?v=9bcbadda"></script>
     <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
     <script src="../_static/scripts/sphinx-book-theme.js?v=fab101a9"></script>
@@ -59,8 +59,8 @@
     <link rel="prev" title="4.4. SUEWS Format Converter" href="converter.html" />
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
-  <meta name="docsearch:version" content="2026.4.29.dev9035" />
-    <meta name="docbuild:last-update" content="2026-04-25"/>
+  <meta name="docsearch:version" content="2026.4.30.dev9034" />
+    <meta name="docbuild:last-update" content="2026-04-30"/>
   </head>
   
   
@@ -102,7 +102,7 @@
   <div class="bd-header-announcement__content">
     <div style="background-color: #f0ad4e; border: 1px solid #eea236; border-radius: 4px; padding: 10px; margin: 10px 0;">
         <strong>⚠️ Development Version:</strong> This documentation was built from a development version
-        (2026.4.29.dev9035, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/9575119dd498da9c56f364dd0471d8b7614397aa" style="color: #31708f;">9575119</a>).
+        (2026.4.30.dev9034, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/b2cf87f79d013e58ef727428f3a115f2e25201c9" style="color: #31708f;">b2cf87f</a>).
         Features described here may be unstable or subject to change. For stable documentation, please visit the
         <a href="https://docs.suews.io/stable/" style="color: #31708f;">latest release</a>.
     </div>
@@ -149,8 +149,8 @@
       
     
     
-    <img src="../_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.4.29.dev9035 documentation - Home"/>
-    <img src="../_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.4.29.dev9035 documentation - Home"/>
+    <img src="../_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.4.30.dev9034 documentation - Home"/>
+    <img src="../_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.4.30.dev9034 documentation - Home"/>
   
   
 </a></div>
@@ -791,7 +791,7 @@
 <p>Once your configuration is in YAML, subsequent SUEWS releases may bump
 the YAML <em>schema</em> — the structure of the file itself. Each bump is
 backed by a registered migration handler, so <code class="docutils literal notranslate"><span class="pre">suews-convert</span></code> (for
-combined legacy+schema upgrades) and <code class="docutils literal notranslate"><span class="pre">suews-schema</span> <span class="pre">migrate</span></code> (for
+combined legacy+schema upgrades) and <code class="docutils literal notranslate"><span class="pre">suews</span> <span class="pre">schema</span> <span class="pre">migrate</span></code> (for
 schema-only upgrades) will move old YAMLs onto the current shape
 without losing data. Every drop is logged with a human-readable
 reason so you can reconstruct intent if needed.</p>
@@ -832,10 +832,10 @@ the user omitted them are skipped, so programmatic
 <code class="docutils literal notranslate"><span class="pre">SUEWSConfig(sites=[Site(...)])</span></code> constructions and sparse test /
 docs YAMLs that only exercise unrelated aspects (timezone, output
 configuration, …) remain permissive.</p>
-<p>Because the YAML shape is unchanged, no <code class="docutils literal notranslate"><span class="pre">suews-schema</span> <span class="pre">migrate</span></code> run
+<p>Because the YAML shape is unchanged, no <code class="docutils literal notranslate"><span class="pre">suews</span> <span class="pre">schema</span> <span class="pre">migrate</span></code> run
 is strictly required to move to <code class="docutils literal notranslate"><span class="pre">2026.5.dev6</span></code>. Run the migrator
 only to refresh the <code class="docutils literal notranslate"><span class="pre">schema_version</span></code> stamp if you pin the field:</p>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>suews-schema<span class="w"> </span>migrate<span class="w"> </span>your_config.yml<span class="w"> </span>--target-version<span class="w"> </span><span class="m">2026</span>.5.dev6
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>suews<span class="w"> </span>schema<span class="w"> </span>migrate<span class="w"> </span>your_config.yml<span class="w"> </span>--target-version<span class="w"> </span><span class="m">2026</span>.5.dev6
 </pre></div>
 </div>
 <p>Users hitting the new raise should either (a) fill in the missing
@@ -854,7 +854,7 @@ its numeric codes at load time; canonical internal shape remains flat,
 and YAML dump / migration continue to emit the flat form unchanged.</p>
 <p>Because the change is accept-only, the <code class="docutils literal notranslate"><span class="pre">2026.5.dev4</span> <span class="pre">-&gt;</span>
 <span class="pre">2026.5.dev5</span></code> migration is an identity pass. Run:</p>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>suews-schema<span class="w"> </span>migrate<span class="w"> </span>your_config.yml<span class="w"> </span>--target-version<span class="w"> </span><span class="m">2026</span>.5.dev5
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>suews<span class="w"> </span>schema<span class="w"> </span>migrate<span class="w"> </span>your_config.yml<span class="w"> </span>--target-version<span class="w"> </span><span class="m">2026</span>.5.dev5
 </pre></div>
 </div>
 </section>
@@ -885,7 +885,7 @@ component qualifiers; only the prefix becomes consistent.</p>
 </ul>
 <p>Legacy <code class="docutils literal notranslate"><span class="pre">dhw_*</span></code> and <code class="docutils literal notranslate"><span class="pre">water_tank_*</span></code> spellings continue to load
 via the Pydantic shim with a <code class="docutils literal notranslate"><span class="pre">DeprecationWarning</span></code>. Run
-<code class="docutils literal notranslate"><span class="pre">suews-schema</span> <span class="pre">migrate</span> <span class="pre">--target-version</span> <span class="pre">2026.5.dev4</span> <span class="pre">&lt;your.yml&gt;</span></code>
+<code class="docutils literal notranslate"><span class="pre">suews</span> <span class="pre">schema</span> <span class="pre">migrate</span> <span class="pre">--target-version</span> <span class="pre">2026.5.dev4</span> <span class="pre">&lt;your.yml&gt;</span></code>
 to rewrite them in place. Rust struct fields and the c_api shadow
 keep <code class="docutils literal notranslate"><span class="pre">dhw_*</span></code> internally — cross-layer work is tracked in #1324.</p>
 </section>
@@ -947,7 +947,7 @@ keeps working without changes.</p>
 <code class="docutils literal notranslate"><span class="pre">SNOWPARAMS_INTERMEDIATE_RENAMES</span></code>). Both legacy shapes (PascalCase
 from Schema 2026.5.dev2 and the pre-gh#1327 fused <code class="docutils literal notranslate"><span class="pre">Wallext</span></code>/<code class="docutils literal notranslate"><span class="pre">Roofext</span></code>
 cluster) continue to load under a <code class="docutils literal notranslate"><span class="pre">DeprecationWarning</span></code>. Run:</p>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>suews-schema<span class="w"> </span>migrate<span class="w"> </span>your_config.yml<span class="w"> </span>--target-version<span class="w"> </span><span class="m">2026</span>.5.dev3
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>suews<span class="w"> </span>schema<span class="w"> </span>migrate<span class="w"> </span>your_config.yml<span class="w"> </span>--target-version<span class="w"> </span><span class="m">2026</span>.5.dev3
 </pre></div>
 </div>
 <p>Use this historical target when you specifically want the pre-hot-water
@@ -988,7 +988,7 @@ stay in their legacy fused spellings for the Fortran bridge.</p>
 <code class="docutils literal notranslate"><span class="pre">MODELPHYSICS_SUFFIX_RENAMES</span></code> catches the Category 1 intermediate
 spellings from Schema 2026.5). Both legacy shapes continue to load
 under a <code class="docutils literal notranslate"><span class="pre">DeprecationWarning</span></code>. Run:</p>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>suews-schema<span class="w"> </span>migrate<span class="w"> </span>your_config.yml<span class="w"> </span>--target-version<span class="w"> </span><span class="m">2026</span>.5.dev2
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>suews<span class="w"> </span>schema<span class="w"> </span>migrate<span class="w"> </span>your_config.yml<span class="w"> </span>--target-version<span class="w"> </span><span class="m">2026</span>.5.dev2
 </pre></div>
 </div>
 <p>The migrator accepts any registered intermediate (<code class="docutils literal notranslate"><span class="pre">2025.12</span></code>,
@@ -1024,7 +1024,7 @@ Python-to-Fortran bridge reverses the rename before handoff.</p>
 continue to load under a <code class="docutils literal notranslate"><span class="pre">DeprecationWarning</span></code> so existing YAMLs
 are not broken, but new configurations should use the new names and
 persisted YAMLs should be migrated. Run:</p>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>suews-schema<span class="w"> </span>migrate<span class="w"> </span>your_config.yml<span class="w"> </span>--target-version<span class="w"> </span><span class="m">2026</span>.5.dev1
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>suews<span class="w"> </span>schema<span class="w"> </span>migrate<span class="w"> </span>your_config.yml<span class="w"> </span>--target-version<span class="w"> </span><span class="m">2026</span>.5.dev1
 </pre></div>
 </div>
 <p>The migrator accepts any registered intermediate (for example
@@ -1065,7 +1065,7 @@ top.</p>
 <p class="admonition-title">Note</p>
 <p>The standalone Rust CLI (<code class="docutils literal notranslate"><span class="pre">suews</span> <span class="pre">run</span> <span class="pre">config.yml</span></code>) accepts both the
 new <code class="docutils literal notranslate"><span class="pre">snake_case</span></code> spellings and the legacy fused spellings
-transparently (gh#1322). You do not need to run <code class="docutils literal notranslate"><span class="pre">suews-schema</span>
+transparently (gh#1322). You do not need to run <code class="docutils literal notranslate"><span class="pre">suews</span> <span class="pre">schema</span>
 <span class="pre">migrate</span></code> purely to use the CLI — migration is only required when
 persisting a canonical 2026.5-shaped YAML, for example alongside a
 release fixture or before sharing a config with collaborators.</p>
@@ -1091,7 +1091,7 @@ selected, use the new <code class="docutils literal notranslate"><span class="pr
 as optional additions — they default to sensible values if absent.</p></li>
 </ul>
 <p>Run:</p>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>suews-schema<span class="w"> </span>migrate<span class="w"> </span>your_config.yml<span class="w"> </span>--target-version<span class="w"> </span><span class="m">2026</span>.4
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>suews<span class="w"> </span>schema<span class="w"> </span>migrate<span class="w"> </span>your_config.yml<span class="w"> </span>--target-version<span class="w"> </span><span class="m">2026</span>.4
 </pre></div>
 </div>
 <p>The migrator accepts any registered intermediate (for example
@@ -1118,7 +1118,7 @@ hot water (#1038). Existing configs that omit them continue to
 work; the profiles default to previous scalar behaviour.</p></li>
 </ul>
 <p>If you are targeting 2026.1.28 exactly:</p>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>suews-schema<span class="w"> </span>migrate<span class="w"> </span>your_config.yml<span class="w"> </span>--target-version<span class="w"> </span><span class="m">2026</span>.1
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>suews<span class="w"> </span>schema<span class="w"> </span>migrate<span class="w"> </span>your_config.yml<span class="w"> </span>--target-version<span class="w"> </span><span class="m">2026</span>.1
 </pre></div>
 </div>
 <p>Otherwise the 2026.4 -&gt; 2026.5 chain above is applied in one pass.</p>
@@ -1131,7 +1131,7 @@ you’ve partially hand-edited), the newer value wins and the stale
 key is logged and dropped so you can spot the intent conflict.</p>
 <p>For a dry-run that shows every rename and drop without writing the
 upgraded file, pass <code class="docutils literal notranslate"><span class="pre">--dry-run</span></code>:</p>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>suews-schema<span class="w"> </span>migrate<span class="w"> </span>your_config.yml<span class="w"> </span>--dry-run
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>suews<span class="w"> </span>schema<span class="w"> </span>migrate<span class="w"> </span>your_config.yml<span class="w"> </span>--dry-run
 </pre></div>
 </div>
 </section>
@@ -1204,7 +1204,7 @@ pointing at the correct family. For example, <code class="docutils literal notra
 valid YAML continues to validate and round-trips byte-identically.
 Writing in the nested form is optional and serves as in-file
 documentation of intent; YAMLs that round-trip through
-<code class="docutils literal notranslate"><span class="pre">suews-schema</span> <span class="pre">migrate</span></code> or <code class="docutils literal notranslate"><span class="pre">SUEWSConfig.to_yaml</span></code> are always
+<code class="docutils literal notranslate"><span class="pre">suews</span> <span class="pre">schema</span> <span class="pre">migrate</span></code> or <code class="docutils literal notranslate"><span class="pre">SUEWSConfig.to_yaml</span></code> are always
 emitted in the flat form.</p>
 <p>The Rust CLI (<code class="docutils literal notranslate"><span class="pre">suews</span> <span class="pre">run</span></code>) accepts the same two shapes via the
 bridge-side normaliser in <code class="docutils literal notranslate"><span class="pre">src/suews_bridge/src/field_renames.rs</span></code>.
@@ -1325,7 +1325,7 @@ By SUEWS dev team led by Prof Sue Grimmond
   
   <div class="footer-item">
     <p class="last-updated">
-  Last updated on 2026-04-25.
+  Last updated on 2026-04-30.
   <br/>
 </p>
   </div>
@@ -1333,8 +1333,8 @@ By SUEWS dev team led by Prof Sue Grimmond
   <div class="footer-item">
     
 <div class="extra_footer">
-  <p>Version: 2026.4.29.dev9035 |
-    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/9575119dd498da9c56f364dd0471d8b7614397aa">9575119</a> |
+  <p>Version: 2026.4.30.dev9034 |
+    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/b2cf87f79d013e58ef727428f3a115f2e25201c9">b2cf87f</a> |
     <a href="https://umep-dev.github.io/SUEWS/brand/showcase.html">Brand</a></p>
 </div>
   </div>

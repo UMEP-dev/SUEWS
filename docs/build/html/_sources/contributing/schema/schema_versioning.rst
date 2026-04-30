@@ -138,13 +138,13 @@ Command-line migration (preferred entry point)
 .. code-block:: bash
 
    # Upgrade a YAML to the current schema in place-safely (creates a .bak)
-   suews-schema migrate old_config.yml
+   suews schema migrate old_config.yml
 
    # Migrate to a specific target schema
-   suews-schema migrate config.yml --target-version 2026.5
+   suews schema migrate config.yml --target-version 2026.5
 
    # Dry-run to preview the rename/drop deltas
-   suews-schema migrate config.yml --dry-run
+   suews schema migrate config.yml --dry-run
 
 Python API
 ~~~~~~~~~~
@@ -423,10 +423,10 @@ Versioning Best Practices
 
 1. **Pin** ``schema_version`` in shared configurations so the target
    shape is explicit.
-2. **Upgrade via ``suews-schema migrate``** rather than hand-editing;
+2. **Upgrade via ``suews schema migrate``** rather than hand-editing;
    the tool preserves user-supplied values through rename chains and
    logs dropped fields so you can recover intent.
-3. **Re-validate after migration**: ``suews-schema validate
+3. **Re-validate after migration**: ``suews validate
    new_config.yml`` catches any downstream field that tightened at the
    same time.
 4. **Quote the SUEWS release** when sharing a config — the release

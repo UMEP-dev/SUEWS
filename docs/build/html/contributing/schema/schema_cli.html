@@ -8,8 +8,8 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <meta property="article:modified_time" content="2026-04-20T21:40:19+00:00" />
-    <title>Schema Management CLI &#8212; SUEWS 2026.4.29.dev9035 documentation</title>
+    <meta property="article:modified_time" content="2026-04-30T18:48:45+00:00" />
+    <title>Schema Management CLI &#8212; SUEWS 2026.4.30.dev9034 documentation</title>
   
   
   
@@ -45,7 +45,7 @@
   <link rel="preload" as="script" href="../../_static/scripts/bootstrap.js?digest=8878045cc6db502f8baf" />
 <link rel="preload" as="script" href="../../_static/scripts/pydata-sphinx-theme.js?digest=8878045cc6db502f8baf" />
 
-    <script src="../../_static/documentation_options.js?v=1bdf4645"></script>
+    <script src="../../_static/documentation_options.js?v=44548cb0"></script>
     <script src="../../_static/doctools.js?v=9bcbadda"></script>
     <script src="../../_static/sphinx_highlight.js?v=dc90522c"></script>
     <script src="../../_static/scripts/sphinx-book-theme.js?v=fab101a9"></script>
@@ -57,8 +57,8 @@
     <link rel="search" title="Search" href="../../search.html" />
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
-  <meta name="docsearch:version" content="2026.4.29.dev9035" />
-    <meta name="docbuild:last-update" content="2026-04-20"/>
+  <meta name="docsearch:version" content="2026.4.30.dev9034" />
+    <meta name="docbuild:last-update" content="2026-04-30"/>
   </head>
   
   
@@ -100,7 +100,7 @@
   <div class="bd-header-announcement__content">
     <div style="background-color: #f0ad4e; border: 1px solid #eea236; border-radius: 4px; padding: 10px; margin: 10px 0;">
         <strong>⚠️ Development Version:</strong> This documentation was built from a development version
-        (2026.4.29.dev9035, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/9575119dd498da9c56f364dd0471d8b7614397aa" style="color: #31708f;">9575119</a>).
+        (2026.4.30.dev9034, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/b2cf87f79d013e58ef727428f3a115f2e25201c9" style="color: #31708f;">b2cf87f</a>).
         Features described here may be unstable or subject to change. For stable documentation, please visit the
         <a href="https://docs.suews.io/stable/" style="color: #31708f;">latest release</a>.
     </div>
@@ -147,8 +147,8 @@
       
     
     
-    <img src="../../_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.4.29.dev9035 documentation - Home"/>
-    <img src="../../_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.4.29.dev9035 documentation - Home"/>
+    <img src="../../_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.4.30.dev9034 documentation - Home"/>
+    <img src="../../_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.4.30.dev9034 documentation - Home"/>
   
   
 </a></div>
@@ -596,7 +596,6 @@
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#command-reference">Command Reference</a><ul class="nav section-nav flex-column">
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#info">info</a></li>
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#version">version</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#validate">validate</a></li>
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#migrate">migrate</a></li>
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#export">export</a></li>
 </ul>
@@ -633,14 +632,14 @@
 </div>
 <section id="schema-management-cli">
 <span id="schema-cli"></span><h1>Schema Management CLI<a class="headerlink" href="#schema-management-cli" title="Link to this heading">#</a></h1>
-<p>The <code class="docutils literal notranslate"><span class="pre">suews-schema</span></code> command provides a comprehensive command-line interface for managing SUEWS YAML configuration schemas. This unified tool addresses the needs for schema version checking, validation, and migration between different schema versions.</p>
+<p>The <code class="docutils literal notranslate"><span class="pre">suews</span> <span class="pre">schema</span></code> command provides a comprehensive command-line interface for managing SUEWS YAML configuration schemas. This unified tool addresses the needs for schema version checking, migration, and schema export.</p>
 <div class="admonition note">
 <p class="admonition-title">Note</p>
 <p>This CLI consolidates functionality from GitHub issues #612 and #613, providing a single entry point for all schema-related operations that will integrate with the future suews-wizard (#544).</p>
 </div>
 <section id="installation">
 <h2>Installation<a class="headerlink" href="#installation" title="Link to this heading">#</a></h2>
-<p>The <code class="docutils literal notranslate"><span class="pre">suews-schema</span></code> command is automatically installed with SuPy:</p>
+<p>The <code class="docutils literal notranslate"><span class="pre">suews</span> <span class="pre">schema</span></code> command is automatically installed with SuPy:</p>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>pip<span class="w"> </span>install<span class="w"> </span>supy
 </pre></div>
 </div>
@@ -648,22 +647,22 @@
 </section>
 <section id="available-commands">
 <h2>Available Commands<a class="headerlink" href="#available-commands" title="Link to this heading">#</a></h2>
-<p>The <code class="docutils literal notranslate"><span class="pre">suews-schema</span></code> CLI provides the following subcommands:</p>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>suews-schema<span class="w"> </span>--help<span class="w">              </span><span class="c1"># Show help and available commands</span>
-suews-schema<span class="w"> </span>info<span class="w">                 </span><span class="c1"># Display schema version information</span>
-suews-schema<span class="w"> </span>version<span class="w">              </span><span class="c1"># Check or update schema versions</span>
-suews-schema<span class="w"> </span>validate<span class="w">             </span><span class="c1"># Validate configuration files</span>
-suews-schema<span class="w"> </span>migrate<span class="w">              </span><span class="c1"># Migrate between schema versions</span>
-suews-schema<span class="w"> </span><span class="nb">export</span><span class="w">               </span><span class="c1"># Export JSON Schema</span>
+<p>The <code class="docutils literal notranslate"><span class="pre">suews</span> <span class="pre">schema</span></code> CLI provides the following subcommands:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>suews<span class="w"> </span>schema<span class="w"> </span>--help<span class="w">              </span><span class="c1"># Show help and available commands</span>
+suews<span class="w"> </span>schema<span class="w"> </span>info<span class="w">                 </span><span class="c1"># Display schema version information</span>
+suews<span class="w"> </span>schema<span class="w"> </span>version<span class="w">              </span><span class="c1"># Check or update schema versions</span>
+suews<span class="w"> </span>schema<span class="w"> </span>migrate<span class="w">              </span><span class="c1"># Migrate between schema versions</span>
+suews<span class="w"> </span>schema<span class="w"> </span><span class="nb">export</span><span class="w">               </span><span class="c1"># Export JSON Schema</span>
 </pre></div>
 </div>
+<p>Configuration validation is handled by <code class="docutils literal notranslate"><span class="pre">suews</span> <span class="pre">validate</span></code>.</p>
 </section>
 <section id="command-reference">
 <h2>Command Reference<a class="headerlink" href="#command-reference" title="Link to this heading">#</a></h2>
 <section id="info">
 <h3>info<a class="headerlink" href="#info" title="Link to this heading">#</a></h3>
 <p>Display information about available schema versions and the current version.</p>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>suews-schema<span class="w"> </span>info
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>suews<span class="w"> </span>schema<span class="w"> </span>info
 </pre></div>
 </div>
 <p>This command shows:</p>
@@ -678,21 +677,21 @@ suews-schema<span class="w"> </span><span class="nb">export</span><span class="w
 <p>Check or update schema versions in configuration files.</p>
 <p><strong>Basic usage:</strong></p>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="c1"># Check schema version</span>
-suews-schema<span class="w"> </span>version<span class="w"> </span>config.yml
+suews<span class="w"> </span>schema<span class="w"> </span>version<span class="w"> </span>config.yml
 
 <span class="c1"># Check multiple files</span>
-suews-schema<span class="w"> </span>version<span class="w"> </span>configs/*.yml
+suews<span class="w"> </span>schema<span class="w"> </span>version<span class="w"> </span>configs/*.yml
 </pre></div>
 </div>
 <p><strong>Update schema versions:</strong></p>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="c1"># Update to current version</span>
-suews-schema<span class="w"> </span>version<span class="w"> </span>config.yml<span class="w"> </span>--update
+suews<span class="w"> </span>schema<span class="w"> </span>version<span class="w"> </span>config.yml<span class="w"> </span>--update
 
 <span class="c1"># Update to specific version</span>
-suews-schema<span class="w"> </span>version<span class="w"> </span>config.yml<span class="w"> </span>--update<span class="w"> </span>--target-version<span class="w"> </span><span class="m">2026</span>.4
+suews<span class="w"> </span>schema<span class="w"> </span>version<span class="w"> </span>config.yml<span class="w"> </span>--update<span class="w"> </span>--target-version<span class="w"> </span><span class="m">2026</span>.4
 
 <span class="c1"># Update without backup (not recommended)</span>
-suews-schema<span class="w"> </span>version<span class="w"> </span>config.yml<span class="w"> </span>--update<span class="w"> </span>--no-backup
+suews<span class="w"> </span>schema<span class="w"> </span>version<span class="w"> </span>config.yml<span class="w"> </span>--update<span class="w"> </span>--no-backup
 </pre></div>
 </div>
 <p><strong>Options:</strong></p>
@@ -702,53 +701,23 @@ suews-schema<span class="w"> </span>version<span class="w"> </span>config.yml<sp
 <li><p><code class="docutils literal notranslate"><span class="pre">--backup,</span> <span class="pre">-b</span></code>: Create backup before updating (default: true)</p></li>
 </ul>
 </section>
-<section id="validate">
-<h3>validate<a class="headerlink" href="#validate" title="Link to this heading">#</a></h3>
-<p>Validate configuration files against their schema.</p>
-<p><strong>Basic usage:</strong></p>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="c1"># Validate single file</span>
-suews-schema<span class="w"> </span>validate<span class="w"> </span>config.yml
-
-<span class="c1"># Validate multiple files</span>
-suews-schema<span class="w"> </span>validate<span class="w"> </span>configs/*.yml
-</pre></div>
-</div>
-<p><strong>Advanced options:</strong></p>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="c1"># Validate against specific schema version</span>
-suews-schema<span class="w"> </span>validate<span class="w"> </span>config.yml<span class="w"> </span>--schema-version<span class="w"> </span><span class="m">2026</span>.4
-
-<span class="c1"># Strict mode (exit with error code on failure)</span>
-suews-schema<span class="w"> </span>validate<span class="w"> </span>config.yml<span class="w"> </span>--strict
-
-<span class="c1"># Different output formats</span>
-suews-schema<span class="w"> </span>validate<span class="w"> </span>config.yml<span class="w"> </span>--format<span class="w"> </span>json
-suews-schema<span class="w"> </span>validate<span class="w"> </span>config.yml<span class="w"> </span>--format<span class="w"> </span>yaml
-</pre></div>
-</div>
-<p><strong>Options:</strong></p>
-<ul class="simple">
-<li><p><code class="docutils literal notranslate"><span class="pre">--schema-version</span></code>: Schema version to validate against</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">--strict,</span> <span class="pre">-s</span></code>: Exit with error on validation failure</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">--format</span></code>: Output format (table, json, yaml)</p></li>
-</ul>
-</section>
 <section id="migrate">
 <h3>migrate<a class="headerlink" href="#migrate" title="Link to this heading">#</a></h3>
 <p>Migrate configuration files between schema versions.</p>
 <p><strong>Basic usage:</strong></p>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="c1"># Migrate to current version</span>
-suews-schema<span class="w"> </span>migrate<span class="w"> </span>old_config.yml
+suews<span class="w"> </span>schema<span class="w"> </span>migrate<span class="w"> </span>old_config.yml
 
 <span class="c1"># Migrate to specific version</span>
-suews-schema<span class="w"> </span>migrate<span class="w"> </span>config.yml<span class="w"> </span>--target-version<span class="w"> </span><span class="m">2026</span>.4
+suews<span class="w"> </span>schema<span class="w"> </span>migrate<span class="w"> </span>config.yml<span class="w"> </span>--target-version<span class="w"> </span><span class="m">2026</span>.4
 </pre></div>
 </div>
 <p><strong>Batch migration:</strong></p>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="c1"># Migrate multiple files to output directory</span>
-suews-schema<span class="w"> </span>migrate<span class="w"> </span>configs/*.yml<span class="w"> </span>--output-dir<span class="w"> </span>migrated/
+suews<span class="w"> </span>schema<span class="w"> </span>migrate<span class="w"> </span>configs/*.yml<span class="w"> </span>--output-dir<span class="w"> </span>migrated/
 
 <span class="c1"># Dry run to preview changes</span>
-suews-schema<span class="w"> </span>migrate<span class="w"> </span>config.yml<span class="w"> </span>--dry-run
+suews<span class="w"> </span>schema<span class="w"> </span>migrate<span class="w"> </span>config.yml<span class="w"> </span>--dry-run
 </pre></div>
 </div>
 <p><strong>Options:</strong></p>
@@ -764,13 +733,13 @@ suews-schema<span class="w"> </span>migrate<span class="w"> </span>config.yml<sp
 <p>Export the JSON Schema for SUEWS configurations.</p>
 <p><strong>Basic usage:</strong></p>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="c1"># Export to file</span>
-suews-schema<span class="w"> </span><span class="nb">export</span><span class="w"> </span>-o<span class="w"> </span>schema.json
+suews<span class="w"> </span>schema<span class="w"> </span><span class="nb">export</span><span class="w"> </span>-o<span class="w"> </span>schema.json
 
 <span class="c1"># Export specific version</span>
-suews-schema<span class="w"> </span><span class="nb">export</span><span class="w"> </span>--version<span class="w"> </span><span class="m">2026</span>.4<span class="w"> </span>-o<span class="w"> </span>schema-2026.4.json
+suews<span class="w"> </span>schema<span class="w"> </span><span class="nb">export</span><span class="w"> </span>--version<span class="w"> </span><span class="m">2026</span>.4<span class="w"> </span>-o<span class="w"> </span>schema-2026.4.json
 
 <span class="c1"># Export as YAML</span>
-suews-schema<span class="w"> </span><span class="nb">export</span><span class="w"> </span>--format<span class="w"> </span>yaml<span class="w"> </span>-o<span class="w"> </span>schema.yaml
+suews<span class="w"> </span>schema<span class="w"> </span><span class="nb">export</span><span class="w"> </span>--format<span class="w"> </span>yaml<span class="w"> </span>-o<span class="w"> </span>schema.yaml
 </pre></div>
 </div>
 <p><strong>Options:</strong></p>
@@ -793,40 +762,40 @@ suews-schema<span class="w"> </span><span class="nb">export</span><span class="w
 <h2>Examples<a class="headerlink" href="#examples" title="Link to this heading">#</a></h2>
 <p><strong>Example 1: Check and update schema versions</strong></p>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="c1"># Check current versions</span>
-suews-schema<span class="w"> </span>version<span class="w"> </span>configs/*.yml
+suews<span class="w"> </span>schema<span class="w"> </span>version<span class="w"> </span>configs/*.yml
 
 <span class="c1"># Update all to current version</span>
-suews-schema<span class="w"> </span>version<span class="w"> </span>configs/*.yml<span class="w"> </span>--update
+suews<span class="w"> </span>schema<span class="w"> </span>version<span class="w"> </span>configs/*.yml<span class="w"> </span>--update
 </pre></div>
 </div>
 <p><strong>Example 2: CI/CD validation</strong></p>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="c1"># Validate all configs in CI pipeline</span>
-suews-schema<span class="w"> </span>validate<span class="w"> </span>configs/*.yml<span class="w"> </span>--strict
+suews<span class="w"> </span>validate<span class="w"> </span>-p<span class="w"> </span>C<span class="w"> </span>--dry-run<span class="w"> </span>configs/*.yml
 
 <span class="c1"># Output validation results as JSON for processing</span>
-suews-schema<span class="w"> </span>validate<span class="w"> </span>configs/*.yml<span class="w"> </span>--format<span class="w"> </span>json<span class="w"> </span>&gt;<span class="w"> </span>validation.json
+suews<span class="w"> </span>validate<span class="w"> </span>-p<span class="w"> </span>C<span class="w"> </span>--dry-run<span class="w"> </span>configs/*.yml<span class="w"> </span>--format<span class="w"> </span>json<span class="w"> </span>&gt;<span class="w"> </span>validation.json
 </pre></div>
 </div>
 <p><strong>Example 3: Migration workflow</strong></p>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="c1"># Check what needs migration</span>
-suews-schema<span class="w"> </span>version<span class="w"> </span>old_configs/*.yml
+suews<span class="w"> </span>schema<span class="w"> </span>version<span class="w"> </span>old_configs/*.yml
 
 <span class="c1"># Dry run migration</span>
-suews-schema<span class="w"> </span>migrate<span class="w"> </span>old_configs/*.yml<span class="w"> </span>--dry-run
+suews<span class="w"> </span>schema<span class="w"> </span>migrate<span class="w"> </span>old_configs/*.yml<span class="w"> </span>--dry-run
 
 <span class="c1"># Perform migration</span>
-suews-schema<span class="w"> </span>migrate<span class="w"> </span>old_configs/*.yml<span class="w"> </span>--output-dir<span class="w"> </span>updated_configs/
+suews<span class="w"> </span>schema<span class="w"> </span>migrate<span class="w"> </span>old_configs/*.yml<span class="w"> </span>--output-dir<span class="w"> </span>updated_configs/
 
 <span class="c1"># Validate migrated files</span>
-suews-schema<span class="w"> </span>validate<span class="w"> </span>updated_configs/*.yml<span class="w"> </span>--strict
+suews<span class="w"> </span>validate<span class="w"> </span>-p<span class="w"> </span>C<span class="w"> </span>--dry-run<span class="w"> </span>updated_configs/*.yml
 </pre></div>
 </div>
 <p><strong>Example 4: Schema documentation</strong></p>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="c1"># Export current schema for documentation</span>
-suews-schema<span class="w"> </span><span class="nb">export</span><span class="w"> </span>-o<span class="w"> </span>docs/schema.json
+suews<span class="w"> </span>schema<span class="w"> </span><span class="nb">export</span><span class="w"> </span>-o<span class="w"> </span>docs/schema.json
 
 <span class="c1"># Generate human-readable YAML version</span>
-suews-schema<span class="w"> </span><span class="nb">export</span><span class="w"> </span>--format<span class="w"> </span>yaml<span class="w"> </span>-o<span class="w"> </span>docs/schema.yaml
+suews<span class="w"> </span>schema<span class="w"> </span><span class="nb">export</span><span class="w"> </span>--format<span class="w"> </span>yaml<span class="w"> </span>-o<span class="w"> </span>docs/schema.yaml
 </pre></div>
 </div>
 </section>
@@ -840,14 +809,14 @@ suews-schema<span class="w"> </span><span class="nb">export</span><span class="w
 
 <span class="c1"># Validate configuration</span>
 <span class="n">result</span> <span class="o">=</span> <span class="n">subprocess</span><span class="o">.</span><span class="n">run</span><span class="p">(</span>
-    <span class="p">[</span><span class="s1">&#39;suews-schema&#39;</span><span class="p">,</span> <span class="s1">&#39;validate&#39;</span><span class="p">,</span> <span class="s1">&#39;config.yml&#39;</span><span class="p">,</span> <span class="s1">&#39;--format&#39;</span><span class="p">,</span> <span class="s1">&#39;json&#39;</span><span class="p">],</span>
+    <span class="p">[</span><span class="s1">&#39;suews&#39;</span><span class="p">,</span> <span class="s1">&#39;validate&#39;</span><span class="p">,</span> <span class="s1">&#39;-p&#39;</span><span class="p">,</span> <span class="s1">&#39;C&#39;</span><span class="p">,</span> <span class="s1">&#39;--dry-run&#39;</span><span class="p">,</span> <span class="s1">&#39;config.yml&#39;</span><span class="p">,</span> <span class="s1">&#39;--format&#39;</span><span class="p">,</span> <span class="s1">&#39;json&#39;</span><span class="p">],</span>
     <span class="n">capture_output</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">text</span><span class="o">=</span><span class="kc">True</span>
 <span class="p">)</span>
 <span class="n">validation</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">loads</span><span class="p">(</span><span class="n">result</span><span class="o">.</span><span class="n">stdout</span><span class="p">)</span>
 
 <span class="c1"># Check schema version</span>
 <span class="n">result</span> <span class="o">=</span> <span class="n">subprocess</span><span class="o">.</span><span class="n">run</span><span class="p">(</span>
-    <span class="p">[</span><span class="s1">&#39;suews-schema&#39;</span><span class="p">,</span> <span class="s1">&#39;version&#39;</span><span class="p">,</span> <span class="s1">&#39;config.yml&#39;</span><span class="p">,</span> <span class="s1">&#39;--quiet&#39;</span><span class="p">],</span>
+    <span class="p">[</span><span class="s1">&#39;suews&#39;</span><span class="p">,</span> <span class="s1">&#39;schema&#39;</span><span class="p">,</span> <span class="s1">&#39;version&#39;</span><span class="p">,</span> <span class="s1">&#39;config.yml&#39;</span><span class="p">,</span> <span class="s1">&#39;--quiet&#39;</span><span class="p">],</span>
     <span class="n">capture_output</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">text</span><span class="o">=</span><span class="kc">True</span>
 <span class="p">)</span>
 </pre></div>
@@ -858,11 +827,11 @@ suews-schema<span class="w"> </span><span class="nb">export</span><span class="w
 <p><strong>GitHub Actions example:</strong></p>
 <div class="highlight-yaml notranslate"><div class="highlight"><pre><span></span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Validate SUEWS configs</span>
 <span class="w">  </span><span class="nt">run</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">|</span>
-<span class="w">    </span><span class="no">suews-schema validate configs/*.yml --strict</span>
+<span class="w">    </span><span class="no">suews validate -p C --dry-run configs/*.yml</span>
 
 <span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Check schema versions</span>
 <span class="w">  </span><span class="nt">run</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">|</span>
-<span class="w">    </span><span class="no">suews-schema version configs/*.yml</span>
+<span class="w">    </span><span class="no">suews schema version configs/*.yml</span>
 </pre></div>
 </div>
 <p><strong>Pre-commit hook example:</strong></p>
@@ -871,18 +840,18 @@ suews-schema<span class="w"> </span><span class="nb">export</span><span class="w
 <span class="w">    </span><span class="nt">hooks</span><span class="p">:</span>
 <span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">id</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">validate-suews-config</span>
 <span class="w">        </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Validate SUEWS configs</span>
-<span class="w">        </span><span class="nt">entry</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">suews-schema validate</span>
-<span class="w">        </span><span class="nt">language</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">system</span>
-<span class="w">        </span><span class="nt">files</span><span class="p">:</span><span class="w"> </span><span class="s">&#39;\.yml$&#39;</span>
-<span class="w">        </span><span class="nt">pass_filenames</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
-<span class="w">        </span><span class="nt">args</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="s">&#39;--strict&#39;</span><span class="p p-Indicator">]</span>
+<span class="w">      </span><span class="w w-Error"> </span><span class="nt">entry</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">suews validate</span>
+<span class="w">       </span><span class="nt">language</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">system</span>
+<span class="w">       </span><span class="nt">files</span><span class="p">:</span><span class="w"> </span><span class="s">&#39;\.yml$&#39;</span>
+<span class="w">       </span><span class="nt">pass_filenames</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
+<span class="w">       </span><span class="nt">args</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="s">&#39;-p&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;C&#39;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&#39;--dry-run&#39;</span><span class="p p-Indicator">]</span>
 </pre></div>
 </div>
 </section>
 </section>
 <section id="future-integration-with-suews-wizard">
 <h2>Future Integration with suews-wizard<a class="headerlink" href="#future-integration-with-suews-wizard" title="Link to this heading">#</a></h2>
-<p>The <code class="docutils literal notranslate"><span class="pre">suews-schema</span></code> CLI is designed to integrate seamlessly with the upcoming <code class="docutils literal notranslate"><span class="pre">suews-wizard</span></code> (issue #544):</p>
+<p>The <code class="docutils literal notranslate"><span class="pre">suews</span> <span class="pre">schema</span></code> CLI is designed to integrate seamlessly with the upcoming <code class="docutils literal notranslate"><span class="pre">suews-wizard</span></code> (issue #544):</p>
 <ul class="simple">
 <li><p>The wizard will use the validation logic to ensure created configurations are valid</p></li>
 <li><p>Migration utilities can be called from within the wizard for upgrading existing configs</p></li>
@@ -894,7 +863,7 @@ suews-schema<span class="w"> </span><span class="nb">export</span><span class="w
 <h2>CLI Best Practices<a class="headerlink" href="#cli-best-practices" title="Link to this heading">#</a></h2>
 <ol class="arabic simple">
 <li><p><strong>Always specify schema version</strong>: Include <code class="docutils literal notranslate"><span class="pre">schema_version</span></code> in your YAML files</p></li>
-<li><p><strong>Validate before running</strong>: Use <code class="docutils literal notranslate"><span class="pre">suews-schema</span> <span class="pre">validate</span></code> before running simulations</p></li>
+<li><p><strong>Validate before running</strong>: Use <code class="docutils literal notranslate"><span class="pre">suews</span> <span class="pre">validate</span></code> before running simulations</p></li>
 <li><p><strong>Keep backups</strong>: Always backup configurations before migration</p></li>
 <li><p><strong>Use CI/CD validation</strong>: Integrate validation into your automated workflows</p></li>
 <li><p><strong>Document versions</strong>: Keep track of which schema version your configs use</p></li>
@@ -909,15 +878,15 @@ suews-schema<span class="w"> </span><span class="nb">export</span><span class="w
 </div>
 <p><strong>Issue: Validation fails but config works</strong></p>
 <p>Check if you’re validating against the correct schema version:</p>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>suews-schema<span class="w"> </span>version<span class="w"> </span>config.yml
-suews-schema<span class="w"> </span>validate<span class="w"> </span>config.yml<span class="w"> </span>--schema-version<span class="w"> </span>&lt;correct_version&gt;
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>suews<span class="w"> </span>schema<span class="w"> </span>version<span class="w"> </span>config.yml
+suews<span class="w"> </span>validate<span class="w"> </span>-p<span class="w"> </span>C<span class="w"> </span>--dry-run<span class="w"> </span>--schema-version<span class="w"> </span>&lt;correct_version&gt;<span class="w"> </span>config.yml
 </pre></div>
 </div>
 <p><strong>Issue: Migration fails</strong></p>
 <p>Try step-by-step migration if jumping multiple versions:</p>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="c1"># Instead of 2025.12 -&gt; 2026.4 directly</span>
-suews-schema<span class="w"> </span>migrate<span class="w"> </span>config.yml<span class="w"> </span>--target-version<span class="w"> </span><span class="m">2026</span>.1
-suews-schema<span class="w"> </span>migrate<span class="w"> </span>config.migrated.yml<span class="w"> </span>--target-version<span class="w"> </span><span class="m">2026</span>.4
+suews<span class="w"> </span>schema<span class="w"> </span>migrate<span class="w"> </span>config.yml<span class="w"> </span>--target-version<span class="w"> </span><span class="m">2026</span>.1
+suews<span class="w"> </span>schema<span class="w"> </span>migrate<span class="w"> </span>config.migrated.yml<span class="w"> </span>--target-version<span class="w"> </span><span class="m">2026</span>.4
 </pre></div>
 </div>
 </section>
@@ -965,7 +934,6 @@ suews-schema<span class="w"> </span>migrate<span class="w"> </span>config.migrat
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#command-reference">Command Reference</a><ul class="nav section-nav flex-column">
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#info">info</a></li>
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#version">version</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#validate">validate</a></li>
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#migrate">migrate</a></li>
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#export">export</a></li>
 </ul>
@@ -1014,7 +982,7 @@ By SUEWS dev team led by Prof Sue Grimmond
   
   <div class="footer-item">
     <p class="last-updated">
-  Last updated on 2026-04-20.
+  Last updated on 2026-04-30.
   <br/>
 </p>
   </div>
@@ -1022,8 +990,8 @@ By SUEWS dev team led by Prof Sue Grimmond
   <div class="footer-item">
     
 <div class="extra_footer">
-  <p>Version: 2026.4.29.dev9035 |
-    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/9575119dd498da9c56f364dd0471d8b7614397aa">9575119</a> |
+  <p>Version: 2026.4.30.dev9034 |
+    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/b2cf87f79d013e58ef727428f3a115f2e25201c9">b2cf87f</a> |
     <a href="https://umep-dev.github.io/SUEWS/brand/showcase.html">Brand</a></p>
 </div>
   </div>

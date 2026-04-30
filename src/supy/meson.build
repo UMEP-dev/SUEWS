@@ -25,6 +25,7 @@ py.install_sources(
         [
             'cmd/__init__.py',
             'cmd/SUEWS.py',
+            'cmd/init_case.py',
             'cmd/json_envelope.py',
             'cmd/json_output.py',
             'cmd/rust_bridge.py',

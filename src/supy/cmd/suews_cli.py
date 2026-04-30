@@ -10,11 +10,11 @@ Hard rule: this module never reimplements physics, validation, schema, or
 run logic. It only routes. Backend implementation details such as the Rust
 bridge are deliberately kept out of the public command surface.
 
-Phase-1 dispatcher: ``run``, ``validate``, ``schema``, and ``convert`` are
-wired here. The Phase-1 gap-fill commands (``init``, ``inspect``,
-``diagnose``, ``compare``, ``summarise``, ``skill``) remain future work in the
-Wave 3 sub-issues (#1360-#1363), and the standalone ``suews-mcp`` package
-lands in Wave 4 (#1364).
+Phase-1 dispatcher: ``run``, ``validate``, ``schema``, ``convert``, and
+``init`` are wired here. The remaining gap-fill commands (``inspect``,
+``diagnose``, ``compare``, ``summarise``, ``skill``) remain future work in
+the Wave 3 sub-issues (#1360, #1361, #1363), and the standalone
+``suews-mcp`` package lands in Wave 4 (#1364).
 """
 
 from __future__ import annotations
@@ -27,6 +27,7 @@ import click
 # here keeps the dispatcher small and ensures behaviour is identical across
 # the new and legacy invocation styles.
 from .SUEWS import SUEWS as _run_cmd
+from .init_case import init_case_cmd as _init_cmd
 from .schema_cli import cli as _schema_cli
 from .table_converter import convert_table_cmd as _convert_cmd
 from .validate_config import cli as _validate_cli
@@ -52,6 +53,7 @@ def cli() -> None:
 cli.add_command(_validate_cli, name="validate")
 cli.add_command(_schema_cli, name="schema")
 cli.add_command(_convert_cmd, name="convert")
+cli.add_command(_init_cmd, name="init")
 cli.add_command(_run_cmd, name="run")
 
 
@@ -74,7 +76,9 @@ _DEPRECATION_TEMPLATE = (
 
 
 def _emit_deprecation(legacy: str, replacement: str) -> None:
-    sys.stderr.write(_DEPRECATION_TEMPLATE.format(legacy=legacy, replacement=replacement))
+    sys.stderr.write(
+        _DEPRECATION_TEMPLATE.format(legacy=legacy, replacement=replacement)
+    )
     sys.stderr.write("\n")
     sys.stderr.flush()
 

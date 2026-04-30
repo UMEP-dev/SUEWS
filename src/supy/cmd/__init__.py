@@ -1,9 +1,17 @@
 # Lazy imports for fast CLI startup
 # Only import specific CLI tools when actually accessed
 
+import importlib as _importlib
+
 __all__ = ["SUEWS", "convert_table_cmd", "validate_config_main", "schema_cli_main"]
 
 _lazy_cache = {}
+
+# Submodules exposed through ``from supy.cmd import <name>``. Listed
+# explicitly so static checks (e.g. test_api_surface.py's hasattr probe)
+# resolve them without requiring the consumer to first import the
+# fully-qualified module path.
+_LAZY_SUBMODULES = frozenset({"rust_bridge", "suews_cli"})
 
 
 def __getattr__(name):
@@ -38,6 +46,11 @@ def __getattr__(name):
         except Exception:
             _lazy_cache[name] = None
             return None
+
+    if name in _LAZY_SUBMODULES:
+        module = _importlib.import_module(f"{__name__}.{name}")
+        _lazy_cache[name] = module
+        return module
 
     raise AttributeError(f"module 'supy.cmd' has no attribute {name!r}")
 

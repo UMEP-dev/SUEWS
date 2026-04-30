@@ -10,6 +10,7 @@ Validates:
 from __future__ import annotations
 
 import sys
+from pathlib import Path
 
 import pytest
 from click.testing import CliRunner
@@ -180,3 +181,29 @@ def test_rust_subcommand_passes_argv_through(
     )
     assert result.exit_code == 0, result.output
     assert captured["argv"] == ["--input", "config.yml", "--verbose"]
+
+
+def test_rust_bridge_main_accepts_explicit_argv(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from supy.cmd import rust_bridge
+
+    captured: dict[str, object] = {}
+
+    class Result:
+        returncode = 7
+
+    def fake_run(cmd, check):
+        captured["cmd"] = cmd
+        captured["check"] = check
+        return Result()
+
+    monkeypatch.setattr(rust_bridge, "_bridge_binary", lambda: Path("/tmp/suews-engine"))
+    monkeypatch.setattr(rust_bridge.subprocess, "run", fake_run)
+
+    with pytest.raises(SystemExit) as excinfo:
+        rust_bridge.main(argv=["--version"])
+
+    assert excinfo.value.code == 7
+    assert captured["cmd"] == ["/tmp/suews-engine", "--version"]
+    assert captured["check"] is False

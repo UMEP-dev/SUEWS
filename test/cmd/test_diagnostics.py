@@ -9,7 +9,19 @@ import numpy as np
 import pandas as pd
 import pytest
 
+from supy.diagnostics import (
+    check_energy_balance_closure,
+    check_nan_proportion,
+    check_output_files_present,
+    check_provenance_present,
+    check_run,
+)
+
 pytestmark = pytest.mark.api
+
+
+def _suews_columns(names: list[str]) -> pd.MultiIndex:
+    return pd.MultiIndex.from_product([["SUEWS"], names], names=["group", "var"])
 
 
 def _make_run_dir(
@@ -69,8 +81,6 @@ def _make_run_dir(
 
 
 def test_check_provenance_present_pass(tmp_path: Path) -> None:
-    from supy.diagnostics import check_provenance_present
-
     run_dir = _make_run_dir(tmp_path, with_provenance=True)
     res = check_provenance_present(run_dir)
     assert res.passed
@@ -79,8 +89,6 @@ def test_check_provenance_present_pass(tmp_path: Path) -> None:
 
 
 def test_check_provenance_present_warning(tmp_path: Path) -> None:
-    from supy.diagnostics import check_provenance_present
-
     run_dir = _make_run_dir(tmp_path, with_provenance=False)
     res = check_provenance_present(run_dir)
     assert not res.passed
@@ -88,8 +96,6 @@ def test_check_provenance_present_warning(tmp_path: Path) -> None:
 
 
 def test_check_output_files_present_pass(tmp_path: Path) -> None:
-    from supy.diagnostics import check_output_files_present
-
     run_dir = _make_run_dir(tmp_path, with_output=True)
     res = check_output_files_present(run_dir)
     assert res.passed
@@ -98,8 +104,6 @@ def test_check_output_files_present_pass(tmp_path: Path) -> None:
 
 
 def test_check_output_files_present_fail(tmp_path: Path) -> None:
-    from supy.diagnostics import check_output_files_present
-
     empty = tmp_path / "empty"
     empty.mkdir(parents=True)
     res = check_output_files_present(empty)
@@ -108,8 +112,6 @@ def test_check_output_files_present_fail(tmp_path: Path) -> None:
 
 
 def test_check_nan_proportion_pass(tmp_path: Path) -> None:
-    from supy.diagnostics import check_nan_proportion
-
     run_dir = _make_run_dir(tmp_path, nan_fraction=0.0)
     res = check_nan_proportion(run_dir)
     assert res.passed
@@ -117,8 +119,6 @@ def test_check_nan_proportion_pass(tmp_path: Path) -> None:
 
 
 def test_check_nan_proportion_warning(tmp_path: Path) -> None:
-    from supy.diagnostics import check_nan_proportion
-
     run_dir = _make_run_dir(tmp_path, nan_fraction=0.10)
     res = check_nan_proportion(run_dir)
     assert not res.passed
@@ -126,8 +126,6 @@ def test_check_nan_proportion_warning(tmp_path: Path) -> None:
 
 
 def test_check_energy_balance_closure_pass(tmp_path: Path) -> None:
-    from supy.diagnostics import check_energy_balance_closure
-
     run_dir = _make_run_dir(tmp_path, closure_offset=0.0)
     res = check_energy_balance_closure(run_dir)
     assert res.passed
@@ -135,8 +133,6 @@ def test_check_energy_balance_closure_pass(tmp_path: Path) -> None:
 
 
 def test_check_energy_balance_closure_warning(tmp_path: Path) -> None:
-    from supy.diagnostics import check_energy_balance_closure
-
     # 80% offset on QH inflates the residual well beyond the 10% gate.
     run_dir = _make_run_dir(tmp_path, closure_offset=0.8)
     res = check_energy_balance_closure(run_dir)
@@ -145,8 +141,6 @@ def test_check_energy_balance_closure_warning(tmp_path: Path) -> None:
 
 
 def test_check_run_aggregator_returns_all_checks(tmp_path: Path) -> None:
-    from supy.diagnostics import check_run
-
     run_dir = _make_run_dir(tmp_path)
     list_results = check_run(run_dir)
     assert len(list_results) == 4
@@ -157,3 +151,23 @@ def test_check_run_aggregator_returns_all_checks(tmp_path: Path) -> None:
         "nan_proportion",
         "energy_balance_closure",
     }
+
+
+def test_check_run_reads_real_parquet_output_name_and_columns(tmp_path: Path) -> None:
+    run_dir = tmp_path / "parquet-run"
+    run_dir.mkdir(parents=True)
+
+    qn = np.full(12, 200.0)
+    df = pd.DataFrame(
+        np.column_stack([qn, 0.4 * qn, 0.3 * qn, 0.2 * qn, 0.1 * qn]),
+        columns=_suews_columns(["QN", "QH", "QE", "QS", "QF"]),
+    )
+    df.to_parquet(run_dir / "SUEWS_output.parquet")
+    (run_dir / "provenance.json").write_text("{}", encoding="utf-8")
+
+    list_results = check_run(run_dir)
+    by_name = {res.name: res for res in list_results}
+
+    assert by_name["output_files_present"].passed
+    assert by_name["nan_proportion"].passed
+    assert by_name["energy_balance_closure"].passed

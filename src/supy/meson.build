@@ -8,6 +8,7 @@ py.install_sources(
         '_post.py',
         '_run.py',
         '_run_rust.py',
+        '_run_output.py',
         '_save.py',
         '_supy_module.py',
         '_var_metadata.py',

@@ -5,10 +5,12 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+from click.testing import CliRunner
 import numpy as np
 import pandas as pd
 import pytest
-from click.testing import CliRunner
+
+from supy.cmd.diagnose_run import diagnose_run_cmd
 
 pytestmark = pytest.mark.api
 
@@ -38,14 +40,10 @@ def _build_minimal_run_dir(tmp_path: Path) -> Path:
 
 def test_diagnose_returns_non_empty_check_list(tmp_path: Path) -> None:
     """A synthetic run dir must yield a non-empty checks payload."""
-    from supy.cmd.diagnose_run import diagnose_run_cmd
-
     run_dir = _build_minimal_run_dir(tmp_path)
 
     runner = CliRunner()
-    result = runner.invoke(
-        diagnose_run_cmd, [str(run_dir), "--format", "json"]
-    )
+    result = runner.invoke(diagnose_run_cmd, [str(run_dir), "--format", "json"])
     assert result.exit_code == 0, result.output
     envelope = json.loads(result.stdout)
 
@@ -63,20 +61,18 @@ def test_diagnose_returns_non_empty_check_list(tmp_path: Path) -> None:
         assert required in list_names
 
     summary = data["summary"]
-    assert summary["n_pass"] + summary["n_warn"] + summary["n_fail"] == len(data["checks"])
+    assert summary["n_pass"] + summary["n_warn"] + summary["n_fail"] == len(
+        data["checks"]
+    )
 
 
 def test_diagnose_missing_output_returns_error(tmp_path: Path) -> None:
     """A run dir with no output files must surface a fail-severity check."""
-    from supy.cmd.diagnose_run import diagnose_run_cmd
-
     empty_dir = tmp_path / "empty"
     empty_dir.mkdir(parents=True)
 
     runner = CliRunner()
-    result = runner.invoke(
-        diagnose_run_cmd, [str(empty_dir), "--format", "json"]
-    )
+    result = runner.invoke(diagnose_run_cmd, [str(empty_dir), "--format", "json"])
     # Hard fail (no output) maps to envelope error per the CLI contract.
     assert result.exit_code == 0  # diagnose itself does not exit non-zero
     envelope = json.loads(result.stdout)
@@ -86,8 +82,6 @@ def test_diagnose_missing_output_returns_error(tmp_path: Path) -> None:
 
 def test_diagnose_text_mode(tmp_path: Path) -> None:
     """Text mode prints a human-readable summary."""
-    from supy.cmd.diagnose_run import diagnose_run_cmd
-
     run_dir = _build_minimal_run_dir(tmp_path)
 
     runner = CliRunner()
@@ -103,8 +97,6 @@ def test_diagnose_writes_sidecar(tmp_path: Path) -> None:
     a sidecar file alongside the run output so downstream tooling can
     consume the same payload without re-invoking the command.
     """
-    from supy.cmd.diagnose_run import diagnose_run_cmd
-
     run_dir = _build_minimal_run_dir(tmp_path)
 
     runner = CliRunner()
@@ -119,4 +111,22 @@ def test_diagnose_writes_sidecar(tmp_path: Path) -> None:
     assert isinstance(payload["checks"], list)
     assert len(payload["checks"]) >= 4
     assert "summary" in payload
-    assert payload["summary"]["n_pass"] + payload["summary"]["n_warn"] + payload["summary"]["n_fail"] == len(payload["checks"])
+    assert payload["summary"]["n_pass"] + payload["summary"]["n_warn"] + payload[
+        "summary"
+    ]["n_fail"] == len(payload["checks"])
+
+
+def test_diagnose_missing_provenance_recommendation_is_supported(
+    tmp_path: Path,
+) -> None:
+    run_dir = _build_minimal_run_dir(tmp_path)
+    (run_dir / "provenance.json").unlink()
+
+    runner = CliRunner()
+    result = runner.invoke(diagnose_run_cmd, [str(run_dir), "--format", "json"])
+
+    assert result.exit_code == 0, result.output
+    envelope = json.loads(result.stdout)
+    recommendations = envelope["data"]["recommendations"]
+    assert any("provenance.json sidecar" in rec for rec in recommendations)
+    assert not any("--format json --output" in rec for rec in recommendations)

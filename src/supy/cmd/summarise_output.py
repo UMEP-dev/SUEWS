@@ -15,35 +15,8 @@ import click
 import numpy as np
 import pandas as pd
 
+from .._run_output import _load_run_output_dataframe
 from .json_envelope import EXIT_USER_ERROR, Envelope, _now_iso
-
-
-def _load_run_dataframe(path_run_dir: Path) -> pd.DataFrame:
-    """Load the canonical run output from ``path_run_dir``.
-
-    Raises ``FileNotFoundError`` when no recognised output file is present.
-    """
-    list_paths: list[Path] = []
-    for pattern in ("df_output*.parquet", "df_output*.csv", "*_SUEWS_*.txt"):
-        list_paths.extend(path_run_dir.rglob(pattern))
-    if not list_paths:
-        raise FileNotFoundError(
-            f"No df_output*.parquet / *.csv / *_SUEWS_*.txt under {path_run_dir}"
-        )
-    list_paths.sort(key=lambda p: 0 if p.suffix == ".parquet" else 1)
-    path_first = list_paths[0]
-    if path_first.suffix == ".parquet":
-        df = pd.read_parquet(path_first)
-    elif path_first.suffix == ".csv":
-        df = pd.read_csv(path_first)
-    else:
-        df = pd.read_csv(path_first, sep=r"\s+", engine="python")
-
-    if isinstance(df.columns, pd.MultiIndex):
-        df.columns = [
-            col[0] if isinstance(col, tuple) else col for col in df.columns
-        ]
-    return df
 
 
 def _period_and_n_steps(df: pd.DataFrame) -> dict[str, Any]:
@@ -170,7 +143,7 @@ def _build_text_message(data: dict[str, Any]) -> str:
     help="Output format. 'json' emits the standard SUEWS envelope on stdout.",
 )
 def summarise_output_cmd(run_dir: str, variables: str, output_format: str) -> None:
-    """Implementation of ``suews summarise``."""
+    """Summarise a saved SUEWS run output."""
     started_at = _now_iso()
     json_mode = output_format.lower() == "json"
     command = " ".join(["suews", "summarise", *sys.argv[1:]])
@@ -178,7 +151,7 @@ def summarise_output_cmd(run_dir: str, variables: str, output_format: str) -> No
     path_run_dir = Path(run_dir)
 
     try:
-        df_output = _load_run_dataframe(path_run_dir)
+        df_output = _load_run_output_dataframe(path_run_dir)
     except (FileNotFoundError, OSError, ValueError) as exc:
         message = f"Failed to load run output: {exc}"
         if json_mode:
@@ -206,9 +179,7 @@ def summarise_output_cmd(run_dir: str, variables: str, output_format: str) -> No
         if df_subset.shape[1] == 0:
             list_notes.append("no numeric columns detected in run output")
 
-    list_summaries = [
-        _summarise_variable(df_subset[col]) for col in df_subset.columns
-    ]
+    list_summaries = [_summarise_variable(df_subset[col]) for col in df_subset.columns]
 
     period_data = _period_and_n_steps(df_output)
 

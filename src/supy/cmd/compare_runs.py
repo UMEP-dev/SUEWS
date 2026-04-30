@@ -8,6 +8,7 @@ caller can sanity-check the alignment.
 
 from __future__ import annotations
 
+import math
 from pathlib import Path
 import sys
 from typing import Any
@@ -15,50 +16,11 @@ from typing import Any
 import click
 import pandas as pd
 
+from .._run_output import _load_run_output_dataframe
+from ..metrics import bias as metric_bias, pearson_r, rmse as metric_rmse
 from .json_envelope import EXIT_USER_ERROR, Envelope, _now_iso
 
-
-def _load_run_or_observations(path: Path) -> pd.DataFrame:
-    """Best-effort load of a run output dir or an observations file.
-
-    - If ``path`` is a directory: scans for ``df_output*.csv`` /
-      ``df_output*.parquet`` and loads the first hit.
-    - If ``path`` is a file: loads it as CSV (parquet detection by suffix).
-
-    The returned DataFrame is column-flattened: tuple columns from a
-    canonical SUEWS MultiIndex are reduced to their first level.
-    """
-    if path.is_dir():
-        list_paths: list[Path] = []
-        for pattern in ("df_output*.parquet", "df_output*.csv"):
-            list_paths.extend(path.rglob(pattern))
-        if not list_paths:
-            raise FileNotFoundError(
-                f"No df_output*.parquet / df_output*.csv under {path}"
-            )
-        # Prefer parquet for speed and dtype fidelity.
-        list_paths.sort(key=lambda p: 0 if p.suffix == ".parquet" else 1)
-        path_first = list_paths[0]
-        if path_first.suffix == ".parquet":
-            df = pd.read_parquet(path_first)
-        else:
-            df = pd.read_csv(path_first)
-    elif path.suffix == ".parquet":
-        df = pd.read_parquet(path)
-    else:
-        df = pd.read_csv(path)
-
-    # Flatten MultiIndex columns to their first level so callers can ask
-    # for "QH" without having to thread a tuple key through.
-    if isinstance(df.columns, pd.MultiIndex):
-        df.columns = [
-            col[0] if isinstance(col, tuple) else col for col in df.columns
-        ]
-    else:
-        df.columns = [
-            col[0] if isinstance(col, tuple) else col for col in df.columns
-        ]
-    return df
+_VALID_METRICS = {"rmse", "bias", "r"}
 
 
 def _coerce_datetime_index(df: pd.DataFrame) -> pd.DataFrame:
@@ -70,13 +32,10 @@ def _coerce_datetime_index(df: pd.DataFrame) -> pd.DataFrame:
     is datetime-like, we leave the index as-is and rely on row-order
     alignment in ``_align_pair``.
     """
-    if isinstance(df.index, pd.MultiIndex):
-        # Pick the first grid present; comparing across grids is out of
-        # scope for the Phase-1 compare command.
-        try:
-            df = df.xs(df.index.get_level_values(0).unique()[0], level=0)
-        except (IndexError, KeyError):
-            pass
+    # Pick the first grid present; comparing across grids is out of scope for
+    # the Phase-1 compare command.
+    if isinstance(df.index, pd.MultiIndex) and len(df.index):
+        df = df.xs(df.index.get_level_values(0).unique()[0], level=0)
     if not isinstance(df.index, pd.DatetimeIndex):
         # Try the first column or a 'datetime' column.
         for cand in ("datetime", "Datetime", "DateTime"):
@@ -115,7 +74,15 @@ def _align_pair(
 
     n = min(len(ser_a), len(ser_b))
     overlap = {"start": None, "end": None, "n": int(n)}
-    return ser_a.iloc[:n].reset_index(drop=True), ser_b.iloc[:n].reset_index(drop=True), overlap
+    return (
+        ser_a.iloc[:n].reset_index(drop=True),
+        ser_b.iloc[:n].reset_index(drop=True),
+        overlap,
+    )
+
+
+def _fmt_metric(value: float) -> str:
+    return "nan" if math.isnan(value) else f"{value:.4g}"
 
 
 def _build_text_message(data: dict[str, Any]) -> str:
@@ -131,13 +98,100 @@ def _build_text_message(data: dict[str, Any]) -> str:
         "",
         "Per-variable metrics:",
     ]
+    list_metrics = data.get("requested_metrics") or ("rmse", "bias", "r")
     for var, metrics in (data.get("per_variable") or {}).items():
-        lines.append(
-            f"  {var:<6} rmse={metrics['rmse']:.4g} "
-            f"bias={metrics['bias']:.4g} r={metrics['r']:.4g} "
-            f"n={metrics['n']}"
-        )
+        parts = [f"  {var:<6}"]
+        for metric_name in list_metrics:
+            if metric_name in metrics:
+                parts.append(f"{metric_name}={_fmt_metric(metrics[metric_name])}")
+        parts.append(f"n={metrics['n']}")
+        lines.append(" ".join(parts))
     return "\n".join(lines)
+
+
+def _emit_user_error(
+    message: str,
+    *,
+    json_mode: bool,
+    command: str,
+    data: dict[str, Any],
+    started_at: str,
+) -> None:
+    if json_mode:
+        Envelope.error(
+            errors=[message],
+            command=command,
+            data=data,
+            started_at=started_at,
+        ).emit()
+    else:
+        click.secho(message, fg="red", err=True)
+    sys.exit(EXIT_USER_ERROR)
+
+
+def _parse_requested_metrics(metrics: str) -> list[str]:
+    list_metrics = [metric.strip() for metric in metrics.split(",") if metric.strip()]
+    list_unknown = [metric for metric in list_metrics if metric not in _VALID_METRICS]
+    if list_unknown:
+        valid = ", ".join(sorted(_VALID_METRICS))
+        unknown = ", ".join(list_unknown)
+        raise ValueError(f"Unknown metric(s): {unknown}. Valid: {valid}")
+    return list_metrics
+
+
+def _metric_entry(
+    ser_a: pd.Series,
+    ser_b: pd.Series,
+    list_metrics: list[str],
+) -> dict[str, Any]:
+    entry: dict[str, Any] = {"n": int(min(len(ser_a), len(ser_b)))}
+    if "rmse" in list_metrics:
+        entry["rmse"] = metric_rmse(ser_a, ser_b)
+    if "bias" in list_metrics:
+        entry["bias"] = metric_bias(ser_a, ser_b)
+    if "r" in list_metrics:
+        entry["r"] = pearson_r(ser_a, ser_b)
+    return entry
+
+
+def _compare_variables(
+    df_a: pd.DataFrame,
+    df_b: pd.DataFrame,
+    list_variables: list[str],
+    list_metrics: list[str],
+) -> tuple[dict[str, dict[str, Any]], dict[str, Any] | None, list[str]]:
+    list_warnings: list[str] = []
+    per_variable: dict[str, dict[str, Any]] = {}
+    overlap: dict[str, Any] | None = None
+
+    for var in list_variables:
+        try:
+            ser_a, ser_b, var_overlap = _align_pair(df_a, df_b, var)
+            per_variable[var] = _metric_entry(ser_a, ser_b, list_metrics)
+        except (KeyError, ValueError) as exc:
+            list_warnings.append(f"variable {var!r} skipped: {exc}")
+            continue
+
+        if overlap is None:
+            overlap = var_overlap
+
+    return per_variable, overlap, list_warnings
+
+
+def _aggregate_metrics(
+    per_variable: dict[str, dict[str, Any]],
+    list_metrics: list[str],
+) -> dict[str, float]:
+    aggregate: dict[str, float] = {}
+    for metric_name in list_metrics:
+        list_values: list[float] = []
+        for entry in per_variable.values():
+            value = entry.get(metric_name)
+            if value is not None and not math.isnan(value):
+                list_values.append(value)
+        if list_values:
+            aggregate[metric_name] = float(sum(list_values) / len(list_values))
+    return aggregate
 
 
 @click.command(
@@ -185,100 +239,54 @@ def compare_runs_cmd(
     variables: str,
     output_format: str,
 ) -> None:
-    """Implementation of ``suews compare``."""
+    """Compare two saved SUEWS outputs."""
     started_at = _now_iso()
     json_mode = output_format.lower() == "json"
     command = " ".join(["suews", "compare", *sys.argv[1:]])
 
     path_a = Path(run_a)
     path_b = Path(run_b_or_obs)
-
-    list_metrics = [m.strip() for m in metrics.split(",") if m.strip()]
-    list_variables = [v.strip() for v in variables.split(",") if v.strip()]
-
-    valid_metrics = {"rmse", "bias", "r"}
-    list_unknown = [m for m in list_metrics if m not in valid_metrics]
-    if list_unknown:
-        message = "Unknown metric(s): {}. Valid: {}".format(
-            ", ".join(list_unknown),
-            ", ".join(sorted(valid_metrics)),
-        )
-        if json_mode:
-            Envelope.error(
-                errors=[message],
-                command=command,
-                data={"baseline": str(path_a), "scenario": str(path_b)},
-                started_at=started_at,
-            ).emit()
-        else:
-            click.secho(message, fg="red", err=True)
-        sys.exit(EXIT_USER_ERROR)
+    paths_data = {"baseline": str(path_a), "scenario": str(path_b)}
 
     try:
-        from ..metrics import bias as metric_bias, pearson_r, rmse as metric_rmse
+        list_metrics = _parse_requested_metrics(metrics)
+    except ValueError as exc:
+        _emit_user_error(
+            str(exc),
+            json_mode=json_mode,
+            command=command,
+            data=paths_data,
+            started_at=started_at,
+        )
 
-        df_a = _load_run_or_observations(path_a)
-        df_b = _load_run_or_observations(path_b)
+    try:
+        df_a = _load_run_output_dataframe(path_a)
+        df_b = _load_run_output_dataframe(path_b)
         df_a = _coerce_datetime_index(df_a)
         df_b = _coerce_datetime_index(df_b)
     except (FileNotFoundError, OSError, ValueError) as exc:
-        message = f"Failed to load inputs: {exc}"
-        if json_mode:
-            Envelope.error(
-                errors=[message],
-                command=command,
-                data={"baseline": str(path_a), "scenario": str(path_b)},
-                started_at=started_at,
-            ).emit()
-        else:
-            click.secho(message, fg="red", err=True)
-        sys.exit(EXIT_USER_ERROR)
+        _emit_user_error(
+            f"Failed to load inputs: {exc}",
+            json_mode=json_mode,
+            command=command,
+            data=paths_data,
+            started_at=started_at,
+        )
 
-    list_warnings: list[str] = []
-    per_variable: dict[str, dict[str, Any]] = {}
-    overlap: dict[str, Any] | None = None
-    aggregate: dict[str, float] = {}
-
-    for var in list_variables:
-        try:
-            ser_a, ser_b, var_overlap = _align_pair(df_a, df_b, var)
-        except KeyError as exc:
-            list_warnings.append(f"variable {var!r} skipped: {exc}")
-            continue
-        # First successful overlap is recorded as the run-level overlap.
-        if overlap is None:
-            overlap = var_overlap
-        try:
-            entry: dict[str, Any] = {"n": int(min(len(ser_a), len(ser_b)))}
-            if "rmse" in list_metrics:
-                entry["rmse"] = metric_rmse(ser_a, ser_b)
-            if "bias" in list_metrics:
-                entry["bias"] = metric_bias(ser_a, ser_b)
-            if "r" in list_metrics:
-                entry["r"] = pearson_r(ser_a, ser_b)
-            per_variable[var] = entry
-        except ValueError as exc:
-            list_warnings.append(f"variable {var!r} skipped: {exc}")
-
-    # Aggregate metrics: simple unweighted mean across variables. This is
-    # a useful single-number summary for triage; per-variable detail is
-    # available in ``per_variable``.
-    for metric_name in list_metrics:
-        list_values = [
-            entry[metric_name]
-            for entry in per_variable.values()
-            if metric_name in entry
-            and entry[metric_name] is not None
-            and entry[metric_name] == entry[metric_name]  # filter NaN
-        ]
-        if list_values:
-            aggregate[metric_name] = float(sum(list_values) / len(list_values))
+    list_variables = [v.strip() for v in variables.split(",") if v.strip()]
+    per_variable, overlap, list_warnings = _compare_variables(
+        df_a,
+        df_b,
+        list_variables,
+        list_metrics,
+    )
 
     data: dict[str, Any] = {
         "baseline": str(path_a),
         "scenario": str(path_b),
-        "metrics": aggregate,
+        "metrics": _aggregate_metrics(per_variable, list_metrics),
         "per_variable": per_variable,
+        "requested_metrics": list_metrics,
         "time_axis_overlap": overlap or {"start": None, "end": None, "n": 0},
     }
 

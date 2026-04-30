@@ -18,10 +18,12 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+from click.testing import CliRunner
 import numpy as np
 import pandas as pd
 import pytest
-from click.testing import CliRunner
+
+from supy.cmd.suews_cli import cli
 
 pytestmark = pytest.mark.api
 
@@ -68,9 +70,7 @@ def _make_run_dir(
         n_nan = int(n * nan_fraction)
         qh[:n_nan] = np.nan
 
-    df = pd.DataFrame(
-        {"QN": qn, "QH": qh, "QE": qe, "QS": qs, "QF": qf}, index=idx
-    )
+    df = pd.DataFrame({"QN": qn, "QH": qh, "QE": qe, "QS": qs, "QF": qf}, index=idx)
     df.to_parquet(run_dir / "df_output.parquet")
     (run_dir / "provenance.json").write_text(
         json.dumps({"command": "suews run --format json"}), encoding="utf-8"
@@ -80,11 +80,9 @@ def _make_run_dir(
 
 def _invoke(args: list[str]) -> dict:
     """Invoke ``suews`` dispatcher and return the parsed envelope."""
-    from supy.cmd.suews_cli import cli
-
     runner = CliRunner()
     result = runner.invoke(cli, args)
-    assert result.stdout, "expected envelope on stdout, got: %r" % result.output
+    assert result.stdout, f"expected envelope on stdout, got: {result.output!r}"
     return json.loads(result.stdout)
 
 
@@ -128,7 +126,7 @@ def test_demo_2_warning_branch_exposes_structured_recommendations(
     list_recs = diag["data"]["recommendations"]
     assert any("forcing-file" in rec for rec in list_recs), (
         "nan_proportion warning must surface the forcing-gap recommendation; "
-        "got %r" % list_recs
+        f"got {list_recs!r}"
     )
 
 

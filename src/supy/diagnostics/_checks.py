@@ -27,6 +27,8 @@ from typing import Any
 
 import pandas as pd
 
+from .._run_output import _list_run_output_files, _load_run_output_dataframe
+
 __all__ = [
     "CheckResult",
     "check_energy_balance_closure",
@@ -84,12 +86,7 @@ def _list_output_files(path_run_dir: Path) -> list[Path]:
     files at the run-dir root or under a subdirectory keyed by site name —
     we accept both.
     """
-    if not path_run_dir.exists() or not path_run_dir.is_dir():
-        return []
-    list_paths: list[Path] = []
-    for pattern in ("df_output*.csv", "df_output*.parquet", "*_SUEWS_*.txt"):
-        list_paths.extend(path_run_dir.rglob(pattern))
-    return list_paths
+    return _list_run_output_files(path_run_dir)
 
 
 def _load_output_dataframe(path_run_dir: Path) -> pd.DataFrame | None:
@@ -99,18 +96,9 @@ def _load_output_dataframe(path_run_dir: Path) -> pd.DataFrame | None:
     during read are deliberately propagated to the caller — the caller
     decides whether to mark the check as ``fail`` or ``warning``.
     """
-    list_paths = _list_output_files(path_run_dir)
-    if not list_paths:
+    if not _list_output_files(path_run_dir):
         return None
-    # Prefer parquet (fast + typed) when both are available.
-    list_paths.sort(key=lambda p: 0 if p.suffix == ".parquet" else 1)
-    path_first = list_paths[0]
-    if path_first.suffix == ".parquet":
-        return pd.read_parquet(path_first)
-    if path_first.suffix == ".csv":
-        return pd.read_csv(path_first)
-    # SUEWS legacy text format — whitespace-delimited.
-    return pd.read_csv(path_first, sep=r"\s+", engine="python")
+    return _load_run_output_dataframe(path_run_dir)
 
 
 # ---------------------------------------------------------------------------
@@ -134,8 +122,7 @@ def check_provenance_present(path_run_dir: Path) -> CheckResult:
         severity="warning",
         passed=False,
         message=(
-            "provenance.json missing — run was not produced by 'suews run "
-            "--format json' or the sidecar was deleted."
+            "provenance.json missing; this run directory has no provenance sidecar."
         ),
         details={"expected": str(path_provenance)},
     )
@@ -207,7 +194,9 @@ def check_nan_proportion(path_run_dir: Path) -> CheckResult:
         )
 
     dict_fractions = {
-        var: float(df_output[var].isna().mean()) for var in _FLUX_VARIABLES if found[var]
+        var: float(df_output[var].isna().mean())
+        for var in _FLUX_VARIABLES
+        if found[var]
     }
     list_offenders = [
         f"{var}={frac:.3%}"

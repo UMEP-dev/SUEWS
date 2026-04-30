@@ -81,31 +81,33 @@ _DEPRECATION_TEMPLATE = (
 
 
 def _emit_deprecation(legacy: str, replacement: str) -> None:
-    sys.stderr.write(_DEPRECATION_TEMPLATE.format(legacy=legacy, replacement=replacement))
+    sys.stderr.write(
+        _DEPRECATION_TEMPLATE.format(legacy=legacy, replacement=replacement)
+    )
     sys.stderr.write("\n")
     sys.stderr.flush()
 
 
 def run_alias() -> None:
-    """Deprecated alias for ``suews run``."""
+    """Forward the deprecated ``suews-run`` alias."""
     _emit_deprecation("suews-run", "suews run")
     _run_cmd()
 
 
 def convert_alias() -> None:
-    """Deprecated alias for ``suews convert``."""
+    """Forward the deprecated ``suews-convert`` alias."""
     _emit_deprecation("suews-convert", "suews convert")
     _convert_cmd()
 
 
 def validate_alias() -> None:
-    """Deprecated alias for ``suews validate``."""
+    """Forward the deprecated ``suews-validate`` alias."""
     _emit_deprecation("suews-validate", "suews validate")
     _validate_cli()
 
 
 def schema_alias() -> None:
-    """Deprecated alias for ``suews schema``."""
+    """Forward the deprecated ``suews-schema`` alias."""
     _emit_deprecation("suews-schema", "suews schema")
     _schema_cli()
 

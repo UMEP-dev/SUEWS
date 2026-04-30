@@ -14,7 +14,8 @@ from typing import Any
 
 import click
 
-from .json_envelope import EXIT_USER_ERROR, Envelope, _now_iso
+from ..diagnostics import check_run
+from .json_envelope import Envelope, _now_iso
 
 
 def _summarise(list_results: list[Any]) -> dict[str, int]:
@@ -38,8 +39,8 @@ def _build_recommendations(list_results: list[Any]) -> list[str]:
             continue
         if res.name == "provenance_present":
             list_recommendations.append(
-                "Re-run with 'suews run --format json --output <dir>' to "
-                "produce a provenance.json sidecar."
+                "Preserve the run command, configuration path, and git commit "
+                "in a provenance.json sidecar before archiving the run."
             )
         elif res.name == "output_files_present":
             list_recommendations.append(
@@ -71,7 +72,7 @@ def _build_text_message(data: dict[str, Any]) -> str:
     ]
     for check in data["checks"]:
         lines.append(
-            f"  [{check['severity'].upper()}] {check['name']} — {check['message']}"
+            f"  [{check['severity'].upper()}] {check['name']} - {check['message']}"
         )
     if data.get("recommendations"):
         lines.append("")
@@ -104,27 +105,12 @@ def _build_text_message(data: dict[str, Any]) -> str:
     help="Output format. 'json' emits the standard SUEWS envelope on stdout.",
 )
 def diagnose_run_cmd(run_dir: str, output_format: str) -> None:
-    """Implementation of ``suews diagnose``."""
+    """Diagnose a saved SUEWS run directory."""
     started_at = _now_iso()
     json_mode = output_format.lower() == "json"
     command = " ".join(["suews", "diagnose", *sys.argv[1:]])
 
     path_run_dir = Path(run_dir)
-
-    try:
-        from ..diagnostics import check_run
-    except ImportError as exc:  # pragma: no cover - dev-env edge case
-        message = f"Failed to import supy.diagnostics: {exc}"
-        if json_mode:
-            Envelope.error(
-                errors=[message],
-                command=command,
-                data={"run_dir": str(path_run_dir)},
-                started_at=started_at,
-            ).emit()
-        else:
-            click.secho(message, fg="red", err=True)
-        sys.exit(EXIT_USER_ERROR)
 
     list_results = check_run(path_run_dir)
     list_check_dicts = [res.to_dict() for res in list_results]
@@ -152,9 +138,7 @@ def diagnose_run_cmd(run_dir: str, output_format: str) -> None:
                 encoding="utf-8",
             )
         except OSError as exc:
-            list_warnings.append(
-                f"could not write diagnostics.json sidecar: {exc}"
-            )
+            list_warnings.append(f"could not write diagnostics.json sidecar: {exc}")
 
     if json_mode:
         # Map a hard 'fail' onto the envelope error channel so MCP tooling can

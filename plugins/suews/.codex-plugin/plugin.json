@@ -18,7 +18,7 @@
     "climate-modelling",
     "atmospheric-science"
   ],
-  "skills": "./.claude/skills/suews",
+  "skills": "./skills/",
   "interface": {
     "displayName": "SUEWS",
     "shortDescription": "Urban climate model assistant",

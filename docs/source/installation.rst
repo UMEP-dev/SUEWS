@@ -213,10 +213,11 @@ This is in addition to (not a replacement for) the regular ``pip install supy``
 workflow above - the plugin teaches the AI assistant *how* to use SuPy; it does
 not install SuPy itself.
 
-Claude Code
-***********
+**Claude Code**
 
-Add the SUEWS marketplace and install the plugin::
+Add the SUEWS marketplace and install the plugin:
+
+.. code-block:: text
 
     /plugin marketplace add UMEP-dev/SUEWS
     /plugin install suews@suews
@@ -226,7 +227,9 @@ Run ``/reload-plugins`` to activate the plugin in the current session.
 .. note::
 
    Auto-update is disabled by default for third-party marketplaces (Anthropic
-   security default). To refresh manually::
+   security default). To refresh manually:
+
+   .. code-block:: text
 
        /plugin marketplace update suews
        /plugin update suews@suews
@@ -234,23 +237,24 @@ Run ``/reload-plugins`` to activate the plugin in the current session.
    To enable auto-update, open ``/plugin``, go to the **Marketplaces** tab,
    select ``suews``, and choose **Enable auto-update**.
 
-Codex (CLI, Desktop App, IDE extensions)
-****************************************
+**Codex CLI, Desktop App, and IDE extensions**
 
 .. important::
 
    Requires Codex CLI v0.117.0 or later (released 26 March 2026).
 
-Add the SUEWS marketplace and install the plugin::
+Add the SUEWS marketplace:
+
+.. code-block:: bash
 
     codex plugin marketplace add UMEP-dev/SUEWS
-    codex plugin install suews
 
-The same plugin works across the Codex CLI, the Codex Desktop App
+Then install the plugin from the plugin browser: open Codex, run
+``/plugins``, select the ``SUEWS`` marketplace, and choose the ``SUEWS``
+plugin. The same plugin works across the Codex CLI, the Codex Desktop App
 (macOS / Windows), and the Codex IDE extensions for VS Code and JetBrains.
 
-Cursor and other MCP-only tools
-*******************************
+**Cursor and other MCP-only tools**
 
 A Model Context Protocol (MCP) server for SUEWS is in development and will
 provide a universal install path across MCP-aware tools (Cursor, Gemini CLI,
@@ -258,5 +262,4 @@ Goose, JetBrains Junie, etc.). Tracking issue:
 `gh#1364 <https://github.com/UMEP-dev/SUEWS/issues/1364>`_. Until that lands,
 MCP-only users can clone the repository and point their MCP client at the
 bundled CLI surface manually.
-
 

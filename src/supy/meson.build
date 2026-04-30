@@ -28,6 +28,7 @@ py.install_sources(
             'cmd/json_envelope.py',
             'cmd/json_output.py',
             'cmd/rust_bridge.py',
+            'cmd/suews_cli.py',
             'cmd/table_converter.py',
             'cmd/to_yaml.py',
             'cmd/validate_config.py',

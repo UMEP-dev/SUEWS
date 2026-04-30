@@ -8,9 +8,9 @@ CLI Commands
 
 .. code-block:: bash
 
-    suews-schema export -o schema.json
-    suews-schema validate config.yml
-    suews-schema migrate old_config.yml --target-version 2.0
+    suews schema export -o schema.json
+    suews validate config.yml
+    suews schema migrate old_config.yml --target-version 2.0
 
 Python Equivalent (Schema Export)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

@@ -2077,7 +2077,11 @@ pub fn load_run_config_from_value(root: &mut Value) -> Result<RunConfig, String>
 
     apply_state_overrides(&mut state, site_root);
 
-    let output_dir = read_string(root, &["model", "control", "output_file", "path"])
+    // Prefer the new `output.dir` shape introduced in schema 2026.5.dev8
+    // (gh#1372 follow-up); fall back to the legacy `output_file.path` so
+    // user YAMLs at either schema parse pre-migration.
+    let output_dir = read_string(root, &["model", "control", "output", "dir"])
+        .or_else(|| read_string(root, &["model", "control", "output_file", "path"]))
         .map(PathBuf::from)
         .unwrap_or_else(|| PathBuf::from("./output"));
 

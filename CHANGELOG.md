@@ -58,10 +58,13 @@ EXAMPLES:
 
 - [feature][experimental] Read forcing files by **column name** rather than position (#1372)
   - Header line is now required and matched case-insensitively against the canonical column list. Files with the standard SUEWS canonical headers (`iy`, `id`, `it`, `imin`, `Tair`, `RH`, `U`, `pres`, `kdown`, `rain`, plus optional canonicals) continue to load unchanged
-  - Baseline-required set raises `ValueError` if any of the ten time/met columns is absent; physics-conditional columns (e.g. `ldown` for `net_radiation = 11`, `fcld` for `net_radiation = 1` or `2`) are checked against the resolved physics path and the error message names the requesting method
+  - Baseline-required set raises `ValueError` if any of the ten time/met columns is absent; physics-conditional columns (e.g. `qn` for `net_radiation = 0`, `ldown` for `net_radiation = 1` or `11`, `fcld` for `net_radiation = 2` or `12`) are checked against the resolved physics path and the error message names the requesting method
   - Missing optional canonical columns are filled with `-999.0` (the SUEWS sentinel); unknown columns emit a `UserWarning` and are dropped
-- [feature][experimental] Per-landcover variants of `lai` and `xsmd` plumbed into the forcing readers (#1372)
-  - Whitelisted `<var>_<surface>` columns (`var` in `{lai, xsmd}`; `surface` in `{paved, bldgs, evetr, dectr, grass, bsoil, water}`) are loaded into `SUEWSForcing.extras` / `ForcingData.extras` for downstream physics work; the kernel itself still uses the bulk `lai` and `xsmd` columns in this release
+- [feature][experimental] Per-landcover variants of `lai` and `wuh` plumbed into the forcing readers (#1372)
+  - `lai_<surface>` is accepted only for vegetated surfaces (`evetr`, `dectr`, `grass`); non-vegetated `lai_*` are treated as unknown (warn-and-drop)
+  - `wuh_<surface>` (external water use, e.g. irrigation or impervious-surface washing) is accepted for any land surface `{paved, bldgs, evetr, dectr, grass, bsoil}`; `wuh_water` is meaningless and is warn-and-dropped
+  - Whitelisted columns are loaded into `SUEWSForcing.extras` / `ForcingData.extras` for downstream physics work; the kernel itself still uses the bulk `lai` and `Wuh` columns in this release
+  - Soil-moisture deficit (`xsmd`) remains a bulk site-level column and is intentionally not on the per-landcover whitelist
 - [change][experimental] `model.control.forcing_file` moved to `model.control.forcing.file` (#1372)
   - Restructure under a new `ForcingControl` sub-object creates a stable home for future forcing fields (sub-hourly disaggregation, resampling policy)
   - `suews-convert` and `suews-schema migrate` upgrade existing configs automatically via the `(2026.5.dev6 -> 2026.5.dev7)` handler; manual edit is also straightforward

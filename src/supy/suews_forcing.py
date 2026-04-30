@@ -205,8 +205,10 @@ class SUEWSForcing:
     """
 
     # gh#1372 -- per-landcover whitelist (mirrors src/supy/_load.py and
-    # src/suews_bridge/src/forcing_io.rs).
-    _PER_LANDCOVER_VARS: frozenset = frozenset({"lai", "xsmd"})
+    # src/suews_bridge/src/forcing_io.rs). `wuh` is external water use
+    # (irrigation), which varies naturally per surface; `xsmd` is the
+    # bulk soil-moisture deficit and is intentionally not on this list.
+    _PER_LANDCOVER_VARS: frozenset = frozenset({"lai", "wuh"})
     _LANDCOVER_SUFFIXES: tuple = (
         "paved", "bldgs", "evetr", "dectr", "grass", "bsoil", "water",
     )
@@ -307,17 +309,17 @@ class SUEWSForcing:
 
         Returns the kernel-facing DataFrame (with extras removed) and a
         dict mapping the lower-cased canonical name to the column values.
+        Per-var allowed suffix subsets are honoured (e.g. ``lai_*`` is
+        only kept for vegetated surfaces).
         """
+        from ._load import _is_per_landcover_column
+
         extras: Dict[str, np.ndarray] = {}
         drop_cols: List[str] = []
         for col in df_forcing.columns:
-            lowered = col.lower()
-            for var in per_landcover_vars:
-                prefix = f"{var}_"
-                if lowered.startswith(prefix) and lowered[len(prefix):] in landcover_suffixes:
-                    extras[lowered] = df_forcing[col].to_numpy()
-                    drop_cols.append(col)
-                    break
+            if _is_per_landcover_column(col):
+                extras[col.lower()] = df_forcing[col].to_numpy()
+                drop_cols.append(col)
         if drop_cols:
             df_forcing = df_forcing.drop(columns=drop_cols)
         return df_forcing, extras

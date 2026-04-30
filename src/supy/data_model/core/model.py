@@ -1005,6 +1005,25 @@ class ForcingControl(BaseModel):
 class ModelControl(BaseModel):
     model_config = ConfigDict(title="Model Control")
 
+    @model_validator(mode="before")
+    @classmethod
+    def _coerce_legacy_forcing_file(cls, values):
+        """Accept legacy ``forcing_file`` input by moving it under ``forcing.file``."""
+        if not isinstance(values, dict) or "forcing_file" not in values:
+            return values
+
+        values = values.copy()
+        legacy_forcing_file = values.pop("forcing_file")
+        forcing = values.get("forcing")
+
+        if isinstance(forcing, dict):
+            forcing = forcing.copy()
+            forcing.setdefault("file", legacy_forcing_file)
+        else:
+            forcing = {"file": legacy_forcing_file}
+        values["forcing"] = forcing
+        return values
+
     tstep: FlexibleRefValue(int) = Field(
         default=300, description="Time step in seconds for model calculations"
     )
@@ -1037,6 +1056,15 @@ class ModelControl(BaseModel):
     )
 
     ref: Optional[Reference] = None
+
+    @property
+    def forcing_file(self):
+        """Backward-compatible alias for ``model.control.forcing.file``."""
+        return self.forcing.file
+
+    @forcing_file.setter
+    def forcing_file(self, value):
+        self.forcing.file = ForcingControl(file=value).file
 
     @field_validator("tstep", "diagnose", mode="after")
     def validate_int_float(cls, v):

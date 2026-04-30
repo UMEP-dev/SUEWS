@@ -147,24 +147,51 @@ CANONICAL_FORCING_COLUMNS: list[str] = [
 BASELINE_FORCING_COLUMNS: frozenset[str] = frozenset({
     "iy", "id", "it", "imin", "Tair", "RH", "U", "pres", "kdown", "rain",
 })
-PER_LANDCOVER_FORCING_VARS: frozenset[str] = frozenset({"lai", "xsmd"})
+PER_LANDCOVER_FORCING_VARS: frozenset[str] = frozenset({"lai", "wuh"})
 LANDCOVER_SUFFIXES: tuple[str, ...] = (
     "paved", "bldgs", "evetr", "dectr", "grass", "bsoil", "water",
 )
+# LAI is only meaningful for vegetated surfaces; the other four surface
+# types do not carry a leaf-area-index value. wuh (external water use,
+# e.g. irrigation or impervious-surface washing) is meaningful for any
+# land surface but not for the open-water surface itself.
+LAI_LANDCOVER_SUFFIXES: tuple[str, ...] = ("evetr", "dectr", "grass")
+WUH_LANDCOVER_SUFFIXES: tuple[str, ...] = (
+    "paved", "bldgs", "evetr", "dectr", "grass", "bsoil",
+)
+PER_LANDCOVER_ALLOWED_SUFFIXES: dict[str, tuple[str, ...]] = {
+    "lai": LAI_LANDCOVER_SUFFIXES,
+    "wuh": WUH_LANDCOVER_SUFFIXES,
+}
 FORCING_OPTIONAL_FILL: float = -999.0
 
 
 def _is_per_landcover_column(name: str) -> bool:
     """Return True if ``name`` matches the ``<var>_<surface>`` whitelist."""
-    lowered = name.lower()
-    for var in PER_LANDCOVER_FORCING_VARS:
+    lowered = str(name).lower()
+    for var, allowed in PER_LANDCOVER_ALLOWED_SUFFIXES.items():
         prefix = f"{var}_"
         if not lowered.startswith(prefix):
             continue
-        suffix = lowered[len(prefix):]
-        if suffix in LANDCOVER_SUFFIXES:
+        if lowered[len(prefix):] in allowed:
             return True
     return False
+
+
+def _coalesce_case_variant_columns(
+    df: pd.DataFrame,
+    columns: list[str],
+) -> pd.Series:
+    """Combine columns that differ only by case, preserving first non-null values."""
+    result = df.loc[:, columns[0]]
+    if isinstance(result, pd.DataFrame):
+        result = result.bfill(axis=1).iloc[:, 0]
+    for col in columns[1:]:
+        other = df.loc[:, col]
+        if isinstance(other, pd.DataFrame):
+            other = other.bfill(axis=1).iloc[:, 0]
+        result = result.combine_first(other)
+    return result
 
 
 ######################################################################
@@ -592,11 +619,14 @@ def resample_forcing_met(
         # linear interpolation:
         # the interpolation schemes differ between instantaneous and average values
         # instantaneous:
+        list_var_extra_inst = [
+            var for var in data_met_raw.columns if _is_per_landcover_column(var)
+        ]
         list_var_inst = [
             var
             for var, data_type in dict_var_type_forcing.items()
             if data_type == "inst"
-        ]
+        ] + list_var_extra_inst
         data_met_tstep_inst = resample_linear_inst(
             data_met_raw.filter(list_var_inst), tstep_in, tstep_mod
         )
@@ -642,7 +672,12 @@ def resample_forcing_met(
     data_met_tstep["it"] = data_met_tstep.index.hour
     data_met_tstep["imin"] = data_met_tstep.index.minute
     data_met_tstep["isec"] = data_met_tstep.index.second
-    data_met_tstep = data_met_tstep.filter(list(dict_var_type_forcing.keys()))
+    list_var_extra = [
+        var for var in data_met_raw.columns if _is_per_landcover_column(var)
+    ]
+    data_met_tstep = data_met_tstep.filter(
+        list(dict_var_type_forcing.keys()) + list_var_extra
+    )
     data_met_tstep = data_met_tstep.replace(np.nan, -999)
 
     # to keep the same order as the original data
@@ -732,7 +767,7 @@ def load_SUEWS_Forcing_met_df_pattern(path_input, file_pattern):
     Header row is required and is read by name. Baseline-required columns
     raise ValueError when missing; optional canonical columns are filled
     with -999.0; whitelisted per-landcover columns (``<var>_<surface>``,
-    ``var in {lai, xsmd}``) are preserved with their original lower-cased
+    ``var in {lai, wuh}``) are preserved with their original lower-cased
     names; unknown columns produce a UserWarning and are dropped.
 
     Parameters
@@ -748,7 +783,6 @@ def load_SUEWS_Forcing_met_df_pattern(path_input, file_pattern):
         Datetime-indexed DataFrame with the canonical 24-column set
         (canonical case) plus any whitelisted per-landcover columns.
     """
-    import warnings
     from pathlib import Path
 
     path_input = Path(path_input).resolve()
@@ -783,14 +817,19 @@ def _apply_named_column_matching(df_forcing_met: pd.DataFrame) -> pd.DataFrame:
     """
     import warnings
 
-    # Build a lowercase -> original-case header map for case-insensitive matching.
-    header_map = {col.lower(): col for col in df_forcing_met.columns}
+    # Build lowercase -> original-case header groups for case-insensitive
+    # matching. Multiple files can spell the same canonical column with
+    # different case; coalesce those variants rather than letting pandas
+    # leave one file's rows as NaN.
+    header_groups: dict[str, list[str]] = {}
+    for col in df_forcing_met.columns:
+        header_groups.setdefault(str(col).lower(), []).append(col)
     canonical_lower = {c.lower() for c in CANONICAL_FORCING_COLUMNS}
 
     # 1) Baseline-required columns must be present (case-insensitive).
     missing_baseline = [
         canon for canon in CANONICAL_FORCING_COLUMNS
-        if canon in BASELINE_FORCING_COLUMNS and canon.lower() not in header_map
+        if canon in BASELINE_FORCING_COLUMNS and canon.lower() not in header_groups
     ]
     if missing_baseline:
         raise ValueError(
@@ -802,20 +841,24 @@ def _apply_named_column_matching(df_forcing_met: pd.DataFrame) -> pd.DataFrame:
     # 2) Pull canonical columns out (rename to the canonical case).
     canonical_present: dict[str, pd.Series] = {}
     for canon in CANONICAL_FORCING_COLUMNS:
-        actual = header_map.get(canon.lower())
+        actual = header_groups.get(canon.lower())
         if actual is not None:
-            canonical_present[canon] = df_forcing_met[actual]
+            canonical_present[canon] = _coalesce_case_variant_columns(
+                df_forcing_met, actual
+            )
 
     # 3) Per-landcover columns kept under their lower-cased names; unknowns warn.
     extras_present: dict[str, pd.Series] = {}
-    for col in df_forcing_met.columns:
-        if col.lower() in canonical_lower:
+    for lowered, cols in header_groups.items():
+        if lowered in canonical_lower:
             continue
-        if _is_per_landcover_column(col):
-            extras_present[col.lower()] = df_forcing_met[col]
+        if _is_per_landcover_column(lowered):
+            extras_present[lowered] = _coalesce_case_variant_columns(
+                df_forcing_met, cols
+            )
         else:
             warnings.warn(
-                f"Unknown forcing column '{col}' will be ignored.",
+                f"Unknown forcing column '{cols[0]}' will be ignored.",
                 UserWarning,
                 stacklevel=2,
             )

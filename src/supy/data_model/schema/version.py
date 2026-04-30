@@ -222,12 +222,15 @@ SCHEMA_VERSIONS: dict[str, str] = {
         "(whether a bare string or a RefValue mapping) under the new "
         "key. Forcing-file *content* semantics also tighten in this "
         "label: header column names are now read (previously discarded) "
-        "and matched against the canonical 21-column set; baseline-10 "
+        "and matched against the canonical forcing column set; baseline-10 "
         "columns (iy, id, it, imin, Tair, RH, U, pres, kdown, rain) are "
         "required; missing optional canonical columns are filled with "
-        "-999; whitelisted per-landcover columns "
-        "(lai_<surface>, xsmd_<surface>) are loaded into "
-        "SUEWSForcing.extras / ForcingData.extras."
+        "-999; whitelisted per-landcover columns are loaded into "
+        "SUEWSForcing.extras / ForcingData.extras — lai_<surface> "
+        "for the three vegetated surfaces (evetr, dectr, grass) only, "
+        "and wuh_<surface> (external water use) for the six land "
+        "surfaces only (excludes water). xsmd remains a bulk "
+        "site-level column."
     ),
 }
 

@@ -131,18 +131,31 @@ matched, case-insensitively, against the canonical column list above.
   raises ``ValueError`` at load time.
 * **Required (physics-conditional)**: depending on the chosen physics
   path, additional columns become mandatory. For example,
-  ``model.physics.net_radiation = 11`` requires ``ldown``;
-  ``net_radiation = 1`` or ``2`` requires ``fcld``. The error message
-  cites the offending column and the physics method that requires it.
+  ``model.physics.net_radiation = 0`` requires ``qn``;
+  ``net_radiation = 1`` or ``11`` requires ``ldown``;
+  ``net_radiation = 2`` or ``12`` requires ``fcld``. The error
+  message cites the offending column and the physics method that
+  requires it.
 * **Optional canonical columns**: missing canonical columns outside the
   required set are filled with ``-999.0`` (the SUEWS sentinel). Column
   order is irrelevant.
 * **Per-landcover variants**: the loader also accepts whitelisted
-  ``<var>_<surface>`` columns where ``var`` is one of ``lai`` or
-  ``xsmd`` and ``surface`` is one of ``paved``, ``bldgs``, ``evetr``,
-  ``dectr``, ``grass``, ``bsoil``, ``water``. These are preserved on
-  ``SUEWSForcing.extras`` for downstream physics work; the kernel
-  itself continues to use the bulk ``lai`` and ``xsmd`` columns.
+  ``<var>_<surface>`` columns:
+
+  - ``lai_<surface>`` is accepted **only for vegetated surfaces** —
+    ``evetr``, ``dectr``, ``grass``. ``lai_paved`` / ``lai_bldgs`` /
+    ``lai_bsoil`` / ``lai_water`` are not meaningful and are treated
+    as unknown (warn-and-drop).
+  - ``wuh_<surface>`` (external water use, e.g. irrigation or
+    impervious-surface washing) is accepted for any **land** surface —
+    ``paved``, ``bldgs``, ``evetr``, ``dectr``, ``grass``, ``bsoil``.
+    ``wuh_water`` is meaningless (one does not irrigate the open-water
+    surface) and is treated as unknown.
+
+  Whitelisted columns are preserved on ``SUEWSForcing.extras`` for
+  downstream physics work; the kernel itself continues to use the bulk
+  ``lai`` and ``Wuh`` columns. Soil-moisture deficit (``xsmd``) is a
+  bulk site-level quantity and is intentionally not per-landcover.
 * **Unknown columns**: any column not in the canonical or whitelisted
   sets emits a ``UserWarning`` and is dropped.
 

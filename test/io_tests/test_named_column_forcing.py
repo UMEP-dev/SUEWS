@@ -81,13 +81,13 @@ def test_missing_optional_column_filled_with_sentinel(tmp_path):
 
 
 def test_per_landcover_columns_separated_into_extras(tmp_path):
-    """T3/T4: lai_evetr/dectr/grass and xsmd_paved end up in SUEWSForcing.extras,
+    """T3/T4: lai_evetr/dectr/grass and wuh_paved end up in SUEWSForcing.extras,
     not in the kernel-facing DataFrame; main DataFrame shape unchanged."""
     from supy.suews_forcing import SUEWSForcing
 
     text = CANONICAL_FIXTURE.read_text()
     lines = text.splitlines()
-    header = lines[0] + " lai_evetr lai_dectr lai_grass xsmd_paved"
+    header = lines[0] + " lai_evetr lai_dectr lai_grass wuh_paved"
     new_lines = [header]
     for row in lines[1:]:
         new_lines.append(row + " 1.5 2.5 3.5 0.25")
@@ -97,17 +97,94 @@ def test_per_landcover_columns_separated_into_extras(tmp_path):
     forcing = SUEWSForcing.from_file(str(p))
     assert hasattr(forcing, "extras")
     assert set(forcing.extras.keys()) == {
-        "lai_evetr", "lai_dectr", "lai_grass", "xsmd_paved",
+        "lai_evetr", "lai_dectr", "lai_grass", "wuh_paved",
     }
     # Each extras series matches the appended constant value
     assert (forcing.extras["lai_evetr"] == 1.5).all()
-    assert (forcing.extras["xsmd_paved"] == 0.25).all()
+    assert (forcing.extras["wuh_paved"] == 0.25).all()
     # Main DataFrame retains canonical columns; per-landcover ones are gone.
     canonical = {"iy", "id", "it", "imin", "Tair", "RH", "U", "pres", "rain",
                  "kdown", "snow", "ldown", "fcld", "Wuh", "xsmd", "lai",
                  "qn", "qh", "qe", "qs", "qf", "isec"}
     assert canonical.issubset(set(forcing.df.columns))
     assert "lai_evetr" not in forcing.df.columns
+
+
+def test_lai_per_landcover_rejected_for_non_vegetated_surface(tmp_path):
+    """LAI is meaningful only for vegetated surfaces; lai_paved/lai_bldgs/
+    lai_bsoil/lai_water must be treated as unknown (warn-and-drop), not
+    plumbed through extras."""
+    from supy.suews_forcing import SUEWSForcing
+
+    text = CANONICAL_FIXTURE.read_text()
+    lines = text.splitlines()
+    header = lines[0] + " lai_paved lai_water"
+    new_lines = [header]
+    for row in lines[1:]:
+        new_lines.append(row + " 0.1 0.2")
+    p = tmp_path / "kc_lai_nonveg.txt"
+    p.write_text("\n".join(new_lines))
+
+    with pytest.warns(UserWarning):
+        forcing = SUEWSForcing.from_file(str(p))
+    assert "lai_paved" not in forcing.extras
+    assert "lai_water" not in forcing.extras
+
+
+def test_wuh_per_landcover_accepts_land_surfaces(tmp_path):
+    """External water use is meaningful for any land surface
+    (irrigation, impervious-surface washing) but not for the open-water
+    surface itself."""
+    from supy.suews_forcing import SUEWSForcing
+
+    text = CANONICAL_FIXTURE.read_text()
+    lines = text.splitlines()
+    header = lines[0] + " wuh_paved wuh_grass wuh_water"
+    new_lines = [header]
+    for row in lines[1:]:
+        new_lines.append(row + " 0.05 0.30 0.10")
+    p = tmp_path / "kc_wuh_mixed.txt"
+    p.write_text("\n".join(new_lines))
+
+    with pytest.warns(UserWarning, match="wuh_water"):
+        forcing = SUEWSForcing.from_file(str(p))
+    assert "wuh_paved" in forcing.extras
+    assert "wuh_grass" in forcing.extras
+    assert "wuh_water" not in forcing.extras
+
+
+def test_per_landcover_extras_survive_resampling(tmp_path):
+    """Hourly per-landcover extras are resampled, not replaced by sentinels."""
+    from importlib.resources import files
+
+    from supy.suews_forcing import SUEWSForcing
+
+    sample = files("supy") / "sample_data" / "Kc_2012_data_60.txt"
+    lines = sample.read_text().splitlines()
+    path = tmp_path / "hourly_extra.txt"
+    path.write_text(
+        "\n".join([lines[0] + " lai_evetr", *[line + " 1.5" for line in lines[1:5]]])
+    )
+
+    forcing = SUEWSForcing.from_file(str(path))
+    assert "lai_evetr" in forcing.extras
+    assert np.isclose(forcing.extras["lai_evetr"], 1.5).all()
+
+
+def test_mixed_case_headers_across_files_coalesce(tmp_path):
+    """Case-insensitive matching works across concatenated forcing files."""
+    from supy.util._io import read_forcing
+
+    text = CANONICAL_FIXTURE.read_text()
+    lines = text.splitlines()
+    (tmp_path / "a.txt").write_text("\n".join(lines[:3]))
+    (tmp_path / "b.txt").write_text(
+        "\n".join([lines[0].replace("Tair", "TAIR"), *lines[3:5]])
+    )
+
+    df = read_forcing(str(tmp_path / "*.txt"), tstep_mod=None)
+    assert df["Tair"].notna().all()
+    assert np.isfinite(df["Tair"]).all()
 
 
 def test_shuffled_header_yields_same_dataframe_as_canonical():

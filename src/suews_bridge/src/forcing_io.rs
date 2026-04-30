@@ -10,10 +10,21 @@ const BASELINE_FORCING_COLUMNS: &[&str] = &[
     "iy", "id", "it", "imin", "tair", "rh", "u", "pres", "kdown", "rain",
 ];
 
-// gh#1372 — Per-landcover whitelist: <var>_<surface>.
-const PER_LANDCOVER_FORCING_VARS: &[&str] = &["lai", "xsmd"];
+// gh#1372 — Per-landcover whitelist: <var>_<surface>. `wuh` covers
+// per-surface external water use (irrigation, impervious-surface
+// washing) and applies to any land surface — but not to the
+// open-water surface itself. `lai` is leaf-area index and is
+// meaningful only for the three vegetated surfaces. The bulk
+// site-level columns `Wuh` / `xsmd` remain in the canonical block —
+// `xsmd` is intentionally NOT per-landcover (it is fed in as a
+// single bulk soil-moisture-deficit value).
+const PER_LANDCOVER_FORCING_VARS: &[&str] = &["lai", "wuh"];
 const LANDCOVER_SUFFIXES: &[&str] = &[
     "paved", "bldgs", "evetr", "dectr", "grass", "bsoil", "water",
+];
+const LAI_LANDCOVER_SUFFIXES: &[&str] = &["evetr", "dectr", "grass"];
+const WUH_LANDCOVER_SUFFIXES: &[&str] = &[
+    "paved", "bldgs", "evetr", "dectr", "grass", "bsoil",
 ];
 
 const FORCING_OPTIONAL_FILL: f64 = -999.0;
@@ -42,7 +53,12 @@ fn is_per_landcover(name: &str) -> Option<String> {
     for var in PER_LANDCOVER_FORCING_VARS {
         let prefix = format!("{var}_");
         if let Some(suffix) = lowered.strip_prefix(&prefix) {
-            if LANDCOVER_SUFFIXES.contains(&suffix) {
+            let allowed: &[&str] = match *var {
+                "lai" => LAI_LANDCOVER_SUFFIXES,
+                "wuh" => WUH_LANDCOVER_SUFFIXES,
+                _ => LANDCOVER_SUFFIXES,
+            };
+            if allowed.contains(&suffix) {
                 return Some(lowered);
             }
         }
@@ -618,7 +634,7 @@ mod tests {
         let path = Path::new("../../test/fixtures/forcing/kc_per_landcover.txt");
         let forcing = read_forcing_block(path).expect("per-landcover fixture");
         assert!(forcing.extras.contains_key("lai_evetr"));
-        assert!(forcing.extras.contains_key("xsmd_paved"));
+        assert!(forcing.extras.contains_key("wuh_paved"));
         assert_eq!(forcing.extras["lai_evetr"].len(), forcing.len_sim);
         // Canonical block unchanged in shape.
         assert_eq!(forcing.block.len(), forcing.len_sim * MET_FORCING_COLS);

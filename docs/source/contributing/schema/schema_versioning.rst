@@ -180,12 +180,17 @@ the schema that shipped with it via
    canonical names; the baseline-10 set ``iy``, ``id``, ``it``,
    ``imin``, ``Tair``, ``RH``, ``U``, ``pres``, ``kdown``, ``rain``
    is required; missing optional canonicals are filled with
-   ``-999.0``; whitelisted per-landcover variants of ``lai`` and
-   ``xsmd`` (``<var>_<surface>`` for surface in
-   ``{paved, bldgs, evetr, dectr, grass, bsoil, water}``) are
-   plumbed through ``SUEWSForcing.extras`` /
-   ``ForcingData.extras``; unknown columns emit a ``UserWarning``
-   and are dropped. The ``(2026.5.dev6 -> 2026.5.dev7)`` migration
+   ``-999.0``; whitelisted per-landcover variants are plumbed through
+   ``SUEWSForcing.extras`` / ``ForcingData.extras`` —
+   ``lai_<surface>`` for the three vegetated surfaces only
+   (``evetr``, ``dectr``, ``grass``) and ``wuh_<surface>`` (external
+   water use, e.g. irrigation or impervious-surface washing) for the
+   six land surfaces
+   ``{paved, bldgs, evetr, dectr, grass, bsoil}`` —
+   ``wuh_water`` is meaningless and is treated as unknown;
+   soil-moisture deficit (``xsmd``) remains a bulk site-level column
+   and is intentionally not on the per-landcover whitelist; unknown
+   columns emit a ``UserWarning`` and are dropped. The ``(2026.5.dev6 -> 2026.5.dev7)`` migration
    handler ``_apply_forcing_subobject_restructure`` in
    ``src/supy/util/converter/yaml_upgrade.py::_HANDLERS`` rewrites
    the YAML key whether the value is a bare string or a ``RefValue``

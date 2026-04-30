@@ -532,9 +532,7 @@ class SUEWSSimulation:
                     validate_forcing_columns_against_physics,
                 )
 
-                validate_forcing_columns_against_physics(
-                    set(df_forcing_slice.columns), physics
-                )
+                validate_forcing_columns_against_physics(df_forcing_slice, physics)
         if self._df_state_init is not None:
             from ._supy_module import _lai_bounds_from_df_state
 

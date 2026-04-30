@@ -22,10 +22,17 @@ def test_forcing_control_accepts_list_of_paths():
 
 
 def test_model_control_holds_forcing_subobject():
-    """ModelControl exposes a .forcing sub-object, not a flat forcing_file."""
+    """ModelControl exposes .forcing and keeps legacy forcing_file as an alias."""
     control = ModelControl(forcing={"file": "forcing.txt"})
     assert isinstance(control.forcing, ForcingControl)
-    assert not hasattr(control, "forcing_file")
+    assert control.forcing_file == control.forcing.file
+
+
+def test_model_control_accepts_legacy_forcing_file():
+    """Legacy forcing_file input is moved under forcing.file."""
+    control = ModelControl(forcing_file={"value": "legacy.txt"})
+    assert control.forcing.file.value == "legacy.txt"
+    assert control.forcing_file.value == "legacy.txt"
 
 
 def test_current_schema_version_bumped_for_forcing_restructure():
@@ -69,6 +76,50 @@ def test_validate_forcing_columns_against_physics_accepts_when_present():
     validate_forcing_columns_against_physics(columns, physics)
 
 
+def test_validate_forcing_columns_against_physics_method_1_requires_ldown_not_fcld():
+    """Net radiation method 1 uses observed Ldown, not cloud fraction."""
+    from types import SimpleNamespace
+
+    from supy.data_model.core.forcing_validation import (
+        validate_forcing_columns_against_physics,
+    )
+
+    physics = SimpleNamespace(net_radiation=1)
+    columns = {
+        "iy", "id", "it", "imin", "Tair", "RH", "U", "pres", "kdown", "rain", "ldown",
+    }
+    validate_forcing_columns_against_physics(columns, physics)
+
+
+def test_validate_forcing_columns_against_physics_rejects_all_sentinel_data():
+    """Filled optional columns still fail when the selected physics needs real data."""
+    import pandas as pd
+    from types import SimpleNamespace
+
+    from supy.data_model.core.forcing_validation import (
+        validate_forcing_columns_against_physics,
+    )
+
+    physics = SimpleNamespace(net_radiation=1)
+    df = pd.DataFrame(
+        {
+            "iy": [2020],
+            "id": [1],
+            "it": [0],
+            "imin": [0],
+            "Tair": [5.0],
+            "RH": [80.0],
+            "U": [2.0],
+            "pres": [1013.0],
+            "kdown": [0.0],
+            "rain": [0.0],
+            "ldown": [-999.0],
+        }
+    )
+    with pytest.raises(ValueError, match=r"ldown.*valid data.*net_radiation=1"):
+        validate_forcing_columns_against_physics(df, physics)
+
+
 def test_python_rust_whitelist_parity():
     """gh#1372 cross-language guard: Python and Rust must agree on the
     per-landcover whitelist, surface short codes, baseline-required set,
@@ -81,8 +132,10 @@ def test_python_rust_whitelist_parity():
     from supy._load import (
         BASELINE_FORCING_COLUMNS,
         FORCING_OPTIONAL_FILL,
+        LAI_LANDCOVER_SUFFIXES,
         LANDCOVER_SUFFIXES,
         PER_LANDCOVER_FORCING_VARS,
+        WUH_LANDCOVER_SUFFIXES,
     )
 
     rust_src = Path(__file__).resolve().parents[2] / "src" / "suews_bridge" / "src" / "forcing_io.rs"
@@ -96,6 +149,8 @@ def test_python_rust_whitelist_parity():
 
     assert _list("PER_LANDCOVER_FORCING_VARS") == set(PER_LANDCOVER_FORCING_VARS)
     assert _list("LANDCOVER_SUFFIXES") == set(LANDCOVER_SUFFIXES)
+    assert _list("LAI_LANDCOVER_SUFFIXES") == set(LAI_LANDCOVER_SUFFIXES)
+    assert _list("WUH_LANDCOVER_SUFFIXES") == set(WUH_LANDCOVER_SUFFIXES)
     assert _list("BASELINE_FORCING_COLUMNS") == {c.lower() for c in BASELINE_FORCING_COLUMNS}
 
     fill_match = re.search(r"const FORCING_OPTIONAL_FILL: f64 = ([-\d.]+);", text)

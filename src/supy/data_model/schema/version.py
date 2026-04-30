@@ -22,7 +22,7 @@ import warnings
 # schema-versioning.md` (Dev-label convention). Every structural PR
 # between releases bumps the dev counter instead of consuming a new
 # CalVer label.
-CURRENT_SCHEMA_VERSION = "2026.5.dev7"
+CURRENT_SCHEMA_VERSION = "2026.5.dev8"
 
 # Schema version history and descriptions.
 #
@@ -231,6 +231,19 @@ SCHEMA_VERSIONS: dict[str, str] = {
         "and wuh_<surface> (external water use) for the six land "
         "surfaces only (excludes water). xsmd remains a bulk "
         "site-level column."
+    ),
+    "2026.5.dev8": (
+        "gh#1372 follow-up: structural restructure of output configuration. "
+        "model.control.output_file (Union[str, OutputConfig]) is moved to "
+        "model.control.output under a new OutputControl sub-object — "
+        "mirrors the ForcingControl restructure shipped in 2026.5.dev7 so "
+        "the model.control surface is uniform. The deprecated string form "
+        "(silently ignored since 2025.10.15) is dropped; the inner `path` "
+        "field is renamed to `dir` (clarifies it as a directory, parallels "
+        "the asymmetry with forcing.file). The (2026.5.dev7 -> 2026.5.dev8) "
+        "migration is registered in "
+        "src/supy/util/converter/yaml_upgrade.py::_HANDLERS via "
+        "_apply_output_subobject_restructure."
     ),
 }
 

@@ -259,8 +259,9 @@ def cli(
 ):
     """SUEWS Configuration Validator.
 
-    Default behavior: run the complete validation pipeline on FILE. Use subcommands
-    for specific operations (validate, schema, migrate, export).
+    Default behavior: run the complete validation pipeline on FILE. Use the
+    validate subcommand for batch schema checks; use `suews schema` for schema
+    lifecycle operations.
     """
     # If invoked without a subcommand, run the pipeline workflow
     if ctx.invoked_subcommand is None:
@@ -522,7 +523,7 @@ def validate(files, schema_version, verbose, quiet, format):
 ## Removed `check` subcommand to avoid redundancy with `validate`.
 
 
-@cli.command()
+@cli.command(hidden=True)
 @click.argument("file", type=click.Path(exists=True))
 @click.option("--output", "-o", help="Output file for migrated configuration")
 @click.option("--to-version", help="Target schema version")
@@ -606,14 +607,14 @@ def _print_schema_info():
     console.print("  • Documentation: docs/source/inputs/yaml/schema_versioning.rst")
 
     console.print("\n[bold]Validation Commands:[/bold]")
-    console.print("  • Full validation: suews-validate config.yml")
+    console.print("  • Full validation: suews validate config.yml")
     console.print(
-        "  • Read-only check: suews-validate -p C --dry-run configs/*.yml --format json"
+        "  • Read-only check: suews validate -p C --dry-run configs/*.yml --format json"
     )
-    console.print("  • Migrate: suews-validate schema migrate old_config.yml")
+    console.print("  • Migrate: suews schema migrate old_config.yml")
 
 
-@cli.command()
+@cli.command(hidden=True)
 @click.argument("files", nargs=-1, type=click.Path(exists=True), required=True)
 @click.option(
     "--update", "-u", is_flag=True, help="Update schema_version field in files"
@@ -688,7 +689,7 @@ def version(files, update, target_version, backup):
     console.print(table)
 
 
-@cli.command()
+@cli.command(hidden=True)
 @click.option(
     "--output",
     "-o",
@@ -1557,7 +1558,7 @@ if __name__ == "__main__":
     main()
 
 
-@cli.group(name="schema", invoke_without_command=True)
+@cli.group(name="schema", invoke_without_command=True, hidden=True)
 @click.pass_context
 def schema_group(ctx):
     """Schema operations: status, update, migrate, export, info.

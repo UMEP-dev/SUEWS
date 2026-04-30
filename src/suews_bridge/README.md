@@ -16,6 +16,10 @@ the flat payload layout.
 
 ## Build and test (Rust only)
 
+The public SUEWS CLI does not expose a Rust subcommand. For bridge debugging,
+run the engine directly from this crate or from the installed
+`supy/bin/suews-engine` binary.
+
 ```bash
 cd src/suews_bridge
 cargo test

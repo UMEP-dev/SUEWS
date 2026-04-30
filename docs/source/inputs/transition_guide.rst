@@ -171,7 +171,7 @@ YAML Schema Migrations
 Once your configuration is in YAML, subsequent SUEWS releases may bump
 the YAML *schema* — the structure of the file itself. Each bump is
 backed by a registered migration handler, so ``suews-convert`` (for
-combined legacy+schema upgrades) and ``suews-schema migrate`` (for
+combined legacy+schema upgrades) and ``suews schema migrate`` (for
 schema-only upgrades) will move old YAMLs onto the current shape
 without losing data. Every drop is logged with a human-readable
 reason so you can reconstruct intent if needed.
@@ -217,13 +217,13 @@ the user omitted them are skipped, so programmatic
 docs YAMLs that only exercise unrelated aspects (timezone, output
 configuration, ...) remain permissive.
 
-Because the YAML shape is unchanged, no ``suews-schema migrate`` run
+Because the YAML shape is unchanged, no ``suews schema migrate`` run
 is strictly required to move to ``2026.5.dev6``. Run the migrator
 only to refresh the ``schema_version`` stamp if you pin the field:
 
 .. code-block:: bash
 
-   suews-schema migrate your_config.yml --target-version 2026.5.dev6
+   suews schema migrate your_config.yml --target-version 2026.5.dev6
 
 Users hitting the new raise should either (a) fill in the missing
 fields the error message names, or (b) remove the offending surface
@@ -246,7 +246,7 @@ Because the change is accept-only, the ``2026.5.dev4 ->
 
 .. code-block:: bash
 
-   suews-schema migrate your_config.yml --target-version 2026.5.dev5
+   suews schema migrate your_config.yml --target-version 2026.5.dev5
 
 Upgrading to Schema 2026.5.dev4 (gh#1334 follow-through via PR #1337: STEBBS hot-water prefix unification)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -276,7 +276,7 @@ component qualifiers; only the prefix becomes consistent.
 
 Legacy ``dhw_*`` and ``water_tank_*`` spellings continue to load
 via the Pydantic shim with a ``DeprecationWarning``. Run
-``suews-schema migrate --target-version 2026.5.dev4 <your.yml>``
+``suews schema migrate --target-version 2026.5.dev4 <your.yml>``
 to rewrite them in place. Rust struct fields and the c_api shadow
 keep ``dhw_*`` internally — cross-layer work is tracked in #1324.
 
@@ -343,7 +343,7 @@ cluster) continue to load under a ``DeprecationWarning``. Run:
 
 .. code-block:: bash
 
-   suews-schema migrate your_config.yml --target-version 2026.5.dev3
+   suews schema migrate your_config.yml --target-version 2026.5.dev3
 
 Use this historical target when you specifically want the pre-hot-water
 unification ``2026.5.dev3`` spellings. To land on the current schema
@@ -388,7 +388,7 @@ under a ``DeprecationWarning``. Run:
 
 .. code-block:: bash
 
-   suews-schema migrate your_config.yml --target-version 2026.5.dev2
+   suews schema migrate your_config.yml --target-version 2026.5.dev2
 
 The migrator accepts any registered intermediate (``2025.12``,
 ``2026.1``, ``2026.4``, ``2026.5``, ``2026.5.dev1``) and walks the
@@ -428,7 +428,7 @@ persisted YAMLs should be migrated. Run:
 
 .. code-block:: bash
 
-   suews-schema migrate your_config.yml --target-version 2026.5.dev1
+   suews schema migrate your_config.yml --target-version 2026.5.dev1
 
 The migrator accepts any registered intermediate (for example
 ``2025.12``, ``2026.1``, ``2026.4`` or ``2026.5``) and walks the
@@ -470,7 +470,7 @@ top.
 
    The standalone Rust CLI (``suews run config.yml``) accepts both the
    new ``snake_case`` spellings and the legacy fused spellings
-   transparently (gh#1322). You do not need to run ``suews-schema
+   transparently (gh#1322). You do not need to run ``suews schema
    migrate`` purely to use the CLI — migration is only required when
    persisting a canonical 2026.5-shaped YAML, for example alongside a
    release fixture or before sharing a config with collaborators.
@@ -499,7 +499,7 @@ Run:
 
 .. code-block:: bash
 
-   suews-schema migrate your_config.yml --target-version 2026.4
+   suews schema migrate your_config.yml --target-version 2026.4
 
 The migrator accepts any registered intermediate (for example
 ``2025.12``) and walks the chain to the 2026.4 schema. To upgrade
@@ -529,7 +529,7 @@ If you are targeting 2026.1.28 exactly:
 
 .. code-block:: bash
 
-   suews-schema migrate your_config.yml --target-version 2026.1
+   suews schema migrate your_config.yml --target-version 2026.1
 
 Otherwise the 2026.4 -> 2026.5 chain above is applied in one pass.
 
@@ -546,7 +546,7 @@ upgraded file, pass ``--dry-run``:
 
 .. code-block:: bash
 
-   suews-schema migrate your_config.yml --dry-run
+   suews schema migrate your_config.yml --dry-run
 
 Troubleshooting
 ~~~~~~~~~~~~~~~
@@ -617,7 +617,7 @@ Accept-only widening — no schema version bump. Every previously
 valid YAML continues to validate and round-trips byte-identically.
 Writing in the nested form is optional and serves as in-file
 documentation of intent; YAMLs that round-trip through
-``suews-schema migrate`` or ``SUEWSConfig.to_yaml`` are always
+``suews schema migrate`` or ``SUEWSConfig.to_yaml`` are always
 emitted in the flat form.
 
 The Rust CLI (``suews run``) accepts the same two shapes via the

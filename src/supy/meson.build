@@ -33,6 +33,7 @@ py.install_sources(
             'cmd/to_yaml.py',
             'cmd/validate_config.py',
             'cmd/schema_cli.py',
+            'cmd/inspect_config.py',
         ],
         [
             'util/_UMEP2epw.py',

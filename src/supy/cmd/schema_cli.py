@@ -50,6 +50,9 @@ except ImportError:
     from supy.data_model.schema.publisher import generate_json_schema, save_schema
     from supy.data_model.schema.migration import SchemaMigrator, check_migration_needed
 
+# Canonical SUEWS CLI JSON envelope (gh#1360 / gh#1368).
+from .json_envelope import Envelope, _now_iso
+
 console = Console()
 logger = logging.getLogger(__name__)
 
@@ -125,16 +128,40 @@ def validate_file_against_schema(
         return (False, [str(e)])
 
 
-@click.group()
+@click.group(invoke_without_command=True)
 @click.option("--verbose", "-v", is_flag=True, help="Enable verbose output")
 @click.option("--quiet", "-q", is_flag=True, help="Suppress non-essential output")
+@click.option(
+    "--version",
+    "schema_version",
+    default=None,
+    help=(
+        "Schema version to expose. Defaults to the current schema version. "
+        "Only consulted when no subcommand is given."
+    ),
+)
+@click.option(
+    "--format",
+    "out_format",
+    type=click.Choice(["text", "json"], case_sensitive=False),
+    default="text",
+    show_default=True,
+    help=(
+        "Output format when ``suews schema`` is called without a subcommand. "
+        "'json' emits the canonical SUEWS envelope on stdout."
+    ),
+)
 @click.pass_context
-def cli(ctx, verbose, quiet):
+def cli(ctx, verbose, quiet, schema_version, out_format):
     """
     SUEWS Schema Management - Manage YAML configuration schemas.
 
     This tool provides utilities for managing SUEWS YAML configuration schemas,
     including version checking, migration between versions, and schema export.
+
+    When invoked without a subcommand (``suews schema [--version V]
+    [--format json|text]``), it returns a single envelope wrapping the
+    JSON Schema for the requested (or current) version.
     """
     ctx.ensure_object(dict)
     ctx.obj["verbose"] = verbose
@@ -147,6 +174,56 @@ def cli(ctx, verbose, quiet):
         logging.basicConfig(level=logging.ERROR)
     else:
         logging.basicConfig(level=logging.INFO)
+
+    # No subcommand: emit the canonical envelope for the requested version.
+    if ctx.invoked_subcommand is not None:
+        return
+
+    started_at = _now_iso()
+    target_version = schema_version or CURRENT_SCHEMA_VERSION
+    command_str = " ".join(sys.argv) if sys.argv else "suews schema"
+
+    try:
+        schema_dict = generate_json_schema(version=target_version)
+    except Exception as exc:  # noqa: BLE001 - surface generator output verbatim
+        message = f"Failed to generate schema for version {target_version!r}: {exc}"
+        if out_format.lower() == "json":
+            Envelope.error(
+                errors=[message],
+                command=command_str,
+                data={"requested_version": target_version},
+                started_at=started_at,
+            ).emit()
+        else:
+            console.print(f"[red]{message}[/red]")
+        ctx.exit(2)
+
+    if out_format.lower() == "json":
+        Envelope.success(
+            data=schema_dict, command=command_str, started_at=started_at
+        ).emit()
+        ctx.exit(0)
+
+    # Text mode: a compact human-readable summary of the schema metadata.
+    title = schema_dict.get("title", "SUEWS Schema")
+    schema_id = schema_dict.get("$id", "(no $id)")
+    schema_version_tag = schema_dict.get("version", target_version)
+    description = schema_dict.get("description", "")
+    required = schema_dict.get("required", []) or []
+    properties = list((schema_dict.get("properties") or {}).keys())
+
+    console.print(f"[bold]{title}[/bold]")
+    console.print(f"  version : {schema_version_tag}")
+    console.print(f"  $id     : {schema_id}")
+    if description:
+        console.print(f"  about   : {description}")
+    if required:
+        console.print(f"  required: {', '.join(required)}")
+    if properties:
+        console.print(f"  top-level properties ({len(properties)}):")
+        for name in properties:
+            console.print(f"    - {name}")
+    ctx.exit(0)
 
 
 @cli.command()

@@ -133,6 +133,7 @@ suews-run = "supy.cmd.suews_cli:run_alias"
 suews-convert = "supy.cmd.suews_cli:convert_alias"
 suews-validate = "supy.cmd.suews_cli:validate_alias"
 suews-schema = "supy.cmd.suews_cli:schema_alias"
+suews-inspect = "supy.cmd.suews_cli:inspect_alias"
 
 [tool.pytest.ini_options]
 filterwarnings = [

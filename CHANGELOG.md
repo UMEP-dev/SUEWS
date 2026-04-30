@@ -54,6 +54,13 @@ EXAMPLES:
 
 ## 2026
 
+### 30 Apr 2026
+
+- [feature][experimental] Packaged SUEWS as a first-class plugin in the Claude Code and Codex AI-agent ecosystems via the open Agent Skills standard (#1363)
+  - Added user-facing `suews` plugin entry to `.claude-plugin/marketplace.json` (alongside the existing `suews-dev` contributor plugin)
+  - Added `.codex-plugin/plugin.json` and `.agents/plugins/marketplace.json` for Codex CLI / Desktop App / IDE extensions
+  - Documented install paths in `docs/source/installation.rst` (Claude Code, Codex, MCP placeholder for Cursor)
+
 ### 22 Apr 2026
 
 - [bugfix] Reject sparse YAML configs that omit physics-required fields (#1333)

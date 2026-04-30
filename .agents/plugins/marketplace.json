@@ -1,0 +1,22 @@
+{
+  "name": "suews",
+  "interface": {
+    "displayName": "SUEWS",
+    "shortDescription": "Urban climate modelling tools for AI assistants"
+  },
+  "plugins": [
+    {
+      "name": "suews",
+      "source": {
+        "source": "git-subdir",
+        "url": "https://github.com/UMEP-dev/SUEWS",
+        "path": "."
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "NONE"
+      },
+      "category": "Productivity"
+    }
+  ]
+}

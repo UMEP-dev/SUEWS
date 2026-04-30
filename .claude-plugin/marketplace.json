@@ -1,11 +1,19 @@
 {
   "name": "suews",
   "metadata": {
-    "description": "Development skills for SUEWS urban climate model",
-    "version": "1.0.0",
+    "description": "SUEWS plugins for AI agent ecosystems - runtime workflow rules for users and developer tooling for contributors",
+    "version": "1.1.0",
     "repository": "https://github.com/UMEP-dev/SUEWS"
   },
   "plugins": [
+    {
+      "name": "suews",
+      "description": "Run, validate, and analyse SUEWS urban climate simulations from your AI assistant. Workflow rules, forcing-data checks, output interpretation, and common-error diagnostics.",
+      "source": "./",
+      "skills": [
+        "./.claude/skills/suews"
+      ]
+    },
     {
       "name": "suews-dev",
       "description": "Complete development toolkit for SUEWS contributors - environment setup, code linting, build verification, PR review, and release management",

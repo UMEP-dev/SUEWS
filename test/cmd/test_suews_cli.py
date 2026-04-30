@@ -198,12 +198,16 @@ def test_rust_bridge_main_accepts_explicit_argv(
         captured["check"] = check
         return Result()
 
-    monkeypatch.setattr(rust_bridge, "_bridge_binary", lambda: Path("/tmp/suews-engine"))
+    fake_binary = Path("/tmp/suews-engine")
+    monkeypatch.setattr(rust_bridge, "_bridge_binary", lambda: fake_binary)
     monkeypatch.setattr(rust_bridge.subprocess, "run", fake_run)
 
     with pytest.raises(SystemExit) as excinfo:
         rust_bridge.main(argv=["--version"])
 
     assert excinfo.value.code == 7
-    assert captured["cmd"] == ["/tmp/suews-engine", "--version"]
+    # Compare against the platform-appropriate string form so Windows (where
+    # ``str(Path("/tmp/suews-engine"))`` becomes ``\\tmp\\suews-engine``) and
+    # POSIX both pass; ``rust_bridge.main`` stringifies the Path before exec.
+    assert captured["cmd"] == [str(fake_binary), "--version"]
     assert captured["check"] is False

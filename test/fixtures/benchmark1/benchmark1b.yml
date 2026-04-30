@@ -6,7 +6,6 @@ model:
     forcing:
       file:
         value: forcing/
-    output_file: output.txt
   physics:
     net_radiation:
       value: 3

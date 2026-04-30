@@ -442,10 +442,10 @@ class TestSampleOutput(TestCase):
         # Run the Rust CLI with a temporary config pointing output to tmpdir
         print(f"\nRunning Rust CLI: {rust_binary.name} run (Arrow output)")
         with tempfile.TemporaryDirectory() as tmpdir:
-            # Copy config to tmpdir and modify output_file.path
+            # Copy config to tmpdir and modify output.dir
             with open(sample_config) as f:
                 cfg = yaml.safe_load(f)
-            cfg["model"]["control"]["output_file"]["path"] = tmpdir
+            cfg["model"]["control"]["output"]["dir"] = tmpdir
             tmp_config = Path(tmpdir) / "sample_config.yml"
             with open(tmp_config, "w") as f:
                 yaml.dump(cfg, f, default_flow_style=False, sort_keys=False)

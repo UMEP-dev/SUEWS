@@ -11,10 +11,10 @@ model:
     forcing:
       file:
         value: ./forcing.txt
-    output_file:
+    output:
       format: parquet
       freq: 3600
-      path: ./out
+      dir: ./out
   physics:
     netradiationmethod:
       value: 3

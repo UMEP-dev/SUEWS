@@ -6,7 +6,7 @@ model:
     forcing:
       file:
         value: forcing/
-    output_file:
+    output:
       format: "parquet"
       freq: 3600
   physics:

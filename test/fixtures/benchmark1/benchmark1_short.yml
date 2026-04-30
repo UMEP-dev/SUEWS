@@ -6,7 +6,7 @@ model:
     forcing:
       file:
         value: forcing/Kc1_2011_data_5_short.txt
-    output_file:
+    output:
       format: "parquet"
       freq: 3600
   physics:

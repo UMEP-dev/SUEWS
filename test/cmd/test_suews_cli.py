@@ -1,7 +1,7 @@
 """Tests for the unified ``suews`` CLI dispatcher.
 
 Validates:
-- `suews --help` lists the 5 expected subcommands (validate/schema/convert/run/rust).
+- `suews --help` lists the 4 public subcommands (validate/schema/convert/run).
 - Each subcommand resolves to its existing Click implementation.
 - The legacy hyphenated entry points (`suews-run`, `-convert`, `-validate`,
   `-schema`) print a deprecation notice and forward to the underlying command.
@@ -29,8 +29,9 @@ def test_top_level_help_lists_subcommands() -> None:
     runner = CliRunner()
     result = runner.invoke(cli, ["--help"])
     assert result.exit_code == 0, result.output
-    for sub in ("validate", "schema", "convert", "run", "rust"):
+    for sub in ("validate", "schema", "convert", "run"):
         assert sub in result.output, f"subcommand {sub!r} missing from help output"
+    assert "rust" not in result.output
 
 
 def test_validate_subcommand_help() -> None:
@@ -66,10 +67,10 @@ def test_run_subcommand_help() -> None:
     assert result.exit_code == 0, result.output
 
 
-def test_rust_subcommand_registered() -> None:
+def test_rust_subcommand_is_not_registered() -> None:
     from supy.cmd.suews_cli import cli
 
-    assert "rust" in cli.commands
+    assert "rust" not in cli.commands
 
 
 # ---------------------------------------------------------------------------
@@ -103,6 +104,31 @@ def test_run_subcommand_is_suews_cmd() -> None:
     from supy.cmd.SUEWS import SUEWS as suews_run
 
     assert cli.commands["run"] is suews_run
+
+
+@pytest.mark.parametrize("subcommand", ["info", "version", "migrate", "export"])
+def test_schema_public_subcommands_have_help(subcommand: str) -> None:
+    from supy.cmd.suews_cli import cli
+
+    runner = CliRunner()
+    result = runner.invoke(cli, ["schema", subcommand, "--help"])
+    assert result.exit_code == 0, result.output
+
+
+def test_schema_validate_is_not_public() -> None:
+    from supy.cmd.suews_cli import cli
+
+    assert "validate" not in cli.commands["schema"].commands
+
+
+def test_validate_help_keeps_schema_lifecycle_hidden() -> None:
+    from supy.cmd.suews_cli import cli
+
+    runner = CliRunner()
+    result = runner.invoke(cli, ["validate", "--help"])
+    assert result.exit_code == 0, result.output
+    for hidden_subcommand in ("migrate", "export"):
+        assert hidden_subcommand not in result.output
 
 
 # ---------------------------------------------------------------------------
@@ -155,32 +181,6 @@ def test_back_compat_alias_emits_deprecation(
     assert expected_legacy_name in captured.err
     assert expected_replacement in captured.err
     assert invoked["called"], "alias did not forward to underlying command"
-
-
-# ---------------------------------------------------------------------------
-# Rust subcommand passthrough
-# ---------------------------------------------------------------------------
-
-
-def test_rust_subcommand_passes_argv_through(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    from supy.cmd import rust_bridge, suews_cli
-
-    captured: dict[str, list[str] | None] = {"argv": None}
-
-    def fake_rust_main(argv: list[str] | None = None) -> None:
-        captured["argv"] = argv
-
-    monkeypatch.setattr(rust_bridge, "main", fake_rust_main)
-
-    runner = CliRunner()
-    result = runner.invoke(
-        suews_cli.cli,
-        ["rust", "--input", "config.yml", "--verbose"],
-    )
-    assert result.exit_code == 0, result.output
-    assert captured["argv"] == ["--input", "config.yml", "--verbose"]
 
 
 def test_rust_bridge_main_accepts_explicit_argv(

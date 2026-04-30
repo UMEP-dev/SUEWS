@@ -3,7 +3,7 @@
 SUEWS Schema Management CLI
 
 Unified command-line interface for managing SUEWS YAML configuration schemas.
-This consolidates schema version checking, migration, and validation operations.
+This consolidates schema version checking, migration, and export operations.
 
 This module addresses GitHub issues #612 and #613, providing a single entry point
 for all schema-related operations that will integrate with the future suews-wizard (#544).
@@ -134,7 +134,7 @@ def cli(ctx, verbose, quiet):
     SUEWS Schema Management - Manage YAML configuration schemas.
 
     This tool provides utilities for managing SUEWS YAML configuration schemas,
-    including version checking, validation, and migration between versions.
+    including version checking, migration between versions, and schema export.
     """
     ctx.ensure_object(dict)
     ctx.obj["verbose"] = verbose
@@ -162,8 +162,8 @@ def version(ctx, files, update, target_version, backup):
     Check or update schema versions in configuration files.
 
     Examples:
-        suews-schema version config.yml
-        suews-schema version *.yml --update --target-version 1.0
+        suews schema version config.yml
+        suews schema version *.yml --update --target-version 1.0
     """
     verbose = ctx.obj.get("verbose", False)
     quiet = ctx.obj.get("quiet", False)
@@ -257,8 +257,8 @@ def migrate(ctx, files, target_version, output_dir, backup, dry_run):
     Migrate configuration files between schema versions.
 
     Examples:
-        suews-schema migrate old_config.yml
-        suews-schema migrate configs/*.yml --target-version 2.0 --output-dir migrated/
+        suews schema migrate old_config.yml
+        suews schema migrate configs/*.yml --target-version 2.0 --output-dir migrated/
     """
     verbose = ctx.obj.get("verbose", False)
     quiet = ctx.obj.get("quiet", False)
@@ -349,97 +349,6 @@ def migrate(ctx, files, target_version, output_dir, backup, dry_run):
 
 
 @cli.command()
-@click.argument("files", nargs=-1, type=click.Path(exists=True), required=True)
-@click.option("--schema-version", help="Schema version to validate against")
-@click.option(
-    "--strict", "-s", is_flag=True, help="Exit with error on validation failure"
-)
-@click.option(
-    "--format",
-    type=click.Choice(["table", "json", "yaml"]),
-    default="table",
-    help="Output format",
-)
-@click.pass_context
-def validate(ctx, files, schema_version, strict, format):
-    """
-    Validate configuration files against their schema.
-
-    Examples:
-        suews-schema validate config.yml
-        suews-schema validate configs/*.yml --schema-version 1.0 --strict
-    """
-    verbose = ctx.obj.get("verbose", False)
-    quiet = ctx.obj.get("quiet", False)
-
-    version = schema_version or CURRENT_SCHEMA_VERSION
-
-    if not quiet and format == "table":
-        console.print(f"[bold blue]Validating against schema v{version}[/bold blue]\n")
-
-    results = []
-    all_valid = True
-
-    for file_path in files:
-        path = Path(file_path)
-        is_valid, errors = validate_file_against_schema(
-            path, schema_version=schema_version, show_details=verbose
-        )
-
-        if not is_valid:
-            all_valid = False
-
-        results.append({
-            "file": str(path),
-            "valid": is_valid,
-            "errors": errors if not is_valid else [],
-            "error_count": len(errors) if not is_valid else 0,
-        })
-
-    # Output results based on format
-    if format == "json":
-        import json
-
-        console.print(json.dumps(results, indent=2))
-    elif format == "yaml":
-        console.print(yaml.dump(results, default_flow_style=False))
-    else:  # table format
-        if not quiet:
-            table = Table(title="Validation Results")
-            table.add_column("File", style="cyan")
-            table.add_column("Status", justify="center")
-            table.add_column("Issues", style="yellow")
-
-            for result in results:
-                path = Path(result["file"])
-                if result["valid"]:
-                    status = "[green]✓ Valid[/green]"
-                    issues = ""
-                else:
-                    status = "[red]✗ Invalid[/red]"
-                    if verbose and result["errors"]:
-                        issues = "\n".join(result["errors"][:3])
-                        if len(result["errors"]) > 3:
-                            issues += f"\n... and {len(result['errors']) - 3} more"
-                    else:
-                        issues = f"{result['error_count']} issue(s)"
-
-                table.add_row(path.name, status, issues)
-
-            console.print(table)
-
-            valid_count = sum(1 for r in results if r["valid"])
-            total_count = len(results)
-            console.print(
-                f"\n[bold]Summary:[/bold] {valid_count}/{total_count} files valid"
-            )
-
-    # Exit with error if strict mode and validation failed
-    if strict and not all_valid:
-        sys.exit(1)
-
-
-@cli.command()
 @click.option("--output", "-o", type=click.Path(), help="Output file for schema")
 @click.option("--version", help="Schema version to export")
 @click.option(
@@ -454,8 +363,8 @@ def export(ctx, output, version, format):
     Export the JSON Schema for SUEWS configurations.
 
     Examples:
-        suews-schema export -o schema.json
-        suews-schema export --version 1.0 --format yaml
+        suews schema export -o schema.json
+        suews schema export --version 1.0 --format yaml
     """
     verbose = ctx.obj.get("verbose", False)
     quiet = ctx.obj.get("quiet", False)
@@ -528,19 +437,19 @@ def info(ctx):
         console.print(f"  {marker} v{version}: {description}")
 
     console.print("\n[bold]CLI Commands:[/bold]")
-    console.print("  • Check version: [cyan]suews-schema version config.yml[/cyan]")
-    console.print("  • Validate: [cyan]suews-schema validate config.yml[/cyan]")
+    console.print("  • Check version: [cyan]suews schema version config.yml[/cyan]")
+    console.print("  • Validate configs: [cyan]suews validate config.yml[/cyan]")
     console.print(
-        "  • Migrate: [cyan]suews-schema migrate old.yml --target-version 2.0[/cyan]"
+        "  • Migrate: [cyan]suews schema migrate old.yml --target-version 2.0[/cyan]"
     )
-    console.print("  • Export schema: [cyan]suews-schema export -o schema.json[/cyan]")
+    console.print("  • Export schema: [cyan]suews schema export -o schema.json[/cyan]")
 
     console.print("\n[bold]Integration:[/bold]")
     console.print(
-        "  • Use with CI/CD: [cyan]suews-schema validate *.yml --strict[/cyan]"
+        "  • Use with CI/CD: [cyan]suews validate *.yml --dry-run --format json[/cyan]"
     )
     console.print(
-        "  • Batch operations: [cyan]suews-schema version configs/*.yml --update[/cyan]"
+        "  • Batch operations: [cyan]suews schema version configs/*.yml --update[/cyan]"
     )
     console.print("  • Future wizard: Will use these utilities for validation")
 

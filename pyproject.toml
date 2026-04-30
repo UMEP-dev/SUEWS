@@ -127,8 +127,7 @@ docs = [
 [project.scripts]
 # Unified CLI dispatcher. `suews <subcmd>` is the canonical entry point;
 # the hyphenated scripts below are deprecated aliases that print a notice
-# and forward to the matching subcommand. The Rust engine binary is
-# exposed as `suews rust ...` (was previously the bare `suews` invocation).
+# and forward to the matching subcommand.
 suews = "supy.cmd.suews_cli:main"
 suews-run = "supy.cmd.suews_cli:run_alias"
 suews-convert = "supy.cmd.suews_cli:convert_alias"

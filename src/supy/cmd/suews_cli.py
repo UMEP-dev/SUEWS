@@ -7,13 +7,14 @@ console scripts (``suews-run``, ``suews-convert``, ``suews-validate``,
 ``suews-schema``) remain as deprecated thin aliases.
 
 Hard rule: this module never reimplements physics, validation, schema, or
-run logic. It only routes.
+run logic. It only routes. Backend implementation details such as the Rust
+bridge are deliberately kept out of the public command surface.
 
-Phase-1 dispatcher: ``run``, ``validate``, ``schema``, ``convert``, ``rust``
-are wired here. The Phase-1 gap-fill commands (``init``, ``inspect``,
-``diagnose``, ``compare``, ``summarise``, ``skill``) attach in the Wave 3
-sub-issues (#1360-#1363) and the standalone ``suews-mcp`` package lands in
-Wave 4 (#1364).
+Phase-1 dispatcher: ``run``, ``validate``, ``schema``, and ``convert`` are
+wired here. The Phase-1 gap-fill commands (``init``, ``inspect``,
+``diagnose``, ``compare``, ``summarise``, ``skill``) remain future work in the
+Wave 3 sub-issues (#1360-#1363), and the standalone ``suews-mcp`` package
+lands in Wave 4 (#1364).
 """
 
 from __future__ import annotations
@@ -52,23 +53,6 @@ cli.add_command(_validate_cli, name="validate")
 cli.add_command(_schema_cli, name="schema")
 cli.add_command(_convert_cmd, name="convert")
 cli.add_command(_run_cmd, name="run")
-
-
-@cli.command(
-    name="rust",
-    context_settings={
-        "ignore_unknown_options": True,
-        "allow_extra_args": True,
-        "help_option_names": [],  # let -h / --help fall through to the Rust binary
-    },
-    help="Forward arguments to the bundled SUEWS Rust engine binary.",
-)
-@click.pass_context
-def _rust(ctx: click.Context) -> None:
-    """Pass-through to the bundled Rust binary (``supy.bin.suews-engine``)."""
-    from . import rust_bridge
-
-    rust_bridge.main(argv=list(ctx.args))
 
 
 # ---------------------------------------------------------------------------

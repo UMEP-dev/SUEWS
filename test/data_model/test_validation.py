@@ -4077,11 +4077,12 @@ model:
     tstep: 300
     start_time: '2012-07-01'
     end_time: '2012-07-10'
-    forcing_file: {value: ./forcing.txt}
-    output_file:
+    forcing:
+      file: {value: ./forcing.txt}
+    output:
       format: parquet
       freq: 3600
-      path: ./out
+      dir: ./out
   physics:
     netradiationmethod: {value: 3}
     emissionsmethod: {value: 2}
@@ -4149,11 +4150,12 @@ model:
     tstep: 300
     start_time: '2012-07-01'
     end_time: '2012-07-10'
-    forcing_file: {value: ./forcing.txt}
-    output_file:
+    forcing:
+      file: {value: ./forcing.txt}
+    output:
       format: parquet
       freq: 3600
-      path: ./out
+      dir: ./out
   physics:
     netradiationmethod: {value: 3}
     emissionsmethod: {value: 2}
@@ -4232,11 +4234,12 @@ model:
     tstep: 300
     start_time: '2012-07-01'
     end_time: '2012-07-10'
-    forcing_file: {value: ./forcing.txt}
-    output_file:
+    forcing:
+      file: {value: ./forcing.txt}
+    output:
       format: parquet
       freq: 3600
-      path: ./out
+      dir: ./out
   physics:
     netradiationmethod: {value: 3}
     emissionsmethod: {value: 2}

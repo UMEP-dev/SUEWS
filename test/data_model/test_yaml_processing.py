@@ -598,8 +598,8 @@ class TestRealWorldScenarios(unittest.TestCase):
             "model": {
                 "control": {
                     "tstep": 300,
-                    "forcing_file": {"value": "test_forcing.txt"},
-                    "output_file": {"format": "txt", "freq": 3600, "groups": ["SUEWS"]},
+                    "forcing": {"file": {"value": "test_forcing.txt"}},
+                    "output": {"format": "txt", "freq": 3600, "groups": ["SUEWS"]},
                     "start_time": "2011-01-01",
                     "end_time": "2011-12-31",
                 },
@@ -692,9 +692,10 @@ description: A test config with all types of issues
 model:
   control:
     tstep: 300
-    forcing_file:
-      value: test_forcing.txt
-    output_file:
+    forcing:
+      file:
+        value: test_forcing.txt
+    output:
       format: txt
       freq: 3600
       groups: ["SUEWS"]
@@ -2905,7 +2906,7 @@ class TestProcessorFixtures:
                     "tstep": {"value": 300},
                     "start_time": {"value": "2011-01-01"},
                     "end_time": {"value": "2011-12-31"},
-                    "output_file": {
+                    "output": {
                         "freq": {"value": 3600},
                         "groups": {"value": ["SUEWS"]},
                     },
@@ -4058,10 +4059,10 @@ class TestPhaseCPydanticValidation(TestProcessorFixtures):
             "model": {
                 "control": {
                     "tstep": 300,
-                    "forcing_file": {"value": "forcing.txt"},
+                    "forcing": {"file": {"value": "forcing.txt"}},
                     "start_time": "2025-01-01",
                     "end_time": "2025-12-31",
-                    "output_file": {"freq": 3600, "format": "txt"},
+                    "output": {"freq": 3600, "format": "txt"},
                     "diagnose": 0,
                 },
                 "physics": {
@@ -4139,10 +4140,10 @@ class TestPhaseCPydanticValidation(TestProcessorFixtures):
             "model": {
                 "control": {
                     "tstep": 300,
-                    "forcing_file": {"value": "forcing.txt"},
+                    "forcing": {"file": {"value": "forcing.txt"}},
                     "start_time": "2025-01-01",
                     "end_time": "2025-12-31",
-                    "output_file": {"freq": 3600, "format": "txt"},
+                    "output": {"freq": 3600, "format": "txt"},
                     "diagnose": 0,
                 },
                 "physics": {

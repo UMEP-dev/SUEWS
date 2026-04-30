@@ -36,14 +36,17 @@ def test_model_control_accepts_legacy_forcing_file():
 
 
 def test_current_schema_version_bumped_for_forcing_restructure():
-    """gh#1372 forcing.file restructure must move the schema label."""
+    """gh#1372 forcing.file restructure must have a dedicated dev7 entry."""
     from supy.data_model.schema.version import CURRENT_SCHEMA_VERSION, SCHEMA_VERSIONS
 
-    assert CURRENT_SCHEMA_VERSION == "2026.5.dev7"
+    # The forcing restructure shipped at dev7; later dev bumps may move
+    # CURRENT_SCHEMA_VERSION further (e.g. the dev8 output restructure),
+    # but the dev7 entry must still exist and document the change.
     assert "2026.5.dev7" in SCHEMA_VERSIONS
     desc = SCHEMA_VERSIONS["2026.5.dev7"]
     assert "forcing" in desc.lower()
     assert "1372" in desc
+    assert CURRENT_SCHEMA_VERSION >= "2026.5.dev7"
 
 
 def test_validate_forcing_columns_against_physics_raises_for_missing_ldown():

@@ -1,9 +1,9 @@
-"""Test output configuration functionality"""
+"""Test output configuration functionality."""
 
 import pytest
 from supy.data_model.core.model import (
     ModelControl,
-    OutputConfig,
+    OutputControl,
     OutputFormat,
     Model,
     ModelPhysics,
@@ -15,86 +15,134 @@ import yaml
 pytestmark = pytest.mark.api
 
 
-def test_output_config_creation():
-    """Test creating OutputConfig objects"""
+def test_output_control_creation():
+    """Test creating OutputControl objects."""
     # Default config
-    config = OutputConfig()
+    config = OutputControl()
     assert config.format == OutputFormat.TXT
     assert config.freq is None
     assert config.groups is None
-    assert config.path is None
+    assert config.dir is None
 
     # Custom config
-    config = OutputConfig(
+    config = OutputControl(
         format=OutputFormat.PARQUET, freq=1800, groups=["SUEWS", "DailyState", "ESTM"]
     )
     assert config.format == OutputFormat.PARQUET
     assert config.freq == 1800
     assert config.groups == ["SUEWS", "DailyState", "ESTM"]
-    assert config.path is None
+    assert config.dir is None
 
-    # Custom config with path
-    config = OutputConfig(format=OutputFormat.TXT, freq=3600, path="./output_dir")
+    # Custom config with directory
+    config = OutputControl(format=OutputFormat.TXT, freq=3600, dir="./output_dir")
     assert config.format == OutputFormat.TXT
     assert config.freq == 3600
-    assert config.path == "./output_dir"
+    assert config.dir == "./output_dir"
 
 
-def test_output_config_validation():
-    """Test OutputConfig validation"""
+def test_output_control_validation():
+    """Test OutputControl validation."""
     # Valid groups
-    config = OutputConfig(groups=["SUEWS", "DailyState"])
+    config = OutputControl(groups=["SUEWS", "DailyState"])
     assert config.groups == ["SUEWS", "DailyState"]
 
     # Invalid groups should raise error
     with pytest.raises(ValueError, match="Invalid output groups"):
-        OutputConfig(groups=["SUEWS", "InvalidGroup"])
+        OutputControl(groups=["SUEWS", "InvalidGroup"])
 
 
-def test_model_control_with_output_config():
-    """Test ModelControl with OutputConfig"""
-    # String (backward compatibility)
-    control = ModelControl(output_file="output.txt")
-    assert control.output_file == "output.txt"
+def test_modelcontrol_accepts_new_output_subobject():
+    """The new ``output:`` sub-object replaces ``output_file:``."""
+    mc = ModelControl(output={"format": "parquet", "freq": 3600, "dir": "./out"})
+    assert mc.output.format == OutputFormat.PARQUET
+    assert mc.output.freq == 3600
+    assert mc.output.dir == "./out"
+    assert not hasattr(mc, "output_file")
 
-    # OutputConfig object
-    output_config = OutputConfig(format=OutputFormat.PARQUET, freq=3600)
-    control = ModelControl(output_file=output_config)
-    assert isinstance(control.output_file, OutputConfig)
-    assert control.output_file.format == OutputFormat.PARQUET
+
+def test_modelcontrol_legacy_output_file_dict_coerced():
+    """Old ``output_file:`` dict form is coerced to ``output:`` in-memory."""
+    import warnings
+
+    with warnings.catch_warnings(record=True) as caught:
+        warnings.simplefilter("always")
+        mc = ModelControl(
+            output_file={
+                "format": "txt",
+                "freq": 1800,
+                "groups": ["SUEWS", "DailyState"],
+                "path": "./legacy_out",
+            }
+        )
+    assert mc.output.format == OutputFormat.TXT
+    assert mc.output.freq == 1800
+    assert mc.output.groups == ["SUEWS", "DailyState"]
+    assert mc.output.dir == "./legacy_out"
+    assert any(
+        "output_file" in str(w.message).lower() for w in caught
+    ), "expected DeprecationWarning mentioning output_file"
+
+
+def test_modelcontrol_legacy_output_file_string_dropped():
+    """Old ``output_file: 'output.txt'`` string form is dropped with a warning."""
+    import warnings
+
+    with warnings.catch_warnings(record=True) as caught:
+        warnings.simplefilter("always")
+        mc = ModelControl(output_file="output.txt")
+    # Default OutputControl is installed.
+    assert mc.output.format == OutputFormat.TXT
+    assert mc.output.dir is None
+    assert any(
+        "output_file" in str(w.message).lower()
+        and "ignored" in str(w.message).lower()
+        for w in caught
+    ), "expected DeprecationWarning that the string form is ignored"
+
+
+def test_modelcontrol_both_keys_output_wins():
+    """If both keys are present, ``output:`` wins; ``output_file:`` is dropped."""
+    import warnings
+
+    with warnings.catch_warnings(record=True):
+        warnings.simplefilter("always")
+        mc = ModelControl(
+            output={"format": "parquet", "freq": 3600, "dir": "./new"},
+            output_file={"format": "txt", "path": "./old"},
+        )
+    assert mc.output.format == OutputFormat.PARQUET
+    assert mc.output.dir == "./new"
 
 
 def test_frequency_validation():
-    """Test output frequency validation against timestep"""
-    # Valid: freq is multiple of tstep - should work with SUEWSConfig
+    """Test output frequency validation against timestep."""
+    # Valid: freq is multiple of tstep.
     config = SUEWSConfig(
-        sites=[{}], model={"control": {"tstep": 300, "output_file": {"freq": 3600}}}
+        sites=[{}], model={"control": {"tstep": 300, "output": {"freq": 3600}}}
     )
     assert config.model.control.tstep == 300
-    assert config.model.control.output_file.freq == 3600
+    assert config.model.control.output.freq == 3600
 
-    # Invalid: freq not multiple of tstep - should raise ValueError in SUEWSConfig
+    # Invalid: freq not multiple of tstep.
     with pytest.raises(ValueError, match="must be a multiple of timestep"):
         SUEWSConfig(
             sites=[{}],
             model={
                 "control": {
                     "tstep": 300,
-                    "output_file": {
-                        "freq": 1000  # Not multiple of 300
-                    },
+                    "output": {"freq": 1000},  # not a multiple of 300
                 }
             },
         )
 
 
 def test_yaml_output_config():
-    """Test loading output config from YAML"""
+    """Test loading output config from YAML."""
     yaml_content = """
 model:
   control:
     tstep: 300
-    output_file:
+    output:
       format: parquet
       freq: 1800
       groups:
@@ -108,24 +156,23 @@ model:
     config_dict = yaml.safe_load(yaml_content)
     config = SUEWSConfig(**config_dict)
 
-    # Pydantic automatically converts the dict to OutputConfig
-    assert isinstance(config.model.control.output_file, OutputConfig)
-    assert config.model.control.output_file.format == OutputFormat.PARQUET
-    assert config.model.control.output_file.freq == 1800
-    assert config.model.control.output_file.groups == ["SUEWS", "DailyState", "ESTM"]
-    assert config.model.control.output_file.path is None
+    assert isinstance(config.model.control.output, OutputControl)
+    assert config.model.control.output.format == OutputFormat.PARQUET
+    assert config.model.control.output.freq == 1800
+    assert config.model.control.output.groups == ["SUEWS", "DailyState", "ESTM"]
+    assert config.model.control.output.dir is None
 
 
-def test_yaml_output_config_with_path():
-    """Test loading output config with path from YAML"""
+def test_yaml_output_config_with_dir():
+    """Test loading output config with ``dir:`` from YAML."""
     yaml_content = """
 model:
   control:
     tstep: 300
-    output_file:
+    output:
       format: txt
       freq: 3600
-      path: "./Output"
+      dir: "./Output"
       groups:
         - SUEWS
         - DailyState
@@ -136,62 +183,67 @@ model:
     config_dict = yaml.safe_load(yaml_content)
     config = SUEWSConfig(**config_dict)
 
-    # Pydantic automatically converts the dict to OutputConfig
-    assert isinstance(config.model.control.output_file, OutputConfig)
-    assert config.model.control.output_file.format == OutputFormat.TXT
-    assert config.model.control.output_file.freq == 3600
-    assert config.model.control.output_file.path == "./Output"
-    assert config.model.control.output_file.groups == ["SUEWS", "DailyState"]
+    assert isinstance(config.model.control.output, OutputControl)
+    assert config.model.control.output.format == OutputFormat.TXT
+    assert config.model.control.output.freq == 3600
+    assert config.model.control.output.dir == "./Output"
+    assert config.model.control.output.groups == ["SUEWS", "DailyState"]
 
 
-def test_yaml_backward_compatibility():
-    """Test YAML with string output_file for backward compatibility"""
+def test_yaml_legacy_output_file_dict_still_loads():
+    """Pre-migration YAML using ``output_file:`` (dict) still loads via the in-memory coercion."""
+    import warnings
+
     yaml_content = """
 model:
   control:
-    output_file: "output.txt"
+    output_file:
+      format: parquet
+      freq: 3600
+      path: "./legacy_out"
 """
 
     from supy.data_model.core import SUEWSConfig
 
     config_dict = yaml.safe_load(yaml_content)
-    config = SUEWSConfig(**config_dict)
+    with warnings.catch_warnings(record=True) as caught:
+        warnings.simplefilter("always")
+        config = SUEWSConfig(sites=[{}], **config_dict)
 
-    assert config.model.control.output_file == "output.txt"
+    assert isinstance(config.model.control.output, OutputControl)
+    assert config.model.control.output.format == OutputFormat.PARQUET
+    assert config.model.control.output.freq == 3600
+    assert config.model.control.output.dir == "./legacy_out"
+    assert any(
+        issubclass(w.category, DeprecationWarning)
+        and "output_file" in str(w.message).lower()
+        for w in caught
+    )
 
 
-def test_deprecation_warning():
-    """Test deprecation warning for non-default string output_file"""
+def test_yaml_legacy_output_file_string_emits_warning():
+    """Pre-migration YAML using the string form of ``output_file`` emits a deprecation warning and falls back to defaults."""
     import warnings
 
-    # Test that non-default string triggers warning in SUEWSConfig
-    with warnings.catch_warnings(record=True) as w:
-        warnings.simplefilter("always")
-        config = SUEWSConfig(
-            sites=[{}], model={"control": {"output_file": "custom_output.txt"}}
-        )
-        # Filter for deprecation warnings only (ignore validation warnings)
-        deprecation_warnings = [
-            warning for warning in w if issubclass(warning.category, DeprecationWarning)
-        ]
-        assert len(deprecation_warnings) == 1
-        assert "deprecated" in str(deprecation_warnings[0].message)
+    yaml_content = """
+model:
+  control:
+    output_file: "custom_output.txt"
+"""
 
-    # Test that default string doesn't trigger warning
-    with warnings.catch_warnings(record=True) as w:
+    from supy.data_model.core import SUEWSConfig
+
+    config_dict = yaml.safe_load(yaml_content)
+    with warnings.catch_warnings(record=True) as caught:
         warnings.simplefilter("always")
-        config = SUEWSConfig(
-            sites=[{}],
-            model={
-                "control": {
-                    "output_file": "output.txt"  # default value
-                }
-            },
-        )
-        # Filter for deprecation warnings only (ignore validation warnings)
-        deprecation_warnings = [
-            warning for warning in w if issubclass(warning.category, DeprecationWarning)
-        ]
-        assert (
-            len(deprecation_warnings) == 0
-        )  # No deprecation warning for default value
+        config = SUEWSConfig(sites=[{}], **config_dict)
+
+    assert isinstance(config.model.control.output, OutputControl)
+    assert config.model.control.output.format == OutputFormat.TXT
+    deprecation_warnings = [
+        w
+        for w in caught
+        if issubclass(w.category, DeprecationWarning)
+        and "output_file" in str(w.message).lower()
+    ]
+    assert deprecation_warnings, "expected a DeprecationWarning for the legacy string form"

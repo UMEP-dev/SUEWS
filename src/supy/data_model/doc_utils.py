@@ -518,7 +518,7 @@ class ModelDocExtractor:
             "z_meas",
             "tstep",
             "forcing",
-            "output_file",
+            "output",
             "start_time",
             "end_time",
             "population",

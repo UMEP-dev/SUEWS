@@ -588,7 +588,7 @@ class SUEWSSimulation:
         self, output_path: Optional[Union[str, Path]] = None, **save_kwargs
     ) -> list[str]:
         """
-        Save simulation results according to OutputConfig settings.
+        Save simulation results according to OutputControl settings.
 
         Parameters
         ----------
@@ -605,7 +605,7 @@ class SUEWSSimulation:
 
             **Not currently supported** (due to internal constraints):
 
-            - freq_s: Controlled by config.model.control.output_file.freq
+            - freq_s: Controlled by config.model.control.output.freq
             - site: Derived from config.sites[0].name
             - save_tstep: Not configurable via OOP interface
             - output_level: Not configurable via OOP interface
@@ -647,16 +647,16 @@ class SUEWSSimulation:
 
         # Set default path with priority: parameter > config > current directory
         if output_path is None:
-            # Check if path is specified in config
-            config_path = None
+            # Check if dir is specified in config
+            config_dir = None
             try:
-                output_file = self._config.model.control.output_file
-                if not isinstance(output_file, str) and output_file.path:
-                    config_path = output_file.path
+                output_control = self._config.model.control.output
+                if output_control.dir:
+                    config_dir = output_control.dir
             except AttributeError:
                 pass
 
-            output_path = Path(config_path) if config_path else Path(".")
+            output_path = Path(config_dir) if config_dir else Path(".")
         else:
             output_path = Path(output_path)
 
@@ -667,14 +667,13 @@ class SUEWSSimulation:
         site = ""
 
         if self._config:
-            # Get output frequency from OutputConfig if available
+            # Get output frequency from OutputControl if available
             if (
                 hasattr(self._config, "model")
                 and hasattr(self._config.model, "control")
-                and hasattr(self._config.model.control, "output_file")
-                and not isinstance(self._config.model.control.output_file, str)
+                and hasattr(self._config.model.control, "output")
             ):
-                output_config = self._config.model.control.output_file
+                output_config = self._config.model.control.output
                 if hasattr(output_config, "freq") and output_config.freq is not None:
                     freq_s = output_config.freq
                 # Removed for now - can't update from YAML (TODO)

@@ -615,3 +615,101 @@ def test_dev6_to_current_handler_registered():
     from supy.util.converter.yaml_upgrade import _HANDLERS
 
     assert ("2026.5.dev6", CURRENT_SCHEMA_VERSION) in _HANDLERS
+
+
+class TestOutputSubobjectRestructure:
+    """gh#1372 follow-up: dev7 -> dev8 lifts output_file -> output."""
+
+    def _migrate(self, cfg: dict) -> dict:
+        from supy.util.converter.yaml_upgrade import (
+            _migrate_2026_5_dev7_to_current,
+        )
+        return _migrate_2026_5_dev7_to_current(cfg)
+
+    def test_dict_form_lifts_and_renames_path(self):
+        cfg = {
+            "schema_version": "2026.5.dev7",
+            "model": {
+                "control": {
+                    "output_file": {
+                        "format": "txt",
+                        "freq": 3600,
+                        "groups": ["SUEWS"],
+                        "path": "./legacy_out",
+                    },
+                },
+            },
+        }
+        out = self._migrate(cfg)
+        assert "output_file" not in out["model"]["control"]
+        result = out["model"]["control"]["output"]
+        assert result["format"] == "txt"
+        assert result["freq"] == 3600
+        assert result["groups"] == ["SUEWS"]
+        assert result["dir"] == "./legacy_out"
+        assert "path" not in result
+
+    def test_dict_form_already_uses_dir(self):
+        cfg = {
+            "schema_version": "2026.5.dev7",
+            "model": {
+                "control": {
+                    "output_file": {
+                        "format": "parquet",
+                        "freq": 1800,
+                        "dir": "./already_dir",
+                    },
+                },
+            },
+        }
+        out = self._migrate(cfg)
+        assert out["model"]["control"]["output"]["dir"] == "./already_dir"
+        assert "path" not in out["model"]["control"]["output"]
+
+    def test_string_form_dropped(self):
+        cfg = {
+            "schema_version": "2026.5.dev7",
+            "model": {"control": {"output_file": "output.txt"}},
+        }
+        out = self._migrate(cfg)
+        assert "output_file" not in out["model"]["control"]
+        # No `output` synthesised - the migrator drops the string form;
+        # the data-model default_factory re-installs OutputControl() at load.
+        assert "output" not in out["model"]["control"]
+
+    def test_already_migrated_is_idempotent(self):
+        cfg = {
+            "schema_version": "2026.5.dev8",
+            "model": {
+                "control": {
+                    "output": {"format": "parquet", "dir": "./out"},
+                },
+            },
+        }
+        out = self._migrate(cfg)
+        assert out["model"]["control"]["output"] == {
+            "format": "parquet",
+            "dir": "./out",
+        }
+
+    def test_both_keys_output_wins(self):
+        cfg = {
+            "schema_version": "2026.5.dev7",
+            "model": {
+                "control": {
+                    "output": {"format": "parquet", "dir": "./new"},
+                    "output_file": {"format": "txt", "path": "./old"},
+                },
+            },
+        }
+        out = self._migrate(cfg)
+        assert "output_file" not in out["model"]["control"]
+        assert out["model"]["control"]["output"]["dir"] == "./new"
+        assert out["model"]["control"]["output"]["format"] == "parquet"
+
+    def test_dev7_to_current_handler_registered(self):
+        """Compatibility from 2026.5.dev7 must be granted via _HANDLERS."""
+        from supy.data_model.schema.version import CURRENT_SCHEMA_VERSION
+        from supy.util.converter.yaml_upgrade import _HANDLERS
+
+        assert ("2026.5.dev7", CURRENT_SCHEMA_VERSION) in _HANDLERS

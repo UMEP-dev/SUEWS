@@ -71,6 +71,7 @@ _PACKAGE_TO_SCHEMA: dict[str, str] = {
     # Dev-cycle vendored fixtures: filename stem maps to its own schema label
     # so test_release_compat.py exercises the (label -> current) handler.
     "2026.5.dev6": "2026.5.dev6",
+    "2026.5.dev7": "2026.5.dev7",
 }
 
 
@@ -665,28 +666,94 @@ def _apply_forcing_subobject_restructure(cfg: dict) -> dict:
     return cfg
 
 
+def _apply_output_subobject_restructure(cfg: dict) -> dict:
+    """Move ``model.control.output_file`` under ``model.control.output``.
+
+    gh#1372 follow-up: introduces an OutputControl sub-object so the
+    ``model.control`` surface is uniform with the new ``forcing:`` block.
+    The dict form is preserved verbatim under ``output``, with the inner
+    ``path`` field renamed to ``dir`` (clarifies it as a directory).
+    The legacy string form (silently ignored since 2025.10.15) is
+    dropped with a logged reason. If both ``output_file`` and ``output``
+    are present, ``output`` wins and the legacy key is dropped.
+    """
+    model = cfg.get("model")
+    if not isinstance(model, dict):
+        return cfg
+    control = model.get("control")
+    if not isinstance(control, dict):
+        return cfg
+    if "output_file" not in control:
+        return cfg
+
+    legacy = control.pop("output_file")
+
+    if "output" in control:
+        _log(
+            "[yaml-upgrade]   dropped 'output_file' (already migrated; "
+            "'output' key wins)"
+        )
+        return cfg
+
+    if isinstance(legacy, dict):
+        migrated = {k: v for k, v in legacy.items() if k != "path"}
+        if "path" in legacy and "dir" not in migrated:
+            migrated["dir"] = legacy["path"]
+            _log("[yaml-upgrade]   renamed 'output_file.path' -> 'output.dir'")
+        control["output"] = migrated
+        _log(
+            "[yaml-upgrade]   migrated 'output_file' (dict) -> 'output' "
+            "sub-object (gh#1372)"
+        )
+        return cfg
+
+    # Legacy string form (e.g. output_file: "output.txt"): drop with reason.
+    _log(
+        "[yaml-upgrade]   dropped 'output_file' string value "
+        f"({legacy!r}); use the 'output:' sub-object"
+    )
+    return cfg
+
+
+def _migrate_2026_5_dev7_to_current(cfg: dict) -> dict:
+    """Upgrade 2026.5.dev7-shaped YAMLs to the current schema.
+
+    Applies the gh#1372 follow-up output-config restructure: output_file
+    is moved under a new output sub-object and the inner ``path`` is
+    renamed to ``dir``.
+    """
+    cfg = _strip_internal_only_fields(cfg)
+    _apply_output_subobject_restructure(cfg)
+    return cfg
+
+
 def _migrate_2026_5_dev6_to_current(cfg: dict) -> dict:
     """Upgrade 2026.5.dev6-shaped YAMLs to the current schema.
 
-    Applies the gh#1372 forcing-config restructure: forcing_file is moved
-    under a new forcing sub-object.
+    Applies the gh#1372 forcing-config restructure (forcing_file moved
+    under a new forcing sub-object) and the gh#1372 follow-up output
+    restructure (output_file moved under a new output sub-object,
+    path -> dir).
     """
     cfg = _strip_internal_only_fields(cfg)
     _apply_forcing_subobject_restructure(cfg)
+    _apply_output_subobject_restructure(cfg)
     return cfg
 
 
 def _migrate_2026_5_dev5_to_current(cfg: dict) -> dict:
-    """Upgrade 2026.5.dev5 YAMLs to current (gh#1372 forcing restructure)."""
+    """Upgrade 2026.5.dev5 YAMLs to current (gh#1372 forcing + output restructure)."""
     cfg = _strip_internal_only_fields(cfg)
     _apply_forcing_subobject_restructure(cfg)
+    _apply_output_subobject_restructure(cfg)
     return cfg
 
 
 def _migrate_2026_5_dev4_to_current(cfg: dict) -> dict:
-    """Upgrade 2026.5.dev4 YAMLs to current (gh#1372 forcing restructure)."""
+    """Upgrade 2026.5.dev4 YAMLs to current (gh#1372 forcing + output restructure)."""
     cfg = _strip_internal_only_fields(cfg)
     _apply_forcing_subobject_restructure(cfg)
+    _apply_output_subobject_restructure(cfg)
     return cfg
 
 
@@ -695,11 +762,13 @@ def _migrate_2026_5_dev3_to_current(cfg: dict) -> dict:
 
     Applies the gh#1334 follow-through hot-water unification: 14 renames
     under ``site.properties.building_archetype`` and ``.stebbs``. Also
-    applies the gh#1372 forcing-config restructure on the way through.
+    applies the gh#1372 forcing-config restructure and the gh#1372
+    follow-up output restructure on the way through.
     """
     cfg = _strip_internal_only_fields(cfg)
     _apply_hot_water_unification_renames(cfg)
     _apply_forcing_subobject_restructure(cfg)
+    _apply_output_subobject_restructure(cfg)
     return cfg
 
 
@@ -709,12 +778,14 @@ def _migrate_2026_5_dev2_to_current(cfg: dict) -> dict:
     Chains gh#1334 (dev2 -> dev3: retires STEBBS PascalCase; 124 renames)
     and the gh#1334 follow-through (dev3 -> dev4: hot-water prefix
     unification; 14 renames). Also applies the gh#1372 forcing-config
-    restructure on the way through.
+    restructure and the gh#1372 follow-up output restructure on the way
+    through.
     """
     cfg = _strip_internal_only_fields(cfg)
     _apply_stebbs_snake_renames(cfg)
     _apply_hot_water_unification_renames(cfg)
     _apply_forcing_subobject_restructure(cfg)
+    _apply_output_subobject_restructure(cfg)
     return cfg
 
 
@@ -753,6 +824,7 @@ def _migrate_2026_5_to_current(cfg: dict) -> dict:
     _apply_stebbs_snake_renames(cfg)
     _apply_hot_water_unification_renames(cfg)
     _apply_forcing_subobject_restructure(cfg)
+    _apply_output_subobject_restructure(cfg)
     return cfg
 
 
@@ -761,14 +833,15 @@ def _migrate_2026_5_dev1_to_current(cfg: dict) -> dict:
 
     Chains the Cat 2+3 ModelPhysics suffix/abbreviation rewrite (gh#1321),
     the gh#1334 STEBBS/Snow snake_case sweep, the gh#1334 follow-through
-    hot-water prefix unification, and the gh#1372 forcing-config
-    restructure.
+    hot-water prefix unification, the gh#1372 forcing-config restructure
+    and the gh#1372 follow-up output restructure.
     """
     cfg = _strip_internal_only_fields(cfg)
     _apply_modelphysics_suffix_renames(cfg)
     _apply_stebbs_snake_renames(cfg)
     _apply_hot_water_unification_renames(cfg)
     _apply_forcing_subobject_restructure(cfg)
+    _apply_output_subobject_restructure(cfg)
     return cfg
 
 
@@ -824,16 +897,20 @@ _HANDLERS: dict[tuple[str, str], Handler] = {
     ("2025.12", "2026.4"): _migrate_2025_12_to_2026_4,
     # Intermediate stops at 2026.5 (callers pinning Category 1 only).
     ("2026.4", "2026.5"): _migrate_2026_4_to_2026_5,
-    # Chains to the current schema (2026.5.dev7: Cat 1 snake_case sweep
+    # Chains to the current schema (2026.5.dev8: Cat 1 snake_case sweep
     # + Cat 5 STEBBS ext rename + Cat 2+3 ModelPhysics suffix drop
     # + gh#1334 STEBBS/Snow snake_case + gh#1334 follow-through hot-water
     # prefix unification + gh#972 accept-only nested physics sub-options
     # + gh#1333 site-level completeness validator tightening
-    # + gh#1372 ForcingControl sub-object restructure).
+    # + gh#1372 ForcingControl sub-object restructure
+    # + gh#1372 follow-up output_file -> output sub-object restructure
+    #   (path -> dir, drop legacy string form).
     # The dev4 -> dev5 and dev5 -> dev6 deltas are accept-only / contract
     # tightening changes with no YAML rewrite, but the dev6 -> dev7 delta
-    # rewrites forcing_file -> forcing.file, so dev4/dev5 identity shortcuts
-    # have been replaced with proper handlers that apply the new restructure.
+    # rewrites forcing_file -> forcing.file and the dev7 -> dev8 delta
+    # rewrites output_file -> output, so dev4/dev5 identity shortcuts have
+    # been replaced with proper handlers that apply the new restructures.
+    ("2026.5.dev7", CURRENT_SCHEMA_VERSION): _migrate_2026_5_dev7_to_current,
     ("2026.5.dev6", CURRENT_SCHEMA_VERSION): _migrate_2026_5_dev6_to_current,
     ("2026.5.dev5", CURRENT_SCHEMA_VERSION): _migrate_2026_5_dev5_to_current,
     ("2026.5.dev4", CURRENT_SCHEMA_VERSION): _migrate_2026_5_dev4_to_current,

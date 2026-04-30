@@ -11,10 +11,10 @@ run logic. It only routes. Backend implementation details such as the Rust
 bridge are deliberately kept out of the public command surface.
 
 Phase-1 dispatcher: ``run``, ``validate``, ``schema``, and ``convert`` are
-wired here. The Phase-1 gap-fill commands (``init``, ``inspect``,
-``diagnose``, ``compare``, ``summarise``, ``skill``) remain future work in the
-Wave 3 sub-issues (#1360-#1363), and the standalone ``suews-mcp`` package
-lands in Wave 4 (#1364).
+wired here. The Wave-3 post-run triage commands (``diagnose``, ``compare``,
+``summarise``) are added by gh#1361. ``init``, ``inspect`` and ``skill``
+remain future work in the other Wave 3 sub-issues, and the standalone
+``suews-mcp`` package lands in Wave 4 (#1364).
 """
 
 from __future__ import annotations
@@ -23,11 +23,15 @@ import sys
 
 import click
 
+from .compare_runs import compare_runs_cmd as _compare_cmd
+from .diagnose_run import diagnose_run_cmd as _diagnose_cmd
+from .schema_cli import cli as _schema_cli
+
 # Each existing entry point is reused unchanged. Importing the Click commands
 # here keeps the dispatcher small and ensures behaviour is identical across
 # the new and legacy invocation styles.
 from .SUEWS import SUEWS as _run_cmd
-from .schema_cli import cli as _schema_cli
+from .summarise_output import summarise_output_cmd as _summarise_cmd
 from .table_converter import convert_table_cmd as _convert_cmd
 from .validate_config import cli as _validate_cli
 
@@ -53,6 +57,9 @@ cli.add_command(_validate_cli, name="validate")
 cli.add_command(_schema_cli, name="schema")
 cli.add_command(_convert_cmd, name="convert")
 cli.add_command(_run_cmd, name="run")
+cli.add_command(_summarise_cmd, name="summarise")
+cli.add_command(_compare_cmd, name="compare")
+cli.add_command(_diagnose_cmd, name="diagnose")
 
 
 # ---------------------------------------------------------------------------

@@ -3,7 +3,15 @@
 
 import importlib as _importlib
 
-__all__ = ["SUEWS", "convert_table_cmd", "validate_config_main", "schema_cli_main"]
+__all__ = [
+    "SUEWS",
+    "compare_runs_cmd",
+    "convert_table_cmd",
+    "diagnose_run_cmd",
+    "schema_cli_main",
+    "summarise_output_cmd",
+    "validate_config_main",
+]
 
 _lazy_cache = {}
 
@@ -46,6 +54,24 @@ def __getattr__(name):
         except Exception:
             _lazy_cache[name] = None
             return None
+
+    if name == "summarise_output_cmd":
+        from .summarise_output import summarise_output_cmd
+
+        _lazy_cache[name] = summarise_output_cmd
+        return _lazy_cache[name]
+
+    if name == "compare_runs_cmd":
+        from .compare_runs import compare_runs_cmd
+
+        _lazy_cache[name] = compare_runs_cmd
+        return _lazy_cache[name]
+
+    if name == "diagnose_run_cmd":
+        from .diagnose_run import diagnose_run_cmd
+
+        _lazy_cache[name] = diagnose_run_cmd
+        return _lazy_cache[name]
 
     if name in _LAZY_SUBMODULES:
         module = _importlib.import_module(f"{__name__}.{name}")

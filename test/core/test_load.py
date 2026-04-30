@@ -246,20 +246,11 @@ class TestConfigLoading(TestCase):
         df_state = sp.init_supy(self.sample_config)
 
         # Try to load config from DataFrame
-        # Note: This function has an import bug, so we'll test the underlying functionality
-        try:
+        with self.assertWarns(FutureWarning):
             config = sp.load_config_from_df(df_state)
-            # If it works, validate
-            self.assertIsNotNone(config)
-            self.assertTrue(hasattr(config, "model"))
-        except ModuleNotFoundError:
-            # Expected due to bug in supy._supy_module.py line 368
-            # Test the underlying functionality instead
-            from supy.data_model.core import SUEWSConfig  # noqa: PLC0415
 
-            config = SUEWSConfig.from_df_state(df_state)
-            self.assertIsNotNone(config)
-            self.assertTrue(hasattr(config, "model"))
+        self.assertIsNotNone(config)
+        self.assertTrue(hasattr(config, "model"))
 
         print("✓ Config loading from DataFrame works correctly")
 

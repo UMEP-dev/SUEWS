@@ -52,7 +52,7 @@ from ._save import (
 from ._version import __version__
 
 # from .util._config import init_config_from_yaml
-from .data_model import init_config_from_yaml
+from .data_model import SUEWSConfig, init_config_from_yaml
 
 # set up logging module
 logger_supy.setLevel(logging.INFO)
@@ -559,21 +559,19 @@ def load_config_from_df(df_state: pd.DataFrame):
 
     """
     _warn_functional_deprecation("load_config_from_df")
-    from .util._config import SUEWSConfig
+    return _config_from_df_state(df_state)
 
-    config = SUEWSConfig.from_df_state(df_state)
 
-    return config
+def _config_from_df_state(df_state: pd.DataFrame):
+    return SUEWSConfig.from_df_state(df_state)
 
 
 def _init_config(df_state: pd.DataFrame = None):
     """Initialise SUEWS configuration object either from existing df_state dataframe or as the default configuration."""
     if df_state is None:
-        from .util._config import SUEWSConfig
-
         return SUEWSConfig()
 
-    return load_config_from_df(df_state)
+    return _config_from_df_state(df_state)
 
 
 def init_config(df_state: pd.DataFrame = None):
@@ -596,7 +594,7 @@ def init_config(df_state: pd.DataFrame = None):
     See Also
     --------
     supy.suews_sim.SUEWSSimulation : Modern object-oriented interface (recommended)
-    supy.util._config.SUEWSConfig : Configuration class
+    supy.data_model.SUEWSConfig : Configuration class
 
     """
     _warn_functional_deprecation("init_config")

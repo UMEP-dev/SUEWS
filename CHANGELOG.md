@@ -59,7 +59,8 @@ EXAMPLES:
 - [change][experimental] Escalate procedural API deprecation warnings to `FutureWarning` (#1370)
   - `_warn_functional_deprecation` now emits `FutureWarning` instead of `DeprecationWarning` so end-user notebooks and scripts surface the migration nudge under default warning filters (CPython hides `DeprecationWarning` outside `__main__`); the procedural API in `supy._supy_module` is end-user-facing, not a developer-only surface
   - Added `load_SampleData` and `load_config_from_df` to `_FUNCTIONAL_DEPRECATIONS` and routed both through `_warn_functional_deprecation` (`load_SampleData` previously used a `logger.warning`; `load_config_from_df` had no warning at all)
-  - Updated `test/core/test_public_api_wrappers.py` to assert `FutureWarning`; `FutureWarning` is not a subclass of `DeprecationWarning`, so the prior assertions would otherwise pass silently against either class
+  - Scoped ERA5 pandas `FutureWarning` suppression so procedural API migration warnings remain visible after SuPy utility imports, and routed `init_config(df_state)` through a private config helper so it emits only its own warning
+  - Updated `test/core/test_public_api_wrappers.py` to assert the user-visible `FutureWarning` category and the specific `supy.<function>` warning message
   - Phase 2 of the procedural-API removal plan; sibling to #1075 (df_state, closed) and unblocks #1365 (parallelism control on `SUEWSSimulation.run`)
 
 ### 22 Apr 2026

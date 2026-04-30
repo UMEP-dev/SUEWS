@@ -8,10 +8,10 @@ model:
       file: "forcing_2020.txt"
     
     # Text output configuration with custom groups
-    output_file:
+    output:
       format: txt       # Traditional text files (default)
       freq: 1800        # Save half-hourly data (30 min = 1800 s)
-      path: "./results" # Output directory (optional, defaults to current directory)
+      dir: "./results"  # Output directory (optional, defaults to current directory)
       groups:           # Select which output groups to save
         - SUEWS         # Main SUEWS output
         - DailyState    # Daily state variables

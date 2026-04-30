@@ -170,7 +170,27 @@ The lineage below mirrors ``SCHEMA_VERSIONS`` in
 the schema that shipped with it via
 ``supy.util.converter.yaml_upgrade._PACKAGE_TO_SCHEMA``.
 
-**Schema 2026.5.dev7** (current; in-development dev bump; gh#1372)
+**Schema 2026.5.dev8** (current; in-development dev bump; gh#1372 follow-up)
+   Restructures ``model.control.output_file``
+   (``Union[str, OutputConfig]``) into the sibling sub-object
+   ``model.control.output`` (``OutputControl``), mirroring the
+   ``ForcingControl`` block shipped in ``2026.5.dev7`` so the
+   ``model.control`` surface is uniform. The deprecated string form
+   (silently ignored since 2025.10.15) is dropped; the inner ``path``
+   field is renamed to ``dir`` to make explicit that it is a directory
+   (parallels the asymmetry with ``forcing.file``: input has one file,
+   output has a directory of auto-generated files). The
+   ``(2026.5.dev7 -> 2026.5.dev8)`` migration handler
+   ``_apply_output_subobject_restructure`` in
+   ``src/supy/util/converter/yaml_upgrade.py::_HANDLERS`` lifts the
+   dict form, renames the inner field, and drops the legacy string
+   form with a logged reason. Users should run
+   ``suews-convert --to 2026.5.dev8 in.yml out.yml`` (or rely on the
+   in-memory ``_coerce_legacy_output_file`` validator at load time).
+   See the :ref:`transition_guide` entry for the user-facing
+   walkthrough.
+
+**Schema 2026.5.dev7** (gh#1372)
    Two-part bump. (1) ``model.control.forcing_file`` is restructured
    to ``model.control.forcing.file`` under a new ``ForcingControl``
    sub-object, creating a stable home for future forcing fields

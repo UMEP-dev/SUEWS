@@ -10,7 +10,6 @@ model:
         - "forcing_2020.txt"
         - "forcing_2021.txt"
         - "forcing_2022.txt"
-    output_file: "output_2020_2022.txt"
   physics:
     netradiationmethod: 3
     emissionsmethod: 2

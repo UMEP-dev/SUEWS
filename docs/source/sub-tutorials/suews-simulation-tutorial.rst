@@ -130,8 +130,8 @@ Save results according to OutputConfig settings:
     # Save to specific directory
     sim.save('my_output_dir/')
     
-    # The format (txt or parquet) is determined by OutputConfig in YAML:
-    # output_file:
+    # The format (txt or parquet) is determined by OutputControl in YAML:
+    # output:
     #   format: parquet  # or txt
     #   freq: 3600       # output frequency in seconds
 

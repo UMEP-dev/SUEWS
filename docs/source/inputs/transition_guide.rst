@@ -180,6 +180,43 @@ The sections below summarise what users see change between schemas.
 The authoritative lineage (including release-tag to schema mapping)
 lives in :ref:`schema_version_history`.
 
+Upgrading to Schema 2026.5.dev8 (gh#1372 follow-up output config restructure)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The ``model.control.output_file:`` block becomes the sibling
+``model.control.output:`` block, mirroring the ``forcing:`` restructure
+shipped in dev7. The inner ``path:`` field is renamed to ``dir:``.
+
+.. code-block:: yaml
+   :caption: Before
+
+   model:
+     control:
+       output_file:
+         format: parquet
+         freq: 3600
+         path: ./out
+
+.. code-block:: yaml
+   :caption: After
+
+   model:
+     control:
+       output:
+         format: parquet
+         freq: 3600
+         dir: ./out
+
+The legacy string form ``output_file: "name.txt"`` was already silently
+ignored from 2025.10.15 and is now dropped outright by the migrator.
+The full ``Union[str, OutputControl]`` is replaced with a single
+``OutputControl`` block so the on-disk shape is no longer ambiguous.
+
+Run ``suews-convert --to 2026.5.dev8 in.yml out.yml`` to rewrite an
+older YAML; the in-memory ``_coerce_legacy_output_file`` validator
+also accepts the legacy shape at load time and emits a
+``DeprecationWarning`` pointing at the new key.
+
 Upgrading to Schema 2026.5.dev7 (gh#1372 forcing config restructure and named-column reader)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -219,7 +256,7 @@ Upgrading to Schema 2026.5.dev6 (gh#1333 site-level completeness validator)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Schema ``2026.5.dev6`` is an intermediate dev label (the current
-in-development shape is ``2026.5.dev7``; see the section above). The
+in-development shape is ``2026.5.dev8``; see the sections above). The
 YAML shape at dev6 is byte-for-byte identical to ``2026.5.dev5`` —
 this is a pure validator-contract tightening, not a structural
 rename.

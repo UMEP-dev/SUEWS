@@ -54,6 +54,19 @@ EXAMPLES:
 
 ## 2026
 
+### 30 Apr 2026
+
+- [change][experimental] `model.control.output_file` moved to `model.control.output` (#1372)
+  - Lifts the legacy `Union[str, OutputConfig]` field into a structured `OutputControl` sub-object so the `model.control` surface is uniform with the new `forcing:` block
+  - Inner `path:` field renamed to `dir:` (clarifies it as a directory, parallels the asymmetry with `forcing.file`)
+  - Legacy string form (`output_file: "name.txt"`, silently ignored since 2025.10.15) is dropped outright
+  - `suews-convert` and `suews-schema migrate` upgrade existing configs automatically via the `(2026.5.dev7 -> 2026.5.dev8)` handler; the in-memory `_coerce_legacy_output_file` validator also accepts the legacy shape at load time and emits a `DeprecationWarning`
+  - Schema bump `2026.5.dev7 -> 2026.5.dev8`; `sample_config.yml`, all release fixtures, and the docs YAML examples are updated accordingly
+- [doc] Document `output_file -> output` restructure (#1372)
+  - Added a `2026.5.dev8` entry to `docs/source/inputs/transition_guide.rst` with the YAML rename example
+  - Added the corresponding `2026.5.dev8` entry to `docs/source/contributing/schema/schema_versioning.rst` Version History; demoted the `2026.5.dev7` entry from "current" to a previous dev label
+  - Refreshed the four `docs/source/inputs/yaml/examples/output_config_*.yml` user-facing examples to the new shape
+
 ### 29 Apr 2026
 
 - [feature][experimental] Read forcing files by **column name** rather than position (#1372)

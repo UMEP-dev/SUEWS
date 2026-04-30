@@ -6,7 +6,6 @@ model:
     tstep: 3600
     forcing:
       file: "forcing_2020.txt"  # Single forcing file
-    output_file: "output_2020.txt"
   physics:
     netradiationmethod: 3
     emissionsmethod: 2

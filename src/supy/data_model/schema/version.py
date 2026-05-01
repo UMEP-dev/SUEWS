@@ -22,7 +22,7 @@ import warnings
 # schema-versioning.md` (Dev-label convention). Every structural PR
 # between releases bumps the dev counter instead of consuming a new
 # CalVer label.
-CURRENT_SCHEMA_VERSION = "2026.5.dev6"
+CURRENT_SCHEMA_VERSION = "2026.5.dev7"
 
 # Schema version history and descriptions.
 #
@@ -209,6 +209,37 @@ SCHEMA_VERSIONS: dict[str, str] = {
         "on `_yaml_path` and explicit user declaration in the raw YAML "
         "so programmatic constructions and default_factory-only sparse "
         "fixtures remain permissive."
+    ),
+    "2026.5.dev7": (
+        "Naming convention Rule 2 reorder for ArchetypeProperties "
+        "(`.claude/rules/naming-convention.md`): physical quantity now "
+        "leads, then component, then sub-class. 44 renames covering "
+        "wall, roof, window, ground_floor, and internal_mass bulk "
+        "material and surface optical properties — "
+        "wall_external_thickness -> thickness_wall_outer, "
+        "wall_external_emissivity -> emissivity_wall_external, "
+        "wall_outer_heat_capacity_fraction -> "
+        "fraction_wall_heat_capacity_outer, etc. Three orthogonal moves "
+        "embedded: (a) reorder so the physical quantity leads "
+        "(thickness, density, conductivity, specific_heat_capacity, "
+        "emissivity, transmissivity, absorptivity, reflectivity); "
+        "(b) layer-to-insulation qualifier renamed `external` -> "
+        "`outer` (xlsx col 3 + convention 'Specific tokens': outer/inner "
+        "= bulk-material layer; external/internal stays for the "
+        "radiative surface); (c) the `effective_` qualifier dropped on "
+        "the conductivity rows (used inconsistently — sibling density / "
+        "specific_heat_capacity rows did not carry it). Wall and roof "
+        "heat-capacity distribution rows take the `fraction_*` "
+        "non-physical category prefix per Rule 2. Rename table "
+        "ARCHETYPEPROPERTIES_DEV6_RENAMES added in "
+        "src/supy/data_model/core/field_renames.py; "
+        "(2026.5.dev6 -> 2026.5.dev7) migration registered in "
+        "src/supy/util/converter/yaml_upgrade.py::_HANDLERS. Bridge "
+        "DataFrame columns keep the fused PascalCase ancestry "
+        "(`wallextthickness`, etc.) via the chained "
+        "ARCHETYPEPROPERTIES_DEV7_TO_PASCAL map; cross-layer rename of "
+        "Fortran TYPE members and Rust struct fields is Tier B/C work "
+        "tracked under gh#1325 / gh#1326."
     ),
 }
 

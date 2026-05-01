@@ -394,13 +394,14 @@ def check_rcmethod2_facet(required_params, building_archetype, site_idx, site_gr
 
 def check_outercapfrac_facet(building_archetype, facet, site_idx, site_gridid):
     """
-    Validate that the outer_heat_capacity_fraction parameter for a given building facet is explicitly provided and within the valid range when rcmethod is set to 1.
+    Validate that the heat-capacity outer-fraction parameter for a given building facet is explicitly provided and within the valid range when rcmethod is set to 1.
     Parameters
     ----------
     building_archetype : dict
         Dictionary containing building archetype properties and their values.
     facet : str
-        Name of the building facet (e.g., 'wall', 'roof') for which outer_heat_capacity_fraction is being validated.
+        Name of the building facet (e.g., 'wall', 'roof') for which the
+        outer heat-capacity fraction is being validated.
     site_idx : int
         Index of the site being validated.
     site_gridid : str
@@ -408,13 +409,13 @@ def check_outercapfrac_facet(building_archetype, facet, site_idx, site_gridid):
     Returns
     -------
     ValidationResult
-        A validation result indicating an error if outer_heat_capacity_fraction is missing or out of the valid range (0, 1), with a suggested value for correction.
+        A validation result indicating an error if the fraction is missing or out of the valid range (0, 1), with a suggested value for correction.
     Notes
     -----
-    - When rcmethod is set to 1, the {facet}_outer_heat_capacity_fraction parameter must be explicitly set and strictly between 0 and 1.
+    - When rcmethod is set to 1, the fraction_{facet}_heat_capacity_outer parameter must be explicitly set and strictly between 0 and 1.
     - Returns an error if the parameter is missing or outside the valid range, including a message and suggested value.
     """
-    key = f"{facet}_outer_heat_capacity_fraction"
+    key = f"fraction_{facet}_heat_capacity_outer"
     facet_frac_entry = building_archetype.get(key, {})
     facet_frac = facet_frac_entry.get("value") if isinstance(facet_frac_entry, Mapping) else facet_frac_entry
 
@@ -480,16 +481,16 @@ def validate_model_option_rcmethod(context) -> List[ValidationResult]:
 
         elif rcmethod_value == 2:
             required_wall_params = [
-                "wall_external_thickness",
-                "wall_external_effective_conductivity",
-                "wall_external_density",
-                "wall_external_specific_heat_capacity",
+                "thickness_wall_outer",
+                "conductivity_wall_outer",
+                "density_wall_outer",
+                "specific_heat_capacity_wall_outer",
             ]
             required_roof_params = [
-                "roof_external_thickness",
-                "roof_external_effective_conductivity",
-                "roof_external_density",
-                "roof_external_specific_heat_capacity",
+                "thickness_roof_outer",
+                "conductivity_roof_outer",
+                "density_roof_outer",
+                "specific_heat_capacity_roof_outer",
             ]
             # Collect provided wall params
             for facet, facet_params in zip(
@@ -641,7 +642,7 @@ def validate_model_option_same_emissivity(context) -> List[ValidationResult]:
                 if emis_val is not None:
                     found_emissivities.append(emis_val)
             building_archetype = site.get("properties", {}).get("building_archetype", {})
-            wallemis_val = get_value_safe(building_archetype, "wall_external_emissivity")
+            wallemis_val = get_value_safe(building_archetype, "emissivity_wall_external")
             msg = (
                 f"same_emissivity_wall == 0. No check of consistency between walls emissivity (found values: {found_emissivities}) and wall_external_emissivity (found value: {wallemis_val})."
             )
@@ -670,7 +671,7 @@ def validate_model_option_same_emissivity(context) -> List[ValidationResult]:
                 if emis_val is not None:
                     found_emissivities.append(emis_val)
             building_archetype = site.get("properties", {}).get("building_archetype", {})
-            roofemis_val = get_value_safe(building_archetype, "roof_external_emissivity")
+            roofemis_val = get_value_safe(building_archetype, "emissivity_roof_external")
             msg = (
                 f"same_emissivity_roof == 0. No check of consistency between roofs emissivity (found values: {found_emissivities}) and roof_external_emissivity (found value: {roofemis_val})."
             )

@@ -1956,7 +1956,7 @@ def adjust_model_option_rcmethod(yaml_data: dict) -> Tuple[dict, List[Scientific
     Adjust roof_outer_heat_capacity_fraction and wall_outer_heat_capacity_fraction if rcmethod == 0.
 
     If the model physics option 'outer_cap_fraction' is set to 0, this function sets
-    'roof_outer_heat_capacity_fraction' and 'wall_outer_heat_capacity_fraction' to
+    'fraction_roof_heat_capacity_outer' and 'fraction_wall_heat_capacity_outer' to
     0.5 for all sites' building_archetype blocks, as required by the model
     specification.
 
@@ -1988,39 +1988,39 @@ def adjust_model_option_rcmethod(yaml_data: dict) -> Tuple[dict, List[Scientific
             building_archetype = props.get("building_archetype", {})
             site_gridid = get_site_gridid(site)
 
-            # roof_outer_heat_capacity_fraction
+            # fraction_roof_heat_capacity_outer
             roof_frac_entry = building_archetype.get(
-                "roof_outer_heat_capacity_fraction", {}
+                "fraction_roof_heat_capacity_outer", {}
             )
             old_roof_frac = roof_frac_entry.get("value") if isinstance(roof_frac_entry, dict) else roof_frac_entry
             if old_roof_frac != 0.5:
-                building_archetype["roof_outer_heat_capacity_fraction"] = {"value": 0.5}
+                building_archetype["fraction_roof_heat_capacity_outer"] = {"value": 0.5}
                 adjustments.append(
                     ScientificAdjustment(
-                        parameter="building_archetype.roof_outer_heat_capacity_fraction",
+                        parameter="building_archetype.fraction_roof_heat_capacity_outer",
                         site_index=site_idx,
                         site_gridid=site_gridid,
                         old_value=str(old_roof_frac),
                         new_value="0.5",
-                        reason="outer_cap_fraction == 0, set roof_outer_heat_capacity_fraction to 0.5"
+                        reason="outer_cap_fraction == 0, set fraction_roof_heat_capacity_outer to 0.5"
                     )
                 )
 
-            # wall_outer_heat_capacity_fraction
+            # fraction_wall_heat_capacity_outer
             wall_frac_entry = building_archetype.get(
-                "wall_outer_heat_capacity_fraction", {}
+                "fraction_wall_heat_capacity_outer", {}
             )
             old_wall_frac = wall_frac_entry.get("value") if isinstance(wall_frac_entry, dict) else wall_frac_entry
             if old_wall_frac != 0.5:
-                building_archetype["wall_outer_heat_capacity_fraction"] = {"value": 0.5}
+                building_archetype["fraction_wall_heat_capacity_outer"] = {"value": 0.5}
                 adjustments.append(
                     ScientificAdjustment(
-                        parameter="building_archetype.wall_outer_heat_capacity_fraction",
+                        parameter="building_archetype.fraction_wall_heat_capacity_outer",
                         site_index=site_idx,
                         site_gridid=site_gridid,
                         old_value=str(old_wall_frac),
                         new_value="0.5",
-                        reason="outer_cap_fraction == 0, set wall_outer_heat_capacity_fraction to 0.5"
+                        reason="outer_cap_fraction == 0, set fraction_wall_heat_capacity_outer to 0.5"
                     )
                 )
 
@@ -2142,15 +2142,15 @@ def adjust_model_option_stebbsmethod(yaml_data: dict) -> Tuple[dict, List[Scient
                     "window_external_convection_coefficient",
                 ]
                 window_params_bldgarc = [
-                    "window_thickness",
-                    "window_effective_conductivity",
-                    "window_density",
-                    "window_specific_heat_capacity",
-                    "window_external_emissivity",
-                    "window_internal_emissivity",
-                    "window_transmissivity",
-                    "window_absorptivity",
-                    "window_reflectivity",
+                    "thickness_window",
+                    "conductivity_window",
+                    "density_window",
+                    "specific_heat_capacity_window",
+                    "emissivity_window_external",
+                    "emissivity_window_internal",
+                    "transmissivity_window_external",
+                    "absorptivity_window_external",
+                    "reflectivity_window_external",
                 ]
                 # Nullify in stebbs
                 for param in window_params_stebbs:
@@ -2196,15 +2196,15 @@ def adjust_model_option_stebbsmethod(yaml_data: dict) -> Tuple[dict, List[Scient
                     "wall_internal_convection_coefficient",
                     ]
                 wall_params_bldgarc = [
-                    "wall_external_emissivity",
-                    "wall_internal_emissivity",
-                    "wall_transmissivity",
-                    "wall_absorptivity",
-                    "wall_reflectivity",
-                    "wall_thickness",
-                    "wall_effective_conductivity",
-                    "wall_density",
-                    "wall_specific_heat_capacity",
+                    "emissivity_wall_external",
+                    "emissivity_wall_internal",
+                    "transmissivity_wall_external",
+                    "absorptivity_wall_external",
+                    "reflectivity_wall_external",
+                    "thickness_wall",
+                    "conductivity_wall",
+                    "density_wall",
+                    "specific_heat_capacity_wall",
                     ]
                 for param in wall_params_stebbs:
                     entry = stebbs.get(param)

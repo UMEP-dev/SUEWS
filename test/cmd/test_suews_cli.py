@@ -9,11 +9,11 @@ Validates:
 
 from __future__ import annotations
 
-import sys
 from pathlib import Path
+import sys
 
-import pytest
 from click.testing import CliRunner
+import pytest
 
 pytestmark = pytest.mark.api
 
@@ -29,7 +29,7 @@ def test_top_level_help_lists_subcommands() -> None:
     runner = CliRunner()
     result = runner.invoke(cli, ["--help"])
     assert result.exit_code == 0, result.output
-    for sub in ("validate", "schema", "convert", "run"):
+    for sub in ("validate", "schema", "convert", "run", "knowledge"):
         assert sub in result.output, f"subcommand {sub!r} missing from help output"
     assert "rust" not in result.output
 
@@ -67,6 +67,14 @@ def test_run_subcommand_help() -> None:
     assert result.exit_code == 0, result.output
 
 
+def test_knowledge_subcommand_help() -> None:
+    from supy.cmd.suews_cli import cli
+
+    runner = CliRunner()
+    result = runner.invoke(cli, ["knowledge", "--help"])
+    assert result.exit_code == 0, result.output
+
+
 def test_rust_subcommand_is_not_registered() -> None:
     from supy.cmd.suews_cli import cli
 
@@ -86,8 +94,8 @@ def test_validate_subcommand_is_validate_cli() -> None:
 
 
 def test_schema_subcommand_is_schema_cli() -> None:
-    from supy.cmd.suews_cli import cli
     from supy.cmd.schema_cli import cli as schema_cli
+    from supy.cmd.suews_cli import cli
 
     assert cli.commands["schema"] is schema_cli
 
@@ -100,10 +108,17 @@ def test_convert_subcommand_is_convert_cmd() -> None:
 
 
 def test_run_subcommand_is_suews_cmd() -> None:
-    from supy.cmd.suews_cli import cli
     from supy.cmd.SUEWS import SUEWS as suews_run
+    from supy.cmd.suews_cli import cli
 
     assert cli.commands["run"] is suews_run
+
+
+def test_knowledge_subcommand_is_knowledge_group() -> None:
+    from supy.cmd.knowledge_cli import knowledge_group
+    from supy.cmd.suews_cli import cli
+
+    assert cli.commands["knowledge"] is knowledge_group
 
 
 @pytest.mark.parametrize("subcommand", ["info", "version", "migrate", "export"])

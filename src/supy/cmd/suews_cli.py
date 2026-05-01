@@ -26,8 +26,9 @@ import click
 # Each existing entry point is reused unchanged. Importing the Click commands
 # here keeps the dispatcher small and ensures behaviour is identical across
 # the new and legacy invocation styles.
-from .SUEWS import SUEWS as _run_cmd
+from .knowledge_cli import knowledge_group as _knowledge_group
 from .schema_cli import cli as _schema_cli
+from .SUEWS import SUEWS as _run_cmd
 from .table_converter import convert_table_cmd as _convert_cmd
 from .validate_config import cli as _validate_cli
 
@@ -53,6 +54,7 @@ cli.add_command(_validate_cli, name="validate")
 cli.add_command(_schema_cli, name="schema")
 cli.add_command(_convert_cmd, name="convert")
 cli.add_command(_run_cmd, name="run")
+cli.add_command(_knowledge_group, name="knowledge")
 
 
 # ---------------------------------------------------------------------------
@@ -80,25 +82,25 @@ def _emit_deprecation(legacy: str, replacement: str) -> None:
 
 
 def run_alias() -> None:
-    """Deprecated alias for ``suews run``."""
+    """Forward the deprecated alias for ``suews run``."""
     _emit_deprecation("suews-run", "suews run")
     _run_cmd()
 
 
 def convert_alias() -> None:
-    """Deprecated alias for ``suews convert``."""
+    """Forward the deprecated alias for ``suews convert``."""
     _emit_deprecation("suews-convert", "suews convert")
     _convert_cmd()
 
 
 def validate_alias() -> None:
-    """Deprecated alias for ``suews validate``."""
+    """Forward the deprecated alias for ``suews validate``."""
     _emit_deprecation("suews-validate", "suews validate")
     _validate_cli()
 
 
 def schema_alias() -> None:
-    """Deprecated alias for ``suews schema``."""
+    """Forward the deprecated alias for ``suews schema``."""
     _emit_deprecation("suews-schema", "suews schema")
     _schema_cli()
 

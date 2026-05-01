@@ -79,6 +79,10 @@ uv pip install -e mcp/
 # pip install suews-mcp
 ```
 
+Distribution builds use the repo-level git version. From a checkout, run
+`python get_ver_git.py` before building `mcp/`; the script writes ignored
+version files for both `supy` and `suews-mcp`.
+
 ## Recommended path: install via the SUEWS plugin
 
 The `suews` plugin in `.claude-plugin/marketplace.json` (Claude Code) and

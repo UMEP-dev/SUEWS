@@ -6,4 +6,6 @@ or run logic — it delegates to ``suews <subcommand>`` over a fixed
 allow-list and returns the standard JSON envelope.
 """
 
-__version__ = "0.1.0"
+from ._version import __version__, __version_tuple__, version, version_tuple
+
+__all__ = ["__version__", "__version_tuple__", "version", "version_tuple"]

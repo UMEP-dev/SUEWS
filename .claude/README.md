@@ -36,7 +36,8 @@ This directory contains all Claude Code-specific documentation, plans, and confi
 │   ├── setup-dev/         # Environment setup guide
 │   ├── start-work/        # Workflow selector & launcher
 │   ├── sync-docs/         # Doc-code consistency
-│   └── verify-build/      # Build config checks
+│   ├── verify-build/      # Build config checks
+│   └── worktree-merge-queue/ # Parallel worktree merge queue preflight
 │
 ├── reference/             # Templates and static reference
 │   └── templates/         # Reusable templates
@@ -84,6 +85,7 @@ Skills perform specific workflows when invoked via `/skill-name`. Each skill has
 - `/setup-dev` - Set up development environment
 - `/sync-docs` - Check doc-code consistency
 - `/verify-build` - Verify build configuration
+- `/worktree-merge-queue` - Coordinate parallel worktrees before merge queue
 
 ## Rules vs Skills
 

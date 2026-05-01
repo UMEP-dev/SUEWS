@@ -1,6 +1,7 @@
 import functools
 from datetime import timedelta
 from pathlib import Path
+from typing import Optional
 
 import f90nml
 import numpy as np
@@ -172,7 +173,7 @@ def _is_per_landcover_column(name: str) -> bool:
     return _per_landcover_forcing_var(name) is not None
 
 
-def _per_landcover_forcing_var(name: str) -> str | None:
+def _per_landcover_forcing_var(name: str) -> Optional[str]:
     """Return the whitelisted forcing variable for ``<var>_<surface>`` columns."""
     lowered = str(name).lower()
     for var, allowed in PER_LANDCOVER_ALLOWED_SUFFIXES.items():

@@ -265,32 +265,32 @@ class SUEWSConfig(BaseModel):
         "internal_volume_ratio",
         "internal_mass_area",
         "window_to_wall_ratio",
-        "wall_thickness",
-        "wall_effective_conductivity",
-        "wall_density",
-        "wall_specific_heat_capacity",
-        "wall_outer_heat_capacity_fraction",
-        "wall_external_emissivity",
-        "wall_internal_emissivity",
-        "wall_transmissivity",
-        "wall_absorptivity",
-        "wall_reflectivity",
-        "ground_floor_thickness",
-        "ground_floor_effective_conductivity",
-        "ground_floor_density",
-        "ground_floor_specific_heat_capacity",
-        "window_thickness",
-        "window_effective_conductivity",
-        "window_density",
-        "window_specific_heat_capacity",
-        "window_external_emissivity",
-        "window_internal_emissivity",
-        "window_transmissivity",
-        "window_absorptivity",
-        "window_reflectivity",
-        "internal_mass_density",
-        "internal_mass_specific_heat_capacity",
-        "internal_mass_emissivity",
+        "thickness_wall",
+        "conductivity_wall",
+        "density_wall",
+        "specific_heat_capacity_wall",
+        "fraction_wall_heat_capacity_outer",
+        "emissivity_wall_external",
+        "emissivity_wall_internal",
+        "transmissivity_wall_external",
+        "absorptivity_wall_external",
+        "reflectivity_wall_external",
+        "thickness_ground_floor",
+        "conductivity_ground_floor",
+        "density_ground_floor",
+        "specific_heat_capacity_ground_floor",
+        "thickness_window",
+        "conductivity_window",
+        "density_window",
+        "specific_heat_capacity_window",
+        "emissivity_window_external",
+        "emissivity_window_internal",
+        "transmissivity_window_external",
+        "absorptivity_window_external",
+        "reflectivity_window_external",
+        "density_internal_mass",
+        "specific_heat_capacity_internal_mass",
+        "emissivity_internal_mass",
         "max_heating_power",
         "hot_water_tank_volume",
         "maximum_hot_water_heating_power",
@@ -1655,15 +1655,15 @@ class SUEWSConfig(BaseModel):
             "window_external_convection_coefficient",
         ]
         window_params_bldgarc = [
-            "window_thickness",
-            "window_effective_conductivity",
-            "window_density",
-            "window_specific_heat_capacity",
-            "window_external_emissivity",
-            "window_internal_emissivity",
-            "window_transmissivity",
-            "window_absorptivity",
-            "window_reflectivity",
+            "thickness_window",
+            "conductivity_window",
+            "density_window",
+            "specific_heat_capacity_window",
+            "emissivity_window_external",
+            "emissivity_window_internal",
+            "transmissivity_window_external",
+            "absorptivity_window_external",
+            "reflectivity_window_external",
         ]
 
         # Wall parameter lists for window_to_wall_ratio == 1.0
@@ -1672,15 +1672,15 @@ class SUEWSConfig(BaseModel):
             "wall_internal_convection_coefficient",
             ]
         wall_params_bldgarc = [
-            "wall_external_emissivity",
-            "wall_internal_emissivity",
-            "wall_transmissivity",
-            "wall_absorptivity",
-            "wall_reflectivity",
-            "wall_thickness",
-            "wall_effective_conductivity",
-            "wall_density",
-            "wall_specific_heat_capacity",
+            "emissivity_wall_external",
+            "emissivity_wall_internal",
+            "transmissivity_wall_external",
+            "absorptivity_wall_external",
+            "reflectivity_wall_external",
+            "thickness_wall",
+            "conductivity_wall",
+            "density_wall",
+            "specific_heat_capacity_wall",
         ]
 
         # Check setpoint value
@@ -2120,7 +2120,7 @@ class SUEWSConfig(BaseModel):
         layer_field : str
             Attribute name on each layer object (e.g. "alb", "emis").
         archetype_attr : str
-            Attribute name on building_archetype (e.g. "wall_reflectivity").
+            Attribute name on building_archetype (e.g. "reflectivity_wall_external").
         property_name : str
             Human-readable name for messages (e.g. "albedo", "emissivity").
         """
@@ -2224,11 +2224,11 @@ class SUEWSConfig(BaseModel):
         Notes
         -----
         - Checks that all wall albedo values in vertical_layers.walls are identical (within tolerance).
-        - Checks that the common wall albedo matches properties.building_archetype.wall_reflectivity.
+        - Checks that the common wall albedo matches properties.building_archetype.reflectivity_wall_external.
         - Used when same_albedo_wall option is enabled.
         """
         return self._validate_same_surface_property(
-            site, site_index, "wall", "walls", "alb", "wall_reflectivity",
+            site, site_index, "wall", "walls", "alb", "reflectivity_wall_external",
             "same_albedo_wall", "albedo",
         )
 
@@ -2244,11 +2244,11 @@ class SUEWSConfig(BaseModel):
         Notes
         -----
         - Checks that all roof albedo values in vertical_layers.roofs are identical (within tolerance).
-        - Checks that the common roof albedo matches properties.building_archetype.roof_reflectivity.
+        - Checks that the common roof albedo matches properties.building_archetype.reflectivity_roof_external.
         - Used when same_albedo_roof option is enabled.
         """
         return self._validate_same_surface_property(
-            site, site_index, "roof", "roofs", "alb", "roof_reflectivity",
+            site, site_index, "roof", "roofs", "alb", "reflectivity_roof_external",
             "same_albedo_roof", "albedo",
         )
 
@@ -2264,11 +2264,11 @@ class SUEWSConfig(BaseModel):
         Notes
         -----
         - Checks that all wall emissivity values in vertical_layers.walls are identical (within tolerance).
-        - Checks that the common wall emissivity matches properties.building_archetype.wall_external_emissivity.
+        - Checks that the common wall emissivity matches properties.building_archetype.emissivity_wall_external.
         - Used when same_emissivity_wall option is enabled.
         """
         return self._validate_same_surface_property(
-            site, site_index, "wall", "walls", "emis", "wall_external_emissivity",
+            site, site_index, "wall", "walls", "emis", "emissivity_wall_external",
             "same_emissivity_wall", "emissivity",
         )
 
@@ -2284,11 +2284,11 @@ class SUEWSConfig(BaseModel):
         Notes
         -----
         - Checks that all roof emissivity values in vertical_layers.roofs are identical (within tolerance).
-        - Checks that the common roof emissivity matches properties.building_archetype.roof_external_emissivity.
+        - Checks that the common roof emissivity matches properties.building_archetype.emissivity_roof_external.
         - Used when same_emissivity_roof option is enabled.
         """
         return self._validate_same_surface_property(
-            site, site_index, "roof", "roofs", "emis", "roof_external_emissivity",
+            site, site_index, "roof", "roofs", "emis", "emissivity_roof_external",
             "same_emissivity_roof", "emissivity",
         )
 

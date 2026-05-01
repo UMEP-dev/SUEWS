@@ -352,10 +352,13 @@ class TestPre2026_1ReleaseTagMigration:
         stebbs = payload["sites"][0]["properties"]["stebbs"]
         if "Wallx1" in source_text:
             assert "Wallx1" not in arch
-            assert "wall_outer_heat_capacity_fraction" in arch
+            # dev6 -> dev7 (Rule 2 reorder): wall_outer_heat_capacity_fraction
+            # -> fraction_wall_heat_capacity_outer (fraction_* category prefix
+            # leads for non-physical fields).
+            assert "fraction_wall_heat_capacity_outer" in arch
         if "Roofx1" in source_text:
             assert "Roofx1" not in arch
-            assert "roof_outer_heat_capacity_fraction" in arch
+            assert "fraction_roof_heat_capacity_outer" in arch
         # DHWVesselEmissivity was removed during the Nov 2025 clean-up.
         assert "DHWVesselEmissivity" not in stebbs
         # The volume bounds were removed in #1242.

@@ -12,9 +12,11 @@ bridge are deliberately kept out of the public command surface.
 
 Phase-1 dispatcher: ``run``, ``validate``, ``schema``, ``convert``, and
 ``init`` are wired here. The Wave-3 post-run triage commands (``diagnose``,
-``compare``, ``summarise``) are added by gh#1361. ``inspect`` and ``skill``
-remain future work in the other Wave 3 sub-issues, and the standalone
-``suews-mcp`` package lands in Wave 4 (#1364).
+``compare``, ``summarise``) are added by gh#1361. ``inspect`` remains
+future work in the other Wave 3 sub-issues. Skill packaging (#1363) is
+handled at the plugin-manifest level (``.claude-plugin/marketplace.json``
+and ``.codex-plugin/plugin.json``) rather than as a CLI subcommand. The
+standalone ``suews-mcp`` package lands in Wave 4 (#1364).
 """
 
 from __future__ import annotations

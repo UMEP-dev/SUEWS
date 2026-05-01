@@ -146,11 +146,23 @@ matched, case-insensitively, against the canonical column list above.
     ``evetr``, ``dectr``, ``grass``. ``lai_paved`` / ``lai_bldgs`` /
     ``lai_bsoil`` / ``lai_water`` are not meaningful and are treated
     as unknown (warn-and-drop).
-  - ``wuh_<surface>`` (external water use, e.g. irrigation or
-    impervious-surface washing) is accepted for any **land** surface —
-    ``paved``, ``bldgs``, ``evetr``, ``dectr``, ``grass``, ``bsoil``.
-    ``wuh_water`` is meaningless (one does not irrigate the open-water
-    surface) and is treated as unknown.
+  - ``wuh_<surface>`` (external water use — irrigation,
+    impervious-surface washing, fountains, ornamental water features)
+    is accepted on every surface, including the open-water surface
+    via ``wuh_water`` (a fountain or pond top-up adds water to the
+    ``water`` surface itself).
+
+    **Units and convention**: each ``wuh_<surface>`` value is a depth
+    in **mm per forcing time step**, the same unit as ``rain``. The
+    depth is interpreted as falling on **that surface only** — not
+    spread over the whole grid. The grid-total contribution is
+    therefore ``wuh_<surface> × sfr_<surface>``. Worked example: with
+    grass occupying 20% of the grid and ``wuh_grass = 5`` (mm in this
+    time step), the grass surface receives 5 mm of irrigation depth
+    and the site-mean external water-use input is
+    ``5 × 0.20 = 1`` mm. The rainfall-aligned unit also lets users
+    drop ERA5-style hourly water-flux columns straight in without
+    extra rescaling.
 
   Whitelisted columns are preserved on ``SUEWSForcing.extras`` for
   downstream physics work; the kernel itself continues to use the bulk

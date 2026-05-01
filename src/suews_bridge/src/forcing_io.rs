@@ -11,20 +11,21 @@ const BASELINE_FORCING_COLUMNS: &[&str] = &[
 ];
 
 // gh#1372 — Per-landcover whitelist: <var>_<surface>. `wuh` covers
-// per-surface external water use (irrigation, impervious-surface
-// washing) and applies to any land surface — but not to the
-// open-water surface itself. `lai` is leaf-area index and is
-// meaningful only for the three vegetated surfaces. The bulk
-// site-level columns `Wuh` / `xsmd` remain in the canonical block —
-// `xsmd` is intentionally NOT per-landcover (it is fed in as a
-// single bulk soil-moisture-deficit value).
+// per-surface external water use — irrigation and impervious-surface
+// washing on land surfaces, fountains and ornamental water features
+// on the open-water surface — and is therefore accepted on every
+// surface. `lai` is leaf-area index and is meaningful only for the
+// three vegetated surfaces. The bulk site-level columns `Wuh` /
+// `xsmd` remain in the canonical block — `xsmd` is intentionally NOT
+// per-landcover (it is fed in as a single bulk soil-moisture-deficit
+// value).
 const PER_LANDCOVER_FORCING_VARS: &[&str] = &["lai", "wuh"];
 const LANDCOVER_SUFFIXES: &[&str] = &[
     "paved", "bldgs", "evetr", "dectr", "grass", "bsoil", "water",
 ];
 const LAI_LANDCOVER_SUFFIXES: &[&str] = &["evetr", "dectr", "grass"];
 const WUH_LANDCOVER_SUFFIXES: &[&str] = &[
-    "paved", "bldgs", "evetr", "dectr", "grass", "bsoil",
+    "paved", "bldgs", "evetr", "dectr", "grass", "bsoil", "water",
 ];
 
 const FORCING_OPTIONAL_FILL: f64 = -999.0;

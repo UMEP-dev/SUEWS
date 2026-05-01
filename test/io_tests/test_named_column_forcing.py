@@ -131,10 +131,10 @@ def test_lai_per_landcover_rejected_for_non_vegetated_surface(tmp_path):
     assert "lai_water" not in forcing.extras
 
 
-def test_wuh_per_landcover_accepts_land_surfaces(tmp_path):
-    """External water use is meaningful for any land surface
-    (irrigation, impervious-surface washing) but not for the open-water
-    surface itself."""
+def test_wuh_per_landcover_accepts_every_surface(tmp_path):
+    """External water use is meaningful on every surface — irrigation
+    and impervious-surface washing on the six land surfaces, fountains
+    and ornamental water features on the open-water surface."""
     from supy.suews_forcing import SUEWSForcing
 
     text = CANONICAL_FIXTURE.read_text()
@@ -146,11 +146,11 @@ def test_wuh_per_landcover_accepts_land_surfaces(tmp_path):
     p = tmp_path / "kc_wuh_mixed.txt"
     p.write_text("\n".join(new_lines))
 
-    with pytest.warns(UserWarning, match="wuh_water"):
-        forcing = SUEWSForcing.from_file(str(p))
+    forcing = SUEWSForcing.from_file(str(p))
     assert "wuh_paved" in forcing.extras
     assert "wuh_grass" in forcing.extras
-    assert "wuh_water" not in forcing.extras
+    assert "wuh_water" in forcing.extras
+    assert (forcing.extras["wuh_water"] == 0.10).all()
 
 
 def test_per_landcover_extras_survive_resampling(tmp_path):

@@ -79,7 +79,8 @@ EXAMPLES:
   - Missing optional canonical columns are filled with `-999.0` (the SUEWS sentinel); unknown columns emit a `UserWarning` and are dropped
 - [feature][experimental] Per-landcover variants of `lai` and `wuh` plumbed into the forcing readers (#1372)
   - `lai_<surface>` is accepted only for vegetated surfaces (`evetr`, `dectr`, `grass`); non-vegetated `lai_*` are treated as unknown (warn-and-drop)
-  - `wuh_<surface>` (external water use, e.g. irrigation or impervious-surface washing) is accepted for any land surface `{paved, bldgs, evetr, dectr, grass, bsoil}`; `wuh_water` is meaningless and is warn-and-dropped
+  - `wuh_<surface>` (external water use — irrigation, impervious-surface washing, fountains, ornamental water features) is accepted on every surface `{paved, bldgs, evetr, dectr, grass, bsoil, water}`; `wuh_water` covers fountains and pond top-ups
+  - Each `wuh_<surface>` value is a depth in **mm per forcing time step** (same unit as `rain`) interpreted as falling on **that surface only** — the grid-total contribution is `wuh_<surface> × sfr_<surface>`. Aligning with the rainfall convention also lets users drop ERA5-style hourly water-flux columns in without extra rescaling
   - Whitelisted columns are loaded into `SUEWSForcing.extras` / `ForcingData.extras` for downstream physics work; the kernel itself still uses the bulk `lai` and `Wuh` columns in this release
   - Soil-moisture deficit (`xsmd`) remains a bulk site-level column and is intentionally not on the per-landcover whitelist
 - [change][experimental] `model.control.forcing_file` moved to `model.control.forcing.file` (#1372)

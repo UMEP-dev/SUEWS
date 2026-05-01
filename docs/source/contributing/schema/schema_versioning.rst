@@ -204,10 +204,12 @@ the schema that shipped with it via
    ``SUEWSForcing.extras`` / ``ForcingData.extras`` —
    ``lai_<surface>`` for the three vegetated surfaces only
    (``evetr``, ``dectr``, ``grass``) and ``wuh_<surface>`` (external
-   water use, e.g. irrigation or impervious-surface washing) for the
-   six land surfaces
-   ``{paved, bldgs, evetr, dectr, grass, bsoil}`` —
-   ``wuh_water`` is meaningless and is treated as unknown;
+   water use — irrigation, impervious-surface washing, fountains,
+   ornamental water features) for every surface
+   ``{paved, bldgs, evetr, dectr, grass, bsoil, water}`` —
+   each ``wuh_<surface>`` value is a depth in mm per forcing time
+   step (same unit as ``rain``) applied to that surface only, so the
+   grid-total contribution is ``wuh_<surface> × sfr_<surface>``;
    soil-moisture deficit (``xsmd``) remains a bulk site-level column
    and is intentionally not on the per-landcover whitelist; unknown
    columns emit a ``UserWarning`` and are dropped. The ``(2026.5.dev6 -> 2026.5.dev7)`` migration

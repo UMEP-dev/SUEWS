@@ -152,12 +152,13 @@ LANDCOVER_SUFFIXES: tuple[str, ...] = (
     "paved", "bldgs", "evetr", "dectr", "grass", "bsoil", "water",
 )
 # LAI is only meaningful for vegetated surfaces; the other four surface
-# types do not carry a leaf-area-index value. wuh (external water use,
-# e.g. irrigation or impervious-surface washing) is meaningful for any
-# land surface but not for the open-water surface itself.
+# types do not carry a leaf-area-index value. wuh (external water use)
+# is accepted on every surface — irrigation and impervious-surface
+# washing on land surfaces, fountains and ornamental water features on
+# the open-water surface (gh#1372 follow-up; see meeting 2026-05-01).
 LAI_LANDCOVER_SUFFIXES: tuple[str, ...] = ("evetr", "dectr", "grass")
 WUH_LANDCOVER_SUFFIXES: tuple[str, ...] = (
-    "paved", "bldgs", "evetr", "dectr", "grass", "bsoil",
+    "paved", "bldgs", "evetr", "dectr", "grass", "bsoil", "water",
 )
 PER_LANDCOVER_ALLOWED_SUFFIXES: dict[str, tuple[str, ...]] = {
     "lai": LAI_LANDCOVER_SUFFIXES,

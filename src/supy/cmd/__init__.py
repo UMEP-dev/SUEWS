@@ -1,11 +1,30 @@
+# ruff: noqa: F822, RUF067
 # Lazy imports for fast CLI startup
 # Only import specific CLI tools when actually accessed
 
 import importlib as _importlib
 
-__all__ = ["SUEWS", "convert_table_cmd", "validate_config_main", "schema_cli_main"]
+__all__ = [
+    "SUEWS",
+    "compare_runs_cmd",
+    "convert_table_cmd",
+    "diagnose_run_cmd",
+    "schema_cli_main",
+    "summarise_output_cmd",
+    "validate_config_main",
+]
 
 _lazy_cache = {}
+
+_LAZY_ATTRS = {
+    "SUEWS": ("SUEWS", "SUEWS"),
+    "compare_runs_cmd": ("compare_runs", "compare_runs_cmd"),
+    "convert_table_cmd": ("table_converter", "convert_table_cmd"),
+    "diagnose_run_cmd": ("diagnose_run", "diagnose_run_cmd"),
+    "schema_cli_main": ("schema_cli", "main"),
+    "summarise_output_cmd": ("summarise_output", "summarise_output_cmd"),
+    "validate_config_main": ("validate_config", "main"),
+}
 
 # Submodules exposed through ``from supy.cmd import <name>``. Listed
 # explicitly so static checks (e.g. test_api_surface.py's hasattr probe)
@@ -19,33 +38,17 @@ def __getattr__(name):
     if name in _lazy_cache:
         return _lazy_cache[name]
 
-    if name == "SUEWS":
-        from .SUEWS import SUEWS
-
-        _lazy_cache[name] = SUEWS
-        return _lazy_cache[name]
-
-    if name == "convert_table_cmd":
-        from .table_converter import convert_table_cmd
-
-        _lazy_cache[name] = convert_table_cmd
-        return _lazy_cache[name]
-
-    if name == "validate_config_main":
-        from .validate_config import main as validate_config_main
-
-        _lazy_cache[name] = validate_config_main
-        return _lazy_cache[name]
-
-    if name == "schema_cli_main":
+    if name in _LAZY_ATTRS:
+        module_name, attr_name = _LAZY_ATTRS[name]
         try:
-            from .schema_cli import main as schema_cli_main
-
-            _lazy_cache[name] = schema_cli_main
-            return _lazy_cache[name]
+            module = _importlib.import_module(f"{__name__}.{module_name}")
+            value = getattr(module, attr_name)
         except Exception:
-            _lazy_cache[name] = None
-            return None
+            if name != "schema_cli_main":
+                raise
+            value = None
+        _lazy_cache[name] = value
+        return _lazy_cache[name]
 
     if name in _LAZY_SUBMODULES:
         module = _importlib.import_module(f"{__name__}.{name}")

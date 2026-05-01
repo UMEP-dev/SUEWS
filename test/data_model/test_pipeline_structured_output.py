@@ -15,6 +15,7 @@ import pytest
 
 import supy as sp
 from supy.data_model.validation.pipeline.orchestrator import (
+    run_phase_a,
     run_phase_b,
 )
 from supy.data_model.validation.pipeline.report_schema import PhaseReport
@@ -25,6 +26,38 @@ pytestmark = pytest.mark.api
 @pytest.fixture
 def sample_config_path() -> Path:
     return Path(sp.__file__).parent / "sample_data" / "sample_config.yml"
+
+
+def test_phase_a_emits_json_sidecar(tmp_path, sample_config_path):
+    """Phase A writes a JSON sidecar alongside its text report."""
+    uptodate_file = tmp_path / "uptodate.yml"
+    report_file = tmp_path / "report.txt"
+
+    report = run_phase_a(
+        user_yaml_file=str(sample_config_path),
+        standard_yaml_file=str(sample_config_path),
+        uptodate_file=str(uptodate_file),
+        report_file=str(report_file),
+        silent=True,
+        forcing="off",
+    )
+
+    assert isinstance(report, PhaseReport)
+    assert report.phase == "A"
+
+    json_path = report_file.with_suffix(".json")
+    assert json_path.exists(), "Phase A should write a JSON sidecar"
+
+    payload = json.loads(json_path.read_text())
+    assert payload["phase"] == "A"
+    assert payload["status"] in {"PASSED", "WARNING", "FAILED"}
+    assert isinstance(payload["issues"], list)
+    for issue in payload["issues"]:
+        assert issue["phase"] == "A"
+        assert "severity" in issue
+        assert "code" in issue
+        # Phase A codes always start with "A."
+        assert issue["code"].startswith("A.")
 
 
 def test_phase_b_emits_json_sidecar(tmp_path, sample_config_path):

@@ -573,17 +573,27 @@ def run_phase_a(
     phase: str = "A",
     silent: bool = False,
     forcing: str = "on",
-) -> bool:
-    """Execute Phase A: Configuration structure checks and parameter updates."""
+) -> "PhaseReport":
+    """Execute Phase A: Configuration structure checks and parameter updates.
+
+    Returns the structured ``PhaseReport`` from this phase. Use
+    ``phase_report.has_errors`` to gate downstream work.
+    """
+    from .report_schema import (
+        Issue,
+        JSON_REPORT_WRITER,
+        PhaseReport,
+        SEVERITY_ERROR,
+    )
+
     if not silent:
         print("Configuration structure check...")
 
-    # Detect nlayer from user YAML for dimension validation
     nlayer_value = detect_nlayer_from_user_yaml(user_yaml_file)
 
     try:
         with redirect_stdout(io.StringIO()), redirect_stderr(io.StringIO()):
-            annotate_missing_parameters(
+            phase_report = annotate_missing_parameters(
                 user_file=user_yaml_file,
                 standard_file=standard_yaml_file,
                 uptodate_file=uptodate_file,
@@ -593,45 +603,64 @@ def run_phase_a(
                 nlayer=nlayer_value,
                 forcing=forcing,
             )
+    except Exception as exc:
+        phase_report = PhaseReport(
+            phase="A",
+            issues=[Issue(
+                phase="A",
+                severity=SEVERITY_ERROR,
+                code="A.PIPELINE.EXCEPTION",
+                message=str(exc),
+                category="PIPELINE",
+            )],
+            yaml_in=user_yaml_file,
+            yaml_out=uptodate_file,
+            text_report_path=report_file,
+        )
 
-        if not os.path.exists(uptodate_file):
-            if not silent:
-                print()
-                print("[X] Validation failed - check report for details")
-            return False
+    # File existence checks remain — they catch IO failures the phase
+    # itself did not surface.
+    if not os.path.exists(uptodate_file):
+        phase_report.issues.append(Issue(
+            phase="A",
+            severity=SEVERITY_ERROR,
+            code="A.PIPELINE.MISSING_YAML",
+            message="Phase A did not produce an updated YAML",
+            category="PIPELINE",
+        ))
+    elif not phase_report.has_errors:
+        with open(uptodate_file, "r", encoding="utf-8", errors="replace") as fh:
+            if "Updated YAML" not in fh.read():
+                phase_report.issues.append(Issue(
+                    phase="A",
+                    severity=SEVERITY_ERROR,
+                    code="A.PIPELINE.MALFORMED_YAML_HEADER",
+                    message="Updated YAML output missing expected header",
+                    category="PIPELINE",
+                ))
+    if not os.path.exists(report_file):
+        phase_report.issues.append(Issue(
+            phase="A",
+            severity=SEVERITY_ERROR,
+            code="A.PIPELINE.MISSING_REPORT",
+            message="Phase A did not produce a text report",
+            category="PIPELINE",
+        ))
 
-        if not os.path.exists(report_file):
-            if not silent:
-                print()
-                print("[X] Validation failed - unable to generate report")
-            return False
+    if report_file:
+        json_path = Path(report_file).with_suffix(".json")
+        JSON_REPORT_WRITER.write(json_path, phase_report)
+        phase_report.json_report_path = str(json_path)
 
-        with open(uptodate_file, "r", encoding="utf-8", errors="replace") as f:
-            content = f.read()
-            if "Updated YAML" not in content:
-                if not silent:
-                    print()
-                    print("[X] Validation failed - check report for details")
-                return False
-
-        report_content = REPORT_WRITER.read(report_file)
-
-        if "## ACTION NEEDED" in report_content:
-            if not silent:
-                print("[X] Validation failed!")
-                print(f"Report: {report_file}")
-                print(f"Updated YAML: {uptodate_file}")
-            return False
-
-        if not silent:
+    if not silent:
+        if phase_report.has_errors:
+            print("[X] Validation failed!")
+            print(f"Report: {report_file}")
+            print(f"Updated YAML: {uptodate_file}")
+        else:
             print("[OK] Validation completed")
-        return True
 
-    except Exception as e:
-        if not silent:
-            print()
-            print(f"[X] Validation failed with error: {e}")
-        return False
+    return phase_report
 
 
 def run_phase_b(
@@ -1378,7 +1407,7 @@ Modes:
         print(f"DEBUG: Executing phase '{phase}'")
         if phase == "A":
             # Phase A only
-            phase_a_success = run_phase_a(
+            phase_a_report = run_phase_a(
                 user_yaml_file,
                 standard_yaml_file,
                 uptodate_file,
@@ -1387,6 +1416,7 @@ Modes:
                 phase="A",
                 silent=True,  # Suppress phase function output, main function handles terminal output
             )
+            phase_a_success = not phase_a_report.has_errors
 
             # Always create final user files with simple names
             final_yaml, final_report = create_final_user_files(
@@ -1488,7 +1518,7 @@ Modes:
         elif phase == "AB":
             # Complete A→B workflow
             print("Configuration structure check...")
-            phase_a_success = run_phase_a(
+            phase_a_report = run_phase_a(
                 user_yaml_file,
                 standard_yaml_file,
                 uptodate_file,
@@ -1498,6 +1528,7 @@ Modes:
                 silent=True,
                 science_fixes=science_fixes,
             )
+            phase_a_success = not phase_a_report.has_errors
 
             if not phase_a_success:
                 # Phase A failed in AB workflow - create final user files from Phase A outputs
@@ -1599,7 +1630,7 @@ Modes:
         elif phase == "AC":
             # Complete A→C workflow
             print("Configuration structure check...")
-            phase_a_success = run_phase_a(
+            phase_a_report = run_phase_a(
                 user_yaml_file,
                 standard_yaml_file,
                 uptodate_file,
@@ -1608,6 +1639,7 @@ Modes:
                 phase="AC",
                 silent=True,
             )
+            phase_a_success = not phase_a_report.has_errors
 
             if not phase_a_success:
                 # Phase A failed in AC workflow - preserve Phase A outputs as AC outputs (when Phase A passes, we have updated from A)
@@ -1861,7 +1893,7 @@ Modes:
             # Step 1: Run Phase A
             print("DEBUG: Starting ABC workflow")
             print("Configuration structure check...")
-            phase_a_success = run_phase_a(
+            phase_a_report = run_phase_a(
                 user_yaml_file,
                 standard_yaml_file,
                 uptodate_file,
@@ -1871,6 +1903,7 @@ Modes:
                 silent=True,
                 science_fixes=science_fixes,
             )
+            phase_a_success = not phase_a_report.has_errors
 
             if not phase_a_success:
                 # Phase A failed in ABC workflow - preserve Phase A outputs as ABC outputs (when Phase A passes, we have updated from A)

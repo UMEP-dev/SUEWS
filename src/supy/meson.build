@@ -28,6 +28,7 @@ py.install_sources(
             'cmd/SUEWS.py',
             'cmd/compare_runs.py',
             'cmd/diagnose_run.py',
+            'cmd/init_case.py',
             'cmd/json_envelope.py',
             'cmd/json_output.py',
             'cmd/rust_bridge.py',

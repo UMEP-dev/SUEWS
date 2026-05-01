@@ -49,6 +49,8 @@ python:
   - 'src/supy/*.json'
   - 'src/supy/ext_data/**'
   - 'src/supy/sample_data/**'
+  # MCP server package (pure Python)
+  - 'mcp/**'
 
 util:
   # Utility modules

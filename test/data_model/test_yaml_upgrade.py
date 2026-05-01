@@ -230,10 +230,23 @@ class TestSuewsConvertYamlPath:
     def test_yaml_input_json_format_emits_envelope(
         self, signed_yaml: Path, tmp_path: Path
     ):
-        """`suews convert --format json` emits a parseable envelope."""
+        """`suews convert --format json` emits a parseable envelope.
+
+        The `upgrade_yaml` helper writes progress lines to stderr via its
+        `_log()` helper. We assert that stdout alone is a clean envelope —
+        which is what real users see when piping `suews convert --format
+        json | jq`. Click <8.3 (used on cp39) defaults to mixing the two
+        streams in `CliRunner.invoke().stdout`; pass `mix_stderr=False`
+        explicitly to get genuine separation, falling back gracefully on
+        Click >=8.3 where the kwarg has been removed because the streams
+        are always separate.
+        """
         # ARRANGE
         out = tmp_path / "upgraded.yml"
-        runner = CliRunner()
+        try:
+            runner = CliRunner(mix_stderr=False)
+        except TypeError:
+            runner = CliRunner()
 
         # ACT
         result = runner.invoke(

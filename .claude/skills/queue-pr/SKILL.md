@@ -1,9 +1,9 @@
 ---
-name: pr-queue
+name: queue-pr
 description: Use whenever coordinating multiple Git worktrees, stacked PRs, ready-for-review PRs, repair waves, or GitHub merge queue entries for SUEWS. This skill scans open ready-for-review PRs, orders them for merge queue entry, comments on each non-draft PR with its current queue position and worktree-specific fix suggestions, can coordinate a repair wave from one central workspace using dedicated per-PR worktrees, detects shared-file conflict risk, runs temporary-worktree merge preflights, and only enqueues after the coordinated PRs have been fixed and rechecked. Use it even if the user only mentions parallel worktrees, merge queue bounce-backs, rebasing before queueing, PRs conflicting with each other, fixing ready PRs as a batch, or putting ready PRs into the merge queue.
 ---
 
-# PR Queue
+# Queue PR
 
 Coordinate concurrent SUEWS worktrees so PRs do not surprise each other in the
 GitHub merge queue. The aim is not to avoid all conflicts; it is to discover
@@ -16,13 +16,13 @@ Scan ready-for-review PRs and propose a coordination order:
 
 ```bash
 git fetch origin
-.claude/skills/pr-queue/scripts/queue-ready-prs.sh --base master
+.claude/skills/queue-pr/scripts/queue-ready-prs.sh --base master
 ```
 
 Write or update one coordination comment on each non-draft PR:
 
 ```bash
-.claude/skills/pr-queue/scripts/queue-ready-prs.sh --base master --comment
+.claude/skills/queue-pr/scripts/queue-ready-prs.sh --base master --comment
 ```
 
 For a central repair wave, keep the coordinator worktree on its own branch and
@@ -37,21 +37,21 @@ Only after the PR worktrees have acted on those comments and a fresh scan is
 clean, enqueue in the proposed order:
 
 ```bash
-.claude/skills/pr-queue/scripts/queue-ready-prs.sh --base master --enqueue
+.claude/skills/queue-pr/scripts/queue-ready-prs.sh --base master --enqueue
 ```
 
 For the current local branch:
 
 ```bash
 git fetch origin
-.claude/skills/pr-queue/scripts/preflight.sh --base origin/master
+.claude/skills/queue-pr/scripts/preflight.sh --base origin/master
 ```
 
 For several local branches:
 
 ```bash
 git fetch origin
-.claude/skills/pr-queue/scripts/preflight.sh --base origin/master branch-a branch-b branch-c
+.claude/skills/queue-pr/scripts/preflight.sh --base origin/master branch-a branch-b branch-c
 ```
 
 Run the relevant project check before queueing:

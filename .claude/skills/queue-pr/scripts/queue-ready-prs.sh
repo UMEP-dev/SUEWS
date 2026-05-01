@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 set -u
+set -o pipefail
 
 usage() {
     cat <<'USAGE'
@@ -90,13 +91,15 @@ trap cleanup EXIT
 : > "$diff_failed"
 : > "$all_changes"
 
-gh pr list \
+if ! gh pr list \
     --state open \
     --base "$base" \
     --limit "$limit" \
     --json number,title,headRefName,headRefOid,isDraft,reviewDecision,mergeStateStatus,mergeable,updatedAt,createdAt,url \
     --jq '.[] | [.number, (.isDraft | tostring), ((.reviewDecision // "none") | if . == "" then "none" else . end), ((.mergeStateStatus // "UNKNOWN") | if . == "" then "UNKNOWN" else . end), ((.mergeable // "UNKNOWN") | if . == "" then "UNKNOWN" else . end), .headRefName, .headRefOid, .createdAt, .updatedAt, .url, .title] | @tsv' \
-    > "$prs_tsv"
+    > "$prs_tsv"; then
+    die "could not list pull requests for base: $base"
+fi
 
 while IFS="$tab" read -r number is_draft review state mergeable head oid created updated url title; do
     [ -n "${number:-}" ] || continue
@@ -236,7 +239,17 @@ print_matching_files() {
     pr="$1"
     file="$2"
     token="#$pr"
-    awk -F '\t' -v token="$token" 'index($2, token) { printf "- `%s` (%s)\n", $1, $2 }' "$file" | head -n 12
+    awk -F '\t' -v token="$token" '
+        {
+            split($2, items, /, /)
+            for (i in items) {
+                if (items[i] == token) {
+                    printf "- `%s` (%s)\n", $1, $2
+                    next
+                }
+            }
+        }
+    ' "$file" | head -n 12
 }
 
 print_queue_order_markdown() {
@@ -302,7 +315,7 @@ EOF
         if [ -s "$rank_tsv" ]; then
             print_queue_order_markdown
         else
-            printf '- none\n'
+            printf -- '- none\n'
         fi
         printf '\n'
 
@@ -313,7 +326,7 @@ EOF
         if [ -n "$shared_for_pr" ]; then
             printf '%s\n' "$shared_for_pr"
         else
-            printf '- none detected\n'
+            printf -- '- none detected\n'
         fi
         printf '\n'
 
@@ -321,7 +334,7 @@ EOF
         if [ -n "$risk_for_pr" ]; then
             printf '%s\n' "$risk_for_pr"
         else
-            printf '- none detected\n'
+            printf -- '- none detected\n'
         fi
         printf '\n'
 
@@ -336,15 +349,26 @@ upsert_comment() {
     body_file="$2"
     repo="$3"
     login="$4"
-    comment_id="$(gh api "repos/$repo/issues/$number/comments" --paginate \
-        --jq ".[] | select(.user.login == \"$login\" and (.body | contains(\"$marker\"))) | .id" | tail -n 1)"
+    if ! comment_id="$(gh api "repos/$repo/issues/$number/comments" --paginate \
+        --jq ".[] | select(.user.login == \"$login\" and (.body | contains(\"$marker\"))) | .id" | tail -n 1)"; then
+        printf 'failed to inspect existing comments\n'
+        return 1
+    fi
 
     if [ -n "$comment_id" ]; then
-        gh api "repos/$repo/issues/comments/$comment_id" --method PATCH -F body=@"$body_file" --silent
-        printf 'updated\n'
+        if gh api "repos/$repo/issues/comments/$comment_id" --method PATCH -F body=@"$body_file" --silent; then
+            printf 'updated\n'
+        else
+            printf 'failed\n'
+            return 1
+        fi
     else
-        gh api "repos/$repo/issues/$number/comments" --method POST -F body=@"$body_file" --silent
-        printf 'created\n'
+        if gh api "repos/$repo/issues/$number/comments" --method POST -F body=@"$body_file" --silent; then
+            printf 'created\n'
+        else
+            printf 'failed\n'
+            return 1
+        fi
     fi
 }
 
@@ -404,17 +428,20 @@ fi
 printf '\n'
 
 if [ "$comment" -eq 1 ]; then
-    repo="$(gh repo view --json nameWithOwner --jq .nameWithOwner)"
-    login="$(gh api user --jq .login)"
+    repo="$(gh repo view --json nameWithOwner --jq .nameWithOwner)" || die "could not determine repository"
+    login="$(gh api user --jq .login)" || die "could not determine authenticated user"
 
     printf 'Actions:\n'
+    comment_failed=0
     while IFS="$tab" read -r number review state mergeable head oid created url title; do
         [ -n "${number:-}" ] || continue
         comment_file="$(build_comment "$number" "$title")"
         printf -- '- comment #%s: ' "$number"
-        upsert_comment "$number" "$comment_file" "$repo" "$login"
+        if ! upsert_comment "$number" "$comment_file" "$repo" "$login"; then
+            comment_failed=1
+        fi
     done < "$ready_tsv"
-    exit 0
+    exit "$comment_failed"
 fi
 
 if [ "$enqueue" -ne 1 ]; then
@@ -433,5 +460,6 @@ while IFS="$tab" read -r score created number state review mergeable file_count 
     else
         printf 'failed\n'
         sed 's/^/  /' "$merge_output"
+        exit 1
     fi
 done < "$order_tsv"

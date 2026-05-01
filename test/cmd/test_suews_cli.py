@@ -1,7 +1,8 @@
 """Tests for the unified ``suews`` CLI dispatcher.
 
 Validates:
-- `suews --help` lists the 4 public subcommands (validate/schema/convert/run).
+- `suews --help` lists the public subcommands
+  (validate/schema/convert/init/run/knowledge).
 - Each subcommand resolves to its existing Click implementation.
 - The legacy hyphenated entry points (`suews-run`, `-convert`, `-validate`,
   `-schema`) print a deprecation notice and forward to the underlying command.
@@ -29,7 +30,7 @@ def test_top_level_help_lists_subcommands() -> None:
     runner = CliRunner()
     result = runner.invoke(cli, ["--help"])
     assert result.exit_code == 0, result.output
-    for sub in ("validate", "schema", "convert", "run", "knowledge"):
+    for sub in ("validate", "schema", "convert", "init", "run", "knowledge"):
         assert sub in result.output, f"subcommand {sub!r} missing from help output"
     assert "rust" not in result.output
 
@@ -73,6 +74,15 @@ def test_knowledge_subcommand_help() -> None:
     runner = CliRunner()
     result = runner.invoke(cli, ["knowledge", "--help"])
     assert result.exit_code == 0, result.output
+
+
+def test_init_subcommand_help() -> None:
+    from supy.cmd.suews_cli import cli
+
+    runner = CliRunner()
+    result = runner.invoke(cli, ["init", "--help"])
+    assert result.exit_code == 0, result.output
+    assert "template" in result.output.lower()
 
 
 def test_rust_subcommand_is_not_registered() -> None:
@@ -119,6 +129,13 @@ def test_knowledge_subcommand_is_knowledge_group() -> None:
     from supy.cmd.suews_cli import cli
 
     assert cli.commands["knowledge"] is knowledge_group
+
+
+def test_init_subcommand_is_init_case_cmd() -> None:
+    from supy.cmd.init_case import init_case_cmd
+    from supy.cmd.suews_cli import cli
+
+    assert cli.commands["init"] is init_case_cmd
 
 
 @pytest.mark.parametrize("subcommand", ["info", "version", "migrate", "export"])
@@ -196,6 +213,67 @@ def test_back_compat_alias_emits_deprecation(
     assert expected_legacy_name in captured.err
     assert expected_replacement in captured.err
     assert invoked["called"], "alias did not forward to underlying command"
+
+
+def test_convert_dispatcher_matches_legacy(tmp_path) -> None:
+    """``suews convert`` and the legacy ``suews-convert`` produce equivalent YAML.
+
+    Acceptance criterion (gh#1362): the dispatcher's ``convert`` route must
+    match ``suews-convert`` on the bundled fixtures. The strict identity
+    ``cli.commands["convert"] is convert_table_cmd`` (above) already proves
+    both routes invoke the same Click command; this integration test runs
+    each route end-to-end on a real fixture and asserts the produced YAML
+    is structurally equivalent. (One field, ``model.control.output_file.path``,
+    embeds the converter's per-invocation temp directory, so a byte-for-byte
+    comparison is impossible across separate runs -- we strip it before
+    diffing.)
+    """
+    import yaml as _yaml
+    from supy.cmd.suews_cli import cli
+    from supy.cmd.table_converter import convert_table_cmd
+
+    fixture_nml = (
+        Path(__file__).resolve().parents[1]
+        / "fixtures"
+        / "data_test"
+        / "AVL_1_LDN1"
+        / "RunControl.nml"
+    )
+    if not fixture_nml.exists():
+        pytest.skip(f"Fixture not available at {fixture_nml}")
+
+    out_dispatcher = tmp_path / "via_dispatcher.yml"
+    out_legacy = tmp_path / "via_legacy.yml"
+
+    runner = CliRunner()
+    result_dispatcher = runner.invoke(
+        cli,
+        ["convert", "-i", str(fixture_nml), "-o", str(out_dispatcher)],
+    )
+    assert result_dispatcher.exit_code == 0, result_dispatcher.output
+
+    result_legacy = runner.invoke(
+        convert_table_cmd,
+        ["-i", str(fixture_nml), "-o", str(out_legacy)],
+    )
+    assert result_legacy.exit_code == 0, result_legacy.output
+
+    def _strip_nondeterministic(path):
+        doc = _yaml.safe_load(path.read_text(encoding="utf-8"))
+        # Per-invocation temp path leaks into output_file.path; null it out
+        # before comparing so the rest of the dict can be diffed cleanly.
+        try:
+            doc["model"]["control"]["output_file"]["path"] = None
+        except (KeyError, TypeError):
+            pass
+        return doc
+
+    assert _strip_nondeterministic(out_dispatcher) == _strip_nondeterministic(
+        out_legacy
+    ), (
+        "suews convert (dispatcher) and legacy suews-convert produced "
+        "structurally different YAML on the AVL_1_LDN1 fixture."
+    )
 
 
 def test_rust_bridge_main_accepts_explicit_argv(

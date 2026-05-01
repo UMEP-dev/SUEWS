@@ -10,6 +10,7 @@ import yaml
 import json
 import sys
 import os
+from contextlib import nullcontext as _nullcontext
 from pathlib import Path
 import importlib.resources
 from typing import Optional, List
@@ -30,6 +31,9 @@ except ImportError:
     JSONOutput = None
     ErrorCode = None
     ValidationError = None
+
+# Canonical SUEWS CLI JSON envelope (gh#1360 / gh#1368).
+from .json_envelope import Envelope, _now_iso, silent_supy_logger
 
 # Orchestrated YAML processor phases (A/B/C)
 try:
@@ -199,6 +203,82 @@ def validate_single_file(
         return (False, [f"Unexpected error: {e}"])
 
 
+def _emit_validation_envelope(
+    results: List[dict],
+    schema_version: Optional[str],
+    started_at: str,
+) -> bool:
+    """Emit the canonical Envelope for a list of per-file validation results.
+
+    Each ``results`` entry is the same dict shape that the validator
+    pipeline already constructs (``file``, ``valid``, ``errors``,
+    ``error_count``); ``errors`` may hold ``ValidationError.to_dict()``
+    payloads or plain strings.
+
+    Returns
+    -------
+    bool
+        ``True`` when every file validated cleanly. Callers use this to
+        choose the process exit code.
+    """
+    all_valid = all(r["valid"] for r in results)
+
+    list_errors: List[dict] = []
+    for record in results:
+        if record["valid"]:
+            continue
+        for err in record["errors"]:
+            if isinstance(err, dict):
+                schema_path = (
+                    err.get("path") or err.get("field") or err.get("location")
+                )
+                message = err.get("message", "")
+                envelope_err = {
+                    "file": record["file"],
+                    "message": message,
+                    "schema_path": schema_path,
+                    "hint": message,
+                }
+                for key in ("code", "code_name", "severity", "site_gridid"):
+                    if err.get(key) is not None:
+                        envelope_err[key] = err[key]
+                list_errors.append(envelope_err)
+            else:
+                list_errors.append({
+                    "file": record["file"],
+                    "message": str(err),
+                    "schema_path": None,
+                    "hint": str(err),
+                })
+
+    data = {
+        "schema_version": schema_version,
+        "files": [
+            {
+                "file": record["file"],
+                "valid": record["valid"],
+                "error_count": record.get("error_count", 0),
+            }
+            for record in results
+        ],
+        "is_valid": all_valid,
+    }
+
+    command_str = " ".join(sys.argv) if sys.argv else "suews validate"
+    if all_valid:
+        Envelope.success(
+            data=data, command=command_str, started_at=started_at
+        ).emit()
+    else:
+        Envelope.error(
+            errors=list_errors,
+            command=command_str,
+            data=data,
+            started_at=started_at,
+        ).emit()
+    return all_valid
+
+
 @click.group(invoke_without_command=True)
 @click.argument("files", nargs=-1, type=click.Path(exists=True))
 @click.option(
@@ -288,12 +368,15 @@ def cli(
                 all_valid = True
                 for file_path in files:
                     path = Path(file_path)
-                    is_valid, errors = validate_single_file(
-                        path,
-                        schema,
-                        show_details=True,
-                        schema_version=target_version,
-                    )
+                    with (
+                        silent_supy_logger() if out_format == "json" else _nullcontext()
+                    ):
+                        is_valid, errors = validate_single_file(
+                            path,
+                            schema,
+                            show_details=True,
+                            schema_version=target_version,
+                        )
                     if not is_valid:
                         all_valid = False
 
@@ -313,16 +396,10 @@ def cli(
                     })
 
                 if out_format == "json":
-                    if JSONOutput:
-                        # Use the new structured JSON output
-                        json_formatter = JSONOutput(command="suews-validate")
-                        output = json_formatter.validation_result(
-                            files=results, schema_version=target_version, dry_run=True
-                        )
-                        JSONOutput.output(output)
-                    else:
-                        # Fallback to simple JSON
-                        console.print(json.dumps(results, indent=2))
+                    started_at = _now_iso()
+                    all_valid = _emit_validation_envelope(
+                        results, target_version, started_at
+                    )
                 else:
                     table = Table(title="Validation Results")
                     table.add_column("File", style="cyan")
@@ -356,12 +433,13 @@ def cli(
                 )
                 ctx.exit(2)
             path = Path(files[0])
-            is_valid, errors = validate_single_file(
-                path,
-                schema,
-                show_details=True,
-                schema_version=target_version,
-            )
+            with (silent_supy_logger() if out_format == "json" else _nullcontext()):
+                is_valid, errors = validate_single_file(
+                    path,
+                    schema,
+                    show_details=True,
+                    schema_version=target_version,
+                )
 
             # Convert ValidationError objects to dicts for JSON serialization
             error_list = []
@@ -380,16 +458,8 @@ def cli(
                 }
             ]
             if out_format == "json":
-                if JSONOutput:
-                    # Use the new structured JSON output
-                    json_formatter = JSONOutput(command="suews-validate")
-                    output = json_formatter.validation_result(
-                        files=result, schema_version=target_version, dry_run=True
-                    )
-                    JSONOutput.output(output)
-                else:
-                    # Fallback to simple JSON
-                    console.print(json.dumps(result, indent=2))
+                started_at = _now_iso()
+                _emit_validation_envelope(result, target_version, started_at)
             else:
                 table = Table(title="Validation Results")
                 table.add_column("File", style="cyan")
@@ -455,12 +525,13 @@ def validate(files, schema_version, verbose, quiet, format):
         files, description="Validating...", disable=(quiet or format == "json")
     ):
         path = Path(file_path)
-        is_valid, errors = validate_single_file(
-            path,
-            schema,
-            show_details=verbose,
-            schema_version=schema_version,
-        )
+        with (silent_supy_logger() if format == "json" else _nullcontext()):
+            is_valid, errors = validate_single_file(
+                path,
+                schema,
+                show_details=verbose,
+                schema_version=schema_version,
+            )
 
         # Convert ValidationError objects to dicts for JSON serialization
         error_list = []
@@ -480,16 +551,8 @@ def validate(files, schema_version, verbose, quiet, format):
             valid_files += 1
 
     if format == "json":
-        if JSONOutput:
-            # Use the new structured JSON output
-            json_formatter = JSONOutput(command="suews-validate")
-            output = json_formatter.validation_result(
-                files=results, schema_version=version, dry_run=False
-            )
-            JSONOutput.output(output)
-        else:
-            # Fallback to simple JSON
-            console.print(json.dumps(results, indent=2))
+        started_at = _now_iso()
+        _emit_validation_envelope(results, version, started_at)
     else:
         if not quiet:
             table = Table(title="Validation Results")

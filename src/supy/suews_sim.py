@@ -375,6 +375,17 @@ class SUEWSSimulation:
         # Using resolve() handles '..' and normalizes the path
         return str((self._config_path.parent / Path(path_str)).resolve())
 
+    def _resolve_output_path(self, path: Union[str, Path]) -> Path:
+        """Resolve an output path relative to the loaded config file."""
+        path_str = str(path)
+        path_output = Path(path_str).expanduser()
+
+        if path_output.is_absolute() or PurePosixPath(path_str).is_absolute():
+            return path_output
+        if self._config_path is not None:
+            return (self._config_path.parent / path_output).resolve()
+        return path_output
+
     @staticmethod
     def _load_forcing_from_list(
         forcing_list: list[Union[str, Path]], tstep_mod: int = 300
@@ -671,7 +682,9 @@ class SUEWSSimulation:
             except AttributeError:
                 pass
 
-            output_path = Path(config_path) if config_path else Path(".")
+            output_path = (
+                self._resolve_output_path(config_path) if config_path else Path(".")
+            )
         else:
             output_path = Path(output_path)
 

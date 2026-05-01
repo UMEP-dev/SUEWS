@@ -30,17 +30,39 @@ This module is the single contract; never branch the shape per subcommand.
 from __future__ import annotations
 
 import json
+import logging
 import subprocess
 import sys
+from contextlib import contextmanager
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, IO, Optional, Sequence, Union
+from typing import Any, IO, Iterator, Optional, Sequence, Union
 
 EXIT_OK = 0
 EXIT_USER_ERROR = 1
 EXIT_SCHEMA_ERROR = 2
 EXIT_RUN_FAILURE = 3
 EXIT_ENV_ERROR = 4
+
+
+@contextmanager
+def silent_supy_logger() -> "Iterator[None]":
+    """Suppress the ``SuPy`` logger for the duration of a JSON-emitting command.
+
+    The default ``SuPy`` logger handler writes to ``sys.stdout`` (see
+    ``supy/_env.py``). For commands that emit the canonical Envelope on
+    stdout, those log lines would otherwise contaminate the JSON stream
+    and break ``jq`` / MCP / Skill consumers. Wrap the work that
+    triggers logging in this context manager whenever ``--format json``
+    is active.
+    """
+    logger = logging.getLogger("SuPy")
+    prev_level = logger.level
+    logger.setLevel(logging.ERROR)
+    try:
+        yield
+    finally:
+        logger.setLevel(prev_level)
 
 
 def _now_iso() -> str:

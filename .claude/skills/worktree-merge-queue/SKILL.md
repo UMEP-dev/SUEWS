@@ -1,6 +1,6 @@
 ---
 name: worktree-merge-queue
-description: Use whenever coordinating multiple Git worktrees, stacked PRs, or GitHub merge queue entries for SUEWS. This skill plans safe queue order, detects shared-file conflict risk, runs temporary-worktree merge preflights, and decides whether PRs should merge independently, serially, or as a stack. Use it even if the user only mentions parallel worktrees, merge queue bounce-backs, rebasing before queueing, or PRs conflicting with each other.
+description: Use whenever coordinating multiple Git worktrees, stacked PRs, ready-for-review PRs, or GitHub merge queue entries for SUEWS. This skill scans open ready-for-review PRs, orders them for merge queue entry, can enqueue them with gh, detects shared-file conflict risk, runs temporary-worktree merge preflights, and decides whether PRs should merge independently, serially, or as a stack. Use it even if the user only mentions parallel worktrees, merge queue bounce-backs, rebasing before queueing, PRs conflicting with each other, or putting all ready PRs into the merge queue.
 ---
 
 # Worktree Merge Queue
@@ -12,7 +12,20 @@ intentional.
 
 ## Quick Start
 
-For the current branch:
+Scan ready-for-review PRs and propose a merge queue order:
+
+```bash
+git fetch origin
+.claude/skills/worktree-merge-queue/scripts/queue-ready-prs.sh --base master
+```
+
+After the user explicitly asks to queue them, enqueue in the proposed order:
+
+```bash
+.claude/skills/worktree-merge-queue/scripts/queue-ready-prs.sh --base master --enqueue
+```
+
+For the current local branch:
 
 ```bash
 git fetch origin
@@ -34,7 +47,30 @@ make test-smoke
 
 ## Workflow
 
-1. **Gather branch context**
+1. **Scan ready-for-review PRs**
+   - Prefer the queue scanner when the user asks about all ready PRs, merge
+     queue ordering, or queue bounce-backs across several PRs.
+   - Run `git fetch origin`, then:
+     `scripts/queue-ready-prs.sh --base master`.
+   - Treat "ready for review" as open and non-draft. The scanner skips PRs
+     with changes requested, merge conflicts, dirty merge state, unknown
+     mergeability, or failing checks unless a future operator deliberately
+     opts into a broader policy.
+   - Read the generated order before acting. It sorts lower-risk PRs first:
+     fewer high-risk SUEWS files, fewer shared files with other PRs, then
+     smaller file count and older creation time.
+
+2. **Enqueue only on explicit request**
+   - If the user says "put them in the merge queue", "enqueue ready PRs", or
+     equivalent, rerun the queue scanner with `--enqueue`.
+   - The script uses `gh pr merge <N> --auto --match-head-commit <SHA>`.
+     On merge-queue-protected branches, this adds the PR to the queue when
+     requirements are satisfied, or enables auto-merge so it enters the queue
+     once requirements pass.
+   - Never pass `--admin`, never delete branches, and stop if GitHub rejects
+     a PR instead of trying to force it through.
+
+3. **Gather branch context for local worktrees**
    - Confirm the intended base is `origin/master` unless the user says
      otherwise.
    - Run `git fetch origin` so local merge simulation uses current remote
@@ -45,14 +81,14 @@ make test-smoke
    - Identify the candidate branches or PR heads. If the user gives PR
      numbers, inspect them with `gh pr view <N> --json number,title,headRefName,baseRefName,mergeStateStatus,files`.
 
-2. **Detect overlap**
+4. **Detect overlap**
    - Run the preflight script when branches are local.
    - For remote PRs, compare changed files with `gh pr diff <N> --name-only`
      or `git diff --name-only origin/master...<branch>`.
    - Treat overlapping files as queue risk even when Git can auto-merge; the
      semantic conflict may still be real.
 
-3. **Classify the PR set**
+5. **Classify the PR set**
    - **Independent**: no shared files, separate subsystems, no logical
      dependency. Rebase each branch onto fresh `origin/master`, run checks,
      and queue in parallel if desired.
@@ -65,7 +101,7 @@ make test-smoke
      files. Move the shared edits into one PR or prepare a final integration
      branch.
 
-4. **Run merge preflight**
+6. **Run merge preflight**
    - Use the script to create a temporary detached worktree at the base and
      merge candidate branches in the proposed order.
    - If the script reports conflicts, do not queue the whole set together.
@@ -73,7 +109,7 @@ make test-smoke
    - If the script reports shared high-risk files, review those files manually
      before queueing even if the merge simulation succeeds.
 
-5. **Prepare queue entry**
+7. **Prepare queue entry**
    - Rebase or merge from latest `origin/master` only after confirming the
      intended history policy for the branch.
    - Prefer `git push --force-with-lease` after a rebase.
@@ -111,7 +147,7 @@ otherwise.
 
 ## Report Format
 
-When reporting back, use this structure:
+When reporting a local-worktree preflight, use this structure:
 
 ```text
 === MERGE QUEUE PLAN ===
@@ -137,3 +173,28 @@ Next commands:
 
 Keep the final recommendation concrete: which branch goes first, which branch
 waits, and what the next agent should run.
+
+When reporting a repo-wide queue scan, use this structure:
+
+```text
+=== READY PR MERGE QUEUE PLAN ===
+Base: master
+Mode: dry-run | enqueue
+Candidates: N open PRs, M ready-for-review, K queueable
+
+Queue order:
+1. #123 title - reason
+2. #124 title - reason
+
+Skipped:
+- #125 title - reason
+
+Shared files:
+- path - #123, #124
+
+Actions:
+- queued #123 | enabled auto-merge for #123 | skipped #123
+```
+
+Always include the PR numbers. The user needs to see exactly what was queued
+and what was left alone.

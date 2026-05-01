@@ -66,6 +66,10 @@ EXAMPLES:
   - Added a `2026.5.dev8` entry to `docs/source/inputs/transition_guide.rst` with the YAML rename example
   - Added the corresponding `2026.5.dev8` entry to `docs/source/contributing/schema/schema_versioning.rst` Version History; demoted the `2026.5.dev7` entry from "current" to a previous dev label
   - Refreshed the four `docs/source/inputs/yaml/examples/output_config_*.yml` user-facing examples to the new shape
+- [feature][experimental] Packaged SUEWS as a first-class plugin in the Claude Code and Codex AI-agent ecosystems via the open Agent Skills standard (#1363)
+  - Added user-facing `suews` plugin entry to `.claude-plugin/marketplace.json` (alongside the existing `suews-dev` contributor plugin)
+  - Added `.codex-plugin/plugin.json`, `plugins/suews/.codex-plugin/plugin.json`, and `.agents/plugins/marketplace.json` for Codex CLI / Desktop App / IDE extensions
+  - Documented install paths in `docs/source/installation.rst` (Claude Code, Codex, MCP placeholder for Cursor)
 
 ### 29 Apr 2026
 
@@ -86,6 +90,12 @@ EXAMPLES:
   - Added a Named-column forcing files section to `docs/source/inputs/forcing-data.rst` with the canonical name list, baseline-required set, optional/whitelisted/unknown column behaviour, and a cross-reference anchor `named_column_forcing`
   - Added a 2026.5.dev7 entry to `docs/source/inputs/transition_guide.rst` with the YAML rename example and the named-column header semantics
   - Added the corresponding 2026.5.dev7 entry to `docs/source/contributing/schema/schema_versioning.rst` Version History; demoted the dev6 entry from "current" to an intermediate dev label
+- [change][experimental] Escalate procedural API deprecation warnings to `FutureWarning` (#1370)
+  - `_warn_functional_deprecation` now emits `FutureWarning` instead of `DeprecationWarning` so end-user notebooks and scripts surface the migration nudge under default warning filters (CPython hides `DeprecationWarning` outside `__main__`); the procedural API in `supy._supy_module` is end-user-facing, not a developer-only surface
+  - Added `load_SampleData` and `load_config_from_df` to `_FUNCTIONAL_DEPRECATIONS` and routed both through `_warn_functional_deprecation` (`load_SampleData` previously used a `logger.warning`; `load_config_from_df` had no warning at all)
+  - Scoped ERA5 pandas `FutureWarning` suppression so procedural API migration warnings remain visible after SuPy utility imports, and routed `init_config(df_state)` through a private config helper so it emits only its own warning
+  - Updated `test/core/test_public_api_wrappers.py` to assert the user-visible `FutureWarning` category and the specific `supy.<function>` warning message
+  - Phase 2 of the procedural-API removal plan; sibling to #1075 (df_state, closed) and unblocks #1365 (parallelism control on `SUEWSSimulation.run`)
 
 ### 22 Apr 2026
 

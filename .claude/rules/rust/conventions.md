@@ -34,7 +34,7 @@ The Rust bridge (`src/suews_bridge/`) replaced f90wrap as the Fortran-Python int
 ```bash
 # Rust CLI binary (standalone, no Python)
 make bridge
-# Output: src/suews_bridge/target/release/suews
+# Output: src/suews_bridge/target/release/suews-engine
 
 # Python module (for development)
 cd src/suews_bridge && maturin develop --features python-extension,physics

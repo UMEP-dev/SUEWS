@@ -4108,29 +4108,117 @@ mod python_bindings {
     /// Returns a list of `(grid_index, output_block, state_json, len_sim)`.
     #[cfg(feature = "physics")]
     #[pyfunction(name = "run_suews_multi")]
+    #[pyo3(signature = (config_jsons, forcing_block, len_sim, max_workers=None))]
     fn run_suews_multi_py(
         config_jsons: Vec<String>,
         forcing_block: Vec<f64>,
         len_sim: usize,
+        max_workers: Option<usize>,
     ) -> PyResult<Vec<(usize, Vec<f64>, String, usize)>> {
         use rayon::prelude::*;
 
-        let results: Vec<Result<(usize, Vec<f64>, String, usize), _>> = config_jsons
-            .par_iter()
-            .enumerate()
-            .map(|(idx, config_json)| {
-                // Each thread gets its own copy of forcing (Fortran mutates it)
-                let forcing_copy = forcing_block.clone();
-                let (output_block, state, actual_len) =
-                    run_from_config_str_and_forcing(config_json, forcing_copy, len_sim)
+        if max_workers == Some(0) {
+            return Err(pyo3::exceptions::PyValueError::new_err(
+                "max_workers must be a positive integer",
+            ));
+        }
+
+        let run_parallel = || {
+            config_jsons
+                .par_iter()
+                .enumerate()
+                .map(|(idx, config_json)| {
+                    // Each thread gets its own copy of forcing (Fortran mutates it)
+                    let forcing_copy = forcing_block.clone();
+                    let (output_block, state, actual_len) =
+                        run_from_config_str_and_forcing(config_json, forcing_copy, len_sim)
+                            .map_err(|e| e.to_string())?;
+                    let state_json = serde_json::to_string(&suews_state_to_nested_payload(&state))
                         .map_err(|e| e.to_string())?;
-                let state_json = serde_json::to_string(&suews_state_to_nested_payload(&state))
-                    .map_err(|e| e.to_string())?;
-                Ok((idx, output_block, state_json, actual_len))
-            })
-            .collect();
+                    Ok((idx, output_block, state_json, actual_len))
+                })
+                .collect()
+        };
+
+        let results: Vec<Result<(usize, Vec<f64>, String, usize), _>> =
+            if let Some(workers) = max_workers {
+                rayon::ThreadPoolBuilder::new()
+                    .num_threads(workers)
+                    .build()
+                    .map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(e.to_string()))?
+                    .install(run_parallel)
+            } else {
+                run_parallel()
+            };
 
         // Convert errors to PyResult
+        results
+            .into_iter()
+            .collect::<Result<Vec<_>, String>>()
+            .map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(e))
+    }
+
+    /// Run multiple grid cells in parallel using injected previous states.
+    ///
+    /// Each element of `state_jsons` must match the config at the same index.
+    /// Returns a list of `(grid_index, output_block, state_json, len_sim)`.
+    #[cfg(feature = "physics")]
+    #[pyfunction(name = "run_suews_multi_with_state")]
+    #[pyo3(signature = (config_jsons, forcing_block, len_sim, state_jsons, max_workers=None))]
+    fn run_suews_multi_with_state_py(
+        config_jsons: Vec<String>,
+        forcing_block: Vec<f64>,
+        len_sim: usize,
+        state_jsons: Vec<String>,
+        max_workers: Option<usize>,
+    ) -> PyResult<Vec<(usize, Vec<f64>, String, usize)>> {
+        use rayon::prelude::*;
+
+        if max_workers == Some(0) {
+            return Err(pyo3::exceptions::PyValueError::new_err(
+                "max_workers must be a positive integer",
+            ));
+        }
+        if config_jsons.len() != state_jsons.len() {
+            return Err(pyo3::exceptions::PyValueError::new_err(
+                "config_jsons and state_jsons must have the same length",
+            ));
+        }
+
+        let run_parallel = || {
+            config_jsons
+                .par_iter()
+                .zip(state_jsons.par_iter())
+                .enumerate()
+                .map(|(idx, (config_json, state_json_in))| {
+                    // Each thread gets its own copy of forcing (Fortran mutates it)
+                    let forcing_copy = forcing_block.clone();
+                    let (output_block, state, actual_len) =
+                        run_from_config_str_and_forcing_with_state(
+                            config_json,
+                            forcing_copy,
+                            len_sim,
+                            state_json_in,
+                        )
+                        .map_err(|e| e.to_string())?;
+                    let state_json = serde_json::to_string(&suews_state_to_nested_payload(&state))
+                        .map_err(|e| e.to_string())?;
+                    Ok((idx, output_block, state_json, actual_len))
+                })
+                .collect()
+        };
+
+        let results: Vec<Result<(usize, Vec<f64>, String, usize), _>> =
+            if let Some(workers) = max_workers {
+                rayon::ThreadPoolBuilder::new()
+                    .num_threads(workers)
+                    .build()
+                    .map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(e.to_string()))?
+                    .install(run_parallel)
+            } else {
+                run_parallel()
+            };
+
         results
             .into_iter()
             .collect::<Result<Vec<_>, String>>()
@@ -5375,6 +5463,8 @@ mod python_bindings {
         m.add_function(wrap_pyfunction!(run_suews_with_state_py, m)?)?;
         #[cfg(feature = "physics")]
         m.add_function(wrap_pyfunction!(run_suews_multi_py, m)?)?;
+        #[cfg(feature = "physics")]
+        m.add_function(wrap_pyfunction!(run_suews_multi_with_state_py, m)?)?;
         #[cfg(feature = "physics")]
         m.add_function(wrap_pyfunction!(output_group_layout_py, m)?)?;
         #[cfg(feature = "physics")]

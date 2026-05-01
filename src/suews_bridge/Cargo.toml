@@ -11,7 +11,7 @@ name = "suews_bridge"
 crate-type = ["rlib", "cdylib"]
 
 [[bin]]
-name = "suews"
+name = "suews-engine"
 path = "src/main.rs"
 
 [features]

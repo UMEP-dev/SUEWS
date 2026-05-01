@@ -1282,11 +1282,16 @@ def validate_forcing_data(
         if not isinstance(control, dict):
             return forcing_errors, forcing_file_paths
 
-        forcing_file = control.get("forcing_file")
+        # Prefer the new `forcing.file` shape (schema 2026.5.dev7+);
+        # fall back to legacy `forcing_file`. Mirrors the precedence used
+        # by the Rust raw-YAML reader (`yaml_config.rs::read_forcing_rel`)
+        # and the in-memory `ModelControl._coerce_legacy_forcing_file`.
+        forcing_file = None
+        forcing_block = control.get("forcing")
+        if isinstance(forcing_block, dict):
+            forcing_file = forcing_block.get("file")
         if forcing_file is None:
-            forcing_block = control.get("forcing")
-            if isinstance(forcing_block, dict):
-                forcing_file = forcing_block.get("file")
+            forcing_file = control.get("forcing_file")
         if forcing_file is None:
             forcing_errors.append(
                 "Forcing file path not found in model.control.forcing.file "

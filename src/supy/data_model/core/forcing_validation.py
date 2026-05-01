@@ -9,6 +9,7 @@ the forcing column set are available.
 
 from __future__ import annotations
 
+from enum import Enum
 from typing import Any
 
 
@@ -40,9 +41,16 @@ _PHYSICS_REQUIRED_FORCING: dict[tuple[str, int], frozenset[str]] = {
 def _resolve(value: Any) -> Any:
     """Unwrap RefValue-style ``{value: ...}`` mappings and ``.value`` attributes."""
     if isinstance(value, dict) and "value" in value:
-        return value["value"]
+        return _resolve(value["value"])
+    if isinstance(value, (list, tuple, set, frozenset)):
+        return type(value)(_resolve(item) for item in value)
+    if isinstance(value, Enum):
+        return _resolve(value.value)
     if hasattr(value, "value"):
-        return value.value
+        inner = value.value
+        if inner is value:
+            return value
+        return _resolve(inner)
     return value
 
 

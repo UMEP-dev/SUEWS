@@ -204,15 +204,6 @@ class SUEWSForcing:
     ...     print(result.errors)
     """
 
-    # gh#1372 -- per-landcover whitelist (mirrors src/supy/_load.py and
-    # src/suews_bridge/src/forcing_io.rs). `wuh` is external water use
-    # (irrigation), which varies naturally per surface; `xsmd` is the
-    # bulk soil-moisture deficit and is intentionally not on this list.
-    _PER_LANDCOVER_VARS: frozenset = frozenset({"lai", "wuh"})
-    _LANDCOVER_SUFFIXES: tuple = (
-        "paved", "bldgs", "evetr", "dectr", "grass", "bsoil", "water",
-    )
-
     def __init__(self, data: pd.DataFrame, source: Optional[str] = None):
         """
         Initialise SUEWSForcing with validated DataFrame.
@@ -279,9 +270,7 @@ class SUEWSForcing:
             combined = pd.concat(dfs, axis=0).sort_index()
             # Remove any duplicates
             combined = combined[~combined.index.duplicated(keep="first")]
-            df_main, extras = cls._split_per_landcover_columns(
-                combined, cls._PER_LANDCOVER_VARS, cls._LANDCOVER_SUFFIXES
-            )
+            df_main, extras = cls._split_per_landcover_columns(combined)
             instance = cls(df_main, source=f"[{len(path)} files]")
             instance._extras = extras
             return instance
@@ -292,9 +281,7 @@ class SUEWSForcing:
             raise FileNotFoundError(f"Forcing file not found: {file_path}")
 
         df = read_forcing(str(file_path), tstep_mod=tstep_mod)
-        df_main, extras = cls._split_per_landcover_columns(
-            df, cls._PER_LANDCOVER_VARS, cls._LANDCOVER_SUFFIXES
-        )
+        df_main, extras = cls._split_per_landcover_columns(df)
         instance = cls(df_main, source=str(file_path))
         instance._extras = extras
         return instance
@@ -302,15 +289,14 @@ class SUEWSForcing:
     @staticmethod
     def _split_per_landcover_columns(
         df_forcing: pd.DataFrame,
-        per_landcover_vars: frozenset,
-        landcover_suffixes: tuple,
     ) -> Tuple[pd.DataFrame, Dict[str, np.ndarray]]:
         """Pop whitelisted ``<var>_<surface>`` columns into an extras dict.
 
         Returns the kernel-facing DataFrame (with extras removed) and a
         dict mapping the lower-cased canonical name to the column values.
-        Per-var allowed suffix subsets are honoured (e.g. ``lai_*`` is
-        only kept for vegetated surfaces).
+        The whitelist itself is owned by
+        :func:`supy._load._is_per_landcover_column` so the Python and
+        Rust readers stay in lock-step (gh#1372).
         """
         from ._load import _is_per_landcover_column
 

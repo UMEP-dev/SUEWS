@@ -211,7 +211,14 @@ In your YAML configuration, specify the forcing file(s) under the
        forcing:
          file: "forcing/Kc_2020_data_60.txt"
 
-       # Or multiple files for continuous multi-year runs:
+Or, for continuous multi-year runs, supply a list under the same
+``forcing.file`` key (the loader concatenates them in chronological
+order):
+
+.. code-block:: yaml
+
+   model:
+     control:
        forcing:
          file:
            - "forcing/Kc_2020_data_60.txt"

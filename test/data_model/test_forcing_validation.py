@@ -46,7 +46,12 @@ def test_current_schema_version_bumped_for_forcing_restructure():
     desc = SCHEMA_VERSIONS["2026.5.dev7"]
     assert "forcing" in desc.lower()
     assert "1372" in desc
-    assert CURRENT_SCHEMA_VERSION >= "2026.5.dev7"
+
+    # Use packaging.version so the comparison stays correct once the dev
+    # counter rolls into double digits (lexical "2026.5.dev10" < "dev7").
+    from packaging.version import Version
+
+    assert Version(CURRENT_SCHEMA_VERSION) >= Version("2026.5.dev7")
 
 
 def test_validate_forcing_columns_against_physics_raises_for_missing_ldown():
@@ -92,6 +97,20 @@ def test_validate_forcing_columns_against_physics_method_1_requires_ldown_not_fc
         "iy", "id", "it", "imin", "Tair", "RH", "U", "pres", "kdown", "rain", "ldown",
     }
     validate_forcing_columns_against_physics(columns, physics)
+
+
+def test_validate_forcing_columns_against_physics_unwraps_refvalue_enum():
+    """YAML-shaped ModelPhysics values still trigger forcing requirements."""
+    from supy.data_model.core.forcing_validation import (
+        validate_forcing_columns_against_physics,
+    )
+    from supy.data_model.core.model import ModelPhysics
+
+    physics = ModelPhysics(net_radiation={"value": 1})
+    columns = {"iy", "id", "it", "imin", "Tair", "RH", "U", "pres", "kdown", "rain"}
+
+    with pytest.raises(ValueError, match=r"\bldown\b.*\bnet_radiation=1\b"):
+        validate_forcing_columns_against_physics(columns, physics)
 
 
 def test_validate_forcing_columns_against_physics_rejects_all_sentinel_data():

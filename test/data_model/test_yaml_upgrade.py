@@ -617,6 +617,26 @@ def test_dev6_to_current_handler_registered():
     assert ("2026.5.dev6", CURRENT_SCHEMA_VERSION) in _HANDLERS
 
 
+def test_forcing_both_keys_new_wins():
+    """If both ``forcing_file`` and ``forcing.file`` exist, the new shape
+    wins and the legacy key is dropped — mirrors the output handler
+    precedence and the in-memory ``_coerce_legacy_forcing_file`` semantics."""
+    from supy.util.converter.yaml_upgrade import _apply_forcing_subobject_restructure
+
+    cfg = {
+        "schema_version": "2026.5.dev6",
+        "model": {
+            "control": {
+                "forcing": {"file": "new.txt"},
+                "forcing_file": "legacy.txt",
+            },
+        },
+    }
+    out = _apply_forcing_subobject_restructure(cfg)
+    assert "forcing_file" not in out["model"]["control"]
+    assert out["model"]["control"]["forcing"] == {"file": "new.txt"}
+
+
 class TestOutputSubobjectRestructure:
     """gh#1372 follow-up: dev7 -> dev8 lifts output_file -> output."""
 

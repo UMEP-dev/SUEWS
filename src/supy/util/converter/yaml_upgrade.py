@@ -656,12 +656,23 @@ def _apply_forcing_subobject_restructure(cfg: dict) -> dict:
     old_value = control.pop("forcing_file")
     forcing = control.setdefault("forcing", {})
     if not isinstance(forcing, dict):
-        # User has manually set forcing to a non-dict; preserve their value
-        # under .file rather than overwrite their structure.
+        # User has manually set forcing to a non-dict; replace with a
+        # dict so the legacy value has somewhere to land.
         forcing = {"file": old_value}
         control["forcing"] = forcing
-    else:
-        forcing["file"] = old_value
+        _log(
+            "Migrated model.control.forcing_file -> model.control.forcing.file (gh#1372)"
+        )
+        return cfg
+    if "file" in forcing:
+        # Both keys present: the new shape wins; mirror the symmetric
+        # _apply_output_subobject_restructure semantics.
+        _log(
+            "[yaml-upgrade]   dropped 'forcing_file' (already migrated; "
+            "'forcing.file' wins)"
+        )
+        return cfg
+    forcing["file"] = old_value
     _log("Migrated model.control.forcing_file -> model.control.forcing.file (gh#1372)")
     return cfg
 

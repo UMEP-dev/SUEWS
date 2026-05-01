@@ -35,6 +35,7 @@ Full setup: `/setup-dev` | Style check: `/lint-code` | Build check: `/verify-bui
 - `/sync-docs` - Doc-code consistency
 - `/verify-build` - Build configuration
 - `/audit-pr` - Review pull requests
+- `/queue-pr` - Coordinate PRs before merge queue
 - `/log-changes` - Update CHANGELOG
 - `/prep-release` - Prepare releases
 

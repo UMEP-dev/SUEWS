@@ -1,6 +1,6 @@
 ---
 name: worktree-merge-queue
-description: Use whenever coordinating multiple Git worktrees, stacked PRs, ready-for-review PRs, or GitHub merge queue entries for SUEWS. This skill scans open ready-for-review PRs, orders them for merge queue entry, comments on each non-draft PR with its current queue position and worktree-specific fix suggestions, detects shared-file conflict risk, runs temporary-worktree merge preflights, and only enqueues after the coordinated PRs have been fixed and rechecked. Use it even if the user only mentions parallel worktrees, merge queue bounce-backs, rebasing before queueing, PRs conflicting with each other, or putting ready PRs into the merge queue.
+description: Use whenever coordinating multiple Git worktrees, stacked PRs, ready-for-review PRs, repair waves, or GitHub merge queue entries for SUEWS. This skill scans open ready-for-review PRs, orders them for merge queue entry, comments on each non-draft PR with its current queue position and worktree-specific fix suggestions, can coordinate a repair wave from one central workspace using dedicated per-PR worktrees, detects shared-file conflict risk, runs temporary-worktree merge preflights, and only enqueues after the coordinated PRs have been fixed and rechecked. Use it even if the user only mentions parallel worktrees, merge queue bounce-backs, rebasing before queueing, PRs conflicting with each other, fixing ready PRs as a batch, or putting ready PRs into the merge queue.
 ---
 
 # Worktree Merge Queue
@@ -23,6 +23,14 @@ Write or update one coordination comment on each non-draft PR:
 
 ```bash
 .claude/skills/worktree-merge-queue/scripts/queue-ready-prs.sh --base master --comment
+```
+
+For a central repair wave, keep the coordinator worktree on its own branch and
+create dedicated sibling worktrees for PRs that need action:
+
+```bash
+mkdir -p ../mq-repair
+git worktree add -b mq/pr-1391 ../mq-repair/pr-1391 <PR_HEAD_SHA>
 ```
 
 Only after the PR worktrees have acted on those comments and a fresh scan is
@@ -92,7 +100,30 @@ make test-smoke
    - Never pass `--admin`, never delete branches, and stop if GitHub rejects
      a PR instead of trying to force it through.
 
-4. **Gather branch context for local worktrees**
+4. **Coordinate a central repair wave**
+   - Use this when the user wants the skill-running workspace to coordinate
+     several PRs in one pass.
+   - Keep the coordinator worktree on its existing branch. Do not repeatedly
+     `git checkout` PR branches in the coordinator directory; that loses
+     state and collides with other active worktrees.
+   - For each PR that needs action, create a dedicated sibling worktree such
+     as `../mq-repair/pr-1391`. Use the PR head SHA from:
+     `gh pr view 1391 --json headRefName,headRefOid,headRepositoryOwner,headRepository`.
+   - Prefer detached or `mq/pr-<number>` local branches for diagnosis. Before
+     pushing back to a PR branch, verify that the PR head is in this
+     repository, the head SHA still matches the scan, and the user explicitly
+     asked for the coordinator to push fixes.
+   - In each PR worktree, perform the smallest safe action:
+     `git fetch origin`, rebase or merge current `origin/master` according to
+     branch policy, resolve conflicts, run focused checks, then `make test-smoke`.
+   - If the conflict is semantic, scientific, or touches high-risk files such
+     as schema/sample data/build files, stop and comment with the finding
+     rather than inventing a resolution.
+   - After each PR worktree is fixed or diagnosed, return to the coordinator
+     worktree and rerun the dry-run scan. Update coordination comments so the
+     PR-specific agents see current instructions.
+
+5. **Gather branch context for local worktrees**
    - Confirm the intended base is `origin/master` unless the user says
      otherwise.
    - Run `git fetch origin` so local merge simulation uses current remote
@@ -103,14 +134,14 @@ make test-smoke
    - Identify the candidate branches or PR heads. If the user gives PR
      numbers, inspect them with `gh pr view <N> --json number,title,headRefName,baseRefName,mergeStateStatus,files`.
 
-5. **Detect overlap**
+6. **Detect overlap**
    - Run the preflight script when branches are local.
    - For remote PRs, compare changed files with `gh pr diff <N> --name-only`
      or `git diff --name-only origin/master...<branch>`.
    - Treat overlapping files as queue risk even when Git can auto-merge; the
      semantic conflict may still be real.
 
-6. **Classify the PR set**
+7. **Classify the PR set**
    - **Independent**: no shared files, separate subsystems, no logical
      dependency. Rebase each branch onto fresh `origin/master`, run checks,
      and queue in parallel if desired.
@@ -123,7 +154,7 @@ make test-smoke
      files. Move the shared edits into one PR or prepare a final integration
      branch.
 
-7. **Run merge preflight**
+8. **Run merge preflight**
    - Use the script to create a temporary detached worktree at the base and
      merge candidate branches in the proposed order.
    - If the script reports conflicts, do not queue the whole set together.
@@ -131,7 +162,7 @@ make test-smoke
    - If the script reports shared high-risk files, review those files manually
      before queueing even if the merge simulation succeeds.
 
-8. **Prepare queue entry**
+9. **Prepare queue entry**
    - Rebase or merge from latest `origin/master` only after confirming the
      intended history policy for the branch.
    - Prefer `git push --force-with-lease` after a rebase.
@@ -166,6 +197,9 @@ otherwise.
   checkouts in another active worktree.
 - Do not force-push unless the user asked you to update that PR branch or the
   branch is clearly yours to maintain.
+- Do not auto-resolve scientific or schema conflicts just because Git can be
+  made clean. Leave a coordination comment and let the owner worktree handle
+  the domain decision.
 
 ## Report Format
 

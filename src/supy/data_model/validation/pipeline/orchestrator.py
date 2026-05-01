@@ -646,11 +646,22 @@ def run_phase_b(
     phase: str = "B",
     silent: bool = False,
     science_fixes: str = "suggest",
-) -> bool:
-    """Execute Phase B: physics validation and optional scientific fixes."""
+) -> "PhaseReport":
+    """Execute Phase B: physics validation and optional scientific fixes.
+
+    Returns the structured ``PhaseReport`` from this phase. Use
+    ``phase_report.has_errors`` to gate downstream work.
+    """
+    from .report_schema import (
+        Issue,
+        JSON_REPORT_WRITER,
+        PhaseReport,
+        SEVERITY_ERROR,
+    )
+
     try:
         with redirect_stdout(io.StringIO()), redirect_stderr(io.StringIO()):
-            science_checked_data = run_science_check(
+            _, phase_report = run_science_check(
                 uptodate_yaml_file=uptodate_file,
                 user_yaml_file=user_yaml_file,
                 standard_yaml_file=standard_yaml_file,
@@ -662,52 +673,52 @@ def run_phase_b(
                 phase=phase,
                 science_fixes=science_fixes,
             )
+    except Exception as exc:
+        phase_report = PhaseReport(
+            phase="B",
+            issues=[Issue(
+                phase="B",
+                severity=SEVERITY_ERROR,
+                code="B.PIPELINE.EXCEPTION",
+                message=str(exc),
+            )],
+            yaml_in=uptodate_file,
+            yaml_out=science_yaml_file,
+            text_report_path=science_report_file,
+        )
 
-        # Check if Phase B produced output files
-        if not os.path.exists(science_yaml_file):
-            if not silent:
-                print()
-                print("[X] Validation failed - check report for details")
-            return False
+    # File existence checks remain — they catch IO failures the phase
+    # itself did not surface.
+    if not os.path.exists(science_report_file):
+        phase_report.issues.append(Issue(
+            phase="B",
+            severity=SEVERITY_ERROR,
+            code="B.PIPELINE.MISSING_REPORT",
+            message="Phase B did not produce the expected text report",
+        ))
+    if science_yaml_file and not os.path.exists(science_yaml_file) and not phase_report.has_errors:
+        phase_report.issues.append(Issue(
+            phase="B",
+            severity=SEVERITY_ERROR,
+            code="B.PIPELINE.MISSING_YAML",
+            message="Phase B did not produce the expected YAML output",
+        ))
 
-        if not os.path.exists(science_report_file):
-            if not silent:
-                print()
-                print("[X] Validation failed - unable to generate report")
-            return False
+    if science_report_file:
+        json_path = Path(science_report_file).with_suffix(".json")
+        JSON_REPORT_WRITER.write(json_path, phase_report)
+        phase_report.json_report_path = str(json_path)
 
-        # Check if Phase B report indicates critical issues
-        report_content = REPORT_WRITER.read(science_report_file)
-
-        if "CRITICAL ISSUES DETECTED" in report_content or "URGENT" in report_content:
-            if not silent:
-                print("[X] Validation failed!")
-                print(f"Report: {science_report_file}")
+    if not silent:
+        if phase_report.has_errors:
+            print("[X] Validation failed!")
+            print(f"Report: {science_report_file}")
+            if science_yaml_file:
                 print(f"Updated YAML: {science_yaml_file}")
-            return False
-
-        if not silent:
-            print("[OK] Phase B completed")
-        return True
-
-    except ValueError as e:
-        if "Critical scientific errors detected" in str(e):
-            # if not silent:
-            print("[X] Validation failed!")
-            print(f"Report: {science_report_file}")
-            print(f"Updated YAML: {science_yaml_file}")
-            return False
         else:
-            # if not silent:
-            print("[X] Validation failed!")
-            print(f"Report: {science_report_file}")
-            print(f"Updated YAML: {science_yaml_file}")
-            return False
-    except Exception as e:
-        # if not silent:
-        print()
-        print(f"[X] Validation failed with unexpected error: {e}")
-        return False
+            print("[OK] Phase B completed")
+
+    return phase_report
 
 
 def run_phase_c(
@@ -1398,7 +1409,7 @@ Modes:
             phase_a_report = None
 
             print("Physics validation check...")
-            phase_b_success = run_phase_b(
+            phase_b_report = run_phase_b(
                 user_yaml_file,
                 input_yaml_file,
                 standard_yaml_file,
@@ -1411,6 +1422,7 @@ Modes:
                 silent=True,  # Suppress phase function output, main function handles terminal output
                 science_fixes=science_fixes,
             )
+            phase_b_success = not phase_b_report.has_errors
 
             # Always create final user files with simple names
             final_yaml, final_report = create_final_user_files(
@@ -1500,7 +1512,7 @@ Modes:
 
             print("[OK] Validation completed")
             print("Physics validation check...")
-            phase_b_success = run_phase_b(
+            phase_b_report = run_phase_b(
                 user_yaml_file,
                 uptodate_file,
                 standard_yaml_file,
@@ -1513,6 +1525,7 @@ Modes:
                 silent=True,
                 science_fixes=science_fixes,
             )
+            phase_b_success = not phase_b_report.has_errors
 
             if not phase_b_success:
                 # Phase B failed in AB workflow - create final user files from Phase B error report and Phase A YAML
@@ -1696,7 +1709,7 @@ Modes:
         elif phase == "BC":
             # Complete B→C workflow
             print("Physics validation check...")
-            phase_b_success = run_phase_b(
+            phase_b_report = run_phase_b(
                 user_yaml_file,
                 user_yaml_file,  # Phase B runs directly on user YAML
                 standard_yaml_file,
@@ -1709,6 +1722,7 @@ Modes:
                 silent=True,
                 science_fixes=science_fixes,
             )
+            phase_b_success = not phase_b_report.has_errors
 
             if not phase_b_success:
                 # Phase B failed in BC workflow - preserve Phase B outputs as BC outputs (when Phase B passes, we have updated from B)
@@ -1893,7 +1907,7 @@ Modes:
 
             # Step 2: Run Phase B (A passed, try B)
             print("Physics validation check...")
-            phase_b_success = run_phase_b(
+            phase_b_report = run_phase_b(
                 user_yaml_file,
                 uptodate_file,
                 standard_yaml_file,
@@ -1906,6 +1920,7 @@ Modes:
                 silent=True,
                 science_fixes=science_fixes,
             )
+            phase_b_success = not phase_b_report.has_errors
 
             if not phase_b_success:
                 # Phase B failed in ABC workflow - create final files from Phase A (last successful phase)

@@ -15,6 +15,8 @@ from supy.data_model.validation.pipeline.report_schema import (
     ValidationReport,
 )
 
+pytestmark = pytest.mark.api
+
 
 def test_issue_round_trips_through_dict():
     issue = Issue(

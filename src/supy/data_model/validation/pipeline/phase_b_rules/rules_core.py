@@ -80,6 +80,29 @@ class ValidationResult:
         """Return a stable serialisable representation for reports and JSON."""
         return asdict(self)
 
+    def to_issue(self):
+        """Adapt this Phase B result to the canonical ``Issue`` schema.
+
+        Imported lazily to keep ``rules_core`` independent of the
+        ``report_schema`` module's import order.
+        """
+        from ..report_schema import Issue, SEVERITY_INFO
+
+        severity = (self.severity or self.status or SEVERITY_INFO).upper()
+        code = self.code or f"B.{self.category}.{self.parameter}".upper()
+        return Issue(
+            phase="B",
+            severity=severity,
+            code=code,
+            message=self.message,
+            yaml_path=self.path or self.parameter,
+            site_gridid=self.site_gridid,
+            site_index=self.site_index,
+            category=self.category,
+            suggested_value=self.suggested_value,
+            applied_fix=bool(self.applied_fix),
+        )
+
 
 @dataclass(frozen=True)
 class ValidationContext:

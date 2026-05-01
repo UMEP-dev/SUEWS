@@ -118,6 +118,9 @@ pub fn read_forcing_block(path: &Path) -> Result<ForcingData, String> {
     ];
     // xsmd (19) and lai (20) are also canonical and read identically.
     let extra_canonical: [(usize, &str); 2] = [(19, "xsmd"), (20, "lai")];
+    // Accepted canonical forcing columns that the current 21-column kernel
+    // block does not consume.
+    let unused_canonical = ["kdiff", "kdir", "wdir"];
 
     let iy_col = find_col(&col_idx, "iy")?;
     let id_col = find_col(&col_idx, "id")?;
@@ -130,6 +133,7 @@ pub fn read_forcing_block(path: &Path) -> Result<ForcingData, String> {
         for (_, name) in optional_map.iter().chain(extra_canonical.iter()) {
             v.push(name);
         }
+        v.extend(unused_canonical);
         v
     };
     let mut extras_targets: Vec<(String, usize)> = Vec::new();

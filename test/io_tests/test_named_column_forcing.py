@@ -171,6 +171,52 @@ def test_per_landcover_extras_survive_resampling(tmp_path):
     assert np.isclose(forcing.extras["lai_evetr"], 1.5).all()
 
 
+def test_wuh_per_landcover_extras_resample_as_timestep_sum(tmp_path):
+    """Hourly wuh_<surface> depths are redistributed like rain."""
+    from importlib.resources import files
+
+    from supy.suews_forcing import SUEWSForcing
+
+    sample = files("supy") / "sample_data" / "Kc_2012_data_60.txt"
+    lines = sample.read_text().splitlines()
+    path = tmp_path / "hourly_wuh_extra.txt"
+    path.write_text(
+        "\n".join([lines[0] + " wuh_grass", *[line + " 12.0" for line in lines[1:4]]])
+    )
+
+    forcing = SUEWSForcing.from_file(str(path))
+    assert "wuh_grass" in forcing.extras
+    assert np.isclose(forcing.extras["wuh_grass"][:12], 1.0).all()
+    assert np.isclose(forcing.extras["wuh_grass"][:12].sum(), 12.0)
+
+
+def test_per_landcover_extras_survive_time_slicing(tmp_path):
+    """Sliced SUEWSForcing objects keep time-aligned extras."""
+    from supy.suews_forcing import SUEWSForcing
+
+    text = CANONICAL_FIXTURE.read_text()
+    lines = text.splitlines()
+    path = tmp_path / "kc_extra_slice.txt"
+    data_rows = [
+        line + f" {1.0 + i:.1f} {10.0 + i:.1f}"
+        for i, line in enumerate(lines[1:])
+    ]
+    path.write_text(
+        "\n".join([lines[0] + " lai_evetr wuh_grass", *data_rows])
+    )
+
+    forcing = SUEWSForcing.from_file(str(path), tstep_mod=None)
+    sliced = forcing.iloc[:2]
+    assert set(sliced.extras) == {"lai_evetr", "wuh_grass"}
+    assert np.allclose(sliced.extras["lai_evetr"], [1.0, 2.0])
+    assert np.allclose(sliced.extras["wuh_grass"], [10.0, 11.0])
+
+    resampled = forcing.resample("15min")
+    assert set(resampled.extras) == {"lai_evetr", "wuh_grass"}
+    assert np.isclose(resampled.extras["lai_evetr"][0], 3.0)
+    assert np.isclose(resampled.extras["wuh_grass"][0], 33.0)
+
+
 def test_mixed_case_headers_across_files_coalesce(tmp_path):
     """Case-insensitive matching works across concatenated forcing files."""
     from supy.util._io import read_forcing

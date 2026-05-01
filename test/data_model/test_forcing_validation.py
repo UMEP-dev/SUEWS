@@ -175,6 +175,17 @@ def test_python_rust_whitelist_parity():
     assert _list("WUH_LANDCOVER_SUFFIXES") == set(WUH_LANDCOVER_SUFFIXES)
     assert _list("BASELINE_FORCING_COLUMNS") == {c.lower() for c in BASELINE_FORCING_COLUMNS}
 
+    unused_canonical_match = re.search(
+        r"let unused_canonical = \[(.*?)\];", text, re.DOTALL
+    )
+    assert unused_canonical_match is not None, (
+        "Rust reader must explicitly accept canonical columns that are not "
+        "passed into the 21-column kernel block"
+    )
+    assert set(re.findall(r'"([^"]+)"', unused_canonical_match.group(1))) == {
+        "kdiff", "kdir", "wdir",
+    }
+
     fill_match = re.search(r"const FORCING_OPTIONAL_FILL: f64 = ([-\d.]+);", text)
     assert fill_match is not None, "FORCING_OPTIONAL_FILL not found in forcing_io.rs"
     assert float(fill_match.group(1)) == FORCING_OPTIONAL_FILL

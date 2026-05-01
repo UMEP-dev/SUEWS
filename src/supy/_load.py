@@ -169,14 +169,19 @@ FORCING_OPTIONAL_FILL: float = -999.0
 
 def _is_per_landcover_column(name: str) -> bool:
     """Return True if ``name`` matches the ``<var>_<surface>`` whitelist."""
+    return _per_landcover_forcing_var(name) is not None
+
+
+def _per_landcover_forcing_var(name: str) -> str | None:
+    """Return the whitelisted forcing variable for ``<var>_<surface>`` columns."""
     lowered = str(name).lower()
     for var, allowed in PER_LANDCOVER_ALLOWED_SUFFIXES.items():
         prefix = f"{var}_"
         if not lowered.startswith(prefix):
             continue
         if lowered[len(prefix):] in allowed:
-            return True
-    return False
+            return var
+    return None
 
 
 def _coalesce_case_variant_columns(
@@ -621,7 +626,9 @@ def resample_forcing_met(
         # the interpolation schemes differ between instantaneous and average values
         # instantaneous:
         list_var_extra_inst = [
-            var for var in data_met_raw.columns if _is_per_landcover_column(var)
+            var
+            for var in data_met_raw.columns
+            if _per_landcover_forcing_var(var) == "lai"
         ]
         list_var_inst = [
             var
@@ -647,6 +654,10 @@ def resample_forcing_met(
             var
             for var, data_type in dict_var_type_forcing.items()
             if data_type == "sum"
+        ] + [
+            var
+            for var in data_met_raw.columns
+            if _per_landcover_forcing_var(var) == "wuh"
         ]
         data_met_tstep_sum = resample_sum(
             data_met_raw.filter(list_var_sum), tstep_in, tstep_mod

@@ -1,0 +1,41 @@
+{
+  "name": "suews",
+  "version": "0.1.0",
+  "description": "Run, validate, and analyse SUEWS urban climate simulations from your AI assistant",
+  "author": {
+    "name": "Dr Ting Sun",
+    "email": "ting.sun@ucl.ac.uk",
+    "url": "https://github.com/UMEP-dev"
+  },
+  "homepage": "https://docs.suews.io/stable/",
+  "repository": "https://github.com/UMEP-dev/SUEWS",
+  "license": "MPL-2.0",
+  "keywords": [
+    "suews",
+    "urban-climate",
+    "energy-balance",
+    "water-balance",
+    "climate-modelling",
+    "atmospheric-science"
+  ],
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "SUEWS",
+    "shortDescription": "Urban climate model assistant",
+    "longDescription": "SUEWS (Surface Urban Energy and Water Balance Scheme) is a neighbourhood-scale urban land-surface model. This plugin gives your AI assistant the workflow rules, forcing-data checks, output interpretation guidance, and common-error diagnostics needed to run, validate, and analyse SUEWS simulations.",
+    "developerName": "UMEP-dev (UCL Department of Risk and Disaster Reduction)",
+    "category": "Productivity",
+    "capabilities": [
+      "Read"
+    ],
+    "websiteURL": "https://docs.suews.io/stable/",
+    "brandColor": "#2D3142",
+    "composerIcon": "./assets/icon.png",
+    "logo": "./assets/icon.png",
+    "defaultPrompt": [
+      "Validate my SUEWS YAML configuration",
+      "Diagnose why my SUEWS run produced unrealistic outputs",
+      "Help me migrate a legacy namelist input to YAML"
+    ]
+  }
+}

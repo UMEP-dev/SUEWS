@@ -131,6 +131,11 @@ docs-setup:
 		echo ""; \
 		exit 1; \
 	fi
+	@$(PYTHON) -c "import sys; sys.exit(sys.version_info < (3, 11))" || { \
+		echo "ERROR: Documentation tooling requires Python 3.11 or newer."; \
+		echo "Runtime support remains Python 3.9+."; \
+		exit 1; \
+	}
 	@TMP_REQ=$$(mktemp "$${TMPDIR:-/tmp}/suews-docs.XXXXXX" 2>/dev/null || mktemp -t suews-docs); \
 	trap 'rm -f "$$TMP_REQ"' EXIT; \
 	$(PYTHON) scripts/security/export_pyproject_requirements.py --extra docs > "$$TMP_REQ"; \

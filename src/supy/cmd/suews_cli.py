@@ -10,13 +10,12 @@ Hard rule: this module never reimplements physics, validation, schema, or
 run logic. It only routes. Backend implementation details such as the Rust
 bridge are deliberately kept out of the public command surface.
 
-Phase-1 dispatcher: ``run``, ``validate``, ``schema``, ``convert``, and
-``init`` are wired here. The Wave-3 post-run triage commands (``diagnose``,
-``compare``, ``summarise``) are added by gh#1361. ``inspect`` remains
-future work in the other Wave 3 sub-issues. Skill packaging (#1363) is
-handled at the plugin-manifest level (``.claude-plugin/marketplace.json``
-and ``.codex-plugin/plugin.json``) rather than as a CLI subcommand. The
-standalone ``suews-mcp`` package lands in Wave 4 (#1364).
+Phase-1 dispatcher: ``run``, ``validate``, ``schema``, ``convert``, ``init``,
+``inspect``, ``summarise``, ``compare``, ``diagnose``, and ``knowledge`` are
+wired here. Skill packaging (#1363) is handled at the plugin-manifest level
+(``.claude-plugin/marketplace.json`` and ``.codex-plugin/plugin.json``)
+rather than as a CLI subcommand. The standalone ``suews-mcp`` package
+lands in Wave 4 (#1364).
 """
 
 from __future__ import annotations
@@ -28,13 +27,15 @@ import click
 from .compare_runs import compare_runs_cmd as _compare_cmd
 from .diagnose_run import diagnose_run_cmd as _diagnose_cmd
 from .init_case import init_case_cmd as _init_cmd
+from .inspect_config import inspect_config_cmd as _inspect_cmd
+from .knowledge_cli import knowledge_group as _knowledge_group
 from .schema_cli import cli as _schema_cli
+from .summarise_output import summarise_output_cmd as _summarise_cmd
 
 # Each existing entry point is reused unchanged. Importing the Click commands
 # here keeps the dispatcher small and ensures behaviour is identical across
 # the new and legacy invocation styles.
 from .SUEWS import SUEWS as _run_cmd
-from .summarise_output import summarise_output_cmd as _summarise_cmd
 from .table_converter import convert_table_cmd as _convert_cmd
 from .validate_config import cli as _validate_cli
 
@@ -61,9 +62,11 @@ cli.add_command(_schema_cli, name="schema")
 cli.add_command(_convert_cmd, name="convert")
 cli.add_command(_init_cmd, name="init")
 cli.add_command(_run_cmd, name="run")
+cli.add_command(_inspect_cmd, name="inspect")
 cli.add_command(_summarise_cmd, name="summarise")
 cli.add_command(_compare_cmd, name="compare")
 cli.add_command(_diagnose_cmd, name="diagnose")
+cli.add_command(_knowledge_group, name="knowledge")
 
 
 # ---------------------------------------------------------------------------
@@ -114,6 +117,12 @@ def schema_alias() -> None:
     """Forward the deprecated ``suews-schema`` alias."""
     _emit_deprecation("suews-schema", "suews schema")
     _schema_cli()
+
+
+def inspect_alias() -> None:
+    """Deprecated alias for ``suews inspect``."""
+    _emit_deprecation("suews-inspect", "suews inspect")
+    _inspect_cmd()
 
 
 def main() -> None:

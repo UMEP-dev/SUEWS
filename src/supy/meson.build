@@ -31,6 +31,7 @@ py.install_sources(
             'cmd/init_case.py',
             'cmd/json_envelope.py',
             'cmd/json_output.py',
+            'cmd/knowledge_cli.py',
             'cmd/rust_bridge.py',
             'cmd/suews_cli.py',
             'cmd/summarise_output.py',
@@ -38,6 +39,7 @@ py.install_sources(
             'cmd/to_yaml.py',
             'cmd/validate_config.py',
             'cmd/schema_cli.py',
+            'cmd/inspect_config.py',
         ],
         [
             'diagnostics/__init__.py',
@@ -46,6 +48,10 @@ py.install_sources(
         [
             'metrics/__init__.py',
             'metrics/_core.py',
+        ],
+        [
+            'knowledge/__init__.py',
+            'knowledge/pack.py',
         ],
         [
             'util/_UMEP2epw.py',
@@ -161,6 +167,26 @@ py.install_sources(
     ],
     subdir: 'supy',
     preserve_path: true,
+)
+
+knowledge_pack = custom_target(
+  'suews_knowledge_pack',
+  command: [
+    py,
+    meson.current_source_dir() / 'knowledge/pack.py',
+    meson.project_source_root(),
+    '@OUTDIR@',
+    '--command',
+    'meson knowledge-pack build',
+  ],
+  output: [
+    'manifest.json',
+    'chunks.jsonl.gz',
+  ],
+  depend_files: files('knowledge/pack.py'),
+  build_by_default: true,
+  install: true,
+  install_dir: py.get_install_dir() / 'supy/knowledge/pack/current',
 )
 
 # Build SUEWS Fortran physics libraries (used by Rust bridge)

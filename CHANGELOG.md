@@ -54,6 +54,14 @@ EXAMPLES:
 
 ## 2026
 
+### 1 May 2026
+
+- [change][experimental] Surface procedural-API deprecation warnings on first attribute access (#1370)
+  - `supy.__getattr__` now routes every name in `_FUNCTIONAL_DEPRECATIONS` through `_warn_functional_deprecation` on first resolution, so users who hold a reference (`from supy import run_supy`) see the `FutureWarning` immediately rather than only at call time; subsequent accesses hit `_lazy_cache` and stay silent
+  - The in-body `_warn_functional_deprecation` calls inside each procedural function remain as a safety net for code that bypasses `__getattr__` (e.g. `from supy._supy_module import run_supy`)
+  - Added `test/core/test_deprecation_visibility.py` with subprocess-isolated parametrised checks for every key in `_FUNCTIONAL_DEPRECATIONS` plus a router-vs-registry equality guard
+  - Continues phase 2 of #1370 (visibility); does not yet address the user-facing notebook/README audit (slice B) or the phase 3 removal-release timeline
+
 ### 30 Apr 2026
 
 - [change][experimental] `model.control.output_file` moved to `model.control.output` (#1372)

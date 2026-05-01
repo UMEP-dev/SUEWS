@@ -28,6 +28,12 @@
     "capabilities": [
       "Read"
     ],
-    "websiteURL": "https://docs.suews.io/stable/"
+    "websiteURL": "https://docs.suews.io/stable/",
+    "brandColor": "#2D3142",
+    "defaultPrompt": [
+      "Validate my SUEWS YAML configuration",
+      "Diagnose why my SUEWS run produced unrealistic outputs",
+      "Help me migrate a legacy namelist input to YAML"
+    ]
   }
 }

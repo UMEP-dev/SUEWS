@@ -172,3 +172,63 @@ def test_phase_b_text_report_unchanged(tmp_path, sample_config_path):
     # The text report still uses the historical section markers.
     # Downstream tooling that greps these strings must continue to work.
     assert "SUEWS" in text or "Phase B" in text or "Science" in text
+
+
+def test_pipeline_writes_json_sidecars_alongside_text_reports(tmp_path, sample_config_path):
+    """Running A then B then C produces a JSON sidecar for every text report.
+
+    This is the end-to-end machine-format contract: any tool that wants the
+    structured per-phase result reads ``<text_report_path>.json`` rather than
+    parsing the human-readable form.
+    """
+    uptodate_file = tmp_path / "uptodate.yml"
+    report_file = tmp_path / "report.txt"
+    science_yaml = tmp_path / "science.yml"
+    science_report = tmp_path / "science_report.txt"
+    pydantic_yaml = tmp_path / "pydantic.yml"
+    pydantic_report = tmp_path / "pydantic_report.txt"
+
+    a_report = run_phase_a(
+        user_yaml_file=str(sample_config_path),
+        standard_yaml_file=str(sample_config_path),
+        uptodate_file=str(uptodate_file),
+        report_file=str(report_file),
+        silent=True,
+        forcing="off",
+    )
+    b_report = run_phase_b(
+        user_yaml_file=str(sample_config_path),
+        uptodate_file=str(uptodate_file),
+        standard_yaml_file=str(sample_config_path),
+        science_yaml_file=str(science_yaml),
+        science_report_file=str(science_report),
+        phase_a_report_file=str(report_file),
+        phase_a_performed=True,
+        silent=True,
+    )
+    c_report = run_phase_c(
+        input_yaml_file=str(sample_config_path),
+        pydantic_yaml_file=str(pydantic_yaml),
+        pydantic_report_file=str(pydantic_report),
+        phases_run=["A", "B", "C"],
+        silent=True,
+    )
+
+    # Every phase should have advertised its JSON sidecar via PhaseReport.
+    for r, expected in [
+        (a_report, report_file),
+        (b_report, science_report),
+        (c_report, pydantic_report),
+    ]:
+        assert r.json_report_path is not None, f"{r.phase}: missing json_report_path"
+        assert Path(r.json_report_path) == expected.with_suffix(".json")
+        assert Path(r.json_report_path).exists()
+
+    # Each sidecar carries the same canonical schema.
+    for r in (a_report, b_report, c_report):
+        payload = json.loads(Path(r.json_report_path).read_text())
+        assert set(payload.keys()) == {
+            "phase", "status", "issues", "yaml_in", "yaml_out",
+            "text_report_path", "json_report_path", "extra",
+        }
+        assert payload["phase"] == r.phase

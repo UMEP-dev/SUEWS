@@ -61,6 +61,13 @@ EXAMPLES:
   - The in-body `_warn_functional_deprecation` calls inside each procedural function remain as a safety net for code that bypasses `__getattr__` (e.g. `from supy._supy_module import run_supy`)
   - Added `test/core/test_deprecation_visibility.py` with subprocess-isolated parametrised checks for every key in `_FUNCTIONAL_DEPRECATIONS` plus a router-vs-registry equality guard
   - Continues phase 2 of #1370 (visibility); does not yet address the user-facing notebook/README audit (slice B) or the phase 3 removal-release timeline
+- [feature][experimental] Added standalone `suews-mcp` Python distribution and wired it into the SUEWS agent plugin (#1364)
+  - New `mcp/` package (MPL-2.0) with FastMCP stdio server registering twelve tools across config (`validate_config`, `inspect_config`, `search_schema`, `list_examples`, `read_example`), workflow (`init_case`, `convert_config`), post-run analysis (`summarise_run`, `compare_runs`, `diagnose_run`), and the versioned knowledge pack (`query_knowledge`, `read_knowledge_manifest`)
+  - Resources cover `suews://schema/{version}`, `suews://examples/{name}`, `suews://docs/{slug}`, `suews://runs/{run_id}/{kind}`, `suews://knowledge/manifest`, and `suews://knowledge/query/{question}`; each knowledge match carries `git_sha` / `github_url` / `repo_path` / line range so downstream answers cite the exact revision
+  - Backend is a thin allow-listed subprocess wrapper around `suews <subcmd> --format json`, returning the canonical `supy.cmd.json_envelope.Envelope` verbatim; `ProjectRoot` sandbox keeps file-path arguments inside `SUEWS_MCP_PROJECT_ROOT`
+  - Plugin integration: top-level `.mcp.json` plus `plugins/suews/.mcp.json` declare the `suews-mcp` stdio server; `.claude-plugin/marketplace.json` (now v1.2.0), `.codex-plugin/plugin.json` (v0.2.0), and `plugins/suews/.codex-plugin/plugin.json` (v0.2.0) reference these via the `mcpServers` field, so installing the SUEWS plugin from a marketplace auto-registers the MCP server — no hand-editing of `~/.claude/settings.json` or `~/.codex/config.toml`
+  - README documents plugin install as the recommended primary path and keeps raw stdio config (Claude Code JSON, Codex TOML) as the documented fallback for clients without plugin manifest support
+  - Resolves #751; supersedes the closed PR #1351 (whose GPL-V3.0 licence drift and prompt-content concerns are corrected here, with prompts having moved into the SUEWS Skill in #1358)
 
 ### 30 Apr 2026
 

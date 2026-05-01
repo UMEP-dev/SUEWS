@@ -11,6 +11,7 @@ Covers:
     via the shared `-i/-o/-f` flag set.
 """
 
+import json
 from pathlib import Path
 
 from click.testing import CliRunner
@@ -225,6 +226,36 @@ class TestSuewsConvertYamlPath:
         assert result.exit_code == 0, result.output
         assert out.exists()
         SUEWSConfig.from_yaml(str(out))  # must still parse
+
+    def test_yaml_input_json_format_emits_envelope(
+        self, signed_yaml: Path, tmp_path: Path
+    ):
+        """`suews convert --format json` emits a parseable envelope."""
+        # ARRANGE
+        out = tmp_path / "upgraded.yml"
+        runner = CliRunner()
+
+        # ACT
+        result = runner.invoke(
+            convert_table_cmd,
+            [
+                "--input",
+                str(signed_yaml),
+                "--output",
+                str(out),
+                "--format",
+                "json",
+            ],
+        )
+
+        # ASSERT
+        assert result.exit_code == 0, result.output
+        envelope = json.loads(result.stdout)
+        assert envelope["status"] == "success"
+        assert envelope["data"]["input_type"] == "yaml"
+        assert envelope["data"]["output"] == str(out)
+        assert envelope["data"]["output_exists"] is True
+        assert out.exists()
 
     def test_yaml_input_with_explicit_from(self, tmp_path: Path):
         """`suews-convert -f <release-tag>` drives the upgrade path for YAML."""

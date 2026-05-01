@@ -9,7 +9,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
     <meta property="article:modified_time" content="2026-04-30T18:48:45+00:00" />
-    <title>6.5. Python API for CLI Users &#8212; SUEWS 2026.5.1.dev9048 documentation</title>
+    <title>6.6. Python API for CLI Users &#8212; SUEWS 2026.5.1.dev9051 documentation</title>
   
   
   
@@ -45,7 +45,7 @@
   <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=8878045cc6db502f8baf" />
 <link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=8878045cc6db502f8baf" />
 
-    <script src="../_static/documentation_options.js?v=6168092e"></script>
+    <script src="../_static/documentation_options.js?v=669a1847"></script>
     <script src="../_static/doctools.js?v=9bcbadda"></script>
     <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
     <script src="../_static/scripts/sphinx-book-theme.js?v=fab101a9"></script>
@@ -55,11 +55,11 @@
     <link rel="icon" href="../_static/suews-logo.svg"/>
     <link rel="index" title="Index" href="../genindex.html" />
     <link rel="search" title="Search" href="../search.html" />
-    <link rel="next" title="6.6. Data Structures" href="data-structures.html" />
-    <link rel="prev" title="6.4. Command-Line Tools" href="command-line.html" />
+    <link rel="next" title="6.7. Data Structures" href="data-structures.html" />
+    <link rel="prev" title="6.5. Knowledge Pack" href="knowledge-pack.html" />
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
-  <meta name="docsearch:version" content="2026.5.1.dev9048" />
+  <meta name="docsearch:version" content="2026.5.1.dev9051" />
     <meta name="docbuild:last-update" content="2026-04-30"/>
   </head>
   
@@ -102,7 +102,7 @@
   <div class="bd-header-announcement__content">
     <div style="background-color: #f0ad4e; border: 1px solid #eea236; border-radius: 4px; padding: 10px; margin: 10px 0;">
         <strong>⚠️ Development Version:</strong> This documentation was built from a development version
-        (2026.5.1.dev9048, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/04fbcb8ef748856753b0248075d8b36d3150ef2b" style="color: #31708f;">04fbcb8</a>).
+        (2026.5.1.dev9051, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/2f9a51aa1d4333ae6f9547218e867d8919c713a2" style="color: #31708f;">2f9a51a</a>).
         Features described here may be unstable or subject to change. For stable documentation, please visit the
         <a href="https://docs.suews.io/stable/" style="color: #31708f;">latest release</a>.
     </div>
@@ -149,8 +149,8 @@
       
     
     
-    <img src="../_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.5.1.dev9048 documentation - Home"/>
-    <img src="../_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.5.1.dev9048 documentation - Home"/>
+    <img src="../_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.5.1.dev9051 documentation - Home"/>
+    <img src="../_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.5.1.dev9051 documentation - Home"/>
   
   
 </a></div>
@@ -325,10 +325,11 @@
 </ul>
 </details></li>
 <li class="toctree-l2"><a class="reference internal" href="command-line.html">6.4. Command-Line Tools</a></li>
-<li class="toctree-l2 current active"><a class="current reference internal" href="#">6.5. Python API for CLI Users</a></li>
-<li class="toctree-l2"><a class="reference internal" href="data-structures.html">6.6. Data Structures</a></li>
-<li class="toctree-l2"><a class="reference internal" href="io-data-structures.html">6.7. Key IO Data Structures</a></li>
-<li class="toctree-l2"><a class="reference internal" href="converter.html">6.8. Configuration Converter API</a></li>
+<li class="toctree-l2"><a class="reference internal" href="knowledge-pack.html">6.5. Knowledge Pack</a></li>
+<li class="toctree-l2 current active"><a class="current reference internal" href="#">6.6. Python API for CLI Users</a></li>
+<li class="toctree-l2"><a class="reference internal" href="data-structures.html">6.7. Data Structures</a></li>
+<li class="toctree-l2"><a class="reference internal" href="io-data-structures.html">6.8. Key IO Data Structures</a></li>
+<li class="toctree-l2"><a class="reference internal" href="converter.html">6.9. Configuration Converter API</a></li>
 </ul>
 </details></li>
 <li class="toctree-l1 has-children"><a class="reference internal" href="../integration/index.html">7. Integration and Complementary Tools</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
@@ -593,36 +594,36 @@
             </div>
             <nav aria-label="Page">
                 <ul class="visible nav section-nav flex-column">
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#configuration-validation">6.5.1. Configuration Validation</a><ul class="nav section-nav flex-column">
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#cli-command">6.5.1.1. CLI Command</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#python-equivalent-simple-validation">6.5.1.2. Python Equivalent (Simple Validation)</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#python-equivalent-full-validation-pipeline">6.5.1.3. Python Equivalent (Full Validation Pipeline)</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#configuration-validation">6.6.1. Configuration Validation</a><ul class="nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#cli-command">6.6.1.1. CLI Command</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#python-equivalent-simple-validation">6.6.1.2. Python Equivalent (Simple Validation)</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#python-equivalent-full-validation-pipeline">6.6.1.3. Python Equivalent (Full Validation Pipeline)</a></li>
 </ul>
 </li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#configuration-conversion">6.5.2. Configuration Conversion</a><ul class="nav section-nav flex-column">
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#id1">6.5.2.1. CLI Command</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#python-equivalent">6.5.2.2. Python Equivalent</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#advanced-usage-with-debugging">6.5.2.3. Advanced Usage with Debugging</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#configuration-conversion">6.6.2. Configuration Conversion</a><ul class="nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#id1">6.6.2.1. CLI Command</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#python-equivalent">6.6.2.2. Python Equivalent</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#advanced-usage-with-debugging">6.6.2.3. Advanced Usage with Debugging</a></li>
 </ul>
 </li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#running-suews-simulations">6.5.3. Running SUEWS Simulations</a><ul class="nav section-nav flex-column">
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#id2">6.5.3.1. CLI Command</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#python-api">6.5.3.2. Python API</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#basic-simulation">6.5.3.3. Basic Simulation</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#accessing-results">6.5.3.4. Accessing Results</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#updating-configuration">6.5.3.5. Updating Configuration</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#custom-forcing-data">6.5.3.6. Custom Forcing Data</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#running-suews-simulations">6.6.3. Running SUEWS Simulations</a><ul class="nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#id2">6.6.3.1. CLI Command</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#python-api">6.6.3.2. Python API</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#basic-simulation">6.6.3.3. Basic Simulation</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#accessing-results">6.6.3.4. Accessing Results</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#updating-configuration">6.6.3.5. Updating Configuration</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#custom-forcing-data">6.6.3.6. Custom Forcing Data</a></li>
 </ul>
 </li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#schema-management">6.5.4. Schema Management</a><ul class="nav section-nav flex-column">
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#cli-commands">6.5.4.1. CLI Commands</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#python-equivalent-schema-export">6.5.4.2. Python Equivalent (Schema Export)</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#python-equivalent-schema-validation">6.5.4.3. Python Equivalent (Schema Validation)</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#python-equivalent-schema-migration">6.5.4.4. Python Equivalent (Schema Migration)</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#batch-operations">6.5.4.5. Batch Operations</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#schema-management">6.6.4. Schema Management</a><ul class="nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#cli-commands">6.6.4.1. CLI Commands</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#python-equivalent-schema-export">6.6.4.2. Python Equivalent (Schema Export)</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#python-equivalent-schema-validation">6.6.4.3. Python Equivalent (Schema Validation)</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#python-equivalent-schema-migration">6.6.4.4. Python Equivalent (Schema Migration)</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#batch-operations">6.6.4.5. Batch Operations</a></li>
 </ul>
 </li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#see-also">6.5.5. See Also</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#see-also">6.6.5. See Also</a></li>
 </ul>
             </nav>
         </div>
@@ -643,7 +644,7 @@
 </ol>
 </div>
 <section id="python-api-for-cli-users">
-<span id="api-python-cli-equivalents"></span><h1><span class="section-number">6.5. </span>Python API for CLI Users<a class="headerlink" href="#python-api-for-cli-users" title="Link to this heading">#</a></h1>
+<span id="api-python-cli-equivalents"></span><h1><span class="section-number">6.6. </span>Python API for CLI Users<a class="headerlink" href="#python-api-for-cli-users" title="Link to this heading">#</a></h1>
 <p>This guide shows Python equivalents for common SUEWS command-line operations, enabling you to integrate SUEWS functionality directly into your Python scripts and analysis workflows.</p>
 <nav class="contents local" id="contents">
 <ul class="simple">
@@ -684,16 +685,16 @@
 </ul>
 </nav>
 <section id="configuration-validation">
-<h2><a class="toc-backref" href="#id3" role="doc-backlink"><span class="section-number">6.5.1. </span>Configuration Validation</a><a class="headerlink" href="#configuration-validation" title="Link to this heading">#</a></h2>
+<h2><a class="toc-backref" href="#id3" role="doc-backlink"><span class="section-number">6.6.1. </span>Configuration Validation</a><a class="headerlink" href="#configuration-validation" title="Link to this heading">#</a></h2>
 <p>Validating YAML configuration files programmatically.</p>
 <section id="cli-command">
-<h3><a class="toc-backref" href="#id4" role="doc-backlink"><span class="section-number">6.5.1.1. </span>CLI Command</a><a class="headerlink" href="#cli-command" title="Link to this heading">#</a></h3>
+<h3><a class="toc-backref" href="#id4" role="doc-backlink"><span class="section-number">6.6.1.1. </span>CLI Command</a><a class="headerlink" href="#cli-command" title="Link to this heading">#</a></h3>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>suews-validate<span class="w"> </span>config.yml
 </pre></div>
 </div>
 </section>
 <section id="python-equivalent-simple-validation">
-<h3><a class="toc-backref" href="#id5" role="doc-backlink"><span class="section-number">6.5.1.2. </span>Python Equivalent (Simple Validation)</a><a class="headerlink" href="#python-equivalent-simple-validation" title="Link to this heading">#</a></h3>
+<h3><a class="toc-backref" href="#id5" role="doc-backlink"><span class="section-number">6.6.1.2. </span>Python Equivalent (Simple Validation)</a><a class="headerlink" href="#python-equivalent-simple-validation" title="Link to this heading">#</a></h3>
 <p>Quick schema validation for checking configuration files:</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">pathlib</span><span class="w"> </span><span class="kn">import</span> <span class="n">Path</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">supy.cmd.validate_config</span><span class="w"> </span><span class="kn">import</span> <span class="n">validate_single_file</span>
@@ -718,7 +719,7 @@
 </div>
 </section>
 <section id="python-equivalent-full-validation-pipeline">
-<h3><a class="toc-backref" href="#id6" role="doc-backlink"><span class="section-number">6.5.1.3. </span>Python Equivalent (Full Validation Pipeline)</a><a class="headerlink" href="#python-equivalent-full-validation-pipeline" title="Link to this heading">#</a></h3>
+<h3><a class="toc-backref" href="#id6" role="doc-backlink"><span class="section-number">6.6.1.3. </span>Python Equivalent (Full Validation Pipeline)</a><a class="headerlink" href="#python-equivalent-full-validation-pipeline" title="Link to this heading">#</a></h3>
 <p>Complete validation including all phases (A→B→C) for thorough checking:</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span><span class="w"> </span><span class="nn">importlib.resources</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">supy</span>
@@ -782,17 +783,17 @@
 </section>
 </section>
 <section id="configuration-conversion">
-<h2><a class="toc-backref" href="#id7" role="doc-backlink"><span class="section-number">6.5.2. </span>Configuration Conversion</a><a class="headerlink" href="#configuration-conversion" title="Link to this heading">#</a></h2>
+<h2><a class="toc-backref" href="#id7" role="doc-backlink"><span class="section-number">6.6.2. </span>Configuration Conversion</a><a class="headerlink" href="#configuration-conversion" title="Link to this heading">#</a></h2>
 <p>Converting between SUEWS input formats programmatically.</p>
 <section id="id1">
-<h3><a class="toc-backref" href="#id8" role="doc-backlink"><span class="section-number">6.5.2.1. </span>CLI Command</a><a class="headerlink" href="#id1" title="Link to this heading">#</a></h3>
+<h3><a class="toc-backref" href="#id8" role="doc-backlink"><span class="section-number">6.6.2.1. </span>CLI Command</a><a class="headerlink" href="#id1" title="Link to this heading">#</a></h3>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>suews-convert<span class="w"> </span>-i<span class="w"> </span>input_dir/RunControl.nml<span class="w"> </span>-o<span class="w"> </span>config.yml
 suews-convert<span class="w"> </span>-i<span class="w"> </span>df_state.csv<span class="w"> </span>-o<span class="w"> </span>config.yml
 </pre></div>
 </div>
 </section>
 <section id="python-equivalent">
-<h3><a class="toc-backref" href="#id9" role="doc-backlink"><span class="section-number">6.5.2.2. </span>Python Equivalent</a><a class="headerlink" href="#python-equivalent" title="Link to this heading">#</a></h3>
+<h3><a class="toc-backref" href="#id9" role="doc-backlink"><span class="section-number">6.6.2.2. </span>Python Equivalent</a><a class="headerlink" href="#python-equivalent" title="Link to this heading">#</a></h3>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">supy.util.converter</span><span class="w"> </span><span class="kn">import</span> <span class="n">convert_to_yaml</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">pathlib</span><span class="w"> </span><span class="kn">import</span> <span class="n">Path</span>
 
@@ -818,7 +819,7 @@ suews-convert<span class="w"> </span>-i<span class="w"> </span>df_state.csv<span
 </div>
 </section>
 <section id="advanced-usage-with-debugging">
-<h3><a class="toc-backref" href="#id10" role="doc-backlink"><span class="section-number">6.5.2.3. </span>Advanced Usage with Debugging</a><a class="headerlink" href="#advanced-usage-with-debugging" title="Link to this heading">#</a></h3>
+<h3><a class="toc-backref" href="#id10" role="doc-backlink"><span class="section-number">6.6.2.3. </span>Advanced Usage with Debugging</a><a class="headerlink" href="#advanced-usage-with-debugging" title="Link to this heading">#</a></h3>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">supy.util.converter</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
     <span class="n">convert_to_yaml</span><span class="p">,</span>
     <span class="n">detect_table_version</span><span class="p">,</span>
@@ -859,7 +860,7 @@ suews-convert<span class="w"> </span>-i<span class="w"> </span>df_state.csv<span
 </section>
 </section>
 <section id="running-suews-simulations">
-<h2><a class="toc-backref" href="#id11" role="doc-backlink"><span class="section-number">6.5.3. </span>Running SUEWS Simulations</a><a class="headerlink" href="#running-suews-simulations" title="Link to this heading">#</a></h2>
+<h2><a class="toc-backref" href="#id11" role="doc-backlink"><span class="section-number">6.6.3. </span>Running SUEWS Simulations</a><a class="headerlink" href="#running-suews-simulations" title="Link to this heading">#</a></h2>
 <p>Executing SUEWS simulations from the command line or Python.</p>
 <div class="admonition note">
 <p class="admonition-title">Note</p>
@@ -868,7 +869,7 @@ is deprecated.</p>
 <p>To convert existing namelist files to YAML, see <span class="xref std std-doc">conversion</span>.</p>
 </div>
 <section id="id2">
-<h3><a class="toc-backref" href="#id12" role="doc-backlink"><span class="section-number">6.5.3.1. </span>CLI Command</a><a class="headerlink" href="#id2" title="Link to this heading">#</a></h3>
+<h3><a class="toc-backref" href="#id12" role="doc-backlink"><span class="section-number">6.6.3.1. </span>CLI Command</a><a class="headerlink" href="#id2" title="Link to this heading">#</a></h3>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="c1"># Run with RunControl.nml in current directory (default behaviour)</span>
 suews-run
 
@@ -884,11 +885,11 @@ YAML support is being added - see <a class="reference external" href="https://gi
 </div>
 </section>
 <section id="python-api">
-<h3><a class="toc-backref" href="#id13" role="doc-backlink"><span class="section-number">6.5.3.2. </span>Python API</a><a class="headerlink" href="#python-api" title="Link to this heading">#</a></h3>
+<h3><a class="toc-backref" href="#id13" role="doc-backlink"><span class="section-number">6.6.3.2. </span>Python API</a><a class="headerlink" href="#python-api" title="Link to this heading">#</a></h3>
 <p>Run SUEWS simulations using YAML configuration files with the <code class="docutils literal notranslate"><span class="pre">SUEWSSimulation</span></code> class.</p>
 </section>
 <section id="basic-simulation">
-<h3><a class="toc-backref" href="#id14" role="doc-backlink"><span class="section-number">6.5.3.3. </span>Basic Simulation</a><a class="headerlink" href="#basic-simulation" title="Link to this heading">#</a></h3>
+<h3><a class="toc-backref" href="#id14" role="doc-backlink"><span class="section-number">6.6.3.3. </span>Basic Simulation</a><a class="headerlink" href="#basic-simulation" title="Link to this heading">#</a></h3>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">supy</span><span class="w"> </span><span class="kn">import</span> <span class="n">SUEWSSimulation</span>
 
 <span class="c1"># Create simulation from YAML configuration</span>
@@ -905,7 +906,7 @@ YAML support is being added - see <a class="reference external" href="https://gi
 </div>
 </section>
 <section id="accessing-results">
-<h3><a class="toc-backref" href="#id15" role="doc-backlink"><span class="section-number">6.5.3.4. </span>Accessing Results</a><a class="headerlink" href="#accessing-results" title="Link to this heading">#</a></h3>
+<h3><a class="toc-backref" href="#id15" role="doc-backlink"><span class="section-number">6.6.3.4. </span>Accessing Results</a><a class="headerlink" href="#accessing-results" title="Link to this heading">#</a></h3>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">supy</span><span class="w"> </span><span class="kn">import</span> <span class="n">SUEWSSimulation</span>
 
 <span class="c1"># Run simulation</span>
@@ -928,7 +929,7 @@ YAML support is being added - see <a class="reference external" href="https://gi
 </div>
 </section>
 <section id="updating-configuration">
-<h3><a class="toc-backref" href="#id16" role="doc-backlink"><span class="section-number">6.5.3.5. </span>Updating Configuration</a><a class="headerlink" href="#updating-configuration" title="Link to this heading">#</a></h3>
+<h3><a class="toc-backref" href="#id16" role="doc-backlink"><span class="section-number">6.6.3.5. </span>Updating Configuration</a><a class="headerlink" href="#updating-configuration" title="Link to this heading">#</a></h3>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">supy</span><span class="w"> </span><span class="kn">import</span> <span class="n">SUEWSSimulation</span>
 
 <span class="c1"># Load base configuration</span>
@@ -951,7 +952,7 @@ YAML support is being added - see <a class="reference external" href="https://gi
 </div>
 </section>
 <section id="custom-forcing-data">
-<h3><a class="toc-backref" href="#id17" role="doc-backlink"><span class="section-number">6.5.3.6. </span>Custom Forcing Data</a><a class="headerlink" href="#custom-forcing-data" title="Link to this heading">#</a></h3>
+<h3><a class="toc-backref" href="#id17" role="doc-backlink"><span class="section-number">6.6.3.6. </span>Custom Forcing Data</a><a class="headerlink" href="#custom-forcing-data" title="Link to this heading">#</a></h3>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">supy</span><span class="w"> </span><span class="kn">import</span> <span class="n">SUEWSSimulation</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">pandas</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">pd</span>
 
@@ -972,10 +973,10 @@ YAML support is being added - see <a class="reference external" href="https://gi
 </section>
 </section>
 <section id="schema-management">
-<h2><a class="toc-backref" href="#id18" role="doc-backlink"><span class="section-number">6.5.4. </span>Schema Management</a><a class="headerlink" href="#schema-management" title="Link to this heading">#</a></h2>
+<h2><a class="toc-backref" href="#id18" role="doc-backlink"><span class="section-number">6.6.4. </span>Schema Management</a><a class="headerlink" href="#schema-management" title="Link to this heading">#</a></h2>
 <p>Managing configuration schemas programmatically.</p>
 <section id="cli-commands">
-<h3><a class="toc-backref" href="#id19" role="doc-backlink"><span class="section-number">6.5.4.1. </span>CLI Commands</a><a class="headerlink" href="#cli-commands" title="Link to this heading">#</a></h3>
+<h3><a class="toc-backref" href="#id19" role="doc-backlink"><span class="section-number">6.6.4.1. </span>CLI Commands</a><a class="headerlink" href="#cli-commands" title="Link to this heading">#</a></h3>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>suews<span class="w"> </span>schema<span class="w"> </span><span class="nb">export</span><span class="w"> </span>-o<span class="w"> </span>schema.json
 suews<span class="w"> </span>validate<span class="w"> </span>config.yml
 suews<span class="w"> </span>schema<span class="w"> </span>migrate<span class="w"> </span>old_config.yml<span class="w"> </span>--target-version<span class="w"> </span><span class="m">2</span>.0
@@ -983,7 +984,7 @@ suews<span class="w"> </span>schema<span class="w"> </span>migrate<span class="w
 </div>
 </section>
 <section id="python-equivalent-schema-export">
-<h3><a class="toc-backref" href="#id20" role="doc-backlink"><span class="section-number">6.5.4.2. </span>Python Equivalent (Schema Export)</a><a class="headerlink" href="#python-equivalent-schema-export" title="Link to this heading">#</a></h3>
+<h3><a class="toc-backref" href="#id20" role="doc-backlink"><span class="section-number">6.6.4.2. </span>Python Equivalent (Schema Export)</a><a class="headerlink" href="#python-equivalent-schema-export" title="Link to this heading">#</a></h3>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">supy.data_model.schema.publisher</span><span class="w"> </span><span class="kn">import</span> <span class="n">generate_json_schema</span><span class="p">,</span> <span class="n">save_schema</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">json</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">pathlib</span><span class="w"> </span><span class="kn">import</span> <span class="n">Path</span>
@@ -1003,7 +1004,7 @@ suews<span class="w"> </span>schema<span class="w"> </span>migrate<span class="w
 </div>
 </section>
 <section id="python-equivalent-schema-validation">
-<h3><a class="toc-backref" href="#id21" role="doc-backlink"><span class="section-number">6.5.4.3. </span>Python Equivalent (Schema Validation)</a><a class="headerlink" href="#python-equivalent-schema-validation" title="Link to this heading">#</a></h3>
+<h3><a class="toc-backref" href="#id21" role="doc-backlink"><span class="section-number">6.6.4.3. </span>Python Equivalent (Schema Validation)</a><a class="headerlink" href="#python-equivalent-schema-validation" title="Link to this heading">#</a></h3>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span><span class="w"> </span><span class="nn">yaml</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">jsonschema</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">supy.data_model.schema.publisher</span><span class="w"> </span><span class="kn">import</span> <span class="n">generate_json_schema</span>
@@ -1033,7 +1034,7 @@ suews<span class="w"> </span>schema<span class="w"> </span>migrate<span class="w
 </div>
 </section>
 <section id="python-equivalent-schema-migration">
-<h3><a class="toc-backref" href="#id22" role="doc-backlink"><span class="section-number">6.5.4.4. </span>Python Equivalent (Schema Migration)</a><a class="headerlink" href="#python-equivalent-schema-migration" title="Link to this heading">#</a></h3>
+<h3><a class="toc-backref" href="#id22" role="doc-backlink"><span class="section-number">6.6.4.4. </span>Python Equivalent (Schema Migration)</a><a class="headerlink" href="#python-equivalent-schema-migration" title="Link to this heading">#</a></h3>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span><span class="w"> </span><span class="nn">yaml</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">supy.data_model.schema.migration</span><span class="w"> </span><span class="kn">import</span> <span class="n">SchemaMigrator</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">supy.data_model.schema.version</span><span class="w"> </span><span class="kn">import</span> <span class="n">CURRENT_SCHEMA_VERSION</span>
@@ -1065,7 +1066,7 @@ suews<span class="w"> </span>schema<span class="w"> </span>migrate<span class="w
 </div>
 </section>
 <section id="batch-operations">
-<h3><a class="toc-backref" href="#id23" role="doc-backlink"><span class="section-number">6.5.4.5. </span>Batch Operations</a><a class="headerlink" href="#batch-operations" title="Link to this heading">#</a></h3>
+<h3><a class="toc-backref" href="#id23" role="doc-backlink"><span class="section-number">6.6.4.5. </span>Batch Operations</a><a class="headerlink" href="#batch-operations" title="Link to this heading">#</a></h3>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span><span class="w"> </span><span class="nn">yaml</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">pathlib</span><span class="w"> </span><span class="kn">import</span> <span class="n">Path</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">supy.data_model.schema.publisher</span><span class="w"> </span><span class="kn">import</span> <span class="n">generate_json_schema</span>
@@ -1098,7 +1099,7 @@ suews<span class="w"> </span>schema<span class="w"> </span>migrate<span class="w
 </section>
 </section>
 <section id="see-also">
-<h2><a class="toc-backref" href="#id24" role="doc-backlink"><span class="section-number">6.5.5. </span>See Also</a><a class="headerlink" href="#see-also" title="Link to this heading">#</a></h2>
+<h2><a class="toc-backref" href="#id24" role="doc-backlink"><span class="section-number">6.6.5. </span>See Also</a><a class="headerlink" href="#see-also" title="Link to this heading">#</a></h2>
 <ul class="simple">
 <li><p><a class="reference internal" href="command-line.html"><span class="doc">Command-Line Tools</span></a> - Command-line tool reference</p></li>
 <li><p><a class="reference internal" href="../workflow.html"><span class="doc">Getting Started</span></a> - Complete workflow guide</p></li>
@@ -1121,12 +1122,12 @@ suews<span class="w"> </span>schema<span class="w"> </span>migrate<span class="w
                   
 <div class="prev-next-area">
     <a class="left-prev"
-       href="command-line.html"
+       href="knowledge-pack.html"
        title="previous page">
       <i class="fa-solid fa-angle-left"></i>
       <div class="prev-next-info">
         <p class="prev-next-subtitle">previous</p>
-        <p class="prev-next-title"><span class="section-number">6.4. </span>Command-Line Tools</p>
+        <p class="prev-next-title"><span class="section-number">6.5. </span>Knowledge Pack</p>
       </div>
     </a>
     <a class="right-next"
@@ -1134,7 +1135,7 @@ suews<span class="w"> </span>schema<span class="w"> </span>migrate<span class="w
        title="next page">
       <div class="prev-next-info">
         <p class="prev-next-subtitle">next</p>
-        <p class="prev-next-title"><span class="section-number">6.6. </span>Data Structures</p>
+        <p class="prev-next-title"><span class="section-number">6.7. </span>Data Structures</p>
       </div>
       <i class="fa-solid fa-angle-right"></i>
     </a>
@@ -1156,36 +1157,36 @@ suews<span class="w"> </span>schema<span class="w"> </span>migrate<span class="w
   </div>
   <nav id="pst-page-toc-nav" class="page-toc" aria-labelledby="pst-page-navigation-heading-2">
     <ul class="visible nav section-nav flex-column">
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#configuration-validation">6.5.1. Configuration Validation</a><ul class="nav section-nav flex-column">
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#cli-command">6.5.1.1. CLI Command</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#python-equivalent-simple-validation">6.5.1.2. Python Equivalent (Simple Validation)</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#python-equivalent-full-validation-pipeline">6.5.1.3. Python Equivalent (Full Validation Pipeline)</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#configuration-validation">6.6.1. Configuration Validation</a><ul class="nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#cli-command">6.6.1.1. CLI Command</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#python-equivalent-simple-validation">6.6.1.2. Python Equivalent (Simple Validation)</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#python-equivalent-full-validation-pipeline">6.6.1.3. Python Equivalent (Full Validation Pipeline)</a></li>
 </ul>
 </li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#configuration-conversion">6.5.2. Configuration Conversion</a><ul class="nav section-nav flex-column">
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#id1">6.5.2.1. CLI Command</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#python-equivalent">6.5.2.2. Python Equivalent</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#advanced-usage-with-debugging">6.5.2.3. Advanced Usage with Debugging</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#configuration-conversion">6.6.2. Configuration Conversion</a><ul class="nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#id1">6.6.2.1. CLI Command</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#python-equivalent">6.6.2.2. Python Equivalent</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#advanced-usage-with-debugging">6.6.2.3. Advanced Usage with Debugging</a></li>
 </ul>
 </li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#running-suews-simulations">6.5.3. Running SUEWS Simulations</a><ul class="nav section-nav flex-column">
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#id2">6.5.3.1. CLI Command</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#python-api">6.5.3.2. Python API</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#basic-simulation">6.5.3.3. Basic Simulation</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#accessing-results">6.5.3.4. Accessing Results</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#updating-configuration">6.5.3.5. Updating Configuration</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#custom-forcing-data">6.5.3.6. Custom Forcing Data</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#running-suews-simulations">6.6.3. Running SUEWS Simulations</a><ul class="nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#id2">6.6.3.1. CLI Command</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#python-api">6.6.3.2. Python API</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#basic-simulation">6.6.3.3. Basic Simulation</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#accessing-results">6.6.3.4. Accessing Results</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#updating-configuration">6.6.3.5. Updating Configuration</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#custom-forcing-data">6.6.3.6. Custom Forcing Data</a></li>
 </ul>
 </li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#schema-management">6.5.4. Schema Management</a><ul class="nav section-nav flex-column">
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#cli-commands">6.5.4.1. CLI Commands</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#python-equivalent-schema-export">6.5.4.2. Python Equivalent (Schema Export)</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#python-equivalent-schema-validation">6.5.4.3. Python Equivalent (Schema Validation)</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#python-equivalent-schema-migration">6.5.4.4. Python Equivalent (Schema Migration)</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#batch-operations">6.5.4.5. Batch Operations</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#schema-management">6.6.4. Schema Management</a><ul class="nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#cli-commands">6.6.4.1. CLI Commands</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#python-equivalent-schema-export">6.6.4.2. Python Equivalent (Schema Export)</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#python-equivalent-schema-validation">6.6.4.3. Python Equivalent (Schema Validation)</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#python-equivalent-schema-migration">6.6.4.4. Python Equivalent (Schema Migration)</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#batch-operations">6.6.4.5. Batch Operations</a></li>
 </ul>
 </li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#see-also">6.5.5. See Also</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#see-also">6.6.5. See Also</a></li>
 </ul>
   </nav></div>
 
@@ -1227,8 +1228,8 @@ By SUEWS dev team led by Prof Sue Grimmond
   <div class="footer-item">
     
 <div class="extra_footer">
-  <p>Version: 2026.5.1.dev9048 |
-    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/04fbcb8ef748856753b0248075d8b36d3150ef2b">04fbcb8</a> |
+  <p>Version: 2026.5.1.dev9051 |
+    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/2f9a51aa1d4333ae6f9547218e867d8919c713a2">2f9a51a</a> |
     <a href="https://umep-dev.github.io/SUEWS/brand/showcase.html">Brand</a></p>
 </div>
   </div>

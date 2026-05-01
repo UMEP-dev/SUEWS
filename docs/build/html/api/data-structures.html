@@ -9,7 +9,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
     <meta property="article:modified_time" content="2026-01-28T15:54:16+00:00" />
-    <title>6.6. Data Structures &#8212; SUEWS 2026.5.1.dev9048 documentation</title>
+    <title>6.7. Data Structures &#8212; SUEWS 2026.5.1.dev9051 documentation</title>
   
   
   
@@ -45,7 +45,7 @@
   <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=8878045cc6db502f8baf" />
 <link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=8878045cc6db502f8baf" />
 
-    <script src="../_static/documentation_options.js?v=6168092e"></script>
+    <script src="../_static/documentation_options.js?v=669a1847"></script>
     <script src="../_static/doctools.js?v=9bcbadda"></script>
     <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
     <script src="../_static/scripts/sphinx-book-theme.js?v=fab101a9"></script>
@@ -55,11 +55,11 @@
     <link rel="icon" href="../_static/suews-logo.svg"/>
     <link rel="index" title="Index" href="../genindex.html" />
     <link rel="search" title="Search" href="../search.html" />
-    <link rel="next" title="6.7. Key IO Data Structures" href="io-data-structures.html" />
-    <link rel="prev" title="6.5. Python API for CLI Users" href="python-cli-equivalents.html" />
+    <link rel="next" title="6.8. Key IO Data Structures" href="io-data-structures.html" />
+    <link rel="prev" title="6.6. Python API for CLI Users" href="python-cli-equivalents.html" />
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
-  <meta name="docsearch:version" content="2026.5.1.dev9048" />
+  <meta name="docsearch:version" content="2026.5.1.dev9051" />
     <meta name="docbuild:last-update" content="2026-01-28"/>
   </head>
   
@@ -102,7 +102,7 @@
   <div class="bd-header-announcement__content">
     <div style="background-color: #f0ad4e; border: 1px solid #eea236; border-radius: 4px; padding: 10px; margin: 10px 0;">
         <strong>⚠️ Development Version:</strong> This documentation was built from a development version
-        (2026.5.1.dev9048, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/04fbcb8ef748856753b0248075d8b36d3150ef2b" style="color: #31708f;">04fbcb8</a>).
+        (2026.5.1.dev9051, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/2f9a51aa1d4333ae6f9547218e867d8919c713a2" style="color: #31708f;">2f9a51a</a>).
         Features described here may be unstable or subject to change. For stable documentation, please visit the
         <a href="https://docs.suews.io/stable/" style="color: #31708f;">latest release</a>.
     </div>
@@ -149,8 +149,8 @@
       
     
     
-    <img src="../_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.5.1.dev9048 documentation - Home"/>
-    <img src="../_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.5.1.dev9048 documentation - Home"/>
+    <img src="../_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.5.1.dev9051 documentation - Home"/>
+    <img src="../_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.5.1.dev9051 documentation - Home"/>
   
   
 </a></div>
@@ -325,10 +325,11 @@
 </ul>
 </details></li>
 <li class="toctree-l2"><a class="reference internal" href="command-line.html">6.4. Command-Line Tools</a></li>
-<li class="toctree-l2"><a class="reference internal" href="python-cli-equivalents.html">6.5. Python API for CLI Users</a></li>
-<li class="toctree-l2 current active"><a class="current reference internal" href="#">6.6. Data Structures</a></li>
-<li class="toctree-l2"><a class="reference internal" href="io-data-structures.html">6.7. Key IO Data Structures</a></li>
-<li class="toctree-l2"><a class="reference internal" href="converter.html">6.8. Configuration Converter API</a></li>
+<li class="toctree-l2"><a class="reference internal" href="knowledge-pack.html">6.5. Knowledge Pack</a></li>
+<li class="toctree-l2"><a class="reference internal" href="python-cli-equivalents.html">6.6. Python API for CLI Users</a></li>
+<li class="toctree-l2 current active"><a class="current reference internal" href="#">6.7. Data Structures</a></li>
+<li class="toctree-l2"><a class="reference internal" href="io-data-structures.html">6.8. Key IO Data Structures</a></li>
+<li class="toctree-l2"><a class="reference internal" href="converter.html">6.9. Configuration Converter API</a></li>
 </ul>
 </details></li>
 <li class="toctree-l1 has-children"><a class="reference internal" href="../integration/index.html">7. Integration and Complementary Tools</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
@@ -593,15 +594,15 @@
             </div>
             <nav aria-label="Page">
                 <ul class="visible nav section-nav flex-column">
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#core-data-objects">6.6.1. Core Data Objects</a><ul class="nav section-nav flex-column">
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#state-dataframe">6.6.1.1. State DataFrame</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#forcing-dataframe">6.6.1.2. Forcing DataFrame</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#output-dataframe">6.6.1.3. Output DataFrame</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#core-data-objects">6.7.1. Core Data Objects</a><ul class="nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#state-dataframe">6.7.1.1. State DataFrame</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#forcing-dataframe">6.7.1.2. Forcing DataFrame</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#output-dataframe">6.7.1.3. Output DataFrame</a></li>
 </ul>
 </li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#integration-with-pandas">6.6.2. Integration with pandas</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#benefits-of-dataframe-structure">6.6.3. Benefits of DataFrame Structure</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#related-documentation">6.6.4. Related Documentation</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#integration-with-pandas">6.7.2. Integration with pandas</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#benefits-of-dataframe-structure">6.7.3. Benefits of DataFrame Structure</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#related-documentation">6.7.4. Related Documentation</a></li>
 </ul>
             </nav>
         </div>
@@ -622,28 +623,28 @@
 </ol>
 </div>
 <section id="data-structures">
-<span id="api-data-structures"></span><h1><span class="section-number">6.6. </span>Data Structures<a class="headerlink" href="#data-structures" title="Link to this heading">#</a></h1>
+<span id="api-data-structures"></span><h1><span class="section-number">6.7. </span>Data Structures<a class="headerlink" href="#data-structures" title="Link to this heading">#</a></h1>
 <p>SUEWS uses pandas DataFrames as the primary data structure for all inputs and outputs, enabling powerful data analysis and manipulation.</p>
 <section id="core-data-objects">
-<h2><span class="section-number">6.6.1. </span>Core Data Objects<a class="headerlink" href="#core-data-objects" title="Link to this heading">#</a></h2>
+<h2><span class="section-number">6.7.1. </span>Core Data Objects<a class="headerlink" href="#core-data-objects" title="Link to this heading">#</a></h2>
 <section id="state-dataframe">
-<h3><span class="section-number">6.6.1.1. </span>State DataFrame<a class="headerlink" href="#state-dataframe" title="Link to this heading">#</a></h3>
+<h3><span class="section-number">6.7.1.1. </span>State DataFrame<a class="headerlink" href="#state-dataframe" title="Link to this heading">#</a></h3>
 <p>The state DataFrame contains model state variables and parameters for each grid cell.</p>
 <p><a class="reference internal" href="../data-structures/df_state.html"><span class="doc">df_state variables</span></a> - Complete reference</p>
 </section>
 <section id="forcing-dataframe">
-<h3><span class="section-number">6.6.1.2. </span>Forcing DataFrame<a class="headerlink" href="#forcing-dataframe" title="Link to this heading">#</a></h3>
+<h3><span class="section-number">6.7.1.2. </span>Forcing DataFrame<a class="headerlink" href="#forcing-dataframe" title="Link to this heading">#</a></h3>
 <p>The forcing DataFrame contains meteorological forcing data (temperature, radiation, wind, etc.).</p>
 <p><a class="reference internal" href="../data-structures/df_forcing.html"><span class="doc">df_forcing variables</span></a> - Complete reference</p>
 </section>
 <section id="output-dataframe">
-<h3><span class="section-number">6.6.1.3. </span>Output DataFrame<a class="headerlink" href="#output-dataframe" title="Link to this heading">#</a></h3>
+<h3><span class="section-number">6.7.1.3. </span>Output DataFrame<a class="headerlink" href="#output-dataframe" title="Link to this heading">#</a></h3>
 <p>The output DataFrame contains simulation results and diagnostics.</p>
 <p><a class="reference internal" href="../data-structures/df_output.html"><span class="doc">df_output variables</span></a> - Complete reference</p>
 </section>
 </section>
 <section id="integration-with-pandas">
-<h2><span class="section-number">6.6.2. </span>Integration with pandas<a class="headerlink" href="#integration-with-pandas" title="Link to this heading">#</a></h2>
+<h2><span class="section-number">6.7.2. </span>Integration with pandas<a class="headerlink" href="#integration-with-pandas" title="Link to this heading">#</a></h2>
 <p>All SUEWS data uses pandas DataFrames with proper indexing, allowing powerful data analysis:</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">supy</span><span class="w"> </span><span class="kn">import</span> <span class="n">SUEWSSimulation</span>
 
@@ -658,7 +659,7 @@
 </div>
 </section>
 <section id="benefits-of-dataframe-structure">
-<h2><span class="section-number">6.6.3. </span>Benefits of DataFrame Structure<a class="headerlink" href="#benefits-of-dataframe-structure" title="Link to this heading">#</a></h2>
+<h2><span class="section-number">6.7.3. </span>Benefits of DataFrame Structure<a class="headerlink" href="#benefits-of-dataframe-structure" title="Link to this heading">#</a></h2>
 <ul class="simple">
 <li><p><strong>Familiar interface</strong>: Leverage pandas’ powerful data manipulation capabilities</p></li>
 <li><p><strong>Time series analysis</strong>: Built-in resampling, rolling windows, and time-based operations</p></li>
@@ -668,7 +669,7 @@
 </ul>
 </section>
 <section id="related-documentation">
-<h2><span class="section-number">6.6.4. </span>Related Documentation<a class="headerlink" href="#related-documentation" title="Link to this heading">#</a></h2>
+<h2><span class="section-number">6.7.4. </span>Related Documentation<a class="headerlink" href="#related-documentation" title="Link to this heading">#</a></h2>
 <ul class="simple">
 <li><p><a class="reference internal" href="io-data-structures.html"><span class="doc">Key IO Data Structures</span></a> - Overview of key IO data structures</p></li>
 <li><p><a class="reference external" href="https://pandas.pydata.org/docs/">pandas documentation</a> - Official pandas guide</p></li>
@@ -694,7 +695,7 @@
       <i class="fa-solid fa-angle-left"></i>
       <div class="prev-next-info">
         <p class="prev-next-subtitle">previous</p>
-        <p class="prev-next-title"><span class="section-number">6.5. </span>Python API for CLI Users</p>
+        <p class="prev-next-title"><span class="section-number">6.6. </span>Python API for CLI Users</p>
       </div>
     </a>
     <a class="right-next"
@@ -702,7 +703,7 @@
        title="next page">
       <div class="prev-next-info">
         <p class="prev-next-subtitle">next</p>
-        <p class="prev-next-title"><span class="section-number">6.7. </span>Key IO Data Structures</p>
+        <p class="prev-next-title"><span class="section-number">6.8. </span>Key IO Data Structures</p>
       </div>
       <i class="fa-solid fa-angle-right"></i>
     </a>
@@ -724,15 +725,15 @@
   </div>
   <nav id="pst-page-toc-nav" class="page-toc" aria-labelledby="pst-page-navigation-heading-2">
     <ul class="visible nav section-nav flex-column">
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#core-data-objects">6.6.1. Core Data Objects</a><ul class="nav section-nav flex-column">
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#state-dataframe">6.6.1.1. State DataFrame</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#forcing-dataframe">6.6.1.2. Forcing DataFrame</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#output-dataframe">6.6.1.3. Output DataFrame</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#core-data-objects">6.7.1. Core Data Objects</a><ul class="nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#state-dataframe">6.7.1.1. State DataFrame</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#forcing-dataframe">6.7.1.2. Forcing DataFrame</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#output-dataframe">6.7.1.3. Output DataFrame</a></li>
 </ul>
 </li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#integration-with-pandas">6.6.2. Integration with pandas</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#benefits-of-dataframe-structure">6.6.3. Benefits of DataFrame Structure</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#related-documentation">6.6.4. Related Documentation</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#integration-with-pandas">6.7.2. Integration with pandas</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#benefits-of-dataframe-structure">6.7.3. Benefits of DataFrame Structure</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#related-documentation">6.7.4. Related Documentation</a></li>
 </ul>
   </nav></div>
 
@@ -774,8 +775,8 @@ By SUEWS dev team led by Prof Sue Grimmond
   <div class="footer-item">
     
 <div class="extra_footer">
-  <p>Version: 2026.5.1.dev9048 |
-    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/04fbcb8ef748856753b0248075d8b36d3150ef2b">04fbcb8</a> |
+  <p>Version: 2026.5.1.dev9051 |
+    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/2f9a51aa1d4333ae6f9547218e867d8919c713a2">2f9a51a</a> |
     <a href="https://umep-dev.github.io/SUEWS/brand/showcase.html">Brand</a></p>
 </div>
   </div>

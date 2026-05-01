@@ -10,18 +10,18 @@ get an actionable signal rather than a confusing fallback.
 
 from __future__ import annotations
 
+from pathlib import Path
 import shutil
 import sys
-from pathlib import Path
-from typing import Tuple
 
 import click
 
+from ..data_model.schema.version import CURRENT_SCHEMA_VERSION
 from .json_envelope import EXIT_USER_ERROR, Envelope, _now_iso
 
 # Mapping of template name -> (relative path under ``src/supy/sample_data``,
 # whether it ships in this wave). Only ``simple-urban`` is shipped today.
-_TEMPLATES: dict[str, Tuple[str, bool]] = {
+_TEMPLATES: dict[str, tuple[str, bool]] = {
     "simple-urban": ("sample_config.yml", True),
     "multi-site": ("sample_config.yml", False),
     "teaching-demo": ("sample_config.yml", False),
@@ -36,9 +36,7 @@ _COMPANION_FILES: tuple[str, ...] = ("Kc_2012_data_60.txt",)
 
 def _locate_sample_data() -> Path:
     """Return the path to the bundled ``sample_data`` directory."""
-    import supy
-
-    return Path(supy.__file__).resolve().parent / "sample_data"
+    return Path(__file__).resolve().parent.parent / "sample_data"
 
 
 def _build_text_message(
@@ -59,6 +57,21 @@ def _build_text_message(
     lines.append(f"  2. suews validate {path_output_dir}/{yaml_name}")
     lines.append(f"  3. suews run {path_output_dir}/{yaml_name}")
     return "\n".join(lines)
+
+
+def _copy_companion_files(path_sample_dir: Path, path_target_dir: Path) -> list[str]:
+    """Copy packaged companion files and return the created paths."""
+    list_files_created: list[str] = []
+    for name in _COMPANION_FILES:
+        path_src = path_sample_dir / name
+        if not path_src.exists():
+            continue
+        path_dst = path_target_dir / name
+        if path_dst.exists():
+            continue
+        shutil.copy2(path_src, path_dst)
+        list_files_created.append(str(path_dst))
+    return list_files_created
 
 
 @click.command(
@@ -93,7 +106,7 @@ def _build_text_message(
     help="Output format. 'json' emits the standard SUEWS envelope on stdout.",
 )
 def init_case_cmd(target_dir: str, template: str, output_format: str) -> None:
-    """Implementation of ``suews init``."""
+    """Implement ``suews init``."""
     started_at = _now_iso()
     json_mode = output_format.lower() == "json"
     # Use the full argv so the recorded command matches what the user
@@ -154,19 +167,9 @@ def init_case_cmd(target_dir: str, template: str, output_format: str) -> None:
     # Companion files: copied only if the bundled template references them
     # implicitly (e.g. the simple-urban YAML names ``Kc_2012_data_60.txt`` as
     # its forcing file).
-    path_sample_dir = _locate_sample_data()
-    for name in _COMPANION_FILES:
-        path_src = path_sample_dir / name
-        if not path_src.exists():
-            continue
-        path_dst = path_target_dir / name
-        if path_dst.exists():
-            continue
-        shutil.copy2(path_src, path_dst)
-        list_files_created.append(str(path_dst))
-
-    # Schema version comes from the canonical module -- never re-derive.
-    from ..data_model.schema.version import CURRENT_SCHEMA_VERSION
+    list_files_created.extend(
+        _copy_companion_files(_locate_sample_data(), path_target_dir)
+    )
 
     list_next_steps = [
         f"Edit {path_target_yaml}",

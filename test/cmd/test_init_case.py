@@ -13,17 +13,20 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+from click.testing import CliRunner
 import pytest
 import yaml
-from click.testing import CliRunner
+
+from supy import suews_sim
+from supy.cmd.init_case import init_case_cmd
+from supy.cmd.suews_cli import cli as dispatcher
+from supy.suews_sim import SUEWSSimulation
 
 pytestmark = pytest.mark.api
 
 
 def test_init_simple_urban_json(tmp_path: Path) -> None:
     """Successful scaffold produces a config file and a parseable envelope."""
-    from supy.cmd.init_case import init_case_cmd
-
     out_dir = tmp_path / "case01"
 
     runner = CliRunner()
@@ -54,8 +57,6 @@ def test_init_simple_urban_json(tmp_path: Path) -> None:
 
 def test_init_text_format_succeeds(tmp_path: Path) -> None:
     """Default text mode prints a human-readable summary."""
-    from supy.cmd.init_case import init_case_cmd
-
     out_dir = tmp_path / "case02"
 
     runner = CliRunner()
@@ -69,8 +70,6 @@ def test_init_text_format_succeeds(tmp_path: Path) -> None:
 
 def test_init_unshipped_template_returns_structured_error(tmp_path: Path) -> None:
     """Reserved-but-unshipped templates must return a clear envelope error."""
-    from supy.cmd.init_case import init_case_cmd
-
     out_dir = tmp_path / "case03"
 
     runner = CliRunner()
@@ -88,8 +87,6 @@ def test_init_unshipped_template_returns_structured_error(tmp_path: Path) -> Non
 
 def test_init_refuses_overwrite(tmp_path: Path) -> None:
     """A second init into the same directory must refuse to clobber."""
-    from supy.cmd.init_case import init_case_cmd
-
     out_dir = tmp_path / "case04"
 
     runner = CliRunner()
@@ -110,8 +107,6 @@ def test_init_refuses_overwrite(tmp_path: Path) -> None:
 
 def test_init_companion_forcing_copied(tmp_path: Path) -> None:
     """Bundled forcing file is copied so the case runs out of the box."""
-    from supy.cmd.init_case import init_case_cmd
-
     out_dir = tmp_path / "case05"
 
     runner = CliRunner()
@@ -126,9 +121,6 @@ def test_init_output_validates_via_dispatcher(tmp_path: Path) -> None:
     Drives the validate subcommand the same way users will -- through the
     unified dispatcher group -- so the chain mirrors the spec in gh#1362.
     """
-    from supy.cmd.init_case import init_case_cmd
-    from supy.cmd.suews_cli import cli as dispatcher
-
     out_dir = tmp_path / "case06"
     runner = CliRunner()
     result_init = runner.invoke(init_case_cmd, [str(out_dir), "--format", "json"])
@@ -146,3 +138,30 @@ def test_init_output_validates_via_dispatcher(tmp_path: Path) -> None:
         "suews validate (dry-run pipeline C) failed on scaffolded config:\n"
         f"{result_validate.output}"
     )
+
+
+def test_init_run_output_path_resolves_under_case_dir(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Scaffolded configs save relative outputs beside the generated YAML."""
+    out_dir = tmp_path / "case07"
+    runner = CliRunner()
+    result_init = runner.invoke(init_case_cmd, [str(out_dir)])
+    assert result_init.exit_code == 0, result_init.output
+
+    captured: dict[str, str] = {}
+
+    def fake_save_supy(**kwargs):
+        captured["path_dir_save"] = kwargs["path_dir_save"]
+        return []
+
+    monkeypatch.setattr(suews_sim, "_save_supy", fake_save_supy)
+
+    sim = SUEWSSimulation()
+    sim.update_config(out_dir / "sample_config.yml", auto_load_forcing=False)
+    sim._run_completed = True
+    sim._df_output = object()
+    sim._df_state_final = object()
+
+    assert sim.save() == []
+    assert Path(captured["path_dir_save"]) == (out_dir / "Output").resolve()

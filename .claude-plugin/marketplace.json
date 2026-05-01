@@ -1,5 +1,10 @@
 {
   "name": "suews",
+  "owner": {
+    "name": "UMEP-dev",
+    "email": "ting.sun@ucl.ac.uk",
+    "url": "https://github.com/UMEP-dev"
+  },
   "metadata": {
     "description": "SUEWS plugins for AI agent ecosystems - runtime workflow rules for users and developer tooling for contributors",
     "version": "1.1.0",
@@ -23,7 +28,6 @@
         "./.claude/skills/lint-code",
         "./.claude/skills/verify-build",
         "./.claude/skills/audit-pr",
-        "./.claude/skills/examine-issue",
         "./.claude/skills/log-changes",
         "./.claude/skills/prep-release",
         "./.claude/skills/sync-docs"

@@ -15,7 +15,13 @@ from ..util.converter import (
     list_ver_from,
 )
 from ..util.converter.yaml_upgrade import YamlUpgradeError, upgrade_yaml
-from .json_envelope import EXIT_OK, EXIT_USER_ERROR, Envelope, _now_iso
+from .json_envelope import (
+    EXIT_OK,
+    EXIT_USER_ERROR,
+    Envelope,
+    _now_iso,
+    silent_supy_logger,
+)
 
 # Try to import the current version from the project
 try:
@@ -179,12 +185,20 @@ def convert_table_cmd(  # noqa: PLR0912, PLR0915
 
     # Dispatch on input type
     if input_type == "yaml":
+        # In json mode the SuPy logger (default stdout handler) and any
+        # accidental print would corrupt the envelope; silence the logger
+        # AND capture stray stdout writes so the only thing that reaches
+        # stdout is the envelope emitted by `_emit_success` / `_emit_error`.
         try:
-            upgrade_yaml(
-                input_path=input_path,
-                output_path=output_path,
-                from_ver=fromVer,
-            )
+            with (
+                silent_supy_logger() if json_mode else nullcontext(),
+                redirect_stdout(StringIO()) if json_mode else nullcontext(),
+            ):
+                upgrade_yaml(
+                    input_path=input_path,
+                    output_path=output_path,
+                    from_ver=fromVer,
+                )
         except YamlUpgradeError as e:
             if json_mode:
                 _emit_error(
@@ -317,7 +331,10 @@ def convert_table_cmd(  # noqa: PLR0912, PLR0915
 
     # Perform table / df_state conversion
     try:
-        with redirect_stdout(StringIO()) if json_mode else nullcontext():
+        with (
+            silent_supy_logger() if json_mode else nullcontext(),
+            redirect_stdout(StringIO()) if json_mode else nullcontext(),
+        ):
             convert_to_yaml(
                 input_file=str(input_path),
                 output_file=str(output_path),

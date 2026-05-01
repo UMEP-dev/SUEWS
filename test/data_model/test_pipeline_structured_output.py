@@ -17,6 +17,7 @@ import supy as sp
 from supy.data_model.validation.pipeline.orchestrator import (
     run_phase_a,
     run_phase_b,
+    run_phase_c,
 )
 from supy.data_model.validation.pipeline.report_schema import PhaseReport
 
@@ -92,6 +93,61 @@ def test_phase_b_emits_json_sidecar(tmp_path, sample_config_path):
         assert "severity" in issue
         assert "code" in issue
         assert "message" in issue
+
+
+def test_phase_c_emits_json_for_passing_config(tmp_path, sample_config_path):
+    """Phase C writes a JSON sidecar even on the success path."""
+    pydantic_yaml = tmp_path / "pydantic.yml"
+    pydantic_report = tmp_path / "pydantic_report.txt"
+
+    report = run_phase_c(
+        input_yaml_file=str(sample_config_path),
+        pydantic_yaml_file=str(pydantic_yaml),
+        pydantic_report_file=str(pydantic_report),
+        phases_run=["C"],
+        silent=True,
+    )
+
+    assert isinstance(report, PhaseReport)
+    assert report.phase == "C"
+    json_path = pydantic_report.with_suffix(".json")
+    assert json_path.exists()
+    payload = json.loads(json_path.read_text())
+    assert payload["phase"] == "C"
+    # Sample config should pass; status is PASSED unless there are
+    # legitimate warnings in the sample.
+    assert payload["status"] in {"PASSED", "WARNING"}
+
+
+def test_phase_c_emits_structured_pydantic_errors_for_bad_config(tmp_path):
+    """A YAML that fails Pydantic produces ``C.PYDANTIC.*`` issues."""
+    bad_yaml = tmp_path / "bad.yml"
+    # ``tstep`` must be an integer; supplying a string forces a Pydantic error.
+    bad_yaml.write_text(
+        "model:\n"
+        "  control:\n"
+        "    tstep: not_an_int\n"
+        "    forcing_file: forcing.txt\n"
+        "sites: []\n"
+    )
+    pydantic_yaml = tmp_path / "pydantic.yml"
+    pydantic_report = tmp_path / "pydantic_report.txt"
+
+    report = run_phase_c(
+        input_yaml_file=str(bad_yaml),
+        pydantic_yaml_file=str(pydantic_yaml),
+        pydantic_report_file=str(pydantic_report),
+        phases_run=["C"],
+        silent=True,
+    )
+
+    assert report.has_errors, "A malformed config must produce errors"
+    payload = json.loads(pydantic_report.with_suffix(".json").read_text())
+    assert payload["phase"] == "C"
+    assert payload["status"] == "FAILED"
+    # At least one issue should be a structured Pydantic error.
+    pydantic_codes = [i["code"] for i in payload["issues"] if i["code"].startswith("C.PYDANTIC.")]
+    assert pydantic_codes, "Expected at least one C.PYDANTIC.* issue"
 
 
 def test_phase_b_text_report_unchanged(tmp_path, sample_config_path):

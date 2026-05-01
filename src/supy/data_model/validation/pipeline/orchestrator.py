@@ -760,8 +760,78 @@ def run_phase_c(
     phases_run: list = None,
     no_action_messages: list = None,
     silent: bool = False,
+) -> "PhaseReport":
+    """Execute Phase C and return the structured ``PhaseReport``.
+
+    The legacy bool-returning body (``_run_phase_c_legacy``) is preserved
+    intact so the human-readable text report it writes is byte-for-byte
+    unchanged. This wrapper additionally collects structured Pydantic
+    issues via ``collect_phase_c_issues`` and writes a JSON sidecar.
+    """
+    from .phase_c import collect_phase_c_issues
+    from .report_schema import (
+        Issue,
+        JSON_REPORT_WRITER,
+        PhaseReport,
+        SEVERITY_ERROR,
+    )
+
+    issues = collect_phase_c_issues(input_yaml_file)
+
+    legacy_ok = _run_phase_c_legacy(
+        input_yaml_file=input_yaml_file,
+        pydantic_yaml_file=pydantic_yaml_file,
+        pydantic_report_file=pydantic_report_file,
+        mode=mode,
+        phase_a_report_file=phase_a_report_file,
+        science_report_file=science_report_file,
+        phases_run=phases_run,
+        no_action_messages=no_action_messages,
+        silent=silent,
+    )
+
+    if not legacy_ok and not any(i.severity == SEVERITY_ERROR for i in issues):
+        # Legacy reported failure but no structured issue was captured —
+        # surface a generic pipeline failure so the JSON sidecar is
+        # still actionable.
+        issues.append(Issue(
+            phase="C",
+            severity=SEVERITY_ERROR,
+            code="C.PIPELINE.UNKNOWN",
+            message="Phase C reported failure with no structured details",
+            category="PIPELINE",
+        ))
+
+    phase_report = PhaseReport(
+        phase="C",
+        issues=issues,
+        yaml_in=input_yaml_file,
+        yaml_out=pydantic_yaml_file,
+        text_report_path=pydantic_report_file,
+    )
+
+    if pydantic_report_file:
+        json_path = Path(pydantic_report_file).with_suffix(".json")
+        JSON_REPORT_WRITER.write(json_path, phase_report)
+        phase_report.json_report_path = str(json_path)
+
+    return phase_report
+
+
+def _run_phase_c_legacy(
+    input_yaml_file: str,
+    pydantic_yaml_file: str,
+    pydantic_report_file: str,
+    mode: str = "public",
+    phase_a_report_file: str = None,
+    science_report_file: str = None,
+    phases_run: list = None,
+    no_action_messages: list = None,
+    silent: bool = False,
 ) -> bool:
-    """Execute Phase C: Configuration consistency validation based on physics options."""
+    """Legacy bool-returning Phase C body. Preserved for the text-report
+    generation. Callers should use ``run_phase_c`` (PhaseReport-returning).
+    """
     debug = os.environ.get("SUEWS_DEBUG", "").lower() in ("1", "true", "yes")
     if debug:
         print(f"[DEBUG] run_phase_c called", file=sys.stderr)
@@ -1482,7 +1552,7 @@ Modes:
             # Phase C only - run Pydantic validation on original user YAML
             print("Configuration consistency check...")
 
-            phase_c_success = run_phase_c(
+            phase_c_report = run_phase_c(
                 user_yaml_file,
                 pydantic_yaml_file,
                 pydantic_report_file,
@@ -1490,6 +1560,7 @@ Modes:
                 phases_run=["C"],
                 silent=True,  # Suppress phase function output, main function handles terminal output
             )
+            phase_c_success = not phase_c_report.has_errors
 
             # Always create final user files with simple names
             final_yaml, final_report = create_final_user_files(
@@ -1662,7 +1733,7 @@ Modes:
 
             print("[OK] Validation completed")
             print("Configuration consistency check...")
-            phase_c_success = run_phase_c(
+            phase_c_report = run_phase_c(
                 uptodate_file,  # Use Phase A output as input to Phase C
                 pydantic_yaml_file,
                 pydantic_report_file,
@@ -1671,6 +1742,7 @@ Modes:
                 phases_run=["A", "C"],
                 silent=True,
             )
+            phase_c_success = not phase_c_report.has_errors
 
             if not phase_c_success:
                 # Phase C failed in AC workflow - create final user files from Phase C error report and Phase A YAML
@@ -1777,7 +1849,7 @@ Modes:
 
             print("[OK] Phase B completed")
             print("Configuration consistency check...")
-            phase_c_success = run_phase_c(
+            phase_c_report = run_phase_c(
                 science_yaml_file,  # Use Phase B output as input to Phase C
                 pydantic_yaml_file,
                 pydantic_report_file,
@@ -1786,6 +1858,7 @@ Modes:
                 phases_run=["B", "C"],
                 silent=True,
             )
+            phase_c_success = not phase_c_report.has_errors
 
             if not phase_c_success:
                 # Phase C failed in BC workflow - consolidate Phase B messages into Phase C error report
@@ -1996,7 +2069,7 @@ Modes:
                 f"temp_reportC_{os.path.splitext(os.path.basename(user_yaml_file))[0]}.txt",
             )
 
-            phase_c_success = run_phase_c(
+            phase_c_report = run_phase_c(
                 science_yaml_file,  # Use Phase B output as input to Phase C
                 pydantic_yaml_file,
                 temp_report_c,  # Temporary Phase C report
@@ -2005,6 +2078,7 @@ Modes:
                 phases_run=["C"],  # Only Phase C content
                 silent=True,
             )
+            phase_c_success = not phase_c_report.has_errors
 
             if not phase_c_success:
                 # Phase C failed in ABC workflow - create final files from Phase B (last successful phase)

@@ -649,8 +649,8 @@ def run_phase_a(
 
     if report_file:
         json_path = Path(report_file).with_suffix(".json")
-        JSON_REPORT_WRITER.write(json_path, phase_report)
         phase_report.json_report_path = str(json_path)
+        JSON_REPORT_WRITER.write(json_path, phase_report)
 
     if not silent:
         if phase_report.has_errors:
@@ -735,8 +735,8 @@ def run_phase_b(
 
     if science_report_file:
         json_path = Path(science_report_file).with_suffix(".json")
-        JSON_REPORT_WRITER.write(json_path, phase_report)
         phase_report.json_report_path = str(json_path)
+        JSON_REPORT_WRITER.write(json_path, phase_report)
 
     if not silent:
         if phase_report.has_errors:
@@ -812,8 +812,8 @@ def run_phase_c(
 
     if pydantic_report_file:
         json_path = Path(pydantic_report_file).with_suffix(".json")
-        JSON_REPORT_WRITER.write(json_path, phase_report)
         phase_report.json_report_path = str(json_path)
+        JSON_REPORT_WRITER.write(json_path, phase_report)
 
     return phase_report
 

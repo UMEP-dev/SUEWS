@@ -118,6 +118,43 @@ class ScienceSuggestion:
             "source": self.source,
         }
 
+    def to_issue(self):
+        """Adapt to the canonical ``Issue`` schema."""
+        from .report_schema import Issue
+
+        return Issue(
+            phase="B",
+            severity=self.severity,
+            code=self.code or f"B.SCIENCE.{self.parameter}".upper(),
+            message=self.message,
+            yaml_path=self.path or self.parameter,
+            site_gridid=self.site_gridid,
+            site_index=self.site_index,
+            category="SCIENCE_SUGGESTION",
+            suggested_value=self.suggested_value,
+            applied_fix=False,
+        )
+
+
+def _adjustment_to_issue(adj: "ScientificAdjustment"):
+    """Adapt a ``ScientificAdjustment`` to the canonical ``Issue`` schema."""
+    from .report_schema import Issue, SEVERITY_APPLIED_FIX
+
+    parameter = adj.parameter
+    parameter_slug = parameter.replace(".", "_").replace(" ", "_").upper()
+    return Issue(
+        phase="B",
+        severity=SEVERITY_APPLIED_FIX,
+        code=f"B.APPLIED_FIX.{parameter_slug}",
+        message=adj.reason or f"Adjusted {parameter}: {adj.old_value} -> {adj.new_value}",
+        yaml_path=parameter,
+        site_gridid=adj.site_gridid,
+        site_index=adj.site_index,
+        category="APPLIED_FIX",
+        suggested_value=adj.new_value,
+        applied_fix=True,
+    )
+
 
 VALID_SCIENCE_FIX_MODES = {"suggest", "apply", "off"}
 
@@ -2692,7 +2729,7 @@ def run_science_check(
     mode: str = "public",
     phase: str = "B",
     science_fixes: str = "suggest",
-) -> dict:
+) -> Tuple[dict, "PhaseReport"]:
     """
     Main Phase B workflow: perform scientific validation and scientific adjustments.
 
@@ -2719,21 +2756,25 @@ def run_science_check(
 
     Returns
     -------
-    dict
-        Final science-checked YAML configuration dictionary.
+    tuple of (dict, PhaseReport)
+        Final science-checked YAML configuration dictionary and the
+        structured ``PhaseReport`` with all issues found. The
+        ``PhaseReport`` carries a ``status`` of ``FAILED`` when
+        critical errors are present (no exception is raised).
 
     Raises
     ------
-    FileNotFoundError
-        If any required input files are missing.
-    ValueError
-        If Phase A did not complete successfully or YAML is invalid.
+    FileNotFoundError, ValueError, KeyError
+        On unrecoverable initialisation failures (e.g. missing or
+        invalid input files). The orchestrator wraps these and
+        synthesises a fallback ``PhaseReport``.
 
     Notes
     -----
     - Runs all scientific validation and adjustment steps for Phase B.
-    - Writes a detailed report and optionally the updated YAML file.
-    - Halts with a clear message if critical scientific errors are detected.
+    - Writes a detailed text report and optionally the updated YAML file.
+    - Critical scientific errors are signalled via ``phase_report.has_errors``;
+      the function no longer raises ``ValueError`` for that case.
     """
     science_fixes = _normalise_science_fixes(science_fixes)
     try:
@@ -2803,8 +2844,17 @@ def run_science_check(
         if science_report_file:
             REPORT_WRITER.write(science_report_file, report_content)
 
-        # Re-raise the exception so orchestrator knows it failed
-        raise e
+        from .report_schema import PhaseReport
+
+        issues = [r.to_issue() for r in validation_results]
+        phase_report = PhaseReport(
+            phase="B",
+            issues=issues,
+            yaml_in=uptodate_yaml_file,
+            yaml_out=science_yaml_file,
+            text_report_path=science_report_file,
+        )
+        return {}, phase_report
 
     critical_errors = [r for r in validation_results if r.status == "ERROR"]
     suggestions = []
@@ -2844,9 +2894,24 @@ def run_science_check(
     if science_report_file:
         REPORT_WRITER.write(science_report_file, report_content)
 
+    from .report_schema import PhaseReport
+
+    issues = [r.to_issue() for r in validation_results]
+    issues.extend(_adjustment_to_issue(a) for a in adjustments)
+    if science_fixes == "suggest":
+        issues.extend(s.to_issue() for s in suggestions)
+
+    phase_report = PhaseReport(
+        phase="B",
+        issues=issues,
+        yaml_in=uptodate_yaml_file,
+        yaml_out=science_yaml_file,
+        text_report_path=science_report_file,
+    )
+
     if critical_errors:
         print_critical_halt_message(critical_errors)
-        raise ValueError("Critical scientific errors detected - Phase B halted")
+        return science_checked_data, phase_report
 
     print_science_check_results(
         validation_results, adjustments, suggestions, science_fixes
@@ -2860,7 +2925,7 @@ def run_science_check(
                 science_checked_data, f, default_flow_style=False, sort_keys=False
             )
 
-    return science_checked_data
+    return science_checked_data, phase_report
 
 
 def main():

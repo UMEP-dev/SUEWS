@@ -32,6 +32,7 @@ from .field_renames import (
     DECTRPROPERTIES_RENAMES,
     ARCHETYPEPROPERTIES_DEV3_RENAMES,
     ARCHETYPEPROPERTIES_DEV6_RENAMES,
+    ARCHETYPEPROPERTIES_DEV7_RENAMES,
     ARCHETYPEPROPERTIES_DEV7_TO_PASCAL,
     ARCHETYPEPROPERTIES_RENAMES,
     ARCHETYPEPROPERTIES_PASCAL_RENAMES,
@@ -1332,6 +1333,9 @@ class ArchetypeProperties(BaseModel):
             values = apply_field_renames(
                 values, ARCHETYPEPROPERTIES_DEV6_RENAMES, cls.__name__
             )
+            values = apply_field_renames(
+                values, ARCHETYPEPROPERTIES_DEV7_RENAMES, cls.__name__
+            )
         return values
 
     # Not used in STEBBS - DAVE only
@@ -1343,12 +1347,12 @@ class ArchetypeProperties(BaseModel):
         description="Building archetype type [-]",
         json_schema_extra={"display_name": "Building Type"},
     )
-    building_name: Optional[str] = Field(
+    archetype_name: Optional[str] = Field(
         default="SampleBuilding",
         description="Building archetype name [-]",
         json_schema_extra={"display_name": "Building Name"},
     )
-    building_count: Optional[FlexibleRefValue(int)] = Field(
+    archetype_building_count: Optional[FlexibleRefValue(int)] = Field(
         default=1,
         description="Number of buildings of this archetype [-]",
         json_schema_extra={"unit": "dimensionless", "display_name": "Building Count"},
@@ -1376,25 +1380,25 @@ class ArchetypeProperties(BaseModel):
     # age_19_64: int = Field(default=0, description="")
     # age_65plus: int = Field(default=0, description="")
 
-    building_height: Optional[FlexibleRefValue(float)] = Field(
+    archetype_height: Optional[FlexibleRefValue(float)] = Field(
         default=10.0,
         description="Building height. This should be consistent with wall_external_area and footprint_area. [m]",
         json_schema_extra={"unit": "m", "display_name": "Building Height"},
         gt=0.0,
     )
-    footprint_area: Optional[FlexibleRefValue(float)] = Field(
+    area_footprint: Optional[FlexibleRefValue(float)] = Field(
         default=64.0,
         description="Building footprint area. This should be consistent with building_height and wall_external_area. [m2]",
         json_schema_extra={"unit": "m^2", "display_name": "Footprint Area"},
         gt=0.0,
     )
-    wall_external_area: Optional[FlexibleRefValue(float)] = Field(
+    area_wall_external: Optional[FlexibleRefValue(float)] = Field(
         default=80.0,
         description="External wall area (including window area). This should be consistent with building_height and footprint_area. [m2]",
         json_schema_extra={"unit": "m^2", "display_name": "Wall External Area"},
         gt=0.0,
     )
-    internal_volume_ratio: Optional[FlexibleRefValue(float)] = Field(
+    ratio_internal_mass_volume: Optional[FlexibleRefValue(float)] = Field(
         default=0.01,
         description="Ratio of internal mass volume to total building volume [-]",
         json_schema_extra={
@@ -1404,13 +1408,13 @@ class ArchetypeProperties(BaseModel):
         gt=0.0,
         lt=1.0,
     )
-    internal_mass_area: Optional[FlexibleRefValue(float)] = Field(
+    area_internal_mass: Optional[FlexibleRefValue(float)] = Field(
         default=100,
         description="Surface area of internal mass used for indoor heat exchange [m2]",
         json_schema_extra={"unit": "m^2", "display_name": "Internal Mass Area"},
         gt=0.0,
     )
-    window_to_wall_ratio: Optional[FlexibleRefValue(float)] = Field(
+    ratio_window_to_wall: Optional[FlexibleRefValue(float)] = Field(
         default=0.20,
         description="window to wall ratio [-]",
         json_schema_extra={
@@ -1788,19 +1792,19 @@ class ArchetypeProperties(BaseModel):
             "display_name": "Internal Mass Emissivity",
         },
     )
-    max_heating_power: Optional[FlexibleRefValue(float)] = Field(
+    power_air_heating_max: Optional[FlexibleRefValue(float)] = Field(
         default=0.0,
         description="Maximum power demand of heating system [W]",
         json_schema_extra={"unit": "W", "display_name": "Maximum Heating Power"},
         ge=0.0,
     )
-    hot_water_tank_volume: Optional[FlexibleRefValue(float)] = Field(
+    volume_water_tank: Optional[FlexibleRefValue(float)] = Field(
         default=0.15,
         description="Volume of water in hot water tank [m3]",
         json_schema_extra={"unit": "m^3", "display_name": "Water Tank Water Volume"},
         gt=0.0,
     )
-    maximum_hot_water_heating_power: Optional[FlexibleRefValue(float)] = Field(
+    power_water_heating_max: Optional[FlexibleRefValue(float)] = Field(
         default=3000.0,
         description="Maximum power demand of water heating system [W]",
         json_schema_extra={
@@ -1809,7 +1813,7 @@ class ArchetypeProperties(BaseModel):
         },
         ge=0.0,
     )
-    heating_setpoint_temperature: Optional[FlexibleRefValue(float)] = Field(
+    temperature_air_heating_setpoint: Optional[FlexibleRefValue(float)] = Field(
         default=0.0,
         description="Heating setpoint temperature [degC]",
         json_schema_extra={
@@ -1818,7 +1822,7 @@ class ArchetypeProperties(BaseModel):
         },
         lt=30.0,
     )
-    cooling_setpoint_temperature: Optional[FlexibleRefValue(float)] = Field(
+    temperature_air_cooling_setpoint: Optional[FlexibleRefValue(float)] = Field(
         default=26.0,
         description="Cooling setpoint temperature [degC]",
         json_schema_extra={
@@ -1827,7 +1831,7 @@ class ArchetypeProperties(BaseModel):
         },
         gt=15.0
     )
-    heating_setpoint_temperature_profile: Optional[HeatingSetpointProfile] = Field(
+    profile_temperature_air_heating_setpoint: Optional[HeatingSetpointProfile] = Field(
         default_factory=HeatingSetpointProfile,
         description="10-minute profile of heating setpoints temperature when Setpointmethod equals to 2 [degC]",
         json_schema_extra={
@@ -1835,7 +1839,7 @@ class ArchetypeProperties(BaseModel):
             "display_name": "Heating setpoint temperature profile",
         },
     )
-    cooling_setpoint_temperature_profile: Optional[CoolingSetpointProfile] = Field(
+    profile_temperature_air_cooling_setpoint: Optional[CoolingSetpointProfile] = Field(
         default_factory=CoolingSetpointProfile,
         description="10-minute profile of cooling setpoints temperature when Setpointmethod equals to 2 [degC]",
         json_schema_extra={
@@ -1843,7 +1847,7 @@ class ArchetypeProperties(BaseModel):
             "display_name": "Cooling setpoint temperature profile",
         },
     )
-    metabolism_profile: Optional[TenMinuteProfile] = Field(
+    profile_metabolism: Optional[TenMinuteProfile] = Field(
         default_factory=TenMinuteProfile,
         description="Profile of occupants metabolism in building [-]",
         json_schema_extra={
@@ -1867,10 +1871,10 @@ class ArchetypeProperties(BaseModel):
     }
 
     def to_df_state(self, grid_id: int) -> pd.DataFrame:
-        string_fields = {"building_type", "building_name"}
+        string_fields = {"building_type", "archetype_name"}
         ten_minute_profile_fields = {
-            "metabolism_profile", "heating_setpoint_temperature_profile",
-            "cooling_setpoint_temperature_profile",
+            "profile_metabolism", "profile_temperature_air_heating_setpoint",
+            "profile_temperature_air_cooling_setpoint",
         }
         excluded_fields = string_fields | ten_minute_profile_fields | {"ref"}
 
@@ -1902,12 +1906,12 @@ class ArchetypeProperties(BaseModel):
 
     @classmethod
     def from_df_state(cls, df: pd.DataFrame, grid_id: int) -> "ArchetypeProperties":
-        string_fields = {"building_type", "building_name"}
-        ten_minute_profile_fields = {"metabolism_profile", "heating_setpoint_temperature_profile", "cooling_setpoint_temperature_profile",}
+        string_fields = {"building_type", "archetype_name"}
+        ten_minute_profile_fields = {"profile_metabolism", "profile_temperature_air_heating_setpoint", "profile_temperature_air_cooling_setpoint",}
         ten_minute_profile_classes = {
-            "metabolism_profile": TenMinuteProfile,
-            "heating_setpoint_temperature_profile": HeatingSetpointProfile,
-            "cooling_setpoint_temperature_profile": CoolingSetpointProfile,
+            "profile_metabolism": TenMinuteProfile,
+            "profile_temperature_air_heating_setpoint": HeatingSetpointProfile,
+            "profile_temperature_air_cooling_setpoint": CoolingSetpointProfile,
         }
 
         default_instance = cls()

@@ -22,7 +22,7 @@ import warnings
 # schema-versioning.md` (Dev-label convention). Every structural PR
 # between releases bumps the dev counter instead of consuming a new
 # CalVer label.
-CURRENT_SCHEMA_VERSION = "2026.5.dev7"
+CURRENT_SCHEMA_VERSION = "2026.5.dev8"
 
 # Schema version history and descriptions.
 #
@@ -209,6 +209,26 @@ SCHEMA_VERSIONS: dict[str, str] = {
         "on `_yaml_path` and explicit user declaration in the raw YAML "
         "so programmatic constructions and default_factory-only sparse "
         "fixtures remain permissive."
+    ),
+    "2026.5.dev8": (
+        "Naming convention Tier 1 completion on ArchetypeProperties: "
+        "archetype_* namespace prefix (Rule 2 exception) for fields "
+        "describing the archetype as a whole (building_name -> "
+        "archetype_name, building_height -> archetype_height, etc.); "
+        "geometry Rule 2 reorder (footprint_area -> area_footprint, "
+        "wall_external_area -> area_wall_external, internal_volume_ratio "
+        "-> ratio_internal_mass_volume, etc.); HVAC + setpoint "
+        "air_/water_ qualifier per the convention's 'Specific tokens' "
+        "section (heating_setpoint_temperature -> "
+        "temperature_air_heating_setpoint, max_heating_power -> "
+        "power_air_heating_max, maximum_hot_water_heating_power -> "
+        "power_water_heating_max, hot_water_tank_volume -> "
+        "volume_water_tank, etc.). Setpoint profiles take the profile_* "
+        "non-physical category prefix. 16 renames total. Rename table "
+        "ARCHETYPEPROPERTIES_DEV7_RENAMES added in "
+        "src/supy/data_model/core/field_renames.py; "
+        "(2026.5.dev7 -> 2026.5.dev8) migration registered in "
+        "src/supy/util/converter/yaml_upgrade.py::_HANDLERS."
     ),
     "2026.5.dev7": (
         "Naming convention Rule 2 reorder for ArchetypeProperties "

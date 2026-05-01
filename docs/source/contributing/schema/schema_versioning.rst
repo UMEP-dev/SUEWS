@@ -170,7 +170,40 @@ The lineage below mirrors ``SCHEMA_VERSIONS`` in
 the schema that shipped with it via
 ``supy.util.converter.yaml_upgrade._PACKAGE_TO_SCHEMA``.
 
-**Schema 2026.5.dev7** (current; in-development dev bump; naming convention Rule 2)
+**Schema 2026.5.dev8** (current; in-development dev bump; naming convention Tier 1 completion)
+   Completes the Tier 1 ``ArchetypeProperties`` rename pass. Three
+   orthogonal moves embedded in the rename:
+
+   * ``archetype_*`` namespace prefix (Rule 2 exception) for fields
+     describing the archetype as a whole — ``building_name`` ->
+     ``archetype_name``, ``building_count`` ->
+     ``archetype_building_count``, ``building_height`` ->
+     ``archetype_height``.
+   * Geometry Rule 2 reorder — physical quantity leads:
+     ``footprint_area`` -> ``area_footprint``, ``wall_external_area``
+     -> ``area_wall_external``, ``internal_mass_area`` ->
+     ``area_internal_mass``. Fraction-style fields take the
+     ``ratio_*`` non-physical category prefix:
+     ``internal_volume_ratio`` -> ``ratio_internal_mass_volume``,
+     ``window_to_wall_ratio`` -> ``ratio_window_to_wall``.
+   * HVAC + setpoint ``air_`` / ``water_`` qualifier per the
+     convention's "Specific tokens" section: every heating/cooling
+     power and setpoint disambiguates between air-system and DHW-system
+     control. ``max_heating_power`` -> ``power_air_heating_max``,
+     ``maximum_hot_water_heating_power`` -> ``power_water_heating_max``,
+     ``heating_setpoint_temperature`` ->
+     ``temperature_air_heating_setpoint``, ``hot_water_tank_volume``
+     -> ``volume_water_tank``. Setpoint profiles take the ``profile_*``
+     non-physical category prefix
+     (``metabolism_profile`` -> ``profile_metabolism``).
+
+   16 renames total. Rename table ``ARCHETYPEPROPERTIES_DEV7_RENAMES``
+   added in ``src/supy/data_model/core/field_renames.py``;
+   ``(2026.5.dev7 -> 2026.5.dev8)`` migration registered in
+   ``src/supy/util/converter/yaml_upgrade.py::_HANDLERS`` and chained
+   through every aggregate handler down to ``2025.12 -> current``.
+
+**Schema 2026.5.dev7** (in-development dev bump; naming convention Rule 2)
    ``ArchetypeProperties`` bulk-material and surface optical fields
    reordered to ``<quantity>_<component>_<sub_class>`` per Rule 2 of
    the SUEWS naming convention

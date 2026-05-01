@@ -20,6 +20,8 @@ pytestmark = pytest.mark.api
 from supy.data_model.core.field_renames import (
     ALL_FIELD_RENAMES,
     ANTHRO_RENAMES,
+    ARCHETYPEPROPERTIES_DEV6_RENAMES,
+    ARCHETYPEPROPERTIES_DEV7_RENAMES,
     ARCHETYPEPROPERTIES_RENAMES,
     ARCHETYPEPROPERTIES_PASCAL_RENAMES,
     ATMOSPHERE_RENAMES,
@@ -34,6 +36,7 @@ from supy.data_model.core.field_renames import (
     MODELPHYSICS_RENAMES,
     MODELPHYSICS_SUFFIX_RENAMES,
     PHENOLOGYSTATE_RENAMES,
+    RAW_YAML_FIELD_RENAMES,
     SNOWPARAMS_RENAMES,
     SNOWPARAMS_INTERMEDIATE_RENAMES,
     SNOWSTATE_RENAMES,
@@ -43,6 +46,7 @@ from supy.data_model.core.field_renames import (
     SURFACEPROPERTIES_RENAMES,
     VEGETATEDSURFACEPROPERTIES_RENAMES,
     WATERDIST_RENAMES,
+    rename_keys_recursive,
 )
 from supy.data_model.core.model import ModelPhysics
 from supy.data_model.core.site import (
@@ -145,32 +149,31 @@ class TestRegistryIntegrity:
 class TestNewNamesAccepted:
     @pytest.mark.parametrize("model_cls, renames", _RENAMED_CLASSES)
     def test_new_names_resolve_to_attributes(self, model_cls, renames):
-        # ArchetypeProperties has a dev6 -> dev7 rename pass that further
-        # renames a subset of the dev6 targets (Rule 2 reorder for
-        # bulk-material and surface optical fields). Accept either a
-        # direct Pydantic field or a key in the downstream chain.
-        from supy.data_model.core.field_renames import (
-            ARCHETYPEPROPERTIES_DEV6_RENAMES,
-        )
+        # ArchetypeProperties has downstream dev-cycle rename passes. Accept
+        # either a direct Pydantic field or a key that chains to one.
         downstream_chain = (
-            ARCHETYPEPROPERTIES_DEV6_RENAMES
+            {
+                **ARCHETYPEPROPERTIES_DEV6_RENAMES,
+                **ARCHETYPEPROPERTIES_DEV7_RENAMES,
+            }
             if model_cls.__name__ == "ArchetypeProperties"
             else {}
         )
         for new_name in renames.values():
-            if new_name in model_cls.model_fields:
-                continue
-            if new_name in downstream_chain:
-                # Will be further renamed by the dev6 -> dev7 chain;
-                # the chained target is the actual Pydantic field.
-                chained = downstream_chain[new_name]
-                assert chained in model_cls.model_fields, (
-                    f"{model_cls.__name__} missing chained field "
-                    f"{chained!r} (from {new_name!r})"
+            field_name = new_name
+            seen = {field_name}
+            while field_name in downstream_chain:
+                field_name = downstream_chain[field_name]
+                assert field_name not in seen, (
+                    f"{model_cls.__name__} cyclic downstream rename from "
+                    f"{new_name!r} via {field_name!r}"
                 )
+                seen.add(field_name)
+            if field_name in model_cls.model_fields:
                 continue
             raise AssertionError(
-                f"{model_cls.__name__} missing renamed field {new_name!r}"
+                f"{model_cls.__name__} missing renamed field {field_name!r} "
+                f"(from {new_name!r})"
             )
 
 
@@ -240,8 +243,7 @@ class TestBackwardCompat:
         assert _unwrap(archetype.specific_heat_capacity_roof_outer) == 920.0
 
     def test_stebbs_pascal_names_populate_new_attributes(self):
-        """Full STEBBS PascalCase -> snake_case (gh#1334), then Rule 2 reorder
-        (dev6 -> dev7 naming-convention pass)."""
+        """Full STEBBS PascalCase -> current snake_case naming convention."""
         with warnings.catch_warnings():
             warnings.simplefilter("ignore", DeprecationWarning)
             archetype = ArchetypeProperties(
@@ -249,9 +251,9 @@ class TestBackwardCompat:
                 WWR=0.4,
                 WallThickness=0.3,
                 WallOuterCapFrac=0.6,
-            )
+        )
         assert archetype.building_type == "Office"
-        assert _unwrap(archetype.window_to_wall_ratio) == 0.4
+        assert _unwrap(archetype.ratio_window_to_wall) == 0.4
         # dev6 wall_thickness -> dev7 thickness_wall (Rule 2: quantity leads).
         assert _unwrap(archetype.thickness_wall) == 0.3
         # dev6 wall_outer_heat_capacity_fraction ->
@@ -446,6 +448,48 @@ class TestRawDictCompatibility:
         assert active_methods["netradiation_spartacus"] is True
         assert active_methods["emissions_advanced"] is True
         assert active_methods["storage_estm"] is True
+
+    def test_raw_yaml_archetype_renames_reach_current_names(self):
+        payload = {
+            "sites": [
+                {
+                    "properties": {
+                        "building_archetype": {
+                            "WallextThickness": {"value": 0.25},
+                            "WallThickness": {"value": 0.3},
+                            "wall_external_emissivity": {"value": 0.85},
+                            "WWR": {"value": 0.4},
+                        }
+                    }
+                }
+            ]
+        }
+
+        normalised = rename_keys_recursive(payload, RAW_YAML_FIELD_RENAMES)
+        archetype = normalised["sites"][0]["properties"]["building_archetype"]
+
+        assert archetype["thickness_wall_outer"]["value"] == 0.25
+        assert archetype["thickness_wall"]["value"] == 0.3
+        assert archetype["emissivity_wall_external"]["value"] == 0.85
+        assert archetype["ratio_window_to_wall"]["value"] == 0.4
+        assert "wall_external_thickness" not in archetype
+        assert "wall_thickness" not in archetype
+        assert "window_to_wall_ratio" not in archetype
+
+    def test_raw_value_reader_accepts_archetype_pre_current_names(self):
+        from supy.data_model.validation.core.yaml_helpers import get_value_safe
+
+        archetype = {
+            "WallThickness": {"value": 0.3},
+            "wall_external_thickness": {"value": 0.25},
+            "wall_reflectivity": {"value": 0.2},
+            "WWR": {"value": 0.4},
+        }
+
+        assert get_value_safe(archetype, "thickness_wall") == 0.3
+        assert get_value_safe(archetype, "thickness_wall_outer") == 0.25
+        assert get_value_safe(archetype, "reflectivity_wall_external") == 0.2
+        assert get_value_safe(archetype, "ratio_window_to_wall") == 0.4
 
 
 class TestDataFrameColumnsPreserveLegacyNames:

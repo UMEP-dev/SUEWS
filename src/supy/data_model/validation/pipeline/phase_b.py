@@ -1995,9 +1995,9 @@ def adjust_model_option_rcmethod(yaml_data: dict) -> Tuple[dict, List[Scientific
 
 def adjust_model_option_setpointmethod(yaml_data: dict) -> Tuple[dict, List[ScientificAdjustment]]:
     """
-    If setpoint == 0 or 1, set all entries in heating_setpoint_temperature_profile and
-    cooling_setpoint_temperature_profile in building_archetype to null for all sites.
-    If setpoint == 2, set heating_setpoint_temperature and cooling_setpoint_temperature
+    If setpoint == 0 or 1, set all entries in profile_temperature_air_heating_setpoint and
+    profile_temperature_air_cooling_setpoint in building_archetype to null for all sites.
+    If setpoint == 2, set temperature_air_heating_setpoint and temperature_air_cooling_setpoint
     in building_archetype to null for all sites (they are not needed).
     """
     adjustments = []
@@ -2011,7 +2011,7 @@ def adjust_model_option_setpointmethod(yaml_data: dict) -> Tuple[dict, List[Scie
         site_gridid = get_site_gridid(site)
 
         if setpointmethod == 2:
-            for param in ["heating_setpoint_temperature", "cooling_setpoint_temperature"]:
+            for param in ["temperature_air_heating_setpoint", "temperature_air_cooling_setpoint"]:
                 entry = building_archetype.get(param)
                 if isinstance(entry, dict):
                     old_val = entry.get("value")
@@ -2028,7 +2028,7 @@ def adjust_model_option_setpointmethod(yaml_data: dict) -> Tuple[dict, List[Scie
                             )
                         )
         elif setpointmethod == 0 or setpointmethod == 1:
-            for prof_param in ["heating_setpoint_temperature_profile", "cooling_setpoint_temperature_profile"]:
+            for prof_param in ["profile_temperature_air_heating_setpoint", "profile_temperature_air_cooling_setpoint"]:
                 profile = building_archetype.get(prof_param)
                 if isinstance(profile, dict):
                     for daytype in ("working_day", "holiday"):
@@ -2096,7 +2096,7 @@ def adjust_model_option_stebbsmethod(yaml_data: dict) -> Tuple[dict, List[Scient
 
             site_gridid = get_site_gridid(site)
 
-            wwr_entry = bldgarc.get("window_to_wall_ratio", {})
+            wwr_entry = bldgarc.get("ratio_window_to_wall", {})
             wwr = wwr_entry.get("value") if isinstance(wwr_entry, dict) else wwr_entry
 
             if wwr == 0.0:

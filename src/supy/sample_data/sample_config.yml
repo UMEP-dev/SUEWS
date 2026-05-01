@@ -1,5 +1,5 @@
 name: sample_config
-schema_version: '2026.5.dev7'
+schema_version: '2026.5.dev8'
 description: Sample configuration built from benchmark 1a (Ward et al. 2016) model configuration
 model:
   control:
@@ -817,12 +817,12 @@ sites:
         value: 0.8
     building_archetype:
       building_type: test
-      building_name: test
-      building_count:
+      archetype_name: test
+      archetype_building_count:
         value: 1.0
       occupants:
         value: 3.0
-      metabolism_profile:
+      profile_metabolism:
         working_day:
           '1': 1
           '2': 1
@@ -1113,17 +1113,17 @@ sites:
           '142': 1
           '143': 1
           '144': 1
-      building_height:
+      archetype_height:
         value: 10.9
-      footprint_area:
+      area_footprint:
         value: 69.5
-      wall_external_area:
+      area_wall_external:
         value: 186.7
-      internal_volume_ratio:
+      ratio_internal_mass_volume:
         value: 0.1
-      internal_mass_area:
+      area_internal_mass:
         value: 100
-      window_to_wall_ratio:
+      ratio_window_to_wall:
         value: 0.25
       thickness_wall:
         value: 0.2312
@@ -1213,17 +1213,17 @@ sites:
         value: 1286.1
       emissivity_internal_mass:
         value: 0.91
-      max_heating_power:
+      power_air_heating_max:
         value: 12510
-      hot_water_tank_volume:
+      volume_water_tank:
         value: 0.3
-      maximum_hot_water_heating_power:
+      power_water_heating_max:
         value: 50000.0
-      heating_setpoint_temperature:
+      temperature_air_heating_setpoint:
         value: 18.0
-      cooling_setpoint_temperature:
+      temperature_air_cooling_setpoint:
         value: 27.0
-      heating_setpoint_temperature_profile:
+      profile_temperature_air_heating_setpoint:
         working_day:
           '1': 18.0
           '2': 18.0
@@ -1514,7 +1514,7 @@ sites:
           '142': 18.0
           '143': 18.0
           '144': 18.0
-      cooling_setpoint_temperature_profile:
+      profile_temperature_air_cooling_setpoint:
         working_day:
           '1': 27.0
           '2': 27.0

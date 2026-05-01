@@ -180,10 +180,75 @@ The sections below summarise what users see change between schemas.
 The authoritative lineage (including release-tag to schema mapping)
 lives in :ref:`schema_version_history`.
 
+Upgrading to Schema 2026.5.dev8 (naming convention Tier 1 completion for ArchetypeProperties)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Schema ``2026.5.dev8`` is the current in-development shape. 16
+``ArchetypeProperties`` field names under
+``sites[].properties.building_archetype.*`` have been further updated
+beyond the dev7 Rule 2 reorder. Three orthogonal moves embedded in
+the rename:
+
+- **archetype_* namespace prefix** (Rule 2 exception) for fields
+  describing the archetype as a whole:
+
+  - ``building_name`` -> ``archetype_name``
+  - ``building_count`` -> ``archetype_building_count``
+  - ``building_height`` -> ``archetype_height``
+
+- **Geometry Rule 2 reorder** — physical quantity leads:
+
+  - ``footprint_area`` -> ``area_footprint``
+  - ``wall_external_area`` -> ``area_wall_external``
+  - ``internal_mass_area`` -> ``area_internal_mass``
+
+  Fraction-style fields take the ``ratio_*`` non-physical category
+  prefix:
+
+  - ``internal_volume_ratio`` -> ``ratio_internal_mass_volume``
+  - ``window_to_wall_ratio`` -> ``ratio_window_to_wall``
+
+- **HVAC + setpoint air_/water_ qualifier** per the convention's
+  "Specific tokens" section — every heating/cooling power and setpoint
+  disambiguates between air-system and DHW-system control:
+
+  - ``max_heating_power`` -> ``power_air_heating_max``
+  - ``maximum_hot_water_heating_power`` -> ``power_water_heating_max``
+  - ``heating_setpoint_temperature`` ->
+    ``temperature_air_heating_setpoint``
+  - ``cooling_setpoint_temperature`` ->
+    ``temperature_air_cooling_setpoint``
+  - ``hot_water_tank_volume`` -> ``volume_water_tank``
+
+  Setpoint profiles take the ``profile_*`` non-physical category
+  prefix:
+
+  - ``heating_setpoint_temperature_profile`` ->
+    ``profile_temperature_air_heating_setpoint``
+  - ``cooling_setpoint_temperature_profile`` ->
+    ``profile_temperature_air_cooling_setpoint``
+  - ``metabolism_profile`` -> ``profile_metabolism``
+
+Run the migrator to bring an existing YAML onto the new shape:
+
+.. code-block:: bash
+
+   suews schema migrate your_config.yml --target-version 2026.5.dev8
+
+Every rename is logged via ``[yaml-upgrade]   renamed 'old' ->
+'new'``. The Pydantic backward-compat shim still accepts the dev7
+names at load time, emitting a ``DeprecationWarning``; YAMLs that
+round-trip through the migrator come out in the new spellings and no
+longer warn. Cross-layer (Fortran TYPE members, Rust struct fields,
+DataFrame column keys) is unchanged — the bridge map composes through
+the chained ``ARCHETYPEPROPERTIES_DEV7_TO_PASCAL`` lookup so the
+legacy fused column key is still produced from the new Pydantic field
+name.
+
 Upgrading to Schema 2026.5.dev7 (naming convention Rule 2 reorder for ArchetypeProperties)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Schema ``2026.5.dev7`` is the current in-development shape. 44
+Schema ``2026.5.dev7`` was the prior in-development shape. 44
 ``ArchetypeProperties`` field names under
 ``sites[].properties.building_archetype.*`` have been reordered to
 follow Rule 2 of the SUEWS naming convention

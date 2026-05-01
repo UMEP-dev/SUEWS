@@ -828,7 +828,7 @@ def test_phase_b_forcing_height_error_and_warning(registry):
                     "land_cover": {
                         "bldgs": {"bldgh": {"value": 6.0}, "sfr": {"value": 0.4}},
                     },
-                    "building_archetype": {"building_height": {"value": 8.0}},
+                    "building_archetype": {"archetype_height": {"value": 8.0}},
                     "vertical_layers": {"height": {"value": [0, 5, 12, 0]}},
                 },
             }
@@ -868,7 +868,7 @@ def test_phase_b_forcing_height_valid(registry):
                     "land_cover": {
                         "bldgs": {"bldgh": {"value": 10.0}, "sfr": {"value": 0.3}},
                     },
-                    "building_archetype": {"building_height": {"value": 12.0}},
+                    "building_archetype": {"archetype_height": {"value": 12.0}},
                     "vertical_layers": {"height": {"value": [0, 5, 12, 15]}},
                 },
             }
@@ -879,7 +879,7 @@ def test_phase_b_forcing_height_valid(registry):
     assert not results
 
 def test_phase_b_forcing_height_only_stebbs_height(registry):
-    """Test validate_forcing_height_vs_buildings uses building_height if present."""
+    """Test validate_forcing_height_vs_buildings uses archetype_height if present."""
     yaml_data = {
         "model": {
             "physics": {
@@ -895,7 +895,7 @@ def test_phase_b_forcing_height_only_stebbs_height(registry):
                     "land_cover": {
                         "bldgs": {"bldgh": {"value": 7.0}, "sfr": {"value": 0.4}},
                     },
-                    "building_archetype": {"building_height": {"value": 7.0}},
+                    "building_archetype": {"archetype_height": {"value": 7.0}},
                 },
             }
         ],
@@ -982,7 +982,7 @@ def test_phase_b_forcing_height_above_max(registry):
                 "properties": {
                     "z": {"value": 100.0},  # way above
                     "land_cover": {"bldgs": {"bldgh": {"value": 10.0}, "sfr": {"value": 0.4}}},
-                    "building_archetype": {"building_height": {"value": 15.0}},
+                    "building_archetype": {"archetype_height": {"value": 15.0}},
                 },
             }
         ],
@@ -1104,11 +1104,11 @@ def test_adjust_model_option_setpointmethod_sets_profiles_to_null_when_0_or_1():
             "name": "site1",
             "properties": {
                 "building_archetype": {
-                    "heating_setpoint_temperature_profile": {
+                    "profile_temperature_air_heating_setpoint": {
                         "working_day": {"0": 21.0, "1": 22.0},
                         "holiday": {"0": 20.0, "1": 21.0},
                     },
-                    "cooling_setpoint_temperature_profile": {
+                    "profile_temperature_air_cooling_setpoint": {
                         "working_day": {"0": 25.0, "1": 26.0},
                         "holiday": {"0": 24.0, "1": 25.0},
                     },
@@ -1118,12 +1118,12 @@ def test_adjust_model_option_setpointmethod_sets_profiles_to_null_when_0_or_1():
     }
     updated, adjustments = adjust_model_option_setpointmethod(yaml_data)
     ba = updated["sites"][0]["properties"]["building_archetype"]
-    for prof in ["heating_setpoint_temperature_profile", "cooling_setpoint_temperature_profile"]:
+    for prof in ["profile_temperature_air_heating_setpoint", "profile_temperature_air_cooling_setpoint"]:
         for daytype in ["working_day", "holiday"]:
             for hour in ba[prof][daytype]:
                 assert ba[prof][daytype][hour] is None
-    assert any(a.parameter == "building_archetype.heating_setpoint_temperature_profile.working_day" for a in adjustments)
-    assert any(a.parameter == "building_archetype.cooling_setpoint_temperature_profile.holiday" for a in adjustments)
+    assert any(a.parameter == "building_archetype.profile_temperature_air_heating_setpoint.working_day" for a in adjustments)
+    assert any(a.parameter == "building_archetype.profile_temperature_air_cooling_setpoint.holiday" for a in adjustments)
 
 def test_adjust_model_option_setpointmethod_sets_profiles_to_null_when_1():
     # setpoint == 1: should nullify all profile entries
@@ -1133,11 +1133,11 @@ def test_adjust_model_option_setpointmethod_sets_profiles_to_null_when_1():
             "name": "site1",
             "properties": {
                 "building_archetype": {
-                    "heating_setpoint_temperature_profile": {
+                    "profile_temperature_air_heating_setpoint": {
                         "working_day": {"0": 21.0},
                         "holiday": {"0": 20.0},
                     },
-                    "cooling_setpoint_temperature_profile": {
+                    "profile_temperature_air_cooling_setpoint": {
                         "working_day": {"0": 25.0},
                         "holiday": {"0": 24.0},
                     },
@@ -1147,32 +1147,32 @@ def test_adjust_model_option_setpointmethod_sets_profiles_to_null_when_1():
     }
     updated, adjustments = adjust_model_option_setpointmethod(yaml_data)
     ba = updated["sites"][0]["properties"]["building_archetype"]
-    for prof in ["heating_setpoint_temperature_profile", "cooling_setpoint_temperature_profile"]:
+    for prof in ["profile_temperature_air_heating_setpoint", "profile_temperature_air_cooling_setpoint"]:
         for daytype in ["working_day", "holiday"]:
             for hour in ba[prof][daytype]:
                 assert ba[prof][daytype][hour] is None
-    assert any(a.parameter == "building_archetype.heating_setpoint_temperature_profile.working_day" for a in adjustments)
+    assert any(a.parameter == "building_archetype.profile_temperature_air_heating_setpoint.working_day" for a in adjustments)
 
 def test_adjust_model_option_setpointmethod_sets_temps_to_null_when_2():
-    # setpoint == 2: should nullify heating_setpoint_temperature and cooling_setpoint_temperature
+    # setpoint == 2: should nullify temperature_air_heating_setpoint and temperature_air_cooling_setpoint
     yaml_data = {
         "model": {"physics": {"setpoint": {"value": 2}}},
         "sites": [{
             "name": "site1",
             "properties": {
                 "building_archetype": {
-                    "heating_setpoint_temperature": {"value": 21.0},
-                    "cooling_setpoint_temperature": {"value": 25.0},
+                    "temperature_air_heating_setpoint": {"value": 21.0},
+                    "temperature_air_cooling_setpoint": {"value": 25.0},
                 }
             }
         }],
     }
     updated, adjustments = adjust_model_option_setpointmethod(yaml_data)
     ba = updated["sites"][0]["properties"]["building_archetype"]
-    assert ba["heating_setpoint_temperature"]["value"] is None
-    assert ba["cooling_setpoint_temperature"]["value"] is None
-    assert any(a.parameter == "building_archetype.heating_setpoint_temperature" for a in adjustments)
-    assert any(a.parameter == "building_archetype.cooling_setpoint_temperature" for a in adjustments)
+    assert ba["temperature_air_heating_setpoint"]["value"] is None
+    assert ba["temperature_air_cooling_setpoint"]["value"] is None
+    assert any(a.parameter == "building_archetype.temperature_air_heating_setpoint" for a in adjustments)
+    assert any(a.parameter == "building_archetype.temperature_air_cooling_setpoint" for a in adjustments)
 
 def test_adjust_model_option_setpointmethod_no_action_when_already_null():
     # Should not add adjustments if already null
@@ -1182,16 +1182,16 @@ def test_adjust_model_option_setpointmethod_no_action_when_already_null():
             "name": "site1",
             "properties": {
                 "building_archetype": {
-                    "heating_setpoint_temperature": {"value": None},
-                    "cooling_setpoint_temperature": {"value": None},
+                    "temperature_air_heating_setpoint": {"value": None},
+                    "temperature_air_cooling_setpoint": {"value": None},
                 }
             }
         }],
     }
     updated, adjustments = adjust_model_option_setpointmethod(yaml_data)
     ba = updated["sites"][0]["properties"]["building_archetype"]
-    assert ba["heating_setpoint_temperature"]["value"] is None
-    assert ba["cooling_setpoint_temperature"]["value"] is None
+    assert ba["temperature_air_heating_setpoint"]["value"] is None
+    assert ba["temperature_air_cooling_setpoint"]["value"] is None
     assert len(adjustments) == 0
 
 def test_validate_model_option_rcmethod2_missing_params(registry):
@@ -1282,8 +1282,8 @@ def test_validate_model_option_setpointmethod_0_or_1_all_params(registry):
             "name": "site1",
             "properties": {
                 "building_archetype": {
-                    "heating_setpoint_temperature": {"value": 21.0},
-                    "cooling_setpoint_temperature": {"value": 25.0},
+                    "temperature_air_heating_setpoint": {"value": 21.0},
+                    "temperature_air_cooling_setpoint": {"value": 25.0},
                 }
             }
         }],
@@ -1298,15 +1298,15 @@ def test_validate_model_option_setpointmethod_0_or_1_missing_params(registry):
             "name": "site1",
             "properties": {
                 "building_archetype": {
-                    # "heating_setpoint_temperature" missing
-                    "cooling_setpoint_temperature": {"value": 25.0},
+                    # "temperature_air_heating_setpoint" missing
+                    "temperature_air_cooling_setpoint": {"value": 25.0},
                 }
             }
         }],
     }
     results = registry["setpoint"](ValidationContext(yaml_data=yaml_data))
     error_params = [r.parameter for r in results if r.status == "ERROR"]
-    assert "heating_setpoint_temperature" in error_params
+    assert "temperature_air_heating_setpoint" in error_params
     assert all("must be set" in r.message for r in results if r.status == "ERROR")
 
 def test_validate_model_option_setpointmethod_2_all_profiles_valid(registry):
@@ -1320,11 +1320,11 @@ def test_validate_model_option_setpointmethod_2_all_profiles_valid(registry):
             "name": "site1",
             "properties": {
                 "building_archetype": {
-                    "heating_setpoint_temperature_profile": {
+                    "profile_temperature_air_heating_setpoint": {
                         "working_day": heating_working,
                         "holiday": heating_holiday,
                     },
-                    "cooling_setpoint_temperature_profile": {
+                    "profile_temperature_air_cooling_setpoint": {
                         "working_day": cooling_working,
                         "holiday": cooling_holiday,
                     },
@@ -1342,11 +1342,11 @@ def test_validate_model_option_setpointmethod_2_missing_profile_entries(registry
             "name": "site1",
             "properties": {
                 "building_archetype": {
-                    "heating_setpoint_temperature_profile": {
+                    "profile_temperature_air_heating_setpoint": {
                         "working_day": {"0": None, "1": 19.5},
                         "holiday": {"0": 19.0, "1": None},
                     },
-                    "cooling_setpoint_temperature_profile": {
+                    "profile_temperature_air_cooling_setpoint": {
                         "working_day": {"0": 26.0, "1": None},
                         "holiday": {"0": None, "1": 26.5},
                     },
@@ -1356,8 +1356,8 @@ def test_validate_model_option_setpointmethod_2_missing_profile_entries(registry
     }
     results = registry["setpoint"](ValidationContext(yaml_data=yaml_data))
     error_params = [r.parameter for r in results if r.status == "ERROR"]
-    assert "heating_setpoint_temperature_profile" in error_params
-    assert "cooling_setpoint_temperature_profile" in error_params
+    assert "profile_temperature_air_heating_setpoint" in error_params
+    assert "profile_temperature_air_cooling_setpoint" in error_params
     assert any("null entries" in r.message for r in results if r.status == "ERROR")
 
 def test_validate_model_option_setpointmethod_2_out_of_range(registry):
@@ -1367,11 +1367,11 @@ def test_validate_model_option_setpointmethod_2_out_of_range(registry):
             "name": "site1",
             "properties": {
                 "building_archetype": {
-                    "heating_setpoint_temperature_profile": {
+                    "profile_temperature_air_heating_setpoint": {
                         "working_day": {"0": 31.0, "1": 19.5},
                         "holiday": {"0": 19.0, "1": 30.0},
                     },
-                    "cooling_setpoint_temperature_profile": {
+                    "profile_temperature_air_cooling_setpoint": {
                         "working_day": {"0": 14.0, "1": 27.0},
                         "holiday": {"0": 25.5, "1": 15.0},
                     },
@@ -1380,8 +1380,8 @@ def test_validate_model_option_setpointmethod_2_out_of_range(registry):
         }],
     }
     results = registry["setpoint"](ValidationContext(yaml_data=yaml_data))
-    heating_errors = [r for r in results if r.parameter == "heating_setpoint_temperature_profile" and r.status == "ERROR"]
-    cooling_errors = [r for r in results if r.parameter == "cooling_setpoint_temperature_profile" and r.status == "ERROR"]
+    heating_errors = [r for r in results if r.parameter == "profile_temperature_air_heating_setpoint" and r.status == "ERROR"]
+    cooling_errors = [r for r in results if r.parameter == "profile_temperature_air_cooling_setpoint" and r.status == "ERROR"]
     assert any("values >= 30.0" in r.message for r in heating_errors)
     assert any("values <= 15.0" in r.message for r in cooling_errors)
 
@@ -1392,11 +1392,11 @@ def test_validate_model_option_setpointmethod_2_invalid_slice_keys(registry):
             "name": "site1",
             "properties": {
                 "building_archetype": {
-                    "heating_setpoint_temperature_profile": {
+                    "profile_temperature_air_heating_setpoint": {
                         "working_day": {"0": 20.0, "1": 19.5},
                         "holiday": {"1": 19.0, "2": 18.5},
                     },
-                    "cooling_setpoint_temperature_profile": {
+                    "profile_temperature_air_cooling_setpoint": {
                         "working_day": {"1": 26.0, "145": 27.0},
                         "holiday": {"1": 25.5, "2": 26.5},
                     },
@@ -1406,8 +1406,8 @@ def test_validate_model_option_setpointmethod_2_invalid_slice_keys(registry):
     }
     results = registry["setpoint"](ValidationContext(yaml_data=yaml_data))
     error_params = [r.parameter for r in results if r.status == "ERROR"]
-    assert "heating_setpoint_temperature_profile.working_day" in error_params
-    assert "cooling_setpoint_temperature_profile.working_day" in error_params
+    assert "profile_temperature_air_heating_setpoint.working_day" in error_params
+    assert "profile_temperature_air_cooling_setpoint.working_day" in error_params
     assert any(
         "Only entries 1-144 are valid." in r.message
         for r in results
@@ -1663,7 +1663,7 @@ def test_daylight_control_daylightcontrol_zero(registry):
 
 
 def test_validate_model_option_stebbsmethod_occupants_zero_metabolismprofile_nonzero(registry):
-    """Test error when occupants=0.0 but metabolism_profile has nonzero values."""
+    """Test error when occupants=0.0 but profile_metabolism has nonzero values."""
 
     yaml_data = {
         "model": {"physics": {"stebbs": {"value": 1}}},
@@ -1672,7 +1672,7 @@ def test_validate_model_option_stebbsmethod_occupants_zero_metabolismprofile_non
             "properties": {
                 "building_archetype": {
                     "occupants": {"value": 0.0},
-                    "metabolism_profile": {
+                    "profile_metabolism": {
                         "working_day": {"0": 0, "1": 1.2, "2": 0},
                         "holiday": {"0": 0, "1": 0, "2": 0.5},
                     },
@@ -1683,7 +1683,7 @@ def test_validate_model_option_stebbsmethod_occupants_zero_metabolismprofile_non
     }
     results = registry["occupants_metabolism"](ValidationContext(yaml_data=yaml_data))
     error_params = [r.parameter for r in results]
-    assert "building_archetype.metabolism_profile" in error_params
+    assert "building_archetype.profile_metabolism" in error_params
     assert any("nonzero entries" in r.message for r in results)
     assert all(r.status == "ERROR" for r in results)
 
@@ -1697,7 +1697,7 @@ def test_validate_model_option_stebbsmethod_occupants_zero_metabolismprofile_all
             "properties": {
                 "building_archetype": {
                     "occupants": {"value": 0.0},
-                    "metabolism_profile": {
+                    "profile_metabolism": {
                         "working_day": {"0": 0, "1": 0.0, "2": None},
                         "holiday": {"0": 0, "1": 0.0, "2": None},
                     },
@@ -1719,7 +1719,7 @@ def test_validate_model_option_stebbsmethod_occupants_nonzero_metabolismprofile_
             "properties": {
                 "building_archetype": {
                     "occupants": {"value": 2.0},
-                    "metabolism_profile": {
+                    "profile_metabolism": {
                         "working_day": {"0": 1.1, "1": 1.2},
                         "holiday": {"0": 0.9, "1": 1.0},
                     },
@@ -1734,19 +1734,19 @@ def test_validate_model_option_stebbsmethod_occupants_nonzero_metabolismprofile_
 @pytest.mark.parametrize(
     "wwr, nullify, keep",
     [
-        (0.0,  # window_to_wall_ratio==0: nullify window params
+        (0.0,  # ratio_window_to_wall==0: nullify window params
          ["window_internal_convection_coefficient", "window_external_convection_coefficient"],
          ["wall_external_convection_coefficient", "wall_internal_convection_coefficient"]),
-        (1.0,  # window_to_wall_ratio==1: nullify wall params
+        (1.0,  # ratio_window_to_wall==1: nullify wall params
          ["wall_external_convection_coefficient", "wall_internal_convection_coefficient"],
          ["window_internal_convection_coefficient", "window_external_convection_coefficient"]),
-        (0.5,  # window_to_wall_ratio!=0,1: nullify nothing
+        (0.5,  # ratio_window_to_wall!=0,1: nullify nothing
          [], ["window_internal_convection_coefficient", "window_external_convection_coefficient",
               "wall_external_convection_coefficient", "wall_internal_convection_coefficient"]),
     ],
 )
 def test_adjust_model_option_stebbsmethod_nullification(wwr, nullify, keep):
-    """Test adjust_model_option_stebbsmethod nullifies correct params based on window_to_wall_ratio."""
+    """Test adjust_model_option_stebbsmethod nullifies correct params based on ratio_window_to_wall."""
     yaml_data = {
         "model": {"physics": {"stebbs": {"value": 1}}},
         "sites": [{
@@ -1758,7 +1758,7 @@ def test_adjust_model_option_stebbsmethod_nullification(wwr, nullify, keep):
                     "wall_internal_convection_coefficient": {"value": 9.0},
                 },
                 "building_archetype": {
-                    "window_to_wall_ratio": {"value": wwr},
+                    "ratio_window_to_wall": {"value": wwr},
                     "thickness_window": {"value": 0.2},
                     "conductivity_window": {"value": 1.1},
                     "density_window": {"value": 2500},
@@ -1843,7 +1843,7 @@ def test_adjust_model_option_stebbsmethod_not_one_no_action():
                     "wall_external_convection_coefficient": {"value": 8.0},
                 },
                 "building_archetype": {
-                    "window_to_wall_ratio": {"value": 0.0},
+                    "ratio_window_to_wall": {"value": 0.0},
                     "thickness_window": {"value": 0.2},
                     "thickness_wall": {"value": 0.35},
                 },
@@ -1874,9 +1874,9 @@ def test_validate_spartacus_building_height_error():
     # set stebbsmethod as a raw int so the validator can parse it.
     cfg.model.physics.stebbs = 1
 
-    # bldgh and building_height both exceed height[nlayer]
+    # bldgh and archetype_height both exceed height[nlayer]
     bldgs = SimpleNamespace(bldgh=15.0)
-    building_archetype = SimpleNamespace(building_height=20.0)
+    building_archetype = SimpleNamespace(archetype_height=20.0)
     vertical_layers = SimpleNamespace(height=[5.0, 10.0, 12.0], nlayer=1)
     props = SimpleNamespace(
         land_cover=SimpleNamespace(bldgs=bldgs),
@@ -1888,16 +1888,16 @@ def test_validate_spartacus_building_height_error():
 
     assert len(msgs) == 2
     assert any("bldgh=15.0" in m and "height[1]=10.0" in m for m in msgs)
-    assert any("building_height=20.0" in m and "height[1]=10.0" in m for m in msgs)
+    assert any("archetype_height=20.0" in m and "height[1]=10.0" in m for m in msgs)
 
 
 def test_validate_spartacus_building_height_no_error():
     cfg = make_cfg(net_radiation=1001, stebbs=1)
     cfg.model.physics.stebbs = 1
 
-    # bldgh and building_height do not exceed height[nlayer]
+    # bldgh and archetype_height do not exceed height[nlayer]
     bldgs = SimpleNamespace(bldgh=8.0)
-    building_archetype = SimpleNamespace(building_height=9.0)
+    building_archetype = SimpleNamespace(archetype_height=9.0)
     vertical_layers = SimpleNamespace(height=[5.0, 10.0, 12.0], nlayer=1)
     props = SimpleNamespace(
         land_cover=SimpleNamespace(bldgs=bldgs),
@@ -1910,12 +1910,12 @@ def test_validate_spartacus_building_height_no_error():
 
 
 def test_validate_spartacus_building_height_stebbs_off():
-    """building_height should NOT be checked when stebbsmethod != 1."""
+    """archetype_height should NOT be checked when stebbsmethod != 1."""
     cfg = make_cfg(net_radiation=1001, stebbs=0)
 
-    # building_height exceeds domain top, but stebbsmethod is off
+    # archetype_height exceeds domain top, but stebbsmethod is off
     bldgs = SimpleNamespace(bldgh=8.0)
-    building_archetype = SimpleNamespace(building_height=20.0)
+    building_archetype = SimpleNamespace(archetype_height=20.0)
     vertical_layers = SimpleNamespace(height=[5.0, 10.0, 12.0], nlayer=1)
     props = SimpleNamespace(
         land_cover=SimpleNamespace(bldgs=bldgs),

@@ -339,11 +339,62 @@ ARCHETYPEPROPERTIES_DEV6_RENAMES: Dict[str, str] = {
 }
 
 
-# Chained reverse map: dev7 final name -> PascalCase legacy column name.
+# Schema 2026.5.dev7 -> 2026.5.dev8: complete the Tier 1 rename pass on
+# ArchetypeProperties. Three orthogonal moves:
+#
+# * Archetype namespace prefix (Rule 2 exception) — fields describing
+#   the archetype as a whole take the `archetype_*` prefix:
+#   `building_name` -> `archetype_name`,
+#   `building_count` -> `archetype_building_count`,
+#   `building_height` -> `archetype_height`.
+# * Geometry Rule 2 reorder — physical quantity leads:
+#   `footprint_area` -> `area_footprint`,
+#   `wall_external_area` -> `area_wall_external`, etc. The `ratio_*`
+#   non-physical category prefix leads for fraction-style fields:
+#   `internal_volume_ratio` -> `ratio_internal_mass_volume`,
+#   `window_to_wall_ratio` -> `ratio_window_to_wall`.
+# * HVAC + setpoint air_/water_ qualifier (per the convention's
+#   "Specific tokens" section) — every heating/cooling power and
+#   setpoint disambiguates between air-system and DHW-system control:
+#   `heating_setpoint_temperature` -> `temperature_air_heating_setpoint`,
+#   `max_heating_power` -> `power_air_heating_max`,
+#   `maximum_hot_water_heating_power` -> `power_water_heating_max`, etc.
+#   Setpoint profiles take the `profile_*` non-physical category prefix:
+#   `metabolism_profile` -> `profile_metabolism`.
+
+ARCHETYPEPROPERTIES_DEV7_RENAMES: Dict[str, str] = {
+    # Archetype namespace
+    "building_name": "archetype_name",
+    "building_count": "archetype_building_count",
+    "building_height": "archetype_height",
+    # Geometry — quantity leads
+    "footprint_area": "area_footprint",
+    "wall_external_area": "area_wall_external",
+    "internal_mass_area": "area_internal_mass",
+    # Geometry — non-physical, ratio_* leads
+    "internal_volume_ratio": "ratio_internal_mass_volume",
+    "window_to_wall_ratio": "ratio_window_to_wall",
+    # HVAC max powers — power_<system>_<sub_class>_max
+    "max_heating_power": "power_air_heating_max",
+    "maximum_hot_water_heating_power": "power_water_heating_max",
+    # DHW tank volume — quantity leads + drop redundant `hot_`
+    "hot_water_tank_volume": "volume_water_tank",
+    # Setpoints — temperature leads + air_/water_ qualifier
+    "heating_setpoint_temperature": "temperature_air_heating_setpoint",
+    "cooling_setpoint_temperature": "temperature_air_cooling_setpoint",
+    # Setpoint profiles — profile_* category prefix leads
+    "heating_setpoint_temperature_profile": "profile_temperature_air_heating_setpoint",
+    "cooling_setpoint_temperature_profile": "profile_temperature_air_cooling_setpoint",
+    "metabolism_profile": "profile_metabolism",
+}
+
+
+# Chained reverse map: dev8 final name -> PascalCase legacy column name.
 # Used by ArchetypeProperties._ARCHETYPE_LEGACY_COL_NAMES so the Fortran/Rust
 # bridge (keyed on the fused lowercased PascalCase, e.g. `wallextthickness`)
-# still resolves from the dev7 Pydantic field name. Composes through
-# ARCHETYPEPROPERTIES_DEV6_RENAMES (dev7 -> dev6) and the base
+# still resolves from the dev8 Pydantic field name. Composes through
+# ARCHETYPEPROPERTIES_DEV7_RENAMES (dev8 -> dev7),
+# ARCHETYPEPROPERTIES_DEV6_RENAMES (dev7 -> dev6), and the base
 # {dev6: PascalCase} reverse map. Pre-computed at module import so the
 # ClassVar definition stays a single dict literal.
 def _build_archetype_dev7_to_pascal() -> Dict[str, str]:
@@ -353,18 +404,29 @@ def _build_archetype_dev7_to_pascal() -> Dict[str, str]:
     pascal_reverse: Dict[str, str] = {
         new: old for old, new in ARCHETYPEPROPERTIES_PASCAL_RENAMES.items()
     }
-    chain: Dict[str, str] = {}
+    # Step 1: build dev7 -> PascalCase via dev6.
+    dev7_chain: Dict[str, str] = {}
     for old_dev6, new_dev7 in ARCHETYPEPROPERTIES_DEV6_RENAMES.items():
-        # Walk dev7 -> dev6 -> PascalCase (preferring the canonical
-        # ARCHETYPEPROPERTIES_RENAMES path; fall back to the gh#1329 PASCAL
-        # intermediates, then to the dev6 name itself if no PascalCase
-        # ancestry exists).
-        chain[new_dev7] = base_reverse.get(
+        dev7_chain[new_dev7] = base_reverse.get(
             old_dev6, pascal_reverse.get(old_dev6, old_dev6)
+        )
+
+    # Step 2: build dev8 -> PascalCase. The dev7 source may be a dev6
+    # name (untouched by the dev6 -> dev7 pass) or a dev7 name produced
+    # in step 1. Try the dev7 chain first, then fall back to the base
+    # PascalCase map.
+    chain: Dict[str, str] = dict(dev7_chain)
+    for old_dev7, new_dev8 in ARCHETYPEPROPERTIES_DEV7_RENAMES.items():
+        chain[new_dev8] = dev7_chain.get(
+            old_dev7,
+            base_reverse.get(old_dev7, pascal_reverse.get(old_dev7, old_dev7)),
         )
     return chain
 
 
+# Name kept (rather than renamed to `..._DEV8_TO_PASCAL`) so existing
+# callers from PR #1390 continue to import without rebasing churn.
+# The map now covers the dev6 -> dev7 -> dev8 chain.
 ARCHETYPEPROPERTIES_DEV7_TO_PASCAL: Dict[str, str] = _build_archetype_dev7_to_pascal()
 
 # -- StebbsProperties (site.py) ----------------------------------------------
@@ -846,6 +908,34 @@ FORTRAN_INTERNAL_RENAMES: Dict[str, str] = {
     **STEBBSSTATE_RENAMES,
 }
 
+
+def _compose_rename_chains(*tables: Mapping[str, str]) -> Dict[str, str]:
+    """Compose raw-YAML rename aliases so every source reaches today's target.
+
+    Some accepted schema spellings are intermediate names from earlier dev
+    labels, e.g. ``WallextThickness`` -> ``wall_external_thickness`` ->
+    ``thickness_wall_outer``. Pydantic applies those tables sequentially, but
+    raw-dict callers use a single recursive pass. Composing the tables here
+    keeps those callers from stopping one schema label behind.
+    """
+    combined: Dict[str, str] = {}
+    for table in tables:
+        combined.update(table)
+
+    resolved: Dict[str, str] = {}
+    for old_name, first_target in combined.items():
+        seen = {old_name}
+        target = first_target
+        while target in combined:
+            if target in seen:
+                chain = " -> ".join([*seen, target])
+                raise ValueError(f"Cyclic field rename chain detected: {chain}")
+            seen.add(target)
+            target = combined[target]
+        resolved[old_name] = target
+    return resolved
+
+
 # Raw-YAML structural checks (Phase A / precheck) need a wider view than the
 # one-to-one public registry above: they must accept both the final public
 # names and the short-lived Schema 2026.5 intermediate ModelPhysics aliases
@@ -853,15 +943,16 @@ FORTRAN_INTERNAL_RENAMES: Dict[str, str] = {
 # Keeping this separate preserves the bridge-safe one-to-one contract of
 # ``ALL_FIELD_RENAMES`` while letting raw-dict callers normalise older YAMLs
 # before they compare against the current sample schema.
-RAW_YAML_FIELD_RENAMES: Dict[str, str] = {
-    **MODELPHYSICS_SUFFIX_RENAMES,
-    **ARCHETYPEPROPERTIES_PASCAL_RENAMES,
-    **ARCHETYPEPROPERTIES_DEV3_RENAMES,
-    **ARCHETYPEPROPERTIES_DEV6_RENAMES,
-    **SNOWPARAMS_INTERMEDIATE_RENAMES,
-    **STEBBSPROPERTIES_DEV3_RENAMES,
-    **ALL_FIELD_RENAMES,
-}
+RAW_YAML_FIELD_RENAMES: Dict[str, str] = _compose_rename_chains(
+    MODELPHYSICS_SUFFIX_RENAMES,
+    ARCHETYPEPROPERTIES_PASCAL_RENAMES,
+    ARCHETYPEPROPERTIES_DEV3_RENAMES,
+    ARCHETYPEPROPERTIES_DEV6_RENAMES,
+    ARCHETYPEPROPERTIES_DEV7_RENAMES,
+    SNOWPARAMS_INTERMEDIATE_RENAMES,
+    STEBBSPROPERTIES_DEV3_RENAMES,
+    ALL_FIELD_RENAMES,
+)
 
 # Reverse mapping: new_name -> old_name (for serialisation to Fortran bridge).
 # The Fortran bridge still indexes state by fused spellings, so `_REVERSE_*`

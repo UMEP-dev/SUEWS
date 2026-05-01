@@ -255,16 +255,16 @@ class SUEWSConfig(BaseModel):
 
     ARCHETYPE_REQUIRED_PARAMS: ClassVar[List[str]] = [
         "building_type",
-        "building_name",
-        "building_count",
+        "archetype_name",
+        "archetype_building_count",
         "occupants",
-        "metabolism_profile",
-        "building_height",
-        "footprint_area",
-        "wall_external_area",
-        "internal_volume_ratio",
-        "internal_mass_area",
-        "window_to_wall_ratio",
+        "profile_metabolism",
+        "archetype_height",
+        "area_footprint",
+        "area_wall_external",
+        "ratio_internal_mass_volume",
+        "area_internal_mass",
+        "ratio_window_to_wall",
         "thickness_wall",
         "conductivity_wall",
         "density_wall",
@@ -291,13 +291,13 @@ class SUEWSConfig(BaseModel):
         "density_internal_mass",
         "specific_heat_capacity_internal_mass",
         "emissivity_internal_mass",
-        "max_heating_power",
-        "hot_water_tank_volume",
-        "maximum_hot_water_heating_power",
-        "heating_setpoint_temperature",
-        "cooling_setpoint_temperature",
-        "heating_setpoint_temperature_profile",
-        "cooling_setpoint_temperature_profile",
+        "power_air_heating_max",
+        "volume_water_tank",
+        "power_water_heating_max",
+        "temperature_air_heating_setpoint",
+        "temperature_air_cooling_setpoint",
+        "profile_temperature_air_heating_setpoint",
+        "profile_temperature_air_cooling_setpoint",
     ]
 
     # Sort the filtered columns numerically
@@ -1645,8 +1645,8 @@ class SUEWSConfig(BaseModel):
                 if val is None:
                     missing_params.append(param)
 
-        # Check if window_to_wall_ratio is present and zero or one
-        wwr = getattr(building_archetype, "window_to_wall_ratio", None)
+        # Check if ratio_window_to_wall is present and zero or one
+        wwr = getattr(building_archetype, "ratio_window_to_wall", None)
         wwr_val = _unwrap_value(wwr) if wwr is not None else None
 
         # Window parameter lists
@@ -1666,7 +1666,7 @@ class SUEWSConfig(BaseModel):
             "reflectivity_window_external",
         ]
 
-        # Wall parameter lists for window_to_wall_ratio == 1.0
+        # Wall parameter lists for ratio_window_to_wall == 1.0
         wall_params_stebbs = [
             "wall_external_convection_coefficient",
             "wall_internal_convection_coefficient",
@@ -1693,12 +1693,12 @@ class SUEWSConfig(BaseModel):
 
         # Setpoint parameter groups
         setpoint_params_bldgarc = [
-            "heating_setpoint_temperature",
-            "cooling_setpoint_temperature",
+            "temperature_air_heating_setpoint",
+            "temperature_air_cooling_setpoint",
         ]
         setpoint_profile_params_bldgarc = [
-            "heating_setpoint_temperature_profile",
-            "cooling_setpoint_temperature_profile",
+            "profile_temperature_air_heating_setpoint",
+            "profile_temperature_air_cooling_setpoint",
         ]
 
         # Daylight control parameter groups
@@ -2320,7 +2320,7 @@ class SUEWSConfig(BaseModel):
 
         If SPARTACUS is enabled, this function enforces that:
         - The building height (bldgh) does not exceed the domain top (height[nlayer]).
-        - If stebbs_method == 1, the archetype's building_height also does not exceed the domain top.
+        - If stebbs_method == 1, the archetype's archetype_height also does not exceed the domain top.
 
         Parameters
         ----------
@@ -2337,7 +2337,7 @@ class SUEWSConfig(BaseModel):
         Notes
         -----
         - The domain top is defined as the last entry in the vertical_layers.height array (height[nlayer]).
-        - If stebbs_method == 1, both bldgh and building_height are checked.
+        - If stebbs_method == 1, both bldgh and archetype_height are checked.
         - All issues are reported with the site name for clarity.
         """
         issues: List[str] = []
@@ -2364,7 +2364,7 @@ class SUEWSConfig(BaseModel):
                     f"Site '{site_name}' has bldgh={bldgh} exceeding SPARTACUS domain top (height[{nlayer}]={spartacus_top})."
                 )
 
-            # If stebbs == 1, also check building_height
+            # If stebbs == 1, also check archetype_height
             stebbs_method = _unwrap_value(getattr(self.model.physics, "stebbs", None))
 
             try:
@@ -2374,10 +2374,10 @@ class SUEWSConfig(BaseModel):
 
             if stebbs_method_val == 1:
                 building_archetype = getattr(props, "building_archetype", None)
-                building_height = _unwrap_value(getattr(building_archetype, "building_height", None)) if building_archetype else None
+                building_height = _unwrap_value(getattr(building_archetype, "archetype_height", None)) if building_archetype else None
                 if building_height is not None and building_height > spartacus_top:
                     issues.append(
-                        f"Site '{site_name}' has building_height={building_height} exceeding SPARTACUS domain top (height[{nlayer}]={spartacus_top})."
+                        f"Site '{site_name}' has archetype_height={building_height} exceeding SPARTACUS domain top (height[{nlayer}]={spartacus_top})."
                     )
         return issues
 

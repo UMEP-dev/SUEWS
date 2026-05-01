@@ -1,0 +1,118 @@
+identity:
+  scheme_name: ehc
+  full_name: Explicit Heat Conduction
+  category: storage_heat
+  purpose: >-
+    Calculates storage heat flux using explicit 1D heat conduction through
+    urban facets (roof, wall, ground) with separate surface temperature
+    outputs for each element.
+  version_introduced: "v2023a"
+  original_authors:
+    - "T. Sun"
+  enum_class: StorageHeatMethod
+  enum_values: [5]
+
+scientific_basis:
+  theoretical_basis: >-
+    EHC solves the one-dimensional heat conduction equation through
+    multi-layer urban facets (roofs, walls, and ground surfaces) using
+    finite-difference methods. Surface temperature boundary conditions
+    are applied at the top (from the energy balance) and indoor or deep-soil
+    temperature at the bottom. Heterogeneous building facets at different
+    vertical levels are supported, with separate thermal property profiles
+    (conductivity, heat capacity, layer thickness) for each facet type.
+    The storage heat flux is computed from the rate of enthalpy change
+    across all layers. Both explicit forward-difference and Crank-Nicolson
+    implicit solvers are available, with adaptive sub-stepping controlled
+    by CFL stability criteria.
+  key_publications:
+    - "O05"
+  key_assumptions:
+    - "Heat transfer through each facet is one-dimensional (vertical)"
+    - "Material thermal properties are constant within each layer"
+    - "Surface temperature is determined by the energy balance at the outer boundary"
+    - "Indoor or deep-soil temperature provides a fixed lower boundary condition"
+    - "Building facets at multiple vertical levels can have distinct thermal properties"
+  comparison_to_established: >-
+    EHC extends the earlier Element Surface Temperature Method (ESTM) by
+    supporting heterogeneous multi-layer building facets at different vertical
+    levels and all standard ground-level surface types. Unlike OHM, which
+    relies on empirical coefficients, EHC resolves the heat conduction
+    physics directly. Compared to STEBBS, EHC does not include the full
+    building energy model (indoor processes, water use losses) but provides
+    physically-based surface temperatures for each urban element.
+
+evaluation_evidence:
+  evaluation_status: internal
+  evaluation_datasets:
+    - "Internal validation against ESTM reference cases"
+  performance_summary: >-
+    Tested internally against established heat conduction solutions and
+    the original ESTM implementation. Provides physically consistent
+    surface temperatures for roof, wall, and ground facets. Formal
+    peer-reviewed validation is ongoing.
+
+technical_characteristics:
+  spatial_scale:
+    - neighbourhood
+  temporal_resolution:
+    - sub-hourly
+    - hourly
+  required_inputs:
+    parameters:
+      - "Thermal conductivity for each layer of roof, wall, and ground facets"
+      - "Volumetric heat capacity for each layer of roof, wall, and ground facets"
+      - "Layer thicknesses for roof, wall, and ground facets"
+      - "Surface fractions for roof, wall, and standard surfaces"
+      - "Number of vertical levels in the urban canopy (nlayer)"
+    forcing:
+      - "Surface temperature (from energy balance iteration)"
+      - "Indoor or deep-soil temperature (lower boundary)"
+  outputs:
+    - "Storage heat flux (delta QS) per facet and grid-averaged"
+    - "Surface temperatures for roof, wall, and ground facets"
+    - "Internal temperature profiles through each facet"
+  computational_demand: medium
+  data_preparation_demand: high
+  dependencies:
+    - "Net radiation scheme (NARP, SPARTACUS-Surface, or observed Q*)"
+    - "Energy balance iteration for surface temperature coupling"
+  conflicts:
+    - "Cannot be combined with ESTM (StorageHeatMethod=4)"
+    - "Cannot be combined with STEBBS (StorageHeatMethod=7)"
+
+operational_status:
+  development_status: stable
+  current_maintainers:
+    - name: SUEWS Development Team
+      affiliation: University of Reading / UCL
+  last_significant_update: "2023-05"
+  active_development: maintenance-only
+  test_coverage:
+    - "Smoke tests via make test-smoke"
+    - "Full regression tests via make test"
+  known_issues:
+    - "Requires detailed thermal property data for each layer of each facet type"
+    - "CFL-limited sub-stepping can increase computation time for thin layers"
+
+user_guidance:
+  recommended_for:
+    - "Studies requiring physically-based surface temperatures for individual urban facets"
+    - "Applications where material thermal properties are well characterised"
+    - "Coupling with radiation schemes that use facet-level surface temperatures"
+  not_recommended_for:
+    - "Sites where layer-resolved thermal properties are unavailable (use OHM instead)"
+    - "Applications requiring only bulk storage heat flux without surface temperatures"
+  configuration_notes: >-
+    StorageHeatMethod=5 enables EHC. Thermal properties (conductivity, heat
+    capacity, layer thickness) must be specified for each depth layer of roof,
+    wall, and ground facets. The number of vertical urban canopy levels
+    (nlayer) controls the number of distinct roof and wall sub-facets.
+    Deep-soil or indoor temperature provides the lower boundary condition.
+  common_pitfalls:
+    - "Missing or incorrect layer thickness values (dz=-999) bypass the heat conduction solver"
+    - "Very thin layers require small sub-steps for numerical stability, increasing computation time"
+    - "Thermal properties must be specified consistently across all depth layers"
+
+governance:
+  candidate_for_deprecation: false

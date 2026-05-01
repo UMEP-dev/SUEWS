@@ -1,0 +1,69 @@
+identity:
+  scheme_name: fai
+  full_name: Frontal Area Index Method
+  category: boundary_layer
+  purpose: >-
+    Controls how the frontal area index (FAI) is determined: from user-provided
+    values or calculated from surface fractions and element heights.
+  version_introduced: "v2020a"
+  original_authors:
+    - "SUEWS Development Team"
+  enum_class: FAIMethod
+  enum_values: [0, 1]
+
+scientific_basis:
+  theoretical_basis: >-
+    Frontal area index is the ratio of the windward frontal area of roughness
+    elements to the plan area, and is a key input to morphometric roughness
+    methods (MacDonald) and roughness sublayer corrections. Method 0 uses
+    FAI values provided directly in the site parameters (FAIBldg, FAIEveTree,
+    FAIDecTree). Method 1 estimates FAI using a simple scheme based on
+    surface fractions and element heights.
+  key_publications:
+    - "GO99"
+  key_assumptions:
+    - "FAI can be estimated from plan area fractions and element heights (method 1)"
+
+evaluation_evidence:
+  evaluation_status: internal
+  performance_summary: >-
+    The simple FAI estimation scheme provides reasonable values for typical
+    urban morphologies but should be verified against morphometric databases
+    where available.
+
+technical_characteristics:
+  spatial_scale:
+    - neighbourhood
+  temporal_resolution:
+    - sub-hourly
+    - hourly
+  required_inputs:
+    parameters:
+      - "FAI values per element type (method 0)"
+      - "Surface fractions and element heights (method 1)"
+    forcing: []
+  outputs:
+    - "Frontal area index for buildings, evergreen trees, deciduous trees"
+  computational_demand: low
+  data_preparation_demand: low
+
+operational_status:
+  development_status: stable
+  current_maintainers:
+    - name: SUEWS Development Team
+      affiliation: University of Reading / UCL
+  active_development: maintenance-only
+  test_coverage:
+    - "Smoke tests via make test-smoke"
+
+user_guidance:
+  recommended_for:
+    - "Sites with known FAI values (method 0)"
+    - "Quick estimates when FAI data are unavailable (method 1)"
+  configuration_notes: >-
+    FAIMethod=0 uses user-provided FAI values. FAIMethod=1 estimates FAI from
+    surface fractions and heights using a simple scheme. Method 0 is preferred
+    when morphometric data are available.
+
+governance:
+  candidate_for_deprecation: false

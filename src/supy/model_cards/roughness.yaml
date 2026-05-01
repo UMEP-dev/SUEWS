@@ -1,0 +1,117 @@
+identity:
+  scheme_name: roughness
+  full_name: Roughness Length Parameterisations
+  category: boundary_layer
+  purpose: >-
+    Calculates aerodynamic roughness length for momentum (z0m), zero-plane
+    displacement height (zd) and roughness length for heat (z0v) using
+    morphometric or empirical methods.
+  version_introduced: "v1.0"
+  original_authors:
+    - "C.S.B. Grimmond"
+    - "T.R. Oke"
+  enum_class: MomentumRoughnessMethod
+  enum_values: [1, 2, 3, 4, 5]
+
+scientific_basis:
+  theoretical_basis: >-
+    Momentum roughness (z0m) and displacement height (zd) are determined from
+    surface morphology. The simplest approach uses fixed values from site
+    parameters (method 1). Rule-of-thumb methods scale z0m and zd as fixed
+    fractions of mean element height Zh (method 2: z0m=0.1Zh, zd=0.7Zh).
+    The MacDonald et al. (1998) morphometric method (3) uses building plan area
+    fraction and frontal area index to derive z0m and zd analytically. A
+    plan-area-fraction-dependent approach (4) uses digitised relationships from
+    Grimmond and Oke (1999). For heat transfer, a separate set of methods
+    determines z0v (the heat roughness length) via the HeatRoughnessMethod
+    enum: Brutsaert (1982) simple ratio (z0v=z0m/10), Kawai et al. (2009)
+    Reynolds-number dependent formulation, Voogt and Grimmond (2000)
+    exponential scaling, Kanda et al. (2007) approach, and an adaptive method
+    that selects between pervious and impervious formulations based on
+    vegetation coverage.
+  key_publications:
+    - "GO99"
+    - "M98"
+    - "B82"
+  key_assumptions:
+    - "Roughness elements are horizontally homogeneous at the neighbourhood scale"
+    - "Mean element height Zh is representative of the dominant roughness features"
+    - "Morphometric relationships calibrated for urban-type geometries"
+    - "Heat roughness length differs from momentum roughness length due to bluff-body effects"
+  comparison_to_established: >-
+    Fixed values (method 1) are simplest but require prior knowledge. The
+    rule-of-thumb (2) and MacDonald (3) methods are widely used in urban
+    climate modelling. MacDonald provides a physically-based approach using
+    frontal area index, while the plan-area-dependent method (4) offers an
+    empirical alternative for varying urban densities.
+
+evaluation_evidence:
+  evaluation_status: peer-reviewed
+  evaluation_datasets:
+    - "Wind tunnel studies of urban morphology (MacDonald et al. 1998)"
+    - "North American urban flux sites (Grimmond and Oke 1999)"
+  performance_summary: >-
+    Morphometric methods reproduce observed roughness parameters well when
+    input morphology data are accurate. The MacDonald method is the most
+    physically grounded for urban surfaces; rule-of-thumb works adequately
+    for preliminary estimates.
+
+technical_characteristics:
+  spatial_scale:
+    - neighbourhood
+  temporal_resolution:
+    - sub-hourly
+    - hourly
+  required_inputs:
+    parameters:
+      - "Mean building/element height (Zh)"
+      - "Building plan area fraction"
+      - "Frontal area index (FAI) (for methods 3 and 4)"
+      - "Surface fractions (7 surface types)"
+      - "Vegetation fraction (for heat roughness methods)"
+    forcing:
+      - "Friction velocity (UStar, for heat roughness methods 2, 4, 5)"
+  outputs:
+    - "Aerodynamic roughness length for momentum (z0m)"
+    - "Zero-plane displacement height (zd)"
+    - "Roughness length for heat/vapour (z0v)"
+  computational_demand: low
+  data_preparation_demand: low
+  dependencies:
+    - "Surface morphology data (building heights, plan area fractions)"
+    - "Vegetation phenology (for seasonally varying LAI methods)"
+
+operational_status:
+  development_status: stable
+  current_maintainers:
+    - name: SUEWS Development Team
+      affiliation: University of Reading / UCL
+  last_significant_update: "2020-02"
+  active_development: maintenance-only
+  test_coverage:
+    - "Smoke tests via make test-smoke"
+    - "Full regression tests via make test"
+
+user_guidance:
+  recommended_for:
+    - "Urban energy balance simulations requiring dynamic roughness parameters"
+    - "Sites with available building morphology data (methods 3 or 4)"
+    - "Applications where roughness varies seasonally with vegetation state"
+  not_recommended_for:
+    - "Sites without morphological data (unless fixed values are well constrained)"
+    - "Method 5 (alternative variable) is not recommended for production use"
+  configuration_notes: >-
+    MomentumRoughnessMethod controls z0m/zd: 1=fixed from site parameters,
+    2=rule-of-thumb (0.1Zh, 0.7Zh), 3=MacDonald et al. (1998) morphometric,
+    4=plan-area-fraction dependent (Grimmond and Oke 1999), 5=alternative
+    variable (not recommended). A separate HeatRoughnessMethod enum controls
+    z0v: 1=Brutsaert (z0m/10), 2=Kawai et al. (2009), 3=Voogt and Grimmond
+    (2000), 4=Kanda et al. (2007), 5=adaptive based on pervious coverage.
+    Both must be set for a complete roughness configuration.
+  common_pitfalls:
+    - "MacDonald method requires accurate frontal area index; errors in FAI directly affect z0m"
+    - "Heat roughness methods 2, 4, 5 depend on friction velocity, introducing coupling with the momentum solution"
+    - "Mixing incompatible momentum and heat roughness methods can produce inconsistent results"
+
+governance:
+  candidate_for_deprecation: false

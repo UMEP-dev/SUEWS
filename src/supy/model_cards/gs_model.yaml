@@ -1,0 +1,74 @@
+identity:
+  scheme_name: gs_model
+  full_name: Stomatal Conductance Model
+  category: turbulent_fluxes
+  purpose: >-
+    Selects the stomatal conductance parameterisation used for the Jarvis-type
+    surface resistance in the Penman-Monteith evapotranspiration calculation.
+  version_introduced: "v1.0"
+  original_authors:
+    - "L. Jarvi"
+    - "H.C. Ward"
+  enum_class: GSModel
+  enum_values: [1, 2]
+
+scientific_basis:
+  theoretical_basis: >-
+    Stomatal conductance controls the surface resistance for latent heat flux
+    in the Penman-Monteith framework. The Jarvis-type model multiplies a
+    maximum conductance by dimensionless stress functions for solar radiation,
+    temperature, vapour pressure deficit, and soil moisture. Method 1
+    (Jarvi et al. 2011) uses the original parameterisation. Method 2
+    (Ward et al. 2016) provides updated temperature and VPD response
+    functions with improved performance for a wider range of urban sites.
+  key_publications:
+    - "J11"
+    - "W16"
+  key_assumptions:
+    - "Surface conductance follows a multiplicative Jarvis-type approach"
+    - "Stress functions are independent of each other"
+
+evaluation_evidence:
+  evaluation_status: peer-reviewed
+  performance_summary: >-
+    Both parameterisations validated against urban flux tower data. Ward (2016)
+    provides improved fit across a broader range of climatic conditions.
+
+technical_characteristics:
+  spatial_scale:
+    - neighbourhood
+  temporal_resolution:
+    - sub-hourly
+    - hourly
+  required_inputs:
+    parameters:
+      - "Maximum conductance (Gmax) per vegetation type"
+      - "Conductance response parameters (G1-G6)"
+    forcing:
+      - "Solar radiation"
+      - "Air temperature"
+      - "Vapour pressure deficit"
+      - "Soil moisture"
+  outputs:
+    - "Surface conductance (gs)"
+  computational_demand: low
+  data_preparation_demand: low
+
+operational_status:
+  development_status: stable
+  current_maintainers:
+    - name: SUEWS Development Team
+      affiliation: University of Reading / UCL
+  active_development: maintenance-only
+  test_coverage:
+    - "Smoke tests via make test-smoke"
+
+user_guidance:
+  recommended_for:
+    - "All SUEWS simulations using the Penman-Monteith evapotranspiration"
+  configuration_notes: >-
+    GSModel=1 uses Jarvi et al. (2011) parameterisation. GSModel=2 uses
+    Ward et al. (2016) updated parameterisation, recommended for general use.
+
+governance:
+  candidate_for_deprecation: false

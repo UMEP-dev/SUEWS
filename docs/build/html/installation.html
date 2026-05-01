@@ -8,8 +8,8 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <meta property="article:modified_time" content="2026-01-30T14:02:10+00:00" />
-    <title>1. Installation &#8212; SUEWS 2026.5.1.dev9041 documentation</title>
+    <meta property="article:modified_time" content="2026-05-01T10:15:25+00:00" />
+    <title>1. Installation &#8212; SUEWS 2026.5.1.dev9044 documentation</title>
   
   
   
@@ -45,7 +45,7 @@
   <link rel="preload" as="script" href="_static/scripts/bootstrap.js?digest=8878045cc6db502f8baf" />
 <link rel="preload" as="script" href="_static/scripts/pydata-sphinx-theme.js?digest=8878045cc6db502f8baf" />
 
-    <script src="_static/documentation_options.js?v=0527881c"></script>
+    <script src="_static/documentation_options.js?v=3cba08b6"></script>
     <script src="_static/doctools.js?v=9bcbadda"></script>
     <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
     <script src="_static/scripts/sphinx-book-theme.js?v=fab101a9"></script>
@@ -59,8 +59,8 @@
     <link rel="prev" title="SUEWS: Surface Urban Energy and Water Balance Scheme" href="index.html" />
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
-  <meta name="docsearch:version" content="2026.5.1.dev9041" />
-    <meta name="docbuild:last-update" content="2026-01-30"/>
+  <meta name="docsearch:version" content="2026.5.1.dev9044" />
+    <meta name="docbuild:last-update" content="2026-05-01"/>
   </head>
   
   
@@ -102,7 +102,7 @@
   <div class="bd-header-announcement__content">
     <div style="background-color: #f0ad4e; border: 1px solid #eea236; border-radius: 4px; padding: 10px; margin: 10px 0;">
         <strong>⚠️ Development Version:</strong> This documentation was built from a development version
-        (2026.5.1.dev9041, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/fff79e6a0f927598840f5acd7e5ff65996b39686" style="color: #31708f;">fff79e6</a>).
+        (2026.5.1.dev9044, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/2b2842d7255a8154732ec505706c7f2ad7c6cb0c" style="color: #31708f;">2b2842d</a>).
         Features described here may be unstable or subject to change. For stable documentation, please visit the
         <a href="https://docs.suews.io/stable/" style="color: #31708f;">latest release</a>.
     </div>
@@ -149,8 +149,8 @@
       
     
     
-    <img src="_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.5.1.dev9041 documentation - Home"/>
-    <img src="_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.5.1.dev9041 documentation - Home"/>
+    <img src="_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.5.1.dev9044 documentation - Home"/>
+    <img src="_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.5.1.dev9044 documentation - Home"/>
   
   
 </a></div>
@@ -604,6 +604,7 @@
 </ul>
 </li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#development-build">1.3. Development build</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#install-for-ai-assistants">1.4. Install for AI assistants</a></li>
 </ul>
             </nav>
         </div>
@@ -812,6 +813,54 @@ However, it is automatically constructed every week for testing purposes and we 
 <li><p>Follow the quick start workflow shown (activate a virtual environment, then <code class="docutils literal notranslate"><span class="pre">make</span> <span class="pre">dev</span></code>)</p></li>
 </ol>
 </section>
+<section id="install-for-ai-assistants">
+<h2><span class="section-number">1.4. </span>Install for AI assistants<a class="headerlink" href="#install-for-ai-assistants" title="Link to this heading">#</a></h2>
+<p>SUEWS ships as a plugin for AI coding assistants that follow the open
+<a class="reference external" href="https://agentskills.io/specification">Agent Skills standard</a>. Once installed, the
+assistant gains workflow rules, forcing-data checks, output interpretation
+guidance, and common-error diagnostics tailored to SUEWS.</p>
+<p>This is in addition to (not a replacement for) the regular <code class="docutils literal notranslate"><span class="pre">pip</span> <span class="pre">install</span> <span class="pre">supy</span></code>
+workflow above - the plugin teaches the AI assistant <em>how</em> to use SuPy; it does
+not install SuPy itself.</p>
+<p><strong>Claude Code</strong></p>
+<p>Add the SUEWS marketplace and install the plugin:</p>
+<div class="highlight-text notranslate"><div class="highlight"><pre><span></span>/plugin marketplace add UMEP-dev/SUEWS
+/plugin install suews@suews
+</pre></div>
+</div>
+<p>Run <code class="docutils literal notranslate"><span class="pre">/reload-plugins</span></code> to activate the plugin in the current session.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>Auto-update is disabled by default for third-party marketplaces (Anthropic
+security default). To refresh manually:</p>
+<div class="highlight-text notranslate"><div class="highlight"><pre><span></span>/plugin marketplace update suews
+/plugin update suews@suews
+</pre></div>
+</div>
+<p>To enable auto-update, open <code class="docutils literal notranslate"><span class="pre">/plugin</span></code>, go to the <strong>Marketplaces</strong> tab,
+select <code class="docutils literal notranslate"><span class="pre">suews</span></code>, and choose <strong>Enable auto-update</strong>.</p>
+</div>
+<p><strong>Codex CLI, Desktop App, and IDE extensions</strong></p>
+<div class="admonition important">
+<p class="admonition-title">Important</p>
+<p>Requires Codex CLI v0.117.0 or later (released 26 March 2026).</p>
+</div>
+<p>Add the SUEWS marketplace:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>codex<span class="w"> </span>plugin<span class="w"> </span>marketplace<span class="w"> </span>add<span class="w"> </span>UMEP-dev/SUEWS
+</pre></div>
+</div>
+<p>Then install the plugin from the plugin browser: open Codex, run
+<code class="docutils literal notranslate"><span class="pre">/plugins</span></code>, select the <code class="docutils literal notranslate"><span class="pre">SUEWS</span></code> marketplace, and choose the <code class="docutils literal notranslate"><span class="pre">SUEWS</span></code>
+plugin. The same plugin works across the Codex CLI, the Codex Desktop App
+(macOS / Windows), and the Codex IDE extensions for VS Code and JetBrains.</p>
+<p><strong>Cursor and other MCP-only tools</strong></p>
+<p>A Model Context Protocol (MCP) server for SUEWS is in development and will
+provide a universal install path across MCP-aware tools (Cursor, Gemini CLI,
+Goose, JetBrains Junie, etc.). Tracking issue:
+<a class="reference external" href="https://github.com/UMEP-dev/SUEWS/issues/1364">gh#1364</a>. Until that lands,
+MCP-only users can clone the repository and point their MCP client at the
+bundled CLI surface manually.</p>
+</section>
 </section>
 
 
@@ -872,6 +921,7 @@ However, it is automatically constructed every week for testing purposes and we 
 </ul>
 </li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#development-build">1.3. Development build</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#install-for-ai-assistants">1.4. Install for AI assistants</a></li>
 </ul>
   </nav></div>
 
@@ -905,7 +955,7 @@ By SUEWS dev team led by Prof Sue Grimmond
   
   <div class="footer-item">
     <p class="last-updated">
-  Last updated on 2026-01-30.
+  Last updated on 2026-05-01.
   <br/>
 </p>
   </div>
@@ -913,8 +963,8 @@ By SUEWS dev team led by Prof Sue Grimmond
   <div class="footer-item">
     
 <div class="extra_footer">
-  <p>Version: 2026.5.1.dev9041 |
-    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/fff79e6a0f927598840f5acd7e5ff65996b39686">fff79e6</a> |
+  <p>Version: 2026.5.1.dev9044 |
+    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/2b2842d7255a8154732ec505706c7f2ad7c6cb0c">2b2842d</a> |
     <a href="https://umep-dev.github.io/SUEWS/brand/showcase.html">Brand</a></p>
 </div>
   </div>

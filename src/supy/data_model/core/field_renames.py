@@ -580,6 +580,131 @@ STEBBSPROPERTIES_DEV3_RENAMES: Dict[str, str] = {
     "dhw_vessel_wall_emissivity": "hot_water_vessel_wall_emissivity",
 }
 
+# Schema 2026.5.dev8 -> 2026.5.dev9: apply Rule 2 of the SUEWS naming
+# convention to StebbsProperties. Three orthogonal moves:
+#
+# * Rule 2 reorder — physical quantity leads:
+#   `wall_internal_convection_coefficient` ->
+#   `convection_coefficient_wall_internal`,
+#   `external_ground_conductivity` -> `conductivity_ground_external`,
+#   `hot_water_tank_wall_thickness` ->
+#   `thickness_hot_water_tank_wall`, etc.
+# * `floor` -> `ground_floor` per the convention's Specific tokens
+#   ("ground_floor" is two words):
+#   `floor_internal_convection_coefficient` ->
+#   `convection_coefficient_ground_floor_internal`.
+# * HVAC + setpoint air_/water_ qualifier (mirrors the dev7 -> dev8
+#   ArchetypeProperties pass): `heating_system_efficiency` ->
+#   `efficiency_air_heating_system`, `max_cooling_power` ->
+#   `power_air_cooling_max`, `cooling_system_cop` ->
+#   `efficiency_air_cooling_system`,
+#   `hot_water_heating_setpoint_temperature` ->
+#   `temperature_water_heating_setpoint`,
+#   `hot_water_heating_efficiency` -> `efficiency_water_heating`.
+#
+# Non-physical category prefixes lead for non-quantity fields:
+# `metabolism_threshold` -> `threshold_metabolism`,
+# `latent_sensible_ratio` -> `ratio_latent_sensible`,
+# `daylight_control` -> `control_daylight`,
+# `lighting_illuminance_threshold` -> `threshold_lighting_illuminance`,
+# `appliance_profile` -> `profile_appliance`,
+# `hot_water_flow_profile` -> `profile_hot_water_flow`.
+#
+# Initial / climatology temperatures take the `temperature_*` quantity
+# prefix and trailing `initial` / `annual_mean` sub-class:
+# `initial_outdoor_temperature` -> `temperature_outdoor_initial`,
+# `annual_mean_air_temperature` -> `temperature_air_annual_mean`.
+#
+# Deliberately KEPT as compound nouns (idiomatic terms-of-art):
+# `ground_depth`, `ventilation_rate`, `lighting_power_density`. The
+# `month_mean_air_temperature_diffmax` field is also kept this PR —
+# the rename target needs a physics doc check before being locked in.
+
+STEBBSPROPERTIES_DEV8_RENAMES: Dict[str, str] = {
+    # Convection coefficients (Rule 2 reorder + floor -> ground_floor)
+    "wall_internal_convection_coefficient": "convection_coefficient_wall_internal",
+    "roof_internal_convection_coefficient": "convection_coefficient_roof_internal",
+    "internal_mass_convection_coefficient": "convection_coefficient_internal_mass",
+    "floor_internal_convection_coefficient": "convection_coefficient_ground_floor_internal",
+    "window_internal_convection_coefficient": "convection_coefficient_window_internal",
+    "wall_external_convection_coefficient": "convection_coefficient_wall_external",
+    "roof_external_convection_coefficient": "convection_coefficient_roof_external",
+    "window_external_convection_coefficient": "convection_coefficient_window_external",
+    # Ground (external = beyond building footprint per convention)
+    "external_ground_conductivity": "conductivity_ground_external",
+    # Metabolism + occupant control (non-physical category prefixes)
+    "metabolism_threshold": "threshold_metabolism",
+    "latent_sensible_ratio": "ratio_latent_sensible",
+    # Daylight + lighting controls (non-physical category prefixes)
+    "daylight_control": "control_daylight",
+    "lighting_illuminance_threshold": "threshold_lighting_illuminance",
+    # Heating / cooling system (Rule 2 + air_/water_ qualifier)
+    "heating_system_efficiency": "efficiency_air_heating_system",
+    "max_cooling_power": "power_air_cooling_max",
+    "cooling_system_cop": "efficiency_air_cooling_system",
+    # Initial / climatology temperatures
+    "initial_outdoor_temperature": "temperature_outdoor_initial",
+    "initial_indoor_temperature": "temperature_indoor_initial",
+    "annual_mean_air_temperature": "temperature_air_annual_mean",
+    # Hot water tank — bulk + walls (Rule 2 reorder)
+    "hot_water_tank_wall_thickness": "thickness_hot_water_tank_wall",
+    "mains_water_temperature": "temperature_water_mains",
+    "hot_water_tank_surface_area": "area_hot_water_tank_surface",
+    "hot_water_heating_setpoint_temperature": "temperature_water_heating_setpoint",
+    "hot_water_tank_wall_emissivity": "emissivity_hot_water_tank_wall",
+    "hot_water_tank_wall_conductivity": "conductivity_hot_water_tank_wall",
+    "hot_water_tank_wall_density": "density_hot_water_tank_wall",
+    "hot_water_tank_specific_heat_capacity": "specific_heat_capacity_hot_water_tank",
+    "hot_water_tank_internal_wall_convection_coefficient":
+        "convection_coefficient_hot_water_tank_wall_internal",
+    "hot_water_tank_external_wall_convection_coefficient":
+        "convection_coefficient_hot_water_tank_wall_external",
+    # Hot water vessel — in-use water containers (Rule 2 reorder)
+    "hot_water_vessel_wall_thickness": "thickness_hot_water_vessel_wall",
+    "hot_water_vessel_wall_conductivity": "conductivity_hot_water_vessel_wall",
+    "hot_water_vessel_density": "density_hot_water_vessel",
+    "hot_water_vessel_specific_heat_capacity": "specific_heat_capacity_hot_water_vessel",
+    "hot_water_vessel_internal_wall_convection_coefficient":
+        "convection_coefficient_hot_water_vessel_wall_internal",
+    "hot_water_vessel_external_wall_convection_coefficient":
+        "convection_coefficient_hot_water_vessel_wall_external",
+    "hot_water_vessel_wall_emissivity": "emissivity_hot_water_vessel_wall",
+    # Hot water (the water itself, in use) — Rule 2 reorder
+    "hot_water_volume": "volume_hot_water",
+    "hot_water_surface_area": "area_hot_water_surface",
+    "hot_water_flow_rate": "rate_hot_water_flow",
+    "hot_water_density": "density_hot_water",
+    "hot_water_specific_heat_capacity": "specific_heat_capacity_hot_water",
+    "hot_water_heating_efficiency": "efficiency_water_heating",
+    # Profiles (non-physical: profile_* category prefix leads)
+    "hot_water_flow_profile": "profile_hot_water_flow",
+    "appliance_profile": "profile_appliance",
+}
+
+
+# Chained reverse map: dev9 final name -> PascalCase legacy column name.
+# Used by StebbsProperties._STEBBS_LEGACY_COL_NAMES so the Fortran/Rust
+# bridge (keyed on the fused lowercased PascalCase, e.g.
+# `wallinternalconvectioncoefficient`) still resolves from the dev9
+# Pydantic field name. Composes through STEBBSPROPERTIES_DEV8_RENAMES
+# (dev9 -> dev8) and the base STEBBSPROPERTIES_RENAMES {dev8:
+# PascalCase} reverse map. STEBBSPROPERTIES_DEV3_RENAMES is NOT chained
+# here because its targets are the same dev8 names already covered by
+# STEBBSPROPERTIES_RENAMES — passing through the dev3 layer would
+# silently rewrite the PascalCase ancestry.
+def _build_stebbs_dev_to_pascal() -> Dict[str, str]:
+    base_reverse: Dict[str, str] = {
+        new: old for old, new in STEBBSPROPERTIES_RENAMES.items()
+    }
+
+    chain: Dict[str, str] = {}
+    for old_dev8, new_dev9 in STEBBSPROPERTIES_DEV8_RENAMES.items():
+        chain[new_dev9] = base_reverse.get(old_dev8, old_dev8)
+    return chain
+
+
+STEBBSPROPERTIES_DEV9_TO_PASCAL: Dict[str, str] = _build_stebbs_dev_to_pascal()
+
 # -- EHC (suews_type_ehc.f95) -------------------------------------------------
 #
 # Fortran-only internal-state members added to the registry for gh#1326
@@ -951,6 +1076,7 @@ RAW_YAML_FIELD_RENAMES: Dict[str, str] = _compose_rename_chains(
     ARCHETYPEPROPERTIES_DEV7_RENAMES,
     SNOWPARAMS_INTERMEDIATE_RENAMES,
     STEBBSPROPERTIES_DEV3_RENAMES,
+    STEBBSPROPERTIES_DEV8_RENAMES,
     ALL_FIELD_RENAMES,
 )
 

@@ -1145,7 +1145,7 @@ def adjust_surface_temperatures(
             initial_states[surface_type] = surf
 
         # Update STEBBS temperature parameter values to avg_temp
-        for key in ("initial_outdoor_temperature", "initial_indoor_temperature",):
+        for key in ("temperature_outdoor_initial", "temperature_indoor_initial",):
             if key in stebbs and isinstance(stebbs[key], dict):
                 old_val = stebbs[key].get("value")
                 if old_val != avg_temp:
@@ -1182,16 +1182,16 @@ def adjust_surface_temperatures(
                             )
                         )
 
-        # Update STEBBS annual_mean_air_temperature using annual mean from CRU data
+        # Update STEBBS temperature_air_annual_mean using annual mean from CRU data
         annual_temp = get_mean_annual_air_temperature(lat, lng)
-        if annual_temp is not None and "annual_mean_air_temperature" in stebbs:
-            if isinstance(stebbs["annual_mean_air_temperature"], dict):
-                old_annual_val = stebbs["annual_mean_air_temperature"].get("value")
+        if annual_temp is not None and "temperature_air_annual_mean" in stebbs:
+            if isinstance(stebbs["temperature_air_annual_mean"], dict):
+                old_annual_val = stebbs["temperature_air_annual_mean"].get("value")
                 if old_annual_val != annual_temp:
-                    stebbs["annual_mean_air_temperature"]["value"] = annual_temp
+                    stebbs["temperature_air_annual_mean"]["value"] = annual_temp
                     adjustments.append(
                         ScientificAdjustment(
-                            parameter="stebbs.annual_mean_air_temperature",
+                            parameter="stebbs.temperature_air_annual_mean",
                             site_index=site_idx,
                             site_gridid=site_gridid,
                             old_value=str(old_annual_val),
@@ -2101,8 +2101,8 @@ def adjust_model_option_stebbsmethod(yaml_data: dict) -> Tuple[dict, List[Scient
 
             if wwr == 0.0:
                 window_params_stebbs = [
-                    "window_internal_convection_coefficient",
-                    "window_external_convection_coefficient",
+                    "convection_coefficient_window_internal",
+                    "convection_coefficient_window_external",
                 ]
                 window_params_bldgarc = [
                     "thickness_window",
@@ -2155,8 +2155,8 @@ def adjust_model_option_stebbsmethod(yaml_data: dict) -> Tuple[dict, List[Scient
             elif wwr == 1.0:
                 # Nullify external wall parameters in stebbs and building_archetype
                 wall_params_stebbs = [
-                    "wall_external_convection_coefficient",
-                    "wall_internal_convection_coefficient",
+                    "convection_coefficient_wall_external",
+                    "convection_coefficient_wall_internal",
                     ]
                 wall_params_bldgarc = [
                     "emissivity_wall_external",

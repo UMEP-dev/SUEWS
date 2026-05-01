@@ -1,5 +1,5 @@
 name: sample_config
-schema_version: '2026.5.dev8'
+schema_version: '2026.5.dev9'
 description: Sample configuration built from benchmark 1a (Ward et al. 2016) model configuration
 model:
   control:
@@ -137,35 +137,35 @@ sites:
       veg_ssa_sw:
         value: 0.46
     stebbs:
-      wall_internal_convection_coefficient:
+      convection_coefficient_wall_internal:
         value: 7.69
-      roof_internal_convection_coefficient:
+      convection_coefficient_roof_internal:
         value: 7.69
-      internal_mass_convection_coefficient:
+      convection_coefficient_internal_mass:
         value: 7.69
-      floor_internal_convection_coefficient:
+      convection_coefficient_ground_floor_internal:
         value: 5.88
-      window_internal_convection_coefficient:
+      convection_coefficient_window_internal:
         value: 7.69
-      wall_external_convection_coefficient:
+      convection_coefficient_wall_external:
         value: 25.0
-      roof_external_convection_coefficient:
+      convection_coefficient_roof_external:
         value: 25.0
-      window_external_convection_coefficient:
+      convection_coefficient_window_external:
         value: 25.0
       ground_depth:
         value: 2.0
-      external_ground_conductivity:
+      conductivity_ground_external:
         value: 0.193
-      metabolism_threshold:
+      threshold_metabolism:
         value: 74.3
-      latent_sensible_ratio:
+      ratio_latent_sensible:
         value: 0
-      daylight_control:
+      control_daylight:
         value: 1
-      lighting_illuminance_threshold:
+      threshold_lighting_illuminance:
         value: 300.0
-      appliance_profile:
+      profile_appliance:
         working_day:
           '1': 1.0
           '2': 1.0
@@ -458,41 +458,41 @@ sites:
           '144': 1.0
       lighting_power_density:
         value: 2.0
-      heating_system_efficiency:
+      efficiency_air_heating_system:
         value: 0.8
-      max_cooling_power:
+      power_air_cooling_max:
         value: 14595
-      cooling_system_cop:
+      efficiency_air_cooling_system:
         value: 3.4
       ventilation_rate:
         value: 0.6
-      initial_outdoor_temperature:
+      temperature_outdoor_initial:
         value: 17.540002822875977
-      initial_indoor_temperature:
+      temperature_indoor_initial:
         value: 20.0
-      annual_mean_air_temperature:
+      temperature_air_annual_mean:
         value: 10.0
       month_mean_air_temperature_diffmax:
         value: 10.0        
-      hot_water_tank_wall_thickness:
+      thickness_hot_water_tank_wall:
         value: 0.055
-      mains_water_temperature:
+      temperature_water_mains:
         value: 10.0
-      hot_water_tank_surface_area:
+      area_hot_water_tank_surface:
         value: 20.0
-      hot_water_heating_setpoint_temperature:
+      temperature_water_heating_setpoint:
         value: 20.0
-      hot_water_tank_wall_emissivity:
+      emissivity_hot_water_tank_wall:
         value: 0.9
-      hot_water_vessel_wall_thickness:
+      thickness_hot_water_vessel_wall:
         value: 0.01
-      hot_water_volume:
+      volume_hot_water:
         value: 15.0
-      hot_water_surface_area:
+      area_hot_water_surface:
         value: 1.5
-      hot_water_flow_rate:
+      rate_hot_water_flow:
         value: 0.0
-      hot_water_flow_profile:
+      profile_hot_water_flow:
         working_day:
           '1': 1.0
           '2': 1.0
@@ -783,37 +783,37 @@ sites:
           '142': 1.0
           '143': 1.0
           '144': 1.0
-      hot_water_specific_heat_capacity:
+      specific_heat_capacity_hot_water:
         value: 5000.0
-      hot_water_tank_specific_heat_capacity:
+      specific_heat_capacity_hot_water_tank:
         value: 1500.0
-      hot_water_vessel_specific_heat_capacity:
+      specific_heat_capacity_hot_water_vessel:
         value: 1500.0
-      hot_water_density:
+      density_hot_water:
         value: 1000.0
-      hot_water_tank_wall_density:
+      density_hot_water_tank_wall:
         value: 1000.0
-      hot_water_vessel_density:
+      density_hot_water_vessel:
         value: 1500.0
       hot_water_tank_building_wall_view_factor:
         value: 0.1
       hot_water_tank_internal_mass_view_factor:
         value: 0.9
-      hot_water_tank_wall_conductivity:
+      conductivity_hot_water_tank_wall:
         value: 0.05
-      hot_water_tank_internal_wall_convection_coefficient:
+      convection_coefficient_hot_water_tank_wall_internal:
         value: 0.1
-      hot_water_tank_external_wall_convection_coefficient:
+      convection_coefficient_hot_water_tank_wall_external:
         value: 0.1
-      hot_water_vessel_wall_conductivity:
+      conductivity_hot_water_vessel_wall:
         value: 0.5
-      hot_water_vessel_internal_wall_convection_coefficient:
+      convection_coefficient_hot_water_vessel_wall_internal:
         value: 300.0
-      hot_water_vessel_external_wall_convection_coefficient:
+      convection_coefficient_hot_water_vessel_wall_external:
         value: 1.0
-      hot_water_vessel_wall_emissivity:
+      emissivity_hot_water_vessel_wall:
         value: 0.8
-      hot_water_heating_efficiency:
+      efficiency_water_heating:
         value: 0.8
     building_archetype:
       building_type: test

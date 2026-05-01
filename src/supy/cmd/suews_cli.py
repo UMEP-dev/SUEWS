@@ -10,12 +10,12 @@ Hard rule: this module never reimplements physics, validation, schema, or
 run logic. It only routes. Backend implementation details such as the Rust
 bridge are deliberately kept out of the public command surface.
 
-Phase-1 dispatcher: ``run``, ``validate``, ``schema``, and ``convert`` are
-wired here. The Wave-3 post-run triage commands (``diagnose``, ``compare``,
-``summarise``) are added by gh#1361. ``init`` and ``inspect`` remain future
-work in the other Wave 3 sub-issues. Skill packaging (#1363) is handled at
-the plugin-manifest level (``.claude-plugin/marketplace.json`` and
-``.codex-plugin/plugin.json``) rather than as a CLI subcommand. The
+Phase-1 dispatcher: ``run``, ``validate``, ``schema``, ``convert``, and
+``init`` are wired here. The Wave-3 post-run triage commands (``diagnose``,
+``compare``, ``summarise``) are added by gh#1361. ``inspect`` remains
+future work in the other Wave 3 sub-issues. Skill packaging (#1363) is
+handled at the plugin-manifest level (``.claude-plugin/marketplace.json``
+and ``.codex-plugin/plugin.json``) rather than as a CLI subcommand. The
 standalone ``suews-mcp`` package lands in Wave 4 (#1364).
 """
 
@@ -27,6 +27,7 @@ import click
 
 from .compare_runs import compare_runs_cmd as _compare_cmd
 from .diagnose_run import diagnose_run_cmd as _diagnose_cmd
+from .init_case import init_case_cmd as _init_cmd
 from .schema_cli import cli as _schema_cli
 
 # Each existing entry point is reused unchanged. Importing the Click commands
@@ -58,6 +59,7 @@ def cli() -> None:
 cli.add_command(_validate_cli, name="validate")
 cli.add_command(_schema_cli, name="schema")
 cli.add_command(_convert_cmd, name="convert")
+cli.add_command(_init_cmd, name="init")
 cli.add_command(_run_cmd, name="run")
 cli.add_command(_summarise_cmd, name="summarise")
 cli.add_command(_compare_cmd, name="compare")

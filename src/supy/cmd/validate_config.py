@@ -943,7 +943,7 @@ def _execute_pipeline(file, pipeline, mode, forcing="on", science_fixes="suggest
 
     # Execute selected phases (logic mirrors orchestrator.main for consistency)
     if pipeline == "A":
-        ok = _processor_run_phase_a(
+        phase_a_report = _processor_run_phase_a(
             user_yaml_file,
             standard_yaml_file,
             uptodate_file,
@@ -953,6 +953,7 @@ def _execute_pipeline(file, pipeline, mode, forcing="on", science_fixes="suggest
             silent=True,
             forcing=forcing,
         )
+        ok = not phase_a_report.has_errors
         console.print(
             "[green]✓ Validation completed[/green]"
             if ok
@@ -970,7 +971,7 @@ def _execute_pipeline(file, pipeline, mode, forcing="on", science_fixes="suggest
         return 0 if ok else 1
 
     if pipeline == "B":
-        ok = _processor_run_phase_b(
+        phase_b_report = _processor_run_phase_b(
             user_yaml_file,
             user_yaml_file,
             standard_yaml_file,
@@ -983,6 +984,7 @@ def _execute_pipeline(file, pipeline, mode, forcing="on", science_fixes="suggest
             silent=True,
             science_fixes=science_fixes,
         )
+        ok = not phase_b_report.has_errors
         console.print(
             "[green]✓ Validation completed[/green]"
             if ok
@@ -1000,7 +1002,7 @@ def _execute_pipeline(file, pipeline, mode, forcing="on", science_fixes="suggest
         return 0 if ok else 1
 
     if pipeline == "C":
-        ok = _processor_run_phase_c(
+        phase_c_report = _processor_run_phase_c(
             user_yaml_file,
             pydantic_yaml_file,
             pydantic_report_file,
@@ -1008,6 +1010,7 @@ def _execute_pipeline(file, pipeline, mode, forcing="on", science_fixes="suggest
             phases_run=["C"],
             silent=True,
         )
+        ok = not phase_c_report.has_errors
         console.print(
             "[green]✓ Validation completed[/green]"
             if ok
@@ -1025,7 +1028,7 @@ def _execute_pipeline(file, pipeline, mode, forcing="on", science_fixes="suggest
         return 0 if ok else 1
 
     if pipeline == "AB":
-        a_ok = _processor_run_phase_a(
+        a_ok_report = _processor_run_phase_a(
             user_yaml_file,
             standard_yaml_file,
             uptodate_file,
@@ -1035,6 +1038,7 @@ def _execute_pipeline(file, pipeline, mode, forcing="on", science_fixes="suggest
             silent=True,
             forcing=forcing,
         )
+        a_ok = not a_ok_report.has_errors
         if not a_ok:
             # Phase A failed in AB workflow - create final user files from Phase A outputs
             final_yaml, final_report = _processor_create_final_user_files(
@@ -1045,7 +1049,7 @@ def _execute_pipeline(file, pipeline, mode, forcing="on", science_fixes="suggest
             console.print(f"Updated YAML: {final_yaml}")
             return 1
 
-        b_ok = _processor_run_phase_b(
+        b_ok_report = _processor_run_phase_b(
             user_yaml_file,
             uptodate_file,
             standard_yaml_file,
@@ -1058,6 +1062,7 @@ def _execute_pipeline(file, pipeline, mode, forcing="on", science_fixes="suggest
             silent=True,
             science_fixes=science_fixes,
         )
+        b_ok = not b_ok_report.has_errors
 
         if not b_ok:
             # Phase B failed in AB workflow - create final user files from Phase B error report and Phase A YAML
@@ -1138,7 +1143,7 @@ def _execute_pipeline(file, pipeline, mode, forcing="on", science_fixes="suggest
         return 0
 
     if pipeline == "AC":
-        a_ok = _processor_run_phase_a(
+        a_ok_report = _processor_run_phase_a(
             user_yaml_file,
             standard_yaml_file,
             uptodate_file,
@@ -1148,6 +1153,7 @@ def _execute_pipeline(file, pipeline, mode, forcing="on", science_fixes="suggest
             silent=True,
             forcing=forcing,
         )
+        a_ok = not a_ok_report.has_errors
         if not a_ok:
             # Phase A failed in AC workflow - create final user files from Phase A outputs
             final_yaml, final_report = _processor_create_final_user_files(
@@ -1158,7 +1164,7 @@ def _execute_pipeline(file, pipeline, mode, forcing="on", science_fixes="suggest
             console.print(f"Updated YAML: {final_yaml}")
             return 1
 
-        c_ok = _processor_run_phase_c(
+        c_ok_report = _processor_run_phase_c(
             uptodate_file,
             pydantic_yaml_file,
             pydantic_report_file,
@@ -1167,6 +1173,7 @@ def _execute_pipeline(file, pipeline, mode, forcing="on", science_fixes="suggest
             phases_run=["A", "C"],
             silent=True,
         )
+        c_ok = not c_ok_report.has_errors
 
         if not c_ok:
             # Phase C failed in AC workflow - create final user files from Phase C error report and Phase A YAML
@@ -1240,7 +1247,7 @@ def _execute_pipeline(file, pipeline, mode, forcing="on", science_fixes="suggest
         return 0
 
     if pipeline == "BC":
-        b_ok = _processor_run_phase_b(
+        b_ok_report = _processor_run_phase_b(
             user_yaml_file,
             user_yaml_file,
             standard_yaml_file,
@@ -1253,6 +1260,7 @@ def _execute_pipeline(file, pipeline, mode, forcing="on", science_fixes="suggest
             silent=True,
             science_fixes=science_fixes,
         )
+        b_ok = not b_ok_report.has_errors
         if not b_ok:
             # Phase B failed in BC workflow - create final user files from Phase B outputs
             import shutil
@@ -1281,7 +1289,7 @@ def _execute_pipeline(file, pipeline, mode, forcing="on", science_fixes="suggest
                 console.print(f"Updated YAML: {final_yaml}")
             return 1
 
-        c_ok = _processor_run_phase_c(
+        c_ok_report = _processor_run_phase_c(
             science_yaml_file,
             pydantic_yaml_file,
             pydantic_report_file,
@@ -1289,6 +1297,7 @@ def _execute_pipeline(file, pipeline, mode, forcing="on", science_fixes="suggest
             phases_run=["B", "C"],
             silent=True,
         )
+        c_ok = not c_ok_report.has_errors
 
         if not c_ok:
             # Phase C failed in BC workflow - consolidate Phase B messages into Phase C error report
@@ -1402,7 +1411,7 @@ def _execute_pipeline(file, pipeline, mode, forcing="on", science_fixes="suggest
         return 0
 
     # Default: ABC
-    a_ok = _processor_run_phase_a(
+    a_ok_report = _processor_run_phase_a(
         user_yaml_file,
         standard_yaml_file,
         uptodate_file,
@@ -1412,6 +1421,7 @@ def _execute_pipeline(file, pipeline, mode, forcing="on", science_fixes="suggest
         silent=True,
         forcing=forcing,
     )
+    a_ok = not a_ok_report.has_errors
     if not a_ok:
         # Phase A failed in ABC - create final files from Phase A outputs
         if debug:
@@ -1438,7 +1448,7 @@ def _execute_pipeline(file, pipeline, mode, forcing="on", science_fixes="suggest
         console.print(f"Updated YAML: {pydantic_yaml_file}")
         return 1
 
-    b_ok = _processor_run_phase_b(
+    b_ok_report = _processor_run_phase_b(
         user_yaml_file,
         uptodate_file,
         standard_yaml_file,
@@ -1451,6 +1461,7 @@ def _execute_pipeline(file, pipeline, mode, forcing="on", science_fixes="suggest
         silent=True,
         science_fixes=science_fixes,
     )
+    b_ok = not b_ok_report.has_errors
 
     if not b_ok:
         # Phase B failed in ABC - create final files with mixed content
@@ -1531,7 +1542,7 @@ def _execute_pipeline(file, pipeline, mode, forcing="on", science_fixes="suggest
             all_no_action_messages.append(msg)
             seen_messages.add(msg)
 
-    c_ok = _processor_run_phase_c(
+    c_ok_report = _processor_run_phase_c(
         science_yaml_file,
         pydantic_yaml_file,
         pydantic_report_file,
@@ -1542,6 +1553,7 @@ def _execute_pipeline(file, pipeline, mode, forcing="on", science_fixes="suggest
         no_action_messages=all_no_action_messages,
         silent=True,
     )
+    c_ok = not c_ok_report.has_errors
 
     if not c_ok:
         # Phase C failed in ABC - create final files with mixed content

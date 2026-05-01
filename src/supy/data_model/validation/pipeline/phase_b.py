@@ -118,6 +118,43 @@ class ScienceSuggestion:
             "source": self.source,
         }
 
+    def to_issue(self):
+        """Adapt to the canonical ``Issue`` schema."""
+        from .report_schema import Issue
+
+        return Issue(
+            phase="B",
+            severity=self.severity,
+            code=self.code or f"B.SCIENCE.{self.parameter}".upper(),
+            message=self.message,
+            yaml_path=self.path or self.parameter,
+            site_gridid=self.site_gridid,
+            site_index=self.site_index,
+            category="SCIENCE_SUGGESTION",
+            suggested_value=self.suggested_value,
+            applied_fix=False,
+        )
+
+
+def _adjustment_to_issue(adj: "ScientificAdjustment"):
+    """Adapt a ``ScientificAdjustment`` to the canonical ``Issue`` schema."""
+    from .report_schema import Issue, SEVERITY_APPLIED_FIX
+
+    parameter = adj.parameter
+    parameter_slug = parameter.replace(".", "_").replace(" ", "_").upper()
+    return Issue(
+        phase="B",
+        severity=SEVERITY_APPLIED_FIX,
+        code=f"B.APPLIED_FIX.{parameter_slug}",
+        message=adj.reason or f"Adjusted {parameter}: {adj.old_value} -> {adj.new_value}",
+        yaml_path=parameter,
+        site_gridid=adj.site_gridid,
+        site_index=adj.site_index,
+        category="APPLIED_FIX",
+        suggested_value=adj.new_value,
+        applied_fix=True,
+    )
+
 
 VALID_SCIENCE_FIX_MODES = {"suggest", "apply", "off"}
 
@@ -1919,7 +1956,7 @@ def adjust_model_option_rcmethod(yaml_data: dict) -> Tuple[dict, List[Scientific
     Adjust roof_outer_heat_capacity_fraction and wall_outer_heat_capacity_fraction if rcmethod == 0.
 
     If the model physics option 'outer_cap_fraction' is set to 0, this function sets
-    'roof_outer_heat_capacity_fraction' and 'wall_outer_heat_capacity_fraction' to
+    'fraction_roof_heat_capacity_outer' and 'fraction_wall_heat_capacity_outer' to
     0.5 for all sites' building_archetype blocks, as required by the model
     specification.
 
@@ -1951,39 +1988,39 @@ def adjust_model_option_rcmethod(yaml_data: dict) -> Tuple[dict, List[Scientific
             building_archetype = props.get("building_archetype", {})
             site_gridid = get_site_gridid(site)
 
-            # roof_outer_heat_capacity_fraction
+            # fraction_roof_heat_capacity_outer
             roof_frac_entry = building_archetype.get(
-                "roof_outer_heat_capacity_fraction", {}
+                "fraction_roof_heat_capacity_outer", {}
             )
             old_roof_frac = roof_frac_entry.get("value") if isinstance(roof_frac_entry, dict) else roof_frac_entry
             if old_roof_frac != 0.5:
-                building_archetype["roof_outer_heat_capacity_fraction"] = {"value": 0.5}
+                building_archetype["fraction_roof_heat_capacity_outer"] = {"value": 0.5}
                 adjustments.append(
                     ScientificAdjustment(
-                        parameter="building_archetype.roof_outer_heat_capacity_fraction",
+                        parameter="building_archetype.fraction_roof_heat_capacity_outer",
                         site_index=site_idx,
                         site_gridid=site_gridid,
                         old_value=str(old_roof_frac),
                         new_value="0.5",
-                        reason="outer_cap_fraction == 0, set roof_outer_heat_capacity_fraction to 0.5"
+                        reason="outer_cap_fraction == 0, set fraction_roof_heat_capacity_outer to 0.5"
                     )
                 )
 
-            # wall_outer_heat_capacity_fraction
+            # fraction_wall_heat_capacity_outer
             wall_frac_entry = building_archetype.get(
-                "wall_outer_heat_capacity_fraction", {}
+                "fraction_wall_heat_capacity_outer", {}
             )
             old_wall_frac = wall_frac_entry.get("value") if isinstance(wall_frac_entry, dict) else wall_frac_entry
             if old_wall_frac != 0.5:
-                building_archetype["wall_outer_heat_capacity_fraction"] = {"value": 0.5}
+                building_archetype["fraction_wall_heat_capacity_outer"] = {"value": 0.5}
                 adjustments.append(
                     ScientificAdjustment(
-                        parameter="building_archetype.wall_outer_heat_capacity_fraction",
+                        parameter="building_archetype.fraction_wall_heat_capacity_outer",
                         site_index=site_idx,
                         site_gridid=site_gridid,
                         old_value=str(old_wall_frac),
                         new_value="0.5",
-                        reason="outer_cap_fraction == 0, set wall_outer_heat_capacity_fraction to 0.5"
+                        reason="outer_cap_fraction == 0, set fraction_wall_heat_capacity_outer to 0.5"
                     )
                 )
 
@@ -2105,15 +2142,15 @@ def adjust_model_option_stebbsmethod(yaml_data: dict) -> Tuple[dict, List[Scient
                     "window_external_convection_coefficient",
                 ]
                 window_params_bldgarc = [
-                    "window_thickness",
-                    "window_effective_conductivity",
-                    "window_density",
-                    "window_specific_heat_capacity",
-                    "window_external_emissivity",
-                    "window_internal_emissivity",
-                    "window_transmissivity",
-                    "window_absorptivity",
-                    "window_reflectivity",
+                    "thickness_window",
+                    "conductivity_window",
+                    "density_window",
+                    "specific_heat_capacity_window",
+                    "emissivity_window_external",
+                    "emissivity_window_internal",
+                    "transmissivity_window_external",
+                    "absorptivity_window_external",
+                    "reflectivity_window_external",
                 ]
                 # Nullify in stebbs
                 for param in window_params_stebbs:
@@ -2159,15 +2196,15 @@ def adjust_model_option_stebbsmethod(yaml_data: dict) -> Tuple[dict, List[Scient
                     "wall_internal_convection_coefficient",
                     ]
                 wall_params_bldgarc = [
-                    "wall_external_emissivity",
-                    "wall_internal_emissivity",
-                    "wall_transmissivity",
-                    "wall_absorptivity",
-                    "wall_reflectivity",
-                    "wall_thickness",
-                    "wall_effective_conductivity",
-                    "wall_density",
-                    "wall_specific_heat_capacity",
+                    "emissivity_wall_external",
+                    "emissivity_wall_internal",
+                    "transmissivity_wall_external",
+                    "absorptivity_wall_external",
+                    "reflectivity_wall_external",
+                    "thickness_wall",
+                    "conductivity_wall",
+                    "density_wall",
+                    "specific_heat_capacity_wall",
                     ]
                 for param in wall_params_stebbs:
                     entry = stebbs.get(param)
@@ -2692,7 +2729,7 @@ def run_science_check(
     mode: str = "public",
     phase: str = "B",
     science_fixes: str = "suggest",
-) -> dict:
+) -> Tuple[dict, "PhaseReport"]:
     """
     Main Phase B workflow: perform scientific validation and scientific adjustments.
 
@@ -2719,21 +2756,25 @@ def run_science_check(
 
     Returns
     -------
-    dict
-        Final science-checked YAML configuration dictionary.
+    tuple of (dict, PhaseReport)
+        Final science-checked YAML configuration dictionary and the
+        structured ``PhaseReport`` with all issues found. The
+        ``PhaseReport`` carries a ``status`` of ``FAILED`` when
+        critical errors are present (no exception is raised).
 
     Raises
     ------
-    FileNotFoundError
-        If any required input files are missing.
-    ValueError
-        If Phase A did not complete successfully or YAML is invalid.
+    FileNotFoundError, ValueError, KeyError
+        On unrecoverable initialisation failures (e.g. missing or
+        invalid input files). The orchestrator wraps these and
+        synthesises a fallback ``PhaseReport``.
 
     Notes
     -----
     - Runs all scientific validation and adjustment steps for Phase B.
-    - Writes a detailed report and optionally the updated YAML file.
-    - Halts with a clear message if critical scientific errors are detected.
+    - Writes a detailed text report and optionally the updated YAML file.
+    - Critical scientific errors are signalled via ``phase_report.has_errors``;
+      the function no longer raises ``ValueError`` for that case.
     """
     science_fixes = _normalise_science_fixes(science_fixes)
     try:
@@ -2803,8 +2844,17 @@ def run_science_check(
         if science_report_file:
             REPORT_WRITER.write(science_report_file, report_content)
 
-        # Re-raise the exception so orchestrator knows it failed
-        raise e
+        from .report_schema import PhaseReport
+
+        issues = [r.to_issue() for r in validation_results]
+        phase_report = PhaseReport(
+            phase="B",
+            issues=issues,
+            yaml_in=uptodate_yaml_file,
+            yaml_out=science_yaml_file,
+            text_report_path=science_report_file,
+        )
+        return {}, phase_report
 
     critical_errors = [r for r in validation_results if r.status == "ERROR"]
     suggestions = []
@@ -2844,9 +2894,24 @@ def run_science_check(
     if science_report_file:
         REPORT_WRITER.write(science_report_file, report_content)
 
+    from .report_schema import PhaseReport
+
+    issues = [r.to_issue() for r in validation_results]
+    issues.extend(_adjustment_to_issue(a) for a in adjustments)
+    if science_fixes == "suggest":
+        issues.extend(s.to_issue() for s in suggestions)
+
+    phase_report = PhaseReport(
+        phase="B",
+        issues=issues,
+        yaml_in=uptodate_yaml_file,
+        yaml_out=science_yaml_file,
+        text_report_path=science_report_file,
+    )
+
     if critical_errors:
         print_critical_halt_message(critical_errors)
-        raise ValueError("Critical scientific errors detected - Phase B halted")
+        return science_checked_data, phase_report
 
     print_science_check_results(
         validation_results, adjustments, suggestions, science_fixes
@@ -2860,7 +2925,7 @@ def run_science_check(
                 science_checked_data, f, default_flow_style=False, sort_keys=False
             )
 
-    return science_checked_data
+    return science_checked_data, phase_report
 
 
 def main():

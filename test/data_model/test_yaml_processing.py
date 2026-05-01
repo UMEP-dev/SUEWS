@@ -515,26 +515,36 @@ sites:
         )
 
     def test_error_handling(self):
-        """Test error handling for invalid inputs."""
+        """Test error handling for invalid inputs.
+
+        ``annotate_missing_parameters`` returns a structured ``PhaseReport``
+        on every path (success and pipeline failure) so callers and the
+        JSON sidecar share the same shape. I/O failures surface as a
+        single ``A.PIPELINE.*`` issue rather than collapsing to ``None``.
+        """
+        from supy.data_model.validation.pipeline.report_schema import PhaseReport
+
         with tempfile.TemporaryDirectory() as temp_dir:
-            # Test with non-existent file
+            # Test with non-existent file -> A.PIPELINE.FILE_NOT_FOUND
             non_existent = os.path.join(temp_dir, "does_not_exist.yml")
             result = annotate_missing_parameters(
                 user_file=non_existent, standard_file=self.standard_file
             )
-            # Should handle gracefully (returns None)
-            self.assertIsNone(result)
+            self.assertIsInstance(result, PhaseReport)
+            self.assertTrue(result.has_errors)
+            self.assertEqual(result.issues[0].code, "A.PIPELINE.FILE_NOT_FOUND")
 
-            # Test with invalid YAML
+            # Test with invalid YAML -> A.PIPELINE.YAML_PARSE_ERROR
             invalid_yaml = os.path.join(temp_dir, "invalid.yml")
-            with open(invalid_yaml, "w") as f:
+            with open(invalid_yaml, "w", encoding="utf-8") as f:
                 f.write("invalid: yaml: content: [unclosed")
 
             result = annotate_missing_parameters(
                 user_file=invalid_yaml, standard_file=self.standard_file
             )
-            # Should handle gracefully
-            self.assertIsNone(result)
+            self.assertIsInstance(result, PhaseReport)
+            self.assertTrue(result.has_errors)
+            self.assertEqual(result.issues[0].code, "A.PIPELINE.YAML_PARSE_ERROR")
 
     def test_renamed_params_consistency(self):
         """Test that RENAMED_PARAMS dictionary is consistent."""

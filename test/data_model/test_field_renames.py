@@ -145,8 +145,31 @@ class TestRegistryIntegrity:
 class TestNewNamesAccepted:
     @pytest.mark.parametrize("model_cls, renames", _RENAMED_CLASSES)
     def test_new_names_resolve_to_attributes(self, model_cls, renames):
+        # ArchetypeProperties has a dev6 -> dev7 rename pass that further
+        # renames a subset of the dev6 targets (Rule 2 reorder for
+        # bulk-material and surface optical fields). Accept either a
+        # direct Pydantic field or a key in the downstream chain.
+        from supy.data_model.core.field_renames import (
+            ARCHETYPEPROPERTIES_DEV6_RENAMES,
+        )
+        downstream_chain = (
+            ARCHETYPEPROPERTIES_DEV6_RENAMES
+            if model_cls.__name__ == "ArchetypeProperties"
+            else {}
+        )
         for new_name in renames.values():
-            assert new_name in model_cls.model_fields, (
+            if new_name in model_cls.model_fields:
+                continue
+            if new_name in downstream_chain:
+                # Will be further renamed by the dev6 -> dev7 chain;
+                # the chained target is the actual Pydantic field.
+                chained = downstream_chain[new_name]
+                assert chained in model_cls.model_fields, (
+                    f"{model_cls.__name__} missing chained field "
+                    f"{chained!r} (from {new_name!r})"
+                )
+                continue
+            raise AssertionError(
                 f"{model_cls.__name__} missing renamed field {new_name!r}"
             )
 
@@ -208,14 +231,17 @@ class TestBackwardCompat:
                 WallextDensity=1800.0,
                 RoofextCp=920.0,
             )
-        # Post-gh#1334: fused Wallext/Roofext now skip the gh#1329
-        # PascalCase intermediate and land on the snake_case final.
-        assert _unwrap(archetype.wall_external_thickness) == 0.25
-        assert _unwrap(archetype.wall_external_density) == 1800.0
-        assert _unwrap(archetype.roof_external_specific_heat_capacity) == 920.0
+        # Post-gh#1334: fused Wallext/Roofext skip the gh#1329 PascalCase
+        # intermediate and land on the snake_case dev6 form. The dev6 -> dev7
+        # Rule 2 reorder then renames external -> outer (layer-to-insulation
+        # qualifier) and reorders quantity -> component -> sub-class.
+        assert _unwrap(archetype.thickness_wall_outer) == 0.25
+        assert _unwrap(archetype.density_wall_outer) == 1800.0
+        assert _unwrap(archetype.specific_heat_capacity_roof_outer) == 920.0
 
     def test_stebbs_pascal_names_populate_new_attributes(self):
-        """Full STEBBS PascalCase -> snake_case (gh#1334)."""
+        """Full STEBBS PascalCase -> snake_case (gh#1334), then Rule 2 reorder
+        (dev6 -> dev7 naming-convention pass)."""
         with warnings.catch_warnings():
             warnings.simplefilter("ignore", DeprecationWarning)
             archetype = ArchetypeProperties(
@@ -226,8 +252,12 @@ class TestBackwardCompat:
             )
         assert archetype.building_type == "Office"
         assert _unwrap(archetype.window_to_wall_ratio) == 0.4
-        assert _unwrap(archetype.wall_thickness) == 0.3
-        assert _unwrap(archetype.wall_outer_heat_capacity_fraction) == 0.6
+        # dev6 wall_thickness -> dev7 thickness_wall (Rule 2: quantity leads).
+        assert _unwrap(archetype.thickness_wall) == 0.3
+        # dev6 wall_outer_heat_capacity_fraction ->
+        # dev7 fraction_wall_heat_capacity_outer (Rule 2 non-physical:
+        # fraction_* category prefix leads).
+        assert _unwrap(archetype.fraction_wall_heat_capacity_outer) == 0.6
 
     def test_stebbs_properties_pascal_names_populate_new_attributes(self):
         """Full StebbsProperties PascalCase -> snake_case (gh#1334)."""

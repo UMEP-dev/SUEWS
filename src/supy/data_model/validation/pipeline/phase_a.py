@@ -1755,10 +1755,22 @@ def annotate_missing_parameters(
             standard_data = yaml.safe_load(f)
     except FileNotFoundError as e:
         print(f"Error: File not found - {e}")
-        return
+        return _phase_a_failure_report(
+            user_file=user_file,
+            uptodate_file=uptodate_file,
+            report_file=report_file,
+            code="A.PIPELINE.FILE_NOT_FOUND",
+            message=f"File not found: {e}",
+        )
     except yaml.YAMLError as e:
         print(f"Error: Invalid YAML - {e}")
-        return
+        return _phase_a_failure_report(
+            user_file=user_file,
+            uptodate_file=uptodate_file,
+            report_file=report_file,
+            code="A.PIPELINE.YAML_PARSE_ERROR",
+            message=f"Invalid YAML: {e}",
+        )
 
     # Validate nlayer dimensions if nlayer is provided
     dimension_errors = []
@@ -1906,6 +1918,153 @@ def annotate_missing_parameters(
             actual_size = os.path.getsize(report_file) if os.path.exists(report_file) else -1
             print(f"[DEBUG] Phase A: After write, file size: {actual_size} bytes", file=sys.stderr)
         # print(f" Analysis report written to: {report_file}")
+
+    from .report_schema import PhaseReport
+
+    issues = _issues_from_phase_a_state(
+        missing_params=missing_params,
+        renamed_replacements=renamed_replacements,
+        extra_params=extra_params,
+        dimension_errors=dimension_errors,
+        forcing_errors=forcing_errors,
+        nlayer_limit_errors=nlayer_limit_errors,
+    )
+    return PhaseReport(
+        phase="A",
+        issues=issues,
+        yaml_in=user_file,
+        yaml_out=uptodate_file,
+        text_report_path=report_file,
+    )
+
+
+def _phase_a_failure_report(
+    *,
+    user_file,
+    uptodate_file,
+    report_file,
+    code: str,
+    message: str,
+):
+    """Build a single-error ``PhaseReport`` for Phase A I/O failures."""
+    from .report_schema import Issue, PhaseReport, SEVERITY_ERROR
+
+    return PhaseReport(
+        phase="A",
+        issues=[Issue(
+            phase="A",
+            severity=SEVERITY_ERROR,
+            code=code,
+            message=message,
+            category="PIPELINE",
+        )],
+        yaml_in=user_file,
+        yaml_out=uptodate_file,
+        text_report_path=report_file,
+    )
+
+
+def _issues_from_phase_a_state(
+    *,
+    missing_params,
+    renamed_replacements,
+    extra_params,
+    dimension_errors,
+    forcing_errors,
+    nlayer_limit_errors,
+):
+    """Translate Phase A's accumulated lists into ``Issue`` objects.
+
+    Producer shapes (do not deviate — these are the contracts of the
+    upstream finder/validator helpers):
+
+    - ``missing_params``: list of ``(full_path, standard_value, is_physics)``.
+      ``is_physics`` flags the entry as a CRITICAL parameter.
+    - ``renamed_replacements``: list of ``(old_key, new_key)``.
+    - ``extra_params``: list of ``full_path`` strings.
+    - ``dimension_errors``: list of ``(path, expected_len, actual_len, nulls_added)``.
+    - ``nlayer_limit_errors``: list of ``(path, nlayer_value, error_message)``.
+    - ``forcing_errors``: list of plain message strings.
+    """
+    from .report_schema import (
+        Issue,
+        SEVERITY_APPLIED_FIX,
+        SEVERITY_ERROR,
+        SEVERITY_WARNING,
+    )
+
+    issues = []
+
+    for entry in missing_params or []:
+        full_path, _standard_value, is_physics = entry
+        severity = SEVERITY_ERROR if is_physics else SEVERITY_WARNING
+        issues.append(Issue(
+            phase="A",
+            severity=severity,
+            code="A.MISSING_PARAM.CRITICAL" if is_physics else "A.MISSING_PARAM",
+            message=f"Missing parameter: {full_path}",
+            yaml_path=str(full_path),
+            category="STRUCTURE",
+        ))
+
+    for old_key, new_key in renamed_replacements or []:
+        issues.append(Issue(
+            phase="A",
+            severity=SEVERITY_APPLIED_FIX,
+            code="A.RENAMED_PARAM",
+            message=f"Renamed {old_key} -> {new_key}",
+            yaml_path=str(new_key),
+            category="STRUCTURE",
+            applied_fix=True,
+        ))
+
+    for full_path in extra_params or []:
+        issues.append(Issue(
+            phase="A",
+            severity=SEVERITY_WARNING,
+            code="A.EXTRA_PARAM",
+            message=f"Parameter not in standard schema: {full_path}",
+            yaml_path=str(full_path),
+            category="STRUCTURE",
+        ))
+
+    for entry in dimension_errors or []:
+        path, expected, actual, nulls_added = entry
+        message = (
+            f"{path}: has {actual} elements, expected {expected}"
+        )
+        if nulls_added:
+            message += f" (added {nulls_added} null(s))"
+        issues.append(Issue(
+            phase="A",
+            severity=SEVERITY_ERROR,
+            code="A.DIMENSION_MISMATCH",
+            message=message,
+            yaml_path=str(path),
+            category="STRUCTURE",
+        ))
+
+    for entry in nlayer_limit_errors or []:
+        path, _value, err_message = entry
+        issues.append(Issue(
+            phase="A",
+            severity=SEVERITY_WARNING,
+            code="A.NLAYER_LIMIT",
+            message=err_message,
+            yaml_path=str(path),
+            category="STRUCTURE",
+        ))
+
+    for err_message in forcing_errors or []:
+        issues.append(Issue(
+            phase="A",
+            severity=SEVERITY_ERROR,
+            code="A.FORCING",
+            message=str(err_message),
+            category="FORCING",
+        ))
+
+    return issues
 
 
 def get_current_git_branch() -> str:

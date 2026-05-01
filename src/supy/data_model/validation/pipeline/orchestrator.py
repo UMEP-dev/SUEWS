@@ -573,17 +573,27 @@ def run_phase_a(
     phase: str = "A",
     silent: bool = False,
     forcing: str = "on",
-) -> bool:
-    """Execute Phase A: Configuration structure checks and parameter updates."""
+) -> "PhaseReport":
+    """Execute Phase A: Configuration structure checks and parameter updates.
+
+    Returns the structured ``PhaseReport`` from this phase. Use
+    ``phase_report.has_errors`` to gate downstream work.
+    """
+    from .report_schema import (
+        Issue,
+        JSON_REPORT_WRITER,
+        PhaseReport,
+        SEVERITY_ERROR,
+    )
+
     if not silent:
         print("Configuration structure check...")
 
-    # Detect nlayer from user YAML for dimension validation
     nlayer_value = detect_nlayer_from_user_yaml(user_yaml_file)
 
     try:
         with redirect_stdout(io.StringIO()), redirect_stderr(io.StringIO()):
-            annotate_missing_parameters(
+            phase_report = annotate_missing_parameters(
                 user_file=user_yaml_file,
                 standard_file=standard_yaml_file,
                 uptodate_file=uptodate_file,
@@ -593,45 +603,64 @@ def run_phase_a(
                 nlayer=nlayer_value,
                 forcing=forcing,
             )
+    except Exception as exc:
+        phase_report = PhaseReport(
+            phase="A",
+            issues=[Issue(
+                phase="A",
+                severity=SEVERITY_ERROR,
+                code="A.PIPELINE.EXCEPTION",
+                message=str(exc),
+                category="PIPELINE",
+            )],
+            yaml_in=user_yaml_file,
+            yaml_out=uptodate_file,
+            text_report_path=report_file,
+        )
 
-        if not os.path.exists(uptodate_file):
-            if not silent:
-                print()
-                print("[X] Validation failed - check report for details")
-            return False
+    # File existence checks remain — they catch IO failures the phase
+    # itself did not surface.
+    if not os.path.exists(uptodate_file):
+        phase_report.issues.append(Issue(
+            phase="A",
+            severity=SEVERITY_ERROR,
+            code="A.PIPELINE.MISSING_YAML",
+            message="Phase A did not produce an updated YAML",
+            category="PIPELINE",
+        ))
+    elif not phase_report.has_errors:
+        with open(uptodate_file, "r", encoding="utf-8", errors="replace") as fh:
+            if "Updated YAML" not in fh.read():
+                phase_report.issues.append(Issue(
+                    phase="A",
+                    severity=SEVERITY_ERROR,
+                    code="A.PIPELINE.MALFORMED_YAML_HEADER",
+                    message="Updated YAML output missing expected header",
+                    category="PIPELINE",
+                ))
+    if not os.path.exists(report_file):
+        phase_report.issues.append(Issue(
+            phase="A",
+            severity=SEVERITY_ERROR,
+            code="A.PIPELINE.MISSING_REPORT",
+            message="Phase A did not produce a text report",
+            category="PIPELINE",
+        ))
 
-        if not os.path.exists(report_file):
-            if not silent:
-                print()
-                print("[X] Validation failed - unable to generate report")
-            return False
+    if report_file:
+        json_path = Path(report_file).with_suffix(".json")
+        phase_report.json_report_path = str(json_path)
+        JSON_REPORT_WRITER.write(json_path, phase_report)
 
-        with open(uptodate_file, "r", encoding="utf-8", errors="replace") as f:
-            content = f.read()
-            if "Updated YAML" not in content:
-                if not silent:
-                    print()
-                    print("[X] Validation failed - check report for details")
-                return False
-
-        report_content = REPORT_WRITER.read(report_file)
-
-        if "## ACTION NEEDED" in report_content:
-            if not silent:
-                print("[X] Validation failed!")
-                print(f"Report: {report_file}")
-                print(f"Updated YAML: {uptodate_file}")
-            return False
-
-        if not silent:
+    if not silent:
+        if phase_report.has_errors:
+            print("[X] Validation failed!")
+            print(f"Report: {report_file}")
+            print(f"Updated YAML: {uptodate_file}")
+        else:
             print("[OK] Validation completed")
-        return True
 
-    except Exception as e:
-        if not silent:
-            print()
-            print(f"[X] Validation failed with error: {e}")
-        return False
+    return phase_report
 
 
 def run_phase_b(
@@ -646,11 +675,22 @@ def run_phase_b(
     phase: str = "B",
     silent: bool = False,
     science_fixes: str = "suggest",
-) -> bool:
-    """Execute Phase B: physics validation and optional scientific fixes."""
+) -> "PhaseReport":
+    """Execute Phase B: physics validation and optional scientific fixes.
+
+    Returns the structured ``PhaseReport`` from this phase. Use
+    ``phase_report.has_errors`` to gate downstream work.
+    """
+    from .report_schema import (
+        Issue,
+        JSON_REPORT_WRITER,
+        PhaseReport,
+        SEVERITY_ERROR,
+    )
+
     try:
         with redirect_stdout(io.StringIO()), redirect_stderr(io.StringIO()):
-            science_checked_data = run_science_check(
+            _, phase_report = run_science_check(
                 uptodate_yaml_file=uptodate_file,
                 user_yaml_file=user_yaml_file,
                 standard_yaml_file=standard_yaml_file,
@@ -662,52 +702,52 @@ def run_phase_b(
                 phase=phase,
                 science_fixes=science_fixes,
             )
+    except Exception as exc:
+        phase_report = PhaseReport(
+            phase="B",
+            issues=[Issue(
+                phase="B",
+                severity=SEVERITY_ERROR,
+                code="B.PIPELINE.EXCEPTION",
+                message=str(exc),
+            )],
+            yaml_in=uptodate_file,
+            yaml_out=science_yaml_file,
+            text_report_path=science_report_file,
+        )
 
-        # Check if Phase B produced output files
-        if not os.path.exists(science_yaml_file):
-            if not silent:
-                print()
-                print("[X] Validation failed - check report for details")
-            return False
+    # File existence checks remain — they catch IO failures the phase
+    # itself did not surface.
+    if not os.path.exists(science_report_file):
+        phase_report.issues.append(Issue(
+            phase="B",
+            severity=SEVERITY_ERROR,
+            code="B.PIPELINE.MISSING_REPORT",
+            message="Phase B did not produce the expected text report",
+        ))
+    if science_yaml_file and not os.path.exists(science_yaml_file) and not phase_report.has_errors:
+        phase_report.issues.append(Issue(
+            phase="B",
+            severity=SEVERITY_ERROR,
+            code="B.PIPELINE.MISSING_YAML",
+            message="Phase B did not produce the expected YAML output",
+        ))
 
-        if not os.path.exists(science_report_file):
-            if not silent:
-                print()
-                print("[X] Validation failed - unable to generate report")
-            return False
+    if science_report_file:
+        json_path = Path(science_report_file).with_suffix(".json")
+        phase_report.json_report_path = str(json_path)
+        JSON_REPORT_WRITER.write(json_path, phase_report)
 
-        # Check if Phase B report indicates critical issues
-        report_content = REPORT_WRITER.read(science_report_file)
-
-        if "CRITICAL ISSUES DETECTED" in report_content or "URGENT" in report_content:
-            if not silent:
-                print("[X] Validation failed!")
-                print(f"Report: {science_report_file}")
+    if not silent:
+        if phase_report.has_errors:
+            print("[X] Validation failed!")
+            print(f"Report: {science_report_file}")
+            if science_yaml_file:
                 print(f"Updated YAML: {science_yaml_file}")
-            return False
-
-        if not silent:
-            print("[OK] Phase B completed")
-        return True
-
-    except ValueError as e:
-        if "Critical scientific errors detected" in str(e):
-            # if not silent:
-            print("[X] Validation failed!")
-            print(f"Report: {science_report_file}")
-            print(f"Updated YAML: {science_yaml_file}")
-            return False
         else:
-            # if not silent:
-            print("[X] Validation failed!")
-            print(f"Report: {science_report_file}")
-            print(f"Updated YAML: {science_yaml_file}")
-            return False
-    except Exception as e:
-        # if not silent:
-        print()
-        print(f"[X] Validation failed with unexpected error: {e}")
-        return False
+            print("[OK] Phase B completed")
+
+    return phase_report
 
 
 def run_phase_c(
@@ -720,8 +760,78 @@ def run_phase_c(
     phases_run: list = None,
     no_action_messages: list = None,
     silent: bool = False,
+) -> "PhaseReport":
+    """Execute Phase C and return the structured ``PhaseReport``.
+
+    The legacy bool-returning body (``_run_phase_c_legacy``) is preserved
+    intact so the human-readable text report it writes is byte-for-byte
+    unchanged. This wrapper additionally collects structured Pydantic
+    issues via ``collect_phase_c_issues`` and writes a JSON sidecar.
+    """
+    from .phase_c import collect_phase_c_issues
+    from .report_schema import (
+        Issue,
+        JSON_REPORT_WRITER,
+        PhaseReport,
+        SEVERITY_ERROR,
+    )
+
+    issues = collect_phase_c_issues(input_yaml_file)
+
+    legacy_ok = _run_phase_c_legacy(
+        input_yaml_file=input_yaml_file,
+        pydantic_yaml_file=pydantic_yaml_file,
+        pydantic_report_file=pydantic_report_file,
+        mode=mode,
+        phase_a_report_file=phase_a_report_file,
+        science_report_file=science_report_file,
+        phases_run=phases_run,
+        no_action_messages=no_action_messages,
+        silent=silent,
+    )
+
+    if not legacy_ok and not any(i.severity == SEVERITY_ERROR for i in issues):
+        # Legacy reported failure but no structured issue was captured —
+        # surface a generic pipeline failure so the JSON sidecar is
+        # still actionable.
+        issues.append(Issue(
+            phase="C",
+            severity=SEVERITY_ERROR,
+            code="C.PIPELINE.UNKNOWN",
+            message="Phase C reported failure with no structured details",
+            category="PIPELINE",
+        ))
+
+    phase_report = PhaseReport(
+        phase="C",
+        issues=issues,
+        yaml_in=input_yaml_file,
+        yaml_out=pydantic_yaml_file,
+        text_report_path=pydantic_report_file,
+    )
+
+    if pydantic_report_file:
+        json_path = Path(pydantic_report_file).with_suffix(".json")
+        phase_report.json_report_path = str(json_path)
+        JSON_REPORT_WRITER.write(json_path, phase_report)
+
+    return phase_report
+
+
+def _run_phase_c_legacy(
+    input_yaml_file: str,
+    pydantic_yaml_file: str,
+    pydantic_report_file: str,
+    mode: str = "public",
+    phase_a_report_file: str = None,
+    science_report_file: str = None,
+    phases_run: list = None,
+    no_action_messages: list = None,
+    silent: bool = False,
 ) -> bool:
-    """Execute Phase C: Configuration consistency validation based on physics options."""
+    """Legacy bool-returning Phase C body. Preserved for the text-report
+    generation. Callers should use ``run_phase_c`` (PhaseReport-returning).
+    """
     debug = os.environ.get("SUEWS_DEBUG", "").lower() in ("1", "true", "yes")
     if debug:
         print(f"[DEBUG] run_phase_c called", file=sys.stderr)
@@ -1367,7 +1477,7 @@ Modes:
         print(f"DEBUG: Executing phase '{phase}'")
         if phase == "A":
             # Phase A only
-            phase_a_success = run_phase_a(
+            phase_a_report = run_phase_a(
                 user_yaml_file,
                 standard_yaml_file,
                 uptodate_file,
@@ -1376,6 +1486,7 @@ Modes:
                 phase="A",
                 silent=True,  # Suppress phase function output, main function handles terminal output
             )
+            phase_a_success = not phase_a_report.has_errors
 
             # Always create final user files with simple names
             final_yaml, final_report = create_final_user_files(
@@ -1398,7 +1509,7 @@ Modes:
             phase_a_report = None
 
             print("Physics validation check...")
-            phase_b_success = run_phase_b(
+            phase_b_report = run_phase_b(
                 user_yaml_file,
                 input_yaml_file,
                 standard_yaml_file,
@@ -1411,6 +1522,7 @@ Modes:
                 silent=True,  # Suppress phase function output, main function handles terminal output
                 science_fixes=science_fixes,
             )
+            phase_b_success = not phase_b_report.has_errors
 
             # Always create final user files with simple names
             final_yaml, final_report = create_final_user_files(
@@ -1440,7 +1552,7 @@ Modes:
             # Phase C only - run Pydantic validation on original user YAML
             print("Configuration consistency check...")
 
-            phase_c_success = run_phase_c(
+            phase_c_report = run_phase_c(
                 user_yaml_file,
                 pydantic_yaml_file,
                 pydantic_report_file,
@@ -1448,6 +1560,7 @@ Modes:
                 phases_run=["C"],
                 silent=True,  # Suppress phase function output, main function handles terminal output
             )
+            phase_c_success = not phase_c_report.has_errors
 
             # Always create final user files with simple names
             final_yaml, final_report = create_final_user_files(
@@ -1476,7 +1589,7 @@ Modes:
         elif phase == "AB":
             # Complete A→B workflow
             print("Configuration structure check...")
-            phase_a_success = run_phase_a(
+            phase_a_report = run_phase_a(
                 user_yaml_file,
                 standard_yaml_file,
                 uptodate_file,
@@ -1486,6 +1599,7 @@ Modes:
                 silent=True,
                 science_fixes=science_fixes,
             )
+            phase_a_success = not phase_a_report.has_errors
 
             if not phase_a_success:
                 # Phase A failed in AB workflow - create final user files from Phase A outputs
@@ -1500,7 +1614,7 @@ Modes:
 
             print("[OK] Validation completed")
             print("Physics validation check...")
-            phase_b_success = run_phase_b(
+            phase_b_report = run_phase_b(
                 user_yaml_file,
                 uptodate_file,
                 standard_yaml_file,
@@ -1513,6 +1627,7 @@ Modes:
                 silent=True,
                 science_fixes=science_fixes,
             )
+            phase_b_success = not phase_b_report.has_errors
 
             if not phase_b_success:
                 # Phase B failed in AB workflow - create final user files from Phase B error report and Phase A YAML
@@ -1586,7 +1701,7 @@ Modes:
         elif phase == "AC":
             # Complete A→C workflow
             print("Configuration structure check...")
-            phase_a_success = run_phase_a(
+            phase_a_report = run_phase_a(
                 user_yaml_file,
                 standard_yaml_file,
                 uptodate_file,
@@ -1595,6 +1710,7 @@ Modes:
                 phase="AC",
                 silent=True,
             )
+            phase_a_success = not phase_a_report.has_errors
 
             if not phase_a_success:
                 # Phase A failed in AC workflow - preserve Phase A outputs as AC outputs (when Phase A passes, we have updated from A)
@@ -1617,7 +1733,7 @@ Modes:
 
             print("[OK] Validation completed")
             print("Configuration consistency check...")
-            phase_c_success = run_phase_c(
+            phase_c_report = run_phase_c(
                 uptodate_file,  # Use Phase A output as input to Phase C
                 pydantic_yaml_file,
                 pydantic_report_file,
@@ -1626,6 +1742,7 @@ Modes:
                 phases_run=["A", "C"],
                 silent=True,
             )
+            phase_c_success = not phase_c_report.has_errors
 
             if not phase_c_success:
                 # Phase C failed in AC workflow - create final user files from Phase C error report and Phase A YAML
@@ -1696,7 +1813,7 @@ Modes:
         elif phase == "BC":
             # Complete B→C workflow
             print("Physics validation check...")
-            phase_b_success = run_phase_b(
+            phase_b_report = run_phase_b(
                 user_yaml_file,
                 user_yaml_file,  # Phase B runs directly on user YAML
                 standard_yaml_file,
@@ -1709,6 +1826,7 @@ Modes:
                 silent=True,
                 science_fixes=science_fixes,
             )
+            phase_b_success = not phase_b_report.has_errors
 
             if not phase_b_success:
                 # Phase B failed in BC workflow - preserve Phase B outputs as BC outputs (when Phase B passes, we have updated from B)
@@ -1731,7 +1849,7 @@ Modes:
 
             print("[OK] Phase B completed")
             print("Configuration consistency check...")
-            phase_c_success = run_phase_c(
+            phase_c_report = run_phase_c(
                 science_yaml_file,  # Use Phase B output as input to Phase C
                 pydantic_yaml_file,
                 pydantic_report_file,
@@ -1740,6 +1858,7 @@ Modes:
                 phases_run=["B", "C"],
                 silent=True,
             )
+            phase_c_success = not phase_c_report.has_errors
 
             if not phase_c_success:
                 # Phase C failed in BC workflow - consolidate Phase B messages into Phase C error report
@@ -1847,7 +1966,7 @@ Modes:
             # Step 1: Run Phase A
             print("DEBUG: Starting ABC workflow")
             print("Configuration structure check...")
-            phase_a_success = run_phase_a(
+            phase_a_report = run_phase_a(
                 user_yaml_file,
                 standard_yaml_file,
                 uptodate_file,
@@ -1857,6 +1976,7 @@ Modes:
                 silent=True,
                 science_fixes=science_fixes,
             )
+            phase_a_success = not phase_a_report.has_errors
 
             if not phase_a_success:
                 # Phase A failed in ABC workflow - preserve Phase A outputs as ABC outputs (when Phase A passes, we have updated from A)
@@ -1893,7 +2013,7 @@ Modes:
 
             # Step 2: Run Phase B (A passed, try B)
             print("Physics validation check...")
-            phase_b_success = run_phase_b(
+            phase_b_report = run_phase_b(
                 user_yaml_file,
                 uptodate_file,
                 standard_yaml_file,
@@ -1906,6 +2026,7 @@ Modes:
                 silent=True,
                 science_fixes=science_fixes,
             )
+            phase_b_success = not phase_b_report.has_errors
 
             if not phase_b_success:
                 # Phase B failed in ABC workflow - create final files from Phase A (last successful phase)
@@ -1948,7 +2069,7 @@ Modes:
                 f"temp_reportC_{os.path.splitext(os.path.basename(user_yaml_file))[0]}.txt",
             )
 
-            phase_c_success = run_phase_c(
+            phase_c_report = run_phase_c(
                 science_yaml_file,  # Use Phase B output as input to Phase C
                 pydantic_yaml_file,
                 temp_report_c,  # Temporary Phase C report
@@ -1957,6 +2078,7 @@ Modes:
                 phases_run=["C"],  # Only Phase C content
                 silent=True,
             )
+            phase_c_success = not phase_c_report.has_errors
 
             if not phase_c_success:
                 # Phase C failed in ABC workflow - create final files from Phase B (last successful phase)

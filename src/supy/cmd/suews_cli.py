@@ -12,8 +12,10 @@ bridge are deliberately kept out of the public command surface.
 
 Phase-1 dispatcher: ``run``, ``validate``, ``schema``, ``convert``, ``init``,
 ``inspect``, ``summarise``, ``compare``, and ``diagnose`` are wired here.
-``skill`` remains future work in the other Wave 3 sub-issues, and the
-standalone ``suews-mcp`` package lands in Wave 4 (#1364).
+Skill packaging (#1363) is handled at the plugin-manifest level
+(``.claude-plugin/marketplace.json`` and ``.codex-plugin/plugin.json``)
+rather than as a CLI subcommand. The standalone ``suews-mcp`` package
+lands in Wave 4 (#1364).
 """
 
 from __future__ import annotations

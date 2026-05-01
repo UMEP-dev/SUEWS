@@ -1,0 +1,21 @@
+{
+  "name": "suews",
+  "interface": {
+    "displayName": "SUEWS",
+    "shortDescription": "Urban climate modelling tools for AI assistants"
+  },
+  "plugins": [
+    {
+      "name": "suews",
+      "source": {
+        "source": "local",
+        "path": "./plugins/suews"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Productivity"
+    }
+  ]
+}

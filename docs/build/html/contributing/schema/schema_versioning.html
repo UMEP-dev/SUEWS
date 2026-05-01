@@ -8,8 +8,8 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <meta property="article:modified_time" content="2026-04-30T18:48:45+00:00" />
-    <title>YAML Configuration Schema Versioning &#8212; SUEWS 2026.5.1.dev9063 documentation</title>
+    <meta property="article:modified_time" content="2026-05-01T23:02:32+00:00" />
+    <title>YAML Configuration Schema Versioning &#8212; SUEWS 2026.5.1.dev9067 documentation</title>
   
   
   
@@ -45,7 +45,7 @@
   <link rel="preload" as="script" href="../../_static/scripts/bootstrap.js?digest=8878045cc6db502f8baf" />
 <link rel="preload" as="script" href="../../_static/scripts/pydata-sphinx-theme.js?digest=8878045cc6db502f8baf" />
 
-    <script src="../../_static/documentation_options.js?v=6ed4aad1"></script>
+    <script src="../../_static/documentation_options.js?v=ecb5a866"></script>
     <script src="../../_static/doctools.js?v=9bcbadda"></script>
     <script src="../../_static/sphinx_highlight.js?v=dc90522c"></script>
     <script src="../../_static/scripts/sphinx-book-theme.js?v=fab101a9"></script>
@@ -57,8 +57,8 @@
     <link rel="search" title="Search" href="../../search.html" />
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
-  <meta name="docsearch:version" content="2026.5.1.dev9063" />
-    <meta name="docbuild:last-update" content="2026-04-30"/>
+  <meta name="docsearch:version" content="2026.5.1.dev9067" />
+    <meta name="docbuild:last-update" content="2026-05-01"/>
   </head>
   
   
@@ -100,7 +100,7 @@
   <div class="bd-header-announcement__content">
     <div style="background-color: #f0ad4e; border: 1px solid #eea236; border-radius: 4px; padding: 10px; margin: 10px 0;">
         <strong>⚠️ Development Version:</strong> This documentation was built from a development version
-        (2026.5.1.dev9063, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/b26b9d73032bb3ad83a6327830483a0e8dda80fc" style="color: #31708f;">b26b9d7</a>).
+        (2026.5.1.dev9067, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/454ca90b1781e77bea562a7f5eae1beb08a131b0" style="color: #31708f;">454ca90</a>).
         Features described here may be unstable or subject to change. For stable documentation, please visit the
         <a href="https://docs.suews.io/stable/" style="color: #31708f;">latest release</a>.
     </div>
@@ -147,8 +147,8 @@
       
     
     
-    <img src="../../_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.5.1.dev9063 documentation - Home"/>
-    <img src="../../_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.5.1.dev9063 documentation - Home"/>
+    <img src="../../_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.5.1.dev9067 documentation - Home"/>
+    <img src="../../_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.5.1.dev9067 documentation - Home"/>
   
   
 </a></div>
@@ -776,7 +776,38 @@ suews<span class="w"> </span>schema<span class="w"> </span>migrate<span class="w
 the schema that shipped with it via
 <code class="docutils literal notranslate"><span class="pre">supy.util.converter.yaml_upgrade._PACKAGE_TO_SCHEMA</span></code>.</p>
 <dl>
-<dt><strong>Schema 2026.5.dev6</strong> (current; in-development dev bump; gh#1333)</dt><dd><p>Validator contract change only — the YAML shape is unchanged from
+<dt><strong>Schema 2026.5.dev7</strong> (current; in-development dev bump; naming convention Rule 2)</dt><dd><p><code class="docutils literal notranslate"><span class="pre">ArchetypeProperties</span></code> bulk-material and surface optical fields
+reordered to <code class="docutils literal notranslate"><span class="pre">&lt;quantity&gt;_&lt;component&gt;_&lt;sub_class&gt;</span></code> per Rule 2 of
+the SUEWS naming convention
+(<code class="docutils literal notranslate"><span class="pre">.claude/rules/naming-convention.md</span></code>). 44 renames covering wall,
+roof, window, ground_floor, and internal_mass — for example
+<code class="docutils literal notranslate"><span class="pre">wall_external_thickness</span></code> -&gt; <code class="docutils literal notranslate"><span class="pre">thickness_wall_outer</span></code>,
+<code class="docutils literal notranslate"><span class="pre">wall_external_emissivity</span></code> -&gt; <code class="docutils literal notranslate"><span class="pre">emissivity_wall_external</span></code>,
+<code class="docutils literal notranslate"><span class="pre">wall_outer_heat_capacity_fraction</span></code> -&gt;
+<code class="docutils literal notranslate"><span class="pre">fraction_wall_heat_capacity_outer</span></code>,
+<code class="docutils literal notranslate"><span class="pre">ground_floor_thickness</span></code> -&gt; <code class="docutils literal notranslate"><span class="pre">thickness_ground_floor</span></code>.</p>
+<p>Three orthogonal moves embedded in the rename: (a) reorder so the
+physical quantity leads (<code class="docutils literal notranslate"><span class="pre">thickness</span></code>, <code class="docutils literal notranslate"><span class="pre">density</span></code>,
+<code class="docutils literal notranslate"><span class="pre">conductivity</span></code>, <code class="docutils literal notranslate"><span class="pre">specific_heat_capacity</span></code>, <code class="docutils literal notranslate"><span class="pre">emissivity</span></code>,
+<code class="docutils literal notranslate"><span class="pre">transmissivity</span></code>, <code class="docutils literal notranslate"><span class="pre">absorptivity</span></code>, <code class="docutils literal notranslate"><span class="pre">reflectivity</span></code>); (b) the
+layer-to-insulation qualifier renamed <code class="docutils literal notranslate"><span class="pre">external</span></code> -&gt; <code class="docutils literal notranslate"><span class="pre">outer</span></code>
+(“Specific tokens” rule: outer/inner = bulk-material layer;
+external/internal stays for the radiative surface); (c) the
+<code class="docutils literal notranslate"><span class="pre">effective_</span></code> qualifier dropped on the conductivity rows (used
+inconsistently — sibling density / specific_heat_capacity rows did
+not carry it). Wall and roof heat-capacity distribution rows take
+the <code class="docutils literal notranslate"><span class="pre">fraction_*</span></code> non-physical category prefix per Rule 2.</p>
+<p>Rename table <code class="docutils literal notranslate"><span class="pre">ARCHETYPEPROPERTIES_DEV6_RENAMES</span></code> added in
+<code class="docutils literal notranslate"><span class="pre">src/supy/data_model/core/field_renames.py</span></code>;
+<code class="docutils literal notranslate"><span class="pre">(2026.5.dev6</span> <span class="pre">-&gt;</span> <span class="pre">2026.5.dev7)</span></code> migration registered in
+<code class="docutils literal notranslate"><span class="pre">src/supy/util/converter/yaml_upgrade.py::_HANDLERS</span></code>. Bridge
+DataFrame columns keep the fused PascalCase ancestry
+(<code class="docutils literal notranslate"><span class="pre">wallextthickness</span></code>, etc.) via the chained
+<code class="docutils literal notranslate"><span class="pre">ARCHETYPEPROPERTIES_DEV7_TO_PASCAL</span></code> map. Cross-layer rename of
+Fortran TYPE members and Rust struct fields is Tier B/C work
+tracked under gh#1325 / gh#1326.</p>
+</dd>
+<dt><strong>Schema 2026.5.dev6</strong> (gh#1333)</dt><dd><p>Validator contract change only — the YAML shape is unchanged from
 <code class="docutils literal notranslate"><span class="pre">2026.5.dev5</span></code>, but site-level completeness checks now raise
 instead of warning when a user-declared active surface omits
 physics-required phenology, conductance, building morphology, or
@@ -1123,7 +1154,7 @@ By SUEWS dev team led by Prof Sue Grimmond
   
   <div class="footer-item">
     <p class="last-updated">
-  Last updated on 2026-04-30.
+  Last updated on 2026-05-01.
   <br/>
 </p>
   </div>
@@ -1131,8 +1162,8 @@ By SUEWS dev team led by Prof Sue Grimmond
   <div class="footer-item">
     
 <div class="extra_footer">
-  <p>Version: 2026.5.1.dev9063 |
-    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/b26b9d73032bb3ad83a6327830483a0e8dda80fc">b26b9d7</a> |
+  <p>Version: 2026.5.1.dev9067 |
+    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/454ca90b1781e77bea562a7f5eae1beb08a131b0">454ca90</a> |
     <a href="https://umep-dev.github.io/SUEWS/brand/showcase.html">Brand</a></p>
 </div>
   </div>

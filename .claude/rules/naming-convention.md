@@ -16,10 +16,10 @@ the Python data-model field names that mirror them.
 
 > **Relationship to other rules**: Supersedes the *Identifier Naming
 > (Python)* and *Variant-Neutral Naming* sections of
-> `.claude/rules/00-project-essentials.md` for naming questions; that
+> `.claude/rules/00-project-essentials.md` for naming decisions; that
 > file remains the source of truth for British-English style, ASCII
 > output, and the rest of the project essentials. Schema-version bumps
-> that ship a rename obey `.claude/rules/python/schema-versioning.md`.
+> that include a rename obey `.claude/rules/python/schema-versioning.md`.
 
 ---
 
@@ -32,13 +32,13 @@ paths:
   (`netradiationmethod`, `soildepth`).
 - Snake-cased renames where each PR picked its own word order
   (`wall_external_thickness` vs. `external_wall_thickness`).
-- STEBBS additions following a building-energy idiom that disagreed
-  with the rest of the model.
+- STEBBS additions following a building-energy idiom that differs
+  from the rest of the SUEWS model.
 
 The result: users cannot grep for "all heights" or "all temperatures"
 because the relevant tokens float to arbitrary positions in the name.
 Translation tables papered over each individual rename but never
-established what *correct* looks like.
+established what *correct* should look like.
 
 This rule fixes one shape. Future renames either follow it or
 explicitly opt out with an issue.

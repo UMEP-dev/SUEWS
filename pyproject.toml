@@ -108,7 +108,9 @@ dev = [
     "ipykernel",
 ]
 
-# Documentation tooling (isolated from the default dev environment)
+# Documentation tooling (isolated from the default dev environment).
+# Runtime support remains Python 3.9+; documentation builds require Python 3.11+
+# because current Sphinx extension versions, notably sphinx-design 0.7+, do.
 docs = [
     # Documentation - Essential only (based on conf.py usage)
     "sphinx>=7,<9",
@@ -116,7 +118,8 @@ docs = [
     "sphinx-book-theme",        # Active theme in conf.py
     "pybtex",                   # Bibliography processing
     "sphinxcontrib-bibtex>=2.6,<3", # Bibliography support (heavily customised)
-    "sphinx-design>=0.7.0",     # Collapsible sections for YAML config docs (>=0.7 supports Sphinx 8)
+    # Collapsible sections for YAML config docs (>=0.7 supports Sphinx 8)
+    "sphinx-design>=0.7.0; python_version >= '3.11'",
     "sphinx-last-updated-by-git", # Git info in docs
     "sphinx-click",             # CLI documentation
     "sphinx-gallery>=0.16.0",   # Gallery examples from Python scripts (GH-1029)

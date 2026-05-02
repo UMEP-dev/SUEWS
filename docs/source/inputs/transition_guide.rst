@@ -180,10 +180,32 @@ The sections below summarise what users see change between schemas.
 The authoritative lineage (including release-tag to schema mapping)
 lives in :ref:`schema_version_history`.
 
+Upgrading to Schema 2026.5.dev8 (canonical ArchetypeProperties rename registries)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Schema ``2026.5.dev8`` is the current in-development shape. It is a
+follow-through to the ``2026.5.dev7`` ArchetypeProperties rename: the
+canonical Python and Rust rename registries now point directly at the
+dev7 final field names, so ``ALL_FIELD_RENAMES``, the Rust YAML
+preprocessor mirror, and the bridge DataFrame rename lookup all agree
+on names such as ``thickness_wall_outer``, ``conductivity_wall``, and
+``fraction_wall_heat_capacity_outer``.
+
+The YAML surface is unchanged from ``2026.5.dev7``. Existing dev7 YAMLs
+do not need any key rewrites; the migration only refreshes the
+``schema_version`` stamp and strips internal helper fields. The older
+dev6 spellings are still accepted as compatibility aliases, so users
+who have not yet run the dev7 migration can continue to upgrade in one
+step:
+
+.. code-block:: bash
+
+   suews schema migrate your_config.yml --target-version 2026.5.dev8
+
 Upgrading to Schema 2026.5.dev7 (naming convention Rule 2 reorder for ArchetypeProperties)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Schema ``2026.5.dev7`` is the current in-development shape. 44
+Schema ``2026.5.dev7`` was the prior in-development shape. 44
 ``ArchetypeProperties`` field names under
 ``sites[].properties.building_archetype.*`` have been reordered to
 follow Rule 2 of the SUEWS naming convention

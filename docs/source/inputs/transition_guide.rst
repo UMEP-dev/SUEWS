@@ -180,6 +180,60 @@ The sections below summarise what users see change between schemas.
 The authoritative lineage (including release-tag to schema mapping)
 lives in :ref:`schema_version_history`.
 
+Upgrading to Schema 2026.5.dev9 (naming convention Rule 2 reorder for ArchetypeProperties)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Schema ``2026.5.dev9`` is the current in-development shape. 44
+``ArchetypeProperties`` field names under
+``sites[].properties.building_archetype.*`` have been reordered to
+follow Rule 2 of the SUEWS naming convention
+(``.claude/rules/naming-convention.md``): physical quantity leads,
+then component, then sub-class.
+
+The rename covers wall, roof, window, ground_floor, and internal_mass
+bulk-material and surface optical properties. Three orthogonal moves
+are embedded in the rename, applied per field as appropriate:
+
+- **Reorder so the physical quantity leads** - ``thickness``,
+  ``density``, ``conductivity``, ``specific_heat_capacity``,
+  ``emissivity``, ``transmissivity``, ``absorptivity``,
+  ``reflectivity``. For example
+  ``wall_external_thickness`` -> ``thickness_wall_outer``,
+  ``wall_external_emissivity`` -> ``emissivity_wall_external``.
+- **Layer-to-insulation qualifier renamed external -> outer**. The
+  convention's "Specific tokens" rule reserves ``outer/inner`` for
+  the bulk-material layer and ``external/internal`` for the radiative
+  surface. So ``wall_external_thickness`` becomes
+  ``thickness_wall_outer`` (bulk layer); ``wall_external_emissivity``
+  stays ``emissivity_wall_external`` (radiative surface).
+- **The effective_ qualifier dropped on the conductivity rows**
+  (``wall_effective_conductivity`` -> ``conductivity_wall``). It was
+  used inconsistently - the sibling ``density`` and
+  ``specific_heat_capacity`` rows did not carry it.
+
+Wall and roof heat-capacity distribution rows take the
+``fraction_*`` non-physical category prefix per Rule 2:
+``wall_outer_heat_capacity_fraction`` ->
+``fraction_wall_heat_capacity_outer``.
+
+Run the migrator to bring an existing YAML onto the new shape:
+
+.. code-block:: bash
+
+   suews schema migrate your_config.yml --target-version 2026.5.dev9
+
+Every rename is logged via ``[yaml-upgrade]   renamed 'old' ->
+'new'`` so the user can verify each substitution. The Pydantic
+backward-compat shim still accepts the pre-dev9 names at load time,
+emitting a ``DeprecationWarning``; YAMLs that round-trip through the
+migrator come out in the new spellings and no longer warn.
+
+Cross-layer (Fortran TYPE members, Rust struct fields, DataFrame
+column keys) is unchanged - the bridge map composes through the
+chained ``ARCHETYPEPROPERTIES_DEV7_TO_PASCAL`` lookup so the legacy
+fused column key (``wallextthickness``, etc.) is still produced from
+the new Pydantic field name.
+
 Upgrading to Schema 2026.5.dev8 (gh#1372 follow-up output config restructure)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -212,7 +266,7 @@ ignored from 2025.10.15 and is now dropped outright by the migrator.
 The full ``Union[str, OutputControl]`` is replaced with a single
 ``OutputControl`` block so the on-disk shape is no longer ambiguous.
 
-Run ``suews-convert --to 2026.5.dev8 in.yml out.yml`` to rewrite an
+Run ``suews-convert --to 2026.5.dev9 in.yml out.yml`` to rewrite an
 older YAML; the in-memory ``_coerce_legacy_output_file`` validator
 also accepts the legacy shape at load time and emits a
 ``DeprecationWarning`` pointing at the new key.
@@ -256,7 +310,7 @@ Upgrading to Schema 2026.5.dev6 (gh#1333 site-level completeness validator)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Schema ``2026.5.dev6`` is an intermediate dev label (the current
-in-development shape is ``2026.5.dev8``; see the sections above). The
+in-development shape is ``2026.5.dev9``; see the sections above). The
 YAML shape at dev6 is byte-for-byte identical to ``2026.5.dev5`` —
 this is a pure validator-contract tightening, not a structural
 rename.
@@ -421,7 +475,7 @@ cluster) continue to load under a ``DeprecationWarning``. Run:
 
 Use this historical target when you specifically want the pre-hot-water
 unification ``2026.5.dev3`` spellings. To land on the current schema
-instead, omit ``--target-version`` or point it at ``2026.5.dev6``.
+instead, omit ``--target-version`` or point it at ``2026.5.dev9``.
 
 Upgrading to Schema 2026.5.dev2 (Categories 2+3 of #1256: suffix drop, abbreviation expansion)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

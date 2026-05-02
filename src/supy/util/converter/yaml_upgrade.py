@@ -28,6 +28,7 @@ from ...data_model.core.field_renames import (
     SNOWPARAMS_RENAMES,
     SNOWPARAMS_INTERMEDIATE_RENAMES,
     ARCHETYPEPROPERTIES_DEV3_RENAMES,
+    ARCHETYPEPROPERTIES_DEV6_RENAMES,
     STEBBSPROPERTIES_DEV3_RENAMES,
     STEBBSPROPERTIES_RENAMES,
     SURFACEPROPERTIES_RENAMES,
@@ -72,6 +73,8 @@ _PACKAGE_TO_SCHEMA: dict[str, str] = {
     # so test_release_compat.py exercises the (label -> current) handler.
     "2026.5.dev6": "2026.5.dev6",
     "2026.5.dev7": "2026.5.dev7",
+    "2026.5.dev8": "2026.5.dev8",
+    "2026.5.dev9": "2026.5.dev9",
 }
 
 
@@ -406,6 +409,15 @@ _STEBBS_RENAMES_DEV3_TO_DEV4: tuple[tuple[str, str], ...] = tuple(
     STEBBSPROPERTIES_DEV3_RENAMES.items()
 )
 
+# Schema 2026.5.dev8 -> 2026.5.dev9: apply Rule 2 of the SUEWS naming
+# convention to ArchetypeProperties bulk-material and surface optical fields
+# (44 renames). Pure key reorder; no data transformation. Sourced from the
+# canonical dict in field_renames.py. The source dict name is retained from
+# the pre-merge master branch where this was originally the dev6 -> dev7 bump.
+_ARCH_RENAMES_DEV6_TO_DEV7: tuple[tuple[str, str], ...] = tuple(
+    ARCHETYPEPROPERTIES_DEV6_RENAMES.items()
+)
+
 
 # ---------------------------------------------------------------------------
 # Handlers
@@ -641,7 +653,7 @@ def _apply_forcing_subobject_restructure(cfg: dict) -> dict:
 
     gh#1372: introduces a ForcingControl sub-object so future forcing-related
     fields (gh#1373 disaggregation; resampling policy) have a stable home.
-    The old value is preserved verbatim under ``forcing.file`` — bare string,
+    The old value is preserved verbatim under ``forcing.file``: bare string,
     list of strings, or ``{value: ...}`` RefValue mapping all round-trip.
     """
     model = cfg.get("model")
@@ -726,15 +738,45 @@ def _apply_output_subobject_restructure(cfg: dict) -> dict:
     return cfg
 
 
+def _apply_arch_rule2_renames(cfg: dict) -> None:
+    """Apply Rule 2 reorder for ArchetypeProperties material/optical fields.
+
+    The convention's Rule 2 (`.claude/rules/naming-convention.md`) puts the
+    physical quantity first (``thickness_wall_outer`` not
+    ``wall_external_thickness``); the layer-to-insulation qualifier moves
+    from ``external`` to ``outer``; the ``effective_`` qualifier on the
+    conductivity rows is dropped; and the heat-capacity distribution rows
+    take the ``fraction_*`` non-physical category prefix.
+
+    Each rename flows through ``_rename_field`` so a per-field log line
+    is emitted (``TestNoSilentFieldDrops`` enforces this).
+    """
+    for arch in _walk_site_container(cfg, "building_archetype"):
+        for old, new in _ARCH_RENAMES_DEV6_TO_DEV7:
+            _rename_field(arch, old, new)
+
+
+def _migrate_2026_5_dev8_to_current(cfg: dict) -> dict:
+    """Upgrade 2026.5.dev8-shaped YAMLs to the current schema.
+
+    Applies the naming convention Rule 2 reorder for ArchetypeProperties
+    bulk-material and surface optical fields (44 renames).
+    """
+    cfg = _strip_internal_only_fields(cfg)
+    _apply_arch_rule2_renames(cfg)
+    return cfg
+
+
 def _migrate_2026_5_dev7_to_current(cfg: dict) -> dict:
     """Upgrade 2026.5.dev7-shaped YAMLs to the current schema.
 
     Applies the gh#1372 follow-up output-config restructure: output_file
     is moved under a new output sub-object and the inner ``path`` is
-    renamed to ``dir``.
+    renamed to ``dir``. Then applies the naming convention Rule 2 reorder.
     """
     cfg = _strip_internal_only_fields(cfg)
     _apply_output_subobject_restructure(cfg)
+    _apply_arch_rule2_renames(cfg)
     return cfg
 
 
@@ -744,27 +786,30 @@ def _migrate_2026_5_dev6_to_current(cfg: dict) -> dict:
     Applies the gh#1372 forcing-config restructure (forcing_file moved
     under a new forcing sub-object) and the gh#1372 follow-up output
     restructure (output_file moved under a new output sub-object,
-    path -> dir).
+    path -> dir), then applies the naming convention Rule 2 reorder.
     """
     cfg = _strip_internal_only_fields(cfg)
     _apply_forcing_subobject_restructure(cfg)
     _apply_output_subobject_restructure(cfg)
+    _apply_arch_rule2_renames(cfg)
     return cfg
 
 
 def _migrate_2026_5_dev5_to_current(cfg: dict) -> dict:
-    """Upgrade 2026.5.dev5 YAMLs to current (gh#1372 forcing + output restructure)."""
+    """Upgrade 2026.5.dev5 YAMLs to current."""
     cfg = _strip_internal_only_fields(cfg)
     _apply_forcing_subobject_restructure(cfg)
     _apply_output_subobject_restructure(cfg)
+    _apply_arch_rule2_renames(cfg)
     return cfg
 
 
 def _migrate_2026_5_dev4_to_current(cfg: dict) -> dict:
-    """Upgrade 2026.5.dev4 YAMLs to current (gh#1372 forcing + output restructure)."""
+    """Upgrade 2026.5.dev4 YAMLs to current."""
     cfg = _strip_internal_only_fields(cfg)
     _apply_forcing_subobject_restructure(cfg)
     _apply_output_subobject_restructure(cfg)
+    _apply_arch_rule2_renames(cfg)
     return cfg
 
 
@@ -774,12 +819,13 @@ def _migrate_2026_5_dev3_to_current(cfg: dict) -> dict:
     Applies the gh#1334 follow-through hot-water unification: 14 renames
     under ``site.properties.building_archetype`` and ``.stebbs``. Also
     applies the gh#1372 forcing-config restructure and the gh#1372
-    follow-up output restructure on the way through.
+    follow-up output restructure, then the naming convention Rule 2 reorder.
     """
     cfg = _strip_internal_only_fields(cfg)
     _apply_hot_water_unification_renames(cfg)
     _apply_forcing_subobject_restructure(cfg)
     _apply_output_subobject_restructure(cfg)
+    _apply_arch_rule2_renames(cfg)
     return cfg
 
 
@@ -790,13 +836,14 @@ def _migrate_2026_5_dev2_to_current(cfg: dict) -> dict:
     and the gh#1334 follow-through (dev3 -> dev4: hot-water prefix
     unification; 14 renames). Also applies the gh#1372 forcing-config
     restructure and the gh#1372 follow-up output restructure on the way
-    through.
+    through, then the naming convention Rule 2 reorder.
     """
     cfg = _strip_internal_only_fields(cfg)
     _apply_stebbs_snake_renames(cfg)
     _apply_hot_water_unification_renames(cfg)
     _apply_forcing_subobject_restructure(cfg)
     _apply_output_subobject_restructure(cfg)
+    _apply_arch_rule2_renames(cfg)
     return cfg
 
 
@@ -818,16 +865,21 @@ def _migrate_2026_5_to_current(cfg: dict) -> dict:
       widening, identity migration.
     * 2026.5.dev5 -> 2026.5.dev6 (gh#1333): site-level completeness
       validator tightening, identity migration.
+    * 2026.5.dev6 -> 2026.5.dev7 (gh#1372): forcing_file -> forcing.file.
+    * 2026.5.dev7 -> 2026.5.dev8 (gh#1372 follow-up): output_file -> output.
+    * 2026.5.dev8 -> 2026.5.dev9 (naming convention Rule 2):
+      ArchetypeProperties bulk-material and surface optical fields
+      reordered to ``<quantity>_<component>_<sub_class>`` (44 renames).
 
     Each rename flows through ``_rename_field`` so a dedicated log line
-    is emitted per field — ``TestNoSilentFieldDrops`` enforces that. The
+    is emitted per field - ``TestNoSilentFieldDrops`` enforces that. The
     Pydantic backward-compat shim still accepts legacy names at load
     time, but YAMLs that round-trip through the migrator come out in the
     new spellings and no longer emit deprecation warnings.
 
     Under the dev-label convention
     (``.claude/rules/python/schema-versioning.md``) the release PR will
-    collapse all six steps into a single ``(<prev>, 2026.5)`` migration.
+    collapse all nine steps into a single ``(<prev>, 2026.5)`` migration.
     """
     cfg = _strip_internal_only_fields(cfg)
     _apply_arch_ext_renames(cfg)
@@ -836,6 +888,7 @@ def _migrate_2026_5_to_current(cfg: dict) -> dict:
     _apply_hot_water_unification_renames(cfg)
     _apply_forcing_subobject_restructure(cfg)
     _apply_output_subobject_restructure(cfg)
+    _apply_arch_rule2_renames(cfg)
     return cfg
 
 
@@ -845,7 +898,8 @@ def _migrate_2026_5_dev1_to_current(cfg: dict) -> dict:
     Chains the Cat 2+3 ModelPhysics suffix/abbreviation rewrite (gh#1321),
     the gh#1334 STEBBS/Snow snake_case sweep, the gh#1334 follow-through
     hot-water prefix unification, the gh#1372 forcing-config restructure
-    and the gh#1372 follow-up output restructure.
+    and the gh#1372 follow-up output restructure, then the naming convention
+    Rule 2 reorder.
     """
     cfg = _strip_internal_only_fields(cfg)
     _apply_modelphysics_suffix_renames(cfg)
@@ -853,6 +907,7 @@ def _migrate_2026_5_dev1_to_current(cfg: dict) -> dict:
     _apply_hot_water_unification_renames(cfg)
     _apply_forcing_subobject_restructure(cfg)
     _apply_output_subobject_restructure(cfg)
+    _apply_arch_rule2_renames(cfg)
     return cfg
 
 
@@ -908,19 +963,22 @@ _HANDLERS: dict[tuple[str, str], Handler] = {
     ("2025.12", "2026.4"): _migrate_2025_12_to_2026_4,
     # Intermediate stops at 2026.5 (callers pinning Category 1 only).
     ("2026.4", "2026.5"): _migrate_2026_4_to_2026_5,
-    # Chains to the current schema (2026.5.dev8: Cat 1 snake_case sweep
+    # Chains to the current schema (2026.5.dev9: Cat 1 snake_case sweep
     # + Cat 5 STEBBS ext rename + Cat 2+3 ModelPhysics suffix drop
     # + gh#1334 STEBBS/Snow snake_case + gh#1334 follow-through hot-water
     # prefix unification + gh#972 accept-only nested physics sub-options
     # + gh#1333 site-level completeness validator tightening
     # + gh#1372 ForcingControl sub-object restructure
     # + gh#1372 follow-up output_file -> output sub-object restructure
-    #   (path -> dir, drop legacy string form).
+    #   (path -> dir, drop legacy string form)
+    # + naming convention Rule 2 ArchetypeProperties reorder.
     # The dev4 -> dev5 and dev5 -> dev6 deltas are accept-only / contract
     # tightening changes with no YAML rewrite, but the dev6 -> dev7 delta
     # rewrites forcing_file -> forcing.file and the dev7 -> dev8 delta
-    # rewrites output_file -> output, so dev4/dev5 identity shortcuts have
-    # been replaced with proper handlers that apply the new restructures.
+    # rewrites output_file -> output. The dev8 -> dev9 delta is a pure key
+    # rename, so dev4/dev5 identity shortcuts have been replaced with proper
+    # handlers that apply all later rewrites.
+    ("2026.5.dev8", CURRENT_SCHEMA_VERSION): _migrate_2026_5_dev8_to_current,
     ("2026.5.dev7", CURRENT_SCHEMA_VERSION): _migrate_2026_5_dev7_to_current,
     ("2026.5.dev6", CURRENT_SCHEMA_VERSION): _migrate_2026_5_dev6_to_current,
     ("2026.5.dev5", CURRENT_SCHEMA_VERSION): _migrate_2026_5_dev5_to_current,

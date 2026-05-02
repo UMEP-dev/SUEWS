@@ -1,7 +1,7 @@
 {
   "name": "suews",
-  "version": "0.1.0",
-  "description": "Run, validate, and analyse SUEWS urban climate simulations from your AI assistant",
+  "version": "0.2.0",
+  "description": "Run, validate, and analyse SUEWS urban climate simulations from your AI assistant. Bundles the `suews-mcp` MCP server alongside the SUEWS workflow Skill.",
   "author": {
     "name": "Dr Ting Sun",
     "email": "ting.sun@ucl.ac.uk",
@@ -19,6 +19,7 @@
     "atmospheric-science"
   ],
   "skills": "./.claude/skills/suews",
+  "mcpServers": "./.mcp.json",
   "interface": {
     "displayName": "SUEWS",
     "shortDescription": "Urban climate model assistant",

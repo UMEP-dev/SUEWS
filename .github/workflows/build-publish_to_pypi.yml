@@ -383,6 +383,41 @@ jobs:
       test_tier: ${{ needs.determine_matrix.outputs.test_tier }}
       is_testpypi_build: ${{ github.event_name == 'schedule' || (startsWith(github.ref, 'refs/tags/') && contains(github.ref, 'dev')) }}
 
+  build_mcp:
+    name: Build MCP package
+    runs-on: ubuntu-latest
+    needs: [create_nightly_tag, detect-changes, verify-release-tag]
+    if: |
+      always() &&
+      (needs.create_nightly_tag.result == 'success' || needs.create_nightly_tag.result == 'skipped') &&
+      (needs.detect-changes.result == 'skipped' || needs.detect-changes.outputs.needs-build == 'true') &&
+      (needs.verify-release-tag.result == 'skipped' || needs.verify-release-tag.outputs.on-master == 'true')
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6
+        with:
+          python-version: '3.12'
+
+      - name: Generate version files from git
+        run: |
+          python3 get_ver_git.py
+          python3 -c "from pathlib import Path; ns = {}; exec(Path('mcp/src/suews_mcp/_version_scm.py').read_text(), ns); print('Generated MCP version:', ns['__version__'])"
+
+      - name: Build MCP distribution
+        run: |
+          python -m pip install --upgrade pip build
+          python -m build mcp
+
+      - name: Upload MCP distribution
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7
+        with:
+          name: suews-mcp-dist
+          path: mcp/dist/*
+
   test_api_cross_python:
     name: API cross-CPython tests
     needs: [determine_matrix, build_wheels]
@@ -426,7 +461,7 @@ jobs:
     name: PR build validation
     runs-on: ubuntu-latest
     if: always() && (github.event_name == 'pull_request' || github.event_name == 'merge_group')
-    needs: [build_wheels, test_api_cross_python, check_test_markers, detect-changes]
+    needs: [build_wheels, build_mcp, test_api_cross_python, check_test_markers, detect-changes]
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
         with:
@@ -438,6 +473,7 @@ jobs:
         env:
           DETECT_CHANGES_RESULT: ${{ needs.detect-changes.result }}
           BUILD_WHEELS_RESULT: ${{ needs.build_wheels.result }}
+          BUILD_MCP_RESULT: ${{ needs.build_mcp.result }}
           TEST_BRIDGE_RESULT: ${{ needs.test_api_cross_python.result }}
           CHECK_MARKERS_RESULT: ${{ needs.check_test_markers.result }}
           NEEDS_BUILD: ${{ needs.detect-changes.outputs.needs-build }}
@@ -449,6 +485,7 @@ jobs:
     needs:
       - determine_matrix
       - build_wheels
+      - build_mcp
       - test_api_cross_python
       - create_nightly_tag
       - verify-release-tag
@@ -459,6 +496,7 @@ jobs:
     if: |
       always() &&
       needs.build_wheels.result == 'success' &&
+      needs.build_mcp.result == 'success' &&
       needs.test_api_cross_python.result == 'success' &&
       (needs.create_nightly_tag.result == 'success' || needs.create_nightly_tag.result == 'skipped') &&
       (needs.verify-release-tag.result == 'skipped' || needs.verify-release-tag.outputs.on-master == 'true') &&
@@ -492,6 +530,7 @@ jobs:
     needs:
       - determine_matrix
       - build_wheels
+      - build_mcp
       - test_api_cross_python
       - create_nightly_tag
       - verify-release-tag
@@ -503,6 +542,7 @@ jobs:
       startsWith(github.ref, 'refs/tags') &&
       !contains(github.ref, 'dev') &&
       needs.build_wheels.result == 'success' &&
+      needs.build_mcp.result == 'success' &&
       needs.test_api_cross_python.result == 'success' &&
       (needs.create_nightly_tag.result == 'success' || needs.create_nightly_tag.result == 'skipped') &&
       (needs.verify-release-tag.result == 'skipped' || needs.verify-release-tag.outputs.on-master == 'true')

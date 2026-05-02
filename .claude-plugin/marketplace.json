@@ -7,17 +7,18 @@
   },
   "metadata": {
     "description": "SUEWS plugins for AI agent ecosystems - runtime workflow rules for users and developer tooling for contributors",
-    "version": "1.1.0",
+    "version": "1.2.0",
     "repository": "https://github.com/UMEP-dev/SUEWS"
   },
   "plugins": [
     {
       "name": "suews",
-      "description": "Run, validate, and analyse SUEWS urban climate simulations from your AI assistant. Workflow rules, forcing-data checks, output interpretation, and common-error diagnostics.",
+      "description": "Run, validate, and analyse SUEWS urban climate simulations from your AI assistant. Bundles workflow rules, the `suews-mcp` Model Context Protocol server (validation, inspection, summarise/compare/diagnose, init/convert, versioned knowledge pack), forcing-data checks, output interpretation, and common-error diagnostics.",
       "source": "./",
       "skills": [
         "./.claude/skills/suews"
-      ]
+      ],
+      "mcpServers": "./.mcp.json"
     },
     {
       "name": "suews-dev",

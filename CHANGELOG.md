@@ -56,11 +56,26 @@ EXAMPLES:
 
 ### 1 May 2026
 
+- [feature][experimental] Validator pipeline now emits a structured machine-readable `PhaseReport` for every phase
+  - Added a canonical `Issue` / `PhaseReport` / `ValidationReport` schema in `src/supy/data_model/validation/pipeline/report_schema.py` so Phase A (structure), Phase B (physics), and Phase C (Pydantic consistency) all return the same shape — `phase`, `severity`, `code`, `message`, `yaml_path`, `site_gridid`, `category`, `suggested_value`, `applied_fix`
+  - Each phase now writes a JSON sidecar (`<report>.json`) alongside the existing `<report>.txt`; downstream tooling (MCP, agents, CI) can consume the structured form without parsing the human-readable report
+  - Replaced brittle string-grep status checks (`"## ACTION NEEDED"`, `"CRITICAL ISSUES DETECTED"`, `"URGENT"`) in the orchestrator with `PhaseReport.has_errors`
+  - Phase B's existing internal `ValidationResult` dataclass is preserved and bridged via a new `to_issue()` adapter; `ScienceSuggestion` and `ScientificAdjustment` are surfaced as `B.SCIENCE.*` and `B.APPLIED_FIX.*` issues respectively
+  - Phase C sidesteps `SUEWSConfig.from_yaml`'s `ValueError` wrapping (which discards Pydantic's structured `errors()`) so `C.PYDANTIC.<TYPE>` issues survive into the JSON sidecar with GRIDID-friendly `yaml_path` strings
+  - Text reports are byte-for-byte unchanged — no breaking change for any downstream parser of the legacy human form
 - [change][experimental] Surface procedural-API deprecation warnings on first attribute access (#1370)
   - `supy.__getattr__` now routes every name in `_FUNCTIONAL_DEPRECATIONS` through `_warn_functional_deprecation` on first resolution, so users who hold a reference (`from supy import run_supy`) see the `FutureWarning` immediately rather than only at call time; subsequent accesses hit `_lazy_cache` and stay silent
   - The in-body `_warn_functional_deprecation` calls inside each procedural function remain as a safety net for code that bypasses `__getattr__` (e.g. `from supy._supy_module import run_supy`)
   - Added `test/core/test_deprecation_visibility.py` with subprocess-isolated parametrised checks for every key in `_FUNCTIONAL_DEPRECATIONS` plus a router-vs-registry equality guard
   - Continues phase 2 of #1370 (visibility); does not yet address the user-facing notebook/README audit (slice B) or the phase 3 removal-release timeline
+- [feature][experimental] Added standalone `suews-mcp` Python distribution and wired it into the SUEWS agent plugin (#1364)
+  - New `mcp/` package (MPL-2.0) with FastMCP stdio server registering twelve tools across config (`validate_config`, `inspect_config`, `search_schema`, `list_examples`, `read_example`), workflow (`init_case`, `convert_config`), post-run analysis (`summarise_run`, `compare_runs`, `diagnose_run`), and the versioned knowledge pack (`query_knowledge`, `read_knowledge_manifest`)
+  - Resources cover `suews://schema/{version}`, `suews://examples/{name}`, `suews://docs/{slug}`, `suews://runs/{run_id}/{kind}`, `suews://knowledge/manifest`, and `suews://knowledge/query/{question}`; each knowledge match carries `git_sha` / `github_url` / `repo_path` / line range so downstream answers cite the exact revision
+  - Backend is a thin allow-listed subprocess wrapper around `suews <subcmd> --format json`, returning the canonical `supy.cmd.json_envelope.Envelope` verbatim; `ProjectRoot` sandbox keeps file-path arguments inside `SUEWS_MCP_PROJECT_ROOT`
+  - Plugin integration: top-level `.mcp.json` plus `plugins/suews/.mcp.json` declare the `suews-mcp` stdio server; `.claude-plugin/marketplace.json` (now v1.2.0), `.codex-plugin/plugin.json` (v0.2.0), and `plugins/suews/.codex-plugin/plugin.json` (v0.2.0) reference these via the `mcpServers` field, so installing the SUEWS plugin from a marketplace auto-registers the MCP server — no hand-editing of `~/.claude/settings.json` or `~/.codex/config.toml`
+  - README documents plugin install as the recommended primary path and keeps raw stdio config (Claude Code JSON, Codex TOML) as the documented fallback for clients without plugin manifest support
+  - Release versioning: `suews-mcp` ships in lockstep with `supy` under the same CalVer tag (e.g. `2026.5.1`); `get_ver_git.py` writes `mcp/src/suews_mcp/_version_scm.py` alongside `src/supy/_version_scm.py`, `mcp/pyproject.toml` consumes it via `dynamic = ["version"]`, and the existing PyPI publish workflow gains a `build_mcp` job. Lockstep is the honest contract: `query_knowledge` answers cite source evidence pinned to the installed `supy` git SHA, so MCP and supy must move together
+  - Resolves #751; supersedes the closed PR #1351 (whose GPL-V3.0 licence drift and prompt-content concerns are corrected here, with prompts having moved into the SUEWS Skill in #1358)
 
 ### 30 Apr 2026
 

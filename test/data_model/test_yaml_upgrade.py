@@ -11,6 +11,7 @@ Covers:
     via the shared `-i/-o/-f` flag set.
 """
 
+import json
 from pathlib import Path
 
 from click.testing import CliRunner
@@ -226,6 +227,49 @@ class TestSuewsConvertYamlPath:
         assert out.exists()
         SUEWSConfig.from_yaml(str(out))  # must still parse
 
+    def test_yaml_input_json_format_emits_envelope(
+        self, signed_yaml: Path, tmp_path: Path
+    ):
+        """`suews convert --format json` emits a parseable envelope.
+
+        The `upgrade_yaml` helper writes progress lines to stderr via its
+        `_log()` helper. We assert that stdout alone is a clean envelope —
+        which is what real users see when piping `suews convert --format
+        json | jq`. Click <8.3 (used on cp39) defaults to mixing the two
+        streams in `CliRunner.invoke().stdout`; pass `mix_stderr=False`
+        explicitly to get genuine separation, falling back gracefully on
+        Click >=8.3 where the kwarg has been removed because the streams
+        are always separate.
+        """
+        # ARRANGE
+        out = tmp_path / "upgraded.yml"
+        try:
+            runner = CliRunner(mix_stderr=False)
+        except TypeError:
+            runner = CliRunner()
+
+        # ACT
+        result = runner.invoke(
+            convert_table_cmd,
+            [
+                "--input",
+                str(signed_yaml),
+                "--output",
+                str(out),
+                "--format",
+                "json",
+            ],
+        )
+
+        # ASSERT
+        assert result.exit_code == 0, result.output
+        envelope = json.loads(result.stdout)
+        assert envelope["status"] == "success"
+        assert envelope["data"]["input_type"] == "yaml"
+        assert envelope["data"]["output"] == str(out)
+        assert envelope["data"]["output_exists"] is True
+        assert out.exists()
+
     def test_yaml_input_with_explicit_from(self, tmp_path: Path):
         """`suews-convert -f <release-tag>` drives the upgrade path for YAML."""
         # ARRANGE
@@ -352,10 +396,13 @@ class TestPre2026_1ReleaseTagMigration:
         stebbs = payload["sites"][0]["properties"]["stebbs"]
         if "Wallx1" in source_text:
             assert "Wallx1" not in arch
-            assert "wall_outer_heat_capacity_fraction" in arch
+            # dev6 -> dev7 (Rule 2 reorder): wall_outer_heat_capacity_fraction
+            # -> fraction_wall_heat_capacity_outer (fraction_* category prefix
+            # leads for non-physical fields).
+            assert "fraction_wall_heat_capacity_outer" in arch
         if "Roofx1" in source_text:
             assert "Roofx1" not in arch
-            assert "roof_outer_heat_capacity_fraction" in arch
+            assert "fraction_roof_heat_capacity_outer" in arch
         # DHWVesselEmissivity was removed during the Nov 2025 clean-up.
         assert "DHWVesselEmissivity" not in stebbs
         # The volume bounds were removed in #1242.

@@ -1,9 +1,27 @@
 # command line tools
-import click
-import sys
-from pathlib import Path
+from __future__ import annotations
 
-from ..util.converter import list_ver_from
+from contextlib import nullcontext, redirect_stdout
+from io import StringIO
+from pathlib import Path
+import sys
+
+import click
+
+from ..util.converter import (
+    convert_to_yaml,
+    detect_input_type,
+    detect_table_version,
+    list_ver_from,
+)
+from ..util.converter.yaml_upgrade import YamlUpgradeError, upgrade_yaml
+from .json_envelope import (
+    EXIT_OK,
+    EXIT_USER_ERROR,
+    Envelope,
+    _now_iso,
+    silent_supy_logger,
+)
 
 # Try to import the current version from the project
 try:
@@ -16,7 +34,7 @@ except ImportError:
 
 
 @click.command(
-    context_settings=dict(show_default=True),
+    context_settings={"show_default": True},
     help=(
         "Convert any supported SUEWS input into a current-schema YAML.\n\n"
         "Input type is auto-detected from the file:\n"
@@ -81,15 +99,24 @@ except ImportError:
         "(table/df_state paths only)."
     ),
 )
+@click.option(
+    "--format",
+    "output_format",
+    type=click.Choice(["text", "json"], case_sensitive=False),
+    default="text",
+    show_default=True,
+    help="Output format. 'json' emits the standard SUEWS envelope on stdout.",
+)
 @click.pass_context
-def convert_table_cmd(
+def convert_table_cmd(  # noqa: PLR0912, PLR0915
     ctx: click.Context,
     fromVer: str,
-    input_file: str,
-    output_file: str,
-    debug_dir: str = None,
+    input_file: str | None,
+    output_file: str | None,
+    debug_dir: str | None = None,
     no_validate_profiles: bool = False,
-):
+    output_format: str = "text",
+) -> None:
     """Convert any supported SUEWS input to a current-schema YAML.
 
     The command auto-detects the input format from the file extension and
@@ -109,16 +136,27 @@ def convert_table_cmd(
         # Older YAML without a schema_version field -> explicit source tag
         suews-convert -i old.yml -o new.yml -f 2026.1.28
     """
+    started_at = _now_iso()
+    json_mode = output_format.lower() == "json"
+    command = _command_string()
+    list_warnings: list[str] = []
+
     if input_file is None or output_file is None:
+        if json_mode:
+            missing = []
+            if input_file is None:
+                missing.append("--input")
+            if output_file is None:
+                missing.append("--output")
+            _emit_error(
+                f"Missing required option(s): {', '.join(missing)}.",
+                command=command,
+                started_at=started_at,
+                data={"input": input_file, "output": output_file},
+                exit_code=2,
+            )
         click.echo(ctx.get_help())
         sys.exit(0 if (input_file is None and output_file is None) else 2)
-
-    # Import here to avoid circular imports
-    from ..util.converter import (
-        convert_to_yaml,
-        detect_table_version,
-        detect_input_type,
-    )
 
     input_path = Path(input_file)
     output_path = Path(output_file)
@@ -127,56 +165,152 @@ def convert_table_cmd(
     try:
         input_type = detect_input_type(input_path)
     except ValueError as e:
+        if json_mode:
+            _emit_error(
+                str(e),
+                command=command,
+                started_at=started_at,
+                data={"input": str(input_path), "output": str(output_path)},
+            )
         click.secho(str(e), fg="red", err=True)
         sys.exit(1)
 
     # Validate output has correct extension
-    if output_path.suffix not in [".yml", ".yaml"]:
-        click.echo(
-            f"Warning: Output file should have .yml or .yaml extension", err=True
-        )
+    if output_path.suffix not in {".yml", ".yaml"}:
+        message = "Output file should have .yml or .yaml extension"
+        if json_mode:
+            list_warnings.append(message)
+        else:
+            click.echo(f"Warning: {message}", err=True)
 
     # Dispatch on input type
     if input_type == "yaml":
-        from ..util.converter.yaml_upgrade import YamlUpgradeError, upgrade_yaml
-
+        # In json mode the SuPy logger (default stdout handler) and any
+        # accidental print would corrupt the envelope; silence the logger
+        # AND capture stray stdout writes so the only thing that reaches
+        # stdout is the envelope emitted by `_emit_success` / `_emit_error`.
         try:
-            upgrade_yaml(
-                input_path=input_path,
-                output_path=output_path,
-                from_ver=fromVer,
-            )
+            with (
+                silent_supy_logger() if json_mode else nullcontext(),
+                redirect_stdout(StringIO()) if json_mode else nullcontext(),
+            ):
+                upgrade_yaml(
+                    input_path=input_path,
+                    output_path=output_path,
+                    from_ver=fromVer,
+                )
         except YamlUpgradeError as e:
+            if json_mode:
+                _emit_error(
+                    str(e),
+                    command=command,
+                    started_at=started_at,
+                    data=_result_data(
+                        input_path,
+                        output_path,
+                        input_type,
+                        fromVer,
+                        debug_dir,
+                        no_validate_profiles,
+                    ),
+                    warnings=list_warnings,
+                )
             click.secho(f"[ERROR] {e}", fg="red", err=True)
             sys.exit(1)
-        except Exception as e:  # noqa: BLE001 - surface unexpected failures verbatim
+        except Exception as e:
+            if json_mode:
+                _emit_error(
+                    f"YAML upgrade failed: {e}",
+                    command=command,
+                    started_at=started_at,
+                    data=_result_data(
+                        input_path,
+                        output_path,
+                        input_type,
+                        fromVer,
+                        debug_dir,
+                        no_validate_profiles,
+                    ),
+                    warnings=list_warnings,
+                )
             click.secho(f"[ERROR] YAML upgrade failed: {e}", fg="red", err=True)
             sys.exit(1)
 
-        click.secho(f"\n[OK] Successfully created: {output_path}", fg="green")
+        if json_mode:
+            _emit_success(
+                command=command,
+                started_at=started_at,
+                data=_result_data(
+                    input_path,
+                    output_path,
+                    input_type,
+                    fromVer,
+                    debug_dir,
+                    no_validate_profiles,
+                ),
+                warnings=list_warnings,
+            )
+        else:
+            click.secho(f"\n[OK] Successfully created: {output_path}", fg="green")
         return
 
     if input_type == "nml":
         # Table conversion
-        click.echo(f"Converting SUEWS tables to YAML")
-        click.echo(f"  Input: {input_path}")
-        click.echo(f"  Tables directory: {input_path.parent}")
+        if not json_mode:
+            click.echo("Converting SUEWS tables to YAML")
+            click.echo(f"  Input: {input_path}")
+            click.echo(f"  Tables directory: {input_path.parent}")
 
         # Auto-detect version if needed
         if not fromVer:
-            click.echo("  Auto-detecting table version...")
+            if not json_mode:
+                click.echo("  Auto-detecting table version...")
             fromVer = detect_table_version(input_path.parent)
             if fromVer:
-                click.echo(f"  Detected version: {fromVer}")
+                if not json_mode:
+                    click.echo(f"  Detected version: {fromVer}")
             else:
+                if json_mode:
+                    _emit_error(
+                        "Could not detect version. Use -f to specify.",
+                        command=command,
+                        started_at=started_at,
+                        data=_result_data(
+                            input_path,
+                            output_path,
+                            input_type,
+                            fromVer,
+                            debug_dir,
+                            no_validate_profiles,
+                        ),
+                        warnings=list_warnings,
+                    )
                 click.secho(
                     "Could not detect version. Use -f to specify.", fg="red", err=True
                 )
                 sys.exit(1)
         elif fromVer not in list_ver_from:
-            click.secho(
+            message = (
                 f"Unsupported table release: {fromVer}. "
-                f"Supported: {', '.join(list_ver_from)}",
+                f"Supported: {', '.join(list_ver_from)}"
+            )
+            if json_mode:
+                _emit_error(
+                    message,
+                    command=command,
+                    started_at=started_at,
+                    data=_result_data(
+                        input_path,
+                        output_path,
+                        input_type,
+                        fromVer,
+                        debug_dir,
+                        no_validate_profiles,
+                    ),
+                    warnings=list_warnings,
+                )
+            click.secho(
+                message,
                 fg="red",
                 err=True,
             )
@@ -184,26 +318,130 @@ def convert_table_cmd(
 
     elif input_type == "df_state":
         # df_state conversion
-        click.echo(f"Converting df_state to YAML")
-        click.echo(f"  Input: {input_path}")
+        if not json_mode:
+            click.echo("Converting df_state to YAML")
+            click.echo(f"  Input: {input_path}")
 
         if fromVer:
-            click.echo("  Note: Version specification ignored for df_state")
+            message = "Version specification ignored for df_state"
+            if json_mode:
+                list_warnings.append(message)
+            else:
+                click.echo(f"  Note: {message}")
 
     # Perform table / df_state conversion
     try:
-        convert_to_yaml(
-            input_file=str(input_path),
-            output_file=str(output_path),
-            from_ver=fromVer if input_type == "nml" else None,
-            debug_dir=debug_dir,
-            validate_profiles=not no_validate_profiles,
-        )
-        click.secho(f"\n[OK] Successfully created: {output_path}", fg="green")
+        with (
+            silent_supy_logger() if json_mode else nullcontext(),
+            redirect_stdout(StringIO()) if json_mode else nullcontext(),
+        ):
+            convert_to_yaml(
+                input_file=str(input_path),
+                output_file=str(output_path),
+                from_ver=fromVer if input_type == "nml" else None,
+                debug_dir=debug_dir,
+                validate_profiles=not no_validate_profiles,
+            )
+        if json_mode:
+            _emit_success(
+                command=command,
+                started_at=started_at,
+                data=_result_data(
+                    input_path,
+                    output_path,
+                    input_type,
+                    fromVer if input_type == "nml" else None,
+                    debug_dir,
+                    no_validate_profiles,
+                ),
+                warnings=list_warnings,
+            )
+        else:
+            click.secho(f"\n[OK] Successfully created: {output_path}", fg="green")
 
     except Exception as e:
+        if json_mode:
+            _emit_error(
+                f"Conversion failed: {e}",
+                command=command,
+                started_at=started_at,
+                data=_result_data(
+                    input_path,
+                    output_path,
+                    input_type,
+                    fromVer if input_type == "nml" else None,
+                    debug_dir,
+                    no_validate_profiles,
+                ),
+                warnings=list_warnings,
+            )
         click.secho(f"\n[ERROR] Conversion failed: {e}", fg="red", err=True)
         sys.exit(1)
+
+
+def _command_string() -> str:
+    """Return a stable canonical command string for envelope metadata."""
+    list_args = sys.argv[1:]
+    if list_args and list_args[0] == "convert":
+        list_args = list_args[1:]
+    return " ".join(["suews", "convert", *list_args])
+
+
+def _result_data(
+    input_path: Path,
+    output_path: Path,
+    input_type: str,
+    from_version: str | None,
+    debug_dir: str | None,
+    no_validate_profiles: bool,
+) -> dict[str, object]:
+    """Build the command-specific payload for JSON mode."""
+    return {
+        "input": str(input_path),
+        "output": str(output_path),
+        "input_type": input_type,
+        "from_version": from_version,
+        "debug_dir": debug_dir,
+        "profile_validation": not no_validate_profiles,
+        "output_exists": output_path.exists(),
+    }
+
+
+def _emit_success(
+    *,
+    command: str,
+    started_at: str,
+    data: dict[str, object],
+    warnings: list[str],
+) -> None:
+    """Emit a canonical success/warning envelope and terminate cleanly."""
+    Envelope.success(
+        data=data,
+        command=command,
+        warnings=warnings or None,
+        started_at=started_at,
+    ).emit()
+    sys.exit(EXIT_OK)
+
+
+def _emit_error(
+    message: str,
+    *,
+    command: str,
+    started_at: str,
+    data: dict[str, object],
+    warnings: list[str] | None = None,
+    exit_code: int = EXIT_USER_ERROR,
+) -> None:
+    """Emit a canonical error envelope and terminate with ``exit_code``."""
+    Envelope.error(
+        errors=[message],
+        command=command,
+        data=data,
+        warnings=warnings or None,
+        started_at=started_at,
+    ).emit()
+    sys.exit(exit_code)
 
 
 if __name__ == "__main__":

@@ -10,6 +10,97 @@ from .report_writer import REPORT_WRITER
 REPORT_TITLE = "SUEWS Validation Report"
 
 
+def collect_phase_c_issues(input_yaml_file: str):
+    """Run a structured Pydantic validation pass and return canonical ``Issue``\\ s.
+
+    The orchestrator's ``run_phase_c`` calls ``SUEWSConfig.from_yaml``
+    which formats Pydantic ``ValidationError`` into a string-only
+    ``ValueError`` (see ``SUEWSConfig._transform_validation_error``).
+    This helper sidesteps that wrapper by calling ``SUEWSConfig`` directly
+    so the raw ``ValidationError.errors()`` survive into the JSON sidecar.
+    The cost is one extra Pydantic pass per failing config, which is
+    acceptable for the validation surface.
+    """
+    from .report_schema import Issue, SEVERITY_ERROR
+
+    issues = []
+
+    try:
+        from supy.data_model import SUEWSConfig
+    except ImportError as exc:
+        issues.append(Issue(
+            phase="C",
+            severity=SEVERITY_ERROR,
+            code="C.PIPELINE.IMPORT_ERROR",
+            message=f"Cannot import SUEWSConfig: {exc}",
+            category="PIPELINE",
+        ))
+        return issues
+
+    try:
+        with open(input_yaml_file, "r", encoding="utf-8") as fh:
+            config_data = yaml.safe_load(fh)
+    except (OSError, yaml.YAMLError) as exc:
+        issues.append(Issue(
+            phase="C",
+            severity=SEVERITY_ERROR,
+            code="C.PIPELINE.YAML_PARSE_ERROR",
+            message=str(exc),
+            category="PIPELINE",
+        ))
+        return issues
+
+    if not isinstance(config_data, dict):
+        issues.append(Issue(
+            phase="C",
+            severity=SEVERITY_ERROR,
+            code="C.PIPELINE.YAML_NOT_MAPPING",
+            message="YAML root is not a mapping",
+            category="PIPELINE",
+        ))
+        return issues
+
+    # Replicate the minimal fields ``from_yaml`` injects so the model
+    # construction reaches Pydantic with the same shape, but without
+    # the ValidationError-to-ValueError wrapping.
+    config_data.setdefault("_yaml_path", input_yaml_file)
+
+    try:
+        from pydantic import ValidationError
+    except ImportError:
+        ValidationError = None
+
+    try:
+        SUEWSConfig(**config_data)
+        return issues  # No errors
+    except Exception as exc:
+        if ValidationError is not None and isinstance(exc, ValidationError):
+            for err in exc.errors():
+                loc_tuple = err.get("loc", ())
+                gridid_path = convert_pydantic_location_to_gridid_path(
+                    loc_tuple, input_yaml_file
+                )
+                err_type = err.get("type", "value_error")
+                code_slug = str(err_type).upper().replace(".", "_")
+                issues.append(Issue(
+                    phase="C",
+                    severity=SEVERITY_ERROR,
+                    code=f"C.PYDANTIC.{code_slug}",
+                    message=err.get("msg", str(err)),
+                    yaml_path=gridid_path,
+                    category="CONFIG_CONSISTENCY",
+                ))
+        else:
+            issues.append(Issue(
+                phase="C",
+                severity=SEVERITY_ERROR,
+                code="C.PIPELINE.EXCEPTION",
+                message=str(exc),
+                category="PIPELINE",
+            ))
+        return issues
+
+
 def convert_pydantic_location_to_gridid_path(loc_tuple, input_yaml_file):
     """Convert Pydantic error location tuple to user-friendly GRIDID path.
 

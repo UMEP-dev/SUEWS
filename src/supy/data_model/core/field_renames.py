@@ -258,6 +258,119 @@ ARCHETYPEPROPERTIES_DEV3_RENAMES: Dict[str, str] = {
     "water_tank_water_volume": "hot_water_tank_volume",
 }
 
+# Rule 2 ArchetypeProperties rename table. This landed on master as a
+# dev6 -> dev7 bump before gh#1372 reserved dev7/dev8 for forcing/output
+# control restructures; in the merged lineage it is applied at dev8 -> dev9.
+#
+# Apply Rule 2 of the SUEWS
+# naming convention (`.claude/rules/naming-convention.md`) — physical
+# quantity → component → sub-class — to ArchetypeProperties bulk-material
+# and surface optical fields. Three orthogonal moves embedded in the
+# rename:
+#
+# * Reorder so the physical quantity (`thickness`, `density`,
+#   `conductivity`, `specific_heat_capacity`, `emissivity`,
+#   `transmissivity`, `absorptivity`, `reflectivity`) leads.
+# * Rename the layer-to-insulation qualifier from `external` to `outer`
+#   (xlsx col 3 + convention "Specific tokens": outer/inner = bulk-
+#   material layer; external/internal stays for the radiative surface).
+# * Drop the `effective_` qualifier on the conductivity rows — the
+#   convention requires it only when partner fields (density, specific
+#   heat capacity) also use it, which they do not.
+#
+# Walls also get the `fraction_*` non-physical category prefix moved to
+# the front (`wall_outer_heat_capacity_fraction` ->
+# `fraction_wall_heat_capacity_outer`).
+#
+# NOT spread into ALL_FIELD_RENAMES — keeping the one-to-one invariant;
+# the ArchetypeProperties Pydantic shim runs this after the main dict
+# so pre-Rule-2 YAMLs still load with a DeprecationWarning.
+
+ARCHETYPEPROPERTIES_DEV6_RENAMES: Dict[str, str] = {
+    # -- Walls --
+    # Whole-wall bulk material
+    "wall_thickness": "thickness_wall",
+    "wall_effective_conductivity": "conductivity_wall",
+    "wall_density": "density_wall",
+    "wall_specific_heat_capacity": "specific_heat_capacity_wall",
+    # Outer-layer (external-to-insulation) bulk material
+    "wall_external_thickness": "thickness_wall_outer",
+    "wall_external_effective_conductivity": "conductivity_wall_outer",
+    "wall_external_density": "density_wall_outer",
+    "wall_external_specific_heat_capacity": "specific_heat_capacity_wall_outer",
+    # Heat-capacity distribution (non-physical, fraction_* leads)
+    "wall_outer_heat_capacity_fraction": "fraction_wall_heat_capacity_outer",
+    # Wall radiative surface (external/internal stays — surface property)
+    "wall_external_emissivity": "emissivity_wall_external",
+    "wall_internal_emissivity": "emissivity_wall_internal",
+    "wall_transmissivity": "transmissivity_wall_external",
+    "wall_absorptivity": "absorptivity_wall_external",
+    "wall_reflectivity": "reflectivity_wall_external",
+    # -- Roofs (mirror of wall pattern) --
+    "roof_thickness": "thickness_roof",
+    "roof_effective_conductivity": "conductivity_roof",
+    "roof_density": "density_roof",
+    "roof_specific_heat_capacity": "specific_heat_capacity_roof",
+    "roof_external_thickness": "thickness_roof_outer",
+    "roof_external_effective_conductivity": "conductivity_roof_outer",
+    "roof_external_density": "density_roof_outer",
+    "roof_external_specific_heat_capacity": "specific_heat_capacity_roof_outer",
+    "roof_outer_heat_capacity_fraction": "fraction_roof_heat_capacity_outer",
+    "roof_external_emissivity": "emissivity_roof_external",
+    "roof_internal_emissivity": "emissivity_roof_internal",
+    "roof_transmissivity": "transmissivity_roof_external",
+    "roof_absorptivity": "absorptivity_roof_external",
+    "roof_reflectivity": "reflectivity_roof_external",
+    # -- Windows (no internal-mass bulk; same surface optical set) --
+    "window_thickness": "thickness_window",
+    "window_effective_conductivity": "conductivity_window",
+    "window_density": "density_window",
+    "window_specific_heat_capacity": "specific_heat_capacity_window",
+    "window_external_emissivity": "emissivity_window_external",
+    "window_internal_emissivity": "emissivity_window_internal",
+    "window_transmissivity": "transmissivity_window_external",
+    "window_absorptivity": "absorptivity_window_external",
+    "window_reflectivity": "reflectivity_window_external",
+    # -- Ground floor (single bulk layer; no surface optical set) --
+    "ground_floor_thickness": "thickness_ground_floor",
+    "ground_floor_effective_conductivity": "conductivity_ground_floor",
+    "ground_floor_density": "density_ground_floor",
+    "ground_floor_specific_heat_capacity": "specific_heat_capacity_ground_floor",
+    # -- Internal mass --
+    "internal_mass_density": "density_internal_mass",
+    "internal_mass_specific_heat_capacity": "specific_heat_capacity_internal_mass",
+    "internal_mass_emissivity": "emissivity_internal_mass",
+}
+
+
+# Chained reverse map: Rule 2 final name -> PascalCase legacy column name.
+# Used by ArchetypeProperties._ARCHETYPE_LEGACY_COL_NAMES so the Fortran/Rust
+# bridge (keyed on the fused lowercased PascalCase, e.g. `wallextthickness`)
+# still resolves from the current Pydantic field name. Composes through
+# ARCHETYPEPROPERTIES_DEV6_RENAMES (Rule 2 -> pre-Rule-2) and the base
+# {dev6: PascalCase} reverse map. Pre-computed at module import so the
+# ClassVar definition stays a single dict literal.
+def _build_archetype_dev7_to_pascal() -> Dict[str, str]:
+    base_reverse: Dict[str, str] = {
+        new: old for old, new in ARCHETYPEPROPERTIES_RENAMES.items()
+    }
+    pascal_reverse: Dict[str, str] = {
+        new: old for old, new in ARCHETYPEPROPERTIES_PASCAL_RENAMES.items()
+    }
+    chain: Dict[str, str] = {}
+    for old_dev6, new_dev7 in ARCHETYPEPROPERTIES_DEV6_RENAMES.items():
+        # Walk dev7 -> dev6 -> PascalCase (preferring the canonical
+        # ARCHETYPEPROPERTIES_RENAMES path; fall back to the gh#1329 PASCAL
+        # intermediates, then to the dev6 name itself if no PascalCase
+        # ancestry exists).
+        chain[new_dev7] = base_reverse.get(
+            old_dev6, pascal_reverse.get(old_dev6, old_dev6)
+        )
+    return chain
+
+
+ARCHETYPEPROPERTIES_DEV7_TO_PASCAL: Dict[str, str] = _build_archetype_dev7_to_pascal()
+
 # -- StebbsProperties (site.py) ----------------------------------------------
 #
 # gh#1334: PascalCase -> snake_case for the full StebbsProperties surface.
@@ -748,6 +861,7 @@ RAW_YAML_FIELD_RENAMES: Dict[str, str] = {
     **MODELPHYSICS_SUFFIX_RENAMES,
     **ARCHETYPEPROPERTIES_PASCAL_RENAMES,
     **ARCHETYPEPROPERTIES_DEV3_RENAMES,
+    **ARCHETYPEPROPERTIES_DEV6_RENAMES,
     **SNOWPARAMS_INTERMEDIATE_RENAMES,
     **STEBBSPROPERTIES_DEV3_RENAMES,
     **ALL_FIELD_RENAMES,

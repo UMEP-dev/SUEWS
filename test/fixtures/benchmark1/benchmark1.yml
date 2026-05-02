@@ -3,9 +3,10 @@ description: benchmark 1, based on Ward et al. (2016) model configuration
 model:
   control:
     tstep: 300
-    forcing_file:
-      value: forcing/
-    output_file:
+    forcing:
+      file:
+        value: forcing/
+    output:
       format: "parquet"
       freq: 3600
   physics:

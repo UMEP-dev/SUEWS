@@ -1,17 +1,18 @@
 name: sample_config
-schema_version: '2026.5.dev7'
+schema_version: '2026.5.dev9'
 description: Sample configuration built from benchmark 1a (Ward et al. 2016) model configuration
 model:
   control:
     tstep: 300
     start_time: "2011-01-01"
     end_time: "2013-12-31"
-    forcing_file:
-      value: Kc_2012_data_60.txt
-    output_file:
+    forcing:
+      file:
+        value: Kc_2012_data_60.txt
+    output:
       format: txt
       freq: 3600
-      path: "./Output"
+      dir: "./Output"
       groups:
         - "SUEWS"
   physics:

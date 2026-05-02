@@ -301,9 +301,7 @@ class SUEWSSimulation:
             if hasattr(self._config, "model") and hasattr(
                 self._config.model, "control"
             ):
-                forcing_file_obj = getattr(
-                    self._config.model.control, "forcing_file", None
-                )
+                forcing_file_obj = self._config.model.control.forcing.file
 
                 if forcing_file_obj is not None:
                     # Handle RefValue wrapper
@@ -557,6 +555,14 @@ class SUEWSSimulation:
             physics = getattr(self._config.model, "physics", None)
             if physics is not None and hasattr(physics, "model_dump"):
                 physics_dict = physics.model_dump(mode="python")
+            # Cross-check physics path against forcing columns (gh#1372).
+            # Helper is silent on success; raises ValueError on mismatch.
+            if physics is not None:
+                from .data_model.core.forcing_validation import (
+                    validate_forcing_columns_against_physics,
+                )
+
+                validate_forcing_columns_against_physics(df_forcing_slice, physics)
         if self._df_state_init is not None:
             from ._supy_module import _lai_bounds_from_df_state
 
@@ -614,7 +620,7 @@ class SUEWSSimulation:
         self, output_path: Optional[Union[str, Path]] = None, **save_kwargs
     ) -> list[str]:
         """
-        Save simulation results according to OutputConfig settings.
+        Save simulation results according to OutputControl settings.
 
         Parameters
         ----------
@@ -631,7 +637,7 @@ class SUEWSSimulation:
 
             **Not currently supported** (due to internal constraints):
 
-            - freq_s: Controlled by config.model.control.output_file.freq
+            - freq_s: Controlled by config.model.control.output.freq
             - site: Derived from config.sites[0].name
             - save_tstep: Not configurable via OOP interface
             - output_level: Not configurable via OOP interface
@@ -673,17 +679,17 @@ class SUEWSSimulation:
 
         # Set default path with priority: parameter > config > current directory
         if output_path is None:
-            # Check if path is specified in config
-            config_path = None
+            # Check if dir is specified in config
+            config_dir = None
             try:
-                output_file = self._config.model.control.output_file
-                if not isinstance(output_file, str) and output_file.path:
-                    config_path = output_file.path
+                output_control = self._config.model.control.output
+                if output_control.dir:
+                    config_dir = output_control.dir
             except AttributeError:
                 pass
 
             output_path = (
-                self._resolve_output_path(config_path) if config_path else Path(".")
+                self._resolve_output_path(config_dir) if config_dir else Path(".")
             )
         else:
             output_path = Path(output_path)
@@ -695,14 +701,13 @@ class SUEWSSimulation:
         site = ""
 
         if self._config:
-            # Get output frequency from OutputConfig if available
+            # Get output frequency from OutputControl if available
             if (
                 hasattr(self._config, "model")
                 and hasattr(self._config.model, "control")
-                and hasattr(self._config.model.control, "output_file")
-                and not isinstance(self._config.model.control.output_file, str)
+                and hasattr(self._config.model.control, "output")
             ):
-                output_config = self._config.model.control.output_file
+                output_config = self._config.model.control.output
                 if hasattr(output_config, "freq") and output_config.freq is not None:
                     freq_s = output_config.freq
                 # Removed for now - can't update from YAML (TODO)

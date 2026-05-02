@@ -40,3 +40,6 @@ features = ["ipc"]
 version = "0.22"
 optional = true
 features = ["abi3-py39"]
+
+[dev-dependencies]
+tempfile = "3"

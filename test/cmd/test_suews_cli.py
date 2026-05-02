@@ -223,7 +223,7 @@ def test_convert_dispatcher_matches_legacy(tmp_path) -> None:
     ``cli.commands["convert"] is convert_table_cmd`` (above) already proves
     both routes invoke the same Click command; this integration test runs
     each route end-to-end on a real fixture and asserts the produced YAML
-    is structurally equivalent. (One field, ``model.control.output_file.path``,
+    is structurally equivalent. (One field, ``model.control.output.dir``,
     embeds the converter's per-invocation temp directory, so a byte-for-byte
     comparison is impossible across separate runs -- we strip it before
     diffing.)
@@ -260,10 +260,10 @@ def test_convert_dispatcher_matches_legacy(tmp_path) -> None:
 
     def _strip_nondeterministic(path):
         doc = _yaml.safe_load(path.read_text(encoding="utf-8"))
-        # Per-invocation temp path leaks into output_file.path; null it out
+        # Per-invocation temp path leaks into output.dir; null it out
         # before comparing so the rest of the dict can be diffed cleanly.
         try:
-            doc["model"]["control"]["output_file"]["path"] = None
+            doc["model"]["control"]["output"]["dir"] = None
         except (KeyError, TypeError):
             pass
         return doc

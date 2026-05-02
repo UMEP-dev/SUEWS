@@ -95,9 +95,9 @@ model:
   control:
     tstep: 300
     # Mixed separators like in issue #1097
-    forcing_file:
-      value: C:/Users\\TestUser/Desktop/suews_data/forcing.txt
-    output_file: C:\\Users\\TestUser\\Desktop/outputs\\test_output.txt
+    forcing:
+      file:
+        value: C:/Users\\TestUser/Desktop/suews_data/forcing.txt
     diagnose: 0
     start_time: '2021-01-01'
     end_time: '2021-12-31'
@@ -253,9 +253,9 @@ def test_validate_windows_paths(suews_validate_exe, tmp_path):
         content = f'''name: Windows Native Test
 model:
   control:
-    forcing_file:
-      value: {tmp_path.as_posix()}/test_forcing.txt
-    output_file: {str(tmp_path)}\\output.txt
+    forcing:
+      file:
+        value: {tmp_path.as_posix()}/test_forcing.txt
     start_time: '2021-01-01'
     end_time: '2021-01-02'
 sites:

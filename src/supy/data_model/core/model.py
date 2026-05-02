@@ -943,10 +943,17 @@ class OutputFormat(Enum):
         return self.value
 
 
-class OutputConfig(BaseModel):
-    """Configuration for model output files."""
+class OutputControl(BaseModel):
+    """Configuration block for model output files.
 
-    model_config = ConfigDict(title="Output Configuration")
+    Renamed from ``OutputConfig`` and lifted out of the legacy
+    ``Union[str, OutputConfig]`` ``output_file`` field in gh#1372 follow-up,
+    so the ``model.control`` surface is uniform with the new ``forcing:``
+    sub-object. The legacy string form (silently ignored since 2025.10.15)
+    is dropped.
+    """
+
+    model_config = ConfigDict(title="Output Control")
 
     format: OutputFormat = Field(
         default=OutputFormat.TXT,
@@ -960,9 +967,9 @@ class OutputConfig(BaseModel):
         default=None,
         description="List of output groups to save (only applies to txt format). Available groups: 'SUEWS', 'DailyState', 'snow', 'ESTM', 'RSL', 'BL', 'debug'. If not specified, defaults to ['SUEWS', 'DailyState']",
     )
-    path: Optional[str] = Field(
+    dir: Optional[str] = Field(
         default=None,
-        description="Output directory path where result files will be saved. If not specified, defaults to current working directory.",
+        description="Output directory where result files will be saved. If not specified, defaults to the current working directory.",
     )
 
     @field_validator("groups")
@@ -978,24 +985,130 @@ class OutputConfig(BaseModel):
         return v
 
 
+class ForcingControl(BaseModel):
+    """Configuration block for meteorological forcing input.
+
+    Created in gh#1372 so future forcing-related fields (sub-hourly
+    disaggregation, gh#1373; resampling policy; etc.) have a stable
+    home rather than accreting flat ``forcing_*`` siblings under
+    :class:`ModelControl`.
+    """
+
+    model_config = ConfigDict(title="Forcing Control")
+
+    file: Union[FlexibleRefValue(str), FlexibleRefValue(List[str])] = Field(
+        default="forcing.txt",
+        description=(
+            "Path(s) to meteorological forcing data file(s). This can be "
+            "either: (1) A single file path as a string (e.g., 'forcing.txt'), "
+            "or (2) A list of file paths (e.g., ['forcing_2020.txt', "
+            "'forcing_2021.txt']). When multiple files are provided, they "
+            "are concatenated in chronological order. For details, see "
+            ":ref:`met_input`."
+        ),
+    )
+
+
 class ModelControl(BaseModel):
     model_config = ConfigDict(title="Model Control")
+
+    @model_validator(mode="before")
+    @classmethod
+    def _coerce_legacy_forcing_file(cls, values):
+        """Accept legacy ``forcing_file`` input by moving it under ``forcing.file``."""
+        if not isinstance(values, dict) or "forcing_file" not in values:
+            return values
+
+        values = values.copy()
+        legacy_forcing_file = values.pop("forcing_file")
+        forcing = values.get("forcing")
+
+        if isinstance(forcing, dict):
+            forcing = forcing.copy()
+            forcing.setdefault("file", legacy_forcing_file)
+        else:
+            forcing = {"file": legacy_forcing_file}
+        values["forcing"] = forcing
+        return values
+
+    @model_validator(mode="before")
+    @classmethod
+    def _coerce_legacy_output_file(cls, values):
+        """Accept legacy ``output_file`` input by lifting it under ``output``.
+
+        Three input shapes are handled:
+
+        * dict form ``output_file: {...}`` is moved to ``output: {...}`` and
+          its inner ``path`` field is renamed to ``dir``;
+        * string form ``output_file: 'name.txt'`` is dropped (the string form
+          has been silently ignored since 2025.10.15);
+        * if both ``output_file`` and ``output`` are present, ``output`` wins
+          and the legacy key is dropped.
+
+        A one-shot ``DeprecationWarning`` fires whenever ``output_file`` is
+        encountered so users see their migration target.
+        """
+        import warnings
+
+        if not isinstance(values, dict) or "output_file" not in values:
+            return values
+
+        values = values.copy()
+        legacy = values.pop("output_file")
+
+        if "output" in values:
+            warnings.warn(
+                "Both `output_file` and `output` were supplied; the legacy "
+                "`output_file` value is ignored.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+            return values
+
+        if isinstance(legacy, dict):
+            migrated = {k: v for k, v in legacy.items() if k != "path"}
+            if "path" in legacy and "dir" not in migrated:
+                migrated["dir"] = legacy["path"]
+            values["output"] = migrated
+            warnings.warn(
+                "`model.control.output_file` is deprecated; lifted under "
+                "`model.control.output` (path -> dir).",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+            return values
+
+        # Legacy string form: silently dropped at runtime since 2025.10.15;
+        # we now warn explicitly.
+        warnings.warn(
+            "`model.control.output_file` string form is ignored; use the "
+            "`output:` sub-object instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        return values
 
     tstep: FlexibleRefValue(int) = Field(
         default=300, description="Time step in seconds for model calculations"
     )
-    forcing_file: Union[FlexibleRefValue(str), FlexibleRefValue(List[str])] = Field(
-        default="forcing.txt",
-        description="Path(s) to meteorological forcing data file(s). This can be either: (1) A single file path as a string (e.g., 'forcing.txt'), or (2) A list of file paths (e.g., ['forcing_2020.txt', 'forcing_2021.txt', 'forcing_2022.txt']). When multiple files are provided, they will be automatically concatenated in chronological order. The forcing data contains time-series meteorological measurements that drive SUEWS simulations. For detailed information about required variables, file format, and data preparation guidelines, see :ref:`met_input`.",
+    forcing: ForcingControl = Field(
+        default_factory=ForcingControl,
+        description="Meteorological forcing configuration (file path(s) and related options).",
     )
     kdownzen: Optional[FlexibleRefValue(int)] = Field(
         default=None,
         description="Use zenithal correction for downward shortwave radiation",
         json_schema_extra={"internal_only": True},
     )
-    output_file: Union[str, OutputConfig] = Field(
-        default="output.txt",
-        description="Output file configuration. DEPRECATED: String values are ignored and will issue a warning. Please use an OutputConfig object specifying format ('txt' or 'parquet'), frequency (seconds, must be multiple of tstep), and groups to save (for txt format only). Example: {'format': 'parquet', 'freq': 3600} or {'format': 'txt', 'freq': 1800, 'groups': ['SUEWS', 'DailyState', 'ESTM']}. For detailed information about output variables and file structure, see :ref:`output_files`.",
+    output: OutputControl = Field(
+        default_factory=OutputControl,
+        description=(
+            "Output configuration: file format ('txt' or 'parquet'), "
+            "frequency (seconds, must be a multiple of tstep), groups "
+            "(txt only) and the output directory ('dir'). For detailed "
+            "information about output variables and file structure, see "
+            ":ref:`output_files`."
+        ),
     )
     # daylightsaving_method: int
     diagnose: FlexibleRefValue(int) = Field(
@@ -1013,6 +1126,15 @@ class ModelControl(BaseModel):
     )
 
     ref: Optional[Reference] = None
+
+    @property
+    def forcing_file(self):
+        """Backward-compatible alias for ``model.control.forcing.file``."""
+        return self.forcing.file
+
+    @forcing_file.setter
+    def forcing_file(self, value):
+        self.forcing.file = ForcingControl(file=value).file
 
     @field_validator("tstep", "diagnose", mode="after")
     def validate_int_float(cls, v):

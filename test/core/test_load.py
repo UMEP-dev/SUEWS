@@ -231,9 +231,10 @@ class TestConfigLoading(TestCase):
         self.assertTrue(hasattr(config.model, "control"))
         self.assertTrue(hasattr(config.model, "physics"))
 
-        # Check control contains forcing_file and output_file
-        self.assertTrue(hasattr(config.model.control, "forcing_file"))
-        self.assertTrue(hasattr(config.model.control, "output_file"))
+        # Check control contains forcing config (file path) and output block
+        self.assertTrue(hasattr(config.model.control, "forcing"))
+        self.assertTrue(hasattr(config.model.control.forcing, "file"))
+        self.assertTrue(hasattr(config.model.control, "output"))
 
         print("✓ YAML config loading works correctly")
 

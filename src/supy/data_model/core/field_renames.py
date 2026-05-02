@@ -258,7 +258,11 @@ ARCHETYPEPROPERTIES_DEV3_RENAMES: Dict[str, str] = {
     "water_tank_water_volume": "hot_water_tank_volume",
 }
 
-# Schema 2026.5.dev6 -> 2026.5.dev7 (gh#TBD): apply Rule 2 of the SUEWS
+# Rule 2 ArchetypeProperties rename table. This landed on master as a
+# dev6 -> dev7 bump before gh#1372 reserved dev7/dev8 for forcing/output
+# control restructures; in the merged lineage it is applied at dev8 -> dev9.
+#
+# Apply Rule 2 of the SUEWS
 # naming convention (`.claude/rules/naming-convention.md`) — physical
 # quantity → component → sub-class — to ArchetypeProperties bulk-material
 # and surface optical fields. Three orthogonal moves embedded in the
@@ -280,7 +284,7 @@ ARCHETYPEPROPERTIES_DEV3_RENAMES: Dict[str, str] = {
 #
 # NOT spread into ALL_FIELD_RENAMES — keeping the one-to-one invariant;
 # the ArchetypeProperties Pydantic shim runs this after the main dict
-# so dev6 YAMLs still load with a DeprecationWarning.
+# so pre-Rule-2 YAMLs still load with a DeprecationWarning.
 
 ARCHETYPEPROPERTIES_DEV6_RENAMES: Dict[str, str] = {
     # -- Walls --
@@ -339,11 +343,11 @@ ARCHETYPEPROPERTIES_DEV6_RENAMES: Dict[str, str] = {
 }
 
 
-# Chained reverse map: dev7 final name -> PascalCase legacy column name.
+# Chained reverse map: Rule 2 final name -> PascalCase legacy column name.
 # Used by ArchetypeProperties._ARCHETYPE_LEGACY_COL_NAMES so the Fortran/Rust
 # bridge (keyed on the fused lowercased PascalCase, e.g. `wallextthickness`)
-# still resolves from the dev7 Pydantic field name. Composes through
-# ARCHETYPEPROPERTIES_DEV6_RENAMES (dev7 -> dev6) and the base
+# still resolves from the current Pydantic field name. Composes through
+# ARCHETYPEPROPERTIES_DEV6_RENAMES (Rule 2 -> pre-Rule-2) and the base
 # {dev6: PascalCase} reverse map. Pre-computed at module import so the
 # ClassVar definition stays a single dict literal.
 def _build_archetype_dev7_to_pascal() -> Dict[str, str]:

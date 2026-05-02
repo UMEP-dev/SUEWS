@@ -180,10 +180,10 @@ The sections below summarise what users see change between schemas.
 The authoritative lineage (including release-tag to schema mapping)
 lives in :ref:`schema_version_history`.
 
-Upgrading to Schema 2026.5.dev7 (naming convention Rule 2 reorder for ArchetypeProperties)
+Upgrading to Schema 2026.5.dev9 (naming convention Rule 2 reorder for ArchetypeProperties)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Schema ``2026.5.dev7`` is the current in-development shape. 44
+Schema ``2026.5.dev9`` is the current in-development shape. 44
 ``ArchetypeProperties`` field names under
 ``sites[].properties.building_archetype.*`` have been reordered to
 follow Rule 2 of the SUEWS naming convention
@@ -194,7 +194,7 @@ The rename covers wall, roof, window, ground_floor, and internal_mass
 bulk-material and surface optical properties. Three orthogonal moves
 are embedded in the rename, applied per field as appropriate:
 
-- **Reorder so the physical quantity leads** — ``thickness``,
+- **Reorder so the physical quantity leads** - ``thickness``,
   ``density``, ``conductivity``, ``specific_heat_capacity``,
   ``emissivity``, ``transmissivity``, ``absorptivity``,
   ``reflectivity``. For example
@@ -208,7 +208,7 @@ are embedded in the rename, applied per field as appropriate:
   stays ``emissivity_wall_external`` (radiative surface).
 - **The effective_ qualifier dropped on the conductivity rows**
   (``wall_effective_conductivity`` -> ``conductivity_wall``). It was
-  used inconsistently — the sibling ``density`` and
+  used inconsistently - the sibling ``density`` and
   ``specific_heat_capacity`` rows did not carry it.
 
 Wall and roof heat-capacity distribution rows take the
@@ -220,26 +220,100 @@ Run the migrator to bring an existing YAML onto the new shape:
 
 .. code-block:: bash
 
-   suews schema migrate your_config.yml --target-version 2026.5.dev7
+   suews schema migrate your_config.yml --target-version 2026.5.dev9
 
 Every rename is logged via ``[yaml-upgrade]   renamed 'old' ->
 'new'`` so the user can verify each substitution. The Pydantic
-backward-compat shim still accepts the dev6 names at load time,
+backward-compat shim still accepts the pre-dev9 names at load time,
 emitting a ``DeprecationWarning``; YAMLs that round-trip through the
 migrator come out in the new spellings and no longer warn.
 
 Cross-layer (Fortran TYPE members, Rust struct fields, DataFrame
-column keys) is unchanged — the bridge map composes through the
+column keys) is unchanged - the bridge map composes through the
 chained ``ARCHETYPEPROPERTIES_DEV7_TO_PASCAL`` lookup so the legacy
 fused column key (``wallextthickness``, etc.) is still produced from
 the new Pydantic field name.
 
+Upgrading to Schema 2026.5.dev8 (gh#1372 follow-up output config restructure)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The ``model.control.output_file:`` block becomes the sibling
+``model.control.output:`` block, mirroring the ``forcing:`` restructure
+shipped in dev7. The inner ``path:`` field is renamed to ``dir:``.
+
+.. code-block:: yaml
+   :caption: Before
+
+   model:
+     control:
+       output_file:
+         format: parquet
+         freq: 3600
+         path: ./out
+
+.. code-block:: yaml
+   :caption: After
+
+   model:
+     control:
+       output:
+         format: parquet
+         freq: 3600
+         dir: ./out
+
+The legacy string form ``output_file: "name.txt"`` was already silently
+ignored from 2025.10.15 and is now dropped outright by the migrator.
+The full ``Union[str, OutputControl]`` is replaced with a single
+``OutputControl`` block so the on-disk shape is no longer ambiguous.
+
+Run ``suews-convert --to 2026.5.dev9 in.yml out.yml`` to rewrite an
+older YAML; the in-memory ``_coerce_legacy_output_file`` validator
+also accepts the legacy shape at load time and emits a
+``DeprecationWarning`` pointing at the new key.
+
+Upgrading to Schema 2026.5.dev7 (gh#1372 forcing config restructure and named-column reader)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Two changes ship together (gh#1372):
+
+* **YAML rename**: ``model.control.forcing_file`` moves under a new
+  ``forcing`` sub-object. Update existing configs:
+
+  .. code-block:: yaml
+     :caption: Before
+
+     model:
+       control:
+         forcing_file: forcing.txt
+
+  .. code-block:: yaml
+     :caption: After
+
+     model:
+       control:
+         forcing:
+           file: forcing.txt
+
+  ``suews-convert`` upgrades the YAML automatically; manual edit is
+  also straightforward.
+
+* **Forcing-file header semantics**: column names in the forcing file
+  header are now read and used to match canonical variable names.
+  Files whose headers already use the canonical names (the standard
+  SUEWS distribution shape) continue to work unchanged. Files with
+  custom or mis-typed headers (for example ``temperature`` instead of
+  ``Tair``) will now raise ``ValueError`` at load time citing the
+  expected canonical name. See :ref:`named_column_forcing` for the
+  full canonical name list.
+
 Upgrading to Schema 2026.5.dev6 (gh#1333 site-level completeness validator)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Schema ``2026.5.dev6`` was the prior in-development shape. The YAML
-shape is byte-for-byte identical to ``2026.5.dev5`` — this is a pure
-validator-contract tightening, not a structural rename.
+Schema ``2026.5.dev6`` is an intermediate dev label (the current
+in-development shape is ``2026.5.dev9``; see the sections above). The
+YAML shape at dev6 is byte-for-byte identical to ``2026.5.dev5`` —
+this is a pure validator-contract tightening, not a structural
+rename.
 
 Previously, declaring a vegetated or building surface with
 ``sfr > 0`` but omitting the physics-required completion fields
@@ -401,7 +475,7 @@ cluster) continue to load under a ``DeprecationWarning``. Run:
 
 Use this historical target when you specifically want the pre-hot-water
 unification ``2026.5.dev3`` spellings. To land on the current schema
-instead, omit ``--target-version`` or point it at ``2026.5.dev6``.
+instead, omit ``--target-version`` or point it at ``2026.5.dev9``.
 
 Upgrading to Schema 2026.5.dev2 (Categories 2+3 of #1256: suffix drop, abbreviation expansion)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

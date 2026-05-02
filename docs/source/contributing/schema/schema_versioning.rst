@@ -170,12 +170,12 @@ The lineage below mirrors ``SCHEMA_VERSIONS`` in
 the schema that shipped with it via
 ``supy.util.converter.yaml_upgrade._PACKAGE_TO_SCHEMA``.
 
-**Schema 2026.5.dev7** (current; in-development dev bump; naming convention Rule 2)
+**Schema 2026.5.dev9** (current; in-development dev bump; naming convention Rule 2)
    ``ArchetypeProperties`` bulk-material and surface optical fields
    reordered to ``<quantity>_<component>_<sub_class>`` per Rule 2 of
    the SUEWS naming convention
    (``.claude/rules/naming-convention.md``). 44 renames covering wall,
-   roof, window, ground_floor, and internal_mass — for example
+   roof, window, ground_floor, and internal_mass - for example
    ``wall_external_thickness`` -> ``thickness_wall_outer``,
    ``wall_external_emissivity`` -> ``emissivity_wall_external``,
    ``wall_outer_heat_capacity_fraction`` ->
@@ -190,19 +190,68 @@ the schema that shipped with it via
    ("Specific tokens" rule: outer/inner = bulk-material layer;
    external/internal stays for the radiative surface); (c) the
    ``effective_`` qualifier dropped on the conductivity rows (used
-   inconsistently — sibling density / specific_heat_capacity rows did
+   inconsistently - sibling density / specific_heat_capacity rows did
    not carry it). Wall and roof heat-capacity distribution rows take
    the ``fraction_*`` non-physical category prefix per Rule 2.
 
    Rename table ``ARCHETYPEPROPERTIES_DEV6_RENAMES`` added in
    ``src/supy/data_model/core/field_renames.py``;
-   ``(2026.5.dev6 -> 2026.5.dev7)`` migration registered in
+   ``(2026.5.dev8 -> 2026.5.dev9)`` migration registered in
    ``src/supy/util/converter/yaml_upgrade.py::_HANDLERS``. Bridge
    DataFrame columns keep the fused PascalCase ancestry
    (``wallextthickness``, etc.) via the chained
    ``ARCHETYPEPROPERTIES_DEV7_TO_PASCAL`` map. Cross-layer rename of
    Fortran TYPE members and Rust struct fields is Tier B/C work
    tracked under gh#1325 / gh#1326.
+
+**Schema 2026.5.dev8** (gh#1372 follow-up)
+   Restructures ``model.control.output_file``
+   (``Union[str, OutputConfig]``) into the sibling sub-object
+   ``model.control.output`` (``OutputControl``), mirroring the
+   ``ForcingControl`` block shipped in ``2026.5.dev7`` so the
+   ``model.control`` surface is uniform. The deprecated string form
+   (silently ignored since 2025.10.15) is dropped; the inner ``path``
+   field is renamed to ``dir`` to make explicit that it is a directory
+   (parallels the asymmetry with ``forcing.file``: input has one file,
+   output has a directory of auto-generated files). The
+   ``(2026.5.dev7 -> 2026.5.dev8)`` migration handler
+   ``_apply_output_subobject_restructure`` in
+   ``src/supy/util/converter/yaml_upgrade.py::_HANDLERS`` lifts the
+   dict form, renames the inner field, and drops the legacy string
+   form with a logged reason. Users should run
+   ``suews-convert --to 2026.5.dev9 in.yml out.yml`` (or rely on the
+   in-memory ``_coerce_legacy_output_file`` validator at load time).
+   See the :ref:`transition_guide` entry for the user-facing
+   walkthrough.
+
+**Schema 2026.5.dev7** (gh#1372)
+   Two-part bump. (1) ``model.control.forcing_file`` is restructured
+   to ``model.control.forcing.file`` under a new ``ForcingControl``
+   sub-object, creating a stable home for future forcing fields
+   (e.g. sub-hourly disaggregation policy). (2) The forcing-file
+   reader switches from positional to **named-column** matching: the
+   header line is parsed and matched case-insensitively against
+   canonical names; the baseline-10 set ``iy``, ``id``, ``it``,
+   ``imin``, ``Tair``, ``RH``, ``U``, ``pres``, ``kdown``, ``rain``
+   is required; missing optional canonicals are filled with
+   ``-999.0``; whitelisted per-landcover variants are plumbed through
+   ``SUEWSForcing.extras`` / ``ForcingData.extras`` —
+   ``lai_<surface>`` for the three vegetated surfaces only
+   (``evetr``, ``dectr``, ``grass``) and ``wuh_<surface>`` (external
+   water use — irrigation, impervious-surface washing, fountains,
+   ornamental water features) for every surface
+   ``{paved, bldgs, evetr, dectr, grass, bsoil, water}`` —
+   each ``wuh_<surface>`` value is a depth in mm per forcing time
+   step (same unit as ``rain``) applied to that surface only, so the
+   grid-total contribution is ``wuh_<surface> × sfr_<surface>``;
+   soil-moisture deficit (``xsmd``) remains a bulk site-level column
+   and is intentionally not on the per-landcover whitelist; unknown
+   columns emit a ``UserWarning`` and are dropped. The ``(2026.5.dev6 -> 2026.5.dev7)`` migration
+   handler ``_apply_forcing_subobject_restructure`` in
+   ``src/supy/util/converter/yaml_upgrade.py::_HANDLERS`` rewrites
+   the YAML key whether the value is a bare string or a ``RefValue``
+   mapping. See :ref:`named_column_forcing` and the
+   :ref:`transition_guide` entry for the user-facing walkthrough.
 
 **Schema 2026.5.dev6** (gh#1333)
    Validator contract change only — the YAML shape is unchanged from

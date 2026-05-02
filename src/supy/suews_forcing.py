@@ -123,11 +123,22 @@ class ValidationResult:
         return f"ValidationResult({status}, {n_errors} errors, {n_warnings} warnings)"
 
 
-def _as_forcing(data, source):
+def _normalise_extras(
+    extras: Optional[Dict[str, np.ndarray]],
+) -> Dict[str, np.ndarray]:
+    """Return extras as detached numpy arrays."""
+    if not extras:
+        return {}
+    return {name: np.asarray(values).copy() for name, values in extras.items()}
+
+
+def _as_forcing(data, source, extras: Optional[Dict[str, np.ndarray]] = None):
     """Wrap sliced data as SUEWSForcing, converting single-row Series to DataFrame."""
     if isinstance(data, pd.Series):
         data = data.to_frame().T
-    return SUEWSForcing(data, source=source)
+    forcing = SUEWSForcing(data, source=source)
+    forcing._extras = _normalise_extras(extras)
+    return forcing
 
 
 class _ForcingLocIndexer:
@@ -138,7 +149,11 @@ class _ForcingLocIndexer:
 
     def __getitem__(self, key):
         """Return sliced data as SUEWSForcing."""
-        return _as_forcing(self._forcing._data.loc[key], self._forcing._source)
+        return _as_forcing(
+            self._forcing._data.loc[key],
+            self._forcing._source,
+            self._forcing._slice_extras(key, accessor="loc"),
+        )
 
 
 class _ForcingILocIndexer:
@@ -149,7 +164,11 @@ class _ForcingILocIndexer:
 
     def __getitem__(self, key):
         """Return sliced data as SUEWSForcing."""
-        return _as_forcing(self._forcing._data.iloc[key], self._forcing._source)
+        return _as_forcing(
+            self._forcing._data.iloc[key],
+            self._forcing._source,
+            self._forcing._slice_extras(key, accessor="iloc"),
+        )
 
 
 class SUEWSForcing:
@@ -252,7 +271,7 @@ class SUEWSForcing:
 
         >>> forcing = SUEWSForcing.from_file(["2023.txt", "2024.txt"])
         """
-        from .util._io import _read_forcing_impl
+        from .util._io import read_forcing
 
         # Handle list of paths
         if isinstance(path, list):
@@ -264,21 +283,51 @@ class SUEWSForcing:
                 file_path = Path(p).expanduser().resolve()
                 if not file_path.exists():
                     raise FileNotFoundError(f"Forcing file not found: {file_path}")
-                df = _read_forcing_impl(str(file_path), tstep_mod=tstep_mod)
+                df = read_forcing(str(file_path), tstep_mod=tstep_mod)
                 dfs.append(df)
 
             combined = pd.concat(dfs, axis=0).sort_index()
             # Remove any duplicates
             combined = combined[~combined.index.duplicated(keep="first")]
-            return cls(combined, source=f"[{len(path)} files]")
+            df_main, extras = cls._split_per_landcover_columns(combined)
+            instance = cls(df_main, source=f"[{len(path)} files]")
+            instance._extras = extras
+            return instance
 
         # Handle single path
         file_path = Path(path).expanduser().resolve()
         if not file_path.exists():
             raise FileNotFoundError(f"Forcing file not found: {file_path}")
 
-        df = _read_forcing_impl(str(file_path), tstep_mod=tstep_mod)
-        return cls(df, source=str(file_path))
+        df = read_forcing(str(file_path), tstep_mod=tstep_mod)
+        df_main, extras = cls._split_per_landcover_columns(df)
+        instance = cls(df_main, source=str(file_path))
+        instance._extras = extras
+        return instance
+
+    @staticmethod
+    def _split_per_landcover_columns(
+        df_forcing: pd.DataFrame,
+    ) -> Tuple[pd.DataFrame, Dict[str, np.ndarray]]:
+        """Pop whitelisted ``<var>_<surface>`` columns into an extras dict.
+
+        Returns the kernel-facing DataFrame (with extras removed) and a
+        dict mapping the lower-cased canonical name to the column values.
+        The whitelist itself is owned by
+        :func:`supy._load._is_per_landcover_column` so the Python and
+        Rust readers stay in lock-step (gh#1372).
+        """
+        from ._load import _is_per_landcover_column
+
+        extras: Dict[str, np.ndarray] = {}
+        drop_cols: List[str] = []
+        for col in df_forcing.columns:
+            if _is_per_landcover_column(col):
+                extras[col.lower()] = df_forcing[col].to_numpy()
+                drop_cols.append(col)
+        if drop_cols:
+            df_forcing = df_forcing.drop(columns=drop_cols)
+        return df_forcing, extras
 
     # =========================================================================
     # Core data access
@@ -302,6 +351,46 @@ class SUEWSForcing:
             Copy of the underlying DataFrame
         """
         return self._data.copy()
+
+    @property
+    def extras(self) -> Dict[str, np.ndarray]:
+        """Per-landcover forcing columns (gh#1372).
+
+        Maps lower-cased ``<var>_<surface>`` names to time-aligned arrays
+        of length ``len(self.df)``. Empty when the file carries no
+        whitelisted per-landcover columns. Kernel does not yet consume
+        these; reserved for follow-up physics work.
+
+        Returns
+        -------
+        dict of str to numpy.ndarray
+            Mapping from lower-cased ``<var>_<surface>`` column name to
+            the corresponding time-aligned array.
+        """
+        return getattr(self, "_extras", {})
+
+    def _extras_frame(self) -> pd.DataFrame:
+        """Return extras as an index-aligned DataFrame for slicing/resampling."""
+        if not self.extras:
+            return pd.DataFrame(index=self._data.index)
+        return pd.DataFrame(
+            {name: np.asarray(values) for name, values in self.extras.items()},
+            index=self._data.index,
+        )
+
+    def _slice_extras(
+        self,
+        key,
+        *,
+        accessor: str,
+    ) -> Dict[str, np.ndarray]:
+        """Slice extras with the same indexer used for the main DataFrame."""
+        if not self.extras:
+            return {}
+        selected = getattr(self._extras_frame(), accessor)[key]
+        if isinstance(selected, pd.Series):
+            selected = selected.to_frame().T
+        return {name: selected[name].to_numpy() for name in selected.columns}
 
     @property
     def index(self) -> pd.DatetimeIndex:
@@ -447,7 +536,11 @@ class SUEWSForcing:
         """
         # Handle slice objects (time slicing)
         if isinstance(key, slice):
-            return _as_forcing(self._data.loc[key], self._source)
+            return _as_forcing(
+                self._data.loc[key],
+                self._source,
+                self._slice_extras(key, accessor="loc"),
+            )
 
         # Handle list of column names (returns DataFrame)
         if isinstance(key, list):
@@ -471,7 +564,11 @@ class SUEWSForcing:
 
             # Not a column - try as time selection (e.g., "2012")
             try:
-                return _as_forcing(self._data.loc[key], self._source)
+                return _as_forcing(
+                    self._data.loc[key],
+                    self._source,
+                    self._slice_extras(key, accessor="loc"),
+                )
             except KeyError:
                 raise KeyError(
                     f"'{key}' not found as column name, alias, or time index. "
@@ -479,7 +576,11 @@ class SUEWSForcing:
                 ) from None
 
         # For other types (boolean arrays, etc.), try time slicing
-        return _as_forcing(self._data.loc[key], self._source)
+        return _as_forcing(
+            self._data.loc[key],
+            self._source,
+            self._slice_extras(key, accessor="loc"),
+        )
 
     # =========================================================================
     # Validation
@@ -607,7 +708,26 @@ class SUEWSForcing:
             agg_dict
         )
 
-        return SUEWSForcing(resampled, source=f"{self._source}@{freq}")
+        result = SUEWSForcing(resampled, source=f"{self._source}@{freq}")
+        if self.extras:
+            from ._load import _per_landcover_forcing_var
+
+            extras_df = self._extras_frame()
+            extras_agg = {}
+            for col in extras_df.columns:
+                extras_agg[col] = (
+                    "sum"
+                    if _per_landcover_forcing_var(col) == "wuh"
+                    else "last"
+                )
+            extras_resampled = extras_df.resample(
+                freq, closed="right", label="right"
+            ).agg(extras_agg)
+            result._extras = {
+                name: extras_resampled[name].to_numpy()
+                for name in extras_resampled.columns
+            }
+        return result
 
     def fill_gaps(self, method: str = "interpolate", **kwargs) -> "SUEWSForcing":
         """
@@ -652,7 +772,9 @@ class SUEWSForcing:
         else:
             raise ValueError(f"Unknown fill method: {method}")
 
-        return SUEWSForcing(filled, source=f"{self._source}[filled]")
+        result = SUEWSForcing(filled, source=f"{self._source}[filled]")
+        result._extras = _normalise_extras(self.extras)
+        return result
 
     # =========================================================================
     # Export

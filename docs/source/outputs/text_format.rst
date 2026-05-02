@@ -76,7 +76,7 @@ output are controlled by the ``groups`` parameter in your YAML configuration:
 
    model:
      control:
-       output_file:
+       output:
          format: txt
          freq: 3600
          groups:
@@ -185,7 +185,7 @@ Group Details
    .. note::
 
       ESTM is fully available in the current version. Include ``ESTM`` in your
-      ``output_file.groups`` configuration to enable this output.
+      ``output.groups`` configuration to enable this output.
 
    *Temperature Layers (5 layers each):*
       - **Twall1-5**: Wall temperatures (outer to inner layer)
@@ -276,7 +276,7 @@ Legacy Output Level Control
       # Equivalent to old WriteOutOption=1 (standard output)
       model:
         control:
-          output_file:
+          output:
             format: txt
             groups:
               - SUEWS

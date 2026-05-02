@@ -22,7 +22,7 @@ import warnings
 # schema-versioning.md` (Dev-label convention). Every structural PR
 # between releases bumps the dev counter instead of consuming a new
 # CalVer label.
-CURRENT_SCHEMA_VERSION = "2026.5.dev7"
+CURRENT_SCHEMA_VERSION = "2026.5.dev9"
 
 # Schema version history and descriptions.
 #
@@ -211,11 +211,48 @@ SCHEMA_VERSIONS: dict[str, str] = {
         "fixtures remain permissive."
     ),
     "2026.5.dev7": (
+        "gh#1372: structural restructure of forcing configuration. "
+        "model.control.forcing_file (str | list[str]) is moved to "
+        "model.control.forcing.file under a new ForcingControl sub-object, "
+        "creating a stable home for future forcing fields (gh#1373 "
+        "sub-hourly disaggregation; resampling policy). The "
+        "(2026.5.dev6 -> 2026.5.dev7) migration is registered in "
+        "src/supy/util/converter/yaml_upgrade.py::_HANDLERS via "
+        "_apply_forcing_subobject_restructure, which moves the value "
+        "(whether a bare string or a RefValue mapping) under the new "
+        "key. Forcing-file *content* semantics also tighten in this "
+        "label: header column names are now read (previously discarded) "
+        "and matched against the canonical forcing column set; baseline-10 "
+        "columns (iy, id, it, imin, Tair, RH, U, pres, kdown, rain) are "
+        "required; missing optional canonical columns are filled with "
+        "-999; whitelisted per-landcover columns are loaded into "
+        "SUEWSForcing.extras / ForcingData.extras: lai_<surface> for "
+        "the three vegetated surfaces (evetr, dectr, grass) only, and "
+        "wuh_<surface> (external water use) for every surface "
+        "{paved, bldgs, evetr, dectr, grass, bsoil, water}. Each "
+        "wuh_<surface> value is a depth in mm per forcing time step "
+        "(same unit as rain) applied to that surface only; xsmd remains "
+        "a bulk site-level column."
+    ),
+    "2026.5.dev8": (
+        "gh#1372 follow-up: structural restructure of output configuration. "
+        "model.control.output_file (Union[str, OutputConfig]) is moved to "
+        "model.control.output under a new OutputControl sub-object - "
+        "mirrors the ForcingControl restructure shipped in 2026.5.dev7 so "
+        "the model.control surface is uniform. The deprecated string form "
+        "(silently ignored since 2025.10.15) is dropped; the inner `path` "
+        "field is renamed to `dir` (clarifies it as a directory, parallels "
+        "the asymmetry with forcing.file). The (2026.5.dev7 -> 2026.5.dev8) "
+        "migration is registered in "
+        "src/supy/util/converter/yaml_upgrade.py::_HANDLERS via "
+        "_apply_output_subobject_restructure."
+    ),
+    "2026.5.dev9": (
         "Naming convention Rule 2 reorder for ArchetypeProperties "
         "(`.claude/rules/naming-convention.md`): physical quantity now "
         "leads, then component, then sub-class. 44 renames covering "
         "wall, roof, window, ground_floor, and internal_mass bulk "
-        "material and surface optical properties — "
+        "material and surface optical properties - "
         "wall_external_thickness -> thickness_wall_outer, "
         "wall_external_emissivity -> emissivity_wall_external, "
         "wall_outer_heat_capacity_fraction -> "
@@ -227,13 +264,13 @@ SCHEMA_VERSIONS: dict[str, str] = {
         "`outer` (xlsx col 3 + convention 'Specific tokens': outer/inner "
         "= bulk-material layer; external/internal stays for the "
         "radiative surface); (c) the `effective_` qualifier dropped on "
-        "the conductivity rows (used inconsistently — sibling density / "
+        "the conductivity rows (used inconsistently - sibling density / "
         "specific_heat_capacity rows did not carry it). Wall and roof "
         "heat-capacity distribution rows take the `fraction_*` "
         "non-physical category prefix per Rule 2. Rename table "
         "ARCHETYPEPROPERTIES_DEV6_RENAMES added in "
         "src/supy/data_model/core/field_renames.py; "
-        "(2026.5.dev6 -> 2026.5.dev7) migration registered in "
+        "(2026.5.dev8 -> 2026.5.dev9) migration registered in "
         "src/supy/util/converter/yaml_upgrade.py::_HANDLERS. Bridge "
         "DataFrame columns keep the fused PascalCase ancestry "
         "(`wallextthickness`, etc.) via the chained "

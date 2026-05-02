@@ -4,10 +4,11 @@
 model:
   control:
     tstep: 300  # 5-minute timestep
-    forcing_file: "forcing_2020.txt"
+    forcing:
+      file: "forcing_2020.txt"
     
     # Save all available output groups
-    output_file:
+    output:
       format: txt       # Traditional text files
       freq: 3600        # Hourly output
       groups:           # All available output groups

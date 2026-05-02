@@ -22,7 +22,7 @@ import warnings
 # schema-versioning.md` (Dev-label convention). Every structural PR
 # between releases bumps the dev counter instead of consuming a new
 # CalVer label.
-CURRENT_SCHEMA_VERSION = "2026.5.dev7"
+CURRENT_SCHEMA_VERSION = "2026.5.dev8"
 
 # Schema version history and descriptions.
 #
@@ -240,6 +240,20 @@ SCHEMA_VERSIONS: dict[str, str] = {
         "ARCHETYPEPROPERTIES_DEV7_TO_PASCAL map; cross-layer rename of "
         "Fortran TYPE members and Rust struct fields is Tier B/C work "
         "tracked under gh#1325 / gh#1326."
+    ),
+    "2026.5.dev8": (
+        "PR #1395 follow-through for the dev7 ArchetypeProperties rename: "
+        "the canonical rename registries now point directly at the dev7 "
+        "final field names instead of treating them as a second-stage "
+        "Pydantic-only compatibility pass. `ALL_FIELD_RENAMES`, the Rust "
+        "YAML preprocessor mirror, and the bridge DataFrame rename lookup "
+        "therefore agree on names such as thickness_wall_outer, "
+        "conductivity_wall, and fraction_wall_heat_capacity_outer. The "
+        "YAML surface is unchanged from 2026.5.dev7; the old dev6 "
+        "spellings remain accepted via ARCHETYPEPROPERTIES_DEV6_RENAMES, "
+        "RAW_YAML_FIELD_RENAMES, and Rust FIELD_COMPAT_ALIASES. The "
+        "(2026.5.dev7 -> 2026.5.dev8) migration is an identity transform "
+        "that stamps the refreshed schema label."
     ),
 }
 

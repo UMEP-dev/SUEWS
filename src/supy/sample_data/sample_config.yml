@@ -1,5 +1,5 @@
 name: sample_config
-schema_version: '2026.5.dev7'
+schema_version: '2026.5.dev8'
 description: Sample configuration built from benchmark 1a (Ward et al. 2016) model configuration
 model:
   control:

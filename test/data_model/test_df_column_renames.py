@@ -111,10 +111,11 @@ class TestArchetypePropertiesLowercasing:
     mirrors that casing so the helper works against real DataFrames."""
 
     def test_wall_external_thickness_lowercased(self):
-        # gh#1334 target is snake_case (wall_external_thickness);
-        # lowercasing the Pydantic attribute preserves the underscores.
+        # gh#1334 -> gh#1390 target is the dev7 reorder
+        # (thickness_wall_outer); lowercasing the Pydantic attribute
+        # preserves the underscores.
         assert ARCHETYPEPROPERTIES_DF_RENAMES["wallextthickness"] == (
-            "wall_external_thickness"
+            "thickness_wall_outer"
         )
 
     def test_all_keys_and_values_lowercase(self):

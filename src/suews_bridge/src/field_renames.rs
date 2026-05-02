@@ -330,8 +330,9 @@ pub const FIELD_RENAMES: &[(&str, &str)] = &[
     ("narp_emissivity_snow", "narp_emis_snow"),
 ];
 
-/// Additional compatibility aliases for the short-lived Schema 2026.5
-/// ModelPhysics shape (`net_radiation_method`, `gs_model`, ...).
+/// Additional compatibility aliases for short-lived schema-intermediate
+/// spellings (`net_radiation_method`, `WallExternalThickness`, dev6
+/// ArchetypeProperties names, ...).
 ///
 /// These are intentionally kept separate from `FIELD_RENAMES` so the
 /// Rust/Python parity lint can continue to compare the one-to-one
@@ -369,6 +370,66 @@ pub const FIELD_COMPAT_ALIASES: &[(&str, &str)] = &[
     ),
     ("RoofExternalDensity", "roofextdensity"),
     ("RoofExternalCp", "roofextcp"),
+    // Schema 2026.5.dev6 ArchetypeProperties names, before the dev7
+    // naming-convention Rule-2 reorder. These need the same Rust-side
+    // compatibility path as Python's ARCHETYPEPROPERTIES_DEV6_RENAMES
+    // because the CLI parser still reads the legacy fused bridge names.
+    ("wall_thickness", "wallthickness"),
+    ("wall_effective_conductivity", "walleffectiveconductivity"),
+    ("wall_density", "walldensity"),
+    ("wall_specific_heat_capacity", "wallcp"),
+    ("wall_external_thickness", "wallextthickness"),
+    (
+        "wall_external_effective_conductivity",
+        "wallexteffectiveconductivity",
+    ),
+    ("wall_external_density", "wallextdensity"),
+    ("wall_external_specific_heat_capacity", "wallextcp"),
+    ("wall_outer_heat_capacity_fraction", "walloutercapfrac"),
+    ("wall_external_emissivity", "wallexternalemissivity"),
+    ("wall_internal_emissivity", "wallinternalemissivity"),
+    ("wall_transmissivity", "walltransmissivity"),
+    ("wall_absorptivity", "wallabsorbtivity"),
+    ("wall_reflectivity", "wallreflectivity"),
+    ("roof_thickness", "roofthickness"),
+    ("roof_effective_conductivity", "roofeffectiveconductivity"),
+    ("roof_density", "roofdensity"),
+    ("roof_specific_heat_capacity", "roofcp"),
+    ("roof_external_thickness", "roofextthickness"),
+    (
+        "roof_external_effective_conductivity",
+        "roofexteffectiveconductivity",
+    ),
+    ("roof_external_density", "roofextdensity"),
+    ("roof_external_specific_heat_capacity", "roofextcp"),
+    ("roof_outer_heat_capacity_fraction", "roofoutercapfrac"),
+    ("roof_external_emissivity", "roofexternalemissivity"),
+    ("roof_internal_emissivity", "roofinternalemissivity"),
+    ("roof_transmissivity", "rooftransmissivity"),
+    ("roof_absorptivity", "roofabsorbtivity"),
+    ("roof_reflectivity", "roofreflectivity"),
+    ("window_thickness", "windowthickness"),
+    (
+        "window_effective_conductivity",
+        "windoweffectiveconductivity",
+    ),
+    ("window_density", "windowdensity"),
+    ("window_specific_heat_capacity", "windowcp"),
+    ("window_external_emissivity", "windowexternalemissivity"),
+    ("window_internal_emissivity", "windowinternalemissivity"),
+    ("window_transmissivity", "windowtransmissivity"),
+    ("window_absorptivity", "windowabsorbtivity"),
+    ("window_reflectivity", "windowreflectivity"),
+    ("ground_floor_thickness", "floorthickness"),
+    (
+        "ground_floor_effective_conductivity",
+        "groundflooreffectiveconductivity",
+    ),
+    ("ground_floor_density", "groundfloordensity"),
+    ("ground_floor_specific_heat_capacity", "groundfloorcp"),
+    ("internal_mass_density", "internalmassdensity"),
+    ("internal_mass_specific_heat_capacity", "internalmasscp"),
+    ("internal_mass_emissivity", "internalmassemissivity"),
     // Schema 2026.5.dev2 SnowParams intermediate (gh#1334)
     ("precip_limit", "preciplimit"),
     ("precip_limit_albedo", "preciplimitalb"),
@@ -806,6 +867,28 @@ sites:
         let snow = &root["sites"][0]["properties"]["snow"];
         assert!(snow.get("snowalbmax").is_some());
         assert!(snow.get("tempmeltfact").is_some());
+    }
+
+    #[test]
+    fn renames_archetype_dev6_keys_to_legacy() {
+        let yaml = "\
+sites:
+  - properties:
+      building_archetype:
+        wall_external_thickness: {value: 0.25}
+        wall_thickness: {value: 0.30}
+        window_absorptivity: {value: 0.01}
+        internal_mass_density: {value: 1000.0}
+";
+        let mut root: Value = from_str(yaml).unwrap();
+        normalize_field_names(&mut root).unwrap();
+
+        let arch = &root["sites"][0]["properties"]["building_archetype"];
+        assert!(arch.get("wallextthickness").is_some());
+        assert!(arch.get("wallthickness").is_some());
+        assert!(arch.get("windowabsorbtivity").is_some());
+        assert!(arch.get("internalmassdensity").is_some());
+        assert!(arch.get("wall_external_thickness").is_none());
     }
 
     #[test]

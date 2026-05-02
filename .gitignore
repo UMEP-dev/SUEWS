@@ -408,6 +408,13 @@ supy_debug*.zip
 df_forcing.pkl
 df_state_init.pkl
 supy_info.json
+
+# SUEWSSimulation.save() restart checkpoints — written to the working
+# directory as `{site_name}_SUEWS_checkpoint.json` (or
+# `SUEWS_checkpoint.json` when no site name is set). Local artefacts;
+# users keep them under their own paths.
+*_SUEWS_checkpoint.json
+SUEWS_checkpoint.json
 src/supy_driver/build_dir
 src/supy_driver/log.build
 log.build

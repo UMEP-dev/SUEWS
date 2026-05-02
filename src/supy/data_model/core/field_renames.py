@@ -157,15 +157,16 @@ DECTRPROPERTIES_RENAMES: Dict[str, str] = {
 # depends on (every final name must have exactly one reverse-lookup key).
 
 ARCHETYPEPROPERTIES_RENAMES: Dict[str, str] = {
-    # Pre-gh#1327 fused -> gh#1334 snake_case (skipping the gh#1329 intermediate)
-    "WallextThickness": "wall_external_thickness",
-    "WallextEffectiveConductivity": "wall_external_effective_conductivity",
-    "WallextDensity": "wall_external_density",
-    "WallextCp": "wall_external_specific_heat_capacity",
-    "RoofextThickness": "roof_external_thickness",
-    "RoofextEffectiveConductivity": "roof_external_effective_conductivity",
-    "RoofextDensity": "roof_external_density",
-    "RoofextCp": "roof_external_specific_heat_capacity",
+    # Pre-gh#1327 fused -> gh#1390 dev7 final names (chained through the
+    # gh#1334 snake_case and gh#1390 Rule-2 reorder layers).
+    "WallextThickness": "thickness_wall_outer",
+    "WallextEffectiveConductivity": "conductivity_wall_outer",
+    "WallextDensity": "density_wall_outer",
+    "WallextCp": "specific_heat_capacity_wall_outer",
+    "RoofextThickness": "thickness_roof_outer",
+    "RoofextEffectiveConductivity": "conductivity_roof_outer",
+    "RoofextDensity": "density_roof_outer",
+    "RoofextCp": "specific_heat_capacity_roof_outer",
     # Building metadata / geometry
     "BuildingType": "building_type",
     "BuildingName": "building_name",
@@ -178,46 +179,46 @@ ARCHETYPEPROPERTIES_RENAMES: Dict[str, str] = {
     "InternalMassArea": "internal_mass_area",
     "WWR": "window_to_wall_ratio",
     # Wall (non-ext)
-    "WallThickness": "wall_thickness",
-    "WallEffectiveConductivity": "wall_effective_conductivity",
-    "WallDensity": "wall_density",
-    "WallCp": "wall_specific_heat_capacity",
-    "WallOuterCapFrac": "wall_outer_heat_capacity_fraction",
-    "WallExternalEmissivity": "wall_external_emissivity",
-    "WallInternalEmissivity": "wall_internal_emissivity",
-    "WallTransmissivity": "wall_transmissivity",
-    "WallAbsorbtivity": "wall_absorptivity",  # spelling fix
-    "WallReflectivity": "wall_reflectivity",
+    "WallThickness": "thickness_wall",
+    "WallEffectiveConductivity": "conductivity_wall",
+    "WallDensity": "density_wall",
+    "WallCp": "specific_heat_capacity_wall",
+    "WallOuterCapFrac": "fraction_wall_heat_capacity_outer",
+    "WallExternalEmissivity": "emissivity_wall_external",
+    "WallInternalEmissivity": "emissivity_wall_internal",
+    "WallTransmissivity": "transmissivity_wall_external",
+    "WallAbsorbtivity": "absorptivity_wall_external",  # spelling fix
+    "WallReflectivity": "reflectivity_wall_external",
     # Roof (non-ext)
-    "RoofThickness": "roof_thickness",
-    "RoofEffectiveConductivity": "roof_effective_conductivity",
-    "RoofDensity": "roof_density",
-    "RoofCp": "roof_specific_heat_capacity",
-    "RoofOuterCapFrac": "roof_outer_heat_capacity_fraction",
-    "RoofExternalEmissivity": "roof_external_emissivity",
-    "RoofInternalEmissivity": "roof_internal_emissivity",
-    "RoofTransmissivity": "roof_transmissivity",
-    "RoofAbsorbtivity": "roof_absorptivity",  # spelling fix
-    "RoofReflectivity": "roof_reflectivity",
+    "RoofThickness": "thickness_roof",
+    "RoofEffectiveConductivity": "conductivity_roof",
+    "RoofDensity": "density_roof",
+    "RoofCp": "specific_heat_capacity_roof",
+    "RoofOuterCapFrac": "fraction_roof_heat_capacity_outer",
+    "RoofExternalEmissivity": "emissivity_roof_external",
+    "RoofInternalEmissivity": "emissivity_roof_internal",
+    "RoofTransmissivity": "transmissivity_roof_external",
+    "RoofAbsorbtivity": "absorptivity_roof_external",  # spelling fix
+    "RoofReflectivity": "reflectivity_roof_external",
     # Ground floor (align FloorThickness with GroundFloor* siblings)
-    "FloorThickness": "ground_floor_thickness",
-    "GroundFloorEffectiveConductivity": "ground_floor_effective_conductivity",
-    "GroundFloorDensity": "ground_floor_density",
-    "GroundFloorCp": "ground_floor_specific_heat_capacity",
+    "FloorThickness": "thickness_ground_floor",
+    "GroundFloorEffectiveConductivity": "conductivity_ground_floor",
+    "GroundFloorDensity": "density_ground_floor",
+    "GroundFloorCp": "specific_heat_capacity_ground_floor",
     # Window
-    "WindowThickness": "window_thickness",
-    "WindowEffectiveConductivity": "window_effective_conductivity",
-    "WindowDensity": "window_density",
-    "WindowCp": "window_specific_heat_capacity",
-    "WindowExternalEmissivity": "window_external_emissivity",
-    "WindowInternalEmissivity": "window_internal_emissivity",
-    "WindowTransmissivity": "window_transmissivity",
-    "WindowAbsorbtivity": "window_absorptivity",  # spelling fix
-    "WindowReflectivity": "window_reflectivity",
+    "WindowThickness": "thickness_window",
+    "WindowEffectiveConductivity": "conductivity_window",
+    "WindowDensity": "density_window",
+    "WindowCp": "specific_heat_capacity_window",
+    "WindowExternalEmissivity": "emissivity_window_external",
+    "WindowInternalEmissivity": "emissivity_window_internal",
+    "WindowTransmissivity": "transmissivity_window_external",
+    "WindowAbsorbtivity": "absorptivity_window_external",  # spelling fix
+    "WindowReflectivity": "reflectivity_window_external",
     # Internal mass
-    "InternalMassDensity": "internal_mass_density",
-    "InternalMassCp": "internal_mass_specific_heat_capacity",
-    "InternalMassEmissivity": "internal_mass_emissivity",
+    "InternalMassDensity": "density_internal_mass",
+    "InternalMassCp": "specific_heat_capacity_internal_mass",
+    "InternalMassEmissivity": "emissivity_internal_mass",
     # HVAC / hot water. `water_tank_water_volume` unified into
     # `hot_water_tank_volume` — same fluid, tank is just the storage
     # component of the hot-water subsystem (see StebbsProperties below).
@@ -238,14 +239,14 @@ ARCHETYPEPROPERTIES_RENAMES: Dict[str, str] = {
 # load with a DeprecationWarning.
 
 ARCHETYPEPROPERTIES_PASCAL_RENAMES: Dict[str, str] = {
-    "WallExternalThickness": "wall_external_thickness",
-    "WallExternalEffectiveConductivity": "wall_external_effective_conductivity",
-    "WallExternalDensity": "wall_external_density",
-    "WallExternalCp": "wall_external_specific_heat_capacity",
-    "RoofExternalThickness": "roof_external_thickness",
-    "RoofExternalEffectiveConductivity": "roof_external_effective_conductivity",
-    "RoofExternalDensity": "roof_external_density",
-    "RoofExternalCp": "roof_external_specific_heat_capacity",
+    "WallExternalThickness": "thickness_wall_outer",
+    "WallExternalEffectiveConductivity": "conductivity_wall_outer",
+    "WallExternalDensity": "density_wall_outer",
+    "WallExternalCp": "specific_heat_capacity_wall_outer",
+    "RoofExternalThickness": "thickness_roof_outer",
+    "RoofExternalEffectiveConductivity": "conductivity_roof_outer",
+    "RoofExternalDensity": "density_roof_outer",
+    "RoofExternalCp": "specific_heat_capacity_roof_outer",
 }
 
 # Schema 2026.5.dev3 `water_tank_water_volume` -> unified `hot_water_tank_volume`
@@ -278,9 +279,12 @@ ARCHETYPEPROPERTIES_DEV3_RENAMES: Dict[str, str] = {
 # the front (`wall_outer_heat_capacity_fraction` ->
 # `fraction_wall_heat_capacity_outer`).
 #
-# NOT spread into ALL_FIELD_RENAMES — keeping the one-to-one invariant;
-# the ArchetypeProperties Pydantic shim runs this after the main dict
-# so dev6 YAMLs still load with a DeprecationWarning.
+# Applied directly by the ArchetypeProperties Pydantic shim so users on
+# the dev6 spelling still load with a DeprecationWarning. The dev7 values
+# also flow into the canonical maps above (their literal values were
+# updated in lockstep with this delta) so ALL_FIELD_RENAMES, the Rust
+# YAML preprocessor mirror, and the bridge DataFrame column lookup all
+# point at the current dev7 final names.
 
 ARCHETYPEPROPERTIES_DEV6_RENAMES: Dict[str, str] = {
     # -- Walls --
@@ -339,33 +343,15 @@ ARCHETYPEPROPERTIES_DEV6_RENAMES: Dict[str, str] = {
 }
 
 
-# Chained reverse map: dev7 final name -> PascalCase legacy column name.
+# Reverse map: dev7 final name -> PascalCase legacy column name.
 # Used by ArchetypeProperties._ARCHETYPE_LEGACY_COL_NAMES so the Fortran/Rust
 # bridge (keyed on the fused lowercased PascalCase, e.g. `wallextthickness`)
-# still resolves from the dev7 Pydantic field name. Composes through
-# ARCHETYPEPROPERTIES_DEV6_RENAMES (dev7 -> dev6) and the base
-# {dev6: PascalCase} reverse map. Pre-computed at module import so the
-# ClassVar definition stays a single dict literal.
-def _build_archetype_dev7_to_pascal() -> Dict[str, str]:
-    base_reverse: Dict[str, str] = {
-        new: old for old, new in ARCHETYPEPROPERTIES_RENAMES.items()
-    }
-    pascal_reverse: Dict[str, str] = {
-        new: old for old, new in ARCHETYPEPROPERTIES_PASCAL_RENAMES.items()
-    }
-    chain: Dict[str, str] = {}
-    for old_dev6, new_dev7 in ARCHETYPEPROPERTIES_DEV6_RENAMES.items():
-        # Walk dev7 -> dev6 -> PascalCase (preferring the canonical
-        # ARCHETYPEPROPERTIES_RENAMES path; fall back to the gh#1329 PASCAL
-        # intermediates, then to the dev6 name itself if no PascalCase
-        # ancestry exists).
-        chain[new_dev7] = base_reverse.get(
-            old_dev6, pascal_reverse.get(old_dev6, old_dev6)
-        )
-    return chain
-
-
-ARCHETYPEPROPERTIES_DEV7_TO_PASCAL: Dict[str, str] = _build_archetype_dev7_to_pascal()
+# still resolves from the dev7 Pydantic field name. The canonical
+# ARCHETYPEPROPERTIES_RENAMES values are dev7 final names, so this is just
+# its inverse.
+ARCHETYPEPROPERTIES_DEV7_TO_PASCAL: Dict[str, str] = {
+    new: old for old, new in ARCHETYPEPROPERTIES_RENAMES.items()
+}
 
 # -- StebbsProperties (site.py) ----------------------------------------------
 #

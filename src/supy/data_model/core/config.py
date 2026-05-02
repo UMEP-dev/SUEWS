@@ -203,54 +203,54 @@ class SUEWSConfig(BaseModel):
 
     # Class-level constant for STEBBS validation parameters
     STEBBS_REQUIRED_PARAMS: ClassVar[List[str]] = [
-        "wall_internal_convection_coefficient",
-        "internal_mass_convection_coefficient",
-        "floor_internal_convection_coefficient",
-        "window_internal_convection_coefficient",
-        "wall_external_convection_coefficient",
-        "window_external_convection_coefficient",
+        "convection_coefficient_wall_internal",
+        "convection_coefficient_internal_mass",
+        "convection_coefficient_ground_floor_internal",
+        "convection_coefficient_window_internal",
+        "convection_coefficient_wall_external",
+        "convection_coefficient_window_external",
         "ground_depth",
-        "external_ground_conductivity",
-        "metabolism_threshold",
-        "latent_sensible_ratio",
-        "daylight_control",
-        "lighting_illuminance_threshold",
-        "appliance_profile",
+        "conductivity_ground_external",
+        "threshold_metabolism",
+        "ratio_latent_sensible",
+        "control_daylight",
+        "threshold_lighting_illuminance",
+        "profile_appliance",
         "lighting_power_density",
-        "heating_system_efficiency",
-        "max_cooling_power",
-        "cooling_system_cop",
+        "efficiency_air_heating_system",
+        "power_air_cooling_max",
+        "efficiency_air_cooling_system",
         "ventilation_rate",
-        "initial_outdoor_temperature",
-        "initial_indoor_temperature",
-        "annual_mean_air_temperature",
+        "temperature_outdoor_initial",
+        "temperature_indoor_initial",
+        "temperature_air_annual_mean",
         "month_mean_air_temperature_diffmax",
-        "hot_water_tank_wall_thickness",
-        "mains_water_temperature",
-        "hot_water_tank_surface_area",
-        "hot_water_heating_setpoint_temperature",
-        "hot_water_tank_wall_emissivity",
-        "hot_water_vessel_wall_thickness",
-        "hot_water_volume",
-        "hot_water_surface_area",
-        "hot_water_flow_rate",
-        "hot_water_flow_profile",
-        "hot_water_specific_heat_capacity",
-        "hot_water_tank_specific_heat_capacity",
-        "hot_water_vessel_specific_heat_capacity",
-        "hot_water_density",
-        "hot_water_tank_wall_density",
-        "hot_water_vessel_density",
+        "thickness_hot_water_tank_wall",
+        "temperature_water_mains",
+        "area_hot_water_tank_surface",
+        "temperature_water_heating_setpoint",
+        "emissivity_hot_water_tank_wall",
+        "thickness_hot_water_vessel_wall",
+        "volume_hot_water",
+        "area_hot_water_surface",
+        "rate_hot_water_flow",
+        "profile_hot_water_flow",
+        "specific_heat_capacity_hot_water",
+        "specific_heat_capacity_hot_water_tank",
+        "specific_heat_capacity_hot_water_vessel",
+        "density_hot_water",
+        "density_hot_water_tank_wall",
+        "density_hot_water_vessel",
         "hot_water_tank_building_wall_view_factor",
         "hot_water_tank_internal_mass_view_factor",
-        "hot_water_tank_wall_conductivity",
-        "hot_water_tank_internal_wall_convection_coefficient",
-        "hot_water_tank_external_wall_convection_coefficient",
-        "hot_water_vessel_wall_conductivity",
-        "hot_water_vessel_internal_wall_convection_coefficient",
-        "hot_water_vessel_external_wall_convection_coefficient",
-        "hot_water_vessel_wall_emissivity",
-        "hot_water_heating_efficiency",
+        "conductivity_hot_water_tank_wall",
+        "convection_coefficient_hot_water_tank_wall_internal",
+        "convection_coefficient_hot_water_tank_wall_external",
+        "conductivity_hot_water_vessel_wall",
+        "convection_coefficient_hot_water_vessel_wall_internal",
+        "convection_coefficient_hot_water_vessel_wall_external",
+        "emissivity_hot_water_vessel_wall",
+        "efficiency_water_heating",
     ]
 
     ARCHETYPE_REQUIRED_PARAMS: ClassVar[List[str]] = [
@@ -1651,8 +1651,8 @@ class SUEWSConfig(BaseModel):
 
         # Window parameter lists
         window_params_stebbs = [
-            "window_internal_convection_coefficient",
-            "window_external_convection_coefficient",
+            "convection_coefficient_window_internal",
+            "convection_coefficient_window_external",
         ]
         window_params_bldgarc = [
             "thickness_window",
@@ -1668,8 +1668,8 @@ class SUEWSConfig(BaseModel):
 
         # Wall parameter lists for ratio_window_to_wall == 1.0
         wall_params_stebbs = [
-            "wall_external_convection_coefficient",
-            "wall_internal_convection_coefficient",
+            "convection_coefficient_wall_external",
+            "convection_coefficient_wall_internal",
             ]
         wall_params_bldgarc = [
             "emissivity_wall_external",
@@ -1702,14 +1702,14 @@ class SUEWSConfig(BaseModel):
         ]
 
         # Daylight control parameter groups
-        daylightcontrol = getattr(stebbs, "daylight_control", None)
+        daylightcontrol = getattr(stebbs, "control_daylight", None)
         daylightcontrol_val = _unwrap_value(daylightcontrol) if daylightcontrol is not None else None
         try:
             daylightcontrol_val = int(daylightcontrol_val)
         except (TypeError, ValueError):
             daylightcontrol_val = None
 
-        daylightcontrol_params_stebbs = ["lighting_illuminance_threshold"]
+        daylightcontrol_params_stebbs = ["threshold_lighting_illuminance"]
 
         # Determine which params to require based on WWR
         if wwr_val == 0.0:

@@ -149,16 +149,21 @@ class TestRegistryIntegrity:
 class TestNewNamesAccepted:
     @pytest.mark.parametrize("model_cls, renames", _RENAMED_CLASSES)
     def test_new_names_resolve_to_attributes(self, model_cls, renames):
-        # ArchetypeProperties has downstream dev-cycle rename passes. Accept
-        # either a direct Pydantic field or a key that chains to one.
-        downstream_chain = (
-            {
+        # ArchetypeProperties and StebbsProperties have downstream
+        # dev-cycle rename passes. Accept either a direct Pydantic field
+        # or a key that chains to one.
+        from supy.data_model.core.field_renames import (
+            STEBBSPROPERTIES_DEV8_RENAMES,
+        )
+        if model_cls.__name__ == "ArchetypeProperties":
+            downstream_chain = {
                 **ARCHETYPEPROPERTIES_DEV6_RENAMES,
                 **ARCHETYPEPROPERTIES_DEV7_RENAMES,
             }
-            if model_cls.__name__ == "ArchetypeProperties"
-            else {}
-        )
+        elif model_cls.__name__ == "StebbsProperties":
+            downstream_chain = dict(STEBBSPROPERTIES_DEV8_RENAMES)
+        else:
+            downstream_chain = {}
         for new_name in renames.values():
             field_name = new_name
             seen = {field_name}
@@ -262,7 +267,11 @@ class TestBackwardCompat:
         assert _unwrap(archetype.fraction_wall_heat_capacity_outer) == 0.6
 
     def test_stebbs_properties_pascal_names_populate_new_attributes(self):
-        """Full StebbsProperties PascalCase -> snake_case (gh#1334)."""
+        """Full StebbsProperties PascalCase -> current snake_case naming.
+
+        Chains gh#1334 (PascalCase -> snake_case) plus the dev8 -> dev9
+        Rule 2 reorder for StebbsProperties.
+        """
         with warnings.catch_warnings():
             warnings.simplefilter("ignore", DeprecationWarning)
             stebbs = StebbsProperties(
@@ -271,10 +280,16 @@ class TestBackwardCompat:
                 MonthMeanAirTemperature_diffmax=14.0,
                 HotWaterTankWallEmissivity=0.85,
             )
-        assert _unwrap(stebbs.hot_water_volume) == 0.25
-        assert _unwrap(stebbs.cooling_system_cop) == 3.5
+        # dev8 hot_water_volume -> dev9 volume_hot_water (Rule 2).
+        assert _unwrap(stebbs.volume_hot_water) == 0.25
+        # dev8 cooling_system_cop -> dev9 efficiency_air_cooling_system
+        # (Rule 2 + air_ qualifier; COP folded into efficiency).
+        assert _unwrap(stebbs.efficiency_air_cooling_system) == 3.5
+        # month_mean_air_temperature_diffmax kept (compound noun, deferred).
         assert _unwrap(stebbs.month_mean_air_temperature_diffmax) == 14.0
-        assert _unwrap(stebbs.hot_water_tank_wall_emissivity) == 0.85
+        # dev8 hot_water_tank_wall_emissivity -> dev9
+        # emissivity_hot_water_tank_wall (Rule 2: quantity leads).
+        assert _unwrap(stebbs.emissivity_hot_water_tank_wall) == 0.85
 
 
 class TestDeprecationWarnings:

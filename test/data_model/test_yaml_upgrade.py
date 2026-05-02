@@ -477,7 +477,7 @@ class TestPreSetpointSplitMigration:
         assert payload["model"]["physics"]["setpoint"]["value"] == 2
         # #1240 rename lives under the stebbs sub-tree, not building_archetype.
         assert "DeepSoilTemperature" not in stebbs
-        assert "annual_mean_air_temperature" in stebbs
+        assert "temperature_air_annual_mean" in stebbs
         # #1242 drop: DHW volume bounds removed from the schema entirely.
         assert "MinimumVolumeOfDHWinUse" not in stebbs
         assert "MaximumVolumeOfDHWinUse" not in stebbs

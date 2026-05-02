@@ -31,6 +31,7 @@ from ...data_model.core.field_renames import (
     ARCHETYPEPROPERTIES_DEV6_RENAMES,
     ARCHETYPEPROPERTIES_DEV7_RENAMES,
     STEBBSPROPERTIES_DEV3_RENAMES,
+    STEBBSPROPERTIES_DEV8_RENAMES,
     STEBBSPROPERTIES_RENAMES,
     SURFACEPROPERTIES_RENAMES,
     VEGETATEDSURFACEPROPERTIES_RENAMES,
@@ -421,6 +422,17 @@ _ARCH_RENAMES_DEV7_TO_DEV8: tuple[tuple[str, str], ...] = tuple(
     ARCHETYPEPROPERTIES_DEV7_RENAMES.items()
 )
 
+# Schema 2026.5.dev8 -> 2026.5.dev9: apply Rule 2 of the SUEWS naming
+# convention to StebbsProperties. 44 renames covering convection
+# coefficients (Rule 2 reorder + floor -> ground_floor), ground (Rule 2
+# reorder), metabolism / occupant / daylight / lighting controls
+# (non-physical category prefixes lead), HVAC + setpoint air_/water_
+# qualifier, initial / climatology temperatures (temperature_* leads),
+# and the full hot-water subsystem (tank + vessel + bulk fluid).
+_STEBBS_RENAMES_DEV8_TO_DEV9: tuple[tuple[str, str], ...] = tuple(
+    STEBBSPROPERTIES_DEV8_RENAMES.items()
+)
+
 
 # ---------------------------------------------------------------------------
 # Handlers
@@ -694,15 +706,48 @@ def _apply_arch_namespace_hvac_renames(cfg: dict) -> None:
             _rename_field(arch, old, new)
 
 
+def _apply_stebbs_rule2_renames(cfg: dict) -> None:
+    """Apply dev8 -> dev9 Rule 2 reorder for StebbsProperties (44 renames).
+
+    Reorders convection coefficients, ground conductivity, hot-water
+    subsystem (tank + vessel + bulk fluid), HVAC + setpoint
+    air_/water_ qualifier, initial / climatology temperatures, and
+    profile / control / threshold / ratio fields with their non-physical
+    category prefixes leading.
+
+    Also renames ``floor`` -> ``ground_floor`` for
+    ``floor_internal_convection_coefficient`` per the convention's
+    Specific tokens rule (`ground_floor` is two words).
+
+    Each rename flows through ``_rename_field`` so a per-field log line
+    is emitted (``TestNoSilentFieldDrops`` enforces this).
+    """
+    for stebbs in _walk_site_container(cfg, "stebbs"):
+        for old, new in _STEBBS_RENAMES_DEV8_TO_DEV9:
+            _rename_field(stebbs, old, new)
+
+
+def _migrate_2026_5_dev8_to_current(cfg: dict) -> dict:
+    """Upgrade 2026.5.dev8-shaped YAMLs to the current schema.
+
+    Applies the dev8 -> dev9 Rule 2 reorder for StebbsProperties
+    (44 renames). Pure key reorder; no data transformation.
+    """
+    cfg = _strip_internal_only_fields(cfg)
+    _apply_stebbs_rule2_renames(cfg)
+    return cfg
+
+
 def _migrate_2026_5_dev7_to_current(cfg: dict) -> dict:
     """Upgrade 2026.5.dev7-shaped YAMLs to the current schema.
 
-    Applies the dev7 -> dev8 archetype namespace + HVAC + setpoint
-    reorder on ArchetypeProperties (16 renames). Pure key reorder; no
-    data transformation.
+    Chains the dev7 -> dev8 archetype namespace + HVAC reorder
+    (16 renames) and the dev8 -> dev9 StebbsProperties Rule 2 reorder
+    (44 renames). Both pure key reorders; no data transformation.
     """
     cfg = _strip_internal_only_fields(cfg)
     _apply_arch_namespace_hvac_renames(cfg)
+    _apply_stebbs_rule2_renames(cfg)
     return cfg
 
 
@@ -710,13 +755,15 @@ def _migrate_2026_5_dev6_to_current(cfg: dict) -> dict:
     """Upgrade 2026.5.dev6-shaped YAMLs to the current schema.
 
     Chains the dev6 -> dev7 Rule 2 reorder for ArchetypeProperties
-    bulk-material and surface optical fields (44 renames) and the
-    dev7 -> dev8 archetype namespace + HVAC reorder (16 renames). Both
-    are pure key reorders; no data transformation.
+    bulk-material and surface optical fields (44 renames), the
+    dev7 -> dev8 archetype namespace + HVAC reorder (16 renames), and
+    the dev8 -> dev9 StebbsProperties Rule 2 reorder (44 renames). All
+    pure key reorders; no data transformation.
     """
     cfg = _strip_internal_only_fields(cfg)
     _apply_arch_rule2_renames(cfg)
     _apply_arch_namespace_hvac_renames(cfg)
+    _apply_stebbs_rule2_renames(cfg)
     return cfg
 
 
@@ -725,12 +772,14 @@ def _migrate_2026_5_dev3_to_current(cfg: dict) -> dict:
 
     Chains the gh#1334 follow-through hot-water unification (14 renames),
     the dev6 -> dev7 ArchetypeProperties Rule 2 reorder (44 renames),
-    and the dev7 -> dev8 archetype namespace + HVAC reorder (16 renames).
+    the dev7 -> dev8 archetype namespace + HVAC reorder (16 renames),
+    and the dev8 -> dev9 StebbsProperties Rule 2 reorder (44 renames).
     """
     cfg = _strip_internal_only_fields(cfg)
     _apply_hot_water_unification_renames(cfg)
     _apply_arch_rule2_renames(cfg)
     _apply_arch_namespace_hvac_renames(cfg)
+    _apply_stebbs_rule2_renames(cfg)
     return cfg
 
 
@@ -740,14 +789,16 @@ def _migrate_2026_5_dev2_to_current(cfg: dict) -> dict:
     Chains gh#1334 (dev2 -> dev3: retires STEBBS PascalCase; 124 renames),
     the gh#1334 follow-through (dev3 -> dev4: hot-water prefix
     unification; 14 renames), the dev6 -> dev7 Rule 2 reorder
-    (44 renames), and the dev7 -> dev8 archetype namespace + HVAC reorder
-    (16 renames).
+    (44 renames), the dev7 -> dev8 archetype namespace + HVAC reorder
+    (16 renames), and the dev8 -> dev9 StebbsProperties Rule 2 reorder
+    (44 renames).
     """
     cfg = _strip_internal_only_fields(cfg)
     _apply_stebbs_snake_renames(cfg)
     _apply_hot_water_unification_renames(cfg)
     _apply_arch_rule2_renames(cfg)
     _apply_arch_namespace_hvac_renames(cfg)
+    _apply_stebbs_rule2_renames(cfg)
     return cfg
 
 
@@ -793,6 +844,7 @@ def _migrate_2026_5_to_current(cfg: dict) -> dict:
     _apply_hot_water_unification_renames(cfg)
     _apply_arch_rule2_renames(cfg)
     _apply_arch_namespace_hvac_renames(cfg)
+    _apply_stebbs_rule2_renames(cfg)
     return cfg
 
 
@@ -801,8 +853,9 @@ def _migrate_2026_5_dev1_to_current(cfg: dict) -> dict:
 
     Chains the Cat 2+3 ModelPhysics suffix/abbreviation rewrite (gh#1321),
     the gh#1334 STEBBS/Snow snake_case sweep, the gh#1334 follow-through
-    hot-water prefix unification, the dev6 -> dev7 Rule 2 reorder, and
-    the dev7 -> dev8 archetype namespace + HVAC reorder.
+    hot-water prefix unification, the dev6 -> dev7 Rule 2 reorder, the
+    dev7 -> dev8 archetype namespace + HVAC reorder, and the dev8 -> dev9
+    StebbsProperties Rule 2 reorder.
     """
     cfg = _strip_internal_only_fields(cfg)
     _apply_modelphysics_suffix_renames(cfg)
@@ -810,6 +863,7 @@ def _migrate_2026_5_dev1_to_current(cfg: dict) -> dict:
     _apply_hot_water_unification_renames(cfg)
     _apply_arch_rule2_renames(cfg)
     _apply_arch_namespace_hvac_renames(cfg)
+    _apply_stebbs_rule2_renames(cfg)
     return cfg
 
 
@@ -874,6 +928,7 @@ _HANDLERS: dict[tuple[str, str], Handler] = {
     # + dev7 -> dev8 archetype namespace + HVAC reorder).
     # dev5 -> dev6 was an accept-only validator tightening with no YAML
     # rewrite; dev6 -> dev7 and dev7 -> dev8 are pure key renames.
+    ("2026.5.dev8", CURRENT_SCHEMA_VERSION): _migrate_2026_5_dev8_to_current,
     ("2026.5.dev7", CURRENT_SCHEMA_VERSION): _migrate_2026_5_dev7_to_current,
     ("2026.5.dev6", CURRENT_SCHEMA_VERSION): _migrate_2026_5_dev6_to_current,
     ("2026.5.dev5", CURRENT_SCHEMA_VERSION): _migrate_2026_5_dev6_to_current,

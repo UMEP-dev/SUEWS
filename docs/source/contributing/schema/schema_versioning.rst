@@ -170,7 +170,25 @@ The lineage below mirrors ``SCHEMA_VERSIONS`` in
 the schema that shipped with it via
 ``supy.util.converter.yaml_upgrade._PACKAGE_TO_SCHEMA``.
 
-**Schema 2026.5.dev7** (current; in-development dev bump; naming convention Rule 2)
+**Schema 2026.5.dev8** (current; in-development dev bump; registry canonicalisation)
+   Follow-through for the ``2026.5.dev7`` ArchetypeProperties rename:
+   the canonical Python and Rust rename registries now point directly
+   at the dev7 final field names, rather than treating those names as a
+   Pydantic-only second-stage compatibility pass. This keeps
+   ``ALL_FIELD_RENAMES``, the Rust YAML preprocessor mirror, and the
+   bridge DataFrame rename lookup aligned on names such as
+   ``thickness_wall_outer``, ``conductivity_wall``, and
+   ``fraction_wall_heat_capacity_outer``.
+
+   The YAML surface is unchanged from ``2026.5.dev7``. The previous
+   dev6 spellings remain accepted through
+   ``ARCHETYPEPROPERTIES_DEV6_RENAMES``, ``RAW_YAML_FIELD_RENAMES``,
+   and Rust ``FIELD_COMPAT_ALIASES``. The
+   ``(2026.5.dev7 -> 2026.5.dev8)`` migration is therefore an identity
+   transform that strips internal helper fields and stamps the refreshed
+   schema label.
+
+**Schema 2026.5.dev7** (in-development dev bump; naming convention Rule 2)
    ``ArchetypeProperties`` bulk-material and surface optical fields
    reordered to ``<quantity>_<component>_<sub_class>`` per Rule 2 of
    the SUEWS naming convention

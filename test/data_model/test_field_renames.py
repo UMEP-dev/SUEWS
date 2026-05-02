@@ -294,13 +294,14 @@ class TestDeprecationWarnings:
             (SnowParams, "crwmax", "water_holding_capacity_max", 0.2),
             (EvetrProperties, "evetreeh", "height_evergreen_tree", 12.0),
             (DectrProperties, "capmax_dec", "capacity_max_deciduous", 90.0),
-            # gh#1334: fused + PascalCase legacy -> snake_case final.
-            (ArchetypeProperties, "WallextThickness", "wall_external_thickness", 0.25),
-            (ArchetypeProperties, "RoofextDensity", "roof_external_density", 1900.0),
-            (ArchetypeProperties, "WallThickness", "wall_thickness", 0.3),
+            # gh#1334 fused + PascalCase legacy + gh#1390 dev7 reorder ->
+            # current final names.
+            (ArchetypeProperties, "WallextThickness", "thickness_wall_outer", 0.25),
+            (ArchetypeProperties, "RoofextDensity", "density_roof_outer", 1900.0),
+            (ArchetypeProperties, "WallThickness", "thickness_wall", 0.3),
             (ArchetypeProperties, "BuildingType", "building_type", "Office"),
             (ArchetypeProperties, "WWR", "window_to_wall_ratio", 0.4),
-            (ArchetypeProperties, "WallOuterCapFrac", "wall_outer_heat_capacity_fraction", 0.6),
+            (ArchetypeProperties, "WallOuterCapFrac", "fraction_wall_heat_capacity_outer", 0.6),
             (StebbsProperties, "DHWWaterVolume", "hot_water_volume", 0.25),
             (StebbsProperties, "CoolingSystemCOP", "cooling_system_cop", 3.5),
             (StebbsProperties, "MonthMeanAirTemperature_diffmax", "month_mean_air_temperature_diffmax", 14.0),

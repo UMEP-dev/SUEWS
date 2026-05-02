@@ -672,6 +672,17 @@ def _migrate_2026_5_dev6_to_current(cfg: dict) -> dict:
     return cfg
 
 
+def _migrate_2026_5_dev7_to_current(cfg: dict) -> dict:
+    """Upgrade 2026.5.dev7-shaped YAMLs to the current schema.
+
+    dev8 canonicalises the Python/Rust rename registries so they point
+    directly at the dev7 final ArchetypeProperties names. The YAML
+    surface itself is unchanged, so this handler only strips internal
+    helper fields and stamps the new schema label.
+    """
+    return _strip_internal_only_fields(cfg)
+
+
 def _migrate_2026_5_dev3_to_current(cfg: dict) -> dict:
     """Upgrade 2026.5.dev3-shaped YAMLs to the current schema.
 
@@ -807,14 +818,17 @@ _HANDLERS: dict[tuple[str, str], Handler] = {
     ("2025.12", "2026.4"): _migrate_2025_12_to_2026_4,
     # Intermediate stops at 2026.5 (callers pinning Category 1 only).
     ("2026.4", "2026.5"): _migrate_2026_4_to_2026_5,
-    # Chains to the current schema (2026.5.dev7: Cat 1 snake_case sweep
+    # Chains to the current schema (2026.5.dev8: Cat 1 snake_case sweep
     # + Cat 5 STEBBS ext rename + Cat 2+3 ModelPhysics suffix drop
     # + gh#1334 STEBBS/Snow snake_case + gh#1334 follow-through hot-water
     # prefix unification + gh#972 accept-only nested physics sub-options
     # + gh#1333 site-level completeness validator tightening
-    # + dev6 -> dev7 ArchetypeProperties Rule 2 reorder).
+    # + dev6 -> dev7 ArchetypeProperties Rule 2 reorder
+    # + dev7 -> dev8 canonical registry refresh).
     # dev5 -> dev6 was an accept-only validator tightening with no YAML
-    # rewrite; dev6 -> dev7 is a pure key rename.
+    # rewrite; dev6 -> dev7 is a pure key rename; dev7 -> dev8 is an
+    # identity migration because the YAML surface is unchanged.
+    ("2026.5.dev7", CURRENT_SCHEMA_VERSION): _migrate_2026_5_dev7_to_current,
     ("2026.5.dev6", CURRENT_SCHEMA_VERSION): _migrate_2026_5_dev6_to_current,
     ("2026.5.dev5", CURRENT_SCHEMA_VERSION): _migrate_2026_5_dev6_to_current,
     ("2026.5.dev4", CURRENT_SCHEMA_VERSION): _migrate_2026_5_dev6_to_current,

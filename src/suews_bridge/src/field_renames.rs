@@ -94,24 +94,25 @@ pub const FIELD_RENAMES: &[(&str, &str)] = &[
     ("porosity_max_deciduous", "pormax_dec"),
     ("capacity_max_deciduous", "capmax_dec"),
     ("capacity_min_deciduous", "capmin_dec"),
-    // ArchetypeProperties (62) — gh#1334 snake_case targets mapped back to
-    // the user's legacy YAML spelling. Pre-gh#1327 fused Wallext/Roofext
-    // cluster is preserved here; the gh#1329 PascalCase intermediate
-    // (WallExternalThickness etc.) lives in FIELD_COMPAT_ALIASES below.
-    ("wall_external_thickness", "WallextThickness"),
+    // ArchetypeProperties (62) — current dev7 snake_case targets (gh#1390
+    // Rule-2 reorder applied) mapped back to the user's legacy YAML
+    // spelling. Pre-gh#1327 fused Wallext/Roofext cluster is preserved
+    // here; the gh#1329 PascalCase intermediate (WallExternalThickness
+    // etc.) lives in FIELD_COMPAT_ALIASES below.
+    ("thickness_wall_outer", "WallextThickness"),
     (
-        "wall_external_effective_conductivity",
+        "conductivity_wall_outer",
         "WallextEffectiveConductivity",
     ),
-    ("wall_external_density", "WallextDensity"),
-    ("wall_external_specific_heat_capacity", "WallextCp"),
-    ("roof_external_thickness", "RoofextThickness"),
+    ("density_wall_outer", "WallextDensity"),
+    ("specific_heat_capacity_wall_outer", "WallextCp"),
+    ("thickness_roof_outer", "RoofextThickness"),
     (
-        "roof_external_effective_conductivity",
+        "conductivity_roof_outer",
         "RoofextEffectiveConductivity",
     ),
-    ("roof_external_density", "RoofextDensity"),
-    ("roof_external_specific_heat_capacity", "RoofextCp"),
+    ("density_roof_outer", "RoofextDensity"),
+    ("specific_heat_capacity_roof_outer", "RoofextCp"),
     ("building_type", "BuildingType"),
     ("building_name", "BuildingName"),
     ("building_count", "BuildingCount"),
@@ -122,48 +123,48 @@ pub const FIELD_RENAMES: &[(&str, &str)] = &[
     ("internal_volume_ratio", "RatioInternalVolume"),
     ("internal_mass_area", "InternalMassArea"),
     ("window_to_wall_ratio", "WWR"),
-    ("wall_thickness", "WallThickness"),
-    ("wall_effective_conductivity", "WallEffectiveConductivity"),
-    ("wall_density", "WallDensity"),
-    ("wall_specific_heat_capacity", "WallCp"),
-    ("wall_outer_heat_capacity_fraction", "WallOuterCapFrac"),
-    ("wall_external_emissivity", "WallExternalEmissivity"),
-    ("wall_internal_emissivity", "WallInternalEmissivity"),
-    ("wall_transmissivity", "WallTransmissivity"),
-    ("wall_absorptivity", "WallAbsorbtivity"),
-    ("wall_reflectivity", "WallReflectivity"),
-    ("roof_thickness", "RoofThickness"),
-    ("roof_effective_conductivity", "RoofEffectiveConductivity"),
-    ("roof_density", "RoofDensity"),
-    ("roof_specific_heat_capacity", "RoofCp"),
-    ("roof_outer_heat_capacity_fraction", "RoofOuterCapFrac"),
-    ("roof_external_emissivity", "RoofExternalEmissivity"),
-    ("roof_internal_emissivity", "RoofInternalEmissivity"),
-    ("roof_transmissivity", "RoofTransmissivity"),
-    ("roof_absorptivity", "RoofAbsorbtivity"),
-    ("roof_reflectivity", "RoofReflectivity"),
-    ("ground_floor_thickness", "FloorThickness"),
+    ("thickness_wall", "WallThickness"),
+    ("conductivity_wall", "WallEffectiveConductivity"),
+    ("density_wall", "WallDensity"),
+    ("specific_heat_capacity_wall", "WallCp"),
+    ("fraction_wall_heat_capacity_outer", "WallOuterCapFrac"),
+    ("emissivity_wall_external", "WallExternalEmissivity"),
+    ("emissivity_wall_internal", "WallInternalEmissivity"),
+    ("transmissivity_wall_external", "WallTransmissivity"),
+    ("absorptivity_wall_external", "WallAbsorbtivity"),
+    ("reflectivity_wall_external", "WallReflectivity"),
+    ("thickness_roof", "RoofThickness"),
+    ("conductivity_roof", "RoofEffectiveConductivity"),
+    ("density_roof", "RoofDensity"),
+    ("specific_heat_capacity_roof", "RoofCp"),
+    ("fraction_roof_heat_capacity_outer", "RoofOuterCapFrac"),
+    ("emissivity_roof_external", "RoofExternalEmissivity"),
+    ("emissivity_roof_internal", "RoofInternalEmissivity"),
+    ("transmissivity_roof_external", "RoofTransmissivity"),
+    ("absorptivity_roof_external", "RoofAbsorbtivity"),
+    ("reflectivity_roof_external", "RoofReflectivity"),
+    ("thickness_ground_floor", "FloorThickness"),
     (
-        "ground_floor_effective_conductivity",
+        "conductivity_ground_floor",
         "GroundFloorEffectiveConductivity",
     ),
-    ("ground_floor_density", "GroundFloorDensity"),
-    ("ground_floor_specific_heat_capacity", "GroundFloorCp"),
-    ("window_thickness", "WindowThickness"),
+    ("density_ground_floor", "GroundFloorDensity"),
+    ("specific_heat_capacity_ground_floor", "GroundFloorCp"),
+    ("thickness_window", "WindowThickness"),
     (
-        "window_effective_conductivity",
+        "conductivity_window",
         "WindowEffectiveConductivity",
     ),
-    ("window_density", "WindowDensity"),
-    ("window_specific_heat_capacity", "WindowCp"),
-    ("window_external_emissivity", "WindowExternalEmissivity"),
-    ("window_internal_emissivity", "WindowInternalEmissivity"),
-    ("window_transmissivity", "WindowTransmissivity"),
-    ("window_absorptivity", "WindowAbsorbtivity"),
-    ("window_reflectivity", "WindowReflectivity"),
-    ("internal_mass_density", "InternalMassDensity"),
-    ("internal_mass_specific_heat_capacity", "InternalMassCp"),
-    ("internal_mass_emissivity", "InternalMassEmissivity"),
+    ("density_window", "WindowDensity"),
+    ("specific_heat_capacity_window", "WindowCp"),
+    ("emissivity_window_external", "WindowExternalEmissivity"),
+    ("emissivity_window_internal", "WindowInternalEmissivity"),
+    ("transmissivity_window_external", "WindowTransmissivity"),
+    ("absorptivity_window_external", "WindowAbsorbtivity"),
+    ("reflectivity_window_external", "WindowReflectivity"),
+    ("density_internal_mass", "InternalMassDensity"),
+    ("specific_heat_capacity_internal_mass", "InternalMassCp"),
+    ("emissivity_internal_mass", "InternalMassEmissivity"),
     ("max_heating_power", "MaxHeatingPower"),
     ("hot_water_tank_volume", "WaterTankWaterVolume"),
     (
@@ -329,8 +330,9 @@ pub const FIELD_RENAMES: &[(&str, &str)] = &[
     ("narp_emissivity_snow", "narp_emis_snow"),
 ];
 
-/// Additional compatibility aliases for the short-lived Schema 2026.5
-/// ModelPhysics shape (`net_radiation_method`, `gs_model`, ...).
+/// Additional compatibility aliases for short-lived schema-intermediate
+/// spellings (`net_radiation_method`, `WallExternalThickness`, dev6
+/// ArchetypeProperties names, ...).
 ///
 /// These are intentionally kept separate from `FIELD_RENAMES` so the
 /// Rust/Python parity lint can continue to compare the one-to-one
@@ -368,6 +370,66 @@ pub const FIELD_COMPAT_ALIASES: &[(&str, &str)] = &[
     ),
     ("RoofExternalDensity", "roofextdensity"),
     ("RoofExternalCp", "roofextcp"),
+    // Schema 2026.5.dev6 ArchetypeProperties names, before the dev7
+    // naming-convention Rule-2 reorder. These need the same Rust-side
+    // compatibility path as Python's ARCHETYPEPROPERTIES_DEV6_RENAMES
+    // because the CLI parser still reads the legacy fused bridge names.
+    ("wall_thickness", "wallthickness"),
+    ("wall_effective_conductivity", "walleffectiveconductivity"),
+    ("wall_density", "walldensity"),
+    ("wall_specific_heat_capacity", "wallcp"),
+    ("wall_external_thickness", "wallextthickness"),
+    (
+        "wall_external_effective_conductivity",
+        "wallexteffectiveconductivity",
+    ),
+    ("wall_external_density", "wallextdensity"),
+    ("wall_external_specific_heat_capacity", "wallextcp"),
+    ("wall_outer_heat_capacity_fraction", "walloutercapfrac"),
+    ("wall_external_emissivity", "wallexternalemissivity"),
+    ("wall_internal_emissivity", "wallinternalemissivity"),
+    ("wall_transmissivity", "walltransmissivity"),
+    ("wall_absorptivity", "wallabsorbtivity"),
+    ("wall_reflectivity", "wallreflectivity"),
+    ("roof_thickness", "roofthickness"),
+    ("roof_effective_conductivity", "roofeffectiveconductivity"),
+    ("roof_density", "roofdensity"),
+    ("roof_specific_heat_capacity", "roofcp"),
+    ("roof_external_thickness", "roofextthickness"),
+    (
+        "roof_external_effective_conductivity",
+        "roofexteffectiveconductivity",
+    ),
+    ("roof_external_density", "roofextdensity"),
+    ("roof_external_specific_heat_capacity", "roofextcp"),
+    ("roof_outer_heat_capacity_fraction", "roofoutercapfrac"),
+    ("roof_external_emissivity", "roofexternalemissivity"),
+    ("roof_internal_emissivity", "roofinternalemissivity"),
+    ("roof_transmissivity", "rooftransmissivity"),
+    ("roof_absorptivity", "roofabsorbtivity"),
+    ("roof_reflectivity", "roofreflectivity"),
+    ("window_thickness", "windowthickness"),
+    (
+        "window_effective_conductivity",
+        "windoweffectiveconductivity",
+    ),
+    ("window_density", "windowdensity"),
+    ("window_specific_heat_capacity", "windowcp"),
+    ("window_external_emissivity", "windowexternalemissivity"),
+    ("window_internal_emissivity", "windowinternalemissivity"),
+    ("window_transmissivity", "windowtransmissivity"),
+    ("window_absorptivity", "windowabsorbtivity"),
+    ("window_reflectivity", "windowreflectivity"),
+    ("ground_floor_thickness", "floorthickness"),
+    (
+        "ground_floor_effective_conductivity",
+        "groundflooreffectiveconductivity",
+    ),
+    ("ground_floor_density", "groundfloordensity"),
+    ("ground_floor_specific_heat_capacity", "groundfloorcp"),
+    ("internal_mass_density", "internalmassdensity"),
+    ("internal_mass_specific_heat_capacity", "internalmasscp"),
+    ("internal_mass_emissivity", "internalmassemissivity"),
     // Schema 2026.5.dev2 SnowParams intermediate (gh#1334)
     ("precip_limit", "preciplimit"),
     ("precip_limit_albedo", "preciplimitalb"),
@@ -805,6 +867,28 @@ sites:
         let snow = &root["sites"][0]["properties"]["snow"];
         assert!(snow.get("snowalbmax").is_some());
         assert!(snow.get("tempmeltfact").is_some());
+    }
+
+    #[test]
+    fn renames_archetype_dev6_keys_to_legacy() {
+        let yaml = "\
+sites:
+  - properties:
+      building_archetype:
+        wall_external_thickness: {value: 0.25}
+        wall_thickness: {value: 0.30}
+        window_absorptivity: {value: 0.01}
+        internal_mass_density: {value: 1000.0}
+";
+        let mut root: Value = from_str(yaml).unwrap();
+        normalize_field_names(&mut root).unwrap();
+
+        let arch = &root["sites"][0]["properties"]["building_archetype"];
+        assert!(arch.get("wallextthickness").is_some());
+        assert!(arch.get("wallthickness").is_some());
+        assert!(arch.get("windowabsorbtivity").is_some());
+        assert!(arch.get("internalmassdensity").is_some());
+        assert!(arch.get("wall_external_thickness").is_none());
     }
 
     #[test]

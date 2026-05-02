@@ -22,7 +22,7 @@ import warnings
 # schema-versioning.md` (Dev-label convention). Every structural PR
 # between releases bumps the dev counter instead of consuming a new
 # CalVer label.
-CURRENT_SCHEMA_VERSION = "2026.5.dev7"
+CURRENT_SCHEMA_VERSION = "2026.5.dev9"
 
 # Schema version history and descriptions.
 #
@@ -209,6 +209,56 @@ SCHEMA_VERSIONS: dict[str, str] = {
         "on `_yaml_path` and explicit user declaration in the raw YAML "
         "so programmatic constructions and default_factory-only sparse "
         "fixtures remain permissive."
+    ),
+    "2026.5.dev9": (
+        "Naming convention Rule 2 reorder for StebbsProperties (Tier 2 "
+        "of the SUEWS naming convention pass): 44 renames covering "
+        "convection coefficients (wall_internal_convection_coefficient "
+        "-> convection_coefficient_wall_internal etc., plus "
+        "floor -> ground_floor per Specific tokens), ground "
+        "(external_ground_conductivity -> conductivity_ground_external), "
+        "metabolism / occupant / daylight / lighting controls "
+        "(non-physical category prefixes lead: threshold_metabolism, "
+        "ratio_latent_sensible, control_daylight, "
+        "threshold_lighting_illuminance), HVAC + setpoint air_/water_ "
+        "qualifier (max_cooling_power -> power_air_cooling_max, "
+        "heating_system_efficiency -> efficiency_air_heating_system, "
+        "cooling_system_cop -> efficiency_air_cooling_system, "
+        "hot_water_heating_setpoint_temperature -> "
+        "temperature_water_heating_setpoint, hot_water_heating_efficiency "
+        "-> efficiency_water_heating), initial / climatology temperatures "
+        "(temperature_outdoor_initial, temperature_indoor_initial, "
+        "temperature_air_annual_mean), and the full hot-water subsystem "
+        "(tank + vessel + bulk fluid). Profile fields take the "
+        "profile_* category prefix. Compound nouns kept intact: "
+        "ground_depth, ventilation_rate, lighting_power_density, "
+        "month_mean_air_temperature_diffmax. Rename table "
+        "STEBBSPROPERTIES_DEV8_RENAMES added in "
+        "src/supy/data_model/core/field_renames.py; "
+        "(2026.5.dev8 -> 2026.5.dev9) migration registered in "
+        "src/supy/util/converter/yaml_upgrade.py::_HANDLERS. Bridge "
+        "DataFrame columns keep the fused PascalCase ancestry via the "
+        "chained STEBBSPROPERTIES_DEV9_TO_PASCAL map."
+    ),
+    "2026.5.dev8": (
+        "Naming convention Tier 1 completion on ArchetypeProperties: "
+        "archetype_* namespace prefix (Rule 2 exception) for fields "
+        "describing the archetype as a whole (building_name -> "
+        "archetype_name, building_height -> archetype_height, etc.); "
+        "geometry Rule 2 reorder (footprint_area -> area_footprint, "
+        "wall_external_area -> area_wall_external, internal_volume_ratio "
+        "-> ratio_internal_mass_volume, etc.); HVAC + setpoint "
+        "air_/water_ qualifier per the convention's 'Specific tokens' "
+        "section (heating_setpoint_temperature -> "
+        "temperature_air_heating_setpoint, max_heating_power -> "
+        "power_air_heating_max, maximum_hot_water_heating_power -> "
+        "power_water_heating_max, hot_water_tank_volume -> "
+        "volume_water_tank, etc.). Setpoint profiles take the profile_* "
+        "non-physical category prefix. 16 renames total. Rename table "
+        "ARCHETYPEPROPERTIES_DEV7_RENAMES added in "
+        "src/supy/data_model/core/field_renames.py; "
+        "(2026.5.dev7 -> 2026.5.dev8) migration registered in "
+        "src/supy/util/converter/yaml_upgrade.py::_HANDLERS."
     ),
     "2026.5.dev7": (
         "Naming convention Rule 2 reorder for ArchetypeProperties "

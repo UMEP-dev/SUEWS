@@ -329,8 +329,8 @@ pub const FIELD_RENAMES: &[(&str, &str)] = &[
     ("narp_emissivity_snow", "narp_emis_snow"),
 ];
 
-/// Additional compatibility aliases for the short-lived Schema 2026.5
-/// ModelPhysics shape (`net_radiation_method`, `gs_model`, ...).
+/// Additional compatibility aliases for short-lived dev-cycle schema shapes
+/// and current names that must fold directly to bridge-era keys.
 ///
 /// These are intentionally kept separate from `FIELD_RENAMES` so the
 /// Rust/Python parity lint can continue to compare the one-to-one
@@ -368,6 +368,85 @@ pub const FIELD_COMPAT_ALIASES: &[(&str, &str)] = &[
     ),
     ("RoofExternalDensity", "roofextdensity"),
     ("RoofExternalCp", "roofextcp"),
+    // Schema 2026.5.dev7 ArchetypeProperties Rule-2 final names. Python
+    // reaches these through the Pydantic rename chain; the Rust CLI bypasses
+    // that shim, so current YAML needs a direct alias to the bridge keys.
+    ("thickness_wall", "WallThickness"),
+    ("conductivity_wall", "WallEffectiveConductivity"),
+    ("density_wall", "WallDensity"),
+    ("specific_heat_capacity_wall", "WallCp"),
+    ("thickness_wall_outer", "WallextThickness"),
+    ("conductivity_wall_outer", "WallextEffectiveConductivity"),
+    ("density_wall_outer", "WallextDensity"),
+    ("specific_heat_capacity_wall_outer", "WallextCp"),
+    ("fraction_wall_heat_capacity_outer", "WallOuterCapFrac"),
+    ("emissivity_wall_external", "WallExternalEmissivity"),
+    ("emissivity_wall_internal", "WallInternalEmissivity"),
+    ("transmissivity_wall_external", "WallTransmissivity"),
+    ("absorptivity_wall_external", "WallAbsorbtivity"),
+    ("reflectivity_wall_external", "WallReflectivity"),
+    ("thickness_roof", "RoofThickness"),
+    ("conductivity_roof", "RoofEffectiveConductivity"),
+    ("density_roof", "RoofDensity"),
+    ("specific_heat_capacity_roof", "RoofCp"),
+    ("thickness_roof_outer", "RoofextThickness"),
+    ("conductivity_roof_outer", "RoofextEffectiveConductivity"),
+    ("density_roof_outer", "RoofextDensity"),
+    ("specific_heat_capacity_roof_outer", "RoofextCp"),
+    ("fraction_roof_heat_capacity_outer", "RoofOuterCapFrac"),
+    ("emissivity_roof_external", "RoofExternalEmissivity"),
+    ("emissivity_roof_internal", "RoofInternalEmissivity"),
+    ("transmissivity_roof_external", "RoofTransmissivity"),
+    ("absorptivity_roof_external", "RoofAbsorbtivity"),
+    ("reflectivity_roof_external", "RoofReflectivity"),
+    ("thickness_window", "WindowThickness"),
+    ("conductivity_window", "WindowEffectiveConductivity"),
+    ("density_window", "WindowDensity"),
+    ("specific_heat_capacity_window", "WindowCp"),
+    ("emissivity_window_external", "WindowExternalEmissivity"),
+    ("emissivity_window_internal", "WindowInternalEmissivity"),
+    ("transmissivity_window_external", "WindowTransmissivity"),
+    ("absorptivity_window_external", "WindowAbsorbtivity"),
+    ("reflectivity_window_external", "WindowReflectivity"),
+    ("thickness_ground_floor", "FloorThickness"),
+    (
+        "conductivity_ground_floor",
+        "GroundFloorEffectiveConductivity",
+    ),
+    ("density_ground_floor", "GroundFloorDensity"),
+    ("specific_heat_capacity_ground_floor", "GroundFloorCp"),
+    ("density_internal_mass", "InternalMassDensity"),
+    ("specific_heat_capacity_internal_mass", "InternalMassCp"),
+    ("emissivity_internal_mass", "InternalMassEmissivity"),
+    // Schema 2026.5.dev8 ArchetypeProperties final names.
+    ("archetype_name", "BuildingName"),
+    ("archetype_building_count", "BuildingCount"),
+    ("archetype_height", "stebbs_Height"),
+    ("area_footprint", "FootprintArea"),
+    ("area_wall_external", "WallExternalArea"),
+    ("area_internal_mass", "InternalMassArea"),
+    ("ratio_internal_mass_volume", "RatioInternalVolume"),
+    ("ratio_window_to_wall", "WWR"),
+    ("power_air_heating_max", "MaxHeatingPower"),
+    ("power_water_heating_max", "MaximumHotWaterHeatingPower"),
+    ("volume_water_tank", "WaterTankWaterVolume"),
+    (
+        "temperature_air_heating_setpoint",
+        "HeatingSetpointTemperature",
+    ),
+    (
+        "temperature_air_cooling_setpoint",
+        "CoolingSetpointTemperature",
+    ),
+    (
+        "profile_temperature_air_heating_setpoint",
+        "HeatingSetpointTemperatureProfile",
+    ),
+    (
+        "profile_temperature_air_cooling_setpoint",
+        "CoolingSetpointTemperatureProfile",
+    ),
+    ("profile_metabolism", "MetabolismProfile"),
     // Schema 2026.5.dev2 SnowParams intermediate (gh#1334)
     ("precip_limit", "preciplimit"),
     ("precip_limit_albedo", "preciplimitalb"),
@@ -375,6 +454,65 @@ pub const FIELD_COMPAT_ALIASES: &[(&str, &str)] = &[
     ("snow_limit_paved", "snowlimpaved"),
     ("temp_melt_factor", "tempmeltfact"),
     ("rad_melt_factor", "radmeltfact"),
+    // Schema 2026.5.dev9 StebbsProperties Rule-2 final names. Python
+    // reaches these through the Pydantic rename chain; the Rust CLI bypasses
+    // that shim, so current YAML needs a direct alias to the bridge keys.
+    ("convection_coefficient_wall_internal", "wallinternalconvectioncoefficient"),
+    ("convection_coefficient_roof_internal", "roofinternalconvectioncoefficient"),
+    ("convection_coefficient_internal_mass", "internalmassconvectioncoefficient"),
+    ("convection_coefficient_ground_floor_internal", "floorinternalconvectioncoefficient"),
+    ("convection_coefficient_window_internal", "windowinternalconvectioncoefficient"),
+    ("convection_coefficient_wall_external", "wallexternalconvectioncoefficient"),
+    ("convection_coefficient_roof_external", "roofexternalconvectioncoefficient"),
+    ("convection_coefficient_window_external", "windowexternalconvectioncoefficient"),
+    ("conductivity_ground_external", "externalgroundconductivity"),
+    ("threshold_metabolism", "metabolismthreshold"),
+    ("ratio_latent_sensible", "latentsensibleratio"),
+    ("control_daylight", "daylightcontrol"),
+    ("threshold_lighting_illuminance", "lightingilluminancethreshold"),
+    ("efficiency_air_heating_system", "heatingsystemefficiency"),
+    ("power_air_cooling_max", "maxcoolingpower"),
+    ("efficiency_air_cooling_system", "coolingsystemcop"),
+    ("temperature_outdoor_initial", "initialoutdoortemperature"),
+    ("temperature_indoor_initial", "initialindoortemperature"),
+    ("temperature_air_annual_mean", "annualmeanairtemperature"),
+    ("thickness_hot_water_tank_wall", "watertankwallthickness"),
+    ("temperature_water_mains", "mainswatertemperature"),
+    ("area_hot_water_tank_surface", "watertanksurfacearea"),
+    ("temperature_water_heating_setpoint", "hotwaterheatingsetpointtemperature"),
+    ("emissivity_hot_water_tank_wall", "hotwatertankwallemissivity"),
+    ("conductivity_hot_water_tank_wall", "hotwatertankwallconductivity"),
+    ("density_hot_water_tank_wall", "hotwatertankwalldensity"),
+    ("specific_heat_capacity_hot_water_tank", "hotwatertankspecificheatcapacity"),
+    (
+        "convection_coefficient_hot_water_tank_wall_internal",
+        "hotwatertankinternalwallconvectioncoefficient",
+    ),
+    (
+        "convection_coefficient_hot_water_tank_wall_external",
+        "hotwatertankexternalwallconvectioncoefficient",
+    ),
+    ("thickness_hot_water_vessel_wall", "dhwvesselwallthickness"),
+    ("conductivity_hot_water_vessel_wall", "dhwvesselwallconductivity"),
+    ("density_hot_water_vessel", "dhwvesseldensity"),
+    ("specific_heat_capacity_hot_water_vessel", "dhwvesselspecificheatcapacity"),
+    (
+        "convection_coefficient_hot_water_vessel_wall_internal",
+        "dhwvesselinternalwallconvectioncoefficient",
+    ),
+    (
+        "convection_coefficient_hot_water_vessel_wall_external",
+        "dhwvesselexternalwallconvectioncoefficient",
+    ),
+    ("emissivity_hot_water_vessel_wall", "dhwvesselwallemissivity"),
+    ("volume_hot_water", "dhwwatervolume"),
+    ("area_hot_water_surface", "dhwsurfacearea"),
+    ("rate_hot_water_flow", "hotwaterflowrate"),
+    ("density_hot_water", "dhwdensity"),
+    ("specific_heat_capacity_hot_water", "dhwspecificheatcapacity"),
+    ("efficiency_water_heating", "hotwaterheatingefficiency"),
+    ("profile_hot_water_flow", "hotwaterflowprofile"),
+    ("profile_appliance", "applianceprofile"),
 ];
 
 /// Family registry for nested `model.physics` sub-options (gh#972).
@@ -756,6 +894,36 @@ mod tests {
         let paved = &root["sites"][0]["properties"]["land_cover"]["paved"];
         assert!(paved.get("soildepth").is_some());
         assert!(paved.get("soil_depth").is_none());
+    }
+
+    #[test]
+    fn renames_current_archetype_keys_to_bridge_names() {
+        let yaml = "\
+sites:
+  - properties:
+      building_archetype:
+        thickness_wall: {value: 0.3}
+        thickness_wall_outer: {value: 0.2}
+        conductivity_wall_outer: {value: 1.1}
+        emissivity_wall_external: {value: 0.85}
+        fraction_roof_heat_capacity_outer: {value: 0.55}
+        ratio_window_to_wall: {value: 0.4}
+        temperature_air_heating_setpoint: {value: 21.0}
+";
+        let mut root: Value = from_str(yaml).unwrap();
+        normalize_field_names(&mut root).unwrap();
+        let archetype = &root["sites"][0]["properties"]["building_archetype"];
+
+        assert!(archetype.get("WallThickness").is_some());
+        assert!(archetype.get("WallextThickness").is_some());
+        assert!(archetype.get("WallextEffectiveConductivity").is_some());
+        assert!(archetype.get("WallExternalEmissivity").is_some());
+        assert!(archetype.get("RoofOuterCapFrac").is_some());
+        assert!(archetype.get("WWR").is_some());
+        assert!(archetype.get("HeatingSetpointTemperature").is_some());
+        assert!(archetype.get("thickness_wall").is_none());
+        assert!(archetype.get("thickness_wall_outer").is_none());
+        assert!(archetype.get("ratio_window_to_wall").is_none());
     }
 
     #[test]

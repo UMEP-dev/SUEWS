@@ -425,14 +425,14 @@ class TestPre2026_1ReleaseTagMigration:
         # CONSTANT=0 so the user's scalars drive the run).
         payload = yaml.safe_load(upgraded.read_text(encoding="utf-8"))
         arch = payload["sites"][0]["properties"]["building_archetype"]
-        assert isinstance(arch.get("heating_setpoint_temperature"), dict)
-        assert arch["heating_setpoint_temperature"].get("value") is not None
-        assert isinstance(arch.get("cooling_setpoint_temperature"), dict)
-        assert arch["cooling_setpoint_temperature"].get("value") is not None
-        assert "heating_setpoint_temperature_profile" not in arch
-        assert "cooling_setpoint_temperature_profile" not in arch
+        assert isinstance(arch.get("temperature_air_heating_setpoint"), dict)
+        assert arch["temperature_air_heating_setpoint"].get("value") is not None
+        assert isinstance(arch.get("temperature_air_cooling_setpoint"), dict)
+        assert arch["temperature_air_cooling_setpoint"].get("value") is not None
+        assert "profile_temperature_air_heating_setpoint" not in arch
+        assert "profile_temperature_air_cooling_setpoint" not in arch
         physics = payload.get("model", {}).get("physics", {})
-        setpointmethod = physics.get("setpointmethod")
+        setpointmethod = physics.get("setpoint")
         # Either absent (use enum default CONSTANT=0) or explicitly 0/1.
         if setpointmethod is not None:
             value = (
@@ -468,16 +468,16 @@ class TestPreSetpointSplitMigration:
         assert payload["schema_version"] == CURRENT_SCHEMA_VERSION
         arch = payload["sites"][0]["properties"]["building_archetype"]
         stebbs = payload["sites"][0]["properties"]["stebbs"]
-        assert "heating_setpoint_temperature_profile" in arch
-        assert "cooling_setpoint_temperature_profile" in arch
-        assert isinstance(arch["heating_setpoint_temperature"], dict)
-        assert "value" in arch["heating_setpoint_temperature"]
+        assert "profile_temperature_air_heating_setpoint" in arch
+        assert "profile_temperature_air_cooling_setpoint" in arch
+        assert isinstance(arch["temperature_air_heating_setpoint"], dict)
+        assert "value" in arch["temperature_air_heating_setpoint"]
         # Profile intent is preserved by defaulting setpoint to SCHEDULED=2
         # (key was renamed from fused `setpointmethod` to `setpoint` in #1321)
         assert payload["model"]["physics"]["setpoint"]["value"] == 2
         # #1240 rename lives under the stebbs sub-tree, not building_archetype.
         assert "DeepSoilTemperature" not in stebbs
-        assert "annual_mean_air_temperature" in stebbs
+        assert "temperature_air_annual_mean" in stebbs
         # #1242 drop: DHW volume bounds removed from the schema entirely.
         assert "MinimumVolumeOfDHWinUse" not in stebbs
         assert "MaximumVolumeOfDHWinUse" not in stebbs

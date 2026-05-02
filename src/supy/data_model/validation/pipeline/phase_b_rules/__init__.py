@@ -29,7 +29,7 @@ DEFAULT_RULE_ORDER = (
     "irrigation",
     "archetype_properties",
     "occupants_metabolism",
-    "daylight_control",
+    "control_daylight",
     "stebbs_props",
     "setpoint",
     "rcmethod",

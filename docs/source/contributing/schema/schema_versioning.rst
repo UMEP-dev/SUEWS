@@ -170,7 +170,87 @@ The lineage below mirrors ``SCHEMA_VERSIONS`` in
 the schema that shipped with it via
 ``supy.util.converter.yaml_upgrade._PACKAGE_TO_SCHEMA``.
 
-**Schema 2026.5.dev7** (current; in-development dev bump; naming convention Rule 2)
+**Schema 2026.5.dev9** (current; in-development dev bump; naming convention Tier 2 — StebbsProperties)
+   Apply Rule 2 of the SUEWS naming convention to
+   ``StebbsProperties``. 44 renames, mirroring the Tier 1 pattern on
+   ``ArchetypeProperties``:
+
+   * Rule 2 reorder — physical quantity leads:
+     ``wall_internal_convection_coefficient`` ->
+     ``convection_coefficient_wall_internal``,
+     ``external_ground_conductivity`` ->
+     ``conductivity_ground_external``,
+     ``hot_water_tank_wall_thickness`` ->
+     ``thickness_hot_water_tank_wall``, etc.
+   * ``floor`` -> ``ground_floor`` per the convention's "Specific
+     tokens" rule (``ground_floor`` is two words):
+     ``floor_internal_convection_coefficient`` ->
+     ``convection_coefficient_ground_floor_internal``.
+   * HVAC + setpoint air_/water_ qualifier (mirrors the dev7 -> dev8
+     ArchetypeProperties pass): ``heating_system_efficiency`` ->
+     ``efficiency_air_heating_system``, ``max_cooling_power`` ->
+     ``power_air_cooling_max``, ``cooling_system_cop`` ->
+     ``efficiency_air_cooling_system``,
+     ``hot_water_heating_setpoint_temperature`` ->
+     ``temperature_water_heating_setpoint``,
+     ``hot_water_heating_efficiency`` -> ``efficiency_water_heating``.
+
+   Non-physical category prefixes lead for non-quantity fields
+   (``threshold_metabolism``, ``ratio_latent_sensible``,
+   ``control_daylight``, ``threshold_lighting_illuminance``,
+   ``profile_appliance``, ``profile_hot_water_flow``). Initial /
+   climatology temperatures take the ``temperature_*`` quantity prefix
+   and trailing ``initial`` / ``annual_mean`` sub-class
+   (``temperature_outdoor_initial``, ``temperature_indoor_initial``,
+   ``temperature_air_annual_mean``).
+
+   Deliberately kept intact (compound nouns / idiomatic terms-of-art):
+   ``ground_depth``, ``ventilation_rate``, ``lighting_power_density``,
+   ``month_mean_air_temperature_diffmax`` (the last needs a physics
+   doc check before renaming).
+
+   Rename table ``STEBBSPROPERTIES_DEV8_RENAMES`` added in
+   ``src/supy/data_model/core/field_renames.py``;
+   ``(2026.5.dev8 -> 2026.5.dev9)`` migration registered in
+   ``src/supy/util/converter/yaml_upgrade.py::_HANDLERS`` and chained
+   through every aggregate handler down to ``2025.12 -> current``.
+   Bridge DataFrame columns keep the fused PascalCase ancestry via
+   the chained ``STEBBSPROPERTIES_DEV9_TO_PASCAL`` map.
+
+**Schema 2026.5.dev8** (in-development dev bump; naming convention Tier 1 completion)
+   Completes the Tier 1 ``ArchetypeProperties`` rename pass. Three
+   orthogonal moves embedded in the rename:
+
+   * ``archetype_*`` namespace prefix (Rule 2 exception) for fields
+     describing the archetype as a whole — ``building_name`` ->
+     ``archetype_name``, ``building_count`` ->
+     ``archetype_building_count``, ``building_height`` ->
+     ``archetype_height``.
+   * Geometry Rule 2 reorder — physical quantity leads:
+     ``footprint_area`` -> ``area_footprint``, ``wall_external_area``
+     -> ``area_wall_external``, ``internal_mass_area`` ->
+     ``area_internal_mass``. Fraction-style fields take the
+     ``ratio_*`` non-physical category prefix:
+     ``internal_volume_ratio`` -> ``ratio_internal_mass_volume``,
+     ``window_to_wall_ratio`` -> ``ratio_window_to_wall``.
+   * HVAC + setpoint ``air_`` / ``water_`` qualifier per the
+     convention's "Specific tokens" section: every heating/cooling
+     power and setpoint disambiguates between air-system and DHW-system
+     control. ``max_heating_power`` -> ``power_air_heating_max``,
+     ``maximum_hot_water_heating_power`` -> ``power_water_heating_max``,
+     ``heating_setpoint_temperature`` ->
+     ``temperature_air_heating_setpoint``, ``hot_water_tank_volume``
+     -> ``volume_water_tank``. Setpoint profiles take the ``profile_*``
+     non-physical category prefix
+     (``metabolism_profile`` -> ``profile_metabolism``).
+
+   16 renames total. Rename table ``ARCHETYPEPROPERTIES_DEV7_RENAMES``
+   added in ``src/supy/data_model/core/field_renames.py``;
+   ``(2026.5.dev7 -> 2026.5.dev8)`` migration registered in
+   ``src/supy/util/converter/yaml_upgrade.py::_HANDLERS`` and chained
+   through every aggregate handler down to ``2025.12 -> current``.
+
+**Schema 2026.5.dev7** (in-development dev bump; naming convention Rule 2)
    ``ArchetypeProperties`` bulk-material and surface optical fields
    reordered to ``<quantity>_<component>_<sub_class>`` per Rule 2 of
    the SUEWS naming convention

@@ -180,10 +180,145 @@ The sections below summarise what users see change between schemas.
 The authoritative lineage (including release-tag to schema mapping)
 lives in :ref:`schema_version_history`.
 
+Upgrading to Schema 2026.5.dev9 (naming convention Tier 2 — StebbsProperties Rule 2 reorder)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Schema ``2026.5.dev9`` is the current in-development shape. Mirrors
+the Tier 1 reorder pattern across ``StebbsProperties`` — 44 fields
+under ``sites[].properties.stebbs.*`` reordered so the physical
+quantity leads, with the air_/water_ HVAC qualifier added and
+non-physical fields taking their category prefix.
+
+Highlights:
+
+- **Convection coefficients** (Rule 2 reorder; ``floor`` ->
+  ``ground_floor`` per Specific tokens):
+
+  - ``wall_internal_convection_coefficient`` ->
+    ``convection_coefficient_wall_internal``
+  - ``floor_internal_convection_coefficient`` ->
+    ``convection_coefficient_ground_floor_internal``
+  - all ``hot_water_tank_*_convection_coefficient`` and
+    ``hot_water_vessel_*_convection_coefficient`` siblings move to
+    ``convection_coefficient_hot_water_{tank,vessel}_wall_{internal,external}``.
+
+- **HVAC + setpoint air_/water_ qualifier**:
+
+  - ``heating_system_efficiency`` -> ``efficiency_air_heating_system``
+  - ``max_cooling_power`` -> ``power_air_cooling_max``
+  - ``cooling_system_cop`` -> ``efficiency_air_cooling_system``
+  - ``hot_water_heating_setpoint_temperature`` ->
+    ``temperature_water_heating_setpoint``
+  - ``hot_water_heating_efficiency`` -> ``efficiency_water_heating``
+
+- **Hot water subsystem** (Rule 2 reorder): ``hot_water_volume`` ->
+  ``volume_hot_water``, ``hot_water_density`` -> ``density_hot_water``,
+  ``hot_water_flow_rate`` -> ``rate_hot_water_flow``,
+  ``hot_water_specific_heat_capacity`` ->
+  ``specific_heat_capacity_hot_water``, etc.
+
+- **Non-physical category prefixes** lead for non-quantity fields:
+  ``metabolism_threshold`` -> ``threshold_metabolism``,
+  ``daylight_control`` -> ``control_daylight``,
+  ``lighting_illuminance_threshold`` ->
+  ``threshold_lighting_illuminance``, ``appliance_profile`` ->
+  ``profile_appliance``.
+
+- **Initial / climatology temperatures**:
+  ``initial_outdoor_temperature`` -> ``temperature_outdoor_initial``,
+  ``initial_indoor_temperature`` -> ``temperature_indoor_initial``,
+  ``annual_mean_air_temperature`` -> ``temperature_air_annual_mean``.
+
+Kept intact this release (compound nouns / idiomatic terms-of-art):
+``ground_depth``, ``ventilation_rate``, ``lighting_power_density``,
+``month_mean_air_temperature_diffmax``.
+
+Run the migrator to bring an existing YAML onto the new shape:
+
+.. code-block:: bash
+
+   suews schema migrate your_config.yml --target-version 2026.5.dev9
+
+Every rename is logged via ``[yaml-upgrade]   renamed 'old' ->
+'new'``. The Pydantic backward-compat shim still accepts the dev8
+names (and earlier dev-cycle names back through PascalCase) at load
+time, emitting a ``DeprecationWarning``; YAMLs that round-trip
+through the migrator come out in the new spellings and no longer
+warn. Bridge DataFrame columns are unchanged — the new
+``STEBBSPROPERTIES_DEV9_TO_PASCAL`` map composes dev9 -> dev8 ->
+PascalCase so the legacy fused column key (``dhwwatervolume``,
+``coolingsystemcop``, etc.) is still produced from the new Pydantic
+field name.
+
+Upgrading to Schema 2026.5.dev8 (naming convention Tier 1 completion for ArchetypeProperties)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Schema ``2026.5.dev8`` was the prior in-development shape. 16
+``ArchetypeProperties`` field names under
+``sites[].properties.building_archetype.*`` have been further updated
+beyond the dev7 Rule 2 reorder. Three orthogonal moves embedded in
+the rename:
+
+- **archetype_* namespace prefix** (Rule 2 exception) for fields
+  describing the archetype as a whole:
+
+  - ``building_name`` -> ``archetype_name``
+  - ``building_count`` -> ``archetype_building_count``
+  - ``building_height`` -> ``archetype_height``
+
+- **Geometry Rule 2 reorder** — physical quantity leads:
+
+  - ``footprint_area`` -> ``area_footprint``
+  - ``wall_external_area`` -> ``area_wall_external``
+  - ``internal_mass_area`` -> ``area_internal_mass``
+
+  Fraction-style fields take the ``ratio_*`` non-physical category
+  prefix:
+
+  - ``internal_volume_ratio`` -> ``ratio_internal_mass_volume``
+  - ``window_to_wall_ratio`` -> ``ratio_window_to_wall``
+
+- **HVAC + setpoint air_/water_ qualifier** per the convention's
+  "Specific tokens" section — every heating/cooling power and setpoint
+  disambiguates between air-system and DHW-system control:
+
+  - ``max_heating_power`` -> ``power_air_heating_max``
+  - ``maximum_hot_water_heating_power`` -> ``power_water_heating_max``
+  - ``heating_setpoint_temperature`` ->
+    ``temperature_air_heating_setpoint``
+  - ``cooling_setpoint_temperature`` ->
+    ``temperature_air_cooling_setpoint``
+  - ``hot_water_tank_volume`` -> ``volume_water_tank``
+
+  Setpoint profiles take the ``profile_*`` non-physical category
+  prefix:
+
+  - ``heating_setpoint_temperature_profile`` ->
+    ``profile_temperature_air_heating_setpoint``
+  - ``cooling_setpoint_temperature_profile`` ->
+    ``profile_temperature_air_cooling_setpoint``
+  - ``metabolism_profile`` -> ``profile_metabolism``
+
+Run the migrator to bring an existing YAML onto the new shape:
+
+.. code-block:: bash
+
+   suews schema migrate your_config.yml --target-version 2026.5.dev8
+
+Every rename is logged via ``[yaml-upgrade]   renamed 'old' ->
+'new'``. The Pydantic backward-compat shim still accepts the dev7
+names at load time, emitting a ``DeprecationWarning``; YAMLs that
+round-trip through the migrator come out in the new spellings and no
+longer warn. Cross-layer (Fortran TYPE members, Rust struct fields,
+DataFrame column keys) is unchanged — the bridge map composes through
+the chained ``ARCHETYPEPROPERTIES_DEV7_TO_PASCAL`` lookup so the
+legacy fused column key is still produced from the new Pydantic field
+name.
+
 Upgrading to Schema 2026.5.dev7 (naming convention Rule 2 reorder for ArchetypeProperties)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Schema ``2026.5.dev7`` is the current in-development shape. 44
+Schema ``2026.5.dev7`` was the prior in-development shape. 44
 ``ArchetypeProperties`` field names under
 ``sites[].properties.building_archetype.*`` have been reordered to
 follow Rule 2 of the SUEWS naming convention

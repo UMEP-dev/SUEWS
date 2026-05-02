@@ -1145,7 +1145,7 @@ def adjust_surface_temperatures(
             initial_states[surface_type] = surf
 
         # Update STEBBS temperature parameter values to avg_temp
-        for key in ("initial_outdoor_temperature", "initial_indoor_temperature",):
+        for key in ("temperature_outdoor_initial", "temperature_indoor_initial",):
             if key in stebbs and isinstance(stebbs[key], dict):
                 old_val = stebbs[key].get("value")
                 if old_val != avg_temp:
@@ -1182,16 +1182,16 @@ def adjust_surface_temperatures(
                             )
                         )
 
-        # Update STEBBS annual_mean_air_temperature using annual mean from CRU data
+        # Update STEBBS temperature_air_annual_mean using annual mean from CRU data
         annual_temp = get_mean_annual_air_temperature(lat, lng)
-        if annual_temp is not None and "annual_mean_air_temperature" in stebbs:
-            if isinstance(stebbs["annual_mean_air_temperature"], dict):
-                old_annual_val = stebbs["annual_mean_air_temperature"].get("value")
+        if annual_temp is not None and "temperature_air_annual_mean" in stebbs:
+            if isinstance(stebbs["temperature_air_annual_mean"], dict):
+                old_annual_val = stebbs["temperature_air_annual_mean"].get("value")
                 if old_annual_val != annual_temp:
-                    stebbs["annual_mean_air_temperature"]["value"] = annual_temp
+                    stebbs["temperature_air_annual_mean"]["value"] = annual_temp
                     adjustments.append(
                         ScientificAdjustment(
-                            parameter="stebbs.annual_mean_air_temperature",
+                            parameter="stebbs.temperature_air_annual_mean",
                             site_index=site_idx,
                             site_gridid=site_gridid,
                             old_value=str(old_annual_val),
@@ -1995,9 +1995,9 @@ def adjust_model_option_rcmethod(yaml_data: dict) -> Tuple[dict, List[Scientific
 
 def adjust_model_option_setpointmethod(yaml_data: dict) -> Tuple[dict, List[ScientificAdjustment]]:
     """
-    If setpoint == 0 or 1, set all entries in heating_setpoint_temperature_profile and
-    cooling_setpoint_temperature_profile in building_archetype to null for all sites.
-    If setpoint == 2, set heating_setpoint_temperature and cooling_setpoint_temperature
+    If setpoint == 0 or 1, set all entries in profile_temperature_air_heating_setpoint and
+    profile_temperature_air_cooling_setpoint in building_archetype to null for all sites.
+    If setpoint == 2, set temperature_air_heating_setpoint and temperature_air_cooling_setpoint
     in building_archetype to null for all sites (they are not needed).
     """
     adjustments = []
@@ -2011,7 +2011,7 @@ def adjust_model_option_setpointmethod(yaml_data: dict) -> Tuple[dict, List[Scie
         site_gridid = get_site_gridid(site)
 
         if setpointmethod == 2:
-            for param in ["heating_setpoint_temperature", "cooling_setpoint_temperature"]:
+            for param in ["temperature_air_heating_setpoint", "temperature_air_cooling_setpoint"]:
                 entry = building_archetype.get(param)
                 if isinstance(entry, dict):
                     old_val = entry.get("value")
@@ -2028,7 +2028,7 @@ def adjust_model_option_setpointmethod(yaml_data: dict) -> Tuple[dict, List[Scie
                             )
                         )
         elif setpointmethod == 0 or setpointmethod == 1:
-            for prof_param in ["heating_setpoint_temperature_profile", "cooling_setpoint_temperature_profile"]:
+            for prof_param in ["profile_temperature_air_heating_setpoint", "profile_temperature_air_cooling_setpoint"]:
                 profile = building_archetype.get(prof_param)
                 if isinstance(profile, dict):
                     for daytype in ("working_day", "holiday"):
@@ -2096,13 +2096,13 @@ def adjust_model_option_stebbsmethod(yaml_data: dict) -> Tuple[dict, List[Scient
 
             site_gridid = get_site_gridid(site)
 
-            wwr_entry = bldgarc.get("window_to_wall_ratio", {})
+            wwr_entry = bldgarc.get("ratio_window_to_wall", {})
             wwr = wwr_entry.get("value") if isinstance(wwr_entry, dict) else wwr_entry
 
             if wwr == 0.0:
                 window_params_stebbs = [
-                    "window_internal_convection_coefficient",
-                    "window_external_convection_coefficient",
+                    "convection_coefficient_window_internal",
+                    "convection_coefficient_window_external",
                 ]
                 window_params_bldgarc = [
                     "thickness_window",
@@ -2155,8 +2155,8 @@ def adjust_model_option_stebbsmethod(yaml_data: dict) -> Tuple[dict, List[Scient
             elif wwr == 1.0:
                 # Nullify external wall parameters in stebbs and building_archetype
                 wall_params_stebbs = [
-                    "wall_external_convection_coefficient",
-                    "wall_internal_convection_coefficient",
+                    "convection_coefficient_wall_external",
+                    "convection_coefficient_wall_internal",
                     ]
                 wall_params_bldgarc = [
                     "emissivity_wall_external",

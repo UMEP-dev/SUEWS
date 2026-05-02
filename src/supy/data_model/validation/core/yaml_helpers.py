@@ -120,7 +120,12 @@ def get_value_safe(param_dict, param_key, default=None):
     Returns:
         The parameter value, handling both RefValue {"value": X} and plain X formats
     """
-    param = read_renamed_key(param_dict, param_key, default=default)
+    param = read_renamed_key(
+        param_dict,
+        param_key,
+        renames=RAW_YAML_FIELD_RENAMES,
+        default=default,
+    )
     if isinstance(param, Mapping) and "value" in param:
         return param["value"]  # RefValue format: {"value": 1}
     else:

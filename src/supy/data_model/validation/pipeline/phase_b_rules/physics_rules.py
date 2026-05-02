@@ -722,7 +722,7 @@ def validate_forcing_height_vs_buildings(context) -> List[ValidationResult]:
 
     - The maximum building height is defined as the largest of:
         - land_cover.bldgs.bldgh
-        - building_archetype.building_height (if stebbsmethod == 1)
+        - building_archetype.archetype_height (if stebbsmethod == 1)
         - The last non-zero value in vertical_layers.height
           (SPARTACUS top height, if enabled)
     """
@@ -783,7 +783,7 @@ def validate_forcing_height_vs_buildings(context) -> List[ValidationResult]:
         if stebbsmethod_val == 1:
             archetype = _unwrap_nested_value(props.get("building_archetype"))
             if isinstance(archetype, Mapping):
-                stebbs_height = _as_float(_unwrap_nested_value(archetype.get("building_height")))
+                stebbs_height = _as_float(_unwrap_nested_value(archetype.get("archetype_height")))
 
         # SPARTACUS heights (only if SPARTACUS is enabled via netradiationmethod)
         spartacus_top = None

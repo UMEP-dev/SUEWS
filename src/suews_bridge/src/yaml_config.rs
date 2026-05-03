@@ -2032,7 +2032,12 @@ fn read_sites_indexed<'a>(root: &'a Value, idx: usize) -> Option<&'a Value> {
 }
 
 fn read_forcing_rel(root: &Value) -> Option<String> {
-    read_string(root, &["model", "control", "forcing_file"])
+    // Prefer the new `forcing.file` (and its RefValue `.value`) shape introduced
+    // in schema 2026.5.dev7 (gh#1372); fall back to the legacy `forcing_file`
+    // (and its RefValue `.value`) so user YAMLs at either schema parse pre-migration.
+    read_string(root, &["model", "control", "forcing", "file"])
+        .or_else(|| read_string(root, &["model", "control", "forcing", "file", "value"]))
+        .or_else(|| read_string(root, &["model", "control", "forcing_file"]))
         .or_else(|| read_string(root, &["model", "control", "forcing_file", "value"]))
 }
 
@@ -2072,7 +2077,11 @@ pub fn load_run_config_from_value(root: &mut Value) -> Result<RunConfig, String>
 
     apply_state_overrides(&mut state, site_root);
 
-    let output_dir = read_string(root, &["model", "control", "output_file", "path"])
+    // Prefer the new `output.dir` shape introduced in schema 2026.5.dev8
+    // (gh#1372 follow-up); fall back to the legacy `output_file.path` so
+    // user YAMLs at either schema parse pre-migration.
+    let output_dir = read_string(root, &["model", "control", "output", "dir"])
+        .or_else(|| read_string(root, &["model", "control", "output_file", "path"]))
         .map(PathBuf::from)
         .unwrap_or_else(|| PathBuf::from("./output"));
 
@@ -2099,7 +2108,9 @@ pub fn load_run_config(path: &Path) -> Result<RunConfig, String> {
     let mut run_cfg = load_run_config_from_value(&mut root)?;
 
     let forcing_rel = read_forcing_rel(&root)
-        .ok_or_else(|| "`model.control.forcing_file` is missing".to_string())?;
+        .ok_or_else(|| {
+            "`model.control.forcing.file` is missing (also accepts legacy `model.control.forcing_file`)".to_string()
+        })?;
     let base_dir = path.parent().unwrap_or_else(|| Path::new("."));
     run_cfg.forcing_path = base_dir.join(forcing_rel);
     // Resolve output_dir relative to config file location

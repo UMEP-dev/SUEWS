@@ -33,7 +33,7 @@ from copy import deepcopy
 from pathlib import Path
 import warnings
 
-from .model import FAIMethod, LAIMethod, Model, OutputConfig
+from .model import FAIMethod, LAIMethod, Model, OutputControl
 from .site import Site, SiteProperties, InitialStates, LandCover, LAIParams
 from .type import SurfaceType
 
@@ -431,12 +431,11 @@ class SUEWSConfig(BaseModel):
 
     @model_validator(mode="after")
     def validate_model_output_config(self) -> "SUEWSConfig":
-        """
-        Validate output configuration, especially frequency vs timestep.
+        """Validate output configuration, especially frequency vs timestep.
 
-        This validator ensures that the output frequency specified in the OutputConfig
-        is positive and an integer multiple of the model timestep. It also warns if
-        a deprecated string value is used for the output_file parameter.
+        Ensures the output frequency specified on
+        :class:`~supy.data_model.core.model.OutputControl` is positive
+        and an integer multiple of the model timestep.
 
         Returns
         -------
@@ -446,38 +445,21 @@ class SUEWSConfig(BaseModel):
         Raises
         ------
         ValueError
-            If output frequency is not positive or not a multiple of timestep.
-        DeprecationWarning
-            If a deprecated string value is used for output_file.
+            If output frequency is not positive or not a multiple of
+            timestep.
         """
-        if isinstance(self.model.control.output_file, OutputConfig):
-            output_config = self.model.control.output_file
-            if output_config.freq is not None:
-                # Validate frequency is positive
-                if output_config.freq <= 0:
-                    raise ValueError(
-                        f"Output frequency must be positive, got {output_config.freq}s"
-                    )
+        output_control = self.model.control.output
+        if output_control.freq is not None:
+            if output_control.freq <= 0:
+                raise ValueError(
+                    f"Output frequency must be positive, got {output_control.freq}s"
+                )
 
-                tstep = self.model.control.tstep
-                if output_config.freq % tstep != 0:
-                    raise ValueError(
-                        f"Output frequency ({output_config.freq}s) must be a multiple of timestep ({tstep}s)"
-                    )
-        elif (
-            isinstance(self.model.control.output_file, str)
-            and self.model.control.output_file != "output.txt"
-        ):
-            # Issue warning for non-default string values
-            import warnings
-
-            warnings.warn(
-                f"The 'output_file' parameter with value '{self.model.control.output_file}' is deprecated and was never used. "
-                "Please use the new OutputConfig format or remove this parameter. "
-                "Example: output_file: {format: 'parquet', freq: 3600}",
-                DeprecationWarning,
-                stacklevel=3,
-            )
+            tstep = self.model.control.tstep
+            if output_control.freq % tstep != 0:
+                raise ValueError(
+                    f"Output frequency ({output_control.freq}s) must be a multiple of timestep ({tstep}s)"
+                )
         return self
 
     @model_validator(mode="after")
@@ -502,7 +484,7 @@ class SUEWSConfig(BaseModel):
         """
         # Use the helper for consistent unwrapping
         net_radiation_method_val = _unwrap_value(self.model.physics.net_radiation)
-        forcing_file_val = _unwrap_value(self.model.control.forcing_file)
+        forcing_file_val = _unwrap_value(self.model.control.forcing.file)
 
         # Check for the sample forcing file - this is still based on filename
         # TODO: Future improvement - add a flag to indicate sample forcing or check actual column presence
@@ -3573,7 +3555,7 @@ class SUEWSConfig(BaseModel):
     # @model_validator(mode="after")
     # def check_forcing(self):
     #     from .._load import load_SUEWS_Forcing_met_df_yaml
-    #     forcing = load_SUEWS_Forcing_met_df_yaml(self.model.control.forcing_file.value)
+    #     forcing = load_SUEWS_Forcing_met_df_yaml(self.model.control.forcing.file.value)
     #
     #     # Cut the forcing data to model period
     #     cut_forcing = forcing.loc[self.model.control.start_time: self.model.control.end_time]

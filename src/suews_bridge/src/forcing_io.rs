@@ -4,10 +4,37 @@ use std::path::Path;
 
 pub const MET_FORCING_COLS: usize = 21;
 
+// gh#1372 — Baseline-required columns; the loader errors if any is missing.
+// Names are lower-cased; lookups are case-insensitive.
+const BASELINE_FORCING_COLUMNS: &[&str] = &[
+    "iy", "id", "it", "imin", "tair", "rh", "u", "pres", "kdown", "rain",
+];
+
+// gh#1372 — Per-landcover whitelist: <var>_<surface>. `wuh` covers
+// per-surface external water use — irrigation and impervious-surface
+// washing on land surfaces, fountains and ornamental water features
+// on the open-water surface — and is therefore accepted on every
+// surface. `lai` is leaf-area index and is meaningful only for the
+// three vegetated surfaces. The bulk site-level columns `Wuh` /
+// `xsmd` remain in the canonical block — `xsmd` is intentionally NOT
+// per-landcover (it is fed in as a single bulk soil-moisture-deficit
+// value).
+const PER_LANDCOVER_FORCING_VARS: &[&str] = &["lai", "wuh"];
+const LANDCOVER_SUFFIXES: &[&str] = &[
+    "paved", "bldgs", "evetr", "dectr", "grass", "bsoil", "water",
+];
+const LAI_LANDCOVER_SUFFIXES: &[&str] = &["evetr", "dectr", "grass"];
+const WUH_LANDCOVER_SUFFIXES: &[&str] = &[
+    "paved", "bldgs", "evetr", "dectr", "grass", "bsoil", "water",
+];
+
+const FORCING_OPTIONAL_FILL: f64 = -999.0;
+
 #[derive(Debug, Clone)]
 pub struct ForcingData {
     pub block: Vec<f64>,
     pub len_sim: usize,
+    pub extras: HashMap<String, Vec<f64>>,
 }
 
 fn parse_f64(token: &str, line_no: usize, column: &str) -> Result<f64, String> {
@@ -20,6 +47,24 @@ fn find_col(cols: &HashMap<String, usize>, name: &str) -> Result<usize, String> 
     cols.get(name)
         .copied()
         .ok_or_else(|| format!("forcing header is missing required column `{name}`"))
+}
+
+fn is_per_landcover(name: &str) -> Option<String> {
+    let lowered = name.to_ascii_lowercase();
+    for var in PER_LANDCOVER_FORCING_VARS {
+        let prefix = format!("{var}_");
+        if let Some(suffix) = lowered.strip_prefix(&prefix) {
+            let allowed: &[&str] = match *var {
+                "lai" => LAI_LANDCOVER_SUFFIXES,
+                "wuh" => WUH_LANDCOVER_SUFFIXES,
+                _ => LANDCOVER_SUFFIXES,
+            };
+            if allowed.contains(&suffix) {
+                return Some(lowered);
+            }
+        }
+    }
+    None
 }
 
 pub fn read_forcing_block(path: &Path) -> Result<ForcingData, String> {
@@ -43,38 +88,76 @@ pub fn read_forcing_block(path: &Path) -> Result<ForcingData, String> {
         ));
     }
 
+    // Strip a leading '%' so legacy UMEP/SUEWS headers like "%iy" match
+    // the canonical "iy" (mirrors the same normalisation applied by
+    // src/supy/_load.py::_apply_named_column_matching).
     let mut col_idx = HashMap::new();
     for (idx, col) in headers.iter().enumerate() {
-        col_idx.insert(col.to_ascii_lowercase(), idx);
+        col_idx.insert(col.trim_start_matches('%').to_ascii_lowercase(), idx);
     }
 
-    let required = ["iy", "id", "it", "imin"];
-    for name in &required {
+    // Baseline-required columns must all be present (case-insensitive).
+    for name in BASELINE_FORCING_COLUMNS {
         find_col(&col_idx, name)?;
     }
 
-    let optional_map = [
-        (4_usize, "qn"),
-        (7_usize, "qs"),
-        (8_usize, "qf"),
-        (9_usize, "u"),
-        (10_usize, "rh"),
-        (11_usize, "tair"),
-        (12_usize, "pres"),
-        (13_usize, "rain"),
-        (14_usize, "kdown"),
-        (15_usize, "snow"),
-        (16_usize, "ldown"),
-        (17_usize, "fcld"),
-        (18_usize, "wuh"),
-        (19_usize, "xsmd"),
-        (20_usize, "lai"),
+    // Mapping of canonical optional columns -> flat-block index.
+    let optional_map: [(usize, &str); 15] = [
+        (4, "qn"),
+        (5, "qh"),
+        (6, "qe"),
+        (7, "qs"),
+        (8, "qf"),
+        (9, "u"),
+        (10, "rh"),
+        (11, "tair"),
+        (12, "pres"),
+        (13, "rain"),
+        (14, "kdown"),
+        (15, "snow"),
+        (16, "ldown"),
+        (17, "fcld"),
+        (18, "wuh"),
     ];
+    // xsmd (19) and lai (20) are also canonical and read identically.
+    let extra_canonical: [(usize, &str); 2] = [(19, "xsmd"), (20, "lai")];
+    // Accepted canonical forcing columns that the current 21-column kernel
+    // block does not consume.
+    let unused_canonical = ["kdiff", "kdir", "wdir"];
 
     let iy_col = find_col(&col_idx, "iy")?;
     let id_col = find_col(&col_idx, "id")?;
     let it_col = find_col(&col_idx, "it")?;
     let imin_col = find_col(&col_idx, "imin")?;
+
+    // Identify per-landcover columns up-front so we can pre-allocate Vec<f64>.
+    let canonical_lower: Vec<&str> = {
+        let mut v: Vec<&str> = BASELINE_FORCING_COLUMNS.to_vec();
+        for (_, name) in optional_map.iter().chain(extra_canonical.iter()) {
+            v.push(name);
+        }
+        v.extend(unused_canonical);
+        v
+    };
+    let mut extras_targets: Vec<(String, usize)> = Vec::new();
+    for (idx, header) in headers.iter().enumerate() {
+        let lowered = header.to_ascii_lowercase();
+        if canonical_lower.contains(&lowered.as_str()) {
+            continue;
+        }
+        match is_per_landcover(&lowered) {
+            Some(canon) => extras_targets.push((canon, idx)),
+            None => {
+                eprintln!(
+                    "warning: forcing column '{header}' is not canonical; ignored (gh#1372)"
+                );
+            }
+        }
+    }
+    let mut extras: HashMap<String, Vec<f64>> = HashMap::new();
+    for (name, _) in &extras_targets {
+        extras.insert(name.clone(), Vec::new());
+    }
 
     let mut block = Vec::new();
     let mut len_sim = 0_usize;
@@ -94,23 +177,33 @@ pub fn read_forcing_block(path: &Path) -> Result<ForcingData, String> {
             ));
         }
 
-        let mut row = vec![0.0_f64; MET_FORCING_COLS];
+        let mut row = vec![FORCING_OPTIONAL_FILL; MET_FORCING_COLS];
         row[0] = parse_f64(parts[iy_col], line_no, "iy")?;
         row[1] = parse_f64(parts[id_col], line_no, "id")?;
         row[2] = parse_f64(parts[it_col], line_no, "it")?;
         row[3] = parse_f64(parts[imin_col], line_no, "imin")?;
 
-        for (target_idx, col_name) in &optional_map {
+        for (target_idx, col_name) in optional_map.iter().chain(extra_canonical.iter()) {
             if let Some(source_idx) = col_idx.get(*col_name) {
                 row[*target_idx] = parse_f64(parts[*source_idx], line_no, col_name)?;
             }
         }
 
         // Convert pressure from kPa (SUEWS input convention) to hPa (Fortran internal).
-        // Matches supy/_load.py: df_forcing_met["pres"] *= 10
-        row[12] *= 10.0;
+        // Matches supy/_load.py: df_forcing_met["pres"] *= 10.
+        // pres is in BASELINE_FORCING_COLUMNS so it is always read; defend against
+        // the sentinel anyway in case a future change relaxes that requirement.
+        if row[12] != FORCING_OPTIONAL_FILL {
+            row[12] *= 10.0;
+        }
 
         block.extend_from_slice(&row);
+
+        for (canon_name, source_idx) in &extras_targets {
+            let v = parse_f64(parts[*source_idx], line_no, canon_name.as_str())?;
+            extras.get_mut(canon_name).unwrap().push(v);
+        }
+
         len_sim += 1;
     }
 
@@ -121,7 +214,11 @@ pub fn read_forcing_block(path: &Path) -> Result<ForcingData, String> {
         ));
     }
 
-    Ok(ForcingData { block, len_sim })
+    Ok(ForcingData {
+        block,
+        len_sim,
+        extras,
+    })
 }
 
 // ---------------------------------------------------------------------------
@@ -364,23 +461,38 @@ pub fn interpolate_forcing(
 
     // --- Sum: proportional redistribution (step function) ---
     // Each input period is evenly split across `ratio` output steps.
+    //
+    // gh#1372 review: preserve FORCING_OPTIONAL_FILL through interpolation.
+    // The SUEWS missing-data sentinel is exactly representable; if a sum
+    // column (rain or wuh) carries -999 it must stay -999 in the
+    // downscaled output, otherwise scaling by tstep_mod/tstep_in produces
+    // a non-sentinel negative value (e.g. hourly -999 -> -83.25 at 5 min)
+    // that the Fortran observed-water-use path would treat as a real
+    // negative water flux instead of "missing".
     let scale = tstep_mod as f64 / tstep_in_f64;
     for &col in &SUM_COLS {
         for j in 0..n_out {
             let i = j / ratio;
-            block[j * MET_FORCING_COLS + col] = row_val(forcing, i, col) * scale;
+            let v_in = row_val(forcing, i, col);
+            block[j * MET_FORCING_COLS + col] = if v_in == FORCING_OPTIONAL_FILL {
+                FORCING_OPTIONAL_FILL
+            } else {
+                v_in * scale
+            };
         }
     }
 
     Ok(ForcingData {
         block,
         len_sim: n_out,
+        extras: HashMap::new(),
     })
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::collections::HashMap;
 
     #[test]
     fn parse_fixture_header_and_rows() {
@@ -424,7 +536,11 @@ mod tests {
             2012.0, 1.0, 2.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
             0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
         ];
-        let forcing = ForcingData { block, len_sim: 2 };
+        let forcing = ForcingData {
+            block,
+            len_sim: 2,
+            extras: HashMap::new(),
+        };
         assert_eq!(detect_tstep_in(&forcing).unwrap(), 3600);
     }
 
@@ -439,6 +555,7 @@ mod tests {
         let forcing = ForcingData {
             block: block.clone(),
             len_sim: 2,
+            extras: HashMap::new(),
         };
         let result = interpolate_forcing(&forcing, 300).unwrap();
         assert_eq!(result.len_sim, 2);
@@ -479,6 +596,7 @@ mod tests {
         let forcing = ForcingData {
             block,
             len_sim: 3,
+            extras: HashMap::new(),
         };
         let result = interpolate_forcing(&forcing, 300).unwrap();
         assert_eq!(result.len_sim, 36); // 3 * 12
@@ -507,5 +625,74 @@ mod tests {
         assert!((row_val(&result, 11, 13) - 1.0).abs() < 1e-9);
         // Row 12 maps to input row 1: rain=24.0 → 2.0
         assert!((row_val(&result, 12, 13) - 2.0).abs() < 1e-9);
+    }
+
+    #[test]
+    fn missing_baseline_column_errors() {
+        use std::io::Write;
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("no_tair.txt");
+        let mut f = std::fs::File::create(&path).unwrap();
+        // Header without 'Tair'
+        writeln!(f, "iy id it imin RH U pres rain kdown").unwrap();
+        writeln!(f, "2011 1 0 5 80 2 100 0 0").unwrap();
+        let err = read_forcing_block(&path).expect_err("must error on missing Tair");
+        assert!(err.contains("tair") || err.contains("Tair"), "error: {err}");
+    }
+
+    #[test]
+    fn shuffled_header_yields_identical_block() {
+        let canonical = Path::new("../../test/fixtures/benchmark1/forcing/Kc1_2011_data_5_tiny.txt");
+        let shuffled = Path::new("../../test/fixtures/forcing/kc_shuffled.txt");
+        let a = read_forcing_block(canonical).expect("canonical");
+        let b = read_forcing_block(shuffled).expect("shuffled");
+        assert_eq!(a.len_sim, b.len_sim);
+        assert_eq!(a.block, b.block);
+    }
+
+    #[test]
+    fn per_landcover_columns_loaded_into_extras() {
+        let path = Path::new("../../test/fixtures/forcing/kc_per_landcover.txt");
+        let forcing = read_forcing_block(path).expect("per-landcover fixture");
+        assert!(forcing.extras.contains_key("lai_evetr"));
+        assert!(forcing.extras.contains_key("wuh_paved"));
+        assert_eq!(forcing.extras["lai_evetr"].len(), forcing.len_sim);
+        // Canonical block unchanged in shape.
+        assert_eq!(forcing.block.len(), forcing.len_sim * MET_FORCING_COLS);
+    }
+
+    #[test]
+    fn missing_optional_columns_filled_with_sentinel() {
+        // gh#1372 review fix: the Rust bridge unifies with Python `_load.py`
+        // by writing FORCING_OPTIONAL_FILL (-999) for any optional canonical
+        // column that the user omits, instead of leaving 0.0 from the row
+        // initialiser. Pin the contract so a future regression surfaces here
+        // (a kernel that summed silently-zero columns would shift if -999
+        // were ever lost).
+        use std::io::Write;
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("baseline_only.txt");
+        let mut f = std::fs::File::create(&path).unwrap();
+        // Header has only the 10 baseline-required columns (no qn/qh/qe/qs/
+        // qf/snow/ldown/fcld/wuh/xsmd/lai).
+        writeln!(f, "iy id it imin Tair RH U pres kdown rain").unwrap();
+        writeln!(f, "2011 1 0 5 18.0 80.0 2.0 100.0 0.0 0.0").unwrap();
+        writeln!(f, "2011 1 0 10 18.5 79.0 2.1 100.0 0.0 0.0").unwrap();
+        let forcing = read_forcing_block(&path).expect("baseline-only fixture");
+        assert_eq!(forcing.len_sim, 2);
+        assert_eq!(forcing.block.len(), forcing.len_sim * MET_FORCING_COLS);
+        // Optional canonical columns: qn(4), qh(5), qe(6), qs(7), qf(8),
+        // snow(15), ldown(16), fcld(17), wuh(18), xsmd(19), lai(20). All
+        // must hold -999 sentinel for both rows.
+        for row in 0..forcing.len_sim {
+            for &optional_idx in &[4, 5, 6, 7, 8, 15, 16, 17, 18, 19, 20] {
+                let v = row_val(&forcing, row, optional_idx);
+                assert!(
+                    (v - FORCING_OPTIONAL_FILL).abs() < 1e-9,
+                    "row {row} col {optional_idx} expected {} (FORCING_OPTIONAL_FILL), got {v}",
+                    FORCING_OPTIONAL_FILL,
+                );
+            }
+        }
     }
 }

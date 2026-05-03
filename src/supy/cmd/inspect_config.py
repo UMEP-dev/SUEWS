@@ -136,7 +136,14 @@ def _forcing_summary(model_data: Dict[str, Any], path_config_dir: Path) -> Dict[
     peek at cheaply (we sniff the first line).
     """
     control = model_data.get("control", {}) or {}
-    forcing_raw = control.get("forcing_file")
+    # Post-gh#1372 shape: model.control.forcing.file. Legacy shape
+    # (model.control.forcing_file) is accepted as a fallback so this
+    # command stays useful on user YAMLs that have not yet been migrated.
+    forcing_block = control.get("forcing")
+    if isinstance(forcing_block, dict) and "file" in forcing_block:
+        forcing_raw = forcing_block.get("file")
+    else:
+        forcing_raw = control.get("forcing_file")
     forcing_value = _ref_value(forcing_raw)
 
     summary: Dict[str, Any] = {

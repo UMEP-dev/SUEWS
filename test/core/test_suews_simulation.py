@@ -117,7 +117,8 @@ class TestConfig:
         assert not isinstance(sim.config.model.control, dict)
 
         # Verify other attributes on control are preserved
-        assert hasattr(sim.config.model.control, "forcing_file")
+        assert hasattr(sim.config.model.control, "forcing")
+        assert hasattr(sim.config.model.control.forcing, "file")
         assert hasattr(sim.config.model.control, "diagnose")
 
     def test_update_config_deeply_nested_dict(self):

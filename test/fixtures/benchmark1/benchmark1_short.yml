@@ -3,9 +3,10 @@ description: benchmark 1 (short version for fast testing), based on Ward et al. 
 model:
   control:
     tstep: 300
-    forcing_file:
-      value: forcing/Kc1_2011_data_5_short.txt
-    output_file:
+    forcing:
+      file:
+        value: forcing/Kc1_2011_data_5_short.txt
+    output:
       format: "parquet"
       freq: 3600
   physics:

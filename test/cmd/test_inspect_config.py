@@ -83,7 +83,9 @@ def test_inspect_list_forcing_reports_each_file(tmp_path: Path) -> None:
         list_forcing = ["forcing_a.txt", "forcing_b.txt"]
         for forcing_name in list_forcing:
             shutil.copyfile(forcing, tmp_path / forcing_name)
-        payload["model"]["control"]["forcing_file"] = {"value": list_forcing}
+        payload["model"]["control"]["forcing"] = {
+            "file": {"value": list_forcing}
+        }
 
     path_config = tmp_path / "config.yml"
     path_config.write_text(

@@ -330,9 +330,9 @@ def _load_forcing_grid(
                 config = init_config_from_yaml(path=path_init)
             path_site = path_init.parent
             forcing_file_val = (
-                config.model.control.forcing_file.value
-                if hasattr(config.model.control.forcing_file, "value")
-                else config.model.control.forcing_file
+                config.model.control.forcing.file.value
+                if hasattr(config.model.control.forcing.file, "value")
+                else config.model.control.forcing.file
             )
             if isinstance(forcing_file_val, list):
                 # Handle list of files
@@ -932,7 +932,7 @@ def _save_supy(
         Notes: 0 for all but snow-related; 1 for all; 2 for a minimal set without land cover specific information.
     debug : bool, optional
         whether to enable debug mode (e.g., writing out in serial mode, and other debug uses), by default False.
-    output_config : OutputConfig, optional
+    output_config : OutputControl, optional
         Output configuration object specifying format, frequency, and groups to save. If provided, overrides freq_s parameter.
     save_state : bool, optional
         Whether to write the legacy DFState restart artifact. Legacy callers
@@ -983,9 +983,9 @@ def _save_supy(
     output_groups = None  # default will be handled in save_df_output
 
     if output_config is not None:
-        from .data_model.core.model import OutputConfig
+        from .data_model.core.model import OutputControl
 
-        if isinstance(output_config, OutputConfig):
+        if isinstance(output_config, OutputControl):
             # Override frequency if specified in config
             if output_config.freq is not None:
                 freq_s = output_config.freq
@@ -1002,9 +1002,9 @@ def _save_supy(
 
             warnings.warn(
                 "The 'output_file' parameter as a string is deprecated and was never used. "
-                "Please use the new OutputConfig format or remove this parameter. "
+                "Please use the new OutputControl block or remove this parameter. "
                 "Falling back to default text output. "
-                "Example: output_file: {format: 'parquet', freq: 3600}",
+                "Example: output: {format: 'parquet', freq: 3600}",
                 DeprecationWarning,
                 stacklevel=2,
             )
@@ -1113,7 +1113,7 @@ def save_supy(
         Notes: 0 for all but snow-related; 1 for all; 2 for a minimal set without land cover specific information.
     debug : bool, optional
         whether to enable debug mode (e.g., writing out in serial mode, and other debug uses), by default False.
-    output_config : OutputConfig, optional
+    output_config : OutputControl, optional
         Output configuration object specifying format, frequency, and groups to save. If provided, overrides freq_s parameter.
 
     Returns

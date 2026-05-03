@@ -461,18 +461,26 @@ class TestSampleOutput(TestCase):
         # the full-year executable run can exceed the per-test timeout.
         print(f"\nRunning Rust CLI: {rust_binary.name} run (Arrow output)")
         with tempfile.TemporaryDirectory() as tmpdir:
-            # Copy config to tmpdir and modify output_file.path
+            # Copy config to tmpdir and modify output.dir
             with open(sample_config, encoding="utf-8") as f:
                 cfg = yaml.safe_load(f)
             tstep = int(cfg.get("model", {}).get("control", {}).get("tstep", 300))
-            cfg["model"]["control"]["output_file"]["path"] = tmpdir
+            cfg["model"]["control"]["output"]["dir"] = tmpdir
             tmp_config = Path(tmpdir) / "sample_config.yml"
             with open(tmp_config, "w", encoding="utf-8") as f:
                 yaml.dump(cfg, f, default_flow_style=False, sort_keys=False)
 
             # Copy a prefix of the forcing file so the smoke test remains fast.
             # The Rust CLI currently runs the full forcing file it is given.
-            forcing_name = cfg["model"]["control"]["forcing_file"]
+            # Accept both the new model.control.forcing.file shape (gh#1372)
+            # and the legacy model.control.forcing_file shape so this test
+            # works against pre- and post-migration sample configs.
+            control = cfg["model"]["control"]
+            forcing_name = None
+            if isinstance(control.get("forcing"), dict):
+                forcing_name = control["forcing"].get("file")
+            if forcing_name is None:
+                forcing_name = control.get("forcing_file")
             if isinstance(forcing_name, dict):
                 forcing_name = forcing_name["value"]
             forcing_src = sample_dir / forcing_name

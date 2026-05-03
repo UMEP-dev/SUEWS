@@ -135,7 +135,7 @@ def _get_minimal_example() -> Dict[str, Any]:
         "schema_version": CURRENT_SCHEMA_VERSION,
         "description": "Minimal SUEWS configuration example",
         "model": {
-            "control": {"tstep": 3600, "forcing_file": "forcing.txt"},
+            "control": {"tstep": 3600, "forcing": {"file": "forcing.txt"}},
             "physics": {},
         },
         "sites": [

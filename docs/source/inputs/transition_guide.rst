@@ -180,33 +180,102 @@ The sections below summarise what users see change between schemas.
 The authoritative lineage (including release-tag to schema mapping)
 lives in :ref:`schema_version_history`.
 
-Upgrading to Schema 2026.5.dev8 (canonical ArchetypeProperties rename registries)
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Upgrading to Schema 2026.5.dev9 (gh#1372 cumulative model.control restructure)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Schema ``2026.5.dev8`` is the current in-development shape. It is a
-follow-through to the ``2026.5.dev7`` ArchetypeProperties rename: the
-canonical Python and Rust rename registries now point directly at the
-dev7 final field names, so ``ALL_FIELD_RENAMES``, the Rust YAML
-preprocessor mirror, and the bridge DataFrame rename lookup all agree
-on names such as ``thickness_wall_outer``, ``conductivity_wall``, and
-``fraction_wall_heat_capacity_outer``.
+Schema ``2026.5.dev9`` is the current in-development shape. It bundles
+the gh#1372 forcing- and output-config restructures into a single dev
+bump, per the dev-label convention
+(``.claude/rules/python/schema-versioning.md``): rather than
+re-using already-published dev labels, the cumulative delta lands on a
+fresh dev9 with one migration handler.
 
-The YAML surface is unchanged from ``2026.5.dev7``. Existing dev7 YAMLs
-do not need any key rewrites; the migration only refreshes the
-``schema_version`` stamp and strips internal helper fields. The older
-dev6 spellings are still accepted as compatibility aliases, so users
-who have not yet run the dev7 migration can continue to upgrade in one
-step:
+Two YAML changes ship together; the migrator
+(``suews schema migrate your_config.yml --target-version 2026.5.dev9``)
+applies forcing-restructure first, then output-restructure, so the
+audit log reads in the order users will recognise from the gh#1372
+work.
 
-.. code-block:: bash
+(a) **Forcing restructure**: ``model.control.forcing_file`` moves
+under a new ``forcing`` sub-object.
 
-   suews schema migrate your_config.yml --target-version 2026.5.dev8
+.. code-block:: yaml
+   :caption: Before (dev6 / dev7 / dev8)
+
+   model:
+     control:
+       forcing_file: forcing.txt
+
+.. code-block:: yaml
+   :caption: After (dev9)
+
+   model:
+     control:
+       forcing:
+         file: forcing.txt
+
+The forcing-file reader also switches from positional to **named-column**
+matching: column names in the forcing file header are now read and
+used to match canonical variable names. Files whose headers already
+use the canonical names (the standard SUEWS distribution shape)
+continue to work unchanged. Files with custom or mis-typed headers
+(for example ``temperature`` instead of ``Tair``) will now raise
+``ValueError`` at load time citing the expected canonical name. See
+:ref:`named_column_forcing` for the full canonical name list and
+per-landcover whitelist.
+
+(b) **Output restructure**: ``model.control.output_file:`` becomes
+the sibling ``model.control.output:`` block, mirroring the
+``forcing:`` restructure. The inner ``path:`` field is renamed to
+``dir:`` (clarifies it as a directory).
+
+.. code-block:: yaml
+   :caption: Before (dev6 / dev7 / dev8)
+
+   model:
+     control:
+       output_file:
+         format: parquet
+         freq: 3600
+         path: ./out
+
+.. code-block:: yaml
+   :caption: After (dev9)
+
+   model:
+     control:
+       output:
+         format: parquet
+         freq: 3600
+         dir: ./out
+
+The legacy string form ``output_file: "name.txt"`` was already
+silently ignored from 2025.10.15 and is now dropped outright by the
+migrator. The Pydantic ``ModelControl`` class retains a deprecated
+``output_file`` ``@property`` alias (with ``DeprecationWarning``,
+scheduled for removal in 2026.6) so external Python consumers (UMEP
+postprocessor, etc.) keep reading
+``config.model.control.output_file.dir`` until they migrate.
+
+Run ``suews-convert --to 2026.5.dev9 in.yml out.yml`` to rewrite an
+older YAML; the in-memory ``_coerce_legacy_output_file`` validator
+also accepts the legacy shape at load time and emits a
+``DeprecationWarning`` pointing at the new key.
+
+Upgrading to Schema 2026.5.dev8 (PR#1395 registry refresh - identity)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Identity migration. The canonical rename registries refresh to point
+directly at the dev7 final ArchetypeProperties names; the YAML
+surface itself is unchanged from ``2026.5.dev7``. No user action is
+required to reach dev8 from dev7. Users at dev6 or earlier should
+target ``2026.5.dev9`` directly via
+``suews schema migrate ... --target-version 2026.5.dev9``.
 
 Upgrading to Schema 2026.5.dev7 (naming convention Rule 2 reorder for ArchetypeProperties)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Schema ``2026.5.dev7`` was the prior in-development shape. 44
-``ArchetypeProperties`` field names under
+44 ``ArchetypeProperties`` field names under
 ``sites[].properties.building_archetype.*`` have been reordered to
 follow Rule 2 of the SUEWS naming convention
 (``.claude/rules/naming-convention.md``): physical quantity leads,
@@ -216,7 +285,7 @@ The rename covers wall, roof, window, ground_floor, and internal_mass
 bulk-material and surface optical properties. Three orthogonal moves
 are embedded in the rename, applied per field as appropriate:
 
-- **Reorder so the physical quantity leads** — ``thickness``,
+- **Reorder so the physical quantity leads** - ``thickness``,
   ``density``, ``conductivity``, ``specific_heat_capacity``,
   ``emissivity``, ``transmissivity``, ``absorptivity``,
   ``reflectivity``. For example
@@ -230,7 +299,7 @@ are embedded in the rename, applied per field as appropriate:
   stays ``emissivity_wall_external`` (radiative surface).
 - **The effective_ qualifier dropped on the conductivity rows**
   (``wall_effective_conductivity`` -> ``conductivity_wall``). It was
-  used inconsistently — the sibling ``density`` and
+  used inconsistently - the sibling ``density`` and
   ``specific_heat_capacity`` rows did not carry it.
 
 Wall and roof heat-capacity distribution rows take the
@@ -238,20 +307,22 @@ Wall and roof heat-capacity distribution rows take the
 ``wall_outer_heat_capacity_fraction`` ->
 ``fraction_wall_heat_capacity_outer``.
 
-Run the migrator to bring an existing YAML onto the new shape:
+Run the migrator to bring an existing YAML onto the new shape (or
+target ``2026.5.dev9`` directly to also pick up the gh#1372
+restructure):
 
 .. code-block:: bash
 
-   suews schema migrate your_config.yml --target-version 2026.5.dev7
+   suews schema migrate your_config.yml --target-version 2026.5.dev9
 
 Every rename is logged via ``[yaml-upgrade]   renamed 'old' ->
 'new'`` so the user can verify each substitution. The Pydantic
-backward-compat shim still accepts the dev6 names at load time,
+backward-compat shim still accepts the pre-dev7 names at load time,
 emitting a ``DeprecationWarning``; YAMLs that round-trip through the
 migrator come out in the new spellings and no longer warn.
 
 Cross-layer (Fortran TYPE members, Rust struct fields, DataFrame
-column keys) is unchanged — the bridge map composes through the
+column keys) is unchanged - the bridge map composes through the
 chained ``ARCHETYPEPROPERTIES_DEV7_TO_PASCAL`` lookup so the legacy
 fused column key (``wallextthickness``, etc.) is still produced from
 the new Pydantic field name.
@@ -259,9 +330,11 @@ the new Pydantic field name.
 Upgrading to Schema 2026.5.dev6 (gh#1333 site-level completeness validator)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Schema ``2026.5.dev6`` was the prior in-development shape. The YAML
-shape is byte-for-byte identical to ``2026.5.dev5`` — this is a pure
-validator-contract tightening, not a structural rename.
+Schema ``2026.5.dev6`` is an intermediate dev label (the current
+in-development shape is ``2026.5.dev9``; see the sections above). The
+YAML shape at dev6 is byte-for-byte identical to ``2026.5.dev5`` —
+this is a pure validator-contract tightening, not a structural
+rename.
 
 Previously, declaring a vegetated or building surface with
 ``sfr > 0`` but omitting the physics-required completion fields
@@ -423,7 +496,7 @@ cluster) continue to load under a ``DeprecationWarning``. Run:
 
 Use this historical target when you specifically want the pre-hot-water
 unification ``2026.5.dev3`` spellings. To land on the current schema
-instead, omit ``--target-version`` or point it at ``2026.5.dev6``.
+instead, omit ``--target-version`` or point it at ``2026.5.dev9``.
 
 Upgrading to Schema 2026.5.dev2 (Categories 2+3 of #1256: suffix drop, abbreviation expansion)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

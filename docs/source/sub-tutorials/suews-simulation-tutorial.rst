@@ -130,8 +130,8 @@ Save results according to OutputConfig settings:
     # Save to specific directory
     sim.save('my_output_dir/')
     
-    # The format (txt or parquet) is determined by OutputConfig in YAML:
-    # output_file:
+    # The format (txt or parquet) is determined by OutputControl in YAML:
+    # output:
     #   format: parquet  # or txt
     #   freq: 3600       # output frequency in seconds
 
@@ -242,11 +242,12 @@ The simulation automatically loads forcing from config if specified:
     # In config.yml
     model:
       control:
-        forcing_file: forcing/data.txt  # Relative to config file
+        forcing:
+          file: forcing/data.txt  # Relative to config file
 
 .. code-block:: python
 
-    # No need to call update_forcing if forcing_file is in config
+    # No need to call update_forcing if forcing.file is in config
     sim = SUEWSSimulation('config.yml')
     sim.run()  # Uses forcing from config
 

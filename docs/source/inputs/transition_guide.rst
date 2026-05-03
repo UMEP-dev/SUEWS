@@ -273,7 +273,7 @@ target ``2026.5.dev9`` directly via
 ``suews schema migrate ... --target-version 2026.5.dev9``.
 
 Upgrading to Schema 2026.5.dev7 (naming convention Rule 2 reorder for ArchetypeProperties)
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 44 ``ArchetypeProperties`` field names under
 ``sites[].properties.building_archetype.*`` have been reordered to

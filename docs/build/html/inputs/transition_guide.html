@@ -8,8 +8,8 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <meta property="article:modified_time" content="2026-05-02T09:06:19+00:00" />
-    <title>4.5. Transitioning to YAML-based Configuration &#8212; SUEWS 2026.5.2.dev9058 documentation</title>
+    <meta property="article:modified_time" content="2026-05-03T10:34:05+00:00" />
+    <title>4.5. Transitioning to YAML-based Configuration &#8212; SUEWS 2026.5.3.dev9066 documentation</title>
   
   
   
@@ -45,7 +45,7 @@
   <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=8878045cc6db502f8baf" />
 <link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=8878045cc6db502f8baf" />
 
-    <script src="../_static/documentation_options.js?v=de34defe"></script>
+    <script src="../_static/documentation_options.js?v=76d852b6"></script>
     <script src="../_static/doctools.js?v=9bcbadda"></script>
     <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
     <script src="../_static/scripts/sphinx-book-theme.js?v=fab101a9"></script>
@@ -59,8 +59,8 @@
     <link rel="prev" title="4.4. SUEWS Format Converter" href="converter.html" />
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
-  <meta name="docsearch:version" content="2026.5.2.dev9058" />
-    <meta name="docbuild:last-update" content="2026-05-02"/>
+  <meta name="docsearch:version" content="2026.5.3.dev9066" />
+    <meta name="docbuild:last-update" content="2026-05-03"/>
   </head>
   
   
@@ -102,7 +102,7 @@
   <div class="bd-header-announcement__content">
     <div style="background-color: #f0ad4e; border: 1px solid #eea236; border-radius: 4px; padding: 10px; margin: 10px 0;">
         <strong>⚠️ Development Version:</strong> This documentation was built from a development version
-        (2026.5.2.dev9058, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/a589d031d4e40e90eed33d3c6141b7bf2ad79b1f" style="color: #31708f;">a589d03</a>).
+        (2026.5.3.dev9066, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/553bad22c38830a2a0e2f2bc6d3cc81672b8df67" style="color: #31708f;">553bad2</a>).
         Features described here may be unstable or subject to change. For stable documentation, please visit the
         <a href="https://docs.suews.io/stable/" style="color: #31708f;">latest release</a>.
     </div>
@@ -149,8 +149,8 @@
       
     
     
-    <img src="../_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.5.2.dev9058 documentation - Home"/>
-    <img src="../_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.5.2.dev9058 documentation - Home"/>
+    <img src="../_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.5.3.dev9066 documentation - Home"/>
+    <img src="../_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.5.3.dev9066 documentation - Home"/>
   
   
 </a></div>
@@ -192,51 +192,52 @@
 <li class="toctree-l3"><a class="reference internal" href="yaml/config-reference/dayprofile.html">4.3.10. Daily Profile</a></li>
 <li class="toctree-l3"><a class="reference internal" href="yaml/config-reference/dectrproperties.html">4.3.11. Deciduous Trees</a></li>
 <li class="toctree-l3"><a class="reference internal" href="yaml/config-reference/evetrproperties.html">4.3.12. Evergreen Trees</a></li>
-<li class="toctree-l3"><a class="reference internal" href="yaml/config-reference/grassproperties.html">4.3.13. Grass</a></li>
-<li class="toctree-l3"><a class="reference internal" href="yaml/config-reference/heatingsetpointprofile.html">4.3.14. Heating Setpoint Profile</a></li>
-<li class="toctree-l3"><a class="reference internal" href="yaml/config-reference/hourlyprofile.html">4.3.15. Hourly Profile</a></li>
-<li class="toctree-l3"><a class="reference internal" href="yaml/config-reference/initialstatebldgs.html">4.3.16. Buildings Surface Initial State</a></li>
-<li class="toctree-l3"><a class="reference internal" href="yaml/config-reference/initialstatebsoil.html">4.3.17. Bare Soil Surface Initial State</a></li>
-<li class="toctree-l3"><a class="reference internal" href="yaml/config-reference/initialstatedectr.html">4.3.18. Deciduous Tree Initial State</a></li>
-<li class="toctree-l3"><a class="reference internal" href="yaml/config-reference/initialstateevetr.html">4.3.19. Evergreen Tree Initial State</a></li>
-<li class="toctree-l3"><a class="reference internal" href="yaml/config-reference/initialstategrass.html">4.3.20. Grass Initial State</a></li>
-<li class="toctree-l3"><a class="reference internal" href="yaml/config-reference/initialstatepaved.html">4.3.21. Paved Surface Initial State</a></li>
-<li class="toctree-l3"><a class="reference internal" href="yaml/config-reference/initialstateveg.html">4.3.22. Vegetation Initial State</a></li>
-<li class="toctree-l3"><a class="reference internal" href="yaml/config-reference/initialstatewater.html">4.3.23. Water Surface Initial State</a></li>
-<li class="toctree-l3"><a class="reference internal" href="yaml/config-reference/initialstates.html">4.3.24. Initial States</a></li>
-<li class="toctree-l3"><a class="reference internal" href="yaml/config-reference/irrigationparams.html">4.3.25. Irrigation</a></li>
-<li class="toctree-l3"><a class="reference internal" href="yaml/config-reference/laiparams.html">4.3.26. LAI</a></li>
-<li class="toctree-l3"><a class="reference internal" href="yaml/config-reference/laipowercoefficients.html">4.3.27. LAI Power Coefficients</a></li>
-<li class="toctree-l3"><a class="reference internal" href="yaml/config-reference/lumpsparams.html">4.3.28. LUMPS Parameters</a></li>
-<li class="toctree-l3"><a class="reference internal" href="yaml/config-reference/landcover.html">4.3.29. Land Cover</a></li>
-<li class="toctree-l3"><a class="reference internal" href="yaml/config-reference/model.html">4.3.30. Model Configuration</a></li>
-<li class="toctree-l3"><a class="reference internal" href="yaml/config-reference/modelcontrol.html">4.3.31. Model Control</a></li>
-<li class="toctree-l3"><a class="reference internal" href="yaml/config-reference/modelphysics.html">4.3.32. Physics Methods</a></li>
-<li class="toctree-l3"><a class="reference internal" href="yaml/config-reference/nonvegetatedsurfaceproperties.html">4.3.33. Surface Properties</a></li>
-<li class="toctree-l3"><a class="reference internal" href="yaml/config-reference/ohmcoefficients.html">4.3.34. OHM Coefficients</a></li>
-<li class="toctree-l3"><a class="reference internal" href="yaml/config-reference/ohm_coefficient_season_wetness.html">4.3.35. Seasonal/Wetness OHM Coefficients</a></li>
-<li class="toctree-l3"><a class="reference internal" href="yaml/config-reference/outputconfig.html">4.3.36. Output Configuration</a></li>
-<li class="toctree-l3"><a class="reference internal" href="yaml/config-reference/pavedproperties.html">4.3.37. Paved Surfaces</a></li>
-<li class="toctree-l3"><a class="reference internal" href="yaml/config-reference/rooflayer.html">4.3.38. Roof Layer</a></li>
-<li class="toctree-l3"><a class="reference internal" href="yaml/config-reference/spartacusparams.html">4.3.39. SPARTACUS</a></li>
-<li class="toctree-l3"><a class="reference internal" href="yaml/config-reference/suewsconfig.html">4.3.40. SUEWS Configuration</a></li>
-<li class="toctree-l3"><a class="reference internal" href="yaml/config-reference/site.html">4.3.41. Site Configuration</a></li>
-<li class="toctree-l3"><a class="reference internal" href="yaml/config-reference/siteproperties.html">4.3.42. Site Properties</a></li>
-<li class="toctree-l3"><a class="reference internal" href="yaml/config-reference/snowparams.html">4.3.43. Snow</a></li>
-<li class="toctree-l3"><a class="reference internal" href="yaml/config-reference/soilobservationconfig.html">4.3.44. Soil Observation Configuration</a></li>
-<li class="toctree-l3"><a class="reference internal" href="yaml/config-reference/stebbsproperties.html">4.3.45. STEBBS</a></li>
-<li class="toctree-l3"><a class="reference internal" href="yaml/config-reference/storagedrainparams.html">4.3.46. Drainage Parameters</a></li>
-<li class="toctree-l3"><a class="reference internal" href="yaml/config-reference/surfaceinitialstate.html">4.3.47. Generic Surface Initial State</a></li>
-<li class="toctree-l3"><a class="reference internal" href="yaml/config-reference/surfaceproperties.html">4.3.48. Surface Properties</a></li>
-<li class="toctree-l3"><a class="reference internal" href="yaml/config-reference/tenminuteprofile.html">4.3.49. Ten Minute Profile</a></li>
-<li class="toctree-l3"><a class="reference internal" href="yaml/config-reference/thermallayers.html">4.3.50. Thermal Layers</a></li>
-<li class="toctree-l3"><a class="reference internal" href="yaml/config-reference/vegetatedsurfaceproperties.html">4.3.51. Surface Properties</a></li>
-<li class="toctree-l3"><a class="reference internal" href="yaml/config-reference/vegetationparams.html">4.3.52. Vegetation Parameters</a></li>
-<li class="toctree-l3"><a class="reference internal" href="yaml/config-reference/verticallayers.html">4.3.53. Vertical Layers</a></li>
-<li class="toctree-l3"><a class="reference internal" href="yaml/config-reference/walllayer.html">4.3.54. Wall Layer</a></li>
-<li class="toctree-l3"><a class="reference internal" href="yaml/config-reference/waterdistribution.html">4.3.55. Water Distribution</a></li>
-<li class="toctree-l3"><a class="reference internal" href="yaml/config-reference/waterproperties.html">4.3.56. Water Surfaces</a></li>
-<li class="toctree-l3"><a class="reference internal" href="yaml/config-reference/weeklyprofile.html">4.3.57. Weekly Profile</a></li>
+<li class="toctree-l3"><a class="reference internal" href="yaml/config-reference/forcingcontrol.html">4.3.13. Forcing Control</a></li>
+<li class="toctree-l3"><a class="reference internal" href="yaml/config-reference/grassproperties.html">4.3.14. Grass</a></li>
+<li class="toctree-l3"><a class="reference internal" href="yaml/config-reference/heatingsetpointprofile.html">4.3.15. Heating Setpoint Profile</a></li>
+<li class="toctree-l3"><a class="reference internal" href="yaml/config-reference/hourlyprofile.html">4.3.16. Hourly Profile</a></li>
+<li class="toctree-l3"><a class="reference internal" href="yaml/config-reference/initialstatebldgs.html">4.3.17. Buildings Surface Initial State</a></li>
+<li class="toctree-l3"><a class="reference internal" href="yaml/config-reference/initialstatebsoil.html">4.3.18. Bare Soil Surface Initial State</a></li>
+<li class="toctree-l3"><a class="reference internal" href="yaml/config-reference/initialstatedectr.html">4.3.19. Deciduous Tree Initial State</a></li>
+<li class="toctree-l3"><a class="reference internal" href="yaml/config-reference/initialstateevetr.html">4.3.20. Evergreen Tree Initial State</a></li>
+<li class="toctree-l3"><a class="reference internal" href="yaml/config-reference/initialstategrass.html">4.3.21. Grass Initial State</a></li>
+<li class="toctree-l3"><a class="reference internal" href="yaml/config-reference/initialstatepaved.html">4.3.22. Paved Surface Initial State</a></li>
+<li class="toctree-l3"><a class="reference internal" href="yaml/config-reference/initialstateveg.html">4.3.23. Vegetation Initial State</a></li>
+<li class="toctree-l3"><a class="reference internal" href="yaml/config-reference/initialstatewater.html">4.3.24. Water Surface Initial State</a></li>
+<li class="toctree-l3"><a class="reference internal" href="yaml/config-reference/initialstates.html">4.3.25. Initial States</a></li>
+<li class="toctree-l3"><a class="reference internal" href="yaml/config-reference/irrigationparams.html">4.3.26. Irrigation</a></li>
+<li class="toctree-l3"><a class="reference internal" href="yaml/config-reference/laiparams.html">4.3.27. LAI</a></li>
+<li class="toctree-l3"><a class="reference internal" href="yaml/config-reference/laipowercoefficients.html">4.3.28. LAI Power Coefficients</a></li>
+<li class="toctree-l3"><a class="reference internal" href="yaml/config-reference/lumpsparams.html">4.3.29. LUMPS Parameters</a></li>
+<li class="toctree-l3"><a class="reference internal" href="yaml/config-reference/landcover.html">4.3.30. Land Cover</a></li>
+<li class="toctree-l3"><a class="reference internal" href="yaml/config-reference/model.html">4.3.31. Model Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="yaml/config-reference/modelcontrol.html">4.3.32. Model Control</a></li>
+<li class="toctree-l3"><a class="reference internal" href="yaml/config-reference/modelphysics.html">4.3.33. Physics Methods</a></li>
+<li class="toctree-l3"><a class="reference internal" href="yaml/config-reference/nonvegetatedsurfaceproperties.html">4.3.34. Surface Properties</a></li>
+<li class="toctree-l3"><a class="reference internal" href="yaml/config-reference/ohmcoefficients.html">4.3.35. OHM Coefficients</a></li>
+<li class="toctree-l3"><a class="reference internal" href="yaml/config-reference/ohm_coefficient_season_wetness.html">4.3.36. Seasonal/Wetness OHM Coefficients</a></li>
+<li class="toctree-l3"><a class="reference internal" href="yaml/config-reference/outputcontrol.html">4.3.37. Output Control</a></li>
+<li class="toctree-l3"><a class="reference internal" href="yaml/config-reference/pavedproperties.html">4.3.38. Paved Surfaces</a></li>
+<li class="toctree-l3"><a class="reference internal" href="yaml/config-reference/rooflayer.html">4.3.39. Roof Layer</a></li>
+<li class="toctree-l3"><a class="reference internal" href="yaml/config-reference/spartacusparams.html">4.3.40. SPARTACUS</a></li>
+<li class="toctree-l3"><a class="reference internal" href="yaml/config-reference/suewsconfig.html">4.3.41. SUEWS Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="yaml/config-reference/site.html">4.3.42. Site Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="yaml/config-reference/siteproperties.html">4.3.43. Site Properties</a></li>
+<li class="toctree-l3"><a class="reference internal" href="yaml/config-reference/snowparams.html">4.3.44. Snow</a></li>
+<li class="toctree-l3"><a class="reference internal" href="yaml/config-reference/soilobservationconfig.html">4.3.45. Soil Observation Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="yaml/config-reference/stebbsproperties.html">4.3.46. STEBBS</a></li>
+<li class="toctree-l3"><a class="reference internal" href="yaml/config-reference/storagedrainparams.html">4.3.47. Drainage Parameters</a></li>
+<li class="toctree-l3"><a class="reference internal" href="yaml/config-reference/surfaceinitialstate.html">4.3.48. Generic Surface Initial State</a></li>
+<li class="toctree-l3"><a class="reference internal" href="yaml/config-reference/surfaceproperties.html">4.3.49. Surface Properties</a></li>
+<li class="toctree-l3"><a class="reference internal" href="yaml/config-reference/tenminuteprofile.html">4.3.50. Ten Minute Profile</a></li>
+<li class="toctree-l3"><a class="reference internal" href="yaml/config-reference/thermallayers.html">4.3.51. Thermal Layers</a></li>
+<li class="toctree-l3"><a class="reference internal" href="yaml/config-reference/vegetatedsurfaceproperties.html">4.3.52. Surface Properties</a></li>
+<li class="toctree-l3"><a class="reference internal" href="yaml/config-reference/vegetationparams.html">4.3.53. Vegetation Parameters</a></li>
+<li class="toctree-l3"><a class="reference internal" href="yaml/config-reference/verticallayers.html">4.3.54. Vertical Layers</a></li>
+<li class="toctree-l3"><a class="reference internal" href="yaml/config-reference/walllayer.html">4.3.55. Wall Layer</a></li>
+<li class="toctree-l3"><a class="reference internal" href="yaml/config-reference/waterdistribution.html">4.3.56. Water Distribution</a></li>
+<li class="toctree-l3"><a class="reference internal" href="yaml/config-reference/waterproperties.html">4.3.57. Water Surfaces</a></li>
+<li class="toctree-l3"><a class="reference internal" href="yaml/config-reference/weeklyprofile.html">4.3.58. Weekly Profile</a></li>
 </ul>
 </details></li>
 <li class="toctree-l2"><a class="reference internal" href="converter.html">4.4. SUEWS Format Converter</a></li>
@@ -610,19 +611,20 @@
 </ul>
 </li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#yaml-schema-migrations">4.5.4. YAML Schema Migrations</a><ul class="nav section-nav flex-column">
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#upgrading-to-schema-2026-5-dev8-canonical-archetypeproperties-rename-registries">4.5.4.1. Upgrading to Schema 2026.5.dev8 (canonical ArchetypeProperties rename registries)</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#upgrading-to-schema-2026-5-dev7-naming-convention-rule-2-reorder-for-archetypeproperties">4.5.4.2. Upgrading to Schema 2026.5.dev7 (naming convention Rule 2 reorder for ArchetypeProperties)</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#upgrading-to-schema-2026-5-dev6-gh-1333-site-level-completeness-validator">4.5.4.3. Upgrading to Schema 2026.5.dev6 (gh#1333 site-level completeness validator)</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#upgrading-to-schema-2026-5-dev5-gh-972-nested-physics-family-tags">4.5.4.4. Upgrading to Schema 2026.5.dev5 (gh#972 nested physics family tags)</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#upgrading-to-schema-2026-5-dev4-gh-1334-follow-through-via-pr-1337-stebbs-hot-water-prefix-unification">4.5.4.5. Upgrading to Schema 2026.5.dev4 (gh#1334 follow-through via PR #1337: STEBBS hot-water prefix unification)</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#upgrading-to-schema-2026-5-dev3-gh-1334-stebbs-snow-user-facing-yaml-to-snake-case">4.5.4.6. Upgrading to Schema 2026.5.dev3 (gh#1334: STEBBS + Snow user-facing YAML to snake_case)</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#upgrading-to-schema-2026-5-dev2-categories-2-3-of-1256-suffix-drop-abbreviation-expansion">4.5.4.7. Upgrading to Schema 2026.5.dev2 (Categories 2+3 of #1256: suffix drop, abbreviation expansion)</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#upgrading-to-schema-2026-5-dev1-category-5-of-1256-stebbs-ext-split">4.5.4.8. Upgrading to Schema 2026.5.dev1 (Category 5 of #1256: STEBBS <code class="xref any docutils literal notranslate"><span class="pre">ext</span></code> split)</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#upgrading-to-schema-2026-5-category-1-of-1256-snake-case-sweep">4.5.4.9. Upgrading to Schema 2026.5 (Category 1 of #1256: snake_case sweep)</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#upgrading-to-schema-2026-4-suews-2026-4-3">4.5.4.10. Upgrading to Schema 2026.4 (SUEWS 2026.4.3)</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#upgrading-to-schema-2026-1-suews-2026-1-28">4.5.4.11. Upgrading to Schema 2026.1 (SUEWS 2026.1.28)</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#preserving-your-values-through-renames">4.5.4.12. Preserving Your Values Through Renames</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#troubleshooting">4.5.4.13. Troubleshooting</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#upgrading-to-schema-2026-5-dev9-gh-1372-cumulative-model-control-restructure">4.5.4.1. Upgrading to Schema 2026.5.dev9 (gh#1372 cumulative model.control restructure)</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#upgrading-to-schema-2026-5-dev8-pr-1395-registry-refresh-identity">4.5.4.2. Upgrading to Schema 2026.5.dev8 (PR#1395 registry refresh - identity)</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#upgrading-to-schema-2026-5-dev7-naming-convention-rule-2-reorder-for-archetypeproperties">4.5.4.3. Upgrading to Schema 2026.5.dev7 (naming convention Rule 2 reorder for ArchetypeProperties)</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#upgrading-to-schema-2026-5-dev6-gh-1333-site-level-completeness-validator">4.5.4.4. Upgrading to Schema 2026.5.dev6 (gh#1333 site-level completeness validator)</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#upgrading-to-schema-2026-5-dev5-gh-972-nested-physics-family-tags">4.5.4.5. Upgrading to Schema 2026.5.dev5 (gh#972 nested physics family tags)</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#upgrading-to-schema-2026-5-dev4-gh-1334-follow-through-via-pr-1337-stebbs-hot-water-prefix-unification">4.5.4.6. Upgrading to Schema 2026.5.dev4 (gh#1334 follow-through via PR #1337: STEBBS hot-water prefix unification)</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#upgrading-to-schema-2026-5-dev3-gh-1334-stebbs-snow-user-facing-yaml-to-snake-case">4.5.4.7. Upgrading to Schema 2026.5.dev3 (gh#1334: STEBBS + Snow user-facing YAML to snake_case)</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#upgrading-to-schema-2026-5-dev2-categories-2-3-of-1256-suffix-drop-abbreviation-expansion">4.5.4.8. Upgrading to Schema 2026.5.dev2 (Categories 2+3 of #1256: suffix drop, abbreviation expansion)</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#upgrading-to-schema-2026-5-dev1-category-5-of-1256-stebbs-ext-split">4.5.4.9. Upgrading to Schema 2026.5.dev1 (Category 5 of #1256: STEBBS <code class="xref any docutils literal notranslate"><span class="pre">ext</span></code> split)</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#upgrading-to-schema-2026-5-category-1-of-1256-snake-case-sweep">4.5.4.10. Upgrading to Schema 2026.5 (Category 1 of #1256: snake_case sweep)</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#upgrading-to-schema-2026-4-suews-2026-4-3">4.5.4.11. Upgrading to Schema 2026.4 (SUEWS 2026.4.3)</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#upgrading-to-schema-2026-1-suews-2026-1-28">4.5.4.12. Upgrading to Schema 2026.1 (SUEWS 2026.1.28)</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#preserving-your-values-through-renames">4.5.4.13. Preserving Your Values Through Renames</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#troubleshooting">4.5.4.14. Troubleshooting</a></li>
 </ul>
 </li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#nested-physics-sub-options-accept-only-gh-972">4.5.5. Nested Physics Sub-Options (accept-only, gh#972)</a></li>
@@ -801,29 +803,97 @@ reason so you can reconstruct intent if needed.</p>
 <p>The sections below summarise what users see change between schemas.
 The authoritative lineage (including release-tag to schema mapping)
 lives in <a class="reference internal" href="../contributing/schema/schema_versioning.html#schema-version-history"><span class="std std-ref">Version History</span></a>.</p>
-<section id="upgrading-to-schema-2026-5-dev8-canonical-archetypeproperties-rename-registries">
-<h3><span class="section-number">4.5.4.1. </span>Upgrading to Schema 2026.5.dev8 (canonical ArchetypeProperties rename registries)<a class="headerlink" href="#upgrading-to-schema-2026-5-dev8-canonical-archetypeproperties-rename-registries" title="Link to this heading">#</a></h3>
-<p>Schema <code class="docutils literal notranslate"><span class="pre">2026.5.dev8</span></code> is the current in-development shape. It is a
-follow-through to the <code class="docutils literal notranslate"><span class="pre">2026.5.dev7</span></code> ArchetypeProperties rename: the
-canonical Python and Rust rename registries now point directly at the
-dev7 final field names, so <code class="docutils literal notranslate"><span class="pre">ALL_FIELD_RENAMES</span></code>, the Rust YAML
-preprocessor mirror, and the bridge DataFrame rename lookup all agree
-on names such as <code class="docutils literal notranslate"><span class="pre">thickness_wall_outer</span></code>, <code class="docutils literal notranslate"><span class="pre">conductivity_wall</span></code>, and
-<code class="docutils literal notranslate"><span class="pre">fraction_wall_heat_capacity_outer</span></code>.</p>
-<p>The YAML surface is unchanged from <code class="docutils literal notranslate"><span class="pre">2026.5.dev7</span></code>. Existing dev7 YAMLs
-do not need any key rewrites; the migration only refreshes the
-<code class="docutils literal notranslate"><span class="pre">schema_version</span></code> stamp and strips internal helper fields. The older
-dev6 spellings are still accepted as compatibility aliases, so users
-who have not yet run the dev7 migration can continue to upgrade in one
-step:</p>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>suews<span class="w"> </span>schema<span class="w"> </span>migrate<span class="w"> </span>your_config.yml<span class="w"> </span>--target-version<span class="w"> </span><span class="m">2026</span>.5.dev8
+<section id="upgrading-to-schema-2026-5-dev9-gh-1372-cumulative-model-control-restructure">
+<h3><span class="section-number">4.5.4.1. </span>Upgrading to Schema 2026.5.dev9 (gh#1372 cumulative model.control restructure)<a class="headerlink" href="#upgrading-to-schema-2026-5-dev9-gh-1372-cumulative-model-control-restructure" title="Link to this heading">#</a></h3>
+<p>Schema <code class="docutils literal notranslate"><span class="pre">2026.5.dev9</span></code> is the current in-development shape. It bundles
+the gh#1372 forcing- and output-config restructures into a single dev
+bump, per the dev-label convention
+(<code class="docutils literal notranslate"><span class="pre">.claude/rules/python/schema-versioning.md</span></code>): rather than
+re-using already-published dev labels, the cumulative delta lands on a
+fresh dev9 with one migration handler.</p>
+<p>Two YAML changes ship together; the migrator
+(<code class="docutils literal notranslate"><span class="pre">suews</span> <span class="pre">schema</span> <span class="pre">migrate</span> <span class="pre">your_config.yml</span> <span class="pre">--target-version</span> <span class="pre">2026.5.dev9</span></code>)
+applies forcing-restructure first, then output-restructure, so the
+audit log reads in the order users will recognise from the gh#1372
+work.</p>
+<p>(a) <strong>Forcing restructure</strong>: <code class="docutils literal notranslate"><span class="pre">model.control.forcing_file</span></code> moves
+under a new <code class="docutils literal notranslate"><span class="pre">forcing</span></code> sub-object.</p>
+<div class="literal-block-wrapper docutils container" id="id1">
+<div class="code-block-caption"><span class="caption-number">Listing 4.1 </span><span class="caption-text">Before (dev6 / dev7 / dev8)</span><a class="headerlink" href="#id1" title="Link to this code">#</a></div>
+<div class="highlight-yaml notranslate"><div class="highlight"><pre><span></span><span class="nt">model</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">control</span><span class="p">:</span>
+<span class="w">    </span><span class="nt">forcing_file</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">forcing.txt</span>
 </pre></div>
 </div>
+</div>
+<div class="literal-block-wrapper docutils container" id="id2">
+<div class="code-block-caption"><span class="caption-number">Listing 4.2 </span><span class="caption-text">After (dev9)</span><a class="headerlink" href="#id2" title="Link to this code">#</a></div>
+<div class="highlight-yaml notranslate"><div class="highlight"><pre><span></span><span class="nt">model</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">control</span><span class="p">:</span>
+<span class="w">    </span><span class="nt">forcing</span><span class="p">:</span>
+<span class="w">      </span><span class="nt">file</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">forcing.txt</span>
+</pre></div>
+</div>
+</div>
+<p>The forcing-file reader also switches from positional to <strong>named-column</strong>
+matching: column names in the forcing file header are now read and
+used to match canonical variable names. Files whose headers already
+use the canonical names (the standard SUEWS distribution shape)
+continue to work unchanged. Files with custom or mis-typed headers
+(for example <code class="docutils literal notranslate"><span class="pre">temperature</span></code> instead of <code class="docutils literal notranslate"><span class="pre">Tair</span></code>) will now raise
+<code class="docutils literal notranslate"><span class="pre">ValueError</span></code> at load time citing the expected canonical name. See
+<a class="reference internal" href="forcing-data.html#named-column-forcing"><span class="std std-ref">Named-column forcing files (gh#1372)</span></a> for the full canonical name list and
+per-landcover whitelist.</p>
+<p>(b) <strong>Output restructure</strong>: <code class="docutils literal notranslate"><span class="pre">model.control.output_file:</span></code> becomes
+the sibling <code class="docutils literal notranslate"><span class="pre">model.control.output:</span></code> block, mirroring the
+<code class="docutils literal notranslate"><span class="pre">forcing:</span></code> restructure. The inner <code class="docutils literal notranslate"><span class="pre">path:</span></code> field is renamed to
+<code class="docutils literal notranslate"><span class="pre">dir:</span></code> (clarifies it as a directory).</p>
+<div class="literal-block-wrapper docutils container" id="id3">
+<div class="code-block-caption"><span class="caption-number">Listing 4.3 </span><span class="caption-text">Before (dev6 / dev7 / dev8)</span><a class="headerlink" href="#id3" title="Link to this code">#</a></div>
+<div class="highlight-yaml notranslate"><div class="highlight"><pre><span></span><span class="nt">model</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">control</span><span class="p">:</span>
+<span class="w">    </span><span class="nt">output_file</span><span class="p">:</span>
+<span class="w">      </span><span class="nt">format</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">parquet</span>
+<span class="w">      </span><span class="nt">freq</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">3600</span>
+<span class="w">      </span><span class="nt">path</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">./out</span>
+</pre></div>
+</div>
+</div>
+<div class="literal-block-wrapper docutils container" id="id4">
+<div class="code-block-caption"><span class="caption-number">Listing 4.4 </span><span class="caption-text">After (dev9)</span><a class="headerlink" href="#id4" title="Link to this code">#</a></div>
+<div class="highlight-yaml notranslate"><div class="highlight"><pre><span></span><span class="nt">model</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">control</span><span class="p">:</span>
+<span class="w">    </span><span class="nt">output</span><span class="p">:</span>
+<span class="w">      </span><span class="nt">format</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">parquet</span>
+<span class="w">      </span><span class="nt">freq</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">3600</span>
+<span class="w">      </span><span class="nt">dir</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">./out</span>
+</pre></div>
+</div>
+</div>
+<p>The legacy string form <code class="docutils literal notranslate"><span class="pre">output_file:</span> <span class="pre">&quot;name.txt&quot;</span></code> was already
+silently ignored from 2025.10.15 and is now dropped outright by the
+migrator. The Pydantic <code class="docutils literal notranslate"><span class="pre">ModelControl</span></code> class retains a deprecated
+<code class="docutils literal notranslate"><span class="pre">output_file</span></code> <code class="docutils literal notranslate"><span class="pre">&#64;property</span></code> alias (with <code class="docutils literal notranslate"><span class="pre">DeprecationWarning</span></code>,
+scheduled for removal in 2026.6) so external Python consumers (UMEP
+postprocessor, etc.) keep reading
+<code class="docutils literal notranslate"><span class="pre">config.model.control.output_file.dir</span></code> until they migrate.</p>
+<p>Run <code class="docutils literal notranslate"><span class="pre">suews-convert</span> <span class="pre">--to</span> <span class="pre">2026.5.dev9</span> <span class="pre">in.yml</span> <span class="pre">out.yml</span></code> to rewrite an
+older YAML; the in-memory <code class="docutils literal notranslate"><span class="pre">_coerce_legacy_output_file</span></code> validator
+also accepts the legacy shape at load time and emits a
+<code class="docutils literal notranslate"><span class="pre">DeprecationWarning</span></code> pointing at the new key.</p>
+</section>
+<section id="upgrading-to-schema-2026-5-dev8-pr-1395-registry-refresh-identity">
+<h3><span class="section-number">4.5.4.2. </span>Upgrading to Schema 2026.5.dev8 (PR#1395 registry refresh - identity)<a class="headerlink" href="#upgrading-to-schema-2026-5-dev8-pr-1395-registry-refresh-identity" title="Link to this heading">#</a></h3>
+<p>Identity migration. The canonical rename registries refresh to point
+directly at the dev7 final ArchetypeProperties names; the YAML
+surface itself is unchanged from <code class="docutils literal notranslate"><span class="pre">2026.5.dev7</span></code>. No user action is
+required to reach dev8 from dev7. Users at dev6 or earlier should
+target <code class="docutils literal notranslate"><span class="pre">2026.5.dev9</span></code> directly via
+<code class="docutils literal notranslate"><span class="pre">suews</span> <span class="pre">schema</span> <span class="pre">migrate</span> <span class="pre">...</span> <span class="pre">--target-version</span> <span class="pre">2026.5.dev9</span></code>.</p>
 </section>
 <section id="upgrading-to-schema-2026-5-dev7-naming-convention-rule-2-reorder-for-archetypeproperties">
-<h3><span class="section-number">4.5.4.2. </span>Upgrading to Schema 2026.5.dev7 (naming convention Rule 2 reorder for ArchetypeProperties)<a class="headerlink" href="#upgrading-to-schema-2026-5-dev7-naming-convention-rule-2-reorder-for-archetypeproperties" title="Link to this heading">#</a></h3>
-<p>Schema <code class="docutils literal notranslate"><span class="pre">2026.5.dev7</span></code> was the prior in-development shape. 44
-<code class="docutils literal notranslate"><span class="pre">ArchetypeProperties</span></code> field names under
+<h3><span class="section-number">4.5.4.3. </span>Upgrading to Schema 2026.5.dev7 (naming convention Rule 2 reorder for ArchetypeProperties)<a class="headerlink" href="#upgrading-to-schema-2026-5-dev7-naming-convention-rule-2-reorder-for-archetypeproperties" title="Link to this heading">#</a></h3>
+<p>44 <code class="docutils literal notranslate"><span class="pre">ArchetypeProperties</span></code> field names under
 <code class="docutils literal notranslate"><span class="pre">sites[].properties.building_archetype.*</span></code> have been reordered to
 follow Rule 2 of the SUEWS naming convention
 (<code class="docutils literal notranslate"><span class="pre">.claude/rules/naming-convention.md</span></code>): physical quantity leads,
@@ -832,7 +902,7 @@ then component, then sub-class.</p>
 bulk-material and surface optical properties. Three orthogonal moves
 are embedded in the rename, applied per field as appropriate:</p>
 <ul class="simple">
-<li><p><strong>Reorder so the physical quantity leads</strong> — <code class="docutils literal notranslate"><span class="pre">thickness</span></code>,
+<li><p><strong>Reorder so the physical quantity leads</strong> - <code class="docutils literal notranslate"><span class="pre">thickness</span></code>,
 <code class="docutils literal notranslate"><span class="pre">density</span></code>, <code class="docutils literal notranslate"><span class="pre">conductivity</span></code>, <code class="docutils literal notranslate"><span class="pre">specific_heat_capacity</span></code>,
 <code class="docutils literal notranslate"><span class="pre">emissivity</span></code>, <code class="docutils literal notranslate"><span class="pre">transmissivity</span></code>, <code class="docutils literal notranslate"><span class="pre">absorptivity</span></code>,
 <code class="docutils literal notranslate"><span class="pre">reflectivity</span></code>. For example
@@ -846,33 +916,37 @@ surface. So <code class="docutils literal notranslate"><span class="pre">wall_ex
 stays <code class="docutils literal notranslate"><span class="pre">emissivity_wall_external</span></code> (radiative surface).</p></li>
 <li><p><strong>The effective_ qualifier dropped on the conductivity rows</strong>
 (<code class="docutils literal notranslate"><span class="pre">wall_effective_conductivity</span></code> -&gt; <code class="docutils literal notranslate"><span class="pre">conductivity_wall</span></code>). It was
-used inconsistently — the sibling <code class="docutils literal notranslate"><span class="pre">density</span></code> and
+used inconsistently - the sibling <code class="docutils literal notranslate"><span class="pre">density</span></code> and
 <code class="docutils literal notranslate"><span class="pre">specific_heat_capacity</span></code> rows did not carry it.</p></li>
 </ul>
 <p>Wall and roof heat-capacity distribution rows take the
 <code class="docutils literal notranslate"><span class="pre">fraction_*</span></code> non-physical category prefix per Rule 2:
 <code class="docutils literal notranslate"><span class="pre">wall_outer_heat_capacity_fraction</span></code> -&gt;
 <code class="docutils literal notranslate"><span class="pre">fraction_wall_heat_capacity_outer</span></code>.</p>
-<p>Run the migrator to bring an existing YAML onto the new shape:</p>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>suews<span class="w"> </span>schema<span class="w"> </span>migrate<span class="w"> </span>your_config.yml<span class="w"> </span>--target-version<span class="w"> </span><span class="m">2026</span>.5.dev7
+<p>Run the migrator to bring an existing YAML onto the new shape (or
+target <code class="docutils literal notranslate"><span class="pre">2026.5.dev9</span></code> directly to also pick up the gh#1372
+restructure):</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>suews<span class="w"> </span>schema<span class="w"> </span>migrate<span class="w"> </span>your_config.yml<span class="w"> </span>--target-version<span class="w"> </span><span class="m">2026</span>.5.dev9
 </pre></div>
 </div>
 <p>Every rename is logged via <code class="docutils literal notranslate"><span class="pre">[yaml-upgrade]</span>&#160;&#160; <span class="pre">renamed</span> <span class="pre">'old'</span> <span class="pre">-&gt;</span>
 <span class="pre">'new'</span></code> so the user can verify each substitution. The Pydantic
-backward-compat shim still accepts the dev6 names at load time,
+backward-compat shim still accepts the pre-dev7 names at load time,
 emitting a <code class="docutils literal notranslate"><span class="pre">DeprecationWarning</span></code>; YAMLs that round-trip through the
 migrator come out in the new spellings and no longer warn.</p>
 <p>Cross-layer (Fortran TYPE members, Rust struct fields, DataFrame
-column keys) is unchanged — the bridge map composes through the
+column keys) is unchanged - the bridge map composes through the
 chained <code class="docutils literal notranslate"><span class="pre">ARCHETYPEPROPERTIES_DEV7_TO_PASCAL</span></code> lookup so the legacy
 fused column key (<code class="docutils literal notranslate"><span class="pre">wallextthickness</span></code>, etc.) is still produced from
 the new Pydantic field name.</p>
 </section>
 <section id="upgrading-to-schema-2026-5-dev6-gh-1333-site-level-completeness-validator">
-<h3><span class="section-number">4.5.4.3. </span>Upgrading to Schema 2026.5.dev6 (gh#1333 site-level completeness validator)<a class="headerlink" href="#upgrading-to-schema-2026-5-dev6-gh-1333-site-level-completeness-validator" title="Link to this heading">#</a></h3>
-<p>Schema <code class="docutils literal notranslate"><span class="pre">2026.5.dev6</span></code> was the prior in-development shape. The YAML
-shape is byte-for-byte identical to <code class="docutils literal notranslate"><span class="pre">2026.5.dev5</span></code> — this is a pure
-validator-contract tightening, not a structural rename.</p>
+<h3><span class="section-number">4.5.4.4. </span>Upgrading to Schema 2026.5.dev6 (gh#1333 site-level completeness validator)<a class="headerlink" href="#upgrading-to-schema-2026-5-dev6-gh-1333-site-level-completeness-validator" title="Link to this heading">#</a></h3>
+<p>Schema <code class="docutils literal notranslate"><span class="pre">2026.5.dev6</span></code> is an intermediate dev label (the current
+in-development shape is <code class="docutils literal notranslate"><span class="pre">2026.5.dev9</span></code>; see the sections above). The
+YAML shape at dev6 is byte-for-byte identical to <code class="docutils literal notranslate"><span class="pre">2026.5.dev5</span></code> —
+this is a pure validator-contract tightening, not a structural
+rename.</p>
 <p>Previously, declaring a vegetated or building surface with
 <code class="docutils literal notranslate"><span class="pre">sfr</span> <span class="pre">&gt;</span> <span class="pre">0</span></code> but omitting the physics-required completion fields
 produced a WARNING summary at load time, then silently ran to
@@ -914,7 +988,7 @@ declaration entirely (<code class="docutils literal notranslate"><span class="pr
 simulation was never meant to include that cover type.</p>
 </section>
 <section id="upgrading-to-schema-2026-5-dev5-gh-972-nested-physics-family-tags">
-<h3><span class="section-number">4.5.4.4. </span>Upgrading to Schema 2026.5.dev5 (gh#972 nested physics family tags)<a class="headerlink" href="#upgrading-to-schema-2026-5-dev5-gh-972-nested-physics-family-tags" title="Link to this heading">#</a></h3>
+<h3><span class="section-number">4.5.4.5. </span>Upgrading to Schema 2026.5.dev5 (gh#972 nested physics family tags)<a class="headerlink" href="#upgrading-to-schema-2026-5-dev5-gh-972-nested-physics-family-tags" title="Link to this heading">#</a></h3>
 <p>Schema <code class="docutils literal notranslate"><span class="pre">2026.5.dev5</span></code> widens acceptance for three
 <code class="docutils literal notranslate"><span class="pre">model.physics</span></code> fields: <code class="docutils literal notranslate"><span class="pre">net_radiation</span></code>, <code class="docutils literal notranslate"><span class="pre">storage_heat</span></code>, and
 <code class="docutils literal notranslate"><span class="pre">emissions</span></code>. Users may now provide a family-tagged nested form such
@@ -929,7 +1003,7 @@ and YAML dump / migration continue to emit the flat form unchanged.</p>
 </div>
 </section>
 <section id="upgrading-to-schema-2026-5-dev4-gh-1334-follow-through-via-pr-1337-stebbs-hot-water-prefix-unification">
-<h3><span class="section-number">4.5.4.5. </span>Upgrading to Schema 2026.5.dev4 (gh#1334 follow-through via PR #1337: STEBBS hot-water prefix unification)<a class="headerlink" href="#upgrading-to-schema-2026-5-dev4-gh-1334-follow-through-via-pr-1337-stebbs-hot-water-prefix-unification" title="Link to this heading">#</a></h3>
+<h3><span class="section-number">4.5.4.6. </span>Upgrading to Schema 2026.5.dev4 (gh#1334 follow-through via PR #1337: STEBBS hot-water prefix unification)<a class="headerlink" href="#upgrading-to-schema-2026-5-dev4-gh-1334-follow-through-via-pr-1337-stebbs-hot-water-prefix-unification" title="Link to this heading">#</a></h3>
 <p>Schema <code class="docutils literal notranslate"><span class="pre">2026.5.dev4</span></code> unifies the STEBBS hot-water subsystem under
 a single <code class="docutils literal notranslate"><span class="pre">hot_water_*</span></code> prefix, dropping the opaque <code class="docutils literal notranslate"><span class="pre">dhw_</span></code>
 acronym and the redundant <code class="docutils literal notranslate"><span class="pre">water_tank_*</span></code> sibling that survived
@@ -960,7 +1034,7 @@ to rewrite them in place. Rust struct fields and the c_api shadow
 keep <code class="docutils literal notranslate"><span class="pre">dhw_*</span></code> internally — cross-layer work is tracked in #1324.</p>
 </section>
 <section id="upgrading-to-schema-2026-5-dev3-gh-1334-stebbs-snow-user-facing-yaml-to-snake-case">
-<h3><span class="section-number">4.5.4.6. </span>Upgrading to Schema 2026.5.dev3 (gh#1334: STEBBS + Snow user-facing YAML to snake_case)<a class="headerlink" href="#upgrading-to-schema-2026-5-dev3-gh-1334-stebbs-snow-user-facing-yaml-to-snake-case" title="Link to this heading">#</a></h3>
+<h3><span class="section-number">4.5.4.7. </span>Upgrading to Schema 2026.5.dev3 (gh#1334: STEBBS + Snow user-facing YAML to snake_case)<a class="headerlink" href="#upgrading-to-schema-2026-5-dev3-gh-1334-stebbs-snow-user-facing-yaml-to-snake-case" title="Link to this heading">#</a></h3>
 <p>Schema <code class="docutils literal notranslate"><span class="pre">2026.5.dev3</span></code> retires the pre-gh#1334 STEBBS PascalCase
 exception on the user-facing YAML surface — the full
 <code class="docutils literal notranslate"><span class="pre">site.properties.stebbs</span></code>, <code class="docutils literal notranslate"><span class="pre">site.properties.building_archetype</span></code>
@@ -1022,10 +1096,10 @@ cluster) continue to load under a <code class="docutils literal notranslate"><sp
 </div>
 <p>Use this historical target when you specifically want the pre-hot-water
 unification <code class="docutils literal notranslate"><span class="pre">2026.5.dev3</span></code> spellings. To land on the current schema
-instead, omit <code class="docutils literal notranslate"><span class="pre">--target-version</span></code> or point it at <code class="docutils literal notranslate"><span class="pre">2026.5.dev6</span></code>.</p>
+instead, omit <code class="docutils literal notranslate"><span class="pre">--target-version</span></code> or point it at <code class="docutils literal notranslate"><span class="pre">2026.5.dev9</span></code>.</p>
 </section>
 <section id="upgrading-to-schema-2026-5-dev2-categories-2-3-of-1256-suffix-drop-abbreviation-expansion">
-<h3><span class="section-number">4.5.4.7. </span>Upgrading to Schema 2026.5.dev2 (Categories 2+3 of #1256: suffix drop, abbreviation expansion)<a class="headerlink" href="#upgrading-to-schema-2026-5-dev2-categories-2-3-of-1256-suffix-drop-abbreviation-expansion" title="Link to this heading">#</a></h3>
+<h3><span class="section-number">4.5.4.8. </span>Upgrading to Schema 2026.5.dev2 (Categories 2+3 of #1256: suffix drop, abbreviation expansion)<a class="headerlink" href="#upgrading-to-schema-2026-5-dev2-categories-2-3-of-1256-suffix-drop-abbreviation-expansion" title="Link to this heading">#</a></h3>
 <p>Schema <code class="docutils literal notranslate"><span class="pre">2026.5.dev2</span></code> applies
 Categories 2 and 3 of #1256 (gh#1321) to <code class="docutils literal notranslate"><span class="pre">model.physics</span></code>: 15 fields
 strip the redundant <code class="docutils literal notranslate"><span class="pre">_method</span></code> / <code class="docutils literal notranslate"><span class="pre">_model</span></code> suffix (the enum type
@@ -1067,7 +1141,7 @@ chain to the current schema in one call. Your values survive the
 rename untouched.</p>
 </section>
 <section id="upgrading-to-schema-2026-5-dev1-category-5-of-1256-stebbs-ext-split">
-<h3><span class="section-number">4.5.4.8. </span>Upgrading to Schema 2026.5.dev1 (Category 5 of #1256: STEBBS <code class="xref any docutils literal notranslate"><span class="pre">ext</span></code> split)<a class="headerlink" href="#upgrading-to-schema-2026-5-dev1-category-5-of-1256-stebbs-ext-split" title="Link to this heading">#</a></h3>
+<h3><span class="section-number">4.5.4.9. </span>Upgrading to Schema 2026.5.dev1 (Category 5 of #1256: STEBBS <code class="xref any docutils literal notranslate"><span class="pre">ext</span></code> split)<a class="headerlink" href="#upgrading-to-schema-2026-5-dev1-category-5-of-1256-stebbs-ext-split" title="Link to this heading">#</a></h3>
 <p>Schema <code class="docutils literal notranslate"><span class="pre">2026.5.dev1</span></code> is the current in-development shape. It
 applies Category 5 of #1256 (gh#1327): eight STEBBS
 <code class="docutils literal notranslate"><span class="pre">ArchetypeProperties</span></code> fields with the fused <code class="docutils literal notranslate"><span class="pre">ext</span></code> fragment are
@@ -1111,7 +1185,7 @@ canonical invocation for this migration.</p>
 </div>
 </section>
 <section id="upgrading-to-schema-2026-5-category-1-of-1256-snake-case-sweep">
-<h3><span class="section-number">4.5.4.9. </span>Upgrading to Schema 2026.5 (Category 1 of #1256: snake_case sweep)<a class="headerlink" href="#upgrading-to-schema-2026-5-category-1-of-1256-snake-case-sweep" title="Link to this heading">#</a></h3>
+<h3><span class="section-number">4.5.4.10. </span>Upgrading to Schema 2026.5 (Category 1 of #1256: snake_case sweep)<a class="headerlink" href="#upgrading-to-schema-2026-5-category-1-of-1256-snake-case-sweep" title="Link to this heading">#</a></h3>
 <p>Schema <code class="docutils literal notranslate"><span class="pre">2026.5</span></code> is the Category 1 base on top of which the
 <code class="docutils literal notranslate"><span class="pre">.devN</span></code> dev cycle builds. It applies Category 1 of #1256: 59
 fused compound field names in
@@ -1142,7 +1216,7 @@ release fixture or before sharing a config with collaborators.</p>
 </div>
 </section>
 <section id="upgrading-to-schema-2026-4-suews-2026-4-3">
-<h3><span class="section-number">4.5.4.10. </span>Upgrading to Schema 2026.4 (SUEWS 2026.4.3)<a class="headerlink" href="#upgrading-to-schema-2026-4-suews-2026-4-3" title="Link to this heading">#</a></h3>
+<h3><span class="section-number">4.5.4.11. </span>Upgrading to Schema 2026.4 (SUEWS 2026.4.3)<a class="headerlink" href="#upgrading-to-schema-2026-4-suews-2026-4-3" title="Link to this heading">#</a></h3>
 <p>Upgrading from <code class="docutils literal notranslate"><span class="pre">2026.1</span></code> (shipped with 2026.1.28) or earlier applies
 the following deltas:</p>
 <ul class="simple">
@@ -1170,7 +1244,7 @@ further to the current 2026.5 schema, use
 <code class="docutils literal notranslate"><span class="pre">--target-version</span> <span class="pre">2026.5</span></code> (or omit the flag to reach the latest).</p>
 </section>
 <section id="upgrading-to-schema-2026-1-suews-2026-1-28">
-<h3><span class="section-number">4.5.4.11. </span>Upgrading to Schema 2026.1 (SUEWS 2026.1.28)<a class="headerlink" href="#upgrading-to-schema-2026-1-suews-2026-1-28" title="Link to this heading">#</a></h3>
+<h3><span class="section-number">4.5.4.12. </span>Upgrading to Schema 2026.1 (SUEWS 2026.1.28)<a class="headerlink" href="#upgrading-to-schema-2026-1-suews-2026-1-28" title="Link to this heading">#</a></h3>
 <p>Landed with the STEBBS clean-up (#879). If you are moving from the
 <code class="docutils literal notranslate"><span class="pre">2025.12</span></code> shape (2025.10.15 or 2025.11.20):</p>
 <ul class="simple">
@@ -1194,7 +1268,7 @@ work; the profiles default to previous scalar behaviour.</p></li>
 <p>Otherwise the 2026.4 -&gt; 2026.5 chain above is applied in one pass.</p>
 </section>
 <section id="preserving-your-values-through-renames">
-<h3><span class="section-number">4.5.4.12. </span>Preserving Your Values Through Renames<a class="headerlink" href="#preserving-your-values-through-renames" title="Link to this heading">#</a></h3>
+<h3><span class="section-number">4.5.4.13. </span>Preserving Your Values Through Renames<a class="headerlink" href="#preserving-your-values-through-renames" title="Link to this heading">#</a></h3>
 <p>The rename handlers preserve the user’s value. When both the old and
 the new key happen to be present in the same YAML (for example if
 you’ve partially hand-edited), the newer value wins and the stale
@@ -1206,7 +1280,7 @@ upgraded file, pass <code class="docutils literal notranslate"><span class="pre"
 </div>
 </section>
 <section id="troubleshooting">
-<h3><span class="section-number">4.5.4.13. </span>Troubleshooting<a class="headerlink" href="#troubleshooting" title="Link to this heading">#</a></h3>
+<h3><span class="section-number">4.5.4.14. </span>Troubleshooting<a class="headerlink" href="#troubleshooting" title="Link to this heading">#</a></h3>
 <p><strong>Common Issues and Solutions:</strong></p>
 <ol class="arabic simple">
 <li><p><strong>“Could not auto-detect version”</strong></p>
@@ -1348,19 +1422,20 @@ separate issue once this plumbing is proven.</p>
 </ul>
 </li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#yaml-schema-migrations">4.5.4. YAML Schema Migrations</a><ul class="nav section-nav flex-column">
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#upgrading-to-schema-2026-5-dev8-canonical-archetypeproperties-rename-registries">4.5.4.1. Upgrading to Schema 2026.5.dev8 (canonical ArchetypeProperties rename registries)</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#upgrading-to-schema-2026-5-dev7-naming-convention-rule-2-reorder-for-archetypeproperties">4.5.4.2. Upgrading to Schema 2026.5.dev7 (naming convention Rule 2 reorder for ArchetypeProperties)</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#upgrading-to-schema-2026-5-dev6-gh-1333-site-level-completeness-validator">4.5.4.3. Upgrading to Schema 2026.5.dev6 (gh#1333 site-level completeness validator)</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#upgrading-to-schema-2026-5-dev5-gh-972-nested-physics-family-tags">4.5.4.4. Upgrading to Schema 2026.5.dev5 (gh#972 nested physics family tags)</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#upgrading-to-schema-2026-5-dev4-gh-1334-follow-through-via-pr-1337-stebbs-hot-water-prefix-unification">4.5.4.5. Upgrading to Schema 2026.5.dev4 (gh#1334 follow-through via PR #1337: STEBBS hot-water prefix unification)</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#upgrading-to-schema-2026-5-dev3-gh-1334-stebbs-snow-user-facing-yaml-to-snake-case">4.5.4.6. Upgrading to Schema 2026.5.dev3 (gh#1334: STEBBS + Snow user-facing YAML to snake_case)</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#upgrading-to-schema-2026-5-dev2-categories-2-3-of-1256-suffix-drop-abbreviation-expansion">4.5.4.7. Upgrading to Schema 2026.5.dev2 (Categories 2+3 of #1256: suffix drop, abbreviation expansion)</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#upgrading-to-schema-2026-5-dev1-category-5-of-1256-stebbs-ext-split">4.5.4.8. Upgrading to Schema 2026.5.dev1 (Category 5 of #1256: STEBBS <code class="xref any docutils literal notranslate"><span class="pre">ext</span></code> split)</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#upgrading-to-schema-2026-5-category-1-of-1256-snake-case-sweep">4.5.4.9. Upgrading to Schema 2026.5 (Category 1 of #1256: snake_case sweep)</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#upgrading-to-schema-2026-4-suews-2026-4-3">4.5.4.10. Upgrading to Schema 2026.4 (SUEWS 2026.4.3)</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#upgrading-to-schema-2026-1-suews-2026-1-28">4.5.4.11. Upgrading to Schema 2026.1 (SUEWS 2026.1.28)</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#preserving-your-values-through-renames">4.5.4.12. Preserving Your Values Through Renames</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#troubleshooting">4.5.4.13. Troubleshooting</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#upgrading-to-schema-2026-5-dev9-gh-1372-cumulative-model-control-restructure">4.5.4.1. Upgrading to Schema 2026.5.dev9 (gh#1372 cumulative model.control restructure)</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#upgrading-to-schema-2026-5-dev8-pr-1395-registry-refresh-identity">4.5.4.2. Upgrading to Schema 2026.5.dev8 (PR#1395 registry refresh - identity)</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#upgrading-to-schema-2026-5-dev7-naming-convention-rule-2-reorder-for-archetypeproperties">4.5.4.3. Upgrading to Schema 2026.5.dev7 (naming convention Rule 2 reorder for ArchetypeProperties)</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#upgrading-to-schema-2026-5-dev6-gh-1333-site-level-completeness-validator">4.5.4.4. Upgrading to Schema 2026.5.dev6 (gh#1333 site-level completeness validator)</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#upgrading-to-schema-2026-5-dev5-gh-972-nested-physics-family-tags">4.5.4.5. Upgrading to Schema 2026.5.dev5 (gh#972 nested physics family tags)</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#upgrading-to-schema-2026-5-dev4-gh-1334-follow-through-via-pr-1337-stebbs-hot-water-prefix-unification">4.5.4.6. Upgrading to Schema 2026.5.dev4 (gh#1334 follow-through via PR #1337: STEBBS hot-water prefix unification)</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#upgrading-to-schema-2026-5-dev3-gh-1334-stebbs-snow-user-facing-yaml-to-snake-case">4.5.4.7. Upgrading to Schema 2026.5.dev3 (gh#1334: STEBBS + Snow user-facing YAML to snake_case)</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#upgrading-to-schema-2026-5-dev2-categories-2-3-of-1256-suffix-drop-abbreviation-expansion">4.5.4.8. Upgrading to Schema 2026.5.dev2 (Categories 2+3 of #1256: suffix drop, abbreviation expansion)</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#upgrading-to-schema-2026-5-dev1-category-5-of-1256-stebbs-ext-split">4.5.4.9. Upgrading to Schema 2026.5.dev1 (Category 5 of #1256: STEBBS <code class="xref any docutils literal notranslate"><span class="pre">ext</span></code> split)</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#upgrading-to-schema-2026-5-category-1-of-1256-snake-case-sweep">4.5.4.10. Upgrading to Schema 2026.5 (Category 1 of #1256: snake_case sweep)</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#upgrading-to-schema-2026-4-suews-2026-4-3">4.5.4.11. Upgrading to Schema 2026.4 (SUEWS 2026.4.3)</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#upgrading-to-schema-2026-1-suews-2026-1-28">4.5.4.12. Upgrading to Schema 2026.1 (SUEWS 2026.1.28)</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#preserving-your-values-through-renames">4.5.4.13. Preserving Your Values Through Renames</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#troubleshooting">4.5.4.14. Troubleshooting</a></li>
 </ul>
 </li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#nested-physics-sub-options-accept-only-gh-972">4.5.5. Nested Physics Sub-Options (accept-only, gh#972)</a></li>
@@ -1397,7 +1472,7 @@ By SUEWS dev team led by Prof Sue Grimmond
   
   <div class="footer-item">
     <p class="last-updated">
-  Last updated on 2026-05-02.
+  Last updated on 2026-05-03.
   <br/>
 </p>
   </div>
@@ -1405,8 +1480,8 @@ By SUEWS dev team led by Prof Sue Grimmond
   <div class="footer-item">
     
 <div class="extra_footer">
-  <p>Version: 2026.5.2.dev9058 |
-    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/a589d031d4e40e90eed33d3c6141b7bf2ad79b1f">a589d03</a> |
+  <p>Version: 2026.5.3.dev9066 |
+    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/553bad22c38830a2a0e2f2bc6d3cc81672b8df67">553bad2</a> |
     <a href="https://umep-dev.github.io/SUEWS/brand/showcase.html">Brand</a></p>
 </div>
   </div>

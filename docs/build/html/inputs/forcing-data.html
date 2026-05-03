@@ -8,8 +8,8 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <meta property="article:modified_time" content="2026-04-17T21:57:41+00:00" />
-    <title>4.2. Meteorological Forcing Data &#8212; SUEWS 2026.5.2.dev9058 documentation</title>
+    <meta property="article:modified_time" content="2026-05-03T10:34:05+00:00" />
+    <title>4.2. Meteorological Forcing Data &#8212; SUEWS 2026.5.3.dev9066 documentation</title>
   
   
   
@@ -45,7 +45,7 @@
   <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=8878045cc6db502f8baf" />
 <link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=8878045cc6db502f8baf" />
 
-    <script src="../_static/documentation_options.js?v=de34defe"></script>
+    <script src="../_static/documentation_options.js?v=76d852b6"></script>
     <script src="../_static/doctools.js?v=9bcbadda"></script>
     <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
     <script src="../_static/scripts/sphinx-book-theme.js?v=fab101a9"></script>
@@ -59,8 +59,8 @@
     <link rel="prev" title="4.1. YAML Configuration Format" href="yaml/index.html" />
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
-  <meta name="docsearch:version" content="2026.5.2.dev9058" />
-    <meta name="docbuild:last-update" content="2026-04-17"/>
+  <meta name="docsearch:version" content="2026.5.3.dev9066" />
+    <meta name="docbuild:last-update" content="2026-05-03"/>
   </head>
   
   
@@ -102,7 +102,7 @@
   <div class="bd-header-announcement__content">
     <div style="background-color: #f0ad4e; border: 1px solid #eea236; border-radius: 4px; padding: 10px; margin: 10px 0;">
         <strong>⚠️ Development Version:</strong> This documentation was built from a development version
-        (2026.5.2.dev9058, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/a589d031d4e40e90eed33d3c6141b7bf2ad79b1f" style="color: #31708f;">a589d03</a>).
+        (2026.5.3.dev9066, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/553bad22c38830a2a0e2f2bc6d3cc81672b8df67" style="color: #31708f;">553bad2</a>).
         Features described here may be unstable or subject to change. For stable documentation, please visit the
         <a href="https://docs.suews.io/stable/" style="color: #31708f;">latest release</a>.
     </div>
@@ -149,8 +149,8 @@
       
     
     
-    <img src="../_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.5.2.dev9058 documentation - Home"/>
-    <img src="../_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.5.2.dev9058 documentation - Home"/>
+    <img src="../_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.5.3.dev9066 documentation - Home"/>
+    <img src="../_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.5.3.dev9066 documentation - Home"/>
   
   
 </a></div>
@@ -192,51 +192,52 @@
 <li class="toctree-l3"><a class="reference internal" href="yaml/config-reference/dayprofile.html">4.3.10. Daily Profile</a></li>
 <li class="toctree-l3"><a class="reference internal" href="yaml/config-reference/dectrproperties.html">4.3.11. Deciduous Trees</a></li>
 <li class="toctree-l3"><a class="reference internal" href="yaml/config-reference/evetrproperties.html">4.3.12. Evergreen Trees</a></li>
-<li class="toctree-l3"><a class="reference internal" href="yaml/config-reference/grassproperties.html">4.3.13. Grass</a></li>
-<li class="toctree-l3"><a class="reference internal" href="yaml/config-reference/heatingsetpointprofile.html">4.3.14. Heating Setpoint Profile</a></li>
-<li class="toctree-l3"><a class="reference internal" href="yaml/config-reference/hourlyprofile.html">4.3.15. Hourly Profile</a></li>
-<li class="toctree-l3"><a class="reference internal" href="yaml/config-reference/initialstatebldgs.html">4.3.16. Buildings Surface Initial State</a></li>
-<li class="toctree-l3"><a class="reference internal" href="yaml/config-reference/initialstatebsoil.html">4.3.17. Bare Soil Surface Initial State</a></li>
-<li class="toctree-l3"><a class="reference internal" href="yaml/config-reference/initialstatedectr.html">4.3.18. Deciduous Tree Initial State</a></li>
-<li class="toctree-l3"><a class="reference internal" href="yaml/config-reference/initialstateevetr.html">4.3.19. Evergreen Tree Initial State</a></li>
-<li class="toctree-l3"><a class="reference internal" href="yaml/config-reference/initialstategrass.html">4.3.20. Grass Initial State</a></li>
-<li class="toctree-l3"><a class="reference internal" href="yaml/config-reference/initialstatepaved.html">4.3.21. Paved Surface Initial State</a></li>
-<li class="toctree-l3"><a class="reference internal" href="yaml/config-reference/initialstateveg.html">4.3.22. Vegetation Initial State</a></li>
-<li class="toctree-l3"><a class="reference internal" href="yaml/config-reference/initialstatewater.html">4.3.23. Water Surface Initial State</a></li>
-<li class="toctree-l3"><a class="reference internal" href="yaml/config-reference/initialstates.html">4.3.24. Initial States</a></li>
-<li class="toctree-l3"><a class="reference internal" href="yaml/config-reference/irrigationparams.html">4.3.25. Irrigation</a></li>
-<li class="toctree-l3"><a class="reference internal" href="yaml/config-reference/laiparams.html">4.3.26. LAI</a></li>
-<li class="toctree-l3"><a class="reference internal" href="yaml/config-reference/laipowercoefficients.html">4.3.27. LAI Power Coefficients</a></li>
-<li class="toctree-l3"><a class="reference internal" href="yaml/config-reference/lumpsparams.html">4.3.28. LUMPS Parameters</a></li>
-<li class="toctree-l3"><a class="reference internal" href="yaml/config-reference/landcover.html">4.3.29. Land Cover</a></li>
-<li class="toctree-l3"><a class="reference internal" href="yaml/config-reference/model.html">4.3.30. Model Configuration</a></li>
-<li class="toctree-l3"><a class="reference internal" href="yaml/config-reference/modelcontrol.html">4.3.31. Model Control</a></li>
-<li class="toctree-l3"><a class="reference internal" href="yaml/config-reference/modelphysics.html">4.3.32. Physics Methods</a></li>
-<li class="toctree-l3"><a class="reference internal" href="yaml/config-reference/nonvegetatedsurfaceproperties.html">4.3.33. Surface Properties</a></li>
-<li class="toctree-l3"><a class="reference internal" href="yaml/config-reference/ohmcoefficients.html">4.3.34. OHM Coefficients</a></li>
-<li class="toctree-l3"><a class="reference internal" href="yaml/config-reference/ohm_coefficient_season_wetness.html">4.3.35. Seasonal/Wetness OHM Coefficients</a></li>
-<li class="toctree-l3"><a class="reference internal" href="yaml/config-reference/outputconfig.html">4.3.36. Output Configuration</a></li>
-<li class="toctree-l3"><a class="reference internal" href="yaml/config-reference/pavedproperties.html">4.3.37. Paved Surfaces</a></li>
-<li class="toctree-l3"><a class="reference internal" href="yaml/config-reference/rooflayer.html">4.3.38. Roof Layer</a></li>
-<li class="toctree-l3"><a class="reference internal" href="yaml/config-reference/spartacusparams.html">4.3.39. SPARTACUS</a></li>
-<li class="toctree-l3"><a class="reference internal" href="yaml/config-reference/suewsconfig.html">4.3.40. SUEWS Configuration</a></li>
-<li class="toctree-l3"><a class="reference internal" href="yaml/config-reference/site.html">4.3.41. Site Configuration</a></li>
-<li class="toctree-l3"><a class="reference internal" href="yaml/config-reference/siteproperties.html">4.3.42. Site Properties</a></li>
-<li class="toctree-l3"><a class="reference internal" href="yaml/config-reference/snowparams.html">4.3.43. Snow</a></li>
-<li class="toctree-l3"><a class="reference internal" href="yaml/config-reference/soilobservationconfig.html">4.3.44. Soil Observation Configuration</a></li>
-<li class="toctree-l3"><a class="reference internal" href="yaml/config-reference/stebbsproperties.html">4.3.45. STEBBS</a></li>
-<li class="toctree-l3"><a class="reference internal" href="yaml/config-reference/storagedrainparams.html">4.3.46. Drainage Parameters</a></li>
-<li class="toctree-l3"><a class="reference internal" href="yaml/config-reference/surfaceinitialstate.html">4.3.47. Generic Surface Initial State</a></li>
-<li class="toctree-l3"><a class="reference internal" href="yaml/config-reference/surfaceproperties.html">4.3.48. Surface Properties</a></li>
-<li class="toctree-l3"><a class="reference internal" href="yaml/config-reference/tenminuteprofile.html">4.3.49. Ten Minute Profile</a></li>
-<li class="toctree-l3"><a class="reference internal" href="yaml/config-reference/thermallayers.html">4.3.50. Thermal Layers</a></li>
-<li class="toctree-l3"><a class="reference internal" href="yaml/config-reference/vegetatedsurfaceproperties.html">4.3.51. Surface Properties</a></li>
-<li class="toctree-l3"><a class="reference internal" href="yaml/config-reference/vegetationparams.html">4.3.52. Vegetation Parameters</a></li>
-<li class="toctree-l3"><a class="reference internal" href="yaml/config-reference/verticallayers.html">4.3.53. Vertical Layers</a></li>
-<li class="toctree-l3"><a class="reference internal" href="yaml/config-reference/walllayer.html">4.3.54. Wall Layer</a></li>
-<li class="toctree-l3"><a class="reference internal" href="yaml/config-reference/waterdistribution.html">4.3.55. Water Distribution</a></li>
-<li class="toctree-l3"><a class="reference internal" href="yaml/config-reference/waterproperties.html">4.3.56. Water Surfaces</a></li>
-<li class="toctree-l3"><a class="reference internal" href="yaml/config-reference/weeklyprofile.html">4.3.57. Weekly Profile</a></li>
+<li class="toctree-l3"><a class="reference internal" href="yaml/config-reference/forcingcontrol.html">4.3.13. Forcing Control</a></li>
+<li class="toctree-l3"><a class="reference internal" href="yaml/config-reference/grassproperties.html">4.3.14. Grass</a></li>
+<li class="toctree-l3"><a class="reference internal" href="yaml/config-reference/heatingsetpointprofile.html">4.3.15. Heating Setpoint Profile</a></li>
+<li class="toctree-l3"><a class="reference internal" href="yaml/config-reference/hourlyprofile.html">4.3.16. Hourly Profile</a></li>
+<li class="toctree-l3"><a class="reference internal" href="yaml/config-reference/initialstatebldgs.html">4.3.17. Buildings Surface Initial State</a></li>
+<li class="toctree-l3"><a class="reference internal" href="yaml/config-reference/initialstatebsoil.html">4.3.18. Bare Soil Surface Initial State</a></li>
+<li class="toctree-l3"><a class="reference internal" href="yaml/config-reference/initialstatedectr.html">4.3.19. Deciduous Tree Initial State</a></li>
+<li class="toctree-l3"><a class="reference internal" href="yaml/config-reference/initialstateevetr.html">4.3.20. Evergreen Tree Initial State</a></li>
+<li class="toctree-l3"><a class="reference internal" href="yaml/config-reference/initialstategrass.html">4.3.21. Grass Initial State</a></li>
+<li class="toctree-l3"><a class="reference internal" href="yaml/config-reference/initialstatepaved.html">4.3.22. Paved Surface Initial State</a></li>
+<li class="toctree-l3"><a class="reference internal" href="yaml/config-reference/initialstateveg.html">4.3.23. Vegetation Initial State</a></li>
+<li class="toctree-l3"><a class="reference internal" href="yaml/config-reference/initialstatewater.html">4.3.24. Water Surface Initial State</a></li>
+<li class="toctree-l3"><a class="reference internal" href="yaml/config-reference/initialstates.html">4.3.25. Initial States</a></li>
+<li class="toctree-l3"><a class="reference internal" href="yaml/config-reference/irrigationparams.html">4.3.26. Irrigation</a></li>
+<li class="toctree-l3"><a class="reference internal" href="yaml/config-reference/laiparams.html">4.3.27. LAI</a></li>
+<li class="toctree-l3"><a class="reference internal" href="yaml/config-reference/laipowercoefficients.html">4.3.28. LAI Power Coefficients</a></li>
+<li class="toctree-l3"><a class="reference internal" href="yaml/config-reference/lumpsparams.html">4.3.29. LUMPS Parameters</a></li>
+<li class="toctree-l3"><a class="reference internal" href="yaml/config-reference/landcover.html">4.3.30. Land Cover</a></li>
+<li class="toctree-l3"><a class="reference internal" href="yaml/config-reference/model.html">4.3.31. Model Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="yaml/config-reference/modelcontrol.html">4.3.32. Model Control</a></li>
+<li class="toctree-l3"><a class="reference internal" href="yaml/config-reference/modelphysics.html">4.3.33. Physics Methods</a></li>
+<li class="toctree-l3"><a class="reference internal" href="yaml/config-reference/nonvegetatedsurfaceproperties.html">4.3.34. Surface Properties</a></li>
+<li class="toctree-l3"><a class="reference internal" href="yaml/config-reference/ohmcoefficients.html">4.3.35. OHM Coefficients</a></li>
+<li class="toctree-l3"><a class="reference internal" href="yaml/config-reference/ohm_coefficient_season_wetness.html">4.3.36. Seasonal/Wetness OHM Coefficients</a></li>
+<li class="toctree-l3"><a class="reference internal" href="yaml/config-reference/outputcontrol.html">4.3.37. Output Control</a></li>
+<li class="toctree-l3"><a class="reference internal" href="yaml/config-reference/pavedproperties.html">4.3.38. Paved Surfaces</a></li>
+<li class="toctree-l3"><a class="reference internal" href="yaml/config-reference/rooflayer.html">4.3.39. Roof Layer</a></li>
+<li class="toctree-l3"><a class="reference internal" href="yaml/config-reference/spartacusparams.html">4.3.40. SPARTACUS</a></li>
+<li class="toctree-l3"><a class="reference internal" href="yaml/config-reference/suewsconfig.html">4.3.41. SUEWS Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="yaml/config-reference/site.html">4.3.42. Site Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="yaml/config-reference/siteproperties.html">4.3.43. Site Properties</a></li>
+<li class="toctree-l3"><a class="reference internal" href="yaml/config-reference/snowparams.html">4.3.44. Snow</a></li>
+<li class="toctree-l3"><a class="reference internal" href="yaml/config-reference/soilobservationconfig.html">4.3.45. Soil Observation Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="yaml/config-reference/stebbsproperties.html">4.3.46. STEBBS</a></li>
+<li class="toctree-l3"><a class="reference internal" href="yaml/config-reference/storagedrainparams.html">4.3.47. Drainage Parameters</a></li>
+<li class="toctree-l3"><a class="reference internal" href="yaml/config-reference/surfaceinitialstate.html">4.3.48. Generic Surface Initial State</a></li>
+<li class="toctree-l3"><a class="reference internal" href="yaml/config-reference/surfaceproperties.html">4.3.49. Surface Properties</a></li>
+<li class="toctree-l3"><a class="reference internal" href="yaml/config-reference/tenminuteprofile.html">4.3.50. Ten Minute Profile</a></li>
+<li class="toctree-l3"><a class="reference internal" href="yaml/config-reference/thermallayers.html">4.3.51. Thermal Layers</a></li>
+<li class="toctree-l3"><a class="reference internal" href="yaml/config-reference/vegetatedsurfaceproperties.html">4.3.52. Surface Properties</a></li>
+<li class="toctree-l3"><a class="reference internal" href="yaml/config-reference/vegetationparams.html">4.3.53. Vegetation Parameters</a></li>
+<li class="toctree-l3"><a class="reference internal" href="yaml/config-reference/verticallayers.html">4.3.54. Vertical Layers</a></li>
+<li class="toctree-l3"><a class="reference internal" href="yaml/config-reference/walllayer.html">4.3.55. Wall Layer</a></li>
+<li class="toctree-l3"><a class="reference internal" href="yaml/config-reference/waterdistribution.html">4.3.56. Water Distribution</a></li>
+<li class="toctree-l3"><a class="reference internal" href="yaml/config-reference/waterproperties.html">4.3.57. Water Surfaces</a></li>
+<li class="toctree-l3"><a class="reference internal" href="yaml/config-reference/weeklyprofile.html">4.3.58. Weekly Profile</a></li>
 </ul>
 </details></li>
 <li class="toctree-l2"><a class="reference internal" href="converter.html">4.4. SUEWS Format Converter</a></li>
@@ -596,16 +597,17 @@
                 <ul class="visible nav section-nav flex-column">
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#data-requirements">4.2.1. Data Requirements</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#file-format">4.2.2. File Format</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#important-requirements">4.2.3. Important Requirements</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#yaml-configuration">4.2.4. YAML Configuration</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#optional-variables">4.2.5. Optional Variables</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#prescribing-observed-lai">4.2.6. Prescribing Observed LAI</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#generating-forcing-data-from-era5">4.2.7. Generating Forcing Data from ERA5</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#using-epw-weather-files">4.2.8. Using EPW Weather Files</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#data-preparation-tips">4.2.9. Data Preparation Tips</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#validating-forcing-data">4.2.10. Validating Forcing Data</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#physics-specific-data-requirements">4.2.11. Physics-Specific Data Requirements</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#see-also">4.2.12. See Also</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#named-column-forcing-files-gh-1372">4.2.3. Named-column forcing files (gh#1372)</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#important-requirements">4.2.4. Important Requirements</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#yaml-configuration">4.2.5. YAML Configuration</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#optional-variables">4.2.6. Optional Variables</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#prescribing-observed-lai">4.2.7. Prescribing Observed LAI</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#generating-forcing-data-from-era5">4.2.8. Generating Forcing Data from ERA5</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#using-epw-weather-files">4.2.9. Using EPW Weather Files</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#data-preparation-tips">4.2.10. Data Preparation Tips</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#validating-forcing-data">4.2.11. Validating Forcing Data</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#physics-specific-data-requirements">4.2.12. Physics-Specific Data Requirements</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#see-also">4.2.13. See Also</a></li>
 </ul>
             </nav>
         </div>
@@ -747,8 +749,61 @@
 </pre></div>
 </div>
 </section>
+<section id="named-column-forcing-files-gh-1372">
+<span id="named-column-forcing"></span><h2><span class="section-number">4.2.3. </span>Named-column forcing files (gh#1372)<a class="headerlink" href="#named-column-forcing-files-gh-1372" title="Link to this heading">#</a></h2>
+<p>Since schema 2026.5.dev7, SUEWS reads forcing files by <strong>column name</strong>,
+not by column position. The header line is required and its content is
+matched, case-insensitively, against the canonical column list above.</p>
+<ul>
+<li><p><strong>Required (baseline)</strong>: <code class="docutils literal notranslate"><span class="pre">iy</span></code>, <code class="docutils literal notranslate"><span class="pre">id</span></code>, <code class="docutils literal notranslate"><span class="pre">it</span></code>, <code class="docutils literal notranslate"><span class="pre">imin</span></code>, <code class="docutils literal notranslate"><span class="pre">Tair</span></code>,
+<code class="docutils literal notranslate"><span class="pre">RH</span></code>, <code class="docutils literal notranslate"><span class="pre">U</span></code>, <code class="docutils literal notranslate"><span class="pre">pres</span></code>, <code class="docutils literal notranslate"><span class="pre">kdown</span></code>, <code class="docutils literal notranslate"><span class="pre">rain</span></code>. Missing any of these
+raises <code class="docutils literal notranslate"><span class="pre">ValueError</span></code> at load time.</p></li>
+<li><p><strong>Required (physics-conditional)</strong>: depending on the chosen physics
+path, additional columns become mandatory. For example,
+<code class="docutils literal notranslate"><span class="pre">model.physics.net_radiation</span> <span class="pre">=</span> <span class="pre">0</span></code> requires <code class="docutils literal notranslate"><span class="pre">qn</span></code>;
+<code class="docutils literal notranslate"><span class="pre">net_radiation</span> <span class="pre">=</span> <span class="pre">1</span></code> or <code class="docutils literal notranslate"><span class="pre">11</span></code> requires <code class="docutils literal notranslate"><span class="pre">ldown</span></code>;
+<code class="docutils literal notranslate"><span class="pre">net_radiation</span> <span class="pre">=</span> <span class="pre">2</span></code> or <code class="docutils literal notranslate"><span class="pre">12</span></code> requires <code class="docutils literal notranslate"><span class="pre">fcld</span></code>. The error
+message cites the offending column and the physics method that
+requires it.</p></li>
+<li><p><strong>Optional canonical columns</strong>: missing canonical columns outside the
+required set are filled with <code class="docutils literal notranslate"><span class="pre">-999.0</span></code> (the SUEWS sentinel). Column
+order is irrelevant.</p></li>
+<li><p><strong>Per-landcover variants</strong>: the loader also accepts whitelisted
+<code class="docutils literal notranslate"><span class="pre">&lt;var&gt;_&lt;surface&gt;</span></code> columns:</p>
+<ul>
+<li><p><code class="docutils literal notranslate"><span class="pre">lai_&lt;surface&gt;</span></code> is accepted <strong>only for vegetated surfaces</strong> —
+<code class="docutils literal notranslate"><span class="pre">evetr</span></code>, <code class="docutils literal notranslate"><span class="pre">dectr</span></code>, <code class="docutils literal notranslate"><span class="pre">grass</span></code>. <code class="docutils literal notranslate"><span class="pre">lai_paved</span></code> / <code class="docutils literal notranslate"><span class="pre">lai_bldgs</span></code> /
+<code class="docutils literal notranslate"><span class="pre">lai_bsoil</span></code> / <code class="docutils literal notranslate"><span class="pre">lai_water</span></code> are not meaningful and are treated
+as unknown (warn-and-drop).</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">wuh_&lt;surface&gt;</span></code> (external water use — irrigation,
+impervious-surface washing, fountains, ornamental water features)
+is accepted on every surface, including the open-water surface
+via <code class="docutils literal notranslate"><span class="pre">wuh_water</span></code> (a fountain or pond top-up adds water to the
+<code class="docutils literal notranslate"><span class="pre">water</span></code> surface itself).</p>
+<p><strong>Units and convention</strong>: each <code class="docutils literal notranslate"><span class="pre">wuh_&lt;surface&gt;</span></code> value is a depth
+in <strong>mm per forcing time step</strong>, the same unit as <code class="docutils literal notranslate"><span class="pre">rain</span></code>. The
+depth is interpreted as falling on <strong>that surface only</strong> — not
+spread over the whole grid. The grid-total contribution is
+therefore <code class="docutils literal notranslate"><span class="pre">wuh_&lt;surface&gt;</span> <span class="pre">×</span> <span class="pre">sfr_&lt;surface&gt;</span></code>. Worked example: with
+grass occupying 20% of the grid and <code class="docutils literal notranslate"><span class="pre">wuh_grass</span> <span class="pre">=</span> <span class="pre">5</span></code> (mm in this
+time step), the grass surface receives 5 mm of irrigation depth
+and the site-mean external water-use input is
+<code class="docutils literal notranslate"><span class="pre">5</span> <span class="pre">×</span> <span class="pre">0.20</span> <span class="pre">=</span> <span class="pre">1</span></code> mm. The rainfall-aligned unit also lets users
+drop ERA5-style hourly water-flux columns straight in without
+extra rescaling.</p>
+</li>
+</ul>
+<p>Whitelisted columns are preserved on <code class="docutils literal notranslate"><span class="pre">SUEWSForcing.extras</span></code> for
+downstream physics work; the kernel itself continues to use the bulk
+<code class="docutils literal notranslate"><span class="pre">lai</span></code> and <code class="docutils literal notranslate"><span class="pre">Wuh</span></code> columns. Soil-moisture deficit (<code class="docutils literal notranslate"><span class="pre">xsmd</span></code>) is a
+bulk site-level quantity and is intentionally not per-landcover.</p>
+</li>
+<li><p><strong>Unknown columns</strong>: any column not in the canonical or whitelisted
+sets emits a <code class="docutils literal notranslate"><span class="pre">UserWarning</span></code> and is dropped.</p></li>
+</ul>
+</section>
 <section id="important-requirements">
-<h2><span class="section-number">4.2.3. </span>Important Requirements<a class="headerlink" href="#important-requirements" title="Link to this heading">#</a></h2>
+<h2><span class="section-number">4.2.4. </span>Important Requirements<a class="headerlink" href="#important-requirements" title="Link to this heading">#</a></h2>
 <p><strong>Temporal Aspects</strong></p>
 <ul class="simple">
 <li><p><strong>Continuous data</strong>: No gaps allowed - missing periods must be gap-filled</p></li>
@@ -783,22 +838,32 @@
 </ul>
 </section>
 <section id="yaml-configuration">
-<h2><span class="section-number">4.2.4. </span>YAML Configuration<a class="headerlink" href="#yaml-configuration" title="Link to this heading">#</a></h2>
-<p>In your YAML configuration, specify the forcing file(s):</p>
+<h2><span class="section-number">4.2.5. </span>YAML Configuration<a class="headerlink" href="#yaml-configuration" title="Link to this heading">#</a></h2>
+<p>In your YAML configuration, specify the forcing file(s) under the
+<code class="docutils literal notranslate"><span class="pre">forcing</span></code> sub-object (schema 2026.5.dev7 onwards; see
+<a class="reference internal" href="transition_guide.html#transition-guide"><span class="std std-ref">Transitioning to YAML-based Configuration</span></a> for the rename of the legacy
+<code class="docutils literal notranslate"><span class="pre">model.control.forcing_file</span></code> key):</p>
 <div class="highlight-yaml notranslate"><div class="highlight"><pre><span></span><span class="nt">model</span><span class="p">:</span>
 <span class="w">  </span><span class="nt">control</span><span class="p">:</span>
-<span class="w">    </span><span class="nt">forcing_file</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;forcing/Kc_2020_data_60.txt&quot;</span>
-
-<span class="w">    </span><span class="c1"># Or multiple files for continuous multi-year runs:</span>
-<span class="w">    </span><span class="nt">forcing_file</span><span class="p">:</span>
-<span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="s">&quot;forcing/Kc_2020_data_60.txt&quot;</span>
-<span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="s">&quot;forcing/Kc_2021_data_60.txt&quot;</span>
-<span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="s">&quot;forcing/Kc_2022_data_60.txt&quot;</span>
+<span class="w">    </span><span class="nt">forcing</span><span class="p">:</span>
+<span class="w">      </span><span class="nt">file</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;forcing/Kc_2020_data_60.txt&quot;</span>
+</pre></div>
+</div>
+<p>Or, for continuous multi-year runs, supply a list under the same
+<code class="docutils literal notranslate"><span class="pre">forcing.file</span></code> key (the loader concatenates them in chronological
+order):</p>
+<div class="highlight-yaml notranslate"><div class="highlight"><pre><span></span><span class="nt">model</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">control</span><span class="p">:</span>
+<span class="w">    </span><span class="nt">forcing</span><span class="p">:</span>
+<span class="w">      </span><span class="nt">file</span><span class="p">:</span>
+<span class="w">        </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="s">&quot;forcing/Kc_2020_data_60.txt&quot;</span>
+<span class="w">        </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="s">&quot;forcing/Kc_2021_data_60.txt&quot;</span>
+<span class="w">        </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="s">&quot;forcing/Kc_2022_data_60.txt&quot;</span>
 </pre></div>
 </div>
 </section>
 <section id="optional-variables">
-<h2><span class="section-number">4.2.5. </span>Optional Variables<a class="headerlink" href="#optional-variables" title="Link to this heading">#</a></h2>
+<h2><span class="section-number">4.2.6. </span>Optional Variables<a class="headerlink" href="#optional-variables" title="Link to this heading">#</a></h2>
 <p>These additional variables can enhance model performance but are not required:</p>
 <div class="pst-scrollable-table-container"><table class="table">
 <colgroup>
@@ -885,7 +950,7 @@
 </div>
 </section>
 <section id="prescribing-observed-lai">
-<span id="prescribed-lai"></span><h2><span class="section-number">4.2.6. </span>Prescribing Observed LAI<a class="headerlink" href="#prescribing-observed-lai" title="Link to this heading">#</a></h2>
+<span id="prescribed-lai"></span><h2><span class="section-number">4.2.7. </span>Prescribing Observed LAI<a class="headerlink" href="#prescribing-observed-lai" title="Link to this heading">#</a></h2>
 <p>By default SUEWS computes leaf area index (LAI) internally using growing-degree-day (GDD) and
 senescence-degree-day (SDD) thresholds on daily mean air temperature. For sites where the
 observed LAI cycle is driven by rainfall (monsoon grasslands, semi-arid sites) or where a
@@ -929,7 +994,7 @@ unexpected outputs.</p>
 </div>
 </section>
 <section id="generating-forcing-data-from-era5">
-<h2><span class="section-number">4.2.7. </span>Generating Forcing Data from ERA5<a class="headerlink" href="#generating-forcing-data-from-era5" title="Link to this heading">#</a></h2>
+<h2><span class="section-number">4.2.8. </span>Generating Forcing Data from ERA5<a class="headerlink" href="#generating-forcing-data-from-era5" title="Link to this heading">#</a></h2>
 <p>SUEWS provides built-in support for downloading and processing ERA5 reanalysis data into forcing files using the <a class="reference internal" href="../api/_autosummary/supy.util.gen_forcing_era5.html#supy.util.gen_forcing_era5" title="supy.util.gen_forcing_era5"><code class="xref py py-func docutils literal notranslate"><span class="pre">gen_forcing_era5()</span></code></a> function.</p>
 <p><strong>Quick Start (Recommended - Fast Method)</strong></p>
 <p>By default, SUEWS uses the fast ERA5 timeseries dataset via CDS API:</p>
@@ -970,7 +1035,7 @@ unexpected outputs.</p>
 <p>See <a class="reference internal" href="../api/_autosummary/supy.util.gen_forcing_era5.html#supy.util.gen_forcing_era5" title="supy.util.gen_forcing_era5"><code class="xref py py-func docutils literal notranslate"><span class="pre">gen_forcing_era5()</span></code></a> API documentation for all options.</p>
 </section>
 <section id="using-epw-weather-files">
-<h2><span class="section-number">4.2.8. </span>Using EPW Weather Files<a class="headerlink" href="#using-epw-weather-files" title="Link to this heading">#</a></h2>
+<h2><span class="section-number">4.2.9. </span>Using EPW Weather Files<a class="headerlink" href="#using-epw-weather-files" title="Link to this heading">#</a></h2>
 <p>EPW (EnergyPlus Weather) files are a common format for building energy simulation, often derived from Typical Meteorological Year (TMY) data. SUEWS can read EPW data via the <a class="reference internal" href="../api/_autosummary/supy.util.read_epw.html#supy.util.read_epw" title="supy.util.read_epw"><code class="xref py py-func docutils literal notranslate"><span class="pre">read_epw()</span></code></a> utility function.</p>
 <p><strong>Important: Measurement Height Assumptions</strong></p>
 <p>EPW files follow standard meteorological station conventions with fixed measurement heights:</p>
@@ -1087,7 +1152,7 @@ unexpected outputs.</p>
 </div>
 </section>
 <section id="data-preparation-tips">
-<h2><span class="section-number">4.2.9. </span>Data Preparation Tips<a class="headerlink" href="#data-preparation-tips" title="Link to this heading">#</a></h2>
+<h2><span class="section-number">4.2.10. </span>Data Preparation Tips<a class="headerlink" href="#data-preparation-tips" title="Link to this heading">#</a></h2>
 <p><strong>Gap Filling</strong></p>
 <p>If your data has gaps, you must fill them before use. SuPy provides <a class="reference internal" href="../api/_autosummary/supy.util.fill_gap_all.html#supy.util.fill_gap_all" title="supy.util.fill_gap_all"><code class="xref py py-func docutils literal notranslate"><span class="pre">fill_gap_all()</span></code></a> for automatic gap filling using neighbouring time periods. Common approaches:</p>
 <ul class="simple">
@@ -1113,7 +1178,7 @@ unexpected outputs.</p>
 </ul>
 </section>
 <section id="validating-forcing-data">
-<h2><span class="section-number">4.2.10. </span>Validating Forcing Data<a class="headerlink" href="#validating-forcing-data" title="Link to this heading">#</a></h2>
+<h2><span class="section-number">4.2.11. </span>Validating Forcing Data<a class="headerlink" href="#validating-forcing-data" title="Link to this heading">#</a></h2>
 <p>SUEWS provides the <code class="docutils literal notranslate"><span class="pre">check_forcing()</span></code> function to validate your forcing data files before running simulations. The validation performs four main checks:</p>
 <ol class="arabic simple">
 <li><p><strong>Column completeness</strong>: Verifies all expected columns are present</p></li>
@@ -1238,7 +1303,7 @@ suews-validate<span class="w"> </span>--forcing<span class="w"> </span>off<span 
 <p>For comprehensive quality control, combine <code class="docutils literal notranslate"><span class="pre">check_forcing()</span></code> with visual inspection of time series plots.</p>
 </section>
 <section id="physics-specific-data-requirements">
-<h2><span class="section-number">4.2.11. </span>Physics-Specific Data Requirements<a class="headerlink" href="#physics-specific-data-requirements" title="Link to this heading">#</a></h2>
+<h2><span class="section-number">4.2.12. </span>Physics-Specific Data Requirements<a class="headerlink" href="#physics-specific-data-requirements" title="Link to this heading">#</a></h2>
 <p>Certain model physics options require specific forcing data columns to contain valid (non-missing) values.</p>
 <div class="pst-scrollable-table-container"><table class="table">
 <colgroup>
@@ -1290,7 +1355,7 @@ suews-validate<span class="w"> </span>--forcing<span class="w"> </span>off<span 
 </div>
 </section>
 <section id="see-also">
-<h2><span class="section-number">4.2.12. </span>See Also<a class="headerlink" href="#see-also" title="Link to this heading">#</a></h2>
+<h2><span class="section-number">4.2.13. </span>See Also<a class="headerlink" href="#see-also" title="Link to this heading">#</a></h2>
 <ul class="simple">
 <li><p><a class="reference internal" href="yaml/index.html"><span class="doc">YAML Configuration Format</span></a> - YAML configuration including forcing file specification</p></li>
 <li><p><a class="reference internal" href="yaml/validation.html"><span class="doc">Validation Tool Reference</span></a> - Complete validation system documentation</p></li>
@@ -1349,16 +1414,17 @@ suews-validate<span class="w"> </span>--forcing<span class="w"> </span>off<span 
     <ul class="visible nav section-nav flex-column">
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#data-requirements">4.2.1. Data Requirements</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#file-format">4.2.2. File Format</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#important-requirements">4.2.3. Important Requirements</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#yaml-configuration">4.2.4. YAML Configuration</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#optional-variables">4.2.5. Optional Variables</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#prescribing-observed-lai">4.2.6. Prescribing Observed LAI</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#generating-forcing-data-from-era5">4.2.7. Generating Forcing Data from ERA5</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#using-epw-weather-files">4.2.8. Using EPW Weather Files</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#data-preparation-tips">4.2.9. Data Preparation Tips</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#validating-forcing-data">4.2.10. Validating Forcing Data</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#physics-specific-data-requirements">4.2.11. Physics-Specific Data Requirements</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#see-also">4.2.12. See Also</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#named-column-forcing-files-gh-1372">4.2.3. Named-column forcing files (gh#1372)</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#important-requirements">4.2.4. Important Requirements</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#yaml-configuration">4.2.5. YAML Configuration</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#optional-variables">4.2.6. Optional Variables</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#prescribing-observed-lai">4.2.7. Prescribing Observed LAI</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#generating-forcing-data-from-era5">4.2.8. Generating Forcing Data from ERA5</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#using-epw-weather-files">4.2.9. Using EPW Weather Files</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#data-preparation-tips">4.2.10. Data Preparation Tips</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#validating-forcing-data">4.2.11. Validating Forcing Data</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#physics-specific-data-requirements">4.2.12. Physics-Specific Data Requirements</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#see-also">4.2.13. See Also</a></li>
 </ul>
   </nav></div>
 
@@ -1392,7 +1458,7 @@ By SUEWS dev team led by Prof Sue Grimmond
   
   <div class="footer-item">
     <p class="last-updated">
-  Last updated on 2026-04-17.
+  Last updated on 2026-05-03.
   <br/>
 </p>
   </div>
@@ -1400,8 +1466,8 @@ By SUEWS dev team led by Prof Sue Grimmond
   <div class="footer-item">
     
 <div class="extra_footer">
-  <p>Version: 2026.5.2.dev9058 |
-    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/a589d031d4e40e90eed33d3c6141b7bf2ad79b1f">a589d03</a> |
+  <p>Version: 2026.5.3.dev9066 |
+    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/553bad22c38830a2a0e2f2bc6d3cc81672b8df67">553bad2</a> |
     <a href="https://umep-dev.github.io/SUEWS/brand/showcase.html">Brand</a></p>
 </div>
   </div>

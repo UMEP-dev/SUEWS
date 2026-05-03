@@ -51,7 +51,7 @@ MODULE module_c_api_output_line
    ! Number of output groups returned by suews_output_group_ncolumns (including datetime and BL).
    INTEGER(c_int), PARAMETER, PUBLIC :: SUEWS_CAPI_OUTPUT_N_GROUPS = 13_c_int
 
-   INTEGER(c_int), PARAMETER, PUBLIC :: SUEWS_CAPI_OUTPUT_LINE_SCHEMA_VERSION = 1_c_int
+   INTEGER(c_int), PARAMETER, PUBLIC :: SUEWS_CAPI_OUTPUT_LINE_SCHEMA_VERSION = 3_c_int
 
    TYPE :: output_line_shadow
       REAL(c_double), DIMENSION(5) :: datetime_line = -999.0_c_double

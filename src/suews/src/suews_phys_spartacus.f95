@@ -169,10 +169,14 @@ CONTAINS
       REAL(KIND(1D0)), DIMENSION(15) :: clear_air_abs_lw_spc
       REAL(KIND(1D0)), DIMENSION(15) :: clear_air_abs_sw_spc
       REAL(KIND(1D0)), DIMENSION(15), INTENT(OUT) :: roof_in_sw_spc
+      REAL(KIND(1D0)), DIMENSION(15) :: roof_in_sw_dir_spc
+      REAL(KIND(1D0)), DIMENSION(15) :: roof_in_sw_diff_spc
       REAL(KIND(1D0)), DIMENSION(15), INTENT(OUT) :: roof_in_lw_spc
       REAL(KIND(1D0)), DIMENSION(15) :: roof_net_sw_spc
       REAL(KIND(1D0)), DIMENSION(15) :: roof_net_lw_spc
       REAL(KIND(1D0)), DIMENSION(15), INTENT(OUT) :: wall_in_sw_spc
+      REAL(KIND(1D0)), DIMENSION(15) :: wall_in_sw_dir_spc
+      REAL(KIND(1D0)), DIMENSION(15) :: wall_in_sw_diff_spc
       REAL(KIND(1D0)), DIMENSION(15), INTENT(OUT) :: wall_in_lw_spc
       REAL(KIND(1D0)), DIMENSION(15) :: wall_net_sw_spc
       REAL(KIND(1D0)), DIMENSION(15) :: wall_net_lw_spc
@@ -668,14 +672,22 @@ CONTAINS
       clear_air_abs_sw_spc = -999
       wall_net_sw_spc = -999
       wall_in_sw_spc = -999
+      wall_in_sw_dir_spc = -999
+      wall_in_sw_diff_spc = -999
       roof_net_sw_spc = -999
       roof_in_sw_spc = -999
+      roof_in_sw_dir_spc = -999
+      roof_in_sw_diff_spc = -999
       IF (config%do_sw) THEN
          clear_air_abs_sw_spc(:nlayer) = sw_flux%clear_air_abs(nspec, :nlayer)
          wall_net_sw_spc(:nlayer) = sw_flux%wall_net(nspec, :nlayer)
          wall_in_sw_spc(:nlayer) = sw_flux%wall_in(nspec, :nlayer)
+         wall_in_sw_dir_spc(:nlayer) = sw_norm_dir%wall_in(nspec, :nlayer)
+         wall_in_sw_diff_spc(:nlayer) = sw_norm_diff%wall_in(nspec, :nlayer)
          roof_net_sw_spc(:nlayer) = sw_flux%roof_net(nspec, :nlayer)
          roof_in_sw_spc(:nlayer) = sw_flux%roof_in(nspec, :nlayer)
+         roof_in_sw_dir_spc(:nlayer) = sw_norm_dir%roof_in(nspec, :nlayer)
+         roof_in_sw_diff_spc(:nlayer) = sw_norm_diff%roof_in(nspec, :nlayer)
          top_dn_dir_sw_spc = sw_flux%top_dn_dir(nspec, ncol)
          top_net_sw_spc = sw_flux%top_net(nspec, ncol)
          grnd_dn_dir_sw_spc = sw_flux%ground_dn_dir(nspec, ncol)
@@ -685,8 +697,12 @@ CONTAINS
          clear_air_abs_sw_spc(:nlayer) = 0.0
          wall_net_sw_spc(:nlayer) = 0.0
          wall_in_sw_spc(:nlayer) = 0.0
+         wall_in_sw_dir_spc(:nlayer) = 0.0
+         wall_in_sw_diff_spc(:nlayer) = 0.0
          roof_net_sw_spc(:nlayer) = 0.0
          roof_in_sw_spc(:nlayer) = 0.0
+         roof_in_sw_dir_spc(:nlayer) = 0.0
+         roof_in_sw_diff_spc(:nlayer) = 0.0
          top_dn_dir_sw_spc = 0.0
          top_net_sw_spc = 0.0
          grnd_dn_dir_sw_spc = 0.0
@@ -697,8 +713,12 @@ CONTAINS
       ! De-normalise the fluxes
       IF (config%do_sw) THEN
          wall_in_sw_spc(:nlayer) = wall_in_sw_spc(:nlayer)/sfr_wall_spc(:nlayer)
+         wall_in_sw_dir_spc(:nlayer) = wall_in_sw_dir_spc(:nlayer)/sfr_wall_spc(:nlayer)
+         wall_in_sw_diff_spc(:nlayer) = wall_in_sw_diff_spc(:nlayer)/sfr_wall_spc(:nlayer)
          wall_net_sw_spc(:nlayer) = wall_net_sw_spc(:nlayer)/sfr_wall_spc(:nlayer)
          roof_in_sw_spc(:nlayer) = roof_in_sw_spc(:nlayer)/sfr_roof_spc(:nlayer)
+         roof_in_sw_dir_spc(:nlayer) = roof_in_sw_dir_spc(:nlayer)/sfr_roof_spc(:nlayer)
+         roof_in_sw_diff_spc(:nlayer) = roof_in_sw_diff_spc(:nlayer)/sfr_roof_spc(:nlayer)
          roof_net_sw_spc(:nlayer) = roof_net_sw_spc(:nlayer)/sfr_roof_spc(:nlayer)
       END IF
 
@@ -780,8 +800,12 @@ CONTAINS
           grnd_net_sw_spc, &
           grnd_net_lw_spc, &
           roof_in_sw_spc, &
+          roof_in_sw_dir_spc, &
+          roof_in_sw_diff_spc, &
           roof_net_sw_spc, &
           wall_in_sw_spc, &
+          wall_in_sw_dir_spc, &
+          wall_in_sw_diff_spc, &
           wall_net_sw_spc, &
           clear_air_abs_sw_spc, &
           roof_in_lw_spc, &

@@ -14,12 +14,12 @@ pub const OUTPUT_LINE_EHC_LEN: usize = 229;
 pub const OUTPUT_LINE_RSL_LEN: usize = 140;
 pub const OUTPUT_LINE_BEERS_LEN: usize = 34;
 pub const OUTPUT_LINE_DEBUG_LEN: usize = 136;
-pub const OUTPUT_LINE_SPARTACUS_LEN: usize = 199;
+pub const OUTPUT_LINE_SPARTACUS_LEN: usize = 259;
 pub const OUTPUT_LINE_DAILYSTATE_LEN: usize = 52;
 pub const OUTPUT_LINE_STEBBS_LEN: usize = 85;
 pub const OUTPUT_LINE_NHOOD_LEN: usize = 6;
-pub const OUTPUT_LINE_FLAT_LEN: usize = 1139;
-pub const OUTPUT_LINE_SCHEMA_VERSION: u32 = 1;
+pub const OUTPUT_LINE_FLAT_LEN: usize = 1199;
+pub const OUTPUT_LINE_SCHEMA_VERSION: u32 = 3;
 
 pub type OutputLineSchema = crate::codec::SimpleSchema;
 

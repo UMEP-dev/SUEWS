@@ -54,6 +54,25 @@ EXAMPLES:
 
 ## 2026
 
+### 3 May 2026
+
+- [change][experimental] Collapse the gh#1372 forcing- and output-restructure schema bumps into a single `2026.5.dev8 -> 2026.5.dev9` cumulative migration (#1372)
+  - Per the dev-label convention (`.claude/rules/python/schema-versioning.md`) the dev counter increments additively per structural PR; the in-progress relabel of master's `dev7` (PR#1390 ArchetypeProperties Rule 2 reorder) and `dev8` (PR#1395 registry refresh) is reverted, and this PR's two restructures land together on a fresh `dev9`
+  - Master's `(2026.5.dev6 -> 2026.5.dev7)` and `(2026.5.dev7 -> 2026.5.dev8)` handlers are restored; the new `(2026.5.dev8 -> 2026.5.dev9)` handler runs `_apply_forcing_subobject_restructure` first then `_apply_output_subobject_restructure` so audit logs read in the gh#1372 chronology order
+  - `test/fixtures/release_configs/2026.5.dev7.yml` (this PR's misnamed fixture) is dropped; a fresh `2026.5.dev8.yml` capturing master's pre-this-PR shape is added so the new cumulative handler is regression-tested
+  - `docs/source/inputs/tables/schema.json` is regenerated; `transition_guide.rst` and `schema_versioning.rst` are rewritten to reflect the dev7/dev8/dev9 final lineage; the merge-pr skill review gate (claude+codex) caught the relabel before merge
+- [bugfix] `_load.py` multi-file forcing now canonicalises **per file** before concatenating (#1372)
+  - `load_SUEWS_Forcing_met_df_pattern` and `load_SUEWS_Forcing_met_df_yaml` previously concatenated raw `read_csv` frames before named-column matching, so a required baseline column missing from one file passed silently if another file in the glob had it, and missing optional canonical columns stayed `NaN` in the half-file rows instead of being filled with `-999`
+  - Each file is now run through `_apply_named_column_matching` independently; `pd.concat` then unions the canonical 24-column DataFrames, and a datetime-index dedup collapses any same-timestamp rows across files
+- [bugfix] `SUEWSForcing` extras slicing now uses the row component of `(rows, cols)` tuples (#1372)
+  - `forcing.loc[:, ['Tair']]` previously passed the full `(slice(None), ['Tair'])` tuple into the extras frame which has different columns from the main frame, raising `KeyError` (or silently mis-selecting under `iloc`)
+  - `_slice_extras` now extracts the row component of tuple keys so extras carry the same row subset as the main slice
+- [change][experimental] `model.control.output_file` retains a deprecated `@property` alias on `ModelControl` (#1372)
+  - External Python consumers (UMEP postprocessor, etc.) that still read `config.model.control.output_file` keep working through the migration window; the alias forwards to `model.control.output` and emits a `DeprecationWarning`, scheduled for removal in 2026.6
+- [change][experimental] Rust forcing block writes `-999` (FORCING_OPTIONAL_FILL) for missing optional columns, unifying with Python `_load.py` (#1372)
+  - Behaviour change: previously the Rust bridge initialised optional columns to `0.0`. The unified `-999` sentinel now propagates so the Fortran kernel sees the same missing-data marker regardless of which language read the forcing file
+  - Added Rust test `missing_optional_columns_filled_with_sentinel` in `src/suews_bridge/src/forcing_io.rs` asserting that columns missing from the header land as `-999` in the canonical block, guarding against future regressions
+
 ### 1 May 2026
 
 - [feature][experimental] Validator pipeline now emits a structured machine-readable `PhaseReport` for every phase

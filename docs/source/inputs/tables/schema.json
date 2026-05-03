@@ -394,7 +394,7 @@
           "title": "Window To Wall Ratio",
           "unit": "dimensionless"
         },
-        "wall_thickness": {
+        "thickness_wall": {
           "anyOf": [
             {
               "anyOf": [
@@ -414,10 +414,10 @@
           "default": 0.2,
           "description": "Thickness of external wall [m]",
           "display_name": "Wall Thickness",
-          "title": "Wall Thickness",
+          "title": "Thickness Wall",
           "unit": "m"
         },
-        "wall_effective_conductivity": {
+        "conductivity_wall": {
           "anyOf": [
             {
               "anyOf": [
@@ -437,10 +437,10 @@
           "default": 0.6,
           "description": "Effective thermal conductivity of walls [W m-1 K-1]",
           "display_name": "Wall Effective Conductivity",
-          "title": "Wall Effective Conductivity",
+          "title": "Conductivity Wall",
           "unit": "W m^-1 K^-1"
         },
-        "wall_density": {
+        "density_wall": {
           "anyOf": [
             {
               "anyOf": [
@@ -460,10 +460,10 @@
           "default": 1600.0,
           "description": "Effective density of the walls [kg m-3]",
           "display_name": "Wall Density",
-          "title": "Wall Density",
+          "title": "Density Wall",
           "unit": "kg m^-3"
         },
-        "wall_specific_heat_capacity": {
+        "specific_heat_capacity_wall": {
           "anyOf": [
             {
               "anyOf": [
@@ -482,9 +482,9 @@
           ],
           "default": 850.0,
           "description": "Effective specific heat capacity of walls [J kg-1 K-1]",
-          "title": "Wall Specific Heat Capacity"
+          "title": "Specific Heat Capacity Wall"
         },
-        "wall_external_thickness": {
+        "thickness_wall_outer": {
           "anyOf": [
             {
               "anyOf": [
@@ -504,10 +504,10 @@
           "default": 20.0,
           "description": "Thickness of layers external to insulation in external wall [m]",
           "display_name": "Wall External Thickness",
-          "title": "Wall External Thickness",
+          "title": "Thickness Wall Outer",
           "unit": "m"
         },
-        "wall_external_effective_conductivity": {
+        "conductivity_wall_outer": {
           "anyOf": [
             {
               "anyOf": [
@@ -527,10 +527,10 @@
           "default": 60.0,
           "description": "Effective thermal conductivity of layers external to insulation in walls [W m-1 K-1]",
           "display_name": "Wall External Effective Conductivity",
-          "title": "Wall External Effective Conductivity",
+          "title": "Conductivity Wall Outer",
           "unit": "W m^-1 K^-1"
         },
-        "wall_external_density": {
+        "density_wall_outer": {
           "anyOf": [
             {
               "anyOf": [
@@ -550,10 +550,10 @@
           "default": 1600.0,
           "description": "Effective density of layers external to insulation in the walls [kg m-3]",
           "display_name": "Wall External Density",
-          "title": "Wall External Density",
+          "title": "Density Wall Outer",
           "unit": "kg m^-3"
         },
-        "wall_external_specific_heat_capacity": {
+        "specific_heat_capacity_wall_outer": {
           "anyOf": [
             {
               "anyOf": [
@@ -573,10 +573,10 @@
           "default": 850.0,
           "description": "Effective specific heat capacity of layers external to insulation in walls [J kg-1 K-1]",
           "display_name": "Wall External Specific Heat",
-          "title": "Wall External Specific Heat Capacity",
+          "title": "Specific Heat Capacity Wall Outer",
           "unit": "J kg^-1 K^-1"
         },
-        "wall_outer_heat_capacity_fraction": {
+        "fraction_wall_heat_capacity_outer": {
           "anyOf": [
             {
               "anyOf": [
@@ -597,10 +597,10 @@
           "default": 0.5,
           "description": "Weighting factor (0-1) representing the fraction of wall heat capacity assigned to the external node, with the remainder assigned to the internal node [-]",
           "display_name": "Wall Outer Capacity Fraction",
-          "title": "Wall Outer Heat Capacity Fraction",
+          "title": "Fraction Wall Heat Capacity Outer",
           "unit": "dimensionless"
         },
-        "wall_external_emissivity": {
+        "emissivity_wall_external": {
           "anyOf": [
             {
               "anyOf": [
@@ -621,10 +621,10 @@
           "default": 0.9,
           "description": "Emissivity of the external surface of walls [-]",
           "display_name": "Wall External Emissivity",
-          "title": "Wall External Emissivity",
+          "title": "Emissivity Wall External",
           "unit": "dimensionless"
         },
-        "wall_internal_emissivity": {
+        "emissivity_wall_internal": {
           "anyOf": [
             {
               "anyOf": [
@@ -645,10 +645,10 @@
           "default": 0.9,
           "description": "Emissivity of the internal surface of walls [-]",
           "display_name": "Wall Internal Emissivity",
-          "title": "Wall Internal Emissivity",
+          "title": "Emissivity Wall Internal",
           "unit": "dimensionless"
         },
-        "wall_transmissivity": {
+        "transmissivity_wall_external": {
           "anyOf": [
             {
               "anyOf": [
@@ -669,10 +669,10 @@
           "default": 0.0,
           "description": "Transmissivity of walls [-]",
           "display_name": "Wall Transmissivity",
-          "title": "Wall Transmissivity",
+          "title": "Transmissivity Wall External",
           "unit": "dimensionless"
         },
-        "wall_absorptivity": {
+        "absorptivity_wall_external": {
           "anyOf": [
             {
               "anyOf": [
@@ -693,10 +693,10 @@
           "default": 0.8,
           "description": "Absorptivity of walls [-]",
           "display_name": "Wall Absorptivity",
-          "title": "Wall Absorptivity",
+          "title": "Absorptivity Wall External",
           "unit": "dimensionless"
         },
-        "wall_reflectivity": {
+        "reflectivity_wall_external": {
           "anyOf": [
             {
               "anyOf": [
@@ -717,10 +717,10 @@
           "default": 0.2,
           "description": "Reflectivity of the external surface of walls [-]",
           "display_name": "Wall Reflectivity",
-          "title": "Wall Reflectivity",
+          "title": "Reflectivity Wall External",
           "unit": "dimensionless"
         },
-        "roof_thickness": {
+        "thickness_roof": {
           "anyOf": [
             {
               "anyOf": [
@@ -740,10 +740,10 @@
           "default": 20.0,
           "description": "Thickness of roof [m]",
           "display_name": "Roof Thickness",
-          "title": "Roof Thickness",
+          "title": "Thickness Roof",
           "unit": "m"
         },
-        "roof_effective_conductivity": {
+        "conductivity_roof": {
           "anyOf": [
             {
               "anyOf": [
@@ -763,10 +763,10 @@
           "default": 60.0,
           "description": "Effective thermal conductivity of roof [W m-1 K-1]",
           "display_name": "Roof Effective Conductivity",
-          "title": "Roof Effective Conductivity",
+          "title": "Conductivity Roof",
           "unit": "W m^-1 K^-1"
         },
-        "roof_density": {
+        "density_roof": {
           "anyOf": [
             {
               "anyOf": [
@@ -786,10 +786,10 @@
           "default": 1600.0,
           "description": "Effective density of the roof [kg m-3]",
           "display_name": "Roof Density",
-          "title": "Roof Density",
+          "title": "Density Roof",
           "unit": "kg m^-3"
         },
-        "roof_specific_heat_capacity": {
+        "specific_heat_capacity_roof": {
           "anyOf": [
             {
               "anyOf": [
@@ -808,9 +808,9 @@
           ],
           "default": 850.0,
           "description": "Effective specific heat capacity of roof [J kg-1 K-1]",
-          "title": "Roof Specific Heat Capacity"
+          "title": "Specific Heat Capacity Roof"
         },
-        "roof_external_thickness": {
+        "thickness_roof_outer": {
           "anyOf": [
             {
               "anyOf": [
@@ -830,10 +830,10 @@
           "default": 20.0,
           "description": "Thickness of layers external to insulation in roof [m]",
           "display_name": "Roof External Thickness",
-          "title": "Roof External Thickness",
+          "title": "Thickness Roof Outer",
           "unit": "m"
         },
-        "roof_external_effective_conductivity": {
+        "conductivity_roof_outer": {
           "anyOf": [
             {
               "anyOf": [
@@ -853,10 +853,10 @@
           "default": 60.0,
           "description": "Effective thermal conductivity of layers external to insulation in roof [W m-1 K-1]",
           "display_name": "Roof External Effective Conductivity",
-          "title": "Roof External Effective Conductivity",
+          "title": "Conductivity Roof Outer",
           "unit": "W m^-1 K^-1"
         },
-        "roof_external_density": {
+        "density_roof_outer": {
           "anyOf": [
             {
               "anyOf": [
@@ -876,10 +876,10 @@
           "default": 1600.0,
           "description": "Effective density of layers external to insulation in the roof [kg m-3]",
           "display_name": "Roof External Density",
-          "title": "Roof External Density",
+          "title": "Density Roof Outer",
           "unit": "kg m^-3"
         },
-        "roof_external_specific_heat_capacity": {
+        "specific_heat_capacity_roof_outer": {
           "anyOf": [
             {
               "anyOf": [
@@ -899,10 +899,10 @@
           "default": 850.0,
           "description": "Effective specific heat capacity of layers external to insulation in roof [J kg-1 K-1]",
           "display_name": "Roof External Specific Heat",
-          "title": "Roof External Specific Heat Capacity",
+          "title": "Specific Heat Capacity Roof Outer",
           "unit": "J kg^-1 K^-1"
         },
-        "roof_outer_heat_capacity_fraction": {
+        "fraction_roof_heat_capacity_outer": {
           "anyOf": [
             {
               "anyOf": [
@@ -923,10 +923,10 @@
           "default": 0.5,
           "description": "Weighting factor (0-1) representing the fraction of roof heat capacity assigned to the external node, with the remainder assigned to the internal node [-]",
           "display_name": "Roof Outer Capacity Fraction",
-          "title": "Roof Outer Heat Capacity Fraction",
+          "title": "Fraction Roof Heat Capacity Outer",
           "unit": "dimensionless"
         },
-        "roof_external_emissivity": {
+        "emissivity_roof_external": {
           "anyOf": [
             {
               "anyOf": [
@@ -947,10 +947,10 @@
           "default": 0.9,
           "description": "Emissivity of the external surface of roof [-]",
           "display_name": "Roof External Emissivity",
-          "title": "Roof External Emissivity",
+          "title": "Emissivity Roof External",
           "unit": "dimensionless"
         },
-        "roof_internal_emissivity": {
+        "emissivity_roof_internal": {
           "anyOf": [
             {
               "anyOf": [
@@ -971,10 +971,10 @@
           "default": 0.9,
           "description": "Emissivity of the internal surface of roof [-]",
           "display_name": "Roof Internal Emissivity",
-          "title": "Roof Internal Emissivity",
+          "title": "Emissivity Roof Internal",
           "unit": "dimensionless"
         },
-        "roof_transmissivity": {
+        "transmissivity_roof_external": {
           "anyOf": [
             {
               "anyOf": [
@@ -995,10 +995,10 @@
           "default": 0.0,
           "description": "Transmissivity of roof [-]",
           "display_name": "Roof Transmissivity",
-          "title": "Roof Transmissivity",
+          "title": "Transmissivity Roof External",
           "unit": "dimensionless"
         },
-        "roof_absorptivity": {
+        "absorptivity_roof_external": {
           "anyOf": [
             {
               "anyOf": [
@@ -1019,10 +1019,10 @@
           "default": 0.8,
           "description": "Absorptivity of roof [-]",
           "display_name": "Roof Absorptivity",
-          "title": "Roof Absorptivity",
+          "title": "Absorptivity Roof External",
           "unit": "dimensionless"
         },
-        "roof_reflectivity": {
+        "reflectivity_roof_external": {
           "anyOf": [
             {
               "anyOf": [
@@ -1043,10 +1043,10 @@
           "default": 0.2,
           "description": "Reflectivity of the external surface of roof [-]",
           "display_name": "Roof Reflectivity",
-          "title": "Roof Reflectivity",
+          "title": "Reflectivity Roof External",
           "unit": "dimensionless"
         },
-        "ground_floor_thickness": {
+        "thickness_ground_floor": {
           "anyOf": [
             {
               "anyOf": [
@@ -1066,10 +1066,10 @@
           "default": 0.2,
           "description": "Thickness of ground floor [m]",
           "display_name": "Floor Thickness",
-          "title": "Ground Floor Thickness",
+          "title": "Thickness Ground Floor",
           "unit": "m"
         },
-        "ground_floor_effective_conductivity": {
+        "conductivity_ground_floor": {
           "anyOf": [
             {
               "anyOf": [
@@ -1089,10 +1089,10 @@
           "default": 0.15,
           "description": "Effective thermal conductivity of ground floor [W m-1 K-1]",
           "display_name": "Ground Floor Effective Conductivity",
-          "title": "Ground Floor Effective Conductivity",
+          "title": "Conductivity Ground Floor",
           "unit": "W m^-1 K^-1"
         },
-        "ground_floor_density": {
+        "density_ground_floor": {
           "anyOf": [
             {
               "anyOf": [
@@ -1112,10 +1112,10 @@
           "default": 500.0,
           "description": "Effective density of the ground floor [kg m-3]",
           "display_name": "Ground Floor Density",
-          "title": "Ground Floor Density",
+          "title": "Density Ground Floor",
           "unit": "kg m^-3"
         },
-        "ground_floor_specific_heat_capacity": {
+        "specific_heat_capacity_ground_floor": {
           "anyOf": [
             {
               "anyOf": [
@@ -1135,10 +1135,10 @@
           "default": 1500.0,
           "description": "Effective specific heat capacity of the ground floor [J kg-1 K-1]",
           "display_name": "Ground Floor Specific Heat",
-          "title": "Ground Floor Specific Heat Capacity",
+          "title": "Specific Heat Capacity Ground Floor",
           "unit": "J kg^-1 K^-1"
         },
-        "window_thickness": {
+        "thickness_window": {
           "anyOf": [
             {
               "anyOf": [
@@ -1158,10 +1158,10 @@
           "default": 0.015,
           "description": "Window thickness [m]",
           "display_name": "Window Thickness",
-          "title": "Window Thickness",
+          "title": "Thickness Window",
           "unit": "m"
         },
-        "window_effective_conductivity": {
+        "conductivity_window": {
           "anyOf": [
             {
               "anyOf": [
@@ -1181,10 +1181,10 @@
           "default": 1.0,
           "description": "Effective thermal conductivity of windows [W m-1 K-1]",
           "display_name": "Window Effective Conductivity",
-          "title": "Window Effective Conductivity",
+          "title": "Conductivity Window",
           "unit": "W m^-1 K^-1"
         },
-        "window_density": {
+        "density_window": {
           "anyOf": [
             {
               "anyOf": [
@@ -1204,10 +1204,10 @@
           "default": 2500.0,
           "description": "Effective density of the windows [kg m-3]",
           "display_name": "Window Density",
-          "title": "Window Density",
+          "title": "Density Window",
           "unit": "kg m^-3"
         },
-        "window_specific_heat_capacity": {
+        "specific_heat_capacity_window": {
           "anyOf": [
             {
               "anyOf": [
@@ -1227,10 +1227,10 @@
           "default": 840.0,
           "description": "Effective specific heat capacity of windows [J kg-1 K-1]",
           "display_name": "Window Specific Heat",
-          "title": "Window Specific Heat Capacity",
+          "title": "Specific Heat Capacity Window",
           "unit": "J kg^-1 K^-1"
         },
-        "window_external_emissivity": {
+        "emissivity_window_external": {
           "anyOf": [
             {
               "anyOf": [
@@ -1251,10 +1251,10 @@
           "default": 0.9,
           "description": "Emissivity of the external surface of windows [-]",
           "display_name": "Window External Emissivity",
-          "title": "Window External Emissivity",
+          "title": "Emissivity Window External",
           "unit": "dimensionless"
         },
-        "window_internal_emissivity": {
+        "emissivity_window_internal": {
           "anyOf": [
             {
               "anyOf": [
@@ -1275,10 +1275,10 @@
           "default": 0.9,
           "description": "Emissivity of the internal surface of windows [-]",
           "display_name": "Window Internal Emissivity",
-          "title": "Window Internal Emissivity",
+          "title": "Emissivity Window Internal",
           "unit": "dimensionless"
         },
-        "window_transmissivity": {
+        "transmissivity_window_external": {
           "anyOf": [
             {
               "anyOf": [
@@ -1299,10 +1299,10 @@
           "default": 0.9,
           "description": "Transmissivity of windows [-]",
           "display_name": "Window Transmissivity",
-          "title": "Window Transmissivity",
+          "title": "Transmissivity Window External",
           "unit": "dimensionless"
         },
-        "window_absorptivity": {
+        "absorptivity_window_external": {
           "anyOf": [
             {
               "anyOf": [
@@ -1323,10 +1323,10 @@
           "default": 0.01,
           "description": "Absorptivity of windows [-]",
           "display_name": "Window Absorptivity",
-          "title": "Window Absorptivity",
+          "title": "Absorptivity Window External",
           "unit": "dimensionless"
         },
-        "window_reflectivity": {
+        "reflectivity_window_external": {
           "anyOf": [
             {
               "anyOf": [
@@ -1347,10 +1347,10 @@
           "default": 0.09,
           "description": "Reflectivity of the external surface of windows [-]",
           "display_name": "Window Reflectivity",
-          "title": "Window Reflectivity",
+          "title": "Reflectivity Window External",
           "unit": "dimensionless"
         },
-        "internal_mass_density": {
+        "density_internal_mass": {
           "anyOf": [
             {
               "anyOf": [
@@ -1370,10 +1370,10 @@
           "default": 1000.0,
           "description": "Effective density of the internal mass [kg m-3]",
           "display_name": "Internal Mass Density",
-          "title": "Internal Mass Density",
+          "title": "Density Internal Mass",
           "unit": "kg m^-3"
         },
-        "internal_mass_specific_heat_capacity": {
+        "specific_heat_capacity_internal_mass": {
           "anyOf": [
             {
               "anyOf": [
@@ -1393,10 +1393,10 @@
           "default": 1000.0,
           "description": "Effective specific heat capacity of internal mass [J kg-1 K-1]",
           "display_name": "Internal Mass Specific Heat",
-          "title": "Internal Mass Specific Heat Capacity",
+          "title": "Specific Heat Capacity Internal Mass",
           "unit": "J kg^-1 K^-1"
         },
-        "internal_mass_emissivity": {
+        "emissivity_internal_mass": {
           "anyOf": [
             {
               "anyOf": [
@@ -1417,7 +1417,7 @@
           "default": 0.0,
           "description": "Emissivity of internal mass [-]",
           "display_name": "Internal Mass Emissivity",
-          "title": "Internal Mass Emissivity",
+          "title": "Emissivity Internal Mass",
           "unit": "dimensionless"
         },
         "max_heating_power": {
@@ -12863,7 +12863,7 @@
     }
   },
   "additionalProperties": true,
-  "description": "JSON Schema for SUEWS YAML configuration files. Schema version 2026.5.dev8. gh#1372 follow-up: structural restructure of output configuration. model.control.output_file (Union[str, OutputConfig]) is moved to model.control.output under a new OutputControl sub-object \u2014 mirrors the ForcingControl restructure shipped in 2026.5.dev7 so the model.control surface is uniform. The deprecated string form (silently ignored since 2025.10.15) is dropped; the inner `path` field is renamed to `dir` (clarifies it as a directory, parallels the asymmetry with forcing.file). The (2026.5.dev7 -> 2026.5.dev8) migration is registered in src/supy/util/converter/yaml_upgrade.py::_HANDLERS via _apply_output_subobject_restructure.",
+  "description": "JSON Schema for SUEWS YAML configuration files. Schema version 2026.5.dev9. gh#1372: cumulative restructure of the model.control surface, introducing both ForcingControl and OutputControl sub-objects in a single bump per the dev-label convention (`.claude/rules/python/schema-versioning.md`). (a) Forcing restructure: model.control.forcing_file (str | list[str] | RefValue) is moved under model.control.forcing.file via _apply_forcing_subobject_restructure, creating a stable home for future forcing fields (gh#1373 sub-hourly disaggregation; resampling policy). Forcing-file *content* semantics also tighten: header column names are now read (previously discarded) and matched against the canonical forcing column set; baseline-10 columns (iy, id, it, imin, Tair, RH, U, pres, kdown, rain) are required; missing optional canonical columns are filled with -999; whitelisted per-landcover columns are loaded into SUEWSForcing.extras / ForcingData.extras: lai_<surface> for the three vegetated surfaces (evetr, dectr, grass) only, and wuh_<surface> (external water use) for every surface {paved, bldgs, evetr, dectr, grass, bsoil, water}. Each wuh_<surface> value is a depth in mm per forcing time step (same unit as rain) applied to that surface only; xsmd remains a bulk site-level column. (b) Output restructure: model.control.output_file (Union[str, OutputConfig]) is moved under model.control.output via _apply_output_subobject_restructure - mirrors the ForcingControl move so the model.control surface is uniform. The deprecated string form (silently ignored since 2025.10.15) is dropped; the inner `path` field is renamed to `dir` (clarifies it as a directory). For backward compatibility the Pydantic ModelControl class retains a deprecated `output_file` @property alias (with DeprecationWarning, scheduled for removal in 2026.6) so external Python consumers (UMEP postprocessor, etc.) keep working through the migration window. The (2026.5.dev8 -> 2026.5.dev9) migration is registered in src/supy/util/converter/yaml_upgrade.py::_HANDLERS and runs forcing-restructure first, then output-restructure (audit-log order matches the gh#1372 chronology).",
   "properties": {
     "name": {
       "default": "sample config",
@@ -12909,20 +12909,20 @@
       "type": "array"
     }
   },
-  "title": "SUEWS Configuration Schema v2026.5.dev8",
+  "title": "SUEWS Configuration Schema v2026.5.dev9",
   "type": "object",
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://umep-dev.github.io/SUEWS/schema/suews-config/2026.5.dev8.json",
-  "version": "2026.5.dev8",
+  "$id": "https://umep-dev.github.io/SUEWS/schema/suews-config/2026.5.dev9.json",
+  "version": "2026.5.dev9",
   "$comment": {
     "generator": "supy.util.schema_publisher",
     "suews_version": "unknown",
-    "schema_version": "2026.5.dev8"
+    "schema_version": "2026.5.dev9"
   },
   "examples": [
     {
       "name": "minimal_config",
-      "schema_version": "2026.5.dev8",
+      "schema_version": "2026.5.dev9",
       "description": "Minimal SUEWS configuration example",
       "model": {
         "control": {

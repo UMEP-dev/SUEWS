@@ -57,7 +57,26 @@ def test_modelcontrol_accepts_new_output_subobject():
     assert mc.output.format == OutputFormat.PARQUET
     assert mc.output.freq == 3600
     assert mc.output.dir == "./out"
-    assert not hasattr(mc, "output_file")
+
+
+def test_modelcontrol_output_file_alias_emits_deprecation_warning():
+    """Reading ``output_file`` returns ``output`` and emits a DeprecationWarning.
+
+    The alias is retained for the gh#1372 -> 2026.6 migration window so
+    external Python consumers (UMEP postprocessor, etc.) keep working.
+    """
+    import warnings
+
+    mc = ModelControl(output={"format": "txt", "freq": 3600, "dir": "./out"})
+    with warnings.catch_warnings(record=True) as caught:
+        warnings.simplefilter("always")
+        legacy = mc.output_file
+    assert legacy is mc.output
+    assert any(
+        issubclass(w.category, DeprecationWarning)
+        and "model.control.output_file" in str(w.message)
+        for w in caught
+    )
 
 
 def test_modelcontrol_legacy_output_file_dict_coerced():

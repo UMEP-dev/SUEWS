@@ -803,18 +803,33 @@ def load_SUEWS_Forcing_met_df_pattern(path_input, file_pattern):
         f for f in path_input.glob(file_pattern) if "ESTM" not in f.name
     ])
 
-    # Read all files at the raw-CSV layer. We deliberately do NOT call
-    # `read_suews` here because that function eagerly applies
-    # `set_index_dt`, which uses `iloc[:, :4]` to identify the time
-    # columns. With header-driven matching we may receive shuffled
-    # column order — the time columns can sit anywhere — so we reindex
-    # against the canonical names first, then datetime-index at the end.
-    df_forcing_met = pd.concat([
-        pd.read_csv(fn, sep=r"\s+", comment="!", on_bad_lines="error")
+    # gh#1372 fix: canonicalise PER FILE before concat.
+    #
+    # Reading raw CSVs and concatenating before named-column matching
+    # silently masks per-file omissions: a required baseline column
+    # missing from file A passes if file B has it (the concatenated
+    # frame still carries the column, with NaNs in file A's rows); a
+    # canonical optional column missing from file A leaves NaN in file
+    # A's rows instead of the documented -999 sentinel.
+    #
+    # We deliberately do NOT call `read_suews` here because that
+    # function eagerly applies `set_index_dt`, which uses
+    # `iloc[:, :4]` to identify the time columns. With header-driven
+    # matching the time columns can sit anywhere — we reindex against
+    # the canonical names first, then datetime-index at the end.
+    canonical_per_file = [
+        _apply_named_column_matching(
+            pd.read_csv(
+                fn, sep=r"\s+", comment="!", on_bad_lines="error"
+            ).drop_duplicates()
+        )
         for fn in list_file_MetForcing
-    ])
-    df_forcing_met = df_forcing_met.drop_duplicates()
-    return _apply_named_column_matching(df_forcing_met)
+    ]
+    df_combined = pd.concat(canonical_per_file)
+    # Datetime-index dedup: same timestamp appearing in two files
+    # collapses to the first occurrence.
+    df_combined = df_combined[~df_combined.index.duplicated(keep="first")]
+    return df_combined
 
 
 def _apply_named_column_matching(df_forcing_met: pd.DataFrame) -> pd.DataFrame:
@@ -903,26 +918,34 @@ def _apply_named_column_matching(df_forcing_met: pd.DataFrame) -> pd.DataFrame:
 def load_SUEWS_Forcing_met_df_yaml(path_forcing):
     from pathlib import Path
 
+    # Resolve to a flat list of files. Single str/Path may point at a
+    # directory (treat as glob over its contents) or a single file.
     if isinstance(path_forcing, (str, Path)):
         path_forcing = Path(path_forcing).resolve()
         if path_forcing.is_dir():
-            path_forcing = sorted(path_forcing.glob("*"))
+            file_list = sorted(path_forcing.glob("*"))
         else:
-            df_forcing_met = pd.read_csv(
-                path_forcing, sep=r"\s+", comment="!", on_bad_lines="error"
-            )
-    if isinstance(path_forcing, list):
-        path_forcing = [Path(p).resolve() for p in path_forcing]
-        df_forcing_met = pd.concat([
-            pd.read_csv(fn, sep=r"\s+", comment="!", on_bad_lines="error")
-            for fn in path_forcing
-        ])
-    if not isinstance(path_forcing, (str, Path)) and not isinstance(path_forcing, list):
+            file_list = [path_forcing]
+    elif isinstance(path_forcing, list):
+        file_list = [Path(p).resolve() for p in path_forcing]
+    else:
         raise TypeError(
             f"path_forcing must be a str, Path, or list — got {type(path_forcing).__name__}"
         )
-    df_forcing_met = df_forcing_met.drop_duplicates()
-    return _apply_named_column_matching(df_forcing_met)
+
+    # gh#1372 fix: canonicalise per file before concat (see
+    # load_SUEWS_Forcing_met_df_pattern for the full rationale).
+    canonical_per_file = [
+        _apply_named_column_matching(
+            pd.read_csv(
+                fn, sep=r"\s+", comment="!", on_bad_lines="error"
+            ).drop_duplicates()
+        )
+        for fn in file_list
+    ]
+    df_combined = pd.concat(canonical_per_file)
+    df_combined = df_combined[~df_combined.index.duplicated(keep="first")]
+    return df_combined
 
 
 # TODO: add support for loading multi-grid forcing datasets

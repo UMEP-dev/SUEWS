@@ -1,28 +1,21 @@
 name: sample_config
-schema_version: '2026.5.dev7'
-description: Sample configuration built from benchmark 1a (Ward et al. 2016) model configuration
+schema_version: 2026.5.dev8
+description: Sample configuration built from benchmark 1a (Ward et al. 2016) model
+  configuration
 model:
   control:
     tstep: 300
-    start_time: "2011-01-01"
-    end_time: "2013-12-31"
-    forcing:
-      file:
-        value: Kc_2012_data_60.txt
+    start_time: '2011-01-01'
+    end_time: '2013-12-31'
+    forcing_file:
+      value: Kc_2012_data_60.txt
     output_file:
       format: txt
       freq: 3600
-      path: "./Output"
+      path: ./Output
       groups:
-        - "SUEWS"
+      - SUEWS
   physics:
-    # Three fields (net_radiation, storage_heat, emissions) accept a
-    # family-tagged nested form too (gh#972), e.g.:
-    #   net_radiation:
-    #     narp:
-    #       value: 3
-    # The family tag is validated against its numeric codes; round-trip
-    # always emits the flat form below.
     net_radiation:
       value: 3
     emissions:
@@ -48,7 +41,7 @@ model:
     roughness_sublayer_level:
       value: 1
     surface_conductance:
-        value: 2
+      value: 2
     laimethod:
       value: 1
     snow_use:
@@ -93,12 +86,6 @@ sites:
       value: 0.0
     narp_trans_site:
       value: 1.0
-    # Uncomment below when using observed soil moisture (smdmethod: 1 or 2)
-    # soil_observation:
-    #   depth: 200.0        # mm - sensor installation depth
-    #   smcap: 0.40         # fraction - saturated moisture at sensor location
-    #   soil_not_rocks: 0.9 # fraction - soil volume (not rocks)
-    #   bulk_density: 1.3   # g/cm³ - required for gravimetric (smdmethod: 2)
     lumps:
       raincover:
         value: 1.0
@@ -474,7 +461,7 @@ sites:
       annual_mean_air_temperature:
         value: 10.0
       month_mean_air_temperature_diffmax:
-        value: 10.0        
+        value: 10.0
       hot_water_tank_wall_thickness:
         value: 0.055
       mains_water_temperature:
@@ -1126,94 +1113,6 @@ sites:
         value: 100
       window_to_wall_ratio:
         value: 0.25
-      wall_thickness:
-        value: 0.2312
-      wall_effective_conductivity:
-        value: 0.755
-      wall_density:
-        value: 1724.7
-      wall_specific_heat_capacity:
-        value: 1000.0
-      wall_external_thickness:
-        value: 0.1
-      wall_external_effective_conductivity:
-        value: 0.755
-      wall_external_density:
-        value: 1724.7
-      wall_external_specific_heat_capacity:
-        value: 1000.0
-      wall_outer_heat_capacity_fraction:
-        value: 0.5
-      wall_external_emissivity:
-        value: 0.9
-      wall_internal_emissivity:
-        value: 0.91
-      wall_transmissivity:
-        value: 0.0
-      wall_absorptivity:
-        value: 0.655
-      wall_reflectivity:
-        value: 0.345
-      roof_thickness:
-        value: 0.031
-      roof_effective_conductivity:
-        value: 0.106
-      roof_density:
-        value: 1222.0
-      roof_specific_heat_capacity:
-        value: 816.1
-      roof_external_thickness:
-        value: 0.031
-      roof_external_effective_conductivity:
-        value: 0.106
-      roof_external_density:
-        value: 1222.0
-      roof_external_specific_heat_capacity:
-        value: 816.1
-      roof_outer_heat_capacity_fraction:
-        value: 0.5
-      roof_external_emissivity:
-        value: 0.9
-      roof_internal_emissivity:
-        value: 0.91
-      roof_transmissivity:
-        value: 0.0
-      roof_absorptivity:
-        value: 0.655
-      roof_reflectivity:
-        value: 0.345
-      ground_floor_thickness:
-        value: 0.227
-      ground_floor_effective_conductivity:
-        value: 0.193
-      ground_floor_density:
-        value: 299.5
-      ground_floor_specific_heat_capacity:
-        value: 1528.5
-      window_thickness:
-        value: 0.004
-      window_effective_conductivity:
-        value: 1.05
-      window_density:
-        value: 2500.0
-      window_specific_heat_capacity:
-        value: 840.0
-      window_external_emissivity:
-        value: 0.84
-      window_internal_emissivity:
-        value: 0.84
-      window_transmissivity:
-        value: 0.8
-      window_absorptivity:
-        value: 0.15
-      window_reflectivity:
-        value: 0.05
-      internal_mass_density:
-        value: 1056.6
-      internal_mass_specific_heat_capacity:
-        value: 1286.1
-      internal_mass_emissivity:
-        value: 0.91
       max_heating_power:
         value: 12510
       hot_water_tank_volume:
@@ -1806,6 +1705,94 @@ sites:
           '142': 27.0
           '143': 27.0
           '144': 27.0
+      thickness_wall:
+        value: 0.2312
+      conductivity_wall:
+        value: 0.755
+      density_wall:
+        value: 1724.7
+      specific_heat_capacity_wall:
+        value: 1000.0
+      thickness_wall_outer:
+        value: 0.1
+      conductivity_wall_outer:
+        value: 0.755
+      density_wall_outer:
+        value: 1724.7
+      specific_heat_capacity_wall_outer:
+        value: 1000.0
+      fraction_wall_heat_capacity_outer:
+        value: 0.5
+      emissivity_wall_external:
+        value: 0.9
+      emissivity_wall_internal:
+        value: 0.91
+      transmissivity_wall_external:
+        value: 0.0
+      absorptivity_wall_external:
+        value: 0.655
+      reflectivity_wall_external:
+        value: 0.345
+      thickness_roof:
+        value: 0.031
+      conductivity_roof:
+        value: 0.106
+      density_roof:
+        value: 1222.0
+      specific_heat_capacity_roof:
+        value: 816.1
+      thickness_roof_outer:
+        value: 0.031
+      conductivity_roof_outer:
+        value: 0.106
+      density_roof_outer:
+        value: 1222.0
+      specific_heat_capacity_roof_outer:
+        value: 816.1
+      fraction_roof_heat_capacity_outer:
+        value: 0.5
+      emissivity_roof_external:
+        value: 0.9
+      emissivity_roof_internal:
+        value: 0.91
+      transmissivity_roof_external:
+        value: 0.0
+      absorptivity_roof_external:
+        value: 0.655
+      reflectivity_roof_external:
+        value: 0.345
+      thickness_ground_floor:
+        value: 0.227
+      conductivity_ground_floor:
+        value: 0.193
+      density_ground_floor:
+        value: 299.5
+      specific_heat_capacity_ground_floor:
+        value: 1528.5
+      thickness_window:
+        value: 0.004
+      conductivity_window:
+        value: 1.05
+      density_window:
+        value: 2500.0
+      specific_heat_capacity_window:
+        value: 840.0
+      emissivity_window_external:
+        value: 0.84
+      emissivity_window_internal:
+        value: 0.84
+      transmissivity_window_external:
+        value: 0.8
+      absorptivity_window_external:
+        value: 0.15
+      reflectivity_window_external:
+        value: 0.05
+      density_internal_mass:
+        value: 1056.6
+      specific_heat_capacity_internal_mass:
+        value: 1286.1
+      emissivity_internal_mass:
+        value: 0.91
     conductance:
       g_max:
         value: 3.5

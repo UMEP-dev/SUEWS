@@ -180,11 +180,102 @@ The sections below summarise what users see change between schemas.
 The authoritative lineage (including release-tag to schema mapping)
 lives in :ref:`schema_version_history`.
 
-Upgrading to Schema 2026.5.dev9 (naming convention Rule 2 reorder for ArchetypeProperties)
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Upgrading to Schema 2026.5.dev9 (gh#1372 cumulative model.control restructure)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Schema ``2026.5.dev9`` is the current in-development shape. 44
-``ArchetypeProperties`` field names under
+Schema ``2026.5.dev9`` is the current in-development shape. It bundles
+the gh#1372 forcing- and output-config restructures into a single dev
+bump, per the dev-label convention
+(``.claude/rules/python/schema-versioning.md``): rather than
+re-using already-published dev labels, the cumulative delta lands on a
+fresh dev9 with one migration handler.
+
+Two YAML changes ship together; the migrator
+(``suews schema migrate your_config.yml --target-version 2026.5.dev9``)
+applies forcing-restructure first, then output-restructure, so the
+audit log reads in the order users will recognise from the gh#1372
+work.
+
+(a) **Forcing restructure**: ``model.control.forcing_file`` moves
+under a new ``forcing`` sub-object.
+
+.. code-block:: yaml
+   :caption: Before (dev6 / dev7 / dev8)
+
+   model:
+     control:
+       forcing_file: forcing.txt
+
+.. code-block:: yaml
+   :caption: After (dev9)
+
+   model:
+     control:
+       forcing:
+         file: forcing.txt
+
+The forcing-file reader also switches from positional to **named-column**
+matching: column names in the forcing file header are now read and
+used to match canonical variable names. Files whose headers already
+use the canonical names (the standard SUEWS distribution shape)
+continue to work unchanged. Files with custom or mis-typed headers
+(for example ``temperature`` instead of ``Tair``) will now raise
+``ValueError`` at load time citing the expected canonical name. See
+:ref:`named_column_forcing` for the full canonical name list and
+per-landcover whitelist.
+
+(b) **Output restructure**: ``model.control.output_file:`` becomes
+the sibling ``model.control.output:`` block, mirroring the
+``forcing:`` restructure. The inner ``path:`` field is renamed to
+``dir:`` (clarifies it as a directory).
+
+.. code-block:: yaml
+   :caption: Before (dev6 / dev7 / dev8)
+
+   model:
+     control:
+       output_file:
+         format: parquet
+         freq: 3600
+         path: ./out
+
+.. code-block:: yaml
+   :caption: After (dev9)
+
+   model:
+     control:
+       output:
+         format: parquet
+         freq: 3600
+         dir: ./out
+
+The legacy string form ``output_file: "name.txt"`` was already
+silently ignored from 2025.10.15 and is now dropped outright by the
+migrator. The Pydantic ``ModelControl`` class retains a deprecated
+``output_file`` ``@property`` alias (with ``DeprecationWarning``,
+scheduled for removal in 2026.6) so external Python consumers (UMEP
+postprocessor, etc.) keep reading
+``config.model.control.output_file.dir`` until they migrate.
+
+Run ``suews-convert --to 2026.5.dev9 in.yml out.yml`` to rewrite an
+older YAML; the in-memory ``_coerce_legacy_output_file`` validator
+also accepts the legacy shape at load time and emits a
+``DeprecationWarning`` pointing at the new key.
+
+Upgrading to Schema 2026.5.dev8 (PR#1395 registry refresh - identity)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Identity migration. The canonical rename registries refresh to point
+directly at the dev7 final ArchetypeProperties names; the YAML
+surface itself is unchanged from ``2026.5.dev7``. No user action is
+required to reach dev8 from dev7. Users at dev6 or earlier should
+target ``2026.5.dev9`` directly via
+``suews schema migrate ... --target-version 2026.5.dev9``.
+
+Upgrading to Schema 2026.5.dev7 (naming convention Rule 2 reorder for ArchetypeProperties)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+44 ``ArchetypeProperties`` field names under
 ``sites[].properties.building_archetype.*`` have been reordered to
 follow Rule 2 of the SUEWS naming convention
 (``.claude/rules/naming-convention.md``): physical quantity leads,
@@ -216,7 +307,9 @@ Wall and roof heat-capacity distribution rows take the
 ``wall_outer_heat_capacity_fraction`` ->
 ``fraction_wall_heat_capacity_outer``.
 
-Run the migrator to bring an existing YAML onto the new shape:
+Run the migrator to bring an existing YAML onto the new shape (or
+target ``2026.5.dev9`` directly to also pick up the gh#1372
+restructure):
 
 .. code-block:: bash
 
@@ -224,7 +317,7 @@ Run the migrator to bring an existing YAML onto the new shape:
 
 Every rename is logged via ``[yaml-upgrade]   renamed 'old' ->
 'new'`` so the user can verify each substitution. The Pydantic
-backward-compat shim still accepts the pre-dev9 names at load time,
+backward-compat shim still accepts the pre-dev7 names at load time,
 emitting a ``DeprecationWarning``; YAMLs that round-trip through the
 migrator come out in the new spellings and no longer warn.
 
@@ -233,78 +326,6 @@ column keys) is unchanged - the bridge map composes through the
 chained ``ARCHETYPEPROPERTIES_DEV7_TO_PASCAL`` lookup so the legacy
 fused column key (``wallextthickness``, etc.) is still produced from
 the new Pydantic field name.
-
-Upgrading to Schema 2026.5.dev8 (gh#1372 follow-up output config restructure)
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-The ``model.control.output_file:`` block becomes the sibling
-``model.control.output:`` block, mirroring the ``forcing:`` restructure
-shipped in dev7. The inner ``path:`` field is renamed to ``dir:``.
-
-.. code-block:: yaml
-   :caption: Before
-
-   model:
-     control:
-       output_file:
-         format: parquet
-         freq: 3600
-         path: ./out
-
-.. code-block:: yaml
-   :caption: After
-
-   model:
-     control:
-       output:
-         format: parquet
-         freq: 3600
-         dir: ./out
-
-The legacy string form ``output_file: "name.txt"`` was already silently
-ignored from 2025.10.15 and is now dropped outright by the migrator.
-The full ``Union[str, OutputControl]`` is replaced with a single
-``OutputControl`` block so the on-disk shape is no longer ambiguous.
-
-Run ``suews-convert --to 2026.5.dev9 in.yml out.yml`` to rewrite an
-older YAML; the in-memory ``_coerce_legacy_output_file`` validator
-also accepts the legacy shape at load time and emits a
-``DeprecationWarning`` pointing at the new key.
-
-Upgrading to Schema 2026.5.dev7 (gh#1372 forcing config restructure and named-column reader)
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-Two changes ship together (gh#1372):
-
-* **YAML rename**: ``model.control.forcing_file`` moves under a new
-  ``forcing`` sub-object. Update existing configs:
-
-  .. code-block:: yaml
-     :caption: Before
-
-     model:
-       control:
-         forcing_file: forcing.txt
-
-  .. code-block:: yaml
-     :caption: After
-
-     model:
-       control:
-         forcing:
-           file: forcing.txt
-
-  ``suews-convert`` upgrades the YAML automatically; manual edit is
-  also straightforward.
-
-* **Forcing-file header semantics**: column names in the forcing file
-  header are now read and used to match canonical variable names.
-  Files whose headers already use the canonical names (the standard
-  SUEWS distribution shape) continue to work unchanged. Files with
-  custom or mis-typed headers (for example ``temperature`` instead of
-  ``Tair``) will now raise ``ValueError`` at load time citing the
-  expected canonical name. See :ref:`named_column_forcing` for the
-  full canonical name list.
 
 Upgrading to Schema 2026.5.dev6 (gh#1333 site-level completeness validator)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

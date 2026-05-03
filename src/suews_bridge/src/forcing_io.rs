@@ -644,4 +644,39 @@ mod tests {
         // Canonical block unchanged in shape.
         assert_eq!(forcing.block.len(), forcing.len_sim * MET_FORCING_COLS);
     }
+
+    #[test]
+    fn missing_optional_columns_filled_with_sentinel() {
+        // gh#1372 review fix: the Rust bridge unifies with Python `_load.py`
+        // by writing FORCING_OPTIONAL_FILL (-999) for any optional canonical
+        // column that the user omits, instead of leaving 0.0 from the row
+        // initialiser. Pin the contract so a future regression surfaces here
+        // (a kernel that summed silently-zero columns would shift if -999
+        // were ever lost).
+        use std::io::Write;
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("baseline_only.txt");
+        let mut f = std::fs::File::create(&path).unwrap();
+        // Header has only the 10 baseline-required columns (no qn/qh/qe/qs/
+        // qf/snow/ldown/fcld/wuh/xsmd/lai).
+        writeln!(f, "iy id it imin Tair RH U pres kdown rain").unwrap();
+        writeln!(f, "2011 1 0 5 18.0 80.0 2.0 100.0 0.0 0.0").unwrap();
+        writeln!(f, "2011 1 0 10 18.5 79.0 2.1 100.0 0.0 0.0").unwrap();
+        let forcing = read_forcing_block(&path).expect("baseline-only fixture");
+        assert_eq!(forcing.len_sim, 2);
+        assert_eq!(forcing.block.len(), forcing.len_sim * MET_FORCING_COLS);
+        // Optional canonical columns: qn(4), qh(5), qe(6), qs(7), qf(8),
+        // snow(15), ldown(16), fcld(17), wuh(18), xsmd(19), lai(20). All
+        // must hold -999 sentinel for both rows.
+        for row in 0..forcing.len_sim {
+            for &optional_idx in &[4, 5, 6, 7, 8, 15, 16, 17, 18, 19, 20] {
+                let v = row_val(&forcing, row, optional_idx);
+                assert!(
+                    (v - FORCING_OPTIONAL_FILL).abs() < 1e-9,
+                    "row {row} col {optional_idx} expected {} (FORCING_OPTIONAL_FILL), got {v}",
+                    FORCING_OPTIONAL_FILL,
+                );
+            }
+        }
+    }
 }

@@ -384,10 +384,21 @@ class SUEWSForcing:
         *,
         accessor: str,
     ) -> Dict[str, np.ndarray]:
-        """Slice extras with the same indexer used for the main DataFrame."""
+        """Slice extras with the same row indexer used for the main DataFrame.
+
+        When the user passes a ``(rows, cols)`` tuple to ``.loc`` /
+        ``.iloc`` the ``cols`` component refers to columns of the main
+        forcing frame, which generally do NOT exist in the extras frame
+        (extras are per-landcover columns like ``lai_evetr``,
+        ``wuh_paved``). Slicing extras with the full tuple raises
+        KeyError or silently mis-selects; we slice with the row
+        component only so extras carry the same row subset as the main
+        slice (gh#1372 review fix).
+        """
         if not self.extras:
             return {}
-        selected = getattr(self._extras_frame(), accessor)[key]
+        row_key = key[0] if isinstance(key, tuple) else key
+        selected = getattr(self._extras_frame(), accessor)[row_key]
         if isinstance(selected, pd.Series):
             selected = selected.to_frame().T
         return {name: selected[name].to_numpy() for name in selected.columns}

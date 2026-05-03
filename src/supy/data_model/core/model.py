@@ -1136,6 +1136,44 @@ class ModelControl(BaseModel):
     def forcing_file(self, value):
         self.forcing.file = ForcingControl(file=value).file
 
+    @property
+    def output_file(self):
+        """Deprecated alias for ``model.control.output``.
+
+        External Python consumers (UMEP postprocessor, etc.) that still
+        read ``config.model.control.output_file`` keep working through
+        the gh#1372 migration window. Scheduled for removal in 2026.6.
+        """
+        import warnings
+
+        warnings.warn(
+            "`model.control.output_file` is deprecated; read "
+            "`model.control.output` instead. Scheduled for removal in 2026.6.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        return self.output
+
+    @output_file.setter
+    def output_file(self, value):
+        import warnings
+
+        warnings.warn(
+            "`model.control.output_file` is deprecated; set "
+            "`model.control.output` instead. Scheduled for removal in 2026.6.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        if isinstance(value, OutputControl):
+            self.output = value
+        elif isinstance(value, dict):
+            self.output = OutputControl(**value)
+        else:
+            raise TypeError(
+                "`output_file` must be an OutputControl instance or a dict; "
+                f"got {type(value).__name__}."
+            )
+
     @field_validator("tstep", "diagnose", mode="after")
     def validate_int_float(cls, v):
         if isinstance(v, (np.float64, np.float32)):

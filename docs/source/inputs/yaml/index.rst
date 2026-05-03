@@ -73,7 +73,8 @@ A valid SUEWS configuration requires many parameters beyond this minimal example
    model:
      control:
        tstep: 3600                    # Time step [s]
-       forcing_file: "forcing.txt"    # Meteorological data
+       forcing:
+         file: "forcing.txt"          # Meteorological data
        start_time: "2020-01-01"       # Start date
        end_time: "2020-12-31"         # End date
 
@@ -152,13 +153,15 @@ Meteorological forcing data drives the SUEWS simulation. You specify the forcing
 
    model:
      control:
-       forcing_file: "forcing/met_data_2020.txt"
+       forcing:
+         file: "forcing/met_data_2020.txt"
        # Or use multiple files:
-       forcing_file:
-         - "forcing/met_data_2020_Q1.txt"
-         - "forcing/met_data_2020_Q2.txt"
-         - "forcing/met_data_2020_Q3.txt"
-         - "forcing/met_data_2020_Q4.txt"
+       forcing:
+         file:
+           - "forcing/met_data_2020_Q1.txt"
+           - "forcing/met_data_2020_Q2.txt"
+           - "forcing/met_data_2020_Q3.txt"
+           - "forcing/met_data_2020_Q4.txt"
 
 **Forcing File Format**
 
@@ -245,7 +248,8 @@ Urban Site Configuration
    model:
      control:
        tstep: 3600
-       forcing_file: "london_met_2020.txt"
+       forcing:
+         file: "london_met_2020.txt"
        start_time: "2020-01-01"
        end_time: "2020-12-31"
      physics:

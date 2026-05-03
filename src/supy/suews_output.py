@@ -468,12 +468,11 @@ class SUEWSOutput:
             try:
                 if hasattr(self._config, "model"):
                     control = self._config.model.control
-                    if hasattr(control, "output_file"):
-                        output_file = control.output_file
-                        if not isinstance(output_file, str):
-                            if hasattr(output_file, "freq") and output_file.freq:
-                                freq = freq_s or output_file.freq
-                            output_config = output_file
+                    if hasattr(control, "output"):
+                        output_control = control.output
+                        if hasattr(output_control, "freq") and output_control.freq:
+                            freq = freq_s or output_control.freq
+                        output_config = output_control
                 if hasattr(self._config, "sites") and len(self._config.sites) > 0:
                     site = self._config.sites[0].name
             except AttributeError:

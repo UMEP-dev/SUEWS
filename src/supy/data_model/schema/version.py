@@ -22,7 +22,7 @@ import warnings
 # schema-versioning.md` (Dev-label convention). Every structural PR
 # between releases bumps the dev counter instead of consuming a new
 # CalVer label.
-CURRENT_SCHEMA_VERSION = "2026.5.dev8"
+CURRENT_SCHEMA_VERSION = "2026.5.dev9"
 
 # Schema version history and descriptions.
 #
@@ -215,7 +215,7 @@ SCHEMA_VERSIONS: dict[str, str] = {
         "(`.claude/rules/naming-convention.md`): physical quantity now "
         "leads, then component, then sub-class. 44 renames covering "
         "wall, roof, window, ground_floor, and internal_mass bulk "
-        "material and surface optical properties — "
+        "material and surface optical properties - "
         "wall_external_thickness -> thickness_wall_outer, "
         "wall_external_emissivity -> emissivity_wall_external, "
         "wall_outer_heat_capacity_fraction -> "
@@ -227,7 +227,7 @@ SCHEMA_VERSIONS: dict[str, str] = {
         "`outer` (xlsx col 3 + convention 'Specific tokens': outer/inner "
         "= bulk-material layer; external/internal stays for the "
         "radiative surface); (c) the `effective_` qualifier dropped on "
-        "the conductivity rows (used inconsistently — sibling density / "
+        "the conductivity rows (used inconsistently - sibling density / "
         "specific_heat_capacity rows did not carry it). Wall and roof "
         "heat-capacity distribution rows take the `fraction_*` "
         "non-physical category prefix per Rule 2. Rename table "
@@ -254,6 +254,45 @@ SCHEMA_VERSIONS: dict[str, str] = {
         "RAW_YAML_FIELD_RENAMES, and Rust FIELD_COMPAT_ALIASES. The "
         "(2026.5.dev7 -> 2026.5.dev8) migration is an identity transform "
         "that stamps the refreshed schema label."
+    ),
+    "2026.5.dev9": (
+        "gh#1372: cumulative restructure of the model.control surface, "
+        "introducing both ForcingControl and OutputControl sub-objects "
+        "in a single bump per the dev-label convention "
+        "(`.claude/rules/python/schema-versioning.md`). "
+        "(a) Forcing restructure: model.control.forcing_file "
+        "(str | list[str] | RefValue) is moved under "
+        "model.control.forcing.file via "
+        "_apply_forcing_subobject_restructure, creating a stable home "
+        "for future forcing fields (gh#1373 sub-hourly disaggregation; "
+        "resampling policy). Forcing-file *content* semantics also "
+        "tighten: header column names are now read (previously discarded) "
+        "and matched against the canonical forcing column set; baseline-10 "
+        "columns (iy, id, it, imin, Tair, RH, U, pres, kdown, rain) are "
+        "required; missing optional canonical columns are filled with "
+        "-999; whitelisted per-landcover columns are loaded into "
+        "SUEWSForcing.extras / ForcingData.extras: lai_<surface> for "
+        "the three vegetated surfaces (evetr, dectr, grass) only, and "
+        "wuh_<surface> (external water use) for every surface "
+        "{paved, bldgs, evetr, dectr, grass, bsoil, water}. Each "
+        "wuh_<surface> value is a depth in mm per forcing time step "
+        "(same unit as rain) applied to that surface only; xsmd remains "
+        "a bulk site-level column. "
+        "(b) Output restructure: model.control.output_file "
+        "(Union[str, OutputConfig]) is moved under model.control.output "
+        "via _apply_output_subobject_restructure - mirrors the "
+        "ForcingControl move so the model.control surface is uniform. "
+        "The deprecated string form (silently ignored since 2025.10.15) "
+        "is dropped; the inner `path` field is renamed to `dir` "
+        "(clarifies it as a directory). For backward compatibility the "
+        "Pydantic ModelControl class retains a deprecated `output_file` "
+        "@property alias (with DeprecationWarning, scheduled for removal "
+        "in 2026.6) so external Python consumers (UMEP postprocessor, "
+        "etc.) keep working through the migration window. The "
+        "(2026.5.dev8 -> 2026.5.dev9) migration is registered in "
+        "src/supy/util/converter/yaml_upgrade.py::_HANDLERS and runs "
+        "forcing-restructure first, then output-restructure (audit-log "
+        "order matches the gh#1372 chronology)."
     ),
 }
 

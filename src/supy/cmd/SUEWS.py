@@ -106,7 +106,8 @@ def _run_with_yaml(config_path):
         if sim.forcing is None:
             click.echo("Error: No forcing data found in configuration.", err=True)
             click.echo(
-                "Please ensure 'forcing_file' is specified in the YAML config.",
+                "Please ensure 'forcing.file' is specified in the YAML config "
+                "(legacy 'forcing_file' is also accepted via auto-migration).",
                 err=True,
             )
             sys.exit(1)

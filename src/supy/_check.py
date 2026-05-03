@@ -382,19 +382,28 @@ def check_forcing(
 
     # 3. valid physical ranges
     for var in col_df:
-        if var not in ["iy", "id", "it", "imin", "isec"]:
-            ser_var = df_forcing.loc[:, var].copy()
-            res_check = check_range(ser_var, dict_rules_indiv)
-            if not res_check[1]:
-                str_issue = res_check[2]
-                list_issues.append(str_issue)
-                flag_valid = False
-                if fix:
-                    var_check = var.lower()
-                    min_v = dict_rules_indiv[var_check]["param"]["min"]
-                    max_v = dict_rules_indiv[var_check]["param"]["max"]
-                    ser_var = ser_var.clip(lower=min_v, upper=max_v)
-                    df_forcing_fix.loc[:, var] = ser_var.values
+        if var in ["iy", "id", "it", "imin", "isec"]:
+            continue
+        # gh#1372 review: skip per-landcover extras (lai_<surface>,
+        # wuh_<surface>) and any other non-canonical column that does not
+        # have a range rule registered. The named-column reader keeps
+        # extras inline on the returned DataFrame for downstream physics
+        # work; without this guard the lookup in dict_rules_indiv would
+        # KeyError on every extra.
+        if var.lower() not in dict_rules_indiv:
+            continue
+        ser_var = df_forcing.loc[:, var].copy()
+        res_check = check_range(ser_var, dict_rules_indiv)
+        if not res_check[1]:
+            str_issue = res_check[2]
+            list_issues.append(str_issue)
+            flag_valid = False
+            if fix:
+                var_check = var.lower()
+                min_v = dict_rules_indiv[var_check]["param"]["min"]
+                max_v = dict_rules_indiv[var_check]["param"]["max"]
+                ser_var = ser_var.clip(lower=min_v, upper=max_v)
+                df_forcing_fix.loc[:, var] = ser_var.values
 
     # 4. check physics-specific requirements if physics dict is provided
     if physics is not None:

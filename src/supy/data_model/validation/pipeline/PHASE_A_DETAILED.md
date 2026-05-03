@@ -250,7 +250,7 @@ ACTION NEEDED (Critical):
 NO ACTION NEEDED (Optional):
 ├── sites[0].properties.irrigation.wuprofm_24hr.holiday
 ├── sites[0].initial_states.soilstore_id
-└── model.control.output_file.groups
+└── model.control.output.groups
 ```
 
 ## Forcing Data Validation

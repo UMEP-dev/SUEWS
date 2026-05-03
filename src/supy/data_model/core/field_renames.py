@@ -259,7 +259,11 @@ ARCHETYPEPROPERTIES_DEV3_RENAMES: Dict[str, str] = {
     "water_tank_water_volume": "hot_water_tank_volume",
 }
 
-# Schema 2026.5.dev6 -> 2026.5.dev7 (gh#TBD): apply Rule 2 of the SUEWS
+# Rule 2 ArchetypeProperties rename table. This landed on master as a
+# dev6 -> dev7 bump before gh#1372 reserved dev7/dev8 for forcing/output
+# control restructures; in the merged lineage it is applied at dev8 -> dev9.
+#
+# Apply Rule 2 of the SUEWS
 # naming convention (`.claude/rules/naming-convention.md`) — physical
 # quantity → component → sub-class — to ArchetypeProperties bulk-material
 # and surface optical fields. Three orthogonal moves embedded in the
@@ -347,8 +351,8 @@ ARCHETYPEPROPERTIES_DEV6_RENAMES: Dict[str, str] = {
 # Used by ArchetypeProperties._ARCHETYPE_LEGACY_COL_NAMES so the Fortran/Rust
 # bridge (keyed on the fused lowercased PascalCase, e.g. `wallextthickness`)
 # still resolves from the dev7 Pydantic field name. The canonical
-# ARCHETYPEPROPERTIES_RENAMES values are dev7 final names, so this is just
-# its inverse.
+# ARCHETYPEPROPERTIES_RENAMES values are dev7 final names (PR#1395), so this
+# is just its inverse.
 ARCHETYPEPROPERTIES_DEV7_TO_PASCAL: Dict[str, str] = {
     new: old for old, new in ARCHETYPEPROPERTIES_RENAMES.items()
 }

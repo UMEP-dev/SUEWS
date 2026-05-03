@@ -517,7 +517,7 @@ jobs:
           merge-multiple: true
 
       - name: Publish wheels to Test PyPI
-        uses: pypa/gh-action-pypi-publish@81e9d935c883d0b210363ab89cf05f3894778450 # release/v1.8
+        uses: pypa/gh-action-pypi-publish@6733eb7d741f0b11ec6a39b58540dab7590f9b7d # v1.14.0
         with:
           packages-dir: dist/
           verbose: true
@@ -558,7 +558,7 @@ jobs:
           merge-multiple: true
 
       - name: Publish all wheels to PyPI
-        uses: pypa/gh-action-pypi-publish@81e9d935c883d0b210363ab89cf05f3894778450 # release/v1.8
+        uses: pypa/gh-action-pypi-publish@6733eb7d741f0b11ec6a39b58540dab7590f9b7d # v1.14.0
         with:
           packages-dir: dist/
           verbose: true

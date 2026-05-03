@@ -88,9 +88,12 @@ pub fn read_forcing_block(path: &Path) -> Result<ForcingData, String> {
         ));
     }
 
+    // Strip a leading '%' so legacy UMEP/SUEWS headers like "%iy" match
+    // the canonical "iy" (mirrors the same normalisation applied by
+    // src/supy/_load.py::_apply_named_column_matching).
     let mut col_idx = HashMap::new();
     for (idx, col) in headers.iter().enumerate() {
-        col_idx.insert(col.to_ascii_lowercase(), idx);
+        col_idx.insert(col.trim_start_matches('%').to_ascii_lowercase(), idx);
     }
 
     // Baseline-required columns must all be present (case-insensitive).

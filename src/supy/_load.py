@@ -508,6 +508,17 @@ def resample_kdn(data_raw_kdn, tstep_mod, timezone, lat, lon, alt):
 
 # correct precipitation by even redistribution over resampled periods
 def resample_sum(data_raw_precip, tstep_in, tstep_mod):
+    # gh#1372 review: preserve the FORCING_OPTIONAL_FILL (-999) sentinel
+    # for sum columns that carry no real data. ``to_nan`` upstream has
+    # already converted the sentinel to NaN; without this guard the
+    # ``fillna(0.0)`` at the end would silently turn "missing" into
+    # "valid zero", masking truly absent inputs (e.g. an hourly forcing
+    # file that omits Wuh would surface as zero water use instead of
+    # being treated as missing under the observed-water-use path).
+    sentinel_columns = [
+        c for c in data_raw_precip.columns if data_raw_precip[c].isna().all()
+    ]
+
     ratio_precip = 1.0 * tstep_mod / tstep_in
     data_tstep_precip_adj = ratio_precip * data_raw_precip.copy().shift(
         -tstep_in + tstep_mod,
@@ -523,6 +534,9 @@ def resample_sum(data_raw_precip, tstep_in, tstep_mod):
     data_tstep_precip_adj = data_tstep_precip_adj.sort_index()
     data_tstep_precip_adj = data_tstep_precip_adj.asfreq(f"{tstep_mod}{str_second}")
     data_tstep_precip_adj = data_tstep_precip_adj.fillna(value=0.0)
+    # Restore sentinel for columns that were entirely missing on input.
+    for col in sentinel_columns:
+        data_tstep_precip_adj[col] = FORCING_OPTIONAL_FILL
     return data_tstep_precip_adj
 
 
@@ -849,9 +863,14 @@ def _apply_named_column_matching(df_forcing_met: pd.DataFrame) -> pd.DataFrame:
     # matching. Multiple files can spell the same canonical column with
     # different case; coalesce those variants rather than letting pandas
     # leave one file's rows as NaN.
+    #
+    # Strip a leading ``%`` so legacy UMEP/SUEWS headers like ``%iy`` (used
+    # by historical fixtures, e.g. test/core/data/issue_1097/) match the
+    # canonical ``iy``. Without this normalisation the baseline check
+    # would reject files the previous positional loader accepted.
     header_groups: dict[str, list[str]] = {}
     for col in df_forcing_met.columns:
-        header_groups.setdefault(str(col).lower(), []).append(col)
+        header_groups.setdefault(str(col).lstrip("%").lower(), []).append(col)
     canonical_lower = {c.lower() for c in CANONICAL_FORCING_COLUMNS}
 
     # 1) Baseline-required columns must be present (case-insensitive).

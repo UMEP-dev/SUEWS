@@ -972,6 +972,25 @@ class OutputControl(BaseModel):
         description="Output directory where result files will be saved. If not specified, defaults to the current working directory.",
     )
 
+    @property
+    def path(self):
+        """Deprecated alias for ``OutputControl.dir``.
+
+        External Python consumers (UMEP postprocessor, etc.) that still
+        read ``config.model.control.output_file.path`` keep working
+        through the gh#1372 migration window. Scheduled for removal in
+        2026.6.
+        """
+        import warnings
+
+        warnings.warn(
+            "`OutputControl.path` is deprecated; use `OutputControl.dir` "
+            "instead. Scheduled for removal in 2026.6.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        return self.dir
+
     @field_validator("groups")
     def validate_groups(cls, v):
         if v is not None:

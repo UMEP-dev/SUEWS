@@ -458,11 +458,24 @@ pub fn interpolate_forcing(
 
     // --- Sum: proportional redistribution (step function) ---
     // Each input period is evenly split across `ratio` output steps.
+    //
+    // gh#1372 review: preserve FORCING_OPTIONAL_FILL through interpolation.
+    // The SUEWS missing-data sentinel is exactly representable; if a sum
+    // column (rain or wuh) carries -999 it must stay -999 in the
+    // downscaled output, otherwise scaling by tstep_mod/tstep_in produces
+    // a non-sentinel negative value (e.g. hourly -999 -> -83.25 at 5 min)
+    // that the Fortran observed-water-use path would treat as a real
+    // negative water flux instead of "missing".
     let scale = tstep_mod as f64 / tstep_in_f64;
     for &col in &SUM_COLS {
         for j in 0..n_out {
             let i = j / ratio;
-            block[j * MET_FORCING_COLS + col] = row_val(forcing, i, col) * scale;
+            let v_in = row_val(forcing, i, col);
+            block[j * MET_FORCING_COLS + col] = if v_in == FORCING_OPTIONAL_FILL {
+                FORCING_OPTIONAL_FILL
+            } else {
+                v_in * scale
+            };
         }
     }
 

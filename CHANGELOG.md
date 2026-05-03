@@ -72,6 +72,12 @@ EXAMPLES:
 - [change][experimental] Rust forcing block writes `-999` (FORCING_OPTIONAL_FILL) for missing optional columns, unifying with Python `_load.py` (#1372)
   - Behaviour change: previously the Rust bridge initialised optional columns to `0.0`. The unified `-999` sentinel now propagates so the Fortran kernel sees the same missing-data marker regardless of which language read the forcing file
   - Added Rust test `missing_optional_columns_filled_with_sentinel` in `src/suews_bridge/src/forcing_io.rs` asserting that columns missing from the header land as `-999` in the canonical block, guarding against future regressions
+- [change][experimental] `OutputControl.path` deprecated alias for `OutputControl.dir` (#1372)
+  - External Python consumers (UMEP postprocessor, etc.) that read `config.model.control.output_file.path` keep working through the migration window; the alias forwards to `OutputControl.dir` and emits a `DeprecationWarning`, scheduled for removal in 2026.6 alongside the `ModelControl.output_file` alias
+- [bugfix] Require the `wuh` forcing column when `model.physics.water_use = OBSERVED` (#1372)
+  - `_PHYSICS_REQUIRED_FORCING` in `src/supy/data_model/core/forcing_validation.py` now lists `wuh` as required when `water_use = 1`. Previously a forcing file could omit `wuh`, pass the physics/forcing check, and then run with the `-999` sentinel (or a downscaled negative value) instead of failing early
+- [bugfix] Preserve `FORCING_OPTIONAL_FILL` sentinel through Rust forcing interpolation for `SUM_COLS` (#1372)
+  - In `interpolate_forcing` (`src/suews_bridge/src/forcing_io.rs`), sum columns (`rain`, `wuh`) carrying the `-999` sentinel are no longer scaled by `tstep_mod/tstep_in`; the sentinel is preserved through downscaling so the Fortran observed-water-use path continues to recognise the column as missing rather than receiving a real negative water flux (e.g. hourly `-999` would have become `-83.25` at 5-min)
 
 ### 1 May 2026
 

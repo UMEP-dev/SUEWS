@@ -35,6 +35,12 @@ _PHYSICS_REQUIRED_FORCING: dict[tuple[str, int], frozenset[str]] = {
     ("soil_moisture_deficit", 1): frozenset({"xsmd"}),
     ("soil_moisture_deficit", 2): frozenset({"xsmd"}),
     ("laimethod", 0): frozenset({"lai"}),
+    # gh#1372 review: WaterUseMethod.OBSERVED (1) consumes the bulk
+    # `wuh` forcing column in the Fortran water-use path. Without this
+    # entry a forcing file could omit `wuh`, pass the physics/forcing
+    # check, and then run with the -999 sentinel (or a downscaled
+    # negative value) instead of failing early.
+    ("water_use", 1): frozenset({"wuh"}),
 }
 
 

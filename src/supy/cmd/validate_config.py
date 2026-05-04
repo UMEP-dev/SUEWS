@@ -44,6 +44,7 @@ try:
         run_phase_b as _processor_run_phase_b,
         run_phase_c as _processor_run_phase_c,
         create_final_user_files as _processor_create_final_user_files,
+        CRITICAL_PHYSICS_PARAMS,
     )
 except Exception:
     _processor_validate_input_file = None
@@ -52,6 +53,7 @@ except Exception:
     _processor_run_phase_b = None
     _processor_run_phase_c = None
     _processor_create_final_user_files = None
+    CRITICAL_PHYSICS_PARAMS = ()
 
 # Import from supy modules
 try:
@@ -138,6 +140,39 @@ def validate_single_file(
                     )
                 else:
                     errors.append(f"{path}: {error.message}")
+
+        # Structural-presence check for critical physics parameters (gh#1409).
+        # Pydantic's ModelPhysics auto-fills missing fields with enum defaults
+        # (e.g. NetRadiationMethod.NARP), so a YAML with `model.physics: {}`
+        # passes both jsonschema and Pydantic validation silently. The full
+        # pipeline's Phase A flags these as ACTION NEEDED; we replicate that
+        # rule here so the dry-run JSON path agrees with the full pipeline
+        # on user-facing semantics.
+        if target_is_current and CRITICAL_PHYSICS_PARAMS:
+            user_physics = (
+                (config or {}).get("model", {}).get("physics") or {}
+            )
+            if not isinstance(user_physics, dict):
+                user_physics = {}
+            for param_name in CRITICAL_PHYSICS_PARAMS:
+                if param_name not in user_physics:
+                    field_path = f"model.physics.{param_name}"
+                    message = (
+                        f"{field_path}: required physics parameter is missing "
+                        "from the input YAML; runtime requires an explicit "
+                        "choice rather than the Pydantic default"
+                    )
+                    if ValidationError and ErrorCode:
+                        errors.append(
+                            ValidationError(
+                                code=ErrorCode.MISSING_REQUIRED_FIELD,
+                                message=message,
+                                field=field_path,
+                                location=str(file_path),
+                            )
+                        )
+                    else:
+                        errors.append(message)
 
         # Try configuration consistency validation for additional checks.
         # Mirror schema_cli: explicit older target versions stay schema-only,

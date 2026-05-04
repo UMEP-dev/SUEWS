@@ -231,3 +231,123 @@ def test_validate_single_file_rejects_negative_sfr(tmp_path: Path) -> None:
 
     assert not is_valid
     assert errors, "expected at least one error for a negative sfr"
+
+
+# ---------------------------------------------------------------------------
+# Critical-physics structural-presence — gh#1409
+# ---------------------------------------------------------------------------
+
+
+def _minimal_paved_only_config(schema_version: str) -> Dict[str, Any]:
+    """Build a minimal YAML that passes schema and Pydantic but lacks the
+    required ``model.physics`` keys.
+
+    Uses ``land_cover.paved.sfr=1.0`` so the Pydantic ``model_validator``
+    does not reject the payload via site-level critical-null checks
+    (which fire only when vegetated surfaces are active). This isolates
+    the structural-presence gap closed in gh#1409.
+    """
+    return {
+        "schema_version": schema_version,
+        "name": "gh1409-regression",
+        "description": "missing model.physics keys",
+        "model": {
+            "control": {
+                "tstep": 300,
+                "forcing_file": "forcing.txt",
+                "output_file": "out.txt",
+                "start_time": "2020-01-01",
+                "end_time": "2020-01-31",
+            },
+            "physics": {},
+        },
+        "sites": [
+            {
+                "name": "regression",
+                "gridiv": 1,
+                "properties": {
+                    "lat": {"value": 33.45},
+                    "lng": {"value": -112.07},
+                    "alt": {"value": 331},
+                    "timezone": {"value": -7},
+                    "surfacearea": {"value": 1.0},
+                    "land_cover": {
+                        "paved": {"sfr": {"value": 1.0}},
+                        "bldgs": {"sfr": {"value": 0.0}},
+                        "evetr": {"sfr": {"value": 0.0}},
+                        "dectr": {"sfr": {"value": 0.0}},
+                        "grass": {"sfr": {"value": 0.0}},
+                        "bsoil": {"sfr": {"value": 0.0}},
+                        "water": {"sfr": {"value": 0.0}},
+                    },
+                },
+            }
+        ],
+    }
+
+
+def test_validate_flags_missing_critical_physics_params(tmp_path: Path) -> None:
+    """A YAML with ``model.physics: {}`` must fail with one finding per
+    missing critical physics field.
+
+    Regression for gh#1409: Pydantic auto-fills ``ModelPhysics`` enum
+    defaults so ``model.physics: {}`` previously passed the dry-run
+    JSON path with ``status="success"``. The MCP wrapper consumed the
+    false-success envelope and stopped iterating. The structural-presence
+    check in ``validate_single_file`` now flags every missing
+    ``CRITICAL_PHYSICS_PARAMS`` entry as ``MISSING_REQUIRED_FIELD`` so
+    the dry-run path agrees with the full pipeline's Phase A on
+    user-facing semantics.
+    """
+    from supy.cmd.validate_config import validate_single_file
+    from supy.data_model.schema.publisher import generate_json_schema
+    from supy.data_model.schema.version import CURRENT_SCHEMA_VERSION
+    from supy.data_model.validation.pipeline.orchestrator import (
+        CRITICAL_PHYSICS_PARAMS,
+    )
+
+    payload = _minimal_paved_only_config(CURRENT_SCHEMA_VERSION)
+    config_path = tmp_path / "missing_physics.yml"
+    _write_yaml(config_path, payload)
+
+    schema = generate_json_schema()
+    is_valid, errors = validate_single_file(config_path, schema, show_details=True)
+
+    assert not is_valid
+
+    flagged = {
+        getattr(err, "field", None)
+        for err in errors
+        if getattr(err, "field", "").startswith("model.physics.")
+    }
+    expected = {f"model.physics.{name}" for name in CRITICAL_PHYSICS_PARAMS}
+    assert flagged == expected, (
+        f"missing fields not flagged: {expected - flagged}; "
+        f"unexpected fields flagged: {flagged - expected}"
+    )
+
+
+def test_validate_passes_when_critical_physics_present(tmp_path: Path) -> None:
+    """The bundled sample config declares every critical physics key, so
+    the structural-presence check must not fire.
+
+    Guards against over-eager flagging that would break the happy path.
+    """
+    from supy.cmd.validate_config import validate_single_file
+    from supy.data_model.schema.publisher import generate_json_schema
+
+    schema = generate_json_schema()
+    with _sample_yaml_path() as sample:
+        if not sample.exists():
+            pytest.skip(f"Sample config not available at {sample}")
+        is_valid, errors = validate_single_file(sample, schema, show_details=True)
+
+    physics_findings = [
+        err
+        for err in errors
+        if getattr(err, "field", "").startswith("model.physics.")
+    ]
+    assert is_valid, f"sample config should be valid; got errors: {errors}"
+    assert physics_findings == [], (
+        "sample config should not trigger physics structural-presence findings"
+    )

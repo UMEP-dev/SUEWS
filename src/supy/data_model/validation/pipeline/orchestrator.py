@@ -32,6 +32,39 @@ except ImportError as e:
     sys.exit(1)
 
 
+# Critical physics parameters that the user must declare explicitly.
+# Each entry is a key under ``model.physics`` whose absence in the user's
+# input YAML is reported as a ``MISSING_REQUIRED_FIELD`` finding by the
+# dry-run JSON path and as ``A.MISSING_PARAM.CRITICAL`` by Phase A.
+# Pydantic auto-fills these with enum defaults, so a structural-presence
+# check on the raw YAML is required to surface them — runtime expects
+# the user to make explicit physics choices rather than inheriting
+# silently from defaults (gh#1409).
+CRITICAL_PHYSICS_PARAMS = (
+    "net_radiation",
+    "emissions",
+    "storage_heat",
+    "ohm_inc_qf",
+    "roughness_length_momentum",
+    "roughness_length_heat",
+    "stability",
+    "soil_moisture_deficit",
+    "water_use",
+    "roughness_sublayer",
+    "frontal_area_index",
+    "roughness_sublayer_level",
+    "surface_conductance",
+    "snow_use",
+    "stebbs",
+    "outer_cap_fraction",
+    "setpoint",
+    "same_albedo_wall",
+    "same_albedo_roof",
+    "same_emissivity_wall",
+    "same_emissivity_roof",
+)
+
+
 def detect_nlayer_from_user_yaml(user_yaml_file: str) -> int:
     """Detect nlayer value from user YAML file.
 
@@ -85,25 +118,12 @@ def detect_pydantic_defaults(
     standard_data: dict = None,
 ) -> tuple:
     """Detect where the validation system applied defaults and separate critical nulls from normal defaults."""
-    # Critical physics parameters that get converted to int() in df_state
-    CRITICAL_PHYSICS_PARAMS = [
-        "net_radiation",
-        "emissions",
-        "storage_heat",
-        "ohm_inc_qf",
-        "roughness_length_momentum",
-        "roughness_length_heat",
-        "stability",
-        "soil_moisture_deficit",
-        "water_use",
-        "roughness_sublayer",
-        "frontal_area_index",
-        "roughness_sublayer_level",
-        "surface_conductance",
-        "snow_use",
-        "stebbs",
-        "outer_cap_fraction",
-    ]
+    # Critical physics parameters that get converted to int() in df_state.
+    # Sourced from the module-level CRITICAL_PHYSICS_PARAMS so the dry-run
+    # JSON path, Phase A, and Pydantic critical-null check share one list
+    # (gh#1409). The detection here only needs the strict-required subset
+    # used by the runtime int() conversion.
+    _CRITICAL_PHYSICS_PARAMS_LOCAL = CRITICAL_PHYSICS_PARAMS
 
     # Internal parameters that are not used by SUEWS and should not be reported to users
     # These are typically legacy parameter names or unused model components
@@ -192,7 +212,7 @@ def detect_pydantic_defaults(
                     if key in INTERNAL_UNUSED_PARAMS:
                         continue
 
-                    if key in CRITICAL_PHYSICS_PARAMS:
+                    if key in _CRITICAL_PHYSICS_PARAMS_LOCAL:
                         critical_nulls.append({
                             "field_path": current_path,
                             "original_value": original_ref_value,

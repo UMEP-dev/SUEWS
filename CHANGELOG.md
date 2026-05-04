@@ -54,6 +54,15 @@ EXAMPLES:
 
 ## 2026
 
+### 4 May 2026
+
+- [bugfix] `validate_config` dry-run JSON path now flags structurally-missing critical physics parameters (#1409)
+  - A YAML with `model.physics: {}` previously passed `suews validate --dry-run --format json` with `status="success"`, because Pydantic auto-fills every `ModelPhysics` field with an enum default; the MCP `validate_config` tool consumed the false-success envelope and stopped iterating, leaving users with a config that could not actually run
+  - `validate_single_file` (`src/supy/cmd/validate_config.py`) now performs a structural-presence check against `CRITICAL_PHYSICS_PARAMS` after Pydantic validation; missing fields surface as `MISSING_REQUIRED_FIELD` findings (one per field) so the dry-run JSON path agrees with the full pipeline's Phase A on user-facing semantics
+  - `CRITICAL_PHYSICS_PARAMS` is consolidated to a single module-level constant in `src/supy/data_model/validation/pipeline/orchestrator.py`; the previous local copies in `_check_critical_null_physics_params` and `detect_pydantic_defaults` now import the canonical list
+  - MCP `validate_config` tool docstring spells out which validation classes are run (jsonschema structural, critical-physics structural-presence, Pydantic consistency including site-level critical-null) and which are not (forcing-file content, runtime numerical issues — those need the full pipeline)
+  - Regression tests in `test/cmd/test_validate_config.py` cover both the bad path (paved-only YAML with `model.physics: {}` flags 21 fields) and the happy path (sample config still valid)
+
 ### 3 May 2026
 
 - [change][experimental] Collapse the gh#1372 forcing- and output-restructure schema bumps into a single `2026.5.dev8 -> 2026.5.dev9` cumulative migration (#1372)

@@ -35,7 +35,11 @@ class ProjectRoot:
         """Resolve ``path`` and ensure it is under :attr:`root`.
 
         Raises :class:`SUEWSMCPSandboxError` if the resolved path is not a
-        descendant of ``self._root`` (or the root itself).
+        descendant of ``self._root`` (or the root itself). The error
+        names the configured project root explicitly so users debugging
+        a "wrong root" launch (no ``--root`` flag, server inheriting a
+        Conductor temp cwd) can correct it without reading the
+        sandbox's source (gh#1405).
         """
         candidate = Path(path)
         if not candidate.is_absolute():
@@ -47,7 +51,11 @@ class ProjectRoot:
         except ValueError as exc:
             raise SUEWSMCPSandboxError(
                 f"Path {path!r} resolves to {resolved} which is outside "
-                f"the project root {self._root}."
+                f"the project root {self._root}. The project root is set "
+                f"by the suews-mcp `--root` flag (or the "
+                f"{ENV_PROJECT_ROOT} environment variable); pass the "
+                f"workspace directory there if you expected the path to "
+                f"be accepted."
             ) from exc
 
         return resolved

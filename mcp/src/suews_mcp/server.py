@@ -7,9 +7,14 @@ testing the tool functions even when the SDK is not installed.
 
 from __future__ import annotations
 
+import argparse
 import json
+import os
 import sys  # noqa: F401  (kept for future use; FastMCP.run() handles streams)
-from typing import Any
+from pathlib import Path
+from typing import Any, Optional, Sequence
+
+from .constants import ENV_PROJECT_ROOT
 
 
 def _build_server() -> Any:
@@ -111,8 +116,48 @@ def _build_server() -> Any:
     return server
 
 
-def main() -> None:
+def _parse_args(argv: Optional[Sequence[str]] = None) -> argparse.Namespace:
+    """Parse CLI args for the ``suews-mcp`` console script (gh#1405).
+
+    The MCP server has long honoured ``SUEWS_MCP_PROJECT_ROOT`` but the
+    plugin-host launch idiom is ``suews-mcp --root <path>``; without the
+    flag the sandbox falls back to ``os.getcwd()``, which on a
+    Conductor-isolated launch points at a temp directory rather than
+    the workspace. The agent then sees its own absolute paths rejected
+    with a confusing "outside the project root" message that names
+    the temp dir.
+    """
+    parser = argparse.ArgumentParser(
+        prog="suews-mcp",
+        description=(
+            "SUEWS Model Context Protocol server (read-only Phase-1)."
+        ),
+    )
+    parser.add_argument(
+        "--root",
+        type=str,
+        default=None,
+        help=(
+            "Project root directory. Tools resolve relative paths under "
+            "this root, and absolute paths must lie inside it. Overrides "
+            "the SUEWS_MCP_PROJECT_ROOT environment variable. Defaults "
+            "to SUEWS_MCP_PROJECT_ROOT if set, otherwise the current "
+            "working directory."
+        ),
+    )
+    return parser.parse_args(list(argv) if argv is not None else None)
+
+
+def main(argv: Optional[Sequence[str]] = None) -> None:
     """Console-script entry point: ``suews-mcp``."""
+    args = _parse_args(argv)
+    if args.root is not None:
+        # Anchor the sandbox before any tool's ProjectRoot instance is
+        # constructed. ProjectRoot reads the env var at instantiation,
+        # so setting it here propagates to every subsequent tool call.
+        resolved_root = str(Path(args.root).expanduser().resolve(strict=False))
+        os.environ[ENV_PROJECT_ROOT] = resolved_root
+
     server = _build_server()
     server.run()
 

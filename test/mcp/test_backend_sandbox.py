@@ -64,3 +64,24 @@ def test_default_root_from_env(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) 
     monkeypatch.setenv("SUEWS_MCP_PROJECT_ROOT", str(tmp_path))
     root = ProjectRoot()
     assert root.root == tmp_path.resolve()
+
+
+def test_rejection_message_names_root_and_flag(tmp_path: Path) -> None:
+    """Sandbox rejection must surface both the configured root and the
+    flag/env-var that controls it (gh#1405). Without this, users
+    debugging a "wrong root" launch (server inheriting a Conductor temp
+    cwd because no ``--root`` was passed) cannot see why a
+    workspace-absolute path is being rejected.
+    """
+    from suews_mcp.backend.sandbox import ProjectRoot, SUEWSMCPSandboxError
+
+    (tmp_path / "case01").mkdir()
+    root = ProjectRoot(tmp_path / "case01")
+
+    with pytest.raises(SUEWSMCPSandboxError) as excinfo:
+        root.resolve("/etc/passwd")
+
+    msg = str(excinfo.value)
+    assert "outside the project root" in msg
+    assert "--root" in msg, "error must name the --root flag for self-correction"
+    assert "SUEWS_MCP_PROJECT_ROOT" in msg, "error must name the env var fallback"

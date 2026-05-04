@@ -56,6 +56,10 @@ EXAMPLES:
 
 ### 4 May 2026
 
+- [bugfix] `suews-mcp` now accepts a `--root` flag and the sandbox rejection message names the configured root (#1405)
+  - The MCP server previously had no CLI argument parsing — the project root came only from the `SUEWS_MCP_PROJECT_ROOT` env var, falling back to `os.getcwd()` at server startup. On a Conductor-isolated launch the cwd is a temp directory (`/private/var/folders/.../cc-isolated-...`), so workspace-absolute paths sent by the agent were rejected with a confusing "outside the project root" error that named the temp dir
+  - `mcp/src/suews_mcp/server.py` now accepts `--root <path>` (with `--help` text); when provided, the value is resolved and exported as `SUEWS_MCP_PROJECT_ROOT` *before* `_build_server()` so per-tool `ProjectRoot` instances inherit it. When omitted the existing env-var / cwd fallback chain is left untouched
+  - `mcp/src/suews_mcp/backend/sandbox.py` rejection message now names both `--root` and `SUEWS_MCP_PROJECT_ROOT` so users debugging a wrong-root launch can self-correct without reading source
 - [bugfix] MCP server provenance: `serverInfo.version` matches package `__version__`; envelope `meta.git_commit` carries through wheel installs (#1401)
   - `mcp/src/suews_mcp/server.py` plumbs `suews_mcp.__version__` into `server._mcp_server.version` after FastMCP construction so the MCP `initialize` handshake's `serverInfo.version` reports the package version rather than the SDK's own version (was: hardcoded "1.27.0")
   - `get_ver_git.py` now bakes the build-time short commit hash into the generated `_version_scm.py` as `__commit_hash__`; `supy.cmd.json_envelope._git_commit()` falls back to this when no `.git` directory is reachable at runtime (the wheel-install case where the previous `git rev-parse` lookup returned `None`). The `"unknown"` build-time sentinel surfaces as `null` rather than the literal string

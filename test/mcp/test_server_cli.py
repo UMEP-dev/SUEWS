@@ -63,6 +63,70 @@ def test_main_root_flag_sets_env_var_before_server_build(
     assert captured["env_value"] == str(tmp_path.resolve())
 
 
+def test_check_knowledge_pack_freshness_returns_none_for_matching_versions(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """When the pack manifest's ``suews_version`` matches the running
+    supy, the staleness probe returns ``None`` (no startup warning).
+    gh#1406.
+    """
+    from suews_mcp import server as server_mod
+    import supy
+
+    def fake_load_manifest():
+        return {
+            "suews_version": supy.__version__,
+            "git_sha": "deadbeef",
+        }
+
+    monkeypatch.setattr(
+        "supy.knowledge.load_manifest", fake_load_manifest, raising=False
+    )
+    assert server_mod._check_knowledge_pack_freshness() is None
+
+
+def test_check_knowledge_pack_freshness_warns_on_drift(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """When the pack was built against a different supy version, the
+    probe returns a warning string for the server to log to stderr at
+    startup. gh#1406.
+    """
+    from suews_mcp import server as server_mod
+
+    def fake_load_manifest():
+        return {
+            "suews_version": "0.0.0-stale",
+            "git_sha": "deadbeefcafebabe1234567890abcdef00000000",
+        }
+
+    monkeypatch.setattr(
+        "supy.knowledge.load_manifest", fake_load_manifest, raising=False
+    )
+    warning = server_mod._check_knowledge_pack_freshness()
+    assert warning is not None
+    assert "0.0.0-stale" in warning
+    assert "knowledge pack staleness" in warning
+    assert "suews knowledge build" in warning
+
+
+def test_check_knowledge_pack_freshness_handles_unreadable_manifest(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """An unreadable / missing manifest must not crash server
+    startup; the probe degrades to ``None`` (gh#1406).
+    """
+    from suews_mcp import server as server_mod
+
+    def fake_load_manifest():
+        raise FileNotFoundError("no pack")
+
+    monkeypatch.setattr(
+        "supy.knowledge.load_manifest", fake_load_manifest, raising=False
+    )
+    assert server_mod._check_knowledge_pack_freshness() is None
+
+
 def test_main_without_root_does_not_override_env(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:

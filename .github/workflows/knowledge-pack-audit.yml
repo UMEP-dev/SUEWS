@@ -1,0 +1,69 @@
+name: Knowledge pack freshness audit
+
+# Guard against silent drift between the SUEWS knowledge pack and
+# the data_model / cmd source it is meant to cite. The pack's meson
+# `custom_target` only depends on `knowledge/pack.py`, so changes
+# under `src/supy/data_model/` or `src/supy/cmd/` do NOT trigger an
+# automatic rebuild — the installed pack drifts and `query_knowledge`
+# starts surfacing stale field names. Motivated by gh#1406 (manual
+# smoke 2026-05-04 found pack `git_sha` lagging HEAD by 5 PRs).
+#
+# Maintainers can label a PR with `knowledge-pack-audit-ok` to bypass
+# the check when the diff is genuinely cosmetic (docstring or comment
+# only).
+
+on:
+  pull_request:
+    paths:
+      - 'src/supy/data_model/**'
+      - 'src/supy/cmd/**'
+      - 'src/supy/knowledge/**'
+      - 'scripts/lint/check_knowledge_pack_freshness.py'
+      - '.github/workflows/knowledge-pack-audit.yml'
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  check-pack-freshness:
+    name: Require knowledge-pack rebuild
+    runs-on: ubuntu-latest
+    steps:
+      - name: Decide whether to skip (PR has bypass label)
+        id: bypass
+        env:
+          LABELS: ${{ toJSON(github.event.pull_request.labels.*.name) }}
+        run: |
+          set -eu
+          echo "Labels on this PR: $LABELS"
+          if printf '%s' "$LABELS" | grep -q '"knowledge-pack-audit-ok"'; then
+            echo "bypass=true" >> "$GITHUB_OUTPUT"
+            echo "PR carries label 'knowledge-pack-audit-ok'; skipping."
+          else
+            echo "bypass=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Checkout full history
+        if: steps.bypass.outputs.bypass != 'true'
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Fetch base ref
+        if: steps.bypass.outputs.bypass != 'true'
+        env:
+          BASE_REF: ${{ github.event.pull_request.base.ref }}
+        run: |
+          set -eu
+          git fetch --no-tags origin "$BASE_REF"
+
+      - name: Run knowledge-pack freshness audit
+        if: steps.bypass.outputs.bypass != 'true'
+        env:
+          BASE_REF: ${{ github.event.pull_request.base.ref }}
+        run: |
+          set -eu
+          python scripts/lint/check_knowledge_pack_freshness.py \
+            --base "origin/$BASE_REF"

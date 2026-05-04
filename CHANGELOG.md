@@ -56,6 +56,9 @@ EXAMPLES:
 
 ### 4 May 2026
 
+- [bugfix] Pin `httpx<1.0` in `mcp/pyproject.toml` to keep `--prerelease=allow` installs off `httpx 1.0.dev3` (#1399)
+  - The official `mcp` PyPI package transitively depends on `httpx_sse`, which has an unpinned dep on `httpx`; with uv's global `--prerelease=allow` switch the resolver lands on `httpx==1.0.dev3` (which removed `TransportError`), breaking the whole `mcp` import chain on `suews-mcp` startup
+  - Constraining `httpx<1.0` here means even a prerelease-permitted resolve cannot land on the in-flight 1.0 line; sibling docs sub-issue (#1398) covers the install recipe that replaces `--prerelease=allow` with explicit `==<dev>` pins
 - [bugfix] `validate_config` dry-run JSON path now flags structurally-missing critical physics parameters (#1409)
   - A YAML with `model.physics: {}` previously passed `suews validate --dry-run --format json` with `status="success"`, because Pydantic auto-fills every `ModelPhysics` field with an enum default; the MCP `validate_config` tool consumed the false-success envelope and stopped iterating, leaving users with a config that could not actually run
   - `validate_single_file` (`src/supy/cmd/validate_config.py`) now performs a structural-presence check against `CRITICAL_PHYSICS_PARAMS` after Pydantic validation; missing fields surface as `MISSING_REQUIRED_FIELD` findings (one per field) so the dry-run JSON path agrees with the full pipeline's Phase A on user-facing semantics

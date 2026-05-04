@@ -15,6 +15,14 @@ authors = [
 dependencies = [
     "supy",
     "mcp>=1.2",
+    # Pin httpx away from the in-flight 1.0 dev line (gh#1399). The official
+    # `mcp` package transitively depends on `httpx_sse`, which has an
+    # unpinned dep on `httpx`. With `uv pip install --prerelease=allow` the
+    # resolver picks up `httpx==1.0.dev3`, which removed `TransportError`
+    # and breaks the `httpx_sse` import chain — taking the whole `mcp`
+    # import down on startup. Constraining here means even a
+    # prerelease-permitted resolve cannot land on `httpx 1.x`.
+    "httpx<1.0",
 ]
 
 [project.optional-dependencies]

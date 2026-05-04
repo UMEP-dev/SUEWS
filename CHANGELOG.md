@@ -56,6 +56,9 @@ EXAMPLES:
 
 ### 4 May 2026
 
+- [feature][experimental] `init_case` returns a `recommendation` field and MCP-tool-call-form `next_steps` (#1408)
+  - The CLI's `data.next_steps` is shell-command form ("Edit X", "suews validate X", "suews run X") — useful at a terminal but useless to an MCP agent that needs to know which *MCP tool* to call. In the EGU26 poster trace, after a successful `init_case` the agent fired 11 `query_knowledge` calls before timing out, never editing the YAML
+  - The MCP wrapper now replaces the CLI list with imperative MCP-tool-call form (open and edit the YAML, then call `mcp__suews__inspect_config`, then call `mcp__suews__validate_config`) and surfaces the single highest-priority next move on `data.recommendation` so the agent does not have to scan the array
 - [bugfix] Envelope size policy: `read_example` and `query_knowledge` cap default response under any host token budget (#1403)
   - `read_example` previously returned the full sample bundle (~1.2 MB of YAML), which every MCP host (Claude Code, Codex, Claude Desktop) rejected as "result exceeds maximum allowed tokens"; the agent then fell into a loop of duplicate `query_knowledge` calls trying to rebuild the example piecewise. New `mode` parameter: `"summary"` (default — file list with sizes plus an 80-line preview per file), `"manifest"` (cheapest — sizes only, no content), `"file"` with `path` (full content of one file, capped at 64 KB)
   - `query_knowledge` previously emitted full chunk text for every match (~10 KB per Fortran-module match); a `limit=5` query routinely exceeded 50 KB. New `mode` parameter: `"snippet"` (default — per-match text capped at 2 KB with `text_truncated` / `text_full_bytes` flags), `"summary"` (drops text entirely, keeps citation metadata), `"full"` (explicit opt-in for the original unbounded envelope). Default `limit` lowered from 5 to 3

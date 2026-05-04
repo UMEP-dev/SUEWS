@@ -27,7 +27,11 @@ dev = [
 suews-mcp = "suews_mcp.server:main"
 
 [tool.setuptools.dynamic]
-version = { attr = "suews_mcp._version_scm.__version__" }
+# Read via the package __init__ (which itself goes through _version.py with a
+# tracked fallback chain: _version_scm -> supy.__version__ -> "0+unknown").
+# Pointing setuptools directly at _version_scm broke fresh `pip install -e mcp/`
+# because that file is gitignored and only created by `python get_ver_git.py`.
+version = { attr = "suews_mcp.__version__" }
 
 [tool.setuptools.packages.find]
 where = ["src"]

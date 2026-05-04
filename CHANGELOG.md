@@ -84,6 +84,16 @@ EXAMPLES:
   - `src/supy/_check.py::check_forcing` previously iterated every non-time column in the returned forcing DataFrame and looked it up in `dict_rules_indiv`, so per-landcover extras (`lai_<surface>`, `wuh_<surface>`) introduced by the named-column reader raised `KeyError` instead of being passed through to the kernel. Added a guard that skips columns without a registered range rule
 - [bugfix] Preserve `FORCING_OPTIONAL_FILL` sentinel through Python `resample_sum` (#1372)
   - `src/supy/_load.py::resample_sum` records columns whose input is entirely missing (NaN, after `to_nan` converted the `-999` sentinel) and restores `-999` for those columns after the existing `fillna(0.0)`. Without this restoration an hourly forcing file omitting `Wuh` would surface as a valid `0.0` after resampling, masking the missing input under the observed-water-use path; the guard mirrors the symmetric Rust fix in `interpolate_forcing` for `SUM_COLS`
+- [feature][experimental] Added end-to-end MCP test layer for Codex and Claude Code agents (#1384)
+  - Layer 0 — packaging/manifest sanity (`test/mcp/test_packaging_manifests.py`): asserts `.mcp.json` shape against both Claude Code and Codex (untagged-enum acceptance with code citation), validates plugin-manifest references resolve, asserts top-level vs bundled plugins resolve to equivalent commands
+  - Layer 1 — MCP protocol stdio handshake (`test/mcp/test_protocol_handshake.py`): spawns the real `suews-mcp` subprocess, performs JSON-RPC `initialize` + `tools/list` + `resources/list` + `resources/templates/list`, asserts all 12 tools and all 6 resources are advertised, asserts `read_knowledge_manifest` returns `pack_version` / `schema_version` / `git_sha`
+  - Layer 2 — real-CLI smoke (`test/mcp/test_real_cli_smoke.py`): un-mocked `validate_config` against the bundled sample config (success + provenance) and against a known-bad fixture (`INVALID_YAML` actionable diagnostics); real `query_knowledge` provenance round-trip
+  - Layer 3 — canonical Q&A fixture + evidence-retrieval runner (`test/mcp/fixtures/canonical_questions.yml`, `test/mcp/test_canonical_questions.py`): six positive cases seeded by a domain-expert stress-test set from Prof. Sue Grimmond plus three out-of-scope negative cases; runner asserts each positive question retrieves SUEWS-indexed evidence and each negative question's call survives without crashing
+  - Layer 4 — manual app-adapter smoke checklist (`test/mcp/MANUAL_SMOKE.md`): pre-flight, parallel Claude Code + Codex flows, cross-adapter consistency check on Sue's B5 question, five failure templates (F1–F5)
+- [bugfix] Fixed fresh editable install of `mcp/` failing without first running `python get_ver_git.py` (#1384)
+  - `mcp/pyproject.toml` dynamic-version `attr` now points at the package `__init__` rather than the gitignored `_version_scm.py` directly
+  - Package `__init__` already routes through `_version.py` with a tracked fallback chain (`_version_scm` -> `supy.__version__` -> `"0+unknown"`), so `uv pip install -e mcp/` now works from a clean checkout
+  - Removed empty `test/mcp/__init__.py` that shadowed the `mcp` SDK package and prevented protocol-level tests from importing the SDK
 
 ### 1 May 2026
 

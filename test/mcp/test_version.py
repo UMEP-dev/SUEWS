@@ -38,7 +38,11 @@ def test_mcp_pyproject_uses_generated_dynamic_version() -> None:
 
     assert 'dynamic = ["version"]' in text
     assert 'version = "0.1.0"' not in text
-    assert 'version = { attr = "suews_mcp._version_scm.__version__" }' in text
+    # Route via the package __init__, which has a tracked fallback chain
+    # (_version_scm -> supy.__version__ -> "0+unknown"). Pointing
+    # setuptools directly at the gitignored _version_scm broke fresh
+    # `pip install -e mcp/` (gh#1384).
+    assert 'version = { attr = "suews_mcp.__version__" }' in text
 
 
 def test_version_script_writes_supy_and_mcp_version_files(

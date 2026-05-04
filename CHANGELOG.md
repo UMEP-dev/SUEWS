@@ -56,6 +56,9 @@ EXAMPLES:
 
 ### 4 May 2026
 
+- [doc] `mcp/README.md` Install section now documents TestPyPI dev-install with `--index-strategy unsafe-best-match` (#1398)
+  - Previously only the editable-checkout recipe was documented; users following a naïve TestPyPI command resolved the released `supy` from PyPI (missing 8 of 10 allow-listed `suews` subcommands) or hit `uv` refusing to resolve at all
+  - The new section spells out the two flags that are easy to miss but required for a clean resolve: `--index-strategy unsafe-best-match` (uv's default dependency-confusion guard fights against TestPyPI here) and explicit `==<dev>` pins on both `suews-mcp` and `supy` (instead of `--prerelease=allow`, which leaks pre-releases into transitive deps — see #1399)
 - [maintenance] Knowledge-pack staleness guard at MCP startup + CI freshness audit (#1406)
   - The pack's meson `custom_target` only depends on `knowledge/pack.py`, so changes under `src/supy/data_model/` or `src/supy/cmd/` did not trigger an automatic rebuild — the installed pack drifted from HEAD and `query_knowledge` started surfacing stale field names. Manual smoke 2026-05-04 found pack `git_sha` lagging HEAD by 5 PRs (incl. the 44-rename ArchetypeProperties refactor)
   - `suews-mcp` now compares the pack manifest's `suews_version` against the running `supy.__version__` at server startup; on mismatch it logs a stderr warning naming the stale version and pointing at `suews knowledge build`. MCP hosts route stderr to their plugin log so the user sees this without polluting the JSON-RPC stdio channel

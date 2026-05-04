@@ -255,3 +255,165 @@ def test_query_knowledge_unknown_mode_returns_error() -> None:
     result = query_knowledge("anything", mode="not-a-mode")
     assert result["status"] == "error"
     assert any("Unknown mode" in str(e) for e in result["errors"])
+
+
+# ---------------------------------------------------------------------------
+# Audience + legacy-name annotations — gh#1402
+# ---------------------------------------------------------------------------
+
+
+def test_query_knowledge_tags_user_yaml_audience(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Chunks under ``src/supy/data_model/`` are tagged ``user_yaml``
+    so an agent knows it is safe to quote the field names back to the
+    user (gh#1402).
+    """
+    from suews_mcp.tools import query_knowledge
+
+    captured: dict = {}
+    matches = [
+        {
+            "id": "py-chunk",
+            "content_type": "python",
+            "git_sha": "deadbeef",
+            "github_url": "https://example/blob/deadbeef/foo.py",
+            "repo_path": "src/supy/data_model/core/config.py",
+            "line_start": 1,
+            "line_end": 50,
+            "score": 5,
+            "text": "class ModelPhysics(...):",
+        }
+    ]
+    monkeypatch.setattr(
+        subprocess,
+        "run",
+        _stub_envelope(captured, {"matches": matches, "manifest": {}}),
+    )
+
+    result = query_knowledge("anything", mode="full")
+    assert result["data"]["matches"][0]["audience"] == "user_yaml"
+
+
+def test_query_knowledge_tags_internal_runtime_audience(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Fortran kernel / Rust bridge chunks are tagged
+    ``internal_runtime``; the field names here should NOT leak into
+    user-facing YAML answers (gh#1402).
+    """
+    from suews_mcp.tools import query_knowledge
+
+    captured: dict = {}
+    matches = [
+        {
+            "id": "f-chunk",
+            "content_type": "fortran",
+            "git_sha": "deadbeef",
+            "github_url": "https://example/blob/deadbeef/foo.f95",
+            "repo_path": "src/suews/src/suews_phys_stebbs.f95",
+            "line_start": 1,
+            "line_end": 50,
+            "score": 5,
+            "text": "MODULE module_phys_stebbs",
+        },
+        {
+            "id": "rust-chunk",
+            "content_type": "rust",
+            "git_sha": "deadbeef",
+            "github_url": "https://example/blob/deadbeef/lib.rs",
+            "repo_path": "src/suews_bridge/src/forcing_io.rs",
+            "line_start": 1,
+            "line_end": 50,
+            "score": 5,
+            "text": "fn read_forcing_block(...) {}",
+        },
+    ]
+    monkeypatch.setattr(
+        subprocess,
+        "run",
+        _stub_envelope(captured, {"matches": matches, "manifest": {}}),
+    )
+
+    result = query_knowledge("anything", mode="full")
+    audiences = [m["audience"] for m in result["data"]["matches"]]
+    assert audiences == ["internal_runtime", "internal_runtime"]
+
+
+def test_query_knowledge_attaches_legacy_name_for(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """When a chunk references a known legacy field name, the wrapper
+    attaches a ``legacy_name_for`` hint pointing at the current name
+    so the agent does not paste the legacy form into a user-facing
+    YAML answer (gh#1402).
+    """
+    pytest.importorskip(
+        "supy.data_model.core.field_renames",
+        reason="ALL_FIELD_RENAMES not available without supy data-model layer",
+    )
+    from suews_mcp.tools import query_knowledge
+    from supy.data_model.core.field_renames import ALL_FIELD_RENAMES
+
+    # Pick a legacy name we know is in the registry.
+    legacy_sample = next(iter(ALL_FIELD_RENAMES))
+    current_sample = ALL_FIELD_RENAMES[legacy_sample]
+
+    captured: dict = {}
+    matches = [
+        {
+            "id": "legacy-chunk",
+            "content_type": "python",
+            "git_sha": "deadbeef",
+            "github_url": "https://example/blob/deadbeef/foo.py",
+            "repo_path": "src/supy/data_model/validation/pipeline/phase_a.py",
+            "line_start": 1,
+            "line_end": 50,
+            "score": 5,
+            "text": f"# Legacy alias for ``{legacy_sample}`` — see field_renames.",
+        }
+    ]
+    monkeypatch.setattr(
+        subprocess,
+        "run",
+        _stub_envelope(captured, {"matches": matches, "manifest": {}}),
+    )
+
+    result = query_knowledge("anything", mode="full")
+    legacy_hits = result["data"]["matches"][0].get("legacy_name_for", [])
+    assert any(
+        h["legacy"] == legacy_sample and h["current"] == current_sample
+        for h in legacy_hits
+    )
+
+
+def test_query_knowledge_does_not_attach_legacy_for_clean_text(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Chunks without legacy names get no ``legacy_name_for`` field —
+    so the absence of the field is itself a positive signal (gh#1402).
+    """
+    from suews_mcp.tools import query_knowledge
+
+    captured: dict = {}
+    matches = [
+        {
+            "id": "clean-chunk",
+            "content_type": "python",
+            "git_sha": "deadbeef",
+            "github_url": "https://example/blob/deadbeef/foo.py",
+            "repo_path": "src/supy/data_model/core/config.py",
+            "line_start": 1,
+            "line_end": 50,
+            "score": 5,
+            "text": "class SUEWSConfig: pass",
+        }
+    ]
+    monkeypatch.setattr(
+        subprocess,
+        "run",
+        _stub_envelope(captured, {"matches": matches, "manifest": {}}),
+    )
+
+    result = query_knowledge("anything", mode="full")
+    assert "legacy_name_for" not in result["data"]["matches"][0]

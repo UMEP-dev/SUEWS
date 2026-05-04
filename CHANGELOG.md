@@ -56,6 +56,10 @@ EXAMPLES:
 
 ### 4 May 2026
 
+- [bugfix] `query_knowledge` matches now carry an `audience` tag and a `legacy_name_for` hint when the chunk text references retired field names (#1402)
+  - Previously the tool returned chunks drawn from the full source-evidence pack (Fortran sources, Pydantic data models, validation pipeline docs) without telling the consumer which audience each chunk belonged to. An assistant that called `query_knowledge` first instead of `search_schema` would happily quote internal Fortran names like `stebbsmethod` or `netradiationmethod` back to the user as YAML fields, producing configuration advice that fails validation
+  - The MCP wrapper now annotates each match with `audience` (`user_yaml` for Pydantic / generated schema chunks, `internal_runtime` for Fortran / Rust / pipeline code, `developer_doc` otherwise) derived from `repo_path`, plus a `legacy_name_for` list of `{legacy, current}` pairs whenever a known legacy name from `ALL_FIELD_RENAMES` appears as a whole-word token in the chunk text. The agent should use the `current` form when generating user-facing YAML
+  - Tool docstring updated with a dedicated "Audience annotations" section so the convention is discoverable from the tool description alone
 - [doc] MCP tool docstrings now lead with WHEN-to-use guidance for all 12 tools (#1407)
   - The 12 `mcp__suews__*` tool descriptions previously described *what* each tool does in passive voice ("Retrieve cited source evidence..."), giving the agent no signal about *when* to reach for it. In the EGU26 poster trace the agent treated all 12 tools as equivalent retrievers and burned a 5-minute window on `query_knowledge` calls instead of using the cheaper `inspect_config` / `search_schema` / `init_case` path
   - Each tool's docstring now opens with an active-voice "Use this when..." (or "Call this first when...") sentence that names the trigger condition, the cheap-then-expensive ordering, and the typical pair (e.g. `validate_config` after every Write; `inspect_config` before reaching for `query_knowledge`; `summarise_run` before `diagnose_run`)

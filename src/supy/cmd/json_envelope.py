@@ -75,32 +75,47 @@ def _now_iso() -> str:
 def _git_commit() -> Optional[str]:
     """Return the current git commit short hash, or ``None`` if unavailable.
 
-    Looks up the repository the supy package was installed from. Returns
-    ``None`` for wheel installs without a ``.git`` directory.
+    Looks up the repository the supy package was installed from. For
+    wheel installs without a ``.git`` directory, falls back to
+    ``supy._version_scm.__commit_hash__`` which ``get_ver_git.py``
+    bakes in at build time (gh#1401).
     """
     try:
         import supy
 
         path_pkg = Path(supy.__file__).resolve().parent
     except Exception:
-        return None
+        path_pkg = None
 
-    for candidate in (path_pkg, *path_pkg.parents):
-        if (candidate / ".git").exists():
-            try:
-                out = subprocess.run(
-                    ["git", "-C", str(candidate), "rev-parse", "--short", "HEAD"],
-                    check=False,
-                    capture_output=True,
-                    text=True,
-                    timeout=2,
-                )
-            except (FileNotFoundError, subprocess.SubprocessError):
-                return None
-            if out.returncode == 0:
-                return out.stdout.strip() or None
-            return None
-    return None
+    if path_pkg is not None:
+        for candidate in (path_pkg, *path_pkg.parents):
+            if (candidate / ".git").exists():
+                try:
+                    out = subprocess.run(
+                        ["git", "-C", str(candidate), "rev-parse", "--short", "HEAD"],
+                        check=False,
+                        capture_output=True,
+                        text=True,
+                        timeout=2,
+                    )
+                except (FileNotFoundError, subprocess.SubprocessError):
+                    break
+                if out.returncode == 0:
+                    sha = out.stdout.strip()
+                    if sha:
+                        return sha
+                break
+
+    # Wheel install fallback: read the build-time commit hash baked into
+    # _version_scm.py by get_ver_git.py. ``"unknown"`` is treated as
+    # missing so callers see ``null`` rather than the literal string.
+    try:
+        from supy._version_scm import __commit_hash__ as baked_commit  # type: ignore[attr-defined]
+    except (ImportError, AttributeError):
+        return None
+    if not baked_commit or baked_commit == "unknown":
+        return None
+    return baked_commit
 
 
 def _coerce_messages(items: Optional[Sequence[Any]]) -> list:

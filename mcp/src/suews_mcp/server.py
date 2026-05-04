@@ -52,6 +52,17 @@ def _build_server() -> Any:
 
     server = FastMCP("suews-mcp")
 
+    # Plumb the package version into the MCP `initialize` handshake so
+    # `serverInfo.version` agrees with `pip show suews-mcp` (gh#1401).
+    # FastMCP's constructor does not accept a version directly, but the
+    # underlying lowlevel `Server` carries a settable `version` field
+    # which `initialize` reads. Without this override the SDK reports
+    # its own library version (e.g. "1.27.0"), weakening the
+    # provenance story for clients that log `serverInfo.version`.
+    from . import __version__ as _suews_mcp_version
+
+    server._mcp_server.version = _suews_mcp_version
+
     # Tools — config & schema (read-only)
     server.tool(name="validate_config")(validate_config)
     server.tool(name="inspect_config")(inspect_config)

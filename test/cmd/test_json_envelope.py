@@ -78,6 +78,51 @@ class TestEnvelopeMeta:
         commit = env.meta["git_commit"]
         assert commit is None or isinstance(commit, str)
 
+    def test_meta_git_commit_falls_back_to_baked_hash(
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path
+    ) -> None:
+        """Wheel installs lack a ``.git`` directory; the envelope must
+        still carry a non-null ``git_commit`` by reading
+        ``supy._version_scm.__commit_hash__`` (gh#1401).
+        """
+        import supy
+        from supy.cmd import json_envelope as je
+
+        # Pretend supy is installed in tmp_path so the .git walk fails.
+        fake_pkg_init = tmp_path / "supy" / "__init__.py"
+        fake_pkg_init.parent.mkdir()
+        fake_pkg_init.write_text("# fake supy", encoding="utf-8")
+        monkeypatch.setattr(supy, "__file__", str(fake_pkg_init))
+
+        # Inject a known build-time commit hash into _version_scm.
+        from supy import _version_scm
+
+        monkeypatch.setattr(_version_scm, "__commit_hash__", "abc1234", raising=False)
+
+        commit = je._git_commit()
+        assert commit == "abc1234"
+
+    def test_meta_git_commit_returns_none_when_baked_unknown(
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path
+    ) -> None:
+        """``"unknown"`` (the build-time sentinel for "git was not
+        available during the build") must surface as ``None`` rather
+        than the literal string (gh#1401).
+        """
+        import supy
+        from supy.cmd import json_envelope as je
+
+        fake_pkg_init = tmp_path / "supy" / "__init__.py"
+        fake_pkg_init.parent.mkdir()
+        fake_pkg_init.write_text("# fake supy", encoding="utf-8")
+        monkeypatch.setattr(supy, "__file__", str(fake_pkg_init))
+
+        from supy import _version_scm
+
+        monkeypatch.setattr(_version_scm, "__commit_hash__", "unknown", raising=False)
+
+        assert je._git_commit() is None
+
     def test_meta_started_at_is_iso_8601(self) -> None:
         env = Envelope.success(data={}, command="suews validate")
         # ISO 8601 with trailing Z (UTC)

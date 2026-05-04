@@ -56,6 +56,9 @@ EXAMPLES:
 
 ### 4 May 2026
 
+- [bugfix] MCP server provenance: `serverInfo.version` matches package `__version__`; envelope `meta.git_commit` carries through wheel installs (#1401)
+  - `mcp/src/suews_mcp/server.py` plumbs `suews_mcp.__version__` into `server._mcp_server.version` after FastMCP construction so the MCP `initialize` handshake's `serverInfo.version` reports the package version rather than the SDK's own version (was: hardcoded "1.27.0")
+  - `get_ver_git.py` now bakes the build-time short commit hash into the generated `_version_scm.py` as `__commit_hash__`; `supy.cmd.json_envelope._git_commit()` falls back to this when no `.git` directory is reachable at runtime (the wheel-install case where the previous `git rev-parse` lookup returned `None`). The `"unknown"` build-time sentinel surfaces as `null` rather than the literal string
 - [bugfix] `suews-mcp` now resolves the `suews` console script via `sys.executable` sibling lookup (#1400)
   - MCP plugin hosts (Claude Code, Codex, Claude Desktop, Cursor) launch the MCP server without sourcing the venv, so `subprocess.run(['suews', ...])` failed with `Executable 'suews' not found on PATH` even when `suews` was installed in the same venv as `suews-mcp`. Every CLI-backed tool (`validate_config`, `inspect_config`, `summarise_run`, …) returned an error envelope; only `list_examples` worked because it reads bundled metadata
   - `mcp/src/suews_mcp/backend/cli.py` now anchors lookup to `Path(sys.executable).parent` first (`shutil.which` for proper Windows `PATHEXT` handling), then falls back to `shutil.which` on the user's PATH for system-wide installs (e.g. `pipx`). Plugin-host raw-stanza examples no longer need to inject `PATH` in their `env` block

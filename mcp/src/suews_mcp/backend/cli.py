@@ -12,7 +12,9 @@ Every MCP tool that needs to invoke a SUEWS subcommand goes through
 from __future__ import annotations
 
 import json
+import shutil
 import subprocess
+import sys
 from pathlib import Path
 from typing import Any, Optional, Sequence
 
@@ -23,12 +25,44 @@ class SUEWSMCPError(RuntimeError):
     """Raised when the CLI wrapper cannot return a valid envelope."""
 
 
+def _resolve_suews_executable(name: str = "suews") -> str:
+    """Locate the ``suews`` console script for the current interpreter (gh#1400).
+
+    MCP plugin hosts (Claude Code, Codex, Claude Desktop, Cursor) launch
+    MCP servers as subprocesses **without** sourcing a venv. The host's
+    PATH is the user's login PATH, which usually does not include the
+    venv's ``bin/`` directory. The result: every CLI-backed MCP tool
+    fails with "Executable 'suews' not found on PATH" even though
+    ``suews`` is installed in the same venv as ``suews-mcp``.
+
+    The MCP server's own Python interpreter (``sys.executable``) is the
+    right anchor: ``pip install`` placed ``suews`` as a sibling console
+    script in the same directory. We resolve in this order:
+
+    1. ``shutil.which(name, path=Path(sys.executable).parent)`` — looks
+       for a sibling console script. ``shutil.which`` honours
+       ``PATHEXT`` on Windows so ``suews.exe`` is found correctly.
+    2. ``shutil.which(name)`` — falls back to the user's PATH for
+       system-wide installs (e.g. ``pipx``).
+    3. Return ``name`` unchanged so ``subprocess.run`` still raises a
+       useful ``FileNotFoundError`` when nothing is reachable.
+    """
+    sibling_dir = str(Path(sys.executable).parent)
+    sibling = shutil.which(name, path=sibling_dir)
+    if sibling:
+        return sibling
+    on_path = shutil.which(name)
+    if on_path:
+        return on_path
+    return name
+
+
 def run_suews_cli(
     subcmd: str,
     args: Sequence[str],
     project_root: Optional[Path] = None,
     timeout: int = DEFAULT_TIMEOUT_SECONDS,
-    suews_executable: str = "suews",
+    suews_executable: Optional[str] = None,
 ) -> dict[str, Any]:
     """Invoke ``suews <subcmd> <args>`` and return the parsed JSON envelope.
 
@@ -44,7 +78,11 @@ def run_suews_cli(
     timeout
         Subprocess timeout in seconds.
     suews_executable
-        Override the executable name (used for testing).
+        Override the executable path (used for testing). When ``None``
+        (the default), :func:`_resolve_suews_executable` anchors lookup
+        to ``sys.executable`` so MCP plugin hosts that launch the server
+        without sourcing a venv still reach the sibling ``suews`` script
+        (gh#1400).
 
     Returns
     -------
@@ -64,7 +102,12 @@ def run_suews_cli(
     if "--format" not in args_list:
         args_list = [*args_list, "--format", "json"]
 
-    cmd = [suews_executable, subcmd, *args_list]
+    resolved_executable = (
+        suews_executable
+        if suews_executable is not None
+        else _resolve_suews_executable()
+    )
+    cmd = [resolved_executable, subcmd, *args_list]
 
     try:
         completed = subprocess.run(
@@ -77,8 +120,9 @@ def run_suews_cli(
         )
     except FileNotFoundError as exc:
         raise SUEWSMCPError(
-            f"Executable {suews_executable!r} not found on PATH; "
-            "is supy installed in the active environment?"
+            f"Executable {resolved_executable!r} not found via "
+            f"`sys.executable` sibling lookup or PATH; is supy installed "
+            f"in the same environment as suews-mcp?"
         ) from exc
     except subprocess.TimeoutExpired as exc:
         raise SUEWSMCPError(

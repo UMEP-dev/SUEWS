@@ -327,6 +327,56 @@ def test_validate_flags_missing_critical_physics_params(tmp_path: Path) -> None:
     )
 
 
+def test_validate_full_pipeline_emits_json_envelope(tmp_path: Path) -> None:
+    """The non-dry-run pipeline path must honour ``--format json`` and
+    emit a canonical envelope on stdout (gh#1409 follow-up).
+
+    Previously only ``--dry-run --format json`` produced JSON; the
+    full pipeline branch wrote a report file and printed a status
+    banner to console regardless of the format flag, so any consumer
+    that expected JSON had to parse the report file or fall back to
+    the dry-run path.
+    """
+    from supy.cmd.validate_config import cli as validate_cli
+
+    # Reuse the paved-only YAML from the gh#1409 reproducer — bad
+    # enough to fail Phase A so we exercise both the failure path and
+    # the JSON emit.
+    payload = _minimal_paved_only_config("2026.5.dev9")
+    config_path = tmp_path / "full_pipeline.yml"
+    _write_yaml(config_path, payload)
+
+    runner = CliRunner()
+    result = runner.invoke(
+        validate_cli,
+        [
+            "--pipeline",
+            "ABC",
+            "--format",
+            "json",
+            str(config_path),
+        ],
+    )
+    # Bad config → non-zero exit, but stdout must still parse as the
+    # canonical envelope.
+    assert result.exit_code != 0, result.output
+    envelope = json.loads(result.stdout)
+    assert envelope["status"] == "error"
+    assert set(envelope.keys()) == {"status", "data", "errors", "warnings", "meta"}
+
+    data = envelope["data"]
+    assert "validation_report" in data, (
+        "full-pipeline JSON envelope must carry the structured ValidationReport"
+    )
+    assert data["validation_report"]["overall_status"] == "FAILED"
+    assert "report_file" in data and "updated_yaml" in data
+    # phases_run records which phases actually executed; for a Phase-A
+    # failure the list contains just "A" because the pipeline bails
+    # before B/C.
+    assert isinstance(data["phases_run"], list)
+    assert "A" in data["phases_run"]
+
+
 def test_validate_passes_when_critical_physics_present(tmp_path: Path) -> None:
     """The bundled sample config declares every critical physics key, so
     the structural-presence check must not fire.

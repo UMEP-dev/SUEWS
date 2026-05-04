@@ -56,6 +56,9 @@ EXAMPLES:
 
 ### 4 May 2026
 
+- [feature][experimental] `suews validate` non-dry-run pipeline now honours `--format json` (#1409 follow-up)
+  - Previously only the `--dry-run --format json` path emitted the canonical envelope; the full Phase A/B/C pipeline always wrote a report file and printed a status banner to console regardless of the format flag, so any consumer expecting JSON had to parse the report file or fall back to dry-run
+  - All 7 pipeline branches (A, B, C, AB, AC, BC, ABC) now funnel through a new `_emit_pipeline_result` helper that emits a canonical envelope (with the structured `ValidationReport` from the 2026-05-01 PhaseReport schema, plus pointers to `report_file` and `updated_yaml` and a `phases_run` list) when `out_format == "json"`. Default `--format table` output is preserved verbatim
 - [bugfix] `knowledge_pack` meson `custom_target` rebuilds on every build (#1406 follow-up)
   - `depend_files` was scoped to `knowledge/pack.py` alone, so editing `src/supy/data_model/` or `src/supy/cmd/` did not trigger a rebuild and the installed pack drifted from HEAD. Meson `files()` does not glob (and enumerating every source file would be brittle), so the cleanest fix is `build_always_stale: true` — ninja runs the builder unconditionally on every invocation. Pack-build runtime is on the order of seconds, well below the cost of shipping a stale pack into a release wheel
   - This complements the runtime startup warning + CI freshness audit landed earlier in this PR; with all three layers a stale pack cannot reach a user

@@ -525,6 +525,7 @@ def cli(
             mode=mode,
             forcing=forcing,
             science_fixes=science_fixes,
+            out_format=out_format,
         )
         ctx.exit(code)
 
@@ -908,7 +909,106 @@ def _format_phase_output(
     return None
 
 
-def _execute_pipeline(file, pipeline, mode, forcing="on", science_fixes="suggest"):
+def _emit_pipeline_result(
+    phases: list,
+    report_path,
+    yaml_path,
+    *,
+    out_format: str = "table",
+    command: str = "suews validate",
+    started_at: Optional[str] = None,
+) -> int:
+    """Emit the pipeline outcome and return the exit code (gh#1409 follow-up).
+
+    Replaces the bespoke ``console.print(...)`` + ``return 0/1`` block at
+    the end of every pipeline branch in :func:`_execute_pipeline` so all
+    branches funnel through one place. Honours ``out_format``:
+
+    - ``"table"`` (default) — preserves the legacy text output: status
+      banner + ``Report:`` / ``Updated YAML:`` lines printed to console.
+    - ``"json"`` — emits a single canonical envelope on stdout. ``data``
+      carries the structured ``ValidationReport`` (phase by phase) plus
+      pointers to ``report_file`` and ``updated_yaml`` so non-MCP
+      consumers can tell when full-pipeline output is available without
+      parsing the human-readable report.
+
+    Parameters
+    ----------
+    phases
+        List of :class:`PhaseReport` objects in the order they ran. May
+        contain a partial set when an early phase failed and the caller
+        bailed out before later phases.
+    report_path, yaml_path
+        Absolute or workspace-relative paths to the consolidated report
+        file and updated YAML.
+    out_format
+        ``"table"`` or ``"json"``.
+    command
+        CLI command string for envelope provenance.
+    started_at
+        ISO 8601 start timestamp for envelope provenance.
+    """
+    from ..data_model.validation.pipeline.report_schema import (
+        ValidationReport,
+    )
+
+    has_errors = any(p.has_errors for p in phases)
+    ok = not has_errors
+
+    if out_format == "json":
+        validation_report = ValidationReport(phases=list(phases))
+        data = {
+            "validation_report": validation_report.to_dict(),
+            "report_file": str(report_path),
+            "updated_yaml": str(yaml_path),
+            "phases_run": [p.phase for p in phases],
+        }
+        if ok:
+            Envelope.success(
+                data=data, command=command, started_at=started_at
+            ).emit()
+        else:
+            errors = [
+                {
+                    "phase": p.phase,
+                    "code": issue.code,
+                    "message": issue.message,
+                    "severity": issue.severity,
+                    "yaml_path": issue.yaml_path,
+                }
+                for p in phases
+                for issue in p.issues
+                if issue.severity == "ERROR"
+            ]
+            Envelope.error(
+                errors=errors or [{"message": "Pipeline reported errors"}],
+                command=command,
+                data=data,
+                started_at=started_at,
+            ).emit()
+        return 0 if ok else 1
+
+    # Default: legacy text output, preserved verbatim.
+    console.print(
+        "[green]✓ Validation completed[/green]"
+        if ok
+        else "[red]✗ Validation failed[/red]"
+    )
+    if Path(report_path).exists():
+        console.print(f"Report: {report_path}")
+    if Path(yaml_path).exists():
+        console.print(f"Updated YAML: {yaml_path}")
+    return 0 if ok else 1
+
+
+def _execute_pipeline(
+    file,
+    pipeline,
+    mode,
+    forcing="on",
+    science_fixes="suggest",
+    out_format: str = "table",
+):
     """Run YAML validation pipeline to validate and generate reports/YAML.
 
     The validation system uses multiple internal phases:
@@ -917,7 +1017,14 @@ def _execute_pipeline(file, pipeline, mode, forcing="on", science_fixes="suggest
     - Model validation: Pydantic validation with physics conditionals
 
     All findings are consolidated into a single report and updated YAML file.
+
+    When ``out_format == "json"`` the function emits the canonical SUEWS
+    envelope on stdout (via :func:`_emit_pipeline_result`) instead of the
+    legacy text banner; the report file and updated YAML are still
+    produced on disk in both modes (gh#1409 follow-up).
     """
+    started_at = _now_iso()
+    command_str = f"suews validate -p {pipeline} {file} --format {out_format}"
     debug = os.environ.get("SUEWS_DEBUG", "").lower() in ("1", "true", "yes")
     if debug:
         print(f"[DEBUG] _execute_pipeline called", file=sys.stderr)
@@ -988,22 +1095,14 @@ def _execute_pipeline(file, pipeline, mode, forcing="on", science_fixes="suggest
             silent=True,
             forcing=forcing,
         )
-        ok = not phase_a_report.has_errors
-        console.print(
-            "[green]✓ Validation completed[/green]"
-            if ok
-            else "[red]✗ Validation failed[/red]"
+        return _emit_pipeline_result(
+            phases=[phase_a_report],
+            report_path=report_file,
+            yaml_path=uptodate_file,
+            out_format=out_format,
+            command=command_str,
+            started_at=started_at,
         )
-        if ok:
-            console.print(f"Report: {report_file}")
-            console.print(f"Updated YAML: {uptodate_file}")
-        else:
-            # Show report and YAML files even on failure if they exist
-            if Path(report_file).exists():
-                console.print(f"Report: {report_file}")
-            if Path(uptodate_file).exists():
-                console.print(f"Updated YAML: {uptodate_file}")
-        return 0 if ok else 1
 
     if pipeline == "B":
         phase_b_report = _processor_run_phase_b(
@@ -1019,22 +1118,14 @@ def _execute_pipeline(file, pipeline, mode, forcing="on", science_fixes="suggest
             silent=True,
             science_fixes=science_fixes,
         )
-        ok = not phase_b_report.has_errors
-        console.print(
-            "[green]✓ Validation completed[/green]"
-            if ok
-            else "[red]✗ Validation failed[/red]"
+        return _emit_pipeline_result(
+            phases=[phase_b_report],
+            report_path=science_report_file,
+            yaml_path=science_yaml_file,
+            out_format=out_format,
+            command=command_str,
+            started_at=started_at,
         )
-        if ok:
-            console.print(f"Report: {science_report_file}")
-            console.print(f"Updated YAML: {science_yaml_file}")
-        else:
-            # Show report file even on failure if it exists
-            if Path(science_report_file).exists():
-                console.print(f"Report: {science_report_file}")
-            if Path(science_yaml_file).exists():
-                console.print(f"Updated YAML: {science_yaml_file}")
-        return 0 if ok else 1
 
     if pipeline == "C":
         phase_c_report = _processor_run_phase_c(
@@ -1045,22 +1136,14 @@ def _execute_pipeline(file, pipeline, mode, forcing="on", science_fixes="suggest
             phases_run=["C"],
             silent=True,
         )
-        ok = not phase_c_report.has_errors
-        console.print(
-            "[green]✓ Validation completed[/green]"
-            if ok
-            else "[red]✗ Validation failed[/red]"
+        return _emit_pipeline_result(
+            phases=[phase_c_report],
+            report_path=pydantic_report_file,
+            yaml_path=pydantic_yaml_file,
+            out_format=out_format,
+            command=command_str,
+            started_at=started_at,
         )
-        if ok:
-            console.print(f"Report: {pydantic_report_file}")
-            console.print(f"Updated YAML: {pydantic_yaml_file}")
-        else:
-            # Show report and YAML files even on failure if they exist
-            if Path(pydantic_report_file).exists():
-                console.print(f"Report: {pydantic_report_file}")
-            if Path(pydantic_yaml_file).exists():
-                console.print(f"Updated YAML: {pydantic_yaml_file}")
-        return 0 if ok else 1
 
     if pipeline == "AB":
         a_ok_report = _processor_run_phase_a(
@@ -1079,10 +1162,14 @@ def _execute_pipeline(file, pipeline, mode, forcing="on", science_fixes="suggest
             final_yaml, final_report = _processor_create_final_user_files(
                 user_yaml_file, uptodate_file, report_file
             )
-            console.print("[red]✗ Validation failed[/red]")
-            console.print(f"Report: {final_report}")
-            console.print(f"Updated YAML: {final_yaml}")
-            return 1
+            return _emit_pipeline_result(
+                phases=[a_ok_report],
+                report_path=final_report,
+                yaml_path=final_yaml,
+                out_format=out_format,
+                command=command_str,
+                started_at=started_at,
+            )
 
         b_ok_report = _processor_run_phase_b(
             user_yaml_file,
@@ -1135,10 +1222,14 @@ def _execute_pipeline(file, pipeline, mode, forcing="on", science_fixes="suggest
             except Exception as e:
                 console.print(f"[yellow]Warning during cleanup: {e}[/yellow]")
 
-            console.print("[red]✗ Validation failed[/red]")
-            console.print(f"Report: {final_report}")
-            console.print(f"Updated YAML: {final_yaml}")
-            return 1
+            return _emit_pipeline_result(
+                phases=[a_ok_report, b_ok_report],
+                report_path=final_report,
+                yaml_path=final_yaml,
+                out_format=out_format,
+                command=command_str,
+                started_at=started_at,
+            )
 
         # Both A and B succeeded - consolidate reports and clean up intermediate files
         from ..data_model.validation.pipeline.orchestrator import (
@@ -1172,10 +1263,14 @@ def _execute_pipeline(file, pipeline, mode, forcing="on", science_fixes="suggest
         except Exception:
             pass
 
-        console.print("[green]✓ Validation completed[/green]")
-        console.print(f"Report: {science_report_file}")
-        console.print(f"Updated YAML: {science_yaml_file}")
-        return 0
+        return _emit_pipeline_result(
+            phases=[a_ok_report, b_ok_report],
+            report_path=science_report_file,
+            yaml_path=science_yaml_file,
+            out_format=out_format,
+            command=command_str,
+            started_at=started_at,
+        )
 
     if pipeline == "AC":
         a_ok_report = _processor_run_phase_a(
@@ -1194,10 +1289,14 @@ def _execute_pipeline(file, pipeline, mode, forcing="on", science_fixes="suggest
             final_yaml, final_report = _processor_create_final_user_files(
                 user_yaml_file, uptodate_file, report_file
             )
-            console.print("[red]✗ Validation failed[/red]")
-            console.print(f"Report: {final_report}")
-            console.print(f"Updated YAML: {final_yaml}")
-            return 1
+            return _emit_pipeline_result(
+                phases=[a_ok_report],
+                report_path=final_report,
+                yaml_path=final_yaml,
+                out_format=out_format,
+                command=command_str,
+                started_at=started_at,
+            )
 
         c_ok_report = _processor_run_phase_c(
             uptodate_file,
@@ -1239,10 +1338,14 @@ def _execute_pipeline(file, pipeline, mode, forcing="on", science_fixes="suggest
             except Exception as e:
                 console.print(f"[yellow]Warning during cleanup: {e}[/yellow]")
 
-            console.print("[red]✗ Validation failed[/red]")
-            console.print(f"Report: {final_report}")
-            console.print(f"Updated YAML: {final_yaml}")
-            return 1
+            return _emit_pipeline_result(
+                phases=[a_ok_report, c_ok_report],
+                report_path=final_report,
+                yaml_path=final_yaml,
+                out_format=out_format,
+                command=command_str,
+                started_at=started_at,
+            )
 
         # Both A and C succeeded - consolidate reports and clean up intermediate files
         from ..data_model.validation.pipeline.orchestrator import (
@@ -1276,10 +1379,14 @@ def _execute_pipeline(file, pipeline, mode, forcing="on", science_fixes="suggest
         except Exception:
             pass
 
-        console.print("[green]✓ Validation completed[/green]")
-        console.print(f"Report: {pydantic_report_file}")
-        console.print(f"Updated YAML: {pydantic_yaml_file}")
-        return 0
+        return _emit_pipeline_result(
+            phases=[a_ok_report, c_ok_report],
+            report_path=pydantic_report_file,
+            yaml_path=pydantic_yaml_file,
+            out_format=out_format,
+            command=command_str,
+            started_at=started_at,
+        )
 
     if pipeline == "BC":
         b_ok_report = _processor_run_phase_b(
@@ -1318,11 +1425,14 @@ def _execute_pipeline(file, pipeline, mode, forcing="on", science_fixes="suggest
             except Exception as e:
                 console.print(f"[yellow]Warning during cleanup: {e}[/yellow]")
 
-            console.print("[red]✗ Validation failed[/red]")
-            console.print(f"Report: {final_report}")
-            if Path(final_yaml).exists():
-                console.print(f"Updated YAML: {final_yaml}")
-            return 1
+            return _emit_pipeline_result(
+                phases=[b_ok_report],
+                report_path=final_report,
+                yaml_path=final_yaml,
+                out_format=out_format,
+                command=command_str,
+                started_at=started_at,
+            )
 
         c_ok_report = _processor_run_phase_c(
             science_yaml_file,
@@ -1401,10 +1511,14 @@ def _execute_pipeline(file, pipeline, mode, forcing="on", science_fixes="suggest
             except Exception as e:
                 console.print(f"[yellow]Warning during cleanup: {e}[/yellow]")
 
-            console.print("[red]✗ Validation failed[/red]")
-            console.print(f"Report: {final_report}")
-            console.print(f"Updated YAML: {final_yaml}")
-            return 1
+            return _emit_pipeline_result(
+                phases=[b_ok_report, c_ok_report],
+                report_path=final_report,
+                yaml_path=final_yaml,
+                out_format=out_format,
+                command=command_str,
+                started_at=started_at,
+            )
 
         # Both B and C succeeded - consolidate reports and clean up intermediate files
         from ..data_model.validation.pipeline.orchestrator import (
@@ -1440,10 +1554,14 @@ def _execute_pipeline(file, pipeline, mode, forcing="on", science_fixes="suggest
         except Exception:
             pass
 
-        console.print("[green]✓ Validation completed[/green]")
-        console.print(f"Report: {pydantic_report_file}")
-        console.print(f"Updated YAML: {pydantic_yaml_file}")
-        return 0
+        return _emit_pipeline_result(
+            phases=[b_ok_report, c_ok_report],
+            report_path=pydantic_report_file,
+            yaml_path=pydantic_yaml_file,
+            out_format=out_format,
+            command=command_str,
+            started_at=started_at,
+        )
 
     # Default: ABC
     a_ok_report = _processor_run_phase_a(
@@ -1478,10 +1596,14 @@ def _execute_pipeline(file, pipeline, mode, forcing="on", science_fixes="suggest
                 print(f"[DEBUG]   Move failed with exception: {e}", file=sys.stderr)
             pass  # Don't fail if move doesn't work
 
-        console.print("[red]✗ Validation failed[/red]")
-        console.print(f"Report: {pydantic_report_file}")
-        console.print(f"Updated YAML: {pydantic_yaml_file}")
-        return 1
+        return _emit_pipeline_result(
+            phases=[a_ok_report],
+            report_path=pydantic_report_file,
+            yaml_path=pydantic_yaml_file,
+            out_format=out_format,
+            command=command_str,
+            started_at=started_at,
+        )
 
     b_ok_report = _processor_run_phase_b(
         user_yaml_file,
@@ -1527,10 +1649,6 @@ def _execute_pipeline(file, pipeline, mode, forcing="on", science_fixes="suggest
         except Exception:
             pass  # Don't fail if cleanup doesn't work
 
-        console.print("[red]✗ Validation failed[/red]")
-        console.print(f"Report: {pydantic_report_file}")
-        console.print(f"Updated YAML: {pydantic_yaml_file}")
-
         # Clean up intermediate files
         try:
             if Path(report_file).exists():
@@ -1540,7 +1658,14 @@ def _execute_pipeline(file, pipeline, mode, forcing="on", science_fixes="suggest
         except Exception:
             pass
 
-        sys.exit(1)
+        return _emit_pipeline_result(
+            phases=[a_ok_report, b_ok_report],
+            report_path=pydantic_report_file,
+            yaml_path=pydantic_yaml_file,
+            out_format=out_format,
+            command=command_str,
+            started_at=started_at,
+        )
 
     # Both Phase A and B succeeded - extract and consolidate messages for Phase C
     from ..data_model.validation.pipeline.orchestrator import (
@@ -1614,10 +1739,6 @@ def _execute_pipeline(file, pipeline, mode, forcing="on", science_fixes="suggest
         except Exception:
             pass  # Don't fail if copy doesn't work
 
-        console.print("[red]✗ Validation failed[/red]")
-        console.print(f"Report: {pydantic_report_file}")
-        console.print(f"Updated YAML: {pydantic_yaml_file}")
-
         # Clean up intermediate files
         try:
             if Path(report_file).exists():
@@ -1631,14 +1752,16 @@ def _execute_pipeline(file, pipeline, mode, forcing="on", science_fixes="suggest
         except Exception:
             pass
 
-        return 1
+        return _emit_pipeline_result(
+            phases=[a_ok_report, b_ok_report, c_ok_report],
+            report_path=pydantic_report_file,
+            yaml_path=pydantic_yaml_file,
+            out_format=out_format,
+            command=command_str,
+            started_at=started_at,
+        )
 
     # All phases succeeded - clean up intermediate files and don't show them
-    ok = a_ok and b_ok and c_ok
-    console.print("[green]✓ Validation completed[/green]")
-    console.print(f"Report: {pydantic_report_file}")
-    console.print(f"Updated YAML: {pydantic_yaml_file}")
-
     if debug:
         report_exists = os.path.exists(pydantic_report_file)
         report_size = os.path.getsize(pydantic_report_file) if report_exists else -1
@@ -1656,7 +1779,14 @@ def _execute_pipeline(file, pipeline, mode, forcing="on", science_fixes="suggest
     except Exception:
         pass  # Don't fail if cleanup doesn't work
 
-    return 0
+    return _emit_pipeline_result(
+        phases=[a_ok_report, b_ok_report, c_ok_report],
+        report_path=pydantic_report_file,
+        yaml_path=pydantic_yaml_file,
+        out_format=out_format,
+        command=command_str,
+        started_at=started_at,
+    )
 
 
 def main():

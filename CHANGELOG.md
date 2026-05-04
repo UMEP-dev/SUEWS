@@ -56,6 +56,9 @@ EXAMPLES:
 
 ### 4 May 2026
 
+- [doc] MCP tool docstrings now lead with WHEN-to-use guidance for all 12 tools (#1407)
+  - The 12 `mcp__suews__*` tool descriptions previously described *what* each tool does in passive voice ("Retrieve cited source evidence..."), giving the agent no signal about *when* to reach for it. In the EGU26 poster trace the agent treated all 12 tools as equivalent retrievers and burned a 5-minute window on `query_knowledge` calls instead of using the cheaper `inspect_config` / `search_schema` / `init_case` path
+  - Each tool's docstring now opens with an active-voice "Use this when..." (or "Call this first when...") sentence that names the trigger condition, the cheap-then-expensive ordering, and the typical pair (e.g. `validate_config` after every Write; `inspect_config` before reaching for `query_knowledge`; `summarise_run` before `diagnose_run`)
 - [feature][experimental] `init_case` returns a `recommendation` field and MCP-tool-call-form `next_steps` (#1408)
   - The CLI's `data.next_steps` is shell-command form ("Edit X", "suews validate X", "suews run X") — useful at a terminal but useless to an MCP agent that needs to know which *MCP tool* to call. In the EGU26 poster trace, after a successful `init_case` the agent fired 11 `query_knowledge` calls before timing out, never editing the YAML
   - The MCP wrapper now replaces the CLI list with imperative MCP-tool-call form (open and edit the YAML, then call `mcp__suews__inspect_config`, then call `mcp__suews__validate_config`) and surfaces the single highest-priority next move on `data.recommendation` so the agent does not have to scan the array

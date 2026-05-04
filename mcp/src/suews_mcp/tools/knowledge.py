@@ -83,7 +83,11 @@ def query_knowledge(
     scope: Optional[str] = None,
     mode: str = "snippet",
 ) -> dict[str, Any]:
-    """Retrieve cited source evidence from the SUEWS knowledge pack.
+    """**Use only when you need citable evidence** for a claim about
+    SUEWS physics, schema history, or source-level behaviour. For
+    "what is the field name?" prefer `inspect_config` or
+    `search_schema` first — they cost less and are not subject to the
+    knowledge-pack staleness window (gh#1407).
 
     Envelope size policy (gh#1403)
     ------------------------------
@@ -168,7 +172,11 @@ def read_knowledge_manifest(
     project_root: Optional[str] = None,
     pack: Optional[str] = None,
 ) -> dict[str, Any]:
-    """Return the knowledge-pack manifest (version, git SHA, citation rules).
+    """**Call this when the user asks "which version of the knowledge
+    pack am I querying?"** or before any answer that needs to cite a
+    `git_sha`. Cheap (no chunk retrieval) and the right preamble for
+    a session that will rely on `query_knowledge` for evidence
+    (gh#1407).
 
     Parameters
     ----------

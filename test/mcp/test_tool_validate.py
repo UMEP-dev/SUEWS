@@ -31,7 +31,8 @@ def test_returns_envelope_from_subprocess(
 
     def fake_run(cmd, **_kwargs):
         captured["cmd"] = cmd
-        assert cmd[:2] == ["suews", "validate"]
+        assert cmd[0].endswith("suews")
+        assert cmd[1] == "validate"
         return subprocess.CompletedProcess(
             args=cmd, returncode=0, stdout=json.dumps(envelope), stderr=""
         )

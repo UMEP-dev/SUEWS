@@ -50,7 +50,10 @@ def init_case(
     project_root: Optional[str] = None,
     template: str = "simple-urban",
 ) -> dict[str, Any]:
-    """Initialise a new SUEWS case directory by copying a packaged template.
+    """**Call this first** when the user asks for a SUEWS configuration
+    "from scratch" or for a new case. Returns a minimal valid YAML
+    plus the path to it, so you avoid reconstructing the schema
+    field-by-field from `query_knowledge` (gh#1407, gh#1408).
 
     The returned envelope's ``data`` carries:
 

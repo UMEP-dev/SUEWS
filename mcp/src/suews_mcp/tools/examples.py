@@ -47,7 +47,11 @@ _BUILTIN_EXAMPLES: dict[str, dict[str, str]] = {
 
 
 def list_examples() -> dict[str, Any]:
-    """Return the catalogue of available example configurations."""
+    """**Use this before `read_example`** to discover which sample
+    configurations the installed package ships. Cheap (no file IO
+    beyond stat) and the right starting point when the user has not
+    named a specific example (gh#1407).
+    """
     sample_dir = _supy_sample_data_dir()
     examples: list[dict[str, Any]] = []
 
@@ -115,7 +119,12 @@ def read_example(
     mode: str = "summary",
     path: Optional[str] = None,
 ) -> dict[str, Any]:
-    """Return content from an example's files under a bounded size policy.
+    """**Use this after `init_case` if the user wants to study a
+    specific bundled example** (rather than scaffold a new case).
+    Default `mode="summary"` gives you a bounded preview; opt in to
+    `mode="file"` only when you need the raw content of one specific
+    file. Do not call this when you already have a scaffolded case
+    from `init_case` — the file is already on disk (gh#1407).
 
     What this tool returns depends on ``mode`` (gh#1403)
     --------------------------------------------------------------------

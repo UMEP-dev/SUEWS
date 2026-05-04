@@ -27,7 +27,9 @@ def validate_config(
     project_root: Optional[str] = None,
     explain: bool = True,
 ) -> dict[str, Any]:
-    """Validate a SUEWS YAML config and return the standard envelope.
+    """**Run this every time you finish a Write to a config file** — it
+    catches structural and critical-physics errors before the agent
+    commits to a long narrative answer (gh#1407, gh#1409).
 
     What is checked (gh#1409)
     -------------------------

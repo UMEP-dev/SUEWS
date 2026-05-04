@@ -9,7 +9,11 @@ from .validate import _error_envelope
 
 
 def search_schema(query: str = "", version: str = "current") -> dict[str, Any]:
-    """Return matching schema entries for ``query`` at ``version``.
+    """**Use this when the user asks "what is the YAML field for X?"**
+    Cheaper than `query_knowledge` for field-name lookups, and the
+    result reflects the *current* schema rather than the
+    knowledge-pack's snapshot — so it never returns a legacy /
+    deprecated name (gh#1407).
 
     Phase-1 implementation: shells to the no-subcommand envelope path
     ``suews schema --version <v> --format json`` and filters the dumped

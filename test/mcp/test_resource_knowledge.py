@@ -43,7 +43,8 @@ def test_manifest_resource_passes_through(monkeypatch: pytest.MonkeyPatch) -> No
     result = read_knowledge_manifest_resource()
     assert result["status"] == "success"
     assert result["data"]["manifest"]["git_sha"] == "cafe"
-    assert captured["cmd"][:3] == ["suews", "knowledge", "manifest"]
+    assert captured["cmd"][0].endswith("suews")
+    assert captured["cmd"][1:3] == ["knowledge", "manifest"]
 
 
 def test_query_resource_passes_through(monkeypatch: pytest.MonkeyPatch) -> None:

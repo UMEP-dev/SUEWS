@@ -43,7 +43,8 @@ def test_compare_uses_two_paths_and_format(
 
     result = compare_runs(str(run_a), str(run_b), project_root=str(tmp_path))
     assert result["status"] == "success"
-    assert captured["cmd"][:2] == ["suews", "compare"]
+    assert captured["cmd"][0].endswith("suews")
+    assert captured["cmd"][1] == "compare"
     assert str(run_a) in captured["cmd"]
     assert str(run_b) in captured["cmd"]
 

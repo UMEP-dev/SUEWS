@@ -56,6 +56,9 @@ EXAMPLES:
 
 ### 4 May 2026
 
+- [bugfix] `knowledge_pack` meson `custom_target` rebuilds on every build (#1406 follow-up)
+  - `depend_files` was scoped to `knowledge/pack.py` alone, so editing `src/supy/data_model/` or `src/supy/cmd/` did not trigger a rebuild and the installed pack drifted from HEAD. Meson `files()` does not glob (and enumerating every source file would be brittle), so the cleanest fix is `build_always_stale: true` — ninja runs the builder unconditionally on every invocation. Pack-build runtime is on the order of seconds, well below the cost of shipping a stale pack into a release wheel
+  - This complements the runtime startup warning + CI freshness audit landed earlier in this PR; with all three layers a stale pack cannot reach a user
 - [doc] `mcp/README.md` Install section now documents TestPyPI dev-install with `--index-strategy unsafe-best-match` (#1398)
   - Previously only the editable-checkout recipe was documented; users following a naïve TestPyPI command resolved the released `supy` from PyPI (missing 8 of 10 allow-listed `suews` subcommands) or hit `uv` refusing to resolve at all
   - The new section spells out the two flags that are easy to miss but required for a clean resolve: `--index-strategy unsafe-best-match` (uv's default dependency-confusion guard fights against TestPyPI here) and explicit `==<dev>` pins on both `suews-mcp` and `supy` (instead of `--prerelease=allow`, which leaks pre-releases into transitive deps — see #1399)

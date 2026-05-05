@@ -610,7 +610,7 @@ CONTAINS
       ! Input/Output arguments
       TYPE(SUEWS_TIMER), INTENT(INOUT) :: timer
       INTEGER, INTENT(IN) :: len_sim
-      REAL(KIND(1D0)), DIMENSION(len_sim, 21), INTENT(IN) :: MetForcingBlock
+      REAL(KIND(1D0)), DIMENSION(len_sim, 23), INTENT(IN) :: MetForcingBlock
       TYPE(SUEWS_CONFIG), INTENT(IN) :: config
       TYPE(SUEWS_SITE), INTENT(IN) :: siteInfo
       TYPE(SUEWS_STATE), INTENT(INOUT) :: modState
@@ -658,7 +658,9 @@ CONTAINS
          forcing%f_cloud = MetForcingBlock(ir, 18)
          forcing%Wu_m3 = MetForcingBlock(ir, 19)
          forcing%xsmd = MetForcingBlock(ir, 20)
-         forcing%LAI_obs = MetForcingBlock(ir, 21)
+         forcing%LAI_dectr = MetForcingBlock(ir, 21)
+         forcing%LAI_evetr = MetForcingBlock(ir, 22)
+         forcing%LAI_grass = MetForcingBlock(ir, 23)
 
          ! === Call main calculation ===
          CALL SUEWS_cal_Main( &
@@ -5668,7 +5670,9 @@ CONTAINS
          forcing%f_cloud = MetForcingBlock(ir, 18)
          forcing%Wu_m3 = MetForcingBlock(ir, 19)
          forcing%xsmd = MetForcingBlock(ir, 20)
-         forcing%LAI_obs = MetForcingBlock(ir, 21)
+         forcing%LAI_dectr = MetForcingBlock(ir, 21)
+         forcing%LAI_evetr = MetForcingBlock(ir, 22)
+         forcing%LAI_grass = MetForcingBlock(ir, 23)
 
          IF (config%flag_test .AND. PRESENT(state_debug)) THEN
             CALL SUEWS_cal_Main( &

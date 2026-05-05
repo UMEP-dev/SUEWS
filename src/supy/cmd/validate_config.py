@@ -44,6 +44,9 @@ try:
         run_phase_b as _processor_run_phase_b,
         run_phase_c as _processor_run_phase_c,
         create_final_user_files as _processor_create_final_user_files,
+        copy_report_with_json as _processor_copy_report_with_json,
+        move_report_with_json as _processor_move_report_with_json,
+        unlink_report_with_json as _processor_unlink_report_with_json,
     )
 except Exception:
     _processor_validate_input_file = None
@@ -52,6 +55,9 @@ except Exception:
     _processor_run_phase_b = None
     _processor_run_phase_c = None
     _processor_create_final_user_files = None
+    _processor_copy_report_with_json = None
+    _processor_move_report_with_json = None
+    _processor_unlink_report_with_json = None
 
 # Import from supy modules
 try:
@@ -898,6 +904,10 @@ def _execute_pipeline(file, pipeline, mode, forcing="on", science_fixes="suggest
         _processor_run_phase_a,
         _processor_run_phase_b,
         _processor_run_phase_c,
+        _processor_create_final_user_files,
+        _processor_copy_report_with_json,
+        _processor_move_report_with_json,
+        _processor_unlink_report_with_json,
     ]):
         console.print(
             "[red]✗ YAML processor is unavailable. Ensure supy.data_model.validation.pipeline is present.[/red]"
@@ -1086,11 +1096,12 @@ def _execute_pipeline(file, pipeline, mode, forcing="on", science_fixes="suggest
 
                 # Use Phase B report as final (contains the errors)
                 if Path(science_report_file).exists():
-                    shutil.move(str(science_report_file), str(final_report))
+                    _processor_move_report_with_json(
+                        science_report_file, final_report, final_yaml
+                    )
 
                 # Clean up intermediate Phase A report
-                if Path(report_file).exists():
-                    Path(report_file).unlink()
+                _processor_unlink_report_with_json(report_file)
 
                 # Remove failed Phase B YAML if it exists (only if different from final_yaml)
                 if Path(science_yaml_file).exists() and str(science_yaml_file) != str(
@@ -1130,8 +1141,7 @@ def _execute_pipeline(file, pipeline, mode, forcing="on", science_fixes="suggest
             )
 
             # Clean up intermediate files
-            if Path(report_file).exists():
-                Path(report_file).unlink()  # Remove Phase A report
+            _processor_unlink_report_with_json(report_file)  # Remove Phase A report
             if Path(uptodate_file).exists():
                 Path(uptodate_file).unlink()  # Remove Phase A YAML
         except Exception:
@@ -1193,8 +1203,7 @@ def _execute_pipeline(file, pipeline, mode, forcing="on", science_fixes="suggest
 
                 # Phase C report should already be at pydantic_report_file (final name)
                 # Clean up intermediate Phase A report
-                if Path(report_file).exists():
-                    Path(report_file).unlink()
+                _processor_unlink_report_with_json(report_file)
 
                 # Remove failed Phase C YAML if it exists (only if different from final_yaml)
                 if Path(pydantic_yaml_file).exists() and str(pydantic_yaml_file) != str(
@@ -1234,8 +1243,7 @@ def _execute_pipeline(file, pipeline, mode, forcing="on", science_fixes="suggest
             )
 
             # Clean up intermediate files
-            if Path(report_file).exists():
-                Path(report_file).unlink()  # Remove Phase A report
+            _processor_unlink_report_with_json(report_file)  # Remove Phase A report
             if Path(uptodate_file).exists():
                 Path(uptodate_file).unlink()  # Remove Phase A YAML
         except Exception:
@@ -1279,7 +1287,9 @@ def _execute_pipeline(file, pipeline, mode, forcing="on", science_fixes="suggest
 
                 # Use Phase B report as final
                 if Path(science_report_file).exists():
-                    shutil.move(str(science_report_file), str(final_report))
+                    _processor_move_report_with_json(
+                        science_report_file, final_report, final_yaml
+                    )
             except Exception as e:
                 console.print(f"[yellow]Warning during cleanup: {e}[/yellow]")
 
@@ -1355,8 +1365,7 @@ def _execute_pipeline(file, pipeline, mode, forcing="on", science_fixes="suggest
                     shutil.move(str(science_yaml_file), str(final_yaml))
 
                 # Clean up intermediate Phase B report (now that we've extracted messages)
-                if Path(science_report_file).exists():
-                    Path(science_report_file).unlink()
+                _processor_unlink_report_with_json(science_report_file)
 
                 # Remove failed Phase C YAML if it exists (only if different from final_yaml)
                 if Path(pydantic_yaml_file).exists() and str(pydantic_yaml_file) != str(
@@ -1398,8 +1407,9 @@ def _execute_pipeline(file, pipeline, mode, forcing="on", science_fixes="suggest
             )
 
             # Clean up intermediate files
-            if Path(science_report_file).exists():
-                Path(science_report_file).unlink()  # Remove Phase B report
+            _processor_unlink_report_with_json(
+                science_report_file
+            )  # Remove Phase B report
             if Path(science_yaml_file).exists():
                 Path(science_yaml_file).unlink()  # Remove Phase B YAML
         except Exception:
@@ -1477,14 +1487,14 @@ def _execute_pipeline(file, pipeline, mode, forcing="on", science_fixes="suggest
 
             # Create final Report from Phase B (contains the actual errors we need to show user)
             if Path(science_report_file).exists():
-                shutil.move(
-                    science_report_file, pydantic_report_file
-                )  # Move reportB → report (don't keep intermediate)
+                _processor_move_report_with_json(
+                    science_report_file, pydantic_report_file, pydantic_yaml_file
+                )  # Move reportB -> report (don't keep intermediate)
             elif Path(report_file).exists():
                 # Fallback to Phase A report if Phase B report doesn't exist
-                shutil.copy2(
-                    report_file, pydantic_report_file
-                )  # Copy reportA → report (keep intermediate)
+                _processor_copy_report_with_json(
+                    report_file, pydantic_report_file, pydantic_yaml_file
+                )  # Copy reportA -> report (keep intermediate)
 
             # Remove failed Phase B YAML
             if Path(science_yaml_file).exists():
@@ -1498,8 +1508,7 @@ def _execute_pipeline(file, pipeline, mode, forcing="on", science_fixes="suggest
 
         # Clean up intermediate files
         try:
-            if Path(report_file).exists():
-                Path(report_file).unlink()
+            _processor_unlink_report_with_json(report_file)
             if Path(uptodate_file).exists():
                 Path(uptodate_file).unlink()
         except Exception:
@@ -1517,14 +1526,14 @@ def _execute_pipeline(file, pipeline, mode, forcing="on", science_fixes="suggest
     report_path = Path(report_file)
     if report_path.exists():
         phase_a_messages = extract_no_action_messages_from_report(report_file)
-        report_path.unlink()  # Clean up immediately
+    _processor_unlink_report_with_json(report_file)  # Clean up immediately
 
     # Extract Phase B messages and clean up immediately (minimizes I/O time)
     phase_b_messages = []
     science_report_path = Path(science_report_file)
     if science_report_path.exists():
         phase_b_messages = extract_no_action_messages_from_report(science_report_file)
-        science_report_path.unlink()  # Clean up immediately
+    _processor_unlink_report_with_json(science_report_file)  # Clean up immediately
 
     # Deduplicate messages efficiently and filter out incomplete headers
     all_no_action_messages = []
@@ -1573,9 +1582,9 @@ def _execute_pipeline(file, pipeline, mode, forcing="on", science_fixes="suggest
                 not Path(pydantic_report_file).exists()
                 and Path(science_report_file).exists()
             ):
-                shutil.copy2(
-                    science_report_file, pydantic_report_file
-                )  # Fallback: copy reportB → report
+                _processor_copy_report_with_json(
+                    science_report_file, pydantic_report_file, pydantic_yaml_file
+                )  # Fallback: copy reportB -> report
         except Exception:
             pass  # Don't fail if copy doesn't work
 
@@ -1585,12 +1594,10 @@ def _execute_pipeline(file, pipeline, mode, forcing="on", science_fixes="suggest
 
         # Clean up intermediate files
         try:
-            if Path(report_file).exists():
-                Path(report_file).unlink()
+            _processor_unlink_report_with_json(report_file)
             if Path(uptodate_file).exists():
                 Path(uptodate_file).unlink()
-            if Path(science_report_file).exists():
-                Path(science_report_file).unlink()
+            _processor_unlink_report_with_json(science_report_file)
             if Path(science_yaml_file).exists():
                 Path(science_yaml_file).unlink()
         except Exception:

@@ -3634,6 +3634,71 @@ def test_forcing_validation_cli_integration(cli_runner):
         )
 
 
+def test_validate_cli_success_removes_temp_report_json_sidecars(cli_runner):
+    """Successful ABC validation should not leak intermediate JSON reports."""
+    from supy.cmd.validate_config import cli as validate_cli
+
+    sample_config = Path(sp.__file__).parent / "sample_data" / "sample_config.yml"
+
+    with cli_runner.isolated_filesystem() as tmpdir:
+        tmpdir_path = Path(tmpdir)
+        config_path = tmpdir_path / "myconfig.yml"
+        config_path.write_text(
+            sample_config.read_text(encoding="utf-8"), encoding="utf-8"
+        )
+
+        result = cli_runner.invoke(
+            validate_cli, ["--forcing", "off", str(config_path)]
+        )
+
+        assert result.exit_code == 0, result.output
+        assert (tmpdir_path / "updated_myconfig.yml").exists()
+        assert (tmpdir_path / "report_myconfig.txt").exists()
+        assert (tmpdir_path / "report_myconfig.json").exists()
+        assert not list(tmpdir_path.glob("temp_reportA_*.json"))
+        assert not list(tmpdir_path.glob("temp_reportB_*.json"))
+
+
+def test_validate_cli_failure_removes_temp_report_json_sidecars(cli_runner):
+    """Failed ABC validation should move or remove intermediate JSON reports."""
+    import json
+
+    from supy.cmd.validate_config import cli as validate_cli
+
+    with cli_runner.isolated_filesystem() as tmpdir:
+        tmpdir_path = Path(tmpdir)
+        config_path = tmpdir_path / "myconfig.yml"
+        config_path.write_text(
+            "\n".join([
+                "name: test",
+                "sites:",
+                "  - name: site1",
+                "    gridiv: 1",
+                "    properties:",
+                "      lat: null",
+                "",
+            ]),
+            encoding="utf-8",
+        )
+
+        result = cli_runner.invoke(
+            validate_cli, ["--forcing", "off", str(config_path)]
+        )
+
+        assert result.exit_code != 0, result.output
+        report_path = tmpdir_path / "report_myconfig.txt"
+        assert report_path.exists()
+        assert "SUEWS" in report_path.read_text(encoding="utf-8", errors="replace")
+        report_json_path = tmpdir_path / "report_myconfig.json"
+        assert report_json_path.exists()
+        report_payload = json.loads(report_json_path.read_text(encoding="utf-8"))
+        assert Path(report_payload["yaml_out"]).resolve() == (
+            tmpdir_path / "updated_myconfig.yml"
+        ).resolve()
+        assert not list(tmpdir_path.glob("temp_reportA_*.json"))
+        assert not list(tmpdir_path.glob("temp_reportB_*.json"))
+
+
 # ============================================================================
 # Irrigation DOY Validation Tests (Issue #811)
 # ============================================================================

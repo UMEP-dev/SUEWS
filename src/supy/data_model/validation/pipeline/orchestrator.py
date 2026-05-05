@@ -12,6 +12,7 @@ import supy
 import sys
 import os
 import argparse
+import json
 import yaml
 from typing import Tuple, Optional
 import importlib.resources
@@ -506,6 +507,91 @@ def create_consolidated_report(
         print(f"[DEBUG]   File written, actual size on disk: {actual_size} bytes", file=sys.stderr)
 
 
+def report_json_sidecar(report_file: str | Path) -> Path:
+    """Return the structured JSON sidecar path for a text report."""
+    return Path(report_file).with_suffix(".json")
+
+
+def _sync_report_json_paths(
+    json_file: Path, text_report: Path, yaml_out: str | Path | None = None
+) -> None:
+    """Keep moved/copied sidecar metadata aligned with its final report name."""
+    try:
+        payload = json.loads(json_file.read_text(encoding="utf-8"))
+    except Exception:
+        return
+
+    if not isinstance(payload, dict):
+        return
+
+    payload["text_report_path"] = str(text_report)
+    payload["json_report_path"] = str(json_file)
+    if yaml_out is not None:
+        payload["yaml_out"] = str(yaml_out)
+    json_file.write_text(
+        json.dumps(payload, indent=2, ensure_ascii=False) + "\n",
+        encoding="utf-8",
+        newline="\n",
+    )
+
+
+def move_report_with_json(
+    source_report: str | Path,
+    final_report: str | Path,
+    final_yaml: str | Path | None = None,
+) -> None:
+    """Move a text report and its JSON sidecar to final user-facing names."""
+    if not source_report or not final_report:
+        return
+
+    source = Path(source_report)
+    final = Path(final_report)
+
+    if source.exists() and source != final:
+        shutil.move(str(source), str(final))
+
+    source_json = report_json_sidecar(source)
+    final_json = report_json_sidecar(final)
+    if source_json.exists():
+        if source_json != final_json:
+            shutil.move(str(source_json), str(final_json))
+        _sync_report_json_paths(final_json, final, final_yaml)
+
+
+def copy_report_with_json(
+    source_report: str | Path,
+    final_report: str | Path,
+    final_yaml: str | Path | None = None,
+) -> None:
+    """Copy a text report and its JSON sidecar to final user-facing names."""
+    if not source_report or not final_report:
+        return
+
+    source = Path(source_report)
+    final = Path(final_report)
+
+    if source.exists() and source != final:
+        shutil.copy2(str(source), str(final))
+
+    source_json = report_json_sidecar(source)
+    final_json = report_json_sidecar(final)
+    if source_json.exists():
+        if source_json != final_json:
+            shutil.copy2(str(source_json), str(final_json))
+        _sync_report_json_paths(final_json, final, final_yaml)
+
+
+def unlink_report_with_json(report_file: str | Path) -> None:
+    """Remove a text report and any structured JSON sidecar beside it."""
+    if not report_file:
+        return
+
+    report_path = Path(report_file)
+    for path in (report_path, report_json_sidecar(report_path)):
+        if path.exists():
+            path.unlink()
+
+
 def create_final_user_files(user_yaml_file: str, source_yaml: str, source_report: str):
     """Create final user-facing files with simple names from intermediate files."""
     import shutil
@@ -536,7 +622,7 @@ def create_final_user_files(user_yaml_file: str, source_yaml: str, source_report
         if Path(source_report).exists():
             if debug:
                 print(f"[DEBUG]   Moving report: {source_report} -> {final_report}", file=sys.stderr)
-            shutil.move(source_report, final_report)  # Move instead of copy
+            move_report_with_json(source_report, final_report, final_yaml)
             if debug:
                 final_size = os.path.getsize(final_report) if os.path.exists(final_report) else -1
                 print(f"[DEBUG]   After move, final_report size: {final_size} bytes", file=sys.stderr)
@@ -550,7 +636,7 @@ def create_final_user_files(user_yaml_file: str, source_yaml: str, source_report
             if Path(source_report).exists():
                 if debug:
                     print(f"[DEBUG]   Trying copy fallback for report", file=sys.stderr)
-                shutil.copy2(source_report, final_report)
+                copy_report_with_json(source_report, final_report, final_yaml)
         except Exception as copy_err:
             if debug:
                 print(f"[DEBUG]   Copy also failed: {copy_err}", file=sys.stderr)

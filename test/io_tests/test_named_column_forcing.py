@@ -293,3 +293,27 @@ def test_check_forcing_accepts_per_landcover_extras():
     assert issues is None, (
         f"check_forcing flagged per-landcover-aware DataFrame: {issues}"
     )
+
+
+def test_check_forcing_flags_truly_unknown_columns():
+    """gh#1413: the name-based unknown-column check (replacing the legacy
+    positional zip) must still reject columns that are neither canonical,
+    `isec`, nor a whitelisted per-landcover extra.
+    """
+    from supy._check import check_forcing
+    from supy._load import CANONICAL_FORCING_COLUMNS
+
+    idx = pd.date_range("2024-01-01", periods=24, freq="h")
+    data = {col: np.full(24, -999.0) for col in CANONICAL_FORCING_COLUMNS}
+    # plausible but unsupported: soil moisture per land cover (see
+    # @suegrimmond's #1378 comment — only LAI and water-use are
+    # land-cover-resolved at the forcing layer).
+    data["xsmd_evetr"] = np.full(24, 0.2)
+    df_forcing = pd.DataFrame(data, index=idx)
+
+    issues = check_forcing(df_forcing, fix=False)
+
+    assert issues is not None
+    assert any("Unknown forcing columns" in s and "xsmd_evetr" in s for s in issues), (
+        f"expected 'Unknown forcing columns' issue mentioning xsmd_evetr; got: {issues}"
+    )

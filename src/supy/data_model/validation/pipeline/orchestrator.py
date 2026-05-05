@@ -508,14 +508,24 @@ def create_consolidated_report(
 
 
 def report_json_sidecar(report_file: str | Path) -> Path:
-    """Return the structured JSON sidecar path for a text report."""
+    """Return the structured JSON sidecar path for a text report.
+
+    Assumes the caller's report path uses a single trailing suffix (the
+    convention in this pipeline is `report_<config>.txt`); any path is
+    coerced via ``Path.with_suffix(".json")``.
+    """
     return Path(report_file).with_suffix(".json")
 
 
 def _sync_report_json_paths(
     json_file: Path, text_report: Path, yaml_out: str | Path | None = None
 ) -> None:
-    """Keep moved/copied sidecar metadata aligned with its final report name."""
+    """Keep moved/copied sidecar metadata aligned with its final report name.
+
+    Failures to parse or rewrite the sidecar are swallowed by design: this
+    only updates non-critical bookkeeping fields, so a malformed or
+    unreadable sidecar must not break the surrounding move/copy.
+    """
     try:
         payload = json.loads(json_file.read_text(encoding="utf-8"))
     except Exception:
@@ -548,13 +558,13 @@ def move_report_with_json(
     final = Path(final_report)
 
     if source.exists() and source != final:
-        shutil.move(str(source), str(final))
+        shutil.move(source, final)
 
     source_json = report_json_sidecar(source)
     final_json = report_json_sidecar(final)
     if source_json.exists():
         if source_json != final_json:
-            shutil.move(str(source_json), str(final_json))
+            shutil.move(source_json, final_json)
         _sync_report_json_paths(final_json, final, final_yaml)
 
 
@@ -571,13 +581,13 @@ def copy_report_with_json(
     final = Path(final_report)
 
     if source.exists() and source != final:
-        shutil.copy2(str(source), str(final))
+        shutil.copy2(source, final)
 
     source_json = report_json_sidecar(source)
     final_json = report_json_sidecar(final)
     if source_json.exists():
         if source_json != final_json:
-            shutil.copy2(str(source_json), str(final_json))
+            shutil.copy2(source_json, final_json)
         _sync_report_json_paths(final_json, final, final_yaml)
 
 

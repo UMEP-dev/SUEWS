@@ -1526,14 +1526,17 @@ def _execute_pipeline(file, pipeline, mode, forcing="on", science_fixes="suggest
     report_path = Path(report_file)
     if report_path.exists():
         phase_a_messages = extract_no_action_messages_from_report(report_file)
-    _processor_unlink_report_with_json(report_file)  # Clean up immediately
+    # Always run sidecar-aware cleanup: drops the .txt if present and any
+    # orphan temp_reportA_*.json that lingered after partial earlier cleanup.
+    _processor_unlink_report_with_json(report_file)
 
     # Extract Phase B messages and clean up immediately (minimizes I/O time)
     phase_b_messages = []
     science_report_path = Path(science_report_file)
     if science_report_path.exists():
         phase_b_messages = extract_no_action_messages_from_report(science_report_file)
-    _processor_unlink_report_with_json(science_report_file)  # Clean up immediately
+    # Same idempotent cleanup for Phase B's text + temp_reportB_*.json sidecar.
+    _processor_unlink_report_with_json(science_report_file)
 
     # Deduplicate messages efficiently and filter out incomplete headers
     all_no_action_messages = []

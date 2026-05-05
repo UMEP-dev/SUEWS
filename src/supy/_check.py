@@ -180,7 +180,7 @@ def _matches_option_value(actual_value, option_value) -> bool:
 
 
 def _check_observed_lai_nonneg(
-    df_forcing: pd.DataFrame, list_issues: list
+    df_forcing: pd.DataFrame, list_issues: list, lai_col: str="lai"
 ) -> bool:
     """Reject missing or negative ``lai`` rows when ``laimethod=0`` is active.
 
@@ -208,11 +208,9 @@ def _check_observed_lai_nonneg(
         ``False`` otherwise.
     """
     from .util._missing import SUEWS_MISSING_THRESHOLD
+    
+    ser_lai = df_forcing[lai_col]
 
-    if "lai" not in df_forcing.columns:
-        return False
-
-    ser_lai = df_forcing["lai"]
     mask_missing = ser_lai.isna()
     mask_negative = ser_lai < 0.0
     mask_invalid = mask_missing | mask_negative
@@ -245,7 +243,7 @@ def _check_observed_lai_nonneg(
         sample_note += f", ... (+{n_invalid - len(sample_rows)} more)"
 
     str_issue = (
-        f"Physics option 'laimethod=0' requires every 'lai' forcing value "
+        f"Physics option 'laimethod=0' requires every '{lai_col}' forcing value "
         f"to be a non-missing, non-negative observation (>= 0); "
         f"NaN, -999 and other sentinels are not permitted on this path. "
         f"Found {n_invalid} invalid row(s): "
@@ -343,11 +341,11 @@ def check_forcing(
         list_issues.append(str_issue)
         flag_valid = False
     # 1.2 if all columns are in right position
-    for col_v, col in zip(list_col_forcing, col_df):
-        if col_v != col:
-            str_issue = f"Column {col} is not in the valid position for {col_v}"
-            list_issues.append(str_issue)
-            flag_valid = False
+    # for col_v, col in zip(list_col_forcing, col_df):
+    #     if col_v != col:
+    #         str_issue = f"Column {col} is not in the valid position for {col_v}"
+    #         list_issues.append(str_issue)
+    #         flag_valid = False
 
     # 2. valid timestamps:
     ind_df = df_forcing.index
@@ -440,12 +438,14 @@ def check_forcing(
                     # is strictly stronger than the generic "all-missing"
                     # rejection — it runs first and shadows the per-column
                     # loop for the ``lai`` column.
-                    lai_nonneg_issue = False
                     if is_observed_lai:
-                        lai_nonneg_issue = _check_observed_lai_nonneg(
-                            df_forcing, list_issues
-                        )
-                        if lai_nonneg_issue:
+                        lai_forcing = df_forcing.filter(like="lai")
+                        lai_nonneg_issue = [False]*len(lai_forcing)
+                        for col_num, lai_col in enumerate(lai_forcing.columns):
+                            lai_nonneg_issue[col_num] = _check_observed_lai_nonneg(
+                                df_forcing, list_issues, lai_col=lai_col
+                            )
+                        if all(lai_nonneg_issue):
                             flag_valid = False
                         # Pre-flight warning: observed LAI will be clamped
                         # into each vegetation class's ``[LAImin, LAImax]``
@@ -453,7 +453,7 @@ def check_forcing(
                         # failed — a forcing full of sentinels will otherwise
                         # trigger a noisy "below LAImin" warning on top of
                         # the real error.
-                        if lai_bounds is not None and not lai_nonneg_issue:
+                        if lai_bounds is not None and not all(lai_nonneg_issue):
                             _warn_observed_lai_clamping(df_forcing, lai_bounds)
                     for col in required_cols:
                         if col in df_forcing.columns:

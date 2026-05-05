@@ -48,7 +48,7 @@ ALLOWED_REF_KEYS = {"desc", "DOI", "ID"}
 _MISSING = object()
 
 
-def _is_nullish_tree(value):
+def _is_nullish_tree(value: object) -> bool:
     """Return True when a generated placeholder carries no user value."""
     if value is None:
         return True
@@ -69,13 +69,24 @@ def _is_default_backed_control_path(param_path: str) -> bool:
     )
 
 
-def _normalise_model_control_subobjects(config_data):
+def _normalise_model_control_subobjects(
+    config_data: object,
+) -> tuple[object, list[tuple[str, str]]]:
     """Normalise legacy model.control sub-objects before Phase A comparison.
 
     The Pydantic layer already accepts ``forcing_file`` and ``output_file``.
     Phase A must mirror that compatibility before comparing a user YAML
     against the current sample config; otherwise it inserts all-null current
     sub-objects that later take precedence over the valid legacy blocks.
+
+    The returned ``replacements`` list records every legacy key that has
+    been consumed so the report writer can surface the migration in
+    ``renamed_replacements``. The note is recorded both when legacy values
+    are migrated into the modern block and when a current modern block
+    already exists and the legacy duplicate is dropped — mirroring the
+    ``DeprecationWarning`` that ``ModelControl._coerce_legacy_*`` emits at
+    runtime, so the user sees the same migration breadcrumb in
+    ``report_config.txt``.
     """
     if not isinstance(config_data, dict):
         return config_data, []
@@ -88,17 +99,18 @@ def _normalise_model_control_subobjects(config_data):
     if not isinstance(control, dict):
         return normalised, []
 
-    replacements = []
+    replacements: list[tuple[str, str]] = []
 
     legacy_forcing = control.pop("forcing_file", _MISSING)
     if legacy_forcing is not _MISSING:
         forcing = control.get("forcing")
         if not isinstance(forcing, dict) or _is_nullish_tree(forcing):
             control["forcing"] = {"file": legacy_forcing}
-            replacements.append(("forcing_file", "forcing.file"))
         elif "file" not in forcing or _is_nullish_tree(forcing.get("file")):
             forcing["file"] = legacy_forcing
-            replacements.append(("forcing_file", "forcing.file"))
+        # else: current forcing.file is real; legacy value is dropped, but
+        # we still record the key migration so the user sees it.
+        replacements.append(("forcing_file", "forcing.file"))
 
     legacy_output = control.pop("output_file", _MISSING)
     if legacy_output is not _MISSING:
@@ -116,9 +128,13 @@ def _normalise_model_control_subobjects(config_data):
                 if "path" in legacy_output and "dir" not in migrated:
                     migrated["dir"] = legacy_output["path"]
                 control["output"] = migrated
-                replacements.append(("output_file", "output"))
             else:
                 control.pop("output", None)
+        # Always record the migration: either we lifted legacy values into
+        # the modern block, or a real current `output` block already exists
+        # and the legacy duplicate has been dropped (current wins, matching
+        # ModelControl._coerce_legacy_output_file).
+        replacements.append(("output_file", "output"))
 
     return normalised, replacements
 

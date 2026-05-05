@@ -473,6 +473,15 @@ sites:
                 updated_control["output"], self.standard_data["model"]["control"]["output"]
             )
 
+            # Even though current `forcing`/`output` win on duplicates,
+            # Phase A must still surface the legacy-key migration in the
+            # report so the user knows their `forcing_file`/`output_file`
+            # blocks were dropped (matching the DeprecationWarning that
+            # ModelControl._coerce_legacy_* emits at runtime).
+            report_content = report_file.read_text(encoding="utf-8")
+            self.assertIn("forcing_file changed to forcing.file", report_content)
+            self.assertIn("output_file changed to output", report_content)
+
     def test_gh1417_invalid_current_output_is_not_replaced_by_legacy(self):
         """Invalid current output values should survive for Phase C validation."""
         data = deepcopy(self.standard_data)

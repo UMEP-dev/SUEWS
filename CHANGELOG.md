@@ -54,6 +54,13 @@ EXAMPLES:
 
 ## 2026
 
+### 5 May 2026
+
+- [bugfix] Phase A no longer flags `model.control.forcing_file`/`output_file` as missing/extra and no longer surfaces a misleading `model.control.output.format` enum error when the legacy block already carries a valid `format` (#1417)
+  - Phase A previously compared a legacy YAML directly against the current `sample_config.yml`, inserting an all-null current `output` block while leaving the valid legacy `output_file` in place; Phase C then gave precedence to the all-null current block, raising `Input should be 'txt' or 'parquet'` even though the user had `output_file.format: txt`
+  - `phase_a.py` now mirrors the runtime `ModelControl._coerce_legacy_forcing_file` / `_coerce_legacy_output_file` validators: legacy `forcing_file` lifts under `forcing.file`, legacy `output_file` lifts under `output` (with `path -> dir`), current shape wins on duplicates, and a non-dict current `output` is preserved so Phase C still surfaces the genuine validation error
+  - `report_config.txt` records the migration as a renamed parameter (`forcing_file changed to forcing.file`, `output_file changed to output`) so the user sees the same migration breadcrumb that the Pydantic layer emits as a `DeprecationWarning` at runtime
+
 ### 3 May 2026
 
 - [change][experimental] Collapse the gh#1372 forcing- and output-restructure schema bumps into a single `2026.5.dev8 -> 2026.5.dev9` cumulative migration (#1372)

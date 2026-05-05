@@ -482,6 +482,48 @@ sites:
             self.assertIn("forcing_file changed to forcing.file", report_content)
             self.assertIn("output_file changed to output", report_content)
 
+    def test_gh1417_empty_current_output_wins_over_legacy_duplicate(self):
+        """An empty current output block is valid and should not be overwritten."""
+        data = deepcopy(self.standard_data)
+        control = data["model"]["control"]
+        control["output"] = {}
+        control["output_file"] = {
+            "format": "parquet",
+            "freq": 1800,
+            "path": "./legacy_output",
+        }
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            tmp_path = Path(tmpdir)
+            user_file = tmp_path / "empty_current.yml"
+            standard_file = tmp_path / "standard.yml"
+            updated_file = tmp_path / "updated.yml"
+            report_file = tmp_path / "report.txt"
+
+            user_file.write_text(
+                yaml.safe_dump(data, sort_keys=False),
+                encoding="utf-8",
+            )
+            standard_file.write_text(
+                yaml.safe_dump(self.standard_data, sort_keys=False),
+                encoding="utf-8",
+            )
+
+            annotate_missing_parameters(
+                user_file=str(user_file),
+                standard_file=str(standard_file),
+                uptodate_file=str(updated_file),
+                report_file=str(report_file),
+                mode="dev",
+                phase="A",
+                forcing="off",
+            )
+
+            updated_data = yaml.safe_load(updated_file.read_text(encoding="utf-8"))
+            updated_control = updated_data["model"]["control"]
+            self.assertEqual(updated_control["output"], {})
+            self.assertNotIn("output_file", updated_control)
+
     def test_gh1417_invalid_current_output_is_not_replaced_by_legacy(self):
         """Invalid current output values should survive for Phase C validation."""
         data = deepcopy(self.standard_data)

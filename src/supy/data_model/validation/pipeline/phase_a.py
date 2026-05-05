@@ -59,6 +59,21 @@ def _is_nullish_tree(value: object) -> bool:
     return False
 
 
+def _is_generated_null_placeholder(value: object) -> bool:
+    """Return True for non-empty containers that only contain null placeholders."""
+    if value is None:
+        return True
+    if isinstance(value, dict):
+        return bool(value) and all(
+            _is_generated_null_placeholder(item) for item in value.values()
+        )
+    if isinstance(value, list):
+        return bool(value) and all(
+            _is_generated_null_placeholder(item) for item in value
+        )
+    return False
+
+
 def _is_default_backed_control_path(param_path: str) -> bool:
     """Phase A should not materialise nulls for Pydantic-defaulted controls."""
     return (
@@ -116,7 +131,7 @@ def _normalise_model_control_subobjects(
     if legacy_output is not _MISSING:
         output = control.get("output")
         output_is_placeholder = output is None or (
-            isinstance(output, dict) and _is_nullish_tree(output)
+            isinstance(output, dict) and _is_generated_null_placeholder(output)
         )
         if output_is_placeholder:
             if isinstance(legacy_output, dict):

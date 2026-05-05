@@ -8,6 +8,8 @@ Three-phase validation workflow:
 Supports individual phases (A, B, C) or combined workflows (AB, AC, BC, ABC).
 """
 
+from __future__ import annotations
+
 import supy
 import sys
 import os

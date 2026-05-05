@@ -78,16 +78,44 @@ def _column_has_valid_data(forcing: Any, col: str) -> bool:
     if not hasattr(forcing, "columns"):
         return True
 
-    match = next((name for name in forcing.columns if str(name).lower() == col), None)
-    if match is None:
+    forcing_copy = forcing.copy()
+    forcing_copy.columns = forcing_copy.columns.str.lower()
+    forcing_filtered = forcing_copy.filter(like=col)
+
+    if forcing_filtered.empty:
         return False
 
     import pandas as pd
-
     from ...util._missing import SUEWS_MISSING_THRESHOLD
+    from ..._load import PER_LANDCOVER_FORCING_VARS, LANDCOVER_SUFFIXES
 
-    series = pd.to_numeric(forcing[match], errors="coerce")
-    return bool(((series.notna()) & (series > SUEWS_MISSING_THRESHOLD)).any())
+    col_count = len(forcing_filtered.columns)
+
+    if col_count == 1:
+        series = pd.to_numeric(forcing_filtered[col], errors="coerce")
+        return all((series.notna()) & (series > SUEWS_MISSING_THRESHOLD))
+    
+    if col not in PER_LANDCOVER_FORCING_VARS:
+        return False
+
+    forcing_filtered_for_lc = forcing_filtered.filter(like="_")
+    match_with_lc = [
+        var for var in forcing_filtered_for_lc.columns
+        if (parts := var.split("_")) 
+        and parts[0] in PER_LANDCOVER_FORCING_VARS
+        and parts[1] in LANDCOVER_SUFFIXES
+    ]
+
+    if not match_with_lc:
+        return False
+
+    forcing_filtered_for_lc_numeric = forcing_filtered_for_lc[match_with_lc].apply(
+        pd.to_numeric, errors="coerce"
+    )
+
+    valid_mask = (forcing_filtered_for_lc_numeric.notna()) & (forcing_filtered_for_lc_numeric > SUEWS_MISSING_THRESHOLD)
+
+    return all(valid_mask)
 
 
 def validate_forcing_columns_against_physics(

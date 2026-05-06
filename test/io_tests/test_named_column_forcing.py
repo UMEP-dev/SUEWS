@@ -248,3 +248,72 @@ def test_shuffled_header_yields_same_dataframe_as_canonical():
 
     assert list(df_canonical.columns) == list(df_shuffled.columns)
     pd.testing.assert_frame_equal(df_canonical, df_shuffled)
+
+
+def test_check_forcing_accepts_per_landcover_extras():
+    """gh#1413 (PR#1378 follow-up): check_forcing must not flag per-landcover
+    extras as missing/positional errors. Pre-fix, the validator zipped
+    columns positionally against a 25-key reference list including the
+    internal `isec` key, so any DataFrame with `lai_<surface>` or
+    `wuh_<surface>` columns appended after the canonical 24 hit
+    "Missing columns: {'isec'}" and "Column lai_evetr is not in the
+    valid position for isec".
+    """
+    from supy._check import check_forcing
+    from supy._load import CANONICAL_FORCING_COLUMNS
+
+    idx = pd.date_range("2024-01-01", periods=24, freq="h")
+    data = {
+        "iy": idx.year,
+        "id": idx.dayofyear,
+        "it": idx.hour,
+        "imin": idx.minute,
+        "U": np.full(24, 3.0),
+        "RH": np.full(24, 60.0),
+        "Tair": np.full(24, 15.0),
+        "pres": np.full(24, 1013.0),
+        "rain": np.zeros(24),
+        "kdown": np.full(24, 100.0),
+    }
+    # fill remaining canonical optionals with the sentinel the named-column
+    # reader uses (-999.0)
+    for col in CANONICAL_FORCING_COLUMNS:
+        if col not in data:
+            data[col] = np.full(24, -999.0)
+    # per-landcover extras appended at the end
+    data["lai_evetr"] = np.full(24, 1.5)
+    data["lai_dectr"] = np.full(24, 1.2)
+    data["wuh_paved"] = np.zeros(24)
+    df_forcing = pd.DataFrame(data, index=idx)
+
+    issues = check_forcing(df_forcing, fix=False)
+
+    # validator should return None (passes) — no missing-column or
+    # positional issues attributable to per-LC extras or to `isec`.
+    assert issues is None, (
+        f"check_forcing flagged per-landcover-aware DataFrame: {issues}"
+    )
+
+
+def test_check_forcing_flags_truly_unknown_columns():
+    """gh#1413: the name-based unknown-column check (replacing the legacy
+    positional zip) must still reject columns that are neither canonical,
+    `isec`, nor a whitelisted per-landcover extra.
+    """
+    from supy._check import check_forcing
+    from supy._load import CANONICAL_FORCING_COLUMNS
+
+    idx = pd.date_range("2024-01-01", periods=24, freq="h")
+    data = {col: np.full(24, -999.0) for col in CANONICAL_FORCING_COLUMNS}
+    # plausible but unsupported: soil moisture per land cover (see
+    # @suegrimmond's #1378 comment — only LAI and water-use are
+    # land-cover-resolved at the forcing layer).
+    data["xsmd_evetr"] = np.full(24, 0.2)
+    df_forcing = pd.DataFrame(data, index=idx)
+
+    issues = check_forcing(df_forcing, fix=False)
+
+    assert issues is not None
+    assert any("Unknown forcing columns" in s and "xsmd_evetr" in s for s in issues), (
+        f"expected 'Unknown forcing columns' issue mentioning xsmd_evetr; got: {issues}"
+    )

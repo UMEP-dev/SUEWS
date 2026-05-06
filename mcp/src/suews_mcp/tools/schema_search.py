@@ -64,8 +64,39 @@ def search_schema(query: str = "", version: str = "current") -> dict[str, Any]:
     return envelope
 
 
-def _shallow(value: Any) -> Any:
-    """Trim deep substructures so search results stay small."""
-    if isinstance(value, (dict, list)):
-        return f"<{type(value).__name__}>"
+def _shallow(value: Any, depth: int = 0) -> Any:
+    """Trim deep substructures so search results stay small.
+
+    A matched schema field is itself a dict (``{type, description,
+    default, units, ...}``) — replacing the whole dict with the literal
+    ``"<dict>"`` strips exactly the metadata the caller wanted. So at
+    ``depth=0`` keep scalar entries verbatim and only stub the nested
+    structures; at ``depth>=1`` collapse dicts/lists to their type name.
+
+    Special case at ``depth=0``: a JSON-Schema object node has a
+    ``properties`` dict whose keys are the field names the user actually
+    wants to see (e.g. ``EvetrProperties.properties`` lists every field
+    of the evergreen-tree config block). Replace such a dict with the
+    sorted list of its keys so callers can discover field names without
+    a follow-up call, while still keeping the response bounded.
+
+    Long string scalars (>200 chars) are truncated to keep envelopes
+    bounded.
+    """
+    if isinstance(value, dict):
+        if depth >= 1:
+            return f"<{type(value).__name__}>"
+        result: dict[str, Any] = {}
+        for k, v in value.items():
+            if k == "properties" and isinstance(v, dict):
+                result[k] = sorted(v.keys())
+            else:
+                result[k] = _shallow(v, depth + 1)
+        return result
+    if isinstance(value, list):
+        if depth >= 1:
+            return f"<{type(value).__name__}>"
+        return [_shallow(item, depth + 1) for item in value[:5]]
+    if isinstance(value, str) and len(value) > 200:
+        return value[:200] + "..."
     return value

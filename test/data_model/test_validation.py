@@ -3692,9 +3692,10 @@ def test_validate_cli_failure_removes_temp_report_json_sidecars(cli_runner):
         report_json_path = tmpdir_path / "report_myconfig.json"
         assert report_json_path.exists()
         report_payload = json.loads(report_json_path.read_text(encoding="utf-8"))
-        assert Path(report_payload["yaml_out"]).resolve() == (
-            tmpdir_path / "updated_myconfig.yml"
-        ).resolve()
+        assert Path(report_payload["text_report_path"]).resolve() == report_path.resolve()
+        assert Path(report_payload["json_report_path"]).resolve() == (
+            report_json_path.resolve()
+        )
         assert not list(tmpdir_path.glob("temp_reportA_*.json"))
         assert not list(tmpdir_path.glob("temp_reportB_*.json"))
 

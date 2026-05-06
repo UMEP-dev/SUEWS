@@ -9,7 +9,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
     <meta property="article:modified_time" content="2026-02-10T16:35:53+00:00" />
-    <title>SUEWS: Surface Urban Energy and Water Balance Scheme &#8212; SUEWS 2026.5.5.dev9066 documentation</title>
+    <title>SUEWS: Surface Urban Energy and Water Balance Scheme &#8212; SUEWS 2026.5.6.dev9068 documentation</title>
   
   
   
@@ -45,7 +45,7 @@
   <link rel="preload" as="script" href="_static/scripts/bootstrap.js?digest=8878045cc6db502f8baf" />
 <link rel="preload" as="script" href="_static/scripts/pydata-sphinx-theme.js?digest=8878045cc6db502f8baf" />
 
-    <script src="_static/documentation_options.js?v=146bdbe1"></script>
+    <script src="_static/documentation_options.js?v=39d09f89"></script>
     <script src="_static/doctools.js?v=9bcbadda"></script>
     <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
     <script src="_static/scripts/sphinx-book-theme.js?v=fab101a9"></script>
@@ -58,7 +58,7 @@
     <link rel="next" title="1. Installation" href="installation.html" />
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
-  <meta name="docsearch:version" content="2026.5.5.dev9066" />
+  <meta name="docsearch:version" content="2026.5.6.dev9068" />
     <meta name="docbuild:last-update" content="2026-02-10"/>
   </head>
   
@@ -101,7 +101,7 @@
   <div class="bd-header-announcement__content">
     <div style="background-color: #f0ad4e; border: 1px solid #eea236; border-radius: 4px; padding: 10px; margin: 10px 0;">
         <strong>⚠️ Development Version:</strong> This documentation was built from a development version
-        (2026.5.5.dev9066, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/ad27738e5364a971714c6c947c701ae4f16373db" style="color: #31708f;">ad27738</a>).
+        (2026.5.6.dev9068, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/87558f24dc962181b1ac828fad96066a80ba920f" style="color: #31708f;">87558f2</a>).
         Features described here may be unstable or subject to change. For stable documentation, please visit the
         <a href="https://docs.suews.io/stable/" style="color: #31708f;">latest release</a>.
     </div>
@@ -150,8 +150,8 @@
       
     
     
-    <img src="_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.5.5.dev9066 documentation - Home"/>
-    <img src="_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.5.5.dev9066 documentation - Home"/>
+    <img src="_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.5.6.dev9068 documentation - Home"/>
+    <img src="_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.5.6.dev9068 documentation - Home"/>
   
   
 </a></div>
@@ -628,9 +628,9 @@
 <span id="index-page"></span><h1>SUEWS: Surface Urban Energy and Water Balance Scheme<a class="headerlink" href="#suews-surface-urban-energy-and-water-balance-scheme" title="Link to this heading">#</a></h1>
 <section id="what-is-suews">
 <h2>What is SUEWS?<a class="headerlink" href="#what-is-suews" title="Link to this heading">#</a></h2>
-<p>Surface Urban Energy and Water Balance Scheme (<strong>SUEWS</strong>) <span id="id1">[<a class="reference internal" href="references.html#id21" title="Järvi, L., Grimmond, C.S.B., and Christen, A. The surface urban energy and water balance scheme (SUEWS): Evaluation in Los Angeles and Vancouver. J. Hydrol., 411(3-4):219-237, December 2011. doi:10.1016/j.jhydrol.2011.10.001.">Järvi <em>et al.</em>, 2011</a>, <a class="reference internal" href="references.html#id26" title="Ward, H.C., Kotthaus, S., Järvi, L., and Grimmond, C.S.B. Surface urban energy and water balance scheme (SUEWS): Development and evaluation at two UK sites. Urban Clim., 18:1-32, December 2016. doi:10.1016/j.uclim.2016.05.001.">Ward <em>et al.</em>, 2016</a>]</span> is a neighbourhood/local-scale urban land surface model delivered through <strong>SuPy</strong>, a comprehensive Python interface that integrates seamlessly with the scientific Python ecosystem.</p>
-<p>SUEWS simulates the urban radiation, energy and water balances using only commonly measured meteorological variables and information about the surface cover. The model utilises an evaporation-interception approach <span id="id2">[<a class="reference internal" href="references.html#id19" title="Grimmond, C. S. B. and Oke, T. R. An evapotranspiration-interception model for urban areas. Water Resour. Res., 27(7):1739-1755, July 1991. doi:10.1029/91wr00557.">Grimmond and Oke, 1991</a>]</span>, similar to that used in forests, to model evaporation from urban surfaces.</p>
-<p><strong>SuPy</strong> (SUEWS in Python) <span id="id3">[<a class="reference internal" href="references.html#id27" title="Sun, Ting and Grimmond, Sue. A python-enhanced urban land surface model SuPy (SUEWS in python, v2019.2): Development, deployment and demonstration. Geosci. Model Dev., 12(7):2781-2795, July 2019. doi:10.5194/gmd-12-2781-2019.">Sun and Grimmond, 2019</a>]</span> provides the modern interface for SUEWS with powerful data analysis capabilities, interactive configuration tools, and seamless integration with pandas, matplotlib, and the broader scientific Python stack.</p>
+<p>Surface Urban Energy and Water Balance Scheme (<strong>SUEWS</strong>) <span class="bibtex-citation" id="id1">[<a class="reference internal" href="references.html#id21" title="Järvi, L., Grimmond, C.S.B., and Christen, A. The surface urban energy and water balance scheme (SUEWS): Evaluation in Los Angeles and Vancouver. J. Hydrol., 411(3-4):219-237, December 2011. doi:10.1016/j.jhydrol.2011.10.001.">Järvi <em>et al.</em>, 2011</a>, <a class="reference internal" href="references.html#id26" title="Ward, H.C., Kotthaus, S., Järvi, L., and Grimmond, C.S.B. Surface urban energy and water balance scheme (SUEWS): Development and evaluation at two UK sites. Urban Clim., 18:1-32, December 2016. doi:10.1016/j.uclim.2016.05.001.">Ward <em>et al.</em>, 2016</a>]</span> is a neighbourhood/local-scale urban land surface model delivered through <strong>SuPy</strong>, a comprehensive Python interface that integrates seamlessly with the scientific Python ecosystem.</p>
+<p>SUEWS simulates the urban radiation, energy and water balances using only commonly measured meteorological variables and information about the surface cover. The model utilises an evaporation-interception approach <span class="bibtex-citation" id="id2">[<a class="reference internal" href="references.html#id19" title="Grimmond, C. S. B. and Oke, T. R. An evapotranspiration-interception model for urban areas. Water Resour. Res., 27(7):1739-1755, July 1991. doi:10.1029/91wr00557.">Grimmond and Oke, 1991</a>]</span>, similar to that used in forests, to model evaporation from urban surfaces.</p>
+<p><strong>SuPy</strong> (SUEWS in Python) <span class="bibtex-citation" id="id3">[<a class="reference internal" href="references.html#id27" title="Sun, Ting and Grimmond, Sue. A python-enhanced urban land surface model SuPy (SUEWS in python, v2019.2): Development, deployment and demonstration. Geosci. Model Dev., 12(7):2781-2795, July 2019. doi:10.5194/gmd-12-2781-2019.">Sun and Grimmond, 2019</a>]</span> provides the modern interface for SUEWS with powerful data analysis capabilities, interactive configuration tools, and seamless integration with pandas, matplotlib, and the broader scientific Python stack.</p>
 <figure class="align-default" id="id4">
 <img alt="Overview of SUEWS" src="_images/SUEWS_Overview_s.png" />
 <figcaption>
@@ -812,8 +812,8 @@ By SUEWS dev team led by Prof Sue Grimmond
   <div class="footer-item">
     
 <div class="extra_footer">
-  <p>Version: 2026.5.5.dev9066 |
-    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/ad27738e5364a971714c6c947c701ae4f16373db">ad27738</a> |
+  <p>Version: 2026.5.6.dev9068 |
+    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/87558f24dc962181b1ac828fad96066a80ba920f">87558f2</a> |
     <a href="https://umep-dev.github.io/SUEWS/brand/showcase.html">Brand</a></p>
 </div>
   </div>

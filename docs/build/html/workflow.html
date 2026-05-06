@@ -9,7 +9,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
     <meta property="article:modified_time" content="2026-05-03T10:34:05+00:00" />
-    <title>2. Getting Started &#8212; SUEWS 2026.5.5.dev9066 documentation</title>
+    <title>2. Getting Started &#8212; SUEWS 2026.5.6.dev9068 documentation</title>
   
   
   
@@ -45,7 +45,7 @@
   <link rel="preload" as="script" href="_static/scripts/bootstrap.js?digest=8878045cc6db502f8baf" />
 <link rel="preload" as="script" href="_static/scripts/pydata-sphinx-theme.js?digest=8878045cc6db502f8baf" />
 
-    <script src="_static/documentation_options.js?v=146bdbe1"></script>
+    <script src="_static/documentation_options.js?v=39d09f89"></script>
     <script src="_static/doctools.js?v=9bcbadda"></script>
     <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
     <script src="_static/scripts/sphinx-book-theme.js?v=fab101a9"></script>
@@ -59,7 +59,7 @@
     <link rel="prev" title="1. Installation" href="installation.html" />
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
-  <meta name="docsearch:version" content="2026.5.5.dev9066" />
+  <meta name="docsearch:version" content="2026.5.6.dev9068" />
     <meta name="docbuild:last-update" content="2026-05-03"/>
   </head>
   
@@ -102,7 +102,7 @@
   <div class="bd-header-announcement__content">
     <div style="background-color: #f0ad4e; border: 1px solid #eea236; border-radius: 4px; padding: 10px; margin: 10px 0;">
         <strong>⚠️ Development Version:</strong> This documentation was built from a development version
-        (2026.5.5.dev9066, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/ad27738e5364a971714c6c947c701ae4f16373db" style="color: #31708f;">ad27738</a>).
+        (2026.5.6.dev9068, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/87558f24dc962181b1ac828fad96066a80ba920f" style="color: #31708f;">87558f2</a>).
         Features described here may be unstable or subject to change. For stable documentation, please visit the
         <a href="https://docs.suews.io/stable/" style="color: #31708f;">latest release</a>.
     </div>
@@ -149,8 +149,8 @@
       
     
     
-    <img src="_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.5.5.dev9066 documentation - Home"/>
-    <img src="_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.5.5.dev9066 documentation - Home"/>
+    <img src="_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.5.6.dev9068 documentation - Home"/>
+    <img src="_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.5.6.dev9068 documentation - Home"/>
   
   
 </a></div>
@@ -995,8 +995,8 @@ so checkpoint/configuration grid mismatches are rejected by the runtime.</p>
 </ul>
 <p><strong>Data Quality Guidelines:</strong></p>
 <ul class="simple">
-<li><p>Land cover fractions are critical - ensure accuracy <span id="id2">[<a class="reference internal" href="references.html#id26" title="Ward, H.C., Kotthaus, S., Järvi, L., and Grimmond, C.S.B. Surface urban energy and water balance scheme (SUEWS): Development and evaluation at two UK sites. Urban Clim., 18:1-32, December 2016. doi:10.1016/j.uclim.2016.05.001.">Ward <em>et al.</em>, 2016</a>]</span></p></li>
-<li><p>Quality meteorological data, especially precipitation and radiation <span id="id3">[<a class="reference internal" href="references.html#id23" title="Kokkonen, T.V., Grimmond, C.S.B., Räty, O., Ward, H.C., Christen, A., Oke, T.R., Kotthaus, S., and Järvi, L. Sensitivity of surface urban energy and water balance scheme (SUEWS) to downscaling of reanalysis forcing data. Urban Clim., 23:36-52, March 2018. ICUC9: The 9th International Conference on Urban Climate. doi:10.1016/j.uclim.2017.05.001.">Kokkonen <em>et al.</em>, 2018</a>]</span></p></li>
+<li><p>Land cover fractions are critical - ensure accuracy <span class="bibtex-citation" id="id2">[<a class="reference internal" href="references.html#id26" title="Ward, H.C., Kotthaus, S., Järvi, L., and Grimmond, C.S.B. Surface urban energy and water balance scheme (SUEWS): Development and evaluation at two UK sites. Urban Clim., 18:1-32, December 2016. doi:10.1016/j.uclim.2016.05.001.">Ward <em>et al.</em>, 2016</a>]</span></p></li>
+<li><p>Quality meteorological data, especially precipitation and radiation <span class="bibtex-citation" id="id3">[<a class="reference internal" href="references.html#id23" title="Kokkonen, T.V., Grimmond, C.S.B., Räty, O., Ward, H.C., Christen, A., Oke, T.R., Kotthaus, S., and Järvi, L. Sensitivity of surface urban energy and water balance scheme (SUEWS) to downscaling of reanalysis forcing data. Urban Clim., 23:36-52, March 2018. ICUC9: The 9th International Conference on Urban Climate. doi:10.1016/j.uclim.2017.05.001.">Kokkonen <em>et al.</em>, 2018</a>]</span></p></li>
 <li><p>Representative measurement heights above the urban canopy</p></li>
 <li><p>Continuous data without gaps for the simulation period</p></li>
 </ul>
@@ -1250,13 +1250,11 @@ suews-convert<span class="w"> </span>to-yaml<span class="w"> </span>-i<span clas
 <li><p><strong>Documentation</strong>: <a class="reference internal" href="inputs/yaml/index.html"><span class="doc">Complete API reference</span></a> and parameter guides</p></li>
 </ul>
 <p><strong>Essential Reading:</strong></p>
-<div class="docutils container" id="id4">
-<ul class="simple">
+<ul class="simple" id="id4">
 <li id="id8"><p>Järvi, L., Grimmond, C. S. B., Taka, M., Nordbo, A., Setälä, H., and Strachan, I. B. Development of the surface urban energy and water balance scheme (SUEWS) for cold climate cities. <em>Geosci. Model Dev.</em>, 7(4):1691–1711, August 2014. <a class="reference external" href="https://doi.org/10.5194/gmd-7-1691-2014">doi:10.5194/gmd-7-1691-2014</a>.</p></li>
 <li id="id24"><p>Järvi, L., Grimmond, C.S.B., and Christen, A. The surface urban energy and water balance scheme (SUEWS): Evaluation in Los Angeles and Vancouver. <em>J. Hydrol.</em>, 411(3-4):219–237, December 2011. <a class="reference external" href="https://doi.org/10.1016/j.jhydrol.2011.10.001">doi:10.1016/j.jhydrol.2011.10.001</a>.</p></li>
 <li id="id29"><p>Ward, H.C., Kotthaus, S., Järvi, L., and Grimmond, C.S.B. Surface urban energy and water balance scheme (SUEWS): Development and evaluation at two UK sites. <em>Urban Clim.</em>, 18:1–32, December 2016. <a class="reference external" href="https://doi.org/10.1016/j.uclim.2016.05.001">doi:10.1016/j.uclim.2016.05.001</a>.</p></li>
 </ul>
-</div>
 <p><strong>Recent Applications:</strong></p>
 <p>See <a class="reference external" href="Recent_publications">Recent Publications</a> for the latest research using SUEWS and SuPy.</p>
 <p><strong>Training and Workshops:</strong></p>
@@ -1379,8 +1377,8 @@ By SUEWS dev team led by Prof Sue Grimmond
   <div class="footer-item">
     
 <div class="extra_footer">
-  <p>Version: 2026.5.5.dev9066 |
-    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/ad27738e5364a971714c6c947c701ae4f16373db">ad27738</a> |
+  <p>Version: 2026.5.6.dev9068 |
+    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/87558f24dc962181b1ac828fad96066a80ba920f">87558f2</a> |
     <a href="https://umep-dev.github.io/SUEWS/brand/showcase.html">Brand</a></p>
 </div>
   </div>

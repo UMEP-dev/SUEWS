@@ -172,14 +172,12 @@ def _build_datetime_index(output_block: np.ndarray) -> pd.DatetimeIndex:
 def _prepare_forcing_block(df_forcing: pd.DataFrame) -> np.ndarray:
     """Prepare forcing DataFrame as a Fortran-order array for the Rust bridge."""
     len_sim = len(df_forcing)
-    block = np.zeros((len_sim, 23), dtype=np.float64, order="F")
 
-    block[:, 0] = df_forcing.index.year
-    block[:, 1] = df_forcing.index.dayofyear
-    block[:, 2] = df_forcing.index.hour
-    block[:, 3] = df_forcing.index.minute
+    # MP: Why are there defaults? If there is no data the model should not run.
+    # Useful for optional values e.g. lai vs lai_dectr but still dangerous
+    # Can we find another solution?
 
-    col_map = [
+    fixed_col_map = [
         (4, "qn", 0.0),
         (5, "qh", 0.0),
         (6, "qe", 0.0),
@@ -196,16 +194,34 @@ def _prepare_forcing_block(df_forcing: pd.DataFrame) -> np.ndarray:
         (17, "fcld", 0.0),
         (18, "Wuh", 0.0),
         (19, "xsmd", 0.0),
-        (20, "lai_dectr", 0.0),
-        (21, "lai_evetr", 0.0),
-        (22, "lai_grass", 0.0),
     ]
 
-    for idx, col, default in col_map:
+    lai_cols = ["lai_dectr", "lai_evetr", "lai_grass"]
+
+    if [lai_col for lai_col in lai_cols if lai_col in df_forcing]:
+        fixed_col_map.append((20, "lai_dectr", 0.0))
+        fixed_col_map.append((21, "lai_evetr", 0.0))
+        fixed_col_map.append((22, "lai_grass", 0.0))
+    else:
+        fixed_col_map.append((20, "lai", 0.0)),
+
+    block = np.zeros((len_sim, len(fixed_col_map)+4), dtype=np.float64, order="F")
+
+    block[:, 0] = df_forcing.index.year
+    block[:, 1] = df_forcing.index.dayofyear
+    block[:, 2] = df_forcing.index.hour
+    block[:, 3] = df_forcing.index.minute
+
+    for idx, col, default in fixed_col_map:
         if col in df_forcing.columns:
             block[:, idx] = df_forcing[col].values
         else:
             block[:, idx] = default
+
+    
+    lai_block = np.column_stack([
+        df_forcing.get(col, 0.0) for col in lai_cols
+    ])
 
     return block
 

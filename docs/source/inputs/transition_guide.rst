@@ -180,10 +180,48 @@ The sections below summarise what users see change between schemas.
 The authoritative lineage (including release-tag to schema mapping)
 lives in :ref:`schema_version_history`.
 
+Upgrading to Schema 2026.5.dev10 (PR #1420 stacked forcing adapter follow-up)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Schema ``2026.5.dev10`` is the current in-development shape. The YAML
+object tree is unchanged from ``2026.5.dev9``; this bump documents the
+forcing-file adapter semantics introduced by the stacked PR on top of
+the named-column forcing work.
+
+Forcing files may still carry whitelisted extension columns, but the
+kernel-facing view remains a fixed 23-column block. When
+``laimethod=0`` uses observed LAI, the adapter now projects
+``lai_evetr``, ``lai_dectr`` and ``lai_grass`` into kernel columns
+21-23 in that vegetation order. For each vegetation class, a supplied
+``lai_<veg>`` column overrides the bulk ``lai`` column; if the
+class-specific column is absent, bulk ``lai`` is used as the fallback.
+Older forcing files that only provide bulk ``lai`` therefore continue
+to work unchanged.
+
+Per-surface water-use columns such as ``wuh_paved`` and
+``wuh_grass`` remain accepted extension metadata. They are preserved
+on ``SUEWSForcing.extras`` / ``ForcingData.extras`` for downstream
+work, but they do not change current Fortran water-use calculations:
+bulk ``Wuh`` is still the only water-use forcing consumed by the
+kernel.
+
+The ``2026.5.dev9 -> 2026.5.dev10`` migration is an identity stamp. Run
+the migrator only to refresh the top-level ``schema_version`` field:
+
+.. code-block:: bash
+
+   suews schema migrate your_config.yml --target-version 2026.5.dev10
+
+For legacy table-to-YAML conversion plus schema stamping, use:
+
+.. code-block:: bash
+
+   suews-convert --to 2026.5.dev10 in.yml out.yml
+
 Upgrading to Schema 2026.5.dev9 (gh#1372 cumulative model.control restructure)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Schema ``2026.5.dev9`` is the current in-development shape. It bundles
+Schema ``2026.5.dev9`` bundles
 the gh#1372 forcing- and output-config restructures into a single dev
 bump, per the dev-label convention
 (``.claude/rules/python/schema-versioning.md``): rather than

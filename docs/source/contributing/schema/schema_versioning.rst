@@ -170,7 +170,31 @@ The lineage below mirrors ``SCHEMA_VERSIONS`` in
 the schema that shipped with it via
 ``supy.util.converter.yaml_upgrade._PACKAGE_TO_SCHEMA``.
 
-**Schema 2026.5.dev9** (current; in-development dev bump; gh#1372 cumulative ``model.control`` restructure)
+**Schema 2026.5.dev10** (current; PR #1420 stacked follow-up for extensible forcing and LAI projection)
+   The YAML object tree is unchanged from ``2026.5.dev9``. This dev
+   bump documents a forcing-file semantics change: forcing files remain
+   extensible, while the kernel-facing adapter keeps the fixed
+   23-column SUEWS forcing layout. The observed-LAI extension columns
+   ``lai_evetr``, ``lai_dectr`` and ``lai_grass`` are projected into
+   kernel columns 21-23 in that order, falling back per vegetation
+   class to the bulk ``lai`` column when a class-specific column is
+   absent. Existing files with only bulk ``lai`` continue to run.
+
+   Per-surface water-use extension columns such as ``wuh_paved`` and
+   ``wuh_grass`` remain whitelisted metadata for future water-use
+   work. They are preserved on ``SUEWSForcing.extras`` /
+   ``ForcingData.extras`` but do not affect current Fortran water-use
+   physics; bulk ``Wuh`` remains the only water-use forcing consumed by
+   the kernel.
+
+   The ``(2026.5.dev9 -> 2026.5.dev10)`` migration handler in
+   ``src/supy/util/converter/yaml_upgrade.py::_HANDLERS`` is an
+   identity stamp. Users should run
+   ``suews schema migrate your_config.yml --target-version 2026.5.dev10``
+   only if they want the ``schema_version`` field refreshed on an
+   otherwise dev9-shaped YAML.
+
+**Schema 2026.5.dev9** (in-development dev bump; gh#1372 cumulative ``model.control`` restructure)
    Cumulative bump introducing both ``ForcingControl`` and
    ``OutputControl`` sub-objects in a single dev label per the
    dev-label convention (``.claude/rules/python/schema-versioning.md``):

@@ -586,16 +586,15 @@ CONTAINS
 
       critDays = 50 !Critical limit for GDD when GDD or SDD is set to zero
 
-      ! IF (LAICalcYes == 0 .AND. (IEEE_IS_NAN(LAI_obs) .OR. LAI_obs < 0.0D0)) THEN
-      !    ! Invalid LAI_obs slipped past pre-flight — raise an error via the
-      !    ! SuPy error-state channel before mutating phenology state.
-      !    ! Assign a safe sentinel to the INTENT(OUT) array before RETURN.
-      !    LAI_id_next = -999.0D0
-      !    CALL set_supy_error( &
-      !       105, &
-      !       'update_GDDLAI: laimethod=0 requires a non-missing lai >= 0 at every timestep')
-      !    RETURN
-      ! END IF
+      IF (LAICalcYes == 0 .AND. (ANY(IEEE_IS_NAN(LAI_obs)) .OR. ANY(LAI_obs < 0.0D0))) THEN
+         ! Invalid LAI_obs slipped past pre-flight; raise an error before
+         ! mutating phenology state and assign a safe sentinel to the output.
+         LAI_id_next = -999.0D0
+         CALL set_supy_error( &
+            105, &
+            'update_GDDLAI: laimethod=0 requires non-missing lai_* or lai >= 0 at every timestep')
+         RETURN
+      END IF
 
       ! Loop through vegetation types (iv)
       DO iv = 1, NVegSurf
@@ -706,7 +705,7 @@ CONTAINS
       ! zero observation (e.g. complete winter dieback) is valid — the
       ! site-specific clamp then raises it to LAImin if the configuration
       ! retains a positive floor. Missing/NaN values and strictly negative
-      ! values — including the -999 missing sentinel — are rejected;
+      ! values - including the -999 missing sentinel - are rejected;
       ! choosing this path commits the user to providing an observation for
       ! every timestep.
       ! The Python pre-flight validator (supy._check.check_forcing) enforces
@@ -714,9 +713,7 @@ CONTAINS
       ! backstop for callers that bypass preflight. Reports via
       ! module_ctrl_error_state so SuPy can surface a clean exception —
       ! never WRITE(*,...) + STOP, which kills the embedding Python process.
-      ! The scalar-to-all-veg-classes limitation is tracked in #1292.
       IF (LAICalcYes == 0) THEN
-         ! LAI_id_next = LAI_obs
          ! Clamp observed LAI to each vegetation class's [LAImin, LAImax]
          ! envelope so that downstream ``LAI_id / LAImax`` ratios in
          ! ``suews_phys_resist`` and ``suews_phys_biogenco2`` stay within
@@ -724,11 +721,11 @@ CONTAINS
          ! warns when forcing values would be clamped.
          DO iv = 1, NVegSurf
             LAI_id_next(iv) = LAI_obs(iv)
-            ! IF (LAI_id_next(iv) > LAImax(iv)) THEN
-            !    LAI_id_next(iv) = LAImax(iv)
-            ! ELSEIF (LAI_id_next(iv) < LAImin(iv)) THEN
-            !    LAI_id_next(iv) = LAImin(iv)
-            ! END IF
+            IF (LAI_id_next(iv) > LAImax(iv)) THEN
+               LAI_id_next(iv) = LAImax(iv)
+            ELSEIF (LAI_id_next(iv) < LAImin(iv)) THEN
+               LAI_id_next(iv) = LAImin(iv)
+            END IF
          END DO
       END IF
       !------------------------------------------------------------------------------

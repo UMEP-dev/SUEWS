@@ -7,7 +7,7 @@ use crate::ffi;
 use std::collections::BTreeMap;
 
 pub const SUEWS_FORCING_BASE_FLAT_LEN: usize = 18;
-pub const SUEWS_FORCING_SCHEMA_VERSION: u32 = 1;
+pub const SUEWS_FORCING_SCHEMA_VERSION: u32 = 2;
 pub const SUEWS_FORCING_TS5_FIELD: &str = "ts5mindata_ir";
 
 const SUEWS_FORCING_BASE_FIELDS: [&str; SUEWS_FORCING_BASE_FLAT_LEN] = [
@@ -26,8 +26,8 @@ const SUEWS_FORCING_BASE_FIELDS: [&str; SUEWS_FORCING_BASE_FLAT_LEN] = [
     "qn1_obs",
     "qs_obs",
     "temp_c",
-    "lai_dectr",
     "lai_evetr",
+    "lai_dectr",
     "lai_grass",
 ];
 
@@ -60,8 +60,8 @@ pub struct SuewsForcing {
     pub qn1_obs: f64,
     pub qs_obs: f64,
     pub temp_c: f64,
-    pub lai_dectr: f64,
     pub lai_evetr: f64,
+    pub lai_dectr: f64,
     pub lai_grass: f64,
     pub ts5mindata_ir: Vec<f64>,
 }
@@ -84,8 +84,8 @@ impl Default for SuewsForcing {
             qn1_obs: 0.0,
             qs_obs: 0.0,
             temp_c: 0.0,
-            lai_dectr: 0.0,
             lai_evetr: 0.0,
+            lai_dectr: 0.0,
             lai_grass: 0.0,
             ts5mindata_ir: Vec::new(),
         }
@@ -118,8 +118,8 @@ impl SuewsForcing {
             qn1_obs: flat[12],
             qs_obs: flat[13],
             temp_c: flat[14],
-            lai_dectr: flat[15],
-            lai_evetr: flat[16],
+            lai_evetr: flat[15],
+            lai_dectr: flat[16],
             lai_grass: flat[17],
             ts5mindata_ir: flat[SUEWS_FORCING_BASE_FLAT_LEN..].to_vec(),
         })
@@ -152,8 +152,8 @@ impl SuewsForcing {
         flat.push(self.qn1_obs);
         flat.push(self.qs_obs);
         flat.push(self.temp_c);
-        flat.push(self.lai_dectr);
         flat.push(self.lai_evetr);
+        flat.push(self.lai_dectr);
         flat.push(self.lai_grass);
         flat.extend_from_slice(&self.ts5mindata_ir);
 
@@ -188,8 +188,8 @@ fn set_base_field_value(
         12 => state.qn1_obs = value,
         13 => state.qs_obs = value,
         14 => state.temp_c = value,
-        15 => state.lai_dectr = value,
-        16 => state.lai_evetr = value,
+        15 => state.lai_evetr = value,
+        16 => state.lai_dectr = value,
         17 => state.lai_grass = value,
         _ => return Err(BridgeError::BadState),
     }

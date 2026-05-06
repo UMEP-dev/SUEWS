@@ -7,8 +7,9 @@ that the forcing column was silently ignored because the dailystate routine
 hard-coded the local switch to `LAICalcYes = 1`.
 
 Issue #1296 tightened the contract for the observed path: under
-`laimethod=0` every row of the `lai` forcing column must be
-**non-negative** (`lai >= 0`). Zero observations are valid (and clamped
+`laimethod=0` every row of the effective LAI source (`lai_<veg>` when
+present, otherwise bulk `lai`) must be **non-negative** (`LAI >= 0`).
+Zero observations are valid (and clamped
 to `laimin` when the site configuration retains a positive floor);
 **negative** values — including the `-999` missing sentinel — are
 rejected at pre-flight. Do not reintroduce sentinel-based fallback
@@ -95,6 +96,54 @@ class TestLAIMethodValidator:
             assert not any(
                 "laimethod=0" in issue and "lai" in issue for issue in issues
             )
+
+    def test_laimethod_0_passes_with_full_per_vegetation_lai(self):
+        """Full per-veg LAI overrides a missing bulk lai column."""
+        df_forcing = _base_forcing_df()
+        df_forcing["lai"] = -999.0
+        df_forcing["lai_evetr"] = 1.5
+        df_forcing["lai_dectr"] = 2.5
+        df_forcing["lai_grass"] = 3.5
+
+        issues = check_forcing(df_forcing, fix=False, physics={"laimethod": 0})
+
+        if issues:
+            assert not any(
+                "laimethod=0" in issue and "non-negative" in issue
+                for issue in issues
+            ), issues
+
+    def test_laimethod_0_rejects_single_invalid_per_vegetation_lai(self):
+        """One invalid effective per-veg LAI source invalidates forcing."""
+        df_forcing = _base_forcing_df()
+        df_forcing["lai"] = 3.5
+        df_forcing["lai_evetr"] = 1.5
+        df_forcing["lai_dectr"] = -999.0
+        df_forcing["lai_grass"] = 3.5
+
+        issues = check_forcing(df_forcing, fix=False, physics={"laimethod": 0})
+
+        assert any(
+            "laimethod=0" in issue
+            and "lai_dectr" in issue
+            and "non-negative" in issue
+            for issue in issues
+        ), issues
+
+    def test_laimethod_0_rejects_partial_per_vegetation_lai_with_bad_fallback(self):
+        """Missing per-veg classes fall back to bulk lai, so bad bulk still fails."""
+        df_forcing = _base_forcing_df()
+        df_forcing["lai"] = -999.0
+        df_forcing["lai_evetr"] = 1.5
+
+        issues = check_forcing(df_forcing, fix=False, physics={"laimethod": 0})
+
+        assert any(
+            "laimethod=0" in issue
+            and "lai" in issue
+            and "non-negative" in issue
+            for issue in issues
+        ), issues
 
     def test_laimethod_default_skips_requirement(self):
         """Default laimethod=1 does not require the lai column."""
@@ -309,6 +358,45 @@ class TestLAIMethodRuntime:
             assert rmse_calc > rmse_obs, (
                 f"{column}: laimethod=1 output (RMSE {rmse_calc:.3f}) should diverge "
                 f"from forcing more than laimethod=0 ({rmse_obs:.3f})"
+            )
+
+    def test_laimethod_runtime_tracks_per_vegetation_lai(self):
+        """DailyState LAI outputs follow lai_evetr/lai_dectr/lai_grass separately."""
+        sim = SUEWSSimulation.from_sample_data()
+        self._set_lai_bounds(sim, laimin=0.0, laimax=10.0)
+
+        n_days = 5
+        end_index = TIMESTEPS_PER_DAY * n_days - 1
+        df_forcing = sim.forcing.df.copy().iloc[: end_index + 1].copy()
+        df_forcing["lai"] = -999.0
+        df_forcing["lai_evetr"] = 1.25
+        df_forcing["lai_dectr"] = 2.5
+        df_forcing["lai_grass"] = 3.75
+
+        sim._config.model.physics.laimethod = LAIMethod.OBSERVED
+        sim._df_state_init = sim._config.to_df_state()
+        sim.update_forcing(df_forcing)
+        results = sim.run(end_date=df_forcing.index[-1])
+
+        df_dailystate = results.xs("DailyState", level="group", axis=1)
+        df_lai = df_dailystate.xs(1, level="grid")[[
+            "LAI_EveTr",
+            "LAI_DecTr",
+            "LAI_Grass",
+        ]].dropna(how="all")
+        df_lai_tail = df_lai.iloc[1:]
+
+        expected = {
+            "LAI_EveTr": 1.25,
+            "LAI_DecTr": 2.5,
+            "LAI_Grass": 3.75,
+        }
+        for column, value in expected.items():
+            np.testing.assert_allclose(
+                df_lai_tail[column].values,
+                value,
+                atol=1e-9,
+                err_msg=f"{column} should follow its per-vegetation forcing column",
             )
 
     def test_run_rejects_all_missing_lai(self):

@@ -658,8 +658,8 @@ CONTAINS
          forcing%f_cloud = MetForcingBlock(ir, 18)
          forcing%Wu_m3 = MetForcingBlock(ir, 19)
          forcing%xsmd = MetForcingBlock(ir, 20)
-         forcing%LAI_dectr = MetForcingBlock(ir, 21)
-         forcing%LAI_evetr = MetForcingBlock(ir, 22)
+         forcing%LAI_evetr = MetForcingBlock(ir, 21)
+         forcing%LAI_dectr = MetForcingBlock(ir, 22)
          forcing%LAI_grass = MetForcingBlock(ir, 23)
 
          ! === Call main calculation ===
@@ -5670,8 +5670,8 @@ CONTAINS
          forcing%f_cloud = MetForcingBlock(ir, 18)
          forcing%Wu_m3 = MetForcingBlock(ir, 19)
          forcing%xsmd = MetForcingBlock(ir, 20)
-         forcing%LAI_dectr = MetForcingBlock(ir, 21)
-         forcing%LAI_evetr = MetForcingBlock(ir, 22)
+         forcing%LAI_evetr = MetForcingBlock(ir, 21)
+         forcing%LAI_dectr = MetForcingBlock(ir, 22)
          forcing%LAI_grass = MetForcingBlock(ir, 23)
 
          IF (config%flag_test .AND. PRESENT(state_debug)) THEN

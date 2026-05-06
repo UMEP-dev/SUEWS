@@ -43,6 +43,8 @@ _PHYSICS_REQUIRED_FORCING: dict[tuple[str, int], frozenset[str]] = {
     ("water_use", 1): frozenset({"wuh"}),
 }
 
+LAI_VEG_COLUMNS = ("lai_evetr", "lai_dectr", "lai_grass")
+
 
 def _resolve(value: Any) -> Any:
     """Unwrap RefValue-style ``{value: ...}`` mappings and ``.value`` attributes."""
@@ -73,49 +75,54 @@ def _forcing_columns(forcing: Any) -> set[str]:
     return {str(col).lower() for col in forcing}
 
 
+def _columns_by_lower(forcing: Any) -> dict[str, Any]:
+    if hasattr(forcing, "columns"):
+        return {str(col).lower(): col for col in forcing.columns}
+    return {str(col).lower(): col for col in forcing}
+
+
+def _series_has_valid_data(series: Any) -> bool:
+    """Return True only when every row is non-missing/non-sentinel."""
+    import pandas as pd
+
+    from ...util._missing import SUEWS_MISSING_THRESHOLD
+
+    numeric = pd.to_numeric(series, errors="coerce")
+    valid_mask = (numeric.notna()) & (numeric > SUEWS_MISSING_THRESHOLD)
+    return bool(valid_mask.to_numpy().all())
+
+
 def _column_has_valid_data(forcing: Any, col: str) -> bool:
-    """Return True if ``col`` exists and is not entirely missing/sentinel."""
+    """Return True if ``col`` exists and has no missing/sentinel rows."""
     if not hasattr(forcing, "columns"):
         return True
 
-    forcing_copy = forcing.copy()
-    forcing_copy.columns = forcing_copy.columns.str.lower()
-    forcing_filtered = forcing_copy.filter(like=col)
-
-    if forcing_filtered.empty:
+    columns_by_lower = _columns_by_lower(forcing)
+    source_col = columns_by_lower.get(col)
+    if source_col is None:
         return False
 
-    import pandas as pd
-    from ...util._missing import SUEWS_MISSING_THRESHOLD
-    from ..._load import PER_LANDCOVER_FORCING_VARS, LANDCOVER_SUFFIXES
+    return _series_has_valid_data(forcing[source_col])
 
-    col_count = len(forcing_filtered.columns)
 
-    if col_count == 1:
-        series = pd.to_numeric(forcing_filtered[col], errors="coerce")
-        return all((series.notna()) & (series > SUEWS_MISSING_THRESHOLD))
-    
-    if col not in PER_LANDCOVER_FORCING_VARS:
-        return False
+def _lai_validity_issue(forcing: Any) -> str | None:
+    """Return the validation issue reason for laimethod=0, or None."""
+    columns_by_lower = _columns_by_lower(forcing)
+    bulk_lai_col = columns_by_lower.get("lai")
+    source_cols: list[Any] = []
+    for lai_col in LAI_VEG_COLUMNS:
+        source_col = columns_by_lower.get(lai_col, bulk_lai_col)
+        if source_col is None:
+            return "missing"
+        source_cols.append(source_col)
 
-    forcing_filtered_for_lc = forcing_filtered.filter(like="_")
-    match_with_lc = [
-        var for var in forcing_filtered_for_lc.columns
-        if (parts := var.split("_")) 
-        and parts[0] in PER_LANDCOVER_FORCING_VARS
-        and parts[1] in LANDCOVER_SUFFIXES
-    ]
+    if not hasattr(forcing, "columns"):
+        return None
 
-    if not match_with_lc:
-        return False
-
-    forcing_filtered_for_lc_numeric = forcing_filtered_for_lc[match_with_lc].apply(
-        pd.to_numeric, errors="coerce"
-    )
-
-    valid_mask = (forcing_filtered_for_lc_numeric.notna()) & (forcing_filtered_for_lc_numeric > SUEWS_MISSING_THRESHOLD)
-
-    return all(valid_mask)
+    for source_col in dict.fromkeys(source_cols):
+        if not _series_has_valid_data(forcing[source_col]):
+            return "all_missing"
+    return None
 
 
 def validate_forcing_columns_against_physics(
@@ -151,7 +158,11 @@ def validate_forcing_columns_against_physics(
         if not _matches_option_value(actual_value, value):
             continue
         for col in required_cols:
-            if col.lower() not in available:
+            if col.lower() == "lai":
+                reason = _lai_validity_issue(forcing_columns)
+                if reason is not None:
+                    missing.append((field_name, value, col, reason))
+            elif col.lower() not in available:
                 missing.append((field_name, value, col, "missing"))
             elif not _column_has_valid_data(forcing_columns, col.lower()):
                 missing.append((field_name, value, col, "all_missing"))

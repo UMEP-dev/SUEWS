@@ -38,7 +38,7 @@ use crate::yaml_config::load_run_config_from_str;
 use std::ffi::CStr;
 use std::os::raw::c_char;
 
-pub const MET_FORCING_COLS: usize = 19;
+pub const MET_FORCING_COLS: usize = 23;
 
 // Per-group output column counts (including 5-column datetime prefix).
 // Auto-generated from Fortran ncolumnsDataOut* constants in suews_ctrl_const.f95.
@@ -584,7 +584,7 @@ pub fn run_from_config_str_and_forcing(
     let expected_forcing_len = len_sim
         .checked_mul(MET_FORCING_COLS)
         .ok_or_else(|| simulation_error("forcing block length overflow"))?;
-    if forcing_block.len() < expected_forcing_len {
+    if forcing_block.len() != expected_forcing_len {
         return Err(simulation_error(format!(
             "forcing block length mismatch: got {}, expected {}",
             forcing_block.len(),
@@ -726,7 +726,7 @@ pub fn run_from_config_str_and_forcing_with_state(
     let expected_forcing_len = len_sim
         .checked_mul(MET_FORCING_COLS)
         .ok_or_else(|| simulation_error("forcing block length overflow"))?;
-    if forcing_block.len() < expected_forcing_len {
+    if forcing_block.len() != expected_forcing_len {
         return Err(simulation_error(format!(
             "forcing block length mismatch: got {}, expected {}",
             forcing_block.len(),
@@ -855,7 +855,7 @@ pub fn run_simulation(input: SimulationInput) -> Result<SimulationOutput, Bridge
         }
     })?;
 
-    if input.forcing_block.len() < expected_forcing_len {
+    if input.forcing_block.len() != expected_forcing_len {
         return Err(BridgeError::SimulationError {
             code: -1,
             message: format!(

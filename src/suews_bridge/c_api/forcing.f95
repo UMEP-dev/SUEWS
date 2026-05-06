@@ -15,8 +15,8 @@ MODULE module_c_api_forcing
    PUBLIC :: SUEWS_CAPI_BAD_BUFFER
    PUBLIC :: SUEWS_CAPI_BAD_STATE
 
-   INTEGER(c_int), PARAMETER, PUBLIC :: SUEWS_CAPI_FORCING_BASE_LEN = 16_c_int
-   INTEGER(c_int), PARAMETER, PUBLIC :: SUEWS_CAPI_FORCING_SCHEMA_VERSION = 1_c_int
+   INTEGER(c_int), PARAMETER, PUBLIC :: SUEWS_CAPI_FORCING_BASE_LEN = 18_c_int
+   INTEGER(c_int), PARAMETER, PUBLIC :: SUEWS_CAPI_FORCING_SCHEMA_VERSION = 2_c_int
 
    TYPE :: suews_forcing_shadow
       REAL(c_double) :: kdown = 0.0_c_double
@@ -28,8 +28,8 @@ MODULE module_c_api_forcing
       REAL(c_double) :: rain = 0.0_c_double
       REAL(c_double) :: wu_m3 = 0.0_c_double
       REAL(c_double) :: f_cloud = 0.0_c_double
-      REAL(c_double) :: lai_dectr = 0.0_c_double
       REAL(c_double) :: lai_evetr = 0.0_c_double
+      REAL(c_double) :: lai_dectr = 0.0_c_double
       REAL(c_double) :: lai_grass = 0.0_c_double
       REAL(c_double) :: snow_fraction = 0.0_c_double
       REAL(c_double) :: xsmd = 0.0_c_double
@@ -146,8 +146,8 @@ CONTAINS
       flat(idx) = state%qn1_obs; idx = idx + 1
       flat(idx) = state%qs_obs; idx = idx + 1
       flat(idx) = state%temp_c; idx = idx + 1
-      flat(idx) = state%lai_dectr; idx = idx + 1
       flat(idx) = state%lai_evetr; idx = idx + 1
+      flat(idx) = state%lai_dectr; idx = idx + 1
       flat(idx) = state%lai_grass; idx = idx + 1
 
       IF (ts5mindata_ir_len > 0_c_int) THEN

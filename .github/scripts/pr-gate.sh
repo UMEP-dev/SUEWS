@@ -7,6 +7,7 @@
 # Required environment variables:
 #   DETECT_CHANGES_RESULT -- needs.detect-changes.result
 #   BUILD_WHEELS_RESULT   -- needs.build_wheels.result
+#   BUILD_MCP_RESULT      -- needs.build_mcp.result
 #   TEST_BRIDGE_RESULT    -- needs.test_api_cross_python.result
 #   CHECK_MARKERS_RESULT  -- needs.check_test_markers.result
 #   NEEDS_BUILD           -- needs.detect-changes.outputs.needs-build
@@ -14,10 +15,12 @@
 set -euo pipefail
 
 CHECK_MARKERS_RESULT="${CHECK_MARKERS_RESULT:-skipped}"
+BUILD_MCP_RESULT="${BUILD_MCP_RESULT:-skipped}"
 
 echo "=== Job Results ==="
 echo "detect-changes: ${DETECT_CHANGES_RESULT}"
 echo "build_wheels: ${BUILD_WHEELS_RESULT}"
+echo "build_mcp: ${BUILD_MCP_RESULT}"
 echo "test_api_cross_python: ${TEST_BRIDGE_RESULT}"
 echo "check_test_markers: ${CHECK_MARKERS_RESULT}"
 echo "needs-build: ${NEEDS_BUILD}"
@@ -61,6 +64,15 @@ if [[ "${NEEDS_BUILD}" == "true" ]]; then
     VALIDATION_PASSED=false
   fi
 
+  echo "Validating MCP package build..."
+  if [[ "${BUILD_MCP_RESULT}" == "success" ]]; then
+    echo "[OK] MCP package build passed"
+  else
+    echo "[X] MCP package build failed"
+    echo "  build_mcp: ${BUILD_MCP_RESULT}"
+    VALIDATION_PASSED=false
+  fi
+
   echo "Validating api cross-CPython tests..."
   if [[ "${TEST_BRIDGE_RESULT}" == "success" ]]; then
     echo "[OK] API tests passed on all matrix cells"
@@ -74,14 +86,16 @@ else
   echo "No code changes - builds not required"
 
   if [[ "${BUILD_WHEELS_RESULT}" == "skipped" ]] && \
+     [[ "${BUILD_MCP_RESULT}" == "skipped" ]] && \
      [[ "${TEST_BRIDGE_RESULT}" == "skipped" ]]; then
     echo "[OK] Code builds correctly skipped"
   else
     echo "Note: Unexpected build activity for non-code PR"
     echo "  build_wheels: ${BUILD_WHEELS_RESULT}"
+    echo "  build_mcp: ${BUILD_MCP_RESULT}"
     echo "  test_api_cross_python: ${TEST_BRIDGE_RESULT}"
     # Still pass if builds succeeded (conservative)
-    for result in "${BUILD_WHEELS_RESULT}" "${TEST_BRIDGE_RESULT}"; do
+    for result in "${BUILD_WHEELS_RESULT}" "${BUILD_MCP_RESULT}" "${TEST_BRIDGE_RESULT}"; do
       if [[ "$result" != "success" ]] && [[ "$result" != "skipped" ]]; then
         VALIDATION_PASSED=false
       fi

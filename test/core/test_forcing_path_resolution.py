@@ -62,7 +62,8 @@ def get_base_config(forcing_file="Kc_2012_data_60.txt"):
 name: test
 model:
   control:
-    forcing_file: {forcing_file}
+    forcing:
+      file: {forcing_file}
 sites:
   - gridiv: 1
     properties:
@@ -92,7 +93,8 @@ def test_forcing_file_list():
 name: test
 model:
   control:
-    forcing_file: [data/forcing_0.txt, data/forcing_1.txt]
+    forcing:
+      file: [data/forcing_0.txt, data/forcing_1.txt]
 sites:
   - gridiv: 1
     properties:

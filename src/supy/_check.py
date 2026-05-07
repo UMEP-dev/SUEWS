@@ -9,7 +9,12 @@ import numpy as np
 import pandas as pd
 
 from ._env import logger_supy, trv_supy_module, trv_supy_module
-from ._load import dict_var_type_forcing, set_var_use
+from ._load import (
+    CANONICAL_FORCING_COLUMNS,
+    _is_per_landcover_column,
+    dict_var_type_forcing,
+    set_var_use,
+)
 
 
 # the check list file with ranges and logics
@@ -336,18 +341,33 @@ def check_forcing(
     # check the following:
     # 1. correct columns
     col_df = df_forcing.columns
-    # 1.1 if all columns are present
-    set_diff = set(list_col_forcing).difference(col_df)
+    # 1.1 all canonical user-facing columns must be present (gh#1413).
+    # The reference list is CANONICAL_FORCING_COLUMNS (24 names), not
+    # ``list_col_forcing``: the latter is keyed off the internal
+    # ``dict_var_type_forcing`` resampling table and inadvertently
+    # included ``isec``, which the named-column reader does not produce.
+    set_diff = set(CANONICAL_FORCING_COLUMNS).difference(col_df)
     if len(set_diff) > 0:
-        str_issue = f"Missing columns found: {set_diff}"
+        str_issue = f"Missing columns found: {sorted(set_diff)}"
         list_issues.append(str_issue)
         flag_valid = False
-    # 1.2 if all columns are in right position
-    for col_v, col in zip(list_col_forcing, col_df):
-        if col_v != col:
-            str_issue = f"Column {col} is not in the valid position for {col_v}"
-            list_issues.append(str_issue)
-            flag_valid = False
+    # 1.2 forcing is matched by column name, not by position (gh#1372,
+    # gh#1378). Per-landcover extras (``lai_<surface>``,
+    # ``wuh_<surface>``) are appended after the canonical 24 columns,
+    # so the legacy positional ``zip`` produced false negatives. Flag
+    # any column that is neither canonical nor a whitelisted per-LC
+    # extra.
+    unknown_cols = [
+        col
+        for col in col_df
+        if col not in CANONICAL_FORCING_COLUMNS
+        and col != "isec"
+        and not _is_per_landcover_column(col)
+    ]
+    if unknown_cols:
+        str_issue = f"Unknown forcing columns: {unknown_cols}"
+        list_issues.append(str_issue)
+        flag_valid = False
 
     # 2. valid timestamps:
     ind_df = df_forcing.index
@@ -382,19 +402,28 @@ def check_forcing(
 
     # 3. valid physical ranges
     for var in col_df:
-        if var not in ["iy", "id", "it", "imin", "isec"]:
-            ser_var = df_forcing.loc[:, var].copy()
-            res_check = check_range(ser_var, dict_rules_indiv)
-            if not res_check[1]:
-                str_issue = res_check[2]
-                list_issues.append(str_issue)
-                flag_valid = False
-                if fix:
-                    var_check = var.lower()
-                    min_v = dict_rules_indiv[var_check]["param"]["min"]
-                    max_v = dict_rules_indiv[var_check]["param"]["max"]
-                    ser_var = ser_var.clip(lower=min_v, upper=max_v)
-                    df_forcing_fix.loc[:, var] = ser_var.values
+        if var in ["iy", "id", "it", "imin", "isec"]:
+            continue
+        # gh#1372 review: skip per-landcover extras (lai_<surface>,
+        # wuh_<surface>) and any other non-canonical column that does not
+        # have a range rule registered. The named-column reader keeps
+        # extras inline on the returned DataFrame for downstream physics
+        # work; without this guard the lookup in dict_rules_indiv would
+        # KeyError on every extra.
+        if var.lower() not in dict_rules_indiv:
+            continue
+        ser_var = df_forcing.loc[:, var].copy()
+        res_check = check_range(ser_var, dict_rules_indiv)
+        if not res_check[1]:
+            str_issue = res_check[2]
+            list_issues.append(str_issue)
+            flag_valid = False
+            if fix:
+                var_check = var.lower()
+                min_v = dict_rules_indiv[var_check]["param"]["min"]
+                max_v = dict_rules_indiv[var_check]["param"]["max"]
+                ser_var = ser_var.clip(lower=min_v, upper=max_v)
+                df_forcing_fix.loc[:, var] = ser_var.values
 
     # 4. check physics-specific requirements if physics dict is provided
     if physics is not None:

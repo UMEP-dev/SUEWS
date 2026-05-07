@@ -54,6 +54,109 @@ EXAMPLES:
 
 ## 2026
 
+### 5 May 2026
+
+- [bugfix] Validator no longer leaves `temp_reportA_*.json` / `temp_reportB_*.json` sidecars beside the user's config (#1416)
+  - Pipeline cleanup paths in `src/supy/cmd/validate_config.py` and `src/supy/data_model/validation/pipeline/orchestrator.py` now move, copy, and delete each text report alongside its JSON sidecar via shared sidecar-aware helpers, and rewrite `text_report_path` / `json_report_path` / `yaml_out` in the moved sidecar so the final `report_<config>.json` reflects the user-facing names
+
+### 3 May 2026
+
+- [change][experimental] Collapse the gh#1372 forcing- and output-restructure schema bumps into a single `2026.5.dev8 -> 2026.5.dev9` cumulative migration (#1372)
+  - Per the dev-label convention (`.claude/rules/python/schema-versioning.md`) the dev counter increments additively per structural PR; the in-progress relabel of master's `dev7` (PR#1390 ArchetypeProperties Rule 2 reorder) and `dev8` (PR#1395 registry refresh) is reverted, and this PR's two restructures land together on a fresh `dev9`
+  - Master's `(2026.5.dev6 -> 2026.5.dev7)` and `(2026.5.dev7 -> 2026.5.dev8)` handlers are restored; the new `(2026.5.dev8 -> 2026.5.dev9)` handler runs `_apply_forcing_subobject_restructure` first then `_apply_output_subobject_restructure` so audit logs read in the gh#1372 chronology order
+  - `test/fixtures/release_configs/2026.5.dev7.yml` (this PR's misnamed fixture) is dropped; a fresh `2026.5.dev8.yml` capturing master's pre-this-PR shape is added so the new cumulative handler is regression-tested
+  - `docs/source/inputs/tables/schema.json` is regenerated; `transition_guide.rst` and `schema_versioning.rst` are rewritten to reflect the dev7/dev8/dev9 final lineage; the merge-pr skill review gate (claude+codex) caught the relabel before merge
+- [bugfix] `_load.py` multi-file forcing now canonicalises **per file** before concatenating (#1372)
+  - `load_SUEWS_Forcing_met_df_pattern` and `load_SUEWS_Forcing_met_df_yaml` previously concatenated raw `read_csv` frames before named-column matching, so a required baseline column missing from one file passed silently if another file in the glob had it, and missing optional canonical columns stayed `NaN` in the half-file rows instead of being filled with `-999`
+  - Each file is now run through `_apply_named_column_matching` independently; `pd.concat` then unions the canonical 24-column DataFrames, and a datetime-index dedup collapses any same-timestamp rows across files
+- [bugfix] `SUEWSForcing` extras slicing now uses the row component of `(rows, cols)` tuples (#1372)
+  - `forcing.loc[:, ['Tair']]` previously passed the full `(slice(None), ['Tair'])` tuple into the extras frame which has different columns from the main frame, raising `KeyError` (or silently mis-selecting under `iloc`)
+  - `_slice_extras` now extracts the row component of tuple keys so extras carry the same row subset as the main slice
+- [change][experimental] `model.control.output_file` retains a deprecated `@property` alias on `ModelControl` (#1372)
+  - External Python consumers (UMEP postprocessor, etc.) that still read `config.model.control.output_file` keep working through the migration window; the alias forwards to `model.control.output` and emits a `DeprecationWarning`, scheduled for removal in 2026.6
+- [change][experimental] Rust forcing block writes `-999` (FORCING_OPTIONAL_FILL) for missing optional columns, unifying with Python `_load.py` (#1372)
+  - Behaviour change: previously the Rust bridge initialised optional columns to `0.0`. The unified `-999` sentinel now propagates so the Fortran kernel sees the same missing-data marker regardless of which language read the forcing file
+  - Added Rust test `missing_optional_columns_filled_with_sentinel` in `src/suews_bridge/src/forcing_io.rs` asserting that columns missing from the header land as `-999` in the canonical block, guarding against future regressions
+- [change][experimental] `OutputControl.path` deprecated alias for `OutputControl.dir` (#1372)
+  - External Python consumers (UMEP postprocessor, etc.) that read `config.model.control.output_file.path` keep working through the migration window; the alias forwards to `OutputControl.dir` and emits a `DeprecationWarning`, scheduled for removal in 2026.6 alongside the `ModelControl.output_file` alias
+- [bugfix] Require the `wuh` forcing column when `model.physics.water_use = OBSERVED` (#1372)
+  - `_PHYSICS_REQUIRED_FORCING` in `src/supy/data_model/core/forcing_validation.py` now lists `wuh` as required when `water_use = 1`. Previously a forcing file could omit `wuh`, pass the physics/forcing check, and then run with the `-999` sentinel (or a downscaled negative value) instead of failing early
+- [bugfix] Preserve `FORCING_OPTIONAL_FILL` sentinel through Rust forcing interpolation for `SUM_COLS` (#1372)
+  - In `interpolate_forcing` (`src/suews_bridge/src/forcing_io.rs`), sum columns (`rain`, `wuh`) carrying the `-999` sentinel are no longer scaled by `tstep_mod/tstep_in`; the sentinel is preserved through downscaling so the Fortran observed-water-use path continues to recognise the column as missing rather than receiving a real negative water flux (e.g. hourly `-999` would have become `-83.25` at 5-min)
+- [bugfix] Accept legacy `%iy` forcing headers (#1372)
+  - The new named-column reader in `src/supy/_load.py::_apply_named_column_matching` and `src/suews_bridge/src/forcing_io.rs::read_forcing_block` now strips a leading `%` from header tokens before lower-casing, so historical UMEP/SUEWS forcing files that use `%iy` (e.g. the issue-1097 fixture) match the canonical `iy` instead of being rejected as missing the baseline-required column
+- [bugfix] Skip per-landcover extras in `check_forcing` range loop (#1372)
+  - `src/supy/_check.py::check_forcing` previously iterated every non-time column in the returned forcing DataFrame and looked it up in `dict_rules_indiv`, so per-landcover extras (`lai_<surface>`, `wuh_<surface>`) introduced by the named-column reader raised `KeyError` instead of being passed through to the kernel. Added a guard that skips columns without a registered range rule
+- [bugfix] Preserve `FORCING_OPTIONAL_FILL` sentinel through Python `resample_sum` (#1372)
+  - `src/supy/_load.py::resample_sum` records columns whose input is entirely missing (NaN, after `to_nan` converted the `-999` sentinel) and restores `-999` for those columns after the existing `fillna(0.0)`. Without this restoration an hourly forcing file omitting `Wuh` would surface as a valid `0.0` after resampling, masking the missing input under the observed-water-use path; the guard mirrors the symmetric Rust fix in `interpolate_forcing` for `SUM_COLS`
+
+### 1 May 2026
+
+- [feature][experimental] Validator pipeline now emits a structured machine-readable `PhaseReport` for every phase
+  - Added a canonical `Issue` / `PhaseReport` / `ValidationReport` schema in `src/supy/data_model/validation/pipeline/report_schema.py` so Phase A (structure), Phase B (physics), and Phase C (Pydantic consistency) all return the same shape — `phase`, `severity`, `code`, `message`, `yaml_path`, `site_gridid`, `category`, `suggested_value`, `applied_fix`
+  - Each phase now writes a JSON sidecar (`<report>.json`) alongside the existing `<report>.txt`; downstream tooling (MCP, agents, CI) can consume the structured form without parsing the human-readable report
+  - Replaced brittle string-grep status checks (`"## ACTION NEEDED"`, `"CRITICAL ISSUES DETECTED"`, `"URGENT"`) in the orchestrator with `PhaseReport.has_errors`
+  - Phase B's existing internal `ValidationResult` dataclass is preserved and bridged via a new `to_issue()` adapter; `ScienceSuggestion` and `ScientificAdjustment` are surfaced as `B.SCIENCE.*` and `B.APPLIED_FIX.*` issues respectively
+  - Phase C sidesteps `SUEWSConfig.from_yaml`'s `ValueError` wrapping (which discards Pydantic's structured `errors()`) so `C.PYDANTIC.<TYPE>` issues survive into the JSON sidecar with GRIDID-friendly `yaml_path` strings
+  - Text reports are byte-for-byte unchanged — no breaking change for any downstream parser of the legacy human form
+- [change][experimental] Surface procedural-API deprecation warnings on first attribute access (#1370)
+  - `supy.__getattr__` now routes every name in `_FUNCTIONAL_DEPRECATIONS` through `_warn_functional_deprecation` on first resolution, so users who hold a reference (`from supy import run_supy`) see the `FutureWarning` immediately rather than only at call time; subsequent accesses hit `_lazy_cache` and stay silent
+  - The in-body `_warn_functional_deprecation` calls inside each procedural function remain as a safety net for code that bypasses `__getattr__` (e.g. `from supy._supy_module import run_supy`)
+  - Added `test/core/test_deprecation_visibility.py` with subprocess-isolated parametrised checks for every key in `_FUNCTIONAL_DEPRECATIONS` plus a router-vs-registry equality guard
+  - Continues phase 2 of #1370 (visibility); does not yet address the user-facing notebook/README audit (slice B) or the phase 3 removal-release timeline
+- [feature][experimental] Added standalone `suews-mcp` Python distribution and wired it into the SUEWS agent plugin (#1364)
+  - New `mcp/` package (MPL-2.0) with FastMCP stdio server registering twelve tools across config (`validate_config`, `inspect_config`, `search_schema`, `list_examples`, `read_example`), workflow (`init_case`, `convert_config`), post-run analysis (`summarise_run`, `compare_runs`, `diagnose_run`), and the versioned knowledge pack (`query_knowledge`, `read_knowledge_manifest`)
+  - Resources cover `suews://schema/{version}`, `suews://examples/{name}`, `suews://docs/{slug}`, `suews://runs/{run_id}/{kind}`, `suews://knowledge/manifest`, and `suews://knowledge/query/{question}`; each knowledge match carries `git_sha` / `github_url` / `repo_path` / line range so downstream answers cite the exact revision
+  - Backend is a thin allow-listed subprocess wrapper around `suews <subcmd> --format json`, returning the canonical `supy.cmd.json_envelope.Envelope` verbatim; `ProjectRoot` sandbox keeps file-path arguments inside `SUEWS_MCP_PROJECT_ROOT`
+  - Plugin integration: top-level `.mcp.json` plus `plugins/suews/.mcp.json` declare the `suews-mcp` stdio server; `.claude-plugin/marketplace.json` (now v1.2.0), `.codex-plugin/plugin.json` (v0.2.0), and `plugins/suews/.codex-plugin/plugin.json` (v0.2.0) reference these via the `mcpServers` field, so installing the SUEWS plugin from a marketplace auto-registers the MCP server — no hand-editing of `~/.claude/settings.json` or `~/.codex/config.toml`
+  - README documents plugin install as the recommended primary path and keeps raw stdio config (Claude Code JSON, Codex TOML) as the documented fallback for clients without plugin manifest support
+  - Release versioning: `suews-mcp` ships in lockstep with `supy` under the same CalVer tag (e.g. `2026.5.1`); `get_ver_git.py` writes `mcp/src/suews_mcp/_version_scm.py` alongside `src/supy/_version_scm.py`, `mcp/pyproject.toml` consumes it via `dynamic = ["version"]`, and the existing PyPI publish workflow gains a `build_mcp` job. Lockstep is the honest contract: `query_knowledge` answers cite source evidence pinned to the installed `supy` git SHA, so MCP and supy must move together
+  - Resolves #751; supersedes the closed PR #1351 (whose GPL-V3.0 licence drift and prompt-content concerns are corrected here, with prompts having moved into the SUEWS Skill in #1358)
+
+### 30 Apr 2026
+
+- [change][experimental] `model.control.output_file` moved to `model.control.output` (#1372)
+  - Lifts the legacy `Union[str, OutputConfig]` field into a structured `OutputControl` sub-object so the `model.control` surface is uniform with the new `forcing:` block
+  - Inner `path:` field renamed to `dir:` (clarifies it as a directory, parallels the asymmetry with `forcing.file`)
+  - Legacy string form (`output_file: "name.txt"`, silently ignored since 2025.10.15) is dropped outright
+  - `suews-convert` and `suews-schema migrate` upgrade existing configs automatically via the `(2026.5.dev7 -> 2026.5.dev8)` handler; the in-memory `_coerce_legacy_output_file` validator also accepts the legacy shape at load time and emits a `DeprecationWarning`
+  - Schema bump `2026.5.dev7 -> 2026.5.dev8`; `sample_config.yml`, all release fixtures, and the docs YAML examples are updated accordingly
+- [doc] Document `output_file -> output` restructure (#1372)
+  - Added a `2026.5.dev8` entry to `docs/source/inputs/transition_guide.rst` with the YAML rename example
+  - Added the corresponding `2026.5.dev8` entry to `docs/source/contributing/schema/schema_versioning.rst` Version History; demoted the `2026.5.dev7` entry from "current" to a previous dev label
+  - Refreshed the four `docs/source/inputs/yaml/examples/output_config_*.yml` user-facing examples to the new shape
+- [feature][experimental] Packaged SUEWS as a first-class plugin in the Claude Code and Codex AI-agent ecosystems via the open Agent Skills standard (#1363)
+  - Added user-facing `suews` plugin entry to `.claude-plugin/marketplace.json` (alongside the existing `suews-dev` contributor plugin)
+  - Added `.codex-plugin/plugin.json`, `plugins/suews/.codex-plugin/plugin.json`, and `.agents/plugins/marketplace.json` for Codex CLI / Desktop App / IDE extensions
+  - Documented install paths in `docs/source/installation.rst` (Claude Code, Codex, MCP placeholder for Cursor)
+
+### 29 Apr 2026
+
+- [feature][experimental] Read forcing files by **column name** rather than position (#1372)
+  - Header line is now required and matched case-insensitively against the canonical column list. Files with the standard SUEWS canonical headers (`iy`, `id`, `it`, `imin`, `Tair`, `RH`, `U`, `pres`, `kdown`, `rain`, plus optional canonicals) continue to load unchanged
+  - Baseline-required set raises `ValueError` if any of the ten time/met columns is absent; physics-conditional columns (e.g. `qn` for `net_radiation = 0`, `ldown` for `net_radiation = 1` or `11`, `fcld` for `net_radiation = 2` or `12`) are checked against the resolved physics path and the error message names the requesting method
+  - Missing optional canonical columns are filled with `-999.0` (the SUEWS sentinel); unknown columns emit a `UserWarning` and are dropped
+- [feature][experimental] Per-landcover variants of `lai` and `wuh` plumbed into the forcing readers (#1372)
+  - `lai_<surface>` is accepted only for vegetated surfaces (`evetr`, `dectr`, `grass`); non-vegetated `lai_*` are treated as unknown (warn-and-drop)
+  - `wuh_<surface>` (external water use — irrigation, impervious-surface washing, fountains, ornamental water features) is accepted on every surface `{paved, bldgs, evetr, dectr, grass, bsoil, water}`; `wuh_water` covers fountains and pond top-ups
+  - Each `wuh_<surface>` value is a depth in **mm per forcing time step** (same unit as `rain`) interpreted as falling on **that surface only** — the grid-total contribution is `wuh_<surface> × sfr_<surface>`. Aligning with the rainfall convention also lets users drop ERA5-style hourly water-flux columns in without extra rescaling
+  - Whitelisted columns are loaded into `SUEWSForcing.extras` / `ForcingData.extras` for downstream physics work; the kernel itself still uses the bulk `lai` and `Wuh` columns in this release
+  - Soil-moisture deficit (`xsmd`) remains a bulk site-level column and is intentionally not on the per-landcover whitelist
+- [change][experimental] `model.control.forcing_file` moved to `model.control.forcing.file` (#1372)
+  - Restructure under a new `ForcingControl` sub-object creates a stable home for future forcing fields (sub-hourly disaggregation, resampling policy)
+  - `suews-convert` and `suews-schema migrate` upgrade existing configs automatically via the `(2026.5.dev6 -> 2026.5.dev7)` handler; manual edit is also straightforward
+  - Schema bump `2026.5.dev6 -> 2026.5.dev7`; `sample_config.yml` and the vendored release fixtures are updated accordingly
+- [doc] Document named-column forcing reader and `forcing.file` restructure (#1372)
+  - Added a Named-column forcing files section to `docs/source/inputs/forcing-data.rst` with the canonical name list, baseline-required set, optional/whitelisted/unknown column behaviour, and a cross-reference anchor `named_column_forcing`
+  - Added a 2026.5.dev7 entry to `docs/source/inputs/transition_guide.rst` with the YAML rename example and the named-column header semantics
+  - Added the corresponding 2026.5.dev7 entry to `docs/source/contributing/schema/schema_versioning.rst` Version History; demoted the dev6 entry from "current" to an intermediate dev label
+- [change][experimental] Escalate procedural API deprecation warnings to `FutureWarning` (#1370)
+  - `_warn_functional_deprecation` now emits `FutureWarning` instead of `DeprecationWarning` so end-user notebooks and scripts surface the migration nudge under default warning filters (CPython hides `DeprecationWarning` outside `__main__`); the procedural API in `supy._supy_module` is end-user-facing, not a developer-only surface
+  - Added `load_SampleData` and `load_config_from_df` to `_FUNCTIONAL_DEPRECATIONS` and routed both through `_warn_functional_deprecation` (`load_SampleData` previously used a `logger.warning`; `load_config_from_df` had no warning at all)
+  - Scoped ERA5 pandas `FutureWarning` suppression so procedural API migration warnings remain visible after SuPy utility imports, and routed `init_config(df_state)` through a private config helper so it emits only its own warning
+  - Updated `test/core/test_public_api_wrappers.py` to assert the user-visible `FutureWarning` category and the specific `supy.<function>` warning message
+  - Phase 2 of the procedural-API removal plan; sibling to #1075 (df_state, closed) and unblocks #1365 (parallelism control on `SUEWSSimulation.run`)
+
 ### 22 Apr 2026
 
 - [bugfix] Reject sparse YAML configs that omit physics-required fields (#1333)

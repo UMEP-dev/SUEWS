@@ -19,6 +19,7 @@ import types
 import copy
 
 import pytest
+import yaml
 
 import supy as sp
 from supy._env import trv_supy_module
@@ -549,7 +550,7 @@ def test_validate_same_albedo_wall_requires_identical_wall_albedos():
         SimpleNamespace(alb=SimpleNamespace(value=0.6)),  # mismatch
     ]
     vl = SimpleNamespace(walls=walls)
-    ba = SimpleNamespace(wall_reflectivity=SimpleNamespace(value=0.5))
+    ba = SimpleNamespace(reflectivity_wall_external=SimpleNamespace(value=0.5))
     props = SimpleNamespace(vertical_layers=vl, building_archetype=ba)
     site = DummySite(properties=props, name="SiteWallMismatch")
 
@@ -571,14 +572,14 @@ def test_validate_same_albedo_wall_requires_match_with_wallreflectivity():
         SimpleNamespace(alb=SimpleNamespace(value=0.5)),
     ]
     vl = SimpleNamespace(walls=walls)
-    ba = SimpleNamespace(wall_reflectivity=SimpleNamespace(value=0.345))
+    ba = SimpleNamespace(reflectivity_wall_external=SimpleNamespace(value=0.345))
     props = SimpleNamespace(vertical_layers=vl, building_archetype=ba)
     site = DummySite(properties=props, name="SiteRefMismatch")
 
     msgs = SUEWSConfig._validate_same_albedo_wall(cfg, site, 0)
     assert len(msgs) == 1
     msg = msgs[0]
-    assert "must equal properties.building_archetype.wall_reflectivity (0.345)" in msg
+    assert "must equal properties.building_archetype.reflectivity_wall_external (0.345)" in msg
     assert "walls[0]=0.5" in msg
 
 def test_validate_same_albedo_roof_requires_match_with_roofreflectivity():
@@ -593,14 +594,14 @@ def test_validate_same_albedo_roof_requires_match_with_roofreflectivity():
         SimpleNamespace(alb=SimpleNamespace(value=0.5)),
     ]
     vl = SimpleNamespace(roofs=roofs)
-    ba = SimpleNamespace(roof_reflectivity=SimpleNamespace(value=0.345))
+    ba = SimpleNamespace(reflectivity_roof_external=SimpleNamespace(value=0.345))
     props = SimpleNamespace(vertical_layers=vl, building_archetype=ba)
     site = DummySite(properties=props, name="SiteRefMismatch")
 
     msgs = SUEWSConfig._validate_same_albedo_roof(cfg, site, 0)
     assert len(msgs) == 1
     msg = msgs[0]
-    assert "must equal properties.building_archetype.roof_reflectivity (0.345)" in msg
+    assert "must equal properties.building_archetype.reflectivity_roof_external (0.345)" in msg
     assert "roofs[0]=0.5" in msg
 
 def test_validate_same_albedo_roof_requires_identical_roof_albedos():
@@ -615,7 +616,7 @@ def test_validate_same_albedo_roof_requires_identical_roof_albedos():
         SimpleNamespace(alb=SimpleNamespace(value=0.6)),  # mismatch
     ]
     vl = SimpleNamespace(roofs=roofs)
-    ba = SimpleNamespace(roof_reflectivity=SimpleNamespace(value=0.5))
+    ba = SimpleNamespace(reflectivity_roof_external=SimpleNamespace(value=0.5))
     props = SimpleNamespace(vertical_layers=vl, building_archetype=ba)
     site = DummySite(properties=props, name="SiteRoofMismatch")
 
@@ -648,7 +649,7 @@ def test_validate_same_emissivity_wall_requires_identical_wall_emissivities():
         SimpleNamespace(emis=SimpleNamespace(value=0.6)),  # mismatch
     ]
     vl = SimpleNamespace(walls=walls)
-    ba = SimpleNamespace(wall_external_emissivity=SimpleNamespace(value=0.5))
+    ba = SimpleNamespace(emissivity_wall_external=SimpleNamespace(value=0.5))
     props = SimpleNamespace(vertical_layers=vl, building_archetype=ba)
     site = DummySite(properties=props, name="SiteWallMismatch")
 
@@ -669,7 +670,7 @@ def test_validate_same_emissivity_wall_requires_match_with_wallexternalemissivit
         SimpleNamespace(emis=SimpleNamespace(value=0.9)),
     ]
     vl = SimpleNamespace(walls=walls)
-    ba = SimpleNamespace(wall_external_emissivity=SimpleNamespace(value=0.8))
+    ba = SimpleNamespace(emissivity_wall_external=SimpleNamespace(value=0.8))
     props = SimpleNamespace(vertical_layers=vl, building_archetype=ba)
     site = DummySite(properties=props, name="SiteEmisRefMismatch")
 
@@ -677,7 +678,7 @@ def test_validate_same_emissivity_wall_requires_match_with_wallexternalemissivit
     assert len(msgs) == 1
     msg = msgs[0]
     assert (
-        "must equal properties.building_archetype.wall_external_emissivity (0.8)" in msg
+        "must equal properties.building_archetype.emissivity_wall_external (0.8)" in msg
     )
     assert "walls[0]=0.9" in msg
     assert "SiteEmisRefMismatch" in msg
@@ -694,7 +695,7 @@ def test_validate_same_emissivity_roof_requires_match_with_roofexternalemissivit
         SimpleNamespace(emis=SimpleNamespace(value=0.7)),
     ]
     vl = SimpleNamespace(roofs=roofs)
-    ba = SimpleNamespace(roof_external_emissivity=SimpleNamespace(value=0.5))
+    ba = SimpleNamespace(emissivity_roof_external=SimpleNamespace(value=0.5))
     props = SimpleNamespace(vertical_layers=vl, building_archetype=ba)
     site = DummySite(properties=props, name="SiteRoofEmisRefMismatch")
 
@@ -702,7 +703,7 @@ def test_validate_same_emissivity_roof_requires_match_with_roofexternalemissivit
     assert len(msgs) == 1
     msg = msgs[0]
     assert (
-        "must equal properties.building_archetype.roof_external_emissivity (0.5)" in msg
+        "must equal properties.building_archetype.emissivity_roof_external (0.5)" in msg
     )
     assert "roofs[0]=0.7" in msg
     assert "SiteRoofEmisRefMismatch" in msg
@@ -719,7 +720,7 @@ def test_validate_same_emissivity_roof_requires_identical_roof_emissivities():
         SimpleNamespace(emis=SimpleNamespace(value=0.9)),  # mismatch
     ]
     vl = SimpleNamespace(roofs=roofs)
-    ba = SimpleNamespace(roof_external_emissivity=SimpleNamespace(value=0.8))
+    ba = SimpleNamespace(emissivity_roof_external=SimpleNamespace(value=0.8))
     props = SimpleNamespace(vertical_layers=vl, building_archetype=ba)
     site = DummySite(properties=props, name="SiteRoofEmisMismatch")
 
@@ -1025,8 +1026,8 @@ def test_validate_model_option_rcmethod_missing_params(registry):
     }
     results = registry["rcmethod"](ValidationContext(yaml_data=yaml_data))
     params = [r.parameter for r in results]
-    assert any("roof_outer_heat_capacity_fraction" in p for p in params)
-    assert any("wall_outer_heat_capacity_fraction" in p for p in params)
+    assert any("fraction_roof_heat_capacity_outer" in p for p in params)
+    assert any("fraction_wall_heat_capacity_outer" in p for p in params)
     assert all(r.status == "ERROR" for r in results)
 
 def test_validate_model_option_rcmethod_enabled_invalid_values(registry):
@@ -1036,8 +1037,8 @@ def test_validate_model_option_rcmethod_enabled_invalid_values(registry):
             "name": "site1",
             "properties": {
                 "building_archetype": {
-                    "roof_outer_heat_capacity_fraction": {"value": 1.5},
-                    "wall_outer_heat_capacity_fraction": {"value": -0.2},
+                    "fraction_roof_heat_capacity_outer": {"value": 1.5},
+                    "fraction_wall_heat_capacity_outer": {"value": -0.2},
                 },
             }
         }],
@@ -1053,8 +1054,8 @@ def test_validate_model_option_rcmethod_enabled_valid_values(registry):
             "name": "site1",
             "properties": {
                 "building_archetype": {
-                    "roof_outer_heat_capacity_fraction": {"value": 0.5},
-                    "wall_outer_heat_capacity_fraction": {"value": 0.5},
+                    "fraction_roof_heat_capacity_outer": {"value": 0.5},
+                    "fraction_wall_heat_capacity_outer": {"value": 0.5},
                 },
             }
         }],
@@ -1074,10 +1075,10 @@ def test_adjust_model_option_rcmethod_sets_defaults():
     }
     updated_data, adjustments = adjust_model_option_rcmethod(yaml_data)
     ba = updated_data["sites"][0]["properties"]["building_archetype"]
-    assert ba["roof_outer_heat_capacity_fraction"]["value"] == 0.5
-    assert ba["wall_outer_heat_capacity_fraction"]["value"] == 0.5
-    assert any(adj.parameter == "building_archetype.roof_outer_heat_capacity_fraction" for adj in adjustments)
-    assert any(adj.parameter == "building_archetype.wall_outer_heat_capacity_fraction" for adj in adjustments)
+    assert ba["fraction_roof_heat_capacity_outer"]["value"] == 0.5
+    assert ba["fraction_wall_heat_capacity_outer"]["value"] == 0.5
+    assert any(adj.parameter == "building_archetype.fraction_roof_heat_capacity_outer" for adj in adjustments)
+    assert any(adj.parameter == "building_archetype.fraction_wall_heat_capacity_outer" for adj in adjustments)
 
 def test_adjust_model_option_rcmethod_no_action_when_already_set():
     yaml_data = {
@@ -1086,8 +1087,8 @@ def test_adjust_model_option_rcmethod_no_action_when_already_set():
             "name": "site1",
             "properties": {
                 "building_archetype": {
-                    "roof_outer_heat_capacity_fraction": {"value": 0.5},
-                    "wall_outer_heat_capacity_fraction": {"value": 0.5},
+                    "fraction_roof_heat_capacity_outer": {"value": 0.5},
+                    "fraction_wall_heat_capacity_outer": {"value": 0.5},
                 },
             }
         }],
@@ -1203,8 +1204,8 @@ def test_validate_model_option_rcmethod2_missing_params(registry):
     }
     results = registry["rcmethod"](ValidationContext(yaml_data=yaml_data))
     required = [
-        "wall_external_thickness", "wall_external_effective_conductivity", "wall_external_density", "wall_external_specific_heat_capacity",
-        "roof_external_thickness", "roof_external_effective_conductivity", "roof_external_density", "roof_external_specific_heat_capacity"
+        "thickness_wall_outer", "conductivity_wall_outer", "density_wall_outer", "specific_heat_capacity_wall_outer",
+        "thickness_roof_outer", "conductivity_roof_outer", "density_roof_outer", "specific_heat_capacity_roof_outer"
     ]
     expected = [f"building_archetype.{p}" for p in required]
     error_params = [r.parameter for r in results if r.status == "ERROR"]
@@ -1219,14 +1220,14 @@ def test_validate_model_option_rcmethod2_all_params_provided(registry):
             "name": "site1",
             "properties": {
                 "building_archetype": {
-                    "wall_external_thickness": {"value": 0.2},
-                    "wall_external_effective_conductivity": {"value": 1.0},
-                    "wall_external_density": {"value": 2200},
-                    "wall_external_specific_heat_capacity": {"value": 900},
-                    "roof_external_thickness": {"value": 0.18},
-                    "roof_external_effective_conductivity": {"value": 1.2},
-                    "roof_external_density": {"value": 2300},
-                    "roof_external_specific_heat_capacity": {"value": 1000},
+                    "thickness_wall_outer": {"value": 0.2},
+                    "conductivity_wall_outer": {"value": 1.0},
+                    "density_wall_outer": {"value": 2200},
+                    "specific_heat_capacity_wall_outer": {"value": 900},
+                    "thickness_roof_outer": {"value": 0.18},
+                    "conductivity_roof_outer": {"value": 1.2},
+                    "density_roof_outer": {"value": 2300},
+                    "specific_heat_capacity_roof_outer": {"value": 1000},
                 }
             }
         }],
@@ -1237,30 +1238,15 @@ def test_validate_model_option_rcmethod2_all_params_provided(registry):
     assert any("roof material parameters will be used for parameterisation" in r.message for r in warnings)
     assert all(r.status != "ERROR" for r in results)
 
-def test_validate_model_option_rcmethod2_legacy_ext_params_supported(registry):
-    yaml_data = {
-        "model": {"physics": {"outer_cap_fraction": {"value": 2}}},
-        "sites": [{
-            "name": "site1",
-            "properties": {
-                "building_archetype": {
-                    "WallextThickness": {"value": 0.2},
-                    "WallextEffectiveConductivity": {"value": 1.0},
-                    "WallextDensity": {"value": 2200},
-                    "WallextCp": {"value": 900},
-                    "RoofextThickness": {"value": 0.18},
-                    "RoofextEffectiveConductivity": {"value": 1.2},
-                    "RoofextDensity": {"value": 2300},
-                    "RoofextCp": {"value": 1000},
-                }
-            }
-        }],
-    }
-    results = registry["rcmethod"](ValidationContext(yaml_data=yaml_data))
-    warnings = [r for r in results if r.status == "WARNING"]
-    assert any("wall material parameters will be used for parameterisation" in r.message for r in warnings)
-    assert any("roof material parameters will be used for parameterisation" in r.message for r in warnings)
-    assert all(r.status != "ERROR" for r in results)
+# Note: the former test_validate_model_option_rcmethod2_legacy_ext_params_supported
+# was retired in the dev6 -> dev7 rename pass. PascalCase -> dev7 backward-
+# compat is exercised by ``test_old_stebbs_ext_names_populate_new_attributes``
+# in ``test_field_renames.py``, which goes through the
+# ``apply_field_renames`` chain at the Pydantic constructor level (the only
+# entry point that walks every rename hop in sequence). The validator's
+# direct lookup via ``read_renamed_key`` resolves one chain at a time, and
+# the upstream Phase A precheck normalises raw YAML through
+# ``RAW_YAML_FIELD_RENAMES`` before validators see it.
 
 def test_validate_model_option_rcmethod2_some_params_missing(registry):
     yaml_data = {
@@ -1269,23 +1255,23 @@ def test_validate_model_option_rcmethod2_some_params_missing(registry):
             "name": "site1",
             "properties": {
                 "building_archetype": {
-                    "wall_external_thickness": {"value": 0.2},
-                    "wall_external_effective_conductivity": {},
-                    "wall_external_density": {"value": 2200},
-                    # wall_external_specific_heat_capacity missing
-                    "roof_external_thickness": {"value": 0.18},
-                    # roof_external_effective_conductivity missing
-                    "roof_external_density": {"value": 2300},
-                    "roof_external_specific_heat_capacity": {"value": 1000},
+                    "thickness_wall_outer": {"value": 0.2},
+                    "conductivity_wall_outer": {},
+                    "density_wall_outer": {"value": 2200},
+                    # specific_heat_capacity_wall_outer missing
+                    "thickness_roof_outer": {"value": 0.18},
+                    # conductivity_roof_outer missing
+                    "density_roof_outer": {"value": 2300},
+                    "specific_heat_capacity_roof_outer": {"value": 1000},
                 }
             }
         }],
     }
     results = registry["rcmethod"](ValidationContext(yaml_data=yaml_data))
     error_params = [r.parameter for r in results if r.status == "ERROR"]
-    assert "building_archetype.wall_external_effective_conductivity" in error_params
-    assert "building_archetype.wall_external_specific_heat_capacity" in error_params
-    assert "building_archetype.roof_external_effective_conductivity" in error_params
+    assert "building_archetype.conductivity_wall_outer" in error_params
+    assert "building_archetype.specific_heat_capacity_wall_outer" in error_params
+    assert "building_archetype.conductivity_roof_outer" in error_params
     assert any(r.status == "WARNING" for r in results)
     assert all("must be provided" in r.message for r in results if r.status == "ERROR")
 
@@ -1773,24 +1759,24 @@ def test_adjust_model_option_stebbsmethod_nullification(wwr, nullify, keep):
                 },
                 "building_archetype": {
                     "window_to_wall_ratio": {"value": wwr},
-                    "window_thickness": {"value": 0.2},
-                    "window_effective_conductivity": {"value": 1.1},
-                    "window_density": {"value": 2500},
-                    "window_specific_heat_capacity": {"value": 900},
-                    "window_external_emissivity": {"value": 0.85},
-                    "window_internal_emissivity": {"value": 0.9},
-                    "window_transmissivity": {"value": 0.7},
-                    "window_absorptivity": {"value": 0.1},
-                    "window_reflectivity": {"value": 0.2},
-                    "wall_external_emissivity": {"value": 0.88},
-                    "wall_internal_emissivity": {"value": 0.89},
-                    "wall_transmissivity": {"value": 0.5},
-                    "wall_absorptivity": {"value": 0.15},
-                    "wall_reflectivity": {"value": 0.25},
-                    "wall_thickness": {"value": 0.35},
-                    "wall_effective_conductivity": {"value": 1.3},
-                    "wall_density": {"value": 2400},
-                    "wall_specific_heat_capacity": {"value": 920},
+                    "thickness_window": {"value": 0.2},
+                    "conductivity_window": {"value": 1.1},
+                    "density_window": {"value": 2500},
+                    "specific_heat_capacity_window": {"value": 900},
+                    "emissivity_window_external": {"value": 0.85},
+                    "emissivity_window_internal": {"value": 0.9},
+                    "transmissivity_window_external": {"value": 0.7},
+                    "absorptivity_window_external": {"value": 0.1},
+                    "reflectivity_window_external": {"value": 0.2},
+                    "emissivity_wall_external": {"value": 0.88},
+                    "emissivity_wall_internal": {"value": 0.89},
+                    "transmissivity_wall_external": {"value": 0.5},
+                    "absorptivity_wall_external": {"value": 0.15},
+                    "reflectivity_wall_external": {"value": 0.25},
+                    "thickness_wall": {"value": 0.35},
+                    "conductivity_wall": {"value": 1.3},
+                    "density_wall": {"value": 2400},
+                    "specific_heat_capacity_wall": {"value": 920},
                 },
             }
         }],
@@ -1809,28 +1795,28 @@ def test_adjust_model_option_stebbsmethod_nullification(wwr, nullify, keep):
     # Check building_archetype nullification
     if wwr == 0.0:
         for param in [
-            "window_thickness", "window_effective_conductivity", "window_density", "window_specific_heat_capacity",
-            "window_external_emissivity", "window_internal_emissivity", "window_transmissivity",
-            "window_absorptivity", "window_reflectivity"
+            "thickness_window", "conductivity_window", "density_window", "specific_heat_capacity_window",
+            "emissivity_window_external", "emissivity_window_internal", "transmissivity_window_external",
+            "absorptivity_window_external", "reflectivity_window_external"
         ]:
             assert bldgarc[param]["value"] is None
         for param in [
-            "wall_external_emissivity", "wall_internal_emissivity", "wall_transmissivity",
-            "wall_absorptivity", "wall_reflectivity", "wall_thickness", "wall_effective_conductivity",
-            "wall_density", "wall_specific_heat_capacity"
+            "emissivity_wall_external", "emissivity_wall_internal", "transmissivity_wall_external",
+            "absorptivity_wall_external", "reflectivity_wall_external", "thickness_wall", "conductivity_wall",
+            "density_wall", "specific_heat_capacity_wall"
         ]:
             assert bldgarc[param]["value"] == yaml_data["sites"][0]["properties"]["building_archetype"][param]["value"]
     elif wwr == 1.0:
         for param in [
-            "wall_external_emissivity", "wall_internal_emissivity", "wall_transmissivity",
-            "wall_absorptivity", "wall_reflectivity", "wall_thickness", "wall_effective_conductivity",
-            "wall_density", "wall_specific_heat_capacity"
+            "emissivity_wall_external", "emissivity_wall_internal", "transmissivity_wall_external",
+            "absorptivity_wall_external", "reflectivity_wall_external", "thickness_wall", "conductivity_wall",
+            "density_wall", "specific_heat_capacity_wall"
         ]:
             assert bldgarc[param]["value"] is None
         for param in [
-            "window_thickness", "window_effective_conductivity", "window_density", "window_specific_heat_capacity",
-            "window_external_emissivity", "window_internal_emissivity", "window_transmissivity",
-            "window_absorptivity", "window_reflectivity"
+            "thickness_window", "conductivity_window", "density_window", "specific_heat_capacity_window",
+            "emissivity_window_external", "emissivity_window_internal", "transmissivity_window_external",
+            "absorptivity_window_external", "reflectivity_window_external"
         ]:
             assert bldgarc[param]["value"] == yaml_data["sites"][0]["properties"]["building_archetype"][param]["value"]
     else:
@@ -1858,8 +1844,8 @@ def test_adjust_model_option_stebbsmethod_not_one_no_action():
                 },
                 "building_archetype": {
                     "window_to_wall_ratio": {"value": 0.0},
-                    "window_thickness": {"value": 0.2},
-                    "wall_thickness": {"value": 0.35},
+                    "thickness_window": {"value": 0.2},
+                    "thickness_wall": {"value": 0.35},
                 },
             }
         }],
@@ -1868,7 +1854,7 @@ def test_adjust_model_option_stebbsmethod_not_one_no_action():
     props = updated["sites"][0]["properties"]
     for param in ["window_internal_convection_coefficient", "wall_external_convection_coefficient"]:
         assert props["stebbs"][param]["value"] == yaml_data["sites"][0]["properties"]["stebbs"][param]["value"]
-    for param in ["window_thickness", "wall_thickness"]:
+    for param in ["thickness_window", "thickness_wall"]:
         assert props["building_archetype"][param]["value"] == yaml_data["sites"][0]["properties"]["building_archetype"][param]["value"]
     assert adjustments == []
 
@@ -3648,6 +3634,65 @@ def test_forcing_validation_cli_integration(cli_runner):
         )
 
 
+def test_validate_cli_success_removes_temp_report_json_sidecars(cli_runner):
+    """Successful ABC validation should not leak intermediate JSON reports."""
+    from supy.cmd.validate_config import cli as validate_cli
+
+    sample_config = Path(sp.__file__).parent / "sample_data" / "sample_config.yml"
+
+    with cli_runner.isolated_filesystem() as tmpdir:
+        tmpdir_path = Path(tmpdir)
+        config_path = tmpdir_path / "myconfig.yml"
+        config_path.write_text(
+            sample_config.read_text(encoding="utf-8"), encoding="utf-8"
+        )
+
+        result = cli_runner.invoke(
+            validate_cli, ["--forcing", "off", str(config_path)]
+        )
+
+        assert result.exit_code == 0, result.output
+        assert (tmpdir_path / "updated_myconfig.yml").exists()
+        assert (tmpdir_path / "report_myconfig.txt").exists()
+        assert (tmpdir_path / "report_myconfig.json").exists()
+        assert not list(tmpdir_path.glob("temp_reportA_*.json"))
+        assert not list(tmpdir_path.glob("temp_reportB_*.json"))
+
+
+def test_validate_cli_failure_removes_temp_report_json_sidecars(cli_runner):
+    """Failed ABC validation should move or remove intermediate JSON reports."""
+    from supy.cmd.validate_config import cli as validate_cli
+
+    with cli_runner.isolated_filesystem() as tmpdir:
+        tmpdir_path = Path(tmpdir)
+        config_path = tmpdir_path / "myconfig.yml"
+        config_path.write_text(
+            "\n".join([
+                "name: test",
+                "sites:",
+                "  - name: site1",
+                "    gridiv: 1",
+                "    properties:",
+                "      lat: null",
+                "",
+            ]),
+            encoding="utf-8",
+        )
+
+        result = cli_runner.invoke(
+            validate_cli, ["--forcing", "off", str(config_path)]
+        )
+
+        assert result.exit_code != 0, result.output
+        report_path = tmpdir_path / "report_myconfig.txt"
+        assert report_path.exists()
+        assert "SUEWS" in report_path.read_text(encoding="utf-8", errors="replace")
+        report_json_path = tmpdir_path / "report_myconfig.json"
+        assert report_json_path.exists()
+        assert not list(tmpdir_path.glob("temp_reportA_*.json"))
+        assert not list(tmpdir_path.glob("temp_reportB_*.json"))
+
+
 # ============================================================================
 # Irrigation DOY Validation Tests (Issue #811)
 # ============================================================================
@@ -4076,11 +4121,12 @@ model:
     tstep: 300
     start_time: '2012-07-01'
     end_time: '2012-07-10'
-    forcing_file: {value: ./forcing.txt}
-    output_file:
+    forcing:
+      file: {value: ./forcing.txt}
+    output:
       format: parquet
       freq: 3600
-      path: ./out
+      dir: ./out
   physics:
     netradiationmethod: {value: 3}
     emissionsmethod: {value: 2}
@@ -4148,11 +4194,12 @@ model:
     tstep: 300
     start_time: '2012-07-01'
     end_time: '2012-07-10'
-    forcing_file: {value: ./forcing.txt}
-    output_file:
+    forcing:
+      file: {value: ./forcing.txt}
+    output:
       format: parquet
       freq: 3600
-      path: ./out
+      dir: ./out
   physics:
     netradiationmethod: {value: 3}
     emissionsmethod: {value: 2}
@@ -4231,11 +4278,12 @@ model:
     tstep: 300
     start_time: '2012-07-01'
     end_time: '2012-07-10'
-    forcing_file: {value: ./forcing.txt}
-    output_file:
+    forcing:
+      file: {value: ./forcing.txt}
+    output:
       format: parquet
       freq: 3600
-      path: ./out
+      dir: ./out
   physics:
     netradiationmethod: {value: 3}
     emissionsmethod: {value: 2}
@@ -4303,3 +4351,239 @@ sites:
 
         config = SUEWSConfig.from_yaml(str(config_path))
         assert config is not None
+
+
+def _phase_b_science_fixture():
+    return {
+        "model": {
+            "physics": {
+                "emissions": {"value": 5},
+                "stebbs": {"value": 1},
+                "outer_cap_fraction": {"value": 1},
+                "setpoint": {"value": 0},
+            }
+        },
+        "sites": [
+            {
+                "gridiv": {"value": 101},
+                "properties": {
+                    "lat": {"value": 51.5},
+                    "lng": {"value": -0.1},
+                    "land_cover": {
+                        "paved": {"sfr": {"value": 0.99995}},
+                    },
+                    "stebbs": {
+                        "initial_outdoor_temperature": {"value": 0.0},
+                        "annual_mean_air_temperature": {"value": 0.0},
+                    },
+                },
+                "initial_states": {
+                    "paved": {
+                        "temperature": {"value": [0.0] * 5},
+                        "tsfc": {"value": 0.0},
+                        "tin": {"value": 0.0},
+                    },
+                    "snowalb": {"value": 0.8},
+                },
+            }
+        ],
+    }
+
+
+def test_phase_b_collect_science_suggestions_does_not_mutate(monkeypatch):
+    from supy.data_model.validation.pipeline import phase_b
+
+    monkeypatch.setattr(
+        phase_b, "get_mean_monthly_air_temperature", lambda *args: 15.5
+    )
+    monkeypatch.setattr(
+        phase_b, "get_monthly_air_temperature_diffmax", lambda *args: 9.0
+    )
+    monkeypatch.setattr(
+        phase_b, "get_mean_annual_air_temperature", lambda *args: 11.2
+    )
+
+    yaml_data = _phase_b_science_fixture()
+    original = copy.deepcopy(yaml_data)
+
+    suggestions = phase_b.collect_science_suggestions(
+        yaml_data, start_date="2020-07-01", model_year=2020
+    )
+
+    assert yaml_data == original
+    assert any(s.parameter == "initial_states.paved" for s in suggestions)
+    assert any(s.parameter == "paved.sfr" for s in suggestions)
+    assert any(s.parameter == "snowalb" for s in suggestions)
+    assert all(s.severity == "SUGGESTION" for s in suggestions)
+    assert all(s.source for s in suggestions)
+
+
+def test_phase_b_apply_science_suggestions_mutates_copy(monkeypatch):
+    from supy.data_model.validation.pipeline import phase_b
+
+    monkeypatch.setattr(
+        phase_b, "get_mean_monthly_air_temperature", lambda *args: 15.5
+    )
+    monkeypatch.setattr(
+        phase_b, "get_monthly_air_temperature_diffmax", lambda *args: 9.0
+    )
+    monkeypatch.setattr(
+        phase_b, "get_mean_annual_air_temperature", lambda *args: 11.2
+    )
+
+    yaml_data = _phase_b_science_fixture()
+    suggestions = phase_b.collect_science_suggestions(
+        yaml_data, start_date="2020-07-01", model_year=2020
+    )
+    updated, adjustments = phase_b.apply_science_suggestions(
+        yaml_data, suggestions, start_date="2020-07-01", model_year=2020
+    )
+
+    paved_state = updated["sites"][0]["initial_states"]["paved"]
+    paved_sfr = updated["sites"][0]["properties"]["land_cover"]["paved"]["sfr"]
+
+    assert paved_state["tsfc"]["value"] == 15.5
+    assert paved_sfr["value"] == pytest.approx(1.0)
+    assert updated["sites"][0]["initial_states"]["snowalb"]["value"] is None
+    assert len(adjustments) == len(suggestions)
+    assert yaml_data["sites"][0]["initial_states"]["paved"]["tsfc"]["value"] == 0.0
+
+
+@pytest.mark.parametrize(
+    ("science_fixes", "expect_mutation", "expected_section", "unexpected_section"),
+    [
+        ("suggest", False, "## SUGGESTED UPDATES", "## APPLIED UPDATES"),
+        ("apply", True, "## APPLIED UPDATES", "## SUGGESTED UPDATES"),
+        ("off", False, "## INFO", "## SUGGESTED UPDATES"),
+    ],
+)
+def test_phase_b_run_science_check_science_fixes_modes(
+    tmp_path,
+    monkeypatch,
+    science_fixes,
+    expect_mutation,
+    expected_section,
+    unexpected_section,
+):
+    from supy.data_model.validation.pipeline import phase_b
+
+    monkeypatch.setattr(
+        phase_b, "get_mean_monthly_air_temperature", lambda *args: 15.5
+    )
+    monkeypatch.setattr(
+        phase_b, "get_monthly_air_temperature_diffmax", lambda *args: 9.0
+    )
+    monkeypatch.setattr(
+        phase_b, "get_mean_annual_air_temperature", lambda *args: 11.2
+    )
+    monkeypatch.setattr(phase_b.RulesRegistry, "run_validation", lambda self: [])
+
+    yaml_data = _phase_b_science_fixture()
+    yaml_data["model"]["control"] = {
+        "start_time": "2020-07-01",
+        "end_time": "2020-07-02",
+    }
+
+    input_file = tmp_path / "config.yml"
+    output_file = tmp_path / "updated_config.yml"
+    report_file = tmp_path / "report_config.txt"
+    input_file.write_text(yaml.safe_dump(yaml_data), encoding="utf-8")
+
+    phase_b.run_science_check(
+        uptodate_yaml_file=str(input_file),
+        user_yaml_file=str(input_file),
+        standard_yaml_file=str(input_file),
+        science_yaml_file=str(output_file),
+        science_report_file=str(report_file),
+        science_fixes=science_fixes,
+    )
+
+    updated = yaml.safe_load(output_file.read_text(encoding="utf-8"))
+    report = report_file.read_text(encoding="utf-8")
+
+    updated_tsfc = updated["sites"][0]["initial_states"]["paved"]["tsfc"]["value"]
+    expected_tsfc = 15.5 if expect_mutation else 0.0
+
+    assert updated_tsfc == expected_tsfc
+    assert expected_section in report
+    assert unexpected_section not in report
+
+
+def test_phase_b_report_uses_review_and_suggestion_sections():
+    from supy.data_model.validation.pipeline.phase_b import (
+        ScienceSuggestion,
+        ValidationResult,
+        create_science_report,
+    )
+
+    report = create_science_report(
+        validation_results=[
+            ValidationResult(
+                status="WARNING",
+                category="GEOGRAPHY",
+                parameter="timezone",
+                message="Review timezone choice",
+            )
+        ],
+        adjustments=[],
+        suggestions=[
+            ScienceSuggestion(
+                parameter="snowalb",
+                old_value=0.8,
+                suggested_value=None,
+                message="Seasonal initialisation suggestion",
+                source="Seasonal snow-albedo initialisation heuristic.",
+            )
+        ],
+    )
+
+    assert "## REVIEW ADVISED" in report
+    assert "## SUGGESTED UPDATES" in report
+    assert "## NO ACTION NEEDED" not in report
+
+
+def test_phase_b_structured_result_and_rule_order():
+    from supy.data_model.validation.pipeline.phase_b_rules import (
+        DEFAULT_RULE_ORDER,
+        RulesRegistry,
+        ValidationResult,
+    )
+
+    result = ValidationResult(
+        status="warning",
+        category="LAND_COVER",
+        parameter="land_cover.paved.sfr",
+        message="Review surface fractions",
+    )
+    payload = result.to_dict()
+
+    assert payload["severity"] == "WARNING"
+    assert payload["path"] == "land_cover.paved.sfr"
+    assert payload["code"] == "LAND_COVER.LAND_COVER_PAVED_SFR"
+
+    ordered_rule_names = [name for name, _ in RulesRegistry().ordered_rule_items()]
+    expected_prefix = [
+        name for name in DEFAULT_RULE_ORDER if name in RulesRegistry.rules
+    ]
+    assert ordered_rule_names[: len(expected_prefix)] == expected_prefix
+
+
+def test_supy_validation_backward_compatibility_warns():
+    import supy.validation as legacy_validation
+
+    with pytest.warns(DeprecationWarning):
+        result = legacy_validation.validate_suews_config_conditional(
+            {"model": {"physics": {}}, "sites": []}
+        )
+
+    assert result["errors"] == result.errors
+    assert "errors" in result.to_dict()
+
+
+def test_suews_validate_help_exposes_science_fixes(cli_runner):
+    from supy.cmd.validate_config import cli as validate_cli
+
+    result = cli_runner.invoke(validate_cli, ["--help"])
+
+    assert result.exit_code == 0
+    assert "--science-fixes" in result.output

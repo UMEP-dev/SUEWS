@@ -33,7 +33,7 @@ from copy import deepcopy
 from pathlib import Path
 import warnings
 
-from .model import FAIMethod, LAIMethod, Model, OutputConfig
+from .model import FAIMethod, LAIMethod, Model, OutputControl
 from .site import Site, SiteProperties, InitialStates, LandCover, LAIParams
 from .type import SurfaceType
 
@@ -265,32 +265,32 @@ class SUEWSConfig(BaseModel):
         "internal_volume_ratio",
         "internal_mass_area",
         "window_to_wall_ratio",
-        "wall_thickness",
-        "wall_effective_conductivity",
-        "wall_density",
-        "wall_specific_heat_capacity",
-        "wall_outer_heat_capacity_fraction",
-        "wall_external_emissivity",
-        "wall_internal_emissivity",
-        "wall_transmissivity",
-        "wall_absorptivity",
-        "wall_reflectivity",
-        "ground_floor_thickness",
-        "ground_floor_effective_conductivity",
-        "ground_floor_density",
-        "ground_floor_specific_heat_capacity",
-        "window_thickness",
-        "window_effective_conductivity",
-        "window_density",
-        "window_specific_heat_capacity",
-        "window_external_emissivity",
-        "window_internal_emissivity",
-        "window_transmissivity",
-        "window_absorptivity",
-        "window_reflectivity",
-        "internal_mass_density",
-        "internal_mass_specific_heat_capacity",
-        "internal_mass_emissivity",
+        "thickness_wall",
+        "conductivity_wall",
+        "density_wall",
+        "specific_heat_capacity_wall",
+        "fraction_wall_heat_capacity_outer",
+        "emissivity_wall_external",
+        "emissivity_wall_internal",
+        "transmissivity_wall_external",
+        "absorptivity_wall_external",
+        "reflectivity_wall_external",
+        "thickness_ground_floor",
+        "conductivity_ground_floor",
+        "density_ground_floor",
+        "specific_heat_capacity_ground_floor",
+        "thickness_window",
+        "conductivity_window",
+        "density_window",
+        "specific_heat_capacity_window",
+        "emissivity_window_external",
+        "emissivity_window_internal",
+        "transmissivity_window_external",
+        "absorptivity_window_external",
+        "reflectivity_window_external",
+        "density_internal_mass",
+        "specific_heat_capacity_internal_mass",
+        "emissivity_internal_mass",
         "max_heating_power",
         "hot_water_tank_volume",
         "maximum_hot_water_heating_power",
@@ -431,12 +431,11 @@ class SUEWSConfig(BaseModel):
 
     @model_validator(mode="after")
     def validate_model_output_config(self) -> "SUEWSConfig":
-        """
-        Validate output configuration, especially frequency vs timestep.
+        """Validate output configuration, especially frequency vs timestep.
 
-        This validator ensures that the output frequency specified in the OutputConfig
-        is positive and an integer multiple of the model timestep. It also warns if
-        a deprecated string value is used for the output_file parameter.
+        Ensures the output frequency specified on
+        :class:`~supy.data_model.core.model.OutputControl` is positive
+        and an integer multiple of the model timestep.
 
         Returns
         -------
@@ -446,38 +445,21 @@ class SUEWSConfig(BaseModel):
         Raises
         ------
         ValueError
-            If output frequency is not positive or not a multiple of timestep.
-        DeprecationWarning
-            If a deprecated string value is used for output_file.
+            If output frequency is not positive or not a multiple of
+            timestep.
         """
-        if isinstance(self.model.control.output_file, OutputConfig):
-            output_config = self.model.control.output_file
-            if output_config.freq is not None:
-                # Validate frequency is positive
-                if output_config.freq <= 0:
-                    raise ValueError(
-                        f"Output frequency must be positive, got {output_config.freq}s"
-                    )
+        output_control = self.model.control.output
+        if output_control.freq is not None:
+            if output_control.freq <= 0:
+                raise ValueError(
+                    f"Output frequency must be positive, got {output_control.freq}s"
+                )
 
-                tstep = self.model.control.tstep
-                if output_config.freq % tstep != 0:
-                    raise ValueError(
-                        f"Output frequency ({output_config.freq}s) must be a multiple of timestep ({tstep}s)"
-                    )
-        elif (
-            isinstance(self.model.control.output_file, str)
-            and self.model.control.output_file != "output.txt"
-        ):
-            # Issue warning for non-default string values
-            import warnings
-
-            warnings.warn(
-                f"The 'output_file' parameter with value '{self.model.control.output_file}' is deprecated and was never used. "
-                "Please use the new OutputConfig format or remove this parameter. "
-                "Example: output_file: {format: 'parquet', freq: 3600}",
-                DeprecationWarning,
-                stacklevel=3,
-            )
+            tstep = self.model.control.tstep
+            if output_control.freq % tstep != 0:
+                raise ValueError(
+                    f"Output frequency ({output_control.freq}s) must be a multiple of timestep ({tstep}s)"
+                )
         return self
 
     @model_validator(mode="after")
@@ -502,7 +484,7 @@ class SUEWSConfig(BaseModel):
         """
         # Use the helper for consistent unwrapping
         net_radiation_method_val = _unwrap_value(self.model.physics.net_radiation)
-        forcing_file_val = _unwrap_value(self.model.control.forcing_file)
+        forcing_file_val = _unwrap_value(self.model.control.forcing.file)
 
         # Check for the sample forcing file - this is still based on filename
         # TODO: Future improvement - add a flag to indicate sample forcing or check actual column presence
@@ -1655,15 +1637,15 @@ class SUEWSConfig(BaseModel):
             "window_external_convection_coefficient",
         ]
         window_params_bldgarc = [
-            "window_thickness",
-            "window_effective_conductivity",
-            "window_density",
-            "window_specific_heat_capacity",
-            "window_external_emissivity",
-            "window_internal_emissivity",
-            "window_transmissivity",
-            "window_absorptivity",
-            "window_reflectivity",
+            "thickness_window",
+            "conductivity_window",
+            "density_window",
+            "specific_heat_capacity_window",
+            "emissivity_window_external",
+            "emissivity_window_internal",
+            "transmissivity_window_external",
+            "absorptivity_window_external",
+            "reflectivity_window_external",
         ]
 
         # Wall parameter lists for window_to_wall_ratio == 1.0
@@ -1672,15 +1654,15 @@ class SUEWSConfig(BaseModel):
             "wall_internal_convection_coefficient",
             ]
         wall_params_bldgarc = [
-            "wall_external_emissivity",
-            "wall_internal_emissivity",
-            "wall_transmissivity",
-            "wall_absorptivity",
-            "wall_reflectivity",
-            "wall_thickness",
-            "wall_effective_conductivity",
-            "wall_density",
-            "wall_specific_heat_capacity",
+            "emissivity_wall_external",
+            "emissivity_wall_internal",
+            "transmissivity_wall_external",
+            "absorptivity_wall_external",
+            "reflectivity_wall_external",
+            "thickness_wall",
+            "conductivity_wall",
+            "density_wall",
+            "specific_heat_capacity_wall",
         ]
 
         # Check setpoint value
@@ -2120,7 +2102,7 @@ class SUEWSConfig(BaseModel):
         layer_field : str
             Attribute name on each layer object (e.g. "alb", "emis").
         archetype_attr : str
-            Attribute name on building_archetype (e.g. "wall_reflectivity").
+            Attribute name on building_archetype (e.g. "reflectivity_wall_external").
         property_name : str
             Human-readable name for messages (e.g. "albedo", "emissivity").
         """
@@ -2224,11 +2206,11 @@ class SUEWSConfig(BaseModel):
         Notes
         -----
         - Checks that all wall albedo values in vertical_layers.walls are identical (within tolerance).
-        - Checks that the common wall albedo matches properties.building_archetype.wall_reflectivity.
+        - Checks that the common wall albedo matches properties.building_archetype.reflectivity_wall_external.
         - Used when same_albedo_wall option is enabled.
         """
         return self._validate_same_surface_property(
-            site, site_index, "wall", "walls", "alb", "wall_reflectivity",
+            site, site_index, "wall", "walls", "alb", "reflectivity_wall_external",
             "same_albedo_wall", "albedo",
         )
 
@@ -2244,11 +2226,11 @@ class SUEWSConfig(BaseModel):
         Notes
         -----
         - Checks that all roof albedo values in vertical_layers.roofs are identical (within tolerance).
-        - Checks that the common roof albedo matches properties.building_archetype.roof_reflectivity.
+        - Checks that the common roof albedo matches properties.building_archetype.reflectivity_roof_external.
         - Used when same_albedo_roof option is enabled.
         """
         return self._validate_same_surface_property(
-            site, site_index, "roof", "roofs", "alb", "roof_reflectivity",
+            site, site_index, "roof", "roofs", "alb", "reflectivity_roof_external",
             "same_albedo_roof", "albedo",
         )
 
@@ -2264,11 +2246,11 @@ class SUEWSConfig(BaseModel):
         Notes
         -----
         - Checks that all wall emissivity values in vertical_layers.walls are identical (within tolerance).
-        - Checks that the common wall emissivity matches properties.building_archetype.wall_external_emissivity.
+        - Checks that the common wall emissivity matches properties.building_archetype.emissivity_wall_external.
         - Used when same_emissivity_wall option is enabled.
         """
         return self._validate_same_surface_property(
-            site, site_index, "wall", "walls", "emis", "wall_external_emissivity",
+            site, site_index, "wall", "walls", "emis", "emissivity_wall_external",
             "same_emissivity_wall", "emissivity",
         )
 
@@ -2284,11 +2266,11 @@ class SUEWSConfig(BaseModel):
         Notes
         -----
         - Checks that all roof emissivity values in vertical_layers.roofs are identical (within tolerance).
-        - Checks that the common roof emissivity matches properties.building_archetype.roof_external_emissivity.
+        - Checks that the common roof emissivity matches properties.building_archetype.emissivity_roof_external.
         - Used when same_emissivity_roof option is enabled.
         """
         return self._validate_same_surface_property(
-            site, site_index, "roof", "roofs", "emis", "roof_external_emissivity",
+            site, site_index, "roof", "roofs", "emis", "emissivity_roof_external",
             "same_emissivity_roof", "emissivity",
         )
 
@@ -3575,7 +3557,7 @@ class SUEWSConfig(BaseModel):
     # @model_validator(mode="after")
     # def check_forcing(self):
     #     from .._load import load_SUEWS_Forcing_met_df_yaml
-    #     forcing = load_SUEWS_Forcing_met_df_yaml(self.model.control.forcing_file.value)
+    #     forcing = load_SUEWS_Forcing_met_df_yaml(self.model.control.forcing.file.value)
     #
     #     # Cut the forcing data to model period
     #     cut_forcing = forcing.loc[self.model.control.start_time: self.model.control.end_time]

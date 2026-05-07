@@ -3,9 +3,10 @@ description: this is a sample config for testing purposes ONLY - values are not 
 model:
   control:
     tstep: 300
-    forcing_file:
-      value: ../forcing/denise/Sw1_data_ldown.txt
-    output_file:
+    forcing:
+      file:
+        value: ../forcing/denise/Sw1_data_ldown.txt
+    output:
       format: parquet
       freq: 3600
     start_time: "2011-01-01"

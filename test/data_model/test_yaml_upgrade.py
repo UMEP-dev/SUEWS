@@ -11,6 +11,7 @@ Covers:
     via the shared `-i/-o/-f` flag set.
 """
 
+import json
 from pathlib import Path
 
 from click.testing import CliRunner
@@ -226,6 +227,49 @@ class TestSuewsConvertYamlPath:
         assert out.exists()
         SUEWSConfig.from_yaml(str(out))  # must still parse
 
+    def test_yaml_input_json_format_emits_envelope(
+        self, signed_yaml: Path, tmp_path: Path
+    ):
+        """`suews convert --format json` emits a parseable envelope.
+
+        The `upgrade_yaml` helper writes progress lines to stderr via its
+        `_log()` helper. We assert that stdout alone is a clean envelope —
+        which is what real users see when piping `suews convert --format
+        json | jq`. Click <8.3 (used on cp39) defaults to mixing the two
+        streams in `CliRunner.invoke().stdout`; pass `mix_stderr=False`
+        explicitly to get genuine separation, falling back gracefully on
+        Click >=8.3 where the kwarg has been removed because the streams
+        are always separate.
+        """
+        # ARRANGE
+        out = tmp_path / "upgraded.yml"
+        try:
+            runner = CliRunner(mix_stderr=False)
+        except TypeError:
+            runner = CliRunner()
+
+        # ACT
+        result = runner.invoke(
+            convert_table_cmd,
+            [
+                "--input",
+                str(signed_yaml),
+                "--output",
+                str(out),
+                "--format",
+                "json",
+            ],
+        )
+
+        # ASSERT
+        assert result.exit_code == 0, result.output
+        envelope = json.loads(result.stdout)
+        assert envelope["status"] == "success"
+        assert envelope["data"]["input_type"] == "yaml"
+        assert envelope["data"]["output"] == str(out)
+        assert envelope["data"]["output_exists"] is True
+        assert out.exists()
+
     def test_yaml_input_with_explicit_from(self, tmp_path: Path):
         """`suews-convert -f <release-tag>` drives the upgrade path for YAML."""
         # ARRANGE
@@ -352,10 +396,13 @@ class TestPre2026_1ReleaseTagMigration:
         stebbs = payload["sites"][0]["properties"]["stebbs"]
         if "Wallx1" in source_text:
             assert "Wallx1" not in arch
-            assert "wall_outer_heat_capacity_fraction" in arch
+            # dev6 -> dev7 (Rule 2 reorder): wall_outer_heat_capacity_fraction
+            # -> fraction_wall_heat_capacity_outer (fraction_* category prefix
+            # leads for non-physical fields).
+            assert "fraction_wall_heat_capacity_outer" in arch
         if "Roofx1" in source_text:
             assert "Roofx1" not in arch
-            assert "roof_outer_heat_capacity_fraction" in arch
+            assert "fraction_roof_heat_capacity_outer" in arch
         # DHWVesselEmissivity was removed during the Nov 2025 clean-up.
         assert "DHWVesselEmissivity" not in stebbs
         # The volume bounds were removed in #1242.
@@ -570,3 +617,166 @@ class TestNoSilentFieldDrops:
             f"{sorted(missing_without_log)}. Add a handler delta in "
             f"src/supy/util/converter/yaml_upgrade.py."
         )
+
+
+def test_forcing_file_string_migrates_to_forcing_subobject():
+    """gh#1372: forcing_file: 'x.txt' -> forcing: {file: 'x.txt'}."""
+    from supy.util.converter.yaml_upgrade import _apply_forcing_subobject_restructure
+
+    cfg = {
+        "schema_version": "2026.5.dev6",
+        "model": {"control": {"forcing_file": "forcing.txt"}},
+    }
+    out = _apply_forcing_subobject_restructure(cfg)
+    assert "forcing_file" not in out["model"]["control"]
+    assert out["model"]["control"]["forcing"] == {"file": "forcing.txt"}
+
+
+def test_forcing_file_refvalue_migrates_to_forcing_subobject():
+    """RefValue-wrapped forcing_file ({value: ...}) is preserved under .file."""
+    from supy.util.converter.yaml_upgrade import _apply_forcing_subobject_restructure
+
+    cfg = {
+        "schema_version": "2026.5.dev6",
+        "model": {"control": {"forcing_file": {"value": "forcing.txt"}}},
+    }
+    out = _apply_forcing_subobject_restructure(cfg)
+    assert out["model"]["control"]["forcing"] == {"file": {"value": "forcing.txt"}}
+
+
+def test_forcing_file_list_migrates_to_forcing_subobject():
+    """List-of-paths forcing_file is preserved under .file."""
+    from supy.util.converter.yaml_upgrade import _apply_forcing_subobject_restructure
+
+    cfg = {
+        "schema_version": "2026.5.dev6",
+        "model": {"control": {"forcing_file": ["a.txt", "b.txt"]}},
+    }
+    out = _apply_forcing_subobject_restructure(cfg)
+    assert out["model"]["control"]["forcing"] == {"file": ["a.txt", "b.txt"]}
+
+
+def test_dev6_to_current_handler_registered():
+    """Compatibility from 2026.5.dev6 must be granted via _HANDLERS."""
+    from supy.data_model.schema.version import CURRENT_SCHEMA_VERSION
+    from supy.util.converter.yaml_upgrade import _HANDLERS
+
+    assert ("2026.5.dev6", CURRENT_SCHEMA_VERSION) in _HANDLERS
+
+
+def test_forcing_both_keys_new_wins():
+    """If both ``forcing_file`` and ``forcing.file`` exist, the new shape
+    wins and the legacy key is dropped — mirrors the output handler
+    precedence and the in-memory ``_coerce_legacy_forcing_file`` semantics."""
+    from supy.util.converter.yaml_upgrade import _apply_forcing_subobject_restructure
+
+    cfg = {
+        "schema_version": "2026.5.dev6",
+        "model": {
+            "control": {
+                "forcing": {"file": "new.txt"},
+                "forcing_file": "legacy.txt",
+            },
+        },
+    }
+    out = _apply_forcing_subobject_restructure(cfg)
+    assert "forcing_file" not in out["model"]["control"]
+    assert out["model"]["control"]["forcing"] == {"file": "new.txt"}
+
+
+class TestOutputSubobjectRestructure:
+    """gh#1372 follow-up: dev7 -> dev8 lifts output_file -> output."""
+
+    def _migrate(self, cfg: dict) -> dict:
+        from supy.util.converter.yaml_upgrade import (
+            _migrate_2026_5_dev7_to_current,
+        )
+        return _migrate_2026_5_dev7_to_current(cfg)
+
+    def test_dict_form_lifts_and_renames_path(self):
+        cfg = {
+            "schema_version": "2026.5.dev7",
+            "model": {
+                "control": {
+                    "output_file": {
+                        "format": "txt",
+                        "freq": 3600,
+                        "groups": ["SUEWS"],
+                        "path": "./legacy_out",
+                    },
+                },
+            },
+        }
+        out = self._migrate(cfg)
+        assert "output_file" not in out["model"]["control"]
+        result = out["model"]["control"]["output"]
+        assert result["format"] == "txt"
+        assert result["freq"] == 3600
+        assert result["groups"] == ["SUEWS"]
+        assert result["dir"] == "./legacy_out"
+        assert "path" not in result
+
+    def test_dict_form_already_uses_dir(self):
+        cfg = {
+            "schema_version": "2026.5.dev7",
+            "model": {
+                "control": {
+                    "output_file": {
+                        "format": "parquet",
+                        "freq": 1800,
+                        "dir": "./already_dir",
+                    },
+                },
+            },
+        }
+        out = self._migrate(cfg)
+        assert out["model"]["control"]["output"]["dir"] == "./already_dir"
+        assert "path" not in out["model"]["control"]["output"]
+
+    def test_string_form_dropped(self):
+        cfg = {
+            "schema_version": "2026.5.dev7",
+            "model": {"control": {"output_file": "output.txt"}},
+        }
+        out = self._migrate(cfg)
+        assert "output_file" not in out["model"]["control"]
+        # No `output` synthesised - the migrator drops the string form;
+        # the data-model default_factory re-installs OutputControl() at load.
+        assert "output" not in out["model"]["control"]
+
+    def test_already_migrated_is_idempotent(self):
+        cfg = {
+            "schema_version": "2026.5.dev8",
+            "model": {
+                "control": {
+                    "output": {"format": "parquet", "dir": "./out"},
+                },
+            },
+        }
+        out = self._migrate(cfg)
+        assert out["model"]["control"]["output"] == {
+            "format": "parquet",
+            "dir": "./out",
+        }
+
+    def test_both_keys_output_wins(self):
+        cfg = {
+            "schema_version": "2026.5.dev7",
+            "model": {
+                "control": {
+                    "output": {"format": "parquet", "dir": "./new"},
+                    "output_file": {"format": "txt", "path": "./old"},
+                },
+            },
+        }
+        out = self._migrate(cfg)
+        assert "output_file" not in out["model"]["control"]
+        assert out["model"]["control"]["output"]["dir"] == "./new"
+        assert out["model"]["control"]["output"]["format"] == "parquet"
+
+    def test_dev7_to_current_handler_registered(self):
+        """Compatibility from 2026.5.dev7 must be granted via _HANDLERS."""
+        from supy.data_model.schema.version import CURRENT_SCHEMA_VERSION
+        from supy.util.converter.yaml_upgrade import _HANDLERS
+
+        assert ("2026.5.dev7", CURRENT_SCHEMA_VERSION) in _HANDLERS

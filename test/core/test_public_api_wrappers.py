@@ -40,8 +40,8 @@ class TestPublicAPIFunctionality:
 
             # Verify deprecation warning was emitted
             assert any(
-                issubclass(warning.category, DeprecationWarning) for warning in w
-            ), "load_sample_data should emit DeprecationWarning"
+                issubclass(warning.category, FutureWarning) for warning in w
+            ), "load_sample_data should emit FutureWarning"
 
             # Verify return types and shapes
             assert isinstance(df_state, pd.DataFrame), (
@@ -68,8 +68,8 @@ class TestPublicAPIFunctionality:
 
             # Verify deprecation warning
             assert any(
-                issubclass(warning.category, DeprecationWarning) for warning in w
-            ), "init_supy should emit DeprecationWarning"
+                issubclass(warning.category, FutureWarning) for warning in w
+            ), "init_supy should emit FutureWarning"
 
             # Verify result
             assert isinstance(df_state, pd.DataFrame)
@@ -93,8 +93,8 @@ class TestPublicAPIFunctionality:
 
             # Verify deprecation warning
             assert any(
-                issubclass(warning.category, DeprecationWarning) for warning in w
-            ), "run_supy should emit DeprecationWarning"
+                issubclass(warning.category, FutureWarning) for warning in w
+            ), "run_supy should emit FutureWarning"
 
             # Verify results
             assert isinstance(df_output, pd.DataFrame)
@@ -119,8 +119,8 @@ class TestPublicAPIFunctionality:
 
             # Verify deprecation warning
             assert any(
-                issubclass(warning.category, DeprecationWarning) for warning in w
-            ), "save_supy should emit DeprecationWarning"
+                issubclass(warning.category, FutureWarning) for warning in w
+            ), "save_supy should emit FutureWarning"
 
             # Verify files were created
             assert isinstance(paths, list)
@@ -175,6 +175,18 @@ class TestPublicAPIEquivalence:
 class TestPublicAPIDeprecationMessages:
     """Test that deprecation messages are clear and helpful."""
 
+    def test_supy_imports_leave_futurewarnings_visible(self):
+        """Test SuPy imports do not globally suppress FutureWarning."""
+        message = "supy future warning visibility probe"
+
+        with warnings.catch_warnings(record=True) as w:
+            warnings.warn(message, FutureWarning, stacklevel=1)
+
+        assert any(
+            warning.category is FutureWarning and str(warning.message) == message
+            for warning in w
+        ), "SuPy imports should not globally suppress FutureWarning"
+
     def test_deprecation_message_includes_migration_path(self):
         """Test deprecation messages include migration guidance."""
         func = sp._deprecated_load_sample_data
@@ -187,7 +199,7 @@ class TestPublicAPIDeprecationMessages:
             dep_warnings = [
                 warning
                 for warning in w
-                if issubclass(warning.category, DeprecationWarning)
+                if issubclass(warning.category, FutureWarning)
             ]
             assert len(dep_warnings) > 0, "Should emit deprecation warning"
 
@@ -201,8 +213,11 @@ class TestPublicAPIDeprecationMessages:
     @pytest.mark.parametrize(
         "func_name",
         [
+            "load_SampleData",
             "load_sample_data",
             "init_supy",
+            "load_config_from_df",
+            "init_config",
             "run_supy",
             "save_supy",
         ],
@@ -217,8 +232,11 @@ class TestPublicAPIDeprecationMessages:
 
         # Get the deprecated function
         func_map = {
+            "load_SampleData": sp.load_SampleData,
             "load_sample_data": sp._deprecated_load_sample_data,
             "init_supy": sp._deprecated_init_supy,
+            "load_config_from_df": sp.load_config_from_df,
+            "init_config": sp._deprecated_init_config,
             "run_supy": sp._deprecated_run_supy,
             "save_supy": sp._deprecated_save_supy,
         }
@@ -228,19 +246,47 @@ class TestPublicAPIDeprecationMessages:
         with warnings.catch_warnings(record=True) as w:
             warnings.simplefilter("always")
 
-            if func_name == "load_sample_data":
+            if func_name in {"load_sample_data", "load_SampleData"}:
                 func()
             elif func_name == "init_supy":
                 from supy._env import trv_supy_module
 
                 config_path = trv_supy_module / "sample_data" / "sample_config.yml"
                 func(str(config_path))
+            elif func_name in {"load_config_from_df", "init_config"}:
+                func(df_state)
             elif func_name == "run_supy":
                 func(df_forcing.iloc[:24], df_state)
             elif func_name == "save_supy":
                 func(df_output, df_state_final, path_dir_save=str(tmp_path))
 
             # Verify warning was emitted
+            expected = f"`supy.{func_name}`"
             assert any(
-                issubclass(warning.category, DeprecationWarning) for warning in w
-            ), f"{func_name} should emit DeprecationWarning"
+                issubclass(warning.category, FutureWarning)
+                and expected in str(warning.message)
+                for warning in w
+            ), f"{func_name} should emit FutureWarning"
+
+    def test_init_config_does_not_warn_via_load_config_from_df(self):
+        """Test init_config(df_state) does not emit nested public API warnings."""
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            df_state, _ = sp.load_sample_data()
+
+        with warnings.catch_warnings(record=True) as w:
+            warnings.simplefilter("always")
+            sp._deprecated_init_config(df_state)
+
+        supy_future_messages = [
+            str(warning.message)
+            for warning in w
+            if issubclass(warning.category, FutureWarning)
+            and str(warning.message).startswith("`supy.")
+        ]
+
+        assert any("`supy.init_config`" in message for message in supy_future_messages)
+        assert not any(
+            "`supy.load_config_from_df`" in message
+            for message in supy_future_messages
+        )

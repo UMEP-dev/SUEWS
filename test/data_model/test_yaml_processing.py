@@ -515,26 +515,36 @@ sites:
         )
 
     def test_error_handling(self):
-        """Test error handling for invalid inputs."""
+        """Test error handling for invalid inputs.
+
+        ``annotate_missing_parameters`` returns a structured ``PhaseReport``
+        on every path (success and pipeline failure) so callers and the
+        JSON sidecar share the same shape. I/O failures surface as a
+        single ``A.PIPELINE.*`` issue rather than collapsing to ``None``.
+        """
+        from supy.data_model.validation.pipeline.report_schema import PhaseReport
+
         with tempfile.TemporaryDirectory() as temp_dir:
-            # Test with non-existent file
+            # Test with non-existent file -> A.PIPELINE.FILE_NOT_FOUND
             non_existent = os.path.join(temp_dir, "does_not_exist.yml")
             result = annotate_missing_parameters(
                 user_file=non_existent, standard_file=self.standard_file
             )
-            # Should handle gracefully (returns None)
-            self.assertIsNone(result)
+            self.assertIsInstance(result, PhaseReport)
+            self.assertTrue(result.has_errors)
+            self.assertEqual(result.issues[0].code, "A.PIPELINE.FILE_NOT_FOUND")
 
-            # Test with invalid YAML
+            # Test with invalid YAML -> A.PIPELINE.YAML_PARSE_ERROR
             invalid_yaml = os.path.join(temp_dir, "invalid.yml")
-            with open(invalid_yaml, "w") as f:
+            with open(invalid_yaml, "w", encoding="utf-8") as f:
                 f.write("invalid: yaml: content: [unclosed")
 
             result = annotate_missing_parameters(
                 user_file=invalid_yaml, standard_file=self.standard_file
             )
-            # Should handle gracefully
-            self.assertIsNone(result)
+            self.assertIsInstance(result, PhaseReport)
+            self.assertTrue(result.has_errors)
+            self.assertEqual(result.issues[0].code, "A.PIPELINE.YAML_PARSE_ERROR")
 
     def test_renamed_params_consistency(self):
         """Test that RENAMED_PARAMS dictionary is consistent."""
@@ -598,8 +608,8 @@ class TestRealWorldScenarios(unittest.TestCase):
             "model": {
                 "control": {
                     "tstep": 300,
-                    "forcing_file": {"value": "test_forcing.txt"},
-                    "output_file": {"format": "txt", "freq": 3600, "groups": ["SUEWS"]},
+                    "forcing": {"file": {"value": "test_forcing.txt"}},
+                    "output": {"format": "txt", "freq": 3600, "groups": ["SUEWS"]},
                     "start_time": "2011-01-01",
                     "end_time": "2011-12-31",
                 },
@@ -692,9 +702,10 @@ description: A test config with all types of issues
 model:
   control:
     tstep: 300
-    forcing_file:
-      value: test_forcing.txt
-    output_file:
+    forcing:
+      file:
+        value: test_forcing.txt
+    output:
       format: txt
       freq: 3600
       groups: ["SUEWS"]
@@ -2905,7 +2916,7 @@ class TestProcessorFixtures:
                     "tstep": {"value": 300},
                     "start_time": {"value": "2011-01-01"},
                     "end_time": {"value": "2011-12-31"},
-                    "output_file": {
+                    "output": {
                         "freq": {"value": 3600},
                         "groups": {"value": ["SUEWS"]},
                     },
@@ -4058,10 +4069,10 @@ class TestPhaseCPydanticValidation(TestProcessorFixtures):
             "model": {
                 "control": {
                     "tstep": 300,
-                    "forcing_file": {"value": "forcing.txt"},
+                    "forcing": {"file": {"value": "forcing.txt"}},
                     "start_time": "2025-01-01",
                     "end_time": "2025-12-31",
-                    "output_file": {"freq": 3600, "format": "txt"},
+                    "output": {"freq": 3600, "format": "txt"},
                     "diagnose": 0,
                 },
                 "physics": {
@@ -4139,10 +4150,10 @@ class TestPhaseCPydanticValidation(TestProcessorFixtures):
             "model": {
                 "control": {
                     "tstep": 300,
-                    "forcing_file": {"value": "forcing.txt"},
+                    "forcing": {"file": {"value": "forcing.txt"}},
                     "start_time": "2025-01-01",
                     "end_time": "2025-12-31",
-                    "output_file": {"freq": 3600, "format": "txt"},
+                    "output": {"freq": 3600, "format": "txt"},
                     "diagnose": 0,
                 },
                 "physics": {

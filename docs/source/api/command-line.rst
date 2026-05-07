@@ -88,6 +88,20 @@ Display and export SUEWS configuration schema for validation and tooling.
 
     suews-schema --help
 
+suews knowledge
+~~~~~~~~~~~~~~~
+
+Query the packaged source-evidence knowledge pack. The pack is generated from
+the Git checkout used to build the installed SuPy wheel and carries citations
+back to the exact repository paths and line spans.
+
+.. code-block:: bash
+
+    suews knowledge manifest --format json
+    suews knowledge query "How is runoff routed?" --format json
+
+See :doc:`knowledge-pack` for the pack format and source policy.
+
 Related Documentation
 ---------------------
 

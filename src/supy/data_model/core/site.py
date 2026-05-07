@@ -31,6 +31,8 @@ from .field_renames import (
     EVETRPROPERTIES_RENAMES,
     DECTRPROPERTIES_RENAMES,
     ARCHETYPEPROPERTIES_DEV3_RENAMES,
+    ARCHETYPEPROPERTIES_DEV6_RENAMES,
+    ARCHETYPEPROPERTIES_DEV7_TO_PASCAL,
     ARCHETYPEPROPERTIES_RENAMES,
     ARCHETYPEPROPERTIES_PASCAL_RENAMES,
     STEBBSPROPERTIES_DEV3_RENAMES,
@@ -1327,6 +1329,9 @@ class ArchetypeProperties(BaseModel):
             values = apply_field_renames(
                 values, ARCHETYPEPROPERTIES_DEV3_RENAMES, cls.__name__
             )
+            values = apply_field_renames(
+                values, ARCHETYPEPROPERTIES_DEV6_RENAMES, cls.__name__
+            )
         return values
 
     # Not used in STEBBS - DAVE only
@@ -1415,13 +1420,13 @@ class ArchetypeProperties(BaseModel):
         ge=0.0,
         le=1.0,
     )
-    wall_thickness: Optional[FlexibleRefValue(float)] = Field(
+    thickness_wall: Optional[FlexibleRefValue(float)] = Field(
         default=0.2,
         description="Thickness of external wall [m]",
         json_schema_extra={"unit": "m", "display_name": "Wall Thickness"},
         gt=0.0,
     )
-    wall_effective_conductivity: Optional[FlexibleRefValue(float)] = Field(
+    conductivity_wall: Optional[FlexibleRefValue(float)] = Field(
         default=0.6,
         description="Effective thermal conductivity of walls [W m-1 K-1]",
         json_schema_extra={
@@ -1430,24 +1435,24 @@ class ArchetypeProperties(BaseModel):
         },
         gt=0.0,
     )
-    wall_density: Optional[FlexibleRefValue(float)] = Field(
+    density_wall: Optional[FlexibleRefValue(float)] = Field(
         default=1600.0,
         description="Effective density of the walls [kg m-3]",
         json_schema_extra={"unit": "kg m^-3", "display_name": "Wall Density"},
         gt=0.0,
     )
-    wall_specific_heat_capacity: Optional[FlexibleRefValue(float)] = Field(
+    specific_heat_capacity_wall: Optional[FlexibleRefValue(float)] = Field(
         default=850.0,
         description="Effective specific heat capacity of walls [J kg-1 K-1]",
         gt=0.0,
     )
-    wall_external_thickness: Optional[FlexibleRefValue(float)] = Field(
+    thickness_wall_outer: Optional[FlexibleRefValue(float)] = Field(
         default=20.0,
         description="Thickness of layers external to insulation in external wall [m]",
         json_schema_extra={"unit": "m", "display_name": "Wall External Thickness"},
         gt=0.0,
     )
-    wall_external_effective_conductivity: Optional[FlexibleRefValue(float)] = Field(
+    conductivity_wall_outer: Optional[FlexibleRefValue(float)] = Field(
         default=60.0,
         description="Effective thermal conductivity of layers external to insulation in walls [W m-1 K-1]",
         json_schema_extra={
@@ -1456,13 +1461,13 @@ class ArchetypeProperties(BaseModel):
         },
         gt=0.0,
     )
-    wall_external_density: Optional[FlexibleRefValue(float)] = Field(
+    density_wall_outer: Optional[FlexibleRefValue(float)] = Field(
         default=1600.0,
         description="Effective density of layers external to insulation in the walls [kg m-3]",
         json_schema_extra={"unit": "kg m^-3", "display_name": "Wall External Density"},
         gt=0.0,
     )
-    wall_external_specific_heat_capacity: Optional[FlexibleRefValue(float)] = Field(
+    specific_heat_capacity_wall_outer: Optional[FlexibleRefValue(float)] = Field(
         default=850.0,
         description="Effective specific heat capacity of layers external to insulation in walls [J kg-1 K-1]",
         json_schema_extra={
@@ -1471,7 +1476,7 @@ class ArchetypeProperties(BaseModel):
         },
         gt=0.0,
     )
-    wall_outer_heat_capacity_fraction: Optional[FlexibleRefValue(float)] = Field(
+    fraction_wall_heat_capacity_outer: Optional[FlexibleRefValue(float)] = Field(
         default=0.5,
         description="Weighting factor (0-1) representing the fraction of wall heat capacity assigned to the external node, with the remainder assigned to the internal node [-]",
         json_schema_extra={
@@ -1481,7 +1486,7 @@ class ArchetypeProperties(BaseModel):
         gt=0.0,
         lt=1.0,
     )
-    wall_external_emissivity: Optional[FlexibleRefValue(float)] = Field(
+    emissivity_wall_external: Optional[FlexibleRefValue(float)] = Field(
         default=0.9,
         description="Emissivity of the external surface of walls [-]",
         json_schema_extra={
@@ -1491,7 +1496,7 @@ class ArchetypeProperties(BaseModel):
         ge=0.0,
         le=1.0,
     )
-    wall_internal_emissivity: Optional[FlexibleRefValue(float)] = Field(
+    emissivity_wall_internal: Optional[FlexibleRefValue(float)] = Field(
         default=0.9,
         description="Emissivity of the internal surface of walls [-]",
         json_schema_extra={
@@ -1501,7 +1506,7 @@ class ArchetypeProperties(BaseModel):
         ge=0.0,
         le=1.0,
     )
-    wall_transmissivity: Optional[FlexibleRefValue(float)] = Field(
+    transmissivity_wall_external: Optional[FlexibleRefValue(float)] = Field(
         default=0.0,
         description="Transmissivity of walls [-]",
         json_schema_extra={
@@ -1511,7 +1516,7 @@ class ArchetypeProperties(BaseModel):
         ge=0.0,
         lt=1.0,
     )
-    wall_absorptivity: Optional[FlexibleRefValue(float)] = Field(
+    absorptivity_wall_external: Optional[FlexibleRefValue(float)] = Field(
         default=0.8,
         description="Absorptivity of walls [-]",
         json_schema_extra={
@@ -1521,7 +1526,7 @@ class ArchetypeProperties(BaseModel):
         gt=0.0,
         le=1.0,
     )
-    wall_reflectivity: Optional[FlexibleRefValue(float)] = Field(
+    reflectivity_wall_external: Optional[FlexibleRefValue(float)] = Field(
         default=0.2,
         description="Reflectivity of the external surface of walls [-]",
         json_schema_extra={
@@ -1531,13 +1536,13 @@ class ArchetypeProperties(BaseModel):
         ge=0.0,
         lt=1.0,
     )
-    roof_thickness: Optional[FlexibleRefValue(float)] = Field(
+    thickness_roof: Optional[FlexibleRefValue(float)] = Field(
         default=20.0,
         description="Thickness of roof [m]",
         json_schema_extra={"unit": "m", "display_name": "Roof Thickness"},
         gt=0.0,
     )
-    roof_effective_conductivity: Optional[FlexibleRefValue(float)] = Field(
+    conductivity_roof: Optional[FlexibleRefValue(float)] = Field(
         default=60.0,
         description="Effective thermal conductivity of roof [W m-1 K-1]",
         json_schema_extra={
@@ -1546,24 +1551,24 @@ class ArchetypeProperties(BaseModel):
         },
         gt=0.0,
     )
-    roof_density: Optional[FlexibleRefValue(float)] = Field(
+    density_roof: Optional[FlexibleRefValue(float)] = Field(
         default=1600.0,
         description="Effective density of the roof [kg m-3]",
         json_schema_extra={"unit": "kg m^-3", "display_name": "Roof Density"},
         gt=0.0,
     )
-    roof_specific_heat_capacity: Optional[FlexibleRefValue(float)] = Field(
+    specific_heat_capacity_roof: Optional[FlexibleRefValue(float)] = Field(
         default=850.0,
         description="Effective specific heat capacity of roof [J kg-1 K-1]",
         gt=0.0,
     )
-    roof_external_thickness: Optional[FlexibleRefValue(float)] = Field(
+    thickness_roof_outer: Optional[FlexibleRefValue(float)] = Field(
         default=20.0,
         description="Thickness of layers external to insulation in roof [m]",
         json_schema_extra={"unit": "m", "display_name": "Roof External Thickness"},
         gt=0.0,
     )
-    roof_external_effective_conductivity: Optional[FlexibleRefValue(float)] = Field(
+    conductivity_roof_outer: Optional[FlexibleRefValue(float)] = Field(
         default=60.0,
         description="Effective thermal conductivity of layers external to insulation in roof [W m-1 K-1]",
         json_schema_extra={
@@ -1572,13 +1577,13 @@ class ArchetypeProperties(BaseModel):
         },
         gt=0.0,
     )
-    roof_external_density: Optional[FlexibleRefValue(float)] = Field(
+    density_roof_outer: Optional[FlexibleRefValue(float)] = Field(
         default=1600.0,
         description="Effective density of layers external to insulation in the roof [kg m-3]",
         json_schema_extra={"unit": "kg m^-3", "display_name": "Roof External Density"},
         gt=0.0,
     )
-    roof_external_specific_heat_capacity: Optional[FlexibleRefValue(float)] = Field(
+    specific_heat_capacity_roof_outer: Optional[FlexibleRefValue(float)] = Field(
         default=850.0,
         description="Effective specific heat capacity of layers external to insulation in roof [J kg-1 K-1]",
         json_schema_extra={
@@ -1587,7 +1592,7 @@ class ArchetypeProperties(BaseModel):
         },
         gt=0.0,
     )
-    roof_outer_heat_capacity_fraction: Optional[FlexibleRefValue(float)] = Field(
+    fraction_roof_heat_capacity_outer: Optional[FlexibleRefValue(float)] = Field(
         default=0.5,
         description="Weighting factor (0-1) representing the fraction of roof heat capacity assigned to the external node, with the remainder assigned to the internal node [-]",
         json_schema_extra={
@@ -1597,7 +1602,7 @@ class ArchetypeProperties(BaseModel):
         gt=0.0,
         lt=1.0,
     )
-    roof_external_emissivity: Optional[FlexibleRefValue(float)] = Field(
+    emissivity_roof_external: Optional[FlexibleRefValue(float)] = Field(
         default=0.9,
         description="Emissivity of the external surface of roof [-]",
         json_schema_extra={
@@ -1607,7 +1612,7 @@ class ArchetypeProperties(BaseModel):
         ge=0.0,
         le=1.0,
     )
-    roof_internal_emissivity: Optional[FlexibleRefValue(float)] = Field(
+    emissivity_roof_internal: Optional[FlexibleRefValue(float)] = Field(
         default=0.9,
         description="Emissivity of the internal surface of roof [-]",
         json_schema_extra={
@@ -1617,7 +1622,7 @@ class ArchetypeProperties(BaseModel):
         ge=0.0,
         le=1.0,
     )
-    roof_transmissivity: Optional[FlexibleRefValue(float)] = Field(
+    transmissivity_roof_external: Optional[FlexibleRefValue(float)] = Field(
         default=0.0,
         description="Transmissivity of roof [-]",
         json_schema_extra={
@@ -1627,7 +1632,7 @@ class ArchetypeProperties(BaseModel):
         ge=0.0,
         lt=1.0,
     )
-    roof_absorptivity: Optional[FlexibleRefValue(float)] = Field(
+    absorptivity_roof_external: Optional[FlexibleRefValue(float)] = Field(
         default=0.8,
         description="Absorptivity of roof [-]",
         json_schema_extra={
@@ -1637,7 +1642,7 @@ class ArchetypeProperties(BaseModel):
         gt=0.0,
         le=1.0,
     )
-    roof_reflectivity: Optional[FlexibleRefValue(float)] = Field(
+    reflectivity_roof_external: Optional[FlexibleRefValue(float)] = Field(
         default=0.2,
         description="Reflectivity of the external surface of roof [-]",
         json_schema_extra={
@@ -1647,13 +1652,13 @@ class ArchetypeProperties(BaseModel):
         ge=0.0,
         lt=1.0,
     )
-    ground_floor_thickness: Optional[FlexibleRefValue(float)] = Field(
+    thickness_ground_floor: Optional[FlexibleRefValue(float)] = Field(
         default=0.2,
         description="Thickness of ground floor [m]",
         json_schema_extra={"unit": "m", "display_name": "Floor Thickness"},
         gt=0.0,
     )
-    ground_floor_effective_conductivity: Optional[FlexibleRefValue(float)] = Field(
+    conductivity_ground_floor: Optional[FlexibleRefValue(float)] = Field(
         default=0.15,
         description="Effective thermal conductivity of ground floor [W m-1 K-1]",
         json_schema_extra={
@@ -1662,13 +1667,13 @@ class ArchetypeProperties(BaseModel):
         },
         gt=0.0,
     )
-    ground_floor_density: Optional[FlexibleRefValue(float)] = Field(
+    density_ground_floor: Optional[FlexibleRefValue(float)] = Field(
         default=500.0,
         description="Effective density of the ground floor [kg m-3]",
         json_schema_extra={"unit": "kg m^-3", "display_name": "Ground Floor Density"},
         gt=0.0,
     )
-    ground_floor_specific_heat_capacity: Optional[FlexibleRefValue(float)] = Field(
+    specific_heat_capacity_ground_floor: Optional[FlexibleRefValue(float)] = Field(
         default=1500.0,
         description="Effective specific heat capacity of the ground floor [J kg-1 K-1]",
         json_schema_extra={
@@ -1677,13 +1682,13 @@ class ArchetypeProperties(BaseModel):
         },
         gt=0.0,
     )
-    window_thickness: Optional[FlexibleRefValue(float)] = Field(
+    thickness_window: Optional[FlexibleRefValue(float)] = Field(
         default=0.015,
         description="Window thickness [m]",
         json_schema_extra={"unit": "m", "display_name": "Window Thickness"},
         gt=0.0,
     )
-    window_effective_conductivity: Optional[FlexibleRefValue(float)] = Field(
+    conductivity_window: Optional[FlexibleRefValue(float)] = Field(
         default=1.0,
         description="Effective thermal conductivity of windows [W m-1 K-1]",
         json_schema_extra={
@@ -1692,13 +1697,13 @@ class ArchetypeProperties(BaseModel):
         },
         gt=0.0,
     )
-    window_density: Optional[FlexibleRefValue(float)] = Field(
+    density_window: Optional[FlexibleRefValue(float)] = Field(
         default=2500.0,
         description="Effective density of the windows [kg m-3]",
         json_schema_extra={"unit": "kg m^-3", "display_name": "Window Density"},
         gt=0.0,
     )
-    window_specific_heat_capacity: Optional[FlexibleRefValue(float)] = Field(
+    specific_heat_capacity_window: Optional[FlexibleRefValue(float)] = Field(
         default=840.0,
         description="Effective specific heat capacity of windows [J kg-1 K-1]",
         json_schema_extra={
@@ -1707,7 +1712,7 @@ class ArchetypeProperties(BaseModel):
         },
         gt=0.0,
     )
-    window_external_emissivity: Optional[FlexibleRefValue(float)] = Field(
+    emissivity_window_external: Optional[FlexibleRefValue(float)] = Field(
         default=0.90,
         description="Emissivity of the external surface of windows [-]",
         json_schema_extra={
@@ -1717,7 +1722,7 @@ class ArchetypeProperties(BaseModel):
         ge=0.0,
         le=1.0,
     )
-    window_internal_emissivity: Optional[FlexibleRefValue(float)] = Field(
+    emissivity_window_internal: Optional[FlexibleRefValue(float)] = Field(
         default=0.90,
         description="Emissivity of the internal surface of windows [-]",
         json_schema_extra={
@@ -1727,7 +1732,7 @@ class ArchetypeProperties(BaseModel):
         ge=0.0,
         le=1.0,
     )
-    window_transmissivity: Optional[FlexibleRefValue(float)] = Field(
+    transmissivity_window_external: Optional[FlexibleRefValue(float)] = Field(
         default=0.90,
         description="Transmissivity of windows [-]",
         json_schema_extra={
@@ -1737,7 +1742,7 @@ class ArchetypeProperties(BaseModel):
         ge=0.0,
         lt=1.0,
     )
-    window_absorptivity: Optional[FlexibleRefValue(float)] = Field(
+    absorptivity_window_external: Optional[FlexibleRefValue(float)] = Field(
         default=0.01,
         description="Absorptivity of windows [-]",
         json_schema_extra={
@@ -1747,7 +1752,7 @@ class ArchetypeProperties(BaseModel):
         gt=0.0,
         le=1.0,
     )
-    window_reflectivity: Optional[FlexibleRefValue(float)] = Field(
+    reflectivity_window_external: Optional[FlexibleRefValue(float)] = Field(
         default=0.09,
         description="Reflectivity of the external surface of windows [-]",
         json_schema_extra={
@@ -1758,13 +1763,13 @@ class ArchetypeProperties(BaseModel):
         lt=1.0,
     )
     # TODO: Add defaults below here
-    internal_mass_density: Optional[FlexibleRefValue(float)] = Field(
+    density_internal_mass: Optional[FlexibleRefValue(float)] = Field(
         default=1000.0,
         description="Effective density of the internal mass [kg m-3]",
         json_schema_extra={"unit": "kg m^-3", "display_name": "Internal Mass Density"},
         gt=0.0,
     )
-    internal_mass_specific_heat_capacity: Optional[FlexibleRefValue(float)] = Field(
+    specific_heat_capacity_internal_mass: Optional[FlexibleRefValue(float)] = Field(
         default=1000.0,
         description="Effective specific heat capacity of internal mass [J kg-1 K-1]",
         json_schema_extra={
@@ -1773,7 +1778,7 @@ class ArchetypeProperties(BaseModel):
         },
         gt=0.0,
     )
-    internal_mass_emissivity: Optional[FlexibleRefValue(float)] = Field(
+    emissivity_internal_mass: Optional[FlexibleRefValue(float)] = Field(
         default=0.0,
         description="Emissivity of internal mass [-]",
         ge=0.0,
@@ -1854,7 +1859,11 @@ class ArchetypeProperties(BaseModel):
         # src/suews/src/suews_type_stebbs.f95) reads these columns by the
         # pre-gh#1327 fused spelling. Keep the DataFrame column keyed on the
         # legacy name even after the Python attribute was spelt out.
-        new: old for old, new in ARCHETYPEPROPERTIES_RENAMES.items()
+        # The DEV7_TO_PASCAL chain follows the dev6 -> dev7 Rule-2 reorder
+        # back to the same PascalCase ancestry so the bridge column key is
+        # unchanged after the rename.
+        **{new: old for old, new in ARCHETYPEPROPERTIES_RENAMES.items()},
+        **ARCHETYPEPROPERTIES_DEV7_TO_PASCAL,
     }
 
     def to_df_state(self, grid_id: int) -> pd.DataFrame:

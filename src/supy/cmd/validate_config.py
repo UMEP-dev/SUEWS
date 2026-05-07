@@ -10,6 +10,7 @@ import yaml
 import json
 import sys
 import os
+from contextlib import nullcontext as _nullcontext
 from pathlib import Path
 import importlib.resources
 from typing import Optional, List
@@ -31,6 +32,9 @@ except ImportError:
     ErrorCode = None
     ValidationError = None
 
+# Canonical SUEWS CLI JSON envelope (gh#1360 / gh#1368).
+from .json_envelope import Envelope, _now_iso, silent_supy_logger
+
 # Orchestrated YAML processor phases (A/B/C)
 try:
     from ..data_model.validation.pipeline.orchestrator import (
@@ -40,6 +44,9 @@ try:
         run_phase_b as _processor_run_phase_b,
         run_phase_c as _processor_run_phase_c,
         create_final_user_files as _processor_create_final_user_files,
+        copy_report_with_json as _processor_copy_report_with_json,
+        move_report_with_json as _processor_move_report_with_json,
+        unlink_report_with_json as _processor_unlink_report_with_json,
     )
 except Exception:
     _processor_validate_input_file = None
@@ -48,6 +55,9 @@ except Exception:
     _processor_run_phase_b = None
     _processor_run_phase_c = None
     _processor_create_final_user_files = None
+    _processor_copy_report_with_json = None
+    _processor_move_report_with_json = None
+    _processor_unlink_report_with_json = None
 
 # Import from supy modules
 try:
@@ -199,6 +209,82 @@ def validate_single_file(
         return (False, [f"Unexpected error: {e}"])
 
 
+def _emit_validation_envelope(
+    results: List[dict],
+    schema_version: Optional[str],
+    started_at: str,
+) -> bool:
+    """Emit the canonical Envelope for a list of per-file validation results.
+
+    Each ``results`` entry is the same dict shape that the validator
+    pipeline already constructs (``file``, ``valid``, ``errors``,
+    ``error_count``); ``errors`` may hold ``ValidationError.to_dict()``
+    payloads or plain strings.
+
+    Returns
+    -------
+    bool
+        ``True`` when every file validated cleanly. Callers use this to
+        choose the process exit code.
+    """
+    all_valid = all(r["valid"] for r in results)
+
+    list_errors: List[dict] = []
+    for record in results:
+        if record["valid"]:
+            continue
+        for err in record["errors"]:
+            if isinstance(err, dict):
+                schema_path = (
+                    err.get("path") or err.get("field") or err.get("location")
+                )
+                message = err.get("message", "")
+                envelope_err = {
+                    "file": record["file"],
+                    "message": message,
+                    "schema_path": schema_path,
+                    "hint": message,
+                }
+                for key in ("code", "code_name", "severity", "site_gridid"):
+                    if err.get(key) is not None:
+                        envelope_err[key] = err[key]
+                list_errors.append(envelope_err)
+            else:
+                list_errors.append({
+                    "file": record["file"],
+                    "message": str(err),
+                    "schema_path": None,
+                    "hint": str(err),
+                })
+
+    data = {
+        "schema_version": schema_version,
+        "files": [
+            {
+                "file": record["file"],
+                "valid": record["valid"],
+                "error_count": record.get("error_count", 0),
+            }
+            for record in results
+        ],
+        "is_valid": all_valid,
+    }
+
+    command_str = " ".join(sys.argv) if sys.argv else "suews validate"
+    if all_valid:
+        Envelope.success(
+            data=data, command=command_str, started_at=started_at
+        ).emit()
+    else:
+        Envelope.error(
+            errors=list_errors,
+            command=command_str,
+            data=data,
+            started_at=started_at,
+        ).emit()
+    return all_valid
+
+
 @click.group(invoke_without_command=True)
 @click.argument("files", nargs=-1, type=click.Path(exists=True))
 @click.option(
@@ -238,12 +324,30 @@ def validate_single_file(
     default="on",
     help="Enable/disable forcing data validation (default: on)",
 )
+@click.option(
+    "--science-fixes",
+    type=click.Choice(["suggest", "apply", "off"]),
+    default="suggest",
+    show_default=True,
+    help="Handle Phase B scientific transformations: suggest, apply, or off",
+)
 @click.pass_context
-def cli(ctx, files, pipeline, mode, dry_run, out_format, schema_version, forcing):
+def cli(
+    ctx,
+    files,
+    pipeline,
+    mode,
+    dry_run,
+    out_format,
+    schema_version,
+    forcing,
+    science_fixes,
+):
     """SUEWS Configuration Validator.
 
-    Default behavior: run the complete validation pipeline on FILE. Use subcommands
-    for specific operations (validate, schema, migrate, export).
+    Default behavior: run the complete validation pipeline on FILE. Use the
+    validate subcommand for batch schema checks; use `suews schema` for schema
+    lifecycle operations.
     """
     # If invoked without a subcommand, run the pipeline workflow
     if ctx.invoked_subcommand is None:
@@ -270,12 +374,15 @@ def cli(ctx, files, pipeline, mode, dry_run, out_format, schema_version, forcing
                 all_valid = True
                 for file_path in files:
                     path = Path(file_path)
-                    is_valid, errors = validate_single_file(
-                        path,
-                        schema,
-                        show_details=True,
-                        schema_version=target_version,
-                    )
+                    with (
+                        silent_supy_logger() if out_format == "json" else _nullcontext()
+                    ):
+                        is_valid, errors = validate_single_file(
+                            path,
+                            schema,
+                            show_details=True,
+                            schema_version=target_version,
+                        )
                     if not is_valid:
                         all_valid = False
 
@@ -295,16 +402,10 @@ def cli(ctx, files, pipeline, mode, dry_run, out_format, schema_version, forcing
                     })
 
                 if out_format == "json":
-                    if JSONOutput:
-                        # Use the new structured JSON output
-                        json_formatter = JSONOutput(command="suews-validate")
-                        output = json_formatter.validation_result(
-                            files=results, schema_version=target_version, dry_run=True
-                        )
-                        JSONOutput.output(output)
-                    else:
-                        # Fallback to simple JSON
-                        console.print(json.dumps(results, indent=2))
+                    started_at = _now_iso()
+                    all_valid = _emit_validation_envelope(
+                        results, target_version, started_at
+                    )
                 else:
                     table = Table(title="Validation Results")
                     table.add_column("File", style="cyan")
@@ -338,12 +439,13 @@ def cli(ctx, files, pipeline, mode, dry_run, out_format, schema_version, forcing
                 )
                 ctx.exit(2)
             path = Path(files[0])
-            is_valid, errors = validate_single_file(
-                path,
-                schema,
-                show_details=True,
-                schema_version=target_version,
-            )
+            with (silent_supy_logger() if out_format == "json" else _nullcontext()):
+                is_valid, errors = validate_single_file(
+                    path,
+                    schema,
+                    show_details=True,
+                    schema_version=target_version,
+                )
 
             # Convert ValidationError objects to dicts for JSON serialization
             error_list = []
@@ -362,16 +464,8 @@ def cli(ctx, files, pipeline, mode, dry_run, out_format, schema_version, forcing
                 }
             ]
             if out_format == "json":
-                if JSONOutput:
-                    # Use the new structured JSON output
-                    json_formatter = JSONOutput(command="suews-validate")
-                    output = json_formatter.validation_result(
-                        files=result, schema_version=target_version, dry_run=True
-                    )
-                    JSONOutput.output(output)
-                else:
-                    # Fallback to simple JSON
-                    console.print(json.dumps(result, indent=2))
+                started_at = _now_iso()
+                _emit_validation_envelope(result, target_version, started_at)
             else:
                 table = Table(title="Validation Results")
                 table.add_column("File", style="cyan")
@@ -397,7 +491,11 @@ def cli(ctx, files, pipeline, mode, dry_run, out_format, schema_version, forcing
             )
             ctx.exit(2)
         code = _execute_pipeline(
-            file=files[0], pipeline=pipeline, mode=mode, forcing=forcing
+            file=files[0],
+            pipeline=pipeline,
+            mode=mode,
+            forcing=forcing,
+            science_fixes=science_fixes,
         )
         ctx.exit(code)
 
@@ -433,12 +531,13 @@ def validate(files, schema_version, verbose, quiet, format):
         files, description="Validating...", disable=(quiet or format == "json")
     ):
         path = Path(file_path)
-        is_valid, errors = validate_single_file(
-            path,
-            schema,
-            show_details=verbose,
-            schema_version=schema_version,
-        )
+        with (silent_supy_logger() if format == "json" else _nullcontext()):
+            is_valid, errors = validate_single_file(
+                path,
+                schema,
+                show_details=verbose,
+                schema_version=schema_version,
+            )
 
         # Convert ValidationError objects to dicts for JSON serialization
         error_list = []
@@ -458,16 +557,8 @@ def validate(files, schema_version, verbose, quiet, format):
             valid_files += 1
 
     if format == "json":
-        if JSONOutput:
-            # Use the new structured JSON output
-            json_formatter = JSONOutput(command="suews-validate")
-            output = json_formatter.validation_result(
-                files=results, schema_version=version, dry_run=False
-            )
-            JSONOutput.output(output)
-        else:
-            # Fallback to simple JSON
-            console.print(json.dumps(results, indent=2))
+        started_at = _now_iso()
+        _emit_validation_envelope(results, version, started_at)
     else:
         if not quiet:
             table = Table(title="Validation Results")
@@ -501,7 +592,7 @@ def validate(files, schema_version, verbose, quiet, format):
 ## Removed `check` subcommand to avoid redundancy with `validate`.
 
 
-@cli.command()
+@cli.command(hidden=True)
 @click.argument("file", type=click.Path(exists=True))
 @click.option("--output", "-o", help="Output file for migrated configuration")
 @click.option("--to-version", help="Target schema version")
@@ -585,14 +676,14 @@ def _print_schema_info():
     console.print("  • Documentation: docs/source/inputs/yaml/schema_versioning.rst")
 
     console.print("\n[bold]Validation Commands:[/bold]")
-    console.print("  • Full validation: suews-validate config.yml")
+    console.print("  • Full validation: suews validate config.yml")
     console.print(
-        "  • Read-only check: suews-validate -p C --dry-run configs/*.yml --format json"
+        "  • Read-only check: suews validate -p C --dry-run configs/*.yml --format json"
     )
-    console.print("  • Migrate: suews-validate schema migrate old_config.yml")
+    console.print("  • Migrate: suews schema migrate old_config.yml")
 
 
-@cli.command()
+@cli.command(hidden=True)
 @click.argument("files", nargs=-1, type=click.Path(exists=True), required=True)
 @click.option(
     "--update", "-u", is_flag=True, help="Update schema_version field in files"
@@ -667,7 +758,7 @@ def version(files, update, target_version, backup):
     console.print(table)
 
 
-@cli.command()
+@cli.command(hidden=True)
 @click.option(
     "--output",
     "-o",
@@ -788,7 +879,7 @@ def _format_phase_output(
     return None
 
 
-def _execute_pipeline(file, pipeline, mode, forcing="on"):
+def _execute_pipeline(file, pipeline, mode, forcing="on", science_fixes="suggest"):
     """Run YAML validation pipeline to validate and generate reports/YAML.
 
     The validation system uses multiple internal phases:
@@ -804,6 +895,7 @@ def _execute_pipeline(file, pipeline, mode, forcing="on"):
         print(f"[DEBUG]   file: {file}", file=sys.stderr)
         print(f"[DEBUG]   pipeline: {pipeline}", file=sys.stderr)
         print(f"[DEBUG]   mode: {mode}", file=sys.stderr)
+        print(f"[DEBUG]   science_fixes: {science_fixes}", file=sys.stderr)
 
     # Ensure processor is importable
     if not all([
@@ -812,6 +904,10 @@ def _execute_pipeline(file, pipeline, mode, forcing="on"):
         _processor_run_phase_a,
         _processor_run_phase_b,
         _processor_run_phase_c,
+        _processor_create_final_user_files,
+        _processor_copy_report_with_json,
+        _processor_move_report_with_json,
+        _processor_unlink_report_with_json,
     ]):
         console.print(
             "[red]✗ YAML processor is unavailable. Ensure supy.data_model.validation.pipeline is present.[/red]"
@@ -857,7 +953,7 @@ def _execute_pipeline(file, pipeline, mode, forcing="on"):
 
     # Execute selected phases (logic mirrors orchestrator.main for consistency)
     if pipeline == "A":
-        ok = _processor_run_phase_a(
+        phase_a_report = _processor_run_phase_a(
             user_yaml_file,
             standard_yaml_file,
             uptodate_file,
@@ -867,6 +963,7 @@ def _execute_pipeline(file, pipeline, mode, forcing="on"):
             silent=True,
             forcing=forcing,
         )
+        ok = not phase_a_report.has_errors
         console.print(
             "[green]✓ Validation completed[/green]"
             if ok
@@ -884,7 +981,7 @@ def _execute_pipeline(file, pipeline, mode, forcing="on"):
         return 0 if ok else 1
 
     if pipeline == "B":
-        ok = _processor_run_phase_b(
+        phase_b_report = _processor_run_phase_b(
             user_yaml_file,
             user_yaml_file,
             standard_yaml_file,
@@ -895,7 +992,9 @@ def _execute_pipeline(file, pipeline, mode, forcing="on"):
             mode=mode,
             phase="B",
             silent=True,
+            science_fixes=science_fixes,
         )
+        ok = not phase_b_report.has_errors
         console.print(
             "[green]✓ Validation completed[/green]"
             if ok
@@ -913,7 +1012,7 @@ def _execute_pipeline(file, pipeline, mode, forcing="on"):
         return 0 if ok else 1
 
     if pipeline == "C":
-        ok = _processor_run_phase_c(
+        phase_c_report = _processor_run_phase_c(
             user_yaml_file,
             pydantic_yaml_file,
             pydantic_report_file,
@@ -921,6 +1020,7 @@ def _execute_pipeline(file, pipeline, mode, forcing="on"):
             phases_run=["C"],
             silent=True,
         )
+        ok = not phase_c_report.has_errors
         console.print(
             "[green]✓ Validation completed[/green]"
             if ok
@@ -938,7 +1038,7 @@ def _execute_pipeline(file, pipeline, mode, forcing="on"):
         return 0 if ok else 1
 
     if pipeline == "AB":
-        a_ok = _processor_run_phase_a(
+        a_ok_report = _processor_run_phase_a(
             user_yaml_file,
             standard_yaml_file,
             uptodate_file,
@@ -948,6 +1048,7 @@ def _execute_pipeline(file, pipeline, mode, forcing="on"):
             silent=True,
             forcing=forcing,
         )
+        a_ok = not a_ok_report.has_errors
         if not a_ok:
             # Phase A failed in AB workflow - create final user files from Phase A outputs
             final_yaml, final_report = _processor_create_final_user_files(
@@ -958,7 +1059,7 @@ def _execute_pipeline(file, pipeline, mode, forcing="on"):
             console.print(f"Updated YAML: {final_yaml}")
             return 1
 
-        b_ok = _processor_run_phase_b(
+        b_ok_report = _processor_run_phase_b(
             user_yaml_file,
             uptodate_file,
             standard_yaml_file,
@@ -969,7 +1070,9 @@ def _execute_pipeline(file, pipeline, mode, forcing="on"):
             mode=mode,
             phase="AB",
             silent=True,
+            science_fixes=science_fixes,
         )
+        b_ok = not b_ok_report.has_errors
 
         if not b_ok:
             # Phase B failed in AB workflow - create final user files from Phase B error report and Phase A YAML
@@ -993,11 +1096,12 @@ def _execute_pipeline(file, pipeline, mode, forcing="on"):
 
                 # Use Phase B report as final (contains the errors)
                 if Path(science_report_file).exists():
-                    shutil.move(str(science_report_file), str(final_report))
+                    _processor_move_report_with_json(
+                        science_report_file, final_report, final_yaml
+                    )
 
                 # Clean up intermediate Phase A report
-                if Path(report_file).exists():
-                    Path(report_file).unlink()
+                _processor_unlink_report_with_json(report_file)
 
                 # Remove failed Phase B YAML if it exists (only if different from final_yaml)
                 if Path(science_yaml_file).exists() and str(science_yaml_file) != str(
@@ -1037,8 +1141,7 @@ def _execute_pipeline(file, pipeline, mode, forcing="on"):
             )
 
             # Clean up intermediate files
-            if Path(report_file).exists():
-                Path(report_file).unlink()  # Remove Phase A report
+            _processor_unlink_report_with_json(report_file)  # Remove Phase A report
             if Path(uptodate_file).exists():
                 Path(uptodate_file).unlink()  # Remove Phase A YAML
         except Exception:
@@ -1050,7 +1153,7 @@ def _execute_pipeline(file, pipeline, mode, forcing="on"):
         return 0
 
     if pipeline == "AC":
-        a_ok = _processor_run_phase_a(
+        a_ok_report = _processor_run_phase_a(
             user_yaml_file,
             standard_yaml_file,
             uptodate_file,
@@ -1060,6 +1163,7 @@ def _execute_pipeline(file, pipeline, mode, forcing="on"):
             silent=True,
             forcing=forcing,
         )
+        a_ok = not a_ok_report.has_errors
         if not a_ok:
             # Phase A failed in AC workflow - create final user files from Phase A outputs
             final_yaml, final_report = _processor_create_final_user_files(
@@ -1070,7 +1174,7 @@ def _execute_pipeline(file, pipeline, mode, forcing="on"):
             console.print(f"Updated YAML: {final_yaml}")
             return 1
 
-        c_ok = _processor_run_phase_c(
+        c_ok_report = _processor_run_phase_c(
             uptodate_file,
             pydantic_yaml_file,
             pydantic_report_file,
@@ -1079,6 +1183,7 @@ def _execute_pipeline(file, pipeline, mode, forcing="on"):
             phases_run=["A", "C"],
             silent=True,
         )
+        c_ok = not c_ok_report.has_errors
 
         if not c_ok:
             # Phase C failed in AC workflow - create final user files from Phase C error report and Phase A YAML
@@ -1098,8 +1203,7 @@ def _execute_pipeline(file, pipeline, mode, forcing="on"):
 
                 # Phase C report should already be at pydantic_report_file (final name)
                 # Clean up intermediate Phase A report
-                if Path(report_file).exists():
-                    Path(report_file).unlink()
+                _processor_unlink_report_with_json(report_file)
 
                 # Remove failed Phase C YAML if it exists (only if different from final_yaml)
                 if Path(pydantic_yaml_file).exists() and str(pydantic_yaml_file) != str(
@@ -1139,8 +1243,7 @@ def _execute_pipeline(file, pipeline, mode, forcing="on"):
             )
 
             # Clean up intermediate files
-            if Path(report_file).exists():
-                Path(report_file).unlink()  # Remove Phase A report
+            _processor_unlink_report_with_json(report_file)  # Remove Phase A report
             if Path(uptodate_file).exists():
                 Path(uptodate_file).unlink()  # Remove Phase A YAML
         except Exception:
@@ -1152,7 +1255,7 @@ def _execute_pipeline(file, pipeline, mode, forcing="on"):
         return 0
 
     if pipeline == "BC":
-        b_ok = _processor_run_phase_b(
+        b_ok_report = _processor_run_phase_b(
             user_yaml_file,
             user_yaml_file,
             standard_yaml_file,
@@ -1163,7 +1266,9 @@ def _execute_pipeline(file, pipeline, mode, forcing="on"):
             mode=mode,
             phase="BC",
             silent=True,
+            science_fixes=science_fixes,
         )
+        b_ok = not b_ok_report.has_errors
         if not b_ok:
             # Phase B failed in BC workflow - create final user files from Phase B outputs
             import shutil
@@ -1182,7 +1287,9 @@ def _execute_pipeline(file, pipeline, mode, forcing="on"):
 
                 # Use Phase B report as final
                 if Path(science_report_file).exists():
-                    shutil.move(str(science_report_file), str(final_report))
+                    _processor_move_report_with_json(
+                        science_report_file, final_report, final_yaml
+                    )
             except Exception as e:
                 console.print(f"[yellow]Warning during cleanup: {e}[/yellow]")
 
@@ -1192,7 +1299,7 @@ def _execute_pipeline(file, pipeline, mode, forcing="on"):
                 console.print(f"Updated YAML: {final_yaml}")
             return 1
 
-        c_ok = _processor_run_phase_c(
+        c_ok_report = _processor_run_phase_c(
             science_yaml_file,
             pydantic_yaml_file,
             pydantic_report_file,
@@ -1200,6 +1307,7 @@ def _execute_pipeline(file, pipeline, mode, forcing="on"):
             phases_run=["B", "C"],
             silent=True,
         )
+        c_ok = not c_ok_report.has_errors
 
         if not c_ok:
             # Phase C failed in BC workflow - consolidate Phase B messages into Phase C error report
@@ -1235,12 +1343,12 @@ def _execute_pipeline(file, pipeline, mode, forcing="on"):
                             lines.pop()
                         phase_c_content = "\n".join(lines)
 
-                        # Ensure proper spacing before NO ACTION NEEDED section
+                        # Ensure proper spacing before INFO section
                         if not phase_c_content.endswith("\n\n"):
                             phase_c_content += "\n"
 
-                        # Add NO ACTION NEEDED section
-                        phase_c_content += "\n## NO ACTION NEEDED"
+                        # Add INFO section
+                        phase_c_content += "\n## INFO"
 
                         # Add Phase B messages
                         for msg in phase_b_messages:
@@ -1257,8 +1365,7 @@ def _execute_pipeline(file, pipeline, mode, forcing="on"):
                     shutil.move(str(science_yaml_file), str(final_yaml))
 
                 # Clean up intermediate Phase B report (now that we've extracted messages)
-                if Path(science_report_file).exists():
-                    Path(science_report_file).unlink()
+                _processor_unlink_report_with_json(science_report_file)
 
                 # Remove failed Phase C YAML if it exists (only if different from final_yaml)
                 if Path(pydantic_yaml_file).exists() and str(pydantic_yaml_file) != str(
@@ -1300,8 +1407,9 @@ def _execute_pipeline(file, pipeline, mode, forcing="on"):
             )
 
             # Clean up intermediate files
-            if Path(science_report_file).exists():
-                Path(science_report_file).unlink()  # Remove Phase B report
+            _processor_unlink_report_with_json(
+                science_report_file
+            )  # Remove Phase B report
             if Path(science_yaml_file).exists():
                 Path(science_yaml_file).unlink()  # Remove Phase B YAML
         except Exception:
@@ -1313,7 +1421,7 @@ def _execute_pipeline(file, pipeline, mode, forcing="on"):
         return 0
 
     # Default: ABC
-    a_ok = _processor_run_phase_a(
+    a_ok_report = _processor_run_phase_a(
         user_yaml_file,
         standard_yaml_file,
         uptodate_file,
@@ -1323,6 +1431,7 @@ def _execute_pipeline(file, pipeline, mode, forcing="on"):
         silent=True,
         forcing=forcing,
     )
+    a_ok = not a_ok_report.has_errors
     if not a_ok:
         # Phase A failed in ABC - create final files from Phase A outputs
         if debug:
@@ -1349,7 +1458,7 @@ def _execute_pipeline(file, pipeline, mode, forcing="on"):
         console.print(f"Updated YAML: {pydantic_yaml_file}")
         return 1
 
-    b_ok = _processor_run_phase_b(
+    b_ok_report = _processor_run_phase_b(
         user_yaml_file,
         uptodate_file,
         standard_yaml_file,
@@ -1360,7 +1469,9 @@ def _execute_pipeline(file, pipeline, mode, forcing="on"):
         mode=mode,
         phase="ABC",
         silent=True,
+        science_fixes=science_fixes,
     )
+    b_ok = not b_ok_report.has_errors
 
     if not b_ok:
         # Phase B failed in ABC - create final files with mixed content
@@ -1376,14 +1487,14 @@ def _execute_pipeline(file, pipeline, mode, forcing="on"):
 
             # Create final Report from Phase B (contains the actual errors we need to show user)
             if Path(science_report_file).exists():
-                shutil.move(
-                    science_report_file, pydantic_report_file
-                )  # Move reportB → report (don't keep intermediate)
+                _processor_move_report_with_json(
+                    science_report_file, pydantic_report_file, pydantic_yaml_file
+                )  # Move reportB -> report (don't keep intermediate)
             elif Path(report_file).exists():
                 # Fallback to Phase A report if Phase B report doesn't exist
-                shutil.copy2(
-                    report_file, pydantic_report_file
-                )  # Copy reportA → report (keep intermediate)
+                _processor_copy_report_with_json(
+                    report_file, pydantic_report_file, pydantic_yaml_file
+                )  # Copy reportA -> report (keep intermediate)
 
             # Remove failed Phase B YAML
             if Path(science_yaml_file).exists():
@@ -1397,8 +1508,7 @@ def _execute_pipeline(file, pipeline, mode, forcing="on"):
 
         # Clean up intermediate files
         try:
-            if Path(report_file).exists():
-                Path(report_file).unlink()
+            _processor_unlink_report_with_json(report_file)
             if Path(uptodate_file).exists():
                 Path(uptodate_file).unlink()
         except Exception:
@@ -1416,14 +1526,17 @@ def _execute_pipeline(file, pipeline, mode, forcing="on"):
     report_path = Path(report_file)
     if report_path.exists():
         phase_a_messages = extract_no_action_messages_from_report(report_file)
-        report_path.unlink()  # Clean up immediately
+    # Always run sidecar-aware cleanup: drops the .txt if present and any
+    # orphan temp_reportA_*.json that lingered after partial earlier cleanup.
+    _processor_unlink_report_with_json(report_file)
 
     # Extract Phase B messages and clean up immediately (minimizes I/O time)
     phase_b_messages = []
     science_report_path = Path(science_report_file)
     if science_report_path.exists():
         phase_b_messages = extract_no_action_messages_from_report(science_report_file)
-        science_report_path.unlink()  # Clean up immediately
+    # Same idempotent cleanup for Phase B's text + temp_reportB_*.json sidecar.
+    _processor_unlink_report_with_json(science_report_file)
 
     # Deduplicate messages efficiently and filter out incomplete headers
     all_no_action_messages = []
@@ -1441,7 +1554,7 @@ def _execute_pipeline(file, pipeline, mode, forcing="on"):
             all_no_action_messages.append(msg)
             seen_messages.add(msg)
 
-    c_ok = _processor_run_phase_c(
+    c_ok_report = _processor_run_phase_c(
         science_yaml_file,
         pydantic_yaml_file,
         pydantic_report_file,
@@ -1452,6 +1565,7 @@ def _execute_pipeline(file, pipeline, mode, forcing="on"):
         no_action_messages=all_no_action_messages,
         silent=True,
     )
+    c_ok = not c_ok_report.has_errors
 
     if not c_ok:
         # Phase C failed in ABC - create final files with mixed content
@@ -1471,9 +1585,9 @@ def _execute_pipeline(file, pipeline, mode, forcing="on"):
                 not Path(pydantic_report_file).exists()
                 and Path(science_report_file).exists()
             ):
-                shutil.copy2(
-                    science_report_file, pydantic_report_file
-                )  # Fallback: copy reportB → report
+                _processor_copy_report_with_json(
+                    science_report_file, pydantic_report_file, pydantic_yaml_file
+                )  # Fallback: copy reportB -> report
         except Exception:
             pass  # Don't fail if copy doesn't work
 
@@ -1483,12 +1597,10 @@ def _execute_pipeline(file, pipeline, mode, forcing="on"):
 
         # Clean up intermediate files
         try:
-            if Path(report_file).exists():
-                Path(report_file).unlink()
+            _processor_unlink_report_with_json(report_file)
             if Path(uptodate_file).exists():
                 Path(uptodate_file).unlink()
-            if Path(science_report_file).exists():
-                Path(science_report_file).unlink()
+            _processor_unlink_report_with_json(science_report_file)
             if Path(science_yaml_file).exists():
                 Path(science_yaml_file).unlink()
         except Exception:
@@ -1531,7 +1643,7 @@ if __name__ == "__main__":
     main()
 
 
-@cli.group(name="schema", invoke_without_command=True)
+@cli.group(name="schema", invoke_without_command=True, hidden=True)
 @click.pass_context
 def schema_group(ctx):
     """Schema operations: status, update, migrate, export, info.

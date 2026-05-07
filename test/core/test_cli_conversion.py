@@ -13,11 +13,33 @@ import tempfile
 from pathlib import Path
 
 import pytest
+import yaml
 
 pytestmark = pytest.mark.api
 
 # Import shared CLI testing utilities from conftest
 from conftest import run_cli_command
+
+
+def _force_modelled_water_use(yaml_path: Path) -> None:
+    """Override ``model.physics.water_use`` to MODELLED (0) in-place.
+
+    The bundled ``Kc1_2011_data_5_tiny.txt`` forcing fixture stores
+    ``wuh`` as the SUEWS missing-data sentinel (-999). The gh#1372
+    forcing/physics validator rejects ``water_use=1`` (OBSERVED)
+    against an all-sentinel ``wuh`` column. These end-to-end tests
+    exercise the converter's roofs/walls plumbing, not water-use
+    semantics, so we opt out by forcing the MODELLED branch on the
+    converted YAML before loading.
+    """
+    payload = yaml.safe_load(yaml_path.read_text(encoding="utf-8"))
+    physics = payload.get("model", {}).get("physics", {})
+    water_use = physics.get("water_use")
+    if isinstance(water_use, dict):
+        water_use["value"] = 0
+    else:
+        physics["water_use"] = 0
+    yaml_path.write_text(yaml.safe_dump(payload, sort_keys=False), encoding="utf-8")
 
 # Import for simulation testing and CLI
 try:
@@ -128,6 +150,8 @@ class TestCLIConversion:
             assert result.returncode == 0, f"Conversion failed: {result.stderr}"
             assert output_file.exists()
 
+            _force_modelled_water_use(output_file)
+
             # Load and validate
             sim = SUEWSSimulation(str(output_file))
             nlayer = sim.config.sites[0].properties.vertical_layers.nlayer.value
@@ -186,6 +210,8 @@ class TestCLIConversion:
             )
             assert result.returncode == 0, f"Conversion failed: {result.stderr}"
             assert output_file.exists()
+
+            _force_modelled_water_use(output_file)
 
             # Load and validate
             sim = SUEWSSimulation(str(output_file))

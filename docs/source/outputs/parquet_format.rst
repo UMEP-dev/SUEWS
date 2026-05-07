@@ -64,7 +64,7 @@ To enable parquet output in your YAML configuration:
 
    model:
      control:
-       output_file:
+       output:
          format: parquet
          freq: 3600
 

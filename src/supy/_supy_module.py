@@ -52,7 +52,7 @@ from ._save import (
 from ._version import __version__
 
 # from .util._config import init_config_from_yaml
-from .data_model import init_config_from_yaml
+from .data_model import SUEWSConfig, init_config_from_yaml
 
 # set up logging module
 logger_supy.setLevel(logging.INFO)
@@ -62,6 +62,8 @@ _FUNCTIONAL_DEPRECATIONS = {
     "init_supy": "the object-oriented `SUEWSSimulation` interface (see `supy.suews_sim.SUEWSSimulation`)",
     "load_forcing_grid": "`SUEWSSimulation.update_forcing` or `read_forcing` utilities",
     "load_sample_data": "`SUEWSSimulation` helpers (e.g., `SUEWSSimulation('sample_config.yml')`)",
+    "load_SampleData": "`SUEWSSimulation` helpers (e.g., `SUEWSSimulation('sample_config.yml')`)",
+    "load_config_from_df": "`SUEWSConfig.from_df_state(df_state)` (or `SUEWSSimulation.from_state(df_state).config`)",
     "run_supy": "`SUEWSSimulation.run`",
     "run_supy_sample": "`SUEWSSimulation` sample workflows",
     "save_supy": "`SUEWSSimulation.save`",
@@ -71,12 +73,20 @@ _FUNCTIONAL_DEPRECATIONS = {
 
 
 def _warn_functional_deprecation(name: str) -> None:
-    """Emit a standardized deprecation warning for the legacy functional API."""
+    """Emit a standardized deprecation warning for the legacy functional API.
+
+    Uses ``FutureWarning`` so the message is visible to end users by default
+    (CPython filters ``DeprecationWarning`` outside ``__main__``). The
+    procedural API in this module is end-user-facing, not a developer-only
+    surface, so ``FutureWarning`` is the right Python-level signal — see
+    https://docs.python.org/3/library/warnings.html#warning-categories.
+    Tracked under gh#1370 (Phase 2: visibility).
+    """
     replacement = _FUNCTIONAL_DEPRECATIONS.get(name, "the object-oriented API")
     warnings.warn(
         f"`supy.{name}` is deprecated and will be removed in a future release. "
         f"Please migrate to {replacement}.",
-        DeprecationWarning,
+        FutureWarning,
         stacklevel=3,
     )
 
@@ -320,9 +330,9 @@ def _load_forcing_grid(
                 config = init_config_from_yaml(path=path_init)
             path_site = path_init.parent
             forcing_file_val = (
-                config.model.control.forcing_file.value
-                if hasattr(config.model.control.forcing_file, "value")
-                else config.model.control.forcing_file
+                config.model.control.forcing.file.value
+                if hasattr(config.model.control.forcing.file, "value")
+                else config.model.control.forcing.file
             )
             if isinstance(forcing_file_val, list):
                 # Handle list of files
@@ -462,10 +472,14 @@ def load_forcing_grid(
 
 
 def load_SampleData() -> tuple[pandas.DataFrame, pandas.DataFrame]:
-    logger_supy.warning(
-        "This function name will be deprecated. Please use `load_sample_data()` instead.",
-        stacklevel=2,
-    )
+    """Legacy alias for :func:`load_sample_data`.
+
+    .. deprecated:: 2025.11.20
+        Use the object-oriented :class:`~supy.suews_sim.SUEWSSimulation`
+        interface (e.g. ``SUEWSSimulation('sample_config.yml')``) or the
+        snake_case alias :func:`load_sample_data` while migrating.
+    """
+    _warn_functional_deprecation("load_SampleData")
     return _load_sample_data()
 
 
@@ -522,6 +536,12 @@ def load_sample_data() -> tuple[pandas.DataFrame, pandas.DataFrame]:
 def load_config_from_df(df_state: pd.DataFrame):
     """Load SUEWS configuration from `df_state`.
 
+    .. deprecated:: 2025.11.20
+        This function is deprecated and will be removed in a future release.
+        Please migrate to ``SUEWSConfig.from_df_state(df_state)`` directly,
+        or to the object-oriented ``SUEWSSimulation.from_state(df_state)``
+        interface (whose ``.config`` attribute exposes the same object).
+
     Parameters
     ----------
     df_state : pandas.DataFrame
@@ -538,21 +558,20 @@ def load_config_from_df(df_state: pd.DataFrame):
     >>> config = supy.load_config_from_df(df_state_init)
 
     """
-    from .util._config import SUEWSConfig
+    _warn_functional_deprecation("load_config_from_df")
+    return _config_from_df_state(df_state)
 
-    config = SUEWSConfig.from_df_state(df_state)
 
-    return config
+def _config_from_df_state(df_state: pd.DataFrame):
+    return SUEWSConfig.from_df_state(df_state)
 
 
 def _init_config(df_state: pd.DataFrame = None):
     """Initialise SUEWS configuration object either from existing df_state dataframe or as the default configuration."""
     if df_state is None:
-        from .util._config import SUEWSConfig
-
         return SUEWSConfig()
 
-    return load_config_from_df(df_state)
+    return _config_from_df_state(df_state)
 
 
 def init_config(df_state: pd.DataFrame = None):
@@ -575,7 +594,7 @@ def init_config(df_state: pd.DataFrame = None):
     See Also
     --------
     supy.suews_sim.SUEWSSimulation : Modern object-oriented interface (recommended)
-    supy.util._config.SUEWSConfig : Configuration class
+    supy.data_model.SUEWSConfig : Configuration class
 
     """
     _warn_functional_deprecation("init_config")
@@ -913,7 +932,7 @@ def _save_supy(
         Notes: 0 for all but snow-related; 1 for all; 2 for a minimal set without land cover specific information.
     debug : bool, optional
         whether to enable debug mode (e.g., writing out in serial mode, and other debug uses), by default False.
-    output_config : OutputConfig, optional
+    output_config : OutputControl, optional
         Output configuration object specifying format, frequency, and groups to save. If provided, overrides freq_s parameter.
     save_state : bool, optional
         Whether to write the legacy DFState restart artifact. Legacy callers
@@ -964,9 +983,9 @@ def _save_supy(
     output_groups = None  # default will be handled in save_df_output
 
     if output_config is not None:
-        from .data_model.core.model import OutputConfig
+        from .data_model.core.model import OutputControl
 
-        if isinstance(output_config, OutputConfig):
+        if isinstance(output_config, OutputControl):
             # Override frequency if specified in config
             if output_config.freq is not None:
                 freq_s = output_config.freq
@@ -983,9 +1002,9 @@ def _save_supy(
 
             warnings.warn(
                 "The 'output_file' parameter as a string is deprecated and was never used. "
-                "Please use the new OutputConfig format or remove this parameter. "
+                "Please use the new OutputControl block or remove this parameter. "
                 "Falling back to default text output. "
-                "Example: output_file: {format: 'parquet', freq: 3600}",
+                "Example: output: {format: 'parquet', freq: 3600}",
                 DeprecationWarning,
                 stacklevel=2,
             )
@@ -1094,7 +1113,7 @@ def save_supy(
         Notes: 0 for all but snow-related; 1 for all; 2 for a minimal set without land cover specific information.
     debug : bool, optional
         whether to enable debug mode (e.g., writing out in serial mode, and other debug uses), by default False.
-    output_config : OutputConfig, optional
+    output_config : OutputControl, optional
         Output configuration object specifying format, frequency, and groups to save. If provided, overrides freq_s parameter.
 
     Returns

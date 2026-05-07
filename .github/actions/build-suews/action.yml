@@ -98,6 +98,7 @@ runs:
           PIP_PREFER_BINARY=1
           CARGO_HOME=${{ github.workspace }}/.cargo-cache
           CARGO_TARGET_DIR=${{ github.workspace }}/.rust-target-cache
+          SUEWS_KNOWLEDGE_GIT_SHA=${{ github.sha }}
         # Platform-specific: Linux Fortran compiler and Rust toolchain settings
         # NOTE: CIBW_ENVIRONMENT_{PLATFORM} replaces (not merges with) CIBW_ENVIRONMENT,
         # so PIP_PREFER_BINARY must be repeated here.
@@ -107,6 +108,7 @@ runs:
           PIP_PREFER_BINARY=1
           CARGO_HOME=/cargo-cache
           CARGO_TARGET_DIR=/rust-target-cache
+          SUEWS_KNOWLEDGE_GIT_SHA=${{ github.sha }}
           PATH="/cargo-cache/bin:$PATH"
         CIBW_BEFORE_ALL_LINUX: >
           curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y &&
@@ -138,6 +140,7 @@ runs:
           PIP_PREFER_BINARY=1
           CARGO_HOME='${{ github.workspace }}/.cargo-cache'
           CARGO_TARGET_DIR='${{ github.workspace }}/.rust-target-cache'
+          SUEWS_KNOWLEDGE_GIT_SHA='${{ github.sha }}'
         CIBW_BEFORE_BUILD_WINDOWS: >
           echo Creating setjmp compatibility library... &&
           echo int _setjmpex(void* buf) { extern int __intrinsic_setjmpex(void*); return __intrinsic_setjmpex(buf); } > setjmp_compat.c &&

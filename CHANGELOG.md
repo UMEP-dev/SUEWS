@@ -41,7 +41,7 @@ EXAMPLES:
 
 | Year | Features | Bugfixes | Changes | Maintenance | Docs | Total |
 |------|----------|----------|---------|-------------|------|-------|
-| 2026 | 74 | 82 | 29 | 80 | 40 | 306 |
+| 2026 | 74 | 83 | 29 | 80 | 40 | 307 |
 | 2025 | 60 | 68 | 22 | 71 | 36 | 256 |
 | 2024 | 12 | 17 | 1 | 12 | 1 | 43 |
 | 2023 | 11 | 14 | 3 | 9 | 1 | 38 |
@@ -53,6 +53,10 @@ EXAMPLES:
 | 2017 | 9 | 0 | 3 | 2 | 0 | 14 |
 
 ## 2026
+
+### 7 May 2026
+
+- [bugfix] Fix validator rule to compare evetr.sfr + dectr.sfr against vertical_layers.veg_frac[0] (bottom layer) instead of max(vertical_layers.veg_frac).
 
 ### 5 May 2026
 

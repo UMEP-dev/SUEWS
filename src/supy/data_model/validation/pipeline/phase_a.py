@@ -1,6 +1,7 @@
 import yaml
 import os
 import subprocess
+from copy import deepcopy
 from typing import Optional
 import pandas as pd
 from pathlib import Path
@@ -43,6 +44,115 @@ PHYSICS_OPTIONS = {
 }
 
 ALLOWED_REF_KEYS = {"desc", "DOI", "ID"}
+
+_MISSING = object()
+
+
+def _is_nullish_tree(value: object) -> bool:
+    """Return True when a generated placeholder carries no user value."""
+    if value is None:
+        return True
+    if isinstance(value, dict):
+        return all(_is_nullish_tree(item) for item in value.values())
+    if isinstance(value, list):
+        return all(_is_nullish_tree(item) for item in value)
+    return False
+
+
+def _is_generated_null_placeholder(value: object) -> bool:
+    """Return True for non-empty containers that only contain null placeholders."""
+    if value is None:
+        return True
+    if isinstance(value, dict):
+        return bool(value) and all(
+            _is_generated_null_placeholder(item) for item in value.values()
+        )
+    if isinstance(value, list):
+        return bool(value) and all(
+            _is_generated_null_placeholder(item) for item in value
+        )
+    return False
+
+
+def _is_default_backed_control_path(param_path: str) -> bool:
+    """Phase A should not materialise nulls for Pydantic-defaulted controls."""
+    return (
+        param_path == "model.control.forcing"
+        or param_path == "model.control.forcing.file"
+        or param_path == "model.control.output"
+        or param_path.startswith("model.control.output.")
+    )
+
+
+def _normalise_model_control_subobjects(
+    config_data: object,
+) -> tuple[object, list[tuple[str, str]]]:
+    """Normalise legacy model.control sub-objects before Phase A comparison.
+
+    The Pydantic layer already accepts ``forcing_file`` and ``output_file``.
+    Phase A must mirror that compatibility before comparing a user YAML
+    against the current sample config; otherwise it inserts all-null current
+    sub-objects that later take precedence over the valid legacy blocks.
+
+    The returned ``replacements`` list records every legacy key that has
+    been consumed so the report writer can surface the migration in
+    ``renamed_replacements``. The note is recorded both when legacy values
+    are migrated into the modern block and when a current modern block
+    already exists and the legacy duplicate is dropped — mirroring the
+    ``DeprecationWarning`` that ``ModelControl._coerce_legacy_*`` emits at
+    runtime, so the user sees the same migration breadcrumb in
+    ``report_config.txt``.
+    """
+    if not isinstance(config_data, dict):
+        return config_data, []
+
+    normalised = deepcopy(config_data)
+    model = normalised.get("model")
+    if not isinstance(model, dict):
+        return normalised, []
+    control = model.get("control")
+    if not isinstance(control, dict):
+        return normalised, []
+
+    replacements: list[tuple[str, str]] = []
+
+    legacy_forcing = control.pop("forcing_file", _MISSING)
+    if legacy_forcing is not _MISSING:
+        forcing = control.get("forcing")
+        if not isinstance(forcing, dict) or _is_nullish_tree(forcing):
+            control["forcing"] = {"file": legacy_forcing}
+        elif "file" not in forcing or _is_nullish_tree(forcing.get("file")):
+            forcing["file"] = legacy_forcing
+        # else: current forcing.file is real; legacy value is dropped, but
+        # we still record the key migration so the user sees it.
+        replacements.append(("forcing_file", "forcing.file"))
+
+    legacy_output = control.pop("output_file", _MISSING)
+    if legacy_output is not _MISSING:
+        output = control.get("output")
+        output_is_placeholder = output is None or (
+            isinstance(output, dict) and _is_generated_null_placeholder(output)
+        )
+        if output_is_placeholder:
+            if isinstance(legacy_output, dict):
+                migrated = {
+                    key: value
+                    for key, value in legacy_output.items()
+                    if key != "path"
+                }
+                if "path" in legacy_output and "dir" not in migrated:
+                    migrated["dir"] = legacy_output["path"]
+                control["output"] = migrated
+            else:
+                control.pop("output", None)
+        # Always record the migration: either we lifted legacy values into
+        # the modern block, or a real current `output` block already exists
+        # and the legacy duplicate has been dropped (current wins, matching
+        # ModelControl._coerce_legacy_output_file).
+        replacements.append(("output_file", "output"))
+
+    return normalised, replacements
+
 
 def _strip_ref_blocks(obj):
     """
@@ -300,6 +410,10 @@ def categorise_extra_parameters(extra_params: list) -> dict:
 def find_extra_parameters(user_data, standard_data, current_path=""):
     """Find parameters that exist in user data but not in standard data."""
     extra_params = []
+    if current_path == "":
+        user_data, _ = _normalise_model_control_subobjects(user_data)
+        standard_data, _ = _normalise_model_control_subobjects(standard_data)
+
     if isinstance(user_data, dict) and isinstance(standard_data, dict):
         for key, user_value in user_data.items():
             full_path = f"{current_path}.{key}" if current_path else key
@@ -344,10 +458,16 @@ def find_extra_parameters_in_lists(user_list, standard_list, current_path=""):
 
 def find_missing_parameters(user_data, standard_data, current_path=""):
     missing_params = []
+    if current_path == "":
+        user_data, _ = _normalise_model_control_subobjects(user_data)
+        standard_data, _ = _normalise_model_control_subobjects(standard_data)
+
     if isinstance(standard_data, dict):
         user_dict = user_data if isinstance(user_data, dict) else {}
         for key, standard_value in standard_data.items():
             full_path = f"{current_path}.{key}" if current_path else key
+            if _is_default_backed_control_path(full_path):
+                continue
             if key not in user_dict:
                 is_physics = is_physics_option(full_path)
                 missing_params.append((full_path, standard_value, is_physics))
@@ -1744,7 +1864,13 @@ def annotate_missing_parameters(
         )
         user_data = yaml.safe_load(original_yaml_content)
         parsed_renames = handle_renamed_parameters_in_parsed_yaml(user_data)
-        if parsed_renames:
+        normalised_user_data, control_replacements = _normalise_model_control_subobjects(
+            user_data
+        )
+        control_normalised = normalised_user_data != user_data
+        user_data = normalised_user_data
+        parsed_renames.extend(control_replacements)
+        if parsed_renames or control_normalised:
             seen_replacements = set(renamed_replacements)
             for replacement in parsed_renames:
                 if replacement not in seen_replacements:

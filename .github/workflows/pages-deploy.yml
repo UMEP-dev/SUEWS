@@ -37,19 +37,16 @@ concurrency:
 
 permissions:
   contents: read
-  pages: write
-  id-token: write
-  pull-requests: write
 
 jobs:
-  deploy:
-    name: Deploy to GitHub Pages
+  build:
+    name: Build Pages content
     runs-on: ubuntu-latest
-
-    # Use 'preview' environment for PRs (no branch restrictions)
-    environment:
-      name: ${{ github.event_name == 'pull_request' && 'preview' || 'github-pages' }}
-      url: ${{ steps.deployment.outputs.page_url }}
+    outputs:
+      is_fork: ${{ steps.fork-check.outputs.is_fork }}
+    permissions:
+      contents: read
+      pull-requests: write
 
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
@@ -137,7 +134,6 @@ jobs:
           touch _site/.nojekyll
           echo "Site ready: $(find _site -type f | wc -l) files"
 
-      # Fork PRs cannot deploy - they lack OIDC tokens required by deploy-pages
       # Detect fork: compare PR head repo with base repo
       - name: Check if fork PR
         id: fork-check
@@ -158,17 +154,13 @@ jobs:
             echo "is_fork=false" >> $GITHUB_OUTPUT
           fi
 
-      - uses: actions/configure-pages@45bfe0192ca1faeb007ade9deae92b16b8254a0d # v6
+      - name: Upload built site artifact
         if: steps.fork-check.outputs.is_fork != 'true'
-
-      - uses: actions/upload-pages-artifact@7b1f4a764d45c48632c6b24a0339c27f5614fb0b # v4
-        if: steps.fork-check.outputs.is_fork != 'true'
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7
         with:
+          name: pages-site
           path: _site
-
-      - uses: actions/deploy-pages@cd2ce8fcbc39b97be8ca5fce6e763baed58fa128 # v5
-        if: steps.fork-check.outputs.is_fork != 'true'
-        id: deployment
+          if-no-files-found: error
 
       - name: Comment fork PR status
         if: github.event_name == 'pull_request' && steps.fork-check.outputs.is_fork == 'true'
@@ -248,3 +240,33 @@ jobs:
                 body
               });
             }
+
+
+  deploy:
+    name: Deploy to GitHub Pages
+    runs-on: ubuntu-latest
+    needs: [build]
+    if: >-
+      needs.build.result == 'success' &&
+      (github.event_name != 'pull_request' || needs.build.outputs.is_fork != 'true')
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: ${{ github.event_name == 'pull_request' && 'preview' || 'github-pages' }}
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Download built site artifact
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+        with:
+          name: pages-site
+          path: _site
+
+      - uses: actions/configure-pages@45bfe0192ca1faeb007ade9deae92b16b8254a0d # v6
+
+      - uses: actions/upload-pages-artifact@7b1f4a764d45c48632c6b24a0339c27f5614fb0b # v4
+        with:
+          path: _site
+
+      - uses: actions/deploy-pages@cd2ce8fcbc39b97be8ca5fce6e763baed58fa128 # v5
+        id: deployment

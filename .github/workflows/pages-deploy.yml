@@ -160,15 +160,15 @@ jobs:
           fi
 
       - uses: actions/configure-pages@45bfe0192ca1faeb007ade9deae92b16b8254a0d # v6
-        if: steps.fork-check.outputs.is_fork != 'true'
+        if: github.event_name != 'pull_request' && steps.fork-check.outputs.is_fork != 'true'
 
       - uses: actions/upload-pages-artifact@7b1f4a764d45c48632c6b24a0339c27f5614fb0b # v4
-        if: steps.fork-check.outputs.is_fork != 'true'
+        if: github.event_name != 'pull_request' && steps.fork-check.outputs.is_fork != 'true'
         with:
           path: _site
 
       - uses: actions/deploy-pages@cd2ce8fcbc39b97be8ca5fce6e763baed58fa128 # v5
-        if: steps.fork-check.outputs.is_fork != 'true'
+        if: github.event_name != 'pull_request' && steps.fork-check.outputs.is_fork != 'true'
         id: deployment
 
       - name: Comment fork PR status
@@ -204,7 +204,7 @@ jobs:
             }
 
       - name: Comment preview URL
-        if: github.event_name == 'pull_request' && steps.fork-check.outputs.is_fork != 'true'
+        if: github.event_name == 'pull_request' && steps.fork-check.outputs.is_fork != 'true' && steps.deployment.outputs.page_url != ''
         uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b # v7
         with:
           script: |

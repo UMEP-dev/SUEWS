@@ -64,3 +64,15 @@ def test_default_root_from_env(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) 
     monkeypatch.setenv("SUEWS_MCP_PROJECT_ROOT", str(tmp_path))
     root = ProjectRoot()
     assert root.root == tmp_path.resolve()
+
+def test_requested_root_cannot_escape_session_root(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    from suews_mcp.backend.sandbox import ProjectRoot
+
+    session_root = tmp_path / "session"
+    session_root.mkdir()
+    monkeypatch.setenv("SUEWS_MCP_PROJECT_ROOT", str(session_root))
+
+    root = ProjectRoot("/")
+    assert root.root == session_root.resolve()

@@ -2,7 +2,7 @@ use std::collections::HashMap;
 use std::fs;
 use std::path::Path;
 
-pub const MET_FORCING_COLS: usize = 21;
+pub const MET_FORCING_COLS: usize = 23;
 
 // gh#1372 — Baseline-required columns; the loader errors if any is missing.
 // Names are lower-cased; lookups are case-insensitive.
@@ -119,9 +119,13 @@ pub fn read_forcing_block(path: &Path) -> Result<ForcingData, String> {
         (17, "fcld"),
         (18, "wuh"),
     ];
-    // xsmd (19) and lai (20) are also canonical and read identically.
-    let extra_canonical: [(usize, &str); 2] = [(19, "xsmd"), (20, "lai")];
-    // Accepted canonical forcing columns that the current 21-column kernel
+    // xsmd (19) is also canonical and read identically. Bulk `lai` remains a
+    // canonical input column but is projected into the three vegetation-class
+    // kernel slots below.
+    let extra_canonical: [(usize, &str); 1] = [(19, "xsmd")];
+    let lai_kernel_map: [(usize, &str); 3] =
+        [(20, "lai_evetr"), (21, "lai_dectr"), (22, "lai_grass")];
+    // Accepted canonical forcing columns that the current 23-column kernel
     // block does not consume.
     let unused_canonical = ["kdiff", "kdir", "wdir"];
 
@@ -136,6 +140,7 @@ pub fn read_forcing_block(path: &Path) -> Result<ForcingData, String> {
         for (_, name) in optional_map.iter().chain(extra_canonical.iter()) {
             v.push(name);
         }
+        v.push("lai");
         v.extend(unused_canonical);
         v
     };
@@ -148,9 +153,7 @@ pub fn read_forcing_block(path: &Path) -> Result<ForcingData, String> {
         match is_per_landcover(&lowered) {
             Some(canon) => extras_targets.push((canon, idx)),
             None => {
-                eprintln!(
-                    "warning: forcing column '{header}' is not canonical; ignored (gh#1372)"
-                );
+                eprintln!("warning: forcing column '{header}' is not canonical; ignored (gh#1372)");
             }
         }
     }
@@ -186,6 +189,13 @@ pub fn read_forcing_block(path: &Path) -> Result<ForcingData, String> {
         for (target_idx, col_name) in optional_map.iter().chain(extra_canonical.iter()) {
             if let Some(source_idx) = col_idx.get(*col_name) {
                 row[*target_idx] = parse_f64(parts[*source_idx], line_no, col_name)?;
+            }
+        }
+
+        let bulk_lai_col = col_idx.get("lai").copied();
+        for (target_idx, lai_col_name) in &lai_kernel_map {
+            if let Some(source_idx) = col_idx.get(*lai_col_name).copied().or(bulk_lai_col) {
+                row[*target_idx] = parse_f64(parts[source_idx], line_no, *lai_col_name)?;
             }
         }
 
@@ -226,7 +236,7 @@ pub fn read_forcing_block(path: &Path) -> Result<ForcingData, String> {
 // ---------------------------------------------------------------------------
 
 /// Forcing columns interpolated as instantaneous point values (linear).
-const INST_COLS: [usize; 8] = [
+const INST_COLS: [usize; 10] = [
     9,  // U
     10, // RH
     11, // Tair
@@ -234,7 +244,9 @@ const INST_COLS: [usize; 8] = [
     15, // snow
     17, // fcld
     19, // xsmd
-    20, // lai
+    20, // lai_evetr
+    21, // lai_dectr
+    22, // lai_grass
 ];
 
 /// Forcing columns interpolated as period averages (shift by -tstep_in/2, then linear).
@@ -332,15 +344,12 @@ fn detect_tstep_in(forcing: &ForcingData) -> Result<i32, String> {
 /// Interpolate forcing data from input resolution to model timestep.
 ///
 /// Applies three interpolation schemes depending on variable type:
-/// - Instantaneous (U, RH, Tair, pres, snow, fcld, xsmd, lai): linear interpolation
+/// - Instantaneous (U, RH, Tair, pres, snow, fcld, xsmd, LAI): linear interpolation
 /// - Average (qn, qh, qe, qs, qf, kdown, ldown): shift by -tstep_in/2, then linear
 /// - Sum (rain, wuh): proportional redistribution (step function)
 ///
 /// Time columns (iy, id, it, imin) are regenerated from output timestamps.
-pub fn interpolate_forcing(
-    forcing: &ForcingData,
-    tstep_mod: i32,
-) -> Result<ForcingData, String> {
+pub fn interpolate_forcing(forcing: &ForcingData, tstep_mod: i32) -> Result<ForcingData, String> {
     let n_in = forcing.len_sim;
     if n_in < 2 {
         return Ok(forcing.clone());
@@ -530,12 +539,16 @@ mod tests {
     #[test]
     fn detect_resolution_hourly() {
         // Two rows one hour apart: (2012,1,1,0) and (2012,1,2,0)
-        let block = vec![
-            2012.0, 1.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
-            0.0, 0.0, 0.0, 0.0, 0.0, 0.0, //
-            2012.0, 1.0, 2.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
-            0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
-        ];
+        let mut block = vec![0.0_f64; 2 * MET_FORCING_COLS];
+        block[0] = 2012.0;
+        block[1] = 1.0;
+        block[2] = 1.0;
+        block[3] = 0.0;
+        let r1 = MET_FORCING_COLS;
+        block[r1] = 2012.0;
+        block[r1 + 1] = 1.0;
+        block[r1 + 2] = 2.0;
+        block[r1 + 3] = 0.0;
         let forcing = ForcingData {
             block,
             len_sim: 2,
@@ -546,12 +559,18 @@ mod tests {
 
     #[test]
     fn interpolate_noop_when_same_resolution() {
-        let block = vec![
-            2012.0, 1.0, 0.0, 5.0, 0.0, 0.0, 0.0, 0.0, 0.0, 5.0, 0.0, 0.0, 0.0, 0.0, 0.0,
-            0.0, 0.0, 0.0, 0.0, 0.0, 0.0, //
-            2012.0, 1.0, 0.0, 10.0, 0.0, 0.0, 0.0, 0.0, 0.0, 10.0, 0.0, 0.0, 0.0, 0.0, 0.0,
-            0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
-        ];
+        let mut block = vec![0.0_f64; 2 * MET_FORCING_COLS];
+        block[0] = 2012.0;
+        block[1] = 1.0;
+        block[2] = 0.0;
+        block[3] = 5.0;
+        block[9] = 5.0;
+        let r1 = MET_FORCING_COLS;
+        block[r1] = 2012.0;
+        block[r1 + 1] = 1.0;
+        block[r1 + 2] = 0.0;
+        block[r1 + 3] = 10.0;
+        block[r1 + 9] = 10.0;
         let forcing = ForcingData {
             block: block.clone(),
             len_sim: 2,
@@ -564,7 +583,7 @@ mod tests {
 
     #[test]
     fn interpolate_hourly_to_5min() {
-        // 3 hourly rows → 36 five-minute rows
+        // 3 hourly rows to 36 five-minute rows
         let mut block = vec![0.0_f64; 3 * MET_FORCING_COLS];
         // Row 0: (2012, 1, 1, 0), U=10
         block[0] = 2012.0;
@@ -574,6 +593,7 @@ mod tests {
         block[9] = 10.0; // U (inst)
         block[14] = 100.0; // kdown (avg)
         block[13] = 12.0; // rain (sum)
+
         // Row 1: (2012, 1, 2, 0), U=20
         let r1 = MET_FORCING_COLS;
         block[r1] = 2012.0;
@@ -642,7 +662,8 @@ mod tests {
 
     #[test]
     fn shuffled_header_yields_identical_block() {
-        let canonical = Path::new("../../test/fixtures/benchmark1/forcing/Kc1_2011_data_5_tiny.txt");
+        let canonical =
+            Path::new("../../test/fixtures/benchmark1/forcing/Kc1_2011_data_5_tiny.txt");
         let shuffled = Path::new("../../test/fixtures/forcing/kc_shuffled.txt");
         let a = read_forcing_block(canonical).expect("canonical");
         let b = read_forcing_block(shuffled).expect("shuffled");
@@ -657,8 +678,26 @@ mod tests {
         assert!(forcing.extras.contains_key("lai_evetr"));
         assert!(forcing.extras.contains_key("wuh_paved"));
         assert_eq!(forcing.extras["lai_evetr"].len(), forcing.len_sim);
+        assert_eq!(row_val(&forcing, 0, 20), forcing.extras["lai_evetr"][0]);
+        assert_eq!(row_val(&forcing, 0, 21), forcing.extras["lai_dectr"][0]);
+        assert_eq!(row_val(&forcing, 0, 22), forcing.extras["lai_grass"][0]);
+        assert_ne!(row_val(&forcing, 0, 18), forcing.extras["wuh_paved"][0]);
         // Canonical block unchanged in shape.
         assert_eq!(forcing.block.len(), forcing.len_sim * MET_FORCING_COLS);
+    }
+
+    #[test]
+    fn bulk_lai_broadcasts_to_kernel_lai_columns() {
+        use std::io::Write;
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("bulk_lai.txt");
+        let mut f = std::fs::File::create(&path).unwrap();
+        writeln!(f, "iy id it imin Tair RH U pres kdown rain lai").unwrap();
+        writeln!(f, "2011 1 0 5 18.0 80.0 2.0 100.0 0.0 0.0 2.75").unwrap();
+        let forcing = read_forcing_block(&path).expect("bulk-lai fixture");
+        assert_eq!(row_val(&forcing, 0, 20), 2.75);
+        assert_eq!(row_val(&forcing, 0, 21), 2.75);
+        assert_eq!(row_val(&forcing, 0, 22), 2.75);
     }
 
     #[test]
@@ -682,10 +721,10 @@ mod tests {
         assert_eq!(forcing.len_sim, 2);
         assert_eq!(forcing.block.len(), forcing.len_sim * MET_FORCING_COLS);
         // Optional canonical columns: qn(4), qh(5), qe(6), qs(7), qf(8),
-        // snow(15), ldown(16), fcld(17), wuh(18), xsmd(19), lai(20). All
-        // must hold -999 sentinel for both rows.
+        // snow(15), ldown(16), fcld(17), wuh(18), xsmd(19), and the three
+        // LAI kernel columns (20..22). All must hold -999 sentinel for both rows.
         for row in 0..forcing.len_sim {
-            for &optional_idx in &[4, 5, 6, 7, 8, 15, 16, 17, 18, 19, 20] {
+            for &optional_idx in &[4, 5, 6, 7, 8, 15, 16, 17, 18, 19, 20, 21, 22] {
                 let v = row_val(&forcing, row, optional_idx);
                 assert!(
                     (v - FORCING_OPTIONAL_FILL).abs() < 1e-9,

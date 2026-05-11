@@ -22,6 +22,8 @@ if TYPE_CHECKING:
     from .data_model import SUEWSConfig
 
 OUTPUT_TIME_COLS = 5
+MET_FORCING_COLS = 23
+LAI_KERNEL_COLUMNS = ("lai_evetr", "lai_dectr", "lai_grass")
 
 _GROUP_ORDER: tuple[str, ...] = (
     "SUEWS",
@@ -172,10 +174,7 @@ def _build_datetime_index(output_block: np.ndarray) -> pd.DatetimeIndex:
 def _prepare_forcing_block(df_forcing: pd.DataFrame) -> np.ndarray:
     """Prepare forcing DataFrame as a Fortran-order array for the Rust bridge."""
     len_sim = len(df_forcing)
-
-    # MP: Why are there defaults? If there is no data the model should not run.
-    # Useful for optional values e.g. lai vs lai_dectr but still dangerous
-    # Can we find another solution?
+    columns_by_lower = {str(col).lower(): col for col in df_forcing.columns}
 
     fixed_col_map = [
         (4, "qn", 0.0),
@@ -196,16 +195,7 @@ def _prepare_forcing_block(df_forcing: pd.DataFrame) -> np.ndarray:
         (19, "xsmd", 0.0),
     ]
 
-    lai_cols = ["lai_dectr", "lai_evetr", "lai_grass"]
-
-    if [lai_col for lai_col in lai_cols if lai_col in df_forcing]:
-        fixed_col_map.append((20, "lai_dectr", 0.0))
-        fixed_col_map.append((21, "lai_evetr", 0.0))
-        fixed_col_map.append((22, "lai_grass", 0.0))
-    else:
-        fixed_col_map.append((20, "lai", 0.0)),
-
-    block = np.zeros((len_sim, len(fixed_col_map)+4), dtype=np.float64, order="F")
+    block = np.zeros((len_sim, MET_FORCING_COLS), dtype=np.float64, order="F")
 
     block[:, 0] = df_forcing.index.year
     block[:, 1] = df_forcing.index.dayofyear
@@ -213,15 +203,19 @@ def _prepare_forcing_block(df_forcing: pd.DataFrame) -> np.ndarray:
     block[:, 3] = df_forcing.index.minute
 
     for idx, col, default in fixed_col_map:
-        if col in df_forcing.columns:
-            block[:, idx] = df_forcing[col].values
+        source_col = columns_by_lower.get(col.lower())
+        if source_col is not None:
+            block[:, idx] = df_forcing[source_col].values
         else:
             block[:, idx] = default
 
-    
-    lai_block = np.column_stack([
-        df_forcing.get(col, 0.0) for col in lai_cols
-    ])
+    bulk_lai_col = columns_by_lower.get("lai")
+    for target_idx, lai_col in enumerate(LAI_KERNEL_COLUMNS, start=20):
+        source_col = columns_by_lower.get(lai_col, bulk_lai_col)
+        if source_col is not None:
+            block[:, target_idx] = df_forcing[source_col].values
+        else:
+            block[:, target_idx] = -999.0
 
     return block
 

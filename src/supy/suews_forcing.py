@@ -31,10 +31,10 @@ FORCING_ALIASES = {
     "qs": ["storage_heat"],
     "snow": ["snowfall"],
     "Wuh": ["water_use", "external_water"],
-    # "lai": ["leaf_area_index"],
-    "lai_dectr": ["leaf_area_index_dectr"],
     "lai_evetr": ["leaf_area_index_evetr"],
+    "lai_dectr": ["leaf_area_index_dectr"],
     "lai_grass": ["leaf_area_index_grass"],
+    "lai": ["leaf_area_index"],
     "kdiff": ["diffuse_radiation"],
     "kdir": ["direct_radiation"],
     "wdir": ["wind_direction", "wd"],
@@ -70,9 +70,10 @@ FORCING_VAR_TYPES = {
     "fcld": "inst",
     "Wuh": "sum",
     "xsmd": "inst",
-    "lai_dectr": "inst",
     "lai_evetr": "inst",
+    "lai_dectr": "inst",
     "lai_grass": "inst",
+    "lai": "inst",
     "kdiff": "avg",
     "kdir": "avg",
     "wdir": "inst",
@@ -100,9 +101,7 @@ REQUIRED_COLUMNS = [
     "fcld",
     "Wuh",
     "xsmd",
-    "lai_dectr",
-    "lai_evetr",
-    "lai_grass",
+    "lai",
     "kdiff",
     "kdir",
     "wdir",
@@ -359,14 +358,22 @@ class SUEWSForcing:
         """
         return self._data.copy()
 
+    def to_dataframe(self, include_extras: bool = False) -> pd.DataFrame:
+        """Return forcing data, optionally with whitelisted extension columns."""
+        df = self._data.copy()
+        if include_extras and self.extras:
+            df = pd.concat([df, self._extras_frame()], axis=1)
+        return df
+
     @property
     def extras(self) -> Dict[str, np.ndarray]:
         """Per-landcover forcing columns (gh#1372).
 
         Maps lower-cased ``<var>_<surface>`` names to time-aligned arrays
         of length ``len(self.df)``. Empty when the file carries no
-        whitelisted per-landcover columns. Kernel does not yet consume
-        these; reserved for follow-up physics work.
+        whitelisted per-landcover columns. The kernel-facing adapter
+        consumes ``lai_evetr``, ``lai_dectr`` and ``lai_grass`` when
+        present; ``wuh_*`` remains metadata for future water-use work.
 
         Returns
         -------
@@ -643,7 +650,9 @@ class SUEWSForcing:
             elif isinstance(physics, dict):
                 physics_dict = physics
 
-        result = check_forcing(self._data, fix=False, physics=physics_dict)
+        result = check_forcing(
+            self.to_dataframe(include_extras=True), fix=False, physics=physics_dict
+        )
 
         if isinstance(result, list):
             errors.extend(result)

@@ -54,6 +54,13 @@ EXAMPLES:
 
 ## 2026
 
+### 11 May 2026
+
+- [bugfix] Thread `properties.irrigation` YAML block through the Rust bridge into `IrrigationPrm` (#1436)
+  - `apply_site_overrides` in `src/suews_bridge/src/yaml_config.rs` previously had no irrigation applier, so `h_maintain`, `faut`, `ie_start`, `ie_end`, `internalwateruse_h`, per-veg `ie_a`/`ie_m`, `daywat`/`daywatper`, and `wuprofa_24hr`/`wuprofm_24hr` were silently dropped and the bridge handed `IrrigationPrm::default()` (all zeros) to the Fortran physics
+  - Any run with `model.physics.water_use = MODELLED` and a non-trivial irrigation block produced `Irr`/`WUInt`/`WUEveTr`/`WUDecTr`/`WUGrass` identically zero, regardless of the YAML
+  - The bug was masked by every shipped fixture running with `faut=0` or `ie_a=-999`; a new end-to-end regression in `test/physics/test_irrigation_wiring.py` pins the contract in both directions
+
 ### 7 May 2026
 
 - [bugfix] Fix validator rule to compare evetr.sfr + dectr.sfr against vertical_layers.veg_frac[0] (bottom layer) instead of max(vertical_layers.veg_frac).

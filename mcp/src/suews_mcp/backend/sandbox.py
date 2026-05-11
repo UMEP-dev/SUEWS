@@ -23,9 +23,29 @@ class ProjectRoot:
     """Validates and resolves user-supplied paths against a fixed root."""
 
     def __init__(self, root: Optional[Union[str, Path]] = None) -> None:
+        configured_root = os.environ.get(ENV_PROJECT_ROOT)
+        session_root = (
+            Path(configured_root).resolve(strict=False)
+            if configured_root
+            else None
+        )
+
         if root is None:
-            root = os.environ.get(ENV_PROJECT_ROOT, os.getcwd())
-        self._root = Path(root).resolve(strict=False)
+            self._root = session_root or Path(os.getcwd()).resolve(strict=False)
+            return
+
+        requested_root = Path(root).resolve(strict=False)
+        if session_root is None:
+            self._root = requested_root
+            return
+
+        try:
+            requested_root.relative_to(session_root)
+        except ValueError:
+            self._root = session_root
+            return
+
+        self._root = requested_root
 
     @property
     def root(self) -> Path:

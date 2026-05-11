@@ -85,3 +85,16 @@ def test_rejection_message_names_root_and_flag(tmp_path: Path) -> None:
     assert "outside the project root" in msg
     assert "--root" in msg, "error must name the --root flag for self-correction"
     assert "SUEWS_MCP_PROJECT_ROOT" in msg, "error must name the env var fallback"
+
+
+def test_requested_root_cannot_escape_session_root(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    from suews_mcp.backend.sandbox import ProjectRoot
+
+    session_root = tmp_path / "session"
+    session_root.mkdir()
+    monkeypatch.setenv("SUEWS_MCP_PROJECT_ROOT", str(session_root))
+
+    root = ProjectRoot("/")
+    assert root.root == session_root.resolve()

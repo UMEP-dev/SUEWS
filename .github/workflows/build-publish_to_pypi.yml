@@ -288,6 +288,7 @@ jobs:
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
         with:
+          ref: ${{ github.event.pull_request.base.sha || github.sha }}
           sparse-checkout: .github/scripts
           sparse-checkout-cone-mode: false
           persist-credentials: false
@@ -331,6 +332,7 @@ jobs:
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
         with:
+          ref: ${{ github.event.pull_request.base.sha || github.sha }}
           sparse-checkout: .github/scripts
           sparse-checkout-cone-mode: false
           persist-credentials: false
@@ -465,6 +467,7 @@ jobs:
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
         with:
+          ref: ${{ github.event.pull_request.base.sha || github.sha }}
           sparse-checkout: .github/scripts
           sparse-checkout-cone-mode: false
           persist-credentials: false

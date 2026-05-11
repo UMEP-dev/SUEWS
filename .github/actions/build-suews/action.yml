@@ -95,6 +95,7 @@ runs:
         # NOTE: CIBW_ENVIRONMENT_{PLATFORM} replaces this block entirely,
         # so any vars needed on Linux/Windows must be repeated there.
         CIBW_ENVIRONMENT: >
+          PIP_ONLY_BINARY=:all:
           PIP_PREFER_BINARY=1
           CARGO_HOME=${{ github.workspace }}/.cargo-cache
           CARGO_TARGET_DIR=${{ github.workspace }}/.rust-target-cache
@@ -105,6 +106,7 @@ runs:
         CIBW_ENVIRONMENT_LINUX: >
           FCFLAGS="-fno-optimize-sibling-calls -ffree-line-length-none"
           F90=gfortran
+          PIP_ONLY_BINARY=:all:
           PIP_PREFER_BINARY=1
           CARGO_HOME=/cargo-cache
           CARGO_TARGET_DIR=/rust-target-cache
@@ -137,6 +139,7 @@ runs:
           CXXFLAGS="-D__USE_MINGW_ANSI_STDIO=1 -mlong-double-64"
           FCFLAGS="-fno-optimize-sibling-calls -ffree-line-length-none"
           LDFLAGS="-lucrt -static-libgcc -static-libgfortran -LC:/msys64/ucrt64/lib -lsetjmp_compat"
+          PIP_ONLY_BINARY=:all:
           PIP_PREFER_BINARY=1
           CARGO_HOME='${{ github.workspace }}/.cargo-cache'
           CARGO_TARGET_DIR='${{ github.workspace }}/.rust-target-cache'

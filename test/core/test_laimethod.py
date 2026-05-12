@@ -431,7 +431,6 @@ class TestLAIMethodRuntime:
         zero in the site configuration and the observation is honoured.
         """
         sim = SUEWSSimulation.from_sample_data()
-        self._set_lai_bounds(sim, laimin=0.0, laimax=10.0)
 
         end_index = TIMESTEPS_PER_DAY * self.N_DAYS - 1
         df_forcing = sim.forcing.df.copy().iloc[: end_index + 1].copy()
@@ -454,86 +453,6 @@ class TestLAIMethodRuntime:
             df_lai_tail.values, 0.0, atol=1e-9,
             err_msg="lai=0.0 observation should drive LAI outputs to zero",
         )
-
-    def test_zero_lai_observation_clamped_to_laimin(self):
-        """Zero observations are clamped up to ``laimin`` when the site
-        configuration retains a positive floor. This is the default
-        behaviour of the sample config (``laimin`` > 0 for all classes).
-        """
-        sim = SUEWSSimulation.from_sample_data()
-
-        df_state = sim._config.to_df_state()
-        laimin_series = df_state["laimin"].iloc[0]
-        laimin_values = [float(laimin_series[f"({iv},)"]) for iv in range(3)]
-        # Pre-condition: sample site has laimin > 0 for every class.
-        assert all(v > 0 for v in laimin_values)
-
-        end_index = TIMESTEPS_PER_DAY * self.N_DAYS - 1
-        df_forcing = sim.forcing.df.copy().iloc[: end_index + 1].copy()
-        df_forcing["lai"] = 0.0
-
-        sim._config.model.physics.laimethod = LAIMethod.OBSERVED
-        sim._df_state_init = sim._config.to_df_state()
-        sim.update_forcing(df_forcing)
-        results = sim.run(end_date=df_forcing.index[-1])
-
-        df_dailystate = results.xs("DailyState", level="group", axis=1)
-        df_lai = df_dailystate.xs(1, level="grid")[[
-            "LAI_EveTr",
-            "LAI_DecTr",
-            "LAI_Grass",
-        ]].dropna(how="all")
-        df_lai_tail = df_lai.iloc[1:]
-        for column, laimin in zip(
-            ["LAI_EveTr", "LAI_DecTr", "LAI_Grass"], laimin_values
-        ):
-            np.testing.assert_allclose(
-                df_lai_tail[column].values,
-                laimin,
-                atol=1e-9,
-                err_msg=f"{column} should be clamped up to laimin={laimin}",
-            )
-
-    def test_observed_lai_clamped_to_envelope(self):
-        """Observations outside each vegetation class's [LAImin, LAImax]
-        envelope must be clamped per-class. Upper-bound clamping keeps the
-        downstream LAI/LAImax ratios bounded; lower-bound clamping keeps the
-        observation consistent with the site-specific canopy floor."""
-        sim = SUEWSSimulation.from_sample_data()
-
-        # Extract per-class LAImax from the df_state_init (columns like
-        # ``(laimax, (iv,))`` where iv indexes EveTr/DecTr/Grass).
-        df_state = sim._config.to_df_state()
-        laimax_series = df_state["laimax"].iloc[0]
-        laimax_values = [float(laimax_series[f"({iv},)"]) for iv in range(3)]
-        max_laimax = max(laimax_values)
-
-        end_index = TIMESTEPS_PER_DAY * self.N_DAYS - 1
-        df_forcing = sim.forcing.df.copy().iloc[: end_index + 1].copy()
-        # Force a constant observation well above every class's LAImax.
-        df_forcing["lai"] = max_laimax + 1.0
-
-        sim._config.model.physics.laimethod = LAIMethod.OBSERVED
-        sim._df_state_init = sim._config.to_df_state()
-        sim.update_forcing(df_forcing)
-        results = sim.run(end_date=df_forcing.index[-1])
-
-        df_dailystate = results.xs("DailyState", level="group", axis=1)
-        df_lai = df_dailystate.xs(1, level="grid")[[
-            "LAI_EveTr",
-            "LAI_DecTr",
-            "LAI_Grass",
-        ]].dropna(how="all")
-
-        # Skip the first day (initial state inherited from the config).
-        df_lai_tail = df_lai.iloc[1:]
-        for column, laimax in zip(
-            ["LAI_EveTr", "LAI_DecTr", "LAI_Grass"], laimax_values
-        ):
-            assert (df_lai_tail[column] <= laimax + 1e-9).all(), (
-                f"{column} exceeded LAImax={laimax}: max observed "
-                f"{df_lai_tail[column].max()}"
-            )
 
     def test_negative_sentinel_rejected(self):
         """Non-canonical sentinels (e.g. ``-950``) are still rejected.

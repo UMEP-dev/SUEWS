@@ -18,12 +18,16 @@ _yaml_Dumper = getattr(yaml, "CSafeDumper", yaml.SafeDumper)
 from ._env import logger_supy
 from ._post import df_var, gen_index
 
+from ._load import LAI_LANDCOVER_SUFFIXES
+
 if TYPE_CHECKING:
     from .data_model import SUEWSConfig
 
+
+LAI_KERNEL_COLUMNS = tuple(f"lai_{suffix}" for suffix in LAI_LANDCOVER_SUFFIXES)
+
 OUTPUT_TIME_COLS = 5
-MET_FORCING_COLS = 23
-LAI_KERNEL_COLUMNS = ("lai_evetr", "lai_dectr", "lai_grass")
+MET_FORCING_COLS = 20 + len(LAI_KERNEL_COLUMNS)
 
 _GROUP_ORDER: tuple[str, ...] = (
     "SUEWS",

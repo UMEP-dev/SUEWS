@@ -220,7 +220,8 @@ def test_python_rust_whitelist_parity():
     from pathlib import Path
 
     from supy._load import (
-        BASELINE_FORCING_COLUMNS,
+        BASELINE_DATETIME_FORCING_SET,
+        BASELINE_FORCING_COLUMNS_SET,
         FORCING_OPTIONAL_FILL,
         LAI_LANDCOVER_SUFFIXES,
         LANDCOVER_SUFFIXES,
@@ -241,7 +242,7 @@ def test_python_rust_whitelist_parity():
     assert _list("LANDCOVER_SUFFIXES") == set(LANDCOVER_SUFFIXES)
     assert _list("LAI_LANDCOVER_SUFFIXES") == set(LAI_LANDCOVER_SUFFIXES)
     assert _list("WUH_LANDCOVER_SUFFIXES") == set(WUH_LANDCOVER_SUFFIXES)
-    assert _list("BASELINE_FORCING_COLUMNS") == {c.lower() for c in BASELINE_FORCING_COLUMNS}
+    assert _list("BASELINE_FORCING_COLUMNS") == {c.lower() for c in BASELINE_DATETIME_FORCING_SET|BASELINE_FORCING_COLUMNS_SET}
 
     unused_canonical_match = re.search(
         r"let unused_canonical = \[(.*?)\];", text, re.DOTALL

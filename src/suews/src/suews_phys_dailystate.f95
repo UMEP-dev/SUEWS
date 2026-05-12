@@ -721,11 +721,6 @@ CONTAINS
          ! warns when forcing values would be clamped.
          DO iv = 1, NVegSurf
             LAI_id_next(iv) = LAI_obs(iv)
-            IF (LAI_id_next(iv) > LAImax(iv)) THEN
-               LAI_id_next(iv) = LAImax(iv)
-            ELSEIF (LAI_id_next(iv) < LAImin(iv)) THEN
-               LAI_id_next(iv) = LAImin(iv)
-            END IF
          END DO
       END IF
       !------------------------------------------------------------------------------

@@ -7,7 +7,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>supy._supy_module &#8212; SUEWS 2026.5.8.dev9073 documentation</title>
+    <title>supy._supy_module &#8212; SUEWS 2026.5.13.dev9082 documentation</title>
   
   
   
@@ -43,7 +43,7 @@
   <link rel="preload" as="script" href="../../_static/scripts/bootstrap.js?digest=8878045cc6db502f8baf" />
 <link rel="preload" as="script" href="../../_static/scripts/pydata-sphinx-theme.js?digest=8878045cc6db502f8baf" />
 
-    <script src="../../_static/documentation_options.js?v=765ce6f8"></script>
+    <script src="../../_static/documentation_options.js?v=20ac70ba"></script>
     <script src="../../_static/doctools.js?v=9bcbadda"></script>
     <script src="../../_static/sphinx_highlight.js?v=dc90522c"></script>
     <script src="../../_static/scripts/sphinx-book-theme.js?v=fab101a9"></script>
@@ -55,7 +55,7 @@
     <link rel="search" title="Search" href="../../search.html" />
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
-  <meta name="docsearch:version" content="2026.5.8.dev9073" />
+  <meta name="docsearch:version" content="2026.5.13.dev9082" />
   </head>
   
   
@@ -97,7 +97,7 @@
   <div class="bd-header-announcement__content">
     <div style="background-color: #f0ad4e; border: 1px solid #eea236; border-radius: 4px; padding: 10px; margin: 10px 0;">
         <strong>⚠️ Development Version:</strong> This documentation was built from a development version
-        (2026.5.8.dev9073, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/2a60c992ec29c39c52583c7f2c3db0c18cd95533" style="color: #31708f;">2a60c99</a>).
+        (2026.5.13.dev9082, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/6aaf573557621cd68d489b24583d6199296bad52" style="color: #31708f;">6aaf573</a>).
         Features described here may be unstable or subject to change. For stable documentation, please visit the
         <a href="https://docs.suews.io/stable/" style="color: #31708f;">latest release</a>.
     </div>
@@ -146,8 +146,8 @@
       
     
     
-    <img src="../../_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.5.8.dev9073 documentation - Home"/>
-    <img src="../../_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.5.8.dev9073 documentation - Home"/>
+    <img src="../../_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.5.13.dev9082 documentation - Home"/>
+    <img src="../../_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.5.13.dev9082 documentation - Home"/>
   
   
 </a></div>
@@ -1168,22 +1168,6 @@
     <span class="k">return</span> <span class="n">physics_dict</span>
 
 
-<span class="k">def</span><span class="w"> </span><span class="nf">_lai_bounds_from_df_state</span><span class="p">(</span><span class="n">df_state</span><span class="p">:</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Extract per-grid per-veg-class LAI bounds from a df_state DataFrame.</span>
-
-<span class="sd">    Returns a dict ``{&#39;laimin&#39;: [...], &#39;laimax&#39;: [...]}`` where each value is a</span>
-<span class="sd">    list-of-lists (outer = per grid row, inner = per vegetation class). Returns</span>
-<span class="sd">    ``None`` if the expected columns are missing.</span>
-<span class="sd">    &quot;&quot;&quot;</span>
-    <span class="n">top_level</span> <span class="o">=</span> <span class="nb">set</span><span class="p">(</span><span class="n">df_state</span><span class="o">.</span><span class="n">columns</span><span class="o">.</span><span class="n">get_level_values</span><span class="p">(</span><span class="mi">0</span><span class="p">))</span>
-    <span class="k">if</span> <span class="s2">&quot;laimin&quot;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">top_level</span> <span class="ow">or</span> <span class="s2">&quot;laimax&quot;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">top_level</span><span class="p">:</span>
-        <span class="k">return</span> <span class="kc">None</span>
-    <span class="k">return</span> <span class="p">{</span>
-        <span class="s2">&quot;laimin&quot;</span><span class="p">:</span> <span class="n">df_state</span><span class="p">[</span><span class="s2">&quot;laimin&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="nb">float</span><span class="p">)</span><span class="o">.</span><span class="n">values</span><span class="o">.</span><span class="n">tolist</span><span class="p">(),</span>
-        <span class="s2">&quot;laimax&quot;</span><span class="p">:</span> <span class="n">df_state</span><span class="p">[</span><span class="s2">&quot;laimax&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="nb">float</span><span class="p">)</span><span class="o">.</span><span class="n">values</span><span class="o">.</span><span class="n">tolist</span><span class="p">(),</span>
-    <span class="p">}</span>
-
-
 <span class="c1">##############################################################################</span>
 <span class="c1"># 2. compact wrapper for running a whole simulation</span>
 <span class="c1"># # main calculation</span>
@@ -1248,10 +1232,7 @@
         <span class="c1"># requirements (see `FORCING_REQUIREMENTS`) are enforced on the legacy</span>
         <span class="c1"># path as well as the modern SUEWSSimulation path.</span>
         <span class="n">physics_dict</span> <span class="o">=</span> <span class="n">_physics_dict_from_df_state</span><span class="p">(</span><span class="n">df_state_init</span><span class="p">)</span>
-        <span class="n">lai_bounds</span> <span class="o">=</span> <span class="n">_lai_bounds_from_df_state</span><span class="p">(</span><span class="n">df_state_init</span><span class="p">)</span>
-        <span class="n">list_issues_forcing</span> <span class="o">=</span> <span class="n">check_forcing</span><span class="p">(</span>
-            <span class="n">df_forcing</span><span class="p">,</span> <span class="n">physics</span><span class="o">=</span><span class="n">physics_dict</span><span class="p">,</span> <span class="n">lai_bounds</span><span class="o">=</span><span class="n">lai_bounds</span>
-        <span class="p">)</span>
+        <span class="n">list_issues_forcing</span> <span class="o">=</span> <span class="n">check_forcing</span><span class="p">(</span><span class="n">df_forcing</span><span class="p">,</span> <span class="n">physics</span><span class="o">=</span><span class="n">physics_dict</span><span class="p">)</span>
         <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">list_issues_forcing</span><span class="p">,</span> <span class="nb">list</span><span class="p">):</span>
             <span class="n">logger_supy</span><span class="o">.</span><span class="n">critical</span><span class="p">(</span><span class="s2">&quot;`df_forcing` is NOT valid to drive SuPy!&quot;</span><span class="p">)</span>
             <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span>
@@ -1906,8 +1887,8 @@ By SUEWS dev team led by Prof Sue Grimmond
   <div class="footer-item">
     
 <div class="extra_footer">
-  <p>Version: 2026.5.8.dev9073 |
-    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/2a60c992ec29c39c52583c7f2c3db0c18cd95533">2a60c99</a> |
+  <p>Version: 2026.5.13.dev9082 |
+    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/6aaf573557621cd68d489b24583d6199296bad52">6aaf573</a> |
     <a href="https://umep-dev.github.io/SUEWS/brand/showcase.html">Brand</a></p>
 </div>
   </div>

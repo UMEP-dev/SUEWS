@@ -7,7 +7,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>supy.suews_sim &#8212; SUEWS 2026.5.8.dev9073 documentation</title>
+    <title>supy.suews_sim &#8212; SUEWS 2026.5.13.dev9082 documentation</title>
   
   
   
@@ -43,7 +43,7 @@
   <link rel="preload" as="script" href="../../_static/scripts/bootstrap.js?digest=8878045cc6db502f8baf" />
 <link rel="preload" as="script" href="../../_static/scripts/pydata-sphinx-theme.js?digest=8878045cc6db502f8baf" />
 
-    <script src="../../_static/documentation_options.js?v=765ce6f8"></script>
+    <script src="../../_static/documentation_options.js?v=20ac70ba"></script>
     <script src="../../_static/doctools.js?v=9bcbadda"></script>
     <script src="../../_static/sphinx_highlight.js?v=dc90522c"></script>
     <script src="../../_static/scripts/sphinx-book-theme.js?v=fab101a9"></script>
@@ -55,7 +55,7 @@
     <link rel="search" title="Search" href="../../search.html" />
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
-  <meta name="docsearch:version" content="2026.5.8.dev9073" />
+  <meta name="docsearch:version" content="2026.5.13.dev9082" />
   </head>
   
   
@@ -97,7 +97,7 @@
   <div class="bd-header-announcement__content">
     <div style="background-color: #f0ad4e; border: 1px solid #eea236; border-radius: 4px; padding: 10px; margin: 10px 0;">
         <strong>⚠️ Development Version:</strong> This documentation was built from a development version
-        (2026.5.8.dev9073, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/2a60c992ec29c39c52583c7f2c3db0c18cd95533" style="color: #31708f;">2a60c99</a>).
+        (2026.5.13.dev9082, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/6aaf573557621cd68d489b24583d6199296bad52" style="color: #31708f;">6aaf573</a>).
         Features described here may be unstable or subject to change. For stable documentation, please visit the
         <a href="https://docs.suews.io/stable/" style="color: #31708f;">latest release</a>.
     </div>
@@ -146,8 +146,8 @@
       
     
     
-    <img src="../../_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.5.8.dev9073 documentation - Home"/>
-    <img src="../../_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.5.8.dev9073 documentation - Home"/>
+    <img src="../../_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.5.13.dev9082 documentation - Home"/>
+    <img src="../../_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.5.13.dev9082 documentation - Home"/>
   
   
 </a></div>
@@ -811,7 +811,7 @@
         <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">forcing_data</span><span class="p">,</span> <span class="n">RefValue</span><span class="p">):</span>
             <span class="n">forcing_data</span> <span class="o">=</span> <span class="n">forcing_data</span><span class="o">.</span><span class="n">value</span>
         <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">forcing_data</span><span class="p">,</span> <span class="n">SUEWSForcing</span><span class="p">):</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">_df_forcing</span> <span class="o">=</span> <span class="n">forcing_data</span><span class="o">.</span><span class="n">df</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_df_forcing</span> <span class="o">=</span> <span class="n">forcing_data</span><span class="o">.</span><span class="n">to_dataframe</span><span class="p">(</span><span class="n">include_extras</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
         <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">forcing_data</span><span class="p">,</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">):</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">_df_forcing</span> <span class="o">=</span> <span class="n">forcing_data</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
         <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">forcing_data</span><span class="p">,</span> <span class="nb">list</span><span class="p">):</span>
@@ -1088,11 +1088,8 @@
         <span class="n">df_forcing_slice</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_df_forcing</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="n">start_date</span><span class="p">:</span><span class="n">end_date</span><span class="p">]</span>
 
         <span class="c1"># Validate forcing data, including physics-specific forcing requirements</span>
-        <span class="c1"># (e.g. laimethod=0 requires a populated `lai` column). When observed</span>
-        <span class="c1"># LAI is selected, pass per-site LAI bounds so the validator can warn</span>
-        <span class="c1"># about forcing values that will be clamped at runtime.</span>
+        <span class="c1"># (e.g. laimethod=0 requires populated effective observed-LAI sources).</span>
         <span class="n">physics_dict</span> <span class="o">=</span> <span class="kc">None</span>
-        <span class="n">lai_bounds</span> <span class="o">=</span> <span class="kc">None</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_config</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_config</span><span class="p">,</span> <span class="s2">&quot;model&quot;</span><span class="p">):</span>
             <span class="n">physics</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_config</span><span class="o">.</span><span class="n">model</span><span class="p">,</span> <span class="s2">&quot;physics&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
             <span class="k">if</span> <span class="n">physics</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">physics</span><span class="p">,</span> <span class="s2">&quot;model_dump&quot;</span><span class="p">):</span>
@@ -1105,13 +1102,7 @@
                 <span class="p">)</span>
 
                 <span class="n">validate_forcing_columns_against_physics</span><span class="p">(</span><span class="n">df_forcing_slice</span><span class="p">,</span> <span class="n">physics</span><span class="p">)</span>
-        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_df_state_init</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
-            <span class="kn">from</span><span class="w"> </span><span class="nn">._supy_module</span><span class="w"> </span><span class="kn">import</span> <span class="n">_lai_bounds_from_df_state</span>
-
-            <span class="n">lai_bounds</span> <span class="o">=</span> <span class="n">_lai_bounds_from_df_state</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_df_state_init</span><span class="p">)</span>
-        <span class="n">list_issues</span> <span class="o">=</span> <span class="n">check_forcing</span><span class="p">(</span>
-            <span class="n">df_forcing_slice</span><span class="p">,</span> <span class="n">physics</span><span class="o">=</span><span class="n">physics_dict</span><span class="p">,</span> <span class="n">lai_bounds</span><span class="o">=</span><span class="n">lai_bounds</span>
-        <span class="p">)</span>
+        <span class="n">list_issues</span> <span class="o">=</span> <span class="n">check_forcing</span><span class="p">(</span><span class="n">df_forcing_slice</span><span class="p">,</span> <span class="n">physics</span><span class="o">=</span><span class="n">physics_dict</span><span class="p">)</span>
         <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">list_issues</span><span class="p">,</span> <span class="nb">list</span><span class="p">)</span> <span class="ow">and</span> <span class="nb">len</span><span class="p">(</span><span class="n">list_issues</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
             <span class="n">issues_summary</span> <span class="o">=</span> <span class="n">list_issues</span><span class="p">[:</span><span class="mi">3</span><span class="p">]</span> <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">list_issues</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">3</span> <span class="k">else</span> <span class="n">list_issues</span>
             <span class="n">suffix</span> <span class="o">=</span> <span class="p">(</span>
@@ -1872,7 +1863,10 @@
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_df_forcing</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
             <span class="k">return</span> <span class="kc">None</span>
-        <span class="k">return</span> <span class="n">SUEWSForcing</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_df_forcing</span><span class="p">)</span>
+        <span class="n">df_main</span><span class="p">,</span> <span class="n">extras</span> <span class="o">=</span> <span class="n">SUEWSForcing</span><span class="o">.</span><span class="n">_split_per_landcover_columns</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_df_forcing</span><span class="p">)</span>
+        <span class="n">forcing</span> <span class="o">=</span> <span class="n">SUEWSForcing</span><span class="p">(</span><span class="n">df_main</span><span class="p">)</span>
+        <span class="n">forcing</span><span class="o">.</span><span class="n">_extras</span> <span class="o">=</span> <span class="n">extras</span>
+        <span class="k">return</span> <span class="n">forcing</span>
 
     <span class="nd">@property</span>
     <span class="k">def</span><span class="w"> </span><span class="nf">results</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Optional</span><span class="p">[</span><span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">]:</span>
@@ -2063,8 +2057,8 @@ By SUEWS dev team led by Prof Sue Grimmond
   <div class="footer-item">
     
 <div class="extra_footer">
-  <p>Version: 2026.5.8.dev9073 |
-    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/2a60c992ec29c39c52583c7f2c3db0c18cd95533">2a60c99</a> |
+  <p>Version: 2026.5.13.dev9082 |
+    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/6aaf573557621cd68d489b24583d6199296bad52">6aaf573</a> |
     <a href="https://umep-dev.github.io/SUEWS/brand/showcase.html">Brand</a></p>
 </div>
   </div>

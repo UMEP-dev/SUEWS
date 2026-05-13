@@ -299,13 +299,17 @@ SCHEMA_VERSIONS: dict[str, str] = {
         "the kernel-facing adapter keeps the fixed 23-column SUEWS forcing "
         "layout. Per-vegetation observed LAI columns are projected into "
         "kernel columns 21-23 as lai_evetr, lai_dectr, lai_grass, falling "
-        "back to bulk lai per class when needed. wuh_* columns remain "
+        "back to bulk lai per class when needed. "
+        "For laimethod=0, observed LAI is no longer clipped to LAImin/LAImax; "
+        "non-missing, non-negative observations pass through to DailyState. "
+        "wuh_* columns remain "
         "whitelisted extension metadata; bulk Wuh is still the only water-use "
         "forcing consumed by the current kernel. The YAML surface is "
         "unchanged from 2026.5.dev9; the dev9 -> dev10 migration is an "
         "identity stamp registered in yaml_upgrade.py."
     ),
 }
+
 
 @lru_cache(maxsize=1)
 def _migration_pair_registry() -> frozenset:

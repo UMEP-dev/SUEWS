@@ -198,6 +198,11 @@ class-specific column is absent, bulk ``lai`` is used as the fallback.
 Older forcing files that only provide bulk ``lai`` therefore continue
 to work unchanged.
 
+For ``laimethod=0``, observed LAI is no longer clipped to the
+configuration's ``LAImin`` / ``LAImax`` envelope. Non-missing,
+non-negative observations, including genuine zero values, pass through
+to ``DailyState``.
+
 Per-surface water-use columns such as ``wuh_paved`` and
 ``wuh_grass`` remain accepted extension metadata. They are preserved
 on ``SUEWSForcing.extras`` / ``ForcingData.extras`` for downstream

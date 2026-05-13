@@ -9,11 +9,10 @@ hard-coded the local switch to `LAICalcYes = 1`.
 Issue #1296 tightened the contract for the observed path: under
 `laimethod=0` every row of the effective LAI source (`lai_<veg>` when
 present, otherwise bulk `lai`) must be **non-negative** (`LAI >= 0`).
-Zero observations are valid (and clamped
-to `laimin` when the site configuration retains a positive floor);
-**negative** values — including the `-999` missing sentinel — are
-rejected at pre-flight. Do not reintroduce sentinel-based fallback
-tests for the observed path.
+Zero observations are valid and pass through unchanged; **negative**
+values — including the `-999` missing sentinel — are rejected at
+pre-flight. Do not reintroduce sentinel-based fallback tests for the
+observed path.
 
 These tests guard against regression in:
   * Validator plumbing (FORCING_REQUIREMENTS entry, non-negative check).
@@ -169,9 +168,8 @@ class TestLAIMethodNegativeRejected:
     """Validator rejects every negative ``lai`` value under ``laimethod=0``.
 
     Issue #1296 contract: the observed path requires a non-negative
-    observation (``lai >= 0``) at every timestep. Zero is valid (and
-    clamped to ``laimin`` at runtime when the site configuration retains
-    a positive floor). Sentinels (``-999``) and other negative values are
+    observation (``lai >= 0``) at every timestep. Zero is valid and
+    passes through unchanged. Sentinels (``-999``) and other negative values are
     all rejected at pre-flight so the user sees a clear error before the
     run starts.
     """
@@ -424,11 +422,11 @@ class TestLAIMethodRuntime:
             surf.lai.lai_max = laimax
 
     def test_zero_lai_observation_honoured(self):
-        """A genuine zero observation drives LAI to zero when ``laimin = 0``.
+        """A genuine zero observation drives LAI to zero.
 
         Issue #1296 keeps zero as a valid observation: users who expect
-        complete canopy dieback (winter, browning) can set ``laimin`` to
-        zero in the site configuration and the observation is honoured.
+        complete canopy dieback (winter, browning) can force zero LAI
+        without lowering ``laimin`` in the site configuration.
         """
         sim = SUEWSSimulation.from_sample_data()
 
@@ -508,8 +506,8 @@ class TestLAIMethodRuntime:
             sp.run_supy(df_forcing, df_state_init, check_input=False)
 
 
-class TestLAIBoundsPreflightWarning:
-    """Validator warns when forcing LAI will be clamped to [LAImin, LAImax]."""
+class TestLAIPassThroughPreflight:
+    """Validator does not compare observed LAI against LAImin/LAImax."""
 
     @pytest.fixture
     def supy_caplog(self, caplog):
@@ -528,30 +526,12 @@ class TestLAIBoundsPreflightWarning:
         finally:
             supy_logger.propagate = original
 
-    def test_warn_when_forcing_below_laimin(self, supy_caplog):
-        """Forcing values below the highest class LAImin trigger a warning."""
+    def test_no_warning_when_forcing_outside_site_lai_bounds(self, supy_caplog):
+        """Out-of-envelope observed LAI passes validation without a clamp warning."""
         df_forcing = _base_forcing_df()
-        df_forcing["lai"] = 0.5  # below laimin for every class
+        df_forcing["lai"] = 0.5
         lai_bounds = {
             "laimin": [[1.0, 1.0, 1.0]],
-            "laimax": [[5.0, 5.0, 5.0]],
-        }
-        check_forcing(
-            df_forcing,
-            fix=False,
-            physics={"laimethod": 0},
-            lai_bounds=lai_bounds,
-        )
-        messages = [rec.message for rec in supy_caplog.records]
-        assert any("clamped at runtime" in msg for msg in messages), messages
-        assert any("below" in msg.lower() for msg in messages), messages
-
-    def test_warn_when_forcing_above_laimax(self, supy_caplog):
-        """Forcing values above the lowest class LAImax trigger a warning."""
-        df_forcing = _base_forcing_df()
-        df_forcing["lai"] = 7.0
-        lai_bounds = {
-            "laimin": [[0.0, 0.0, 0.0]],
             "laimax": [[5.0, 6.0, 6.5]],
         }
         check_forcing(
@@ -561,59 +541,7 @@ class TestLAIBoundsPreflightWarning:
             lai_bounds=lai_bounds,
         )
         messages = [rec.message for rec in supy_caplog.records]
-        assert any("clamped at runtime" in msg for msg in messages), messages
-        assert any("above" in msg.lower() for msg in messages), messages
-
-    def test_silent_when_forcing_within_bounds(self, supy_caplog):
-        """No warning emitted when all forcing values fit inside the envelope."""
-        df_forcing = _base_forcing_df()
-        df_forcing["lai"] = 3.0
-        lai_bounds = {
-            "laimin": [[1.0, 1.0, 1.0]],
-            "laimax": [[5.0, 5.0, 5.0]],
-        }
-        check_forcing(
-            df_forcing,
-            fix=False,
-            physics={"laimethod": 0},
-            lai_bounds=lai_bounds,
-        )
-        messages = [rec.message for rec in supy_caplog.records]
         assert not any("clamped at runtime" in msg for msg in messages)
-
-
-class TestLAIBoundsYAMLExtraction:
-    """Phase A validation pulls LAI bounds from the YAML and forwards them."""
-
-    def test_extract_lai_bounds_from_sample_config(self):
-        """The sample YAML is parsed into a bounds dict matching df_state."""
-        from pathlib import Path
-
-        import yaml
-        from supy.data_model.validation.pipeline.phase_a import (
-            _extract_lai_bounds_from_user_data,
-        )
-
-        sample_yaml = (
-            Path(__file__).parent.parent / "fixtures" / "benchmark1" / "benchmark1.yml"
-        )
-        with open(sample_yaml) as f:
-            user_data = yaml.safe_load(f)
-
-        bounds = _extract_lai_bounds_from_user_data(user_data)
-        assert bounds is not None
-        assert bounds["laimin"] == [[4.0, 1.0, 1.6]]
-        assert bounds["laimax"] == [[5.1, 5.5, 5.9]]
-
-    def test_extract_returns_none_when_sites_missing(self):
-        """Invalid YAML structure yields None so the caller skips the warning."""
-        from supy.data_model.validation.pipeline.phase_a import (
-            _extract_lai_bounds_from_user_data,
-        )
-
-        assert _extract_lai_bounds_from_user_data({}) is None
-        assert _extract_lai_bounds_from_user_data({"sites": []}) is None
-        assert _extract_lai_bounds_from_user_data(None) is None
 
 
 class TestLAIMethodMultiGrid:

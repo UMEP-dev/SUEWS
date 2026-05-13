@@ -690,7 +690,7 @@ CONTAINS
             END IF
          END IF !N or S hemisphere
 
-         ! Check LAI within limits; if not set to limiting value
+         ! Keep internally computed phenology within the configured canopy envelope.
          IF (LAI_id_next(iv) > LAImax(iv)) THEN
             LAI_id_next(iv) = LAImax(iv)
          ELSEIF (LAI_id_next(iv) < LAImin(iv)) THEN
@@ -701,24 +701,20 @@ CONTAINS
 
       ! Observed-LAI override: when LAICalcYes == 0, every timestep's forcing
       ! value must be a non-missing, non-negative observation (LAI_obs >= 0).
-      ! A genuine
-      ! zero observation (e.g. complete winter dieback) is valid — the
-      ! site-specific clamp then raises it to LAImin if the configuration
-      ! retains a positive floor. Missing/NaN values and strictly negative
-      ! values - including the -999 missing sentinel - are rejected;
-      ! choosing this path commits the user to providing an observation for
-      ! every timestep.
+      ! A genuine zero observation (e.g. complete winter dieback) is valid and
+      ! passes through unchanged. Missing/NaN values and strictly negative
+      ! values - including the -999 missing sentinel - are rejected; choosing
+      ! this path commits the user to providing an observation for every
+      ! timestep. Observed LAI is intentionally not clipped to LAImin/LAImax,
+      ! because those bounds describe the internal GDD/SDD phenology path.
       ! The Python pre-flight validator (supy._check.check_forcing) enforces
       ! this contract before a run starts; the guard below is a defensive
       ! backstop for callers that bypass preflight. Reports via
       ! module_ctrl_error_state so SuPy can surface a clean exception —
       ! never WRITE(*,...) + STOP, which kills the embedding Python process.
       IF (LAICalcYes == 0) THEN
-         ! Clamp observed LAI to each vegetation class's [LAImin, LAImax]
-         ! envelope so that downstream ``LAI_id / LAImax`` ratios in
-         ! ``suews_phys_resist`` and ``suews_phys_biogenco2`` stay within
-         ! the site-specific canopy envelope. The pre-flight validator
-         ! warns when forcing values would be clamped.
+         ! Copy the effective observed LAI for EveTr, DecTr and Grass into the
+         ! daily state without applying the GDD/SDD envelope above.
          DO iv = 1, NVegSurf
             LAI_id_next(iv) = LAI_obs(iv)
          END DO

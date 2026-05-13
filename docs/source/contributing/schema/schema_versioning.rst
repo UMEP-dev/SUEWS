@@ -179,6 +179,9 @@ the schema that shipped with it via
    kernel columns 21-23 in that order, falling back per vegetation
    class to the bulk ``lai`` column when a class-specific column is
    absent. Existing files with only bulk ``lai`` continue to run.
+   For ``laimethod=0``, observed LAI is no longer clipped to
+   ``LAImin`` / ``LAImax``; non-missing, non-negative observations pass
+   through to ``DailyState``.
 
    Per-surface water-use extension columns such as ``wuh_paved`` and
    ``wuh_grass`` remain whitelisted metadata for future water-use

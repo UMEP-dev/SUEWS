@@ -133,15 +133,16 @@ dict_var_type_forcing = {
 
 
 # gh#1372 -- canonical forcing column name set (Python side, 24 cols),
-# baseline-required subset, per-landcover whitelist, and surface short
+# baseline-required datetime columns, baseline-required meteorological subset
+# (six non-datetime cols), per-landcover whitelist, and surface short
 # codes. Column names are matched case-insensitively against the
 # lower-cased canonical set; the DataFrame uses the canonical (cased)
 # names below. Whitelist must stay in sync with the Rust constants in
 # src/suews_bridge/src/forcing_io.rs.
-BASELINE_DATETIME_FORCING_COLUMNS: tuple[str] = ("iy", "id", "it", "imin")
+BASELINE_DATETIME_FORCING_COLUMNS: tuple[str, ...] = ("iy", "id", "it", "imin")
 BASELINE_DATETIME_FORCING_SET: frozenset[str] = frozenset(BASELINE_DATETIME_FORCING_COLUMNS)
 
-BASELINE_FORCING_COLUMNS: tuple[str] = ("Tair", "RH", "U", "pres", "kdown", "rain")
+BASELINE_FORCING_COLUMNS: tuple[str, ...] = ("Tair", "RH", "U", "pres", "kdown", "rain")
 BASELINE_FORCING_COLUMNS_SET: frozenset[str] = frozenset(BASELINE_FORCING_COLUMNS)
 
 OPTIONAL_FORCING_COLUMNS: list[str] = [

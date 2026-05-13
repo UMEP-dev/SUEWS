@@ -546,11 +546,8 @@ class SUEWSSimulation:
         df_forcing_slice = self._df_forcing.loc[start_date:end_date]
 
         # Validate forcing data, including physics-specific forcing requirements
-        # (e.g. laimethod=0 requires a populated `lai` column). When observed
-        # LAI is selected, pass per-site LAI bounds so the validator can warn
-        # about forcing values that will be clamped at runtime.
+        # (e.g. laimethod=0 requires populated effective observed-LAI sources).
         physics_dict = None
-        lai_bounds = None
         if self._config is not None and hasattr(self._config, "model"):
             physics = getattr(self._config.model, "physics", None)
             if physics is not None and hasattr(physics, "model_dump"):
@@ -563,13 +560,7 @@ class SUEWSSimulation:
                 )
 
                 validate_forcing_columns_against_physics(df_forcing_slice, physics)
-        if self._df_state_init is not None:
-            from ._supy_module import _lai_bounds_from_df_state
-
-            lai_bounds = _lai_bounds_from_df_state(self._df_state_init)
-        list_issues = check_forcing(
-            df_forcing_slice, physics=physics_dict, lai_bounds=lai_bounds
-        )
+        list_issues = check_forcing(df_forcing_slice, physics=physics_dict)
         if isinstance(list_issues, list) and len(list_issues) > 0:
             issues_summary = list_issues[:3] if len(list_issues) > 3 else list_issues
             suffix = (

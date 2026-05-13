@@ -38,7 +38,7 @@ use crate::yaml_config::load_run_config_from_str;
 use std::ffi::CStr;
 use std::os::raw::c_char;
 
-pub const MET_FORCING_COLS: usize = 21;
+pub const MET_FORCING_COLS: usize = 23;
 
 // Per-group output column counts (including 5-column datetime prefix).
 // Auto-generated from Fortran ncolumnsDataOut* constants in suews_ctrl_const.f95.

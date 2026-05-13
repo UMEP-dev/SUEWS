@@ -130,7 +130,9 @@ CONTAINS
             avkdn => forcing%kdown, &
             Temp_C => forcing%Temp_C, &
             Precip => forcing%rain, &
-            LAI_obs => forcing%LAI_obs, &
+            LAI_dectr => forcing%LAI_dectr, &
+            LAI_evetr => forcing%LAI_evetr, &
+            LAI_grass => forcing%LAI_grass, &
             ahemisPrm => siteInfo%anthroEmis, &
             irrPrm => siteInfo%irrigation, &
             pavedPrm => siteInfo%lc_paved, &
@@ -331,7 +333,7 @@ CONTAINS
                   IF (execute_subroutines) THEN
                      CALL update_GDDLAI( &
                         id, LAICalcYes, & !input
-                        lat, LAI_obs, &
+                        lat, [lai_evetr, lai_dectr, lai_grass], &
                         Tmin_id, Tmax_id, lenDay_id, &
                         BaseT, BaseTe, &
                         GDDFull, SDDFull, &
@@ -546,7 +548,7 @@ CONTAINS
       INTEGER, INTENT(IN) :: LAICalcYes
 
       REAL(KIND(1D0)), INTENT(IN) :: lat
-      REAL(KIND(1D0)), INTENT(IN) :: LAI_obs
+      REAL(KIND(1D0)), DIMENSION(nvegsurf), INTENT(IN) :: LAI_obs
       REAL(KIND(1D0)), INTENT(IN) :: Tmin_id_prev
       REAL(KIND(1D0)), INTENT(IN) :: Tmax_id_prev
       REAL(KIND(1D0)), INTENT(IN) :: lenDay_id_prev
@@ -584,14 +586,13 @@ CONTAINS
 
       critDays = 50 !Critical limit for GDD when GDD or SDD is set to zero
 
-      IF (LAICalcYes == 0 .AND. (IEEE_IS_NAN(LAI_obs) .OR. LAI_obs < 0.0D0)) THEN
-         ! Invalid LAI_obs slipped past pre-flight — raise an error via the
-         ! SuPy error-state channel before mutating phenology state.
-         ! Assign a safe sentinel to the INTENT(OUT) array before RETURN.
+      IF (LAICalcYes == 0 .AND. (ANY(IEEE_IS_NAN(LAI_obs)) .OR. ANY(LAI_obs < 0.0D0))) THEN
+         ! Invalid LAI_obs slipped past pre-flight; raise an error before
+         ! mutating phenology state and assign a safe sentinel to the output.
          LAI_id_next = -999.0D0
          CALL set_supy_error( &
             105, &
-            'update_GDDLAI: laimethod=0 requires a non-missing lai >= 0 at every timestep')
+            'update_GDDLAI: laimethod=0 requires non-missing lai_* or lai >= 0 at every timestep')
          RETURN
       END IF
 
@@ -689,7 +690,7 @@ CONTAINS
             END IF
          END IF !N or S hemisphere
 
-         ! Check LAI within limits; if not set to limiting value
+         ! Keep internally computed phenology within the configured canopy envelope.
          IF (LAI_id_next(iv) > LAImax(iv)) THEN
             LAI_id_next(iv) = LAImax(iv)
          ELSEIF (LAI_id_next(iv) < LAImin(iv)) THEN
@@ -700,32 +701,22 @@ CONTAINS
 
       ! Observed-LAI override: when LAICalcYes == 0, every timestep's forcing
       ! value must be a non-missing, non-negative observation (LAI_obs >= 0).
-      ! A genuine
-      ! zero observation (e.g. complete winter dieback) is valid — the
-      ! site-specific clamp then raises it to LAImin if the configuration
-      ! retains a positive floor. Missing/NaN values and strictly negative
-      ! values — including the -999 missing sentinel — are rejected;
-      ! choosing this path commits the user to providing an observation for
-      ! every timestep.
+      ! A genuine zero observation (e.g. complete winter dieback) is valid and
+      ! passes through unchanged. Missing/NaN values and strictly negative
+      ! values - including the -999 missing sentinel - are rejected; choosing
+      ! this path commits the user to providing an observation for every
+      ! timestep. Observed LAI is intentionally not clipped to LAImin/LAImax,
+      ! because those bounds describe the internal GDD/SDD phenology path.
       ! The Python pre-flight validator (supy._check.check_forcing) enforces
       ! this contract before a run starts; the guard below is a defensive
       ! backstop for callers that bypass preflight. Reports via
       ! module_ctrl_error_state so SuPy can surface a clean exception —
       ! never WRITE(*,...) + STOP, which kills the embedding Python process.
-      ! The scalar-to-all-veg-classes limitation is tracked in #1292.
       IF (LAICalcYes == 0) THEN
-         LAI_id_next = LAI_obs
-         ! Clamp observed LAI to each vegetation class's [LAImin, LAImax]
-         ! envelope so that downstream ``LAI_id / LAImax`` ratios in
-         ! ``suews_phys_resist`` and ``suews_phys_biogenco2`` stay within
-         ! the site-specific canopy envelope. The pre-flight validator
-         ! warns when forcing values would be clamped.
+         ! Copy the effective observed LAI for EveTr, DecTr and Grass into the
+         ! daily state without applying the GDD/SDD envelope above.
          DO iv = 1, NVegSurf
-            IF (LAI_id_next(iv) > LAImax(iv)) THEN
-               LAI_id_next(iv) = LAImax(iv)
-            ELSEIF (LAI_id_next(iv) < LAImin(iv)) THEN
-               LAI_id_next(iv) = LAImin(iv)
-            END IF
+            LAI_id_next(iv) = LAI_obs(iv)
          END DO
       END IF
       !------------------------------------------------------------------------------

@@ -7,12 +7,12 @@ that the forcing column was silently ignored because the dailystate routine
 hard-coded the local switch to `LAICalcYes = 1`.
 
 Issue #1296 tightened the contract for the observed path: under
-`laimethod=0` every row of the `lai` forcing column must be
-**non-negative** (`lai >= 0`). Zero observations are valid (and clamped
-to `laimin` when the site configuration retains a positive floor);
-**negative** values — including the `-999` missing sentinel — are
-rejected at pre-flight. Do not reintroduce sentinel-based fallback
-tests for the observed path.
+`laimethod=0` every row of the effective LAI source (`lai_<veg>` when
+present, otherwise bulk `lai`) must be **non-negative** (`LAI >= 0`).
+Zero observations are valid and pass through unchanged; **negative**
+values — including the `-999` missing sentinel — are rejected at
+pre-flight. Do not reintroduce sentinel-based fallback tests for the
+observed path.
 
 These tests guard against regression in:
   * Validator plumbing (FORCING_REQUIREMENTS entry, non-negative check).
@@ -96,6 +96,54 @@ class TestLAIMethodValidator:
                 "laimethod=0" in issue and "lai" in issue for issue in issues
             )
 
+    def test_laimethod_0_passes_with_full_per_vegetation_lai(self):
+        """Full per-veg LAI overrides a missing bulk lai column."""
+        df_forcing = _base_forcing_df()
+        df_forcing["lai"] = -999.0
+        df_forcing["lai_evetr"] = 1.5
+        df_forcing["lai_dectr"] = 2.5
+        df_forcing["lai_grass"] = 3.5
+
+        issues = check_forcing(df_forcing, fix=False, physics={"laimethod": 0})
+
+        if issues:
+            assert not any(
+                "laimethod=0" in issue and "non-negative" in issue
+                for issue in issues
+            ), issues
+
+    def test_laimethod_0_rejects_single_invalid_per_vegetation_lai(self):
+        """One invalid effective per-veg LAI source invalidates forcing."""
+        df_forcing = _base_forcing_df()
+        df_forcing["lai"] = 3.5
+        df_forcing["lai_evetr"] = 1.5
+        df_forcing["lai_dectr"] = -999.0
+        df_forcing["lai_grass"] = 3.5
+
+        issues = check_forcing(df_forcing, fix=False, physics={"laimethod": 0})
+
+        assert any(
+            "laimethod=0" in issue
+            and "lai_dectr" in issue
+            and "non-negative" in issue
+            for issue in issues
+        ), issues
+
+    def test_laimethod_0_rejects_partial_per_vegetation_lai_with_bad_fallback(self):
+        """Missing per-veg classes fall back to bulk lai, so bad bulk still fails."""
+        df_forcing = _base_forcing_df()
+        df_forcing["lai"] = -999.0
+        df_forcing["lai_evetr"] = 1.5
+
+        issues = check_forcing(df_forcing, fix=False, physics={"laimethod": 0})
+
+        assert any(
+            "laimethod=0" in issue
+            and "lai" in issue
+            and "non-negative" in issue
+            for issue in issues
+        ), issues
+
     def test_laimethod_default_skips_requirement(self):
         """Default laimethod=1 does not require the lai column."""
         df_forcing = _base_forcing_df()
@@ -120,9 +168,8 @@ class TestLAIMethodNegativeRejected:
     """Validator rejects every negative ``lai`` value under ``laimethod=0``.
 
     Issue #1296 contract: the observed path requires a non-negative
-    observation (``lai >= 0``) at every timestep. Zero is valid (and
-    clamped to ``laimin`` at runtime when the site configuration retains
-    a positive floor). Sentinels (``-999``) and other negative values are
+    observation (``lai >= 0``) at every timestep. Zero is valid and
+    passes through unchanged. Sentinels (``-999``) and other negative values are
     all rejected at pre-flight so the user sees a clear error before the
     run starts.
     """
@@ -311,6 +358,45 @@ class TestLAIMethodRuntime:
                 f"from forcing more than laimethod=0 ({rmse_obs:.3f})"
             )
 
+    def test_laimethod_runtime_tracks_per_vegetation_lai(self):
+        """DailyState LAI outputs follow lai_evetr/lai_dectr/lai_grass separately."""
+        sim = SUEWSSimulation.from_sample_data()
+        self._set_lai_bounds(sim, laimin=0.0, laimax=10.0)
+
+        n_days = 5
+        end_index = TIMESTEPS_PER_DAY * n_days - 1
+        df_forcing = sim.forcing.df.copy().iloc[: end_index + 1].copy()
+        df_forcing["lai"] = -999.0
+        df_forcing["lai_evetr"] = 1.25
+        df_forcing["lai_dectr"] = 2.5
+        df_forcing["lai_grass"] = 3.75
+
+        sim._config.model.physics.laimethod = LAIMethod.OBSERVED
+        sim._df_state_init = sim._config.to_df_state()
+        sim.update_forcing(df_forcing)
+        results = sim.run(end_date=df_forcing.index[-1])
+
+        df_dailystate = results.xs("DailyState", level="group", axis=1)
+        df_lai = df_dailystate.xs(1, level="grid")[[
+            "LAI_EveTr",
+            "LAI_DecTr",
+            "LAI_Grass",
+        ]].dropna(how="all")
+        df_lai_tail = df_lai.iloc[1:]
+
+        expected = {
+            "LAI_EveTr": 1.25,
+            "LAI_DecTr": 2.5,
+            "LAI_Grass": 3.75,
+        }
+        for column, value in expected.items():
+            np.testing.assert_allclose(
+                df_lai_tail[column].values,
+                value,
+                atol=1e-9,
+                err_msg=f"{column} should follow its per-vegetation forcing column",
+            )
+
     def test_run_rejects_all_missing_lai(self):
         """SUEWSSimulation.run() must surface the `lai`-required validator
         error when `laimethod=0` and the forcing column is all -999."""
@@ -336,14 +422,13 @@ class TestLAIMethodRuntime:
             surf.lai.lai_max = laimax
 
     def test_zero_lai_observation_honoured(self):
-        """A genuine zero observation drives LAI to zero when ``laimin = 0``.
+        """A genuine zero observation drives LAI to zero.
 
         Issue #1296 keeps zero as a valid observation: users who expect
-        complete canopy dieback (winter, browning) can set ``laimin`` to
-        zero in the site configuration and the observation is honoured.
+        complete canopy dieback (winter, browning) can force zero LAI
+        without lowering ``laimin`` in the site configuration.
         """
         sim = SUEWSSimulation.from_sample_data()
-        self._set_lai_bounds(sim, laimin=0.0, laimax=10.0)
 
         end_index = TIMESTEPS_PER_DAY * self.N_DAYS - 1
         df_forcing = sim.forcing.df.copy().iloc[: end_index + 1].copy()
@@ -366,86 +451,6 @@ class TestLAIMethodRuntime:
             df_lai_tail.values, 0.0, atol=1e-9,
             err_msg="lai=0.0 observation should drive LAI outputs to zero",
         )
-
-    def test_zero_lai_observation_clamped_to_laimin(self):
-        """Zero observations are clamped up to ``laimin`` when the site
-        configuration retains a positive floor. This is the default
-        behaviour of the sample config (``laimin`` > 0 for all classes).
-        """
-        sim = SUEWSSimulation.from_sample_data()
-
-        df_state = sim._config.to_df_state()
-        laimin_series = df_state["laimin"].iloc[0]
-        laimin_values = [float(laimin_series[f"({iv},)"]) for iv in range(3)]
-        # Pre-condition: sample site has laimin > 0 for every class.
-        assert all(v > 0 for v in laimin_values)
-
-        end_index = TIMESTEPS_PER_DAY * self.N_DAYS - 1
-        df_forcing = sim.forcing.df.copy().iloc[: end_index + 1].copy()
-        df_forcing["lai"] = 0.0
-
-        sim._config.model.physics.laimethod = LAIMethod.OBSERVED
-        sim._df_state_init = sim._config.to_df_state()
-        sim.update_forcing(df_forcing)
-        results = sim.run(end_date=df_forcing.index[-1])
-
-        df_dailystate = results.xs("DailyState", level="group", axis=1)
-        df_lai = df_dailystate.xs(1, level="grid")[[
-            "LAI_EveTr",
-            "LAI_DecTr",
-            "LAI_Grass",
-        ]].dropna(how="all")
-        df_lai_tail = df_lai.iloc[1:]
-        for column, laimin in zip(
-            ["LAI_EveTr", "LAI_DecTr", "LAI_Grass"], laimin_values
-        ):
-            np.testing.assert_allclose(
-                df_lai_tail[column].values,
-                laimin,
-                atol=1e-9,
-                err_msg=f"{column} should be clamped up to laimin={laimin}",
-            )
-
-    def test_observed_lai_clamped_to_envelope(self):
-        """Observations outside each vegetation class's [LAImin, LAImax]
-        envelope must be clamped per-class. Upper-bound clamping keeps the
-        downstream LAI/LAImax ratios bounded; lower-bound clamping keeps the
-        observation consistent with the site-specific canopy floor."""
-        sim = SUEWSSimulation.from_sample_data()
-
-        # Extract per-class LAImax from the df_state_init (columns like
-        # ``(laimax, (iv,))`` where iv indexes EveTr/DecTr/Grass).
-        df_state = sim._config.to_df_state()
-        laimax_series = df_state["laimax"].iloc[0]
-        laimax_values = [float(laimax_series[f"({iv},)"]) for iv in range(3)]
-        max_laimax = max(laimax_values)
-
-        end_index = TIMESTEPS_PER_DAY * self.N_DAYS - 1
-        df_forcing = sim.forcing.df.copy().iloc[: end_index + 1].copy()
-        # Force a constant observation well above every class's LAImax.
-        df_forcing["lai"] = max_laimax + 1.0
-
-        sim._config.model.physics.laimethod = LAIMethod.OBSERVED
-        sim._df_state_init = sim._config.to_df_state()
-        sim.update_forcing(df_forcing)
-        results = sim.run(end_date=df_forcing.index[-1])
-
-        df_dailystate = results.xs("DailyState", level="group", axis=1)
-        df_lai = df_dailystate.xs(1, level="grid")[[
-            "LAI_EveTr",
-            "LAI_DecTr",
-            "LAI_Grass",
-        ]].dropna(how="all")
-
-        # Skip the first day (initial state inherited from the config).
-        df_lai_tail = df_lai.iloc[1:]
-        for column, laimax in zip(
-            ["LAI_EveTr", "LAI_DecTr", "LAI_Grass"], laimax_values
-        ):
-            assert (df_lai_tail[column] <= laimax + 1e-9).all(), (
-                f"{column} exceeded LAImax={laimax}: max observed "
-                f"{df_lai_tail[column].max()}"
-            )
 
     def test_negative_sentinel_rejected(self):
         """Non-canonical sentinels (e.g. ``-950``) are still rejected.
@@ -501,8 +506,8 @@ class TestLAIMethodRuntime:
             sp.run_supy(df_forcing, df_state_init, check_input=False)
 
 
-class TestLAIBoundsPreflightWarning:
-    """Validator warns when forcing LAI will be clamped to [LAImin, LAImax]."""
+class TestLAIPassThroughPreflight:
+    """Validator does not compare observed LAI against LAImin/LAImax."""
 
     @pytest.fixture
     def supy_caplog(self, caplog):
@@ -521,30 +526,12 @@ class TestLAIBoundsPreflightWarning:
         finally:
             supy_logger.propagate = original
 
-    def test_warn_when_forcing_below_laimin(self, supy_caplog):
-        """Forcing values below the highest class LAImin trigger a warning."""
+    def test_no_warning_when_forcing_outside_site_lai_bounds(self, supy_caplog):
+        """Out-of-envelope observed LAI passes validation without a clamp warning."""
         df_forcing = _base_forcing_df()
-        df_forcing["lai"] = 0.5  # below laimin for every class
+        df_forcing["lai"] = 0.5
         lai_bounds = {
             "laimin": [[1.0, 1.0, 1.0]],
-            "laimax": [[5.0, 5.0, 5.0]],
-        }
-        check_forcing(
-            df_forcing,
-            fix=False,
-            physics={"laimethod": 0},
-            lai_bounds=lai_bounds,
-        )
-        messages = [rec.message for rec in supy_caplog.records]
-        assert any("clamped at runtime" in msg for msg in messages), messages
-        assert any("below" in msg.lower() for msg in messages), messages
-
-    def test_warn_when_forcing_above_laimax(self, supy_caplog):
-        """Forcing values above the lowest class LAImax trigger a warning."""
-        df_forcing = _base_forcing_df()
-        df_forcing["lai"] = 7.0
-        lai_bounds = {
-            "laimin": [[0.0, 0.0, 0.0]],
             "laimax": [[5.0, 6.0, 6.5]],
         }
         check_forcing(
@@ -554,59 +541,7 @@ class TestLAIBoundsPreflightWarning:
             lai_bounds=lai_bounds,
         )
         messages = [rec.message for rec in supy_caplog.records]
-        assert any("clamped at runtime" in msg for msg in messages), messages
-        assert any("above" in msg.lower() for msg in messages), messages
-
-    def test_silent_when_forcing_within_bounds(self, supy_caplog):
-        """No warning emitted when all forcing values fit inside the envelope."""
-        df_forcing = _base_forcing_df()
-        df_forcing["lai"] = 3.0
-        lai_bounds = {
-            "laimin": [[1.0, 1.0, 1.0]],
-            "laimax": [[5.0, 5.0, 5.0]],
-        }
-        check_forcing(
-            df_forcing,
-            fix=False,
-            physics={"laimethod": 0},
-            lai_bounds=lai_bounds,
-        )
-        messages = [rec.message for rec in supy_caplog.records]
         assert not any("clamped at runtime" in msg for msg in messages)
-
-
-class TestLAIBoundsYAMLExtraction:
-    """Phase A validation pulls LAI bounds from the YAML and forwards them."""
-
-    def test_extract_lai_bounds_from_sample_config(self):
-        """The sample YAML is parsed into a bounds dict matching df_state."""
-        from pathlib import Path
-
-        import yaml
-        from supy.data_model.validation.pipeline.phase_a import (
-            _extract_lai_bounds_from_user_data,
-        )
-
-        sample_yaml = (
-            Path(__file__).parent.parent / "fixtures" / "benchmark1" / "benchmark1.yml"
-        )
-        with open(sample_yaml) as f:
-            user_data = yaml.safe_load(f)
-
-        bounds = _extract_lai_bounds_from_user_data(user_data)
-        assert bounds is not None
-        assert bounds["laimin"] == [[4.0, 1.0, 1.6]]
-        assert bounds["laimax"] == [[5.1, 5.5, 5.9]]
-
-    def test_extract_returns_none_when_sites_missing(self):
-        """Invalid YAML structure yields None so the caller skips the warning."""
-        from supy.data_model.validation.pipeline.phase_a import (
-            _extract_lai_bounds_from_user_data,
-        )
-
-        assert _extract_lai_bounds_from_user_data({}) is None
-        assert _extract_lai_bounds_from_user_data({"sites": []}) is None
-        assert _extract_lai_bounds_from_user_data(None) is None
 
 
 class TestLAIMethodMultiGrid:

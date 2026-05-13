@@ -16,6 +16,8 @@ from ._load import (
     set_var_use,
 )
 
+LAI_VEG_COLUMNS = ("lai_evetr", "lai_dectr", "lai_grass")
+
 
 # the check list file with ranges and logics
 # path_rules_indiv = path_supy_module / "checker_rules_indiv.json"
@@ -184,16 +186,33 @@ def _matches_option_value(actual_value, option_value) -> bool:
     return actual_value == option_value
 
 
+def _observed_lai_source_columns(
+    df_forcing: pd.DataFrame,
+) -> tuple[list[tuple[str, str]], list[str]]:
+    """Return effective observed-LAI source columns for EveTr, DecTr, Grass."""
+    columns_by_lower = {str(col).lower(): col for col in df_forcing.columns}
+    bulk_lai_col = columns_by_lower.get("lai")
+    sources: list[tuple[str, str]] = []
+    missing: list[str] = []
+    for lai_col in LAI_VEG_COLUMNS:
+        source_col = columns_by_lower.get(lai_col, bulk_lai_col)
+        if source_col is None:
+            missing.append(lai_col)
+        else:
+            sources.append((lai_col, source_col))
+    return sources, missing
+
+
 def _check_observed_lai_nonneg(
-    df_forcing: pd.DataFrame, list_issues: list
+    df_forcing: pd.DataFrame, list_issues: list, lai_col: str = "lai"
 ) -> bool:
-    """Reject missing or negative ``lai`` rows when ``laimethod=0`` is active.
+    """Reject missing or negative effective LAI rows for ``laimethod=0``.
 
     Under the observed-LAI path every timestep must carry a non-missing,
     non-negative observation (``lai >= 0``). A genuine zero observation
-    is valid and is clamped to each vegetation class's ``laimin`` at
-    runtime. Any missing value, strictly negative value, or sentinel
-    placeholder — including ``NaN`` and the ``-999`` missing sentinel
+    is valid and passes through the runtime unchanged. Any missing value,
+    strictly negative value, or sentinel placeholder — including ``NaN``
+    and the ``-999`` missing sentinel
     (and anything at or below ``SUEWS_MISSING_THRESHOLD``) — is refused:
     users who cannot observe every timestep should use ``laimethod=1``
     or gap-fill their forcing.
@@ -201,7 +220,7 @@ def _check_observed_lai_nonneg(
     Parameters
     ----------
     df_forcing : pd.DataFrame
-        Forcing DataFrame. Must contain a ``lai`` column.
+        Forcing DataFrame. Must contain ``lai_col``.
     list_issues : list
         Issue accumulator; a single summary message is appended when
         invalid rows are present.
@@ -214,10 +233,8 @@ def _check_observed_lai_nonneg(
     """
     from .util._missing import SUEWS_MISSING_THRESHOLD
 
-    if "lai" not in df_forcing.columns:
-        return False
+    ser_lai = pd.to_numeric(df_forcing[lai_col], errors="coerce")
 
-    ser_lai = df_forcing["lai"]
     mask_missing = ser_lai.isna()
     mask_negative = ser_lai < 0.0
     mask_invalid = mask_missing | mask_negative
@@ -250,80 +267,17 @@ def _check_observed_lai_nonneg(
         sample_note += f", ... (+{n_invalid - len(sample_rows)} more)"
 
     str_issue = (
-        f"Physics option 'laimethod=0' requires every 'lai' forcing value "
+        f"Physics option 'laimethod=0' requires every '{lai_col}' forcing value "
         f"to be a non-missing, non-negative observation (>= 0); "
         f"NaN, -999 and other sentinels are not permitted on this path. "
         f"Found {n_invalid} invalid row(s): "
         f"{'; '.join(parts)}. First offenders: {sample_note}. "
-        f"Use 'laimethod=1' or gap-fill the 'lai' column with non-negative "
+        f"Use 'laimethod=1' or gap-fill the effective LAI source with non-negative "
         f"observations. See documentation: "
         f"https://docs.suews.io/stable/inputs/tables/RunControl/scheme_options.html"
     )
     list_issues.append(str_issue)
     return True
-
-
-def _warn_observed_lai_clamping(
-    df_forcing: pd.DataFrame, lai_bounds: dict
-) -> None:
-    """Emit a warning if forcing ``lai`` values would be clamped at runtime.
-
-    ``lai_bounds`` is a mapping with per-grid arrays of per-veg-class bounds::
-
-        {'laimin': [[eve, dec, grass], ...], 'laimax': [[eve, dec, grass], ...]}
-
-    The Fortran runtime clamps observed LAI into each vegetation class's
-    ``[LAImin, LAImax]`` envelope. This function pre-computes the tightest
-    thresholds across every grid/class pair and warns when the forcing column
-    strays outside them — users see once that their observations are being
-    silently altered instead of discovering it through unexpected outputs.
-    """
-    from .util._missing import SUEWS_MISSING_THRESHOLD
-
-    if "lai" not in df_forcing.columns:
-        return
-
-    laimin_nested = lai_bounds.get("laimin") or []
-    laimax_nested = lai_bounds.get("laimax") or []
-    laimin_flat = [float(v) for row in laimin_nested for v in row]
-    laimax_flat = [float(v) for row in laimax_nested for v in row]
-    if not laimin_flat or not laimax_flat:
-        return
-
-    # Any class's lower bound activates when forcing < highest LAImin across
-    # grids/classes; any class's upper bound activates when forcing > lowest
-    # LAImax across grids/classes.
-    warn_below = max(laimin_flat)
-    warn_above = min(laimax_flat)
-
-    ser_lai = df_forcing["lai"]
-    mask_valid = ser_lai > SUEWS_MISSING_THRESHOLD
-    ser_valid = ser_lai[mask_valid]
-    if ser_valid.empty:
-        return
-
-    n_below = int((ser_valid < warn_below).sum())
-    n_above = int((ser_valid > warn_above).sum())
-    if n_below == 0 and n_above == 0:
-        return
-
-    parts = []
-    if n_below > 0:
-        parts.append(
-            f"{n_below} value(s) below the highest LAImin "
-            f"({warn_below:g}) across configured vegetation classes"
-        )
-    if n_above > 0:
-        parts.append(
-            f"{n_above} value(s) above the lowest LAImax "
-            f"({warn_above:g}) across configured vegetation classes"
-        )
-    logger_supy.warning(
-        "Observed LAI forcing will be clamped at runtime: %s. "
-        "Adjust per-class laimin/laimax in the site configuration if the "
-        "observations are intended to pass through unchanged.",
-        "; ".join(parts),
-    )
 
 
 def check_forcing(
@@ -335,6 +289,9 @@ def check_forcing(
     if fix:
         df_forcing_fix = df_forcing.copy()
     logger_supy.info("SuPy is validating `df_forcing`...")
+    # ``lai_bounds`` is accepted for compatibility with PR #1420 review
+    # builds. Observed LAI is deliberately not compared against LAImin/LAImax:
+    # under ``laimethod=0`` it passes through after non-negative validation.
     # collect issues
     list_issues = []
     flag_valid = True
@@ -460,21 +417,35 @@ def check_forcing(
                     # is strictly stronger than the generic "all-missing"
                     # rejection — it runs first and shadows the per-column
                     # loop for the ``lai`` column.
-                    lai_nonneg_issue = False
                     if is_observed_lai:
-                        lai_nonneg_issue = _check_observed_lai_nonneg(
-                            df_forcing, list_issues
+                        lai_sources, missing_lai = _observed_lai_source_columns(
+                            df_forcing
                         )
-                        if lai_nonneg_issue:
+                        lai_source_invalid = False
+                        if missing_lai:
+                            str_issue = (
+                                "Physics option 'laimethod=0' requires an "
+                                "effective LAI source for every vegetation "
+                                "class (lai_evetr, lai_dectr, lai_grass), "
+                                "using a per-vegetation column when present "
+                                "and bulk 'lai' otherwise. Missing source(s): "
+                                f"{missing_lai}."
+                            )
+                            list_issues.append(str_issue)
+                            lai_source_invalid = True
+                        checked_sources = set()
+                        for _, lai_col in lai_sources:
+                            if lai_col in checked_sources:
+                                continue
+                            checked_sources.add(lai_col)
+                            lai_source_invalid = (
+                                _check_observed_lai_nonneg(
+                                    df_forcing, list_issues, lai_col=lai_col
+                                )
+                                or lai_source_invalid
+                            )
+                        if lai_source_invalid:
                             flag_valid = False
-                        # Pre-flight warning: observed LAI will be clamped
-                        # into each vegetation class's ``[LAImin, LAImax]``
-                        # envelope. Skip when the non-negative check already
-                        # failed — a forcing full of sentinels will otherwise
-                        # trigger a noisy "below LAImin" warning on top of
-                        # the real error.
-                        if lai_bounds is not None and not lai_nonneg_issue:
-                            _warn_observed_lai_clamping(df_forcing, lai_bounds)
                     for col in required_cols:
                         if col in df_forcing.columns:
                             # Under laimethod=0 the completeness/non-negative

@@ -18,10 +18,16 @@ _yaml_Dumper = getattr(yaml, "CSafeDumper", yaml.SafeDumper)
 from ._env import logger_supy
 from ._post import df_var, gen_index
 
+from ._load import LAI_LANDCOVER_SUFFIXES
+
 if TYPE_CHECKING:
     from .data_model import SUEWSConfig
 
+
+LAI_KERNEL_COLUMNS = tuple(f"lai_{suffix}" for suffix in LAI_LANDCOVER_SUFFIXES)
+
 OUTPUT_TIME_COLS = 5
+MET_FORCING_COLS = 20 + len(LAI_KERNEL_COLUMNS)
 
 _GROUP_ORDER: tuple[str, ...] = (
     "SUEWS",
@@ -172,14 +178,9 @@ def _build_datetime_index(output_block: np.ndarray) -> pd.DatetimeIndex:
 def _prepare_forcing_block(df_forcing: pd.DataFrame) -> np.ndarray:
     """Prepare forcing DataFrame as a Fortran-order array for the Rust bridge."""
     len_sim = len(df_forcing)
-    block = np.zeros((len_sim, 21), dtype=np.float64, order="F")
+    columns_by_lower = {str(col).lower(): col for col in df_forcing.columns}
 
-    block[:, 0] = df_forcing.index.year
-    block[:, 1] = df_forcing.index.dayofyear
-    block[:, 2] = df_forcing.index.hour
-    block[:, 3] = df_forcing.index.minute
-
-    col_map = [
+    fixed_col_map = [
         (4, "qn", 0.0),
         (5, "qh", 0.0),
         (6, "qe", 0.0),
@@ -196,14 +197,29 @@ def _prepare_forcing_block(df_forcing: pd.DataFrame) -> np.ndarray:
         (17, "fcld", 0.0),
         (18, "Wuh", 0.0),
         (19, "xsmd", 0.0),
-        (20, "lai", 0.0),
     ]
 
-    for idx, col, default in col_map:
-        if col in df_forcing.columns:
-            block[:, idx] = df_forcing[col].values
+    block = np.zeros((len_sim, MET_FORCING_COLS), dtype=np.float64, order="F")
+
+    block[:, 0] = df_forcing.index.year
+    block[:, 1] = df_forcing.index.dayofyear
+    block[:, 2] = df_forcing.index.hour
+    block[:, 3] = df_forcing.index.minute
+
+    for idx, col, default in fixed_col_map:
+        source_col = columns_by_lower.get(col.lower())
+        if source_col is not None:
+            block[:, idx] = df_forcing[source_col].values
         else:
             block[:, idx] = default
+
+    bulk_lai_col = columns_by_lower.get("lai")
+    for target_idx, lai_col in enumerate(LAI_KERNEL_COLUMNS, start=20):
+        source_col = columns_by_lower.get(lai_col, bulk_lai_col)
+        if source_col is not None:
+            block[:, target_idx] = df_forcing[source_col].values
+        else:
+            block[:, target_idx] = -999.0
 
     return block
 

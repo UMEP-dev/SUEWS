@@ -43,6 +43,8 @@ _PHYSICS_REQUIRED_FORCING: dict[tuple[str, int], frozenset[str]] = {
     ("water_use", 1): frozenset({"wuh"}),
 }
 
+LAI_VEG_COLUMNS = ("lai_evetr", "lai_dectr", "lai_grass")
+
 
 def _resolve(value: Any) -> Any:
     """Unwrap RefValue-style ``{value: ...}`` mappings and ``.value`` attributes."""
@@ -73,21 +75,54 @@ def _forcing_columns(forcing: Any) -> set[str]:
     return {str(col).lower() for col in forcing}
 
 
-def _column_has_valid_data(forcing: Any, col: str) -> bool:
-    """Return True if ``col`` exists and is not entirely missing/sentinel."""
-    if not hasattr(forcing, "columns"):
-        return True
+def _columns_by_lower(forcing: Any) -> dict[str, Any]:
+    if hasattr(forcing, "columns"):
+        return {str(col).lower(): col for col in forcing.columns}
+    return {str(col).lower(): col for col in forcing}
 
-    match = next((name for name in forcing.columns if str(name).lower() == col), None)
-    if match is None:
-        return False
 
+def _series_has_valid_data(series: Any) -> bool:
+    """Return True only when every row is non-missing/non-sentinel."""
     import pandas as pd
 
     from ...util._missing import SUEWS_MISSING_THRESHOLD
 
-    series = pd.to_numeric(forcing[match], errors="coerce")
-    return bool(((series.notna()) & (series > SUEWS_MISSING_THRESHOLD)).any())
+    numeric = pd.to_numeric(series, errors="coerce")
+    valid_mask = (numeric.notna()) & (numeric > SUEWS_MISSING_THRESHOLD)
+    return bool(valid_mask.to_numpy().all())
+
+
+def _column_has_valid_data(forcing: Any, col: str) -> bool:
+    """Return True if ``col`` exists and has no missing/sentinel rows."""
+    if not hasattr(forcing, "columns"):
+        return True
+
+    columns_by_lower = _columns_by_lower(forcing)
+    source_col = columns_by_lower.get(col)
+    if source_col is None:
+        return False
+
+    return _series_has_valid_data(forcing[source_col])
+
+
+def _lai_validity_issue(forcing: Any) -> str | None:
+    """Return the validation issue reason for laimethod=0, or None."""
+    columns_by_lower = _columns_by_lower(forcing)
+    bulk_lai_col = columns_by_lower.get("lai")
+    source_cols: list[Any] = []
+    for lai_col in LAI_VEG_COLUMNS:
+        source_col = columns_by_lower.get(lai_col, bulk_lai_col)
+        if source_col is None:
+            return "missing"
+        source_cols.append(source_col)
+
+    if not hasattr(forcing, "columns"):
+        return None
+
+    for source_col in dict.fromkeys(source_cols):
+        if not _series_has_valid_data(forcing[source_col]):
+            return "all_missing"
+    return None
 
 
 def validate_forcing_columns_against_physics(
@@ -123,7 +158,11 @@ def validate_forcing_columns_against_physics(
         if not _matches_option_value(actual_value, value):
             continue
         for col in required_cols:
-            if col.lower() not in available:
+            if col.lower() == "lai":
+                reason = _lai_validity_issue(forcing_columns)
+                if reason is not None:
+                    missing.append((field_name, value, col, reason))
+            elif col.lower() not in available:
                 missing.append((field_name, value, col, "missing"))
             elif not _column_has_valid_data(forcing_columns, col.lower()):
                 missing.append((field_name, value, col, "all_missing"))

@@ -78,6 +78,7 @@ _PACKAGE_TO_SCHEMA: dict[str, str] = {
     "2026.5.dev6": "2026.5.dev6",
     "2026.5.dev8": "2026.5.dev8",
     "2026.5.dev9": "2026.5.dev9",
+    "2026.5.dev10": "2026.5.dev10",
 }
 
 
@@ -982,7 +983,7 @@ _HANDLERS: dict[tuple[str, str], Handler] = {
     ("2025.12", "2026.4"): _migrate_2025_12_to_2026_4,
     # Intermediate stops at 2026.5 (callers pinning Category 1 only).
     ("2026.4", "2026.5"): _migrate_2026_4_to_2026_5,
-    # Chains to the current schema (2026.5.dev9: Cat 1 snake_case sweep
+    # Chains to the current schema (2026.5.dev10: Cat 1 snake_case sweep
     # + Cat 5 STEBBS ext rename + Cat 2+3 ModelPhysics suffix drop
     # + gh#1334 STEBBS/Snow snake_case + gh#1334 follow-through hot-water
     # prefix unification + gh#972 accept-only nested physics sub-options
@@ -991,12 +992,15 @@ _HANDLERS: dict[tuple[str, str], Handler] = {
     # + PR#1395 canonical registry refresh (identity)
     # + gh#1372 cumulative model.control restructure: forcing_file ->
     #   forcing.file then output_file -> output (path -> dir, drop legacy
-    #   string form).
+    #   string form)
+    # + PR#1420 stacked follow-up fixed the extended forcing adapter and
+    #   per-vegetation LAI projection without changing the YAML surface.
     # The dev4 -> dev5, dev5 -> dev6, and dev7 -> dev8 deltas are
     # accept-only / contract tightening / identity migrations with no YAML
     # rewrite; the dev6 -> dev7 delta is a pure key rename and the
     # dev8 -> dev9 delta combines the two gh#1372 restructures into a
     # single bump per the dev-label convention.
+    ("2026.5.dev9", CURRENT_SCHEMA_VERSION): _identity,
     ("2026.5.dev8", CURRENT_SCHEMA_VERSION): _migrate_2026_5_dev8_to_current,
     ("2026.5.dev7", CURRENT_SCHEMA_VERSION): _migrate_2026_5_dev7_to_current,
     ("2026.5.dev6", CURRENT_SCHEMA_VERSION): _migrate_2026_5_dev6_to_current,

@@ -6,30 +6,8 @@ use crate::error::BridgeError;
 use crate::ffi;
 use std::collections::BTreeMap;
 
-pub const SUEWS_FORCING_BASE_FLAT_LEN: usize = 18;
 pub const SUEWS_FORCING_SCHEMA_VERSION: u32 = 2;
 pub const SUEWS_FORCING_TS5_FIELD: &str = "ts5mindata_ir";
-
-const SUEWS_FORCING_BASE_FIELDS: [&str; SUEWS_FORCING_BASE_FLAT_LEN] = [
-    "kdown",
-    "ldown",
-    "rh",
-    "pres",
-    "tair_av_5d",
-    "u",
-    "rain",
-    "wu_m3",
-    "fcld",
-    "snowfrac",
-    "xsmd",
-    "qf_obs",
-    "qn1_obs",
-    "qs_obs",
-    "temp_c",
-    "lai_evetr",
-    "lai_dectr",
-    "lai_grass",
-];
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SuewsForcingSchema {
@@ -43,157 +21,118 @@ pub struct SuewsForcingSchema {
 
 pub type SuewsForcingValuesPayload = ValuesPayloadWithDims;
 
-#[derive(Debug, Clone, PartialEq)]
-pub struct SuewsForcing {
-    pub kdown: f64,
-    pub ldown: f64,
-    pub rh: f64,
-    pub pres: f64,
-    pub tair_av_5d: f64,
-    pub u: f64,
-    pub rain: f64,
-    pub wu_m3: f64,
-    pub fcld: f64,
-    pub snowfrac: f64,
-    pub xsmd: f64,
-    pub qf_obs: f64,
-    pub qn1_obs: f64,
-    pub qs_obs: f64,
-    pub temp_c: f64,
-    pub lai_evetr: f64,
-    pub lai_dectr: f64,
-    pub lai_grass: f64,
-    pub ts5mindata_ir: Vec<f64>,
-}
+macro_rules! suews_fields {
+    ($(($field:ident, $idx:expr)),* $(,)?) => {
+        #[derive(Debug, Clone, PartialEq)]
+        pub struct SuewsForcing {
+            $(pub $field: f64,)*
+            pub ts5mindata_ir: Vec<f64>,
+        }
 
-impl Default for SuewsForcing {
-    fn default() -> Self {
-        Self {
-            kdown: 0.0,
-            ldown: 0.0,
-            rh: 0.0,
-            pres: 0.0,
-            tair_av_5d: 0.0,
-            u: 0.0,
-            rain: 0.0,
-            wu_m3: 0.0,
-            fcld: 0.0,
-            snowfrac: 0.0,
-            xsmd: 0.0,
-            qf_obs: 0.0,
-            qn1_obs: 0.0,
-            qs_obs: 0.0,
-            temp_c: 0.0,
-            lai_evetr: 0.0,
-            lai_dectr: 0.0,
-            lai_grass: 0.0,
-            ts5mindata_ir: Vec::new(),
+        impl Default for SuewsForcing {
+            fn default() -> Self {
+                Self {
+                    $($field: 0.0,)*
+                    ts5mindata_ir: Vec::new(),
+                }
+            }
+        }
+
+        pub const SUEWS_FORCING_BASE_FIELDS: &[&str] = &[
+            $(stringify!($field),)*
+        ];
+
+        pub const SUEWS_FORCING_BASE_FLAT_LEN: usize = SUEWS_FORCING_BASE_FIELDS.len();
+
+        impl SuewsForcing {
+            
+            pub fn from_flat_with_ts_len(
+                flat: &[f64],
+                ts5mindata_ir_len: usize,
+            ) -> Result<Self, BridgeError> {
+                let expected_len = SUEWS_FORCING_BASE_FLAT_LEN
+                    .checked_add(ts5mindata_ir_len)
+                    .ok_or(BridgeError::BadState)?;
+                validate_flat_len(flat, expected_len)?;
+
+                Ok(Self {
+                    $(
+                        $field: flat[$idx],
+                    )*
+                    ts5mindata_ir: flat[SUEWS_FORCING_BASE_FLAT_LEN..].to_vec(),
+                })
+            }
+            
+            pub fn from_ordered_values(values: &[f64]) -> Result<Self, BridgeError> {
+                if values.len() < SUEWS_FORCING_BASE_FLAT_LEN {
+                    return Err(BridgeError::BadBuffer);
+                }
+
+                let ts5mindata_ir_len = values.len() - SUEWS_FORCING_BASE_FLAT_LEN;
+                Self::from_flat_with_ts_len(values, ts5mindata_ir_len)
+            }
+            
+            pub fn to_flat(&self) -> Vec<f64> {
+                let mut flat = Vec::with_capacity(SUEWS_FORCING_BASE_FLAT_LEN + self.ts5mindata_ir.len());
+
+                $(
+                    flat.push(self.$field);
+                )*
+                flat.extend_from_slice(&self.ts5mindata_ir);
+
+                flat
+            }
+        }
+
+        fn set_base_field_value(
+            state: &mut SuewsForcing,
+            index: usize,
+            value: f64,
+        ) -> Result<(), BridgeError> {
+            match index {
+                $(
+                    $idx => state.$field = value,
+                )*
+                _ => return Err(BridgeError::BadState),
+            }
+            Ok(())
         }
     }
 }
 
-impl SuewsForcing {
-    pub fn from_flat_with_ts_len(
-        flat: &[f64],
-        ts5mindata_ir_len: usize,
-    ) -> Result<Self, BridgeError> {
-        let expected_len = SUEWS_FORCING_BASE_FLAT_LEN
-            .checked_add(ts5mindata_ir_len)
-            .ok_or(BridgeError::BadState)?;
-        validate_flat_len(flat, expected_len)?;
-
-        Ok(Self {
-            kdown: flat[0],
-            ldown: flat[1],
-            rh: flat[2],
-            pres: flat[3],
-            tair_av_5d: flat[4],
-            u: flat[5],
-            rain: flat[6],
-            wu_m3: flat[7],
-            fcld: flat[8],
-            snowfrac: flat[9],
-            xsmd: flat[10],
-            qf_obs: flat[11],
-            qn1_obs: flat[12],
-            qs_obs: flat[13],
-            temp_c: flat[14],
-            lai_evetr: flat[15],
-            lai_dectr: flat[16],
-            lai_grass: flat[17],
-            ts5mindata_ir: flat[SUEWS_FORCING_BASE_FLAT_LEN..].to_vec(),
-        })
-    }
-
-    pub fn from_ordered_values(values: &[f64]) -> Result<Self, BridgeError> {
-        if values.len() < SUEWS_FORCING_BASE_FLAT_LEN {
-            return Err(BridgeError::BadBuffer);
-        }
-
-        let ts5mindata_ir_len = values.len() - SUEWS_FORCING_BASE_FLAT_LEN;
-        Self::from_flat_with_ts_len(values, ts5mindata_ir_len)
-    }
-
-    pub fn to_flat(&self) -> Vec<f64> {
-        let mut flat = Vec::with_capacity(SUEWS_FORCING_BASE_FLAT_LEN + self.ts5mindata_ir.len());
-
-        flat.push(self.kdown);
-        flat.push(self.ldown);
-        flat.push(self.rh);
-        flat.push(self.pres);
-        flat.push(self.tair_av_5d);
-        flat.push(self.u);
-        flat.push(self.rain);
-        flat.push(self.wu_m3);
-        flat.push(self.fcld);
-        flat.push(self.snowfrac);
-        flat.push(self.xsmd);
-        flat.push(self.qf_obs);
-        flat.push(self.qn1_obs);
-        flat.push(self.qs_obs);
-        flat.push(self.temp_c);
-        flat.push(self.lai_evetr);
-        flat.push(self.lai_dectr);
-        flat.push(self.lai_grass);
-        flat.extend_from_slice(&self.ts5mindata_ir);
-
-        flat
-    }
+suews_fields! {
+    (kdown, 0),
+    (ldown, 1),
+    (rh, 2),
+    (pres, 3),
+    (tair_av_5d, 4),
+    (u, 5),
+    (rain, 6),
+    (wu_m3, 7),
+    (fcld, 8),
+    (snowfrac, 9),
+    (xsmd, 10),
+    (qf_obs, 11),
+    (qn1_obs, 12),
+    (qs_obs, 13),
+    (temp_c, 14),
+    (lai_evetr, 15),
+    (lai_dectr, 16),
+    (lai_grass, 17),
+    // (wu_m3_paved, 18),
+    // (wu_m3_bldgs, 19),
+    // (wu_m3_evetr, 20),
+    // (wu_m3_dectr, 21),
+    // (wu_m3_grass, 22),
+    // (wu_m3_bsoil, 23),
+    // (wu_m3_water, 24)
 }
+
 
 fn parse_ts5mindata_ir_field_index(name: &str) -> Option<usize> {
     let suffix = name.strip_prefix("ts5mindata_ir_")?;
     let one_based = suffix.parse::<usize>().ok()?;
     one_based.checked_sub(1)
-}
-
-fn set_base_field_value(
-    state: &mut SuewsForcing,
-    index: usize,
-    value: f64,
-) -> Result<(), BridgeError> {
-    match index {
-        0 => state.kdown = value,
-        1 => state.ldown = value,
-        2 => state.rh = value,
-        3 => state.pres = value,
-        4 => state.tair_av_5d = value,
-        5 => state.u = value,
-        6 => state.rain = value,
-        7 => state.wu_m3 = value,
-        8 => state.fcld = value,
-        9 => state.snowfrac = value,
-        10 => state.xsmd = value,
-        11 => state.qf_obs = value,
-        12 => state.qn1_obs = value,
-        13 => state.qs_obs = value,
-        14 => state.temp_c = value,
-        15 => state.lai_evetr = value,
-        16 => state.lai_dectr = value,
-        17 => state.lai_grass = value,
-        _ => return Err(BridgeError::BadState),
-    }
-    Ok(())
 }
 
 pub fn suews_forcing_schema() -> Result<(usize, usize), BridgeError> {

@@ -18,16 +18,18 @@ _yaml_Dumper = getattr(yaml, "CSafeDumper", yaml.SafeDumper)
 from ._env import logger_supy
 from ._post import df_var, gen_index
 
-from ._load import LAI_LANDCOVER_SUFFIXES
+from ._load import LAI_LANDCOVER_SUFFIXES, WUH_LANDCOVER_SUFFIXES
 
 if TYPE_CHECKING:
     from .data_model import SUEWSConfig
 
 
 LAI_KERNEL_COLUMNS = tuple(f"lai_{suffix}" for suffix in LAI_LANDCOVER_SUFFIXES)
+WUH_KERNEL_COLUMNS = tuple(f"wuh_{suffix}" for suffix in WUH_LANDCOVER_SUFFIXES)
 
 OUTPUT_TIME_COLS = 5
 MET_FORCING_COLS = 20 + len(LAI_KERNEL_COLUMNS)
+#  + len(WUH_KERNEL_COLUMNS)
 
 _GROUP_ORDER: tuple[str, ...] = (
     "SUEWS",
@@ -220,6 +222,14 @@ def _prepare_forcing_block(df_forcing: pd.DataFrame) -> np.ndarray:
             block[:, target_idx] = df_forcing[source_col].values
         else:
             block[:, target_idx] = -999.0
+    
+    # bulk_wuh_col = columns_by_lower.get("wuh")
+    # for target_idx, wuh_col in enumerate(WUH_KERNEL_COLUMNS, start=23):
+    #     source_col = columns_by_lower.get(wuh_col, bulk_wuh_col)
+    #     if source_col is not None:
+    #         block[:, target_idx] = df_forcing[source_col].values
+    #     else:
+    #         block[:, target_idx] = -999.0
 
     return block
 

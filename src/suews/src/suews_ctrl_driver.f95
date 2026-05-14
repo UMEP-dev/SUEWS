@@ -661,6 +661,13 @@ CONTAINS
          forcing%LAI_evetr = MetForcingBlock(ir, 21)
          forcing%LAI_dectr = MetForcingBlock(ir, 22)
          forcing%LAI_grass = MetForcingBlock(ir, 23)
+         ! forcing%Wu_m3_paved = MetForcingBlock(ir, 24)
+         ! forcing%Wu_m3_bldgs = MetForcingBlock(ir, 25)
+         ! forcing%Wu_m3_evetr = MetForcingBlock(ir, 26)
+         ! forcing%Wu_m3_dectr = MetForcingBlock(ir, 27)
+         ! forcing%Wu_m3_grass = MetForcingBlock(ir, 28)
+         ! forcing%Wu_m3_bsoil = MetForcingBlock(ir, 29)
+         ! forcing%Wu_m3_water = MetForcingBlock(ir, 30)
 
          ! === Call main calculation ===
          CALL SUEWS_cal_Main( &

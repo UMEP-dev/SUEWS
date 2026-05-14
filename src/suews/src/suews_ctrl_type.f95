@@ -197,6 +197,13 @@ MODULE module_ctrl_type
       REAL(KIND(1D0)) :: U = 0.0D0 !
       REAL(KIND(1D0)) :: rain = 0.0D0 !
       REAL(KIND(1D0)) :: Wu_m3 = 0.0D0 !  external water use amount in m3 for each timestep
+      ! REAL(KIND(1D0)) :: Wu_m3_paved = 0.0D0 !  external water use amount in m3 for each timestep
+      ! REAL(KIND(1D0)) :: Wu_m3_bldgs = 0.0D0 !  external water use amount in m3 for each timestep
+      ! REAL(KIND(1D0)) :: Wu_m3_evetr = 0.0D0 !  external water use amount in m3 for each timestep
+      ! REAL(KIND(1D0)) :: Wu_m3_dectr = 0.0D0 !  external water use amount in m3 for each timestep
+      ! REAL(KIND(1D0)) :: Wu_m3_grass = 0.0D0 !  external water use amount in m3 for each timestep
+      ! REAL(KIND(1D0)) :: Wu_m3_bsoil = 0.0D0 !  external water use amount in m3 for each timestep
+      ! REAL(KIND(1D0)) :: Wu_m3_water = 0.0D0 !  external water use amount in m3 for each timestep
       REAL(KIND(1D0)) :: f_cloud = 0.0D0 !
       REAL(KIND(1D0)) :: LAI_dectr = 0.0D0 !
       REAL(KIND(1D0)) :: LAI_evetr = 0.0D0 !

@@ -610,7 +610,7 @@ CONTAINS
       ! Input/Output arguments
       TYPE(SUEWS_TIMER), INTENT(INOUT) :: timer
       INTEGER, INTENT(IN) :: len_sim
-      REAL(KIND(1D0)), DIMENSION(len_sim, 23), INTENT(IN) :: MetForcingBlock
+      REAL(KIND(1D0)), DIMENSION(len_sim, 30), INTENT(IN) :: MetForcingBlock
       TYPE(SUEWS_CONFIG), INTENT(IN) :: config
       TYPE(SUEWS_SITE), INTENT(IN) :: siteInfo
       TYPE(SUEWS_STATE), INTENT(INOUT) :: modState
@@ -661,13 +661,13 @@ CONTAINS
          forcing%LAI_evetr = MetForcingBlock(ir, 21)
          forcing%LAI_dectr = MetForcingBlock(ir, 22)
          forcing%LAI_grass = MetForcingBlock(ir, 23)
-         ! forcing%Wu_m3_paved = MetForcingBlock(ir, 24)
-         ! forcing%Wu_m3_bldgs = MetForcingBlock(ir, 25)
-         ! forcing%Wu_m3_evetr = MetForcingBlock(ir, 26)
-         ! forcing%Wu_m3_dectr = MetForcingBlock(ir, 27)
-         ! forcing%Wu_m3_grass = MetForcingBlock(ir, 28)
-         ! forcing%Wu_m3_bsoil = MetForcingBlock(ir, 29)
-         ! forcing%Wu_m3_water = MetForcingBlock(ir, 30)
+         forcing%Wu_m3_paved = MetForcingBlock(ir, 24)
+         forcing%Wu_m3_bldgs = MetForcingBlock(ir, 25)
+         forcing%Wu_m3_evetr = MetForcingBlock(ir, 26)
+         forcing%Wu_m3_dectr = MetForcingBlock(ir, 27)
+         forcing%Wu_m3_grass = MetForcingBlock(ir, 28)
+         forcing%Wu_m3_bsoil = MetForcingBlock(ir, 29)
+         forcing%Wu_m3_water = MetForcingBlock(ir, 30)
 
          ! === Call main calculation ===
          CALL SUEWS_cal_Main( &

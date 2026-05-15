@@ -2,7 +2,7 @@ use std::collections::HashMap;
 use std::fs;
 use std::path::Path;
 
-pub const MET_FORCING_COLS: usize = 23;
+pub const MET_FORCING_COLS: usize = 30; // can this become a .len()?
 
 // gh#1372 — Baseline-required columns; the loader errors if any is missing.
 // Names are lower-cased; lookups are case-insensitive.
@@ -125,6 +125,8 @@ pub fn read_forcing_block(path: &Path) -> Result<ForcingData, String> {
     let extra_canonical: [(usize, &str); 1] = [(19, "xsmd")];
     let lai_kernel_map: [(usize, &str); 3] =
         [(20, "lai_evetr"), (21, "lai_dectr"), (22, "lai_grass")];
+    let wuh_kernel_map: [(usize, &str); 7] = 
+        [(23, "wuh_paved"), (24, "wuh_bldgs"), (25, "wuh_evetr"), (26, "wuh_dectr"), (27, "wuh_grass"), (28, "wuh_bsoil"), (29, "wuh_water")];
     // Accepted canonical forcing columns that the current 23-column kernel
     // block does not consume.
     let unused_canonical = ["kdiff", "kdir", "wdir"];
@@ -196,6 +198,13 @@ pub fn read_forcing_block(path: &Path) -> Result<ForcingData, String> {
         for (target_idx, lai_col_name) in &lai_kernel_map {
             if let Some(source_idx) = col_idx.get(*lai_col_name).copied().or(bulk_lai_col) {
                 row[*target_idx] = parse_f64(parts[source_idx], line_no, *lai_col_name)?;
+            }
+        }
+
+        let bulk_wuh_col = col_idx.get("wuh").copied();
+        for (target_idx, wuh_col_name) in &wuh_kernel_map {
+            if let Some(source_idx) = col_idx.get(*wuh_col_name).copied().or(bulk_wuh_col) {
+                row[*target_idx] = parse_f64(parts[source_idx], line_no, *wuh_col_name)?;
             }
         }
 

@@ -119,13 +119,13 @@ suews_fields! {
     (lai_evetr, 15),
     (lai_dectr, 16),
     (lai_grass, 17),
-    // (wu_m3_paved, 18),
-    // (wu_m3_bldgs, 19),
-    // (wu_m3_evetr, 20),
-    // (wu_m3_dectr, 21),
-    // (wu_m3_grass, 22),
-    // (wu_m3_bsoil, 23),
-    // (wu_m3_water, 24)
+    (wu_m3_paved, 18),
+    (wu_m3_bldgs, 19),
+    (wu_m3_evetr, 20),
+    (wu_m3_dectr, 21),
+    (wu_m3_grass, 22),
+    (wu_m3_bsoil, 23),
+    (wu_m3_water, 24)
 }
 
 
@@ -410,6 +410,6 @@ mod tests {
 
         let err = suews_forcing_from_values_payload(&payload)
             .expect_err("dims/values mismatch should fail");
-        assert_eq!(err, BridgeError::BadBuffer);
+        assert_eq!(err, BridgeError::BadBuffer2);
     }
 }

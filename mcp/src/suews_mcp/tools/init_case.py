@@ -107,7 +107,12 @@ def init_case(
     # `data.next_steps` is shell-command form; replace it with
     # MCP-tool-call form and add a `recommendation` field with the
     # single highest-priority next move so the agent does not need to
-    # parse the array to know what to do next.
+    # parse the array to know what to do next. Only augment on success
+    # — an error envelope (e.g. reserved template, existing target)
+    # must not carry follow-up steps pointing at a config that was
+    # never scaffolded.
+    if envelope.get("status") != "success":
+        return envelope
     data = envelope.get("data") or {}
     files_created = data.get("files_created") or []
     config_path = next(

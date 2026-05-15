@@ -198,7 +198,9 @@ MODULE module_ctrl_type
       REAL(KIND(1D0)) :: rain = 0.0D0 !
       REAL(KIND(1D0)) :: Wu_m3 = 0.0D0 !  external water use amount in m3 for each timestep
       REAL(KIND(1D0)) :: f_cloud = 0.0D0 !
-      REAL(KIND(1D0)) :: LAI_obs = 0.0D0 !
+      REAL(KIND(1D0)) :: LAI_dectr = 0.0D0 !
+      REAL(KIND(1D0)) :: LAI_evetr = 0.0D0 !
+      REAL(KIND(1D0)) :: LAI_grass = 0.0D0 !
       REAL(KIND(1D0)) :: snow_fraction = 0.0D0 !
       REAL(KIND(1D0)) :: xsmd = 0.0D0 !
       REAL(KIND(1D0)) :: qf_obs = 0.0D0 !

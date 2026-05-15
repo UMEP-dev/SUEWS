@@ -22,7 +22,7 @@ import warnings
 # schema-versioning.md` (Dev-label convention). Every structural PR
 # between releases bumps the dev counter instead of consuming a new
 # CalVer label.
-CURRENT_SCHEMA_VERSION = "2026.5.dev9"
+CURRENT_SCHEMA_VERSION = "2026.5.dev10"
 
 # Schema version history and descriptions.
 #
@@ -294,7 +294,22 @@ SCHEMA_VERSIONS: dict[str, str] = {
         "forcing-restructure first, then output-restructure (audit-log "
         "order matches the gh#1372 chronology)."
     ),
+    "2026.5.dev10": (
+        "Stacked follow-up to PR #1420: forcing files remain extensible while "
+        "the kernel-facing adapter keeps the fixed 23-column SUEWS forcing "
+        "layout. Per-vegetation observed LAI columns are projected into "
+        "kernel columns 21-23 as lai_evetr, lai_dectr, lai_grass, falling "
+        "back to bulk lai per class when needed. "
+        "For laimethod=0, observed LAI is no longer clipped to LAImin/LAImax; "
+        "non-missing, non-negative observations pass through to DailyState. "
+        "wuh_* columns remain "
+        "whitelisted extension metadata; bulk Wuh is still the only water-use "
+        "forcing consumed by the current kernel. The YAML surface is "
+        "unchanged from 2026.5.dev9; the dev9 -> dev10 migration is an "
+        "identity stamp registered in yaml_upgrade.py."
+    ),
 }
+
 
 @lru_cache(maxsize=1)
 def _migration_pair_registry() -> frozenset:

@@ -272,7 +272,7 @@ class SUEWSSimulation:
         if isinstance(forcing_data, RefValue):
             forcing_data = forcing_data.value
         if isinstance(forcing_data, SUEWSForcing):
-            self._df_forcing = forcing_data.df.copy()
+            self._df_forcing = forcing_data.to_dataframe(include_extras=True)
         elif isinstance(forcing_data, pd.DataFrame):
             self._df_forcing = forcing_data.copy()
         elif isinstance(forcing_data, list):
@@ -546,11 +546,8 @@ class SUEWSSimulation:
         df_forcing_slice = self._df_forcing.loc[start_date:end_date]
 
         # Validate forcing data, including physics-specific forcing requirements
-        # (e.g. laimethod=0 requires a populated `lai` column). When observed
-        # LAI is selected, pass per-site LAI bounds so the validator can warn
-        # about forcing values that will be clamped at runtime.
+        # (e.g. laimethod=0 requires populated effective observed-LAI sources).
         physics_dict = None
-        lai_bounds = None
         if self._config is not None and hasattr(self._config, "model"):
             physics = getattr(self._config.model, "physics", None)
             if physics is not None and hasattr(physics, "model_dump"):
@@ -563,13 +560,7 @@ class SUEWSSimulation:
                 )
 
                 validate_forcing_columns_against_physics(df_forcing_slice, physics)
-        if self._df_state_init is not None:
-            from ._supy_module import _lai_bounds_from_df_state
-
-            lai_bounds = _lai_bounds_from_df_state(self._df_state_init)
-        list_issues = check_forcing(
-            df_forcing_slice, physics=physics_dict, lai_bounds=lai_bounds
-        )
+        list_issues = check_forcing(df_forcing_slice, physics=physics_dict)
         if isinstance(list_issues, list) and len(list_issues) > 0:
             issues_summary = list_issues[:3] if len(list_issues) > 3 else list_issues
             suffix = (
@@ -1299,7 +1290,10 @@ class SUEWSSimulation:
         """
         if self._df_forcing is None:
             return None
-        return SUEWSForcing(self._df_forcing)
+        df_main, extras = SUEWSForcing._split_per_landcover_columns(self._df_forcing)
+        forcing = SUEWSForcing(df_main)
+        forcing._extras = extras
+        return forcing
 
     @property
     def results(self) -> Optional[pd.DataFrame]:

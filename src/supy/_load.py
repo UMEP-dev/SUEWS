@@ -133,21 +133,26 @@ dict_var_type_forcing = {
 
 
 # gh#1372 -- canonical forcing column name set (Python side, 24 cols),
-# baseline-required subset, per-landcover whitelist, and surface short
+# baseline-required datetime columns, baseline-required meteorological subset
+# (six non-datetime cols), per-landcover whitelist, and surface short
 # codes. Column names are matched case-insensitively against the
 # lower-cased canonical set; the DataFrame uses the canonical (cased)
 # names below. Whitelist must stay in sync with the Rust constants in
 # src/suews_bridge/src/forcing_io.rs.
-CANONICAL_FORCING_COLUMNS: list[str] = [
-    "iy", "id", "it", "imin",
+BASELINE_DATETIME_FORCING_COLUMNS: tuple[str, ...] = ("iy", "id", "it", "imin")
+BASELINE_DATETIME_FORCING_SET: frozenset[str] = frozenset(BASELINE_DATETIME_FORCING_COLUMNS)
+
+BASELINE_FORCING_COLUMNS: tuple[str, ...] = ("Tair", "RH", "U", "pres", "kdown", "rain")
+BASELINE_FORCING_COLUMNS_SET: frozenset[str] = frozenset(BASELINE_FORCING_COLUMNS)
+
+OPTIONAL_FORCING_COLUMNS: list[str] = [
     "qn", "qh", "qe", "qs", "qf",
-    "U", "RH", "Tair", "pres", "rain", "kdown",
     "snow", "ldown", "fcld", "Wuh", "xsmd", "lai",
     "kdiff", "kdir", "wdir",
 ]
-BASELINE_FORCING_COLUMNS: frozenset[str] = frozenset({
-    "iy", "id", "it", "imin", "Tair", "RH", "U", "pres", "kdown", "rain",
-})
+
+CANONICAL_FORCING_COLUMNS = BASELINE_DATETIME_FORCING_SET | BASELINE_FORCING_COLUMNS_SET | frozenset(OPTIONAL_FORCING_COLUMNS)
+
 PER_LANDCOVER_FORCING_VARS: frozenset[str] = frozenset({"lai", "wuh"})
 LANDCOVER_SUFFIXES: tuple[str, ...] = (
     "paved", "bldgs", "evetr", "dectr", "grass", "bsoil", "water",
@@ -728,11 +733,11 @@ def set_index_dt(df_raw: pd.DataFrame) -> pd.DataFrame:
     """
 
     # drop rows with missing timestamp information (e.g., footer lines with -9)
-    df_raw = df_raw.dropna(subset=df_raw.columns[:4])
+    df_raw = df_raw.dropna(subset=BASELINE_DATETIME_FORCING_SET)
 
     # set timestamp as index
     idx_dt = pd.date_range(
-        *df_raw.iloc[[0, -1], :4]
+        *df_raw.iloc[[0, -1]][list(BASELINE_DATETIME_FORCING_COLUMNS)]
         .astype(int)
         .astype(str)
         .apply(lambda ser: ser.str.cat(sep=" "), axis=1)
@@ -740,7 +745,7 @@ def set_index_dt(df_raw: pd.DataFrame) -> pd.DataFrame:
         periods=df_raw.shape[0],
     )
     list_dt = [
-        *df_raw.iloc[:, :4]
+        *df_raw[list(BASELINE_DATETIME_FORCING_COLUMNS)]
         .astype(int)
         .astype(str)
         .apply(lambda ser: ser.str.cat(sep=" "), axis=1)
@@ -875,8 +880,8 @@ def _apply_named_column_matching(df_forcing_met: pd.DataFrame) -> pd.DataFrame:
 
     # 1) Baseline-required columns must be present (case-insensitive).
     missing_baseline = [
-        canon for canon in CANONICAL_FORCING_COLUMNS
-        if canon in BASELINE_FORCING_COLUMNS and canon.lower() not in header_groups
+        baseline for baseline in BASELINE_FORCING_COLUMNS
+        if baseline.lower() not in header_groups
     ]
     if missing_baseline:
         raise ValueError(
@@ -927,9 +932,8 @@ def _apply_named_column_matching(df_forcing_met: pd.DataFrame) -> pd.DataFrame:
     # 6) Existing post-processing.
     df_canonical["pres"] *= 10  # kPa -> hPa
     df_canonical["isec"] = 0
-    df_canonical[["iy", "id", "it", "imin", "isec"]] = df_canonical[
-        ["iy", "id", "it", "imin", "isec"]
-    ].astype(np.int64)
+    complete_dt_columns = list(BASELINE_DATETIME_FORCING_COLUMNS) + ["isec"]
+    df_canonical[complete_dt_columns] = df_canonical[complete_dt_columns].astype(np.int64)
     df_canonical = set_index_dt(df_canonical)
     return df_canonical
 

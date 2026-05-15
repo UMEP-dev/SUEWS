@@ -144,6 +144,72 @@ def test_validate_forcing_columns_against_physics_rejects_all_sentinel_data():
         validate_forcing_columns_against_physics(df, physics)
 
 
+def test_validate_forcing_columns_accepts_full_per_vegetation_lai_with_bulk_missing():
+    """laimethod=0 can use full per-vegetation LAI even when bulk lai is sentinel."""
+    import pandas as pd
+    from types import SimpleNamespace
+
+    from supy.data_model.core.forcing_validation import (
+        validate_forcing_columns_against_physics,
+    )
+
+    physics = SimpleNamespace(laimethod=0)
+    df = pd.DataFrame(
+        {
+            "lai": [-999.0, -999.0],
+            "lai_evetr": [1.0, 1.1],
+            "lai_dectr": [2.0, 2.1],
+            "lai_grass": [3.0, 3.1],
+        }
+    )
+
+    validate_forcing_columns_against_physics(df, physics)
+
+
+def test_validate_forcing_columns_rejects_invalid_effective_per_vegetation_lai():
+    """Any invalid effective LAI source must fail under laimethod=0."""
+    import pandas as pd
+    from types import SimpleNamespace
+
+    from supy.data_model.core.forcing_validation import (
+        validate_forcing_columns_against_physics,
+    )
+
+    physics = SimpleNamespace(laimethod=0)
+    df = pd.DataFrame(
+        {
+            "lai": [2.0, 2.0],
+            "lai_evetr": [1.0, -999.0],
+            "lai_dectr": [2.0, 2.1],
+            "lai_grass": [3.0, 3.1],
+        }
+    )
+
+    with pytest.raises(ValueError, match=r"lai.*valid data.*laimethod=0"):
+        validate_forcing_columns_against_physics(df, physics)
+
+
+def test_validate_forcing_columns_rejects_partial_lai_with_invalid_fallback():
+    """A missing per-veg LAI class falls back to bulk lai, so invalid bulk fails."""
+    import pandas as pd
+    from types import SimpleNamespace
+
+    from supy.data_model.core.forcing_validation import (
+        validate_forcing_columns_against_physics,
+    )
+
+    physics = SimpleNamespace(laimethod=0)
+    df = pd.DataFrame(
+        {
+            "lai": [-999.0, -999.0],
+            "lai_evetr": [1.0, 1.1],
+        }
+    )
+
+    with pytest.raises(ValueError, match=r"lai.*valid data.*laimethod=0"):
+        validate_forcing_columns_against_physics(df, physics)
+
+
 def test_python_rust_whitelist_parity():
     """gh#1372 cross-language guard: Python and Rust must agree on the
     per-landcover whitelist, surface short codes, baseline-required set,
@@ -154,7 +220,8 @@ def test_python_rust_whitelist_parity():
     from pathlib import Path
 
     from supy._load import (
-        BASELINE_FORCING_COLUMNS,
+        BASELINE_DATETIME_FORCING_SET,
+        BASELINE_FORCING_COLUMNS_SET,
         FORCING_OPTIONAL_FILL,
         LAI_LANDCOVER_SUFFIXES,
         LANDCOVER_SUFFIXES,
@@ -175,14 +242,14 @@ def test_python_rust_whitelist_parity():
     assert _list("LANDCOVER_SUFFIXES") == set(LANDCOVER_SUFFIXES)
     assert _list("LAI_LANDCOVER_SUFFIXES") == set(LAI_LANDCOVER_SUFFIXES)
     assert _list("WUH_LANDCOVER_SUFFIXES") == set(WUH_LANDCOVER_SUFFIXES)
-    assert _list("BASELINE_FORCING_COLUMNS") == {c.lower() for c in BASELINE_FORCING_COLUMNS}
+    assert _list("BASELINE_FORCING_COLUMNS") == {c.lower() for c in BASELINE_DATETIME_FORCING_SET|BASELINE_FORCING_COLUMNS_SET}
 
     unused_canonical_match = re.search(
         r"let unused_canonical = \[(.*?)\];", text, re.DOTALL
     )
     assert unused_canonical_match is not None, (
         "Rust reader must explicitly accept canonical columns that are not "
-        "passed into the 21-column kernel block"
+        "passed into the 23-column kernel block"
     )
     assert set(re.findall(r'"([^"]+)"', unused_canonical_match.group(1))) == {
         "kdiff", "kdir", "wdir",

@@ -24,4 +24,4 @@ See Also
 - :doc:`/workflow` - Complete workflow guide
 - :doc:`/inputs/converter` - Configuration converter guide
 - :doc:`/inputs/yaml/index` - YAML configuration reference
-- :doc:`/tutorials/python/index` - Python tutorials
+- :doc:`/auto_examples/index` - Python tutorials

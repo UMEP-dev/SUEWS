@@ -1,7 +1,7 @@
-.. _Workflow:
+.. _getting_started:
 
-Getting Started with SUEWS
-===========================
+Getting Started
+===============
 
 SUEWS is a powerful urban climate modelling tool delivered through **SuPy**, a comprehensive Python interface that integrates seamlessly with the scientific Python ecosystem. This guide provides a clear learning path from your first simulation to advanced urban climate research.
 
@@ -208,11 +208,11 @@ Results are stored with MultiIndex columns ``(group, variable)``. Always use ``s
 
 For the full hands-on experience, run the complete tutorial notebook:
 
-📓 **Interactive Notebook**: :doc:`Complete Quick Start Tutorial <tutorials/python/quick-start>`
+**Interactive Tutorial**: :doc:`Complete Quick Start Tutorial </auto_examples/tutorial_01_quick_start>`
 
 This notebook includes:
 - Detailed explanations of each step
-- Additional visualisation examples  
+- Additional visualisation examples
 - Data exploration exercises
 - Troubleshooting tips
 
@@ -232,8 +232,9 @@ Modern SUEWS uses YAML configuration files that organise all model parameters in
    model:
      control:
        tstep: 300  # 5-minute time steps
-       forcing_file:
-         value: "Input/Met_Data.txt"
+       forcing:
+         file:
+           value: "Input/Met_Data.txt"
        start_date: "2015-01-01"
        end_date: "2015-12-31"
      physics:
@@ -310,7 +311,7 @@ Setup Your Site Tutorial
 
 For detailed guidance on configuring SUEWS for your specific site:
 
-📓 **Interactive Tutorial**: :doc:`Setup Your Own Site <tutorials/python/setup-own-site>`
+**Interactive Tutorial**: :doc:`Setup Your Own Site </auto_examples/tutorial_02_setup_own_site>`
 
 This comprehensive notebook covers:
 - Site characterisation and data collection
@@ -332,13 +333,37 @@ Once you have a YAML configuration file, use the `SUEWSSimulation` class:
    sim = SUEWSSimulation("path/to/your/config_suews.yml")
 
    # Run simulation (forcing data loaded from config)
-   sim.run()
+   output = sim.run()
 
    # Access results
    print(sim.results)
 
    # Save outputs
    sim.save("output_directory/")
+
+   # Save the typed restart artefact explicitly
+   checkpoint_path = output.checkpoint.to_file(
+       "output_directory/{site}_SUEWS_checkpoint.json"
+   )
+
+To continue a simulation, pair the same YAML configuration with the checkpoint
+from the previous run and the next forcing period:
+
+.. code-block:: python
+
+   from supy import SUEWSSimulation
+
+   sim_next = SUEWSSimulation.from_checkpoint(
+       "path/to/your/config_suews.yml",
+       "output_directory/{site}_SUEWS_checkpoint.json",
+   )
+   sim_next.update_forcing("forcing_next_period.txt")
+   output_next = sim_next.run()
+
+The checkpoint is intentionally only the typed runtime state. To continue a
+run, load the same YAML configuration, attach the next forcing period, and run
+from ``SUEWSSimulation.from_checkpoint(...)``. Checkpoints are keyed by grid ID,
+so checkpoint/configuration grid mismatches are rejected by the runtime.
 
 For detailed examples, see :doc:`/sub-tutorials/suews-simulation-tutorial`.
 
@@ -381,8 +406,8 @@ Multi-Site and Comparative Studies
    def run_site(config_file):
        """Run SUEWS for a single site configuration"""
        sim = SUEWSSimulation(config_file)
-       sim.run()
-       return config_file, (sim.results, sim.state_final)
+       output = sim.run()
+       return config_file, output
 
    # Configuration files for different sites
    site_configs = [
@@ -395,19 +420,15 @@ Multi-Site and Comparative Studies
    with Pool() as pool:
        results = pool.map(run_site, site_configs)
 
-   # Note: Each result tuple contains (df_output, df_state_final)
-   # We need to access variables using the simulation object or helper
+   # Note: Each result tuple contains a SUEWSOutput object. Its checkpoint
+   # can be saved or passed to SUEWSSimulation.from_checkpoint(...) later.
 
-   # Create simulations from stored states to access get_variable()
    monthly_temps = {}
-   for name, (output, state) in results:
-       # Recreate sim with results for get_variable() access
-       sim_temp = SUEWSSimulation()
-       sim_temp._df_output = output
-       sim_temp._run_completed = True
-
-       t2 = sim_temp.get_variable('T2', group='SUEWS')
+   checkpoints = {}
+   for name, output in results:
+       t2 = output.get_variable('T2', group='SUEWS')
        monthly_temps[name] = t2.iloc[:, 0].groupby(t2.index.month).mean()
+       checkpoints[name] = output.checkpoint
 
    temp_comparison = pd.DataFrame(monthly_temps)
    temp_comparison.plot(kind='bar', title='Monthly Temperature Comparison')
@@ -463,7 +484,7 @@ Climate Change Impact Studies
        'Storage Heat': rcp85_fluxes['QS'].mean() - baseline_fluxes['QS'].mean()
    }
 
-**Complete Tutorial**: :doc:`Impact Studies <tutorials/python/impact-studies>`
+**Complete Tutorial**: :doc:`Impact Studies </auto_examples/tutorial_03_impact_studies>`
 
 Model Coupling and Integration
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -625,7 +646,7 @@ Getting Support and Community
 **SuPy and SUEWS Community:**
 
 - **GitHub Repository**: `SUEWS on GitHub <https://github.com/UMEP-dev/SUEWS>`__ for issues and contributions
-- **Community**: `Join the SUEWS community <https://suews.discourse.group/>`__ for discussions
+- **Community**: `Join the SUEWS community <https://community.suews.io/invites/bKjzoboyVV>`__ for discussions
 - **Documentation**: :doc:`Complete API reference <inputs/yaml/index>` and parameter guides
 
 **Essential Reading:**

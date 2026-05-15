@@ -4,6 +4,9 @@ MODULE module_phys_waterdist
                             PavSurf, BldgSurf, &
                             ConifSurf, DecidSurf, GrassSurf, &
                             BSoilSurf, WaterSurf, ExcessSurf
+   USE module_ctrl_error_state, ONLY: supy_error_flag
+   USE module_ctrl_error, ONLY: ErrorHint
+   USE module_ctrl_type, ONLY: SUEWS_STATE
    IMPLICIT NONE
 CONTAINS
 
@@ -16,7 +19,8 @@ CONTAINS
       DrainCoef1, &
       DrainCoef2, &
       nsh_real, &
-      drain_is) !output
+      drain_is, & !output
+      modState) !optional: for thread-safe error logging
 
       !Calculation of drainage for each land surface.
       !INPUT: Storage capacity, type of drainage equation used, drainage coefficients
@@ -39,6 +43,7 @@ CONTAINS
       REAL(KIND(1D0)), INTENT(in) :: DrainEq !Drainage equation to use
       REAL(KIND(1D0)), INTENT(in) :: nsh_real !nsh cast as a real for use in calculations
       REAL(KIND(1D0)), INTENT(out) :: drain_is !Drainage of surface type "is" [mm]
+      TYPE(SUEWS_STATE), INTENT(INOUT), OPTIONAL :: modState
 
       !If surface is dry, no drainage occurs
       IF (state_is < 0.000000001) THEN
@@ -67,7 +72,7 @@ CONTAINS
          ! May indicate shorter tstep needed, or a more suitable equation
          IF (drain_is > state_is) THEN
             !write(*,*) 'Drainage:', is, drain(is), state_id(is), drain(is)-state_id(is), DrainEq, DrainCoef1, DrainCoef2, nsh_real
-            CALL ErrorHint(61, 'SUEWS_drain: drain_is > state_is for surface is ', drain_is, state_is, is)
+            CALL ErrorHint(61, 'SUEWS_drain: drain_is > state_is for surface is ', drain_is, state_is, is, modState)
             drain_is = state_is !All water in state_id is drained (but no more)
          ELSEIF (drain_is < 0.0001) THEN
             drain_is = 0
@@ -87,7 +92,8 @@ CONTAINS
       PervFraction, addVeg, SoilStoreCap, addWaterBody, FlowChange, StateLimit, &
       runoffAGimpervious, runoffAGveg, runoffPipes, ev, soilstore, & ! inout:
       surplusWaterBody, SurplusEvap, runoffWaterBody, & ! inout:
-      runoff, state_out) !output:
+      runoff, state_out, & !output:
+      modState) !optional: for thread-safe error logging
       !------------------------------------------------------------------------------
       !Calculation of storage change
       ! TS 30 Nov 2019
@@ -169,6 +175,7 @@ CONTAINS
       REAL(KIND(1D0)), INTENT(inout) :: runoffPipes !Runoff in pipes [mm] for whole surface area
       REAL(KIND(1D0)), INTENT(inout) :: ev !Evaporation
       REAL(KIND(1D0)), INTENT(inout) :: runoffWaterBody !Above ground runoff from water surface [mm] for whole surface area
+      TYPE(SUEWS_STATE), INTENT(INOUT), OPTIONAL :: modState
 
       REAL(KIND(1D0)) :: p_mm !Inputs to surface water balance
 
@@ -316,7 +323,8 @@ CONTAINS
             runoff(is) = runoff(is) + (soilstore(is) - SoilStoreCap(is))
             soilstore(is) = SoilStoreCap(is)
          ELSEIF (soilstore(is) < 0) THEN !! QUESTION: But where does this lack of water go? !!Can this really happen here?
-            CALL ErrorHint(62, 'SUEWS_store: soilstore_id(is) < 0 ', soilstore(is), NotUsed, is)
+            CALL ErrorHint(62, 'SUEWS_store: soilstore_id(is) < 0 ', soilstore(is), NotUsed, is, modState)
+            IF (supy_error_flag) RETURN
             ! Code this properly - soilstore_id(is) < 0 shouldn't happen given the above loops
             !soilstore_id(is)=0   !Groundwater / deeper soil should kick in
          END IF
@@ -833,21 +841,21 @@ CONTAINS
             grassPrm => siteInfo%lc_grass, &
             bsoilPrm => siteInfo%lc_bsoil, &
             waterPrm => siteInfo%lc_water, &
-            SoilMoistCap => hydroState%SoilMoistCap, &
-            SoilState => hydroState%SoilState, &
+            SoilMoistCap => hydroState%soil_moist_cap, &
+            SoilState => hydroState%soil_state, &
             vsmd => hydroState%vsmd, &
             smd => hydroState%smd)
 
-            soilstore_surf = hydroState%soilstore_surf
+            soilstore_surf = hydroState%soil_store_surf
 
             ! sfr_surf = [pavedPrm%sfr, bldgPrm%sfr, evetrPrm%sfr, dectrPrm%sfr, grassPrm%sfr, bsoilPrm%sfr, waterPrm%sfr]
-            SoilStoreCap(1) = pavedPrm%soil%soilstorecap
-            SoilStoreCap(2) = bldgPrm%soil%soilstorecap
-            SoilStoreCap(3) = evetrPrm%soil%soilstorecap
-            SoilStoreCap(4) = dectrPrm%soil%soilstorecap
-            SoilStoreCap(5) = grassPrm%soil%soilstorecap
-            SoilStoreCap(6) = bsoilPrm%soil%soilstorecap
-            SoilStoreCap(7) = waterPrm%soil%soilstorecap
+            SoilStoreCap(1) = pavedPrm%soil%soil_store_capacity
+            SoilStoreCap(2) = bldgPrm%soil%soil_store_capacity
+            SoilStoreCap(3) = evetrPrm%soil%soil_store_capacity
+            SoilStoreCap(4) = dectrPrm%soil%soil_store_capacity
+            SoilStoreCap(5) = grassPrm%soil%soil_store_capacity
+            SoilStoreCap(6) = bsoilPrm%soil%soil_store_capacity
+            SoilStoreCap(7) = waterPrm%soil%soil_store_capacity
 
             SoilMoistCap = 0 !Maximum capacity of soil store [mm] for whole surface
             SoilState = 0 !Area-averaged soil moisture [mm] for whole surface
@@ -899,7 +907,8 @@ CONTAINS
       SMDMethod, xsmd, NonWaterFraction, SoilMoistCap, & !input
       SoilStoreCap_surf, surf_chang_per_tstep, &
       soilstore_surf, soilstore_surf_in, sfr_surf, &
-      smd, smd_surf, tot_chang_per_tstep, SoilState) !output
+      smd, smd_surf, tot_chang_per_tstep, SoilState, & !output
+      modState) !optional: for thread-safe error logging
 
       IMPLICIT NONE
       ! INTEGER, PARAMETER :: nsurf = 7
@@ -919,6 +928,7 @@ CONTAINS
       REAL(KIND(1D0)), INTENT(out) :: SoilState !Area-averaged soil moisture [mm] for whole surface
       REAL(KIND(1D0)), INTENT(out) :: smd !One value for whole surface
       REAL(KIND(1D0)), INTENT(out) :: tot_chang_per_tstep !Change in surface state_id
+      TYPE(SUEWS_STATE), INTENT(INOUT), OPTIONAL :: modState
 
       REAL(KIND(1D0)), PARAMETER :: NotUsed = -999
       REAL(KIND(1D0)), PARAMETER :: NAN = -999
@@ -929,9 +939,11 @@ CONTAINS
          DO is = 1, nsurf - 1 !No water body included
             SoilState = SoilState + (soilstore_surf(is)*sfr_surf(is)/NonWaterFraction)
             IF (SoilState < 0) THEN
-               CALL ErrorHint(62, 'SUEWS_Calculations: total SoilState < 0 (just added surface is) ', SoilState, NotUsed, is)
+               CALL ErrorHint(62, 'SUEWS_Calculations: total SoilState < 0 (just added surface is) ', SoilState, NotUsed, is, modState)
+               IF (supy_error_flag) RETURN
             ELSEIF (SoilState > SoilMoistCap) THEN
-               CALL ErrorHint(62, 'SUEWS_Calculations: total SoilState > capacity (just added surface is) ', SoilState, NotUsed, is)
+               CALL ErrorHint(62, 'SUEWS_Calculations: total SoilState > capacity (just added surface is) ', SoilState, NotUsed, is, modState)
+               IF (supy_error_flag) RETURN
                !SoilMoist_state=SoilMoistCap !What is this LJ 10/2010 - QUESTION: SM exceeds capacity, but where does extra go?HCW 11/2014
             END IF
          END DO !end loop over surfaces
@@ -978,7 +990,7 @@ CONTAINS
       )
       !Transfers water in soil stores of land surfaces LJ (2010)
       !Change the model to use varying hydraulic conductivity instead of constant value LJ (7/2011)
-      !If one of the surface's soildepth is zero, no water movement is considered
+      !If one of the surface's soil_depth is zero, no water movement is considered
       ! LJ  15/06/2017 Modification:   - Moved location of runoffSoil_per_tstep within previous if-loop to avoid dividing with zero with 100% water surface
       ! HCW 22/02/2017 Modifications:  - Minor bug fixed in VWC1/B_r1 comparison - if statements reversed
       ! HCW 13/08/2014 Modifications:  - Order of surfaces reversed (for both is and jj loops)
@@ -1198,7 +1210,7 @@ CONTAINS
 
       !Transfers water in soil stores of land surfaces LJ (2010)
       !Change the model to use varying hydraulic conductivity instead of constant value LJ (7/2011)
-      !If one of the surface's soildepth is zero, no water movement is considered
+      !If one of the surface's soil_depth is zero, no water movement is considered
       ! LJ  15/06/2017 Modification:   - Moved location of runoffSoil_per_tstep within previous if-loop to avoid dividing with zero with 100% water surface
       ! HCW 22/02/2017 Modifications:  - Minor bug fixed in VWC1/B_r1 comparison - if statements reversed
       ! HCW 13/08/2014 Modifications:  - Order of surfaces reversed (for both is and jj loops)
@@ -1273,42 +1285,42 @@ CONTAINS
          snowPrm => siteInfo%snow, &
          PipeCapacity => siteInfo%PipeCapacity, &
          RunoffToWater => siteInfo%RunoffToWater, &
-         FlowChange => siteInfo%FlowChange, &
+         FlowChange => siteInfo%flow_change, &
          PervFraction => siteInfo%PervFraction, &
          vegfraction => siteInfo%vegfraction, &
          NonWaterFraction => siteInfo%NonWaterFraction, &
          tstep_real => timer%tstep_real, &
-         soilstore_surf => hydroState%soilstore_surf, &
-         runoffSoil_surf => hydroState%runoffSoil, &
-         runoffSoil_per_tstep => hydroState%runoffSoil_per_tstep, &
+         soilstore_surf => hydroState%soil_store_surf, &
+         runoffSoil_surf => hydroState%runoff_soil, &
+         runoffSoil_per_tstep => hydroState%runoff_soil_per_tstep, &
          Diagnose => config%Diagnose &
          )
          runoffSoil_surf = 0
          runoffSoil_per_tstep = 0
 
-         SoilStoreCap_surf(1) = pavedPrm%soil%soilstorecap
-         SoilStoreCap_surf(2) = bldgPrm%soil%soilstorecap
-         SoilStoreCap_surf(3) = evetrPrm%soil%soilstorecap
-         SoilStoreCap_surf(4) = dectrPrm%soil%soilstorecap
-         SoilStoreCap_surf(5) = grassPrm%soil%soilstorecap
-         SoilStoreCap_surf(6) = bsoilPrm%soil%soilstorecap
-         SoilStoreCap_surf(7) = waterPrm%soil%soilstorecap
+         SoilStoreCap_surf(1) = pavedPrm%soil%soil_store_capacity
+         SoilStoreCap_surf(2) = bldgPrm%soil%soil_store_capacity
+         SoilStoreCap_surf(3) = evetrPrm%soil%soil_store_capacity
+         SoilStoreCap_surf(4) = dectrPrm%soil%soil_store_capacity
+         SoilStoreCap_surf(5) = grassPrm%soil%soil_store_capacity
+         SoilStoreCap_surf(6) = bsoilPrm%soil%soil_store_capacity
+         SoilStoreCap_surf(7) = waterPrm%soil%soil_store_capacity
 
-         SoilDepth_surf(1) = pavedPrm%soil%soildepth
-         SoilDepth_surf(2) = bldgPrm%soil%soildepth
-         SoilDepth_surf(3) = evetrPrm%soil%soildepth
-         SoilDepth_surf(4) = dectrPrm%soil%soildepth
-         SoilDepth_surf(5) = grassPrm%soil%soildepth
-         SoilDepth_surf(6) = bsoilPrm%soil%soildepth
-         SoilDepth_surf(7) = waterPrm%soil%soildepth
+         SoilDepth_surf(1) = pavedPrm%soil%soil_depth
+         SoilDepth_surf(2) = bldgPrm%soil%soil_depth
+         SoilDepth_surf(3) = evetrPrm%soil%soil_depth
+         SoilDepth_surf(4) = dectrPrm%soil%soil_depth
+         SoilDepth_surf(5) = grassPrm%soil%soil_depth
+         SoilDepth_surf(6) = bsoilPrm%soil%soil_depth
+         SoilDepth_surf(7) = waterPrm%soil%soil_depth
 
-         SatHydraulicConduct_surf(1) = pavedPrm%soil%sathydraulicconduct
-         SatHydraulicConduct_surf(2) = bldgPrm%soil%sathydraulicconduct
-         SatHydraulicConduct_surf(3) = evetrPrm%soil%sathydraulicconduct
-         SatHydraulicConduct_surf(4) = dectrPrm%soil%sathydraulicconduct
-         SatHydraulicConduct_surf(5) = grassPrm%soil%sathydraulicconduct
-         SatHydraulicConduct_surf(6) = bsoilPrm%soil%sathydraulicconduct
-         SatHydraulicConduct_surf(7) = waterPrm%soil%sathydraulicconduct
+         SatHydraulicConduct_surf(1) = pavedPrm%soil%saturated_hydraulic_conductivity
+         SatHydraulicConduct_surf(2) = bldgPrm%soil%saturated_hydraulic_conductivity
+         SatHydraulicConduct_surf(3) = evetrPrm%soil%saturated_hydraulic_conductivity
+         SatHydraulicConduct_surf(4) = dectrPrm%soil%saturated_hydraulic_conductivity
+         SatHydraulicConduct_surf(5) = grassPrm%soil%saturated_hydraulic_conductivity
+         SatHydraulicConduct_surf(6) = bsoilPrm%soil%saturated_hydraulic_conductivity
+         SatHydraulicConduct_surf(7) = waterPrm%soil%saturated_hydraulic_conductivity
 
          CALL SUEWS_cal_HorizontalSoilWater( &
             sfr_surf, & ! input: ! surface fractions
@@ -1450,9 +1462,9 @@ CONTAINS
 
                ! Irrigated Fraction of each surface
                ! TS: 20200409, add irrigation fractions for all surfaces
-               IrrFrac = [pavedPrm%IrrFracPaved, bldgPrm%IrrFracBldgs, &
-                          evetrPrm%IrrFracEveTr, dectrPrm%IrrFracDecTr, grassPrm%IrrFracGrass, &
-                          bsoilPrm%IrrFracBSoil, waterPrm%IrrFracWater]
+               IrrFrac = [pavedPrm%irrigation_fraction_paved, bldgPrm%irrigation_fraction_bldgs, &
+                          evetrPrm%irrigation_fraction_evetr, dectrPrm%irrigation_fraction_dectr, grassPrm%irrigation_fraction_grass, &
+                          bsoilPrm%irrigation_fraction_bsoil, waterPrm%irrigation_fraction_water]
 
                ! --------------------------------------------------------------------------------
                ! If water used is observed and provided in the met forcing file, units are m3

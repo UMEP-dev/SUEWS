@@ -6,23 +6,37 @@ import pytest
 import supy as sp
 from supy._post import resample_output, dict_var_aggm
 
-# Import debug utilities
-try:
-    from .debug_utils import debug_on_ci, capture_test_artifacts, analyze_dailystate_nan
-except ImportError:
-    # Fallback if decorators not available
-    def debug_on_ci(func):
-        return func
+# Import debug utilities from conftest (centralised)
+from conftest import (
+    TIMESTEPS_PER_DAY,
+    analyze_dailystate_nan,
+    capture_test_artifacts,
+    debug_on_ci,
+)
 
-    def capture_test_artifacts(name):
-        return lambda func: func
-
-    def analyze_dailystate_nan(func):
-        return func
+pytestmark = pytest.mark.api
 
 
 class TestResampleOutput:
     """Test suite for resample_output functionality."""
+
+    def test_resample_accepts_suewsoutput(self):
+        """Test that resample_output accepts SUEWSOutput instances."""
+        df_state_init, df_forcing = sp.load_SampleData()
+        df_output, df_state_final = sp.run_supy(df_forcing.iloc[:48], df_state_init)
+
+        output = sp.SUEWSOutput(df_output, df_state_final)
+        assert output.index.equals(df_output.index)
+
+        df_resampled = resample_output(output, freq="h")
+        assert isinstance(df_resampled, pd.DataFrame)
+        assert isinstance(df_resampled.index, pd.MultiIndex)
+        assert "grid" in df_resampled.index.names
+
+        # Also test the OOP API (SUEWSOutput.resample method)
+        output_resampled = output.resample(freq="h")
+        assert isinstance(output_resampled, sp.SUEWSOutput)
+        assert not output_resampled.df.empty
 
     @analyze_dailystate_nan  # Add NaN analysis even when test passes
     @debug_on_ci
@@ -34,7 +48,7 @@ class TestResampleOutput:
 
         # Run for more days to ensure we have DailyState data
         # DailyState needs at least a few days to generate meaningful output
-        df_forcing_multi_day = df_forcing.iloc[: 288 * 10]  # 10 days of 5-min data
+        df_forcing_multi_day = df_forcing.iloc[: TIMESTEPS_PER_DAY * 10]  # 10 days
 
         # Run simulation
         df_output, df_state_final = sp.run_supy(df_forcing_multi_day, df_state_init)
@@ -99,7 +113,7 @@ class TestResampleOutput:
 
                     # Check if it's related to the 5-day rolling mean
                     print(
-                        f"\nSimulation length: {len(df_output)} timesteps ({len(df_output) / 288:.1f} days)"
+                        f"\nSimulation length: {len(df_output)} timesteps ({len(df_output) / TIMESTEPS_PER_DAY:.1f} days)"
                     )
                     print(
                         "Note: HDD4_T5d requires 5-day rolling mean, might need longer simulation"
@@ -143,7 +157,7 @@ class TestResampleOutput:
         df_state_init, df_forcing = sp.load_SampleData()
 
         # Run for multiple days (use more days to ensure DailyState generation)
-        df_forcing_multi_day = df_forcing.iloc[: 288 * 10]  # 10 days of 5-min data
+        df_forcing_multi_day = df_forcing.iloc[: TIMESTEPS_PER_DAY * 10]  # 10 days
 
         # Run simulation
         df_output, df_state_final = sp.run_supy(df_forcing_multi_day, df_state_init)
@@ -173,7 +187,7 @@ class TestResampleOutput:
     def test_resample_dailystate_label_difference(self):
         """Test that DailyState uses 'left' label while other groups use 'right'."""
         # Create minimal test data with known structure
-        dates = pd.date_range("2023-01-01", periods=288 * 2, freq="5min")
+        dates = pd.date_range("2023-01-01", periods=TIMESTEPS_PER_DAY * 2, freq="5min")
         grids = ["grid1"]
 
         # Create MultiIndex
@@ -183,9 +197,9 @@ class TestResampleOutput:
         regular_data = np.random.rand(len(index))
         dailystate_data = np.full(len(index), np.nan)
         # Only fill DailyState at end of each day
-        for i in range(0, len(dates), 288):
-            if i + 287 < len(dates):
-                dailystate_data[i + 287] = np.random.rand()
+        for i in range(0, len(dates), TIMESTEPS_PER_DAY):
+            if i + TIMESTEPS_PER_DAY - 1 < len(dates):
+                dailystate_data[i + TIMESTEPS_PER_DAY - 1] = np.random.rand()
 
         # Create DataFrame with MultiIndex columns
         columns = pd.MultiIndex.from_tuples(
@@ -235,7 +249,7 @@ class TestResampleOutput:
     def test_resample_missing_dict_aggm_entry(self):
         """Test behavior when dict_aggm doesn't contain DailyState."""
         # Create test data
-        dates = pd.date_range("2023-01-01", periods=288, freq="5min")
+        dates = pd.date_range("2023-01-01", periods=TIMESTEPS_PER_DAY, freq="5min")
         grids = ["grid1"]
         index = pd.MultiIndex.from_product([grids, dates], names=["grid", "datetime"])
 

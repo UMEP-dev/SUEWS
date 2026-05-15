@@ -1,0 +1,58 @@
+# Reusable workflow: build SUEWS abi3 wheels with a matrix strategy.
+#
+# Called by build-publish_to_pypi.yml. One cp39-abi3 wheel per (OS, arch)
+# covers cp39..cp3xx. By isolating the matrix here, the caller job can use
+# a static name that displays cleanly when skipped.
+
+name: Build wheels (reusable)
+
+on:
+  workflow_call:
+    inputs:
+      buildplat_json:
+        description: 'JSON array of [runner, platform_name, arch] triples'
+        required: true
+        type: string
+      python_json:
+        description: 'JSON array of CPython tags used by cibuildwheel (always ["cp39"] — abi3)'
+        required: true
+        type: string
+      test_tier:
+        description: 'Test tier: smoke, core, cfg, standard, or all'
+        required: true
+        type: string
+      is_testpypi_build:
+        description: 'Whether this is a TestPyPI build'
+        required: false
+        type: string
+        default: 'false'
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: ${{ matrix.python }}-${{ matrix.buildplat[1] }} ${{ matrix.buildplat[2] }}
+    runs-on: ${{ matrix.buildplat[0] }}
+    strategy:
+      matrix:
+        buildplat: ${{ fromJson(inputs.buildplat_json) }}
+        python: ${{ fromJson(inputs.python_json) }}
+      fail-fast: false
+
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          fetch-depth: 0
+          submodules: recursive
+          persist-credentials: false
+
+      - name: Build SUEWS wheels
+        uses: ./.github/actions/build-suews
+        with:
+          buildplat: ${{ matrix.buildplat[0] }}
+          buildplat_name: ${{ matrix.buildplat[1] }}
+          buildplat_arch: ${{ matrix.buildplat[2] }}
+          python: ${{ matrix.python }}
+          test_tier: ${{ inputs.test_tier }}
+          is_testpypi_build: ${{ inputs.is_testpypi_build }}

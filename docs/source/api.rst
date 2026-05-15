@@ -13,13 +13,27 @@ The Python interface provides the complete API for SUEWS with comprehensive func
    api/core-functions
    api/utility-functions
    api/command-line
+   api/knowledge-pack
    api/python-cli-equivalents
    api/data-structures
    api/io-data-structures
    api/converter
 
+.. only:: dts_available
+
+   .. toctree::
+      :maxdepth: 2
+      :hidden:
+
+      api/dts
+
 **Object-Oriented Interface**
     The :class:`~supy.SUEWSSimulation` class provides a modern interface for running simulations. See :doc:`api/simulation`.
+
+.. only:: dts_available
+
+   **DTS Interface**
+       Performance-optimised direct Pydantic-to-Fortran execution path. See :doc:`api/dts`.
 
 **Core Functions**
     Functional API for SUEWS simulations (init, run, save). See :doc:`api/core-functions`.
@@ -30,6 +44,9 @@ The Python interface provides the complete API for SUEWS with comprehensive func
 **Command-Line Tools**
     CLI tools for running simulations and converting configurations. See :doc:`api/command-line`.
 
+**Knowledge Pack**
+    Git-bound source evidence for local agents. See :doc:`api/knowledge-pack`.
+
 **Python API for CLI Users**
     Python equivalents for all command-line operations. See :doc:`api/python-cli-equivalents`.
 
@@ -38,4 +55,3 @@ The Python interface provides the complete API for SUEWS with comprehensive func
 
 **Configuration Converter**
     Python functions for converting between SUEWS formats and versions. See :doc:`api/converter`.
-

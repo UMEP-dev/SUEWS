@@ -1,23 +1,18 @@
 import yaml
-from typing import Optional, Union, List, Any
+from typing import Optional, Union, List
 import numpy as np
 from pydantic import ConfigDict, BaseModel, Field, field_validator, model_validator
 import pandas as pd
 from enum import Enum
 import inspect
 
-from .type import RefValue, Reference, FlexibleRefValue
-from .type import init_df_state
-from .physics_options import (
-    NetRadiationMethodConfig,
-    RadiationPhysics,
-    LongwaveSource,
-    NETRAD_MAPPER,
-    EmissionsMethodConfig,
-    BiogenicModel,
-    QFMethod,
-    EMISSIONS_MAPPER,
+from .type import RefValue, Reference, FlexibleRefValue, df_from_cols
+from .field_renames import (
+    MODELPHYSICS_RENAMES,
+    MODELPHYSICS_SUFFIX_RENAMES,
+    apply_field_renames,
 )
+from .physics_families import PHYSICS_FAMILIES, coerce_nested_to_flat
 
 
 def _enum_description(enum_class: type[Enum]) -> str:
@@ -79,192 +74,6 @@ def _enum_description(enum_class: type[Enum]) -> str:
             return f"{summary} Options: {options_text}"
 
     return summary
-
-
-def _coerce_enum_value(
-    v: Any, enum_class: type[Enum], aliases: Optional[dict[str, str]] = None
-) -> Any:
-    """Coerce string or dict input to enum value (case-insensitive).
-
-    Supports:
-    - Enum member: returns as-is
-    - Integer: returns as-is (Pydantic handles)
-    - String: case-insensitive lookup by member name or alias
-    - Dict with 'value' key: extracts and processes the value
-
-    Parameters
-    ----------
-    v : Any
-        Input value to coerce
-    enum_class : type[Enum]
-        Target enum class for lookup
-    aliases : dict[str, str], optional
-        Short alias → member name mapping (case-insensitive)
-
-    Returns
-    -------
-    Any
-        Coerced value suitable for Pydantic validation
-    """
-    if v is None or isinstance(v, enum_class):
-        return v
-
-    # Handle dict with 'value' key
-    if isinstance(v, dict) and "value" in v:
-        v = v["value"]
-
-    # Handle string (case-insensitive lookup by alias, then member name)
-    if isinstance(v, str):
-        v_upper = v.upper()
-
-        # Check aliases first
-        if aliases:
-            for alias, member_name in aliases.items():
-                if alias.upper() == v_upper:
-                    return enum_class[member_name]
-
-        # Then check member names
-        for member in enum_class:
-            if member.name.upper() == v_upper:
-                return member
-        # If no match, let Pydantic handle (will raise appropriate error)
-
-    return v
-
-
-# =============================================================================
-# Physics Option Aliases
-# =============================================================================
-#
-# Naming Convention for Physics Options
-# -------------------------------------
-# Physics options support multiple input formats for flexibility:
-#
-# 1. NUMERIC CODES (legacy, still supported)
-#    - Integer values matching Fortran interface
-#    - Example: storageheatmethod: 1
-#
-# 2. EXPLICIT MODEL NAMES (preferred for named models)
-#    - Use the established model acronym in lowercase
-#    - Examples:
-#      - ohm: Objective Hysteresis Model
-#      - anohm: Analytical OHM
-#      - estm: Element Surface Temperature Method
-#      - ehc: Explicit Heat Conduction
-#      - dyohm: Dynamic OHM
-#      - narp: Net All-wave Radiation Parameterization
-#      - most: Monin-Obukhov Similarity Theory
-#      - rst: Roughness Sublayer Theory
-#
-# 3. AUTHOR-YEAR FORMAT (Xyy) for methods without model names
-#    - Format: First letter of first author surname + two-digit year
-#    - Case-insensitive (K09, k09, K09 all work)
-#    - Examples:
-#      - K09: Kawai et al. 2009 (thermal roughness)
-#      - CN98: Campbell & Norman 1998 (stability functions)
-#      - W16: Ward et al. 2016 (stomatal conductance)
-#      - J11: Järvi et al. 2011 (stomatal conductance, QF)
-#      - B82: Brutsaert 1982 (thermal roughness)
-#      - M98: MacDonald et al. 1998 (momentum roughness)
-#      - GO99: Grimmond & Oke 1999 (roughness length)
-#
-# 4. GENERIC DESCRIPTIVE TERMS (for simple choices)
-#    - fixed, variable, auto: method selection
-#    - model, obs: modelled vs observed
-#    - provided, calc: use input vs calculate
-#
-# 5. BINARY OPTIONS (yes/no)
-#    - ohmincqf: yes/no (include QF in OHM)
-#    - snowuse: yes/no (enable snow module)
-#
-# All string inputs are case-insensitive.
-# =============================================================================
-
-# Maps short alias → enum member name
-STORAGE_HEAT_ALIASES = {
-    "obs": "OBSERVED",
-    "ohm": "OHM_WITHOUT_QF",
-    "anohm": "ANOHM",  # Analytical OHM
-    "estm": "ESTM",  # Element Surface Temperature Method
-    "ehc": "EHC",  # Explicit Heat Conduction
-    "dyohm": "DyOHM",  # Dynamic OHM
-    "stebbs": "STEBBS",
-}
-
-OHM_INC_QF_ALIASES = {
-    "no": "EXCLUDE",
-    "yes": "INCLUDE",
-}
-
-ROUGHLEN_MOM_ALIASES = {
-    "fixed": "FIXED",
-    "variable": "VARIABLE",
-    "M98": "MACDONALD",  # MacDonald et al. 1998
-    "GO99": "LAMBDAP_DEPENDENT",  # Grimmond & Oke 1999
-}
-
-ROUGHLEN_HEAT_ALIASES = {
-    "B82": "BRUTSAERT",  # Brutsaert 1982
-    "K09": "KAWAI",  # Kawai et al. 2009
-    "K07": "KANDA",  # Kanda et al. 2007
-    "auto": "ADAPTIVE",
-}
-
-STABILITY_ALIASES = {
-    "H88": "HOEGSTROM",  # Högström 1988
-    "CN98": "CAMPBELL_NORMAN",  # Campbell & Norman 1998
-    "B71": "BUSINGER_HOEGSTROM",  # Businger et al. 1971
-}
-
-SMD_ALIASES = {
-    "model": "MODELLED",
-    "obs_vol": "OBSERVED_VOLUMETRIC",
-    "obs_grav": "OBSERVED_GRAVIMETRIC",
-}
-
-WATER_USE_ALIASES = {
-    "model": "MODELLED",
-    "obs": "OBSERVED",
-}
-
-RSL_ALIASES = {
-    "most": "MOST",
-    "rst": "RST",
-    "auto": "VARIABLE",
-}
-
-FAI_ALIASES = {
-    "provided": "USE_PROVIDED",
-    "calc": "SIMPLE_SCHEME",
-}
-
-RSL_LEVEL_ALIASES = {
-    "off": "NONE",
-    "basic": "BASIC",
-    "full": "DETAILED",
-}
-
-GS_MODEL_ALIASES = {
-    "J11": "JARVI",  # Järvi et al. 2011
-    "W16": "WARD",  # Ward et al. 2016
-}
-
-SNOW_USE_ALIASES = {
-    "no": "DISABLED",
-    "yes": "ENABLED",
-}
-
-STEBBS_ALIASES = {
-    "off": "NONE",
-    "default": "DEFAULT",
-    "custom": "PROVIDED",
-}
-
-RC_ALIASES = {
-    "off": "NONE",
-    "basic": "BASIC",
-    "full": "DETAILED",
-}
 
 
 class EmissionsMethod(Enum):
@@ -369,37 +178,6 @@ class NetRadiationMethod(Enum):
 
     def __repr__(self):
         return str(self.value)
-
-    @property
-    def model(self) -> str:
-        """Return model dimension: obs, narp, or spartacus.
-
-        Returns
-        -------
-        str
-            'obs' for observed, 'narp' for NARP, 'spartacus' for SPARTACUS
-        """
-        if self.value == 0:
-            return "obs"
-        elif self.value >= 1000:
-            return "spartacus"
-        else:
-            return "narp"
-
-    @property
-    def ldown(self) -> Optional[str]:
-        """Return ldown dimension: obs, cloud, air, or None.
-
-        Returns
-        -------
-        str or None
-            L↓ source, or None for observed model
-        """
-        if self.value == 0:
-            return None
-        # Extract last digit for ldown code
-        lw_code = self.value % 10
-        return {1: "obs", 2: "cloud", 3: "air"}.get(lw_code)
 
 
 class StorageHeatMethod(Enum):
@@ -592,6 +370,24 @@ class WaterUseMethod(Enum):
         return str(self.value)
 
 
+class LAIMethod(Enum):
+    """
+    Method for determining leaf area index (LAI).
+
+    0: OBSERVED - Uses observed LAI values from the forcing file (lai column); the same value is applied to every vegetation class each day, and every timestep must carry a non-missing, non-negative observation. The -999 missing sentinel (and other negative placeholders) is not permitted on this path. Genuine zero observations are honoured.
+    1: CALCULATED - LAI calculated internally from growing-degree-day (GDD) and senescence-degree-day (SDD) thresholds.
+    """
+
+    OBSERVED = 0
+    CALCULATED = 1
+
+    def __int__(self):
+        return self.value
+
+    def __repr__(self):
+        return str(self.value)
+
+
 class RSLMethod(Enum):
     """
     Roughness Sublayer (RSL) method for calculating near-surface meteorological diagnostics (2m temperature, 2m humidity, 10m wind speed).
@@ -703,14 +499,14 @@ class StebbsMethod(Enum):
 
 class RCMethod(Enum):
     """
-    Method to split building envelope heat capacity in STEBBS.
+    Method to determine the two weighting factors (wall_outer_heat_capacity_fraction and roof_outer_heat_capacity_fraction) splitting heat capacity of building envelope into two nodes in STEBBS.
 
-    0: NONE - No heat capacity splitting applied
-    1: PROVIDED - Use user defined value (fractional x1) between 0 and 1
-    2: PARAMETERISE - Use building material thermal property to parameterise the weighting factor x1
+    0: DEFAULT - Default value of 0.5 is used
+    1: PROVIDED - Use user defined value (wall_outer_heat_capacity_fraction and roof_outer_heat_capacity_fraction) between 0 and 1
+    2: PARAMETERISE - Use building material thermal property to parameterise the weighting factor
     """
 
-    NONE = 0
+    DEFAULT = 0
     PROVIDED = 1
     PARAMETERISE = 2
 
@@ -720,6 +516,24 @@ class RCMethod(Enum):
     def __repr__(self):
         return str(self.value)
 
+class SetpointMethod(Enum):
+    """
+    Method to determine the approach of space heating/cooling setpoints in STEBBS.
+
+    0: Constant - Use the user-provided heating_setpoint_temperature and cooling_setpoint_temperature throughout the day.
+    1: Dependent - Use the user-provided setpoints; but it depends on occupants activity status and use unrealistic switch-off setpoints when occupant is inactive.
+    2: Scheduled - Use the user-provided heating_setpoint_temperature_profile and cooling_setpoint_temperature_profile.
+    """
+
+    CONSTANT = 0
+    DEPENDENT = 1
+    SCHEDULED = 2
+
+    def __int__(self):
+        return self.value
+
+    def __repr__(self):
+        return str(self.value)
 
 class SnowUse(Enum):
     """
@@ -737,6 +551,77 @@ class SnowUse(Enum):
 
     def __repr__(self):
         return str(self.value)
+    
+class SameAlbedoWall(Enum):
+    """
+    Controls assumption of same albedoes for walls.
+
+    0: OFF
+    1: ON
+    """
+
+    DISABLED = 0
+    ENABLED = 1
+
+    def __int__(self):
+        return self.value
+
+    def __repr__(self):
+        return str(self.value)
+    
+
+class SameAlbedoRoof(Enum):
+    """
+    Controls assumption of same albedoes for roofs.
+
+    0: OFF
+    1: ON
+    """
+
+    DISABLED = 0
+    ENABLED = 1
+
+    def __int__(self):
+        return self.value
+
+    def __repr__(self):
+        return str(self.value)
+    
+class SameEmissivityWall(Enum):
+    """
+    Controls assumption of same emissivities for walls.
+
+    0: OFF
+    1: ON
+    """
+
+    DISABLED = 0
+    ENABLED = 1
+
+    def __int__(self):
+        return self.value
+
+    def __repr__(self):
+        return str(self.value)
+    
+
+class SameEmissivityRoof(Enum):
+    """
+    Controls assumption of same emissivities for roofs.
+
+    0: OFF
+    1: ON
+    """
+
+    DISABLED = 0
+    ENABLED = 1
+
+    def __int__(self):
+        return self.value
+
+    def __repr__(self):
+        return str(self.value)    
+
 
 
 def yaml_equivalent_of_default(dumper, data):
@@ -765,14 +650,20 @@ for enum_class in [
     StabilityMethod,
     SMDMethod,
     WaterUseMethod,
+    LAIMethod,
     RSLMethod,
     FAIMethod,
     RSLLevel,
     GSModel,
     StebbsMethod,
     RCMethod,
+    SetpointMethod,
     SnowUse,
     OhmIncQf,
+    SameAlbedoWall,
+    SameAlbedoRoof,
+    SameEmissivityWall,
+    SameEmissivityRoof,
 ]:
     yaml.add_representer(enum_class, yaml_equivalent_of_default)
 
@@ -784,314 +675,198 @@ class ModelPhysics(BaseModel):
 
     model_config = ConfigDict(title="Physics Methods")
 
-    netradiationmethod: NetRadiationMethodConfig = Field(
-        default_factory=lambda: NetRadiationMethodConfig(
-            scheme=RadiationPhysics.NARP, ldown=LongwaveSource.AIR
-        ),
-        description=(
-            "Method for calculating net all-wave radiation (Q*). "
-            "Uses orthogonal dimensions: scheme (obs/narp/spartacus) and "
-            "ldown source (obs/cloud/air). See nested structure for details."
-        ),
+    @model_validator(mode="before")
+    @classmethod
+    def _rename_physics_fields(cls, values):
+        if isinstance(values, dict):
+            # Cat 1 first (fused -> snake_case with suffix), then Cat 2 + 3
+            # (suffix drop + abbreviation expansion). Chaining lets a single
+            # YAML carrying either legacy shape land on the final name.
+            values = apply_field_renames(values, MODELPHYSICS_RENAMES, cls.__name__)
+            values = apply_field_renames(values, MODELPHYSICS_SUFFIX_RENAMES, cls.__name__)
+        return values
+
+    @field_validator(*PHYSICS_FAMILIES.keys(), mode="before")
+    @classmethod
+    def _coerce_nested_physics(cls, value, info):
+        # Widens accepted input: `{family: {value: N}}` collapses to the
+        # flat `{value: N}` shape before the FlexibleRefValue union resolves.
+        # Family tag is a validation gate — see physics_families.py (gh#972).
+        return coerce_nested_to_flat(info.field_name, value)
+
+    net_radiation: FlexibleRefValue(NetRadiationMethod) = Field(
+        default=NetRadiationMethod.LDOWN_AIR,
+        description=_enum_description(NetRadiationMethod),
         json_schema_extra={"unit": "dimensionless"},
     )
-
-    @field_validator("netradiationmethod", mode="before")
-    @classmethod
-    def coerce_netradiationmethod(cls, v: Any) -> Any:
-        """Accept legacy and dimension-based forms for netradiationmethod.
-
-        Accepted forms:
-        - Dimension-based: {"scheme": "narp", "ldown": "air"}
-        - Legacy RefValue: {"value": 3}
-        - Plain integer: 3
-        - Enum member: NetRadiationMethod.LDOWN_AIR
-        - Already a NetRadiationMethodConfig instance
-        """
-        if v is None or isinstance(v, NetRadiationMethodConfig):
-            return v
-
-        # Dimension-based form: {scheme: narp, ldown: air}
-        if isinstance(v, dict):
-            if "scheme" in v:
-                return v  # Pass to Pydantic for validation
-
-            # Legacy form: {value: N}
-            if "value" in v:
-                code = int(v["value"])
-                scheme_val, ldown_val = NETRAD_MAPPER.from_code(code)
-                result: dict[str, Any] = {"scheme": scheme_val}
-                if ldown_val:
-                    result["ldown"] = ldown_val
-                return result
-
-        # Plain int or enum
-        code = v.value if isinstance(v, Enum) else int(v)
-        scheme_val, ldown_val = NETRAD_MAPPER.from_code(code)
-        result = {"scheme": scheme_val}
-        if ldown_val:
-            result["ldown"] = ldown_val
-        return result
-
-    emissionsmethod: EmissionsMethodConfig = Field(
-        default_factory=lambda: EmissionsMethodConfig(
-            heat=QFMethod.J11, co2=BiogenicModel.NONE
-        ),
-        description=(
-            "Method for calculating anthropogenic heat flux and CO2 emissions. "
-            "Uses orthogonal dimensions: heat (obs/L11/J11/L11_updated/J19/J19_updated) "
-            "and co2 (none/rectangular/non_rectangular/conductance). See nested structure for details."
-        ),
+    emissions: FlexibleRefValue(EmissionsMethod) = Field(
+        default=EmissionsMethod.J11,
+        description=_enum_description(EmissionsMethod),
         json_schema_extra={"unit": "dimensionless"},
     )
-
-    @field_validator("emissionsmethod", mode="before")
-    @classmethod
-    def coerce_emissionsmethod(cls, v: Any) -> Any:
-        """Accept legacy and dimension-based forms for emissionsmethod.
-
-        Accepted forms:
-        - Dimension-based: {"heat": "L11", "co2": "none"}
-        - Legacy RefValue: {"value": 1}
-        - Plain integer: 1
-        - Already an EmissionsMethodConfig instance
-        """
-        if v is None or isinstance(v, EmissionsMethodConfig):
-            return v
-
-        # Dimension-based form: {heat: L11, co2: none}
-        if isinstance(v, dict):
-            if "heat" in v or "co2" in v:
-                return v  # Pass to Pydantic for validation
-
-            # Legacy form: {value: N}
-            if "value" in v:
-                code = int(v["value"])
-                co2_val, heat_val = EMISSIONS_MAPPER.from_code(code)
-                return {"heat": heat_val, "co2": co2_val}
-
-        # Plain int
-        code = int(v)
-        co2_val, heat_val = EMISSIONS_MAPPER.from_code(code)
-        return {"heat": heat_val, "co2": co2_val}
-
-    storageheatmethod: FlexibleRefValue(StorageHeatMethod) = Field(
+    storage_heat: FlexibleRefValue(StorageHeatMethod) = Field(
         default=StorageHeatMethod.OHM_WITHOUT_QF,
         description=_enum_description(StorageHeatMethod),
         json_schema_extra={"unit": "dimensionless"},
     )
-    ohmincqf: FlexibleRefValue(OhmIncQf) = Field(
+    ohm_inc_qf: FlexibleRefValue(OhmIncQf) = Field(
         default=OhmIncQf.EXCLUDE,
         description=_enum_description(OhmIncQf),
         json_schema_extra={"unit": "dimensionless"},
     )
-    roughlenmommethod: FlexibleRefValue(MomentumRoughnessMethod) = Field(
+    roughness_length_momentum: FlexibleRefValue(MomentumRoughnessMethod) = Field(
         default=MomentumRoughnessMethod.VARIABLE,
         description=_enum_description(MomentumRoughnessMethod),
         json_schema_extra={"unit": "dimensionless"},
     )
-    roughlenheatmethod: FlexibleRefValue(HeatRoughnessMethod) = Field(
+    roughness_length_heat: FlexibleRefValue(HeatRoughnessMethod) = Field(
         default=HeatRoughnessMethod.KAWAI,
         description=_enum_description(HeatRoughnessMethod),
         json_schema_extra={"unit": "dimensionless"},
     )
-    stabilitymethod: FlexibleRefValue(StabilityMethod) = Field(
+    stability: FlexibleRefValue(StabilityMethod) = Field(
         default=StabilityMethod.CAMPBELL_NORMAN,
         description=_enum_description(StabilityMethod),
         json_schema_extra={
             "unit": "dimensionless",
-            "provides_to": ["rslmethod"],
-            "note": "Provides stability correction functions used by rslmethod calculations",
+            "provides_to": ["roughness_sublayer"],
+            "note": "Provides stability correction functions used by roughness_sublayer calculations",
         },
     )
-    smdmethod: FlexibleRefValue(SMDMethod) = Field(
+    soil_moisture_deficit: FlexibleRefValue(SMDMethod) = Field(
         default=SMDMethod.MODELLED,
         description=_enum_description(SMDMethod),
         json_schema_extra={"unit": "dimensionless"},
     )
-    waterusemethod: FlexibleRefValue(WaterUseMethod) = Field(
+    water_use: FlexibleRefValue(WaterUseMethod) = Field(
         default=WaterUseMethod.MODELLED,
         description=_enum_description(WaterUseMethod),
         json_schema_extra={"unit": "dimensionless"},
     )
-    rslmethod: FlexibleRefValue(RSLMethod) = Field(
+    laimethod: FlexibleRefValue(LAIMethod) = Field(
+        default=LAIMethod.CALCULATED,
+        description=_enum_description(LAIMethod),
+        json_schema_extra={
+            "unit": "dimensionless",
+            "note": "Set to 0 (OBSERVED) to prescribe LAI from the lai column of the meteorological forcing.",
+        },
+    )
+    roughness_sublayer: FlexibleRefValue(RSLMethod) = Field(
         default=RSLMethod.VARIABLE,
         description=_enum_description(RSLMethod),
         json_schema_extra={
             "unit": "dimensionless",
-            "depends_on": ["stabilitymethod"],
-            "provides_to": ["rsllevel"],
+            "depends_on": ["stability"],
+            "provides_to": ["roughness_sublayer_level"],
             "note": "Determines how near-surface values (2m temp, 10m wind) are calculated from forcing data",
         },
     )
-    faimethod: FlexibleRefValue(FAIMethod) = Field(
+    frontal_area_index: FlexibleRefValue(FAIMethod) = Field(
         default=FAIMethod.USE_PROVIDED,
         description=_enum_description(FAIMethod),
         json_schema_extra={"unit": "dimensionless"},
     )
-    rsllevel: FlexibleRefValue(RSLLevel) = Field(
+    roughness_sublayer_level: FlexibleRefValue(RSLLevel) = Field(
         default=RSLLevel.NONE,
         description=_enum_description(RSLLevel),
         json_schema_extra={
             "unit": "dimensionless",
-            "depends_on": ["rslmethod"],
-            "provides_to": ["gsmodel"],
-            "note": "Uses near-surface values from rslmethod to modify vegetation processes",
+            "depends_on": ["roughness_sublayer"],
+            "provides_to": ["surface_conductance"],
+            "note": "Uses near-surface values from roughness_sublayer to modify vegetation processes",
         },
     )
-    gsmodel: FlexibleRefValue(GSModel) = Field(
+    surface_conductance: FlexibleRefValue(GSModel) = Field(
         default=GSModel.WARD,
         description=_enum_description(GSModel),
         json_schema_extra={
             "unit": "dimensionless",
-            "depends_on": ["rsllevel"],
-            "note": "Stomatal conductance model influenced by rsllevel adjustments",
+            "depends_on": ["roughness_sublayer_level"],
+            "note": "Stomatal conductance model influenced by roughness_sublayer_level adjustments",
         },
     )
-    snowuse: FlexibleRefValue(SnowUse) = Field(
+    snow_use: FlexibleRefValue(SnowUse) = Field(
         default=SnowUse.DISABLED,
         description=_enum_description(SnowUse),
         json_schema_extra={"unit": "dimensionless"},
     )
-    stebbsmethod: FlexibleRefValue(StebbsMethod) = Field(
+    stebbs: FlexibleRefValue(StebbsMethod) = Field(
         default=StebbsMethod.NONE,
         description=_enum_description(StebbsMethod),
         json_schema_extra={"unit": "dimensionless"},
     )
-    rcmethod: FlexibleRefValue(RCMethod) = Field(
-        default=RCMethod.NONE,
+    outer_cap_fraction: FlexibleRefValue(RCMethod) = Field(
+        default=RCMethod.DEFAULT,
         description=_enum_description(RCMethod),
         json_schema_extra={"unit": "dimensionless"},
     )
+    setpoint: FlexibleRefValue(SetpointMethod) = Field(
+        default=SetpointMethod.CONSTANT,
+        description=_enum_description(SetpointMethod),
+        json_schema_extra={"unit": "dimensionless"},
+    )
+    same_albedo_wall: FlexibleRefValue(SameAlbedoWall) = Field(
+        default=SameAlbedoWall.DISABLED,
+        description=_enum_description(SameAlbedoWall),
+        json_schema_extra={"unit": "dimensionless"},
+    )
+    same_albedo_roof: FlexibleRefValue(SameAlbedoRoof) = Field(
+        default=SameAlbedoRoof.DISABLED,
+        description=_enum_description(SameAlbedoRoof),
+        json_schema_extra={"unit": "dimensionless"},
+    )
+    same_emissivity_wall: FlexibleRefValue(SameEmissivityWall) = Field(
+        default=SameEmissivityWall.DISABLED,
+        description=_enum_description(SameEmissivityWall),
+        json_schema_extra={"unit": "dimensionless"},
+    )
+    same_emissivity_roof: FlexibleRefValue(SameEmissivityRoof) = Field(
+        default=SameEmissivityRoof.DISABLED,
+        description=_enum_description(SameEmissivityRoof),
+        json_schema_extra={"unit": "dimensionless"},
+    )
+
     ref: Optional[Reference] = None
-
-    # Validators for case-insensitive string name support (with short aliases)
-    @field_validator("storageheatmethod", mode="before")
-    @classmethod
-    def coerce_storageheatmethod(cls, v: Any) -> Any:
-        """Accept string names and short aliases for storageheatmethod."""
-        return _coerce_enum_value(v, StorageHeatMethod, STORAGE_HEAT_ALIASES)
-
-    @field_validator("ohmincqf", mode="before")
-    @classmethod
-    def coerce_ohmincqf(cls, v: Any) -> Any:
-        """Accept string names and short aliases (yes/no) for ohmincqf."""
-        return _coerce_enum_value(v, OhmIncQf, OHM_INC_QF_ALIASES)
-
-    @field_validator("roughlenmommethod", mode="before")
-    @classmethod
-    def coerce_roughlenmommethod(cls, v: Any) -> Any:
-        """Accept string names and short aliases for roughlenmommethod."""
-        return _coerce_enum_value(v, MomentumRoughnessMethod, ROUGHLEN_MOM_ALIASES)
-
-    @field_validator("roughlenheatmethod", mode="before")
-    @classmethod
-    def coerce_roughlenheatmethod(cls, v: Any) -> Any:
-        """Accept string names and short aliases for roughlenheatmethod."""
-        return _coerce_enum_value(v, HeatRoughnessMethod, ROUGHLEN_HEAT_ALIASES)
-
-    @field_validator("stabilitymethod", mode="before")
-    @classmethod
-    def coerce_stabilitymethod(cls, v: Any) -> Any:
-        """Accept string names and short aliases for stabilitymethod."""
-        return _coerce_enum_value(v, StabilityMethod, STABILITY_ALIASES)
-
-    @field_validator("smdmethod", mode="before")
-    @classmethod
-    def coerce_smdmethod(cls, v: Any) -> Any:
-        """Accept string names and short aliases for smdmethod."""
-        return _coerce_enum_value(v, SMDMethod, SMD_ALIASES)
-
-    @field_validator("waterusemethod", mode="before")
-    @classmethod
-    def coerce_waterusemethod(cls, v: Any) -> Any:
-        """Accept string names and short aliases for waterusemethod."""
-        return _coerce_enum_value(v, WaterUseMethod, WATER_USE_ALIASES)
-
-    @field_validator("rslmethod", mode="before")
-    @classmethod
-    def coerce_rslmethod(cls, v: Any) -> Any:
-        """Accept string names and short aliases for rslmethod."""
-        return _coerce_enum_value(v, RSLMethod, RSL_ALIASES)
-
-    @field_validator("faimethod", mode="before")
-    @classmethod
-    def coerce_faimethod(cls, v: Any) -> Any:
-        """Accept string names and short aliases for faimethod."""
-        return _coerce_enum_value(v, FAIMethod, FAI_ALIASES)
-
-    @field_validator("rsllevel", mode="before")
-    @classmethod
-    def coerce_rsllevel(cls, v: Any) -> Any:
-        """Accept string names and short aliases for rsllevel."""
-        return _coerce_enum_value(v, RSLLevel, RSL_LEVEL_ALIASES)
-
-    @field_validator("gsmodel", mode="before")
-    @classmethod
-    def coerce_gsmodel(cls, v: Any) -> Any:
-        """Accept string names and short aliases for gsmodel."""
-        return _coerce_enum_value(v, GSModel, GS_MODEL_ALIASES)
-
-    @field_validator("snowuse", mode="before")
-    @classmethod
-    def coerce_snowuse(cls, v: Any) -> Any:
-        """Accept string names and short aliases (yes/no) for snowuse."""
-        return _coerce_enum_value(v, SnowUse, SNOW_USE_ALIASES)
-
-    @field_validator("stebbsmethod", mode="before")
-    @classmethod
-    def coerce_stebbsmethod(cls, v: Any) -> Any:
-        """Accept string names and short aliases for stebbsmethod."""
-        return _coerce_enum_value(v, StebbsMethod, STEBBS_ALIASES)
-
-    @field_validator("rcmethod", mode="before")
-    @classmethod
-    def coerce_rcmethod(cls, v: Any) -> Any:
-        """Accept string names and short aliases for rcmethod."""
-        return _coerce_enum_value(v, RCMethod, RC_ALIASES)
 
     # We then need to set to 0 (or None) all the CO2-related parameters or rules
     # in the code and return them accordingly in the yml file.
 
+    # (Python field name, DataFrame column name for Fortran bridge)
+    # DataFrame columns keep the legacy fused spellings -- the Fortran side
+    # reads state by positional/fused keys. Only the left column moves.
+    _FIELD_COL_PAIRS = [
+        ("net_radiation", "netradiationmethod"),
+        ("emissions", "emissionsmethod"),
+        ("storage_heat", "storageheatmethod"),
+        ("ohm_inc_qf", "ohmincqf"),
+        ("roughness_length_momentum", "roughlenmommethod"),
+        ("roughness_length_heat", "roughlenheatmethod"),
+        ("stability", "stabilitymethod"),
+        ("soil_moisture_deficit", "smdmethod"),
+        ("water_use", "waterusemethod"),
+        ("laimethod", "laimethod"),
+        ("roughness_sublayer", "rslmethod"),
+        ("frontal_area_index", "faimethod"),
+        ("roughness_sublayer_level", "rsllevel"),
+        ("surface_conductance", "gsmodel"),
+        ("snow_use", "snowuse"),
+        ("stebbs", "stebbsmethod"),
+        ("outer_cap_fraction", "rcmethod"),
+        ("setpoint", "setpointmethod"),
+        ("same_albedo_wall", "same_albedo_wall"),
+        ("same_albedo_roof", "same_albedo_roof"),
+        ("same_emissivity_wall", "same_emissivity_wall"),
+        ("same_emissivity_roof", "same_emissivity_roof"),
+    ]
+
     def to_df_state(self, grid_id: int) -> pd.DataFrame:
         """Convert model physics properties to DataFrame state format."""
-        df_state = init_df_state(grid_id)
-
-        # Helper function to set values in DataFrame
-        def set_df_value(col_name: str, value: Any):
-            idx_str = "0"
-            if (col_name, idx_str) not in df_state.columns:
-                df_state[(col_name, idx_str)] = None
-            # Handle different value types
-            if isinstance(value, NetRadiationMethodConfig):
-                val = value.int_value
-            elif isinstance(value, RefValue):
-                val = value.value
-            else:
-                val = value
-            df_state.at[grid_id, (col_name, idx_str)] = int(val)
-
-        list_attr = [
-            "netradiationmethod",
-            "emissionsmethod",
-            "storageheatmethod",
-            "ohmincqf",
-            "roughlenmommethod",
-            "roughlenheatmethod",
-            "stabilitymethod",
-            "smdmethod",
-            "waterusemethod",
-            "rslmethod",
-            "faimethod",
-            "rsllevel",
-            "gsmodel",
-            "snowuse",
-            "stebbsmethod",
-            "rcmethod",
-        ]
-        for attr in list_attr:
-            set_df_value(attr, getattr(self, attr))
-        return df_state
+        cols = {("gridiv", "0"): grid_id}
+        for field_name, col_name in self._FIELD_COL_PAIRS:
+            value = getattr(self, field_name)
+            val = value.value if isinstance(value, RefValue) else value
+            cols[(col_name, "0")] = int(val)
+        return df_from_cols(cols, index=pd.Index([grid_id], name="grid"))
 
     @classmethod
     def from_df_state(cls, df: pd.DataFrame, grid_id: int) -> "ModelPhysics":
@@ -1105,10 +880,9 @@ class ModelPhysics(BaseModel):
         Returns:
             ModelPhysics: Instance of ModelPhysics
         """
+        properties: dict = {}
 
-        properties = {}
-
-        list_attr = [
+        required_attrs = [
             "netradiationmethod",
             "emissionsmethod",
             "storageheatmethod",
@@ -1125,20 +899,31 @@ class ModelPhysics(BaseModel):
             "snowuse",
             "stebbsmethod",
             "rcmethod",
+            "setpointmethod",
         ]
 
-        for attr in list_attr:
+        # New options: optional in legacy DataFrames, default if missing
+        optional_new_attrs_with_defaults = {
+            "same_albedo_wall": SameAlbedoWall.DISABLED,
+            "same_albedo_roof": SameAlbedoRoof.DISABLED,
+            "same_emissivity_wall": SameEmissivityWall.DISABLED,
+            "same_emissivity_roof": SameEmissivityRoof.DISABLED,
+            "laimethod": LAIMethod.CALCULATED,
+        }
+
+        for attr in required_attrs:
             try:
-                int_val = int(df.loc[grid_id, (attr, "0")])
-                # Handle dimensional config methods specially
-                if attr == "netradiationmethod":
-                    properties[attr] = NetRadiationMethodConfig.from_code(int_val)
-                elif attr == "emissionsmethod":
-                    properties[attr] = EmissionsMethodConfig.from_code(int_val)
-                else:
-                    properties[attr] = RefValue(int_val)
+                properties[attr] = RefValue(int(df.loc[grid_id, (attr, "0")]))
             except KeyError:
                 raise ValueError(f"Missing attribute '{attr}' in the DataFrame")
+
+        # Optional new attributes
+        for attr, default_enum in optional_new_attrs_with_defaults.items():
+            try:
+                value = df.loc[grid_id, (attr, "0")]
+                properties[attr] = RefValue(int(value))
+            except KeyError:
+                properties[attr] = RefValue(int(default_enum))
 
         return cls(**properties)
 
@@ -1158,10 +943,17 @@ class OutputFormat(Enum):
         return self.value
 
 
-class OutputConfig(BaseModel):
-    """Configuration for model output files."""
+class OutputControl(BaseModel):
+    """Configuration block for model output files.
 
-    model_config = ConfigDict(title="Output Configuration")
+    Renamed from ``OutputConfig`` and lifted out of the legacy
+    ``Union[str, OutputConfig]`` ``output_file`` field in gh#1372 follow-up,
+    so the ``model.control`` surface is uniform with the new ``forcing:``
+    sub-object. The legacy string form (silently ignored since 2025.10.15)
+    is dropped.
+    """
+
+    model_config = ConfigDict(title="Output Control")
 
     format: OutputFormat = Field(
         default=OutputFormat.TXT,
@@ -1175,10 +967,29 @@ class OutputConfig(BaseModel):
         default=None,
         description="List of output groups to save (only applies to txt format). Available groups: 'SUEWS', 'DailyState', 'snow', 'ESTM', 'RSL', 'BL', 'debug'. If not specified, defaults to ['SUEWS', 'DailyState']",
     )
-    path: Optional[str] = Field(
+    dir: Optional[str] = Field(
         default=None,
-        description="Output directory path where result files will be saved. If not specified, defaults to current working directory.",
+        description="Output directory where result files will be saved. If not specified, defaults to the current working directory.",
     )
+
+    @property
+    def path(self):
+        """Deprecated alias for ``OutputControl.dir``.
+
+        External Python consumers (UMEP postprocessor, etc.) that still
+        read ``config.model.control.output_file.path`` keep working
+        through the gh#1372 migration window. Scheduled for removal in
+        2026.6.
+        """
+        import warnings
+
+        warnings.warn(
+            "`OutputControl.path` is deprecated; use `OutputControl.dir` "
+            "instead. Scheduled for removal in 2026.6.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        return self.dir
 
     @field_validator("groups")
     def validate_groups(cls, v):
@@ -1193,24 +1004,130 @@ class OutputConfig(BaseModel):
         return v
 
 
+class ForcingControl(BaseModel):
+    """Configuration block for meteorological forcing input.
+
+    Created in gh#1372 so future forcing-related fields (sub-hourly
+    disaggregation, gh#1373; resampling policy; etc.) have a stable
+    home rather than accreting flat ``forcing_*`` siblings under
+    :class:`ModelControl`.
+    """
+
+    model_config = ConfigDict(title="Forcing Control")
+
+    file: Union[FlexibleRefValue(str), FlexibleRefValue(List[str])] = Field(
+        default="forcing.txt",
+        description=(
+            "Path(s) to meteorological forcing data file(s). This can be "
+            "either: (1) A single file path as a string (e.g., 'forcing.txt'), "
+            "or (2) A list of file paths (e.g., ['forcing_2020.txt', "
+            "'forcing_2021.txt']). When multiple files are provided, they "
+            "are concatenated in chronological order. For details, see "
+            ":ref:`met_input`."
+        ),
+    )
+
+
 class ModelControl(BaseModel):
     model_config = ConfigDict(title="Model Control")
+
+    @model_validator(mode="before")
+    @classmethod
+    def _coerce_legacy_forcing_file(cls, values):
+        """Accept legacy ``forcing_file`` input by moving it under ``forcing.file``."""
+        if not isinstance(values, dict) or "forcing_file" not in values:
+            return values
+
+        values = values.copy()
+        legacy_forcing_file = values.pop("forcing_file")
+        forcing = values.get("forcing")
+
+        if isinstance(forcing, dict):
+            forcing = forcing.copy()
+            forcing.setdefault("file", legacy_forcing_file)
+        else:
+            forcing = {"file": legacy_forcing_file}
+        values["forcing"] = forcing
+        return values
+
+    @model_validator(mode="before")
+    @classmethod
+    def _coerce_legacy_output_file(cls, values):
+        """Accept legacy ``output_file`` input by lifting it under ``output``.
+
+        Three input shapes are handled:
+
+        * dict form ``output_file: {...}`` is moved to ``output: {...}`` and
+          its inner ``path`` field is renamed to ``dir``;
+        * string form ``output_file: 'name.txt'`` is dropped (the string form
+          has been silently ignored since 2025.10.15);
+        * if both ``output_file`` and ``output`` are present, ``output`` wins
+          and the legacy key is dropped.
+
+        A one-shot ``DeprecationWarning`` fires whenever ``output_file`` is
+        encountered so users see their migration target.
+        """
+        import warnings
+
+        if not isinstance(values, dict) or "output_file" not in values:
+            return values
+
+        values = values.copy()
+        legacy = values.pop("output_file")
+
+        if "output" in values:
+            warnings.warn(
+                "Both `output_file` and `output` were supplied; the legacy "
+                "`output_file` value is ignored.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+            return values
+
+        if isinstance(legacy, dict):
+            migrated = {k: v for k, v in legacy.items() if k != "path"}
+            if "path" in legacy and "dir" not in migrated:
+                migrated["dir"] = legacy["path"]
+            values["output"] = migrated
+            warnings.warn(
+                "`model.control.output_file` is deprecated; lifted under "
+                "`model.control.output` (path -> dir).",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+            return values
+
+        # Legacy string form: silently dropped at runtime since 2025.10.15;
+        # we now warn explicitly.
+        warnings.warn(
+            "`model.control.output_file` string form is ignored; use the "
+            "`output:` sub-object instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        return values
 
     tstep: FlexibleRefValue(int) = Field(
         default=300, description="Time step in seconds for model calculations"
     )
-    forcing_file: Union[FlexibleRefValue(str), FlexibleRefValue(List[str])] = Field(
-        default="forcing.txt",
-        description="Path(s) to meteorological forcing data file(s). This can be either: (1) A single file path as a string (e.g., 'forcing.txt'), or (2) A list of file paths (e.g., ['forcing_2020.txt', 'forcing_2021.txt', 'forcing_2022.txt']). When multiple files are provided, they will be automatically concatenated in chronological order. The forcing data contains time-series meteorological measurements that drive SUEWS simulations. For detailed information about required variables, file format, and data preparation guidelines, see :ref:`met_input`.",
+    forcing: ForcingControl = Field(
+        default_factory=ForcingControl,
+        description="Meteorological forcing configuration (file path(s) and related options).",
     )
     kdownzen: Optional[FlexibleRefValue(int)] = Field(
         default=None,
         description="Use zenithal correction for downward shortwave radiation",
         json_schema_extra={"internal_only": True},
     )
-    output_file: Union[str, OutputConfig] = Field(
-        default="output.txt",
-        description="Output file configuration. DEPRECATED: String values are ignored and will issue a warning. Please use an OutputConfig object specifying format ('txt' or 'parquet'), frequency (seconds, must be multiple of tstep), and groups to save (for txt format only). Example: {'format': 'parquet', 'freq': 3600} or {'format': 'txt', 'freq': 1800, 'groups': ['SUEWS', 'DailyState', 'ESTM']}. For detailed information about output variables and file structure, see :ref:`output_files`.",
+    output: OutputControl = Field(
+        default_factory=OutputControl,
+        description=(
+            "Output configuration: file format ('txt' or 'parquet'), "
+            "frequency (seconds, must be a multiple of tstep), groups "
+            "(txt only) and the output directory ('dir'). For detailed "
+            "information about output variables and file structure, see "
+            ":ref:`output_files`."
+        ),
     )
     # daylightsaving_method: int
     diagnose: FlexibleRefValue(int) = Field(
@@ -1229,6 +1146,53 @@ class ModelControl(BaseModel):
 
     ref: Optional[Reference] = None
 
+    @property
+    def forcing_file(self):
+        """Backward-compatible alias for ``model.control.forcing.file``."""
+        return self.forcing.file
+
+    @forcing_file.setter
+    def forcing_file(self, value):
+        self.forcing.file = ForcingControl(file=value).file
+
+    @property
+    def output_file(self):
+        """Deprecated alias for ``model.control.output``.
+
+        External Python consumers (UMEP postprocessor, etc.) that still
+        read ``config.model.control.output_file`` keep working through
+        the gh#1372 migration window. Scheduled for removal in 2026.6.
+        """
+        import warnings
+
+        warnings.warn(
+            "`model.control.output_file` is deprecated; read "
+            "`model.control.output` instead. Scheduled for removal in 2026.6.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        return self.output
+
+    @output_file.setter
+    def output_file(self, value):
+        import warnings
+
+        warnings.warn(
+            "`model.control.output_file` is deprecated; set "
+            "`model.control.output` instead. Scheduled for removal in 2026.6.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        if isinstance(value, OutputControl):
+            self.output = value
+        elif isinstance(value, dict):
+            self.output = OutputControl(**value)
+        else:
+            raise TypeError(
+                "`output_file` must be an OutputControl instance or a dict; "
+                f"got {type(value).__name__}."
+            )
+
     @field_validator("tstep", "diagnose", mode="after")
     def validate_int_float(cls, v):
         if isinstance(v, (np.float64, np.float32)):
@@ -1239,23 +1203,14 @@ class ModelControl(BaseModel):
 
     def to_df_state(self, grid_id: int) -> pd.DataFrame:
         """Convert model control properties to DataFrame state format."""
-        df_state = init_df_state(grid_id)
-
-        # Helper function to set values in DataFrame
-        def set_df_value(col_name: str, value: float):
-            idx_str = "0"
-            if (col_name, idx_str) not in df_state.columns:
-                # df_state[(col_name, idx_str)] = np.nan
-                df_state[(col_name, idx_str)] = None
-            df_state.at[grid_id, (col_name, idx_str)] = value
-
+        cols = {("gridiv", "0"): grid_id}
         list_attr = ["tstep", "diagnose"]
         for attr in list_attr:
             value = getattr(self, attr)
             # Extract value from RefValue if needed
             val = value.value if isinstance(value, RefValue) else value
-            set_df_value(attr, val)
-        return df_state
+            cols[(attr, "0")] = val
+        return df_from_cols(cols, index=pd.Index([grid_id], name="grid"))
 
     @classmethod
     def from_df_state(cls, df: pd.DataFrame, grid_id: int) -> "ModelControl":
@@ -1285,7 +1240,9 @@ class Model(BaseModel):
 
     def to_df_state(self, grid_id: int) -> pd.DataFrame:
         """Convert model to DataFrame state format"""
-        df_state = init_df_state(grid_id)
+        df_state = df_from_cols(
+            {("gridiv", "0"): grid_id}, index=pd.Index([grid_id], name="grid")
+        )
         df_control = self.control.to_df_state(grid_id)
         df_physics = self.physics.to_df_state(grid_id)
         df_state = pd.concat([df_state, df_control, df_physics], axis=1)

@@ -30,4 +30,5 @@
     kdownzen = 0
     diagnose = 0
     basetmethod = 1
+    setpointmethod = 0
 /

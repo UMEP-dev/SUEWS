@@ -3,8 +3,8 @@ module module_type_ehc
    implicit none
 
    TYPE, PUBLIC :: EHC_PRM
-      REAL(KIND(1D0)), DIMENSION(:), ALLOCATABLE :: soil_storecap_roof ! Capacity of soil store for roof [mm]
-      REAL(KIND(1D0)), DIMENSION(:), ALLOCATABLE :: soil_storecap_wall ! Capacity of soil store for wall [mm]
+      REAL(KIND(1D0)), DIMENSION(:), ALLOCATABLE :: soil_store_capacity_roof ! Capacity of soil store for roof [mm]
+      REAL(KIND(1D0)), DIMENSION(:), ALLOCATABLE :: soil_store_capacity_wall ! Capacity of soil store for wall [mm]
       REAL(KIND(1D0)), DIMENSION(:), ALLOCATABLE :: state_limit_roof ! Limit for state_id of roof [mm]
       REAL(KIND(1D0)), DIMENSION(:), ALLOCATABLE :: state_limit_wall ! Limit for state_id of wall [mm]
       REAL(KIND(1D0)), DIMENSION(:), ALLOCATABLE :: wet_thresh_roof ! wetness threshold  of roof [mm]
@@ -34,8 +34,8 @@ CONTAINS
 
       ! CALL allocate_ehc_prm(self, nlayer, ndepth)
       CALL self%DEALLOCATE()
-      ALLOCATE (self%soil_storecap_roof(nlayer))
-      ALLOCATE (self%soil_storecap_wall(nlayer))
+      ALLOCATE (self%soil_store_capacity_roof(nlayer))
+      ALLOCATE (self%soil_store_capacity_wall(nlayer))
       ALLOCATE (self%state_limit_roof(nlayer))
       ALLOCATE (self%state_limit_wall(nlayer))
       ALLOCATE (self%wet_thresh_roof(nlayer))
@@ -59,8 +59,8 @@ CONTAINS
       CLASS(EHC_PRM), INTENT(INOUT) :: self
 
       ! CALL deallocate_ehc_prm(self)
-      IF (ALLOCATED(self%soil_storecap_roof)) DEALLOCATE (self%soil_storecap_roof)
-      IF (ALLOCATED(self%soil_storecap_wall)) DEALLOCATE (self%soil_storecap_wall)
+      IF (ALLOCATED(self%soil_store_capacity_roof)) DEALLOCATE (self%soil_store_capacity_roof)
+      IF (ALLOCATED(self%soil_store_capacity_wall)) DEALLOCATE (self%soil_store_capacity_wall)
       IF (ALLOCATED(self%state_limit_roof)) DEALLOCATE (self%state_limit_roof)
       IF (ALLOCATED(self%state_limit_wall)) DEALLOCATE (self%state_limit_wall)
       IF (ALLOCATED(self%wet_thresh_roof)) DEALLOCATE (self%wet_thresh_roof)

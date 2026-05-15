@@ -2,10 +2,15 @@
 
 import tempfile
 from pathlib import Path
-import pandas as pd
+
 import numpy as np
+import pandas as pd
 import pytest
+
 import supy as sp
+from conftest import TIMESTEPS_PER_DAY
+
+pytestmark = pytest.mark.physics
 
 
 class TestDailyStateOutput:
@@ -17,7 +22,9 @@ class TestDailyStateOutput:
         df_state_init, df_forcing = sp.load_SampleData()
 
         # Run for multiple days to ensure we have DailyState data
-        df_forcing_multi_day = df_forcing.iloc[: 288 * 3]  # 3 days of 5-min data
+        df_forcing_multi_day = df_forcing.iloc[
+            : TIMESTEPS_PER_DAY * 3
+        ]  # 3 days of 5-min data
 
         # Run simulation
         df_output, df_state_final = sp.run_supy(df_forcing_multi_day, df_state_init)
@@ -52,7 +59,7 @@ class TestDailyStateOutput:
         df_state_init, df_forcing = sp.load_SampleData()
 
         # Run for multiple days
-        df_forcing_multi_day = df_forcing.iloc[: 288 * 3]  # 3 days
+        df_forcing_multi_day = df_forcing.iloc[: TIMESTEPS_PER_DAY * 3]  # 3 days
 
         # Run simulation
         df_output, df_state_final = sp.run_supy(df_forcing_multi_day, df_state_init)
@@ -99,7 +106,7 @@ class TestDailyStateOutput:
         df_state_init, df_forcing = sp.load_SampleData()
 
         # Run for multiple days
-        df_forcing_multi_day = df_forcing.iloc[: 288 * 2]  # 2 days
+        df_forcing_multi_day = df_forcing.iloc[: TIMESTEPS_PER_DAY * 2]  # 2 days
 
         # Run simulation
         df_output, df_state_final = sp.run_supy(df_forcing_multi_day, df_state_init)

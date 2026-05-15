@@ -2,6 +2,8 @@
 
 from pathlib import Path
 
+from conftest import TIMESTEPS_PER_DAY
+import pandas as pd
 import pytest
 
 try:
@@ -10,7 +12,12 @@ except ImportError:
     from importlib_resources import files
 
 import supy as sp
+import supy._run_rust as run_rust_module
+from supy.suews_checkpoint import SUEWSCheckpoint
+import supy.suews_sim as suews_sim_module
 from supy.suews_sim import SUEWSSimulation
+
+pytestmark = pytest.mark.api
 
 
 class TestInit:
@@ -110,7 +117,8 @@ class TestConfig:
         assert not isinstance(sim.config.model.control, dict)
 
         # Verify other attributes on control are preserved
-        assert hasattr(sim.config.model.control, "forcing_file")
+        assert hasattr(sim.config.model.control, "forcing")
+        assert hasattr(sim.config.model.control.forcing, "file")
         assert hasattr(sim.config.model.control, "diagnose")
 
     def test_update_config_deeply_nested_dict(self):
@@ -401,6 +409,255 @@ class TestForcing:
 class TestRun:
     """Test simulation execution."""
 
+    @staticmethod
+    def _multi_site_config():
+        """Return a sample config with two distinct grids."""
+        config = SUEWSSimulation.from_sample_data().config.model_copy(deep=True)
+        site2 = config.sites[0].model_copy(deep=True)
+        site2.gridiv = 2
+        site2.name = "Grid 2"
+        config.sites.append(site2)
+        return config
+
+    @staticmethod
+    def _fake_output_for_config(config, df_forcing):
+        """Return a minimal multi-grid output frame for chunking tests."""
+        list_df_output = []
+        for site in config.sites:
+            grid_id = run_rust_module._normalise_grid_id(site.gridiv)
+            index = pd.MultiIndex.from_product(
+                [[grid_id], df_forcing.index],
+                names=["grid", "datetime"],
+            )
+            list_df_output.append(pd.DataFrame({"QH": 0.0}, index=index))
+        return pd.concat(list_df_output)
+
+    @staticmethod
+    def _patch_run_suews_rust_chunked(monkeypatch):
+        """Patch the Rust runner and return captured parallelism kwargs."""
+        captured = {}
+
+        def fake_check_rust_available():
+            return object()
+
+        def fake_check_forcing(*args, **kwargs):
+            return []
+
+        def fake_run_suews_rust_chunked(
+            config,
+            df_forcing,
+            chunk_day,
+            serial_mode=False,
+            max_workers=None,
+            initial_state_json_by_grid=None,
+        ):
+            captured["serial_mode"] = serial_mode
+            captured["max_workers"] = max_workers
+            captured["initial_state_json_by_grid"] = initial_state_json_by_grid
+            return pd.DataFrame(index=df_forcing.index), None
+
+        monkeypatch.setattr(
+            suews_sim_module, "_check_rust_available", fake_check_rust_available
+        )
+        monkeypatch.setattr(suews_sim_module, "check_forcing", fake_check_forcing)
+        monkeypatch.setattr(
+            suews_sim_module,
+            "run_suews_rust_chunked",
+            fake_run_suews_rust_chunked,
+        )
+        return captured
+
+    def test_run_n_jobs_defaults_to_rayon_default(self, monkeypatch):
+        """Test default n_jobs preserves uncapped parallel execution."""
+        sim = SUEWSSimulation.from_sample_data()
+        sim._df_forcing = sim._df_forcing.iloc[:2]
+        captured = self._patch_run_suews_rust_chunked(monkeypatch)
+
+        sim.run()
+
+        assert captured["serial_mode"] is False
+        assert captured["max_workers"] is None
+
+    def test_run_n_jobs_one_forces_serial(self, monkeypatch):
+        """Test n_jobs=1 disables the multi-grid Rayon path."""
+        sim = SUEWSSimulation.from_sample_data()
+        sim._df_forcing = sim._df_forcing.iloc[:2]
+        captured = self._patch_run_suews_rust_chunked(monkeypatch)
+
+        sim.run(n_jobs=1)
+
+        assert captured["serial_mode"] is True
+        assert captured["max_workers"] == 1
+
+    def test_run_n_jobs_positive_caps_workers(self, monkeypatch):
+        """Test positive n_jobs reaches the Rust bridge as max_workers."""
+        sim = SUEWSSimulation.from_sample_data()
+        sim._df_forcing = sim._df_forcing.iloc[:2]
+        captured = self._patch_run_suews_rust_chunked(monkeypatch)
+
+        sim.run(n_jobs=3)
+
+        assert captured["serial_mode"] is False
+        assert captured["max_workers"] == 3
+
+    @pytest.mark.parametrize("n_jobs", [True, False, 0, -2, 1.5, "2"])
+    def test_run_n_jobs_rejects_invalid_values(self, n_jobs):
+        """Test n_jobs validation rejects ambiguous worker controls."""
+        sim = SUEWSSimulation()
+
+        with pytest.raises(ValueError, match="n_jobs must be"):
+            sim.run(n_jobs=n_jobs)
+
+    def test_chunked_run_forwards_worker_cap_per_chunk(self, monkeypatch):
+        """Test chunked multi-grid runs keep n_jobs after the first chunk."""
+        config = self._multi_site_config()
+        df_forcing = SUEWSSimulation.from_sample_data()._df_forcing.iloc[
+            : TIMESTEPS_PER_DAY + 1
+        ]
+        calls = []
+
+        def fake_run_suews_rust_multi(
+            config, df_forcing, serial_mode=False, max_workers=None
+        ):
+            calls.append(("fresh", serial_mode, max_workers))
+            dict_state_json = {
+                run_rust_module._normalise_grid_id(site.gridiv): "state"
+                for site in config.sites
+            }
+            return self._fake_output_for_config(config, df_forcing), dict_state_json
+
+        def fake_run_suews_rust_multi_with_state(
+            config,
+            df_forcing,
+            dict_state_json_by_grid,
+            serial_mode=False,
+            max_workers=None,
+        ):
+            calls.append(("state", serial_mode, max_workers))
+            assert sorted(dict_state_json_by_grid) == [1, 2]
+            return (
+                self._fake_output_for_config(config, df_forcing),
+                dict_state_json_by_grid,
+            )
+
+        monkeypatch.setattr(
+            run_rust_module, "run_suews_rust_multi", fake_run_suews_rust_multi
+        )
+        monkeypatch.setattr(
+            run_rust_module,
+            "run_suews_rust_multi_with_state",
+            fake_run_suews_rust_multi_with_state,
+        )
+
+        run_rust_module.run_suews_rust_chunked(
+            config=config,
+            df_forcing=df_forcing,
+            chunk_day=1,
+            serial_mode=False,
+            max_workers=3,
+        )
+
+        assert calls == [("fresh", False, 3), ("state", False, 3)]
+
+    def test_checkpointed_run_forwards_worker_cap(self, monkeypatch):
+        """Test resumed multi-grid runs keep n_jobs on the first chunk."""
+        config = self._multi_site_config()
+        df_forcing = SUEWSSimulation.from_sample_data()._df_forcing.iloc[:2]
+        calls = []
+
+        def fail_run_suews_rust_multi(*args, **kwargs):
+            raise AssertionError("checkpointed runs should use the state-aware path")
+
+        def fake_run_suews_rust_multi_with_state(
+            config,
+            df_forcing,
+            dict_state_json_by_grid,
+            serial_mode=False,
+            max_workers=None,
+        ):
+            calls.append(("state", serial_mode, max_workers))
+            assert sorted(dict_state_json_by_grid) == [1, 2]
+            return (
+                self._fake_output_for_config(config, df_forcing),
+                dict_state_json_by_grid,
+            )
+
+        monkeypatch.setattr(
+            run_rust_module, "run_suews_rust_multi", fail_run_suews_rust_multi
+        )
+        monkeypatch.setattr(
+            run_rust_module,
+            "run_suews_rust_multi_with_state",
+            fake_run_suews_rust_multi_with_state,
+        )
+
+        run_rust_module.run_suews_rust_chunked(
+            config=config,
+            df_forcing=df_forcing,
+            chunk_day=3660,
+            serial_mode=False,
+            max_workers=4,
+            initial_state_json_by_grid={1: "state-1", 2: "state-2"},
+        )
+
+        assert calls == [("state", False, 4)]
+
+    def test_multi_with_state_passes_worker_cap_to_rust(self, monkeypatch):
+        """Test state-aware multi-grid wrapper forwards max_workers."""
+        config = self._multi_site_config()
+        df_forcing = SUEWSSimulation.from_sample_data()._df_forcing.iloc[:2]
+        captured = {}
+
+        class FakeRustModule:
+            def run_suews_multi_with_state(
+                self,
+                list_config_jsons,
+                forcing_flat,
+                len_forcing,
+                list_state_jsons,
+                max_workers,
+            ):
+                captured["n_config"] = len(list_config_jsons)
+                captured["len_forcing"] = len_forcing
+                captured["list_state_jsons"] = list_state_jsons
+                captured["max_workers"] = max_workers
+                return [
+                    (idx, [], f"new-state-{idx}", len_forcing)
+                    for idx in range(len(list_config_jsons))
+                ]
+
+        def fake_parse_output_block(output_flat, len_sim, grid_id):
+            index = pd.MultiIndex.from_product(
+                [[grid_id], df_forcing.index[:len_sim]],
+                names=["grid", "datetime"],
+            )
+            return pd.DataFrame({"QH": 0.0}, index=index)
+
+        monkeypatch.setattr(
+            run_rust_module, "_check_rust_available", lambda: FakeRustModule()
+        )
+        monkeypatch.setattr(
+            run_rust_module, "_validate_output_layout", lambda rust_module: None
+        )
+        monkeypatch.setattr(
+            run_rust_module, "_parse_output_block", fake_parse_output_block
+        )
+
+        _, dict_state_json = run_rust_module.run_suews_rust_multi_with_state(
+            config=config,
+            df_forcing=df_forcing,
+            dict_state_json_by_grid={1: "state-1", 2: "state-2"},
+            max_workers=5,
+        )
+
+        assert captured == {
+            "n_config": 2,
+            "len_forcing": 2,
+            "list_state_jsons": ["state-1", "state-2"],
+            "max_workers": 5,
+        }
+        assert dict_state_json == {1: "new-state-0", 2: "new-state-1"}
+
     def test_basic_run(self):
         """Test basic simulation run."""
         df_state, df_forcing = sp.load_SampleData()
@@ -497,6 +754,8 @@ class TestSave:
         assert isinstance(paths, list)
         assert len(paths) > 0
         assert any(Path(p).exists() for p in paths)
+        assert any("checkpoint.json" in Path(p).name for p in paths)
+        assert not any("df_state" in Path(p).name for p in paths)
 
     def test_save_without_results(self):
         """Test save fails without results."""
@@ -772,45 +1031,44 @@ class TestPathResolution:
 
 
 class TestContinuationRuns:
-    """Test continuation runs using from_state() method."""
+    """Test continuation runs using typed checkpoints."""
 
-    def test_from_state_csv(self, tmp_path):
-        """Test loading state from CSV for continuation."""
+    def test_from_checkpoint_file(self, tmp_path):
+        """Test loading typed checkpoint JSON for continuation."""
         # Run initial simulation
         sim1 = SUEWSSimulation.from_sample_data()
 
         # Save full forcing before subsetting
         df_forcing_full = sim1.forcing.df.copy()
 
-        df_forcing = df_forcing_full.iloc[:288]  # First day only
+        df_forcing = df_forcing_full.iloc[:TIMESTEPS_PER_DAY]  # First day only
         sim1.update_forcing(df_forcing)
-        sim1.run()
+        output1 = sim1.run()
+        assert isinstance(output1.checkpoint, SUEWSCheckpoint)
 
-        # Save state
+        # Save checkpoint
         paths = sim1.save(str(tmp_path))
 
-        # Find state file
-        state_file = [p for p in paths if "df_state" in str(p)][0]
-        assert Path(state_file).exists()
+        checkpoint_file = [p for p in paths if "checkpoint.json" in str(p)][0]
+        assert Path(checkpoint_file).exists()
 
         # Load state for continuation
-        sim2 = SUEWSSimulation.from_state(state_file)
-        assert sim2._df_state_init is not None
+        sim2 = SUEWSSimulation.from_checkpoint(sim1.config, checkpoint_file)
+        assert sim2.checkpoint is not None
         assert sim2.is_ready() is False  # No forcing yet
 
         # Add forcing and run continuation
-        df_forcing_2 = df_forcing_full.iloc[288:576]  # Second day
+        df_forcing_2 = df_forcing_full.iloc[
+            TIMESTEPS_PER_DAY : TIMESTEPS_PER_DAY * 2
+        ]  # Second day
         sim2.update_forcing(df_forcing_2)
         assert sim2.is_ready() is True
 
         sim2.run()
         assert sim2.is_complete() is True
 
-    @pytest.mark.skip(
-        reason="Parquet format parameter not being passed correctly - pre-existing issue"
-    )
-    def test_from_state_parquet(self, tmp_path):
-        """Test loading state from Parquet for continuation."""
+    def test_save_parquet_writes_checkpoint_not_df_state(self, tmp_path):
+        """Test OOP parquet save writes checkpoint as the restart artifact."""
         pytest.importorskip("pyarrow", reason="Parquet support requires pyarrow")
 
         # Run initial simulation
@@ -819,23 +1077,25 @@ class TestContinuationRuns:
         # Save full forcing before subsetting
         df_forcing_full = sim1.forcing.df.copy()
 
-        df_forcing = df_forcing_full.iloc[:288]  # First day only
+        df_forcing = df_forcing_full.iloc[:TIMESTEPS_PER_DAY]  # First day only
         sim1.update_forcing(df_forcing)
         sim1.run()
 
-        # Save state in Parquet format
+        # Save output in Parquet format
         paths = sim1.save(str(tmp_path), format="parquet")
 
-        # Find state file (looks for pattern: {site}_SUEWS_state_final.parquet)
-        state_file = [p for p in paths if "SUEWS_state_final.parquet" in str(p)][0]
-        assert Path(state_file).exists()
+        checkpoint_file = [p for p in paths if "checkpoint.json" in str(p)][0]
+        assert Path(checkpoint_file).exists()
+        assert not any("SUEWS_state_final.parquet" in str(p) for p in paths)
 
         # Load state for continuation
-        sim2 = SUEWSSimulation.from_state(state_file)
-        assert sim2._df_state_init is not None
+        sim2 = SUEWSSimulation.from_checkpoint(sim1.config, checkpoint_file)
+        assert sim2.checkpoint is not None
 
         # Continue simulation
-        df_forcing_2 = df_forcing_full.iloc[288:576]  # Second day
+        df_forcing_2 = df_forcing_full.iloc[
+            TIMESTEPS_PER_DAY : TIMESTEPS_PER_DAY * 2
+        ]  # Second day
         sim2.update_forcing(df_forcing_2)
         sim2.run()
         assert sim2.is_complete() is True
@@ -848,7 +1108,7 @@ class TestContinuationRuns:
         # Save full forcing before subsetting
         df_forcing_full = sim1.forcing.df.copy()
 
-        df_forcing = df_forcing_full.iloc[:288]
+        df_forcing = df_forcing_full.iloc[:TIMESTEPS_PER_DAY]
         sim1.update_forcing(df_forcing)
         sim1.run()
 
@@ -856,12 +1116,13 @@ class TestContinuationRuns:
         df_state_final = sim1.state_final
 
         # Create new simulation from DataFrame
-        sim2 = SUEWSSimulation.from_state(df_state_final)
+        with pytest.warns(DeprecationWarning, match="legacy DFState"):
+            sim2 = SUEWSSimulation.from_state(df_state_final)
         assert sim2._df_state_init is not None
         assert sim2.is_ready() is False  # No forcing yet
 
         # Continue simulation
-        df_forcing_2 = df_forcing_full.iloc[288:576]
+        df_forcing_2 = df_forcing_full.iloc[TIMESTEPS_PER_DAY : TIMESTEPS_PER_DAY * 2]
         sim2.update_forcing(df_forcing_2)
         sim2.run()
         assert sim2.is_complete() is True
@@ -881,10 +1142,13 @@ class TestContinuationRuns:
         state_file = tmp_path / "df_state_old.csv"
         df_state.to_csv(state_file)
 
-        # Loading should trigger version warning
-        with pytest.warns(UserWarning, match="compatibility issues"):
+        # Loading should trigger legacy and version warnings
+        with pytest.warns(Warning) as warning_record:
             sim2 = SUEWSSimulation.from_state(state_file)
 
+        warning_messages = [str(item.message) for item in warning_record]
+        assert any("legacy DFState" in msg for msg in warning_messages)
+        assert any("compatibility issues" in msg for msg in warning_messages)
         assert sim2._df_state_init is not None
 
     def test_from_state_file_not_found(self):

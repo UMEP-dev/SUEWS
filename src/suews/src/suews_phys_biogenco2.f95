@@ -1,5 +1,6 @@
 ! Main module following naming standard: matches filename
 MODULE module_phys_biogenco2
+   USE module_ctrl_error, ONLY: ErrorHint
    IMPLICIT NONE
 
 CONTAINS
@@ -35,7 +36,7 @@ CONTAINS
       alpha_bioCO2, alpha_enh_bioCO2, avkdn, beta_bioCO2, beta_enh_bioCO2, BSoilSurf, & ! input:
       ConifSurf, DecidSurf, dectime, EmissionsMethod, gfunc, gfunc2, GrassSurf, gsmodel, &
       id, it, ivConif, ivDecid, ivGrass, LAI_id, LAIMin, LAIMax, min_res_bioCO2, nsurf, &
-      NVegSurf, resp_a, resp_b, sfr_surf, SnowFrac, t2, Temp_C, theta_bioCO2, &
+      NVegSurf, resp_a, resp_b, sfr_surf, SnowFrac, t2, theta_bioCO2, &
       Fc_biogen, Fc_photo, Fc_respi) ! output:
 
       IMPLICIT NONE
@@ -49,7 +50,6 @@ CONTAINS
          dectime, &
          gfunc, &
          gfunc2, &
-         Temp_C, &
          t2
 
       REAL(KIND(1D0)), DIMENSION(nsurf), INTENT(in) :: &
@@ -212,8 +212,8 @@ CONTAINS
       IF (VegFracSum > 0.01) THEN
          DO iv = ivConif, ivGrass
             IF (sfr_surf(2 + iv) > 0.005) THEN
-               IF (gsmodel == 1 .OR. gsmodel == 2) THEN !With air temperature
-                  Bellucco2017_Res_surf = MAX(min_res_bioCO2(iv), resp_a(iv)*EXP(resp_b(iv)*Temp_C))
+               IF (gsmodel == 1 .OR. gsmodel == 2) THEN !With air temperature (t2 set by driver)
+                  Bellucco2017_Res_surf = MAX(min_res_bioCO2(iv), resp_a(iv)*EXP(resp_b(iv)*t2))
                ELSEIF (gsmodel == 3 .OR. gsmodel == 4) THEN !With modelled 2 meter temperature
                   Bellucco2017_Res_surf = MAX(min_res_bioCO2(iv), resp_a(iv)*EXP(resp_b(iv)*t2))
                END IF

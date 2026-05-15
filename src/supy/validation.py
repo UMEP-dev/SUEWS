@@ -5,11 +5,22 @@ This module provides conditional validation functionality that can be used
 independently of the main data_model package structure.
 """
 
-from typing import List, Dict, Any, Optional, Union, Set
+from typing import List, Dict, Any, Optional, Set
 import warnings
 import logging
 
+from .data_model.core.field_renames import read_physics_key
+
 logger = logging.getLogger(__name__)
+
+
+def _warn_deprecated():
+    warnings.warn(
+        "supy.validation is deprecated and will be removed in a future release; "
+        "use supy.data_model.validation instead.",
+        DeprecationWarning,
+        stacklevel=3,
+    )
 
 
 class ValidationResult:
@@ -31,6 +42,19 @@ class ValidationResult:
         self.validated_methods = validated_methods or set()
         self.skipped_methods = skipped_methods or set()
 
+    def __getitem__(self, item):
+        return getattr(self, item)
+
+    def to_dict(self):
+        return {
+            "status": self.status,
+            "errors": self.errors,
+            "warnings": self.warnings,
+            "skipped": self.skipped,
+            "validated_methods": sorted(self.validated_methods),
+            "skipped_methods": sorted(self.skipped_methods),
+        }
+
 
 def analyze_config_methods(config_data: Dict[str, Any]) -> Dict[str, bool]:
     """
@@ -42,29 +66,18 @@ def analyze_config_methods(config_data: Dict[str, Any]) -> Dict[str, bool]:
     Returns:
         Dictionary of method flags
     """
+    _warn_deprecated()
     try:
         physics = config_data.get("model", {}).get("physics", {})
 
         # Extract method values
-        rslmethod_val = physics.get("rslmethod", 0)
-        if isinstance(rslmethod_val, dict):
-            rslmethod_val = rslmethod_val.get("value", 0)
-
-        roughmethod_val = physics.get("roughlenmommethod", 1)
-        if isinstance(roughmethod_val, dict):
-            roughmethod_val = roughmethod_val.get("value", 1)
-
-        netrad_val = physics.get("netradiationmethod", 0)
-        if isinstance(netrad_val, dict):
-            netrad_val = netrad_val.get("value", 0)
-
-        emissions_val = physics.get("emissionsmethod", 0)
-        if isinstance(emissions_val, dict):
-            emissions_val = emissions_val.get("value", 0)
-
-        storage_val = physics.get("storageheatmethod", 0)
-        if isinstance(storage_val, dict):
-            storage_val = storage_val.get("value", 0)
+        rslmethod_val = read_physics_key(physics, "roughness_sublayer", 0)
+        roughmethod_val = read_physics_key(
+            physics, "roughness_length_momentum", 1
+        )
+        netrad_val = read_physics_key(physics, "net_radiation", 0)
+        emissions_val = read_physics_key(physics, "emissions", 0)
+        storage_val = read_physics_key(physics, "storage_heat", 0)
 
         # Determine active methods
         methods = {
@@ -180,8 +193,10 @@ def validate_storage_heat_parameters(
     """Validate storage heat method parameters based on method type."""
     errors = []
 
-    storage_method_val = _extract_value(physics.get("storageheatmethod", 0))
-    ohmincqf_val = _extract_value(physics.get("ohmincqf", 0))
+    storage_method_val = _extract_value(
+        read_physics_key(physics, "storage_heat", 0)
+    )
+    ohmincqf_val = _extract_value(read_physics_key(physics, "ohm_inc_qf", 0))
 
     if method_type == "ESTM":
         # ESTM methods (4, 5) - advanced parameter validation would go here
@@ -211,7 +226,7 @@ def validate_netradiation_parameters(
     """Validate net radiation method parameters."""
     errors = []
 
-    netrad_val = _extract_value(physics.get("netradiationmethod", 0))
+    netrad_val = _extract_value(read_physics_key(physics, "net_radiation", 0))
 
     if method_type == "SPARTACUS":
         # SPARTACUS methods (≥1000) - validate SPARTACUS-specific parameters
@@ -242,7 +257,7 @@ def validate_emissions_parameters(
     """Validate emissions method parameters."""
     errors = []
 
-    emissions_val = _extract_value(physics.get("emissionsmethod", 0))
+    emissions_val = _extract_value(read_physics_key(physics, "emissions", 0))
 
     if method_type == "ADVANCED":
         # Advanced emissions methods (≥4)
@@ -258,7 +273,7 @@ def validate_snow_parameters(physics: Dict[str, Any], sites: List[Dict]) -> List
     """Validate snow calculation parameters."""
     errors = []
 
-    snow_use = _extract_value(physics.get("snowuse", 0))
+    snow_use = _extract_value(read_physics_key(physics, "snow_use", 0))
 
     if snow_use == 1:
         # Snow calculations are enabled - validate snow-related parameters
@@ -301,6 +316,7 @@ def validate_suews_config_conditional(
     Returns:
         ValidationResult object
     """
+    _warn_deprecated()
     if verbose:
         print("=== SUEWS Conditional Validation ===")
 
@@ -396,7 +412,7 @@ def validate_suews_config_conditional(
         skipped_methods.add("EMISSIONS_ADVANCED")
 
     # Snow method validation
-    snow_enabled = _extract_value(physics.get("snowuse", 0)) == 1
+    snow_enabled = _extract_value(read_physics_key(physics, "snow_use", 0)) == 1
     if snow_enabled:
         if verbose:
             print("Snow calculations: validating snow parameters")
@@ -438,11 +454,11 @@ def enhanced_from_yaml_validation(
     """Enhanced YAML validation for SUEWSConfig.from_yaml integration."""
     result = validate_suews_config_conditional(config_data, verbose=True)
 
-    if result["errors"]:
+    if result.errors:
         error_msg = (
-            f"SUEWS Configuration Validation Failed: {len(result['errors'])} errors\n"
+            f"SUEWS Configuration Validation Failed: {len(result.errors)} errors\n"
         )
-        error_msg += "\n".join(f"  - {err}" for err in result["errors"])
+        error_msg += "\n".join(f"  - {err}" for err in result.errors)
 
         if strict:
             raise ValueError(error_msg)
@@ -458,12 +474,15 @@ def enhanced_to_df_state_validation(
     """Enhanced validation for to_df_state integration."""
     result = validate_suews_config_conditional(config_data, verbose=False)
 
-    if result["errors"]:
-        error_msg = f"Configuration validation found {len(result['errors'])} issues before to_df_state conversion"
+    if result.errors:
+        error_msg = (
+            f"Configuration validation found {len(result.errors)} issues before "
+            "to_df_state conversion"
+        )
 
         if strict:
             detailed_msg = f"\n{error_msg}:\n" + "\n".join(
-                f"  - {err}" for err in result["errors"]
+                f"  - {err}" for err in result.errors
             )
             raise ValueError(detailed_msg)
         else:

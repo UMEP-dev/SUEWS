@@ -1,0 +1,7 @@
+name: mixed_reject
+schema_version: '2026.5.dev5'
+model:
+  physics:
+    net_radiation:
+      narp:
+        value: 1001  # WRONG: 1001 is spartacus, not narp

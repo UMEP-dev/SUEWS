@@ -8,7 +8,6 @@ except ImportError:
 from logging.handlers import TimedRotatingFileHandler
 import sys
 import logging
-import inspect
 from pathlib import Path
 import tempfile
 
@@ -25,6 +24,9 @@ FORMATTER = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(messag
 
 # log file name
 LOG_FILE = "SuPy.log"
+
+# issue reporting URL
+ISSUES_URL = "https://github.com/UMEP-dev/SUEWS/issues/new"
 
 
 def get_console_handler():
@@ -44,6 +46,7 @@ def get_file_handler():
         path_logfile.touch()
     except Exception as e:
         import warnings
+
         tempdir = tempfile.gettempdir()
         path_logfile = Path(tempdir) / LOG_FILE
         warnings.warn(
@@ -81,3 +84,5 @@ if sys.version_info >= (3, 8):
     from importlib import metadata
 else:
     from importlib_metadata import metadata
+
+

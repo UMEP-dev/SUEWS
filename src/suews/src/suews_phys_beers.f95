@@ -435,7 +435,7 @@ CONTAINS
             snowPrm => siteInfo%snow, &
             PipeCapacity => siteInfo%PipeCapacity, &
             RunoffToWater => siteInfo%RunoffToWater, &
-            FlowChange => siteInfo%FlowChange, &
+            FlowChange => siteInfo%flow_change, &
             PervFraction => siteInfo%PervFraction, &
             vegfraction => siteInfo%vegfraction, &
             NonWaterFraction => siteInfo%NonWaterFraction, &
@@ -453,10 +453,10 @@ CONTAINS
             avRH => forcing%RH, &
             Press_hPa => forcing%pres, &
             LAI_id => phenState%LAI_id, &
-            gfunc => phenState%gfunc, &
+            gfunc => phenState%g_func, &
             PAI => roughnessState%PAI, &
             FAI => roughnessState%FAI, &
-            ldown => heatState%ldown, &
+            ldown => heatState%l_down, &
             TSfc_C => heatState%TSfc_C, &
             zenith_deg => solarState%zenith_deg, &
             azimuth_deg => solarState%azimuth_deg, &
@@ -470,18 +470,18 @@ CONTAINS
             StabilityMethod => config%StabilityMethod, &
             EmissionsMethod => config%EmissionsMethod, &
             Diagnose => config%Diagnose, &
-            Kdown2d => stebbsState%Kdown2d, &
-            Kup2d => stebbsState%Kup2d, &
-            Kwest => stebbsState%Kwest, &
-            Keast => stebbsState%Keast, &
-            Knorth => stebbsState%Knorth, &
-            Ksouth => stebbsState%Ksouth, &
-            Ldown2d => stebbsState%Ldown2d, &
-            Lup2d => stebbsState%Lup2d, &
-            Lwest => stebbsState%Lwest, &
-            Least => stebbsState%Least, &
-            Lnorth => stebbsState%Lnorth, &
-            Lsouth => stebbsState%Lsouth &
+            Kdown2d => stebbsState%kdown_2d, &
+            Kup2d => stebbsState%kup_2d, &
+            Kwest => stebbsState%k_west, &
+            Keast => stebbsState%k_east, &
+            Knorth => stebbsState%k_north, &
+            Ksouth => stebbsState%k_south, &
+            Ldown2d => stebbsState%ldown_2d, &
+            Lup2d => stebbsState%lup_2d, &
+            Lwest => stebbsState%l_west, &
+            Least => stebbsState%l_east, &
+            Lnorth => stebbsState%l_north, &
+            Lsouth => stebbsState%l_south &
             )
             IF (sfr_surf(BldgSurf) > 0) THEN
                ! do BEERS calculation

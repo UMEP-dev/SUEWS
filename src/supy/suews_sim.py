@@ -12,17 +12,20 @@ import warnings
 
 import pandas as pd
 
-from ._run import run_supy_ser
+from ._check import check_forcing
+from ._env import logger_supy
+from ._run_rust import _check_rust_available, run_suews_rust_chunked
 
 # Import SuPy components directly
 from ._supy_module import _save_supy
 from .data_model import RefValue
 from .data_model.core import SUEWSConfig
-from .util._io import read_forcing
 
 # Import new OOP classes
+from .suews_checkpoint import SUEWSCheckpoint
 from .suews_forcing import SUEWSForcing
 from .suews_output import SUEWSOutput
+from .util._io import read_forcing
 
 # Constants
 DEFAULT_OUTPUT_FREQ_SECONDS = 3600  # Default hourly output frequency
@@ -31,6 +34,15 @@ DEFAULT_FORCING_FILE_PATTERNS = [
     "*.csv",
     "*.met",
 ]  # Valid forcing file extensions
+
+
+def _validate_n_jobs(n_jobs: int) -> Optional[int]:
+    """Return a Rust worker cap for a public ``n_jobs`` value."""
+    if isinstance(n_jobs, bool) or not isinstance(n_jobs, int):
+        raise ValueError("n_jobs must be an integer: -1, 1, or a positive value")
+    if n_jobs == 0 or n_jobs < -1:
+        raise ValueError("n_jobs must be -1, 1, or a positive integer")
+    return None if n_jobs == -1 else n_jobs
 
 
 class SUEWSSimulation:
@@ -79,6 +91,7 @@ class SUEWSSimulation:
         self._df_forcing = None
         self._df_output = None
         self._df_state_final = None
+        self._checkpoint = None
         self._run_completed = False
 
         if config is not None:
@@ -228,6 +241,12 @@ class SUEWSSimulation:
         SUEWSSimulation
             Self, for method chaining.
 
+        Notes
+        -----
+        When loading from file paths, forcing data is resampled to match the
+        model timestep from ``model.control.tstep`` in the configuration.
+        If no configuration is loaded, defaults to 300 seconds (5 minutes).
+
         Examples
         --------
         >>> sim.update_forcing("forcing_2023.txt")
@@ -236,20 +255,38 @@ class SUEWSSimulation:
         >>> sim.update_forcing(SUEWSForcing.from_file("forcing.txt"))
         >>> sim.update_config(cfg).update_forcing(forcing).run()
         """
+        # Get tstep from config if available, otherwise default to 300s
+        tstep_mod = 300
+        if self._config is not None:
+            try:
+                tstep_val = self._config.model.control.tstep
+                tstep_mod = (
+                    tstep_val.value if hasattr(tstep_val, "value") else tstep_val
+                )
+            except AttributeError:
+                logger_supy.debug(
+                    "Could not extract tstep from config; using default %ds",
+                    tstep_mod,
+                )
+
         if isinstance(forcing_data, RefValue):
             forcing_data = forcing_data.value
         if isinstance(forcing_data, SUEWSForcing):
-            self._df_forcing = forcing_data.df.copy()
+            self._df_forcing = forcing_data.to_dataframe(include_extras=True)
         elif isinstance(forcing_data, pd.DataFrame):
             self._df_forcing = forcing_data.copy()
         elif isinstance(forcing_data, list):
             # Handle list of files
-            self._df_forcing = SUEWSSimulation._load_forcing_from_list(forcing_data)
+            self._df_forcing = SUEWSSimulation._load_forcing_from_list(
+                forcing_data, tstep_mod=tstep_mod
+            )
         elif isinstance(forcing_data, (str, Path)):
             forcing_path = Path(forcing_data).expanduser().resolve()
             if not forcing_path.exists():
                 raise FileNotFoundError(f"Forcing path not found: {forcing_path}")
-            self._df_forcing = SUEWSSimulation._load_forcing_file(forcing_path)
+            self._df_forcing = SUEWSSimulation._load_forcing_file(
+                forcing_path, tstep_mod=tstep_mod
+            )
         else:
             raise ValueError(f"Unsupported forcing data type: {type(forcing_data)}")
 
@@ -264,9 +301,7 @@ class SUEWSSimulation:
             if hasattr(self._config, "model") and hasattr(
                 self._config.model, "control"
             ):
-                forcing_file_obj = getattr(
-                    self._config.model.control, "forcing_file", None
-                )
+                forcing_file_obj = self._config.model.control.forcing.file
 
                 if forcing_file_obj is not None:
                     # Handle RefValue wrapper
@@ -338,8 +373,21 @@ class SUEWSSimulation:
         # Using resolve() handles '..' and normalizes the path
         return str((self._config_path.parent / Path(path_str)).resolve())
 
+    def _resolve_output_path(self, path: Union[str, Path]) -> Path:
+        """Resolve an output path relative to the loaded config file."""
+        path_str = str(path)
+        path_output = Path(path_str).expanduser()
+
+        if path_output.is_absolute() or PurePosixPath(path_str).is_absolute():
+            return path_output
+        if self._config_path is not None:
+            return (self._config_path.parent / path_output).resolve()
+        return path_output
+
     @staticmethod
-    def _load_forcing_from_list(forcing_list: list[Union[str, Path]]) -> pd.DataFrame:
+    def _load_forcing_from_list(
+        forcing_list: list[Union[str, Path]], tstep_mod: int = 300
+    ) -> pd.DataFrame:
         """Load and concatenate forcing data from a list of files."""
         if not forcing_list:
             raise ValueError("Empty forcing file list provided")
@@ -357,13 +405,15 @@ class SUEWSSimulation:
                     "Directories are not allowed in lists."
                 )
 
-            df = read_forcing(str(path))
+            df = read_forcing(str(path), tstep_mod=tstep_mod)
             dfs.append(df)
 
-        return pd.concat(dfs, axis=0).sort_index()
+        result = pd.concat(dfs, axis=0).sort_index()
+        result.index.freq = pd.infer_freq(result.index)
+        return result
 
     @staticmethod
-    def _load_forcing_file(forcing_path: Path) -> pd.DataFrame:
+    def _load_forcing_file(forcing_path: Path, tstep_mod: int = 300) -> pd.DataFrame:
         """Load forcing data from file or directory."""
         if forcing_path.is_dir():
             # Issue deprecation warning for directory usage
@@ -387,15 +437,22 @@ class SUEWSSimulation:
             # Concatenate all files
             dfs = []
             for file in forcing_files:
-                dfs.append(read_forcing(str(file)))
+                dfs.append(read_forcing(str(file), tstep_mod=tstep_mod))
 
             return pd.concat(dfs, axis=0).sort_index()
         else:
-            return read_forcing(str(forcing_path))
+            return read_forcing(str(forcing_path), tstep_mod=tstep_mod)
 
-    def run(self, start_date=None, end_date=None, **run_kwargs) -> SUEWSOutput:
+    def run(
+        self,
+        start_date=None,
+        end_date=None,
+        chunk_day: int = 3660,
+        n_jobs: int = -1,
+        **run_kwargs,
+    ) -> SUEWSOutput:
         """
-        Run SUEWS simulation.
+        Run SUEWS simulation using the Rust bridge backend.
 
         Parameters
         ----------
@@ -403,18 +460,14 @@ class SUEWSSimulation:
             Start date for simulation (inclusive).
         end_date : str, optional
             End date for simulation (inclusive).
-        run_kwargs : dict
-            **Note**: Additional keyword arguments are currently not supported
-            due to underlying function signature constraints. This parameter
-            is reserved for future use.
-
-            In a future version, the following options may be supported:
-            - save_state: bool - Save state at each timestep (planned)
-            - chunk_day: int - Days per chunk for memory efficiency (planned)
-
-            For now, simulations use default settings:
-            - save_state=False (states not saved at each step)
-            - chunk_day=3660 (approximately 10 years per chunk)
+        chunk_day : int, optional
+            Chunk size in days for splitting long simulations, by default 3660
+            (~10 years). Smaller values reduce peak memory at a small overhead
+            cost.
+        n_jobs : int, optional
+            Parallel worker control for multi-grid runs. ``-1`` (default) uses
+            Rayon default parallelism, ``1`` forces serial execution, and
+            values greater than ``1`` cap Rayon to that many threads.
 
         Returns
         -------
@@ -428,12 +481,6 @@ class SUEWSSimulation:
         RuntimeError
             If configuration or forcing data is missing.
 
-        Notes
-        -----
-        The simulation runs with fixed internal settings. For advanced control
-        over simulation parameters, consider using the lower-level functional
-        API (though it is deprecated).
-
         Examples
         --------
         >>> sim = SUEWSSimulation.from_sample_data()
@@ -442,11 +489,41 @@ class SUEWSSimulation:
         >>> output.diurnal_average("QH")  # Get diurnal pattern
         >>> output.to_dataframe()  # Get raw DataFrame
         """
+        # Handle deprecated backend kwarg
+        backend = run_kwargs.pop("backend", None)
+        if backend is not None and backend != "rust":
+            raise ValueError(
+                f"The '{backend}' backend has been removed. "
+                f"Only the 'rust' backend is available. "
+                f"Remove the backend parameter or use backend='rust'."
+            )
+
+        max_workers = _validate_n_jobs(n_jobs)
+        serial_mode = n_jobs == 1
+
+        _check_rust_available()
+
         # Validate inputs
         if self._df_state_init is None:
             raise RuntimeError("No configuration loaded. Use update_config() first.")
         if self._df_forcing is None:
             raise RuntimeError("No forcing data loaded. Use update_forcing() first.")
+        if self._config is None:
+            # Backward-compatible path: allow runs initialised from df_state
+            # (legacy functional workflows and continuation tests).
+            try:
+                self._config = SUEWSConfig.from_df_state(self._df_state_init)
+            except Exception:
+                # Some legacy state CSVs carry an extra unnamed index level
+                # (e.g. MultiIndex [('grid', None)]). Strip to grid only.
+                df_state_for_cfg = self._df_state_init.copy()
+                if isinstance(df_state_for_cfg.index, pd.MultiIndex):
+                    if "grid" in df_state_for_cfg.index.names:
+                        grid_vals = df_state_for_cfg.index.get_level_values("grid")
+                    else:
+                        grid_vals = df_state_for_cfg.index.get_level_values(0)
+                    df_state_for_cfg.index = pd.Index(grid_vals, name="grid")
+                self._config = SUEWSConfig.from_df_state(df_state_for_cfg)
 
         # Fall back to config values if start_date/end_date not provided
         if start_date is None and self._config is not None:
@@ -465,14 +542,60 @@ class SUEWSSimulation:
             ):
                 end_date = self._config.model.control.end_time
 
-        # Run simulation
-        result = run_supy_ser(
-            self._df_forcing.loc[start_date:end_date],
-            self._df_state_init,
-            # **run_kwargs # Causes problems - requires explicit arguments
+        # Slice forcing data
+        df_forcing_slice = self._df_forcing.loc[start_date:end_date]
+
+        # Validate forcing data, including physics-specific forcing requirements
+        # (e.g. laimethod=0 requires populated effective observed-LAI sources).
+        physics_dict = None
+        if self._config is not None and hasattr(self._config, "model"):
+            physics = getattr(self._config.model, "physics", None)
+            if physics is not None and hasattr(physics, "model_dump"):
+                physics_dict = physics.model_dump(mode="python")
+            # Cross-check physics path against forcing columns (gh#1372).
+            # Helper is silent on success; raises ValueError on mismatch.
+            if physics is not None:
+                from .data_model.core.forcing_validation import (
+                    validate_forcing_columns_against_physics,
+                )
+
+                validate_forcing_columns_against_physics(df_forcing_slice, physics)
+        list_issues = check_forcing(df_forcing_slice, physics=physics_dict)
+        if isinstance(list_issues, list) and len(list_issues) > 0:
+            issues_summary = list_issues[:3] if len(list_issues) > 3 else list_issues
+            suffix = (
+                f" (and {len(list_issues) - 3} more)" if len(list_issues) > 3 else ""
+            )
+            raise ValueError(f"Invalid forcing data: {issues_summary}{suffix}")
+
+        # Run simulation via Rust bridge
+        initial_state_json_by_grid = (
+            self._checkpoint.grid_states if self._checkpoint is not None else None
         )
-        self._df_output = result[0]
-        self._df_state_final = result[1]
+        df_output, dict_state_json = run_suews_rust_chunked(
+            config=self._config,
+            df_forcing=df_forcing_slice,
+            chunk_day=chunk_day,
+            serial_mode=serial_mode,
+            max_workers=max_workers,
+            initial_state_json_by_grid=initial_state_json_by_grid,
+        )
+        self._df_output = df_output
+        self._checkpoint = (
+            SUEWSCheckpoint.from_grid_states(
+                dict_state_json,
+                last_timestamp=df_forcing_slice.index.max(),
+            )
+            if dict_state_json
+            else None
+        )
+
+        # Keep a legacy DFState-shaped final state for compatibility only.
+        from ._version import __version__
+
+        df_state_final = self._df_state_init.copy()
+        df_state_final[("version", "0")] = __version__
+        self._df_state_final = df_state_final
 
         self._run_completed = True
 
@@ -481,13 +604,14 @@ class SUEWSSimulation:
             df_output=self._df_output,
             df_state_final=self._df_state_final,
             config=self._config,
+            checkpoint=self._checkpoint,
         )
 
     def save(
         self, output_path: Optional[Union[str, Path]] = None, **save_kwargs
     ) -> list[str]:
         """
-        Save simulation results according to OutputConfig settings.
+        Save simulation results according to OutputControl settings.
 
         Parameters
         ----------
@@ -504,7 +628,7 @@ class SUEWSSimulation:
 
             **Not currently supported** (due to internal constraints):
 
-            - freq_s: Controlled by config.model.control.output_file.freq
+            - freq_s: Controlled by config.model.control.output.freq
             - site: Derived from config.sites[0].name
             - save_tstep: Not configurable via OOP interface
             - output_level: Not configurable via OOP interface
@@ -538,18 +662,26 @@ class SUEWSSimulation:
         if not self._run_completed:
             raise RuntimeError("No simulation results available. Run simulation first.")
 
+        if self._df_state_final is None:
+            raise NotImplementedError(
+                "save() is not yet supported for the Rust backend. "
+                "Access results directly via sim.output.df_output"
+            )
+
         # Set default path with priority: parameter > config > current directory
         if output_path is None:
-            # Check if path is specified in config
-            config_path = None
+            # Check if dir is specified in config
+            config_dir = None
             try:
-                output_file = self._config.model.control.output_file
-                if not isinstance(output_file, str) and output_file.path:
-                    config_path = output_file.path
+                output_control = self._config.model.control.output
+                if output_control.dir:
+                    config_dir = output_control.dir
             except AttributeError:
                 pass
 
-            output_path = Path(config_path) if config_path else Path(".")
+            output_path = (
+                self._resolve_output_path(config_dir) if config_dir else Path(".")
+            )
         else:
             output_path = Path(output_path)
 
@@ -560,14 +692,13 @@ class SUEWSSimulation:
         site = ""
 
         if self._config:
-            # Get output frequency from OutputConfig if available
+            # Get output frequency from OutputControl if available
             if (
                 hasattr(self._config, "model")
                 and hasattr(self._config.model, "control")
-                and hasattr(self._config.model.control, "output_file")
-                and not isinstance(self._config.model.control.output_file, str)
+                and hasattr(self._config.model.control, "output")
             ):
-                output_config = self._config.model.control.output_file
+                output_config = self._config.model.control.output
                 if hasattr(output_config, "freq") and output_config.freq is not None:
                     freq_s = output_config.freq
                 # Removed for now - can't update from YAML (TODO)
@@ -590,7 +721,16 @@ class SUEWSSimulation:
             # **save_kwargs # Problematic, save_supy expects explicit arguments
             output_config=output_config,
             output_format=output_format,
+            save_state=False,
         )
+
+        if self._checkpoint is not None:
+            checkpoint_name = (
+                f"{site}_SUEWS_checkpoint.json" if site else "SUEWS_checkpoint.json"
+            )
+            checkpoint_path = self._checkpoint.to_file(output_path / checkpoint_name)
+            list_path_save.append(checkpoint_path)
+
         return list_path_save
 
     def reset(self) -> "SUEWSSimulation":
@@ -608,6 +748,7 @@ class SUEWSSimulation:
         """
         self._df_output = None
         self._df_state_final = None
+        self._checkpoint = None
         self._run_completed = False
         return self
 
@@ -669,13 +810,62 @@ class SUEWSSimulation:
         sim._df_forcing = df_forcing
         return sim
 
+    @staticmethod
+    def _coerce_checkpoint(
+        checkpoint: Union[str, Path, SUEWSCheckpoint],
+    ) -> SUEWSCheckpoint:
+        if isinstance(checkpoint, SUEWSCheckpoint):
+            return checkpoint
+        if isinstance(checkpoint, (str, Path)):
+            return SUEWSCheckpoint.from_file(checkpoint)
+        raise TypeError(
+            "checkpoint must be a SUEWSCheckpoint, str, or Path, "
+            f"got {type(checkpoint).__name__}"
+        )
+
+    @classmethod
+    def from_checkpoint(
+        cls,
+        config: Union[str, Path, dict, SUEWSConfig],
+        checkpoint: Union[str, Path, SUEWSCheckpoint],
+    ) -> "SUEWSSimulation":
+        """Create a continuation simulation from YAML config and checkpoint."""
+        if config is None:
+            raise ValueError(
+                "Checkpoint continuation requires a YAML/SUEWSConfig "
+                "configuration as well as the checkpoint."
+            )
+
+        sim = cls()
+        if not isinstance(config, (str, Path, dict)):
+            config = copy.deepcopy(config)
+        sim.update_config(config, auto_load_forcing=False)
+        return sim.continue_from(checkpoint)
+
+    def continue_from(
+        self, checkpoint: Union[str, Path, SUEWSCheckpoint]
+    ) -> "SUEWSSimulation":
+        """Use a typed checkpoint as the initial runtime state."""
+        if self._config is None:
+            raise RuntimeError(
+                "Checkpoint continuation requires a loaded configuration. "
+                "Use SUEWSSimulation.from_checkpoint(config, checkpoint) or "
+                "call update_config() before continue_from()."
+            )
+
+        self._checkpoint = self._coerce_checkpoint(checkpoint)
+        self._df_output = None
+        self._df_state_final = None
+        self._run_completed = False
+        return self
+
     @classmethod
     def from_state(cls, state: Union[str, Path, pd.DataFrame]):
-        """Create SUEWSSimulation from saved state for continuation runs.
+        """Create SUEWSSimulation from legacy DFState.
 
-        Load a previously saved model state to continue simulation from where
-        it left off. Useful for multi-period runs or scenario testing with
-        different forcing data.
+        This compatibility adapter reads older DFState CSV/parquet/DataFrame
+        artifacts. New continuation workflows should use
+        ``from_checkpoint(config, checkpoint)``.
 
         Parameters
         ----------
@@ -699,7 +889,7 @@ class SUEWSSimulation:
 
         Examples
         --------
-        Continue from saved file:
+        Legacy import from saved file:
 
         >>> # Period 1
         >>> sim1 = SUEWSSimulation("config.yaml")
@@ -707,12 +897,12 @@ class SUEWSSimulation:
         >>> sim1.run()
         >>> paths = sim1.save("output/")
 
-        >>> # Period 2 - continue from saved state
+        >>> # Period 2 - legacy DFState continuation
         >>> sim2 = SUEWSSimulation.from_state("output/df_state.csv")
         >>> sim2.update_forcing("forcing_2024.txt")
         >>> sim2.run()
 
-        Continue from DataFrame directly:
+        Legacy import from DataFrame directly:
 
         >>> # In-memory continuation without saving to file
         >>> sim1 = SUEWSSimulation.from_sample_data()
@@ -732,10 +922,19 @@ class SUEWSSimulation:
 
         See Also
         --------
-        save : Save simulation results and state
+        from_checkpoint : Create continuation from YAML config and checkpoint
+        save : Save simulation results and checkpoint
         reset : Clear results and reset to initial state
-        state_final : Access final state from completed simulation
+        checkpoint : Access typed checkpoint from completed simulation
         """
+        warnings.warn(
+            "SUEWSSimulation.from_state() is a legacy DFState compatibility "
+            "adapter. Use SUEWSSimulation.from_checkpoint(config, checkpoint) "
+            "for restart/continuation runs.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+
         from ._version import __version__ as current_version
 
         # Load state from file or use DataFrame directly
@@ -750,7 +949,10 @@ class SUEWSSimulation:
             # Load based on file extension
             if state_path.suffix == ".csv":
                 df_state_saved = pd.read_csv(
-                    state_path, header=[0, 1], index_col=[0, 1], parse_dates=[0]
+                    state_path,
+                    header=[0, 1],
+                    index_col=0,
+                    parse_dates=True,
                 )
             elif state_path.suffix == ".parquet":
                 df_state_saved = pd.read_parquet(state_path)
@@ -812,7 +1014,7 @@ class SUEWSSimulation:
         Returns
         -------
         SUEWSSimulation
-            Simulation instance initialised with final state from output,
+            Simulation instance initialised with checkpoint from output,
             ready for new forcing data and run.
 
         Examples
@@ -824,24 +1026,34 @@ class SUEWSSimulation:
         >>> sim1.update_forcing("forcing_2023.txt")
         >>> output1 = sim1.run()
 
-        >>> # Continue from output state
+        >>> # Continue from output checkpoint
         >>> sim2 = SUEWSSimulation.from_output(output1)
         >>> sim2.update_forcing("forcing_2024.txt")
         >>> output2 = sim2.run()
 
         See Also
         --------
-        from_state : Create from saved state file or DataFrame
-        SUEWSOutput.state_final : Final state property for restart
+        from_checkpoint : Create from YAML config and checkpoint
+        SUEWSOutput.checkpoint : Typed checkpoint property for restart
         """
-        df_state_init = output.state_final
-        sim = cls()
-        sim._df_state_init = df_state_init
-        # Deep copy config to avoid shared state issues
-        if output.config is not None:
-            sim._config = copy.deepcopy(output.config)
+        if output.checkpoint is not None:
+            if output.config is None:
+                raise RuntimeError(
+                    "SUEWSOutput has a checkpoint but no configuration. "
+                    "Use SUEWSSimulation.from_checkpoint(config, checkpoint)."
+                )
+            return cls.from_checkpoint(
+                copy.deepcopy(output.config),
+                output.checkpoint,
+            )
 
-        return sim
+        warnings.warn(
+            "SUEWSSimulation.from_output() is falling back to legacy DFState. "
+            "Prefer SUEWSSimulation.from_checkpoint(config, output.checkpoint).",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        return cls.from_state(output.state_final)
 
     def __repr__(self) -> str:
         """Concise representation showing simulation status.
@@ -1078,11 +1290,18 @@ class SUEWSSimulation:
         """
         if self._df_forcing is None:
             return None
-        return SUEWSForcing(self._df_forcing)
+        df_main, extras = SUEWSForcing._split_per_landcover_columns(self._df_forcing)
+        forcing = SUEWSForcing(df_main)
+        forcing._extras = extras
+        return forcing
 
     @property
     def results(self) -> Optional[pd.DataFrame]:
         """Access to simulation results DataFrame (raw).
+
+        .. deprecated:: 2025.1
+            Use ``output = sim.run()`` to get a ``SUEWSOutput`` object,
+            then ``output.df`` for the raw DataFrame if needed.
 
         Returns
         -------
@@ -1097,11 +1316,23 @@ class SUEWSSimulation:
         get_variable : Extract specific variables from output groups
         save : Save results to files
         """
+        warnings.warn(
+            "sim.results is deprecated and will be removed in version 2026.1. "
+            "Use 'output = sim.run()' to get a SUEWSOutput "
+            "object, then 'output.df' for the raw DataFrame if needed.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         return self._df_output
 
     @property
     def output(self) -> Optional[SUEWSOutput]:
         """Access to simulation results as SUEWSOutput object.
+
+        .. note::
+            Preferred pattern is ``output = sim.run()`` which returns the
+            same ``SUEWSOutput`` object. This property is provided for
+            convenience when re-accessing results after simulation.
 
         Returns
         -------
@@ -1112,17 +1343,22 @@ class SUEWSSimulation:
 
         See Also
         --------
-        results : Access raw DataFrame directly
-        run : Run simulation and return SUEWSOutput
+        run : Run simulation and return SUEWSOutput (preferred)
         :ref:`df_output_var` : Complete output data structure
 
         Examples
         --------
+        Preferred pattern - capture return value:
+
+        >>> sim = SUEWSSimulation.from_sample_data()
+        >>> output = sim.run()  # Capture output
+        >>> output.QH  # Access sensible heat flux
+
+        Alternative - use property after run:
+
         >>> sim = SUEWSSimulation.from_sample_data()
         >>> sim.run()
-        >>> sim.output.QH  # Access sensible heat flux
-        >>> sim.output.diurnal_average("QH")  # Get diurnal pattern
-        >>> sim.output.energy_balance_closure()  # Analyse energy balance
+        >>> sim.output.QH  # Re-access via property
         """
         if self._df_output is None:
             return None
@@ -1130,6 +1366,7 @@ class SUEWSSimulation:
             df_output=self._df_output,
             df_state_final=self._df_state_final,
             config=self._config,
+            checkpoint=self._checkpoint,
         )
 
     @property
@@ -1145,8 +1382,8 @@ class SUEWSSimulation:
         See Also
         --------
         :ref:`df_state_var` : Complete state data structure and variable descriptions
-        state_final : Final state after simulation
-        from_state : Create simulation from existing state
+        checkpoint : Typed checkpoint after simulation
+        from_checkpoint : Create simulation from checkpoint
 
         Examples
         --------
@@ -1158,15 +1395,14 @@ class SUEWSSimulation:
 
     @property
     def state_final(self) -> Optional[pd.DataFrame]:
-        """Final state DataFrame after simulation.
+        """Legacy final state DataFrame after simulation.
 
-        Available only after running simulation. Contains evolved
-        state variables that can be used to continue simulation.
+        Prefer ``checkpoint`` for restart/continuation workflows.
 
         Returns
         -------
         pandas.DataFrame or None
-            Final state after simulation run.
+            Legacy final state after simulation run.
             None if simulation hasn't been run yet.
 
         See Also
@@ -1174,7 +1410,8 @@ class SUEWSSimulation:
         :ref:`df_state_var` : Complete state data structure and variable descriptions
         state_init : Initial state before simulation
         reset : Clear results and reset to initial state
-        from_state : Create new simulation from this final state
+        checkpoint : Typed restart artifact
+        from_checkpoint : Create new simulation from checkpoint
 
         Examples
         --------
@@ -1184,3 +1421,13 @@ class SUEWSSimulation:
         True
         """
         return self._df_state_final
+
+    @property
+    def checkpoint(self) -> Optional[SUEWSCheckpoint]:
+        """Typed checkpoint produced by the most recent run."""
+        return self._checkpoint
+
+    @property
+    def state_checkpoint(self) -> Optional[SUEWSCheckpoint]:
+        """Alias for ``checkpoint``."""
+        return self._checkpoint

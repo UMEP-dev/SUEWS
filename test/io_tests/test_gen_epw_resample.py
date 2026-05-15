@@ -1,9 +1,22 @@
 """Test gen_epw with resampling functionality (GitHub issue #150)."""
 
-import pandas as pd
 import numpy as np
+import pandas as pd
 import pytest
+
 import supy as sp
+from conftest import TIMESTEPS_PER_DAY
+
+pytestmark = pytest.mark.api
+
+
+@pytest.fixture(scope="module")
+def pvlib_available():
+    """Skip only the gen_epw tests when pvlib is unavailable."""
+    pytest.importorskip(
+        "pvlib",
+        reason="gen_epw delegates to pvlib for solar geometry; skip only the gen_epw tests when the optional dependency is missing",
+    )
 
 
 class TestGenEpwResample:
@@ -44,7 +57,9 @@ class TestGenEpwResample:
     def test_resample_aggregation_methods(self):
         """Test that aggregation methods are applied correctly."""
         df_state_init, df_forcing = sp.load_SampleData()
-        df_output, _ = sp.run_supy(df_forcing.iloc[:288], df_state_init)  # 1 day
+        df_output, _ = sp.run_supy(
+            df_forcing.iloc[:TIMESTEPS_PER_DAY], df_state_init
+        )  # 1 day
 
         df_hourly = sp.util.resample_output(df_output, freq="h")
 
@@ -60,6 +75,7 @@ class TestGenEpwResample:
             assert var in suews_vars, f"Variable {var} not found in resampled output"
 
 
+@pytest.mark.usefixtures("pvlib_available")
 class TestGenEpwMultiIndexInput:
     """Tests for gen_epw handling MultiIndex input directly."""
 
@@ -68,82 +84,67 @@ class TestGenEpwMultiIndexInput:
         """Create sample SUEWS output for testing."""
         df_state_init, df_forcing = sp.load_SampleData()
         # Use enough data for meaningful test but not too much
-        df_output, _ = sp.run_supy(df_forcing.iloc[:288], df_state_init)  # 1 day
+        df_output, _ = sp.run_supy(
+            df_forcing.iloc[:TIMESTEPS_PER_DAY], df_state_init
+        )  # 1 day
         return df_output
 
     def test_gen_epw_accepts_multiindex(self, sample_output, tmp_path):
         """Test that gen_epw accepts MultiIndex input without freq."""
         grid = sample_output.index.get_level_values("grid")[0]
 
-        try:
-            # This should work - providing extracted data (original behaviour)
-            df_epw, meta, path = sp.util.gen_epw(
-                sample_output.loc[grid, "SUEWS"],
-                lat=51.5,
-                lon=-0.1,
-                path_epw=tmp_path / "test.epw",
-            )
-            assert isinstance(df_epw, pd.DataFrame)
-        except ImportError:
-            pytest.skip("pvlib not installed")
+        df_epw, meta, path = sp.util.gen_epw(
+            sample_output.loc[grid, "SUEWS"],
+            lat=51.5,
+            lon=-0.1,
+            path_epw=tmp_path / "test.epw",
+        )
+        assert isinstance(df_epw, pd.DataFrame)
 
     def test_gen_epw_with_grid_extraction(self, sample_output, tmp_path):
         """Test that gen_epw extracts grid automatically from MultiIndex."""
-        try:
-            # This should auto-extract first grid
-            df_epw, meta, path = sp.util.gen_epw(
-                sample_output,  # Full MultiIndex
-                lat=51.5,
-                lon=-0.1,
-                path_epw=tmp_path / "test_auto.epw",
-            )
-            assert isinstance(df_epw, pd.DataFrame)
-        except ImportError:
-            pytest.skip("pvlib not installed")
+        df_epw, meta, path = sp.util.gen_epw(
+            sample_output,
+            lat=51.5,
+            lon=-0.1,
+            path_epw=tmp_path / "test_auto.epw",
+        )
+        assert isinstance(df_epw, pd.DataFrame)
 
     def test_gen_epw_with_freq_param(self, sample_output, tmp_path):
         """Test that gen_epw accepts freq parameter for resampling."""
-        try:
-            df_epw, meta, path = sp.util.gen_epw(
-                sample_output,  # Full MultiIndex
-                lat=51.5,
-                lon=-0.1,
-                freq="h",  # Resample to hourly
-                path_epw=tmp_path / "test_freq.epw",
-            )
-            assert isinstance(df_epw, pd.DataFrame)
-        except ImportError:
-            pytest.skip("pvlib not installed")
+        df_epw, meta, path = sp.util.gen_epw(
+            sample_output,
+            lat=51.5,
+            lon=-0.1,
+            freq="h",
+            path_epw=tmp_path / "test_freq.epw",
+        )
+        assert isinstance(df_epw, pd.DataFrame)
 
     def test_gen_epw_with_specific_grid(self, sample_output, tmp_path):
         """Test that gen_epw accepts specific grid parameter."""
         grid = sample_output.index.get_level_values("grid")[0]
 
-        try:
-            df_epw, meta, path = sp.util.gen_epw(
-                sample_output,
-                lat=51.5,
-                lon=-0.1,
-                grid=grid,  # Specify grid explicitly
-                path_epw=tmp_path / "test_grid.epw",
-            )
-            assert isinstance(df_epw, pd.DataFrame)
-        except ImportError:
-            pytest.skip("pvlib not installed")
+        df_epw, meta, path = sp.util.gen_epw(
+            sample_output,
+            lat=51.5,
+            lon=-0.1,
+            grid=grid,
+            path_epw=tmp_path / "test_grid.epw",
+        )
+        assert isinstance(df_epw, pd.DataFrame)
 
     def test_gen_epw_freq_with_extracted_data(self, sample_output, tmp_path):
         """Test that freq works with pre-extracted single-grid data."""
         grid = sample_output.index.get_level_values("grid")[0]
         df_single = sample_output.loc[grid, "SUEWS"]
 
-        try:
-            df_epw, meta, path = sp.util.gen_epw(
-                df_single,
-                lat=51.5,
-                lon=-0.1,
-                freq="h",  # Should still work with simple resampling
-                path_epw=tmp_path / "test_extracted_freq.epw",
-            )
-            assert isinstance(df_epw, pd.DataFrame)
-        except ImportError:
-            pytest.skip("pvlib not installed")
+        df_epw, meta, path = sp.util.gen_epw(
+            df_single,
+            lat=51.5,
+            lon=-0.1,
+            freq="h",
+            path_epw=tmp_path / "test_extracted_freq.epw",
+        )
+        assert isinstance(df_epw, pd.DataFrame)

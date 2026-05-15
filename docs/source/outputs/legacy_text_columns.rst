@@ -48,7 +48,7 @@ the details so we can hopefully provide better error messages in future.
 
 See `Troubleshooting` section for help solving
 problems. If the file paths are not correct the program will return an
-error when run (see `Workflow`).
+error when run (see :ref:`getting_started`).
 
 .. _warnings.txt:
 

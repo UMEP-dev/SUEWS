@@ -22,13 +22,14 @@ from supy.util._atm import (
     correct_wind_height,
 )
 
+pytestmark = pytest.mark.api
+
 
 class TestAtmosphericCalculations(TestCase):
     """Test atmospheric calculation functions."""
 
     def setUp(self):
         """Set up test environment."""
-        warnings.simplefilter("ignore", category=ImportWarning)
         # Standard atmospheric conditions for testing
         self.ta_c = 20.0  # Temperature in Celsius
         self.ta_k = self.ta_c + 273.15  # Temperature in Kelvin

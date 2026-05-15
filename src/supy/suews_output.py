@@ -4,10 +4,14 @@ SUEWSOutput - OOP wrapper for SUEWS simulation results.
 Provides a structured interface for accessing and exporting SUEWS model output data.
 """
 
+from __future__ import annotations
+
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Union
 
 import pandas as pd
+
+from .suews_checkpoint import SUEWSCheckpoint
 
 
 class SUEWSOutput:
@@ -25,6 +29,8 @@ class SUEWSOutput:
         Final model state DataFrame
     config : SUEWSConfig, optional
         Configuration used for this run
+    checkpoint : SUEWSCheckpoint, optional
+        Typed restart checkpoint from the Rust backend
     metadata : dict, optional
         Additional metadata (timing, version, etc.)
 
@@ -54,7 +60,7 @@ class SUEWSOutput:
 
     Restart runs:
 
-    >>> sim2 = SUEWSSimulation.from_state(output.state_final)
+    >>> sim2 = SUEWSSimulation.from_checkpoint(config, output.checkpoint)
     """
 
     def __init__(
@@ -63,6 +69,7 @@ class SUEWSOutput:
         df_state_final: pd.DataFrame,
         config: Optional[Any] = None,
         metadata: Optional[Dict[str, Any]] = None,
+        checkpoint: Optional[SUEWSCheckpoint] = None,
     ):
         """
         Initialise SUEWSOutput.
@@ -75,12 +82,17 @@ class SUEWSOutput:
             Final model state DataFrame
         config : SUEWSConfig, optional
             Configuration used for this run (for save context)
+        checkpoint : SUEWSCheckpoint, optional
+            Typed restart checkpoint from the Rust backend
         metadata : dict, optional
             Additional metadata (timing, version, etc.)
         """
         self._df_output = df_output.copy()
-        self._df_state_final = df_state_final.copy()
+        self._df_state_final = (
+            df_state_final.copy() if df_state_final is not None else None
+        )
         self._config = config
+        self._checkpoint = checkpoint
         self._metadata = metadata or {}
 
     # =========================================================================
@@ -103,11 +115,16 @@ class SUEWSOutput:
         return self._df_output.columns
 
     @property
+    def index(self) -> pd.Index:
+        """Row index of output DataFrame (pandas-compatible)."""
+        return self._df_output.index
+
+    @property
     def state_final(self) -> pd.DataFrame:
         """
-        Final model state for restart runs.
+        Legacy final model state DataFrame.
 
-        Use with SUEWSSimulation.from_state() or from_output() to continue simulations.
+        Prefer ``checkpoint`` for restart/continuation workflows.
 
         Returns
         -------
@@ -115,6 +132,16 @@ class SUEWSOutput:
             Final state DataFrame ready for restart
         """
         return self._df_state_final.copy()
+
+    @property
+    def checkpoint(self) -> Optional[SUEWSCheckpoint]:
+        """Typed checkpoint for restart/continuation runs."""
+        return self._checkpoint
+
+    @property
+    def state_checkpoint(self) -> Optional[SUEWSCheckpoint]:
+        """Alias for ``checkpoint``."""
+        return self._checkpoint
 
     @property
     def times(self) -> pd.DatetimeIndex:
@@ -388,12 +415,13 @@ class SUEWSOutput:
         """
         from ._post import resample_output
 
-        resampled = resample_output(self._df_output, freq)
+        resampled = resample_output(self, freq, _internal=True)
         return SUEWSOutput(
-            resampled,
-            self._df_state_final,
-            self._config,
-            {**self._metadata, "resampled_to": freq},
+            df_output=resampled,
+            df_state_final=self._df_state_final,
+            config=self._config,
+            metadata={**self._metadata, "resampled_to": freq},
+            checkpoint=self._checkpoint,
         )
 
     # =========================================================================
@@ -440,18 +468,17 @@ class SUEWSOutput:
             try:
                 if hasattr(self._config, "model"):
                     control = self._config.model.control
-                    if hasattr(control, "output_file"):
-                        output_file = control.output_file
-                        if not isinstance(output_file, str):
-                            if hasattr(output_file, "freq") and output_file.freq:
-                                freq = freq_s or output_file.freq
-                            output_config = output_file
+                    if hasattr(control, "output"):
+                        output_control = control.output
+                        if hasattr(output_control, "freq") and output_control.freq:
+                            freq = freq_s or output_control.freq
+                        output_config = output_control
                 if hasattr(self._config, "sites") and len(self._config.sites) > 0:
                     site = self._config.sites[0].name
             except AttributeError:
                 pass
 
-        return _save_supy(
+        list_path_save = _save_supy(
             df_output=self._df_output,
             df_state_final=self._df_state_final,
             freq_s=int(freq),
@@ -459,7 +486,17 @@ class SUEWSOutput:
             path_dir_save=str(path),
             output_config=output_config,
             output_format=format,
+            save_state=False,
         )
+
+        if self._checkpoint is not None:
+            checkpoint_name = (
+                f"{site}_SUEWS_checkpoint.json" if site else "SUEWS_checkpoint.json"
+            )
+            checkpoint_path = self._checkpoint.to_file(path / checkpoint_name)
+            list_path_save.append(checkpoint_path)
+
+        return list_path_save
 
     # =========================================================================
     # Rich display

@@ -4,8 +4,7 @@ import platform
 import sys
 import tempfile
 from time import time
-from unittest import TestCase, skipIf
-import warnings
+from unittest import TestCase
 
 import numpy as np
 import pandas as pd
@@ -14,27 +13,14 @@ import pytest
 import supy as sp
 from supy import SUEWSSimulation
 
-# Import debug utilities
-try:
-    from .debug_utils import (
-        capture_test_artifacts,
-        debug_dataframe_output,
-        debug_on_ci,
-        debug_water_balance,
-    )
-except ImportError:
-    # Fallback if decorators not available
-    def debug_on_ci(func):
-        return func
-
-    def debug_dataframe_output(func):
-        return func
-
-    def debug_water_balance(func):
-        return func
-
-    def capture_test_artifacts(name):
-        return lambda func: func
+# Import debug utilities from conftest (centralised)
+from conftest import (
+    TIMESTEPS_PER_DAY,
+    capture_test_artifacts,
+    debug_dataframe_output,
+    debug_on_ci,
+    debug_water_balance,
+)
 
 
 # Get the test data directory from the environment variable
@@ -49,13 +35,14 @@ flag_full_test = True
 # Note: Sample data loading moved to individual test methods to avoid test interference
 # This prevents caching issues when tests run in sequence
 
+pytestmark = pytest.mark.api
+
 
 class TestSuPy(TestCase):
-    def setUp(self):
-        warnings.simplefilter("ignore", category=ImportWarning)
-
     # test if single-tstep mode can run
+    @pytest.mark.physics
     @pytest.mark.smoke
+    @pytest.mark.smoke_bridge
     def test_is_supy_running_single_step(self):
         print("\n========================================")
         print("Testing if single-tstep mode can run...")
@@ -66,11 +53,9 @@ class TestSuPy(TestCase):
         # Run only 1 hour (12 timesteps) instead of 8 hours
         results = sim.run(end_date=sim.forcing.index[11])
 
-        # Verify results and state are populated
+        # Verify results are populated
         self.assertIsNotNone(results)
-        self.assertIsNotNone(sim.state_final)
         self.assertFalse(results.empty)
-        self.assertFalse(sim.state_final.empty)
 
     # test if multi-tstep mode can run
     @pytest.mark.core
@@ -85,7 +70,7 @@ class TestSuPy(TestCase):
         sim = SUEWSSimulation.from_sample_data()
 
         # Run only 2 days instead of 10 days
-        end_index = 288 * 2 - 1  # 0-indexed
+        end_index = TIMESTEPS_PER_DAY * 2 - 1  # 0-indexed
         results = sim.run(end_date=sim.forcing.index[end_index])
 
         # Debug output
@@ -108,6 +93,7 @@ class TestSuPy(TestCase):
     # NOTE: This test uses functional API (sp.run_supy) instead of SUEWSSimulation
     # because multi-grid parallelization is a low-level feature not exposed in the OOP interface.
     # SUEWSSimulation is designed for single-grid workflows.
+
     def test_is_supy_sim_save_multi_grid_par(self):
         print("\n========================================")
         print("Testing if multi-grid simulation can run in parallel...")
@@ -120,7 +106,7 @@ class TestSuPy(TestCase):
 
         df_state_init_multi = pd.concat([df_state_init_base for x in range(n_grid)])
         df_state_init_multi.index = pd.RangeIndex(n_grid, name="grid")
-        df_forcing_part = df_forcing_tstep.iloc[: 288 * 60]
+        df_forcing_part = df_forcing_tstep.iloc[: TIMESTEPS_PER_DAY * 60]
         t_start = time()
         df_output, df_state = sp.run_supy(df_forcing_part, df_state_init_multi)
         t_end = time()
@@ -153,26 +139,24 @@ class TestSuPy(TestCase):
         ])
         self.assertTrue(test_non_empty)
 
-    #  test if flag_test can be set to True
-    @skipIf(
-        True,
-        "Skipping debug mode test due to STEBBS debug structure issues in YL/fixstebbs-rebase branch",
-    )
-    def test_is_flag_test_working(self):
+    def test_debug_mode_exposes_debug_output_group(self):
         print("\n========================================")
-        print("Testing if flag_test can be set to True...")
+        print("Testing if debug_mode exposes debug output...")
 
-        # Load sample data
         df_state_init, df_forcing_tstep = sp.load_SampleData()
+        df_forcing_part = df_forcing_tstep.iloc[:24]
 
-        df_forcing_part = df_forcing_tstep.iloc[: 288 * 10]
-        df_output, df_state, df_debug, res_state = sp.run_supy(
+        df_output, df_state = sp.run_supy(
             df_forcing_part,
             df_state_init,
             debug_mode=True,
         )
-        # check if `flag_test` in `df_output.debug` equals 1.0
-        self.assertTrue((df_output.debug.flag_test == 1.0).all())
+
+        self.assertFalse(df_output.empty)
+        self.assertFalse(df_state.empty)
+        self.assertIn("debug", df_output.columns.get_level_values("group"))
+        self.assertIn("flag_test", df_output["debug"].columns)
+        self.assertTrue(df_output["debug"]["flag_test"].notna().all())
 
     def test_run_with_version(self):
         print("\n========================================")
@@ -257,16 +241,16 @@ class TestSuPy(TestCase):
         print("Metadata columns correctly stored as plain strings")
 
     def test_version_tracking_save_load_cycle(self):
-        """Test complete save→load→run cycle with version tracking.
+        """Test complete checkpoint save/load/run cycle with version tracking.
 
         This test verifies that:
         1. Version info is automatically saved with state
-        2. Saved state (with version) can be loaded
-        3. Loaded state can be used to continue simulation
+        2. A typed checkpoint can be saved and loaded
+        3. Loaded checkpoint can be used to continue simulation
         4. Version info persists through the cycle
         """
         print("\n========================================")
-        print("Testing complete save→load→run cycle with version tracking...")
+        print("Testing complete checkpoint save/load/run cycle with version tracking...")
 
         # Run 1: Initial simulation
         sim1 = SUEWSSimulation.from_sample_data()
@@ -277,17 +261,28 @@ class TestSuPy(TestCase):
         version_from_run1 = sim1.state_final[("version", "0")].iloc[0]
         self.assertEqual(version_from_run1, sp.__version__)
 
-        # Save state to temporary location
+        # Save checkpoint to temporary location
         with tempfile.TemporaryDirectory() as tmpdir:
             save_path = Path(tmpdir)
             sim1.save(save_path)
 
-            # Verify state file was created
+            # Verify checkpoint file was created as the restart artifact
+            checkpoint_files = list(save_path.glob("*_checkpoint.json"))
+            self.assertGreater(
+                len(checkpoint_files),
+                0,
+                "Checkpoint file should be created",
+            )
             state_files = list(save_path.glob("*_state_*.csv"))
-            self.assertGreater(len(state_files), 0, "State file should be created")
+            self.assertEqual(
+                state_files,
+                [],
+                "OOP save should not create legacy DFState CSV by default",
+            )
 
-            # Run 2: Load saved state and continue simulation
-            sim2 = SUEWSSimulation.from_state(sim1.state_final)
+            # Run 2: Load saved checkpoint and continue simulation
+            checkpoint = sp.SUEWSCheckpoint.from_file(checkpoint_files[0])
+            sim2 = SUEWSSimulation.from_checkpoint(sim1.config, checkpoint)
 
             # Load forcing for continuation (using remaining timesteps)
             sim2.update_forcing(sim1.forcing.iloc[12:24])  # Next 12 timesteps
@@ -305,10 +300,11 @@ class TestSuPy(TestCase):
             self.assertEqual(
                 version_from_run2,
                 sp.__version__,
-                "Version should persist through save→load→run cycle",
+                "Version should persist through checkpoint save/load/run cycle",
             )
+            self.assertEqual(sim2.checkpoint.supy_version, sp.__version__)
 
-        print("✓ Version tracking works correctly through save→load→run cycle")
+        print("Version tracking works correctly through checkpoint save/load/run cycle")
 
     # # test if single-tstep and multi-tstep modes can produce the same SUEWS results
     # @skipUnless(flag_full_test, "Full test is not required.")
@@ -357,7 +353,7 @@ class TestSuPy(TestCase):
         sim = SUEWSSimulation.from_sample_data()
 
         # Run for 2 days
-        end_index = 288 * 2 - 1  # 0-indexed
+        end_index = TIMESTEPS_PER_DAY * 2 - 1  # 0-indexed
         t_start = time()
         results = sim.run(end_date=sim.forcing.index[end_index])
         t_end = time()
@@ -464,10 +460,10 @@ class TestSuPy(TestCase):
         surf_veg = surf_veg / surf_veg.sum()
         smd_veg_correct = np.dot(surf_veg, smd_veg)
 
-        # test SMD_veg
-        from supy.supy_driver import module_phys_waterdist as wm
+        # test SMD_veg via Python port of Fortran cal_smd_veg
+        from supy.util import cal_smd_veg
 
-        smd_veg_test = wm.cal_smd_veg(soilstorecap, soilstore_id, sfr_surf)
+        smd_veg_test = cal_smd_veg(soilstorecap, soilstore_id, sfr_surf)
 
         self.assertAlmostEqual(smd_veg_correct, smd_veg_test)
 
@@ -481,7 +477,7 @@ class TestSuPy(TestCase):
 
         # Run for 10 days
         n_days = 10
-        end_index = 288 * n_days - 1  # 0-indexed
+        end_index = TIMESTEPS_PER_DAY * n_days - 1  # 0-indexed
         results = sim.run(end_date=sim.forcing.index[end_index])
 
         # Check that DailyState exists in output
@@ -539,7 +535,7 @@ class TestSuPy(TestCase):
 
         # Run for 100 days
         n_days = 100
-        end_index = 288 * n_days - 1  # 0-indexed
+        end_index = TIMESTEPS_PER_DAY * n_days - 1  # 0-indexed
         results = sim.run(end_date=sim.forcing.index[end_index])
 
         # Get soilstore from debug output

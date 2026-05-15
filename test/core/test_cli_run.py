@@ -13,6 +13,8 @@ from pathlib import Path
 
 import pytest
 
+pytestmark = pytest.mark.api
+
 # Import the CLI command for in-process testing
 from supy.cmd.SUEWS import SUEWS
 

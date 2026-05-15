@@ -7,6 +7,10 @@ from pathlib import Path
 import tempfile
 import shutil
 import supy as sp
+from supy._supy_module import _save_supy
+from supy.data_model.core.model import OutputControl, OutputFormat
+
+pytestmark = pytest.mark.api
 
 
 class TestSaveSuPy:
@@ -84,7 +88,7 @@ class TestSaveSuPy:
         with tempfile.TemporaryDirectory() as tmpdir:
             # Save only DailyState group
             # Note: Currently dict-based output_config doesn't support groups filtering
-            # This would require using the OutputConfig class from data_model
+            # This would require using the OutputControl class from data_model
             # For now, we'll test that the default behavior works
 
             # Test default behavior (should include SUEWS)
@@ -124,3 +128,25 @@ class TestSaveSuPy:
             assert "_30.txt" in suews_filename, (
                 f"Expected _30.txt in filename, got {suews_filename}"
             )
+
+    def test_internal_save_honours_output_config_format(self, sample_output):
+        """Test the internal save helper honours OutputControl.format by default."""
+        df_output, df_state_final = sample_output
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            list_files = _save_supy(
+                df_output,
+                df_state_final,
+                path_dir_save=tmpdir,
+                site="test",
+                output_config=OutputControl(format=OutputFormat.PARQUET),
+            )
+
+            parquet_files = [Path(f) for f in list_files if str(f).endswith(".parquet")]
+            txt_files = [Path(f) for f in list_files if str(f).endswith(".txt")]
+
+            assert parquet_files, (
+                "_save_supy should honour OutputControl.format=parquet when no "
+                "explicit output_format kwarg is supplied"
+            )
+            assert not txt_files, "Parquet save should not fall back to text output"

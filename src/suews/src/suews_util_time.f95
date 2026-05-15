@@ -427,8 +427,8 @@ CONTAINS
       INTEGER, INTENT(out) :: DLS
 
       id = timer%id
-      startDLS = ahemisPrm%startDLS
-      endDLS = ahemisPrm%endDLS
+      startDLS = ahemisPrm%start_dls
+      endDLS = ahemisPrm%end_dls
 
       DLS = 0
       IF (id > startDLS .AND. id < endDLS) dls = 1

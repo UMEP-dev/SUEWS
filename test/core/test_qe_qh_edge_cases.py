@@ -14,6 +14,8 @@ import pytest
 
 import supy as sp
 
+pytestmark = pytest.mark.physics
+
 
 class TestQEQHEdgeCases:
     """Fast edge case tests for QE/QH stability."""

@@ -1,5 +1,7 @@
 ! Main module following naming standard: matches filename
 MODULE module_phys_resist
+   USE module_ctrl_error, ONLY: ErrorHint
+   USE module_ctrl_const_physconst, ONLY: eps_fp
    IMPLICIT NONE
 
 CONTAINS
@@ -13,7 +15,8 @@ CONTAINS
       AerodynamicResistanceMethod, &
       StabilityMethod, &
       RoughLenHeatMethod, &
-      RA_h, z0V) ! output:
+      RA_h, z0V, & ! output:
+      modState) ! optional: thread-safe error state
 
       ! Returns Aerodynamic resistance (RA) to the main program SUEWS_Calculations
       ! All RA equations reported in Thom & Oliver (1977)
@@ -39,6 +42,7 @@ CONTAINS
 
       USE module_phys_atmmoiststab, ONLY: stab_psi_heat, stab_psi_mom
       USE module_ctrl_const_sues, ONLY: psih
+      USE module_ctrl_type, ONLY: SUEWS_STATE
 
       IMPLICIT NONE
 
@@ -55,6 +59,7 @@ CONTAINS
 
       REAL(KIND(1D0)), INTENT(out) :: RA_h !Aerodynamic resistance for heat/vapour [s m^-1]
       REAL(KIND(1D0)), INTENT(out) :: z0V
+      TYPE(SUEWS_STATE), INTENT(INOUT), OPTIONAL :: modState
 
       INTEGER, PARAMETER :: notUsedI = -55
 
@@ -63,14 +68,18 @@ CONTAINS
          k2 = 0.16, & !Power of Van Karman's constant (= 0.16 = 0.4^2)
          muu = 1.46E-5 !molecular viscosity
       REAL(KIND(1D0)) :: psim
+      REAL(KIND(1D0)) :: AVU1_use ! local wind speed with minimum threshold
       ! REAL(KIND(1d0)):: psih
 
       !Z0V roughness length for vapour
       z0V = cal_z0V(RoughLenHeatMethod, z0m, VegFraction, UStar)
 
+      ! Minimum wind speed to prevent division by zero
+      AVU1_use = MAX(AVU1, 0.01D0)
+
       !1)Monteith (1965)-neutral stability
       IF (AerodynamicResistanceMethod == 1) THEN
-         RA_h = (LOG(ZZD/z0m)**2)/(k2*AVU1)
+         RA_h = (LOG(ZZD/z0m)**2)/(k2*AVU1_use)
 
          !2) Non-neutral stability
          !    PSIM - stability function for momentum
@@ -84,26 +93,25 @@ CONTAINS
          psih = stab_psi_heat(StabilityMethod, ZZD/L_mod) - stab_psi_heat(StabilityMethod, z0v/L_mod)
 
          IF (Zzd/L_mod == 0 .OR. UStar == 0) THEN
-            RA_h = (LOG(ZZD/z0m)*LOG(ZZD/z0V))/(k2*AVU1) !Use neutral equation
+            RA_h = (LOG(ZZD/z0m)*LOG(ZZD/z0V))/(k2*AVU1_use) !Use neutral equation
          ELSE
-            RA_h = ((LOG(ZZD/z0m) - psim)*(LOG(ZZD/z0V) - psih))/(K2*AVU1)
+            RA_h = ((LOG(ZZD/z0m) - psim)*(LOG(ZZD/z0V) - psih))/(K2*AVU1_use)
             ! RA = AVU1/UStar**2
          END IF
 
          !3) Thom and Oliver (1977)
       ELSEIF (AerodynamicResistanceMethod == 3) THEN
-         RA_h = (4.72*LOG(ZZD/z0m)**2)/(1 + 0.54*AVU1)
+         RA_h = (4.72*LOG(ZZD/z0m)**2)/(1 + 0.54*AVU1_use)
       END IF
 
       !If RA outside permitted range, adjust extreme values !!Check whether these thresholds are suitable over a range of z0
       IF (RA_h > 120) THEN !was 175
-         CALL errorHint(7, 'In AerodynamicResistance.f95, calculated RA > 200 s m-1; RA set to 200 s m-1', RA_h, notUsed, notUsedI)
+         CALL errorHint(7, 'In AerodynamicResistance.f95, calculated RA > 200 s m-1; RA set to 200 s m-1', RA_h, notUsed, notUsedI, modState)
          RA_h = 120
       ELSEIF (RA_h < 10) THEN !found  By Shiho - fix Dec 2012  !Threshold changed from 2 to 10 s m-1 (HCW 03 Dec 2015)
-         CALL errorHint(7, 'In AerodynamicResistance.f95, calculated RA < 10 s m-1; RA set to 10 s m-1', RA_h, notUsed, notUsedI)
+         CALL errorHint(7, 'In AerodynamicResistance.f95, calculated RA < 10 s m-1; RA set to 10 s m-1', RA_h, notUsed, notUsedI, modState)
          RA_h = 10
          ! RA=(log(ZZD/z0m))**2/(k2*AVU1)
-         IF (avu1 < 0) WRITE (*, *) avu1, RA_h
       END IF
 
       RETURN
@@ -115,7 +123,8 @@ CONTAINS
       LAIMax, LAI_id, gsModel, Kmax, &
       G_max, G_k, g_q_base, g_q_shape, G_t, G_sm, TH, TL, S1, S2, &
       g_kdown, g_dq, g_ta, g_smd, g_lai, & ! output:
-      gfunc, gsc, RS) ! output:
+      gfunc, gsc, RS, & ! output:
+      modState) ! optional: thread-safe error state
       ! Calculates bulk surface resistance (ResistSurf [s m-1]) based on Jarvis 1976 approach
       ! Last modified -----------------------------------------------------
       ! MH  01 Feb 2019: gsModel choices to model with air temperature or 2 meter temperature. Added gfunc for photosynthesis calculations
@@ -128,13 +137,7 @@ CONTAINS
       ! LJ  24 Apr 2013: Added impact of snow fraction in LAI and in soil moisture deficit
       ! -------------------------------------------------------------------
 
-      ! USE module_ctrl_const_allocate
-      ! USE module_ctrl_const_datain
-      ! USE module_ctrl_const_default
-      ! USE module_ctrl_const_gis
-      ! USE module_ctrl_const_moist
-      ! USE module_ctrl_const_resist
-      ! USE module_ctrl_const_sues
+      USE module_ctrl_type, ONLY: SUEWS_STATE
 
       IMPLICIT NONE
       ! INTEGER,PARAMETER::BldgSurf=2
@@ -191,6 +194,7 @@ CONTAINS
       REAL(KIND(1D0)), INTENT(out) :: gfunc !gdq*gtemp*gs*gq for photosynthesis calculations
       REAL(KIND(1D0)), INTENT(out) :: gsc !Surface Layer Conductance
       REAL(KIND(1D0)), INTENT(out) :: RS !Surface resistance
+      TYPE(SUEWS_STATE), INTENT(INOUT), OPTIONAL :: modState
       REAL(KIND(1D0)), PARAMETER :: gsc_min = 0.1 !Minimum surface conductance
 
       REAL(KIND(1D0)) :: &
@@ -244,12 +248,12 @@ CONTAINS
             !  IF (MIN(SnowFrac(1),SnowFrac(2),SnowFrac(3),SnowFrac(4),SnowFrac(5),SnowFrac(6))/=1) THEN
             IF (MINVAL(SnowFrac(1:6)) /= 1) THEN
                CALL errorHint(29, 'subroutine SurfaceResistance.f95: T changed to fit limits TL=0.1,Temp_c,id,it', &
-                              REAL(Tair, KIND(1D0)), id_real, it)
+                              REAL(Tair, KIND(1D0)), id_real, it, modState)
             END IF
          ELSEIF (Tair >= th) THEN
             g_ta = ((th - 0.1) - tl)*(th - (th - 0.1))**tc/tc2
             CALL errorHint(29, 'subroutine SurfaceResistance.f95: T changed to fit limits TH=39.9,Temp_c,id,it', &
-                           REAL(Tair, KIND(1D0)), id_real, it)
+                           REAL(Tair, KIND(1D0)), id_real, it, modState)
          ELSE
             g_ta = (Tair - tl)*(th - Tair)**tc/tc2
          END IF
@@ -299,7 +303,7 @@ CONTAINS
          IF (g_smd < 0) THEN
             CALL errorHint(65, &
                            'subroutine SurfaceResistance.f95 (gsModel=1): g(smd) < 0 calculated, setting to 0.0001', &
-                           g_smd, id_real, it)
+                           g_smd, id_real, it, modState)
             g_smd = 0.0001
          END IF
 
@@ -325,7 +329,7 @@ CONTAINS
          END IF
 
          IF (gsc <= 0) THEN
-            CALL errorHint(65, 'subroutine SurfaceResistance.f95 (gsModel=1): gs <= 0, setting to 0.1 mm s-1', gsc, id_real, it)
+            CALL errorHint(65, 'subroutine SurfaceResistance.f95 (gsModel=1): gs <= 0, setting to 0.1 mm s-1', gsc, id_real, it, modState)
             gsc = gsc_min
          END IF
 
@@ -335,7 +339,9 @@ CONTAINS
          QNM = Kmax/(Kmax + G_k)
          g_kdown = (avkdn/(avkdn + G_k))/QNM
          IF (avkdn >= Kmax) THEN !! Add proper error handling later - HCW!!
+#ifdef wrf
             WRITE (*, *) 'Kmax exceeds Kdn setting to g(Kdn) to 1'
+#endif
             g_kdown = 1
          END IF
 
@@ -351,12 +357,12 @@ CONTAINS
             ! Call error only if no snow on ground
             IF (MIN(SnowFrac(1), SnowFrac(2), SnowFrac(3), SnowFrac(4), SnowFrac(5), SnowFrac(6)) /= 1) THEN
                CALL errorHint(29, 'subroutine SurfaceResistance.f95: T changed to fit limits TL+0.1,Temp_C,id,it', &
-                              REAL(Tair, KIND(1D0)), id_real, it)
+                              REAL(Tair, KIND(1D0)), id_real, it, modState)
             END IF
          ELSEIF (Tair >= TH) THEN
             g_ta = ((TH - 0.1) - TL)*(TH - (TH - 0.1))**Tc/Tc2
             CALL errorHint(29, 'subroutine SurfaceResistance.f95: T changed to fit limits TH-0.1,Temp_C,id,it', &
-                           REAL(Tair, KIND(1D0)), id_real, it)
+                           REAL(Tair, KIND(1D0)), id_real, it, modState)
          ELSE
             g_ta = (Tair - TL)*(TH - Tair)**Tc/Tc2
          END IF
@@ -377,7 +383,7 @@ CONTAINS
          IF (g_smd < 0) THEN
             CALL errorHint(65, &
                            'subroutine SurfaceResistance.f95 (gsModel=2): gs < 0 calculated, setting to 0.0001', &
-                           g_smd, id_real, it)
+                           g_smd, id_real, it, modState)
             g_smd = 0.0001
          END IF
 
@@ -398,12 +404,12 @@ CONTAINS
          END IF
 
          IF (gsc <= 0) THEN
-            CALL errorHint(65, 'subroutine SurfaceResistance.f95 (gsModel=2): gsc <= 0, setting to 0.1 mm s-1', gsc, id_real, it)
+            CALL errorHint(65, 'subroutine SurfaceResistance.f95 (gsModel=2): gsc <= 0, setting to 0.1 mm s-1', gsc, id_real, it, modState)
             gsc = gsc_min
          END IF
 
       ELSEIF (gsModel < 1 .OR. gsModel > 4) THEN
-         CALL errorHint(71, 'Value of gsModel not recognised.', notUsed, NotUsed, gsModel)
+         CALL errorHint(71, 'Value of gsModel not recognised.', notUsed, NotUsed, gsModel, modState)
       END IF
 
       RS = 1./(gsc/1000.) ![s m-1]
@@ -431,9 +437,8 @@ CONTAINS
 
       REAL(KIND(1D0)), PARAMETER :: k = 0.4
 
-!       IF (UStar < 0.001) THEN
-!          UStar = avu1/LOG(zzd/z0m)*k
-!       END IF
+      ! Minimum friction velocity to prevent division by zero (Jimenez et al 2012)
+      UStar = MAX(UStar, 0.001D0)
 
       rb = (1.1/UStar) + (5.6*(UStar**0.333333)) !rb - boundary layer resistance shuttleworth
 
@@ -461,6 +466,7 @@ CONTAINS
                                LC_GRASS_PRM, LC_BSOIL_PRM, LC_WATER_PRM, &
                                IRRIGATION_PRM, anthroEmis_STATE, &
                                HYDRO_STATE, PHENOLOGY_STATE, ROUGHNESS_STATE, SUEWS_STATE
+      USE module_ctrl_error_state, ONLY: supy_error_flag
       IMPLICIT NONE
 
       INTEGER, PARAMETER :: nsurf = 7 ! number of surface types
@@ -529,6 +535,7 @@ CONTAINS
       REAL(KIND(1D0)) :: zdm_zh ! zdm for roughness elements (i.e. zh>0)
       REAL(KIND(1D0)) :: z0m_zh0 ! z0m for non-roughness elements (i.e. zh=0)
       REAL(KIND(1D0)) :: zdm_zh0 ! zdm for non-roughness elements (i.e. zh=0)
+      REAL(KIND(1D0)) :: non_rough_fraction
 
       ! calculated values of FAI
       ! REAL(KIND(1D0)), INTENT(out) :: FAIBldg_use
@@ -558,30 +565,30 @@ CONTAINS
             z0m => roughnessState%z0m, &
             zdm => roughnessState%zdm, &
             ZZD => roughnessState%ZZD, &
-            FAIBldg_use => roughnessState%FAIBldg_use, &
-            FAIEveTree_use => roughnessState%FAIEveTree_use, &
-            FAIDecTree_use => roughnessState%FAIDecTree_use, &
+            FAIBldg_use => roughnessState%fai_bldg_use, &
+            FAIEveTree_use => roughnessState%fai_evetree_use, &
+            FAIDecTree_use => roughnessState%fai_dectree_use, &
             RoughLenMomMethod => config%RoughLenMomMethod, &
             FAImethod => config%FAImethod, &
             sfr_surf => [pavedPrm%sfr, bldgPrm%sfr, evetrPrm%sfr, dectrPrm%sfr, grassPrm%sfr, bsoilPrm%sfr, waterPrm%sfr], &
-            bldgH => bldgPrm%bldgH, &
-            EveTreeH => evetrPrm%EveTreeH, &
-            DecTreeH => dectrPrm%DecTreeH, &
-            FAIBldg => bldgPrm%FAIBldg, &
-            FAIEveTree => evetrPrm%FAIEveTree, &
-            FAIDecTree => dectrPrm%FAIDecTree &
+            bldgH => bldgPrm%height_building, &
+            EveTreeH => evetrPrm%height_evergreen_tree, &
+            DecTreeH => dectrPrm%height_deciduous_tree, &
+            FAIBldg => bldgPrm%fai_building, &
+            FAIEveTree => evetrPrm%fai_evergreen_tree, &
+            FAIDecTree => dectrPrm%fai_deciduous_tree &
             )
 
             ! RoughLenMomMethod = methodPrm%RoughLenMomMethod
             ! FAImethod = methodPrm%FAImethod
 
             ! sfr_surf = [pavedPrm%sfr, bldgPrm%sfr, evetrPrm%sfr, dectrPrm%sfr, grassPrm%sfr, bsoilPrm%sfr, waterPrm%sfr]
-            ! bldgH = bldgPrm%bldgH
-            ! EveTreeH = evetrPrm%EveTreeH
-            ! DecTreeH = dectrPrm%DecTreeH
-            ! FAIBldg = bldgPrm%FAIBldg
-            ! FAIEveTree = evetrPrm%FAIEveTree
-            ! FAIDecTree = dectrPrm%FAIDecTree
+            ! bldgH = bldgPrm%height_building
+            ! EveTreeH = evetrPrm%height_evergreen_tree
+            ! DecTreeH = dectrPrm%height_deciduous_tree
+            ! FAIBldg = bldgPrm%fai_building
+            ! FAIEveTree = evetrPrm%fai_evergreen_tree
+            ! FAIDecTree = dectrPrm%fai_deciduous_tree
 
             ! surfacearea = siteInfo%surfacearea ! surface area of whole grid cell
             ! z0m_in = siteInfo%z0m_in
@@ -594,12 +601,18 @@ CONTAINS
             ! areaZh = (sfr_surf(BldgSurf) + sfr_surf(ConifSurf) + sfr_surf(DecidSurf))
             ! TS 19 Jun 2022: take porosity of trees into account; to be consistent with PAI calculation in RSL
             PAI = DOT_PRODUCT(sfr_surf([BldgSurf, ConifSurf, DecidSurf]), [1D0, 1 - porosity_evetr, 1 - porosity_dectr])
+            PAI = MIN(MAX(PAI, 0D0), 1D0)
 
             ! z0m for non-roughness elements (i.e. zh=0)
-            z0m_zh0 = (z0m_Paved*sfr_surf(PavSurf) &
-                       + z0m_Grass*sfr_surf(GrassSurf) &
-                       + z0m_BSoil*sfr_surf(BSoilSurf) &
-                       + z0m_Water*sfr_surf(WaterSurf))/(1 - PAI)
+            non_rough_fraction = 1D0 - PAI
+            IF (non_rough_fraction > eps_fp) THEN
+               z0m_zh0 = (z0m_Paved*sfr_surf(PavSurf) &
+                          + z0m_Grass*sfr_surf(GrassSurf) &
+                          + z0m_BSoil*sfr_surf(BSoilSurf) &
+                          + z0m_Water*sfr_surf(WaterSurf))/non_rough_fraction
+            ELSE
+               z0m_zh0 = 0D0
+            END IF
             zdm_zh0 = 0
 
             !------------------------------------------------------------------------------
@@ -656,20 +669,25 @@ CONTAINS
                             76.5*MIN(PAI, .7)**5 - 40.*MIN(PAI, .7)**6)*Zh
                END IF
                ! #271: to smooth the z0m (and zdm) values when other non-rough surfaces are present
-               z0m = DOT_PRODUCT([z0m_zh, z0m_zh0], [PAI, 1 - PAI])
-               zdm = DOT_PRODUCT([zdm_zh, zdm_zh0], [PAI, 1 - PAI])
+               IF (non_rough_fraction > eps_fp) THEN
+                  z0m = DOT_PRODUCT([z0m_zh, z0m_zh0], [PAI, non_rough_fraction])
+                  zdm = DOT_PRODUCT([zdm_zh, zdm_zh0], [PAI, non_rough_fraction])
+               ELSE
+                  z0m = z0m_zh
+                  zdm = zdm_zh
+               END IF
 
             ELSEIF (Zh == 0) THEN !If zh calculated to be zero, set default roughness length and displacement height
-               IF (PAI /= 0) CALL ErrorHint(15, 'In SUEWS_RoughnessParameters.f95, zh = 0 m but areaZh > 0', zh, PAI, notUsedI)
+               IF (PAI /= 0) CALL ErrorHint(15, 'In SUEWS_RoughnessParameters.f95, zh = 0 m but areaZh > 0', zh, PAI, notUsedI, modState)
                !Estimate z0 and zd using default values and surfaces that do not contribute to areaZh
                IF (PAI /= 1) THEN
                   z0m = z0m_zh0
                   zdm = zdm_zh0
-                  CALL ErrorHint(15, 'Setting z0m and zdm using default values', z0m, zdm, notUsedI)
+                  CALL ErrorHint(15, 'Setting z0m and zdm using default values', z0m, zdm, notUsedI, modState)
                ELSEIF (PAI == 1) THEN !If, for some reason, Zh = 0 and areaZh == 1, assume height of 10 m and use rule-of-thumb
                   z0m = 1
                   zdm = 7
-                  CALL ErrorHint(15, 'Assuming mean height = 10 m, Setting z0m and zdm to default value', z0m, zdm, notUsedI)
+                  CALL ErrorHint(15, 'Assuming mean height = 10 m, Setting z0m and zdm to default value', z0m, zdm, notUsedI, modState)
                END IF
             END IF
 
@@ -681,9 +699,18 @@ CONTAINS
             ZZD = Z - zdm
 
             ! Error messages if aerodynamic parameters negative
-            IF (z0m < 0) CALL ErrorHint(14, 'In SUEWS_cal_RoughnessParameters, z0 < 0 m.', z0m, notUsed, notUsedI)
-            IF (zdm < 0) CALL ErrorHint(14, 'In SUEWS_cal_RoughnessParameters, zd < 0 m.', zdm, notUsed, notUsedI)
-            IF (zzd < 0) CALL ErrorHint(14, 'In SUEWS_cal_RoughnessParameters, (z-zd) < 0 m.', zzd, notUsed, notUsedI)
+            IF (z0m < 0) THEN
+               CALL ErrorHint(14, 'In SUEWS_cal_RoughnessParameters, z0 < 0 m.', z0m, notUsed, notUsedI, modState)
+               IF (supy_error_flag) RETURN
+            END IF
+            IF (zdm < 0) THEN
+               CALL ErrorHint(14, 'In SUEWS_cal_RoughnessParameters, zd < 0 m.', zdm, notUsed, notUsedI, modState)
+               IF (supy_error_flag) RETURN
+            END IF
+            IF (zzd < 0) THEN
+               CALL ErrorHint(14, 'In SUEWS_cal_RoughnessParameters, (z-zd) < 0 m.', zzd, notUsed, notUsedI, modState)
+               IF (supy_error_flag) RETURN
+            END IF
 
          END ASSOCIATE
       END ASSOCIATE

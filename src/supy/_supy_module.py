@@ -26,7 +26,12 @@ import numpy as np
 import pandas
 import pandas as pd
 
-from ._check import check_forcing, check_state
+from ._check import (
+    FORCING_REQUIREMENTS,
+    _check_observed_lai_nonneg,
+    check_forcing,
+    check_state,
+)
 from ._env import logger_supy, trv_supy_module
 from ._load import (
     load_df_state,
@@ -36,7 +41,6 @@ from ._load import (
     load_SUEWS_Forcing_met_df_yaml,
     resample_forcing_met,
 )
-from ._run import run_supy_par, run_supy_ser
 from ._post import resample_output
 from ._save import (
     get_save_info,
@@ -48,7 +52,7 @@ from ._save import (
 from ._version import __version__
 
 # from .util._config import init_config_from_yaml
-from .data_model import init_config_from_yaml
+from .data_model import SUEWSConfig, init_config_from_yaml
 
 # set up logging module
 logger_supy.setLevel(logging.INFO)
@@ -58,20 +62,31 @@ _FUNCTIONAL_DEPRECATIONS = {
     "init_supy": "the object-oriented `SUEWSSimulation` interface (see `supy.suews_sim.SUEWSSimulation`)",
     "load_forcing_grid": "`SUEWSSimulation.update_forcing` or `read_forcing` utilities",
     "load_sample_data": "`SUEWSSimulation` helpers (e.g., `SUEWSSimulation('sample_config.yml')`)",
+    "load_SampleData": "`SUEWSSimulation` helpers (e.g., `SUEWSSimulation('sample_config.yml')`)",
+    "load_config_from_df": "`SUEWSConfig.from_df_state(df_state)` (or `SUEWSSimulation.from_state(df_state).config`)",
     "run_supy": "`SUEWSSimulation.run`",
     "run_supy_sample": "`SUEWSSimulation` sample workflows",
     "save_supy": "`SUEWSSimulation.save`",
     "init_config": "`SUEWSSimulation` or `SUEWSConfig` constructors",
+    "resample_output": "`SUEWSOutput.resample` (e.g., `output.resample(freq='h')`)",
 }
 
 
 def _warn_functional_deprecation(name: str) -> None:
-    """Emit a standardized deprecation warning for the legacy functional API."""
+    """Emit a standardized deprecation warning for the legacy functional API.
+
+    Uses ``FutureWarning`` so the message is visible to end users by default
+    (CPython filters ``DeprecationWarning`` outside ``__main__``). The
+    procedural API in this module is end-user-facing, not a developer-only
+    surface, so ``FutureWarning`` is the right Python-level signal — see
+    https://docs.python.org/3/library/warnings.html#warning-categories.
+    Tracked under gh#1370 (Phase 2: visibility).
+    """
     replacement = _FUNCTIONAL_DEPRECATIONS.get(name, "the object-oriented API")
     warnings.warn(
         f"`supy.{name}` is deprecated and will be removed in a future release. "
         f"Please migrate to {replacement}.",
-        DeprecationWarning,
+        FutureWarning,
         stacklevel=3,
     )
 
@@ -315,9 +330,9 @@ def _load_forcing_grid(
                 config = init_config_from_yaml(path=path_init)
             path_site = path_init.parent
             forcing_file_val = (
-                config.model.control.forcing_file.value
-                if hasattr(config.model.control.forcing_file, "value")
-                else config.model.control.forcing_file
+                config.model.control.forcing.file.value
+                if hasattr(config.model.control.forcing.file, "value")
+                else config.model.control.forcing.file
             )
             if isinstance(forcing_file_val, list):
                 # Handle list of files
@@ -457,10 +472,14 @@ def load_forcing_grid(
 
 
 def load_SampleData() -> tuple[pandas.DataFrame, pandas.DataFrame]:
-    logger_supy.warning(
-        "This function name will be deprecated. Please use `load_sample_data()` instead.",
-        stacklevel=2,
-    )
+    """Legacy alias for :func:`load_sample_data`.
+
+    .. deprecated:: 2025.11.20
+        Use the object-oriented :class:`~supy.suews_sim.SUEWSSimulation`
+        interface (e.g. ``SUEWSSimulation('sample_config.yml')``) or the
+        snake_case alias :func:`load_sample_data` while migrating.
+    """
+    _warn_functional_deprecation("load_SampleData")
     return _load_sample_data()
 
 
@@ -517,6 +536,12 @@ def load_sample_data() -> tuple[pandas.DataFrame, pandas.DataFrame]:
 def load_config_from_df(df_state: pd.DataFrame):
     """Load SUEWS configuration from `df_state`.
 
+    .. deprecated:: 2025.11.20
+        This function is deprecated and will be removed in a future release.
+        Please migrate to ``SUEWSConfig.from_df_state(df_state)`` directly,
+        or to the object-oriented ``SUEWSSimulation.from_state(df_state)``
+        interface (whose ``.config`` attribute exposes the same object).
+
     Parameters
     ----------
     df_state : pandas.DataFrame
@@ -533,21 +558,20 @@ def load_config_from_df(df_state: pd.DataFrame):
     >>> config = supy.load_config_from_df(df_state_init)
 
     """
-    from .util._config import SUEWSConfig
+    _warn_functional_deprecation("load_config_from_df")
+    return _config_from_df_state(df_state)
 
-    config = SUEWSConfig.from_df_state(df_state)
 
-    return config
+def _config_from_df_state(df_state: pd.DataFrame):
+    return SUEWSConfig.from_df_state(df_state)
 
 
 def _init_config(df_state: pd.DataFrame = None):
     """Initialise SUEWS configuration object either from existing df_state dataframe or as the default configuration."""
     if df_state is None:
-        from .util._config import SUEWSConfig
-
         return SUEWSConfig()
 
-    return load_config_from_df(df_state)
+    return _config_from_df_state(df_state)
 
 
 def init_config(df_state: pd.DataFrame = None):
@@ -570,7 +594,7 @@ def init_config(df_state: pd.DataFrame = None):
     See Also
     --------
     supy.suews_sim.SUEWSSimulation : Modern object-oriented interface (recommended)
-    supy.util._config.SUEWSConfig : Configuration class
+    supy.data_model.SUEWSConfig : Configuration class
 
     """
     _warn_functional_deprecation("init_config")
@@ -579,6 +603,28 @@ def init_config(df_state: pd.DataFrame = None):
 
 # input processing code end here
 ##############################################################################
+
+
+def _physics_dict_from_df_state(df_state: pd.DataFrame) -> dict:
+    """Extract physics-option values from a df_state_init DataFrame.
+
+    Returns a dict keyed by option name (e.g. ``"laimethod"``). A single-grid
+    state stores a scalar ``int`` so existing callers continue to work; a
+    multi-grid state stores a sorted list of the unique per-grid values so
+    ``check_forcing`` can enforce the forcing requirement whenever any grid
+    selects the triggering value. Only the options referenced by
+    ``FORCING_REQUIREMENTS`` are considered.
+    """
+    physics_dict: dict = {}
+    top_level = set(df_state.columns.get_level_values(0))
+    option_names = {option for option, _ in FORCING_REQUIREMENTS.keys()}
+    for option in option_names:
+        if option in top_level:
+            values = df_state[option].values.ravel()
+            if len(values) > 0:
+                unique = sorted({int(v) for v in values})
+                physics_dict[option] = unique[0] if len(unique) == 1 else unique
+    return physics_dict
 
 
 ##############################################################################
@@ -641,8 +687,11 @@ def _run_supy(
     """
     # validate input dataframes
     if check_input:
-        # forcing:
-        list_issues_forcing = check_forcing(df_forcing)
+        # Build a physics dict from df_state_init so physics-gated forcing
+        # requirements (see `FORCING_REQUIREMENTS`) are enforced on the legacy
+        # path as well as the modern SUEWSSimulation path.
+        physics_dict = _physics_dict_from_df_state(df_state_init)
+        list_issues_forcing = check_forcing(df_forcing, physics=physics_dict)
         if isinstance(list_issues_forcing, list):
             logger_supy.critical("`df_forcing` is NOT valid to drive SuPy!")
             raise RuntimeError(
@@ -686,34 +735,65 @@ def _run_supy(
     n_grid = list_grid.size
     logger_supy.info(f"No. of grids: {n_grid}")
 
-    if n_grid > 1 and os.name != "nt" and (not serial_mode):
-        logger_supy.info("SUEWS is running in parallel mode")
-        res_supy = run_supy_par(
-            df_forcing, df_state_init, save_state, chunk_day, debug_mode
-        )
-    else:
-        logger_supy.info("SUEWS is running in serial mode")
-        res_supy = run_supy_ser(
-            df_forcing, df_state_init, save_state, chunk_day, debug_mode
-        )
-        # try:
-        #     res_supy = run_supy_ser(df_forcing, df_state_init, save_state, chunk_day)
-        # except:
-        #     res_supy = run_supy_ser(df_forcing, df_state_init, save_state, chunk_day)
+    # Build config from DataFrame state
+    from .data_model.core import SUEWSConfig
+    from ._run_rust import run_suews_rust_chunked
+    from .util._forcing import convert_observed_soil_moisture
 
-    # show simulation time
+    config = SUEWSConfig.from_df_state(df_state_init)
+
+    try:
+        lai_val = getattr(config.model.physics, "laimethod", None)
+        if hasattr(lai_val, "value"):
+            lai_val = lai_val.value
+        lai_int = int(lai_val) if lai_val is not None else 1
+    except (AttributeError, TypeError, ValueError):
+        lai_int = 1
+
+    if lai_int == 0:
+        lai_issues = []
+        if _check_observed_lai_nonneg(df_forcing, lai_issues):
+            logger_supy.critical(
+                "`df_forcing` violates the observed-LAI contract under "
+                "`laimethod=0`."
+            )
+            raise RuntimeError(lai_issues[0])
+
+    # Preprocess forcing for observed soil moisture if needed
+    try:
+        # SMDMethod is a physics option in the validated config schema.
+        # Prefer the renamed Pydantic field; keep the legacy attribute and
+        # old `model.options` fallback for older in-memory callers.
+        smd_val = getattr(config.model.physics, "soil_moisture_deficit", None)
+        if smd_val is None:
+            smd_val = getattr(config.model.physics, "smdmethod", None)
+        if smd_val is None:
+            smd_val = getattr(getattr(config.model, "options", None), "smdmethod", None)
+        if hasattr(smd_val, "value"):
+            smd_val = smd_val.value
+        smd_int = int(smd_val) if smd_val is not None else 0
+    except (AttributeError, TypeError, ValueError):
+        smd_int = 0
+
+    df_forcing_processed = df_forcing.copy()
+    if smd_int > 0:
+        df_forcing_processed = convert_observed_soil_moisture(
+            df_forcing_processed, df_state_init
+        )
+
+    # Run via Rust bridge
+    df_output, _ = run_suews_rust_chunked(
+        config, df_forcing_processed, chunk_day, serial_mode=serial_mode
+    )
+
+    # Build state_final: copy initial state + version metadata
+    df_state_final = df_state_init.copy()
+    df_state_final[("version", "0")] = __version__
+
     end = time.time()
-    logger_supy.info(f"Execution time: {(end - start):.1f} s")
-    logger_supy.info("====================\n")
+    logger_supy.info(f"Simulation completed. Elapsed: {end - start:.1f}s")
 
-    # unpack results
-    df_output, df_state_final, res_debug, res_state = res_supy
-
-    # return results based on debugging needs
-    if debug_mode:
-        return df_output, df_state_final, res_debug, res_state
-    else:
-        return df_output, df_state_final
+    return df_output, df_state_final
 
 
 def run_supy(
@@ -803,7 +883,8 @@ def _save_supy(
     output_level=1,
     debug=False,
     output_config=None,
-    output_format="txt",
+    output_format=None,
+    save_state: bool = True,
 ) -> list:
     """Save SuPy run results to files.
 
@@ -832,8 +913,12 @@ def _save_supy(
         Notes: 0 for all but snow-related; 1 for all; 2 for a minimal set without land cover specific information.
     debug : bool, optional
         whether to enable debug mode (e.g., writing out in serial mode, and other debug uses), by default False.
-    output_config : OutputConfig, optional
+    output_config : OutputControl, optional
         Output configuration object specifying format, frequency, and groups to save. If provided, overrides freq_s parameter.
+    save_state : bool, optional
+        Whether to write the legacy DFState restart artifact. Legacy callers
+        keep the historical default ``True``; the OOP API writes typed
+        checkpoint JSON instead.
 
 
     Returns
@@ -879,14 +964,16 @@ def _save_supy(
     output_groups = None  # default will be handled in save_df_output
 
     if output_config is not None:
-        from .data_model.core.model import OutputConfig
+        from .data_model.core.model import OutputControl
 
-        if isinstance(output_config, OutputConfig):
+        if isinstance(output_config, OutputControl):
             # Override frequency if specified in config
             if output_config.freq is not None:
                 freq_s = output_config.freq
-            # Get format
-            output_format = str(output_config.format)
+            # Fill format from config only when the caller has not set it
+            # explicitly — an explicit `output_format` kwarg always wins.
+            if output_format is None:
+                output_format = str(output_config.format)
             # Get groups for txt format
             if output_format == "txt" and output_config.groups is not None:
                 output_groups = output_config.groups
@@ -896,14 +983,17 @@ def _save_supy(
 
             warnings.warn(
                 "The 'output_file' parameter as a string is deprecated and was never used. "
-                "Please use the new OutputConfig format or remove this parameter. "
+                "Please use the new OutputControl block or remove this parameter. "
                 "Falling back to default text output. "
-                "Example: output_file: {format: 'parquet', freq: 3600}",
+                "Example: output: {format: 'parquet', freq: 3600}",
                 DeprecationWarning,
                 stacklevel=2,
             )
-            # Fall back to default text format
-            output_format = "txt"
+            if output_format is None:
+                output_format = "txt"
+
+    if output_format is None:
+        output_format = "txt"
 
     # determine `save_snow` option
     snowuse = df_state_final.iloc[-1].loc["snowuse"]
@@ -928,6 +1018,7 @@ def _save_supy(
             site,
             path_dir_save,
             save_tstep,
+            save_state=save_state,
         )
     else:
         # Save as text files (existing behavior)
@@ -945,11 +1036,11 @@ def _save_supy(
 
         # MP: Parquet saves this already - breaks the parquet save check
         # save df_state
-        if path_runcontrol is not None:
+        if save_state and path_runcontrol is not None:
             # save as nml as SUEWS binary
             list_path_nml = save_initcond_nml(df_state_final, site, path_dir_save)
             list_path_save += list_path_nml
-        else:
+        elif save_state:
             # save as supy csv for later use
             path_state_save = save_df_state(df_state_final, site, path_dir_save)
             # update list_path_save
@@ -970,7 +1061,7 @@ def save_supy(
     output_level=1,
     debug=False,
     output_config=None,
-    output_format="txt",
+    output_format=None,
 ) -> list:
     """Save SuPy run results to files.
 
@@ -1003,7 +1094,7 @@ def save_supy(
         Notes: 0 for all but snow-related; 1 for all; 2 for a minimal set without land cover specific information.
     debug : bool, optional
         whether to enable debug mode (e.g., writing out in serial mode, and other debug uses), by default False.
-    output_config : OutputConfig, optional
+    output_config : OutputControl, optional
         Output configuration object specifying format, frequency, and groups to save. If provided, overrides freq_s parameter.
 
     Returns

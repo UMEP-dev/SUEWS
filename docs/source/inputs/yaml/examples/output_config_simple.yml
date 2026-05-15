@@ -1,18 +1,19 @@
-# Example: Simple output configuration (backward compatible)
-# This example shows the simplest output configuration
+# Example: Simple output configuration (defaults)
+# Omitting the `output:` block applies SUEWS defaults: txt format,
+# hourly frequency, and the SUEWS + DailyState groups.
 
 model:
   control:
     tstep: 300  # 5-minute timestep
-    forcing_file: "forcing_2020.txt"
-    
-    # Simple output configuration (backward compatible)
-    # When using a simple string value, SUEWS automatically applies these defaults:
+    forcing:
+      file: "forcing_2020.txt"
+
+    # Default output configuration (no `output:` block needed):
     # - format: txt (traditional text files)
     # - freq: 3600 (hourly output regardless of timestep)
     # - groups: ["SUEWS", "DailyState"] (only these two groups are saved)
-    output_file: "output.txt"
-      
+    # - dir: current working directory
+
   physics:
     netradiationmethod: 3
     emissionsmethod: 2

@@ -8,6 +8,8 @@ import yaml
 import supy as sp
 from supy.data_model.core.timezone_enum import TimezoneOffset
 
+pytestmark = pytest.mark.api
+
 
 def test_timezone_enum_support():
     """Test that timezone accepts valid timezone offsets and converts them to enum"""

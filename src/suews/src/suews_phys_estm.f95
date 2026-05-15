@@ -208,6 +208,7 @@ MODULE module_phys_estm_solver
    !     Copyright (c) 2001 MyCompany. All rights reserved.
 
    USE module_ctrl_const_physconst, ONLY: eps_fp
+   USE module_ctrl_error_state, ONLY: add_supy_warning
    IMPLICIT NONE
 
 CONTAINS
@@ -253,7 +254,7 @@ CONTAINS
       END DO
       niter = i - 1
       IF (.NOT. converged) THEN
-         PRINT *, "Solution did not converge. Niter=", niter, " Error=", e
+         CALL add_supy_warning('NewtonPolynomial did not converge, returning initial guess')
          x = x0
       END IF
    END FUNCTION NewtonPolynomial
@@ -578,6 +579,9 @@ MODULE module_phys_estm
    ! revision history:
    ! TS 09 Oct 2017: re-organised ESTM subroutines into a module
    !===============================================================================
+   USE module_ctrl_error_state, ONLY: supy_error_flag, add_supy_warning
+   USE module_ctrl_error, ONLY: ErrorHint
+   USE module_ctrl_type, ONLY: SUEWS_STATE
    IMPLICIT NONE
 
 CONTAINS
@@ -585,7 +589,7 @@ CONTAINS
    !======================================================================================
    ! Subroutine to read in ESTM data in the same way as met data (SUEWS_InitializeMetData)
    ! HCW 30 Jun 2016
-   SUBROUTINE SUEWS_GetESTMData(lunit)
+   SUBROUTINE SUEWS_GetESTMData(lunit, modState)
       USE module_ctrl_const_allocate, ONLY: ncolsestmdata, estmforcingdata
       USE module_ctrl_const_datain, ONLY: fileestmts, skipheadermet
       USE module_ctrl_const_sues, ONLY: tstep_real, tstep
@@ -595,6 +599,7 @@ CONTAINS
       IMPLICIT NONE
 
       INTEGER, INTENT(in) :: lunit
+      TYPE(SUEWS_STATE), INTENT(INOUT), OPTIONAL :: modState
       INTEGER :: i, iyy !,RunNumber,NSHcounter
       INTEGER :: iostat_var
       REAL(KIND(1D0)), DIMENSION(ncolsESTMdata) :: ESTMArray
@@ -632,7 +637,8 @@ CONTAINS
             tstep_estm = ((ESTMArray(4) + 60*ESTMArray(3)) - (imin_prev + 60*ih_prev))*60 !tstep in seconds
             IF (tstep_estm /= tstep_real .AND. ESTMArray(2) == iday_prev) THEN
                CALL ErrorHint(39, 'TSTEP in RunControl does not match TSTEP of ESTM data (DOY).', &
-                              REAL(tstep, KIND(1D0)), tstep_estm, INT(ESTMArray(2)))
+                              REAL(tstep, KIND(1D0)), tstep_estm, INT(ESTMArray(2)), modState)
+               IF (supy_error_flag) RETURN
             END IF
          END IF
       END DO
@@ -641,7 +647,7 @@ CONTAINS
 
       RETURN
 
-315   CALL errorHint(11, TRIM(fileESTMTs), notUsed, notUsed, ios_out)
+315   CALL errorHint(11, TRIM(fileESTMTs), notUsed, notUsed, ios_out, modState)
 
    END SUBROUTINE SUEWS_GetESTMData
    !======================================================================================
@@ -738,7 +744,6 @@ CONTAINS
          tin_surf, tin_surf_grids, &
          nspec
       USE module_ctrl_const_datain, ONLY: FileInputPath, filecode
-      USE module_util_stringmod, ONLY: writenum
       IMPLICIT NONE
       INTEGER, INTENT(IN) :: gridIV
       INTEGER, INTENT(IN) :: diagnose
@@ -796,7 +801,7 @@ CONTAINS
          cp_surf
 
       IF (MultipleLayoutFiles) THEN
-         CALL writenum(gridIV, str_gridIV, 'i4')
+         WRITE (str_gridIV, '(i0)') gridIV
          FileLayout = 'GridLayout'//TRIM(filecode)//TRIM(str_gridIV)//'.nml'
       ELSE
          FileLayout = 'GridLayout'//TRIM(filecode)//'.nml'
@@ -1139,7 +1144,7 @@ CONTAINS
       ALLOCATE (temp_surf_grids(NumberOfGrids, nsurf, ndepth))
 
       DO i_grid = 1, NumberOfGrids
-         PRINT *, 'Reading layout data for grid ', i_grid
+         IF (Diagnose == 1) PRINT *, 'Reading layout data for grid ', i_grid
          CALL load_GridLayout(i_grid, flag_mutiple_layout_files, diagnose)
       END DO
 
@@ -1416,6 +1421,7 @@ CONTAINS
       !ivf_rw=1.-ivf_ri-ivf_rf;
       !ivf_fr=ivf_rf;
 
+      ! Validate internal view factors sum to 1 (configuration check)
       IF ((ivf_ii + ivf_iw + ivf_ir + ivf_if > 1.0001) .OR. &
           (ivf_wi + ivf_ww + ivf_wr + ivf_wf > 1.0001) .OR. &
           (ivf_ri + ivf_rw + ivf_rf > 1.0001) .OR. &
@@ -1424,7 +1430,7 @@ CONTAINS
           (ivf_wi + ivf_ww + ivf_wr + ivf_wf < 0.9999) .OR. &
           (ivf_ri + ivf_rw + ivf_rf < 0.9999) .OR. &
           (ivf_fi + ivf_fw + ivf_fr < 0.9999)) THEN
-         PRINT *, "At least one internal view factor <> 1. Check ivf in ESTMinput.nml"
+         CALL add_supy_warning('ESTM: At least one internal view factor <> 1. Check ivf in ESTMinput.nml')
       END IF
 
       !=======Initial setting==============================================

@@ -42,10 +42,10 @@ module module_type_heat
       REAL(KIND(1D0)) :: QH_LUMPS = 0.0D0 !turbulent sensible heat flux from LUMPS model [W m-2]
       REAL(KIND(1D0)) :: QE_LUMPS = 0.0D0 !turbulent latent heat flux by LUMPS model [W m-2]
 
-      REAL(KIND(1D0)) :: kclear = 0.0D0 !clear sky incoming shortwave radiation [W m-2]
-      REAL(KIND(1D0)) :: kup = 0.0D0 !outgoing shortwave radiation [W m-2]
-      REAL(KIND(1D0)) :: ldown = 0.0D0 !incoming longtwave radiation [W m-2]
-      REAL(KIND(1D0)) :: lup = 0.0D0 !outgoing longwave radiation [W m-2]
+      REAL(KIND(1D0)) :: k_clear = 0.0D0 !clear sky incoming shortwave radiation [W m-2]
+      REAL(KIND(1D0)) :: k_up = 0.0D0 !outgoing shortwave radiation [W m-2]
+      REAL(KIND(1D0)) :: l_down = 0.0D0 !incoming longtwave radiation [W m-2]
+      REAL(KIND(1D0)) :: l_up = 0.0D0 !outgoing longwave radiation [W m-2]
 
       REAL(KIND(1D0)) :: qe = 0.0D0 !turbuent latent heat flux [W m-2]
       REAL(KIND(1D0)) :: qf = 0.0D0 !anthropogenic heat flux [W m-2]

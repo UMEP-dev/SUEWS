@@ -20,6 +20,7 @@ from pydantic import (
     conlist,
     ValidationError,
 )
+from collections.abc import Mapping
 import numpy as np
 import pandas as pd
 import yaml
@@ -28,6 +29,13 @@ import os
 from copy import deepcopy
 from datetime import datetime
 import pytz
+from ...core.field_renames import (
+    RAW_YAML_FIELD_RENAMES,
+    has_renamed_key,
+    read_physics_key,
+    read_renamed_key,
+    rename_keys_recursive,
+)
 
 # Use tzfpy instead of timezonefinder for Windows compatibility
 # tzfpy has pre-built Windows wheels and provides similar functionality
@@ -57,6 +65,16 @@ except ImportError:
             "Neither tzfpy nor timezonefinder available. DST calculations will be skipped.",
             UserWarning,
         )
+
+
+def _fallback_timezone_name(lat: float, lng: float) -> Optional[str]:
+    """Small deterministic timezone fallback for simple UTC and London cases."""
+    if 49.0 <= lat <= 61.0 and -8.5 <= lng <= 2.5:
+        return "Europe/London"
+    if -1.0 <= lat <= 1.0 and -1.0 <= lng <= 1.0:
+        return "Etc/GMT"
+    return None
+
 
 # Optional import - use standalone if supy not available
 try:
@@ -89,7 +107,6 @@ except ImportError:
             return False
 
     trv_supy_module = MockTraversable()
-import os
 
 
 def get_value_safe(param_dict, param_key, default=None):
@@ -103,11 +120,72 @@ def get_value_safe(param_dict, param_key, default=None):
     Returns:
         The parameter value, handling both RefValue {"value": X} and plain X formats
     """
-    param = param_dict.get(param_key, default)
-    if isinstance(param, dict) and "value" in param:
+    param = read_renamed_key(param_dict, param_key, default=default)
+    if isinstance(param, Mapping) and "value" in param:
         return param["value"]  # RefValue format: {"value": 1}
     else:
         return param  # Plain format: 1
+
+
+def unwrap_value(val):
+    """
+    Unwrap RefValue and Enum values consistently.
+
+    This helper ensures consistent handling of RefValue wrappers and Enum values
+    throughout the validation logic.
+
+    Args:
+        val: The value to unwrap (could be RefValue, Enum, or raw value)
+
+    Returns:
+        The unwrapped raw value
+    """
+    # Handle RefValue wrapper
+    if (
+        hasattr(val, "value")
+        and hasattr(val, "__class__")
+        and "RefValue" in val.__class__.__name__
+    ):
+        val = val.value
+
+    # Handle Enum values (which also have .value attribute)
+    if (
+        hasattr(val, "value")
+        and hasattr(val, "__class__")
+        and "Enum" in str(val.__class__.__bases__)
+    ):
+        val = val.value
+
+    return val
+
+
+def unwrap_nested_value(x: Any) -> Any:
+    """Unwrap RefValue-like objects or {"value": ...} dicts recursively.
+
+    Handles dicts with a "value" key nested within other dicts or objects
+    that have a "value" attribute, recursively unwrapping up to 10 levels deep.
+
+    Args:
+        x (Any): The value to unwrap. Can be a dict with a "value" key,
+            an object with a "value" attribute, or any other type.
+
+    Returns:
+        Any: The unwrapped value, or None if input is None.
+    """
+    cur = x
+    for _ in range(10):
+        if cur is None:
+            return None
+        # dict YAML form
+        if isinstance(cur, Mapping) and "value" in cur:
+            cur = cur["value"]
+            continue
+        # RefValue-like form
+        if hasattr(cur, "value"):
+            cur = cur.value
+            continue
+        break
+    return cur
 
 
 class SeasonCheck(BaseModel):
@@ -157,12 +235,13 @@ class DLSCheck(BaseModel):
     def compute_dst_transitions(self):
         if not HAS_TIMEZONE_FINDER:
             logger_supy.debug(
-                "[DLS] No timezone finder available, skipping DST calculation."
+                "[DLS] No timezone finder available, using limited fallback."
             )
-            return None, None, None
+            tz_name = _fallback_timezone_name(self.lat, self.lng)
+        else:
+            tf = TimezoneFinder()
+            tz_name = tf.timezone_at(lat=self.lat, lng=self.lng)
 
-        tf = TimezoneFinder()
-        tz_name = tf.timezone_at(lat=self.lat, lng=self.lng)
 
         if not tz_name:
             logger_supy.debug(
@@ -495,7 +574,7 @@ def save_precheck_diff_report(diffs: List[dict], original_yaml_path: str):
     report_filename = f"precheck_report_{os.path.basename(original_yaml_path).replace('.yml', '.csv')}"
     report_path = os.path.join(os.path.dirname(original_yaml_path), report_filename)
 
-    with open(report_path, "w", newline="") as csvfile:
+    with open(report_path, "w", encoding="utf-8", newline="") as csvfile:
         writer = csv.DictWriter(
             csvfile,
             fieldnames=["site", "parameter", "old_value", "new_value", "reason"],
@@ -607,6 +686,43 @@ def get_mean_monthly_air_temperature(
         temperature = float(nearby_data.iloc[0]["NormalTemperature"])
 
     return temperature
+
+def get_monthly_air_temperature_diffmax(
+    lat: float, lon: float, spatial_res: float = 0.5
+) -> float:
+    """
+    Calculates the maximum difference between mean monthly air temperatures
+    using CRU TS4.06 climatological data. The result is the difference between
+    the warmest and coldest mean monthly temperature within the annual cycle
+    at the specified location.
+
+    Parameters
+    ----------
+    lat : float
+        Site latitude in degrees (positive for Northern Hemisphere, negative for Southern).
+    lon : float
+        Site longitude in degrees (-180 to 180).
+    spatial_res : float, optional
+        Search spatial resolution for nearest CRU grid cell (default is 0.5).
+
+    Returns
+    -------
+    float
+        Maximum difference in mean monthly air temperature (°C).
+
+    Raises
+    ------
+    ValueError
+        If input values are invalid or CRU data cannot be found.
+    FileNotFoundError
+        If the CRU data file is missing.
+    """
+    monthly_temps = []
+    for month in range(1, 13):
+        monthly_temp = get_mean_monthly_air_temperature(lat, lon, month, spatial_res)
+        monthly_temps.append(monthly_temp)
+    diffmax = float(max(monthly_temps) - min(monthly_temps))
+    return diffmax
 
 
 def get_mean_annual_air_temperature(
@@ -732,20 +848,20 @@ def precheck_model_physics_params(data: dict) -> dict:
     is skipped (used to allow partial configurations during early stages).
 
     Required fields include:
-        - netradiationmethod
-        - emissionsmethod
-        - storageheatmethod
-        - ohmincqf
-        - roughlenmommethod
-        - roughlenheatmethod
-        - stabilitymethod
-        - smdmethod
-        - waterusemethod
-        - rslmethod
-        - faimethod
-        - rsllevel
-        - snowuse
-        - stebbsmethod
+        - net_radiation
+        - emissions
+        - storage_heat
+        - ohm_inc_qf
+        - roughness_length_momentum
+        - roughness_length_heat
+        - stability
+        - soil_moisture_deficit
+        - water_use
+        - roughness_sublayer
+        - frontal_area_index
+        - roughness_sublayer_level
+        - snow_use
+        - stebbs
 
     Args:
         data (dict): YAML configuration data loaded as a dictionary.
@@ -764,27 +880,27 @@ def precheck_model_physics_params(data: dict) -> dict:
         return data
 
     required = [
-        "netradiationmethod",
-        "emissionsmethod",
-        "storageheatmethod",
-        "ohmincqf",
-        "roughlenmommethod",
-        "roughlenheatmethod",
-        "stabilitymethod",
-        "smdmethod",
-        "waterusemethod",
-        "rslmethod",
-        "faimethod",
-        "rsllevel",
-        "snowuse",
-        "stebbsmethod",
+        "net_radiation",
+        "emissions",
+        "storage_heat",
+        "ohm_inc_qf",
+        "roughness_length_momentum",
+        "roughness_length_heat",
+        "stability",
+        "soil_moisture_deficit",
+        "water_use",
+        "roughness_sublayer",
+        "frontal_area_index",
+        "roughness_sublayer_level",
+        "snow_use",
+        "stebbs",
     ]
 
-    missing = [k for k in required if k not in physics]
+    missing = [k for k in required if not has_renamed_key(physics, k)]
     if missing:
         raise ValueError(f"[model.physics] Missing required params: {missing}")
 
-    empty = [k for k in required if get_value_safe(physics, k) in ("", None)]
+    empty = [k for k in required if read_physics_key(physics, k) in ("", None)]
     if empty:
         raise ValueError(f"[model.physics] Empty or null values for: {empty}")
 
@@ -797,7 +913,7 @@ def precheck_model_options_constraints(data: dict) -> dict:
     Enforce internal consistency between model physics options.
 
     This function verifies logical dependencies between selected model physics methods.
-    Specifically, if 'rslmethod' is set to 2, it enforces that 'stabilitymethod' equals 3,
+    Specifically, if 'roughness_sublayer' is set to 2, it enforces that 'stability' equals 3,
     as required for diagnostic aerodynamic calculations.
 
     Args:
@@ -812,15 +928,15 @@ def precheck_model_options_constraints(data: dict) -> dict:
 
     physics = data.get("model", {}).get("physics", {})
 
-    diag = get_value_safe(physics, "rslmethod")
-    stability = get_value_safe(physics, "stabilitymethod")
+    diag = read_physics_key(physics, "roughness_sublayer")
+    stability = read_physics_key(physics, "stability")
 
     if diag == 2 and stability != 3:
         raise ValueError(
-            "[model.physics] If rslmethod == 2, stabilitymethod must be 3."
+            "[model.physics] If roughness_sublayer == 2, stability must be 3."
         )
 
-    logger_supy.debug("rslmethod-stabilitymethod constraint passed.")
+    logger_supy.debug("roughness_sublayer-stability constraint passed.")
     return data
 
 
@@ -930,8 +1046,8 @@ def precheck_site_season_adjustments(
 
         if sfr > 0:
             lai = dectr.get("lai", {})
-            laimin = get_value_safe(lai, "laimin")
-            laimax = get_value_safe(lai, "laimax")
+            laimin = get_value_safe(lai, "lai_min")
+            laimax = get_value_safe(lai, "lai_max")
             lai_val = None
 
             if laimin is not None and laimax is not None:
@@ -1407,20 +1523,38 @@ def precheck_model_option_rules(data: dict) -> dict:
     """
     physics = data.get("model", {}).get("physics", {})
 
-    # Helper: recursively nullify any "value" leaves in the passed block
-    def _recursive_nullify(block: dict):
-        for key, val in block.items():
-            if isinstance(val, dict):
-                if "value" in val:
-                    val["value"] = None
+    def _recursive_nullify(block):
+        if isinstance(block, dict):
+            for key, val in block.items():
+                if isinstance(val, dict):
+                    if "value" in val:
+                        inner = val["value"]
+                        if isinstance(inner, list):
+                            val["value"] = [None] * len(inner)
+                        else:
+                            val["value"] = None
+                    else:
+                        _recursive_nullify(val)
+                elif isinstance(val, list):
+                    for idx, item in enumerate(val):
+                        if isinstance(item, (dict, list)):
+                            _recursive_nullify(item)
+                        else:
+                            val[idx] = None
                 else:
-                    _recursive_nullify(val)
+                    block[key] = None
+        elif isinstance(block, list):
+            for idx, item in enumerate(block):
+                if isinstance(item, (dict, list)):
+                    _recursive_nullify(item)
+                else:
+                    block[idx] = None
 
-    # --- STEBBSMETHOD RULE: when stebbsmethod == 0, wipe out all stebbs params ---
-    stebbsmethod = get_value_safe(physics, "stebbsmethod")
+    # --- STEBBS RULE: when stebbs == 0, wipe out all stebbs params ---
+    stebbsmethod = get_value_safe(physics, "stebbs")
     if stebbsmethod == 0:
         logger_supy.info(
-            "[precheck] stebbsmethod==0 detected → nullifying all 'stebbs' values."
+            "[precheck] stebbs==0 detected -> nullifying all 'stebbs' values."
         )
         for site_idx, site in enumerate(data.get("sites", [])):
             props = site.get("properties", {}) or {}
@@ -1439,11 +1573,11 @@ def precheck_model_option_rules(data: dict) -> dict:
                 site["properties"] = props
                 data["sites"][site_idx] = site
 
-    # --- EMISSIONS / CO2 RULE: when emissionsmethod 0..4, CO2 is not computed, nullify co2 params ---
-    emissionsmethod = get_value_safe(physics, "emissionsmethod")
+    # --- EMISSIONS / CO2 RULE: when emissions 0..4, CO2 is not computed, nullify co2 params ---
+    emissionsmethod = get_value_safe(physics, "emissions")
     if emissionsmethod is not None and emissionsmethod in (0, 1, 2, 3, 4):
         logger_supy.info(
-            "[precheck] emissionsmethod 0..4 detected → nullifying 'anthropogenic_emissions.co2' values."
+            "[precheck] emissions 0..4 detected -> nullifying 'anthropogenic_emissions.co2' values."
         )
 
         for site_idx, site in enumerate(data.get("sites", [])):
@@ -1514,6 +1648,7 @@ def run_precheck(path: str) -> dict:
         data = yaml.load(file, Loader=yaml.FullLoader)
 
     original_data = deepcopy(data)
+    data = rename_keys_recursive(data, RAW_YAML_FIELD_RENAMES)
 
     # ---- Step 1: Print start message ----
     data = precheck_printing(data)
@@ -1560,7 +1695,7 @@ def run_precheck(path: str) -> dict:
     output_filename = f"py0_{os.path.basename(path)}"
     output_path = os.path.join(os.path.dirname(path), output_filename)
 
-    with open(output_path, "w") as f:
+    with open(output_path, "w", encoding="utf-8", newline="\n") as f:
         yaml.dump(data, f, sort_keys=False, allow_unicode=True)
 
     logger_supy.info(f"Saved updated YAML file to: {output_path}")

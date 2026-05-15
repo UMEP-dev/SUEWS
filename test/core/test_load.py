@@ -8,14 +8,16 @@ including state initialization, forcing data loading, and configuration loading.
 from pathlib import Path
 import tempfile
 from unittest import TestCase
-import warnings
 
 import pandas as pd
 import pytest
 import yaml
 
 import supy as sp
+from conftest import TIMESTEPS_PER_DAY
 from supy.util.converter import convert_table, detect_table_version
+
+pytestmark = pytest.mark.api
 
 
 class TestInitSuPy(TestCase):
@@ -23,7 +25,6 @@ class TestInitSuPy(TestCase):
 
     def setUp(self):
         """Set up test environment."""
-        warnings.simplefilter("ignore", category=ImportWarning)
         # Get the sample config path
         self.sample_config = (
             Path(sp.__file__).parent / "sample_data" / "sample_config.yml"
@@ -101,7 +102,6 @@ class TestLoadForcing(TestCase):
 
     def setUp(self):
         """Set up test environment."""
-        warnings.simplefilter("ignore", category=ImportWarning)
         self.sample_config = (
             Path(sp.__file__).parent / "sample_data" / "sample_config.yml"
         )
@@ -208,7 +208,6 @@ class TestConfigLoading(TestCase):
 
     def setUp(self):
         """Set up test environment."""
-        warnings.simplefilter("ignore", category=ImportWarning)
         self.sample_config = (
             Path(sp.__file__).parent / "sample_data" / "sample_config.yml"
         )
@@ -232,9 +231,10 @@ class TestConfigLoading(TestCase):
         self.assertTrue(hasattr(config.model, "control"))
         self.assertTrue(hasattr(config.model, "physics"))
 
-        # Check control contains forcing_file and output_file
-        self.assertTrue(hasattr(config.model.control, "forcing_file"))
-        self.assertTrue(hasattr(config.model.control, "output_file"))
+        # Check control contains forcing config (file path) and output block
+        self.assertTrue(hasattr(config.model.control, "forcing"))
+        self.assertTrue(hasattr(config.model.control.forcing, "file"))
+        self.assertTrue(hasattr(config.model.control, "output"))
 
         print("✓ YAML config loading works correctly")
 
@@ -247,30 +247,17 @@ class TestConfigLoading(TestCase):
         df_state = sp.init_supy(self.sample_config)
 
         # Try to load config from DataFrame
-        # Note: This function has an import bug, so we'll test the underlying functionality
-        try:
+        with self.assertWarns(FutureWarning):
             config = sp.load_config_from_df(df_state)
-            # If it works, validate
-            self.assertIsNotNone(config)
-            self.assertTrue(hasattr(config, "model"))
-        except ModuleNotFoundError:
-            # Expected due to bug in supy._supy_module.py line 368
-            # Test the underlying functionality instead
-            from supy.data_model.core import SUEWSConfig  # noqa: PLC0415
 
-            config = SUEWSConfig.from_df_state(df_state)
-            self.assertIsNotNone(config)
-            self.assertTrue(hasattr(config, "model"))
+        self.assertIsNotNone(config)
+        self.assertTrue(hasattr(config, "model"))
 
         print("✓ Config loading from DataFrame works correctly")
 
 
 class TestLoadingScenarios(TestCase):
     """Test various loading scenarios and edge cases."""
-
-    def setUp(self):
-        """Set up test environment."""
-        warnings.simplefilter("ignore", category=ImportWarning)
 
     def test_load_modify_reload(self):
         """Test loading, modifying, and reloading state."""
@@ -282,7 +269,7 @@ class TestLoadingScenarios(TestCase):
 
         # Run simulation with modified state
         df_output, df_state_final = sp.run_supy(
-            df_forcing.iloc[:288],  # One day
+            df_forcing.iloc[:TIMESTEPS_PER_DAY],  # One day
             df_state,
             check_input=False,
         )

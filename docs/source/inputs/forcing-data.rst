@@ -117,6 +117,60 @@ Where:
    2020  1  1  60  -999  -999  -999  -999  -999  2.3  84  5.3  101.3  0.2  0  -999  318  -999  -999  -999  -999  -999  -999  -999
    2020  1  2   0  -999  -999  -999  -999  -999  2.0  86  5.1  101.2  0.0  0  -999  312  -999  -999  -999  -999  -999  -999  -999
 
+.. _named_column_forcing:
+
+Named-column forcing files (gh#1372)
+------------------------------------
+
+Since schema 2026.5.dev7, SUEWS reads forcing files by **column name**,
+not by column position. The header line is required and its content is
+matched, case-insensitively, against the canonical column list above.
+
+* **Required (baseline)**: ``iy``, ``id``, ``it``, ``imin``, ``Tair``,
+  ``RH``, ``U``, ``pres``, ``kdown``, ``rain``. Missing any of these
+  raises ``ValueError`` at load time.
+* **Required (physics-conditional)**: depending on the chosen physics
+  path, additional columns become mandatory. For example,
+  ``model.physics.net_radiation = 0`` requires ``qn``;
+  ``net_radiation = 1`` or ``11`` requires ``ldown``;
+  ``net_radiation = 2`` or ``12`` requires ``fcld``. The error
+  message cites the offending column and the physics method that
+  requires it.
+* **Optional canonical columns**: missing canonical columns outside the
+  required set are filled with ``-999.0`` (the SUEWS sentinel). Column
+  order is irrelevant.
+* **Per-landcover variants**: the loader also accepts whitelisted
+  ``<var>_<surface>`` columns:
+
+  - ``lai_<surface>`` is accepted **only for vegetated surfaces** —
+    ``evetr``, ``dectr``, ``grass``. ``lai_paved`` / ``lai_bldgs`` /
+    ``lai_bsoil`` / ``lai_water`` are not meaningful and are treated
+    as unknown (warn-and-drop).
+  - ``wuh_<surface>`` (external water use — irrigation,
+    impervious-surface washing, fountains, ornamental water features)
+    is accepted on every surface, including the open-water surface
+    via ``wuh_water`` (a fountain or pond top-up adds water to the
+    ``water`` surface itself).
+
+    **Units and convention**: each ``wuh_<surface>`` value is a depth
+    in **mm per forcing time step**, the same unit as ``rain``. The
+    depth is interpreted as falling on **that surface only** — not
+    spread over the whole grid. The grid-total contribution is
+    therefore ``wuh_<surface> × sfr_<surface>``. Worked example: with
+    grass occupying 20% of the grid and ``wuh_grass = 5`` (mm in this
+    time step), the grass surface receives 5 mm of irrigation depth
+    and the site-mean external water-use input is
+    ``5 × 0.20 = 1`` mm. The rainfall-aligned unit also lets users
+    drop ERA5-style hourly water-flux columns straight in without
+    extra rescaling.
+
+  Whitelisted columns are preserved on ``SUEWSForcing.extras`` for
+  downstream physics work; the kernel itself continues to use the bulk
+  ``lai`` and ``Wuh`` columns. Soil-moisture deficit (``xsmd``) is a
+  bulk site-level quantity and is intentionally not per-landcover.
+* **Unknown columns**: any column not in the canonical or whitelisted
+  sets emits a ``UserWarning`` and is dropped.
+
 Important Requirements
 ----------------------
 
@@ -157,19 +211,31 @@ Examples:
 YAML Configuration
 ------------------
 
-In your YAML configuration, specify the forcing file(s):
+In your YAML configuration, specify the forcing file(s) under the
+``forcing`` sub-object (schema 2026.5.dev7 onwards; see
+:ref:`transition_guide` for the rename of the legacy
+``model.control.forcing_file`` key):
 
 .. code-block:: yaml
 
    model:
      control:
-       forcing_file: "forcing/Kc_2020_data_60.txt"
-       
-       # Or multiple files for continuous multi-year runs:
-       forcing_file:
-         - "forcing/Kc_2020_data_60.txt"
-         - "forcing/Kc_2021_data_60.txt"
-         - "forcing/Kc_2022_data_60.txt"
+       forcing:
+         file: "forcing/Kc_2020_data_60.txt"
+
+Or, for continuous multi-year runs, supply a list under the same
+``forcing.file`` key (the loader concatenates them in chronological
+order):
+
+.. code-block:: yaml
+
+   model:
+     control:
+       forcing:
+         file:
+           - "forcing/Kc_2020_data_60.txt"
+           - "forcing/Kc_2021_data_60.txt"
+           - "forcing/Kc_2022_data_60.txt"
 
 Optional Variables
 ------------------
@@ -223,7 +289,7 @@ These additional variables can enhance model performance but are not required:
    * - Leaf area index
      - m²/m²
      - lai
-     - If not modeled
+     - If ``model.physics.laimethod = 0`` (see :ref:`prescribed-lai`)
    * - Diffuse radiation
      - W/m²
      - kdiff
@@ -236,6 +302,51 @@ These additional variables can enhance model performance but are not required:
      - degrees
      - wdir
      - Currently not used
+
+.. _prescribed-lai:
+
+Prescribing Observed LAI
+------------------------
+
+By default SUEWS computes leaf area index (LAI) internally using growing-degree-day (GDD) and
+senescence-degree-day (SDD) thresholds on daily mean air temperature. For sites where the
+observed LAI cycle is driven by rainfall (monsoon grasslands, semi-arid sites) or where a
+remote-sensing product is available, users can bypass the internal scheme by:
+
+1. Setting ``model.physics.laimethod: 0`` in the YAML configuration (0 = OBSERVED,
+   1 = CALCULATED; default is 1).
+2. Populating the ``lai`` column of the meteorological forcing file with a **non-negative**
+   observation at every timestep, in |m^2| |m^-2|. A genuine zero observation (e.g.
+   complete winter dieback) is valid. Choosing the observed path commits the user to
+   providing an observation for every timestep; the ``-999`` missing sentinel is
+   **not** a permitted fallback here and the pre-flight validator rejects any strictly
+   negative value (including ``-999`` and other sentinels). If observations are
+   unavailable for part of the run, either switch to ``laimethod: 1`` (internally
+   calculated) or gap-fill the ``lai`` column with non-negative values before feeding
+   it to SUEWS.
+
+.. note::
+   When ``laimethod: 0`` is set, the single scalar ``lai`` value from the forcing file is
+   applied uniformly to all three vegetation classes (evergreen trees, deciduous trees,
+   grass) each day.
+
+.. important::
+   Observed LAI values are clamped into each vegetation class's
+   ``[laimin, laimax]`` envelope at runtime. The same clamp is applied to the
+   parameterised branch (``laimethod: 1``); the observed branch enforces it too
+   for consistency and because the downstream conductance and active-vegetation
+   fraction calculations (``LAI / laimax`` in ``suews_phys_resist`` and
+   ``suews_phys_biogenco2``) require ``LAI <= laimax`` to stay physically
+   meaningful.
+
+   If you supply observations that should pass through unchanged — e.g. a genuine
+   winter dieback with ``LAI = 0`` — configure the corresponding class's
+   ``laimin`` to zero in the site configuration. Similarly, widen ``laimax`` if
+   observations legitimately exceed the default site canopy capacity. The
+   pre-flight validator (:func:`~supy._check.check_forcing`) issues a warning
+   when any forcing value would be clamped, so the user sees once that
+   observations are being modified rather than discovering it through
+   unexpected outputs.
 
 Generating Forcing Data from ERA5
 ----------------------------------
@@ -477,7 +588,8 @@ SUEWS provides the ``check_forcing()`` function to validate your forcing data fi
      - Volumetric soil moisture
    * - lai
      - 0 - 15 m²/m²
-     - Leaf area index
+     - Observed leaf area index (consumed only when ``model.physics.laimethod: 0``;
+       otherwise ignored — see :ref:`prescribed-lai`)
    * - kdiff, kdir
      - 0 - 1400 W/m²
      - Radiation components

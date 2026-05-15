@@ -37,19 +37,10 @@ These guidelines are extracted from the planning documents and represent best pr
 
 ## 2. Fortran Test Patterns (from FORTRAN_TEST_PATTERNS.md)
 
-### Available Modules via f90wrap
-```python
-from supy_driver import (
-    Atmmoiststab_Module,     # Atmospheric stability
-    Evap_Module,             # Evaporation calculations
-    Resist_Module,           # Resistance calculations
-    Snow_Module,             # Snow processes
-    Waterdist_Module,        # Water distribution
-    Ohm_Module,              # Objective Hysteresis Model
-    Estm_Module,             # ESTM calculations
-    Suews_Def_Dts,          # Derived type definitions
-)
-```
+### Historical f90wrap modules (removed)
+The f90wrap interface has been removed. Fortran physics is now accessed
+exclusively via the Rust bridge. The module list previously here is retained
+in `FORTRAN_TEST_PATTERNS.md` for historical reference.
 
 ### Common Test Patterns
 
@@ -221,7 +212,7 @@ def test_urban_canyon_radiation(self):
 
 When writing tests for SUEWS:
 1. Follow the patterns documented above
-2. Use existing f90wrap interface - don't create new Fortran test interfaces
+2. Use the Rust bridge for Fortran integration testing
 3. Keep tests AI-friendly and human-manageable
 4. Always use British English in test documentation
 5. Prioritise clarity over cleverness

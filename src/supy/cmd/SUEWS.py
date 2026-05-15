@@ -106,7 +106,8 @@ def _run_with_yaml(config_path):
         if sim.forcing is None:
             click.echo("Error: No forcing data found in configuration.", err=True)
             click.echo(
-                "Please ensure 'forcing_file' is specified in the YAML config.",
+                "Please ensure 'forcing.file' is specified in the YAML config "
+                "(legacy 'forcing_file' is also accepted via auto-migration).",
                 err=True,
             )
             sys.exit(1)
@@ -140,6 +141,7 @@ def _run_with_yaml(config_path):
         sys.exit(130)
     except Exception as e:
         import traceback
+
         click.echo(f"Error running simulation: {e}", err=True)
         click.echo("\nFull traceback:", err=True)
         click.echo(traceback.format_exc(), err=True)
@@ -164,7 +166,7 @@ def _run_with_namelist(path_runcontrol):
         "Please migrate to YAML configuration:\n\n"
         f"  1. Convert: suews-convert -i {path_runcontrol.name} -o config.yml\n"
         "  2. Run:     suews-run config.yml\n\n"
-        "For more information, see: https://suews.readthedocs.io/\n"
+        "For more information, see: https://docs.suews.io/\n"
         "=" * 60 + "\n",
         err=True,
     )
@@ -250,6 +252,7 @@ def _run_with_namelist(path_runcontrol):
         sys.exit(130)
     except Exception as e:
         import traceback
+
         click.echo(f"Error: {e}", err=True)
         click.echo("\nFull traceback:", err=True)
         click.echo(traceback.format_exc(), err=True)
@@ -283,7 +286,7 @@ To migrate from namelist to YAML:
     $ suews-convert -i RunControl.nml -o config.yml
     $ suews-run config.yml
 
-For more information, see: https://suews.readthedocs.io/
+For more information, see: https://docs.suews.io/
 """,
 )
 @click.argument(
@@ -306,7 +309,7 @@ def SUEWS(config_file, path_runcontrol):
 ===========================================
 SUEWS version: {_get_version()}
 
-Documentation: https://suews.readthedocs.io/
+Website: https://suews.io/
 ===========================================
     """
     )

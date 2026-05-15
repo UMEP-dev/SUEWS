@@ -16,10 +16,16 @@ This page lists core SUEWS publications from the development team. For publicati
 
 .. note::
 
-	1. The following list is sorted in reversed chronological order.
-	2. **Community members**: To add your SUEWS publication, please visit the :ref:`community_publications` page and follow the submission instructions.
+	1. The list below is sorted in reversed chronological order.
+	2. **Filter by topic**: use the chips above to narrow the list by
+	   research area. Multi-select is supported; external links such as
+	   ``related_publications.html?topic=radiation`` auto-apply a filter.
+	3. **Community members**: To add your SUEWS publication, please visit the :ref:`community_publications` page and follow the submission instructions.
 
 
+.. raw:: html
+
+   <div id="pub-filter-mount" class="pub-filter" role="group" aria-label="Filter publications by topic"></div>
 
 
 .. bibliography:: assets/refs/refs-SUEWS.bib

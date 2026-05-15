@@ -17,6 +17,8 @@ from supy.util.converter import (
 )
 from supy.util.converter.df_state import validate_converted_df_state
 
+pytestmark = pytest.mark.api
+
 
 class TestDfStateDetection:
     """Test input type and version detection."""

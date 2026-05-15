@@ -1,0 +1,64 @@
+name: Schema version audit
+
+# Enforce that any PR touching the Pydantic data model or the shipped
+# sample_config also bumps `CURRENT_SCHEMA_VERSION` in
+# `src/supy/data_model/schema/version.py`. Maintainers can label a PR
+# with `schema-audit-ok` to bypass the check when the diff is genuinely
+# cosmetic. Motivated by gh#1304.
+
+on:
+  pull_request:
+    paths:
+      - 'src/supy/data_model/**'
+      - 'src/supy/sample_data/sample_config.yml'
+      - 'docs/source/contributing/schema/schema_versioning.rst'
+      - 'docs/source/inputs/transition_guide.rst'
+      - 'scripts/lint/check_schema_version_bump.py'
+      - '.github/workflows/schema-version-audit.yml'
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  check-schema-bump:
+    name: Require schema version bump
+    runs-on: ubuntu-latest
+    steps:
+      - name: Decide whether to skip (PR has bypass label)
+        id: bypass
+        env:
+          LABELS: ${{ toJSON(github.event.pull_request.labels.*.name) }}
+        run: |
+          set -eu
+          echo "Labels on this PR: $LABELS"
+          if printf '%s' "$LABELS" | grep -q '"schema-audit-ok"'; then
+            echo "bypass=true" >> "$GITHUB_OUTPUT"
+            echo "PR carries label 'schema-audit-ok'; skipping schema bump check."
+          else
+            echo "bypass=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Checkout full history
+        if: steps.bypass.outputs.bypass != 'true'
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Fetch base ref
+        if: steps.bypass.outputs.bypass != 'true'
+        env:
+          BASE_REF: ${{ github.event.pull_request.base.ref }}
+        run: |
+          set -eu
+          git fetch --no-tags origin "$BASE_REF"
+
+      - name: Run schema-bump audit
+        if: steps.bypass.outputs.bypass != 'true'
+        env:
+          BASE_REF: ${{ github.event.pull_request.base.ref }}
+        run: |
+          set -eu
+          python scripts/lint/check_schema_version_bump.py \
+            --base "origin/$BASE_REF"

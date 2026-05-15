@@ -21,6 +21,8 @@ from supy.data_model.validation.core.yaml_helpers import (
     get_mean_monthly_air_temperature,
 )
 
+pytestmark = pytest.mark.api
+
 
 class TestCRUDataLoading:
     """Test that CRU data loads properly for temperature initialization."""

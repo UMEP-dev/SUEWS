@@ -1,11 +1,12 @@
 module module_type_surface
-
+   USE module_ctrl_const_allocate, ONLY: &
+      nsurf
    implicit none
 
    TYPE, PUBLIC :: LUMPS_PRM
-      REAL(KIND(1D0)) :: raincover = 0.0D0 ! limit when surface totally covered with water for LUMPS [mm]
-      REAL(KIND(1D0)) :: rainmaxres = 0.0D0 ! maximum water bucket reservoir. Used for LUMPS surface wetness control. [mm]
-      REAL(KIND(1D0)) :: drainrt = 0.0D0 ! Drainage rate of the water bucket [mm hr-1]
+      REAL(KIND(1D0)) :: rain_cover = 0.0D0 ! limit when surface totally covered with water for LUMPS [mm]
+      REAL(KIND(1D0)) :: rain_max_res = 0.0D0 ! maximum water bucket reservoir. Used for LUMPS surface wetness control. [mm]
+      REAL(KIND(1D0)) :: drain_rate = 0.0D0 ! Drainage rate of the water bucket [mm hr-1]
       INTEGER :: veg_type ! Defines how vegetation is calculated for LUMPS [-]
    END TYPE LUMPS_PRM
 
@@ -17,9 +18,9 @@ module module_type_surface
    END TYPE OHM_COEF_LC
 
    TYPE, PUBLIC :: OHM_PRM
-      REAL(KIND(1D0)) :: chanohm = 0.0D0 ! Bulk transfer coefficient for this surface to use in AnOHM [J m-3 K-1]
-      REAL(KIND(1D0)) :: cpanohm = 0.0D0 ! Volumetric heat capacity for this surface to use in AnOHM  [J m-3 K-1]
-      REAL(KIND(1D0)) :: kkanohm = 0.0D0 ! Thermal conductivity for this surface to use in AnOHM [W m-1 K-1]
+      REAL(KIND(1D0)) :: ch_anohm = 0.0D0 ! Bulk transfer coefficient for this surface to use in AnOHM [J m-3 K-1]
+      REAL(KIND(1D0)) :: cp_anohm = 0.0D0 ! Volumetric heat capacity for this surface to use in AnOHM  [J m-3 K-1]
+      REAL(KIND(1D0)) :: kk_anohm = 0.0D0 ! Thermal conductivity for this surface to use in AnOHM [W m-1 K-1]
       REAL(KIND(1D0)) :: ohm_threshsw = 0.0D0 ! Temperature threshold determining whether summer/winter OHM coefficients are applied [degC]
       REAL(KIND(1D0)) :: ohm_threshwd = 0.0D0 ! Soil moisture threshold determining whether wet/dry OHM coefficients are applied [degC]
       TYPE(OHM_COEF_LC), DIMENSION(3) :: ohm_coef_lc
@@ -28,6 +29,8 @@ module module_type_surface
    TYPE, PUBLIC :: OHM_STATE
       REAL(KIND(1D0)) :: qn_av = 0.0D0 ! weighted average of net all-wave radiation [W m-2]
       REAL(KIND(1D0)) :: dqndt = 0.0D0 ! rate of change of net radiation [W m-2 h-1]
+      REAL(KIND(1D0)), DIMENSION(nsurf) :: qn_surfs = 0.0D0 ! net all-wave radiation fo each surface[W m-2]
+      REAL(KIND(1D0)), DIMENSION(nsurf) :: dqndt_surf = 0.0D0 ! rate of change of net radiation [W m-2 h-1]
       REAL(KIND(1D0)) :: qn_s_av = 0.0D0 ! weighted average of qn over snow [W m-2]
       REAL(KIND(1D0)) :: dqnsdt = 0.0D0 ! Rate of change of net radiation [W m-2 h-1]
       REAL(KIND(1D0)) :: a1 = 0.0D0 !AnOHM coefficients of grid [-]
@@ -37,7 +40,7 @@ module module_type_surface
       REAL(KIND(1D0)) :: t2_prev = 0.0D0 ! previous day midnight air temperature [degC]
       REAL(KIND(1D0)) :: ws_rav = 0.0D0 ! running average of wind speed [m s-1]
       REAL(KIND(1D0)) :: tair_prev = 0.0D0
-      REAL(KIND(1D0)) :: qn_rav = 0.0D0 ! running average of net radiation [W m-2]
+      REAL(KIND(1D0)), DIMENSION(nsurf):: qn_rav = 0.0D0 ! running average of net radiation [W m-2]
       REAL(KIND(1D0)) :: a1_bldg = 0.0D0 ! Dynamic OHM coefficients of buildings
       REAL(KIND(1D0)) :: a2_bldg = 0.0D0 ! Dynamic OHM coefficients of buildings
       REAL(KIND(1D0)) :: a3_bldg = 0.0D0 ! Dynamic OHM coefficients of buildings
@@ -70,9 +73,9 @@ module module_type_surface
       REAL(KIND(1D0)) :: g_q_shape = 0.0D0
       REAL(KIND(1D0)) :: g_t = 0.0D0
       REAL(KIND(1D0)) :: g_sm = 0.0D0 ! Fitted parameters related to surface res. calculations
-      REAL(KIND(1D0)) :: kmax = 0.0D0 ! annual maximum hourly solar radiation [W m-2]
+      REAL(KIND(1D0)) :: k_max = 0.0D0 ! annual maximum hourly solar radiation [W m-2]
       ! TODO Should this not be moved to the physics options!
-      INTEGER :: gsmodel = 0 ! choice of gs parameterisation (1 = Ja11, 2 = Wa16) [-]
+      INTEGER :: gs_model = 0 ! choice of gs parameterisation (1 = Ja11, 2 = Wa16) [-]
       REAL(KIND(1D0)) :: s1 = 0.0D0 ! a parameter related to soil moisture dependence [-]
       REAL(KIND(1D0)) :: s2 = 0.0D0 ! a parameter related to soil moisture dependence [mm]
       REAL(KIND(1D0)) :: TH = 0.0D0 ! upper air temperature limit [degC]
@@ -83,9 +86,9 @@ module module_type_surface
       ! this type is used to collect the intermediate results in the SUEWS model
 
       ! calculated values of FAI
-      REAL(KIND(1D0)) :: FAIBldg_use = 0.0D0 ! frontal area index of buildings [-]
-      REAL(KIND(1D0)) :: FAIEveTree_use = 0.0D0 ! frontal area index of evergreen trees [-]
-      REAL(KIND(1D0)) :: FAIDecTree_use = 0.0D0 ! frontal area index of deciduous trees [-]
+      REAL(KIND(1D0)) :: fai_bldg_use = 0.0D0 ! frontal area index of buildings [-]
+      REAL(KIND(1D0)) :: fai_evetree_use = 0.0D0 ! frontal area index of evergreen trees [-]
+      REAL(KIND(1D0)) :: fai_dectree_use = 0.0D0 ! frontal area index of deciduous trees [-]
 
       REAL(KIND(1D0)) :: FAI = 0.0D0 ! frontal area index [-]
       REAL(KIND(1D0)) :: PAI = 0.0D0 ! plan area index [-]

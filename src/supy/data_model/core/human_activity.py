@@ -3,9 +3,8 @@ from pydantic_core import PydanticUndefined
 from typing import Optional, Union
 import pandas as pd
 import warnings
-from .type import RefValue, Reference, FlexibleRefValue
+from .type import RefValue, Reference, FlexibleRefValue, df_from_cols
 from .profile import HourlyProfile, WeeklyProfile, DayProfile
-from .type import init_df_state
 from ..validation.core.utils import (
     warn_missing_params,
     check_missing_params,
@@ -55,7 +54,10 @@ class IrrigationParams(
     )
     daywatper: WeeklyProfile = Field(
         default_factory=WeeklyProfile,
-        json_schema_extra={"unit": "dimensionless", "display_name": "Weekly Water Use Fraction"},
+        json_schema_extra={
+            "unit": "dimensionless",
+            "display_name": "Weekly Water Use Fraction",
+        },
     )
     daywat: WeeklyProfile = Field(
         default_factory=WeeklyProfile,
@@ -89,39 +91,41 @@ class IrrigationParams(
             pd.DataFrame: DataFrame containing irrigation parameters
         """
 
-        df_state = init_df_state(grid_id)
-
-        df_state.loc[grid_id, ("h_maintain", "0")] = (
-            self.h_maintain.value
-            if isinstance(self.h_maintain, RefValue)
-            else self.h_maintain
-            if self.h_maintain is not None
-            else 0.0
-        )
-        df_state.loc[grid_id, ("faut", "0")] = (
-            self.faut.value if isinstance(self.faut, RefValue) else self.faut
-        )
-        df_state.loc[grid_id, ("ie_start", "0")] = (
-            self.ie_start.value
-            if isinstance(self.ie_start, RefValue)
-            else self.ie_start
-            if self.ie_start is not None
-            else 0.0
-        )
-        df_state.loc[grid_id, ("ie_end", "0")] = (
-            self.ie_end.value
-            if isinstance(self.ie_end, RefValue)
-            else self.ie_end
-            if self.ie_end is not None
-            else 0.0
-        )
-        df_state.loc[grid_id, ("internalwateruse_h", "0")] = (
-            self.internalwateruse_h.value
-            if isinstance(self.internalwateruse_h, RefValue)
-            else self.internalwateruse_h
-            if self.internalwateruse_h is not None
-            else 0.0
-        )
+        cols = {
+            ("gridiv", "0"): grid_id,
+            ("h_maintain", "0"): (
+                self.h_maintain.value
+                if isinstance(self.h_maintain, RefValue)
+                else self.h_maintain
+                if self.h_maintain is not None
+                else 0.0
+            ),
+            ("faut", "0"): (
+                self.faut.value if isinstance(self.faut, RefValue) else self.faut
+            ),
+            ("ie_start", "0"): (
+                self.ie_start.value
+                if isinstance(self.ie_start, RefValue)
+                else self.ie_start
+                if self.ie_start is not None
+                else 0.0
+            ),
+            ("ie_end", "0"): (
+                self.ie_end.value
+                if isinstance(self.ie_end, RefValue)
+                else self.ie_end
+                if self.ie_end is not None
+                else 0.0
+            ),
+            ("internalwateruse_h", "0"): (
+                self.internalwateruse_h.value
+                if isinstance(self.internalwateruse_h, RefValue)
+                else self.internalwateruse_h
+                if self.internalwateruse_h is not None
+                else 0.0
+            ),
+        }
+        df_state = df_from_cols(cols, index=pd.Index([grid_id], name="grid"))
 
         df_daywatper = self.daywatper.to_df_state(grid_id, "daywatper")
         df_daywat = self.daywat.to_df_state(grid_id, "daywat")
@@ -192,6 +196,9 @@ class AnthropogenicHeat(
 
     model_config = ConfigDict(title="Anthropogenic Heat")
 
+    # Sample/range metadata values below are derived from:
+    # - test/fixtures/benchmark1/benchmark1.yml (Ward et al. 2016 benchmark setup)
+    # - docs/source/inputs/tables/SUEWS_SiteInfo/sample-table/SUEWS_AnthropogenicEmission.txt
     qf0_beu: DayProfile = Field(
         description="Base anthropogenic heat flux for buildings, equipment and urban metabolism",
         default_factory=DayProfile,
@@ -200,32 +207,56 @@ class AnthropogenicHeat(
     qf_a: DayProfile = Field(
         description="Coefficient a for anthropogenic heat flux calculation",
         default_factory=DayProfile,
-        json_schema_extra={"unit": "dimensionless", "display_name": "QF Coefficient A"},
+        json_schema_extra={
+            "unit": "dimensionless",
+            "display_name": "QF Coefficient A",
+            "range_description": "Sample range from benchmark/sample tables: 0.10-0.37 (working day); calibrate by site.",
+        },
     )
     qf_b: DayProfile = Field(
         description="Coefficient b for anthropogenic heat flux calculation",
         default_factory=DayProfile,
-        json_schema_extra={"unit": "dimensionless", "display_name": "QF Coefficient B"},
+        json_schema_extra={
+            "unit": "dimensionless",
+            "display_name": "QF Coefficient B",
+            "range_description": "Sample range from benchmark/sample tables: 0.0-0.01; calibrate by site.",
+        },
     )
     qf_c: DayProfile = Field(
         description="Coefficient c for anthropogenic heat flux calculation",
         default_factory=DayProfile,
-        json_schema_extra={"unit": "dimensionless", "display_name": "QF Coefficient C"},
+        json_schema_extra={
+            "unit": "dimensionless",
+            "display_name": "QF Coefficient C",
+            "range_description": "Sample range from benchmark/sample tables: 0.0037-0.0400 (benchmark1 is ~0.007); calibrate by site.",
+        },
     )
     baset_cooling: DayProfile = Field(
         description="Base temperature for cooling degree days",
         default_factory=DayProfile,
-        json_schema_extra={"unit": "degC", "display_name": "Base Temperature Cooling"},
+        json_schema_extra={
+            "unit": "degC",
+            "display_name": "Base Temperature Cooling",
+            "default_description": "Sample benchmark value: 18.2 degC (Ward et al. 2016, central London); calibrate by site.",
+        },
     )
     baset_heating: DayProfile = Field(
         description="Base temperature for heating degree days",
         default_factory=DayProfile,
-        json_schema_extra={"unit": "degC", "display_name": "Base Temperature Heating"},
+        json_schema_extra={
+            "unit": "degC",
+            "display_name": "Base Temperature Heating",
+            "default_description": "Sample benchmark value: 18.2 degC (Ward et al. 2016, central London); calibrate by site.",
+        },
     )
     ah_min: DayProfile = Field(
         description="Minimum anthropogenic heat flux",
         default_factory=DayProfile,
-        json_schema_extra={"unit": "W m^-2", "display_name": "Minimum Anthropogenic Heat"},
+        json_schema_extra={
+            "unit": "W m^-2",
+            "display_name": "Minimum Anthropogenic Heat",
+            "default_description": "Sample benchmark value: 15.0 W m^-2 (Ward et al. 2016, central London); calibrate by site.",
+        },
     )
     ah_slope_cooling: DayProfile = Field(
         description="Slope of anthropogenic heat vs cooling degree days",
@@ -233,6 +264,7 @@ class AnthropogenicHeat(
         json_schema_extra={
             "unit": "W m^-2 K^-1",
             "display_name": "Anthropogenic Heat Slope (Cooling)",
+            "default_description": "Sample benchmark value: 2.7 W m^-2 K^-1 (Ward et al. 2016, central London); calibrate by site.",
         },
     )
     ah_slope_heating: DayProfile = Field(
@@ -241,6 +273,7 @@ class AnthropogenicHeat(
         json_schema_extra={
             "unit": "W m^-2 K^-1",
             "display_name": "Anthropogenic Heat Slope (Heating)",
+            "default_description": "Sample benchmark value: 2.7 W m^-2 K^-1 (Ward et al. 2016, central London); calibrate by site.",
         },
     )
     ahprof_24hr: HourlyProfile = Field(
@@ -291,7 +324,11 @@ class AnthropogenicHeat(
             pd.DataFrame: DataFrame containing anthropogenic heat parameters.
         """
 
-        df_state = init_df_state(grid_id)
+        cols = {
+            ("gridiv", "0"): grid_id,
+            ("popdensnighttime", "0"): self.popdensnighttime,
+        }
+        df_state = df_from_cols(cols, index=pd.Index([grid_id], name="grid"))
 
         day_profiles = {
             "qf0_beu": self.qf0_beu,
@@ -316,8 +353,6 @@ class AnthropogenicHeat(
         for param_name, profile in hourly_profiles.items():
             df_hourly_profile = profile.to_df_state(grid_id, param_name)
             df_state = df_state.combine_first(df_hourly_profile)
-
-        df_state.loc[grid_id, ("popdensnighttime", "0")] = self.popdensnighttime
 
         return df_state
 
@@ -374,6 +409,9 @@ class CO2Params(BaseModel):  # TODO: May need to add the RefValue to the profile
 
     model_config = ConfigDict(title="CO2 Emissions")
 
+    # Sample/range metadata values below are derived from:
+    # - test/fixtures/benchmark1/benchmark1.yml (Ward et al. 2016 benchmark setup)
+    # - docs/source/inputs/tables/SUEWS_SiteInfo/sample-table/SUEWS_AnthropogenicEmission.txt
     co2pointsource: Optional[FlexibleRefValue(float)] = Field(
         default=None,
         description="CO2 point source emission factor",
@@ -385,6 +423,7 @@ class CO2Params(BaseModel):  # TODO: May need to add the RefValue to the profile
         json_schema_extra={
             "unit": "umol J^-1",
             "display_name": "Emission Factor (umol CO2/J)",
+            "default_description": "Sample benchmark value: 1.159 umol J^-1 (Ward et al. 2016, central London); calibrate by site.",
         },
     )
     enef_v_jkm: Optional[FlexibleRefValue(float)] = Field(
@@ -393,6 +432,7 @@ class CO2Params(BaseModel):  # TODO: May need to add the RefValue to the profile
         json_schema_extra={
             "unit": "J km^-1",
             "display_name": "Energy Emission Factor Vehicles",
+            "range_description": "Sample range from benchmark/sample tables: 3.97e6-4.11e6 J km^-1; calibrate by site.",
         },
     )
     fcef_v_kgkm: Optional[DayProfile] = Field(
@@ -401,6 +441,7 @@ class CO2Params(BaseModel):  # TODO: May need to add the RefValue to the profile
         json_schema_extra={
             "unit": "kg km^-1",
             "display_name": "Fuel Carbon Emission Factor Vehicles",
+            "default_description": "Sample benchmark value: 0.285 kg km^-1 (Ward et al. 2016, central London); calibrate by site.",
         },
     )
     # Field is Optional[DayProfile] but has default_factory=DayProfile,
@@ -413,6 +454,7 @@ class CO2Params(BaseModel):  # TODO: May need to add the RefValue to the profile
         json_schema_extra={
             "unit": "dimensionless",
             "display_name": "Fossil Fuel Fraction Heating",
+            "range_description": "Sample range from benchmark/sample tables: 0.05-0.7 (depends on local energy mix).",
         },
         ge=0.0,
         le=1.0,
@@ -423,6 +465,7 @@ class CO2Params(BaseModel):  # TODO: May need to add the RefValue to the profile
         json_schema_extra={
             "unit": "dimensionless",
             "display_name": "Fossil Fuel Fraction Non-Heating",
+            "range_description": "Sample range from benchmark/sample tables: 0.0-0.7 (depends on local energy mix).",
         },
         ge=0.0,
         le=1.0,
@@ -433,6 +476,7 @@ class CO2Params(BaseModel):  # TODO: May need to add the RefValue to the profile
         json_schema_extra={
             "unit": "umol m^-2 s^-1",
             "display_name": "Maximum Metabolic CO2 Flux",
+            "default_description": "Sample value from benchmark/sample tables: 280.0 umol m^-2 s^-1; calibrate by site.",
         },
     )
     maxqfmetab: Optional[FlexibleRefValue(float)] = Field(
@@ -441,6 +485,7 @@ class CO2Params(BaseModel):  # TODO: May need to add the RefValue to the profile
         json_schema_extra={
             "unit": "W m^-2",
             "display_name": "Maximum Metabolic Heat Flux",
+            "default_description": "Sample value from benchmark/sample tables: 175.0 W m^-2; calibrate by site.",
         },
     )
     minfcmetab: Optional[FlexibleRefValue(float)] = Field(
@@ -449,6 +494,7 @@ class CO2Params(BaseModel):  # TODO: May need to add the RefValue to the profile
         json_schema_extra={
             "unit": "umol m^-2 s^-1",
             "display_name": "Minimum Metabolic CO2 Flux",
+            "default_description": "Sample value from benchmark/sample tables: 120.0 umol m^-2 s^-1; calibrate by site.",
         },
     )
     minqfmetab: Optional[FlexibleRefValue(float)] = Field(
@@ -457,6 +503,7 @@ class CO2Params(BaseModel):  # TODO: May need to add the RefValue to the profile
         json_schema_extra={
             "unit": "W m^-2",
             "display_name": "Minimum Metabolic Heat Flux",
+            "default_description": "Sample value from benchmark/sample tables: 75.0 W m^-2; calibrate by site.",
         },
     )
     trafficrate: Optional[DayProfile] = Field(
@@ -511,8 +558,6 @@ class CO2Params(BaseModel):  # TODO: May need to add the RefValue to the profile
             pd.DataFrame: DataFrame containing CO2 parameters.
         """
 
-        df_state = init_df_state(grid_id)
-
         scalar_params = {
             "co2pointsource": self.co2pointsource.value
             if isinstance(self.co2pointsource, RefValue)
@@ -565,8 +610,10 @@ class CO2Params(BaseModel):  # TODO: May need to add the RefValue to the profile
             if self.trafficunits is not None
             else 0.0,
         }
+        cols = {("gridiv", "0"): grid_id}
         for param_name, value in scalar_params.items():
-            df_state.loc[grid_id, (param_name, "0")] = value
+            cols[(param_name, "0")] = value
+        df_state = df_from_cols(cols, index=pd.Index([grid_id], name="grid"))
 
         day_profiles = {
             "fcef_v_kgkm": self.fcef_v_kgkm,
@@ -680,31 +727,33 @@ class AnthropogenicEmissions(BaseModel):
         Returns:
             pd.DataFrame: DataFrame containing anthropogenic emissions parameters.
         """
-        df_state = init_df_state(grid_id)
-
         # Set start and end daylight saving times
-        df_state.loc[grid_id, ("startdls", "0")] = (
-            self.startdls.value
-            if isinstance(self.startdls, RefValue)
-            else self.startdls
-            if self.startdls is not None
-            else 0.0
-        )
-        df_state.loc[grid_id, ("enddls", "0")] = (
-            self.enddls.value
-            if isinstance(self.enddls, RefValue)
-            else self.enddls
-            if self.enddls is not None
-            else 0.0
-        )
+        cols = {
+            ("gridiv", "0"): grid_id,
+            ("startdls", "0"): (
+                self.startdls.value
+                if isinstance(self.startdls, RefValue)
+                else self.startdls
+                if self.startdls is not None
+                else 0.0
+            ),
+            ("enddls", "0"): (
+                self.enddls.value
+                if isinstance(self.enddls, RefValue)
+                else self.enddls
+                if self.enddls is not None
+                else 0.0
+            ),
+        }
+        df_state = df_from_cols(cols, index=pd.Index([grid_id], name="grid"))
 
         # Add heat parameters
         df_heat = self.heat.to_df_state(grid_id)
-        df_state = pd.concat([df_state, df_heat], axis=1)
 
         # Add CO2 parameters
         df_co2 = self.co2.to_df_state(grid_id)
-        df_state = pd.concat([df_state, df_co2], axis=1)
+
+        df_state = pd.concat([df_state, df_heat, df_co2], axis=1)
 
         # Drop duplicate columns if necessary
         df_state = df_state.loc[:, ~df_state.columns.duplicated()]

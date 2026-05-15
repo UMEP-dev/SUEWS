@@ -17,14 +17,14 @@ module module_type_vegetation
    END TYPE bioCO2_PRM
 
    TYPE, PUBLIC :: LAI_PRM
-      REAL(KIND(1D0)) :: baset = 0.0D0 ! Base temperature for growing degree days (GDD) [degC]
-      REAL(KIND(1D0)) :: gddfull = 0.0D0 ! Growing degree days for full capacity [degC]
-      REAL(KIND(1D0)) :: basete = 0.0D0 ! Base temperature for senescence degree days (SDD) [degC]
-      REAL(KIND(1D0)) :: sddfull = 0.0D0 ! Senescence degree days for full capacity [degC]
-      REAL(KIND(1D0)) :: laimin = 0.0D0 ! Minimum LAI [m2 m-2]
-      REAL(KIND(1D0)) :: laimax = 0.0D0 ! Maximum LAI [m2 m-2]
-      REAL(KIND(1D0)), DIMENSION(4) :: laipower = 0.0D0 ! Coefficients for LAI equation: 1,2 - leaf growth; 3,4 - leaf off [-]
-      INTEGER :: laitype = 0 ! LAI equation to use: original (0) or new (1) [-]
+      REAL(KIND(1D0)) :: base_temperature = 0.0D0 ! Base temperature for growing degree days (GDD) [degC]
+      REAL(KIND(1D0)) :: gdd_full = 0.0D0 ! Growing degree days for full capacity [degC]
+      REAL(KIND(1D0)) :: base_temperature_senescence = 0.0D0 ! Base temperature for senescence degree days (SDD) [degC]
+      REAL(KIND(1D0)) :: sdd_full = 0.0D0 ! Senescence degree days for full capacity [degC]
+      REAL(KIND(1D0)) :: lai_min = 0.0D0 ! Minimum LAI [m2 m-2]
+      REAL(KIND(1D0)) :: lai_max = 0.0D0 ! Maximum LAI [m2 m-2]
+      REAL(KIND(1D0)), DIMENSION(4) :: lai_power = 0.0D0 ! Coefficients for LAI equation: 1,2 - leaf growth; 3,4 - leaf off [-]
+      INTEGER :: lai_type = 0 ! LAI equation to use: original (0) or new (1) [-]
    END TYPE LAI_PRM
 
    TYPE, PUBLIC :: PHENOLOGY_STATE
@@ -32,7 +32,7 @@ module module_type_vegetation
       REAL(KIND(1D0)), DIMENSION(nvegsurf) :: lai_id = 0.0D0 ! LAI [m2 m-2]
       REAL(KIND(1D0)), DIMENSION(nvegsurf) :: GDD_id = 0.0D0 ! Growing degree days [degC]
       REAL(KIND(1D0)), DIMENSION(nvegsurf) :: SDD_id = 0.0D0 ! Senescence degree days [degC]
-      REAL(KIND(1D0)) :: VegPhenLumps = 0.0D0 ! Phenology indicator used by LUMPS [-] (NOT USED - TO BE REMOVED)
+      REAL(KIND(1D0)) :: veg_phen_lumps = 0.0D0 ! Phenology indicator used by LUMPS [-] (NOT USED - TO BE REMOVED)
       REAL(KIND(1D0)) :: porosity_id = 0.0D0 ! Porosity of each surface type [-]
       REAL(KIND(1D0)) :: decidcap_id = 0.0D0 ! Storage capacity of deciduous surface (DecTr) [mm]
       REAL(KIND(1D0)) :: albDecTr_id = 0.0D0 ! Albedo of deciduous trees [-]
@@ -41,9 +41,9 @@ module module_type_vegetation
       REAL(KIND(1D0)) :: Tmin_id = 0.0D0 ! Daily minimum temperature [degC]
       REAL(KIND(1D0)) :: Tmax_id = 0.0D0 ! Daily maximum temperature [degC]
       REAL(KIND(1D0)) :: lenDay_id = 0.0D0 ! Daytime length [h]
-      REAL(KIND(1D0)) :: TempVeg = 0.0D0 ! Temporary vegetative surface fraction adjusted by rainfall [-]
-      REAL(KIND(1D0)), DIMENSION(6, NSURF) :: StoreDrainPrm = 0.0D0 ! Coefficients used in drainage calculation [-]
-      REAL(KIND(1D0)) :: gfunc = 0.0D0 ! Stomatal conductance function [-]
+      REAL(KIND(1D0)) :: temp_veg = 0.0D0 ! Temporary vegetative surface fraction adjusted by rainfall [-]
+      REAL(KIND(1D0)), DIMENSION(6, NSURF) :: storage_drain_params = 0.0D0 ! Coefficients used in drainage calculation [-]
+      REAL(KIND(1D0)) :: g_func = 0.0D0 ! Stomatal conductance function [-]
       REAL(KIND(1D0)) :: gsc = 0.0D0 ! Surface layer conductance [s m-1]
       REAL(KIND(1D0)) :: g_kdown = 0.0D0 ! Surface conductance function for shortwave radiation [-]
       REAL(KIND(1D0)) :: g_dq = 0.0D0 ! Surface conductance function for specific humidity [-]

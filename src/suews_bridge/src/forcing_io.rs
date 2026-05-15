@@ -3,15 +3,10 @@ use std::fs;
 use std::path::Path;
 
 use crate::forcing::{
+    BASELINE_FORCING_COLUMNS,
     PER_LANDCOVER_FORCING_VARS,
     PerLandcoverVar,
 };
-
-// gh#1372 — Baseline-required columns; the loader errors if any is missing.
-// Names are lower-cased; lookups are case-insensitive.
-const BASELINE_FORCING_COLUMNS: &[&str] = &[
-    "iy", "id", "it", "imin", "tair", "rh", "u", "pres", "kdown", "rain",
-];
 
 const FORCING_OPTIONAL_FILL: f64 = -999.0;
 

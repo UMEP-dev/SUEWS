@@ -21,6 +21,12 @@ pub struct SuewsForcingSchema {
 
 pub type SuewsForcingValuesPayload = ValuesPayloadWithDims;
 
+
+// gh#1372 — Baseline-required columns; the loader errors if any is missing.
+// Names are lower-cased; lookups are case-insensitive.
+const BASELINE_FORCING_COLUMNS: &[&str] = &[
+    "iy", "id", "it", "imin", "tair", "rh", "u", "pres", "kdown", "rain",
+];
 // gh#1372 — Per-landcover whitelist: <var>_<surface>. `wuh` covers
 // per-surface external water use — irrigation and impervious-surface
 // washing on land surfaces, fountains and ornamental water features

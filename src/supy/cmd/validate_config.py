@@ -64,6 +64,7 @@ except Exception:
 # Import from supy modules
 try:
     from ..data_model.core.config import SUEWSConfig
+    from ..data_model.core.field_renames import read_physics_key
     from ..data_model.schema.version import CURRENT_SCHEMA_VERSION
     from ..data_model.schema.publisher import generate_json_schema
     from ..data_model.schema.migration import SchemaMigrator, check_migration_needed
@@ -73,9 +74,14 @@ except ImportError:
 
     sys.path.append(str(Path(__file__).parent.parent.parent))
     from supy.data_model.core.config import SUEWSConfig
+    from supy.data_model.core.field_renames import read_physics_key
     from supy.data_model.schema.version import CURRENT_SCHEMA_VERSION
     from supy.data_model.schema.publisher import generate_json_schema
     from supy.data_model.schema.migration import SchemaMigrator, check_migration_needed
+
+# Sentinel used by the critical-physics-presence check below; module-level
+# so identity comparison stays stable across calls.
+_PHYSICS_KEY_MISSING = object()
 
 console = Console()
 
@@ -153,7 +159,10 @@ def validate_single_file(
         # passes both jsonschema and Pydantic validation silently. The full
         # pipeline's Phase A flags these as ACTION NEEDED; we replicate that
         # rule here so the dry-run JSON path agrees with the full pipeline
-        # on user-facing semantics.
+        # on user-facing semantics. Use `read_physics_key` so accepted legacy
+        # aliases (e.g. `netradiationmethod`) are recognised the same way the
+        # full SUEWSConfig.from_yaml path recognises them — otherwise this
+        # check would false-negative on configurations the pipeline accepts.
         if target_is_current and CRITICAL_PHYSICS_PARAMS:
             user_physics = (
                 (config or {}).get("model", {}).get("physics") or {}
@@ -161,7 +170,9 @@ def validate_single_file(
             if not isinstance(user_physics, dict):
                 user_physics = {}
             for param_name in CRITICAL_PHYSICS_PARAMS:
-                if param_name not in user_physics:
+                if read_physics_key(
+                    user_physics, param_name, default=_PHYSICS_KEY_MISSING
+                ) is _PHYSICS_KEY_MISSING:
                     field_path = f"model.physics.{param_name}"
                     message = (
                         f"{field_path}: required physics parameter is missing "

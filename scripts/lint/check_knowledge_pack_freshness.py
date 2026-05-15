@@ -3,12 +3,10 @@
 (gh#1406).
 
 The SUEWS knowledge pack ships under
-``src/supy/knowledge/pack/current/`` after a meson build. Its meson
-``custom_target`` declares only ``knowledge/pack.py`` as a dependency,
-so changes under ``src/supy/data_model/`` or ``src/supy/cmd/`` do NOT
-trigger an automatic rebuild. The result: the installed pack drifts
-from HEAD and ``query_knowledge`` answers reference fields/code that
-no longer match the live schema.
+``src/supy/knowledge/pack/current/`` after a meson build. It must be
+generated from the same source tree as the wheel, otherwise
+``query_knowledge`` can answer from chunks that no longer match the
+live schema.
 
 Usage
 -----
@@ -16,8 +14,10 @@ Usage
 
 Compares the diff between BASE_REF (default ``origin/master``) and the
 current tree (or HEAD in CI). If any file under ``src/supy/data_model/``
-or ``src/supy/cmd/`` changed *and* the pack's ``content_hash`` did not,
-exit non-zero with remediation guidance.
+or ``src/supy/cmd/`` changed, the audit verifies that a current
+knowledge pack can be produced for HEAD. When generated artefacts are
+committed, it additionally requires the committed ``content_hash`` to
+move with the guarded source changes.
 
 Bypassing
 ---------
@@ -26,10 +26,12 @@ reformats), a maintainer can add the ``knowledge-pack-audit-ok`` label
 to the PR. The companion workflow short-circuits when that label is
 present.
 
-This script does NOT itself rebuild the pack — that requires a full
-build environment with Fortran toolchain. It only checks that the
-committed pack manifest's ``content_hash`` was bumped in the same
-PR as the data_model / cmd diff.
+When the generated pack is committed, this script checks that the
+committed manifest's ``content_hash`` moved in the same PR as the
+data_model / cmd diff. In the normal SUEWS repository state the pack
+artefacts are not tracked; in that case the script performs a temporary
+local pack build and checks that the generated manifest is bound to
+HEAD.
 """
 
 from __future__ import annotations
@@ -38,6 +40,7 @@ import argparse
 import json
 import subprocess
 import sys
+import tempfile
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -85,6 +88,42 @@ def _read_committed_manifest_hash(ref: str) -> str | None:
     return manifest.get("content_hash")
 
 
+def _current_head() -> str:
+    return subprocess.check_output(
+        ["git", "rev-parse", "HEAD"],
+        cwd=REPO_ROOT,
+        text=True,
+    ).strip()
+
+
+def _build_temporary_manifest() -> dict:
+    """Build the knowledge pack into a temporary directory and return its manifest."""
+    with tempfile.TemporaryDirectory(prefix="suews-knowledge-pack-audit-") as tmp:
+        output_dir = Path(tmp)
+        result = subprocess.run(
+            [
+                sys.executable,
+                str(REPO_ROOT / "src" / "supy" / "knowledge" / "pack.py"),
+                str(REPO_ROOT),
+                str(output_dir),
+                "--command",
+                "knowledge-pack freshness audit",
+            ],
+            cwd=REPO_ROOT,
+            capture_output=True,
+            text=True,
+        )
+        if result.returncode != 0:
+            raise RuntimeError(
+                "temporary pack build failed with exit "
+                f"{result.returncode}; stdout={result.stdout!r}; "
+                f"stderr={result.stderr!r}"
+            )
+        return json.loads(
+            (output_dir / "manifest.json").read_text(encoding="utf-8")
+        )
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     parser.add_argument(
@@ -107,16 +146,43 @@ def main(argv: list[str] | None = None) -> int:
 
     if base_hash is None and head_hash is None:
         # Pack is not tracked in git at either ref (the normal SUEWS
-        # state — meson regenerates per build). We cannot use a
-        # commit-time hash compare; surface guidance only.
+        # state — meson regenerates per build). Since there is no committed
+        # content_hash to compare, do the next-best deterministic check:
+        # rebuild into a temp dir and verify the generated manifest binds to
+        # this exact HEAD.
+        try:
+            manifest = _build_temporary_manifest()
+            head_sha = _current_head()
+        except Exception as exc:  # noqa: BLE001 - report audit failure verbatim
+            print(
+                "Knowledge-pack freshness check FAILED.\n\n"
+                "The pack is not committed to git, and a temporary rebuild "
+                f"failed: {exc}",
+                file=sys.stderr,
+            )
+            return 1
+
+        if manifest.get("git_sha") != head_sha:
+            print(
+                "Knowledge-pack freshness check FAILED.\n\n"
+                "Temporary rebuild produced a manifest for git_sha "
+                f"{manifest.get('git_sha')!r}, but HEAD is {head_sha!r}.",
+                file=sys.stderr,
+            )
+            return 1
+        if not manifest.get("content_hash") or not manifest.get("chunk_count"):
+            print(
+                "Knowledge-pack freshness check FAILED.\n\n"
+                "Temporary rebuild produced an incomplete manifest "
+                f"(content_hash={manifest.get('content_hash')!r}, "
+                f"chunk_count={manifest.get('chunk_count')!r}).",
+                file=sys.stderr,
+            )
+            return 1
         print(
-            "Knowledge-pack freshness check: data_model / cmd changes "
-            "detected but the pack is not committed to git in this "
-            "repository. The local meson build only rebuilds the pack "
-            "when knowledge/pack.py itself changes — touching "
-            "data_model/ or cmd/ is not enough. Confirm a fresh "
-            "`make dev` (or `suews knowledge build`) was run before "
-            "shipping.",
+            "Knowledge-pack freshness check: temporary rebuild succeeded "
+            f"for HEAD {head_sha[:10]} with content_hash "
+            f"{manifest.get('content_hash')}.",
             file=sys.stderr,
         )
         return 0

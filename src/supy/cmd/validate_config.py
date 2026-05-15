@@ -845,21 +845,21 @@ def export(output, version, fmt):
         sys.exit(1)
 
 
-def _check_experimental_features_restriction(user_yaml_file, mode):
-    """Check for experimental features that are restricted in public mode.
+def _experimental_features_restriction(user_yaml_file, mode):
+    """Return public-mode experimental-feature violations.
 
     Returns:
-        bool: True if validation passes (can proceed), False if should halt
+        tuple: ``(ok, restrictions, read_error)`` where ``ok`` is false
+        when validation should halt.
     """
     if mode != "public":
-        return True  # Dev mode allows all features
+        return True, [], None  # Dev mode allows all features
 
     try:
         with open(user_yaml_file, "r") as f:
             user_yaml_data = yaml.safe_load(f)
     except Exception as e:
-        console.print(f"[red]✗ Error reading YAML file: {e}[/red]")
-        return False
+        return False, [], f"Error reading YAML file: {e}"
 
     # Read physics keys via read_physics_key, which accepts both the new
     # snake_case name and its legacy alias — the Pydantic shim accepts both,
@@ -881,20 +881,41 @@ def _check_experimental_features_restriction(user_yaml_file, mode):
     if snowuse is not None and snowuse != 0:
         restrictions_violated.append("Snow calculations are enabled (snow_use != 0)")
 
-    # If any restrictions are violated, halt execution
     if restrictions_violated:
-        console.print(
-            "[red]✗ Configuration contains experimental features restricted in public mode:[/red]"
-        )
-        for restriction in restrictions_violated:
-            console.print(f"  • {restriction}")
-        console.print("\n[yellow]Options to resolve:[/yellow]")
-        console.print("  1. Switch to dev mode: [cyan]--mode dev[/cyan]")
-        console.print("  2. Disable experimental features in your YAML file and rerun")
-        console.print("     Example: Set [cyan]stebbs_method: {value: 0}[/cyan]")
-        return False
+        return False, restrictions_violated, None
 
-    return True
+    return True, [], None
+
+
+def _print_experimental_features_restriction(restrictions_violated):
+    """Print the legacy table-mode experimental-feature restriction message."""
+    console.print(
+        "[red]✗ Configuration contains experimental features restricted in public mode:[/red]"
+    )
+    for restriction in restrictions_violated:
+        console.print(f"  • {restriction}")
+    console.print("\n[yellow]Options to resolve:[/yellow]")
+    console.print("  1. Switch to dev mode: [cyan]--mode dev[/cyan]")
+    console.print("  2. Disable experimental features in your YAML file and rerun")
+    console.print("     Example: Set [cyan]stebbs_method: {value: 0}[/cyan]")
+
+
+def _check_experimental_features_restriction(user_yaml_file, mode):
+    """Check for experimental features that are restricted in public mode.
+
+    Returns:
+        bool: True if validation passes (can proceed), False if should halt
+    """
+    ok, restrictions_violated, read_error = _experimental_features_restriction(
+        user_yaml_file, mode
+    )
+    if ok:
+        return True
+    if read_error:
+        console.print(f"[red]✗ {read_error}[/red]")
+    else:
+        _print_experimental_features_restriction(restrictions_violated)
+    return False
 
 
 def _format_phase_output(
@@ -969,9 +990,24 @@ def _emit_pipeline_result(
             "updated_yaml": str(yaml_path),
             "phases_run": [p.phase for p in phases],
         }
+        warnings = [
+            {
+                "phase": p.phase,
+                "code": issue.code,
+                "message": issue.message,
+                "severity": issue.severity,
+                "yaml_path": issue.yaml_path,
+            }
+            for p in phases
+            for issue in p.issues
+            if issue.severity == "WARNING"
+        ]
         if ok:
             Envelope.success(
-                data=data, command=command, started_at=started_at
+                data=data,
+                command=command,
+                warnings=warnings,
+                started_at=started_at,
             ).emit()
         else:
             errors = [
@@ -1005,6 +1041,28 @@ def _emit_pipeline_result(
     if Path(yaml_path).exists():
         console.print(f"Updated YAML: {yaml_path}")
     return 0 if ok else 1
+
+
+def _emit_pipeline_startup_error(
+    message: str,
+    *,
+    out_format: str,
+    command: str,
+    started_at: Optional[str],
+    code: str,
+    data: Optional[dict] = None,
+) -> int:
+    """Emit an early pipeline error before phase reports exist."""
+    if out_format == "json":
+        Envelope.error(
+            errors=[{"message": message, "code": code}],
+            command=command,
+            data=data or {},
+            started_at=started_at,
+        ).emit()
+    else:
+        console.print(f"[red]✗ {message}[/red]")
+    return 1
 
 
 def _execute_pipeline(
@@ -1051,19 +1109,54 @@ def _execute_pipeline(
         _processor_move_report_with_json,
         _processor_unlink_report_with_json,
     ]):
-        console.print(
-            "[red]✗ YAML processor is unavailable. Ensure supy.data_model.validation.pipeline is present.[/red]"
+        return _emit_pipeline_startup_error(
+            "YAML processor is unavailable. Ensure supy.data_model.validation.pipeline is present.",
+            out_format=out_format,
+            command=command_str,
+            started_at=started_at,
+            code="yaml_processor_unavailable",
         )
-        return 1
 
     # Validate input and prepare paths
     try:
         user_yaml_file = _processor_validate_input_file(file)
     except Exception as e:
-        console.print(f"[red]✗ {e}[/red]")
-        return 1
+        return _emit_pipeline_startup_error(
+            str(e),
+            out_format=out_format,
+            command=command_str,
+            started_at=started_at,
+            code="invalid_input_file",
+            data={"file": str(file)},
+        )
 
-    if not _check_experimental_features_restriction(user_yaml_file, mode):
+    ok_experimental, restrictions_violated, read_error = (
+        _experimental_features_restriction(user_yaml_file, mode)
+    )
+    if not ok_experimental:
+        if read_error:
+            return _emit_pipeline_startup_error(
+                read_error,
+                out_format=out_format,
+                command=command_str,
+                started_at=started_at,
+                code="yaml_read_failed",
+                data={"file": str(user_yaml_file)},
+            )
+        if out_format == "json":
+            return _emit_pipeline_startup_error(
+                "Configuration contains experimental features restricted in public mode.",
+                out_format=out_format,
+                command=command_str,
+                started_at=started_at,
+                code="experimental_features_restricted",
+                data={
+                    "file": str(user_yaml_file),
+                    "mode": mode,
+                    "restrictions": restrictions_violated,
+                },
+            )
+        _print_experimental_features_restriction(restrictions_violated)
         return 1
 
     # Use importlib.resources for robust package resource access

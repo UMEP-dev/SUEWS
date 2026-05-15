@@ -377,6 +377,83 @@ def test_validate_full_pipeline_emits_json_envelope(tmp_path: Path) -> None:
     assert "A" in data["phases_run"]
 
 
+def test_validate_full_pipeline_experimental_restriction_emits_json_envelope(
+    tmp_path: Path,
+) -> None:
+    """Early public-mode restrictions must still honour ``--format json``.
+
+    The restriction check runs before PhaseReport objects exist, so it
+    needs its own envelope path rather than printing Rich text.
+    """
+    from supy.cmd.validate_config import cli as validate_cli
+    from supy.data_model.schema.version import CURRENT_SCHEMA_VERSION
+
+    payload = _minimal_paved_only_config(CURRENT_SCHEMA_VERSION)
+    payload["model"]["physics"] = {"stebbs": {"value": 1}}
+    config_path = tmp_path / "experimental.yml"
+    _write_yaml(config_path, payload)
+
+    runner = CliRunner()
+    result = runner.invoke(
+        validate_cli,
+        [
+            "--pipeline",
+            "ABC",
+            "--format",
+            "json",
+            str(config_path),
+        ],
+    )
+
+    assert result.exit_code == 1, result.output
+    envelope = json.loads(result.stdout)
+    assert envelope["status"] == "error"
+    assert envelope["errors"][0]["code"] == "experimental_features_restricted"
+    assert "STEBBS method" in envelope["data"]["restrictions"][0]
+
+
+def test_emit_pipeline_result_warning_status_matches_inner_report(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """Warning-only phase reports should surface as a warning envelope."""
+    from supy.cmd.validate_config import _emit_pipeline_result
+    from supy.data_model.validation.pipeline.report_schema import (
+        Issue,
+        PhaseReport,
+        SEVERITY_WARNING,
+    )
+
+    phase = PhaseReport(
+        phase="A",
+        issues=[
+            Issue(
+                phase="A",
+                severity=SEVERITY_WARNING,
+                code="A.TEST.WARNING",
+                message="warning message",
+                yaml_path="model.physics",
+            )
+        ],
+    )
+
+    exit_code = _emit_pipeline_result(
+        phases=[phase],
+        report_path=tmp_path / "report.txt",
+        yaml_path=tmp_path / "updated.yml",
+        out_format="json",
+        command="suews validate --format json",
+        started_at="2026-05-15T00:00:00Z",
+    )
+
+    assert exit_code == 0
+    envelope = json.loads(capsys.readouterr().out)
+    assert envelope["status"] == "warning"
+    assert envelope["errors"] == []
+    assert envelope["warnings"][0]["code"] == "A.TEST.WARNING"
+    assert envelope["data"]["validation_report"]["overall_status"] == "WARNING"
+
+
 def test_validate_passes_when_critical_physics_present(tmp_path: Path) -> None:
     """The bundled sample config declares every critical physics key, so
     the structural-presence check must not fire.

@@ -340,6 +340,39 @@ def test_query_knowledge_tags_internal_runtime_audience(
     assert audiences == ["internal_runtime", "internal_runtime"]
 
 
+def test_query_knowledge_tags_pipeline_chunks_internal_runtime(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Pipeline chunks live under ``src/supy/data_model`` but are
+    internal validator/runtime evidence, not user-facing YAML schema
+    fields.
+    """
+    from suews_mcp.tools import query_knowledge
+
+    captured: dict = {}
+    matches = [
+        {
+            "id": "pipeline-chunk",
+            "content_type": "python",
+            "git_sha": "deadbeef",
+            "github_url": "https://example/blob/deadbeef/phase_a.py",
+            "repo_path": "src/supy/data_model/validation/pipeline/phase_a.py",
+            "line_start": 1,
+            "line_end": 50,
+            "score": 5,
+            "text": "internal validation pipeline code",
+        },
+    ]
+    monkeypatch.setattr(
+        subprocess,
+        "run",
+        _stub_envelope(captured, {"matches": matches, "manifest": {}}),
+    )
+
+    result = query_knowledge("anything", mode="full")
+    assert result["data"]["matches"][0]["audience"] == "internal_runtime"
+
+
 def test_query_knowledge_attaches_legacy_name_for(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

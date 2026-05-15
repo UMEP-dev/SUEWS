@@ -53,6 +53,9 @@ _SNIPPET_BYTES_CAP = 2_000
 # patterns are deliberately broad — when in doubt fall back to
 # ``developer_doc`` rather than ``user_yaml``.
 _AUDIENCE_PATTERNS: tuple[tuple[str, str], ...] = (
+    # Pipeline / orchestrator code is internal. Keep this before the
+    # broader ``src/supy/data_model/`` rule below.
+    ("internal_runtime", "src/supy/data_model/validation/pipeline/"),
     # Pydantic data models (the YAML schema's source of truth).
     ("user_yaml", "src/supy/data_model/"),
     # Fortran kernel and Rust bridge — runtime, not user-facing YAML.
@@ -65,8 +68,6 @@ _AUDIENCE_PATTERNS: tuple[tuple[str, str], ...] = (
     ("user_yaml", "docs/source/assets/schema"),
     # Everything else under docs/ is developer-facing prose.
     ("developer_doc", "docs/"),
-    # Pipeline / orchestrator code is internal.
-    ("internal_runtime", "src/supy/data_model/validation/pipeline/"),
 )
 
 

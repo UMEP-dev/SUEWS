@@ -1,12 +1,11 @@
 name: Knowledge pack freshness audit
 
 # Guard against silent drift between the SUEWS knowledge pack and
-# the data_model / cmd source it is meant to cite. The pack's meson
-# `custom_target` only depends on `knowledge/pack.py`, so changes
-# under `src/supy/data_model/` or `src/supy/cmd/` do NOT trigger an
-# automatic rebuild — the installed pack drifts and `query_knowledge`
-# starts surfacing stale field names. Motivated by gh#1406 (manual
-# smoke 2026-05-04 found pack `git_sha` lagging HEAD by 5 PRs).
+# the data_model / cmd source it is meant to cite. The audit runs a
+# temporary pack build (or compares committed pack hashes when artefacts
+# are tracked) so `query_knowledge` cannot silently surface stale field
+# names. Motivated by gh#1406 (manual smoke 2026-05-04 found pack
+# `git_sha` lagging HEAD by 5 PRs).
 #
 # Maintainers can label a PR with `knowledge-pack-audit-ok` to bypass
 # the check when the diff is genuinely cosmetic (docstring or comment

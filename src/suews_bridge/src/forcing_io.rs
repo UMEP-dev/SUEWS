@@ -2,7 +2,10 @@ use std::collections::HashMap;
 use std::fs;
 use std::path::Path;
 
-pub const MET_FORCING_COLS: usize = 30; // can this become a .len()?
+use crate::forcing::{
+    PER_LANDCOVER_FORCING_VARS,
+    PerLandcoverVar,
+};
 
 // gh#1372 — Baseline-required columns; the loader errors if any is missing.
 // Names are lower-cased; lookups are case-insensitive.
@@ -10,25 +13,9 @@ const BASELINE_FORCING_COLUMNS: &[&str] = &[
     "iy", "id", "it", "imin", "tair", "rh", "u", "pres", "kdown", "rain",
 ];
 
-// gh#1372 — Per-landcover whitelist: <var>_<surface>. `wuh` covers
-// per-surface external water use — irrigation and impervious-surface
-// washing on land surfaces, fountains and ornamental water features
-// on the open-water surface — and is therefore accepted on every
-// surface. `lai` is leaf-area index and is meaningful only for the
-// three vegetated surfaces. The bulk site-level columns `Wuh` /
-// `xsmd` remain in the canonical block — `xsmd` is intentionally NOT
-// per-landcover (it is fed in as a single bulk soil-moisture-deficit
-// value).
-const PER_LANDCOVER_FORCING_VARS: &[&str] = &["lai", "wuh"];
-const LANDCOVER_SUFFIXES: &[&str] = &[
-    "paved", "bldgs", "evetr", "dectr", "grass", "bsoil", "water",
-];
-const LAI_LANDCOVER_SUFFIXES: &[&str] = &["evetr", "dectr", "grass"];
-const WUH_LANDCOVER_SUFFIXES: &[&str] = &[
-    "paved", "bldgs", "evetr", "dectr", "grass", "bsoil", "water",
-];
-
 const FORCING_OPTIONAL_FILL: f64 = -999.0;
+
+pub const MET_FORCING_COLS: usize = 30;
 
 #[derive(Debug, Clone)]
 pub struct ForcingData {
@@ -51,19 +38,15 @@ fn find_col(cols: &HashMap<String, usize>, name: &str) -> Result<usize, String> 
 
 fn is_per_landcover(name: &str) -> Option<String> {
     let lowered = name.to_ascii_lowercase();
+
     for var in PER_LANDCOVER_FORCING_VARS {
-        let prefix = format!("{var}_");
-        if let Some(suffix) = lowered.strip_prefix(&prefix) {
-            let allowed: &[&str] = match *var {
-                "lai" => LAI_LANDCOVER_SUFFIXES,
-                "wuh" => WUH_LANDCOVER_SUFFIXES,
-                _ => LANDCOVER_SUFFIXES,
-            };
-            if allowed.contains(&suffix) {
+        if let Some(suffix) = lowered.strip_prefix(&format!("{}_", var.prefix)) {
+            if var.allowed_suffixes.contains(&suffix) {
                 return Some(lowered);
             }
         }
     }
+
     None
 }
 
@@ -123,10 +106,20 @@ pub fn read_forcing_block(path: &Path) -> Result<ForcingData, String> {
     // canonical input column but is projected into the three vegetation-class
     // kernel slots below.
     let extra_canonical: [(usize, &str); 1] = [(19, "xsmd")];
-    let lai_kernel_map: [(usize, &str); 3] =
-        [(20, "lai_evetr"), (21, "lai_dectr"), (22, "lai_grass")];
-    let wuh_kernel_map: [(usize, &str); 7] = 
-        [(23, "wuh_paved"), (24, "wuh_bldgs"), (25, "wuh_evetr"), (26, "wuh_dectr"), (27, "wuh_grass"), (28, "wuh_bsoil"), (29, "wuh_water")];
+    let lai_kernel_map: [(usize, &str); 3] = [
+            (20, "lai_evetr"),
+            (21, "lai_dectr"),
+            (22, "lai_grass")
+        ];
+    let wuh_kernel_map: [(usize, &str); 7] = [
+            (23, "wuh_paved"),
+            (24, "wuh_bldgs"),
+            (25, "wuh_evetr"),
+            (26, "wuh_dectr"),
+            (27, "wuh_grass"),
+            (28, "wuh_bsoil"),
+            (29, "wuh_water")
+        ];
     // Accepted canonical forcing columns that the current 23-column kernel
     // block does not consume.
     let unused_canonical = ["kdiff", "kdir", "wdir"];

@@ -21,21 +21,69 @@ pub struct SuewsForcingSchema {
 
 pub type SuewsForcingValuesPayload = ValuesPayloadWithDims;
 
+// gh#1372 — Per-landcover whitelist: <var>_<surface>. `wuh` covers
+// per-surface external water use — irrigation and impervious-surface
+// washing on land surfaces, fountains and ornamental water features
+// on the open-water surface — and is therefore accepted on every
+// surface. `lai` is leaf-area index and is meaningful only for the
+// three vegetated surfaces. The bulk site-level columns `Wuh` /
+// `xsmd` remain in the canonical block — `xsmd` is intentionally NOT
+// per-landcover (it is fed in as a single bulk soil-moisture-deficit
+// value).
+// const PER_LANDCOVER_FORCING_VARS: &[&str] = &["lai", "wuh"];
+
+const LANDCOVER_SUFFIXES: &[&str] = &[
+    "paved", "bldgs", "evetr", "dectr", "grass", "bsoil", "water",
+];
+const LAI_LANDCOVER_SUFFIXES: &[&str] = &["evetr", "dectr", "grass"];
+
+pub struct PerLandcoverVar {
+    pub prefix: &'static str,
+    pub allowed_suffixes: &'static [&'static str],
+}
+
+static LAI: PerLandcoverVar = PerLandcoverVar {
+    prefix: "lai",
+    allowed_suffixes: LAI_LANDCOVER_SUFFIXES,
+};
+
+static WUH: PerLandcoverVar = PerLandcoverVar {
+    prefix: "wuh",
+    allowed_suffixes: LANDCOVER_SUFFIXES,
+};
+
+pub static PER_LANDCOVER_FORCING_VARS: &[&PerLandcoverVar] = &[
+    &LAI,
+    &WUH,
+];
+
+
 macro_rules! suews_fields {
-    ($(($field:ident, $idx:expr)),* $(,)?) => {
-        #[derive(Debug, Clone, PartialEq)]
+    ($($field:ident),* $(,)?) => {
+        #[repr(usize)]
+        #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+        pub enum SuewsField {
+            $($field),*
+        }
+
+        impl SuewsField {
+            pub const fn name(self) -> &'static str {
+                match self {
+                    $(Self::$field => stringify!($field)),*
+                }
+            }
+            pub fn from_index(index: usize) -> Option<Self> {
+                match index {
+                    $(x if x == Self::$field as usize => Some(Self::$field),)*
+                    _ => None,
+                }
+            }
+        }
+
+        #[derive(Debug, Clone, PartialEq, Default)]
         pub struct SuewsForcing {
             $(pub $field: f64,)*
             pub ts5mindata_ir: Vec<f64>,
-        }
-
-        impl Default for SuewsForcing {
-            fn default() -> Self {
-                Self {
-                    $($field: 0.0,)*
-                    ts5mindata_ir: Vec::new(),
-                }
-            }
         }
 
         pub const SUEWS_FORCING_BASE_FIELDS: &[&str] = &[
@@ -56,9 +104,7 @@ macro_rules! suews_fields {
                 validate_flat_len(flat, expected_len)?;
 
                 Ok(Self {
-                    $(
-                        $field: flat[$idx],
-                    )*
+                    $($field: flat[SuewsField::$field as usize],)*
                     ts5mindata_ir: flat[SUEWS_FORCING_BASE_FLAT_LEN..].to_vec(),
                 })
             }
@@ -75,9 +121,7 @@ macro_rules! suews_fields {
             pub fn to_flat(&self) -> Vec<f64> {
                 let mut flat = Vec::with_capacity(SUEWS_FORCING_BASE_FLAT_LEN + self.ts5mindata_ir.len());
 
-                $(
-                    flat.push(self.$field);
-                )*
+                $(flat.push(self.$field);)*
                 flat.extend_from_slice(&self.ts5mindata_ir);
 
                 flat
@@ -89,43 +133,46 @@ macro_rules! suews_fields {
             index: usize,
             value: f64,
         ) -> Result<(), BridgeError> {
-            match index {
+            match SuewsField::from_index(index) {
                 $(
-                    $idx => state.$field = value,
+                    Some(SuewsField::$field) => {
+                        state.$field = value;
+                    },
                 )*
-                _ => return Err(BridgeError::BadState),
+                None => return Err(BridgeError::BadState),
             }
+            
             Ok(())
         }
     }
 }
 
 suews_fields! {
-    (kdown, 0),
-    (ldown, 1),
-    (rh, 2),
-    (pres, 3),
-    (tair_av_5d, 4),
-    (u, 5),
-    (rain, 6),
-    (wu_m3, 7),
-    (fcld, 8),
-    (snowfrac, 9),
-    (xsmd, 10),
-    (qf_obs, 11),
-    (qn1_obs, 12),
-    (qs_obs, 13),
-    (temp_c, 14),
-    (lai_evetr, 15),
-    (lai_dectr, 16),
-    (lai_grass, 17),
-    (wu_m3_paved, 18),
-    (wu_m3_bldgs, 19),
-    (wu_m3_evetr, 20),
-    (wu_m3_dectr, 21),
-    (wu_m3_grass, 22),
-    (wu_m3_bsoil, 23),
-    (wu_m3_water, 24)
+    kdown,
+    ldown,
+    rh,
+    pres,
+    tair_av_5d,
+    u,
+    rain,
+    wu_m3,
+    fcld,
+    snowfrac,
+    xsmd,
+    qf_obs,
+    qn1_obs,
+    qs_obs,
+    temp_c,
+    lai_evetr,
+    lai_dectr,
+    lai_grass,
+    wuh_paved,
+    wuh_bldgs,
+    wuh_evetr,
+    wuh_dectr,
+    wuh_grass,
+    wuh_bsoil,
+    wuh_water
 }
 
 
@@ -410,6 +457,6 @@ mod tests {
 
         let err = suews_forcing_from_values_payload(&payload)
             .expect_err("dims/values mismatch should fail");
-        assert_eq!(err, BridgeError::BadBuffer2);
+        assert_eq!(err, BridgeError::BadBuffer);
     }
 }

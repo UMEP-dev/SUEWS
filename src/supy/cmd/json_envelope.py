@@ -219,7 +219,15 @@ class Envelope:
         """Write the envelope as JSON to ``stream`` (default stdout)."""
         text = self.to_json()
         target = stream if stream is not None else sys.stdout
-        target.write(text)
+        try:
+            target.write(text)
+        except UnicodeEncodeError:
+            # Windows CI and some plugin hosts expose stdout with a legacy
+            # code page even when the process is writing to a pipe. Keep
+            # ``to_json()`` human-readable for UTF-8 streams, but fall back
+            # to ASCII escapes at the final write boundary so JSON-emitting
+            # commands never crash before producing an envelope.
+            target.write(json.dumps(self.to_dict(), indent=2, ensure_ascii=True))
         target.write("\n")
         target.flush()
 

@@ -171,6 +171,28 @@ class TestEnvelopeEmit:
         assert parsed["status"] == "success"
         assert parsed["data"] == {"x": 1}
 
+    def test_emit_falls_back_to_ascii_when_stream_cannot_encode_unicode(self) -> None:
+        import io
+
+        class Cp1252Stream:
+            def __init__(self) -> None:
+                self.buf = io.StringIO()
+
+            def write(self, text: str) -> int:
+                text.encode("cp1252")
+                return self.buf.write(text)
+
+            def flush(self) -> None:
+                pass
+
+        stream = Cp1252Stream()
+        env = Envelope.success(data={"symbol": "lambda λ"}, command="suews inspect")
+        env.emit(stream=stream)
+
+        text = stream.buf.getvalue()
+        assert "\\u03bb" in text
+        assert json.loads(text)["data"]["symbol"] == "lambda λ"
+
 
 class TestErrorCoercion:
     def test_string_errors_coerced_to_dict_with_message(self) -> None:

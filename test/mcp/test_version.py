@@ -78,6 +78,13 @@ def test_mcp_server_advertises_package_version() -> None:
     (e.g. "1.27.0") in the handshake, weakening the provenance story
     for clients that log ``serverInfo.version``.
     """
+    pytest.importorskip(
+        "mcp",
+        reason=(
+            "The optional 'mcp' SDK is not installed in the standard supy "
+            "wheel matrix."
+        ),
+    )
     from suews_mcp.server import _build_server
 
     server = _build_server()

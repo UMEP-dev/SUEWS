@@ -12,6 +12,7 @@ Every MCP tool that needs to invoke a SUEWS subcommand goes through
 from __future__ import annotations
 
 import json
+import os
 import shutil
 import subprocess
 import sys
@@ -23,6 +24,19 @@ from ..constants import ALLOWED_SUBCOMMANDS, DEFAULT_TIMEOUT_SECONDS
 
 class SUEWSMCPError(RuntimeError):
     """Raised when the CLI wrapper cannot return a valid envelope."""
+
+
+def _resolve_from_dir(name: str, directory: Path) -> str | None:
+    """Resolve ``name`` in ``directory``.
+
+    ``shutil.which`` handles PATHEXT on Windows for real console scripts such
+    as ``suews.exe``. The direct file check keeps the resolver testable with
+    extensionless fixture scripts on every platform.
+    """
+    direct = directory / name
+    if direct.is_file() and os.access(direct, os.X_OK):
+        return str(direct)
+    return shutil.which(name, path=str(directory))
 
 
 def _resolve_suews_executable(name: str = "suews") -> str:
@@ -47,10 +61,18 @@ def _resolve_suews_executable(name: str = "suews") -> str:
     3. Return ``name`` unchanged so ``subprocess.run`` still raises a
        useful ``FileNotFoundError`` when nothing is reachable.
     """
-    sibling_dir = str(Path(sys.executable).parent)
-    sibling = shutil.which(name, path=sibling_dir)
+    sibling_dir = Path(sys.executable).parent
+    sibling = _resolve_from_dir(name, sibling_dir)
     if sibling:
         return sibling
+
+    for entry in os.environ.get("PATH", "").split(os.pathsep):
+        if not entry:
+            continue
+        on_path = _resolve_from_dir(name, Path(entry))
+        if on_path:
+            return on_path
+
     on_path = shutil.which(name)
     if on_path:
         return on_path

@@ -186,6 +186,8 @@ def _parse_args(argv: Optional[Sequence[str]] = None) -> argparse.Namespace:
 def main(argv: Optional[Sequence[str]] = None) -> None:
     """Console-script entry point: ``suews-mcp``."""
     args = _parse_args(argv)
+    previous_root = os.environ.get(ENV_PROJECT_ROOT)
+    root_overridden = args.root is not None
     if args.root is not None:
         # Anchor the sandbox before any tool's ProjectRoot instance is
         # constructed. ProjectRoot reads the env var at instantiation,
@@ -193,15 +195,22 @@ def main(argv: Optional[Sequence[str]] = None) -> None:
         resolved_root = str(Path(args.root).expanduser().resolve(strict=False))
         os.environ[ENV_PROJECT_ROOT] = resolved_root
 
-    # Surface knowledge-pack staleness on stderr at startup (gh#1406).
-    # MCP hosts route stderr to their plugin log so the user sees this
-    # without it polluting the JSON-RPC stdio channel.
-    warning = _check_knowledge_pack_freshness()
-    if warning:
-        sys.stderr.write(warning + "\n")
+    try:
+        # Surface knowledge-pack staleness on stderr at startup (gh#1406).
+        # MCP hosts route stderr to their plugin log so the user sees this
+        # without it polluting the JSON-RPC stdio channel.
+        warning = _check_knowledge_pack_freshness()
+        if warning:
+            sys.stderr.write(warning + "\n")
 
-    server = _build_server()
-    server.run()
+        server = _build_server()
+        server.run()
+    finally:
+        if root_overridden:
+            if previous_root is None:
+                os.environ.pop(ENV_PROJECT_ROOT, None)
+            else:
+                os.environ[ENV_PROJECT_ROOT] = previous_root
 
 
 if __name__ == "__main__":  # pragma: no cover

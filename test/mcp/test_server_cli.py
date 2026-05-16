@@ -61,6 +61,7 @@ def test_main_root_flag_sets_env_var_before_server_build(
 
     assert captured["ran"] == "yes"
     assert captured["env_value"] == str(tmp_path.resolve())
+    assert os.environ.get(ENV_PROJECT_ROOT) is None
 
 
 def test_check_knowledge_pack_freshness_returns_none_for_matching_versions(

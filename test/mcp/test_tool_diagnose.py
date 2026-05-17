@@ -31,7 +31,7 @@ def test_diagnose_returns_envelope_from_subprocess(
     }
 
     def fake_run(cmd, **_kwargs):
-        assert cmd[0].endswith("suews")
+        assert cmd[0].lower().endswith(("suews", "suews.exe"))
         assert cmd[1] == "diagnose"
         return subprocess.CompletedProcess(
             args=cmd, returncode=0, stdout=json.dumps(envelope), stderr=""

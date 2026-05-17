@@ -41,7 +41,7 @@ def test_query_knowledge_passes_question_and_limit(
     )
 
     query_knowledge("STEBBS", limit=3)
-    assert captured["cmd"][0].endswith("suews")
+    assert captured["cmd"][0].lower().endswith(("suews", "suews.exe"))
     assert captured["cmd"][1:3] == ["knowledge", "query"]
     assert "STEBBS" in captured["cmd"]
     assert "--limit" in captured["cmd"]
@@ -128,7 +128,7 @@ def test_read_knowledge_manifest_calls_subcommand(
 
     result = read_knowledge_manifest()
     assert result["status"] == "success"
-    assert captured["cmd"][0].endswith("suews")
+    assert captured["cmd"][0].lower().endswith(("suews", "suews.exe"))
     assert captured["cmd"][1:3] == ["knowledge", "manifest"]
     assert result["data"]["manifest"]["git_sha"] == "deadbeef"
 

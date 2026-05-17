@@ -41,7 +41,7 @@ def test_summarise_passes_run_dir_and_format(
 
     result = summarise_run(str(run_dir), project_root=str(tmp_path))
     assert result["status"] == "success"
-    assert captured["cmd"][0].endswith("suews")
+    assert captured["cmd"][0].lower().endswith(("suews", "suews.exe"))
     assert captured["cmd"][1] == "summarise"
     assert str(run_dir) in captured["cmd"]
     assert "--format" in captured["cmd"]

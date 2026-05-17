@@ -18,7 +18,11 @@ def summarise_run(
     project_root: Optional[str] = None,
     variables: Optional[str] = None,
 ) -> dict[str, Any]:
-    """Summarise a SUEWS run output and return the standard envelope.
+    """**Use this after `suews run` completes** when the user wants a
+    high-level overview of the simulation — per-variable statistics
+    (mean, min, max, n_missing) at a glance. Cheaper than reading the
+    raw output and the right starting point before calling
+    `compare_runs` or `diagnose_run` (gh#1407).
 
     Parameters
     ----------

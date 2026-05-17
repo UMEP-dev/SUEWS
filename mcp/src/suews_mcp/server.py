@@ -7,9 +7,14 @@ testing the tool functions even when the SDK is not installed.
 
 from __future__ import annotations
 
+import argparse
 import json
+import os
 import sys  # noqa: F401  (kept for future use; FastMCP.run() handles streams)
-from typing import Any
+from pathlib import Path
+from typing import Any, Optional, Sequence
+
+from .constants import ENV_PROJECT_ROOT
 
 
 def _build_server() -> Any:
@@ -51,6 +56,17 @@ def _build_server() -> Any:
     )
 
     server = FastMCP("suews-mcp")
+
+    # Plumb the package version into the MCP `initialize` handshake so
+    # `serverInfo.version` agrees with `pip show suews-mcp` (gh#1401).
+    # FastMCP's constructor does not accept a version directly, but the
+    # underlying lowlevel `Server` carries a settable `version` field
+    # which `initialize` reads. Without this override the SDK reports
+    # its own library version (e.g. "1.27.0"), weakening the
+    # provenance story for clients that log `serverInfo.version`.
+    from . import __version__ as _suews_mcp_version
+
+    server._mcp_server.version = _suews_mcp_version
 
     # Tools — config & schema (read-only)
     server.tool(name="validate_config")(validate_config)
@@ -100,10 +116,101 @@ def _build_server() -> Any:
     return server
 
 
-def main() -> None:
+def _check_knowledge_pack_freshness() -> Optional[str]:
+    """Return a staleness warning for the installed knowledge pack, or
+    ``None`` when the pack is fresh / unreadable (gh#1406).
+
+    Compares the pack manifest's ``suews_version`` against the running
+    ``supy.__version__``. A mismatch means the pack was built at a
+    different revision — typically because ``data_model/`` or
+    ``cmd/`` changed without a meson dep refresh, or because the user
+    is on an older wheel than the installed supy. Returns ``None``
+    when supy or the pack is unavailable so a degraded environment
+    does not crash server startup.
+    """
+    try:
+        from supy import __version__ as supy_version  # type: ignore[import-not-found]
+        from supy.knowledge import load_manifest  # type: ignore[import-not-found]
+    except Exception:
+        return None
+    try:
+        manifest = load_manifest()
+    except Exception:
+        return None
+    pack_version = manifest.get("suews_version")
+    pack_sha = manifest.get("git_sha")
+    if not pack_version or pack_version == supy_version:
+        return None
+    return (
+        f"[suews-mcp] knowledge pack staleness: pack built for supy "
+        f"{pack_version} (git_sha {pack_sha[:10] if pack_sha else 'unknown'}) "
+        f"but running supy is {supy_version}. `query_knowledge` may surface "
+        f"chunks that no longer match the live schema; rebuild via "
+        f"`suews knowledge build` before relying on it for user-facing "
+        f"YAML answers."
+    )
+
+
+def _parse_args(argv: Optional[Sequence[str]] = None) -> argparse.Namespace:
+    """Parse CLI args for the ``suews-mcp`` console script (gh#1405).
+
+    The MCP server has long honoured ``SUEWS_MCP_PROJECT_ROOT`` but the
+    plugin-host launch idiom is ``suews-mcp --root <path>``; without the
+    flag the sandbox falls back to ``os.getcwd()``, which on a
+    Conductor-isolated launch points at a temp directory rather than
+    the workspace. The agent then sees its own absolute paths rejected
+    with a confusing "outside the project root" message that names
+    the temp dir.
+    """
+    parser = argparse.ArgumentParser(
+        prog="suews-mcp",
+        description=(
+            "SUEWS Model Context Protocol server (read-only Phase-1)."
+        ),
+    )
+    parser.add_argument(
+        "--root",
+        type=str,
+        default=None,
+        help=(
+            "Project root directory. Tools resolve relative paths under "
+            "this root, and absolute paths must lie inside it. Overrides "
+            "the SUEWS_MCP_PROJECT_ROOT environment variable. Defaults "
+            "to SUEWS_MCP_PROJECT_ROOT if set, otherwise the current "
+            "working directory."
+        ),
+    )
+    return parser.parse_args(list(argv) if argv is not None else None)
+
+
+def main(argv: Optional[Sequence[str]] = None) -> None:
     """Console-script entry point: ``suews-mcp``."""
-    server = _build_server()
-    server.run()
+    args = _parse_args(argv)
+    previous_root = os.environ.get(ENV_PROJECT_ROOT)
+    root_overridden = args.root is not None
+    if args.root is not None:
+        # Anchor the sandbox before any tool's ProjectRoot instance is
+        # constructed. ProjectRoot reads the env var at instantiation,
+        # so setting it here propagates to every subsequent tool call.
+        resolved_root = str(Path(args.root).expanduser().resolve(strict=False))
+        os.environ[ENV_PROJECT_ROOT] = resolved_root
+
+    try:
+        # Surface knowledge-pack staleness on stderr at startup (gh#1406).
+        # MCP hosts route stderr to their plugin log so the user sees this
+        # without it polluting the JSON-RPC stdio channel.
+        warning = _check_knowledge_pack_freshness()
+        if warning:
+            sys.stderr.write(warning + "\n")
+
+        server = _build_server()
+        server.run()
+    finally:
+        if root_overridden:
+            if previous_root is None:
+                os.environ.pop(ENV_PROJECT_ROOT, None)
+            else:
+                os.environ[ENV_PROJECT_ROOT] = previous_root
 
 
 if __name__ == "__main__":  # pragma: no cover

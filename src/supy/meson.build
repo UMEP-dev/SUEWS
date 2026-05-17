@@ -185,6 +185,16 @@ knowledge_pack = custom_target(
     'chunks.jsonl.gz',
   ],
   depend_files: files('knowledge/pack.py'),
+  # Always rebuild on every build invocation (gh#1406). The pack
+  # content depends on every file under `src/suews/src`,
+  # `src/suews_bridge/src`, and `src/supy/` — declaring those
+  # individually as `depend_files` is brittle (meson `files()` does
+  # not glob), so we let ninja skip the deduplication and run the
+  # builder unconditionally. The pack-build script reads the source
+  # roots and writes deterministic JSON; runtime is on the order of
+  # seconds, well below the cost of carrying a stale pack into a
+  # release wheel.
+  build_always_stale: true,
   build_by_default: true,
   install: true,
   install_dir: py.get_install_dir() / 'supy/knowledge/pack/current',

@@ -79,10 +79,10 @@ def test_mcp_server_advertises_package_version() -> None:
     for clients that log ``serverInfo.version``.
     """
     pytest.importorskip(
-        "mcp",
+        "mcp.server.fastmcp",
         reason=(
-            "The optional 'mcp' SDK is not installed in the standard supy "
-            "wheel matrix."
+            "The optional 'mcp' SDK FastMCP server is not installed in the "
+            "standard supy wheel matrix."
         ),
     )
     from suews_mcp.server import _build_server

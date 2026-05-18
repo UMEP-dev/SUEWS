@@ -108,6 +108,33 @@ def _build_server() -> Any:
 
     server._mcp_server.version = _suews_mcp_version
 
+    # Per-process write lock guarding the mutating tools (gh#1412 follow-up).
+    # Before the async offload, every tool ran sync in the FastMCP event loop,
+    # which serialised writes against each other implicitly. The offload now
+    # allows two CLI invocations to overlap on worker threads — fine for the
+    # read-only surface, unsafe for tools that create files under the project
+    # root (`init_case`, `convert_config`) because a misbehaving or pipelined
+    # agent could fire both at the same output path. The lock restores the
+    # sequential-write guarantee while keeping read tools concurrent.
+    import anyio
+
+    _write_lock = anyio.Lock()
+
+    def _async_offload_locked(fn: Callable[..., Any]) -> Callable[..., Any]:
+        """Variant of :func:`_async_offload` that takes the per-process write
+        lock before dispatching to a worker thread. Used only for tools that
+        mutate the project root.
+        """
+
+        @functools.wraps(fn)
+        async def wrapper(*args: Any, **kwargs: Any) -> Any:
+            async with _write_lock:
+                return await anyio.to_thread.run_sync(
+                    functools.partial(fn, *args, **kwargs)
+                )
+
+        return wrapper
+
     # Tools — config & schema (read-only)
     # Every tool wrapper goes through ``_async_offload`` so the CLI-backed
     # subprocess.run inside the wrapper cannot block the FastMCP event loop
@@ -120,9 +147,10 @@ def _build_server() -> Any:
     server.tool(name="list_examples")(_async_offload(list_examples))
     server.tool(name="read_example")(_async_offload(read_example))
 
-    # Tools — workflow (init / convert)
-    server.tool(name="init_case")(_async_offload(init_case))
-    server.tool(name="convert_config")(_async_offload(convert_config))
+    # Tools — workflow (init / convert). Write-path: guarded by `_write_lock`
+    # so two concurrent calls cannot race on the same output directory.
+    server.tool(name="init_case")(_async_offload_locked(init_case))
+    server.tool(name="convert_config")(_async_offload_locked(convert_config))
 
     # Tools — post-run (summarise / compare / diagnose)
     server.tool(name="summarise_run")(_async_offload(summarise_run))
@@ -139,7 +167,6 @@ def _build_server() -> Any:
     # ``_schema`` and the two ``_knowledge_*`` resources reach back into the
     # CLI; ``_docs``/``_examples``/``_runs`` are local file reads. Wrapping
     # them all uniformly keeps the dispatch contract consistent (gh#1412).
-    import anyio
 
     @server.resource("suews://schema/{version}")
     async def _schema(version: str = "current") -> str:

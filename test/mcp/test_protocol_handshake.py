@@ -173,30 +173,33 @@ def test_resources_advertise_all_six() -> None:
     )
 
 
-async def _run_concurrent_calls(
+async def _run_baseline_then_concurrent(
+    baseline_call: tuple[str, dict],
     sequence: list[tuple[str, dict]],
-    per_task_timeout: float,
-) -> tuple[list, float]:
-    """Spawn `suews-mcp` and issue ``sequence`` of ``tools/call``s
-    **concurrently** via ``asyncio.gather`` on a single stdio session.
-    Each task gets its own ``asyncio.wait_for``. Returns the envelopes
-    plus the wall-clock seconds the gather took.
+    per_task_timeout_factor: float,
+) -> tuple[float, list, float]:
+    """Spawn `suews-mcp` and (a) run a single warm-up tool call to capture a
+    per-host baseline cost, then (b) issue ``sequence`` of ``tools/call``s
+    **concurrently** via ``asyncio.gather`` on the *same* session.
 
-    Concurrency is the critical bit. The gh#1412 bug is that the
-    synchronous ``subprocess.run`` inside a tool wrapper blocks the
-    FastMCP asyncio event loop. With **sequential** ``await
-    call_tool`` x 2 the loop is idle between calls, so the bug does
-    not manifest — each call's subprocess returns before the next
-    request even reaches stdin. With **concurrent** in-flight
-    requests on the same session (the real plugin-host shape), the
-    second request lands in stdin while subprocess 1 is still
-    running; under the bug the loop cannot read it until subprocess 1
-    returns, serialising two ~5-10 s CLI calls into ~10-20 s of
-    wall-clock and, under sufficient pipe-buffer pressure,
-    deadlocking the second response. With the fix
-    (``_async_offload`` + ``anyio.to_thread.run_sync``) the loop is
-    free to dispatch a second worker thread immediately, so the two
-    subprocesses overlap and wall-clock approaches ``max(t1, t2)``.
+    Returns ``(baseline_seconds, envelopes, concurrent_seconds)``. The caller
+    asserts ``concurrent_seconds`` is bounded by a multiple of
+    ``baseline_seconds`` rather than against a hard-coded constant.
+
+    Why baseline-relative. The gh#1412 bug is that the synchronous
+    ``subprocess.run`` inside a tool wrapper blocks the FastMCP asyncio event
+    loop, so the second request on one session cannot be read while subprocess
+    1 is running. With **sequential** awaits the loop is idle between calls
+    and the bug does not manifest. With **concurrent** in-flight requests
+    (the real plugin-host shape) the two CLI calls either overlap on worker
+    threads (~``max(t1,t2)``, fix in place) or serialise on the event loop
+    (~``t1+t2``, bug present). A hard-coded wall-clock budget (e.g. 18 s) sits
+    in the false-negative zone whenever the CLI is fast enough that
+    ``t1+t2 < budget``. Comparing against the same-session baseline removes
+    that zone entirely: the threshold scales with whatever the host's actual
+    CLI cost happens to be. ``per_task_timeout_factor`` derives the per-task
+    ``asyncio.wait_for`` deadline from the same baseline so the timeout is
+    self-calibrating too.
     """
     import time
 
@@ -211,6 +214,24 @@ async def _run_concurrent_calls(
     async with stdio_client(server_params) as (read, write):
         async with ClientSession(read, write) as session:
             await session.initialize()
+
+            # 1. Warm-up + baseline measurement. This call also primes any
+            # one-shot startup cost (knowledge-pack chunk load) so the
+            # concurrent gather below measures steady-state behaviour.
+            baseline_name, baseline_args = baseline_call
+            t_b = time.monotonic()
+            await session.call_tool(baseline_name, arguments=baseline_args)
+            baseline_seconds = time.monotonic() - t_b
+            # Floor the baseline to avoid pathological tiny values producing
+            # a sub-second `per_task_timeout` that would itself flake. 1 s is
+            # well below any realistic CLI cost on this surface.
+            baseline_seconds = max(baseline_seconds, 1.0)
+
+            per_task_timeout = baseline_seconds * per_task_timeout_factor
+
+            # 2. Concurrent gather. Under the bug the second task hits its
+            # baseline-derived deadline because subprocess 1 still holds
+            # the loop; under the fix both threads overlap.
             t0 = time.monotonic()
             envelopes = await asyncio.gather(
                 *(
@@ -221,21 +242,20 @@ async def _run_concurrent_calls(
                     for name, args in sequence
                 )
             )
-            elapsed = time.monotonic() - t0
-            return list(envelopes), elapsed
+            concurrent_seconds = time.monotonic() - t0
+            return baseline_seconds, list(envelopes), concurrent_seconds
 
 
-# Wall-clock budget for two CLI-backed calls dispatched concurrently. With the
-# fix in place each subprocess runs on its own worker thread so the gather
-# resolves at ``max(t1, t2)`` — typically 5-10 s for a knowledge query, up to
-# ~12 s on a cold CI host. Without the fix the calls serialise to ~10-20 s of
-# wall-clock and the test fails. 18 s is the lowest threshold that still
-# absorbs a slow-but-healthy CI run without producing a false negative on the
-# bug.
-_GATHER_WALLCLOCK_BUDGET_S = 18.0
-# Per-task timeout for ``asyncio.wait_for``. Tight enough that under the bug
-# the second task hits its deadline before the serialised subprocess returns.
-_GATHER_PER_TASK_TIMEOUT_S = 25.0
+# Wall-clock factor for the concurrent gather, relative to a single-call
+# baseline captured in the same session. With the fix in place the gather
+# resolves at ``max(t1, t2)`` ≈ baseline; without the fix it serialises to
+# ``~2 * baseline``. 1.5 sits cleanly between the two — generous enough that
+# normal jitter does not flake, tight enough that any return to serialisation
+# fails the assertion.
+_CONCURRENT_WALLCLOCK_FACTOR = 1.5
+# Per-task ``asyncio.wait_for`` factor: under the bug the second task takes
+# ~``2 * baseline``; this catches it well before the gather budget.
+_PER_TASK_TIMEOUT_FACTOR = 1.8
 
 
 @pytest.mark.slow
@@ -255,8 +275,12 @@ def test_concurrent_query_knowledge_does_not_block_event_loop() -> None:
     (``_async_offload`` + ``anyio.to_thread.run_sync``) both
     subprocesses overlap and the gather resolves at ``max(t1, t2)``.
     """
-    envelopes, elapsed = asyncio.run(
-        _run_concurrent_calls(
+    baseline, envelopes, elapsed = asyncio.run(
+        _run_baseline_then_concurrent(
+            baseline_call=(
+                "query_knowledge",
+                {"question": "warm-up baseline call", "limit": 1},
+            ),
             sequence=[
                 (
                     "query_knowledge",
@@ -273,7 +297,7 @@ def test_concurrent_query_knowledge_does_not_block_event_loop() -> None:
                     },
                 ),
             ],
-            per_task_timeout=_GATHER_PER_TASK_TIMEOUT_S,
+            per_task_timeout_factor=_PER_TASK_TIMEOUT_FACTOR,
         )
     )
     assert len(envelopes) == 2, (
@@ -285,13 +309,14 @@ def test_concurrent_query_knowledge_does_not_block_event_loop() -> None:
             f"Concurrent call {idx + 1}/2 returned without content; "
             "FastMCP dispatch likely failed."
         )
-    assert elapsed < _GATHER_WALLCLOCK_BUDGET_S, (
+    budget = baseline * _CONCURRENT_WALLCLOCK_FACTOR
+    assert elapsed < budget, (
         f"Two concurrent query_knowledge calls took {elapsed:.1f}s "
-        f"wall-clock; expected <{_GATHER_WALLCLOCK_BUDGET_S}s with the "
-        "gh#1412 fix in place. Either the worker-thread offload has "
-        "regressed (calls are serialising on the event loop again) or "
-        "the underlying CLI cost has grown enough to warrant raising "
-        "the budget."
+        f"wall-clock; expected <{budget:.1f}s "
+        f"(= {_CONCURRENT_WALLCLOCK_FACTOR}× a {baseline:.1f}s baseline "
+        "captured in the same session). The worker-thread offload has "
+        "regressed: calls are serialising on the event loop instead of "
+        "overlapping on threads."
     )
 
 
@@ -304,8 +329,12 @@ def test_concurrent_query_knowledge_and_search_schema() -> None:
     ``read_knowledge_manifest`` / ``list_examples`` all showed the
     same second-call delay).
     """
-    envelopes, elapsed = asyncio.run(
-        _run_concurrent_calls(
+    baseline, envelopes, elapsed = asyncio.run(
+        _run_baseline_then_concurrent(
+            baseline_call=(
+                "query_knowledge",
+                {"question": "warm-up baseline call", "limit": 1},
+            ),
             sequence=[
                 (
                     "query_knowledge",
@@ -316,7 +345,7 @@ def test_concurrent_query_knowledge_and_search_schema() -> None:
                     {"query": "sfr"},
                 ),
             ],
-            per_task_timeout=_GATHER_PER_TASK_TIMEOUT_S,
+            per_task_timeout_factor=_PER_TASK_TIMEOUT_FACTOR,
         )
     )
     assert len(envelopes) == 2
@@ -325,10 +354,12 @@ def test_concurrent_query_knowledge_and_search_schema() -> None:
             f"Concurrent cross-tool call {idx + 1}/2 returned without "
             "content; FastMCP dispatch likely failed."
         )
-    assert elapsed < _GATHER_WALLCLOCK_BUDGET_S, (
+    budget = baseline * _CONCURRENT_WALLCLOCK_FACTOR
+    assert elapsed < budget, (
         f"query_knowledge + search_schema in concurrent gather took "
-        f"{elapsed:.1f}s wall-clock; expected <{_GATHER_WALLCLOCK_BUDGET_S}s "
-        "with the gh#1412 fix in place."
+        f"{elapsed:.1f}s wall-clock; expected <{budget:.1f}s "
+        f"(= {_CONCURRENT_WALLCLOCK_FACTOR}× a {baseline:.1f}s baseline "
+        "captured in the same session)."
     )
 
 

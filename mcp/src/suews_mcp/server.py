@@ -113,9 +113,12 @@ def _build_server() -> Any:
     # which serialised writes against each other implicitly. The offload now
     # allows two CLI invocations to overlap on worker threads — fine for the
     # read-only surface, unsafe for tools that create files under the project
-    # root (`init_case`, `convert_config`) because a misbehaving or pipelined
-    # agent could fire both at the same output path. The lock restores the
-    # sequential-write guarantee while keeping read tools concurrent.
+    # root because a misbehaving or pipelined agent could fire two of them at
+    # the same output path. Tools currently covered: `init_case` (creates a
+    # new case directory), `convert_config` (writes the converted YAML), and
+    # `validate_config` (writes report / output YAMLs and unlinks intermediates
+    # when not in `--dry-run`). The lock restores the sequential-write
+    # guarantee while keeping the read tools concurrent.
     import anyio
 
     _write_lock = anyio.Lock()
@@ -135,13 +138,14 @@ def _build_server() -> Any:
 
         return wrapper
 
-    # Tools — config & schema (read-only)
-    # Every tool wrapper goes through ``_async_offload`` so the CLI-backed
-    # subprocess.run inside the wrapper cannot block the FastMCP event loop
-    # (gh#1412). The handful of tools that never shell out (``list_examples``,
-    # ``read_example``) get the same treatment for uniformity; their off-loaded
-    # body returns in microseconds.
-    server.tool(name="validate_config")(_async_offload(validate_config))
+    # Tools — config & schema. `validate_config` writes files under the
+    # project root when not in `--dry-run` (output YAMLs, report files,
+    # `.unlink()` on intermediates), so it joins the locked write-path set
+    # below in spirit but is registered here for cohesion with the rest of
+    # the schema/config surface. Every other tool in this group is read-only;
+    # `list_examples` / `read_example` never shell out but go through
+    # `_async_offload` for dispatch uniformity (microsecond cost).
+    server.tool(name="validate_config")(_async_offload_locked(validate_config))
     server.tool(name="inspect_config")(_async_offload(inspect_config))
     server.tool(name="search_schema")(_async_offload(search_schema))
     server.tool(name="list_examples")(_async_offload(list_examples))

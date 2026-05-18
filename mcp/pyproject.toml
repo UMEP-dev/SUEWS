@@ -15,6 +15,11 @@ authors = [
 dependencies = [
     "supy",
     "mcp>=1.2",
+    # Directly consumed by `server._async_offload` to push blocking CLI calls
+    # off the FastMCP event loop (gh#1412). It is already a transitive dep of
+    # `mcp`, but the server uses it as a first-class import so we declare it
+    # explicitly.
+    "anyio>=4",
     # Pin httpx away from the in-flight 1.0 dev line (gh#1399). The official
     # `mcp` package transitively depends on `httpx_sse`, which has an
     # unpinned dep on `httpx`. With `uv pip install --prerelease=allow` the

@@ -667,7 +667,7 @@ mod python_bindings {
 
         #[staticmethod]
         fn field_names() -> PyResult<Vec<String>> {
-            suews_forcing_field_names().map_err(map_bridge_error)
+            Ok(suews_forcing_field_names())
         }
 
         fn field_value(&self, name: &str) -> PyResult<f64> {
@@ -4381,7 +4381,7 @@ mod python_bindings {
 
     #[pyfunction(name = "suews_forcing_fields")]
     fn suews_forcing_fields_py() -> PyResult<Vec<String>> {
-        suews_forcing_field_names().map_err(map_bridge_error)
+        Ok(suews_forcing_field_names())
     }
 
     #[pyfunction(name = "hydro_state_schema")]

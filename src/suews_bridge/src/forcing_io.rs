@@ -3,14 +3,22 @@ use std::fs;
 use std::path::Path;
 
 use crate::forcing::{
-    BASELINE_FORCING_COLUMNS,
+    BASELINE_FORCING_COLUMNS, // TODO: migrate to field descriptors
     PER_LANDCOVER_FORCING_VARS,
     PerLandcoverVar,
+    SuewsField,
+    FieldDescriptor,
+    InterpKind,
+    FIELD_DESCRIPTORS,
 };
 
 const FORCING_OPTIONAL_FILL: f64 = -999.0;
 
 pub const MET_FORCING_COLS: usize = 30;
+
+pub const DATETIME_COLUMNS: &[&str] = &[
+    "iy", "id", "it", "imin",
+];
 
 #[derive(Debug, Clone)]
 pub struct ForcingData {
@@ -43,6 +51,32 @@ fn is_per_landcover(name: &str) -> Option<String> {
     }
 
     None
+}
+
+struct InterpGroups {
+    inst: Vec<usize>,
+    avg: Vec<usize>,
+    sum: Vec<usize>,
+}
+
+impl InterpGroups {
+    fn from_schema() -> Self {
+        let mut inst = Vec::new();
+        let mut avg = Vec::new();
+        let mut sum = Vec::new();
+
+        for d in FIELD_DESCRIPTORS.iter() {
+            let idx = d.field.index();
+
+            match d.interp {
+                InterpKind::Instantaneous => inst.push(idx),
+                InterpKind::Average => avg.push(idx),
+                InterpKind::Sum => sum.push(idx),
+            }
+        }
+
+        Self { inst, avg, sum }
+    }
 }
 
 pub fn read_forcing_block(path: &Path) -> Result<ForcingData, String> {
@@ -80,41 +114,44 @@ pub fn read_forcing_block(path: &Path) -> Result<ForcingData, String> {
     }
 
     // Mapping of canonical optional columns -> flat-block index.
-    let optional_map: [(usize, &str); 15] = [
-        (4, "qn"),
-        (5, "qh"),
-        (6, "qe"),
-        (7, "qs"),
-        (8, "qf"),
-        (9, "u"),
-        (10, "rh"),
-        (11, "tair"),
-        (12, "pres"),
-        (13, "rain"),
-        (14, "kdown"),
-        (15, "snow"),
-        (16, "ldown"),
-        (17, "fcld"),
-        (18, "wuh"),
+    let optional_map: &[(&str, SuewsField)] = &[
+        ("qn", SuewsField::qn1_obs),
+        ("qh", SuewsField::qh),
+        ("qe", SuewsField::qe),
+        ("qs", SuewsField::qs_obs),
+        ("qf", SuewsField::qf_obs),
+        ("u", SuewsField::u),
+        ("rh", SuewsField::rh),
+        ("tair", SuewsField::temp_c),
+        ("pres", SuewsField::pres),
+        ("rain", SuewsField::rain),
+        ("kdown", SuewsField::kdown),
+        ("snow", SuewsField::snowfrac),
+        ("ldown", SuewsField::ldown),
+        ("fcld", SuewsField::fcld),
+        ("wuh", SuewsField::wu_m3),
     ];
     // xsmd (19) is also canonical and read identically. Bulk `lai` remains a
     // canonical input column but is projected into the three vegetation-class
     // kernel slots below.
-    let extra_canonical: [(usize, &str); 1] = [(19, "xsmd")];
-    let lai_kernel_map: [(usize, &str); 3] = [
-            (20, "lai_evetr"),
-            (21, "lai_dectr"),
-            (22, "lai_grass")
-        ];
-    let wuh_kernel_map: [(usize, &str); 7] = [
-            (23, "wuh_paved"),
-            (24, "wuh_bldgs"),
-            (25, "wuh_evetr"),
-            (26, "wuh_dectr"),
-            (27, "wuh_grass"),
-            (28, "wuh_bsoil"),
-            (29, "wuh_water")
-        ];
+    // let extra_canonical: [(usize, &str); 1] = [(19, "xsmd")];
+    let scalar_optional: &[(&str, SuewsField)] = &[
+        ("xsmd", SuewsField::xsmd),
+    ];
+    let lai_group: &[SuewsField] = &[
+        SuewsField::lai_evetr,
+        SuewsField::lai_dectr,
+        SuewsField::lai_grass,
+    ];
+    let wuh_group: &[SuewsField] = &[
+        SuewsField::wuh_paved,
+        SuewsField::wuh_bldgs,
+        SuewsField::wuh_evetr,
+        SuewsField::wuh_dectr,
+        SuewsField::wuh_grass,
+        SuewsField::wuh_bsoil,
+        SuewsField::wuh_water,
+    ];
     // Accepted canonical forcing columns that the current 23-column kernel
     // block does not consume.
     let unused_canonical = ["kdiff", "kdir", "wdir"];
@@ -127,8 +164,8 @@ pub fn read_forcing_block(path: &Path) -> Result<ForcingData, String> {
     // Identify per-landcover columns up-front so we can pre-allocate Vec<f64>.
     let canonical_lower: Vec<&str> = {
         let mut v: Vec<&str> = BASELINE_FORCING_COLUMNS.to_vec();
-        for (_, name) in optional_map.iter().chain(extra_canonical.iter()) {
-            v.push(name);
+        for (_, field) in optional_map.iter().chain(scalar_optional.iter()) {
+            v.push(field.name());
         }
         v.push("lai");
         v.extend(unused_canonical);
@@ -176,23 +213,51 @@ pub fn read_forcing_block(path: &Path) -> Result<ForcingData, String> {
         row[2] = parse_f64(parts[it_col], line_no, "it")?;
         row[3] = parse_f64(parts[imin_col], line_no, "imin")?;
 
-        for (target_idx, col_name) in optional_map.iter().chain(extra_canonical.iter()) {
-            if let Some(source_idx) = col_idx.get(*col_name) {
-                row[*target_idx] = parse_f64(parts[*source_idx], line_no, col_name)?;
+        for (csv_name, field) in optional_map.iter().chain(scalar_optional.iter()) {
+            if let Some(source_idx) = col_idx.get(*csv_name) {
+                row[field.index()] = parse_f64(
+                    parts[*source_idx],
+                    line_no,
+                    csv_name,
+                )?;
             }
         }
+
 
         let bulk_lai_col = col_idx.get("lai").copied();
-        for (target_idx, lai_col_name) in &lai_kernel_map {
-            if let Some(source_idx) = col_idx.get(*lai_col_name).copied().or(bulk_lai_col) {
-                row[*target_idx] = parse_f64(parts[source_idx], line_no, *lai_col_name)?;
+        for field in lai_group {
+            let col_name = field.name();
+
+            let source_idx = col_idx
+                .get(col_name)
+                .copied()
+                .or(bulk_lai_col);
+
+            if let Some(source_idx) = source_idx {
+                row[field.index()] = parse_f64(
+                    parts[source_idx],
+                    line_no,
+                    col_name,
+                )?;
             }
         }
 
+
         let bulk_wuh_col = col_idx.get("wuh").copied();
-        for (target_idx, wuh_col_name) in &wuh_kernel_map {
-            if let Some(source_idx) = col_idx.get(*wuh_col_name).copied().or(bulk_wuh_col) {
-                row[*target_idx] = parse_f64(parts[source_idx], line_no, *wuh_col_name)?;
+        for field in wuh_group {
+            let col_name = field.name();
+
+            let source_idx = col_idx
+                .get(col_name)
+                .copied()
+                .or(bulk_wuh_col);
+
+            if let Some(source_idx) = source_idx {
+                row[field.index()] = parse_f64(
+                    parts[source_idx],
+                    line_no,
+                    col_name,
+                )?;
             }
         }
 
@@ -200,8 +265,8 @@ pub fn read_forcing_block(path: &Path) -> Result<ForcingData, String> {
         // Matches supy/_load.py: df_forcing_met["pres"] *= 10.
         // pres is in BASELINE_FORCING_COLUMNS so it is always read; defend against
         // the sentinel anyway in case a future change relaxes that requirement.
-        if row[12] != FORCING_OPTIONAL_FILL {
-            row[12] *= 10.0;
+        if row[SuewsField::pres.index()] != FORCING_OPTIONAL_FILL {
+            row[SuewsField::pres.index()] *= 10.0;
         }
 
         block.extend_from_slice(&row);
@@ -227,41 +292,6 @@ pub fn read_forcing_block(path: &Path) -> Result<ForcingData, String> {
         extras,
     })
 }
-
-// ---------------------------------------------------------------------------
-// Forcing time interpolation
-// ---------------------------------------------------------------------------
-
-/// Forcing columns interpolated as instantaneous point values (linear).
-const INST_COLS: [usize; 10] = [
-    9,  // U
-    10, // RH
-    11, // Tair
-    12, // pres
-    15, // snow
-    17, // fcld
-    19, // xsmd
-    20, // lai_evetr
-    21, // lai_dectr
-    22, // lai_grass
-];
-
-/// Forcing columns interpolated as period averages (shift by -tstep_in/2, then linear).
-const AVG_COLS: [usize; 7] = [
-    4,  // qn
-    5,  // qh
-    6,  // qe
-    7,  // qs
-    8,  // qf
-    14, // kdown
-    16, // ldown
-];
-
-/// Forcing columns interpolated as period sums (proportional redistribution).
-const SUM_COLS: [usize; 2] = [
-    13, // rain
-    18, // wuh
-];
 
 fn is_leap_year(year: i32) -> bool {
     (year % 4 == 0 && year % 100 != 0) || year % 400 == 0
@@ -352,6 +382,8 @@ pub fn interpolate_forcing(forcing: &ForcingData, tstep_mod: i32) -> Result<Forc
         return Ok(forcing.clone());
     }
 
+    let groups = InterpGroups::from_schema();
+
     let tstep_in = detect_tstep_in(forcing)?;
     if tstep_in == tstep_mod {
         return Ok(forcing.clone());
@@ -420,7 +452,7 @@ pub fn interpolate_forcing(forcing: &ForcingData, tstep_mod: i32) -> Result<Forc
     // behaviour which sets t_end to NaN before interpolation.
     let t_in_0 = t_in[0];
     let t_in_penult = t_in[n_in - 2];
-    for &col in &INST_COLS {
+    for &col in &groups.inst {
         for j in 0..n_out {
             let t = t_out_start + j as i64 * tstep_mod_i64;
             let v = if t <= t_in_0 {
@@ -445,7 +477,7 @@ pub fn interpolate_forcing(forcing: &ForcingData, tstep_mod: i32) -> Result<Forc
     let half_in = tstep_in_i64 / 2;
     let t_shifted_0 = t_in_0 - half_in;
     let t_shifted_last = t_in[n_in - 1] - half_in;
-    for &col in &AVG_COLS {
+    for &col in &groups.avg {
         for j in 0..n_out {
             let t = t_out_start + j as i64 * tstep_mod_i64;
             let v = if t <= t_shifted_0 {
@@ -476,7 +508,7 @@ pub fn interpolate_forcing(forcing: &ForcingData, tstep_mod: i32) -> Result<Forc
     // that the Fortran observed-water-use path would treat as a real
     // negative water flux instead of "missing".
     let scale = tstep_mod as f64 / tstep_in_f64;
-    for &col in &SUM_COLS {
+    for &col in &groups.sum {
         for j in 0..n_out {
             let i = j / ratio;
             let v_in = row_val(forcing, i, col);

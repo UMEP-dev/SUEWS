@@ -133,13 +133,6 @@ pub fn read_forcing_block(path: &Path) -> Result<ForcingData, String> {
         find_col(&col_idx, name)?;
     }
 
-    // xsmd (19) is also canonical and read identically. Bulk `lai` remains a
-    // canonical input column but is projected into the three vegetation-class
-    // kernel slots below.
-    // let extra_canonical: [(usize, &str); 1] = [(19, "xsmd")];
-    let scalar_optional: &[(&str, SuewsField)] = &[
-        ("xsmd", SuewsField::xsmd),
-    ];
     // Accepted canonical forcing columns that the current 23-column kernel
     // block does not consume.
     let unused_canonical = ["kdiff", "kdir", "wdir"];

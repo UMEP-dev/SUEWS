@@ -18,6 +18,7 @@ mod flag;
 mod forcing;
 #[cfg(feature = "physics")]
 mod forcing_io;
+mod forcing_time;
 mod heat_state;
 mod hydro_state;
 mod irrig_daywater;
@@ -79,6 +80,7 @@ pub use flag::*;
 pub use forcing::*;
 #[cfg(feature = "physics")]
 pub use forcing_io::*;
+pub use forcing_time::*;
 pub use heat_state::*;
 pub use hydro_state::*;
 pub use irrig_daywater::*;

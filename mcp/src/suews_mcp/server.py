@@ -8,13 +8,53 @@ testing the tool functions even when the SDK is not installed.
 from __future__ import annotations
 
 import argparse
+import functools
 import json
 import os
 import sys  # noqa: F401  (kept for future use; FastMCP.run() handles streams)
 from pathlib import Path
-from typing import Any, Optional, Sequence
+from typing import Any, Callable, Optional, Sequence
 
 from .constants import ENV_PROJECT_ROOT
+
+
+def _async_offload(fn: Callable[..., Any]) -> Callable[..., Any]:
+    """Wrap a sync tool/resource function so FastMCP dispatches it as a
+    coroutine and offloads the blocking body to a worker thread (gh#1412).
+
+    The MCP tool wrappers all shell out to ``suews <subcmd>`` via
+    ``subprocess.run`` in :mod:`suews_mcp.backend.cli`. FastMCP's
+    ``func_metadata.call_fn_with_arg_validation`` runs sync callables
+    in-loop (``return fn(...)``), so each ``subprocess.run`` blocks the
+    single asyncio event loop driving the stdio session. The first call
+    returns, but during its ~5-10 s wall time the loop cannot drain
+    stdout back to the host or parse the next request — a second
+    ``tools/call`` issued by Claude Code / Codex inside the same MCP
+    session then stalls past the 60 s host deadline. Spawning a fresh
+    subprocess per call masked the bug in unit tests; plugin hosts
+    re-use the same server process across many calls in a conversation.
+
+    Pushing the body onto ``anyio.to_thread.run_sync`` keeps the
+    function's public signature unchanged (the tests still import and
+    call the sync ``query_knowledge`` etc. directly) while ensuring the
+    event loop stays responsive during the subprocess wait.
+
+    ``functools.wraps`` preserves ``__name__``/``__doc__``/``__signature__``
+    via ``__wrapped__`` so FastMCP's Pydantic input-schema generator
+    sees the original signature and the wrapped docstrings continue to
+    drive tool descriptions.
+    """
+    # Import locally so the module remains importable without the mcp
+    # SDK installed (matches the lazy import in ``_build_server``).
+    import anyio
+
+    @functools.wraps(fn)
+    async def wrapper(*args: Any, **kwargs: Any) -> Any:
+        return await anyio.to_thread.run_sync(
+            functools.partial(fn, *args, **kwargs)
+        )
+
+    return wrapper
 
 
 def _build_server() -> Any:
@@ -69,49 +109,73 @@ def _build_server() -> Any:
     server._mcp_server.version = _suews_mcp_version
 
     # Tools — config & schema (read-only)
-    server.tool(name="validate_config")(validate_config)
-    server.tool(name="inspect_config")(inspect_config)
-    server.tool(name="search_schema")(search_schema)
-    server.tool(name="list_examples")(list_examples)
-    server.tool(name="read_example")(read_example)
+    # Every tool wrapper goes through ``_async_offload`` so the CLI-backed
+    # subprocess.run inside the wrapper cannot block the FastMCP event loop
+    # (gh#1412). The handful of tools that never shell out (``list_examples``,
+    # ``read_example``) get the same treatment for uniformity; their off-loaded
+    # body returns in microseconds.
+    server.tool(name="validate_config")(_async_offload(validate_config))
+    server.tool(name="inspect_config")(_async_offload(inspect_config))
+    server.tool(name="search_schema")(_async_offload(search_schema))
+    server.tool(name="list_examples")(_async_offload(list_examples))
+    server.tool(name="read_example")(_async_offload(read_example))
 
     # Tools — workflow (init / convert)
-    server.tool(name="init_case")(init_case)
-    server.tool(name="convert_config")(convert_config)
+    server.tool(name="init_case")(_async_offload(init_case))
+    server.tool(name="convert_config")(_async_offload(convert_config))
 
     # Tools — post-run (summarise / compare / diagnose)
-    server.tool(name="summarise_run")(summarise_run)
-    server.tool(name="compare_runs")(compare_runs)
-    server.tool(name="diagnose_run")(diagnose_run)
+    server.tool(name="summarise_run")(_async_offload(summarise_run))
+    server.tool(name="compare_runs")(_async_offload(compare_runs))
+    server.tool(name="diagnose_run")(_async_offload(diagnose_run))
 
     # Tools — versioned knowledge pack
-    server.tool(name="query_knowledge")(query_knowledge)
-    server.tool(name="read_knowledge_manifest")(read_knowledge_manifest)
+    server.tool(name="query_knowledge")(_async_offload(query_knowledge))
+    server.tool(name="read_knowledge_manifest")(
+        _async_offload(read_knowledge_manifest)
+    )
 
-    # Resources (URI templates).
+    # Resources (URI templates). Same off-loading rationale as the tools above:
+    # ``_schema`` and the two ``_knowledge_*`` resources reach back into the
+    # CLI; ``_docs``/``_examples``/``_runs`` are local file reads. Wrapping
+    # them all uniformly keeps the dispatch contract consistent (gh#1412).
+    import anyio
+
     @server.resource("suews://schema/{version}")
-    def _schema(version: str = "current") -> str:
-        return json.dumps(read_schema_resource(version))
+    async def _schema(version: str = "current") -> str:
+        return await anyio.to_thread.run_sync(
+            lambda: json.dumps(read_schema_resource(version))
+        )
 
     @server.resource("suews://examples/{name}")
-    def _examples(name: str) -> str:
-        return json.dumps(read_example_resource(name))
+    async def _examples(name: str) -> str:
+        return await anyio.to_thread.run_sync(
+            lambda: json.dumps(read_example_resource(name))
+        )
 
     @server.resource("suews://docs/{slug}")
-    def _docs(slug: str) -> str:
-        return json.dumps(read_doc(slug))
+    async def _docs(slug: str) -> str:
+        return await anyio.to_thread.run_sync(
+            lambda: json.dumps(read_doc(slug))
+        )
 
     @server.resource("suews://runs/{run_id}/{kind}")
-    def _runs(run_id: str, kind: str) -> str:
-        return json.dumps(read_run_resource(run_id, kind))
+    async def _runs(run_id: str, kind: str) -> str:
+        return await anyio.to_thread.run_sync(
+            lambda: json.dumps(read_run_resource(run_id, kind))
+        )
 
     @server.resource("suews://knowledge/manifest")
-    def _knowledge_manifest() -> str:
-        return json.dumps(read_knowledge_manifest_resource())
+    async def _knowledge_manifest() -> str:
+        return await anyio.to_thread.run_sync(
+            lambda: json.dumps(read_knowledge_manifest_resource())
+        )
 
     @server.resource("suews://knowledge/query/{question}")
-    def _knowledge_query(question: str) -> str:
-        return json.dumps(read_knowledge_query_resource(question))
+    async def _knowledge_query(question: str) -> str:
+        return await anyio.to_thread.run_sync(
+            lambda: json.dumps(read_knowledge_query_resource(question))
+        )
 
     return server
 

@@ -173,6 +173,126 @@ def test_resources_advertise_all_six() -> None:
     )
 
 
+async def _run_serial_calls(
+    sequence: list[tuple[str, dict]],
+    per_call_timeout: float,
+) -> list:
+    """Spawn `suews-mcp` and issue ``sequence`` of ``tools/call``s on the
+    same session, asserting every call returns inside ``per_call_timeout``
+    seconds. Returns the parsed envelopes.
+
+    The bug fixed in gh#1412 is that a sync ``subprocess.run`` inside a
+    tool wrapper blocks the FastMCP asyncio event loop, so the second
+    call in a single session never returns within the host's 60 s
+    deadline. ``asyncio.wait_for`` per call is the precise regression
+    guard: under the bug the second ``call_tool`` future never
+    completes.
+    """
+    from mcp import ClientSession
+    from mcp.client.stdio import StdioServerParameters, stdio_client
+
+    server_params = StdioServerParameters(
+        command="suews-mcp",
+        env={"SUEWS_MCP_PROJECT_ROOT": str(REPO_ROOT)},
+    )
+
+    async with stdio_client(server_params) as (read, write):
+        async with ClientSession(read, write) as session:
+            await session.initialize()
+            envelopes = []
+            for tool_name, arguments in sequence:
+                envelope = await asyncio.wait_for(
+                    session.call_tool(tool_name, arguments=arguments),
+                    timeout=per_call_timeout,
+                )
+                envelopes.append(envelope)
+            return envelopes
+
+
+@pytestmark_skipif
+def test_serial_query_knowledge_does_not_block_event_loop() -> None:
+    """Two consecutive ``query_knowledge`` calls in one MCP session both
+    return inside a generous per-call deadline.
+
+    Regression guard for gh#1412: under the bug the second call never
+    returned within 60 s because the synchronous ``subprocess.run`` in
+    the first call's tool wrapper held the FastMCP event loop. The fix
+    wraps every tool registration with ``_async_offload`` (in
+    ``server.py``) which routes the blocking body through
+    ``anyio.to_thread.run_sync``.
+
+    The per-call timeout is intentionally generous (90 s) to absorb the
+    real CLI cost of loading the knowledge pack on a slow CI host;
+    under the bug the call would time out regardless of how patient
+    the budget was.
+    """
+    envelopes = asyncio.run(
+        _run_serial_calls(
+            sequence=[
+                (
+                    "query_knowledge",
+                    {
+                        "question": "compare model output to air temperature observations",
+                        "limit": 3,
+                    },
+                ),
+                (
+                    "query_knowledge",
+                    {
+                        "question": "site characterisation parameters land cover",
+                        "limit": 3,
+                    },
+                ),
+            ],
+            per_call_timeout=90.0,
+        )
+    )
+    assert len(envelopes) == 2, (
+        "Expected two envelopes from the serial-call sequence; got "
+        f"{len(envelopes)}. If the second call timed out, gh#1412 has "
+        "regressed."
+    )
+    for idx, envelope in enumerate(envelopes):
+        assert envelope.content, (
+            f"Serial call {idx + 1}/2 returned without content; "
+            "FastMCP dispatch likely failed."
+        )
+
+
+@pytestmark_skipif
+def test_interleaved_query_knowledge_and_search_schema() -> None:
+    """``query_knowledge`` followed by a different CLI-backed tool in the
+    same session also returns on time.
+
+    The gh#1412 report listed ``search_schema``, ``read_knowledge_manifest``
+    and ``list_examples`` as showing the same second-call delay when
+    issued after a ``query_knowledge``. This test pins the variant the
+    report flagged most prominently: ``query_knowledge`` then
+    ``search_schema``.
+    """
+    envelopes = asyncio.run(
+        _run_serial_calls(
+            sequence=[
+                (
+                    "query_knowledge",
+                    {"question": "STEBBS heating demand", "limit": 2},
+                ),
+                (
+                    "search_schema",
+                    {"query": "sfr"},
+                ),
+            ],
+            per_call_timeout=90.0,
+        )
+    )
+    assert len(envelopes) == 2
+    for idx, envelope in enumerate(envelopes):
+        assert envelope.content, (
+            f"Interleaved call {idx + 1}/2 returned without content; "
+            "FastMCP dispatch likely failed."
+        )
+
+
 @pytestmark_skipif
 def test_read_knowledge_manifest_returns_provenance() -> None:
     """Calling `read_knowledge_manifest` over MCP returns pack provenance.

@@ -173,21 +173,33 @@ def test_resources_advertise_all_six() -> None:
     )
 
 
-async def _run_serial_calls(
+async def _run_concurrent_calls(
     sequence: list[tuple[str, dict]],
-    per_call_timeout: float,
-) -> list:
-    """Spawn `suews-mcp` and issue ``sequence`` of ``tools/call``s on the
-    same session, asserting every call returns inside ``per_call_timeout``
-    seconds. Returns the parsed envelopes.
+    per_task_timeout: float,
+) -> tuple[list, float]:
+    """Spawn `suews-mcp` and issue ``sequence`` of ``tools/call``s
+    **concurrently** via ``asyncio.gather`` on a single stdio session.
+    Each task gets its own ``asyncio.wait_for``. Returns the envelopes
+    plus the wall-clock seconds the gather took.
 
-    The bug fixed in gh#1412 is that a sync ``subprocess.run`` inside a
-    tool wrapper blocks the FastMCP asyncio event loop, so the second
-    call in a single session never returns within the host's 60 s
-    deadline. ``asyncio.wait_for`` per call is the precise regression
-    guard: under the bug the second ``call_tool`` future never
-    completes.
+    Concurrency is the critical bit. The gh#1412 bug is that the
+    synchronous ``subprocess.run`` inside a tool wrapper blocks the
+    FastMCP asyncio event loop. With **sequential** ``await
+    call_tool`` x 2 the loop is idle between calls, so the bug does
+    not manifest — each call's subprocess returns before the next
+    request even reaches stdin. With **concurrent** in-flight
+    requests on the same session (the real plugin-host shape), the
+    second request lands in stdin while subprocess 1 is still
+    running; under the bug the loop cannot read it until subprocess 1
+    returns, serialising two ~5-10 s CLI calls into ~10-20 s of
+    wall-clock and, under sufficient pipe-buffer pressure,
+    deadlocking the second response. With the fix
+    (``_async_offload`` + ``anyio.to_thread.run_sync``) the loop is
+    free to dispatch a second worker thread immediately, so the two
+    subprocesses overlap and wall-clock approaches ``max(t1, t2)``.
     """
+    import time
+
     from mcp import ClientSession
     from mcp.client.stdio import StdioServerParameters, stdio_client
 
@@ -199,35 +211,52 @@ async def _run_serial_calls(
     async with stdio_client(server_params) as (read, write):
         async with ClientSession(read, write) as session:
             await session.initialize()
-            envelopes = []
-            for tool_name, arguments in sequence:
-                envelope = await asyncio.wait_for(
-                    session.call_tool(tool_name, arguments=arguments),
-                    timeout=per_call_timeout,
+            t0 = time.monotonic()
+            envelopes = await asyncio.gather(
+                *(
+                    asyncio.wait_for(
+                        session.call_tool(name, arguments=args),
+                        timeout=per_task_timeout,
+                    )
+                    for name, args in sequence
                 )
-                envelopes.append(envelope)
-            return envelopes
+            )
+            elapsed = time.monotonic() - t0
+            return list(envelopes), elapsed
 
 
+# Wall-clock budget for two CLI-backed calls dispatched concurrently. With the
+# fix in place each subprocess runs on its own worker thread so the gather
+# resolves at ``max(t1, t2)`` — typically 5-10 s for a knowledge query, up to
+# ~12 s on a cold CI host. Without the fix the calls serialise to ~10-20 s of
+# wall-clock and the test fails. 18 s is the lowest threshold that still
+# absorbs a slow-but-healthy CI run without producing a false negative on the
+# bug.
+_GATHER_WALLCLOCK_BUDGET_S = 18.0
+# Per-task timeout for ``asyncio.wait_for``. Tight enough that under the bug
+# the second task hits its deadline before the serialised subprocess returns.
+_GATHER_PER_TASK_TIMEOUT_S = 25.0
+
+
+@pytest.mark.slow
 @pytestmark_skipif
-def test_serial_query_knowledge_does_not_block_event_loop() -> None:
-    """Two consecutive ``query_knowledge`` calls in one MCP session both
-    return inside a generous per-call deadline.
+def test_concurrent_query_knowledge_does_not_block_event_loop() -> None:
+    """Two ``query_knowledge`` calls issued concurrently via
+    ``asyncio.gather`` on one MCP session both complete inside a tight
+    per-task and total wall-clock budget.
 
-    Regression guard for gh#1412: under the bug the second call never
-    returned within 60 s because the synchronous ``subprocess.run`` in
-    the first call's tool wrapper held the FastMCP event loop. The fix
-    wraps every tool registration with ``_async_offload`` (in
-    ``server.py``) which routes the blocking body through
-    ``anyio.to_thread.run_sync``.
-
-    The per-call timeout is intentionally generous (90 s) to absorb the
-    real CLI cost of loading the knowledge pack on a slow CI host;
-    under the bug the call would time out regardless of how patient
-    the budget was.
+    Regression guard for gh#1412. Sequential ``await`` x 2 masks the
+    bug because the event loop is idle between calls;
+    ``asyncio.gather`` replays the real plugin-host shape where two
+    requests are in-flight on the same stdio session. Under the bug
+    the loop cannot read the second request from stdin while
+    subprocess 1 is running, so the two CLI calls serialise (and may
+    deadlock under enough pipe pressure). With the fix
+    (``_async_offload`` + ``anyio.to_thread.run_sync``) both
+    subprocesses overlap and the gather resolves at ``max(t1, t2)``.
     """
-    envelopes = asyncio.run(
-        _run_serial_calls(
+    envelopes, elapsed = asyncio.run(
+        _run_concurrent_calls(
             sequence=[
                 (
                     "query_knowledge",
@@ -244,34 +273,39 @@ def test_serial_query_knowledge_does_not_block_event_loop() -> None:
                     },
                 ),
             ],
-            per_call_timeout=90.0,
+            per_task_timeout=_GATHER_PER_TASK_TIMEOUT_S,
         )
     )
     assert len(envelopes) == 2, (
-        "Expected two envelopes from the serial-call sequence; got "
-        f"{len(envelopes)}. If the second call timed out, gh#1412 has "
-        "regressed."
+        "Expected two envelopes from the concurrent gather; got "
+        f"{len(envelopes)}. If a task timed out, gh#1412 has regressed."
     )
     for idx, envelope in enumerate(envelopes):
         assert envelope.content, (
-            f"Serial call {idx + 1}/2 returned without content; "
+            f"Concurrent call {idx + 1}/2 returned without content; "
             "FastMCP dispatch likely failed."
         )
+    assert elapsed < _GATHER_WALLCLOCK_BUDGET_S, (
+        f"Two concurrent query_knowledge calls took {elapsed:.1f}s "
+        f"wall-clock; expected <{_GATHER_WALLCLOCK_BUDGET_S}s with the "
+        "gh#1412 fix in place. Either the worker-thread offload has "
+        "regressed (calls are serialising on the event loop again) or "
+        "the underlying CLI cost has grown enough to warrant raising "
+        "the budget."
+    )
 
 
+@pytest.mark.slow
 @pytestmark_skipif
-def test_interleaved_query_knowledge_and_search_schema() -> None:
-    """``query_knowledge`` followed by a different CLI-backed tool in the
-    same session also returns on time.
-
-    The gh#1412 report listed ``search_schema``, ``read_knowledge_manifest``
-    and ``list_examples`` as showing the same second-call delay when
-    issued after a ``query_knowledge``. This test pins the variant the
-    report flagged most prominently: ``query_knowledge`` then
-    ``search_schema``.
+def test_concurrent_query_knowledge_and_search_schema() -> None:
+    """``query_knowledge`` concurrent with ``search_schema`` on one MCP
+    session — the cross-tool variant the gh#1412 report listed
+    explicitly (``query_knowledge`` then ``search_schema`` /
+    ``read_knowledge_manifest`` / ``list_examples`` all showed the
+    same second-call delay).
     """
-    envelopes = asyncio.run(
-        _run_serial_calls(
+    envelopes, elapsed = asyncio.run(
+        _run_concurrent_calls(
             sequence=[
                 (
                     "query_knowledge",
@@ -282,15 +316,20 @@ def test_interleaved_query_knowledge_and_search_schema() -> None:
                     {"query": "sfr"},
                 ),
             ],
-            per_call_timeout=90.0,
+            per_task_timeout=_GATHER_PER_TASK_TIMEOUT_S,
         )
     )
     assert len(envelopes) == 2
     for idx, envelope in enumerate(envelopes):
         assert envelope.content, (
-            f"Interleaved call {idx + 1}/2 returned without content; "
-            "FastMCP dispatch likely failed."
+            f"Concurrent cross-tool call {idx + 1}/2 returned without "
+            "content; FastMCP dispatch likely failed."
         )
+    assert elapsed < _GATHER_WALLCLOCK_BUDGET_S, (
+        f"query_knowledge + search_schema in concurrent gather took "
+        f"{elapsed:.1f}s wall-clock; expected <{_GATHER_WALLCLOCK_BUDGET_S}s "
+        "with the gh#1412 fix in place."
+    )
 
 
 @pytestmark_skipif

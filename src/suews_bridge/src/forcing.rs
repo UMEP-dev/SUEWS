@@ -74,13 +74,14 @@ pub enum InterpKind {
 pub struct FieldDescriptor {
     pub field: SuewsField,
     pub interp: InterpKind,
+    pub required: bool,
     pub get: fn(&SuewsForcing) -> f64,
     pub set: fn(&mut SuewsForcing, f64),
 }
 
 
 macro_rules! suews_fields {
-    ($(($field:ident, $index:expr, $interp:expr)),* $(,)?) => {
+    ($(($field:ident, $index:expr, $interp:expr, $required:expr)),* $(,)?) => {
         #[repr(usize)]
         #[derive(Debug, Clone, Copy, PartialEq, Eq)]
         pub enum SuewsField {
@@ -107,6 +108,7 @@ macro_rules! suews_fields {
                 FieldDescriptor {
                     field: SuewsField::$field,
                     interp: $interp,
+                    required: $required,
                     get: |s| s.$field,
                     set: |s, v| { s.$field = v; },
                 },
@@ -176,33 +178,46 @@ macro_rules! suews_fields {
 }
 
 suews_fields! {
-    (tair_av_5d, 1, InterpKind::Instantaneous),
-    (qn1_obs, 4, InterpKind::Average),
-    (qh, 5, InterpKind::Average),
-    (qe, 6, InterpKind::Average),
-    (qs_obs, 7, InterpKind::Average),
-    (qf_obs, 8, InterpKind::Average),
-    (u, 9, InterpKind::Instantaneous),
-    (rh, 10, InterpKind::Instantaneous),
-    (temp_c, 11, InterpKind::Instantaneous),
-    (pres, 12, InterpKind::Instantaneous),
-    (rain, 13, InterpKind::Sum),
-    (kdown, 14, InterpKind::Average),
-    (snowfrac, 15, InterpKind::Instantaneous),
-    (ldown, 16, InterpKind::Average),
-    (fcld, 17, InterpKind::Instantaneous),
-    (wu_m3, 18, InterpKind::Instantaneous),
-    (xsmd, 19, InterpKind::Instantaneous),
-    (lai_evetr, 20, InterpKind::Instantaneous),
-    (lai_dectr, 21, InterpKind::Instantaneous),
-    (lai_grass, 22, InterpKind::Instantaneous),
-    (wuh_paved, 23, InterpKind::Sum),
-    (wuh_bldgs, 24, InterpKind::Sum),
-    (wuh_evetr, 25, InterpKind::Sum),
-    (wuh_dectr, 26, InterpKind::Sum),
-    (wuh_grass, 27, InterpKind::Sum),
-    (wuh_bsoil, 28, InterpKind::Sum),
-    (wuh_water, 29, InterpKind::Sum)
+    // (tair_av_5d, 1, InterpKind::Instantaneous),
+    (qn1_obs, 4, InterpKind::Average, false),
+    (qh, 5, InterpKind::Average, false),
+    (qe, 6, InterpKind::Average, false),
+    (qs_obs, 7, InterpKind::Average, false),
+    (qf_obs, 8, InterpKind::Average, false),
+    (u, 9, InterpKind::Instantaneous, true),
+    (rh, 10, InterpKind::Instantaneous, true),
+    (temp_c, 11, InterpKind::Instantaneous, true),
+    (pres, 12, InterpKind::Instantaneous, true),
+    (rain, 13, InterpKind::Sum, true),
+    (kdown, 14, InterpKind::Average, true),
+    (snowfrac, 15, InterpKind::Instantaneous, false),
+    (ldown, 16, InterpKind::Average, false),
+    (fcld, 17, InterpKind::Instantaneous, false),
+    (wu_m3, 18, InterpKind::Instantaneous, false),
+    (xsmd, 19, InterpKind::Instantaneous, false),
+    (lai_evetr, 20, InterpKind::Instantaneous, false),
+    (lai_dectr, 21, InterpKind::Instantaneous, false),
+    (lai_grass, 22, InterpKind::Instantaneous, false),
+    (wuh_paved, 23, InterpKind::Sum, false),
+    (wuh_bldgs, 24, InterpKind::Sum, false),
+    (wuh_evetr, 25, InterpKind::Sum, false),
+    (wuh_dectr, 26, InterpKind::Sum, false),
+    (wuh_grass, 27, InterpKind::Sum, false),
+    (wuh_bsoil, 28, InterpKind::Sum, false),
+    (wuh_water, 29, InterpKind::Sum, false),
+}
+
+fn is_required_field(name: &str) -> bool {
+    BASELINE_FORCING_COLUMNS
+        .iter()
+        .any(|&x| x == name)
+}
+
+pub fn field_by_name(name: &str) -> Option<SuewsField> {
+    FIELD_DESCRIPTORS
+        .iter()
+        .find(|d| d.field.name().eq_ignore_ascii_case(name))
+        .map(|d| d.field)
 }
 
 pub fn descriptor_by_name(name: &str) -> Result<&'static FieldDescriptor, BridgeError> {

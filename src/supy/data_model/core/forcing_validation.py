@@ -98,13 +98,9 @@ def _series_has_valid_data(series: Any) -> bool:
 
 def _column_has_valid_data(forcing: Any, col: str) -> bool:
     """Return True if ``col`` exists and has no missing/sentinel rows."""
-    """Return True if ``col`` exists and has no missing/sentinel rows."""
     if not hasattr(forcing, "columns"):
         return True
 
-    columns_by_lower = _columns_by_lower(forcing)
-    source_col = columns_by_lower.get(col)
-    if source_col is None:
     columns_by_lower = _columns_by_lower(forcing)
     source_col = columns_by_lower.get(col)
     if source_col is None:

@@ -27,6 +27,9 @@ pub const BASELINE_FORCING_COLUMNS: &[&str] = &[
 const LANDCOVER_SUFFIXES: &[&str] = &[
     "paved", "bldgs", "evetr", "dectr", "grass", "bsoil", "water",
 ];
+const WU_LANDCOVER_SUFFIXES: &[&str] = &[
+    "paved", "bldgs", "evetr", "dectr", "grass", "bsoil", "water",
+];
 const LAI_LANDCOVER_SUFFIXES: &[&str] = &["evetr", "dectr", "grass"];
 
 pub struct PerLandcoverVar {
@@ -41,7 +44,7 @@ static LAI: PerLandcoverVar = PerLandcoverVar {
 
 static WUH: PerLandcoverVar = PerLandcoverVar {
     prefix: "wuh",
-    allowed_suffixes: LANDCOVER_SUFFIXES,
+    allowed_suffixes: WU_LANDCOVER_SUFFIXES,
 };
 
 pub static PER_LANDCOVER_FORCING_VARS: &[&PerLandcoverVar] = &[

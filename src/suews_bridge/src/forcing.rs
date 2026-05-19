@@ -62,6 +62,7 @@ pub enum InterpKind {
 pub struct FieldDescriptor {
     pub field: SuewsField,
     pub interp: InterpKind,
+    pub csv_names: &'static [&'static str],
     pub required: bool,
     pub get: fn(&SuewsForcing) -> f64,
     pub set: fn(&mut SuewsForcing, f64),
@@ -69,7 +70,7 @@ pub struct FieldDescriptor {
 
 
 macro_rules! suews_fields {
-    ($(($field:ident, $index:expr, $interp:expr, $required:expr)),* $(,)?) => {
+    ($(($field:ident, $index:expr, [$($csv:expr),+], $interp:expr, $required:expr)),* $(,)?) => {
         #[repr(usize)]
         #[derive(Debug, Clone, Copy, PartialEq, Eq)]
         pub enum SuewsField {
@@ -95,6 +96,7 @@ macro_rules! suews_fields {
             $(
                 FieldDescriptor {
                     field: SuewsField::$field,
+                    csv_names: &[$($csv),+],
                     interp: $interp,
                     required: $required,
                     get: |s| s.$field,
@@ -166,33 +168,46 @@ macro_rules! suews_fields {
 }
 
 suews_fields! {
-    (qn1_obs, 4, InterpKind::Average, false),
-    (qh, 5, InterpKind::Average, false),
-    (qe, 6, InterpKind::Average, false),
-    (qs_obs, 7, InterpKind::Average, false),
-    (qf_obs, 8, InterpKind::Average, false),
-    (u, 9, InterpKind::Instantaneous, true),
-    (rh, 10, InterpKind::Instantaneous, true),
-    (temp_c, 11, InterpKind::Instantaneous, true),
-    (pres, 12, InterpKind::Instantaneous, true),
-    (rain, 13, InterpKind::Sum, true),
-    (kdown, 14, InterpKind::Average, true),
-    (snowfrac, 15, InterpKind::Instantaneous, false),
-    (ldown, 16, InterpKind::Average, false),
-    (fcld, 17, InterpKind::Instantaneous, false),
-    // (wu_m3, 18, InterpKind::Instantaneous, false),
-    (xsmd, 19, InterpKind::Instantaneous, false),
-    (lai_evetr, 20, InterpKind::Instantaneous, false),
-    (lai_dectr, 21, InterpKind::Instantaneous, false),
-    (lai_grass, 22, InterpKind::Instantaneous, false),
-    (wu_mm_paved, 23, InterpKind::Sum, false),
-    (wu_mm_bldgs, 24, InterpKind::Sum, false),
-    (wu_mm_evetr, 25, InterpKind::Sum, false),
-    (wu_mm_dectr, 26, InterpKind::Sum, false),
-    (wu_mm_grass, 27, InterpKind::Sum, false),
-    (wu_mm_bsoil, 28, InterpKind::Sum, false),
-    (wu_mm_water, 29, InterpKind::Sum, false),
-    // (tair_av_5d, 1, InterpKind::Instantaneous),
+    (qn1_obs, 4, ["qn1_obs", "qn"], InterpKind::Average, false),
+    (qh, 5, ["qh"], InterpKind::Average, false),
+    (qe, 6, ["qe"], InterpKind::Average, false),
+    (qs_obs, 7, ["qs_obs", "qs"], InterpKind::Average, false),
+    (qf_obs, 8, ["qf_obs", "qf"], InterpKind::Average, false),
+
+    (u, 9, ["u"], InterpKind::Instantaneous, true),
+    (rh, 10, ["rh"], InterpKind::Instantaneous, true),
+
+    (temp_c, 11, ["temp_c", "tair"], InterpKind::Instantaneous, true),
+
+    (pres, 12, ["pres"], InterpKind::Instantaneous, true),
+
+    (rain, 13, ["rain"], InterpKind::Sum, true),
+
+    (kdown, 14, ["kdown"], InterpKind::Average, true),
+
+    (snowfrac, 15, ["snowfrac", "snow"], InterpKind::Instantaneous, false),
+
+    (ldown, 16, ["ldown"], InterpKind::Average, false),
+
+    (fcld, 17, ["fcld"], InterpKind::Instantaneous, false),
+
+    (wu_m3, 18, ["wu_m3", "wuh"], InterpKind::Instantaneous, false),
+
+    (xsmd, 19, ["xsmd"], InterpKind::Instantaneous, false),
+
+    (lai_evetr, 20, ["lai_evetr"], InterpKind::Instantaneous, false),
+    (lai_dectr, 21, ["lai_dectr"], InterpKind::Instantaneous, false),
+    (lai_grass, 22, ["lai_grass"], InterpKind::Instantaneous, false),
+
+    (wu_mm_paved, 23, ["wu_mm_paved", "wuh_paved"], InterpKind::Sum, false),
+    (wu_mm_bldgs, 24, ["wu_mm_bldgs", "wuh_bldgs"], InterpKind::Sum, false),
+    (wu_mm_evetr, 25, ["wu_mm_evetr", "wuh_evetr"], InterpKind::Sum, false),
+    (wu_mm_dectr, 26, ["wu_mm_dectr", "wuh_dectr"], InterpKind::Sum, false),
+    (wu_mm_grass, 27, ["wu_mm_grass", "wuh_grass"], InterpKind::Sum, false),
+    (wu_mm_bsoil, 28, ["wu_mm_bsoil", "wuh_bsoil"], InterpKind::Sum, false),
+    (wu_mm_water, 29, ["wu_mm_water", "wuh_water"], InterpKind::Sum, false),
+
+    // (tair_av_5d, 1, ["tair_av_5d"], InterpKind::Instantaneous),
 }
 
 fn is_required_field(name: &str) -> bool {
@@ -225,6 +240,14 @@ fn parse_ts5mindata_ir_field_index(name: &str) -> Option<usize> {
     let suffix = name.strip_prefix("ts5mindata_ir_")?;
     let one_based = suffix.parse::<usize>().ok()?;
     one_based.checked_sub(1)
+}
+
+pub fn descriptor_by_csv_name(name: &str) -> Option<&'static FieldDescriptor> {
+    FIELD_DESCRIPTORS.iter().find(|d| {
+        d.csv_names
+            .iter()
+            .any(|n| n.eq_ignore_ascii_case(name))
+    })
 }
 
 pub fn suews_forcing_schema() -> Result<(usize, usize), BridgeError> {

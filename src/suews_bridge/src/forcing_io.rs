@@ -129,13 +129,21 @@ pub fn read_forcing_block(path: &Path) -> Result<ForcingData, String> {
 
     // Baseline-required columns must all be present (case-insensitive).
     for d in FIELD_DESCRIPTORS.iter().filter(|d| d.required) {
-        let name = d.field.name();
-        find_col(&col_idx, name)?;
+        let found = d.csv_names.iter().any(|name| {
+            col_idx.contains_key(&name.to_ascii_lowercase())
+        });
+
+        if !found {
+            return Err(format!(
+                "forcing header missing required column for `{}`",
+                d.field.name()
+            ));
+        }
     }
 
     // Accepted canonical forcing columns that the current 23-column kernel
     // block does not consume.
-    let unused_canonical = ["kdiff", "kdir", "wdir"];
+    let unused_canonical = ["kdiff", "kdir", "wdir", "wuh"];
 
     let iy_col = find_col(&col_idx, "iy")?;
     let id_col = find_col(&col_idx, "id")?;
@@ -144,9 +152,38 @@ pub fn read_forcing_block(path: &Path) -> Result<ForcingData, String> {
 
     // Identify per-landcover columns up-front so we can pre-allocate Vec<f64>.
     let is_canonical = |name: &str| {
-        FIELD_DESCRIPTORS
+        let lowered = name.to_ascii_lowercase();
+
+        // time columns
+        if DATETIME_COLUMNS
             .iter()
-            .any(|d| d.field.name().eq_ignore_ascii_case(name))
+            .any(|c| c.eq_ignore_ascii_case(name))
+        {
+            return true;
+        }
+
+        // explicitly ignored / legacy-but-accepted canonical columns
+        if unused_canonical
+            .iter()
+            .any(|c| c.eq_ignore_ascii_case(name))
+        {
+            return true;
+        }
+
+        // per-landcover bulk variables (lai, wuh, etc.)
+        if PER_LANDCOVER_FORCING_VARS.iter().any(|var| {
+            lowered == var.prefix
+                || lowered.starts_with(&format!("{}_", var.prefix))
+        }) {
+            return true;
+        }
+
+        // normal canonical fields (with aliases)
+        FIELD_DESCRIPTORS.iter().any(|d| {
+            d.csv_names.iter().any(|n| {
+                n.eq_ignore_ascii_case(name)
+            })
+        })
     };
 
     let mut extras_targets: Vec<(String, usize)> = Vec::new();
@@ -302,20 +339,34 @@ fn apply_field(
     line_no: usize,
     fallback: Option<&str>,
 ) -> Result<(), String> {
-    let name = field.name().to_ascii_lowercase();
+    let desc = FIELD_DESCRIPTORS
+        .iter()
+        .find(|d| d.field == field)
+        .ok_or_else(|| format!("unknown field {:?}", field))?;
 
-    let source_idx = col_idx
-        .get(&name)
-        .copied()
+    let source = desc.csv_names.iter()
+        .find_map(|name| {
+            col_idx
+                .get(&name.to_ascii_lowercase())
+                .copied()
+                .map(|idx| (*name, idx))
+        })
         .or_else(|| {
-            fallback
-                .and_then(|fb| col_idx.get(&fb.to_ascii_lowercase()).copied())
+            fallback.and_then(|fb| {
+                col_idx
+                    .get(&fb.to_ascii_lowercase())
+                    .copied()
+                    .map(|idx| (fb, idx))
+            })
         });
 
-    if let Some(idx) = source_idx {
-        row[field.index()] = parse_f64(parts[idx], line_no, &name)?;
-    } else if FIELD_DESCRIPTORS.iter().any(|d| d.field == field && d.required) {
-        return Err(format!("missing required column `{name}`"));
+    if let Some((name, idx)) = source {
+        row[field.index()] = parse_f64(parts[idx], line_no, name)?;
+    } else if desc.required {
+        return Err(format!(
+            "missing required column for `{}`",
+            desc.field.name()
+        ));
     }
 
     Ok(())

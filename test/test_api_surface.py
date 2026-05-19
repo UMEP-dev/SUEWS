@@ -6,7 +6,9 @@ add new imports, this test automatically validates them.
 """
 
 import ast
-import importlib
+import json
+import subprocess
+import sys
 from pathlib import Path
 
 import pytest
@@ -16,36 +18,89 @@ pytestmark = pytest.mark.api
 # Files to skip when scanning for imports
 _SKIP_FILES = {"conftest.py", "debug_utils.py", "__init__.py"}
 
+_IMPORT_CHECKER = r"""
+import importlib
+import json
+import sys
 
-def _check_import_from(node, test_file, failures):
-    """Check a ``from supy.x import y`` statement resolves at runtime."""
-    try:
-        mod = importlib.import_module(node.module)
-    except Exception as exc:
-        for alias in node.names:
-            name = alias.name
-            stmt = f"from {node.module} import {name}"
-            failures.append((test_file.name, stmt, str(exc)))
-        return
 
-    for alias in node.names:
-        name = alias.name
-        if name == "*":
+def purge_supy_modules():
+    for module_name in list(sys.modules):
+        if module_name == "supy" or module_name.startswith("supy."):
+            del sys.modules[module_name]
+    importlib.invalidate_caches()
+
+
+checks = json.loads(sys.stdin.read())
+failures = []
+
+for check in checks:
+    purge_supy_modules()
+    files = check.get("files") or [check["file"]]
+    if check["kind"] == "from":
+        module_name = check["module"]
+        try:
+            module = importlib.import_module(module_name)
+        except Exception as exc:
+            for file_name in files:
+                for imported_name in check["names"]:
+                    failures.append([
+                        file_name,
+                        f"from {module_name} import {imported_name}",
+                        str(exc),
+                    ])
             continue
-        if not hasattr(mod, name):
-            stmt = f"from {node.module} import {name}"
-            failures.append(
-                (test_file.name, stmt, f"{node.module} has no attribute '{name}'")
-            )
+
+        for imported_name in check["names"]:
+            if imported_name == "*":
+                continue
+            if not hasattr(module, imported_name):
+                for file_name in files:
+                    failures.append([
+                        file_name,
+                        f"from {module_name} import {imported_name}",
+                        f"{module_name} has no attribute {imported_name!r}",
+                    ])
+    else:
+        module_name = check["module"]
+        try:
+            importlib.import_module(module_name)
+        except Exception as exc:
+            for file_name in files:
+                failures.append([file_name, f"import {module_name}", str(exc)])
+
+print(json.dumps(failures))
+"""
 
 
-def _check_import(module_name, test_file, failures):
-    """Check a ``import supy.x`` statement resolves at runtime."""
-    try:
-        importlib.import_module(module_name)
-    except Exception as exc:
-        stmt = f"import {module_name}"
-        failures.append((test_file.name, stmt, str(exc)))
+def _run_import_checks(checks):
+    """Check imports in a clean subprocess so pytest collection cannot mask bugs."""
+    checks = _dedupe_checks(checks)
+    result = subprocess.run(
+        [sys.executable, "-c", _IMPORT_CHECKER],
+        input=json.dumps(checks),
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+    if result.returncode != 0:
+        pytest.fail(
+            "supy import surface checker subprocess failed:\n"
+            f"stdout:\n{result.stdout}\n\nstderr:\n{result.stderr}"
+        )
+    return json.loads(result.stdout)
+
+
+def _dedupe_checks(checks):
+    """Collapse repeated imports while preserving per-file failure reports."""
+    deduped = {}
+    for check in checks:
+        key = (check["kind"], check["module"], tuple(check.get("names", ())))
+        if key not in deduped:
+            deduped[key] = {k: v for k, v in check.items() if k != "file"}
+            deduped[key]["files"] = []
+        deduped[key]["files"].append(check["file"])
+    return list(deduped.values())
 
 
 def _format_report(failures):
@@ -70,7 +125,7 @@ def _format_report(failures):
 def test_all_test_imports_resolve():
     """Verify every supy import used in tests actually exists."""
     test_root = Path(__file__).parent
-    failures = []
+    checks = []
 
     for test_file in sorted(test_root.rglob("*.py")):
         if test_file.name in _SKIP_FILES:
@@ -91,12 +146,50 @@ def test_all_test_imports_resolve():
         for node in ast.walk(tree):
             if isinstance(node, ast.ImportFrom):
                 if node.module and node.module.startswith("supy"):
-                    _check_import_from(node, test_file, failures)
+                    checks.append(
+                        {
+                            "kind": "from",
+                            "module": node.module,
+                            "names": [alias.name for alias in node.names],
+                            "file": test_file.name,
+                        }
+                    )
             elif isinstance(node, ast.Import):
                 for alias in node.names:
                     if alias.name.startswith("supy"):
-                        _check_import(alias.name, test_file, failures)
+                        checks.append(
+                            {
+                                "kind": "import",
+                                "module": alias.name,
+                                "file": test_file.name,
+                            }
+                        )
 
+    failures = _run_import_checks(checks)
     if failures:
         report = _format_report(failures)
         pytest.fail(f"Broken supy imports in test suite:\n\n{report}")
+
+
+def test_import_checks_ignore_parent_process_import_cache():
+    """A parent-process submodule import must not mask a missing top-level API."""
+    from supy import suews_sim  # noqa: F401, PLC0415 - Deliberately pollute cache.
+
+    failures = _run_import_checks(
+        [
+            {
+                "kind": "from",
+                "module": "supy",
+                "names": ["suews_sim"],
+                "file": "synthetic_test.py",
+            }
+        ]
+    )
+
+    assert failures == [
+        [
+            "synthetic_test.py",
+            "from supy import suews_sim",
+            "supy has no attribute 'suews_sim'",
+        ]
+    ]

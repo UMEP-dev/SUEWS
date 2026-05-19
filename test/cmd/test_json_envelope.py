@@ -86,7 +86,7 @@ class TestEnvelopeMeta:
         ``supy._version_scm.__commit_hash__`` (gh#1401).
         """
         import supy
-        from supy.cmd import json_envelope as je
+        import supy.cmd.json_envelope as je
 
         # Pretend supy is installed in tmp_path so the .git walk fails.
         fake_pkg_init = tmp_path / "supy" / "__init__.py"
@@ -110,7 +110,7 @@ class TestEnvelopeMeta:
         than the literal string (gh#1401).
         """
         import supy
-        from supy.cmd import json_envelope as je
+        import supy.cmd.json_envelope as je
 
         fake_pkg_init = tmp_path / "supy" / "__init__.py"
         fake_pkg_init.parent.mkdir()

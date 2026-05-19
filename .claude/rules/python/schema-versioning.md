@@ -225,7 +225,7 @@ When reviewing a PR that touches `src/supy/data_model/`:
   `docs/source/contributing/schema/schema_versioning.rst` and
   `docs/source/inputs/transition_guide.rst` (see step 6 above).
   A schema bump without matching doc updates is a review blocker
-  unless a maintainer applies the `schema-audit-ok` label.
+  unless a maintainer applies the `0-ci:schema-audit-ok` label.
 
 ## CI gate and bypass label
 
@@ -246,7 +246,7 @@ changed has to move with it, or CI blocks the merge.
 
 Bypass (for genuinely cosmetic diffs — docstrings, comments,
 formatting, non-structural value tweaks): a maintainer adds the
-`schema-audit-ok` label to the pull request. The workflow reads labels
+`0-ci:schema-audit-ok` label to the pull request. The workflow reads labels
 before running and short-circuits when that label is present. The
 label is deliberately specific to this gate so it cannot be
 absent-mindedly reused for unrelated bypasses.

@@ -22,7 +22,7 @@ gh pr diff {pr} --name-only
 - **Testing**: Coverage, FIRST principles
 - **Docs**: CHANGELOG, PR description
 - **Governance**: Check feature status tags (see below)
-- **Schema version audit**: If the PR touches `src/supy/data_model/`, apply the triggers in `.claude/rules/python/schema-versioning.md`. Field rename, removal, type change, or required-field addition should be accompanied by a bump to `CURRENT_SCHEMA_VERSION`, a new `SCHEMA_VERSIONS` entry, a matching handler in `src/supy/util/converter/yaml_upgrade.py`, and a `sample_config.yml` resync. Flag any of these that are missing. CI gate `.github/workflows/schema-version-audit.yml` runs the automated check; if the PR carries the `schema-audit-ok` bypass label, verify from the diff yourself that the reason is genuinely cosmetic before approving.
+- **Schema version audit**: If the PR touches `src/supy/data_model/`, apply the triggers in `.claude/rules/python/schema-versioning.md`. Field rename, removal, type change, or required-field addition should be accompanied by a bump to `CURRENT_SCHEMA_VERSION`, a new `SCHEMA_VERSIONS` entry, a matching handler in `src/supy/util/converter/yaml_upgrade.py`, and a `sample_config.yml` resync. Flag any of these that are missing. CI gate `.github/workflows/schema-version-audit.yml` runs the automated check; if the PR carries the `0-ci:schema-audit-ok` bypass label, verify from the diff yourself that the reason is genuinely cosmetic before approving.
 - **Build**: CI status, meson.build
 - **Draft**: Comments for approval
 - **Approval**: Wait for human confirmation

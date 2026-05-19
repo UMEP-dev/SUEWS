@@ -38,7 +38,7 @@ Bypassing
 ---------
 If the diff is genuinely cosmetic (docstring edits, comment reformats,
 a non-structural sample_config value change), a maintainer can add the
-label `schema-audit-ok` to the pull request. The CI workflow at
+label `0-ci:schema-audit-ok` to the pull request. The CI workflow at
 `.github/workflows/schema-version-audit.yml` skips this script when
 that label is present, so this script itself has no label
 awareness — its only job is to detect the file-level change pattern.
@@ -205,7 +205,7 @@ def _report_failure(watched: list[str], reason: str) -> None:
         "See .claude/rules/python/schema-versioning.md for the checklist.\n"
         "\n"
         "If the diff is genuinely cosmetic (docstring, comment, formatting, "
-        "non-structural edit), a maintainer can add the 'schema-audit-ok' "
+        "non-structural edit), a maintainer can add the '0-ci:schema-audit-ok' "
         "label to this PR to skip this check.",
         file=sys.stderr,
     )
@@ -232,7 +232,7 @@ def _report_docs_failure(
         "\n"
         "If the bump is genuinely internal and has no user-visible "
         "footprint (very rare), a maintainer can add the "
-        "'schema-audit-ok' label to this PR to skip this check.",
+        "'0-ci:schema-audit-ok' label to this PR to skip this check.",
         file=sys.stderr,
     )
 

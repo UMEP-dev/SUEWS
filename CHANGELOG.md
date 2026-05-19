@@ -41,7 +41,7 @@ EXAMPLES:
 
 | Year | Features | Bugfixes | Changes | Maintenance | Docs | Total |
 |------|----------|----------|---------|-------------|------|-------|
-| 2026 | 74 | 83 | 29 | 80 | 40 | 307 |
+| 2026 | 74 | 83 | 29 | 81 | 40 | 308 |
 | 2025 | 60 | 68 | 22 | 71 | 36 | 256 |
 | 2024 | 12 | 17 | 1 | 12 | 1 | 43 |
 | 2023 | 11 | 14 | 3 | 9 | 1 | 38 |
@@ -53,6 +53,12 @@ EXAMPLES:
 | 2017 | 9 | 0 | 3 | 2 | 0 | 14 |
 
 ## 2026
+
+### 19 May 2026
+
+- [maintenance] Move automation-only repository labels onto the `0-*` special track
+  - Schema and knowledge-pack audit bypass labels now live under `0-ci:*`, preserving the repository-wide numeric label hierarchy while keeping the maintainer bypasses available
+  - Discourse-created issues now carry `0-source:discourse` plus the existing `1-question` type label, and issue templates no longer reference removed legacy labels such as `bug`, `docs`, or `release`
 
 ### 11 May 2026
 
@@ -88,7 +94,7 @@ EXAMPLES:
 - [maintenance] Knowledge-pack staleness guard at MCP startup + CI freshness audit (#1406)
   - The pack's meson `custom_target` only depends on `knowledge/pack.py`, so changes under `src/supy/data_model/` or `src/supy/cmd/` did not trigger an automatic rebuild — the installed pack drifted from HEAD and `query_knowledge` started surfacing stale field names. Manual smoke 2026-05-04 found pack `git_sha` lagging HEAD by 5 PRs (incl. the 44-rename ArchetypeProperties refactor)
   - `suews-mcp` now compares the pack manifest's `suews_version` against the running `supy.__version__` at server startup; on mismatch it logs a stderr warning naming the stale version and pointing at `suews knowledge build`. MCP hosts route stderr to their plugin log so the user sees this without polluting the JSON-RPC stdio channel
-  - New CI workflow `.github/workflows/knowledge-pack-audit.yml` + script `scripts/lint/check_knowledge_pack_freshness.py` flags PRs that touch `src/supy/data_model/**` or `src/supy/cmd/**` without rebuilding the pack. Bypass label: `knowledge-pack-audit-ok`
+  - New CI workflow `.github/workflows/knowledge-pack-audit.yml` + script `scripts/lint/check_knowledge_pack_freshness.py` flags PRs that touch `src/supy/data_model/**` or `src/supy/cmd/**` without rebuilding the pack. Bypass label: `0-ci:knowledge-pack-audit-ok`
   - `prep-release` skill checklist updated with the rebuild step
 - [bugfix] `query_knowledge` matches now carry an `audience` tag and a `legacy_name_for` hint when the chunk text references retired field names (#1402)
   - Previously the tool returned chunks drawn from the full source-evidence pack (Fortran sources, Pydantic data models, validation pipeline docs) without telling the consumer which audience each chunk belonged to. An assistant that called `query_knowledge` first instead of `search_schema` would happily quote internal Fortran names like `stebbsmethod` or `netradiationmethod` back to the user as YAML fields, producing configuration advice that fails validation
@@ -281,7 +287,7 @@ EXAMPLES:
   - Updated `.claude/rules/python/schema-versioning.md`, `scripts/lint/check_schema_version_bump.py`, and the `prep-release` skill to stop asking contributors to edit `COMPATIBLE_VERSIONS`; the audit now terminates at `_HANDLERS`
 - [maintenance] Guardrails against schema-version drift (#1304)
   - New pytest regression `test/data_model/test_schema_version_sync.py` asserts `src/supy/sample_data/sample_config.yml::schema_version` equals `CURRENT_SCHEMA_VERSION` on every test run; the `verify-build` shell recipe is no longer the only line of defence
-  - New CI gate `.github/workflows/schema-version-audit.yml` runs on every PR that touches `src/supy/data_model/**` or `src/supy/sample_data/sample_config.yml` and fails unless `src/supy/data_model/schema/version.py` is also modified. Backed by `scripts/lint/check_schema_version_bump.py`. Maintainers can add the `schema-audit-ok` label to bypass the gate for genuinely cosmetic diffs
+  - New CI gate `.github/workflows/schema-version-audit.yml` runs on every PR that touches `src/supy/data_model/**` or `src/supy/sample_data/sample_config.yml` and fails unless `src/supy/data_model/schema/version.py` is also modified. Backed by `scripts/lint/check_schema_version_bump.py`. Maintainers can add the `0-ci:schema-audit-ok` label to bypass the gate for genuinely cosmetic diffs
   - New rule `.claude/rules/python/schema-versioning.md` documents when to bump, how to bump, pre-release audit, PR review gate, and the bypass-label workflow; `prep-release` skill gained a schema-audit step, `audit-pr` skill acknowledges the CI gate
 - [change][experimental] Retrospective schema version bump closes the gap from #1240 / #1242 / #1261 (#1304)
   - `CURRENT_SCHEMA_VERSION` stayed at `2025.12` through the STEBBS clean-up (#879 Nov 2025), the `DeepSoilTemperature` rename (#1240), the DHW volume-bound removal (#1242), and the setpoint split (#1261); the YAML upgrade dispatcher had no real schema versions to key on and had to fall back on synthetic labels that sorted numerically below `CURRENT_SCHEMA_VERSION`

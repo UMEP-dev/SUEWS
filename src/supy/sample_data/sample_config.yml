@@ -40,7 +40,7 @@ model:
     soil_moisture_deficit:
       value: 0
     water_use:
-      value: 0
+      value: 1
     roughness_sublayer:
       value: 2
     frontal_area_index:

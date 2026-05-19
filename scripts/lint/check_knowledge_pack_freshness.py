@@ -22,7 +22,7 @@ move with the guarded source changes.
 Bypassing
 ---------
 If the diff is genuinely cosmetic (docstring-only edits, comment
-reformats), a maintainer can add the ``knowledge-pack-audit-ok`` label
+reformats), a maintainer can add the ``0-ci:knowledge-pack-audit-ok`` label
 to the PR. The companion workflow short-circuits when that label is
 present.
 
@@ -198,7 +198,7 @@ def main(argv: list[str] | None = None) -> int:
             f"Run `suews knowledge build --output "
             f"src/supy/knowledge/pack/current --repo-root .` and commit "
             f"the resulting manifest.json + chunks.jsonl.gz, or apply "
-            f"the `knowledge-pack-audit-ok` label if the diff is "
+            f"the `0-ci:knowledge-pack-audit-ok` label if the diff is "
             f"genuinely cosmetic (docstring / comment only).",
             file=sys.stderr,
         )

@@ -21,21 +21,9 @@ pub struct SuewsForcingSchema {
 
 pub type SuewsForcingValuesPayload = ValuesPayloadWithDims;
 
-
 pub const BASELINE_FORCING_COLUMNS: &[&str] = &[
     "iy", "id", "it", "imin", "tair", "rh", "u", "pres", "kdown", "rain",
 ];
-// gh#1372 — Per-landcover whitelist: <var>_<surface>. `wuh` covers
-// per-surface external water use — irrigation and impervious-surface
-// washing on land surfaces, fountains and ornamental water features
-// on the open-water surface — and is therefore accepted on every
-// surface. `lai` is leaf-area index and is meaningful only for the
-// three vegetated surfaces. The bulk site-level columns `Wuh` /
-// `xsmd` remain in the canonical block — `xsmd` is intentionally NOT
-// per-landcover (it is fed in as a single bulk soil-moisture-deficit
-// value).
-// const PER_LANDCOVER_FORCING_VARS: &[&str] = &["lai", "wuh"];
-
 const LANDCOVER_SUFFIXES: &[&str] = &[
     "paved", "bldgs", "evetr", "dectr", "grass", "bsoil", "water",
 ];
@@ -178,7 +166,6 @@ macro_rules! suews_fields {
 }
 
 suews_fields! {
-    // (tair_av_5d, 1, InterpKind::Instantaneous),
     (qn1_obs, 4, InterpKind::Average, false),
     (qh, 5, InterpKind::Average, false),
     (qe, 6, InterpKind::Average, false),
@@ -193,18 +180,19 @@ suews_fields! {
     (snowfrac, 15, InterpKind::Instantaneous, false),
     (ldown, 16, InterpKind::Average, false),
     (fcld, 17, InterpKind::Instantaneous, false),
-    (wu_m3, 18, InterpKind::Instantaneous, false),
+    // (wu_m3, 18, InterpKind::Instantaneous, false),
     (xsmd, 19, InterpKind::Instantaneous, false),
     (lai_evetr, 20, InterpKind::Instantaneous, false),
     (lai_dectr, 21, InterpKind::Instantaneous, false),
     (lai_grass, 22, InterpKind::Instantaneous, false),
-    (wuh_paved, 23, InterpKind::Sum, false),
-    (wuh_bldgs, 24, InterpKind::Sum, false),
-    (wuh_evetr, 25, InterpKind::Sum, false),
-    (wuh_dectr, 26, InterpKind::Sum, false),
-    (wuh_grass, 27, InterpKind::Sum, false),
-    (wuh_bsoil, 28, InterpKind::Sum, false),
-    (wuh_water, 29, InterpKind::Sum, false),
+    (wu_mm_paved, 23, InterpKind::Sum, false),
+    (wu_mm_bldgs, 24, InterpKind::Sum, false),
+    (wu_mm_evetr, 25, InterpKind::Sum, false),
+    (wu_mm_dectr, 26, InterpKind::Sum, false),
+    (wu_mm_grass, 27, InterpKind::Sum, false),
+    (wu_mm_bsoil, 28, InterpKind::Sum, false),
+    (wu_mm_water, 29, InterpKind::Sum, false),
+    // (tair_av_5d, 1, InterpKind::Instantaneous),
 }
 
 fn is_required_field(name: &str) -> bool {

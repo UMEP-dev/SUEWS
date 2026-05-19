@@ -360,8 +360,8 @@ class WaterUseMethod(Enum):
     1: OBSERVED - Uses observed water use values from forcing file
     """
 
-    OBSERVED = 0
-    MODELLED = 1
+    OBSERVED = 1
+    MODELLED = 0
 
     def __int__(self):
         return self.value

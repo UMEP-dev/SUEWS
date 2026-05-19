@@ -1476,7 +1476,7 @@ CONTAINS
                ! If water used is observed and provided in the met forcing file, units are m3
                ! Divide observed water use (in m3) by water use area to find water use (in mm)
                ! 2026-05-19, MP: Updated to only take per land cover forcing (incoming in mm)
-               IF (WaterUseMethod == 0) THEN !If water use is observed
+               IF (WaterUseMethod == 1) THEN !If water use is observed
                   IF (Wu_mm_paved /= -999) THEN
                      wu_surf(1) = Wu_mm_paved
                   END IF
@@ -1502,7 +1502,7 @@ CONTAINS
                   
                ! --------------------------------------------------------------------------------
                ! If water use is modelled, calculate at timestep of model resolution [mm]
-               ELSEIF (WaterUseMethod == 1) THEN !If water use is modelled
+               ELSEIF (WaterUseMethod == 0) THEN !If water use is modelled
 
                   ! Account for Daylight saving
                   ih = it - DLS

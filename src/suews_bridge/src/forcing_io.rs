@@ -143,7 +143,7 @@ pub fn read_forcing_block(path: &Path) -> Result<ForcingData, String> {
 
     // Accepted canonical forcing columns that the current 23-column kernel
     // block does not consume.
-    let unused_canonical = ["kdiff", "kdir", "wdir", "wuh"];
+    let unused_canonical = ["kdiff", "kdir", "wdir"];
 
     let iy_col = find_col(&col_idx, "iy")?;
     let id_col = find_col(&col_idx, "id")?;

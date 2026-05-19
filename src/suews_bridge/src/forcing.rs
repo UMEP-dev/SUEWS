@@ -21,98 +21,48 @@ pub struct SuewsForcingSchema {
 
 pub type SuewsForcingValuesPayload = ValuesPayloadWithDims;
 
-pub const BASELINE_FORCING_COLUMNS: &[&str] = &[
-    "iy", "id", "it", "imin", "tair", "rh", "u", "pres", "kdown", "rain",
-];
-const LANDCOVER_SUFFIXES: &[&str] = &[
-    "paved", "bldgs", "evetr", "dectr", "grass", "bsoil", "water",
-];
-const LAI_LANDCOVER_SUFFIXES: &[&str] = &["evetr", "dectr", "grass"];
-
-pub struct PerLandcoverVar {
-    pub prefix: &'static str,
-    pub allowed_suffixes: &'static [&'static str],
-}
-
-static LAI: PerLandcoverVar = PerLandcoverVar {
-    prefix: "lai",
-    allowed_suffixes: LAI_LANDCOVER_SUFFIXES,
-};
-
-static WUH: PerLandcoverVar = PerLandcoverVar {
-    prefix: "wuh",
-    allowed_suffixes: LANDCOVER_SUFFIXES,
-};
-
-pub static PER_LANDCOVER_FORCING_VARS: &[&PerLandcoverVar] = &[
-    &LAI,
-    &WUH,
-];
-
-/// Instantaneous: Forcing columns interpolated as instantaneous point values (linear).
-/// Average: Forcing columns interpolated as period averages (shift by -tstep_in/2, then linear).
-/// Sum: Forcing columns interpolated as period sums (proportional redistribution).
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum InterpKind {
-    Instantaneous,
-    Average,
-    Sum,
-}
-
-pub struct FieldDescriptor {
-    pub field: SuewsField,
-    pub interp: InterpKind,
-    pub required: bool,
-    pub get: fn(&SuewsForcing) -> f64,
-    pub set: fn(&mut SuewsForcing, f64),
+#[derive(Debug, Clone, PartialEq)]
+pub struct SuewsForcing {
+    pub kdown: f64,
+    pub ldown: f64,
+    pub rh: f64,
+    pub pres: f64,
+    pub tair_av_5d: f64,
+    pub u: f64,
+    pub rain: f64,
+    pub wu_m3: f64,
+    pub fcld: f64,
+    pub lai_obs: f64,
+    pub snowfrac: f64,
+    pub xsmd: f64,
+    pub qf_obs: f64,
+    pub qn1_obs: f64,
+    pub qs_obs: f64,
+    pub temp_c: f64,
+    pub ts5mindata_ir: Vec<f64>,
 }
 
 
-macro_rules! suews_fields {
-    ($(($field:ident, $index:expr, $interp:expr, $required:expr)),* $(,)?) => {
-        #[repr(usize)]
-        #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-        pub enum SuewsField {
-            $($field = $index),*
-        }
-
-        impl SuewsField {
-            pub const fn index(self) -> usize {
-                self as usize
-            }
-            pub const fn name(self) -> &'static str {
-                match self {
-                    $(Self::$field => stringify!($field)),*
-                }
-            }
-        }
-
-        pub const SUEWS_FORCING_BASE_FIELDS: &[&str] = &[
-            $(stringify!($field),)*
-        ];
-
-        pub const FIELD_DESCRIPTORS: &[FieldDescriptor] = &[
-            $(
-                FieldDescriptor {
-                    field: SuewsField::$field,
-                    interp: $interp,
-                    required: $required,
-                    get: |s| s.$field,
-                    set: |s, v| { s.$field = v; },
-                },
-            )*
-        ];
-
-        pub const SUEWS_FORCING_BASE_FLAT_LEN: usize = {
-            let mut n = 0;
-            $(let _ = stringify!($field); n += 1;)*
-            n
-        };
-
-        #[derive(Debug, Clone, PartialEq, Default)]
-        pub struct SuewsForcing {
-            $(pub $field: f64,)*
-            pub ts5mindata_ir: Vec<f64>,
+impl Default for SuewsForcing {
+    fn default() -> Self {
+        Self {
+            kdown: 0.0,
+            ldown: 0.0,
+            rh: 0.0,
+            pres: 0.0,
+            tair_av_5d: 0.0,
+            u: 0.0,
+            rain: 0.0,
+            wu_m3: 0.0,
+            fcld: 0.0,
+            lai_obs: 0.0,
+            snowfrac: 0.0,
+            xsmd: 0.0,
+            qf_obs: 0.0,
+            qn1_obs: 0.0,
+            qs_obs: 0.0,
+            temp_c: 0.0,
+            ts5mindata_ir: Vec::new(),
         }
 
         impl SuewsForcing {

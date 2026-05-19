@@ -17,7 +17,10 @@ def diagnose_run(
     run_dir: str,
     project_root: Optional[str] = None,
 ) -> dict[str, Any]:
-    """Diagnose a finished SUEWS run directory.
+    """**Use this when a finished run looks wrong** — high NaN counts,
+    energy-balance not closing, output files missing. Surfaces
+    structured findings rather than asking you to scan the raw output
+    yourself. Pair with `summarise_run` for context (gh#1407).
 
     Runs ``suews diagnose <run_dir> --format json`` which checks for
     provenance, expected output files, NaN proportions in QH/QE/QN, and

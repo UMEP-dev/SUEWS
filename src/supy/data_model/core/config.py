@@ -2681,30 +2681,10 @@ class SUEWSConfig(BaseModel):
         - Handles both direct values and RefValue wrappers.
         - Returns an empty list if all critical parameters are set.
         """
-        # Critical physics parameters that get converted to int() in df_state
-        CRITICAL_PHYSICS_PARAMS = [
-            "net_radiation",
-            "emissions",
-            "storage_heat",
-            "ohm_inc_qf",
-            "roughness_length_momentum",
-            "roughness_length_heat",
-            "stability",
-            "soil_moisture_deficit",
-            "water_use",
-            "roughness_sublayer",
-            "frontal_area_index",
-            "roughness_sublayer_level",
-            "surface_conductance",
-            "snow_use",
-            "stebbs",
-            "outer_cap_fraction",
-            "setpoint",
-            "same_albedo_wall",
-            "same_albedo_roof",
-            "same_emissivity_wall",
-            "same_emissivity_roof",
-        ]
+        # Single source of truth for the critical-physics list lives in the
+        # validation pipeline orchestrator (gh#1409); imported lazily to
+        # avoid a circular import at module load time.
+        from ..validation.pipeline.orchestrator import CRITICAL_PHYSICS_PARAMS
 
         critical_issues = []
 

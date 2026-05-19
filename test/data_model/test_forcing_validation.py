@@ -229,33 +229,53 @@ def test_python_rust_whitelist_parity():
         WUH_LANDCOVER_SUFFIXES,
     )
 
-    rust_src = Path(__file__).resolve().parents[2] / "src" / "suews_bridge" / "src" / "forcing_io.rs"
+    rust_src = Path(__file__).resolve().parents[2] / "src" / "suews_bridge" / "src" / "forcing.rs"
     text = rust_src.read_text()
+    rust_io_src = Path(__file__).resolve().parents[2] / "src" / "suews_bridge" / "src" / "forcing_io.rs"
+    text_io = rust_io_src.read_text()
 
     def _list(name: str) -> set[str]:
-        match = re.search(rf"const {name}: &\[&str\] = &\[(.*?)\];", text, re.DOTALL)
-        if match is None:
-            raise AssertionError(f"const {name} not found in forcing_io.rs")
-        return set(re.findall(r'"([^"]+)"', match.group(1)))
+        import re
 
-    assert _list("PER_LANDCOVER_FORCING_VARS") == set(PER_LANDCOVER_FORCING_VARS)
+        # old form: const &[&str]
+        match = re.search(
+            rf"const {name}: &\[&str\] = &\[(.*?)\];",
+            text,
+            re.DOTALL,
+        )
+        if match:
+            return set(re.findall(r'"([^"]+)"', match.group(1)))
+
+        # new form: pub static &[&PerLandcoverVar]
+        match = re.search(
+            rf"pub static {name}: &\[\&PerLandcoverVar\] = &\[(.*?)\];",
+            text,
+            re.DOTALL,
+        )
+        if match:
+            return set(re.findall(r"&([A-Za-z0-9_]+)", match.group(1)))
+
+        raise AssertionError(f"{name} not found in forcing.rs")
+
+    rust_per_landcover_vars = _list("PER_LANDCOVER_FORCING_VARS")
+    assert set((var.lower() for var in rust_per_landcover_vars)) == set(PER_LANDCOVER_FORCING_VARS)
     assert _list("LANDCOVER_SUFFIXES") == set(LANDCOVER_SUFFIXES)
     assert _list("LAI_LANDCOVER_SUFFIXES") == set(LAI_LANDCOVER_SUFFIXES)
-    assert _list("WUH_LANDCOVER_SUFFIXES") == set(WUH_LANDCOVER_SUFFIXES)
+    assert _list("WU_LANDCOVER_SUFFIXES") == set(WUH_LANDCOVER_SUFFIXES)
     assert _list("BASELINE_FORCING_COLUMNS") == {c.lower() for c in BASELINE_DATETIME_FORCING_SET|BASELINE_FORCING_COLUMNS_SET}
 
     unused_canonical_match = re.search(
-        r"let unused_canonical = \[(.*?)\];", text, re.DOTALL
+        r"let unused_canonical = \[(.*?)\];", text_io, re.DOTALL
     )
     assert unused_canonical_match is not None, (
         "Rust reader must explicitly accept canonical columns that are not "
-        "passed into the 23-column kernel block"
+        "passed into the 30-column kernel block"
     )
     assert set(re.findall(r'"([^"]+)"', unused_canonical_match.group(1))) == {
         "kdiff", "kdir", "wdir",
     }
 
-    fill_match = re.search(r"const FORCING_OPTIONAL_FILL: f64 = ([-\d.]+);", text)
+    fill_match = re.search(r"const FORCING_OPTIONAL_FILL: f64 = ([-\d.]+);", text_io)
     assert fill_match is not None, "FORCING_OPTIONAL_FILL not found in forcing_io.rs"
     assert float(fill_match.group(1)) == FORCING_OPTIONAL_FILL
 

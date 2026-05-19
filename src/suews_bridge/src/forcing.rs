@@ -194,7 +194,7 @@ suews_fields! {
 
     (fcld, 17, ["fcld"], InterpKind::Instantaneous, false),
 
-    (wu_m3, 18, ["wu_m3", "wuh"], InterpKind::Instantaneous, false),
+    (wu_mm, 18, ["wu_mm", "wuh"], InterpKind::Instantaneous, false),
 
     (xsmd, 19, ["xsmd"], InterpKind::Instantaneous, false),
 

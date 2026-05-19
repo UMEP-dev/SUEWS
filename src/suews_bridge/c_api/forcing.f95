@@ -17,8 +17,6 @@ MODULE module_c_api_forcing
 
    INTEGER(c_int), PARAMETER, PUBLIC :: SUEWS_CAPI_FORCING_BASE_LEN = 18_c_int
    INTEGER(c_int), PARAMETER, PUBLIC :: SUEWS_CAPI_FORCING_SCHEMA_VERSION = 2_c_int
-   INTEGER(c_int), PARAMETER, PUBLIC :: SUEWS_CAPI_FORCING_BASE_LEN = 18_c_int
-   INTEGER(c_int), PARAMETER, PUBLIC :: SUEWS_CAPI_FORCING_SCHEMA_VERSION = 2_c_int
 
    TYPE :: suews_forcing_shadow
       REAL(c_double) :: kdown = 0.0_c_double

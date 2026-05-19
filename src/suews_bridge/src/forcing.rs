@@ -49,7 +49,7 @@ pub static PER_LANDCOVER_FORCING_VARS: &[&PerLandcoverVar] = &[
     &WUH,
 ];
 
-/// Instantanius: Forcing columns interpolated as instantaneous point values (linear).
+/// Instantaneous: Forcing columns interpolated as instantaneous point values (linear).
 /// Average: Forcing columns interpolated as period averages (shift by -tstep_in/2, then linear).
 /// Sum: Forcing columns interpolated as period sums (proportional redistribution).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

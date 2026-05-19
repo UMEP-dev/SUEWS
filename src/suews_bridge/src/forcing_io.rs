@@ -225,14 +225,6 @@ pub fn read_forcing_block(path: &Path) -> Result<ForcingData, String> {
             )?;
         }
 
-        let bulk_lai_col = col_idx.get("lai").copied();
-        for (target_idx, lai_col_name) in &lai_kernel_map {
-            if let Some(source_idx) = col_idx.get(*lai_col_name).copied().or(bulk_lai_col) {
-                row[*target_idx] = parse_f64(parts[source_idx], line_no, *lai_col_name)?;
-            }
-            
-        }
-
         // Convert pressure from kPa (SUEWS input convention) to hPa (Fortran internal).
         // Matches supy/_load.py: df_forcing_met["pres"] *= 10.
         // pres is in BASELINE_FORCING_COLUMNS so it is always read; defend against
@@ -694,21 +686,6 @@ mod tests {
         assert_eq!(row_val(&forcing, 0, SuewsField::lai_evetr.index()), 2.75);
         assert_eq!(row_val(&forcing, 0, SuewsField::lai_dectr.index()), 2.75);
         assert_eq!(row_val(&forcing, 0, SuewsField::lai_grass.index()), 2.75);
-    }
-
-    #[test]
-    fn bulk_lai_broadcasts_to_kernel_lai_columns() {
-        use std::io::Write;
-        let dir = tempfile::tempdir().unwrap();
-        let path = dir.path().join("bulk_lai.txt");
-        let mut f = std::fs::File::create(&path).unwrap();
-        writeln!(f, "iy id it imin Tair RH U pres kdown rain lai").unwrap();
-        writeln!(f, "2011 1 0 5 18.0 80.0 2.0 100.0 0.0 0.0 2.75").unwrap();
-        let forcing = read_forcing_block(&path).expect("bulk-lai fixture");
-        assert_eq!(row_val(&forcing, 0, 20), 2.75);
-        assert_eq!(row_val(&forcing, 0, 21), 2.75);
-        assert_eq!(row_val(&forcing, 0, 22), 2.75);
-        
     }
 
     #[test]

@@ -7,7 +7,7 @@ name: Knowledge pack freshness audit
 # names. Motivated by gh#1406 (manual smoke 2026-05-04 found pack
 # `git_sha` lagging HEAD by 5 PRs).
 #
-# Maintainers can label a PR with `knowledge-pack-audit-ok` to bypass
+# Maintainers can label a PR with `0-ci:knowledge-pack-audit-ok` to bypass
 # the check when the diff is genuinely cosmetic (docstring or comment
 # only).
 
@@ -36,9 +36,9 @@ jobs:
         run: |
           set -eu
           echo "Labels on this PR: $LABELS"
-          if printf '%s' "$LABELS" | grep -q '"knowledge-pack-audit-ok"'; then
+          if printf '%s' "$LABELS" | grep -q '"0-ci:knowledge-pack-audit-ok"'; then
             echo "bypass=true" >> "$GITHUB_OUTPUT"
-            echo "PR carries label 'knowledge-pack-audit-ok'; skipping."
+            echo "PR carries label '0-ci:knowledge-pack-audit-ok'; skipping."
           else
             echo "bypass=false" >> "$GITHUB_OUTPUT"
           fi

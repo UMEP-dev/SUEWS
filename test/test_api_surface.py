@@ -88,7 +88,13 @@ def _run_import_checks(checks):
             "supy import surface checker subprocess failed:\n"
             f"stdout:\n{result.stdout}\n\nstderr:\n{result.stderr}"
         )
-    return json.loads(result.stdout)
+    try:
+        return json.loads(result.stdout)
+    except json.JSONDecodeError as exc:
+        pytest.fail(
+            "supy import surface checker produced unparsable stdout:\n"
+            f"error: {exc}\n\nstdout:\n{result.stdout}\n\nstderr:\n{result.stderr}"
+        )
 
 
 def _dedupe_checks(checks):
@@ -171,6 +177,7 @@ def test_all_test_imports_resolve():
         pytest.fail(f"Broken supy imports in test suite:\n\n{report}")
 
 
+@pytest.mark.smoke
 def test_import_checks_ignore_parent_process_import_cache():
     """A parent-process submodule import must not mask a missing top-level API."""
     from supy import suews_sim  # noqa: F401, PLC0415 - Deliberately pollute cache.

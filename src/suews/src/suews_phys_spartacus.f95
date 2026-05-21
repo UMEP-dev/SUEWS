@@ -184,6 +184,7 @@ CONTAINS
       REAL(KIND(1D0)), DIMENSION(15) :: wall_net_lw_spc
       REAL(KIND(1D0)), DIMENSION(15) :: sfr_roof_spc
       REAL(KIND(1D0)), DIMENSION(15) :: sfr_wall_spc
+      REAL(KIND(1D0)) :: grnd_dn_sw_spc
       ! --------------------------------------------------------------------------------
 
       REAL(KIND(1D0)), DIMENSION(ncolumnsDataOutSPARTACUS - 5), INTENT(OUT) :: dataOutLineSPARTACUS
@@ -746,6 +747,7 @@ CONTAINS
          grnd_dn_dir_sw_spc = sw_flux%ground_dn_dir(nspec, ncol)
          grnd_net_sw_spc = sw_flux%ground_net(nspec, ncol)
          grnd_vertical_diff = sw_flux%ground_vertical_diff(nspec, ncol)
+         grnd_dn_sw_spc = sw_flux%ground_dn(nspec, ncol)
       ELSE
          clear_air_abs_sw_spc(:nlayer) = 0.0
          wall_net_sw_spc(:nlayer) = 0.0
@@ -757,6 +759,7 @@ CONTAINS
          grnd_dn_dir_sw_spc = 0.0
          grnd_net_sw_spc = 0.0
          grnd_vertical_diff = 0.0
+         grnd_dn_sw_spc = 0.0
       END IF
 
       ! De-normalise the fluxes
@@ -886,7 +889,8 @@ CONTAINS
           wall_net_lw_spc, &
           sfr_roof_spc, &
           sfr_wall_spc, &
-          clear_air_abs_lw_spc &
+          clear_air_abs_lw_spc, &
+          grnd_dn_sw_spc &
           ]
 
       !!!!!!!!!!!!!! Clear from memory !!!!!!!!!!!!!

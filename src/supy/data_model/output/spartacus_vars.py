@@ -202,6 +202,7 @@ LEGACY_SPARTACUS_DEFS = [
     ("LCAAbs_13", "W m-2", "lw clear air absorption - SPARTACUS level 13", 0),
     ("LCAAbs_14", "W m-2", "lw clear air absorption - SPARTACUS level 14", 0),
     ("LCAAbs_15", "W m-2", "lw clear air absorption - SPARTACUS level 15", 0),
+    ("GrndDnSWSpc", "W m-2", "total downward SW at the ground", 0),
 ]
 
 SPARTACUS_VARIABLES = [

@@ -4180,8 +4180,8 @@ CONTAINS
       DHWVesselWallThickness, DHWWaterVolume, &
       DHWSurfaceArea, HotWaterFlowRate, HotWaterFlowProfile, &
       DHWSpecificHeatCapacity, HotWaterTankSpecificHeatCapacity, DHWVesselSpecificHeatCapacity, &
-      DHWDensity, HotWaterTankWallDensity, DHWVesselDensity, HotWaterTankBuildingWallViewFactor, &
-      HotWaterTankInternalMassViewFactor, HotWaterTankWallConductivity, HotWaterTankInternalWallConvectionCoefficient, &
+      DHWDensity, HotWaterTankWallDensity, DHWVesselDensity, &
+      HotWaterTankWallConductivity, HotWaterTankInternalWallConvectionCoefficient, &
       HotWaterTankExternalWallConvectionCoefficient, DHWVesselWallConductivity, DHWVesselInternalWallConvectionCoefficient, &
       DHWVesselExternalWallConvectionCoefficient, DHWVesselWallEmissivity, HotWaterHeatingEfficiency, &
       height, building_frac, veg_frac, building_scale, veg_scale, & !input: SPARTACUS
@@ -4612,8 +4612,6 @@ CONTAINS
       REAL(KIND(1D0)) :: DHWDensity
       REAL(KIND(1D0)) :: HotWaterTankWallDensity
       REAL(KIND(1D0)) :: DHWVesselDensity
-      REAL(KIND(1D0)) :: HotWaterTankBuildingWallViewFactor
-      REAL(KIND(1D0)) :: HotWaterTankInternalMassViewFactor
       REAL(KIND(1D0)) :: HotWaterTankWallConductivity
       REAL(KIND(1D0)) :: HotWaterTankInternalWallConvectionCoefficient
       REAL(KIND(1D0)) :: HotWaterTankExternalWallConvectionCoefficient
@@ -5483,8 +5481,6 @@ CONTAINS
       stebbsPrm%hot_water_density = DHWDensity
       stebbsPrm%hot_water_tank_wall_density = HotWaterTankWallDensity
       stebbsPrm%hot_water_vessel_density = DHWVesselDensity
-      stebbsPrm%hot_water_tank_building_wall_view_factor = HotWaterTankBuildingWallViewFactor
-      stebbsPrm%hot_water_tank_internal_mass_view_factor = HotWaterTankInternalMassViewFactor
       stebbsPrm%hot_water_tank_wall_conductivity = HotWaterTankWallConductivity
       stebbsPrm%hot_water_tank_internal_wall_convection_coefficient = HotWaterTankInternalWallConvectionCoefficient
       stebbsPrm%hot_water_tank_external_wall_convection_coefficient = HotWaterTankExternalWallConvectionCoefficient

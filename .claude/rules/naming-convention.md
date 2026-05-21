@@ -4,10 +4,14 @@ Rules for naming user-facing identifiers in SUEWS — YAML parameters, YAML
 enum values, forcing column names, error-message field references, and
 the Python data-model field names that mirror them.
 
-> **Status (2026-04-29)**: This document is under review. It is the
-> canonical reference for any rename PR while the team signs off. Once
-> signed off, the "draft" framing here is removed. Track sign-off in
-> the originating PR.
+> **Status**: Adopted. Drafted 2026-04-29 and reviewed and merged via
+> the RFC pull request #1377 on 2026-05-01 (review by C. S. Grimmond);
+> the merge date is recorded here retrospectively. This is the canonical
+> reference for naming decisions across SUEWS user-facing identifiers
+> and the Python data-model fields that mirror them. The word-ordering
+> rules below are settled; their application to specific STEBBS field
+> names is still being reconciled with the Reading STEBBS team
+> (see the originating rename PRs).
 
 > **Scope**: User-facing identifiers and the Python data-model fields
 > that mirror them. Fortran TYPE members and Rust struct field names
@@ -146,6 +150,26 @@ This exception exists because `name_archetype` reads as *the name of
 the namespace itself*, not *a name field within an archetype*. New
 namespace prefixes require a convention amendment — they are not
 added casually.
+
+### Exception — established compound nouns are kept intact
+
+A small set of identifiers are recognised compound nouns or
+terms-of-art whose constituent words form a single conventional phrase.
+Reordering them to put a physical quantity first would *reduce*
+readability rather than improve grep-ability, so they are kept as
+written and **not** reordered under Rule 2:
+
+- `ground_depth`
+- `ventilation_rate`
+- `lighting_power_density`
+- `month_mean_air_temperature_diffmax`
+
+The test for membership: the phrase is one a domain reader would say
+aloud as a unit ("ventilation rate", "lighting power density"), and
+splitting the quantity off the front would read awkwardly
+(`rate_ventilation`, `power_density_lighting`). This list is closed;
+adding to it requires a convention amendment. When in doubt, apply
+Rule 2 (reorder) — this exception is deliberately narrow.
 
 ---
 

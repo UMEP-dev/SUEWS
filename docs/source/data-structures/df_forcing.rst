@@ -9,7 +9,7 @@
 
    **For SUEWS users**: These are the meteorological forcing variables required to run SUEWS. 
    
-   For the modern YAML configuration, specify your forcing file path using ``model.control.forcing_file`` in your configuration.
+   For the modern YAML configuration, specify your forcing file path using ``model.control.forcing.file`` in your configuration.
    
    Data structure of ``df_forcing`` is explained `here <../api/io-data-structures.html#df-forcing>`_.
 

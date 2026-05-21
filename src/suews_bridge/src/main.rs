@@ -124,7 +124,7 @@ use suews_bridge::{
 };
 
 #[derive(Debug, Parser)]
-#[command(name = "suews", version = env!("SUEWS_VERSION"), about = "SUEWS — Surface Urban Energy and Water Balance Scheme")]
+#[command(name = "suews-engine", version = env!("SUEWS_VERSION"), about = "SUEWS engine — Rust runtime and schema introspection for the SUEWS Fortran physics core")]
 struct Cli {
     #[command(subcommand)]
     command: Commands,
@@ -731,9 +731,9 @@ enum FlatCommand {
 fn main() {
     // No subcommand: show prominent error + banner + help, then exit
     if std::env::args().len() == 1 {
-        eprintln!("\x1b[1;31merror:\x1b[0m no subcommand provided. Run \x1b[1msuews run <config>\x1b[0m or \x1b[1msuews --help\x1b[0m\n");
+        eprintln!("\x1b[1;31merror:\x1b[0m no subcommand provided. Run \x1b[1msuews-engine run <config>\x1b[0m or \x1b[1msuews-engine --help\x1b[0m\n");
         print_banner();
-        Cli::parse_from(["suews", "--help"]);
+        Cli::parse_from(["suews-engine", "--help"]);
     }
 
     let cli = Cli::parse();

@@ -76,7 +76,7 @@ definitive checklist is in
 6. Sync user-facing documentation: update
    :ref:`schema_versioning` (version history and illustrative
    labels), add a per-release entry in :ref:`transition_guide`
-   (rename/drop summary + the ``suews-schema migrate`` command), and
+   (rename/drop summary + the ``suews schema migrate`` command), and
    if a release is involved, note the migration chain in the
    matching ``docs/source/version-history/v<release>.rst``.
 
@@ -98,10 +98,10 @@ with everything it needs:
    ``docs/source/contributing/schema/schema_versioning.rst`` nor
    ``docs/source/inputs/transition_guide.rst`` was touched.
 
-**Bypass label: schema-audit-ok**
+**Bypass label: 0-ci:schema-audit-ok**
    For genuinely cosmetic diffs (docstring edits, comment
    reformatting, non-structural ``sample_config.yml`` tweaks) a
-   maintainer can attach the ``schema-audit-ok`` label to the PR.
+   maintainer can attach the ``0-ci:schema-audit-ok`` label to the PR.
    The workflow reads labels before running and short-circuits when
    the label is present. Contributors should **not** add the label
    themselves — the failure message is the prompt to open a review
@@ -114,15 +114,15 @@ past a missing bump.
 Schema Management Commands
 --------------------------
 
-For developers, the ``suews-schema`` command exposes schema
+For developers, the ``suews schema`` command exposes schema
 management operations:
 
 .. code-block:: bash
 
-   suews-schema info                 # Display schema information
-   suews-schema version files/*.yml  # Check schema versions
-   suews-schema migrate old.yml      # Migrate between versions
-   suews-schema export               # Export JSON Schema
+   suews schema info                 # Display schema information
+   suews schema version files/*.yml  # Check schema versions
+   suews schema migrate old.yml      # Migrate between versions
+   suews schema export               # Export JSON Schema
 
 See :ref:`schema_cli` for the full command reference.
 
@@ -166,5 +166,5 @@ Implementation Map
 - ``src/supy/util/converter/__init__.py`` — unified ``suews-convert``
   entry point covering both legacy table conversion and schema
   migration.
-- ``src/supy/cmd/validate_config.py`` — ``suews-schema`` CLI entry
+- ``src/supy/cmd/schema_cli.py`` — ``suews schema`` CLI entry
   point.

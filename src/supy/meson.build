@@ -8,6 +8,7 @@ py.install_sources(
         '_post.py',
         '_run.py',
         '_run_rust.py',
+        '_run_output.py',
         '_save.py',
         '_supy_module.py',
         '_var_metadata.py',
@@ -25,12 +26,32 @@ py.install_sources(
         [
             'cmd/__init__.py',
             'cmd/SUEWS.py',
+            'cmd/compare_runs.py',
+            'cmd/diagnose_run.py',
+            'cmd/init_case.py',
+            'cmd/json_envelope.py',
             'cmd/json_output.py',
+            'cmd/knowledge_cli.py',
             'cmd/rust_bridge.py',
+            'cmd/suews_cli.py',
+            'cmd/summarise_output.py',
             'cmd/table_converter.py',
             'cmd/to_yaml.py',
             'cmd/validate_config.py',
             'cmd/schema_cli.py',
+            'cmd/inspect_config.py',
+        ],
+        [
+            'diagnostics/__init__.py',
+            'diagnostics/_checks.py',
+        ],
+        [
+            'metrics/__init__.py',
+            'metrics/_core.py',
+        ],
+        [
+            'knowledge/__init__.py',
+            'knowledge/pack.py',
         ],
         [
             'util/_UMEP2epw.py',
@@ -85,6 +106,7 @@ py.install_sources(
             'data_model/core/config.py',
             'data_model/core/df_column_renames.py',
             'data_model/core/field_renames.py',
+            'data_model/core/forcing_validation.py',
             'data_model/core/human_activity.py',
             'data_model/core/hydro.py',
             'data_model/core/model.py',
@@ -131,6 +153,7 @@ py.install_sources(
             'data_model/validation/pipeline/phase_a.py',
             'data_model/validation/pipeline/phase_b.py',
             'data_model/validation/pipeline/phase_c.py',
+            'data_model/validation/pipeline/report_schema.py',
             'data_model/validation/pipeline/report_writer.py',
             'data_model/validation/pipeline/yaml_annotator.py',
             'data_model/validation/pipeline/phase_b_rules/__init__.py',
@@ -145,6 +168,36 @@ py.install_sources(
     ],
     subdir: 'supy',
     preserve_path: true,
+)
+
+knowledge_pack = custom_target(
+  'suews_knowledge_pack',
+  command: [
+    py,
+    meson.current_source_dir() / 'knowledge/pack.py',
+    meson.project_source_root(),
+    '@OUTDIR@',
+    '--command',
+    'meson knowledge-pack build',
+  ],
+  output: [
+    'manifest.json',
+    'chunks.jsonl.gz',
+  ],
+  depend_files: files('knowledge/pack.py'),
+  # Always rebuild on every build invocation (gh#1406). The pack
+  # content depends on every file under `src/suews/src`,
+  # `src/suews_bridge/src`, and `src/supy/` — declaring those
+  # individually as `depend_files` is brittle (meson `files()` does
+  # not glob), so we let ninja skip the deduplication and run the
+  # builder unconditionally. The pack-build script reads the source
+  # roots and writes deterministic JSON; runtime is on the order of
+  # seconds, well below the cost of carrying a stale pack into a
+  # release wheel.
+  build_always_stale: true,
+  build_by_default: true,
+  install: true,
+  install_dir: py.get_install_dir() / 'supy/knowledge/pack/current',
 )
 
 # Build SUEWS Fortran physics libraries (used by Rust bridge)
@@ -211,10 +264,10 @@ if rust_bridge_enabled
     # wheel cp39-abi3-<plat> rather than cp313-cp313-<plat>.
     if host_machine.system() == 'windows'
         rust_bridge_ext_name = 'suews_bridge.pyd'
-        rust_bridge_cli_name = 'suews.exe'
+        rust_bridge_cli_name = 'suews-engine.exe'
     else
         rust_bridge_ext_name = 'suews_bridge.abi3.so'
-        rust_bridge_cli_name = 'suews'
+        rust_bridge_cli_name = 'suews-engine'
     endif
 
     rust_bridge_artifacts = custom_target(

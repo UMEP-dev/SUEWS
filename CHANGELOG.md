@@ -41,7 +41,7 @@ EXAMPLES:
 
 | Year | Features | Bugfixes | Changes | Maintenance | Docs | Total |
 |------|----------|----------|---------|-------------|------|-------|
-| 2026 | 74 | 82 | 29 | 80 | 40 | 306 |
+| 2026 | 74 | 83 | 29 | 81 | 40 | 308 |
 | 2025 | 60 | 68 | 22 | 71 | 36 | 256 |
 | 2024 | 12 | 17 | 1 | 12 | 1 | 43 |
 | 2023 | 11 | 14 | 3 | 9 | 1 | 38 |
@@ -53,6 +53,190 @@ EXAMPLES:
 | 2017 | 9 | 0 | 3 | 2 | 0 | 14 |
 
 ## 2026
+
+### 19 May 2026
+
+- [maintenance] Move automation-only repository labels onto the `0-*` special track
+  - Schema and knowledge-pack audit bypass labels now live under `0-ci:*`, preserving the repository-wide numeric label hierarchy while keeping the maintainer bypasses available
+  - Discourse-created issues now carry `0-source:discourse` plus the existing `1-question` type label, and issue templates no longer reference removed legacy labels such as `bug`, `docs`, or `release`
+
+### 11 May 2026
+
+- [bugfix] Thread `properties.irrigation` YAML block through the Rust bridge into `IrrigationPrm` (#1436)
+  - `apply_site_overrides` in `src/suews_bridge/src/yaml_config.rs` previously had no irrigation applier, so `h_maintain`, `faut`, `ie_start`, `ie_end`, `internalwateruse_h`, per-veg `ie_a`/`ie_m`, `daywat`/`daywatper`, and `wuprofa_24hr`/`wuprofm_24hr` were silently dropped and the bridge handed `IrrigationPrm::default()` (all zeros) to the Fortran physics
+  - Any run with `model.physics.water_use = MODELLED` and a non-trivial irrigation block produced `Irr`/`WUInt`/`WUEveTr`/`WUDecTr`/`WUGrass` identically zero, regardless of the YAML
+  - The bug was masked by every shipped fixture running with `faut=0` or `ie_a=-999`; a new end-to-end regression in `test/physics/test_irrigation_wiring.py` pins the contract in both directions
+
+### 7 May 2026
+
+- [bugfix] Fix validator rule to compare evetr.sfr + dectr.sfr against vertical_layers.veg_frac[0] (bottom layer) instead of max(vertical_layers.veg_frac).
+
+### 5 May 2026
+
+- [bugfix] Phase A no longer flags `model.control.forcing_file`/`output_file` as missing/extra and no longer surfaces a misleading `model.control.output.format` enum error when the legacy block already carries a valid `format` (#1417)
+  - Phase A previously compared a legacy YAML directly against the current `sample_config.yml`, inserting an all-null current `output` block while leaving the valid legacy `output_file` in place; Phase C then gave precedence to the all-null current block, raising `Input should be 'txt' or 'parquet'` even though the user had `output_file.format: txt`
+  - `phase_a.py` now mirrors the runtime `ModelControl._coerce_legacy_forcing_file` / `_coerce_legacy_output_file` validators: legacy `forcing_file` lifts under `forcing.file`, legacy `output_file` lifts under `output` (with `path -> dir`), current shape wins on duplicates, and a non-dict current `output` is preserved so Phase C still surfaces the genuine validation error
+  - `report_config.txt` records the migration as a renamed parameter (`forcing_file changed to forcing.file`, `output_file changed to output`) so the user sees the same migration breadcrumb that the Pydantic layer emits as a `DeprecationWarning` at runtime
+- [bugfix] Validator no longer leaves `temp_reportA_*.json` / `temp_reportB_*.json` sidecars beside the user's config (#1416)
+  - Pipeline cleanup paths in `src/supy/cmd/validate_config.py` and `src/supy/data_model/validation/pipeline/orchestrator.py` now move, copy, and delete each text report alongside its JSON sidecar via shared sidecar-aware helpers, and rewrite `text_report_path` / `json_report_path` / `yaml_out` in the moved sidecar so the final `report_<config>.json` reflects the user-facing names
+
+### 4 May 2026
+
+- [feature][experimental] `suews validate` non-dry-run pipeline now honours `--format json` (#1409 follow-up)
+  - Previously only the `--dry-run --format json` path emitted the canonical envelope; the full Phase A/B/C pipeline always wrote a report file and printed a status banner to console regardless of the format flag, so any consumer expecting JSON had to parse the report file or fall back to dry-run
+  - All 7 pipeline branches (A, B, C, AB, AC, BC, ABC) now funnel through a new `_emit_pipeline_result` helper that emits a canonical envelope (with the structured `ValidationReport` from the 2026-05-01 PhaseReport schema, plus pointers to `report_file` and `updated_yaml` and a `phases_run` list) when `out_format == "json"`. Default `--format table` output is preserved verbatim
+- [bugfix] `knowledge_pack` meson `custom_target` rebuilds on every build (#1406 follow-up)
+  - `depend_files` was scoped to `knowledge/pack.py` alone, so editing `src/supy/data_model/` or `src/supy/cmd/` did not trigger a rebuild and the installed pack drifted from HEAD. Meson `files()` does not glob (and enumerating every source file would be brittle), so the cleanest fix is `build_always_stale: true` — ninja runs the builder unconditionally on every invocation. Pack-build runtime is on the order of seconds, well below the cost of shipping a stale pack into a release wheel
+  - This complements the runtime startup warning + CI freshness audit landed earlier in this PR; with all three layers a stale pack cannot reach a user
+- [doc] `mcp/README.md` Install section now documents TestPyPI dev-install with `--index-strategy unsafe-best-match` (#1398)
+  - Previously only the editable-checkout recipe was documented; users following a naïve TestPyPI command resolved the released `supy` from PyPI (missing 8 of 10 allow-listed `suews` subcommands) or hit `uv` refusing to resolve at all
+  - The new section spells out the two flags that are easy to miss but required for a clean resolve: `--index-strategy unsafe-best-match` (uv's default dependency-confusion guard fights against TestPyPI here) and explicit `==<dev>` pins on both `suews-mcp` and `supy` (instead of `--prerelease=allow`, which leaks pre-releases into transitive deps — see #1399)
+- [maintenance] Knowledge-pack staleness guard at MCP startup + CI freshness audit (#1406)
+  - The pack's meson `custom_target` only depends on `knowledge/pack.py`, so changes under `src/supy/data_model/` or `src/supy/cmd/` did not trigger an automatic rebuild — the installed pack drifted from HEAD and `query_knowledge` started surfacing stale field names. Manual smoke 2026-05-04 found pack `git_sha` lagging HEAD by 5 PRs (incl. the 44-rename ArchetypeProperties refactor)
+  - `suews-mcp` now compares the pack manifest's `suews_version` against the running `supy.__version__` at server startup; on mismatch it logs a stderr warning naming the stale version and pointing at `suews knowledge build`. MCP hosts route stderr to their plugin log so the user sees this without polluting the JSON-RPC stdio channel
+  - New CI workflow `.github/workflows/knowledge-pack-audit.yml` + script `scripts/lint/check_knowledge_pack_freshness.py` flags PRs that touch `src/supy/data_model/**` or `src/supy/cmd/**` without rebuilding the pack. Bypass label: `0-ci:knowledge-pack-audit-ok`
+  - `prep-release` skill checklist updated with the rebuild step
+- [bugfix] `query_knowledge` matches now carry an `audience` tag and a `legacy_name_for` hint when the chunk text references retired field names (#1402)
+  - Previously the tool returned chunks drawn from the full source-evidence pack (Fortran sources, Pydantic data models, validation pipeline docs) without telling the consumer which audience each chunk belonged to. An assistant that called `query_knowledge` first instead of `search_schema` would happily quote internal Fortran names like `stebbsmethod` or `netradiationmethod` back to the user as YAML fields, producing configuration advice that fails validation
+  - The MCP wrapper now annotates each match with `audience` (`user_yaml` for Pydantic / generated schema chunks, `internal_runtime` for Fortran / Rust / pipeline code, `developer_doc` otherwise) derived from `repo_path`, plus a `legacy_name_for` list of `{legacy, current}` pairs whenever a known legacy name from `ALL_FIELD_RENAMES` appears as a whole-word token in the chunk text. The agent should use the `current` form when generating user-facing YAML
+  - Tool docstring updated with a dedicated "Audience annotations" section so the convention is discoverable from the tool description alone
+- [doc] MCP tool docstrings now lead with WHEN-to-use guidance for all 12 tools (#1407)
+  - The 12 `mcp__suews__*` tool descriptions previously described *what* each tool does in passive voice ("Retrieve cited source evidence..."), giving the agent no signal about *when* to reach for it. In the EGU26 poster trace the agent treated all 12 tools as equivalent retrievers and burned a 5-minute window on `query_knowledge` calls instead of using the cheaper `inspect_config` / `search_schema` / `init_case` path
+  - Each tool's docstring now opens with an active-voice "Use this when..." (or "Call this first when...") sentence that names the trigger condition, the cheap-then-expensive ordering, and the typical pair (e.g. `validate_config` after every Write; `inspect_config` before reaching for `query_knowledge`; `summarise_run` before `diagnose_run`)
+- [feature][experimental] `init_case` returns a `recommendation` field and MCP-tool-call-form `next_steps` (#1408)
+  - The CLI's `data.next_steps` is shell-command form ("Edit X", "suews validate X", "suews run X") — useful at a terminal but useless to an MCP agent that needs to know which *MCP tool* to call. In the EGU26 poster trace, after a successful `init_case` the agent fired 11 `query_knowledge` calls before timing out, never editing the YAML
+  - The MCP wrapper now replaces the CLI list with imperative MCP-tool-call form (open and edit the YAML, then call `mcp__suews__inspect_config`, then call `mcp__suews__validate_config`) and surfaces the single highest-priority next move on `data.recommendation` so the agent does not have to scan the array
+- [bugfix] Envelope size policy: `read_example` and `query_knowledge` cap default response under any host token budget (#1403)
+  - `read_example` previously returned the full sample bundle (~1.2 MB of YAML), which every MCP host (Claude Code, Codex, Claude Desktop) rejected as "result exceeds maximum allowed tokens"; the agent then fell into a loop of duplicate `query_knowledge` calls trying to rebuild the example piecewise. New `mode` parameter: `"summary"` (default — file list with sizes plus an 80-line preview per file), `"manifest"` (cheapest — sizes only, no content), `"file"` with `path` (full content of one file, capped at 64 KB)
+  - `query_knowledge` previously emitted full chunk text for every match (~10 KB per Fortran-module match); a `limit=5` query routinely exceeded 50 KB. New `mode` parameter: `"snippet"` (default — per-match text capped at 2 KB with `text_truncated` / `text_full_bytes` flags), `"summary"` (drops text entirely, keeps citation metadata), `"full"` (explicit opt-in for the original unbounded envelope). Default `limit` lowered from 5 to 3
+  - Sibling sub-issue #1404 folded in here — the same `mode` design applies to both tools
+- [bugfix] `suews-mcp` now accepts a `--root` flag and the sandbox rejection message names the configured root (#1405)
+  - The MCP server previously had no CLI argument parsing — the project root came only from the `SUEWS_MCP_PROJECT_ROOT` env var, falling back to `os.getcwd()` at server startup. On a Conductor-isolated launch the cwd is a temp directory (`/private/var/folders/.../cc-isolated-...`), so workspace-absolute paths sent by the agent were rejected with a confusing "outside the project root" error that named the temp dir
+  - `mcp/src/suews_mcp/server.py` now accepts `--root <path>` (with `--help` text); when provided, the value is resolved and exported as `SUEWS_MCP_PROJECT_ROOT` *before* `_build_server()` so per-tool `ProjectRoot` instances inherit it. When omitted the existing env-var / cwd fallback chain is left untouched
+  - `mcp/src/suews_mcp/backend/sandbox.py` rejection message now names both `--root` and `SUEWS_MCP_PROJECT_ROOT` so users debugging a wrong-root launch can self-correct without reading source
+- [bugfix] MCP server provenance: `serverInfo.version` matches package `__version__`; envelope `meta.git_commit` carries through wheel installs (#1401)
+  - `mcp/src/suews_mcp/server.py` plumbs `suews_mcp.__version__` into `server._mcp_server.version` after FastMCP construction so the MCP `initialize` handshake's `serverInfo.version` reports the package version rather than the SDK's own version (was: hardcoded "1.27.0")
+  - `get_ver_git.py` now bakes the build-time short commit hash into the generated `_version_scm.py` as `__commit_hash__`; `supy.cmd.json_envelope._git_commit()` falls back to this when no `.git` directory is reachable at runtime (the wheel-install case where the previous `git rev-parse` lookup returned `None`). The `"unknown"` build-time sentinel surfaces as `null` rather than the literal string
+- [bugfix] `suews-mcp` now resolves the `suews` console script via `sys.executable` sibling lookup (#1400)
+  - MCP plugin hosts (Claude Code, Codex, Claude Desktop, Cursor) launch the MCP server without sourcing the venv, so `subprocess.run(['suews', ...])` failed with `Executable 'suews' not found on PATH` even when `suews` was installed in the same venv as `suews-mcp`. Every CLI-backed tool (`validate_config`, `inspect_config`, `summarise_run`, …) returned an error envelope; only `list_examples` worked because it reads bundled metadata
+  - `mcp/src/suews_mcp/backend/cli.py` now anchors lookup to `Path(sys.executable).parent` first (`shutil.which` for proper Windows `PATHEXT` handling), then falls back to `shutil.which` on the user's PATH for system-wide installs (e.g. `pipx`). Plugin-host raw-stanza examples no longer need to inject `PATH` in their `env` block
+- [bugfix] Pin `httpx<1.0` in `mcp/pyproject.toml` to keep `--prerelease=allow` installs off `httpx 1.0.dev3` (#1399)
+  - The official `mcp` PyPI package transitively depends on `httpx_sse`, which has an unpinned dep on `httpx`; with uv's global `--prerelease=allow` switch the resolver lands on `httpx==1.0.dev3` (which removed `TransportError`), breaking the whole `mcp` import chain on `suews-mcp` startup
+  - Constraining `httpx<1.0` here means even a prerelease-permitted resolve cannot land on the in-flight 1.0 line; sibling docs sub-issue (#1398) covers the install recipe that replaces `--prerelease=allow` with explicit `==<dev>` pins
+- [bugfix] `validate_config` dry-run JSON path now flags structurally-missing critical physics parameters (#1409)
+  - A YAML with `model.physics: {}` previously passed `suews validate --dry-run --format json` with `status="success"`, because Pydantic auto-fills every `ModelPhysics` field with an enum default; the MCP `validate_config` tool consumed the false-success envelope and stopped iterating, leaving users with a config that could not actually run
+  - `validate_single_file` (`src/supy/cmd/validate_config.py`) now performs a structural-presence check against `CRITICAL_PHYSICS_PARAMS` after Pydantic validation; missing fields surface as `MISSING_REQUIRED_FIELD` findings (one per field) so the dry-run JSON path agrees with the full pipeline's Phase A on user-facing semantics
+  - `CRITICAL_PHYSICS_PARAMS` is consolidated to a single module-level constant in `src/supy/data_model/validation/pipeline/orchestrator.py`; the previous local copies in `_check_critical_null_physics_params` and `detect_pydantic_defaults` now import the canonical list
+  - MCP `validate_config` tool docstring spells out which validation classes are run (jsonschema structural, critical-physics structural-presence, Pydantic consistency including site-level critical-null) and which are not (forcing-file content, runtime numerical issues — those need the full pipeline)
+  - Regression tests in `test/cmd/test_validate_config.py` cover both the bad path (paved-only YAML with `model.physics: {}` flags 21 fields) and the happy path (sample config still valid)
+
+### 3 May 2026
+
+- [change][experimental] Collapse the gh#1372 forcing- and output-restructure schema bumps into a single `2026.5.dev8 -> 2026.5.dev9` cumulative migration (#1372)
+  - Per the dev-label convention (`.claude/rules/python/schema-versioning.md`) the dev counter increments additively per structural PR; the in-progress relabel of master's `dev7` (PR#1390 ArchetypeProperties Rule 2 reorder) and `dev8` (PR#1395 registry refresh) is reverted, and this PR's two restructures land together on a fresh `dev9`
+  - Master's `(2026.5.dev6 -> 2026.5.dev7)` and `(2026.5.dev7 -> 2026.5.dev8)` handlers are restored; the new `(2026.5.dev8 -> 2026.5.dev9)` handler runs `_apply_forcing_subobject_restructure` first then `_apply_output_subobject_restructure` so audit logs read in the gh#1372 chronology order
+  - `test/fixtures/release_configs/2026.5.dev7.yml` (this PR's misnamed fixture) is dropped; a fresh `2026.5.dev8.yml` capturing master's pre-this-PR shape is added so the new cumulative handler is regression-tested
+  - `docs/source/inputs/tables/schema.json` is regenerated; `transition_guide.rst` and `schema_versioning.rst` are rewritten to reflect the dev7/dev8/dev9 final lineage; the merge-pr skill review gate (claude+codex) caught the relabel before merge
+- [bugfix] `_load.py` multi-file forcing now canonicalises **per file** before concatenating (#1372)
+  - `load_SUEWS_Forcing_met_df_pattern` and `load_SUEWS_Forcing_met_df_yaml` previously concatenated raw `read_csv` frames before named-column matching, so a required baseline column missing from one file passed silently if another file in the glob had it, and missing optional canonical columns stayed `NaN` in the half-file rows instead of being filled with `-999`
+  - Each file is now run through `_apply_named_column_matching` independently; `pd.concat` then unions the canonical 24-column DataFrames, and a datetime-index dedup collapses any same-timestamp rows across files
+- [bugfix] `SUEWSForcing` extras slicing now uses the row component of `(rows, cols)` tuples (#1372)
+  - `forcing.loc[:, ['Tair']]` previously passed the full `(slice(None), ['Tair'])` tuple into the extras frame which has different columns from the main frame, raising `KeyError` (or silently mis-selecting under `iloc`)
+  - `_slice_extras` now extracts the row component of tuple keys so extras carry the same row subset as the main slice
+- [change][experimental] `model.control.output_file` retains a deprecated `@property` alias on `ModelControl` (#1372)
+  - External Python consumers (UMEP postprocessor, etc.) that still read `config.model.control.output_file` keep working through the migration window; the alias forwards to `model.control.output` and emits a `DeprecationWarning`, scheduled for removal in 2026.6
+- [change][experimental] Rust forcing block writes `-999` (FORCING_OPTIONAL_FILL) for missing optional columns, unifying with Python `_load.py` (#1372)
+  - Behaviour change: previously the Rust bridge initialised optional columns to `0.0`. The unified `-999` sentinel now propagates so the Fortran kernel sees the same missing-data marker regardless of which language read the forcing file
+  - Added Rust test `missing_optional_columns_filled_with_sentinel` in `src/suews_bridge/src/forcing_io.rs` asserting that columns missing from the header land as `-999` in the canonical block, guarding against future regressions
+- [change][experimental] `OutputControl.path` deprecated alias for `OutputControl.dir` (#1372)
+  - External Python consumers (UMEP postprocessor, etc.) that read `config.model.control.output_file.path` keep working through the migration window; the alias forwards to `OutputControl.dir` and emits a `DeprecationWarning`, scheduled for removal in 2026.6 alongside the `ModelControl.output_file` alias
+- [bugfix] Require the `wuh` forcing column when `model.physics.water_use = OBSERVED` (#1372)
+  - `_PHYSICS_REQUIRED_FORCING` in `src/supy/data_model/core/forcing_validation.py` now lists `wuh` as required when `water_use = 1`. Previously a forcing file could omit `wuh`, pass the physics/forcing check, and then run with the `-999` sentinel (or a downscaled negative value) instead of failing early
+- [bugfix] Preserve `FORCING_OPTIONAL_FILL` sentinel through Rust forcing interpolation for `SUM_COLS` (#1372)
+  - In `interpolate_forcing` (`src/suews_bridge/src/forcing_io.rs`), sum columns (`rain`, `wuh`) carrying the `-999` sentinel are no longer scaled by `tstep_mod/tstep_in`; the sentinel is preserved through downscaling so the Fortran observed-water-use path continues to recognise the column as missing rather than receiving a real negative water flux (e.g. hourly `-999` would have become `-83.25` at 5-min)
+- [bugfix] Accept legacy `%iy` forcing headers (#1372)
+  - The new named-column reader in `src/supy/_load.py::_apply_named_column_matching` and `src/suews_bridge/src/forcing_io.rs::read_forcing_block` now strips a leading `%` from header tokens before lower-casing, so historical UMEP/SUEWS forcing files that use `%iy` (e.g. the issue-1097 fixture) match the canonical `iy` instead of being rejected as missing the baseline-required column
+- [bugfix] Skip per-landcover extras in `check_forcing` range loop (#1372)
+  - `src/supy/_check.py::check_forcing` previously iterated every non-time column in the returned forcing DataFrame and looked it up in `dict_rules_indiv`, so per-landcover extras (`lai_<surface>`, `wuh_<surface>`) introduced by the named-column reader raised `KeyError` instead of being passed through to the kernel. Added a guard that skips columns without a registered range rule
+- [bugfix] Preserve `FORCING_OPTIONAL_FILL` sentinel through Python `resample_sum` (#1372)
+  - `src/supy/_load.py::resample_sum` records columns whose input is entirely missing (NaN, after `to_nan` converted the `-999` sentinel) and restores `-999` for those columns after the existing `fillna(0.0)`. Without this restoration an hourly forcing file omitting `Wuh` would surface as a valid `0.0` after resampling, masking the missing input under the observed-water-use path; the guard mirrors the symmetric Rust fix in `interpolate_forcing` for `SUM_COLS`
+- [feature][experimental] Added end-to-end MCP test layer for Codex and Claude Code agents (#1384)
+  - Layer 0 — packaging/manifest sanity (`test/mcp/test_packaging_manifests.py`): asserts `.mcp.json` shape against both Claude Code and Codex (untagged-enum acceptance with code citation), validates plugin-manifest references resolve, asserts top-level vs bundled plugins resolve to equivalent commands
+  - Layer 1 — MCP protocol stdio handshake (`test/mcp/test_protocol_handshake.py`): spawns the real `suews-mcp` subprocess, performs JSON-RPC `initialize` + `tools/list` + `resources/list` + `resources/templates/list`, asserts all 12 tools and all 6 resources are advertised, asserts `read_knowledge_manifest` returns `pack_version` / `schema_version` / `git_sha`
+  - Layer 2 — real-CLI smoke (`test/mcp/test_real_cli_smoke.py`): un-mocked `validate_config` against the bundled sample config (success + provenance) and against a known-bad fixture (`INVALID_YAML` actionable diagnostics); real `query_knowledge` provenance round-trip
+  - Layer 3 — canonical Q&A fixture + evidence-retrieval runner (`test/mcp/fixtures/canonical_questions.yml`, `test/mcp/test_canonical_questions.py`): six positive cases seeded by a domain-expert stress-test set from Prof. Sue Grimmond plus three out-of-scope negative cases; runner asserts each positive question retrieves SUEWS-indexed evidence and each negative question's call survives without crashing
+  - Layer 4 — manual app-adapter smoke checklist (`test/mcp/MANUAL_SMOKE.md`): pre-flight, parallel Claude Code + Codex flows, cross-adapter consistency check on Sue's B5 question, five failure templates (F1–F5)
+- [bugfix] Fixed fresh editable install of `mcp/` failing without first running `python get_ver_git.py` (#1384)
+  - `mcp/pyproject.toml` dynamic-version `attr` now points at the package `__init__` rather than the gitignored `_version_scm.py` directly
+  - Package `__init__` already routes through `_version.py` with a tracked fallback chain (`_version_scm` -> `supy.__version__` -> `"0+unknown"`), so `uv pip install -e mcp/` now works from a clean checkout
+  - Removed empty `test/mcp/__init__.py` that shadowed the `mcp` SDK package and prevented protocol-level tests from importing the SDK
+
+### 1 May 2026
+
+- [feature][experimental] Validator pipeline now emits a structured machine-readable `PhaseReport` for every phase
+  - Added a canonical `Issue` / `PhaseReport` / `ValidationReport` schema in `src/supy/data_model/validation/pipeline/report_schema.py` so Phase A (structure), Phase B (physics), and Phase C (Pydantic consistency) all return the same shape — `phase`, `severity`, `code`, `message`, `yaml_path`, `site_gridid`, `category`, `suggested_value`, `applied_fix`
+  - Each phase now writes a JSON sidecar (`<report>.json`) alongside the existing `<report>.txt`; downstream tooling (MCP, agents, CI) can consume the structured form without parsing the human-readable report
+  - Replaced brittle string-grep status checks (`"## ACTION NEEDED"`, `"CRITICAL ISSUES DETECTED"`, `"URGENT"`) in the orchestrator with `PhaseReport.has_errors`
+  - Phase B's existing internal `ValidationResult` dataclass is preserved and bridged via a new `to_issue()` adapter; `ScienceSuggestion` and `ScientificAdjustment` are surfaced as `B.SCIENCE.*` and `B.APPLIED_FIX.*` issues respectively
+  - Phase C sidesteps `SUEWSConfig.from_yaml`'s `ValueError` wrapping (which discards Pydantic's structured `errors()`) so `C.PYDANTIC.<TYPE>` issues survive into the JSON sidecar with GRIDID-friendly `yaml_path` strings
+  - Text reports are byte-for-byte unchanged — no breaking change for any downstream parser of the legacy human form
+- [change][experimental] Surface procedural-API deprecation warnings on first attribute access (#1370)
+  - `supy.__getattr__` now routes every name in `_FUNCTIONAL_DEPRECATIONS` through `_warn_functional_deprecation` on first resolution, so users who hold a reference (`from supy import run_supy`) see the `FutureWarning` immediately rather than only at call time; subsequent accesses hit `_lazy_cache` and stay silent
+  - The in-body `_warn_functional_deprecation` calls inside each procedural function remain as a safety net for code that bypasses `__getattr__` (e.g. `from supy._supy_module import run_supy`)
+  - Added `test/core/test_deprecation_visibility.py` with subprocess-isolated parametrised checks for every key in `_FUNCTIONAL_DEPRECATIONS` plus a router-vs-registry equality guard
+  - Continues phase 2 of #1370 (visibility); does not yet address the user-facing notebook/README audit (slice B) or the phase 3 removal-release timeline
+- [feature][experimental] Added standalone `suews-mcp` Python distribution and wired it into the SUEWS agent plugin (#1364)
+  - New `mcp/` package (MPL-2.0) with FastMCP stdio server registering twelve tools across config (`validate_config`, `inspect_config`, `search_schema`, `list_examples`, `read_example`), workflow (`init_case`, `convert_config`), post-run analysis (`summarise_run`, `compare_runs`, `diagnose_run`), and the versioned knowledge pack (`query_knowledge`, `read_knowledge_manifest`)
+  - Resources cover `suews://schema/{version}`, `suews://examples/{name}`, `suews://docs/{slug}`, `suews://runs/{run_id}/{kind}`, `suews://knowledge/manifest`, and `suews://knowledge/query/{question}`; each knowledge match carries `git_sha` / `github_url` / `repo_path` / line range so downstream answers cite the exact revision
+  - Backend is a thin allow-listed subprocess wrapper around `suews <subcmd> --format json`, returning the canonical `supy.cmd.json_envelope.Envelope` verbatim; `ProjectRoot` sandbox keeps file-path arguments inside `SUEWS_MCP_PROJECT_ROOT`
+  - Plugin integration: top-level `.mcp.json` plus `plugins/suews/.mcp.json` declare the `suews-mcp` stdio server; `.claude-plugin/marketplace.json` (now v1.2.0), `.codex-plugin/plugin.json` (v0.2.0), and `plugins/suews/.codex-plugin/plugin.json` (v0.2.0) reference these via the `mcpServers` field, so installing the SUEWS plugin from a marketplace auto-registers the MCP server — no hand-editing of `~/.claude/settings.json` or `~/.codex/config.toml`
+  - README documents plugin install as the recommended primary path and keeps raw stdio config (Claude Code JSON, Codex TOML) as the documented fallback for clients without plugin manifest support
+  - Release versioning: `suews-mcp` ships in lockstep with `supy` under the same CalVer tag (e.g. `2026.5.1`); `get_ver_git.py` writes `mcp/src/suews_mcp/_version_scm.py` alongside `src/supy/_version_scm.py`, `mcp/pyproject.toml` consumes it via `dynamic = ["version"]`, and the existing PyPI publish workflow gains a `build_mcp` job. Lockstep is the honest contract: `query_knowledge` answers cite source evidence pinned to the installed `supy` git SHA, so MCP and supy must move together
+  - Resolves #751; supersedes the closed PR #1351 (whose GPL-V3.0 licence drift and prompt-content concerns are corrected here, with prompts having moved into the SUEWS Skill in #1358)
+
+### 30 Apr 2026
+
+- [change][experimental] `model.control.output_file` moved to `model.control.output` (#1372)
+  - Lifts the legacy `Union[str, OutputConfig]` field into a structured `OutputControl` sub-object so the `model.control` surface is uniform with the new `forcing:` block
+  - Inner `path:` field renamed to `dir:` (clarifies it as a directory, parallels the asymmetry with `forcing.file`)
+  - Legacy string form (`output_file: "name.txt"`, silently ignored since 2025.10.15) is dropped outright
+  - `suews-convert` and `suews-schema migrate` upgrade existing configs automatically via the `(2026.5.dev7 -> 2026.5.dev8)` handler; the in-memory `_coerce_legacy_output_file` validator also accepts the legacy shape at load time and emits a `DeprecationWarning`
+  - Schema bump `2026.5.dev7 -> 2026.5.dev8`; `sample_config.yml`, all release fixtures, and the docs YAML examples are updated accordingly
+- [doc] Document `output_file -> output` restructure (#1372)
+  - Added a `2026.5.dev8` entry to `docs/source/inputs/transition_guide.rst` with the YAML rename example
+  - Added the corresponding `2026.5.dev8` entry to `docs/source/contributing/schema/schema_versioning.rst` Version History; demoted the `2026.5.dev7` entry from "current" to a previous dev label
+  - Refreshed the four `docs/source/inputs/yaml/examples/output_config_*.yml` user-facing examples to the new shape
+- [feature][experimental] Packaged SUEWS as a first-class plugin in the Claude Code and Codex AI-agent ecosystems via the open Agent Skills standard (#1363)
+  - Added user-facing `suews` plugin entry to `.claude-plugin/marketplace.json` (alongside the existing `suews-dev` contributor plugin)
+  - Added `.codex-plugin/plugin.json`, `plugins/suews/.codex-plugin/plugin.json`, and `.agents/plugins/marketplace.json` for Codex CLI / Desktop App / IDE extensions
+  - Documented install paths in `docs/source/installation.rst` (Claude Code, Codex, MCP placeholder for Cursor)
+
+### 29 Apr 2026
+
+- [feature][experimental] Read forcing files by **column name** rather than position (#1372)
+  - Header line is now required and matched case-insensitively against the canonical column list. Files with the standard SUEWS canonical headers (`iy`, `id`, `it`, `imin`, `Tair`, `RH`, `U`, `pres`, `kdown`, `rain`, plus optional canonicals) continue to load unchanged
+  - Baseline-required set raises `ValueError` if any of the ten time/met columns is absent; physics-conditional columns (e.g. `qn` for `net_radiation = 0`, `ldown` for `net_radiation = 1` or `11`, `fcld` for `net_radiation = 2` or `12`) are checked against the resolved physics path and the error message names the requesting method
+  - Missing optional canonical columns are filled with `-999.0` (the SUEWS sentinel); unknown columns emit a `UserWarning` and are dropped
+- [feature][experimental] Per-landcover variants of `lai` and `wuh` plumbed into the forcing readers (#1372)
+  - `lai_<surface>` is accepted only for vegetated surfaces (`evetr`, `dectr`, `grass`); non-vegetated `lai_*` are treated as unknown (warn-and-drop)
+  - `wuh_<surface>` (external water use — irrigation, impervious-surface washing, fountains, ornamental water features) is accepted on every surface `{paved, bldgs, evetr, dectr, grass, bsoil, water}`; `wuh_water` covers fountains and pond top-ups
+  - Each `wuh_<surface>` value is a depth in **mm per forcing time step** (same unit as `rain`) interpreted as falling on **that surface only** — the grid-total contribution is `wuh_<surface> × sfr_<surface>`. Aligning with the rainfall convention also lets users drop ERA5-style hourly water-flux columns in without extra rescaling
+  - Whitelisted columns are loaded into `SUEWSForcing.extras` / `ForcingData.extras` for downstream physics work; the kernel itself still uses the bulk `lai` and `Wuh` columns in this release
+  - Soil-moisture deficit (`xsmd`) remains a bulk site-level column and is intentionally not on the per-landcover whitelist
+- [change][experimental] `model.control.forcing_file` moved to `model.control.forcing.file` (#1372)
+  - Restructure under a new `ForcingControl` sub-object creates a stable home for future forcing fields (sub-hourly disaggregation, resampling policy)
+  - `suews-convert` and `suews-schema migrate` upgrade existing configs automatically via the `(2026.5.dev6 -> 2026.5.dev7)` handler; manual edit is also straightforward
+  - Schema bump `2026.5.dev6 -> 2026.5.dev7`; `sample_config.yml` and the vendored release fixtures are updated accordingly
+- [doc] Document named-column forcing reader and `forcing.file` restructure (#1372)
+  - Added a Named-column forcing files section to `docs/source/inputs/forcing-data.rst` with the canonical name list, baseline-required set, optional/whitelisted/unknown column behaviour, and a cross-reference anchor `named_column_forcing`
+  - Added a 2026.5.dev7 entry to `docs/source/inputs/transition_guide.rst` with the YAML rename example and the named-column header semantics
+  - Added the corresponding 2026.5.dev7 entry to `docs/source/contributing/schema/schema_versioning.rst` Version History; demoted the dev6 entry from "current" to an intermediate dev label
+- [change][experimental] Escalate procedural API deprecation warnings to `FutureWarning` (#1370)
+  - `_warn_functional_deprecation` now emits `FutureWarning` instead of `DeprecationWarning` so end-user notebooks and scripts surface the migration nudge under default warning filters (CPython hides `DeprecationWarning` outside `__main__`); the procedural API in `supy._supy_module` is end-user-facing, not a developer-only surface
+  - Added `load_SampleData` and `load_config_from_df` to `_FUNCTIONAL_DEPRECATIONS` and routed both through `_warn_functional_deprecation` (`load_SampleData` previously used a `logger.warning`; `load_config_from_df` had no warning at all)
+  - Scoped ERA5 pandas `FutureWarning` suppression so procedural API migration warnings remain visible after SuPy utility imports, and routed `init_config(df_state)` through a private config helper so it emits only its own warning
+  - Updated `test/core/test_public_api_wrappers.py` to assert the user-visible `FutureWarning` category and the specific `supy.<function>` warning message
+  - Phase 2 of the procedural-API removal plan; sibling to #1075 (df_state, closed) and unblocks #1365 (parallelism control on `SUEWSSimulation.run`)
 
 ### 22 Apr 2026
 
@@ -103,7 +287,7 @@ EXAMPLES:
   - Updated `.claude/rules/python/schema-versioning.md`, `scripts/lint/check_schema_version_bump.py`, and the `prep-release` skill to stop asking contributors to edit `COMPATIBLE_VERSIONS`; the audit now terminates at `_HANDLERS`
 - [maintenance] Guardrails against schema-version drift (#1304)
   - New pytest regression `test/data_model/test_schema_version_sync.py` asserts `src/supy/sample_data/sample_config.yml::schema_version` equals `CURRENT_SCHEMA_VERSION` on every test run; the `verify-build` shell recipe is no longer the only line of defence
-  - New CI gate `.github/workflows/schema-version-audit.yml` runs on every PR that touches `src/supy/data_model/**` or `src/supy/sample_data/sample_config.yml` and fails unless `src/supy/data_model/schema/version.py` is also modified. Backed by `scripts/lint/check_schema_version_bump.py`. Maintainers can add the `schema-audit-ok` label to bypass the gate for genuinely cosmetic diffs
+  - New CI gate `.github/workflows/schema-version-audit.yml` runs on every PR that touches `src/supy/data_model/**` or `src/supy/sample_data/sample_config.yml` and fails unless `src/supy/data_model/schema/version.py` is also modified. Backed by `scripts/lint/check_schema_version_bump.py`. Maintainers can add the `0-ci:schema-audit-ok` label to bypass the gate for genuinely cosmetic diffs
   - New rule `.claude/rules/python/schema-versioning.md` documents when to bump, how to bump, pre-release audit, PR review gate, and the bypass-label workflow; `prep-release` skill gained a schema-audit step, `audit-pr` skill acknowledges the CI gate
 - [change][experimental] Retrospective schema version bump closes the gap from #1240 / #1242 / #1261 (#1304)
   - `CURRENT_SCHEMA_VERSION` stayed at `2025.12` through the STEBBS clean-up (#879 Nov 2025), the `DeepSoilTemperature` rename (#1240), the DHW volume-bound removal (#1242), and the setpoint split (#1261); the YAML upgrade dispatcher had no real schema versions to key on and had to fall back on synthetic labels that sorted numerically below `CURRENT_SCHEMA_VERSION`

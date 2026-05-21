@@ -203,6 +203,7 @@ jobs:
         if: steps.detect.outputs.docs_changed == 'true'
         uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6
         with:
+          # Documentation tooling requires Python 3.11+; runtime support remains 3.9+.
           python-version: "3.13"
 
       - name: Install supy and build docs

@@ -14,7 +14,11 @@ from numpy import cos, deg2rad, sin, sqrt
 
 from .._env import logger_supy
 
-warnings.simplefilter(action="ignore", category=FutureWarning)
+warnings.filterwarnings(
+    action="ignore",
+    category=FutureWarning,
+    module=r"^pandas(\.|$)",
+)
 
 
 ################################################

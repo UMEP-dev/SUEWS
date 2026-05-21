@@ -4,11 +4,12 @@
 model:
   control:
     tstep: 300  # 5-minute timestep
-    forcing_file: "forcing_2020.txt"
+    forcing:
+      file: "forcing_2020.txt"
     
     # Parquet output configuration
     # Parquet files are more efficient for storage and faster to read
-    output_file:
+    output:
       format: parquet   # Modern columnar format
       freq: 300         # Keep original 5-minute resolution (no resampling)
       # Note: For Parquet format, all groups are saved in a single file

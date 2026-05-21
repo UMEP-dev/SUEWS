@@ -356,6 +356,216 @@ sites:
         self.assertNotIn("model.physics.rsl_method", extra_paths)
         self.assertNotIn("model.physics.gs_model", extra_paths)
 
+    def test_gh1417_legacy_control_blocks_do_not_gain_null_current_blocks(self):
+        """Legacy control keys should migrate before Phase A structure checks."""
+        legacy_data = deepcopy(self.standard_data)
+        control = legacy_data["model"]["control"]
+
+        legacy_forcing = control.pop("forcing")["file"]
+        legacy_output = deepcopy(control.pop("output"))
+        legacy_output_file = deepcopy(legacy_output)
+        legacy_output_file["path"] = legacy_output_file.pop("dir", None)
+        control["forcing_file"] = legacy_forcing
+        control["output_file"] = legacy_output_file
+
+        missing_paths = {
+            path for path, _, _ in find_missing_parameters(legacy_data, self.standard_data)
+        }
+        extra_paths = set(find_extra_parameters(legacy_data, self.standard_data))
+
+        self.assertNotIn("model.control.forcing", missing_paths)
+        self.assertNotIn("model.control.forcing.file", missing_paths)
+        self.assertNotIn("model.control.output", missing_paths)
+        self.assertNotIn("model.control.output.format", missing_paths)
+        self.assertNotIn("model.control.forcing_file", extra_paths)
+        self.assertNotIn("model.control.output_file", extra_paths)
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            tmp_path = Path(tmpdir)
+            user_file = tmp_path / "legacy.yml"
+            standard_file = tmp_path / "standard.yml"
+            updated_file = tmp_path / "updated.yml"
+            report_file = tmp_path / "report.txt"
+
+            user_file.write_text(
+                yaml.safe_dump(legacy_data, sort_keys=False),
+                encoding="utf-8",
+            )
+            standard_file.write_text(
+                yaml.safe_dump(self.standard_data, sort_keys=False),
+                encoding="utf-8",
+            )
+
+            annotate_missing_parameters(
+                user_file=str(user_file),
+                standard_file=str(standard_file),
+                uptodate_file=str(updated_file),
+                report_file=str(report_file),
+                mode="dev",
+                phase="A",
+                forcing="off",
+            )
+
+            updated_data = yaml.safe_load(updated_file.read_text(encoding="utf-8"))
+            updated_control = updated_data["model"]["control"]
+            self.assertNotIn("forcing_file", updated_control)
+            self.assertNotIn("output_file", updated_control)
+            self.assertEqual(updated_control["forcing"]["file"], legacy_forcing)
+            self.assertEqual(updated_control["output"]["format"], "txt")
+            self.assertEqual(updated_control["output"]["dir"], legacy_output["dir"])
+            self.assertNotIn("path", updated_control["output"])
+
+            report_content = report_file.read_text(encoding="utf-8")
+            self.assertNotIn("model.control.forcing added", report_content)
+            self.assertNotIn("model.control.output added", report_content)
+            self.assertNotIn("forcing_file at level", report_content)
+            self.assertNotIn("output_file at level", report_content)
+
+    def test_gh1417_current_control_blocks_win_over_legacy_duplicates(self):
+        """Current control blocks should win and legacy duplicates should be dropped."""
+        data = deepcopy(self.standard_data)
+        control = data["model"]["control"]
+        control["forcing_file"] = {"value": "legacy_forcing.txt"}
+        control["output_file"] = {
+            "format": "parquet",
+            "freq": 1800,
+            "path": "./legacy_output",
+        }
+
+        extra_paths = set(find_extra_parameters(data, self.standard_data))
+        self.assertNotIn("model.control.forcing_file", extra_paths)
+        self.assertNotIn("model.control.output_file", extra_paths)
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            tmp_path = Path(tmpdir)
+            user_file = tmp_path / "duplicate.yml"
+            standard_file = tmp_path / "standard.yml"
+            updated_file = tmp_path / "updated.yml"
+            report_file = tmp_path / "report.txt"
+
+            user_file.write_text(
+                yaml.safe_dump(data, sort_keys=False),
+                encoding="utf-8",
+            )
+            standard_file.write_text(
+                yaml.safe_dump(self.standard_data, sort_keys=False),
+                encoding="utf-8",
+            )
+
+            annotate_missing_parameters(
+                user_file=str(user_file),
+                standard_file=str(standard_file),
+                uptodate_file=str(updated_file),
+                report_file=str(report_file),
+                mode="dev",
+                phase="A",
+                forcing="off",
+            )
+
+            updated_data = yaml.safe_load(updated_file.read_text(encoding="utf-8"))
+            updated_control = updated_data["model"]["control"]
+            self.assertNotIn("forcing_file", updated_control)
+            self.assertNotIn("output_file", updated_control)
+            self.assertEqual(
+                updated_control["forcing"], self.standard_data["model"]["control"]["forcing"]
+            )
+            self.assertEqual(
+                updated_control["output"], self.standard_data["model"]["control"]["output"]
+            )
+
+            # Even though current `forcing`/`output` win on duplicates,
+            # Phase A must still surface the legacy-key migration in the
+            # report so the user knows their `forcing_file`/`output_file`
+            # blocks were dropped (matching the DeprecationWarning that
+            # ModelControl._coerce_legacy_* emits at runtime).
+            report_content = report_file.read_text(encoding="utf-8")
+            self.assertIn("forcing_file changed to forcing.file", report_content)
+            self.assertIn("output_file changed to output", report_content)
+
+    def test_gh1417_empty_current_output_wins_over_legacy_duplicate(self):
+        """An empty current output block is valid and should not be overwritten."""
+        data = deepcopy(self.standard_data)
+        control = data["model"]["control"]
+        control["output"] = {}
+        control["output_file"] = {
+            "format": "parquet",
+            "freq": 1800,
+            "path": "./legacy_output",
+        }
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            tmp_path = Path(tmpdir)
+            user_file = tmp_path / "empty_current.yml"
+            standard_file = tmp_path / "standard.yml"
+            updated_file = tmp_path / "updated.yml"
+            report_file = tmp_path / "report.txt"
+
+            user_file.write_text(
+                yaml.safe_dump(data, sort_keys=False),
+                encoding="utf-8",
+            )
+            standard_file.write_text(
+                yaml.safe_dump(self.standard_data, sort_keys=False),
+                encoding="utf-8",
+            )
+
+            annotate_missing_parameters(
+                user_file=str(user_file),
+                standard_file=str(standard_file),
+                uptodate_file=str(updated_file),
+                report_file=str(report_file),
+                mode="dev",
+                phase="A",
+                forcing="off",
+            )
+
+            updated_data = yaml.safe_load(updated_file.read_text(encoding="utf-8"))
+            updated_control = updated_data["model"]["control"]
+            self.assertEqual(updated_control["output"], {})
+            self.assertNotIn("output_file", updated_control)
+
+    def test_gh1417_invalid_current_output_is_not_replaced_by_legacy(self):
+        """Invalid current output values should survive for Phase C validation."""
+        data = deepcopy(self.standard_data)
+        control = data["model"]["control"]
+        control["output"] = "bad"
+        control["output_file"] = {
+            "format": "txt",
+            "freq": 3600,
+            "path": "./legacy_output",
+        }
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            tmp_path = Path(tmpdir)
+            user_file = tmp_path / "invalid_current.yml"
+            standard_file = tmp_path / "standard.yml"
+            updated_file = tmp_path / "updated.yml"
+            report_file = tmp_path / "report.txt"
+
+            user_file.write_text(
+                yaml.safe_dump(data, sort_keys=False),
+                encoding="utf-8",
+            )
+            standard_file.write_text(
+                yaml.safe_dump(self.standard_data, sort_keys=False),
+                encoding="utf-8",
+            )
+
+            annotate_missing_parameters(
+                user_file=str(user_file),
+                standard_file=str(standard_file),
+                uptodate_file=str(updated_file),
+                report_file=str(report_file),
+                mode="dev",
+                phase="A",
+                forcing="off",
+            )
+
+            updated_data = yaml.safe_load(updated_file.read_text(encoding="utf-8"))
+            updated_control = updated_data["model"]["control"]
+            self.assertEqual(updated_control["output"], "bad")
+            self.assertNotIn("output_file", updated_control)
+
     def test_extra_parameter_detection(self):
         """Test detection of NOT IN STANDARD parameters."""
         extra_params = find_extra_parameters(self.extra_params_yaml, self.standard_data)
@@ -515,26 +725,36 @@ sites:
         )
 
     def test_error_handling(self):
-        """Test error handling for invalid inputs."""
+        """Test error handling for invalid inputs.
+
+        ``annotate_missing_parameters`` returns a structured ``PhaseReport``
+        on every path (success and pipeline failure) so callers and the
+        JSON sidecar share the same shape. I/O failures surface as a
+        single ``A.PIPELINE.*`` issue rather than collapsing to ``None``.
+        """
+        from supy.data_model.validation.pipeline.report_schema import PhaseReport
+
         with tempfile.TemporaryDirectory() as temp_dir:
-            # Test with non-existent file
+            # Test with non-existent file -> A.PIPELINE.FILE_NOT_FOUND
             non_existent = os.path.join(temp_dir, "does_not_exist.yml")
             result = annotate_missing_parameters(
                 user_file=non_existent, standard_file=self.standard_file
             )
-            # Should handle gracefully (returns None)
-            self.assertIsNone(result)
+            self.assertIsInstance(result, PhaseReport)
+            self.assertTrue(result.has_errors)
+            self.assertEqual(result.issues[0].code, "A.PIPELINE.FILE_NOT_FOUND")
 
-            # Test with invalid YAML
+            # Test with invalid YAML -> A.PIPELINE.YAML_PARSE_ERROR
             invalid_yaml = os.path.join(temp_dir, "invalid.yml")
-            with open(invalid_yaml, "w") as f:
+            with open(invalid_yaml, "w", encoding="utf-8") as f:
                 f.write("invalid: yaml: content: [unclosed")
 
             result = annotate_missing_parameters(
                 user_file=invalid_yaml, standard_file=self.standard_file
             )
-            # Should handle gracefully
-            self.assertIsNone(result)
+            self.assertIsInstance(result, PhaseReport)
+            self.assertTrue(result.has_errors)
+            self.assertEqual(result.issues[0].code, "A.PIPELINE.YAML_PARSE_ERROR")
 
     def test_renamed_params_consistency(self):
         """Test that RENAMED_PARAMS dictionary is consistent."""
@@ -598,8 +818,8 @@ class TestRealWorldScenarios(unittest.TestCase):
             "model": {
                 "control": {
                     "tstep": 300,
-                    "forcing_file": {"value": "test_forcing.txt"},
-                    "output_file": {"format": "txt", "freq": 3600, "groups": ["SUEWS"]},
+                    "forcing": {"file": {"value": "test_forcing.txt"}},
+                    "output": {"format": "txt", "freq": 3600, "groups": ["SUEWS"]},
                     "start_time": "2011-01-01",
                     "end_time": "2011-12-31",
                 },
@@ -692,9 +912,10 @@ description: A test config with all types of issues
 model:
   control:
     tstep: 300
-    forcing_file:
-      value: test_forcing.txt
-    output_file:
+    forcing:
+      file:
+        value: test_forcing.txt
+    output:
       format: txt
       freq: 3600
       groups: ["SUEWS"]
@@ -2905,7 +3126,7 @@ class TestProcessorFixtures:
                     "tstep": {"value": 300},
                     "start_time": {"value": "2011-01-01"},
                     "end_time": {"value": "2011-12-31"},
-                    "output_file": {
+                    "output": {
                         "freq": {"value": 3600},
                         "groups": {"value": ["SUEWS"]},
                     },
@@ -4058,10 +4279,10 @@ class TestPhaseCPydanticValidation(TestProcessorFixtures):
             "model": {
                 "control": {
                     "tstep": 300,
-                    "forcing_file": {"value": "forcing.txt"},
+                    "forcing": {"file": {"value": "forcing.txt"}},
                     "start_time": "2025-01-01",
                     "end_time": "2025-12-31",
-                    "output_file": {"freq": 3600, "format": "txt"},
+                    "output": {"freq": 3600, "format": "txt"},
                     "diagnose": 0,
                 },
                 "physics": {
@@ -4139,10 +4360,10 @@ class TestPhaseCPydanticValidation(TestProcessorFixtures):
             "model": {
                 "control": {
                     "tstep": 300,
-                    "forcing_file": {"value": "forcing.txt"},
+                    "forcing": {"file": {"value": "forcing.txt"}},
                     "start_time": "2025-01-01",
                     "end_time": "2025-12-31",
-                    "output_file": {"freq": 3600, "format": "txt"},
+                    "output": {"freq": 3600, "format": "txt"},
                     "diagnose": 0,
                 },
                 "physics": {

@@ -117,6 +117,60 @@ Where:
    2020  1  1  60  -999  -999  -999  -999  -999  2.3  84  5.3  101.3  0.2  0  -999  318  -999  -999  -999  -999  -999  -999  -999
    2020  1  2   0  -999  -999  -999  -999  -999  2.0  86  5.1  101.2  0.0  0  -999  312  -999  -999  -999  -999  -999  -999  -999
 
+.. _named_column_forcing:
+
+Named-column forcing files (gh#1372)
+------------------------------------
+
+Since schema 2026.5.dev7, SUEWS reads forcing files by **column name**,
+not by column position. The header line is required and its content is
+matched, case-insensitively, against the canonical column list above.
+
+* **Required (baseline)**: ``iy``, ``id``, ``it``, ``imin``, ``Tair``,
+  ``RH``, ``U``, ``pres``, ``kdown``, ``rain``. Missing any of these
+  raises ``ValueError`` at load time.
+* **Required (physics-conditional)**: depending on the chosen physics
+  path, additional columns become mandatory. For example,
+  ``model.physics.net_radiation = 0`` requires ``qn``;
+  ``net_radiation = 1`` or ``11`` requires ``ldown``;
+  ``net_radiation = 2`` or ``12`` requires ``fcld``. The error
+  message cites the offending column and the physics method that
+  requires it.
+* **Optional canonical columns**: missing canonical columns outside the
+  required set are filled with ``-999.0`` (the SUEWS sentinel). Column
+  order is irrelevant.
+* **Per-landcover variants**: the loader also accepts whitelisted
+  ``<var>_<surface>`` columns:
+
+  - ``lai_<surface>`` is accepted **only for vegetated surfaces** —
+    ``evetr``, ``dectr``, ``grass``. ``lai_paved`` / ``lai_bldgs`` /
+    ``lai_bsoil`` / ``lai_water`` are not meaningful and are treated
+    as unknown (warn-and-drop).
+  - ``wuh_<surface>`` (external water use — irrigation,
+    impervious-surface washing, fountains, ornamental water features)
+    is accepted on every surface, including the open-water surface
+    via ``wuh_water`` (a fountain or pond top-up adds water to the
+    ``water`` surface itself).
+
+    **Units and convention**: each ``wuh_<surface>`` value is a depth
+    in **mm per forcing time step**, the same unit as ``rain``. The
+    depth is interpreted as falling on **that surface only** — not
+    spread over the whole grid. The grid-total contribution is
+    therefore ``wuh_<surface> × sfr_<surface>``. Worked example: with
+    grass occupying 20% of the grid and ``wuh_grass = 5`` (mm in this
+    time step), the grass surface receives 5 mm of irrigation depth
+    and the site-mean external water-use input is
+    ``5 × 0.20 = 1`` mm. The rainfall-aligned unit also lets users
+    drop ERA5-style hourly water-flux columns straight in without
+    extra rescaling.
+
+  Whitelisted columns are preserved on ``SUEWSForcing.extras`` for
+  downstream physics work; the kernel itself continues to use the bulk
+  ``lai`` and ``Wuh`` columns. Soil-moisture deficit (``xsmd``) is a
+  bulk site-level quantity and is intentionally not per-landcover.
+* **Unknown columns**: any column not in the canonical or whitelisted
+  sets emits a ``UserWarning`` and is dropped.
+
 Important Requirements
 ----------------------
 
@@ -157,19 +211,31 @@ Examples:
 YAML Configuration
 ------------------
 
-In your YAML configuration, specify the forcing file(s):
+In your YAML configuration, specify the forcing file(s) under the
+``forcing`` sub-object (schema 2026.5.dev7 onwards; see
+:ref:`transition_guide` for the rename of the legacy
+``model.control.forcing_file`` key):
 
 .. code-block:: yaml
 
    model:
      control:
-       forcing_file: "forcing/Kc_2020_data_60.txt"
-       
-       # Or multiple files for continuous multi-year runs:
-       forcing_file:
-         - "forcing/Kc_2020_data_60.txt"
-         - "forcing/Kc_2021_data_60.txt"
-         - "forcing/Kc_2022_data_60.txt"
+       forcing:
+         file: "forcing/Kc_2020_data_60.txt"
+
+Or, for continuous multi-year runs, supply a list under the same
+``forcing.file`` key (the loader concatenates them in chronological
+order):
+
+.. code-block:: yaml
+
+   model:
+     control:
+       forcing:
+         file:
+           - "forcing/Kc_2020_data_60.txt"
+           - "forcing/Kc_2021_data_60.txt"
+           - "forcing/Kc_2022_data_60.txt"
 
 Optional Variables
 ------------------

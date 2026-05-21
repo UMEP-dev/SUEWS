@@ -18,10 +18,16 @@ _yaml_Dumper = getattr(yaml, "CSafeDumper", yaml.SafeDumper)
 from ._env import logger_supy
 from ._post import df_var, gen_index
 
+from ._load import LAI_LANDCOVER_SUFFIXES
+
 if TYPE_CHECKING:
     from .data_model import SUEWSConfig
 
+
+LAI_KERNEL_COLUMNS = tuple(f"lai_{suffix}" for suffix in LAI_LANDCOVER_SUFFIXES)
+
 OUTPUT_TIME_COLS = 5
+MET_FORCING_COLS = 20 + len(LAI_KERNEL_COLUMNS)
 
 _GROUP_ORDER: tuple[str, ...] = (
     "SUEWS",
@@ -172,14 +178,9 @@ def _build_datetime_index(output_block: np.ndarray) -> pd.DatetimeIndex:
 def _prepare_forcing_block(df_forcing: pd.DataFrame) -> np.ndarray:
     """Prepare forcing DataFrame as a Fortran-order array for the Rust bridge."""
     len_sim = len(df_forcing)
-    block = np.zeros((len_sim, 21), dtype=np.float64, order="F")
+    columns_by_lower = {str(col).lower(): col for col in df_forcing.columns}
 
-    block[:, 0] = df_forcing.index.year
-    block[:, 1] = df_forcing.index.dayofyear
-    block[:, 2] = df_forcing.index.hour
-    block[:, 3] = df_forcing.index.minute
-
-    col_map = [
+    fixed_col_map = [
         (4, "qn", 0.0),
         (5, "qh", 0.0),
         (6, "qe", 0.0),
@@ -196,14 +197,29 @@ def _prepare_forcing_block(df_forcing: pd.DataFrame) -> np.ndarray:
         (17, "fcld", 0.0),
         (18, "Wuh", 0.0),
         (19, "xsmd", 0.0),
-        (20, "lai", 0.0),
     ]
 
-    for idx, col, default in col_map:
-        if col in df_forcing.columns:
-            block[:, idx] = df_forcing[col].values
+    block = np.zeros((len_sim, MET_FORCING_COLS), dtype=np.float64, order="F")
+
+    block[:, 0] = df_forcing.index.year
+    block[:, 1] = df_forcing.index.dayofyear
+    block[:, 2] = df_forcing.index.hour
+    block[:, 3] = df_forcing.index.minute
+
+    for idx, col, default in fixed_col_map:
+        source_col = columns_by_lower.get(col.lower())
+        if source_col is not None:
+            block[:, idx] = df_forcing[source_col].values
         else:
             block[:, idx] = default
+
+    bulk_lai_col = columns_by_lower.get("lai")
+    for target_idx, lai_col in enumerate(LAI_KERNEL_COLUMNS, start=20):
+        source_col = columns_by_lower.get(lai_col, bulk_lai_col)
+        if source_col is not None:
+            block[:, target_idx] = df_forcing[source_col].values
+        else:
+            block[:, target_idx] = -999.0
 
     return block
 
@@ -352,9 +368,8 @@ def run_suews_rust_multi(
     copies and YAML serialisation.
 
     When *serial_mode* is False and there are multiple sites, grids are
-    run in parallel using ``multiprocessing.Pool`` with the ``spawn``
-    context (safe for Fortran SAVE variables — each process gets its
-    own address space).
+    run in parallel using Rust/Rayon.  If *max_workers* is provided, the
+    Rayon call is capped to that many threads.
 
     Returns ``(df_output, dict_state_json)`` where *dict_state_json* maps
     each grid ID to its post-simulation state JSON string.
@@ -371,15 +386,19 @@ def run_suews_rust_multi(
     _validate_output_layout(rust_module)
     if df_forcing.empty:
         raise ValueError("forcing data is empty")
+    if max_workers is not None and (
+        isinstance(max_workers, bool)
+        or not isinstance(max_workers, int)
+        or max_workers < 1
+    ):
+        raise ValueError("max_workers must be a positive integer or None")
 
     # --- Prepare shared data once ---
     # The Rust bridge's YAML preprocessor accepts both new snake_case and
     # legacy fused spellings (gh#1322), so the Pydantic dump is submitted
     # verbatim.
     config_dict = config.model_dump(exclude_none=True, mode="json")
-    list_site_dict = [
-        s.model_dump(exclude_none=True, mode="json") for s in sites
-    ]
+    list_site_dict = [s.model_dump(exclude_none=True, mode="json") for s in sites]
     forcing_block = _prepare_forcing_block(df_forcing)
     forcing_flat = forcing_block.ravel(order="C").tolist()
     len_forcing = len(df_forcing)
@@ -400,14 +419,19 @@ def run_suews_rust_multi(
     has_rayon = hasattr(rust_module, "run_suews_multi")
 
     if use_rayon and has_rayon:
-        logger_supy.info(
-            "Running %d grids in parallel (Rust/Rayon)",
-            len(sites),
-        )
+        if max_workers is None:
+            logger_supy.info("Running %d grids in parallel (Rust/Rayon)", len(sites))
+        else:
+            logger_supy.info(
+                "Running %d grids in parallel (Rust/Rayon, max_workers=%d)",
+                len(sites),
+                max_workers,
+            )
         raw_results = rust_module.run_suews_multi(
             list_config_jsons,
             forcing_flat,
             len_forcing,
+            max_workers,
         )
         # raw_results: list of (grid_index, output_flat, state_json, len_sim)
         # Sort by original index to preserve grid ordering
@@ -427,6 +451,122 @@ def run_suews_rust_multi(
             results.append((list_grid_ids[idx], output_flat, state_json, len_sim))
 
     # --- Collect results ---
+    list_df_output = []
+    dict_state_json: dict[int, str] = {}
+
+    for grid_id, output_flat, state_json, len_sim in results:
+        if len_sim != len_forcing:
+            raise RuntimeError(
+                f"Rust backend length mismatch: forcing={len_forcing}, output={len_sim}"
+            )
+        df_output = _parse_output_block(output_flat, len_sim, grid_id)
+        list_df_output.append(df_output)
+        if state_json is not None:
+            dict_state_json[grid_id] = state_json
+
+    df_output_all = pd.concat(list_df_output).sort_index()
+
+    return df_output_all, dict_state_json or None
+
+
+def run_suews_rust_multi_with_state(
+    config: SUEWSConfig,
+    df_forcing: pd.DataFrame,
+    dict_state_json_by_grid: dict[int, str],
+    serial_mode: bool = False,
+    max_workers: int | None = None,
+) -> tuple[pd.DataFrame, dict[int, str] | None]:
+    """Run SUEWS via Rust bridge for all sites with injected states."""
+    sites = config.sites
+
+    list_gridiv = [_normalise_grid_id(s.gridiv) for s in sites]
+    list_dupes = [g for g in list_gridiv if list_gridiv.count(g) > 1]
+    if list_dupes:
+        raise ValueError(f"Duplicate gridiv values in config.sites: {set(list_dupes)}")
+
+    dict_state_json_by_grid = {
+        _normalise_grid_id(grid_id): state_json
+        for grid_id, state_json in dict_state_json_by_grid.items()
+    }
+    config_grid_ids = set(list_gridiv)
+    state_grid_ids = set(dict_state_json_by_grid)
+    if state_grid_ids != config_grid_ids:
+        parts = []
+        missing = sorted(config_grid_ids - state_grid_ids)
+        unexpected = sorted(state_grid_ids - config_grid_ids)
+        if missing:
+            parts.append(f"missing states for grids {missing}")
+        if unexpected:
+            parts.append(f"unexpected states for grids {unexpected}")
+        raise ValueError(
+            "State grid IDs do not match config.sites: " + "; ".join(parts)
+        )
+
+    rust_module = _check_rust_available()
+    _validate_output_layout(rust_module)
+    if df_forcing.empty:
+        raise ValueError("forcing data is empty")
+    if max_workers is not None and (
+        isinstance(max_workers, bool)
+        or not isinstance(max_workers, int)
+        or max_workers < 1
+    ):
+        raise ValueError("max_workers must be a positive integer or None")
+
+    config_dict = config.model_dump(exclude_none=True, mode="json")
+    list_site_dict = [s.model_dump(exclude_none=True, mode="json") for s in sites]
+    forcing_block = _prepare_forcing_block(df_forcing)
+    forcing_flat = forcing_block.ravel(order="C").tolist()
+    len_forcing = len(df_forcing)
+
+    list_grid_ids = []
+    list_config_jsons = []
+    list_state_jsons = []
+    for idx, site_dict in enumerate(list_site_dict):
+        grid_id = list_gridiv[idx]
+        list_grid_ids.append(grid_id)
+        config_dict["sites"] = [site_dict]
+        list_config_jsons.append(json.dumps(config_dict))
+        list_state_jsons.append(dict_state_json_by_grid[grid_id])
+
+    use_rayon = not serial_mode and len(sites) > 1
+    has_rayon = hasattr(rust_module, "run_suews_multi_with_state")
+
+    if use_rayon and has_rayon:
+        if max_workers is None:
+            logger_supy.info(
+                "Running %d checkpointed grids in parallel (Rust/Rayon)", len(sites)
+            )
+        else:
+            logger_supy.info(
+                "Running %d checkpointed grids in parallel "
+                "(Rust/Rayon, max_workers=%d)",
+                len(sites),
+                max_workers,
+            )
+        raw_results = rust_module.run_suews_multi_with_state(
+            list_config_jsons,
+            forcing_flat,
+            len_forcing,
+            list_state_jsons,
+            max_workers,
+        )
+        raw_results.sort(key=lambda r: r[0])
+        results = [
+            (list_grid_ids[idx], output_flat, state_json, len_sim)
+            for idx, output_flat, state_json, len_sim in raw_results
+        ]
+    else:
+        results = []
+        for idx, config_json in enumerate(list_config_jsons):
+            output_flat, state_json, len_sim = rust_module.run_suews_with_state(
+                config_json,
+                forcing_flat,
+                len_forcing,
+                list_state_jsons[idx],
+            )
+            results.append((list_grid_ids[idx], output_flat, state_json, len_sim))
+
     list_df_output = []
     dict_state_json: dict[int, str] = {}
 
@@ -487,6 +627,7 @@ def run_suews_rust_chunked(
     df_forcing: pd.DataFrame,
     chunk_day: int = 366,
     serial_mode: bool = False,
+    max_workers: int | None = None,
     initial_state_json_by_grid: dict[int, str] | None = None,
 ) -> tuple[pd.DataFrame, dict[int, str] | None]:
     """Run SUEWS via Rust bridge with multi-chunk state chaining.
@@ -511,7 +652,7 @@ def run_suews_rust_chunked(
     n_chunk = len(grp_forcing_chunk)
     if n_chunk <= 1 and not initial_state_json_by_grid:
         return run_suews_rust_multi(
-            config, df_forcing, serial_mode=serial_mode
+            config, df_forcing, serial_mode=serial_mode, max_workers=max_workers
         )
 
     if n_chunk > 1:
@@ -539,8 +680,7 @@ def run_suews_rust_chunked(
             if unexpected:
                 parts.append(f"unexpected checkpoint states for grids {unexpected}")
             raise ValueError(
-                "Checkpoint grid IDs do not match config.sites: "
-                + "; ".join(parts)
+                "Checkpoint grid IDs do not match config.sites: " + "; ".join(parts)
             )
 
     dict_state_json: dict[int, str] = dict(initial_state_json_by_grid)
@@ -557,33 +697,25 @@ def run_suews_rust_chunked(
             len(df_forcing_chunk),
         )
 
-        list_df_chunk: list[pd.DataFrame] = []
+        if dict_state_json:
+            df_output_chunk, dict_state_json_chunk = run_suews_rust_multi_with_state(
+                config=config,
+                df_forcing=df_forcing_chunk,
+                dict_state_json_by_grid=dict_state_json,
+                serial_mode=serial_mode,
+                max_workers=max_workers,
+            )
+        else:
+            df_output_chunk, dict_state_json_chunk = run_suews_rust_multi(
+                config=config,
+                df_forcing=df_forcing_chunk,
+                serial_mode=serial_mode,
+                max_workers=max_workers,
+            )
 
-        for site in sites:
-            grid_id = _normalise_grid_id(site.gridiv)
-            config_single = config.model_copy(deep=True)
-            config_single.sites = [site.model_copy(deep=True)]
-
-            prev_state = dict_state_json.get(grid_id)
-            if prev_state is not None:
-                df_out, new_state = run_suews_rust_with_state(
-                    config=config_single,
-                    df_forcing=df_forcing_chunk,
-                    grid_id=grid_id,
-                    state_json=prev_state,
-                )
-            else:
-                df_out, new_state = run_suews_rust(
-                    config=config_single,
-                    df_forcing=df_forcing_chunk,
-                    grid_id=grid_id,
-                )
-
-            list_df_chunk.append(df_out)
-            if new_state is not None:
-                dict_state_json[grid_id] = new_state
-
-        list_df_output.append(pd.concat(list_df_chunk))
+        list_df_output.append(df_output_chunk)
+        if dict_state_json_chunk:
+            dict_state_json.update(dict_state_json_chunk)
 
     df_output_all = pd.concat(list_df_output).sort_index()
     return df_output_all, dict_state_json or None

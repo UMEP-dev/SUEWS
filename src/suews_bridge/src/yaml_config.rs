@@ -820,6 +820,134 @@ fn apply_snow_overrides(site: &mut SuewsSite, site_root: &Value) {
     }
 }
 
+fn apply_irrigation_overrides(site: &mut SuewsSite, site_root: &Value) {
+    // Top-level irrigation scalars: h_maintain, faut, ie_start, ie_end,
+    // internalwateruse_h
+    if let Some(v) = read_numeric(site_root, &["properties", "irrigation", "h_maintain"]) {
+        site.irrigation.h_maintain = v;
+    }
+    if let Some(v) = read_numeric(site_root, &["properties", "irrigation", "faut"]) {
+        site.irrigation.faut = v;
+    }
+    if let Some(v) = read_i32(site_root, &["properties", "irrigation", "ie_start"]) {
+        site.irrigation.ie_start = v;
+    }
+    if let Some(v) = read_i32(site_root, &["properties", "irrigation", "ie_end"]) {
+        site.irrigation.ie_end = v;
+    }
+    if let Some(v) = read_numeric(site_root, &["properties", "irrigation", "internalwateruse_h"])
+    {
+        site.irrigation.internalwateruse_h = v;
+    }
+
+    // Per-vegetated-surface irrigation polynomial coefficients (Järvi 2011).
+    // ie_a / ie_m are stored as 3-element arrays indexed by veg surface
+    // (0=EveTr, 1=DecTr, 2=Grass); the YAML places one scalar per land_cover
+    // block but the Fortran physics interprets the three values as a single
+    // polynomial [a0 + a1*Tair + a2*days_since_rain] applied to every irrigated
+    // veg surface (Lewis Cameron / Arup case, gh#1421).
+    for (lc_name, veg_idx) in [("evetr", 0_usize), ("dectr", 1_usize), ("grass", 2_usize)] {
+        if let Some(v) = read_numeric(site_root, &["properties", "land_cover", lc_name, "ie_a"]) {
+            site.irrigation.ie_a[veg_idx] = v;
+        }
+        if let Some(v) = read_numeric(site_root, &["properties", "land_cover", lc_name, "ie_m"]) {
+            site.irrigation.ie_m[veg_idx] = v;
+        }
+    }
+
+    // Per-day daywat (flag) / daywatper (percent of plots irrigated on that day)
+    for (day_name, flag_field, percent_field) in [
+        (
+            "monday",
+            &mut site.irrigation.irr_daywater.monday_flag,
+            &mut site.irrigation.irr_daywater.monday_percent,
+        ),
+        (
+            "tuesday",
+            &mut site.irrigation.irr_daywater.tuesday_flag,
+            &mut site.irrigation.irr_daywater.tuesday_percent,
+        ),
+        (
+            "wednesday",
+            &mut site.irrigation.irr_daywater.wednesday_flag,
+            &mut site.irrigation.irr_daywater.wednesday_percent,
+        ),
+        (
+            "thursday",
+            &mut site.irrigation.irr_daywater.thursday_flag,
+            &mut site.irrigation.irr_daywater.thursday_percent,
+        ),
+        (
+            "friday",
+            &mut site.irrigation.irr_daywater.friday_flag,
+            &mut site.irrigation.irr_daywater.friday_percent,
+        ),
+        (
+            "saturday",
+            &mut site.irrigation.irr_daywater.saturday_flag,
+            &mut site.irrigation.irr_daywater.saturday_percent,
+        ),
+        (
+            "sunday",
+            &mut site.irrigation.irr_daywater.sunday_flag,
+            &mut site.irrigation.irr_daywater.sunday_percent,
+        ),
+    ] {
+        if let Some(v) = read_numeric(site_root, &["properties", "irrigation", "daywat", day_name])
+        {
+            *flag_field = v;
+        }
+        if let Some(v) = read_numeric(
+            site_root,
+            &["properties", "irrigation", "daywatper", day_name],
+        ) {
+            *percent_field = v;
+        }
+    }
+
+    // 24-hour weekday/holiday automatic and manual water-use profiles.
+    for (profile_name, working, holiday) in [
+        (
+            "wuprofa_24hr",
+            &mut site.irrigation.wuprofa_24hr_working,
+            &mut site.irrigation.wuprofa_24hr_holiday,
+        ),
+        (
+            "wuprofm_24hr",
+            &mut site.irrigation.wuprofm_24hr_working,
+            &mut site.irrigation.wuprofm_24hr_holiday,
+        ),
+    ] {
+        for hour in 1..=24_usize {
+            let key = hour.to_string();
+            if let Some(v) = read_numeric(
+                site_root,
+                &[
+                    "properties",
+                    "irrigation",
+                    profile_name,
+                    "working_day",
+                    key.as_str(),
+                ],
+            ) {
+                working[hour - 1] = v;
+            }
+            if let Some(v) = read_numeric(
+                site_root,
+                &[
+                    "properties",
+                    "irrigation",
+                    profile_name,
+                    "holiday",
+                    key.as_str(),
+                ],
+            ) {
+                holiday[hour - 1] = v;
+            }
+        }
+    }
+}
+
 fn apply_land_cover_overrides(site: &mut SuewsSite, site_root: &Value) {
     if let Some(lc_root) = get_path(site_root, &["properties", "land_cover", "paved"]) {
         if let Some(v) = read_numeric(lc_root, &["sfr"]) {
@@ -1670,6 +1798,7 @@ fn apply_site_overrides(
     resize_site_variable_arrays(site, nlayer);
     apply_land_cover_overrides(site, site_root);
     apply_snow_overrides(site, site_root);
+    apply_irrigation_overrides(site, site_root);
     apply_vertical_layers_overrides(site, site_root);
     apply_anthro_emis_overrides(site, site_root);
     apply_building_archetype_overrides(site, site_root)?;
@@ -2032,7 +2161,12 @@ fn read_sites_indexed<'a>(root: &'a Value, idx: usize) -> Option<&'a Value> {
 }
 
 fn read_forcing_rel(root: &Value) -> Option<String> {
-    read_string(root, &["model", "control", "forcing_file"])
+    // Prefer the new `forcing.file` (and its RefValue `.value`) shape introduced
+    // in schema 2026.5.dev7 (gh#1372); fall back to the legacy `forcing_file`
+    // (and its RefValue `.value`) so user YAMLs at either schema parse pre-migration.
+    read_string(root, &["model", "control", "forcing", "file"])
+        .or_else(|| read_string(root, &["model", "control", "forcing", "file", "value"]))
+        .or_else(|| read_string(root, &["model", "control", "forcing_file"]))
         .or_else(|| read_string(root, &["model", "control", "forcing_file", "value"]))
 }
 
@@ -2072,7 +2206,11 @@ pub fn load_run_config_from_value(root: &mut Value) -> Result<RunConfig, String>
 
     apply_state_overrides(&mut state, site_root);
 
-    let output_dir = read_string(root, &["model", "control", "output_file", "path"])
+    // Prefer the new `output.dir` shape introduced in schema 2026.5.dev8
+    // (gh#1372 follow-up); fall back to the legacy `output_file.path` so
+    // user YAMLs at either schema parse pre-migration.
+    let output_dir = read_string(root, &["model", "control", "output", "dir"])
+        .or_else(|| read_string(root, &["model", "control", "output_file", "path"]))
         .map(PathBuf::from)
         .unwrap_or_else(|| PathBuf::from("./output"));
 
@@ -2099,7 +2237,9 @@ pub fn load_run_config(path: &Path) -> Result<RunConfig, String> {
     let mut run_cfg = load_run_config_from_value(&mut root)?;
 
     let forcing_rel = read_forcing_rel(&root)
-        .ok_or_else(|| "`model.control.forcing_file` is missing".to_string())?;
+        .ok_or_else(|| {
+            "`model.control.forcing.file` is missing (also accepts legacy `model.control.forcing_file`)".to_string()
+        })?;
     let base_dir = path.parent().unwrap_or_else(|| Path::new("."));
     run_cfg.forcing_path = base_dir.join(forcing_rel);
     // Resolve output_dir relative to config file location

@@ -66,6 +66,16 @@ except ImportError:
             UserWarning,
         )
 
+
+def _fallback_timezone_name(lat: float, lng: float) -> Optional[str]:
+    """Small deterministic timezone fallback for simple UTC and London cases."""
+    if 49.0 <= lat <= 61.0 and -8.5 <= lng <= 2.5:
+        return "Europe/London"
+    if -1.0 <= lat <= 1.0 and -1.0 <= lng <= 1.0:
+        return "Etc/GMT"
+    return None
+
+
 # Optional import - use standalone if supy not available
 try:
     from ...._env import logger_supy, trv_supy_module
@@ -225,12 +235,13 @@ class DLSCheck(BaseModel):
     def compute_dst_transitions(self):
         if not HAS_TIMEZONE_FINDER:
             logger_supy.debug(
-                "[DLS] No timezone finder available, skipping DST calculation."
+                "[DLS] No timezone finder available, using limited fallback."
             )
-            return None, None, None
+            tz_name = _fallback_timezone_name(self.lat, self.lng)
+        else:
+            tf = TimezoneFinder()
+            tz_name = tf.timezone_at(lat=self.lat, lng=self.lng)
 
-        tf = TimezoneFinder()
-        tz_name = tf.timezone_at(lat=self.lat, lng=self.lng)
 
         if not tz_name:
             logger_supy.debug(

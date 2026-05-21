@@ -116,7 +116,8 @@ jobs:
             --repo "${TARGET_REPO}" \
             --title "${ISSUE_TITLE}" \
             --body-file /tmp/issue-body.md \
-            --label "user-report" \
+            --label "0-source:discourse" \
+            --label "1-question" \
             2>&1)
 
           echo "issue_url=${ISSUE_URL}" >> "$GITHUB_OUTPUT"

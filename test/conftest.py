@@ -1,8 +1,19 @@
 """pytest configuration for SUEWS test suite."""
 
 import subprocess
+import sys
 import warnings
 from pathlib import Path
+
+# Make the standalone suews_mcp package importable when it is not pip-installed
+# (e.g. wheel CI installs only the supy wheel). Done at the root conftest rather
+# than test/mcp/conftest.py because pytest's default `prepend` import mode gives
+# every conftest.py the bare module name `conftest`, and a per-subdirectory
+# conftest.py shadows this one — breaking `from conftest import TIMESTEPS_PER_DAY`
+# in test/physics and test/umep during collection (gh#1384 follow-up).
+_MCP_SRC = Path(__file__).resolve().parents[1] / "mcp" / "src"
+if _MCP_SRC.is_dir() and str(_MCP_SRC) not in sys.path:
+    sys.path.insert(0, str(_MCP_SRC))
 
 import pytest
 import supy

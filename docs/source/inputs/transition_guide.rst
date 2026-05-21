@@ -171,7 +171,7 @@ YAML Schema Migrations
 Once your configuration is in YAML, subsequent SUEWS releases may bump
 the YAML *schema* — the structure of the file itself. Each bump is
 backed by a registered migration handler, so ``suews-convert`` (for
-combined legacy+schema upgrades) and ``suews-schema migrate`` (for
+combined legacy+schema upgrades) and ``suews schema migrate`` (for
 schema-only upgrades) will move old YAMLs onto the current shape
 without losing data. Every drop is logged with a human-readable
 reason so you can reconstruct intent if needed.
@@ -180,12 +180,204 @@ The sections below summarise what users see change between schemas.
 The authoritative lineage (including release-tag to schema mapping)
 lives in :ref:`schema_version_history`.
 
+Upgrading to Schema 2026.5.dev10 (PR #1420 stacked forcing adapter follow-up)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Schema ``2026.5.dev10`` is the current in-development shape. The YAML
+object tree is unchanged from ``2026.5.dev9``; this bump documents the
+forcing-file adapter semantics introduced by the stacked PR on top of
+the named-column forcing work.
+
+Forcing files may still carry whitelisted extension columns, but the
+kernel-facing view remains a fixed 23-column block. When
+``laimethod=0`` uses observed LAI, the adapter now projects
+``lai_evetr``, ``lai_dectr`` and ``lai_grass`` into kernel columns
+21-23 in that vegetation order. For each vegetation class, a supplied
+``lai_<veg>`` column overrides the bulk ``lai`` column; if the
+class-specific column is absent, bulk ``lai`` is used as the fallback.
+Older forcing files that only provide bulk ``lai`` therefore continue
+to work unchanged.
+
+For ``laimethod=0``, observed LAI is no longer clipped to the
+configuration's ``LAImin`` / ``LAImax`` envelope. Non-missing,
+non-negative observations, including genuine zero values, pass through
+to ``DailyState``.
+
+Per-surface water-use columns such as ``wuh_paved`` and
+``wuh_grass`` remain accepted extension metadata. They are preserved
+on ``SUEWSForcing.extras`` / ``ForcingData.extras`` for downstream
+work, but they do not change current Fortran water-use calculations:
+bulk ``Wuh`` is still the only water-use forcing consumed by the
+kernel.
+
+The ``2026.5.dev9 -> 2026.5.dev10`` migration is an identity stamp. Run
+the migrator only to refresh the top-level ``schema_version`` field:
+
+.. code-block:: bash
+
+   suews schema migrate your_config.yml --target-version 2026.5.dev10
+
+For legacy table-to-YAML conversion plus schema stamping, use:
+
+.. code-block:: bash
+
+   suews-convert --to 2026.5.dev10 in.yml out.yml
+
+Upgrading to Schema 2026.5.dev9 (gh#1372 cumulative model.control restructure)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Schema ``2026.5.dev9`` bundles
+the gh#1372 forcing- and output-config restructures into a single dev
+bump, per the dev-label convention
+(``.claude/rules/python/schema-versioning.md``): rather than
+re-using already-published dev labels, the cumulative delta lands on a
+fresh dev9 with one migration handler.
+
+Two YAML changes ship together; the migrator
+(``suews schema migrate your_config.yml --target-version 2026.5.dev9``)
+applies forcing-restructure first, then output-restructure, so the
+audit log reads in the order users will recognise from the gh#1372
+work.
+
+(a) **Forcing restructure**: ``model.control.forcing_file`` moves
+under a new ``forcing`` sub-object.
+
+.. code-block:: yaml
+   :caption: Before (dev6 / dev7 / dev8)
+
+   model:
+     control:
+       forcing_file: forcing.txt
+
+.. code-block:: yaml
+   :caption: After (dev9)
+
+   model:
+     control:
+       forcing:
+         file: forcing.txt
+
+The forcing-file reader also switches from positional to **named-column**
+matching: column names in the forcing file header are now read and
+used to match canonical variable names. Files whose headers already
+use the canonical names (the standard SUEWS distribution shape)
+continue to work unchanged. Files with custom or mis-typed headers
+(for example ``temperature`` instead of ``Tair``) will now raise
+``ValueError`` at load time citing the expected canonical name. See
+:ref:`named_column_forcing` for the full canonical name list and
+per-landcover whitelist.
+
+(b) **Output restructure**: ``model.control.output_file:`` becomes
+the sibling ``model.control.output:`` block, mirroring the
+``forcing:`` restructure. The inner ``path:`` field is renamed to
+``dir:`` (clarifies it as a directory).
+
+.. code-block:: yaml
+   :caption: Before (dev6 / dev7 / dev8)
+
+   model:
+     control:
+       output_file:
+         format: parquet
+         freq: 3600
+         path: ./out
+
+.. code-block:: yaml
+   :caption: After (dev9)
+
+   model:
+     control:
+       output:
+         format: parquet
+         freq: 3600
+         dir: ./out
+
+The legacy string form ``output_file: "name.txt"`` was already
+silently ignored from 2025.10.15 and is now dropped outright by the
+migrator. The Pydantic ``ModelControl`` class retains a deprecated
+``output_file`` ``@property`` alias (with ``DeprecationWarning``,
+scheduled for removal in 2026.6) so external Python consumers (UMEP
+postprocessor, etc.) keep reading
+``config.model.control.output_file.dir`` until they migrate.
+
+Run ``suews-convert --to 2026.5.dev9 in.yml out.yml`` to rewrite an
+older YAML; the in-memory ``_coerce_legacy_output_file`` validator
+also accepts the legacy shape at load time and emits a
+``DeprecationWarning`` pointing at the new key.
+
+Upgrading to Schema 2026.5.dev8 (PR#1395 registry refresh - identity)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Identity migration. The canonical rename registries refresh to point
+directly at the dev7 final ArchetypeProperties names; the YAML
+surface itself is unchanged from ``2026.5.dev7``. No user action is
+required to reach dev8 from dev7. Users at dev6 or earlier should
+target ``2026.5.dev9`` directly via
+``suews schema migrate ... --target-version 2026.5.dev9``.
+
+Upgrading to Schema 2026.5.dev7 (naming convention Rule 2 reorder for ArchetypeProperties)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+44 ``ArchetypeProperties`` field names under
+``sites[].properties.building_archetype.*`` have been reordered to
+follow Rule 2 of the SUEWS naming convention
+(``.claude/rules/naming-convention.md``): physical quantity leads,
+then component, then sub-class.
+
+The rename covers wall, roof, window, ground_floor, and internal_mass
+bulk-material and surface optical properties. Three orthogonal moves
+are embedded in the rename, applied per field as appropriate:
+
+- **Reorder so the physical quantity leads** - ``thickness``,
+  ``density``, ``conductivity``, ``specific_heat_capacity``,
+  ``emissivity``, ``transmissivity``, ``absorptivity``,
+  ``reflectivity``. For example
+  ``wall_external_thickness`` -> ``thickness_wall_outer``,
+  ``wall_external_emissivity`` -> ``emissivity_wall_external``.
+- **Layer-to-insulation qualifier renamed external -> outer**. The
+  convention's "Specific tokens" rule reserves ``outer/inner`` for
+  the bulk-material layer and ``external/internal`` for the radiative
+  surface. So ``wall_external_thickness`` becomes
+  ``thickness_wall_outer`` (bulk layer); ``wall_external_emissivity``
+  stays ``emissivity_wall_external`` (radiative surface).
+- **The effective_ qualifier dropped on the conductivity rows**
+  (``wall_effective_conductivity`` -> ``conductivity_wall``). It was
+  used inconsistently - the sibling ``density`` and
+  ``specific_heat_capacity`` rows did not carry it.
+
+Wall and roof heat-capacity distribution rows take the
+``fraction_*`` non-physical category prefix per Rule 2:
+``wall_outer_heat_capacity_fraction`` ->
+``fraction_wall_heat_capacity_outer``.
+
+Run the migrator to bring an existing YAML onto the new shape (or
+target ``2026.5.dev9`` directly to also pick up the gh#1372
+restructure):
+
+.. code-block:: bash
+
+   suews schema migrate your_config.yml --target-version 2026.5.dev9
+
+Every rename is logged via ``[yaml-upgrade]   renamed 'old' ->
+'new'`` so the user can verify each substitution. The Pydantic
+backward-compat shim still accepts the pre-dev7 names at load time,
+emitting a ``DeprecationWarning``; YAMLs that round-trip through the
+migrator come out in the new spellings and no longer warn.
+
+Cross-layer (Fortran TYPE members, Rust struct fields, DataFrame
+column keys) is unchanged - the bridge map composes through the
+chained ``ARCHETYPEPROPERTIES_DEV7_TO_PASCAL`` lookup so the legacy
+fused column key (``wallextthickness``, etc.) is still produced from
+the new Pydantic field name.
+
 Upgrading to Schema 2026.5.dev6 (gh#1333 site-level completeness validator)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Schema ``2026.5.dev6`` is the current in-development shape. The YAML
-shape is byte-for-byte identical to ``2026.5.dev5`` — this is a pure
-validator-contract tightening, not a structural rename.
+Schema ``2026.5.dev6`` is an intermediate dev label (the current
+in-development shape is ``2026.5.dev9``; see the sections above). The
+YAML shape at dev6 is byte-for-byte identical to ``2026.5.dev5`` —
+this is a pure validator-contract tightening, not a structural
+rename.
 
 Previously, declaring a vegetated or building surface with
 ``sfr > 0`` but omitting the physics-required completion fields
@@ -217,13 +409,13 @@ the user omitted them are skipped, so programmatic
 docs YAMLs that only exercise unrelated aspects (timezone, output
 configuration, ...) remain permissive.
 
-Because the YAML shape is unchanged, no ``suews-schema migrate`` run
+Because the YAML shape is unchanged, no ``suews schema migrate`` run
 is strictly required to move to ``2026.5.dev6``. Run the migrator
 only to refresh the ``schema_version`` stamp if you pin the field:
 
 .. code-block:: bash
 
-   suews-schema migrate your_config.yml --target-version 2026.5.dev6
+   suews schema migrate your_config.yml --target-version 2026.5.dev6
 
 Users hitting the new raise should either (a) fill in the missing
 fields the error message names, or (b) remove the offending surface
@@ -246,7 +438,7 @@ Because the change is accept-only, the ``2026.5.dev4 ->
 
 .. code-block:: bash
 
-   suews-schema migrate your_config.yml --target-version 2026.5.dev5
+   suews schema migrate your_config.yml --target-version 2026.5.dev5
 
 Upgrading to Schema 2026.5.dev4 (gh#1334 follow-through via PR #1337: STEBBS hot-water prefix unification)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -276,7 +468,7 @@ component qualifiers; only the prefix becomes consistent.
 
 Legacy ``dhw_*`` and ``water_tank_*`` spellings continue to load
 via the Pydantic shim with a ``DeprecationWarning``. Run
-``suews-schema migrate --target-version 2026.5.dev4 <your.yml>``
+``suews schema migrate --target-version 2026.5.dev4 <your.yml>``
 to rewrite them in place. Rust struct fields and the c_api shadow
 keep ``dhw_*`` internally — cross-layer work is tracked in #1324.
 
@@ -343,11 +535,11 @@ cluster) continue to load under a ``DeprecationWarning``. Run:
 
 .. code-block:: bash
 
-   suews-schema migrate your_config.yml --target-version 2026.5.dev3
+   suews schema migrate your_config.yml --target-version 2026.5.dev3
 
 Use this historical target when you specifically want the pre-hot-water
 unification ``2026.5.dev3`` spellings. To land on the current schema
-instead, omit ``--target-version`` or point it at ``2026.5.dev6``.
+instead, omit ``--target-version`` or point it at ``2026.5.dev9``.
 
 Upgrading to Schema 2026.5.dev2 (Categories 2+3 of #1256: suffix drop, abbreviation expansion)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -388,7 +580,7 @@ under a ``DeprecationWarning``. Run:
 
 .. code-block:: bash
 
-   suews-schema migrate your_config.yml --target-version 2026.5.dev2
+   suews schema migrate your_config.yml --target-version 2026.5.dev2
 
 The migrator accepts any registered intermediate (``2025.12``,
 ``2026.1``, ``2026.4``, ``2026.5``, ``2026.5.dev1``) and walks the
@@ -428,7 +620,7 @@ persisted YAMLs should be migrated. Run:
 
 .. code-block:: bash
 
-   suews-schema migrate your_config.yml --target-version 2026.5.dev1
+   suews schema migrate your_config.yml --target-version 2026.5.dev1
 
 The migrator accepts any registered intermediate (for example
 ``2025.12``, ``2026.1``, ``2026.4`` or ``2026.5``) and walks the
@@ -470,7 +662,7 @@ top.
 
    The standalone Rust CLI (``suews run config.yml``) accepts both the
    new ``snake_case`` spellings and the legacy fused spellings
-   transparently (gh#1322). You do not need to run ``suews-schema
+   transparently (gh#1322). You do not need to run ``suews schema
    migrate`` purely to use the CLI — migration is only required when
    persisting a canonical 2026.5-shaped YAML, for example alongside a
    release fixture or before sharing a config with collaborators.
@@ -499,7 +691,7 @@ Run:
 
 .. code-block:: bash
 
-   suews-schema migrate your_config.yml --target-version 2026.4
+   suews schema migrate your_config.yml --target-version 2026.4
 
 The migrator accepts any registered intermediate (for example
 ``2025.12``) and walks the chain to the 2026.4 schema. To upgrade
@@ -529,7 +721,7 @@ If you are targeting 2026.1.28 exactly:
 
 .. code-block:: bash
 
-   suews-schema migrate your_config.yml --target-version 2026.1
+   suews schema migrate your_config.yml --target-version 2026.1
 
 Otherwise the 2026.4 -> 2026.5 chain above is applied in one pass.
 
@@ -546,7 +738,7 @@ upgraded file, pass ``--dry-run``:
 
 .. code-block:: bash
 
-   suews-schema migrate your_config.yml --dry-run
+   suews schema migrate your_config.yml --dry-run
 
 Troubleshooting
 ~~~~~~~~~~~~~~~
@@ -617,7 +809,7 @@ Accept-only widening — no schema version bump. Every previously
 valid YAML continues to validate and round-trips byte-identically.
 Writing in the nested form is optional and serves as in-file
 documentation of intent; YAMLs that round-trip through
-``suews-schema migrate`` or ``SUEWSConfig.to_yaml`` are always
+``suews schema migrate`` or ``SUEWSConfig.to_yaml`` are always
 emitted in the flat form.
 
 The Rust CLI (``suews run``) accepts the same two shapes via the

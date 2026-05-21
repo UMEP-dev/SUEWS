@@ -36,6 +36,15 @@ DEFAULT_FORCING_FILE_PATTERNS = [
 ]  # Valid forcing file extensions
 
 
+def _validate_n_jobs(n_jobs: int) -> Optional[int]:
+    """Return a Rust worker cap for a public ``n_jobs`` value."""
+    if isinstance(n_jobs, bool) or not isinstance(n_jobs, int):
+        raise ValueError("n_jobs must be an integer: -1, 1, or a positive value")
+    if n_jobs == 0 or n_jobs < -1:
+        raise ValueError("n_jobs must be -1, 1, or a positive integer")
+    return None if n_jobs == -1 else n_jobs
+
+
 class SUEWSSimulation:
     """
     Simplified SUEWS simulation class for urban climate modelling.
@@ -251,7 +260,9 @@ class SUEWSSimulation:
         if self._config is not None:
             try:
                 tstep_val = self._config.model.control.tstep
-                tstep_mod = tstep_val.value if hasattr(tstep_val, "value") else tstep_val
+                tstep_mod = (
+                    tstep_val.value if hasattr(tstep_val, "value") else tstep_val
+                )
             except AttributeError:
                 logger_supy.debug(
                     "Could not extract tstep from config; using default %ds",
@@ -261,7 +272,7 @@ class SUEWSSimulation:
         if isinstance(forcing_data, RefValue):
             forcing_data = forcing_data.value
         if isinstance(forcing_data, SUEWSForcing):
-            self._df_forcing = forcing_data.df.copy()
+            self._df_forcing = forcing_data.to_dataframe(include_extras=True)
         elif isinstance(forcing_data, pd.DataFrame):
             self._df_forcing = forcing_data.copy()
         elif isinstance(forcing_data, list):
@@ -290,9 +301,7 @@ class SUEWSSimulation:
             if hasattr(self._config, "model") and hasattr(
                 self._config.model, "control"
             ):
-                forcing_file_obj = getattr(
-                    self._config.model.control, "forcing_file", None
-                )
+                forcing_file_obj = self._config.model.control.forcing.file
 
                 if forcing_file_obj is not None:
                     # Handle RefValue wrapper
@@ -364,6 +373,17 @@ class SUEWSSimulation:
         # Using resolve() handles '..' and normalizes the path
         return str((self._config_path.parent / Path(path_str)).resolve())
 
+    def _resolve_output_path(self, path: Union[str, Path]) -> Path:
+        """Resolve an output path relative to the loaded config file."""
+        path_str = str(path)
+        path_output = Path(path_str).expanduser()
+
+        if path_output.is_absolute() or PurePosixPath(path_str).is_absolute():
+            return path_output
+        if self._config_path is not None:
+            return (self._config_path.parent / path_output).resolve()
+        return path_output
+
     @staticmethod
     def _load_forcing_from_list(
         forcing_list: list[Union[str, Path]], tstep_mod: int = 300
@@ -428,6 +448,7 @@ class SUEWSSimulation:
         start_date=None,
         end_date=None,
         chunk_day: int = 3660,
+        n_jobs: int = -1,
         **run_kwargs,
     ) -> SUEWSOutput:
         """
@@ -443,6 +464,10 @@ class SUEWSSimulation:
             Chunk size in days for splitting long simulations, by default 3660
             (~10 years). Smaller values reduce peak memory at a small overhead
             cost.
+        n_jobs : int, optional
+            Parallel worker control for multi-grid runs. ``-1`` (default) uses
+            Rayon default parallelism, ``1`` forces serial execution, and
+            values greater than ``1`` cap Rayon to that many threads.
 
         Returns
         -------
@@ -472,6 +497,9 @@ class SUEWSSimulation:
                 f"Only the 'rust' backend is available. "
                 f"Remove the backend parameter or use backend='rust'."
             )
+
+        max_workers = _validate_n_jobs(n_jobs)
+        serial_mode = n_jobs == 1
 
         _check_rust_available()
 
@@ -518,22 +546,21 @@ class SUEWSSimulation:
         df_forcing_slice = self._df_forcing.loc[start_date:end_date]
 
         # Validate forcing data, including physics-specific forcing requirements
-        # (e.g. laimethod=0 requires a populated `lai` column). When observed
-        # LAI is selected, pass per-site LAI bounds so the validator can warn
-        # about forcing values that will be clamped at runtime.
+        # (e.g. laimethod=0 requires populated effective observed-LAI sources).
         physics_dict = None
-        lai_bounds = None
         if self._config is not None and hasattr(self._config, "model"):
             physics = getattr(self._config.model, "physics", None)
             if physics is not None and hasattr(physics, "model_dump"):
                 physics_dict = physics.model_dump(mode="python")
-        if self._df_state_init is not None:
-            from ._supy_module import _lai_bounds_from_df_state
+            # Cross-check physics path against forcing columns (gh#1372).
+            # Helper is silent on success; raises ValueError on mismatch.
+            if physics is not None:
+                from .data_model.core.forcing_validation import (
+                    validate_forcing_columns_against_physics,
+                )
 
-            lai_bounds = _lai_bounds_from_df_state(self._df_state_init)
-        list_issues = check_forcing(
-            df_forcing_slice, physics=physics_dict, lai_bounds=lai_bounds
-        )
+                validate_forcing_columns_against_physics(df_forcing_slice, physics)
+        list_issues = check_forcing(df_forcing_slice, physics=physics_dict)
         if isinstance(list_issues, list) and len(list_issues) > 0:
             issues_summary = list_issues[:3] if len(list_issues) > 3 else list_issues
             suffix = (
@@ -549,6 +576,8 @@ class SUEWSSimulation:
             config=self._config,
             df_forcing=df_forcing_slice,
             chunk_day=chunk_day,
+            serial_mode=serial_mode,
+            max_workers=max_workers,
             initial_state_json_by_grid=initial_state_json_by_grid,
         )
         self._df_output = df_output
@@ -582,7 +611,7 @@ class SUEWSSimulation:
         self, output_path: Optional[Union[str, Path]] = None, **save_kwargs
     ) -> list[str]:
         """
-        Save simulation results according to OutputConfig settings.
+        Save simulation results according to OutputControl settings.
 
         Parameters
         ----------
@@ -599,7 +628,7 @@ class SUEWSSimulation:
 
             **Not currently supported** (due to internal constraints):
 
-            - freq_s: Controlled by config.model.control.output_file.freq
+            - freq_s: Controlled by config.model.control.output.freq
             - site: Derived from config.sites[0].name
             - save_tstep: Not configurable via OOP interface
             - output_level: Not configurable via OOP interface
@@ -641,16 +670,18 @@ class SUEWSSimulation:
 
         # Set default path with priority: parameter > config > current directory
         if output_path is None:
-            # Check if path is specified in config
-            config_path = None
+            # Check if dir is specified in config
+            config_dir = None
             try:
-                output_file = self._config.model.control.output_file
-                if not isinstance(output_file, str) and output_file.path:
-                    config_path = output_file.path
+                output_control = self._config.model.control.output
+                if output_control.dir:
+                    config_dir = output_control.dir
             except AttributeError:
                 pass
 
-            output_path = Path(config_path) if config_path else Path(".")
+            output_path = (
+                self._resolve_output_path(config_dir) if config_dir else Path(".")
+            )
         else:
             output_path = Path(output_path)
 
@@ -661,14 +692,13 @@ class SUEWSSimulation:
         site = ""
 
         if self._config:
-            # Get output frequency from OutputConfig if available
+            # Get output frequency from OutputControl if available
             if (
                 hasattr(self._config, "model")
                 and hasattr(self._config.model, "control")
-                and hasattr(self._config.model.control, "output_file")
-                and not isinstance(self._config.model.control.output_file, str)
+                and hasattr(self._config.model.control, "output")
             ):
-                output_config = self._config.model.control.output_file
+                output_config = self._config.model.control.output
                 if hasattr(output_config, "freq") and output_config.freq is not None:
                     freq_s = output_config.freq
                 # Removed for now - can't update from YAML (TODO)
@@ -1260,7 +1290,10 @@ class SUEWSSimulation:
         """
         if self._df_forcing is None:
             return None
-        return SUEWSForcing(self._df_forcing)
+        df_main, extras = SUEWSForcing._split_per_landcover_columns(self._df_forcing)
+        forcing = SUEWSForcing(df_main)
+        forcing._extras = extras
+        return forcing
 
     @property
     def results(self) -> Optional[pd.DataFrame]:

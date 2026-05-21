@@ -1248,7 +1248,9 @@ MODULE module_ctrl_const_datain
                       kdiff, & !Diffuse shortwave radiation
                       kdir, & !Direct shortwave radiation
                       kup, & !Upward shortwave radiation
-                      LAI_obs, & !LAI for study area provided in met forcing file
+                      LAI_dectr, & !LAI for study area provided in met forcing file
+                      LAI_evetr, & !LAI for study area provided in met forcing file
+                      LAI_grass, & !LAI for study area provided in met forcing file
                       lat, & !Latitude
                       ldown, & !Downward longwave radiation
                       ldown_obs, & !Downwelling longwave radiation

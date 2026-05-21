@@ -13,6 +13,7 @@ The Python interface provides the complete API for SUEWS with comprehensive func
    api/core-functions
    api/utility-functions
    api/command-line
+   api/knowledge-pack
    api/python-cli-equivalents
    api/data-structures
    api/io-data-structures
@@ -43,6 +44,9 @@ The Python interface provides the complete API for SUEWS with comprehensive func
 **Command-Line Tools**
     CLI tools for running simulations and converting configurations. See :doc:`api/command-line`.
 
+**Knowledge Pack**
+    Git-bound source evidence for local agents. See :doc:`api/knowledge-pack`.
+
 **Python API for CLI Users**
     Python equivalents for all command-line operations. See :doc:`api/python-cli-equivalents`.
 
@@ -51,4 +55,3 @@ The Python interface provides the complete API for SUEWS with comprehensive func
 
 **Configuration Converter**
     Python functions for converting between SUEWS formats and versions. See :doc:`api/converter`.
-

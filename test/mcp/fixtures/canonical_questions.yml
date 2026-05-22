@@ -3,6 +3,12 @@
 # v1 — schema references verified against the post-#1377 naming convention
 # and the current sample_config.yml (schema_version 2026.5.dev6).
 #
+# 2026-05-22: corrected land-cover child keys to the actual schema tokens
+# (evergreen_tree -> evetr, deciduous_tree -> dectr, bare_soil -> bsoil),
+# moved building_frac / building_scale under vertical_layers (they live in
+# VerticalLayers, not land_cover), and fixed forcing_file -> forcing.file
+# (ModelControl.forcing.file). Leaf field names were already correct.
+#
 # Source: domain-expert stress-test set returned by Prof. Sue Grimmond
 # (Reading) on 2026-05-01, in response to a direct request to surface the
 # kinds of questions a real urban-climate user would actually ask the
@@ -58,9 +64,9 @@ questions:
       in London? Do they differ by city?
     required_evidence:
       - kind: schema
-        field: sites[].properties.land_cover.evergreen_tree.irrigation_fraction
+        field: sites[].properties.land_cover.evetr.irrigation_fraction
       - kind: schema
-        field: sites[].properties.land_cover.deciduous_tree.irrigation_fraction
+        field: sites[].properties.land_cover.dectr.irrigation_fraction
       - kind: schema
         field: sites[].properties.land_cover.grass.irrigation_fraction
       - kind: schema
@@ -91,17 +97,17 @@ questions:
       (e.g. SW USA)?
     required_evidence:
       - kind: schema
-        field: sites[].properties.land_cover.evergreen_tree.fai_evergreen_tree
+        field: sites[].properties.land_cover.evetr.fai_evergreen_tree
       - kind: schema
-        field: sites[].properties.land_cover.evergreen_tree.height_evergreen_tree
+        field: sites[].properties.land_cover.evetr.height_evergreen_tree
       - kind: schema
-        field: sites[].properties.land_cover.deciduous_tree.fai_deciduous_tree
+        field: sites[].properties.land_cover.dectr.fai_deciduous_tree
       - kind: schema
-        field: sites[].properties.land_cover.deciduous_tree.height_deciduous_tree
+        field: sites[].properties.land_cover.dectr.height_deciduous_tree
       - kind: schema
-        field: sites[].properties.land_cover.deciduous_tree.porosity_min_deciduous
+        field: sites[].properties.land_cover.dectr.porosity_min_deciduous
       - kind: schema
-        field: sites[].properties.land_cover.deciduous_tree.porosity_max_deciduous
+        field: sites[].properties.land_cover.dectr.porosity_max_deciduous
       - kind: schema
         field: sites[].properties.land_cover.grass
       - kind: docs
@@ -153,7 +159,7 @@ questions:
       what do I need to do?
     required_evidence:
       - kind: schema
-        field: model.control.forcing_file       # forcing input column 'Tair'
+        field: model.control.forcing.file        # forcing input column 'Tair'
       - kind: code
         path: src/supy/data_model/output/suews_vars.py
         symbol: T2                              # modelled output, NOT same as forcing Tair
@@ -181,19 +187,19 @@ questions:
       - kind: schema
         field: sites[].properties.land_cover.bldgs
       - kind: schema
-        field: sites[].properties.land_cover.evergreen_tree
+        field: sites[].properties.land_cover.evetr
       - kind: schema
-        field: sites[].properties.land_cover.deciduous_tree
+        field: sites[].properties.land_cover.dectr
       - kind: schema
         field: sites[].properties.land_cover.grass
       - kind: schema
-        field: sites[].properties.land_cover.bare_soil
+        field: sites[].properties.land_cover.bsoil
       - kind: schema
         field: sites[].properties.land_cover.water
       - kind: schema
-        field: sites[].properties.land_cover.building_frac
+        field: sites[].properties.vertical_layers.building_frac
       - kind: schema
-        field: sites[].properties.land_cover.building_scale
+        field: sites[].properties.vertical_layers.building_scale
       - kind: schema
         field: model.physics.frontal_area_index
       - kind: docs

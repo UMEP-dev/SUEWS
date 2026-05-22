@@ -53,6 +53,7 @@ EXPECTED_TOOLS = frozenset({
     "search_schema",
     "list_examples",
     "read_example",
+    "list_docs",
     "init_case",
     "convert_config",
     "summarise_run",
@@ -128,8 +129,8 @@ def test_initialize_advertises_suews_mcp() -> None:
 
 
 @pytestmark_skipif
-def test_tools_list_advertises_all_twelve() -> None:
-    """All 12 tools registered in `server.py` are advertised through MCP."""
+def test_tools_list_advertises_all_thirteen() -> None:
+    """All 13 tools registered in `server.py` are advertised through MCP."""
     result = asyncio.run(_run_handshake())
     advertised = result["tool_names"]
 

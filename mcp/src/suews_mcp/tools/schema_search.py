@@ -1,11 +1,130 @@
-"""``search_schema`` MCP tool — query the SUEWS YAML schema dump."""
+"""``search_schema`` MCP tool — query the SUEWS YAML schema dump.
+
+The query is tokenised and expanded through a small domain-alias map so
+that natural-language questions ("leaf area index", "green
+infrastructure vegetation", "frontal area index for roughness") reach
+the relevant schema fields, rather than requiring the caller to know the
+exact field token. Each schema node is scored by how many distinct query
+needles appear in its key path, description, or display name; matches are
+returned highest-score-first.
+"""
 
 from __future__ import annotations
 
+import re
 from typing import Any
 
 from ..backend import SUEWSMCPError, run_suews_cli
 from .validate import _error_envelope
+
+# Tokens that carry no schema-discriminating signal. Dropped before matching.
+_STOPWORDS: frozenset[str] = frozenset({
+    "the", "and", "for", "with", "this", "that", "these", "those", "are", "was",
+    "want", "need", "use", "used", "using", "get", "from", "into", "via", "per",
+    "model", "suews", "data", "value", "values", "set", "field", "fields",
+    "parameter", "parameters", "param", "params", "option", "options", "config",
+    "configuration", "what", "which", "how", "where", "when", "why", "you",
+    "your", "can", "should", "would", "does", "about", "most", "important",
+    "describe", "describing", "area", "areas", "assign", "appropriate", "region",
+})
+
+# Natural-language term -> extra schema tokens to also search for. The token
+# itself is always searched; these are supplements drawn from SUEWS field
+# naming so a user does not have to know the abbreviation.
+_ALIASES: dict[str, list[str]] = {
+    "leaf": ["lai"],
+    "lai": ["lai"],
+    "vegetation": ["evetr", "dectr", "grass", "veg"],
+    "veg": ["evetr", "dectr", "grass"],
+    "green": ["evetr", "dectr", "grass"],
+    "greenery": ["evetr", "dectr", "grass"],
+    "greenspace": ["evetr", "dectr", "grass"],
+    "infrastructure": ["evetr", "dectr", "grass"],
+    "tree": ["evetr", "dectr"],
+    "trees": ["evetr", "dectr"],
+    "evergreen": ["evetr"],
+    "deciduous": ["dectr"],
+    "grass": ["grass"],
+    "lawn": ["grass"],
+    "irrigation": ["irrigation", "wateruse", "water_use"],
+    "irrigated": ["irrigation", "wateruse"],
+    "watering": ["irrigation", "wateruse"],
+    "albedo": ["alb"],
+    "reflectance": ["alb"],
+    "emissivity": ["emis"],
+    "conductance": ["conductance", "maxconductance", "g_", "gs"],
+    "stomatal": ["conductance", "g_"],
+    "roughness": ["z0", "zd", "roughness", "fai", "frontal"],
+    "frontal": ["frontal", "fai"],
+    "fai": ["fai", "frontal"],
+    "building": ["bldgs", "building"],
+    "buildings": ["bldgs", "building"],
+    "morphology": ["height", "fai", "building_scale", "building_frac", "z0", "zd"],
+    "morphometric": ["height", "fai", "building_scale", "building_frac"],
+    "height": ["height"],
+    "paved": ["paved"],
+    "pavement": ["paved"],
+    "road": ["paved"],
+    "impervious": ["paved", "bldgs"],
+    "soil": ["bsoil", "soil"],
+    "bare": ["bsoil"],
+    "water": ["water"],
+    "waterbody": ["water"],
+    "snow": ["snow"],
+    "forcing": ["forcing", "met"],
+    "meteorology": ["forcing", "met"],
+    "meteorological": ["forcing", "met"],
+    "met": ["forcing"],
+    "temperature": ["temp", "t2", "tair", "tsfc"],
+    "humidity": ["rh", "humid"],
+    "anthropogenic": ["anthropogenic", "qf", "ah"],
+    "heat": ["heat", "qf"],
+    "storage": ["storage", "ohm"],
+    "radiation": ["radiation", "narp", "kdown", "ldown"],
+    "porosity": ["porosity", "poros"],
+    "cover": ["land_cover", "sfr"],
+    "fraction": ["frac", "sfr", "fraction"],
+}
+
+_TOKEN_RE = re.compile(r"[a-z0-9_]+")
+_MIN_TOKEN_LEN = 3
+
+# The full schema dump is static per version, but `suews schema --format json`
+# costs ~10s per call. The MCP server is long-lived, so cache the parsed
+# envelope per version — first query pays the cost, the rest are instant.
+# Only successful dumps are cached (errors fall through and are retried).
+_SCHEMA_CACHE: dict[str, dict[str, Any]] = {}
+
+
+def _load_schema(version: str) -> dict[str, Any]:
+    """Return the `suews schema` envelope for `version`, cached per process.
+
+    Raises ``SUEWSMCPError`` (propagated from ``run_suews_cli``) on a CLI
+    failure; error envelopes are not cached so a transient failure does
+    not poison the cache.
+    """
+    key = version or "current"
+    cached = _SCHEMA_CACHE.get(key)
+    if cached is not None:
+        return cached
+    args: list[str] = []
+    if key != "current":
+        args += ["--version", key]
+    envelope = run_suews_cli("schema", args)
+    if envelope.get("status") != "error":
+        _SCHEMA_CACHE[key] = envelope
+    return envelope
+
+
+def _needles(query: str) -> set[str]:
+    """Tokenise the query and expand through the alias map."""
+    needles: set[str] = set()
+    for tok in _TOKEN_RE.findall(query.lower()):
+        if len(tok) < _MIN_TOKEN_LEN or tok in _STOPWORDS:
+            continue
+        needles.add(tok)
+        needles.update(_ALIASES.get(tok, ()))
+    return needles
 
 
 def search_schema(query: str = "", version: str = "current") -> dict[str, Any]:
@@ -15,21 +134,20 @@ def search_schema(query: str = "", version: str = "current") -> dict[str, Any]:
     knowledge-pack's snapshot — so it never returns a legacy /
     deprecated name (gh#1407).
 
-    Phase-1 implementation: shells to the no-subcommand envelope path
-    ``suews schema --version <v> --format json`` and filters the dumped
-    schema dict for keys / descriptions matching the query string. The
-    CLI itself does not yet implement filtering — we perform it here on
-    the parsed result.
+    Natural-language queries are supported: the query is tokenised and
+    expanded through a domain-alias map (e.g. "leaf area index" -> `lai`,
+    "green infrastructure" -> `evetr`/`dectr`/`grass`, "frontal area" ->
+    `fai`/`frontal`), so the caller need not know the exact field token.
+    Schema nodes are scored by how many distinct needles appear in the
+    key path, description, or display name, and returned highest-score
+    first.
     """
-    args: list[str] = []
-    if version and version != "current":
-        args += ["--version", version]
     try:
-        envelope = run_suews_cli("schema", args)
+        envelope = _load_schema(version)
     except SUEWSMCPError as exc:
         return _error_envelope(
             str(exc),
-            command=("suews schema " + " ".join(args)).strip(),
+            command="suews schema",
         )
 
     if envelope.get("status") == "error":
@@ -38,30 +156,61 @@ def search_schema(query: str = "", version: str = "current") -> dict[str, Any]:
     raw = envelope.get("data") or {}
 
     if not query:
-        # No filter: return the full envelope unchanged.
-        return envelope
+        # No filter: return the full (cached) envelope. Copy so a caller
+        # mutating the result cannot corrupt the per-process cache.
+        return dict(envelope)
 
-    needle = query.lower()
-    matches: list[dict[str, Any]] = []
+    # Build a fresh result envelope; never mutate the cached `envelope`.
+    result = dict(envelope)
+
+    needles = _needles(query)
+    if not needles:
+        result["data"] = {"matches": [], "n_matches": 0, "version": version}
+        return result
+
+    # path -> (score, value). Keep the highest score seen per path.
+    scored: dict[str, tuple[int, Any]] = {}
+
+    def _record(path: str, value: Any, text: str) -> None:
+        score = sum(1 for n in needles if n in text)
+        if score:
+            prev = scored.get(path)
+            if prev is None or score > prev[0]:
+                scored[path] = (score, _shallow(value))
 
     def _walk(node: Any, path: str = "") -> None:
         if isinstance(node, dict):
             for key, value in node.items():
                 child_path = f"{path}.{key}" if path else key
-                if needle in key.lower():
-                    matches.append({"path": child_path, "value": _shallow(value)})
+                # Build the searchable text for this node: its key, plus
+                # human-readable metadata when the value is a field dict.
+                text = key.lower()
+                if isinstance(value, dict):
+                    for attr in ("description", "display_name", "title"):
+                        meta = value.get(attr)
+                        if isinstance(meta, str):
+                            text += " " + meta.lower()
+                _record(child_path, value, text)
                 _walk(value, child_path)
         elif isinstance(node, list):
             for idx, item in enumerate(node):
                 _walk(item, f"{path}[{idx}]")
-        else:
-            if needle in str(node).lower() and len(str(node)) <= 200:
-                matches.append({"path": path, "value": node})
 
     _walk(raw)
 
-    envelope["data"] = {"matches": matches[:200], "n_matches": len(matches), "version": version}
-    return envelope
+    ranked = sorted(scored.items(), key=lambda kv: (-kv[1][0], kv[0]))
+    matches = [
+        {"path": path, "score": score, "value": value}
+        for path, (score, value) in ranked[:200]
+    ]
+
+    result["data"] = {
+        "matches": matches,
+        "n_matches": len(scored),
+        "version": version,
+        "needles": sorted(needles),
+    }
+    return result
 
 
 def _shallow(value: Any, depth: int = 0) -> Any:

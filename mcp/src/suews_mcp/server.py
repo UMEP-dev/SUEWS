@@ -73,6 +73,7 @@ def _build_server() -> Any:
         ) from exc
 
     from .resources import (
+        list_docs,
         read_doc,
         read_example_resource,
         read_knowledge_manifest_resource,
@@ -150,6 +151,9 @@ def _build_server() -> Any:
     server.tool(name="search_schema")(_async_offload(search_schema))
     server.tool(name="list_examples")(_async_offload(list_examples))
     server.tool(name="read_example")(_async_offload(read_example))
+    # `list_docs` lets the agent discover curated doc slugs before reading
+    # `suews://docs/{slug}` — the prose/tutorial grounding layer (gh#1384).
+    server.tool(name="list_docs")(_async_offload(list_docs))
 
     # Tools — workflow (init / convert). Write-path: guarded by `_write_lock`
     # so two concurrent calls cannot race on the same output directory.

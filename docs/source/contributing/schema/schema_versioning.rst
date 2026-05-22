@@ -170,7 +170,61 @@ The lineage below mirrors ``SCHEMA_VERSIONS`` in
 the schema that shipped with it via
 ``supy.util.converter.yaml_upgrade._PACKAGE_TO_SCHEMA``.
 
-**Schema 2026.5.dev10** (current; PR #1420 stacked follow-up for extensible forcing and LAI projection)
+**Schema 2026.5.dev11** (current; naming convention completion - ArchetypeProperties Tier 1 + StebbsProperties Rule 2)
+   Combines two independent rename groups in a single bump per the
+   dev-label convention (gh#1392 + gh#1394).
+
+   **(a) ArchetypeProperties Tier 1 completion (16 renames).**
+   ``archetype_*`` namespace prefix for whole-archetype fields
+   (``building_name`` -> ``archetype_name``, ``building_count`` ->
+   ``archetype_building_count``, ``building_height`` ->
+   ``archetype_height``); geometry quantity-first reorder
+   (``footprint_area`` -> ``area_footprint``, ``wall_external_area`` ->
+   ``area_wall_external``, ``internal_mass_area`` ->
+   ``area_internal_mass``) with the ``ratio_*`` category prefix for
+   fraction fields (``internal_volume_ratio`` ->
+   ``ratio_internal_mass_volume``, ``window_to_wall_ratio`` ->
+   ``ratio_window_to_wall``); HVAC + setpoint ``air_`` / ``water_``
+   qualifier (``max_heating_power`` -> ``power_air_heating_max``,
+   ``maximum_hot_water_heating_power`` -> ``power_water_heating_max``,
+   ``hot_water_tank_volume`` -> ``volume_hot_water_tank``,
+   ``heating_setpoint_temperature`` ->
+   ``temperature_air_heating_setpoint``,
+   ``cooling_setpoint_temperature`` ->
+   ``temperature_air_cooling_setpoint``) with ``profile_*`` for the
+   setpoint/metabolism profiles. Rename table
+   ``ARCHETYPEPROPERTIES_DEV7_RENAMES``; the canonical
+   ``ARCHETYPEPROPERTIES_RENAMES`` values chain one hop further to
+   these finals so PascalCase YAMLs still resolve in a single pass.
+
+   **(b) StebbsProperties Rule 2 reorder (44 renames).** Physical
+   quantity leads (``wall_internal_convection_coefficient`` ->
+   ``convection_coefficient_wall_internal``,
+   ``external_ground_conductivity`` ->
+   ``thermal_conductivity_ground``), ``floor`` -> ``ground_floor`` per
+   the convention's "Specific tokens" rule, HVAC + setpoint
+   ``air_`` / ``water_`` qualifier (``max_cooling_power`` ->
+   ``power_air_cooling_max``, ``cooling_system_cop`` ->
+   ``efficiency_cooling_system_air``,
+   ``hot_water_heating_setpoint_temperature`` ->
+   ``temperature_water_heating_setpoint``), non-physical category
+   prefixes (``threshold_metabolism``, ``ratio_latent_sensible``,
+   ``control_daylight``, ``threshold_lighting_illuminance``), initial /
+   climatology temperatures, and the full hot-water subsystem.
+   Compound nouns kept intact (``ground_depth``, ``ventilation_rate``,
+   ``lighting_power_density``, ``month_mean_air_temperature_diffmax``).
+   Rename table ``STEBBSPROPERTIES_DEV8_RENAMES``.
+
+   Both tables live in ``src/supy/data_model/core/field_renames.py``;
+   the ``(2026.5.dev10 -> 2026.5.dev11)`` migration is registered in
+   ``src/supy/util/converter/yaml_upgrade.py::_HANDLERS`` and chained
+   through every aggregate handler down to ``2025.12 -> current``.
+   Bridge DataFrame columns keep the fused PascalCase ancestry via
+   ``ARCHETYPEPROPERTIES_DEV7_TO_PASCAL`` and the chained
+   ``STEBBSPROPERTIES_DEV9_TO_PASCAL`` map. Combines the
+   originally-separate #1392 (Tier 1) and #1394 (Tier 2) PRs.
+
+**Schema 2026.5.dev10** (PR #1420 stacked follow-up for extensible forcing and LAI projection)
    The YAML object tree is unchanged from ``2026.5.dev9``. This dev
    bump documents a forcing-file semantics change: forcing files remain
    extensible, while the kernel-facing adapter keeps the fixed
@@ -274,7 +328,7 @@ the schema that shipped with it via
    ``wall_external_thickness`` -> ``thickness_wall_outer``,
    ``wall_external_emissivity`` -> ``emissivity_wall_external``,
    ``wall_outer_heat_capacity_fraction`` ->
-   ``fraction_wall_heat_capacity_outer``,
+   ``fraction_heat_capacity_wall_external``,
    ``ground_floor_thickness`` -> ``thickness_ground_floor``.
 
    Three orthogonal moves embedded in the rename: (a) reorder so the

@@ -120,8 +120,6 @@ module module_type_stebbs
       REAL(KIND(1D0)) :: hot_water_density = 0.0D0 ! Density of hot water in use [kg m-3]
       REAL(KIND(1D0)) :: hot_water_tank_wall_density = 0.0D0 ! Density of hot water tank wall [kg m-3]
       REAL(KIND(1D0)) :: hot_water_vessel_density = 0.0D0 ! Density of vessels containing hot water in use [kg m-3]
-      REAL(KIND(1D0)) :: hot_water_tank_building_wall_view_factor = 0.0D0 ! Water tank/vessel internal building wall/roof view factor [-]
-      REAL(KIND(1D0)) :: hot_water_tank_internal_mass_view_factor = 0.0D0 ! Water tank/vessel building internal mass view factor [-]
       REAL(KIND(1D0)) :: hot_water_tank_wall_conductivity = 0.0D0 ! Effective wall conductivity of the hot water tank [W m-1 K-1]
       REAL(KIND(1D0)) :: hot_water_tank_internal_wall_convection_coefficient = 0.0D0 ! Effective internal wall convection coefficient of the hot water tank [W m-2 K-1]
       REAL(KIND(1D0)) :: hot_water_tank_external_wall_convection_coefficient = 0.0D0 ! Effective external wall convection coefficient of the hot water tank [W m-2 K-1]

@@ -180,10 +180,50 @@ The sections below summarise what users see change between schemas.
 The authoritative lineage (including release-tag to schema mapping)
 lives in :ref:`schema_version_history`.
 
+Upgrading to Schema 2026.5.dev11 (naming convention completion)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Schema ``2026.5.dev11`` is the current in-development shape. It
+combines two independent naming-convention rename groups in a single
+bump (gh#1392 + gh#1394): the ArchetypeProperties Tier 1 completion
+(16 renames under ``sites[].properties.building_archetype.*``) and the
+StebbsProperties Rule 2 reorder (44 renames under
+``sites[].properties.stebbs.*``).
+
+Run the migrator to bring an existing YAML onto the new shape:
+
+.. code-block:: bash
+
+   suews schema migrate your_config.yml --target-version 2026.5.dev11
+
+Representative ArchetypeProperties renames: ``building_name`` ->
+``archetype_name``, ``footprint_area`` -> ``area_footprint``,
+``window_to_wall_ratio`` -> ``ratio_window_to_wall``,
+``max_heating_power`` -> ``power_air_heating_max``,
+``heating_setpoint_temperature`` ->
+``temperature_air_heating_setpoint``, ``hot_water_tank_volume`` ->
+``volume_hot_water_tank``. Representative StebbsProperties renames:
+``wall_internal_convection_coefficient`` ->
+``convection_coefficient_wall_internal``,
+``external_ground_conductivity`` -> ``thermal_conductivity_ground``,
+``max_cooling_power`` -> ``power_air_cooling_max``,
+``hot_water_heating_setpoint_temperature`` ->
+``temperature_water_heating_setpoint``.
+
+Every rename is logged via ``[yaml-upgrade]   renamed 'old' -> 'new'``.
+The Pydantic backward-compat shim still accepts the dev10 names (and
+earlier dev-cycle names back through PascalCase) at load time, emitting
+a ``DeprecationWarning``; YAMLs that round-trip through the migrator
+come out in the new spellings and no longer warn. Bridge DataFrame
+columns are unchanged - the chained
+``ARCHETYPEPROPERTIES_DEV7_TO_PASCAL`` and
+``STEBBSPROPERTIES_DEV9_TO_PASCAL`` maps still produce the legacy fused
+column keys from the new Pydantic field names.
+
 Upgrading to Schema 2026.5.dev10 (PR #1420 stacked forcing adapter follow-up)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Schema ``2026.5.dev10`` is the current in-development shape. The YAML
+Schema ``2026.5.dev10`` was the prior in-development shape. The YAML
 object tree is unchanged from ``2026.5.dev9``; this bump documents the
 forcing-file adapter semantics introduced by the stacked PR on top of
 the named-column forcing work.
@@ -348,7 +388,7 @@ are embedded in the rename, applied per field as appropriate:
 Wall and roof heat-capacity distribution rows take the
 ``fraction_*`` non-physical category prefix per Rule 2:
 ``wall_outer_heat_capacity_fraction`` ->
-``fraction_wall_heat_capacity_outer``.
+``fraction_heat_capacity_wall_external``.
 
 Run the migrator to bring an existing YAML onto the new shape (or
 target ``2026.5.dev9`` directly to also pick up the gh#1372

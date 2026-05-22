@@ -259,6 +259,7 @@ def test_python_rust_whitelist_parity():
     assert set((var.lower() for var in rust_per_landcover_vars)) == set(PER_LANDCOVER_FORCING_VARS)
     assert _list("LANDCOVER_SUFFIXES") == set(LANDCOVER_SUFFIXES)
     assert _list("LAI_LANDCOVER_SUFFIXES") == set(LAI_LANDCOVER_SUFFIXES)
+    assert _list("WU_LANDCOVER_SUFFIXES") == set(WUH_LANDCOVER_SUFFIXES)
     assert _list("BASELINE_FORCING_COLUMNS") == {c.lower() for c in BASELINE_DATETIME_FORCING_SET|BASELINE_FORCING_COLUMNS_SET}
 
     unused_canonical_match = re.search(

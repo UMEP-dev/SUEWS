@@ -10,7 +10,7 @@
 <meta content="SUEWS YAML configuration for stebbs parameters" name="description" />
 <meta content="SUEWS, YAML, stebbsproperties, parameters, configuration" name="keywords" />
 
-    <title>4.3.46. STEBBS &#8212; SUEWS 2026.5.22.dev9096 documentation</title>
+    <title>4.3.46. STEBBS &#8212; SUEWS 2026.5.22.dev9099 documentation</title>
   
   
   
@@ -46,7 +46,7 @@
   <link rel="preload" as="script" href="../../../_static/scripts/bootstrap.js?digest=8878045cc6db502f8baf" />
 <link rel="preload" as="script" href="../../../_static/scripts/pydata-sphinx-theme.js?digest=8878045cc6db502f8baf" />
 
-    <script src="../../../_static/documentation_options.js?v=46b666ff"></script>
+    <script src="../../../_static/documentation_options.js?v=0c10e701"></script>
     <script src="../../../_static/doctools.js?v=9bcbadda"></script>
     <script src="../../../_static/sphinx_highlight.js?v=dc90522c"></script>
     <script src="../../../_static/scripts/sphinx-book-theme.js?v=fab101a9"></script>
@@ -60,7 +60,7 @@
     <link rel="prev" title="4.3.45. Soil Observation Configuration" href="soilobservationconfig.html" />
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
-  <meta name="docsearch:version" content="2026.5.22.dev9096" />
+  <meta name="docsearch:version" content="2026.5.22.dev9099" />
   </head>
   
   
@@ -102,7 +102,7 @@
   <div class="bd-header-announcement__content">
     <div style="background-color: #f0ad4e; border: 1px solid #eea236; border-radius: 4px; padding: 10px; margin: 10px 0;">
         <strong>⚠️ Development Version:</strong> This documentation was built from a development version
-        (2026.5.22.dev9096, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/f003dd743a10bbc9aaae6d2d792c78e43d903991" style="color: #31708f;">f003dd7</a>).
+        (2026.5.22.dev9099, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/abfa89e6256023d984ed2056859327e161a9d326" style="color: #31708f;">abfa89e</a>).
         Features described here may be unstable or subject to change. For stable documentation, please visit the
         <a href="https://docs.suews.io/stable/" style="color: #31708f;">latest release</a>.
     </div>
@@ -149,8 +149,8 @@
       
     
     
-    <img src="../../../_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.5.22.dev9096 documentation - Home"/>
-    <img src="../../../_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.5.22.dev9096 documentation - Home"/>
+    <img src="../../../_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.5.22.dev9099 documentation - Home"/>
+    <img src="../../../_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.5.22.dev9099 documentation - Home"/>
   
   
 </a></div>
@@ -547,8 +547,8 @@
 building materials properties, and thermal behaviour.</p>
 <p><strong>Parameters:</strong></p>
 <dl class="input option" id="index-1">
-<dt class="sig sig-object input" id="input-option-wall_internal_convection_coefficient">
-<span class="sig-name descname"><span class="pre">wall_internal_convection_coefficient</span></span><a class="headerlink" href="#input-option-wall_internal_convection_coefficient" title="Link to this definition">#</a></dt>
+<dt class="sig sig-object input" id="input-option-convection_coefficient_wall_internal">
+<span class="sig-name descname"><span class="pre">convection_coefficient_wall_internal</span></span><a class="headerlink" href="#input-option-convection_coefficient_wall_internal" title="Link to this definition">#</a></dt>
 <dd><p>Internal convection coefficient of walls [W m-2 K-1]</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
@@ -567,8 +567,8 @@ building materials properties, and thermal behaviour.</p>
 </dd></dl>
 
 <dl class="input option" id="index-2">
-<dt class="sig sig-object input" id="input-option-roof_internal_convection_coefficient">
-<span class="sig-name descname"><span class="pre">roof_internal_convection_coefficient</span></span><a class="headerlink" href="#input-option-roof_internal_convection_coefficient" title="Link to this definition">#</a></dt>
+<dt class="sig sig-object input" id="input-option-convection_coefficient_roof_internal">
+<span class="sig-name descname"><span class="pre">convection_coefficient_roof_internal</span></span><a class="headerlink" href="#input-option-convection_coefficient_roof_internal" title="Link to this definition">#</a></dt>
 <dd><p>Internal convection coefficient of roof [W m-2 K-1]</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
@@ -581,8 +581,8 @@ building materials properties, and thermal behaviour.</p>
 </dd></dl>
 
 <dl class="input option" id="index-3">
-<dt class="sig sig-object input" id="input-option-internal_mass_convection_coefficient">
-<span class="sig-name descname"><span class="pre">internal_mass_convection_coefficient</span></span><a class="headerlink" href="#input-option-internal_mass_convection_coefficient" title="Link to this definition">#</a></dt>
+<dt class="sig sig-object input" id="input-option-convection_coefficient_internal_mass">
+<span class="sig-name descname"><span class="pre">convection_coefficient_internal_mass</span></span><a class="headerlink" href="#input-option-convection_coefficient_internal_mass" title="Link to this definition">#</a></dt>
 <dd><p>Convection coefficient of internal mass [W m-2 K-1]</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
@@ -595,8 +595,8 @@ building materials properties, and thermal behaviour.</p>
 </dd></dl>
 
 <dl class="input option" id="index-4">
-<dt class="sig sig-object input" id="input-option-floor_internal_convection_coefficient">
-<span class="sig-name descname"><span class="pre">floor_internal_convection_coefficient</span></span><a class="headerlink" href="#input-option-floor_internal_convection_coefficient" title="Link to this definition">#</a></dt>
+<dt class="sig sig-object input" id="input-option-convection_coefficient_ground_floor_internal">
+<span class="sig-name descname"><span class="pre">convection_coefficient_ground_floor_internal</span></span><a class="headerlink" href="#input-option-convection_coefficient_ground_floor_internal" title="Link to this definition">#</a></dt>
 <dd><p>Internal convection coefficient of ground floor [W m-2 K-1]</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
@@ -609,8 +609,8 @@ building materials properties, and thermal behaviour.</p>
 </dd></dl>
 
 <dl class="input option" id="index-5">
-<dt class="sig sig-object input" id="input-option-window_internal_convection_coefficient">
-<span class="sig-name descname"><span class="pre">window_internal_convection_coefficient</span></span><a class="headerlink" href="#input-option-window_internal_convection_coefficient" title="Link to this definition">#</a></dt>
+<dt class="sig sig-object input" id="input-option-convection_coefficient_window_internal">
+<span class="sig-name descname"><span class="pre">convection_coefficient_window_internal</span></span><a class="headerlink" href="#input-option-convection_coefficient_window_internal" title="Link to this definition">#</a></dt>
 <dd><p>Internal convection coefficient of windows [W m-2 K-1]</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
@@ -623,8 +623,8 @@ building materials properties, and thermal behaviour.</p>
 </dd></dl>
 
 <dl class="input option" id="index-6">
-<dt class="sig sig-object input" id="input-option-wall_external_convection_coefficient">
-<span class="sig-name descname"><span class="pre">wall_external_convection_coefficient</span></span><a class="headerlink" href="#input-option-wall_external_convection_coefficient" title="Link to this definition">#</a></dt>
+<dt class="sig sig-object input" id="input-option-convection_coefficient_wall_external">
+<span class="sig-name descname"><span class="pre">convection_coefficient_wall_external</span></span><a class="headerlink" href="#input-option-convection_coefficient_wall_external" title="Link to this definition">#</a></dt>
 <dd><p>Initial external convection coefficient of walls and roof [W m-2 K-1]</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
@@ -637,8 +637,8 @@ building materials properties, and thermal behaviour.</p>
 </dd></dl>
 
 <dl class="input option" id="index-7">
-<dt class="sig sig-object input" id="input-option-roof_external_convection_coefficient">
-<span class="sig-name descname"><span class="pre">roof_external_convection_coefficient</span></span><a class="headerlink" href="#input-option-roof_external_convection_coefficient" title="Link to this definition">#</a></dt>
+<dt class="sig sig-object input" id="input-option-convection_coefficient_roof_external">
+<span class="sig-name descname"><span class="pre">convection_coefficient_roof_external</span></span><a class="headerlink" href="#input-option-convection_coefficient_roof_external" title="Link to this definition">#</a></dt>
 <dd><p>Initial external convection coefficient of roof [W m-2 K-1]</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
@@ -651,8 +651,8 @@ building materials properties, and thermal behaviour.</p>
 </dd></dl>
 
 <dl class="input option" id="index-8">
-<dt class="sig sig-object input" id="input-option-window_external_convection_coefficient">
-<span class="sig-name descname"><span class="pre">window_external_convection_coefficient</span></span><a class="headerlink" href="#input-option-window_external_convection_coefficient" title="Link to this definition">#</a></dt>
+<dt class="sig sig-object input" id="input-option-convection_coefficient_window_external">
+<span class="sig-name descname"><span class="pre">convection_coefficient_window_external</span></span><a class="headerlink" href="#input-option-convection_coefficient_window_external" title="Link to this definition">#</a></dt>
 <dd><p>Initial external convection coefficient of windows [W m-2 K-1]</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
@@ -679,8 +679,8 @@ building materials properties, and thermal behaviour.</p>
 </dd></dl>
 
 <dl class="input option" id="index-10">
-<dt class="sig sig-object input" id="input-option-external_ground_conductivity">
-<span class="sig-name descname"><span class="pre">external_ground_conductivity</span></span><a class="headerlink" href="#input-option-external_ground_conductivity" title="Link to this definition">#</a></dt>
+<dt class="sig sig-object input" id="input-option-thermal_conductivity_ground">
+<span class="sig-name descname"><span class="pre">thermal_conductivity_ground</span></span><a class="headerlink" href="#input-option-thermal_conductivity_ground" title="Link to this definition">#</a></dt>
 <dd><p>External ground thermal conductivity</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
@@ -693,8 +693,8 @@ building materials properties, and thermal behaviour.</p>
 </dd></dl>
 
 <dl class="input option" id="index-11">
-<dt class="sig sig-object input" id="input-option-metabolism_threshold">
-<span class="sig-name descname"><span class="pre">metabolism_threshold</span></span><a class="headerlink" href="#input-option-metabolism_threshold" title="Link to this definition">#</a></dt>
+<dt class="sig sig-object input" id="input-option-threshold_metabolism">
+<span class="sig-name descname"><span class="pre">threshold_metabolism</span></span><a class="headerlink" href="#input-option-threshold_metabolism" title="Link to this definition">#</a></dt>
 <dd><p>threshold of metabolic rate to determine occupancy active or inactive [W]</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
@@ -707,8 +707,8 @@ building materials properties, and thermal behaviour.</p>
 </dd></dl>
 
 <dl class="input option" id="index-12">
-<dt class="sig sig-object input" id="input-option-latent_sensible_ratio">
-<span class="sig-name descname"><span class="pre">latent_sensible_ratio</span></span><a class="headerlink" href="#input-option-latent_sensible_ratio" title="Link to this definition">#</a></dt>
+<dt class="sig sig-object input" id="input-option-ratio_latent_sensible">
+<span class="sig-name descname"><span class="pre">ratio_latent_sensible</span></span><a class="headerlink" href="#input-option-ratio_latent_sensible" title="Link to this definition">#</a></dt>
 <dd><p>Latent-to-sensible ratio of metabolic energy release of occupants [-]</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
@@ -721,8 +721,8 @@ building materials properties, and thermal behaviour.</p>
 </dd></dl>
 
 <dl class="input option" id="index-13">
-<dt class="sig sig-object input" id="input-option-daylight_control">
-<span class="sig-name descname"><span class="pre">daylight_control</span></span><a class="headerlink" href="#input-option-daylight_control" title="Link to this definition">#</a></dt>
+<dt class="sig sig-object input" id="input-option-control_daylight">
+<span class="sig-name descname"><span class="pre">control_daylight</span></span><a class="headerlink" href="#input-option-control_daylight" title="Link to this definition">#</a></dt>
 <dd><p>Integer flag to enable daylight-based lighting control (0 = off, 1 = on)</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
@@ -735,8 +735,8 @@ building materials properties, and thermal behaviour.</p>
 </dd></dl>
 
 <dl class="input option" id="index-14">
-<dt class="sig sig-object input" id="input-option-lighting_illuminance_threshold">
-<span class="sig-name descname"><span class="pre">lighting_illuminance_threshold</span></span><a class="headerlink" href="#input-option-lighting_illuminance_threshold" title="Link to this definition">#</a></dt>
+<dt class="sig sig-object input" id="input-option-threshold_lighting_illuminance">
+<span class="sig-name descname"><span class="pre">threshold_lighting_illuminance</span></span><a class="headerlink" href="#input-option-threshold_lighting_illuminance" title="Link to this definition">#</a></dt>
 <dd><p>Indoor illuminance threshold above which electric lighting is switched off [lx]</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
@@ -749,8 +749,8 @@ building materials properties, and thermal behaviour.</p>
 </dd></dl>
 
 <dl class="input option" id="index-15">
-<dt class="sig sig-object input" id="input-option-heating_system_efficiency">
-<span class="sig-name descname"><span class="pre">heating_system_efficiency</span></span><a class="headerlink" href="#input-option-heating_system_efficiency" title="Link to this definition">#</a></dt>
+<dt class="sig sig-object input" id="input-option-efficiency_heating_system_air">
+<span class="sig-name descname"><span class="pre">efficiency_heating_system_air</span></span><a class="headerlink" href="#input-option-efficiency_heating_system_air" title="Link to this definition">#</a></dt>
 <dd><p>Efficiency of space heating system [-]</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
@@ -763,8 +763,8 @@ building materials properties, and thermal behaviour.</p>
 </dd></dl>
 
 <dl class="input option" id="index-16">
-<dt class="sig sig-object input" id="input-option-max_cooling_power">
-<span class="sig-name descname"><span class="pre">max_cooling_power</span></span><a class="headerlink" href="#input-option-max_cooling_power" title="Link to this definition">#</a></dt>
+<dt class="sig sig-object input" id="input-option-power_air_cooling_max">
+<span class="sig-name descname"><span class="pre">power_air_cooling_max</span></span><a class="headerlink" href="#input-option-power_air_cooling_max" title="Link to this definition">#</a></dt>
 <dd><p>Maximum power demand of cooling system [W]</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
@@ -777,8 +777,8 @@ building materials properties, and thermal behaviour.</p>
 </dd></dl>
 
 <dl class="input option" id="index-17">
-<dt class="sig sig-object input" id="input-option-cooling_system_cop">
-<span class="sig-name descname"><span class="pre">cooling_system_cop</span></span><a class="headerlink" href="#input-option-cooling_system_cop" title="Link to this definition">#</a></dt>
+<dt class="sig sig-object input" id="input-option-efficiency_cooling_system_air">
+<span class="sig-name descname"><span class="pre">efficiency_cooling_system_air</span></span><a class="headerlink" href="#input-option-efficiency_cooling_system_air" title="Link to this definition">#</a></dt>
 <dd><p>Coefficient of performance of cooling system [-]</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
@@ -805,8 +805,8 @@ building materials properties, and thermal behaviour.</p>
 </dd></dl>
 
 <dl class="input option" id="index-19">
-<dt class="sig sig-object input" id="input-option-initial_outdoor_temperature">
-<span class="sig-name descname"><span class="pre">initial_outdoor_temperature</span></span><a class="headerlink" href="#input-option-initial_outdoor_temperature" title="Link to this definition">#</a></dt>
+<dt class="sig sig-object input" id="input-option-temperature_air_outdoor_initial">
+<span class="sig-name descname"><span class="pre">temperature_air_outdoor_initial</span></span><a class="headerlink" href="#input-option-temperature_air_outdoor_initial" title="Link to this definition">#</a></dt>
 <dd><p>Initial outdoor temperature [degC]</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
@@ -819,8 +819,8 @@ building materials properties, and thermal behaviour.</p>
 </dd></dl>
 
 <dl class="input option" id="index-20">
-<dt class="sig sig-object input" id="input-option-initial_indoor_temperature">
-<span class="sig-name descname"><span class="pre">initial_indoor_temperature</span></span><a class="headerlink" href="#input-option-initial_indoor_temperature" title="Link to this definition">#</a></dt>
+<dt class="sig sig-object input" id="input-option-temperature_air_indoor_initial">
+<span class="sig-name descname"><span class="pre">temperature_air_indoor_initial</span></span><a class="headerlink" href="#input-option-temperature_air_indoor_initial" title="Link to this definition">#</a></dt>
 <dd><p>Initial indoor temperature [degC]</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
@@ -833,8 +833,8 @@ building materials properties, and thermal behaviour.</p>
 </dd></dl>
 
 <dl class="input option" id="index-21">
-<dt class="sig sig-object input" id="input-option-annual_mean_air_temperature">
-<span class="sig-name descname"><span class="pre">annual_mean_air_temperature</span></span><a class="headerlink" href="#input-option-annual_mean_air_temperature" title="Link to this definition">#</a></dt>
+<dt class="sig sig-object input" id="input-option-temperature_air_annual_mean">
+<span class="sig-name descname"><span class="pre">temperature_air_annual_mean</span></span><a class="headerlink" href="#input-option-temperature_air_annual_mean" title="Link to this definition">#</a></dt>
 <dd><p>Annual mean air temperature [degC]</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
@@ -861,8 +861,8 @@ building materials properties, and thermal behaviour.</p>
 </dd></dl>
 
 <dl class="input option" id="index-23">
-<dt class="sig sig-object input" id="input-option-hot_water_tank_wall_thickness">
-<span class="sig-name descname"><span class="pre">hot_water_tank_wall_thickness</span></span><a class="headerlink" href="#input-option-hot_water_tank_wall_thickness" title="Link to this definition">#</a></dt>
+<dt class="sig sig-object input" id="input-option-thickness_hot_water_tank_wall">
+<span class="sig-name descname"><span class="pre">thickness_hot_water_tank_wall</span></span><a class="headerlink" href="#input-option-thickness_hot_water_tank_wall" title="Link to this definition">#</a></dt>
 <dd><p>Hot water tank wall thickness [m]</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
@@ -875,8 +875,8 @@ building materials properties, and thermal behaviour.</p>
 </dd></dl>
 
 <dl class="input option" id="index-24">
-<dt class="sig sig-object input" id="input-option-mains_water_temperature">
-<span class="sig-name descname"><span class="pre">mains_water_temperature</span></span><a class="headerlink" href="#input-option-mains_water_temperature" title="Link to this definition">#</a></dt>
+<dt class="sig sig-object input" id="input-option-temperature_water_mains">
+<span class="sig-name descname"><span class="pre">temperature_water_mains</span></span><a class="headerlink" href="#input-option-temperature_water_mains" title="Link to this definition">#</a></dt>
 <dd><p>Temperature of water coming into the water tank [degC]</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
@@ -889,8 +889,8 @@ building materials properties, and thermal behaviour.</p>
 </dd></dl>
 
 <dl class="input option" id="index-25">
-<dt class="sig sig-object input" id="input-option-hot_water_tank_surface_area">
-<span class="sig-name descname"><span class="pre">hot_water_tank_surface_area</span></span><a class="headerlink" href="#input-option-hot_water_tank_surface_area" title="Link to this definition">#</a></dt>
+<dt class="sig sig-object input" id="input-option-area_hot_water_tank_surface">
+<span class="sig-name descname"><span class="pre">area_hot_water_tank_surface</span></span><a class="headerlink" href="#input-option-area_hot_water_tank_surface" title="Link to this definition">#</a></dt>
 <dd><p>Surface area of hot water tank cylinder [m2]</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
@@ -903,8 +903,8 @@ building materials properties, and thermal behaviour.</p>
 </dd></dl>
 
 <dl class="input option" id="index-26">
-<dt class="sig sig-object input" id="input-option-hot_water_heating_setpoint_temperature">
-<span class="sig-name descname"><span class="pre">hot_water_heating_setpoint_temperature</span></span><a class="headerlink" href="#input-option-hot_water_heating_setpoint_temperature" title="Link to this definition">#</a></dt>
+<dt class="sig sig-object input" id="input-option-temperature_water_heating_setpoint">
+<span class="sig-name descname"><span class="pre">temperature_water_heating_setpoint</span></span><a class="headerlink" href="#input-option-temperature_water_heating_setpoint" title="Link to this definition">#</a></dt>
 <dd><p>Water tank setpoint temperature [degC]</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
@@ -917,8 +917,8 @@ building materials properties, and thermal behaviour.</p>
 </dd></dl>
 
 <dl class="input option" id="index-27">
-<dt class="sig sig-object input" id="input-option-hot_water_tank_wall_emissivity">
-<span class="sig-name descname"><span class="pre">hot_water_tank_wall_emissivity</span></span><a class="headerlink" href="#input-option-hot_water_tank_wall_emissivity" title="Link to this definition">#</a></dt>
+<dt class="sig sig-object input" id="input-option-emissivity_hot_water_tank_wall">
+<span class="sig-name descname"><span class="pre">emissivity_hot_water_tank_wall</span></span><a class="headerlink" href="#input-option-emissivity_hot_water_tank_wall" title="Link to this definition">#</a></dt>
 <dd><p>Effective external wall emissivity of the hot water tank [-]</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
@@ -931,8 +931,8 @@ building materials properties, and thermal behaviour.</p>
 </dd></dl>
 
 <dl class="input option" id="index-28">
-<dt class="sig sig-object input" id="input-option-hot_water_vessel_wall_thickness">
-<span class="sig-name descname"><span class="pre">hot_water_vessel_wall_thickness</span></span><a class="headerlink" href="#input-option-hot_water_vessel_wall_thickness" title="Link to this definition">#</a></dt>
+<dt class="sig sig-object input" id="input-option-thickness_hot_water_vessel_wall">
+<span class="sig-name descname"><span class="pre">thickness_hot_water_vessel_wall</span></span><a class="headerlink" href="#input-option-thickness_hot_water_vessel_wall" title="Link to this definition">#</a></dt>
 <dd><p>Hot water vessel wall thickness [m]</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
@@ -945,8 +945,8 @@ building materials properties, and thermal behaviour.</p>
 </dd></dl>
 
 <dl class="input option" id="index-29">
-<dt class="sig sig-object input" id="input-option-hot_water_volume">
-<span class="sig-name descname"><span class="pre">hot_water_volume</span></span><a class="headerlink" href="#input-option-hot_water_volume" title="Link to this definition">#</a></dt>
+<dt class="sig sig-object input" id="input-option-volume_hot_water">
+<span class="sig-name descname"><span class="pre">volume_hot_water</span></span><a class="headerlink" href="#input-option-volume_hot_water" title="Link to this definition">#</a></dt>
 <dd><p>Volume of water held in use in building [m3]</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
@@ -965,8 +965,8 @@ building materials properties, and thermal behaviour.</p>
 </dd></dl>
 
 <dl class="input option" id="index-30">
-<dt class="sig sig-object input" id="input-option-hot_water_surface_area">
-<span class="sig-name descname"><span class="pre">hot_water_surface_area</span></span><a class="headerlink" href="#input-option-hot_water_surface_area" title="Link to this definition">#</a></dt>
+<dt class="sig sig-object input" id="input-option-area_hot_water_surface">
+<span class="sig-name descname"><span class="pre">area_hot_water_surface</span></span><a class="headerlink" href="#input-option-area_hot_water_surface" title="Link to this definition">#</a></dt>
 <dd><p>Surface area of hot water in vessels in building [m2]</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
@@ -979,8 +979,8 @@ building materials properties, and thermal behaviour.</p>
 </dd></dl>
 
 <dl class="input option" id="index-31">
-<dt class="sig sig-object input" id="input-option-hot_water_flow_rate">
-<span class="sig-name descname"><span class="pre">hot_water_flow_rate</span></span><a class="headerlink" href="#input-option-hot_water_flow_rate" title="Link to this definition">#</a></dt>
+<dt class="sig sig-object input" id="input-option-rate_hot_water_flow">
+<span class="sig-name descname"><span class="pre">rate_hot_water_flow</span></span><a class="headerlink" href="#input-option-rate_hot_water_flow" title="Link to this definition">#</a></dt>
 <dd><p>Hot water flow rate from tank to vessel [m3 s-1]</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
@@ -993,20 +993,20 @@ building materials properties, and thermal behaviour.</p>
 </dd></dl>
 
 <dl class="input option" id="index-32">
-<dt class="sig sig-object input" id="input-option-hot_water_flow_profile">
-<span class="sig-name descname"><span class="pre">hot_water_flow_profile</span></span><a class="headerlink" href="#input-option-hot_water_flow_profile" title="Link to this definition">#</a></dt>
+<dt class="sig sig-object input" id="input-option-profile_hot_water_flow">
+<span class="sig-name descname"><span class="pre">profile_hot_water_flow</span></span><a class="headerlink" href="#input-option-profile_hot_water_flow" title="Link to this definition">#</a></dt>
 <dd><p>Profile of hot water flow rate from tank to vessel [m3 s-1]</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
 <dd class="field-odd"><p>m<sup>3</sup> s<sup>-1</sup></p>
 </dd>
 </dl>
-<p>The <code class="docutils literal notranslate"><span class="pre">hot_water_flow_profile</span></code> parameter group is defined by the <a class="reference internal" href="tenminuteprofile.html"><span class="doc">Ten Minute Profile</span></a> structure.</p>
+<p>The <code class="docutils literal notranslate"><span class="pre">profile_hot_water_flow</span></code> parameter group is defined by the <a class="reference internal" href="tenminuteprofile.html"><span class="doc">Ten Minute Profile</span></a> structure.</p>
 </dd></dl>
 
 <dl class="input option" id="index-33">
-<dt class="sig sig-object input" id="input-option-hot_water_specific_heat_capacity">
-<span class="sig-name descname"><span class="pre">hot_water_specific_heat_capacity</span></span><a class="headerlink" href="#input-option-hot_water_specific_heat_capacity" title="Link to this definition">#</a></dt>
+<dt class="sig sig-object input" id="input-option-specific_heat_capacity_hot_water">
+<span class="sig-name descname"><span class="pre">specific_heat_capacity_hot_water</span></span><a class="headerlink" href="#input-option-specific_heat_capacity_hot_water" title="Link to this definition">#</a></dt>
 <dd><p>Specific heat capacity of hot water [J kg-1 K-1]</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
@@ -1019,8 +1019,8 @@ building materials properties, and thermal behaviour.</p>
 </dd></dl>
 
 <dl class="input option" id="index-34">
-<dt class="sig sig-object input" id="input-option-hot_water_tank_specific_heat_capacity">
-<span class="sig-name descname"><span class="pre">hot_water_tank_specific_heat_capacity</span></span><a class="headerlink" href="#input-option-hot_water_tank_specific_heat_capacity" title="Link to this definition">#</a></dt>
+<dt class="sig sig-object input" id="input-option-specific_heat_capacity_hot_water_tank_wall">
+<span class="sig-name descname"><span class="pre">specific_heat_capacity_hot_water_tank_wall</span></span><a class="headerlink" href="#input-option-specific_heat_capacity_hot_water_tank_wall" title="Link to this definition">#</a></dt>
 <dd><p>Specific heat capacity of hot water tank wall [J kg-1 K-1]</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
@@ -1033,8 +1033,8 @@ building materials properties, and thermal behaviour.</p>
 </dd></dl>
 
 <dl class="input option" id="index-35">
-<dt class="sig sig-object input" id="input-option-hot_water_vessel_specific_heat_capacity">
-<span class="sig-name descname"><span class="pre">hot_water_vessel_specific_heat_capacity</span></span><a class="headerlink" href="#input-option-hot_water_vessel_specific_heat_capacity" title="Link to this definition">#</a></dt>
+<dt class="sig sig-object input" id="input-option-specific_heat_capacity_hot_water_vessel_wall">
+<span class="sig-name descname"><span class="pre">specific_heat_capacity_hot_water_vessel_wall</span></span><a class="headerlink" href="#input-option-specific_heat_capacity_hot_water_vessel_wall" title="Link to this definition">#</a></dt>
 <dd><p>Specific heat capacity of vessels containing hot water in use in buildings [J kg-1 K-1]</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
@@ -1047,8 +1047,8 @@ building materials properties, and thermal behaviour.</p>
 </dd></dl>
 
 <dl class="input option" id="index-36">
-<dt class="sig sig-object input" id="input-option-hot_water_density">
-<span class="sig-name descname"><span class="pre">hot_water_density</span></span><a class="headerlink" href="#input-option-hot_water_density" title="Link to this definition">#</a></dt>
+<dt class="sig sig-object input" id="input-option-density_hot_water">
+<span class="sig-name descname"><span class="pre">density_hot_water</span></span><a class="headerlink" href="#input-option-density_hot_water" title="Link to this definition">#</a></dt>
 <dd><p>Density of hot water in use [kg m-3]</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
@@ -1061,8 +1061,8 @@ building materials properties, and thermal behaviour.</p>
 </dd></dl>
 
 <dl class="input option" id="index-37">
-<dt class="sig sig-object input" id="input-option-hot_water_tank_wall_density">
-<span class="sig-name descname"><span class="pre">hot_water_tank_wall_density</span></span><a class="headerlink" href="#input-option-hot_water_tank_wall_density" title="Link to this definition">#</a></dt>
+<dt class="sig sig-object input" id="input-option-density_hot_water_tank_wall">
+<span class="sig-name descname"><span class="pre">density_hot_water_tank_wall</span></span><a class="headerlink" href="#input-option-density_hot_water_tank_wall" title="Link to this definition">#</a></dt>
 <dd><p>Density of hot water tank wall [kg m-3]</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
@@ -1075,8 +1075,8 @@ building materials properties, and thermal behaviour.</p>
 </dd></dl>
 
 <dl class="input option" id="index-38">
-<dt class="sig sig-object input" id="input-option-hot_water_vessel_density">
-<span class="sig-name descname"><span class="pre">hot_water_vessel_density</span></span><a class="headerlink" href="#input-option-hot_water_vessel_density" title="Link to this definition">#</a></dt>
+<dt class="sig sig-object input" id="input-option-density_hot_water_vessel_wall">
+<span class="sig-name descname"><span class="pre">density_hot_water_vessel_wall</span></span><a class="headerlink" href="#input-option-density_hot_water_vessel_wall" title="Link to this definition">#</a></dt>
 <dd><p>Density of vessels containing hot water in use [kg m-3]</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
@@ -1089,36 +1089,8 @@ building materials properties, and thermal behaviour.</p>
 </dd></dl>
 
 <dl class="input option" id="index-39">
-<dt class="sig sig-object input" id="input-option-hot_water_tank_building_wall_view_factor">
-<span class="sig-name descname"><span class="pre">hot_water_tank_building_wall_view_factor</span></span><a class="headerlink" href="#input-option-hot_water_tank_building_wall_view_factor" title="Link to this definition">#</a></dt>
-<dd><p>Water tank/vessel internal building wall/roof view factor [-]</p>
-<dl class="field-list simple">
-<dt class="field-odd">Unit<span class="colon">:</span></dt>
-<dd class="field-odd"><p>dimensionless</p>
-</dd>
-<dt class="field-even">Example<span class="colon">:</span></dt>
-<dd class="field-even"><p><code class="docutils literal notranslate"><span class="pre">0.0</span></code></p>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="input option" id="index-40">
-<dt class="sig sig-object input" id="input-option-hot_water_tank_internal_mass_view_factor">
-<span class="sig-name descname"><span class="pre">hot_water_tank_internal_mass_view_factor</span></span><a class="headerlink" href="#input-option-hot_water_tank_internal_mass_view_factor" title="Link to this definition">#</a></dt>
-<dd><p>Water tank/vessel building internal mass view factor [-]</p>
-<dl class="field-list simple">
-<dt class="field-odd">Unit<span class="colon">:</span></dt>
-<dd class="field-odd"><p>dimensionless</p>
-</dd>
-<dt class="field-even">Example<span class="colon">:</span></dt>
-<dd class="field-even"><p><code class="docutils literal notranslate"><span class="pre">0.0</span></code></p>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="input option" id="index-41">
-<dt class="sig sig-object input" id="input-option-hot_water_tank_wall_conductivity">
-<span class="sig-name descname"><span class="pre">hot_water_tank_wall_conductivity</span></span><a class="headerlink" href="#input-option-hot_water_tank_wall_conductivity" title="Link to this definition">#</a></dt>
+<dt class="sig sig-object input" id="input-option-conductivity_hot_water_tank_wall">
+<span class="sig-name descname"><span class="pre">conductivity_hot_water_tank_wall</span></span><a class="headerlink" href="#input-option-conductivity_hot_water_tank_wall" title="Link to this definition">#</a></dt>
 <dd><p>Effective wall conductivity of the hot water tank [W m-1 K-1]</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
@@ -1130,9 +1102,9 @@ building materials properties, and thermal behaviour.</p>
 </dl>
 </dd></dl>
 
-<dl class="input option" id="index-42">
-<dt class="sig sig-object input" id="input-option-hot_water_tank_internal_wall_convection_coefficient">
-<span class="sig-name descname"><span class="pre">hot_water_tank_internal_wall_convection_coefficient</span></span><a class="headerlink" href="#input-option-hot_water_tank_internal_wall_convection_coefficient" title="Link to this definition">#</a></dt>
+<dl class="input option" id="index-40">
+<dt class="sig sig-object input" id="input-option-convection_coefficient_hot_water_tank_wall_internal">
+<span class="sig-name descname"><span class="pre">convection_coefficient_hot_water_tank_wall_internal</span></span><a class="headerlink" href="#input-option-convection_coefficient_hot_water_tank_wall_internal" title="Link to this definition">#</a></dt>
 <dd><p>Effective internal wall convection coefficient of the hot water tank [W m-2 K-1]</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
@@ -1144,9 +1116,9 @@ building materials properties, and thermal behaviour.</p>
 </dl>
 </dd></dl>
 
-<dl class="input option" id="index-43">
-<dt class="sig sig-object input" id="input-option-hot_water_tank_external_wall_convection_coefficient">
-<span class="sig-name descname"><span class="pre">hot_water_tank_external_wall_convection_coefficient</span></span><a class="headerlink" href="#input-option-hot_water_tank_external_wall_convection_coefficient" title="Link to this definition">#</a></dt>
+<dl class="input option" id="index-41">
+<dt class="sig sig-object input" id="input-option-convection_coefficient_hot_water_tank_wall_external">
+<span class="sig-name descname"><span class="pre">convection_coefficient_hot_water_tank_wall_external</span></span><a class="headerlink" href="#input-option-convection_coefficient_hot_water_tank_wall_external" title="Link to this definition">#</a></dt>
 <dd><p>Effective external wall convection coefficient of the hot water tank [W m-2 K-1]</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
@@ -1158,9 +1130,9 @@ building materials properties, and thermal behaviour.</p>
 </dl>
 </dd></dl>
 
-<dl class="input option" id="index-44">
-<dt class="sig sig-object input" id="input-option-hot_water_vessel_wall_conductivity">
-<span class="sig-name descname"><span class="pre">hot_water_vessel_wall_conductivity</span></span><a class="headerlink" href="#input-option-hot_water_vessel_wall_conductivity" title="Link to this definition">#</a></dt>
+<dl class="input option" id="index-42">
+<dt class="sig sig-object input" id="input-option-conductivity_hot_water_vessel_wall">
+<span class="sig-name descname"><span class="pre">conductivity_hot_water_vessel_wall</span></span><a class="headerlink" href="#input-option-conductivity_hot_water_vessel_wall" title="Link to this definition">#</a></dt>
 <dd><p>Effective wall conductivity of the hot water tank [W m-1 K-1]</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
@@ -1172,9 +1144,9 @@ building materials properties, and thermal behaviour.</p>
 </dl>
 </dd></dl>
 
-<dl class="input option" id="index-45">
-<dt class="sig sig-object input" id="input-option-hot_water_vessel_internal_wall_convection_coefficient">
-<span class="sig-name descname"><span class="pre">hot_water_vessel_internal_wall_convection_coefficient</span></span><a class="headerlink" href="#input-option-hot_water_vessel_internal_wall_convection_coefficient" title="Link to this definition">#</a></dt>
+<dl class="input option" id="index-43">
+<dt class="sig sig-object input" id="input-option-convection_coefficient_hot_water_vessel_wall_internal">
+<span class="sig-name descname"><span class="pre">convection_coefficient_hot_water_vessel_wall_internal</span></span><a class="headerlink" href="#input-option-convection_coefficient_hot_water_vessel_wall_internal" title="Link to this definition">#</a></dt>
 <dd><p>Effective internal wall convection coefficient of the vessels holding hot water in use in building [W m-2 K-1]</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
@@ -1186,9 +1158,9 @@ building materials properties, and thermal behaviour.</p>
 </dl>
 </dd></dl>
 
-<dl class="input option" id="index-46">
-<dt class="sig sig-object input" id="input-option-hot_water_vessel_external_wall_convection_coefficient">
-<span class="sig-name descname"><span class="pre">hot_water_vessel_external_wall_convection_coefficient</span></span><a class="headerlink" href="#input-option-hot_water_vessel_external_wall_convection_coefficient" title="Link to this definition">#</a></dt>
+<dl class="input option" id="index-44">
+<dt class="sig sig-object input" id="input-option-convection_coefficient_hot_water_vessel_wall_external">
+<span class="sig-name descname"><span class="pre">convection_coefficient_hot_water_vessel_wall_external</span></span><a class="headerlink" href="#input-option-convection_coefficient_hot_water_vessel_wall_external" title="Link to this definition">#</a></dt>
 <dd><p>Effective external wall convection coefficient of the vessels holding hot water in use in building [W m-2 K-1]</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
@@ -1200,9 +1172,9 @@ building materials properties, and thermal behaviour.</p>
 </dl>
 </dd></dl>
 
-<dl class="input option" id="index-47">
-<dt class="sig sig-object input" id="input-option-hot_water_vessel_wall_emissivity">
-<span class="sig-name descname"><span class="pre">hot_water_vessel_wall_emissivity</span></span><a class="headerlink" href="#input-option-hot_water_vessel_wall_emissivity" title="Link to this definition">#</a></dt>
+<dl class="input option" id="index-45">
+<dt class="sig sig-object input" id="input-option-emissivity_hot_water_vessel_wall">
+<span class="sig-name descname"><span class="pre">emissivity_hot_water_vessel_wall</span></span><a class="headerlink" href="#input-option-emissivity_hot_water_vessel_wall" title="Link to this definition">#</a></dt>
 <dd><p>Effective external wall emissivity of hot water being used within building [-]</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
@@ -1214,9 +1186,9 @@ building materials properties, and thermal behaviour.</p>
 </dl>
 </dd></dl>
 
-<dl class="input option" id="index-48">
-<dt class="sig sig-object input" id="input-option-hot_water_heating_efficiency">
-<span class="sig-name descname"><span class="pre">hot_water_heating_efficiency</span></span><a class="headerlink" href="#input-option-hot_water_heating_efficiency" title="Link to this definition">#</a></dt>
+<dl class="input option" id="index-46">
+<dt class="sig sig-object input" id="input-option-efficiency_heating_system_water">
+<span class="sig-name descname"><span class="pre">efficiency_heating_system_water</span></span><a class="headerlink" href="#input-option-efficiency_heating_system_water" title="Link to this definition">#</a></dt>
 <dd><p>Efficiency of hot water system [-]</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
@@ -1228,19 +1200,19 @@ building materials properties, and thermal behaviour.</p>
 </dl>
 </dd></dl>
 
-<dl class="input option" id="index-49">
-<dt class="sig sig-object input" id="input-option-appliance_profile">
-<span class="sig-name descname"><span class="pre">appliance_profile</span></span><a class="headerlink" href="#input-option-appliance_profile" title="Link to this definition">#</a></dt>
+<dl class="input option" id="index-47">
+<dt class="sig sig-object input" id="input-option-profile_appliance">
+<span class="sig-name descname"><span class="pre">profile_appliance</span></span><a class="headerlink" href="#input-option-profile_appliance" title="Link to this definition">#</a></dt>
 <dd><p>10-minute profile of appliance usage factor in building [-]</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
 <dd class="field-odd"><p>dimensionless</p>
 </dd>
 </dl>
-<p>The <code class="docutils literal notranslate"><span class="pre">appliance_profile</span></code> parameter group is defined by the <a class="reference internal" href="tenminuteprofile.html"><span class="doc">Ten Minute Profile</span></a> structure.</p>
+<p>The <code class="docutils literal notranslate"><span class="pre">profile_appliance</span></code> parameter group is defined by the <a class="reference internal" href="tenminuteprofile.html"><span class="doc">Ten Minute Profile</span></a> structure.</p>
 </dd></dl>
 
-<dl class="input option" id="index-50">
+<dl class="input option" id="index-48">
 <dt class="sig sig-object input" id="input-option-lighting_power_density">
 <span class="sig-name descname"><span class="pre">lighting_power_density</span></span><a class="headerlink" href="#input-option-lighting_power_density" title="Link to this definition">#</a></dt>
 <dd><p>Lighting power per building floor area [W m-2]</p>
@@ -1254,7 +1226,7 @@ building materials properties, and thermal behaviour.</p>
 </dl>
 </dd></dl>
 
-<dl class="input option" id="index-51">
+<dl class="input option" id="index-49">
 <dt class="sig sig-object input" id="input-option-ref">
 <span class="sig-name descname"><span class="pre">ref</span></span><a class="headerlink" href="#input-option-ref" title="Link to this definition">#</a></dt>
 <dd><p>The <code class="docutils literal notranslate"><span class="pre">ref</span></code> parameter group is defined by the <a class="reference internal" href="reference.html"><span class="doc">Reference Info</span></a> structure.</p>
@@ -1331,8 +1303,8 @@ By SUEWS dev team led by Prof Sue Grimmond
   <div class="footer-item">
     
 <div class="extra_footer">
-  <p>Version: 2026.5.22.dev9096 |
-    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/f003dd743a10bbc9aaae6d2d792c78e43d903991">f003dd7</a> |
+  <p>Version: 2026.5.22.dev9099 |
+    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/abfa89e6256023d984ed2056859327e161a9d326">abfa89e</a> |
     <a href="https://umep-dev.github.io/SUEWS/brand/showcase.html">Brand</a></p>
 </div>
   </div>

@@ -18,6 +18,7 @@ mod flag;
 mod forcing;
 #[cfg(feature = "physics")]
 mod forcing_io;
+mod forcing_time;
 mod heat_state;
 mod hydro_state;
 mod irrig_daywater;
@@ -79,6 +80,7 @@ pub use flag::*;
 pub use forcing::*;
 #[cfg(feature = "physics")]
 pub use forcing_io::*;
+pub use forcing_time::*;
 pub use heat_state::*;
 pub use hydro_state::*;
 pub use irrig_daywater::*;
@@ -667,7 +669,7 @@ mod python_bindings {
 
         #[staticmethod]
         fn field_names() -> PyResult<Vec<String>> {
-            suews_forcing_field_names().map_err(map_bridge_error)
+            Ok(suews_forcing_field_names())
         }
 
         fn field_value(&self, name: &str) -> PyResult<f64> {
@@ -4381,7 +4383,7 @@ mod python_bindings {
 
     #[pyfunction(name = "suews_forcing_fields")]
     fn suews_forcing_fields_py() -> PyResult<Vec<String>> {
-        suews_forcing_field_names().map_err(map_bridge_error)
+        Ok(suews_forcing_field_names())
     }
 
     #[pyfunction(name = "hydro_state_schema")]

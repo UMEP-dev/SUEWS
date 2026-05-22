@@ -196,7 +196,13 @@ MODULE module_ctrl_type
       REAL(KIND(1D0)) :: Tair_av_5d = 0.0D0 ! 5-day moving average of air temperature [degC]
       REAL(KIND(1D0)) :: U = 0.0D0 !
       REAL(KIND(1D0)) :: rain = 0.0D0 !
-      REAL(KIND(1D0)) :: Wu_m3 = 0.0D0 !  external water use amount in m3 for each timestep
+      REAL(KIND(1D0)) :: Wu_mm_paved = 0.0D0 !  external water use amount in mm for each timestep
+      REAL(KIND(1D0)) :: Wu_mm_bldgs = 0.0D0 !  external water use amount in mm for each timestep
+      REAL(KIND(1D0)) :: Wu_mm_evetr = 0.0D0 !  external water use amount in mm for each timestep
+      REAL(KIND(1D0)) :: Wu_mm_dectr = 0.0D0 !  external water use amount in mm for each timestep
+      REAL(KIND(1D0)) :: Wu_mm_grass = 0.0D0 !  external water use amount in mm for each timestep
+      REAL(KIND(1D0)) :: Wu_mm_bsoil = 0.0D0 !  external water use amount in mm for each timestep
+      REAL(KIND(1D0)) :: Wu_mm_water = 0.0D0 !  external water use amount in mm for each timestep
       REAL(KIND(1D0)) :: f_cloud = 0.0D0 !
       REAL(KIND(1D0)) :: LAI_dectr = 0.0D0 !
       REAL(KIND(1D0)) :: LAI_evetr = 0.0D0 !

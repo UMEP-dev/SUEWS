@@ -70,9 +70,9 @@ CONTAINS
 
    SUBROUTINE SPARTACUS( &
       DiagQN, & !input:
-      sfr_surf, zenith_deg, nlayer, & !input:
+      sfr_surf, doy, zenith_deg, nlayer, & !input:
       tsfc_surf, tsfc_roof, tsfc_wall, &
-      kdown, ldown, Tair_C, alb_surf, emis_surf, LAI_id, &
+      kdown, ldown, Tair_C, avRH, alb_surf, emis_surf, LAI_id, &
       n_vegetation_region_urban, &
       n_stream_sw_urban, n_stream_lw_urban, &
       sw_dn_direct_frac, air_ext_sw, air_ssa_sw, &
@@ -108,11 +108,13 @@ CONTAINS
       ! Input parameters and variables from SUEWS
       REAL(KIND(1D0)), INTENT(IN) :: zenith_deg
       INTEGER, INTENT(IN) :: DiagQN
+      INTEGER, INTENT(IN) :: doy
       INTEGER, INTENT(IN) :: nlayer
 
       ! TODO: tsurf_0 and temp_C need to be made vertically distributed
       REAL(KIND(1D0)), DIMENSION(nlayer), INTENT(IN) :: tsfc_roof, tsfc_wall
       REAL(KIND(1D0)), INTENT(IN) :: Tair_C
+      REAL(KIND(1D0)), INTENT(IN) :: avRH
 
       REAL(KIND(1D0)), INTENT(IN) :: kdown
       REAL(KIND(1D0)), INTENT(IN) :: ldown
@@ -201,7 +203,7 @@ CONTAINS
 
       ! Top-of-canopy downward radiation, all dimensioned (nspec, ncol)
       REAL(KIND(1D0)), ALLOCATABLE :: top_flux_dn_sw(:, :) ! Total shortwave (direct+diffuse)
-      REAL(KIND(1D0)), ALLOCATABLE :: top_flux_dn_direct_sw(:, :) ! ...diffuse only
+      REAL(KIND(1D0)), ALLOCATABLE :: top_flux_dn_direct_sw(:, :) ! Direct shortwave only
       REAL(KIND(1D0)), ALLOCATABLE :: top_flux_dn_lw(:, :) ! longwave
 
       ! surface temperature and air temperature in Kelvin
@@ -210,6 +212,7 @@ CONTAINS
       REAL(KIND(1D0)) :: tair_K
       ! top-of-canopy diffuse sw downward
       REAL(KIND(1D0)) :: top_flux_dn_diffuse_sw
+      REAL(KIND(1D0)) :: top_flux_dn_direct_sw_dynamic
       ! plan area weighted albedo and emissivity of surfaces not including buildings and trees
       REAL(KIND(1D0)) :: alb_no_tree_bldg, emis_no_tree_bldg
       ! vegetation emissivity
@@ -443,7 +446,10 @@ CONTAINS
       ALLOCATE (top_flux_dn_direct_sw(nspec, ncol))
       ALLOCATE (top_flux_dn_lw(nspec, ncol))
       top_flux_dn_sw = kdown ! diffuse + direct
-      top_flux_dn_direct_sw = sw_dn_direct_frac*kdown ! Berrizbeitia et al. 2020 say the ratio diffuse/direct is 0.55 for Berlin and Brussels on av annually
+      CALL spartacus_direct_sw_reindl( &
+         kdown, doy, zenith_deg, Tair_C, avRH, sw_dn_direct_frac, &
+         top_flux_dn_direct_sw_dynamic)
+      top_flux_dn_direct_sw = top_flux_dn_direct_sw_dynamic
       top_flux_dn_diffuse_sw = top_flux_dn_sw(nspec, ncol) - top_flux_dn_direct_sw(nspec, ncol)
       top_flux_dn_lw = ldown
 
@@ -852,6 +858,109 @@ CONTAINS
       ! DEALLOCATE (wall_emissivity)
 
    END SUBROUTINE SPARTACUS
+
+   SUBROUTINE spartacus_direct_sw_reindl(kdown, doy, zenith_deg, Tair_C, RH, fallback_direct_frac, kdirect)
+      ! Estimate direct horizontal SW from global horizontal SW using the
+      ! Reindl et al. split used by SOLWEIG/BEERS; fallback preserves the
+      ! namelist fraction for invalid solar geometry or missing forcing.
+      IMPLICIT NONE
+
+      INTEGER, INTENT(IN) :: doy
+      REAL(KIND(1D0)), INTENT(IN) :: kdown
+      REAL(KIND(1D0)), INTENT(IN) :: zenith_deg
+      REAL(KIND(1D0)), INTENT(IN) :: Tair_C
+      REAL(KIND(1D0)), INTENT(IN) :: RH
+      REAL(KIND(1D0)), INTENT(IN) :: fallback_direct_frac
+      REAL(KIND(1D0)), INTENT(OUT) :: kdirect
+
+      REAL(KIND(1D0)) :: altitude
+      REAL(KIND(1D0)) :: cos_sza
+      REAL(KIND(1D0)) :: direct_normal
+      REAL(KIND(1D0)) :: d_sun
+      REAL(KIND(1D0)) :: i0et
+      REAL(KIND(1D0)) :: kdiffuse
+      REAL(KIND(1D0)) :: kt
+      REAL(KIND(1D0)), PARAMETER :: pi = 3.141592653589793D0
+
+      kdirect = MAX(0.0D0, MIN(1.0D0, fallback_direct_frac))*MAX(0.0D0, kdown)
+      IF (kdown <= 0.0D0 .OR. zenith_deg >= 90.0D0) RETURN
+
+      cos_sza = COS(zenith_deg*pi/180.0D0)
+      IF (cos_sza <= 1.0D-6) RETURN
+
+      CALL spartacus_sun_distance(doy, d_sun)
+      i0et = 1370.0D0*cos_sza*d_sun
+      IF (i0et <= 1.0D-6) RETURN
+
+      altitude = 90.0D0 - zenith_deg
+      kt = MAX(0.0D0, kdown/i0et)
+      CALL spartacus_diffusefraction_reindl(kdown, altitude, kt, Tair_C, RH, direct_normal, kdiffuse)
+
+      kdiffuse = MIN(MAX(kdiffuse, 0.0D0), kdown)
+      kdirect = kdown - kdiffuse
+
+   END SUBROUTINE spartacus_direct_sw_reindl
+
+   SUBROUTINE spartacus_diffusefraction_reindl(radG, altitude, Kt, Ta, RH, radI, radD)
+      IMPLICIT NONE
+
+      REAL(KIND(1D0)), INTENT(IN) :: radG
+      REAL(KIND(1D0)), INTENT(IN) :: altitude
+      REAL(KIND(1D0)), INTENT(IN) :: Kt
+      REAL(KIND(1D0)), INTENT(IN) :: Ta
+      REAL(KIND(1D0)), INTENT(IN) :: RH
+      REAL(KIND(1D0)), INTENT(OUT) :: radI
+      REAL(KIND(1D0)), INTENT(OUT) :: radD
+
+      REAL(KIND(1D0)) :: alfa
+      REAL(KIND(1D0)), PARAMETER :: pi = 3.141592653589793D0
+
+      alfa = altitude*pi/180.0D0
+
+      IF (Ta <= -99.0D0 .OR. RH <= -99.0D0) THEN
+         IF (Kt <= 0.3D0) THEN
+            radD = radG*(1.020D0 - 0.248D0*Kt)
+         ELSE IF (Kt > 0.3D0 .AND. Kt < 0.78D0) THEN
+            radD = radG*(1.45D0 - 1.67D0*Kt)
+         ELSE
+            radD = radG*0.147D0
+         END IF
+      ELSE
+         IF (Kt <= 0.3D0) THEN
+            radD = radG*(1.0D0 - 0.232D0*Kt + 0.0239D0*SIN(alfa) - 0.000682D0*Ta + 0.0195D0*(RH/100.0D0))
+         ELSE IF (Kt > 0.3D0 .AND. Kt < 0.78D0) THEN
+            radD = radG*(1.329D0 - 1.716D0*Kt + 0.267D0*SIN(alfa) - 0.00357D0*Ta + 0.106D0*(RH/100.0D0))
+         ELSE
+            radD = radG*(0.426D0*Kt - 0.256D0*SIN(alfa) + 0.00349D0*Ta + 0.0734D0*(RH/100.0D0))
+         END IF
+      END IF
+
+      radD = MAX(0.0D0, radD)
+      radD = MIN(radG, radD)
+
+      IF (SIN(alfa) > 1.0D-6) THEN
+         radI = (radG - radD)/SIN(alfa)
+      ELSE
+         radI = 0.0D0
+      END IF
+      IF (altitude < 1.0D0 .AND. radI > radG) radI = radG
+
+   END SUBROUTINE spartacus_diffusefraction_reindl
+
+   SUBROUTINE spartacus_sun_distance(jday, D)
+      IMPLICIT NONE
+
+      INTEGER, INTENT(IN) :: jday
+      REAL(KIND(1D0)), INTENT(OUT) :: D
+
+      REAL(KIND(1D0)) :: b
+      REAL(KIND(1D0)), PARAMETER :: pi = 3.141592653589793D0
+
+      b = 2.0D0*pi*jday/365.0D0
+      D = SQRT(1.00011D0 + 0.034221D0*COS(b) + 0.001280D0*SIN(b) &
+               + 0.000719D0*COS(2.0D0*b) + 0.000077D0*SIN(2.0D0*b))
+
+   END SUBROUTINE spartacus_sun_distance
 
 END MODULE module_phys_spartacus
 

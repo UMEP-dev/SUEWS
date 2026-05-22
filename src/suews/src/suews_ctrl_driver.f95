@@ -1471,6 +1471,7 @@ CONTAINS
             SnowUse => config%SnowUse, &
             Diagnose => config%Diagnose, &
             use_sw_direct_albedo => config%use_sw_direct_albedo, &
+            id => timer%id, &
             tstep => timer%tstep, &
             ldown_obs => forcing%ldown, &
             fcld_obs => forcing%fcld, &
@@ -1613,9 +1614,9 @@ CONTAINS
                      ! TODO: TS 14 Feb 2022, ESTM development: introduce facet surface temperatures
                      CALL SPARTACUS( &
                         Diagqn, & !input:
-                        sfr_surf, zenith_deg, nlayer, & !input:
+                        sfr_surf, id, zenith_deg, nlayer, & !input:
                         tsfc_surf, tsfc_roof, tsfc_wall, &
-                        kdown, ldown, Tair_C, alb, emis, LAI_id, &
+                        kdown, ldown, Tair_C, avRH, alb, emis, LAI_id, &
                         n_vegetation_region_urban, &
                         n_stream_sw_urban, n_stream_lw_urban, &
                         sw_dn_direct_frac, air_ext_sw, air_ssa_sw, &

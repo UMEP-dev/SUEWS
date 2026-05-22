@@ -1,35 +1,13 @@
 use crate::codec::{
-    dims_element_count, field_index, require_field_dims, validate_flat_len, PayloadDims,
+    dims_element_count, require_field_dims, validate_flat_len, PayloadDims,
     ValuesPayloadWithDims,
 };
 use crate::error::BridgeError;
 use crate::ffi;
 use std::collections::BTreeMap;
 
-pub const SUEWS_FORCING_BASE_FLAT_LEN: usize = 18;
 pub const SUEWS_FORCING_SCHEMA_VERSION: u32 = 2;
 pub const SUEWS_FORCING_TS5_FIELD: &str = "ts5mindata_ir";
-
-const SUEWS_FORCING_BASE_FIELDS: [&str; SUEWS_FORCING_BASE_FLAT_LEN] = [
-    "kdown",
-    "ldown",
-    "rh",
-    "pres",
-    "tair_av_5d",
-    "u",
-    "rain",
-    "wu_m3",
-    "fcld",
-    "snowfrac",
-    "xsmd",
-    "qf_obs",
-    "qn1_obs",
-    "qs_obs",
-    "temp_c",
-    "lai_evetr",
-    "lai_dectr",
-    "lai_grass",
-];
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SuewsForcingSchema {
@@ -43,122 +21,208 @@ pub struct SuewsForcingSchema {
 
 pub type SuewsForcingValuesPayload = ValuesPayloadWithDims;
 
-#[derive(Debug, Clone, PartialEq)]
-pub struct SuewsForcing {
-    pub kdown: f64,
-    pub ldown: f64,
-    pub rh: f64,
-    pub pres: f64,
-    pub tair_av_5d: f64,
-    pub u: f64,
-    pub rain: f64,
-    pub wu_m3: f64,
-    pub fcld: f64,
-    pub snowfrac: f64,
-    pub xsmd: f64,
-    pub qf_obs: f64,
-    pub qn1_obs: f64,
-    pub qs_obs: f64,
-    pub temp_c: f64,
-    pub lai_evetr: f64,
-    pub lai_dectr: f64,
-    pub lai_grass: f64,
-    pub ts5mindata_ir: Vec<f64>,
+pub const BASELINE_FORCING_COLUMNS: &[&str] = &[
+    "iy", "id", "it", "imin", "tair", "rh", "u", "pres", "kdown", "rain",
+];
+const LANDCOVER_SUFFIXES: &[&str] = &[
+    "paved", "bldgs", "evetr", "dectr", "grass", "bsoil", "water",
+];
+const WU_LANDCOVER_SUFFIXES: &[&str] = &[
+    "paved", "bldgs", "evetr", "dectr", "grass", "bsoil", "water",
+];
+const LAI_LANDCOVER_SUFFIXES: &[&str] = &["evetr", "dectr", "grass"];
+
+pub struct PerLandcoverVar {
+    pub prefix: &'static str,
+    pub allowed_suffixes: &'static [&'static str],
 }
 
-impl Default for SuewsForcing {
-    fn default() -> Self {
-        Self {
-            kdown: 0.0,
-            ldown: 0.0,
-            rh: 0.0,
-            pres: 0.0,
-            tair_av_5d: 0.0,
-            u: 0.0,
-            rain: 0.0,
-            wu_m3: 0.0,
-            fcld: 0.0,
-            snowfrac: 0.0,
-            xsmd: 0.0,
-            qf_obs: 0.0,
-            qn1_obs: 0.0,
-            qs_obs: 0.0,
-            temp_c: 0.0,
-            lai_evetr: 0.0,
-            lai_dectr: 0.0,
-            lai_grass: 0.0,
-            ts5mindata_ir: Vec::new(),
+static LAI: PerLandcoverVar = PerLandcoverVar {
+    prefix: "lai",
+    allowed_suffixes: LAI_LANDCOVER_SUFFIXES,
+};
+
+pub static PER_LANDCOVER_FORCING_VARS: &[&PerLandcoverVar] = &[
+    &LAI,
+];
+
+/// Instantaneous: Forcing columns interpolated as instantaneous point values (linear).
+/// Average: Forcing columns interpolated as period averages (shift by -tstep_in/2, then linear).
+/// Sum: Forcing columns interpolated as period sums (proportional redistribution).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum InterpKind {
+    Instantaneous,
+    Average,
+    Sum,
+}
+
+pub struct FieldDescriptor {
+    pub field: SuewsField,
+    pub interp: InterpKind,
+    pub csv_names: &'static [&'static str],
+    pub required: bool,
+    pub get: fn(&SuewsForcing) -> f64,
+    pub set: fn(&mut SuewsForcing, f64),
+}
+
+
+macro_rules! suews_fields {
+    ($(($field:ident, $index:expr, [$($csv:expr),+], $interp:expr, $required:expr)),* $(,)?) => {
+        #[repr(usize)]
+        #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+        pub enum SuewsField {
+            $($field = $index),*
+        }
+
+        impl SuewsField {
+            pub const fn index(self) -> usize {
+                self as usize
+            }
+            pub const fn name(self) -> &'static str {
+                match self {
+                    $(Self::$field => stringify!($field)),*
+                }
+            }
+        }
+
+        pub const SUEWS_FORCING_BASE_FIELDS: &[&str] = &[
+            $(stringify!($field),)*
+        ];
+
+        pub const FIELD_DESCRIPTORS: &[FieldDescriptor] = &[
+            $(
+                FieldDescriptor {
+                    field: SuewsField::$field,
+                    csv_names: &[$($csv),+],
+                    interp: $interp,
+                    required: $required,
+                    get: |s| s.$field,
+                    set: |s, v| { s.$field = v; },
+                },
+            )*
+        ];
+
+        pub const SUEWS_FORCING_BASE_FLAT_LEN: usize = {
+            let mut n = 0;
+            $(let _ = stringify!($field); n += 1;)*
+            n
+        };
+
+        #[derive(Debug, Clone, PartialEq, Default)]
+        pub struct SuewsForcing {
+            $(pub $field: f64,)*
+            pub ts5mindata_ir: Vec<f64>,
+        }
+
+        impl SuewsForcing {
+            
+            pub fn from_flat_with_ts_len(
+                flat: &[f64],
+                ts5mindata_ir_len: usize,
+            ) -> Result<Self, BridgeError> {
+                let expected_len = SUEWS_FORCING_BASE_FLAT_LEN
+                    .checked_add(ts5mindata_ir_len)
+                    .ok_or(BridgeError::BadState)?;
+
+                validate_flat_len(flat, expected_len)?;
+
+                let mut state = Self {
+                    ts5mindata_ir: flat[SUEWS_FORCING_BASE_FLAT_LEN..].to_vec(),
+                    ..Default::default()
+                };
+
+                for desc in FIELD_DESCRIPTORS {
+                    let idx = desc.field.index();
+                    let value = flat[idx];
+                    (desc.set)(&mut state, value);
+                }
+
+                Ok(state)
+            }
+            
+            pub fn from_ordered_values(values: &[f64]) -> Result<Self, BridgeError> {
+                if values.len() < SUEWS_FORCING_BASE_FLAT_LEN {
+                    return Err(BridgeError::BadBuffer);
+                }
+
+                let ts5mindata_ir_len = values.len() - SUEWS_FORCING_BASE_FLAT_LEN;
+                Self::from_flat_with_ts_len(values, ts5mindata_ir_len)
+            }
+            
+            pub fn to_flat(&self) -> Vec<f64> {
+                let total_len = SUEWS_FORCING_BASE_FLAT_LEN + self.ts5mindata_ir.len();
+                let mut flat = vec![0.0_f64; total_len];
+
+                for desc in FIELD_DESCRIPTORS {
+                    flat[desc.field.index()] = (desc.get)(self);
+                }
+                flat[SUEWS_FORCING_BASE_FLAT_LEN..].copy_from_slice(&self.ts5mindata_ir);
+
+                flat
+            }
         }
     }
 }
 
-impl SuewsForcing {
-    pub fn from_flat_with_ts_len(
-        flat: &[f64],
-        ts5mindata_ir_len: usize,
-    ) -> Result<Self, BridgeError> {
-        let expected_len = SUEWS_FORCING_BASE_FLAT_LEN
-            .checked_add(ts5mindata_ir_len)
-            .ok_or(BridgeError::BadState)?;
-        validate_flat_len(flat, expected_len)?;
+suews_fields! {
+    (qn1_obs, 4, ["qn1_obs", "qn"], InterpKind::Average, false),
+    (qh, 5, ["qh"], InterpKind::Average, false),
+    (qe, 6, ["qe"], InterpKind::Average, false),
+    (qs_obs, 7, ["qs_obs", "qs"], InterpKind::Average, false),
+    (qf_obs, 8, ["qf_obs", "qf"], InterpKind::Average, false),
 
-        Ok(Self {
-            kdown: flat[0],
-            ldown: flat[1],
-            rh: flat[2],
-            pres: flat[3],
-            tair_av_5d: flat[4],
-            u: flat[5],
-            rain: flat[6],
-            wu_m3: flat[7],
-            fcld: flat[8],
-            snowfrac: flat[9],
-            xsmd: flat[10],
-            qf_obs: flat[11],
-            qn1_obs: flat[12],
-            qs_obs: flat[13],
-            temp_c: flat[14],
-            lai_evetr: flat[15],
-            lai_dectr: flat[16],
-            lai_grass: flat[17],
-            ts5mindata_ir: flat[SUEWS_FORCING_BASE_FLAT_LEN..].to_vec(),
-        })
-    }
+    (u, 9, ["u"], InterpKind::Instantaneous, true),
+    (rh, 10, ["rh"], InterpKind::Instantaneous, true),
 
-    pub fn from_ordered_values(values: &[f64]) -> Result<Self, BridgeError> {
-        if values.len() < SUEWS_FORCING_BASE_FLAT_LEN {
-            return Err(BridgeError::BadBuffer);
-        }
+    (temp_c, 11, ["temp_c", "tair"], InterpKind::Instantaneous, true),
 
-        let ts5mindata_ir_len = values.len() - SUEWS_FORCING_BASE_FLAT_LEN;
-        Self::from_flat_with_ts_len(values, ts5mindata_ir_len)
-    }
+    (pres, 12, ["pres"], InterpKind::Instantaneous, true),
 
-    pub fn to_flat(&self) -> Vec<f64> {
-        let mut flat = Vec::with_capacity(SUEWS_FORCING_BASE_FLAT_LEN + self.ts5mindata_ir.len());
+    (rain, 13, ["rain"], InterpKind::Sum, true),
 
-        flat.push(self.kdown);
-        flat.push(self.ldown);
-        flat.push(self.rh);
-        flat.push(self.pres);
-        flat.push(self.tair_av_5d);
-        flat.push(self.u);
-        flat.push(self.rain);
-        flat.push(self.wu_m3);
-        flat.push(self.fcld);
-        flat.push(self.snowfrac);
-        flat.push(self.xsmd);
-        flat.push(self.qf_obs);
-        flat.push(self.qn1_obs);
-        flat.push(self.qs_obs);
-        flat.push(self.temp_c);
-        flat.push(self.lai_evetr);
-        flat.push(self.lai_dectr);
-        flat.push(self.lai_grass);
-        flat.extend_from_slice(&self.ts5mindata_ir);
+    (kdown, 14, ["kdown"], InterpKind::Average, true),
 
-        flat
-    }
+    (snowfrac, 15, ["snowfrac", "snow"], InterpKind::Instantaneous, false),
+
+    (ldown, 16, ["ldown"], InterpKind::Average, false),
+
+    (fcld, 17, ["fcld"], InterpKind::Instantaneous, false),
+
+    (wu_mm, 18, ["wu_mm", "wuh"], InterpKind::Instantaneous, false),
+
+    (xsmd, 19, ["xsmd"], InterpKind::Instantaneous, false),
+
+    (lai_evetr, 20, ["lai_evetr"], InterpKind::Instantaneous, false),
+    (lai_dectr, 21, ["lai_dectr"], InterpKind::Instantaneous, false),
+    (lai_grass, 22, ["lai_grass"], InterpKind::Instantaneous, false),
+
+    // (tair_av_5d, 1, ["tair_av_5d"], InterpKind::Instantaneous),
+}
+
+fn is_required_field(name: &str) -> bool {
+    BASELINE_FORCING_COLUMNS
+        .iter()
+        .any(|&x| x == name)
+}
+
+pub fn field_by_name(name: &str) -> Option<SuewsField> {
+    FIELD_DESCRIPTORS
+        .iter()
+        .find(|d| d.field.name().eq_ignore_ascii_case(name))
+        .map(|d| d.field)
+}
+
+pub fn descriptor_by_name(name: &str) -> Result<&'static FieldDescriptor, BridgeError> {
+    FIELD_DESCRIPTORS
+        .iter()
+        .find(|d| d.field.name() == name)
+        .ok_or(BridgeError::BadState)
+}
+
+pub fn descriptor_by_index(index: usize) -> Option<&'static FieldDescriptor> {
+    FIELD_DESCRIPTORS
+        .iter()
+        .find(|d| d.field.index() == index)
 }
 
 fn parse_ts5mindata_ir_field_index(name: &str) -> Option<usize> {
@@ -167,33 +231,12 @@ fn parse_ts5mindata_ir_field_index(name: &str) -> Option<usize> {
     one_based.checked_sub(1)
 }
 
-fn set_base_field_value(
-    state: &mut SuewsForcing,
-    index: usize,
-    value: f64,
-) -> Result<(), BridgeError> {
-    match index {
-        0 => state.kdown = value,
-        1 => state.ldown = value,
-        2 => state.rh = value,
-        3 => state.pres = value,
-        4 => state.tair_av_5d = value,
-        5 => state.u = value,
-        6 => state.rain = value,
-        7 => state.wu_m3 = value,
-        8 => state.fcld = value,
-        9 => state.snowfrac = value,
-        10 => state.xsmd = value,
-        11 => state.qf_obs = value,
-        12 => state.qn1_obs = value,
-        13 => state.qs_obs = value,
-        14 => state.temp_c = value,
-        15 => state.lai_evetr = value,
-        16 => state.lai_dectr = value,
-        17 => state.lai_grass = value,
-        _ => return Err(BridgeError::BadState),
-    }
-    Ok(())
+pub fn descriptor_by_csv_name(name: &str) -> Option<&'static FieldDescriptor> {
+    FIELD_DESCRIPTORS.iter().find(|d| {
+        d.csv_names
+            .iter()
+            .any(|n| n.eq_ignore_ascii_case(name))
+    })
 }
 
 pub fn suews_forcing_schema() -> Result<(usize, usize), BridgeError> {
@@ -227,10 +270,17 @@ pub fn suews_forcing_schema_info() -> Result<SuewsForcingSchema, BridgeError> {
     let mut allocatable_dims = PayloadDims::new();
     allocatable_dims.insert(SUEWS_FORCING_TS5_FIELD.to_string(), vec![ts5mindata_ir_len]);
 
-    if schema_version_runtime != SUEWS_FORCING_SCHEMA_VERSION
-        || flat_len != SUEWS_FORCING_BASE_FLAT_LEN + ts5mindata_ir_len
-        || flat_len != field_names.len()
-    {
+    let expected_flat_len = SUEWS_FORCING_BASE_FLAT_LEN + ts5mindata_ir_len;
+
+    if schema_version_runtime != SUEWS_FORCING_SCHEMA_VERSION {
+        return Err(BridgeError::BadState);
+    }
+
+    if flat_len != expected_flat_len {
+        return Err(BridgeError::BadState);
+    }
+
+    if field_names.len() != expected_flat_len {
         return Err(BridgeError::BadState);
     }
 
@@ -263,24 +313,24 @@ pub fn suews_forcing_schema_version_runtime() -> Result<u32, BridgeError> {
     Ok(schema_version as u32)
 }
 
-pub fn suews_forcing_base_field_names() -> Vec<String> {
-    SUEWS_FORCING_BASE_FIELDS
+pub fn suews_forcing_field_names() -> Vec<String> {
+    FIELD_DESCRIPTORS
         .iter()
-        .map(|name| (*name).to_string())
+        .map(|d| d.field.name().to_string())
         .collect()
 }
 
 pub fn suews_forcing_field_names_with_ts_len(ts5mindata_ir_len: usize) -> Vec<String> {
-    let mut names = suews_forcing_base_field_names();
+    let mut names: Vec<String> = FIELD_DESCRIPTORS
+        .iter()
+        .map(|d| d.field.name().to_string())
+        .collect();
+
     for idx in 0..ts5mindata_ir_len {
         names.push(format!("ts5mindata_ir_{}", idx + 1));
     }
-    names
-}
 
-pub fn suews_forcing_field_names() -> Result<Vec<String>, BridgeError> {
-    let (_, ts5mindata_ir_len) = suews_forcing_schema()?;
-    Ok(suews_forcing_field_names_with_ts_len(ts5mindata_ir_len))
+    names
 }
 
 pub fn suews_forcing_to_map(state: &SuewsForcing) -> BTreeMap<String, f64> {
@@ -334,11 +384,10 @@ pub fn suews_forcing_from_values_payload(
 
 pub fn suews_forcing_from_map(values: &BTreeMap<String, f64>) -> Result<SuewsForcing, BridgeError> {
     let mut state = suews_forcing_default_from_fortran()?;
-    let base_field_names = suews_forcing_base_field_names();
 
     for (name, value) in values {
-        if let Some(index) = field_index(&base_field_names, name) {
-            set_base_field_value(&mut state, index, *value)?;
+        if let Ok(desc) = descriptor_by_name(name) {
+            (desc.set)(&mut state, *value);
             continue;
         }
 

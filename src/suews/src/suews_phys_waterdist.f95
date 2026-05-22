@@ -1427,7 +1427,13 @@ CONTAINS
                HDD_id => anthroEmisState%HDD_id, &
                WUDay_id => hydroState%WUDay_id, &
                WaterUseMethod => config%WaterUseMethod, &
-               wu_m3 => forcing%Wu_m3, &
+               wu_mm_paved => forcing%Wu_mm_paved, &
+               wu_mm_bldgs => forcing%Wu_mm_bldgs, &
+               wu_mm_evetr => forcing%Wu_mm_evetr, &
+               wu_mm_dectr => forcing%Wu_mm_dectr, &
+               wu_mm_grass => forcing%Wu_mm_grass, &
+               wu_mm_bsoil => forcing%Wu_mm_bsoil, &
+               wu_mm_water => forcing%Wu_mm_water, &
                wu_surf => hydroState%wu_surf, &
                wu_int => hydroState%wu_int, &
                wu_ext => hydroState%wu_ext, &
@@ -1469,33 +1475,33 @@ CONTAINS
                ! --------------------------------------------------------------------------------
                ! If water used is observed and provided in the met forcing file, units are m3
                ! Divide observed water use (in m3) by water use area to find water use (in mm)
+               ! 2026-05-19, MP: Updated to only take per land cover forcing (incoming in mm)
                IF (WaterUseMethod == 1) THEN !If water use is observed
-                  ! Calculate water use area [m2] for each surface type
-
-                  WUArea = IrrFrac*sfr_surf*SurfaceArea
-                  WUAreaTotal_m2 = SUM(WUArea)
-
-                  !Set water use [mm] for each surface type to zero initially
-                  wu_EveTr = 0
-                  wu_DecTr = 0
-                  wu_Grass = 0
-
-                  wu_surf = 0
-                  IF (wu_m3 == NAN .OR. wu_m3 == 0) THEN !If no water use
-                     ! wu_m3=0
-                     wu = 0
-                  ELSE !If water use
-                     IF (WUAreaTotal_m2 > 0) THEN
-                        wu = (wu_m3/WUAreaTotal_m2*1000) !Water use in mm for the whole irrigated area - used here for water use calculation of each surface type
-
-                        wu_surf = wu*IrrFrac
-
-                        wu = (wu_m3/SurfaceArea*1000) !Water use for the whole study area in mm - used in output for easier comparison with other water budgets
-                     END IF
+                  IF (Wu_mm_paved /= -999) THEN
+                     wu_surf(1) = Wu_mm_paved
                   END IF
-
-                  ! --------------------------------------------------------------------------------
-                  ! If water use is modelled, calculate at timestep of model resolution [mm]
+                  IF (Wu_mm_bldgs /= -999) THEN
+                     wu_surf(2) = Wu_mm_bldgs
+                  END IF
+                  IF (Wu_mm_evetr /= -999) THEN
+                     wu_surf(3) = Wu_mm_evetr
+                  END IF
+                  IF (Wu_mm_dectr /= -999) THEN
+                     wu_surf(4) = Wu_mm_dectr
+                  END IF
+                  IF (Wu_mm_grass /= -999) THEN
+                     wu_surf(5) = Wu_mm_grass
+                  END IF
+                  IF (Wu_mm_bsoil /= -999) THEN
+                     wu_surf(6) = Wu_mm_bsoil
+                  END IF
+                  IF (Wu_mm_water /= -999) THEN
+                     wu_surf(7) = Wu_mm_water
+                  END IF
+                  wu = DOT_PRODUCT(wu_surf, sfr_surf)
+                  
+               ! --------------------------------------------------------------------------------
+               ! If water use is modelled, calculate at timestep of model resolution [mm]
                ELSEIF (WaterUseMethod == 0) THEN !If water use is modelled
 
                   ! Account for Daylight saving

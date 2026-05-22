@@ -247,6 +247,17 @@ pub fn read_forcing_block(path: &Path) -> Result<ForcingData, String> {
             )?;
         }
 
+        for field in per_landcover_fields("wuh") {
+            apply_field(
+                &mut row,
+                field,
+                &col_idx,
+                &parts,
+                line_no,
+                Some("wuh"),
+            )?;
+        }
+
         // Convert pressure from kPa (SUEWS input convention) to hPa (Fortran internal).
         // Matches supy/_load.py: df_forcing_met["pres"] *= 10.
         // pres is in BASELINE_FORCING_COLUMNS so it is always read; defend against
@@ -700,10 +711,12 @@ mod tests {
         let path = Path::new("../../test/fixtures/forcing/kc_per_landcover.txt");
         let forcing = read_forcing_block(path).expect("per-landcover fixture");
         assert!(forcing.extras.contains_key("lai_evetr"));
+        assert!(forcing.extras.contains_key("wuh_paved"));
         assert_eq!(forcing.extras["lai_evetr"].len(), forcing.len_sim);
         assert_eq!(row_val(&forcing, 0, SuewsField::lai_evetr.index()), forcing.extras["lai_evetr"][0]);
         assert_eq!(row_val(&forcing, 0, SuewsField::lai_dectr.index()), forcing.extras["lai_dectr"][0]);
         assert_eq!(row_val(&forcing, 0, SuewsField::lai_grass.index()), forcing.extras["lai_grass"][0]);
+        assert_ne!(row_val(&forcing, 0, SuewsField::wu_m3.index()), forcing.extras["wuh_paved"][0]);
         // Canonical block unchanged in shape.
         assert_eq!(forcing.block.len(), forcing.len_sim * FORCING_BLOCK_STRIDE);
     }

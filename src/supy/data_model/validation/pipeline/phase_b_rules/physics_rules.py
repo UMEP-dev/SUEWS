@@ -412,10 +412,10 @@ def check_outercapfrac_facet(building_archetype, facet, site_idx, site_gridid):
         A validation result indicating an error if the fraction is missing or out of the valid range (0, 1), with a suggested value for correction.
     Notes
     -----
-    - When rcmethod is set to 1, the fraction_{facet}_heat_capacity_outer parameter must be explicitly set and strictly between 0 and 1.
+    - When rcmethod is set to 1, the fraction_heat_capacity_{facet}_external parameter must be explicitly set and strictly between 0 and 1.
     - Returns an error if the parameter is missing or outside the valid range, including a message and suggested value.
     """
-    key = f"fraction_{facet}_heat_capacity_outer"
+    key = f"fraction_heat_capacity_{facet}_external"
     facet_frac_entry = building_archetype.get(key, {})
     facet_frac = facet_frac_entry.get("value") if isinstance(facet_frac_entry, Mapping) else facet_frac_entry
 
@@ -722,7 +722,7 @@ def validate_forcing_height_vs_buildings(context) -> List[ValidationResult]:
 
     - The maximum building height is defined as the largest of:
         - land_cover.bldgs.bldgh
-        - building_archetype.building_height (if stebbsmethod == 1)
+        - building_archetype.archetype_height (if stebbsmethod == 1)
         - The last non-zero value in vertical_layers.height
           (SPARTACUS top height, if enabled)
     """
@@ -783,7 +783,7 @@ def validate_forcing_height_vs_buildings(context) -> List[ValidationResult]:
         if stebbsmethod_val == 1:
             archetype = _unwrap_nested_value(props.get("building_archetype"))
             if isinstance(archetype, Mapping):
-                stebbs_height = _as_float(_unwrap_nested_value(archetype.get("building_height")))
+                stebbs_height = _as_float(_unwrap_nested_value(archetype.get("archetype_height")))
 
         # SPARTACUS heights (only if SPARTACUS is enabled via netradiationmethod)
         spartacus_top = None

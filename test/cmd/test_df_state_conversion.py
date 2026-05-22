@@ -149,7 +149,7 @@ class TestCsvFileConversion:
 
         # Check new columns added
         assert "buildingname" in col_names
-        assert "buildingtype" in col_names
+        # building_type dropped (gh#1392): no longer a df_state column
 
     @pytest.mark.slow
     def test_full_yaml_conversion(self, old_csv_path, tmp_path):

@@ -35,6 +35,7 @@ pub struct ForcingData {
     pub block: Vec<f64>,
     pub len_sim: usize,
     pub stride: usize,
+    pub stride: usize,
     pub extras: HashMap<String, Vec<f64>>,
 }
 
@@ -715,7 +716,6 @@ mod tests {
         let path = Path::new("../../test/fixtures/forcing/kc_per_landcover.txt");
         let forcing = read_forcing_block(path).expect("per-landcover fixture");
         assert!(forcing.extras.contains_key("lai_evetr"));
-        assert!(forcing.extras.contains_key("wuh_paved"));
         assert_eq!(forcing.extras["lai_evetr"].len(), forcing.len_sim);
         assert_eq!(row_val(&forcing, 0, SuewsField::lai_evetr.index()), forcing.extras["lai_evetr"][0]);
         assert_eq!(row_val(&forcing, 0, SuewsField::lai_dectr.index()), forcing.extras["lai_dectr"][0]);

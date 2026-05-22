@@ -139,6 +139,7 @@ CONTAINS
       INTEGER(kind=jpim), ALLOCATABLE :: nlay(:)
       INTEGER :: istartcol, iendcol
       INTEGER :: jrepeat, ilay, jlay, jcol
+      INTEGER :: nlay_veg, max_idx
 
       ! --------------------------------------------------------------------------------
       ! output variables
@@ -184,6 +185,7 @@ CONTAINS
       REAL(KIND(1D0)), DIMENSION(15) :: wall_net_lw_spc
       REAL(KIND(1D0)), DIMENSION(15) :: sfr_roof_spc
       REAL(KIND(1D0)), DIMENSION(15) :: sfr_wall_spc
+      REAL(KIND(1D0)), DIMENSION(15) :: veg_abs_sw_spc ! SW vegetation absorption per layer
       REAL(KIND(1D0)) :: grnd_dn_sw_spc
       ! --------------------------------------------------------------------------------
 
@@ -254,6 +256,8 @@ CONTAINS
       IF (DiagQN == 1) PRINT *, 'in SPARTACUS, starting ...'
       ! initialize the output variables
       dataOutLineSPARTACUS = -999.
+
+      PRINT *, 'SZA = ', zenith_deg
 
       sfr_roof_spc = -999.
       sfr_roof_spc(1:nlayer) = sfr_roof
@@ -688,6 +692,32 @@ CONTAINS
          qn_spc = sw_flat_net_spc + lw_flat_net_spc
       END IF
 
+      !-----------------------------------------------------------------
+      ! Shortwave vegetation absorption per layer (W m-2), from sw_flux
+      !-----------------------------------------------------------------
+      veg_abs_sw_spc = -999.0D0
+
+      ! Only attempt extraction when SW is active and there is at least one SPARTACUS layer
+      IF (config%do_sw .AND. canopy_props%nlay(1) > 0) THEN
+         ! Some configurations do not allocate sw_flux%veg_abs at all:
+         ! in that case, skip extraction and keep fill values.
+         IF (ALLOCATED(sw_flux%veg_abs)) THEN
+            ! Number of available layers in veg_abs (second dimension)
+            nlay_veg = SIZE(sw_flux%veg_abs, 2)
+
+            ! Required maximum index in veg_abs for this column
+            max_idx = canopy_props%istartlay(1) + MIN(canopy_props%nlay(1), 15) - 1
+
+            IF (nlay_veg >= max_idx) THEN
+               ilay = canopy_props%istartlay(1)
+               DO jlay = 1, MIN(canopy_props%nlay(1), 15)
+                  ! nspec=1, so use first spectral index
+                  veg_abs_sw_spc(jlay) = sw_flux%veg_abs(1, ilay + jlay - 1)
+               END DO
+            END IF
+         END IF
+      END IF
+
       ! albedo
       IF (config%do_sw) THEN
          IF (top_flux_dn_diffuse_sw + top_flux_dn_direct_sw(nspec, ncol) > 0.1) THEN
@@ -890,6 +920,7 @@ CONTAINS
           sfr_roof_spc, &
           sfr_wall_spc, &
           clear_air_abs_lw_spc, &
+          veg_abs_sw_spc, &
           grnd_dn_sw_spc &
           ]
 

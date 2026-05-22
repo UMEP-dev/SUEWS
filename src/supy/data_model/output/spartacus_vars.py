@@ -203,6 +203,21 @@ LEGACY_SPARTACUS_DEFS = [
     ("LCAAbs_14", "W m-2", "lw clear air absorption - SPARTACUS level 14", 0),
     ("LCAAbs_15", "W m-2", "lw clear air absorption - SPARTACUS level 15", 0),
     ("GrndDnSWSpc", "W m-2", "total downward SW at the ground", 0),
+    ("KVegAbs", "W m-2", "sw absorption by vegetation - SPARTACUS level 1", 0),
+    ("KVegAbs", "W m-2", "sw absorption by vegetation - SPARTACUS level 2", 0),
+    ("KVegAbs", "W m-2", "sw absorption by vegetation - SPARTACUS level 3", 0),
+    ("KVegAbs", "W m-2", "sw absorption by vegetation - SPARTACUS level 4", 0),
+    ("KVegAbs", "W m-2", "sw absorption by vegetation - SPARTACUS level 5", 0),
+    ("KVegAbs", "W m-2", "sw absorption by vegetation - SPARTACUS level 6", 0),
+    ("KVegAbs", "W m-2", "sw absorption by vegetation - SPARTACUS level 7", 0),
+    ("KVegAbs", "W m-2", "sw absorption by vegetation - SPARTACUS level 8", 0),
+    ("KVegAbs", "W m-2", "sw absorption by vegetation - SPARTACUS level 9", 0),
+    ("KVegAbs", "W m-2", "sw absorption by vegetation - SPARTACUS level 10", 0),
+    ("KVegAbs", "W m-2", "sw absorption by vegetation - SPARTACUS level 11", 0),
+    ("KVegAbs", "W m-2", "sw absorption by vegetation - SPARTACUS level 12", 0),
+    ("KVegAbs", "W m-2", "sw absorption by vegetation - SPARTACUS level 13", 0),
+    ("KVegAbs", "W m-2", "sw absorption by vegetation - SPARTACUS level 14", 0),
+    ("KVegAbs", "W m-2", "sw absorption by vegetation - SPARTACUS level 15", 0),
 ]
 
 SPARTACUS_VARIABLES = [

@@ -486,11 +486,16 @@ CONTAINS
          sw_spectral_props%veg_ssa = veg_ssa_sw
       END IF
       sw_spectral_props%ground_albedo = alb_no_tree_bldg ! albedo excluding buildings and trees
-      sw_spectral_props%roof_albedo = roof_albedo(nspec, ncol) ! albedo of buildings
-      sw_spectral_props%wall_albedo = wall_albedo(nspec, ncol) ! albedo of buildings
-      sw_spectral_props%wall_specular_frac = wall_specular_frac(nspec, ncol)
+      ! Only set roof and wall albedo if building surface fraction is present
+      IF (config%do_urban) THEN
+         sw_spectral_props%roof_albedo = roof_albedo(nspec, ncol) ! albedo of buildings
+         sw_spectral_props%wall_albedo = wall_albedo(nspec, ncol) ! albedo of buildings
+         sw_spectral_props%wall_specular_frac = wall_specular_frac(nspec, ncol)
+      END IF
       sw_spectral_props%ground_albedo_dir = sw_spectral_props%ground_albedo
-      sw_spectral_props%roof_albedo_dir = sw_spectral_props%roof_albedo
+      IF (config%do_urban) THEN
+         sw_spectral_props%roof_albedo_dir = sw_spectral_props%roof_albedo
+      END IF
       IF (config%use_sw_direct_albedo) THEN
          sw_spectral_props%ground_albedo_dir = alb_no_tree_bldg*ground_albedo_dir_mult_fact
          sw_spectral_props%roof_albedo_dir = roof_albedo(nspec, ncol)*roof_albedo_dir_mult_fact(nspec, ncol)
@@ -527,8 +532,10 @@ CONTAINS
          lw_spectral_props%veg_ssa = veg_ssa_lw
       END IF
       lw_spectral_props%ground_emissivity = emis_no_tree_bldg ! emissivity excluding buildings and trees
-      lw_spectral_props%roof_emissivity = roof_emissivity(nspec, ncol) ! emissivity of buildings
-      lw_spectral_props%wall_emissivity = wall_emissivity(nspec, ncol) ! emissivity of buildings
+      IF (config%do_urban) THEN
+         lw_spectral_props%roof_emissivity = roof_emissivity(nspec, ncol) ! emissivity of buildings
+         lw_spectral_props%wall_emissivity = wall_emissivity(nspec, ncol) ! emissivity of buildings
+      END IF
 
       ! print *, 'roof_emissivity in suews-su ', roof_emissivity(nspec,:)
       ! print *, 'wall_emissivity in suews-su ', wall_emissivity(nspec,:)
@@ -715,16 +722,24 @@ CONTAINS
       ! lw arrays
       clear_air_abs_lw_spc = -999
       clear_air_abs_lw_spc(:nlayer) = lw_flux%clear_air_abs(nspec, :nlayer)
-      wall_net_lw_spc = -999
-      wall_net_lw_spc(:nlayer) = lw_flux%wall_net(nspec, :nlayer)
-      wall_in_lw_spc = -999
-      wall_in_lw_spc(:nlayer) = lw_flux%wall_in(nspec, :nlayer)
-      ! PRINT *, 'wall_net_lw_spc in suews-su', lw_flux%wall_net
-      roof_net_lw_spc = -999
-      roof_net_lw_spc(:nlayer) = lw_flux%roof_net(nspec, :nlayer)
-      ! PRINT *, 'roof_net_lw_spc in suews-su', lw_flux%roof_net
-      roof_in_lw_spc = -999
-      roof_in_lw_spc(:nlayer) = lw_flux%roof_in(nspec, :nlayer)
+      wall_net_lw_spc = -999.0D0
+      wall_in_lw_spc  = -999.0D0
+      roof_net_lw_spc = -999.0D0
+      roof_in_lw_spc  = -999.0D0
+
+      IF (config%do_urban) THEN
+         ! Urban facets exist: safe to read wall/roof fields
+         wall_net_lw_spc(:nlayer) = lw_flux%wall_net(nspec, :nlayer)
+         wall_in_lw_spc(:nlayer)  = lw_flux%wall_in(nspec, :nlayer)
+         roof_net_lw_spc(:nlayer) = lw_flux%roof_net(nspec, :nlayer)
+         roof_in_lw_spc(:nlayer)  = lw_flux%roof_in(nspec, :nlayer)
+      ELSE
+         ! No buildings: define wall/roof contributions as zero (not -999) so downstream math is safe
+         wall_net_lw_spc(:nlayer) = 0.0D0
+         wall_in_lw_spc(:nlayer)  = 0.0D0
+         roof_net_lw_spc(:nlayer) = 0.0D0
+         roof_in_lw_spc(:nlayer)  = 0.0D0
+      END IF
       top_net_lw_spc = lw_flux%top_net(nspec, ncol)
       grnd_net_lw_spc = lw_flux%ground_net(nspec, ncol)
       top_dn_lw_spc = lw_flux%top_dn(nspec, ncol)
@@ -737,10 +752,17 @@ CONTAINS
       roof_in_sw_spc = -999
       IF (config%do_sw) THEN
          clear_air_abs_sw_spc(:nlayer) = sw_flux%clear_air_abs(nspec, :nlayer)
-         wall_net_sw_spc(:nlayer) = sw_flux%wall_net(nspec, :nlayer)
-         wall_in_sw_spc(:nlayer) = sw_flux%wall_in(nspec, :nlayer)
-         roof_net_sw_spc(:nlayer) = sw_flux%roof_net(nspec, :nlayer)
-         roof_in_sw_spc(:nlayer) = sw_flux%roof_in(nspec, :nlayer)
+         IF (config%do_urban) THEN
+            wall_net_sw_spc(:nlayer) = sw_flux%wall_net(nspec, :nlayer)
+            wall_in_sw_spc(:nlayer)  = sw_flux%wall_in(nspec, :nlayer)
+            roof_net_sw_spc(:nlayer) = sw_flux%roof_net(nspec, :nlayer)
+            roof_in_sw_spc(:nlayer)  = sw_flux%roof_in(nspec, :nlayer)
+         ELSE
+            wall_net_sw_spc(:nlayer) = 0.0D0
+            wall_in_sw_spc(:nlayer)  = 0.0D0
+            roof_net_sw_spc(:nlayer) = 0.0D0
+            roof_in_sw_spc(:nlayer)  = 0.0D0
+         END IF
          top_dn_dir_sw_spc = sw_flux%top_dn_dir(nspec, ncol)
          top_net_sw_spc = sw_flux%top_net(nspec, ncol)
          grnd_dn_dir_sw_spc = sw_flux%ground_dn_dir(nspec, ncol)

@@ -202,6 +202,12 @@ suews_fields! {
     // (tair_av_5d, 1, ["tair_av_5d"], InterpKind::Instantaneous),
 }
 
+fn is_required_field(name: &str) -> bool {
+    BASELINE_FORCING_COLUMNS
+        .iter()
+        .any(|&x| x == name)
+}
+
 pub fn field_by_name(name: &str) -> Option<SuewsField> {
     FIELD_DESCRIPTORS
         .iter()

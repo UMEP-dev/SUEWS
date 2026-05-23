@@ -35,7 +35,6 @@ pub struct ForcingData {
     pub block: Vec<f64>,
     pub len_sim: usize,
     pub stride: usize,
-    pub stride: usize,
     pub extras: HashMap<String, Vec<f64>>,
 }
 

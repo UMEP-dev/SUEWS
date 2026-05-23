@@ -153,7 +153,7 @@ OPTIONAL_FORCING_COLUMNS: list[str] = [
 
 CANONICAL_FORCING_COLUMNS = BASELINE_DATETIME_FORCING_SET | BASELINE_FORCING_COLUMNS_SET | frozenset(OPTIONAL_FORCING_COLUMNS)
 
-PER_LANDCOVER_FORCING_VARS: frozenset[str] = frozenset({"lai"})
+PER_LANDCOVER_FORCING_VARS: frozenset[str] = frozenset({"lai", "wuh"})
 LANDCOVER_SUFFIXES: tuple[str, ...] = (
     "paved", "bldgs", "evetr", "dectr", "grass", "bsoil", "water",
 )

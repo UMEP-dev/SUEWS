@@ -7,6 +7,13 @@ maps to one or more real files under the SUEWS ``docs/source/`` tree;
 the catalogue is the curated answer to "which docs does a SUEWS user
 actually need", aligned with the canonical question set (gh#1384).
 
+Tutorial slugs point at the sphinx-gallery **source** files
+(``docs/source/tutorials/tutorial_*.py``) rather than the generated
+``auto_examples/*.rst`` output, because the latter only exists after a
+docs build and is absent in a plain checkout. The ``.py`` sources carry
+the same prose (reStructuredText in the gallery comment blocks) and
+resolve in any source tree.
+
 Note: docs are not yet bundled into the wheel, so a non-editable
 ``pip install`` resolves an empty repo root and the fragments report as
 missing. That packaging gap is tracked separately; in an editable /
@@ -64,22 +71,22 @@ _DOCS: dict[str, dict[str, Any]] = {
     "tutorial-quick-start": {
         "title": "Tutorial: quick start",
         "summary": "Run SUEWS on the bundled sample case end to end.",
-        "paths": ["docs/source/auto_examples/tutorial_01_quick_start.rst"],
+        "paths": ["docs/source/tutorials/tutorial_01_quick_start.py"],
     },
     "tutorial-setup-own-site": {
         "title": "Tutorial: set up SUEWS for your own site",
         "summary": "Configure location, land cover, vegetation, and external forcing for a custom site. Worked example: US-AR1 (ARM Southern Great Plains, Oklahoma, mid-west USA) grassland flux site with observations.",
-        "paths": ["docs/source/auto_examples/tutorial_02_setup_own_site.rst"],
+        "paths": ["docs/source/tutorials/tutorial_02_setup_own_site.py"],
     },
     "tutorial-impact-studies": {
         "title": "Tutorial: impact / sensitivity studies",
         "summary": "Run with/without or perturbed-parameter scenarios (e.g. change land cover or albedo) and compare outputs such as T2.",
-        "paths": ["docs/source/auto_examples/tutorial_04_impact_studies.rst"],
+        "paths": ["docs/source/tutorials/tutorial_04_impact_studies.py"],
     },
     "tutorial-results-analysis": {
         "title": "Tutorial: results analysis and evaluation",
         "summary": "Analyse SUEWS outputs and evaluate them against observations (diurnal/seasonal cycles, energy balance).",
-        "paths": ["docs/source/auto_examples/tutorial_05_results_analysis.rst"],
+        "paths": ["docs/source/tutorials/tutorial_05_results_analysis.py"],
     },
 }
 

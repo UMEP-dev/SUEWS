@@ -19,6 +19,7 @@ from pathlib import Path
 from typing import Any, Optional
 
 from ..backend import ProjectRoot, SUEWSMCPError, SUEWSMCPSandboxError, run_suews_cli
+from .examples import _supy_sample_data_dir
 from .validate import _error_envelope
 
 # Site-defining inputs a fresh user must supply for a meaningful run, with the
@@ -32,12 +33,6 @@ _RISKS: dict[str, dict[str, str]] = {
         "why": "latitude/longitude/altitude and timezone set the sun's position, hence the timing and magnitude of incoming shortwave — the dominant energy input.",
         "risk": "the sample location simulates the sample city's sun, not yours — net radiation QN, and therefore the whole QN->QE/QH partition, is timed and scaled for the wrong place.",
         "fix": "set sites[0].properties.lat / lng / alt / timezone to your site.",
-    },
-    "timezone": {
-        "role": "QN — aligns the forcing clock to local solar time",
-        "why": "the timezone aligns the forcing clock to local solar time.",
-        "risk": "a wrong timezone shifts the whole diurnal radiation/flux cycle by hours.",
-        "fix": "set sites[0].properties.timezone to your site's UTC offset.",
     },
     "land_cover": {
         "role": "weights every term: albedo->QN, emissivity->QN, materials->QS, conductance->QE",
@@ -72,18 +67,40 @@ _IMPORTANCE: list[dict[str, str]] = [
 ]
 
 
+# The bundled sample is immutable within a process, so its inspection envelope
+# is cached (keyed by resolved path); only successful inspections are cached so a
+# degraded environment retries. Cleared per-test in test/mcp/conftest.py.
+_SAMPLE_CACHE: dict[str, dict[str, Any]] = {}
+
+
 def _inspect(path: Path, root: ProjectRoot) -> dict[str, Any]:
     return run_suews_cli("inspect", [str(path)], project_root=root.root)
 
 
 def _sample_config_path() -> Optional[Path]:
     try:
-        import supy
-
-        p = Path(supy.__file__).resolve().parent / "sample_data" / "sample_config.yml"
-        return p if p.exists() else None
+        p = _supy_sample_data_dir() / "sample_config.yml"
     except ModuleNotFoundError:
         return None
+    return p if p.exists() else None
+
+
+def _inspect_sample(sample_path: Path) -> dict[str, Any]:
+    """Inspect the bundled sample, caching the successful envelope per process.
+
+    The sample sits in the supy package, outside the user's project root, so it
+    is inspected under its own directory (the sandbox would otherwise reject it).
+    """
+    key = str(sample_path)
+    cached = _SAMPLE_CACHE.get(key)
+    if cached is not None:
+        return cached
+    env = run_suews_cli(
+        "inspect", [str(sample_path)], project_root=str(sample_path.parent)
+    )
+    if env.get("status") != "error":
+        _SAMPLE_CACHE[key] = env
+    return env
 
 
 def assess_readiness(
@@ -121,24 +138,20 @@ def assess_readiness(
         return env
     user = env.get("data") or {}
 
-    # Inspect the bundled sample so the "assumed" comparison survives sample edits.
+    # Inspect the bundled sample (cached) to compare the user config against it.
     sample_path = _sample_config_path()
     sample: dict[str, Any] = {}
     warnings: list[str] = []
     if sample_path is not None:
         try:
-            # The bundled sample sits in the supy package, outside the user's
-            # project root — inspect it under its own directory so the sandbox
-            # does not reject it.
-            s_env = run_suews_cli(
-                "inspect", [str(sample_path)], project_root=str(sample_path.parent)
-            )
+            s_env = _inspect_sample(sample_path)
             if s_env.get("status") != "error":
                 sample = s_env.get("data") or {}
         except SUEWSMCPError:
             warnings.append("Could not inspect the bundled sample; comparison skipped.")
     else:
         warnings.append("Bundled sample config not found; comparison skipped.")
+    compared = bool(sample)
 
     assumed: list[dict[str, Any]] = []
     customised: list[str] = []
@@ -154,66 +167,81 @@ def assess_readiness(
             "fix": info["fix"],
         })
 
-    u_sites = (user.get("sites") or [{}])
-    s_sites = (sample.get("sites") or [{}])
-    u_site = u_sites[0] if u_sites else {}
-    s_site = s_sites[0] if s_sites else {}
+    # Compare only when the sample inspection succeeded — otherwise "couldn't
+    # compare" must not collapse into "looks customised" (a false all-clear).
+    if compared:
+        u_site = (user.get("sites") or [{}])[0]
+        s_site = (sample.get("sites") or [{}])[0]
 
-    # Location (lat/lng/alt)
-    loc_keys = ("lat", "lng", "alt")
-    if sample and all(u_site.get(k) == s_site.get(k) for k in loc_keys):
-        _record("location", {k: u_site.get(k) for k in loc_keys})
+        # Location (lat/lng/alt). The location group also covers timezone.
+        loc_keys = ("lat", "lng", "alt")
+        if all(u_site.get(k) == s_site.get(k) for k in loc_keys):
+            _record("location", {k: u_site.get(k) for k in loc_keys})
+        else:
+            customised.append("location")
+
+        # Land-cover fractions
+        u_frac = user.get("surface_cover_fraction") or {}
+        s_frac = sample.get("surface_cover_fraction") or {}
+        if u_frac and u_frac == s_frac:
+            _record("land_cover", u_frac)
+        else:
+            customised.append("land_cover")
+
+        # Forcing file
+        u_forc = (user.get("forcing_summary") or {}).get("file")
+        s_forc = (sample.get("forcing_summary") or {}).get("file")
+        if u_forc is not None and u_forc == s_forc:
+            _record("forcing", u_forc)
+        else:
+            customised.append("forcing")
+
+    checklist = [f"{k}: {v['fix']}" for k, v in _RISKS.items()]
+
+    ready: Optional[bool]
+    if not compared:
+        ready = None
+        summary = (
+            "Could not compare against the bundled sample, so which values are "
+            "still sample defaults is unknown — treat every site-defining value "
+            "as unverified until checked."
+        )
+    elif assumed:
+        ready = False
+        summary = (
+            f"{len(assumed)} site-defining value group(s) are still the bundled "
+            "sample's defaults — replace them before trusting results for your site."
+        )
     else:
-        customised.append("location")
+        ready = True
+        summary = "All checked site-defining values look customised for your site."
 
-    # Land cover fractions
-    u_frac = user.get("surface_cover_fraction") or {}
-    s_frac = sample.get("surface_cover_fraction") or {}
-    if sample and u_frac == s_frac and u_frac:
-        _record("land_cover", u_frac)
-    else:
-        customised.append("land_cover")
-
-    # Forcing file
-    u_forc = (user.get("forcing_summary") or {}).get("file")
-    s_forc = (sample.get("forcing_summary") or {}).get("file")
-    if sample and u_forc is not None and u_forc == s_forc:
-        _record("forcing", u_forc)
-    else:
-        customised.append("forcing")
-
-    checklist = [
-        f"{k}: {v['fix']}" for k, v in _RISKS.items()
-    ]
-
-    ready = len(assumed) == 0
-    summary = (
-        "All checked site-defining values look customised for your site."
-        if ready
-        else f"{len(assumed)} site-defining value group(s) are still the bundled sample's "
-        "defaults — replace them before trusting results for your site."
-    )
-
-    return {
-        "status": "success",
-        "data": {
-            "config_path": str(path),
-            "ready": ready,
-            "summary": summary,
-            "assumed_defaults": assumed,
-            "looks_customised": customised,
-            "checklist_for_a_meaningful_run": checklist,
-            "parameter_importance": _IMPORTANCE,
-            "importance_note": (
-                "Parameter importance follows the SUEWS energy balance "
-                "QN + QF = QS + QE + QH (QH is the residual; surface temperature "
-                "is iterated to convergence). Set parameters in that order — "
-                "albedo first; never try to set QH or surface temperature. "
-                "Energy-balance closure is automatic, so it is NOT a validation check."
-            ),
-            "note": "This is a readiness check, not a validity check — run validate_config for structural/physics validity.",
-        },
-        "errors": [],
-        "warnings": warnings,
-        "meta": {"command": f"assess_readiness {path}"},
+    data = {
+        "config_path": str(path),
+        "ready": ready,
+        "summary": summary,
+        "assumed_defaults": assumed,
+        "looks_customised": customised,
+        "checklist_for_a_meaningful_run": checklist,
+        "parameter_importance": _IMPORTANCE,
+        "importance_note": (
+            "Set parameters in the order above (the energy balance "
+            "QN + QF = QS + QE + QH) — albedo first. QH and surface temperature "
+            "are model outputs you never set; closure is automatic and is NOT a "
+            "validation check."
+        ),
+        "note": "This is a readiness check, not a validity check — run validate_config for structural/physics validity.",
     }
+    command = f"assess_readiness {path}"
+    try:
+        from supy.cmd.json_envelope import Envelope
+
+        return Envelope.success(data=data, command=command, warnings=warnings).to_dict()
+    except ImportError:
+        return {
+            "status": "warning" if warnings else "success",
+            "data": data,
+            "errors": [],
+            "warnings": warnings,
+            "meta": {"command": command},
+        }

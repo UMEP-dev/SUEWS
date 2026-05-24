@@ -19,10 +19,19 @@ import pytest
 
 
 @pytest.fixture(autouse=True)
-def _clear_schema_cache():
-    """Reset the per-process schema cache before and after each test."""
-    from suews_mcp.tools import schema_search
+def _clear_mcp_caches():
+    """Reset the per-process MCP caches before and after each test.
+
+    Both ``schema_search._SCHEMA_CACHE`` and ``readiness._SAMPLE_CACHE`` cache
+    *successful* CLI envelopes for the process lifetime (correct in production),
+    so a test that monkeypatches ``run_suews_cli`` with a fake success would
+    poison them for later tests. Clearing around each test guarantees isolation
+    regardless of collection order.
+    """
+    from suews_mcp.tools import readiness, schema_search
 
     schema_search._SCHEMA_CACHE.clear()
+    readiness._SAMPLE_CACHE.clear()
     yield
     schema_search._SCHEMA_CACHE.clear()
+    readiness._SAMPLE_CACHE.clear()

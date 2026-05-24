@@ -298,4 +298,4 @@ format:
 # single source of truth (.claude/skills/). Run after editing a skill; the
 # parity test in test/mcp/test_packaging_manifests.py guards against drift.
 plugin:
-	python3 scripts/build_plugin.py
+	$(PYTHON) scripts/build_plugin.py

@@ -11,6 +11,7 @@ returned highest-score-first.
 
 from __future__ import annotations
 
+import copy
 import re
 from typing import Any
 
@@ -156,9 +157,10 @@ def search_schema(query: str = "", version: str = "current") -> dict[str, Any]:
     raw = envelope.get("data") or {}
 
     if not query:
-        # No filter: return the full (cached) envelope. Copy so a caller
-        # mutating the result cannot corrupt the per-process cache.
-        return dict(envelope)
+        # No filter: return the full (cached) envelope. Deep-copy so a caller
+        # mutating the result (including nested `data`) cannot corrupt the
+        # per-process cache. This is the rare cold/full-dump path.
+        return copy.deepcopy(envelope)
 
     # Build a fresh result envelope; never mutate the cached `envelope`.
     result = dict(envelope)
@@ -176,7 +178,8 @@ def search_schema(query: str = "", version: str = "current") -> dict[str, Any]:
         if score:
             prev = scored.get(path)
             if prev is None or score > prev[0]:
-                scored[path] = (score, _shallow(value))
+                # Store the raw value; `_shallow` runs only on the survivors below.
+                scored[path] = (score, value)
 
     def _walk(node: Any, path: str = "") -> None:
         if isinstance(node, dict):
@@ -200,7 +203,7 @@ def search_schema(query: str = "", version: str = "current") -> dict[str, Any]:
 
     ranked = sorted(scored.items(), key=lambda kv: (-kv[1][0], kv[0]))
     matches = [
-        {"path": path, "score": score, "value": value}
+        {"path": path, "score": score, "value": _shallow(value)}
         for path, (score, value) in ranked[:200]
     ]
 

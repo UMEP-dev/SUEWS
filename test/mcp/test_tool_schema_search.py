@@ -16,7 +16,7 @@ import pytest
 
 pytestmark = pytest.mark.api
 
-pytestmark_skipif = pytest.mark.skipif(
+_requires_suews_cli = pytest.mark.skipif(
     shutil.which("suews") is None,
     reason="`suews` CLI not on PATH; search_schema shells to `suews schema`. Run `make dev`.",
 )
@@ -27,7 +27,7 @@ def _paths(envelope: dict) -> str:
     return "\n".join(str(m.get("path", "")) for m in matches)
 
 
-@pytestmark_skipif
+@_requires_suews_cli
 @pytest.mark.parametrize(
     "query, expected_leaf",
     [
@@ -55,7 +55,7 @@ def test_natural_language_query_surfaces_fields(query: str, expected_leaf: str) 
     )
 
 
-@pytestmark_skipif
+@_requires_suews_cli
 def test_single_token_query_still_works() -> None:
     """A bare token query keeps working (regression guard for the
     literal-substring path that already worked)."""
@@ -66,7 +66,7 @@ def test_single_token_query_still_works() -> None:
     assert (env.get("data") or {}).get("n_matches", 0) > 0
 
 
-@pytestmark_skipif
+@_requires_suews_cli
 def test_empty_query_returns_full_schema_envelope() -> None:
     """An empty query returns the unfiltered schema envelope unchanged."""
     from suews_mcp.tools import search_schema

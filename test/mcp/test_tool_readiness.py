@@ -15,7 +15,7 @@ import yaml
 
 pytestmark = pytest.mark.api
 
-pytestmark_skipif = pytest.mark.skipif(
+_requires_suews_cli = pytest.mark.skipif(
     shutil.which("suews") is None,
     reason="`suews` CLI not on PATH; assess_readiness shells to `suews inspect`. Run `make dev`.",
 )
@@ -27,7 +27,7 @@ def _sample() -> Path:
     return Path(supy.__file__).resolve().parent / "sample_data" / "sample_config.yml"
 
 
-@pytestmark_skipif
+@_requires_suews_cli
 def test_fresh_sample_is_all_assumed() -> None:
     """The bundled sample, unedited, flags location / land_cover / forcing as assumed."""
     from suews_mcp.tools import assess_readiness
@@ -44,7 +44,7 @@ def test_fresh_sample_is_all_assumed() -> None:
         assert a["risk"] and a["fix"]
 
 
-@pytestmark_skipif
+@_requires_suews_cli
 def test_customised_location_leaves_assumed_list(tmp_path: Path) -> None:
     """Changing the location moves it from assumed to looks_customised."""
     from suews_mcp.tools import assess_readiness

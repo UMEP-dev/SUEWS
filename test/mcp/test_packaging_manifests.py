@@ -20,6 +20,7 @@ table, not to plugin-bundled ``.mcp.json``. References:
 
 from __future__ import annotations
 
+import hashlib
 import json
 from pathlib import Path
 
@@ -181,3 +182,37 @@ def test_top_level_and_bundled_plugin_resolve_to_same_command() -> None:
             f"server '{name}': command differs between top-level "
             f"({top_cmd!r}) and bundled ({bundled_cmd!r})."
         )
+
+
+def _skill_manifest(root: Path) -> dict[str, str]:
+    """Map of relative path -> sha256 for every file under a skill dir."""
+    out: dict[str, str] = {}
+    for p in sorted(root.rglob("*")):
+        if p.is_file() and "__pycache__" not in p.parts and p.suffix != ".pyc":
+            out[str(p.relative_to(root))] = hashlib.sha256(p.read_bytes()).hexdigest()
+    return out
+
+
+def test_bundled_skill_matches_source() -> None:
+    """`plugins/suews/skills/suews/` is a BUILD ARTIFACT generated from the
+    single source `.claude/skills/suews/` by `scripts/build_plugin.py`
+    (`make plugin`). It must be byte-identical so the distributable bundle can
+    never silently drift from the source. If this fails, run `make plugin`.
+    """
+    src = _skill_manifest(REPO_ROOT / ".claude" / "skills" / "suews")
+    bundle = _skill_manifest(REPO_ROOT / "plugins" / "suews" / "skills" / "suews")
+    assert src == bundle, (
+        "plugins/suews/skills/suews/ has drifted from .claude/skills/suews/. "
+        "Run `make plugin` (scripts/build_plugin.py) to regenerate the bundle. "
+        f"source-only: {sorted(set(src) - set(bundle))}; "
+        f"bundle-only: {sorted(set(bundle) - set(src))}; "
+        f"differing: {sorted(k for k in src if k in bundle and src[k] != bundle[k])}"
+    )
+
+
+def test_bundle_ships_single_skill() -> None:
+    """The user-facing plugin bundle ships exactly one skill, `suews`
+    (fresh-site setup is a reference inside it, not a separate skill)."""
+    bundle_skills = REPO_ROOT / "plugins" / "suews" / "skills"
+    dirs = sorted(p.name for p in bundle_skills.iterdir() if p.is_dir())
+    assert dirs == ["suews"], f"bundle should ship only 'suews', found: {dirs}"

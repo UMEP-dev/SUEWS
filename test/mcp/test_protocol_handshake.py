@@ -50,6 +50,7 @@ pytestmark_skipif = pytest.mark.skipif(
 EXPECTED_TOOLS = frozenset({
     "validate_config",
     "inspect_config",
+    "assess_readiness",
     "search_schema",
     "list_examples",
     "read_example",
@@ -129,8 +130,8 @@ def test_initialize_advertises_suews_mcp() -> None:
 
 
 @pytestmark_skipif
-def test_tools_list_advertises_all_thirteen() -> None:
-    """All 13 tools registered in `server.py` are advertised through MCP."""
+def test_tools_list_advertises_all_fourteen() -> None:
+    """All 14 tools registered in `server.py` are advertised through MCP."""
     result = asyncio.run(_run_handshake())
     advertised = result["tool_names"]
 

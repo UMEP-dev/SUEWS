@@ -20,7 +20,7 @@ Run through this before submitting a paper that uses SUEWS results.
 
 ## Validation
 
-- `suews validate config.yml --format json` returns `status` of
+- `suews validate --format json config.yml` returns `status` of
   `success` or `warning` (not `error`).
 - All warnings have been read and judged acceptable; reasons are
   documented in the methods or supplement.

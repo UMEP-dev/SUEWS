@@ -1,5 +1,5 @@
 # SUEWS Simplified Makefile - Essential recipes only
-.PHONY: help setup submodules dev docs-setup reinstall test test-smoke test-all audit-deps docs livehtml clean format bridge
+.PHONY: help setup submodules dev docs-setup reinstall test test-smoke test-all audit-deps docs livehtml clean format bridge plugin
 
 # Default Python
 PYTHON := python
@@ -293,3 +293,9 @@ bridge:
 format:
 	ruff format src test
 	fprettify --config .fprettify.rc src/suews/src/*.f95 2>/dev/null || true
+
+# Regenerate the distributable plugin bundle (plugins/suews/skills/) from the
+# single source of truth (.claude/skills/). Run after editing a skill; the
+# parity test in test/mcp/test_packaging_manifests.py guards against drift.
+plugin:
+	python3 scripts/build_plugin.py

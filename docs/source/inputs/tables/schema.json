@@ -185,21 +185,7 @@
     "ArchetypeProperties": {
       "description": "Urban morphology and archetype properties.",
       "properties": {
-        "building_type": {
-          "anyOf": [
-            {
-              "type": "string"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": "SampleType",
-          "description": "Building archetype type [-]",
-          "display_name": "Building Type",
-          "title": "Building Type"
-        },
-        "building_name": {
+        "archetype_name": {
           "anyOf": [
             {
               "type": "string"
@@ -211,9 +197,9 @@
           "default": "SampleBuilding",
           "description": "Building archetype name [-]",
           "display_name": "Building Name",
-          "title": "Building Name"
+          "title": "Archetype Name"
         },
-        "building_count": {
+        "archetype_building_count": {
           "anyOf": [
             {
               "$ref": "#/$defs/RefValue_int_"
@@ -228,7 +214,7 @@
           "default": 1,
           "description": "Number of buildings of this archetype [-]",
           "display_name": "Building Count",
-          "title": "Building Count",
+          "title": "Archetype Building Count",
           "unit": "dimensionless"
         },
         "occupants": {
@@ -254,7 +240,7 @@
           "title": "Occupants",
           "unit": "dimensionless"
         },
-        "building_height": {
+        "archetype_height": {
           "anyOf": [
             {
               "anyOf": [
@@ -274,10 +260,10 @@
           "default": 10.0,
           "description": "Building height. This should be consistent with wall_external_area and footprint_area. [m]",
           "display_name": "Building Height",
-          "title": "Building Height",
+          "title": "Archetype Height",
           "unit": "m"
         },
-        "footprint_area": {
+        "area_footprint": {
           "anyOf": [
             {
               "anyOf": [
@@ -297,10 +283,10 @@
           "default": 64.0,
           "description": "Building footprint area. This should be consistent with building_height and wall_external_area. [m2]",
           "display_name": "Footprint Area",
-          "title": "Footprint Area",
+          "title": "Area Footprint",
           "unit": "m^2"
         },
-        "wall_external_area": {
+        "area_wall_external": {
           "anyOf": [
             {
               "anyOf": [
@@ -320,10 +306,10 @@
           "default": 80.0,
           "description": "External wall area (including window area). This should be consistent with building_height and footprint_area. [m2]",
           "display_name": "Wall External Area",
-          "title": "Wall External Area",
+          "title": "Area Wall External",
           "unit": "m^2"
         },
-        "internal_volume_ratio": {
+        "ratio_internal_mass_volume": {
           "anyOf": [
             {
               "anyOf": [
@@ -344,10 +330,10 @@
           "default": 0.01,
           "description": "Ratio of internal mass volume to total building volume [-]",
           "display_name": "Ratio Internal Volume",
-          "title": "Internal Volume Ratio",
+          "title": "Ratio Internal Mass Volume",
           "unit": "dimensionless"
         },
-        "internal_mass_area": {
+        "area_internal_mass": {
           "anyOf": [
             {
               "anyOf": [
@@ -367,10 +353,10 @@
           "default": 100,
           "description": "Surface area of internal mass used for indoor heat exchange [m2]",
           "display_name": "Internal Mass Area",
-          "title": "Internal Mass Area",
+          "title": "Area Internal Mass",
           "unit": "m^2"
         },
-        "window_to_wall_ratio": {
+        "ratio_window_to_wall": {
           "anyOf": [
             {
               "anyOf": [
@@ -391,7 +377,7 @@
           "default": 0.2,
           "description": "window to wall ratio [-]",
           "display_name": "Window to Wall Ratio",
-          "title": "Window To Wall Ratio",
+          "title": "Ratio Window To Wall",
           "unit": "dimensionless"
         },
         "thickness_wall": {
@@ -576,7 +562,7 @@
           "title": "Specific Heat Capacity Wall Outer",
           "unit": "J kg^-1 K^-1"
         },
-        "fraction_wall_heat_capacity_outer": {
+        "fraction_heat_capacity_wall_external": {
           "anyOf": [
             {
               "anyOf": [
@@ -597,7 +583,7 @@
           "default": 0.5,
           "description": "Weighting factor (0-1) representing the fraction of wall heat capacity assigned to the external node, with the remainder assigned to the internal node [-]",
           "display_name": "Wall Outer Capacity Fraction",
-          "title": "Fraction Wall Heat Capacity Outer",
+          "title": "Fraction Heat Capacity Wall External",
           "unit": "dimensionless"
         },
         "emissivity_wall_external": {
@@ -902,7 +888,7 @@
           "title": "Specific Heat Capacity Roof Outer",
           "unit": "J kg^-1 K^-1"
         },
-        "fraction_roof_heat_capacity_outer": {
+        "fraction_heat_capacity_roof_external": {
           "anyOf": [
             {
               "anyOf": [
@@ -923,7 +909,7 @@
           "default": 0.5,
           "description": "Weighting factor (0-1) representing the fraction of roof heat capacity assigned to the external node, with the remainder assigned to the internal node [-]",
           "display_name": "Roof Outer Capacity Fraction",
-          "title": "Fraction Roof Heat Capacity Outer",
+          "title": "Fraction Heat Capacity Roof External",
           "unit": "dimensionless"
         },
         "emissivity_roof_external": {
@@ -1420,7 +1406,7 @@
           "title": "Emissivity Internal Mass",
           "unit": "dimensionless"
         },
-        "max_heating_power": {
+        "power_air_heating_max": {
           "anyOf": [
             {
               "anyOf": [
@@ -1440,10 +1426,10 @@
           "default": 0.0,
           "description": "Maximum power demand of heating system [W]",
           "display_name": "Maximum Heating Power",
-          "title": "Max Heating Power",
+          "title": "Power Air Heating Max",
           "unit": "W"
         },
-        "hot_water_tank_volume": {
+        "volume_hot_water_tank": {
           "anyOf": [
             {
               "anyOf": [
@@ -1463,10 +1449,10 @@
           "default": 0.15,
           "description": "Volume of water in hot water tank [m3]",
           "display_name": "Water Tank Water Volume",
-          "title": "Hot Water Tank Volume",
+          "title": "Volume Hot Water Tank",
           "unit": "m^3"
         },
-        "maximum_hot_water_heating_power": {
+        "power_water_heating_max": {
           "anyOf": [
             {
               "anyOf": [
@@ -1486,10 +1472,10 @@
           "default": 3000.0,
           "description": "Maximum power demand of water heating system [W]",
           "display_name": "Maximum Hot Water Heating Power",
-          "title": "Maximum Hot Water Heating Power",
+          "title": "Power Water Heating Max",
           "unit": "W"
         },
-        "heating_setpoint_temperature": {
+        "temperature_air_heating_setpoint": {
           "anyOf": [
             {
               "anyOf": [
@@ -1509,10 +1495,10 @@
           "default": 0.0,
           "description": "Heating setpoint temperature [degC]",
           "display_name": "Heating Setpoint Temperature",
-          "title": "Heating Setpoint Temperature",
+          "title": "Temperature Air Heating Setpoint",
           "unit": "degC"
         },
-        "cooling_setpoint_temperature": {
+        "temperature_air_cooling_setpoint": {
           "anyOf": [
             {
               "anyOf": [
@@ -1532,10 +1518,10 @@
           "default": 26.0,
           "description": "Cooling setpoint temperature [degC]",
           "display_name": "Cooling Setpoint Temperature",
-          "title": "Cooling Setpoint Temperature",
+          "title": "Temperature Air Cooling Setpoint",
           "unit": "degC"
         },
-        "heating_setpoint_temperature_profile": {
+        "profile_temperature_air_heating_setpoint": {
           "anyOf": [
             {
               "$ref": "#/$defs/HeatingSetpointProfile"
@@ -1548,7 +1534,7 @@
           "display_name": "Heating setpoint temperature profile",
           "unit": "degC"
         },
-        "cooling_setpoint_temperature_profile": {
+        "profile_temperature_air_cooling_setpoint": {
           "anyOf": [
             {
               "$ref": "#/$defs/CoolingSetpointProfile"
@@ -1561,7 +1547,7 @@
           "display_name": "Cooling setpoint temperature profile",
           "unit": "degC"
         },
-        "metabolism_profile": {
+        "profile_metabolism": {
           "anyOf": [
             {
               "$ref": "#/$defs/TenMinuteProfile"
@@ -10139,7 +10125,7 @@
     "StebbsProperties": {
       "description": "STEBBS (Surface Temperature Energy Balance for Building Surfaces) model parameters.\n\nControls the building energy balance calculations including internal heating/cooling,\nbuilding materials properties, and thermal behaviour.",
       "properties": {
-        "wall_internal_convection_coefficient": {
+        "convection_coefficient_wall_internal": {
           "anyOf": [
             {
               "anyOf": [
@@ -10161,10 +10147,10 @@
           "description": "Internal convection coefficient of walls [W m-2 K-1]",
           "display_name": "Wall Internal Convection Coefficient",
           "range_description": "Value must be greater than zero.",
-          "title": "Wall Internal Convection Coefficient",
+          "title": "Convection Coefficient Wall Internal",
           "unit": "W m^-2 K^-1"
         },
-        "roof_internal_convection_coefficient": {
+        "convection_coefficient_roof_internal": {
           "anyOf": [
             {
               "anyOf": [
@@ -10184,10 +10170,10 @@
           "default": 10.0,
           "description": "Internal convection coefficient of roof [W m-2 K-1]",
           "display_name": "Roof Internal Convection Coefficient",
-          "title": "Roof Internal Convection Coefficient",
+          "title": "Convection Coefficient Roof Internal",
           "unit": "W m^-2 K^-1"
         },
-        "internal_mass_convection_coefficient": {
+        "convection_coefficient_internal_mass": {
           "anyOf": [
             {
               "anyOf": [
@@ -10207,10 +10193,10 @@
           "default": 7.69,
           "description": "Convection coefficient of internal mass [W m-2 K-1]",
           "display_name": "Internal Mass Convection Coefficient",
-          "title": "Internal Mass Convection Coefficient",
+          "title": "Convection Coefficient Internal Mass",
           "unit": "W m^-2 K^-1"
         },
-        "floor_internal_convection_coefficient": {
+        "convection_coefficient_ground_floor_internal": {
           "anyOf": [
             {
               "anyOf": [
@@ -10230,10 +10216,10 @@
           "default": 5.88,
           "description": "Internal convection coefficient of ground floor [W m-2 K-1]",
           "display_name": "Floor Internal Convection Coefficient",
-          "title": "Floor Internal Convection Coefficient",
+          "title": "Convection Coefficient Ground Floor Internal",
           "unit": "W m^-2 K^-1"
         },
-        "window_internal_convection_coefficient": {
+        "convection_coefficient_window_internal": {
           "anyOf": [
             {
               "anyOf": [
@@ -10253,10 +10239,10 @@
           "default": 7.69,
           "description": "Internal convection coefficient of windows [W m-2 K-1]",
           "display_name": "Window Internal Convection Coefficient",
-          "title": "Window Internal Convection Coefficient",
+          "title": "Convection Coefficient Window Internal",
           "unit": "W m^-2 K^-1"
         },
-        "wall_external_convection_coefficient": {
+        "convection_coefficient_wall_external": {
           "anyOf": [
             {
               "anyOf": [
@@ -10276,10 +10262,10 @@
           "default": 25.0,
           "description": "Initial external convection coefficient of walls and roof [W m-2 K-1]",
           "display_name": "Wall External Convection Coefficient",
-          "title": "Wall External Convection Coefficient",
+          "title": "Convection Coefficient Wall External",
           "unit": "W m^-2 K^-1"
         },
-        "roof_external_convection_coefficient": {
+        "convection_coefficient_roof_external": {
           "anyOf": [
             {
               "anyOf": [
@@ -10299,10 +10285,10 @@
           "default": 25.0,
           "description": "Initial external convection coefficient of roof [W m-2 K-1]",
           "display_name": "Roof External Convection Coefficient",
-          "title": "Roof External Convection Coefficient",
+          "title": "Convection Coefficient Roof External",
           "unit": "W m^-2 K^-1"
         },
-        "window_external_convection_coefficient": {
+        "convection_coefficient_window_external": {
           "anyOf": [
             {
               "anyOf": [
@@ -10322,7 +10308,7 @@
           "default": 25.0,
           "description": "Initial external convection coefficient of windows [W m-2 K-1]",
           "display_name": "Window External Convection Coefficient",
-          "title": "Window External Convection Coefficient",
+          "title": "Convection Coefficient Window External",
           "unit": "W m^-2 K^-1"
         },
         "ground_depth": {
@@ -10348,7 +10334,7 @@
           "title": "Ground Depth",
           "unit": "m"
         },
-        "external_ground_conductivity": {
+        "thermal_conductivity_ground": {
           "anyOf": [
             {
               "anyOf": [
@@ -10368,10 +10354,10 @@
           "default": 0.193,
           "description": "External ground thermal conductivity",
           "display_name": "External Ground Conductivity",
-          "title": "External Ground Conductivity",
+          "title": "Thermal Conductivity Ground",
           "unit": "W m^-1 K^-1"
         },
-        "metabolism_threshold": {
+        "threshold_metabolism": {
           "anyOf": [
             {
               "anyOf": [
@@ -10391,10 +10377,10 @@
           "default": 74.3,
           "description": "threshold of metabolic rate to determine occupancy active or inactive [W]",
           "display_name": "Metabolic Rate Threshold",
-          "title": "Metabolism Threshold",
+          "title": "Threshold Metabolism",
           "unit": "W"
         },
-        "latent_sensible_ratio": {
+        "ratio_latent_sensible": {
           "anyOf": [
             {
               "anyOf": [
@@ -10415,10 +10401,10 @@
           "default": 0.0,
           "description": "Latent-to-sensible ratio of metabolic energy release of occupants [-]",
           "display_name": "Latent Sensible Ratio",
-          "title": "Latent Sensible Ratio",
+          "title": "Ratio Latent Sensible",
           "unit": "dimensionless"
         },
-        "daylight_control": {
+        "control_daylight": {
           "anyOf": [
             {
               "$ref": "#/$defs/RefValue_int_"
@@ -10433,10 +10419,10 @@
           "default": 0,
           "description": "Integer flag to enable daylight-based lighting control (0 = off, 1 = on)",
           "display_name": "Daylight Control",
-          "title": "Daylight Control",
+          "title": "Control Daylight",
           "unit": "dimensionless"
         },
-        "lighting_illuminance_threshold": {
+        "threshold_lighting_illuminance": {
           "anyOf": [
             {
               "anyOf": [
@@ -10456,10 +10442,10 @@
           "default": 300.0,
           "description": "Indoor illuminance threshold above which electric lighting is switched off [lx]",
           "display_name": "Lighting Illuminance Threshold",
-          "title": "Lighting Illuminance Threshold",
+          "title": "Threshold Lighting Illuminance",
           "unit": "lx"
         },
-        "heating_system_efficiency": {
+        "efficiency_heating_system_air": {
           "anyOf": [
             {
               "anyOf": [
@@ -10480,10 +10466,10 @@
           "default": 0.9,
           "description": "Efficiency of space heating system [-]",
           "display_name": "Heating System Efficiency",
-          "title": "Heating System Efficiency",
+          "title": "Efficiency Heating System Air",
           "unit": "dimensionless"
         },
-        "max_cooling_power": {
+        "power_air_cooling_max": {
           "anyOf": [
             {
               "anyOf": [
@@ -10503,10 +10489,10 @@
           "default": 0.0,
           "description": "Maximum power demand of cooling system [W]",
           "display_name": "Maximum Cooling Power",
-          "title": "Max Cooling Power",
+          "title": "Power Air Cooling Max",
           "unit": "W"
         },
-        "cooling_system_cop": {
+        "efficiency_cooling_system_air": {
           "anyOf": [
             {
               "anyOf": [
@@ -10526,7 +10512,7 @@
           "default": 3.4,
           "description": "Coefficient of performance of cooling system [-]",
           "display_name": "Cooling System COP",
-          "title": "Cooling System Cop",
+          "title": "Efficiency Cooling System Air",
           "unit": "dimensionless"
         },
         "ventilation_rate": {
@@ -10552,7 +10538,7 @@
           "title": "Ventilation Rate",
           "unit": "h^-1"
         },
-        "initial_outdoor_temperature": {
+        "temperature_air_outdoor_initial": {
           "anyOf": [
             {
               "$ref": "#/$defs/RefValue_float_"
@@ -10567,10 +10553,10 @@
           "default": 0.0,
           "description": "Initial outdoor temperature [degC]",
           "display_name": "Initial Outdoor Temperature",
-          "title": "Initial Outdoor Temperature",
+          "title": "Temperature Air Outdoor Initial",
           "unit": "degC"
         },
-        "initial_indoor_temperature": {
+        "temperature_air_indoor_initial": {
           "anyOf": [
             {
               "$ref": "#/$defs/RefValue_float_"
@@ -10585,10 +10571,10 @@
           "default": 0.0,
           "description": "Initial indoor temperature [degC]",
           "display_name": "Initial Indoor Temperature",
-          "title": "Initial Indoor Temperature",
+          "title": "Temperature Air Indoor Initial",
           "unit": "degC"
         },
-        "annual_mean_air_temperature": {
+        "temperature_air_annual_mean": {
           "anyOf": [
             {
               "$ref": "#/$defs/RefValue_float_"
@@ -10603,7 +10589,7 @@
           "default": 10.0,
           "description": "Annual mean air temperature [degC]",
           "display_name": "Annual Mean Air Temperature",
-          "title": "Annual Mean Air Temperature",
+          "title": "Temperature Air Annual Mean",
           "unit": "degC"
         },
         "month_mean_air_temperature_diffmax": {
@@ -10629,7 +10615,7 @@
           "title": "Month Mean Air Temperature Diffmax",
           "unit": "degC"
         },
-        "hot_water_tank_wall_thickness": {
+        "thickness_hot_water_tank_wall": {
           "anyOf": [
             {
               "anyOf": [
@@ -10649,10 +10635,10 @@
           "default": 0.01,
           "description": "Hot water tank wall thickness [m]",
           "display_name": "Water Tank Wall Thickness",
-          "title": "Hot Water Tank Wall Thickness",
+          "title": "Thickness Hot Water Tank Wall",
           "unit": "m"
         },
-        "mains_water_temperature": {
+        "temperature_water_mains": {
           "anyOf": [
             {
               "$ref": "#/$defs/RefValue_float_"
@@ -10667,10 +10653,10 @@
           "default": 0.0,
           "description": "Temperature of water coming into the water tank [degC]",
           "display_name": "Mains Water Temperature",
-          "title": "Mains Water Temperature",
+          "title": "Temperature Water Mains",
           "unit": "degC"
         },
-        "hot_water_tank_surface_area": {
+        "area_hot_water_tank_surface": {
           "anyOf": [
             {
               "anyOf": [
@@ -10690,10 +10676,10 @@
           "default": 2.0,
           "description": "Surface area of hot water tank cylinder [m2]",
           "display_name": "Water Tank Surface Area",
-          "title": "Hot Water Tank Surface Area",
+          "title": "Area Hot Water Tank Surface",
           "unit": "m^2"
         },
-        "hot_water_heating_setpoint_temperature": {
+        "temperature_water_heating_setpoint": {
           "anyOf": [
             {
               "anyOf": [
@@ -10713,10 +10699,10 @@
           "default": 60.0,
           "description": "Water tank setpoint temperature [degC]",
           "display_name": "Hot Water Heating Setpoint Temperature",
-          "title": "Hot Water Heating Setpoint Temperature",
+          "title": "Temperature Water Heating Setpoint",
           "unit": "degC"
         },
-        "hot_water_tank_wall_emissivity": {
+        "emissivity_hot_water_tank_wall": {
           "anyOf": [
             {
               "anyOf": [
@@ -10737,10 +10723,10 @@
           "default": 0.0,
           "description": "Effective external wall emissivity of the hot water tank [-]",
           "display_name": "Hot Water Tank Wall Emissivity",
-          "title": "Hot Water Tank Wall Emissivity",
+          "title": "Emissivity Hot Water Tank Wall",
           "unit": "dimensionless"
         },
-        "hot_water_vessel_wall_thickness": {
+        "thickness_hot_water_vessel_wall": {
           "anyOf": [
             {
               "anyOf": [
@@ -10760,10 +10746,10 @@
           "default": 0.005,
           "description": "Hot water vessel wall thickness [m]",
           "display_name": "Hot Water Vessel Wall Thickness",
-          "title": "Hot Water Vessel Wall Thickness",
+          "title": "Thickness Hot Water Vessel Wall",
           "unit": "m"
         },
-        "hot_water_volume": {
+        "volume_hot_water": {
           "anyOf": [
             {
               "anyOf": [
@@ -10785,10 +10771,10 @@
           "description": "Volume of water held in use in building [m3]",
           "display_name": "Hot Water Volume",
           "range_description": "Missing range explanation.",
-          "title": "Hot Water Volume",
+          "title": "Volume Hot Water",
           "unit": "m^3"
         },
-        "hot_water_surface_area": {
+        "area_hot_water_surface": {
           "anyOf": [
             {
               "anyOf": [
@@ -10808,10 +10794,10 @@
           "default": 0.5,
           "description": "Surface area of hot water in vessels in building [m2]",
           "display_name": "Hot Water Surface Area",
-          "title": "Hot Water Surface Area",
+          "title": "Area Hot Water Surface",
           "unit": "m^2"
         },
-        "hot_water_flow_rate": {
+        "rate_hot_water_flow": {
           "anyOf": [
             {
               "anyOf": [
@@ -10831,10 +10817,10 @@
           "default": 0.0,
           "description": "Hot water flow rate from tank to vessel [m3 s-1]",
           "display_name": "Hot Water Flow Rate",
-          "title": "Hot Water Flow Rate",
+          "title": "Rate Hot Water Flow",
           "unit": "m^3 s^-1"
         },
-        "hot_water_flow_profile": {
+        "profile_hot_water_flow": {
           "anyOf": [
             {
               "$ref": "#/$defs/TenMinuteProfile"
@@ -10847,7 +10833,7 @@
           "display_name": "Hot Water Flow Profile",
           "unit": "m^3 s^-1"
         },
-        "hot_water_specific_heat_capacity": {
+        "specific_heat_capacity_hot_water": {
           "anyOf": [
             {
               "anyOf": [
@@ -10867,10 +10853,10 @@
           "default": 4186.0,
           "description": "Specific heat capacity of hot water [J kg-1 K-1]",
           "display_name": "Hot Water Specific Heat Capacity",
-          "title": "Hot Water Specific Heat Capacity",
+          "title": "Specific Heat Capacity Hot Water",
           "unit": "J kg^-1 K^-1"
         },
-        "hot_water_tank_specific_heat_capacity": {
+        "specific_heat_capacity_hot_water_tank_wall": {
           "anyOf": [
             {
               "anyOf": [
@@ -10890,10 +10876,10 @@
           "default": 500.0,
           "description": "Specific heat capacity of hot water tank wall [J kg-1 K-1]",
           "display_name": "Hot Water Tank Specific Heat Capacity",
-          "title": "Hot Water Tank Specific Heat Capacity",
+          "title": "Specific Heat Capacity Hot Water Tank Wall",
           "unit": "J kg^-1 K^-1"
         },
-        "hot_water_vessel_specific_heat_capacity": {
+        "specific_heat_capacity_hot_water_vessel_wall": {
           "anyOf": [
             {
               "anyOf": [
@@ -10913,10 +10899,10 @@
           "default": 500.0,
           "description": "Specific heat capacity of vessels containing hot water in use in buildings [J kg-1 K-1]",
           "display_name": "Hot Water Vessel Specific Heat Capacity",
-          "title": "Hot Water Vessel Specific Heat Capacity",
+          "title": "Specific Heat Capacity Hot Water Vessel Wall",
           "unit": "J kg^-1 K^-1"
         },
-        "hot_water_density": {
+        "density_hot_water": {
           "anyOf": [
             {
               "anyOf": [
@@ -10936,10 +10922,10 @@
           "default": 1000.0,
           "description": "Density of hot water in use [kg m-3]",
           "display_name": "Hot Water Density",
-          "title": "Hot Water Density",
+          "title": "Density Hot Water",
           "unit": "kg m^-3"
         },
-        "hot_water_tank_wall_density": {
+        "density_hot_water_tank_wall": {
           "anyOf": [
             {
               "anyOf": [
@@ -10959,10 +10945,10 @@
           "default": 2500.0,
           "description": "Density of hot water tank wall [kg m-3]",
           "display_name": "Hot Water Tank Wall Density",
-          "title": "Hot Water Tank Wall Density",
+          "title": "Density Hot Water Tank Wall",
           "unit": "kg m^-3"
         },
-        "hot_water_vessel_density": {
+        "density_hot_water_vessel_wall": {
           "anyOf": [
             {
               "anyOf": [
@@ -10982,58 +10968,10 @@
           "default": 2500.0,
           "description": "Density of vessels containing hot water in use [kg m-3]",
           "display_name": "Hot Water Vessel Density",
-          "title": "Hot Water Vessel Density",
+          "title": "Density Hot Water Vessel Wall",
           "unit": "kg m^-3"
         },
-        "hot_water_tank_building_wall_view_factor": {
-          "anyOf": [
-            {
-              "anyOf": [
-                {
-                  "$ref": "#/$defs/RefValue_float_"
-                },
-                {
-                  "type": "number"
-                }
-              ],
-              "ge": 0.0,
-              "le": 1.0
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": 0.0,
-          "description": "Water tank/vessel internal building wall/roof view factor [-]",
-          "display_name": "Hot Water Tank Building Wall View Factor",
-          "title": "Hot Water Tank Building Wall View Factor",
-          "unit": "dimensionless"
-        },
-        "hot_water_tank_internal_mass_view_factor": {
-          "anyOf": [
-            {
-              "anyOf": [
-                {
-                  "$ref": "#/$defs/RefValue_float_"
-                },
-                {
-                  "type": "number"
-                }
-              ],
-              "ge": 0.0,
-              "le": 1.0
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": 0.0,
-          "description": "Water tank/vessel building internal mass view factor [-]",
-          "display_name": "Hot Water Tank Internal Mass View Factor",
-          "title": "Hot Water Tank Internal Mass View Factor",
-          "unit": "dimensionless"
-        },
-        "hot_water_tank_wall_conductivity": {
+        "conductivity_hot_water_tank_wall": {
           "anyOf": [
             {
               "anyOf": [
@@ -11053,10 +10991,10 @@
           "default": 0.5,
           "description": "Effective wall conductivity of the hot water tank [W m-1 K-1]",
           "display_name": "Hot Water Tank Wall Conductivity",
-          "title": "Hot Water Tank Wall Conductivity",
+          "title": "Conductivity Hot Water Tank Wall",
           "unit": "W m^-1 K^-1"
         },
-        "hot_water_tank_internal_wall_convection_coefficient": {
+        "convection_coefficient_hot_water_tank_wall_internal": {
           "anyOf": [
             {
               "anyOf": [
@@ -11076,10 +11014,10 @@
           "default": 7.7,
           "description": "Effective internal wall convection coefficient of the hot water tank [W m-2 K-1]",
           "display_name": "Hot Water Tank Internal Wall Convection Coefficient",
-          "title": "Hot Water Tank Internal Wall Convection Coefficient",
+          "title": "Convection Coefficient Hot Water Tank Wall Internal",
           "unit": "W m^-2 K^-1"
         },
-        "hot_water_tank_external_wall_convection_coefficient": {
+        "convection_coefficient_hot_water_tank_wall_external": {
           "anyOf": [
             {
               "anyOf": [
@@ -11099,10 +11037,10 @@
           "default": 7.7,
           "description": "Effective external wall convection coefficient of the hot water tank [W m-2 K-1]",
           "display_name": "Hot Water Tank External Wall Convection Coefficient",
-          "title": "Hot Water Tank External Wall Convection Coefficient",
+          "title": "Convection Coefficient Hot Water Tank Wall External",
           "unit": "W m^-2 K^-1"
         },
-        "hot_water_vessel_wall_conductivity": {
+        "conductivity_hot_water_vessel_wall": {
           "anyOf": [
             {
               "anyOf": [
@@ -11122,10 +11060,10 @@
           "default": 0.5,
           "description": "Effective wall conductivity of the hot water tank [W m-1 K-1]",
           "display_name": "Hot Water Vessel Wall Conductivity",
-          "title": "Hot Water Vessel Wall Conductivity",
+          "title": "Conductivity Hot Water Vessel Wall",
           "unit": "W m^-1 K^-1"
         },
-        "hot_water_vessel_internal_wall_convection_coefficient": {
+        "convection_coefficient_hot_water_vessel_wall_internal": {
           "anyOf": [
             {
               "anyOf": [
@@ -11145,10 +11083,10 @@
           "default": 7.7,
           "description": "Effective internal wall convection coefficient of the vessels holding hot water in use in building [W m-2 K-1]",
           "display_name": "Hot Water Vessel Internal Wall Convection Coefficient",
-          "title": "Hot Water Vessel Internal Wall Convection Coefficient",
+          "title": "Convection Coefficient Hot Water Vessel Wall Internal",
           "unit": "W m^-2 K^-1"
         },
-        "hot_water_vessel_external_wall_convection_coefficient": {
+        "convection_coefficient_hot_water_vessel_wall_external": {
           "anyOf": [
             {
               "anyOf": [
@@ -11168,10 +11106,10 @@
           "default": 7.7,
           "description": "Effective external wall convection coefficient of the vessels holding hot water in use in building [W m-2 K-1]",
           "display_name": "Hot Water Vessel External Wall Convection Coefficient",
-          "title": "Hot Water Vessel External Wall Convection Coefficient",
+          "title": "Convection Coefficient Hot Water Vessel Wall External",
           "unit": "W m^-2 K^-1"
         },
-        "hot_water_vessel_wall_emissivity": {
+        "emissivity_hot_water_vessel_wall": {
           "anyOf": [
             {
               "anyOf": [
@@ -11192,10 +11130,10 @@
           "default": 0.9,
           "description": "Effective external wall emissivity of hot water being used within building [-]",
           "display_name": "Hot Water Vessel Wall Emissivity",
-          "title": "Hot Water Vessel Wall Emissivity",
+          "title": "Emissivity Hot Water Vessel Wall",
           "unit": "dimensionless"
         },
-        "hot_water_heating_efficiency": {
+        "efficiency_heating_system_water": {
           "anyOf": [
             {
               "anyOf": [
@@ -11216,10 +11154,10 @@
           "default": 0.9,
           "description": "Efficiency of hot water system [-]",
           "display_name": "Hot Water Heating Efficiency",
-          "title": "Hot Water Heating Efficiency",
+          "title": "Efficiency Heating System Water",
           "unit": "dimensionless"
         },
-        "appliance_profile": {
+        "profile_appliance": {
           "anyOf": [
             {
               "$ref": "#/$defs/TenMinuteProfile"
@@ -12863,7 +12801,7 @@
     }
   },
   "additionalProperties": true,
-  "description": "JSON Schema for SUEWS YAML configuration files. Schema version 2026.5.dev9. gh#1372: cumulative restructure of the model.control surface, introducing both ForcingControl and OutputControl sub-objects in a single bump per the dev-label convention (`.claude/rules/python/schema-versioning.md`). (a) Forcing restructure: model.control.forcing_file (str | list[str] | RefValue) is moved under model.control.forcing.file via _apply_forcing_subobject_restructure, creating a stable home for future forcing fields (gh#1373 sub-hourly disaggregation; resampling policy). Forcing-file *content* semantics also tighten: header column names are now read (previously discarded) and matched against the canonical forcing column set; baseline-10 columns (iy, id, it, imin, Tair, RH, U, pres, kdown, rain) are required; missing optional canonical columns are filled with -999; whitelisted per-landcover columns are loaded into SUEWSForcing.extras / ForcingData.extras: lai_<surface> for the three vegetated surfaces (evetr, dectr, grass) only, and wuh_<surface> (external water use) for every surface {paved, bldgs, evetr, dectr, grass, bsoil, water}. Each wuh_<surface> value is a depth in mm per forcing time step (same unit as rain) applied to that surface only; xsmd remains a bulk site-level column. (b) Output restructure: model.control.output_file (Union[str, OutputConfig]) is moved under model.control.output via _apply_output_subobject_restructure - mirrors the ForcingControl move so the model.control surface is uniform. The deprecated string form (silently ignored since 2025.10.15) is dropped; the inner `path` field is renamed to `dir` (clarifies it as a directory). For backward compatibility the Pydantic ModelControl class retains a deprecated `output_file` @property alias (with DeprecationWarning, scheduled for removal in 2026.6) so external Python consumers (UMEP postprocessor, etc.) keep working through the migration window. The (2026.5.dev8 -> 2026.5.dev9) migration is registered in src/supy/util/converter/yaml_upgrade.py::_HANDLERS and runs forcing-restructure first, then output-restructure (audit-log order matches the gh#1372 chronology).",
+  "description": "JSON Schema for SUEWS YAML configuration files. Schema version 2026.5.dev11. Naming-convention completion for the STEBBS building model, combining two rename groups in a single bump (gh#1392 + gh#1394). (a) ArchetypeProperties Tier-1 completion (16 renames): archetype_* namespace prefix for whole-archetype fields (building_name -> archetype_name, building_count -> archetype_building_count, building_height -> archetype_height); geometry quantity-first reorder (footprint_area -> area_footprint, wall_external_area -> area_wall_external, internal_mass_area -> area_internal_mass) with the ratio_* category prefix for fraction fields (internal_volume_ratio -> ratio_internal_mass_volume, window_to_wall_ratio -> ratio_window_to_wall); HVAC + setpoint air_/water_ qualifier (max_heating_power -> power_air_heating_max, maximum_hot_water_heating_power -> power_water_heating_max, hot_water_tank_volume -> volume_hot_water_tank, heating_setpoint_temperature -> temperature_air_heating_setpoint, cooling_setpoint_temperature -> temperature_air_cooling_setpoint) with profile_* for the setpoint/metabolism profiles. Rename table ARCHETYPEPROPERTIES_DEV7_RENAMES; the canonical ARCHETYPEPROPERTIES_RENAMES values chain one hop further to these finals so PascalCase YAMLs still resolve in a single pass. (b) StebbsProperties Rule-2 reorder (44 renames): convection coefficients (wall_internal_convection_coefficient -> convection_coefficient_wall_internal etc., plus floor -> ground_floor), ground (external_ground_conductivity -> thermal_conductivity_ground), metabolism/occupant/daylight/lighting controls (non-physical category prefixes: threshold_metabolism, ratio_latent_sensible, control_daylight, threshold_lighting_illuminance), HVAC + setpoint air_/water_ qualifier (max_cooling_power -> power_air_cooling_max, cooling_system_cop -> efficiency_cooling_system_air, hot_water_heating_setpoint_temperature -> temperature_water_heating_setpoint), initial/climatology temperatures, and the full hot-water subsystem; profile_* for profile fields. Rename table STEBBSPROPERTIES_DEV8_RENAMES. Both tables live in src/supy/data_model/core/field_renames.py; the (2026.5.dev10 -> 2026.5.dev11) migration is registered in src/supy/util/converter/yaml_upgrade.py::_HANDLERS. Bridge DataFrame columns keep the fused PascalCase ancestry via ARCHETYPEPROPERTIES_DEV7_TO_PASCAL and the chained STEBBSPROPERTIES_DEV9_TO_PASCAL map. (c) Reconciled against the Reading STEBBS team's review (D. Hertwig, 2026-05): building_type is dropped (unused by the kernel, hardcoded to 'None'; logged migration drop, not silent), and the wall/roof heat-capacity fraction moves from the outer layer to the external node (fraction_wall/roof_heat_capacity_outer -> fraction_heat_capacity_wall/roof_external). Combines the originally-separate #1392 (Tier 1) and #1394 (Tier 2) PRs.",
   "properties": {
     "name": {
       "default": "sample config",
@@ -12909,20 +12847,20 @@
       "type": "array"
     }
   },
-  "title": "SUEWS Configuration Schema v2026.5.dev9",
+  "title": "SUEWS Configuration Schema v2026.5.dev11",
   "type": "object",
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://umep-dev.github.io/SUEWS/schema/suews-config/2026.5.dev9.json",
-  "version": "2026.5.dev9",
+  "$id": "https://umep-dev.github.io/SUEWS/schema/suews-config/2026.5.dev11.json",
+  "version": "2026.5.dev11",
   "$comment": {
     "generator": "supy.util.schema_publisher",
     "suews_version": "unknown",
-    "schema_version": "2026.5.dev9"
+    "schema_version": "2026.5.dev11"
   },
   "examples": [
     {
       "name": "minimal_config",
-      "schema_version": "2026.5.dev9",
+      "schema_version": "2026.5.dev11",
       "description": "Minimal SUEWS configuration example",
       "model": {
         "control": {

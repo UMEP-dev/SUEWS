@@ -29,7 +29,9 @@ from ...data_model.core.field_renames import (
     SNOWPARAMS_INTERMEDIATE_RENAMES,
     ARCHETYPEPROPERTIES_DEV3_RENAMES,
     ARCHETYPEPROPERTIES_DEV6_RENAMES,
+    ARCHETYPEPROPERTIES_DEV7_RENAMES,
     STEBBSPROPERTIES_DEV3_RENAMES,
+    STEBBSPROPERTIES_DEV8_RENAMES,
     STEBBSPROPERTIES_RENAMES,
     SURFACEPROPERTIES_RENAMES,
     VEGETATEDSURFACEPROPERTIES_RENAMES,
@@ -422,6 +424,56 @@ _ARCH_RENAMES_DEV6_TO_DEV7: tuple[tuple[str, str], ...] = tuple(
 )
 
 
+# Schema 2026.5.dev10 -> 2026.5.dev11: naming-convention completion for the
+# STEBBS building model, combining two independent rename groups in a single
+# bump (gh#1392 + gh#1394). ArchetypeProperties Tier-1 completion (16 renames:
+# archetype_* namespace, area_*/ratio_* geometry, power_*/temperature_air_*/
+# volume_hot_water_tank/profile_* HVAC) on the `building_archetype` container, and
+# StebbsProperties Rule-2 reorder (44 renames) on the `stebbs` container. Both
+# are pure key reorders sourced from the canonical dicts in field_renames.py.
+_ARCH_RENAMES_TIER1_TO_DEV11: tuple[tuple[str, str], ...] = tuple(
+    ARCHETYPEPROPERTIES_DEV7_RENAMES.items()
+)
+_STEBBS_RENAMES_RULE2_TO_DEV11: tuple[tuple[str, str], ...] = tuple(
+    STEBBSPROPERTIES_DEV8_RENAMES.items()
+)
+
+# Fields dropped at dev10 -> dev11 (D. Hertwig col D, 2026-05). Each drop carries
+# a reason so the removal is logged rather than swallowed by Pydantic
+# ``extra="ignore"`` (``TestNoSilentFieldDrops`` enforces this).
+_ARCH_DROPS_TO_DEV11: tuple[tuple[str, str], ...] = (
+    (
+        "building_type",
+        "unused by the STEBBS kernel (hardcoded to 'None'); removed per the "
+        "Reading STEBBS team review (gh#1392)",
+    ),
+    (
+        # Pre-gh#1334 PascalCase spelling: older YAMLs reach the dev10 -> dev11
+        # step still carrying `BuildingType` (no longer snaked, since the rename
+        # entry was removed with the field). Drop it under the same reason.
+        "BuildingType",
+        "unused by the STEBBS kernel (hardcoded to 'None'); removed per the "
+        "Reading STEBBS team review (gh#1392)",
+    ),
+)
+
+# StebbsProperties fields dropped at dev10 -> dev11 (D. Hertwig col D, 2026-05).
+# The two hot-water-tank view factors were dead inputs: the STEBBS radiative
+# transfer hardcodes BVF_tank=0.0 / MVF_tank=1.0 and never read them.
+_STEBBS_DROPS_TO_DEV11: tuple[tuple[str, str], ...] = (
+    (
+        "hot_water_tank_building_wall_view_factor",
+        "dead input - STEBBS radiative transfer hardcodes the tank-wall view "
+        "factor (BVF_tank=0.0); never consumed (gh#1392)",
+    ),
+    (
+        "hot_water_tank_internal_mass_view_factor",
+        "dead input - STEBBS radiative transfer hardcodes the tank-internal-mass "
+        "view factor (MVF_tank=1.0); never consumed (gh#1392)",
+    ),
+)
+
+
 # ---------------------------------------------------------------------------
 # Handlers
 # ---------------------------------------------------------------------------
@@ -759,6 +811,59 @@ def _apply_arch_rule2_renames(cfg: dict) -> None:
             _rename_field(arch, old, new)
 
 
+def _apply_naming_completion_renames(cfg: dict) -> None:
+    """Apply the dev10 -> dev11 naming-convention completion.
+
+    Two independent rename groups shipped together (gh#1392 + gh#1394):
+    ArchetypeProperties Tier-1 completion on the ``building_archetype``
+    container (plus the ``building_type`` drop and the wall/roof
+    heat-capacity-fraction outer->external move from the Reading STEBBS
+    team review), and StebbsProperties Rule-2 reorder on the ``stebbs``
+    container. Renames are pure key reorders; ``building_type`` is dropped
+    with a logged reason. Runs after every earlier rename layer so it sees
+    the snake_case names those layers produce.
+
+    Each rename flows through ``_rename_field`` so a per-field log line
+    is emitted (``TestNoSilentFieldDrops`` enforces this).
+    """
+    for arch in _walk_site_container(cfg, "building_archetype"):
+        for old, new in _ARCH_RENAMES_TIER1_TO_DEV11:
+            _rename_field(arch, old, new)
+        for name, reason in _ARCH_DROPS_TO_DEV11:
+            _drop_obsolete_field(arch, name, reason)
+    for stebbs in _walk_site_container(cfg, "stebbs"):
+        for old, new in _STEBBS_RENAMES_RULE2_TO_DEV11:
+            _rename_field(stebbs, old, new)
+        for name, reason in _STEBBS_DROPS_TO_DEV11:
+            _drop_obsolete_field(stebbs, name, reason)
+
+
+def _migrate_2026_5_dev10_to_current(cfg: dict) -> dict:
+    """Upgrade 2026.5.dev10-shaped YAMLs to the current schema.
+
+    dev10 -> dev11 applies the naming-convention completion: the
+    ArchetypeProperties Tier-1 (16) and StebbsProperties Rule-2 (44)
+    renames combined in a single bump (gh#1392 + gh#1394). No earlier
+    delta is outstanding at dev10 (dev9 -> dev10 was the PR#1420 identity
+    stamp), so this is the rename pass alone.
+    """
+    cfg = _strip_internal_only_fields(cfg)
+    _apply_naming_completion_renames(cfg)
+    return cfg
+
+
+def _migrate_2026_5_dev9_to_current(cfg: dict) -> dict:
+    """Upgrade 2026.5.dev9-shaped YAMLs to the current schema.
+
+    dev9 -> dev10 was the PR#1420 identity stamp (no YAML rewrite); the
+    dev10 -> dev11 delta applies the naming-convention completion
+    (ArchetypeProperties Tier-1 + StebbsProperties Rule-2 renames).
+    """
+    cfg = _strip_internal_only_fields(cfg)
+    _apply_naming_completion_renames(cfg)
+    return cfg
+
+
 def _migrate_2026_5_dev8_to_current(cfg: dict) -> dict:
     """Upgrade 2026.5.dev8-shaped YAMLs to the current schema.
 
@@ -771,6 +876,7 @@ def _migrate_2026_5_dev8_to_current(cfg: dict) -> dict:
     cfg = _strip_internal_only_fields(cfg)
     _apply_forcing_subobject_restructure(cfg)
     _apply_output_subobject_restructure(cfg)
+    _apply_naming_completion_renames(cfg)
     return cfg
 
 
@@ -784,6 +890,7 @@ def _migrate_2026_5_dev7_to_current(cfg: dict) -> dict:
     cfg = _strip_internal_only_fields(cfg)
     _apply_forcing_subobject_restructure(cfg)
     _apply_output_subobject_restructure(cfg)
+    _apply_naming_completion_renames(cfg)
     return cfg
 
 
@@ -798,6 +905,7 @@ def _migrate_2026_5_dev6_to_current(cfg: dict) -> dict:
     _apply_arch_rule2_renames(cfg)
     _apply_forcing_subobject_restructure(cfg)
     _apply_output_subobject_restructure(cfg)
+    _apply_naming_completion_renames(cfg)
     return cfg
 
 
@@ -812,6 +920,7 @@ def _migrate_2026_5_dev5_to_current(cfg: dict) -> dict:
     _apply_arch_rule2_renames(cfg)
     _apply_forcing_subobject_restructure(cfg)
     _apply_output_subobject_restructure(cfg)
+    _apply_naming_completion_renames(cfg)
     return cfg
 
 
@@ -826,6 +935,7 @@ def _migrate_2026_5_dev4_to_current(cfg: dict) -> dict:
     _apply_arch_rule2_renames(cfg)
     _apply_forcing_subobject_restructure(cfg)
     _apply_output_subobject_restructure(cfg)
+    _apply_naming_completion_renames(cfg)
     return cfg
 
 
@@ -842,6 +952,7 @@ def _migrate_2026_5_dev3_to_current(cfg: dict) -> dict:
     _apply_arch_rule2_renames(cfg)
     _apply_forcing_subobject_restructure(cfg)
     _apply_output_subobject_restructure(cfg)
+    _apply_naming_completion_renames(cfg)
     return cfg
 
 
@@ -860,6 +971,7 @@ def _migrate_2026_5_dev2_to_current(cfg: dict) -> dict:
     _apply_arch_rule2_renames(cfg)
     _apply_forcing_subobject_restructure(cfg)
     _apply_output_subobject_restructure(cfg)
+    _apply_naming_completion_renames(cfg)
     return cfg
 
 
@@ -909,6 +1021,7 @@ def _migrate_2026_5_to_current(cfg: dict) -> dict:
     _apply_arch_rule2_renames(cfg)
     _apply_forcing_subobject_restructure(cfg)
     _apply_output_subobject_restructure(cfg)
+    _apply_naming_completion_renames(cfg)
     return cfg
 
 
@@ -928,6 +1041,7 @@ def _migrate_2026_5_dev1_to_current(cfg: dict) -> dict:
     _apply_arch_rule2_renames(cfg)
     _apply_forcing_subobject_restructure(cfg)
     _apply_output_subobject_restructure(cfg)
+    _apply_naming_completion_renames(cfg)
     return cfg
 
 
@@ -983,7 +1097,7 @@ _HANDLERS: dict[tuple[str, str], Handler] = {
     ("2025.12", "2026.4"): _migrate_2025_12_to_2026_4,
     # Intermediate stops at 2026.5 (callers pinning Category 1 only).
     ("2026.4", "2026.5"): _migrate_2026_4_to_2026_5,
-    # Chains to the current schema (2026.5.dev10: Cat 1 snake_case sweep
+    # Chains to the current schema (2026.5.dev11: Cat 1 snake_case sweep
     # + Cat 5 STEBBS ext rename + Cat 2+3 ModelPhysics suffix drop
     # + gh#1334 STEBBS/Snow snake_case + gh#1334 follow-through hot-water
     # prefix unification + gh#972 accept-only nested physics sub-options
@@ -995,12 +1109,17 @@ _HANDLERS: dict[tuple[str, str], Handler] = {
     #   string form)
     # + PR#1420 stacked follow-up fixed the extended forcing adapter and
     #   per-vegetation LAI projection without changing the YAML surface.
+    # + naming-convention completion (gh#1392 + gh#1394): ArchetypeProperties
+    #   Tier-1 (16) + StebbsProperties Rule-2 (44) renames.
     # The dev4 -> dev5, dev5 -> dev6, and dev7 -> dev8 deltas are
     # accept-only / contract tightening / identity migrations with no YAML
     # rewrite; the dev6 -> dev7 delta is a pure key rename and the
     # dev8 -> dev9 delta combines the two gh#1372 restructures into a
-    # single bump per the dev-label convention.
-    ("2026.5.dev9", CURRENT_SCHEMA_VERSION): _identity,
+    # single bump per the dev-label convention. The dev9 -> dev10 delta is
+    # the PR#1420 identity stamp; the dev10 -> dev11 delta applies the
+    # naming-convention completion.
+    ("2026.5.dev10", CURRENT_SCHEMA_VERSION): _migrate_2026_5_dev10_to_current,
+    ("2026.5.dev9", CURRENT_SCHEMA_VERSION): _migrate_2026_5_dev9_to_current,
     ("2026.5.dev8", CURRENT_SCHEMA_VERSION): _migrate_2026_5_dev8_to_current,
     ("2026.5.dev7", CURRENT_SCHEMA_VERSION): _migrate_2026_5_dev7_to_current,
     ("2026.5.dev6", CURRENT_SCHEMA_VERSION): _migrate_2026_5_dev6_to_current,

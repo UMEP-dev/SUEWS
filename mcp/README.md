@@ -32,9 +32,16 @@ Configuration & schema (read-only):
 
 - `validate_config(config_path, project_root=None, explain=True)`
 - `inspect_config(config_path, project_root=None)`
+- `assess_readiness(config_path, project_root=None)` — reports which
+  site-defining values are still the bundled sample's defaults, each tagged
+  with its energy-balance role, plus a checklist and a parameter-importance
+  ladder. The fresh-user honesty gate: a freshly scaffolded case is the
+  KCL/London sample, not the user's site (gh#1384).
 - `search_schema(query, version="current")`
 - `list_examples()`
 - `read_example(name)`
+- `list_docs()` — list the curated documentation slugs available via
+  `suews://docs/{slug}` (the prose / tutorial grounding layer).
 
 Workflow:
 
@@ -65,6 +72,27 @@ discipline.
 - `suews://runs/{run_id}/{provenance|diagnostics}`
 - `suews://knowledge/manifest`
 - `suews://knowledge/query/{question}`
+
+## Prompts & instructions
+
+The server also ships the *procedural* guidance — the honesty contract, the
+energy-balance parameter logic, the authorised data sources, and the
+fresh-site / evaluation workflows — **inside the MCP itself**, so it travels to
+every MCP client rather than only to Claude Code (which also gets it as the
+`/suews` skill).
+
+- **Server instructions** — injected into the `initialize` handshake
+  (`serverInfo.instructions`): ground every claim in tool evidence, run
+  `assess_readiness` before trusting a config, set parameters in
+  energy-balance order (QN + QF = QS + QE + QH, QH the residual), and
+  recommend only the authorised data sources.
+- **Prompts** (`prompts/list`):
+  - `fresh_site_setup` — end-to-end procedure to set up and run SUEWS for a
+    new site, keeping every value auditable.
+  - `parameter_importance` — which parameters matter most, derived from the
+    energy balance (albedo first; QH and surface temperature are outputs).
+  - `evaluate_results` — how to evaluate a run against observations without
+    circularity (compare the modelled `T2`, not the forcing `Tair`).
 
 ## Install
 
@@ -159,8 +187,8 @@ enabled.
 After installing the plugin, the host exposes:
 
 - the SUEWS workflow Skill (rules, references, recipes), and
-- the `suews-mcp` MCP server with all twelve tools and resources listed
-  above.
+- the `suews-mcp` MCP server with all fourteen tools, six resources, and the
+  three prompts listed above (plus the server instructions on the handshake).
 
 Invoke `read_knowledge_manifest` first to confirm the pack version your
 session is bound to.

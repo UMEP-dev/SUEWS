@@ -74,6 +74,16 @@ EXAMPLES:
   - The `format` parameter defaulted to `"parquet"`, which always satisfied the `output_format is None` short-circuit in `_save_supy()` and overrode `model.control.output.format` from the run configuration
   - `format` now defaults to `None`, so an unspecified format follows the configured value (falling back to `txt` when no configuration is present); an explicit `format` argument still wins, matching the existing `SUEWSSimulation.save()` behaviour
 
+### 24 May 2026
+
+- [feature][experimental] Ground the SUEWS AI layer (CLI + `/suews` skill + MCP) in the surface energy balance and make it installable as a plugin (#1384)
+  - Added two MCP tools: `assess_readiness` (reports which site-defining values are still the bundled sample's defaults, each tagged with its energy-balance role, plus a parameter-importance ladder) and `list_docs` (discovers the curated `suews://docs/{slug}` documentation slugs)
+  - `search_schema` is now a semantic ranked search, and the `suews://docs/{slug}` resource serves the tutorial sources
+  - The MCP now carries its procedural contract internally — server instructions on the `initialize` handshake plus three prompts (`fresh_site_setup`, `parameter_importance`, `evaluate_results`) — so the honesty and energy-balance guidance reaches every MCP client (Claude Desktop, Codex, Cursor), not only the Claude Code `/suews` skill
+  - Parameter importance is derived from QN + QF = QS + QE + QH: albedo first, with QH and surface temperature treated as model outputs (never set) and energy-balance closure recognised as automatic rather than a validation check
+  - Data-source recommendations are limited to an authorised registry (ERA5 / ERA5-Land, GLAMOUR, ESA WorldCover, GEDI, GHSL / GHS-POP, SUEWS-database)
+  - The Claude Code / Codex plugin bundle is generated from the single source skill via `make plugin` and is no longer committed; a parity test guards the generator
+
 ### 19 May 2026
 
 - [maintenance] Move automation-only repository labels onto the `0-*` special track

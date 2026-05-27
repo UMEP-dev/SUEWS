@@ -47,8 +47,11 @@ def fresh_site_setup() -> str:
 Set up and run SUEWS for a new site, keeping every value auditable.
 
 0. Onboarding — ensure `supy` (CLI) and `suews_mcp` (MCP) are installed; a bare
-   `pip install supy` does NOT include the MCP. (`pip`/`uv install
-   "git+https://github.com/UMEP-dev/SUEWS.git#subdirectory=mcp"` installs both.)
+   `pip install supy` does NOT include the MCP. Smoothest for Claude Code / Codex
+   is the `suews` plugin: its bundled `.mcp.json` spawns the server via `uvx`,
+   self-bootstrapping both (only `uv` is required). Explicit alternative:
+   `pip`/`uv install "git+https://github.com/UMEP-dev/SUEWS.git#subdirectory=mcp"`
+   installs both.
 1. Intake — get the exact site/coordinates, period/timestep, and whether the
    user has local forcing or land-cover data. Clarify urban vs rural (a region
    name is not an urban site there).

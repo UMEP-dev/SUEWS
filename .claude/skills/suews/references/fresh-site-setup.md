@@ -135,17 +135,30 @@ uv pip install "git+https://github.com/UMEP-dev/SUEWS.git#subdirectory=mcp"
 # Once suews-mcp is published:  pip install suews-mcp     (or uv pip install suews-mcp)
 ```
 
-For Claude Code users, the whole AI layer (this skill + the MCP registration +
-commands) can instead be installed as a **Claude Code plugin** (`claude plugin
-install <git-url>`); the plugin still needs the `pip`/`uv` runtime install above
-because it cannot ship the compiled Fortran extension.
+**Smoothest path -- install the plugin (Claude Code / Codex).** The whole AI
+layer (this skill + the MCP registration) ships as a plugin whose bundled
+`.mcp.json` spawns the server through `uvx`, so it **self-bootstraps the Python
+half** -- no separate `pip`/`uv install` is needed, only `uv` on the machine:
 
-**Register the MCP with the chat client**, pointing `--root` at the case
+- Claude Code: `/plugin marketplace add UMEP-dev/SUEWS` then
+  `/plugin install suews@suews`.
+- Codex: install the `suews` plugin from the plugin manager.
+
+On the first SUEWS request, `uvx` fetches `suews-mcp` (and `supy`) into a cached
+environment. If `uv` is absent, install it
+(`curl -LsSf https://astral.sh/uv/install.sh | sh`) or fall back to the explicit
+`pip`/`uv` install above.
+
+**Register the MCP with the chat client** -- only needed when *not* using the
+plugin (Claude Desktop, Cursor, a dev checkout), pointing `--root` at the case
 directory (the sandbox the tools are allowed to touch):
 
-- Claude Code: `claude mcp add suews -- suews-mcp --root <case-dir>`
+- Self-bootstrapping (no pre-install):
+  `claude mcp add suews -- uvx --from git+https://github.com/UMEP-dev/SUEWS.git#subdirectory=mcp suews-mcp --root <case-dir>`
+- Pre-installed package: `claude mcp add suews -- suews-mcp --root <case-dir>`
 - Claude Desktop / Cursor / other: add to the client's MCP config --
-  `{"mcpServers": {"suews": {"command": "suews-mcp", "args": ["--root", "<case-dir>"]}}}`
+  `{"mcpServers": {"suews": {"command": "uvx", "args": ["--from", "git+https://github.com/UMEP-dev/SUEWS.git#subdirectory=mcp", "suews-mcp", "--root", "<case-dir>"]}}}`
+  (or `"command": "suews-mcp"` with `"args": ["--root", "<case-dir>"]` when pre-installed).
 
 **Verify** with one smoke call: `read_knowledge_manifest` should return the
 schema version, suews version, and git commit. If it errors, the MCP is not

@@ -21,11 +21,14 @@ checking, or simulation logic in conversation.
 
 > **Prerequisite -- the CLI and the MCP must be installed.** A bare
 > `pip install supy` gives the `suews` CLI but **not** the MCP (`suews-mcp` is
-> not yet on PyPI). For a fresh user, run the onboarding in the fresh-site setup
-> workflow (`references/fresh-site-setup.md`, Step 0): it installs both -- the
-> simplest is `pip install "git+https://github.com/UMEP-dev/SUEWS.git#subdirectory=mcp"`
-> (or `uv pip install ...`), which pulls `supy` in -- and registers the MCP with
-> the chat client.
+> not yet on PyPI). Smoothest for Claude Code / Codex: install the **`suews`
+> plugin** -- its bundled `.mcp.json` spawns the server via `uvx`, which
+> self-bootstraps `suews-mcp` (and `supy`) on first use, so no separate install
+> is needed (only `uv` on the machine). Otherwise run the onboarding in the
+> fresh-site setup workflow (`references/fresh-site-setup.md`, Step 0), whose
+> explicit path is `pip install "git+https://github.com/UMEP-dev/SUEWS.git#subdirectory=mcp"`
+> (or `uv pip install ...`), pulling `supy` in, then registers the MCP with the
+> chat client.
 
 ## Two tracks: meet the user where they are
 

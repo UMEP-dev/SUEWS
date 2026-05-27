@@ -74,6 +74,13 @@ EXAMPLES:
   - The `format` parameter defaulted to `"parquet"`, which always satisfied the `output_format is None` short-circuit in `_save_supy()` and overrode `model.control.output.format` from the run configuration
   - `format` now defaults to `None`, so an unspecified format follows the configured value (falling back to `txt` when no configuration is present); an explicit `format` argument still wins, matching the existing `SUEWSSimulation.save()` behaviour
 
+### 27 May 2026
+
+- [maintenance] Make the SUEWS plugin's MCP server self-bootstrapping via `uvx`, so installing the plugin is the only onboarding step (#1384)
+  - The bundled `.mcp.json` files now spawn `suews-mcp` through `uvx --from git+...#subdirectory=mcp`, which fetches the MCP server and its `supy` / SUEWS dependency into a cached uv environment on first use — removing the separate `pip install` step and the PATH / venv matching the bare console-script command required
+  - The only prerequisite is `uv` on the machine; once `suews-mcp` is published to PyPI the command collapses to `uvx suews-mcp`
+  - `mcp/README.md`, the `/suews` skill onboarding (`SKILL.md`, `references/fresh-site-setup.md`), and the `fresh_site_setup` MCP prompt now lead with the self-bootstrapping path and keep the explicit `pip` / `uv` install as the dev / offline fallback
+
 ### 24 May 2026
 
 - [feature][experimental] Ground the SUEWS AI layer (CLI + `/suews` skill + MCP) in the surface energy balance and make it installable as a plugin (#1384)

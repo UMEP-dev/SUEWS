@@ -54,6 +54,12 @@ EXAMPLES:
 
 ## 2026
 
+### 28 May 2026
+
+- [bugfix] `SUEWSOutput.save()` no longer forces parquet output regardless of the configured format (#1451)
+  - The `format` parameter defaulted to `"parquet"`, which always satisfied the `output_format is None` short-circuit in `_save_supy()` and overrode `model.control.output.format` from the run configuration
+  - `format` now defaults to `None`, so an unspecified format follows the configured value (falling back to `txt` when no configuration is present); an explicit `format` argument still wins, matching the existing `SUEWSSimulation.save()` behaviour
+
 ### 19 May 2026
 
 - [maintenance] Move automation-only repository labels onto the `0-*` special track

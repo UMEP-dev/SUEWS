@@ -431,7 +431,7 @@ class SUEWSOutput:
     def save(
         self,
         path: Union[str, Path] = ".",
-        format: str = "parquet",
+        format: Optional[str] = None,
         freq_s: Optional[int] = None,
         groups: Optional[List[str]] = None,
     ) -> List[Path]:
@@ -442,8 +442,12 @@ class SUEWSOutput:
         ----------
         path : str or Path
             Output directory
-        format : str
-            'txt' or 'parquet'
+        format : str, optional
+            'txt' or 'parquet'. When ``None`` (the default), the format
+            stored in the run configuration
+            (``model.control.output.format``) is used, falling back to
+            'txt' if no configuration is available. An explicit value
+            always overrides the configuration.
         freq_s : int, optional
             Output frequency in seconds (default: from config or 3600)
         groups : list, optional

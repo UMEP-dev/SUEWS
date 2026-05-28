@@ -501,6 +501,43 @@ class TestRawDictCompatibility:
         assert "wall_thickness" not in archetype
         assert "window_to_wall_ratio" not in archetype
 
+    def test_raw_yaml_stebbs_straggler_renames_reach_current_names(self):
+        """dev11 -> dev12 STEBBS straggler reorder must resolve in the raw-YAML
+        precheck path (Phase A / RENAMED_PARAMS), not only the Pydantic shim.
+
+        Regression for the gap where STEBBSPROPERTIES_DEV12_RENAMES was wired
+        into the model_validator and the migrator but omitted from
+        RAW_YAML_FIELD_RENAMES, so a dev11 YAML using the old keys was
+        mis-reported in validation (old key as unknown extra, new name as
+        missing) instead of being normalised.
+        """
+        payload = {
+            "sites": [
+                {
+                    "properties": {
+                        "stebbs": {
+                            "ground_depth": {"value": 2.0},
+                            "ventilation_rate": {"value": 0.6},
+                            "lighting_power_density": {"value": 2.0},
+                            "month_mean_air_temperature_diffmax": {"value": 10.0},
+                        }
+                    }
+                }
+            ]
+        }
+
+        normalised = rename_keys_recursive(payload, RAW_YAML_FIELD_RENAMES)
+        stebbs = normalised["sites"][0]["properties"]["stebbs"]
+
+        assert stebbs["depth_ground"]["value"] == 2.0
+        assert stebbs["rate_ventilation"]["value"] == 0.6
+        assert stebbs["power_density_lighting"]["value"] == 2.0
+        assert stebbs["temperature_air_month_mean_diffmax"]["value"] == 10.0
+        assert "ground_depth" not in stebbs
+        assert "ventilation_rate" not in stebbs
+        assert "lighting_power_density" not in stebbs
+        assert "month_mean_air_temperature_diffmax" not in stebbs
+
     def test_raw_value_reader_accepts_archetype_pre_current_names(self):
         from supy.data_model.validation.core.yaml_helpers import get_value_safe
 

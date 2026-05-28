@@ -33,6 +33,7 @@ from .field_renames import (
     ARCHETYPEPROPERTIES_DEV3_RENAMES,
     ARCHETYPEPROPERTIES_DEV6_RENAMES,
     ARCHETYPEPROPERTIES_DEV7_RENAMES,
+    ARCHETYPEPROPERTIES_DEV12_RENAMES,
     ARCHETYPEPROPERTIES_DEV7_TO_PASCAL,
     ARCHETYPEPROPERTIES_RENAMES,
     ARCHETYPEPROPERTIES_PASCAL_RENAMES,
@@ -1339,6 +1340,9 @@ class ArchetypeProperties(BaseModel):
             values = apply_field_renames(
                 values, ARCHETYPEPROPERTIES_DEV7_RENAMES, cls.__name__
             )
+            values = apply_field_renames(
+                values, ARCHETYPEPROPERTIES_DEV12_RENAMES, cls.__name__
+            )
         return values
 
     # Not used in STEBBS - DAVE only
@@ -1792,7 +1796,7 @@ class ArchetypeProperties(BaseModel):
             "display_name": "Internal Mass Emissivity",
         },
     )
-    power_air_heating_max: Optional[FlexibleRefValue(float)] = Field(
+    max_power_heating_system_air: Optional[FlexibleRefValue(float)] = Field(
         default=0.0,
         description="Maximum power demand of heating system [W]",
         json_schema_extra={"unit": "W", "display_name": "Maximum Heating Power"},
@@ -1804,7 +1808,7 @@ class ArchetypeProperties(BaseModel):
         json_schema_extra={"unit": "m^3", "display_name": "Water Tank Water Volume"},
         gt=0.0,
     )
-    power_water_heating_max: Optional[FlexibleRefValue(float)] = Field(
+    max_power_heating_system_water: Optional[FlexibleRefValue(float)] = Field(
         default=3000.0,
         description="Maximum power demand of water heating system [W]",
         json_schema_extra={
@@ -1813,7 +1817,7 @@ class ArchetypeProperties(BaseModel):
         },
         ge=0.0,
     )
-    temperature_air_heating_setpoint: Optional[FlexibleRefValue(float)] = Field(
+    setpoint_temperature_heating_air: Optional[FlexibleRefValue(float)] = Field(
         default=0.0,
         description="Heating setpoint temperature [degC]",
         json_schema_extra={
@@ -1822,7 +1826,7 @@ class ArchetypeProperties(BaseModel):
         },
         lt=30.0,
     )
-    temperature_air_cooling_setpoint: Optional[FlexibleRefValue(float)] = Field(
+    setpoint_temperature_cooling_air: Optional[FlexibleRefValue(float)] = Field(
         default=26.0,
         description="Cooling setpoint temperature [degC]",
         json_schema_extra={
@@ -1831,7 +1835,7 @@ class ArchetypeProperties(BaseModel):
         },
         gt=15.0
     )
-    profile_temperature_air_heating_setpoint: Optional[HeatingSetpointProfile] = Field(
+    profile_setpoint_temperature_heating_air: Optional[HeatingSetpointProfile] = Field(
         default_factory=HeatingSetpointProfile,
         description="10-minute profile of heating setpoints temperature when Setpointmethod equals to 2 [degC]",
         json_schema_extra={
@@ -1839,7 +1843,7 @@ class ArchetypeProperties(BaseModel):
             "display_name": "Heating setpoint temperature profile",
         },
     )
-    profile_temperature_air_cooling_setpoint: Optional[CoolingSetpointProfile] = Field(
+    profile_setpoint_temperature_cooling_air: Optional[CoolingSetpointProfile] = Field(
         default_factory=CoolingSetpointProfile,
         description="10-minute profile of cooling setpoints temperature when Setpointmethod equals to 2 [degC]",
         json_schema_extra={
@@ -1873,8 +1877,8 @@ class ArchetypeProperties(BaseModel):
     def to_df_state(self, grid_id: int) -> pd.DataFrame:
         string_fields = {"archetype_name"}
         ten_minute_profile_fields = {
-            "profile_metabolism", "profile_temperature_air_heating_setpoint",
-            "profile_temperature_air_cooling_setpoint",
+            "profile_metabolism", "profile_setpoint_temperature_heating_air",
+            "profile_setpoint_temperature_cooling_air",
         }
         excluded_fields = string_fields | ten_minute_profile_fields | {"ref"}
 
@@ -1907,11 +1911,11 @@ class ArchetypeProperties(BaseModel):
     @classmethod
     def from_df_state(cls, df: pd.DataFrame, grid_id: int) -> "ArchetypeProperties":
         string_fields = {"archetype_name"}
-        ten_minute_profile_fields = {"profile_metabolism", "profile_temperature_air_heating_setpoint", "profile_temperature_air_cooling_setpoint",}
+        ten_minute_profile_fields = {"profile_metabolism", "profile_setpoint_temperature_heating_air", "profile_setpoint_temperature_cooling_air",}
         ten_minute_profile_classes = {
             "profile_metabolism": TenMinuteProfile,
-            "profile_temperature_air_heating_setpoint": HeatingSetpointProfile,
-            "profile_temperature_air_cooling_setpoint": CoolingSetpointProfile,
+            "profile_setpoint_temperature_heating_air": HeatingSetpointProfile,
+            "profile_setpoint_temperature_cooling_air": CoolingSetpointProfile,
         }
 
         default_instance = cls()
@@ -2112,7 +2116,7 @@ class StebbsProperties(BaseModel):
         ge=0.0,
         lt=1.0,
     )
-    control_daylight: Optional[FlexibleRefValue(int)] = Field(
+    daylight_control: Optional[FlexibleRefValue(int)] = Field(
         default=0,
         description="Integer flag to enable daylight-based lighting control (0 = off, 1 = on)",
         json_schema_extra={
@@ -2139,7 +2143,7 @@ class StebbsProperties(BaseModel):
         gt=0.0,
         lt=1.0,
     )
-    power_air_cooling_max: Optional[FlexibleRefValue(float)] = Field(
+    max_power_cooling_system_air: Optional[FlexibleRefValue(float)] = Field(
         default=0.0,
         description="Maximum power demand of cooling system [W]",
         json_schema_extra={"unit": "W", "display_name": "Maximum Cooling Power"},
@@ -2199,18 +2203,18 @@ class StebbsProperties(BaseModel):
         json_schema_extra={"unit": "m", "display_name": "Water Tank Wall Thickness"},
         gt=0.0,
     )
-    temperature_water_mains: Optional[FlexibleRefValue(float)] = Field(
+    temperature_mains_water: Optional[FlexibleRefValue(float)] = Field(
         default=0.0,
         description="Temperature of water coming into the water tank [degC]",
         json_schema_extra={"unit": "degC", "display_name": "Mains Water Temperature"},
     )
-    area_hot_water_tank_surface: Optional[FlexibleRefValue(float)] = Field(
+    surface_area_hot_water_tank: Optional[FlexibleRefValue(float)] = Field(
         default=2.0,
         description="Surface area of hot water tank cylinder [m2]",
         json_schema_extra={"unit": "m^2", "display_name": "Water Tank Surface Area"},
         gt=0.0,
     )
-    temperature_water_heating_setpoint: Optional[FlexibleRefValue(float)] = Field(
+    setpoint_temperature_heating_water: Optional[FlexibleRefValue(float)] = Field(
         default=60.0,
         description="Water tank setpoint temperature [degC]",
         json_schema_extra={
@@ -2246,20 +2250,20 @@ class StebbsProperties(BaseModel):
         },
         gt=0.0,
     )
-    area_hot_water_surface: Optional[FlexibleRefValue(float)] = Field(
+    surface_area_hot_water: Optional[FlexibleRefValue(float)] = Field(
         default=0.5,
         description="Surface area of hot water in vessels in building [m2]",
         json_schema_extra={"unit": "m^2", "display_name": "Hot Water Surface Area"},
         gt=0.0,
     )
-    rate_hot_water_flow: Optional[FlexibleRefValue(float)] = Field(
+    rate_flow_hot_water: Optional[FlexibleRefValue(float)] = Field(
         default=0.0,
         description="Hot water flow rate from tank to vessel [m3 s-1]",
         json_schema_extra={"unit": "m^3 s^-1", "display_name": "Hot Water Flow Rate"},
         ge=0.0,
     )
 
-    profile_hot_water_flow: Optional[TenMinuteProfile] = Field(
+    profile_flow_hot_water: Optional[TenMinuteProfile] = Field(
         default_factory=TenMinuteProfile,
         description="Profile of hot water flow rate from tank to vessel [m3 s-1]",
         json_schema_extra={
@@ -2360,7 +2364,7 @@ class StebbsProperties(BaseModel):
         },
         gt=0.0,
     )
-    convection_coefficient_hot_water_vessel_wall_internal: Optional[FlexibleRefValue(float)] = (
+    convection_coefficient_hot_water_tank_vessel_internal: Optional[FlexibleRefValue(float)] = (
         Field(
             default=7.7,
             description="Effective internal wall convection coefficient of the vessels holding hot water in use in building [W m-2 K-1]",
@@ -2371,7 +2375,7 @@ class StebbsProperties(BaseModel):
         gt=0.0,
         )
     )
-    convection_coefficient_hot_water_vessel_wall_external: Optional[FlexibleRefValue(float)] = (
+    convection_coefficient_hot_water_tank_vessel_external: Optional[FlexibleRefValue(float)] = (
         Field(
             default=7.7,
             description="Effective external wall convection coefficient of the vessels holding hot water in use in building [W m-2 K-1]",
@@ -2425,7 +2429,7 @@ class StebbsProperties(BaseModel):
 
     def to_df_state(self, grid_id: int) -> pd.DataFrame:
         """Convert StebbsProperties to DataFrame state format."""
-        tenmin_profile_fields = {"profile_appliance", "profile_hot_water_flow"}
+        tenmin_profile_fields = {"profile_appliance", "profile_flow_hot_water"}
         excluded_fields = tenmin_profile_fields | {"ref"}
 
         # scalar fields -- legacy DF column is the lowercased PascalCase form
@@ -2457,7 +2461,7 @@ class StebbsProperties(BaseModel):
     @classmethod
     def from_df_state(cls, df: pd.DataFrame, grid_id: int) -> "StebbsProperties":
         """Reconstruct StebbsProperties from DataFrame state format."""
-        tenmin_profile_fields = {"profile_appliance", "profile_hot_water_flow"}
+        tenmin_profile_fields = {"profile_appliance", "profile_flow_hot_water"}
         default_instance = cls()
         params: Dict[str, object] = {}
 

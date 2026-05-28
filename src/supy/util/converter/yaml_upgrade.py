@@ -30,6 +30,7 @@ from ...data_model.core.field_renames import (
     ARCHETYPEPROPERTIES_DEV3_RENAMES,
     ARCHETYPEPROPERTIES_DEV6_RENAMES,
     ARCHETYPEPROPERTIES_DEV7_RENAMES,
+    ARCHETYPEPROPERTIES_DEV12_RENAMES,
     STEBBSPROPERTIES_DEV3_RENAMES,
     STEBBSPROPERTIES_DEV8_RENAMES,
     STEBBSPROPERTIES_DEV12_RENAMES,
@@ -474,13 +475,19 @@ _STEBBS_DROPS_TO_DEV11: tuple[tuple[str, str], ...] = (
     ),
 )
 
-# Schema 2026.5.dev11 -> 2026.5.dev12: reorder the four STEBBS straggler fields
-# that dev9 deliberately kept as compound nouns (gh#1392 follow-up). The Reading
-# STEBBS team review ("Column D", D. Hertwig / S. Rognone, 2026-05) confirmed the
-# quantity-first targets, completing the Column D reorder. Pure snake->snake key
-# reorders on the `stebbs` container, sourced from STEBBSPROPERTIES_DEV12_RENAMES.
+# Schema 2026.5.dev11 -> 2026.5.dev12: align STEBBS and Archetype field names
+# with the Reading STEBBS team's "Column D" naming (gh#1392 follow-up;
+# D. Hertwig / S. Rognone, 2026-05). Pure snake->snake key reorders. The ten
+# StebbsProperties renames apply to the `stebbs` container; the six
+# ArchetypeProperties renames (qualifier-first powers + setpoints/profiles)
+# apply to the `building_archetype` container. Sourced directly from the two
+# DEV12 rename dicts so the migrator, the Pydantic shim, and the raw-YAML
+# precheck path all draw from a single source of truth.
 _STEBBS_RENAMES_STRAGGLERS_TO_DEV12: tuple[tuple[str, str], ...] = tuple(
     STEBBSPROPERTIES_DEV12_RENAMES.items()
+)
+_ARCH_RENAMES_COLUMN_D_TO_DEV12: tuple[tuple[str, str], ...] = tuple(
+    ARCHETYPEPROPERTIES_DEV12_RENAMES.items()
 )
 
 
@@ -849,12 +856,15 @@ def _apply_naming_completion_renames(cfg: dict) -> None:
 
 
 def _apply_stebbs_straggler_renames(cfg: dict) -> None:
-    """Apply the dev11 -> dev12 STEBBS straggler reorder.
+    """Apply the dev11 -> dev12 STEBBS / Archetype Column D alignment.
 
-    Reorders the four compound-noun fields kept at dev9 to their
-    quantity-first finals (gh#1392 follow-up, Reading STEBBS team review).
-    Pure key reorders on the ``stebbs`` container. Runs after every earlier
-    rename layer so it sees the snake_case names those layers produce.
+    The original four compound-noun stragglers kept at dev9 (gh#1392) plus the
+    sixteen-field Column D alignment confirmed by the Reading STEBBS team review
+    (D. Hertwig / S. Rognone, 2026-05). The ten StebbsProperties renames apply
+    to the ``stebbs`` container; the six ArchetypeProperties renames
+    (qualifier-first powers + setpoints/profiles) apply to the
+    ``building_archetype`` container. Pure key reorders. Runs after every
+    earlier rename layer so it sees the snake_case names those layers produce.
 
     Each rename flows through ``_rename_field`` so a per-field log line is
     emitted (``TestNoSilentFieldDrops`` enforces this).
@@ -862,6 +872,9 @@ def _apply_stebbs_straggler_renames(cfg: dict) -> None:
     for stebbs in _walk_site_container(cfg, "stebbs"):
         for old, new in _STEBBS_RENAMES_STRAGGLERS_TO_DEV12:
             _rename_field(stebbs, old, new)
+    for arch in _walk_site_container(cfg, "building_archetype"):
+        for old, new in _ARCH_RENAMES_COLUMN_D_TO_DEV12:
+            _rename_field(arch, old, new)
 
 
 def _migrate_2026_5_dev11_to_current(cfg: dict) -> dict:

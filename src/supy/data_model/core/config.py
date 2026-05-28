@@ -213,12 +213,12 @@ class SUEWSConfig(BaseModel):
         "thermal_conductivity_ground",
         "threshold_metabolism",
         "ratio_latent_sensible",
-        "control_daylight",
+        "daylight_control",
         "threshold_lighting_illuminance",
         "profile_appliance",
         "power_density_lighting",
         "efficiency_heating_system_air",
-        "power_air_cooling_max",
+        "max_power_cooling_system_air",
         "efficiency_cooling_system_air",
         "rate_ventilation",
         "temperature_air_outdoor_initial",
@@ -226,15 +226,15 @@ class SUEWSConfig(BaseModel):
         "temperature_air_annual_mean",
         "temperature_air_month_mean_diffmax",
         "thickness_hot_water_tank_wall",
-        "temperature_water_mains",
-        "area_hot_water_tank_surface",
-        "temperature_water_heating_setpoint",
+        "temperature_mains_water",
+        "surface_area_hot_water_tank",
+        "setpoint_temperature_heating_water",
         "emissivity_hot_water_tank_wall",
         "thickness_hot_water_vessel_wall",
         "volume_hot_water",
-        "area_hot_water_surface",
-        "rate_hot_water_flow",
-        "profile_hot_water_flow",
+        "surface_area_hot_water",
+        "rate_flow_hot_water",
+        "profile_flow_hot_water",
         "specific_heat_capacity_hot_water",
         "specific_heat_capacity_hot_water_tank_wall",
         "specific_heat_capacity_hot_water_vessel_wall",
@@ -245,8 +245,8 @@ class SUEWSConfig(BaseModel):
         "convection_coefficient_hot_water_tank_wall_internal",
         "convection_coefficient_hot_water_tank_wall_external",
         "conductivity_hot_water_vessel_wall",
-        "convection_coefficient_hot_water_vessel_wall_internal",
-        "convection_coefficient_hot_water_vessel_wall_external",
+        "convection_coefficient_hot_water_tank_vessel_internal",
+        "convection_coefficient_hot_water_tank_vessel_external",
         "emissivity_hot_water_vessel_wall",
         "efficiency_heating_system_water",
     ]
@@ -288,13 +288,13 @@ class SUEWSConfig(BaseModel):
         "density_internal_mass",
         "specific_heat_capacity_internal_mass",
         "emissivity_internal_mass",
-        "power_air_heating_max",
+        "max_power_heating_system_air",
         "volume_hot_water_tank",
-        "power_water_heating_max",
-        "temperature_air_heating_setpoint",
-        "temperature_air_cooling_setpoint",
-        "profile_temperature_air_heating_setpoint",
-        "profile_temperature_air_cooling_setpoint",
+        "max_power_heating_system_water",
+        "setpoint_temperature_heating_air",
+        "setpoint_temperature_cooling_air",
+        "profile_setpoint_temperature_heating_air",
+        "profile_setpoint_temperature_cooling_air",
     ]
 
     # Sort the filtered columns numerically
@@ -1672,16 +1672,16 @@ class SUEWSConfig(BaseModel):
 
         # Setpoint parameter groups
         setpoint_params_bldgarc = [
-            "temperature_air_heating_setpoint",
-            "temperature_air_cooling_setpoint",
+            "setpoint_temperature_heating_air",
+            "setpoint_temperature_cooling_air",
         ]
         setpoint_profile_params_bldgarc = [
-            "profile_temperature_air_heating_setpoint",
-            "profile_temperature_air_cooling_setpoint",
+            "profile_setpoint_temperature_heating_air",
+            "profile_setpoint_temperature_cooling_air",
         ]
 
         # Daylight control parameter groups
-        daylightcontrol = getattr(stebbs, "control_daylight", None)
+        daylightcontrol = getattr(stebbs, "daylight_control", None)
         daylightcontrol_val = _unwrap_value(daylightcontrol) if daylightcontrol is not None else None
         try:
             daylightcontrol_val = int(daylightcontrol_val)

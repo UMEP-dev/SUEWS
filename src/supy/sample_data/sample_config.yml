@@ -162,7 +162,7 @@ sites:
         value: 74.3
       ratio_latent_sensible:
         value: 0
-      control_daylight:
+      daylight_control:
         value: 1
       threshold_lighting_illuminance:
         value: 300.0
@@ -461,7 +461,7 @@ sites:
         value: 2.0
       efficiency_heating_system_air:
         value: 0.8
-      power_air_cooling_max:
+      max_power_cooling_system_air:
         value: 14595
       efficiency_cooling_system_air:
         value: 3.4
@@ -477,11 +477,11 @@ sites:
         value: 10.0        
       thickness_hot_water_tank_wall:
         value: 0.055
-      temperature_water_mains:
+      temperature_mains_water:
         value: 10.0
-      area_hot_water_tank_surface:
+      surface_area_hot_water_tank:
         value: 20.0
-      temperature_water_heating_setpoint:
+      setpoint_temperature_heating_water:
         value: 20.0
       emissivity_hot_water_tank_wall:
         value: 0.9
@@ -489,11 +489,11 @@ sites:
         value: 0.01
       volume_hot_water:
         value: 15.0
-      area_hot_water_surface:
+      surface_area_hot_water:
         value: 1.5
-      rate_hot_water_flow:
+      rate_flow_hot_water:
         value: 0.0
-      profile_hot_water_flow:
+      profile_flow_hot_water:
         working_day:
           '1': 1.0
           '2': 1.0
@@ -804,9 +804,9 @@ sites:
         value: 0.1
       conductivity_hot_water_vessel_wall:
         value: 0.5
-      convection_coefficient_hot_water_vessel_wall_internal:
+      convection_coefficient_hot_water_tank_vessel_internal:
         value: 300.0
-      convection_coefficient_hot_water_vessel_wall_external:
+      convection_coefficient_hot_water_tank_vessel_external:
         value: 1.0
       emissivity_hot_water_vessel_wall:
         value: 0.8
@@ -1209,17 +1209,17 @@ sites:
         value: 1286.1
       emissivity_internal_mass:
         value: 0.91
-      power_air_heating_max:
+      max_power_heating_system_air:
         value: 12510
       volume_hot_water_tank:
         value: 0.3
-      power_water_heating_max:
+      max_power_heating_system_water:
         value: 50000.0
-      temperature_air_heating_setpoint:
+      setpoint_temperature_heating_air:
         value: 18.0
-      temperature_air_cooling_setpoint:
+      setpoint_temperature_cooling_air:
         value: 27.0
-      profile_temperature_air_heating_setpoint:
+      profile_setpoint_temperature_heating_air:
         working_day:
           '1': 18.0
           '2': 18.0
@@ -1510,7 +1510,7 @@ sites:
           '142': 18.0
           '143': 18.0
           '144': 18.0
-      profile_temperature_air_cooling_setpoint:
+      profile_setpoint_temperature_cooling_air:
         working_day:
           '1': 27.0
           '2': 27.0

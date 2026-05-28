@@ -416,15 +416,47 @@ ARCHETYPEPROPERTIES_DEV7_RENAMES: Dict[str, str] = {
 }
 
 
+# Schema 2026.5.dev11 -> 2026.5.dev12: align six ArchetypeProperties HVAC
+# power / setpoint fields with the Reading STEBBS team's "Column D" naming
+# (D. Hertwig / S. Rognone, 2026-05). The powers take the qualifier-first
+# `max_power_heating_system_<air|water>` shape and the setpoints (and their
+# profiles) take `setpoint_temperature_<heating|cooling>_air`. The pre-dev12
+# names are dev7-level values of ARCHETYPEPROPERTIES_RENAMES, so the
+# dev12->ancestry chain resolves through that map (see
+# ARCHETYPEPROPERTIES_DEV7_TO_PASCAL below). Pure snake->snake reorders applied
+# AFTER ARCHETYPEPROPERTIES_DEV7_RENAMES so users on the dev7 spelling still
+# load with a DeprecationWarning.
+ARCHETYPEPROPERTIES_DEV12_RENAMES: Dict[str, str] = {
+    "power_air_heating_max": "max_power_heating_system_air",
+    "power_water_heating_max": "max_power_heating_system_water",
+    "temperature_air_heating_setpoint": "setpoint_temperature_heating_air",
+    "temperature_air_cooling_setpoint": "setpoint_temperature_cooling_air",
+    "profile_temperature_air_heating_setpoint": "profile_setpoint_temperature_heating_air",
+    "profile_temperature_air_cooling_setpoint": "profile_setpoint_temperature_cooling_air",
+}
+
+
 # Reverse map: final name -> PascalCase legacy column name. Used by
 # ArchetypeProperties._ARCHETYPE_LEGACY_COL_NAMES so the Fortran/Rust bridge
 # (keyed on the fused lowercased PascalCase, e.g. `wallextthickness`) still
 # resolves from the current Pydantic field name. The canonical
-# ARCHETYPEPROPERTIES_RENAMES values are the final names (Rule-2 reorder from
-# PR#1395 plus the Tier-1 completion in gh#1392), so this is just its inverse.
-ARCHETYPEPROPERTIES_DEV7_TO_PASCAL: Dict[str, str] = {
-    new: old for old, new in ARCHETYPEPROPERTIES_RENAMES.items()
-}
+# ARCHETYPEPROPERTIES_RENAMES values are the dev7 final names (Rule-2 reorder
+# from PR#1395 plus the Tier-1 completion in gh#1392), so the base layer is
+# just its inverse. The dev12 Column D alignment then chains each new name back
+# to the same PascalCase ancestry its pre-dev12 name resolves to (e.g.
+# `max_power_heating_system_air` -> `MaxHeatingPower`), so the bridge column key
+# is unchanged after the rename.
+def _build_archetype_dev_to_pascal() -> Dict[str, str]:
+    base_reverse: Dict[str, str] = {
+        new: old for old, new in ARCHETYPEPROPERTIES_RENAMES.items()
+    }
+    chain: Dict[str, str] = dict(base_reverse)
+    for old_dev11, new_dev12 in ARCHETYPEPROPERTIES_DEV12_RENAMES.items():
+        chain[new_dev12] = base_reverse.get(old_dev11, old_dev11)
+    return chain
+
+
+ARCHETYPEPROPERTIES_DEV7_TO_PASCAL: Dict[str, str] = _build_archetype_dev_to_pascal()
 
 # -- StebbsProperties (site.py) ----------------------------------------------
 #
@@ -682,17 +714,49 @@ STEBBSPROPERTIES_DEV8_RENAMES: Dict[str, str] = {
 }
 
 
-# Schema 2026.5.dev11 -> 2026.5.dev12: reorder the four STEBBS straggler
-# fields that dev9 deliberately kept as compound nouns. The Reading STEBBS
-# team review ("Column D", D. Hertwig / S. Rognone, 2026-05) confirmed the
-# quantity-first targets, completing the Column D reorder. All four are pure
-# snake->snake reorders applied AFTER STEBBSPROPERTIES_DEV8_RENAMES so users
-# on the dev9 spelling still load with a DeprecationWarning.
+# Schema 2026.5.dev11 -> 2026.5.dev12: align STEBBS and Archetype field names
+# with the Reading STEBBS team's "Column D" naming (D. Hertwig / S. Rognone,
+# 2026-05).
+#
+# The first four entries are the original stragglers that dev9 deliberately
+# kept as compound nouns; their old names are dev8-level values of
+# STEBBSPROPERTIES_RENAMES so they chain straight back to PascalCase.
+#
+# The remaining ten entries extend the Column D alignment to fields that dev9
+# already reordered once: powers and setpoints take the qualifier-first
+# `max_power_*` / `setpoint_temperature_*` shape, the mains-water / hot-water
+# surface-area / flow-rate / flow-profile fields take the Tier-3 word order,
+# `control_daylight` reverts to the Reading idiom `daylight_control`, and the
+# DHW vessel convection coefficients move to `hot_water_tank_vessel`. All ten
+# old names are dev9-level values of STEBBSPROPERTIES_DEV8_RENAMES, so the
+# dev12->ancestry chain must resolve THROUGH the dev9->PascalCase map (see
+# _build_stebbs_dev_to_pascal) rather than the dev8 base reverse map.
+#
+# All are pure snake->snake reorders applied AFTER STEBBSPROPERTIES_DEV8_RENAMES
+# so users on the dev9 spelling still load with a DeprecationWarning.
 STEBBSPROPERTIES_DEV12_RENAMES: Dict[str, str] = {
+    # Original stragglers (gh#1392 follow-up)
     "ground_depth": "depth_ground",
     "ventilation_rate": "rate_ventilation",
     "lighting_power_density": "power_density_lighting",
     "month_mean_air_temperature_diffmax": "temperature_air_month_mean_diffmax",
+    # Column D alignment — qualifier-first powers
+    "power_air_cooling_max": "max_power_cooling_system_air",
+    # Column D alignment — qualifier-first water setpoint
+    "temperature_water_heating_setpoint": "setpoint_temperature_heating_water",
+    # Column D alignment — Tier-3 word order
+    "temperature_water_mains": "temperature_mains_water",
+    "area_hot_water_tank_surface": "surface_area_hot_water_tank",
+    "area_hot_water_surface": "surface_area_hot_water",
+    "rate_hot_water_flow": "rate_flow_hot_water",
+    "profile_hot_water_flow": "profile_flow_hot_water",
+    # Reading idiom — daylight control flag
+    "control_daylight": "daylight_control",
+    # DHW vessel convection coefficients -> hot_water_tank_vessel
+    "convection_coefficient_hot_water_vessel_wall_internal":
+        "convection_coefficient_hot_water_tank_vessel_internal",
+    "convection_coefficient_hot_water_vessel_wall_external":
+        "convection_coefficient_hot_water_tank_vessel_external",
 }
 
 # Chained reverse map: dev9 final name -> PascalCase legacy column name.
@@ -714,12 +778,23 @@ def _build_stebbs_dev_to_pascal() -> Dict[str, str]:
     chain: Dict[str, str] = {}
     for old_dev8, new_dev9 in STEBBSPROPERTIES_DEV8_RENAMES.items():
         chain[new_dev9] = base_reverse.get(old_dev8, old_dev8)
-    # dev12 stragglers (gh#1392 follow-up): each new name chains back to the
-    # same PascalCase ancestry the old name resolves to (e.g.
-    # `depth_ground` -> `GroundDepth`). The old names are values of
-    # STEBBSPROPERTIES_RENAMES, so base_reverse holds the PascalCase key.
+    # dev12 Column D alignment (gh#1392 follow-up): each new name chains back to
+    # the same PascalCase ancestry the old name resolves to. The pre-dev12 names
+    # split into two cases:
+    #   * the four original stragglers (`ground_depth`, ...) are dev8-level
+    #     values of STEBBSPROPERTIES_RENAMES, so `base_reverse` holds the
+    #     PascalCase key directly (e.g. `ground_depth` -> `GroundDepth`);
+    #   * the ten new fields (`power_air_cooling_max`, ...) are dev9-level
+    #     names produced BY the dev8 reorder, so their PascalCase ancestry lives
+    #     in `chain` (built above), not in `base_reverse` (e.g.
+    #     `power_air_cooling_max` -> `MaxCoolingPower`).
+    # Resolve through `chain` first, then the dev8 base reverse, before falling
+    # back to the snake name — otherwise the ten new fields would wrongly fall
+    # back to the intermediate snake spelling and break the bridge column key.
     for old_dev11, new_dev12 in STEBBSPROPERTIES_DEV12_RENAMES.items():
-        chain[new_dev12] = base_reverse.get(old_dev11, old_dev11)
+        chain[new_dev12] = chain.get(
+            old_dev11, base_reverse.get(old_dev11, old_dev11)
+        )
     return chain
 
 
@@ -1062,10 +1137,37 @@ def _compose_rename_chains(*tables: Mapping[str, str]) -> Dict[str, str]:
     ``thickness_wall_outer``. Pydantic applies those tables sequentially, but
     raw-dict callers use a single recursive pass. Composing the tables here
     keeps those callers from stopping one schema label behind.
+
+    Reversal handling
+    -----------------
+    A later table may *revert* an earlier rename — e.g.
+    ``STEBBSPROPERTIES_DEV8_RENAMES`` mapped ``daylight_control`` ->
+    ``control_daylight`` and ``STEBBSPROPERTIES_DEV12_RENAMES`` maps it back,
+    ``control_daylight`` -> ``daylight_control`` (Reading STEBBS team Column D
+    review, 2026-05). Naively combining the tables yields the 2-cycle
+    ``daylight_control -> control_daylight -> daylight_control``. The latest
+    table wins: the reverted edge from the earlier table is dropped, so both
+    spellings resolve to the dev12 final (``daylight_control``).
     """
     combined: Dict[str, str] = {}
-    for table in tables:
-        combined.update(table)
+    pair_origin: Dict[str, int] = {}  # old_name -> index of the table that set it
+    for idx, table in enumerate(tables):
+        for old, new in table.items():
+            combined[old] = new
+            pair_origin[old] = idx
+
+    # Prune direct 2-cycles (A->B and B->A) by honouring the later table.
+    for a in list(combined):
+        b = combined.get(a)
+        if b is not None and combined.get(b) == a and a != b:
+            # `a->b` and `b->a` form a reversal. Keep whichever edge came
+            # from the later table; drop the earlier one so the chain walk
+            # terminates at the later table's target.
+            if pair_origin.get(a, -1) < pair_origin.get(b, -1):
+                # `b->a` is newer; `a` is the canonical final. Drop `a->b`.
+                del combined[a]
+            else:
+                del combined[b]
 
     resolved: Dict[str, str] = {}
     for old_name, first_target in combined.items():
@@ -1094,6 +1196,7 @@ RAW_YAML_FIELD_RENAMES: Dict[str, str] = _compose_rename_chains(
     ARCHETYPEPROPERTIES_DEV3_RENAMES,
     ARCHETYPEPROPERTIES_DEV6_RENAMES,
     ARCHETYPEPROPERTIES_DEV7_RENAMES,
+    ARCHETYPEPROPERTIES_DEV12_RENAMES,
     SNOWPARAMS_INTERMEDIATE_RENAMES,
     STEBBSPROPERTIES_DEV3_RENAMES,
     STEBBSPROPERTIES_DEV8_RENAMES,

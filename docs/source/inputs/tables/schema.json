@@ -1406,7 +1406,7 @@
           "title": "Emissivity Internal Mass",
           "unit": "dimensionless"
         },
-        "power_air_heating_max": {
+        "max_power_heating_system_air": {
           "anyOf": [
             {
               "anyOf": [
@@ -1426,7 +1426,7 @@
           "default": 0.0,
           "description": "Maximum power demand of heating system [W]",
           "display_name": "Maximum Heating Power",
-          "title": "Power Air Heating Max",
+          "title": "Max Power Heating System Air",
           "unit": "W"
         },
         "volume_hot_water_tank": {
@@ -1452,7 +1452,7 @@
           "title": "Volume Hot Water Tank",
           "unit": "m^3"
         },
-        "power_water_heating_max": {
+        "max_power_heating_system_water": {
           "anyOf": [
             {
               "anyOf": [
@@ -1472,10 +1472,10 @@
           "default": 3000.0,
           "description": "Maximum power demand of water heating system [W]",
           "display_name": "Maximum Hot Water Heating Power",
-          "title": "Power Water Heating Max",
+          "title": "Max Power Heating System Water",
           "unit": "W"
         },
-        "temperature_air_heating_setpoint": {
+        "setpoint_temperature_heating_air": {
           "anyOf": [
             {
               "anyOf": [
@@ -1495,10 +1495,10 @@
           "default": 0.0,
           "description": "Heating setpoint temperature [degC]",
           "display_name": "Heating Setpoint Temperature",
-          "title": "Temperature Air Heating Setpoint",
+          "title": "Setpoint Temperature Heating Air",
           "unit": "degC"
         },
-        "temperature_air_cooling_setpoint": {
+        "setpoint_temperature_cooling_air": {
           "anyOf": [
             {
               "anyOf": [
@@ -1518,10 +1518,10 @@
           "default": 26.0,
           "description": "Cooling setpoint temperature [degC]",
           "display_name": "Cooling Setpoint Temperature",
-          "title": "Temperature Air Cooling Setpoint",
+          "title": "Setpoint Temperature Cooling Air",
           "unit": "degC"
         },
-        "profile_temperature_air_heating_setpoint": {
+        "profile_setpoint_temperature_heating_air": {
           "anyOf": [
             {
               "$ref": "#/$defs/HeatingSetpointProfile"
@@ -1534,7 +1534,7 @@
           "display_name": "Heating setpoint temperature profile",
           "unit": "degC"
         },
-        "profile_temperature_air_cooling_setpoint": {
+        "profile_setpoint_temperature_cooling_air": {
           "anyOf": [
             {
               "$ref": "#/$defs/CoolingSetpointProfile"
@@ -10404,7 +10404,7 @@
           "title": "Ratio Latent Sensible",
           "unit": "dimensionless"
         },
-        "control_daylight": {
+        "daylight_control": {
           "anyOf": [
             {
               "$ref": "#/$defs/RefValue_int_"
@@ -10419,7 +10419,7 @@
           "default": 0,
           "description": "Integer flag to enable daylight-based lighting control (0 = off, 1 = on)",
           "display_name": "Daylight Control",
-          "title": "Control Daylight",
+          "title": "Daylight Control",
           "unit": "dimensionless"
         },
         "threshold_lighting_illuminance": {
@@ -10469,7 +10469,7 @@
           "title": "Efficiency Heating System Air",
           "unit": "dimensionless"
         },
-        "power_air_cooling_max": {
+        "max_power_cooling_system_air": {
           "anyOf": [
             {
               "anyOf": [
@@ -10489,7 +10489,7 @@
           "default": 0.0,
           "description": "Maximum power demand of cooling system [W]",
           "display_name": "Maximum Cooling Power",
-          "title": "Power Air Cooling Max",
+          "title": "Max Power Cooling System Air",
           "unit": "W"
         },
         "efficiency_cooling_system_air": {
@@ -10638,7 +10638,7 @@
           "title": "Thickness Hot Water Tank Wall",
           "unit": "m"
         },
-        "temperature_water_mains": {
+        "temperature_mains_water": {
           "anyOf": [
             {
               "$ref": "#/$defs/RefValue_float_"
@@ -10653,10 +10653,10 @@
           "default": 0.0,
           "description": "Temperature of water coming into the water tank [degC]",
           "display_name": "Mains Water Temperature",
-          "title": "Temperature Water Mains",
+          "title": "Temperature Mains Water",
           "unit": "degC"
         },
-        "area_hot_water_tank_surface": {
+        "surface_area_hot_water_tank": {
           "anyOf": [
             {
               "anyOf": [
@@ -10676,10 +10676,10 @@
           "default": 2.0,
           "description": "Surface area of hot water tank cylinder [m2]",
           "display_name": "Water Tank Surface Area",
-          "title": "Area Hot Water Tank Surface",
+          "title": "Surface Area Hot Water Tank",
           "unit": "m^2"
         },
-        "temperature_water_heating_setpoint": {
+        "setpoint_temperature_heating_water": {
           "anyOf": [
             {
               "anyOf": [
@@ -10699,7 +10699,7 @@
           "default": 60.0,
           "description": "Water tank setpoint temperature [degC]",
           "display_name": "Hot Water Heating Setpoint Temperature",
-          "title": "Temperature Water Heating Setpoint",
+          "title": "Setpoint Temperature Heating Water",
           "unit": "degC"
         },
         "emissivity_hot_water_tank_wall": {
@@ -10774,7 +10774,7 @@
           "title": "Volume Hot Water",
           "unit": "m^3"
         },
-        "area_hot_water_surface": {
+        "surface_area_hot_water": {
           "anyOf": [
             {
               "anyOf": [
@@ -10794,10 +10794,10 @@
           "default": 0.5,
           "description": "Surface area of hot water in vessels in building [m2]",
           "display_name": "Hot Water Surface Area",
-          "title": "Area Hot Water Surface",
+          "title": "Surface Area Hot Water",
           "unit": "m^2"
         },
-        "rate_hot_water_flow": {
+        "rate_flow_hot_water": {
           "anyOf": [
             {
               "anyOf": [
@@ -10817,10 +10817,10 @@
           "default": 0.0,
           "description": "Hot water flow rate from tank to vessel [m3 s-1]",
           "display_name": "Hot Water Flow Rate",
-          "title": "Rate Hot Water Flow",
+          "title": "Rate Flow Hot Water",
           "unit": "m^3 s^-1"
         },
-        "profile_hot_water_flow": {
+        "profile_flow_hot_water": {
           "anyOf": [
             {
               "$ref": "#/$defs/TenMinuteProfile"
@@ -11063,7 +11063,7 @@
           "title": "Conductivity Hot Water Vessel Wall",
           "unit": "W m^-1 K^-1"
         },
-        "convection_coefficient_hot_water_vessel_wall_internal": {
+        "convection_coefficient_hot_water_tank_vessel_internal": {
           "anyOf": [
             {
               "anyOf": [
@@ -11083,10 +11083,10 @@
           "default": 7.7,
           "description": "Effective internal wall convection coefficient of the vessels holding hot water in use in building [W m-2 K-1]",
           "display_name": "Hot Water Vessel Internal Wall Convection Coefficient",
-          "title": "Convection Coefficient Hot Water Vessel Wall Internal",
+          "title": "Convection Coefficient Hot Water Tank Vessel Internal",
           "unit": "W m^-2 K^-1"
         },
-        "convection_coefficient_hot_water_vessel_wall_external": {
+        "convection_coefficient_hot_water_tank_vessel_external": {
           "anyOf": [
             {
               "anyOf": [
@@ -11106,7 +11106,7 @@
           "default": 7.7,
           "description": "Effective external wall convection coefficient of the vessels holding hot water in use in building [W m-2 K-1]",
           "display_name": "Hot Water Vessel External Wall Convection Coefficient",
-          "title": "Convection Coefficient Hot Water Vessel Wall External",
+          "title": "Convection Coefficient Hot Water Tank Vessel External",
           "unit": "W m^-2 K^-1"
         },
         "emissivity_hot_water_vessel_wall": {
@@ -12801,7 +12801,7 @@
     }
   },
   "additionalProperties": true,
-  "description": "JSON Schema for SUEWS YAML configuration files. Schema version 2026.5.dev12. StebbsProperties straggler reorder (gh#1392 follow-up): the four fields kept as compound nouns at dev9 are reordered quantity-first per the Reading STEBBS team review ('Column D', D. Hertwig / S. Rognone, 2026-05), completing the Column D reorder. ground_depth -> depth_ground, ventilation_rate -> rate_ventilation, lighting_power_density -> power_density_lighting, month_mean_air_temperature_diffmax -> temperature_air_month_mean_diffmax. Rename table STEBBSPROPERTIES_DEV12_RENAMES in src/supy/data_model/core/field_renames.py; the (2026.5.dev11 -> 2026.5.dev12) migration is registered in src/supy/util/converter/yaml_upgrade.py::_HANDLERS. Bridge DataFrame columns keep the fused PascalCase ancestry via the chained STEBBSPROPERTIES_DEV9_TO_PASCAL map (GroundDepth, VentilationRate, LightingPowerDensity, MonthMeanAirTemperature_diffmax). building_type was already dropped at dev11 (no new migration drop needed).",
+  "description": "JSON Schema for SUEWS YAML configuration files. Schema version 2026.5.dev12. STEBBS / Archetype Column D alignment (gh#1392 follow-up) per the Reading STEBBS team review ('Column D', D. Hertwig / S. Rognone, 2026-05). Two waves in one dev bump. Wave 1 (four dev9 stragglers reordered quantity-first): ground_depth -> depth_ground, ventilation_rate -> rate_ventilation, lighting_power_density -> power_density_lighting, month_mean_air_temperature_diffmax -> temperature_air_month_mean_diffmax. Wave 2 (sixteen further fields aligned to Column D): six ArchetypeProperties HVAC fields take qualifier-first powers and setpoints (power_air_heating_max -> max_power_heating_system_air, power_water_heating_max -> max_power_heating_system_water, temperature_air_heating_setpoint -> setpoint_temperature_heating_air, temperature_air_cooling_setpoint -> setpoint_temperature_cooling_air, and their profile_* siblings); ten StebbsProperties fields adopt qualifier-first / Tier-3 word order (power_air_cooling_max -> max_power_cooling_system_air, temperature_water_heating_setpoint -> setpoint_temperature_heating_water, temperature_water_mains -> temperature_mains_water, area_hot_water_tank_surface -> surface_area_hot_water_tank, area_hot_water_surface -> surface_area_hot_water, rate_hot_water_flow -> rate_flow_hot_water, profile_hot_water_flow -> profile_flow_hot_water, control_daylight -> daylight_control, and the two DHW vessel convection coefficients move to ...hot_water_tank_vessel_internal / ..._external). ground_floor stays a two-word token and model.physics.outer_cap_fraction is deferred to a separate workstream. Rename tables STEBBSPROPERTIES_DEV12_RENAMES and ARCHETYPEPROPERTIES_DEV12_RENAMES in src/supy/data_model/core/field_renames.py; the (2026.5.dev11 -> 2026.5.dev12) migration is registered in src/supy/util/converter/yaml_upgrade.py::_HANDLERS and walks both the stebbs and building_archetype containers. Bridge DataFrame columns keep the fused PascalCase ancestry via the chained STEBBSPROPERTIES_DEV9_TO_PASCAL / ARCHETYPEPROPERTIES_DEV7_TO_PASCAL maps and the Rust FIELD_COMPAT_ALIASES entries. building_type was already dropped at dev11 (no new migration drop needed).",
   "properties": {
     "name": {
       "default": "sample config",

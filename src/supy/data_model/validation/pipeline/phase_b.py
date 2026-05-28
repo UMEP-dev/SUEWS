@@ -2032,9 +2032,9 @@ def adjust_model_option_rcmethod(yaml_data: dict) -> Tuple[dict, List[Scientific
 
 def adjust_model_option_setpointmethod(yaml_data: dict) -> Tuple[dict, List[ScientificAdjustment]]:
     """
-    If setpoint == 0 or 1, set all entries in profile_temperature_air_heating_setpoint and
-    profile_temperature_air_cooling_setpoint in building_archetype to null for all sites.
-    If setpoint == 2, set temperature_air_heating_setpoint and temperature_air_cooling_setpoint
+    If setpoint == 0 or 1, set all entries in profile_setpoint_temperature_heating_air and
+    profile_setpoint_temperature_cooling_air in building_archetype to null for all sites.
+    If setpoint == 2, set setpoint_temperature_heating_air and setpoint_temperature_cooling_air
     in building_archetype to null for all sites (they are not needed).
     """
     adjustments = []
@@ -2048,7 +2048,7 @@ def adjust_model_option_setpointmethod(yaml_data: dict) -> Tuple[dict, List[Scie
         site_gridid = get_site_gridid(site)
 
         if setpointmethod == 2:
-            for param in ["temperature_air_heating_setpoint", "temperature_air_cooling_setpoint"]:
+            for param in ["setpoint_temperature_heating_air", "setpoint_temperature_cooling_air"]:
                 entry = building_archetype.get(param)
                 if isinstance(entry, dict):
                     old_val = entry.get("value")
@@ -2065,7 +2065,7 @@ def adjust_model_option_setpointmethod(yaml_data: dict) -> Tuple[dict, List[Scie
                             )
                         )
         elif setpointmethod == 0 or setpointmethod == 1:
-            for prof_param in ["profile_temperature_air_heating_setpoint", "profile_temperature_air_cooling_setpoint"]:
+            for prof_param in ["profile_setpoint_temperature_heating_air", "profile_setpoint_temperature_cooling_air"]:
                 profile = building_archetype.get(prof_param)
                 if isinstance(profile, dict):
                     for daytype in ("working_day", "holiday"):

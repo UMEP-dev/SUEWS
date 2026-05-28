@@ -1104,11 +1104,11 @@ def test_adjust_model_option_setpointmethod_sets_profiles_to_null_when_0_or_1():
             "name": "site1",
             "properties": {
                 "building_archetype": {
-                    "profile_temperature_air_heating_setpoint": {
+                    "profile_setpoint_temperature_heating_air": {
                         "working_day": {"0": 21.0, "1": 22.0},
                         "holiday": {"0": 20.0, "1": 21.0},
                     },
-                    "profile_temperature_air_cooling_setpoint": {
+                    "profile_setpoint_temperature_cooling_air": {
                         "working_day": {"0": 25.0, "1": 26.0},
                         "holiday": {"0": 24.0, "1": 25.0},
                     },
@@ -1118,12 +1118,12 @@ def test_adjust_model_option_setpointmethod_sets_profiles_to_null_when_0_or_1():
     }
     updated, adjustments = adjust_model_option_setpointmethod(yaml_data)
     ba = updated["sites"][0]["properties"]["building_archetype"]
-    for prof in ["profile_temperature_air_heating_setpoint", "profile_temperature_air_cooling_setpoint"]:
+    for prof in ["profile_setpoint_temperature_heating_air", "profile_setpoint_temperature_cooling_air"]:
         for daytype in ["working_day", "holiday"]:
             for hour in ba[prof][daytype]:
                 assert ba[prof][daytype][hour] is None
-    assert any(a.parameter == "building_archetype.profile_temperature_air_heating_setpoint.working_day" for a in adjustments)
-    assert any(a.parameter == "building_archetype.profile_temperature_air_cooling_setpoint.holiday" for a in adjustments)
+    assert any(a.parameter == "building_archetype.profile_setpoint_temperature_heating_air.working_day" for a in adjustments)
+    assert any(a.parameter == "building_archetype.profile_setpoint_temperature_cooling_air.holiday" for a in adjustments)
 
 def test_adjust_model_option_setpointmethod_sets_profiles_to_null_when_1():
     # setpoint == 1: should nullify all profile entries
@@ -1133,11 +1133,11 @@ def test_adjust_model_option_setpointmethod_sets_profiles_to_null_when_1():
             "name": "site1",
             "properties": {
                 "building_archetype": {
-                    "profile_temperature_air_heating_setpoint": {
+                    "profile_setpoint_temperature_heating_air": {
                         "working_day": {"0": 21.0},
                         "holiday": {"0": 20.0},
                     },
-                    "profile_temperature_air_cooling_setpoint": {
+                    "profile_setpoint_temperature_cooling_air": {
                         "working_day": {"0": 25.0},
                         "holiday": {"0": 24.0},
                     },
@@ -1147,32 +1147,32 @@ def test_adjust_model_option_setpointmethod_sets_profiles_to_null_when_1():
     }
     updated, adjustments = adjust_model_option_setpointmethod(yaml_data)
     ba = updated["sites"][0]["properties"]["building_archetype"]
-    for prof in ["profile_temperature_air_heating_setpoint", "profile_temperature_air_cooling_setpoint"]:
+    for prof in ["profile_setpoint_temperature_heating_air", "profile_setpoint_temperature_cooling_air"]:
         for daytype in ["working_day", "holiday"]:
             for hour in ba[prof][daytype]:
                 assert ba[prof][daytype][hour] is None
-    assert any(a.parameter == "building_archetype.profile_temperature_air_heating_setpoint.working_day" for a in adjustments)
+    assert any(a.parameter == "building_archetype.profile_setpoint_temperature_heating_air.working_day" for a in adjustments)
 
 def test_adjust_model_option_setpointmethod_sets_temps_to_null_when_2():
-    # setpoint == 2: should nullify temperature_air_heating_setpoint and temperature_air_cooling_setpoint
+    # setpoint == 2: should nullify setpoint_temperature_heating_air and setpoint_temperature_cooling_air
     yaml_data = {
         "model": {"physics": {"setpoint": {"value": 2}}},
         "sites": [{
             "name": "site1",
             "properties": {
                 "building_archetype": {
-                    "temperature_air_heating_setpoint": {"value": 21.0},
-                    "temperature_air_cooling_setpoint": {"value": 25.0},
+                    "setpoint_temperature_heating_air": {"value": 21.0},
+                    "setpoint_temperature_cooling_air": {"value": 25.0},
                 }
             }
         }],
     }
     updated, adjustments = adjust_model_option_setpointmethod(yaml_data)
     ba = updated["sites"][0]["properties"]["building_archetype"]
-    assert ba["temperature_air_heating_setpoint"]["value"] is None
-    assert ba["temperature_air_cooling_setpoint"]["value"] is None
-    assert any(a.parameter == "building_archetype.temperature_air_heating_setpoint" for a in adjustments)
-    assert any(a.parameter == "building_archetype.temperature_air_cooling_setpoint" for a in adjustments)
+    assert ba["setpoint_temperature_heating_air"]["value"] is None
+    assert ba["setpoint_temperature_cooling_air"]["value"] is None
+    assert any(a.parameter == "building_archetype.setpoint_temperature_heating_air" for a in adjustments)
+    assert any(a.parameter == "building_archetype.setpoint_temperature_cooling_air" for a in adjustments)
 
 def test_adjust_model_option_setpointmethod_no_action_when_already_null():
     # Should not add adjustments if already null
@@ -1182,16 +1182,16 @@ def test_adjust_model_option_setpointmethod_no_action_when_already_null():
             "name": "site1",
             "properties": {
                 "building_archetype": {
-                    "temperature_air_heating_setpoint": {"value": None},
-                    "temperature_air_cooling_setpoint": {"value": None},
+                    "setpoint_temperature_heating_air": {"value": None},
+                    "setpoint_temperature_cooling_air": {"value": None},
                 }
             }
         }],
     }
     updated, adjustments = adjust_model_option_setpointmethod(yaml_data)
     ba = updated["sites"][0]["properties"]["building_archetype"]
-    assert ba["temperature_air_heating_setpoint"]["value"] is None
-    assert ba["temperature_air_cooling_setpoint"]["value"] is None
+    assert ba["setpoint_temperature_heating_air"]["value"] is None
+    assert ba["setpoint_temperature_cooling_air"]["value"] is None
     assert len(adjustments) == 0
 
 def test_validate_model_option_rcmethod2_missing_params(registry):
@@ -1282,8 +1282,8 @@ def test_validate_model_option_setpointmethod_0_or_1_all_params(registry):
             "name": "site1",
             "properties": {
                 "building_archetype": {
-                    "temperature_air_heating_setpoint": {"value": 21.0},
-                    "temperature_air_cooling_setpoint": {"value": 25.0},
+                    "setpoint_temperature_heating_air": {"value": 21.0},
+                    "setpoint_temperature_cooling_air": {"value": 25.0},
                 }
             }
         }],
@@ -1298,15 +1298,15 @@ def test_validate_model_option_setpointmethod_0_or_1_missing_params(registry):
             "name": "site1",
             "properties": {
                 "building_archetype": {
-                    # "temperature_air_heating_setpoint" missing
-                    "temperature_air_cooling_setpoint": {"value": 25.0},
+                    # "setpoint_temperature_heating_air" missing
+                    "setpoint_temperature_cooling_air": {"value": 25.0},
                 }
             }
         }],
     }
     results = registry["setpoint"](ValidationContext(yaml_data=yaml_data))
     error_params = [r.parameter for r in results if r.status == "ERROR"]
-    assert "temperature_air_heating_setpoint" in error_params
+    assert "setpoint_temperature_heating_air" in error_params
     assert all("must be set" in r.message for r in results if r.status == "ERROR")
 
 def test_validate_model_option_setpointmethod_2_all_profiles_valid(registry):
@@ -1320,11 +1320,11 @@ def test_validate_model_option_setpointmethod_2_all_profiles_valid(registry):
             "name": "site1",
             "properties": {
                 "building_archetype": {
-                    "profile_temperature_air_heating_setpoint": {
+                    "profile_setpoint_temperature_heating_air": {
                         "working_day": heating_working,
                         "holiday": heating_holiday,
                     },
-                    "profile_temperature_air_cooling_setpoint": {
+                    "profile_setpoint_temperature_cooling_air": {
                         "working_day": cooling_working,
                         "holiday": cooling_holiday,
                     },
@@ -1342,11 +1342,11 @@ def test_validate_model_option_setpointmethod_2_missing_profile_entries(registry
             "name": "site1",
             "properties": {
                 "building_archetype": {
-                    "profile_temperature_air_heating_setpoint": {
+                    "profile_setpoint_temperature_heating_air": {
                         "working_day": {"0": None, "1": 19.5},
                         "holiday": {"0": 19.0, "1": None},
                     },
-                    "profile_temperature_air_cooling_setpoint": {
+                    "profile_setpoint_temperature_cooling_air": {
                         "working_day": {"0": 26.0, "1": None},
                         "holiday": {"0": None, "1": 26.5},
                     },
@@ -1356,8 +1356,8 @@ def test_validate_model_option_setpointmethod_2_missing_profile_entries(registry
     }
     results = registry["setpoint"](ValidationContext(yaml_data=yaml_data))
     error_params = [r.parameter for r in results if r.status == "ERROR"]
-    assert "profile_temperature_air_heating_setpoint" in error_params
-    assert "profile_temperature_air_cooling_setpoint" in error_params
+    assert "profile_setpoint_temperature_heating_air" in error_params
+    assert "profile_setpoint_temperature_cooling_air" in error_params
     assert any("null entries" in r.message for r in results if r.status == "ERROR")
 
 def test_validate_model_option_setpointmethod_2_out_of_range(registry):
@@ -1367,11 +1367,11 @@ def test_validate_model_option_setpointmethod_2_out_of_range(registry):
             "name": "site1",
             "properties": {
                 "building_archetype": {
-                    "profile_temperature_air_heating_setpoint": {
+                    "profile_setpoint_temperature_heating_air": {
                         "working_day": {"0": 31.0, "1": 19.5},
                         "holiday": {"0": 19.0, "1": 30.0},
                     },
-                    "profile_temperature_air_cooling_setpoint": {
+                    "profile_setpoint_temperature_cooling_air": {
                         "working_day": {"0": 14.0, "1": 27.0},
                         "holiday": {"0": 25.5, "1": 15.0},
                     },
@@ -1380,8 +1380,8 @@ def test_validate_model_option_setpointmethod_2_out_of_range(registry):
         }],
     }
     results = registry["setpoint"](ValidationContext(yaml_data=yaml_data))
-    heating_errors = [r for r in results if r.parameter == "profile_temperature_air_heating_setpoint" and r.status == "ERROR"]
-    cooling_errors = [r for r in results if r.parameter == "profile_temperature_air_cooling_setpoint" and r.status == "ERROR"]
+    heating_errors = [r for r in results if r.parameter == "profile_setpoint_temperature_heating_air" and r.status == "ERROR"]
+    cooling_errors = [r for r in results if r.parameter == "profile_setpoint_temperature_cooling_air" and r.status == "ERROR"]
     assert any("values >= 30.0" in r.message for r in heating_errors)
     assert any("values <= 15.0" in r.message for r in cooling_errors)
 
@@ -1392,11 +1392,11 @@ def test_validate_model_option_setpointmethod_2_invalid_slice_keys(registry):
             "name": "site1",
             "properties": {
                 "building_archetype": {
-                    "profile_temperature_air_heating_setpoint": {
+                    "profile_setpoint_temperature_heating_air": {
                         "working_day": {"0": 20.0, "1": 19.5},
                         "holiday": {"1": 19.0, "2": 18.5},
                     },
-                    "profile_temperature_air_cooling_setpoint": {
+                    "profile_setpoint_temperature_cooling_air": {
                         "working_day": {"1": 26.0, "145": 27.0},
                         "holiday": {"1": 25.5, "2": 26.5},
                     },
@@ -1406,8 +1406,8 @@ def test_validate_model_option_setpointmethod_2_invalid_slice_keys(registry):
     }
     results = registry["setpoint"](ValidationContext(yaml_data=yaml_data))
     error_params = [r.parameter for r in results if r.status == "ERROR"]
-    assert "profile_temperature_air_heating_setpoint.working_day" in error_params
-    assert "profile_temperature_air_cooling_setpoint.working_day" in error_params
+    assert "profile_setpoint_temperature_heating_air.working_day" in error_params
+    assert "profile_setpoint_temperature_cooling_air.working_day" in error_params
     assert any(
         "Only entries 1-144 are valid." in r.message
         for r in results
@@ -1415,7 +1415,7 @@ def test_validate_model_option_setpointmethod_2_invalid_slice_keys(registry):
     )
     
 def test_validate_model_option_stebbsmethod_hotwaterflowprofile_valid(registry):
-    """Test profile_hot_water_flow accepts only 0 or 1 values."""
+    """Test profile_flow_hot_water accepts only 0 or 1 values."""
 
     yaml_data = {
         "model": {"physics": {"stebbs": {"value": 1}}},
@@ -1423,7 +1423,7 @@ def test_validate_model_option_stebbsmethod_hotwaterflowprofile_valid(registry):
             "name": "site1",
             "properties": {
                 "stebbs": {
-                    "profile_hot_water_flow": {
+                    "profile_flow_hot_water": {
                         "working_day": {"0": 0, "1": 1, "2": 0.0, "3": 1.0},
                         "holiday": {"0": 1, "1": 0, "2": 1.0, "3": 0.0},
                     }
@@ -1432,10 +1432,10 @@ def test_validate_model_option_stebbsmethod_hotwaterflowprofile_valid(registry):
         }],
     }
     results = registry["stebbs_props"](ValidationContext(yaml_data=yaml_data))
-    assert not results, "Should not return errors for valid profile_hot_water_flow values"
+    assert not results, "Should not return errors for valid profile_flow_hot_water values"
 
 def test_validate_model_option_stebbsmethod_hotwaterflowprofile_invalid(registry):
-    """Test profile_hot_water_flow returns ERROR for invalid values."""
+    """Test profile_flow_hot_water returns ERROR for invalid values."""
 
     yaml_data = {
         "model": {"physics": {"stebbs": {"value": 1}}},
@@ -1443,7 +1443,7 @@ def test_validate_model_option_stebbsmethod_hotwaterflowprofile_invalid(registry
             "name": "site1",
             "properties": {
                 "stebbs": {
-                    "profile_hot_water_flow": {
+                    "profile_flow_hot_water": {
                         "working_day": {"0": 2, "1": -1, "2": 0.5},
                         "holiday": {"0": "yes", "1": None},
                     }
@@ -1453,16 +1453,16 @@ def test_validate_model_option_stebbsmethod_hotwaterflowprofile_invalid(registry
     }
     results = registry["stebbs_props"](ValidationContext(yaml_data=yaml_data))
     error_params = [r.parameter for r in results]
-    assert "stebbs.profile_hot_water_flow.working_day.0" in error_params
-    assert "stebbs.profile_hot_water_flow.working_day.1" in error_params
-    assert "stebbs.profile_hot_water_flow.working_day.2" in error_params
-    assert "stebbs.profile_hot_water_flow.holiday.0" in error_params
-    assert "stebbs.profile_hot_water_flow.holiday.1" in error_params
+    assert "stebbs.profile_flow_hot_water.working_day.0" in error_params
+    assert "stebbs.profile_flow_hot_water.working_day.1" in error_params
+    assert "stebbs.profile_flow_hot_water.working_day.2" in error_params
+    assert "stebbs.profile_flow_hot_water.holiday.0" in error_params
+    assert "stebbs.profile_flow_hot_water.holiday.1" in error_params
     assert all(r.status == "ERROR" for r in results)
     assert all("must be 0 or 1" in r.message for r in results)
 
 def test_validate_model_option_stebbsmethod_hotwaterflowprofile_missing(registry):
-    """Test profile_hot_water_flow missing returns no errors."""
+    """Test profile_flow_hot_water missing returns no errors."""
 
     yaml_data = {
         "model": {"physics": {"stebbs": {"value": 1}}},
@@ -1470,16 +1470,16 @@ def test_validate_model_option_stebbsmethod_hotwaterflowprofile_missing(registry
             "name": "site1",
             "properties": {
                 "stebbs": {
-                    # profile_hot_water_flow missing
+                    # profile_flow_hot_water missing
                 }
             }
         }],
     }
     results = registry["stebbs_props"](ValidationContext(yaml_data=yaml_data))
-    assert not results, "Should not return errors if profile_hot_water_flow is missing"
+    assert not results, "Should not return errors if profile_flow_hot_water is missing"
 
 def test_validate_model_option_stebbsmethod_hotwaterflowprofile_partial(registry):
-    """Test profile_hot_water_flow with partial valid/invalid values."""
+    """Test profile_flow_hot_water with partial valid/invalid values."""
 
     yaml_data = {
         "model": {"physics": {"stebbs": {"value": 1}}},
@@ -1487,7 +1487,7 @@ def test_validate_model_option_stebbsmethod_hotwaterflowprofile_partial(registry
             "name": "site1",
             "properties": {
                 "stebbs": {
-                    "profile_hot_water_flow": {
+                    "profile_flow_hot_water": {
                         "working_day": {"0": 1, "1": 0, "2": 2},
                         "holiday": {"0": 0, "1": 1, "2": -1},
                     }
@@ -1497,8 +1497,8 @@ def test_validate_model_option_stebbsmethod_hotwaterflowprofile_partial(registry
     }
     results = registry["stebbs_props"](ValidationContext(yaml_data=yaml_data))
     error_params = [r.parameter for r in results]
-    assert "stebbs.profile_hot_water_flow.working_day.2" in error_params
-    assert "stebbs.profile_hot_water_flow.holiday.2" in error_params
+    assert "stebbs.profile_flow_hot_water.working_day.2" in error_params
+    assert "stebbs.profile_flow_hot_water.holiday.2" in error_params
     assert all(r.status == "ERROR" for r in results)
     assert len(results) == 2
 
@@ -1517,81 +1517,81 @@ def test_validate_model_option_stebbsmethod_daylightcontrol_valid(registry):
             }
         }],
     }
-    results = registry["control_daylight"](ValidationContext(yaml_data=yaml_data))
+    results = registry["daylight_control"](ValidationContext(yaml_data=yaml_data))
     assert not results, "Should not return errors for valid DaylightControl=1 with LightingIlluminanceThreshold"
 
     # Valid: DaylightControl = 0, LightingIlluminanceThreshold not required
     yaml_data["sites"][0]["properties"]["stebbs"]["DaylightControl"]["value"] = 0
     yaml_data["sites"][0]["properties"]["stebbs"].pop("LightingIlluminanceThreshold")
-    results = registry["control_daylight"](ValidationContext(yaml_data=yaml_data))
+    results = registry["daylight_control"](ValidationContext(yaml_data=yaml_data))
     assert not results, "Should not return errors for valid DaylightControl=0"
 
     # Valid: DaylightControl = 0.0 (float)
     yaml_data["sites"][0]["properties"]["stebbs"]["DaylightControl"]["value"] = 0.0
-    results = registry["control_daylight"](ValidationContext(yaml_data=yaml_data))
+    results = registry["daylight_control"](ValidationContext(yaml_data=yaml_data))
     assert not results, "Should not return errors for valid DaylightControl=0.0"
 
     # Valid: DaylightControl = 1.0 (float), LightingIlluminanceThreshold provided
     yaml_data["sites"][0]["properties"]["stebbs"]["DaylightControl"]["value"] = 1.0
     yaml_data["sites"][0]["properties"]["stebbs"]["LightingIlluminanceThreshold"] = {"value": 200}
-    results = registry["control_daylight"](ValidationContext(yaml_data=yaml_data))
+    results = registry["daylight_control"](ValidationContext(yaml_data=yaml_data))
     assert not results, "Should not return errors for valid DaylightControl=1.0 with LightingIlluminanceThreshold"
 
 def test_validate_model_option_stebbsmethod_daylightcontrol_missing_lit(registry):
-    """Test control_daylight == 1 but threshold_lighting_illuminance missing returns error."""
+    """Test daylight_control == 1 but threshold_lighting_illuminance missing returns error."""
     yaml_data = {
         "model": {"physics": {"stebbs": {"value": 1}}},
         "sites": [{
             "name": "site1",
             "properties": {
                 "stebbs": {
-                    "control_daylight": {"value": 1}
+                    "daylight_control": {"value": 1}
                     # threshold_lighting_illuminance missing
                 }
             }
         }],
     }
-    results = registry["control_daylight"](ValidationContext(yaml_data=yaml_data))
+    results = registry["daylight_control"](ValidationContext(yaml_data=yaml_data))
     assert len(results) == 1
     assert results[0].parameter == "stebbs.threshold_lighting_illuminance"
     assert results[0].status == "ERROR"
     assert "must be provided" in results[0].message
 
 def test_validate_model_option_stebbsmethod_daylightcontrol_invalid(registry):
-    """Test control_daylight returns ERROR for invalid values."""
+    """Test daylight_control returns ERROR for invalid values."""
     yaml_data = {
         "model": {"physics": {"stebbs": {"value": 1}}},
         "sites": [{
             "name": "site1",
             "properties": {
                 "stebbs": {
-                    "control_daylight": {"value": 2}
+                    "daylight_control": {"value": 2}
                 }
             }
         }],
     }
-    results = registry["control_daylight"](ValidationContext(yaml_data=yaml_data))
+    results = registry["daylight_control"](ValidationContext(yaml_data=yaml_data))
     assert len(results) == 1
-    assert results[0].parameter == "stebbs.control_daylight"
+    assert results[0].parameter == "stebbs.daylight_control"
     assert results[0].status == "ERROR"
     assert "must be 0 (off) or 1 (on)" in results[0].message
 
 def test_validate_model_option_stebbsmethod_daylightcontrol_string_value(registry):
-    """Test control_daylight returns ERROR for string or unexpected values."""
+    """Test daylight_control returns ERROR for string or unexpected values."""
     yaml_data = {
         "model": {"physics": {"stebbs": {"value": 1}}},
         "sites": [{
             "name": "site1",
             "properties": {
                 "stebbs": {
-                    "control_daylight": {"value": "yes"}
+                    "daylight_control": {"value": "yes"}
                 }
             }
         }],
     }
-    results = registry["control_daylight"](ValidationContext(yaml_data=yaml_data))
+    results = registry["daylight_control"](ValidationContext(yaml_data=yaml_data))
     assert len(results) == 1
-    assert results[0].parameter == "stebbs.control_daylight"
+    assert results[0].parameter == "stebbs.daylight_control"
     assert results[0].status == "ERROR"
     assert "must be 0 (off) or 1 (on)" in results[0].message
 
@@ -1608,7 +1608,7 @@ def test_validate_model_option_stebbsmethod_daylightcontrol_missing(registry):
             }
         }],
     }
-    results = registry["control_daylight"](ValidationContext(yaml_data=yaml_data))
+    results = registry["daylight_control"](ValidationContext(yaml_data=yaml_data))
     assert not results, "Should not return errors if DaylightControl is missing"
 
 def test_validate_model_option_stebbsmethod_daylightcontrol_not_active(registry):
@@ -1624,7 +1624,7 @@ def test_validate_model_option_stebbsmethod_daylightcontrol_not_active(registry)
             }
         }],
     }
-    results = registry["control_daylight"](ValidationContext(yaml_data=yaml_data))
+    results = registry["daylight_control"](ValidationContext(yaml_data=yaml_data))
     assert not results, "Should not return errors if stebbsmethod != 1"
 
 def test_daylight_control_lightingilluminancethreshold_zero(registry):
@@ -1641,7 +1641,7 @@ def test_daylight_control_lightingilluminancethreshold_zero(registry):
             }
         }],
     }
-    results = registry["control_daylight"](ValidationContext(yaml_data=yaml_data))
+    results = registry["daylight_control"](ValidationContext(yaml_data=yaml_data))
     assert not results, "Should not return errors for LightingIlluminanceThreshold=0"
 
 def test_daylight_control_daylightcontrol_zero(registry):
@@ -1658,7 +1658,7 @@ def test_daylight_control_daylightcontrol_zero(registry):
             }
         }],
     }
-    results = registry["control_daylight"](ValidationContext(yaml_data=yaml_data))
+    results = registry["daylight_control"](ValidationContext(yaml_data=yaml_data))
     assert not results, "Should not return errors for DaylightControl=0 without LightingIlluminanceThreshold"
 
 

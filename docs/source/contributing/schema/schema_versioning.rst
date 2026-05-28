@@ -170,25 +170,54 @@ The lineage below mirrors ``SCHEMA_VERSIONS`` in
 the schema that shipped with it via
 ``supy.util.converter.yaml_upgrade._PACKAGE_TO_SCHEMA``.
 
-**Schema 2026.5.dev12** (current; STEBBS straggler reorder)
-   Completes the StebbsProperties Rule 2 reorder by moving the four
-   straggler compound-noun fields kept at dev11 to their quantity-first
-   finals, per the Reading STEBBS team review ("Column D",
-   D. Hertwig / S. Rognone, 2026-05):
-   ``ground_depth`` -> ``depth_ground``,
+**Schema 2026.5.dev12** (current; STEBBS / Archetype Column D alignment)
+   Aligns STEBBS and ArchetypeProperties field names with the Reading
+   STEBBS team's "Column D" naming ("Column D", D. Hertwig / S. Rognone,
+   2026-05), in two waves landed in one dev bump.
+
+   Wave 1 reorders the four straggler compound-noun fields kept at dev11
+   to their quantity-first finals: ``ground_depth`` -> ``depth_ground``,
    ``ventilation_rate`` -> ``rate_ventilation``,
    ``lighting_power_density`` -> ``power_density_lighting``,
    ``month_mean_air_temperature_diffmax`` ->
-   ``temperature_air_month_mean_diffmax``. Rename table
-   ``STEBBSPROPERTIES_DEV12_RENAMES`` in
+   ``temperature_air_month_mean_diffmax``.
+
+   Wave 2 aligns sixteen further fields. Six ArchetypeProperties HVAC
+   fields take qualifier-first powers and setpoints
+   (``power_air_heating_max`` -> ``max_power_heating_system_air``,
+   ``power_water_heating_max`` -> ``max_power_heating_system_water``,
+   ``temperature_air_heating_setpoint`` ->
+   ``setpoint_temperature_heating_air``,
+   ``temperature_air_cooling_setpoint`` ->
+   ``setpoint_temperature_cooling_air``, plus the two ``profile_*``
+   setpoint siblings). Ten StebbsProperties fields take qualifier-first /
+   Tier-3 word order (``power_air_cooling_max`` ->
+   ``max_power_cooling_system_air``,
+   ``temperature_water_heating_setpoint`` ->
+   ``setpoint_temperature_heating_water``,
+   ``temperature_water_mains`` -> ``temperature_mains_water``,
+   ``area_hot_water_tank_surface`` -> ``surface_area_hot_water_tank``,
+   ``area_hot_water_surface`` -> ``surface_area_hot_water``,
+   ``rate_hot_water_flow`` -> ``rate_flow_hot_water``,
+   ``profile_hot_water_flow`` -> ``profile_flow_hot_water``,
+   ``control_daylight`` -> ``daylight_control``, and the two DHW vessel
+   convection coefficients move to
+   ``convection_coefficient_hot_water_tank_vessel_internal`` /
+   ``..._external``). ``ground_floor`` stays a two-word token and
+   ``model.physics.outer_cap_fraction`` is deferred to a separate
+   workstream.
+
+   Rename tables ``STEBBSPROPERTIES_DEV12_RENAMES`` and
+   ``ARCHETYPEPROPERTIES_DEV12_RENAMES`` in
    ``src/supy/data_model/core/field_renames.py``; the
    ``(2026.5.dev11 -> 2026.5.dev12)`` migration is registered in
-   ``src/supy/util/converter/yaml_upgrade.py::_HANDLERS`` and chained
+   ``src/supy/util/converter/yaml_upgrade.py::_HANDLERS``, walks both the
+   ``stebbs`` and ``building_archetype`` containers, and is chained
    through every aggregate handler down to ``2025.12 -> current``.
-   Bridge DataFrame columns keep the fused PascalCase ancestry
-   (``GroundDepth``, ``VentilationRate``, ``LightingPowerDensity``,
-   ``MonthMeanAirTemperature_diffmax``) via the chained
-   ``STEBBSPROPERTIES_DEV9_TO_PASCAL`` map. ``building_type`` was already
+   Bridge DataFrame columns keep the fused PascalCase ancestry via the
+   chained ``STEBBSPROPERTIES_DEV9_TO_PASCAL`` /
+   ``ARCHETYPEPROPERTIES_DEV7_TO_PASCAL`` maps and the Rust
+   ``FIELD_COMPAT_ALIASES`` entries. ``building_type`` was already
    dropped at dev11, so no new migration drop is needed (gh#1392
    follow-up).
 

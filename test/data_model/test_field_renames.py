@@ -154,6 +154,7 @@ class TestNewNamesAccepted:
         # or a key that chains to one.
         from supy.data_model.core.field_renames import (
             STEBBSPROPERTIES_DEV8_RENAMES,
+            STEBBSPROPERTIES_DEV12_RENAMES,
         )
         if model_cls.__name__ == "ArchetypeProperties":
             downstream_chain = {
@@ -161,7 +162,10 @@ class TestNewNamesAccepted:
                 **ARCHETYPEPROPERTIES_DEV7_RENAMES,
             }
         elif model_cls.__name__ == "StebbsProperties":
-            downstream_chain = dict(STEBBSPROPERTIES_DEV8_RENAMES)
+            downstream_chain = {
+                **STEBBSPROPERTIES_DEV8_RENAMES,
+                **STEBBSPROPERTIES_DEV12_RENAMES,
+            }
         else:
             downstream_chain = {}
         for new_name in renames.values():
@@ -283,8 +287,10 @@ class TestBackwardCompat:
         # dev8 cooling_system_cop -> dev9 efficiency_cooling_system_air
         # (Rule 2 + air_ qualifier; COP folded into efficiency).
         assert _unwrap(stebbs.efficiency_cooling_system_air) == 3.5
-        # month_mean_air_temperature_diffmax kept (compound noun, deferred).
-        assert _unwrap(stebbs.month_mean_air_temperature_diffmax) == 14.0
+        # dev9 month_mean_air_temperature_diffmax -> dev12
+        # temperature_air_month_mean_diffmax (gh#1392 follow-up straggler
+        # reorder, Rule 2: temperature quantity leads).
+        assert _unwrap(stebbs.temperature_air_month_mean_diffmax) == 14.0
         # dev8 hot_water_tank_wall_emissivity -> dev9
         # emissivity_hot_water_tank_wall (Rule 2: quantity leads).
         assert _unwrap(stebbs.emissivity_hot_water_tank_wall) == 0.85
@@ -319,6 +325,12 @@ class TestDeprecationWarnings:
             (StebbsProperties, "DHWWaterVolume", "hot_water_volume", 0.25),
             (StebbsProperties, "CoolingSystemCOP", "cooling_system_cop", 3.5),
             (StebbsProperties, "MonthMeanAirTemperature_diffmax", "month_mean_air_temperature_diffmax", 14.0),
+            # dev11 -> dev12 STEBBS straggler reorder (gh#1392 follow-up): the
+            # dev9-era snake names are accepted and remapped quantity-first.
+            (StebbsProperties, "ground_depth", "depth_ground", 3.0),
+            (StebbsProperties, "ventilation_rate", "rate_ventilation", 0.5),
+            (StebbsProperties, "lighting_power_density", "power_density_lighting", 2.0),
+            (StebbsProperties, "month_mean_air_temperature_diffmax", "temperature_air_month_mean_diffmax", 14.0),
             (SnowParams, "tau_a", "tau_cold_snow", 0.02),
             (SnowParams, "narp_emis_snow", "narp_emissivity_snow", 0.98),
             (SnowParams, "precip_limit", "temperature_rain_snow_threshold", 2.5),

@@ -1198,12 +1198,12 @@ def adjust_surface_temperatures(
                         )
                     )
 
-        # Update month_mean_air_temperature_diffmax in stebbs if present
+        # Update temperature_air_month_mean_diffmax in stebbs if present
         diffmax_val = get_monthly_air_temperature_diffmax(lat, lng)
         if diffmax_val is None:
             logger_supy.debug("Skipping diffmax update - CRU data not available")
         else:
-            for key in ("month_mean_air_temperature_diffmax",):
+            for key in ("temperature_air_month_mean_diffmax",):
                 if key in stebbs and isinstance(stebbs[key], dict):
                     old_val = stebbs[key].get("value")
                     if old_val != diffmax_val:

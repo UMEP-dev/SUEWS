@@ -533,6 +533,17 @@ pub const FIELD_COMPAT_ALIASES: &[(&str, &str)] = &[
     ("efficiency_heating_system_water", "hotwaterheatingefficiency"),
     ("profile_hot_water_flow", "hotwaterflowprofile"),
     ("profile_appliance", "applianceprofile"),
+    // Schema 2026.5.dev12 STEBBS straggler reorder (gh#1392 follow-up). The
+    // current YAML carries the quantity-first names; the Rust CLI bypasses the
+    // Pydantic rename chain, so each needs a direct alias to its PascalCase
+    // legacy ancestry. PascalCase (not fused-lowercase) is deliberate:
+    // `apply_stebbs_overrides` matches `lighting_power_density` by EXACT
+    // equality on the de-camelCased key, so `LightingPowerDensity` ->
+    // `lighting_power_density` keeps that check firing.
+    ("depth_ground", "GroundDepth"),
+    ("rate_ventilation", "VentilationRate"),
+    ("power_density_lighting", "LightingPowerDensity"),
+    ("temperature_air_month_mean_diffmax", "MonthMeanAirTemperature_diffmax"),
 ];
 
 /// Family registry for nested `model.physics` sub-options (gh#972).

@@ -170,7 +170,29 @@ The lineage below mirrors ``SCHEMA_VERSIONS`` in
 the schema that shipped with it via
 ``supy.util.converter.yaml_upgrade._PACKAGE_TO_SCHEMA``.
 
-**Schema 2026.5.dev11** (current; naming convention completion - ArchetypeProperties Tier 1 + StebbsProperties Rule 2)
+**Schema 2026.5.dev12** (current; STEBBS straggler reorder)
+   Completes the StebbsProperties Rule 2 reorder by moving the four
+   straggler compound-noun fields kept at dev11 to their quantity-first
+   finals, per the Reading STEBBS team review ("Column D",
+   D. Hertwig / S. Rognone, 2026-05):
+   ``ground_depth`` -> ``depth_ground``,
+   ``ventilation_rate`` -> ``rate_ventilation``,
+   ``lighting_power_density`` -> ``power_density_lighting``,
+   ``month_mean_air_temperature_diffmax`` ->
+   ``temperature_air_month_mean_diffmax``. Rename table
+   ``STEBBSPROPERTIES_DEV12_RENAMES`` in
+   ``src/supy/data_model/core/field_renames.py``; the
+   ``(2026.5.dev11 -> 2026.5.dev12)`` migration is registered in
+   ``src/supy/util/converter/yaml_upgrade.py::_HANDLERS`` and chained
+   through every aggregate handler down to ``2025.12 -> current``.
+   Bridge DataFrame columns keep the fused PascalCase ancestry
+   (``GroundDepth``, ``VentilationRate``, ``LightingPowerDensity``,
+   ``MonthMeanAirTemperature_diffmax``) via the chained
+   ``STEBBSPROPERTIES_DEV9_TO_PASCAL`` map. ``building_type`` was already
+   dropped at dev11, so no new migration drop is needed (gh#1392
+   follow-up).
+
+**Schema 2026.5.dev11** (naming convention completion - ArchetypeProperties Tier 1 + StebbsProperties Rule 2)
    Combines two independent rename groups in a single bump per the
    dev-label convention (gh#1392 + gh#1394).
 
@@ -211,8 +233,10 @@ the schema that shipped with it via
    prefixes (``threshold_metabolism``, ``ratio_latent_sensible``,
    ``control_daylight``, ``threshold_lighting_illuminance``), initial /
    climatology temperatures, and the full hot-water subsystem.
-   Compound nouns kept intact (``ground_depth``, ``ventilation_rate``,
-   ``lighting_power_density``, ``month_mean_air_temperature_diffmax``).
+   Four straggler compound nouns (``ground_depth``,
+   ``ventilation_rate``, ``lighting_power_density``,
+   ``month_mean_air_temperature_diffmax``) were left intact at this bump
+   and reordered quantity-first at dev12 (see below).
    Rename table ``STEBBSPROPERTIES_DEV8_RENAMES``.
 
    Both tables live in ``src/supy/data_model/core/field_renames.py``;

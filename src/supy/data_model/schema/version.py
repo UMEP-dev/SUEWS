@@ -22,7 +22,7 @@ import warnings
 # schema-versioning.md` (Dev-label convention). Every structural PR
 # between releases bumps the dev counter instead of consuming a new
 # CalVer label.
-CURRENT_SCHEMA_VERSION = "2026.5.dev11"
+CURRENT_SCHEMA_VERSION = "2026.5.dev12"
 
 # Schema version history and descriptions.
 #
@@ -355,6 +355,25 @@ SCHEMA_VERSIONS: dict[str, str] = {
         "external node (fraction_wall/roof_heat_capacity_outer -> "
         "fraction_heat_capacity_wall/roof_external). Combines the "
         "originally-separate #1392 (Tier 1) and #1394 (Tier 2) PRs."
+    ),
+    "2026.5.dev12": (
+        "StebbsProperties straggler reorder (gh#1392 follow-up): the four "
+        "fields kept as compound nouns at dev9 are reordered quantity-first "
+        "per the Reading STEBBS team review ('Column D', D. Hertwig / "
+        "S. Rognone, 2026-05), completing the Column D reorder. "
+        "ground_depth -> depth_ground, ventilation_rate -> rate_ventilation, "
+        "lighting_power_density -> power_density_lighting, "
+        "month_mean_air_temperature_diffmax -> "
+        "temperature_air_month_mean_diffmax. Rename table "
+        "STEBBSPROPERTIES_DEV12_RENAMES in "
+        "src/supy/data_model/core/field_renames.py; the "
+        "(2026.5.dev11 -> 2026.5.dev12) migration is registered in "
+        "src/supy/util/converter/yaml_upgrade.py::_HANDLERS. Bridge DataFrame "
+        "columns keep the fused PascalCase ancestry via the chained "
+        "STEBBSPROPERTIES_DEV9_TO_PASCAL map (GroundDepth, VentilationRate, "
+        "LightingPowerDensity, MonthMeanAirTemperature_diffmax). "
+        "building_type was already dropped at dev11 (no new migration drop "
+        "needed)."
     ),
 }
 

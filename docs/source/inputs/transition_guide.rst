@@ -180,10 +180,48 @@ The sections below summarise what users see change between schemas.
 The authoritative lineage (including release-tag to schema mapping)
 lives in :ref:`schema_version_history`.
 
+Upgrading to Schema 2026.5.dev12 (STEBBS straggler reorder)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Schema ``2026.5.dev12`` is the current in-development shape. It
+completes the StebbsProperties Rule 2 reorder by moving the four
+straggler compound-noun fields kept at dev11 to their quantity-first
+finals, per the Reading STEBBS team review ("Column D",
+D. Hertwig / S. Rognone, 2026-05). All four sit under
+``sites[].properties.stebbs.*``:
+
+- ``ground_depth`` -> ``depth_ground``
+- ``ventilation_rate`` -> ``rate_ventilation``
+- ``lighting_power_density`` -> ``power_density_lighting``
+- ``month_mean_air_temperature_diffmax`` ->
+  ``temperature_air_month_mean_diffmax``
+
+Run the migrator to bring an existing YAML onto the new shape:
+
+.. code-block:: bash
+
+   suews schema migrate your_config.yml --target-version 2026.5.dev12
+
+Or with ``suews-convert``:
+
+.. code-block:: bash
+
+   suews-convert --to 2026.5.dev12 in.yml out.yml
+
+Every rename is logged via ``[yaml-upgrade]   renamed 'old' -> 'new'``.
+The Pydantic backward-compat shim still accepts the dev11 names (and
+earlier dev-cycle names back through PascalCase) at load time, emitting
+a ``DeprecationWarning``. Bridge DataFrame columns are unchanged - the
+chained ``STEBBSPROPERTIES_DEV9_TO_PASCAL`` map still produces the
+legacy fused column keys (``GroundDepth``, ``VentilationRate``,
+``LightingPowerDensity``, ``MonthMeanAirTemperature_diffmax``) from the
+new Pydantic field names.
+
 Upgrading to Schema 2026.5.dev11 (naming convention completion)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Schema ``2026.5.dev11`` is the current in-development shape. It
+Schema ``2026.5.dev11`` was the in-development shape preceding
+``2026.5.dev12``. It
 combines two independent naming-convention rename groups in a single
 bump (gh#1392 + gh#1394): the ArchetypeProperties Tier 1 completion
 (16 renames under ``sites[].properties.building_archetype.*``) and the

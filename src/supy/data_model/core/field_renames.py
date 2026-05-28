@@ -610,10 +610,15 @@ STEBBSPROPERTIES_DEV3_RENAMES: Dict[str, str] = {
 # `initial_outdoor_temperature` -> `temperature_air_outdoor_initial`,
 # `annual_mean_air_temperature` -> `temperature_air_annual_mean`.
 #
-# Deliberately KEPT as compound nouns (idiomatic terms-of-art):
-# `ground_depth`, `ventilation_rate`, `lighting_power_density`. The
-# `month_mean_air_temperature_diffmax` field is also kept this PR —
-# the rename target needs a physics doc check before being locked in.
+# These four straggler fields were left as compound nouns at dev9; they
+# are reordered quantity-first at dev12 (gh#1392 follow-up) per the
+# Reading STEBBS team review ("Column D", D. Hertwig / S. Rognone,
+# 2026-05): `ground_depth` -> `depth_ground`,
+# `ventilation_rate` -> `rate_ventilation`,
+# `lighting_power_density` -> `power_density_lighting`,
+# `month_mean_air_temperature_diffmax` ->
+# `temperature_air_month_mean_diffmax`. See STEBBSPROPERTIES_DEV12_RENAMES
+# below.
 
 STEBBSPROPERTIES_DEV8_RENAMES: Dict[str, str] = {
     # Convection coefficients (Rule 2 reorder + floor -> ground_floor)
@@ -677,13 +682,27 @@ STEBBSPROPERTIES_DEV8_RENAMES: Dict[str, str] = {
 }
 
 
+# Schema 2026.5.dev11 -> 2026.5.dev12: reorder the four STEBBS straggler
+# fields that dev9 deliberately kept as compound nouns. The Reading STEBBS
+# team review ("Column D", D. Hertwig / S. Rognone, 2026-05) confirmed the
+# quantity-first targets, completing the Column D reorder. All four are pure
+# snake->snake reorders applied AFTER STEBBSPROPERTIES_DEV8_RENAMES so users
+# on the dev9 spelling still load with a DeprecationWarning.
+STEBBSPROPERTIES_DEV12_RENAMES: Dict[str, str] = {
+    "ground_depth": "depth_ground",
+    "ventilation_rate": "rate_ventilation",
+    "lighting_power_density": "power_density_lighting",
+    "month_mean_air_temperature_diffmax": "temperature_air_month_mean_diffmax",
+}
+
 # Chained reverse map: dev9 final name -> PascalCase legacy column name.
 # Used by StebbsProperties._STEBBS_LEGACY_COL_NAMES so the Fortran/Rust
 # bridge (keyed on the fused lowercased PascalCase, e.g.
 # `wallinternalconvectioncoefficient`) still resolves from the dev9
 # Pydantic field name. Composes through STEBBSPROPERTIES_DEV8_RENAMES
 # (dev9 -> dev8) and the base STEBBSPROPERTIES_RENAMES {dev8:
-# PascalCase} reverse map. STEBBSPROPERTIES_DEV3_RENAMES is NOT chained
+# PascalCase} reverse map, plus the dev12 straggler reorders chained back
+# to the same PascalCase ancestry. STEBBSPROPERTIES_DEV3_RENAMES is NOT chained
 # here because its targets are the same dev8 names already covered by
 # STEBBSPROPERTIES_RENAMES — passing through the dev3 layer would
 # silently rewrite the PascalCase ancestry.
@@ -695,6 +714,12 @@ def _build_stebbs_dev_to_pascal() -> Dict[str, str]:
     chain: Dict[str, str] = {}
     for old_dev8, new_dev9 in STEBBSPROPERTIES_DEV8_RENAMES.items():
         chain[new_dev9] = base_reverse.get(old_dev8, old_dev8)
+    # dev12 stragglers (gh#1392 follow-up): each new name chains back to the
+    # same PascalCase ancestry the old name resolves to (e.g.
+    # `depth_ground` -> `GroundDepth`). The old names are values of
+    # STEBBSPROPERTIES_RENAMES, so base_reverse holds the PascalCase key.
+    for old_dev11, new_dev12 in STEBBSPROPERTIES_DEV12_RENAMES.items():
+        chain[new_dev12] = base_reverse.get(old_dev11, old_dev11)
     return chain
 
 

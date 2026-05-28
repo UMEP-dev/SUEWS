@@ -38,6 +38,7 @@ from .field_renames import (
     ARCHETYPEPROPERTIES_PASCAL_RENAMES,
     STEBBSPROPERTIES_DEV3_RENAMES,
     STEBBSPROPERTIES_DEV8_RENAMES,
+    STEBBSPROPERTIES_DEV12_RENAMES,
     STEBBSPROPERTIES_DEV9_TO_PASCAL,
     STEBBSPROPERTIES_RENAMES,
     SNOWPARAMS_RENAMES,
@@ -2001,6 +2002,9 @@ class StebbsProperties(BaseModel):
             values = apply_field_renames(
                 values, STEBBSPROPERTIES_DEV8_RENAMES, cls.__name__
             )
+            values = apply_field_renames(
+                values, STEBBSPROPERTIES_DEV12_RENAMES, cls.__name__
+            )
         return values
 
     convection_coefficient_wall_internal: Optional[FlexibleRefValue(float)] = Field(
@@ -2077,7 +2081,7 @@ class StebbsProperties(BaseModel):
         },
         gt=0.0,
     )
-    ground_depth: Optional[FlexibleRefValue(float)] = Field(
+    depth_ground: Optional[FlexibleRefValue(float)] = Field(
         default=3.0,
         description="Depth of external ground (deep soil) [m]",
         json_schema_extra={"unit": "m", "display_name": "Ground Depth"},
@@ -2150,7 +2154,7 @@ class StebbsProperties(BaseModel):
         },
         gt=0.0,
     )
-    ventilation_rate: Optional[FlexibleRefValue(float)] = Field(
+    rate_ventilation: Optional[FlexibleRefValue(float)] = Field(
         default=0.0,
         description="Ventilation rate (air changes per hour, ACH) [h-1]",
         json_schema_extra={"unit": "h^-1", "display_name": "Ventilation Rate"},
@@ -2180,7 +2184,7 @@ class StebbsProperties(BaseModel):
             "display_name": "Annual Mean Air Temperature",
         },
     )
-    month_mean_air_temperature_diffmax: Optional[FlexibleRefValue(float)] = Field(
+    temperature_air_month_mean_diffmax: Optional[FlexibleRefValue(float)] = Field(
         default=10.0,
         description="Maximum difference in monthly outdoor air temperature [degC]",
         json_schema_extra={
@@ -2406,7 +2410,7 @@ class StebbsProperties(BaseModel):
             "display_name": "Appliance Profile",
         },
     )
-    lighting_power_density: Optional[FlexibleRefValue(float)] = (
+    power_density_lighting: Optional[FlexibleRefValue(float)] = (
         Field(
             default=2,
             description="Lighting power per building floor area [W m-2]",

@@ -1,5 +1,5 @@
 name: sample_config
-schema_version: '2026.5.dev11'
+schema_version: '2026.5.dev12'
 description: Sample configuration built from benchmark 1a (Ward et al. 2016) model configuration
 model:
   control:
@@ -154,7 +154,7 @@ sites:
         value: 25.0
       convection_coefficient_window_external:
         value: 25.0
-      ground_depth:
+      depth_ground:
         value: 2.0
       thermal_conductivity_ground:
         value: 0.193
@@ -457,7 +457,7 @@ sites:
           '142': 1.0
           '143': 1.0
           '144': 1.0
-      lighting_power_density:
+      power_density_lighting:
         value: 2.0
       efficiency_heating_system_air:
         value: 0.8
@@ -465,7 +465,7 @@ sites:
         value: 14595
       efficiency_cooling_system_air:
         value: 3.4
-      ventilation_rate:
+      rate_ventilation:
         value: 0.6
       temperature_air_outdoor_initial:
         value: 17.540002822875977
@@ -473,7 +473,7 @@ sites:
         value: 20.0
       temperature_air_annual_mean:
         value: 10.0
-      month_mean_air_temperature_diffmax:
+      temperature_air_month_mean_diffmax:
         value: 10.0        
       thickness_hot_water_tank_wall:
         value: 0.055
@@ -813,7 +813,6 @@ sites:
       efficiency_heating_system_water:
         value: 0.8
     building_archetype:
-      building_type: test
       archetype_name: test
       archetype_building_count:
         value: 1.0

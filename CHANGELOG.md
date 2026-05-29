@@ -54,6 +54,14 @@ EXAMPLES:
 
 ## 2026
 
+### 29 May 2026
+
+- [bugfix] Make standalone Phase B/C validation rename-aware (#1457)
+  - `suews validate` in standalone (BC/C/AC) mode inspected the raw user YAML by current field name without the old->new normalisation that `SUEWSConfig.from_yaml` applies, so a still-compatible config written with a legacy spelling of a field renamed in #1452 (e.g. `outer_cap_fraction` for `capacitance`, `month_mean_air_temperature_diffmax`, the scalar `*_setpoint` names) was mishandled by three raw-dict checks
+  - Most seriously, a legacy `outer_cap_fraction: {value: null}` slipped the orchestrator's critical-null check and could later crash df_state conversion via `int(None)`; the CRU diffmax update and the setpoint-cleanup science adjustment in Phase B were also silently skipped
+  - Fixed by normalising the loaded YAML once at each phase's load chokepoint (`load_user_yaml_normalised` / `normalise_yaml_renames`) so every standalone rule sees current names; a config carrying both a legacy and its current spelling is left untouched so the downstream validator still reports the conflict
+  - The normal `SUEWSConfig.from_yaml` load path was never affected (its sub-models normalise via `@model_validator(mode="before")`)
+
 ### 28 May 2026
 
 - [bugfix] `SUEWSOutput.save()` no longer forces parquet output regardless of the configured format (#1451)

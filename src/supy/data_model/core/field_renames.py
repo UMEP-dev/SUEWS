@@ -1486,6 +1486,30 @@ def rename_keys_recursive(
     return data
 
 
+def normalise_yaml_renames(data: Any) -> Any:
+    """Rewrite legacy field spellings in a loaded YAML mapping to current names.
+
+    ``SUEWSConfig.from_yaml`` normalises old->new before validation, so the
+    normal load path already sees current names. The standalone Phase B/C
+    validation path (``suews validate`` in BC / C / AC modes) inspects the raw
+    user YAML without going through ``from_yaml``, so a still-compatible config
+    written with a legacy spelling would otherwise be looked up by the current
+    name and silently missed (gh#1457). Normalising once at each phase's load
+    chokepoint lets every rule match either spelling.
+
+    If both a legacy and its current spelling are present (ambiguous), the data
+    is returned unchanged so the downstream validation path reports the
+    conflict, rather than this normalisation step raising. This guarantees the
+    helper can only resolve rename-blindness, never introduce a new failure.
+    """
+    if not isinstance(data, dict):
+        return data
+    try:
+        return rename_keys_recursive(data, RAW_YAML_FIELD_RENAMES)
+    except ValueError:
+        return data
+
+
 def reverse_field_renames(data: dict) -> dict:
     """Recursively replace new field names with old ones for serialisation.
 

@@ -202,8 +202,10 @@ def check_daylight_control(context):
             stebbs = props.get("stebbs", {})
             site_gridid = site.get("gridiv")
 
-            daylight_control = stebbs.get("daylight_control", {})
-            dc_val = daylight_control.get("value") if isinstance(daylight_control, Mapping) else daylight_control
+            # get_value_safe accepts the legacy `control_daylight` spelling too,
+            # so a dev11-compatible config still validates in Phase-B-standalone
+            # mode (where the YAML is not Phase-A-normalised).
+            dc_val = get_value_safe(stebbs, "daylight_control")
 
             # Validate daylight_control value
             if dc_val not in (0, 1, 0.0, 1.0, None):
@@ -221,8 +223,7 @@ def check_daylight_control(context):
 
             # Check threshold_lighting_illuminance if daylight_control is 1
             if dc_val in (1, 1.0):
-                lit = stebbs.get("threshold_lighting_illuminance", None)
-                lit_val = lit.get("value") if isinstance(lit, Mapping) else lit
+                lit_val = get_value_safe(stebbs, "threshold_lighting_illuminance")
                 if lit_val is None:
                     results.append(
                         ValidationResult(
@@ -273,7 +274,9 @@ def check_stebbs_properties(context):
             props = site.get("properties", {})
             stebbs = props.get("stebbs", {})
             site_gridid = site.get("gridiv")
-            hwfp_entry = stebbs.get("profile_flow_hot_water", {})
+            # rename-aware: resolves the legacy `profile_hot_water_flow` /
+            # `hot_water_flow_profile` spellings in un-normalised input.
+            hwfp_entry = get_value_safe(stebbs, "profile_flow_hot_water", {})
             for daytype in ("working_day", "holiday"):
                 day_profile = hwfp_entry.get(daytype, {})
                 if isinstance(day_profile, Mapping):
@@ -365,8 +368,10 @@ def validate_model_option_setpoint(context) -> List[ValidationResult]:
         for site_idx, site in enumerate(yaml_data.get("sites", [])):
             site_name = site.get("name", "Unknown")
             building_archetype = site.get("properties", {}).get("building_archetype", {})
-            heating_profile = building_archetype.get("profile_setpoint_temperature_heating_air", {})
-            cooling_profile = building_archetype.get("profile_setpoint_temperature_cooling_air", {})
+            # rename-aware: resolves the legacy `profile_temperature_air_*_setpoint`
+            # spellings in un-normalised (Phase-B-standalone/BC) input.
+            heating_profile = get_value_safe(building_archetype, "profile_setpoint_temperature_heating_air", {})
+            cooling_profile = get_value_safe(building_archetype, "profile_setpoint_temperature_cooling_air", {})
 
             # Check heating profile
             heating_missing_entries = []

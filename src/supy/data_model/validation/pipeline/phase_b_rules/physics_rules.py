@@ -78,8 +78,19 @@ def validate_physics_parameters(context) -> List[ValidationResult]:
         "setpoint",
     ]
 
+    # Resolve each required key rename-aware. In Phase-B-standalone / BC mode the
+    # input YAML is not Phase-A-normalised, so a still-compatible config may use a
+    # legacy spelling (e.g. `outer_cap_fraction` for `capacitance`, or the
+    # long-renamed `netradiationmethod` for `net_radiation`). get_value_safe
+    # accepts both spellings; the _MISSING sentinel distinguishes an absent key
+    # from one present with a null value (so the two checks below stay distinct).
+    _MISSING = object()
+    _present = {
+        param: get_value_safe(physics, param, _MISSING)
+        for param in required_physics_params
+    }
     missing_params = [
-        param for param in required_physics_params if param not in physics
+        param for param in required_physics_params if _present[param] is _MISSING
     ]
     if missing_params:
         for param in missing_params:
@@ -96,7 +107,7 @@ def validate_physics_parameters(context) -> List[ValidationResult]:
     empty_params = [
         param
         for param in required_physics_params
-        if param in physics and physics.get(param, {}).get("value") in ("", None)
+        if _present[param] is not _MISSING and _present[param] in ("", None)
     ]
     if empty_params:
         for param in empty_params:

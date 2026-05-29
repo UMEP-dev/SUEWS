@@ -4587,3 +4587,84 @@ def test_suews_validate_help_exposes_science_fixes(cli_runner):
 
     assert result.exit_code == 0
     assert "--science-fixes" in result.output
+
+
+class TestPhaseBRenameAwareLookups:
+    """Phase B rules read the RAW (un-normalised) user YAML in standalone / BC
+    mode, so they must resolve legacy spellings of renamed fields. Regression for
+    the gap (Codex review) where a still-compatible dev11 config was wrongly
+    flagged missing (physics) or silently skipped (STEBBS) because the rules
+    looked up only the current name.
+    """
+
+    # The required model.physics keys (mirrors validate_physics_parameters).
+    _REQUIRED_PHYSICS = [
+        "net_radiation", "emissions", "storage_heat", "ohm_inc_qf",
+        "roughness_length_momentum", "roughness_length_heat", "stability",
+        "soil_moisture_deficit", "water_use", "roughness_sublayer",
+        "frontal_area_index", "roughness_sublayer_level", "surface_conductance",
+        "snow_use", "stebbs", "capacitance", "same_albedo_wall",
+        "same_albedo_roof", "same_emissivity_wall", "same_emissivity_roof",
+        "setpoint",
+    ]
+
+    def _physics_ctx(self, physics):
+        return SimpleNamespace(yaml_data={"model": {"physics": physics}})
+
+    def test_legacy_capacitance_spelling_satisfies_requirement(self):
+        from supy.data_model.validation.pipeline.phase_b_rules.physics_rules import (
+            validate_physics_parameters,
+        )
+
+        physics = {k: {"value": 1} for k in self._REQUIRED_PHYSICS}
+        # dev11-compatible config: capacitance present under its legacy name.
+        del physics["capacitance"]
+        physics["outer_cap_fraction"] = {"value": 1}
+        errors = [
+            r
+            for r in validate_physics_parameters(self._physics_ctx(physics))
+            if r.status == "ERROR" and "capacitance" in (r.parameter or "")
+        ]
+        assert errors == [], (
+            "legacy `outer_cap_fraction` should satisfy the `capacitance` "
+            "requirement in un-normalised Phase B input"
+        )
+
+    def test_genuinely_absent_capacitance_still_flagged(self):
+        from supy.data_model.validation.pipeline.phase_b_rules.physics_rules import (
+            validate_physics_parameters,
+        )
+
+        physics = {k: {"value": 1} for k in self._REQUIRED_PHYSICS}
+        del physics["capacitance"]  # neither current nor legacy spelling present
+        errors = [
+            r
+            for r in validate_physics_parameters(self._physics_ctx(physics))
+            if r.status == "ERROR" and "capacitance" in (r.parameter or "")
+        ]
+        assert len(errors) == 1, "a truly absent required key must still be flagged"
+
+    def test_legacy_control_daylight_is_validated_not_skipped(self):
+        from supy.data_model.validation.pipeline.phase_b_rules.stebbs_rules import (
+            check_daylight_control,
+        )
+
+        ctx = SimpleNamespace(
+            yaml_data={
+                "model": {"physics": {"stebbs": {"value": 1}}},
+                "sites": [
+                    {
+                        "gridiv": 1,
+                        # legacy spelling of daylight_control with an invalid value
+                        "properties": {"stebbs": {"control_daylight": {"value": 5}}},
+                    }
+                ],
+            }
+        )
+        errors = [
+            r for r in check_daylight_control(ctx) if "daylight_control" in (r.parameter or "")
+        ]
+        assert len(errors) == 1, (
+            "legacy `control_daylight` with an invalid value must be flagged, "
+            "not skipped because the rule only looked up `daylight_control`"
+        )

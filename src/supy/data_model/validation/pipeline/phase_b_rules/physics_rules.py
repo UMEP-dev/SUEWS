@@ -5,6 +5,7 @@ from .rules_core import (
 from ...core.yaml_helpers import get_value_safe
 from ...core.yaml_helpers import unwrap_nested_value as _unwrap_nested_value
 from ...core.yaml_helpers import get_stebbs_block, get_stebbsmethod_value
+from ...core.yaml_helpers import read_physics_key
 
 from collections.abc import Mapping
 from typing import Dict, List, Optional, Union, Any, Tuple
@@ -802,7 +803,7 @@ def validate_forcing_height_vs_buildings(context) -> List[ValidationResult]:
     except (TypeError, ValueError):
         stebbsmethod_val = None
 
-    netradiationmethod_val = _unwrap_nested_value(physics.get("net_radiation"))
+    netradiationmethod_val = read_physics_key(physics, "net_radiation", 0)
     try:
         netradiationmethod_val = int(netradiationmethod_val)
     except (TypeError, ValueError):

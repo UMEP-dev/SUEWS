@@ -988,7 +988,23 @@ emitted in the flat form.
 
 The Rust CLI (``suews run``) accepts the same two shapes via the
 bridge-side normaliser in ``src/suews_bridge/src/field_renames.rs``.
-Orthogonal-axis decomposition (``net_radiation: {scheme: narp,
-ldown: air}``) and human-readable code names (``ohm``, ``K09``,
-``CN98``) are planned as follow-up work and will track under a
-separate issue once this plumbing is proven.
+
+``net_radiation`` also accepts an orthogonal decomposition of the
+same numeric codes:
+
+.. code-block:: yaml
+
+   model:
+     physics:
+       net_radiation:
+         scheme: narp
+         ldown: air
+
+This is equivalent to ``net_radiation: {value: 3}``. Supported
+schemes are ``forcing`` (no ``ldown`` or ``variant``), ``narp``
+(``ldown`` of ``observed``, ``cloud``, or ``air``; optional
+``variant`` of ``standard``, ``surface``, or ``zenith``), and
+``spartacus`` (``ldown`` of ``observed``, ``cloud``, or ``air``).
+As with the family-tagged form, the orthogonal form is accept-only:
+round-tripping emits the flat numeric form. Human-readable method
+aliases beyond this explicit decomposition remain out of scope.

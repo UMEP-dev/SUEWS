@@ -32,13 +32,13 @@ from typing import Any, Dict
 import pandas as pd
 
 from .field_renames import (
-    ARCHETYPEPROPERTIES_RENAMES,
+    ARCHETYPEPROPERTIES_DEV7_TO_PASCAL,
     DECTRPROPERTIES_RENAMES,
     EVETRPROPERTIES_RENAMES,
     LAIPARAMS_RENAMES,
     MODELPHYSICS_RENAMES,
     SNOWPARAMS_RENAMES,
-    STEBBSPROPERTIES_RENAMES,
+    STEBBSPROPERTIES_DEV9_TO_PASCAL,
     SURFACEPROPERTIES_RENAMES,
     VEGETATEDSURFACEPROPERTIES_RENAMES,
 )
@@ -71,29 +71,45 @@ SNOWPARAMS_DF_RENAMES: Dict[str, str] = dict(SNOWPARAMS_RENAMES)
 # We mirror that lowercasing here so the registry keys match the actual
 # column names the DataFrame carries today and will carry after Tier C.
 #
+# The DataFrame column the Fortran bridge writes is the lowercased
+# *PascalCase* legacy spelling (e.g. ``maxheatingpower``), but the current
+# Pydantic attribute is the dev12 Column-D final (e.g.
+# ``max_power_heating_system_air``). Deriving this map from the base
+# ``ARCHETYPEPROPERTIES_RENAMES`` (whose values are dev7-level names) would
+# leave ``read_df_column`` unable to resolve a current name back to the
+# legacy column. Instead we key off ``ARCHETYPEPROPERTIES_DEV7_TO_PASCAL``,
+# which maps each current dev12 final name to its PascalCase ancestry, so
+# the legacy column resolves from today's field name (gh#1392 Column D /
+# Codex P2 fix).
+#
 # Self-mappings (single-word identifiers where the legacy PascalCase and
 # the new snake_case collapse to the same lowercased string — e.g.
 # gh#1334's ``Occupants`` -> ``occupants``) are filtered out: the
 # DataFrame column name is already identical on both sides of the rename
 # so there is nothing to migrate.
 ARCHETYPEPROPERTIES_DF_RENAMES: Dict[str, str] = {
-    old.lower(): new.lower()
-    for old, new in ARCHETYPEPROPERTIES_RENAMES.items()
-    if old.lower() != new.lower()
+    pascal.lower(): final.lower()
+    for final, pascal in ARCHETYPEPROPERTIES_DEV7_TO_PASCAL.items()
+    if pascal.lower() != final.lower()
 }
 
 # ``StebbsProperties`` uses the same lowercased-legacy pattern as
 # ``ArchetypeProperties`` — ``to_df_state`` lowercases the PascalCase
 # legacy attribute name before writing the DataFrame column (see
-# ``_STEBBS_LEGACY_COL_NAMES`` in ``site.py``). gh#1334 converts the
-# 50 Pydantic attributes to snake_case; the DataFrame column names
-# migrate from the lowered PascalCase legacy to the snake_case target.
-# Same self-mapping filter as ArchetypeProperties catches any identifier
-# that collapses to the same string on both sides.
+# ``_STEBBS_LEGACY_COL_NAMES`` in ``site.py``). The current Pydantic
+# attribute is the dev12 Column-D final, so (as for Archetype above) the
+# DataFrame map is keyed off ``STEBBSPROPERTIES_DEV9_TO_PASCAL`` — which
+# chains each current dev12 final back to its PascalCase ancestry — rather
+# than the base ``STEBBSPROPERTIES_RENAMES`` (whose values are dev8-level
+# names). This lets ``read_df_column`` resolve a current name (e.g.
+# ``max_power_cooling_system_air``) back to its legacy column
+# (``maxcoolingpower``) (gh#1392 Column D / Codex P2 fix). Same
+# self-mapping filter catches identifiers that collapse to the same string
+# on both sides.
 STEBBSPROPERTIES_DF_RENAMES: Dict[str, str] = {
-    old.lower(): new.lower()
-    for old, new in STEBBSPROPERTIES_RENAMES.items()
-    if old.lower() != new.lower()
+    pascal.lower(): final.lower()
+    for final, pascal in STEBBSPROPERTIES_DEV9_TO_PASCAL.items()
+    if pascal.lower() != final.lower()
 }
 
 

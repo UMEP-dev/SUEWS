@@ -3743,7 +3743,7 @@ class TestPhaseAUptoDateYaml(TestProcessorFixtures):
             "surface_conductance",
             "snow_use",
             "stebbs",
-            "outer_cap_fraction",
+            "capacitance",
             "same_albedo_wall",
             "same_albedo_roof",
             "same_emissivity_wall",
@@ -3789,7 +3789,7 @@ class TestPhaseBScienceCheck(TestProcessorFixtures):
             "surface_conductance",
             "snow_use",
             "stebbs",
-            "outer_cap_fraction",
+            "capacitance",
             "same_albedo_wall",
             "same_albedo_roof",
             "same_emissivity_wall",
@@ -3859,7 +3859,7 @@ class TestPhaseBScienceCheck(TestProcessorFixtures):
             "surface_conductance",
             "snow_use",
             "stebbs",
-            "outer_cap_fraction",
+            "capacitance",
         }
 
         null_yaml = {
@@ -4271,7 +4271,7 @@ class TestPhaseCPydanticValidation(TestProcessorFixtures):
             "surface_conductance",
             "snow_use",
             "stebbs",
-            "outer_cap_fraction",
+            "capacitance",
         }
 
         complete_config = {
@@ -4352,7 +4352,7 @@ class TestPhaseCPydanticValidation(TestProcessorFixtures):
             "surface_conductance",
             "snow_use",
             "stebbs",
-            "outer_cap_fraction",
+            "capacitance",
         }
 
         rsl_config = {

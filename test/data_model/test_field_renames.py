@@ -22,6 +22,7 @@ from supy.data_model.core.field_renames import (
     ANTHRO_RENAMES,
     ARCHETYPEPROPERTIES_DEV6_RENAMES,
     ARCHETYPEPROPERTIES_DEV7_RENAMES,
+    ARCHETYPEPROPERTIES_DEV12_RENAMES,
     ARCHETYPEPROPERTIES_RENAMES,
     ARCHETYPEPROPERTIES_PASCAL_RENAMES,
     ATMOSPHERE_RENAMES,
@@ -154,20 +155,31 @@ class TestNewNamesAccepted:
         # or a key that chains to one.
         from supy.data_model.core.field_renames import (
             STEBBSPROPERTIES_DEV8_RENAMES,
+            STEBBSPROPERTIES_DEV12_RENAMES,
         )
         if model_cls.__name__ == "ArchetypeProperties":
             downstream_chain = {
                 **ARCHETYPEPROPERTIES_DEV6_RENAMES,
                 **ARCHETYPEPROPERTIES_DEV7_RENAMES,
+                **ARCHETYPEPROPERTIES_DEV12_RENAMES,
             }
         elif model_cls.__name__ == "StebbsProperties":
-            downstream_chain = dict(STEBBSPROPERTIES_DEV8_RENAMES)
+            downstream_chain = {
+                **STEBBSPROPERTIES_DEV8_RENAMES,
+                **STEBBSPROPERTIES_DEV12_RENAMES,
+            }
         else:
             downstream_chain = {}
         for new_name in renames.values():
             field_name = new_name
             seen = {field_name}
-            while field_name in downstream_chain:
+            # Stop as soon as we hit a real model field — a dev12 final name
+            # may itself appear as a *key* in an earlier dev table (e.g.
+            # `daylight_control` is the dev12 final but is also the dev8 key
+            # `daylight_control -> control_daylight`, reverted at dev12), so
+            # blindly chasing the chain would oscillate. The canonical name is
+            # the terminal model field.
+            while field_name not in model_cls.model_fields and field_name in downstream_chain:
                 field_name = downstream_chain[field_name]
                 assert field_name not in seen, (
                     f"{model_cls.__name__} cyclic downstream rename from "
@@ -283,8 +295,10 @@ class TestBackwardCompat:
         # dev8 cooling_system_cop -> dev9 efficiency_cooling_system_air
         # (Rule 2 + air_ qualifier; COP folded into efficiency).
         assert _unwrap(stebbs.efficiency_cooling_system_air) == 3.5
-        # month_mean_air_temperature_diffmax kept (compound noun, deferred).
-        assert _unwrap(stebbs.month_mean_air_temperature_diffmax) == 14.0
+        # dev9 month_mean_air_temperature_diffmax -> dev12
+        # temperature_air_month_mean_diffmax (gh#1392 follow-up straggler
+        # reorder, Rule 2: temperature quantity leads).
+        assert _unwrap(stebbs.temperature_air_month_mean_diffmax) == 14.0
         # dev8 hot_water_tank_wall_emissivity -> dev9
         # emissivity_hot_water_tank_wall (Rule 2: quantity leads).
         assert _unwrap(stebbs.emissivity_hot_water_tank_wall) == 0.85
@@ -302,7 +316,11 @@ class TestDeprecationWarnings:
             (ModelPhysics, "rsl_method", "roughness_sublayer", 2),
             (ModelPhysics, "gs_model", "surface_conductance", 2),
             (ModelPhysics, "smd_method", "soil_moisture_deficit", 0),
-            (ModelPhysics, "rc_method", "outer_cap_fraction", 1),
+            # dev12 Column D: rcmethod / rc_method / dev11 outer_cap_fraction
+            # all resolve to the final `capacitance` (gh#1392 follow-up).
+            (ModelPhysics, "rc_method", "capacitance", 1),
+            (ModelPhysics, "rcmethod", "capacitance", 1),
+            (ModelPhysics, "outer_cap_fraction", "capacitance", 1),
             # Other classes (Cat 1 only).
             (SurfaceProperties, "soildepth", "soil_depth", 150.0),
             (LAIParams, "baset", "base_temperature", 5.0),
@@ -319,6 +337,41 @@ class TestDeprecationWarnings:
             (StebbsProperties, "DHWWaterVolume", "hot_water_volume", 0.25),
             (StebbsProperties, "CoolingSystemCOP", "cooling_system_cop", 3.5),
             (StebbsProperties, "MonthMeanAirTemperature_diffmax", "month_mean_air_temperature_diffmax", 14.0),
+            # dev11 -> dev12 STEBBS straggler reorder (gh#1392 follow-up): the
+            # dev9-era snake names are accepted and remapped quantity-first.
+            (StebbsProperties, "ground_depth", "depth_ground", 3.0),
+            (StebbsProperties, "ventilation_rate", "rate_ventilation", 0.5),
+            (StebbsProperties, "lighting_power_density", "power_density_lighting", 2.0),
+            (StebbsProperties, "month_mean_air_temperature_diffmax", "temperature_air_month_mean_diffmax", 14.0),
+            # dev11 -> dev12 Column D alignment (gh#1392 follow-up): the
+            # dev9-era snake names are accepted and remapped. Scalar fields
+            # only here; the three profile-typed renames are covered by
+            # test_column_d_profile_renames_emit_deprecation below.
+            # ArchetypeProperties scalar setpoints / powers.
+            (ArchetypeProperties, "power_air_heating_max", "max_power_heating_system_air", 8000.0),
+            (ArchetypeProperties, "power_water_heating_max", "max_power_heating_system_water", 4000.0),
+            (ArchetypeProperties, "temperature_air_heating_setpoint", "setpoint_temperature_heating_air", 19.0),
+            (ArchetypeProperties, "temperature_air_cooling_setpoint", "setpoint_temperature_cooling_air", 24.0),
+            # StebbsProperties scalars.
+            (StebbsProperties, "power_air_cooling_max", "max_power_cooling_system_air", 6000.0),
+            (StebbsProperties, "temperature_water_heating_setpoint", "setpoint_temperature_heating_water", 55.0),
+            (StebbsProperties, "temperature_water_mains", "temperature_mains_water", 10.0),
+            (StebbsProperties, "area_hot_water_tank_surface", "surface_area_hot_water_tank", 2.0),
+            (StebbsProperties, "area_hot_water_surface", "surface_area_hot_water", 0.5),
+            (StebbsProperties, "rate_hot_water_flow", "rate_flow_hot_water", 0.0),
+            (StebbsProperties, "control_daylight", "daylight_control", 1),
+            (
+                StebbsProperties,
+                "convection_coefficient_hot_water_vessel_wall_internal",
+                "convection_coefficient_hot_water_tank_vessel_internal",
+                7.7,
+            ),
+            (
+                StebbsProperties,
+                "convection_coefficient_hot_water_vessel_wall_external",
+                "convection_coefficient_hot_water_tank_vessel_external",
+                7.7,
+            ),
             (SnowParams, "tau_a", "tau_cold_snow", 0.02),
             (SnowParams, "narp_emis_snow", "narp_emissivity_snow", 0.98),
             (SnowParams, "precip_limit", "temperature_rain_snow_threshold", 2.5),
@@ -334,6 +387,52 @@ class TestDeprecationWarnings:
         assert any(old_name in msg and new_name in msg for msg in messages), (
             f"Expected deprecation warning for {old_name} -> {new_name}, got {messages}"
         )
+
+    @pytest.mark.parametrize(
+        "model_cls, old_name, new_name",
+        [
+            # dev11 -> dev12 Column D alignment, profile-typed renames. These
+            # take default_factory-built profile objects, so we let the field
+            # default carry through and only assert the deprecation warning.
+            (
+                ArchetypeProperties,
+                "profile_temperature_air_heating_setpoint",
+                "profile_setpoint_temperature_heating_air",
+            ),
+            (
+                ArchetypeProperties,
+                "profile_temperature_air_cooling_setpoint",
+                "profile_setpoint_temperature_cooling_air",
+            ),
+            (
+                StebbsProperties,
+                "profile_hot_water_flow",
+                "profile_flow_hot_water",
+            ),
+        ],
+    )
+    def test_column_d_profile_renames_emit_deprecation(
+        self, model_cls, old_name, new_name
+    ):
+        """The three dev12 profile-typed renames accept the old name and warn.
+
+        Pass a None value: ``apply_field_renames`` rewrites the key in the
+        ``mode='before'`` validator (emitting the warning) and the Optional
+        profile field tolerates ``None`` at construction.
+        """
+        with warnings.catch_warnings(record=True) as captured:
+            warnings.simplefilter("always", DeprecationWarning)
+            instance = model_cls(**{old_name: None})
+        messages = [
+            str(w.message)
+            for w in captured
+            if issubclass(w.category, DeprecationWarning)
+        ]
+        assert any(old_name in msg and new_name in msg for msg in messages), (
+            f"Expected deprecation warning for {old_name} -> {new_name}, got {messages}"
+        )
+        # The new attribute exists on the model after the rename.
+        assert hasattr(instance, new_name)
 
     def test_new_name_does_not_warn(self):
         with warnings.catch_warnings(record=True) as captured:
@@ -488,6 +587,143 @@ class TestRawDictCompatibility:
         assert "wall_external_thickness" not in archetype
         assert "wall_thickness" not in archetype
         assert "window_to_wall_ratio" not in archetype
+
+    def test_raw_yaml_stebbs_straggler_renames_reach_current_names(self):
+        """dev11 -> dev12 STEBBS straggler reorder must resolve in the raw-YAML
+        precheck path (Phase A / RENAMED_PARAMS), not only the Pydantic shim.
+
+        Regression for the gap where STEBBSPROPERTIES_DEV12_RENAMES was wired
+        into the model_validator and the migrator but omitted from
+        RAW_YAML_FIELD_RENAMES, so a dev11 YAML using the old keys was
+        mis-reported in validation (old key as unknown extra, new name as
+        missing) instead of being normalised.
+        """
+        payload = {
+            "sites": [
+                {
+                    "properties": {
+                        "stebbs": {
+                            "ground_depth": {"value": 2.0},
+                            "ventilation_rate": {"value": 0.6},
+                            "lighting_power_density": {"value": 2.0},
+                            "month_mean_air_temperature_diffmax": {"value": 10.0},
+                        }
+                    }
+                }
+            ]
+        }
+
+        normalised = rename_keys_recursive(payload, RAW_YAML_FIELD_RENAMES)
+        stebbs = normalised["sites"][0]["properties"]["stebbs"]
+
+        assert stebbs["depth_ground"]["value"] == 2.0
+        assert stebbs["rate_ventilation"]["value"] == 0.6
+        assert stebbs["power_density_lighting"]["value"] == 2.0
+        assert stebbs["temperature_air_month_mean_diffmax"]["value"] == 10.0
+        assert "ground_depth" not in stebbs
+        assert "ventilation_rate" not in stebbs
+        assert "lighting_power_density" not in stebbs
+        assert "month_mean_air_temperature_diffmax" not in stebbs
+
+    def test_raw_yaml_column_d_renames_reach_current_names(self):
+        """dev11 -> dev12 Column D alignment must resolve in the raw-YAML
+        precheck path (Phase A / RENAMED_PARAMS) for BOTH the stebbs and
+        building_archetype containers.
+
+        Regression for the gap where a DEV12 rename dict was wired into the
+        model_validator and the migrator but omitted from
+        RAW_YAML_FIELD_RENAMES (Codex P2 on the original straggler PR), so a
+        dev11 YAML using the old keys was mis-reported in validation.
+        """
+        payload = {
+            "sites": [
+                {
+                    "properties": {
+                        "stebbs": {
+                            "power_air_cooling_max": {"value": 6000.0},
+                            "temperature_water_heating_setpoint": {"value": 55.0},
+                            "temperature_water_mains": {"value": 10.0},
+                            "area_hot_water_tank_surface": {"value": 2.0},
+                            "area_hot_water_surface": {"value": 0.5},
+                            "rate_hot_water_flow": {"value": 0.0},
+                            "profile_hot_water_flow": {"working_day": {}},
+                            "control_daylight": {"value": 1},
+                            "convection_coefficient_hot_water_vessel_wall_internal": {"value": 7.7},
+                            "convection_coefficient_hot_water_vessel_wall_external": {"value": 7.7},
+                        },
+                        "building_archetype": {
+                            "power_air_heating_max": {"value": 8000.0},
+                            "power_water_heating_max": {"value": 4000.0},
+                            "temperature_air_heating_setpoint": {"value": 19.0},
+                            "temperature_air_cooling_setpoint": {"value": 24.0},
+                            "profile_temperature_air_heating_setpoint": {"working_day": {}},
+                            "profile_temperature_air_cooling_setpoint": {"working_day": {}},
+                        },
+                    }
+                }
+            ]
+        }
+
+        normalised = rename_keys_recursive(payload, RAW_YAML_FIELD_RENAMES)
+        props = normalised["sites"][0]["properties"]
+        stebbs = props["stebbs"]
+        archetype = props["building_archetype"]
+
+        # Stebbs (10)
+        assert stebbs["max_power_cooling_system_air"]["value"] == 6000.0
+        assert stebbs["setpoint_temperature_heating_water"]["value"] == 55.0
+        assert stebbs["temperature_mains_water"]["value"] == 10.0
+        assert stebbs["surface_area_hot_water_tank"]["value"] == 2.0
+        assert stebbs["surface_area_hot_water"]["value"] == 0.5
+        assert stebbs["rate_flow_hot_water"]["value"] == 0.0
+        assert "working_day" in stebbs["profile_flow_hot_water"]
+        assert stebbs["daylight_control"]["value"] == 1
+        assert stebbs["convection_coefficient_hot_water_tank_vessel_internal"]["value"] == 7.7
+        assert stebbs["convection_coefficient_hot_water_tank_vessel_external"]["value"] == 7.7
+        for old in (
+            "power_air_cooling_max",
+            "temperature_water_heating_setpoint",
+            "temperature_water_mains",
+            "area_hot_water_tank_surface",
+            "area_hot_water_surface",
+            "rate_hot_water_flow",
+            "profile_hot_water_flow",
+            "control_daylight",
+            "convection_coefficient_hot_water_vessel_wall_internal",
+            "convection_coefficient_hot_water_vessel_wall_external",
+        ):
+            assert old not in stebbs
+
+        # Archetype (6)
+        assert archetype["max_power_heating_system_air"]["value"] == 8000.0
+        assert archetype["max_power_heating_system_water"]["value"] == 4000.0
+        assert archetype["setpoint_temperature_heating_air"]["value"] == 19.0
+        assert archetype["setpoint_temperature_cooling_air"]["value"] == 24.0
+        assert "working_day" in archetype["profile_setpoint_temperature_heating_air"]
+        assert "working_day" in archetype["profile_setpoint_temperature_cooling_air"]
+        for old in (
+            "power_air_heating_max",
+            "power_water_heating_max",
+            "temperature_air_heating_setpoint",
+            "temperature_air_cooling_setpoint",
+            "profile_temperature_air_heating_setpoint",
+            "profile_temperature_air_cooling_setpoint",
+        ):
+            assert old not in archetype
+
+    def test_raw_yaml_modelphysics_capacitance_rename_reaches_current_name(self):
+        """dev12 model.physics rename (outer_cap_fraction -> capacitance) and
+        its legacy ancestry (rcmethod / rc_method) must resolve in the raw-YAML
+        precheck path, not only the Pydantic shim (gh#1392 Column D).
+        """
+        for old_key in ("outer_cap_fraction", "rcmethod", "rc_method"):
+            payload = {"model": {"physics": {old_key: {"value": 1}}}}
+            normalised = rename_keys_recursive(payload, RAW_YAML_FIELD_RENAMES)
+            physics = normalised["model"]["physics"]
+            assert physics["capacitance"]["value"] == 1, (
+                f"{old_key} did not resolve to capacitance: {physics}"
+            )
+            assert old_key not in physics or old_key == "capacitance"
 
     def test_raw_value_reader_accepts_archetype_pre_current_names(self):
         from supy.data_model.validation.core.yaml_helpers import get_value_safe

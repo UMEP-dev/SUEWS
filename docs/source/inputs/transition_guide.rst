@@ -180,10 +180,91 @@ The sections below summarise what users see change between schemas.
 The authoritative lineage (including release-tag to schema mapping)
 lives in :ref:`schema_version_history`.
 
+Upgrading to Schema 2026.5.dev12 (STEBBS / Archetype Column D alignment)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Schema ``2026.5.dev12`` is the current in-development shape. It aligns
+STEBBS and ArchetypeProperties field names with the Reading STEBBS
+team's "Column D" naming ("Column D", D. Hertwig / S. Rognone, 2026-05),
+in two waves landed in one dev bump.
+
+Wave 1 reorders the four straggler compound-noun fields kept at dev11 to
+their quantity-first finals, all under ``sites[].properties.stebbs.*``:
+
+- ``ground_depth`` -> ``depth_ground``
+- ``ventilation_rate`` -> ``rate_ventilation``
+- ``lighting_power_density`` -> ``power_density_lighting``
+- ``month_mean_air_temperature_diffmax`` ->
+  ``temperature_air_month_mean_diffmax``
+
+Wave 2 aligns sixteen further fields. Six sit under
+``sites[].properties.building_archetype.*``:
+
+- ``power_air_heating_max`` -> ``max_power_heating_system_air``
+- ``power_water_heating_max`` -> ``max_power_heating_system_water``
+- ``temperature_air_heating_setpoint`` ->
+  ``setpoint_temperature_heating_air``
+- ``temperature_air_cooling_setpoint`` ->
+  ``setpoint_temperature_cooling_air``
+- ``profile_temperature_air_heating_setpoint`` ->
+  ``profile_setpoint_temperature_heating_air``
+- ``profile_temperature_air_cooling_setpoint`` ->
+  ``profile_setpoint_temperature_cooling_air``
+
+Ten sit under ``sites[].properties.stebbs.*``:
+
+- ``power_air_cooling_max`` -> ``max_power_cooling_system_air``
+- ``temperature_water_heating_setpoint`` ->
+  ``setpoint_temperature_heating_water``
+- ``temperature_water_mains`` -> ``temperature_mains_water``
+- ``area_hot_water_tank_surface`` -> ``surface_area_hot_water_tank``
+- ``area_hot_water_surface`` -> ``surface_area_hot_water``
+- ``rate_hot_water_flow`` -> ``rate_flow_hot_water``
+- ``profile_hot_water_flow`` -> ``profile_flow_hot_water``
+- ``control_daylight`` -> ``daylight_control``
+- ``convection_coefficient_hot_water_vessel_wall_internal`` ->
+  ``convection_coefficient_hot_water_tank_vessel_internal``
+- ``convection_coefficient_hot_water_vessel_wall_external`` ->
+  ``convection_coefficient_hot_water_tank_vessel_external``
+
+One field sits under ``model.physics.*``:
+
+- ``outer_cap_fraction`` -> ``capacitance``
+
+This is a pure key rename: the field stays the same ``RCMethod`` enum
+with the same accepted values and validation behaviour, and its bridge
+DataFrame column stays ``rcmethod``. The larger relocation of the field
+under STEBBS and the capacitance-versus-fraction semantics are deferred
+to a separate workstream.
+
+The ``ground_floor`` fields keep their two-word token.
+
+Run the migrator to bring an existing YAML onto the new shape:
+
+.. code-block:: bash
+
+   suews schema migrate your_config.yml --target-version 2026.5.dev12
+
+Or with ``suews-convert``:
+
+.. code-block:: bash
+
+   suews-convert --to 2026.5.dev12 in.yml out.yml
+
+Every rename is logged via ``[yaml-upgrade]   renamed 'old' -> 'new'``.
+The Pydantic backward-compat shim still accepts the dev11 names (and
+earlier dev-cycle names back through PascalCase) at load time, emitting
+a ``DeprecationWarning``. Bridge DataFrame columns are unchanged - the
+chained ``STEBBSPROPERTIES_DEV9_TO_PASCAL`` /
+``ARCHETYPEPROPERTIES_DEV7_TO_PASCAL`` maps and the Rust
+``FIELD_COMPAT_ALIASES`` entries still produce the legacy fused column
+keys from the new Pydantic field names.
+
 Upgrading to Schema 2026.5.dev11 (naming convention completion)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Schema ``2026.5.dev11`` is the current in-development shape. It
+Schema ``2026.5.dev11`` was the in-development shape preceding
+``2026.5.dev12``. It
 combines two independent naming-convention rename groups in a single
 bump (gh#1392 + gh#1394): the ArchetypeProperties Tier 1 completion
 (16 renames under ``sites[].properties.building_archetype.*``) and the

@@ -4668,3 +4668,36 @@ class TestPhaseBRenameAwareLookups:
             "legacy `control_daylight` with an invalid value must be flagged, "
             "not skipped because the rule only looked up `daylight_control`"
         )
+
+    def _empty_param_errors(self, physics):
+        from supy.data_model.validation.pipeline.phase_b_rules.physics_rules import (
+            validate_physics_parameters,
+        )
+
+        return {
+            r.parameter
+            for r in validate_physics_parameters(self._physics_ctx(physics))
+            if r.status == "ERROR" and "null value" in r.message
+        }
+
+    def test_empty_required_physics_mapping_flagged(self):
+        # A present-but-value-less mapping (`capacitance: {}`) must be flagged
+        # empty — get_value_safe returns the bare mapping, so the rename-aware
+        # rewrite must not let it slip through (regression guard).
+        physics = {k: {"value": 1} for k in self._REQUIRED_PHYSICS}
+        physics["capacitance"] = {}
+        assert "model.physics.capacitance" in self._empty_param_errors(physics)
+        # and via the legacy spelling
+        physics = {k: {"value": 1} for k in self._REQUIRED_PHYSICS}
+        del physics["capacitance"]
+        physics["outer_cap_fraction"] = {}
+        assert "model.physics.capacitance" in self._empty_param_errors(physics)
+
+    def test_nested_family_and_valid_values_not_flagged_empty(self):
+        # The gh#972 nested-family form and a valid 0 must NOT be flagged empty.
+        physics = {k: {"value": 1} for k in self._REQUIRED_PHYSICS}
+        physics["net_radiation"] = {"spartacus": {"value": 1}}
+        physics["capacitance"] = {"value": 0}
+        flagged = self._empty_param_errors(physics)
+        assert "model.physics.net_radiation" not in flagged
+        assert "model.physics.capacitance" not in flagged

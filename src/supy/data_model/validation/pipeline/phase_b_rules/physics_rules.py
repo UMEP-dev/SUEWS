@@ -104,10 +104,17 @@ def validate_physics_parameters(context) -> List[ValidationResult]:
                 )
             )
 
+    def _is_empty(value):
+        # Null / empty scalar, or a present-but-value-less mapping such as
+        # `capacitance: {}` (get_value_safe returns the bare mapping when there
+        # is no `value` key). A *non-empty* mapping is the gh#972 nested-family
+        # form (e.g. `{spartacus: {value: 1}}`) and is NOT empty.
+        return value in ("", None) or (isinstance(value, dict) and not value)
+
     empty_params = [
         param
         for param in required_physics_params
-        if _present[param] is not _MISSING and _present[param] in ("", None)
+        if _present[param] is not _MISSING and _is_empty(_present[param])
     ]
     if empty_params:
         for param in empty_params:

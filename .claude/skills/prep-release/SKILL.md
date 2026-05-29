@@ -100,6 +100,7 @@ Selection criteria:
 [PASS/FAIL] Release branch created
 [PASS/FAIL] Schema version sync (sample_config.yml matches CURRENT_SCHEMA_VERSION; run /verify-build)
 [PASS/FAIL] Schema version bump covers every structural data_model change since last tag (see .claude/rules/python/schema-versioning.md)
+[PASS/FAIL] Knowledge pack rebuilt against HEAD (run `suews knowledge build --output src/supy/knowledge/pack/current --repo-root .` if data_model/ or cmd/ touched since last release; see gh#1406)
 [PASS/FAIL] Docs updated (CHANGELOG, version-history RST)
 [PASS/FAIL] GitHub Release notes created (.github/releases/)
 [PASS/FAIL] Release issue updated, sub-issues created for manual steps

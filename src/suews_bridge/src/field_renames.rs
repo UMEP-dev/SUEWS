@@ -38,7 +38,9 @@ use serde_yaml::Value;
 /// wrote in legacy YAMLs). The preprocessor's downstream
 /// `normalise_field_name` then lowercases/fuses before the hand-written
 /// parser reads the Fortran-indexed key.
-/// Total: 177 pairs (gh#1334 full STEBBS + Snow snake_case sweep).
+/// Total: 174 pairs (gh#1334 full STEBBS + Snow snake_case sweep; building_type
+/// and the two hot_water_tank view-factor params dropped per the Reading STEBBS
+/// team review, gh#1392).
 pub const FIELD_RENAMES: &[(&str, &str)] = &[
     // ModelPhysics (17) — fused -> final (Cat 2+3, gh#1321) + flags
     ("net_radiation", "netradiationmethod"),
@@ -54,7 +56,11 @@ pub const FIELD_RENAMES: &[(&str, &str)] = &[
     ("roughness_sublayer_level", "rsllevel"),
     ("surface_conductance", "gsmodel"),
     ("stebbs", "stebbsmethod"),
-    ("outer_cap_fraction", "rcmethod"),
+    // Schema 2026.5.dev12 (Reading Column D): former `outer_cap_fraction`
+    // (former fused `rcmethod`) is now `capacitance`. Pure key rename — still
+    // a RCMethod enum, bridge column stays `rcmethod`. The dev11 spelling
+    // `outer_cap_fraction` is a back-compat alias in FIELD_COMPAT_ALIASES.
+    ("capacitance", "rcmethod"),
     ("setpoint", "setpointmethod"),
     ("ohm_inc_qf", "ohmincqf"),
     ("snow_use", "snowuse"),
@@ -94,7 +100,7 @@ pub const FIELD_RENAMES: &[(&str, &str)] = &[
     ("porosity_max_deciduous", "pormax_dec"),
     ("capacity_max_deciduous", "capmax_dec"),
     ("capacity_min_deciduous", "capmin_dec"),
-    // ArchetypeProperties (62) — current dev7 snake_case targets (gh#1390
+    // ArchetypeProperties (61) — current dev7 snake_case targets (gh#1390
     // Rule-2 reorder applied) mapped back to the user's legacy YAML
     // spelling. Pre-gh#1327 fused Wallext/Roofext cluster is preserved
     // here; the gh#1329 PascalCase intermediate (WallExternalThickness
@@ -113,21 +119,20 @@ pub const FIELD_RENAMES: &[(&str, &str)] = &[
     ),
     ("density_roof_outer", "RoofextDensity"),
     ("specific_heat_capacity_roof_outer", "RoofextCp"),
-    ("building_type", "BuildingType"),
-    ("building_name", "BuildingName"),
-    ("building_count", "BuildingCount"),
+    ("archetype_name", "BuildingName"),
+    ("archetype_building_count", "BuildingCount"),
     ("occupants", "Occupants"),
-    ("building_height", "stebbs_Height"),
-    ("footprint_area", "FootprintArea"),
-    ("wall_external_area", "WallExternalArea"),
-    ("internal_volume_ratio", "RatioInternalVolume"),
-    ("internal_mass_area", "InternalMassArea"),
-    ("window_to_wall_ratio", "WWR"),
+    ("archetype_height", "stebbs_Height"),
+    ("area_footprint", "FootprintArea"),
+    ("area_wall_external", "WallExternalArea"),
+    ("ratio_internal_mass_volume", "RatioInternalVolume"),
+    ("area_internal_mass", "InternalMassArea"),
+    ("ratio_window_to_wall", "WWR"),
     ("thickness_wall", "WallThickness"),
     ("conductivity_wall", "WallEffectiveConductivity"),
     ("density_wall", "WallDensity"),
     ("specific_heat_capacity_wall", "WallCp"),
-    ("fraction_wall_heat_capacity_outer", "WallOuterCapFrac"),
+    ("fraction_heat_capacity_wall_external", "WallOuterCapFrac"),
     ("emissivity_wall_external", "WallExternalEmissivity"),
     ("emissivity_wall_internal", "WallInternalEmissivity"),
     ("transmissivity_wall_external", "WallTransmissivity"),
@@ -137,7 +142,7 @@ pub const FIELD_RENAMES: &[(&str, &str)] = &[
     ("conductivity_roof", "RoofEffectiveConductivity"),
     ("density_roof", "RoofDensity"),
     ("specific_heat_capacity_roof", "RoofCp"),
-    ("fraction_roof_heat_capacity_outer", "RoofOuterCapFrac"),
+    ("fraction_heat_capacity_roof_external", "RoofOuterCapFrac"),
     ("emissivity_roof_external", "RoofExternalEmissivity"),
     ("emissivity_roof_internal", "RoofInternalEmissivity"),
     ("transmissivity_roof_external", "RoofTransmissivity"),
@@ -165,24 +170,24 @@ pub const FIELD_RENAMES: &[(&str, &str)] = &[
     ("density_internal_mass", "InternalMassDensity"),
     ("specific_heat_capacity_internal_mass", "InternalMassCp"),
     ("emissivity_internal_mass", "InternalMassEmissivity"),
-    ("max_heating_power", "MaxHeatingPower"),
-    ("hot_water_tank_volume", "WaterTankWaterVolume"),
+    ("power_air_heating_max", "MaxHeatingPower"),
+    ("volume_hot_water_tank", "WaterTankWaterVolume"),
     (
-        "maximum_hot_water_heating_power",
+        "power_water_heating_max",
         "MaximumHotWaterHeatingPower",
     ),
-    ("heating_setpoint_temperature", "HeatingSetpointTemperature"),
-    ("cooling_setpoint_temperature", "CoolingSetpointTemperature"),
+    ("temperature_air_heating_setpoint", "HeatingSetpointTemperature"),
+    ("temperature_air_cooling_setpoint", "CoolingSetpointTemperature"),
     (
-        "heating_setpoint_temperature_profile",
+        "profile_temperature_air_heating_setpoint",
         "HeatingSetpointTemperatureProfile",
     ),
     (
-        "cooling_setpoint_temperature_profile",
+        "profile_temperature_air_cooling_setpoint",
         "CoolingSetpointTemperatureProfile",
     ),
-    ("metabolism_profile", "MetabolismProfile"),
-    // StebbsProperties (50) — PascalCase was the sole legacy form for the
+    ("profile_metabolism", "MetabolismProfile"),
+    // StebbsProperties (48) — PascalCase was the sole legacy form for the
     // full STEBBS surface pre-gh#1334.
     (
         "wall_internal_convection_coefficient",
@@ -268,14 +273,6 @@ pub const FIELD_RENAMES: &[(&str, &str)] = &[
     ("hot_water_tank_wall_density", "HotWaterTankWallDensity"),
     ("hot_water_vessel_density", "DHWVesselDensity"),
     (
-        "hot_water_tank_building_wall_view_factor",
-        "HotWaterTankBuildingWallViewFactor",
-    ),
-    (
-        "hot_water_tank_internal_mass_view_factor",
-        "HotWaterTankInternalMassViewFactor",
-    ),
-    (
         "hot_water_tank_wall_conductivity",
         "HotWaterTankWallConductivity",
     ),
@@ -332,7 +329,11 @@ pub const FIELD_RENAMES: &[(&str, &str)] = &[
 
 /// Additional compatibility aliases for short-lived schema-intermediate
 /// spellings (`net_radiation_method`, `WallExternalThickness`, dev6
-/// ArchetypeProperties names, ...).
+/// ArchetypeProperties names, the pre-Tier-1 ArchetypeProperties names, and
+/// the StebbsProperties Rule-2 final names) that must fold directly to the
+/// bridge-era keys. The Rust CLI bypasses the Pydantic rename shim, so any
+/// name that is not the canonical `FIELD_RENAMES` final needs a direct alias
+/// here.
 ///
 /// These are intentionally kept separate from `FIELD_RENAMES` so the
 /// Rust/Python parity lint can continue to compare the one-to-one
@@ -352,6 +353,10 @@ pub const FIELD_COMPAT_ALIASES: &[(&str, &str)] = &[
     ("rsl_level", "rsllevel"),
     ("fai_method", "faimethod"),
     ("rc_method", "rcmethod"),
+    // Schema 2026.5.dev11 spelling of the field now named `capacitance`
+    // (gh#1392 Column D). The CLI bypasses the Pydantic shim, so the dev11
+    // spelling needs a direct alias to the bridge column `rcmethod`.
+    ("outer_cap_fraction", "rcmethod"),
     ("gs_model", "gsmodel"),
     // Schema 2026.5.dev1 STEBBS ArchetypeProperties Cat 5 intermediate
     // (gh#1327). After gh#1334 the final names are snake_case; the
@@ -430,6 +435,46 @@ pub const FIELD_COMPAT_ALIASES: &[(&str, &str)] = &[
     ("internal_mass_density", "internalmassdensity"),
     ("internal_mass_specific_heat_capacity", "internalmasscp"),
     ("internal_mass_emissivity", "internalmassemissivity"),
+    // Pre-Tier-1 ArchetypeProperties names (gh#1392): the master-current
+    // spellings before the archetype_* / area_* / ratio_* / power_* /
+    // temperature_air_* / volume_hot_water_tank / profile_* reorder. FIELD_RENAMES
+    // now carries the Tier-1 finals; these older names stay accepted via the
+    // same fused-lowercase bridge keys (lowercased PascalCase ancestry).
+    ("building_name", "buildingname"),
+    ("building_count", "buildingcount"),
+    ("building_height", "stebbs_height"),
+    ("footprint_area", "footprintarea"),
+    ("wall_external_area", "wallexternalarea"),
+    ("internal_mass_area", "internalmassarea"),
+    ("internal_volume_ratio", "ratiointernalvolume"),
+    ("window_to_wall_ratio", "wwr"),
+    ("max_heating_power", "maxheatingpower"),
+    (
+        "maximum_hot_water_heating_power",
+        "maximumhotwaterheatingpower",
+    ),
+    ("hot_water_tank_volume", "watertankwatervolume"),
+    (
+        "heating_setpoint_temperature",
+        "heatingsetpointtemperature",
+    ),
+    (
+        "cooling_setpoint_temperature",
+        "coolingsetpointtemperature",
+    ),
+    (
+        "heating_setpoint_temperature_profile",
+        "heatingsetpointtemperatureprofile",
+    ),
+    (
+        "cooling_setpoint_temperature_profile",
+        "coolingsetpointtemperatureprofile",
+    ),
+    ("metabolism_profile", "metabolismprofile"),
+    // gh#1390 final spellings for the wall/roof heat-capacity fraction, before
+    // the outer -> external move (D. Hertwig col D). Kept accepted by the CLI.
+    ("fraction_wall_heat_capacity_outer", "walloutercapfrac"),
+    ("fraction_roof_heat_capacity_outer", "roofoutercapfrac"),
     // Schema 2026.5.dev2 SnowParams intermediate (gh#1334)
     ("precip_limit", "preciplimit"),
     ("precip_limit_albedo", "preciplimitalb"),
@@ -437,6 +482,116 @@ pub const FIELD_COMPAT_ALIASES: &[(&str, &str)] = &[
     ("snow_limit_paved", "snowlimpaved"),
     ("temp_melt_factor", "tempmeltfact"),
     ("rad_melt_factor", "radmeltfact"),
+    // Schema 2026.5.dev9 StebbsProperties Rule-2 final names. Python
+    // reaches these through the Pydantic rename chain; the Rust CLI bypasses
+    // that shim, so current YAML needs a direct alias to the bridge keys.
+    ("convection_coefficient_wall_internal", "wallinternalconvectioncoefficient"),
+    ("convection_coefficient_roof_internal", "roofinternalconvectioncoefficient"),
+    ("convection_coefficient_internal_mass", "internalmassconvectioncoefficient"),
+    ("convection_coefficient_ground_floor_internal", "floorinternalconvectioncoefficient"),
+    ("convection_coefficient_window_internal", "windowinternalconvectioncoefficient"),
+    ("convection_coefficient_wall_external", "wallexternalconvectioncoefficient"),
+    ("convection_coefficient_roof_external", "roofexternalconvectioncoefficient"),
+    ("convection_coefficient_window_external", "windowexternalconvectioncoefficient"),
+    ("thermal_conductivity_ground", "externalgroundconductivity"),
+    ("threshold_metabolism", "metabolismthreshold"),
+    ("ratio_latent_sensible", "latentsensibleratio"),
+    ("control_daylight", "daylightcontrol"),
+    ("threshold_lighting_illuminance", "lightingilluminancethreshold"),
+    ("efficiency_heating_system_air", "heatingsystemefficiency"),
+    ("power_air_cooling_max", "maxcoolingpower"),
+    ("efficiency_cooling_system_air", "coolingsystemcop"),
+    ("temperature_air_outdoor_initial", "initialoutdoortemperature"),
+    ("temperature_air_indoor_initial", "initialindoortemperature"),
+    ("temperature_air_annual_mean", "annualmeanairtemperature"),
+    ("thickness_hot_water_tank_wall", "watertankwallthickness"),
+    ("temperature_water_mains", "mainswatertemperature"),
+    ("area_hot_water_tank_surface", "watertanksurfacearea"),
+    ("temperature_water_heating_setpoint", "hotwaterheatingsetpointtemperature"),
+    ("emissivity_hot_water_tank_wall", "hotwatertankwallemissivity"),
+    ("conductivity_hot_water_tank_wall", "hotwatertankwallconductivity"),
+    ("density_hot_water_tank_wall", "hotwatertankwalldensity"),
+    ("specific_heat_capacity_hot_water_tank_wall", "hotwatertankspecificheatcapacity"),
+    (
+        "convection_coefficient_hot_water_tank_wall_internal",
+        "hotwatertankinternalwallconvectioncoefficient",
+    ),
+    (
+        "convection_coefficient_hot_water_tank_wall_external",
+        "hotwatertankexternalwallconvectioncoefficient",
+    ),
+    ("thickness_hot_water_vessel_wall", "dhwvesselwallthickness"),
+    ("conductivity_hot_water_vessel_wall", "dhwvesselwallconductivity"),
+    ("density_hot_water_vessel_wall", "dhwvesseldensity"),
+    ("specific_heat_capacity_hot_water_vessel_wall", "dhwvesselspecificheatcapacity"),
+    (
+        "convection_coefficient_hot_water_vessel_wall_internal",
+        "dhwvesselinternalwallconvectioncoefficient",
+    ),
+    (
+        "convection_coefficient_hot_water_vessel_wall_external",
+        "dhwvesselexternalwallconvectioncoefficient",
+    ),
+    ("emissivity_hot_water_vessel_wall", "dhwvesselwallemissivity"),
+    ("volume_hot_water", "dhwwatervolume"),
+    ("area_hot_water_surface", "dhwsurfacearea"),
+    ("rate_hot_water_flow", "hotwaterflowrate"),
+    ("density_hot_water", "dhwdensity"),
+    ("specific_heat_capacity_hot_water", "dhwspecificheatcapacity"),
+    ("efficiency_heating_system_water", "hotwaterheatingefficiency"),
+    ("profile_hot_water_flow", "hotwaterflowprofile"),
+    ("profile_appliance", "applianceprofile"),
+    // Schema 2026.5.dev12 STEBBS straggler reorder (gh#1392 follow-up). The
+    // current YAML carries the quantity-first names; the Rust CLI bypasses the
+    // Pydantic rename chain, so each needs a direct alias to its PascalCase
+    // legacy ancestry. PascalCase (not fused-lowercase) is deliberate:
+    // `apply_stebbs_overrides` matches `lighting_power_density` by EXACT
+    // equality on the de-camelCased key, so `LightingPowerDensity` ->
+    // `lighting_power_density` keeps that check firing.
+    ("depth_ground", "GroundDepth"),
+    ("rate_ventilation", "VentilationRate"),
+    ("power_density_lighting", "LightingPowerDensity"),
+    ("temperature_air_month_mean_diffmax", "MonthMeanAirTemperature_diffmax"),
+    // Schema 2026.5.dev12 Column D alignment (gh#1392 follow-up): sixteen more
+    // STEBBS / Archetype fields adopt the Reading STEBBS team's "Column D"
+    // names (D. Hertwig / S. Rognone, 2026-05). The current YAML carries the
+    // new names; the Rust CLI bypasses the Pydantic rename chain, so each needs
+    // a direct alias to its PascalCase legacy ancestry. PascalCase (not
+    // fused-lowercase) is deliberate: scalar `set_mapped_value` matches on the
+    // underscore-stripped form (so either spelling resolves), but the profile
+    // handlers in `apply_stebbs_overrides` compare the de-camelCased key by
+    // EXACT equality (e.g. `HotWaterFlowProfile` -> `hot_water_flow_profile`),
+    // so the PascalCase ancestry is required for the profile fields.
+    // ArchetypeProperties (6)
+    ("max_power_heating_system_air", "MaxHeatingPower"),
+    ("max_power_heating_system_water", "MaximumHotWaterHeatingPower"),
+    ("setpoint_temperature_heating_air", "HeatingSetpointTemperature"),
+    ("setpoint_temperature_cooling_air", "CoolingSetpointTemperature"),
+    (
+        "profile_setpoint_temperature_heating_air",
+        "HeatingSetpointTemperatureProfile",
+    ),
+    (
+        "profile_setpoint_temperature_cooling_air",
+        "CoolingSetpointTemperatureProfile",
+    ),
+    // StebbsProperties (10)
+    ("max_power_cooling_system_air", "MaxCoolingPower"),
+    ("setpoint_temperature_heating_water", "HotWaterHeatingSetpointTemperature"),
+    ("temperature_mains_water", "MainsWaterTemperature"),
+    ("surface_area_hot_water_tank", "WaterTankSurfaceArea"),
+    ("surface_area_hot_water", "DHWSurfaceArea"),
+    ("rate_flow_hot_water", "HotWaterFlowRate"),
+    ("profile_flow_hot_water", "HotWaterFlowProfile"),
+    ("daylight_control", "DaylightControl"),
+    (
+        "convection_coefficient_hot_water_tank_vessel_internal",
+        "DHWVesselInternalWallConvectionCoefficient",
+    ),
+    (
+        "convection_coefficient_hot_water_tank_vessel_external",
+        "DHWVesselExternalWallConvectionCoefficient",
+    ),
 ];
 
 /// Family registry for nested `model.physics` sub-options (gh#972).
@@ -735,7 +890,7 @@ mod tests {
     fn field_renames_registry_has_expected_size() {
         // Matches the Python ALL_FIELD_RENAMES total (see field_renames.py).
         // Bump when ModelPhysics / SurfaceProperties / ... dicts change.
-        assert_eq!(FIELD_RENAMES.len(), 177);
+        assert_eq!(FIELD_RENAMES.len(), 174);
     }
 
     #[test]
@@ -818,6 +973,36 @@ mod tests {
         let paved = &root["sites"][0]["properties"]["land_cover"]["paved"];
         assert!(paved.get("soildepth").is_some());
         assert!(paved.get("soil_depth").is_none());
+    }
+
+    #[test]
+    fn renames_current_archetype_keys_to_bridge_names() {
+        let yaml = "\
+sites:
+  - properties:
+      building_archetype:
+        thickness_wall: {value: 0.3}
+        thickness_wall_outer: {value: 0.2}
+        conductivity_wall_outer: {value: 1.1}
+        emissivity_wall_external: {value: 0.85}
+        fraction_heat_capacity_roof_external: {value: 0.55}
+        ratio_window_to_wall: {value: 0.4}
+        temperature_air_heating_setpoint: {value: 21.0}
+";
+        let mut root: Value = from_str(yaml).unwrap();
+        normalize_field_names(&mut root).unwrap();
+        let archetype = &root["sites"][0]["properties"]["building_archetype"];
+
+        assert!(archetype.get("WallThickness").is_some());
+        assert!(archetype.get("WallextThickness").is_some());
+        assert!(archetype.get("WallextEffectiveConductivity").is_some());
+        assert!(archetype.get("WallExternalEmissivity").is_some());
+        assert!(archetype.get("RoofOuterCapFrac").is_some());
+        assert!(archetype.get("WWR").is_some());
+        assert!(archetype.get("HeatingSetpointTemperature").is_some());
+        assert!(archetype.get("thickness_wall").is_none());
+        assert!(archetype.get("thickness_wall_outer").is_none());
+        assert!(archetype.get("ratio_window_to_wall").is_none());
     }
 
     #[test]

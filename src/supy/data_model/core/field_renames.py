@@ -44,7 +44,11 @@ MODELPHYSICS_RENAMES: Dict[str, str] = {
     "rsllevel": "roughness_sublayer_level",
     "gsmodel": "surface_conductance",
     "stebbsmethod": "stebbs",
-    "rcmethod": "outer_cap_fraction",
+    # Schema 2026.5.dev12 (Reading Column D): the former `rcmethod` field is
+    # renamed `outer_cap_fraction` -> `capacitance`. The fused legacy chains
+    # straight to the new dev12 final so ALL_FIELD_RENAMES stays one-to-one
+    # and the bridge reverse map gives `capacitance -> rcmethod`.
+    "rcmethod": "capacitance",
     "setpointmethod": "setpoint",  # fused identifier missed by Category 1
     # Flags/enum choices not touched by Category 2+3 keep their Cat 1 target.
     "ohmincqf": "ohm_inc_qf",
@@ -76,9 +80,29 @@ MODELPHYSICS_SUFFIX_RENAMES: Dict[str, str] = {
     "rsl_method": "roughness_sublayer",
     "rsl_level": "roughness_sublayer_level",
     "fai_method": "frontal_area_index",
-    # Expand + semantic rename (2)
-    "rc_method": "outer_cap_fraction",
+    # Expand + semantic rename (2). `rc_method` chains straight to the dev12
+    # final `capacitance` (was `outer_cap_fraction` pre-dev12).
+    "rc_method": "capacitance",
     "gs_model": "surface_conductance",
+}
+
+# Schema 2026.5.dev11 -> 2026.5.dev12: the `model.physics` field formerly
+# spelled `outer_cap_fraction` (itself the former fused `rcmethod`) is renamed
+# `capacitance` to align with the Reading STEBBS team's "Column D" naming
+# (D. Hertwig / S. Rognone, 2026-05). This is a PURE KEY RENAME — the field
+# stays a `RCMethod` enum with the same values and behaviour; the larger
+# relocation under STEBBS and the capacitance-vs-fraction semantics are
+# deferred to a future PR. The dev11 spelling `outer_cap_fraction` is a value
+# of MODELPHYSICS_RENAMES / MODELPHYSICS_SUFFIX_RENAMES (now retargeted to
+# `capacitance`), so this table only needs to catch users who hand-wrote
+# `outer_cap_fraction` directly. Applied by the ModelPhysics Pydantic shim
+# AFTER the two tables above so dev11 YAMLs still load with a
+# DeprecationWarning. NOT spread into ALL_FIELD_RENAMES (it would introduce a
+# second alias for the same final name, breaking the one-to-one reverse map
+# the Rust bridge depends on); it is composed into RAW_YAML_FIELD_RENAMES for
+# the Phase A precheck path.
+MODELPHYSICS_DEV12_RENAMES: Dict[str, str] = {
+    "outer_cap_fraction": "capacitance",
 }
 
 # -- SurfaceProperties (surface.py) ------------------------------------------
@@ -167,23 +191,26 @@ ARCHETYPEPROPERTIES_RENAMES: Dict[str, str] = {
     "RoofextEffectiveConductivity": "conductivity_roof_outer",
     "RoofextDensity": "density_roof_outer",
     "RoofextCp": "specific_heat_capacity_roof_outer",
-    # Building metadata / geometry
-    "BuildingType": "building_type",
-    "BuildingName": "building_name",
-    "BuildingCount": "building_count",
+    # Building metadata / geometry. Tier-1 completion (gh#1392) chains the
+    # archetype-scoped, geometry, and ratio fields one hop further to their
+    # final names: `archetype_*` namespace prefix, `area_*` quantity-first,
+    # `ratio_*` category prefix. The snake-intermediate spellings (building_name,
+    # footprint_area, ...) remain accepted via ARCHETYPEPROPERTIES_DEV7_RENAMES.
+    "BuildingName": "archetype_name",
+    "BuildingCount": "archetype_building_count",
     "Occupants": "occupants",
-    "stebbs_Height": "building_height",
-    "FootprintArea": "footprint_area",
-    "WallExternalArea": "wall_external_area",
-    "RatioInternalVolume": "internal_volume_ratio",
-    "InternalMassArea": "internal_mass_area",
-    "WWR": "window_to_wall_ratio",
+    "stebbs_Height": "archetype_height",
+    "FootprintArea": "area_footprint",
+    "WallExternalArea": "area_wall_external",
+    "RatioInternalVolume": "ratio_internal_mass_volume",
+    "InternalMassArea": "area_internal_mass",
+    "WWR": "ratio_window_to_wall",
     # Wall (non-ext)
     "WallThickness": "thickness_wall",
     "WallEffectiveConductivity": "conductivity_wall",
     "WallDensity": "density_wall",
     "WallCp": "specific_heat_capacity_wall",
-    "WallOuterCapFrac": "fraction_wall_heat_capacity_outer",
+    "WallOuterCapFrac": "fraction_heat_capacity_wall_external",
     "WallExternalEmissivity": "emissivity_wall_external",
     "WallInternalEmissivity": "emissivity_wall_internal",
     "WallTransmissivity": "transmissivity_wall_external",
@@ -194,7 +221,7 @@ ARCHETYPEPROPERTIES_RENAMES: Dict[str, str] = {
     "RoofEffectiveConductivity": "conductivity_roof",
     "RoofDensity": "density_roof",
     "RoofCp": "specific_heat_capacity_roof",
-    "RoofOuterCapFrac": "fraction_roof_heat_capacity_outer",
+    "RoofOuterCapFrac": "fraction_heat_capacity_roof_external",
     "RoofExternalEmissivity": "emissivity_roof_external",
     "RoofInternalEmissivity": "emissivity_roof_internal",
     "RoofTransmissivity": "transmissivity_roof_external",
@@ -219,17 +246,23 @@ ARCHETYPEPROPERTIES_RENAMES: Dict[str, str] = {
     "InternalMassDensity": "density_internal_mass",
     "InternalMassCp": "specific_heat_capacity_internal_mass",
     "InternalMassEmissivity": "emissivity_internal_mass",
-    # HVAC / hot water. `water_tank_water_volume` unified into
-    # `hot_water_tank_volume` — same fluid, tank is just the storage
-    # component of the hot-water subsystem (see StebbsProperties below).
-    "MaxHeatingPower": "max_heating_power",
-    "WaterTankWaterVolume": "hot_water_tank_volume",
-    "MaximumHotWaterHeatingPower": "maximum_hot_water_heating_power",
-    "HeatingSetpointTemperature": "heating_setpoint_temperature",
-    "CoolingSetpointTemperature": "cooling_setpoint_temperature",
-    "HeatingSetpointTemperatureProfile": "heating_setpoint_temperature_profile",
-    "CoolingSetpointTemperatureProfile": "cooling_setpoint_temperature_profile",
-    "MetabolismProfile": "metabolism_profile",
+    # HVAC / hot water. Tier-1 completion (gh#1392) chains to final names:
+    # power_<system>_<class>_max, temperature_air_*_setpoint,
+    # volume_hot_water_tank, and profile_* for the setpoint/metabolism profiles.
+    # `water_tank_water_volume` was already unified into the dev-stage
+    # `hot_water_tank_volume`; Tier-1 reorders it quantity-first to
+    # `volume_hot_water_tank`, keeping the `hot_water_tank_*` component prefix
+    # for consistency with its sibling fields (Denise Hertwig col D, 2026-05).
+    # snake-intermediate spellings remain accepted via
+    # ARCHETYPEPROPERTIES_DEV7_RENAMES.
+    "MaxHeatingPower": "power_air_heating_max",
+    "WaterTankWaterVolume": "volume_hot_water_tank",
+    "MaximumHotWaterHeatingPower": "power_water_heating_max",
+    "HeatingSetpointTemperature": "temperature_air_heating_setpoint",
+    "CoolingSetpointTemperature": "temperature_air_cooling_setpoint",
+    "HeatingSetpointTemperatureProfile": "profile_temperature_air_heating_setpoint",
+    "CoolingSetpointTemperatureProfile": "profile_temperature_air_cooling_setpoint",
+    "MetabolismProfile": "profile_metabolism",
 }
 
 # gh#1329 intermediate PascalCase (`WallExternalThickness`, etc.) -> gh#1334
@@ -281,7 +314,7 @@ ARCHETYPEPROPERTIES_DEV3_RENAMES: Dict[str, str] = {
 #
 # Walls also get the `fraction_*` non-physical category prefix moved to
 # the front (`wall_outer_heat_capacity_fraction` ->
-# `fraction_wall_heat_capacity_outer`).
+# `fraction_heat_capacity_wall_external`).
 #
 # Applied directly by the ArchetypeProperties Pydantic shim so users on
 # the dev6 spelling still load with a DeprecationWarning. The dev7 values
@@ -303,7 +336,7 @@ ARCHETYPEPROPERTIES_DEV6_RENAMES: Dict[str, str] = {
     "wall_external_density": "density_wall_outer",
     "wall_external_specific_heat_capacity": "specific_heat_capacity_wall_outer",
     # Heat-capacity distribution (non-physical, fraction_* leads)
-    "wall_outer_heat_capacity_fraction": "fraction_wall_heat_capacity_outer",
+    "wall_outer_heat_capacity_fraction": "fraction_heat_capacity_wall_external",
     # Wall radiative surface (external/internal stays — surface property)
     "wall_external_emissivity": "emissivity_wall_external",
     "wall_internal_emissivity": "emissivity_wall_internal",
@@ -319,7 +352,7 @@ ARCHETYPEPROPERTIES_DEV6_RENAMES: Dict[str, str] = {
     "roof_external_effective_conductivity": "conductivity_roof_outer",
     "roof_external_density": "density_roof_outer",
     "roof_external_specific_heat_capacity": "specific_heat_capacity_roof_outer",
-    "roof_outer_heat_capacity_fraction": "fraction_roof_heat_capacity_outer",
+    "roof_outer_heat_capacity_fraction": "fraction_heat_capacity_roof_external",
     "roof_external_emissivity": "emissivity_roof_external",
     "roof_internal_emissivity": "emissivity_roof_internal",
     "roof_transmissivity": "transmissivity_roof_external",
@@ -347,15 +380,107 @@ ARCHETYPEPROPERTIES_DEV6_RENAMES: Dict[str, str] = {
 }
 
 
-# Reverse map: dev7 final name -> PascalCase legacy column name.
-# Used by ArchetypeProperties._ARCHETYPE_LEGACY_COL_NAMES so the Fortran/Rust
-# bridge (keyed on the fused lowercased PascalCase, e.g. `wallextthickness`)
-# still resolves from the dev7 Pydantic field name. The canonical
-# ARCHETYPEPROPERTIES_RENAMES values are dev7 final names (PR#1395), so this
-# is just its inverse.
-ARCHETYPEPROPERTIES_DEV7_TO_PASCAL: Dict[str, str] = {
-    new: old for old, new in ARCHETYPEPROPERTIES_RENAMES.items()
+# Tier 1 completion (gh#1392) on ArchetypeProperties. Maps the
+# snake-intermediate spellings (the names users authored against the dev-stage
+# layout) to the final Tier-1 names. The canonical ARCHETYPEPROPERTIES_RENAMES
+# values above were chained one hop further to these same finals, so a user on
+# the PascalCase legacy form resolves in a single pass while a user on the
+# snake-intermediate form resolves through this table. Three orthogonal moves:
+#
+# * Archetype namespace prefix (Rule 2 exception) — fields describing
+#   the archetype as a whole take the `archetype_*` prefix:
+#   `building_name` -> `archetype_name`,
+#   `building_count` -> `archetype_building_count`,
+#   `building_height` -> `archetype_height`.
+# * Geometry Rule 2 reorder — physical quantity leads:
+#   `footprint_area` -> `area_footprint`,
+#   `wall_external_area` -> `area_wall_external`, etc. The `ratio_*`
+#   non-physical category prefix leads for fraction-style fields:
+#   `internal_volume_ratio` -> `ratio_internal_mass_volume`,
+#   `window_to_wall_ratio` -> `ratio_window_to_wall`.
+# * HVAC + setpoint air_/water_ qualifier (per the convention's
+#   "Specific tokens" section) — every heating/cooling power and
+#   setpoint disambiguates between air-system and DHW-system control:
+#   `heating_setpoint_temperature` -> `temperature_air_heating_setpoint`,
+#   `max_heating_power` -> `power_air_heating_max`,
+#   `maximum_hot_water_heating_power` -> `power_water_heating_max`, etc.
+#   Setpoint profiles take the `profile_*` non-physical category prefix:
+#   `metabolism_profile` -> `profile_metabolism`.
+
+ARCHETYPEPROPERTIES_DEV7_RENAMES: Dict[str, str] = {
+    # Archetype namespace
+    "building_name": "archetype_name",
+    "building_count": "archetype_building_count",
+    "building_height": "archetype_height",
+    # Geometry — quantity leads
+    "footprint_area": "area_footprint",
+    "wall_external_area": "area_wall_external",
+    "internal_mass_area": "area_internal_mass",
+    # Geometry — non-physical, ratio_* leads
+    "internal_volume_ratio": "ratio_internal_mass_volume",
+    "window_to_wall_ratio": "ratio_window_to_wall",
+    # HVAC max powers — power_<system>_<sub_class>_max
+    "max_heating_power": "power_air_heating_max",
+    "maximum_hot_water_heating_power": "power_water_heating_max",
+    # DHW tank volume — quantity leads; keep `hot_water_tank_*` component prefix
+    "hot_water_tank_volume": "volume_hot_water_tank",
+    # Setpoints — temperature leads + air_/water_ qualifier
+    "heating_setpoint_temperature": "temperature_air_heating_setpoint",
+    "cooling_setpoint_temperature": "temperature_air_cooling_setpoint",
+    # Setpoint profiles — profile_* category prefix leads
+    "heating_setpoint_temperature_profile": "profile_temperature_air_heating_setpoint",
+    "cooling_setpoint_temperature_profile": "profile_temperature_air_cooling_setpoint",
+    "metabolism_profile": "profile_metabolism",
+    # Heat-capacity distribution moved from the outer-layer (`outer`) framing to
+    # the external radiative node (`external`) per the Reading STEBBS team
+    # (D. Hertwig col D, 2026-05): the gh#1390 final spelling
+    # `fraction_wall/roof_heat_capacity_outer` migrates one hop further here.
+    "fraction_wall_heat_capacity_outer": "fraction_heat_capacity_wall_external",
+    "fraction_roof_heat_capacity_outer": "fraction_heat_capacity_roof_external",
 }
+
+
+# Schema 2026.5.dev11 -> 2026.5.dev12: align six ArchetypeProperties HVAC
+# power / setpoint fields with the Reading STEBBS team's "Column D" naming
+# (D. Hertwig / S. Rognone, 2026-05). The powers take the qualifier-first
+# `max_power_heating_system_<air|water>` shape and the setpoints (and their
+# profiles) take `setpoint_temperature_<heating|cooling>_air`. The pre-dev12
+# names are dev7-level values of ARCHETYPEPROPERTIES_RENAMES, so the
+# dev12->ancestry chain resolves through that map (see
+# ARCHETYPEPROPERTIES_DEV7_TO_PASCAL below). Pure snake->snake reorders applied
+# AFTER ARCHETYPEPROPERTIES_DEV7_RENAMES so users on the dev7 spelling still
+# load with a DeprecationWarning.
+ARCHETYPEPROPERTIES_DEV12_RENAMES: Dict[str, str] = {
+    "power_air_heating_max": "max_power_heating_system_air",
+    "power_water_heating_max": "max_power_heating_system_water",
+    "temperature_air_heating_setpoint": "setpoint_temperature_heating_air",
+    "temperature_air_cooling_setpoint": "setpoint_temperature_cooling_air",
+    "profile_temperature_air_heating_setpoint": "profile_setpoint_temperature_heating_air",
+    "profile_temperature_air_cooling_setpoint": "profile_setpoint_temperature_cooling_air",
+}
+
+
+# Reverse map: final name -> PascalCase legacy column name. Used by
+# ArchetypeProperties._ARCHETYPE_LEGACY_COL_NAMES so the Fortran/Rust bridge
+# (keyed on the fused lowercased PascalCase, e.g. `wallextthickness`) still
+# resolves from the current Pydantic field name. The canonical
+# ARCHETYPEPROPERTIES_RENAMES values are the dev7 final names (Rule-2 reorder
+# from PR#1395 plus the Tier-1 completion in gh#1392), so the base layer is
+# just its inverse. The dev12 Column D alignment then chains each new name back
+# to the same PascalCase ancestry its pre-dev12 name resolves to (e.g.
+# `max_power_heating_system_air` -> `MaxHeatingPower`), so the bridge column key
+# is unchanged after the rename.
+def _build_archetype_dev_to_pascal() -> Dict[str, str]:
+    base_reverse: Dict[str, str] = {
+        new: old for old, new in ARCHETYPEPROPERTIES_RENAMES.items()
+    }
+    chain: Dict[str, str] = dict(base_reverse)
+    for old_dev11, new_dev12 in ARCHETYPEPROPERTIES_DEV12_RENAMES.items():
+        chain[new_dev12] = base_reverse.get(old_dev11, old_dev11)
+    return chain
+
+
+ARCHETYPEPROPERTIES_DEV7_TO_PASCAL: Dict[str, str] = _build_archetype_dev_to_pascal()
 
 # -- StebbsProperties (site.py) ----------------------------------------------
 #
@@ -420,8 +545,6 @@ STEBBSPROPERTIES_RENAMES: Dict[str, str] = {
     "DHWDensity": "hot_water_density",
     "HotWaterTankWallDensity": "hot_water_tank_wall_density",
     "DHWVesselDensity": "hot_water_vessel_density",
-    "HotWaterTankBuildingWallViewFactor": "hot_water_tank_building_wall_view_factor",
-    "HotWaterTankInternalMassViewFactor": "hot_water_tank_internal_mass_view_factor",
     "HotWaterTankWallConductivity": "hot_water_tank_wall_conductivity",
     "HotWaterTankInternalWallConvectionCoefficient": "hot_water_tank_internal_wall_convection_coefficient",
     "HotWaterTankExternalWallConvectionCoefficient": "hot_water_tank_external_wall_convection_coefficient",
@@ -507,6 +630,216 @@ STEBBSPROPERTIES_DEV3_RENAMES: Dict[str, str] = {
     "dhw_vessel_external_wall_convection_coefficient": "hot_water_vessel_external_wall_convection_coefficient",
     "dhw_vessel_wall_emissivity": "hot_water_vessel_wall_emissivity",
 }
+
+# Schema 2026.5.dev8 -> 2026.5.dev9: apply Rule 2 of the SUEWS naming
+# convention to StebbsProperties. Three orthogonal moves:
+#
+# * Rule 2 reorder — physical quantity leads:
+#   `wall_internal_convection_coefficient` ->
+#   `convection_coefficient_wall_internal`,
+#   `external_ground_conductivity` -> `thermal_conductivity_ground`,
+#   `hot_water_tank_wall_thickness` ->
+#   `thickness_hot_water_tank_wall`, etc.
+# * `floor` -> `ground_floor` per the convention's Specific tokens
+#   ("ground_floor" is two words):
+#   `floor_internal_convection_coefficient` ->
+#   `convection_coefficient_ground_floor_internal`.
+# * HVAC + setpoint air_/water_ qualifier (mirrors the dev7 -> dev8
+#   ArchetypeProperties pass): `heating_system_efficiency` ->
+#   `efficiency_heating_system_air`, `max_cooling_power` ->
+#   `power_air_cooling_max`, `cooling_system_cop` ->
+#   `efficiency_cooling_system_air`,
+#   `hot_water_heating_setpoint_temperature` ->
+#   `temperature_water_heating_setpoint`,
+#   `hot_water_heating_efficiency` -> `efficiency_heating_system_water`.
+#
+# Non-physical category prefixes lead for non-quantity fields:
+# `metabolism_threshold` -> `threshold_metabolism`,
+# `latent_sensible_ratio` -> `ratio_latent_sensible`,
+# `daylight_control` -> `control_daylight`,
+# `lighting_illuminance_threshold` -> `threshold_lighting_illuminance`,
+# `appliance_profile` -> `profile_appliance`,
+# `hot_water_flow_profile` -> `profile_hot_water_flow`.
+#
+# Initial / climatology temperatures take the `temperature_*` quantity
+# prefix and trailing `initial` / `annual_mean` sub-class:
+# `initial_outdoor_temperature` -> `temperature_air_outdoor_initial`,
+# `annual_mean_air_temperature` -> `temperature_air_annual_mean`.
+#
+# These four straggler fields were left as compound nouns at dev9; they
+# are reordered quantity-first at dev12 (gh#1392 follow-up) per the
+# Reading STEBBS team review ("Column D", D. Hertwig / S. Rognone,
+# 2026-05): `ground_depth` -> `depth_ground`,
+# `ventilation_rate` -> `rate_ventilation`,
+# `lighting_power_density` -> `power_density_lighting`,
+# `month_mean_air_temperature_diffmax` ->
+# `temperature_air_month_mean_diffmax`. See STEBBSPROPERTIES_DEV12_RENAMES
+# below.
+
+STEBBSPROPERTIES_DEV8_RENAMES: Dict[str, str] = {
+    # Convection coefficients (Rule 2 reorder + floor -> ground_floor)
+    "wall_internal_convection_coefficient": "convection_coefficient_wall_internal",
+    "roof_internal_convection_coefficient": "convection_coefficient_roof_internal",
+    "internal_mass_convection_coefficient": "convection_coefficient_internal_mass",
+    "floor_internal_convection_coefficient": "convection_coefficient_ground_floor_internal",
+    "window_internal_convection_coefficient": "convection_coefficient_window_internal",
+    "wall_external_convection_coefficient": "convection_coefficient_wall_external",
+    "roof_external_convection_coefficient": "convection_coefficient_roof_external",
+    "window_external_convection_coefficient": "convection_coefficient_window_external",
+    # Ground (external = beyond building footprint per convention)
+    "external_ground_conductivity": "thermal_conductivity_ground",
+    # Metabolism + occupant control (non-physical category prefixes)
+    "metabolism_threshold": "threshold_metabolism",
+    "latent_sensible_ratio": "ratio_latent_sensible",
+    # Daylight + lighting controls (non-physical category prefixes)
+    "daylight_control": "control_daylight",
+    "lighting_illuminance_threshold": "threshold_lighting_illuminance",
+    # Heating / cooling system (Rule 2 + air_/water_ qualifier)
+    "heating_system_efficiency": "efficiency_heating_system_air",
+    "max_cooling_power": "power_air_cooling_max",
+    "cooling_system_cop": "efficiency_cooling_system_air",
+    # Initial / climatology temperatures
+    "initial_outdoor_temperature": "temperature_air_outdoor_initial",
+    "initial_indoor_temperature": "temperature_air_indoor_initial",
+    "annual_mean_air_temperature": "temperature_air_annual_mean",
+    # Hot water tank — bulk + walls (Rule 2 reorder)
+    "hot_water_tank_wall_thickness": "thickness_hot_water_tank_wall",
+    "mains_water_temperature": "temperature_water_mains",
+    "hot_water_tank_surface_area": "area_hot_water_tank_surface",
+    "hot_water_heating_setpoint_temperature": "temperature_water_heating_setpoint",
+    "hot_water_tank_wall_emissivity": "emissivity_hot_water_tank_wall",
+    "hot_water_tank_wall_conductivity": "conductivity_hot_water_tank_wall",
+    "hot_water_tank_wall_density": "density_hot_water_tank_wall",
+    "hot_water_tank_specific_heat_capacity": "specific_heat_capacity_hot_water_tank_wall",
+    "hot_water_tank_internal_wall_convection_coefficient":
+        "convection_coefficient_hot_water_tank_wall_internal",
+    "hot_water_tank_external_wall_convection_coefficient":
+        "convection_coefficient_hot_water_tank_wall_external",
+    # Hot water vessel — in-use water containers (Rule 2 reorder)
+    "hot_water_vessel_wall_thickness": "thickness_hot_water_vessel_wall",
+    "hot_water_vessel_wall_conductivity": "conductivity_hot_water_vessel_wall",
+    "hot_water_vessel_density": "density_hot_water_vessel_wall",
+    "hot_water_vessel_specific_heat_capacity": "specific_heat_capacity_hot_water_vessel_wall",
+    "hot_water_vessel_internal_wall_convection_coefficient":
+        "convection_coefficient_hot_water_vessel_wall_internal",
+    "hot_water_vessel_external_wall_convection_coefficient":
+        "convection_coefficient_hot_water_vessel_wall_external",
+    "hot_water_vessel_wall_emissivity": "emissivity_hot_water_vessel_wall",
+    # Hot water (the water itself, in use) — Rule 2 reorder
+    "hot_water_volume": "volume_hot_water",
+    "hot_water_surface_area": "area_hot_water_surface",
+    "hot_water_flow_rate": "rate_hot_water_flow",
+    "hot_water_density": "density_hot_water",
+    "hot_water_specific_heat_capacity": "specific_heat_capacity_hot_water",
+    "hot_water_heating_efficiency": "efficiency_heating_system_water",
+    # Profiles (non-physical: profile_* category prefix leads)
+    "hot_water_flow_profile": "profile_hot_water_flow",
+    "appliance_profile": "profile_appliance",
+}
+
+
+# Schema 2026.5.dev11 -> 2026.5.dev12: align STEBBS and Archetype field names
+# with the Reading STEBBS team's "Column D" naming (D. Hertwig / S. Rognone,
+# 2026-05).
+#
+# The first four entries are the original stragglers that dev9 deliberately
+# kept as compound nouns; their old names are dev8-level values of
+# STEBBSPROPERTIES_RENAMES so they chain straight back to PascalCase.
+#
+# The remaining ten entries extend the Column D alignment to fields that dev9
+# already reordered once: powers and setpoints take the qualifier-first
+# `max_power_*` / `setpoint_temperature_*` shape, the mains-water / hot-water
+# surface-area / flow-rate / flow-profile fields take the Tier-3 word order,
+# `control_daylight` reverts to the Reading idiom `daylight_control`, and the
+# DHW vessel convection coefficients move to `hot_water_tank_vessel`. All ten
+# old names are dev9-level values of STEBBSPROPERTIES_DEV8_RENAMES, so the
+# dev12->ancestry chain must resolve THROUGH the dev9->PascalCase map (see
+# _build_stebbs_dev_to_pascal) rather than the dev8 base reverse map.
+#
+# All are pure snake->snake reorders applied AFTER STEBBSPROPERTIES_DEV8_RENAMES
+# so users on the dev9 spelling still load with a DeprecationWarning.
+STEBBSPROPERTIES_DEV12_RENAMES: Dict[str, str] = {
+    # Original stragglers (gh#1392 follow-up)
+    "ground_depth": "depth_ground",
+    "ventilation_rate": "rate_ventilation",
+    "lighting_power_density": "power_density_lighting",
+    "month_mean_air_temperature_diffmax": "temperature_air_month_mean_diffmax",
+    # Column D alignment — qualifier-first powers
+    "power_air_cooling_max": "max_power_cooling_system_air",
+    # Column D alignment — qualifier-first water setpoint
+    "temperature_water_heating_setpoint": "setpoint_temperature_heating_water",
+    # Column D alignment — Tier-3 word order
+    "temperature_water_mains": "temperature_mains_water",
+    "area_hot_water_tank_surface": "surface_area_hot_water_tank",
+    "area_hot_water_surface": "surface_area_hot_water",
+    "rate_hot_water_flow": "rate_flow_hot_water",
+    "profile_hot_water_flow": "profile_flow_hot_water",
+    # Reading idiom — daylight control flag
+    "control_daylight": "daylight_control",
+    # DHW vessel convection coefficients -> hot_water_tank_vessel
+    "convection_coefficient_hot_water_vessel_wall_internal":
+        "convection_coefficient_hot_water_tank_vessel_internal",
+    "convection_coefficient_hot_water_vessel_wall_external":
+        "convection_coefficient_hot_water_tank_vessel_external",
+}
+
+
+# DEV8 entries that DEV12 reverts must NOT fire in the Pydantic
+# `_rename_stebbs_fields` chain. Currently this is only
+# `daylight_control -> control_daylight` (DEV8), reverted by
+# `control_daylight -> daylight_control` (DEV12). Applying both in sequence
+# renames a current canonical `daylight_control` to `control_daylight` and back,
+# emitting a spurious DeprecationWarning for a valid config (and failing where
+# `DeprecationWarning` is promoted to an error). The FULL DEV8 map is still used
+# for the bridge legacy-col chain (`_build_stebbs_dev_to_pascal`) and the
+# raw-YAML composed map (which prunes the 2-cycle itself), so only the Pydantic
+# application needs the pruned form.
+STEBBSPROPERTIES_DEV8_RENAMES_PYDANTIC: Dict[str, str] = {
+    old: new
+    for old, new in STEBBSPROPERTIES_DEV8_RENAMES.items()
+    if STEBBSPROPERTIES_DEV12_RENAMES.get(new) != old
+}
+
+# Chained reverse map: dev9 final name -> PascalCase legacy column name.
+# Used by StebbsProperties._STEBBS_LEGACY_COL_NAMES so the Fortran/Rust
+# bridge (keyed on the fused lowercased PascalCase, e.g.
+# `wallinternalconvectioncoefficient`) still resolves from the dev9
+# Pydantic field name. Composes through STEBBSPROPERTIES_DEV8_RENAMES
+# (dev9 -> dev8) and the base STEBBSPROPERTIES_RENAMES {dev8:
+# PascalCase} reverse map, plus the dev12 straggler reorders chained back
+# to the same PascalCase ancestry. STEBBSPROPERTIES_DEV3_RENAMES is NOT chained
+# here because its targets are the same dev8 names already covered by
+# STEBBSPROPERTIES_RENAMES — passing through the dev3 layer would
+# silently rewrite the PascalCase ancestry.
+def _build_stebbs_dev_to_pascal() -> Dict[str, str]:
+    base_reverse: Dict[str, str] = {
+        new: old for old, new in STEBBSPROPERTIES_RENAMES.items()
+    }
+
+    chain: Dict[str, str] = {}
+    for old_dev8, new_dev9 in STEBBSPROPERTIES_DEV8_RENAMES.items():
+        chain[new_dev9] = base_reverse.get(old_dev8, old_dev8)
+    # dev12 Column D alignment (gh#1392 follow-up): each new name chains back to
+    # the same PascalCase ancestry the old name resolves to. The pre-dev12 names
+    # split into two cases:
+    #   * the four original stragglers (`ground_depth`, ...) are dev8-level
+    #     values of STEBBSPROPERTIES_RENAMES, so `base_reverse` holds the
+    #     PascalCase key directly (e.g. `ground_depth` -> `GroundDepth`);
+    #   * the ten new fields (`power_air_cooling_max`, ...) are dev9-level
+    #     names produced BY the dev8 reorder, so their PascalCase ancestry lives
+    #     in `chain` (built above), not in `base_reverse` (e.g.
+    #     `power_air_cooling_max` -> `MaxCoolingPower`).
+    # Resolve through `chain` first, then the dev8 base reverse, before falling
+    # back to the snake name — otherwise the ten new fields would wrongly fall
+    # back to the intermediate snake spelling and break the bridge column key.
+    for old_dev11, new_dev12 in STEBBSPROPERTIES_DEV12_RENAMES.items():
+        chain[new_dev12] = chain.get(
+            old_dev11, base_reverse.get(old_dev11, old_dev11)
+        )
+    return chain
+
+
+STEBBSPROPERTIES_DEV9_TO_PASCAL: Dict[str, str] = _build_stebbs_dev_to_pascal()
 
 # -- EHC (suews_type_ehc.f95) -------------------------------------------------
 #
@@ -836,6 +1169,61 @@ FORTRAN_INTERNAL_RENAMES: Dict[str, str] = {
     **STEBBSSTATE_RENAMES,
 }
 
+
+def _compose_rename_chains(*tables: Mapping[str, str]) -> Dict[str, str]:
+    """Compose raw-YAML rename aliases so every source reaches today's target.
+
+    Some accepted schema spellings are intermediate names from earlier dev
+    labels, e.g. ``WallextThickness`` -> ``wall_external_thickness`` ->
+    ``thickness_wall_outer``. Pydantic applies those tables sequentially, but
+    raw-dict callers use a single recursive pass. Composing the tables here
+    keeps those callers from stopping one schema label behind.
+
+    Reversal handling
+    -----------------
+    A later table may *revert* an earlier rename — e.g.
+    ``STEBBSPROPERTIES_DEV8_RENAMES`` mapped ``daylight_control`` ->
+    ``control_daylight`` and ``STEBBSPROPERTIES_DEV12_RENAMES`` maps it back,
+    ``control_daylight`` -> ``daylight_control`` (Reading STEBBS team Column D
+    review, 2026-05). Naively combining the tables yields the 2-cycle
+    ``daylight_control -> control_daylight -> daylight_control``. The latest
+    table wins: the reverted edge from the earlier table is dropped, so both
+    spellings resolve to the dev12 final (``daylight_control``).
+    """
+    combined: Dict[str, str] = {}
+    pair_origin: Dict[str, int] = {}  # old_name -> index of the table that set it
+    for idx, table in enumerate(tables):
+        for old, new in table.items():
+            combined[old] = new
+            pair_origin[old] = idx
+
+    # Prune direct 2-cycles (A->B and B->A) by honouring the later table.
+    for a in list(combined):
+        b = combined.get(a)
+        if b is not None and combined.get(b) == a and a != b:
+            # `a->b` and `b->a` form a reversal. Keep whichever edge came
+            # from the later table; drop the earlier one so the chain walk
+            # terminates at the later table's target.
+            if pair_origin.get(a, -1) < pair_origin.get(b, -1):
+                # `b->a` is newer; `a` is the canonical final. Drop `a->b`.
+                del combined[a]
+            else:
+                del combined[b]
+
+    resolved: Dict[str, str] = {}
+    for old_name, first_target in combined.items():
+        seen = {old_name}
+        target = first_target
+        while target in combined:
+            if target in seen:
+                chain = " -> ".join([*seen, target])
+                raise ValueError(f"Cyclic field rename chain detected: {chain}")
+            seen.add(target)
+            target = combined[target]
+        resolved[old_name] = target
+    return resolved
+
+
 # Raw-YAML structural checks (Phase A / precheck) need a wider view than the
 # one-to-one public registry above: they must accept both the final public
 # names and the short-lived Schema 2026.5 intermediate ModelPhysics aliases
@@ -843,15 +1231,20 @@ FORTRAN_INTERNAL_RENAMES: Dict[str, str] = {
 # Keeping this separate preserves the bridge-safe one-to-one contract of
 # ``ALL_FIELD_RENAMES`` while letting raw-dict callers normalise older YAMLs
 # before they compare against the current sample schema.
-RAW_YAML_FIELD_RENAMES: Dict[str, str] = {
-    **MODELPHYSICS_SUFFIX_RENAMES,
-    **ARCHETYPEPROPERTIES_PASCAL_RENAMES,
-    **ARCHETYPEPROPERTIES_DEV3_RENAMES,
-    **ARCHETYPEPROPERTIES_DEV6_RENAMES,
-    **SNOWPARAMS_INTERMEDIATE_RENAMES,
-    **STEBBSPROPERTIES_DEV3_RENAMES,
-    **ALL_FIELD_RENAMES,
-}
+RAW_YAML_FIELD_RENAMES: Dict[str, str] = _compose_rename_chains(
+    MODELPHYSICS_SUFFIX_RENAMES,
+    MODELPHYSICS_DEV12_RENAMES,
+    ARCHETYPEPROPERTIES_PASCAL_RENAMES,
+    ARCHETYPEPROPERTIES_DEV3_RENAMES,
+    ARCHETYPEPROPERTIES_DEV6_RENAMES,
+    ARCHETYPEPROPERTIES_DEV7_RENAMES,
+    ARCHETYPEPROPERTIES_DEV12_RENAMES,
+    SNOWPARAMS_INTERMEDIATE_RENAMES,
+    STEBBSPROPERTIES_DEV3_RENAMES,
+    STEBBSPROPERTIES_DEV8_RENAMES,
+    STEBBSPROPERTIES_DEV12_RENAMES,
+    ALL_FIELD_RENAMES,
+)
 
 # Reverse mapping: new_name -> old_name (for serialisation to Fortran bridge).
 # The Fortran bridge still indexes state by fused spellings, so `_REVERSE_*`
@@ -872,7 +1265,12 @@ _MODELPHYSICS_ALL_RENAMES: Dict[str, str] = {
     # (``net_radiation_method``) when both claim the same final target.
     # The Fortran bridge's state is keyed by the fused form, so the
     # reverse map must point at the fused legacy.
+    # The dev11 spelling ``outer_cap_fraction`` -> ``capacitance`` (dev12)
+    # is included so raw-YAML prechecks that read by the current name still
+    # find a legacy ``outer_cap_fraction`` key. Spread before RENAMES so the
+    # reverse map prefers the fused legacy ``rcmethod`` for ``capacitance``.
     **MODELPHYSICS_SUFFIX_RENAMES,
+    **MODELPHYSICS_DEV12_RENAMES,
     **MODELPHYSICS_RENAMES,
 }
 _REVERSE_MODELPHYSICS_RENAMES: Dict[str, str] = {

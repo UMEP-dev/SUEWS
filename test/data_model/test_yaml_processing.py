@@ -2250,7 +2250,7 @@ def build_minimal_yaml(stebbsmethod_value: int, stebbs_block: dict):
 
 def test_stebbsmethod0_nullifies_all_stebbs_values():
     stebbs_block = {
-        "wall_internal_convection_coefficient": {"value": 5.0},
+        "convection_coefficient_wall_internal": {"value": 5.0},
         "nested": {"WindowExternalConvectionCoefficient": {"value": 30.0}},
     }
     data = build_minimal_yaml(0, stebbs_block)
@@ -2258,20 +2258,20 @@ def test_stebbsmethod0_nullifies_all_stebbs_values():
 
     out = result["sites"][0]["properties"]["stebbs"]
     # top‐level keys
-    assert out["wall_internal_convection_coefficient"]["value"] is None
+    assert out["convection_coefficient_wall_internal"]["value"] is None
     # nested dict also nullified
     assert out["nested"]["WindowExternalConvectionCoefficient"]["value"] is None
 
 
 def test_stebbsmethod1_leaves_stebbs_untouched():
     stebbs_block = {
-        "wall_internal_convection_coefficient": {"value": 5.0},
+        "convection_coefficient_wall_internal": {"value": 5.0},
     }
     data = build_minimal_yaml(1, stebbs_block)
     result = precheck_model_option_rules(deepcopy(data))
 
     out = result["sites"][0]["properties"]["stebbs"]
-    assert out["wall_internal_convection_coefficient"]["value"] == 5.0
+    assert out["convection_coefficient_wall_internal"]["value"] == 5.0
 
 
 def test_stebbsmethod0_nullifies_building_archetype_values():
@@ -3743,7 +3743,7 @@ class TestPhaseAUptoDateYaml(TestProcessorFixtures):
             "surface_conductance",
             "snow_use",
             "stebbs",
-            "outer_cap_fraction",
+            "capacitance",
             "same_albedo_wall",
             "same_albedo_roof",
             "same_emissivity_wall",
@@ -3789,7 +3789,7 @@ class TestPhaseBScienceCheck(TestProcessorFixtures):
             "surface_conductance",
             "snow_use",
             "stebbs",
-            "outer_cap_fraction",
+            "capacitance",
             "same_albedo_wall",
             "same_albedo_roof",
             "same_emissivity_wall",
@@ -3859,7 +3859,7 @@ class TestPhaseBScienceCheck(TestProcessorFixtures):
             "surface_conductance",
             "snow_use",
             "stebbs",
-            "outer_cap_fraction",
+            "capacitance",
         }
 
         null_yaml = {
@@ -4008,7 +4008,7 @@ class TestPhaseBScienceCheck(TestProcessorFixtures):
         "supy.data_model.validation.pipeline.phase_b.get_mean_monthly_air_temperature"
     )
     def test_stebbs_temperature_parameter_updates(self, mock_cru):
-        """Test STEBBS initial_outdoor_temperature updates."""
+        """Test STEBBS temperature_air_outdoor_initial updates."""
         # Mock CRU temperature data
         mock_cru.return_value = 12.5  # Test temperature value
 
@@ -4019,8 +4019,8 @@ class TestPhaseBScienceCheck(TestProcessorFixtures):
                         "lat": {"value": 51.5},
                         "lng": {"value": -0.12},
                         "stebbs": {
-                            "initial_outdoor_temperature": {"value": 25.0},
-                            "wall_internal_convection_coefficient": {
+                            "temperature_air_outdoor_initial": {"value": 25.0},
+                            "convection_coefficient_wall_internal": {
                                 "value": 5.0
                             },  # Control parameter
                         },
@@ -4037,18 +4037,18 @@ class TestPhaseBScienceCheck(TestProcessorFixtures):
         # Check that CRU temperature function was called
         mock_cru.assert_called_with(51.5, -0.12, 1)  # lat, lng, month=1 (January)
 
-        # Verify that STEBBS initial_outdoor_temperature was updated
+        # Verify that STEBBS temperature_air_outdoor_initial was updated
         stebbs_props = result["sites"][0]["properties"]["stebbs"]
-        assert stebbs_props["initial_outdoor_temperature"]["value"] == 12.5
+        assert stebbs_props["temperature_air_outdoor_initial"]["value"] == 12.5
 
         # Verify control parameter unchanged
-        assert stebbs_props["wall_internal_convection_coefficient"]["value"] == 5.0
+        assert stebbs_props["convection_coefficient_wall_internal"]["value"] == 5.0
 
         # Verify adjustments recorded (single parameter)
         stebbs_adjustments = [adj for adj in adjustments if "stebbs" in adj.parameter]
         assert len(stebbs_adjustments) == 1
         assert any(
-            "initial_outdoor_temperature" in adj.parameter for adj in stebbs_adjustments
+            "temperature_air_outdoor_initial" in adj.parameter for adj in stebbs_adjustments
         )
 
     @patch(
@@ -4075,7 +4075,7 @@ class TestPhaseBScienceCheck(TestProcessorFixtures):
                             "lat": {"value": 52.0},
                             "lng": {"value": 1.0},
                             "stebbs": {
-                                "initial_outdoor_temperature": {"value": 999.0},
+                                "temperature_air_outdoor_initial": {"value": 999.0},
                             },
                         }
                     }
@@ -4091,7 +4091,7 @@ class TestPhaseBScienceCheck(TestProcessorFixtures):
 
             # Verify temperature values updated
             stebbs_props = result["sites"][0]["properties"]["stebbs"]
-            assert stebbs_props["initial_outdoor_temperature"]["value"] == mock_temp
+            assert stebbs_props["temperature_air_outdoor_initial"]["value"] == mock_temp
 
     @patch(
         "supy.data_model.validation.pipeline.phase_b.get_mean_monthly_air_temperature"
@@ -4117,7 +4117,7 @@ class TestPhaseBScienceCheck(TestProcessorFixtures):
                         "lat": {"value": 51.5},
                         "lng": {"value": -0.12},
                         "stebbs": {
-                            "initial_outdoor_temperature": {"value": 100.0},
+                            "temperature_air_outdoor_initial": {"value": 100.0},
                         },
                     }
                 },
@@ -4126,7 +4126,7 @@ class TestPhaseBScienceCheck(TestProcessorFixtures):
                         "lat": {"value": 55.8},
                         "lng": {"value": -4.25},
                         "stebbs": {
-                            "initial_outdoor_temperature": {"value": 300.0},
+                            "temperature_air_outdoor_initial": {"value": 300.0},
                         },
                     }
                 },
@@ -4142,10 +4142,10 @@ class TestPhaseBScienceCheck(TestProcessorFixtures):
 
         # Verify each site gets appropriate temperature
         site0_stebbs = result["sites"][0]["properties"]["stebbs"]
-        assert site0_stebbs["initial_outdoor_temperature"]["value"] == 8.2
+        assert site0_stebbs["temperature_air_outdoor_initial"]["value"] == 8.2
 
         site1_stebbs = result["sites"][1]["properties"]["stebbs"]
-        assert site1_stebbs["initial_outdoor_temperature"]["value"] == 5.1
+        assert site1_stebbs["temperature_air_outdoor_initial"]["value"] == 5.1
 
     @patch(
         "supy.data_model.validation.pipeline.phase_b.get_mean_monthly_air_temperature"
@@ -4161,7 +4161,7 @@ class TestPhaseBScienceCheck(TestProcessorFixtures):
                         "lat": {"value": 50.0},
                         "lng": {"value": 2.0},
                         "stebbs": {
-                            "initial_outdoor_temperature": {"value": 99.0},
+                            "temperature_air_outdoor_initial": {"value": 99.0},
                             # OtherParameter present
                             "OtherParameter": {"value": 42.0},
                         },
@@ -4174,7 +4174,7 @@ class TestPhaseBScienceCheck(TestProcessorFixtures):
 
         # Verify available parameter was updated
         stebbs_props = result["sites"][0]["properties"]["stebbs"]
-        assert stebbs_props["initial_outdoor_temperature"]["value"] == 15.8
+        assert stebbs_props["temperature_air_outdoor_initial"]["value"] == 15.8
 
         # Verify legacy parameters were not added
         assert "WindowOutdoorSurfaceTemperature" not in stebbs_props
@@ -4199,7 +4199,7 @@ class TestPhaseBScienceCheck(TestProcessorFixtures):
                         "lat": {"value": 45.0},
                         "lng": {"value": 5.0},
                         "stebbs": {
-                            "initial_outdoor_temperature": {"value": cru_temp},
+                            "temperature_air_outdoor_initial": {"value": cru_temp},
                         },
                     }
                 }
@@ -4212,7 +4212,7 @@ class TestPhaseBScienceCheck(TestProcessorFixtures):
 
         # Verify value remains correct (no change needed)
         stebbs_props = result["sites"][0]["properties"]["stebbs"]
-        assert stebbs_props["initial_outdoor_temperature"]["value"] == cru_temp
+        assert stebbs_props["temperature_air_outdoor_initial"]["value"] == cru_temp
 
         # Verify no adjustments were made
         stebbs_adjustments = [adj for adj in adjustments if "stebbs" in adj.parameter]
@@ -4271,7 +4271,7 @@ class TestPhaseCPydanticValidation(TestProcessorFixtures):
             "surface_conductance",
             "snow_use",
             "stebbs",
-            "outer_cap_fraction",
+            "capacitance",
         }
 
         complete_config = {
@@ -4352,7 +4352,7 @@ class TestPhaseCPydanticValidation(TestProcessorFixtures):
             "surface_conductance",
             "snow_use",
             "stebbs",
-            "outer_cap_fraction",
+            "capacitance",
         }
 
         rsl_config = {

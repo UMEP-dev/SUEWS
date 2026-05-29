@@ -98,10 +98,10 @@ with everything it needs:
    ``docs/source/contributing/schema/schema_versioning.rst`` nor
    ``docs/source/inputs/transition_guide.rst`` was touched.
 
-**Bypass label: schema-audit-ok**
+**Bypass label: 0-ci:schema-audit-ok**
    For genuinely cosmetic diffs (docstring edits, comment
    reformatting, non-structural ``sample_config.yml`` tweaks) a
-   maintainer can attach the ``schema-audit-ok`` label to the PR.
+   maintainer can attach the ``0-ci:schema-audit-ok`` label to the PR.
    The workflow reads labels before running and short-circuits when
    the label is present. Contributors should **not** add the label
    themselves — the failure message is the prompt to open a review

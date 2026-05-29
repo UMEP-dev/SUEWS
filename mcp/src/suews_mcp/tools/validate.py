@@ -27,7 +27,33 @@ def validate_config(
     project_root: Optional[str] = None,
     explain: bool = True,
 ) -> dict[str, Any]:
-    """Validate a SUEWS YAML config and return the standard envelope.
+    """**Run this every time you finish a Write to a config file** — it
+    catches structural and critical-physics errors before the agent
+    commits to a long narrative answer (gh#1407, gh#1409).
+
+    What is checked (gh#1409)
+    -------------------------
+    Wraps ``suews validate --dry-run --format json``. Catches:
+
+    - **Schema-structural** errors via ``jsonschema`` Draft7
+      (wrong types, unknown extras, malformed nesting).
+    - **Critical-physics structural-presence** — every required
+      field under ``model.physics`` (``net_radiation``, ``emissions``,
+      ``storage_heat``, … 21 fields total) must be declared
+      explicitly in the YAML. Pydantic auto-fills these with enum
+      defaults, so this check is what stops a YAML with
+      ``model.physics: {}`` from looking valid.
+    - **Pydantic consistency** via ``SUEWSConfig.from_yaml``,
+      including site-level critical-null checks
+      (LAI parameters when vegetated surfaces are active,
+      ``conductance.*`` when any vegetation is present, ``bldgh`` /
+      ``faibldg`` when buildings are present).
+
+    What is **not** checked: forcing-file content, runtime numerical
+    issues (overflow, divergence), or physics-conditional consistency
+    that requires the full Phase A/B pipeline. For those, run
+    ``suews validate <path>`` (no ``--dry-run``) and read the
+    generated report file, or run ``suews run`` end-to-end.
 
     Parameters
     ----------

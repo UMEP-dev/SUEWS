@@ -10,6 +10,7 @@ from .type import RefValue, Reference, FlexibleRefValue, df_from_cols
 from .field_renames import (
     MODELPHYSICS_RENAMES,
     MODELPHYSICS_SUFFIX_RENAMES,
+    MODELPHYSICS_DEV12_RENAMES,
     apply_field_renames,
 )
 from .physics_families import PHYSICS_FAMILIES, coerce_nested_to_flat
@@ -684,6 +685,10 @@ class ModelPhysics(BaseModel):
             # YAML carrying either legacy shape land on the final name.
             values = apply_field_renames(values, MODELPHYSICS_RENAMES, cls.__name__)
             values = apply_field_renames(values, MODELPHYSICS_SUFFIX_RENAMES, cls.__name__)
+            # dev11 `outer_cap_fraction` -> dev12 `capacitance` (Column D).
+            # Applied last so a YAML carrying the dev11 spelling lands on the
+            # current name with a DeprecationWarning.
+            values = apply_field_renames(values, MODELPHYSICS_DEV12_RENAMES, cls.__name__)
         return values
 
     @field_validator(*PHYSICS_FAMILIES.keys(), mode="before")
@@ -795,7 +800,7 @@ class ModelPhysics(BaseModel):
         description=_enum_description(StebbsMethod),
         json_schema_extra={"unit": "dimensionless"},
     )
-    outer_cap_fraction: FlexibleRefValue(RCMethod) = Field(
+    capacitance: FlexibleRefValue(RCMethod) = Field(
         default=RCMethod.DEFAULT,
         description=_enum_description(RCMethod),
         json_schema_extra={"unit": "dimensionless"},
@@ -851,7 +856,7 @@ class ModelPhysics(BaseModel):
         ("surface_conductance", "gsmodel"),
         ("snow_use", "snowuse"),
         ("stebbs", "stebbsmethod"),
-        ("outer_cap_fraction", "rcmethod"),
+        ("capacitance", "rcmethod"),
         ("setpoint", "setpointmethod"),
         ("same_albedo_wall", "same_albedo_wall"),
         ("same_albedo_roof", "same_albedo_roof"),

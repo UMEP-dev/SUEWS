@@ -72,16 +72,62 @@ The package needs a working `supy` install (the unified `suews` CLI must be
 on `PATH`). In an editable supy checkout this is automatic; in a wheel-only
 install it pulls `supy` from PyPI.
 
+### From a repo checkout (editable, recommended for development)
+
 ```bash
 # from the repo root
 uv pip install -e mcp/
-# or, once published:
-# pip install suews-mcp
 ```
 
 Distribution builds use the repo-level git version. From a checkout, run
 `python get_ver_git.py` before building `mcp/`; the script writes ignored
 version files for both `supy` and `suews-mcp`.
+
+### From PyPI (once published)
+
+```bash
+pip install suews-mcp
+```
+
+### From TestPyPI (nightly / dev pre-releases)
+
+TestPyPI hosts the dev wheels (`suews-mcp==<dev>` plus the matching
+`supy==<dev>`). Two flags that are easy to miss but **required** for a
+clean resolve (gh#1398):
+
+- `--index-strategy unsafe-best-match` — uv's default
+  dependency-confusion guard only checks the first index where each
+  package appears, so without this flag the resolver lands on the
+  released `supy` from PyPI (which is missing 8 of 10 allow-listed
+  `suews` subcommands) instead of the matching `<dev>` wheel on
+  TestPyPI.
+- Explicit `==<dev-version>` pins on **both** `suews-mcp` and `supy`
+  rather than `--prerelease=allow`. The latter is uv's *global*
+  pre-release switch — it leaks pre-releases into transitive deps,
+  which has historically pulled `httpx==1.0.dev3` into the resolution
+  and broken the `mcp` SDK import chain (gh#1399).
+
+Working incantation (substitute the actual dev version):
+
+```bash
+uv pip install \
+  --index-url https://test.pypi.org/simple/ \
+  --extra-index-url https://pypi.org/simple/ \
+  --index-strategy unsafe-best-match \
+  'suews-mcp==<dev-version>' 'supy==<dev-version>'
+```
+
+Looking up the latest dev version: see the TestPyPI project pages at
+<https://test.pypi.org/project/suews-mcp/> and
+<https://test.pypi.org/project/supy/> — the two versions must match
+(both `<X.Y.Z>.devN` for the same `<X.Y.Z>.devN` build).
+
+Verify after install:
+
+```bash
+suews-mcp --help                   # should print "--root" usage
+suews knowledge manifest           # confirms the bundled pack version
+```
 
 ## Recommended path: install via the SUEWS plugin
 

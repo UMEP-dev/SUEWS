@@ -41,7 +41,7 @@ EXAMPLES:
 
 | Year | Features | Bugfixes | Changes | Maintenance | Docs | Total |
 |------|----------|----------|---------|-------------|------|-------|
-| 2026 | 74 | 83 | 29 | 80 | 40 | 307 |
+| 2026 | 74 | 83 | 29 | 81 | 40 | 308 |
 | 2025 | 60 | 68 | 22 | 71 | 36 | 256 |
 | 2024 | 12 | 17 | 1 | 12 | 1 | 43 |
 | 2023 | 11 | 14 | 3 | 9 | 1 | 38 |
@@ -53,6 +53,18 @@ EXAMPLES:
 | 2017 | 9 | 0 | 3 | 2 | 0 | 14 |
 
 ## 2026
+
+### 28 May 2026
+
+- [bugfix] `SUEWSOutput.save()` no longer forces parquet output regardless of the configured format (#1451)
+  - The `format` parameter defaulted to `"parquet"`, which always satisfied the `output_format is None` short-circuit in `_save_supy()` and overrode `model.control.output.format` from the run configuration
+  - `format` now defaults to `None`, so an unspecified format follows the configured value (falling back to `txt` when no configuration is present); an explicit `format` argument still wins, matching the existing `SUEWSSimulation.save()` behaviour
+
+### 19 May 2026
+
+- [maintenance] Move automation-only repository labels onto the `0-*` special track
+  - Schema and knowledge-pack audit bypass labels now live under `0-ci:*`, preserving the repository-wide numeric label hierarchy while keeping the maintainer bypasses available
+  - Discourse-created issues now carry `0-source:discourse` plus the existing `1-question` type label, and issue templates no longer reference removed legacy labels such as `bug`, `docs`, or `release`
 
 ### 11 May 2026
 
@@ -73,6 +85,56 @@ EXAMPLES:
   - `report_config.txt` records the migration as a renamed parameter (`forcing_file changed to forcing.file`, `output_file changed to output`) so the user sees the same migration breadcrumb that the Pydantic layer emits as a `DeprecationWarning` at runtime
 - [bugfix] Validator no longer leaves `temp_reportA_*.json` / `temp_reportB_*.json` sidecars beside the user's config (#1416)
   - Pipeline cleanup paths in `src/supy/cmd/validate_config.py` and `src/supy/data_model/validation/pipeline/orchestrator.py` now move, copy, and delete each text report alongside its JSON sidecar via shared sidecar-aware helpers, and rewrite `text_report_path` / `json_report_path` / `yaml_out` in the moved sidecar so the final `report_<config>.json` reflects the user-facing names
+
+### 4 May 2026
+
+- [feature][experimental] `suews validate` non-dry-run pipeline now honours `--format json` (#1409 follow-up)
+  - Previously only the `--dry-run --format json` path emitted the canonical envelope; the full Phase A/B/C pipeline always wrote a report file and printed a status banner to console regardless of the format flag, so any consumer expecting JSON had to parse the report file or fall back to dry-run
+  - All 7 pipeline branches (A, B, C, AB, AC, BC, ABC) now funnel through a new `_emit_pipeline_result` helper that emits a canonical envelope (with the structured `ValidationReport` from the 2026-05-01 PhaseReport schema, plus pointers to `report_file` and `updated_yaml` and a `phases_run` list) when `out_format == "json"`. Default `--format table` output is preserved verbatim
+- [bugfix] `knowledge_pack` meson `custom_target` rebuilds on every build (#1406 follow-up)
+  - `depend_files` was scoped to `knowledge/pack.py` alone, so editing `src/supy/data_model/` or `src/supy/cmd/` did not trigger a rebuild and the installed pack drifted from HEAD. Meson `files()` does not glob (and enumerating every source file would be brittle), so the cleanest fix is `build_always_stale: true` — ninja runs the builder unconditionally on every invocation. Pack-build runtime is on the order of seconds, well below the cost of shipping a stale pack into a release wheel
+  - This complements the runtime startup warning + CI freshness audit landed earlier in this PR; with all three layers a stale pack cannot reach a user
+- [doc] `mcp/README.md` Install section now documents TestPyPI dev-install with `--index-strategy unsafe-best-match` (#1398)
+  - Previously only the editable-checkout recipe was documented; users following a naïve TestPyPI command resolved the released `supy` from PyPI (missing 8 of 10 allow-listed `suews` subcommands) or hit `uv` refusing to resolve at all
+  - The new section spells out the two flags that are easy to miss but required for a clean resolve: `--index-strategy unsafe-best-match` (uv's default dependency-confusion guard fights against TestPyPI here) and explicit `==<dev>` pins on both `suews-mcp` and `supy` (instead of `--prerelease=allow`, which leaks pre-releases into transitive deps — see #1399)
+- [maintenance] Knowledge-pack staleness guard at MCP startup + CI freshness audit (#1406)
+  - The pack's meson `custom_target` only depends on `knowledge/pack.py`, so changes under `src/supy/data_model/` or `src/supy/cmd/` did not trigger an automatic rebuild — the installed pack drifted from HEAD and `query_knowledge` started surfacing stale field names. Manual smoke 2026-05-04 found pack `git_sha` lagging HEAD by 5 PRs (incl. the 44-rename ArchetypeProperties refactor)
+  - `suews-mcp` now compares the pack manifest's `suews_version` against the running `supy.__version__` at server startup; on mismatch it logs a stderr warning naming the stale version and pointing at `suews knowledge build`. MCP hosts route stderr to their plugin log so the user sees this without polluting the JSON-RPC stdio channel
+  - New CI workflow `.github/workflows/knowledge-pack-audit.yml` + script `scripts/lint/check_knowledge_pack_freshness.py` flags PRs that touch `src/supy/data_model/**` or `src/supy/cmd/**` without rebuilding the pack. Bypass label: `0-ci:knowledge-pack-audit-ok`
+  - `prep-release` skill checklist updated with the rebuild step
+- [bugfix] `query_knowledge` matches now carry an `audience` tag and a `legacy_name_for` hint when the chunk text references retired field names (#1402)
+  - Previously the tool returned chunks drawn from the full source-evidence pack (Fortran sources, Pydantic data models, validation pipeline docs) without telling the consumer which audience each chunk belonged to. An assistant that called `query_knowledge` first instead of `search_schema` would happily quote internal Fortran names like `stebbsmethod` or `netradiationmethod` back to the user as YAML fields, producing configuration advice that fails validation
+  - The MCP wrapper now annotates each match with `audience` (`user_yaml` for Pydantic / generated schema chunks, `internal_runtime` for Fortran / Rust / pipeline code, `developer_doc` otherwise) derived from `repo_path`, plus a `legacy_name_for` list of `{legacy, current}` pairs whenever a known legacy name from `ALL_FIELD_RENAMES` appears as a whole-word token in the chunk text. The agent should use the `current` form when generating user-facing YAML
+  - Tool docstring updated with a dedicated "Audience annotations" section so the convention is discoverable from the tool description alone
+- [doc] MCP tool docstrings now lead with WHEN-to-use guidance for all 12 tools (#1407)
+  - The 12 `mcp__suews__*` tool descriptions previously described *what* each tool does in passive voice ("Retrieve cited source evidence..."), giving the agent no signal about *when* to reach for it. In the EGU26 poster trace the agent treated all 12 tools as equivalent retrievers and burned a 5-minute window on `query_knowledge` calls instead of using the cheaper `inspect_config` / `search_schema` / `init_case` path
+  - Each tool's docstring now opens with an active-voice "Use this when..." (or "Call this first when...") sentence that names the trigger condition, the cheap-then-expensive ordering, and the typical pair (e.g. `validate_config` after every Write; `inspect_config` before reaching for `query_knowledge`; `summarise_run` before `diagnose_run`)
+- [feature][experimental] `init_case` returns a `recommendation` field and MCP-tool-call-form `next_steps` (#1408)
+  - The CLI's `data.next_steps` is shell-command form ("Edit X", "suews validate X", "suews run X") — useful at a terminal but useless to an MCP agent that needs to know which *MCP tool* to call. In the EGU26 poster trace, after a successful `init_case` the agent fired 11 `query_knowledge` calls before timing out, never editing the YAML
+  - The MCP wrapper now replaces the CLI list with imperative MCP-tool-call form (open and edit the YAML, then call `mcp__suews__inspect_config`, then call `mcp__suews__validate_config`) and surfaces the single highest-priority next move on `data.recommendation` so the agent does not have to scan the array
+- [bugfix] Envelope size policy: `read_example` and `query_knowledge` cap default response under any host token budget (#1403)
+  - `read_example` previously returned the full sample bundle (~1.2 MB of YAML), which every MCP host (Claude Code, Codex, Claude Desktop) rejected as "result exceeds maximum allowed tokens"; the agent then fell into a loop of duplicate `query_knowledge` calls trying to rebuild the example piecewise. New `mode` parameter: `"summary"` (default — file list with sizes plus an 80-line preview per file), `"manifest"` (cheapest — sizes only, no content), `"file"` with `path` (full content of one file, capped at 64 KB)
+  - `query_knowledge` previously emitted full chunk text for every match (~10 KB per Fortran-module match); a `limit=5` query routinely exceeded 50 KB. New `mode` parameter: `"snippet"` (default — per-match text capped at 2 KB with `text_truncated` / `text_full_bytes` flags), `"summary"` (drops text entirely, keeps citation metadata), `"full"` (explicit opt-in for the original unbounded envelope). Default `limit` lowered from 5 to 3
+  - Sibling sub-issue #1404 folded in here — the same `mode` design applies to both tools
+- [bugfix] `suews-mcp` now accepts a `--root` flag and the sandbox rejection message names the configured root (#1405)
+  - The MCP server previously had no CLI argument parsing — the project root came only from the `SUEWS_MCP_PROJECT_ROOT` env var, falling back to `os.getcwd()` at server startup. On a Conductor-isolated launch the cwd is a temp directory (`/private/var/folders/.../cc-isolated-...`), so workspace-absolute paths sent by the agent were rejected with a confusing "outside the project root" error that named the temp dir
+  - `mcp/src/suews_mcp/server.py` now accepts `--root <path>` (with `--help` text); when provided, the value is resolved and exported as `SUEWS_MCP_PROJECT_ROOT` *before* `_build_server()` so per-tool `ProjectRoot` instances inherit it. When omitted the existing env-var / cwd fallback chain is left untouched
+  - `mcp/src/suews_mcp/backend/sandbox.py` rejection message now names both `--root` and `SUEWS_MCP_PROJECT_ROOT` so users debugging a wrong-root launch can self-correct without reading source
+- [bugfix] MCP server provenance: `serverInfo.version` matches package `__version__`; envelope `meta.git_commit` carries through wheel installs (#1401)
+  - `mcp/src/suews_mcp/server.py` plumbs `suews_mcp.__version__` into `server._mcp_server.version` after FastMCP construction so the MCP `initialize` handshake's `serverInfo.version` reports the package version rather than the SDK's own version (was: hardcoded "1.27.0")
+  - `get_ver_git.py` now bakes the build-time short commit hash into the generated `_version_scm.py` as `__commit_hash__`; `supy.cmd.json_envelope._git_commit()` falls back to this when no `.git` directory is reachable at runtime (the wheel-install case where the previous `git rev-parse` lookup returned `None`). The `"unknown"` build-time sentinel surfaces as `null` rather than the literal string
+- [bugfix] `suews-mcp` now resolves the `suews` console script via `sys.executable` sibling lookup (#1400)
+  - MCP plugin hosts (Claude Code, Codex, Claude Desktop, Cursor) launch the MCP server without sourcing the venv, so `subprocess.run(['suews', ...])` failed with `Executable 'suews' not found on PATH` even when `suews` was installed in the same venv as `suews-mcp`. Every CLI-backed tool (`validate_config`, `inspect_config`, `summarise_run`, …) returned an error envelope; only `list_examples` worked because it reads bundled metadata
+  - `mcp/src/suews_mcp/backend/cli.py` now anchors lookup to `Path(sys.executable).parent` first (`shutil.which` for proper Windows `PATHEXT` handling), then falls back to `shutil.which` on the user's PATH for system-wide installs (e.g. `pipx`). Plugin-host raw-stanza examples no longer need to inject `PATH` in their `env` block
+- [bugfix] Pin `httpx<1.0` in `mcp/pyproject.toml` to keep `--prerelease=allow` installs off `httpx 1.0.dev3` (#1399)
+  - The official `mcp` PyPI package transitively depends on `httpx_sse`, which has an unpinned dep on `httpx`; with uv's global `--prerelease=allow` switch the resolver lands on `httpx==1.0.dev3` (which removed `TransportError`), breaking the whole `mcp` import chain on `suews-mcp` startup
+  - Constraining `httpx<1.0` here means even a prerelease-permitted resolve cannot land on the in-flight 1.0 line; sibling docs sub-issue (#1398) covers the install recipe that replaces `--prerelease=allow` with explicit `==<dev>` pins
+- [bugfix] `validate_config` dry-run JSON path now flags structurally-missing critical physics parameters (#1409)
+  - A YAML with `model.physics: {}` previously passed `suews validate --dry-run --format json` with `status="success"`, because Pydantic auto-fills every `ModelPhysics` field with an enum default; the MCP `validate_config` tool consumed the false-success envelope and stopped iterating, leaving users with a config that could not actually run
+  - `validate_single_file` (`src/supy/cmd/validate_config.py`) now performs a structural-presence check against `CRITICAL_PHYSICS_PARAMS` after Pydantic validation; missing fields surface as `MISSING_REQUIRED_FIELD` findings (one per field) so the dry-run JSON path agrees with the full pipeline's Phase A on user-facing semantics
+  - `CRITICAL_PHYSICS_PARAMS` is consolidated to a single module-level constant in `src/supy/data_model/validation/pipeline/orchestrator.py`; the previous local copies in `_check_critical_null_physics_params` and `detect_pydantic_defaults` now import the canonical list
+  - MCP `validate_config` tool docstring spells out which validation classes are run (jsonschema structural, critical-physics structural-presence, Pydantic consistency including site-level critical-null) and which are not (forcing-file content, runtime numerical issues — those need the full pipeline)
+  - Regression tests in `test/cmd/test_validate_config.py` cover both the bad path (paved-only YAML with `model.physics: {}` flags 21 fields) and the happy path (sample config still valid)
 
 ### 3 May 2026
 
@@ -104,6 +166,16 @@ EXAMPLES:
   - `src/supy/_check.py::check_forcing` previously iterated every non-time column in the returned forcing DataFrame and looked it up in `dict_rules_indiv`, so per-landcover extras (`lai_<surface>`, `wuh_<surface>`) introduced by the named-column reader raised `KeyError` instead of being passed through to the kernel. Added a guard that skips columns without a registered range rule
 - [bugfix] Preserve `FORCING_OPTIONAL_FILL` sentinel through Python `resample_sum` (#1372)
   - `src/supy/_load.py::resample_sum` records columns whose input is entirely missing (NaN, after `to_nan` converted the `-999` sentinel) and restores `-999` for those columns after the existing `fillna(0.0)`. Without this restoration an hourly forcing file omitting `Wuh` would surface as a valid `0.0` after resampling, masking the missing input under the observed-water-use path; the guard mirrors the symmetric Rust fix in `interpolate_forcing` for `SUM_COLS`
+- [feature][experimental] Added end-to-end MCP test layer for Codex and Claude Code agents (#1384)
+  - Layer 0 — packaging/manifest sanity (`test/mcp/test_packaging_manifests.py`): asserts `.mcp.json` shape against both Claude Code and Codex (untagged-enum acceptance with code citation), validates plugin-manifest references resolve, asserts top-level vs bundled plugins resolve to equivalent commands
+  - Layer 1 — MCP protocol stdio handshake (`test/mcp/test_protocol_handshake.py`): spawns the real `suews-mcp` subprocess, performs JSON-RPC `initialize` + `tools/list` + `resources/list` + `resources/templates/list`, asserts all 12 tools and all 6 resources are advertised, asserts `read_knowledge_manifest` returns `pack_version` / `schema_version` / `git_sha`
+  - Layer 2 — real-CLI smoke (`test/mcp/test_real_cli_smoke.py`): un-mocked `validate_config` against the bundled sample config (success + provenance) and against a known-bad fixture (`INVALID_YAML` actionable diagnostics); real `query_knowledge` provenance round-trip
+  - Layer 3 — canonical Q&A fixture + evidence-retrieval runner (`test/mcp/fixtures/canonical_questions.yml`, `test/mcp/test_canonical_questions.py`): six positive cases seeded by a domain-expert stress-test set from Prof. Sue Grimmond plus three out-of-scope negative cases; runner asserts each positive question retrieves SUEWS-indexed evidence and each negative question's call survives without crashing
+  - Layer 4 — manual app-adapter smoke checklist (`test/mcp/MANUAL_SMOKE.md`): pre-flight, parallel Claude Code + Codex flows, cross-adapter consistency check on Sue's B5 question, five failure templates (F1–F5)
+- [bugfix] Fixed fresh editable install of `mcp/` failing without first running `python get_ver_git.py` (#1384)
+  - `mcp/pyproject.toml` dynamic-version `attr` now points at the package `__init__` rather than the gitignored `_version_scm.py` directly
+  - Package `__init__` already routes through `_version.py` with a tracked fallback chain (`_version_scm` -> `supy.__version__` -> `"0+unknown"`), so `uv pip install -e mcp/` now works from a clean checkout
+  - Removed empty `test/mcp/__init__.py` that shadowed the `mcp` SDK package and prevented protocol-level tests from importing the SDK
 
 ### 1 May 2026
 
@@ -221,7 +293,7 @@ EXAMPLES:
   - Updated `.claude/rules/python/schema-versioning.md`, `scripts/lint/check_schema_version_bump.py`, and the `prep-release` skill to stop asking contributors to edit `COMPATIBLE_VERSIONS`; the audit now terminates at `_HANDLERS`
 - [maintenance] Guardrails against schema-version drift (#1304)
   - New pytest regression `test/data_model/test_schema_version_sync.py` asserts `src/supy/sample_data/sample_config.yml::schema_version` equals `CURRENT_SCHEMA_VERSION` on every test run; the `verify-build` shell recipe is no longer the only line of defence
-  - New CI gate `.github/workflows/schema-version-audit.yml` runs on every PR that touches `src/supy/data_model/**` or `src/supy/sample_data/sample_config.yml` and fails unless `src/supy/data_model/schema/version.py` is also modified. Backed by `scripts/lint/check_schema_version_bump.py`. Maintainers can add the `schema-audit-ok` label to bypass the gate for genuinely cosmetic diffs
+  - New CI gate `.github/workflows/schema-version-audit.yml` runs on every PR that touches `src/supy/data_model/**` or `src/supy/sample_data/sample_config.yml` and fails unless `src/supy/data_model/schema/version.py` is also modified. Backed by `scripts/lint/check_schema_version_bump.py`. Maintainers can add the `0-ci:schema-audit-ok` label to bypass the gate for genuinely cosmetic diffs
   - New rule `.claude/rules/python/schema-versioning.md` documents when to bump, how to bump, pre-release audit, PR review gate, and the bypass-label workflow; `prep-release` skill gained a schema-audit step, `audit-pr` skill acknowledges the CI gate
 - [change][experimental] Retrospective schema version bump closes the gap from #1240 / #1242 / #1261 (#1304)
   - `CURRENT_SCHEMA_VERSION` stayed at `2025.12` through the STEBBS clean-up (#879 Nov 2025), the `DeepSoilTemperature` rename (#1240), the DHW volume-bound removal (#1242), and the setpoint split (#1261); the YAML upgrade dispatcher had no real schema versions to key on and had to fall back on synthetic labels that sorted numerically below `CURRENT_SCHEMA_VERSION`

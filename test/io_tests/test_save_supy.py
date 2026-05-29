@@ -8,7 +8,9 @@ import tempfile
 import shutil
 import supy as sp
 from supy._supy_module import _save_supy
+from supy.data_model.core import SUEWSConfig
 from supy.data_model.core.model import OutputControl, OutputFormat
+from supy.suews_output import SUEWSOutput
 
 pytestmark = pytest.mark.api
 
@@ -16,9 +18,14 @@ pytestmark = pytest.mark.api
 class TestSaveSuPy:
     """Test saving functionality of SuPy outputs."""
 
-    @pytest.fixture
+    @pytest.fixture(scope="class")
     def sample_output(self):
-        """Create sample output data for testing."""
+        """Create sample output data for testing.
+
+        Class-scoped: the short simulation runs once and the read-only
+        ``(df_output, df_state_final)`` tuple is shared across every test
+        in the class (each test writes to its own ``TemporaryDirectory``).
+        """
         # Load sample data and run a short simulation
         df_state_init, df_forcing = sp.load_sample_data()
         # Use just 3 days for faster tests
@@ -150,3 +157,62 @@ class TestSaveSuPy:
                 "explicit output_format kwarg is supplied"
             )
             assert not txt_files, "Parquet save should not fall back to text output"
+
+    @staticmethod
+    def _make_output(sample_output, output_format):
+        """Build a SUEWSOutput whose config requests ``output_format``."""
+        df_output, df_state_final = sample_output
+        config = SUEWSConfig()
+        config.model.control.output.format = output_format
+        return SUEWSOutput(
+            df_output=df_output,
+            df_state_final=df_state_final,
+            config=config,
+        )
+
+    def test_output_save_honours_config_txt_format(self, sample_output):
+        """SUEWSOutput.save() must respect config format=txt (gh#1451)."""
+        output = self._make_output(sample_output, OutputFormat.TXT)
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            # No explicit format: must follow the config, not the old
+            # hard-coded parquet default.
+            list_files = output.save(path=tmpdir)
+
+            txt_files = [Path(f) for f in list_files if str(f).endswith(".txt")]
+            parquet_files = [Path(f) for f in list_files if str(f).endswith(".parquet")]
+
+            assert txt_files, (
+                "SUEWSOutput.save() should honour config format=txt when no "
+                "explicit format is supplied"
+            )
+            assert not parquet_files, (
+                "SUEWSOutput.save() must not override config format with parquet"
+            )
+
+    def test_output_save_honours_config_parquet_format(self, sample_output):
+        """SUEWSOutput.save() must respect config format=parquet (gh#1451)."""
+        output = self._make_output(sample_output, OutputFormat.PARQUET)
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            list_files = output.save(path=tmpdir)
+
+            parquet_files = [Path(f) for f in list_files if str(f).endswith(".parquet")]
+            txt_files = [Path(f) for f in list_files if str(f).endswith(".txt")]
+
+            assert parquet_files, (
+                "SUEWSOutput.save() should honour config format=parquet"
+            )
+            assert not txt_files, "Parquet save should not fall back to text output"
+
+    def test_output_save_explicit_format_overrides_config(self, sample_output):
+        """An explicit format kwarg still wins over the stored config."""
+        output = self._make_output(sample_output, OutputFormat.TXT)
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            list_files = output.save(path=tmpdir, format="parquet")
+
+            parquet_files = [Path(f) for f in list_files if str(f).endswith(".parquet")]
+            assert parquet_files, (
+                "An explicit format='parquet' must override config format=txt"
+            )

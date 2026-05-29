@@ -70,7 +70,7 @@ def validate_physics_parameters(context) -> List[ValidationResult]:
         "surface_conductance",
         "snow_use",
         "stebbs",
-        "outer_cap_fraction",
+        "capacitance",
         "same_albedo_wall",
         "same_albedo_roof",
         "same_emissivity_wall",
@@ -78,8 +78,19 @@ def validate_physics_parameters(context) -> List[ValidationResult]:
         "setpoint",
     ]
 
+    # Resolve each required key rename-aware. In Phase-B-standalone / BC mode the
+    # input YAML is not Phase-A-normalised, so a still-compatible config may use a
+    # legacy spelling (e.g. `outer_cap_fraction` for `capacitance`, or the
+    # long-renamed `netradiationmethod` for `net_radiation`). get_value_safe
+    # accepts both spellings; the _MISSING sentinel distinguishes an absent key
+    # from one present with a null value (so the two checks below stay distinct).
+    _MISSING = object()
+    _present = {
+        param: get_value_safe(physics, param, _MISSING)
+        for param in required_physics_params
+    }
     missing_params = [
-        param for param in required_physics_params if param not in physics
+        param for param in required_physics_params if _present[param] is _MISSING
     ]
     if missing_params:
         for param in missing_params:
@@ -93,10 +104,17 @@ def validate_physics_parameters(context) -> List[ValidationResult]:
                 )
             )
 
+    def _is_empty(value):
+        # Null / empty scalar, or a present-but-value-less mapping such as
+        # `capacitance: {}` (get_value_safe returns the bare mapping when there
+        # is no `value` key). A *non-empty* mapping is the gh#972 nested-family
+        # form (e.g. `{spartacus: {value: 1}}`) and is NOT empty.
+        return value in ("", None) or (isinstance(value, dict) and not value)
+
     empty_params = [
         param
         for param in required_physics_params
-        if param in physics and physics.get(param, {}).get("value") in ("", None)
+        if _present[param] is not _MISSING and _is_empty(_present[param])
     ]
     if empty_params:
         for param in empty_params:
@@ -412,10 +430,10 @@ def check_outercapfrac_facet(building_archetype, facet, site_idx, site_gridid):
         A validation result indicating an error if the fraction is missing or out of the valid range (0, 1), with a suggested value for correction.
     Notes
     -----
-    - When rcmethod is set to 1, the fraction_{facet}_heat_capacity_outer parameter must be explicitly set and strictly between 0 and 1.
+    - When rcmethod is set to 1, the fraction_heat_capacity_{facet}_external parameter must be explicitly set and strictly between 0 and 1.
     - Returns an error if the parameter is missing or outside the valid range, including a message and suggested value.
     """
-    key = f"fraction_{facet}_heat_capacity_outer"
+    key = f"fraction_heat_capacity_{facet}_external"
     facet_frac_entry = building_archetype.get(key, {})
     facet_frac = facet_frac_entry.get("value") if isinstance(facet_frac_entry, Mapping) else facet_frac_entry
 
@@ -463,7 +481,7 @@ def validate_model_option_rcmethod(context) -> List[ValidationResult]:
 
     results = []
     physics = yaml_data.get("model", {}).get("physics", {})
-    rcmethod_value = get_value_safe(physics, "outer_cap_fraction")
+    rcmethod_value = get_value_safe(physics, "capacitance")
 
     sites = yaml_data.get("sites", [])
     for site_idx, site in enumerate(sites):
@@ -722,7 +740,7 @@ def validate_forcing_height_vs_buildings(context) -> List[ValidationResult]:
 
     - The maximum building height is defined as the largest of:
         - land_cover.bldgs.bldgh
-        - building_archetype.building_height (if stebbsmethod == 1)
+        - building_archetype.archetype_height (if stebbsmethod == 1)
         - The last non-zero value in vertical_layers.height
           (SPARTACUS top height, if enabled)
     """
@@ -783,7 +801,7 @@ def validate_forcing_height_vs_buildings(context) -> List[ValidationResult]:
         if stebbsmethod_val == 1:
             archetype = _unwrap_nested_value(props.get("building_archetype"))
             if isinstance(archetype, Mapping):
-                stebbs_height = _as_float(_unwrap_nested_value(archetype.get("building_height")))
+                stebbs_height = _as_float(_unwrap_nested_value(archetype.get("archetype_height")))
 
         # SPARTACUS heights (only if SPARTACUS is enabled via netradiationmethod)
         spartacus_top = None

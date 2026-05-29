@@ -38,7 +38,7 @@ from .field_renames import (
     ARCHETYPEPROPERTIES_RENAMES,
     ARCHETYPEPROPERTIES_PASCAL_RENAMES,
     STEBBSPROPERTIES_DEV3_RENAMES,
-    STEBBSPROPERTIES_DEV8_RENAMES,
+    STEBBSPROPERTIES_DEV8_RENAMES_PYDANTIC,
     STEBBSPROPERTIES_DEV12_RENAMES,
     STEBBSPROPERTIES_DEV9_TO_PASCAL,
     STEBBSPROPERTIES_RENAMES,
@@ -2004,7 +2004,7 @@ class StebbsProperties(BaseModel):
                 values, STEBBSPROPERTIES_DEV3_RENAMES, cls.__name__
             )
             values = apply_field_renames(
-                values, STEBBSPROPERTIES_DEV8_RENAMES, cls.__name__
+                values, STEBBSPROPERTIES_DEV8_RENAMES_PYDANTIC, cls.__name__
             )
             values = apply_field_renames(
                 values, STEBBSPROPERTIES_DEV12_RENAMES, cls.__name__

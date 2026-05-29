@@ -759,6 +759,23 @@ STEBBSPROPERTIES_DEV12_RENAMES: Dict[str, str] = {
         "convection_coefficient_hot_water_tank_vessel_external",
 }
 
+
+# DEV8 entries that DEV12 reverts must NOT fire in the Pydantic
+# `_rename_stebbs_fields` chain. Currently this is only
+# `daylight_control -> control_daylight` (DEV8), reverted by
+# `control_daylight -> daylight_control` (DEV12). Applying both in sequence
+# renames a current canonical `daylight_control` to `control_daylight` and back,
+# emitting a spurious DeprecationWarning for a valid config (and failing where
+# `DeprecationWarning` is promoted to an error). The FULL DEV8 map is still used
+# for the bridge legacy-col chain (`_build_stebbs_dev_to_pascal`) and the
+# raw-YAML composed map (which prunes the 2-cycle itself), so only the Pydantic
+# application needs the pruned form.
+STEBBSPROPERTIES_DEV8_RENAMES_PYDANTIC: Dict[str, str] = {
+    old: new
+    for old, new in STEBBSPROPERTIES_DEV8_RENAMES.items()
+    if STEBBSPROPERTIES_DEV12_RENAMES.get(new) != old
+}
+
 # Chained reverse map: dev9 final name -> PascalCase legacy column name.
 # Used by StebbsProperties._STEBBS_LEGACY_COL_NAMES so the Fortran/Rust
 # bridge (keyed on the fused lowercased PascalCase, e.g.

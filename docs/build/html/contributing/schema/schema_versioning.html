@@ -8,8 +8,8 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <meta property="article:modified_time" content="2026-05-22T23:50:30+00:00" />
-    <title>YAML Configuration Schema Versioning &#8212; SUEWS 2026.5.28.dev9100 documentation</title>
+    <meta property="article:modified_time" content="2026-05-29T12:25:15+00:00" />
+    <title>YAML Configuration Schema Versioning &#8212; SUEWS 2026.5.29.dev9102 documentation</title>
   
   
   
@@ -45,7 +45,7 @@
   <link rel="preload" as="script" href="../../_static/scripts/bootstrap.js?digest=8878045cc6db502f8baf" />
 <link rel="preload" as="script" href="../../_static/scripts/pydata-sphinx-theme.js?digest=8878045cc6db502f8baf" />
 
-    <script src="../../_static/documentation_options.js?v=fbe2d627"></script>
+    <script src="../../_static/documentation_options.js?v=aa1aeb1a"></script>
     <script src="../../_static/doctools.js?v=9bcbadda"></script>
     <script src="../../_static/sphinx_highlight.js?v=dc90522c"></script>
     <script src="../../_static/scripts/sphinx-book-theme.js?v=fab101a9"></script>
@@ -57,8 +57,8 @@
     <link rel="search" title="Search" href="../../search.html" />
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
-  <meta name="docsearch:version" content="2026.5.28.dev9100" />
-    <meta name="docbuild:last-update" content="2026-05-22"/>
+  <meta name="docsearch:version" content="2026.5.29.dev9102" />
+    <meta name="docbuild:last-update" content="2026-05-29"/>
   </head>
   
   
@@ -100,7 +100,7 @@
   <div class="bd-header-announcement__content">
     <div style="background-color: #f0ad4e; border: 1px solid #eea236; border-radius: 4px; padding: 10px; margin: 10px 0;">
         <strong>⚠️ Development Version:</strong> This documentation was built from a development version
-        (2026.5.28.dev9100, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/3f8d35230ef5711d38381d7a3a78e50fb968184e" style="color: #31708f;">3f8d352</a>).
+        (2026.5.29.dev9102, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/449ae670b0b295a732de2ef6bf1d1431f54e4d35" style="color: #31708f;">449ae67</a>).
         Features described here may be unstable or subject to change. For stable documentation, please visit the
         <a href="https://docs.suews.io/stable/" style="color: #31708f;">latest release</a>.
     </div>
@@ -147,8 +147,8 @@
       
     
     
-    <img src="../../_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.5.28.dev9100 documentation - Home"/>
-    <img src="../../_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.5.28.dev9100 documentation - Home"/>
+    <img src="../../_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.5.29.dev9102 documentation - Home"/>
+    <img src="../../_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.5.29.dev9102 documentation - Home"/>
   
   
 </a></div>
@@ -777,7 +777,60 @@ suews<span class="w"> </span>schema<span class="w"> </span>migrate<span class="w
 the schema that shipped with it via
 <code class="docutils literal notranslate"><span class="pre">supy.util.converter.yaml_upgrade._PACKAGE_TO_SCHEMA</span></code>.</p>
 <dl>
-<dt><strong>Schema 2026.5.dev11</strong> (current; naming convention completion - ArchetypeProperties Tier 1 + StebbsProperties Rule 2)</dt><dd><p>Combines two independent rename groups in a single bump per the
+<dt><strong>Schema 2026.5.dev12</strong> (current; STEBBS / Archetype Column D alignment)</dt><dd><p>Aligns STEBBS and ArchetypeProperties field names with the Reading
+STEBBS team’s “Column D” naming (“Column D”, D. Hertwig / S. Rognone,
+2026-05), in two waves landed in one dev bump.</p>
+<p>Wave 1 reorders the four straggler compound-noun fields kept at dev11
+to their quantity-first finals: <code class="docutils literal notranslate"><span class="pre">ground_depth</span></code> -&gt; <code class="docutils literal notranslate"><span class="pre">depth_ground</span></code>,
+<code class="docutils literal notranslate"><span class="pre">ventilation_rate</span></code> -&gt; <code class="docutils literal notranslate"><span class="pre">rate_ventilation</span></code>,
+<code class="docutils literal notranslate"><span class="pre">lighting_power_density</span></code> -&gt; <code class="docutils literal notranslate"><span class="pre">power_density_lighting</span></code>,
+<code class="docutils literal notranslate"><span class="pre">month_mean_air_temperature_diffmax</span></code> -&gt;
+<code class="docutils literal notranslate"><span class="pre">temperature_air_month_mean_diffmax</span></code>.</p>
+<p>Wave 2 aligns sixteen further fields. Six ArchetypeProperties HVAC
+fields take qualifier-first powers and setpoints
+(<code class="docutils literal notranslate"><span class="pre">power_air_heating_max</span></code> -&gt; <code class="docutils literal notranslate"><span class="pre">max_power_heating_system_air</span></code>,
+<code class="docutils literal notranslate"><span class="pre">power_water_heating_max</span></code> -&gt; <code class="docutils literal notranslate"><span class="pre">max_power_heating_system_water</span></code>,
+<code class="docutils literal notranslate"><span class="pre">temperature_air_heating_setpoint</span></code> -&gt;
+<code class="docutils literal notranslate"><span class="pre">setpoint_temperature_heating_air</span></code>,
+<code class="docutils literal notranslate"><span class="pre">temperature_air_cooling_setpoint</span></code> -&gt;
+<code class="docutils literal notranslate"><span class="pre">setpoint_temperature_cooling_air</span></code>, plus the two <code class="docutils literal notranslate"><span class="pre">profile_*</span></code>
+setpoint siblings). Ten StebbsProperties fields take qualifier-first /
+Tier-3 word order (<code class="docutils literal notranslate"><span class="pre">power_air_cooling_max</span></code> -&gt;
+<code class="docutils literal notranslate"><span class="pre">max_power_cooling_system_air</span></code>,
+<code class="docutils literal notranslate"><span class="pre">temperature_water_heating_setpoint</span></code> -&gt;
+<code class="docutils literal notranslate"><span class="pre">setpoint_temperature_heating_water</span></code>,
+<code class="docutils literal notranslate"><span class="pre">temperature_water_mains</span></code> -&gt; <code class="docutils literal notranslate"><span class="pre">temperature_mains_water</span></code>,
+<code class="docutils literal notranslate"><span class="pre">area_hot_water_tank_surface</span></code> -&gt; <code class="docutils literal notranslate"><span class="pre">surface_area_hot_water_tank</span></code>,
+<code class="docutils literal notranslate"><span class="pre">area_hot_water_surface</span></code> -&gt; <code class="docutils literal notranslate"><span class="pre">surface_area_hot_water</span></code>,
+<code class="docutils literal notranslate"><span class="pre">rate_hot_water_flow</span></code> -&gt; <code class="docutils literal notranslate"><span class="pre">rate_flow_hot_water</span></code>,
+<code class="docutils literal notranslate"><span class="pre">profile_hot_water_flow</span></code> -&gt; <code class="docutils literal notranslate"><span class="pre">profile_flow_hot_water</span></code>,
+<code class="docutils literal notranslate"><span class="pre">control_daylight</span></code> -&gt; <code class="docutils literal notranslate"><span class="pre">daylight_control</span></code>, and the two DHW vessel
+convection coefficients move to
+<code class="docutils literal notranslate"><span class="pre">convection_coefficient_hot_water_tank_vessel_internal</span></code> /
+<code class="docutils literal notranslate"><span class="pre">..._external</span></code>). <code class="docutils literal notranslate"><span class="pre">ground_floor</span></code> stays a two-word token.</p>
+<p>One ModelPhysics field is also renamed:
+<code class="docutils literal notranslate"><span class="pre">model.physics.outer_cap_fraction</span></code> -&gt; <code class="docutils literal notranslate"><span class="pre">model.physics.capacitance</span></code>.
+This is a pure key rename — the field stays the same <code class="docutils literal notranslate"><span class="pre">RCMethod</span></code> enum
+with the same accepted values and validation behaviour, and its bridge
+DataFrame column stays <code class="docutils literal notranslate"><span class="pre">rcmethod</span></code>. The larger relocation of the field
+under STEBBS and the capacitance-versus-fraction semantics are deferred
+to a separate workstream.</p>
+<p>Rename tables <code class="docutils literal notranslate"><span class="pre">STEBBSPROPERTIES_DEV12_RENAMES</span></code>,
+<code class="docutils literal notranslate"><span class="pre">ARCHETYPEPROPERTIES_DEV12_RENAMES</span></code> and <code class="docutils literal notranslate"><span class="pre">MODELPHYSICS_DEV12_RENAMES</span></code>
+in
+<code class="docutils literal notranslate"><span class="pre">src/supy/data_model/core/field_renames.py</span></code>; the
+<code class="docutils literal notranslate"><span class="pre">(2026.5.dev11</span> <span class="pre">-&gt;</span> <span class="pre">2026.5.dev12)</span></code> migration is registered in
+<code class="docutils literal notranslate"><span class="pre">src/supy/util/converter/yaml_upgrade.py::_HANDLERS</span></code>, walks both the
+<code class="docutils literal notranslate"><span class="pre">stebbs</span></code> and <code class="docutils literal notranslate"><span class="pre">building_archetype</span></code> containers, and is chained
+through every aggregate handler down to <code class="docutils literal notranslate"><span class="pre">2025.12</span> <span class="pre">-&gt;</span> <span class="pre">current</span></code>.
+Bridge DataFrame columns keep the fused PascalCase ancestry via the
+chained <code class="docutils literal notranslate"><span class="pre">STEBBSPROPERTIES_DEV9_TO_PASCAL</span></code> /
+<code class="docutils literal notranslate"><span class="pre">ARCHETYPEPROPERTIES_DEV7_TO_PASCAL</span></code> maps and the Rust
+<code class="docutils literal notranslate"><span class="pre">FIELD_COMPAT_ALIASES</span></code> entries. <code class="docutils literal notranslate"><span class="pre">building_type</span></code> was already
+dropped at dev11, so no new migration drop is needed (gh#1392
+follow-up).</p>
+</dd>
+<dt><strong>Schema 2026.5.dev11</strong> (naming convention completion - ArchetypeProperties Tier 1 + StebbsProperties Rule 2)</dt><dd><p>Combines two independent rename groups in a single bump per the
 dev-label convention (gh#1392 + gh#1394).</p>
 <p><strong>(a) ArchetypeProperties Tier 1 completion (16 renames).</strong>
 <code class="docutils literal notranslate"><span class="pre">archetype_*</span></code> namespace prefix for whole-archetype fields
@@ -815,8 +868,10 @@ the convention’s “Specific tokens” rule, HVAC + setpoint
 prefixes (<code class="docutils literal notranslate"><span class="pre">threshold_metabolism</span></code>, <code class="docutils literal notranslate"><span class="pre">ratio_latent_sensible</span></code>,
 <code class="docutils literal notranslate"><span class="pre">control_daylight</span></code>, <code class="docutils literal notranslate"><span class="pre">threshold_lighting_illuminance</span></code>), initial /
 climatology temperatures, and the full hot-water subsystem.
-Compound nouns kept intact (<code class="docutils literal notranslate"><span class="pre">ground_depth</span></code>, <code class="docutils literal notranslate"><span class="pre">ventilation_rate</span></code>,
-<code class="docutils literal notranslate"><span class="pre">lighting_power_density</span></code>, <code class="docutils literal notranslate"><span class="pre">month_mean_air_temperature_diffmax</span></code>).
+Four straggler compound nouns (<code class="docutils literal notranslate"><span class="pre">ground_depth</span></code>,
+<code class="docutils literal notranslate"><span class="pre">ventilation_rate</span></code>, <code class="docutils literal notranslate"><span class="pre">lighting_power_density</span></code>,
+<code class="docutils literal notranslate"><span class="pre">month_mean_air_temperature_diffmax</span></code>) were left intact at this bump
+and reordered quantity-first at dev12 (see below).
 Rename table <code class="docutils literal notranslate"><span class="pre">STEBBSPROPERTIES_DEV8_RENAMES</span></code>.</p>
 <p>Both tables live in <code class="docutils literal notranslate"><span class="pre">src/supy/data_model/core/field_renames.py</span></code>;
 the <code class="docutils literal notranslate"><span class="pre">(2026.5.dev10</span> <span class="pre">-&gt;</span> <span class="pre">2026.5.dev11)</span></code> migration is registered in
@@ -1292,7 +1347,7 @@ By SUEWS dev team led by Prof Sue Grimmond
   
   <div class="footer-item">
     <p class="last-updated">
-  Last updated on 2026-05-22.
+  Last updated on 2026-05-29.
   <br/>
 </p>
   </div>
@@ -1300,8 +1355,8 @@ By SUEWS dev team led by Prof Sue Grimmond
   <div class="footer-item">
     
 <div class="extra_footer">
-  <p>Version: 2026.5.28.dev9100 |
-    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/3f8d35230ef5711d38381d7a3a78e50fb968184e">3f8d352</a> |
+  <p>Version: 2026.5.29.dev9102 |
+    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/449ae670b0b295a732de2ef6bf1d1431f54e4d35">449ae67</a> |
     <a href="https://umep-dev.github.io/SUEWS/brand/showcase.html">Brand</a></p>
 </div>
   </div>

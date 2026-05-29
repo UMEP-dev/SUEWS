@@ -10,7 +10,7 @@
 <meta content="SUEWS YAML configuration for archetype properties parameters" name="description" />
 <meta content="SUEWS, YAML, archetypeproperties, parameters, configuration" name="keywords" />
 
-    <title>4.3.3. Archetype Properties &#8212; SUEWS 2026.5.28.dev9100 documentation</title>
+    <title>4.3.3. Archetype Properties &#8212; SUEWS 2026.5.29.dev9102 documentation</title>
   
   
   
@@ -46,7 +46,7 @@
   <link rel="preload" as="script" href="../../../_static/scripts/bootstrap.js?digest=8878045cc6db502f8baf" />
 <link rel="preload" as="script" href="../../../_static/scripts/pydata-sphinx-theme.js?digest=8878045cc6db502f8baf" />
 
-    <script src="../../../_static/documentation_options.js?v=fbe2d627"></script>
+    <script src="../../../_static/documentation_options.js?v=aa1aeb1a"></script>
     <script src="../../../_static/doctools.js?v=9bcbadda"></script>
     <script src="../../../_static/sphinx_highlight.js?v=dc90522c"></script>
     <script src="../../../_static/scripts/sphinx-book-theme.js?v=fab101a9"></script>
@@ -60,7 +60,7 @@
     <link rel="prev" title="4.3.2. Anthropogenic Heat" href="anthropogenicheat.html" />
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
-  <meta name="docsearch:version" content="2026.5.28.dev9100" />
+  <meta name="docsearch:version" content="2026.5.29.dev9102" />
   </head>
   
   
@@ -102,7 +102,7 @@
   <div class="bd-header-announcement__content">
     <div style="background-color: #f0ad4e; border: 1px solid #eea236; border-radius: 4px; padding: 10px; margin: 10px 0;">
         <strong>⚠️ Development Version:</strong> This documentation was built from a development version
-        (2026.5.28.dev9100, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/3f8d35230ef5711d38381d7a3a78e50fb968184e" style="color: #31708f;">3f8d352</a>).
+        (2026.5.29.dev9102, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/449ae670b0b295a732de2ef6bf1d1431f54e4d35" style="color: #31708f;">449ae67</a>).
         Features described here may be unstable or subject to change. For stable documentation, please visit the
         <a href="https://docs.suews.io/stable/" style="color: #31708f;">latest release</a>.
     </div>
@@ -149,8 +149,8 @@
       
     
     
-    <img src="../../../_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.5.28.dev9100 documentation - Home"/>
-    <img src="../../../_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.5.28.dev9100 documentation - Home"/>
+    <img src="../../../_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.5.29.dev9102 documentation - Home"/>
+    <img src="../../../_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.5.29.dev9102 documentation - Home"/>
   
   
 </a></div>
@@ -1278,8 +1278,8 @@
 </dd></dl>
 
 <dl class="input option" id="index-54">
-<dt class="sig sig-object input" id="input-option-power_air_heating_max">
-<span class="sig-name descname"><span class="pre">power_air_heating_max</span></span><a class="headerlink" href="#input-option-power_air_heating_max" title="Link to this definition">#</a></dt>
+<dt class="sig sig-object input" id="input-option-max_power_heating_system_air">
+<span class="sig-name descname"><span class="pre">max_power_heating_system_air</span></span><a class="headerlink" href="#input-option-max_power_heating_system_air" title="Link to this definition">#</a></dt>
 <dd><p>Maximum power demand of heating system [W]</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
@@ -1306,8 +1306,8 @@
 </dd></dl>
 
 <dl class="input option" id="index-56">
-<dt class="sig sig-object input" id="input-option-power_water_heating_max">
-<span class="sig-name descname"><span class="pre">power_water_heating_max</span></span><a class="headerlink" href="#input-option-power_water_heating_max" title="Link to this definition">#</a></dt>
+<dt class="sig sig-object input" id="input-option-max_power_heating_system_water">
+<span class="sig-name descname"><span class="pre">max_power_heating_system_water</span></span><a class="headerlink" href="#input-option-max_power_heating_system_water" title="Link to this definition">#</a></dt>
 <dd><p>Maximum power demand of water heating system [W]</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
@@ -1320,8 +1320,8 @@
 </dd></dl>
 
 <dl class="input option" id="index-57">
-<dt class="sig sig-object input" id="input-option-temperature_air_heating_setpoint">
-<span class="sig-name descname"><span class="pre">temperature_air_heating_setpoint</span></span><a class="headerlink" href="#input-option-temperature_air_heating_setpoint" title="Link to this definition">#</a></dt>
+<dt class="sig sig-object input" id="input-option-setpoint_temperature_heating_air">
+<span class="sig-name descname"><span class="pre">setpoint_temperature_heating_air</span></span><a class="headerlink" href="#input-option-setpoint_temperature_heating_air" title="Link to this definition">#</a></dt>
 <dd><p>Heating setpoint temperature [degC]</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
@@ -1334,8 +1334,8 @@
 </dd></dl>
 
 <dl class="input option" id="index-58">
-<dt class="sig sig-object input" id="input-option-temperature_air_cooling_setpoint">
-<span class="sig-name descname"><span class="pre">temperature_air_cooling_setpoint</span></span><a class="headerlink" href="#input-option-temperature_air_cooling_setpoint" title="Link to this definition">#</a></dt>
+<dt class="sig sig-object input" id="input-option-setpoint_temperature_cooling_air">
+<span class="sig-name descname"><span class="pre">setpoint_temperature_cooling_air</span></span><a class="headerlink" href="#input-option-setpoint_temperature_cooling_air" title="Link to this definition">#</a></dt>
 <dd><p>Cooling setpoint temperature [degC]</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
@@ -1348,27 +1348,27 @@
 </dd></dl>
 
 <dl class="input option" id="index-59">
-<dt class="sig sig-object input" id="input-option-profile_temperature_air_heating_setpoint">
-<span class="sig-name descname"><span class="pre">profile_temperature_air_heating_setpoint</span></span><a class="headerlink" href="#input-option-profile_temperature_air_heating_setpoint" title="Link to this definition">#</a></dt>
+<dt class="sig sig-object input" id="input-option-profile_setpoint_temperature_heating_air">
+<span class="sig-name descname"><span class="pre">profile_setpoint_temperature_heating_air</span></span><a class="headerlink" href="#input-option-profile_setpoint_temperature_heating_air" title="Link to this definition">#</a></dt>
 <dd><p>10-minute profile of heating setpoints temperature when Setpointmethod equals to 2 [degC]</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
 <dd class="field-odd"><p>degC</p>
 </dd>
 </dl>
-<p>The <code class="docutils literal notranslate"><span class="pre">profile_temperature_air_heating_setpoint</span></code> parameter group is defined by the <a class="reference internal" href="heatingsetpointprofile.html"><span class="doc">Heating Setpoint Profile</span></a> structure.</p>
+<p>The <code class="docutils literal notranslate"><span class="pre">profile_setpoint_temperature_heating_air</span></code> parameter group is defined by the <a class="reference internal" href="heatingsetpointprofile.html"><span class="doc">Heating Setpoint Profile</span></a> structure.</p>
 </dd></dl>
 
 <dl class="input option" id="index-60">
-<dt class="sig sig-object input" id="input-option-profile_temperature_air_cooling_setpoint">
-<span class="sig-name descname"><span class="pre">profile_temperature_air_cooling_setpoint</span></span><a class="headerlink" href="#input-option-profile_temperature_air_cooling_setpoint" title="Link to this definition">#</a></dt>
+<dt class="sig sig-object input" id="input-option-profile_setpoint_temperature_cooling_air">
+<span class="sig-name descname"><span class="pre">profile_setpoint_temperature_cooling_air</span></span><a class="headerlink" href="#input-option-profile_setpoint_temperature_cooling_air" title="Link to this definition">#</a></dt>
 <dd><p>10-minute profile of cooling setpoints temperature when Setpointmethod equals to 2 [degC]</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
 <dd class="field-odd"><p>degC</p>
 </dd>
 </dl>
-<p>The <code class="docutils literal notranslate"><span class="pre">profile_temperature_air_cooling_setpoint</span></code> parameter group is defined by the <a class="reference internal" href="coolingsetpointprofile.html"><span class="doc">Cooling Setpoint Profile</span></a> structure.</p>
+<p>The <code class="docutils literal notranslate"><span class="pre">profile_setpoint_temperature_cooling_air</span></code> parameter group is defined by the <a class="reference internal" href="coolingsetpointprofile.html"><span class="doc">Cooling Setpoint Profile</span></a> structure.</p>
 </dd></dl>
 
 <dl class="input option" id="index-61">
@@ -1460,8 +1460,8 @@ By SUEWS dev team led by Prof Sue Grimmond
   <div class="footer-item">
     
 <div class="extra_footer">
-  <p>Version: 2026.5.28.dev9100 |
-    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/3f8d35230ef5711d38381d7a3a78e50fb968184e">3f8d352</a> |
+  <p>Version: 2026.5.29.dev9102 |
+    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/449ae670b0b295a732de2ef6bf1d1431f54e4d35">449ae67</a> |
     <a href="https://umep-dev.github.io/SUEWS/brand/showcase.html">Brand</a></p>
 </div>
   </div>

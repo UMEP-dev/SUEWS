@@ -8,7 +8,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>4.3. YAML Configuration Reference &#8212; SUEWS 2026.5.28.dev9100 documentation</title>
+    <title>4.3. YAML Configuration Reference &#8212; SUEWS 2026.5.29.dev9102 documentation</title>
   
   
   
@@ -44,7 +44,7 @@
   <link rel="preload" as="script" href="../../../_static/scripts/bootstrap.js?digest=8878045cc6db502f8baf" />
 <link rel="preload" as="script" href="../../../_static/scripts/pydata-sphinx-theme.js?digest=8878045cc6db502f8baf" />
 
-    <script src="../../../_static/documentation_options.js?v=fbe2d627"></script>
+    <script src="../../../_static/documentation_options.js?v=aa1aeb1a"></script>
     <script src="../../../_static/doctools.js?v=9bcbadda"></script>
     <script src="../../../_static/sphinx_highlight.js?v=dc90522c"></script>
     <script src="../../../_static/scripts/sphinx-book-theme.js?v=fab101a9"></script>
@@ -58,7 +58,7 @@
     <link rel="prev" title="4.2. Meteorological Forcing Data" href="../../forcing-data.html" />
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
-  <meta name="docsearch:version" content="2026.5.28.dev9100" />
+  <meta name="docsearch:version" content="2026.5.29.dev9102" />
   </head>
   
   
@@ -100,7 +100,7 @@
   <div class="bd-header-announcement__content">
     <div style="background-color: #f0ad4e; border: 1px solid #eea236; border-radius: 4px; padding: 10px; margin: 10px 0;">
         <strong>⚠️ Development Version:</strong> This documentation was built from a development version
-        (2026.5.28.dev9100, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/3f8d35230ef5711d38381d7a3a78e50fb968184e" style="color: #31708f;">3f8d352</a>).
+        (2026.5.29.dev9102, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/449ae670b0b295a732de2ef6bf1d1431f54e4d35" style="color: #31708f;">449ae67</a>).
         Features described here may be unstable or subject to change. For stable documentation, please visit the
         <a href="https://docs.suews.io/stable/" style="color: #31708f;">latest release</a>.
     </div>
@@ -147,8 +147,8 @@
       
     
     
-    <img src="../../../_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.5.28.dev9100 documentation - Home"/>
-    <img src="../../../_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.5.28.dev9100 documentation - Home"/>
+    <img src="../../../_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.5.29.dev9102 documentation - Home"/>
+    <img src="../../../_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.5.29.dev9102 documentation - Home"/>
   
   
 </a></div>
@@ -626,7 +626,7 @@ Physics Methods</label><div class="sd-tab-content docutils">
 </ul>
 </td><td><ul class="simple">
 <li><p><a class="reference internal" href="siteproperties.html#input-option-stebbs" title="stebbs"><code class="xref input input-option docutils literal notranslate"><span class="pre">stebbs</span></code></a></p></li>
-<li><p><a class="reference internal" href="modelphysics.html#input-option-outer_cap_fraction" title="outer_cap_fraction"><code class="xref input input-option docutils literal notranslate"><span class="pre">outer_cap_fraction</span></code></a></p></li>
+<li><p><a class="reference internal" href="modelphysics.html#input-option-capacitance" title="capacitance"><code class="xref input input-option docutils literal notranslate"><span class="pre">capacitance</span></code></a></p></li>
 <li><p><a class="reference internal" href="modelphysics.html#input-option-setpoint" title="setpoint"><code class="xref input input-option docutils literal notranslate"><span class="pre">setpoint</span></code></a></p></li>
 <li><p><a class="reference internal" href="modelphysics.html#input-option-same_albedo_wall" title="same_albedo_wall"><code class="xref input input-option docutils literal notranslate"><span class="pre">same_albedo_wall</span></code></a></p></li>
 <li><p><a class="reference internal" href="modelphysics.html#input-option-same_albedo_roof" title="same_albedo_roof"><code class="xref input input-option docutils literal notranslate"><span class="pre">same_albedo_roof</span></code></a></p></li>
@@ -734,29 +734,29 @@ STEBBS</label><div class="sd-tab-content docutils">
 <li><p class="sd-card-text"><a class="reference internal" href="stebbsproperties.html#input-option-convection_coefficient_wall_external" title="convection_coefficient_wall_external"><code class="xref input input-option docutils literal notranslate"><span class="pre">convection_coefficient_wall_external</span></code></a></p></li>
 <li><p class="sd-card-text"><a class="reference internal" href="stebbsproperties.html#input-option-convection_coefficient_roof_external" title="convection_coefficient_roof_external"><code class="xref input input-option docutils literal notranslate"><span class="pre">convection_coefficient_roof_external</span></code></a></p></li>
 <li><p class="sd-card-text"><a class="reference internal" href="stebbsproperties.html#input-option-convection_coefficient_window_external" title="convection_coefficient_window_external"><code class="xref input input-option docutils literal notranslate"><span class="pre">convection_coefficient_window_external</span></code></a></p></li>
-<li><p class="sd-card-text"><a class="reference internal" href="stebbsproperties.html#input-option-ground_depth" title="ground_depth"><code class="xref input input-option docutils literal notranslate"><span class="pre">ground_depth</span></code></a></p></li>
+<li><p class="sd-card-text"><a class="reference internal" href="stebbsproperties.html#input-option-depth_ground" title="depth_ground"><code class="xref input input-option docutils literal notranslate"><span class="pre">depth_ground</span></code></a></p></li>
 <li><p class="sd-card-text"><a class="reference internal" href="stebbsproperties.html#input-option-thermal_conductivity_ground" title="thermal_conductivity_ground"><code class="xref input input-option docutils literal notranslate"><span class="pre">thermal_conductivity_ground</span></code></a></p></li>
 <li><p class="sd-card-text"><a class="reference internal" href="stebbsproperties.html#input-option-threshold_metabolism" title="threshold_metabolism"><code class="xref input input-option docutils literal notranslate"><span class="pre">threshold_metabolism</span></code></a></p></li>
 <li><p class="sd-card-text"><a class="reference internal" href="stebbsproperties.html#input-option-ratio_latent_sensible" title="ratio_latent_sensible"><code class="xref input input-option docutils literal notranslate"><span class="pre">ratio_latent_sensible</span></code></a></p></li>
-<li><p class="sd-card-text"><a class="reference internal" href="stebbsproperties.html#input-option-control_daylight" title="control_daylight"><code class="xref input input-option docutils literal notranslate"><span class="pre">control_daylight</span></code></a></p></li>
+<li><p class="sd-card-text"><a class="reference internal" href="stebbsproperties.html#input-option-daylight_control" title="daylight_control"><code class="xref input input-option docutils literal notranslate"><span class="pre">daylight_control</span></code></a></p></li>
 <li><p class="sd-card-text"><a class="reference internal" href="stebbsproperties.html#input-option-threshold_lighting_illuminance" title="threshold_lighting_illuminance"><code class="xref input input-option docutils literal notranslate"><span class="pre">threshold_lighting_illuminance</span></code></a></p></li>
 <li><p class="sd-card-text"><a class="reference internal" href="stebbsproperties.html#input-option-efficiency_heating_system_air" title="efficiency_heating_system_air"><code class="xref input input-option docutils literal notranslate"><span class="pre">efficiency_heating_system_air</span></code></a></p></li>
-<li><p class="sd-card-text"><a class="reference internal" href="stebbsproperties.html#input-option-power_air_cooling_max" title="power_air_cooling_max"><code class="xref input input-option docutils literal notranslate"><span class="pre">power_air_cooling_max</span></code></a></p></li>
+<li><p class="sd-card-text"><a class="reference internal" href="stebbsproperties.html#input-option-max_power_cooling_system_air" title="max_power_cooling_system_air"><code class="xref input input-option docutils literal notranslate"><span class="pre">max_power_cooling_system_air</span></code></a></p></li>
 <li><p class="sd-card-text"><a class="reference internal" href="stebbsproperties.html#input-option-efficiency_cooling_system_air" title="efficiency_cooling_system_air"><code class="xref input input-option docutils literal notranslate"><span class="pre">efficiency_cooling_system_air</span></code></a></p></li>
-<li><p class="sd-card-text"><a class="reference internal" href="stebbsproperties.html#input-option-ventilation_rate" title="ventilation_rate"><code class="xref input input-option docutils literal notranslate"><span class="pre">ventilation_rate</span></code></a></p></li>
+<li><p class="sd-card-text"><a class="reference internal" href="stebbsproperties.html#input-option-rate_ventilation" title="rate_ventilation"><code class="xref input input-option docutils literal notranslate"><span class="pre">rate_ventilation</span></code></a></p></li>
 <li><p class="sd-card-text"><a class="reference internal" href="stebbsproperties.html#input-option-temperature_air_outdoor_initial" title="temperature_air_outdoor_initial"><code class="xref input input-option docutils literal notranslate"><span class="pre">temperature_air_outdoor_initial</span></code></a></p></li>
 <li><p class="sd-card-text"><a class="reference internal" href="stebbsproperties.html#input-option-temperature_air_indoor_initial" title="temperature_air_indoor_initial"><code class="xref input input-option docutils literal notranslate"><span class="pre">temperature_air_indoor_initial</span></code></a></p></li>
 <li><p class="sd-card-text"><a class="reference internal" href="stebbsproperties.html#input-option-temperature_air_annual_mean" title="temperature_air_annual_mean"><code class="xref input input-option docutils literal notranslate"><span class="pre">temperature_air_annual_mean</span></code></a></p></li>
-<li><p class="sd-card-text"><a class="reference internal" href="stebbsproperties.html#input-option-month_mean_air_temperature_diffmax" title="month_mean_air_temperature_diffmax"><code class="xref input input-option docutils literal notranslate"><span class="pre">month_mean_air_temperature_diffmax</span></code></a></p></li>
+<li><p class="sd-card-text"><a class="reference internal" href="stebbsproperties.html#input-option-temperature_air_month_mean_diffmax" title="temperature_air_month_mean_diffmax"><code class="xref input input-option docutils literal notranslate"><span class="pre">temperature_air_month_mean_diffmax</span></code></a></p></li>
 <li><p class="sd-card-text"><a class="reference internal" href="stebbsproperties.html#input-option-thickness_hot_water_tank_wall" title="thickness_hot_water_tank_wall"><code class="xref input input-option docutils literal notranslate"><span class="pre">thickness_hot_water_tank_wall</span></code></a></p></li>
-<li><p class="sd-card-text"><a class="reference internal" href="stebbsproperties.html#input-option-temperature_water_mains" title="temperature_water_mains"><code class="xref input input-option docutils literal notranslate"><span class="pre">temperature_water_mains</span></code></a></p></li>
-<li><p class="sd-card-text"><a class="reference internal" href="stebbsproperties.html#input-option-area_hot_water_tank_surface" title="area_hot_water_tank_surface"><code class="xref input input-option docutils literal notranslate"><span class="pre">area_hot_water_tank_surface</span></code></a></p></li>
-<li><p class="sd-card-text"><a class="reference internal" href="stebbsproperties.html#input-option-temperature_water_heating_setpoint" title="temperature_water_heating_setpoint"><code class="xref input input-option docutils literal notranslate"><span class="pre">temperature_water_heating_setpoint</span></code></a></p></li>
+<li><p class="sd-card-text"><a class="reference internal" href="stebbsproperties.html#input-option-temperature_mains_water" title="temperature_mains_water"><code class="xref input input-option docutils literal notranslate"><span class="pre">temperature_mains_water</span></code></a></p></li>
+<li><p class="sd-card-text"><a class="reference internal" href="stebbsproperties.html#input-option-surface_area_hot_water_tank" title="surface_area_hot_water_tank"><code class="xref input input-option docutils literal notranslate"><span class="pre">surface_area_hot_water_tank</span></code></a></p></li>
+<li><p class="sd-card-text"><a class="reference internal" href="stebbsproperties.html#input-option-setpoint_temperature_heating_water" title="setpoint_temperature_heating_water"><code class="xref input input-option docutils literal notranslate"><span class="pre">setpoint_temperature_heating_water</span></code></a></p></li>
 <li><p class="sd-card-text"><a class="reference internal" href="stebbsproperties.html#input-option-emissivity_hot_water_tank_wall" title="emissivity_hot_water_tank_wall"><code class="xref input input-option docutils literal notranslate"><span class="pre">emissivity_hot_water_tank_wall</span></code></a></p></li>
 <li><p class="sd-card-text"><a class="reference internal" href="stebbsproperties.html#input-option-thickness_hot_water_vessel_wall" title="thickness_hot_water_vessel_wall"><code class="xref input input-option docutils literal notranslate"><span class="pre">thickness_hot_water_vessel_wall</span></code></a></p></li>
 <li><p class="sd-card-text"><a class="reference internal" href="stebbsproperties.html#input-option-volume_hot_water" title="volume_hot_water"><code class="xref input input-option docutils literal notranslate"><span class="pre">volume_hot_water</span></code></a></p></li>
-<li><p class="sd-card-text"><a class="reference internal" href="stebbsproperties.html#input-option-area_hot_water_surface" title="area_hot_water_surface"><code class="xref input input-option docutils literal notranslate"><span class="pre">area_hot_water_surface</span></code></a></p></li>
-<li><p class="sd-card-text"><a class="reference internal" href="stebbsproperties.html#input-option-rate_hot_water_flow" title="rate_hot_water_flow"><code class="xref input input-option docutils literal notranslate"><span class="pre">rate_hot_water_flow</span></code></a></p></li>
+<li><p class="sd-card-text"><a class="reference internal" href="stebbsproperties.html#input-option-surface_area_hot_water" title="surface_area_hot_water"><code class="xref input input-option docutils literal notranslate"><span class="pre">surface_area_hot_water</span></code></a></p></li>
+<li><p class="sd-card-text"><a class="reference internal" href="stebbsproperties.html#input-option-rate_flow_hot_water" title="rate_flow_hot_water"><code class="xref input input-option docutils literal notranslate"><span class="pre">rate_flow_hot_water</span></code></a></p></li>
 <li><p class="sd-card-text"><a class="reference internal" href="stebbsproperties.html#input-option-specific_heat_capacity_hot_water" title="specific_heat_capacity_hot_water"><code class="xref input input-option docutils literal notranslate"><span class="pre">specific_heat_capacity_hot_water</span></code></a></p></li>
 <li><p class="sd-card-text"><a class="reference internal" href="stebbsproperties.html#input-option-specific_heat_capacity_hot_water_tank_wall" title="specific_heat_capacity_hot_water_tank_wall"><code class="xref input input-option docutils literal notranslate"><span class="pre">specific_heat_capacity_hot_water_tank_wall</span></code></a></p></li>
 <li><p class="sd-card-text"><a class="reference internal" href="stebbsproperties.html#input-option-specific_heat_capacity_hot_water_vessel_wall" title="specific_heat_capacity_hot_water_vessel_wall"><code class="xref input input-option docutils literal notranslate"><span class="pre">specific_heat_capacity_hot_water_vessel_wall</span></code></a></p></li>
@@ -767,11 +767,11 @@ STEBBS</label><div class="sd-tab-content docutils">
 <li><p class="sd-card-text"><a class="reference internal" href="stebbsproperties.html#input-option-convection_coefficient_hot_water_tank_wall_internal" title="convection_coefficient_hot_water_tank_wall_internal"><code class="xref input input-option docutils literal notranslate"><span class="pre">convection_coefficient_hot_water_tank_wall_internal</span></code></a></p></li>
 <li><p class="sd-card-text"><a class="reference internal" href="stebbsproperties.html#input-option-convection_coefficient_hot_water_tank_wall_external" title="convection_coefficient_hot_water_tank_wall_external"><code class="xref input input-option docutils literal notranslate"><span class="pre">convection_coefficient_hot_water_tank_wall_external</span></code></a></p></li>
 <li><p class="sd-card-text"><a class="reference internal" href="stebbsproperties.html#input-option-conductivity_hot_water_vessel_wall" title="conductivity_hot_water_vessel_wall"><code class="xref input input-option docutils literal notranslate"><span class="pre">conductivity_hot_water_vessel_wall</span></code></a></p></li>
-<li><p class="sd-card-text"><a class="reference internal" href="stebbsproperties.html#input-option-convection_coefficient_hot_water_vessel_wall_internal" title="convection_coefficient_hot_water_vessel_wall_internal"><code class="xref input input-option docutils literal notranslate"><span class="pre">convection_coefficient_hot_water_vessel_wall_internal</span></code></a></p></li>
-<li><p class="sd-card-text"><a class="reference internal" href="stebbsproperties.html#input-option-convection_coefficient_hot_water_vessel_wall_external" title="convection_coefficient_hot_water_vessel_wall_external"><code class="xref input input-option docutils literal notranslate"><span class="pre">convection_coefficient_hot_water_vessel_wall_external</span></code></a></p></li>
+<li><p class="sd-card-text"><a class="reference internal" href="stebbsproperties.html#input-option-convection_coefficient_hot_water_tank_vessel_internal" title="convection_coefficient_hot_water_tank_vessel_internal"><code class="xref input input-option docutils literal notranslate"><span class="pre">convection_coefficient_hot_water_tank_vessel_internal</span></code></a></p></li>
+<li><p class="sd-card-text"><a class="reference internal" href="stebbsproperties.html#input-option-convection_coefficient_hot_water_tank_vessel_external" title="convection_coefficient_hot_water_tank_vessel_external"><code class="xref input input-option docutils literal notranslate"><span class="pre">convection_coefficient_hot_water_tank_vessel_external</span></code></a></p></li>
 <li><p class="sd-card-text"><a class="reference internal" href="stebbsproperties.html#input-option-emissivity_hot_water_vessel_wall" title="emissivity_hot_water_vessel_wall"><code class="xref input input-option docutils literal notranslate"><span class="pre">emissivity_hot_water_vessel_wall</span></code></a></p></li>
 <li><p class="sd-card-text"><a class="reference internal" href="stebbsproperties.html#input-option-efficiency_heating_system_water" title="efficiency_heating_system_water"><code class="xref input input-option docutils literal notranslate"><span class="pre">efficiency_heating_system_water</span></code></a></p></li>
-<li><p class="sd-card-text"><a class="reference internal" href="stebbsproperties.html#input-option-lighting_power_density" title="lighting_power_density"><code class="xref input input-option docutils literal notranslate"><span class="pre">lighting_power_density</span></code></a></p></li>
+<li><p class="sd-card-text"><a class="reference internal" href="stebbsproperties.html#input-option-power_density_lighting" title="power_density_lighting"><code class="xref input input-option docutils literal notranslate"><span class="pre">power_density_lighting</span></code></a></p></li>
 </ul>
 </div>
 </details><ul class="simple">
@@ -850,11 +850,11 @@ Archetype Properties</label><div class="sd-tab-content docutils">
 <li><p class="sd-card-text"><a class="reference internal" href="archetypeproperties.html#input-option-density_internal_mass" title="density_internal_mass"><code class="xref input input-option docutils literal notranslate"><span class="pre">density_internal_mass</span></code></a></p></li>
 <li><p class="sd-card-text"><a class="reference internal" href="archetypeproperties.html#input-option-specific_heat_capacity_internal_mass" title="specific_heat_capacity_internal_mass"><code class="xref input input-option docutils literal notranslate"><span class="pre">specific_heat_capacity_internal_mass</span></code></a></p></li>
 <li><p class="sd-card-text"><a class="reference internal" href="archetypeproperties.html#input-option-emissivity_internal_mass" title="emissivity_internal_mass"><code class="xref input input-option docutils literal notranslate"><span class="pre">emissivity_internal_mass</span></code></a></p></li>
-<li><p class="sd-card-text"><a class="reference internal" href="archetypeproperties.html#input-option-power_air_heating_max" title="power_air_heating_max"><code class="xref input input-option docutils literal notranslate"><span class="pre">power_air_heating_max</span></code></a></p></li>
+<li><p class="sd-card-text"><a class="reference internal" href="archetypeproperties.html#input-option-max_power_heating_system_air" title="max_power_heating_system_air"><code class="xref input input-option docutils literal notranslate"><span class="pre">max_power_heating_system_air</span></code></a></p></li>
 <li><p class="sd-card-text"><a class="reference internal" href="archetypeproperties.html#input-option-volume_hot_water_tank" title="volume_hot_water_tank"><code class="xref input input-option docutils literal notranslate"><span class="pre">volume_hot_water_tank</span></code></a></p></li>
-<li><p class="sd-card-text"><a class="reference internal" href="archetypeproperties.html#input-option-power_water_heating_max" title="power_water_heating_max"><code class="xref input input-option docutils literal notranslate"><span class="pre">power_water_heating_max</span></code></a></p></li>
-<li><p class="sd-card-text"><a class="reference internal" href="archetypeproperties.html#input-option-temperature_air_heating_setpoint" title="temperature_air_heating_setpoint"><code class="xref input input-option docutils literal notranslate"><span class="pre">temperature_air_heating_setpoint</span></code></a></p></li>
-<li><p class="sd-card-text"><a class="reference internal" href="archetypeproperties.html#input-option-temperature_air_cooling_setpoint" title="temperature_air_cooling_setpoint"><code class="xref input input-option docutils literal notranslate"><span class="pre">temperature_air_cooling_setpoint</span></code></a></p></li>
+<li><p class="sd-card-text"><a class="reference internal" href="archetypeproperties.html#input-option-max_power_heating_system_water" title="max_power_heating_system_water"><code class="xref input input-option docutils literal notranslate"><span class="pre">max_power_heating_system_water</span></code></a></p></li>
+<li><p class="sd-card-text"><a class="reference internal" href="archetypeproperties.html#input-option-setpoint_temperature_heating_air" title="setpoint_temperature_heating_air"><code class="xref input input-option docutils literal notranslate"><span class="pre">setpoint_temperature_heating_air</span></code></a></p></li>
+<li><p class="sd-card-text"><a class="reference internal" href="archetypeproperties.html#input-option-setpoint_temperature_cooling_air" title="setpoint_temperature_cooling_air"><code class="xref input input-option docutils literal notranslate"><span class="pre">setpoint_temperature_cooling_air</span></code></a></p></li>
 </ul>
 </div>
 </details><ul class="simple">
@@ -1549,8 +1549,8 @@ By SUEWS dev team led by Prof Sue Grimmond
   <div class="footer-item">
     
 <div class="extra_footer">
-  <p>Version: 2026.5.28.dev9100 |
-    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/3f8d35230ef5711d38381d7a3a78e50fb968184e">3f8d352</a> |
+  <p>Version: 2026.5.29.dev9102 |
+    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/449ae670b0b295a732de2ef6bf1d1431f54e4d35">449ae67</a> |
     <a href="https://umep-dev.github.io/SUEWS/brand/showcase.html">Brand</a></p>
 </div>
   </div>

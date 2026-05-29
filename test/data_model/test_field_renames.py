@@ -316,7 +316,11 @@ class TestDeprecationWarnings:
             (ModelPhysics, "rsl_method", "roughness_sublayer", 2),
             (ModelPhysics, "gs_model", "surface_conductance", 2),
             (ModelPhysics, "smd_method", "soil_moisture_deficit", 0),
-            (ModelPhysics, "rc_method", "outer_cap_fraction", 1),
+            # dev12 Column D: rcmethod / rc_method / dev11 outer_cap_fraction
+            # all resolve to the final `capacitance` (gh#1392 follow-up).
+            (ModelPhysics, "rc_method", "capacitance", 1),
+            (ModelPhysics, "rcmethod", "capacitance", 1),
+            (ModelPhysics, "outer_cap_fraction", "capacitance", 1),
             # Other classes (Cat 1 only).
             (SurfaceProperties, "soildepth", "soil_depth", 150.0),
             (LAIParams, "baset", "base_temperature", 5.0),
@@ -706,6 +710,20 @@ class TestRawDictCompatibility:
             "profile_temperature_air_cooling_setpoint",
         ):
             assert old not in archetype
+
+    def test_raw_yaml_modelphysics_capacitance_rename_reaches_current_name(self):
+        """dev12 model.physics rename (outer_cap_fraction -> capacitance) and
+        its legacy ancestry (rcmethod / rc_method) must resolve in the raw-YAML
+        precheck path, not only the Pydantic shim (gh#1392 Column D).
+        """
+        for old_key in ("outer_cap_fraction", "rcmethod", "rc_method"):
+            payload = {"model": {"physics": {old_key: {"value": 1}}}}
+            normalised = rename_keys_recursive(payload, RAW_YAML_FIELD_RENAMES)
+            physics = normalised["model"]["physics"]
+            assert physics["capacitance"]["value"] == 1, (
+                f"{old_key} did not resolve to capacitance: {physics}"
+            )
+            assert old_key not in physics or old_key == "capacitance"
 
     def test_raw_value_reader_accepts_archetype_pre_current_names(self):
         from supy.data_model.validation.core.yaml_helpers import get_value_safe

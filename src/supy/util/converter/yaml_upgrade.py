@@ -24,6 +24,7 @@ from ...data_model.core.field_renames import (
     DECTRPROPERTIES_RENAMES,
     EVETRPROPERTIES_RENAMES,
     LAIPARAMS_RENAMES,
+    MODELPHYSICS_DEV12_RENAMES,
     MODELPHYSICS_SUFFIX_RENAMES,
     SNOWPARAMS_RENAMES,
     SNOWPARAMS_INTERMEDIATE_RENAMES,
@@ -863,8 +864,10 @@ def _apply_stebbs_straggler_renames(cfg: dict) -> None:
     (D. Hertwig / S. Rognone, 2026-05). The ten StebbsProperties renames apply
     to the ``stebbs`` container; the six ArchetypeProperties renames
     (qualifier-first powers + setpoints/profiles) apply to the
-    ``building_archetype`` container. Pure key reorders. Runs after every
-    earlier rename layer so it sees the snake_case names those layers produce.
+    ``building_archetype`` container. The single ModelPhysics rename
+    (``outer_cap_fraction`` -> ``capacitance``) applies to the top-level
+    ``model.physics`` container. Pure key reorders. Runs after every earlier
+    rename layer so it sees the snake_case names those layers produce.
 
     Each rename flows through ``_rename_field`` so a per-field log line is
     emitted (``TestNoSilentFieldDrops`` enforces this).
@@ -875,6 +878,10 @@ def _apply_stebbs_straggler_renames(cfg: dict) -> None:
     for arch in _walk_site_container(cfg, "building_archetype"):
         for old, new in _ARCH_RENAMES_COLUMN_D_TO_DEV12:
             _rename_field(arch, old, new)
+    physics = cfg.get("model", {}).get("physics")
+    if isinstance(physics, dict):
+        for old, new in MODELPHYSICS_DEV12_RENAMES.items():
+            _rename_field(physics, old, new)
 
 
 def _migrate_2026_5_dev11_to_current(cfg: dict) -> dict:

@@ -56,7 +56,11 @@ pub const FIELD_RENAMES: &[(&str, &str)] = &[
     ("roughness_sublayer_level", "rsllevel"),
     ("surface_conductance", "gsmodel"),
     ("stebbs", "stebbsmethod"),
-    ("outer_cap_fraction", "rcmethod"),
+    // Schema 2026.5.dev12 (Reading Column D): former `outer_cap_fraction`
+    // (former fused `rcmethod`) is now `capacitance`. Pure key rename — still
+    // a RCMethod enum, bridge column stays `rcmethod`. The dev11 spelling
+    // `outer_cap_fraction` is a back-compat alias in FIELD_COMPAT_ALIASES.
+    ("capacitance", "rcmethod"),
     ("setpoint", "setpointmethod"),
     ("ohm_inc_qf", "ohmincqf"),
     ("snow_use", "snowuse"),
@@ -349,6 +353,10 @@ pub const FIELD_COMPAT_ALIASES: &[(&str, &str)] = &[
     ("rsl_level", "rsllevel"),
     ("fai_method", "faimethod"),
     ("rc_method", "rcmethod"),
+    // Schema 2026.5.dev11 spelling of the field now named `capacitance`
+    // (gh#1392 Column D). The CLI bypasses the Pydantic shim, so the dev11
+    // spelling needs a direct alias to the bridge column `rcmethod`.
+    ("outer_cap_fraction", "rcmethod"),
     ("gs_model", "gsmodel"),
     // Schema 2026.5.dev1 STEBBS ArchetypeProperties Cat 5 intermediate
     // (gh#1327). After gh#1334 the final names are snake_case; the

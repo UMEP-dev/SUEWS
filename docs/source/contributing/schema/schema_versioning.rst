@@ -203,12 +203,19 @@ the schema that shipped with it via
    ``control_daylight`` -> ``daylight_control``, and the two DHW vessel
    convection coefficients move to
    ``convection_coefficient_hot_water_tank_vessel_internal`` /
-   ``..._external``). ``ground_floor`` stays a two-word token and
-   ``model.physics.outer_cap_fraction`` is deferred to a separate
-   workstream.
+   ``..._external``). ``ground_floor`` stays a two-word token.
 
-   Rename tables ``STEBBSPROPERTIES_DEV12_RENAMES`` and
-   ``ARCHETYPEPROPERTIES_DEV12_RENAMES`` in
+   One ModelPhysics field is also renamed:
+   ``model.physics.outer_cap_fraction`` -> ``model.physics.capacitance``.
+   This is a pure key rename — the field stays the same ``RCMethod`` enum
+   with the same accepted values and validation behaviour, and its bridge
+   DataFrame column stays ``rcmethod``. The larger relocation of the field
+   under STEBBS and the capacitance-versus-fraction semantics are deferred
+   to a separate workstream.
+
+   Rename tables ``STEBBSPROPERTIES_DEV12_RENAMES``,
+   ``ARCHETYPEPROPERTIES_DEV12_RENAMES`` and ``MODELPHYSICS_DEV12_RENAMES``
+   in
    ``src/supy/data_model/core/field_renames.py``; the
    ``(2026.5.dev11 -> 2026.5.dev12)`` migration is registered in
    ``src/supy/util/converter/yaml_upgrade.py::_HANDLERS``, walks both the

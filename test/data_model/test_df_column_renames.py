@@ -249,6 +249,59 @@ class TestRustBridgeAlignment:
         )
 
 
+class TestDev12FinalsResolveToLegacyColumns:
+    """The STEBBS / Archetype DF rename maps must key the CURRENT dev12
+    final field name to the legacy fused column, not the dev7/dev8
+    intermediate. Regression for the Codex P2 gap where the maps were
+    derived from the BASE *_RENAMES dicts (PascalCase -> dev7/dev8 snake),
+    so ``read_df_column`` could not fall back from a current name to its
+    legacy column (gh#1392 Column D).
+    """
+
+    def test_archetype_dev12_name_resolves_to_legacy_column(self):
+        # max_power_heating_system_air (dev12) <- maxheatingpower (legacy col)
+        df = pd.DataFrame({("maxheatingpower", "0"): [8000.0]})
+        df.columns = pd.MultiIndex.from_tuples(df.columns)
+        with warnings.catch_warnings(record=True) as captured:
+            warnings.simplefilter("always", DeprecationWarning)
+            sub = read_df_column(df, "max_power_heating_system_air")
+        messages = [
+            str(w.message)
+            for w in captured
+            if issubclass(w.category, DeprecationWarning)
+        ]
+        assert any(
+            "maxheatingpower" in m and "max_power_heating_system_air" in m
+            for m in messages
+        ), f"Expected deprecation warning, got: {messages}"
+        assert sub.iloc[0, 0] == 8000.0
+        # Registry mapping is the direct assertion of the resolution.
+        assert ARCHETYPEPROPERTIES_DF_RENAMES["maxheatingpower"] == (
+            "max_power_heating_system_air"
+        )
+
+    def test_stebbs_dev12_name_resolves_to_legacy_column(self):
+        # max_power_cooling_system_air (dev12) <- maxcoolingpower (legacy col)
+        df = pd.DataFrame({("maxcoolingpower", "0"): [6000.0]})
+        df.columns = pd.MultiIndex.from_tuples(df.columns)
+        with warnings.catch_warnings(record=True) as captured:
+            warnings.simplefilter("always", DeprecationWarning)
+            sub = read_df_column(df, "max_power_cooling_system_air")
+        messages = [
+            str(w.message)
+            for w in captured
+            if issubclass(w.category, DeprecationWarning)
+        ]
+        assert any(
+            "maxcoolingpower" in m and "max_power_cooling_system_air" in m
+            for m in messages
+        ), f"Expected deprecation warning, got: {messages}"
+        assert sub.iloc[0, 0] == 6000.0
+        assert STEBBSPROPERTIES_DF_RENAMES["maxcoolingpower"] == (
+            "max_power_cooling_system_air"
+        )
+
+
 class TestPydanticRegistryMirror:
     """The DF column rename registry is sourced from the Pydantic
     ``ALL_FIELD_RENAMES`` registry (plus STEBBS lowercasing). If Tier A

@@ -55,7 +55,7 @@ model:
       value: 0
     stebbs:
       value: 0
-    outer_cap_fraction:
+    capacitance:
       value: 0
     same_albedo_wall:
       value: 0

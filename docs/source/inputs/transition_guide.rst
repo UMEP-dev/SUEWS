@@ -227,9 +227,17 @@ Ten sit under ``sites[].properties.stebbs.*``:
 - ``convection_coefficient_hot_water_vessel_wall_external`` ->
   ``convection_coefficient_hot_water_tank_vessel_external``
 
-The ``ground_floor`` fields keep their two-word token and
-``model.physics.outer_cap_fraction`` is unchanged (deferred to a
-separate workstream).
+One field sits under ``model.physics.*``:
+
+- ``outer_cap_fraction`` -> ``capacitance``
+
+This is a pure key rename: the field stays the same ``RCMethod`` enum
+with the same accepted values and validation behaviour, and its bridge
+DataFrame column stays ``rcmethod``. The larger relocation of the field
+under STEBBS and the capacitance-versus-fraction semantics are deferred
+to a separate workstream.
+
+The ``ground_floor`` fields keep their two-word token.
 
 Run the migrator to bring an existing YAML onto the new shape:
 

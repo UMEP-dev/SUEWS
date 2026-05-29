@@ -44,7 +44,11 @@ MODELPHYSICS_RENAMES: Dict[str, str] = {
     "rsllevel": "roughness_sublayer_level",
     "gsmodel": "surface_conductance",
     "stebbsmethod": "stebbs",
-    "rcmethod": "outer_cap_fraction",
+    # Schema 2026.5.dev12 (Reading Column D): the former `rcmethod` field is
+    # renamed `outer_cap_fraction` -> `capacitance`. The fused legacy chains
+    # straight to the new dev12 final so ALL_FIELD_RENAMES stays one-to-one
+    # and the bridge reverse map gives `capacitance -> rcmethod`.
+    "rcmethod": "capacitance",
     "setpointmethod": "setpoint",  # fused identifier missed by Category 1
     # Flags/enum choices not touched by Category 2+3 keep their Cat 1 target.
     "ohmincqf": "ohm_inc_qf",
@@ -76,9 +80,29 @@ MODELPHYSICS_SUFFIX_RENAMES: Dict[str, str] = {
     "rsl_method": "roughness_sublayer",
     "rsl_level": "roughness_sublayer_level",
     "fai_method": "frontal_area_index",
-    # Expand + semantic rename (2)
-    "rc_method": "outer_cap_fraction",
+    # Expand + semantic rename (2). `rc_method` chains straight to the dev12
+    # final `capacitance` (was `outer_cap_fraction` pre-dev12).
+    "rc_method": "capacitance",
     "gs_model": "surface_conductance",
+}
+
+# Schema 2026.5.dev11 -> 2026.5.dev12: the `model.physics` field formerly
+# spelled `outer_cap_fraction` (itself the former fused `rcmethod`) is renamed
+# `capacitance` to align with the Reading STEBBS team's "Column D" naming
+# (D. Hertwig / S. Rognone, 2026-05). This is a PURE KEY RENAME — the field
+# stays a `RCMethod` enum with the same values and behaviour; the larger
+# relocation under STEBBS and the capacitance-vs-fraction semantics are
+# deferred to a future PR. The dev11 spelling `outer_cap_fraction` is a value
+# of MODELPHYSICS_RENAMES / MODELPHYSICS_SUFFIX_RENAMES (now retargeted to
+# `capacitance`), so this table only needs to catch users who hand-wrote
+# `outer_cap_fraction` directly. Applied by the ModelPhysics Pydantic shim
+# AFTER the two tables above so dev11 YAMLs still load with a
+# DeprecationWarning. NOT spread into ALL_FIELD_RENAMES (it would introduce a
+# second alias for the same final name, breaking the one-to-one reverse map
+# the Rust bridge depends on); it is composed into RAW_YAML_FIELD_RENAMES for
+# the Phase A precheck path.
+MODELPHYSICS_DEV12_RENAMES: Dict[str, str] = {
+    "outer_cap_fraction": "capacitance",
 }
 
 # -- SurfaceProperties (surface.py) ------------------------------------------
@@ -1209,6 +1233,7 @@ def _compose_rename_chains(*tables: Mapping[str, str]) -> Dict[str, str]:
 # before they compare against the current sample schema.
 RAW_YAML_FIELD_RENAMES: Dict[str, str] = _compose_rename_chains(
     MODELPHYSICS_SUFFIX_RENAMES,
+    MODELPHYSICS_DEV12_RENAMES,
     ARCHETYPEPROPERTIES_PASCAL_RENAMES,
     ARCHETYPEPROPERTIES_DEV3_RENAMES,
     ARCHETYPEPROPERTIES_DEV6_RENAMES,
@@ -1240,7 +1265,12 @@ _MODELPHYSICS_ALL_RENAMES: Dict[str, str] = {
     # (``net_radiation_method``) when both claim the same final target.
     # The Fortran bridge's state is keyed by the fused form, so the
     # reverse map must point at the fused legacy.
+    # The dev11 spelling ``outer_cap_fraction`` -> ``capacitance`` (dev12)
+    # is included so raw-YAML prechecks that read by the current name still
+    # find a legacy ``outer_cap_fraction`` key. Spread before RENAMES so the
+    # reverse map prefers the fused legacy ``rcmethod`` for ``capacitance``.
     **MODELPHYSICS_SUFFIX_RENAMES,
+    **MODELPHYSICS_DEV12_RENAMES,
     **MODELPHYSICS_RENAMES,
 }
 _REVERSE_MODELPHYSICS_RENAMES: Dict[str, str] = {

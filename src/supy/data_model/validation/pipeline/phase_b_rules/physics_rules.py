@@ -70,7 +70,7 @@ def validate_physics_parameters(context) -> List[ValidationResult]:
         "surface_conductance",
         "snow_use",
         "stebbs",
-        "outer_cap_fraction",
+        "capacitance",
         "same_albedo_wall",
         "same_albedo_roof",
         "same_emissivity_wall",
@@ -463,7 +463,7 @@ def validate_model_option_rcmethod(context) -> List[ValidationResult]:
 
     results = []
     physics = yaml_data.get("model", {}).get("physics", {})
-    rcmethod_value = get_value_safe(physics, "outer_cap_fraction")
+    rcmethod_value = get_value_safe(physics, "capacitance")
 
     sites = yaml_data.get("sites", [])
     for site_idx, site in enumerate(sites):

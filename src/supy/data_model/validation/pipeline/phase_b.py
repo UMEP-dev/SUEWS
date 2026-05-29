@@ -1955,7 +1955,7 @@ def adjust_model_option_rcmethod(yaml_data: dict) -> Tuple[dict, List[Scientific
     """
     Adjust roof_outer_heat_capacity_fraction and wall_outer_heat_capacity_fraction if rcmethod == 0.
 
-    If the model physics option 'outer_cap_fraction' is set to 0, this function sets
+    If the model physics option 'capacitance' is set to 0, this function sets
     'fraction_heat_capacity_roof_external' and 'fraction_heat_capacity_wall_external' to
     0.5 for all sites' building_archetype blocks, as required by the model
     specification.
@@ -1974,12 +1974,12 @@ def adjust_model_option_rcmethod(yaml_data: dict) -> Tuple[dict, List[Scientific
 
     Notes
     -----
-    - Only applies the adjustment if 'outer_cap_fraction' is exactly 0.
+    - Only applies the adjustment if 'capacitance' is exactly 0.
     - Records each parameter change in the adjustments list for reporting.
     """
     adjustments = []
     physics = yaml_data.get("model", {}).get("physics", {})
-    rcmethod_value = get_value_safe(physics, "outer_cap_fraction")
+    rcmethod_value = get_value_safe(physics, "capacitance")
 
     if rcmethod_value == 0:
         sites = yaml_data.get("sites", [])
@@ -2002,7 +2002,7 @@ def adjust_model_option_rcmethod(yaml_data: dict) -> Tuple[dict, List[Scientific
                         site_gridid=site_gridid,
                         old_value=str(old_roof_frac),
                         new_value="0.5",
-                        reason="outer_cap_fraction == 0, set fraction_heat_capacity_roof_external to 0.5"
+                        reason="capacitance == 0, set fraction_heat_capacity_roof_external to 0.5"
                     )
                 )
 
@@ -2020,7 +2020,7 @@ def adjust_model_option_rcmethod(yaml_data: dict) -> Tuple[dict, List[Scientific
                         site_gridid=site_gridid,
                         old_value=str(old_wall_frac),
                         new_value="0.5",
-                        reason="outer_cap_fraction == 0, set fraction_heat_capacity_wall_external to 0.5"
+                        reason="capacitance == 0, set fraction_heat_capacity_wall_external to 0.5"
                     )
                 )
 

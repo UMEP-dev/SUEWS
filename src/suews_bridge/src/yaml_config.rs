@@ -1695,7 +1695,12 @@ fn apply_building_archetype_overrides(
             continue;
         }
 
-        if field_name == "appliance_profile" {
+        // `profile_appliance` (dev12) aliases to the fused `applianceprofile`
+        // in FIELD_RENAMES, unlike sibling profile fields which carry PascalCase
+        // ancestry (see field_renames.rs "PascalCase ancestry" note). The fused
+        // form does not de-camelCase back to `appliance_profile`, so match it
+        // explicitly or the canonical key silently drops the profile (gh#1459).
+        if field_name == "appliance_profile" || field_name == "applianceprofile" {
             apply_day_profile_overrides(&mut mapped, field_value, "applianceprofile", 144)?;
             continue;
         }
@@ -1753,9 +1758,12 @@ fn apply_stebbs_overrides(site: &mut SuewsSite, site_root: &Value) -> Result<(),
             continue;
         }
 
-        if field_name == "appliance_profile" {
-            // STEBBS YAML stores appliance demand profile under `stebbs`, but
-            // the physics consumes it from building archetype parameters.
+        // STEBBS YAML stores appliance demand profile under `stebbs`, but
+        // the physics consumes it from building archetype parameters. The dev12
+        // key `profile_appliance` aliases to the fused `applianceprofile`, which
+        // does not de-camelCase back to `appliance_profile`; match both so the
+        // canonical key applies the profile (gh#1459).
+        if field_name == "appliance_profile" || field_name == "applianceprofile" {
             apply_day_profile_overrides(
                 &mut archetype_mapped,
                 field_value,
@@ -2364,6 +2372,30 @@ mod tests {
                 < 1.0e-12
         );
         assert!((run_cfg.state.stebbs_state.mains_water_temperature - 10.0).abs() < 1.0e-12);
+    }
+
+    #[test]
+    fn applies_appliance_profile_under_canonical_key() {
+        // gh#1459: the dev12 key `profile_appliance` must still drive the
+        // appliance demand profile through the Rust loader. It aliases to the
+        // fused `applianceprofile`, which earlier slipped past the override
+        // matcher and silently left the profile at its zero default.
+        let yaml_str =
+            include_str!("../../../test/fixtures/data_test/stebbs_test/sample_config.yml");
+        let mut root: Value = serde_yaml::from_str(yaml_str).expect("fixture YAML should parse");
+        let run_cfg = load_run_config_from_value(&mut root).expect("run config should parse");
+        let max_appliance = run_cfg
+            .site
+            .building_archtype
+            .applianceprofile
+            .iter()
+            .flatten()
+            .cloned()
+            .fold(0.0_f64, f64::max);
+        assert!(
+            max_appliance > 1.0,
+            "appliance profile not applied from `profile_appliance` (max={max_appliance})"
+        );
     }
 
     #[test]

@@ -164,7 +164,6 @@ written and **not** reordered under Rule 2:
 - `ground_depth`
 - `ventilation_rate`
 - `lighting_power_density`
-- `month_mean_air_temperature_diffmax`
 
 The test for membership: the phrase is one a domain reader would say
 aloud as a unit ("ventilation rate", "lighting power density"), and
@@ -172,6 +171,11 @@ splitting the quantity off the front would read awkwardly
 (`rate_ventilation`, `power_density_lighting`). This list is closed;
 adding to it requires a convention amendment. When in doubt, apply
 Rule 2 (reorder) — this exception is deliberately narrow.
+
+`month_mean_air_temperature_diffmax` is **not** in this list: it was
+reordered under Rule 2 to the canonical `temperature_air_month_mean_diffmax`
+(dev12, gh#1452). The physical quantity (`temperature_air`) leads, so the
+grep-ability argument applied and the compound-noun exception did not.
 
 ---
 

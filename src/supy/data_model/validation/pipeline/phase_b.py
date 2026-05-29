@@ -1198,12 +1198,12 @@ def adjust_surface_temperatures(
                         )
                     )
 
-        # Update month_mean_air_temperature_diffmax in stebbs if present
+        # Update temperature_air_month_mean_diffmax in stebbs if present
         diffmax_val = get_monthly_air_temperature_diffmax(lat, lng)
         if diffmax_val is None:
             logger_supy.debug("Skipping diffmax update - CRU data not available")
         else:
-            for key in ("month_mean_air_temperature_diffmax",):
+            for key in ("temperature_air_month_mean_diffmax",):
                 if key in stebbs and isinstance(stebbs[key], dict):
                     old_val = stebbs[key].get("value")
                     if old_val != diffmax_val:
@@ -1955,7 +1955,7 @@ def adjust_model_option_rcmethod(yaml_data: dict) -> Tuple[dict, List[Scientific
     """
     Adjust roof_outer_heat_capacity_fraction and wall_outer_heat_capacity_fraction if rcmethod == 0.
 
-    If the model physics option 'outer_cap_fraction' is set to 0, this function sets
+    If the model physics option 'capacitance' is set to 0, this function sets
     'fraction_heat_capacity_roof_external' and 'fraction_heat_capacity_wall_external' to
     0.5 for all sites' building_archetype blocks, as required by the model
     specification.
@@ -1974,12 +1974,12 @@ def adjust_model_option_rcmethod(yaml_data: dict) -> Tuple[dict, List[Scientific
 
     Notes
     -----
-    - Only applies the adjustment if 'outer_cap_fraction' is exactly 0.
+    - Only applies the adjustment if 'capacitance' is exactly 0.
     - Records each parameter change in the adjustments list for reporting.
     """
     adjustments = []
     physics = yaml_data.get("model", {}).get("physics", {})
-    rcmethod_value = get_value_safe(physics, "outer_cap_fraction")
+    rcmethod_value = get_value_safe(physics, "capacitance")
 
     if rcmethod_value == 0:
         sites = yaml_data.get("sites", [])
@@ -2002,7 +2002,7 @@ def adjust_model_option_rcmethod(yaml_data: dict) -> Tuple[dict, List[Scientific
                         site_gridid=site_gridid,
                         old_value=str(old_roof_frac),
                         new_value="0.5",
-                        reason="outer_cap_fraction == 0, set fraction_heat_capacity_roof_external to 0.5"
+                        reason="capacitance == 0, set fraction_heat_capacity_roof_external to 0.5"
                     )
                 )
 
@@ -2020,7 +2020,7 @@ def adjust_model_option_rcmethod(yaml_data: dict) -> Tuple[dict, List[Scientific
                         site_gridid=site_gridid,
                         old_value=str(old_wall_frac),
                         new_value="0.5",
-                        reason="outer_cap_fraction == 0, set fraction_heat_capacity_wall_external to 0.5"
+                        reason="capacitance == 0, set fraction_heat_capacity_wall_external to 0.5"
                     )
                 )
 
@@ -2032,9 +2032,9 @@ def adjust_model_option_rcmethod(yaml_data: dict) -> Tuple[dict, List[Scientific
 
 def adjust_model_option_setpointmethod(yaml_data: dict) -> Tuple[dict, List[ScientificAdjustment]]:
     """
-    If setpoint == 0 or 1, set all entries in profile_temperature_air_heating_setpoint and
-    profile_temperature_air_cooling_setpoint in building_archetype to null for all sites.
-    If setpoint == 2, set temperature_air_heating_setpoint and temperature_air_cooling_setpoint
+    If setpoint == 0 or 1, set all entries in profile_setpoint_temperature_heating_air and
+    profile_setpoint_temperature_cooling_air in building_archetype to null for all sites.
+    If setpoint == 2, set setpoint_temperature_heating_air and setpoint_temperature_cooling_air
     in building_archetype to null for all sites (they are not needed).
     """
     adjustments = []
@@ -2048,7 +2048,7 @@ def adjust_model_option_setpointmethod(yaml_data: dict) -> Tuple[dict, List[Scie
         site_gridid = get_site_gridid(site)
 
         if setpointmethod == 2:
-            for param in ["temperature_air_heating_setpoint", "temperature_air_cooling_setpoint"]:
+            for param in ["setpoint_temperature_heating_air", "setpoint_temperature_cooling_air"]:
                 entry = building_archetype.get(param)
                 if isinstance(entry, dict):
                     old_val = entry.get("value")
@@ -2065,7 +2065,7 @@ def adjust_model_option_setpointmethod(yaml_data: dict) -> Tuple[dict, List[Scie
                             )
                         )
         elif setpointmethod == 0 or setpointmethod == 1:
-            for prof_param in ["profile_temperature_air_heating_setpoint", "profile_temperature_air_cooling_setpoint"]:
+            for prof_param in ["profile_setpoint_temperature_heating_air", "profile_setpoint_temperature_cooling_air"]:
                 profile = building_archetype.get(prof_param)
                 if isinstance(profile, dict):
                     for daytype in ("working_day", "holiday"):

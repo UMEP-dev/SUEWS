@@ -24,14 +24,17 @@ from ...data_model.core.field_renames import (
     DECTRPROPERTIES_RENAMES,
     EVETRPROPERTIES_RENAMES,
     LAIPARAMS_RENAMES,
+    MODELPHYSICS_DEV12_RENAMES,
     MODELPHYSICS_SUFFIX_RENAMES,
     SNOWPARAMS_RENAMES,
     SNOWPARAMS_INTERMEDIATE_RENAMES,
     ARCHETYPEPROPERTIES_DEV3_RENAMES,
     ARCHETYPEPROPERTIES_DEV6_RENAMES,
     ARCHETYPEPROPERTIES_DEV7_RENAMES,
+    ARCHETYPEPROPERTIES_DEV12_RENAMES,
     STEBBSPROPERTIES_DEV3_RENAMES,
     STEBBSPROPERTIES_DEV8_RENAMES,
+    STEBBSPROPERTIES_DEV12_RENAMES,
     STEBBSPROPERTIES_RENAMES,
     SURFACEPROPERTIES_RENAMES,
     VEGETATEDSURFACEPROPERTIES_RENAMES,
@@ -473,6 +476,21 @@ _STEBBS_DROPS_TO_DEV11: tuple[tuple[str, str], ...] = (
     ),
 )
 
+# Schema 2026.5.dev11 -> 2026.5.dev12: align STEBBS and Archetype field names
+# with the Reading STEBBS team's "Column D" naming (gh#1392 follow-up;
+# D. Hertwig / S. Rognone, 2026-05). Pure snake->snake key reorders. The ten
+# StebbsProperties renames apply to the `stebbs` container; the six
+# ArchetypeProperties renames (qualifier-first powers + setpoints/profiles)
+# apply to the `building_archetype` container. Sourced directly from the two
+# DEV12 rename dicts so the migrator, the Pydantic shim, and the raw-YAML
+# precheck path all draw from a single source of truth.
+_STEBBS_RENAMES_STRAGGLERS_TO_DEV12: tuple[tuple[str, str], ...] = tuple(
+    STEBBSPROPERTIES_DEV12_RENAMES.items()
+)
+_ARCH_RENAMES_COLUMN_D_TO_DEV12: tuple[tuple[str, str], ...] = tuple(
+    ARCHETYPEPROPERTIES_DEV12_RENAMES.items()
+)
+
 
 # ---------------------------------------------------------------------------
 # Handlers
@@ -838,6 +856,48 @@ def _apply_naming_completion_renames(cfg: dict) -> None:
             _drop_obsolete_field(stebbs, name, reason)
 
 
+def _apply_stebbs_straggler_renames(cfg: dict) -> None:
+    """Apply the dev11 -> dev12 STEBBS / Archetype Column D alignment.
+
+    The original four compound-noun stragglers kept at dev9 (gh#1392) plus the
+    sixteen-field Column D alignment confirmed by the Reading STEBBS team review
+    (D. Hertwig / S. Rognone, 2026-05). The ten StebbsProperties renames apply
+    to the ``stebbs`` container; the six ArchetypeProperties renames
+    (qualifier-first powers + setpoints/profiles) apply to the
+    ``building_archetype`` container. The single ModelPhysics rename
+    (``outer_cap_fraction`` -> ``capacitance``) applies to the top-level
+    ``model.physics`` container. Pure key reorders. Runs after every earlier
+    rename layer so it sees the snake_case names those layers produce.
+
+    Each rename flows through ``_rename_field`` so a per-field log line is
+    emitted (``TestNoSilentFieldDrops`` enforces this).
+    """
+    for stebbs in _walk_site_container(cfg, "stebbs"):
+        for old, new in _STEBBS_RENAMES_STRAGGLERS_TO_DEV12:
+            _rename_field(stebbs, old, new)
+    for arch in _walk_site_container(cfg, "building_archetype"):
+        for old, new in _ARCH_RENAMES_COLUMN_D_TO_DEV12:
+            _rename_field(arch, old, new)
+    physics = cfg.get("model", {}).get("physics")
+    if isinstance(physics, dict):
+        for old, new in MODELPHYSICS_DEV12_RENAMES.items():
+            _rename_field(physics, old, new)
+
+
+def _migrate_2026_5_dev11_to_current(cfg: dict) -> dict:
+    """Upgrade 2026.5.dev11-shaped YAMLs to the current schema.
+
+    dev11 -> dev12 applies only the STEBBS straggler reorder (the four
+    compound-noun fields kept at dev9, reordered quantity-first per the
+    Reading STEBBS team review). The dev10 -> dev11 naming-convention
+    completion was already applied at dev11, so this is the straggler
+    pass alone.
+    """
+    cfg = _strip_internal_only_fields(cfg)
+    _apply_stebbs_straggler_renames(cfg)
+    return cfg
+
+
 def _migrate_2026_5_dev10_to_current(cfg: dict) -> dict:
     """Upgrade 2026.5.dev10-shaped YAMLs to the current schema.
 
@@ -849,6 +909,7 @@ def _migrate_2026_5_dev10_to_current(cfg: dict) -> dict:
     """
     cfg = _strip_internal_only_fields(cfg)
     _apply_naming_completion_renames(cfg)
+    _apply_stebbs_straggler_renames(cfg)
     return cfg
 
 
@@ -861,6 +922,7 @@ def _migrate_2026_5_dev9_to_current(cfg: dict) -> dict:
     """
     cfg = _strip_internal_only_fields(cfg)
     _apply_naming_completion_renames(cfg)
+    _apply_stebbs_straggler_renames(cfg)
     return cfg
 
 
@@ -877,6 +939,7 @@ def _migrate_2026_5_dev8_to_current(cfg: dict) -> dict:
     _apply_forcing_subobject_restructure(cfg)
     _apply_output_subobject_restructure(cfg)
     _apply_naming_completion_renames(cfg)
+    _apply_stebbs_straggler_renames(cfg)
     return cfg
 
 
@@ -891,6 +954,7 @@ def _migrate_2026_5_dev7_to_current(cfg: dict) -> dict:
     _apply_forcing_subobject_restructure(cfg)
     _apply_output_subobject_restructure(cfg)
     _apply_naming_completion_renames(cfg)
+    _apply_stebbs_straggler_renames(cfg)
     return cfg
 
 
@@ -906,6 +970,7 @@ def _migrate_2026_5_dev6_to_current(cfg: dict) -> dict:
     _apply_forcing_subobject_restructure(cfg)
     _apply_output_subobject_restructure(cfg)
     _apply_naming_completion_renames(cfg)
+    _apply_stebbs_straggler_renames(cfg)
     return cfg
 
 
@@ -921,6 +986,7 @@ def _migrate_2026_5_dev5_to_current(cfg: dict) -> dict:
     _apply_forcing_subobject_restructure(cfg)
     _apply_output_subobject_restructure(cfg)
     _apply_naming_completion_renames(cfg)
+    _apply_stebbs_straggler_renames(cfg)
     return cfg
 
 
@@ -936,6 +1002,7 @@ def _migrate_2026_5_dev4_to_current(cfg: dict) -> dict:
     _apply_forcing_subobject_restructure(cfg)
     _apply_output_subobject_restructure(cfg)
     _apply_naming_completion_renames(cfg)
+    _apply_stebbs_straggler_renames(cfg)
     return cfg
 
 
@@ -953,6 +1020,7 @@ def _migrate_2026_5_dev3_to_current(cfg: dict) -> dict:
     _apply_forcing_subobject_restructure(cfg)
     _apply_output_subobject_restructure(cfg)
     _apply_naming_completion_renames(cfg)
+    _apply_stebbs_straggler_renames(cfg)
     return cfg
 
 
@@ -972,6 +1040,7 @@ def _migrate_2026_5_dev2_to_current(cfg: dict) -> dict:
     _apply_forcing_subobject_restructure(cfg)
     _apply_output_subobject_restructure(cfg)
     _apply_naming_completion_renames(cfg)
+    _apply_stebbs_straggler_renames(cfg)
     return cfg
 
 
@@ -1022,6 +1091,7 @@ def _migrate_2026_5_to_current(cfg: dict) -> dict:
     _apply_forcing_subobject_restructure(cfg)
     _apply_output_subobject_restructure(cfg)
     _apply_naming_completion_renames(cfg)
+    _apply_stebbs_straggler_renames(cfg)
     return cfg
 
 
@@ -1042,6 +1112,7 @@ def _migrate_2026_5_dev1_to_current(cfg: dict) -> dict:
     _apply_forcing_subobject_restructure(cfg)
     _apply_output_subobject_restructure(cfg)
     _apply_naming_completion_renames(cfg)
+    _apply_stebbs_straggler_renames(cfg)
     return cfg
 
 
@@ -1118,6 +1189,7 @@ _HANDLERS: dict[tuple[str, str], Handler] = {
     # single bump per the dev-label convention. The dev9 -> dev10 delta is
     # the PR#1420 identity stamp; the dev10 -> dev11 delta applies the
     # naming-convention completion.
+    ("2026.5.dev11", CURRENT_SCHEMA_VERSION): _migrate_2026_5_dev11_to_current,
     ("2026.5.dev10", CURRENT_SCHEMA_VERSION): _migrate_2026_5_dev10_to_current,
     ("2026.5.dev9", CURRENT_SCHEMA_VERSION): _migrate_2026_5_dev9_to_current,
     ("2026.5.dev8", CURRENT_SCHEMA_VERSION): _migrate_2026_5_dev8_to_current,

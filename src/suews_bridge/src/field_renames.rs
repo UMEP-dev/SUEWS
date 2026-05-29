@@ -56,7 +56,11 @@ pub const FIELD_RENAMES: &[(&str, &str)] = &[
     ("roughness_sublayer_level", "rsllevel"),
     ("surface_conductance", "gsmodel"),
     ("stebbs", "stebbsmethod"),
-    ("outer_cap_fraction", "rcmethod"),
+    // Schema 2026.5.dev12 (Reading Column D): former `outer_cap_fraction`
+    // (former fused `rcmethod`) is now `capacitance`. Pure key rename — still
+    // a RCMethod enum, bridge column stays `rcmethod`. The dev11 spelling
+    // `outer_cap_fraction` is a back-compat alias in FIELD_COMPAT_ALIASES.
+    ("capacitance", "rcmethod"),
     ("setpoint", "setpointmethod"),
     ("ohm_inc_qf", "ohmincqf"),
     ("snow_use", "snowuse"),
@@ -349,6 +353,10 @@ pub const FIELD_COMPAT_ALIASES: &[(&str, &str)] = &[
     ("rsl_level", "rsllevel"),
     ("fai_method", "faimethod"),
     ("rc_method", "rcmethod"),
+    // Schema 2026.5.dev11 spelling of the field now named `capacitance`
+    // (gh#1392 Column D). The CLI bypasses the Pydantic shim, so the dev11
+    // spelling needs a direct alias to the bridge column `rcmethod`.
+    ("outer_cap_fraction", "rcmethod"),
     ("gs_model", "gsmodel"),
     // Schema 2026.5.dev1 STEBBS ArchetypeProperties Cat 5 intermediate
     // (gh#1327). After gh#1334 the final names are snake_case; the
@@ -533,6 +541,57 @@ pub const FIELD_COMPAT_ALIASES: &[(&str, &str)] = &[
     ("efficiency_heating_system_water", "hotwaterheatingefficiency"),
     ("profile_hot_water_flow", "hotwaterflowprofile"),
     ("profile_appliance", "applianceprofile"),
+    // Schema 2026.5.dev12 STEBBS straggler reorder (gh#1392 follow-up). The
+    // current YAML carries the quantity-first names; the Rust CLI bypasses the
+    // Pydantic rename chain, so each needs a direct alias to its PascalCase
+    // legacy ancestry. PascalCase (not fused-lowercase) is deliberate:
+    // `apply_stebbs_overrides` matches `lighting_power_density` by EXACT
+    // equality on the de-camelCased key, so `LightingPowerDensity` ->
+    // `lighting_power_density` keeps that check firing.
+    ("depth_ground", "GroundDepth"),
+    ("rate_ventilation", "VentilationRate"),
+    ("power_density_lighting", "LightingPowerDensity"),
+    ("temperature_air_month_mean_diffmax", "MonthMeanAirTemperature_diffmax"),
+    // Schema 2026.5.dev12 Column D alignment (gh#1392 follow-up): sixteen more
+    // STEBBS / Archetype fields adopt the Reading STEBBS team's "Column D"
+    // names (D. Hertwig / S. Rognone, 2026-05). The current YAML carries the
+    // new names; the Rust CLI bypasses the Pydantic rename chain, so each needs
+    // a direct alias to its PascalCase legacy ancestry. PascalCase (not
+    // fused-lowercase) is deliberate: scalar `set_mapped_value` matches on the
+    // underscore-stripped form (so either spelling resolves), but the profile
+    // handlers in `apply_stebbs_overrides` compare the de-camelCased key by
+    // EXACT equality (e.g. `HotWaterFlowProfile` -> `hot_water_flow_profile`),
+    // so the PascalCase ancestry is required for the profile fields.
+    // ArchetypeProperties (6)
+    ("max_power_heating_system_air", "MaxHeatingPower"),
+    ("max_power_heating_system_water", "MaximumHotWaterHeatingPower"),
+    ("setpoint_temperature_heating_air", "HeatingSetpointTemperature"),
+    ("setpoint_temperature_cooling_air", "CoolingSetpointTemperature"),
+    (
+        "profile_setpoint_temperature_heating_air",
+        "HeatingSetpointTemperatureProfile",
+    ),
+    (
+        "profile_setpoint_temperature_cooling_air",
+        "CoolingSetpointTemperatureProfile",
+    ),
+    // StebbsProperties (10)
+    ("max_power_cooling_system_air", "MaxCoolingPower"),
+    ("setpoint_temperature_heating_water", "HotWaterHeatingSetpointTemperature"),
+    ("temperature_mains_water", "MainsWaterTemperature"),
+    ("surface_area_hot_water_tank", "WaterTankSurfaceArea"),
+    ("surface_area_hot_water", "DHWSurfaceArea"),
+    ("rate_flow_hot_water", "HotWaterFlowRate"),
+    ("profile_flow_hot_water", "HotWaterFlowProfile"),
+    ("daylight_control", "DaylightControl"),
+    (
+        "convection_coefficient_hot_water_tank_vessel_internal",
+        "DHWVesselInternalWallConvectionCoefficient",
+    ),
+    (
+        "convection_coefficient_hot_water_tank_vessel_external",
+        "DHWVesselExternalWallConvectionCoefficient",
+    ),
 ];
 
 /// Family registry for nested `model.physics` sub-options (gh#972).

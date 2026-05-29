@@ -59,7 +59,7 @@ CRITICAL_PHYSICS_PARAMS = (
     "surface_conductance",
     "snow_use",
     "stebbs",
-    "outer_cap_fraction",
+    "capacitance",
     "setpoint",
     "same_albedo_wall",
     "same_albedo_roof",

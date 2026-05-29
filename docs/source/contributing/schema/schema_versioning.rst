@@ -170,7 +170,65 @@ The lineage below mirrors ``SCHEMA_VERSIONS`` in
 the schema that shipped with it via
 ``supy.util.converter.yaml_upgrade._PACKAGE_TO_SCHEMA``.
 
-**Schema 2026.5.dev11** (current; naming convention completion - ArchetypeProperties Tier 1 + StebbsProperties Rule 2)
+**Schema 2026.5.dev12** (current; STEBBS / Archetype Column D alignment)
+   Aligns STEBBS and ArchetypeProperties field names with the Reading
+   STEBBS team's "Column D" naming ("Column D", D. Hertwig / S. Rognone,
+   2026-05), in two waves landed in one dev bump.
+
+   Wave 1 reorders the four straggler compound-noun fields kept at dev11
+   to their quantity-first finals: ``ground_depth`` -> ``depth_ground``,
+   ``ventilation_rate`` -> ``rate_ventilation``,
+   ``lighting_power_density`` -> ``power_density_lighting``,
+   ``month_mean_air_temperature_diffmax`` ->
+   ``temperature_air_month_mean_diffmax``.
+
+   Wave 2 aligns sixteen further fields. Six ArchetypeProperties HVAC
+   fields take qualifier-first powers and setpoints
+   (``power_air_heating_max`` -> ``max_power_heating_system_air``,
+   ``power_water_heating_max`` -> ``max_power_heating_system_water``,
+   ``temperature_air_heating_setpoint`` ->
+   ``setpoint_temperature_heating_air``,
+   ``temperature_air_cooling_setpoint`` ->
+   ``setpoint_temperature_cooling_air``, plus the two ``profile_*``
+   setpoint siblings). Ten StebbsProperties fields take qualifier-first /
+   Tier-3 word order (``power_air_cooling_max`` ->
+   ``max_power_cooling_system_air``,
+   ``temperature_water_heating_setpoint`` ->
+   ``setpoint_temperature_heating_water``,
+   ``temperature_water_mains`` -> ``temperature_mains_water``,
+   ``area_hot_water_tank_surface`` -> ``surface_area_hot_water_tank``,
+   ``area_hot_water_surface`` -> ``surface_area_hot_water``,
+   ``rate_hot_water_flow`` -> ``rate_flow_hot_water``,
+   ``profile_hot_water_flow`` -> ``profile_flow_hot_water``,
+   ``control_daylight`` -> ``daylight_control``, and the two DHW vessel
+   convection coefficients move to
+   ``convection_coefficient_hot_water_tank_vessel_internal`` /
+   ``..._external``). ``ground_floor`` stays a two-word token.
+
+   One ModelPhysics field is also renamed:
+   ``model.physics.outer_cap_fraction`` -> ``model.physics.capacitance``.
+   This is a pure key rename — the field stays the same ``RCMethod`` enum
+   with the same accepted values and validation behaviour, and its bridge
+   DataFrame column stays ``rcmethod``. The larger relocation of the field
+   under STEBBS and the capacitance-versus-fraction semantics are deferred
+   to a separate workstream.
+
+   Rename tables ``STEBBSPROPERTIES_DEV12_RENAMES``,
+   ``ARCHETYPEPROPERTIES_DEV12_RENAMES`` and ``MODELPHYSICS_DEV12_RENAMES``
+   in
+   ``src/supy/data_model/core/field_renames.py``; the
+   ``(2026.5.dev11 -> 2026.5.dev12)`` migration is registered in
+   ``src/supy/util/converter/yaml_upgrade.py::_HANDLERS``, walks both the
+   ``stebbs`` and ``building_archetype`` containers, and is chained
+   through every aggregate handler down to ``2025.12 -> current``.
+   Bridge DataFrame columns keep the fused PascalCase ancestry via the
+   chained ``STEBBSPROPERTIES_DEV9_TO_PASCAL`` /
+   ``ARCHETYPEPROPERTIES_DEV7_TO_PASCAL`` maps and the Rust
+   ``FIELD_COMPAT_ALIASES`` entries. ``building_type`` was already
+   dropped at dev11, so no new migration drop is needed (gh#1392
+   follow-up).
+
+**Schema 2026.5.dev11** (naming convention completion - ArchetypeProperties Tier 1 + StebbsProperties Rule 2)
    Combines two independent rename groups in a single bump per the
    dev-label convention (gh#1392 + gh#1394).
 
@@ -211,8 +269,10 @@ the schema that shipped with it via
    prefixes (``threshold_metabolism``, ``ratio_latent_sensible``,
    ``control_daylight``, ``threshold_lighting_illuminance``), initial /
    climatology temperatures, and the full hot-water subsystem.
-   Compound nouns kept intact (``ground_depth``, ``ventilation_rate``,
-   ``lighting_power_density``, ``month_mean_air_temperature_diffmax``).
+   Four straggler compound nouns (``ground_depth``,
+   ``ventilation_rate``, ``lighting_power_density``,
+   ``month_mean_air_temperature_diffmax``) were left intact at this bump
+   and reordered quantity-first at dev12 (see below).
    Rename table ``STEBBSPROPERTIES_DEV8_RENAMES``.
 
    Both tables live in ``src/supy/data_model/core/field_renames.py``;

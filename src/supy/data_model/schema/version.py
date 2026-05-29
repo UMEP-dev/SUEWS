@@ -22,7 +22,7 @@ import warnings
 # schema-versioning.md` (Dev-label convention). Every structural PR
 # between releases bumps the dev counter instead of consuming a new
 # CalVer label.
-CURRENT_SCHEMA_VERSION = "2026.5.dev11"
+CURRENT_SCHEMA_VERSION = "2026.5.dev12"
 
 # Schema version history and descriptions.
 #
@@ -355,6 +355,52 @@ SCHEMA_VERSIONS: dict[str, str] = {
         "external node (fraction_wall/roof_heat_capacity_outer -> "
         "fraction_heat_capacity_wall/roof_external). Combines the "
         "originally-separate #1392 (Tier 1) and #1394 (Tier 2) PRs."
+    ),
+    "2026.5.dev12": (
+        "STEBBS / Archetype Column D alignment (gh#1392 follow-up) per the "
+        "Reading STEBBS team review ('Column D', D. Hertwig / S. Rognone, "
+        "2026-05). Two waves in one dev bump. "
+        "Wave 1 (four dev9 stragglers reordered quantity-first): "
+        "ground_depth -> depth_ground, ventilation_rate -> rate_ventilation, "
+        "lighting_power_density -> power_density_lighting, "
+        "month_mean_air_temperature_diffmax -> "
+        "temperature_air_month_mean_diffmax. "
+        "Wave 2 (sixteen further fields aligned to Column D): six "
+        "ArchetypeProperties HVAC fields take qualifier-first powers and "
+        "setpoints (power_air_heating_max -> max_power_heating_system_air, "
+        "power_water_heating_max -> max_power_heating_system_water, "
+        "temperature_air_heating_setpoint -> setpoint_temperature_heating_air, "
+        "temperature_air_cooling_setpoint -> setpoint_temperature_cooling_air, "
+        "and their profile_* siblings); ten StebbsProperties fields adopt "
+        "qualifier-first / Tier-3 word order "
+        "(power_air_cooling_max -> max_power_cooling_system_air, "
+        "temperature_water_heating_setpoint -> "
+        "setpoint_temperature_heating_water, "
+        "temperature_water_mains -> temperature_mains_water, "
+        "area_hot_water_tank_surface -> surface_area_hot_water_tank, "
+        "area_hot_water_surface -> surface_area_hot_water, "
+        "rate_hot_water_flow -> rate_flow_hot_water, "
+        "profile_hot_water_flow -> profile_flow_hot_water, "
+        "control_daylight -> daylight_control, and the two DHW vessel "
+        "convection coefficients move to ...hot_water_tank_vessel_internal / "
+        "..._external). ground_floor stays a two-word token. "
+        "model.physics.outer_cap_fraction is renamed to "
+        "model.physics.capacitance in this dev bump (pure key rename - still "
+        "a RCMethod enum with the same values and validation behaviour; the "
+        "bridge DataFrame column stays rcmethod). The larger relocation of "
+        "the field under STEBBS and the capacitance-vs-fraction semantics "
+        "are deferred to a separate workstream. Rename tables "
+        "STEBBSPROPERTIES_DEV12_RENAMES, ARCHETYPEPROPERTIES_DEV12_RENAMES "
+        "and MODELPHYSICS_DEV12_RENAMES in "
+        "src/supy/data_model/core/field_renames.py; the "
+        "(2026.5.dev11 -> 2026.5.dev12) migration is registered in "
+        "src/supy/util/converter/yaml_upgrade.py::_HANDLERS and walks both the "
+        "stebbs and building_archetype containers. Bridge DataFrame columns "
+        "keep the fused PascalCase ancestry via the chained "
+        "STEBBSPROPERTIES_DEV9_TO_PASCAL / ARCHETYPEPROPERTIES_DEV7_TO_PASCAL "
+        "maps and the Rust FIELD_COMPAT_ALIASES entries. "
+        "building_type was already dropped at dev11 (no new migration drop "
+        "needed)."
     ),
 }
 

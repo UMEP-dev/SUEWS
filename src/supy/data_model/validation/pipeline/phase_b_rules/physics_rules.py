@@ -70,7 +70,7 @@ def validate_physics_parameters(context) -> List[ValidationResult]:
         "surface_conductance",
         "snow_use",
         "stebbs",
-        "outer_cap_fraction",
+        "capacitance",
         "same_albedo_wall",
         "same_albedo_roof",
         "same_emissivity_wall",
@@ -78,8 +78,19 @@ def validate_physics_parameters(context) -> List[ValidationResult]:
         "setpoint",
     ]
 
+    # Resolve each required key rename-aware. In Phase-B-standalone / BC mode the
+    # input YAML is not Phase-A-normalised, so a still-compatible config may use a
+    # legacy spelling (e.g. `outer_cap_fraction` for `capacitance`, or the
+    # long-renamed `netradiationmethod` for `net_radiation`). get_value_safe
+    # accepts both spellings; the _MISSING sentinel distinguishes an absent key
+    # from one present with a null value (so the two checks below stay distinct).
+    _MISSING = object()
+    _present = {
+        param: get_value_safe(physics, param, _MISSING)
+        for param in required_physics_params
+    }
     missing_params = [
-        param for param in required_physics_params if param not in physics
+        param for param in required_physics_params if _present[param] is _MISSING
     ]
     if missing_params:
         for param in missing_params:
@@ -93,10 +104,17 @@ def validate_physics_parameters(context) -> List[ValidationResult]:
                 )
             )
 
+    def _is_empty(value):
+        # Null / empty scalar, or a present-but-value-less mapping such as
+        # `capacitance: {}` (get_value_safe returns the bare mapping when there
+        # is no `value` key). A *non-empty* mapping is the gh#972 nested-family
+        # form (e.g. `{spartacus: {value: 1}}`) and is NOT empty.
+        return value in ("", None) or (isinstance(value, dict) and not value)
+
     empty_params = [
         param
         for param in required_physics_params
-        if param in physics and physics.get(param, {}).get("value") in ("", None)
+        if _present[param] is not _MISSING and _is_empty(_present[param])
     ]
     if empty_params:
         for param in empty_params:
@@ -463,7 +481,7 @@ def validate_model_option_rcmethod(context) -> List[ValidationResult]:
 
     results = []
     physics = yaml_data.get("model", {}).get("physics", {})
-    rcmethod_value = get_value_safe(physics, "outer_cap_fraction")
+    rcmethod_value = get_value_safe(physics, "capacitance")
 
     sites = yaml_data.get("sites", [])
     for site_idx, site in enumerate(sites):

@@ -974,19 +974,16 @@ def _run_phase_c_legacy(
             try:
                 # Load original YAML data for comparison
                 import yaml
-                from supy.data_model.core.field_renames import (
-                    normalise_yaml_renames,
-                )
+                from ..core.yaml_helpers import load_user_yaml_normalised
 
-                with open(input_yaml_file, "r") as f:
-                    # Normalise legacy field spellings so the critical-null
-                    # comparison below (detect_pydantic_defaults) matches the
-                    # current-name keys in processed_data. Without this, a
-                    # legacy spelling of a renamed critical parameter (e.g.
-                    # outer_cap_fraction -> capacitance) set to null slips the
-                    # critical-null check and can crash later in df_state
-                    # conversion via int(None). gh#1457.
-                    original_data = normalise_yaml_renames(yaml.safe_load(f))
+                # Normalise legacy field spellings so the critical-null
+                # comparison below (detect_pydantic_defaults) matches the
+                # current-name keys in processed_data. Without this, a legacy
+                # spelling of a renamed critical parameter (e.g.
+                # outer_cap_fraction -> capacitance) set to null slips the
+                # critical-null check and can crash later in df_state conversion
+                # via int(None). gh#1457.
+                original_data = load_user_yaml_normalised(input_yaml_file)
 
                 config = SUEWSConfig.from_yaml(input_yaml_file)
 

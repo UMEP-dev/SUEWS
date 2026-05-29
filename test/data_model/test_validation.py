@@ -4805,3 +4805,29 @@ class TestStandaloneValidationRenameNormalisation:
             normalise_yaml_renames(legacy_raw), processed, "", {}
         )
         assert any(c["field_name"] == "capacitance" for c in crit_norm)
+
+    def test_load_user_yaml_normalised_rewrites_legacy_file(self, tmp_path):
+        # The single load chokepoint: reading a legacy-spelling file from disk
+        # yields current names, so every standalone rule matches regardless of
+        # the spelling the user wrote.
+        import json
+        from supy.data_model.validation.core.yaml_helpers import (
+            load_user_yaml_normalised,
+        )
+
+        legacy = tmp_path / "legacy.yml"
+        legacy.write_text(
+            "model:\n"
+            "  physics:\n"
+            "    rcmethod: {value: 1}\n"
+            "sites:\n"
+            "- properties:\n"
+            "    stebbs:\n"
+            "      heating_setpoint_temperature: {value: 19.0}\n",
+            encoding="utf-8",
+        )
+        dumped = json.dumps(load_user_yaml_normalised(str(legacy)))
+        assert "rcmethod" not in dumped
+        assert "capacitance" in dumped
+        assert "heating_setpoint_temperature" not in dumped
+        assert "setpoint_temperature_heating_air" in dumped

@@ -41,6 +41,7 @@ from ..core.yaml_helpers import (
     get_value_safe,
     HAS_TIMEZONE_FINDER,
 )
+from ...core.field_renames import normalise_yaml_renames
 
 from .phase_b_rules import (
     RulesRegistry,
@@ -302,12 +303,15 @@ def validate_phase_b_inputs(
     try:
         with open(uptodate_yaml_file, "r") as f:
             uptodate_content = f.read()
-            uptodate_data = yaml.safe_load(uptodate_content)
+            # Normalise legacy field spellings to current names so the science
+            # checks below match configs that bypass Phase A's normalisation
+            # (standalone BC mode reads the raw user YAML here). gh#1457.
+            uptodate_data = normalise_yaml_renames(yaml.safe_load(uptodate_content))
 
         is_phase_a_output = "UP TO DATE YAML" in uptodate_content
 
         with open(user_yaml_file, "r") as f:
-            user_data = yaml.safe_load(f)
+            user_data = normalise_yaml_renames(yaml.safe_load(f))
 
         with open(standard_yaml_file, "r") as f:
             standard_data = yaml.safe_load(f)

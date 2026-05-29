@@ -2417,12 +2417,16 @@ mod tests {
             include_str!("../../../test/fixtures/data_test/stebbs_test/sample_config.yml");
         let mut root: Value = serde_yaml::from_str(yaml_str).expect("fixture YAML should parse");
         let site = first_site_mut(&mut root).expect("fixture should contain a first site");
+        // The raw fixture key is the canonical dev12 name (gh#1459); the
+        // validator's error label is the normalised internal name
+        // (`HeatingSetpointTemperatureProfile`, via `profile_label`), so the
+        // navigation key and the asserted label intentionally differ.
         let working_day = get_path_mut(
             site,
             &[
                 "properties",
                 "building_archetype",
-                "HeatingSetpointTemperatureProfile",
+                "profile_setpoint_temperature_heating_air",
                 "working_day",
             ],
         )
@@ -2445,12 +2449,14 @@ mod tests {
             include_str!("../../../test/fixtures/data_test/stebbs_test/sample_config.yml");
         let mut root: Value = serde_yaml::from_str(yaml_str).expect("fixture YAML should parse");
         let site = first_site_mut(&mut root).expect("fixture should contain a first site");
+        // Raw fixture key is the canonical dev12 name (gh#1459); the error
+        // label below stays the normalised internal name (`profile_label`).
         let working_day = get_path_mut(
             site,
             &[
                 "properties",
                 "building_archetype",
-                "CoolingSetpointTemperatureProfile",
+                "profile_setpoint_temperature_cooling_air",
                 "working_day",
             ],
         )
@@ -2477,8 +2483,9 @@ mod tests {
     // accepts either spelling transparently and returns the same
     // `RunConfig` regardless of which one the user wrote.
     //
-    // The fixture already carries new-style names; the legacy variant is
-    // produced by running `normalize_field_names` on a cloned tree first.
+    // The fixture carries new-style names throughout (ModelPhysics since
+    // #1308, STEBBS/archetype since gh#1459); the legacy variant is produced
+    // by running `normalize_field_names` on a cloned tree first.
 
     const FIXTURE_NEW_NAMES: &str =
         include_str!("../../../test/fixtures/data_test/stebbs_test/sample_config.yml");

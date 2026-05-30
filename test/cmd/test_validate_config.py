@@ -519,3 +519,48 @@ def test_validate_sidecar_includes_non_error_info_messages(tmp_path: Path) -> No
         and i["severity"] != "ERROR"
         for i in all_issues
     ), f"h_std informational issue missing from sidecar: {all_issues}"
+
+
+def test_validate_sidecar_is_validation_report_for_clean_config(tmp_path: Path) -> None:
+    """The consolidated CLI sidecar is a multi-phase ValidationReport even
+    for the bundled sample config (which already carries Phase B notes)."""
+    from supy.cmd.validate_config import cli as validate_cli
+
+    with _sample_yaml_path() as sample:
+        config_path = tmp_path / "clean.yml"
+        config_path.write_text(sample.read_text(encoding="utf-8"), encoding="utf-8")
+
+    runner = CliRunner()
+    result = runner.invoke(validate_cli, ["--forcing", "off", str(config_path)])
+    assert result.exit_code == 0, result.output
+
+    payload = json.loads((tmp_path / "report_clean.json").read_text(encoding="utf-8"))
+    assert payload["overall_status"] in {"PASSED", "WARNING"}
+    assert {p["phase"] for p in payload["phases"]} >= {"A", "B", "C"}
+    # Each phase entry preserves the PhaseReport shape.
+    for phase_entry in payload["phases"]:
+        assert {"phase", "status", "issues"} <= set(phase_entry)
+
+
+def test_validate_sidecar_keeps_info_alongside_errors(tmp_path: Path) -> None:
+    """A failing config keeps Phase A informational issues beside Phase C
+    errors in the same consolidated sidecar."""
+    from supy.cmd.validate_config import cli as validate_cli
+
+    with _sample_yaml_path() as sample:
+        data = yaml.safe_load(sample.read_text(encoding="utf-8"))
+    data["sites"][0]["properties"].pop("h_std")               # -> A.MISSING_PARAM (info)
+    data["sites"][0]["properties"]["bogus_extra_param"] = 42  # -> C.PYDANTIC error
+
+    config_path = tmp_path / "bad.yml"
+    _write_yaml(config_path, data)
+
+    runner = CliRunner()
+    result = runner.invoke(validate_cli, ["--forcing", "off", str(config_path)])
+    assert result.exit_code != 0, result.output
+
+    payload = json.loads((tmp_path / "report_bad.json").read_text(encoding="utf-8"))
+    assert payload["overall_status"] == "FAILED"
+    all_issues = [i for p in payload["phases"] for i in p["issues"]]
+    assert any(i["code"].startswith("C.PYDANTIC") for i in all_issues), all_issues
+    assert any(i["code"] == "A.MISSING_PARAM" for i in all_issues), all_issues

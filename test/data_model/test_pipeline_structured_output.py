@@ -232,3 +232,39 @@ def test_pipeline_writes_json_sidecars_alongside_text_reports(tmp_path, sample_c
             "text_report_path", "json_report_path", "extra",
         }
         assert payload["phase"] == r.phase
+
+
+def test_write_consolidated_sidecar_swallows_io_failure(tmp_path):
+    """gh#1467: a sidecar write to an unwritable path must not raise."""
+    from supy.cmd.validate_config import _write_consolidated_sidecar
+    from supy.data_model.validation.pipeline.report_schema import PhaseReport
+
+    # Parent directory does not exist -> write raises OSError, swallowed.
+    bad_report = tmp_path / "missing_dir" / "report_x.txt"
+    _write_consolidated_sidecar([PhaseReport(phase="C", issues=[])], str(bad_report))
+    assert not (tmp_path / "missing_dir" / "report_x.json").exists()
+
+
+def test_write_consolidated_sidecar_writes_validation_report(tmp_path):
+    """gh#1467: the helper serialises a ValidationReport for a phases list."""
+    import json as _json
+    from supy.cmd.validate_config import _write_consolidated_sidecar
+    from supy.data_model.validation.pipeline.report_schema import (
+        Issue,
+        PhaseReport,
+        SEVERITY_INFO,
+    )
+
+    phases = [
+        PhaseReport(phase="A", issues=[
+            Issue(phase="A", severity=SEVERITY_INFO, code="A.X", message="hi"),
+        ]),
+        PhaseReport(phase="C", issues=[]),
+    ]
+    report = tmp_path / "report_y.txt"
+    _write_consolidated_sidecar(phases, str(report))
+
+    payload = _json.loads((tmp_path / "report_y.json").read_text(encoding="utf-8"))
+    assert payload["overall_status"] == "PASSED"  # INFO is neither error nor warning
+    assert {p["phase"] for p in payload["phases"]} == {"A", "C"}
+    assert payload["phases"][0]["issues"][0]["code"] == "A.X"

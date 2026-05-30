@@ -564,3 +564,52 @@ def test_validate_sidecar_keeps_info_alongside_errors(tmp_path: Path) -> None:
     all_issues = [i for p in payload["phases"] for i in p["issues"]]
     assert any(i["code"].startswith("C.PYDANTIC") for i in all_issues), all_issues
     assert any(i["code"] == "A.MISSING_PARAM" for i in all_issues), all_issues
+
+
+def test_emit_pipeline_result_writes_consolidated_sidecar(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """gh#1467: `_emit_pipeline_result` writes the consolidated
+    ValidationReport sidecar beside the report, in both output modes."""
+    from supy.cmd.validate_config import _emit_pipeline_result
+    from supy.data_model.validation.pipeline.report_schema import (
+        Issue,
+        PhaseReport,
+        SEVERITY_INFO,
+        SEVERITY_ERROR,
+    )
+
+    phases = [
+        PhaseReport(
+            phase="A",
+            issues=[Issue(phase="A", severity=SEVERITY_INFO, code="A.INFO.NOTE",
+                          message="informational note", yaml_path="model.physics")],
+        ),
+        PhaseReport(
+            phase="C",
+            issues=[Issue(phase="C", severity=SEVERITY_ERROR, code="C.PYDANTIC.X",
+                          message="bad value", yaml_path="sites.1.properties.lat")],
+        ),
+    ]
+    report_path = tmp_path / "report_x.txt"
+
+    exit_code = _emit_pipeline_result(
+        phases=phases,
+        report_path=report_path,
+        yaml_path=tmp_path / "updated_x.yml",
+        out_format="table",
+        command="suews validate",
+        started_at="2026-05-30T00:00:00Z",
+    )
+    assert exit_code == 1  # has an ERROR
+
+    sidecar = tmp_path / "report_x.json"
+    assert sidecar.exists()
+    payload = json.loads(sidecar.read_text(encoding="utf-8"))
+    assert payload["overall_status"] == "FAILED"
+    assert {p["phase"] for p in payload["phases"]} == {"A", "C"}
+    info_codes = [i["code"] for p in payload["phases"] for i in p["issues"]]
+    assert "A.INFO.NOTE" in info_codes  # non-error info survived
+    assert "C.PYDANTIC.X" in info_codes
+    capsys.readouterr()  # drain captured table output

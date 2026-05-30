@@ -1,9 +1,11 @@
 """End-to-end tests for the validator pipeline's structured JSON output.
 
 Each phase (A, B, C) writes a ``<report>.json`` sidecar next to the
-existing ``<report>.txt``. The sidecar conforms to ``PhaseReport.to_dict()``
-from ``report_schema.py`` and is the canonical machine-readable
-representation of the phase's findings.
+existing ``<report>.txt``. A direct ``run_phase_*`` call writes a
+``PhaseReport``; the full ``suews validate`` CLI run writes a
+consolidated ``ValidationReport`` (gh#1467, covered in
+``test/cmd/test_validate_config.py``). Both are the canonical
+machine-readable representation of the validator's findings.
 """
 
 from __future__ import annotations

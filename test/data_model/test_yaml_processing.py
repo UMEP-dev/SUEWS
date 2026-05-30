@@ -2274,6 +2274,57 @@ def test_stebbsmethod1_leaves_stebbs_untouched():
     assert out["convection_coefficient_wall_internal"]["value"] == 5.0
 
 
+def test_stebbsmethod0_nested_disabled_nullifies_all_stebbs_values():
+    """gh#1456: nested STEBBS disabled (enabled=false) must still nullify site params.
+
+    The precheck composes the legacy stebbsmethod from the nested
+    model.physics.stebbs block; a disabled nested toggle composes to 0 and
+    triggers the same cleanup as the legacy flat ``{"value": 0}`` form.
+    """
+    stebbs_block = {
+        "convection_coefficient_wall_internal": {"value": 5.0},
+        "nested": {"WindowExternalConvectionCoefficient": {"value": 30.0}},
+    }
+    data = {
+        "model": {
+            "physics": {
+                "stebbs": {
+                    "enabled": {"value": False},
+                    "parameters": {"value": 1},
+                }
+            }
+        },
+        "sites": [{"properties": {"stebbs": deepcopy(stebbs_block)}}],
+    }
+    result = precheck_model_option_rules(deepcopy(data))
+
+    out = result["sites"][0]["properties"]["stebbs"]
+    assert out["convection_coefficient_wall_internal"]["value"] is None
+    assert out["nested"]["WindowExternalConvectionCoefficient"]["value"] is None
+
+
+def test_stebbsmethod1_nested_enabled_leaves_stebbs_untouched():
+    """gh#1456: nested STEBBS enabled (composes to 1) must NOT nullify params."""
+    stebbs_block = {
+        "convection_coefficient_wall_internal": {"value": 5.0},
+    }
+    data = {
+        "model": {
+            "physics": {
+                "stebbs": {
+                    "enabled": {"value": True},
+                    "parameters": {"value": 1},
+                }
+            }
+        },
+        "sites": [{"properties": {"stebbs": deepcopy(stebbs_block)}}],
+    }
+    result = precheck_model_option_rules(deepcopy(data))
+
+    out = result["sites"][0]["properties"]["stebbs"]
+    assert out["convection_coefficient_wall_internal"]["value"] == 5.0
+
+
 def test_stebbsmethod0_nullifies_building_archetype_values():
     yaml_input = {
         "model": {"physics": {"stebbs": {"value": 0}}},
@@ -3742,7 +3793,12 @@ class TestPhaseAUptoDateYaml(TestProcessorFixtures):
             "roughness_sublayer_level",
             "surface_conductance",
             "snow_use",
+            # gh#1456: the STEBBS switches live under model.physics.stebbs.*;
+            # PHYSICS_OPTIONS carries the nested-object key plus the leaf
+            # names so is_physics_option matches the new paths.
             "stebbs",
+            "enabled",
+            "parameters",
             "capacitance",
             "same_albedo_wall",
             "same_albedo_roof",
@@ -3772,7 +3828,8 @@ class TestPhaseBScienceCheck(TestProcessorFixtures):
 
     def test_physics_parameters_validation_success(self, registry):
         """Test successful physics parameter validation."""
-        # Use a known set of physics options for testing
+        # Use a known set of physics options for testing. gh#1456: the
+        # STEBBS switches live under the nested model.physics.stebbs object.
         physics_options = {
             "net_radiation",
             "emissions",
@@ -3788,18 +3845,21 @@ class TestPhaseBScienceCheck(TestProcessorFixtures):
             "roughness_sublayer_level",
             "surface_conductance",
             "snow_use",
-            "stebbs",
+        }
+        stebbs_options = {
+            "enabled",
+            "parameters",
             "capacitance",
+            "setpoint",
             "same_albedo_wall",
             "same_albedo_roof",
             "same_emissivity_wall",
             "same_emissivity_roof",
-            "setpoint",
         }
 
-        valid_yaml = {
-            "model": {"physics": {param: {"value": 1} for param in physics_options}}
-        }
+        physics = {param: {"value": 1} for param in physics_options}
+        physics["stebbs"] = {param: {"value": 1} for param in stebbs_options}
+        valid_yaml = {"model": {"physics": physics}}
         context = science_check.ValidationContext(yaml_data=valid_yaml)
         # Function returns list of ValidationResult objects, empty list means success
         results = registry["physics_params"](context)

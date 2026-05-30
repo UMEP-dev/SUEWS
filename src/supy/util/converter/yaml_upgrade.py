@@ -655,6 +655,112 @@ def _apply_modelphysics_suffix_renames(cfg: dict) -> None:
         _rename_field(physics, old, new)
 
 
+# gh#1456: dev12 -> dev13 STEBBS flat -> nested fold.
+#
+# The five non-master STEBBS switches move under model.physics.stebbs at the
+# leaf names below; the master toggle (`stebbs`, a tri-state integer) is
+# decomposed into stebbs.enabled + stebbs.parameters. Renames flow through
+# _rename_field so each move is logged (TestNoSilentFieldDrops enforces this).
+# When this fold runs after the dev11 -> dev12 Column D straggler renames the
+# flat capacitance key is already spelled `capacitance`; the older
+# `outer_cap_fraction` / fused `rcmethod` spellings are accepted too so a
+# hand-written legacy YAML still folds. All three relocate to stebbs.capacitance.
+_STEBBS_PHYSICS_LEAF_RENAMES_TO_DEV12: tuple[tuple[str, str], ...] = (
+    ("capacitance", "capacitance"),
+    ("outer_cap_fraction", "capacitance"),
+    ("rcmethod", "capacitance"),
+    ("setpoint", "setpoint"),
+    ("setpointmethod", "setpoint"),
+    ("same_albedo_wall", "same_albedo_wall"),
+    ("same_albedo_roof", "same_albedo_roof"),
+    ("same_emissivity_wall", "same_emissivity_wall"),
+    ("same_emissivity_roof", "same_emissivity_roof"),
+)
+
+
+def _decompose_stebbs_master_value(entry):
+    """Decompose a legacy flat `stebbs` master toggle into (enabled, params).
+
+    Returns RefValue-wrapped scalars. 0 -> (False, 1); 1 -> (True, 1);
+    2/other-nonzero -> (True, 2).
+    """
+    raw = entry.get("value") if isinstance(entry, dict) and "value" in entry else entry
+    try:
+        code = int(raw)
+    except (TypeError, ValueError):
+        enabled = bool(raw)
+        return {"value": enabled}, {"value": 1}
+    if code == 0:
+        return {"value": False}, {"value": 1}
+    if code == 1:
+        return {"value": True}, {"value": 1}
+    return {"value": True}, {"value": 2}
+
+
+def _apply_stebbs_physics_fold(cfg: dict) -> None:
+    """Fold the flat STEBBS physics switches under model.physics.stebbs in place.
+
+    gh#1456 dev11 -> dev12. Decomposes the legacy `stebbs` master toggle into
+    `stebbs.enabled` + `stebbs.parameters`, and moves outer_cap_fraction /
+    rcmethod -> stebbs.capacitance, setpoint / setpointmethod -> stebbs.setpoint,
+    and the four same_* switches under the nested object. No-op when the YAML is
+    already nested (the master toggle's keys are enabled/parameters/...). Each
+    move is logged via _rename_field; no silent drops.
+    """
+    model = cfg.get("model")
+    if not isinstance(model, dict):
+        return
+    physics = model.get("physics")
+    if not isinstance(physics, dict):
+        return
+
+    existing = physics.get("stebbs")
+    nested_keys = {
+        "enabled",
+        "parameters",
+        "capacitance",
+        "setpoint",
+        "same_albedo_wall",
+        "same_albedo_roof",
+        "same_emissivity_wall",
+        "same_emissivity_roof",
+    }
+    already_nested = isinstance(existing, dict) and any(
+        k in existing for k in nested_keys
+    )
+
+    if already_nested:
+        stebbs_block = existing
+    else:
+        stebbs_block = {}
+        if "stebbs" in physics:
+            enabled, parameters = _decompose_stebbs_master_value(physics.pop("stebbs"))
+            stebbs_block["enabled"] = enabled
+            stebbs_block["parameters"] = parameters
+            _log(
+                "[yaml-upgrade]   decomposed 'stebbs' master toggle -> "
+                "'stebbs.enabled' + 'stebbs.parameters'"
+            )
+
+    for old_flat, nested_leaf in _STEBBS_PHYSICS_LEAF_RENAMES_TO_DEV12:
+        if old_flat in physics:
+            if nested_leaf in stebbs_block:
+                physics.pop(old_flat)
+                _log(
+                    f"[yaml-upgrade]   rename {old_flat!r} -> "
+                    f"'stebbs.{nested_leaf}' skipped (target already present, "
+                    f"dropping stale {old_flat!r} value)"
+                )
+            else:
+                stebbs_block[nested_leaf] = physics.pop(old_flat)
+                _log(
+                    f"[yaml-upgrade]   moved {old_flat!r} -> 'stebbs.{nested_leaf}'"
+                )
+
+    if stebbs_block:
+        physics["stebbs"] = stebbs_block
+
+
 def _migrate_2026_4_to_2026_5(cfg: dict) -> dict:
     """Upgrade 2026.4-shaped YAMLs to the ``2026.5`` schema.
 
@@ -884,17 +990,33 @@ def _apply_stebbs_straggler_renames(cfg: dict) -> None:
             _rename_field(physics, old, new)
 
 
+def _migrate_2026_5_dev12_to_current(cfg: dict) -> dict:
+    """Upgrade 2026.5.dev12-shaped YAMLs to the current schema.
+
+    dev12 -> dev13 (gh#1456): fold the six flat STEBBS physics switches
+    under the nested model.physics.stebbs object (master toggle decomposed
+    into enabled + parameters; the dev12 flat `capacitance` -- and the older
+    `outer_cap_fraction` spelling -- moved to stebbs.capacitance; setpoint
+    and same_* moved at their leaf names). No earlier delta is outstanding
+    at dev12, so this is the STEBBS fold alone.
+    """
+    cfg = _strip_internal_only_fields(cfg)
+    _apply_stebbs_physics_fold(cfg)
+    return cfg
+
+
 def _migrate_2026_5_dev11_to_current(cfg: dict) -> dict:
     """Upgrade 2026.5.dev11-shaped YAMLs to the current schema.
 
-    dev11 -> dev12 applies only the STEBBS straggler reorder (the four
-    compound-noun fields kept at dev9, reordered quantity-first per the
-    Reading STEBBS team review). The dev10 -> dev11 naming-convention
-    completion was already applied at dev11, so this is the straggler
-    pass alone.
+    dev11 -> dev12 applies the STEBBS / Archetype Column D alignment
+    (the four compound-noun stragglers plus the sixteen-field Column D
+    reorder per the Reading STEBBS team review, gh#1452). dev12 -> dev13
+    (gh#1456) then folds the flat STEBBS physics switches under the nested
+    model.physics.stebbs object.
     """
     cfg = _strip_internal_only_fields(cfg)
     _apply_stebbs_straggler_renames(cfg)
+    _apply_stebbs_physics_fold(cfg)
     return cfg
 
 
@@ -903,13 +1025,14 @@ def _migrate_2026_5_dev10_to_current(cfg: dict) -> dict:
 
     dev10 -> dev11 applies the naming-convention completion: the
     ArchetypeProperties Tier-1 (16) and StebbsProperties Rule-2 (44)
-    renames combined in a single bump (gh#1392 + gh#1394). No earlier
-    delta is outstanding at dev10 (dev9 -> dev10 was the PR#1420 identity
-    stamp), so this is the rename pass alone.
+    renames combined in a single bump (gh#1392 + gh#1394). dev11 -> dev12
+    (gh#1456) then folds the flat STEBBS physics switches under the nested
+    model.physics.stebbs object.
     """
     cfg = _strip_internal_only_fields(cfg)
     _apply_naming_completion_renames(cfg)
     _apply_stebbs_straggler_renames(cfg)
+    _apply_stebbs_physics_fold(cfg)
     return cfg
 
 
@@ -923,6 +1046,7 @@ def _migrate_2026_5_dev9_to_current(cfg: dict) -> dict:
     cfg = _strip_internal_only_fields(cfg)
     _apply_naming_completion_renames(cfg)
     _apply_stebbs_straggler_renames(cfg)
+    _apply_stebbs_physics_fold(cfg)
     return cfg
 
 
@@ -940,6 +1064,7 @@ def _migrate_2026_5_dev8_to_current(cfg: dict) -> dict:
     _apply_output_subobject_restructure(cfg)
     _apply_naming_completion_renames(cfg)
     _apply_stebbs_straggler_renames(cfg)
+    _apply_stebbs_physics_fold(cfg)
     return cfg
 
 
@@ -955,6 +1080,7 @@ def _migrate_2026_5_dev7_to_current(cfg: dict) -> dict:
     _apply_output_subobject_restructure(cfg)
     _apply_naming_completion_renames(cfg)
     _apply_stebbs_straggler_renames(cfg)
+    _apply_stebbs_physics_fold(cfg)
     return cfg
 
 
@@ -971,6 +1097,7 @@ def _migrate_2026_5_dev6_to_current(cfg: dict) -> dict:
     _apply_output_subobject_restructure(cfg)
     _apply_naming_completion_renames(cfg)
     _apply_stebbs_straggler_renames(cfg)
+    _apply_stebbs_physics_fold(cfg)
     return cfg
 
 
@@ -987,6 +1114,7 @@ def _migrate_2026_5_dev5_to_current(cfg: dict) -> dict:
     _apply_output_subobject_restructure(cfg)
     _apply_naming_completion_renames(cfg)
     _apply_stebbs_straggler_renames(cfg)
+    _apply_stebbs_physics_fold(cfg)
     return cfg
 
 
@@ -1003,6 +1131,7 @@ def _migrate_2026_5_dev4_to_current(cfg: dict) -> dict:
     _apply_output_subobject_restructure(cfg)
     _apply_naming_completion_renames(cfg)
     _apply_stebbs_straggler_renames(cfg)
+    _apply_stebbs_physics_fold(cfg)
     return cfg
 
 
@@ -1021,6 +1150,7 @@ def _migrate_2026_5_dev3_to_current(cfg: dict) -> dict:
     _apply_output_subobject_restructure(cfg)
     _apply_naming_completion_renames(cfg)
     _apply_stebbs_straggler_renames(cfg)
+    _apply_stebbs_physics_fold(cfg)
     return cfg
 
 
@@ -1041,6 +1171,7 @@ def _migrate_2026_5_dev2_to_current(cfg: dict) -> dict:
     _apply_output_subobject_restructure(cfg)
     _apply_naming_completion_renames(cfg)
     _apply_stebbs_straggler_renames(cfg)
+    _apply_stebbs_physics_fold(cfg)
     return cfg
 
 
@@ -1092,6 +1223,7 @@ def _migrate_2026_5_to_current(cfg: dict) -> dict:
     _apply_output_subobject_restructure(cfg)
     _apply_naming_completion_renames(cfg)
     _apply_stebbs_straggler_renames(cfg)
+    _apply_stebbs_physics_fold(cfg)
     return cfg
 
 
@@ -1113,6 +1245,7 @@ def _migrate_2026_5_dev1_to_current(cfg: dict) -> dict:
     _apply_output_subobject_restructure(cfg)
     _apply_naming_completion_renames(cfg)
     _apply_stebbs_straggler_renames(cfg)
+    _apply_stebbs_physics_fold(cfg)
     return cfg
 
 
@@ -1188,7 +1321,12 @@ _HANDLERS: dict[tuple[str, str], Handler] = {
     # dev8 -> dev9 delta combines the two gh#1372 restructures into a
     # single bump per the dev-label convention. The dev9 -> dev10 delta is
     # the PR#1420 identity stamp; the dev10 -> dev11 delta applies the
-    # naming-convention completion.
+    # naming-convention completion; the dev11 -> dev12 delta (gh#1452) applies
+    # the STEBBS/Archetype Column D alignment; the dev12 -> dev13 delta
+    # (gh#1456) folds the flat STEBBS physics switches under the nested
+    # model.physics.stebbs object. Every to-current handler runs the Column D
+    # straggler renames then _apply_stebbs_physics_fold last.
+    ("2026.5.dev12", CURRENT_SCHEMA_VERSION): _migrate_2026_5_dev12_to_current,
     ("2026.5.dev11", CURRENT_SCHEMA_VERSION): _migrate_2026_5_dev11_to_current,
     ("2026.5.dev10", CURRENT_SCHEMA_VERSION): _migrate_2026_5_dev10_to_current,
     ("2026.5.dev9", CURRENT_SCHEMA_VERSION): _migrate_2026_5_dev9_to_current,

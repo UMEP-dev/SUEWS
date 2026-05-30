@@ -782,6 +782,182 @@ fn collapse_nested_physics(root: &mut Value) -> Result<(), String> {
     Ok(())
 }
 
+/// Nested `model.physics.stebbs` leaf keys recognised by the flatten
+/// pre-pass. Mirrors `_STEBBS_NESTED_KEYS` in
+/// `src/supy/data_model/core/field_renames.py` (gh#1456). A `stebbs` mapping
+/// carrying any of these is the new nested object; a `{value: N}` /
+/// scalar `stebbs` is the legacy master toggle and is left untouched.
+const STEBBS_NESTED_KEYS: &[&str] = &[
+    "enabled",
+    "parameters",
+    "capacitance",
+    "setpoint",
+    "same_albedo_wall",
+    "same_albedo_roof",
+    "same_emissivity_wall",
+    "same_emissivity_roof",
+    // gh#1456: mirror Python's `_STEBBS_NESTED_KEYS`, which includes the
+    // provenance `ref` leaf so a nested block carrying only `ref` is still
+    // recognised as the nested object (keeps the two nested-detection
+    // predicates identical across the Python and Rust layers).
+    "ref",
+];
+
+/// `(nested_leaf, fused_flat_key)` for the five non-master STEBBS switches.
+/// `capacitance` / `setpoint` fold to the fused DataFrame columns the parser
+/// reads (`rcmethod`, `setpointmethod`); the four `same_*` switches keep their
+/// names (no rename — the DataFrame columns are unchanged, gh#1456). Flattening
+/// straight to the fused keys keeps this pre-pass self-contained and
+/// independent of the downstream `FIELD_RENAMES` rename-walker ordering.
+const STEBBS_LEAF_TO_FUSED: &[(&str, &str)] = &[
+    ("capacitance", "rcmethod"),
+    ("setpoint", "setpointmethod"),
+    ("same_albedo_wall", "same_albedo_wall"),
+    ("same_albedo_roof", "same_albedo_roof"),
+    ("same_emissivity_wall", "same_emissivity_wall"),
+    ("same_emissivity_roof", "same_emissivity_roof"),
+];
+
+/// Unwrap a RefValue-style `{value: X}` mapping to its inner scalar, else
+/// return the value as-is. Mirrors `_unwrap_scalar` in the Python fold.
+fn unwrap_ref_scalar(entry: &Value) -> &Value {
+    if let Value::Mapping(map) = entry {
+        if let Some(inner) = map.get(Value::String("value".into())) {
+            return inner;
+        }
+    }
+    entry
+}
+
+/// Interpret a `stebbs.enabled` scalar as a boolean. Accepts native bools,
+/// the integers `0`/`1`, and the strings `true`/`false` (case-insensitive).
+fn read_enabled_flag(entry: &Value) -> bool {
+    match unwrap_ref_scalar(entry) {
+        Value::Bool(b) => *b,
+        Value::Number(n) => n.as_f64().map(|v| v != 0.0).unwrap_or(false),
+        Value::String(s) => matches!(s.trim().to_ascii_lowercase().as_str(), "true" | "1"),
+        _ => false,
+    }
+}
+
+/// Interpret a `stebbs.parameters` scalar as the non-zero `StebbsMethod`
+/// integer code. Accepts the integers `1`/`2` and the `StebbsParameterSource`
+/// enum names `default`/`provided` (case-insensitive). Mirrors the Python
+/// `int(parameters)` composition. Unknown values fall back to `2` (PROVIDED),
+/// the most permissive non-zero reading (matches `_decompose_stebbs_master`).
+fn read_parameters_code(entry: &Value) -> i64 {
+    match unwrap_ref_scalar(entry) {
+        Value::Number(n) => n.as_i64().unwrap_or(1),
+        Value::String(s) => match s.trim().to_ascii_lowercase().as_str() {
+            "default" => 1,
+            "provided" => 2,
+            other => other.parse::<i64>().unwrap_or(2),
+        },
+        _ => 1,
+    }
+}
+
+/// Flatten a nested `model.physics.stebbs` object back to the fused flat keys
+/// the hand-written parser indexes (`stebbsmethod`, `rcmethod`,
+/// `setpointmethod`, `same_*`). MUST run before `collapse_nested_physics` and
+/// the recursive rename walker so the nested object is consumed before either
+/// can misread it (the walker would otherwise rename the whole `stebbs`
+/// mapping to `stebbsmethod`; see `should_rename_key_at_path`).
+///
+/// Composition mirrors `StebbsPhysics.to_df_state` / `fold_stebbs_physics` in
+/// `src/supy/data_model/core/model.py` + `field_renames.py` (gh#1456):
+/// `stebbsmethod = 0 if not enabled else int(parameters)`. `enabled` defaults
+/// to `false` (STEBBS off) and `parameters` to `1` (DEFAULT) when omitted,
+/// matching the Python `StebbsPhysics` field defaults.
+///
+/// The legacy flat form (`stebbs: {value: N}` master toggle, plus flat
+/// `outer_cap_fraction` / `setpoint` / `same_*` siblings) is untouched here and
+/// continues through the existing rename walker. Idempotent: running twice is a
+/// no-op because the nested object is removed on the first pass and the fused
+/// keys it writes are not themselves nested-leaf keys.
+fn flatten_stebbs_physics(root: &mut Value) -> Result<(), String> {
+    let physics = match root
+        .get_mut("model")
+        .and_then(|m| m.as_mapping_mut())
+        .and_then(|m| m.get_mut(Value::String("physics".into())))
+        .and_then(|p| p.as_mapping_mut())
+    {
+        Some(p) => p,
+        None => return Ok(()),
+    };
+
+    let stebbs_key = Value::String("stebbs".into());
+    let is_nested = match physics.get(&stebbs_key) {
+        Some(Value::Mapping(map)) => STEBBS_NESTED_KEYS
+            .iter()
+            .any(|leaf| map.contains_key(Value::String((*leaf).to_string()))),
+        // A scalar / `{value: N}` master toggle, or absent: legacy flat path.
+        _ => false,
+    };
+    if !is_nested {
+        return Ok(());
+    }
+
+    // Take ownership of the nested object so we can move its leaves out.
+    let stebbs_block = match physics.remove(&stebbs_key) {
+        Some(Value::Mapping(map)) => map,
+        _ => return Ok(()),
+    };
+
+    // Guard against a flat sibling colliding with a key the fold produces
+    // (e.g. a flat `outer_cap_fraction`/`rcmethod` alongside the nested
+    // `stebbs.capacitance`). The legacy and nested forms are mutually
+    // exclusive on input; reject rather than silently pick one. Mirrors the
+    // recursive walker's both-spellings-present error.
+    for (_leaf, fused) in STEBBS_LEAF_TO_FUSED {
+        let fused_key = Value::String((*fused).to_string());
+        if physics.contains_key(&fused_key) {
+            return Err(format!(
+                "Both a flat '{fused}' and a nested 'model.physics.stebbs' object are \
+                 present. Use only the nested 'stebbs' form."
+            ));
+        }
+    }
+    let stebbsmethod_key = Value::String("stebbsmethod".into());
+    if physics.contains_key(&stebbsmethod_key) {
+        return Err(
+            "Both a flat 'stebbsmethod' and a nested 'model.physics.stebbs' object are \
+             present. Use only the nested 'stebbs' form."
+                .to_string(),
+        );
+    }
+
+    // Compose the master toggle: 0 if disabled, else int(parameters).
+    let enabled = stebbs_block
+        .get(Value::String("enabled".into()))
+        .map(read_enabled_flag)
+        .unwrap_or(false);
+    let stebbsmethod_value = if !enabled {
+        0
+    } else {
+        stebbs_block
+            .get(Value::String("parameters".into()))
+            .map(read_parameters_code)
+            .unwrap_or(1)
+    };
+    let mut stebbsmethod_flat = serde_yaml::Mapping::new();
+    stebbsmethod_flat.insert(
+        Value::String("value".into()),
+        Value::Number(stebbsmethod_value.into()),
+    );
+    physics.insert(stebbsmethod_key, Value::Mapping(stebbsmethod_flat));
+
+    // Move the five remaining switches to their fused flat keys verbatim
+    // (the `{value: N}` wrapper, if any, is preserved as-is).
+    for (leaf, fused) in STEBBS_LEAF_TO_FUSED {
+        if let Some(v) = stebbs_block.get(Value::String((*leaf).to_string())) {
+            physics.insert(Value::String((*fused).to_string()), v.clone());
+        }
+    }
+
+    Ok(())
+}
+
 fn legacy_name_for(key: &str) -> Option<(&'static str, &'static str)> {
     FIELD_RENAMES
         .iter()
@@ -817,6 +993,16 @@ fn should_rename_key_at_path(new_name: &str, path: &str) -> bool {
 /// renamed keys on subsequent reads. Idempotent — running twice on the
 /// same tree is a no-op.
 pub fn normalize_field_names(root: &mut Value) -> Result<(), String> {
+    // gh#1456: the nested `model.physics.stebbs` object must be flattened to
+    // the fused flat keys (`stebbsmethod`, `rcmethod`, `setpointmethod`,
+    // `same_*`) BEFORE anything else. If the recursive rename walker saw the
+    // nested `stebbs` key first it would rename the whole object to
+    // `stebbsmethod` (see `should_rename_key_at_path`), and
+    // `collapse_nested_physics` could misread a `stebbs` leaf as a family tag.
+    // Flattening first consumes the nested object so the legacy flat path
+    // (master-toggle scalar + flat `outer_cap_fraction`/`setpoint`/`same_*`)
+    // still flows through the walker unchanged.
+    flatten_stebbs_physics(root)?;
     // Nested family form must be collapsed BEFORE the recursive rename
     // walker runs — some family tags (e.g. `stebbs` under `storage_heat`)
     // collide with ModelPhysics field names that the walker would
@@ -1196,6 +1382,196 @@ model:
         assert!(
             storage.get(Value::String("stebbsmethod".into())).is_none(),
             "family tag should collapse before recursive rename touches it"
+        );
+    }
+
+    // -- gh#1456: nested `model.physics.stebbs` flatten pre-pass --------------
+
+    fn physics_i64(root: &Value, key: &str) -> Option<i64> {
+        root["model"]["physics"]
+            .get(Value::String(key.into()))
+            .and_then(|v| v.get(Value::String("value".into())))
+            .and_then(|v| v.as_i64())
+    }
+
+    #[test]
+    fn nested_stebbs_disabled_composes_method_zero() {
+        // enabled=false -> stebbsmethod 0 (parameters ignored).
+        let yaml = "\
+model:
+  physics:
+    stebbs:
+      enabled: {value: false}
+      parameters: {value: 2}
+      capacitance: {value: 1}
+      setpoint: {value: 3}
+      same_albedo_wall: {value: 1}
+      same_emissivity_roof: {value: 1}
+";
+        let mut root: Value = from_str(yaml).unwrap();
+        normalize_field_names(&mut root).unwrap();
+        let physics = &root["model"]["physics"];
+        assert!(
+            physics.get(Value::String("stebbs".into())).is_none(),
+            "nested stebbs object must be consumed"
+        );
+        assert_eq!(physics_i64(&root, "stebbsmethod"), Some(0));
+        assert_eq!(physics_i64(&root, "rcmethod"), Some(1));
+        assert_eq!(physics_i64(&root, "setpointmethod"), Some(3));
+        assert_eq!(physics_i64(&root, "same_albedo_wall"), Some(1));
+        assert_eq!(physics_i64(&root, "same_emissivity_roof"), Some(1));
+    }
+
+    #[test]
+    fn nested_stebbs_enabled_default_composes_method_one() {
+        // enabled=true, parameters=1 (DEFAULT) -> stebbsmethod 1.
+        let yaml = "\
+model:
+  physics:
+    stebbs:
+      enabled: {value: true}
+      parameters: {value: 1}
+      capacitance: {value: 0}
+";
+        let mut root: Value = from_str(yaml).unwrap();
+        normalize_field_names(&mut root).unwrap();
+        assert_eq!(physics_i64(&root, "stebbsmethod"), Some(1));
+        assert_eq!(physics_i64(&root, "rcmethod"), Some(0));
+    }
+
+    #[test]
+    fn nested_stebbs_enabled_provided_composes_method_two() {
+        // enabled=true, parameters=2 (PROVIDED) -> stebbsmethod 2.
+        let yaml = "\
+model:
+  physics:
+    stebbs:
+      enabled: {value: true}
+      parameters: {value: 2}
+";
+        let mut root: Value = from_str(yaml).unwrap();
+        normalize_field_names(&mut root).unwrap();
+        assert_eq!(physics_i64(&root, "stebbsmethod"), Some(2));
+    }
+
+    #[test]
+    fn nested_stebbs_enum_name_parameters_resolves() {
+        // parameters may be the StebbsParameterSource enum name.
+        let yaml = "\
+model:
+  physics:
+    stebbs:
+      enabled: {value: true}
+      parameters: {value: provided}
+";
+        let mut root: Value = from_str(yaml).unwrap();
+        normalize_field_names(&mut root).unwrap();
+        assert_eq!(physics_i64(&root, "stebbsmethod"), Some(2));
+    }
+
+    #[test]
+    fn nested_stebbs_omitted_parameters_defaults_when_enabled() {
+        // enabled with no `parameters` key -> DEFAULT (1), matching the
+        // StebbsPhysics field default.
+        let yaml = "model:\n  physics:\n    stebbs:\n      enabled: {value: true}\n";
+        let mut root: Value = from_str(yaml).unwrap();
+        normalize_field_names(&mut root).unwrap();
+        assert_eq!(physics_i64(&root, "stebbsmethod"), Some(1));
+    }
+
+    #[test]
+    fn legacy_flat_stebbs_master_toggle_still_parses() {
+        // The legacy flat form (scalar master toggle + flat siblings) must
+        // continue to flow through the existing rename walker unchanged.
+        let yaml = "\
+model:
+  physics:
+    stebbs: {value: 2}
+    outer_cap_fraction: {value: 1}
+    setpoint: {value: 3}
+    same_albedo_wall: {value: 1}
+";
+        let mut root: Value = from_str(yaml).unwrap();
+        normalize_field_names(&mut root).unwrap();
+        assert_eq!(physics_i64(&root, "stebbsmethod"), Some(2));
+        assert_eq!(physics_i64(&root, "rcmethod"), Some(1));
+        assert_eq!(physics_i64(&root, "setpointmethod"), Some(3));
+        assert_eq!(physics_i64(&root, "same_albedo_wall"), Some(1));
+    }
+
+    #[test]
+    fn legacy_fused_stebbs_keys_untouched() {
+        // Already-fused legacy keys must remain idempotent.
+        let yaml = "\
+model:
+  physics:
+    stebbsmethod: {value: 1}
+    rcmethod: {value: 2}
+    setpointmethod: {value: 0}
+";
+        let mut root: Value = from_str(yaml).unwrap();
+        let before = root.clone();
+        normalize_field_names(&mut root).unwrap();
+        assert_eq!(root, before, "fused legacy STEBBS keys must be untouched");
+    }
+
+    #[test]
+    fn nested_stebbs_flatten_is_idempotent() {
+        let yaml = "\
+model:
+  physics:
+    stebbs:
+      enabled: {value: true}
+      parameters: {value: 2}
+      capacitance: {value: 1}
+";
+        let mut root: Value = from_str(yaml).unwrap();
+        normalize_field_names(&mut root).unwrap();
+        let after_first = root.clone();
+        normalize_field_names(&mut root).unwrap();
+        assert_eq!(root, after_first, "second pass must be a no-op");
+    }
+
+    #[test]
+    fn nested_and_flat_stebbs_both_present_rejected() {
+        // A flat `outer_cap_fraction` alongside the nested object is ambiguous.
+        // (The flat key renames to `rcmethod` only AFTER flatten runs, so the
+        // collision is detected against the fused `rcmethod` the fold writes.)
+        let yaml = "\
+model:
+  physics:
+    rcmethod: {value: 0}
+    stebbs:
+      enabled: {value: true}
+      capacitance: {value: 1}
+";
+        let mut root: Value = from_str(yaml).unwrap();
+        let err = normalize_field_names(&mut root).expect_err("ambiguous input must fail");
+        assert!(err.contains("nested 'model.physics.stebbs'"), "error was: {err}");
+    }
+
+    #[test]
+    fn site_properties_stebbs_section_untouched_by_flatten() {
+        // Only `model.physics.stebbs` is flattened; the site-level
+        // `properties.stebbs` parameter section must be left intact.
+        let yaml = "\
+model:
+  physics:
+    stebbs:
+      enabled: {value: true}
+      parameters: {value: 1}
+sites:
+  - properties:
+      stebbs:
+        annual_mean_air_temperature: {value: 10.0}
+";
+        let mut root: Value = from_str(yaml).unwrap();
+        normalize_field_names(&mut root).unwrap();
+        assert_eq!(physics_i64(&root, "stebbsmethod"), Some(1));
+        let props = &root["sites"][0]["properties"];
+        assert!(
+            props.get(Value::String("stebbs".into())).is_some(),
+            "site-level stebbs section must survive"
         );
     }
 }

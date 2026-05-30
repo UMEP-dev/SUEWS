@@ -154,6 +154,64 @@ def get_value_safe(param_dict, param_key, default=None):
         return param  # Plain format: 1
 
 
+def get_stebbs_block(physics):
+    """Return the nested ``model.physics.stebbs`` sub-dict (or {} if absent).
+
+    gh#1456: the STEBBS switches moved under a nested ``stebbs`` object. This
+    helper isolates that container so callers can read its leaves
+    (``capacitance``, ``setpoint``, ``same_*``) uniformly against the
+    YAML-dict representation.
+
+    Parameters
+    ----------
+    physics : Mapping
+        The ``model.physics`` dict (or anything mapping-like).
+
+    Returns
+    -------
+    Mapping
+        The nested ``stebbs`` sub-dict, or ``{}`` when it is absent or not a
+        mapping (e.g. the legacy flat scalar form).
+    """
+    if not isinstance(physics, Mapping):
+        return {}
+    block = physics.get("stebbs")
+    return block if isinstance(block, Mapping) else {}
+
+
+def get_stebbsmethod_value(physics):
+    """Return the composed legacy ``stebbsmethod`` integer from physics.
+
+    Accepts both the new nested shape (``model.physics.stebbs.enabled`` +
+    ``.parameters``, composing to ``0`` / ``int(parameters)``) and the legacy
+    flat ``stebbs`` tri-state integer. Returns ``None`` when neither is
+    present.
+
+    Parameters
+    ----------
+    physics : Mapping
+        The ``model.physics`` dict.
+
+    Returns
+    -------
+    int or None
+        The composed ``stebbsmethod`` code (0/1/2), or ``None`` when the
+        master toggle is absent.
+    """
+    stebbs_block = get_stebbs_block(physics)
+    if "enabled" in stebbs_block or "parameters" in stebbs_block:
+        enabled = get_value_safe(stebbs_block, "enabled")
+        if not enabled:
+            return 0
+        parameters = get_value_safe(stebbs_block, "parameters")
+        try:
+            return int(parameters)
+        except (TypeError, ValueError):
+            return 1
+    # Legacy flat master toggle (or absent).
+    return get_value_safe(physics, "stebbs")
+
+
 def unwrap_value(val):
     """
     Unwrap RefValue and Enum values consistently.
@@ -1578,7 +1636,10 @@ def precheck_model_option_rules(data: dict) -> dict:
                     block[idx] = None
 
     # --- STEBBS RULE: when stebbs == 0, wipe out all stebbs params ---
-    stebbsmethod = get_value_safe(physics, "stebbs")
+    # gh#1456: compose the legacy stebbsmethod integer from the nested
+    # model.physics.stebbs block (enabled + parameters); also accepts the
+    # legacy flat scalar shape.
+    stebbsmethod = get_stebbsmethod_value(physics)
     if stebbsmethod == 0:
         logger_supy.info(
             "[precheck] stebbs==0 detected -> nullifying all 'stebbs' values."

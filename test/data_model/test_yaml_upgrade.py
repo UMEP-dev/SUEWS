@@ -476,7 +476,9 @@ class TestPre2026_1ReleaseTagMigration:
         assert "profile_setpoint_temperature_heating_air" not in arch
         assert "profile_setpoint_temperature_cooling_air" not in arch
         physics = payload.get("model", {}).get("physics", {})
-        setpointmethod = physics.get("setpoint")
+        # gh#1456: setpoint method now lives under model.physics.stebbs.setpoint.
+        stebbs_phys = physics.get("stebbs", {})
+        setpointmethod = stebbs_phys.get("setpoint") if isinstance(stebbs_phys, dict) else None
         # Either absent (use enum default CONSTANT=0) or explicitly 0/1.
         if setpointmethod is not None:
             value = (
@@ -517,8 +519,9 @@ class TestPreSetpointSplitMigration:
         assert isinstance(arch["setpoint_temperature_heating_air"], dict)
         assert "value" in arch["setpoint_temperature_heating_air"]
         # Profile intent is preserved by defaulting setpoint to SCHEDULED=2
-        # (key was renamed from fused `setpointmethod` to `setpoint` in #1321)
-        assert payload["model"]["physics"]["setpoint"]["value"] == 2
+        # (key was renamed from fused `setpointmethod` to `setpoint` in #1321;
+        # gh#1456 then folded it under model.physics.stebbs.setpoint)
+        assert payload["model"]["physics"]["stebbs"]["setpoint"]["value"] == 2
         # #1240 rename lives under the stebbs sub-tree, not building_archetype.
         assert "DeepSoilTemperature" not in stebbs
         assert "temperature_air_annual_mean" in stebbs

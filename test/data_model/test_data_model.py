@@ -143,7 +143,7 @@ class TestSUEWSConfig(unittest.TestCase):
         df_state_trimmed = trim_df_state(df_state)
         config_reconst = SUEWSConfig.from_df_state(df_state_trimmed)
 
-        self.assertEqual(config_reconst.model.physics.setpoint.value.value, 2)
+        self.assertEqual(config_reconst.model.physics.stebbs.setpoint.value.value, 2)
         self.assertEqual(
             config_reconst.sites[0]
             .properties.building_archetype.profile_setpoint_temperature_heating_air

@@ -170,6 +170,26 @@ class TestNewNamesAccepted:
             }
         else:
             downstream_chain = {}
+
+        # gh#1456: the STEBBS-scoped ModelPhysics renames resolve into the
+        # nested `stebbs` (StebbsPhysics) object rather than a flat field.
+        # `stebbs` (the master toggle) maps to the nested object itself; the
+        # other STEBBS targets map to a member of StebbsPhysics.
+        stebbs_targets = {
+            "stebbs": None,  # the nested object itself
+            # dev12 Column D (gh#1452) lands the former rcmethod / rc_method /
+            # outer_cap_fraction on the flat name `capacitance`; gh#1456 then
+            # folds it into the nested stebbs.capacitance member.
+            "capacitance": "capacitance",
+            "outer_cap_fraction": "capacitance",
+            "setpoint": "setpoint",
+            "same_albedo_wall": "same_albedo_wall",
+            "same_albedo_roof": "same_albedo_roof",
+            "same_emissivity_wall": "same_emissivity_wall",
+            "same_emissivity_roof": "same_emissivity_roof",
+        }
+        from supy.data_model.core.model import StebbsPhysics
+
         for new_name in renames.values():
             field_name = new_name
             seen = {field_name}
@@ -188,6 +208,10 @@ class TestNewNamesAccepted:
                 seen.add(field_name)
             if field_name in model_cls.model_fields:
                 continue
+            if model_cls.__name__ == "ModelPhysics" and field_name in stebbs_targets:
+                member = stebbs_targets[field_name]
+                if member is None or member in StebbsPhysics.model_fields:
+                    continue
             raise AssertionError(
                 f"{model_cls.__name__} missing renamed field {field_name!r} "
                 f"(from {new_name!r})"
@@ -442,6 +466,107 @@ class TestDeprecationWarnings:
         # Allow unrelated Pydantic deprecations; assert none mention our renames.
         assert not any("netradiationmethod" in m for m in messages)
         assert not any("net_radiation_method" in m for m in messages)
+
+
+class TestStebbsPhysicsFold:
+    """gh#1456: the flat STEBBS physics switches fold into model.physics.stebbs.
+
+    Covers both public paths: the ModelPhysics before-validator (Pydantic) and
+    the yaml_upgrade migrator. Legacy flat YAMLs must still load, the master
+    toggle must decompose, and capacitance must land in stebbs.capacitance.
+    """
+
+    def test_flat_master_toggle_decomposes_pydantic(self):
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", DeprecationWarning)
+            mp = ModelPhysics(
+                stebbs={"value": 2},
+                outer_cap_fraction={"value": 1},
+                setpoint={"value": 1},
+                same_albedo_wall={"value": 1},
+            )
+        # Master toggle 2 -> enabled + provided parameters.
+        assert _unwrap(mp.stebbs.enabled) is True
+        assert int(_unwrap(mp.stebbs.parameters)) == 2
+        # outer_cap_fraction folds to capacitance.
+        assert int(_unwrap(mp.stebbs.capacitance)) == 1
+        assert int(_unwrap(mp.stebbs.setpoint)) == 1
+        assert int(_unwrap(mp.stebbs.same_albedo_wall)) == 1
+
+    def test_flat_fold_composes_back_to_legacy_columns(self):
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", DeprecationWarning)
+            mp = ModelPhysics(stebbs={"value": 2}, outer_cap_fraction={"value": 2})
+        df = mp.to_df_state(grid_id=1)
+        assert int(df.loc[1, ("stebbsmethod", "0")]) == 2
+        assert int(df.loc[1, ("rcmethod", "0")]) == 2
+
+    def test_disabled_master_composes_to_zero(self):
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", DeprecationWarning)
+            mp = ModelPhysics(stebbs={"value": 0})
+        df = mp.to_df_state(grid_id=1)
+        assert int(df.loc[1, ("stebbsmethod", "0")]) == 0
+        assert _unwrap(mp.stebbs.enabled) is False
+
+    def test_already_nested_passes_through_without_warning(self):
+        with warnings.catch_warnings(record=True) as captured:
+            warnings.simplefilter("always", DeprecationWarning)
+            mp = ModelPhysics(
+                stebbs={
+                    "enabled": {"value": True},
+                    "parameters": {"value": 2},
+                    "capacitance": {"value": 1},
+                }
+            )
+        fold_msgs = [
+            str(w.message)
+            for w in captured
+            if issubclass(w.category, DeprecationWarning) and "gh#1456" in str(w.message)
+        ]
+        assert fold_msgs == [], f"nested form must not warn: {fold_msgs}"
+        assert _unwrap(mp.stebbs.enabled) is True
+        assert int(_unwrap(mp.stebbs.capacitance)) == 1
+
+    def test_single_fold_deprecation_warning(self):
+        with warnings.catch_warnings(record=True) as captured:
+            warnings.simplefilter("always", DeprecationWarning)
+            ModelPhysics(
+                stebbs={"value": 1},
+                outer_cap_fraction={"value": 1},
+                setpoint={"value": 2},
+            )
+        fold_msgs = [
+            str(w.message)
+            for w in captured
+            if issubclass(w.category, DeprecationWarning) and "gh#1456" in str(w.message)
+        ]
+        assert len(fold_msgs) == 1, f"expected one fold warning, got {fold_msgs}"
+
+    def test_migrator_folds_flat_physics(self):
+        """The yaml_upgrade migrator folds flat physics STEBBS keys to nested."""
+        from supy.util.converter.yaml_upgrade import _apply_stebbs_physics_fold
+
+        cfg = {
+            "model": {
+                "physics": {
+                    "stebbs": {"value": 2},
+                    "outer_cap_fraction": {"value": 1},
+                    "setpoint": {"value": 1},
+                    "same_albedo_wall": {"value": 1},
+                }
+            }
+        }
+        _apply_stebbs_physics_fold(cfg)
+        stebbs = cfg["model"]["physics"]["stebbs"]
+        # Flat siblings removed from top-level physics; folded under stebbs.
+        assert "outer_cap_fraction" not in cfg["model"]["physics"]
+        assert "setpoint" not in cfg["model"]["physics"]
+        assert stebbs["enabled"] == {"value": True}
+        assert stebbs["parameters"] == {"value": 2}
+        assert stebbs["capacitance"] == {"value": 1}
+        assert stebbs["setpoint"] == {"value": 1}
+        assert stebbs["same_albedo_wall"] == {"value": 1}
 
 
 class TestConflictDetection:

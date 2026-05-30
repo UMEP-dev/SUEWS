@@ -64,7 +64,10 @@ except Exception:
 # Import from supy modules
 try:
     from ..data_model.core.config import SUEWSConfig
-    from ..data_model.core.field_renames import read_physics_key
+    from ..data_model.core.field_renames import (
+        read_physics_key,
+        STEBBS_PHYSICS_LEAF_RENAMES as _STEBBS_PHYSICS_LEAF_RENAMES,
+    )
     from ..data_model.schema.version import CURRENT_SCHEMA_VERSION
     from ..data_model.schema.publisher import generate_json_schema
     from ..data_model.schema.migration import SchemaMigrator, check_migration_needed
@@ -74,7 +77,10 @@ except ImportError:
 
     sys.path.append(str(Path(__file__).parent.parent.parent))
     from supy.data_model.core.config import SUEWSConfig
-    from supy.data_model.core.field_renames import read_physics_key
+    from supy.data_model.core.field_renames import (
+        read_physics_key,
+        STEBBS_PHYSICS_LEAF_RENAMES as _STEBBS_PHYSICS_LEAF_RENAMES,
+    )
     from supy.data_model.schema.version import CURRENT_SCHEMA_VERSION
     from supy.data_model.schema.publisher import generate_json_schema
     from supy.data_model.schema.migration import SchemaMigrator, check_migration_needed
@@ -169,11 +175,25 @@ def validate_single_file(
             )
             if not isinstance(user_physics, dict):
                 user_physics = {}
+            # gh#1456: the STEBBS switches moved under model.physics.stebbs.*.
+            # The critical-physics list carries their bare leaf names, so look
+            # those leaves up inside the nested `stebbs` block rather than flat
+            # on physics. The nested-leaf names are the values of
+            # STEBBS_PHYSICS_LEAF_RENAMES.
+            stebbs_leaf_names = set(_STEBBS_PHYSICS_LEAF_RENAMES.values())
+            user_stebbs = user_physics.get("stebbs")
+            if not isinstance(user_stebbs, dict):
+                user_stebbs = {}
             for param_name in CRITICAL_PHYSICS_PARAMS:
-                if read_physics_key(
-                    user_physics, param_name, default=_PHYSICS_KEY_MISSING
-                ) is _PHYSICS_KEY_MISSING:
+                if param_name in stebbs_leaf_names:
+                    container = user_stebbs
+                    field_path = f"model.physics.stebbs.{param_name}"
+                else:
+                    container = user_physics
                     field_path = f"model.physics.{param_name}"
+                if read_physics_key(
+                    container, param_name, default=_PHYSICS_KEY_MISSING
+                ) is _PHYSICS_KEY_MISSING:
                     message = (
                         f"{field_path}: required physics parameter is missing "
                         "from the input YAML; runtime requires an explicit "
@@ -875,7 +895,10 @@ def _experimental_features_restriction(user_yaml_file, mode):
     # Read physics keys via read_physics_key, which accepts both the new
     # snake_case name and its legacy alias — the Pydantic shim accepts both,
     # so this gate must as well.
-    from ..data_model.core.field_renames import read_physics_key
+    from ..data_model.core.field_renames import (
+        read_physics_key,
+        _STEBBS_NESTED_KEYS,
+    )
 
     physics = (
         user_yaml_data.get("model", {}).get("physics", {})
@@ -884,9 +907,23 @@ def _experimental_features_restriction(user_yaml_file, mode):
     )
     restrictions_violated = []
 
-    stebbs_method = read_physics_key(physics, "stebbs")
-    if stebbs_method is not None and stebbs_method != 0:
-        restrictions_violated.append("STEBBS method is enabled (stebbs_method != 0)")
+    # gh#1456: STEBBS master toggle moved to model.physics.stebbs.enabled.
+    # Accept both the nested form and the legacy flat tri-state integer. A
+    # dict carrying any STEBBS nested key is the nested object (even a partial
+    # block that omits the master toggle, where `enabled` then defaults to
+    # false); a bare RefValue scalar (`{value: N}`) is the legacy integer.
+    stebbs_block = physics.get("stebbs")
+    stebbs_enabled = None
+    if isinstance(stebbs_block, dict) and any(
+        k in stebbs_block for k in _STEBBS_NESTED_KEYS
+    ):
+        stebbs_enabled = read_physics_key(stebbs_block, "enabled")
+    else:
+        legacy = read_physics_key(physics, "stebbs")
+        if legacy is not None:
+            stebbs_enabled = legacy != 0
+    if stebbs_enabled:
+        restrictions_violated.append("STEBBS is enabled (stebbs.enabled is true)")
 
     snowuse = read_physics_key(physics, "snow_use")
     if snowuse is not None and snowuse != 0:
@@ -908,7 +945,7 @@ def _print_experimental_features_restriction(restrictions_violated):
     console.print("\n[yellow]Options to resolve:[/yellow]")
     console.print("  1. Switch to dev mode: [cyan]--mode dev[/cyan]")
     console.print("  2. Disable experimental features in your YAML file and rerun")
-    console.print("     Example: Set [cyan]stebbs_method: {value: 0}[/cyan]")
+    console.print("     Example: Set [cyan]stebbs.enabled: {value: false}[/cyan]")
 
 
 def _check_experimental_features_restriction(user_yaml_file, mode):

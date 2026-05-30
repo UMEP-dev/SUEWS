@@ -1322,6 +1322,148 @@ def apply_field_renames(
     return values
 
 
+# gh#1456: STEBBS flat -> nested fold.
+#
+# The six STEBBS-scoped switches used to sit flat on `model.physics`. They now
+# live under a nested `model.physics.stebbs` object. The legacy master toggle
+# (`stebbs`, a tri-state StebbsMethod integer) is split into `enabled` (bool)
+# and `parameters` (DEFAULT/PROVIDED). The leaf-name moves for the other five
+# switches are recorded here so the fold is auditable in one place.
+STEBBS_PHYSICS_LEAF_RENAMES: Dict[str, str] = {
+    # legacy flat key (already snake_case after MODELPHYSICS_*_RENAMES) -> nested leaf.
+    # After the MODELPHYSICS_* rename pass the former `rcmethod` / `rc_method`
+    # land on the dev12 flat name `capacitance` (Reading Column D, gh#1452);
+    # the older dev2-era flat spelling `outer_cap_fraction` is accepted too so a
+    # hand-written legacy YAML still folds. Both relocate to `stebbs.capacitance`.
+    "capacitance": "capacitance",
+    "outer_cap_fraction": "capacitance",
+    "setpoint": "setpoint",
+    "same_albedo_wall": "same_albedo_wall",
+    "same_albedo_roof": "same_albedo_roof",
+    "same_emissivity_wall": "same_emissivity_wall",
+    "same_emissivity_roof": "same_emissivity_roof",
+}
+
+# The nested-object keys (so a YAML already in the new shape passes through).
+_STEBBS_NESTED_KEYS = frozenset(
+    {"enabled", "parameters", *STEBBS_PHYSICS_LEAF_RENAMES.values(), "ref"}
+)
+
+
+def _unwrap_scalar(entry: Any) -> Any:
+    """Return the inner value of a RefValue-style ``{"value": X}`` mapping."""
+    if isinstance(entry, Mapping) and "value" in entry:
+        return entry["value"]
+    return entry
+
+
+def _decompose_stebbs_master(entry: Any) -> tuple[Any, Any]:
+    """Split a legacy ``stebbs`` master toggle into (enabled, parameters) dicts.
+
+    Decompose the tri-state StebbsMethod integer:
+      0 -> (enabled=false, parameters=default)
+      1 -> (enabled=true,  parameters=default)
+      2 -> (enabled=true,  parameters=provided)
+
+    Returns RefValue-wrapped scalars (``{"value": ...}``) so the downstream
+    FlexibleRefValue union resolves them uniformly. Unknown integers default to
+    enabled with provided parameters (the most permissive non-zero reading).
+    """
+    raw = _unwrap_scalar(entry)
+    try:
+        code = int(raw)
+    except (TypeError, ValueError):
+        # Non-integer master toggle (already a bool or odd value): treat truthy
+        # as enabled+default, falsy as disabled+default.
+        enabled = bool(raw)
+        return {"value": enabled}, {"value": 1}
+    if code == 0:
+        return {"value": False}, {"value": 1}
+    if code == 1:
+        return {"value": True}, {"value": 1}
+    # code == 2 (or any other non-zero): enabled with provided parameters.
+    return {"value": True}, {"value": 2}
+
+
+def fold_stebbs_physics(values: dict, class_name: str) -> dict:
+    """Fold legacy flat STEBBS switches under a nested ``stebbs`` object.
+
+    Called from ``ModelPhysics._rename_physics_fields`` after the key renames.
+
+    Behaviour:
+      * If ``values["stebbs"]`` is already the nested object (its keys include
+        any of ``enabled``/``parameters``/``capacitance``/``setpoint``/
+        ``same_*``), it is left untouched and only stray flat siblings (if any)
+        are folded in.
+      * Otherwise ``stebbs`` is treated as the legacy master toggle and
+        decomposed into ``stebbs.enabled`` + ``stebbs.parameters``.
+      * The five sibling switches (``outer_cap_fraction`` -> ``capacitance``,
+        ``setpoint``, ``same_*``) are moved under ``stebbs`` at their nested
+        leaf names.
+
+    A single ``DeprecationWarning`` summarises the fold when any legacy flat key
+    was present.
+    """
+    if not isinstance(values, dict):
+        return values
+
+    existing = values.get("stebbs")
+
+    # Already a built StebbsPhysics (or any object exposing the nested
+    # members) -- e.g. from_df_state constructs the instance directly and
+    # passes it in. Leave it untouched; do not mistake it for a legacy
+    # master-toggle scalar. A RefValue wrapping a scalar still has no
+    # `enabled` attribute, so this only catches the genuine nested object.
+    if existing is not None and not isinstance(existing, (Mapping, int, float, bool, str)):
+        if hasattr(existing, "enabled") or hasattr(existing, "parameters"):
+            return values
+
+    nested_already = (
+        isinstance(existing, Mapping)
+        and any(k in existing for k in _STEBBS_NESTED_KEYS)
+    )
+
+    moved: list[str] = []
+
+    if nested_already:
+        stebbs_block: dict = dict(existing)
+    else:
+        stebbs_block = {}
+        if "stebbs" in values:
+            enabled, parameters = _decompose_stebbs_master(values.pop("stebbs"))
+            stebbs_block["enabled"] = enabled
+            stebbs_block["parameters"] = parameters
+            moved.append("stebbs")
+
+    for flat_key, nested_leaf in STEBBS_PHYSICS_LEAF_RENAMES.items():
+        if flat_key in values:
+            if nested_leaf in stebbs_block:
+                # Nested value wins; drop the stale flat one but record the move.
+                values.pop(flat_key)
+            else:
+                stebbs_block[nested_leaf] = values.pop(flat_key)
+            moved.append(flat_key)
+
+    if not nested_already and not stebbs_block and not moved:
+        # No STEBBS keys at all -> leave values untouched (defaults apply).
+        return values
+
+    if stebbs_block:
+        values["stebbs"] = stebbs_block
+
+    if moved:
+        warnings.warn(
+            f"{class_name}: flat STEBBS physics switches "
+            f"({', '.join(sorted(set(moved)))}) are deprecated; they now live "
+            f"under the nested 'stebbs' object (e.g. "
+            f"'stebbs.enabled', 'stebbs.capacitance'). See gh#1456.",
+            DeprecationWarning,
+            stacklevel=4,
+        )
+
+    return values
+
+
 def read_physics_key(physics: dict, new_name: str, default: Any = None):
     """Read a physics key from raw YAML, accepting either the new name or its legacy alias.
 

@@ -2536,6 +2536,15 @@ mod tests {
         assert_eq!(run_cfg.config.storage_heat_method, 7);
         assert_eq!(run_cfg.config.emissions_method, 2);
 
+        // gh#1456: STEBBS switches sourced from the nested
+        // `model.physics.stebbs` object in the fixture (enabled=true,
+        // parameters=1 -> stebbsmethod 1; capacitance=2 -> rcmethod 2;
+        // setpoint=0). These land at flat config indices 18/19/20
+        // (Fortran flat(19)/flat(20)/flat(21)).
+        assert_eq!(run_cfg.config.stebbs_method, 1);
+        assert_eq!(run_cfg.config.rc_method, 2);
+        assert_eq!(run_cfg.config.setpoint_method, 0);
+
         // Surface fields — paved `state_limit` = 0.48 in the fixture.
         assert!((run_cfg.site.lc_paved.state_limit - 0.48).abs() < 1.0e-12);
     }
@@ -2650,6 +2659,68 @@ mod tests {
                 - cfg_old.site.lc_paved.soil.soil_store_capacity)
                 .abs()
                 < 1.0e-12
+        );
+    }
+
+    #[test]
+    fn load_run_config_nested_and_flat_stebbs_parse_identically() {
+        // gh#1456 highest-risk check (design doc section 5.1): the nested
+        // `model.physics.stebbs` object and the legacy flat form must produce
+        // identical Fortran config, especially flat(19)=stebbsmethod,
+        // flat(20)=rcmethod, flat(21)=setpointmethod.
+        //
+        // `cfg_nested` parses the fixture as-is (nested shape). `cfg_flat`
+        // rewrites the nested object into the legacy flat keys the pre-gh#1456
+        // YAML used (master toggle `stebbs: {value: 1}` composed from
+        // enabled=true+parameters=1, plus flat `outer_cap_fraction` /
+        // `setpoint` / `same_*` siblings).
+        let mut root_nested: Value =
+            serde_yaml::from_str(FIXTURE_NEW_NAMES).expect("fixture YAML should parse");
+        let mut root_flat: Value =
+            serde_yaml::from_str(FIXTURE_NEW_NAMES).expect("fixture YAML should parse");
+
+        let physics = get_path_mut(&mut root_flat, &["model", "physics"])
+            .expect("fixture should contain model.physics");
+        let Value::Mapping(map) = physics else {
+            panic!("model.physics should be a mapping");
+        };
+        // Drop the nested object and lay down the legacy flat equivalents.
+        map.remove(Value::String("stebbs".into()));
+        let flat = |v: i64| {
+            let mut m = serde_yaml::Mapping::new();
+            m.insert(Value::String("value".into()), Value::Number(v.into()));
+            Value::Mapping(m)
+        };
+        // enabled=true, parameters=1 -> master toggle StebbsMethod code 1.
+        map.insert(Value::String("stebbs".into()), flat(1));
+        map.insert(Value::String("outer_cap_fraction".into()), flat(2));
+        map.insert(Value::String("setpoint".into()), flat(0));
+        map.insert(Value::String("same_albedo_wall".into()), flat(0));
+        map.insert(Value::String("same_albedo_roof".into()), flat(0));
+        map.insert(Value::String("same_emissivity_wall".into()), flat(0));
+        map.insert(Value::String("same_emissivity_roof".into()), flat(0));
+
+        let cfg_nested =
+            load_run_config_from_value(&mut root_nested).expect("parse nested STEBBS");
+        let cfg_flat = load_run_config_from_value(&mut root_flat).expect("parse flat STEBBS");
+
+        // flat(19)/flat(20)/flat(21) — the only STEBBS switches in the c_api
+        // flat config indices (the four same_* switches are Python-only).
+        assert_eq!(cfg_nested.config.stebbs_method, 1);
+        assert_eq!(cfg_nested.config.rc_method, 2);
+        assert_eq!(cfg_nested.config.setpoint_method, 0);
+        assert_eq!(cfg_nested.config.stebbs_method, cfg_flat.config.stebbs_method);
+        assert_eq!(cfg_nested.config.rc_method, cfg_flat.config.rc_method);
+        assert_eq!(
+            cfg_nested.config.setpoint_method,
+            cfg_flat.config.setpoint_method
+        );
+
+        // The full flat config arrays must be byte-for-byte identical.
+        assert_eq!(
+            cfg_nested.config.to_flat(),
+            cfg_flat.config.to_flat(),
+            "nested and flat STEBBS YAML must yield identical Fortran config"
         );
     }
 

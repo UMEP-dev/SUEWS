@@ -369,6 +369,7 @@ def test_validate_flags_missing_critical_physics_params(tmp_path: Path) -> None:
     from supy.data_model.validation.pipeline.orchestrator import (
         CRITICAL_PHYSICS_PARAMS,
     )
+    from supy.data_model.core.field_renames import STEBBS_PHYSICS_LEAF_RENAMES
 
     payload = _minimal_paved_only_config(CURRENT_SCHEMA_VERSION)
     config_path = tmp_path / "missing_physics.yml"
@@ -384,7 +385,17 @@ def test_validate_flags_missing_critical_physics_params(tmp_path: Path) -> None:
         for err in errors
         if getattr(err, "field", "").startswith("model.physics.")
     }
-    expected = {f"model.physics.{name}" for name in CRITICAL_PHYSICS_PARAMS}
+    # gh#1456: STEBBS critical leaves are reported under the nested
+    # model.physics.stebbs.* path; the remaining physics params stay flat.
+    stebbs_leaf_names = set(STEBBS_PHYSICS_LEAF_RENAMES.values())
+    expected = {
+        (
+            f"model.physics.stebbs.{name}"
+            if name in stebbs_leaf_names
+            else f"model.physics.{name}"
+        )
+        for name in CRITICAL_PHYSICS_PARAMS
+    }
     assert flagged == expected, (
         f"missing fields not flagged: {expected - flagged}; "
         f"unexpected fields flagged: {flagged - expected}"
@@ -473,7 +484,9 @@ def test_validate_full_pipeline_experimental_restriction_emits_json_envelope(
     envelope = json.loads(result.stdout)
     assert envelope["status"] == "error"
     assert envelope["errors"][0]["code"] == "experimental_features_restricted"
-    assert "STEBBS method" in envelope["data"]["restrictions"][0]
+    # gh#1456: master toggle is now model.physics.stebbs.enabled; the
+    # restriction message reflects the new nested surface.
+    assert "STEBBS is enabled" in envelope["data"]["restrictions"][0]
 
 
 def test_emit_pipeline_result_warning_status_matches_inner_report(

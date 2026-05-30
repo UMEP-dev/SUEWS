@@ -33,7 +33,11 @@ PHYSICS_OPTIONS = {
     "roughness_sublayer_level",
     "surface_conductance",
     "snow_use",
+    # gh#1456: the STEBBS switches now live under model.physics.stebbs.*; the
+    # nested leaf names are listed so is_physics_option() matches the new paths.
     "stebbs",
+    "enabled",
+    "parameters",
     "capacitance",
     "same_albedo_wall",
     "same_albedo_roof",

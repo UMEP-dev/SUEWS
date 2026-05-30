@@ -10,8 +10,8 @@ from .type import RefValue, Reference, FlexibleRefValue, df_from_cols
 from .field_renames import (
     MODELPHYSICS_RENAMES,
     MODELPHYSICS_SUFFIX_RENAMES,
-    MODELPHYSICS_DEV12_RENAMES,
     apply_field_renames,
+    fold_stebbs_physics,
 )
 from .physics_families import PHYSICS_FAMILIES, coerce_nested_to_flat
 
@@ -485,6 +485,12 @@ class StebbsMethod(Enum):
     0: NONE - STEBBS calculations disabled
     1: DEFAULT - STEBBS enabled with default parameters
     2: PROVIDED - STEBBS enabled with user-specified parameters
+
+    Retained for the integer DataFrame-column semantics (the ``stebbsmethod``
+    column the Fortran bridge reads). On the YAML / data-model surface this
+    tri-state is split into ``stebbs.enabled`` (bool) and ``stebbs.parameters``
+    (StebbsParameterSource); the two compose back to this integer code via
+    ``to_df_state`` / decompose on ``from_df_state`` (gh#1456).
     """
 
     NONE = 0
@@ -498,9 +504,35 @@ class StebbsMethod(Enum):
         return str(self.value)
 
 
+class StebbsParameterSource(Enum):
+    """
+    Source of STEBBS parameters when STEBBS is enabled (``stebbs.enabled=true``).
+
+    Only consulted when STEBBS is enabled; ignored otherwise. The values equal
+    the non-zero ``StebbsMethod`` codes so the composed ``stebbsmethod`` column
+    is simply ``int(parameters)`` whenever STEBBS is enabled (gh#1456).
+
+    1: DEFAULT - STEBBS uses default parameters
+    2: PROVIDED - STEBBS uses user-specified parameters
+    """
+
+    DEFAULT = 1
+    PROVIDED = 2
+
+    def __int__(self):
+        return self.value
+
+    def __repr__(self):
+        return str(self.value)
+
+
 class RCMethod(Enum):
     """
     Method to determine the two weighting factors (wall_outer_heat_capacity_fraction and roof_outer_heat_capacity_fraction) splitting heat capacity of building envelope into two nodes in STEBBS.
+
+    Exposed on the YAML / data-model surface as ``stebbs.capacitance`` (the
+    field formerly named ``outer_cap_fraction``, gh#1456). The ``rcmethod``
+    DataFrame column the Fortran bridge reads is unchanged.
 
     0: DEFAULT - Default value of 0.5 is used
     1: PROVIDED - Use user defined value (wall_outer_heat_capacity_fraction and roof_outer_heat_capacity_fraction) between 0 and 1
@@ -657,6 +689,7 @@ for enum_class in [
     RSLLevel,
     GSModel,
     StebbsMethod,
+    StebbsParameterSource,
     RCMethod,
     SetpointMethod,
     SnowUse,
@@ -667,6 +700,67 @@ for enum_class in [
     SameEmissivityRoof,
 ]:
     yaml.add_representer(enum_class, yaml_equivalent_of_default)
+
+
+class StebbsPhysics(BaseModel):
+    """
+    STEBBS (Surface Temperature Energy Balance Based Scheme) physics switches.
+
+    Groups the six STEBBS-scoped method switches that previously sat flat on
+    ``model.physics`` (gh#1456). The master on/off toggle is split into
+    ``enabled`` (bool) and ``parameters`` (StebbsParameterSource); the two
+    compose back to the single legacy ``stebbsmethod`` integer column on
+    ``ModelPhysics.to_df_state`` and are decomposed on ``from_df_state``. The
+    DataFrame / Fortran column names are unchanged.
+    """
+
+    model_config = ConfigDict(title="STEBBS Physics Methods")
+
+    enabled: FlexibleRefValue(bool) = Field(
+        default=False,
+        description=(
+            "Master on/off switch for STEBBS. When false, STEBBS calculations "
+            "are disabled and `parameters` is ignored."
+        ),
+        json_schema_extra={"unit": "dimensionless"},
+    )
+    parameters: FlexibleRefValue(StebbsParameterSource) = Field(
+        default=StebbsParameterSource.DEFAULT,
+        description=_enum_description(StebbsParameterSource),
+        json_schema_extra={"unit": "dimensionless"},
+    )
+    capacitance: FlexibleRefValue(RCMethod) = Field(
+        default=RCMethod.DEFAULT,
+        description=_enum_description(RCMethod),
+        json_schema_extra={"unit": "dimensionless"},
+    )
+    setpoint: FlexibleRefValue(SetpointMethod) = Field(
+        default=SetpointMethod.CONSTANT,
+        description=_enum_description(SetpointMethod),
+        json_schema_extra={"unit": "dimensionless"},
+    )
+    same_albedo_wall: FlexibleRefValue(SameAlbedoWall) = Field(
+        default=SameAlbedoWall.DISABLED,
+        description=_enum_description(SameAlbedoWall),
+        json_schema_extra={"unit": "dimensionless"},
+    )
+    same_albedo_roof: FlexibleRefValue(SameAlbedoRoof) = Field(
+        default=SameAlbedoRoof.DISABLED,
+        description=_enum_description(SameAlbedoRoof),
+        json_schema_extra={"unit": "dimensionless"},
+    )
+    same_emissivity_wall: FlexibleRefValue(SameEmissivityWall) = Field(
+        default=SameEmissivityWall.DISABLED,
+        description=_enum_description(SameEmissivityWall),
+        json_schema_extra={"unit": "dimensionless"},
+    )
+    same_emissivity_roof: FlexibleRefValue(SameEmissivityRoof) = Field(
+        default=SameEmissivityRoof.DISABLED,
+        description=_enum_description(SameEmissivityRoof),
+        json_schema_extra={"unit": "dimensionless"},
+    )
+
+    ref: Optional[Reference] = None
 
 
 class ModelPhysics(BaseModel):
@@ -685,10 +779,12 @@ class ModelPhysics(BaseModel):
             # YAML carrying either legacy shape land on the final name.
             values = apply_field_renames(values, MODELPHYSICS_RENAMES, cls.__name__)
             values = apply_field_renames(values, MODELPHYSICS_SUFFIX_RENAMES, cls.__name__)
-            # dev11 `outer_cap_fraction` -> dev12 `capacitance` (Column D).
-            # Applied last so a YAML carrying the dev11 spelling lands on the
-            # current name with a DeprecationWarning.
-            values = apply_field_renames(values, MODELPHYSICS_DEV12_RENAMES, cls.__name__)
+            # gh#1456: fold the legacy flat STEBBS switches into the nested
+            # `stebbs` object. Runs after the key renames so a YAML carrying
+            # either fused or snake_case legacy spellings lands here. The fold
+            # subsumes the dev12 `outer_cap_fraction`/`rcmethod` -> `capacitance`
+            # Column D rename by relocating it to `stebbs.capacitance`.
+            values = fold_stebbs_physics(values, cls.__name__)
         return values
 
     @field_validator(*PHYSICS_FAMILIES.keys(), mode="before")
@@ -795,40 +891,13 @@ class ModelPhysics(BaseModel):
         description=_enum_description(SnowUse),
         json_schema_extra={"unit": "dimensionless"},
     )
-    stebbs: FlexibleRefValue(StebbsMethod) = Field(
-        default=StebbsMethod.NONE,
-        description=_enum_description(StebbsMethod),
-        json_schema_extra={"unit": "dimensionless"},
-    )
-    capacitance: FlexibleRefValue(RCMethod) = Field(
-        default=RCMethod.DEFAULT,
-        description=_enum_description(RCMethod),
-        json_schema_extra={"unit": "dimensionless"},
-    )
-    setpoint: FlexibleRefValue(SetpointMethod) = Field(
-        default=SetpointMethod.CONSTANT,
-        description=_enum_description(SetpointMethod),
-        json_schema_extra={"unit": "dimensionless"},
-    )
-    same_albedo_wall: FlexibleRefValue(SameAlbedoWall) = Field(
-        default=SameAlbedoWall.DISABLED,
-        description=_enum_description(SameAlbedoWall),
-        json_schema_extra={"unit": "dimensionless"},
-    )
-    same_albedo_roof: FlexibleRefValue(SameAlbedoRoof) = Field(
-        default=SameAlbedoRoof.DISABLED,
-        description=_enum_description(SameAlbedoRoof),
-        json_schema_extra={"unit": "dimensionless"},
-    )
-    same_emissivity_wall: FlexibleRefValue(SameEmissivityWall) = Field(
-        default=SameEmissivityWall.DISABLED,
-        description=_enum_description(SameEmissivityWall),
-        json_schema_extra={"unit": "dimensionless"},
-    )
-    same_emissivity_roof: FlexibleRefValue(SameEmissivityRoof) = Field(
-        default=SameEmissivityRoof.DISABLED,
-        description=_enum_description(SameEmissivityRoof),
-        json_schema_extra={"unit": "dimensionless"},
+    stebbs: StebbsPhysics = Field(
+        default_factory=StebbsPhysics,
+        description=(
+            "STEBBS physics switches (gh#1456): master toggle (enabled + "
+            "parameters), capacitance method, setpoint method, and the "
+            "same-albedo / same-emissivity wall/roof switches."
+        ),
     )
 
     ref: Optional[Reference] = None
@@ -855,7 +924,13 @@ class ModelPhysics(BaseModel):
         ("roughness_sublayer_level", "rsllevel"),
         ("surface_conductance", "gsmodel"),
         ("snow_use", "snowuse"),
-        ("stebbs", "stebbsmethod"),
+    ]
+
+    # (StebbsPhysics member, DataFrame column name). The six STEBBS switches
+    # are nested under `self.stebbs` (gh#1456) but keep their fused legacy
+    # column names so the Fortran bridge is untouched. `stebbsmethod` is
+    # composed from the (enabled, parameters) pair below, not listed here.
+    _STEBBS_FIELD_COL_PAIRS = [
         ("capacitance", "rcmethod"),
         ("setpoint", "setpointmethod"),
         ("same_albedo_wall", "same_albedo_wall"),
@@ -871,6 +946,22 @@ class ModelPhysics(BaseModel):
             value = getattr(self, field_name)
             val = value.value if isinstance(value, RefValue) else value
             cols[(col_name, "0")] = int(val)
+
+        # gh#1456: compose the legacy `stebbsmethod` integer column from the
+        # nested (enabled, parameters) pair, and write the remaining STEBBS
+        # switches from their nested members.
+        stebbs = self.stebbs
+        enabled = stebbs.enabled
+        enabled = enabled.value if isinstance(enabled, RefValue) else enabled
+        parameters = stebbs.parameters
+        parameters = parameters.value if isinstance(parameters, RefValue) else parameters
+        cols[("stebbsmethod", "0")] = 0 if not bool(enabled) else int(parameters)
+
+        for member_name, col_name in self._STEBBS_FIELD_COL_PAIRS:
+            value = getattr(stebbs, member_name)
+            val = value.value if isinstance(value, RefValue) else value
+            cols[(col_name, "0")] = int(val)
+
         return df_from_cols(cols, index=pd.Index([grid_id], name="grid"))
 
     @classmethod
@@ -902,17 +993,10 @@ class ModelPhysics(BaseModel):
             "rsllevel",
             "gsmodel",
             "snowuse",
-            "stebbsmethod",
-            "rcmethod",
-            "setpointmethod",
         ]
 
         # New options: optional in legacy DataFrames, default if missing
         optional_new_attrs_with_defaults = {
-            "same_albedo_wall": SameAlbedoWall.DISABLED,
-            "same_albedo_roof": SameAlbedoRoof.DISABLED,
-            "same_emissivity_wall": SameEmissivityWall.DISABLED,
-            "same_emissivity_roof": SameEmissivityRoof.DISABLED,
             "laimethod": LAIMethod.CALCULATED,
         }
 
@@ -929,6 +1013,45 @@ class ModelPhysics(BaseModel):
                 properties[attr] = RefValue(int(value))
             except KeyError:
                 properties[attr] = RefValue(int(default_enum))
+
+        # gh#1456: reconstruct the nested StebbsPhysics from the unchanged
+        # fused columns. `stebbsmethod` is required; the rest fall back to
+        # their defaults if absent from a legacy DataFrame.
+        try:
+            stebbsmethod = int(df.loc[grid_id, ("stebbsmethod", "0")])
+        except KeyError:
+            raise ValueError("Missing attribute 'stebbsmethod' in the DataFrame")
+        # Decompose: 0 -> (disabled, default); 1 -> (enabled, default);
+        # 2 -> (enabled, provided).
+        stebbs_props: dict = {
+            "enabled": RefValue(stebbsmethod != 0),
+            "parameters": RefValue(
+                StebbsParameterSource.PROVIDED
+                if stebbsmethod == 2
+                else StebbsParameterSource.DEFAULT
+            ),
+        }
+        stebbs_col_defaults = {
+            "capacitance": ("rcmethod", RCMethod.DEFAULT),
+            "setpoint": ("setpointmethod", SetpointMethod.CONSTANT),
+            "same_albedo_wall": ("same_albedo_wall", SameAlbedoWall.DISABLED),
+            "same_albedo_roof": ("same_albedo_roof", SameAlbedoRoof.DISABLED),
+            "same_emissivity_wall": (
+                "same_emissivity_wall",
+                SameEmissivityWall.DISABLED,
+            ),
+            "same_emissivity_roof": (
+                "same_emissivity_roof",
+                SameEmissivityRoof.DISABLED,
+            ),
+        }
+        for member_name, (col_name, default_enum) in stebbs_col_defaults.items():
+            try:
+                value = df.loc[grid_id, (col_name, "0")]
+                stebbs_props[member_name] = RefValue(int(value))
+            except KeyError:
+                stebbs_props[member_name] = RefValue(int(default_enum))
+        properties["stebbs"] = StebbsPhysics(**stebbs_props)
 
         return cls(**properties)
 

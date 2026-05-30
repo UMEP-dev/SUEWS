@@ -7379,102 +7379,8 @@
           "unit": "dimensionless"
         },
         "stebbs": {
-          "anyOf": [
-            {
-              "$ref": "#/$defs/RefValue_StebbsMethod_"
-            },
-            {
-              "$ref": "#/$defs/StebbsMethod"
-            }
-          ],
-          "default": 0,
-          "description": "Surface Temperature Energy Balance Based Scheme (STEBBS) for facet temperatures. Options: 0 (NONE) = STEBBS calculations disabled; 1 (DEFAULT) = STEBBS enabled with default parameters; 2 (PROVIDED) = STEBBS enabled with user-specified parameters",
-          "title": "Stebbs",
-          "unit": "dimensionless"
-        },
-        "capacitance": {
-          "anyOf": [
-            {
-              "$ref": "#/$defs/RefValue_RCMethod_"
-            },
-            {
-              "$ref": "#/$defs/RCMethod"
-            }
-          ],
-          "default": 0,
-          "description": "Method to determine the two weighting factors (wall_outer_heat_capacity_fraction and roof_outer_heat_capacity_fraction) splitting heat capacity of building envelope into two nodes in STEBBS. Options: 0 (DEFAULT) = Default value of 0.5 is used; 1 (PROVIDED) = Use user defined value (wall_outer_heat_capacity_fraction and roof_outer_heat_capacity_fraction) between 0 and 1; 2 (PARAMETERISE) = Use building material thermal property to parameterise the weighting factor",
-          "title": "Capacitance",
-          "unit": "dimensionless"
-        },
-        "setpoint": {
-          "anyOf": [
-            {
-              "$ref": "#/$defs/RefValue_SetpointMethod_"
-            },
-            {
-              "$ref": "#/$defs/SetpointMethod"
-            }
-          ],
-          "default": 0,
-          "description": "Method to determine the approach of space heating/cooling setpoints in STEBBS. Options: 0 (Constant) = Use the user-provided heating_setpoint_temperature and cooling_setpoint_temperature throughout the day.; 1 (Dependent) = Use the user-provided setpoints; but it depends on occupants activity status and use unrealistic switch-off setpoints when occupant is inactive.; 2 (Scheduled) = Use the user-provided heating_setpoint_temperature_profile and cooling_setpoint_temperature_profile.",
-          "title": "Setpoint",
-          "unit": "dimensionless"
-        },
-        "same_albedo_wall": {
-          "anyOf": [
-            {
-              "$ref": "#/$defs/RefValue_SameAlbedoWall_"
-            },
-            {
-              "$ref": "#/$defs/SameAlbedoWall"
-            }
-          ],
-          "default": 0,
-          "description": "Controls assumption of same albedoes for walls.",
-          "title": "Same Albedo Wall",
-          "unit": "dimensionless"
-        },
-        "same_albedo_roof": {
-          "anyOf": [
-            {
-              "$ref": "#/$defs/RefValue_SameAlbedoRoof_"
-            },
-            {
-              "$ref": "#/$defs/SameAlbedoRoof"
-            }
-          ],
-          "default": 0,
-          "description": "Controls assumption of same albedoes for roofs.",
-          "title": "Same Albedo Roof",
-          "unit": "dimensionless"
-        },
-        "same_emissivity_wall": {
-          "anyOf": [
-            {
-              "$ref": "#/$defs/RefValue_SameEmissivityWall_"
-            },
-            {
-              "$ref": "#/$defs/SameEmissivityWall"
-            }
-          ],
-          "default": 0,
-          "description": "Controls assumption of same emissivities for walls.",
-          "title": "Same Emissivity Wall",
-          "unit": "dimensionless"
-        },
-        "same_emissivity_roof": {
-          "anyOf": [
-            {
-              "$ref": "#/$defs/RefValue_SameEmissivityRoof_"
-            },
-            {
-              "$ref": "#/$defs/SameEmissivityRoof"
-            }
-          ],
-          "default": 0,
-          "description": "Controls assumption of same emissivities for roofs.",
-          "title": "Same Emissivity Roof",
-          "unit": "dimensionless"
+          "$ref": "#/$defs/StebbsPhysics",
+          "description": "STEBBS physics switches (gh#1456): master toggle (enabled + parameters), capacitance method, setpoint method, and the same-albedo / same-emissivity wall/roof switches."
         },
         "ref": {
           "anyOf": [
@@ -7972,7 +7878,7 @@
       "type": "object"
     },
     "RCMethod": {
-      "description": "Method to determine the two weighting factors (wall_outer_heat_capacity_fraction and roof_outer_heat_capacity_fraction) splitting heat capacity of building envelope into two nodes in STEBBS.\n\n0: DEFAULT - Default value of 0.5 is used\n1: PROVIDED - Use user defined value (wall_outer_heat_capacity_fraction and roof_outer_heat_capacity_fraction) between 0 and 1\n2: PARAMETERISE - Use building material thermal property to parameterise the weighting factor",
+      "description": "Method to determine the two weighting factors (wall_outer_heat_capacity_fraction and roof_outer_heat_capacity_fraction) splitting heat capacity of building envelope into two nodes in STEBBS.\n\nExposed on the YAML / data-model surface as ``stebbs.capacitance`` (the\nfield formerly named ``outer_cap_fraction``, gh#1456). The ``rcmethod``\nDataFrame column the Fortran bridge reads is unchanged.\n\n0: DEFAULT - Default value of 0.5 is used\n1: PROVIDED - Use user defined value (wall_outer_heat_capacity_fraction and roof_outer_heat_capacity_fraction) between 0 and 1\n2: PARAMETERISE - Use building material thermal property to parameterise the weighting factor",
       "enum": [
         0,
         1,
@@ -8702,13 +8608,13 @@
       "title": "RefValue[StabilityMethod]",
       "type": "object"
     },
-    "RefValue_StebbsMethod_": {
+    "RefValue_StebbsParameterSource_": {
       "additionalProperties": false,
       "properties": {
         "value": {
           "anyOf": [
             {
-              "$ref": "#/$defs/StebbsMethod"
+              "$ref": "#/$defs/StebbsParameterSource"
             },
             {
               "type": "null"
@@ -8730,7 +8636,7 @@
       "required": [
         "value"
       ],
-      "title": "RefValue[StebbsMethod]",
+      "title": "RefValue[StebbsParameterSource]",
       "type": "object"
     },
     "RefValue_StorageHeatMethod_": {
@@ -8828,6 +8734,38 @@
         "value"
       ],
       "title": "RefValue[WaterUseMethod]",
+      "type": "object"
+    },
+    "RefValue_bool_": {
+      "additionalProperties": false,
+      "properties": {
+        "value": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Value"
+        },
+        "ref": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Reference"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        }
+      },
+      "required": [
+        "value"
+      ],
+      "title": "RefValue[bool]",
       "type": "object"
     },
     "RefValue_float_": {
@@ -10112,15 +10050,144 @@
       "title": "StabilityMethod",
       "type": "integer"
     },
-    "StebbsMethod": {
-      "description": "Surface Temperature Energy Balance Based Scheme (STEBBS) for facet temperatures.\n\n0: NONE - STEBBS calculations disabled\n1: DEFAULT - STEBBS enabled with default parameters\n2: PROVIDED - STEBBS enabled with user-specified parameters",
+    "StebbsParameterSource": {
+      "description": "Source of STEBBS parameters when STEBBS is enabled (``stebbs.enabled=true``).\n\nOnly consulted when STEBBS is enabled; ignored otherwise. The values equal\nthe non-zero ``StebbsMethod`` codes so the composed ``stebbsmethod`` column\nis simply ``int(parameters)`` whenever STEBBS is enabled (gh#1456).\n\n1: DEFAULT - STEBBS uses default parameters\n2: PROVIDED - STEBBS uses user-specified parameters",
       "enum": [
-        0,
         1,
         2
       ],
-      "title": "StebbsMethod",
+      "title": "StebbsParameterSource",
       "type": "integer"
+    },
+    "StebbsPhysics": {
+      "description": "STEBBS (Surface Temperature Energy Balance Based Scheme) physics switches.\n\nGroups the six STEBBS-scoped method switches that previously sat flat on\n``model.physics`` (gh#1456). The master on/off toggle is split into\n``enabled`` (bool) and ``parameters`` (StebbsParameterSource); the two\ncompose back to the single legacy ``stebbsmethod`` integer column on\n``ModelPhysics.to_df_state`` and are decomposed on ``from_df_state``. The\nDataFrame / Fortran column names are unchanged.",
+      "properties": {
+        "enabled": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/RefValue_bool_"
+            },
+            {
+              "type": "boolean"
+            }
+          ],
+          "default": false,
+          "description": "Master on/off switch for STEBBS. When false, STEBBS calculations are disabled and `parameters` is ignored.",
+          "title": "Enabled",
+          "unit": "dimensionless"
+        },
+        "parameters": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/RefValue_StebbsParameterSource_"
+            },
+            {
+              "$ref": "#/$defs/StebbsParameterSource"
+            }
+          ],
+          "default": 1,
+          "description": "Source of STEBBS parameters when STEBBS is enabled (``stebbs.enabled=true``). Options: 1 (DEFAULT) = STEBBS uses default parameters; 2 (PROVIDED) = STEBBS uses user-specified parameters",
+          "title": "Parameters",
+          "unit": "dimensionless"
+        },
+        "capacitance": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/RefValue_RCMethod_"
+            },
+            {
+              "$ref": "#/$defs/RCMethod"
+            }
+          ],
+          "default": 0,
+          "description": "Method to determine the two weighting factors (wall_outer_heat_capacity_fraction and roof_outer_heat_capacity_fraction) splitting heat capacity of building envelope into two nodes in STEBBS. Options: 0 (DEFAULT) = Default value of 0.5 is used; 1 (PROVIDED) = Use user defined value (wall_outer_heat_capacity_fraction and roof_outer_heat_capacity_fraction) between 0 and 1; 2 (PARAMETERISE) = Use building material thermal property to parameterise the weighting factor",
+          "title": "Capacitance",
+          "unit": "dimensionless"
+        },
+        "setpoint": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/RefValue_SetpointMethod_"
+            },
+            {
+              "$ref": "#/$defs/SetpointMethod"
+            }
+          ],
+          "default": 0,
+          "description": "Method to determine the approach of space heating/cooling setpoints in STEBBS. Options: 0 (Constant) = Use the user-provided heating_setpoint_temperature and cooling_setpoint_temperature throughout the day.; 1 (Dependent) = Use the user-provided setpoints; but it depends on occupants activity status and use unrealistic switch-off setpoints when occupant is inactive.; 2 (Scheduled) = Use the user-provided heating_setpoint_temperature_profile and cooling_setpoint_temperature_profile.",
+          "title": "Setpoint",
+          "unit": "dimensionless"
+        },
+        "same_albedo_wall": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/RefValue_SameAlbedoWall_"
+            },
+            {
+              "$ref": "#/$defs/SameAlbedoWall"
+            }
+          ],
+          "default": 0,
+          "description": "Controls assumption of same albedoes for walls.",
+          "title": "Same Albedo Wall",
+          "unit": "dimensionless"
+        },
+        "same_albedo_roof": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/RefValue_SameAlbedoRoof_"
+            },
+            {
+              "$ref": "#/$defs/SameAlbedoRoof"
+            }
+          ],
+          "default": 0,
+          "description": "Controls assumption of same albedoes for roofs.",
+          "title": "Same Albedo Roof",
+          "unit": "dimensionless"
+        },
+        "same_emissivity_wall": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/RefValue_SameEmissivityWall_"
+            },
+            {
+              "$ref": "#/$defs/SameEmissivityWall"
+            }
+          ],
+          "default": 0,
+          "description": "Controls assumption of same emissivities for walls.",
+          "title": "Same Emissivity Wall",
+          "unit": "dimensionless"
+        },
+        "same_emissivity_roof": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/RefValue_SameEmissivityRoof_"
+            },
+            {
+              "$ref": "#/$defs/SameEmissivityRoof"
+            }
+          ],
+          "default": 0,
+          "description": "Controls assumption of same emissivities for roofs.",
+          "title": "Same Emissivity Roof",
+          "unit": "dimensionless"
+        },
+        "ref": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Reference"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        }
+      },
+      "title": "STEBBS Physics Methods",
+      "type": "object"
     },
     "StebbsProperties": {
       "description": "STEBBS (Surface Temperature Energy Balance for Building Surfaces) model parameters.\n\nControls the building energy balance calculations including internal heating/cooling,\nbuilding materials properties, and thermal behaviour.",
@@ -12801,7 +12868,7 @@
     }
   },
   "additionalProperties": true,
-  "description": "JSON Schema for SUEWS YAML configuration files. Schema version 2026.5.dev12. STEBBS / Archetype Column D alignment (gh#1392 follow-up) per the Reading STEBBS team review ('Column D', D. Hertwig / S. Rognone, 2026-05). Two waves in one dev bump. Wave 1 (four dev9 stragglers reordered quantity-first): ground_depth -> depth_ground, ventilation_rate -> rate_ventilation, lighting_power_density -> power_density_lighting, month_mean_air_temperature_diffmax -> temperature_air_month_mean_diffmax. Wave 2 (sixteen further fields aligned to Column D): six ArchetypeProperties HVAC fields take qualifier-first powers and setpoints (power_air_heating_max -> max_power_heating_system_air, power_water_heating_max -> max_power_heating_system_water, temperature_air_heating_setpoint -> setpoint_temperature_heating_air, temperature_air_cooling_setpoint -> setpoint_temperature_cooling_air, and their profile_* siblings); ten StebbsProperties fields adopt qualifier-first / Tier-3 word order (power_air_cooling_max -> max_power_cooling_system_air, temperature_water_heating_setpoint -> setpoint_temperature_heating_water, temperature_water_mains -> temperature_mains_water, area_hot_water_tank_surface -> surface_area_hot_water_tank, area_hot_water_surface -> surface_area_hot_water, rate_hot_water_flow -> rate_flow_hot_water, profile_hot_water_flow -> profile_flow_hot_water, control_daylight -> daylight_control, and the two DHW vessel convection coefficients move to ...hot_water_tank_vessel_internal / ..._external). ground_floor stays a two-word token. model.physics.outer_cap_fraction is renamed to model.physics.capacitance in this dev bump (pure key rename - still a RCMethod enum with the same values and validation behaviour; the bridge DataFrame column stays rcmethod). The larger relocation of the field under STEBBS and the capacitance-vs-fraction semantics are deferred to a separate workstream. Rename tables STEBBSPROPERTIES_DEV12_RENAMES, ARCHETYPEPROPERTIES_DEV12_RENAMES and MODELPHYSICS_DEV12_RENAMES in src/supy/data_model/core/field_renames.py; the (2026.5.dev11 -> 2026.5.dev12) migration is registered in src/supy/util/converter/yaml_upgrade.py::_HANDLERS and walks both the stebbs and building_archetype containers. Bridge DataFrame columns keep the fused PascalCase ancestry via the chained STEBBSPROPERTIES_DEV9_TO_PASCAL / ARCHETYPEPROPERTIES_DEV7_TO_PASCAL maps and the Rust FIELD_COMPAT_ALIASES entries. building_type was already dropped at dev11 (no new migration drop needed).",
+  "description": "JSON Schema for SUEWS YAML configuration files. Schema version 2026.5.dev13. gh#1456: the six flat STEBBS-scoped physics switches on model.physics are relocated into a single nested object model.physics.stebbs. This is a separate structural reshape from the dev12 Column D rename (gh#1452), so it takes its own dev bump. The legacy tri-state master toggle (model.physics.stebbs, a StebbsMethod integer 0/1/2) is split into stebbs.enabled (bool) + stebbs.parameters (default/provided); the two compose losslessly back to the unchanged stebbsmethod DataFrame column (0 if not enabled else int(parameters)). The dev12 flat model.physics.capacitance (RCMethod; was outer_cap_fraction / fused rcmethod) moves to model.physics.stebbs.capacitance with RCMethod semantics unchanged. model.physics.setpoint, same_albedo_wall, same_albedo_roof, same_emissivity_wall and same_emissivity_roof move under the nested object at the same leaf names. All DataFrame / Fortran column names (stebbsmethod, rcmethod, setpointmethod, same_albedo_*, same_emissivity_*) are unchanged -- only the YAML surface and the Python data-model fields move. The flat->nested fold is registered as the (2026.5.dev12 -> 2026.5.dev13) handler in src/supy/util/converter/yaml_upgrade.py::_HANDLERS and applied by the ModelPhysics before-validator (fold_stebbs_physics in src/supy/data_model/core/field_renames.py). The capacitance-vs-fraction semantics settling (#1456 part 2) is deferred to a follow-up.",
   "properties": {
     "name": {
       "default": "sample config",
@@ -12847,20 +12914,20 @@
       "type": "array"
     }
   },
-  "title": "SUEWS Configuration Schema v2026.5.dev12",
+  "title": "SUEWS Configuration Schema v2026.5.dev13",
   "type": "object",
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://umep-dev.github.io/SUEWS/schema/suews-config/2026.5.dev12.json",
-  "version": "2026.5.dev12",
+  "$id": "https://umep-dev.github.io/SUEWS/schema/suews-config/2026.5.dev13.json",
+  "version": "2026.5.dev13",
   "$comment": {
     "generator": "supy.util.schema_publisher",
     "suews_version": "unknown",
-    "schema_version": "2026.5.dev12"
+    "schema_version": "2026.5.dev13"
   },
   "examples": [
     {
       "name": "minimal_config",
-      "schema_version": "2026.5.dev12",
+      "schema_version": "2026.5.dev13",
       "description": "Minimal SUEWS configuration example",
       "model": {
         "control": {

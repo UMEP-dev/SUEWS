@@ -520,6 +520,15 @@ def test_validate_sidecar_includes_non_error_info_messages(tmp_path: Path) -> No
         for i in all_issues
     ), f"h_std informational issue missing from sidecar: {all_issues}"
 
+    # gh#1467: the consolidated sidecar must not publish stale per-phase
+    # report paths. In a multi-phase run the intermediate temp reports are
+    # merged/deleted, so every phase's report paths point at the surviving
+    # consolidated artefacts, never at a deleted temp_report* file.
+    assert "temp_report" not in sidecar.read_text(encoding="utf-8")
+    for p in payload["phases"]:
+        assert Path(p["text_report_path"]).name == "report_myconfig.txt"
+        assert Path(p["json_report_path"]).name == "report_myconfig.json"
+
 
 def test_validate_sidecar_is_validation_report_for_clean_config(tmp_path: Path) -> None:
     """The consolidated CLI sidecar is a multi-phase ValidationReport even

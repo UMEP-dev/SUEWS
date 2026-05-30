@@ -1035,6 +1035,20 @@ def _emit_pipeline_result(
     has_errors = any(p.has_errors for p in phases)
     ok = not has_errors
 
+    # gh#1467: in a consolidated run the per-phase intermediate reports are
+    # merged into (and deleted in favour of) the single final report at
+    # report_path. Their in-memory PhaseReport objects still carry the
+    # intermediate temp_report*/updated* paths, so repoint each phase's
+    # report paths at the surviving consolidated artefacts before publishing
+    # them — otherwise the JSON sidecar and envelope advertise paths to
+    # files that no longer exist.
+    if report_path:
+        final_text_report = str(report_path)
+        final_json_report = str(Path(report_path).with_suffix(".json"))
+        for phase_report in phases:
+            phase_report.text_report_path = final_text_report
+            phase_report.json_report_path = final_json_report
+
     # gh#1467: persist the consolidated multi-phase ValidationReport as the
     # JSON sidecar next to the final text report, in BOTH table and json
     # output modes (the sidecar is a disk artefact, independent of stdout).

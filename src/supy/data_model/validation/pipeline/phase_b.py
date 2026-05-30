@@ -304,6 +304,8 @@ def validate_phase_b_inputs(
             raise FileNotFoundError(f"Required file not found: {file_path}")
 
     try:
+        from ...core.physics_families import flatten_physics_in_config
+
         with open(uptodate_yaml_file, "r") as f:
             uptodate_content = f.read()
             # Normalise legacy field spellings to current names so the science
@@ -320,6 +322,11 @@ def validate_phase_b_inputs(
 
         with open(standard_yaml_file, "r") as f:
             standard_data = yaml.safe_load(f)
+
+        # Collapse readable physics names for raw-dict science checks.
+        flatten_physics_in_config(uptodate_data)
+        flatten_physics_in_config(user_data)
+        flatten_physics_in_config(standard_data)
 
     except yaml.YAMLError as e:
         raise ValueError(f"Invalid YAML format: {e}")

@@ -478,3 +478,44 @@ def test_validate_passes_when_critical_physics_present(tmp_path: Path) -> None:
     assert physics_findings == [], (
         "sample config should not trigger physics structural-presence findings"
     )
+
+
+def test_validate_sidecar_includes_non_error_info_messages(tmp_path: Path) -> None:
+    """gh#1467: the consolidated CLI JSON sidecar carries non-error issues.
+
+    Dropping the optional ``sites[0].properties.h_std`` makes the run
+    succeed (exit 0) while Phase A records a non-error ``A.MISSING_PARAM``
+    warning. That informational message must appear in the JSON sidecar,
+    not only in the text report. Anchored on the deterministic ``h_std``
+    signal (the sample config's Phase B issues are environment-dependent).
+    """
+    from supy.cmd.validate_config import cli as validate_cli
+
+    with _sample_yaml_path() as sample:
+        data = yaml.safe_load(sample.read_text(encoding="utf-8"))
+    data["sites"][0]["properties"].pop("h_std")
+
+    config_path = tmp_path / "myconfig.yml"
+    _write_yaml(config_path, data)
+
+    runner = CliRunner()
+    result = runner.invoke(validate_cli, ["--forcing", "off", str(config_path)])
+    assert result.exit_code == 0, result.output
+
+    sidecar = tmp_path / "report_myconfig.json"
+    assert sidecar.exists(), "sidecar JSON not written"
+    payload = json.loads(sidecar.read_text(encoding="utf-8"))
+
+    # Consolidated sidecar is a multi-phase ValidationReport (gh#1467),
+    # not a single Phase-C PhaseReport.
+    assert "overall_status" in payload, payload.keys()
+    assert isinstance(payload.get("phases"), list)
+    assert {p["phase"] for p in payload["phases"]} >= {"A", "B", "C"}
+
+    all_issues = [i for p in payload["phases"] for i in p["issues"]]
+    assert any(
+        i["code"] == "A.MISSING_PARAM"
+        and "h_std" in (i.get("yaml_path") or "")
+        and i["severity"] != "ERROR"
+        for i in all_issues
+    ), f"h_std informational issue missing from sidecar: {all_issues}"

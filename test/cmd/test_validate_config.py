@@ -549,7 +549,7 @@ def test_validate_sidecar_keeps_info_alongside_errors(tmp_path: Path) -> None:
 
     with _sample_yaml_path() as sample:
         data = yaml.safe_load(sample.read_text(encoding="utf-8"))
-    data["sites"][0]["properties"].pop("h_std")               # -> A.MISSING_PARAM (info)
+    data["sites"][0]["properties"].pop("h_std")  # -> A.MISSING_PARAM (info)
     data["sites"][0]["properties"]["bogus_extra_param"] = 42  # -> C.PYDANTIC error
 
     config_path = tmp_path / "bad.yml"

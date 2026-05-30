@@ -154,12 +154,14 @@ class ValidationReport:
 
 @dataclass(frozen=True)
 class JSONReportWriter:
-    """Writes a ``PhaseReport`` to a JSON sidecar file."""
+    """Writes a ``PhaseReport`` or ``ValidationReport`` to a JSON sidecar file."""
 
     encoding: str = "utf-8"
     indent: int = 2
 
-    def write(self, filepath: PathLike, report: PhaseReport) -> None:
+    def write(
+        self, filepath: PathLike, report: Union[PhaseReport, ValidationReport]
+    ) -> None:
         path = Path(filepath)
         text = json.dumps(report.to_dict(), indent=self.indent, ensure_ascii=False)
         with path.open("w", encoding=self.encoding, newline="\n") as handle:

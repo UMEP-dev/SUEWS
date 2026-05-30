@@ -973,15 +973,14 @@ def _write_consolidated_sidecar(phases: list, report_path) -> None:
     if not report_path:
         return
 
-    from ..data_model.validation.pipeline.report_schema import ValidationReport
+    from ..data_model.validation.pipeline.report_schema import (
+        JSON_REPORT_WRITER,
+        ValidationReport,
+    )
 
     json_path = Path(report_path).with_suffix(".json")
     try:
-        payload = ValidationReport(phases=list(phases)).to_dict()
-        json_path.write_text(
-            json.dumps(payload, indent=2, ensure_ascii=False) + "\n",
-            encoding="utf-8",
-        )
+        JSON_REPORT_WRITER.write(json_path, ValidationReport(phases=list(phases)))
     except (OSError, TypeError, ValueError) as exc:
         if os.environ.get("SUEWS_DEBUG", "").lower() in ("1", "true", "yes"):
             print(

@@ -84,9 +84,7 @@ def validate_physics_parameters(context) -> List[ValidationResult]:
         "same_emissivity_wall",
         "same_emissivity_roof",
     ]
-    stebbs_block = physics.get("stebbs")
-    if not isinstance(stebbs_block, Mapping):
-        stebbs_block = {}
+    stebbs_block = get_stebbs_block(physics)
 
     # (display path, container, key) for every required physics switch.
     # The family switches are read from the flat model.physics dict; the
@@ -505,12 +503,7 @@ def validate_model_option_rcmethod(context) -> List[ValidationResult]:
     results = []
     physics = yaml_data.get("model", {}).get("physics", {})
     # gh#1456: capacitance method moved to model.physics.stebbs.capacitance.
-    # Use Mapping (not dict) so the read-only mappingproxy the validation
-    # context wraps nested dicts in is accepted.
-    stebbs_block = physics.get("stebbs")
-    if not isinstance(stebbs_block, Mapping):
-        stebbs_block = {}
-    rcmethod_value = get_value_safe(stebbs_block, "capacitance")
+    rcmethod_value = get_value_safe(get_stebbs_block(physics), "capacitance")
 
     sites = yaml_data.get("sites", [])
     for site_idx, site in enumerate(sites):

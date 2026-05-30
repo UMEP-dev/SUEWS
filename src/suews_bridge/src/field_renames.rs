@@ -787,6 +787,16 @@ fn collapse_nested_physics(root: &mut Value) -> Result<(), String> {
 /// `src/supy/data_model/core/field_renames.py` (gh#1456). A `stebbs` mapping
 /// carrying any of these is the new nested object; a `{value: N}` /
 /// scalar `stebbs` is the legacy master toggle and is left untouched.
+///
+/// gh#1456: `ref` is deliberately NOT a discriminating key. A legacy flat
+/// master toggle carrying provenance is a RefValue scalar -- `{value: 1, ref:
+/// {...}}` -- whose only keys are `value`/`ref`; treating `ref` as a nested
+/// marker would misclassify that scalar as the new nested object, silently
+/// reading the absent `enabled` as `false` and flipping `stebbsmethod` to 0.
+/// A genuine nested block always carries `enabled`/`parameters`/a leaf name
+/// alongside any optional `ref`, so `ref` is never the sole discriminator.
+/// See `is_stebbs_refvalue_scalar`. This keeps the Rust and Python
+/// nested-detection predicates identical.
 const STEBBS_NESTED_KEYS: &[&str] = &[
     "enabled",
     "parameters",
@@ -796,12 +806,21 @@ const STEBBS_NESTED_KEYS: &[&str] = &[
     "same_albedo_roof",
     "same_emissivity_wall",
     "same_emissivity_roof",
-    // gh#1456: mirror Python's `_STEBBS_NESTED_KEYS`, which includes the
-    // provenance `ref` leaf so a nested block carrying only `ref` is still
-    // recognised as the nested object (keeps the two nested-detection
-    // predicates identical across the Python and Rust layers).
-    "ref",
 ];
+
+/// Return true for a `{value: ...}` / `{value: ..., ref: ...}` scalar. Such a
+/// mapping is a RefValue-wrapped legacy master toggle, never the new nested
+/// `StebbsPhysics` object (gh#1456). Mirrors `_is_stebbs_refvalue_scalar` in
+/// the Python fold.
+fn is_stebbs_refvalue_scalar(map: &serde_yaml::Mapping) -> bool {
+    let has_value = map.contains_key(Value::String("value".into()));
+    if !has_value {
+        return false;
+    }
+    map.keys().all(|k| {
+        matches!(k, Value::String(s) if s == "value" || s == "ref")
+    })
+}
 
 /// `(nested_leaf, fused_flat_key)` for the five non-master STEBBS switches.
 /// `capacitance` / `setpoint` fold to the fused DataFrame columns the parser
@@ -888,6 +907,9 @@ fn flatten_stebbs_physics(root: &mut Value) -> Result<(), String> {
 
     let stebbs_key = Value::String("stebbs".into());
     let is_nested = match physics.get(&stebbs_key) {
+        // A `{value: N}` / `{value: N, ref: {...}}` RefValue scalar is the
+        // legacy master toggle, NOT the nested object (gh#1456).
+        Some(Value::Mapping(map)) if is_stebbs_refvalue_scalar(map) => false,
         Some(Value::Mapping(map)) => STEBBS_NESTED_KEYS
             .iter()
             .any(|leaf| map.contains_key(Value::String((*leaf).to_string()))),
@@ -1548,6 +1570,40 @@ model:
         let mut root: Value = from_str(yaml).unwrap();
         let err = normalize_field_names(&mut root).expect_err("ambiguous input must fail");
         assert!(err.contains("nested 'model.physics.stebbs'"), "error was: {err}");
+    }
+
+    #[test]
+    fn legacy_stebbs_master_toggle_with_ref_stays_legacy() {
+        // gh#1456 regression: a legacy master toggle carrying provenance --
+        // `stebbs: {value: 1, ref: {...}}` -- is a RefValue scalar, NOT the
+        // nested object. Its keys are exactly {value, ref}; treating `ref` as
+        // a nested marker would read the absent `enabled` as false and flip
+        // stebbsmethod to 0. It must compose to 1 (enabled), not 0.
+        let yaml = "\
+model:
+  physics:
+    stebbs:
+      value: 1
+      ref: {desc: 'STEBBS on', DOI: '10.0/x'}
+";
+        let mut root: Value = from_str(yaml).unwrap();
+        normalize_field_names(&mut root).unwrap();
+        assert_eq!(physics_i64(&root, "stebbsmethod"), Some(1));
+    }
+
+    #[test]
+    fn legacy_stebbs_master_toggle_with_ref_disabled() {
+        // The same RefValue-scalar path with value 0 -> disabled (stebbsmethod 0).
+        let yaml = "\
+model:
+  physics:
+    stebbs:
+      value: 0
+      ref: {desc: 'STEBBS off'}
+";
+        let mut root: Value = from_str(yaml).unwrap();
+        normalize_field_names(&mut root).unwrap();
+        assert_eq!(physics_i64(&root, "stebbsmethod"), Some(0));
     }
 
     #[test]

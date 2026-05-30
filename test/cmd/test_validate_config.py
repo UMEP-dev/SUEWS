@@ -402,6 +402,82 @@ def test_validate_flags_missing_critical_physics_params(tmp_path: Path) -> None:
     )
 
 
+def test_validate_flat_stebbs_form_not_flagged_missing(tmp_path: Path) -> None:
+    """gh#1456 regression: a current-target YAML in the legacy FLAT form.
+
+    The relocated STEBBS leaves (``capacitance``/``setpoint``/``same_*``)
+    may still be written flat under ``model.physics`` alongside a flat
+    ``stebbs: {value: 1}`` master toggle. ``SUEWSConfig.from_yaml`` folds
+    those flat keys to the nested ``stebbs`` block and accepts them, so
+    the dry-run critical-physics check must too. Before the fix it looked
+    for the leaves only inside ``physics["stebbs"]`` and false-reported
+    them missing.
+    """
+    from supy.cmd.validate_config import validate_single_file
+    from supy.data_model.schema.publisher import generate_json_schema
+    from supy.data_model.schema.version import CURRENT_SCHEMA_VERSION
+
+    payload = _minimal_paved_only_config(CURRENT_SCHEMA_VERSION)
+    # Populate every required family switch plus the relocated STEBBS leaves
+    # in the FLAT form (directly under model.physics, with a flat master
+    # toggle). This is a still-accepted shape that the loader folds.
+    payload["model"]["physics"] = {
+        "net_radiation": {"value": 3},
+        "emissions": {"value": 2},
+        "storage_heat": {"value": 1},
+        "ohm_inc_qf": {"value": 0},
+        "roughness_length_momentum": {"value": 2},
+        "roughness_length_heat": {"value": 2},
+        "stability": {"value": 3},
+        "soil_moisture_deficit": {"value": 0},
+        "water_use": {"value": 0},
+        "roughness_sublayer": {"value": 1},
+        "frontal_area_index": {"value": 0},
+        "roughness_sublayer_level": {"value": 0},
+        "surface_conductance": {"value": 1},
+        "snow_use": {"value": 0},
+        # Flat STEBBS master toggle + relocated leaves (legacy flat form).
+        "stebbs": {"value": 1},
+        "capacitance": {"value": 1},
+        "setpoint": {"value": 0},
+        "same_albedo_wall": {"value": 1},
+        "same_albedo_roof": {"value": 1},
+        "same_emissivity_wall": {"value": 1},
+        "same_emissivity_roof": {"value": 1},
+    }
+    config_path = tmp_path / "flat_stebbs.yml"
+    _write_yaml(config_path, payload)
+
+    schema = generate_json_schema()
+    _is_valid, errors = validate_single_file(config_path, schema, show_details=True)
+
+    # The relocated leaves must NOT appear as missing critical physics
+    # parameters now that the dry-run path folds the flat form first.
+    missing_stebbs = [
+        field
+        for err in errors
+        for field in [getattr(err, "field", "") or ""]
+        if field.startswith("model.physics.stebbs.")
+        and "missing" in (getattr(err, "message", "") or "").lower()
+    ]
+    assert not missing_stebbs, (
+        f"flat-form STEBBS leaves false-flagged missing: {missing_stebbs}"
+    )
+    # And none of the required family switches should be missing either.
+    missing_flat = [
+        field
+        for err in errors
+        for field in [getattr(err, "field", "") or ""]
+        if field.startswith("model.physics.")
+        and not field.startswith("model.physics.stebbs.")
+        and "required physics parameter is missing"
+        in (getattr(err, "message", "") or "")
+    ]
+    assert not missing_flat, (
+        f"flat-form physics switches false-flagged missing: {missing_flat}"
+    )
+
+
 def test_validate_full_pipeline_emits_json_envelope(tmp_path: Path) -> None:
     """The non-dry-run pipeline path must honour ``--format json`` and
     emit a canonical envelope on stdout (gh#1409 follow-up).

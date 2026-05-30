@@ -50,6 +50,7 @@ except ImportError:
 from supy.data_model.validation.pipeline.phase_a import (
     PHYSICS_OPTIONS,
     RENAMED_PARAMS,
+    _is_default_backed_control_path,
     annotate_missing_parameters,
     create_analysis_report,
     create_clean_missing_param_annotation,
@@ -197,6 +198,106 @@ sites:
         # Test that all PHYSICS_OPTIONS entries are classified correctly
         for physics_param in PHYSICS_OPTIONS:
             self.assertTrue(is_physics_option(f"model.physics.{physics_param}"))
+
+    def test_stebbs_toggle_omission_not_flagged_critical(self):
+        """gh#1456 regression: omitting stebbs.enabled/.parameters is fine.
+
+        ``enabled`` (default false) and ``parameters`` (default DEFAULT) carry
+        safe model defaults. A user who provides a nested ``stebbs`` block but
+        leaves the master toggle out must NOT have those two flagged as missing
+        critical physics parameters. This keeps Phase A consistent with Phase B
+        (physics_rules.py), which deliberately requires only the relocated
+        leaves (capacitance / setpoint / same_*), not the toggle.
+        """
+        # Both toggle keys are recognised physics-option paths...
+        self.assertTrue(is_physics_option("model.physics.stebbs.enabled"))
+        self.assertTrue(is_physics_option("model.physics.stebbs.parameters"))
+        # ...but they are treated as default-backed, so omission is not required.
+        self.assertTrue(
+            _is_default_backed_control_path("model.physics.stebbs.enabled")
+        )
+        self.assertTrue(
+            _is_default_backed_control_path("model.physics.stebbs.parameters")
+        )
+
+        # A nested stebbs block that omits enabled/parameters but provides the
+        # relocated leaves.
+        user_yaml = {
+            "name": "test config",
+            "model": {
+                "control": {"tstep": 300},
+                "physics": {
+                    **{
+                        param: {"value": 1}
+                        for param in (
+                            "net_radiation",
+                            "emissions",
+                            "storage_heat",
+                            "ohm_inc_qf",
+                            "roughness_length_momentum",
+                            "roughness_length_heat",
+                            "stability",
+                            "soil_moisture_deficit",
+                            "water_use",
+                            "roughness_sublayer",
+                            "frontal_area_index",
+                            "roughness_sublayer_level",
+                            "surface_conductance",
+                            "snow_use",
+                        )
+                    },
+                    "stebbs": {
+                        # enabled / parameters deliberately omitted.
+                        "capacitance": {"value": 1},
+                        "setpoint": {"value": 0},
+                        "same_albedo_wall": {"value": 1},
+                        "same_albedo_roof": {"value": 1},
+                        "same_emissivity_wall": {"value": 1},
+                        "same_emissivity_roof": {"value": 1},
+                    },
+                },
+            },
+            "sites": [{"name": "test", "gridiv": 1}],
+        }
+
+        missing_params = find_missing_parameters(user_yaml, self.standard_data)
+        missing_paths = {path for path, _, _ in missing_params}
+        self.assertNotIn(
+            "model.physics.stebbs.enabled",
+            missing_paths,
+            "stebbs.enabled is default-backed; omitting it must not be flagged",
+        )
+        self.assertNotIn(
+            "model.physics.stebbs.parameters",
+            missing_paths,
+            "stebbs.parameters is default-backed; omitting it must not be flagged",
+        )
+
+        # Sanity: a genuinely missing required physics option IS still flagged
+        # critical (so the fix does not blanket-suppress physics detection).
+        user_yaml_missing_netrad = {
+            "name": "test config",
+            "model": {
+                "control": {"tstep": 300},
+                "physics": {
+                    "emissions": {"value": 2},
+                    # net_radiation deliberately absent.
+                    "storage_heat": {"value": 1},
+                },
+            },
+            "sites": [{"name": "test", "gridiv": 1}],
+        }
+        missing2 = find_missing_parameters(
+            user_yaml_missing_netrad, self.standard_data
+        )
+        critical2 = {
+            path for path, _, is_physics in missing2 if is_physics
+        }
+        self.assertIn(
+            "model.physics.net_radiation",
+            critical2,
+            "a genuinely missing required physics option must stay critical",
+        )
 
     def test_missing_parameter_detection_physics(self):
         """Test detection of missing URGENT physics parameters."""

@@ -543,6 +543,45 @@ class TestStebbsPhysicsFold:
         ]
         assert len(fold_msgs) == 1, f"expected one fold warning, got {fold_msgs}"
 
+    def test_legacy_master_toggle_with_ref_stays_legacy(self):
+        """gh#1456 regression: a legacy master toggle carrying provenance.
+
+        ``model.physics.stebbs: {value: 1, ref: {...}}`` is a RefValue scalar
+        (its only keys are ``value``/``ref``), NOT the new nested object.
+        Before the fix, ``ref`` discriminated it as nested, so its ``value``
+        was ignored and ``enabled`` defaulted to false -- silently flipping
+        ``stebbsmethod`` from 1 (enabled) to 0 (disabled).
+        """
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", DeprecationWarning)
+            mp_enabled = ModelPhysics(
+                stebbs={"value": 1, "ref": {"desc": "STEBBS on", "DOI": "10.0/x"}}
+            )
+        # value 1 -> enabled + default parameters; composes to stebbsmethod 1.
+        assert _unwrap(mp_enabled.stebbs.enabled) is True
+        assert int(_unwrap(mp_enabled.stebbs.parameters)) == 1
+        df_enabled = mp_enabled.to_df_state(grid_id=1)
+        assert int(df_enabled.loc[1, ("stebbsmethod", "0")]) == 1
+
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", DeprecationWarning)
+            mp_provided = ModelPhysics(
+                stebbs={"value": 2, "ref": {"desc": "STEBBS provided"}}
+            )
+        # value 2 -> enabled + provided parameters; composes to stebbsmethod 2.
+        assert _unwrap(mp_provided.stebbs.enabled) is True
+        assert int(_unwrap(mp_provided.stebbs.parameters)) == 2
+        df_provided = mp_provided.to_df_state(grid_id=1)
+        assert int(df_provided.loc[1, ("stebbsmethod", "0")]) == 2
+
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", DeprecationWarning)
+            mp_off = ModelPhysics(stebbs={"value": 0})
+        # value 0 -> disabled; composes to stebbsmethod 0.
+        assert _unwrap(mp_off.stebbs.enabled) is False
+        df_off = mp_off.to_df_state(grid_id=1)
+        assert int(df_off.loc[1, ("stebbsmethod", "0")]) == 0
+
     def test_migrator_folds_flat_physics(self):
         """The yaml_upgrade migrator folds flat physics STEBBS keys to nested."""
         from supy.util.converter.yaml_upgrade import _apply_stebbs_physics_fold

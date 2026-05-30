@@ -11,6 +11,7 @@ import json
 import sys
 import os
 from contextlib import nullcontext as _nullcontext
+from copy import deepcopy
 from pathlib import Path
 import importlib.resources
 from typing import Optional, List
@@ -66,6 +67,7 @@ try:
     from ..data_model.core.config import SUEWSConfig
     from ..data_model.core.field_renames import (
         read_physics_key,
+        fold_stebbs_physics as _fold_stebbs_physics,
         STEBBS_PHYSICS_LEAF_RENAMES as _STEBBS_PHYSICS_LEAF_RENAMES,
     )
     from ..data_model.schema.version import CURRENT_SCHEMA_VERSION
@@ -79,6 +81,7 @@ except ImportError:
     from supy.data_model.core.config import SUEWSConfig
     from supy.data_model.core.field_renames import (
         read_physics_key,
+        fold_stebbs_physics as _fold_stebbs_physics,
         STEBBS_PHYSICS_LEAF_RENAMES as _STEBBS_PHYSICS_LEAF_RENAMES,
     )
     from supy.data_model.schema.version import CURRENT_SCHEMA_VERSION
@@ -180,8 +183,19 @@ def validate_single_file(
             # those leaves up inside the nested `stebbs` block rather than flat
             # on physics. The nested-leaf names are the values of
             # STEBBS_PHYSICS_LEAF_RENAMES.
+            #
+            # A current-target YAML may still be written in the legacy FLAT
+            # form (`capacitance`/`setpoint`/`same_*` directly under
+            # model.physics, with a flat `stebbs` master toggle) -- the real
+            # loader (SUEWSConfig.from_yaml) folds those flat keys to the
+            # nested shape and accepts them. Apply the SAME fold to a deep copy
+            # here before the per-leaf lookup so the dry-run path agrees with
+            # the loader instead of false-reporting the leaves missing.
+            folded_physics = _fold_stebbs_physics(
+                deepcopy(user_physics), "model.physics"
+            )
             stebbs_leaf_names = set(_STEBBS_PHYSICS_LEAF_RENAMES.values())
-            user_stebbs = user_physics.get("stebbs")
+            user_stebbs = folded_physics.get("stebbs")
             if not isinstance(user_stebbs, dict):
                 user_stebbs = {}
             for param_name in CRITICAL_PHYSICS_PARAMS:

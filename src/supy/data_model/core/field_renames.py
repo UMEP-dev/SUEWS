@@ -1345,9 +1345,35 @@ STEBBS_PHYSICS_LEAF_RENAMES: Dict[str, str] = {
 }
 
 # The nested-object keys (so a YAML already in the new shape passes through).
+#
+# gh#1456: `ref` is deliberately NOT in this discriminating set. A legacy flat
+# master toggle carrying provenance is a RefValue scalar -- `{value: 1, ref:
+# {...}}` -- whose only keys are `value`/`ref`; including `ref` here would
+# misclassify that scalar as the new nested object, silently dropping its
+# `value` and defaulting `enabled` to false. A genuine nested block always
+# carries `enabled`/`parameters`/a leaf name alongside any optional `ref`, so
+# `ref` is never the sole discriminator. See `_is_stebbs_refvalue_scalar`.
 _STEBBS_NESTED_KEYS = frozenset(
-    {"enabled", "parameters", *STEBBS_PHYSICS_LEAF_RENAMES.values(), "ref"}
+    {"enabled", "parameters", *STEBBS_PHYSICS_LEAF_RENAMES.values()}
 )
+
+# A RefValue-style scalar wraps only `value` (and optionally `ref`). Such a
+# mapping is the LEGACY master toggle, never the nested StebbsPhysics object.
+_STEBBS_REFVALUE_KEYS = frozenset({"value", "ref"})
+
+
+def _is_stebbs_refvalue_scalar(entry: Any) -> bool:
+    """Return True for a ``{"value": ...}`` / ``{"value": ..., "ref": ...}`` scalar.
+
+    Such a mapping is a RefValue-wrapped legacy master toggle and must be
+    decomposed via ``_decompose_stebbs_master`` rather than treated as the new
+    nested ``StebbsPhysics`` object (gh#1456).
+    """
+    return (
+        isinstance(entry, Mapping)
+        and "value" in entry
+        and set(entry) <= _STEBBS_REFVALUE_KEYS
+    )
 
 
 def _unwrap_scalar(entry: Any) -> Any:
@@ -1420,6 +1446,7 @@ def fold_stebbs_physics(values: dict, class_name: str) -> dict:
 
     nested_already = (
         isinstance(existing, Mapping)
+        and not _is_stebbs_refvalue_scalar(existing)
         and any(k in existing for k in _STEBBS_NESTED_KEYS)
     )
 

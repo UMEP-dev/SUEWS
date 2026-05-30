@@ -1035,19 +1035,27 @@ def _emit_pipeline_result(
     has_errors = any(p.has_errors for p in phases)
     ok = not has_errors
 
-    # gh#1467: in a consolidated run the per-phase intermediate reports are
-    # merged into (and deleted in favour of) the single final report at
-    # report_path. Their in-memory PhaseReport objects still carry the
-    # intermediate temp_report*/updated* paths, so repoint each phase's
-    # report paths at the surviving consolidated artefacts before publishing
-    # them — otherwise the JSON sidecar and envelope advertise paths to
-    # files that no longer exist.
+    # gh#1467: in a consolidated run the per-phase intermediate artefacts
+    # (temp_report*_ reports, updated*_ YAMLs) are merged into and deleted in
+    # favour of the single final report/YAML. Their in-memory PhaseReport
+    # objects still carry the intermediate paths, so normalise each phase's
+    # paths to the surviving artefacts before publishing them — otherwise the
+    # JSON sidecar and envelope advertise paths to files that no longer exist.
     if report_path:
         final_text_report = str(report_path)
         final_json_report = str(Path(report_path).with_suffix(".json"))
+        final_updated_yaml = str(yaml_path) if yaml_path else None
         for phase_report in phases:
+            # The consolidated report supersedes the per-phase reports.
             phase_report.text_report_path = final_text_report
             phase_report.json_report_path = final_json_report
+            # Repoint a vanished yaml_out at the surviving final YAML and
+            # clear a vanished yaml_in. Paths that still exist (the original
+            # user YAML, or a single-phase run's own output) are left intact.
+            if phase_report.yaml_out and not Path(phase_report.yaml_out).exists():
+                phase_report.yaml_out = final_updated_yaml
+            if phase_report.yaml_in and not Path(phase_report.yaml_in).exists():
+                phase_report.yaml_in = None
 
     # gh#1467: persist the consolidated multi-phase ValidationReport as the
     # JSON sidecar next to the final text report, in BOTH table and json

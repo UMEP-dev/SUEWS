@@ -520,14 +520,19 @@ def test_validate_sidecar_includes_non_error_info_messages(tmp_path: Path) -> No
         for i in all_issues
     ), f"h_std informational issue missing from sidecar: {all_issues}"
 
-    # gh#1467: the consolidated sidecar must not publish stale per-phase
-    # report paths. In a multi-phase run the intermediate temp reports are
-    # merged/deleted, so every phase's report paths point at the surviving
-    # consolidated artefacts, never at a deleted temp_report* file.
+    # gh#1467: the consolidated sidecar must not publish paths to files that
+    # no longer exist. In a multi-phase run the intermediate temp reports and
+    # updated*_ YAMLs are merged/deleted, so every path the sidecar advertises
+    # must resolve, and report paths point at the surviving consolidated pair.
     assert "temp_report" not in sidecar.read_text(encoding="utf-8")
     for p in payload["phases"]:
         assert Path(p["text_report_path"]).name == "report_myconfig.txt"
         assert Path(p["json_report_path"]).name == "report_myconfig.json"
+        for key in ("text_report_path", "json_report_path", "yaml_in", "yaml_out"):
+            val = p.get(key)
+            assert val is None or Path(val).exists(), (
+                f"sidecar phase {p['phase']} {key}={val} does not exist"
+            )
 
 
 def test_validate_sidecar_is_validation_report_for_clean_config(tmp_path: Path) -> None:

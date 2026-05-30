@@ -1149,8 +1149,16 @@ def _run_phase_c_legacy(
                         ):
                             consolidated_no_action.append(line.strip())
 
-                # Only add INFO section if there are items to show
-                if consolidated_no_action:
+                # A single-phase Phase C run that detected defaults reports
+                # them as the whole story (INFO-only). For multi-phase runs
+                # the upstream sections (Phase A renames, Phase B REVIEW
+                # ADVISED / SUGGESTED UPDATES carried in no_action_messages)
+                # are consolidated below and must NOT be replaced by an
+                # INFO-only report — see gh#1458, gh#1466. Defer to
+                # create_consolidated_report in that case.
+                if consolidated_no_action and not (
+                    phases_run and len(phases_run) > 1
+                ):
                     success_report = f"""# {title}
 # ============================================
 # Mode: {"Public" if mode.lower() == "public" else mode.title()}
@@ -1198,8 +1206,10 @@ def _run_phase_c_legacy(
                             print(f"[DEBUG]   Taking multi-phase consolidation path", file=sys.stderr)
                         # Multi-phase consolidation: use passed messages or extract from files
                         if no_action_messages is not None:
-                            # Use passed messages (variable-based approach)
-                            all_messages = no_action_messages
+                            # Use passed messages (variable-based approach).
+                            # Copy so the INFO prepend below cannot mutate the
+                            # caller's list.
+                            all_messages = list(no_action_messages)
                         else:
                             # Fallback: extract from files (file-based approach)
                             all_messages = []
@@ -1219,6 +1229,17 @@ def _run_phase_c_legacy(
                                         science_report_file
                                     )
                                 )
+
+                        # Fold any defaults Phase C detected itself (e.g. a
+                        # missing schema_version) into the INFO section so they
+                        # appear alongside the upstream phase sections rather
+                        # than replacing them (gh#1458, gh#1466).
+                        if consolidated_no_action:
+                            all_messages = [
+                                "## INFO",
+                                *consolidated_no_action,
+                                *all_messages,
+                            ]
 
                         # Create consolidated final report
                         create_consolidated_report(

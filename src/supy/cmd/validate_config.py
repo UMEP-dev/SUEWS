@@ -947,6 +947,49 @@ def _format_phase_output(
     return None
 
 
+def _write_consolidated_sidecar(phases: list, report_path) -> None:
+    """Write the consolidated multi-phase ``ValidationReport`` JSON sidecar.
+
+    gh#1467: the CLI sidecar (``<report>.json``) carries the full
+    multi-phase ``ValidationReport`` (every phase, every severity) so
+    non-error informational messages reach machine consumers, not just
+    validation errors. The payload is identical to the stdout
+    ``--format json`` envelope's ``data.validation_report``.
+
+    This supersedes the Phase-C-only ``PhaseReport`` sidecar that
+    ``run_phase_c`` (and the move/copy helpers) leave at this path during
+    the pipeline run. A serialisation or I/O failure is swallowed (with a
+    ``SUEWS_DEBUG`` note) so a sidecar problem never breaks validation,
+    mirroring ``_sync_report_json_paths``.
+
+    Parameters
+    ----------
+    phases : list
+        The ``PhaseReport`` objects for the phases that ran, in order.
+    report_path : str or pathlib.Path
+        Final text report path; the sidecar is written beside it with a
+        ``.json`` suffix.
+    """
+    if not report_path:
+        return
+
+    from ..data_model.validation.pipeline.report_schema import ValidationReport
+
+    json_path = Path(report_path).with_suffix(".json")
+    try:
+        payload = ValidationReport(phases=list(phases)).to_dict()
+        json_path.write_text(
+            json.dumps(payload, indent=2, ensure_ascii=False) + "\n",
+            encoding="utf-8",
+        )
+    except (OSError, TypeError, ValueError) as exc:
+        if os.environ.get("SUEWS_DEBUG", "").lower() in ("1", "true", "yes"):
+            print(
+                f"[DEBUG] consolidated sidecar write failed for {json_path}: {exc}",
+                file=sys.stderr,
+            )
+
+
 def _emit_pipeline_result(
     phases: list,
     report_path,
@@ -992,6 +1035,11 @@ def _emit_pipeline_result(
 
     has_errors = any(p.has_errors for p in phases)
     ok = not has_errors
+
+    # gh#1467: persist the consolidated multi-phase ValidationReport as the
+    # JSON sidecar next to the final text report, in BOTH table and json
+    # output modes (the sidecar is a disk artefact, independent of stdout).
+    _write_consolidated_sidecar(phases, report_path)
 
     if out_format == "json":
         validation_report = ValidationReport(phases=list(phases))

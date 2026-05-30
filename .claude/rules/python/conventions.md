@@ -36,7 +36,9 @@ SUEWS-specific Python conventions. Complements ruff for standard linting.
    def bar(items: Optional[list[int]]): ...
    ```
    **Why**: PEP 604 union syntax (`X | Y`) requires Python 3.10+. Pydantic evaluates
-   type hints at runtime, so `from __future__ import annotations` is not a safe workaround.
+   type hints at runtime, so `from __future__ import annotations` is not a safe
+   workaround. Enforced by ruff rule `FA102` (configured in `.ruff.toml`), which is
+   marked `unfixable` there because its autofix would add the unsafe future import.
 
 2. **Config separation**: No config objects in low-level functions
    ```python
@@ -50,7 +52,7 @@ SUEWS-specific Python conventions. Complements ruff for standard linting.
 
 5. **pathlib**: Use `Path` not `os.path`
 
-5. **UTF-8 encoding**: Always specify `encoding="utf-8"` for file operations
+6. **UTF-8 encoding**: Always specify `encoding="utf-8"` for file operations
    ```python
    # BAD: Windows default encoding (cp1252/cp1253) breaks Unicode
    with open(path, "w") as f:

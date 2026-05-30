@@ -4701,3 +4701,133 @@ class TestPhaseBRenameAwareLookups:
         flagged = self._empty_param_errors(physics)
         assert "model.physics.net_radiation" not in flagged
         assert "model.physics.capacitance" not in flagged
+
+
+class TestStandaloneValidationRenameNormalisation:
+    """gh#1457: the standalone Phase B/C validation path (``suews validate`` in
+    BC / C / AC modes) inspects the raw user YAML without going through
+    ``SUEWSConfig.from_yaml``'s normalisation. A normalise-once step at each
+    phase's load chokepoint lets every rule match a legacy spelling of a renamed
+    field. These guard the chokepoints rather than the individual rules (the
+    per-rule routing is covered by ``TestPhaseBRenameAwareLookups``).
+    """
+
+    def test_normalise_helper_rewrites_nested_legacy(self):
+        from supy.data_model.core.field_renames import normalise_yaml_renames
+
+        out = normalise_yaml_renames(
+            {"sites": [{"stebbs": {"outer_cap_fraction": {"value": 1}}}]}
+        )
+        assert out["sites"][0]["stebbs"] == {"capacitance": {"value": 1}}
+
+    def test_normalise_helper_idempotent_on_current_names(self):
+        from supy.data_model.core.field_renames import normalise_yaml_renames
+
+        current = {"sites": [{"stebbs": {"capacitance": {"value": 1}}}]}
+        assert normalise_yaml_renames(current) == current
+
+    def test_normalise_helper_keeps_ambiguous_config_unchanged(self):
+        # Both a legacy and its current spelling present is ambiguous; the helper
+        # must return the data untouched (not raise) so the downstream validator
+        # reports the conflict. This guarantees normalisation can only resolve
+        # rename-blindness, never introduce a new failure.
+        from supy.data_model.core.field_renames import normalise_yaml_renames
+
+        both = {
+            "physics": {
+                "outer_cap_fraction": {"value": 1},
+                "capacitance": {"value": 2},
+            }
+        }
+        assert normalise_yaml_renames(both) == both
+
+    def test_normalise_helper_passes_through_non_mappings(self):
+        from supy.data_model.core.field_renames import normalise_yaml_renames
+
+        assert normalise_yaml_renames([1, 2]) == [1, 2]
+        assert normalise_yaml_renames("scalar") == "scalar"
+        assert normalise_yaml_renames(None) is None
+
+    def test_phase_b_load_normalises_legacy_user_yaml(self, tmp_path):
+        # The Phase B load chokepoint must hand current names to the science
+        # checks (CRU diffmax ~phase_b:1206, setpoint cleanup ~phase_b:2051),
+        # which look up the current spelling only.
+        import json
+        from supy.data_model.validation.pipeline.phase_b import (
+            validate_phase_b_inputs,
+        )
+
+        legacy = tmp_path / "legacy.yml"
+        legacy.write_text(
+            "sites:\n"
+            "- properties:\n"
+            "    stebbs:\n"
+            "      outer_cap_fraction: {value: 1.0}\n"
+            "      month_mean_air_temperature_diffmax: {value: 5.0}\n"
+            "      heating_setpoint_temperature: {value: 19.0}\n",
+            encoding="utf-8",
+        )
+        # Same file for all three args; only the user / uptodate dicts are
+        # asserted (standard_data is the packaged sample in real runs).
+        uptodate_data, user_data, _ = validate_phase_b_inputs(
+            str(legacy), str(legacy), str(legacy)
+        )
+        for data in (uptodate_data, user_data):
+            dumped = json.dumps(data)
+            assert "outer_cap_fraction" not in dumped
+            assert "capacitance" in dumped
+            assert "month_mean_air_temperature_diffmax" not in dumped
+            assert "temperature_air_month_mean_diffmax" in dumped
+            assert "heating_setpoint_temperature" not in dumped
+            assert "setpoint_temperature_heating_air" in dumped
+
+    def test_legacy_null_capacitance_caught_as_critical_after_normalisation(self):
+        # The crash-path regression. A user-supplied null under the legacy
+        # spelling must be recognised as a critical null (failing validation with
+        # an actionable message) instead of slipping through to a later
+        # int(None) crash in df_state conversion.
+        from supy.data_model.validation.pipeline.orchestrator import (
+            detect_pydantic_defaults,
+        )
+        from supy.data_model.core.field_renames import normalise_yaml_renames
+
+        # Pydantic-processed data carries the current name with a null value.
+        processed = {"model": {"physics": {"capacitance": {"value": None}}}}
+        legacy_raw = {"model": {"physics": {"outer_cap_fraction": {"value": None}}}}
+
+        # Without normalisation the orchestrator looks up `capacitance`, absent
+        # from the legacy raw data, so the null is NOT flagged critical.
+        crit_raw, _ = detect_pydantic_defaults(legacy_raw, processed, "", {})
+        assert not any(c["field_name"] == "capacitance" for c in crit_raw)
+
+        # With the gh#1457 normalise-once step the legacy null is recognised.
+        crit_norm, _ = detect_pydantic_defaults(
+            normalise_yaml_renames(legacy_raw), processed, "", {}
+        )
+        assert any(c["field_name"] == "capacitance" for c in crit_norm)
+
+    def test_load_user_yaml_normalised_rewrites_legacy_file(self, tmp_path):
+        # The single load chokepoint: reading a legacy-spelling file from disk
+        # yields current names, so every standalone rule matches regardless of
+        # the spelling the user wrote.
+        import json
+        from supy.data_model.validation.core.yaml_helpers import (
+            load_user_yaml_normalised,
+        )
+
+        legacy = tmp_path / "legacy.yml"
+        legacy.write_text(
+            "model:\n"
+            "  physics:\n"
+            "    rcmethod: {value: 1}\n"
+            "sites:\n"
+            "- properties:\n"
+            "    stebbs:\n"
+            "      heating_setpoint_temperature: {value: 19.0}\n",
+            encoding="utf-8",
+        )
+        dumped = json.dumps(load_user_yaml_normalised(str(legacy)))
+        assert "rcmethod" not in dumped
+        assert "capacitance" in dumped
+        assert "heating_setpoint_temperature" not in dumped
+        assert "setpoint_temperature_heating_air" in dumped

@@ -32,6 +32,7 @@ import pytz
 from ...core.field_renames import (
     RAW_YAML_FIELD_RENAMES,
     has_renamed_key,
+    normalise_yaml_renames,
     read_physics_key,
     read_renamed_key,
     rename_keys_recursive,
@@ -107,6 +108,27 @@ except ImportError:
             return False
 
     trv_supy_module = MockTraversable()
+
+
+def load_user_yaml_normalised(path: str) -> Any:
+    """Load a user YAML file and normalise legacy field spellings to current names.
+
+    The single load chokepoint for the standalone validation pipeline (gh#1457).
+    Routing every raw user-YAML read through this helper means a new load site
+    cannot silently forget to normalise: ``SUEWSConfig.from_yaml`` normalises
+    before validation, but the standalone Phase B/C path does not, so rules that
+    look up the current name would otherwise miss a legacy spelling.
+
+    Args:
+        path: Path to the user YAML file.
+
+    Returns:
+        The parsed YAML with legacy field spellings rewritten to current names
+        (or untouched if both a legacy and current spelling are present; see
+        ``normalise_yaml_renames``).
+    """
+    with open(path, "r", encoding="utf-8") as f:
+        return normalise_yaml_renames(yaml.safe_load(f))
 
 
 def get_value_safe(param_dict, param_key, default=None):

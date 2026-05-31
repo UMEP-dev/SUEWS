@@ -542,3 +542,205 @@ def test_validate_passes_when_critical_physics_present(tmp_path: Path) -> None:
     assert physics_findings == [], (
         "sample config should not trigger physics structural-presence findings"
     )
+
+
+def test_validate_sidecar_includes_non_error_info_messages(tmp_path: Path) -> None:
+    """gh#1467: the consolidated CLI JSON sidecar carries non-error issues.
+
+    Dropping the optional ``sites[0].properties.h_std`` makes the run
+    succeed (exit 0) while Phase A records a non-error ``A.MISSING_PARAM``
+    warning. That informational message must appear in the JSON sidecar,
+    not only in the text report. Anchored on the deterministic ``h_std``
+    signal (the sample config's Phase B issues are environment-dependent).
+    """
+    from supy.cmd.validate_config import cli as validate_cli
+
+    with _sample_yaml_path() as sample:
+        data = yaml.safe_load(sample.read_text(encoding="utf-8"))
+    data["sites"][0]["properties"].pop("h_std")
+
+    config_path = tmp_path / "myconfig.yml"
+    _write_yaml(config_path, data)
+
+    runner = CliRunner()
+    result = runner.invoke(validate_cli, ["--forcing", "off", str(config_path)])
+    assert result.exit_code == 0, result.output
+
+    sidecar = tmp_path / "report_myconfig.json"
+    assert sidecar.exists(), "sidecar JSON not written"
+    payload = json.loads(sidecar.read_text(encoding="utf-8"))
+
+    # Consolidated sidecar is a multi-phase ValidationReport (gh#1467),
+    # not a single Phase-C PhaseReport.
+    assert "overall_status" in payload, payload.keys()
+    assert isinstance(payload.get("phases"), list)
+    assert {p["phase"] for p in payload["phases"]} >= {"A", "B", "C"}
+
+    all_issues = [i for p in payload["phases"] for i in p["issues"]]
+    assert any(
+        i["code"] == "A.MISSING_PARAM"
+        and "h_std" in (i.get("yaml_path") or "")
+        and i["severity"] != "ERROR"
+        for i in all_issues
+    ), f"h_std informational issue missing from sidecar: {all_issues}"
+
+    # gh#1467: the consolidated sidecar must not publish paths to files that
+    # no longer exist. In a multi-phase run the intermediate temp reports and
+    # updated*_ YAMLs are merged/deleted, so every path the sidecar advertises
+    # must resolve, and report paths point at the surviving consolidated pair.
+    assert "temp_report" not in sidecar.read_text(encoding="utf-8")
+    for p in payload["phases"]:
+        assert Path(p["text_report_path"]).name == "report_myconfig.txt"
+        assert Path(p["json_report_path"]).name == "report_myconfig.json"
+        for key in ("text_report_path", "json_report_path", "yaml_in", "yaml_out"):
+            val = p.get(key)
+            assert val is None or Path(val).exists(), (
+                f"sidecar phase {p['phase']} {key}={val} does not exist"
+            )
+
+
+def test_validate_sidecar_is_validation_report_for_clean_config(tmp_path: Path) -> None:
+    """The consolidated CLI sidecar is a multi-phase ValidationReport even
+    for the bundled sample config (which already carries Phase B notes)."""
+    from supy.cmd.validate_config import cli as validate_cli
+
+    with _sample_yaml_path() as sample:
+        config_path = tmp_path / "clean.yml"
+        config_path.write_text(sample.read_text(encoding="utf-8"), encoding="utf-8")
+
+    runner = CliRunner()
+    result = runner.invoke(validate_cli, ["--forcing", "off", str(config_path)])
+    assert result.exit_code == 0, result.output
+
+    payload = json.loads((tmp_path / "report_clean.json").read_text(encoding="utf-8"))
+    assert payload["overall_status"] in {"PASSED", "WARNING"}
+    assert {p["phase"] for p in payload["phases"]} >= {"A", "B", "C"}
+    # Each phase entry preserves the PhaseReport shape.
+    for phase_entry in payload["phases"]:
+        assert {"phase", "status", "issues"} <= set(phase_entry)
+
+
+def test_validate_sidecar_keeps_info_alongside_errors(tmp_path: Path) -> None:
+    """A failing config keeps Phase A informational issues beside Phase C
+    errors in the same consolidated sidecar."""
+    from supy.cmd.validate_config import cli as validate_cli
+
+    with _sample_yaml_path() as sample:
+        data = yaml.safe_load(sample.read_text(encoding="utf-8"))
+    data["sites"][0]["properties"].pop("h_std")  # -> A.MISSING_PARAM (info)
+    data["sites"][0]["properties"]["bogus_extra_param"] = 42  # -> C.PYDANTIC error
+
+    config_path = tmp_path / "bad.yml"
+    _write_yaml(config_path, data)
+
+    runner = CliRunner()
+    result = runner.invoke(validate_cli, ["--forcing", "off", str(config_path)])
+    assert result.exit_code != 0, result.output
+
+    payload = json.loads((tmp_path / "report_bad.json").read_text(encoding="utf-8"))
+    assert payload["overall_status"] == "FAILED"
+    all_issues = [i for p in payload["phases"] for i in p["issues"]]
+    assert any(i["code"].startswith("C.PYDANTIC") for i in all_issues), all_issues
+    assert any(i["code"] == "A.MISSING_PARAM" for i in all_issues), all_issues
+
+
+def test_emit_pipeline_result_writes_consolidated_sidecar(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """gh#1467: `_emit_pipeline_result` writes the consolidated
+    ValidationReport sidecar beside the report, in both output modes."""
+    from supy.cmd.validate_config import _emit_pipeline_result
+    from supy.data_model.validation.pipeline.report_schema import (
+        Issue,
+        PhaseReport,
+        SEVERITY_INFO,
+        SEVERITY_ERROR,
+    )
+
+    phases = [
+        PhaseReport(
+            phase="A",
+            issues=[Issue(phase="A", severity=SEVERITY_INFO, code="A.INFO.NOTE",
+                          message="informational note", yaml_path="model.physics")],
+        ),
+        PhaseReport(
+            phase="C",
+            issues=[Issue(phase="C", severity=SEVERITY_ERROR, code="C.PYDANTIC.X",
+                          message="bad value", yaml_path="sites.1.properties.lat")],
+        ),
+    ]
+    report_path = tmp_path / "report_x.txt"
+
+    exit_code = _emit_pipeline_result(
+        phases=phases,
+        report_path=report_path,
+        yaml_path=tmp_path / "updated_x.yml",
+        out_format="table",
+        command="suews validate",
+        started_at="2026-05-30T00:00:00Z",
+    )
+    assert exit_code == 1  # has an ERROR
+
+    sidecar = tmp_path / "report_x.json"
+    assert sidecar.exists()
+    payload = json.loads(sidecar.read_text(encoding="utf-8"))
+    assert payload["overall_status"] == "FAILED"
+    assert {p["phase"] for p in payload["phases"]} == {"A", "C"}
+    info_codes = [i["code"] for p in payload["phases"] for i in p["issues"]]
+    assert "A.INFO.NOTE" in info_codes  # non-error info survived
+    assert "C.PYDANTIC.X" in info_codes
+    capsys.readouterr()  # drain captured table output
+
+
+def test_emit_pipeline_result_clears_missing_phase_yaml_paths(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """gh#1467: a failed phase's missing yaml_out is cleared, not repointed to
+    another phase's surviving file (and intermediate paths never dangle)."""
+    from supy.cmd.validate_config import _emit_pipeline_result
+    from supy.data_model.validation.pipeline.report_schema import (
+        Issue,
+        PhaseReport,
+        SEVERITY_ERROR,
+    )
+
+    existing_yaml = tmp_path / "updated_x.yml"
+    existing_yaml.write_text("name: x\n", encoding="utf-8")
+    report_path = tmp_path / "report_x.txt"
+
+    phases = [
+        # Successful Phase A whose intermediate output was deleted on consolidation.
+        PhaseReport(
+            phase="A",
+            issues=[],
+            yaml_in=str(tmp_path / "missing_in.yml"),
+            yaml_out=str(tmp_path / "updatedA_x.yml"),
+        ),
+        # Failed Phase B that never produced an output YAML.
+        PhaseReport(
+            phase="B",
+            issues=[Issue(phase="B", severity=SEVERITY_ERROR, code="B.X", message="boom")],
+            yaml_out=str(tmp_path / "updatedB_x.yml"),
+        ),
+    ]
+
+    _emit_pipeline_result(
+        phases=phases,
+        report_path=report_path,
+        yaml_path=existing_yaml,
+        out_format="table",
+        command="suews validate",
+        started_at="2026-05-31T00:00:00Z",
+    )
+    capsys.readouterr()
+
+    payload = json.loads((tmp_path / "report_x.json").read_text(encoding="utf-8"))
+    by_phase = {p["phase"]: p for p in payload["phases"]}
+    # Vanished intermediate/failed YAML paths are cleared, not repointed.
+    assert by_phase["A"]["yaml_in"] is None
+    assert by_phase["A"]["yaml_out"] is None
+    assert by_phase["B"]["yaml_out"] is None
+    # No phase falsely claims the surviving final YAML as its own output.
+    assert all(p["yaml_out"] != str(existing_yaml) for p in payload["phases"])

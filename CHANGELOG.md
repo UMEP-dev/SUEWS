@@ -59,6 +59,8 @@ EXAMPLES:
 - [bugfix] Validator report no longer collapses to a lone `schema_version` INFO line when that field is absent (#1466, #1458)
   - When a user YAML omitted `schema_version`, Phase C detected it as a normal default and built an INFO entry, which made the multi-phase consolidation short-circuit to an INFO-only report — silently dropping the Phase A renamed-parameter list and the Phase B `REVIEW ADVISED` / `SUGGESTED UPDATES` sections carried in `no_action_messages`
   - The INFO-only path now fires only for single-phase Phase C runs; multi-phase runs always route through `create_consolidated_report`, folding any Phase C defaults into the `INFO` section alongside (not instead of) the upstream phase sections
+- [feature][experimental] Expand `suews validate` JSON report to include non-error informational messages (#1467)
+  - The JSON sidecar (`report_<name>.json`) written next to the text report is now the consolidated multi-phase `ValidationReport` (`{overall_status, phases:[...]}`), carrying every phase's issues across all severities (`ERROR`, `WARNING`, `INFO`, `SUGGESTION`, `APPLIED_FIX`, `PASS`), not just validation errors. This matches the `data.validation_report` field already exposed by `--format json`. Per-phase sidecars written by direct `run_phase_*` library calls are unchanged (still `PhaseReport`).
 
 ### 29 May 2026
 

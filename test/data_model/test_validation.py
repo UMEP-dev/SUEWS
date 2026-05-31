@@ -4838,6 +4838,14 @@ class TestPhaseBRenameAwareLookups:
             == 2
         )
 
+    @pytest.mark.parametrize("legacy_key", ["stebbsmethod", "stebbs_method"])
+    def test_stebbsmethod_helper_reads_legacy_master_aliases(self, legacy_key):
+        from supy.data_model.validation.core.yaml_helpers import get_stebbsmethod_value
+
+        assert get_stebbsmethod_value({legacy_key: {"value": 1}}) == 1
+        assert get_stebbsmethod_value({legacy_key: {"value": 2}}) == 2
+        assert get_stebbsmethod_value({legacy_key: {"value": 0}}) == 0
+
     def test_stebbsmethod_helper_rejects_invalid_nested_switch_values(self):
         from supy.data_model.validation.core.yaml_helpers import get_stebbsmethod_value
 

@@ -268,7 +268,12 @@ def get_stebbs_block(physics):
     """
     if not isinstance(physics, Mapping):
         return {}
-    block = physics.get("stebbs")
+    block = read_renamed_key(
+        physics,
+        "stebbs",
+        renames=RAW_YAML_FIELD_RENAMES,
+        default=_STEBBS_MISSING,
+    )
     folded = dict(block) if _is_stebbs_nested_block(block) else {}
 
     for old_key, nested_leaf in STEBBS_PHYSICS_LEAF_RENAMES.items():
@@ -315,7 +320,12 @@ def get_stebbsmethod_value(physics):
     if not isinstance(physics, Mapping):
         return None
 
-    raw_stebbs = physics.get("stebbs", _STEBBS_MISSING)
+    raw_stebbs = read_renamed_key(
+        physics,
+        "stebbs",
+        renames=RAW_YAML_FIELD_RENAMES,
+        default=_STEBBS_MISSING,
+    )
     stebbs_block = get_stebbs_block(physics)
 
     if raw_stebbs is not _STEBBS_MISSING and not _is_stebbs_nested_block(raw_stebbs):

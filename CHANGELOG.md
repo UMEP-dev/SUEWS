@@ -54,6 +54,11 @@ EXAMPLES:
 
 ## 2026
 
+### 31 May 2026
+
+- [maintenance] Narrow the PyPI publish workflow's tag trigger to CalVer-only, so non-supy tags (e.g. SUEWS-agent releases) do not trigger a supy wheel build + publish (#1384)
+  - `.github/workflows/build-publish_to_pypi.yml` now triggers on `tags: ['[0-9]*']`, mirroring the existing pattern in `.github/workflows/docs-sync.yml`. Tags like `agent/v0.3` are ignored by the publish workflow; users pick up agent updates via `/plugin update`, not a PyPI release
+
 ### 30 May 2026
 
 - [bugfix] Validator report no longer collapses to a lone `schema_version` INFO line when that field is absent (#1466, #1458)
@@ -75,6 +80,23 @@ EXAMPLES:
 - [bugfix] `SUEWSOutput.save()` no longer forces parquet output regardless of the configured format (#1451)
   - The `format` parameter defaulted to `"parquet"`, which always satisfied the `output_format is None` short-circuit in `_save_supy()` and overrode `model.control.output.format` from the run configuration
   - `format` now defaults to `None`, so an unspecified format follows the configured value (falling back to `txt` when no configuration is present); an explicit `format` argument still wins, matching the existing `SUEWSSimulation.save()` behaviour
+
+### 27 May 2026
+
+- [maintenance] Make the SUEWS plugin's MCP server self-bootstrapping via `uvx`, so installing the plugin is the only onboarding step (#1384)
+  - The bundled `.mcp.json` files now spawn `suews-mcp` through `uvx --from git+...#subdirectory=mcp`, which fetches the MCP server and its `supy` / SUEWS dependency into a cached uv environment on first use — removing the separate `pip install` step and the PATH / venv matching the bare console-script command required
+  - The only prerequisite is `uv` on the machine; once `suews-mcp` is published to PyPI the command collapses to `uvx suews-mcp`
+  - `mcp/README.md`, the `/suews` skill onboarding (`SKILL.md`, `references/fresh-site-setup.md`), and the `fresh_site_setup` MCP prompt now lead with the self-bootstrapping path and keep the explicit `pip` / `uv` install as the dev / offline fallback
+
+### 24 May 2026
+
+- [feature][experimental] Ground the SUEWS agent (CLI + `/suews` skill + MCP) in the surface energy balance and make it installable as a Claude Code / Codex plugin (#1384)
+  - Added two MCP tools: `assess_readiness` (reports which site-defining values are still the bundled sample's defaults, each tagged with its energy-balance role, plus a parameter-importance ladder) and `list_docs` (discovers the curated `suews://docs/{slug}` documentation slugs)
+  - `search_schema` is now a semantic ranked search, and the `suews://docs/{slug}` resource serves the tutorial sources
+  - The MCP now carries its procedural contract internally — server instructions on the `initialize` handshake plus three prompts (`fresh_site_setup`, `parameter_importance`, `evaluate_results`) — so the honesty and energy-balance guidance reaches every MCP client (Claude Desktop, Codex, Cursor), not only the Claude Code `/suews` skill
+  - Parameter importance is derived from QN + QF = QS + QE + QH: albedo first, with QH and surface temperature treated as model outputs (never set) and energy-balance closure recognised as automatic rather than a validation check
+  - Data-source recommendations are limited to an authorised registry (ERA5 / ERA5-Land, GLAMOUR, ESA WorldCover, GEDI, GHSL / GHS-POP, SUEWS-database)
+  - The Claude Code / Codex plugin bundle is generated from the single source skill via `make plugin` and is no longer committed; a parity test guards the generator
 
 ### 19 May 2026
 

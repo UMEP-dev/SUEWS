@@ -55,13 +55,20 @@ def _ref_value(value: Any) -> Any:
 
 
 def _site_summary(site_data: Dict[str, Any]) -> Dict[str, Any]:
-    """Extract ``{name, lat, lng, alt}`` from a dumped site dict."""
+    """Extract ``{name, lat, lng, alt, timezone}`` from a dumped site dict.
+
+    Timezone is part of the location group: it controls the sun's
+    apparent position (radiation timing) for the same ``lat``/``lng``,
+    so place-comparison and readiness checks must consider it alongside
+    the coordinates.
+    """
     properties = site_data.get("properties", {}) or {}
     return {
         "name": site_data.get("name"),
         "lat": _ref_value(properties.get("lat")),
         "lng": _ref_value(properties.get("lng")),
         "alt": _ref_value(properties.get("alt")),
+        "timezone": _ref_value(properties.get("timezone")),
     }
 
 

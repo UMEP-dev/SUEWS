@@ -1,7 +1,7 @@
 {
   "name": "suews",
   "version": "0.2.0",
-  "description": "Run, validate, and analyse SUEWS urban climate simulations from your AI assistant. Bundles the `suews-mcp` MCP server alongside the SUEWS workflow Skill.",
+  "description": "Run, validate, and analyse SUEWS urban climate simulations from your AI assistant. Bundles the `suews-mcp` MCP server alongside SUEWS workflow skills, including fresh-site simulation with assumption ledgers and readiness levels.",
   "author": {
     "name": "Dr Ting Sun",
     "email": "ting.sun@ucl.ac.uk",
@@ -18,12 +18,12 @@
     "climate-modelling",
     "atmospheric-science"
   ],
-  "skills": "./.claude/skills/suews",
+  "skills": "./plugins/suews/skills/",
   "mcpServers": "./.mcp.json",
   "interface": {
     "displayName": "SUEWS",
     "shortDescription": "Urban climate model assistant",
-    "longDescription": "SUEWS (Surface Urban Energy and Water Balance Scheme) is a neighbourhood-scale urban land-surface model. This plugin gives your AI assistant the workflow rules, forcing-data checks, output interpretation guidance, and common-error diagnostics needed to run, validate, and analyse SUEWS simulations.",
+    "longDescription": "SUEWS (Surface Urban Energy and Water Balance Scheme) is a neighbourhood-scale urban land-surface model. This plugin gives your AI assistant the workflow rules, fresh-site simulation guidance, assumption-ledger discipline, forcing-data checks, output interpretation guidance, and common-error diagnostics needed to run, validate, and analyse SUEWS simulations.",
     "developerName": "UMEP-dev (UCL Department of Risk and Disaster Reduction)",
     "category": "Productivity",
     "capabilities": [

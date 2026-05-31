@@ -38,6 +38,8 @@ from ...core.field_renames import (
     read_renamed_key,
     rename_keys_recursive,
 )
+from ...core.physics_families import coerce_nested_to_flat
+from ...core.physics_orthogonal import coerce_orthogonal_to_flat
 
 # Use tzfpy instead of timezonefinder for Windows compatibility
 # tzfpy has pre-built Windows wheels and provides similar functionality
@@ -149,6 +151,8 @@ def get_value_safe(param_dict, param_key, default=None):
         renames=RAW_YAML_FIELD_RENAMES,
         default=default,
     )
+    param = coerce_orthogonal_to_flat(param_key, param)
+    param = coerce_nested_to_flat(param_key, param)
     if isinstance(param, Mapping) and "value" in param:
         return param["value"]  # RefValue format: {"value": 1}
     else:
@@ -735,11 +739,14 @@ def _nullify_biogenic_in_props(props: dict) -> bool:
 
     params = (
         "alpha_bioco2",
+        "alpha_bio_co2",
         "alpha_enh_bioco2",
         "beta_bioco2",
+        "beta_bio_co2",
         "beta_enh_bioco2",
         "min_res_bioco2",
         "theta_bioco2",
+        "theta_bio_co2",
         "resp_a",
         "resp_b",
     )
@@ -1879,11 +1886,11 @@ def precheck_model_option_rules(data: dict) -> dict:
                 site["properties"] = props
                 data["sites"][site_idx] = site
 
-    # --- EMISSIONS / CO2 RULE: when emissions 0..4, CO2 is not computed, nullify co2 params ---
+    # --- EMISSIONS / CO2 RULE: when emissions 0..6, CO2 is not output, nullify co2 params ---
     emissionsmethod = get_value_safe(physics, "emissions")
-    if emissionsmethod is not None and emissionsmethod in (0, 1, 2, 3, 4):
+    if emissionsmethod is not None and emissionsmethod in (0, 1, 2, 3, 4, 5, 6):
         logger_supy.info(
-            "[precheck] emissions 0..4 detected -> nullifying 'anthropogenic_emissions.co2' values."
+            "[precheck] emissions 0..6 detected -> nullifying 'anthropogenic_emissions.co2' values."
         )
 
         for site_idx, site in enumerate(data.get("sites", [])):

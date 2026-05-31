@@ -31,8 +31,17 @@ class TestRegistryShape:
 
     def test_emissions_families(self):
         fams = PHYSICS_FAMILIES["emissions"]
-        assert set(fams) == {"observed", "simple"}
-        assert fams["simple"] == frozenset({1, 2, 3, 4, 5})
+        assert set(fams) == {
+            "observed",
+            "simple",
+            "biogenic_rectangular",
+            "biogenic_bellucco_local",
+            "biogenic_bellucco_general",
+            "biogenic_conductance",
+        }
+        assert fams["simple"] == frozenset({1, 2, 3, 4, 5, 6})
+        assert fams["biogenic_rectangular"] == frozenset(range(11, 17))
+        assert fams["biogenic_bellucco_general"] == frozenset(range(31, 37))
 
     def test_families_disjoint(self):
         for field_name, fams in PHYSICS_FAMILIES.items():
@@ -96,10 +105,15 @@ class TestCoerceNestedHappyPath:
             "storage_heat", {"ehc": {"value": 5}}
         ) == {"value": 5}
 
-    def test_emissions_simple_j11(self):
+    def test_emissions_simple_hidden_l11_updated_detailed(self):
         assert coerce_nested_to_flat(
-            "emissions", {"simple": {"value": 2}}
-        ) == {"value": 2}
+            "emissions", {"simple": {"value": 6}}
+        ) == {"value": 6}
+
+    def test_emissions_biogenic_rectangular(self):
+        assert coerce_nested_to_flat(
+            "emissions", {"biogenic_rectangular": {"value": 16}}
+        ) == {"value": 16}
 
     def test_integral_float_matches_flat_acceptance(self):
         assert coerce_nested_to_flat(

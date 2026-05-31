@@ -952,7 +952,9 @@ alongside the existing flat ``{value: N}`` shape:
 - ``net_radiation`` — families ``forcing``, ``narp``, ``spartacus``.
 - ``storage_heat`` — families ``observed``, ``ohm``, ``anohm``,
   ``estm``, ``ehc``, ``dyohm``, ``stebbs``.
-- ``emissions`` — families ``observed``, ``simple``.
+- ``emissions`` — families ``observed``, ``simple``,
+  ``biogenic_rectangular``, ``biogenic_bellucco_local``,
+  ``biogenic_bellucco_general``, ``biogenic_conductance``.
 
 Family-tagged form:
 
@@ -1008,3 +1010,30 @@ schemes are ``forcing`` (no ``ldown`` or ``variant``), ``narp``
 As with the family-tagged form, the orthogonal form is accept-only:
 round-tripping emits the flat numeric form. Human-readable method
 aliases beyond this explicit decomposition remain out of scope.
+
+``emissions`` also accepts an orthogonal decomposition of the heat/QF
+and CO2 axes:
+
+.. code-block:: yaml
+
+   model:
+     physics:
+       emissions:
+         heat: j11
+         co2:
+           anthropogenic: detailed
+           biogenic: conductance
+
+This is equivalent to ``emissions: {value: 45}``. Supported ``heat``
+values are ``observed``, ``l11``, ``j11``, and ``l11_updated``.
+When omitted, ``co2`` defaults to no CO2 calculation, so ``heat:
+j11`` is equivalent to ``emissions: {value: 2}``. Supported
+``co2.anthropogenic`` values are ``qf_linked`` and ``detailed``;
+supported ``co2.biogenic`` values are ``rectangular``,
+``bellucco_local``, ``bellucco_general``, and ``conductance``.
+The legacy Fortran code represents anthropogenic and biogenic CO2
+together in the ``11-16`` / ``21-26`` / ``31-36`` / ``41-46``
+families, so the orthogonal form rejects unsupported "CO2-only"
+combinations rather than assigning misleading semantics. Non-biogenic
+flat codes ``4-6`` remain accepted as legacy detailed-heat settings,
+but their CO2 fluxes are discarded by the driver.

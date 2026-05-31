@@ -86,38 +86,74 @@ class EmissionsMethod(Enum):
     1: L11 - Loridan et al. (2011) SAHP method with air temperature and population density
     2: J11 - Järvi et al. (2011) SAHP_2 method with heating/cooling degree days
     3: L11_UPDATED - Modified Loridan method using daily mean air temperature
-    4: J19 - Järvi et al. (2019) method with building energy, metabolism, and traffic
-    5: J19_UPDATED - As method 4 but also calculates CO2 emissions
-    11: BIOGEN_RECT_L11 - Rectangular hyperbola photosynthesis + L11 QF (experimental)
-    12: BIOGEN_RECT_J11 - Rectangular hyperbola photosynthesis + J11 QF (experimental)
-    13: BIOGEN_RECT_L11U - Rectangular hyperbola photosynthesis + L11_UPDATED QF (experimental)
-    14: BIOGEN_RECT_J19 - Rectangular hyperbola photosynthesis + J19 QF (experimental)
-    15: BIOGEN_RECT_J19U - Rectangular hyperbola photosynthesis + J19_UPDATED QF (experimental)
-    21: BIOGEN_NRECT_L11 - Non-rectangular hyperbola (Bellucco 2017) + L11 QF (experimental)
-    22: BIOGEN_NRECT_J11 - Non-rectangular hyperbola (Bellucco 2017) + J11 QF (experimental)
-    23: BIOGEN_NRECT_L11U - Non-rectangular hyperbola (Bellucco 2017) + L11_UPDATED QF (experimental)
-    24: BIOGEN_NRECT_J19 - Non-rectangular hyperbola (Bellucco 2017) + J19 QF (experimental)
-    25: BIOGEN_NRECT_J19U - Non-rectangular hyperbola (Bellucco 2017) + J19_UPDATED QF (experimental)
-    41: BIOGEN_COND_L11 - Conductance-based photosynthesis (Järvi 2019) + L11 QF (experimental)
-    42: BIOGEN_COND_J11 - Conductance-based photosynthesis (Järvi 2019) + J11 QF (experimental)
-    43: BIOGEN_COND_L11U - Conductance-based photosynthesis (Järvi 2019) + L11_UPDATED QF (experimental)
-    44: BIOGEN_COND_J19 - Conductance-based photosynthesis (Järvi 2019) + J19 QF (experimental)
-    45: BIOGEN_COND_J19U - Conductance-based photosynthesis (Järvi 2019) + J19_UPDATED QF (experimental)
+    4: J19 - Detailed anthropogenic heat branch with L11 heat basis; CO2 output disabled by the driver for non-biogenic codes
+    5: J19_UPDATED - Detailed anthropogenic heat branch with J11 heat basis; CO2 output disabled by the driver for non-biogenic codes
+    6: L11_UPDATED_DETAILED - Detailed anthropogenic heat branch with L11_UPDATED heat basis; CO2 output disabled by the driver for non-biogenic codes
+    11: BIOGEN_RECT_L11 - Rectangular hyperbola biogenic CO2 + QF-linked anthropogenic CO2 + L11 heat (experimental)
+    12: BIOGEN_RECT_J11 - Rectangular hyperbola biogenic CO2 + QF-linked anthropogenic CO2 + J11 heat (experimental)
+    13: BIOGEN_RECT_L11_UPDATED - Rectangular hyperbola biogenic CO2 + QF-linked anthropogenic CO2 + L11_UPDATED heat (experimental)
+    14: BIOGEN_RECT_L11_DETAILED - Rectangular hyperbola biogenic CO2 + detailed anthropogenic CO2 + L11 heat (experimental)
+    15: BIOGEN_RECT_J11_DETAILED - Rectangular hyperbola biogenic CO2 + detailed anthropogenic CO2 + J11 heat (experimental)
+    16: BIOGEN_RECT_L11_UPDATED_DETAILED - Rectangular hyperbola biogenic CO2 + detailed anthropogenic CO2 + L11_UPDATED heat (experimental)
+    21: BIOGEN_BELLUCCO_LOCAL_L11 - Bellucco local biogenic CO2 + QF-linked anthropogenic CO2 + L11 heat (experimental)
+    22: BIOGEN_BELLUCCO_LOCAL_J11 - Bellucco local biogenic CO2 + QF-linked anthropogenic CO2 + J11 heat (experimental)
+    23: BIOGEN_BELLUCCO_LOCAL_L11_UPDATED - Bellucco local biogenic CO2 + QF-linked anthropogenic CO2 + L11_UPDATED heat (experimental)
+    24: BIOGEN_BELLUCCO_LOCAL_L11_DETAILED - Bellucco local biogenic CO2 + detailed anthropogenic CO2 + L11 heat (experimental)
+    25: BIOGEN_BELLUCCO_LOCAL_J11_DETAILED - Bellucco local biogenic CO2 + detailed anthropogenic CO2 + J11 heat (experimental)
+    26: BIOGEN_BELLUCCO_LOCAL_L11_UPDATED_DETAILED - Bellucco local biogenic CO2 + detailed anthropogenic CO2 + L11_UPDATED heat (experimental)
+    31: BIOGEN_BELLUCCO_GENERAL_L11 - Bellucco general biogenic CO2 + QF-linked anthropogenic CO2 + L11 heat (experimental)
+    32: BIOGEN_BELLUCCO_GENERAL_J11 - Bellucco general biogenic CO2 + QF-linked anthropogenic CO2 + J11 heat (experimental)
+    33: BIOGEN_BELLUCCO_GENERAL_L11_UPDATED - Bellucco general biogenic CO2 + QF-linked anthropogenic CO2 + L11_UPDATED heat (experimental)
+    34: BIOGEN_BELLUCCO_GENERAL_L11_DETAILED - Bellucco general biogenic CO2 + detailed anthropogenic CO2 + L11 heat (experimental)
+    35: BIOGEN_BELLUCCO_GENERAL_J11_DETAILED - Bellucco general biogenic CO2 + detailed anthropogenic CO2 + J11 heat (experimental)
+    36: BIOGEN_BELLUCCO_GENERAL_L11_UPDATED_DETAILED - Bellucco general biogenic CO2 + detailed anthropogenic CO2 + L11_UPDATED heat (experimental)
+    41: BIOGEN_CONDUCTANCE_L11 - Conductance-based biogenic CO2 + QF-linked anthropogenic CO2 + L11 heat (experimental)
+    42: BIOGEN_CONDUCTANCE_J11 - Conductance-based biogenic CO2 + QF-linked anthropogenic CO2 + J11 heat (experimental)
+    43: BIOGEN_CONDUCTANCE_L11_UPDATED - Conductance-based biogenic CO2 + QF-linked anthropogenic CO2 + L11_UPDATED heat (experimental)
+    44: BIOGEN_CONDUCTANCE_L11_DETAILED - Conductance-based biogenic CO2 + detailed anthropogenic CO2 + L11 heat (experimental)
+    45: BIOGEN_CONDUCTANCE_J11_DETAILED - Conductance-based biogenic CO2 + detailed anthropogenic CO2 + J11 heat (experimental)
+    46: BIOGEN_CONDUCTANCE_L11_UPDATED_DETAILED - Conductance-based biogenic CO2 + detailed anthropogenic CO2 + L11_UPDATED heat (experimental)
     """
 
-    # just a demo to show how to use Enum for emissionsmethod
     OBSERVED = 0
     L11 = 1
     J11 = 2
     L11_UPDATED = 3
+    # Legacy Python member names are retained for API compatibility; the
+    # descriptions above reflect the Fortran branch semantics.
     J19 = 4
     J19_UPDATED = 5
+    L11_UPDATED_DETAILED = 6
+    BIOGEN_RECT_L11 = 11
+    BIOGEN_RECT_J11 = 12
+    BIOGEN_RECT_L11_UPDATED = 13
+    BIOGEN_RECT_L11_DETAILED = 14
+    BIOGEN_RECT_J11_DETAILED = 15
+    BIOGEN_RECT_L11_UPDATED_DETAILED = 16
+    BIOGEN_BELLUCCO_LOCAL_L11 = 21
+    BIOGEN_BELLUCCO_LOCAL_J11 = 22
+    BIOGEN_BELLUCCO_LOCAL_L11_UPDATED = 23
+    BIOGEN_BELLUCCO_LOCAL_L11_DETAILED = 24
+    BIOGEN_BELLUCCO_LOCAL_J11_DETAILED = 25
+    BIOGEN_BELLUCCO_LOCAL_L11_UPDATED_DETAILED = 26
+    BIOGEN_BELLUCCO_GENERAL_L11 = 31
+    BIOGEN_BELLUCCO_GENERAL_J11 = 32
+    BIOGEN_BELLUCCO_GENERAL_L11_UPDATED = 33
+    BIOGEN_BELLUCCO_GENERAL_L11_DETAILED = 34
+    BIOGEN_BELLUCCO_GENERAL_J11_DETAILED = 35
+    BIOGEN_BELLUCCO_GENERAL_L11_UPDATED_DETAILED = 36
+    BIOGEN_CONDUCTANCE_L11 = 41
+    BIOGEN_CONDUCTANCE_J11 = 42
+    BIOGEN_CONDUCTANCE_L11_UPDATED = 43
+    BIOGEN_CONDUCTANCE_L11_DETAILED = 44
+    BIOGEN_CONDUCTANCE_J11_DETAILED = 45
+    BIOGEN_CONDUCTANCE_L11_UPDATED_DETAILED = 46
 
     def __new__(cls, value):
         obj = object.__new__(cls)
         obj._value_ = value
         # Mark internal options
-        if value in [3, 5]:  # L11_UPDATED and J19_UPDATED
+        if value in [3, 5, 6]:  # L11_UPDATED and hidden detailed variants
             obj._internal = True
         else:
             obj._internal = False
@@ -800,7 +836,7 @@ class ModelPhysics(BaseModel):
     @classmethod
     def _coerce_nested_physics(cls, value, info):
         # Widens accepted input before FlexibleRefValue resolves:
-        # orthogonal net-radiation tokens and family tags both collapse to
+        # orthogonal physics tokens and family tags both collapse to
         # the flat `{value: N}` canonical shape.
         value = coerce_orthogonal_to_flat(info.field_name, value)
         return coerce_nested_to_flat(info.field_name, value)

@@ -1422,7 +1422,7 @@ def adjust_model_dependent_nullification(
 
     This function automatically sets to None (nullifies) parameters that are not relevant
     when certain model physics options are disabled. For example, if 'stebbsmethod' is 0,
-    all STEBBS and building_archetype parameters are nullified. If 'emissionsmethod' is 0-4,
+    all STEBBS and building_archetype parameters are nullified. If 'emissionsmethod' is 0-6,
     all anthropogenic CO2 and biogenic dectr parameters are nullified.
 
     Parameters
@@ -1524,7 +1524,7 @@ def adjust_model_dependent_nullification(
     # --- ANTHROPOGENIC CO2 ---
     emissionsmethod = get_value_safe(physics, "emissions")
 
-    if emissionsmethod is not None and emissionsmethod in [0, 1, 2, 3, 4]:
+    if emissionsmethod is not None and emissionsmethod in [0, 1, 2, 3, 4, 5, 6]:
         sites = yaml_data.get("sites", [])
 
         for site_idx, site in enumerate(sites):
@@ -1550,9 +1550,9 @@ def adjust_model_dependent_nullification(
                             parameter="anthropogenic_emissions.co2",
                             site_index=site_idx,
                             site_gridid=site_gridid,
-                            old_value=f"emissionsmethod 0..4 (CO2 disabled), nullified {len(nullified_params)} related parameters - {param_list}",
+                            old_value=f"emissionsmethod 0..6 (CO2 disabled), nullified {len(nullified_params)} related parameters - {param_list}",
                             new_value="null",
-                            reason=f"emissionsmethod 0..4 (CO2 disabled), nullified {len(nullified_params)} related parameters",
+                            reason=f"emissionsmethod 0..6 (CO2 disabled), nullified {len(nullified_params)} related parameters",
                         )
                     )
 
@@ -1572,7 +1572,7 @@ def adjust_model_dependent_nullification(
                             site_gridid=site_gridid,
                             old_value="biogenic dectr params present",
                             new_value="null",
-                            reason="emissionsmethod 0..4 (CO2 disabled) – nullified dectr biogenic parameters",
+                            reason="emissionsmethod 0..6 (CO2 disabled) - nullified dectr biogenic parameters",
                         )
                     )
             except Exception:

@@ -2470,17 +2470,18 @@ def test_stebbsmethod0_nullifies_ten_minute_profiles():
     for schedule in profiles.values():
         assert all(value is None for value in schedule.values())
 
+
 def _build_site_with_co2(co2_block):
     return {"properties": {"anthropogenic_emissions": {"co2": co2_block}}}
 
 
-def test_emissionsmethod_less_than_5_nullifies_co2_block():
+def test_emissionsmethod_non_biogenic_nullifies_co2_block():
     co2_block = {
         "co2pointsource": {"value": 0.1},
         "nested": {"ef_umolco2perj": {"value": 2.0}},
     }
     data = {
-        "model": {"physics": {"emissions": 0}},  # < 5 => CO2 disabled
+        "model": {"physics": {"emissions": 6}},  # 0..6 => CO2 output disabled
         "sites": [_build_site_with_co2(co2_block)],
     }
     result = precheck_model_option_rules(deepcopy(data))
@@ -2488,6 +2489,44 @@ def test_emissionsmethod_less_than_5_nullifies_co2_block():
     out = result["sites"][0]["properties"]["anthropogenic_emissions"]["co2"]
     assert out["co2pointsource"]["value"] is None
     assert out["nested"]["ef_umolco2perj"]["value"] is None
+
+
+def test_orthogonal_heat_only_emissions_nullifies_co2_block():
+    co2_block = {"co2pointsource": {"value": 0.1}}
+    data = {
+        "model": {"physics": {"emissions": {"heat": "j11"}}},
+        "sites": [_build_site_with_co2(co2_block)],
+    }
+    result = precheck_model_option_rules(deepcopy(data))
+
+    co2 = result["sites"][0]["properties"]["anthropogenic_emissions"]["co2"]
+    assert co2["co2pointsource"]["value"] is None
+
+
+def test_orthogonal_heat_only_emissions_nullifies_current_biogenic_names():
+    data = {
+        "model": {"physics": {"emissions": {"heat": "j11"}}},
+        "sites": [
+            {
+                "properties": {
+                    "land_cover": {
+                        "dectr": {
+                            "alpha_bio_co2": {"value": 0.8},
+                            "beta_bio_co2": {"value": [1.0, 2.0]},
+                        }
+                    },
+                    "anthropogenic_emissions": {
+                        "co2": {"co2pointsource": {"value": 0.1}}
+                    },
+                }
+            }
+        ],
+    }
+    result = precheck_model_option_rules(deepcopy(data))
+
+    dectr = result["sites"][0]["properties"]["land_cover"]["dectr"]
+    assert dectr["alpha_bio_co2"]["value"] is None
+    assert dectr["beta_bio_co2"]["value"] == [None, None]
 
 
 def test_empty_co2_block_is_handled_gracefully():
@@ -2511,7 +2550,7 @@ def test_emissionsmethod_none_leaves_co2_untouched():
     }
     out = precheck_model_option_rules(deepcopy(data))
     co2 = out["sites"][0]["properties"]["anthropogenic_emissions"]["co2"]
-    # should remain numeric value because emissionsmethod not in 0..4
+    # should remain numeric value because emissionsmethod is missing
     assert co2["co2pointsource"]["value"] == 0.1
 
 
@@ -2598,6 +2637,27 @@ def test_nullify_biogenic_in_props_nullifies_values_and_lists():
 
     # unrelated param not in the target list remains unchanged
     assert dectr["unrelated_param"]["value"] == 2.5
+
+
+def test_nullify_biogenic_in_props_handles_current_bio_co2_names():
+    """Current YAML spellings should be nullified as well as legacy columns."""
+    props = {
+        "land_cover": {
+            "dectr": {
+                "alpha_bio_co2": {"value": 0.8},
+                "beta_bio_co2": {"value": [1.0, 2.0]},
+                "theta_bio_co2": 42.0,
+            }
+        }
+    }
+
+    changed = _nullify_biogenic_in_props(props)
+    assert changed is True
+
+    dectr = props["land_cover"]["dectr"]
+    assert dectr["alpha_bio_co2"]["value"] is None
+    assert dectr["beta_bio_co2"]["value"] == [None, None]
+    assert dectr["theta_bio_co2"] is None
 
 
 def test_nullify_biogenic_in_props_handles_grass_and_evetr():

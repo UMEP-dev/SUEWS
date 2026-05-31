@@ -49,7 +49,7 @@ from supy.data_model.core.field_renames import (
     WATERDIST_RENAMES,
     rename_keys_recursive,
 )
-from supy.data_model.core.model import ModelPhysics
+from supy.data_model.core.model import ModelPhysics, StebbsPhysics
 from supy.data_model.core.site import (
     ArchetypeProperties,
     DectrProperties,
@@ -566,6 +566,22 @@ class TestStebbsPhysicsFold:
             warnings.simplefilter("ignore", DeprecationWarning)
             with pytest.raises(ValueError, match="nested 'stebbs'.*flat STEBBS"):
                 ModelPhysics(**payload)
+
+    @pytest.mark.parametrize(
+        "flat_key",
+        ["rcmethod", "capacitance", "outer_cap_fraction"],
+    )
+    def test_built_stebbs_object_and_flat_leaves_are_rejected(self, flat_key):
+        """Programmatic nested objects follow the same ambiguity rule as YAML."""
+        stebbs = StebbsPhysics(
+            enabled={"value": True},
+            capacitance={"value": 1},
+        )
+
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", DeprecationWarning)
+            with pytest.raises(ValueError, match="nested 'stebbs'.*flat STEBBS"):
+                ModelPhysics(stebbs=stebbs, **{flat_key: {"value": 0}})
 
     def test_single_fold_deprecation_warning(self):
         with warnings.catch_warnings(record=True) as captured:

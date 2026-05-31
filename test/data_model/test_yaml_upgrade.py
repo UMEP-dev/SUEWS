@@ -157,6 +157,38 @@ class TestYamlUpgradeModule:
         with pytest.raises(YamlUpgradeError, match=r"Both 'snowuse'.*'snow_use'"):
             upgrade_yaml(input_path=source, output_path=target)
 
+    @pytest.mark.parametrize(
+        "flat_key",
+        ["capacitance", "outer_cap_fraction", "rcmethod", "rc_method"],
+    )
+    def test_raises_on_nested_and_flat_stebbs_physics_conflict(
+        self,
+        tmp_path: Path,
+        flat_key: str,
+    ):
+        """Upgrade should match runtime/Rust by rejecting ambiguous STEBBS forms."""
+        source = tmp_path / "mixed-stebbs.yml"
+        target = tmp_path / "upgraded.yml"
+        payload = {
+            "schema_version": "2026.5.dev12",
+            "model": {
+                "physics": {
+                    "stebbs": {
+                        "enabled": {"value": True},
+                        "capacitance": {"value": 1},
+                    },
+                    flat_key: {"value": 0},
+                }
+            },
+        }
+        source.write_text(
+            yaml.safe_dump(payload, sort_keys=False),
+            encoding="utf-8",
+        )
+
+        with pytest.raises(YamlUpgradeError, match="flat STEBBS physics switches"):
+            upgrade_yaml(input_path=source, output_path=target)
+
     def test_missing_signature_raises_error_message_points_at_from_flag(
         self, release_yaml: Path, tmp_path: Path
     ):

@@ -1487,6 +1487,13 @@ def fold_stebbs_physics(values: dict, class_name: str, *, warn: bool = True) -> 
     # `enabled` attribute, so this only catches the genuine nested object.
     if existing is not None and not isinstance(existing, (Mapping, int, float, bool, str)):
         if hasattr(existing, "enabled") or hasattr(existing, "parameters"):
+            flat_conflicts = _stebbs_flat_leaf_siblings(values)
+            if flat_conflicts:
+                raise ValueError(
+                    f"{class_name}: both nested 'stebbs' and flat STEBBS physics "
+                    f"switches ({', '.join(flat_conflicts)}) are present. Use only "
+                    "the nested 'stebbs' form."
+                )
             return values
 
     nested_already = (

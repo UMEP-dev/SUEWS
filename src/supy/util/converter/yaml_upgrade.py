@@ -679,6 +679,17 @@ _STEBBS_PHYSICS_LEAF_RENAMES_TO_DEV12: tuple[tuple[str, str], ...] = (
 )
 
 
+def _stebbs_flat_leaf_siblings(physics: dict) -> list[str]:
+    """Return flat STEBBS leaf keys present beside a nested ``stebbs`` block."""
+    return sorted(
+        {
+            old_key
+            for old_key, _leaf in _STEBBS_PHYSICS_LEAF_RENAMES_TO_DEV12
+            if old_key in physics
+        }
+    )
+
+
 def _decompose_stebbs_master_value(entry):
     """Decompose a legacy flat `stebbs` master toggle into (enabled, params).
 
@@ -748,6 +759,13 @@ def _apply_stebbs_physics_fold(cfg: dict) -> None:
     )
 
     if already_nested:
+        flat_conflicts = _stebbs_flat_leaf_siblings(physics)
+        if flat_conflicts:
+            raise YamlUpgradeError(
+                "Both nested 'stebbs' and flat STEBBS physics switches "
+                f"({', '.join(flat_conflicts)}) are present. Use only the "
+                "nested 'stebbs' form."
+            )
         stebbs_block = existing
     else:
         stebbs_block = {}

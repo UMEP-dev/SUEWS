@@ -190,6 +190,10 @@ class TestYamlUpgradeModule:
             upgrade_yaml(input_path=source, output_path=target)
 
     @pytest.mark.parametrize(
+        "schema_version",
+        ["2026.5", "2026.5.dev1", "2026.5.dev12"],
+    )
+    @pytest.mark.parametrize(
         "left,right",
         [
             ("outer_cap_fraction", "rcmethod"),
@@ -201,6 +205,7 @@ class TestYamlUpgradeModule:
     def test_raises_on_duplicate_flat_stebbs_leaf_aliases(
         self,
         tmp_path: Path,
+        schema_version: str,
         left: str,
         right: str,
     ):
@@ -208,7 +213,7 @@ class TestYamlUpgradeModule:
         source = tmp_path / "duplicate-stebbs-leaves.yml"
         target = tmp_path / "upgraded.yml"
         payload = {
-            "schema_version": "2026.5.dev12",
+            "schema_version": schema_version,
             "model": {
                 "physics": {
                     "stebbs": {"value": 1},

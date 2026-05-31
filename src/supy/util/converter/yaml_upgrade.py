@@ -674,6 +674,13 @@ def _apply_modelphysics_suffix_renames(cfg: dict) -> None:
     if not isinstance(physics, dict):
         return
     _reject_duplicate_stebbs_master_aliases(physics)
+    leaf_conflicts = _stebbs_leaf_alias_conflicts(physics)
+    if leaf_conflicts:
+        raise YamlUpgradeError(
+            "Multiple flat STEBBS physics switches map to the same nested leaf "
+            f"({_format_stebbs_leaf_alias_conflicts(leaf_conflicts)}). Use only "
+            "one spelling."
+        )
     for old, new in _MODELPHYSICS_SUFFIX_RENAMES_TABLE:
         _rename_field(physics, old, new)
 

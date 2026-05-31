@@ -189,6 +189,42 @@ class TestYamlUpgradeModule:
         with pytest.raises(YamlUpgradeError, match="flat STEBBS physics switches"):
             upgrade_yaml(input_path=source, output_path=target)
 
+    @pytest.mark.parametrize(
+        "left,right",
+        [
+            ("outer_cap_fraction", "rcmethod"),
+            ("outer_cap_fraction", "rc_method"),
+            ("capacitance", "rcmethod"),
+            ("setpoint", "setpointmethod"),
+        ],
+    )
+    def test_raises_on_duplicate_flat_stebbs_leaf_aliases(
+        self,
+        tmp_path: Path,
+        left: str,
+        right: str,
+    ):
+        """Upgrade should reject flat aliases that target the same nested leaf."""
+        source = tmp_path / "duplicate-stebbs-leaves.yml"
+        target = tmp_path / "upgraded.yml"
+        payload = {
+            "schema_version": "2026.5.dev12",
+            "model": {
+                "physics": {
+                    "stebbs": {"value": 1},
+                    left: {"value": 1},
+                    right: {"value": 2},
+                }
+            },
+        }
+        source.write_text(
+            yaml.safe_dump(payload, sort_keys=False),
+            encoding="utf-8",
+        )
+
+        with pytest.raises(YamlUpgradeError, match="same nested leaf"):
+            upgrade_yaml(input_path=source, output_path=target)
+
     def test_missing_signature_raises_error_message_points_at_from_flag(
         self, release_yaml: Path, tmp_path: Path
     ):

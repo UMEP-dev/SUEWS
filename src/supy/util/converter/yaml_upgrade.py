@@ -690,6 +690,28 @@ def _stebbs_flat_leaf_siblings(physics: dict) -> list[str]:
     )
 
 
+def _stebbs_leaf_alias_conflicts(physics: dict) -> list[tuple[str, list[str]]]:
+    """Return flat STEBBS alias groups that would collide after folding."""
+    present_by_leaf: dict[str, list[str]] = {}
+    for old_key, nested_leaf in _STEBBS_PHYSICS_LEAF_RENAMES_TO_DEV12:
+        if old_key in physics:
+            present_by_leaf.setdefault(nested_leaf, []).append(old_key)
+    return [
+        (leaf, sorted(keys))
+        for leaf, keys in sorted(present_by_leaf.items())
+        if len(keys) > 1
+    ]
+
+
+def _format_stebbs_leaf_alias_conflicts(
+    conflicts: list[tuple[str, list[str]]],
+) -> str:
+    """Format colliding flat STEBBS aliases for migration errors."""
+    return "; ".join(
+        f"{', '.join(keys)} -> stebbs.{leaf}" for leaf, keys in conflicts
+    )
+
+
 def _decompose_stebbs_master_value(entry):
     """Decompose a legacy flat `stebbs` master toggle into (enabled, params).
 
@@ -777,6 +799,14 @@ def _apply_stebbs_physics_fold(cfg: dict) -> None:
                 "[yaml-upgrade]   decomposed 'stebbs' master toggle -> "
                 "'stebbs.enabled' + 'stebbs.parameters'"
             )
+
+    leaf_conflicts = _stebbs_leaf_alias_conflicts(physics)
+    if leaf_conflicts:
+        raise YamlUpgradeError(
+            "Multiple flat STEBBS physics switches map to the same nested leaf "
+            f"({_format_stebbs_leaf_alias_conflicts(leaf_conflicts)}). Use only "
+            "one spelling."
+        )
 
     for old_nested, nested_leaf in _STEBBS_PHYSICS_LEAF_RENAMES_TO_DEV12:
         if old_nested == nested_leaf or old_nested not in stebbs_block:

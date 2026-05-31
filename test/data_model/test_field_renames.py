@@ -583,6 +583,28 @@ class TestStebbsPhysicsFold:
             with pytest.raises(ValueError, match="nested 'stebbs'.*flat STEBBS"):
                 ModelPhysics(stebbs=stebbs, **{flat_key: {"value": 0}})
 
+    @pytest.mark.parametrize(
+        "left,right",
+        [
+            ("outer_cap_fraction", "rcmethod"),
+            ("outer_cap_fraction", "rc_method"),
+            ("capacitance", "rcmethod"),
+            ("setpoint", "setpointmethod"),
+        ],
+    )
+    def test_duplicate_flat_stebbs_leaf_aliases_are_rejected(self, left, right):
+        """Flat aliases to the same nested STEBBS leaf are ambiguous."""
+        payload = {
+            "stebbs": {"value": 1},
+            left: {"value": 1},
+            right: {"value": 2},
+        }
+
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", DeprecationWarning)
+            with pytest.raises(ValueError, match="Use only"):
+                ModelPhysics(**payload)
+
     def test_single_fold_deprecation_warning(self):
         with warnings.catch_warnings(record=True) as captured:
             warnings.simplefilter("always", DeprecationWarning)

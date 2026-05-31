@@ -4858,6 +4858,17 @@ class TestPhaseBRenameAwareLookups:
                 }
             )
 
+    def test_stebbsmethod_helper_rejects_duplicate_legacy_master_aliases(self):
+        from supy.data_model.validation.core.yaml_helpers import get_stebbsmethod_value
+
+        with pytest.raises(ValueError, match="Multiple legacy STEBBS master aliases"):
+            get_stebbsmethod_value(
+                {
+                    "stebbsmethod": {"value": 0},
+                    "stebbs_method": {"value": 1},
+                }
+            )
+
     @pytest.mark.parametrize(
         "flat_key",
         ["rcmethod", "capacitance", "outer_cap_fraction"],
@@ -4873,6 +4884,31 @@ class TestPhaseBRenameAwareLookups:
                         "capacitance": {"value": 1},
                     },
                     flat_key: {"value": 0},
+                }
+            )
+
+    @pytest.mark.parametrize(
+        "left,right",
+        [
+            ("outer_cap_fraction", "rcmethod"),
+            ("outer_cap_fraction", "rc_method"),
+            ("capacitance", "rcmethod"),
+            ("setpoint", "setpointmethod"),
+        ],
+    )
+    def test_stebbs_block_helper_rejects_duplicate_flat_leaf_aliases(
+        self,
+        left,
+        right,
+    ):
+        from supy.data_model.validation.core.yaml_helpers import get_stebbs_block
+
+        with pytest.raises(ValueError, match="same nested leaf"):
+            get_stebbs_block(
+                {
+                    "stebbs": {"value": 1},
+                    left: {"value": 1},
+                    right: {"value": 2},
                 }
             )
 

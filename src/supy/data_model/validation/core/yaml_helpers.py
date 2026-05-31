@@ -180,6 +180,28 @@ def _stebbs_master_aliases(physics):
     )
 
 
+def _stebbs_leaf_alias_conflicts(physics):
+    """Return flat STEBBS alias groups that would collide after folding."""
+    if not isinstance(physics, Mapping):
+        return []
+    present_by_leaf = {}
+    for old_key, nested_leaf in STEBBS_PHYSICS_LEAF_RENAMES.items():
+        if old_key in physics:
+            present_by_leaf.setdefault(nested_leaf, []).append(old_key)
+    return [
+        (leaf, sorted(keys))
+        for leaf, keys in sorted(present_by_leaf.items())
+        if len(keys) > 1
+    ]
+
+
+def _format_stebbs_leaf_alias_conflicts(conflicts):
+    """Format colliding flat STEBBS aliases for validation errors."""
+    return "; ".join(
+        f"{', '.join(keys)} -> stebbs.{leaf}" for leaf, keys in conflicts
+    )
+
+
 def _stebbs_flat_leaf_siblings(physics):
     """Return flat STEBBS leaf keys present beside a nested ``stebbs`` block."""
     if not isinstance(physics, Mapping):
@@ -190,6 +212,11 @@ def _stebbs_flat_leaf_siblings(physics):
 def _read_raw_stebbs_entry(physics):
     """Read ``stebbs`` while rejecting ambiguous master-toggle aliases."""
     aliases = _stebbs_master_aliases(physics)
+    if len(aliases) > 1:
+        raise ValueError(
+            "Multiple legacy STEBBS master aliases "
+            f"({', '.join(aliases)}) are present. Use only one spelling."
+        )
     if isinstance(physics, Mapping) and "stebbs" in physics and aliases:
         raise ValueError(
             "Both 'stebbs' and legacy STEBBS master aliases "
@@ -313,6 +340,14 @@ def get_stebbs_block(physics):
                 f"({', '.join(flat_conflicts)}) are present. Use only the "
                 "nested 'stebbs' form."
             )
+
+    leaf_conflicts = _stebbs_leaf_alias_conflicts(physics)
+    if leaf_conflicts:
+        raise ValueError(
+            "Multiple flat STEBBS physics switches map to the same nested leaf "
+            f"({_format_stebbs_leaf_alias_conflicts(leaf_conflicts)}). Use only "
+            "one spelling."
+        )
 
     for old_key, nested_leaf in STEBBS_PHYSICS_LEAF_RENAMES.items():
         if old_key == nested_leaf or old_key not in folded:

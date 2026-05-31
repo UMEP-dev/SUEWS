@@ -651,6 +651,33 @@ def test_public_mode_restriction_rejects_mixed_stebbs_master_aliases(
     assert read_error is None
 
 
+def test_public_mode_restriction_rejects_duplicate_legacy_stebbs_aliases(
+    tmp_path: Path,
+) -> None:
+    from supy.cmd.validate_config import _experimental_features_restriction
+
+    payload = {
+        "model": {
+            "physics": {
+                "stebbsmethod": {"value": 0},
+                "stebbs_method": {"value": 1},
+            }
+        }
+    }
+    config_path = tmp_path / "public-duplicate-master.yml"
+    _write_yaml(config_path, payload)
+
+    ok, restrictions, read_error = _experimental_features_restriction(
+        str(config_path), "public"
+    )
+
+    assert ok is False
+    assert "Invalid STEBBS physics configuration" in restrictions[0]
+    assert "stebbsmethod" in restrictions[0]
+    assert "stebbs_method" in restrictions[0]
+    assert read_error is None
+
+
 def test_emit_pipeline_result_warning_status_matches_inner_report(
     tmp_path: Path,
     capsys: pytest.CaptureFixture[str],

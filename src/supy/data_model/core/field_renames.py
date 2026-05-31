@@ -1451,6 +1451,26 @@ def _normalise_stebbs_block_aliases(stebbs_block: dict) -> tuple[dict, list[str]
     return stebbs_block, moved
 
 
+def _stebbs_leaf_alias_conflicts(values: Mapping[str, Any]) -> list[tuple[str, list[str]]]:
+    """Return flat STEBBS alias groups that would collide after folding."""
+    present_by_leaf: dict[str, list[str]] = {}
+    for old_key, nested_leaf in STEBBS_PHYSICS_LEAF_RENAMES.items():
+        if old_key in values:
+            present_by_leaf.setdefault(nested_leaf, []).append(old_key)
+    return [
+        (leaf, sorted(keys))
+        for leaf, keys in sorted(present_by_leaf.items())
+        if len(keys) > 1
+    ]
+
+
+def _format_stebbs_leaf_alias_conflicts(conflicts: list[tuple[str, list[str]]]) -> str:
+    """Format colliding flat STEBBS aliases for validation errors."""
+    return "; ".join(
+        f"{', '.join(keys)} -> stebbs.{leaf}" for leaf, keys in conflicts
+    )
+
+
 def _stebbs_flat_leaf_siblings(values: Mapping[str, Any]) -> list[str]:
     """Return flat STEBBS leaf keys present beside a nested ``stebbs`` block."""
     return sorted({key for key in STEBBS_PHYSICS_LEAF_RENAMES if key in values})
@@ -1464,8 +1484,8 @@ def fold_stebbs_physics(values: dict, class_name: str, *, warn: bool = True) -> 
     Behaviour:
       * If ``values["stebbs"]`` is already the nested object (its keys include
         any of ``enabled``/``parameters``/``capacitance``/``setpoint``/
-        ``same_*``), it is left untouched and only stray flat siblings (if any)
-        are folded in.
+        ``same_*``), it is left untouched; stray flat siblings are rejected as
+        ambiguous.
       * Otherwise ``stebbs`` is treated as the legacy master toggle and
         decomposed into ``stebbs.enabled`` + ``stebbs.parameters``.
       * The five sibling switches (``outer_cap_fraction`` -> ``capacitance``,
@@ -1521,6 +1541,14 @@ def fold_stebbs_physics(values: dict, class_name: str, *, warn: bool = True) -> 
             stebbs_block["enabled"] = enabled
             stebbs_block["parameters"] = parameters
             moved.append("stebbs")
+
+    leaf_conflicts = _stebbs_leaf_alias_conflicts(values)
+    if leaf_conflicts:
+        raise ValueError(
+            f"{class_name}: multiple flat STEBBS physics switches map to the "
+            f"same nested leaf ({_format_stebbs_leaf_alias_conflicts(leaf_conflicts)}). "
+            "Use only one spelling."
+        )
 
     for flat_key, nested_leaf in STEBBS_PHYSICS_LEAF_RENAMES.items():
         if flat_key in values:

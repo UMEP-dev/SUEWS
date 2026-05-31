@@ -47,6 +47,7 @@ from supy.data_model.core.field_renames import (
     SURFACEPROPERTIES_RENAMES,
     VEGETATEDSURFACEPROPERTIES_RENAMES,
     WATERDIST_RENAMES,
+    read_physics_key,
     rename_keys_recursive,
 )
 from supy.data_model.core.model import ModelPhysics, StebbsPhysics
@@ -834,6 +835,31 @@ class TestRawDictCompatibility:
         assert methods["netradiation_spartacus"] is True
         assert methods["emissions_advanced"] is True
         assert methods["storage_estm"] is True
+
+    def test_analyze_config_methods_accepts_orthogonal_net_radiation(self):
+        config = {
+            "model": {
+                "physics": {
+                    "roughness_sublayer": {"value": 2},
+                    "roughness_length_momentum": {"value": 2},
+                    "net_radiation": {"scheme": "spartacus", "ldown": "air"},
+                    "emissions": {"simple": {"value": 4}},
+                    "storage_heat": {"estm": {"value": 4}},
+                }
+            }
+        }
+
+        methods = analyze_config_methods(config)
+
+        assert methods["roughness_variable"] is True
+        assert methods["netradiation_spartacus"] is True
+        assert methods["emissions_advanced"] is True
+        assert methods["storage_estm"] is True
+
+    def test_read_physics_key_accepts_orthogonal_legacy_name(self):
+        physics = {"netradiationmethod": {"scheme": "narp", "ldown": "air"}}
+
+        assert read_physics_key(physics, "net_radiation") == 3
 
     def test_validation_controller_accepts_legacy_physics_names(self):
         config = {

@@ -659,6 +659,124 @@ fn physics_outer_keys(field_name: &str) -> &'static [&'static str] {
     }
 }
 
+fn mapping_token(
+    map: &serde_yaml::Mapping,
+    key: &str,
+    context: &str,
+) -> Result<Option<String>, String> {
+    match map.get(Value::String(key.to_string())) {
+        None => Ok(None),
+        Some(Value::String(s)) if !s.trim().is_empty() => Ok(Some(s.trim().to_ascii_lowercase())),
+        Some(_) => Err(format!(
+            "'{context}.{key}' must be a non-empty string token."
+        )),
+    }
+}
+
+fn reject_foreign_keys(
+    map: &serde_yaml::Mapping,
+    allowed: &[&str],
+    context: &str,
+) -> Result<(), String> {
+    let foreign: Vec<String> = map
+        .keys()
+        .filter_map(|k| match k.as_str() {
+            Some(s) if !allowed.contains(&s) => Some(format!("{s:?}")),
+            None => Some(format!("{k:?}")),
+            _ => None,
+        })
+        .collect();
+    if !foreign.is_empty() {
+        return Err(format!(
+            "'{context}' cannot be combined with sibling keys {foreign:?}."
+        ));
+    }
+    Ok(())
+}
+
+fn narp_orthogonal_code(ldown: &str, variant: &str) -> Option<i64> {
+    match (ldown, variant) {
+        ("observed", "standard") => Some(1),
+        ("cloud", "standard") => Some(2),
+        ("air", "standard") => Some(3),
+        ("observed", "surface") => Some(11),
+        ("cloud", "surface") => Some(12),
+        ("air", "surface") => Some(13),
+        ("observed", "zenith") => Some(100),
+        ("cloud", "zenith") => Some(200),
+        ("air", "zenith") => Some(300),
+        _ => None,
+    }
+}
+
+fn spartacus_orthogonal_code(ldown: &str) -> Option<i64> {
+    match ldown {
+        "observed" => Some(1001),
+        "cloud" => Some(1002),
+        "air" => Some(1003),
+        _ => None,
+    }
+}
+
+fn collapse_orthogonal_net_radiation(map: &mut serde_yaml::Mapping) -> Result<bool, String> {
+    if !map.contains_key(Value::String("scheme".into())) {
+        return Ok(false);
+    }
+
+    let field_name = "net_radiation";
+    let scheme = mapping_token(map, "scheme", field_name)?
+        .ok_or_else(|| format!("'{field_name}.scheme' is required."))?;
+
+    let code = match scheme.as_str() {
+        "forcing" => {
+            reject_foreign_keys(map, &["scheme", "ref"], "net_radiation.forcing")?;
+            0
+        }
+        "narp" => {
+            reject_foreign_keys(
+                map,
+                &["scheme", "ldown", "variant", "ref"],
+                "net_radiation.narp",
+            )?;
+            let ldown = mapping_token(map, "ldown", "net_radiation.narp")?.ok_or_else(|| {
+                "'net_radiation.narp' requires 'ldown' (observed, cloud, or air).".to_string()
+            })?;
+            let variant = mapping_token(map, "variant", "net_radiation.narp")?
+                .unwrap_or_else(|| "standard".to_string());
+            narp_orthogonal_code(&ldown, &variant).ok_or_else(|| {
+                format!(
+                    "'net_radiation.narp' does not support ldown={ldown:?}, variant={variant:?}."
+                )
+            })?
+        }
+        "spartacus" => {
+            reject_foreign_keys(map, &["scheme", "ldown", "ref"], "net_radiation.spartacus")?;
+            let ldown =
+                mapping_token(map, "ldown", "net_radiation.spartacus")?.ok_or_else(|| {
+                    "'net_radiation.spartacus' requires 'ldown' (observed, cloud, or air)."
+                        .to_string()
+                })?;
+            spartacus_orthogonal_code(&ldown).ok_or_else(|| {
+                format!("'net_radiation.spartacus' does not support ldown={ldown:?}.")
+            })?
+        }
+        _ => {
+            return Err(
+                "'net_radiation.scheme' must be one of 'forcing', 'narp', or 'spartacus'."
+                    .to_string(),
+            );
+        }
+    };
+
+    let carried_ref = map.get(Value::String("ref".into())).cloned();
+    map.clear();
+    map.insert(Value::String("value".into()), Value::Number(code.into()));
+    if let Some(r) = carried_ref {
+        map.insert(Value::String("ref".into()), r);
+    }
+    Ok(true)
+}
+
 /// Collapse family-tagged nested physics input to the flat `{value: N}`
 /// shape underneath `model.physics.<field>`. Called from
 /// `normalize_field_names` BEFORE the recursive rename walk, so it must
@@ -691,6 +809,10 @@ fn collapse_nested_physics(root: &mut Value) -> Result<(), String> {
                 Some(m) => m,
                 None => continue,
             };
+
+            if *field_name == "net_radiation" && collapse_orthogonal_net_radiation(map)? {
+                continue;
+            }
 
             let matched: Vec<&str> = families
                 .iter()
@@ -1452,6 +1574,88 @@ model:
             netrad.get(Value::String("spartacus".into())).is_none(),
             "family tag should be discarded"
         );
+    }
+
+    #[test]
+    fn orthogonal_net_radiation_narp_variants_collapse() {
+        let cases = [
+            ("observed", None, 1),
+            ("cloud", None, 2),
+            ("air", None, 3),
+            ("observed", Some("surface"), 11),
+            ("cloud", Some("surface"), 12),
+            ("air", Some("surface"), 13),
+            ("observed", Some("zenith"), 100),
+            ("cloud", Some("zenith"), 200),
+            ("air", Some("zenith"), 300),
+        ];
+
+        for (ldown, variant, expected) in cases {
+            let variant_line = variant
+                .map(|v| format!("      variant: {v}\n"))
+                .unwrap_or_default();
+            let yaml = format!(
+                "model:\n  physics:\n    net_radiation:\n      scheme: narp\n      ldown: {ldown}\n{variant_line}"
+            );
+            let mut root: Value = from_str(&yaml).unwrap();
+            normalize_field_names(&mut root).unwrap();
+            let v = root["model"]["physics"]["netradiationmethod"]
+                .get(Value::String("value".into()))
+                .unwrap();
+            assert_eq!(v.as_i64(), Some(expected));
+        }
+    }
+
+    #[test]
+    fn orthogonal_net_radiation_spartacus_collapses() {
+        let yaml =
+            "model:\n  physics:\n    net_radiation:\n      scheme: spartacus\n      ldown: air\n";
+        let mut root: Value = from_str(yaml).unwrap();
+        normalize_field_names(&mut root).unwrap();
+        let netrad = &root["model"]["physics"]["netradiationmethod"];
+        let v = netrad.get(Value::String("value".into())).unwrap();
+        assert_eq!(v.as_i64(), Some(1003));
+        assert!(netrad.get(Value::String("scheme".into())).is_none());
+    }
+
+    #[test]
+    fn orthogonal_net_radiation_forcing_collapses() {
+        let yaml = "model:\n  physics:\n    net_radiation:\n      scheme: forcing\n";
+        let mut root: Value = from_str(yaml).unwrap();
+        normalize_field_names(&mut root).unwrap();
+        let v = root["model"]["physics"]["netradiationmethod"]
+            .get(Value::String("value".into()))
+            .unwrap();
+        assert_eq!(v.as_i64(), Some(0));
+    }
+
+    #[test]
+    fn orthogonal_net_radiation_under_legacy_outer_key_collapses() {
+        let yaml =
+            "model:\n  physics:\n    netradiationmethod:\n      scheme: narp\n      ldown: air\n";
+        let mut root: Value = from_str(yaml).unwrap();
+        normalize_field_names(&mut root).unwrap();
+        let v = root["model"]["physics"]["netradiationmethod"]
+            .get(Value::String("value".into()))
+            .unwrap();
+        assert_eq!(v.as_i64(), Some(3));
+    }
+
+    #[test]
+    fn orthogonal_net_radiation_rejects_forcing_ldown() {
+        let yaml =
+            "model:\n  physics:\n    net_radiation:\n      scheme: forcing\n      ldown: air\n";
+        let mut root: Value = from_str(yaml).unwrap();
+        let err = normalize_field_names(&mut root).expect_err("forcing ldown must fail");
+        assert!(err.contains("sibling keys"), "error was: {err}");
+    }
+
+    #[test]
+    fn orthogonal_net_radiation_rejects_bad_variant() {
+        let yaml = "model:\n  physics:\n    net_radiation:\n      scheme: narp\n      ldown: air\n      variant: canyon\n";
+        let mut root: Value = from_str(yaml).unwrap();
+        let err = normalize_field_names(&mut root).expect_err("bad variant must fail");
+        assert!(err.contains("does not support"), "error was: {err}");
     }
 
     #[test]

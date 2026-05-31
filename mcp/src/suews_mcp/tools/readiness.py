@@ -173,8 +173,11 @@ def assess_readiness(
         u_site = (user.get("sites") or [{}])[0]
         s_site = (sample.get("sites") or [{}])[0]
 
-        # Location (lat/lng/alt). The location group also covers timezone.
-        loc_keys = ("lat", "lng", "alt")
+        # Location (lat/lng/alt + timezone). Timezone controls the sun's
+        # apparent position (radiation timing) for the same lat/lng, so a
+        # site at the sample coordinates but a different timezone is still
+        # using the wrong place's solar geometry.
+        loc_keys = ("lat", "lng", "alt", "timezone")
         if all(u_site.get(k) == s_site.get(k) for k in loc_keys):
             _record("location", {k: u_site.get(k) for k in loc_keys})
         else:

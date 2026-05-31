@@ -118,13 +118,25 @@ def _load_schema(version: str) -> dict[str, Any]:
 
 
 def _needles(query: str) -> set[str]:
-    """Tokenise the query and expand through the alias map."""
+    """Tokenise the query and expand through the alias map.
+
+    Tokens shorter than ``_MIN_TOKEN_LEN`` are normally dropped (they
+    are too generic to score usefully across a large schema). For an
+    exact short-field lookup like ``"z"`` (measurement height), every
+    token would be dropped and the search would return nothing — a
+    regression vs the previous literal search. So if filtering leaves
+    no needles, fall back to the raw non-stopword tokens to preserve
+    exact short-field lookups.
+    """
+    raw = _TOKEN_RE.findall(query.lower())
     needles: set[str] = set()
-    for tok in _TOKEN_RE.findall(query.lower()):
+    for tok in raw:
         if len(tok) < _MIN_TOKEN_LEN or tok in _STOPWORDS:
             continue
         needles.add(tok)
         needles.update(_ALIASES.get(tok, ()))
+    if not needles:
+        needles = {tok for tok in raw if tok and tok not in _STOPWORDS}
     return needles
 
 

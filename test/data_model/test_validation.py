@@ -4509,6 +4509,49 @@ def _phase_b_science_fixture():
     }
 
 
+@pytest.mark.parametrize(
+    ("emissions_method", "expects_error"),
+    [
+        (5, False),
+        (11, True),
+    ],
+)
+def test_land_cover_validator_handles_current_biogenic_names_for_disabled_co2(
+    registry, emissions_method, expects_error
+):
+    yaml_data = {
+        "model": {"physics": {"emissions": {"value": emissions_method}}},
+        "sites": [
+            {
+                "gridiv": {"value": 101},
+                "properties": {
+                    "land_cover": {
+                        "dectr": {
+                            "sfr": {"value": 1.0},
+                            "alpha_bio_co2": {"value": None},
+                            "beta_bio_co2": {"value": None},
+                            "theta_bio_co2": {"value": None},
+                            "resp_a": {"value": None},
+                            "resp_b": {"value": None},
+                        }
+                    }
+                },
+            }
+        ],
+    }
+
+    results = registry["land_cover"](ValidationContext(yaml_data=yaml_data))
+
+    has_biogenic_error = any(
+        result.status == "ERROR"
+        and result.parameter.startswith("dectr.")
+        and result.parameter.split(".")[-1]
+        in {"alpha_bio_co2", "beta_bio_co2", "theta_bio_co2", "resp_a", "resp_b"}
+        for result in results
+    )
+    assert has_biogenic_error is expects_error
+
+
 def test_phase_b_collect_science_suggestions_does_not_mutate(monkeypatch):
     from supy.data_model.validation.pipeline import phase_b
 
@@ -4854,7 +4897,7 @@ class TestPhaseBRenameAwareLookups:
     def test_nested_family_and_valid_values_not_flagged_empty(self):
         # The gh#972 nested-family form and a valid 0 must NOT be flagged empty.
         physics = self._build_physics()
-        physics["net_radiation"] = {"spartacus": {"value": 1}}
+        physics["net_radiation"] = {"spartacus": {"value": 1001}}
         physics["stebbs"]["capacitance"] = {"value": 0}
         flagged = self._empty_param_errors(physics)
         assert "model.physics.net_radiation" not in flagged

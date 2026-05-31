@@ -80,6 +80,12 @@ When you run ``suews-validate config.yml``, it creates:
 - ``updated_config.yml`` - the updated configuration from the last successful
   validation phase
 - ``report_config.txt`` - the consolidated validation report
+- ``report_config.json`` - the machine-readable sidecar. It is a consolidated
+  ``ValidationReport`` (``{overall_status, phases:[...]}``) carrying every
+  phase's findings across all severities (``ERROR``, ``WARNING``, ``INFO``,
+  ``SUGGESTION``, ``APPLIED_FIX``, ``PASS``), so non-error informational
+  messages are available to tooling, not just validation errors. This matches
+  the ``data.validation_report`` field of the ``--format json`` output.
 
 Understanding Reports
 ---------------------

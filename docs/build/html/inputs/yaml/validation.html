@@ -8,8 +8,8 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <meta property="article:modified_time" content="2026-04-28T21:36:42+00:00" />
-    <title>4.6. Validation Tool Reference &#8212; SUEWS 2026.5.30.dev9112 documentation</title>
+    <meta property="article:modified_time" content="2026-05-31T07:06:43+00:00" />
+    <title>4.6. Validation Tool Reference &#8212; SUEWS 2026.5.31.dev9112 documentation</title>
   
   
   
@@ -45,7 +45,7 @@
   <link rel="preload" as="script" href="../../_static/scripts/bootstrap.js?digest=8878045cc6db502f8baf" />
 <link rel="preload" as="script" href="../../_static/scripts/pydata-sphinx-theme.js?digest=8878045cc6db502f8baf" />
 
-    <script src="../../_static/documentation_options.js?v=2dd033a9"></script>
+    <script src="../../_static/documentation_options.js?v=d0a00cef"></script>
     <script src="../../_static/doctools.js?v=9bcbadda"></script>
     <script src="../../_static/sphinx_highlight.js?v=dc90522c"></script>
     <script src="../../_static/scripts/sphinx-book-theme.js?v=fab101a9"></script>
@@ -59,8 +59,8 @@
     <link rel="prev" title="4.5. Transitioning to YAML-based Configuration" href="../transition_guide.html" />
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
-  <meta name="docsearch:version" content="2026.5.30.dev9112" />
-    <meta name="docbuild:last-update" content="2026-04-28"/>
+  <meta name="docsearch:version" content="2026.5.31.dev9112" />
+    <meta name="docbuild:last-update" content="2026-05-31"/>
   </head>
   
   
@@ -102,7 +102,7 @@
   <div class="bd-header-announcement__content">
     <div style="background-color: #f0ad4e; border: 1px solid #eea236; border-radius: 4px; padding: 10px; margin: 10px 0;">
         <strong>⚠️ Development Version:</strong> This documentation was built from a development version
-        (2026.5.30.dev9112, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/3c9c2b5cb4a4143711865f036ad3b4d65cd14ee2" style="color: #31708f;">3c9c2b5</a>).
+        (2026.5.31.dev9112, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/ee83c16422e58daa801ecfcf0705780bcdca14ac" style="color: #31708f;">ee83c16</a>).
         Features described here may be unstable or subject to change. For stable documentation, please visit the
         <a href="https://docs.suews.io/stable/" style="color: #31708f;">latest release</a>.
     </div>
@@ -149,8 +149,8 @@
       
     
     
-    <img src="../../_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.5.30.dev9112 documentation - Home"/>
-    <img src="../../_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.5.30.dev9112 documentation - Home"/>
+    <img src="../../_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.5.31.dev9112 documentation - Home"/>
+    <img src="../../_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.5.31.dev9112 documentation - Home"/>
   
   
 </a></div>
@@ -699,6 +699,12 @@ historical timezone settings, or specialist case studies.</p>
 <li><p><code class="docutils literal notranslate"><span class="pre">updated_config.yml</span></code> - the updated configuration from the last successful
 validation phase</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">report_config.txt</span></code> - the consolidated validation report</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">report_config.json</span></code> - the machine-readable sidecar. It is a consolidated
+<code class="docutils literal notranslate"><span class="pre">ValidationReport</span></code> (<code class="docutils literal notranslate"><span class="pre">{overall_status,</span> <span class="pre">phases:[...]}</span></code>) carrying every
+phase’s findings across all severities (<code class="docutils literal notranslate"><span class="pre">ERROR</span></code>, <code class="docutils literal notranslate"><span class="pre">WARNING</span></code>, <code class="docutils literal notranslate"><span class="pre">INFO</span></code>,
+<code class="docutils literal notranslate"><span class="pre">SUGGESTION</span></code>, <code class="docutils literal notranslate"><span class="pre">APPLIED_FIX</span></code>, <code class="docutils literal notranslate"><span class="pre">PASS</span></code>), so non-error informational
+messages are available to tooling, not just validation errors. This matches
+the <code class="docutils literal notranslate"><span class="pre">data.validation_report</span></code> field of the <code class="docutils literal notranslate"><span class="pre">--format</span> <span class="pre">json</span></code> output.</p></li>
 </ul>
 </section>
 <section id="understanding-reports">
@@ -895,7 +901,7 @@ By SUEWS dev team led by Prof Sue Grimmond
   
   <div class="footer-item">
     <p class="last-updated">
-  Last updated on 2026-04-28.
+  Last updated on 2026-05-31.
   <br/>
 </p>
   </div>
@@ -903,8 +909,8 @@ By SUEWS dev team led by Prof Sue Grimmond
   <div class="footer-item">
     
 <div class="extra_footer">
-  <p>Version: 2026.5.30.dev9112 |
-    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/3c9c2b5cb4a4143711865f036ad3b4d65cd14ee2">3c9c2b5</a> |
+  <p>Version: 2026.5.31.dev9112 |
+    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/ee83c16422e58daa801ecfcf0705780bcdca14ac">ee83c16</a> |
     <a href="https://umep-dev.github.io/SUEWS/brand/showcase.html">Brand</a></p>
 </div>
   </div>

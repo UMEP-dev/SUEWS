@@ -861,6 +861,25 @@ class TestRawDictCompatibility:
 
         assert read_physics_key(physics, "net_radiation") == 3
 
+    def test_analyze_config_methods_accepts_orthogonal_emissions(self):
+        config = {
+            "model": {
+                "physics": {
+                    "emissions": {
+                        "heat": "j11",
+                        "co2": {
+                            "anthropogenic": "detailed",
+                            "biogenic": "conductance",
+                        },
+                    },
+                }
+            }
+        }
+
+        methods = analyze_config_methods(config)
+
+        assert methods["emissions_advanced"] is True
+
     def test_validation_controller_accepts_legacy_physics_names(self):
         config = {
             "model": {

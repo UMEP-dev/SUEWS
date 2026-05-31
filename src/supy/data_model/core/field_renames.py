@@ -1781,11 +1781,18 @@ def normalise_yaml_renames(data: Any) -> Any:
     if isinstance(model, dict):
         physics = model.get("physics")
         if isinstance(physics, dict):
-            model["physics"] = fold_stebbs_physics(
+            physics = fold_stebbs_physics(
                 physics,
                 "ModelPhysics",
                 warn=False,
             )
+            for field_name in ("net_radiation", "storage_heat", "emissions"):
+                if field_name in physics:
+                    physics[field_name] = coerce_nested_to_flat(
+                        field_name,
+                        coerce_orthogonal_to_flat(field_name, physics[field_name]),
+                    )
+            model["physics"] = physics
 
     return normalised
 

@@ -37,13 +37,13 @@ PHYSICS_FAMILIES: dict[str, dict[str, frozenset[int]]] = {
         "dyohm": frozenset({6}),
         "stebbs": frozenset({7}),
     },
-    # Biogen families (11-15, 21-25, 41-45) are documented in the
-    # EmissionsMethod docstring but not yet declared as enum members —
-    # Pydantic would reject them anyway. The registry stays aligned with
-    # what the enum actually accepts; extend here when enum members land.
     "emissions": {
         "observed": frozenset({0}),
-        "simple": frozenset({1, 2, 3, 4, 5}),
+        "simple": frozenset({1, 2, 3, 4, 5, 6}),
+        "biogenic_rectangular": frozenset({11, 12, 13, 14, 15, 16}),
+        "biogenic_bellucco_local": frozenset({21, 22, 23, 24, 25, 26}),
+        "biogenic_bellucco_general": frozenset({31, 32, 33, 34, 35, 36}),
+        "biogenic_conductance": frozenset({41, 42, 43, 44, 45, 46}),
     },
 }
 

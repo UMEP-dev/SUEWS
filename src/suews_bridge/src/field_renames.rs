@@ -601,10 +601,6 @@ pub const FIELD_COMPAT_ALIASES: &[(&str, &str)] = &[
 /// field keys, same family tags, same numeric codes. Drift is caught by
 /// `scripts/lint/check_rust_yaml_aliases.py`.
 ///
-/// `emissions` is trimmed to codes 0-5 to match the current
-/// `EmissionsMethod` enum — biogen variants (11-45) live in the Python
-/// docstring but are not yet enum members.
-///
 /// Keyed by the canonical snake_case field name because
 /// `collapse_nested_physics` runs BEFORE the legacy-name rewrite
 /// (`normalize_field_names_at`). That ordering matters: some family
@@ -637,7 +633,14 @@ pub const PHYSICS_FAMILIES_RS: &[(&str, &[(&str, FamilyCodes)])] = &[
     ),
     (
         "emissions",
-        &[("observed", &[0]), ("simple", &[1, 2, 3, 4, 5])],
+        &[
+            ("observed", &[0]),
+            ("simple", &[1, 2, 3, 4, 5, 6]),
+            ("biogenic_rectangular", &[11, 12, 13, 14, 15, 16]),
+            ("biogenic_bellucco_local", &[21, 22, 23, 24, 25, 26]),
+            ("biogenic_bellucco_general", &[31, 32, 33, 34, 35, 36]),
+            ("biogenic_conductance", &[41, 42, 43, 44, 45, 46]),
+        ],
     ),
 ];
 
@@ -718,6 +721,35 @@ fn spartacus_orthogonal_code(ldown: &str) -> Option<i64> {
     }
 }
 
+fn emissions_heat_code(heat: &str) -> Option<i64> {
+    match heat {
+        "l11" => Some(1),
+        "j11" => Some(2),
+        "l11_updated" => Some(3),
+        _ => None,
+    }
+}
+
+fn emissions_anthropogenic_offset(anthropogenic: &str) -> Option<i64> {
+    match anthropogenic {
+        "none" => Some(0),
+        "qf_linked" => Some(0),
+        "detailed" => Some(3),
+        _ => None,
+    }
+}
+
+fn emissions_biogenic_offset(biogenic: &str) -> Option<i64> {
+    match biogenic {
+        "none" => Some(0),
+        "rectangular" => Some(10),
+        "bellucco_local" => Some(20),
+        "bellucco_general" => Some(30),
+        "conductance" => Some(40),
+        _ => None,
+    }
+}
+
 fn collapse_orthogonal_net_radiation(map: &mut serde_yaml::Mapping) -> Result<bool, String> {
     if !map.contains_key(Value::String("scheme".into())) {
         return Ok(false);
@@ -777,6 +809,86 @@ fn collapse_orthogonal_net_radiation(map: &mut serde_yaml::Mapping) -> Result<bo
     Ok(true)
 }
 
+fn collapse_orthogonal_emissions(map: &mut serde_yaml::Mapping) -> Result<bool, String> {
+    if !(map.contains_key(Value::String("heat".into()))
+        || map.contains_key(Value::String("co2".into())))
+    {
+        return Ok(false);
+    }
+
+    reject_foreign_keys(map, &["heat", "co2", "ref"], "emissions")?;
+
+    let heat = mapping_token(map, "heat", "emissions")?
+        .ok_or_else(|| "'emissions' orthogonal form requires 'heat'.".to_string())?;
+
+    let (anthropogenic, biogenic) = match map.get(Value::String("co2".into())) {
+        None => ("none".to_string(), "none".to_string()),
+        Some(Value::Mapping(co2)) => {
+            reject_foreign_keys(co2, &["anthropogenic", "biogenic"], "emissions.co2")?;
+            (
+                mapping_token(co2, "anthropogenic", "emissions.co2")?
+                    .unwrap_or_else(|| "none".to_string()),
+                mapping_token(co2, "biogenic", "emissions.co2")?
+                    .unwrap_or_else(|| "none".to_string()),
+            )
+        }
+        Some(_) => return Err("'emissions.co2' must be a mapping.".to_string()),
+    };
+
+    let code = if heat == "observed" {
+        if anthropogenic == "none" && biogenic == "none" {
+            0
+        } else {
+            return Err(
+                "'emissions.heat=observed' cannot be combined with CO2 axes; use modelled heat when CO2 is enabled."
+                    .to_string(),
+            );
+        }
+    } else {
+        let heat_code = emissions_heat_code(&heat).ok_or_else(|| {
+            "'emissions.heat' must be one of 'observed', 'l11', 'j11', or 'l11_updated'."
+                .to_string()
+        })?;
+
+        if anthropogenic == "none" && biogenic == "none" {
+            heat_code
+        } else {
+            let anthro_offset = emissions_anthropogenic_offset(&anthropogenic).ok_or_else(|| {
+                "'emissions.co2.anthropogenic' must be one of 'none', 'qf_linked', or 'detailed'."
+                    .to_string()
+            })?;
+            let biogenic_offset = emissions_biogenic_offset(&biogenic).ok_or_else(|| {
+                "'emissions.co2.biogenic' must be one of 'none', 'rectangular', 'bellucco_local', 'bellucco_general', or 'conductance'."
+                    .to_string()
+            })?;
+
+            if biogenic == "none" {
+                return Err(
+                    "'emissions.co2.anthropogenic' requires a biogenic CO2 family; flat EmissionsMethod 0-6 disables CO2 flux output."
+                        .to_string(),
+                );
+            }
+
+            if anthropogenic == "none" {
+                return Err(
+                    "Biogenic CO2 EmissionsMethod families also calculate anthropogenic CO2; choose 'qf_linked' or 'detailed'."
+                        .to_string(),
+                );
+            }
+
+            biogenic_offset + heat_code + anthro_offset
+        }
+    };
+
+    let carried_ref = map.get(Value::String("ref".into())).cloned();
+    map.clear();
+    map.insert(Value::String("value".into()), Value::Number(code.into()));
+    if let Some(r) = carried_ref {
+        map.insert(Value::String("ref".into()), r);
+    }
+    Ok(true)
+}
+
 /// Collapse family-tagged nested physics input to the flat `{value: N}`
 /// shape underneath `model.physics.<field>`. Called from
 /// `normalize_field_names` BEFORE the recursive rename walk, so it must
@@ -811,6 +923,9 @@ fn collapse_nested_physics(root: &mut Value) -> Result<(), String> {
             };
 
             if *field_name == "net_radiation" && collapse_orthogonal_net_radiation(map)? {
+                continue;
+            }
+            if *field_name == "emissions" && collapse_orthogonal_emissions(map)? {
                 continue;
             }
 
@@ -1671,13 +1786,95 @@ model:
 
     #[test]
     fn nested_emissions_simple_collapses() {
-        let yaml = "model:\n  physics:\n    emissions:\n      simple:\n        value: 2\n";
+        let yaml = "model:\n  physics:\n    emissions:\n      simple:\n        value: 6\n";
         let mut root: Value = from_str(yaml).unwrap();
         normalize_field_names(&mut root).unwrap();
         let v = root["model"]["physics"]["emissionsmethod"]
             .get(Value::String("value".into()))
             .unwrap();
-        assert_eq!(v.as_i64(), Some(2));
+        assert_eq!(v.as_i64(), Some(6));
+    }
+
+    #[test]
+    fn nested_emissions_biogenic_family_collapses() {
+        let yaml =
+            "model:\n  physics:\n    emissions:\n      biogenic_bellucco_general:\n        value: 36\n";
+        let mut root: Value = from_str(yaml).unwrap();
+        normalize_field_names(&mut root).unwrap();
+        let v = root["model"]["physics"]["emissionsmethod"]
+            .get(Value::String("value".into()))
+            .unwrap();
+        assert_eq!(v.as_i64(), Some(36));
+    }
+
+    #[test]
+    fn orthogonal_emissions_collapses() {
+        let heat_only_cases = [("observed", 0), ("l11", 1), ("j11", 2), ("l11_updated", 3)];
+        for (heat, expected) in heat_only_cases {
+            let yaml = format!("model:\n  physics:\n    emissions:\n      heat: {heat}\n");
+            let mut root: Value = from_str(&yaml).unwrap();
+            normalize_field_names(&mut root).unwrap();
+            let v = root["model"]["physics"]["emissionsmethod"]
+                .get(Value::String("value".into()))
+                .unwrap();
+            assert_eq!(v.as_i64(), Some(expected));
+        }
+
+        let biogenic_cases = [
+            ("rectangular", 10),
+            ("bellucco_local", 20),
+            ("bellucco_general", 30),
+            ("conductance", 40),
+        ];
+        let anthro_cases = [("qf_linked", 0), ("detailed", 3)];
+        let heat_cases = [("l11", 1), ("j11", 2), ("l11_updated", 3)];
+
+        for (biogenic, biogenic_offset) in biogenic_cases {
+            for (anthropogenic, anthropogenic_offset) in anthro_cases {
+                for (heat, heat_code) in heat_cases {
+                    let expected = biogenic_offset + anthropogenic_offset + heat_code;
+                    let yaml = format!(
+                        "model:\n  physics:\n    emissions:\n      heat: {heat}\n      co2:\n        anthropogenic: {anthropogenic}\n        biogenic: {biogenic}\n"
+                    );
+                    let mut root: Value = from_str(&yaml).unwrap();
+                    normalize_field_names(&mut root).unwrap();
+                    let v = root["model"]["physics"]["emissionsmethod"]
+                        .get(Value::String("value".into()))
+                        .unwrap();
+                    assert_eq!(v.as_i64(), Some(expected));
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn orthogonal_emissions_under_legacy_outer_key_collapses() {
+        let yaml =
+            "model:\n  physics:\n    emissionsmethod:\n      heat: j11\n      co2:\n        anthropogenic: detailed\n        biogenic: conductance\n";
+        let mut root: Value = from_str(yaml).unwrap();
+        normalize_field_names(&mut root).unwrap();
+        let v = root["model"]["physics"]["emissionsmethod"]
+            .get(Value::String("value".into()))
+            .unwrap();
+        assert_eq!(v.as_i64(), Some(45));
+    }
+
+    #[test]
+    fn orthogonal_emissions_rejects_unrepresentable_combinations() {
+        let yaml =
+            "model:\n  physics:\n    emissions:\n      heat: j11\n      co2:\n        anthropogenic: qf_linked\n";
+        let mut root: Value = from_str(yaml).unwrap();
+        let err = normalize_field_names(&mut root).expect_err("missing biogenic must fail");
+        assert!(err.contains("requires a biogenic"), "error was: {err}");
+
+        let yaml =
+            "model:\n  physics:\n    emissions:\n      heat: j11\n      co2:\n        biogenic: rectangular\n";
+        let mut root: Value = from_str(yaml).unwrap();
+        let err = normalize_field_names(&mut root).expect_err("missing anthropogenic must fail");
+        assert!(
+            err.contains("also calculate anthropogenic"),
+            "error was: {err}"
+        );
     }
 
     #[test]

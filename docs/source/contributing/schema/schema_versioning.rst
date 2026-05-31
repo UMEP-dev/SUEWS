@@ -464,7 +464,11 @@ the schema that shipped with it via
    and YAML dump / migration continue to emit the flat form unchanged.
    ``net_radiation`` also accepts the orthogonal form
    ``{scheme: narp, ldown: air}`` (plus the documented ``variant`` axis)
-   for the same numeric codes.
+   for the same numeric codes. ``emissions`` also accepts the orthogonal
+   ``{heat, co2.anthropogenic, co2.biogenic}`` shape for the existing
+   ``11-16`` / ``21-26`` / ``31-36`` / ``41-46`` families; unsupported
+   CO2-only combinations are rejected because the Fortran code represents
+   anthropogenic and biogenic CO2 together in those families.
 
    The ``(2026.5.dev4 -> 2026.5.dev5)`` migration is an identity
    transform because no rewrite is required. Rust CLI acceptance lives

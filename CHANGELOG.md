@@ -54,6 +54,11 @@ EXAMPLES:
 
 ## 2026
 
+### 31 May 2026
+
+- [maintenance] Narrow the PyPI publish workflow's tag trigger to CalVer-only, so non-supy tags (e.g. plugin / AI-layer releases) do not trigger a supy wheel build + publish (#1384)
+  - `.github/workflows/build-publish_to_pypi.yml` now triggers on `tags: ['[0-9]*']`, mirroring the existing pattern in `.github/workflows/docs-sync.yml`. Tags like `plugin/v0.3` are ignored by the publish workflow; users pick up plugin updates via `/plugin update`, not a PyPI release
+
 ### 30 May 2026
 
 - [bugfix] Validator report no longer collapses to a lone `schema_version` INFO line when that field is absent (#1466, #1458)

@@ -26,9 +26,10 @@ on:
   push:
     tags:
       # CalVer release tags only: 2026.5, 2026.5.21.dev, etc. Excludes
-      # plugin / AI-layer tags (e.g. `plugin/v0.3`) so those do not trigger
-      # a supy wheel build + PyPI publish — they version the GitHub-distributed
-      # plugin only. Mirrors `.github/workflows/docs-sync.yml`'s pattern.
+      # SUEWS-agent tags (e.g. `agent/v0.3`) so those do not trigger a supy
+      # wheel build + PyPI publish — they version the GitHub-distributed
+      # agent (Claude Code / Codex plugin) only. Mirrors
+      # `.github/workflows/docs-sync.yml`'s pattern.
       - '[0-9]*'
 
   pull_request:

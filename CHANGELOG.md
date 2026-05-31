@@ -56,8 +56,8 @@ EXAMPLES:
 
 ### 31 May 2026
 
-- [maintenance] Narrow the PyPI publish workflow's tag trigger to CalVer-only, so non-supy tags (e.g. plugin / AI-layer releases) do not trigger a supy wheel build + publish (#1384)
-  - `.github/workflows/build-publish_to_pypi.yml` now triggers on `tags: ['[0-9]*']`, mirroring the existing pattern in `.github/workflows/docs-sync.yml`. Tags like `plugin/v0.3` are ignored by the publish workflow; users pick up plugin updates via `/plugin update`, not a PyPI release
+- [maintenance] Narrow the PyPI publish workflow's tag trigger to CalVer-only, so non-supy tags (e.g. SUEWS-agent releases) do not trigger a supy wheel build + publish (#1384)
+  - `.github/workflows/build-publish_to_pypi.yml` now triggers on `tags: ['[0-9]*']`, mirroring the existing pattern in `.github/workflows/docs-sync.yml`. Tags like `agent/v0.3` are ignored by the publish workflow; users pick up agent updates via `/plugin update`, not a PyPI release
 
 ### 30 May 2026
 
@@ -88,7 +88,7 @@ EXAMPLES:
 
 ### 24 May 2026
 
-- [feature][experimental] Ground the SUEWS AI layer (CLI + `/suews` skill + MCP) in the surface energy balance and make it installable as a plugin (#1384)
+- [feature][experimental] Ground the SUEWS agent (CLI + `/suews` skill + MCP) in the surface energy balance and make it installable as a Claude Code / Codex plugin (#1384)
   - Added two MCP tools: `assess_readiness` (reports which site-defining values are still the bundled sample's defaults, each tagged with its energy-balance role, plus a parameter-importance ladder) and `list_docs` (discovers the curated `suews://docs/{slug}` documentation slugs)
   - `search_schema` is now a semantic ranked search, and the `suews://docs/{slug}` resource serves the tutorial sources
   - The MCP now carries its procedural contract internally — server instructions on the `initialize` handshake plus three prompts (`fresh_site_setup`, `parameter_importance`, `evaluate_results`) — so the honesty and energy-balance guidance reaches every MCP client (Claude Desktop, Codex, Cursor), not only the Claude Code `/suews` skill

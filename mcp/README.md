@@ -2,17 +2,17 @@
 
 Model Context Protocol (MCP) server for SUEWS.
 
-This is the **AI-facing adaptor** layer of the SUEWS canonical AI architecture
-(CLI + Skill + MCP). It is a thin, controlled bridge that lets MCP clients —
-Claude Desktop, Claude Code, Codex, Cursor, VS Code, etc. — call SUEWS through
-a fixed allow-list of safe, structured tools. It never reimplements physics or
-validation logic; every tool delegates to the unified `suews` CLI or to a
-`supy` public function.
+This is the **agent-facing adaptor** layer of the SUEWS canonical agent
+architecture (CLI + Skill + MCP). It is a thin, controlled bridge that lets
+MCP clients — Claude Desktop, Claude Code, Codex, Cursor, VS Code, etc. —
+call SUEWS through a fixed allow-list of safe, structured tools. It never
+reimplements physics or validation logic; every tool delegates to the unified
+`suews` CLI or to a `supy` public function.
 
 ## Architecture
 
 ```
-AI client  ->  suews-mcp tools/resources  ->  suews <subcmd>  ->  supy -> SUEWS
+agent client  ->  suews-mcp tools/resources  ->  suews <subcmd>  ->  supy -> SUEWS
 ```
 
 Hard rules:

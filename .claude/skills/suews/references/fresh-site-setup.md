@@ -135,8 +135,8 @@ uv pip install "git+https://github.com/UMEP-dev/SUEWS.git#subdirectory=mcp"
 # Once suews-mcp is published:  pip install suews-mcp     (or uv pip install suews-mcp)
 ```
 
-**Smoothest path -- install the plugin (Claude Code / Codex).** The whole AI
-layer (this skill + the MCP registration) ships as a plugin whose bundled
+**Smoothest path -- install the plugin (Claude Code / Codex).** The whole SUEWS
+agent (this skill + the MCP registration) ships as a plugin whose bundled
 `.mcp.json` spawns the server through `uvx`, so it **self-bootstraps the Python
 half** -- no separate `pip`/`uv install` is needed, only `uv` on the machine:
 

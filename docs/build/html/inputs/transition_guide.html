@@ -8,8 +8,8 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <meta property="article:modified_time" content="2026-05-31T16:41:36+00:00" />
-    <title>4.5. Transitioning to YAML-based Configuration &#8212; SUEWS 2026.5.31.dev9121 documentation</title>
+    <meta property="article:modified_time" content="2026-05-31T21:28:05+00:00" />
+    <title>4.5. Transitioning to YAML-based Configuration &#8212; SUEWS 2026.5.31.dev9124 documentation</title>
   
   
   
@@ -45,7 +45,7 @@
   <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=8878045cc6db502f8baf" />
 <link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=8878045cc6db502f8baf" />
 
-    <script src="../_static/documentation_options.js?v=63123c64"></script>
+    <script src="../_static/documentation_options.js?v=5a8fbcce"></script>
     <script src="../_static/doctools.js?v=9bcbadda"></script>
     <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
     <script src="../_static/scripts/sphinx-book-theme.js?v=fab101a9"></script>
@@ -59,7 +59,7 @@
     <link rel="prev" title="4.4. SUEWS Format Converter" href="converter.html" />
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
-  <meta name="docsearch:version" content="2026.5.31.dev9121" />
+  <meta name="docsearch:version" content="2026.5.31.dev9124" />
     <meta name="docbuild:last-update" content="2026-05-31"/>
   </head>
   
@@ -102,7 +102,7 @@
   <div class="bd-header-announcement__content">
     <div style="background-color: #f0ad4e; border: 1px solid #eea236; border-radius: 4px; padding: 10px; margin: 10px 0;">
         <strong>⚠️ Development Version:</strong> This documentation was built from a development version
-        (2026.5.31.dev9121, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/9c07f74356cc7d11f034000d161fda068cc67873" style="color: #31708f;">9c07f74</a>).
+        (2026.5.31.dev9124, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/3c7fc27838b6db41587f9af995b24a2e9d1d261b" style="color: #31708f;">3c7fc27</a>).
         Features described here may be unstable or subject to change. For stable documentation, please visit the
         <a href="https://docs.suews.io/stable/" style="color: #31708f;">latest release</a>.
     </div>
@@ -149,8 +149,8 @@
       
     
     
-    <img src="../_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.5.31.dev9121 documentation - Home"/>
-    <img src="../_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.5.31.dev9121 documentation - Home"/>
+    <img src="../_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.5.31.dev9124 documentation - Home"/>
+    <img src="../_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.5.31.dev9124 documentation - Home"/>
   
   
 </a></div>
@@ -1519,7 +1519,9 @@ alongside the existing flat <code class="docutils literal notranslate"><span cla
 <li><p><code class="docutils literal notranslate"><span class="pre">net_radiation</span></code> — families <code class="docutils literal notranslate"><span class="pre">forcing</span></code>, <code class="docutils literal notranslate"><span class="pre">narp</span></code>, <code class="docutils literal notranslate"><span class="pre">spartacus</span></code>.</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">storage_heat</span></code> — families <code class="docutils literal notranslate"><span class="pre">observed</span></code>, <code class="docutils literal notranslate"><span class="pre">ohm</span></code>, <code class="docutils literal notranslate"><span class="pre">anohm</span></code>,
 <code class="docutils literal notranslate"><span class="pre">estm</span></code>, <code class="docutils literal notranslate"><span class="pre">ehc</span></code>, <code class="docutils literal notranslate"><span class="pre">dyohm</span></code>, <code class="docutils literal notranslate"><span class="pre">stebbs</span></code>.</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">emissions</span></code> — families <code class="docutils literal notranslate"><span class="pre">observed</span></code>, <code class="docutils literal notranslate"><span class="pre">simple</span></code>.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">emissions</span></code> — families <code class="docutils literal notranslate"><span class="pre">observed</span></code>, <code class="docutils literal notranslate"><span class="pre">simple</span></code>,
+<code class="docutils literal notranslate"><span class="pre">biogenic_rectangular</span></code>, <code class="docutils literal notranslate"><span class="pre">biogenic_bellucco_local</span></code>,
+<code class="docutils literal notranslate"><span class="pre">biogenic_bellucco_general</span></code>, <code class="docutils literal notranslate"><span class="pre">biogenic_conductance</span></code>.</p></li>
 </ul>
 <p>Family-tagged form:</p>
 <div class="highlight-yaml notranslate"><div class="highlight"><pre><span></span><span class="nt">model</span><span class="p">:</span>
@@ -1566,6 +1568,30 @@ schemes are <code class="docutils literal notranslate"><span class="pre">forcing
 As with the family-tagged form, the orthogonal form is accept-only:
 round-tripping emits the flat numeric form. Human-readable method
 aliases beyond this explicit decomposition remain out of scope.</p>
+<p><code class="docutils literal notranslate"><span class="pre">emissions</span></code> also accepts an orthogonal decomposition of the heat/QF
+and CO2 axes:</p>
+<div class="highlight-yaml notranslate"><div class="highlight"><pre><span></span><span class="nt">model</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">physics</span><span class="p">:</span>
+<span class="w">    </span><span class="nt">emissions</span><span class="p">:</span>
+<span class="w">      </span><span class="nt">heat</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">j11</span>
+<span class="w">      </span><span class="nt">co2</span><span class="p">:</span>
+<span class="w">        </span><span class="nt">anthropogenic</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">detailed</span>
+<span class="w">        </span><span class="nt">biogenic</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">conductance</span>
+</pre></div>
+</div>
+<p>This is equivalent to <code class="docutils literal notranslate"><span class="pre">emissions:</span> <span class="pre">{value:</span> <span class="pre">45}</span></code>. Supported <code class="docutils literal notranslate"><span class="pre">heat</span></code>
+values are <code class="docutils literal notranslate"><span class="pre">observed</span></code>, <code class="docutils literal notranslate"><span class="pre">l11</span></code>, <code class="docutils literal notranslate"><span class="pre">j11</span></code>, and <code class="docutils literal notranslate"><span class="pre">l11_updated</span></code>.
+When omitted, <code class="docutils literal notranslate"><span class="pre">co2</span></code> defaults to no CO2 calculation, so <code class="docutils literal notranslate"><span class="pre">heat:</span>
+<span class="pre">j11</span></code> is equivalent to <code class="docutils literal notranslate"><span class="pre">emissions:</span> <span class="pre">{value:</span> <span class="pre">2}</span></code>. Supported
+<code class="docutils literal notranslate"><span class="pre">co2.anthropogenic</span></code> values are <code class="docutils literal notranslate"><span class="pre">qf_linked</span></code> and <code class="docutils literal notranslate"><span class="pre">detailed</span></code>;
+supported <code class="docutils literal notranslate"><span class="pre">co2.biogenic</span></code> values are <code class="docutils literal notranslate"><span class="pre">rectangular</span></code>,
+<code class="docutils literal notranslate"><span class="pre">bellucco_local</span></code>, <code class="docutils literal notranslate"><span class="pre">bellucco_general</span></code>, and <code class="docutils literal notranslate"><span class="pre">conductance</span></code>.
+The legacy Fortran code represents anthropogenic and biogenic CO2
+together in the <code class="docutils literal notranslate"><span class="pre">11-16</span></code> / <code class="docutils literal notranslate"><span class="pre">21-26</span></code> / <code class="docutils literal notranslate"><span class="pre">31-36</span></code> / <code class="docutils literal notranslate"><span class="pre">41-46</span></code>
+families, so the orthogonal form rejects unsupported “CO2-only”
+combinations rather than assigning misleading semantics. Non-biogenic
+flat codes <code class="docutils literal notranslate"><span class="pre">4-6</span></code> remain accepted as legacy detailed-heat settings,
+but their CO2 fluxes are discarded by the driver.</p>
 </section>
 </section>
 
@@ -1694,8 +1720,8 @@ By SUEWS dev team led by Prof Sue Grimmond
   <div class="footer-item">
     
 <div class="extra_footer">
-  <p>Version: 2026.5.31.dev9121 |
-    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/9c07f74356cc7d11f034000d161fda068cc67873">9c07f74</a> |
+  <p>Version: 2026.5.31.dev9124 |
+    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/3c7fc27838b6db41587f9af995b24a2e9d1d261b">3c7fc27</a> |
     <a href="https://umep-dev.github.io/SUEWS/brand/showcase.html">Brand</a></p>
 </div>
   </div>

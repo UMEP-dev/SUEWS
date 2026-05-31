@@ -10,7 +10,7 @@
 <meta content="SUEWS YAML configuration for physics methods parameters" name="description" />
 <meta content="SUEWS, YAML, modelphysics, parameters, configuration" name="keywords" />
 
-    <title>4.3.33. Physics Methods &#8212; SUEWS 2026.5.31.dev9121 documentation</title>
+    <title>4.3.33. Physics Methods &#8212; SUEWS 2026.5.31.dev9124 documentation</title>
   
   
   
@@ -46,7 +46,7 @@
   <link rel="preload" as="script" href="../../../_static/scripts/bootstrap.js?digest=8878045cc6db502f8baf" />
 <link rel="preload" as="script" href="../../../_static/scripts/pydata-sphinx-theme.js?digest=8878045cc6db502f8baf" />
 
-    <script src="../../../_static/documentation_options.js?v=63123c64"></script>
+    <script src="../../../_static/documentation_options.js?v=5a8fbcce"></script>
     <script src="../../../_static/doctools.js?v=9bcbadda"></script>
     <script src="../../../_static/sphinx_highlight.js?v=dc90522c"></script>
     <script src="../../../_static/scripts/sphinx-book-theme.js?v=fab101a9"></script>
@@ -60,7 +60,7 @@
     <link rel="prev" title="4.3.32. Model Control" href="modelcontrol.html" />
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
-  <meta name="docsearch:version" content="2026.5.31.dev9121" />
+  <meta name="docsearch:version" content="2026.5.31.dev9124" />
   </head>
   
   
@@ -102,7 +102,7 @@
   <div class="bd-header-announcement__content">
     <div style="background-color: #f0ad4e; border: 1px solid #eea236; border-radius: 4px; padding: 10px; margin: 10px 0;">
         <strong>⚠️ Development Version:</strong> This documentation was built from a development version
-        (2026.5.31.dev9121, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/9c07f74356cc7d11f034000d161fda068cc67873" style="color: #31708f;">9c07f74</a>).
+        (2026.5.31.dev9124, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/3c7fc27838b6db41587f9af995b24a2e9d1d261b" style="color: #31708f;">3c7fc27</a>).
         Features described here may be unstable or subject to change. For stable documentation, please visit the
         <a href="https://docs.suews.io/stable/" style="color: #31708f;">latest release</a>.
     </div>
@@ -149,8 +149,8 @@
       
     
     
-    <img src="../../../_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.5.31.dev9121 documentation - Home"/>
-    <img src="../../../_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.5.31.dev9121 documentation - Home"/>
+    <img src="../../../_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.5.31.dev9124 documentation - Home"/>
+    <img src="../../../_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.5.31.dev9124 documentation - Home"/>
   
   
 </a></div>
@@ -578,22 +578,31 @@
 <div class="line"><code class="docutils literal notranslate"><span class="pre">0</span></code> (OBSERVED) = Uses observed QF values from forcing file (set to zero to exclude QF from energy balance)</div>
 <div class="line"><code class="docutils literal notranslate"><span class="pre">1</span></code> (L11) = Loridan et al. (2011) SAHP method with air temperature and population density</div>
 <div class="line"><code class="docutils literal notranslate"><span class="pre">2</span></code> (J11) = Järvi et al. (2011) SAHP_2 method with heating/cooling degree days</div>
-<div class="line"><code class="docutils literal notranslate"><span class="pre">4</span></code> (J19) = Järvi et al. (2019) method with building energy, metabolism, and traffic</div>
-<div class="line"><code class="docutils literal notranslate"><span class="pre">11</span></code> (BIOGEN_RECT_L11) = Rectangular hyperbola photosynthesis + L11 QF <strong>(experimental)</strong></div>
-<div class="line"><code class="docutils literal notranslate"><span class="pre">12</span></code> (BIOGEN_RECT_J11) = Rectangular hyperbola photosynthesis + J11 QF <strong>(experimental)</strong></div>
-<div class="line"><code class="docutils literal notranslate"><span class="pre">13</span></code> (BIOGEN_RECT_L11U) = Rectangular hyperbola photosynthesis + L11_UPDATED QF <strong>(experimental)</strong></div>
-<div class="line"><code class="docutils literal notranslate"><span class="pre">14</span></code> (BIOGEN_RECT_J19) = Rectangular hyperbola photosynthesis + J19 QF <strong>(experimental)</strong></div>
-<div class="line"><code class="docutils literal notranslate"><span class="pre">15</span></code> (BIOGEN_RECT_J19U) = Rectangular hyperbola photosynthesis + J19_UPDATED QF <strong>(experimental)</strong></div>
-<div class="line"><code class="docutils literal notranslate"><span class="pre">21</span></code> (BIOGEN_NRECT_L11) = Non-rectangular hyperbola (Bellucco 2017) + L11 QF <strong>(experimental)</strong></div>
-<div class="line"><code class="docutils literal notranslate"><span class="pre">22</span></code> (BIOGEN_NRECT_J11) = Non-rectangular hyperbola (Bellucco 2017) + J11 QF <strong>(experimental)</strong></div>
-<div class="line"><code class="docutils literal notranslate"><span class="pre">23</span></code> (BIOGEN_NRECT_L11U) = Non-rectangular hyperbola (Bellucco 2017) + L11_UPDATED QF <strong>(experimental)</strong></div>
-<div class="line"><code class="docutils literal notranslate"><span class="pre">24</span></code> (BIOGEN_NRECT_J19) = Non-rectangular hyperbola (Bellucco 2017) + J19 QF <strong>(experimental)</strong></div>
-<div class="line"><code class="docutils literal notranslate"><span class="pre">25</span></code> (BIOGEN_NRECT_J19U) = Non-rectangular hyperbola (Bellucco 2017) + J19_UPDATED QF <strong>(experimental)</strong></div>
-<div class="line"><code class="docutils literal notranslate"><span class="pre">41</span></code> (BIOGEN_COND_L11) = Conductance-based photosynthesis (Järvi 2019) + L11 QF <strong>(experimental)</strong></div>
-<div class="line"><code class="docutils literal notranslate"><span class="pre">42</span></code> (BIOGEN_COND_J11) = Conductance-based photosynthesis (Järvi 2019) + J11 QF <strong>(experimental)</strong></div>
-<div class="line"><code class="docutils literal notranslate"><span class="pre">43</span></code> (BIOGEN_COND_L11U) = Conductance-based photosynthesis (Järvi 2019) + L11_UPDATED QF <strong>(experimental)</strong></div>
-<div class="line"><code class="docutils literal notranslate"><span class="pre">44</span></code> (BIOGEN_COND_J19) = Conductance-based photosynthesis (Järvi 2019) + J19 QF <strong>(experimental)</strong></div>
-<div class="line"><code class="docutils literal notranslate"><span class="pre">45</span></code> (BIOGEN_COND_J19U) = Conductance-based photosynthesis (Järvi 2019) + J19_UPDATED QF <strong>(experimental)</strong></div>
+<div class="line"><code class="docutils literal notranslate"><span class="pre">4</span></code> (J19) = Detailed anthropogenic heat branch with L11 heat basis</div>
+<div class="line"><code class="docutils literal notranslate"><span class="pre">11</span></code> (BIOGEN_RECT_L11) = Rectangular hyperbola biogenic CO2 + QF-linked anthropogenic CO2 + L11 heat <strong>(experimental)</strong></div>
+<div class="line"><code class="docutils literal notranslate"><span class="pre">12</span></code> (BIOGEN_RECT_J11) = Rectangular hyperbola biogenic CO2 + QF-linked anthropogenic CO2 + J11 heat <strong>(experimental)</strong></div>
+<div class="line"><code class="docutils literal notranslate"><span class="pre">13</span></code> (BIOGEN_RECT_L11_UPDATED) = Rectangular hyperbola biogenic CO2 + QF-linked anthropogenic CO2 + L11_UPDATED heat <strong>(experimental)</strong></div>
+<div class="line"><code class="docutils literal notranslate"><span class="pre">14</span></code> (BIOGEN_RECT_L11_DETAILED) = Rectangular hyperbola biogenic CO2 + detailed anthropogenic CO2 + L11 heat <strong>(experimental)</strong></div>
+<div class="line"><code class="docutils literal notranslate"><span class="pre">15</span></code> (BIOGEN_RECT_J11_DETAILED) = Rectangular hyperbola biogenic CO2 + detailed anthropogenic CO2 + J11 heat <strong>(experimental)</strong></div>
+<div class="line"><code class="docutils literal notranslate"><span class="pre">16</span></code> (BIOGEN_RECT_L11_UPDATED_DETAILED) = Rectangular hyperbola biogenic CO2 + detailed anthropogenic CO2 + L11_UPDATED heat <strong>(experimental)</strong></div>
+<div class="line"><code class="docutils literal notranslate"><span class="pre">21</span></code> (BIOGEN_BELLUCCO_LOCAL_L11) = Bellucco local biogenic CO2 + QF-linked anthropogenic CO2 + L11 heat <strong>(experimental)</strong></div>
+<div class="line"><code class="docutils literal notranslate"><span class="pre">22</span></code> (BIOGEN_BELLUCCO_LOCAL_J11) = Bellucco local biogenic CO2 + QF-linked anthropogenic CO2 + J11 heat <strong>(experimental)</strong></div>
+<div class="line"><code class="docutils literal notranslate"><span class="pre">23</span></code> (BIOGEN_BELLUCCO_LOCAL_L11_UPDATED) = Bellucco local biogenic CO2 + QF-linked anthropogenic CO2 + L11_UPDATED heat <strong>(experimental)</strong></div>
+<div class="line"><code class="docutils literal notranslate"><span class="pre">24</span></code> (BIOGEN_BELLUCCO_LOCAL_L11_DETAILED) = Bellucco local biogenic CO2 + detailed anthropogenic CO2 + L11 heat <strong>(experimental)</strong></div>
+<div class="line"><code class="docutils literal notranslate"><span class="pre">25</span></code> (BIOGEN_BELLUCCO_LOCAL_J11_DETAILED) = Bellucco local biogenic CO2 + detailed anthropogenic CO2 + J11 heat <strong>(experimental)</strong></div>
+<div class="line"><code class="docutils literal notranslate"><span class="pre">26</span></code> (BIOGEN_BELLUCCO_LOCAL_L11_UPDATED_DETAILED) = Bellucco local biogenic CO2 + detailed anthropogenic CO2 + L11_UPDATED heat <strong>(experimental)</strong></div>
+<div class="line"><code class="docutils literal notranslate"><span class="pre">31</span></code> (BIOGEN_BELLUCCO_GENERAL_L11) = Bellucco general biogenic CO2 + QF-linked anthropogenic CO2 + L11 heat <strong>(experimental)</strong></div>
+<div class="line"><code class="docutils literal notranslate"><span class="pre">32</span></code> (BIOGEN_BELLUCCO_GENERAL_J11) = Bellucco general biogenic CO2 + QF-linked anthropogenic CO2 + J11 heat <strong>(experimental)</strong></div>
+<div class="line"><code class="docutils literal notranslate"><span class="pre">33</span></code> (BIOGEN_BELLUCCO_GENERAL_L11_UPDATED) = Bellucco general biogenic CO2 + QF-linked anthropogenic CO2 + L11_UPDATED heat <strong>(experimental)</strong></div>
+<div class="line"><code class="docutils literal notranslate"><span class="pre">34</span></code> (BIOGEN_BELLUCCO_GENERAL_L11_DETAILED) = Bellucco general biogenic CO2 + detailed anthropogenic CO2 + L11 heat <strong>(experimental)</strong></div>
+<div class="line"><code class="docutils literal notranslate"><span class="pre">35</span></code> (BIOGEN_BELLUCCO_GENERAL_J11_DETAILED) = Bellucco general biogenic CO2 + detailed anthropogenic CO2 + J11 heat <strong>(experimental)</strong></div>
+<div class="line"><code class="docutils literal notranslate"><span class="pre">36</span></code> (BIOGEN_BELLUCCO_GENERAL_L11_UPDATED_DETAILED) = Bellucco general biogenic CO2 + detailed anthropogenic CO2 + L11_UPDATED heat <strong>(experimental)</strong></div>
+<div class="line"><code class="docutils literal notranslate"><span class="pre">41</span></code> (BIOGEN_CONDUCTANCE_L11) = Conductance-based biogenic CO2 + QF-linked anthropogenic CO2 + L11 heat <strong>(experimental)</strong></div>
+<div class="line"><code class="docutils literal notranslate"><span class="pre">42</span></code> (BIOGEN_CONDUCTANCE_J11) = Conductance-based biogenic CO2 + QF-linked anthropogenic CO2 + J11 heat <strong>(experimental)</strong></div>
+<div class="line"><code class="docutils literal notranslate"><span class="pre">43</span></code> (BIOGEN_CONDUCTANCE_L11_UPDATED) = Conductance-based biogenic CO2 + QF-linked anthropogenic CO2 + L11_UPDATED heat <strong>(experimental)</strong></div>
+<div class="line"><code class="docutils literal notranslate"><span class="pre">44</span></code> (BIOGEN_CONDUCTANCE_L11_DETAILED) = Conductance-based biogenic CO2 + detailed anthropogenic CO2 + L11 heat <strong>(experimental)</strong></div>
+<div class="line"><code class="docutils literal notranslate"><span class="pre">45</span></code> (BIOGEN_CONDUCTANCE_J11_DETAILED) = Conductance-based biogenic CO2 + detailed anthropogenic CO2 + J11 heat <strong>(experimental)</strong></div>
+<div class="line"><code class="docutils literal notranslate"><span class="pre">46</span></code> (BIOGEN_CONDUCTANCE_L11_UPDATED_DETAILED) = Conductance-based biogenic CO2 + detailed anthropogenic CO2 + L11_UPDATED heat <strong>(experimental)</strong></div>
 </div>
 </dd>
 <dt class="field-even">Default<span class="colon">:</span></dt>
@@ -940,8 +949,8 @@ By SUEWS dev team led by Prof Sue Grimmond
   <div class="footer-item">
     
 <div class="extra_footer">
-  <p>Version: 2026.5.31.dev9121 |
-    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/9c07f74356cc7d11f034000d161fda068cc67873">9c07f74</a> |
+  <p>Version: 2026.5.31.dev9124 |
+    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/3c7fc27838b6db41587f9af995b24a2e9d1d261b">3c7fc27</a> |
     <a href="https://umep-dev.github.io/SUEWS/brand/showcase.html">Brand</a></p>
 </div>
   </div>

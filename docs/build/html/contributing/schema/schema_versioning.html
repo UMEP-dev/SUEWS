@@ -8,8 +8,8 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <meta property="article:modified_time" content="2026-05-31T16:41:36+00:00" />
-    <title>YAML Configuration Schema Versioning &#8212; SUEWS 2026.5.31.dev9121 documentation</title>
+    <meta property="article:modified_time" content="2026-05-31T21:28:05+00:00" />
+    <title>YAML Configuration Schema Versioning &#8212; SUEWS 2026.5.31.dev9124 documentation</title>
   
   
   
@@ -45,7 +45,7 @@
   <link rel="preload" as="script" href="../../_static/scripts/bootstrap.js?digest=8878045cc6db502f8baf" />
 <link rel="preload" as="script" href="../../_static/scripts/pydata-sphinx-theme.js?digest=8878045cc6db502f8baf" />
 
-    <script src="../../_static/documentation_options.js?v=63123c64"></script>
+    <script src="../../_static/documentation_options.js?v=5a8fbcce"></script>
     <script src="../../_static/doctools.js?v=9bcbadda"></script>
     <script src="../../_static/sphinx_highlight.js?v=dc90522c"></script>
     <script src="../../_static/scripts/sphinx-book-theme.js?v=fab101a9"></script>
@@ -57,7 +57,7 @@
     <link rel="search" title="Search" href="../../search.html" />
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
-  <meta name="docsearch:version" content="2026.5.31.dev9121" />
+  <meta name="docsearch:version" content="2026.5.31.dev9124" />
     <meta name="docbuild:last-update" content="2026-05-31"/>
   </head>
   
@@ -100,7 +100,7 @@
   <div class="bd-header-announcement__content">
     <div style="background-color: #f0ad4e; border: 1px solid #eea236; border-radius: 4px; padding: 10px; margin: 10px 0;">
         <strong>⚠️ Development Version:</strong> This documentation was built from a development version
-        (2026.5.31.dev9121, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/9c07f74356cc7d11f034000d161fda068cc67873" style="color: #31708f;">9c07f74</a>).
+        (2026.5.31.dev9124, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/3c7fc27838b6db41587f9af995b24a2e9d1d261b" style="color: #31708f;">3c7fc27</a>).
         Features described here may be unstable or subject to change. For stable documentation, please visit the
         <a href="https://docs.suews.io/stable/" style="color: #31708f;">latest release</a>.
     </div>
@@ -147,8 +147,8 @@
       
     
     
-    <img src="../../_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.5.31.dev9121 documentation - Home"/>
-    <img src="../../_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.5.31.dev9121 documentation - Home"/>
+    <img src="../../_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.5.31.dev9124 documentation - Home"/>
+    <img src="../../_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.5.31.dev9124 documentation - Home"/>
   
   
 </a></div>
@@ -1048,7 +1048,11 @@ numeric codes at load time; canonical internal shape remains flat,
 and YAML dump / migration continue to emit the flat form unchanged.
 <code class="docutils literal notranslate"><span class="pre">net_radiation</span></code> also accepts the orthogonal form
 <code class="docutils literal notranslate"><span class="pre">{scheme:</span> <span class="pre">narp,</span> <span class="pre">ldown:</span> <span class="pre">air}</span></code> (plus the documented <code class="docutils literal notranslate"><span class="pre">variant</span></code> axis)
-for the same numeric codes.</p>
+for the same numeric codes. <code class="docutils literal notranslate"><span class="pre">emissions</span></code> also accepts the orthogonal
+<code class="docutils literal notranslate"><span class="pre">{heat,</span> <span class="pre">co2.anthropogenic,</span> <span class="pre">co2.biogenic}</span></code> shape for the existing
+<code class="docutils literal notranslate"><span class="pre">11-16</span></code> / <code class="docutils literal notranslate"><span class="pre">21-26</span></code> / <code class="docutils literal notranslate"><span class="pre">31-36</span></code> / <code class="docutils literal notranslate"><span class="pre">41-46</span></code> families; unsupported
+CO2-only combinations are rejected because the Fortran code represents
+anthropogenic and biogenic CO2 together in those families.</p>
 <p>The <code class="docutils literal notranslate"><span class="pre">(2026.5.dev4</span> <span class="pre">-&gt;</span> <span class="pre">2026.5.dev5)</span></code> migration is an identity
 transform because no rewrite is required. Rust CLI acceptance lives
 in <code class="docutils literal notranslate"><span class="pre">src/suews_bridge/src/field_renames.rs::collapse_nested_physics</span></code>;
@@ -1384,8 +1388,8 @@ By SUEWS dev team led by Prof Sue Grimmond
   <div class="footer-item">
     
 <div class="extra_footer">
-  <p>Version: 2026.5.31.dev9121 |
-    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/9c07f74356cc7d11f034000d161fda068cc67873">9c07f74</a> |
+  <p>Version: 2026.5.31.dev9124 |
+    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/3c7fc27838b6db41587f9af995b24a2e9d1d261b">3c7fc27</a> |
     <a href="https://umep-dev.github.io/SUEWS/brand/showcase.html">Brand</a></p>
 </div>
   </div>

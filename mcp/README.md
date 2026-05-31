@@ -2,17 +2,17 @@
 
 Model Context Protocol (MCP) server for SUEWS.
 
-This is the **AI-facing adaptor** layer of the SUEWS canonical AI architecture
-(CLI + Skill + MCP). It is a thin, controlled bridge that lets MCP clients —
-Claude Desktop, Claude Code, Codex, Cursor, VS Code, etc. — call SUEWS through
-a fixed allow-list of safe, structured tools. It never reimplements physics or
-validation logic; every tool delegates to the unified `suews` CLI or to a
-`supy` public function.
+This is the **agent-facing adaptor** layer of the SUEWS canonical agent
+architecture (CLI + Skill + MCP). It is a thin, controlled bridge that lets
+MCP clients — Claude Desktop, Claude Code, Codex, Cursor, VS Code, etc. —
+call SUEWS through a fixed allow-list of safe, structured tools. It never
+reimplements physics or validation logic; every tool delegates to the unified
+`suews` CLI or to a `supy` public function.
 
 ## Architecture
 
 ```
-AI client  ->  suews-mcp tools/resources  ->  suews <subcmd>  ->  supy -> SUEWS
+agent client  ->  suews-mcp tools/resources  ->  suews <subcmd>  ->  supy -> SUEWS
 ```
 
 Hard rules:
@@ -32,9 +32,16 @@ Configuration & schema (read-only):
 
 - `validate_config(config_path, project_root=None, explain=True)`
 - `inspect_config(config_path, project_root=None)`
+- `assess_readiness(config_path, project_root=None)` — reports which
+  site-defining values are still the bundled sample's defaults, each tagged
+  with its energy-balance role, plus a checklist and a parameter-importance
+  ladder. The fresh-user honesty gate: a freshly scaffolded case is the
+  KCL/London sample, not the user's site (gh#1384).
 - `search_schema(query, version="current")`
 - `list_examples()`
 - `read_example(name)`
+- `list_docs()` — list the curated documentation slugs available via
+  `suews://docs/{slug}` (the prose / tutorial grounding layer).
 
 Workflow:
 
@@ -65,6 +72,27 @@ discipline.
 - `suews://runs/{run_id}/{provenance|diagnostics}`
 - `suews://knowledge/manifest`
 - `suews://knowledge/query/{question}`
+
+## Prompts & instructions
+
+The server also ships the *procedural* guidance — the honesty contract, the
+energy-balance parameter logic, the authorised data sources, and the
+fresh-site / evaluation workflows — **inside the MCP itself**, so it travels to
+every MCP client rather than only to Claude Code (which also gets it as the
+`/suews` skill).
+
+- **Server instructions** — injected into the `initialize` handshake
+  (`serverInfo.instructions`): ground every claim in tool evidence, run
+  `assess_readiness` before trusting a config, set parameters in
+  energy-balance order (QN + QF = QS + QE + QH, QH the residual), and
+  recommend only the authorised data sources.
+- **Prompts** (`prompts/list`):
+  - `fresh_site_setup` — end-to-end procedure to set up and run SUEWS for a
+    new site, keeping every value auditable.
+  - `parameter_importance` — which parameters matter most, derived from the
+    energy balance (albedo first; QH and surface temperature are outputs).
+  - `evaluate_results` — how to evaluate a run against observations without
+    circularity (compare the modelled `T2`, not the forcing `Tair`).
 
 ## Install
 
@@ -133,34 +161,58 @@ suews knowledge manifest           # confirms the bundled pack version
 
 The `suews` plugin in `.claude-plugin/marketplace.json` (Claude Code) and
 `.codex-plugin/plugin.json` (Codex) **already references this MCP server**
-via the bundled `.mcp.json` files. When a user installs the SUEWS plugin
-from the marketplace, the host registers `suews-mcp` automatically — no
-hand-editing of `~/.claude/settings.json` or `~/.codex/config.toml` is
-required, provided `suews-mcp` is on `PATH`.
+via the bundled `.mcp.json` files. Those files spawn the server through
+`uvx` (uv's tool runner):
+
+```json
+{ "mcpServers": { "suews": { "command": "uvx",
+  "args": ["--from",
+           "git+https://github.com/UMEP-dev/SUEWS.git#subdirectory=mcp",
+           "suews-mcp"] } } }
+```
+
+So **installing the plugin is the only step** — there is no separate
+`pip install`. On the first SUEWS request, `uvx` fetches and runs
+`suews-mcp` (and its `supy` / SUEWS dependency) into a cached uv tool
+environment; later launches reuse the cache. No hand-editing of
+`~/.claude/settings.json` or `~/.codex/config.toml`, and no PATH / venv
+matching is required. The one prerequisite is **`uv`** on the machine
+(`curl -LsSf https://astral.sh/uv/install.sh | sh`, or `brew install uv`).
+
+Once `suews-mcp` is published to PyPI, the `--from git+…` argument drops
+away and the command becomes simply `uvx suews-mcp`. Developers with an
+editable checkout should instead register the MCP by hand against their
+venv (see the fallback below), since `uvx --from git+…` always resolves
+the published git source, not a local editable install.
 
 ### Claude Code
 
-In Claude Code, install the `suews` plugin from the marketplace
-(`/plugin install suews`). The plugin's `mcpServers` declaration points at
-the top-level `.mcp.json`, which spawns the `suews-mcp` console script. If
-the script lives in a project venv, ensure that venv is the active one
-when Claude Code launches.
+Add the marketplace once, then install the plugin:
+
+```
+/plugin marketplace add UMEP-dev/SUEWS
+/plugin install suews@suews
+```
+
+The plugin's `mcpServers` declaration points at the top-level `.mcp.json`,
+which spawns the server via `uvx` — so the tools work on the first SUEWS
+request with no separate install and no venv to keep active.
 
 ### Codex
 
 In Codex, install the `suews` plugin via the plugin manager. The bundled
 `plugins/suews/.mcp.json` (referenced from
-`plugins/suews/.codex-plugin/plugin.json`) declares the same `suews-mcp`
+`plugins/suews/.codex-plugin/plugin.json`) declares the same `uvx`-spawned
 stdio server, so the MCP tools appear automatically once the plugin is
-enabled.
+enabled — again with no separate `pip`/`uv` install step.
 
 ### What the plugin install gives you
 
 After installing the plugin, the host exposes:
 
 - the SUEWS workflow Skill (rules, references, recipes), and
-- the `suews-mcp` MCP server with all twelve tools and resources listed
-  above.
+- the `suews-mcp` MCP server with all fourteen tools, six resources, and the
+  three prompts listed above (plus the server instructions on the handshake).
 
 Invoke `read_knowledge_manifest` first to confirm the pack version your
 session is bound to.
@@ -173,13 +225,17 @@ custom `suews-mcp` build.
 
 ### Claude Code raw stanza
 
-Add to `~/.claude/settings.json`:
+Add to `~/.claude/settings.json`. The self-bootstrapping form (no
+pre-install needed, requires `uv`):
 
 ```json
 {
   "mcpServers": {
     "suews": {
-      "command": "suews-mcp",
+      "command": "uvx",
+      "args": ["--from",
+               "git+https://github.com/UMEP-dev/SUEWS.git#subdirectory=mcp",
+               "suews-mcp"],
       "env": {
         "SUEWS_MCP_PROJECT_ROOT": "/absolute/path/to/your/suews/case"
       }
@@ -188,25 +244,32 @@ Add to `~/.claude/settings.json`:
 }
 ```
 
-If `suews-mcp` lives inside a project venv, point `command` at the absolute
-interpreter path, e.g. `/abs/path/.venv/bin/suews-mcp`.
+If `suews-mcp` is already installed (e.g. a dev venv), use the bare
+console script instead — `"command": "suews-mcp"` with no `args` — and
+point it at the absolute interpreter path
+(`/abs/path/.venv/bin/suews-mcp`) when the host launches outside that venv.
 
 ### Codex raw TOML
 
-Add to `~/.codex/config.toml`:
+Add to `~/.codex/config.toml` (self-bootstrapping form):
 
 ```toml
 [mcp_servers.suews]
-command = "suews-mcp"
+command = "uvx"
+args = ["--from", "git+https://github.com/UMEP-dev/SUEWS.git#subdirectory=mcp", "suews-mcp"]
 env = { SUEWS_MCP_PROJECT_ROOT = "/absolute/path/to/your/suews/case" }
 ```
+
+Or `command = "suews-mcp"` with no `args` when the package is already
+installed.
 
 ### Other clients
 
 Any host that speaks stdio MCP (Cursor, VS Code's MCP extension, Claude
-Desktop) launches it the same way: command `suews-mcp`, optional single
-environment variable `SUEWS_MCP_PROJECT_ROOT` (defaults to the host's
-working directory).
+Desktop) launches it the same way: either `uvx --from git+… suews-mcp`
+(self-bootstrapping) or the bare `suews-mcp` command when pre-installed,
+with the optional single environment variable `SUEWS_MCP_PROJECT_ROOT`
+(defaults to the host's working directory).
 
 ## Manual launch (for debugging)
 

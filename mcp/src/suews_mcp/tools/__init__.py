@@ -14,11 +14,13 @@ from .examples import list_examples, read_example
 from .init_case import init_case
 from .inspect import inspect_config
 from .knowledge import query_knowledge, read_knowledge_manifest
+from .readiness import assess_readiness
 from .schema_search import search_schema
 from .summarise import summarise_run
 from .validate import validate_config
 
 __all__ = [
+    "assess_readiness",
     "compare_runs",
     "convert_config",
     "diagnose_run",

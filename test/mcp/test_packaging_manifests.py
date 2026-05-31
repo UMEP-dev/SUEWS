@@ -20,7 +20,10 @@ table, not to plugin-bundled ``.mcp.json``. References:
 
 from __future__ import annotations
 
+import hashlib
 import json
+import subprocess
+import sys
 from pathlib import Path
 
 import pytest
@@ -181,3 +184,39 @@ def test_top_level_and_bundled_plugin_resolve_to_same_command() -> None:
             f"server '{name}': command differs between top-level "
             f"({top_cmd!r}) and bundled ({bundled_cmd!r})."
         )
+
+
+def _skill_manifest(root: Path) -> dict[str, str]:
+    """Map of relative path -> sha256 for every file under a skill dir."""
+    out: dict[str, str] = {}
+    for p in sorted(root.rglob("*")):
+        if p.is_file() and "__pycache__" not in p.parts and p.suffix != ".pyc":
+            out[str(p.relative_to(root))] = hashlib.sha256(p.read_bytes()).hexdigest()
+    return out
+
+
+def test_build_plugin_generates_single_skill_bundle_from_source() -> None:
+    """`scripts/build_plugin.py` (`make plugin`) generates the distributable
+    bundle from the single source `.claude/skills/suews/`. The bundle
+    (`plugins/suews/skills/`) is a gitignored build artifact — there is no
+    committed copy to drift — so this runs the generator and verifies its
+    output: exactly one skill (`suews`; fresh-site setup is a reference inside
+    it, not a separate skill), byte-identical to the source.
+    """
+    subprocess.run(
+        [sys.executable, str(REPO_ROOT / "scripts" / "build_plugin.py")],
+        check=True,
+        capture_output=True,
+    )
+    bundle_skills = REPO_ROOT / "plugins" / "suews" / "skills"
+    dirs = sorted(p.name for p in bundle_skills.iterdir() if p.is_dir())
+    assert dirs == ["suews"], f"bundle should ship only 'suews', found: {dirs}"
+
+    src = _skill_manifest(REPO_ROOT / ".claude" / "skills" / "suews")
+    bundle = _skill_manifest(bundle_skills / "suews")
+    assert src == bundle, (
+        "build_plugin.py output differs from .claude/skills/suews/ — generator bug. "
+        f"source-only: {sorted(set(src) - set(bundle))}; "
+        f"bundle-only: {sorted(set(bundle) - set(src))}; "
+        f"differing: {sorted(k for k in src if k in bundle and src[k] != bundle[k])}"
+    )

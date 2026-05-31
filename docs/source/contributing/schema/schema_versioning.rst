@@ -462,6 +462,9 @@ the schema that shipped with it via
    flat ``{value: 1001}`` form. Family tag is validated against its
    numeric codes at load time; canonical internal shape remains flat,
    and YAML dump / migration continue to emit the flat form unchanged.
+   ``net_radiation`` also accepts the orthogonal form
+   ``{scheme: narp, ldown: air}`` (plus the documented ``variant`` axis)
+   for the same numeric codes.
 
    The ``(2026.5.dev4 -> 2026.5.dev5)`` migration is an identity
    transform because no rewrite is required. Rust CLI acceptance lives

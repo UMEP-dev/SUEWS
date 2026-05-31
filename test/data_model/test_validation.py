@@ -1032,6 +1032,40 @@ def test_phase_b_forcing_height_only_spartacus_top(registry):
     expected_min_z_mean = 2.0 * 3.0
     assert any(str(expected_min_z_mean) in e.suggested_value for e in errors)
     assert any("mean building height" in e.message for e in errors)
+
+
+@pytest.mark.parametrize(
+    "net_radiation",
+    [
+        {"value": 1003},
+        {"scheme": "spartacus", "ldown": "air"},
+        {"spartacus": {"value": 1003}},
+    ],
+)
+def test_phase_b_forcing_height_spartacus_accept_forms_use_vertical_top(registry, net_radiation):
+    """SPARTACUS accept forms must all include vertical-layer top in h_max."""
+    yaml_data = {
+        "model": {"physics": {"net_radiation": net_radiation}},
+        "sites": [
+            {
+                "name": "TestSite",
+                "gridiv": 1,
+                "properties": {
+                    "z": {"value": 40.0},
+                    "land_cover": {
+                        "bldgs": {"bldgh": {"value": 10.0}, "sfr": {"value": 0.4}},
+                    },
+                    "vertical_layers": {"height": {"value": [0.0, 25.0, 50.0]}},
+                },
+            }
+        ],
+    }
+
+    results = registry["forcing_height"](ValidationContext(yaml_data=yaml_data))
+
+    warnings = [r for r in results if r.status == "WARNING"]
+    assert any("1.5* max building height" in w.message for w in warnings)
+    assert any("max building height=50.0" in w.suggested_value for w in warnings)
     
 def test_phase_b_forcing_height_missing_bldgh_or_sfr(registry):
     yaml_data = {

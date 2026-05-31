@@ -14,6 +14,7 @@ from .field_renames import (
     fold_stebbs_physics,
 )
 from .physics_families import PHYSICS_FAMILIES, coerce_nested_to_flat
+from .physics_orthogonal import coerce_orthogonal_to_flat
 
 
 def _enum_description(enum_class: type[Enum]) -> str:
@@ -798,9 +799,10 @@ class ModelPhysics(BaseModel):
     @field_validator(*PHYSICS_FAMILIES.keys(), mode="before")
     @classmethod
     def _coerce_nested_physics(cls, value, info):
-        # Widens accepted input: `{family: {value: N}}` collapses to the
-        # flat `{value: N}` shape before the FlexibleRefValue union resolves.
-        # Family tag is a validation gate — see physics_families.py (gh#972).
+        # Widens accepted input before FlexibleRefValue resolves:
+        # orthogonal net-radiation tokens and family tags both collapse to
+        # the flat `{value: N}` canonical shape.
+        value = coerce_orthogonal_to_flat(info.field_name, value)
         return coerce_nested_to_flat(info.field_name, value)
 
     net_radiation: FlexibleRefValue(NetRadiationMethod) = Field(

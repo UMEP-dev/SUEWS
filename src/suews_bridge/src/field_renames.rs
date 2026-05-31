@@ -841,6 +841,24 @@ fn has_stebbs_nested_key(map: &serde_yaml::Mapping) -> bool {
             .any(|(alias, _leaf)| map.contains_key(Value::String((*alias).to_string())))
 }
 
+fn nested_stebbs_alias_conflict(map: &serde_yaml::Mapping) -> Option<String> {
+    for (leaf, _fused) in STEBBS_LEAF_TO_FUSED {
+        let mut present = Vec::new();
+        if map.contains_key(Value::String((*leaf).to_string())) {
+            present.push((*leaf).to_string());
+        }
+        for (alias, alias_leaf) in STEBBS_NESTED_ALIAS_TO_LEAF {
+            if alias_leaf == leaf && map.contains_key(Value::String((*alias).to_string())) {
+                present.push((*alias).to_string());
+            }
+        }
+        if present.len() > 1 {
+            return Some(format!("{} -> stebbs.{leaf}", present.join(", ")));
+        }
+    }
+    None
+}
+
 /// `(nested_leaf, fused_flat_key)` for the five non-master STEBBS switches.
 /// `capacitance` / `setpoint` fold to the fused DataFrame columns the parser
 /// reads (`rcmethod`, `setpointmethod`); the four `same_*` switches keep their
@@ -1016,6 +1034,13 @@ fn flatten_stebbs_physics(root: &mut Value) -> Result<(), String> {
              present. Use only the nested 'stebbs' form."
                 .to_string(),
         );
+    }
+
+    if let Some(conflict) = nested_stebbs_alias_conflict(&stebbs_block) {
+        return Err(format!(
+            "Multiple nested STEBBS physics switches map to the same nested leaf \
+             ({conflict}). Use only one spelling."
+        ));
     }
 
     for (alias, leaf) in STEBBS_NESTED_ALIAS_TO_LEAF {
@@ -1564,6 +1589,36 @@ model:
         assert_eq!(physics_i64(&root, "stebbsmethod"), Some(2));
         assert_eq!(physics_i64(&root, "rcmethod"), Some(2));
         assert_eq!(physics_i64(&root, "setpointmethod"), Some(2));
+    }
+
+    #[test]
+    fn nested_stebbs_duplicate_leaf_aliases_rejected() {
+        let cases = [
+            ("capacitance: {value: 1}", "outer_cap_fraction: {value: 2}"),
+            ("outer_cap_fraction: {value: 1}", "rcmethod: {value: 2}"),
+            ("rcmethod: {value: 1}", "rc_method: {value: 2}"),
+            ("setpoint: {value: 1}", "setpointmethod: {value: 2}"),
+        ];
+
+        for (left, right) in cases {
+            let yaml = format!(
+                "\
+model:
+  physics:
+    stebbs:
+      enabled: {{value: true}}
+      {left}
+      {right}
+"
+            );
+            let mut root: Value = from_str(&yaml).unwrap();
+            let err = normalize_field_names(&mut root)
+                .expect_err("duplicate nested aliases must fail");
+            assert!(
+                err.contains("Multiple nested STEBBS"),
+                "unexpected error message: {err}"
+            );
+        }
     }
 
     #[test]

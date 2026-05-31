@@ -333,6 +333,14 @@ def get_stebbs_block(physics):
     folded = dict(block) if _is_stebbs_nested_block(block) else {}
 
     if folded:
+        nested_conflicts = _stebbs_leaf_alias_conflicts(folded)
+        if nested_conflicts:
+            raise ValueError(
+                "Multiple nested STEBBS physics switches map to the same nested "
+                f"leaf ({_format_stebbs_leaf_alias_conflicts(nested_conflicts)}). "
+                "Use only one spelling."
+            )
+
         flat_conflicts = _stebbs_flat_leaf_siblings(physics)
         if flat_conflicts:
             raise ValueError(

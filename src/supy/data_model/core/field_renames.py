@@ -1440,6 +1440,14 @@ def _decompose_stebbs_master(entry: Any) -> tuple[Any, Any]:
 
 def _normalise_stebbs_block_aliases(stebbs_block: dict) -> tuple[dict, list[str]]:
     """Rename legacy keys inside a nested ``stebbs`` block to final leaves."""
+    leaf_conflicts = _stebbs_leaf_alias_conflicts(stebbs_block)
+    if leaf_conflicts:
+        raise ValueError(
+            "Multiple nested STEBBS physics switches map to the same nested leaf "
+            f"({_format_stebbs_leaf_alias_conflicts(leaf_conflicts)}). Use only "
+            "one spelling."
+        )
+
     moved: list[str] = []
     for old_key, nested_leaf in STEBBS_PHYSICS_LEAF_RENAMES.items():
         if old_key == nested_leaf or old_key not in stebbs_block:

@@ -549,6 +549,30 @@ class TestStebbsPhysicsFold:
         assert int(df.loc[1, ("setpointmethod", "0")]) == 2
 
     @pytest.mark.parametrize(
+        "left,right",
+        [
+            ("capacitance", "outer_cap_fraction"),
+            ("outer_cap_fraction", "rcmethod"),
+            ("rcmethod", "rc_method"),
+            ("setpoint", "setpointmethod"),
+        ],
+    )
+    def test_duplicate_nested_stebbs_leaf_aliases_are_rejected(self, left, right):
+        """Nested aliases to the same STEBBS leaf are ambiguous."""
+        payload = {
+            "stebbs": {
+                "enabled": {"value": True},
+                left: {"value": 1},
+                right: {"value": 2},
+            }
+        }
+
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", DeprecationWarning)
+            with pytest.raises(ValueError, match="Multiple nested STEBBS"):
+                ModelPhysics(**payload)
+
+    @pytest.mark.parametrize(
         "flat_key",
         ["rcmethod", "capacitance", "outer_cap_fraction"],
     )
@@ -721,7 +745,6 @@ class TestStebbsPhysicsFold:
                     "stebbs": {
                         "enabled": {"value": True},
                         "outer_cap_fraction": {"value": 2},
-                        "rc_method": {"value": 1},
                         "setpointmethod": {"value": 2},
                     }
                 }
@@ -730,7 +753,6 @@ class TestStebbsPhysicsFold:
         _apply_stebbs_physics_fold(cfg_nested_alias)
         stebbs_alias = cfg_nested_alias["model"]["physics"]["stebbs"]
         assert "outer_cap_fraction" not in stebbs_alias
-        assert "rc_method" not in stebbs_alias
         assert "setpointmethod" not in stebbs_alias
         assert stebbs_alias["capacitance"] == {"value": 2}
         assert stebbs_alias["setpoint"] == {"value": 2}

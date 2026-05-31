@@ -834,6 +834,14 @@ def _apply_stebbs_physics_fold(cfg: dict) -> None:
                 "'stebbs.enabled' + 'stebbs.parameters'"
             )
 
+    nested_conflicts = _stebbs_leaf_alias_conflicts(stebbs_block)
+    if nested_conflicts:
+        raise YamlUpgradeError(
+            "Multiple nested STEBBS physics switches map to the same nested leaf "
+            f"({_format_stebbs_leaf_alias_conflicts(nested_conflicts)}). Use only "
+            "one spelling."
+        )
+
     leaf_conflicts = _stebbs_leaf_alias_conflicts(physics)
     if leaf_conflicts:
         raise YamlUpgradeError(

@@ -4912,6 +4912,38 @@ class TestPhaseBRenameAwareLookups:
                 }
             )
 
+    @pytest.mark.parametrize(
+        "left,right",
+        [
+            ("capacitance", "outer_cap_fraction"),
+            ("outer_cap_fraction", "rcmethod"),
+            ("rcmethod", "rc_method"),
+            ("setpoint", "setpointmethod"),
+        ],
+    )
+    def test_stebbs_block_helper_rejects_duplicate_nested_leaf_aliases(
+        self,
+        left,
+        right,
+    ):
+        from supy.data_model.validation.core.yaml_helpers import (
+            get_stebbs_block,
+            get_stebbsmethod_value,
+        )
+
+        physics = {
+            "stebbs": {
+                "enabled": {"value": True},
+                left: {"value": 1},
+                right: {"value": 2},
+            }
+        }
+
+        with pytest.raises(ValueError, match="Multiple nested STEBBS"):
+            get_stebbs_block(physics)
+        with pytest.raises(ValueError, match="Multiple nested STEBBS"):
+            get_stebbsmethod_value(physics)
+
     def test_stebbsmethod_helper_rejects_invalid_nested_switch_values(self):
         from supy.data_model.validation.core.yaml_helpers import get_stebbsmethod_value
 

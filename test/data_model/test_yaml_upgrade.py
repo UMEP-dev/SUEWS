@@ -189,6 +189,46 @@ class TestYamlUpgradeModule:
         with pytest.raises(YamlUpgradeError, match="flat STEBBS physics switches"):
             upgrade_yaml(input_path=source, output_path=target)
 
+    @pytest.mark.parametrize("schema_version", ["2026.5", "2026.5.dev12"])
+    @pytest.mark.parametrize(
+        "left,right",
+        [
+            ("capacitance", "outer_cap_fraction"),
+            ("outer_cap_fraction", "rcmethod"),
+            ("rcmethod", "rc_method"),
+            ("setpoint", "setpointmethod"),
+        ],
+    )
+    def test_raises_on_duplicate_nested_stebbs_leaf_aliases(
+        self,
+        tmp_path: Path,
+        schema_version: str,
+        left: str,
+        right: str,
+    ):
+        """Upgrade should reject aliases duplicated inside nested ``stebbs``."""
+        source = tmp_path / "duplicate-nested-stebbs-leaves.yml"
+        target = tmp_path / "upgraded.yml"
+        payload = {
+            "schema_version": schema_version,
+            "model": {
+                "physics": {
+                    "stebbs": {
+                        "enabled": {"value": True},
+                        left: {"value": 1},
+                        right: {"value": 2},
+                    }
+                }
+            },
+        }
+        source.write_text(
+            yaml.safe_dump(payload, sort_keys=False),
+            encoding="utf-8",
+        )
+
+        with pytest.raises(YamlUpgradeError, match="Multiple nested STEBBS"):
+            upgrade_yaml(input_path=source, output_path=target)
+
     @pytest.mark.parametrize(
         "schema_version",
         ["2026.5", "2026.5.dev1", "2026.5.dev12"],

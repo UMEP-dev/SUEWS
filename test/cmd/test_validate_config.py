@@ -678,6 +678,36 @@ def test_public_mode_restriction_rejects_duplicate_legacy_stebbs_aliases(
     assert read_error is None
 
 
+def test_public_mode_restriction_rejects_duplicate_nested_stebbs_aliases(
+    tmp_path: Path,
+) -> None:
+    from supy.cmd.validate_config import _experimental_features_restriction
+
+    payload = {
+        "model": {
+            "physics": {
+                "stebbs": {
+                    "enabled": {"value": False},
+                    "capacitance": {"value": 1},
+                    "outer_cap_fraction": {"value": 2},
+                }
+            }
+        }
+    }
+    config_path = tmp_path / "public-duplicate-nested.yml"
+    _write_yaml(config_path, payload)
+
+    ok, restrictions, read_error = _experimental_features_restriction(
+        str(config_path), "public"
+    )
+
+    assert ok is False
+    assert "Invalid STEBBS physics configuration" in restrictions[0]
+    assert "outer_cap_fraction" in restrictions[0]
+    assert "capacitance" in restrictions[0]
+    assert read_error is None
+
+
 def test_emit_pipeline_result_warning_status_matches_inner_report(
     tmp_path: Path,
     capsys: pytest.CaptureFixture[str],

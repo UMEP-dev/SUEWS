@@ -947,6 +947,48 @@ def _format_phase_output(
     return None
 
 
+def _write_consolidated_sidecar(phases: list, report_path) -> None:
+    """Write the consolidated multi-phase ``ValidationReport`` JSON sidecar.
+
+    gh#1467: the CLI sidecar (``<report>.json``) carries the full
+    multi-phase ``ValidationReport`` (every phase, every severity) so
+    non-error informational messages reach machine consumers, not just
+    validation errors. The payload is identical to the stdout
+    ``--format json`` envelope's ``data.validation_report``.
+
+    This supersedes the Phase-C-only ``PhaseReport`` sidecar that
+    ``run_phase_c`` (and the move/copy helpers) leave at this path during
+    the pipeline run. A serialisation or I/O failure is swallowed (with a
+    ``SUEWS_DEBUG`` note) so a sidecar problem never breaks validation,
+    mirroring ``_sync_report_json_paths``.
+
+    Parameters
+    ----------
+    phases : list
+        The ``PhaseReport`` objects for the phases that ran, in order.
+    report_path : str or pathlib.Path
+        Final text report path; the sidecar is written beside it with a
+        ``.json`` suffix.
+    """
+    if not report_path:
+        return
+
+    from ..data_model.validation.pipeline.report_schema import (
+        JSON_REPORT_WRITER,
+        ValidationReport,
+    )
+
+    json_path = Path(report_path).with_suffix(".json")
+    try:
+        JSON_REPORT_WRITER.write(json_path, ValidationReport(phases=list(phases)))
+    except (OSError, TypeError, ValueError) as exc:
+        if os.environ.get("SUEWS_DEBUG", "").lower() in ("1", "true", "yes"):
+            print(
+                f"[DEBUG] consolidated sidecar write failed for {json_path}: {exc}",
+                file=sys.stderr,
+            )
+
+
 def _emit_pipeline_result(
     phases: list,
     report_path,
@@ -992,6 +1034,36 @@ def _emit_pipeline_result(
 
     has_errors = any(p.has_errors for p in phases)
     ok = not has_errors
+
+    # gh#1467: in a consolidated run the per-phase intermediate artefacts
+    # (temp_report*_ reports, updated*_ YAMLs) are merged into and deleted in
+    # favour of the single final report/YAML. Their in-memory PhaseReport
+    # objects still carry the intermediate paths, so normalise each phase's
+    # paths to the surviving artefacts before publishing them — otherwise the
+    # JSON sidecar and envelope advertise paths to files that no longer exist.
+    if report_path:
+        final_text_report = str(report_path)
+        final_json_report = str(Path(report_path).with_suffix(".json"))
+        for phase_report in phases:
+            # The consolidated report supersedes the per-phase reports.
+            phase_report.text_report_path = final_text_report
+            phase_report.json_report_path = final_json_report
+            # Per-phase YAML artefacts are intermediate: a phase's input or
+            # output may have been consolidated/deleted, or never produced by
+            # a failed phase. Clear any path that no longer resolves rather
+            # than mislabel another phase's surviving file as this one's.
+            # Paths that still exist (the original user YAML, or the final
+            # phase's own output) are left intact, so the surviving final
+            # YAML is still attributed to the phase that actually produced it.
+            if phase_report.yaml_in and not Path(phase_report.yaml_in).exists():
+                phase_report.yaml_in = None
+            if phase_report.yaml_out and not Path(phase_report.yaml_out).exists():
+                phase_report.yaml_out = None
+
+    # gh#1467: persist the consolidated multi-phase ValidationReport as the
+    # JSON sidecar next to the final text report, in BOTH table and json
+    # output modes (the sidecar is a disk artefact, independent of stdout).
+    _write_consolidated_sidecar(phases, report_path)
 
     if out_format == "json":
         validation_report = ValidationReport(phases=list(phases))

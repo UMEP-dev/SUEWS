@@ -7,10 +7,10 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
-<meta content="SUEWS YAML configuration for building layer parameters" name="description" />
-<meta content="SUEWS, YAML, buildinglayer, parameters, configuration" name="keywords" />
+<meta content="SUEWS YAML configuration for stebbs physics methods parameters" name="description" />
+<meta content="SUEWS, YAML, stebbsphysics, parameters, configuration" name="keywords" />
 
-    <title>4.3.6. Building Layer &#8212; SUEWS 2026.5.31.dev9118 documentation</title>
+    <title>4.3.46. STEBBS Physics Methods &#8212; SUEWS 2026.5.31.dev9118 documentation</title>
   
   
   
@@ -51,13 +51,13 @@
     <script src="../../../_static/sphinx_highlight.js?v=dc90522c"></script>
     <script src="../../../_static/scripts/sphinx-book-theme.js?v=fab101a9"></script>
     <script src="../../../_static/design-tabs.js?v=f930bc37"></script>
-    <script>DOCUMENTATION_OPTIONS.pagename = 'inputs/yaml/config-reference/buildinglayer';</script>
+    <script>DOCUMENTATION_OPTIONS.pagename = 'inputs/yaml/config-reference/stebbsphysics';</script>
     <script defer="defer" src="../../../_static/publications-filter.js?v=c5b02298"></script>
     <link rel="icon" href="../../../_static/suews-logo.svg"/>
     <link rel="index" title="Index" href="../../../genindex.html" />
     <link rel="search" title="Search" href="../../../search.html" />
-    <link rel="next" title="4.3.7. CO2 Emissions" href="co2params.html" />
-    <link rel="prev" title="4.3.5. Bare Soil" href="bsoilproperties.html" />
+    <link rel="next" title="4.3.47. STEBBS" href="stebbsproperties.html" />
+    <link rel="prev" title="4.3.45. Soil Observation Configuration" href="soilobservationconfig.html" />
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
   <meta name="docsearch:version" content="2026.5.31.dev9118" />
@@ -185,7 +185,7 @@
 <li class="toctree-l3"><a class="reference internal" href="archetypeproperties.html">4.3.3. Archetype Properties</a></li>
 <li class="toctree-l3"><a class="reference internal" href="bldgsproperties.html">4.3.4. Buildings</a></li>
 <li class="toctree-l3"><a class="reference internal" href="bsoilproperties.html">4.3.5. Bare Soil</a></li>
-<li class="toctree-l3 current active"><a class="current reference internal" href="#">4.3.6. Building Layer</a></li>
+<li class="toctree-l3"><a class="reference internal" href="buildinglayer.html">4.3.6. Building Layer</a></li>
 <li class="toctree-l3"><a class="reference internal" href="co2params.html">4.3.7. CO2 Emissions</a></li>
 <li class="toctree-l3"><a class="reference internal" href="conductance.html">4.3.8. Conductance</a></li>
 <li class="toctree-l3"><a class="reference internal" href="coolingsetpointprofile.html">4.3.9. Cooling Setpoint Profile</a></li>
@@ -225,7 +225,7 @@
 <li class="toctree-l3"><a class="reference internal" href="siteproperties.html">4.3.43. Site Properties</a></li>
 <li class="toctree-l3"><a class="reference internal" href="snowparams.html">4.3.44. Snow</a></li>
 <li class="toctree-l3"><a class="reference internal" href="soilobservationconfig.html">4.3.45. Soil Observation Configuration</a></li>
-<li class="toctree-l3"><a class="reference internal" href="stebbsphysics.html">4.3.46. STEBBS Physics Methods</a></li>
+<li class="toctree-l3 current active"><a class="current reference internal" href="#">4.3.46. STEBBS Physics Methods</a></li>
 <li class="toctree-l3"><a class="reference internal" href="stebbsproperties.html">4.3.47. STEBBS</a></li>
 <li class="toctree-l3"><a class="reference internal" href="storagedrainparams.html">4.3.48. Drainage Parameters</a></li>
 <li class="toctree-l3"><a class="reference internal" href="surfaceinitialstate.html">4.3.49. Generic Surface Initial State</a></li>
@@ -463,7 +463,7 @@
       
       
       
-      <li><a href="https://github.com/UMEP-dev/SUEWS/issues/new?title=Issue%20on%20page%20%2Finputs/yaml/config-reference/buildinglayer.html&body=Your%20issue%20content%20here." target="_blank"
+      <li><a href="https://github.com/UMEP-dev/SUEWS/issues/new?title=Issue%20on%20page%20%2Finputs/yaml/config-reference/stebbsphysics.html&body=Your%20issue%20content%20here." target="_blank"
    class="btn btn-sm btn-source-issues-button dropdown-item"
    title="Open an issue"
    data-bs-placement="left" data-bs-toggle="tooltip"
@@ -519,7 +519,7 @@
               
 
 <div id="jb-print-docs-body" class="onlyprint">
-    <h1>Building Layer</h1>
+    <h1>STEBBS Physics Methods</h1>
     <!-- Table of contents -->
     <div id="print-main-content">
         <div id="jb-print-toc">
@@ -537,114 +537,139 @@
 <p class="admonition-title">Tip</p>
 <ol class="arabic simple">
 <li><p>Need help? Please let us know in the <a class="reference external" href="https://community.suews.io/invites/bKjzoboyVV">SUEWS Community</a>.</p></li>
-<li><p>Please report issues with the manual on <a class="reference external" href="https://github.com/UMEP-dev/SUEWS/issues">GitHub Issues</a> (or use <a class="reference external" href="https://github.com/UMEP-dev/SUEWS/issues/new?assignees=&amp;labels=docs&amp;template=docs-issue-report.md&amp;body=%23%23+Issue%0A%3C%21--+Please+describe+the+issue+below+this+line+--%3E%0A%0A%23%23+Links%0A%5Bsource+doc%5D%28https%3A%2F%2Fgithub.com%2FUMEP-dev%2FSUEWS%2Fblob%2Fmaster%2Fdocs%2Fsource%2Finputs%2Fyaml%2Fconfig-reference%2Fbuildinglayer.rst%29%0A%5BRTD+page%5D%28https%3A%2F%2Fsuews.readthedocs.org%2Fen%2Flatest%2Finputs%2Fyaml%2Fconfig-reference%2Fbuildinglayer.html%29%0A&amp;title=[Docs]inputs/yaml/config-reference/buildinglayer">Report Issue for This Page</a> for page-specific feedback).</p></li>
+<li><p>Please report issues with the manual on <a class="reference external" href="https://github.com/UMEP-dev/SUEWS/issues">GitHub Issues</a> (or use <a class="reference external" href="https://github.com/UMEP-dev/SUEWS/issues/new?assignees=&amp;labels=docs&amp;template=docs-issue-report.md&amp;body=%23%23+Issue%0A%3C%21--+Please+describe+the+issue+below+this+line+--%3E%0A%0A%23%23+Links%0A%5Bsource+doc%5D%28https%3A%2F%2Fgithub.com%2FUMEP-dev%2FSUEWS%2Fblob%2Fmaster%2Fdocs%2Fsource%2Finputs%2Fyaml%2Fconfig-reference%2Fstebbsphysics.rst%29%0A%5BRTD+page%5D%28https%3A%2F%2Fsuews.readthedocs.org%2Fen%2Flatest%2Finputs%2Fyaml%2Fconfig-reference%2Fstebbsphysics.html%29%0A&amp;title=[Docs]inputs/yaml/config-reference/stebbsphysics">Report Issue for This Page</a> for page-specific feedback).</p></li>
 <li><p>Please cite SUEWS with proper information from our <a class="reference external" href="https://doi.org/10.5281/zenodo.5723970">Zenodo page</a>.</p></li>
 </ol>
 </div>
-<section id="building-layer">
-<span id="index-0"></span><span id="buildinglayer"></span><h1><span class="section-number">4.3.6. </span>Building Layer<a class="headerlink" href="#building-layer" title="Link to this heading">#</a></h1>
+<section id="stebbs-physics-methods">
+<span id="index-0"></span><span id="stebbsphysics"></span><h1><span class="section-number">4.3.46. </span>STEBBS Physics Methods<a class="headerlink" href="#stebbs-physics-methods" title="Link to this heading">#</a></h1>
+<p>STEBBS (Surface Temperature Energy Balance Based Scheme) physics switches.</p>
+<p>Groups the six STEBBS-scoped method switches that previously sat flat on
+<code class="docutils literal notranslate"><span class="pre">model.physics</span></code> (gh#1456). The master on/off toggle is split into
+<code class="docutils literal notranslate"><span class="pre">enabled</span></code> (bool) and <code class="docutils literal notranslate"><span class="pre">parameters</span></code> (StebbsParameterSource); the two
+compose back to the single legacy <code class="docutils literal notranslate"><span class="pre">stebbsmethod</span></code> integer column on
+<code class="docutils literal notranslate"><span class="pre">ModelPhysics.to_df_state</span></code> and are decomposed on <code class="docutils literal notranslate"><span class="pre">from_df_state</span></code>. The
+DataFrame / Fortran column names are unchanged.</p>
 <p><strong>Parameters:</strong></p>
 <dl class="input option" id="index-1">
-<dt class="sig sig-object input" id="input-option-alb">
-<span class="sig-name descname"><span class="pre">alb</span></span><a class="headerlink" href="#input-option-alb" title="Link to this definition">#</a></dt>
-<dd><p>Surface albedo</p>
+<dt class="sig sig-object input" id="input-option-enabled">
+<span class="sig-name descname"><span class="pre">enabled</span></span><a class="headerlink" href="#input-option-enabled" title="Link to this definition">#</a></dt>
+<dd><p>Master on/off switch for STEBBS. When false, STEBBS calculations are disabled and <a class="reference internal" href="../../converter.html#parameters"><span class="std std-ref">Parameters</span></a> is ignored.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
 <dd class="field-odd"><p>dimensionless</p>
 </dd>
 <dt class="field-even">Default<span class="colon">:</span></dt>
-<dd class="field-even"><p><code class="docutils literal notranslate"><span class="pre">0.1</span></code></p>
+<dd class="field-even"><p><code class="docutils literal notranslate"><span class="pre">False</span></code></p>
 </dd>
 </dl>
 </dd></dl>
 
 <dl class="input option" id="index-2">
-<dt class="sig sig-object input" id="input-option-emis">
-<span class="sig-name descname"><span class="pre">emis</span></span><a class="headerlink" href="#input-option-emis" title="Link to this definition">#</a></dt>
-<dd><p>Surface emissivity</p>
-<dl class="field-list simple">
-<dt class="field-odd">Unit<span class="colon">:</span></dt>
-<dd class="field-odd"><p>dimensionless</p>
+<dt class="sig sig-object input" id="input-option-parameters">
+<span class="sig-name descname"><span class="pre">parameters</span></span><a class="headerlink" href="#input-option-parameters" title="Link to this definition">#</a></dt>
+<dd><p>Source of STEBBS parameters when STEBBS is enabled (<code class="docutils literal notranslate"><span class="pre">stebbs.enabled=true</span></code>).</p>
+<dl class="field-list">
+<dt class="field-odd">Options<span class="colon">:</span></dt>
+<dd class="field-odd"><div class="line-block">
+<div class="line"><code class="docutils literal notranslate"><span class="pre">1</span></code> (DEFAULT) = STEBBS uses default parameters</div>
+<div class="line"><code class="docutils literal notranslate"><span class="pre">2</span></code> (PROVIDED) = STEBBS uses user-specified parameters</div>
+</div>
 </dd>
 <dt class="field-even">Default<span class="colon">:</span></dt>
-<dd class="field-even"><p><code class="docutils literal notranslate"><span class="pre">0.95</span></code></p>
+<dd class="field-even"><p><code class="docutils literal notranslate"><span class="pre">1</span></code> (DEFAULT)</p>
 </dd>
 </dl>
 </dd></dl>
 
 <dl class="input option" id="index-3">
-<dt class="sig sig-object input" id="input-option-thermal_layers">
-<span class="sig-name descname"><span class="pre">thermal_layers</span></span><a class="headerlink" href="#input-option-thermal_layers" title="Link to this definition">#</a></dt>
-<dd><p>Thermal layers for the surface</p>
-<p>The <code class="docutils literal notranslate"><span class="pre">thermal_layers</span></code> parameter group is defined by the <a class="reference internal" href="thermallayers.html"><span class="doc">Thermal Layers</span></a> structure.</p>
+<dt class="sig sig-object input" id="input-option-capacitance">
+<span class="sig-name descname"><span class="pre">capacitance</span></span><a class="headerlink" href="#input-option-capacitance" title="Link to this definition">#</a></dt>
+<dd><p>Method to determine the two weighting factors (wall_outer_heat_capacity_fraction and roof_outer_heat_capacity_fraction) splitting heat capacity of building envelope into two nodes in STEBBS.</p>
+<dl class="field-list">
+<dt class="field-odd">Options<span class="colon">:</span></dt>
+<dd class="field-odd"><div class="line-block">
+<div class="line"><code class="docutils literal notranslate"><span class="pre">0</span></code> (DEFAULT) = Default value of 0.5 is used</div>
+<div class="line"><code class="docutils literal notranslate"><span class="pre">1</span></code> (PROVIDED) = Use user defined value (wall_outer_heat_capacity_fraction and roof_outer_heat_capacity_fraction) between 0 and 1</div>
+<div class="line"><code class="docutils literal notranslate"><span class="pre">2</span></code> (PARAMETERISE) = Use building material thermal property to parameterise the weighting factor</div>
+</div>
+</dd>
+<dt class="field-even">Default<span class="colon">:</span></dt>
+<dd class="field-even"><p><code class="docutils literal notranslate"><span class="pre">0</span></code> (DEFAULT)</p>
+</dd>
+</dl>
 </dd></dl>
 
 <dl class="input option" id="index-4">
-<dt class="sig sig-object input" id="input-option-state_limit">
-<span class="sig-name descname"><span class="pre">state_limit</span></span><a class="headerlink" href="#input-option-state_limit" title="Link to this definition">#</a></dt>
-<dd><p>Minimum water storage capacity for state change</p>
-<dl class="field-list simple">
-<dt class="field-odd">Unit<span class="colon">:</span></dt>
-<dd class="field-odd"><p>mm</p>
+<dt class="sig sig-object input" id="input-option-setpoint">
+<span class="sig-name descname"><span class="pre">setpoint</span></span><a class="headerlink" href="#input-option-setpoint" title="Link to this definition">#</a></dt>
+<dd><p>Method to determine the approach of space heating/cooling setpoints in STEBBS.</p>
+<dl class="field-list">
+<dt class="field-odd">Options<span class="colon">:</span></dt>
+<dd class="field-odd"><div class="line-block">
+<div class="line"><code class="docutils literal notranslate"><span class="pre">0</span></code> (Constant) = Use the user-provided heating_setpoint_temperature and cooling_setpoint_temperature throughout the day.</div>
+<div class="line"><code class="docutils literal notranslate"><span class="pre">1</span></code> (Dependent) = Use the user-provided setpoints</div>
+<div class="line"><code class="docutils literal notranslate"><span class="pre">2</span></code> (Scheduled) = Use the user-provided heating_setpoint_temperature_profile and cooling_setpoint_temperature_profile.</div>
+</div>
 </dd>
-<dt class="field-even">Example<span class="colon">:</span></dt>
-<dd class="field-even"><p><code class="docutils literal notranslate"><span class="pre">10.0</span></code></p>
+<dt class="field-even">Default<span class="colon">:</span></dt>
+<dd class="field-even"><p><code class="docutils literal notranslate"><span class="pre">0</span></code> (CONSTANT)</p>
 </dd>
 </dl>
 </dd></dl>
 
 <dl class="input option" id="index-5">
-<dt class="sig sig-object input" id="input-option-soil_store_capacity">
-<span class="sig-name descname"><span class="pre">soil_store_capacity</span></span><a class="headerlink" href="#input-option-soil_store_capacity" title="Link to this definition">#</a></dt>
-<dd><p>Maximum water storage capacity of soil</p>
+<dt class="sig sig-object input" id="input-option-same_albedo_wall">
+<span class="sig-name descname"><span class="pre">same_albedo_wall</span></span><a class="headerlink" href="#input-option-same_albedo_wall" title="Link to this definition">#</a></dt>
+<dd><p>Controls assumption of same albedoes for walls.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
-<dd class="field-odd"><p>mm</p>
+<dd class="field-odd"><p>dimensionless</p>
 </dd>
-<dt class="field-even">Default<span class="colon">:</span></dt>
-<dd class="field-even"><p>None (optional)</p>
+<dt class="field-even">Example<span class="colon">:</span></dt>
+<dd class="field-even"><p><code class="docutils literal notranslate"><span class="pre">0</span></code> (DISABLED)</p>
 </dd>
 </dl>
 </dd></dl>
 
 <dl class="input option" id="index-6">
-<dt class="sig sig-object input" id="input-option-wet_threshold">
-<span class="sig-name descname"><span class="pre">wet_threshold</span></span><a class="headerlink" href="#input-option-wet_threshold" title="Link to this definition">#</a></dt>
-<dd><p>Surface wetness threshold for OHM calculations</p>
+<dt class="sig sig-object input" id="input-option-same_albedo_roof">
+<span class="sig-name descname"><span class="pre">same_albedo_roof</span></span><a class="headerlink" href="#input-option-same_albedo_roof" title="Link to this definition">#</a></dt>
+<dd><p>Controls assumption of same albedoes for roofs.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
 <dd class="field-odd"><p>dimensionless</p>
 </dd>
-<dt class="field-even">Default<span class="colon">:</span></dt>
-<dd class="field-even"><p><code class="docutils literal notranslate"><span class="pre">0.5</span></code></p>
+<dt class="field-even">Example<span class="colon">:</span></dt>
+<dd class="field-even"><p><code class="docutils literal notranslate"><span class="pre">0</span></code> (DISABLED)</p>
 </dd>
 </dl>
 </dd></dl>
 
 <dl class="input option" id="index-7">
-<dt class="sig sig-object input" id="input-option-roof_albedo_dir_mult_fact">
-<span class="sig-name descname"><span class="pre">roof_albedo_dir_mult_fact</span></span><a class="headerlink" href="#input-option-roof_albedo_dir_mult_fact" title="Link to this definition">#</a></dt>
-<dd><p>Directional albedo multiplication factor for roofs</p>
+<dt class="sig sig-object input" id="input-option-same_emissivity_wall">
+<span class="sig-name descname"><span class="pre">same_emissivity_wall</span></span><a class="headerlink" href="#input-option-same_emissivity_wall" title="Link to this definition">#</a></dt>
+<dd><p>Controls assumption of same emissivities for walls.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
 <dd class="field-odd"><p>dimensionless</p>
 </dd>
 <dt class="field-even">Example<span class="colon">:</span></dt>
-<dd class="field-even"><p><code class="docutils literal notranslate"><span class="pre">0.1</span></code></p>
+<dd class="field-even"><p><code class="docutils literal notranslate"><span class="pre">0</span></code> (DISABLED)</p>
 </dd>
 </dl>
 </dd></dl>
 
 <dl class="input option" id="index-8">
-<dt class="sig sig-object input" id="input-option-wall_specular_frac">
-<span class="sig-name descname"><span class="pre">wall_specular_frac</span></span><a class="headerlink" href="#input-option-wall_specular_frac" title="Link to this definition">#</a></dt>
-<dd><p>Specular reflection fraction for walls</p>
+<dt class="sig sig-object input" id="input-option-same_emissivity_roof">
+<span class="sig-name descname"><span class="pre">same_emissivity_roof</span></span><a class="headerlink" href="#input-option-same_emissivity_roof" title="Link to this definition">#</a></dt>
+<dd><p>Controls assumption of same emissivities for roofs.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
 <dd class="field-odd"><p>dimensionless</p>
 </dd>
 <dt class="field-even">Example<span class="colon">:</span></dt>
-<dd class="field-even"><p><code class="docutils literal notranslate"><span class="pre">0.1</span></code></p>
+<dd class="field-even"><p><code class="docutils literal notranslate"><span class="pre">0</span></code> (DISABLED)</p>
 </dd>
 </dl>
 </dd></dl>
@@ -669,20 +694,20 @@
                   
 <div class="prev-next-area">
     <a class="left-prev"
-       href="bsoilproperties.html"
+       href="soilobservationconfig.html"
        title="previous page">
       <i class="fa-solid fa-angle-left"></i>
       <div class="prev-next-info">
         <p class="prev-next-subtitle">previous</p>
-        <p class="prev-next-title"><span class="section-number">4.3.5. </span>Bare Soil</p>
+        <p class="prev-next-title"><span class="section-number">4.3.45. </span>Soil Observation Configuration</p>
       </div>
     </a>
     <a class="right-next"
-       href="co2params.html"
+       href="stebbsproperties.html"
        title="next page">
       <div class="prev-next-info">
         <p class="prev-next-subtitle">next</p>
-        <p class="prev-next-title"><span class="section-number">4.3.7. </span>CO2 Emissions</p>
+        <p class="prev-next-title"><span class="section-number">4.3.47. </span>STEBBS</p>
       </div>
       <i class="fa-solid fa-angle-right"></i>
     </a>

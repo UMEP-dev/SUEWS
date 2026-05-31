@@ -180,13 +180,66 @@ The sections below summarise what users see change between schemas.
 The authoritative lineage (including release-tag to schema mapping)
 lives in :ref:`schema_version_history`.
 
+Upgrading to Schema 2026.5.dev13 (nest the STEBBS physics switches)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Schema ``2026.5.dev13`` is the current in-development shape (gh#1456).
+This is a separate structural reshape from the dev12 Column D rename
+(gh#1452), so it takes its own dev bump. The six flat STEBBS-scoped
+switches on ``model.physics`` are grouped into a single nested object
+``model.physics.stebbs``. The legacy tri-state master toggle
+``model.physics.stebbs`` (a ``StebbsMethod`` integer ``0``/``1``/``2``)
+is split into ``stebbs.enabled`` (bool) and ``stebbs.parameters`` (a
+``StebbsParameterSource`` enum: ``1`` = default parameters, ``2`` =
+user-provided parameters); together they reproduce the previous integer
+exactly (``enabled=false`` -> ``0``; ``enabled=true, parameters=1`` ->
+``1``; ``enabled=true, parameters=2`` -> ``2``). The dev12 field
+``model.physics.capacitance`` (was ``outer_cap_fraction`` / fused
+``rcmethod``) moves to ``model.physics.stebbs.capacitance``;
+``setpoint``, ``same_albedo_wall``, ``same_albedo_roof``,
+``same_emissivity_wall`` and ``same_emissivity_roof`` move under the
+nested object at the same leaf names.
+
+Before (flat)::
+
+   model:
+     physics:
+       stebbs: {value: 1}
+       capacitance: {value: 0}
+       setpoint: {value: 0}
+       same_albedo_wall: {value: 0}
+
+After (nested)::
+
+   model:
+     physics:
+       stebbs:
+         enabled: {value: true}
+         parameters: {value: 1}
+         capacitance: {value: 0}
+         setpoint: {value: 0}
+         same_albedo_wall: {value: 0}
+
+Run the migrator to bring an existing YAML onto the new shape:
+
+.. code-block:: bash
+
+   suews schema migrate your_config.yml --target-version 2026.5.dev13
+
+The flat form still loads through the Pydantic backward-compat shim
+(emitting a single ``DeprecationWarning`` summarising the fold), but
+YAMLs that round-trip through the migrator come out nested. The
+DataFrame / Fortran column names (``stebbsmethod``, ``rcmethod``,
+``setpointmethod``, ``same_albedo_*``, ``same_emissivity_*``) are
+unchanged - only the YAML surface and the Python data-model fields
+move.
+
 Upgrading to Schema 2026.5.dev12 (STEBBS / Archetype Column D alignment)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Schema ``2026.5.dev12`` is the current in-development shape. It aligns
-STEBBS and ArchetypeProperties field names with the Reading STEBBS
-team's "Column D" naming ("Column D", D. Hertwig / S. Rognone, 2026-05),
-in two waves landed in one dev bump.
+Schema ``2026.5.dev12`` aligns STEBBS and ArchetypeProperties field
+names with the Reading STEBBS team's "Column D" naming ("Column D",
+D. Hertwig / S. Rognone, 2026-05), in two waves landed in one dev bump.
 
 Wave 1 reorders the four straggler compound-noun fields kept at dev11 to
 their quantity-first finals, all under ``sites[].properties.stebbs.*``:
@@ -234,8 +287,8 @@ One field sits under ``model.physics.*``:
 This is a pure key rename: the field stays the same ``RCMethod`` enum
 with the same accepted values and validation behaviour, and its bridge
 DataFrame column stays ``rcmethod``. The larger relocation of the field
-under STEBBS and the capacitance-versus-fraction semantics are deferred
-to a separate workstream.
+under STEBBS (dev13, gh#1456) and the capacitance-versus-fraction
+semantics are deferred to a separate workstream.
 
 The ``ground_floor`` fields keep their two-word token.
 

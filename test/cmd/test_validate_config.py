@@ -142,6 +142,70 @@ def test_validate_pipeline_c_json_accepts_multiple_files() -> None:
 
 
 # ---------------------------------------------------------------------------
+# Report consolidation regressions — gh#1466 / gh#1458
+# ---------------------------------------------------------------------------
+
+
+def _copy_sample_data(dst: Path) -> Path:
+    """Copy the bundled sample config and its forcing file into ``dst``.
+
+    The forcing file must sit beside the config so Phase B forcing
+    validation resolves it and the science checks run end-to-end. Returns
+    the path to the copied ``sample_config.yml``.
+    """
+    sample_dir = files("supy").joinpath("sample_data")
+    if not sample_dir.joinpath("sample_config.yml").is_file():
+        pytest.skip("Sample data not available")
+    for resource in sample_dir.iterdir():
+        if resource.is_file():
+            (dst / resource.name).write_bytes(resource.read_bytes())
+    return dst / "sample_config.yml"
+
+
+def test_missing_schema_version_keeps_review_and_suggestion_sections(
+    tmp_path: Path,
+) -> None:
+    """A YAML missing ``schema_version`` must still surface the Phase B
+    ``REVIEW ADVISED`` / ``SUGGESTED UPDATES`` sections — gh#1466 / gh#1458.
+
+    Root cause: Phase C's INFO consolidation short-circuited to an
+    INFO-only report whenever it detected *any* default value. A missing
+    ``schema_version`` is the common trigger, so the upstream phase
+    content carried in ``no_action_messages`` (Phase A renames, Phase B
+    review/suggestion sections) was silently dropped — the report
+    collapsed to a single ``## INFO`` line about the missing field.
+    """
+    from supy.cmd.validate_config import cli as validate_cli
+
+    config_path = _copy_sample_data(tmp_path)
+
+    # Strip the ``schema_version`` line textually so the rest of the
+    # bundled config is byte-for-byte unchanged (no YAML round-trip).
+    original = config_path.read_text(encoding="utf-8")
+    stripped = "".join(
+        line
+        for line in original.splitlines(keepends=True)
+        if not line.startswith("schema_version")
+    )
+    assert stripped != original, "fixture must contain a schema_version line"
+    config_path.write_text(stripped, encoding="utf-8")
+
+    runner = CliRunner()
+    result = runner.invoke(validate_cli, ["--mode", "dev", str(config_path)])
+    assert result.exit_code in {0, 1}, result.output
+
+    report_path = tmp_path / "report_sample_config.txt"
+    assert report_path.exists(), result.output
+    report = report_path.read_text(encoding="utf-8")
+
+    # The missing-schema_version INFO is expected to be reported ...
+    assert "schema_version" in report, report
+    # ... but it must NOT have replaced the upstream phase sections.
+    assert "## REVIEW ADVISED" in report, report
+    assert "## SUGGESTED UPDATES" in report, report
+
+
+# ---------------------------------------------------------------------------
 # Validation edge cases — CLI path
 # ---------------------------------------------------------------------------
 

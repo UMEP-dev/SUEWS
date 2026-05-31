@@ -22,7 +22,7 @@ import warnings
 # schema-versioning.md` (Dev-label convention). Every structural PR
 # between releases bumps the dev counter instead of consuming a new
 # CalVer label.
-CURRENT_SCHEMA_VERSION = "2026.5.dev12"
+CURRENT_SCHEMA_VERSION = "2026.5.dev13"
 
 # Schema version history and descriptions.
 #
@@ -389,7 +389,7 @@ SCHEMA_VERSIONS: dict[str, str] = {
         "a RCMethod enum with the same values and validation behaviour; the "
         "bridge DataFrame column stays rcmethod). The larger relocation of "
         "the field under STEBBS and the capacitance-vs-fraction semantics "
-        "are deferred to a separate workstream. Rename tables "
+        "are deferred to a separate workstream (gh#1456, dev13). Rename tables "
         "STEBBSPROPERTIES_DEV12_RENAMES, ARCHETYPEPROPERTIES_DEV12_RENAMES "
         "and MODELPHYSICS_DEV12_RENAMES in "
         "src/supy/data_model/core/field_renames.py; the "
@@ -401,6 +401,30 @@ SCHEMA_VERSIONS: dict[str, str] = {
         "maps and the Rust FIELD_COMPAT_ALIASES entries. "
         "building_type was already dropped at dev11 (no new migration drop "
         "needed)."
+    ),
+    "2026.5.dev13": (
+        "gh#1456: the six flat STEBBS-scoped physics switches on "
+        "model.physics are relocated into a single nested object "
+        "model.physics.stebbs. This is a separate structural reshape from the "
+        "dev12 Column D rename (gh#1452), so it takes its own dev bump. The "
+        "legacy tri-state master toggle (model.physics.stebbs, a StebbsMethod "
+        "integer 0/1/2) is split into stebbs.enabled (bool) + stebbs.parameters "
+        "(default/provided); the two compose losslessly back to the unchanged "
+        "stebbsmethod DataFrame column (0 if not enabled else int(parameters)). "
+        "The dev12 flat model.physics.capacitance (RCMethod; was "
+        "outer_cap_fraction / fused rcmethod) moves to "
+        "model.physics.stebbs.capacitance with RCMethod semantics unchanged. "
+        "model.physics.setpoint, same_albedo_wall, same_albedo_roof, "
+        "same_emissivity_wall and same_emissivity_roof move under the nested "
+        "object at the same leaf names. All DataFrame / Fortran column names "
+        "(stebbsmethod, rcmethod, setpointmethod, same_albedo_*, "
+        "same_emissivity_*) are unchanged -- only the YAML surface and the "
+        "Python data-model fields move. The flat->nested fold is registered as "
+        "the (2026.5.dev12 -> 2026.5.dev13) handler in "
+        "src/supy/util/converter/yaml_upgrade.py::_HANDLERS and applied by the "
+        "ModelPhysics before-validator (fold_stebbs_physics in "
+        "src/supy/data_model/core/field_renames.py). The capacitance-vs-fraction "
+        "semantics settling (#1456 part 2) is deferred to a follow-up."
     ),
 }
 

@@ -3,7 +3,11 @@ from .rules_core import (
     ValidationResult,
 )
 from collections.abc import Mapping
-from ...core.yaml_helpers import get_value_safe
+from ...core.yaml_helpers import (
+    get_value_safe,
+    get_stebbs_block,
+    get_stebbsmethod_value,
+)
 from typing import Dict, List, Optional, Union, Any, Tuple
 
 def check_archetype_radiation_properties(archetype_data, facet):
@@ -90,7 +94,7 @@ def check_archetype_properties(context):
 
     results = []
     physics = yaml_data.get("model", {}).get("physics", {})
-    stebbsmethod = get_value_safe(physics, "stebbs")
+    stebbsmethod = get_stebbsmethod_value(physics)
 
     if stebbsmethod == 1:
         sites = yaml_data.get("sites", [])
@@ -132,7 +136,7 @@ def check_occupants_metabolism(context):
 
     results = []
     physics = yaml_data.get("model", {}).get("physics", {})
-    stebbsmethod = get_value_safe(physics, "stebbs")
+    stebbsmethod = get_stebbsmethod_value(physics)
 
     if stebbsmethod == 1:
         sites = yaml_data.get("sites", [])
@@ -193,7 +197,7 @@ def check_daylight_control(context):
 
     results = []
     physics = yaml_data.get("model", {}).get("physics", {})
-    stebbsmethod = get_value_safe(physics, "stebbs")
+    stebbsmethod = get_stebbsmethod_value(physics)
 
     if stebbsmethod == 1:
         sites = yaml_data.get("sites", [])
@@ -266,7 +270,7 @@ def check_stebbs_properties(context):
 
     results = []
     physics = yaml_data.get("model", {}).get("physics", {})
-    stebbsmethod = get_value_safe(physics, "stebbs")
+    stebbsmethod = get_stebbsmethod_value(physics)
 
     if stebbsmethod == 1:
         sites = yaml_data.get("sites", [])
@@ -328,8 +332,9 @@ def validate_model_option_setpoint(context) -> List[ValidationResult]:
     yaml_data = context.yaml_data
     physics = yaml_data.get("model", {}).get("physics", {})
 
-    setpointmethod = get_value_safe(physics, "setpoint")
-    stebbsmethod = get_value_safe(physics, "stebbs")
+    # gh#1456: setpoint method moved to model.physics.stebbs.setpoint.
+    setpointmethod = get_value_safe(get_stebbs_block(physics), "setpoint")
+    stebbsmethod = get_stebbsmethod_value(physics)
 
     if stebbsmethod != 1:
         return results

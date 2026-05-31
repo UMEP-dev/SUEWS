@@ -39,6 +39,8 @@ from ..core.yaml_helpers import (
     _nullify_biogenic_in_props,
     DLSCheck,
     get_value_safe,
+    get_stebbs_block as _get_stebbs_block,
+    get_stebbsmethod_value as _get_stebbsmethod_value,
     HAS_TIMEZONE_FINDER,
     load_user_yaml_normalised,
 )
@@ -1445,7 +1447,7 @@ def adjust_model_dependent_nullification(
     physics = yaml_data.get("model", {}).get("physics", {})
 
     # --- STEBBS ---
-    stebbsmethod = get_value_safe(physics, "stebbs")
+    stebbsmethod = _get_stebbsmethod_value(physics)
 
     if stebbsmethod == 0:
         sites = yaml_data.get("sites", [])
@@ -1986,7 +1988,8 @@ def adjust_model_option_rcmethod(yaml_data: dict) -> Tuple[dict, List[Scientific
     """
     adjustments = []
     physics = yaml_data.get("model", {}).get("physics", {})
-    rcmethod_value = get_value_safe(physics, "capacitance")
+    # gh#1456: capacitance method moved to model.physics.stebbs.capacitance.
+    rcmethod_value = get_value_safe(_get_stebbs_block(physics), "capacitance")
 
     if rcmethod_value == 0:
         sites = yaml_data.get("sites", [])
@@ -2046,7 +2049,8 @@ def adjust_model_option_setpointmethod(yaml_data: dict) -> Tuple[dict, List[Scie
     """
     adjustments = []
     physics = yaml_data.get("model", {}).get("physics", {})
-    setpointmethod = get_value_safe(physics, "setpoint")
+    # gh#1456: setpoint method moved to model.physics.stebbs.setpoint.
+    setpointmethod = get_value_safe(_get_stebbs_block(physics), "setpoint")
 
     sites = yaml_data.get("sites", [])
     for site_idx, site in enumerate(sites):
@@ -2129,7 +2133,7 @@ def adjust_model_option_stebbsmethod(yaml_data: dict) -> Tuple[dict, List[Scient
     """
     adjustments = []
     physics = yaml_data.get("model", {}).get("physics", {})
-    stebbsmethod = get_value_safe(physics, "stebbs")
+    stebbsmethod = _get_stebbsmethod_value(physics)
 
     if stebbsmethod == 1:
         sites = yaml_data.get("sites", [])

@@ -1322,6 +1322,271 @@ def apply_field_renames(
     return values
 
 
+# gh#1456: STEBBS flat -> nested fold.
+#
+# The six STEBBS-scoped switches used to sit flat on `model.physics`. They now
+# live under a nested `model.physics.stebbs` object. The legacy master toggle
+# (`stebbs`, a tri-state StebbsMethod integer) is split into `enabled` (bool)
+# and `parameters` (DEFAULT/PROVIDED). The leaf-name moves for the other five
+# switches are recorded here so the fold is auditable in one place.
+STEBBS_PHYSICS_LEAF_RENAMES: Dict[str, str] = {
+    # legacy flat key (already snake_case after MODELPHYSICS_*_RENAMES) -> nested leaf.
+    # After the MODELPHYSICS_* rename pass the former `rcmethod` / `rc_method`
+    # land on the dev12 flat name `capacitance` (Reading Column D, gh#1452);
+    # the older dev2-era flat spelling `outer_cap_fraction` is accepted too so a
+    # hand-written legacy YAML still folds. Both relocate to `stebbs.capacitance`.
+    "capacitance": "capacitance",
+    "outer_cap_fraction": "capacitance",
+    "rcmethod": "capacitance",
+    "rc_method": "capacitance",
+    "setpoint": "setpoint",
+    "setpointmethod": "setpoint",
+    "same_albedo_wall": "same_albedo_wall",
+    "same_albedo_roof": "same_albedo_roof",
+    "same_emissivity_wall": "same_emissivity_wall",
+    "same_emissivity_roof": "same_emissivity_roof",
+}
+
+# The nested-object keys (so a YAML already in the new shape passes through).
+#
+# gh#1456: `ref` is deliberately NOT in this discriminating set. A legacy flat
+# master toggle carrying provenance is a RefValue scalar -- `{value: 1, ref:
+# {...}}` -- whose only keys are `value`/`ref`; including `ref` here would
+# misclassify that scalar as the new nested object, silently dropping its
+# `value` and defaulting `enabled` to false. A genuine nested block always
+# carries `enabled`/`parameters`/a leaf name alongside any optional `ref`, so
+# `ref` is never the sole discriminator. See `_is_stebbs_refvalue_scalar`.
+_STEBBS_NESTED_KEYS = frozenset(
+    {
+        "enabled",
+        "parameters",
+        *STEBBS_PHYSICS_LEAF_RENAMES.keys(),
+        *STEBBS_PHYSICS_LEAF_RENAMES.values(),
+    }
+)
+
+# A RefValue-style scalar wraps only `value` (and optionally `ref`). Such a
+# mapping is the LEGACY master toggle, never the nested StebbsPhysics object.
+_STEBBS_REFVALUE_KEYS = frozenset({"value", "ref"})
+
+
+def _is_stebbs_refvalue_scalar(entry: Any) -> bool:
+    """Return True for a ``{"value": ...}`` / ``{"value": ..., "ref": ...}`` scalar.
+
+    Such a mapping is a RefValue-wrapped legacy master toggle and must be
+    decomposed via ``_decompose_stebbs_master`` rather than treated as the new
+    nested ``StebbsPhysics`` object (gh#1456).
+    """
+    return (
+        isinstance(entry, Mapping)
+        and "value" in entry
+        and set(entry) <= _STEBBS_REFVALUE_KEYS
+    )
+
+
+def _unwrap_scalar(entry: Any) -> Any:
+    """Return the inner value of a RefValue-style ``{"value": X}`` mapping."""
+    if isinstance(entry, Mapping) and "value" in entry:
+        return entry["value"]
+    return entry
+
+
+def _decompose_stebbs_master(entry: Any) -> tuple[Any, Any]:
+    """Split a legacy ``stebbs`` master toggle into (enabled, parameters) dicts.
+
+    Decompose the tri-state StebbsMethod integer:
+      0 -> (enabled=false, parameters=default)
+      1 -> (enabled=true,  parameters=default)
+      2 -> (enabled=true,  parameters=provided)
+
+    Returns RefValue-wrapped scalars (``{"value": ...}``) so the downstream
+    FlexibleRefValue union resolves them uniformly. Invalid scalar values remain
+    invalid, matching the previous flat ``FlexibleRefValue(StebbsMethod)``
+    contract instead of silently enabling STEBBS for malformed YAML.
+    """
+    ref = entry.get("ref") if isinstance(entry, Mapping) else None
+
+    def _wrapped(value: Any, *, carry_ref: bool = False) -> dict:
+        wrapped = {"value": value}
+        if carry_ref and ref is not None:
+            wrapped["ref"] = ref
+        return wrapped
+
+    if isinstance(entry, Mapping) and "value" not in entry:
+        raise ValueError(
+            "Legacy 'stebbs' mappings must use a 'value' key; use "
+            "'stebbs.enabled' / 'stebbs.parameters' for the nested form."
+        )
+
+    raw = _unwrap_scalar(entry)
+    if isinstance(raw, bool):
+        code = int(raw)
+    elif isinstance(raw, int):
+        code = raw
+    elif isinstance(raw, float) and raw.is_integer():
+        code = int(raw)
+    else:
+        raise ValueError(
+            "Legacy 'stebbs' master toggle expects integer 0, 1, or 2."
+        )
+    if code == 0:
+        return _wrapped(False, carry_ref=True), _wrapped(1)
+    if code == 1:
+        return _wrapped(True, carry_ref=True), _wrapped(1)
+    if code == 2:
+        return _wrapped(True, carry_ref=True), _wrapped(2)
+    raise ValueError("Legacy 'stebbs' master toggle expects integer 0, 1, or 2.")
+
+
+def _normalise_stebbs_block_aliases(stebbs_block: dict) -> tuple[dict, list[str]]:
+    """Rename legacy keys inside a nested ``stebbs`` block to final leaves."""
+    leaf_conflicts = _stebbs_leaf_alias_conflicts(stebbs_block)
+    if leaf_conflicts:
+        raise ValueError(
+            "Multiple nested STEBBS physics switches map to the same nested leaf "
+            f"({_format_stebbs_leaf_alias_conflicts(leaf_conflicts)}). Use only "
+            "one spelling."
+        )
+
+    moved: list[str] = []
+    for old_key, nested_leaf in STEBBS_PHYSICS_LEAF_RENAMES.items():
+        if old_key == nested_leaf or old_key not in stebbs_block:
+            continue
+        value = stebbs_block.pop(old_key)
+        if nested_leaf not in stebbs_block:
+            stebbs_block[nested_leaf] = value
+        moved.append(f"stebbs.{old_key}")
+    return stebbs_block, moved
+
+
+def _stebbs_leaf_alias_conflicts(values: Mapping[str, Any]) -> list[tuple[str, list[str]]]:
+    """Return flat STEBBS alias groups that would collide after folding."""
+    present_by_leaf: dict[str, list[str]] = {}
+    for old_key, nested_leaf in STEBBS_PHYSICS_LEAF_RENAMES.items():
+        if old_key in values:
+            present_by_leaf.setdefault(nested_leaf, []).append(old_key)
+    return [
+        (leaf, sorted(keys))
+        for leaf, keys in sorted(present_by_leaf.items())
+        if len(keys) > 1
+    ]
+
+
+def _format_stebbs_leaf_alias_conflicts(conflicts: list[tuple[str, list[str]]]) -> str:
+    """Format colliding flat STEBBS aliases for validation errors."""
+    return "; ".join(
+        f"{', '.join(keys)} -> stebbs.{leaf}" for leaf, keys in conflicts
+    )
+
+
+def _stebbs_flat_leaf_siblings(values: Mapping[str, Any]) -> list[str]:
+    """Return flat STEBBS leaf keys present beside a nested ``stebbs`` block."""
+    return sorted({key for key in STEBBS_PHYSICS_LEAF_RENAMES if key in values})
+
+
+def fold_stebbs_physics(values: dict, class_name: str, *, warn: bool = True) -> dict:
+    """Fold legacy flat STEBBS switches under a nested ``stebbs`` object.
+
+    Called from ``ModelPhysics._rename_physics_fields`` after the key renames.
+
+    Behaviour:
+      * If ``values["stebbs"]`` is already the nested object (its keys include
+        any of ``enabled``/``parameters``/``capacitance``/``setpoint``/
+        ``same_*``), it is left untouched; stray flat siblings are rejected as
+        ambiguous.
+      * Otherwise ``stebbs`` is treated as the legacy master toggle and
+        decomposed into ``stebbs.enabled`` + ``stebbs.parameters``.
+      * The five sibling switches (``outer_cap_fraction`` -> ``capacitance``,
+        ``setpoint``, ``same_*``) are moved under ``stebbs`` at their nested
+        leaf names.
+
+    A single ``DeprecationWarning`` summarises the fold when any legacy flat key
+    was present.
+    """
+    if not isinstance(values, dict):
+        return values
+
+    existing = values.get("stebbs")
+
+    # Already a built StebbsPhysics (or any object exposing the nested
+    # members) -- e.g. from_df_state constructs the instance directly and
+    # passes it in. Leave it untouched; do not mistake it for a legacy
+    # master-toggle scalar. A RefValue wrapping a scalar still has no
+    # `enabled` attribute, so this only catches the genuine nested object.
+    if existing is not None and not isinstance(existing, (Mapping, int, float, bool, str)):
+        if hasattr(existing, "enabled") or hasattr(existing, "parameters"):
+            flat_conflicts = _stebbs_flat_leaf_siblings(values)
+            if flat_conflicts:
+                raise ValueError(
+                    f"{class_name}: both nested 'stebbs' and flat STEBBS physics "
+                    f"switches ({', '.join(flat_conflicts)}) are present. Use only "
+                    "the nested 'stebbs' form."
+                )
+            return values
+
+    nested_already = (
+        isinstance(existing, Mapping)
+        and not _is_stebbs_refvalue_scalar(existing)
+        and any(k in existing for k in _STEBBS_NESTED_KEYS)
+    )
+
+    moved: list[str] = []
+
+    if nested_already:
+        stebbs_block, nested_moves = _normalise_stebbs_block_aliases(dict(existing))
+        moved.extend(nested_moves)
+        flat_conflicts = _stebbs_flat_leaf_siblings(values)
+        if flat_conflicts:
+            raise ValueError(
+                f"{class_name}: both nested 'stebbs' and flat STEBBS physics "
+                f"switches ({', '.join(flat_conflicts)}) are present. Use only "
+                "the nested 'stebbs' form."
+            )
+    else:
+        stebbs_block = {}
+        if "stebbs" in values:
+            enabled, parameters = _decompose_stebbs_master(values.pop("stebbs"))
+            stebbs_block["enabled"] = enabled
+            stebbs_block["parameters"] = parameters
+            moved.append("stebbs")
+
+    leaf_conflicts = _stebbs_leaf_alias_conflicts(values)
+    if leaf_conflicts:
+        raise ValueError(
+            f"{class_name}: multiple flat STEBBS physics switches map to the "
+            f"same nested leaf ({_format_stebbs_leaf_alias_conflicts(leaf_conflicts)}). "
+            "Use only one spelling."
+        )
+
+    for flat_key, nested_leaf in STEBBS_PHYSICS_LEAF_RENAMES.items():
+        if flat_key in values:
+            if nested_leaf in stebbs_block:
+                # Nested value wins; drop the stale flat one but record the move.
+                values.pop(flat_key)
+            else:
+                stebbs_block[nested_leaf] = values.pop(flat_key)
+            moved.append(flat_key)
+
+    if not nested_already and not stebbs_block and not moved:
+        # No STEBBS keys at all -> leave values untouched (defaults apply).
+        return values
+
+    if stebbs_block:
+        values["stebbs"] = stebbs_block
+
+    if moved and warn:
+        warnings.warn(
+            f"{class_name}: flat STEBBS physics switches "
+            f"({', '.join(sorted(set(moved)))}) are deprecated; they now live "
+            f"under the nested 'stebbs' object (e.g. "
+            f"'stebbs.enabled', 'stebbs.capacitance'). See gh#1456.",
+            DeprecationWarning,
+            stacklevel=4,
+        )
+
+    return values
+
+
 def read_physics_key(physics: dict, new_name: str, default: Any = None):
     """Read a physics key from raw YAML, accepting either the new name or its legacy alias.
 
@@ -1505,9 +1770,21 @@ def normalise_yaml_renames(data: Any) -> Any:
     if not isinstance(data, dict):
         return data
     try:
-        return rename_keys_recursive(data, RAW_YAML_FIELD_RENAMES)
+        normalised = rename_keys_recursive(data, RAW_YAML_FIELD_RENAMES)
     except ValueError:
         return data
+
+    model = normalised.get("model")
+    if isinstance(model, dict):
+        physics = model.get("physics")
+        if isinstance(physics, dict):
+            model["physics"] = fold_stebbs_physics(
+                physics,
+                "ModelPhysics",
+                warn=False,
+            )
+
+    return normalised
 
 
 def reverse_field_renames(data: dict) -> dict:

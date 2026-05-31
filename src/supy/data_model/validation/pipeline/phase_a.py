@@ -33,7 +33,11 @@ PHYSICS_OPTIONS = {
     "roughness_sublayer_level",
     "surface_conductance",
     "snow_use",
+    # gh#1456: the STEBBS switches now live under model.physics.stebbs.*; the
+    # nested leaf names are listed so is_physics_option() matches the new paths.
     "stebbs",
+    "enabled",
+    "parameters",
     "capacitance",
     "same_albedo_wall",
     "same_albedo_roof",
@@ -73,13 +77,32 @@ def _is_generated_null_placeholder(value: object) -> bool:
     return False
 
 
+# Exact paths whose omission Phase A must not flag, because Pydantic backs
+# them with a safe default. gh#1456 adds the relocated STEBBS master toggle
+# (``enabled`` default false, ``parameters`` default DEFAULT) so that omitting
+# it is not treated as a missing critical physics parameter -- consistent with
+# Phase B (physics_rules.py), which deliberately requires only the relocated
+# leaves (capacitance / setpoint / same_*), not the toggle.
+_DEFAULT_BACKED_CONTROL_PATHS = frozenset(
+    {
+        "model.control.forcing",
+        "model.control.forcing.file",
+        "model.control.output",
+        "model.physics.stebbs.enabled",
+        "model.physics.stebbs.parameters",
+    }
+)
+
+
 def _is_default_backed_control_path(param_path: str) -> bool:
-    """Phase A should not materialise nulls for Pydantic-defaulted controls."""
-    return (
-        param_path == "model.control.forcing"
-        or param_path == "model.control.forcing.file"
-        or param_path == "model.control.output"
-        or param_path.startswith("model.control.output.")
+    """Phase A should not materialise nulls for Pydantic-defaulted controls.
+
+    The STEBBS master toggle (``model.physics.stebbs.enabled`` /
+    ``.parameters``) stays recognised by ``is_physics_option()`` but is treated
+    as default-backed here, so its absence is not flagged critical (gh#1456).
+    """
+    return param_path in _DEFAULT_BACKED_CONTROL_PATHS or param_path.startswith(
+        "model.control.output."
     )
 
 

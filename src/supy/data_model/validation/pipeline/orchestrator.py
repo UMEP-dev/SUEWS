@@ -58,7 +58,12 @@ CRITICAL_PHYSICS_PARAMS = (
     "roughness_sublayer_level",
     "surface_conductance",
     "snow_use",
-    "stebbs",
+    # gh#1456: the STEBBS switches now live under model.physics.stebbs.*.
+    # detect_pydantic_defaults recurses into nested dicts and keys the
+    # critical-null check on the bare leaf name, so the nested leaves are
+    # listed here. `enabled`/`parameters` are intentionally omitted -- the
+    # master toggle defaults sensibly (off / default-params) and must not be
+    # flagged as a "missing critical" when a user simply leaves STEBBS off.
     "capacitance",
     "setpoint",
     "same_albedo_wall",
@@ -1548,10 +1553,13 @@ Modes:
                     user_yaml_data = yaml.safe_load(f)
 
                 # Check public mode restrictions.
-                # Read physics keys via read_physics_key, which accepts both
-                # the new snake_case name and its legacy alias — the Pydantic
-                # shim accepts both, so this gate must as well.
+                # Read physics keys via helpers that accept both the new
+                # snake_case name and its legacy alias — the Pydantic shim
+                # accepts both, so this gate must as well.
                 from supy.data_model.core.field_renames import read_physics_key
+                from supy.data_model.validation.core.yaml_helpers import (
+                    get_stebbsmethod_value,
+                )
 
                 physics = (
                     user_yaml_data.get("model", {}).get("physics", {})
@@ -1560,10 +1568,18 @@ Modes:
                 )
                 restrictions_violated = []
 
-                stebbs_method = read_physics_key(physics, "stebbs")
-                if stebbs_method is not None and stebbs_method != 0:
+                # gh#1456: use the shared composer so nested bool-like strings
+                # (`off`, `false`, `0`, etc.) follow Pydantic semantics.
+                try:
+                    stebbsmethod = get_stebbsmethod_value(physics)
+                except ValueError as exc:
                     restrictions_violated.append(
-                        "STEBBS is enabled (stebbs != 0)"
+                        f"Invalid STEBBS physics configuration: {exc}"
+                    )
+                    stebbsmethod = None
+                if stebbsmethod is not None and stebbsmethod != 0:
+                    restrictions_violated.append(
+                        "STEBBS is enabled (stebbs.enabled is true)"
                     )
 
                 snowuse = read_physics_key(physics, "snow_use")
@@ -1589,7 +1605,7 @@ Modes:
                     print(
                         "  2. Disable developer features in your YAML file and rerun processor:"
                     )
-                    print("     - Set stebbs = 0 (if enabled)")
+                    print("     - Set stebbs.enabled = false (if enabled)")
                     print("     - Set snow_use = 0 (if enabled)")
                     print()
                     print("Processor halted due to mode restrictions")

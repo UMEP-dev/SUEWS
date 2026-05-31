@@ -365,6 +365,28 @@ _MODELPHYSICS_SUFFIX_RENAMES_TABLE: tuple[tuple[str, str], ...] = tuple(
     MODELPHYSICS_SUFFIX_RENAMES.items()
 ) + (("setpointmethod", "setpoint"),)
 
+_STEBBS_MASTER_ALIAS_KEYS: tuple[str, ...] = (
+    "stebbs",
+    "stebbsmethod",
+    "stebbs_method",
+)
+
+
+def _stebbs_master_aliases(physics: dict) -> list[str]:
+    """Return present flat STEBBS master-toggle spellings."""
+    return [key for key in _STEBBS_MASTER_ALIAS_KEYS if key in physics]
+
+
+def _reject_duplicate_stebbs_master_aliases(physics: dict) -> list[str]:
+    """Reject ambiguous STEBBS master-toggle aliases and return the winner."""
+    aliases = _stebbs_master_aliases(physics)
+    if len(aliases) > 1:
+        raise YamlUpgradeError(
+            "Multiple legacy STEBBS master aliases "
+            f"({', '.join(aliases)}) are present. Use only one spelling."
+        )
+    return aliases
+
 
 # gh#1334 (2026.5.dev2 -> 2026.5.dev3): convert STEBBS PascalCase to snake_case
 # on the full user-facing YAML surface plus opaque-abbreviation clean-ups in
@@ -651,6 +673,7 @@ def _apply_modelphysics_suffix_renames(cfg: dict) -> None:
     physics = model.get("physics")
     if not isinstance(physics, dict):
         return
+    _reject_duplicate_stebbs_master_aliases(physics)
     for old, new in _MODELPHYSICS_SUFFIX_RENAMES_TABLE:
         _rename_field(physics, old, new)
 
@@ -769,6 +792,8 @@ def _apply_stebbs_physics_fold(cfg: dict) -> None:
     if not isinstance(physics, dict):
         return
 
+    master_aliases = _reject_duplicate_stebbs_master_aliases(physics)
+    master_alias = master_aliases[0] if master_aliases else None
     existing = physics.get("stebbs")
     nested_keys = {
         "enabled",
@@ -791,12 +816,14 @@ def _apply_stebbs_physics_fold(cfg: dict) -> None:
         stebbs_block = existing
     else:
         stebbs_block = {}
-        if "stebbs" in physics:
-            enabled, parameters = _decompose_stebbs_master_value(physics.pop("stebbs"))
+        if master_alias is not None:
+            enabled, parameters = _decompose_stebbs_master_value(
+                physics.pop(master_alias)
+            )
             stebbs_block["enabled"] = enabled
             stebbs_block["parameters"] = parameters
             _log(
-                "[yaml-upgrade]   decomposed 'stebbs' master toggle -> "
+                f"[yaml-upgrade]   decomposed {master_alias!r} master toggle -> "
                 "'stebbs.enabled' + 'stebbs.parameters'"
             )
 

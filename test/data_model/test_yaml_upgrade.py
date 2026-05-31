@@ -225,6 +225,99 @@ class TestYamlUpgradeModule:
         with pytest.raises(YamlUpgradeError, match="same nested leaf"):
             upgrade_yaml(input_path=source, output_path=target)
 
+    @pytest.mark.parametrize("schema_version", ["2026.5", "2026.5.dev12"])
+    def test_raises_on_duplicate_stebbs_master_aliases(
+        self,
+        tmp_path: Path,
+        schema_version: str,
+    ):
+        """Upgrade should reject multiple spellings of the STEBBS master toggle."""
+        source = tmp_path / "duplicate-stebbs-master.yml"
+        target = tmp_path / "upgraded.yml"
+        payload = {
+            "schema_version": schema_version,
+            "model": {
+                "physics": {
+                    "stebbsmethod": {"value": 0},
+                    "stebbs_method": {"value": 1},
+                }
+            },
+        }
+        source.write_text(
+            yaml.safe_dump(payload, sort_keys=False),
+            encoding="utf-8",
+        )
+
+        with pytest.raises(
+            YamlUpgradeError,
+            match="Multiple legacy STEBBS master aliases",
+        ):
+            upgrade_yaml(input_path=source, output_path=target)
+
+    @pytest.mark.parametrize("schema_version", ["2026.5", "2026.5.dev12"])
+    def test_raises_on_stebbs_master_alias_beside_canonical_key(
+        self,
+        tmp_path: Path,
+        schema_version: str,
+    ):
+        """Upgrade should reject canonical ``stebbs`` plus a master alias."""
+        source = tmp_path / "mixed-stebbs-master.yml"
+        target = tmp_path / "upgraded.yml"
+        payload = {
+            "schema_version": schema_version,
+            "model": {
+                "physics": {
+                    "stebbs": {"value": 0},
+                    "stebbs_method": {"value": 1},
+                }
+            },
+        }
+        source.write_text(
+            yaml.safe_dump(payload, sort_keys=False),
+            encoding="utf-8",
+        )
+
+        with pytest.raises(
+            YamlUpgradeError,
+            match="Multiple legacy STEBBS master aliases",
+        ):
+            upgrade_yaml(input_path=source, output_path=target)
+
+    @pytest.mark.parametrize(
+        "schema_version,master_key",
+        [
+            ("2026.5", "stebbsmethod"),
+            ("2026.5", "stebbs_method"),
+            ("2026.5.dev12", "stebbsmethod"),
+            ("2026.5.dev12", "stebbs_method"),
+        ],
+    )
+    def test_single_legacy_stebbs_master_alias_folds(
+        self,
+        tmp_path: Path,
+        schema_version: str,
+        master_key: str,
+    ):
+        """Upgrade should still accept one legacy spelling of the master toggle."""
+        source = tmp_path / "single-stebbs-master.yml"
+        target = tmp_path / "upgraded.yml"
+        payload = {
+            "schema_version": schema_version,
+            "model": {"physics": {master_key: {"value": 2}}},
+        }
+        source.write_text(
+            yaml.safe_dump(payload, sort_keys=False),
+            encoding="utf-8",
+        )
+
+        upgrade_yaml(input_path=source, output_path=target)
+
+        reloaded = yaml.safe_load(target.read_text(encoding="utf-8"))
+        stebbs = reloaded["model"]["physics"]["stebbs"]
+        assert stebbs["enabled"]["value"] is True
+        assert stebbs["parameters"]["value"] == 2
+        assert master_key not in reloaded["model"]["physics"]
+
     def test_missing_signature_raises_error_message_points_at_from_flag(
         self, release_yaml: Path, tmp_path: Path
     ):

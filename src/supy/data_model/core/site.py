@@ -34,6 +34,7 @@ from .field_renames import (
     ARCHETYPEPROPERTIES_DEV6_RENAMES,
     ARCHETYPEPROPERTIES_DEV7_RENAMES,
     ARCHETYPEPROPERTIES_DEV12_RENAMES,
+    ARCHETYPEPROPERTIES_DEV14_RENAMES,
     ARCHETYPEPROPERTIES_DEV7_TO_PASCAL,
     ARCHETYPEPROPERTIES_RENAMES,
     ARCHETYPEPROPERTIES_PASCAL_RENAMES,
@@ -1343,6 +1344,9 @@ class ArchetypeProperties(BaseModel):
             values = apply_field_renames(
                 values, ARCHETYPEPROPERTIES_DEV12_RENAMES, cls.__name__
             )
+            values = apply_field_renames(
+                values, ARCHETYPEPROPERTIES_DEV14_RENAMES, cls.__name__
+            )
         return values
 
     # Not used in STEBBS - DAVE only
@@ -1484,12 +1488,12 @@ class ArchetypeProperties(BaseModel):
         },
         gt=0.0,
     )
-    fraction_heat_capacity_wall_external: Optional[FlexibleRefValue(float)] = Field(
+    capacitance_wall_external_fraction: Optional[FlexibleRefValue(float)] = Field(
         default=0.5,
         description="Weighting factor (0-1) representing the fraction of wall heat capacity assigned to the external node, with the remainder assigned to the internal node [-]",
         json_schema_extra={
             "unit": "dimensionless",
-            "display_name": "Wall Outer Capacity Fraction",
+            "display_name": "Wall External Capacitance Fraction",
         },
         gt=0.0,
         lt=1.0,
@@ -1600,12 +1604,12 @@ class ArchetypeProperties(BaseModel):
         },
         gt=0.0,
     )
-    fraction_heat_capacity_roof_external: Optional[FlexibleRefValue(float)] = Field(
+    capacitance_roof_external_fraction: Optional[FlexibleRefValue(float)] = Field(
         default=0.5,
         description="Weighting factor (0-1) representing the fraction of roof heat capacity assigned to the external node, with the remainder assigned to the internal node [-]",
         json_schema_extra={
             "unit": "dimensionless",
-            "display_name": "Roof Outer Capacity Fraction",
+            "display_name": "Roof External Capacitance Fraction",
         },
         gt=0.0,
         lt=1.0,

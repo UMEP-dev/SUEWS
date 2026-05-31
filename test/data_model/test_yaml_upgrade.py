@@ -189,11 +189,12 @@ class TestYamlUpgradeModule:
         with pytest.raises(YamlUpgradeError, match="flat STEBBS physics switches"):
             upgrade_yaml(input_path=source, output_path=target)
 
-    @pytest.mark.parametrize("schema_version", ["2026.5", "2026.5.dev12"])
+    @pytest.mark.parametrize("schema_version", ["2026.5", "2026.5.dev12", "2026.5.dev13"])
     @pytest.mark.parametrize(
         "left,right",
         [
             ("capacitance", "outer_cap_fraction"),
+            ("capacitance", "capacitance_method"),
             ("outer_cap_fraction", "rcmethod"),
             ("rcmethod", "rc_method"),
             ("setpoint", "setpointmethod"),
@@ -231,7 +232,7 @@ class TestYamlUpgradeModule:
 
     @pytest.mark.parametrize(
         "schema_version",
-        ["2026.5", "2026.5.dev1", "2026.5.dev12"],
+        ["2026.5", "2026.5.dev1", "2026.5.dev12", "2026.5.dev13"],
     )
     @pytest.mark.parametrize(
         "left,right",
@@ -269,6 +270,42 @@ class TestYamlUpgradeModule:
 
         with pytest.raises(YamlUpgradeError, match="same nested leaf"):
             upgrade_yaml(input_path=source, output_path=target)
+
+    def test_dev13_migration_folds_flat_capacitance_selector(self, tmp_path: Path):
+        """dev13-tagged hand-written flat aliases still migrate to canonical nesting."""
+        source = tmp_path / "dev13-flat-capacitance.yml"
+        target = tmp_path / "upgraded.yml"
+        payload = {
+            "schema_version": "2026.5.dev13",
+            "model": {"physics": {"capacitance": {"value": 1}}},
+            "sites": [
+                {
+                    "properties": {
+                        "building_archetype": {
+                            "fraction_heat_capacity_wall_external": {"value": 0.4},
+                            "fraction_heat_capacity_roof_external": {"value": 0.6},
+                        }
+                    }
+                }
+            ],
+        }
+        source.write_text(
+            yaml.safe_dump(payload, sort_keys=False),
+            encoding="utf-8",
+        )
+
+        upgrade_yaml(input_path=source, output_path=target)
+
+        reloaded = yaml.safe_load(target.read_text(encoding="utf-8"))
+        physics = reloaded["model"]["physics"]
+        assert "capacitance" not in physics
+        assert "capacitance_method" not in physics
+        assert physics["stebbs"]["capacitance_method"] == {"value": 1}
+        arch = reloaded["sites"][0]["properties"]["building_archetype"]
+        assert arch["capacitance_wall_external_fraction"] == {"value": 0.4}
+        assert arch["capacitance_roof_external_fraction"] == {"value": 0.6}
+        assert "fraction_heat_capacity_wall_external" not in arch
+        assert "fraction_heat_capacity_roof_external" not in arch
 
     @pytest.mark.parametrize("schema_version", ["2026.5", "2026.5.dev12"])
     def test_raises_on_duplicate_stebbs_master_aliases(
@@ -602,13 +639,12 @@ class TestPre2026_1ReleaseTagMigration:
         stebbs = payload["sites"][0]["properties"]["stebbs"]
         if "Wallx1" in source_text:
             assert "Wallx1" not in arch
-            # dev6 -> dev7 (Rule 2 reorder): wall_outer_heat_capacity_fraction
-            # -> fraction_heat_capacity_wall_external (fraction_* category prefix
-            # leads for non-physical fields).
-            assert "fraction_heat_capacity_wall_external" in arch
+            # dev14: the heat-capacity split value is exposed as a real
+            # capacitance-distribution quantity.
+            assert "capacitance_wall_external_fraction" in arch
         if "Roofx1" in source_text:
             assert "Roofx1" not in arch
-            assert "fraction_heat_capacity_roof_external" in arch
+            assert "capacitance_roof_external_fraction" in arch
         # DHWVesselEmissivity was removed during the Nov 2025 clean-up.
         assert "DHWVesselEmissivity" not in stebbs
         # The volume bounds were removed in #1242.
@@ -871,6 +907,14 @@ def test_dev6_to_current_handler_registered():
     from supy.util.converter.yaml_upgrade import _HANDLERS
 
     assert ("2026.5.dev6", CURRENT_SCHEMA_VERSION) in _HANDLERS
+
+
+def test_dev13_to_current_handler_registered():
+    """dev13 -> dev14 must be an explicit migration, not only load-time aliases."""
+    from supy.data_model.schema.version import CURRENT_SCHEMA_VERSION
+    from supy.util.converter.yaml_upgrade import _HANDLERS
+
+    assert ("2026.5.dev13", CURRENT_SCHEMA_VERSION) in _HANDLERS
 
 
 def test_forcing_both_keys_new_wins():

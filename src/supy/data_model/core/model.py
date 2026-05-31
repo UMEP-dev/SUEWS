@@ -565,14 +565,16 @@ class StebbsParameterSource(Enum):
 
 class RCMethod(Enum):
     """
-    Method to determine the two weighting factors (wall_outer_heat_capacity_fraction and roof_outer_heat_capacity_fraction) splitting heat capacity of building envelope into two nodes in STEBBS.
+    Method to determine the two weighting factors (capacitance_wall_external_fraction and capacitance_roof_external_fraction) splitting heat capacity of building envelope into two nodes in STEBBS.
 
-    Exposed on the YAML / data-model surface as ``stebbs.capacitance`` (the
-    field formerly named ``outer_cap_fraction``, gh#1456). The ``rcmethod``
-    DataFrame column the Fortran bridge reads is unchanged.
+    Exposed on the YAML / data-model surface as ``stebbs.capacitance_method``.
+    The physical capacitance-distribution values live on the building
+    archetype as ``capacitance_wall_external_fraction`` and
+    ``capacitance_roof_external_fraction``. The ``rcmethod`` DataFrame column
+    the Fortran bridge reads is unchanged.
 
     0: DEFAULT - Default value of 0.5 is used
-    1: PROVIDED - Use user defined value (wall_outer_heat_capacity_fraction and roof_outer_heat_capacity_fraction) between 0 and 1
+    1: PROVIDED - Use user defined value (capacitance_wall_external_fraction and capacitance_roof_external_fraction) between 0 and 1
     2: PARAMETERISE - Use building material thermal property to parameterise the weighting factor
     """
 
@@ -766,7 +768,7 @@ class StebbsPhysics(BaseModel):
         description=_enum_description(StebbsParameterSource),
         json_schema_extra={"unit": "dimensionless"},
     )
-    capacitance: FlexibleRefValue(RCMethod) = Field(
+    capacitance_method: FlexibleRefValue(RCMethod) = Field(
         default=RCMethod.DEFAULT,
         description=_enum_description(RCMethod),
         json_schema_extra={"unit": "dimensionless"},
@@ -799,6 +801,23 @@ class StebbsPhysics(BaseModel):
 
     ref: Optional[Reference] = None
 
+    @model_validator(mode="before")
+    @classmethod
+    def _rename_stebbs_fields(cls, values):
+        if isinstance(values, dict):
+            values = apply_field_renames(
+                values,
+                {
+                    "capacitance": "capacitance_method",
+                    "outer_cap_fraction": "capacitance_method",
+                    "rcmethod": "capacitance_method",
+                    "rc_method": "capacitance_method",
+                    "setpointmethod": "setpoint",
+                },
+                cls.__name__,
+            )
+        return values
+
     @field_validator("enabled", "parameters", mode="after")
     @classmethod
     def _require_master_switch_values(cls, value):
@@ -827,8 +846,8 @@ class ModelPhysics(BaseModel):
             # gh#1456: fold the legacy flat STEBBS switches into the nested
             # `stebbs` object. Runs after the key renames so a YAML carrying
             # either fused or snake_case legacy spellings lands here. The fold
-            # subsumes the dev12 `outer_cap_fraction`/`rcmethod` -> `capacitance`
-            # Column D rename by relocating it to `stebbs.capacitance`.
+            # subsumes the dev12 `outer_cap_fraction`/`rcmethod` transition by
+            # relocating those selector spellings to `stebbs.capacitance_method`.
             values = fold_stebbs_physics(values, cls.__name__)
         return values
 
@@ -977,7 +996,7 @@ class ModelPhysics(BaseModel):
     # column names so the Fortran bridge is untouched. `stebbsmethod` is
     # composed from the (enabled, parameters) pair below, not listed here.
     _STEBBS_FIELD_COL_PAIRS = [
-        ("capacitance", "rcmethod"),
+        ("capacitance_method", "rcmethod"),
         ("setpoint", "setpointmethod"),
         ("same_albedo_wall", "same_albedo_wall"),
         ("same_albedo_roof", "same_albedo_roof"),
@@ -1082,7 +1101,7 @@ class ModelPhysics(BaseModel):
             ),
         }
         stebbs_col_defaults = {
-            "capacitance": ("rcmethod", RCMethod.DEFAULT),
+            "capacitance_method": ("rcmethod", RCMethod.DEFAULT),
             "setpoint": ("setpointmethod", SetpointMethod.CONSTANT),
             "same_albedo_wall": ("same_albedo_wall", SameAlbedoWall.DISABLED),
             "same_albedo_roof": ("same_albedo_roof", SameAlbedoRoof.DISABLED),

@@ -45,11 +45,10 @@ MODELPHYSICS_RENAMES: Dict[str, str] = {
     "rsllevel": "roughness_sublayer_level",
     "gsmodel": "surface_conductance",
     "stebbsmethod": "stebbs",
-    # Schema 2026.5.dev12 (Reading Column D): the former `rcmethod` field is
-    # renamed `outer_cap_fraction` -> `capacitance`. The fused legacy chains
-    # straight to the new dev12 final so ALL_FIELD_RENAMES stays one-to-one
-    # and the bridge reverse map gives `capacitance -> rcmethod`.
-    "rcmethod": "capacitance",
+    # Schema 2026.5.dev14 (gh#1472): the former `rcmethod` field is exposed
+    # as an explicit method selector. The physical capacitance-distribution
+    # values live on the building archetype.
+    "rcmethod": "capacitance_method",
     "setpointmethod": "setpoint",  # fused identifier missed by Category 1
     # Flags/enum choices not touched by Category 2+3 keep their Cat 1 target.
     "ohmincqf": "ohm_inc_qf",
@@ -81,29 +80,21 @@ MODELPHYSICS_SUFFIX_RENAMES: Dict[str, str] = {
     "rsl_method": "roughness_sublayer",
     "rsl_level": "roughness_sublayer_level",
     "fai_method": "frontal_area_index",
-    # Expand + semantic rename (2). `rc_method` chains straight to the dev12
-    # final `capacitance` (was `outer_cap_fraction` pre-dev12).
-    "rc_method": "capacitance",
+    # Expand + semantic rename (2). `rc_method` chains straight to the dev14
+    # method selector (was `outer_cap_fraction` / `capacitance` in earlier
+    # dev-cycle shapes).
+    "rc_method": "capacitance_method",
     "gs_model": "surface_conductance",
 }
 
-# Schema 2026.5.dev11 -> 2026.5.dev12: the `model.physics` field formerly
-# spelled `outer_cap_fraction` (itself the former fused `rcmethod`) is renamed
-# `capacitance` to align with the Reading STEBBS team's "Column D" naming
-# (D. Hertwig / S. Rognone, 2026-05). This is a PURE KEY RENAME — the field
-# stays a `RCMethod` enum with the same values and behaviour; the larger
-# relocation under STEBBS and the capacitance-vs-fraction semantics are
-# deferred to a future PR. The dev11 spelling `outer_cap_fraction` is a value
-# of MODELPHYSICS_RENAMES / MODELPHYSICS_SUFFIX_RENAMES (now retargeted to
-# `capacitance`), so this table only needs to catch users who hand-wrote
-# `outer_cap_fraction` directly. Applied by the ModelPhysics Pydantic shim
-# AFTER the two tables above so dev11 YAMLs still load with a
-# DeprecationWarning. NOT spread into ALL_FIELD_RENAMES (it would introduce a
-# second alias for the same final name, breaking the one-to-one reverse map
-# the Rust bridge depends on); it is composed into RAW_YAML_FIELD_RENAMES for
-# the Phase A precheck path.
+# Schema 2026.5.dev11 -> 2026.5.dev12 introduced the short-lived
+# `model.physics.outer_cap_fraction` -> `capacitance` key rename. gh#1472
+# then made the selector explicit as `capacitance_method`, so hand-written
+# dev11/dev12 YAMLs now land on the method selector while the real
+# capacitance-distribution values live on the building archetype.
 MODELPHYSICS_DEV12_RENAMES: Dict[str, str] = {
-    "outer_cap_fraction": "capacitance",
+    "outer_cap_fraction": "capacitance_method",
+    "capacitance": "capacitance_method",
 }
 
 # -- SurfaceProperties (surface.py) ------------------------------------------
@@ -211,7 +202,7 @@ ARCHETYPEPROPERTIES_RENAMES: Dict[str, str] = {
     "WallEffectiveConductivity": "conductivity_wall",
     "WallDensity": "density_wall",
     "WallCp": "specific_heat_capacity_wall",
-    "WallOuterCapFrac": "fraction_heat_capacity_wall_external",
+    "WallOuterCapFrac": "capacitance_wall_external_fraction",
     "WallExternalEmissivity": "emissivity_wall_external",
     "WallInternalEmissivity": "emissivity_wall_internal",
     "WallTransmissivity": "transmissivity_wall_external",
@@ -222,7 +213,7 @@ ARCHETYPEPROPERTIES_RENAMES: Dict[str, str] = {
     "RoofEffectiveConductivity": "conductivity_roof",
     "RoofDensity": "density_roof",
     "RoofCp": "specific_heat_capacity_roof",
-    "RoofOuterCapFrac": "fraction_heat_capacity_roof_external",
+    "RoofOuterCapFrac": "capacitance_roof_external_fraction",
     "RoofExternalEmissivity": "emissivity_roof_external",
     "RoofInternalEmissivity": "emissivity_roof_internal",
     "RoofTransmissivity": "transmissivity_roof_external",
@@ -313,9 +304,9 @@ ARCHETYPEPROPERTIES_DEV3_RENAMES: Dict[str, str] = {
 #   convention requires it only when partner fields (density, specific
 #   heat capacity) also use it, which they do not.
 #
-# Walls also get the `fraction_*` non-physical category prefix moved to
-# the front (`wall_outer_heat_capacity_fraction` ->
-# `fraction_heat_capacity_wall_external`).
+# Walls also get the real capacitance-distribution quantity in the final
+# dev14 name (`wall_outer_heat_capacity_fraction` ->
+# `capacitance_wall_external_fraction`).
 #
 # Applied directly by the ArchetypeProperties Pydantic shim so users on
 # the dev6 spelling still load with a DeprecationWarning. The dev7 values
@@ -337,7 +328,7 @@ ARCHETYPEPROPERTIES_DEV6_RENAMES: Dict[str, str] = {
     "wall_external_density": "density_wall_outer",
     "wall_external_specific_heat_capacity": "specific_heat_capacity_wall_outer",
     # Heat-capacity distribution (non-physical, fraction_* leads)
-    "wall_outer_heat_capacity_fraction": "fraction_heat_capacity_wall_external",
+    "wall_outer_heat_capacity_fraction": "capacitance_wall_external_fraction",
     # Wall radiative surface (external/internal stays — surface property)
     "wall_external_emissivity": "emissivity_wall_external",
     "wall_internal_emissivity": "emissivity_wall_internal",
@@ -353,7 +344,7 @@ ARCHETYPEPROPERTIES_DEV6_RENAMES: Dict[str, str] = {
     "roof_external_effective_conductivity": "conductivity_roof_outer",
     "roof_external_density": "density_roof_outer",
     "roof_external_specific_heat_capacity": "specific_heat_capacity_roof_outer",
-    "roof_outer_heat_capacity_fraction": "fraction_heat_capacity_roof_external",
+    "roof_outer_heat_capacity_fraction": "capacitance_roof_external_fraction",
     "roof_external_emissivity": "emissivity_roof_external",
     "roof_internal_emissivity": "emissivity_roof_internal",
     "roof_transmissivity": "transmissivity_roof_external",
@@ -434,10 +425,10 @@ ARCHETYPEPROPERTIES_DEV7_RENAMES: Dict[str, str] = {
     "metabolism_profile": "profile_metabolism",
     # Heat-capacity distribution moved from the outer-layer (`outer`) framing to
     # the external radiative node (`external`) per the Reading STEBBS team
-    # (D. Hertwig col D, 2026-05): the gh#1390 final spelling
-    # `fraction_wall/roof_heat_capacity_outer` migrates one hop further here.
-    "fraction_wall_heat_capacity_outer": "fraction_heat_capacity_wall_external",
-    "fraction_roof_heat_capacity_outer": "fraction_heat_capacity_roof_external",
+    # (D. Hertwig col D, 2026-05), then to the explicit capacitance-distribution
+    # value names in dev14.
+    "fraction_wall_heat_capacity_outer": "capacitance_wall_external_fraction",
+    "fraction_roof_heat_capacity_outer": "capacitance_roof_external_fraction",
 }
 
 
@@ -461,6 +452,17 @@ ARCHETYPEPROPERTIES_DEV12_RENAMES: Dict[str, str] = {
 }
 
 
+# Schema 2026.5.dev13 -> 2026.5.dev14: the wall/roof heat-capacity fraction
+# fields are the real capacitance-distribution values that `rcmethod == 1`
+# consumes, so they move from the generic `fraction_heat_capacity_*` wording to
+# explicit capacitance value names. This is separate from the
+# `model.physics.stebbs.capacitance` -> `capacitance_method` selector split.
+ARCHETYPEPROPERTIES_DEV14_RENAMES: Dict[str, str] = {
+    "fraction_heat_capacity_wall_external": "capacitance_wall_external_fraction",
+    "fraction_heat_capacity_roof_external": "capacitance_roof_external_fraction",
+}
+
+
 # Reverse map: final name -> PascalCase legacy column name. Used by
 # ArchetypeProperties._ARCHETYPE_LEGACY_COL_NAMES so the Fortran/Rust bridge
 # (keyed on the fused lowercased PascalCase, e.g. `wallextthickness`) still
@@ -478,6 +480,10 @@ def _build_archetype_dev_to_pascal() -> Dict[str, str]:
     chain: Dict[str, str] = dict(base_reverse)
     for old_dev11, new_dev12 in ARCHETYPEPROPERTIES_DEV12_RENAMES.items():
         chain[new_dev12] = base_reverse.get(old_dev11, old_dev11)
+    for old_dev13, new_dev14 in ARCHETYPEPROPERTIES_DEV14_RENAMES.items():
+        chain[new_dev14] = base_reverse.get(
+            new_dev14, chain.get(old_dev13, base_reverse.get(old_dev13, old_dev13))
+        )
     return chain
 
 
@@ -1240,6 +1246,7 @@ RAW_YAML_FIELD_RENAMES: Dict[str, str] = _compose_rename_chains(
     ARCHETYPEPROPERTIES_DEV6_RENAMES,
     ARCHETYPEPROPERTIES_DEV7_RENAMES,
     ARCHETYPEPROPERTIES_DEV12_RENAMES,
+    ARCHETYPEPROPERTIES_DEV14_RENAMES,
     SNOWPARAMS_INTERMEDIATE_RENAMES,
     STEBBSPROPERTIES_DEV3_RENAMES,
     STEBBSPROPERTIES_DEV8_RENAMES,
@@ -1266,10 +1273,10 @@ _MODELPHYSICS_ALL_RENAMES: Dict[str, str] = {
     # (``net_radiation_method``) when both claim the same final target.
     # The Fortran bridge's state is keyed by the fused form, so the
     # reverse map must point at the fused legacy.
-    # The dev11 spelling ``outer_cap_fraction`` -> ``capacitance`` (dev12)
-    # is included so raw-YAML prechecks that read by the current name still
-    # find a legacy ``outer_cap_fraction`` key. Spread before RENAMES so the
-    # reverse map prefers the fused legacy ``rcmethod`` for ``capacitance``.
+    # The dev11/dev12 spellings ``outer_cap_fraction`` / ``capacitance`` now
+    # resolve to the current ``capacitance_method`` selector. Spread before
+    # RENAMES so the reverse map still prefers the fused legacy ``rcmethod``
+    # for that selector.
     **MODELPHYSICS_SUFFIX_RENAMES,
     **MODELPHYSICS_DEV12_RENAMES,
     **MODELPHYSICS_RENAMES,
@@ -1333,13 +1340,14 @@ def apply_field_renames(
 STEBBS_PHYSICS_LEAF_RENAMES: Dict[str, str] = {
     # legacy flat key (already snake_case after MODELPHYSICS_*_RENAMES) -> nested leaf.
     # After the MODELPHYSICS_* rename pass the former `rcmethod` / `rc_method`
-    # land on the dev12 flat name `capacitance` (Reading Column D, gh#1452);
-    # the older dev2-era flat spelling `outer_cap_fraction` is accepted too so a
-    # hand-written legacy YAML still folds. Both relocate to `stebbs.capacitance`.
-    "capacitance": "capacitance",
-    "outer_cap_fraction": "capacitance",
-    "rcmethod": "capacitance",
-    "rc_method": "capacitance",
+    # land on the explicit dev14 selector `capacitance_method`. The short-lived
+    # dev12/dev13 name `capacitance` and older `outer_cap_fraction` spelling
+    # are accepted so hand-written legacy YAMLs still fold.
+    "capacitance_method": "capacitance_method",
+    "capacitance": "capacitance_method",
+    "outer_cap_fraction": "capacitance_method",
+    "rcmethod": "capacitance_method",
+    "rc_method": "capacitance_method",
     "setpoint": "setpoint",
     "setpointmethod": "setpoint",
     "same_albedo_wall": "same_albedo_wall",
@@ -1492,14 +1500,14 @@ def fold_stebbs_physics(values: dict, class_name: str, *, warn: bool = True) -> 
 
     Behaviour:
       * If ``values["stebbs"]`` is already the nested object (its keys include
-        any of ``enabled``/``parameters``/``capacitance``/``setpoint``/
+        any of ``enabled``/``parameters``/``capacitance_method``/``setpoint``/
         ``same_*``), it is left untouched; stray flat siblings are rejected as
         ambiguous.
       * Otherwise ``stebbs`` is treated as the legacy master toggle and
         decomposed into ``stebbs.enabled`` + ``stebbs.parameters``.
-      * The five sibling switches (``outer_cap_fraction`` -> ``capacitance``,
-        ``setpoint``, ``same_*``) are moved under ``stebbs`` at their nested
-        leaf names.
+      * The five sibling switches (``outer_cap_fraction`` / ``capacitance`` /
+        ``capacitance_method``, ``setpoint``, ``same_*``) are moved under
+        ``stebbs`` at their nested leaf names.
 
     A single ``DeprecationWarning`` summarises the fold when any legacy flat key
     was present.
@@ -1580,7 +1588,7 @@ def fold_stebbs_physics(values: dict, class_name: str, *, warn: bool = True) -> 
             f"{class_name}: flat STEBBS physics switches "
             f"({', '.join(sorted(set(moved)))}) are deprecated; they now live "
             f"under the nested 'stebbs' object (e.g. "
-            f"'stebbs.enabled', 'stebbs.capacitance'). See gh#1456.",
+            f"'stebbs.enabled', 'stebbs.capacitance_method'). See gh#1456.",
             DeprecationWarning,
             stacklevel=4,
         )

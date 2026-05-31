@@ -170,7 +170,24 @@ The lineage below mirrors ``SCHEMA_VERSIONS`` in
 the schema that shipped with it via
 ``supy.util.converter.yaml_upgrade._PACKAGE_TO_SCHEMA``.
 
-**Schema 2026.5.dev13** (current; nest the STEBBS physics switches under ``model.physics.stebbs``)
+**Schema 2026.5.dev14** (current; split STEBBS capacitance selector from physical values)
+   gh#1472. Completes the capacitance semantics decision after the dev13
+   STEBBS nesting. The former ``model.physics.stebbs.capacitance`` leaf is
+   the ``RCMethod`` selector for default / provided / parameterised
+   behaviour, not a physical capacitance value, so the canonical field is
+   now ``model.physics.stebbs.capacitance_method``. The physical wall/roof
+   heat-capacity distribution values live on ``building_archetype`` as
+   ``capacitance_wall_external_fraction`` and
+   ``capacitance_roof_external_fraction`` (renamed from
+   ``fraction_heat_capacity_wall_external`` /
+   ``fraction_heat_capacity_roof_external``). The bridge / Fortran column
+   names stay unchanged: ``rcmethod``, ``WallOuterCapFrac`` and
+   ``RoofOuterCapFrac``. The dev13 -> dev14 migration is implemented by
+   ``_apply_capacitance_semantics_split`` in
+   ``src/supy/util/converter/yaml_upgrade.py`` and chained through every
+   aggregate handler to current.
+
+**Schema 2026.5.dev13** (nest the STEBBS physics switches under ``model.physics.stebbs``)
    gh#1456. The six flat STEBBS-scoped switches on ``model.physics`` are
    grouped into a single nested object ``model.physics.stebbs``. This is a
    separate structural reshape from the dev12 Column D rename (gh#1452), so
@@ -236,8 +253,8 @@ the schema that shipped with it via
    This is a pure key rename — the field stays the same ``RCMethod`` enum
    with the same accepted values and validation behaviour, and its bridge
    DataFrame column stays ``rcmethod``. The larger relocation of the field
-   under STEBBS and the capacitance-versus-fraction semantics are deferred
-   to a separate workstream.
+   under STEBBS lands in dev13; the selector-versus-quantity capacitance
+   split lands in dev14.
 
    Rename tables ``STEBBSPROPERTIES_DEV12_RENAMES``,
    ``ARCHETYPEPROPERTIES_DEV12_RENAMES`` and ``MODELPHYSICS_DEV12_RENAMES``

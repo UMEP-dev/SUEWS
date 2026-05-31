@@ -2538,7 +2538,7 @@ mod tests {
 
         // gh#1456: STEBBS switches sourced from the nested
         // `model.physics.stebbs` object in the fixture (enabled=true,
-        // parameters=1 -> stebbsmethod 1; capacitance=2 -> rcmethod 2;
+        // parameters=1 -> stebbsmethod 1; capacitance_method=2 -> rcmethod 2;
         // setpoint=0). These land at flat config indices 18/19/20
         // (Fortran flat(19)/flat(20)/flat(21)).
         assert_eq!(run_cfg.config.stebbs_method, 1);

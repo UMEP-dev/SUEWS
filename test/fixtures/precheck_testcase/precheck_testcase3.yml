@@ -45,7 +45,7 @@ model:
         value: false
       parameters:
         value: 1
-      capacitance:
+      capacitance_method:
         value: 0
       setpoint:
         value: 0

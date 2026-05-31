@@ -73,12 +73,13 @@ def make_cfg(**physics_kwargs):
     # gh#1456: the STEBBS-scoped switches moved under a nested
     # `model.physics.stebbs` object. The legacy `stebbs` master toggle is
     # split into `enabled` + `parameters`; the other switches keep their
-    # leaf names (outer_cap_fraction -> capacitance). Tests pass the legacy
+    # leaf names (outer_cap_fraction -> capacitance_method). Tests pass the legacy
     # flat kwargs; this helper folds them into the nested SimpleNamespace
     # shape the validators now read.
     _stebbs_leaf = {
-        "outer_cap_fraction": "capacitance",
-        "capacitance": "capacitance",
+        "outer_cap_fraction": "capacitance_method",
+        "capacitance": "capacitance_method",
+        "capacitance_method": "capacitance_method",
         "setpoint": "setpoint",
         "same_albedo_wall": "same_albedo_wall",
         "same_albedo_roof": "same_albedo_roof",
@@ -1130,7 +1131,7 @@ def test_phase_b_forcing_height_sfr_boundary(registry):
 
 def test_validate_model_option_rcmethod_missing_params(registry):
     yaml_data = {
-        "model": {"physics": {"stebbs": {"capacitance": {"value": 1}}}},
+        "model": {"physics": {"stebbs": {"capacitance_method": {"value": 1}}}},
         "sites": [{
             "name": "site1",
             "properties": {
@@ -1140,19 +1141,57 @@ def test_validate_model_option_rcmethod_missing_params(registry):
     }
     results = registry["rcmethod"](ValidationContext(yaml_data=yaml_data))
     params = [r.parameter for r in results]
-    assert any("fraction_heat_capacity_roof_external" in p for p in params)
-    assert any("fraction_heat_capacity_wall_external" in p for p in params)
+    assert any("capacitance_roof_external_fraction" in p for p in params)
+    assert any("capacitance_wall_external_fraction" in p for p in params)
     assert all(r.status == "ERROR" for r in results)
 
-def test_validate_model_option_rcmethod_enabled_invalid_values(registry):
+@pytest.mark.parametrize(
+    "roof_key,wall_key",
+    [
+        (
+            "capacitance_roof_external_fraction",
+            "capacitance_wall_external_fraction",
+        ),
+        (
+            "fraction_heat_capacity_roof_external",
+            "fraction_heat_capacity_wall_external",
+        ),
+        ("RoofOuterCapFrac", "WallOuterCapFrac"),
+    ],
+)
+def test_validate_model_option_rcmethod_empty_fraction_mappings_are_errors(
+    registry,
+    roof_key,
+    wall_key,
+):
     yaml_data = {
-        "model": {"physics": {"stebbs": {"capacitance": {"value": 1}}}},
+        "model": {"physics": {"stebbs": {"capacitance_method": {"value": 1}}}},
         "sites": [{
             "name": "site1",
             "properties": {
                 "building_archetype": {
-                    "fraction_heat_capacity_roof_external": {"value": 1.5},
-                    "fraction_heat_capacity_wall_external": {"value": -0.2},
+                    roof_key: {},
+                    wall_key: {},
+                },
+            }
+        }],
+    }
+
+    results = registry["rcmethod"](ValidationContext(yaml_data=yaml_data))
+
+    assert len(results) == 2
+    assert all(r.status == "ERROR" for r in results)
+    assert all("must be explicitly provided" in r.message for r in results)
+
+def test_validate_model_option_rcmethod_enabled_invalid_values(registry):
+    yaml_data = {
+        "model": {"physics": {"stebbs": {"capacitance_method": {"value": 1}}}},
+        "sites": [{
+            "name": "site1",
+            "properties": {
+                "building_archetype": {
+                    "capacitance_roof_external_fraction": {"value": 1.5},
+                    "capacitance_wall_external_fraction": {"value": -0.2},
                 },
             }
         }],
@@ -1163,13 +1202,13 @@ def test_validate_model_option_rcmethod_enabled_invalid_values(registry):
 
 def test_validate_model_option_rcmethod_enabled_valid_values(registry):
     yaml_data = {
-        "model": {"physics": {"stebbs": {"capacitance": {"value": 1}}}},
+        "model": {"physics": {"stebbs": {"capacitance_method": {"value": 1}}}},
         "sites": [{
             "name": "site1",
             "properties": {
                 "building_archetype": {
-                    "fraction_heat_capacity_roof_external": {"value": 0.5},
-                    "fraction_heat_capacity_wall_external": {"value": 0.5},
+                    "capacitance_roof_external_fraction": {"value": 0.5},
+                    "capacitance_wall_external_fraction": {"value": 0.5},
                 },
             }
         }],
@@ -1179,7 +1218,7 @@ def test_validate_model_option_rcmethod_enabled_valid_values(registry):
 
 def test_adjust_model_option_rcmethod_sets_defaults():
     yaml_data = {
-        "model": {"physics": {"stebbs": {"capacitance": {"value": 0}}}},
+        "model": {"physics": {"stebbs": {"capacitance_method": {"value": 0}}}},
         "sites": [{
             "name": "site1",
             "properties": {
@@ -1189,26 +1228,49 @@ def test_adjust_model_option_rcmethod_sets_defaults():
     }
     updated_data, adjustments = adjust_model_option_rcmethod(yaml_data)
     ba = updated_data["sites"][0]["properties"]["building_archetype"]
-    assert ba["fraction_heat_capacity_roof_external"]["value"] == 0.5
-    assert ba["fraction_heat_capacity_wall_external"]["value"] == 0.5
-    assert any(adj.parameter == "building_archetype.fraction_heat_capacity_roof_external" for adj in adjustments)
-    assert any(adj.parameter == "building_archetype.fraction_heat_capacity_wall_external" for adj in adjustments)
+    assert ba["capacitance_roof_external_fraction"]["value"] == 0.5
+    assert ba["capacitance_wall_external_fraction"]["value"] == 0.5
+    assert any(adj.parameter == "building_archetype.capacitance_roof_external_fraction" for adj in adjustments)
+    assert any(adj.parameter == "building_archetype.capacitance_wall_external_fraction" for adj in adjustments)
 
 def test_adjust_model_option_rcmethod_no_action_when_already_set():
     yaml_data = {
-        "model": {"physics": {"stebbs": {"capacitance": {"value": 0}}}},
+        "model": {"physics": {"stebbs": {"capacitance_method": {"value": 0}}}},
         "sites": [{
             "name": "site1",
             "properties": {
                 "building_archetype": {
-                    "fraction_heat_capacity_roof_external": {"value": 0.5},
-                    "fraction_heat_capacity_wall_external": {"value": 0.5},
+                    "capacitance_roof_external_fraction": {"value": 0.5},
+                    "capacitance_wall_external_fraction": {"value": 0.5},
                 },
             }
         }],
     }
     updated_data, adjustments = adjust_model_option_rcmethod(yaml_data)
     assert len(adjustments) == 0
+
+def test_adjust_model_option_rcmethod_replaces_legacy_non_default_fraction_keys():
+    yaml_data = {
+        "model": {"physics": {"stebbs": {"capacitance_method": {"value": 0}}}},
+        "sites": [{
+            "name": "site1",
+            "properties": {
+                "building_archetype": {
+                    "fraction_heat_capacity_roof_external": {"value": 0.3},
+                    "fraction_heat_capacity_wall_external": {"value": 0.4},
+                },
+            }
+        }],
+    }
+
+    updated_data, adjustments = adjust_model_option_rcmethod(yaml_data)
+    ba = updated_data["sites"][0]["properties"]["building_archetype"]
+
+    assert ba["capacitance_roof_external_fraction"]["value"] == 0.5
+    assert ba["capacitance_wall_external_fraction"]["value"] == 0.5
+    assert "fraction_heat_capacity_roof_external" not in ba
+    assert "fraction_heat_capacity_wall_external" not in ba
+    assert {adj.old_value for adj in adjustments} == {"0.3", "0.4"}
 
 def test_adjust_model_option_setpointmethod_sets_profiles_to_null_when_0_or_1():
     # setpoint == 0: should nullify all profile entries
@@ -1310,7 +1372,7 @@ def test_adjust_model_option_setpointmethod_no_action_when_already_null():
 
 def test_validate_model_option_rcmethod2_missing_params(registry):
     yaml_data = {
-        "model": {"physics": {"stebbs": {"capacitance": {"value": 2}}}},
+        "model": {"physics": {"stebbs": {"capacitance_method": {"value": 2}}}},
         "sites": [{
             "name": "site1",
             "properties": {"building_archetype": {}},
@@ -1329,7 +1391,7 @@ def test_validate_model_option_rcmethod2_missing_params(registry):
 
 def test_validate_model_option_rcmethod2_all_params_provided(registry):
     yaml_data = {
-        "model": {"physics": {"stebbs": {"capacitance": {"value": 2}}}},
+        "model": {"physics": {"stebbs": {"capacitance_method": {"value": 2}}}},
         "sites": [{
             "name": "site1",
             "properties": {
@@ -1364,7 +1426,7 @@ def test_validate_model_option_rcmethod2_all_params_provided(registry):
 
 def test_validate_model_option_rcmethod2_some_params_missing(registry):
     yaml_data = {
-        "model": {"physics": {"stebbs": {"capacitance": {"value": 2}}}},
+        "model": {"physics": {"stebbs": {"capacitance_method": {"value": 2}}}},
         "sites": [{
             "name": "site1",
             "properties": {
@@ -4770,7 +4832,7 @@ class TestPhaseBRenameAwareLookups:
     # gh#1456: the STEBBS switches are required under the nested
     # model.physics.stebbs sub-object.
     _REQUIRED_STEBBS = [
-        "capacitance", "setpoint", "same_albedo_wall", "same_albedo_roof",
+        "capacitance_method", "setpoint", "same_albedo_wall", "same_albedo_roof",
         "same_emissivity_wall", "same_emissivity_roof",
     ]
 
@@ -4788,11 +4850,11 @@ class TestPhaseBRenameAwareLookups:
             validate_physics_parameters,
         )
 
-        # gh#1456: capacitance is now a nested model.physics.stebbs leaf. Its
+        # gh#1472: capacitance_method is now a nested model.physics.stebbs leaf. Its
         # legacy spelling `outer_cap_fraction` placed in the nested stebbs block
         # must still satisfy the requirement (rename-aware lookup).
         physics = self._build_physics()
-        physics["stebbs"]["outer_cap_fraction"] = physics["stebbs"].pop("capacitance")
+        physics["stebbs"]["outer_cap_fraction"] = physics["stebbs"].pop("capacitance_method")
         errors = [
             r
             for r in validate_physics_parameters(self._physics_ctx(physics))
@@ -4800,7 +4862,7 @@ class TestPhaseBRenameAwareLookups:
         ]
         assert errors == [], (
             "legacy `outer_cap_fraction` should satisfy the nested "
-            "`stebbs.capacitance` requirement in un-normalised Phase B input"
+            "`stebbs.capacitance_method` requirement in un-normalised Phase B input"
         )
 
     def test_nested_stebbs_block_can_be_discriminated_by_alias_only(self):
@@ -4808,7 +4870,7 @@ class TestPhaseBRenameAwareLookups:
 
         block = get_stebbs_block({"stebbs": {"rcmethod": {"value": 2}}})
 
-        assert block == {"capacitance": {"value": 2}}
+        assert block == {"capacitance_method": {"value": 2}}
 
     def test_flat_stebbs_switches_satisfy_nested_requirements(self):
         from supy.data_model.validation.pipeline.phase_b_rules.physics_rules import (
@@ -4836,7 +4898,7 @@ class TestPhaseBRenameAwareLookups:
         )
 
         physics = self._build_physics()
-        del physics["stebbs"]["capacitance"]  # neither current nor legacy spelling present
+        del physics["stebbs"]["capacitance_method"]  # neither current nor legacy spelling present
         errors = [
             r
             for r in validate_physics_parameters(self._physics_ctx(physics))
@@ -4881,36 +4943,36 @@ class TestPhaseBRenameAwareLookups:
         }
 
     def test_empty_required_physics_mapping_flagged(self):
-        # A present-but-value-less mapping (`capacitance: {}`) must be flagged
+        # A present-but-value-less mapping (`capacitance_method: {}`) must be flagged
         # empty — get_value_safe returns the bare mapping, so the rename-aware
         # rewrite must not let it slip through (regression guard). gh#1456:
-        # capacitance is checked under the nested model.physics.stebbs block.
+        # capacitance_method is checked under the nested model.physics.stebbs block.
         physics = self._build_physics()
-        physics["stebbs"]["capacitance"] = {}
-        assert "model.physics.stebbs.capacitance" in self._empty_param_errors(physics)
+        physics["stebbs"]["capacitance_method"] = {}
+        assert "model.physics.stebbs.capacitance_method" in self._empty_param_errors(physics)
         # and via the legacy spelling
         physics = self._build_physics()
-        del physics["stebbs"]["capacitance"]
+        del physics["stebbs"]["capacitance_method"]
         physics["stebbs"]["outer_cap_fraction"] = {}
-        assert "model.physics.stebbs.capacitance" in self._empty_param_errors(physics)
+        assert "model.physics.stebbs.capacitance_method" in self._empty_param_errors(physics)
 
     def test_nested_family_and_valid_values_not_flagged_empty(self):
         # The gh#972 nested-family form and a valid 0 must NOT be flagged empty.
         physics = self._build_physics()
         physics["net_radiation"] = {"spartacus": {"value": 1001}}
-        physics["stebbs"]["capacitance"] = {"value": 0}
+        physics["stebbs"]["capacitance_method"] = {"value": 0}
         flagged = self._empty_param_errors(physics)
         assert "model.physics.net_radiation" not in flagged
-        assert "model.physics.stebbs.capacitance" not in flagged
+        assert "model.physics.stebbs.capacitance_method" not in flagged
 
     def test_stebbsmethod_helper_defaults_partial_nested_block_to_disabled(self):
         from supy.data_model.validation.core.yaml_helpers import get_stebbsmethod_value
 
-        assert get_stebbsmethod_value({"stebbs": {"capacitance": {"value": 1}}}) == 0
-        assert get_stebbsmethod_value({"capacitance": {"value": 1}}) == 0
+        assert get_stebbsmethod_value({"stebbs": {"capacitance_method": {"value": 1}}}) == 0
+        assert get_stebbsmethod_value({"capacitance_method": {"value": 1}}) == 0
         assert (
             get_stebbsmethod_value(
-                {"stebbs": {"value": 2}, "capacitance": {"value": 1}}
+                {"stebbs": {"value": 2}, "capacitance_method": {"value": 1}}
             )
             == 2
         )
@@ -4958,7 +5020,7 @@ class TestPhaseBRenameAwareLookups:
                 {
                     "stebbs": {
                         "enabled": {"value": True},
-                        "capacitance": {"value": 1},
+                        "capacitance_method": {"value": 1},
                     },
                     flat_key: {"value": 0},
                 }
@@ -5073,12 +5135,12 @@ class TestStandaloneValidationRenameNormalisation:
         out = normalise_yaml_renames(
             {"sites": [{"stebbs": {"outer_cap_fraction": {"value": 1}}}]}
         )
-        assert out["sites"][0]["stebbs"] == {"capacitance": {"value": 1}}
+        assert out["sites"][0]["stebbs"] == {"capacitance_method": {"value": 1}}
 
     def test_normalise_helper_idempotent_on_current_names(self):
         from supy.data_model.core.field_renames import normalise_yaml_renames
 
-        current = {"sites": [{"stebbs": {"capacitance": {"value": 1}}}]}
+        current = {"sites": [{"stebbs": {"capacitance_method": {"value": 1}}}]}
         assert normalise_yaml_renames(current) == current
 
     def test_normalise_helper_folds_flat_stebbs_physics(self):
@@ -5106,7 +5168,7 @@ class TestStandaloneValidationRenameNormalisation:
         assert "setpoint" not in physics
         assert stebbs["enabled"] == {"value": True}
         assert stebbs["parameters"] == {"value": 2}
-        assert stebbs["capacitance"] == {"value": 1}
+        assert stebbs["capacitance_method"] == {"value": 1}
         assert stebbs["setpoint"] == {"value": 1}
         assert stebbs["same_albedo_wall"] == {"value": 1}
         assert not [
@@ -5136,7 +5198,7 @@ class TestStandaloneValidationRenameNormalisation:
         stebbs = out["model"]["physics"]["stebbs"]
         assert "outer_cap_fraction" not in stebbs
         assert "setpointmethod" not in stebbs
-        assert stebbs["capacitance"] == {"value": 2}
+        assert stebbs["capacitance_method"] == {"value": 2}
         assert stebbs["setpoint"] == {"value": 2}
 
     def test_normalise_helper_keeps_ambiguous_config_unchanged(self):
@@ -5149,7 +5211,7 @@ class TestStandaloneValidationRenameNormalisation:
         both = {
             "physics": {
                 "outer_cap_fraction": {"value": 1},
-                "capacitance": {"value": 2},
+                "capacitance_method": {"value": 2},
             }
         }
         assert normalise_yaml_renames(both) == both
@@ -5188,7 +5250,7 @@ class TestStandaloneValidationRenameNormalisation:
         for data in (uptodate_data, user_data):
             dumped = json.dumps(data)
             assert "outer_cap_fraction" not in dumped
-            assert "capacitance" in dumped
+            assert "capacitance_method" in dumped
             assert "month_mean_air_temperature_diffmax" not in dumped
             assert "temperature_air_month_mean_diffmax" in dumped
             assert "heating_setpoint_temperature" not in dumped
@@ -5206,20 +5268,20 @@ class TestStandaloneValidationRenameNormalisation:
 
         # Pydantic-processed data carries the current nested name with a null value.
         processed = {
-            "model": {"physics": {"stebbs": {"capacitance": {"value": None}}}}
+            "model": {"physics": {"stebbs": {"capacitance_method": {"value": None}}}}
         }
         legacy_raw = {"model": {"physics": {"outer_cap_fraction": {"value": None}}}}
 
-        # Without normalisation the orchestrator looks up `capacitance`, absent
+        # Without normalisation the orchestrator looks up `capacitance_method`, absent
         # from the legacy raw data, so the null is NOT flagged critical.
         crit_raw, _ = detect_pydantic_defaults(legacy_raw, processed, "", {})
-        assert not any(c["field_name"] == "capacitance" for c in crit_raw)
+        assert not any(c["field_name"] == "capacitance_method" for c in crit_raw)
 
         # With the gh#1457 normalise-once step the legacy null is recognised.
         crit_norm, _ = detect_pydantic_defaults(
             normalise_yaml_renames(legacy_raw), processed, "", {}
         )
-        assert any(c["field_name"] == "capacitance" for c in crit_norm)
+        assert any(c["field_name"] == "capacitance_method" for c in crit_norm)
 
     def test_load_user_yaml_normalised_rewrites_legacy_file(self, tmp_path):
         # The single load chokepoint: reading a legacy-spelling file from disk
@@ -5243,6 +5305,6 @@ class TestStandaloneValidationRenameNormalisation:
         )
         dumped = json.dumps(load_user_yaml_normalised(str(legacy)))
         assert "rcmethod" not in dumped
-        assert "capacitance" in dumped
+        assert "capacitance_method" in dumped
         assert "heating_setpoint_temperature" not in dumped
         assert "setpoint_temperature_heating_air" in dumped

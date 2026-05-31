@@ -47,7 +47,7 @@ model:
         value: true
       parameters:
         value: 1
-      capacitance:
+      capacitance_method:
         value: 2
       setpoint:
         value: 0
@@ -1123,7 +1123,7 @@ sites:
         value: 1724.7
       specific_heat_capacity_wall_outer:
         value: 1000.0
-      fraction_heat_capacity_wall_external:
+      capacitance_wall_external_fraction:
         value: 0.5
       emissivity_wall_external:
         value: 0.9
@@ -1151,7 +1151,7 @@ sites:
         value: 1222.0
       specific_heat_capacity_roof_outer:
         value: 816.1
-      fraction_heat_capacity_roof_external:
+      capacitance_roof_external_fraction:
         value: 0.5
       emissivity_roof_external:
         value: 0.9

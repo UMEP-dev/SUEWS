@@ -315,7 +315,7 @@ def get_stebbs_block(physics):
 
     gh#1456: the STEBBS switches moved under a nested ``stebbs`` object. This
     helper isolates that container so callers can read its leaves
-    (``capacitance``, ``setpoint``, ``same_*``) uniformly against the
+    (``capacitance_method``, ``setpoint``, ``same_*``) uniformly against the
     YAML-dict representation. For raw Phase B callers that have not gone through
     Pydantic, it also folds still-accepted flat sibling switches into a transient
     nested view.

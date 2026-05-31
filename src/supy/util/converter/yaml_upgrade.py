@@ -32,6 +32,7 @@ from ...data_model.core.field_renames import (
     ARCHETYPEPROPERTIES_DEV6_RENAMES,
     ARCHETYPEPROPERTIES_DEV7_RENAMES,
     ARCHETYPEPROPERTIES_DEV12_RENAMES,
+    ARCHETYPEPROPERTIES_DEV14_RENAMES,
     STEBBSPROPERTIES_DEV3_RENAMES,
     STEBBSPROPERTIES_DEV8_RENAMES,
     STEBBSPROPERTIES_DEV12_RENAMES,
@@ -512,6 +513,9 @@ _STEBBS_RENAMES_STRAGGLERS_TO_DEV12: tuple[tuple[str, str], ...] = tuple(
 _ARCH_RENAMES_COLUMN_D_TO_DEV12: tuple[tuple[str, str], ...] = tuple(
     ARCHETYPEPROPERTIES_DEV12_RENAMES.items()
 )
+_ARCH_CAPACITANCE_RENAMES_TO_DEV14: tuple[tuple[str, str], ...] = tuple(
+    ARCHETYPEPROPERTIES_DEV14_RENAMES.items()
+)
 
 
 # ---------------------------------------------------------------------------
@@ -692,14 +696,16 @@ def _apply_modelphysics_suffix_renames(cfg: dict) -> None:
 # decomposed into stebbs.enabled + stebbs.parameters. Renames flow through
 # _rename_field so each move is logged (TestNoSilentFieldDrops enforces this).
 # When this fold runs after the dev11 -> dev12 Column D straggler renames the
-# flat capacitance key is already spelled `capacitance`; the older
+# flat selector key may be spelled `capacitance` (dev12/dev13), while the older
 # `outer_cap_fraction` / fused `rcmethod` spellings are accepted too so a
-# hand-written legacy YAML still folds. All three relocate to stebbs.capacitance.
+# hand-written legacy YAML still folds. All variants relocate to
+# stebbs.capacitance_method.
 _STEBBS_PHYSICS_LEAF_RENAMES_TO_DEV12: tuple[tuple[str, str], ...] = (
-    ("capacitance", "capacitance"),
-    ("outer_cap_fraction", "capacitance"),
-    ("rcmethod", "capacitance"),
-    ("rc_method", "capacitance"),
+    ("capacitance_method", "capacitance_method"),
+    ("capacitance", "capacitance_method"),
+    ("outer_cap_fraction", "capacitance_method"),
+    ("rcmethod", "capacitance_method"),
+    ("rc_method", "capacitance_method"),
     ("setpoint", "setpoint"),
     ("setpointmethod", "setpoint"),
     ("same_albedo_wall", "same_albedo_wall"),
@@ -787,7 +793,7 @@ def _apply_stebbs_physics_fold(cfg: dict) -> None:
 
     gh#1456 dev12 -> dev13. Decomposes the legacy `stebbs` master toggle into
     `stebbs.enabled` + `stebbs.parameters`, and moves outer_cap_fraction /
-    rcmethod -> stebbs.capacitance, setpoint / setpointmethod -> stebbs.setpoint,
+    rcmethod -> stebbs.capacitance_method, setpoint / setpointmethod -> stebbs.setpoint,
     and the four same_* switches under the nested object. No-op when the YAML is
     already nested (the master toggle's keys are enabled/parameters/...). Each
     move is logged via _rename_field; no silent drops.
@@ -1095,10 +1101,11 @@ def _apply_stebbs_straggler_renames(cfg: dict) -> None:
     (D. Hertwig / S. Rognone, 2026-05). The ten StebbsProperties renames apply
     to the ``stebbs`` container; the six ArchetypeProperties renames
     (qualifier-first powers + setpoints/profiles) apply to the
-    ``building_archetype`` container. The single ModelPhysics rename
-    (``outer_cap_fraction`` -> ``capacitance``) applies to the top-level
-    ``model.physics`` container. Pure key reorders. Runs after every earlier
-    rename layer so it sees the snake_case names those layers produce.
+    ``building_archetype`` container. The ModelPhysics selector rename
+    (``outer_cap_fraction`` / ``capacitance`` -> ``capacitance_method``)
+    applies to the top-level ``model.physics`` container. Pure key reorders.
+    Runs after every earlier rename layer so it sees the snake_case names those
+    layers produce.
 
     Each rename flows through ``_rename_field`` so a per-field log line is
     emitted (``TestNoSilentFieldDrops`` enforces this).
@@ -1115,18 +1122,57 @@ def _apply_stebbs_straggler_renames(cfg: dict) -> None:
             _rename_field(physics, old, new)
 
 
+def _apply_capacitance_semantics_split(cfg: dict) -> None:
+    """Apply the dev13 -> dev14 capacitance selector/value split.
+
+    gh#1472: ``model.physics.stebbs.capacitance`` is a method selector, so the
+    canonical nested leaf becomes ``capacitance_method``. The real
+    capacitance-distribution values on each building archetype are renamed from
+    ``fraction_heat_capacity_*_external`` to
+    ``capacitance_*_external_fraction``.
+    """
+    physics = cfg.get("model", {}).get("physics")
+    if isinstance(physics, dict):
+        stebbs = physics.get("stebbs")
+        if isinstance(stebbs, dict):
+            _rename_field(stebbs, "capacitance", "capacitance_method")
+        for old, new in MODELPHYSICS_DEV12_RENAMES.items():
+            _rename_field(physics, old, new)
+
+    for arch in _walk_site_container(cfg, "building_archetype"):
+        for old, new in _ARCH_CAPACITANCE_RENAMES_TO_DEV14:
+            _rename_field(arch, old, new)
+
+
+def _migrate_2026_5_dev13_to_current(cfg: dict) -> dict:
+    """Upgrade 2026.5.dev13-shaped YAMLs to the current schema.
+
+    dev13 -> dev14 (gh#1472): split the STEBBS capacitance selector from the
+    physical capacitance-distribution values. The selector moves from
+    ``model.physics.stebbs.capacitance`` to
+    ``model.physics.stebbs.capacitance_method``; the building-archetype values
+    move from ``fraction_heat_capacity_{wall,roof}_external`` to
+    ``capacitance_{wall,roof}_external_fraction``.
+    """
+    cfg = _strip_internal_only_fields(cfg)
+    _apply_stebbs_physics_fold(cfg)
+    _apply_capacitance_semantics_split(cfg)
+    return cfg
+
+
 def _migrate_2026_5_dev12_to_current(cfg: dict) -> dict:
     """Upgrade 2026.5.dev12-shaped YAMLs to the current schema.
 
     dev12 -> dev13 (gh#1456): fold the six flat STEBBS physics switches
     under the nested model.physics.stebbs object (master toggle decomposed
     into enabled + parameters; the dev12 flat `capacitance` -- and the older
-    `outer_cap_fraction` spelling -- moved to stebbs.capacitance; setpoint
-    and same_* moved at their leaf names). No earlier delta is outstanding
-    at dev12, so this is the STEBBS fold alone.
+    `outer_cap_fraction` spelling -- moved to stebbs.capacitance_method;
+    setpoint and same_* moved at their leaf names). The dev13 -> dev14
+    capacitance selector/value split is then applied.
     """
     cfg = _strip_internal_only_fields(cfg)
     _apply_stebbs_physics_fold(cfg)
+    _apply_capacitance_semantics_split(cfg)
     return cfg
 
 
@@ -1142,6 +1188,7 @@ def _migrate_2026_5_dev11_to_current(cfg: dict) -> dict:
     cfg = _strip_internal_only_fields(cfg)
     _apply_stebbs_straggler_renames(cfg)
     _apply_stebbs_physics_fold(cfg)
+    _apply_capacitance_semantics_split(cfg)
     return cfg
 
 
@@ -1158,6 +1205,7 @@ def _migrate_2026_5_dev10_to_current(cfg: dict) -> dict:
     _apply_naming_completion_renames(cfg)
     _apply_stebbs_straggler_renames(cfg)
     _apply_stebbs_physics_fold(cfg)
+    _apply_capacitance_semantics_split(cfg)
     return cfg
 
 
@@ -1172,6 +1220,7 @@ def _migrate_2026_5_dev9_to_current(cfg: dict) -> dict:
     _apply_naming_completion_renames(cfg)
     _apply_stebbs_straggler_renames(cfg)
     _apply_stebbs_physics_fold(cfg)
+    _apply_capacitance_semantics_split(cfg)
     return cfg
 
 
@@ -1190,6 +1239,7 @@ def _migrate_2026_5_dev8_to_current(cfg: dict) -> dict:
     _apply_naming_completion_renames(cfg)
     _apply_stebbs_straggler_renames(cfg)
     _apply_stebbs_physics_fold(cfg)
+    _apply_capacitance_semantics_split(cfg)
     return cfg
 
 
@@ -1206,6 +1256,7 @@ def _migrate_2026_5_dev7_to_current(cfg: dict) -> dict:
     _apply_naming_completion_renames(cfg)
     _apply_stebbs_straggler_renames(cfg)
     _apply_stebbs_physics_fold(cfg)
+    _apply_capacitance_semantics_split(cfg)
     return cfg
 
 
@@ -1223,6 +1274,7 @@ def _migrate_2026_5_dev6_to_current(cfg: dict) -> dict:
     _apply_naming_completion_renames(cfg)
     _apply_stebbs_straggler_renames(cfg)
     _apply_stebbs_physics_fold(cfg)
+    _apply_capacitance_semantics_split(cfg)
     return cfg
 
 
@@ -1240,6 +1292,7 @@ def _migrate_2026_5_dev5_to_current(cfg: dict) -> dict:
     _apply_naming_completion_renames(cfg)
     _apply_stebbs_straggler_renames(cfg)
     _apply_stebbs_physics_fold(cfg)
+    _apply_capacitance_semantics_split(cfg)
     return cfg
 
 
@@ -1257,6 +1310,7 @@ def _migrate_2026_5_dev4_to_current(cfg: dict) -> dict:
     _apply_naming_completion_renames(cfg)
     _apply_stebbs_straggler_renames(cfg)
     _apply_stebbs_physics_fold(cfg)
+    _apply_capacitance_semantics_split(cfg)
     return cfg
 
 
@@ -1276,6 +1330,7 @@ def _migrate_2026_5_dev3_to_current(cfg: dict) -> dict:
     _apply_naming_completion_renames(cfg)
     _apply_stebbs_straggler_renames(cfg)
     _apply_stebbs_physics_fold(cfg)
+    _apply_capacitance_semantics_split(cfg)
     return cfg
 
 
@@ -1297,6 +1352,7 @@ def _migrate_2026_5_dev2_to_current(cfg: dict) -> dict:
     _apply_naming_completion_renames(cfg)
     _apply_stebbs_straggler_renames(cfg)
     _apply_stebbs_physics_fold(cfg)
+    _apply_capacitance_semantics_split(cfg)
     return cfg
 
 
@@ -1349,6 +1405,7 @@ def _migrate_2026_5_to_current(cfg: dict) -> dict:
     _apply_naming_completion_renames(cfg)
     _apply_stebbs_straggler_renames(cfg)
     _apply_stebbs_physics_fold(cfg)
+    _apply_capacitance_semantics_split(cfg)
     return cfg
 
 
@@ -1371,6 +1428,7 @@ def _migrate_2026_5_dev1_to_current(cfg: dict) -> dict:
     _apply_naming_completion_renames(cfg)
     _apply_stebbs_straggler_renames(cfg)
     _apply_stebbs_physics_fold(cfg)
+    _apply_capacitance_semantics_split(cfg)
     return cfg
 
 
@@ -1449,8 +1507,10 @@ _HANDLERS: dict[tuple[str, str], Handler] = {
     # naming-convention completion; the dev11 -> dev12 delta (gh#1452) applies
     # the STEBBS/Archetype Column D alignment; the dev12 -> dev13 delta
     # (gh#1456) folds the flat STEBBS physics switches under the nested
-    # model.physics.stebbs object. Every to-current handler runs the Column D
-    # straggler renames then _apply_stebbs_physics_fold last.
+    # model.physics.stebbs object; the dev13 -> dev14 delta (gh#1472) splits
+    # the capacitance method selector from the physical capacitance-distribution
+    # values.
+    ("2026.5.dev13", CURRENT_SCHEMA_VERSION): _migrate_2026_5_dev13_to_current,
     ("2026.5.dev12", CURRENT_SCHEMA_VERSION): _migrate_2026_5_dev12_to_current,
     ("2026.5.dev11", CURRENT_SCHEMA_VERSION): _migrate_2026_5_dev11_to_current,
     ("2026.5.dev10", CURRENT_SCHEMA_VERSION): _migrate_2026_5_dev10_to_current,

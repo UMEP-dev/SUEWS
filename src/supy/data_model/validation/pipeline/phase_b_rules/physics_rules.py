@@ -78,7 +78,7 @@ def validate_physics_parameters(context) -> List[ValidationResult]:
     # not required; the remaining switches are required, but checked against
     # the nested `stebbs` sub-object rather than the flat physics dict.
     required_stebbs_params = [
-        "capacitance",
+        "capacitance_method",
         "setpoint",
         "same_albedo_wall",
         "same_albedo_roof",
@@ -100,7 +100,7 @@ def validate_physics_parameters(context) -> List[ValidationResult]:
 
     # Resolve each required key rename-aware. In Phase-B-standalone / BC mode the
     # input YAML is not Phase-A-normalised, so a still-compatible config may use a
-    # legacy spelling (e.g. `outer_cap_fraction` for `capacitance`, or the
+    # legacy spelling (e.g. `outer_cap_fraction` for `capacitance_method`, or the
     # long-renamed `netradiationmethod` for `net_radiation`). get_value_safe
     # accepts both spellings; the _MISSING sentinel distinguishes an absent key
     # from one present with a null value (so the two checks below stay distinct).
@@ -128,7 +128,7 @@ def validate_physics_parameters(context) -> List[ValidationResult]:
 
     def _is_empty(value):
         # Null / empty scalar, or a present-but-value-less mapping such as
-        # `capacitance: {}` (get_value_safe returns the bare mapping when there
+        # `capacitance_method: {}` (get_value_safe returns the bare mapping when there
         # is no `value` key). A *non-empty* mapping is the gh#972 nested-family
         # form (e.g. `{spartacus: {value: 1}}`) and is NOT empty.
         return value in ("", None) or (isinstance(value, dict) and not value)
@@ -452,12 +452,11 @@ def check_outercapfrac_facet(building_archetype, facet, site_idx, site_gridid):
         A validation result indicating an error if the fraction is missing or out of the valid range (0, 1), with a suggested value for correction.
     Notes
     -----
-    - When rcmethod is set to 1, the fraction_heat_capacity_{facet}_external parameter must be explicitly set and strictly between 0 and 1.
+    - When rcmethod is set to 1, the capacitance_{facet}_external_fraction parameter must be explicitly set and strictly between 0 and 1.
     - Returns an error if the parameter is missing or outside the valid range, including a message and suggested value.
     """
-    key = f"fraction_heat_capacity_{facet}_external"
-    facet_frac_entry = building_archetype.get(key, {})
-    facet_frac = facet_frac_entry.get("value") if isinstance(facet_frac_entry, Mapping) else facet_frac_entry
+    key = f"capacitance_{facet}_external_fraction"
+    facet_frac = get_value_safe(building_archetype, key)
 
     result = ValidationResult(
         status="ERROR",
@@ -467,11 +466,17 @@ def check_outercapfrac_facet(building_archetype, facet, site_idx, site_gridid):
         site_gridid=site_gridid,
     )
 
-    if facet_frac is None:
+    if facet_frac is None or isinstance(facet_frac, Mapping):
         result.message=f"{key} must be explicitly provided when rcmethod == 1."
         result.suggested_value=f"Set {key} to a value between 0 and 1 (exclusive)."
         return result
-    elif not (0 < facet_frac < 1):
+
+    try:
+        valid_range = 0 < facet_frac < 1
+    except TypeError:
+        valid_range = False
+
+    if not valid_range:
         result.message=f"{key} value {facet_frac} is out of valid range (0, 1) when rcmethod == 1."
         result.suggested_value=f"Set {key} to a value strictly between 0 and 1."
         return result
@@ -503,8 +508,7 @@ def validate_model_option_rcmethod(context) -> List[ValidationResult]:
 
     results = []
     physics = yaml_data.get("model", {}).get("physics", {})
-    # gh#1456: capacitance method moved to model.physics.stebbs.capacitance.
-    rcmethod_value = get_value_safe(get_stebbs_block(physics), "capacitance")
+    rcmethod_value = get_value_safe(get_stebbs_block(physics), "capacitance_method")
 
     sites = yaml_data.get("sites", [])
     for site_idx, site in enumerate(sites):

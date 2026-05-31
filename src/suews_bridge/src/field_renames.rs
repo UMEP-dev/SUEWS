@@ -818,6 +818,23 @@ const STEBBS_NESTED_ALIAS_TO_LEAF: &[(&str, &str)] = &[
     ("setpointmethod", "setpoint"),
 ];
 
+/// Flat STEBBS leaf spellings that are mutually exclusive with a nested
+/// `model.physics.stebbs` object. Include both canonical nested leaf names and
+/// legacy/fused flat aliases so the Rust bridge rejects the same mixed input
+/// shape as Python before any lossy rename pass runs.
+const STEBBS_FLAT_LEAF_KEYS: &[&str] = &[
+    "capacitance",
+    "outer_cap_fraction",
+    "rcmethod",
+    "rc_method",
+    "setpoint",
+    "setpointmethod",
+    "same_albedo_wall",
+    "same_albedo_roof",
+    "same_emissivity_wall",
+    "same_emissivity_roof",
+];
+
 /// Return true for a `{value: ...}` / `{value: ..., ref: ...}` scalar. Such a
 /// mapping is a RefValue-wrapped legacy master toggle, never the new nested
 /// `StebbsPhysics` object (gh#1456). Mirrors `_is_stebbs_refvalue_scalar` in
@@ -1007,22 +1024,16 @@ fn flatten_stebbs_physics(root: &mut Value) -> Result<(), String> {
         return Ok(());
     }
 
-    // Take ownership of the nested object so we can move its leaves out.
-    let mut stebbs_block = match physics.remove(&stebbs_key) {
-        Some(Value::Mapping(map)) => map,
-        _ => return Ok(()),
-    };
-
-    // Guard against a flat sibling colliding with a key the fold produces
-    // (e.g. a flat `outer_cap_fraction`/`rcmethod` alongside the nested
-    // `stebbs.capacitance`). The legacy and nested forms are mutually
-    // exclusive on input; reject rather than silently pick one. Mirrors the
-    // recursive walker's both-spellings-present error.
-    for (_leaf, fused) in STEBBS_LEAF_TO_FUSED {
-        let fused_key = Value::String((*fused).to_string());
-        if physics.contains_key(&fused_key) {
+    // Guard against any flat STEBBS sibling colliding with the nested object
+    // (e.g. a flat `outer_cap_fraction`/`rcmethod` alongside
+    // `stebbs.capacitance`). The legacy and nested forms are mutually exclusive
+    // on input; reject before removing the nested block so failed
+    // normalisation leaves the tree untouched.
+    for flat in STEBBS_FLAT_LEAF_KEYS {
+        let flat_key = Value::String((*flat).to_string());
+        if physics.contains_key(&flat_key) {
             return Err(format!(
-                "Both a flat '{fused}' and a nested 'model.physics.stebbs' object are \
+                "Both a flat '{flat}' and a nested 'model.physics.stebbs' object are \
                  present. Use only the nested 'stebbs' form."
             ));
         }
@@ -1035,6 +1046,12 @@ fn flatten_stebbs_physics(root: &mut Value) -> Result<(), String> {
                 .to_string(),
         );
     }
+
+    // Take ownership of the nested object so we can move its leaves out.
+    let mut stebbs_block = match physics.remove(&stebbs_key) {
+        Some(Value::Mapping(map)) => map,
+        _ => return Ok(()),
+    };
 
     if let Some(conflict) = nested_stebbs_alias_conflict(&stebbs_block) {
         return Err(format!(
@@ -1768,20 +1785,44 @@ model:
 
     #[test]
     fn nested_and_flat_stebbs_both_present_rejected() {
-        // A flat `outer_cap_fraction` alongside the nested object is ambiguous.
-        // (The flat key renames to `rcmethod` only AFTER flatten runs, so the
-        // collision is detected against the fused `rcmethod` the fold writes.)
-        let yaml = "\
+        // Any flat STEBBS leaf spelling alongside the nested object is
+        // ambiguous, including aliases that would only fuse after the rename
+        // walker runs.
+        let flat_keys = [
+            "capacitance",
+            "outer_cap_fraction",
+            "rcmethod",
+            "rc_method",
+            "setpoint",
+            "setpointmethod",
+            "same_albedo_wall",
+            "same_albedo_roof",
+            "same_emissivity_wall",
+            "same_emissivity_roof",
+        ];
+
+        for flat_key in flat_keys {
+            let yaml = format!(
+                "\
 model:
   physics:
-    rcmethod: {value: 0}
+    {flat_key}: {{value: 0}}
     stebbs:
-      enabled: {value: true}
-      capacitance: {value: 1}
-";
-        let mut root: Value = from_str(yaml).unwrap();
-        let err = normalize_field_names(&mut root).expect_err("ambiguous input must fail");
-        assert!(err.contains("nested 'model.physics.stebbs'"), "error was: {err}");
+      enabled: {{value: true}}
+      capacitance: {{value: 1}}
+"
+            );
+            let mut root: Value = from_str(&yaml).unwrap();
+            let err = normalize_field_names(&mut root).expect_err("ambiguous input must fail");
+            assert!(
+                err.contains(&format!("flat '{flat_key}'")),
+                "error was: {err}"
+            );
+            assert!(
+                err.contains("nested 'model.physics.stebbs'"),
+                "error was: {err}"
+            );
+        }
     }
 
     #[test]

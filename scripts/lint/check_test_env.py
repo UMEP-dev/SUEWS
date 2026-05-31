@@ -24,6 +24,7 @@ def _inside_repo(path: Path, repo_root: Path) -> bool:
 
 
 def main() -> int:
+    """Check that pytest and the editable supy package are importable."""
     repo_root = Path.cwd().resolve()
     missing: list[str] = []
 

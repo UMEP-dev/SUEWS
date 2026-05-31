@@ -3,12 +3,10 @@
 from pathlib import Path
 
 from click.testing import CliRunner
+from helpers import assert_non_empty_files
 import pytest
 
 from supy.cmd.validate_config import cli as validate_cmd
-
-from helpers import assert_non_empty_files
-
 
 pytestmark = [pytest.mark.api, pytest.mark.e2e]
 
@@ -74,7 +72,7 @@ def test_validation_repair_report_is_meaningful_and_repeatable(tmp_path, monkeyp
     report_path = tmp_path / "report_validation_problem.txt"
     updated_path = tmp_path / "updatedA_validation_problem.yml"
 
-    assert first.exit_code in (0, 1), first.output
+    assert first.exit_code in {0, 1}, first.output
     assert_non_empty_files([report_path, updated_path])
     first_sizes = {
         report_path.name: report_path.stat().st_size,
@@ -98,7 +96,7 @@ def test_validation_repair_report_is_meaningful_and_repeatable(tmp_path, monkeyp
         catch_exceptions=False,
     )
 
-    assert second.exit_code in (0, 1), second.output
+    assert second.exit_code in {0, 1}, second.output
     for name, size_before in first_sizes.items():
         output = tmp_path / name
         assert output.exists(), f"{name} disappeared after repeat validation"

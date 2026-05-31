@@ -1,13 +1,11 @@
 """Scenario: legacy-table-migration-run."""
 
 from click.testing import CliRunner
+from helpers import FIXTURES, as_dataframe
 import pytest
 
 from supy import SUEWSSimulation
 from supy.cmd.table_converter import convert_table_cmd
-
-from helpers import FIXTURES, as_dataframe
-
 
 pytestmark = [pytest.mark.api, pytest.mark.e2e]
 

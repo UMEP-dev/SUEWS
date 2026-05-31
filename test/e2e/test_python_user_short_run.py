@@ -1,11 +1,9 @@
 """Scenario: python-user-short-run."""
 
+from helpers import as_dataframe, assert_non_empty_files
 import pytest
 
 from supy import SUEWSSimulation
-
-from helpers import as_dataframe, assert_non_empty_files
-
 
 pytestmark = [pytest.mark.api, pytest.mark.e2e]
 

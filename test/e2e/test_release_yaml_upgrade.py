@@ -1,14 +1,12 @@
 """Scenario: release-yaml-upgrade."""
 
+from helpers import FIXTURES
 import pytest
 import yaml
 
 from supy.data_model.core.config import SUEWSConfig
 from supy.data_model.schema import CURRENT_SCHEMA_VERSION
 from supy.util.converter.yaml_upgrade import upgrade_yaml
-
-from helpers import FIXTURES
-
 
 pytestmark = [pytest.mark.api, pytest.mark.e2e]
 

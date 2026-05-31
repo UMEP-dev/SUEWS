@@ -4,12 +4,10 @@ from pathlib import Path
 import shutil
 
 from click.testing import CliRunner
+from helpers import FIXTURES, assert_non_empty_files
 import pytest
 
 from supy.cmd.SUEWS import SUEWS as suews_run_cmd
-
-from helpers import FIXTURES, assert_non_empty_files
-
 
 pytestmark = [pytest.mark.api, pytest.mark.e2e]
 

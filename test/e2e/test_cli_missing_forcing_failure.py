@@ -5,7 +5,6 @@ import pytest
 
 from supy.cmd.SUEWS import SUEWS as suews_run_cmd
 
-
 pytestmark = [pytest.mark.api, pytest.mark.e2e]
 
 

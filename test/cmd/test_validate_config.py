@@ -623,6 +623,34 @@ def test_public_mode_restriction_honours_legacy_stebbs_aliases(
     assert read_error is None
 
 
+@pytest.mark.parametrize("legacy_key", ["stebbsmethod", "stebbs_method"])
+def test_public_mode_restriction_rejects_mixed_stebbs_master_aliases(
+    tmp_path: Path,
+    legacy_key: str,
+) -> None:
+    from supy.cmd.validate_config import _experimental_features_restriction
+
+    payload = {
+        "model": {
+            "physics": {
+                "stebbs": {"enabled": {"value": False}},
+                legacy_key: {"value": 1},
+            }
+        }
+    }
+    config_path = tmp_path / "public-mixed-master.yml"
+    _write_yaml(config_path, payload)
+
+    ok, restrictions, read_error = _experimental_features_restriction(
+        str(config_path), "public"
+    )
+
+    assert ok is False
+    assert "Invalid STEBBS physics configuration" in restrictions[0]
+    assert legacy_key in restrictions[0]
+    assert read_error is None
+
+
 def test_emit_pipeline_result_warning_status_matches_inner_report(
     tmp_path: Path,
     capsys: pytest.CaptureFixture[str],

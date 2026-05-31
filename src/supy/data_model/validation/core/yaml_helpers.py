@@ -169,6 +169,40 @@ _STEBBS_BOOL_TRUE = frozenset({"1", "true", "t", "yes", "y", "on"})
 _STEBBS_BOOL_FALSE = frozenset({"0", "false", "f", "no", "n", "off"})
 
 
+def _stebbs_master_aliases(physics):
+    """Return legacy master-toggle aliases present beside ``stebbs``."""
+    if not isinstance(physics, Mapping):
+        return []
+    return sorted(
+        old_key
+        for old_key, new_key in RAW_YAML_FIELD_RENAMES.items()
+        if old_key != "stebbs" and new_key == "stebbs" and old_key in physics
+    )
+
+
+def _stebbs_flat_leaf_siblings(physics):
+    """Return flat STEBBS leaf keys present beside a nested ``stebbs`` block."""
+    if not isinstance(physics, Mapping):
+        return []
+    return sorted({key for key in STEBBS_PHYSICS_LEAF_RENAMES if key in physics})
+
+
+def _read_raw_stebbs_entry(physics):
+    """Read ``stebbs`` while rejecting ambiguous master-toggle aliases."""
+    aliases = _stebbs_master_aliases(physics)
+    if isinstance(physics, Mapping) and "stebbs" in physics and aliases:
+        raise ValueError(
+            "Both 'stebbs' and legacy STEBBS master aliases "
+            f"({', '.join(aliases)}) are present. Use only 'stebbs'."
+        )
+    return read_renamed_key(
+        physics,
+        "stebbs",
+        renames=RAW_YAML_FIELD_RENAMES,
+        default=_STEBBS_MISSING,
+    )
+
+
 def _is_stebbs_refvalue_scalar(entry):
     """Return True for a RefValue-style legacy ``stebbs`` master toggle."""
     return (
@@ -268,13 +302,17 @@ def get_stebbs_block(physics):
     """
     if not isinstance(physics, Mapping):
         return {}
-    block = read_renamed_key(
-        physics,
-        "stebbs",
-        renames=RAW_YAML_FIELD_RENAMES,
-        default=_STEBBS_MISSING,
-    )
+    block = _read_raw_stebbs_entry(physics)
     folded = dict(block) if _is_stebbs_nested_block(block) else {}
+
+    if folded:
+        flat_conflicts = _stebbs_flat_leaf_siblings(physics)
+        if flat_conflicts:
+            raise ValueError(
+                "Both nested 'stebbs' and flat STEBBS physics switches "
+                f"({', '.join(flat_conflicts)}) are present. Use only the "
+                "nested 'stebbs' form."
+            )
 
     for old_key, nested_leaf in STEBBS_PHYSICS_LEAF_RENAMES.items():
         if old_key == nested_leaf or old_key not in folded:
@@ -320,18 +358,15 @@ def get_stebbsmethod_value(physics):
     if not isinstance(physics, Mapping):
         return None
 
-    raw_stebbs = read_renamed_key(
-        physics,
-        "stebbs",
-        renames=RAW_YAML_FIELD_RENAMES,
-        default=_STEBBS_MISSING,
-    )
+    raw_stebbs = _read_raw_stebbs_entry(physics)
     stebbs_block = get_stebbs_block(physics)
 
     if raw_stebbs is not _STEBBS_MISSING and not _is_stebbs_nested_block(raw_stebbs):
         return _legacy_stebbs_master_value(raw_stebbs)
 
     if stebbs_block:
+        # Validate a present parameters value even when disabled, matching the
+        # Pydantic field contract and the Rust bridge flattening pre-pass.
         raw_parameters = get_value_safe(
             stebbs_block,
             "parameters",

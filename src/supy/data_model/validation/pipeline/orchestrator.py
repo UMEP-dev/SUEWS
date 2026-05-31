@@ -1572,8 +1572,11 @@ Modes:
                 # (`off`, `false`, `0`, etc.) follow Pydantic semantics.
                 try:
                     stebbsmethod = get_stebbsmethod_value(physics)
-                except ValueError:
-                    stebbsmethod = None  # Let the normal phases report it.
+                except ValueError as exc:
+                    restrictions_violated.append(
+                        f"Invalid STEBBS physics configuration: {exc}"
+                    )
+                    stebbsmethod = None
                 if stebbsmethod is not None and stebbsmethod != 0:
                     restrictions_violated.append(
                         "STEBBS is enabled (stebbs.enabled is true)"

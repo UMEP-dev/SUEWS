@@ -923,8 +923,9 @@ def _experimental_features_restriction(user_yaml_file, mode):
     # `false`, `0`, etc.) follow the same semantics as Pydantic.
     try:
         stebbsmethod = get_stebbsmethod_value(physics)
-    except ValueError:
-        stebbsmethod = None  # Let the normal validation pipeline report it.
+    except ValueError as exc:
+        restrictions_violated.append(f"Invalid STEBBS physics configuration: {exc}")
+        stebbsmethod = None
     if stebbsmethod is not None and stebbsmethod != 0:
         restrictions_violated.append("STEBBS is enabled (stebbs.enabled is true)")
 

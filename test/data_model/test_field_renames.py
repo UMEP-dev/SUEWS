@@ -548,6 +548,25 @@ class TestStebbsPhysicsFold:
         assert int(df.loc[1, ("rcmethod", "0")]) == 2
         assert int(df.loc[1, ("setpointmethod", "0")]) == 2
 
+    @pytest.mark.parametrize(
+        "flat_key",
+        ["rcmethod", "capacitance", "outer_cap_fraction"],
+    )
+    def test_nested_and_flat_stebbs_leaves_are_rejected(self, flat_key):
+        """Match the Rust bridge: ambiguous flat+nested STEBBS input fails."""
+        payload = {
+            "stebbs": {
+                "enabled": {"value": True},
+                "capacitance": {"value": 1},
+            },
+            flat_key: {"value": 0},
+        }
+
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", DeprecationWarning)
+            with pytest.raises(ValueError, match="nested 'stebbs'.*flat STEBBS"):
+                ModelPhysics(**payload)
+
     def test_single_fold_deprecation_warning(self):
         with warnings.catch_warnings(record=True) as captured:
             warnings.simplefilter("always", DeprecationWarning)

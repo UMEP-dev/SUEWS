@@ -4846,6 +4846,36 @@ class TestPhaseBRenameAwareLookups:
         assert get_stebbsmethod_value({legacy_key: {"value": 2}}) == 2
         assert get_stebbsmethod_value({legacy_key: {"value": 0}}) == 0
 
+    @pytest.mark.parametrize("legacy_key", ["stebbsmethod", "stebbs_method"])
+    def test_stebbsmethod_helper_rejects_mixed_master_aliases(self, legacy_key):
+        from supy.data_model.validation.core.yaml_helpers import get_stebbsmethod_value
+
+        with pytest.raises(ValueError, match="legacy STEBBS master aliases"):
+            get_stebbsmethod_value(
+                {
+                    "stebbs": {"enabled": {"value": False}},
+                    legacy_key: {"value": 1},
+                }
+            )
+
+    @pytest.mark.parametrize(
+        "flat_key",
+        ["rcmethod", "capacitance", "outer_cap_fraction"],
+    )
+    def test_stebbs_block_helper_rejects_mixed_flat_nested_leaves(self, flat_key):
+        from supy.data_model.validation.core.yaml_helpers import get_stebbs_block
+
+        with pytest.raises(ValueError, match="flat STEBBS physics switches"):
+            get_stebbs_block(
+                {
+                    "stebbs": {
+                        "enabled": {"value": True},
+                        "capacitance": {"value": 1},
+                    },
+                    flat_key: {"value": 0},
+                }
+            )
+
     def test_stebbsmethod_helper_rejects_invalid_nested_switch_values(self):
         from supy.data_model.validation.core.yaml_helpers import get_stebbsmethod_value
 

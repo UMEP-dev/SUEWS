@@ -1451,6 +1451,11 @@ def _normalise_stebbs_block_aliases(stebbs_block: dict) -> tuple[dict, list[str]
     return stebbs_block, moved
 
 
+def _stebbs_flat_leaf_siblings(values: Mapping[str, Any]) -> list[str]:
+    """Return flat STEBBS leaf keys present beside a nested ``stebbs`` block."""
+    return sorted({key for key in STEBBS_PHYSICS_LEAF_RENAMES if key in values})
+
+
 def fold_stebbs_physics(values: dict, class_name: str, *, warn: bool = True) -> dict:
     """Fold legacy flat STEBBS switches under a nested ``stebbs`` object.
 
@@ -1495,6 +1500,13 @@ def fold_stebbs_physics(values: dict, class_name: str, *, warn: bool = True) -> 
     if nested_already:
         stebbs_block, nested_moves = _normalise_stebbs_block_aliases(dict(existing))
         moved.extend(nested_moves)
+        flat_conflicts = _stebbs_flat_leaf_siblings(values)
+        if flat_conflicts:
+            raise ValueError(
+                f"{class_name}: both nested 'stebbs' and flat STEBBS physics "
+                f"switches ({', '.join(flat_conflicts)}) are present. Use only "
+                "the nested 'stebbs' form."
+            )
     else:
         stebbs_block = {}
         if "stebbs" in values:

@@ -40,22 +40,25 @@ model:
       value: 1
     snow_use:
       value: 0
-    stebbs:
-      value: 1
-    outer_cap_fraction:
-      value: 2
     surface_conductance:
       value: 2
-    same_albedo_wall:
-      value: 0
-    same_albedo_roof:
-      value: 0
-    same_emissivity_wall:
-      value: 0
-    same_emissivity_roof:
-      value: 0
-    setpoint:
-      value: 0
+    stebbs:
+      enabled:
+        value: true
+      parameters:
+        value: 1
+      capacitance:
+        value: 2
+      setpoint:
+        value: 0
+      same_albedo_wall:
+        value: 0
+      same_albedo_roof:
+        value: 0
+      same_emissivity_wall:
+        value: 0
+      same_emissivity_roof:
+        value: 0
 sites:
 - name: selected grid
   gridiv: 1

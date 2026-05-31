@@ -365,6 +365,28 @@ _MODELPHYSICS_SUFFIX_RENAMES_TABLE: tuple[tuple[str, str], ...] = tuple(
     MODELPHYSICS_SUFFIX_RENAMES.items()
 ) + (("setpointmethod", "setpoint"),)
 
+_STEBBS_MASTER_ALIAS_KEYS: tuple[str, ...] = (
+    "stebbs",
+    "stebbsmethod",
+    "stebbs_method",
+)
+
+
+def _stebbs_master_aliases(physics: dict) -> list[str]:
+    """Return present flat STEBBS master-toggle spellings."""
+    return [key for key in _STEBBS_MASTER_ALIAS_KEYS if key in physics]
+
+
+def _reject_duplicate_stebbs_master_aliases(physics: dict) -> list[str]:
+    """Reject ambiguous STEBBS master-toggle aliases and return the winner."""
+    aliases = _stebbs_master_aliases(physics)
+    if len(aliases) > 1:
+        raise YamlUpgradeError(
+            "Multiple legacy STEBBS master aliases "
+            f"({', '.join(aliases)}) are present. Use only one spelling."
+        )
+    return aliases
+
 
 # gh#1334 (2026.5.dev2 -> 2026.5.dev3): convert STEBBS PascalCase to snake_case
 # on the full user-facing YAML surface plus opaque-abbreviation clean-ups in
@@ -651,8 +673,217 @@ def _apply_modelphysics_suffix_renames(cfg: dict) -> None:
     physics = model.get("physics")
     if not isinstance(physics, dict):
         return
+    _reject_duplicate_stebbs_master_aliases(physics)
+    leaf_conflicts = _stebbs_leaf_alias_conflicts(physics)
+    if leaf_conflicts:
+        raise YamlUpgradeError(
+            "Multiple flat STEBBS physics switches map to the same nested leaf "
+            f"({_format_stebbs_leaf_alias_conflicts(leaf_conflicts)}). Use only "
+            "one spelling."
+        )
     for old, new in _MODELPHYSICS_SUFFIX_RENAMES_TABLE:
         _rename_field(physics, old, new)
+
+
+# gh#1456: dev12 -> dev13 STEBBS flat -> nested fold.
+#
+# The five non-master STEBBS switches move under model.physics.stebbs at the
+# leaf names below; the master toggle (`stebbs`, a tri-state integer) is
+# decomposed into stebbs.enabled + stebbs.parameters. Renames flow through
+# _rename_field so each move is logged (TestNoSilentFieldDrops enforces this).
+# When this fold runs after the dev11 -> dev12 Column D straggler renames the
+# flat capacitance key is already spelled `capacitance`; the older
+# `outer_cap_fraction` / fused `rcmethod` spellings are accepted too so a
+# hand-written legacy YAML still folds. All three relocate to stebbs.capacitance.
+_STEBBS_PHYSICS_LEAF_RENAMES_TO_DEV12: tuple[tuple[str, str], ...] = (
+    ("capacitance", "capacitance"),
+    ("outer_cap_fraction", "capacitance"),
+    ("rcmethod", "capacitance"),
+    ("rc_method", "capacitance"),
+    ("setpoint", "setpoint"),
+    ("setpointmethod", "setpoint"),
+    ("same_albedo_wall", "same_albedo_wall"),
+    ("same_albedo_roof", "same_albedo_roof"),
+    ("same_emissivity_wall", "same_emissivity_wall"),
+    ("same_emissivity_roof", "same_emissivity_roof"),
+)
+
+
+def _stebbs_flat_leaf_siblings(physics: dict) -> list[str]:
+    """Return flat STEBBS leaf keys present beside a nested ``stebbs`` block."""
+    return sorted(
+        {
+            old_key
+            for old_key, _leaf in _STEBBS_PHYSICS_LEAF_RENAMES_TO_DEV12
+            if old_key in physics
+        }
+    )
+
+
+def _stebbs_leaf_alias_conflicts(physics: dict) -> list[tuple[str, list[str]]]:
+    """Return flat STEBBS alias groups that would collide after folding."""
+    present_by_leaf: dict[str, list[str]] = {}
+    for old_key, nested_leaf in _STEBBS_PHYSICS_LEAF_RENAMES_TO_DEV12:
+        if old_key in physics:
+            present_by_leaf.setdefault(nested_leaf, []).append(old_key)
+    return [
+        (leaf, sorted(keys))
+        for leaf, keys in sorted(present_by_leaf.items())
+        if len(keys) > 1
+    ]
+
+
+def _format_stebbs_leaf_alias_conflicts(
+    conflicts: list[tuple[str, list[str]]],
+) -> str:
+    """Format colliding flat STEBBS aliases for migration errors."""
+    return "; ".join(
+        f"{', '.join(keys)} -> stebbs.{leaf}" for leaf, keys in conflicts
+    )
+
+
+def _decompose_stebbs_master_value(entry):
+    """Decompose a legacy flat `stebbs` master toggle into (enabled, params).
+
+    Returns RefValue-wrapped scalars. 0 -> (False, 1); 1 -> (True, 1);
+    2 -> (True, 2).
+    """
+    ref = entry.get("ref") if isinstance(entry, dict) else None
+
+    def _wrapped(value, *, carry_ref=False):
+        wrapped = {"value": value}
+        if carry_ref and ref is not None:
+            wrapped["ref"] = ref
+        return wrapped
+
+    if isinstance(entry, dict) and "value" not in entry:
+        raise ValueError(
+            "Legacy 'stebbs' mappings must use a 'value' key; use "
+            "'stebbs.enabled' / 'stebbs.parameters' for the nested form."
+        )
+
+    raw = entry.get("value") if isinstance(entry, dict) and "value" in entry else entry
+    if isinstance(raw, bool):
+        code = int(raw)
+    elif isinstance(raw, int):
+        code = raw
+    elif isinstance(raw, float) and raw.is_integer():
+        code = int(raw)
+    else:
+        raise ValueError(
+            "Legacy 'stebbs' master toggle expects integer 0, 1, or 2."
+        )
+    if code == 0:
+        return _wrapped(False, carry_ref=True), _wrapped(1)
+    if code == 1:
+        return _wrapped(True, carry_ref=True), _wrapped(1)
+    if code == 2:
+        return _wrapped(True, carry_ref=True), _wrapped(2)
+    raise ValueError("Legacy 'stebbs' master toggle expects integer 0, 1, or 2.")
+
+
+def _apply_stebbs_physics_fold(cfg: dict) -> None:
+    """Fold the flat STEBBS physics switches under model.physics.stebbs in place.
+
+    gh#1456 dev12 -> dev13. Decomposes the legacy `stebbs` master toggle into
+    `stebbs.enabled` + `stebbs.parameters`, and moves outer_cap_fraction /
+    rcmethod -> stebbs.capacitance, setpoint / setpointmethod -> stebbs.setpoint,
+    and the four same_* switches under the nested object. No-op when the YAML is
+    already nested (the master toggle's keys are enabled/parameters/...). Each
+    move is logged via _rename_field; no silent drops.
+    """
+    model = cfg.get("model")
+    if not isinstance(model, dict):
+        return
+    physics = model.get("physics")
+    if not isinstance(physics, dict):
+        return
+
+    master_aliases = _reject_duplicate_stebbs_master_aliases(physics)
+    master_alias = master_aliases[0] if master_aliases else None
+    existing = physics.get("stebbs")
+    nested_keys = {
+        "enabled",
+        "parameters",
+        *[old for old, _new in _STEBBS_PHYSICS_LEAF_RENAMES_TO_DEV12],
+        *[new for _old, new in _STEBBS_PHYSICS_LEAF_RENAMES_TO_DEV12],
+    }
+    already_nested = isinstance(existing, dict) and any(
+        k in existing for k in nested_keys
+    )
+
+    if already_nested:
+        flat_conflicts = _stebbs_flat_leaf_siblings(physics)
+        if flat_conflicts:
+            raise YamlUpgradeError(
+                "Both nested 'stebbs' and flat STEBBS physics switches "
+                f"({', '.join(flat_conflicts)}) are present. Use only the "
+                "nested 'stebbs' form."
+            )
+        stebbs_block = existing
+    else:
+        stebbs_block = {}
+        if master_alias is not None:
+            enabled, parameters = _decompose_stebbs_master_value(
+                physics.pop(master_alias)
+            )
+            stebbs_block["enabled"] = enabled
+            stebbs_block["parameters"] = parameters
+            _log(
+                f"[yaml-upgrade]   decomposed {master_alias!r} master toggle -> "
+                "'stebbs.enabled' + 'stebbs.parameters'"
+            )
+
+    nested_conflicts = _stebbs_leaf_alias_conflicts(stebbs_block)
+    if nested_conflicts:
+        raise YamlUpgradeError(
+            "Multiple nested STEBBS physics switches map to the same nested leaf "
+            f"({_format_stebbs_leaf_alias_conflicts(nested_conflicts)}). Use only "
+            "one spelling."
+        )
+
+    leaf_conflicts = _stebbs_leaf_alias_conflicts(physics)
+    if leaf_conflicts:
+        raise YamlUpgradeError(
+            "Multiple flat STEBBS physics switches map to the same nested leaf "
+            f"({_format_stebbs_leaf_alias_conflicts(leaf_conflicts)}). Use only "
+            "one spelling."
+        )
+
+    for old_nested, nested_leaf in _STEBBS_PHYSICS_LEAF_RENAMES_TO_DEV12:
+        if old_nested == nested_leaf or old_nested not in stebbs_block:
+            continue
+        if nested_leaf in stebbs_block:
+            stebbs_block.pop(old_nested)
+            _log(
+                f"[yaml-upgrade]   rename 'stebbs.{old_nested}' -> "
+                f"'stebbs.{nested_leaf}' skipped (target already present, "
+                f"dropping stale 'stebbs.{old_nested}' value)"
+            )
+        else:
+            stebbs_block[nested_leaf] = stebbs_block.pop(old_nested)
+            _log(
+                f"[yaml-upgrade]   renamed 'stebbs.{old_nested}' -> "
+                f"'stebbs.{nested_leaf}'"
+            )
+
+    for old_flat, nested_leaf in _STEBBS_PHYSICS_LEAF_RENAMES_TO_DEV12:
+        if old_flat in physics:
+            if nested_leaf in stebbs_block:
+                physics.pop(old_flat)
+                _log(
+                    f"[yaml-upgrade]   rename {old_flat!r} -> "
+                    f"'stebbs.{nested_leaf}' skipped (target already present, "
+                    f"dropping stale {old_flat!r} value)"
+                )
+            else:
+                stebbs_block[nested_leaf] = physics.pop(old_flat)
+                _log(
+                    f"[yaml-upgrade]   moved {old_flat!r} -> 'stebbs.{nested_leaf}'"
+                )
+
+    if stebbs_block:
+        physics["stebbs"] = stebbs_block
 
 
 def _migrate_2026_4_to_2026_5(cfg: dict) -> dict:
@@ -884,17 +1115,33 @@ def _apply_stebbs_straggler_renames(cfg: dict) -> None:
             _rename_field(physics, old, new)
 
 
+def _migrate_2026_5_dev12_to_current(cfg: dict) -> dict:
+    """Upgrade 2026.5.dev12-shaped YAMLs to the current schema.
+
+    dev12 -> dev13 (gh#1456): fold the six flat STEBBS physics switches
+    under the nested model.physics.stebbs object (master toggle decomposed
+    into enabled + parameters; the dev12 flat `capacitance` -- and the older
+    `outer_cap_fraction` spelling -- moved to stebbs.capacitance; setpoint
+    and same_* moved at their leaf names). No earlier delta is outstanding
+    at dev12, so this is the STEBBS fold alone.
+    """
+    cfg = _strip_internal_only_fields(cfg)
+    _apply_stebbs_physics_fold(cfg)
+    return cfg
+
+
 def _migrate_2026_5_dev11_to_current(cfg: dict) -> dict:
     """Upgrade 2026.5.dev11-shaped YAMLs to the current schema.
 
-    dev11 -> dev12 applies only the STEBBS straggler reorder (the four
-    compound-noun fields kept at dev9, reordered quantity-first per the
-    Reading STEBBS team review). The dev10 -> dev11 naming-convention
-    completion was already applied at dev11, so this is the straggler
-    pass alone.
+    dev11 -> dev12 applies the STEBBS / Archetype Column D alignment
+    (the four compound-noun stragglers plus the sixteen-field Column D
+    reorder per the Reading STEBBS team review, gh#1452). dev12 -> dev13
+    (gh#1456) then folds the flat STEBBS physics switches under the nested
+    model.physics.stebbs object.
     """
     cfg = _strip_internal_only_fields(cfg)
     _apply_stebbs_straggler_renames(cfg)
+    _apply_stebbs_physics_fold(cfg)
     return cfg
 
 
@@ -903,13 +1150,14 @@ def _migrate_2026_5_dev10_to_current(cfg: dict) -> dict:
 
     dev10 -> dev11 applies the naming-convention completion: the
     ArchetypeProperties Tier-1 (16) and StebbsProperties Rule-2 (44)
-    renames combined in a single bump (gh#1392 + gh#1394). No earlier
-    delta is outstanding at dev10 (dev9 -> dev10 was the PR#1420 identity
-    stamp), so this is the rename pass alone.
+    renames combined in a single bump (gh#1392 + gh#1394). dev11 -> dev12
+    (gh#1456) then folds the flat STEBBS physics switches under the nested
+    model.physics.stebbs object.
     """
     cfg = _strip_internal_only_fields(cfg)
     _apply_naming_completion_renames(cfg)
     _apply_stebbs_straggler_renames(cfg)
+    _apply_stebbs_physics_fold(cfg)
     return cfg
 
 
@@ -923,6 +1171,7 @@ def _migrate_2026_5_dev9_to_current(cfg: dict) -> dict:
     cfg = _strip_internal_only_fields(cfg)
     _apply_naming_completion_renames(cfg)
     _apply_stebbs_straggler_renames(cfg)
+    _apply_stebbs_physics_fold(cfg)
     return cfg
 
 
@@ -940,6 +1189,7 @@ def _migrate_2026_5_dev8_to_current(cfg: dict) -> dict:
     _apply_output_subobject_restructure(cfg)
     _apply_naming_completion_renames(cfg)
     _apply_stebbs_straggler_renames(cfg)
+    _apply_stebbs_physics_fold(cfg)
     return cfg
 
 
@@ -955,6 +1205,7 @@ def _migrate_2026_5_dev7_to_current(cfg: dict) -> dict:
     _apply_output_subobject_restructure(cfg)
     _apply_naming_completion_renames(cfg)
     _apply_stebbs_straggler_renames(cfg)
+    _apply_stebbs_physics_fold(cfg)
     return cfg
 
 
@@ -971,6 +1222,7 @@ def _migrate_2026_5_dev6_to_current(cfg: dict) -> dict:
     _apply_output_subobject_restructure(cfg)
     _apply_naming_completion_renames(cfg)
     _apply_stebbs_straggler_renames(cfg)
+    _apply_stebbs_physics_fold(cfg)
     return cfg
 
 
@@ -987,6 +1239,7 @@ def _migrate_2026_5_dev5_to_current(cfg: dict) -> dict:
     _apply_output_subobject_restructure(cfg)
     _apply_naming_completion_renames(cfg)
     _apply_stebbs_straggler_renames(cfg)
+    _apply_stebbs_physics_fold(cfg)
     return cfg
 
 
@@ -1003,6 +1256,7 @@ def _migrate_2026_5_dev4_to_current(cfg: dict) -> dict:
     _apply_output_subobject_restructure(cfg)
     _apply_naming_completion_renames(cfg)
     _apply_stebbs_straggler_renames(cfg)
+    _apply_stebbs_physics_fold(cfg)
     return cfg
 
 
@@ -1021,6 +1275,7 @@ def _migrate_2026_5_dev3_to_current(cfg: dict) -> dict:
     _apply_output_subobject_restructure(cfg)
     _apply_naming_completion_renames(cfg)
     _apply_stebbs_straggler_renames(cfg)
+    _apply_stebbs_physics_fold(cfg)
     return cfg
 
 
@@ -1041,6 +1296,7 @@ def _migrate_2026_5_dev2_to_current(cfg: dict) -> dict:
     _apply_output_subobject_restructure(cfg)
     _apply_naming_completion_renames(cfg)
     _apply_stebbs_straggler_renames(cfg)
+    _apply_stebbs_physics_fold(cfg)
     return cfg
 
 
@@ -1092,6 +1348,7 @@ def _migrate_2026_5_to_current(cfg: dict) -> dict:
     _apply_output_subobject_restructure(cfg)
     _apply_naming_completion_renames(cfg)
     _apply_stebbs_straggler_renames(cfg)
+    _apply_stebbs_physics_fold(cfg)
     return cfg
 
 
@@ -1113,6 +1370,7 @@ def _migrate_2026_5_dev1_to_current(cfg: dict) -> dict:
     _apply_output_subobject_restructure(cfg)
     _apply_naming_completion_renames(cfg)
     _apply_stebbs_straggler_renames(cfg)
+    _apply_stebbs_physics_fold(cfg)
     return cfg
 
 
@@ -1188,7 +1446,12 @@ _HANDLERS: dict[tuple[str, str], Handler] = {
     # dev8 -> dev9 delta combines the two gh#1372 restructures into a
     # single bump per the dev-label convention. The dev9 -> dev10 delta is
     # the PR#1420 identity stamp; the dev10 -> dev11 delta applies the
-    # naming-convention completion.
+    # naming-convention completion; the dev11 -> dev12 delta (gh#1452) applies
+    # the STEBBS/Archetype Column D alignment; the dev12 -> dev13 delta
+    # (gh#1456) folds the flat STEBBS physics switches under the nested
+    # model.physics.stebbs object. Every to-current handler runs the Column D
+    # straggler renames then _apply_stebbs_physics_fold last.
+    ("2026.5.dev12", CURRENT_SCHEMA_VERSION): _migrate_2026_5_dev12_to_current,
     ("2026.5.dev11", CURRENT_SCHEMA_VERSION): _migrate_2026_5_dev11_to_current,
     ("2026.5.dev10", CURRENT_SCHEMA_VERSION): _migrate_2026_5_dev10_to_current,
     ("2026.5.dev9", CURRENT_SCHEMA_VERSION): _migrate_2026_5_dev9_to_current,

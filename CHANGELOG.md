@@ -41,7 +41,7 @@ EXAMPLES:
 
 | Year | Features | Bugfixes | Changes | Maintenance | Docs | Total |
 |------|----------|----------|---------|-------------|------|-------|
-| 2026 | 74 | 83 | 29 | 81 | 40 | 308 |
+| 2026 | 74 | 83 | 30 | 81 | 40 | 309 |
 | 2025 | 60 | 68 | 22 | 71 | 36 | 256 |
 | 2024 | 12 | 17 | 1 | 12 | 1 | 43 |
 | 2023 | 11 | 14 | 3 | 9 | 1 | 38 |
@@ -58,6 +58,10 @@ EXAMPLES:
 
 - [maintenance] Narrow the PyPI publish workflow's tag trigger to CalVer-only, so non-supy tags (e.g. SUEWS-agent releases) do not trigger a supy wheel build + publish (#1384)
   - `.github/workflows/build-publish_to_pypi.yml` now triggers on `tags: ['[0-9]*']`, mirroring the existing pattern in `.github/workflows/docs-sync.yml`. Tags like `agent/v0.3` are ignored by the publish workflow; users pick up agent updates via `/plugin update`, not a PyPI release
+- [change][experimental] Relocate STEBBS physics switches under `model.physics.stebbs` (#1456)
+  - The legacy flat STEBBS physics switches now serialise under the nested `model.physics.stebbs` object, splitting the `stebbs` master toggle into `enabled` plus `parameters`
+  - Existing flat YAML input remains accepted and is folded during validation and migration; bridge and Fortran-facing columns such as `stebbsmethod`, `rcmethod`, `setpointmethod`, and the `same_*` switches remain unchanged
+  - This is a structural YAML/data-model move only; the capacitance-method semantics tracked by #1472 remain open
 
 ### 30 May 2026
 

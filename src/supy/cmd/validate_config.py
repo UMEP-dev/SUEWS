@@ -11,6 +11,7 @@ import json
 import sys
 import os
 from contextlib import nullcontext as _nullcontext
+from copy import deepcopy
 from pathlib import Path
 import importlib.resources
 from typing import Optional, List
@@ -64,7 +65,11 @@ except Exception:
 # Import from supy modules
 try:
     from ..data_model.core.config import SUEWSConfig
-    from ..data_model.core.field_renames import read_physics_key
+    from ..data_model.core.field_renames import (
+        read_physics_key,
+        fold_stebbs_physics as _fold_stebbs_physics,
+        STEBBS_PHYSICS_LEAF_RENAMES as _STEBBS_PHYSICS_LEAF_RENAMES,
+    )
     from ..data_model.schema.version import CURRENT_SCHEMA_VERSION
     from ..data_model.schema.publisher import generate_json_schema
     from ..data_model.schema.migration import SchemaMigrator, check_migration_needed
@@ -74,7 +79,11 @@ except ImportError:
 
     sys.path.append(str(Path(__file__).parent.parent.parent))
     from supy.data_model.core.config import SUEWSConfig
-    from supy.data_model.core.field_renames import read_physics_key
+    from supy.data_model.core.field_renames import (
+        read_physics_key,
+        fold_stebbs_physics as _fold_stebbs_physics,
+        STEBBS_PHYSICS_LEAF_RENAMES as _STEBBS_PHYSICS_LEAF_RENAMES,
+    )
     from supy.data_model.schema.version import CURRENT_SCHEMA_VERSION
     from supy.data_model.schema.publisher import generate_json_schema
     from supy.data_model.schema.migration import SchemaMigrator, check_migration_needed
@@ -169,11 +178,36 @@ def validate_single_file(
             )
             if not isinstance(user_physics, dict):
                 user_physics = {}
+            # gh#1456: the STEBBS switches moved under model.physics.stebbs.*.
+            # The critical-physics list carries their bare leaf names, so look
+            # those leaves up inside the nested `stebbs` block rather than flat
+            # on physics. The nested-leaf names are the values of
+            # STEBBS_PHYSICS_LEAF_RENAMES.
+            #
+            # A current-target YAML may still be written in the legacy FLAT
+            # form (`capacitance`/`setpoint`/`same_*` directly under
+            # model.physics, with a flat `stebbs` master toggle) -- the real
+            # loader (SUEWSConfig.from_yaml) folds those flat keys to the
+            # nested shape and accepts them. Apply the SAME fold to a deep copy
+            # here before the per-leaf lookup so the dry-run path agrees with
+            # the loader instead of false-reporting the leaves missing.
+            folded_physics = _fold_stebbs_physics(
+                deepcopy(user_physics), "model.physics"
+            )
+            stebbs_leaf_names = set(_STEBBS_PHYSICS_LEAF_RENAMES.values())
+            user_stebbs = folded_physics.get("stebbs")
+            if not isinstance(user_stebbs, dict):
+                user_stebbs = {}
             for param_name in CRITICAL_PHYSICS_PARAMS:
-                if read_physics_key(
-                    user_physics, param_name, default=_PHYSICS_KEY_MISSING
-                ) is _PHYSICS_KEY_MISSING:
+                if param_name in stebbs_leaf_names:
+                    container = user_stebbs
+                    field_path = f"model.physics.stebbs.{param_name}"
+                else:
+                    container = user_physics
                     field_path = f"model.physics.{param_name}"
+                if read_physics_key(
+                    container, param_name, default=_PHYSICS_KEY_MISSING
+                ) is _PHYSICS_KEY_MISSING:
                     message = (
                         f"{field_path}: required physics parameter is missing "
                         "from the input YAML; runtime requires an explicit "
@@ -872,10 +906,11 @@ def _experimental_features_restriction(user_yaml_file, mode):
     except Exception as e:
         return False, [], f"Error reading YAML file: {e}"
 
-    # Read physics keys via read_physics_key, which accepts both the new
-    # snake_case name and its legacy alias — the Pydantic shim accepts both,
-    # so this gate must as well.
+    # Read physics keys via helpers that accept both the new snake_case name
+    # and its legacy alias — the Pydantic shim accepts both, so this gate must
+    # as well.
     from ..data_model.core.field_renames import read_physics_key
+    from ..data_model.validation.core.yaml_helpers import get_stebbsmethod_value
 
     physics = (
         user_yaml_data.get("model", {}).get("physics", {})
@@ -884,9 +919,15 @@ def _experimental_features_restriction(user_yaml_file, mode):
     )
     restrictions_violated = []
 
-    stebbs_method = read_physics_key(physics, "stebbs")
-    if stebbs_method is not None and stebbs_method != 0:
-        restrictions_violated.append("STEBBS method is enabled (stebbs_method != 0)")
+    # gh#1456: use the shared composer so nested bool-like strings (`off`,
+    # `false`, `0`, etc.) follow the same semantics as Pydantic.
+    try:
+        stebbsmethod = get_stebbsmethod_value(physics)
+    except ValueError as exc:
+        restrictions_violated.append(f"Invalid STEBBS physics configuration: {exc}")
+        stebbsmethod = None
+    if stebbsmethod is not None and stebbsmethod != 0:
+        restrictions_violated.append("STEBBS is enabled (stebbs.enabled is true)")
 
     snowuse = read_physics_key(physics, "snow_use")
     if snowuse is not None and snowuse != 0:
@@ -908,7 +949,7 @@ def _print_experimental_features_restriction(restrictions_violated):
     console.print("\n[yellow]Options to resolve:[/yellow]")
     console.print("  1. Switch to dev mode: [cyan]--mode dev[/cyan]")
     console.print("  2. Disable experimental features in your YAML file and rerun")
-    console.print("     Example: Set [cyan]stebbs_method: {value: 0}[/cyan]")
+    console.print("     Example: Set [cyan]stebbs.enabled: {value: false}[/cyan]")
 
 
 def _check_experimental_features_restriction(user_yaml_file, mode):

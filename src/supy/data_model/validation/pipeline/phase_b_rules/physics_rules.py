@@ -4,6 +4,7 @@ from .rules_core import (
 )
 from ...core.yaml_helpers import get_value_safe
 from ...core.yaml_helpers import unwrap_nested_value as _unwrap_nested_value
+from ...core.yaml_helpers import get_stebbs_block, get_stebbsmethod_value
 
 from collections.abc import Mapping
 from typing import Dict, List, Optional, Union, Any, Tuple
@@ -69,13 +70,31 @@ def validate_physics_parameters(context) -> List[ValidationResult]:
         "roughness_sublayer_level",
         "surface_conductance",
         "snow_use",
-        "stebbs",
+    ]
+
+    # gh#1456: the STEBBS switches now live under model.physics.stebbs.*.
+    # `enabled`/`parameters` (master toggle) carry sensible defaults and are
+    # not required; the remaining switches are required, but checked against
+    # the nested `stebbs` sub-object rather than the flat physics dict.
+    required_stebbs_params = [
         "capacitance",
+        "setpoint",
         "same_albedo_wall",
         "same_albedo_roof",
         "same_emissivity_wall",
         "same_emissivity_roof",
-        "setpoint",
+    ]
+    stebbs_block = get_stebbs_block(physics)
+
+    # (display path, container, key) for every required physics switch.
+    # The family switches are read from the flat model.physics dict; the
+    # relocated STEBBS switches (gh#1456) from the nested model.physics.stebbs
+    # sub-object.
+    required_checks = [
+        (f"model.physics.{param}", physics, param) for param in required_physics_params
+    ] + [
+        (f"model.physics.stebbs.{param}", stebbs_block, param)
+        for param in required_stebbs_params
     ]
 
     # Resolve each required key rename-aware. In Phase-B-standalone / BC mode the
@@ -86,21 +105,23 @@ def validate_physics_parameters(context) -> List[ValidationResult]:
     # from one present with a null value (so the two checks below stay distinct).
     _MISSING = object()
     _present = {
-        param: get_value_safe(physics, param, _MISSING)
-        for param in required_physics_params
+        path: get_value_safe(container, key, _MISSING)
+        for path, container, key in required_checks
     }
     missing_params = [
-        param for param in required_physics_params if _present[param] is _MISSING
+        (path, key)
+        for path, _container, key in required_checks
+        if _present[path] is _MISSING
     ]
     if missing_params:
-        for param in missing_params:
+        for path, key in missing_params:
             results.append(
                 ValidationResult(
                     status="ERROR",
                     category="PHYSICS",
-                    parameter=f"model.physics.{param}",
-                    message=f"Physics parameter '{param}' is required but missing or null. This parameter controls critical model behaviour and must be specified for the simulation to run properly.",
-                    suggested_value=f"Set '{param}' to an appropriate value. Consult the SUEWS documentation for parameter descriptions and typical values: https://docs.suews.io/latest/",
+                    parameter=path,
+                    message=f"Physics parameter '{key}' is required but missing or null. This parameter controls critical model behaviour and must be specified for the simulation to run properly.",
+                    suggested_value=f"Set '{key}' to an appropriate value. Consult the SUEWS documentation for parameter descriptions and typical values: https://docs.suews.io/latest/",
                 )
             )
 
@@ -112,19 +133,19 @@ def validate_physics_parameters(context) -> List[ValidationResult]:
         return value in ("", None) or (isinstance(value, dict) and not value)
 
     empty_params = [
-        param
-        for param in required_physics_params
-        if _present[param] is not _MISSING and _is_empty(_present[param])
+        (path, key)
+        for path, _container, key in required_checks
+        if _present[path] is not _MISSING and _is_empty(_present[path])
     ]
     if empty_params:
-        for param in empty_params:
+        for path, key in empty_params:
             results.append(
                 ValidationResult(
                     status="ERROR",
                     category="PHYSICS",
-                    parameter=f"model.physics.{param}",
-                    message=f"Physics parameter '{param}' has null value. This parameter controls critical model behaviour and must be set for proper simulation.",
-                    suggested_value=f"Set '{param}' to an appropriate non-null value. Check documentation for parameter details: https://docs.suews.io/stable",
+                    parameter=path,
+                    message=f"Physics parameter '{key}' has null value. This parameter controls critical model behaviour and must be set for proper simulation.",
+                    suggested_value=f"Set '{key}' to an appropriate non-null value. Check documentation for parameter details: https://docs.suews.io/stable",
                 )
             )
 
@@ -481,7 +502,8 @@ def validate_model_option_rcmethod(context) -> List[ValidationResult]:
 
     results = []
     physics = yaml_data.get("model", {}).get("physics", {})
-    rcmethod_value = get_value_safe(physics, "capacitance")
+    # gh#1456: capacitance method moved to model.physics.stebbs.capacitance.
+    rcmethod_value = get_value_safe(get_stebbs_block(physics), "capacitance")
 
     sites = yaml_data.get("sites", [])
     for site_idx, site in enumerate(sites):
@@ -597,12 +619,14 @@ def validate_model_option_same_albedo(context) -> List[ValidationResult]:
         depending on the validation result.
     """
     yaml_data = context.yaml_data
-    
+
     results = []
     physics = yaml_data.get("model", {}).get("physics", {})
 
-    same_albedo_roof = get_value_safe(physics, "same_albedo_roof")
-    same_albedo_wall = get_value_safe(physics, "same_albedo_wall")
+    # gh#1456: the same_albedo switches moved under model.physics.stebbs.*.
+    stebbs_block = get_stebbs_block(physics)
+    same_albedo_roof = get_value_safe(stebbs_block, "same_albedo_roof")
+    same_albedo_wall = get_value_safe(stebbs_block, "same_albedo_wall")
 
     if same_albedo_wall == 0:
         for site in yaml_data.get("sites", []):
@@ -644,8 +668,10 @@ def validate_model_option_same_emissivity(context) -> List[ValidationResult]:
     yaml_data = context.yaml_data
     physics = yaml_data.get("model", {}).get("physics", {})
 
-    same_emissivity_roof = get_value_safe(physics, "same_emissivity_roof")
-    same_emissivity_wall = get_value_safe(physics, "same_emissivity_wall")
+    # gh#1456: the same_emissivity switches moved under model.physics.stebbs.*.
+    stebbs_block = get_stebbs_block(physics)
+    same_emissivity_roof = get_value_safe(stebbs_block, "same_emissivity_roof")
+    same_emissivity_wall = get_value_safe(stebbs_block, "same_emissivity_wall")
 
     if same_emissivity_wall == 0:
         for site in yaml_data.get("sites", []):
@@ -768,7 +794,9 @@ def validate_forcing_height_vs_buildings(context) -> List[ValidationResult]:
 
     physics = yaml_data.get("model", {}).get("physics", {})
 
-    stebbsmethod_val = _unwrap_nested_value(physics.get("stebbs"))
+    # gh#1456: compose the legacy stebbsmethod integer from the nested
+    # model.physics.stebbs block (enabled + parameters).
+    stebbsmethod_val = get_stebbsmethod_value(physics)
     try:
         stebbsmethod_val = int(stebbsmethod_val)
     except (TypeError, ValueError):

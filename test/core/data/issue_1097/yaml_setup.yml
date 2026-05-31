@@ -53,14 +53,17 @@ model:
       value: 0
     snow_use:
       value: 0
-    stebbs:
-      value: 0
     surface_conductance:
       value: 2
-    outer_cap_fraction:
-      value: 1
-    setpoint:
-      value: 0
+    stebbs:
+      enabled:
+        value: false
+      parameters:
+        value: 1
+      capacitance:
+        value: 1
+      setpoint:
+        value: 0
 sites:
 - name: ROTH
   gridiv: 1

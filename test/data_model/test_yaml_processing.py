@@ -50,6 +50,7 @@ except ImportError:
 from supy.data_model.validation.pipeline.phase_a import (
     PHYSICS_OPTIONS,
     RENAMED_PARAMS,
+    _is_default_backed_control_path,
     annotate_missing_parameters,
     create_analysis_report,
     create_clean_missing_param_annotation,
@@ -197,6 +198,106 @@ sites:
         # Test that all PHYSICS_OPTIONS entries are classified correctly
         for physics_param in PHYSICS_OPTIONS:
             self.assertTrue(is_physics_option(f"model.physics.{physics_param}"))
+
+    def test_stebbs_toggle_omission_not_flagged_critical(self):
+        """gh#1456 regression: omitting stebbs.enabled/.parameters is fine.
+
+        ``enabled`` (default false) and ``parameters`` (default DEFAULT) carry
+        safe model defaults. A user who provides a nested ``stebbs`` block but
+        leaves the master toggle out must NOT have those two flagged as missing
+        critical physics parameters. This keeps Phase A consistent with Phase B
+        (physics_rules.py), which deliberately requires only the relocated
+        leaves (capacitance / setpoint / same_*), not the toggle.
+        """
+        # Both toggle keys are recognised physics-option paths...
+        self.assertTrue(is_physics_option("model.physics.stebbs.enabled"))
+        self.assertTrue(is_physics_option("model.physics.stebbs.parameters"))
+        # ...but they are treated as default-backed, so omission is not required.
+        self.assertTrue(
+            _is_default_backed_control_path("model.physics.stebbs.enabled")
+        )
+        self.assertTrue(
+            _is_default_backed_control_path("model.physics.stebbs.parameters")
+        )
+
+        # A nested stebbs block that omits enabled/parameters but provides the
+        # relocated leaves.
+        user_yaml = {
+            "name": "test config",
+            "model": {
+                "control": {"tstep": 300},
+                "physics": {
+                    **{
+                        param: {"value": 1}
+                        for param in (
+                            "net_radiation",
+                            "emissions",
+                            "storage_heat",
+                            "ohm_inc_qf",
+                            "roughness_length_momentum",
+                            "roughness_length_heat",
+                            "stability",
+                            "soil_moisture_deficit",
+                            "water_use",
+                            "roughness_sublayer",
+                            "frontal_area_index",
+                            "roughness_sublayer_level",
+                            "surface_conductance",
+                            "snow_use",
+                        )
+                    },
+                    "stebbs": {
+                        # enabled / parameters deliberately omitted.
+                        "capacitance": {"value": 1},
+                        "setpoint": {"value": 0},
+                        "same_albedo_wall": {"value": 1},
+                        "same_albedo_roof": {"value": 1},
+                        "same_emissivity_wall": {"value": 1},
+                        "same_emissivity_roof": {"value": 1},
+                    },
+                },
+            },
+            "sites": [{"name": "test", "gridiv": 1}],
+        }
+
+        missing_params = find_missing_parameters(user_yaml, self.standard_data)
+        missing_paths = {path for path, _, _ in missing_params}
+        self.assertNotIn(
+            "model.physics.stebbs.enabled",
+            missing_paths,
+            "stebbs.enabled is default-backed; omitting it must not be flagged",
+        )
+        self.assertNotIn(
+            "model.physics.stebbs.parameters",
+            missing_paths,
+            "stebbs.parameters is default-backed; omitting it must not be flagged",
+        )
+
+        # Sanity: a genuinely missing required physics option IS still flagged
+        # critical (so the fix does not blanket-suppress physics detection).
+        user_yaml_missing_netrad = {
+            "name": "test config",
+            "model": {
+                "control": {"tstep": 300},
+                "physics": {
+                    "emissions": {"value": 2},
+                    # net_radiation deliberately absent.
+                    "storage_heat": {"value": 1},
+                },
+            },
+            "sites": [{"name": "test", "gridiv": 1}],
+        }
+        missing2 = find_missing_parameters(
+            user_yaml_missing_netrad, self.standard_data
+        )
+        critical2 = {
+            path for path, _, is_physics in missing2 if is_physics
+        }
+        self.assertIn(
+            "model.physics.net_radiation",
+            critical2,
+            "a genuinely missing required physics option must stay critical",
+        )
 
     def test_missing_parameter_detection_physics(self):
         """Test detection of missing URGENT physics parameters."""
@@ -2274,6 +2375,57 @@ def test_stebbsmethod1_leaves_stebbs_untouched():
     assert out["convection_coefficient_wall_internal"]["value"] == 5.0
 
 
+def test_stebbsmethod0_nested_disabled_nullifies_all_stebbs_values():
+    """gh#1456: nested STEBBS disabled (enabled=false) must still nullify site params.
+
+    The precheck composes the legacy stebbsmethod from the nested
+    model.physics.stebbs block; a disabled nested toggle composes to 0 and
+    triggers the same cleanup as the legacy flat ``{"value": 0}`` form.
+    """
+    stebbs_block = {
+        "convection_coefficient_wall_internal": {"value": 5.0},
+        "nested": {"WindowExternalConvectionCoefficient": {"value": 30.0}},
+    }
+    data = {
+        "model": {
+            "physics": {
+                "stebbs": {
+                    "enabled": {"value": False},
+                    "parameters": {"value": 1},
+                }
+            }
+        },
+        "sites": [{"properties": {"stebbs": deepcopy(stebbs_block)}}],
+    }
+    result = precheck_model_option_rules(deepcopy(data))
+
+    out = result["sites"][0]["properties"]["stebbs"]
+    assert out["convection_coefficient_wall_internal"]["value"] is None
+    assert out["nested"]["WindowExternalConvectionCoefficient"]["value"] is None
+
+
+def test_stebbsmethod1_nested_enabled_leaves_stebbs_untouched():
+    """gh#1456: nested STEBBS enabled (composes to 1) must NOT nullify params."""
+    stebbs_block = {
+        "convection_coefficient_wall_internal": {"value": 5.0},
+    }
+    data = {
+        "model": {
+            "physics": {
+                "stebbs": {
+                    "enabled": {"value": True},
+                    "parameters": {"value": 1},
+                }
+            }
+        },
+        "sites": [{"properties": {"stebbs": deepcopy(stebbs_block)}}],
+    }
+    result = precheck_model_option_rules(deepcopy(data))
+
+    out = result["sites"][0]["properties"]["stebbs"]
+    assert out["convection_coefficient_wall_internal"]["value"] == 5.0
+
+
 def test_stebbsmethod0_nullifies_building_archetype_values():
     yaml_input = {
         "model": {"physics": {"stebbs": {"value": 0}}},
@@ -3742,7 +3894,12 @@ class TestPhaseAUptoDateYaml(TestProcessorFixtures):
             "roughness_sublayer_level",
             "surface_conductance",
             "snow_use",
+            # gh#1456: the STEBBS switches live under model.physics.stebbs.*;
+            # PHYSICS_OPTIONS carries the nested-object key plus the leaf
+            # names so is_physics_option matches the new paths.
             "stebbs",
+            "enabled",
+            "parameters",
             "capacitance",
             "same_albedo_wall",
             "same_albedo_roof",
@@ -3772,7 +3929,8 @@ class TestPhaseBScienceCheck(TestProcessorFixtures):
 
     def test_physics_parameters_validation_success(self, registry):
         """Test successful physics parameter validation."""
-        # Use a known set of physics options for testing
+        # Use a known set of physics options for testing. gh#1456: the
+        # STEBBS switches live under the nested model.physics.stebbs object.
         physics_options = {
             "net_radiation",
             "emissions",
@@ -3788,18 +3946,21 @@ class TestPhaseBScienceCheck(TestProcessorFixtures):
             "roughness_sublayer_level",
             "surface_conductance",
             "snow_use",
-            "stebbs",
+        }
+        stebbs_options = {
+            "enabled",
+            "parameters",
             "capacitance",
+            "setpoint",
             "same_albedo_wall",
             "same_albedo_roof",
             "same_emissivity_wall",
             "same_emissivity_roof",
-            "setpoint",
         }
 
-        valid_yaml = {
-            "model": {"physics": {param: {"value": 1} for param in physics_options}}
-        }
+        physics = {param: {"value": 1} for param in physics_options}
+        physics["stebbs"] = {param: {"value": 1} for param in stebbs_options}
+        valid_yaml = {"model": {"physics": physics}}
         context = science_check.ValidationContext(yaml_data=valid_yaml)
         # Function returns list of ValidationResult objects, empty list means success
         results = registry["physics_params"](context)

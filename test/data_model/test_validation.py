@@ -70,10 +70,36 @@ def registry():
 # then inject the desired physics settings.
 def make_cfg(**physics_kwargs):
     cfg = SUEWSConfig.model_construct()  # bypass validation
-    # physics values wrapped in a simple .value holder
-    phys = SimpleNamespace(**{
-        k: SimpleNamespace(value=v) for k, v in physics_kwargs.items()
-    })
+    # gh#1456: the STEBBS-scoped switches moved under a nested
+    # `model.physics.stebbs` object. The legacy `stebbs` master toggle is
+    # split into `enabled` + `parameters`; the other switches keep their
+    # leaf names (outer_cap_fraction -> capacitance). Tests pass the legacy
+    # flat kwargs; this helper folds them into the nested SimpleNamespace
+    # shape the validators now read.
+    _stebbs_leaf = {
+        "outer_cap_fraction": "capacitance",
+        "capacitance": "capacitance",
+        "setpoint": "setpoint",
+        "same_albedo_wall": "same_albedo_wall",
+        "same_albedo_roof": "same_albedo_roof",
+        "same_emissivity_wall": "same_emissivity_wall",
+        "same_emissivity_roof": "same_emissivity_roof",
+    }
+    top_kwargs = {}
+    stebbs_members = {}
+    for key, value in physics_kwargs.items():
+        if key == "stebbs":
+            # Decompose the legacy tri-state master toggle.
+            code = int(value)
+            stebbs_members["enabled"] = SimpleNamespace(value=(code != 0))
+            stebbs_members["parameters"] = SimpleNamespace(value=(2 if code == 2 else 1))
+        elif key in _stebbs_leaf:
+            stebbs_members[_stebbs_leaf[key]] = SimpleNamespace(value=value)
+        else:
+            top_kwargs[key] = SimpleNamespace(value=value)
+    phys = SimpleNamespace(**top_kwargs)
+    if stebbs_members:
+        phys.stebbs = SimpleNamespace(**stebbs_members)
     cfg.model = SimpleNamespace(physics=phys)
     return cfg
 
@@ -741,16 +767,69 @@ def test_needs_same_emissivity_wall_validation_true_and_false():
     cfg2 = make_cfg(same_emissivity_wall=0)
     assert cfg2._needs_same_emissivity_wall_validation() is False
 
+def test_phase_b_stebbs_rules_fire_with_nested_enabled_form(registry):
+    """gh#1456: the STEBBS phase-B rules must fire when STEBBS is enabled via the nested form.
+
+    Before the fix these rules read ``get_value_safe(physics, "stebbs")`` which
+    returned the nested dict (never ``== 1``), so the archetype radiation
+    sum-to-1 ERROR check and the setpoint scalar/profile ERROR checks were
+    silently disabled for every new-form config. This test pins them firing.
+    """
+    nested_enabled = {
+        "enabled": {"value": True},
+        "parameters": {"value": 1},
+        "setpoint": {"value": 0},
+    }
+    # archetype radiation properties that violate the sum-to-1 rule.
+    yaml_data = {
+        "model": {"physics": {"stebbs": copy.deepcopy(nested_enabled)}},
+        "sites": [
+            {
+                "name": "site1",
+                "gridiv": 1,
+                "properties": {
+                    "building_archetype": {
+                        "wall_reflectivity": {"value": 0.5},
+                        "wall_absorptivity": {"value": 0.5},
+                        "wall_transmissivity": {"value": 0.5},
+                        # setpointmethod==0 -> scalar setpoints required and missing
+                    },
+                },
+            }
+        ],
+    }
+
+    # archetype_properties: sum-to-1 ERROR must fire.
+    arche = registry["archetype_properties"](ValidationContext(yaml_data=yaml_data))
+    assert any(r.status == "ERROR" for r in arche), (
+        "archetype radiation sum-to-1 ERROR should fire when STEBBS enabled (nested form)"
+    )
+
+    # setpoint: scalar heating/cooling setpoints required (method 0) and missing.
+    setp = registry["setpoint"](ValidationContext(yaml_data=yaml_data))
+    setp_params = {r.parameter for r in setp if r.status == "ERROR"}
+    # dev12 Column D names (gh#1452): setpoint_temperature_{heating,cooling}_air.
+    assert "setpoint_temperature_heating_air" in setp_params
+    assert "setpoint_temperature_cooling_air" in setp_params
+
+    # When STEBBS is disabled (composes to 0), none of these rules fire.
+    yaml_disabled = copy.deepcopy(yaml_data)
+    yaml_disabled["model"]["physics"]["stebbs"]["enabled"] = {"value": False}
+    assert registry["archetype_properties"](ValidationContext(yaml_data=yaml_disabled)) == []
+    assert registry["setpoint"](ValidationContext(yaml_data=yaml_disabled)) == []
+
+
 def test_phase_b_validate_model_option_same_albedo_disabled(registry):
     """Test validate_model_option_same_albedo returns WARNING when option is disabled (==0)."""
 
+    # gh#1456: the same_albedo switches now live under model.physics.stebbs.*.
     yaml_data_wall = {
         "model": {
             "physics": {
-                "same_albedo_wall": {"value": 0}
+                "stebbs": {"same_albedo_wall": {"value": 0}}
             }
         },
-        "sites": [{"name": "site1", "properties": {}}],  
+        "sites": [{"name": "site1", "properties": {}}],
     }
 
     results_wall = registry["same_albedo"](ValidationContext(yaml_data=yaml_data_wall))
@@ -762,10 +841,10 @@ def test_phase_b_validate_model_option_same_albedo_disabled(registry):
     yaml_data_roof = {
         "model": {
             "physics": {
-                "same_albedo_roof": {"value": 0}
+                "stebbs": {"same_albedo_roof": {"value": 0}}
             }
         },
-        "sites": [{"name": "site1", "properties": {}}],  
+        "sites": [{"name": "site1", "properties": {}}],
     }
     results_roof = registry["same_albedo"](ValidationContext(yaml_data=yaml_data_roof))
     assert len(results_roof) == 1
@@ -776,13 +855,14 @@ def test_phase_b_validate_model_option_same_albedo_disabled(registry):
 def test_phase_b_validate_model_option_same_emissivity_disabled(registry):
     """Test validate_model_option_same_emissivity returns WARNING when option is disabled (==0)."""
 
+    # gh#1456: the same_emissivity switches now live under model.physics.stebbs.*.
     yaml_data_wall = {
         "model": {
             "physics": {
-                "same_emissivity_wall": {"value": 0}
+                "stebbs": {"same_emissivity_wall": {"value": 0}}
             }
         },
-        "sites": [{"name": "site1", "properties": {}}],  
+        "sites": [{"name": "site1", "properties": {}}],
     }
     results_wall = registry["same_emissivity"](ValidationContext(yaml_data=yaml_data_wall))
     assert len(results_wall) == 1
@@ -792,10 +872,10 @@ def test_phase_b_validate_model_option_same_emissivity_disabled(registry):
     yaml_data_roof = {
         "model": {
             "physics": {
-                "same_emissivity_roof": {"value": 0}
+                "stebbs": {"same_emissivity_roof": {"value": 0}}
             }
         },
-        "sites": [{"name": "site1", "properties": {}}],  
+        "sites": [{"name": "site1", "properties": {}}],
     }
     results_roof = registry["same_emissivity"](ValidationContext(yaml_data=yaml_data_roof))
     assert len(results_roof) == 1
@@ -1016,7 +1096,7 @@ def test_phase_b_forcing_height_sfr_boundary(registry):
 
 def test_validate_model_option_rcmethod_missing_params(registry):
     yaml_data = {
-        "model": {"physics": {"outer_cap_fraction": {"value": 1}}},
+        "model": {"physics": {"stebbs": {"capacitance": {"value": 1}}}},
         "sites": [{
             "name": "site1",
             "properties": {
@@ -1032,7 +1112,7 @@ def test_validate_model_option_rcmethod_missing_params(registry):
 
 def test_validate_model_option_rcmethod_enabled_invalid_values(registry):
     yaml_data = {
-        "model": {"physics": {"outer_cap_fraction": {"value": 1}}},
+        "model": {"physics": {"stebbs": {"capacitance": {"value": 1}}}},
         "sites": [{
             "name": "site1",
             "properties": {
@@ -1049,7 +1129,7 @@ def test_validate_model_option_rcmethod_enabled_invalid_values(registry):
 
 def test_validate_model_option_rcmethod_enabled_valid_values(registry):
     yaml_data = {
-        "model": {"physics": {"outer_cap_fraction": {"value": 1}}},
+        "model": {"physics": {"stebbs": {"capacitance": {"value": 1}}}},
         "sites": [{
             "name": "site1",
             "properties": {
@@ -1065,7 +1145,7 @@ def test_validate_model_option_rcmethod_enabled_valid_values(registry):
 
 def test_adjust_model_option_rcmethod_sets_defaults():
     yaml_data = {
-        "model": {"physics": {"outer_cap_fraction": {"value": 0}}},
+        "model": {"physics": {"stebbs": {"capacitance": {"value": 0}}}},
         "sites": [{
             "name": "site1",
             "properties": {
@@ -1082,7 +1162,7 @@ def test_adjust_model_option_rcmethod_sets_defaults():
 
 def test_adjust_model_option_rcmethod_no_action_when_already_set():
     yaml_data = {
-        "model": {"physics": {"outer_cap_fraction": {"value": 0}}},
+        "model": {"physics": {"stebbs": {"capacitance": {"value": 0}}}},
         "sites": [{
             "name": "site1",
             "properties": {
@@ -1099,7 +1179,7 @@ def test_adjust_model_option_rcmethod_no_action_when_already_set():
 def test_adjust_model_option_setpointmethod_sets_profiles_to_null_when_0_or_1():
     # setpoint == 0: should nullify all profile entries
     yaml_data = {
-        "model": {"physics": {"setpoint": {"value": 0}}},
+        "model": {"physics": {"stebbs": {"setpoint": {"value": 0}}}},
         "sites": [{
             "name": "site1",
             "properties": {
@@ -1128,7 +1208,7 @@ def test_adjust_model_option_setpointmethod_sets_profiles_to_null_when_0_or_1():
 def test_adjust_model_option_setpointmethod_sets_profiles_to_null_when_1():
     # setpoint == 1: should nullify all profile entries
     yaml_data = {
-        "model": {"physics": {"setpoint": {"value": 1}}},
+        "model": {"physics": {"stebbs": {"setpoint": {"value": 1}}}},
         "sites": [{
             "name": "site1",
             "properties": {
@@ -1156,7 +1236,7 @@ def test_adjust_model_option_setpointmethod_sets_profiles_to_null_when_1():
 def test_adjust_model_option_setpointmethod_sets_temps_to_null_when_2():
     # setpoint == 2: should nullify setpoint_temperature_heating_air and setpoint_temperature_cooling_air
     yaml_data = {
-        "model": {"physics": {"setpoint": {"value": 2}}},
+        "model": {"physics": {"stebbs": {"setpoint": {"value": 2}}}},
         "sites": [{
             "name": "site1",
             "properties": {
@@ -1177,7 +1257,7 @@ def test_adjust_model_option_setpointmethod_sets_temps_to_null_when_2():
 def test_adjust_model_option_setpointmethod_no_action_when_already_null():
     # Should not add adjustments if already null
     yaml_data = {
-        "model": {"physics": {"setpoint": {"value": 2}}},
+        "model": {"physics": {"stebbs": {"setpoint": {"value": 2}}}},
         "sites": [{
             "name": "site1",
             "properties": {
@@ -1196,7 +1276,7 @@ def test_adjust_model_option_setpointmethod_no_action_when_already_null():
 
 def test_validate_model_option_rcmethod2_missing_params(registry):
     yaml_data = {
-        "model": {"physics": {"outer_cap_fraction": {"value": 2}}},
+        "model": {"physics": {"stebbs": {"capacitance": {"value": 2}}}},
         "sites": [{
             "name": "site1",
             "properties": {"building_archetype": {}},
@@ -1215,7 +1295,7 @@ def test_validate_model_option_rcmethod2_missing_params(registry):
 
 def test_validate_model_option_rcmethod2_all_params_provided(registry):
     yaml_data = {
-        "model": {"physics": {"outer_cap_fraction": {"value": 2}}},
+        "model": {"physics": {"stebbs": {"capacitance": {"value": 2}}}},
         "sites": [{
             "name": "site1",
             "properties": {
@@ -1250,7 +1330,7 @@ def test_validate_model_option_rcmethod2_all_params_provided(registry):
 
 def test_validate_model_option_rcmethod2_some_params_missing(registry):
     yaml_data = {
-        "model": {"physics": {"outer_cap_fraction": {"value": 2}}},
+        "model": {"physics": {"stebbs": {"capacitance": {"value": 2}}}},
         "sites": [{
             "name": "site1",
             "properties": {
@@ -1277,7 +1357,7 @@ def test_validate_model_option_rcmethod2_some_params_missing(registry):
 
 def test_validate_model_option_setpointmethod_0_or_1_all_params(registry):
     yaml_data = {
-        "model": {"physics": {"setpoint": {"value": 0}}},
+        "model": {"physics": {"stebbs": {"setpoint": {"value": 0}}}},
         "sites": [{
             "name": "site1",
             "properties": {
@@ -1292,8 +1372,9 @@ def test_validate_model_option_setpointmethod_0_or_1_all_params(registry):
     assert not results or all(r.status != "ERROR" for r in results)
 
 def test_validate_model_option_setpointmethod_0_or_1_missing_params(registry):
+    # gh#1456: STEBBS master toggle + setpoint method nested under model.physics.stebbs.
     yaml_data = {
-        "model": {"physics": {"setpoint": {"value": 1}, "stebbs": {"value":1}}},
+        "model": {"physics": {"stebbs": {"enabled": {"value": True}, "parameters": {"value": 1}, "setpoint": {"value": 1}}}},
         "sites": [{
             "name": "site1",
             "properties": {
@@ -1314,8 +1395,9 @@ def test_validate_model_option_setpointmethod_2_all_profiles_valid(registry):
     heating_holiday = {str(i): 19.0 for i in range(1, 145)}
     cooling_working = {str(i): 26.0 for i in range(1, 145)}
     cooling_holiday = {str(i): 25.5 for i in range(1, 145)}
+    # gh#1456: STEBBS master toggle + setpoint method nested under model.physics.stebbs.
     yaml_data = {
-        "model": {"physics": {"setpoint": {"value": 2}}},
+        "model": {"physics": {"stebbs": {"enabled": {"value": True}, "parameters": {"value": 1}, "setpoint": {"value": 2}}}},
         "sites": [{
             "name": "site1",
             "properties": {
@@ -1336,8 +1418,9 @@ def test_validate_model_option_setpointmethod_2_all_profiles_valid(registry):
     assert not results or all(r.status != "ERROR" for r in results)
 
 def test_validate_model_option_setpointmethod_2_missing_profile_entries(registry):
+    # gh#1456: STEBBS master toggle + setpoint method nested under model.physics.stebbs.
     yaml_data = {
-        "model": {"physics": {"setpoint": {"value": 2}, "stebbs": {"value": 1}}},
+        "model": {"physics": {"stebbs": {"enabled": {"value": True}, "parameters": {"value": 1}, "setpoint": {"value": 2}}}},
         "sites": [{
             "name": "site1",
             "properties": {
@@ -1361,8 +1444,9 @@ def test_validate_model_option_setpointmethod_2_missing_profile_entries(registry
     assert any("null entries" in r.message for r in results if r.status == "ERROR")
 
 def test_validate_model_option_setpointmethod_2_out_of_range(registry):
+    # gh#1456: STEBBS master toggle + setpoint method nested under model.physics.stebbs.
     yaml_data = {
-        "model": {"physics": {"setpoint": {"value": 2}, "stebbs": {"value": 1}}},
+        "model": {"physics": {"stebbs": {"enabled": {"value": True}, "parameters": {"value": 1}, "setpoint": {"value": 2}}}},
         "sites": [{
             "name": "site1",
             "properties": {
@@ -1386,8 +1470,9 @@ def test_validate_model_option_setpointmethod_2_out_of_range(registry):
     assert any("values <= 15.0" in r.message for r in cooling_errors)
 
 def test_validate_model_option_setpointmethod_2_invalid_slice_keys(registry):
+    # gh#1456: STEBBS master toggle + setpoint method nested under model.physics.stebbs.
     yaml_data = {
-        "model": {"physics": {"setpoint": {"value": 2}, "stebbs": {"value": 1}}},
+        "model": {"physics": {"stebbs": {"enabled": {"value": True}, "parameters": {"value": 1}, "setpoint": {"value": 2}}}},
         "sites": [{
             "name": "site1",
             "properties": {
@@ -1869,10 +1954,10 @@ def test_needs_spartacus_validation_true_and_false():
     assert cfg2._needs_spartacus_validation() is False
 
 def test_validate_spartacus_building_height_error():
+    # gh#1456: make_cfg already builds the nested stebbs (enabled+parameters)
+    # block from the legacy `stebbs=1` kwarg; the validator composes the
+    # stebbsmethod from it, so no raw-int override is needed.
     cfg = make_cfg(net_radiation=1001, stebbs=1)
-    # _unwrap_value only unwraps RefValue/Enum, not SimpleNamespace;
-    # set stebbsmethod as a raw int so the validator can parse it.
-    cfg.model.physics.stebbs = 1
 
     # bldgh and archetype_height both exceed height[nlayer]
     bldgs = SimpleNamespace(bldgh=15.0)
@@ -1892,8 +1977,8 @@ def test_validate_spartacus_building_height_error():
 
 
 def test_validate_spartacus_building_height_no_error():
+    # gh#1456: nested stebbs block built by make_cfg; no raw-int override.
     cfg = make_cfg(net_radiation=1001, stebbs=1)
-    cfg.model.physics.stebbs = 1
 
     # bldgh and archetype_height do not exceed height[nlayer]
     bldgs = SimpleNamespace(bldgh=8.0)
@@ -4597,16 +4682,26 @@ class TestPhaseBRenameAwareLookups:
     looked up only the current name.
     """
 
-    # The required model.physics keys (mirrors validate_physics_parameters).
-    _REQUIRED_PHYSICS = [
+    # The required flat model.physics keys (mirrors validate_physics_parameters).
+    _REQUIRED_FLAT_PHYSICS = [
         "net_radiation", "emissions", "storage_heat", "ohm_inc_qf",
         "roughness_length_momentum", "roughness_length_heat", "stability",
         "soil_moisture_deficit", "water_use", "roughness_sublayer",
         "frontal_area_index", "roughness_sublayer_level", "surface_conductance",
-        "snow_use", "stebbs", "capacitance", "same_albedo_wall",
-        "same_albedo_roof", "same_emissivity_wall", "same_emissivity_roof",
-        "setpoint",
+        "snow_use",
     ]
+    # gh#1456: the STEBBS switches are required under the nested
+    # model.physics.stebbs sub-object.
+    _REQUIRED_STEBBS = [
+        "capacitance", "setpoint", "same_albedo_wall", "same_albedo_roof",
+        "same_emissivity_wall", "same_emissivity_roof",
+    ]
+
+    def _build_physics(self):
+        """A complete model.physics dict in the nested gh#1456 shape."""
+        physics = {k: {"value": 1} for k in self._REQUIRED_FLAT_PHYSICS}
+        physics["stebbs"] = {k: {"value": 1} for k in self._REQUIRED_STEBBS}
+        return physics
 
     def _physics_ctx(self, physics):
         return SimpleNamespace(yaml_data={"model": {"physics": physics}})
@@ -4616,27 +4711,55 @@ class TestPhaseBRenameAwareLookups:
             validate_physics_parameters,
         )
 
-        physics = {k: {"value": 1} for k in self._REQUIRED_PHYSICS}
-        # dev11-compatible config: capacitance present under its legacy name.
-        del physics["capacitance"]
-        physics["outer_cap_fraction"] = {"value": 1}
+        # gh#1456: capacitance is now a nested model.physics.stebbs leaf. Its
+        # legacy spelling `outer_cap_fraction` placed in the nested stebbs block
+        # must still satisfy the requirement (rename-aware lookup).
+        physics = self._build_physics()
+        physics["stebbs"]["outer_cap_fraction"] = physics["stebbs"].pop("capacitance")
         errors = [
             r
             for r in validate_physics_parameters(self._physics_ctx(physics))
             if r.status == "ERROR" and "capacitance" in (r.parameter or "")
         ]
         assert errors == [], (
-            "legacy `outer_cap_fraction` should satisfy the `capacitance` "
-            "requirement in un-normalised Phase B input"
+            "legacy `outer_cap_fraction` should satisfy the nested "
+            "`stebbs.capacitance` requirement in un-normalised Phase B input"
         )
+
+    def test_nested_stebbs_block_can_be_discriminated_by_alias_only(self):
+        from supy.data_model.validation.core.yaml_helpers import get_stebbs_block
+
+        block = get_stebbs_block({"stebbs": {"rcmethod": {"value": 2}}})
+
+        assert block == {"capacitance": {"value": 2}}
+
+    def test_flat_stebbs_switches_satisfy_nested_requirements(self):
+        from supy.data_model.validation.pipeline.phase_b_rules.physics_rules import (
+            validate_physics_parameters,
+        )
+
+        # The standalone rule may receive a current-but-flat raw YAML view before
+        # the Phase B load chokepoint folds gh#1456 STEBBS switches. The shared
+        # STEBBS helper must expose the same nested view Pydantic accepts.
+        physics = self._build_physics()
+        stebbs_leaves = physics.pop("stebbs")
+        physics["stebbs"] = {"value": 1}
+        physics.update(stebbs_leaves)
+
+        errors = [
+            r
+            for r in validate_physics_parameters(self._physics_ctx(physics))
+            if r.status == "ERROR" and "model.physics.stebbs" in (r.parameter or "")
+        ]
+        assert errors == []
 
     def test_genuinely_absent_capacitance_still_flagged(self):
         from supy.data_model.validation.pipeline.phase_b_rules.physics_rules import (
             validate_physics_parameters,
         )
 
-        physics = {k: {"value": 1} for k in self._REQUIRED_PHYSICS}
-        del physics["capacitance"]  # neither current nor legacy spelling present
+        physics = self._build_physics()
+        del physics["stebbs"]["capacitance"]  # neither current nor legacy spelling present
         errors = [
             r
             for r in validate_physics_parameters(self._physics_ctx(physics))
@@ -4683,24 +4806,179 @@ class TestPhaseBRenameAwareLookups:
     def test_empty_required_physics_mapping_flagged(self):
         # A present-but-value-less mapping (`capacitance: {}`) must be flagged
         # empty — get_value_safe returns the bare mapping, so the rename-aware
-        # rewrite must not let it slip through (regression guard).
-        physics = {k: {"value": 1} for k in self._REQUIRED_PHYSICS}
-        physics["capacitance"] = {}
-        assert "model.physics.capacitance" in self._empty_param_errors(physics)
+        # rewrite must not let it slip through (regression guard). gh#1456:
+        # capacitance is checked under the nested model.physics.stebbs block.
+        physics = self._build_physics()
+        physics["stebbs"]["capacitance"] = {}
+        assert "model.physics.stebbs.capacitance" in self._empty_param_errors(physics)
         # and via the legacy spelling
-        physics = {k: {"value": 1} for k in self._REQUIRED_PHYSICS}
-        del physics["capacitance"]
-        physics["outer_cap_fraction"] = {}
-        assert "model.physics.capacitance" in self._empty_param_errors(physics)
+        physics = self._build_physics()
+        del physics["stebbs"]["capacitance"]
+        physics["stebbs"]["outer_cap_fraction"] = {}
+        assert "model.physics.stebbs.capacitance" in self._empty_param_errors(physics)
 
     def test_nested_family_and_valid_values_not_flagged_empty(self):
         # The gh#972 nested-family form and a valid 0 must NOT be flagged empty.
-        physics = {k: {"value": 1} for k in self._REQUIRED_PHYSICS}
+        physics = self._build_physics()
         physics["net_radiation"] = {"spartacus": {"value": 1}}
-        physics["capacitance"] = {"value": 0}
+        physics["stebbs"]["capacitance"] = {"value": 0}
         flagged = self._empty_param_errors(physics)
         assert "model.physics.net_radiation" not in flagged
-        assert "model.physics.capacitance" not in flagged
+        assert "model.physics.stebbs.capacitance" not in flagged
+
+    def test_stebbsmethod_helper_defaults_partial_nested_block_to_disabled(self):
+        from supy.data_model.validation.core.yaml_helpers import get_stebbsmethod_value
+
+        assert get_stebbsmethod_value({"stebbs": {"capacitance": {"value": 1}}}) == 0
+        assert get_stebbsmethod_value({"capacitance": {"value": 1}}) == 0
+        assert (
+            get_stebbsmethod_value(
+                {"stebbs": {"value": 2}, "capacitance": {"value": 1}}
+            )
+            == 2
+        )
+
+    @pytest.mark.parametrize("legacy_key", ["stebbsmethod", "stebbs_method"])
+    def test_stebbsmethod_helper_reads_legacy_master_aliases(self, legacy_key):
+        from supy.data_model.validation.core.yaml_helpers import get_stebbsmethod_value
+
+        assert get_stebbsmethod_value({legacy_key: {"value": 1}}) == 1
+        assert get_stebbsmethod_value({legacy_key: {"value": 2}}) == 2
+        assert get_stebbsmethod_value({legacy_key: {"value": 0}}) == 0
+
+    @pytest.mark.parametrize("legacy_key", ["stebbsmethod", "stebbs_method"])
+    def test_stebbsmethod_helper_rejects_mixed_master_aliases(self, legacy_key):
+        from supy.data_model.validation.core.yaml_helpers import get_stebbsmethod_value
+
+        with pytest.raises(ValueError, match="legacy STEBBS master aliases"):
+            get_stebbsmethod_value(
+                {
+                    "stebbs": {"enabled": {"value": False}},
+                    legacy_key: {"value": 1},
+                }
+            )
+
+    def test_stebbsmethod_helper_rejects_duplicate_legacy_master_aliases(self):
+        from supy.data_model.validation.core.yaml_helpers import get_stebbsmethod_value
+
+        with pytest.raises(ValueError, match="Multiple legacy STEBBS master aliases"):
+            get_stebbsmethod_value(
+                {
+                    "stebbsmethod": {"value": 0},
+                    "stebbs_method": {"value": 1},
+                }
+            )
+
+    @pytest.mark.parametrize(
+        "flat_key",
+        ["rcmethod", "capacitance", "outer_cap_fraction"],
+    )
+    def test_stebbs_block_helper_rejects_mixed_flat_nested_leaves(self, flat_key):
+        from supy.data_model.validation.core.yaml_helpers import get_stebbs_block
+
+        with pytest.raises(ValueError, match="flat STEBBS physics switches"):
+            get_stebbs_block(
+                {
+                    "stebbs": {
+                        "enabled": {"value": True},
+                        "capacitance": {"value": 1},
+                    },
+                    flat_key: {"value": 0},
+                }
+            )
+
+    @pytest.mark.parametrize(
+        "left,right",
+        [
+            ("outer_cap_fraction", "rcmethod"),
+            ("outer_cap_fraction", "rc_method"),
+            ("capacitance", "rcmethod"),
+            ("setpoint", "setpointmethod"),
+        ],
+    )
+    def test_stebbs_block_helper_rejects_duplicate_flat_leaf_aliases(
+        self,
+        left,
+        right,
+    ):
+        from supy.data_model.validation.core.yaml_helpers import get_stebbs_block
+
+        with pytest.raises(ValueError, match="same nested leaf"):
+            get_stebbs_block(
+                {
+                    "stebbs": {"value": 1},
+                    left: {"value": 1},
+                    right: {"value": 2},
+                }
+            )
+
+    @pytest.mark.parametrize(
+        "left,right",
+        [
+            ("capacitance", "outer_cap_fraction"),
+            ("outer_cap_fraction", "rcmethod"),
+            ("rcmethod", "rc_method"),
+            ("setpoint", "setpointmethod"),
+        ],
+    )
+    def test_stebbs_block_helper_rejects_duplicate_nested_leaf_aliases(
+        self,
+        left,
+        right,
+    ):
+        from supy.data_model.validation.core.yaml_helpers import (
+            get_stebbs_block,
+            get_stebbsmethod_value,
+        )
+
+        physics = {
+            "stebbs": {
+                "enabled": {"value": True},
+                left: {"value": 1},
+                right: {"value": 2},
+            }
+        }
+
+        with pytest.raises(ValueError, match="Multiple nested STEBBS"):
+            get_stebbs_block(physics)
+        with pytest.raises(ValueError, match="Multiple nested STEBBS"):
+            get_stebbsmethod_value(physics)
+
+    def test_stebbsmethod_helper_rejects_invalid_nested_switch_values(self):
+        from supy.data_model.validation.core.yaml_helpers import get_stebbsmethod_value
+
+        with pytest.raises(ValueError, match="stebbs.parameters"):
+            get_stebbsmethod_value(
+                {
+                    "stebbs": {
+                        "enabled": {"value": True},
+                        "parameters": {"value": "provided"},
+                    }
+                }
+            )
+        with pytest.raises(ValueError, match="stebbs.parameters"):
+            get_stebbsmethod_value(
+                {
+                    "stebbs": {
+                        "enabled": {"value": False},
+                        "parameters": {"value": 99},
+                    }
+                }
+            )
+        with pytest.raises(ValueError, match="stebbs.enabled"):
+            get_stebbsmethod_value({"stebbs": {"enabled": {"value": 2}}})
+
+    def test_stebbsmethod_helper_parses_pydantic_bool_strings(self):
+        from supy.data_model.validation.core.yaml_helpers import get_stebbsmethod_value
+
+        assert get_stebbsmethod_value({"stebbs": {"enabled": {"value": "yes"}}}) == 1
+        assert get_stebbsmethod_value({"stebbs": {"enabled": {"value": "off"}}}) == 0
+
+    def test_stebbsmethod_helper_rejects_malformed_legacy_stebbs_mapping(self):
+        from supy.data_model.validation.core.yaml_helpers import get_stebbsmethod_value
+
+        with pytest.raises(ValueError, match="Legacy 'stebbs' mappings"):
+            get_stebbsmethod_value({"stebbs": {"foo": 1}})
 
 
 class TestStandaloneValidationRenameNormalisation:
@@ -4725,6 +5003,64 @@ class TestStandaloneValidationRenameNormalisation:
 
         current = {"sites": [{"stebbs": {"capacitance": {"value": 1}}}]}
         assert normalise_yaml_renames(current) == current
+
+    def test_normalise_helper_folds_flat_stebbs_physics(self):
+        from supy.data_model.core.field_renames import normalise_yaml_renames
+
+        payload = {
+            "model": {
+                "physics": {
+                    "stebbs": {"value": 2},
+                    "rcmethod": {"value": 1},
+                    "setpoint": {"value": 1},
+                    "same_albedo_wall": {"value": 1},
+                }
+            }
+        }
+
+        with warnings.catch_warnings(record=True) as captured:
+            warnings.simplefilter("always", DeprecationWarning)
+            out = normalise_yaml_renames(payload)
+
+        physics = out["model"]["physics"]
+        stebbs = physics["stebbs"]
+        assert "rcmethod" not in physics
+        assert "capacitance" not in physics
+        assert "setpoint" not in physics
+        assert stebbs["enabled"] == {"value": True}
+        assert stebbs["parameters"] == {"value": 2}
+        assert stebbs["capacitance"] == {"value": 1}
+        assert stebbs["setpoint"] == {"value": 1}
+        assert stebbs["same_albedo_wall"] == {"value": 1}
+        assert not [
+            w
+            for w in captured
+            if issubclass(w.category, DeprecationWarning)
+            and "gh#1456" in str(w.message)
+        ]
+
+    def test_normalise_helper_rewrites_nested_stebbs_aliases(self):
+        from supy.data_model.core.field_renames import normalise_yaml_renames
+
+        out = normalise_yaml_renames(
+            {
+                "model": {
+                    "physics": {
+                        "stebbs": {
+                            "enabled": {"value": True},
+                            "outer_cap_fraction": {"value": 2},
+                            "setpointmethod": {"value": 2},
+                        }
+                    }
+                }
+            }
+        )
+
+        stebbs = out["model"]["physics"]["stebbs"]
+        assert "outer_cap_fraction" not in stebbs
+        assert "setpointmethod" not in stebbs
+        assert stebbs["capacitance"] == {"value": 2}
+        assert stebbs["setpoint"] == {"value": 2}
 
     def test_normalise_helper_keeps_ambiguous_config_unchanged(self):
         # Both a legacy and its current spelling present is ambiguous; the helper
@@ -4791,8 +5127,10 @@ class TestStandaloneValidationRenameNormalisation:
         )
         from supy.data_model.core.field_renames import normalise_yaml_renames
 
-        # Pydantic-processed data carries the current name with a null value.
-        processed = {"model": {"physics": {"capacitance": {"value": None}}}}
+        # Pydantic-processed data carries the current nested name with a null value.
+        processed = {
+            "model": {"physics": {"stebbs": {"capacitance": {"value": None}}}}
+        }
         legacy_raw = {"model": {"physics": {"outer_cap_fraction": {"value": None}}}}
 
         # Without normalisation the orchestrator looks up `capacitance`, absent

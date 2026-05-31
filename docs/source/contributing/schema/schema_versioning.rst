@@ -170,7 +170,33 @@ The lineage below mirrors ``SCHEMA_VERSIONS`` in
 the schema that shipped with it via
 ``supy.util.converter.yaml_upgrade._PACKAGE_TO_SCHEMA``.
 
-**Schema 2026.5.dev12** (current; STEBBS / Archetype Column D alignment)
+**Schema 2026.5.dev13** (current; nest the STEBBS physics switches under ``model.physics.stebbs``)
+   gh#1456. The six flat STEBBS-scoped switches on ``model.physics`` are
+   grouped into a single nested object ``model.physics.stebbs``. This is a
+   separate structural reshape from the dev12 Column D rename (gh#1452), so
+   it takes its own dev bump. The legacy tri-state master toggle
+   (``model.physics.stebbs``, a ``StebbsMethod`` integer ``0``/``1``/``2``)
+   is split into ``stebbs.enabled`` (bool) and ``stebbs.parameters`` (a
+   ``StebbsParameterSource`` enum: ``1`` = default, ``2`` = user-provided);
+   the two compose losslessly back to the unchanged ``stebbsmethod``
+   DataFrame column (``0`` if not enabled else ``int(parameters)``). The
+   dev12 field ``model.physics.capacitance`` (``RCMethod``; formerly
+   ``outer_cap_fraction`` / fused ``rcmethod``) moves to
+   ``model.physics.stebbs.capacitance`` with ``RCMethod`` semantics
+   unchanged. ``setpoint``, ``same_albedo_wall``, ``same_albedo_roof``,
+   ``same_emissivity_wall`` and ``same_emissivity_roof`` move under the
+   nested object at the same leaf names. All DataFrame / Fortran column
+   names (``stebbsmethod``, ``rcmethod``, ``setpointmethod``,
+   ``same_albedo_*``, ``same_emissivity_*``) are unchanged - only the
+   YAML surface and the Python data-model fields move. The flat ->
+   nested fold is applied by the ``ModelPhysics`` before-validator
+   (``fold_stebbs_physics`` in
+   ``src/supy/data_model/core/field_renames.py``); the
+   ``(2026.5.dev12 -> 2026.5.dev13)`` migration is registered in
+   ``src/supy/util/converter/yaml_upgrade.py::_HANDLERS`` and chained
+   through every aggregate handler down to ``2025.12 -> current``.
+
+**Schema 2026.5.dev12** (STEBBS / Archetype Column D alignment)
    Aligns STEBBS and ArchetypeProperties field names with the Reading
    STEBBS team's "Column D" naming ("Column D", D. Hertwig / S. Rognone,
    2026-05), in two waves landed in one dev bump.

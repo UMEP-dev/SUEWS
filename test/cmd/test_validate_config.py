@@ -627,3 +627,56 @@ def test_emit_pipeline_result_writes_consolidated_sidecar(
     assert "A.INFO.NOTE" in info_codes  # non-error info survived
     assert "C.PYDANTIC.X" in info_codes
     capsys.readouterr()  # drain captured table output
+
+
+def test_emit_pipeline_result_clears_missing_phase_yaml_paths(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """gh#1467: a failed phase's missing yaml_out is cleared, not repointed to
+    another phase's surviving file (and intermediate paths never dangle)."""
+    from supy.cmd.validate_config import _emit_pipeline_result
+    from supy.data_model.validation.pipeline.report_schema import (
+        Issue,
+        PhaseReport,
+        SEVERITY_ERROR,
+    )
+
+    existing_yaml = tmp_path / "updated_x.yml"
+    existing_yaml.write_text("name: x\n", encoding="utf-8")
+    report_path = tmp_path / "report_x.txt"
+
+    phases = [
+        # Successful Phase A whose intermediate output was deleted on consolidation.
+        PhaseReport(
+            phase="A",
+            issues=[],
+            yaml_in=str(tmp_path / "missing_in.yml"),
+            yaml_out=str(tmp_path / "updatedA_x.yml"),
+        ),
+        # Failed Phase B that never produced an output YAML.
+        PhaseReport(
+            phase="B",
+            issues=[Issue(phase="B", severity=SEVERITY_ERROR, code="B.X", message="boom")],
+            yaml_out=str(tmp_path / "updatedB_x.yml"),
+        ),
+    ]
+
+    _emit_pipeline_result(
+        phases=phases,
+        report_path=report_path,
+        yaml_path=existing_yaml,
+        out_format="table",
+        command="suews validate",
+        started_at="2026-05-31T00:00:00Z",
+    )
+    capsys.readouterr()
+
+    payload = json.loads((tmp_path / "report_x.json").read_text(encoding="utf-8"))
+    by_phase = {p["phase"]: p for p in payload["phases"]}
+    # Vanished intermediate/failed YAML paths are cleared, not repointed.
+    assert by_phase["A"]["yaml_in"] is None
+    assert by_phase["A"]["yaml_out"] is None
+    assert by_phase["B"]["yaml_out"] is None
+    # No phase falsely claims the surviving final YAML as its own output.
+    assert all(p["yaml_out"] != str(existing_yaml) for p in payload["phases"])

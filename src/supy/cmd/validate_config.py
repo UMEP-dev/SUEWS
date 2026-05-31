@@ -1044,18 +1044,21 @@ def _emit_pipeline_result(
     if report_path:
         final_text_report = str(report_path)
         final_json_report = str(Path(report_path).with_suffix(".json"))
-        final_updated_yaml = str(yaml_path) if yaml_path else None
         for phase_report in phases:
             # The consolidated report supersedes the per-phase reports.
             phase_report.text_report_path = final_text_report
             phase_report.json_report_path = final_json_report
-            # Repoint a vanished yaml_out at the surviving final YAML and
-            # clear a vanished yaml_in. Paths that still exist (the original
-            # user YAML, or a single-phase run's own output) are left intact.
-            if phase_report.yaml_out and not Path(phase_report.yaml_out).exists():
-                phase_report.yaml_out = final_updated_yaml
+            # Per-phase YAML artefacts are intermediate: a phase's input or
+            # output may have been consolidated/deleted, or never produced by
+            # a failed phase. Clear any path that no longer resolves rather
+            # than mislabel another phase's surviving file as this one's.
+            # Paths that still exist (the original user YAML, or the final
+            # phase's own output) are left intact, so the surviving final
+            # YAML is still attributed to the phase that actually produced it.
             if phase_report.yaml_in and not Path(phase_report.yaml_in).exists():
                 phase_report.yaml_in = None
+            if phase_report.yaml_out and not Path(phase_report.yaml_out).exists():
+                phase_report.yaml_out = None
 
     # gh#1467: persist the consolidated multi-phase ValidationReport as the
     # JSON sidecar next to the final text report, in BOTH table and json

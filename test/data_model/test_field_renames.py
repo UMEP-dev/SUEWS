@@ -528,6 +528,26 @@ class TestStebbsPhysicsFold:
         assert _unwrap(mp.stebbs.enabled) is True
         assert int(_unwrap(mp.stebbs.capacitance)) == 1
 
+    def test_nested_legacy_aliases_populate_stebbs_leaves(self):
+        """Legacy aliases inside the nested block match raw Phase B behaviour."""
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", DeprecationWarning)
+            mp = ModelPhysics(
+                stebbs={
+                    "enabled": {"value": True},
+                    "parameters": {"value": 2},
+                    "outer_cap_fraction": {"value": 2},
+                    "setpointmethod": {"value": 2},
+                }
+            )
+
+        assert int(_unwrap(mp.stebbs.capacitance)) == 2
+        assert int(_unwrap(mp.stebbs.setpoint)) == 2
+        df = mp.to_df_state(grid_id=1)
+        assert int(df.loc[1, ("stebbsmethod", "0")]) == 2
+        assert int(df.loc[1, ("rcmethod", "0")]) == 2
+        assert int(df.loc[1, ("setpointmethod", "0")]) == 2
+
     def test_single_fold_deprecation_warning(self):
         with warnings.catch_warnings(record=True) as captured:
             warnings.simplefilter("always", DeprecationWarning)
@@ -559,6 +579,7 @@ class TestStebbsPhysicsFold:
             )
         # value 1 -> enabled + default parameters; composes to stebbsmethod 1.
         assert _unwrap(mp_enabled.stebbs.enabled) is True
+        assert mp_enabled.stebbs.enabled.ref.desc == "STEBBS on"
         assert int(_unwrap(mp_enabled.stebbs.parameters)) == 1
         df_enabled = mp_enabled.to_df_state(grid_id=1)
         assert int(df_enabled.loc[1, ("stebbsmethod", "0")]) == 1
@@ -581,6 +602,29 @@ class TestStebbsPhysicsFold:
         assert _unwrap(mp_off.stebbs.enabled) is False
         df_off = mp_off.to_df_state(grid_id=1)
         assert int(df_off.loc[1, ("stebbsmethod", "0")]) == 0
+
+    def test_malformed_legacy_stebbs_mapping_is_rejected(self):
+        with pytest.raises(ValueError, match="Legacy 'stebbs' mappings"):
+            ModelPhysics(stebbs={"foo": 1})
+
+    def test_invalid_legacy_stebbs_master_value_is_rejected(self):
+        with pytest.raises(ValueError, match="expects integer 0, 1, or 2"):
+            ModelPhysics(stebbs={"value": 5})
+
+    def test_null_stebbs_master_switch_values_are_rejected(self):
+        with pytest.raises(ValueError, match="enabled/parameters"):
+            ModelPhysics(stebbs={"enabled": {"value": None}})
+        with pytest.raises(ValueError, match="enabled/parameters"):
+            ModelPhysics(
+                stebbs={"enabled": {"value": True}, "parameters": {"value": None}}
+            )
+
+    def test_from_df_state_rejects_invalid_stebbsmethod_code(self):
+        df = ModelPhysics().to_df_state(grid_id=1)
+        df.loc[1, ("stebbsmethod", "0")] = 99
+
+        with pytest.raises(ValueError, match="Invalid stebbsmethod"):
+            ModelPhysics.from_df_state(df, grid_id=1)
 
     def test_migrator_folds_flat_physics(self):
         """The yaml_upgrade migrator folds flat physics STEBBS keys to nested."""
@@ -606,6 +650,33 @@ class TestStebbsPhysicsFold:
         assert stebbs["capacitance"] == {"value": 1}
         assert stebbs["setpoint"] == {"value": 1}
         assert stebbs["same_albedo_wall"] == {"value": 1}
+
+        cfg_with_ref = {"model": {"physics": {"stebbs": {"value": 1, "ref": {"desc": "toggle"}}}}}
+        _apply_stebbs_physics_fold(cfg_with_ref)
+        assert cfg_with_ref["model"]["physics"]["stebbs"]["enabled"] == {
+            "value": True,
+            "ref": {"desc": "toggle"},
+        }
+
+        cfg_nested_alias = {
+            "model": {
+                "physics": {
+                    "stebbs": {
+                        "enabled": {"value": True},
+                        "outer_cap_fraction": {"value": 2},
+                        "rc_method": {"value": 1},
+                        "setpointmethod": {"value": 2},
+                    }
+                }
+            }
+        }
+        _apply_stebbs_physics_fold(cfg_nested_alias)
+        stebbs_alias = cfg_nested_alias["model"]["physics"]["stebbs"]
+        assert "outer_cap_fraction" not in stebbs_alias
+        assert "rc_method" not in stebbs_alias
+        assert "setpointmethod" not in stebbs_alias
+        assert stebbs_alias["capacitance"] == {"value": 2}
+        assert stebbs_alias["setpoint"] == {"value": 2}
 
 
 class TestConflictDetection:

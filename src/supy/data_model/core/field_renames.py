@@ -1337,7 +1337,10 @@ STEBBS_PHYSICS_LEAF_RENAMES: Dict[str, str] = {
     # hand-written legacy YAML still folds. Both relocate to `stebbs.capacitance`.
     "capacitance": "capacitance",
     "outer_cap_fraction": "capacitance",
+    "rcmethod": "capacitance",
+    "rc_method": "capacitance",
     "setpoint": "setpoint",
+    "setpointmethod": "setpoint",
     "same_albedo_wall": "same_albedo_wall",
     "same_albedo_roof": "same_albedo_roof",
     "same_emissivity_wall": "same_emissivity_wall",
@@ -1354,7 +1357,12 @@ STEBBS_PHYSICS_LEAF_RENAMES: Dict[str, str] = {
 # carries `enabled`/`parameters`/a leaf name alongside any optional `ref`, so
 # `ref` is never the sole discriminator. See `_is_stebbs_refvalue_scalar`.
 _STEBBS_NESTED_KEYS = frozenset(
-    {"enabled", "parameters", *STEBBS_PHYSICS_LEAF_RENAMES.values()}
+    {
+        "enabled",
+        "parameters",
+        *STEBBS_PHYSICS_LEAF_RENAMES.keys(),
+        *STEBBS_PHYSICS_LEAF_RENAMES.values(),
+    }
 )
 
 # A RefValue-style scalar wraps only `value` (and optionally `ref`). Such a
@@ -1392,26 +1400,58 @@ def _decompose_stebbs_master(entry: Any) -> tuple[Any, Any]:
       2 -> (enabled=true,  parameters=provided)
 
     Returns RefValue-wrapped scalars (``{"value": ...}``) so the downstream
-    FlexibleRefValue union resolves them uniformly. Unknown integers default to
-    enabled with provided parameters (the most permissive non-zero reading).
+    FlexibleRefValue union resolves them uniformly. Invalid scalar values remain
+    invalid, matching the previous flat ``FlexibleRefValue(StebbsMethod)``
+    contract instead of silently enabling STEBBS for malformed YAML.
     """
+    ref = entry.get("ref") if isinstance(entry, Mapping) else None
+
+    def _wrapped(value: Any, *, carry_ref: bool = False) -> dict:
+        wrapped = {"value": value}
+        if carry_ref and ref is not None:
+            wrapped["ref"] = ref
+        return wrapped
+
+    if isinstance(entry, Mapping) and "value" not in entry:
+        raise ValueError(
+            "Legacy 'stebbs' mappings must use a 'value' key; use "
+            "'stebbs.enabled' / 'stebbs.parameters' for the nested form."
+        )
+
     raw = _unwrap_scalar(entry)
-    try:
+    if isinstance(raw, bool):
         code = int(raw)
-    except (TypeError, ValueError):
-        # Non-integer master toggle (already a bool or odd value): treat truthy
-        # as enabled+default, falsy as disabled+default.
-        enabled = bool(raw)
-        return {"value": enabled}, {"value": 1}
+    elif isinstance(raw, int):
+        code = raw
+    elif isinstance(raw, float) and raw.is_integer():
+        code = int(raw)
+    else:
+        raise ValueError(
+            "Legacy 'stebbs' master toggle expects integer 0, 1, or 2."
+        )
     if code == 0:
-        return {"value": False}, {"value": 1}
+        return _wrapped(False, carry_ref=True), _wrapped(1)
     if code == 1:
-        return {"value": True}, {"value": 1}
-    # code == 2 (or any other non-zero): enabled with provided parameters.
-    return {"value": True}, {"value": 2}
+        return _wrapped(True, carry_ref=True), _wrapped(1)
+    if code == 2:
+        return _wrapped(True, carry_ref=True), _wrapped(2)
+    raise ValueError("Legacy 'stebbs' master toggle expects integer 0, 1, or 2.")
 
 
-def fold_stebbs_physics(values: dict, class_name: str) -> dict:
+def _normalise_stebbs_block_aliases(stebbs_block: dict) -> tuple[dict, list[str]]:
+    """Rename legacy keys inside a nested ``stebbs`` block to final leaves."""
+    moved: list[str] = []
+    for old_key, nested_leaf in STEBBS_PHYSICS_LEAF_RENAMES.items():
+        if old_key == nested_leaf or old_key not in stebbs_block:
+            continue
+        value = stebbs_block.pop(old_key)
+        if nested_leaf not in stebbs_block:
+            stebbs_block[nested_leaf] = value
+        moved.append(f"stebbs.{old_key}")
+    return stebbs_block, moved
+
+
+def fold_stebbs_physics(values: dict, class_name: str, *, warn: bool = True) -> dict:
     """Fold legacy flat STEBBS switches under a nested ``stebbs`` object.
 
     Called from ``ModelPhysics._rename_physics_fields`` after the key renames.
@@ -1453,7 +1493,8 @@ def fold_stebbs_physics(values: dict, class_name: str) -> dict:
     moved: list[str] = []
 
     if nested_already:
-        stebbs_block: dict = dict(existing)
+        stebbs_block, nested_moves = _normalise_stebbs_block_aliases(dict(existing))
+        moved.extend(nested_moves)
     else:
         stebbs_block = {}
         if "stebbs" in values:
@@ -1478,7 +1519,7 @@ def fold_stebbs_physics(values: dict, class_name: str) -> dict:
     if stebbs_block:
         values["stebbs"] = stebbs_block
 
-    if moved:
+    if moved and warn:
         warnings.warn(
             f"{class_name}: flat STEBBS physics switches "
             f"({', '.join(sorted(set(moved)))}) are deprecated; they now live "
@@ -1674,9 +1715,21 @@ def normalise_yaml_renames(data: Any) -> Any:
     if not isinstance(data, dict):
         return data
     try:
-        return rename_keys_recursive(data, RAW_YAML_FIELD_RENAMES)
+        normalised = rename_keys_recursive(data, RAW_YAML_FIELD_RENAMES)
     except ValueError:
         return data
+
+    model = normalised.get("model")
+    if isinstance(model, dict):
+        physics = model.get("physics")
+        if isinstance(physics, dict):
+            model["physics"] = fold_stebbs_physics(
+                physics,
+                "ModelPhysics",
+                warn=False,
+            )
+
+    return normalised
 
 
 def reverse_field_renames(data: dict) -> dict:

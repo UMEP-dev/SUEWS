@@ -906,13 +906,11 @@ def _experimental_features_restriction(user_yaml_file, mode):
     except Exception as e:
         return False, [], f"Error reading YAML file: {e}"
 
-    # Read physics keys via read_physics_key, which accepts both the new
-    # snake_case name and its legacy alias — the Pydantic shim accepts both,
-    # so this gate must as well.
-    from ..data_model.core.field_renames import (
-        read_physics_key,
-        _STEBBS_NESTED_KEYS,
-    )
+    # Read physics keys via helpers that accept both the new snake_case name
+    # and its legacy alias — the Pydantic shim accepts both, so this gate must
+    # as well.
+    from ..data_model.core.field_renames import read_physics_key
+    from ..data_model.validation.core.yaml_helpers import get_stebbsmethod_value
 
     physics = (
         user_yaml_data.get("model", {}).get("physics", {})
@@ -921,22 +919,13 @@ def _experimental_features_restriction(user_yaml_file, mode):
     )
     restrictions_violated = []
 
-    # gh#1456: STEBBS master toggle moved to model.physics.stebbs.enabled.
-    # Accept both the nested form and the legacy flat tri-state integer. A
-    # dict carrying any STEBBS nested key is the nested object (even a partial
-    # block that omits the master toggle, where `enabled` then defaults to
-    # false); a bare RefValue scalar (`{value: N}`) is the legacy integer.
-    stebbs_block = physics.get("stebbs")
-    stebbs_enabled = None
-    if isinstance(stebbs_block, dict) and any(
-        k in stebbs_block for k in _STEBBS_NESTED_KEYS
-    ):
-        stebbs_enabled = read_physics_key(stebbs_block, "enabled")
-    else:
-        legacy = read_physics_key(physics, "stebbs")
-        if legacy is not None:
-            stebbs_enabled = legacy != 0
-    if stebbs_enabled:
+    # gh#1456: use the shared composer so nested bool-like strings (`off`,
+    # `false`, `0`, etc.) follow the same semantics as Pydantic.
+    try:
+        stebbsmethod = get_stebbsmethod_value(physics)
+    except ValueError:
+        stebbsmethod = None  # Let the normal validation pipeline report it.
+    if stebbsmethod is not None and stebbsmethod != 0:
         restrictions_violated.append("STEBBS is enabled (stebbs.enabled is true)")
 
     snowuse = read_physics_key(physics, "snow_use")

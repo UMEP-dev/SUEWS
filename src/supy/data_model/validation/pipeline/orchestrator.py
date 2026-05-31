@@ -1553,12 +1553,12 @@ Modes:
                     user_yaml_data = yaml.safe_load(f)
 
                 # Check public mode restrictions.
-                # Read physics keys via read_physics_key, which accepts both
-                # the new snake_case name and its legacy alias — the Pydantic
-                # shim accepts both, so this gate must as well.
-                from supy.data_model.core.field_renames import (
-                    read_physics_key,
-                    _STEBBS_NESTED_KEYS,
+                # Read physics keys via helpers that accept both the new
+                # snake_case name and its legacy alias — the Pydantic shim
+                # accepts both, so this gate must as well.
+                from supy.data_model.core.field_renames import read_physics_key
+                from supy.data_model.validation.core.yaml_helpers import (
+                    get_stebbsmethod_value,
                 )
 
                 physics = (
@@ -1568,27 +1568,13 @@ Modes:
                 )
                 restrictions_violated = []
 
-                # gh#1456: STEBBS master toggle moved to the nested
-                # `model.physics.stebbs.enabled` flag. Accept the legacy flat
-                # `stebbs` (a tri-state integer / RefValue) too: enabled iff
-                # nested `enabled` is truthy, or legacy code != 0. A dict
-                # carrying any STEBBS nested key (enabled / parameters /
-                # capacitance / setpoint / same_* / ref) is the nested object
-                # -- even a partial block that omits the master toggle (then
-                # `enabled` defaults to false). A bare RefValue scalar
-                # (`{value: N}` only) is the legacy integer, matching the same
-                # detection `fold_stebbs_physics` uses.
-                stebbs_block = physics.get("stebbs")
-                stebbs_enabled = None
-                if isinstance(stebbs_block, dict) and any(
-                    k in stebbs_block for k in _STEBBS_NESTED_KEYS
-                ):
-                    stebbs_enabled = read_physics_key(stebbs_block, "enabled")
-                else:
-                    legacy = read_physics_key(physics, "stebbs")
-                    if legacy is not None:
-                        stebbs_enabled = legacy != 0
-                if stebbs_enabled:
+                # gh#1456: use the shared composer so nested bool-like strings
+                # (`off`, `false`, `0`, etc.) follow Pydantic semantics.
+                try:
+                    stebbsmethod = get_stebbsmethod_value(physics)
+                except ValueError:
+                    stebbsmethod = None  # Let the normal phases report it.
+                if stebbsmethod is not None and stebbsmethod != 0:
                     restrictions_violated.append(
                         "STEBBS is enabled (stebbs.enabled is true)"
                     )

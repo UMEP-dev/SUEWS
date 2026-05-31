@@ -31,6 +31,7 @@ from datetime import datetime
 import pytz
 from ...core.field_renames import (
     RAW_YAML_FIELD_RENAMES,
+    STEBBS_PHYSICS_LEAF_RENAMES,
     has_renamed_key,
     normalise_yaml_renames,
     read_physics_key,
@@ -154,13 +155,105 @@ def get_value_safe(param_dict, param_key, default=None):
         return param  # Plain format: 1
 
 
+_STEBBS_MISSING = object()
+_STEBBS_REFVALUE_KEYS = frozenset({"value", "ref"})
+_STEBBS_NESTED_KEYS = frozenset(
+    {
+        "enabled",
+        "parameters",
+        *STEBBS_PHYSICS_LEAF_RENAMES.keys(),
+        *STEBBS_PHYSICS_LEAF_RENAMES.values(),
+    }
+)
+_STEBBS_BOOL_TRUE = frozenset({"1", "true", "t", "yes", "y", "on"})
+_STEBBS_BOOL_FALSE = frozenset({"0", "false", "f", "no", "n", "off"})
+
+
+def _is_stebbs_refvalue_scalar(entry):
+    """Return True for a RefValue-style legacy ``stebbs`` master toggle."""
+    return (
+        isinstance(entry, Mapping)
+        and "value" in entry
+        and set(entry) <= _STEBBS_REFVALUE_KEYS
+    )
+
+
+def _is_stebbs_nested_block(entry):
+    """Return True when ``entry`` is the nested STEBBS physics object."""
+    return (
+        isinstance(entry, Mapping)
+        and not _is_stebbs_refvalue_scalar(entry)
+        and any(key in entry for key in _STEBBS_NESTED_KEYS)
+    )
+
+
+def _legacy_stebbs_master_value(entry):
+    """Compose the legacy tri-state ``stebbsmethod`` from a raw scalar."""
+    if isinstance(entry, Mapping) and "value" not in entry:
+        raise ValueError(
+            "Legacy 'stebbs' mappings must use a 'value' key; use "
+            "'stebbs.enabled' / 'stebbs.parameters' for the nested form."
+        )
+    raw = entry["value"] if isinstance(entry, Mapping) and "value" in entry else entry
+    if isinstance(raw, bool):
+        code = int(raw)
+    elif isinstance(raw, int):
+        code = raw
+    elif isinstance(raw, float) and raw.is_integer():
+        code = int(raw)
+    else:
+        raise ValueError(
+            "Legacy 'stebbs' master toggle expects integer 0, 1, or 2."
+        )
+    if code == 0:
+        return 0
+    if code == 1:
+        return 1
+    if code == 2:
+        return 2
+    raise ValueError("Legacy 'stebbs' master toggle expects integer 0, 1, or 2.")
+
+
+def _parse_stebbs_enabled_value(raw):
+    """Parse ``stebbs.enabled`` with Pydantic-compatible bool coercion."""
+    if isinstance(raw, bool):
+        return raw
+    if isinstance(raw, int):
+        if raw in (0, 1):
+            return bool(raw)
+    elif isinstance(raw, float) and raw in (0.0, 1.0):
+        return bool(raw)
+    elif isinstance(raw, str):
+        lowered = raw.lower()
+        if lowered in _STEBBS_BOOL_TRUE:
+            return True
+        if lowered in _STEBBS_BOOL_FALSE:
+            return False
+    raise ValueError("model.physics.stebbs.enabled expects a boolean value.")
+
+
+def _parse_stebbs_parameters_value(raw):
+    """Parse ``stebbs.parameters`` with Pydantic-compatible enum coercion."""
+    if isinstance(raw, bool):
+        if raw:
+            return 1
+    elif isinstance(raw, int):
+        if raw in (1, 2):
+            return raw
+    elif isinstance(raw, float) and raw in (1.0, 2.0):
+        return int(raw)
+    raise ValueError("model.physics.stebbs.parameters expects integer 1 or 2.")
+
+
 def get_stebbs_block(physics):
-    """Return the nested ``model.physics.stebbs`` sub-dict (or {} if absent).
+    """Return a folded ``model.physics.stebbs`` view (or {} if absent).
 
     gh#1456: the STEBBS switches moved under a nested ``stebbs`` object. This
     helper isolates that container so callers can read its leaves
     (``capacitance``, ``setpoint``, ``same_*``) uniformly against the
-    YAML-dict representation.
+    YAML-dict representation. For raw Phase B callers that have not gone through
+    Pydantic, it also folds still-accepted flat sibling switches into a transient
+    nested view.
 
     Parameters
     ----------
@@ -170,13 +263,34 @@ def get_stebbs_block(physics):
     Returns
     -------
     Mapping
-        The nested ``stebbs`` sub-dict, or ``{}`` when it is absent or not a
-        mapping (e.g. the legacy flat scalar form).
+        The nested ``stebbs`` sub-dict, including any accepted flat sibling
+        switches, or ``{}`` when it is absent.
     """
     if not isinstance(physics, Mapping):
         return {}
     block = physics.get("stebbs")
-    return block if isinstance(block, Mapping) else {}
+    folded = dict(block) if _is_stebbs_nested_block(block) else {}
+
+    for old_key, nested_leaf in STEBBS_PHYSICS_LEAF_RENAMES.items():
+        if old_key == nested_leaf or old_key not in folded:
+            continue
+        value = folded.pop(old_key)
+        if nested_leaf not in folded:
+            folded[nested_leaf] = value
+
+    for _flat_key, nested_leaf in STEBBS_PHYSICS_LEAF_RENAMES.items():
+        if nested_leaf in folded:
+            continue
+        value = read_renamed_key(
+            physics,
+            nested_leaf,
+            renames=RAW_YAML_FIELD_RENAMES,
+            default=_STEBBS_MISSING,
+        )
+        if value is not _STEBBS_MISSING:
+            folded[nested_leaf] = value
+
+    return folded
 
 
 def get_stebbsmethod_value(physics):
@@ -198,18 +312,34 @@ def get_stebbsmethod_value(physics):
         The composed ``stebbsmethod`` code (0/1/2), or ``None`` when the
         master toggle is absent.
     """
+    if not isinstance(physics, Mapping):
+        return None
+
+    raw_stebbs = physics.get("stebbs", _STEBBS_MISSING)
     stebbs_block = get_stebbs_block(physics)
-    if "enabled" in stebbs_block or "parameters" in stebbs_block:
-        enabled = get_value_safe(stebbs_block, "enabled")
+
+    if raw_stebbs is not _STEBBS_MISSING and not _is_stebbs_nested_block(raw_stebbs):
+        return _legacy_stebbs_master_value(raw_stebbs)
+
+    if stebbs_block:
+        raw_parameters = get_value_safe(
+            stebbs_block,
+            "parameters",
+            _STEBBS_MISSING,
+        )
+        parameters = (
+            1
+            if raw_parameters is _STEBBS_MISSING
+            else _parse_stebbs_parameters_value(raw_parameters)
+        )
+        enabled = _parse_stebbs_enabled_value(
+            get_value_safe(stebbs_block, "enabled", False)
+        )
         if not enabled:
             return 0
-        parameters = get_value_safe(stebbs_block, "parameters")
-        try:
-            return int(parameters)
-        except (TypeError, ValueError):
-            return 1
-    # Legacy flat master toggle (or absent).
-    return get_value_safe(physics, "stebbs")
+        return parameters
+
+    return None
 
 
 def unwrap_value(val):

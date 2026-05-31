@@ -669,6 +669,7 @@ _STEBBS_PHYSICS_LEAF_RENAMES_TO_DEV12: tuple[tuple[str, str], ...] = (
     ("capacitance", "capacitance"),
     ("outer_cap_fraction", "capacitance"),
     ("rcmethod", "capacitance"),
+    ("rc_method", "capacitance"),
     ("setpoint", "setpoint"),
     ("setpointmethod", "setpoint"),
     ("same_albedo_wall", "same_albedo_wall"),
@@ -682,25 +683,46 @@ def _decompose_stebbs_master_value(entry):
     """Decompose a legacy flat `stebbs` master toggle into (enabled, params).
 
     Returns RefValue-wrapped scalars. 0 -> (False, 1); 1 -> (True, 1);
-    2/other-nonzero -> (True, 2).
+    2 -> (True, 2).
     """
+    ref = entry.get("ref") if isinstance(entry, dict) else None
+
+    def _wrapped(value, *, carry_ref=False):
+        wrapped = {"value": value}
+        if carry_ref and ref is not None:
+            wrapped["ref"] = ref
+        return wrapped
+
+    if isinstance(entry, dict) and "value" not in entry:
+        raise ValueError(
+            "Legacy 'stebbs' mappings must use a 'value' key; use "
+            "'stebbs.enabled' / 'stebbs.parameters' for the nested form."
+        )
+
     raw = entry.get("value") if isinstance(entry, dict) and "value" in entry else entry
-    try:
+    if isinstance(raw, bool):
         code = int(raw)
-    except (TypeError, ValueError):
-        enabled = bool(raw)
-        return {"value": enabled}, {"value": 1}
+    elif isinstance(raw, int):
+        code = raw
+    elif isinstance(raw, float) and raw.is_integer():
+        code = int(raw)
+    else:
+        raise ValueError(
+            "Legacy 'stebbs' master toggle expects integer 0, 1, or 2."
+        )
     if code == 0:
-        return {"value": False}, {"value": 1}
+        return _wrapped(False, carry_ref=True), _wrapped(1)
     if code == 1:
-        return {"value": True}, {"value": 1}
-    return {"value": True}, {"value": 2}
+        return _wrapped(True, carry_ref=True), _wrapped(1)
+    if code == 2:
+        return _wrapped(True, carry_ref=True), _wrapped(2)
+    raise ValueError("Legacy 'stebbs' master toggle expects integer 0, 1, or 2.")
 
 
 def _apply_stebbs_physics_fold(cfg: dict) -> None:
     """Fold the flat STEBBS physics switches under model.physics.stebbs in place.
 
-    gh#1456 dev11 -> dev12. Decomposes the legacy `stebbs` master toggle into
+    gh#1456 dev12 -> dev13. Decomposes the legacy `stebbs` master toggle into
     `stebbs.enabled` + `stebbs.parameters`, and moves outer_cap_fraction /
     rcmethod -> stebbs.capacitance, setpoint / setpointmethod -> stebbs.setpoint,
     and the four same_* switches under the nested object. No-op when the YAML is
@@ -718,12 +740,8 @@ def _apply_stebbs_physics_fold(cfg: dict) -> None:
     nested_keys = {
         "enabled",
         "parameters",
-        "capacitance",
-        "setpoint",
-        "same_albedo_wall",
-        "same_albedo_roof",
-        "same_emissivity_wall",
-        "same_emissivity_roof",
+        *[old for old, _new in _STEBBS_PHYSICS_LEAF_RENAMES_TO_DEV12],
+        *[new for _old, new in _STEBBS_PHYSICS_LEAF_RENAMES_TO_DEV12],
     }
     already_nested = isinstance(existing, dict) and any(
         k in existing for k in nested_keys
@@ -740,6 +758,23 @@ def _apply_stebbs_physics_fold(cfg: dict) -> None:
             _log(
                 "[yaml-upgrade]   decomposed 'stebbs' master toggle -> "
                 "'stebbs.enabled' + 'stebbs.parameters'"
+            )
+
+    for old_nested, nested_leaf in _STEBBS_PHYSICS_LEAF_RENAMES_TO_DEV12:
+        if old_nested == nested_leaf or old_nested not in stebbs_block:
+            continue
+        if nested_leaf in stebbs_block:
+            stebbs_block.pop(old_nested)
+            _log(
+                f"[yaml-upgrade]   rename 'stebbs.{old_nested}' -> "
+                f"'stebbs.{nested_leaf}' skipped (target already present, "
+                f"dropping stale 'stebbs.{old_nested}' value)"
+            )
+        else:
+            stebbs_block[nested_leaf] = stebbs_block.pop(old_nested)
+            _log(
+                f"[yaml-upgrade]   renamed 'stebbs.{old_nested}' -> "
+                f"'stebbs.{nested_leaf}'"
             )
 
     for old_flat, nested_leaf in _STEBBS_PHYSICS_LEAF_RENAMES_TO_DEV12:

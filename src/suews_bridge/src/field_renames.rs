@@ -808,6 +808,16 @@ const STEBBS_NESTED_KEYS: &[&str] = &[
     "same_emissivity_roof",
 ];
 
+/// Accepted legacy aliases inside an already nested `model.physics.stebbs`
+/// object. The Python raw validator accepts these via `RAW_YAML_FIELD_RENAMES`,
+/// so the bridge flatten pre-pass must normalise them too.
+const STEBBS_NESTED_ALIAS_TO_LEAF: &[(&str, &str)] = &[
+    ("outer_cap_fraction", "capacitance"),
+    ("rcmethod", "capacitance"),
+    ("rc_method", "capacitance"),
+    ("setpointmethod", "setpoint"),
+];
+
 /// Return true for a `{value: ...}` / `{value: ..., ref: ...}` scalar. Such a
 /// mapping is a RefValue-wrapped legacy master toggle, never the new nested
 /// `StebbsPhysics` object (gh#1456). Mirrors `_is_stebbs_refvalue_scalar` in
@@ -820,6 +830,15 @@ fn is_stebbs_refvalue_scalar(map: &serde_yaml::Mapping) -> bool {
     map.keys().all(|k| {
         matches!(k, Value::String(s) if s == "value" || s == "ref")
     })
+}
+
+fn has_stebbs_nested_key(map: &serde_yaml::Mapping) -> bool {
+    STEBBS_NESTED_KEYS
+        .iter()
+        .any(|leaf| map.contains_key(Value::String((*leaf).to_string())))
+        || STEBBS_NESTED_ALIAS_TO_LEAF
+            .iter()
+            .any(|(alias, _leaf)| map.contains_key(Value::String((*alias).to_string())))
 }
 
 /// `(nested_leaf, fused_flat_key)` for the five non-master STEBBS switches.
@@ -848,31 +867,83 @@ fn unwrap_ref_scalar(entry: &Value) -> &Value {
     entry
 }
 
-/// Interpret a `stebbs.enabled` scalar as a boolean. Accepts native bools,
-/// the integers `0`/`1`, and the strings `true`/`false` (case-insensitive).
-fn read_enabled_flag(entry: &Value) -> bool {
+/// Interpret a `stebbs.enabled` scalar as a boolean. Mirrors Pydantic's bool
+/// coercion for accepted YAML scalars and rejects unknown values instead of
+/// silently enabling/disabling STEBBS.
+fn read_enabled_flag(entry: &Value) -> Result<bool, String> {
     match unwrap_ref_scalar(entry) {
-        Value::Bool(b) => *b,
-        Value::Number(n) => n.as_f64().map(|v| v != 0.0).unwrap_or(false),
-        Value::String(s) => matches!(s.trim().to_ascii_lowercase().as_str(), "true" | "1"),
-        _ => false,
+        Value::Bool(b) => Ok(*b),
+        Value::Number(n) => {
+            if let Some(code) = n.as_i64() {
+                match code {
+                    0 => Ok(false),
+                    1 => Ok(true),
+                    _ => Err(format!(
+                        "model.physics.stebbs.enabled expects a boolean value, got {code}"
+                    )),
+                }
+            } else if let Some(code) = n.as_f64() {
+                if code == 0.0 {
+                    Ok(false)
+                } else if code == 1.0 {
+                    Ok(true)
+                } else {
+                    Err(format!(
+                        "model.physics.stebbs.enabled expects a boolean value, got {code}"
+                    ))
+                }
+            } else {
+                Err("model.physics.stebbs.enabled expects a boolean value".to_string())
+            }
+        }
+        Value::String(s) => match s.to_ascii_lowercase().as_str() {
+            "1" | "true" | "t" | "yes" | "y" | "on" => Ok(true),
+            "0" | "false" | "f" | "no" | "n" | "off" => Ok(false),
+            _ => Err(format!(
+                "model.physics.stebbs.enabled expects a boolean value, got {s:?}"
+            )),
+        },
+        other => Err(format!(
+            "model.physics.stebbs.enabled expects a boolean value, got {other:?}"
+        )),
     }
 }
 
 /// Interpret a `stebbs.parameters` scalar as the non-zero `StebbsMethod`
-/// integer code. Accepts the integers `1`/`2` and the `StebbsParameterSource`
-/// enum names `default`/`provided` (case-insensitive). Mirrors the Python
-/// `int(parameters)` composition. Unknown values fall back to `2` (PROVIDED),
-/// the most permissive non-zero reading (matches `_decompose_stebbs_master`).
-fn read_parameters_code(entry: &Value) -> i64 {
+/// integer code. Accepts the numeric enum codes `1`/`2` (and YAML `true`,
+/// matching Pydantic's bool-as-1 coercion). Reject strings and unknown values so
+/// the bridge does not run configs the Python/schema path would reject.
+fn read_parameters_code(entry: &Value) -> Result<i64, String> {
     match unwrap_ref_scalar(entry) {
-        Value::Number(n) => n.as_i64().unwrap_or(1),
-        Value::String(s) => match s.trim().to_ascii_lowercase().as_str() {
-            "default" => 1,
-            "provided" => 2,
-            other => other.parse::<i64>().unwrap_or(2),
-        },
-        _ => 1,
+        Value::Number(n) => {
+            if let Some(code) = n.as_i64() {
+                match code {
+                    1 | 2 => Ok(code),
+                    _ => Err(format!(
+                        "model.physics.stebbs.parameters expects 1 or 2, got {code}"
+                    )),
+                }
+            } else if let Some(code) = n.as_f64() {
+                if code == 1.0 {
+                    Ok(1)
+                } else if code == 2.0 {
+                    Ok(2)
+                } else {
+                    Err(format!(
+                        "model.physics.stebbs.parameters expects 1 or 2, got {code}"
+                    ))
+                }
+            } else {
+                Err("model.physics.stebbs.parameters expects 1 or 2".to_string())
+            }
+        }
+        Value::Bool(true) => Ok(1),
+        Value::Bool(false) => {
+            Err("model.physics.stebbs.parameters expects 1 or 2, got false".to_string())
+        }
+        other => Err(format!(
+            "model.physics.stebbs.parameters expects numeric 1 or 2, got {other:?}"
+        )),
     }
 }
 
@@ -910,9 +981,7 @@ fn flatten_stebbs_physics(root: &mut Value) -> Result<(), String> {
         // A `{value: N}` / `{value: N, ref: {...}}` RefValue scalar is the
         // legacy master toggle, NOT the nested object (gh#1456).
         Some(Value::Mapping(map)) if is_stebbs_refvalue_scalar(map) => false,
-        Some(Value::Mapping(map)) => STEBBS_NESTED_KEYS
-            .iter()
-            .any(|leaf| map.contains_key(Value::String((*leaf).to_string()))),
+        Some(Value::Mapping(map)) => has_stebbs_nested_key(map),
         // A scalar / `{value: N}` master toggle, or absent: legacy flat path.
         _ => false,
     };
@@ -921,7 +990,7 @@ fn flatten_stebbs_physics(root: &mut Value) -> Result<(), String> {
     }
 
     // Take ownership of the nested object so we can move its leaves out.
-    let stebbs_block = match physics.remove(&stebbs_key) {
+    let mut stebbs_block = match physics.remove(&stebbs_key) {
         Some(Value::Mapping(map)) => map,
         _ => return Ok(()),
     };
@@ -949,19 +1018,30 @@ fn flatten_stebbs_physics(root: &mut Value) -> Result<(), String> {
         );
     }
 
-    // Compose the master toggle: 0 if disabled, else int(parameters).
+    for (alias, leaf) in STEBBS_NESTED_ALIAS_TO_LEAF {
+        let alias_key = Value::String((*alias).to_string());
+        let leaf_key = Value::String((*leaf).to_string());
+        if let Some(value) = stebbs_block.remove(&alias_key) {
+            if !stebbs_block.contains_key(&leaf_key) {
+                stebbs_block.insert(leaf_key, value);
+            }
+        }
+    }
+
+    // Compose the master toggle: 0 if disabled, else int(parameters). Validate
+    // a present `parameters` value even when disabled, matching Pydantic field
+    // validation rather than silently ignoring malformed input.
+    let parameters_key = Value::String("parameters".into());
+    let parameters_code = match stebbs_block.get(&parameters_key) {
+        Some(value) => read_parameters_code(value)?,
+        None => 1,
+    };
     let enabled = stebbs_block
         .get(Value::String("enabled".into()))
         .map(read_enabled_flag)
+        .transpose()?
         .unwrap_or(false);
-    let stebbsmethod_value = if !enabled {
-        0
-    } else {
-        stebbs_block
-            .get(Value::String("parameters".into()))
-            .map(read_parameters_code)
-            .unwrap_or(1)
-    };
+    let stebbsmethod_value = if !enabled { 0 } else { parameters_code };
     let mut stebbsmethod_flat = serde_yaml::Mapping::new();
     stebbsmethod_flat.insert(
         Value::String("value".into()),
@@ -1462,6 +1542,31 @@ model:
     }
 
     #[test]
+    fn nested_stebbs_legacy_aliases_flatten_to_fused_keys() {
+        // Raw Phase B accepts legacy aliases inside `model.physics.stebbs`; the
+        // bridge must normalise the same shape before handing keys to the parser.
+        let yaml = "\
+model:
+  physics:
+    stebbs:
+      enabled: {value: true}
+      parameters: {value: 2}
+      outer_cap_fraction: {value: 2}
+      setpointmethod: {value: 2}
+";
+        let mut root: Value = from_str(yaml).unwrap();
+        normalize_field_names(&mut root).unwrap();
+        let physics = &root["model"]["physics"];
+        assert!(
+            physics.get(Value::String("stebbs".into())).is_none(),
+            "nested stebbs object must be consumed"
+        );
+        assert_eq!(physics_i64(&root, "stebbsmethod"), Some(2));
+        assert_eq!(physics_i64(&root, "rcmethod"), Some(2));
+        assert_eq!(physics_i64(&root, "setpointmethod"), Some(2));
+    }
+
+    #[test]
     fn nested_stebbs_enabled_provided_composes_method_two() {
         // enabled=true, parameters=2 (PROVIDED) -> stebbsmethod 2.
         let yaml = "\
@@ -1477,8 +1582,9 @@ model:
     }
 
     #[test]
-    fn nested_stebbs_enum_name_parameters_resolves() {
-        // parameters may be the StebbsParameterSource enum name.
+    fn nested_stebbs_string_parameters_rejected() {
+        // Python/Pydantic rejects enum-name strings here; the bridge must not
+        // silently run them as PROVIDED.
         let yaml = "\
 model:
   physics:
@@ -1487,8 +1593,30 @@ model:
       parameters: {value: provided}
 ";
         let mut root: Value = from_str(yaml).unwrap();
-        normalize_field_names(&mut root).unwrap();
-        assert_eq!(physics_i64(&root, "stebbsmethod"), Some(2));
+        let err = normalize_field_names(&mut root).expect_err("string parameters must fail");
+        assert!(
+            err.contains("stebbs.parameters"),
+            "unexpected error message: {err}"
+        );
+    }
+
+    #[test]
+    fn nested_stebbs_unknown_numeric_parameters_rejected_even_when_disabled() {
+        // Pydantic validates the parameters field even when enabled=false, so
+        // the bridge pre-pass must reject malformed values before flattening.
+        let yaml = "\
+model:
+  physics:
+    stebbs:
+      enabled: {value: false}
+      parameters: {value: 99}
+";
+        let mut root: Value = from_str(yaml).unwrap();
+        let err = normalize_field_names(&mut root).expect_err("unknown parameters must fail");
+        assert!(
+            err.contains("expects 1 or 2"),
+            "unexpected error message: {err}"
+        );
     }
 
     #[test]
@@ -1499,6 +1627,35 @@ model:
         let mut root: Value = from_str(yaml).unwrap();
         normalize_field_names(&mut root).unwrap();
         assert_eq!(physics_i64(&root, "stebbsmethod"), Some(1));
+    }
+
+    #[test]
+    fn nested_stebbs_pydantic_bool_strings_resolve() {
+        let yaml = "\
+model:
+  physics:
+    stebbs:
+      enabled: {value: yes}
+";
+        let mut root: Value = from_str(yaml).unwrap();
+        normalize_field_names(&mut root).unwrap();
+        assert_eq!(physics_i64(&root, "stebbsmethod"), Some(1));
+    }
+
+    #[test]
+    fn nested_stebbs_invalid_enabled_rejected() {
+        let yaml = "\
+model:
+  physics:
+    stebbs:
+      enabled: {value: 2}
+";
+        let mut root: Value = from_str(yaml).unwrap();
+        let err = normalize_field_names(&mut root).expect_err("invalid enabled must fail");
+        assert!(
+            err.contains("stebbs.enabled"),
+            "unexpected error message: {err}"
+        );
     }
 
     #[test]

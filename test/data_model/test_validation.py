@@ -4726,6 +4726,33 @@ class TestPhaseBRenameAwareLookups:
             "`stebbs.capacitance` requirement in un-normalised Phase B input"
         )
 
+    def test_nested_stebbs_block_can_be_discriminated_by_alias_only(self):
+        from supy.data_model.validation.core.yaml_helpers import get_stebbs_block
+
+        block = get_stebbs_block({"stebbs": {"rcmethod": {"value": 2}}})
+
+        assert block == {"capacitance": {"value": 2}}
+
+    def test_flat_stebbs_switches_satisfy_nested_requirements(self):
+        from supy.data_model.validation.pipeline.phase_b_rules.physics_rules import (
+            validate_physics_parameters,
+        )
+
+        # The standalone rule may receive a current-but-flat raw YAML view before
+        # the Phase B load chokepoint folds gh#1456 STEBBS switches. The shared
+        # STEBBS helper must expose the same nested view Pydantic accepts.
+        physics = self._build_physics()
+        stebbs_leaves = physics.pop("stebbs")
+        physics["stebbs"] = {"value": 1}
+        physics.update(stebbs_leaves)
+
+        errors = [
+            r
+            for r in validate_physics_parameters(self._physics_ctx(physics))
+            if r.status == "ERROR" and "model.physics.stebbs" in (r.parameter or "")
+        ]
+        assert errors == []
+
     def test_genuinely_absent_capacitance_still_flagged(self):
         from supy.data_model.validation.pipeline.phase_b_rules.physics_rules import (
             validate_physics_parameters,
@@ -4799,6 +4826,54 @@ class TestPhaseBRenameAwareLookups:
         assert "model.physics.net_radiation" not in flagged
         assert "model.physics.stebbs.capacitance" not in flagged
 
+    def test_stebbsmethod_helper_defaults_partial_nested_block_to_disabled(self):
+        from supy.data_model.validation.core.yaml_helpers import get_stebbsmethod_value
+
+        assert get_stebbsmethod_value({"stebbs": {"capacitance": {"value": 1}}}) == 0
+        assert get_stebbsmethod_value({"capacitance": {"value": 1}}) == 0
+        assert (
+            get_stebbsmethod_value(
+                {"stebbs": {"value": 2}, "capacitance": {"value": 1}}
+            )
+            == 2
+        )
+
+    def test_stebbsmethod_helper_rejects_invalid_nested_switch_values(self):
+        from supy.data_model.validation.core.yaml_helpers import get_stebbsmethod_value
+
+        with pytest.raises(ValueError, match="stebbs.parameters"):
+            get_stebbsmethod_value(
+                {
+                    "stebbs": {
+                        "enabled": {"value": True},
+                        "parameters": {"value": "provided"},
+                    }
+                }
+            )
+        with pytest.raises(ValueError, match="stebbs.parameters"):
+            get_stebbsmethod_value(
+                {
+                    "stebbs": {
+                        "enabled": {"value": False},
+                        "parameters": {"value": 99},
+                    }
+                }
+            )
+        with pytest.raises(ValueError, match="stebbs.enabled"):
+            get_stebbsmethod_value({"stebbs": {"enabled": {"value": 2}}})
+
+    def test_stebbsmethod_helper_parses_pydantic_bool_strings(self):
+        from supy.data_model.validation.core.yaml_helpers import get_stebbsmethod_value
+
+        assert get_stebbsmethod_value({"stebbs": {"enabled": {"value": "yes"}}}) == 1
+        assert get_stebbsmethod_value({"stebbs": {"enabled": {"value": "off"}}}) == 0
+
+    def test_stebbsmethod_helper_rejects_malformed_legacy_stebbs_mapping(self):
+        from supy.data_model.validation.core.yaml_helpers import get_stebbsmethod_value
+
+        with pytest.raises(ValueError, match="Legacy 'stebbs' mappings"):
+            get_stebbsmethod_value({"stebbs": {"foo": 1}})
+
 
 class TestStandaloneValidationRenameNormalisation:
     """gh#1457: the standalone Phase B/C validation path (``suews validate`` in
@@ -4822,6 +4897,64 @@ class TestStandaloneValidationRenameNormalisation:
 
         current = {"sites": [{"stebbs": {"capacitance": {"value": 1}}}]}
         assert normalise_yaml_renames(current) == current
+
+    def test_normalise_helper_folds_flat_stebbs_physics(self):
+        from supy.data_model.core.field_renames import normalise_yaml_renames
+
+        payload = {
+            "model": {
+                "physics": {
+                    "stebbs": {"value": 2},
+                    "rcmethod": {"value": 1},
+                    "setpoint": {"value": 1},
+                    "same_albedo_wall": {"value": 1},
+                }
+            }
+        }
+
+        with warnings.catch_warnings(record=True) as captured:
+            warnings.simplefilter("always", DeprecationWarning)
+            out = normalise_yaml_renames(payload)
+
+        physics = out["model"]["physics"]
+        stebbs = physics["stebbs"]
+        assert "rcmethod" not in physics
+        assert "capacitance" not in physics
+        assert "setpoint" not in physics
+        assert stebbs["enabled"] == {"value": True}
+        assert stebbs["parameters"] == {"value": 2}
+        assert stebbs["capacitance"] == {"value": 1}
+        assert stebbs["setpoint"] == {"value": 1}
+        assert stebbs["same_albedo_wall"] == {"value": 1}
+        assert not [
+            w
+            for w in captured
+            if issubclass(w.category, DeprecationWarning)
+            and "gh#1456" in str(w.message)
+        ]
+
+    def test_normalise_helper_rewrites_nested_stebbs_aliases(self):
+        from supy.data_model.core.field_renames import normalise_yaml_renames
+
+        out = normalise_yaml_renames(
+            {
+                "model": {
+                    "physics": {
+                        "stebbs": {
+                            "enabled": {"value": True},
+                            "outer_cap_fraction": {"value": 2},
+                            "setpointmethod": {"value": 2},
+                        }
+                    }
+                }
+            }
+        )
+
+        stebbs = out["model"]["physics"]["stebbs"]
+        assert "outer_cap_fraction" not in stebbs
+        assert "setpointmethod" not in stebbs
+        assert stebbs["capacitance"] == {"value": 2}
+        assert stebbs["setpoint"] == {"value": 2}
 
     def test_normalise_helper_keeps_ambiguous_config_unchanged(self):
         # Both a legacy and its current spelling present is ambiguous; the helper
@@ -4888,8 +5021,10 @@ class TestStandaloneValidationRenameNormalisation:
         )
         from supy.data_model.core.field_renames import normalise_yaml_renames
 
-        # Pydantic-processed data carries the current name with a null value.
-        processed = {"model": {"physics": {"capacitance": {"value": None}}}}
+        # Pydantic-processed data carries the current nested name with a null value.
+        processed = {
+            "model": {"physics": {"stebbs": {"capacitance": {"value": None}}}}
+        }
         legacy_raw = {"model": {"physics": {"outer_cap_fraction": {"value": None}}}}
 
         # Without normalisation the orchestrator looks up `capacitance`, absent

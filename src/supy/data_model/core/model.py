@@ -762,6 +762,14 @@ class StebbsPhysics(BaseModel):
 
     ref: Optional[Reference] = None
 
+    @field_validator("enabled", "parameters", mode="after")
+    @classmethod
+    def _require_master_switch_values(cls, value):
+        inner = value.value if isinstance(value, RefValue) else value
+        if inner is None:
+            raise ValueError("STEBBS enabled/parameters switches cannot be null")
+        return value
+
 
 class ModelPhysics(BaseModel):
     """
@@ -1021,6 +1029,10 @@ class ModelPhysics(BaseModel):
             stebbsmethod = int(df.loc[grid_id, ("stebbsmethod", "0")])
         except KeyError:
             raise ValueError("Missing attribute 'stebbsmethod' in the DataFrame")
+        if stebbsmethod not in (0, 1, 2):
+            raise ValueError(
+                f"Invalid stebbsmethod value {stebbsmethod}; expected 0, 1, or 2"
+            )
         # Decompose: 0 -> (disabled, default); 1 -> (enabled, default);
         # 2 -> (enabled, provided).
         stebbs_props: dict = {

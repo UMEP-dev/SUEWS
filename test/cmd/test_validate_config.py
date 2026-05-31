@@ -565,6 +565,34 @@ def test_validate_full_pipeline_experimental_restriction_emits_json_envelope(
     assert "STEBBS is enabled" in envelope["data"]["restrictions"][0]
 
 
+def test_public_mode_restriction_honours_nested_stebbs_bool_strings(
+    tmp_path: Path,
+) -> None:
+    from supy.cmd.validate_config import _experimental_features_restriction
+
+    payload = {"model": {"physics": {"stebbs": {"enabled": {"value": "off"}}}}}
+    config_path = tmp_path / "public-ok.yml"
+    _write_yaml(config_path, payload)
+
+    ok, restrictions, read_error = _experimental_features_restriction(
+        str(config_path), "public"
+    )
+
+    assert ok is True
+    assert restrictions == []
+    assert read_error is None
+
+    payload["model"]["physics"]["stebbs"]["enabled"]["value"] = "yes"
+    _write_yaml(config_path, payload)
+    ok, restrictions, read_error = _experimental_features_restriction(
+        str(config_path), "public"
+    )
+
+    assert ok is False
+    assert "STEBBS is enabled" in restrictions[0]
+    assert read_error is None
+
+
 def test_emit_pipeline_result_warning_status_matches_inner_report(
     tmp_path: Path,
     capsys: pytest.CaptureFixture[str],

@@ -90,6 +90,10 @@ def _resolve_storage_heat_include_qf(choice: str) -> None:
     assert set(values) == {"storage_heat", "ohm_inc_qf"}
 
 
+def _resolve_boolean_choice(choice: str) -> None:
+    assert choice.lower() in {"false", "true"}
+
+
 CHOICE_RESOLVERS = {
     "net_radiation": lambda choice: (
         None
@@ -137,7 +141,7 @@ CHOICE_RESOLVERS = {
     "surface_conductance": lambda choice: resolve_scalar_name(
         "surface_conductance", choice
     ),
-    "stebbs.enabled": lambda choice: choice.lower() in {"false", "true"} or None,
+    "stebbs.enabled": _resolve_boolean_choice,
     "stebbs.parameter_source": lambda choice: resolve_scalar_name(
         "parameters", choice
     ),

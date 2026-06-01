@@ -41,7 +41,7 @@ build:
     python: "3.13"  # Required by the RTD v2 schema; unused here.
   commands:
     - |
-      if [ ! -d docs/build/html ]; then
+      if [ ! -f docs/build/html/index.html ]; then
         echo "ERROR: Pre-built HTML not found on the release branch."
         exit 1
       fi

@@ -93,9 +93,11 @@ jobs:
           fetch-tags: true
           persist-credentials: false
 
-      # The release-branch helper lives on the workflow ref (not on the old
-      # tag), so fetch it separately into a sibling path.
-      - name: Checkout release-branch helper from the workflow ref
+      # The release-branch helper is not on the old tag, so fetch it separately
+      # into a sibling path. With no `ref:`, checkout uses this run's SHA — the
+      # tag commit on a tag push, or master HEAD on workflow_dispatch — both of
+      # which carry the helper once this workflow is on master.
+      - name: Checkout release-branch helper
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
         with:
           path: .ci-tools
@@ -107,7 +109,11 @@ jobs:
       - name: Verify tag is on master
         run: |
           set -euo pipefail
-          git fetch origin master --depth=200
+          # The tag checkout already used fetch-depth: 0 (full history); this
+          # fetch only materialises the origin/master remote-tracking ref.
+          # No --depth: a shallow master could wrongly reject a tag that sits
+          # further back than the shallow window.
+          git fetch origin master
           if ! git merge-base --is-ancestor HEAD refs/remotes/origin/master; then
             echo "::error::Tag ${{ needs.resolve.outputs.tag }} is not on master — refusing to publish"
             exit 1
@@ -216,7 +222,7 @@ jobs:
           {
             echo "### Release docs published"
             echo ""
-            echo "- Tag: \`${TAG}\`"
-            echo "- Version baked into HTML: \`${VERSION}\`"
+            echo "- Tag: \`${TAG:-unknown}\`"
+            echo "- Version baked into HTML: \`${VERSION:-(build did not complete)}\`"
             echo "- Target branch: \`release\` (served by Read the Docs)"
           } >> "$GITHUB_STEP_SUMMARY"

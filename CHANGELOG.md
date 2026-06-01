@@ -41,7 +41,7 @@ EXAMPLES:
 
 | Year | Features | Bugfixes | Changes | Maintenance | Docs | Total |
 |------|----------|----------|---------|-------------|------|-------|
-| 2026 | 76 | 83 | 30 | 81 | 40 | 311 |
+| 2026 | 77 | 83 | 30 | 81 | 40 | 312 |
 | 2025 | 60 | 68 | 22 | 71 | 36 | 256 |
 | 2024 | 12 | 17 | 1 | 12 | 1 | 43 |
 | 2023 | 11 | 14 | 3 | 9 | 1 | 38 |
@@ -55,6 +55,11 @@ EXAMPLES:
 ## 2026
 
 ### 1 Jun 2026
+
+- [feature][experimental] Expose active physics selectors in `suews inspect` output (#1484)
+  - `suews inspect --format json` now includes a structured `physics` block so CLI/MCP clients and AI agents can see each active `model.physics` selector, its numeric code, and accepted readable names without re-deriving them from schema internals
+  - The inspect surface uses public-facing keys such as `leaf_area_index`, `snow`, and `stebbs.parameter_source`, while carrying `internal_key` for the long-standing Fortran-facing names where useful
+  - `storage_heat.ohm.include_qf` is reported under the active OHM storage-heat branch rather than as a top-level `ohm_inc_qf` selector, and is hidden when OHM is not selected
 
 - [feature][experimental] Advertise readable sample-config physics defaults with nested orthogonal groupings (#1483)
   - `model.physics.storage_heat.ohm.include_qf` now represents the OHM QF inclusion choice under the storage heat selector in the sample config, while legacy flat `ohm_inc_qf` input remains accepted and normalised to the existing Fortran-facing state

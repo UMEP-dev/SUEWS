@@ -11,8 +11,8 @@ checkouts that have not run ``make dev`` legitimately do not have it.
 
 from __future__ import annotations
 
-import shutil
 from pathlib import Path
+import shutil
 
 import pytest
 
@@ -68,6 +68,30 @@ def test_validate_sample_config_succeeds() -> None:
             f"Meta block missing required field {required!r}. "
             f"Got keys: {sorted(meta.keys())}"
         )
+
+
+@pytestmark_skipif
+def test_inspect_sample_config_reports_physics_methods() -> None:
+    """MCP inspect_config exposes active physics selectors for agents."""
+    from suews_mcp.tools import inspect_config
+
+    config_path = REPO_ROOT / "src" / "supy" / "sample_data" / "sample_config.yml"
+    assert config_path.exists(), (
+        f"Sample config missing at {config_path}. "
+        "Has src/supy/sample_data/ been moved?"
+    )
+
+    envelope = inspect_config(
+        str(config_path),
+        project_root=str(REPO_ROOT),
+    )
+
+    assert envelope["status"] in {"success", "warning"}, envelope
+    physics = (envelope.get("data") or {}).get("physics") or {}
+    assert physics["storage_heat"]["selected"] == "ohm"
+    assert physics["storage_heat"]["ohm"]["include_qf"] is False
+    assert physics["leaf_area_index"]["selected"] == "modelled"
+    assert physics["surface_conductance"]["selected"] == "W16"
 
 
 @pytestmark_skipif

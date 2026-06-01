@@ -27,6 +27,7 @@ from collections.abc import Mapping
 from contextlib import suppress
 from enum import Enum
 from numbers import Integral, Real
+import re
 from typing import Any
 
 from .physics_orthogonal import coerce_orthogonal_to_flat, fold_storage_heat_ohm_inc_qf
@@ -249,6 +250,60 @@ def _build_lookup_tables() -> tuple[
 
 
 _CODE_TO_CANONICAL, _ALIAS_TO_CODE = _build_lookup_tables()
+_CITATION_ALIAS_RE = re.compile(r"^[a-z]{1,3}\d{2}$")
+_CITATION_PREFERRED_FIELDS = frozenset(
+    {
+        "emissions",
+        "roughness_length_momentum",
+        "roughness_length_heat",
+        "stability",
+        "surface_conductance",
+    }
+)
+_COMPATIBILITY_DISPLAY_NAMES = {
+    ("soil_moisture_deficit", 2): "observed",
+}
+_PHYSICS_CANONICAL_TO_PUBLIC = {
+    canonical_name: public_name
+    for public_name, canonical_name in PHYSICS_PUBLIC_KEY_ALIASES.items()
+}
+_STEBBS_CANONICAL_TO_PUBLIC = {
+    canonical_name: public_name
+    for public_name, canonical_name in STEBBS_PUBLIC_KEY_ALIASES.items()
+}
+
+
+def accepted_physics_names(field_name: str) -> tuple[str, ...]:
+    """Return registered readable names accepted for one physics selector."""
+    return tuple(sorted(_ALIAS_TO_CODE.get(field_name, ())))
+
+
+def canonical_physics_name(field_name: str, code: int) -> str | None:
+    """Return the canonical readable name for a physics selector code."""
+    return _CODE_TO_CANONICAL.get(field_name, {}).get(int(code))
+
+
+def preferred_physics_name(field_name: str, code: int) -> str | None:
+    """Return the preferred public readable name for a physics selector code."""
+    code_int = int(code)
+    if (field_name, code_int) in _COMPATIBILITY_DISPLAY_NAMES:
+        return _COMPATIBILITY_DISPLAY_NAMES[(field_name, code_int)]
+    if field_name in _CITATION_PREFERRED_FIELDS:
+        table = _ALIAS_TO_CODE.get(field_name, {})
+        for name, alias_code in table.items():
+            if alias_code == code_int and _CITATION_ALIAS_RE.match(name):
+                return name.upper()
+    return canonical_physics_name(field_name, code_int)
+
+
+def public_model_physics_key(field_name: str) -> str:
+    """Return the preferred public key for a top-level ModelPhysics field."""
+    return _PHYSICS_CANONICAL_TO_PUBLIC.get(field_name, field_name)
+
+
+def public_stebbs_physics_key(field_name: str) -> str:
+    """Return the preferred public key for a nested STEBBS physics field."""
+    return _STEBBS_CANONICAL_TO_PUBLIC.get(field_name, field_name)
 
 
 def fold_public_physics_key_aliases(values: dict, class_name: str) -> dict:

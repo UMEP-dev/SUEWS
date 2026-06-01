@@ -1256,6 +1256,9 @@ fn physics_name_to_code(field: &str, name: &str) -> Option<i64> {
 
 fn collapse_physics_scalar_entry(field: &str, entry: &mut Value) -> Result<bool, String> {
     if let Some(name) = entry.as_str().map(|s| s.to_string()) {
+        if name.trim().is_empty() {
+            return Ok(false);
+        }
         let code = physics_name_to_code(field, &name)
             .ok_or_else(|| format!("'{field}' got unknown scheme name '{name}'."))?;
         let mut flat = serde_yaml::Mapping::new();
@@ -1271,6 +1274,9 @@ fn collapse_physics_scalar_entry(field: &str, entry: &mut Value) -> Result<bool,
             .and_then(|v| v.as_str())
             .map(str::to_string)
         {
+            if name.trim().is_empty() {
+                return Ok(false);
+            }
             let code = physics_name_to_code(field, &name)
                 .ok_or_else(|| format!("'{field}' got unknown scheme name '{name}'."))?;
             map.insert(value_key, Value::Number(code.into()));
@@ -2484,6 +2490,21 @@ model:
             err.contains("unknown scheme name"),
             "unexpected error message: {err}"
         );
+    }
+
+    #[test]
+    fn blank_physics_method_strings_preserve_placeholders() {
+        let yaml = "\
+model:
+  physics:
+    roughness_sublayer: ''
+    emissions: {value: ''}
+";
+        let mut root: Value = from_str(yaml).unwrap();
+        normalize_field_names(&mut root).unwrap();
+        let physics = &root["model"]["physics"];
+        assert_eq!(physics["rslmethod"].as_str(), Some(""));
+        assert_eq!(physics["emissionsmethod"]["value"].as_str(), Some(""));
     }
 
     #[test]

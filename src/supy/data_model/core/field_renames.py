@@ -7,13 +7,17 @@ the Phase A validation pipeline, and raw-dict compatibility helpers.
 
 from __future__ import annotations
 
-import warnings
 from collections.abc import Mapping
 from typing import Any, Dict
+import warnings
 
-from .physics_families import coerce_nested_to_flat, flatten_physics_in_config
-from .physics_orthogonal import coerce_orthogonal_to_flat
-
+from .physics_families import (
+    PHYSICS_PUBLIC_KEY_ALIASES,
+    STEBBS_PUBLIC_KEY_ALIASES,
+    coerce_nested_to_flat,
+    flatten_physics_in_config,
+)
+from .physics_orthogonal import coerce_orthogonal_to_flat, fold_storage_heat_ohm_inc_qf
 
 # -- ModelPhysics (model.py) -------------------------------------------------
 #
@@ -1271,6 +1275,7 @@ _MODELPHYSICS_ALL_RENAMES: Dict[str, str] = {
     # find a legacy ``outer_cap_fraction`` key. Spread before RENAMES so the
     # reverse map prefers the fused legacy ``rcmethod`` for ``capacitance``.
     **MODELPHYSICS_SUFFIX_RENAMES,
+    **PHYSICS_PUBLIC_KEY_ALIASES,
     **MODELPHYSICS_DEV12_RENAMES,
     **MODELPHYSICS_RENAMES,
 }
@@ -1361,6 +1366,7 @@ _STEBBS_NESTED_KEYS = frozenset(
     {
         "enabled",
         "parameters",
+        *STEBBS_PUBLIC_KEY_ALIASES,
         *STEBBS_PHYSICS_LEAF_RENAMES.keys(),
         *STEBBS_PHYSICS_LEAF_RENAMES.values(),
     }
@@ -1442,6 +1448,17 @@ def _decompose_stebbs_master(entry: Any) -> tuple[Any, Any]:
 
 def _normalise_stebbs_block_aliases(stebbs_block: dict) -> tuple[dict, list[str]]:
     """Rename legacy keys inside a nested ``stebbs`` block to final leaves."""
+    for old_key, nested_leaf in STEBBS_PUBLIC_KEY_ALIASES.items():
+        if old_key not in stebbs_block:
+            continue
+        if nested_leaf in stebbs_block:
+            raise ValueError(
+                "Multiple nested STEBBS physics switches map to the same nested leaf "
+                f"({old_key}, {nested_leaf} -> stebbs.{nested_leaf}). Use only one "
+                "spelling."
+            )
+        stebbs_block[nested_leaf] = stebbs_block.pop(old_key)
+
     leaf_conflicts = _stebbs_leaf_alias_conflicts(stebbs_block)
     if leaf_conflicts:
         raise ValueError(
@@ -1602,6 +1619,15 @@ def read_physics_key(physics: dict, new_name: str, default: Any = None):
     orthogonal physics forms. Returns ``default`` when neither spelling is
     present.
     """
+    if new_name in {"storage_heat", "ohm_inc_qf"} and isinstance(physics, dict):
+        physics = dict(physics)
+        if "storage_heat" not in physics:
+            for alias in ("storage_heat_method", "storageheatmethod"):
+                if alias in physics:
+                    physics["storage_heat"] = physics[alias]
+                    break
+        fold_storage_heat_ohm_inc_qf(physics, "ModelPhysics")
+
     entry = read_renamed_key(
         physics,
         new_name,

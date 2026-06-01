@@ -1611,23 +1611,30 @@ fn physics_field_key_spellings(field: &str) -> Vec<String> {
         }
     };
 
-    let mut targets: Vec<String> = physics_outer_keys(field)
-        .iter()
-        .map(|key| key.to_string())
-        .collect();
+    let mut targets: Vec<String> = vec![field.to_string()];
+    for key in physics_outer_keys(field) {
+        push(&mut targets, key);
+    }
     for (new, old) in FIELD_RENAMES.iter().chain(FIELD_COMPAT_ALIASES.iter()) {
-        if *new == field && !targets.iter().any(|target| target == old) {
-            targets.push((*old).to_string());
+        if *new == field {
+            push(&mut targets, old);
         }
+    }
+    let alias_keys: Vec<String> = targets
+        .iter()
+        .flat_map(|target| {
+            FIELD_RENAMES
+                .iter()
+                .chain(FIELD_COMPAT_ALIASES.iter())
+                .filter_map(move |(new, old)| (*old == target).then_some((*new).to_string()))
+        })
+        .collect();
+    for key in alias_keys {
+        push(&mut targets, &key);
     }
 
     for target in &targets {
         push(&mut keys, target);
-    }
-    for (new, old) in FIELD_RENAMES.iter().chain(FIELD_COMPAT_ALIASES.iter()) {
-        if targets.iter().any(|target| target == old) {
-            push(&mut keys, new);
-        }
     }
     keys
 }
@@ -2459,6 +2466,22 @@ model:
         let properties = root["sites"][0]["properties"].as_mapping().unwrap();
         assert!(properties.contains_key(Value::String("snow".into())));
         assert!(!properties.contains_key(Value::String("snowuse".into())));
+    }
+
+    #[test]
+    fn public_leaf_area_index_alias_collapses_before_rename() {
+        for (name, expected) in [("observed", 0), ("modelled", 1)] {
+            let yaml = format!("model:\n  physics:\n    leaf_area_index: {name}\n");
+            let mut root: Value = from_str(&yaml).unwrap();
+            normalize_field_names(&mut root).unwrap();
+            let physics = &root["model"]["physics"];
+            assert_eq!(
+                physics["laimethod"]
+                    .get(Value::String("value".into()))
+                    .and_then(|v| v.as_i64()),
+                Some(expected)
+            );
+        }
     }
 
     #[test]

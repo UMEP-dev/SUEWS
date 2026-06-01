@@ -17,7 +17,7 @@ from .physics_families import (
     coerce_nested_to_flat,
     flatten_physics_in_config,
 )
-from .physics_orthogonal import coerce_orthogonal_to_flat
+from .physics_orthogonal import coerce_orthogonal_to_flat, fold_storage_heat_ohm_inc_qf
 
 # -- ModelPhysics (model.py) -------------------------------------------------
 #
@@ -1619,6 +1619,10 @@ def read_physics_key(physics: dict, new_name: str, default: Any = None):
     orthogonal physics forms. Returns ``default`` when neither spelling is
     present.
     """
+    if new_name in {"storage_heat", "ohm_inc_qf"} and isinstance(physics, dict):
+        physics = dict(physics)
+        fold_storage_heat_ohm_inc_qf(physics, "ModelPhysics")
+
     entry = read_renamed_key(
         physics,
         new_name,

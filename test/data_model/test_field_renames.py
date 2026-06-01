@@ -10,9 +10,11 @@ Verifies:
   deprecation warning via MODELPHYSICS_SUFFIX_RENAMES (#1321).
 """
 
+from pathlib import Path
 import warnings
 
 import pytest
+import yaml
 
 from supy.validation import analyze_config_methods
 
@@ -858,6 +860,22 @@ class TestRawDictCompatibility:
         physics = {"netradiationmethod": {"scheme": "narp", "ldown": "air"}}
 
         assert read_physics_key(physics, "net_radiation") == 3
+
+    def test_read_physics_key_accepts_storage_heat_owned_qf_axis(self):
+        physics = {"storage_heat": {"ohm": {"include_qf": False}}}
+
+        assert read_physics_key(physics, "storage_heat") == 1
+        assert read_physics_key(physics, "ohm_inc_qf") == 0
+
+    def test_legacy_analyze_config_methods_accepts_sample_config(self):
+        path = Path(__file__).resolve().parents[2] / "src/supy/sample_data/sample_config.yml"
+        config = yaml.safe_load(path.read_text(encoding="utf-8"))
+
+        methods = analyze_config_methods(config)
+
+        assert methods
+        assert methods["storage_estm"] is False
+        assert methods["emissions_advanced"] is False
 
     def test_analyze_config_methods_accepts_orthogonal_emissions(self):
         config = {

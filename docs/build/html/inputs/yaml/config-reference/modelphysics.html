@@ -10,7 +10,7 @@
 <meta content="SUEWS YAML configuration for physics methods parameters" name="description" />
 <meta content="SUEWS, YAML, modelphysics, parameters, configuration" name="keywords" />
 
-    <title>4.3.33. Physics Methods &#8212; SUEWS 2026.6.1.dev9137 documentation</title>
+    <title>4.3.33. Physics Methods &#8212; SUEWS 2026.6.1.dev9140 documentation</title>
   
   
   
@@ -46,7 +46,7 @@
   <link rel="preload" as="script" href="../../../_static/scripts/bootstrap.js?digest=8878045cc6db502f8baf" />
 <link rel="preload" as="script" href="../../../_static/scripts/pydata-sphinx-theme.js?digest=8878045cc6db502f8baf" />
 
-    <script src="../../../_static/documentation_options.js?v=169a03ae"></script>
+    <script src="../../../_static/documentation_options.js?v=72ce76bf"></script>
     <script src="../../../_static/doctools.js?v=9bcbadda"></script>
     <script src="../../../_static/sphinx_highlight.js?v=dc90522c"></script>
     <script src="../../../_static/scripts/sphinx-book-theme.js?v=fab101a9"></script>
@@ -60,7 +60,7 @@
     <link rel="prev" title="4.3.32. Model Control" href="modelcontrol.html" />
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
-  <meta name="docsearch:version" content="2026.6.1.dev9137" />
+  <meta name="docsearch:version" content="2026.6.1.dev9140" />
   </head>
   
   
@@ -102,7 +102,7 @@
   <div class="bd-header-announcement__content">
     <div style="background-color: #f0ad4e; border: 1px solid #eea236; border-radius: 4px; padding: 10px; margin: 10px 0;">
         <strong>⚠️ Development Version:</strong> This documentation was built from a development version
-        (2026.6.1.dev9137, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/37a1922c235068c62d7251c161577b3d5d990cad" style="color: #31708f;">37a1922</a>).
+        (2026.6.1.dev9140, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/f7d440e77a2e62cc8e515909816777ebc2717533" style="color: #31708f;">f7d440e</a>).
         Features described here may be unstable or subject to change. For stable documentation, please visit the
         <a href="https://docs.suews.io/stable/" style="color: #31708f;">latest release</a>.
     </div>
@@ -149,8 +149,8 @@
       
     
     
-    <img src="../../../_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.6.1.dev9137 documentation - Home"/>
-    <img src="../../../_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.6.1.dev9137 documentation - Home"/>
+    <img src="../../../_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.6.1.dev9140 documentation - Home"/>
+    <img src="../../../_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.6.1.dev9140 documentation - Home"/>
   
   
 </a></div>
@@ -544,6 +544,218 @@
 <section id="physics-methods">
 <span id="index-0"></span><span id="modelphysics"></span><h1><span class="section-number">4.3.33. </span>Physics Methods<a class="headerlink" href="#physics-methods" title="Link to this heading">#</a></h1>
 <p>Model physics configuration options.</p>
+<p class="rubric">Public selector forms</p>
+<p>The scalar <code class="docutils literal notranslate"><span class="pre">{value:</span> <span class="pre">...}</span></code> form remains valid for each selector. The forms below are the public YAML names and nested families accepted by the configuration validators; they are folded to the existing method-code fields before SUEWS runs. Registered selector tokens are case-insensitive; citation-style choices are shown in their preferred case.</p>
+<div class="pst-scrollable-table-container"><table class="table" id="id1">
+<caption><span class="caption-number">Table 4.1 </span><span class="caption-text">Net radiation</span><a class="headerlink" href="#id1" title="Link to this table">#</a></caption>
+<colgroup>
+<col style="width: 30.0%" />
+<col style="width: 35.0%" />
+<col style="width: 35.0%" />
+</colgroup>
+<thead>
+<tr class="row-odd"><th class="head"><p>Public path</p></th>
+<th class="head"><p>Choices</p></th>
+<th class="head"><p>Notes</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">net_radiation</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">forcing</span></code> / <code class="docutils literal notranslate"><span class="pre">observed</span></code>; nested <code class="docutils literal notranslate"><span class="pre">narp</span></code>; nested <code class="docutils literal notranslate"><span class="pre">spartacus</span></code></p></td>
+<td><p>Selects observed net all-wave radiation, or a nested NARP/SPARTACUS form.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">net_radiation.narp.ldown</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">observed</span></code>; <code class="docutils literal notranslate"><span class="pre">cloud</span></code>; <code class="docutils literal notranslate"><span class="pre">air</span></code></p></td>
+<td><p>Longwave-down source for NARP.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">net_radiation.narp.variant</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">standard</span></code>; <code class="docutils literal notranslate"><span class="pre">surface</span></code>; <code class="docutils literal notranslate"><span class="pre">zenith</span></code></p></td>
+<td><p>Optional NARP variant; <code class="docutils literal notranslate"><span class="pre">standard</span></code> is the default.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">net_radiation.spartacus.ldown</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">observed</span></code>; <code class="docutils literal notranslate"><span class="pre">cloud</span></code>; <code class="docutils literal notranslate"><span class="pre">air</span></code></p></td>
+<td><p>Longwave-down source for SPARTACUS-Surface.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="pst-scrollable-table-container"><table class="table" id="id2">
+<caption><span class="caption-number">Table 4.2 </span><span class="caption-text">Emissions</span><a class="headerlink" href="#id2" title="Link to this table">#</a></caption>
+<colgroup>
+<col style="width: 30.0%" />
+<col style="width: 35.0%" />
+<col style="width: 35.0%" />
+</colgroup>
+<thead>
+<tr class="row-odd"><th class="head"><p>Public path</p></th>
+<th class="head"><p>Choices</p></th>
+<th class="head"><p>Notes</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">emissions.heat</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">observed</span></code>; <code class="docutils literal notranslate"><span class="pre">L11</span></code>; <code class="docutils literal notranslate"><span class="pre">J11</span></code>; <code class="docutils literal notranslate"><span class="pre">L11_updated</span></code></p></td>
+<td><p>Observed QF cannot be combined with CO2 axes; use modelled heat when CO2 is enabled.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">emissions.co2.anthropogenic</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">none</span></code>; <code class="docutils literal notranslate"><span class="pre">qf_linked</span></code>; <code class="docutils literal notranslate"><span class="pre">detailed</span></code></p></td>
+<td><p>Anthropogenic CO2 branch; use <code class="docutils literal notranslate"><span class="pre">none</span></code> only when biogenic is also <code class="docutils literal notranslate"><span class="pre">none</span></code>.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">emissions.co2.biogenic</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">none</span></code>; <code class="docutils literal notranslate"><span class="pre">rectangular</span></code>; <code class="docutils literal notranslate"><span class="pre">bellucco_local</span></code>; <code class="docutils literal notranslate"><span class="pre">bellucco_general</span></code>; <code class="docutils literal notranslate"><span class="pre">conductance</span></code></p></td>
+<td><p>Biogenic CO2 family; a family requires anthropogenic <code class="docutils literal notranslate"><span class="pre">qf_linked</span></code> or <code class="docutils literal notranslate"><span class="pre">detailed</span></code>.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="pst-scrollable-table-container"><table class="table" id="id3">
+<caption><span class="caption-number">Table 4.3 </span><span class="caption-text">Storage heat</span><a class="headerlink" href="#id3" title="Link to this table">#</a></caption>
+<colgroup>
+<col style="width: 30.0%" />
+<col style="width: 35.0%" />
+<col style="width: 35.0%" />
+</colgroup>
+<thead>
+<tr class="row-odd"><th class="head"><p>Public path</p></th>
+<th class="head"><p>Choices</p></th>
+<th class="head"><p>Notes</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">storage_heat</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">observed</span></code>; <code class="docutils literal notranslate"><span class="pre">ohm</span></code>; <code class="docutils literal notranslate"><span class="pre">anohm</span></code>; <code class="docutils literal notranslate"><span class="pre">estm</span></code>; <code class="docutils literal notranslate"><span class="pre">ehc</span></code>; <code class="docutils literal notranslate"><span class="pre">dyohm</span></code>; <code class="docutils literal notranslate"><span class="pre">stebbs</span></code></p></td>
+<td><p>Storage heat source or model family.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">storage_heat.ohm.include_qf</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">true</span></code> / <code class="docutils literal notranslate"><span class="pre">false</span></code>; <code class="docutils literal notranslate"><span class="pre">include</span></code> / <code class="docutils literal notranslate"><span class="pre">exclude</span></code></p></td>
+<td><p>Public home for the OHM QF-inclusion switch.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="pst-scrollable-table-container"><table class="table" id="id4">
+<caption><span class="caption-number">Table 4.4 </span><span class="caption-text">Observed/modelled source selectors</span><a class="headerlink" href="#id4" title="Link to this table">#</a></caption>
+<colgroup>
+<col style="width: 30.0%" />
+<col style="width: 35.0%" />
+<col style="width: 35.0%" />
+</colgroup>
+<thead>
+<tr class="row-odd"><th class="head"><p>Public path</p></th>
+<th class="head"><p>Choices</p></th>
+<th class="head"><p>Notes</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">soil_moisture_deficit</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">modelled</span></code>; <code class="docutils literal notranslate"><span class="pre">observed</span></code></p></td>
+<td><p>Selects water-balance SMD or forcing-file soil moisture.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">water_use</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">modelled</span></code>; <code class="docutils literal notranslate"><span class="pre">observed</span></code></p></td>
+<td><p>Selects modelled irrigation/water use or forcing-file values.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">leaf_area_index</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">observed</span></code>; <code class="docutils literal notranslate"><span class="pre">modelled</span></code></p></td>
+<td><p>Public alias for the LAI method selector.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">frontal_area_index</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">observed</span></code>; <code class="docutils literal notranslate"><span class="pre">modelled</span></code></p></td>
+<td><p>Selects provided or modelled frontal area index.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">snow</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">disabled</span></code>; <code class="docutils literal notranslate"><span class="pre">enabled</span></code></p></td>
+<td><p>Public alias for the snow-process switch.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="pst-scrollable-table-container"><table class="table" id="id5">
+<caption><span class="caption-number">Table 4.5 </span><span class="caption-text">Other method selectors</span><a class="headerlink" href="#id5" title="Link to this table">#</a></caption>
+<colgroup>
+<col style="width: 30.0%" />
+<col style="width: 35.0%" />
+<col style="width: 35.0%" />
+</colgroup>
+<thead>
+<tr class="row-odd"><th class="head"><p>Public path</p></th>
+<th class="head"><p>Choices</p></th>
+<th class="head"><p>Notes</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">roughness_length_momentum</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">fixed</span></code>; <code class="docutils literal notranslate"><span class="pre">variable</span></code>; <code class="docutils literal notranslate"><span class="pre">macdonald</span></code> / <code class="docutils literal notranslate"><span class="pre">M98</span></code>; <code class="docutils literal notranslate"><span class="pre">lambdap_dependent</span></code> / <code class="docutils literal notranslate"><span class="pre">GO99</span></code>; <code class="docutils literal notranslate"><span class="pre">alternative</span></code></p></td>
+<td><p>Momentum roughness-length method.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">roughness_length_heat</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">brutsaert</span></code> / <code class="docutils literal notranslate"><span class="pre">B82</span></code>; <code class="docutils literal notranslate"><span class="pre">kawai</span></code> / <code class="docutils literal notranslate"><span class="pre">K09</span></code>; <code class="docutils literal notranslate"><span class="pre">voogt_grimmond</span></code> / <code class="docutils literal notranslate"><span class="pre">VG00</span></code>; <code class="docutils literal notranslate"><span class="pre">kanda</span></code> / <code class="docutils literal notranslate"><span class="pre">K07</span></code>; <code class="docutils literal notranslate"><span class="pre">adaptive</span></code></p></td>
+<td><p>Heat roughness-length method.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">stability</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">not_used</span></code>; <code class="docutils literal notranslate"><span class="pre">not_used2</span></code>; <code class="docutils literal notranslate"><span class="pre">Hoegstrom</span></code>; <code class="docutils literal notranslate"><span class="pre">CN98</span></code>; <code class="docutils literal notranslate"><span class="pre">BH71</span></code></p></td>
+<td><p>Atmospheric stability correction method.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">roughness_sublayer</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">most</span></code>; <code class="docutils literal notranslate"><span class="pre">rst</span></code> / <code class="docutils literal notranslate"><span class="pre">T19</span></code>; <code class="docutils literal notranslate"><span class="pre">variable</span></code></p></td>
+<td><p>Roughness sublayer treatment.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">roughness_sublayer_level</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">none</span></code>; <code class="docutils literal notranslate"><span class="pre">basic</span></code>; <code class="docutils literal notranslate"><span class="pre">detailed</span></code></p></td>
+<td><p>Roughness sublayer detail level.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">surface_conductance</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">J11</span></code>; <code class="docutils literal notranslate"><span class="pre">W16</span></code></p></td>
+<td><p>Surface conductance method.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="pst-scrollable-table-container"><table class="table" id="id6">
+<caption><span class="caption-number">Table 4.6 </span><span class="caption-text">STEBBS</span><a class="headerlink" href="#id6" title="Link to this table">#</a></caption>
+<colgroup>
+<col style="width: 30.0%" />
+<col style="width: 35.0%" />
+<col style="width: 35.0%" />
+</colgroup>
+<thead>
+<tr class="row-odd"><th class="head"><p>Public path</p></th>
+<th class="head"><p>Choices</p></th>
+<th class="head"><p>Notes</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">stebbs.enabled</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">false</span></code>; <code class="docutils literal notranslate"><span class="pre">true</span></code></p></td>
+<td><p>Master STEBBS switch.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">stebbs.parameter_source</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">default</span></code>; <code class="docutils literal notranslate"><span class="pre">provided</span></code></p></td>
+<td><p>Public alias for the STEBBS parameter-source selector.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">stebbs.capacitance</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">default</span></code>; <code class="docutils literal notranslate"><span class="pre">provided</span></code>; <code class="docutils literal notranslate"><span class="pre">parameterise</span></code></p></td>
+<td><p>Reading/STEBBS public selector name for the RC-method choice.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">stebbs.setpoint</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">constant</span></code>; <code class="docutils literal notranslate"><span class="pre">dependent</span></code>; <code class="docutils literal notranslate"><span class="pre">scheduled</span></code></p></td>
+<td><p>Space-heating/cooling setpoint method.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">stebbs.same_albedo_wall</span></code>; <code class="docutils literal notranslate"><span class="pre">stebbs.same_albedo_roof</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">disabled</span></code>; <code class="docutils literal notranslate"><span class="pre">enabled</span></code></p></td>
+<td><p>Wall and roof albedo assumptions.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">stebbs.same_emissivity_wall</span></code>; <code class="docutils literal notranslate"><span class="pre">stebbs.same_emissivity_roof</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">disabled</span></code>; <code class="docutils literal notranslate"><span class="pre">enabled</span></code></p></td>
+<td><p>Wall and roof emissivity assumptions.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>The generated parameter list below still includes implementation field    names where they differ from public aliases. In user YAML, prefer    <code class="docutils literal notranslate"><span class="pre">leaf_area_index</span></code> over <code class="docutils literal notranslate"><span class="pre">laimethod</span></code>, <code class="docutils literal notranslate"><span class="pre">snow</span></code> over    <code class="docutils literal notranslate"><span class="pre">snow_use</span></code>, <code class="docutils literal notranslate"><span class="pre">storage_heat.ohm.include_qf</span></code> over flat    <code class="docutils literal notranslate"><span class="pre">ohm_inc_qf</span></code>, and <code class="docutils literal notranslate"><span class="pre">stebbs.parameter_source</span></code> over    <code class="docutils literal notranslate"><span class="pre">stebbs.parameters</span></code>.</p>
+</div>
 <p><strong>Parameters:</strong></p>
 <dl class="input option" id="index-1">
 <dt class="sig sig-object input" id="input-option-net_radiation">
@@ -949,8 +1161,8 @@ By SUEWS dev team led by Prof Sue Grimmond
   <div class="footer-item">
     
 <div class="extra_footer">
-  <p>Version: 2026.6.1.dev9137 |
-    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/37a1922c235068c62d7251c161577b3d5d990cad">37a1922</a> |
+  <p>Version: 2026.6.1.dev9140 |
+    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/f7d440e77a2e62cc8e515909816777ebc2717533">f7d440e</a> |
     <a href="https://umep-dev.github.io/SUEWS/brand/showcase.html">Brand</a></p>
 </div>
   </div>

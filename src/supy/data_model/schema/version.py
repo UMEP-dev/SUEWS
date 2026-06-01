@@ -22,7 +22,7 @@ import warnings
 # schema-versioning.md` (Dev-label convention). Every structural PR
 # between releases bumps the dev counter instead of consuming a new
 # CalVer label.
-CURRENT_SCHEMA_VERSION = "2026.5.dev14"
+CURRENT_SCHEMA_VERSION = "2026.5.dev13"
 
 # Schema version history and descriptions.
 #
@@ -393,8 +393,8 @@ SCHEMA_VERSIONS: dict[str, str] = {
         "model.physics.capacitance in this dev bump (pure key rename - still "
         "a RCMethod enum with the same values and validation behaviour; the "
         "bridge DataFrame column stays rcmethod). The larger relocation of "
-        "the field under STEBBS lands in dev13, and the "
-        "selector-versus-quantity capacitance split lands in dev14. Rename tables "
+        "the field under STEBBS and the capacitance-vs-fraction semantics "
+        "are deferred to a separate workstream (gh#1456, dev13). Rename tables "
         "STEBBSPROPERTIES_DEV12_RENAMES, ARCHETYPEPROPERTIES_DEV12_RENAMES "
         "and MODELPHYSICS_DEV12_RENAMES in "
         "src/supy/data_model/core/field_renames.py; the "
@@ -428,24 +428,8 @@ SCHEMA_VERSIONS: dict[str, str] = {
         "the (2026.5.dev12 -> 2026.5.dev13) handler in "
         "src/supy/util/converter/yaml_upgrade.py::_HANDLERS and applied by the "
         "ModelPhysics before-validator (fold_stebbs_physics in "
-        "src/supy/data_model/core/field_renames.py)."
-    ),
-    "2026.5.dev14": (
-        "gh#1472: the STEBBS capacitance selector is split from the physical "
-        "capacitance-distribution values. The nested method selector moves "
-        "from model.physics.stebbs.capacitance to "
-        "model.physics.stebbs.capacitance_method while still composing to the "
-        "unchanged rcmethod DataFrame / Fortran column. The wall/roof "
-        "capacitance-distribution values on building_archetype move from "
-        "fraction_heat_capacity_wall_external and "
-        "fraction_heat_capacity_roof_external to "
-        "capacitance_wall_external_fraction and "
-        "capacitance_roof_external_fraction, still feeding the unchanged "
-        "WallOuterCapFrac / RoofOuterCapFrac bridge columns. The "
-        "(2026.5.dev13 -> 2026.5.dev14) migration is registered in "
-        "src/supy/util/converter/yaml_upgrade.py::_HANDLERS and the Python / "
-        "Rust raw-YAML compatibility layers continue accepting the dev13 and "
-        "legacy rcmethod / outer_cap_fraction spellings."
+        "src/supy/data_model/core/field_renames.py). The capacitance-vs-fraction "
+        "semantics settling (#1456 part 2) is deferred to a follow-up."
     ),
 }
 

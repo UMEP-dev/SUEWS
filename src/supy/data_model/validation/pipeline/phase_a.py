@@ -38,7 +38,7 @@ PHYSICS_OPTIONS = {
     "stebbs",
     "enabled",
     "parameters",
-    "capacitance_method",
+    "capacitance",
     "same_albedo_wall",
     "same_albedo_roof",
     "same_emissivity_wall",
@@ -82,7 +82,7 @@ def _is_generated_null_placeholder(value: object) -> bool:
 # (``enabled`` default false, ``parameters`` default DEFAULT) so that omitting
 # it is not treated as a missing critical physics parameter -- consistent with
 # Phase B (physics_rules.py), which deliberately requires only the relocated
-# leaves (capacitance_method / setpoint / same_*), not the toggle.
+# leaves (capacitance / setpoint / same_*), not the toggle.
 _DEFAULT_BACKED_CONTROL_PATHS = frozenset(
     {
         "model.control.forcing",

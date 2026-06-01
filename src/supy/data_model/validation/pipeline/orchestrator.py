@@ -64,7 +64,7 @@ CRITICAL_PHYSICS_PARAMS = (
     # listed here. `enabled`/`parameters` are intentionally omitted -- the
     # master toggle defaults sensibly (off / default-params) and must not be
     # flagged as a "missing critical" when a user simply leaves STEBBS off.
-    "capacitance_method",
+    "capacitance",
     "setpoint",
     "same_albedo_wall",
     "same_albedo_roof",
@@ -985,7 +985,7 @@ def _run_phase_c_legacy(
                 # comparison below (detect_pydantic_defaults) matches the
                 # current-name keys in processed_data. Without this, a legacy
                 # spelling of a renamed critical parameter (e.g.
-                # outer_cap_fraction -> capacitance_method) set to null slips the
+                # outer_cap_fraction -> capacitance) set to null slips the
                 # critical-null check and can crash later in df_state conversion
                 # via int(None). gh#1457.
                 original_data = load_user_yaml_normalised(input_yaml_file)

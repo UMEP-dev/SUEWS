@@ -405,7 +405,7 @@ def test_validate_flags_missing_critical_physics_params(tmp_path: Path) -> None:
 def test_validate_flat_stebbs_form_not_flagged_missing(tmp_path: Path) -> None:
     """gh#1456 regression: a current-target YAML in the legacy FLAT form.
 
-    The relocated STEBBS leaves (``capacitance_method``/``setpoint``/``same_*``)
+    The relocated STEBBS leaves (``capacitance``/``setpoint``/``same_*``)
     may still be written flat under ``model.physics`` alongside a flat
     ``stebbs: {value: 1}`` master toggle. ``SUEWSConfig.from_yaml`` folds
     those flat keys to the nested ``stebbs`` block and accepts them, so
@@ -438,7 +438,7 @@ def test_validate_flat_stebbs_form_not_flagged_missing(tmp_path: Path) -> None:
         "snow_use": {"value": 0},
         # Flat STEBBS master toggle + relocated leaves (legacy flat form).
         "stebbs": {"value": 1},
-        "capacitance_method": {"value": 1},
+        "capacitance": {"value": 1},
         "setpoint": {"value": 0},
         "same_albedo_wall": {"value": 1},
         "same_albedo_roof": {"value": 1},

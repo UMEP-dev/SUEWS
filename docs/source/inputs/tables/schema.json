@@ -562,7 +562,7 @@
           "title": "Specific Heat Capacity Wall Outer",
           "unit": "J kg^-1 K^-1"
         },
-        "capacitance_wall_external_fraction": {
+        "fraction_heat_capacity_wall_external": {
           "anyOf": [
             {
               "anyOf": [
@@ -582,8 +582,8 @@
           ],
           "default": 0.5,
           "description": "Weighting factor (0-1) representing the fraction of wall heat capacity assigned to the external node, with the remainder assigned to the internal node [-]",
-          "display_name": "Wall External Capacitance Fraction",
-          "title": "Capacitance Wall External Fraction",
+          "display_name": "Wall Outer Capacity Fraction",
+          "title": "Fraction Heat Capacity Wall External",
           "unit": "dimensionless"
         },
         "emissivity_wall_external": {
@@ -888,7 +888,7 @@
           "title": "Specific Heat Capacity Roof Outer",
           "unit": "J kg^-1 K^-1"
         },
-        "capacitance_roof_external_fraction": {
+        "fraction_heat_capacity_roof_external": {
           "anyOf": [
             {
               "anyOf": [
@@ -908,8 +908,8 @@
           ],
           "default": 0.5,
           "description": "Weighting factor (0-1) representing the fraction of roof heat capacity assigned to the external node, with the remainder assigned to the internal node [-]",
-          "display_name": "Roof External Capacitance Fraction",
-          "title": "Capacitance Roof External Fraction",
+          "display_name": "Roof Outer Capacity Fraction",
+          "title": "Fraction Heat Capacity Roof External",
           "unit": "dimensionless"
         },
         "emissivity_roof_external": {
@@ -7903,7 +7903,7 @@
       "type": "object"
     },
     "RCMethod": {
-      "description": "Method to determine the two weighting factors (capacitance_wall_external_fraction and capacitance_roof_external_fraction) splitting heat capacity of building envelope into two nodes in STEBBS.\n\nExposed on the YAML / data-model surface as ``stebbs.capacitance_method``.\nThe physical capacitance-distribution values live on the building\narchetype as ``capacitance_wall_external_fraction`` and\n``capacitance_roof_external_fraction``. The ``rcmethod`` DataFrame column\nthe Fortran bridge reads is unchanged.\n\n0: DEFAULT - Default value of 0.5 is used\n1: PROVIDED - Use user defined value (capacitance_wall_external_fraction and capacitance_roof_external_fraction) between 0 and 1\n2: PARAMETERISE - Use building material thermal property to parameterise the weighting factor",
+      "description": "Method to determine the two weighting factors (wall_outer_heat_capacity_fraction and roof_outer_heat_capacity_fraction) splitting heat capacity of building envelope into two nodes in STEBBS.\n\nExposed on the YAML / data-model surface as ``stebbs.capacitance`` (the\nfield formerly named ``outer_cap_fraction``, gh#1456). The ``rcmethod``\nDataFrame column the Fortran bridge reads is unchanged.\n\n0: DEFAULT - Default value of 0.5 is used\n1: PROVIDED - Use user defined value (wall_outer_heat_capacity_fraction and roof_outer_heat_capacity_fraction) between 0 and 1\n2: PARAMETERISE - Use building material thermal property to parameterise the weighting factor",
       "enum": [
         0,
         1,
@@ -10115,7 +10115,7 @@
           "title": "Parameters",
           "unit": "dimensionless"
         },
-        "capacitance_method": {
+        "capacitance": {
           "anyOf": [
             {
               "$ref": "#/$defs/RefValue_RCMethod_"
@@ -10125,8 +10125,8 @@
             }
           ],
           "default": 0,
-          "description": "Method to determine the two weighting factors (capacitance_wall_external_fraction and capacitance_roof_external_fraction) splitting heat capacity of building envelope into two nodes in STEBBS. Options: 0 (DEFAULT) = Default value of 0.5 is used; 1 (PROVIDED) = Use user defined value (capacitance_wall_external_fraction and capacitance_roof_external_fraction) between 0 and 1; 2 (PARAMETERISE) = Use building material thermal property to parameterise the weighting factor",
-          "title": "Capacitance Method",
+          "description": "Method to determine the two weighting factors (wall_outer_heat_capacity_fraction and roof_outer_heat_capacity_fraction) splitting heat capacity of building envelope into two nodes in STEBBS. Options: 0 (DEFAULT) = Default value of 0.5 is used; 1 (PROVIDED) = Use user defined value (wall_outer_heat_capacity_fraction and roof_outer_heat_capacity_fraction) between 0 and 1; 2 (PARAMETERISE) = Use building material thermal property to parameterise the weighting factor",
+          "title": "Capacitance",
           "unit": "dimensionless"
         },
         "setpoint": {
@@ -12893,7 +12893,7 @@
     }
   },
   "additionalProperties": true,
-  "description": "JSON Schema for SUEWS YAML configuration files. Schema version 2026.5.dev14. gh#1472: the STEBBS capacitance selector is split from the physical capacitance-distribution values. The nested method selector moves from model.physics.stebbs.capacitance to model.physics.stebbs.capacitance_method while still composing to the unchanged rcmethod DataFrame / Fortran column. The wall/roof capacitance-distribution values on building_archetype move from fraction_heat_capacity_wall_external and fraction_heat_capacity_roof_external to capacitance_wall_external_fraction and capacitance_roof_external_fraction, still feeding the unchanged WallOuterCapFrac / RoofOuterCapFrac bridge columns. The (2026.5.dev13 -> 2026.5.dev14) migration is registered in src/supy/util/converter/yaml_upgrade.py::_HANDLERS and the Python / Rust raw-YAML compatibility layers continue accepting the dev13 and legacy rcmethod / outer_cap_fraction spellings.",
+  "description": "JSON Schema for SUEWS YAML configuration files. Schema version 2026.5.dev13. gh#1456: the six flat STEBBS-scoped physics switches on model.physics are relocated into a single nested object model.physics.stebbs. This is a separate structural reshape from the dev12 Column D rename (gh#1452), so it takes its own dev bump. The legacy tri-state master toggle (model.physics.stebbs, a StebbsMethod integer 0/1/2) is split into stebbs.enabled (bool) + stebbs.parameters (default/provided); the two compose losslessly back to the unchanged stebbsmethod DataFrame column (0 if not enabled else int(parameters)). The dev12 flat model.physics.capacitance (RCMethod; was outer_cap_fraction / fused rcmethod) moves to model.physics.stebbs.capacitance with RCMethod semantics unchanged. model.physics.setpoint, same_albedo_wall, same_albedo_roof, same_emissivity_wall and same_emissivity_roof move under the nested object at the same leaf names. All DataFrame / Fortran column names (stebbsmethod, rcmethod, setpointmethod, same_albedo_*, same_emissivity_*) are unchanged -- only the YAML surface and the Python data-model fields move. The flat->nested fold is registered as the (2026.5.dev12 -> 2026.5.dev13) handler in src/supy/util/converter/yaml_upgrade.py::_HANDLERS and applied by the ModelPhysics before-validator (fold_stebbs_physics in src/supy/data_model/core/field_renames.py). The capacitance-vs-fraction semantics settling (#1456 part 2) is deferred to a follow-up.",
   "properties": {
     "name": {
       "default": "sample config",
@@ -12939,20 +12939,20 @@
       "type": "array"
     }
   },
-  "title": "SUEWS Configuration Schema v2026.5.dev14",
+  "title": "SUEWS Configuration Schema v2026.5.dev13",
   "type": "object",
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://umep-dev.github.io/SUEWS/schema/suews-config/2026.5.dev14.json",
-  "version": "2026.5.dev14",
+  "$id": "https://umep-dev.github.io/SUEWS/schema/suews-config/2026.5.dev13.json",
+  "version": "2026.5.dev13",
   "$comment": {
     "generator": "supy.util.schema_publisher",
     "suews_version": "unknown",
-    "schema_version": "2026.5.dev14"
+    "schema_version": "2026.5.dev13"
   },
   "examples": [
     {
       "name": "minimal_config",
-      "schema_version": "2026.5.dev14",
+      "schema_version": "2026.5.dev13",
       "description": "Minimal SUEWS configuration example",
       "model": {
         "control": {

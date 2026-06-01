@@ -185,7 +185,7 @@ def validate_single_file(
             # STEBBS_PHYSICS_LEAF_RENAMES.
             #
             # A current-target YAML may still be written in the legacy FLAT
-            # form (`capacitance`/`capacitance_method`/`setpoint`/`same_*` directly under
+            # form (`capacitance`/`setpoint`/`same_*` directly under
             # model.physics, with a flat `stebbs` master toggle) -- the real
             # loader (SUEWSConfig.from_yaml) folds those flat keys to the
             # nested shape and accepts them. Apply the SAME fold to a deep copy

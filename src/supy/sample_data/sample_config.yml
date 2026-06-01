@@ -1,5 +1,5 @@
 name: sample_config
-schema_version: '2026.5.dev14'
+schema_version: '2026.5.dev13'
 description: Sample configuration built from benchmark 1a (Ward et al. 2016) model configuration
 model:
   control:
@@ -58,7 +58,7 @@ model:
         value: false
       parameters:
         value: 1
-      capacitance_method:
+      capacitance:
         value: 0
       setpoint:
         value: 0
@@ -1140,7 +1140,7 @@ sites:
         value: 1724.7
       specific_heat_capacity_wall_outer:
         value: 1000.0
-      capacitance_wall_external_fraction:
+      fraction_heat_capacity_wall_external:
         value: 0.5
       emissivity_wall_external:
         value: 0.9
@@ -1168,7 +1168,7 @@ sites:
         value: 1222.0
       specific_heat_capacity_roof_outer:
         value: 816.1
-      capacitance_roof_external_fraction:
+      fraction_heat_capacity_roof_external:
         value: 0.5
       emissivity_roof_external:
         value: 0.9

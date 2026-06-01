@@ -207,7 +207,7 @@ sites:
         leaves the master toggle out must NOT have those two flagged as missing
         critical physics parameters. This keeps Phase A consistent with Phase B
         (physics_rules.py), which deliberately requires only the relocated
-            leaves (capacitance_method / setpoint / same_*), not the toggle.
+        leaves (capacitance / setpoint / same_*), not the toggle.
         """
         # Both toggle keys are recognised physics-option paths...
         self.assertTrue(is_physics_option("model.physics.stebbs.enabled"))
@@ -248,7 +248,7 @@ sites:
                     },
                     "stebbs": {
                         # enabled / parameters deliberately omitted.
-                        "capacitance_method": {"value": 1},
+                        "capacitance": {"value": 1},
                         "setpoint": {"value": 0},
                         "same_albedo_wall": {"value": 1},
                         "same_albedo_roof": {"value": 1},
@@ -3960,7 +3960,7 @@ class TestPhaseAUptoDateYaml(TestProcessorFixtures):
             "stebbs",
             "enabled",
             "parameters",
-            "capacitance_method",
+            "capacitance",
             "same_albedo_wall",
             "same_albedo_roof",
             "same_emissivity_wall",
@@ -4010,7 +4010,7 @@ class TestPhaseBScienceCheck(TestProcessorFixtures):
         stebbs_options = {
             "enabled",
             "parameters",
-            "capacitance_method",
+            "capacitance",
             "setpoint",
             "same_albedo_wall",
             "same_albedo_roof",
@@ -4080,7 +4080,7 @@ class TestPhaseBScienceCheck(TestProcessorFixtures):
             "surface_conductance",
             "snow_use",
             "stebbs",
-            "capacitance_method",
+            "capacitance",
         }
 
         null_yaml = {
@@ -4492,7 +4492,7 @@ class TestPhaseCPydanticValidation(TestProcessorFixtures):
             "surface_conductance",
             "snow_use",
             "stebbs",
-            "capacitance_method",
+            "capacitance",
         }
 
         complete_config = {
@@ -4573,7 +4573,7 @@ class TestPhaseCPydanticValidation(TestProcessorFixtures):
             "surface_conductance",
             "snow_use",
             "stebbs",
-            "capacitance_method",
+            "capacitance",
         }
 
         rsl_config = {

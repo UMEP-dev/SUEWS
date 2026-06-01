@@ -180,69 +180,10 @@ The sections below summarise what users see change between schemas.
 The authoritative lineage (including release-tag to schema mapping)
 lives in :ref:`schema_version_history`.
 
-Upgrading to Schema 2026.5.dev14 (split STEBBS capacitance selector and values)
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-Schema ``2026.5.dev14`` completes the STEBBS capacitance semantics split
-(gh#1472). The former ``model.physics.stebbs.capacitance`` leaf is still
-the ``RCMethod`` selector for default / provided / parameterised behaviour,
-so it is now named explicitly:
-
-- ``model.physics.stebbs.capacitance`` ->
-  ``model.physics.stebbs.capacitance_method``
-
-The actual wall/roof heat-capacity distribution values live on each
-``building_archetype`` and are renamed to capacitance quantity names:
-
-- ``fraction_heat_capacity_wall_external`` ->
-  ``capacitance_wall_external_fraction``
-- ``fraction_heat_capacity_roof_external`` ->
-  ``capacitance_roof_external_fraction``
-
-Before::
-
-   model:
-     physics:
-       stebbs:
-         enabled: {value: true}
-         parameters: {value: 1}
-         capacitance: {value: 0}
-   sites:
-     - properties:
-         building_archetype:
-           fraction_heat_capacity_wall_external: {value: 0.5}
-           fraction_heat_capacity_roof_external: {value: 0.5}
-
-After::
-
-   model:
-     physics:
-       stebbs:
-         enabled: {value: true}
-         parameters: {value: 1}
-         capacitance_method: {value: 0}
-   sites:
-     - properties:
-         building_archetype:
-           capacitance_wall_external_fraction: {value: 0.5}
-           capacitance_roof_external_fraction: {value: 0.5}
-
-The bridge / Fortran column names stay unchanged
-(``rcmethod``, ``WallOuterCapFrac``, ``RoofOuterCapFrac``). This is a
-schema bump because the canonical YAML surface changes; older
-``capacitance`` / ``outer_cap_fraction`` aliases remain accepted for
-loading.
-
-Run the migrator to bring an existing YAML onto the new shape:
-
-.. code-block:: bash
-
-   suews schema migrate your_config.yml --target-version 2026.5.dev14
-
 Upgrading to Schema 2026.5.dev13 (nest the STEBBS physics switches)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Schema ``2026.5.dev13`` introduced the STEBBS nesting shape (gh#1456).
+Schema ``2026.5.dev13`` is the current in-development shape (gh#1456).
 This is a separate structural reshape from the dev12 Column D rename
 (gh#1452), so it takes its own dev bump. The six flat STEBBS-scoped
 switches on ``model.physics`` are grouped into a single nested object
@@ -291,8 +232,7 @@ YAMLs that round-trip through the migrator come out nested. The
 DataFrame / Fortran column names (``stebbsmethod``, ``rcmethod``,
 ``setpointmethod``, ``same_albedo_*``, ``same_emissivity_*``) are
 unchanged - only the YAML surface and the Python data-model fields
-move. Schema ``2026.5.dev14`` then renames this selector to
-``stebbs.capacitance_method``.
+move.
 
 Upgrading to Schema 2026.5.dev12 (STEBBS / Archetype Column D alignment)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -347,8 +287,8 @@ One field sits under ``model.physics.*``:
 This is a pure key rename: the field stays the same ``RCMethod`` enum
 with the same accepted values and validation behaviour, and its bridge
 DataFrame column stays ``rcmethod``. The larger relocation of the field
-under STEBBS lands in dev13 (gh#1456), and the
-capacitance-selector-versus-quantity split lands in dev14 (gh#1472).
+under STEBBS (dev13, gh#1456) and the capacitance-versus-fraction
+semantics are deferred to a separate workstream.
 
 The ``ground_floor`` fields keep their two-word token.
 
@@ -582,10 +522,7 @@ are embedded in the rename, applied per field as appropriate:
 Wall and roof heat-capacity distribution rows take the
 ``fraction_*`` non-physical category prefix per Rule 2:
 ``wall_outer_heat_capacity_fraction`` ->
-``fraction_heat_capacity_wall_external``. Schema ``2026.5.dev14``
-later renames these two rows to
-``capacitance_{wall,roof}_external_fraction`` when the capacitance
-quantity surface is separated from the ``RCMethod`` selector.
+``fraction_heat_capacity_wall_external``.
 
 Run the migrator to bring an existing YAML onto the new shape (or
 target ``2026.5.dev9`` directly to also pick up the gh#1372

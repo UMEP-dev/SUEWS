@@ -266,7 +266,7 @@ class SUEWSConfig(BaseModel):
         "conductivity_wall",
         "density_wall",
         "specific_heat_capacity_wall",
-        "capacitance_wall_external_fraction",
+        "fraction_heat_capacity_wall_external",
         "emissivity_wall_external",
         "emissivity_wall_internal",
         "transmissivity_wall_external",

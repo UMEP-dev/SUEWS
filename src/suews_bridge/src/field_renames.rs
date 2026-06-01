@@ -56,10 +56,11 @@ pub const FIELD_RENAMES: &[(&str, &str)] = &[
     ("roughness_sublayer_level", "rsllevel"),
     ("surface_conductance", "gsmodel"),
     ("stebbs", "stebbsmethod"),
-    // Schema 2026.5.dev14 (gh#1472): former `capacitance` (former fused
-    // `rcmethod`) is now an explicit method selector. The physical
-    // capacitance-distribution values live on the building archetype.
-    ("capacitance_method", "rcmethod"),
+    // Schema 2026.5.dev12 (Reading Column D): former `outer_cap_fraction`
+    // (former fused `rcmethod`) is now `capacitance`. Pure key rename — still
+    // a RCMethod enum, bridge column stays `rcmethod`. The dev11 spelling
+    // `outer_cap_fraction` is a back-compat alias in FIELD_COMPAT_ALIASES.
+    ("capacitance", "rcmethod"),
     ("setpoint", "setpointmethod"),
     ("ohm_inc_qf", "ohmincqf"),
     ("snow_use", "snowuse"),
@@ -131,7 +132,7 @@ pub const FIELD_RENAMES: &[(&str, &str)] = &[
     ("conductivity_wall", "WallEffectiveConductivity"),
     ("density_wall", "WallDensity"),
     ("specific_heat_capacity_wall", "WallCp"),
-    ("capacitance_wall_external_fraction", "WallOuterCapFrac"),
+    ("fraction_heat_capacity_wall_external", "WallOuterCapFrac"),
     ("emissivity_wall_external", "WallExternalEmissivity"),
     ("emissivity_wall_internal", "WallInternalEmissivity"),
     ("transmissivity_wall_external", "WallTransmissivity"),
@@ -141,7 +142,7 @@ pub const FIELD_RENAMES: &[(&str, &str)] = &[
     ("conductivity_roof", "RoofEffectiveConductivity"),
     ("density_roof", "RoofDensity"),
     ("specific_heat_capacity_roof", "RoofCp"),
-    ("capacitance_roof_external_fraction", "RoofOuterCapFrac"),
+    ("fraction_heat_capacity_roof_external", "RoofOuterCapFrac"),
     ("emissivity_roof_external", "RoofExternalEmissivity"),
     ("emissivity_roof_internal", "RoofInternalEmissivity"),
     ("transmissivity_roof_external", "RoofTransmissivity"),
@@ -352,10 +353,9 @@ pub const FIELD_COMPAT_ALIASES: &[(&str, &str)] = &[
     ("rsl_level", "rsllevel"),
     ("fai_method", "faimethod"),
     ("rc_method", "rcmethod"),
-    // Schema 2026.5.dev11/dev13 spellings of the field now named
-    // `capacitance_method` (gh#1472). The CLI bypasses the Pydantic shim, so
-    // these spellings need direct aliases to the bridge column `rcmethod`.
-    ("capacitance", "rcmethod"),
+    // Schema 2026.5.dev11 spelling of the field now named `capacitance`
+    // (gh#1392 Column D). The CLI bypasses the Pydantic shim, so the dev11
+    // spelling needs a direct alias to the bridge column `rcmethod`.
     ("outer_cap_fraction", "rcmethod"),
     ("gs_model", "gsmodel"),
     // Schema 2026.5.dev1 STEBBS ArchetypeProperties Cat 5 intermediate
@@ -475,16 +475,6 @@ pub const FIELD_COMPAT_ALIASES: &[(&str, &str)] = &[
     // the outer -> external move (D. Hertwig col D). Kept accepted by the CLI.
     ("fraction_wall_heat_capacity_outer", "walloutercapfrac"),
     ("fraction_roof_heat_capacity_outer", "roofoutercapfrac"),
-    // Schema 2026.5.dev13 names for the real capacitance-distribution values,
-    // before gh#1472 put the capacitance quantity at the front.
-    (
-        "fraction_heat_capacity_wall_external",
-        "walloutercapfrac",
-    ),
-    (
-        "fraction_heat_capacity_roof_external",
-        "roofoutercapfrac",
-    ),
     // Schema 2026.5.dev2 SnowParams intermediate (gh#1334)
     ("precip_limit", "preciplimit"),
     ("precip_limit_albedo", "preciplimitalb"),
@@ -1047,7 +1037,7 @@ fn collapse_nested_physics(root: &mut Value) -> Result<(), String> {
 const STEBBS_NESTED_KEYS: &[&str] = &[
     "enabled",
     "parameters",
-    "capacitance_method",
+    "capacitance",
     "setpoint",
     "same_albedo_wall",
     "same_albedo_roof",
@@ -1059,10 +1049,9 @@ const STEBBS_NESTED_KEYS: &[&str] = &[
 /// object. The Python raw validator accepts these via `RAW_YAML_FIELD_RENAMES`,
 /// so the bridge flatten pre-pass must normalise them too.
 const STEBBS_NESTED_ALIAS_TO_LEAF: &[(&str, &str)] = &[
-    ("capacitance", "capacitance_method"),
-    ("outer_cap_fraction", "capacitance_method"),
-    ("rcmethod", "capacitance_method"),
-    ("rc_method", "capacitance_method"),
+    ("outer_cap_fraction", "capacitance"),
+    ("rcmethod", "capacitance"),
+    ("rc_method", "capacitance"),
     ("setpointmethod", "setpoint"),
 ];
 
@@ -1071,7 +1060,6 @@ const STEBBS_NESTED_ALIAS_TO_LEAF: &[(&str, &str)] = &[
 /// legacy/fused flat aliases so the Rust bridge rejects the same mixed input
 /// shape as Python before any lossy rename pass runs.
 const STEBBS_FLAT_LEAF_KEYS: &[&str] = &[
-    "capacitance_method",
     "capacitance",
     "outer_cap_fraction",
     "rcmethod",
@@ -1126,13 +1114,13 @@ fn nested_stebbs_alias_conflict(map: &serde_yaml::Mapping) -> Option<String> {
 }
 
 /// `(nested_leaf, fused_flat_key)` for the five non-master STEBBS switches.
-/// `capacitance_method` / `setpoint` fold to the fused DataFrame columns the
-/// parser reads (`rcmethod`, `setpointmethod`); the four `same_*` switches keep
-/// their names (no rename — the DataFrame columns are unchanged, gh#1456).
-/// Flattening straight to the fused keys keeps this pre-pass self-contained and
+/// `capacitance` / `setpoint` fold to the fused DataFrame columns the parser
+/// reads (`rcmethod`, `setpointmethod`); the four `same_*` switches keep their
+/// names (no rename — the DataFrame columns are unchanged, gh#1456). Flattening
+/// straight to the fused keys keeps this pre-pass self-contained and
 /// independent of the downstream `FIELD_RENAMES` rename-walker ordering.
 const STEBBS_LEAF_TO_FUSED: &[(&str, &str)] = &[
-    ("capacitance_method", "rcmethod"),
+    ("capacitance", "rcmethod"),
     ("setpoint", "setpointmethod"),
     ("same_albedo_wall", "same_albedo_wall"),
     ("same_albedo_roof", "same_albedo_roof"),
@@ -1275,7 +1263,7 @@ fn flatten_stebbs_physics(root: &mut Value) -> Result<(), String> {
 
     // Guard against any flat STEBBS sibling colliding with the nested object
     // (e.g. a flat `outer_cap_fraction`/`rcmethod` alongside
-    // `stebbs.capacitance_method`). The legacy and nested forms are mutually exclusive
+    // `stebbs.capacitance`). The legacy and nested forms are mutually exclusive
     // on input; reject before removing the nested block so failed
     // normalisation leaves the tree untouched.
     for flat in STEBBS_FLAT_LEAF_KEYS {
@@ -1359,28 +1347,6 @@ fn legacy_name_for(key: &str) -> Option<(&'static str, &'static str)> {
         .map(|(new_name, old_name)| (*new_name, *old_name))
 }
 
-fn compact_field_key(key: &str) -> String {
-    key.chars()
-        .filter(|ch| ch.is_ascii_alphanumeric())
-        .map(|ch| ch.to_ascii_lowercase())
-        .collect()
-}
-
-fn projected_legacy_name(
-    key: &Value,
-    rename_candidates: &[(Value, &'static str, &'static str)],
-) -> Option<&'static str> {
-    rename_candidates
-        .iter()
-        .find_map(|(candidate_key, _new_name, old_name)| {
-            if candidate_key == key {
-                Some(*old_name)
-            } else {
-                None
-            }
-        })
-}
-
 fn should_rename_key_at_path(new_name: &str, path: &str) -> bool {
     // `stebbs` is both a ModelPhysics option and a site-properties section.
     // Only the physics option should be folded to `stebbsmethod`; the
@@ -1441,31 +1407,14 @@ fn normalize_field_names_at(root: &mut Value, path: &str) -> Result<(), String> 
                 })
                 .collect();
 
-            for (new_key, new_name, old_name) in &rename_candidates {
-                let old_key = Value::String((*old_name).to_string());
+            for (new_key, new_name, old_name) in rename_candidates {
+                let old_key = Value::String(old_name.to_string());
                 if map.contains_key(&old_key) {
                     return Err(format!(
                         "Both '{old_name}' (deprecated) and '{new_name}' are present at {path}. Use only '{new_name}'."
                     ));
                 }
-                let target_compact = compact_field_key(old_name);
-                for existing_key in map.keys() {
-                    if existing_key == new_key {
-                        continue;
-                    }
-                    let Value::String(existing_name) = existing_key else {
-                        continue;
-                    };
-                    let projected_name = projected_legacy_name(existing_key, &rename_candidates)
-                        .unwrap_or(existing_name.as_str());
-                    if compact_field_key(projected_name) == target_compact {
-                        return Err(format!(
-                            "Both '{existing_name}' and '{new_name}' are present at {path}. \
-                             They normalise to bridge key '{old_name}'. Use only '{new_name}'."
-                        ));
-                    }
-                }
-                if let Some(value) = map.remove(new_key) {
+                if let Some(value) = map.remove(&new_key) {
                     map.insert(old_key, value);
                 }
             }
@@ -1603,7 +1552,7 @@ sites:
         thickness_wall_outer: {value: 0.2}
         conductivity_wall_outer: {value: 1.1}
         emissivity_wall_external: {value: 0.85}
-        capacitance_roof_external_fraction: {value: 0.55}
+        fraction_heat_capacity_roof_external: {value: 0.55}
         ratio_window_to_wall: {value: 0.4}
         temperature_air_heating_setpoint: {value: 21.0}
 ";
@@ -1621,23 +1570,6 @@ sites:
         assert!(archetype.get("thickness_wall").is_none());
         assert!(archetype.get("thickness_wall_outer").is_none());
         assert!(archetype.get("ratio_window_to_wall").is_none());
-    }
-
-    #[test]
-    fn rejects_archetype_keys_that_normalise_to_same_bridge_name() {
-        let yaml = "\
-sites:
-  - properties:
-      building_archetype:
-        capacitance_wall_external_fraction: {value: 0.55}
-        fraction_heat_capacity_wall_external: {value: 0.45}
-";
-        let mut root: Value = from_str(yaml).unwrap();
-        let err = normalize_field_names(&mut root).expect_err("duplicate aliases must fail");
-
-        assert!(err.contains("fraction_heat_capacity_wall_external"));
-        assert!(err.contains("capacitance_wall_external_fraction"));
-        assert!(err.contains("normalise to bridge key 'WallOuterCapFrac'"));
     }
 
     #[test]
@@ -2016,7 +1948,7 @@ model:
     stebbs:
       enabled: {value: false}
       parameters: {value: 2}
-      capacitance_method: {value: 1}
+      capacitance: {value: 1}
       setpoint: {value: 3}
       same_albedo_wall: {value: 1}
       same_emissivity_roof: {value: 1}
@@ -2044,7 +1976,7 @@ model:
     stebbs:
       enabled: {value: true}
       parameters: {value: 1}
-      capacitance_method: {value: 0}
+      capacitance: {value: 0}
 ";
         let mut root: Value = from_str(yaml).unwrap();
         normalize_field_names(&mut root).unwrap();
@@ -2243,7 +2175,7 @@ model:
     stebbs:
       enabled: {value: true}
       parameters: {value: 2}
-      capacitance_method: {value: 1}
+      capacitance: {value: 1}
 ";
         let mut root: Value = from_str(yaml).unwrap();
         normalize_field_names(&mut root).unwrap();
@@ -2258,7 +2190,6 @@ model:
         // ambiguous, including aliases that would only fuse after the rename
         // walker runs.
         let flat_keys = [
-            "capacitance_method",
             "capacitance",
             "outer_cap_fraction",
             "rcmethod",
@@ -2279,7 +2210,7 @@ model:
     {flat_key}: {{value: 0}}
     stebbs:
       enabled: {{value: true}}
-      capacitance_method: {{value: 1}}
+      capacitance: {{value: 1}}
 "
             );
             let mut root: Value = from_str(&yaml).unwrap();

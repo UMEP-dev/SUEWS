@@ -60,7 +60,7 @@ model:
         value: false
       parameters:
         value: 1
-      capacitance_method:
+      capacitance:
         value: 1
       setpoint:
         value: 0
@@ -883,7 +883,7 @@ sites:
           '142': 27.0
           '143': 27.0
           '144': 27.0
-      capacitance_wall_external_fraction:
+      fraction_heat_capacity_wall_external:
         value: null
     conductance:
       g_max:

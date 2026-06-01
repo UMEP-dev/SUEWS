@@ -44,7 +44,7 @@ from ..core.yaml_helpers import (
     HAS_TIMEZONE_FINDER,
     load_user_yaml_normalised,
 )
-from ...core.field_renames import RAW_YAML_FIELD_RENAMES, normalise_yaml_renames
+from ...core.field_renames import normalise_yaml_renames
 
 from .phase_b_rules import (
     RulesRegistry,
@@ -1960,19 +1960,12 @@ def adjust_seasonal_parameters(
 
     return yaml_data, adjustments
 
-def _drop_legacy_aliases_for_key(container: dict, key: str) -> None:
-    """Remove legacy aliases once a canonical adjustment is written."""
-    for old_key, new_key in RAW_YAML_FIELD_RENAMES.items():
-        if new_key == key and old_key != key:
-            container.pop(old_key, None)
-
-
 def adjust_model_option_rcmethod(yaml_data: dict) -> Tuple[dict, List[ScientificAdjustment]]:
     """
-    Adjust capacitance_roof_external_fraction and capacitance_wall_external_fraction if rcmethod == 0.
+    Adjust roof_outer_heat_capacity_fraction and wall_outer_heat_capacity_fraction if rcmethod == 0.
 
-    If the model physics option 'capacitance_method' is set to 0, this function sets
-    'capacitance_roof_external_fraction' and 'capacitance_wall_external_fraction' to
+    If the model physics option 'capacitance' is set to 0, this function sets
+    'fraction_heat_capacity_roof_external' and 'fraction_heat_capacity_wall_external' to
     0.5 for all sites' building_archetype blocks, as required by the model
     specification.
 
@@ -1990,12 +1983,13 @@ def adjust_model_option_rcmethod(yaml_data: dict) -> Tuple[dict, List[Scientific
 
     Notes
     -----
-    - Only applies the adjustment if 'capacitance_method' is exactly 0.
+    - Only applies the adjustment if 'capacitance' is exactly 0.
     - Records each parameter change in the adjustments list for reporting.
     """
     adjustments = []
     physics = yaml_data.get("model", {}).get("physics", {})
-    rcmethod_value = get_value_safe(_get_stebbs_block(physics), "capacitance_method")
+    # gh#1456: capacitance method moved to model.physics.stebbs.capacitance.
+    rcmethod_value = get_value_safe(_get_stebbs_block(physics), "capacitance")
 
     if rcmethod_value == 0:
         sites = yaml_data.get("sites", [])
@@ -2004,49 +1998,39 @@ def adjust_model_option_rcmethod(yaml_data: dict) -> Tuple[dict, List[Scientific
             building_archetype = props.get("building_archetype", {})
             site_gridid = get_site_gridid(site)
 
-            # capacitance_roof_external_fraction. Use rename-aware lookup so
-            # hand-written dev13 configs are not adjusted again when their
-            # legacy fraction_heat_capacity_* spelling already carries 0.5.
-            old_roof_frac = get_value_safe(
-                building_archetype,
-                "capacitance_roof_external_fraction",
+            # fraction_heat_capacity_roof_external
+            roof_frac_entry = building_archetype.get(
+                "fraction_heat_capacity_roof_external", {}
             )
+            old_roof_frac = roof_frac_entry.get("value") if isinstance(roof_frac_entry, dict) else roof_frac_entry
             if old_roof_frac != 0.5:
-                _drop_legacy_aliases_for_key(
-                    building_archetype,
-                    "capacitance_roof_external_fraction",
-                )
-                building_archetype["capacitance_roof_external_fraction"] = {"value": 0.5}
+                building_archetype["fraction_heat_capacity_roof_external"] = {"value": 0.5}
                 adjustments.append(
                     ScientificAdjustment(
-                        parameter="building_archetype.capacitance_roof_external_fraction",
+                        parameter="building_archetype.fraction_heat_capacity_roof_external",
                         site_index=site_idx,
                         site_gridid=site_gridid,
                         old_value=str(old_roof_frac),
                         new_value="0.5",
-                        reason="capacitance_method == 0, set capacitance_roof_external_fraction to 0.5"
+                        reason="capacitance == 0, set fraction_heat_capacity_roof_external to 0.5"
                     )
                 )
 
-            # capacitance_wall_external_fraction
-            old_wall_frac = get_value_safe(
-                building_archetype,
-                "capacitance_wall_external_fraction",
+            # fraction_heat_capacity_wall_external
+            wall_frac_entry = building_archetype.get(
+                "fraction_heat_capacity_wall_external", {}
             )
+            old_wall_frac = wall_frac_entry.get("value") if isinstance(wall_frac_entry, dict) else wall_frac_entry
             if old_wall_frac != 0.5:
-                _drop_legacy_aliases_for_key(
-                    building_archetype,
-                    "capacitance_wall_external_fraction",
-                )
-                building_archetype["capacitance_wall_external_fraction"] = {"value": 0.5}
+                building_archetype["fraction_heat_capacity_wall_external"] = {"value": 0.5}
                 adjustments.append(
                     ScientificAdjustment(
-                        parameter="building_archetype.capacitance_wall_external_fraction",
+                        parameter="building_archetype.fraction_heat_capacity_wall_external",
                         site_index=site_idx,
                         site_gridid=site_gridid,
                         old_value=str(old_wall_frac),
                         new_value="0.5",
-                        reason="capacitance_method == 0, set capacitance_wall_external_fraction to 0.5"
+                        reason="capacitance == 0, set fraction_heat_capacity_wall_external to 0.5"
                     )
                 )
 

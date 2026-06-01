@@ -1,0 +1,230 @@
+name: Publish release docs to the release branch
+
+# Builds the documentation FROM THE CLEAN CalVer tag (so get_ver_git reports
+# the exact release version, e.g. 2026.4.3, with no `.devN` suffix), then
+# publishes the pre-built HTML to the long-lived `release` branch as a single
+# orphan commit.
+#
+# Read the Docs serves the `release` branch as the public "release" version
+# (project default + /stable/ redirect). This is the release-docs counterpart
+# to docs-sync.yml, which keeps the `rtd` branch (RTD `latest`) tracking master.
+#
+# Why a dedicated build at the tag (not the rtd branch): docs-sync builds on
+# the `rtd` branch, which is always many commits ahead of any release tag, so
+# `git describe` yields a dirty `2026.x.y.devN` version and RTD shows a
+# "development version" banner. Building at the clean tag fixes both the
+# version string and the banner. See gh#1167 for the pre-built-HTML strategy.
+
+on:
+  push:
+    tags:
+      - "[0-9]*"           # CalVer releases, e.g. 2026.4.3 (excludes rtd/*, agent/*)
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "CalVer release tag to build docs from (e.g. 2026.4.3)"
+        required: true
+        type: string
+
+# Serialise; never cancel a half-finished publish to the release branch.
+concurrency:
+  group: docs-release
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  # --------------------------------------------------------------------
+  # Resolve + strictly validate the tag. Dev tags (e.g. 2026.5.31.dev)
+  # pushed by the nightly pipeline are skipped, not failed.
+  # --------------------------------------------------------------------
+  resolve:
+    runs-on: ubuntu-latest
+    outputs:
+      tag: ${{ steps.pick.outputs.tag }}
+      skip: ${{ steps.pick.outputs.skip }}
+    steps:
+      - name: Resolve and validate tag
+        id: pick
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          INPUT_TAG: ${{ github.event.inputs.tag }}
+          REF_NAME: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          if [ "${EVENT_NAME}" = "workflow_dispatch" ]; then
+            TAG="${INPUT_TAG}"
+          else
+            TAG="${REF_NAME}"
+          fi
+
+          # Strict CalVer release form YYYY.M.D — no dev/rc suffix. This both
+          # selects genuine releases and sanitises the value before it is used
+          # as a git ref in the build job (defends against ref injection).
+          if printf '%s' "${TAG}" | grep -Eq '^[0-9]{4}\.[0-9]+\.[0-9]+$'; then
+            echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+            echo "Release tag accepted: ${TAG}"
+          elif [ "${EVENT_NAME}" = "workflow_dispatch" ]; then
+            echo "::error::'${TAG}' is not a clean CalVer release tag (expected YYYY.M.D)"
+            exit 1
+          else
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+            echo "Tag '${TAG}' is not a clean CalVer release (likely a dev tag) — skipping release-docs publish."
+          fi
+
+  # --------------------------------------------------------------------
+  # Build at the clean tag and publish HTML to the `release` branch.
+  # --------------------------------------------------------------------
+  publish:
+    needs: resolve
+    if: needs.resolve.outputs.skip != 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    environment: rtd-sync
+    steps:
+      # Checkout AT THE CLEAN TAG (full history + tags so git describe
+      # resolves to a distance-0, dev-free version).
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          ref: ${{ needs.resolve.outputs.tag }}
+          fetch-depth: 0
+          fetch-tags: true
+          persist-credentials: false
+
+      # The release-branch helper is not on the old tag, so fetch it separately
+      # into a sibling path. With no `ref:`, checkout uses this run's SHA — the
+      # tag commit on a tag push, or master HEAD on workflow_dispatch — both of
+      # which carry the helper once this workflow is on master.
+      - name: Checkout release-branch helper
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          path: .ci-tools
+          sparse-checkout: |
+            .github/scripts/make_release_branch_files.py
+          sparse-checkout-cone-mode: false
+          persist-credentials: false
+
+      - name: Verify tag is on master
+        env:
+          TAG: ${{ needs.resolve.outputs.tag }}
+        run: |
+          set -euo pipefail
+          # The tag checkout already used fetch-depth: 0 (full history); this
+          # fetch only materialises the origin/master remote-tracking ref.
+          # No --depth: a shallow master could wrongly reject a tag that sits
+          # further back than the shallow window.
+          git fetch origin master
+          if ! git merge-base --is-ancestor HEAD refs/remotes/origin/master; then
+            echo "::error::Tag ${TAG} is not on master — refusing to publish"
+            exit 1
+          fi
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y gfortran
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@38f3f104447c67c051c4a08e39b64a148898af3a # v4
+        with:
+          enable-cache: false
+
+      - name: Set up Python
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6
+        with:
+          # Documentation tooling requires Python 3.11+; runtime support remains 3.9+.
+          python-version: "3.13"
+
+      - name: Install supy and build docs
+        id: build
+        run: |
+          set -euo pipefail
+          uv pip install --system ".[docs]"
+          # Tolerate older tags that may predate this hardening script.
+          if [ -f scripts/security/remove_legacy_namespace_pth.py ]; then
+            python3 scripts/security/remove_legacy_namespace_pth.py
+          fi
+
+          # Building at a clean tag => git describe distance 0 => no `.devN`.
+          # Refuse to publish a dev version as a release (the bug this fixes).
+          VERSION="$(python3 -c 'from get_ver_git import get_version_from_git; print(get_version_from_git())')"
+          echo "Resolved docs version: ${VERSION}"
+          case "${VERSION}" in
+            *.dev*)
+              echo "::error::get_ver_git resolved a dev version (${VERSION}); build is not at a clean tag. Aborting."
+              exit 1
+              ;;
+          esac
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+
+          cd docs
+          make generate-rst
+          sphinx-build -M html source build
+
+      - name: Sanity-check the built HTML carries a clean version
+        env:
+          VERSION: ${{ steps.build.outputs.version }}
+        run: |
+          set -euo pipefail
+          test -d docs/build/html
+          test -f docs/build/html/index.html
+          # Page title is "SUEWS <version> documentation"; a stray `.dev` there
+          # means the build did not pick up the clean tag version.
+          if grep -Eo 'SUEWS [0-9][^<]*documentation' docs/build/html/index.html | grep -q '\.dev'; then
+            echo "::error::Built HTML title still shows a dev version:"
+            grep -Eo 'SUEWS [0-9][^<]*documentation' docs/build/html/index.html | head -1
+            exit 1
+          fi
+          echo "OK: built HTML reports version ${VERSION}"
+
+      # Publish HTML to the `release` branch as one orphan commit. The
+      # copy-only .readthedocs.yaml and provenance file are written by a
+      # tracked helper script (no in-YAML heredoc), so the branch never
+      # depends on whatever RTD config the tag carried.
+      - name: Publish to the release branch
+        env:
+          RTD_PUSH_TOKEN: ${{ secrets.RTD_PUSH_TOKEN }}
+          TAG: ${{ needs.resolve.outputs.tag }}
+          VERSION: ${{ steps.build.outputs.version }}
+          GH_REPOSITORY: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          HELPER="$(pwd)/.ci-tools/.github/scripts/make_release_branch_files.py"
+          SRC_HTML="$(pwd)/docs/build/html"
+          test -d "${SRC_HTML}"
+          test -f "${HELPER}"
+
+          PUB="$(mktemp -d)"
+          mkdir -p "${PUB}/docs/build"
+          cp -R "${SRC_HTML}" "${PUB}/docs/build/html"
+
+          # Write the copy-only .readthedocs.yaml + provenance into the staging dir.
+          python3 "${HELPER}" "${PUB}" "${TAG}" "${VERSION}"
+
+          cd "${PUB}"
+          git init -q
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git checkout -q --orphan release
+          git add -A
+          git commit -qm "Release docs for ${TAG} (version ${VERSION})"
+          echo "Pushing ${VERSION} docs to the 'release' branch..."
+          git push --force \
+            "https://x-access-token:${RTD_PUSH_TOKEN}@github.com/${GH_REPOSITORY}.git" \
+            HEAD:release
+
+      - name: Summary
+        if: always()
+        env:
+          TAG: ${{ needs.resolve.outputs.tag }}
+          VERSION: ${{ steps.build.outputs.version }}
+        run: |
+          {
+            echo "### Release docs published"
+            echo ""
+            echo "- Tag: \`${TAG:-unknown}\`"
+            echo "- Version baked into HTML: \`${VERSION:-(build did not complete)}\`"
+            echo "- Target branch: \`release\` (served by Read the Docs)"
+          } >> "$GITHUB_STEP_SUMMARY"

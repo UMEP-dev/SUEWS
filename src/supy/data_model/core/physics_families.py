@@ -256,8 +256,12 @@ def resolve_scalar_name(field_name: str, name: str) -> int:
 def _coerce_scalar_name(field_name: str, value: Any) -> Any:
     """Collapse bare or RefValue-wrapped readable names to ``{value: code}``."""
     if isinstance(value, str):
+        if not value.strip():
+            return value
         return {"value": resolve_scalar_name(field_name, value)}
     if isinstance(value, Mapping) and isinstance(value.get("value"), str):
+        if not value["value"].strip():
+            return value
         flat = dict(value)
         flat["value"] = resolve_scalar_name(field_name, value["value"])
         return flat

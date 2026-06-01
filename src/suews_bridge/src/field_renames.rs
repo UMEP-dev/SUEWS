@@ -2453,9 +2453,9 @@ model:
     }
 
     #[test]
-    fn nested_stebbs_string_parameters_rejected() {
-        // Python/Pydantic rejects enum-name strings here; the bridge must not
-        // silently run them as PROVIDED.
+    fn nested_stebbs_refvalue_string_parameters_compose_method_two() {
+        // Readable enum-name strings are accepted on input and collapse to the
+        // numeric code before the bridge writes the legacy fused key.
         let yaml = "\
 model:
   physics:
@@ -2464,9 +2464,24 @@ model:
       parameters: {value: provided}
 ";
         let mut root: Value = from_str(yaml).unwrap();
-        let err = normalize_field_names(&mut root).expect_err("string parameters must fail");
+        normalize_field_names(&mut root).unwrap();
+        assert_eq!(physics_i64(&root, "stebbsmethod"), Some(2));
+    }
+
+    #[test]
+    fn nested_stebbs_unknown_string_parameters_rejected() {
+        let yaml = "\
+model:
+  physics:
+    stebbs:
+      enabled: {value: true}
+      parameters: {value: custom}
+";
+        let mut root: Value = from_str(yaml).unwrap();
+        let err =
+            normalize_field_names(&mut root).expect_err("unknown string parameters must fail");
         assert!(
-            err.contains("stebbs.parameters"),
+            err.contains("unknown scheme name"),
             "unexpected error message: {err}"
         );
     }

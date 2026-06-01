@@ -37,6 +37,24 @@ LEGACY_SPARTACUS_DEFS = [
     ("KIn_Roof_13", "W m-2", "sw radiation into roof - SPARTACUS level 13", 0),
     ("KIn_Roof_14", "W m-2", "sw radiation into roof - SPARTACUS level 14", 0),
     ("KIn_Roof_15", "W m-2", "sw radiation into roof - SPARTACUS level 15", 0),
+    *[
+        (
+            f"KInDir_Roof_{i}",
+            "W m-2",
+            f"direct-origin sw radiation into roof - SPARTACUS level {i}",
+            0,
+        )
+        for i in range(1, 16)
+    ],
+    *[
+        (
+            f"KInDiff_Roof_{i}",
+            "W m-2",
+            f"diffuse-origin sw radiation into roof - SPARTACUS level {i}",
+            0,
+        )
+        for i in range(1, 16)
+    ],
     ("KNet_Roof_1", "W m-2", "sw net radiation at roof - SPARTACUS level 1", 0),
     ("KNet_Roof_2", "W m-2", "sw net radiation at roof - SPARTACUS level 2", 0),
     ("KNet_Roof_3", "W m-2", "sw net radiation at roof - SPARTACUS level 3", 0),
@@ -67,6 +85,24 @@ LEGACY_SPARTACUS_DEFS = [
     ("KIn_Wall_13", "W m-2", "sw radiation into wall - SPARTACUS level 13", 0),
     ("KIn_Wall_14", "W m-2", "sw radiation into wall - SPARTACUS level 14", 0),
     ("KIn_Wall_15", "W m-2", "sw radiation into wall - SPARTACUS level 15", 0),
+    *[
+        (
+            f"KInDir_Wall_{i}",
+            "W m-2",
+            f"direct-origin sw radiation into wall - SPARTACUS level {i}",
+            0,
+        )
+        for i in range(1, 16)
+    ],
+    *[
+        (
+            f"KInDiff_Wall_{i}",
+            "W m-2",
+            f"diffuse-origin sw radiation into wall - SPARTACUS level {i}",
+            0,
+        )
+        for i in range(1, 16)
+    ],
     ("KNet_Wall_1", "W m-2", "sw net radiation at wall - SPARTACUS level 1", 0),
     ("KNet_Wall_2", "W m-2", "sw net radiation at wall - SPARTACUS level 2", 0),
     ("KNet_Wall_3", "W m-2", "sw net radiation at wall - SPARTACUS level 3", 0),

@@ -75,9 +75,9 @@ CONTAINS
 
    SUBROUTINE SPARTACUS( &
       DiagQN, & !input:
-      sfr_surf, zenith_deg, nlayer, & !input:
+      sfr_surf, doy, zenith_deg, nlayer, & !input:
       tsfc_surf, tsfc_roof, tsfc_wall, &
-      kdown, ldown, Tair_C, alb_surf, emis_surf, LAI_id, &
+      kdown, ldown, Tair_C, avRH, Press_hPa, alb_surf, emis_surf, LAI_id, &
       n_vegetation_region_urban, &
       n_stream_sw_urban, n_stream_lw_urban, &
       sw_dn_direct_frac, air_ext_sw, air_ssa_sw, &
@@ -113,11 +113,14 @@ CONTAINS
       ! Input parameters and variables from SUEWS
       REAL(KIND(1D0)), INTENT(IN) :: zenith_deg
       INTEGER, INTENT(IN) :: DiagQN
+      INTEGER, INTENT(IN) :: doy
       INTEGER, INTENT(IN) :: nlayer
 
       ! TODO: tsurf_0 and temp_C need to be made vertically distributed
       REAL(KIND(1D0)), DIMENSION(nlayer), INTENT(IN) :: tsfc_roof, tsfc_wall
       REAL(KIND(1D0)), INTENT(IN) :: Tair_C
+      REAL(KIND(1D0)), INTENT(IN) :: avRH
+      REAL(KIND(1D0)), INTENT(IN) :: Press_hPa
 
       REAL(KIND(1D0)), INTENT(IN) :: kdown
       REAL(KIND(1D0)), INTENT(IN) :: ldown
@@ -175,10 +178,14 @@ CONTAINS
       REAL(KIND(1D0)), DIMENSION(15) :: clear_air_abs_lw_spc
       REAL(KIND(1D0)), DIMENSION(15) :: clear_air_abs_sw_spc
       REAL(KIND(1D0)), DIMENSION(15), INTENT(OUT) :: roof_in_sw_spc
+      REAL(KIND(1D0)), DIMENSION(15) :: roof_in_sw_dir_spc
+      REAL(KIND(1D0)), DIMENSION(15) :: roof_in_sw_diff_spc
       REAL(KIND(1D0)), DIMENSION(15), INTENT(OUT) :: roof_in_lw_spc
       REAL(KIND(1D0)), DIMENSION(15) :: roof_net_sw_spc
       REAL(KIND(1D0)), DIMENSION(15) :: roof_net_lw_spc
       REAL(KIND(1D0)), DIMENSION(15), INTENT(OUT) :: wall_in_sw_spc
+      REAL(KIND(1D0)), DIMENSION(15) :: wall_in_sw_dir_spc
+      REAL(KIND(1D0)), DIMENSION(15) :: wall_in_sw_diff_spc
       REAL(KIND(1D0)), DIMENSION(15), INTENT(OUT) :: wall_in_lw_spc
       REAL(KIND(1D0)), DIMENSION(15) :: wall_net_sw_spc
       REAL(KIND(1D0)), DIMENSION(15) :: wall_net_lw_spc
@@ -203,7 +210,7 @@ CONTAINS
 
       ! Top-of-canopy downward radiation, all dimensioned (nspec, ncol)
       REAL(KIND(1D0)), ALLOCATABLE :: top_flux_dn_sw(:, :) ! Total shortwave (direct+diffuse)
-      REAL(KIND(1D0)), ALLOCATABLE :: top_flux_dn_direct_sw(:, :) ! ...diffuse only
+      REAL(KIND(1D0)), ALLOCATABLE :: top_flux_dn_direct_sw(:, :) ! direct shortwave
       REAL(KIND(1D0)), ALLOCATABLE :: top_flux_dn_lw(:, :) ! longwave
 
       ! surface temperature and air temperature in Kelvin
@@ -212,6 +219,7 @@ CONTAINS
       REAL(KIND(1D0)) :: tair_K
       ! top-of-canopy diffuse sw downward
       REAL(KIND(1D0)) :: top_flux_dn_diffuse_sw
+      REAL(KIND(1D0)) :: top_flux_dn_direct_sw_dynamic
       REAL(KIND(1D0)) :: ground_frac_spc, surface_frac_sum
       ! plan area weighted albedo and emissivity of surfaces not including buildings and trees
       REAL(KIND(1D0)) :: alb_no_tree_bldg, emis_no_tree_bldg
@@ -450,7 +458,10 @@ CONTAINS
       ALLOCATE (top_flux_dn_direct_sw(nspec, ncol))
       ALLOCATE (top_flux_dn_lw(nspec, ncol))
       top_flux_dn_sw = kdown ! diffuse + direct
-      top_flux_dn_direct_sw = sw_dn_direct_frac*kdown ! Berrizbeitia et al. 2020 say the ratio diffuse/direct is 0.55 for Berlin and Brussels on av annually
+      CALL spartacus_direct_sw_epw_disc( &
+         kdown, doy, zenith_deg, Tair_C, avRH, Press_hPa, sw_dn_direct_frac, &
+         top_flux_dn_direct_sw_dynamic)
+      top_flux_dn_direct_sw = top_flux_dn_direct_sw_dynamic
       top_flux_dn_diffuse_sw = top_flux_dn_sw(nspec, ncol) - top_flux_dn_direct_sw(nspec, ncol)
       top_flux_dn_lw = ldown
 
@@ -733,14 +744,22 @@ CONTAINS
       clear_air_abs_sw_spc = -999
       wall_net_sw_spc = -999
       wall_in_sw_spc = -999
+      wall_in_sw_dir_spc = -999
+      wall_in_sw_diff_spc = -999
       roof_net_sw_spc = -999
       roof_in_sw_spc = -999
+      roof_in_sw_dir_spc = -999
+      roof_in_sw_diff_spc = -999
       IF (config%do_sw) THEN
          clear_air_abs_sw_spc(:nlayer) = sw_flux%clear_air_abs(nspec, :nlayer)
          wall_net_sw_spc(:nlayer) = sw_flux%wall_net(nspec, :nlayer)
          wall_in_sw_spc(:nlayer) = sw_flux%wall_in(nspec, :nlayer)
+         wall_in_sw_dir_spc(:nlayer) = sw_norm_dir%wall_in(nspec, :nlayer)
+         wall_in_sw_diff_spc(:nlayer) = sw_norm_diff%wall_in(nspec, :nlayer)
          roof_net_sw_spc(:nlayer) = sw_flux%roof_net(nspec, :nlayer)
          roof_in_sw_spc(:nlayer) = sw_flux%roof_in(nspec, :nlayer)
+         roof_in_sw_dir_spc(:nlayer) = sw_norm_dir%roof_in(nspec, :nlayer)
+         roof_in_sw_diff_spc(:nlayer) = sw_norm_diff%roof_in(nspec, :nlayer)
          top_dn_dir_sw_spc = sw_flux%top_dn_dir(nspec, ncol)
          top_net_sw_spc = sw_flux%top_net(nspec, ncol)
          grnd_dn_dir_sw_spc = sw_flux%ground_dn_dir(nspec, ncol)
@@ -750,8 +769,12 @@ CONTAINS
          clear_air_abs_sw_spc(:nlayer) = 0.0
          wall_net_sw_spc(:nlayer) = 0.0
          wall_in_sw_spc(:nlayer) = 0.0
+         wall_in_sw_dir_spc(:nlayer) = 0.0
+         wall_in_sw_diff_spc(:nlayer) = 0.0
          roof_net_sw_spc(:nlayer) = 0.0
          roof_in_sw_spc(:nlayer) = 0.0
+         roof_in_sw_dir_spc(:nlayer) = 0.0
+         roof_in_sw_diff_spc(:nlayer) = 0.0
          top_dn_dir_sw_spc = 0.0
          top_net_sw_spc = 0.0
          grnd_dn_dir_sw_spc = 0.0
@@ -763,16 +786,24 @@ CONTAINS
       IF (config%do_sw) THEN
          WHERE (sfr_wall_spc(:nlayer) > eps_fp)
             wall_in_sw_spc(:nlayer) = wall_in_sw_spc(:nlayer)/sfr_wall_spc(:nlayer)
+            wall_in_sw_dir_spc(:nlayer) = wall_in_sw_dir_spc(:nlayer)/sfr_wall_spc(:nlayer)
+            wall_in_sw_diff_spc(:nlayer) = wall_in_sw_diff_spc(:nlayer)/sfr_wall_spc(:nlayer)
             wall_net_sw_spc(:nlayer) = wall_net_sw_spc(:nlayer)/sfr_wall_spc(:nlayer)
          ELSEWHERE
             wall_in_sw_spc(:nlayer) = 0.0D0
+            wall_in_sw_dir_spc(:nlayer) = 0.0D0
+            wall_in_sw_diff_spc(:nlayer) = 0.0D0
             wall_net_sw_spc(:nlayer) = 0.0D0
          END WHERE
          WHERE (sfr_roof_spc(:nlayer) > eps_fp)
             roof_in_sw_spc(:nlayer) = roof_in_sw_spc(:nlayer)/sfr_roof_spc(:nlayer)
+            roof_in_sw_dir_spc(:nlayer) = roof_in_sw_dir_spc(:nlayer)/sfr_roof_spc(:nlayer)
+            roof_in_sw_diff_spc(:nlayer) = roof_in_sw_diff_spc(:nlayer)/sfr_roof_spc(:nlayer)
             roof_net_sw_spc(:nlayer) = roof_net_sw_spc(:nlayer)/sfr_roof_spc(:nlayer)
          ELSEWHERE
             roof_in_sw_spc(:nlayer) = 0.0D0
+            roof_in_sw_dir_spc(:nlayer) = 0.0D0
+            roof_in_sw_diff_spc(:nlayer) = 0.0D0
             roof_net_sw_spc(:nlayer) = 0.0D0
          END WHERE
       END IF
@@ -876,8 +907,12 @@ CONTAINS
           grnd_net_sw_spc, &
           grnd_net_lw_spc, &
           roof_in_sw_spc, &
+          roof_in_sw_dir_spc, &
+          roof_in_sw_diff_spc, &
           roof_net_sw_spc, &
           wall_in_sw_spc, &
+          wall_in_sw_dir_spc, &
+          wall_in_sw_diff_spc, &
           wall_net_sw_spc, &
           clear_air_abs_sw_spc, &
           roof_in_lw_spc, &
@@ -924,6 +959,214 @@ CONTAINS
       ! DEALLOCATE (wall_emissivity)
 
    END SUBROUTINE SPARTACUS
+
+   SUBROUTINE spartacus_direct_sw_epw_disc(kdown, doy, zenith_deg, Tair_C, RH, Press_hPa, fallback_direct_frac, kdirect)
+      ! Estimate direct horizontal SW from global horizontal SW using the
+      ! DISC/Perez core used by the EPW writer through pvlib DIRINT.
+      !
+      ! Full pvlib DIRINT uses neighbouring timesteps to correct kt'.  Here
+      ! SPARTACUS is called one timestep at a time, so we use pressure-corrected
+      ! DISC plus the static DIRINT dew-point/precipitable-water correction.
+      IMPLICIT NONE
+
+      INTEGER, INTENT(IN) :: doy
+      REAL(KIND(1D0)), INTENT(IN) :: kdown
+      REAL(KIND(1D0)), INTENT(IN) :: zenith_deg
+      REAL(KIND(1D0)), INTENT(IN) :: Tair_C
+      REAL(KIND(1D0)), INTENT(IN) :: RH
+      REAL(KIND(1D0)), INTENT(IN) :: Press_hPa
+      REAL(KIND(1D0)), INTENT(IN) :: fallback_direct_frac
+      REAL(KIND(1D0)), INTENT(OUT) :: kdirect
+
+      REAL(KIND(1D0)) :: a
+      REAL(KIND(1D0)) :: abs_airmass
+      REAL(KIND(1D0)) :: b
+      REAL(KIND(1D0)) :: c
+      REAL(KIND(1D0)) :: cos_sza
+      REAL(KIND(1D0)) :: dewpoint_c
+      REAL(KIND(1D0)) :: delta_kn
+      REAL(KIND(1D0)) :: dirint_coeff
+      REAL(KIND(1D0)) :: dni
+      REAL(KIND(1D0)) :: ecc
+      REAL(KIND(1D0)) :: gamma
+      REAL(KIND(1D0)) :: i0_normal
+      REAL(KIND(1D0)) :: kn
+      REAL(KIND(1D0)) :: kn_clear
+      REAL(KIND(1D0)) :: kt
+      REAL(KIND(1D0)) :: kt_prime
+      REAL(KIND(1D0)) :: kt_prime_factor
+      REAL(KIND(1D0)) :: press_pa
+      REAL(KIND(1D0)) :: rel_airmass
+      REAL(KIND(1D0)) :: rh_safe
+      REAL(KIND(1D0)) :: water_cm
+      REAL(KIND(1D0)), PARAMETER :: min_cos_zenith = 0.065D0
+      REAL(KIND(1D0)), PARAMETER :: max_airmass = 12.0D0
+      REAL(KIND(1D0)), PARAMETER :: max_zenith = 87.0D0
+      REAL(KIND(1D0)), PARAMETER :: pi = 3.141592653589793D0
+
+      kdirect = MAX(0.0D0, MIN(1.0D0, fallback_direct_frac))*MAX(0.0D0, kdown)
+      IF (kdown <= 0.0D0) RETURN
+      IF (zenith_deg >= max_zenith) THEN
+         kdirect = 0.0D0
+         RETURN
+      END IF
+
+      cos_sza = COS(zenith_deg*pi/180.0D0)
+      IF (cos_sza <= 0.0D0) THEN
+         kdirect = 0.0D0
+         RETURN
+      END IF
+
+      CALL spartacus_spencer_eccentricity(doy, ecc)
+      i0_normal = 1370.0D0*ecc
+      kt = kdown/(i0_normal*MAX(cos_sza, min_cos_zenith))
+      kt = MIN(1.0D0, MAX(0.0D0, kt))
+
+      rel_airmass = 1.0D0/(cos_sza + 0.15D0*(93.885D0 - zenith_deg)**(-1.253D0))
+      IF (Press_hPa > 2000.0D0) THEN
+         press_pa = Press_hPa
+      ELSE IF (Press_hPa > 100.0D0) THEN
+         press_pa = Press_hPa*100.0D0
+      ELSE
+         press_pa = 101325.0D0
+      END IF
+      abs_airmass = MIN(max_airmass, rel_airmass*press_pa/101325.0D0)
+      kt_prime_factor = 1.031D0*EXP(-1.4D0/(0.9D0 + 9.4D0/abs_airmass)) + 0.1D0
+      kt_prime = kt/kt_prime_factor
+      kt_prime = MIN(1.0D0, MAX(0.0D0, kt_prime))
+
+      water_cm = -1.0D0
+      IF (Tair_C > -99.0D0 .AND. RH > 0.0D0) THEN
+         rh_safe = MIN(100.0D0, MAX(1.0D-6, RH))
+         gamma = LOG(rh_safe/100.0D0) + 17.625D0*Tair_C/(243.04D0 + Tair_C)
+         dewpoint_c = 243.04D0*gamma/(17.625D0 - gamma)
+         water_cm = EXP(0.07D0*dewpoint_c - 0.075D0)
+      END IF
+
+      IF (kt <= 0.6D0) THEN
+         a = 0.512D0 + kt*(-1.56D0 + kt*(2.286D0 - 2.222D0*kt))
+         b = 0.37D0 + 0.962D0*kt
+         c = -0.28D0 + kt*(0.932D0 - 2.048D0*kt)
+      ELSE
+         a = -5.743D0 + kt*(21.77D0 + kt*(-27.49D0 + 11.56D0*kt))
+         b = 41.4D0 + kt*(-118.5D0 + kt*(66.05D0 + 31.9D0*kt))
+         c = -47.01D0 + kt*(184.2D0 + kt*(-222.0D0 + 73.81D0*kt))
+      END IF
+
+      delta_kn = a + b*EXP(c*abs_airmass)
+      kn_clear = 0.866D0 + abs_airmass*(-0.122D0 + abs_airmass*(0.0121D0 &
+                 + abs_airmass*(-0.000653D0 + 1.4D-5*abs_airmass)))
+      kn = kn_clear - delta_kn
+      CALL spartacus_dirint_static_coeff(kt_prime, zenith_deg, water_cm, dirint_coeff)
+      dni = MAX(0.0D0, kn*i0_normal*dirint_coeff)
+      kdirect = MIN(kdown, MAX(0.0D0, dni*cos_sza))
+
+   END SUBROUTINE spartacus_direct_sw_epw_disc
+
+   SUBROUTINE spartacus_dirint_static_coeff(kt_prime, zenith_deg, water_cm, coeff)
+      ! Static DIRINT coefficient from pvlib's Perez table for the
+      ! no-time-series-correction bin (delta kt' bin 7).
+      IMPLICIT NONE
+
+      REAL(KIND(1D0)), INTENT(IN) :: kt_prime
+      REAL(KIND(1D0)), INTENT(IN) :: zenith_deg
+      REAL(KIND(1D0)), INTENT(IN) :: water_cm
+      REAL(KIND(1D0)), INTENT(OUT) :: coeff
+
+      INTEGER :: i_kt
+      INTEGER :: i_w
+      INTEGER :: i_z
+      REAL(KIND(1D0)), PARAMETER :: coeffs(6, 6, 5) = RESHAPE([ &
+         0.582690D0, 0.337440D0, 1.018450D0, 1.071570D0, 1.038590D0, 1.038270D0, &
+         0.090100D0, 0.665190D0, 1.288220D0, 0.926800D0, 0.973700D0, 1.010090D0, &
+         0.392080D0, 0.424660D0, 0.817410D0, 0.856580D0, 0.957630D0, 0.971740D0, &
+         3.241680D0, 0.491640D0, 0.725420D0, 0.794920D0, 0.934760D0, 0.942160D0, &
+         3.241680D0, 0.530790D0, 0.700560D0, 0.835570D0, 0.926940D0, 0.904770D0, &
+         3.241680D0, 0.204340D0, 0.653880D0, 0.843540D0, 0.960430D0, 0.743440D0, &
+         0.582690D0, 0.337440D0, 1.018450D0, 1.071570D0, 1.063200D0, 0.920180D0, &
+         0.237000D0, 0.678910D0, 1.082810D0, 0.965030D0, 1.006240D0, 0.895270D0, &
+         0.493290D0, 0.529550D0, 0.976160D0, 0.928270D0, 0.985480D0, 0.940560D0, &
+         12.494170D0, 0.677610D0, 0.869970D0, 0.912780D0, 0.957870D0, 0.919100D0, &
+         12.494170D0, 0.745850D0, 0.801440D0, 0.946150D0, 0.953350D0, 0.852650D0, &
+         12.494170D0, 1.157740D0, 0.793120D0, 0.882330D0, 0.881630D0, 0.592190D0, &
+         0.229720D0, 0.969110D0, 1.153600D0, 0.958070D0, 1.034440D0, 0.910930D0, &
+         0.300040D0, 1.012360D0, 1.286370D0, 0.968520D0, 1.026190D0, 0.773030D0, &
+         0.651560D0, 0.966910D0, 0.861300D0, 0.946820D0, 0.991790D0, 0.714880D0, &
+         1.620760D0, 0.685610D0, 0.868810D0, 0.960830D0, 0.959640D0, 0.770340D0, &
+         1.620760D0, 0.693050D0, 0.961970D0, 0.977090D0, 0.959050D0, 0.708370D0, &
+         1.620760D0, 2.003080D0, 0.903320D0, 0.911760D0, 0.775640D0, 0.603060D0, &
+         0.892710D0, 1.145730D0, 1.321890D0, 1.114130D0, 1.112780D0, 0.821140D0, &
+         0.812470D0, 1.199940D0, 1.166170D0, 1.044910D0, 1.071960D0, 0.816280D0, &
+         1.932780D0, 1.033460D0, 0.974780D0, 1.032260D0, 1.050220D0, 0.864380D0, &
+         1.375250D0, 1.082400D0, 0.951190D0, 1.057110D0, 0.972510D0, 0.731170D0, &
+         1.375250D0, 1.458040D0, 0.906140D0, 1.049350D0, 0.876210D0, 0.493730D0, &
+         1.375250D0, 2.622080D0, 0.944070D0, 0.898420D0, 0.596350D0, 0.316930D0, &
+         0.569950D0, 1.476400D0, 1.294670D0, 1.127110D0, 1.037800D0, 1.034560D0, &
+         0.664970D0, 0.986580D0, 1.119330D0, 1.032310D0, 1.017240D0, 1.011680D0, &
+         0.898730D0, 0.958730D0, 1.004580D0, 0.972990D0, 0.987900D0, 1.001650D0, &
+         2.331620D0, 0.735410D0, 0.829220D0, 0.947950D0, 0.981640D0, 0.995180D0, &
+         2.331620D0, 0.804500D0, 0.823880D0, 0.979970D0, 0.991490D0, 0.949030D0, &
+         2.331620D0, 1.409380D0, 0.796130D0, 0.960210D0, 0.937680D0, 0.794390D0 &
+         ], [6, 6, 5])
+
+      IF (kt_prime < 0.24D0) THEN
+         i_kt = 1
+      ELSE IF (kt_prime < 0.40D0) THEN
+         i_kt = 2
+      ELSE IF (kt_prime < 0.56D0) THEN
+         i_kt = 3
+      ELSE IF (kt_prime < 0.70D0) THEN
+         i_kt = 4
+      ELSE IF (kt_prime < 0.80D0) THEN
+         i_kt = 5
+      ELSE
+         i_kt = 6
+      END IF
+
+      IF (zenith_deg < 25.0D0) THEN
+         i_z = 1
+      ELSE IF (zenith_deg < 40.0D0) THEN
+         i_z = 2
+      ELSE IF (zenith_deg < 55.0D0) THEN
+         i_z = 3
+      ELSE IF (zenith_deg < 70.0D0) THEN
+         i_z = 4
+      ELSE IF (zenith_deg < 80.0D0) THEN
+         i_z = 5
+      ELSE
+         i_z = 6
+      END IF
+
+      IF (water_cm < 0.0D0) THEN
+         i_w = 5
+      ELSE IF (water_cm < 1.0D0) THEN
+         i_w = 1
+      ELSE IF (water_cm < 2.0D0) THEN
+         i_w = 2
+      ELSE IF (water_cm < 3.0D0) THEN
+         i_w = 3
+      ELSE
+         i_w = 4
+      END IF
+
+      coeff = coeffs(i_kt, i_z, i_w)
+
+   END SUBROUTINE spartacus_dirint_static_coeff
+
+   SUBROUTINE spartacus_spencer_eccentricity(jday, ecc)
+      IMPLICIT NONE
+
+      INTEGER, INTENT(IN) :: jday
+      REAL(KIND(1D0)), INTENT(OUT) :: ecc
+
+      REAL(KIND(1D0)) :: b
+      REAL(KIND(1D0)), PARAMETER :: pi = 3.141592653589793D0
+
+      b = 2.0D0*pi*jday/365.0D0
+      ecc = 1.00011D0 + 0.034221D0*COS(b) + 0.001280D0*SIN(b) &
+               + 0.000719D0*COS(2.0D0*b) + 0.000077D0*SIN(2.0D0*b)
+
+   END SUBROUTINE spartacus_spencer_eccentricity
 
 END MODULE module_phys_spartacus
 

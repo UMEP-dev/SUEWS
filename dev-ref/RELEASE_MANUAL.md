@@ -163,6 +163,75 @@ flowchart TD
 
 **Usage:** Ask Claude Code: "Prepare release: [Title]"
 
+## Documentation on Read the Docs (release docs & revisions)
+
+`docs.suews.io` is served by Read the Docs. How each version appears in the
+RTD version switcher, and how to publish or fix the docs for a release:
+
+### How RTD serves SUEWS docs
+
+- **`latest`** comes from the **`rtd` branch** (rolling development docs).
+  `docs-sync.yml` merges `master` into `rtd`, builds the HTML in CI, and
+  commits it there; RTD serves that pre-built HTML directly (no compile).
+- **Numbered release versions** (e.g. `2026.4.3`) and the native **`stable`**
+  alias come from a **release tag placed on a dedicated docs commit that RTD
+  can build**. RTD's `stable` automatically tracks the highest such tag.
+
+### The key constraint (why the tag must move)
+
+RTD labels a version by the **git ref name** it builds, and it must be able to
+**build** that ref. The bare "Release X" commit on `master` is not wired to
+build docs on RTD, so the release tag must sit on a **docs commit** (kept off
+`master`) that:
+
+- carries the source **plus the pre-built sphinx-gallery**
+  (`docs/source/auto_examples`, built in CI), and
+- has a `.readthedocs.yml` that installs the **published wheel** from PyPI
+  (`pip install "supy[dev]==<version>"`) and renders Sphinx. Because the
+  gallery is pre-built, RTD runs no tutorials and needs no gfortran — a light,
+  reliable render.
+
+This is exactly how `2026.1.28` and `2026.4.3` are set up. Use the
+`2026.1.28` tag commit as the template for the docs commit + `.readthedocs.yml`.
+
+### Publishing the docs for a new release
+
+1. Cut the release normally (the CalVer tag triggers the PyPI publish). Wait
+   for the wheel to land on PyPI.
+2. From the release commit, create a docs commit that adds the pre-built
+   gallery and the RTD `.readthedocs.yml` described above.
+3. Move the release tag onto that docs commit and push it:
+   ```bash
+   git tag -f <version> <docs-commit-sha>
+   git push -f origin <version>
+   ```
+4. On Read the Docs, make sure the `<version>` version is **active** and
+   **built**. `stable` updates to the highest tag automatically.
+
+### Revising the docs of an already-released version (no new code)
+
+Redo the docs commit (same release source + the doc fix), move the tag forward
+one commit, and push it. RTD rebuilds that version; the version number is
+unchanged. No new software release is needed.
+
+### Why moving a published tag is safe
+
+- **PyPI**: the wheel is already published and PyPI never re-publishes an
+  existing version. `build-publish_to_pypi.yml`'s `verify-release-tag` job
+  additionally **skips** off-master tags.
+- **docs-sync.yml** skips off-master tags **gracefully** (its `guard` job),
+  so the move produces no red CI.
+- The docs commit still carries the release **source**, so
+  `git checkout <version>` and `setuptools-scm` still resolve to `<version>`.
+
+### The pitfall this avoids (history)
+
+`2026.4.3` was first tagged on the bare `master` "Release" commit, whose
+`.readthedocs.yml` is "copy pre-built HTML, else `exit 1`" — but no HTML lives
+on `master`/tags (it lives on the `rtd` branch). So RTD's `2026.4.3` build and
+the native `stable` build both failed, and `stable` kept serving the last good
+build (`2026.1.28`). Moving the tag onto a buildable docs commit is the fix.
+
 ## 1. Version Format
 
 ```

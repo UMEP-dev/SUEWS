@@ -7,6 +7,7 @@ from pathlib import Path
 
 from .report_writer import REPORT_WRITER
 from ...core.field_renames import RAW_YAML_FIELD_RENAMES
+from ...core.physics_families import flatten_physics_in_config
 
 RENAMED_PARAMS = {
     "cp": "rho_cp",
@@ -435,6 +436,8 @@ def find_extra_parameters(user_data, standard_data, current_path=""):
     if current_path == "":
         user_data, _ = _normalise_model_control_subobjects(user_data)
         standard_data, _ = _normalise_model_control_subobjects(standard_data)
+        flatten_physics_in_config(user_data)
+        flatten_physics_in_config(standard_data)
 
     if isinstance(user_data, dict) and isinstance(standard_data, dict):
         for key, user_value in user_data.items():
@@ -483,6 +486,8 @@ def find_missing_parameters(user_data, standard_data, current_path=""):
     if current_path == "":
         user_data, _ = _normalise_model_control_subobjects(user_data)
         standard_data, _ = _normalise_model_control_subobjects(standard_data)
+        flatten_physics_in_config(user_data)
+        flatten_physics_in_config(standard_data)
 
     if isinstance(standard_data, dict):
         user_dict = user_data if isinstance(user_data, dict) else {}
@@ -1854,6 +1859,9 @@ def annotate_missing_parameters(
             original_yaml_content = stream.getvalue()
         with open(standard_file, "r") as f:
             standard_data = yaml.safe_load(f)
+        # Collapse readable physics names in both trees before structure diffs.
+        flatten_physics_in_config(user_data)
+        flatten_physics_in_config(standard_data)
     except FileNotFoundError as e:
         print(f"Error: File not found - {e}")
         return _phase_a_failure_report(

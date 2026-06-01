@@ -70,6 +70,7 @@ try:
         fold_stebbs_physics as _fold_stebbs_physics,
         STEBBS_PHYSICS_LEAF_RENAMES as _STEBBS_PHYSICS_LEAF_RENAMES,
     )
+    from ..data_model.core.physics_families import flatten_physics_in_config
     from ..data_model.schema.version import CURRENT_SCHEMA_VERSION
     from ..data_model.schema.publisher import generate_json_schema
     from ..data_model.schema.migration import SchemaMigrator, check_migration_needed
@@ -84,6 +85,7 @@ except ImportError:
         fold_stebbs_physics as _fold_stebbs_physics,
         STEBBS_PHYSICS_LEAF_RENAMES as _STEBBS_PHYSICS_LEAF_RENAMES,
     )
+    from supy.data_model.core.physics_families import flatten_physics_in_config
     from supy.data_model.schema.version import CURRENT_SCHEMA_VERSION
     from supy.data_model.schema.publisher import generate_json_schema
     from supy.data_model.schema.migration import SchemaMigrator, check_migration_needed
@@ -114,6 +116,7 @@ def validate_single_file(
         # Load configuration
         with open(file_path, "r") as f:
             config = yaml.safe_load(f)
+        flatten_physics_in_config(config)
 
         target_is_current = (
             schema_version is None or schema_version == CURRENT_SCHEMA_VERSION

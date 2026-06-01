@@ -24,6 +24,7 @@ from contextlib import redirect_stdout, redirect_stderr
 from pathlib import Path
 
 from .report_writer import REPORT_WRITER
+from ...core.physics_families import flatten_physics_in_config
 
 # Import Phase A and B functions
 try:
@@ -989,6 +990,7 @@ def _run_phase_c_legacy(
                 # critical-null check and can crash later in df_state conversion
                 # via int(None). gh#1457.
                 original_data = load_user_yaml_normalised(input_yaml_file)
+                flatten_physics_in_config(original_data)
 
                 config = SUEWSConfig.from_yaml(input_yaml_file)
 
@@ -1018,6 +1020,7 @@ def _run_phase_c_legacy(
                     ) as standard_yaml_path:
                         with open(standard_yaml_path, "r") as f:
                             standard_data = yaml.safe_load(f)
+                        flatten_physics_in_config(standard_data)
                 except FileNotFoundError:
                     print(
                         "Warning: Standard config file not found, reporting all defaults"
@@ -1551,6 +1554,7 @@ Modes:
 
                 with open(user_yaml_file, "r") as f:
                     user_yaml_data = yaml.safe_load(f)
+                flatten_physics_in_config(user_yaml_data)
 
                 # Check public mode restrictions.
                 # Read physics keys via helpers that accept both the new

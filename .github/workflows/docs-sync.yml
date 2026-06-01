@@ -5,10 +5,11 @@ name: Sync rtd branch from master
 # directly from the pre-built HTML — no source compilation needed.
 # Branch is named `rtd` (not `docs`) to avoid ref conflict with existing docs/* branches.
 #
-# Release (versioned) docs are handled separately by docs-release.yml, which
-# builds at the clean CalVer tag and publishes to the `release` branch. This
-# workflow no longer creates `rtd/<tag>` tags (they produced ugly `rtd-*` RTD
-# slugs and dev-tainted version strings).
+# Release (versioned) docs are published by moving the release tag onto an
+# off-master docs commit that Read the Docs builds directly (see
+# dev-ref/RELEASE_MANUAL.md) — so the RTD switcher shows the clean version
+# number and native `stable` tracks the highest tag. This workflow does not
+# create `rtd/<tag>` tags.
 
 on:
   push:

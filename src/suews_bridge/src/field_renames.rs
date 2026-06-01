@@ -1497,10 +1497,10 @@ fn collapse_nested_physics(root: &mut Value) -> Result<(), String> {
 
             let inner_foreign: Vec<String> = inner_map
                 .iter()
-                .filter_map(|(k, _)| {
-                    k.as_str()
-                        .filter(|s| *s != "value" && *s != "ref")
-                        .map(|s| s.to_string())
+                .filter_map(|(k, _)| match k.as_str() {
+                    Some("value" | "ref") => None,
+                    Some(s) => Some(s.to_string()),
+                    None => Some(format!("{k:?}")),
                 })
                 .collect();
             if !inner_foreign.is_empty() {
@@ -2670,6 +2670,15 @@ model:
         let mut root: Value = from_str(yaml).unwrap();
         let err = normalize_field_names(&mut root).expect_err("inner foreign key must fail");
         assert!(err.contains("inner keys"), "error was: {err}");
+    }
+
+    #[test]
+    fn nested_family_rejects_non_string_inner_foreign_keys() {
+        let yaml = "model:\n  physics:\n    storage_heat:\n      ohm:\n        value: 1\n        42: false\n";
+        let mut root: Value = from_str(yaml).unwrap();
+        let err = normalize_field_names(&mut root).expect_err("inner foreign key must fail");
+        assert!(err.contains("inner keys"), "error was: {err}");
+        assert!(err.contains("Number(42)"), "error was: {err}");
     }
 
     #[test]

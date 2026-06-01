@@ -219,19 +219,33 @@ class TestCoerceScalarNames:
         assert coerce_nested_to_flat("net_radiation", "forcing") == {"value": 0}
 
     def test_source_choice_names_are_consistent(self):
-        assert coerce_nested_to_flat("laimethod", "model") == {"value": 1}
+        assert coerce_nested_to_flat("laimethod", "modelled") == {"value": 1}
         assert coerce_nested_to_flat("frontal_area_index", "observed") == {
             "value": 0
         }
-        assert coerce_nested_to_flat("frontal_area_index", "model") == {"value": 1}
-        assert coerce_nested_to_flat("water_use", "model") == {"value": 0}
-        assert coerce_nested_to_flat("soil_moisture_deficit", "model") == {
+        assert coerce_nested_to_flat("frontal_area_index", "modelled") == {
+            "value": 1
+        }
+        assert coerce_nested_to_flat("water_use", "modelled") == {"value": 0}
+        assert coerce_nested_to_flat("soil_moisture_deficit", "modelled") == {
             "value": 0
+        }
+        assert coerce_nested_to_flat("soil_moisture_deficit", "observed") == {
+            "value": 1
         }
 
     def test_lai_calculated_name_is_not_public(self):
         with pytest.raises(ValueError, match="calculated"):
             coerce_nested_to_flat("laimethod", "calculated")
+
+    def test_source_choice_model_name_is_not_public(self):
+        with pytest.raises(ValueError, match="modelled"):
+            coerce_nested_to_flat("laimethod", "model")
+
+    @pytest.mark.parametrize("name", ["observed_volumetric", "observed_gravimetric"])
+    def test_smd_unit_specific_names_are_not_public(self, name):
+        with pytest.raises(ValueError, match="observed"):
+            coerce_nested_to_flat("soil_moisture_deficit", name)
 
     def test_unknown_scalar_name_rejected(self):
         with pytest.raises(ValueError, match="unknown scheme name"):
@@ -250,7 +264,7 @@ class TestReadableNamesInModels:
             storage_heat="ohm",
             stability="cn98",
             snow="enabled",
-            leaf_area_index="model",
+            leaf_area_index="modelled",
             emissions="biogen_conductance_j11_detailed",
         )
 
@@ -264,7 +278,7 @@ class TestReadableNamesInModels:
         from supy.data_model.core.model import ModelPhysics
 
         with pytest.raises(ValueError, match="leaf_area_index"):
-            ModelPhysics(leaf_area_index="model", laimethod="model")
+            ModelPhysics(leaf_area_index="modelled", laimethod="modelled")
         with pytest.raises(ValueError, match="snow"):
             ModelPhysics(snow="disabled", snow_use="disabled")
 
@@ -331,10 +345,18 @@ class TestRegistryEnumParity:
         assert set(MODEL_PHYSICS_ENUM_FIELDS).issubset(PHYSICS_ENUM_FIELDS)
         assert set(STEBBS_PHYSICS_ENUM_FIELDS).issubset(PHYSICS_ENUM_FIELDS)
 
+        # gh#1422/#1447: SMD's historical code 2 remains a numeric
+        # compatibility path while the public readable surface converges on a
+        # single observed soil-moisture source.
+        public_name_coverage_exceptions = {"soil_moisture_deficit": {2}}
+
         for field, enum_cls in field_to_enum.items():
             valid = {member.value for member in enum_cls}
             for code in pf._ALIAS_TO_CODE[field].values():
                 assert code in valid, f"{field}: code {code} not in {enum_cls}"
-            assert set(pf._CODE_TO_CANONICAL[field]) == valid, (
+            assert (
+                set(pf._CODE_TO_CANONICAL[field])
+                == valid - public_name_coverage_exceptions.get(field, set())
+            ), (
                 f"{field}: canonical names do not cover every enum value"
             )

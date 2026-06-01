@@ -947,7 +947,7 @@ class TestRawDictCompatibility:
 
     def test_public_physics_aliases_are_scoped_to_model_physics(self):
         payload = {
-            "model": {"physics": {"leaf_area_index": "model", "snow": "disabled"}},
+            "model": {"physics": {"leaf_area_index": "modelled", "snow": "disabled"}},
             "sites": [{"properties": {"snow": {"initially": {"value": 0}}}}],
         }
 

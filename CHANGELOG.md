@@ -61,7 +61,8 @@ EXAMPLES:
   - `model.physics.net_radiation.narp.ldown` is accepted as the scheme-scoped spelling for NARP longwave forcing options, while the existing `scheme: narp` form remains accepted
   - The sample also uses readable net-radiation and emissions groupings plus citation-style aliases such as `J11`, `K09`, `CN98`, and `W16` so new YAML users see semantic axes rather than opaque integer method codes
   - `model.physics.leaf_area_index` and `model.physics.snow` are accepted as public-facing aliases for the existing LAI and snow switches, folding back to `laimethod` and `snow_use` internally
-  - Source-choice physics options now use the consistent public names `observed` and `model`; older readable aliases such as `modelled`, `provided`, `use_provided`, and `simple_scheme` remain accepted where already introduced, while `laimethod: calculated` is no longer a readable public option
+  - Source-choice physics options now use the consistent public names `observed` and `modelled`; older readable aliases such as `provided`, `use_provided`, and `simple_scheme` remain accepted where already introduced, while `laimethod: calculated` and `laimethod: model` are no longer readable public options
+  - `model.physics.soil_moisture_deficit` now exposes only `modelled` and `observed` as readable public names; the old volumetric/gravimetric split remains an internal numeric compatibility path pending the water/soil-moisture unit unification work
   - `model.physics.stebbs.parameter_source` is accepted as the public nested spelling for the STEBBS parameter-source choice, folding back to `stebbs.parameters` internally
 
 ### 31 May 2026

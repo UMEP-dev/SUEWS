@@ -822,20 +822,9 @@ pub const PHYSICS_NAME_ALIASES_RS: &[(&str, &[(&str, i64)])] = &[
             ("bh71", 4),
         ],
     ),
-    (
-        "soil_moisture_deficit",
-        &[
-            ("model", 0),
-            ("modelled", 0),
-            ("observed_volumetric", 1),
-            ("observed_gravimetric", 2),
-        ],
-    ),
-    (
-        "water_use",
-        &[("model", 0), ("modelled", 0), ("observed", 1)],
-    ),
-    ("laimethod", &[("observed", 0), ("model", 1)]),
+    ("soil_moisture_deficit", &[("modelled", 0), ("observed", 1)]),
+    ("water_use", &[("modelled", 0), ("observed", 1)]),
+    ("laimethod", &[("observed", 0), ("modelled", 1)]),
     (
         "roughness_sublayer",
         &[("most", 0), ("rst", 1), ("t19", 1), ("variable", 2)],
@@ -846,7 +835,7 @@ pub const PHYSICS_NAME_ALIASES_RS: &[(&str, &[(&str, i64)])] = &[
             ("observed", 0),
             ("provided", 0),
             ("use_provided", 0),
-            ("model", 1),
+            ("modelled", 1),
             ("simple_scheme", 1),
         ],
     ),
@@ -2450,7 +2439,7 @@ model:
 
     #[test]
     fn public_physics_aliases_do_not_rename_site_snow_section() {
-        let yaml = "model:\n  physics:\n    leaf_area_index: model\n    snow: disabled\nsites:\n- properties:\n    snow:\n      initially: {value: 0}\n";
+        let yaml = "model:\n  physics:\n    leaf_area_index: modelled\n    snow: disabled\nsites:\n- properties:\n    snow:\n      initially: {value: 0}\n";
         let mut root: Value = from_str(yaml).unwrap();
         normalize_field_names(&mut root).unwrap();
         let physics = &root["model"]["physics"];

@@ -148,12 +148,11 @@ _PHYSICS_NAME_SPECS: dict[str, list[tuple[int, str, tuple[str, ...]]]] = {
         (4, "businger_hoegstrom", ("bh71",)),
     ],
     "soil_moisture_deficit": [
-        (0, "model", ("modelled",)),
-        (1, "observed_volumetric", ()),
-        (2, "observed_gravimetric", ()),
+        (0, "modelled", ()),
+        (1, "observed", ()),
     ],
-    "water_use": [(0, "model", ("modelled",)), (1, "observed", ())],
-    "laimethod": [(0, "observed", ()), (1, "model", ())],
+    "water_use": [(0, "modelled", ()), (1, "observed", ())],
+    "laimethod": [(0, "observed", ()), (1, "modelled", ())],
     "roughness_sublayer": [
         (0, "most", ()),
         (1, "rst", ("t19",)),
@@ -161,7 +160,7 @@ _PHYSICS_NAME_SPECS: dict[str, list[tuple[int, str, tuple[str, ...]]]] = {
     ],
     "frontal_area_index": [
         (0, "observed", ("provided", "use_provided")),
-        (1, "model", ("simple_scheme",)),
+        (1, "modelled", ("simple_scheme",)),
     ],
     "roughness_sublayer_level": [
         (0, "none", ()),

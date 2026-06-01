@@ -101,13 +101,13 @@ def test_sample_config_prefers_nested_readable_physics_defaults():
         "roughness_length_momentum": "fixed",
         "roughness_length_heat": "K09",
         "stability": "CN98",
-        "soil_moisture_deficit": "model",
-        "water_use": "model",
+        "soil_moisture_deficit": "modelled",
+        "water_use": "modelled",
         "roughness_sublayer": "variable",
         "frontal_area_index": "observed",
         "roughness_sublayer_level": "basic",
         "surface_conductance": "W16",
-        "leaf_area_index": "model",
+        "leaf_area_index": "modelled",
         "snow": "disabled",
     }
     assert physics["stebbs"] == {

@@ -153,6 +153,13 @@ class TestCoerceErrorPaths:
         with pytest.raises(ValueError, match="must be a scalar numeric code"):
             coerce_nested_to_flat("net_radiation", {"narp": {"value": {"nested": 3}}})
 
+    def test_inner_foreign_key_rejected(self):
+        with pytest.raises(ValueError, match="inner keys"):
+            coerce_nested_to_flat(
+                "storage_heat",
+                {"ohm": {"value": 1, "include_qf": False}},
+            )
+
     def test_inner_value_not_integerlike_rejected(self):
         with pytest.raises(ValueError, match="must be an integer code"):
             coerce_nested_to_flat("net_radiation", {"narp": {"value": "abc"}})

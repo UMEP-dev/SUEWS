@@ -297,6 +297,27 @@ def test_validate_single_file_rejects_negative_sfr(tmp_path: Path) -> None:
     assert errors, "expected at least one error for a negative sfr"
 
 
+def test_validate_single_file_rejects_storage_value_plus_nested_qf(
+    tmp_path: Path,
+) -> None:
+    """Malformed storage-heat family values must not be partially folded."""
+    from supy.cmd.validate_config import validate_single_file
+    from supy.data_model.schema.publisher import generate_json_schema
+
+    payload = _load_sample_dict()
+    payload["model"]["physics"]["storage_heat"] = {
+        "ohm": {"value": 1, "include_qf": False}
+    }
+    config_path = tmp_path / "bad_storage_heat.yml"
+    _write_yaml(config_path, payload)
+
+    schema = generate_json_schema()
+    is_valid, errors = validate_single_file(config_path, schema, show_details=True)
+
+    assert not is_valid
+    assert any("storage_heat.ohm" in error.message for error in errors), errors
+
+
 # ---------------------------------------------------------------------------
 # Critical-physics structural-presence — gh#1409
 # ---------------------------------------------------------------------------

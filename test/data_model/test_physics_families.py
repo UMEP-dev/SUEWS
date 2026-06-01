@@ -255,6 +255,30 @@ class TestCoerceScalarNames:
         with pytest.raises(ValueError, match="campbell_norman"):
             coerce_nested_to_flat("stability", "bogus")
 
+    def test_registry_exposes_agent_facing_names(self):
+        from supy.data_model.core.physics_families import (
+            accepted_physics_names,
+            canonical_physics_name,
+            preferred_physics_name,
+            public_model_physics_key,
+            public_stebbs_physics_key,
+        )
+
+        assert canonical_physics_name("surface_conductance", 2) == "ward"
+        assert preferred_physics_name("surface_conductance", 2) == "W16"
+        assert preferred_physics_name("roughness_length_heat", 2) == "K09"
+        assert preferred_physics_name("stability", 3) == "CN98"
+        assert preferred_physics_name("laimethod", 1) == "modelled"
+        assert preferred_physics_name("storage_heat", 3) == "anohm"
+        assert preferred_physics_name("storage_heat", 4) == "estm"
+        assert preferred_physics_name("storage_heat", 6) == "dyohm"
+        assert preferred_physics_name("roughness_sublayer", 1) == "rst"
+        assert preferred_physics_name("soil_moisture_deficit", 2) == "observed"
+        assert "w16" in accepted_physics_names("surface_conductance")
+        assert public_model_physics_key("laimethod") == "leaf_area_index"
+        assert public_model_physics_key("snow_use") == "snow"
+        assert public_stebbs_physics_key("parameters") == "parameter_source"
+
 
 class TestReadableNamesInModels:
     def test_model_physics_accepts_top_level_readable_names(self):

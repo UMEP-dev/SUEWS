@@ -20,6 +20,15 @@ from typing import Any, Dict, List, Optional
 
 import click
 
+from ..data_model.core.physics_families import (
+    MODEL_PHYSICS_ENUM_FIELDS,
+    STEBBS_PHYSICS_ENUM_FIELDS,
+    accepted_physics_names,
+    canonical_physics_name,
+    preferred_physics_name,
+    public_model_physics_key,
+    public_stebbs_physics_key,
+)
 from .json_envelope import EXIT_USER_ERROR, Envelope, _now_iso, silent_supy_logger
 
 # Names of surface-cover sub-objects on ``LandCover`` — kept as a fixed list
@@ -52,6 +61,98 @@ def _ref_value(value: Any) -> Any:
     if isinstance(value, dict) and "value" in value:
         return value["value"]
     return value
+
+
+def _physics_code(value: Any) -> Optional[int]:
+    """Return an integer physics code from a dumped RefValue-like object."""
+    code = _ref_value(value)
+    if hasattr(code, "value"):
+        code = code.value
+    if isinstance(code, bool):
+        return int(code)
+    if isinstance(code, int):
+        return code
+    if isinstance(code, float) and code.is_integer():
+        return int(code)
+    return None
+
+
+def _selector_summary(field_name: str, value: Any) -> Dict[str, Any]:
+    """Build an agent-facing summary for one physics selector."""
+    code = _physics_code(value)
+    accepted = accepted_physics_names(field_name)
+    canonical = (
+        canonical_physics_name(field_name, code) if code is not None else None
+    )
+    selected = preferred_physics_name(field_name, code) if code is not None else None
+    summary: Dict[str, Any] = {
+        "code": code,
+        "selected": selected,
+        "accepted_names": list(accepted),
+    }
+    if (
+        canonical is not None
+        and selected is not None
+        and selected.lower() != canonical.lower()
+    ):
+        summary["canonical_name"] = canonical
+    if canonical is None and selected is not None:
+        summary["selected_name_is_lossy"] = True
+    return summary
+
+
+def _physics_summary(model_data: Dict[str, Any]) -> Dict[str, Any]:
+    """Expose active ``model.physics`` selectors using public YAML names."""
+    physics_data = model_data.get("physics", {}) or {}
+    if not isinstance(physics_data, dict):
+        return {}
+
+    out: Dict[str, Any] = {}
+
+    for field_name in MODEL_PHYSICS_ENUM_FIELDS:
+        if field_name == "ohm_inc_qf" or field_name not in physics_data:
+            continue
+        public_name = public_model_physics_key(field_name)
+        summary = _selector_summary(field_name, physics_data[field_name])
+        if public_name != field_name:
+            summary["internal_key"] = field_name
+        out[public_name] = summary
+
+    ohm_inc_qf = physics_data.get("ohm_inc_qf")
+    storage_summary = out.get("storage_heat")
+    if (
+        ohm_inc_qf is not None
+        and isinstance(storage_summary, dict)
+        and storage_summary.get("code") == 1
+    ):
+        include_code = _physics_code(ohm_inc_qf)
+        storage_summary["ohm"] = {
+            "include_qf": bool(include_code) if include_code is not None else None,
+            "include_qf_code": include_code,
+            "include_qf_selected": preferred_physics_name(
+                "ohm_inc_qf", include_code
+            )
+            if include_code is not None
+            else None,
+            "include_qf_accepted_names": list(accepted_physics_names("ohm_inc_qf")),
+        }
+
+    stebbs_data = physics_data.get("stebbs")
+    if isinstance(stebbs_data, dict):
+        stebbs_out: Dict[str, Any] = {
+            "enabled": bool(_ref_value(stebbs_data.get("enabled"))),
+        }
+        for field_name in STEBBS_PHYSICS_ENUM_FIELDS:
+            if field_name not in stebbs_data:
+                continue
+            public_name = public_stebbs_physics_key(field_name)
+            summary = _selector_summary(field_name, stebbs_data[field_name])
+            if public_name != field_name:
+                summary["internal_key"] = field_name
+            stebbs_out[public_name] = summary
+        out["stebbs"] = stebbs_out
+
+    return out
 
 
 def _site_summary(site_data: Dict[str, Any]) -> Dict[str, Any]:
@@ -203,6 +304,39 @@ def _build_text_message(data: Dict[str, Any], list_warnings: List[str]) -> str:
     lines.append("Forcing file: %s" % forcing.get("file"))
     if forcing.get("n_columns") is not None:
         lines.append("  columns: %d" % forcing["n_columns"])
+    physics = data.get("physics") or {}
+    if physics:
+        lines.append("")
+        lines.append("Physics selectors:")
+        for field_name, summary in physics.items():
+            if field_name == "stebbs":
+                lines.append("  stebbs.enabled: %s" % summary.get("enabled"))
+                for nested_name, nested_summary in summary.items():
+                    if nested_name == "enabled":
+                        continue
+                    lines.append(
+                        "  stebbs.%-18s %s (%s)"
+                        % (
+                            nested_name + ":",
+                            nested_summary.get("selected"),
+                            nested_summary.get("code"),
+                        )
+                    )
+                continue
+            lines.append(
+                "  %-28s %s (%s)"
+                % (
+                    field_name + ":",
+                    summary.get("selected"),
+                    summary.get("code"),
+                )
+            )
+            ohm = summary.get("ohm")
+            if isinstance(ohm, dict):
+                lines.append(
+                    "  storage_heat.ohm.include_qf: %s (%s)"
+                    % (ohm.get("include_qf_selected"), ohm.get("include_qf_code"))
+                )
     if list_warnings:
         lines.append("")
         lines.append("Warnings:")
@@ -292,6 +426,7 @@ def inspect_config_cmd(config_path: str, output_format: str) -> None:
 
     model_data = config_dict.get("model", {}) or {}
     forcing_summary = _forcing_summary(model_data, path_config.resolve().parent)
+    physics_summary = _physics_summary(model_data)
 
     schema_version = config_dict.get("schema_version")
 
@@ -301,6 +436,7 @@ def inspect_config_cmd(config_path: str, output_format: str) -> None:
         "sites": list_sites,
         "surface_cover_fraction": surface_cover_fraction,
         "forcing_summary": forcing_summary,
+        "physics": physics_summary,
         "derived": {},
         "warnings": list_warnings,
     }

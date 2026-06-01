@@ -53,7 +53,10 @@ select = [
     "C4",     # flake8-comprehensions
     "SIM",    # flake8-simplify
     "UP",     # pyupgrade
-    
+
+    # Python version compatibility
+    "FA102",  # PEP 604 unions (X | None) need py3.10 at runtime; guard for py3.9
+
     # Documentation
     "D",      # pydocstyle
     
@@ -98,6 +101,7 @@ unfixable = [
     "B",      # Bugbear rules often need careful review
     "F841",   # Unused variables might be intentional
     "SIM",    # Simplifications might reduce clarity
+    "FA102",  # Autofix adds `from __future__ import annotations`, which breaks Pydantic
 ]
 
 # Allow unused variables when underscore-prefixed.

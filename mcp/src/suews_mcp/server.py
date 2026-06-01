@@ -73,6 +73,7 @@ def _build_server() -> Any:
         ) from exc
 
     from .resources import (
+        list_docs,
         read_doc,
         read_example_resource,
         read_knowledge_manifest_resource,
@@ -81,6 +82,7 @@ def _build_server() -> Any:
         read_schema_resource,
     )
     from .tools import (
+        assess_readiness,
         compare_runs,
         convert_config,
         diagnose_run,
@@ -95,7 +97,14 @@ def _build_server() -> Any:
         validate_config,
     )
 
-    server = FastMCP("suews-mcp")
+    from .prompts import (
+        SERVER_INSTRUCTIONS,
+        evaluate_results,
+        fresh_site_setup,
+        parameter_importance,
+    )
+
+    server = FastMCP("suews-mcp", instructions=SERVER_INSTRUCTIONS)
 
     # Plumb the package version into the MCP `initialize` handshake so
     # `serverInfo.version` agrees with `pip show suews-mcp` (gh#1401).
@@ -147,9 +156,16 @@ def _build_server() -> Any:
     # `_async_offload` for dispatch uniformity (microsecond cost).
     server.tool(name="validate_config")(_async_offload_locked(validate_config))
     server.tool(name="inspect_config")(_async_offload(inspect_config))
+    # `assess_readiness` is read-only: it inspects the user config + the bundled
+    # sample and reports which site-defining values are still assumed defaults
+    # (the fresh-user honesty gap, gh#1384 follow-up).
+    server.tool(name="assess_readiness")(_async_offload(assess_readiness))
     server.tool(name="search_schema")(_async_offload(search_schema))
     server.tool(name="list_examples")(_async_offload(list_examples))
     server.tool(name="read_example")(_async_offload(read_example))
+    # `list_docs` lets the agent discover curated doc slugs before reading
+    # `suews://docs/{slug}` — the prose/tutorial grounding layer (gh#1384).
+    server.tool(name="list_docs")(_async_offload(list_docs))
 
     # Tools — workflow (init / convert). Write-path: guarded by `_write_lock`
     # so two concurrent calls cannot race on the same output directory.
@@ -207,6 +223,14 @@ def _build_server() -> Any:
         return await anyio.to_thread.run_sync(
             lambda: json.dumps(read_knowledge_query_resource(question))
         )
+
+    # Prompts — carry the procedural guidance (fresh-site setup, parameter
+    # importance, results evaluation) inside the MCP, so non-Claude-Code clients
+    # (Claude Desktop, Codex, …) get the same contract the `/suews` skill gives
+    # Claude Code. Registered like tools: ``server.prompt(name=...)(fn)``.
+    server.prompt(name="fresh_site_setup")(fresh_site_setup)
+    server.prompt(name="parameter_importance")(parameter_importance)
+    server.prompt(name="evaluate_results")(evaluate_results)
 
     return server
 

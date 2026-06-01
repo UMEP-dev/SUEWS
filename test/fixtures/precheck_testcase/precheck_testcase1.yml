@@ -41,11 +41,14 @@ model:
     snow_use:
       value: 0
     stebbs:
-      value: 0
-    outer_cap_fraction:
-      value: 0
-    setpoint:
-      value: 0
+      enabled:
+        value: false
+      parameters:
+        value: 1
+      capacitance:
+        value: 0
+      setpoint:
+        value: 0
 sites:
 - name: test site
   gridiv: 09_22_01_02

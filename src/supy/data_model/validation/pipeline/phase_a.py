@@ -7,6 +7,7 @@ from pathlib import Path
 
 from .report_writer import REPORT_WRITER
 from ...core.field_renames import RAW_YAML_FIELD_RENAMES
+from ...core.physics_families import flatten_physics_in_config
 
 RENAMED_PARAMS = {
     "cp": "rho_cp",
@@ -33,8 +34,12 @@ PHYSICS_OPTIONS = {
     "roughness_sublayer_level",
     "surface_conductance",
     "snow_use",
+    # gh#1456: the STEBBS switches now live under model.physics.stebbs.*; the
+    # nested leaf names are listed so is_physics_option() matches the new paths.
     "stebbs",
-    "outer_cap_fraction",
+    "enabled",
+    "parameters",
+    "capacitance",
     "same_albedo_wall",
     "same_albedo_roof",
     "same_emissivity_wall",
@@ -73,13 +78,32 @@ def _is_generated_null_placeholder(value: object) -> bool:
     return False
 
 
+# Exact paths whose omission Phase A must not flag, because Pydantic backs
+# them with a safe default. gh#1456 adds the relocated STEBBS master toggle
+# (``enabled`` default false, ``parameters`` default DEFAULT) so that omitting
+# it is not treated as a missing critical physics parameter -- consistent with
+# Phase B (physics_rules.py), which deliberately requires only the relocated
+# leaves (capacitance / setpoint / same_*), not the toggle.
+_DEFAULT_BACKED_CONTROL_PATHS = frozenset(
+    {
+        "model.control.forcing",
+        "model.control.forcing.file",
+        "model.control.output",
+        "model.physics.stebbs.enabled",
+        "model.physics.stebbs.parameters",
+    }
+)
+
+
 def _is_default_backed_control_path(param_path: str) -> bool:
-    """Phase A should not materialise nulls for Pydantic-defaulted controls."""
-    return (
-        param_path == "model.control.forcing"
-        or param_path == "model.control.forcing.file"
-        or param_path == "model.control.output"
-        or param_path.startswith("model.control.output.")
+    """Phase A should not materialise nulls for Pydantic-defaulted controls.
+
+    The STEBBS master toggle (``model.physics.stebbs.enabled`` /
+    ``.parameters``) stays recognised by ``is_physics_option()`` but is treated
+    as default-backed here, so its absence is not flagged critical (gh#1456).
+    """
+    return param_path in _DEFAULT_BACKED_CONTROL_PATHS or param_path.startswith(
+        "model.control.output."
     )
 
 
@@ -412,6 +436,8 @@ def find_extra_parameters(user_data, standard_data, current_path=""):
     if current_path == "":
         user_data, _ = _normalise_model_control_subobjects(user_data)
         standard_data, _ = _normalise_model_control_subobjects(standard_data)
+        flatten_physics_in_config(user_data)
+        flatten_physics_in_config(standard_data)
 
     if isinstance(user_data, dict) and isinstance(standard_data, dict):
         for key, user_value in user_data.items():
@@ -460,6 +486,8 @@ def find_missing_parameters(user_data, standard_data, current_path=""):
     if current_path == "":
         user_data, _ = _normalise_model_control_subobjects(user_data)
         standard_data, _ = _normalise_model_control_subobjects(standard_data)
+        flatten_physics_in_config(user_data)
+        flatten_physics_in_config(standard_data)
 
     if isinstance(standard_data, dict):
         user_dict = user_data if isinstance(user_data, dict) else {}
@@ -1831,6 +1859,9 @@ def annotate_missing_parameters(
             original_yaml_content = stream.getvalue()
         with open(standard_file, "r") as f:
             standard_data = yaml.safe_load(f)
+        # Collapse readable physics names in both trees before structure diffs.
+        flatten_physics_in_config(user_data)
+        flatten_physics_in_config(standard_data)
     except FileNotFoundError as e:
         print(f"Error: File not found - {e}")
         return _phase_a_failure_report(

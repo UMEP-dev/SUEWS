@@ -180,10 +180,144 @@ The sections below summarise what users see change between schemas.
 The authoritative lineage (including release-tag to schema mapping)
 lives in :ref:`schema_version_history`.
 
+Upgrading to Schema 2026.5.dev13 (nest the STEBBS physics switches)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Schema ``2026.5.dev13`` is the current in-development shape (gh#1456).
+This is a separate structural reshape from the dev12 Column D rename
+(gh#1452), so it takes its own dev bump. The six flat STEBBS-scoped
+switches on ``model.physics`` are grouped into a single nested object
+``model.physics.stebbs``. The legacy tri-state master toggle
+``model.physics.stebbs`` (a ``StebbsMethod`` integer ``0``/``1``/``2``)
+is split into ``stebbs.enabled`` (bool) and ``stebbs.parameters`` (a
+``StebbsParameterSource`` enum: ``1`` = default parameters, ``2`` =
+user-provided parameters); together they reproduce the previous integer
+exactly (``enabled=false`` -> ``0``; ``enabled=true, parameters=1`` ->
+``1``; ``enabled=true, parameters=2`` -> ``2``). The dev12 field
+``model.physics.capacitance`` (was ``outer_cap_fraction`` / fused
+``rcmethod``) moves to ``model.physics.stebbs.capacitance``;
+``setpoint``, ``same_albedo_wall``, ``same_albedo_roof``,
+``same_emissivity_wall`` and ``same_emissivity_roof`` move under the
+nested object at the same leaf names.
+
+Before (flat)::
+
+   model:
+     physics:
+       stebbs: {value: 1}
+       capacitance: {value: 0}
+       setpoint: {value: 0}
+       same_albedo_wall: {value: 0}
+
+After (nested)::
+
+   model:
+     physics:
+       stebbs:
+         enabled: {value: true}
+         parameters: {value: 1}
+         capacitance: {value: 0}
+         setpoint: {value: 0}
+         same_albedo_wall: {value: 0}
+
+Run the migrator to bring an existing YAML onto the new shape:
+
+.. code-block:: bash
+
+   suews schema migrate your_config.yml --target-version 2026.5.dev13
+
+The flat form still loads through the Pydantic backward-compat shim
+(emitting a single ``DeprecationWarning`` summarising the fold), but
+YAMLs that round-trip through the migrator come out nested. The
+DataFrame / Fortran column names (``stebbsmethod``, ``rcmethod``,
+``setpointmethod``, ``same_albedo_*``, ``same_emissivity_*``) are
+unchanged - only the YAML surface and the Python data-model fields
+move.
+
+Upgrading to Schema 2026.5.dev12 (STEBBS / Archetype Column D alignment)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Schema ``2026.5.dev12`` aligns STEBBS and ArchetypeProperties field
+names with the Reading STEBBS team's "Column D" naming ("Column D",
+D. Hertwig / S. Rognone, 2026-05), in two waves landed in one dev bump.
+
+Wave 1 reorders the four straggler compound-noun fields kept at dev11 to
+their quantity-first finals, all under ``sites[].properties.stebbs.*``:
+
+- ``ground_depth`` -> ``depth_ground``
+- ``ventilation_rate`` -> ``rate_ventilation``
+- ``lighting_power_density`` -> ``power_density_lighting``
+- ``month_mean_air_temperature_diffmax`` ->
+  ``temperature_air_month_mean_diffmax``
+
+Wave 2 aligns sixteen further fields. Six sit under
+``sites[].properties.building_archetype.*``:
+
+- ``power_air_heating_max`` -> ``max_power_heating_system_air``
+- ``power_water_heating_max`` -> ``max_power_heating_system_water``
+- ``temperature_air_heating_setpoint`` ->
+  ``setpoint_temperature_heating_air``
+- ``temperature_air_cooling_setpoint`` ->
+  ``setpoint_temperature_cooling_air``
+- ``profile_temperature_air_heating_setpoint`` ->
+  ``profile_setpoint_temperature_heating_air``
+- ``profile_temperature_air_cooling_setpoint`` ->
+  ``profile_setpoint_temperature_cooling_air``
+
+Ten sit under ``sites[].properties.stebbs.*``:
+
+- ``power_air_cooling_max`` -> ``max_power_cooling_system_air``
+- ``temperature_water_heating_setpoint`` ->
+  ``setpoint_temperature_heating_water``
+- ``temperature_water_mains`` -> ``temperature_mains_water``
+- ``area_hot_water_tank_surface`` -> ``surface_area_hot_water_tank``
+- ``area_hot_water_surface`` -> ``surface_area_hot_water``
+- ``rate_hot_water_flow`` -> ``rate_flow_hot_water``
+- ``profile_hot_water_flow`` -> ``profile_flow_hot_water``
+- ``control_daylight`` -> ``daylight_control``
+- ``convection_coefficient_hot_water_vessel_wall_internal`` ->
+  ``convection_coefficient_hot_water_tank_vessel_internal``
+- ``convection_coefficient_hot_water_vessel_wall_external`` ->
+  ``convection_coefficient_hot_water_tank_vessel_external``
+
+One field sits under ``model.physics.*``:
+
+- ``outer_cap_fraction`` -> ``capacitance``
+
+This is a pure key rename: the field stays the same ``RCMethod`` enum
+with the same accepted values and validation behaviour, and its bridge
+DataFrame column stays ``rcmethod``. The larger relocation of the field
+under STEBBS (dev13, gh#1456) and the capacitance-versus-fraction
+semantics are deferred to a separate workstream.
+
+The ``ground_floor`` fields keep their two-word token.
+
+Run the migrator to bring an existing YAML onto the new shape:
+
+.. code-block:: bash
+
+   suews schema migrate your_config.yml --target-version 2026.5.dev12
+
+Or with ``suews-convert``:
+
+.. code-block:: bash
+
+   suews-convert --to 2026.5.dev12 in.yml out.yml
+
+Every rename is logged via ``[yaml-upgrade]   renamed 'old' -> 'new'``.
+The Pydantic backward-compat shim still accepts the dev11 names (and
+earlier dev-cycle names back through PascalCase) at load time, emitting
+a ``DeprecationWarning``. Bridge DataFrame columns are unchanged - the
+chained ``STEBBSPROPERTIES_DEV9_TO_PASCAL`` /
+``ARCHETYPEPROPERTIES_DEV7_TO_PASCAL`` maps and the Rust
+``FIELD_COMPAT_ALIASES`` entries still produce the legacy fused column
+keys from the new Pydantic field names.
+
 Upgrading to Schema 2026.5.dev11 (naming convention completion)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Schema ``2026.5.dev11`` is the current in-development shape. It
+Schema ``2026.5.dev11`` was the in-development shape preceding
+``2026.5.dev12``. It
 combines two independent naming-convention rename groups in a single
 bump (gh#1392 + gh#1394): the ArchetypeProperties Tier 1 completion
 (16 renames under ``sites[].properties.building_archetype.*``) and the
@@ -818,7 +952,9 @@ alongside the existing flat ``{value: N}`` shape:
 - ``net_radiation`` — families ``forcing``, ``narp``, ``spartacus``.
 - ``storage_heat`` — families ``observed``, ``ohm``, ``anohm``,
   ``estm``, ``ehc``, ``dyohm``, ``stebbs``.
-- ``emissions`` — families ``observed``, ``simple``.
+- ``emissions`` — families ``observed``, ``simple``,
+  ``biogenic_rectangular``, ``biogenic_bellucco_local``,
+  ``biogenic_bellucco_general``, ``biogenic_conductance``.
 
 Family-tagged form:
 
@@ -854,7 +990,50 @@ emitted in the flat form.
 
 The Rust CLI (``suews run``) accepts the same two shapes via the
 bridge-side normaliser in ``src/suews_bridge/src/field_renames.rs``.
-Orthogonal-axis decomposition (``net_radiation: {scheme: narp,
-ldown: air}``) and human-readable code names (``ohm``, ``K09``,
-``CN98``) are planned as follow-up work and will track under a
-separate issue once this plumbing is proven.
+
+``net_radiation`` also accepts an orthogonal decomposition of the
+same numeric codes:
+
+.. code-block:: yaml
+
+   model:
+     physics:
+       net_radiation:
+         scheme: narp
+         ldown: air
+
+This is equivalent to ``net_radiation: {value: 3}``. Supported
+schemes are ``forcing`` (no ``ldown`` or ``variant``), ``narp``
+(``ldown`` of ``observed``, ``cloud``, or ``air``; optional
+``variant`` of ``standard``, ``surface``, or ``zenith``), and
+``spartacus`` (``ldown`` of ``observed``, ``cloud``, or ``air``).
+As with the family-tagged form, the orthogonal form is accept-only:
+round-tripping emits the flat numeric form. Human-readable method
+aliases beyond this explicit decomposition remain out of scope.
+
+``emissions`` also accepts an orthogonal decomposition of the heat/QF
+and CO2 axes:
+
+.. code-block:: yaml
+
+   model:
+     physics:
+       emissions:
+         heat: j11
+         co2:
+           anthropogenic: detailed
+           biogenic: conductance
+
+This is equivalent to ``emissions: {value: 45}``. Supported ``heat``
+values are ``observed``, ``l11``, ``j11``, and ``l11_updated``.
+When omitted, ``co2`` defaults to no CO2 calculation, so ``heat:
+j11`` is equivalent to ``emissions: {value: 2}``. Supported
+``co2.anthropogenic`` values are ``qf_linked`` and ``detailed``;
+supported ``co2.biogenic`` values are ``rectangular``,
+``bellucco_local``, ``bellucco_general``, and ``conductance``.
+The legacy Fortran code represents anthropogenic and biogenic CO2
+together in the ``11-16`` / ``21-26`` / ``31-36`` / ``41-46``
+families, so the orthogonal form rejects unsupported "CO2-only"
+combinations rather than assigning misleading semantics. Non-biogenic
+flat codes ``4-6`` remain accepted as legacy detailed-heat settings,
+but their CO2 fluxes are discarded by the driver.

@@ -90,6 +90,32 @@ def suppress_import_warnings():
         yield
 
 
+@pytest.fixture(autouse=True)
+def _clear_mcp_caches():
+    """Clear the per-process ``suews_mcp`` caches around every test.
+
+    ``schema_search._SCHEMA_CACHE`` and ``readiness._SAMPLE_CACHE`` cache
+    *successful* CLI envelopes for the process lifetime (correct in production),
+    so a test that monkeypatches ``run_suews_cli`` with a fake success would
+    poison them for later tests. Defined here, not in ``test/mcp/conftest.py``,
+    for the same reason the MCP ``sys.path`` insertion lives at the top of this
+    file: a per-subdirectory ``conftest.py`` shadows the bare ``conftest`` module
+    name and breaks ``from conftest import ...`` in other test directories.
+    No-op when ``suews_mcp`` is not importable (e.g. the supy-only wheel CI).
+    """
+    try:
+        from suews_mcp.tools import readiness, schema_search
+
+        caches = (schema_search._SCHEMA_CACHE, readiness._SAMPLE_CACHE)
+    except ImportError:
+        caches = ()
+    for cache in caches:
+        cache.clear()
+    yield
+    for cache in caches:
+        cache.clear()
+
+
 # =============================================================================
 # Shared CLI Testing Utilities
 # =============================================================================

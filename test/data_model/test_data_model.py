@@ -125,11 +125,11 @@ class TestSUEWSConfig(unittest.TestCase):
                 {
                     "properties": {
                         "building_archetype": {
-                            "profile_temperature_air_heating_setpoint": {
+                            "profile_setpoint_temperature_heating_air": {
                                 "working_day": {str(i): 18.0 for i in range(1, 145)},
                                 "holiday": {str(i): 17.0 for i in range(1, 145)},
                             },
-                            "profile_temperature_air_cooling_setpoint": {
+                            "profile_setpoint_temperature_cooling_air": {
                                 "working_day": {str(i): 26.0 for i in range(1, 145)},
                                 "holiday": {str(i): 27.0 for i in range(1, 145)},
                             },
@@ -143,16 +143,16 @@ class TestSUEWSConfig(unittest.TestCase):
         df_state_trimmed = trim_df_state(df_state)
         config_reconst = SUEWSConfig.from_df_state(df_state_trimmed)
 
-        self.assertEqual(config_reconst.model.physics.setpoint.value.value, 2)
+        self.assertEqual(config_reconst.model.physics.stebbs.setpoint.value.value, 2)
         self.assertEqual(
             config_reconst.sites[0]
-            .properties.building_archetype.profile_temperature_air_heating_setpoint
+            .properties.building_archetype.profile_setpoint_temperature_heating_air
             .working_day["1"],
             18.0,
         )
         self.assertEqual(
             config_reconst.sites[0]
-            .properties.building_archetype.profile_temperature_air_cooling_setpoint
+            .properties.building_archetype.profile_setpoint_temperature_cooling_air
             .holiday["144"],
             27.0,
         )
@@ -161,10 +161,10 @@ class TestSUEWSConfig(unittest.TestCase):
         config = SUEWSConfig(sites=[{}])
         archetype = config.sites[0].properties.building_archetype
 
-        self.assertEqual(archetype.profile_temperature_air_heating_setpoint.working_day["1"], 0.0)
-        self.assertEqual(archetype.profile_temperature_air_heating_setpoint.holiday["144"], 0.0)
-        self.assertEqual(archetype.profile_temperature_air_cooling_setpoint.working_day["1"], 100.0)
-        self.assertEqual(archetype.profile_temperature_air_cooling_setpoint.holiday["144"], 100.0)
+        self.assertEqual(archetype.profile_setpoint_temperature_heating_air.working_day["1"], 0.0)
+        self.assertEqual(archetype.profile_setpoint_temperature_heating_air.holiday["144"], 0.0)
+        self.assertEqual(archetype.profile_setpoint_temperature_cooling_air.working_day["1"], 100.0)
+        self.assertEqual(archetype.profile_setpoint_temperature_cooling_air.holiday["144"], 100.0)
 
     def test_internal_mass_area_roundtrip(self):
         config = SUEWSConfig(

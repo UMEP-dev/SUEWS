@@ -11,8 +11,14 @@ from .field_renames import (
     MODELPHYSICS_RENAMES,
     MODELPHYSICS_SUFFIX_RENAMES,
     apply_field_renames,
+    fold_stebbs_physics,
 )
-from .physics_families import PHYSICS_FAMILIES, coerce_nested_to_flat
+from .physics_families import (
+    MODEL_PHYSICS_ENUM_FIELDS,
+    STEBBS_PHYSICS_ENUM_FIELDS,
+    coerce_nested_to_flat,
+)
+from .physics_orthogonal import coerce_orthogonal_to_flat
 
 
 def _enum_description(enum_class: type[Enum]) -> str:
@@ -84,38 +90,74 @@ class EmissionsMethod(Enum):
     1: L11 - Loridan et al. (2011) SAHP method with air temperature and population density
     2: J11 - Järvi et al. (2011) SAHP_2 method with heating/cooling degree days
     3: L11_UPDATED - Modified Loridan method using daily mean air temperature
-    4: J19 - Järvi et al. (2019) method with building energy, metabolism, and traffic
-    5: J19_UPDATED - As method 4 but also calculates CO2 emissions
-    11: BIOGEN_RECT_L11 - Rectangular hyperbola photosynthesis + L11 QF (experimental)
-    12: BIOGEN_RECT_J11 - Rectangular hyperbola photosynthesis + J11 QF (experimental)
-    13: BIOGEN_RECT_L11U - Rectangular hyperbola photosynthesis + L11_UPDATED QF (experimental)
-    14: BIOGEN_RECT_J19 - Rectangular hyperbola photosynthesis + J19 QF (experimental)
-    15: BIOGEN_RECT_J19U - Rectangular hyperbola photosynthesis + J19_UPDATED QF (experimental)
-    21: BIOGEN_NRECT_L11 - Non-rectangular hyperbola (Bellucco 2017) + L11 QF (experimental)
-    22: BIOGEN_NRECT_J11 - Non-rectangular hyperbola (Bellucco 2017) + J11 QF (experimental)
-    23: BIOGEN_NRECT_L11U - Non-rectangular hyperbola (Bellucco 2017) + L11_UPDATED QF (experimental)
-    24: BIOGEN_NRECT_J19 - Non-rectangular hyperbola (Bellucco 2017) + J19 QF (experimental)
-    25: BIOGEN_NRECT_J19U - Non-rectangular hyperbola (Bellucco 2017) + J19_UPDATED QF (experimental)
-    41: BIOGEN_COND_L11 - Conductance-based photosynthesis (Järvi 2019) + L11 QF (experimental)
-    42: BIOGEN_COND_J11 - Conductance-based photosynthesis (Järvi 2019) + J11 QF (experimental)
-    43: BIOGEN_COND_L11U - Conductance-based photosynthesis (Järvi 2019) + L11_UPDATED QF (experimental)
-    44: BIOGEN_COND_J19 - Conductance-based photosynthesis (Järvi 2019) + J19 QF (experimental)
-    45: BIOGEN_COND_J19U - Conductance-based photosynthesis (Järvi 2019) + J19_UPDATED QF (experimental)
+    4: J19 - Detailed anthropogenic heat branch with L11 heat basis; CO2 output disabled by the driver for non-biogenic codes
+    5: J19_UPDATED - Detailed anthropogenic heat branch with J11 heat basis; CO2 output disabled by the driver for non-biogenic codes
+    6: L11_UPDATED_DETAILED - Detailed anthropogenic heat branch with L11_UPDATED heat basis; CO2 output disabled by the driver for non-biogenic codes
+    11: BIOGEN_RECT_L11 - Rectangular hyperbola biogenic CO2 + QF-linked anthropogenic CO2 + L11 heat (experimental)
+    12: BIOGEN_RECT_J11 - Rectangular hyperbola biogenic CO2 + QF-linked anthropogenic CO2 + J11 heat (experimental)
+    13: BIOGEN_RECT_L11_UPDATED - Rectangular hyperbola biogenic CO2 + QF-linked anthropogenic CO2 + L11_UPDATED heat (experimental)
+    14: BIOGEN_RECT_L11_DETAILED - Rectangular hyperbola biogenic CO2 + detailed anthropogenic CO2 + L11 heat (experimental)
+    15: BIOGEN_RECT_J11_DETAILED - Rectangular hyperbola biogenic CO2 + detailed anthropogenic CO2 + J11 heat (experimental)
+    16: BIOGEN_RECT_L11_UPDATED_DETAILED - Rectangular hyperbola biogenic CO2 + detailed anthropogenic CO2 + L11_UPDATED heat (experimental)
+    21: BIOGEN_BELLUCCO_LOCAL_L11 - Bellucco local biogenic CO2 + QF-linked anthropogenic CO2 + L11 heat (experimental)
+    22: BIOGEN_BELLUCCO_LOCAL_J11 - Bellucco local biogenic CO2 + QF-linked anthropogenic CO2 + J11 heat (experimental)
+    23: BIOGEN_BELLUCCO_LOCAL_L11_UPDATED - Bellucco local biogenic CO2 + QF-linked anthropogenic CO2 + L11_UPDATED heat (experimental)
+    24: BIOGEN_BELLUCCO_LOCAL_L11_DETAILED - Bellucco local biogenic CO2 + detailed anthropogenic CO2 + L11 heat (experimental)
+    25: BIOGEN_BELLUCCO_LOCAL_J11_DETAILED - Bellucco local biogenic CO2 + detailed anthropogenic CO2 + J11 heat (experimental)
+    26: BIOGEN_BELLUCCO_LOCAL_L11_UPDATED_DETAILED - Bellucco local biogenic CO2 + detailed anthropogenic CO2 + L11_UPDATED heat (experimental)
+    31: BIOGEN_BELLUCCO_GENERAL_L11 - Bellucco general biogenic CO2 + QF-linked anthropogenic CO2 + L11 heat (experimental)
+    32: BIOGEN_BELLUCCO_GENERAL_J11 - Bellucco general biogenic CO2 + QF-linked anthropogenic CO2 + J11 heat (experimental)
+    33: BIOGEN_BELLUCCO_GENERAL_L11_UPDATED - Bellucco general biogenic CO2 + QF-linked anthropogenic CO2 + L11_UPDATED heat (experimental)
+    34: BIOGEN_BELLUCCO_GENERAL_L11_DETAILED - Bellucco general biogenic CO2 + detailed anthropogenic CO2 + L11 heat (experimental)
+    35: BIOGEN_BELLUCCO_GENERAL_J11_DETAILED - Bellucco general biogenic CO2 + detailed anthropogenic CO2 + J11 heat (experimental)
+    36: BIOGEN_BELLUCCO_GENERAL_L11_UPDATED_DETAILED - Bellucco general biogenic CO2 + detailed anthropogenic CO2 + L11_UPDATED heat (experimental)
+    41: BIOGEN_CONDUCTANCE_L11 - Conductance-based biogenic CO2 + QF-linked anthropogenic CO2 + L11 heat (experimental)
+    42: BIOGEN_CONDUCTANCE_J11 - Conductance-based biogenic CO2 + QF-linked anthropogenic CO2 + J11 heat (experimental)
+    43: BIOGEN_CONDUCTANCE_L11_UPDATED - Conductance-based biogenic CO2 + QF-linked anthropogenic CO2 + L11_UPDATED heat (experimental)
+    44: BIOGEN_CONDUCTANCE_L11_DETAILED - Conductance-based biogenic CO2 + detailed anthropogenic CO2 + L11 heat (experimental)
+    45: BIOGEN_CONDUCTANCE_J11_DETAILED - Conductance-based biogenic CO2 + detailed anthropogenic CO2 + J11 heat (experimental)
+    46: BIOGEN_CONDUCTANCE_L11_UPDATED_DETAILED - Conductance-based biogenic CO2 + detailed anthropogenic CO2 + L11_UPDATED heat (experimental)
     """
 
-    # just a demo to show how to use Enum for emissionsmethod
     OBSERVED = 0
     L11 = 1
     J11 = 2
     L11_UPDATED = 3
+    # Legacy Python member names are retained for API compatibility; the
+    # descriptions above reflect the Fortran branch semantics.
     J19 = 4
     J19_UPDATED = 5
+    L11_UPDATED_DETAILED = 6
+    BIOGEN_RECT_L11 = 11
+    BIOGEN_RECT_J11 = 12
+    BIOGEN_RECT_L11_UPDATED = 13
+    BIOGEN_RECT_L11_DETAILED = 14
+    BIOGEN_RECT_J11_DETAILED = 15
+    BIOGEN_RECT_L11_UPDATED_DETAILED = 16
+    BIOGEN_BELLUCCO_LOCAL_L11 = 21
+    BIOGEN_BELLUCCO_LOCAL_J11 = 22
+    BIOGEN_BELLUCCO_LOCAL_L11_UPDATED = 23
+    BIOGEN_BELLUCCO_LOCAL_L11_DETAILED = 24
+    BIOGEN_BELLUCCO_LOCAL_J11_DETAILED = 25
+    BIOGEN_BELLUCCO_LOCAL_L11_UPDATED_DETAILED = 26
+    BIOGEN_BELLUCCO_GENERAL_L11 = 31
+    BIOGEN_BELLUCCO_GENERAL_J11 = 32
+    BIOGEN_BELLUCCO_GENERAL_L11_UPDATED = 33
+    BIOGEN_BELLUCCO_GENERAL_L11_DETAILED = 34
+    BIOGEN_BELLUCCO_GENERAL_J11_DETAILED = 35
+    BIOGEN_BELLUCCO_GENERAL_L11_UPDATED_DETAILED = 36
+    BIOGEN_CONDUCTANCE_L11 = 41
+    BIOGEN_CONDUCTANCE_J11 = 42
+    BIOGEN_CONDUCTANCE_L11_UPDATED = 43
+    BIOGEN_CONDUCTANCE_L11_DETAILED = 44
+    BIOGEN_CONDUCTANCE_J11_DETAILED = 45
+    BIOGEN_CONDUCTANCE_L11_UPDATED_DETAILED = 46
 
     def __new__(cls, value):
         obj = object.__new__(cls)
         obj._value_ = value
         # Mark internal options
-        if value in [3, 5]:  # L11_UPDATED and J19_UPDATED
+        if value in [3, 5, 6]:  # L11_UPDATED and hidden detailed variants
             obj._internal = True
         else:
             obj._internal = False
@@ -484,6 +526,12 @@ class StebbsMethod(Enum):
     0: NONE - STEBBS calculations disabled
     1: DEFAULT - STEBBS enabled with default parameters
     2: PROVIDED - STEBBS enabled with user-specified parameters
+
+    Retained for the integer DataFrame-column semantics (the ``stebbsmethod``
+    column the Fortran bridge reads). On the YAML / data-model surface this
+    tri-state is split into ``stebbs.enabled`` (bool) and ``stebbs.parameters``
+    (StebbsParameterSource); the two compose back to this integer code via
+    ``to_df_state`` / decompose on ``from_df_state`` (gh#1456).
     """
 
     NONE = 0
@@ -497,9 +545,35 @@ class StebbsMethod(Enum):
         return str(self.value)
 
 
+class StebbsParameterSource(Enum):
+    """
+    Source of STEBBS parameters when STEBBS is enabled (``stebbs.enabled=true``).
+
+    Only consulted when STEBBS is enabled; ignored otherwise. The values equal
+    the non-zero ``StebbsMethod`` codes so the composed ``stebbsmethod`` column
+    is simply ``int(parameters)`` whenever STEBBS is enabled (gh#1456).
+
+    1: DEFAULT - STEBBS uses default parameters
+    2: PROVIDED - STEBBS uses user-specified parameters
+    """
+
+    DEFAULT = 1
+    PROVIDED = 2
+
+    def __int__(self):
+        return self.value
+
+    def __repr__(self):
+        return str(self.value)
+
+
 class RCMethod(Enum):
     """
     Method to determine the two weighting factors (wall_outer_heat_capacity_fraction and roof_outer_heat_capacity_fraction) splitting heat capacity of building envelope into two nodes in STEBBS.
+
+    Exposed on the YAML / data-model surface as ``stebbs.capacitance`` (the
+    field formerly named ``outer_cap_fraction``, gh#1456). The ``rcmethod``
+    DataFrame column the Fortran bridge reads is unchanged.
 
     0: DEFAULT - Default value of 0.5 is used
     1: PROVIDED - Use user defined value (wall_outer_heat_capacity_fraction and roof_outer_heat_capacity_fraction) between 0 and 1
@@ -515,6 +589,7 @@ class RCMethod(Enum):
 
     def __repr__(self):
         return str(self.value)
+
 
 class SetpointMethod(Enum):
     """
@@ -535,6 +610,7 @@ class SetpointMethod(Enum):
     def __repr__(self):
         return str(self.value)
 
+
 class SnowUse(Enum):
     """
     Controls snow process calculations (Järvi et al. 2014).
@@ -551,7 +627,8 @@ class SnowUse(Enum):
 
     def __repr__(self):
         return str(self.value)
-    
+
+
 class SameAlbedoWall(Enum):
     """
     Controls assumption of same albedoes for walls.
@@ -568,7 +645,7 @@ class SameAlbedoWall(Enum):
 
     def __repr__(self):
         return str(self.value)
-    
+
 
 class SameAlbedoRoof(Enum):
     """
@@ -586,7 +663,8 @@ class SameAlbedoRoof(Enum):
 
     def __repr__(self):
         return str(self.value)
-    
+
+
 class SameEmissivityWall(Enum):
     """
     Controls assumption of same emissivities for walls.
@@ -603,7 +681,7 @@ class SameEmissivityWall(Enum):
 
     def __repr__(self):
         return str(self.value)
-    
+
 
 class SameEmissivityRoof(Enum):
     """
@@ -620,8 +698,7 @@ class SameEmissivityRoof(Enum):
         return self.value
 
     def __repr__(self):
-        return str(self.value)    
-
+        return str(self.value)
 
 
 def yaml_equivalent_of_default(dumper, data):
@@ -656,6 +733,7 @@ for enum_class in [
     RSLLevel,
     GSModel,
     StebbsMethod,
+    StebbsParameterSource,
     RCMethod,
     SetpointMethod,
     SnowUse,
@@ -666,6 +744,82 @@ for enum_class in [
     SameEmissivityRoof,
 ]:
     yaml.add_representer(enum_class, yaml_equivalent_of_default)
+
+
+class StebbsPhysics(BaseModel):
+    """
+    STEBBS (Surface Temperature Energy Balance Based Scheme) physics switches.
+
+    Groups the six STEBBS-scoped method switches that previously sat flat on
+    ``model.physics`` (gh#1456). The master on/off toggle is split into
+    ``enabled`` (bool) and ``parameters`` (StebbsParameterSource); the two
+    compose back to the single legacy ``stebbsmethod`` integer column on
+    ``ModelPhysics.to_df_state`` and are decomposed on ``from_df_state``. The
+    DataFrame / Fortran column names are unchanged.
+    """
+
+    model_config = ConfigDict(title="STEBBS Physics Methods")
+
+    enabled: FlexibleRefValue(bool) = Field(
+        default=False,
+        description=(
+            "Master on/off switch for STEBBS. When false, STEBBS calculations "
+            "are disabled and `parameters` is ignored."
+        ),
+        json_schema_extra={"unit": "dimensionless"},
+    )
+    parameters: FlexibleRefValue(StebbsParameterSource) = Field(
+        default=StebbsParameterSource.DEFAULT,
+        description=_enum_description(StebbsParameterSource),
+        json_schema_extra={"unit": "dimensionless"},
+    )
+    capacitance: FlexibleRefValue(RCMethod) = Field(
+        default=RCMethod.DEFAULT,
+        description=_enum_description(RCMethod),
+        json_schema_extra={"unit": "dimensionless"},
+    )
+    setpoint: FlexibleRefValue(SetpointMethod) = Field(
+        default=SetpointMethod.CONSTANT,
+        description=_enum_description(SetpointMethod),
+        json_schema_extra={"unit": "dimensionless"},
+    )
+    same_albedo_wall: FlexibleRefValue(SameAlbedoWall) = Field(
+        default=SameAlbedoWall.DISABLED,
+        description=_enum_description(SameAlbedoWall),
+        json_schema_extra={"unit": "dimensionless"},
+    )
+    same_albedo_roof: FlexibleRefValue(SameAlbedoRoof) = Field(
+        default=SameAlbedoRoof.DISABLED,
+        description=_enum_description(SameAlbedoRoof),
+        json_schema_extra={"unit": "dimensionless"},
+    )
+    same_emissivity_wall: FlexibleRefValue(SameEmissivityWall) = Field(
+        default=SameEmissivityWall.DISABLED,
+        description=_enum_description(SameEmissivityWall),
+        json_schema_extra={"unit": "dimensionless"},
+    )
+    same_emissivity_roof: FlexibleRefValue(SameEmissivityRoof) = Field(
+        default=SameEmissivityRoof.DISABLED,
+        description=_enum_description(SameEmissivityRoof),
+        json_schema_extra={"unit": "dimensionless"},
+    )
+
+    ref: Optional[Reference] = None
+
+    @field_validator("enabled", "parameters", mode="after")
+    @classmethod
+    def _require_master_switch_values(cls, value):
+        inner = value.value if isinstance(value, RefValue) else value
+        if inner is None:
+            raise ValueError("STEBBS enabled/parameters switches cannot be null")
+        return value
+
+    @field_validator(*STEBBS_PHYSICS_ENUM_FIELDS, mode="before")
+    @classmethod
+    def _coerce_readable_stebbs_physics(cls, value, info):
+        # Accept readable method tokens under the nested STEBBS surface while
+        # keeping the canonical stored shape as the existing enum code.
+        return coerce_nested_to_flat(info.field_name, value)
 
 
 class ModelPhysics(BaseModel):
@@ -683,15 +837,24 @@ class ModelPhysics(BaseModel):
             # (suffix drop + abbreviation expansion). Chaining lets a single
             # YAML carrying either legacy shape land on the final name.
             values = apply_field_renames(values, MODELPHYSICS_RENAMES, cls.__name__)
-            values = apply_field_renames(values, MODELPHYSICS_SUFFIX_RENAMES, cls.__name__)
+            values = apply_field_renames(
+                values, MODELPHYSICS_SUFFIX_RENAMES, cls.__name__
+            )
+            # gh#1456: fold the legacy flat STEBBS switches into the nested
+            # `stebbs` object. Runs after the key renames so a YAML carrying
+            # either fused or snake_case legacy spellings lands here. The fold
+            # subsumes the dev12 `outer_cap_fraction`/`rcmethod` -> `capacitance`
+            # Column D rename by relocating it to `stebbs.capacitance`.
+            values = fold_stebbs_physics(values, cls.__name__)
         return values
 
-    @field_validator(*PHYSICS_FAMILIES.keys(), mode="before")
+    @field_validator(*MODEL_PHYSICS_ENUM_FIELDS, mode="before")
     @classmethod
     def _coerce_nested_physics(cls, value, info):
-        # Widens accepted input: `{family: {value: N}}` collapses to the
-        # flat `{value: N}` shape before the FlexibleRefValue union resolves.
-        # Family tag is a validation gate — see physics_families.py (gh#972).
+        # Widens accepted input before FlexibleRefValue resolves:
+        # orthogonal physics tokens, family tags, and human-readable names
+        # collapse to the flat `{value: N}` canonical shape.
+        value = coerce_orthogonal_to_flat(info.field_name, value)
         return coerce_nested_to_flat(info.field_name, value)
 
     net_radiation: FlexibleRefValue(NetRadiationMethod) = Field(
@@ -790,40 +953,13 @@ class ModelPhysics(BaseModel):
         description=_enum_description(SnowUse),
         json_schema_extra={"unit": "dimensionless"},
     )
-    stebbs: FlexibleRefValue(StebbsMethod) = Field(
-        default=StebbsMethod.NONE,
-        description=_enum_description(StebbsMethod),
-        json_schema_extra={"unit": "dimensionless"},
-    )
-    outer_cap_fraction: FlexibleRefValue(RCMethod) = Field(
-        default=RCMethod.DEFAULT,
-        description=_enum_description(RCMethod),
-        json_schema_extra={"unit": "dimensionless"},
-    )
-    setpoint: FlexibleRefValue(SetpointMethod) = Field(
-        default=SetpointMethod.CONSTANT,
-        description=_enum_description(SetpointMethod),
-        json_schema_extra={"unit": "dimensionless"},
-    )
-    same_albedo_wall: FlexibleRefValue(SameAlbedoWall) = Field(
-        default=SameAlbedoWall.DISABLED,
-        description=_enum_description(SameAlbedoWall),
-        json_schema_extra={"unit": "dimensionless"},
-    )
-    same_albedo_roof: FlexibleRefValue(SameAlbedoRoof) = Field(
-        default=SameAlbedoRoof.DISABLED,
-        description=_enum_description(SameAlbedoRoof),
-        json_schema_extra={"unit": "dimensionless"},
-    )
-    same_emissivity_wall: FlexibleRefValue(SameEmissivityWall) = Field(
-        default=SameEmissivityWall.DISABLED,
-        description=_enum_description(SameEmissivityWall),
-        json_schema_extra={"unit": "dimensionless"},
-    )
-    same_emissivity_roof: FlexibleRefValue(SameEmissivityRoof) = Field(
-        default=SameEmissivityRoof.DISABLED,
-        description=_enum_description(SameEmissivityRoof),
-        json_schema_extra={"unit": "dimensionless"},
+    stebbs: StebbsPhysics = Field(
+        default_factory=StebbsPhysics,
+        description=(
+            "STEBBS physics switches (gh#1456): master toggle (enabled + "
+            "parameters), capacitance method, setpoint method, and the "
+            "same-albedo / same-emissivity wall/roof switches."
+        ),
     )
 
     ref: Optional[Reference] = None
@@ -850,8 +986,14 @@ class ModelPhysics(BaseModel):
         ("roughness_sublayer_level", "rsllevel"),
         ("surface_conductance", "gsmodel"),
         ("snow_use", "snowuse"),
-        ("stebbs", "stebbsmethod"),
-        ("outer_cap_fraction", "rcmethod"),
+    ]
+
+    # (StebbsPhysics member, DataFrame column name). The six STEBBS switches
+    # are nested under `self.stebbs` (gh#1456) but keep their fused legacy
+    # column names so the Fortran bridge is untouched. `stebbsmethod` is
+    # composed from the (enabled, parameters) pair below, not listed here.
+    _STEBBS_FIELD_COL_PAIRS = [
+        ("capacitance", "rcmethod"),
         ("setpoint", "setpointmethod"),
         ("same_albedo_wall", "same_albedo_wall"),
         ("same_albedo_roof", "same_albedo_roof"),
@@ -866,6 +1008,24 @@ class ModelPhysics(BaseModel):
             value = getattr(self, field_name)
             val = value.value if isinstance(value, RefValue) else value
             cols[(col_name, "0")] = int(val)
+
+        # gh#1456: compose the legacy `stebbsmethod` integer column from the
+        # nested (enabled, parameters) pair, and write the remaining STEBBS
+        # switches from their nested members.
+        stebbs = self.stebbs
+        enabled = stebbs.enabled
+        enabled = enabled.value if isinstance(enabled, RefValue) else enabled
+        parameters = stebbs.parameters
+        parameters = (
+            parameters.value if isinstance(parameters, RefValue) else parameters
+        )
+        cols[("stebbsmethod", "0")] = 0 if not bool(enabled) else int(parameters)
+
+        for member_name, col_name in self._STEBBS_FIELD_COL_PAIRS:
+            value = getattr(stebbs, member_name)
+            val = value.value if isinstance(value, RefValue) else value
+            cols[(col_name, "0")] = int(val)
+
         return df_from_cols(cols, index=pd.Index([grid_id], name="grid"))
 
     @classmethod
@@ -897,17 +1057,10 @@ class ModelPhysics(BaseModel):
             "rsllevel",
             "gsmodel",
             "snowuse",
-            "stebbsmethod",
-            "rcmethod",
-            "setpointmethod",
         ]
 
         # New options: optional in legacy DataFrames, default if missing
         optional_new_attrs_with_defaults = {
-            "same_albedo_wall": SameAlbedoWall.DISABLED,
-            "same_albedo_roof": SameAlbedoRoof.DISABLED,
-            "same_emissivity_wall": SameEmissivityWall.DISABLED,
-            "same_emissivity_roof": SameEmissivityRoof.DISABLED,
             "laimethod": LAIMethod.CALCULATED,
         }
 
@@ -924,6 +1077,49 @@ class ModelPhysics(BaseModel):
                 properties[attr] = RefValue(int(value))
             except KeyError:
                 properties[attr] = RefValue(int(default_enum))
+
+        # gh#1456: reconstruct the nested StebbsPhysics from the unchanged
+        # fused columns. `stebbsmethod` is required; the rest fall back to
+        # their defaults if absent from a legacy DataFrame.
+        try:
+            stebbsmethod = int(df.loc[grid_id, ("stebbsmethod", "0")])
+        except KeyError:
+            raise ValueError("Missing attribute 'stebbsmethod' in the DataFrame")
+        if stebbsmethod not in (0, 1, 2):
+            raise ValueError(
+                f"Invalid stebbsmethod value {stebbsmethod}; expected 0, 1, or 2"
+            )
+        # Decompose: 0 -> (disabled, default); 1 -> (enabled, default);
+        # 2 -> (enabled, provided).
+        stebbs_props: dict = {
+            "enabled": RefValue(stebbsmethod != 0),
+            "parameters": RefValue(
+                StebbsParameterSource.PROVIDED
+                if stebbsmethod == 2
+                else StebbsParameterSource.DEFAULT
+            ),
+        }
+        stebbs_col_defaults = {
+            "capacitance": ("rcmethod", RCMethod.DEFAULT),
+            "setpoint": ("setpointmethod", SetpointMethod.CONSTANT),
+            "same_albedo_wall": ("same_albedo_wall", SameAlbedoWall.DISABLED),
+            "same_albedo_roof": ("same_albedo_roof", SameAlbedoRoof.DISABLED),
+            "same_emissivity_wall": (
+                "same_emissivity_wall",
+                SameEmissivityWall.DISABLED,
+            ),
+            "same_emissivity_roof": (
+                "same_emissivity_roof",
+                SameEmissivityRoof.DISABLED,
+            ),
+        }
+        for member_name, (col_name, default_enum) in stebbs_col_defaults.items():
+            try:
+                value = df.loc[grid_id, (col_name, "0")]
+                stebbs_props[member_name] = RefValue(int(value))
+            except KeyError:
+                stebbs_props[member_name] = RefValue(int(default_enum))
+        properties["stebbs"] = StebbsPhysics(**stebbs_props)
 
         return cls(**properties)
 

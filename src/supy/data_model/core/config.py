@@ -209,32 +209,32 @@ class SUEWSConfig(BaseModel):
         "convection_coefficient_window_internal",
         "convection_coefficient_wall_external",
         "convection_coefficient_window_external",
-        "ground_depth",
+        "depth_ground",
         "thermal_conductivity_ground",
         "threshold_metabolism",
         "ratio_latent_sensible",
-        "control_daylight",
+        "daylight_control",
         "threshold_lighting_illuminance",
         "profile_appliance",
-        "lighting_power_density",
+        "power_density_lighting",
         "efficiency_heating_system_air",
-        "power_air_cooling_max",
+        "max_power_cooling_system_air",
         "efficiency_cooling_system_air",
-        "ventilation_rate",
+        "rate_ventilation",
         "temperature_air_outdoor_initial",
         "temperature_air_indoor_initial",
         "temperature_air_annual_mean",
-        "month_mean_air_temperature_diffmax",
+        "temperature_air_month_mean_diffmax",
         "thickness_hot_water_tank_wall",
-        "temperature_water_mains",
-        "area_hot_water_tank_surface",
-        "temperature_water_heating_setpoint",
+        "temperature_mains_water",
+        "surface_area_hot_water_tank",
+        "setpoint_temperature_heating_water",
         "emissivity_hot_water_tank_wall",
         "thickness_hot_water_vessel_wall",
         "volume_hot_water",
-        "area_hot_water_surface",
-        "rate_hot_water_flow",
-        "profile_hot_water_flow",
+        "surface_area_hot_water",
+        "rate_flow_hot_water",
+        "profile_flow_hot_water",
         "specific_heat_capacity_hot_water",
         "specific_heat_capacity_hot_water_tank_wall",
         "specific_heat_capacity_hot_water_vessel_wall",
@@ -245,8 +245,8 @@ class SUEWSConfig(BaseModel):
         "convection_coefficient_hot_water_tank_wall_internal",
         "convection_coefficient_hot_water_tank_wall_external",
         "conductivity_hot_water_vessel_wall",
-        "convection_coefficient_hot_water_vessel_wall_internal",
-        "convection_coefficient_hot_water_vessel_wall_external",
+        "convection_coefficient_hot_water_tank_vessel_internal",
+        "convection_coefficient_hot_water_tank_vessel_external",
         "emissivity_hot_water_vessel_wall",
         "efficiency_heating_system_water",
     ]
@@ -288,13 +288,13 @@ class SUEWSConfig(BaseModel):
         "density_internal_mass",
         "specific_heat_capacity_internal_mass",
         "emissivity_internal_mass",
-        "power_air_heating_max",
+        "max_power_heating_system_air",
         "volume_hot_water_tank",
-        "power_water_heating_max",
-        "temperature_air_heating_setpoint",
-        "temperature_air_cooling_setpoint",
-        "profile_temperature_air_heating_setpoint",
-        "profile_temperature_air_cooling_setpoint",
+        "max_power_heating_system_water",
+        "setpoint_temperature_heating_air",
+        "setpoint_temperature_cooling_air",
+        "profile_setpoint_temperature_heating_air",
+        "profile_setpoint_temperature_cooling_air",
     ]
 
     # Sort the filtered columns numerically
@@ -1531,29 +1531,52 @@ class SUEWSConfig(BaseModel):
             self._validation_summary["sites_with_issues"].append(site_name)
         return True
 
-    def _needs_stebbs_validation(self) -> bool:
+    def _composed_stebbsmethod(self):
         """
-        Return True if STEBBS should be validated,
-        i.e. physics.stebbs == 1.
-        """
+        Compose the legacy ``stebbsmethod`` integer from the nested STEBBS block.
 
+        gh#1456: the STEBBS master toggle is now nested as
+        ``model.physics.stebbs.enabled`` + ``.parameters``. These compose back
+        to the single legacy ``stebbsmethod`` code: ``0`` when disabled,
+        otherwise ``int(parameters)`` (1 for DEFAULT, 2 for PROVIDED).
+
+        Returns
+        -------
+        int or None
+            The composed ``stebbsmethod`` code (0/1/2), or ``None`` when the
+            STEBBS block / toggle is absent or unreadable.
+        """
         if not hasattr(self.model, "physics") or not hasattr(
             self.model.physics, "stebbs"
         ):
-            return False
+            return None
 
-        stebbs_method = self.model.physics.stebbs
+        stebbs = self.model.physics.stebbs
 
-        if hasattr(stebbs_method, "value"):
-            stebbs_method = stebbs_method.value
-        if hasattr(stebbs_method, "__int__"):
-            stebbs_method = int(stebbs_method)
-        if isinstance(stebbs_method, str) and stebbs_method == "1":
-            stebbs_method = 1
+        enabled = getattr(stebbs, "enabled", None)
+        if hasattr(enabled, "value"):
+            enabled = enabled.value
+        if not bool(enabled):
+            return 0
 
-        # print(f"Final stebbs_method value for validation: {stebbs_method} (type: {type(stebbs_method)})")
+        parameters = getattr(stebbs, "parameters", None)
+        if hasattr(parameters, "value"):
+            parameters = parameters.value
+        if hasattr(parameters, "__int__"):
+            parameters = int(parameters)
+        if isinstance(parameters, str) and parameters.isdigit():
+            parameters = int(parameters)
 
-        return stebbs_method == 1
+        return parameters if isinstance(parameters, int) else 1
+
+    def _needs_stebbs_validation(self) -> bool:
+        """
+        Return True if STEBBS should be validated.
+
+        i.e. STEBBS is enabled with default parameters (composed
+        ``stebbsmethod`` == 1).
+        """
+        return self._composed_stebbsmethod() == 1
 
     def _validate_stebbs(self, site: Site, site_index: int) -> List[str]:
         """
@@ -1663,7 +1686,9 @@ class SUEWSConfig(BaseModel):
         ]
 
         # Check setpoint value
-        setpointmethod = getattr(self.model.physics, "setpoint", None)
+        # gh#1456: setpoint method moved to model.physics.stebbs.setpoint.
+        stebbs_physics = getattr(self.model.physics, "stebbs", None)
+        setpointmethod = getattr(stebbs_physics, "setpoint", None) if stebbs_physics is not None else None
         setpointmethod_val = _unwrap_value(setpointmethod) if setpointmethod is not None else None
         try:
             setpointmethod_val = int(setpointmethod_val)
@@ -1672,16 +1697,16 @@ class SUEWSConfig(BaseModel):
 
         # Setpoint parameter groups
         setpoint_params_bldgarc = [
-            "temperature_air_heating_setpoint",
-            "temperature_air_cooling_setpoint",
+            "setpoint_temperature_heating_air",
+            "setpoint_temperature_cooling_air",
         ]
         setpoint_profile_params_bldgarc = [
-            "profile_temperature_air_heating_setpoint",
-            "profile_temperature_air_cooling_setpoint",
+            "profile_setpoint_temperature_heating_air",
+            "profile_setpoint_temperature_cooling_air",
         ]
 
         # Daylight control parameter groups
-        daylightcontrol = getattr(stebbs, "control_daylight", None)
+        daylightcontrol = getattr(stebbs, "daylight_control", None)
         daylightcontrol_val = _unwrap_value(daylightcontrol) if daylightcontrol is not None else None
         try:
             daylightcontrol_val = int(daylightcontrol_val)
@@ -1904,10 +1929,12 @@ class SUEWSConfig(BaseModel):
         validation for identical surface properties (e.g., albedo or emissivity)
         across all relevant layers.
         """
+        # gh#1456: same_albedo_* moved under model.physics.stebbs.
         physics = getattr(self.model, "physics", None)
-        if not physics or not hasattr(physics, attr):
+        stebbs = getattr(physics, "stebbs", None) if physics else None
+        if not stebbs or not hasattr(stebbs, attr):
             return False
-        val = getattr(getattr(physics, attr), "value", getattr(physics, attr))
+        val = getattr(getattr(stebbs, attr), "value", getattr(stebbs, attr))
         try:
             return int(val) == 1
         except (TypeError, ValueError):
@@ -1967,10 +1994,12 @@ class SUEWSConfig(BaseModel):
         configuration is explicitly enabled (set to 1), which triggers
         validation for identical surface emissivity across all relevant layers.
         """
+        # gh#1456: same_emissivity_* moved under model.physics.stebbs.
         physics = getattr(self.model, "physics", None)
-        if not physics or not hasattr(physics, attr):
+        stebbs = getattr(physics, "stebbs", None) if physics else None
+        if not stebbs or not hasattr(stebbs, attr):
             return False
-        val = getattr(getattr(physics, attr), "value", getattr(physics, attr))
+        val = getattr(getattr(stebbs, attr), "value", getattr(stebbs, attr))
         try:
             return int(val) == 1
         except (TypeError, ValueError):
@@ -2344,12 +2373,9 @@ class SUEWSConfig(BaseModel):
                 )
 
             # If stebbs == 1, also check archetype_height
-            stebbs_method = _unwrap_value(getattr(self.model.physics, "stebbs", None))
-
-            try:
-                stebbs_method_val = int(stebbs_method)
-            except (TypeError, ValueError):
-                stebbs_method_val = None
+            # gh#1456: compose the legacy stebbsmethod from the nested
+            # model.physics.stebbs (enabled + parameters) block.
+            stebbs_method_val = self._composed_stebbsmethod()
 
             if stebbs_method_val == 1:
                 building_archetype = getattr(props, "building_archetype", None)
@@ -2689,21 +2715,31 @@ class SUEWSConfig(BaseModel):
             return critical_issues
 
         physics = self.model.physics
+        # gh#1456: several critical physics switches now live on the nested
+        # model.physics.stebbs object. Resolve each critical param against the
+        # top-level physics first, then the nested stebbs container.
+        stebbs = getattr(physics, "stebbs", None)
 
         for param_name in CRITICAL_PHYSICS_PARAMS:
             if hasattr(physics, param_name):
-                param_value = getattr(physics, param_name)
-                # Handle RefValue wrapper
-                if hasattr(param_value, "value"):
-                    actual_value = param_value.value
-                else:
-                    actual_value = param_value
+                container = physics
+            elif stebbs is not None and hasattr(stebbs, param_name):
+                container = stebbs
+            else:
+                continue
 
-                # Check if the parameter is null
-                if actual_value is None:
-                    critical_issues.append(
-                        f"{param_name} is set to null and will cause runtime crash - must be set to appropriate non-null value"
-                    )
+            param_value = getattr(container, param_name)
+            # Handle RefValue wrapper
+            if hasattr(param_value, "value"):
+                actual_value = param_value.value
+            else:
+                actual_value = param_value
+
+            # Check if the parameter is null
+            if actual_value is None:
+                critical_issues.append(
+                    f"{param_name} is set to null and will cause runtime crash - must be set to appropriate non-null value"
+                )
 
         return critical_issues
 

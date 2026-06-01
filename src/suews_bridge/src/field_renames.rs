@@ -56,7 +56,11 @@ pub const FIELD_RENAMES: &[(&str, &str)] = &[
     ("roughness_sublayer_level", "rsllevel"),
     ("surface_conductance", "gsmodel"),
     ("stebbs", "stebbsmethod"),
-    ("outer_cap_fraction", "rcmethod"),
+    // Schema 2026.5.dev12 (Reading Column D): former `outer_cap_fraction`
+    // (former fused `rcmethod`) is now `capacitance`. Pure key rename — still
+    // a RCMethod enum, bridge column stays `rcmethod`. The dev11 spelling
+    // `outer_cap_fraction` is a back-compat alias in FIELD_COMPAT_ALIASES.
+    ("capacitance", "rcmethod"),
     ("setpoint", "setpointmethod"),
     ("ohm_inc_qf", "ohmincqf"),
     ("snow_use", "snowuse"),
@@ -102,17 +106,11 @@ pub const FIELD_RENAMES: &[(&str, &str)] = &[
     // here; the gh#1329 PascalCase intermediate (WallExternalThickness
     // etc.) lives in FIELD_COMPAT_ALIASES below.
     ("thickness_wall_outer", "WallextThickness"),
-    (
-        "conductivity_wall_outer",
-        "WallextEffectiveConductivity",
-    ),
+    ("conductivity_wall_outer", "WallextEffectiveConductivity"),
     ("density_wall_outer", "WallextDensity"),
     ("specific_heat_capacity_wall_outer", "WallextCp"),
     ("thickness_roof_outer", "RoofextThickness"),
-    (
-        "conductivity_roof_outer",
-        "RoofextEffectiveConductivity",
-    ),
+    ("conductivity_roof_outer", "RoofextEffectiveConductivity"),
     ("density_roof_outer", "RoofextDensity"),
     ("specific_heat_capacity_roof_outer", "RoofextCp"),
     ("archetype_name", "BuildingName"),
@@ -152,10 +150,7 @@ pub const FIELD_RENAMES: &[(&str, &str)] = &[
     ("density_ground_floor", "GroundFloorDensity"),
     ("specific_heat_capacity_ground_floor", "GroundFloorCp"),
     ("thickness_window", "WindowThickness"),
-    (
-        "conductivity_window",
-        "WindowEffectiveConductivity",
-    ),
+    ("conductivity_window", "WindowEffectiveConductivity"),
     ("density_window", "WindowDensity"),
     ("specific_heat_capacity_window", "WindowCp"),
     ("emissivity_window_external", "WindowExternalEmissivity"),
@@ -168,12 +163,15 @@ pub const FIELD_RENAMES: &[(&str, &str)] = &[
     ("emissivity_internal_mass", "InternalMassEmissivity"),
     ("power_air_heating_max", "MaxHeatingPower"),
     ("volume_hot_water_tank", "WaterTankWaterVolume"),
+    ("power_water_heating_max", "MaximumHotWaterHeatingPower"),
     (
-        "power_water_heating_max",
-        "MaximumHotWaterHeatingPower",
+        "temperature_air_heating_setpoint",
+        "HeatingSetpointTemperature",
     ),
-    ("temperature_air_heating_setpoint", "HeatingSetpointTemperature"),
-    ("temperature_air_cooling_setpoint", "CoolingSetpointTemperature"),
+    (
+        "temperature_air_cooling_setpoint",
+        "CoolingSetpointTemperature",
+    ),
     (
         "profile_temperature_air_heating_setpoint",
         "HeatingSetpointTemperatureProfile",
@@ -349,6 +347,10 @@ pub const FIELD_COMPAT_ALIASES: &[(&str, &str)] = &[
     ("rsl_level", "rsllevel"),
     ("fai_method", "faimethod"),
     ("rc_method", "rcmethod"),
+    // Schema 2026.5.dev11 spelling of the field now named `capacitance`
+    // (gh#1392 Column D). The CLI bypasses the Pydantic shim, so the dev11
+    // spelling needs a direct alias to the bridge column `rcmethod`.
+    ("outer_cap_fraction", "rcmethod"),
     ("gs_model", "gsmodel"),
     // Schema 2026.5.dev1 STEBBS ArchetypeProperties Cat 5 intermediate
     // (gh#1327). After gh#1334 the final names are snake_case; the
@@ -446,14 +448,8 @@ pub const FIELD_COMPAT_ALIASES: &[(&str, &str)] = &[
         "maximumhotwaterheatingpower",
     ),
     ("hot_water_tank_volume", "watertankwatervolume"),
-    (
-        "heating_setpoint_temperature",
-        "heatingsetpointtemperature",
-    ),
-    (
-        "cooling_setpoint_temperature",
-        "coolingsetpointtemperature",
-    ),
+    ("heating_setpoint_temperature", "heatingsetpointtemperature"),
+    ("cooling_setpoint_temperature", "coolingsetpointtemperature"),
     (
         "heating_setpoint_temperature_profile",
         "heatingsetpointtemperatureprofile",
@@ -477,33 +473,75 @@ pub const FIELD_COMPAT_ALIASES: &[(&str, &str)] = &[
     // Schema 2026.5.dev9 StebbsProperties Rule-2 final names. Python
     // reaches these through the Pydantic rename chain; the Rust CLI bypasses
     // that shim, so current YAML needs a direct alias to the bridge keys.
-    ("convection_coefficient_wall_internal", "wallinternalconvectioncoefficient"),
-    ("convection_coefficient_roof_internal", "roofinternalconvectioncoefficient"),
-    ("convection_coefficient_internal_mass", "internalmassconvectioncoefficient"),
-    ("convection_coefficient_ground_floor_internal", "floorinternalconvectioncoefficient"),
-    ("convection_coefficient_window_internal", "windowinternalconvectioncoefficient"),
-    ("convection_coefficient_wall_external", "wallexternalconvectioncoefficient"),
-    ("convection_coefficient_roof_external", "roofexternalconvectioncoefficient"),
-    ("convection_coefficient_window_external", "windowexternalconvectioncoefficient"),
+    (
+        "convection_coefficient_wall_internal",
+        "wallinternalconvectioncoefficient",
+    ),
+    (
+        "convection_coefficient_roof_internal",
+        "roofinternalconvectioncoefficient",
+    ),
+    (
+        "convection_coefficient_internal_mass",
+        "internalmassconvectioncoefficient",
+    ),
+    (
+        "convection_coefficient_ground_floor_internal",
+        "floorinternalconvectioncoefficient",
+    ),
+    (
+        "convection_coefficient_window_internal",
+        "windowinternalconvectioncoefficient",
+    ),
+    (
+        "convection_coefficient_wall_external",
+        "wallexternalconvectioncoefficient",
+    ),
+    (
+        "convection_coefficient_roof_external",
+        "roofexternalconvectioncoefficient",
+    ),
+    (
+        "convection_coefficient_window_external",
+        "windowexternalconvectioncoefficient",
+    ),
     ("thermal_conductivity_ground", "externalgroundconductivity"),
     ("threshold_metabolism", "metabolismthreshold"),
     ("ratio_latent_sensible", "latentsensibleratio"),
     ("control_daylight", "daylightcontrol"),
-    ("threshold_lighting_illuminance", "lightingilluminancethreshold"),
+    (
+        "threshold_lighting_illuminance",
+        "lightingilluminancethreshold",
+    ),
     ("efficiency_heating_system_air", "heatingsystemefficiency"),
     ("power_air_cooling_max", "maxcoolingpower"),
     ("efficiency_cooling_system_air", "coolingsystemcop"),
-    ("temperature_air_outdoor_initial", "initialoutdoortemperature"),
+    (
+        "temperature_air_outdoor_initial",
+        "initialoutdoortemperature",
+    ),
     ("temperature_air_indoor_initial", "initialindoortemperature"),
     ("temperature_air_annual_mean", "annualmeanairtemperature"),
     ("thickness_hot_water_tank_wall", "watertankwallthickness"),
     ("temperature_water_mains", "mainswatertemperature"),
     ("area_hot_water_tank_surface", "watertanksurfacearea"),
-    ("temperature_water_heating_setpoint", "hotwaterheatingsetpointtemperature"),
-    ("emissivity_hot_water_tank_wall", "hotwatertankwallemissivity"),
-    ("conductivity_hot_water_tank_wall", "hotwatertankwallconductivity"),
+    (
+        "temperature_water_heating_setpoint",
+        "hotwaterheatingsetpointtemperature",
+    ),
+    (
+        "emissivity_hot_water_tank_wall",
+        "hotwatertankwallemissivity",
+    ),
+    (
+        "conductivity_hot_water_tank_wall",
+        "hotwatertankwallconductivity",
+    ),
     ("density_hot_water_tank_wall", "hotwatertankwalldensity"),
-    ("specific_heat_capacity_hot_water_tank_wall", "hotwatertankspecificheatcapacity"),
+    (
+        "specific_heat_capacity_hot_water_tank_wall",
+        "hotwatertankspecificheatcapacity",
+    ),
     (
         "convection_coefficient_hot_water_tank_wall_internal",
         "hotwatertankinternalwallconvectioncoefficient",
@@ -513,9 +551,15 @@ pub const FIELD_COMPAT_ALIASES: &[(&str, &str)] = &[
         "hotwatertankexternalwallconvectioncoefficient",
     ),
     ("thickness_hot_water_vessel_wall", "dhwvesselwallthickness"),
-    ("conductivity_hot_water_vessel_wall", "dhwvesselwallconductivity"),
+    (
+        "conductivity_hot_water_vessel_wall",
+        "dhwvesselwallconductivity",
+    ),
     ("density_hot_water_vessel_wall", "dhwvesseldensity"),
-    ("specific_heat_capacity_hot_water_vessel_wall", "dhwvesselspecificheatcapacity"),
+    (
+        "specific_heat_capacity_hot_water_vessel_wall",
+        "dhwvesselspecificheatcapacity",
+    ),
     (
         "convection_coefficient_hot_water_vessel_wall_internal",
         "dhwvesselinternalwallconvectioncoefficient",
@@ -524,15 +568,90 @@ pub const FIELD_COMPAT_ALIASES: &[(&str, &str)] = &[
         "convection_coefficient_hot_water_vessel_wall_external",
         "dhwvesselexternalwallconvectioncoefficient",
     ),
-    ("emissivity_hot_water_vessel_wall", "dhwvesselwallemissivity"),
+    (
+        "emissivity_hot_water_vessel_wall",
+        "dhwvesselwallemissivity",
+    ),
     ("volume_hot_water", "dhwwatervolume"),
     ("area_hot_water_surface", "dhwsurfacearea"),
     ("rate_hot_water_flow", "hotwaterflowrate"),
     ("density_hot_water", "dhwdensity"),
-    ("specific_heat_capacity_hot_water", "dhwspecificheatcapacity"),
-    ("efficiency_heating_system_water", "hotwaterheatingefficiency"),
+    (
+        "specific_heat_capacity_hot_water",
+        "dhwspecificheatcapacity",
+    ),
+    (
+        "efficiency_heating_system_water",
+        "hotwaterheatingefficiency",
+    ),
     ("profile_hot_water_flow", "hotwaterflowprofile"),
     ("profile_appliance", "applianceprofile"),
+    // Schema 2026.5.dev12 STEBBS straggler reorder (gh#1392 follow-up). The
+    // current YAML carries the quantity-first names; the Rust CLI bypasses the
+    // Pydantic rename chain, so each needs a direct alias to its PascalCase
+    // legacy ancestry. PascalCase (not fused-lowercase) is deliberate:
+    // `apply_stebbs_overrides` matches `lighting_power_density` by EXACT
+    // equality on the de-camelCased key, so `LightingPowerDensity` ->
+    // `lighting_power_density` keeps that check firing.
+    ("depth_ground", "GroundDepth"),
+    ("rate_ventilation", "VentilationRate"),
+    ("power_density_lighting", "LightingPowerDensity"),
+    (
+        "temperature_air_month_mean_diffmax",
+        "MonthMeanAirTemperature_diffmax",
+    ),
+    // Schema 2026.5.dev12 Column D alignment (gh#1392 follow-up): sixteen more
+    // STEBBS / Archetype fields adopt the Reading STEBBS team's "Column D"
+    // names (D. Hertwig / S. Rognone, 2026-05). The current YAML carries the
+    // new names; the Rust CLI bypasses the Pydantic rename chain, so each needs
+    // a direct alias to its PascalCase legacy ancestry. PascalCase (not
+    // fused-lowercase) is deliberate: scalar `set_mapped_value` matches on the
+    // underscore-stripped form (so either spelling resolves), but the profile
+    // handlers in `apply_stebbs_overrides` compare the de-camelCased key by
+    // EXACT equality (e.g. `HotWaterFlowProfile` -> `hot_water_flow_profile`),
+    // so the PascalCase ancestry is required for the profile fields.
+    // ArchetypeProperties (6)
+    ("max_power_heating_system_air", "MaxHeatingPower"),
+    (
+        "max_power_heating_system_water",
+        "MaximumHotWaterHeatingPower",
+    ),
+    (
+        "setpoint_temperature_heating_air",
+        "HeatingSetpointTemperature",
+    ),
+    (
+        "setpoint_temperature_cooling_air",
+        "CoolingSetpointTemperature",
+    ),
+    (
+        "profile_setpoint_temperature_heating_air",
+        "HeatingSetpointTemperatureProfile",
+    ),
+    (
+        "profile_setpoint_temperature_cooling_air",
+        "CoolingSetpointTemperatureProfile",
+    ),
+    // StebbsProperties (10)
+    ("max_power_cooling_system_air", "MaxCoolingPower"),
+    (
+        "setpoint_temperature_heating_water",
+        "HotWaterHeatingSetpointTemperature",
+    ),
+    ("temperature_mains_water", "MainsWaterTemperature"),
+    ("surface_area_hot_water_tank", "WaterTankSurfaceArea"),
+    ("surface_area_hot_water", "DHWSurfaceArea"),
+    ("rate_flow_hot_water", "HotWaterFlowRate"),
+    ("profile_flow_hot_water", "HotWaterFlowProfile"),
+    ("daylight_control", "DaylightControl"),
+    (
+        "convection_coefficient_hot_water_tank_vessel_internal",
+        "DHWVesselInternalWallConvectionCoefficient",
+    ),
+    (
+        "convection_coefficient_hot_water_tank_vessel_external",
+        "DHWVesselExternalWallConvectionCoefficient",
+    ),
 ];
 
 /// Family registry for nested `model.physics` sub-options (gh#972).
@@ -541,10 +660,6 @@ pub const FIELD_COMPAT_ALIASES: &[(&str, &str)] = &[
 /// `src/supy/data_model/core/physics_families.py` 1:1 — same snake_case
 /// field keys, same family tags, same numeric codes. Drift is caught by
 /// `scripts/lint/check_rust_yaml_aliases.py`.
-///
-/// `emissions` is trimmed to codes 0-5 to match the current
-/// `EmissionsMethod` enum — biogen variants (11-45) live in the Python
-/// docstring but are not yet enum members.
 ///
 /// Keyed by the canonical snake_case field name because
 /// `collapse_nested_physics` runs BEFORE the legacy-name rewrite
@@ -578,8 +693,177 @@ pub const PHYSICS_FAMILIES_RS: &[(&str, &[(&str, FamilyCodes)])] = &[
     ),
     (
         "emissions",
-        &[("observed", &[0]), ("simple", &[1, 2, 3, 4, 5])],
+        &[
+            ("observed", &[0]),
+            ("simple", &[1, 2, 3, 4, 5, 6]),
+            ("biogenic_rectangular", &[11, 12, 13, 14, 15, 16]),
+            ("biogenic_bellucco_local", &[21, 22, 23, 24, 25, 26]),
+            ("biogenic_bellucco_general", &[31, 32, 33, 34, 35, 36]),
+            ("biogenic_conductance", &[41, 42, 43, 44, 45, 46]),
+        ],
     ),
+];
+
+/// Human-readable scalar name -> code registry for every accepted
+/// model.physics enum surface (gh#1471). Mirrors `_PHYSICS_NAME_SPECS` in
+/// `src/supy/data_model/core/physics_families.py`.
+pub const PHYSICS_NAME_ALIASES_RS: &[(&str, &[(&str, i64)])] = &[
+    (
+        "net_radiation",
+        &[
+            ("observed", 0),
+            ("forcing", 0),
+            ("ldown_observed", 1),
+            ("ldown_cloud", 2),
+            ("ldown_air", 3),
+            ("ldown_surface", 11),
+            ("ldown_cloud_surface", 12),
+            ("ldown_air_surface", 13),
+            ("ldown_zenith", 100),
+            ("ldown_cloud_zenith", 200),
+            ("ldown_air_zenith", 300),
+            ("ldown_ss_observed", 1001),
+            ("ldown_ss_cloud", 1002),
+            ("ldown_ss_air", 1003),
+        ],
+    ),
+    (
+        "emissions",
+        &[
+            ("observed", 0),
+            ("l11", 1),
+            ("j11", 2),
+            ("l11_updated", 3),
+            ("j19", 4),
+            ("j19_updated", 5),
+            ("l11_updated_detailed", 6),
+            ("biogen_rect_l11", 11),
+            ("biogen_rect_j11", 12),
+            ("biogen_rect_l11_updated", 13),
+            ("biogen_rect_l11_detailed", 14),
+            ("biogen_rect_j11_detailed", 15),
+            ("biogen_rect_l11_updated_detailed", 16),
+            ("biogen_bellucco_local_l11", 21),
+            ("biogen_bellucco_local_j11", 22),
+            ("biogen_bellucco_local_l11_updated", 23),
+            ("biogen_bellucco_local_l11_detailed", 24),
+            ("biogen_bellucco_local_j11_detailed", 25),
+            ("biogen_bellucco_local_l11_updated_detailed", 26),
+            ("biogen_bellucco_general_l11", 31),
+            ("biogen_bellucco_general_j11", 32),
+            ("biogen_bellucco_general_l11_updated", 33),
+            ("biogen_bellucco_general_l11_detailed", 34),
+            ("biogen_bellucco_general_j11_detailed", 35),
+            ("biogen_bellucco_general_l11_updated_detailed", 36),
+            ("biogen_conductance_l11", 41),
+            ("biogen_conductance_j11", 42),
+            ("biogen_conductance_l11_updated", 43),
+            ("biogen_conductance_l11_detailed", 44),
+            ("biogen_conductance_j11_detailed", 45),
+            ("biogen_conductance_l11_updated_detailed", 46),
+        ],
+    ),
+    (
+        "storage_heat",
+        &[
+            ("observed", 0),
+            ("ohm", 1),
+            ("ohm_without_qf", 1),
+            ("anohm", 3),
+            ("s17", 3),
+            ("estm", 4),
+            ("o05", 4),
+            ("ehc", 5),
+            ("dyohm", 6),
+            ("l25", 6),
+            ("stebbs", 7),
+        ],
+    ),
+    ("ohm_inc_qf", &[("exclude", 0), ("include", 1)]),
+    (
+        "roughness_length_momentum",
+        &[
+            ("fixed", 1),
+            ("variable", 2),
+            ("macdonald", 3),
+            ("m98", 3),
+            ("lambdap_dependent", 4),
+            ("go99", 4),
+            ("alternative", 5),
+        ],
+    ),
+    (
+        "roughness_length_heat",
+        &[
+            ("brutsaert", 1),
+            ("b82", 1),
+            ("kawai", 2),
+            ("k09", 2),
+            ("voogt_grimmond", 3),
+            ("vg00", 3),
+            ("kanda", 4),
+            ("k07", 4),
+            ("adaptive", 5),
+        ],
+    ),
+    (
+        "stability",
+        &[
+            ("not_used", 0),
+            ("not_used2", 1),
+            ("hoegstrom", 2),
+            ("campbell_norman", 3),
+            ("cn98", 3),
+            ("businger_hoegstrom", 4),
+            ("bh71", 4),
+        ],
+    ),
+    (
+        "soil_moisture_deficit",
+        &[
+            ("modelled", 0),
+            ("observed_volumetric", 1),
+            ("observed_gravimetric", 2),
+        ],
+    ),
+    ("water_use", &[("modelled", 0), ("observed", 1)]),
+    ("laimethod", &[("observed", 0), ("calculated", 1)]),
+    (
+        "roughness_sublayer",
+        &[("most", 0), ("rst", 1), ("t19", 1), ("variable", 2)],
+    ),
+    (
+        "frontal_area_index",
+        &[("use_provided", 0), ("simple_scheme", 1)],
+    ),
+    (
+        "roughness_sublayer_level",
+        &[("none", 0), ("basic", 1), ("detailed", 2)],
+    ),
+    (
+        "surface_conductance",
+        &[("jarvi", 1), ("j11", 1), ("ward", 2), ("w16", 2)],
+    ),
+    ("snow_use", &[("disabled", 0), ("enabled", 1)]),
+    ("stebbs", &[("none", 0), ("default", 1), ("provided", 2)]),
+    ("parameters", &[("default", 1), ("provided", 2)]),
+    (
+        "capacitance",
+        &[
+            ("default", 0),
+            ("provided", 1),
+            ("parameterise", 2),
+            ("parameterize", 2),
+        ],
+    ),
+    (
+        "setpoint",
+        &[("constant", 0), ("dependent", 1), ("scheduled", 2)],
+    ),
+    ("same_albedo_wall", &[("disabled", 0), ("enabled", 1)]),
+    ("same_albedo_roof", &[("disabled", 0), ("enabled", 1)]),
+    ("same_emissivity_wall", &[("disabled", 0), ("enabled", 1)]),
+    ("same_emissivity_roof", &[("disabled", 0), ("enabled", 1)]),
 ];
 
 const NET_RADIATION_OUTER_KEYS: &[&str] = &[
@@ -598,6 +882,233 @@ fn physics_outer_keys(field_name: &str) -> &'static [&'static str] {
         "emissions" => EMISSIONS_OUTER_KEYS,
         _ => &[],
     }
+}
+
+fn mapping_token(
+    map: &serde_yaml::Mapping,
+    key: &str,
+    context: &str,
+) -> Result<Option<String>, String> {
+    match map.get(Value::String(key.to_string())) {
+        None => Ok(None),
+        Some(Value::String(s)) if !s.trim().is_empty() => Ok(Some(s.trim().to_ascii_lowercase())),
+        Some(_) => Err(format!(
+            "'{context}.{key}' must be a non-empty string token."
+        )),
+    }
+}
+
+fn reject_foreign_keys(
+    map: &serde_yaml::Mapping,
+    allowed: &[&str],
+    context: &str,
+) -> Result<(), String> {
+    let foreign: Vec<String> = map
+        .keys()
+        .filter_map(|k| match k.as_str() {
+            Some(s) if !allowed.contains(&s) => Some(format!("{s:?}")),
+            None => Some(format!("{k:?}")),
+            _ => None,
+        })
+        .collect();
+    if !foreign.is_empty() {
+        return Err(format!(
+            "'{context}' cannot be combined with sibling keys {foreign:?}."
+        ));
+    }
+    Ok(())
+}
+
+fn narp_orthogonal_code(ldown: &str, variant: &str) -> Option<i64> {
+    match (ldown, variant) {
+        ("observed", "standard") => Some(1),
+        ("cloud", "standard") => Some(2),
+        ("air", "standard") => Some(3),
+        ("observed", "surface") => Some(11),
+        ("cloud", "surface") => Some(12),
+        ("air", "surface") => Some(13),
+        ("observed", "zenith") => Some(100),
+        ("cloud", "zenith") => Some(200),
+        ("air", "zenith") => Some(300),
+        _ => None,
+    }
+}
+
+fn spartacus_orthogonal_code(ldown: &str) -> Option<i64> {
+    match ldown {
+        "observed" => Some(1001),
+        "cloud" => Some(1002),
+        "air" => Some(1003),
+        _ => None,
+    }
+}
+
+fn emissions_heat_code(heat: &str) -> Option<i64> {
+    match heat {
+        "l11" => Some(1),
+        "j11" => Some(2),
+        "l11_updated" => Some(3),
+        _ => None,
+    }
+}
+
+fn emissions_anthropogenic_offset(anthropogenic: &str) -> Option<i64> {
+    match anthropogenic {
+        "none" => Some(0),
+        "qf_linked" => Some(0),
+        "detailed" => Some(3),
+        _ => None,
+    }
+}
+
+fn emissions_biogenic_offset(biogenic: &str) -> Option<i64> {
+    match biogenic {
+        "none" => Some(0),
+        "rectangular" => Some(10),
+        "bellucco_local" => Some(20),
+        "bellucco_general" => Some(30),
+        "conductance" => Some(40),
+        _ => None,
+    }
+}
+
+fn collapse_orthogonal_net_radiation(map: &mut serde_yaml::Mapping) -> Result<bool, String> {
+    if !map.contains_key(Value::String("scheme".into())) {
+        return Ok(false);
+    }
+
+    let field_name = "net_radiation";
+    let scheme = mapping_token(map, "scheme", field_name)?
+        .ok_or_else(|| format!("'{field_name}.scheme' is required."))?;
+
+    let code = match scheme.as_str() {
+        "forcing" => {
+            reject_foreign_keys(map, &["scheme", "ref"], "net_radiation.forcing")?;
+            0
+        }
+        "narp" => {
+            reject_foreign_keys(
+                map,
+                &["scheme", "ldown", "variant", "ref"],
+                "net_radiation.narp",
+            )?;
+            let ldown = mapping_token(map, "ldown", "net_radiation.narp")?.ok_or_else(|| {
+                "'net_radiation.narp' requires 'ldown' (observed, cloud, or air).".to_string()
+            })?;
+            let variant = mapping_token(map, "variant", "net_radiation.narp")?
+                .unwrap_or_else(|| "standard".to_string());
+            narp_orthogonal_code(&ldown, &variant).ok_or_else(|| {
+                format!(
+                    "'net_radiation.narp' does not support ldown={ldown:?}, variant={variant:?}."
+                )
+            })?
+        }
+        "spartacus" => {
+            reject_foreign_keys(map, &["scheme", "ldown", "ref"], "net_radiation.spartacus")?;
+            let ldown =
+                mapping_token(map, "ldown", "net_radiation.spartacus")?.ok_or_else(|| {
+                    "'net_radiation.spartacus' requires 'ldown' (observed, cloud, or air)."
+                        .to_string()
+                })?;
+            spartacus_orthogonal_code(&ldown).ok_or_else(|| {
+                format!("'net_radiation.spartacus' does not support ldown={ldown:?}.")
+            })?
+        }
+        _ => {
+            return Err(
+                "'net_radiation.scheme' must be one of 'forcing', 'narp', or 'spartacus'."
+                    .to_string(),
+            );
+        }
+    };
+
+    let carried_ref = map.get(Value::String("ref".into())).cloned();
+    map.clear();
+    map.insert(Value::String("value".into()), Value::Number(code.into()));
+    if let Some(r) = carried_ref {
+        map.insert(Value::String("ref".into()), r);
+    }
+    Ok(true)
+}
+
+fn collapse_orthogonal_emissions(map: &mut serde_yaml::Mapping) -> Result<bool, String> {
+    if !(map.contains_key(Value::String("heat".into()))
+        || map.contains_key(Value::String("co2".into())))
+    {
+        return Ok(false);
+    }
+
+    reject_foreign_keys(map, &["heat", "co2", "ref"], "emissions")?;
+
+    let heat = mapping_token(map, "heat", "emissions")?
+        .ok_or_else(|| "'emissions' orthogonal form requires 'heat'.".to_string())?;
+
+    let (anthropogenic, biogenic) = match map.get(Value::String("co2".into())) {
+        None => ("none".to_string(), "none".to_string()),
+        Some(Value::Mapping(co2)) => {
+            reject_foreign_keys(co2, &["anthropogenic", "biogenic"], "emissions.co2")?;
+            (
+                mapping_token(co2, "anthropogenic", "emissions.co2")?
+                    .unwrap_or_else(|| "none".to_string()),
+                mapping_token(co2, "biogenic", "emissions.co2")?
+                    .unwrap_or_else(|| "none".to_string()),
+            )
+        }
+        Some(_) => return Err("'emissions.co2' must be a mapping.".to_string()),
+    };
+
+    let code = if heat == "observed" {
+        if anthropogenic == "none" && biogenic == "none" {
+            0
+        } else {
+            return Err(
+                "'emissions.heat=observed' cannot be combined with CO2 axes; use modelled heat when CO2 is enabled."
+                    .to_string(),
+            );
+        }
+    } else {
+        let heat_code = emissions_heat_code(&heat).ok_or_else(|| {
+            "'emissions.heat' must be one of 'observed', 'l11', 'j11', or 'l11_updated'."
+                .to_string()
+        })?;
+
+        if anthropogenic == "none" && biogenic == "none" {
+            heat_code
+        } else {
+            let anthro_offset = emissions_anthropogenic_offset(&anthropogenic).ok_or_else(|| {
+                "'emissions.co2.anthropogenic' must be one of 'none', 'qf_linked', or 'detailed'."
+                    .to_string()
+            })?;
+            let biogenic_offset = emissions_biogenic_offset(&biogenic).ok_or_else(|| {
+                "'emissions.co2.biogenic' must be one of 'none', 'rectangular', 'bellucco_local', 'bellucco_general', or 'conductance'."
+                    .to_string()
+            })?;
+
+            if biogenic == "none" {
+                return Err(
+                    "'emissions.co2.anthropogenic' requires a biogenic CO2 family; flat EmissionsMethod 0-6 disables CO2 flux output."
+                        .to_string(),
+                );
+            }
+
+            if anthropogenic == "none" {
+                return Err(
+                    "Biogenic CO2 EmissionsMethod families also calculate anthropogenic CO2; choose 'qf_linked' or 'detailed'."
+                        .to_string(),
+                );
+            }
+
+            biogenic_offset + heat_code + anthro_offset
+        }
+    };
+
+    let carried_ref = map.get(Value::String("ref".into())).cloned();
+    map.clear();
+    map.insert(Value::String("value".into()), Value::Number(code.into()));
+    if let Some(r) = carried_ref {
+        map.insert(Value::String("ref".into()), r);
+    }
+    Ok(true)
 }
 
 /// Collapse family-tagged nested physics input to the flat `{value: N}`
@@ -632,6 +1143,13 @@ fn collapse_nested_physics(root: &mut Value) -> Result<(), String> {
                 Some(m) => m,
                 None => continue,
             };
+
+            if *field_name == "net_radiation" && collapse_orthogonal_net_radiation(map)? {
+                continue;
+            }
+            if *field_name == "emissions" && collapse_orthogonal_emissions(map)? {
+                continue;
+            }
 
             let matched: Vec<&str> = families
                 .iter()
@@ -723,6 +1241,428 @@ fn collapse_nested_physics(root: &mut Value) -> Result<(), String> {
     Ok(())
 }
 
+fn physics_name_to_code(field: &str, name: &str) -> Option<i64> {
+    let key = name.trim().to_ascii_lowercase();
+    PHYSICS_NAME_ALIASES_RS
+        .iter()
+        .find(|(f, _)| *f == field)
+        .and_then(|(_, aliases)| {
+            aliases
+                .iter()
+                .find(|(n, _)| *n == key)
+                .map(|(_, code)| *code)
+        })
+}
+
+fn collapse_physics_scalar_entry(field: &str, entry: &mut Value) -> Result<bool, String> {
+    if let Some(name) = entry.as_str().map(|s| s.to_string()) {
+        if name.trim().is_empty() {
+            return Ok(false);
+        }
+        let code = physics_name_to_code(field, &name)
+            .ok_or_else(|| format!("'{field}' got unknown scheme name '{name}'."))?;
+        let mut flat = serde_yaml::Mapping::new();
+        flat.insert(Value::String("value".into()), Value::Number(code.into()));
+        *entry = Value::Mapping(flat);
+        return Ok(true);
+    }
+
+    if let Value::Mapping(map) = entry {
+        let value_key = Value::String("value".into());
+        if let Some(name) = map
+            .get(&value_key)
+            .and_then(|v| v.as_str())
+            .map(str::to_string)
+        {
+            if name.trim().is_empty() {
+                return Ok(false);
+            }
+            let code = physics_name_to_code(field, &name)
+                .ok_or_else(|| format!("'{field}' got unknown scheme name '{name}'."))?;
+            map.insert(value_key, Value::Number(code.into()));
+            return Ok(true);
+        }
+    }
+
+    Ok(false)
+}
+
+fn collapse_physics_names(root: &mut Value) -> Result<(), String> {
+    let physics = match root
+        .get_mut("model")
+        .and_then(|m| m.as_mapping_mut())
+        .and_then(|m| m.get_mut(Value::String("physics".into())))
+        .and_then(|p| p.as_mapping_mut())
+    {
+        Some(p) => p,
+        None => return Ok(()),
+    };
+
+    for (field, _) in PHYSICS_NAME_ALIASES_RS {
+        for spelling in physics_field_key_spellings(field) {
+            let key = Value::String(spelling);
+            let entry = match physics.get_mut(&key) {
+                Some(entry) => entry,
+                None => continue,
+            };
+            collapse_physics_scalar_entry(field, entry)?;
+        }
+    }
+
+    Ok(())
+}
+
+fn physics_field_key_spellings(field: &str) -> Vec<String> {
+    let mut keys = vec![field.to_string()];
+    let push = |keys: &mut Vec<String>, key: &str| {
+        if !keys.iter().any(|existing| existing == key) {
+            keys.push(key.to_string());
+        }
+    };
+
+    let mut targets: Vec<String> = physics_outer_keys(field)
+        .iter()
+        .map(|key| key.to_string())
+        .collect();
+    for (new, old) in FIELD_RENAMES.iter().chain(FIELD_COMPAT_ALIASES.iter()) {
+        if *new == field && !targets.iter().any(|target| target == old) {
+            targets.push((*old).to_string());
+        }
+    }
+
+    for target in &targets {
+        push(&mut keys, target);
+    }
+    for (new, old) in FIELD_RENAMES.iter().chain(FIELD_COMPAT_ALIASES.iter()) {
+        if targets.iter().any(|target| target == old) {
+            push(&mut keys, new);
+        }
+    }
+    keys
+}
+
+/// Nested `model.physics.stebbs` leaf keys recognised by the flatten
+/// pre-pass. Mirrors `_STEBBS_NESTED_KEYS` in
+/// `src/supy/data_model/core/field_renames.py` (gh#1456). A `stebbs` mapping
+/// carrying any of these is the new nested object; a `{value: N}` /
+/// scalar `stebbs` is the legacy master toggle and is left untouched.
+///
+/// gh#1456: `ref` is deliberately NOT a discriminating key. A legacy flat
+/// master toggle carrying provenance is a RefValue scalar -- `{value: 1, ref:
+/// {...}}` -- whose only keys are `value`/`ref`; treating `ref` as a nested
+/// marker would misclassify that scalar as the new nested object, silently
+/// reading the absent `enabled` as `false` and flipping `stebbsmethod` to 0.
+/// A genuine nested block always carries `enabled`/`parameters`/a leaf name
+/// alongside any optional `ref`, so `ref` is never the sole discriminator.
+/// See `is_stebbs_refvalue_scalar`. This keeps the Rust and Python
+/// nested-detection predicates identical.
+const STEBBS_NESTED_KEYS: &[&str] = &[
+    "enabled",
+    "parameters",
+    "capacitance",
+    "setpoint",
+    "same_albedo_wall",
+    "same_albedo_roof",
+    "same_emissivity_wall",
+    "same_emissivity_roof",
+];
+
+/// Accepted legacy aliases inside an already nested `model.physics.stebbs`
+/// object. The Python raw validator accepts these via `RAW_YAML_FIELD_RENAMES`,
+/// so the bridge flatten pre-pass must normalise them too.
+const STEBBS_NESTED_ALIAS_TO_LEAF: &[(&str, &str)] = &[
+    ("outer_cap_fraction", "capacitance"),
+    ("rcmethod", "capacitance"),
+    ("rc_method", "capacitance"),
+    ("setpointmethod", "setpoint"),
+];
+
+/// Flat STEBBS leaf spellings that are mutually exclusive with a nested
+/// `model.physics.stebbs` object. Include both canonical nested leaf names and
+/// legacy/fused flat aliases so the Rust bridge rejects the same mixed input
+/// shape as Python before any lossy rename pass runs.
+const STEBBS_FLAT_LEAF_KEYS: &[&str] = &[
+    "capacitance",
+    "outer_cap_fraction",
+    "rcmethod",
+    "rc_method",
+    "setpoint",
+    "setpointmethod",
+    "same_albedo_wall",
+    "same_albedo_roof",
+    "same_emissivity_wall",
+    "same_emissivity_roof",
+];
+
+/// Return true for a `{value: ...}` / `{value: ..., ref: ...}` scalar. Such a
+/// mapping is a RefValue-wrapped legacy master toggle, never the new nested
+/// `StebbsPhysics` object (gh#1456). Mirrors `_is_stebbs_refvalue_scalar` in
+/// the Python fold.
+fn is_stebbs_refvalue_scalar(map: &serde_yaml::Mapping) -> bool {
+    let has_value = map.contains_key(Value::String("value".into()));
+    if !has_value {
+        return false;
+    }
+    map.keys()
+        .all(|k| matches!(k, Value::String(s) if s == "value" || s == "ref"))
+}
+
+fn has_stebbs_nested_key(map: &serde_yaml::Mapping) -> bool {
+    STEBBS_NESTED_KEYS
+        .iter()
+        .any(|leaf| map.contains_key(Value::String((*leaf).to_string())))
+        || STEBBS_NESTED_ALIAS_TO_LEAF
+            .iter()
+            .any(|(alias, _leaf)| map.contains_key(Value::String((*alias).to_string())))
+}
+
+fn nested_stebbs_alias_conflict(map: &serde_yaml::Mapping) -> Option<String> {
+    for (leaf, _fused) in STEBBS_LEAF_TO_FUSED {
+        let mut present = Vec::new();
+        if map.contains_key(Value::String((*leaf).to_string())) {
+            present.push((*leaf).to_string());
+        }
+        for (alias, alias_leaf) in STEBBS_NESTED_ALIAS_TO_LEAF {
+            if alias_leaf == leaf && map.contains_key(Value::String((*alias).to_string())) {
+                present.push((*alias).to_string());
+            }
+        }
+        if present.len() > 1 {
+            return Some(format!("{} -> stebbs.{leaf}", present.join(", ")));
+        }
+    }
+    None
+}
+
+/// `(nested_leaf, fused_flat_key)` for the five non-master STEBBS switches.
+/// `capacitance` / `setpoint` fold to the fused DataFrame columns the parser
+/// reads (`rcmethod`, `setpointmethod`); the four `same_*` switches keep their
+/// names (no rename — the DataFrame columns are unchanged, gh#1456). Flattening
+/// straight to the fused keys keeps this pre-pass self-contained and
+/// independent of the downstream `FIELD_RENAMES` rename-walker ordering.
+const STEBBS_LEAF_TO_FUSED: &[(&str, &str)] = &[
+    ("capacitance", "rcmethod"),
+    ("setpoint", "setpointmethod"),
+    ("same_albedo_wall", "same_albedo_wall"),
+    ("same_albedo_roof", "same_albedo_roof"),
+    ("same_emissivity_wall", "same_emissivity_wall"),
+    ("same_emissivity_roof", "same_emissivity_roof"),
+];
+
+/// Unwrap a RefValue-style `{value: X}` mapping to its inner scalar, else
+/// return the value as-is. Mirrors `_unwrap_scalar` in the Python fold.
+fn unwrap_ref_scalar(entry: &Value) -> &Value {
+    if let Value::Mapping(map) = entry {
+        if let Some(inner) = map.get(Value::String("value".into())) {
+            return inner;
+        }
+    }
+    entry
+}
+
+/// Interpret a `stebbs.enabled` scalar as a boolean. Mirrors Pydantic's bool
+/// coercion for accepted YAML scalars and rejects unknown values instead of
+/// silently enabling/disabling STEBBS.
+fn read_enabled_flag(entry: &Value) -> Result<bool, String> {
+    match unwrap_ref_scalar(entry) {
+        Value::Bool(b) => Ok(*b),
+        Value::Number(n) => {
+            if let Some(code) = n.as_i64() {
+                match code {
+                    0 => Ok(false),
+                    1 => Ok(true),
+                    _ => Err(format!(
+                        "model.physics.stebbs.enabled expects a boolean value, got {code}"
+                    )),
+                }
+            } else if let Some(code) = n.as_f64() {
+                if code == 0.0 {
+                    Ok(false)
+                } else if code == 1.0 {
+                    Ok(true)
+                } else {
+                    Err(format!(
+                        "model.physics.stebbs.enabled expects a boolean value, got {code}"
+                    ))
+                }
+            } else {
+                Err("model.physics.stebbs.enabled expects a boolean value".to_string())
+            }
+        }
+        Value::String(s) => match s.to_ascii_lowercase().as_str() {
+            "1" | "true" | "t" | "yes" | "y" | "on" => Ok(true),
+            "0" | "false" | "f" | "no" | "n" | "off" => Ok(false),
+            _ => Err(format!(
+                "model.physics.stebbs.enabled expects a boolean value, got {s:?}"
+            )),
+        },
+        other => Err(format!(
+            "model.physics.stebbs.enabled expects a boolean value, got {other:?}"
+        )),
+    }
+}
+
+/// Interpret a `stebbs.parameters` scalar as the non-zero `StebbsMethod`
+/// integer code. Accepts the numeric enum codes `1`/`2` (and YAML `true`,
+/// matching Pydantic's bool-as-1 coercion). Reject strings and unknown values so
+/// the bridge does not run configs the Python/schema path would reject.
+fn read_parameters_code(entry: &Value) -> Result<i64, String> {
+    match unwrap_ref_scalar(entry) {
+        Value::Number(n) => {
+            if let Some(code) = n.as_i64() {
+                match code {
+                    1 | 2 => Ok(code),
+                    _ => Err(format!(
+                        "model.physics.stebbs.parameters expects 1 or 2, got {code}"
+                    )),
+                }
+            } else if let Some(code) = n.as_f64() {
+                if code == 1.0 {
+                    Ok(1)
+                } else if code == 2.0 {
+                    Ok(2)
+                } else {
+                    Err(format!(
+                        "model.physics.stebbs.parameters expects 1 or 2, got {code}"
+                    ))
+                }
+            } else {
+                Err("model.physics.stebbs.parameters expects 1 or 2".to_string())
+            }
+        }
+        Value::Bool(true) => Ok(1),
+        Value::Bool(false) => {
+            Err("model.physics.stebbs.parameters expects 1 or 2, got false".to_string())
+        }
+        Value::String(s) => physics_name_to_code("parameters", s).ok_or_else(|| {
+            format!("model.physics.stebbs.parameters got unknown scheme name {s:?}")
+        }),
+        other => Err(format!(
+            "model.physics.stebbs.parameters expects numeric 1 or 2, got {other:?}"
+        )),
+    }
+}
+
+/// Flatten a nested `model.physics.stebbs` object back to the fused flat keys
+/// the hand-written parser indexes (`stebbsmethod`, `rcmethod`,
+/// `setpointmethod`, `same_*`). MUST run before `collapse_nested_physics` and
+/// the recursive rename walker so the nested object is consumed before either
+/// can misread it (the walker would otherwise rename the whole `stebbs`
+/// mapping to `stebbsmethod`; see `should_rename_key_at_path`).
+///
+/// Composition mirrors `StebbsPhysics.to_df_state` / `fold_stebbs_physics` in
+/// `src/supy/data_model/core/model.py` + `field_renames.py` (gh#1456):
+/// `stebbsmethod = 0 if not enabled else int(parameters)`. `enabled` defaults
+/// to `false` (STEBBS off) and `parameters` to `1` (DEFAULT) when omitted,
+/// matching the Python `StebbsPhysics` field defaults.
+///
+/// The legacy flat form (`stebbs: {value: N}` master toggle, plus flat
+/// `outer_cap_fraction` / `setpoint` / `same_*` siblings) is untouched here and
+/// continues through the existing rename walker. Idempotent: running twice is a
+/// no-op because the nested object is removed on the first pass and the fused
+/// keys it writes are not themselves nested-leaf keys.
+fn flatten_stebbs_physics(root: &mut Value) -> Result<(), String> {
+    let physics = match root
+        .get_mut("model")
+        .and_then(|m| m.as_mapping_mut())
+        .and_then(|m| m.get_mut(Value::String("physics".into())))
+        .and_then(|p| p.as_mapping_mut())
+    {
+        Some(p) => p,
+        None => return Ok(()),
+    };
+
+    let stebbs_key = Value::String("stebbs".into());
+    let is_nested = match physics.get(&stebbs_key) {
+        // A `{value: N}` / `{value: N, ref: {...}}` RefValue scalar is the
+        // legacy master toggle, NOT the nested object (gh#1456).
+        Some(Value::Mapping(map)) if is_stebbs_refvalue_scalar(map) => false,
+        Some(Value::Mapping(map)) => has_stebbs_nested_key(map),
+        // A scalar / `{value: N}` master toggle, or absent: legacy flat path.
+        _ => false,
+    };
+    if !is_nested {
+        return Ok(());
+    }
+
+    // Guard against any flat STEBBS sibling colliding with the nested object
+    // (e.g. a flat `outer_cap_fraction`/`rcmethod` alongside
+    // `stebbs.capacitance`). The legacy and nested forms are mutually exclusive
+    // on input; reject before removing the nested block so failed
+    // normalisation leaves the tree untouched.
+    for flat in STEBBS_FLAT_LEAF_KEYS {
+        let flat_key = Value::String((*flat).to_string());
+        if physics.contains_key(&flat_key) {
+            return Err(format!(
+                "Both a flat '{flat}' and a nested 'model.physics.stebbs' object are \
+                 present. Use only the nested 'stebbs' form."
+            ));
+        }
+    }
+    let stebbsmethod_key = Value::String("stebbsmethod".into());
+    if physics.contains_key(&stebbsmethod_key) {
+        return Err(
+            "Both a flat 'stebbsmethod' and a nested 'model.physics.stebbs' object are \
+             present. Use only the nested 'stebbs' form."
+                .to_string(),
+        );
+    }
+
+    // Take ownership of the nested object so we can move its leaves out.
+    let mut stebbs_block = match physics.remove(&stebbs_key) {
+        Some(Value::Mapping(map)) => map,
+        _ => return Ok(()),
+    };
+
+    if let Some(conflict) = nested_stebbs_alias_conflict(&stebbs_block) {
+        return Err(format!(
+            "Multiple nested STEBBS physics switches map to the same nested leaf \
+             ({conflict}). Use only one spelling."
+        ));
+    }
+
+    for (alias, leaf) in STEBBS_NESTED_ALIAS_TO_LEAF {
+        let alias_key = Value::String((*alias).to_string());
+        let leaf_key = Value::String((*leaf).to_string());
+        if let Some(value) = stebbs_block.remove(&alias_key) {
+            if !stebbs_block.contains_key(&leaf_key) {
+                stebbs_block.insert(leaf_key, value);
+            }
+        }
+    }
+
+    // Compose the master toggle: 0 if disabled, else int(parameters). Validate
+    // a present `parameters` value even when disabled, matching Pydantic field
+    // validation rather than silently ignoring malformed input.
+    let parameters_key = Value::String("parameters".into());
+    let parameters_code = match stebbs_block.get(&parameters_key) {
+        Some(value) => read_parameters_code(value)?,
+        None => 1,
+    };
+    let enabled = stebbs_block
+        .get(Value::String("enabled".into()))
+        .map(read_enabled_flag)
+        .transpose()?
+        .unwrap_or(false);
+    let stebbsmethod_value = if !enabled { 0 } else { parameters_code };
+    let mut stebbsmethod_flat = serde_yaml::Mapping::new();
+    stebbsmethod_flat.insert(
+        Value::String("value".into()),
+        Value::Number(stebbsmethod_value.into()),
+    );
+    physics.insert(stebbsmethod_key, Value::Mapping(stebbsmethod_flat));
+
+    // Move the five remaining switches to their fused flat keys verbatim
+    // (the `{value: N}` wrapper, if any, is preserved as-is).
+    for (leaf, fused) in STEBBS_LEAF_TO_FUSED {
+        if let Some(v) = stebbs_block.get(Value::String((*leaf).to_string())) {
+            physics.insert(Value::String((*fused).to_string()), v.clone());
+        }
+    }
+
+    Ok(())
+}
+
 fn legacy_name_for(key: &str) -> Option<(&'static str, &'static str)> {
     FIELD_RENAMES
         .iter()
@@ -758,12 +1698,23 @@ fn should_rename_key_at_path(new_name: &str, path: &str) -> bool {
 /// renamed keys on subsequent reads. Idempotent — running twice on the
 /// same tree is a no-op.
 pub fn normalize_field_names(root: &mut Value) -> Result<(), String> {
+    // gh#1456: the nested `model.physics.stebbs` object must be flattened to
+    // the fused flat keys (`stebbsmethod`, `rcmethod`, `setpointmethod`,
+    // `same_*`) BEFORE anything else. If the recursive rename walker saw the
+    // nested `stebbs` key first it would rename the whole object to
+    // `stebbsmethod` (see `should_rename_key_at_path`), and
+    // `collapse_nested_physics` could misread a `stebbs` leaf as a family tag.
+    // Flattening first consumes the nested object so the legacy flat path
+    // (master-toggle scalar + flat `outer_cap_fraction`/`setpoint`/`same_*`)
+    // still flows through the walker unchanged.
+    flatten_stebbs_physics(root)?;
     // Nested family form must be collapsed BEFORE the recursive rename
     // walker runs — some family tags (e.g. `stebbs` under `storage_heat`)
     // collide with ModelPhysics field names that the walker would
     // otherwise rewrite (`stebbs` -> `stebbsmethod`). See
     // `PHYSICS_FAMILIES_RS` for the full rationale (gh#972).
     collapse_nested_physics(root)?;
+    collapse_physics_names(root)?;
     normalize_field_names_at(root, "<root>")?;
     Ok(())
 }
@@ -1066,6 +2017,88 @@ model:
     }
 
     #[test]
+    fn orthogonal_net_radiation_narp_variants_collapse() {
+        let cases = [
+            ("observed", None, 1),
+            ("cloud", None, 2),
+            ("air", None, 3),
+            ("observed", Some("surface"), 11),
+            ("cloud", Some("surface"), 12),
+            ("air", Some("surface"), 13),
+            ("observed", Some("zenith"), 100),
+            ("cloud", Some("zenith"), 200),
+            ("air", Some("zenith"), 300),
+        ];
+
+        for (ldown, variant, expected) in cases {
+            let variant_line = variant
+                .map(|v| format!("      variant: {v}\n"))
+                .unwrap_or_default();
+            let yaml = format!(
+                "model:\n  physics:\n    net_radiation:\n      scheme: narp\n      ldown: {ldown}\n{variant_line}"
+            );
+            let mut root: Value = from_str(&yaml).unwrap();
+            normalize_field_names(&mut root).unwrap();
+            let v = root["model"]["physics"]["netradiationmethod"]
+                .get(Value::String("value".into()))
+                .unwrap();
+            assert_eq!(v.as_i64(), Some(expected));
+        }
+    }
+
+    #[test]
+    fn orthogonal_net_radiation_spartacus_collapses() {
+        let yaml =
+            "model:\n  physics:\n    net_radiation:\n      scheme: spartacus\n      ldown: air\n";
+        let mut root: Value = from_str(yaml).unwrap();
+        normalize_field_names(&mut root).unwrap();
+        let netrad = &root["model"]["physics"]["netradiationmethod"];
+        let v = netrad.get(Value::String("value".into())).unwrap();
+        assert_eq!(v.as_i64(), Some(1003));
+        assert!(netrad.get(Value::String("scheme".into())).is_none());
+    }
+
+    #[test]
+    fn orthogonal_net_radiation_forcing_collapses() {
+        let yaml = "model:\n  physics:\n    net_radiation:\n      scheme: forcing\n";
+        let mut root: Value = from_str(yaml).unwrap();
+        normalize_field_names(&mut root).unwrap();
+        let v = root["model"]["physics"]["netradiationmethod"]
+            .get(Value::String("value".into()))
+            .unwrap();
+        assert_eq!(v.as_i64(), Some(0));
+    }
+
+    #[test]
+    fn orthogonal_net_radiation_under_legacy_outer_key_collapses() {
+        let yaml =
+            "model:\n  physics:\n    netradiationmethod:\n      scheme: narp\n      ldown: air\n";
+        let mut root: Value = from_str(yaml).unwrap();
+        normalize_field_names(&mut root).unwrap();
+        let v = root["model"]["physics"]["netradiationmethod"]
+            .get(Value::String("value".into()))
+            .unwrap();
+        assert_eq!(v.as_i64(), Some(3));
+    }
+
+    #[test]
+    fn orthogonal_net_radiation_rejects_forcing_ldown() {
+        let yaml =
+            "model:\n  physics:\n    net_radiation:\n      scheme: forcing\n      ldown: air\n";
+        let mut root: Value = from_str(yaml).unwrap();
+        let err = normalize_field_names(&mut root).expect_err("forcing ldown must fail");
+        assert!(err.contains("sibling keys"), "error was: {err}");
+    }
+
+    #[test]
+    fn orthogonal_net_radiation_rejects_bad_variant() {
+        let yaml = "model:\n  physics:\n    net_radiation:\n      scheme: narp\n      ldown: air\n      variant: canyon\n";
+        let mut root: Value = from_str(yaml).unwrap();
+        let err = normalize_field_names(&mut root).expect_err("bad variant must fail");
+        assert!(err.contains("does not support"), "error was: {err}");
+    }
+
+    #[test]
     fn nested_storage_heat_ehc_collapses() {
         let yaml = "model:\n  physics:\n    storage_heat:\n      ehc:\n        value: 5\n";
         let mut root: Value = from_str(yaml).unwrap();
@@ -1078,13 +2111,95 @@ model:
 
     #[test]
     fn nested_emissions_simple_collapses() {
-        let yaml = "model:\n  physics:\n    emissions:\n      simple:\n        value: 2\n";
+        let yaml = "model:\n  physics:\n    emissions:\n      simple:\n        value: 6\n";
         let mut root: Value = from_str(yaml).unwrap();
         normalize_field_names(&mut root).unwrap();
         let v = root["model"]["physics"]["emissionsmethod"]
             .get(Value::String("value".into()))
             .unwrap();
-        assert_eq!(v.as_i64(), Some(2));
+        assert_eq!(v.as_i64(), Some(6));
+    }
+
+    #[test]
+    fn nested_emissions_biogenic_family_collapses() {
+        let yaml =
+            "model:\n  physics:\n    emissions:\n      biogenic_bellucco_general:\n        value: 36\n";
+        let mut root: Value = from_str(yaml).unwrap();
+        normalize_field_names(&mut root).unwrap();
+        let v = root["model"]["physics"]["emissionsmethod"]
+            .get(Value::String("value".into()))
+            .unwrap();
+        assert_eq!(v.as_i64(), Some(36));
+    }
+
+    #[test]
+    fn orthogonal_emissions_collapses() {
+        let heat_only_cases = [("observed", 0), ("l11", 1), ("j11", 2), ("l11_updated", 3)];
+        for (heat, expected) in heat_only_cases {
+            let yaml = format!("model:\n  physics:\n    emissions:\n      heat: {heat}\n");
+            let mut root: Value = from_str(&yaml).unwrap();
+            normalize_field_names(&mut root).unwrap();
+            let v = root["model"]["physics"]["emissionsmethod"]
+                .get(Value::String("value".into()))
+                .unwrap();
+            assert_eq!(v.as_i64(), Some(expected));
+        }
+
+        let biogenic_cases = [
+            ("rectangular", 10),
+            ("bellucco_local", 20),
+            ("bellucco_general", 30),
+            ("conductance", 40),
+        ];
+        let anthro_cases = [("qf_linked", 0), ("detailed", 3)];
+        let heat_cases = [("l11", 1), ("j11", 2), ("l11_updated", 3)];
+
+        for (biogenic, biogenic_offset) in biogenic_cases {
+            for (anthropogenic, anthropogenic_offset) in anthro_cases {
+                for (heat, heat_code) in heat_cases {
+                    let expected = biogenic_offset + anthropogenic_offset + heat_code;
+                    let yaml = format!(
+                        "model:\n  physics:\n    emissions:\n      heat: {heat}\n      co2:\n        anthropogenic: {anthropogenic}\n        biogenic: {biogenic}\n"
+                    );
+                    let mut root: Value = from_str(&yaml).unwrap();
+                    normalize_field_names(&mut root).unwrap();
+                    let v = root["model"]["physics"]["emissionsmethod"]
+                        .get(Value::String("value".into()))
+                        .unwrap();
+                    assert_eq!(v.as_i64(), Some(expected));
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn orthogonal_emissions_under_legacy_outer_key_collapses() {
+        let yaml =
+            "model:\n  physics:\n    emissionsmethod:\n      heat: j11\n      co2:\n        anthropogenic: detailed\n        biogenic: conductance\n";
+        let mut root: Value = from_str(yaml).unwrap();
+        normalize_field_names(&mut root).unwrap();
+        let v = root["model"]["physics"]["emissionsmethod"]
+            .get(Value::String("value".into()))
+            .unwrap();
+        assert_eq!(v.as_i64(), Some(45));
+    }
+
+    #[test]
+    fn orthogonal_emissions_rejects_unrepresentable_combinations() {
+        let yaml =
+            "model:\n  physics:\n    emissions:\n      heat: j11\n      co2:\n        anthropogenic: qf_linked\n";
+        let mut root: Value = from_str(yaml).unwrap();
+        let err = normalize_field_names(&mut root).expect_err("missing biogenic must fail");
+        assert!(err.contains("requires a biogenic"), "error was: {err}");
+
+        let yaml =
+            "model:\n  physics:\n    emissions:\n      heat: j11\n      co2:\n        biogenic: rectangular\n";
+        let mut root: Value = from_str(yaml).unwrap();
+        let err = normalize_field_names(&mut root).expect_err("missing anthropogenic must fail");
+        assert!(
+            err.contains("also calculate anthropogenic"),
+            "error was: {err}"
+        );
     }
 
     #[test]
@@ -1137,6 +2252,470 @@ model:
         assert!(
             storage.get(Value::String("stebbsmethod".into())).is_none(),
             "family tag should collapse before recursive rename touches it"
+        );
+    }
+
+    #[test]
+    fn readable_physics_names_collapse_to_flat() {
+        let yaml = "\
+model:
+  physics:
+    storage_heat: ohm
+    stability: cn98
+    snow_use: enabled
+";
+        let mut root: Value = from_str(yaml).unwrap();
+        normalize_field_names(&mut root).unwrap();
+        let physics = &root["model"]["physics"];
+        assert_eq!(
+            physics["storageheatmethod"]
+                .get(Value::String("value".into()))
+                .and_then(|v| v.as_i64()),
+            Some(1)
+        );
+        assert_eq!(
+            physics["stabilitymethod"]
+                .get(Value::String("value".into()))
+                .and_then(|v| v.as_i64()),
+            Some(3)
+        );
+        assert_eq!(
+            physics["snowuse"]
+                .get(Value::String("value".into()))
+                .and_then(|v| v.as_i64()),
+            Some(1)
+        );
+    }
+
+    #[test]
+    fn readable_names_under_legacy_and_refvalue_keys_collapse() {
+        let yaml = "\
+model:
+  physics:
+    storage_heat_method: ehc
+    emissionsmethod:
+      value: biogen_conductance_j11_detailed
+";
+        let mut root: Value = from_str(yaml).unwrap();
+        normalize_field_names(&mut root).unwrap();
+        let physics = &root["model"]["physics"];
+        assert_eq!(
+            physics["storageheatmethod"]
+                .get(Value::String("value".into()))
+                .and_then(|v| v.as_i64()),
+            Some(5)
+        );
+        assert_eq!(
+            physics["emissionsmethod"]
+                .get(Value::String("value".into()))
+                .and_then(|v| v.as_i64()),
+            Some(45)
+        );
+    }
+
+    #[test]
+    fn nested_stebbs_readable_names_flatten_to_fused_keys() {
+        let yaml = "\
+model:
+  physics:
+    stebbs:
+      enabled: true
+      parameters: provided
+      capacitance: parameterise
+      setpoint:
+        value: scheduled
+      same_albedo_wall: enabled
+";
+        let mut root: Value = from_str(yaml).unwrap();
+        normalize_field_names(&mut root).unwrap();
+        assert_eq!(physics_i64(&root, "stebbsmethod"), Some(2));
+        assert_eq!(physics_i64(&root, "rcmethod"), Some(2));
+        assert_eq!(physics_i64(&root, "setpointmethod"), Some(2));
+        assert_eq!(physics_i64(&root, "same_albedo_wall"), Some(1));
+    }
+
+    // -- gh#1456: nested `model.physics.stebbs` flatten pre-pass --------------
+
+    fn physics_i64(root: &Value, key: &str) -> Option<i64> {
+        root["model"]["physics"]
+            .get(Value::String(key.into()))
+            .and_then(|v| v.get(Value::String("value".into())))
+            .and_then(|v| v.as_i64())
+    }
+
+    #[test]
+    fn nested_stebbs_disabled_composes_method_zero() {
+        // enabled=false -> stebbsmethod 0 (parameters ignored).
+        let yaml = "\
+model:
+  physics:
+    stebbs:
+      enabled: {value: false}
+      parameters: {value: 2}
+      capacitance: {value: 1}
+      setpoint: {value: 3}
+      same_albedo_wall: {value: 1}
+      same_emissivity_roof: {value: 1}
+";
+        let mut root: Value = from_str(yaml).unwrap();
+        normalize_field_names(&mut root).unwrap();
+        let physics = &root["model"]["physics"];
+        assert!(
+            physics.get(Value::String("stebbs".into())).is_none(),
+            "nested stebbs object must be consumed"
+        );
+        assert_eq!(physics_i64(&root, "stebbsmethod"), Some(0));
+        assert_eq!(physics_i64(&root, "rcmethod"), Some(1));
+        assert_eq!(physics_i64(&root, "setpointmethod"), Some(3));
+        assert_eq!(physics_i64(&root, "same_albedo_wall"), Some(1));
+        assert_eq!(physics_i64(&root, "same_emissivity_roof"), Some(1));
+    }
+
+    #[test]
+    fn nested_stebbs_enabled_default_composes_method_one() {
+        // enabled=true, parameters=1 (DEFAULT) -> stebbsmethod 1.
+        let yaml = "\
+model:
+  physics:
+    stebbs:
+      enabled: {value: true}
+      parameters: {value: 1}
+      capacitance: {value: 0}
+";
+        let mut root: Value = from_str(yaml).unwrap();
+        normalize_field_names(&mut root).unwrap();
+        assert_eq!(physics_i64(&root, "stebbsmethod"), Some(1));
+        assert_eq!(physics_i64(&root, "rcmethod"), Some(0));
+    }
+
+    #[test]
+    fn nested_stebbs_legacy_aliases_flatten_to_fused_keys() {
+        // Raw Phase B accepts legacy aliases inside `model.physics.stebbs`; the
+        // bridge must normalise the same shape before handing keys to the parser.
+        let yaml = "\
+model:
+  physics:
+    stebbs:
+      enabled: {value: true}
+      parameters: {value: 2}
+      outer_cap_fraction: {value: 2}
+      setpointmethod: {value: 2}
+";
+        let mut root: Value = from_str(yaml).unwrap();
+        normalize_field_names(&mut root).unwrap();
+        let physics = &root["model"]["physics"];
+        assert!(
+            physics.get(Value::String("stebbs".into())).is_none(),
+            "nested stebbs object must be consumed"
+        );
+        assert_eq!(physics_i64(&root, "stebbsmethod"), Some(2));
+        assert_eq!(physics_i64(&root, "rcmethod"), Some(2));
+        assert_eq!(physics_i64(&root, "setpointmethod"), Some(2));
+    }
+
+    #[test]
+    fn nested_stebbs_duplicate_leaf_aliases_rejected() {
+        let cases = [
+            ("capacitance: {value: 1}", "outer_cap_fraction: {value: 2}"),
+            ("outer_cap_fraction: {value: 1}", "rcmethod: {value: 2}"),
+            ("rcmethod: {value: 1}", "rc_method: {value: 2}"),
+            ("setpoint: {value: 1}", "setpointmethod: {value: 2}"),
+        ];
+
+        for (left, right) in cases {
+            let yaml = format!(
+                "\
+model:
+  physics:
+    stebbs:
+      enabled: {{value: true}}
+      {left}
+      {right}
+"
+            );
+            let mut root: Value = from_str(&yaml).unwrap();
+            let err =
+                normalize_field_names(&mut root).expect_err("duplicate nested aliases must fail");
+            assert!(
+                err.contains("Multiple nested STEBBS"),
+                "unexpected error message: {err}"
+            );
+        }
+    }
+
+    #[test]
+    fn nested_stebbs_enabled_provided_composes_method_two() {
+        // enabled=true, parameters=2 (PROVIDED) -> stebbsmethod 2.
+        let yaml = "\
+model:
+  physics:
+    stebbs:
+      enabled: {value: true}
+      parameters: {value: 2}
+";
+        let mut root: Value = from_str(yaml).unwrap();
+        normalize_field_names(&mut root).unwrap();
+        assert_eq!(physics_i64(&root, "stebbsmethod"), Some(2));
+    }
+
+    #[test]
+    fn nested_stebbs_refvalue_string_parameters_compose_method_two() {
+        // Readable enum-name strings are accepted on input and collapse to the
+        // numeric code before the bridge writes the legacy fused key.
+        let yaml = "\
+model:
+  physics:
+    stebbs:
+      enabled: {value: true}
+      parameters: {value: provided}
+";
+        let mut root: Value = from_str(yaml).unwrap();
+        normalize_field_names(&mut root).unwrap();
+        assert_eq!(physics_i64(&root, "stebbsmethod"), Some(2));
+    }
+
+    #[test]
+    fn nested_stebbs_unknown_string_parameters_rejected() {
+        let yaml = "\
+model:
+  physics:
+    stebbs:
+      enabled: {value: true}
+      parameters: {value: custom}
+";
+        let mut root: Value = from_str(yaml).unwrap();
+        let err =
+            normalize_field_names(&mut root).expect_err("unknown string parameters must fail");
+        assert!(
+            err.contains("unknown scheme name"),
+            "unexpected error message: {err}"
+        );
+    }
+
+    #[test]
+    fn blank_physics_method_strings_preserve_placeholders() {
+        let yaml = "\
+model:
+  physics:
+    roughness_sublayer: ''
+    emissions: {value: ''}
+";
+        let mut root: Value = from_str(yaml).unwrap();
+        normalize_field_names(&mut root).unwrap();
+        let physics = &root["model"]["physics"];
+        assert_eq!(physics["rslmethod"].as_str(), Some(""));
+        assert_eq!(physics["emissionsmethod"]["value"].as_str(), Some(""));
+    }
+
+    #[test]
+    fn nested_stebbs_unknown_numeric_parameters_rejected_even_when_disabled() {
+        // Pydantic validates the parameters field even when enabled=false, so
+        // the bridge pre-pass must reject malformed values before flattening.
+        let yaml = "\
+model:
+  physics:
+    stebbs:
+      enabled: {value: false}
+      parameters: {value: 99}
+";
+        let mut root: Value = from_str(yaml).unwrap();
+        let err = normalize_field_names(&mut root).expect_err("unknown parameters must fail");
+        assert!(
+            err.contains("expects 1 or 2"),
+            "unexpected error message: {err}"
+        );
+    }
+
+    #[test]
+    fn nested_stebbs_omitted_parameters_defaults_when_enabled() {
+        // enabled with no `parameters` key -> DEFAULT (1), matching the
+        // StebbsPhysics field default.
+        let yaml = "model:\n  physics:\n    stebbs:\n      enabled: {value: true}\n";
+        let mut root: Value = from_str(yaml).unwrap();
+        normalize_field_names(&mut root).unwrap();
+        assert_eq!(physics_i64(&root, "stebbsmethod"), Some(1));
+    }
+
+    #[test]
+    fn nested_stebbs_pydantic_bool_strings_resolve() {
+        let yaml = "\
+model:
+  physics:
+    stebbs:
+      enabled: {value: yes}
+";
+        let mut root: Value = from_str(yaml).unwrap();
+        normalize_field_names(&mut root).unwrap();
+        assert_eq!(physics_i64(&root, "stebbsmethod"), Some(1));
+    }
+
+    #[test]
+    fn nested_stebbs_invalid_enabled_rejected() {
+        let yaml = "\
+model:
+  physics:
+    stebbs:
+      enabled: {value: 2}
+";
+        let mut root: Value = from_str(yaml).unwrap();
+        let err = normalize_field_names(&mut root).expect_err("invalid enabled must fail");
+        assert!(
+            err.contains("stebbs.enabled"),
+            "unexpected error message: {err}"
+        );
+    }
+
+    #[test]
+    fn legacy_flat_stebbs_master_toggle_still_parses() {
+        // The legacy flat form (scalar master toggle + flat siblings) must
+        // continue to flow through the existing rename walker unchanged.
+        let yaml = "\
+model:
+  physics:
+    stebbs: {value: 2}
+    outer_cap_fraction: {value: 1}
+    setpoint: {value: 3}
+    same_albedo_wall: {value: 1}
+";
+        let mut root: Value = from_str(yaml).unwrap();
+        normalize_field_names(&mut root).unwrap();
+        assert_eq!(physics_i64(&root, "stebbsmethod"), Some(2));
+        assert_eq!(physics_i64(&root, "rcmethod"), Some(1));
+        assert_eq!(physics_i64(&root, "setpointmethod"), Some(3));
+        assert_eq!(physics_i64(&root, "same_albedo_wall"), Some(1));
+    }
+
+    #[test]
+    fn legacy_fused_stebbs_keys_untouched() {
+        // Already-fused legacy keys must remain idempotent.
+        let yaml = "\
+model:
+  physics:
+    stebbsmethod: {value: 1}
+    rcmethod: {value: 2}
+    setpointmethod: {value: 0}
+";
+        let mut root: Value = from_str(yaml).unwrap();
+        let before = root.clone();
+        normalize_field_names(&mut root).unwrap();
+        assert_eq!(root, before, "fused legacy STEBBS keys must be untouched");
+    }
+
+    #[test]
+    fn nested_stebbs_flatten_is_idempotent() {
+        let yaml = "\
+model:
+  physics:
+    stebbs:
+      enabled: {value: true}
+      parameters: {value: 2}
+      capacitance: {value: 1}
+";
+        let mut root: Value = from_str(yaml).unwrap();
+        normalize_field_names(&mut root).unwrap();
+        let after_first = root.clone();
+        normalize_field_names(&mut root).unwrap();
+        assert_eq!(root, after_first, "second pass must be a no-op");
+    }
+
+    #[test]
+    fn nested_and_flat_stebbs_both_present_rejected() {
+        // Any flat STEBBS leaf spelling alongside the nested object is
+        // ambiguous, including aliases that would only fuse after the rename
+        // walker runs.
+        let flat_keys = [
+            "capacitance",
+            "outer_cap_fraction",
+            "rcmethod",
+            "rc_method",
+            "setpoint",
+            "setpointmethod",
+            "same_albedo_wall",
+            "same_albedo_roof",
+            "same_emissivity_wall",
+            "same_emissivity_roof",
+        ];
+
+        for flat_key in flat_keys {
+            let yaml = format!(
+                "\
+model:
+  physics:
+    {flat_key}: {{value: 0}}
+    stebbs:
+      enabled: {{value: true}}
+      capacitance: {{value: 1}}
+"
+            );
+            let mut root: Value = from_str(&yaml).unwrap();
+            let err = normalize_field_names(&mut root).expect_err("ambiguous input must fail");
+            assert!(
+                err.contains(&format!("flat '{flat_key}'")),
+                "error was: {err}"
+            );
+            assert!(
+                err.contains("nested 'model.physics.stebbs'"),
+                "error was: {err}"
+            );
+        }
+    }
+
+    #[test]
+    fn legacy_stebbs_master_toggle_with_ref_stays_legacy() {
+        // gh#1456 regression: a legacy master toggle carrying provenance --
+        // `stebbs: {value: 1, ref: {...}}` -- is a RefValue scalar, NOT the
+        // nested object. Its keys are exactly {value, ref}; treating `ref` as
+        // a nested marker would read the absent `enabled` as false and flip
+        // stebbsmethod to 0. It must compose to 1 (enabled), not 0.
+        let yaml = "\
+model:
+  physics:
+    stebbs:
+      value: 1
+      ref: {desc: 'STEBBS on', DOI: '10.0/x'}
+";
+        let mut root: Value = from_str(yaml).unwrap();
+        normalize_field_names(&mut root).unwrap();
+        assert_eq!(physics_i64(&root, "stebbsmethod"), Some(1));
+    }
+
+    #[test]
+    fn legacy_stebbs_master_toggle_with_ref_disabled() {
+        // The same RefValue-scalar path with value 0 -> disabled (stebbsmethod 0).
+        let yaml = "\
+model:
+  physics:
+    stebbs:
+      value: 0
+      ref: {desc: 'STEBBS off'}
+";
+        let mut root: Value = from_str(yaml).unwrap();
+        normalize_field_names(&mut root).unwrap();
+        assert_eq!(physics_i64(&root, "stebbsmethod"), Some(0));
+    }
+
+    #[test]
+    fn site_properties_stebbs_section_untouched_by_flatten() {
+        // Only `model.physics.stebbs` is flattened; the site-level
+        // `properties.stebbs` parameter section must be left intact.
+        let yaml = "\
+model:
+  physics:
+    stebbs:
+      enabled: {value: true}
+      parameters: {value: 1}
+sites:
+  - properties:
+      stebbs:
+        annual_mean_air_temperature: {value: 10.0}
+";
+        let mut root: Value = from_str(yaml).unwrap();
+        normalize_field_names(&mut root).unwrap();
+        assert_eq!(physics_i64(&root, "stebbsmethod"), Some(1));
+        let props = &root["sites"][0]["properties"];
+        assert!(
+            props.get(Value::String("stebbs".into())).is_some(),
+            "site-level stebbs section must survive"
         );
     }
 }

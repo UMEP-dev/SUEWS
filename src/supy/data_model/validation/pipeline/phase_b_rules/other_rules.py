@@ -41,7 +41,7 @@ def _check_surface_parameters(surface_props: dict, surface_type: str) -> List[st
 
             current_path = f"{path}.{key}" if path else key
 
-            if isinstance(value, dict):
+            if isinstance(value, Mapping):
                 if "value" in value:
                     param_value = value["value"]
                     if param_value in (None, "") or (
@@ -161,11 +161,14 @@ def validate_land_cover_consistency(context) -> List[ValidationResult]:
         emissionsmethod = get_value_safe(physics, "emissions")
         biogenic_params = {
             "alpha_bioco2",
+            "alpha_bio_co2",
             "alpha_enh_bioco2",
             "beta_bioco2",
+            "beta_bio_co2",
             "beta_enh_bioco2",
             "min_res_bioco2",
             "theta_bioco2",
+            "theta_bio_co2",
             "resp_a",
             "resp_b",
         }
@@ -179,7 +182,7 @@ def validate_land_cover_consistency(context) -> List[ValidationResult]:
                 # If emissionsmethod disables CO2, skip biogenic params for relevant surfaces
                 if (
                     emissionsmethod is not None
-                    and emissionsmethod in [0, 1, 2, 3, 4]
+                    and emissionsmethod in [0, 1, 2, 3, 4, 5, 6]
                     and surface_type in biogenic_surfaces
                 ):
                     missing_params = [

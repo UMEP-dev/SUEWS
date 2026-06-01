@@ -50,9 +50,11 @@ pytestmark_skipif = pytest.mark.skipif(
 EXPECTED_TOOLS = frozenset({
     "validate_config",
     "inspect_config",
+    "assess_readiness",
     "search_schema",
     "list_examples",
     "read_example",
+    "list_docs",
     "init_case",
     "convert_config",
     "summarise_run",
@@ -78,6 +80,15 @@ EXPECTED_STATIC_RESOURCES = frozenset({
     "suews://knowledge/manifest",
 })
 
+# Prompts carry the procedural contract (honesty, energy-balance ladder,
+# data sources) to every MCP client. Keep in sync with the
+# `server.prompt(name=...)` registrations in `mcp/src/suews_mcp/server.py`.
+EXPECTED_PROMPTS = frozenset({
+    "fresh_site_setup",
+    "parameter_importance",
+    "evaluate_results",
+})
+
 
 async def _run_handshake() -> dict:
     """Spawn `suews-mcp`, do the JSON-RPC handshake, return what we discovered."""
@@ -96,6 +107,7 @@ async def _run_handshake() -> dict:
             tools_result = await session.list_tools()
             resource_templates_result = await session.list_resource_templates()
             static_resources_result = await session.list_resources()
+            prompts_result = await session.list_prompts()
 
             manifest_result = await session.call_tool(
                 "read_knowledge_manifest", arguments={}
@@ -105,6 +117,7 @@ async def _run_handshake() -> dict:
                 "server_name": getattr(
                     init_result.serverInfo, "name", None
                 ),
+                "instructions": getattr(init_result, "instructions", None),
                 "tool_names": frozenset(t.name for t in tools_result.tools),
                 "resource_templates": frozenset(
                     str(r.uriTemplate)
@@ -112,6 +125,9 @@ async def _run_handshake() -> dict:
                 ),
                 "static_resources": frozenset(
                     str(r.uri) for r in static_resources_result.resources
+                ),
+                "prompt_names": frozenset(
+                    p.name for p in prompts_result.prompts
                 ),
                 "manifest_envelope": manifest_result,
             }
@@ -128,8 +144,8 @@ def test_initialize_advertises_suews_mcp() -> None:
 
 
 @pytestmark_skipif
-def test_tools_list_advertises_all_twelve() -> None:
-    """All 12 tools registered in `server.py` are advertised through MCP."""
+def test_tools_list_advertises_all_fourteen() -> None:
+    """All 14 tools registered in `server.py` are advertised through MCP."""
     result = asyncio.run(_run_handshake())
     advertised = result["tool_names"]
 
@@ -170,6 +186,52 @@ def test_resources_advertise_all_six() -> None:
         f"Unexpected resources advertised: {sorted(extra)}. Update "
         "EXPECTED_RESOURCE_TEMPLATES / EXPECTED_STATIC_RESOURCES in this "
         "test if added intentionally."
+    )
+
+
+@pytestmark_skipif
+def test_initialize_advertises_instructions() -> None:
+    """The `initialize` result carries the server instructions so a client
+    that reads only `serverInfo.instructions` still sees the contract.
+
+    The instructions are the cross-client carrier of the honesty +
+    energy-balance contract; if FastMCP stops forwarding `instructions=` the
+    field comes back empty and Codex / Claude Desktop sessions lose it.
+    """
+    result = asyncio.run(_run_handshake())
+    instructions = result["instructions"]
+    assert instructions, (
+        "initialize result advertised no instructions. Check that "
+        "`FastMCP(..., instructions=SERVER_INSTRUCTIONS)` is wired in "
+        "server.py and that the SDK forwards it into InitializeResult."
+    )
+    assert "QN + QF = QS + QE + QH" in instructions, (
+        "Server instructions lost the energy-balance contract. Check "
+        "SERVER_INSTRUCTIONS in mcp/src/suews_mcp/prompts.py."
+    )
+
+
+@pytestmark_skipif
+def test_prompts_advertise_all_three() -> None:
+    """All 3 prompts registered in `server.py` are advertised through MCP.
+
+    The prompts carry the fresh-site / parameter-importance / evaluation
+    procedures to non-Claude-Code clients; a dropped registration silently
+    removes them from `prompts/list`.
+    """
+    result = asyncio.run(_run_handshake())
+    advertised = result["prompt_names"]
+
+    missing = EXPECTED_PROMPTS - advertised
+    extra = advertised - EXPECTED_PROMPTS
+
+    assert not missing, (
+        f"Prompts missing from MCP advertisement: {sorted(missing)}. "
+        "Check `server.prompt(...)` registrations in server.py."
+    )
+    assert not extra, (
+        f"Unexpected prompts advertised: {sorted(extra)}. Update "
+        "EXPECTED_PROMPTS in this test if a new prompt was added intentionally."
     )
 
 

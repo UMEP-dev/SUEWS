@@ -39,8 +39,12 @@ from ..core.yaml_helpers import (
     _nullify_biogenic_in_props,
     DLSCheck,
     get_value_safe,
+    get_stebbs_block as _get_stebbs_block,
+    get_stebbsmethod_value as _get_stebbsmethod_value,
     HAS_TIMEZONE_FINDER,
+    load_user_yaml_normalised,
 )
+from ...core.field_renames import normalise_yaml_renames
 
 from .phase_b_rules import (
     RulesRegistry,
@@ -300,17 +304,29 @@ def validate_phase_b_inputs(
             raise FileNotFoundError(f"Required file not found: {file_path}")
 
     try:
+        from ...core.physics_families import flatten_physics_in_config
+
         with open(uptodate_yaml_file, "r") as f:
             uptodate_content = f.read()
-            uptodate_data = yaml.safe_load(uptodate_content)
+            # Normalise legacy field spellings to current names so the science
+            # checks below match configs that bypass Phase A's normalisation
+            # (standalone BC mode reads the raw user YAML here). gh#1457. This
+            # reads the raw text first for the header sniff below, so it cannot
+            # use load_user_yaml_normalised (the path-based canonical loader);
+            # the normalise_yaml_renames call keeps it equivalent.
+            uptodate_data = normalise_yaml_renames(yaml.safe_load(uptodate_content))
 
         is_phase_a_output = "UP TO DATE YAML" in uptodate_content
 
-        with open(user_yaml_file, "r") as f:
-            user_data = yaml.safe_load(f)
+        user_data = load_user_yaml_normalised(user_yaml_file)
 
         with open(standard_yaml_file, "r") as f:
             standard_data = yaml.safe_load(f)
+
+        # Collapse readable physics names for raw-dict science checks.
+        flatten_physics_in_config(uptodate_data)
+        flatten_physics_in_config(user_data)
+        flatten_physics_in_config(standard_data)
 
     except yaml.YAMLError as e:
         raise ValueError(f"Invalid YAML format: {e}")
@@ -1198,12 +1214,12 @@ def adjust_surface_temperatures(
                         )
                     )
 
-        # Update month_mean_air_temperature_diffmax in stebbs if present
+        # Update temperature_air_month_mean_diffmax in stebbs if present
         diffmax_val = get_monthly_air_temperature_diffmax(lat, lng)
         if diffmax_val is None:
             logger_supy.debug("Skipping diffmax update - CRU data not available")
         else:
-            for key in ("month_mean_air_temperature_diffmax",):
+            for key in ("temperature_air_month_mean_diffmax",):
                 if key in stebbs and isinstance(stebbs[key], dict):
                     old_val = stebbs[key].get("value")
                     if old_val != diffmax_val:
@@ -1413,7 +1429,7 @@ def adjust_model_dependent_nullification(
 
     This function automatically sets to None (nullifies) parameters that are not relevant
     when certain model physics options are disabled. For example, if 'stebbsmethod' is 0,
-    all STEBBS and building_archetype parameters are nullified. If 'emissionsmethod' is 0-4,
+    all STEBBS and building_archetype parameters are nullified. If 'emissionsmethod' is 0-6,
     all anthropogenic CO2 and biogenic dectr parameters are nullified.
 
     Parameters
@@ -1438,7 +1454,7 @@ def adjust_model_dependent_nullification(
     physics = yaml_data.get("model", {}).get("physics", {})
 
     # --- STEBBS ---
-    stebbsmethod = get_value_safe(physics, "stebbs")
+    stebbsmethod = _get_stebbsmethod_value(physics)
 
     if stebbsmethod == 0:
         sites = yaml_data.get("sites", [])
@@ -1515,7 +1531,7 @@ def adjust_model_dependent_nullification(
     # --- ANTHROPOGENIC CO2 ---
     emissionsmethod = get_value_safe(physics, "emissions")
 
-    if emissionsmethod is not None and emissionsmethod in [0, 1, 2, 3, 4]:
+    if emissionsmethod is not None and emissionsmethod in [0, 1, 2, 3, 4, 5, 6]:
         sites = yaml_data.get("sites", [])
 
         for site_idx, site in enumerate(sites):
@@ -1541,9 +1557,9 @@ def adjust_model_dependent_nullification(
                             parameter="anthropogenic_emissions.co2",
                             site_index=site_idx,
                             site_gridid=site_gridid,
-                            old_value=f"emissionsmethod 0..4 (CO2 disabled), nullified {len(nullified_params)} related parameters - {param_list}",
+                            old_value=f"emissionsmethod 0..6 (CO2 disabled), nullified {len(nullified_params)} related parameters - {param_list}",
                             new_value="null",
-                            reason=f"emissionsmethod 0..4 (CO2 disabled), nullified {len(nullified_params)} related parameters",
+                            reason=f"emissionsmethod 0..6 (CO2 disabled), nullified {len(nullified_params)} related parameters",
                         )
                     )
 
@@ -1563,7 +1579,7 @@ def adjust_model_dependent_nullification(
                             site_gridid=site_gridid,
                             old_value="biogenic dectr params present",
                             new_value="null",
-                            reason="emissionsmethod 0..4 (CO2 disabled) – nullified dectr biogenic parameters",
+                            reason="emissionsmethod 0..6 (CO2 disabled) - nullified dectr biogenic parameters",
                         )
                     )
             except Exception:
@@ -1955,7 +1971,7 @@ def adjust_model_option_rcmethod(yaml_data: dict) -> Tuple[dict, List[Scientific
     """
     Adjust roof_outer_heat_capacity_fraction and wall_outer_heat_capacity_fraction if rcmethod == 0.
 
-    If the model physics option 'outer_cap_fraction' is set to 0, this function sets
+    If the model physics option 'capacitance' is set to 0, this function sets
     'fraction_heat_capacity_roof_external' and 'fraction_heat_capacity_wall_external' to
     0.5 for all sites' building_archetype blocks, as required by the model
     specification.
@@ -1974,12 +1990,13 @@ def adjust_model_option_rcmethod(yaml_data: dict) -> Tuple[dict, List[Scientific
 
     Notes
     -----
-    - Only applies the adjustment if 'outer_cap_fraction' is exactly 0.
+    - Only applies the adjustment if 'capacitance' is exactly 0.
     - Records each parameter change in the adjustments list for reporting.
     """
     adjustments = []
     physics = yaml_data.get("model", {}).get("physics", {})
-    rcmethod_value = get_value_safe(physics, "outer_cap_fraction")
+    # gh#1456: capacitance method moved to model.physics.stebbs.capacitance.
+    rcmethod_value = get_value_safe(_get_stebbs_block(physics), "capacitance")
 
     if rcmethod_value == 0:
         sites = yaml_data.get("sites", [])
@@ -2002,7 +2019,7 @@ def adjust_model_option_rcmethod(yaml_data: dict) -> Tuple[dict, List[Scientific
                         site_gridid=site_gridid,
                         old_value=str(old_roof_frac),
                         new_value="0.5",
-                        reason="outer_cap_fraction == 0, set fraction_heat_capacity_roof_external to 0.5"
+                        reason="capacitance == 0, set fraction_heat_capacity_roof_external to 0.5"
                     )
                 )
 
@@ -2020,7 +2037,7 @@ def adjust_model_option_rcmethod(yaml_data: dict) -> Tuple[dict, List[Scientific
                         site_gridid=site_gridid,
                         old_value=str(old_wall_frac),
                         new_value="0.5",
-                        reason="outer_cap_fraction == 0, set fraction_heat_capacity_wall_external to 0.5"
+                        reason="capacitance == 0, set fraction_heat_capacity_wall_external to 0.5"
                     )
                 )
 
@@ -2032,14 +2049,15 @@ def adjust_model_option_rcmethod(yaml_data: dict) -> Tuple[dict, List[Scientific
 
 def adjust_model_option_setpointmethod(yaml_data: dict) -> Tuple[dict, List[ScientificAdjustment]]:
     """
-    If setpoint == 0 or 1, set all entries in profile_temperature_air_heating_setpoint and
-    profile_temperature_air_cooling_setpoint in building_archetype to null for all sites.
-    If setpoint == 2, set temperature_air_heating_setpoint and temperature_air_cooling_setpoint
+    If setpoint == 0 or 1, set all entries in profile_setpoint_temperature_heating_air and
+    profile_setpoint_temperature_cooling_air in building_archetype to null for all sites.
+    If setpoint == 2, set setpoint_temperature_heating_air and setpoint_temperature_cooling_air
     in building_archetype to null for all sites (they are not needed).
     """
     adjustments = []
     physics = yaml_data.get("model", {}).get("physics", {})
-    setpointmethod = get_value_safe(physics, "setpoint")
+    # gh#1456: setpoint method moved to model.physics.stebbs.setpoint.
+    setpointmethod = get_value_safe(_get_stebbs_block(physics), "setpoint")
 
     sites = yaml_data.get("sites", [])
     for site_idx, site in enumerate(sites):
@@ -2048,7 +2066,7 @@ def adjust_model_option_setpointmethod(yaml_data: dict) -> Tuple[dict, List[Scie
         site_gridid = get_site_gridid(site)
 
         if setpointmethod == 2:
-            for param in ["temperature_air_heating_setpoint", "temperature_air_cooling_setpoint"]:
+            for param in ["setpoint_temperature_heating_air", "setpoint_temperature_cooling_air"]:
                 entry = building_archetype.get(param)
                 if isinstance(entry, dict):
                     old_val = entry.get("value")
@@ -2065,7 +2083,7 @@ def adjust_model_option_setpointmethod(yaml_data: dict) -> Tuple[dict, List[Scie
                             )
                         )
         elif setpointmethod == 0 or setpointmethod == 1:
-            for prof_param in ["profile_temperature_air_heating_setpoint", "profile_temperature_air_cooling_setpoint"]:
+            for prof_param in ["profile_setpoint_temperature_heating_air", "profile_setpoint_temperature_cooling_air"]:
                 profile = building_archetype.get(prof_param)
                 if isinstance(profile, dict):
                     for daytype in ("working_day", "holiday"):
@@ -2122,7 +2140,7 @@ def adjust_model_option_stebbsmethod(yaml_data: dict) -> Tuple[dict, List[Scient
     """
     adjustments = []
     physics = yaml_data.get("model", {}).get("physics", {})
-    stebbsmethod = get_value_safe(physics, "stebbs")
+    stebbsmethod = _get_stebbsmethod_value(physics)
 
     if stebbsmethod == 1:
         sites = yaml_data.get("sites", [])

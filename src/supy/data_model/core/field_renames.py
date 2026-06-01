@@ -11,7 +11,8 @@ import warnings
 from collections.abc import Mapping
 from typing import Any, Dict
 
-from .physics_families import coerce_nested_to_flat
+from .physics_families import coerce_nested_to_flat, flatten_physics_in_config
+from .physics_orthogonal import coerce_orthogonal_to_flat
 
 
 # -- ModelPhysics (model.py) -------------------------------------------------
@@ -44,7 +45,11 @@ MODELPHYSICS_RENAMES: Dict[str, str] = {
     "rsllevel": "roughness_sublayer_level",
     "gsmodel": "surface_conductance",
     "stebbsmethod": "stebbs",
-    "rcmethod": "outer_cap_fraction",
+    # Schema 2026.5.dev12 (Reading Column D): the former `rcmethod` field is
+    # renamed `outer_cap_fraction` -> `capacitance`. The fused legacy chains
+    # straight to the new dev12 final so ALL_FIELD_RENAMES stays one-to-one
+    # and the bridge reverse map gives `capacitance -> rcmethod`.
+    "rcmethod": "capacitance",
     "setpointmethod": "setpoint",  # fused identifier missed by Category 1
     # Flags/enum choices not touched by Category 2+3 keep their Cat 1 target.
     "ohmincqf": "ohm_inc_qf",
@@ -76,9 +81,29 @@ MODELPHYSICS_SUFFIX_RENAMES: Dict[str, str] = {
     "rsl_method": "roughness_sublayer",
     "rsl_level": "roughness_sublayer_level",
     "fai_method": "frontal_area_index",
-    # Expand + semantic rename (2)
-    "rc_method": "outer_cap_fraction",
+    # Expand + semantic rename (2). `rc_method` chains straight to the dev12
+    # final `capacitance` (was `outer_cap_fraction` pre-dev12).
+    "rc_method": "capacitance",
     "gs_model": "surface_conductance",
+}
+
+# Schema 2026.5.dev11 -> 2026.5.dev12: the `model.physics` field formerly
+# spelled `outer_cap_fraction` (itself the former fused `rcmethod`) is renamed
+# `capacitance` to align with the Reading STEBBS team's "Column D" naming
+# (D. Hertwig / S. Rognone, 2026-05). This is a PURE KEY RENAME — the field
+# stays a `RCMethod` enum with the same values and behaviour; the larger
+# relocation under STEBBS and the capacitance-vs-fraction semantics are
+# deferred to a future PR. The dev11 spelling `outer_cap_fraction` is a value
+# of MODELPHYSICS_RENAMES / MODELPHYSICS_SUFFIX_RENAMES (now retargeted to
+# `capacitance`), so this table only needs to catch users who hand-wrote
+# `outer_cap_fraction` directly. Applied by the ModelPhysics Pydantic shim
+# AFTER the two tables above so dev11 YAMLs still load with a
+# DeprecationWarning. NOT spread into ALL_FIELD_RENAMES (it would introduce a
+# second alias for the same final name, breaking the one-to-one reverse map
+# the Rust bridge depends on); it is composed into RAW_YAML_FIELD_RENAMES for
+# the Phase A precheck path.
+MODELPHYSICS_DEV12_RENAMES: Dict[str, str] = {
+    "outer_cap_fraction": "capacitance",
 }
 
 # -- SurfaceProperties (surface.py) ------------------------------------------
@@ -416,15 +441,47 @@ ARCHETYPEPROPERTIES_DEV7_RENAMES: Dict[str, str] = {
 }
 
 
+# Schema 2026.5.dev11 -> 2026.5.dev12: align six ArchetypeProperties HVAC
+# power / setpoint fields with the Reading STEBBS team's "Column D" naming
+# (D. Hertwig / S. Rognone, 2026-05). The powers take the qualifier-first
+# `max_power_heating_system_<air|water>` shape and the setpoints (and their
+# profiles) take `setpoint_temperature_<heating|cooling>_air`. The pre-dev12
+# names are dev7-level values of ARCHETYPEPROPERTIES_RENAMES, so the
+# dev12->ancestry chain resolves through that map (see
+# ARCHETYPEPROPERTIES_DEV7_TO_PASCAL below). Pure snake->snake reorders applied
+# AFTER ARCHETYPEPROPERTIES_DEV7_RENAMES so users on the dev7 spelling still
+# load with a DeprecationWarning.
+ARCHETYPEPROPERTIES_DEV12_RENAMES: Dict[str, str] = {
+    "power_air_heating_max": "max_power_heating_system_air",
+    "power_water_heating_max": "max_power_heating_system_water",
+    "temperature_air_heating_setpoint": "setpoint_temperature_heating_air",
+    "temperature_air_cooling_setpoint": "setpoint_temperature_cooling_air",
+    "profile_temperature_air_heating_setpoint": "profile_setpoint_temperature_heating_air",
+    "profile_temperature_air_cooling_setpoint": "profile_setpoint_temperature_cooling_air",
+}
+
+
 # Reverse map: final name -> PascalCase legacy column name. Used by
 # ArchetypeProperties._ARCHETYPE_LEGACY_COL_NAMES so the Fortran/Rust bridge
 # (keyed on the fused lowercased PascalCase, e.g. `wallextthickness`) still
 # resolves from the current Pydantic field name. The canonical
-# ARCHETYPEPROPERTIES_RENAMES values are the final names (Rule-2 reorder from
-# PR#1395 plus the Tier-1 completion in gh#1392), so this is just its inverse.
-ARCHETYPEPROPERTIES_DEV7_TO_PASCAL: Dict[str, str] = {
-    new: old for old, new in ARCHETYPEPROPERTIES_RENAMES.items()
-}
+# ARCHETYPEPROPERTIES_RENAMES values are the dev7 final names (Rule-2 reorder
+# from PR#1395 plus the Tier-1 completion in gh#1392), so the base layer is
+# just its inverse. The dev12 Column D alignment then chains each new name back
+# to the same PascalCase ancestry its pre-dev12 name resolves to (e.g.
+# `max_power_heating_system_air` -> `MaxHeatingPower`), so the bridge column key
+# is unchanged after the rename.
+def _build_archetype_dev_to_pascal() -> Dict[str, str]:
+    base_reverse: Dict[str, str] = {
+        new: old for old, new in ARCHETYPEPROPERTIES_RENAMES.items()
+    }
+    chain: Dict[str, str] = dict(base_reverse)
+    for old_dev11, new_dev12 in ARCHETYPEPROPERTIES_DEV12_RENAMES.items():
+        chain[new_dev12] = base_reverse.get(old_dev11, old_dev11)
+    return chain
+
+
+ARCHETYPEPROPERTIES_DEV7_TO_PASCAL: Dict[str, str] = _build_archetype_dev_to_pascal()
 
 # -- StebbsProperties (site.py) ----------------------------------------------
 #
@@ -610,10 +667,15 @@ STEBBSPROPERTIES_DEV3_RENAMES: Dict[str, str] = {
 # `initial_outdoor_temperature` -> `temperature_air_outdoor_initial`,
 # `annual_mean_air_temperature` -> `temperature_air_annual_mean`.
 #
-# Deliberately KEPT as compound nouns (idiomatic terms-of-art):
-# `ground_depth`, `ventilation_rate`, `lighting_power_density`. The
-# `month_mean_air_temperature_diffmax` field is also kept this PR —
-# the rename target needs a physics doc check before being locked in.
+# These four straggler fields were left as compound nouns at dev9; they
+# are reordered quantity-first at dev12 (gh#1392 follow-up) per the
+# Reading STEBBS team review ("Column D", D. Hertwig / S. Rognone,
+# 2026-05): `ground_depth` -> `depth_ground`,
+# `ventilation_rate` -> `rate_ventilation`,
+# `lighting_power_density` -> `power_density_lighting`,
+# `month_mean_air_temperature_diffmax` ->
+# `temperature_air_month_mean_diffmax`. See STEBBSPROPERTIES_DEV12_RENAMES
+# below.
 
 STEBBSPROPERTIES_DEV8_RENAMES: Dict[str, str] = {
     # Convection coefficients (Rule 2 reorder + floor -> ground_floor)
@@ -677,13 +739,76 @@ STEBBSPROPERTIES_DEV8_RENAMES: Dict[str, str] = {
 }
 
 
+# Schema 2026.5.dev11 -> 2026.5.dev12: align STEBBS and Archetype field names
+# with the Reading STEBBS team's "Column D" naming (D. Hertwig / S. Rognone,
+# 2026-05).
+#
+# The first four entries are the original stragglers that dev9 deliberately
+# kept as compound nouns; their old names are dev8-level values of
+# STEBBSPROPERTIES_RENAMES so they chain straight back to PascalCase.
+#
+# The remaining ten entries extend the Column D alignment to fields that dev9
+# already reordered once: powers and setpoints take the qualifier-first
+# `max_power_*` / `setpoint_temperature_*` shape, the mains-water / hot-water
+# surface-area / flow-rate / flow-profile fields take the Tier-3 word order,
+# `control_daylight` reverts to the Reading idiom `daylight_control`, and the
+# DHW vessel convection coefficients move to `hot_water_tank_vessel`. All ten
+# old names are dev9-level values of STEBBSPROPERTIES_DEV8_RENAMES, so the
+# dev12->ancestry chain must resolve THROUGH the dev9->PascalCase map (see
+# _build_stebbs_dev_to_pascal) rather than the dev8 base reverse map.
+#
+# All are pure snake->snake reorders applied AFTER STEBBSPROPERTIES_DEV8_RENAMES
+# so users on the dev9 spelling still load with a DeprecationWarning.
+STEBBSPROPERTIES_DEV12_RENAMES: Dict[str, str] = {
+    # Original stragglers (gh#1392 follow-up)
+    "ground_depth": "depth_ground",
+    "ventilation_rate": "rate_ventilation",
+    "lighting_power_density": "power_density_lighting",
+    "month_mean_air_temperature_diffmax": "temperature_air_month_mean_diffmax",
+    # Column D alignment — qualifier-first powers
+    "power_air_cooling_max": "max_power_cooling_system_air",
+    # Column D alignment — qualifier-first water setpoint
+    "temperature_water_heating_setpoint": "setpoint_temperature_heating_water",
+    # Column D alignment — Tier-3 word order
+    "temperature_water_mains": "temperature_mains_water",
+    "area_hot_water_tank_surface": "surface_area_hot_water_tank",
+    "area_hot_water_surface": "surface_area_hot_water",
+    "rate_hot_water_flow": "rate_flow_hot_water",
+    "profile_hot_water_flow": "profile_flow_hot_water",
+    # Reading idiom — daylight control flag
+    "control_daylight": "daylight_control",
+    # DHW vessel convection coefficients -> hot_water_tank_vessel
+    "convection_coefficient_hot_water_vessel_wall_internal":
+        "convection_coefficient_hot_water_tank_vessel_internal",
+    "convection_coefficient_hot_water_vessel_wall_external":
+        "convection_coefficient_hot_water_tank_vessel_external",
+}
+
+
+# DEV8 entries that DEV12 reverts must NOT fire in the Pydantic
+# `_rename_stebbs_fields` chain. Currently this is only
+# `daylight_control -> control_daylight` (DEV8), reverted by
+# `control_daylight -> daylight_control` (DEV12). Applying both in sequence
+# renames a current canonical `daylight_control` to `control_daylight` and back,
+# emitting a spurious DeprecationWarning for a valid config (and failing where
+# `DeprecationWarning` is promoted to an error). The FULL DEV8 map is still used
+# for the bridge legacy-col chain (`_build_stebbs_dev_to_pascal`) and the
+# raw-YAML composed map (which prunes the 2-cycle itself), so only the Pydantic
+# application needs the pruned form.
+STEBBSPROPERTIES_DEV8_RENAMES_PYDANTIC: Dict[str, str] = {
+    old: new
+    for old, new in STEBBSPROPERTIES_DEV8_RENAMES.items()
+    if STEBBSPROPERTIES_DEV12_RENAMES.get(new) != old
+}
+
 # Chained reverse map: dev9 final name -> PascalCase legacy column name.
 # Used by StebbsProperties._STEBBS_LEGACY_COL_NAMES so the Fortran/Rust
 # bridge (keyed on the fused lowercased PascalCase, e.g.
 # `wallinternalconvectioncoefficient`) still resolves from the dev9
 # Pydantic field name. Composes through STEBBSPROPERTIES_DEV8_RENAMES
 # (dev9 -> dev8) and the base STEBBSPROPERTIES_RENAMES {dev8:
-# PascalCase} reverse map. STEBBSPROPERTIES_DEV3_RENAMES is NOT chained
+# PascalCase} reverse map, plus the dev12 straggler reorders chained back
+# to the same PascalCase ancestry. STEBBSPROPERTIES_DEV3_RENAMES is NOT chained
 # here because its targets are the same dev8 names already covered by
 # STEBBSPROPERTIES_RENAMES — passing through the dev3 layer would
 # silently rewrite the PascalCase ancestry.
@@ -695,6 +820,23 @@ def _build_stebbs_dev_to_pascal() -> Dict[str, str]:
     chain: Dict[str, str] = {}
     for old_dev8, new_dev9 in STEBBSPROPERTIES_DEV8_RENAMES.items():
         chain[new_dev9] = base_reverse.get(old_dev8, old_dev8)
+    # dev12 Column D alignment (gh#1392 follow-up): each new name chains back to
+    # the same PascalCase ancestry the old name resolves to. The pre-dev12 names
+    # split into two cases:
+    #   * the four original stragglers (`ground_depth`, ...) are dev8-level
+    #     values of STEBBSPROPERTIES_RENAMES, so `base_reverse` holds the
+    #     PascalCase key directly (e.g. `ground_depth` -> `GroundDepth`);
+    #   * the ten new fields (`power_air_cooling_max`, ...) are dev9-level
+    #     names produced BY the dev8 reorder, so their PascalCase ancestry lives
+    #     in `chain` (built above), not in `base_reverse` (e.g.
+    #     `power_air_cooling_max` -> `MaxCoolingPower`).
+    # Resolve through `chain` first, then the dev8 base reverse, before falling
+    # back to the snake name — otherwise the ten new fields would wrongly fall
+    # back to the intermediate snake spelling and break the bridge column key.
+    for old_dev11, new_dev12 in STEBBSPROPERTIES_DEV12_RENAMES.items():
+        chain[new_dev12] = chain.get(
+            old_dev11, base_reverse.get(old_dev11, old_dev11)
+        )
     return chain
 
 
@@ -1037,10 +1179,37 @@ def _compose_rename_chains(*tables: Mapping[str, str]) -> Dict[str, str]:
     ``thickness_wall_outer``. Pydantic applies those tables sequentially, but
     raw-dict callers use a single recursive pass. Composing the tables here
     keeps those callers from stopping one schema label behind.
+
+    Reversal handling
+    -----------------
+    A later table may *revert* an earlier rename — e.g.
+    ``STEBBSPROPERTIES_DEV8_RENAMES`` mapped ``daylight_control`` ->
+    ``control_daylight`` and ``STEBBSPROPERTIES_DEV12_RENAMES`` maps it back,
+    ``control_daylight`` -> ``daylight_control`` (Reading STEBBS team Column D
+    review, 2026-05). Naively combining the tables yields the 2-cycle
+    ``daylight_control -> control_daylight -> daylight_control``. The latest
+    table wins: the reverted edge from the earlier table is dropped, so both
+    spellings resolve to the dev12 final (``daylight_control``).
     """
     combined: Dict[str, str] = {}
-    for table in tables:
-        combined.update(table)
+    pair_origin: Dict[str, int] = {}  # old_name -> index of the table that set it
+    for idx, table in enumerate(tables):
+        for old, new in table.items():
+            combined[old] = new
+            pair_origin[old] = idx
+
+    # Prune direct 2-cycles (A->B and B->A) by honouring the later table.
+    for a in list(combined):
+        b = combined.get(a)
+        if b is not None and combined.get(b) == a and a != b:
+            # `a->b` and `b->a` form a reversal. Keep whichever edge came
+            # from the later table; drop the earlier one so the chain walk
+            # terminates at the later table's target.
+            if pair_origin.get(a, -1) < pair_origin.get(b, -1):
+                # `b->a` is newer; `a` is the canonical final. Drop `a->b`.
+                del combined[a]
+            else:
+                del combined[b]
 
     resolved: Dict[str, str] = {}
     for old_name, first_target in combined.items():
@@ -1065,13 +1234,16 @@ def _compose_rename_chains(*tables: Mapping[str, str]) -> Dict[str, str]:
 # before they compare against the current sample schema.
 RAW_YAML_FIELD_RENAMES: Dict[str, str] = _compose_rename_chains(
     MODELPHYSICS_SUFFIX_RENAMES,
+    MODELPHYSICS_DEV12_RENAMES,
     ARCHETYPEPROPERTIES_PASCAL_RENAMES,
     ARCHETYPEPROPERTIES_DEV3_RENAMES,
     ARCHETYPEPROPERTIES_DEV6_RENAMES,
     ARCHETYPEPROPERTIES_DEV7_RENAMES,
+    ARCHETYPEPROPERTIES_DEV12_RENAMES,
     SNOWPARAMS_INTERMEDIATE_RENAMES,
     STEBBSPROPERTIES_DEV3_RENAMES,
     STEBBSPROPERTIES_DEV8_RENAMES,
+    STEBBSPROPERTIES_DEV12_RENAMES,
     ALL_FIELD_RENAMES,
 )
 
@@ -1094,7 +1266,12 @@ _MODELPHYSICS_ALL_RENAMES: Dict[str, str] = {
     # (``net_radiation_method``) when both claim the same final target.
     # The Fortran bridge's state is keyed by the fused form, so the
     # reverse map must point at the fused legacy.
+    # The dev11 spelling ``outer_cap_fraction`` -> ``capacitance`` (dev12)
+    # is included so raw-YAML prechecks that read by the current name still
+    # find a legacy ``outer_cap_fraction`` key. Spread before RENAMES so the
+    # reverse map prefers the fused legacy ``rcmethod`` for ``capacitance``.
     **MODELPHYSICS_SUFFIX_RENAMES,
+    **MODELPHYSICS_DEV12_RENAMES,
     **MODELPHYSICS_RENAMES,
 }
 _REVERSE_MODELPHYSICS_RENAMES: Dict[str, str] = {
@@ -1146,6 +1323,272 @@ def apply_field_renames(
     return values
 
 
+# gh#1456: STEBBS flat -> nested fold.
+#
+# The six STEBBS-scoped switches used to sit flat on `model.physics`. They now
+# live under a nested `model.physics.stebbs` object. The legacy master toggle
+# (`stebbs`, a tri-state StebbsMethod integer) is split into `enabled` (bool)
+# and `parameters` (DEFAULT/PROVIDED). The leaf-name moves for the other five
+# switches are recorded here so the fold is auditable in one place.
+STEBBS_PHYSICS_LEAF_RENAMES: Dict[str, str] = {
+    # legacy flat key (already snake_case after MODELPHYSICS_*_RENAMES) -> nested leaf.
+    # After the MODELPHYSICS_* rename pass the former `rcmethod` / `rc_method`
+    # land on the dev12 flat name `capacitance` (Reading Column D, gh#1452);
+    # the older dev2-era flat spelling `outer_cap_fraction` is accepted too so a
+    # hand-written legacy YAML still folds. Both relocate to `stebbs.capacitance`.
+    "capacitance": "capacitance",
+    "outer_cap_fraction": "capacitance",
+    "rcmethod": "capacitance",
+    "rc_method": "capacitance",
+    "setpoint": "setpoint",
+    "setpointmethod": "setpoint",
+    "same_albedo_wall": "same_albedo_wall",
+    "same_albedo_roof": "same_albedo_roof",
+    "same_emissivity_wall": "same_emissivity_wall",
+    "same_emissivity_roof": "same_emissivity_roof",
+}
+
+# The nested-object keys (so a YAML already in the new shape passes through).
+#
+# gh#1456: `ref` is deliberately NOT in this discriminating set. A legacy flat
+# master toggle carrying provenance is a RefValue scalar -- `{value: 1, ref:
+# {...}}` -- whose only keys are `value`/`ref`; including `ref` here would
+# misclassify that scalar as the new nested object, silently dropping its
+# `value` and defaulting `enabled` to false. A genuine nested block always
+# carries `enabled`/`parameters`/a leaf name alongside any optional `ref`, so
+# `ref` is never the sole discriminator. See `_is_stebbs_refvalue_scalar`.
+_STEBBS_NESTED_KEYS = frozenset(
+    {
+        "enabled",
+        "parameters",
+        *STEBBS_PHYSICS_LEAF_RENAMES.keys(),
+        *STEBBS_PHYSICS_LEAF_RENAMES.values(),
+    }
+)
+
+# A RefValue-style scalar wraps only `value` (and optionally `ref`). Such a
+# mapping is the LEGACY master toggle, never the nested StebbsPhysics object.
+_STEBBS_REFVALUE_KEYS = frozenset({"value", "ref"})
+
+
+def _is_stebbs_refvalue_scalar(entry: Any) -> bool:
+    """Return True for a ``{"value": ...}`` / ``{"value": ..., "ref": ...}`` scalar.
+
+    Such a mapping is a RefValue-wrapped legacy master toggle and must be
+    decomposed via ``_decompose_stebbs_master`` rather than treated as the new
+    nested ``StebbsPhysics`` object (gh#1456).
+    """
+    return (
+        isinstance(entry, Mapping)
+        and "value" in entry
+        and set(entry) <= _STEBBS_REFVALUE_KEYS
+    )
+
+
+def _unwrap_scalar(entry: Any) -> Any:
+    """Return the inner value of a RefValue-style ``{"value": X}`` mapping."""
+    if isinstance(entry, Mapping) and "value" in entry:
+        return entry["value"]
+    return entry
+
+
+def _decompose_stebbs_master(entry: Any) -> tuple[Any, Any]:
+    """Split a legacy ``stebbs`` master toggle into (enabled, parameters) dicts.
+
+    Decompose the tri-state StebbsMethod integer:
+      0 -> (enabled=false, parameters=default)
+      1 -> (enabled=true,  parameters=default)
+      2 -> (enabled=true,  parameters=provided)
+
+    Returns RefValue-wrapped scalars (``{"value": ...}``) so the downstream
+    FlexibleRefValue union resolves them uniformly. Invalid scalar values remain
+    invalid, matching the previous flat ``FlexibleRefValue(StebbsMethod)``
+    contract instead of silently enabling STEBBS for malformed YAML.
+    """
+    ref = entry.get("ref") if isinstance(entry, Mapping) else None
+
+    def _wrapped(value: Any, *, carry_ref: bool = False) -> dict:
+        wrapped = {"value": value}
+        if carry_ref and ref is not None:
+            wrapped["ref"] = ref
+        return wrapped
+
+    if isinstance(entry, Mapping) and "value" not in entry:
+        raise ValueError(
+            "Legacy 'stebbs' mappings must use a 'value' key; use "
+            "'stebbs.enabled' / 'stebbs.parameters' for the nested form."
+        )
+
+    entry = coerce_nested_to_flat("stebbs", entry)
+    raw = _unwrap_scalar(entry)
+    if isinstance(raw, bool):
+        code = int(raw)
+    elif isinstance(raw, int):
+        code = raw
+    elif isinstance(raw, float) and raw.is_integer():
+        code = int(raw)
+    else:
+        raise ValueError(
+            "Legacy 'stebbs' master toggle expects integer 0, 1, or 2."
+        )
+    if code == 0:
+        return _wrapped(False, carry_ref=True), _wrapped(1)
+    if code == 1:
+        return _wrapped(True, carry_ref=True), _wrapped(1)
+    if code == 2:
+        return _wrapped(True, carry_ref=True), _wrapped(2)
+    raise ValueError("Legacy 'stebbs' master toggle expects integer 0, 1, or 2.")
+
+
+def _normalise_stebbs_block_aliases(stebbs_block: dict) -> tuple[dict, list[str]]:
+    """Rename legacy keys inside a nested ``stebbs`` block to final leaves."""
+    leaf_conflicts = _stebbs_leaf_alias_conflicts(stebbs_block)
+    if leaf_conflicts:
+        raise ValueError(
+            "Multiple nested STEBBS physics switches map to the same nested leaf "
+            f"({_format_stebbs_leaf_alias_conflicts(leaf_conflicts)}). Use only "
+            "one spelling."
+        )
+
+    moved: list[str] = []
+    for old_key, nested_leaf in STEBBS_PHYSICS_LEAF_RENAMES.items():
+        if old_key == nested_leaf or old_key not in stebbs_block:
+            continue
+        value = stebbs_block.pop(old_key)
+        if nested_leaf not in stebbs_block:
+            stebbs_block[nested_leaf] = value
+        moved.append(f"stebbs.{old_key}")
+    return stebbs_block, moved
+
+
+def _stebbs_leaf_alias_conflicts(values: Mapping[str, Any]) -> list[tuple[str, list[str]]]:
+    """Return flat STEBBS alias groups that would collide after folding."""
+    present_by_leaf: dict[str, list[str]] = {}
+    for old_key, nested_leaf in STEBBS_PHYSICS_LEAF_RENAMES.items():
+        if old_key in values:
+            present_by_leaf.setdefault(nested_leaf, []).append(old_key)
+    return [
+        (leaf, sorted(keys))
+        for leaf, keys in sorted(present_by_leaf.items())
+        if len(keys) > 1
+    ]
+
+
+def _format_stebbs_leaf_alias_conflicts(conflicts: list[tuple[str, list[str]]]) -> str:
+    """Format colliding flat STEBBS aliases for validation errors."""
+    return "; ".join(
+        f"{', '.join(keys)} -> stebbs.{leaf}" for leaf, keys in conflicts
+    )
+
+
+def _stebbs_flat_leaf_siblings(values: Mapping[str, Any]) -> list[str]:
+    """Return flat STEBBS leaf keys present beside a nested ``stebbs`` block."""
+    return sorted({key for key in STEBBS_PHYSICS_LEAF_RENAMES if key in values})
+
+
+def fold_stebbs_physics(values: dict, class_name: str, *, warn: bool = True) -> dict:
+    """Fold legacy flat STEBBS switches under a nested ``stebbs`` object.
+
+    Called from ``ModelPhysics._rename_physics_fields`` after the key renames.
+
+    Behaviour:
+      * If ``values["stebbs"]`` is already the nested object (its keys include
+        any of ``enabled``/``parameters``/``capacitance``/``setpoint``/
+        ``same_*``), it is left untouched; stray flat siblings are rejected as
+        ambiguous.
+      * Otherwise ``stebbs`` is treated as the legacy master toggle and
+        decomposed into ``stebbs.enabled`` + ``stebbs.parameters``.
+      * The five sibling switches (``outer_cap_fraction`` -> ``capacitance``,
+        ``setpoint``, ``same_*``) are moved under ``stebbs`` at their nested
+        leaf names.
+
+    A single ``DeprecationWarning`` summarises the fold when any legacy flat key
+    was present.
+    """
+    if not isinstance(values, dict):
+        return values
+
+    existing = values.get("stebbs")
+
+    # Already a built StebbsPhysics (or any object exposing the nested
+    # members) -- e.g. from_df_state constructs the instance directly and
+    # passes it in. Leave it untouched; do not mistake it for a legacy
+    # master-toggle scalar. A RefValue wrapping a scalar still has no
+    # `enabled` attribute, so this only catches the genuine nested object.
+    if existing is not None and not isinstance(existing, (Mapping, int, float, bool, str)):
+        if hasattr(existing, "enabled") or hasattr(existing, "parameters"):
+            flat_conflicts = _stebbs_flat_leaf_siblings(values)
+            if flat_conflicts:
+                raise ValueError(
+                    f"{class_name}: both nested 'stebbs' and flat STEBBS physics "
+                    f"switches ({', '.join(flat_conflicts)}) are present. Use only "
+                    "the nested 'stebbs' form."
+                )
+            return values
+
+    nested_already = (
+        isinstance(existing, Mapping)
+        and not _is_stebbs_refvalue_scalar(existing)
+        and any(k in existing for k in _STEBBS_NESTED_KEYS)
+    )
+
+    moved: list[str] = []
+
+    if nested_already:
+        stebbs_block, nested_moves = _normalise_stebbs_block_aliases(dict(existing))
+        moved.extend(nested_moves)
+        flat_conflicts = _stebbs_flat_leaf_siblings(values)
+        if flat_conflicts:
+            raise ValueError(
+                f"{class_name}: both nested 'stebbs' and flat STEBBS physics "
+                f"switches ({', '.join(flat_conflicts)}) are present. Use only "
+                "the nested 'stebbs' form."
+            )
+    else:
+        stebbs_block = {}
+        if "stebbs" in values:
+            enabled, parameters = _decompose_stebbs_master(values.pop("stebbs"))
+            stebbs_block["enabled"] = enabled
+            stebbs_block["parameters"] = parameters
+            moved.append("stebbs")
+
+    leaf_conflicts = _stebbs_leaf_alias_conflicts(values)
+    if leaf_conflicts:
+        raise ValueError(
+            f"{class_name}: multiple flat STEBBS physics switches map to the "
+            f"same nested leaf ({_format_stebbs_leaf_alias_conflicts(leaf_conflicts)}). "
+            "Use only one spelling."
+        )
+
+    for flat_key, nested_leaf in STEBBS_PHYSICS_LEAF_RENAMES.items():
+        if flat_key in values:
+            if nested_leaf in stebbs_block:
+                # Nested value wins; drop the stale flat one but record the move.
+                values.pop(flat_key)
+            else:
+                stebbs_block[nested_leaf] = values.pop(flat_key)
+            moved.append(flat_key)
+
+    if not nested_already and not stebbs_block and not moved:
+        # No STEBBS keys at all -> leave values untouched (defaults apply).
+        return values
+
+    if stebbs_block:
+        values["stebbs"] = stebbs_block
+
+    if moved and warn:
+        warnings.warn(
+            f"{class_name}: flat STEBBS physics switches "
+            f"({', '.join(sorted(set(moved)))}) are deprecated; they now live "
+            f"under the nested 'stebbs' object (e.g. "
+            f"'stebbs.enabled', 'stebbs.capacitance'). See gh#1456.",
+            DeprecationWarning,
+            stacklevel=4,
+        )
+
+    return values
+
+
 def read_physics_key(physics: dict, new_name: str, default: Any = None):
     """Read a physics key from raw YAML, accepting either the new name or its legacy alias.
 
@@ -1154,9 +1597,10 @@ def read_physics_key(physics: dict, new_name: str, default: Any = None):
     accepts both spellings, so these gates must as well, or users on either
     spelling can silently bypass them.
 
-    Unwraps both flat RefValue-style ``{"value": X}`` wrappers and the
-    family-tagged nested physics form introduced in gh#972. Returns
-    ``default`` when neither spelling is present.
+    Unwraps flat RefValue-style ``{"value": X}`` wrappers, the
+    family-tagged nested physics form introduced in gh#972, and supported
+    orthogonal physics forms. Returns ``default`` when neither spelling is
+    present.
     """
     entry = read_renamed_key(
         physics,
@@ -1165,8 +1609,9 @@ def read_physics_key(physics: dict, new_name: str, default: Any = None):
         reverse_renames=_REVERSE_MODELPHYSICS_RENAMES,
         default=default,
     )
+    entry = coerce_orthogonal_to_flat(new_name, entry)
     entry = coerce_nested_to_flat(new_name, entry)
-    if isinstance(entry, dict) and "value" in entry:
+    if isinstance(entry, Mapping) and "value" in entry:
         return entry["value"]
     return entry
 
@@ -1308,6 +1753,44 @@ def rename_keys_recursive(
         ]
 
     return data
+
+
+def normalise_yaml_renames(data: Any) -> Any:
+    """Rewrite legacy field spellings in a loaded YAML mapping to current names.
+
+    ``SUEWSConfig.from_yaml`` normalises old->new before validation, so the
+    normal load path already sees current names. The standalone Phase B/C
+    validation path (``suews validate`` in BC / C / AC modes) inspects the raw
+    user YAML without going through ``from_yaml``, so a still-compatible config
+    written with a legacy spelling would otherwise be looked up by the current
+    name and silently missed (gh#1457). Normalising once at each phase's load
+    chokepoint lets every rule match either spelling.
+
+    If both a legacy and its current spelling are present (ambiguous), the data
+    is returned unchanged so the downstream validation path reports the
+    conflict, rather than this normalisation step raising. This guarantees the
+    helper can only resolve rename-blindness, never introduce a new failure.
+    """
+    if not isinstance(data, dict):
+        return data
+    try:
+        normalised = rename_keys_recursive(data, RAW_YAML_FIELD_RENAMES)
+    except ValueError:
+        return data
+
+    model = normalised.get("model")
+    if isinstance(model, dict):
+        physics = model.get("physics")
+        if isinstance(physics, dict):
+            physics = fold_stebbs_physics(
+                physics,
+                "ModelPhysics",
+                warn=False,
+            )
+            model["physics"] = physics
+            flatten_physics_in_config(normalised)
+
+    return normalised
 
 
 def reverse_field_renames(data: dict) -> dict:

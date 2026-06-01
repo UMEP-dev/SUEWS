@@ -41,7 +41,7 @@ EXAMPLES:
 
 | Year | Features | Bugfixes | Changes | Maintenance | Docs | Total |
 |------|----------|----------|---------|-------------|------|-------|
-| 2026 | 74 | 83 | 29 | 81 | 40 | 308 |
+| 2026 | 75 | 83 | 30 | 81 | 40 | 310 |
 | 2025 | 60 | 68 | 22 | 71 | 36 | 256 |
 | 2024 | 12 | 17 | 1 | 12 | 1 | 43 |
 | 2023 | 11 | 14 | 3 | 9 | 1 | 38 |
@@ -53,6 +53,57 @@ EXAMPLES:
 | 2017 | 9 | 0 | 3 | 2 | 0 | 14 |
 
 ## 2026
+
+### 31 May 2026
+
+- [maintenance] Narrow the PyPI publish workflow's tag trigger to CalVer-only, so non-supy tags (e.g. SUEWS-agent releases) do not trigger a supy wheel build + publish (#1384)
+  - `.github/workflows/build-publish_to_pypi.yml` now triggers on `tags: ['[0-9]*']`, mirroring the existing pattern in `.github/workflows/docs-sync.yml`. Tags like `agent/v0.3` are ignored by the publish workflow; users pick up agent updates via `/plugin update`, not a PyPI release
+- [change][experimental] Relocate STEBBS physics switches under `model.physics.stebbs` (#1456)
+  - The legacy flat STEBBS physics switches now serialise under the nested `model.physics.stebbs` object, splitting the `stebbs` master toggle into `enabled` plus `parameters`
+  - Existing flat YAML input remains accepted and is folded during validation and migration; bridge and Fortran-facing columns such as `stebbsmethod`, `rcmethod`, `setpointmethod`, and the `same_*` switches remain unchanged
+  - This is a structural YAML/data-model move; the capacitance selector keeps the Reading-requested `capacitance` name while the wall/roof heat-capacity fraction fields remain physical values
+- [feature][experimental] Accept human-readable names for physics method options (#1471)
+  - YAML input now accepts registered readable method tokens such as `storage_heat: ohm`, `stability: cn98`, `snow_use: enabled`, and nested STEBBS leaves such as `stebbs.capacitance: provided`
+  - The accepted names are input-only compatibility forms; validation still normalises to the existing flat enum-code representation and exports canonical numeric `{value: N}` YAML
+
+### 30 May 2026
+
+- [bugfix] Validator report no longer collapses to a lone `schema_version` INFO line when that field is absent (#1466, #1458)
+  - When a user YAML omitted `schema_version`, Phase C detected it as a normal default and built an INFO entry, which made the multi-phase consolidation short-circuit to an INFO-only report — silently dropping the Phase A renamed-parameter list and the Phase B `REVIEW ADVISED` / `SUGGESTED UPDATES` sections carried in `no_action_messages`
+  - The INFO-only path now fires only for single-phase Phase C runs; multi-phase runs always route through `create_consolidated_report`, folding any Phase C defaults into the `INFO` section alongside (not instead of) the upstream phase sections
+- [feature][experimental] Expand `suews validate` JSON report to include non-error informational messages (#1467)
+  - The JSON sidecar (`report_<name>.json`) written next to the text report is now the consolidated multi-phase `ValidationReport` (`{overall_status, phases:[...]}`), carrying every phase's issues across all severities (`ERROR`, `WARNING`, `INFO`, `SUGGESTION`, `APPLIED_FIX`, `PASS`), not just validation errors. This matches the `data.validation_report` field already exposed by `--format json`. Per-phase sidecars written by direct `run_phase_*` library calls are unchanged (still `PhaseReport`).
+
+### 29 May 2026
+
+- [bugfix] Make standalone Phase B/C validation rename-aware (#1457)
+  - `suews validate` in standalone (BC/C/AC) mode inspected the raw user YAML by current field name without the old->new normalisation that `SUEWSConfig.from_yaml` applies, so a still-compatible config written with a legacy spelling of a field renamed in #1452 (e.g. `outer_cap_fraction` for `capacitance`, `month_mean_air_temperature_diffmax`, the scalar `*_setpoint` names) was mishandled by three raw-dict checks
+  - Most seriously, a legacy `outer_cap_fraction: {value: null}` slipped the orchestrator's critical-null check and could later crash df_state conversion via `int(None)`; the CRU diffmax update and the setpoint-cleanup science adjustment in Phase B were also silently skipped
+  - Fixed by normalising the loaded YAML once at each phase's load chokepoint (`load_user_yaml_normalised` / `normalise_yaml_renames`) so every standalone rule sees current names; a config carrying both a legacy and its current spelling is left untouched so the downstream validator still reports the conflict
+  - The normal `SUEWSConfig.from_yaml` load path was never affected (its sub-models normalise via `@model_validator(mode="before")`)
+
+### 28 May 2026
+
+- [bugfix] `SUEWSOutput.save()` no longer forces parquet output regardless of the configured format (#1451)
+  - The `format` parameter defaulted to `"parquet"`, which always satisfied the `output_format is None` short-circuit in `_save_supy()` and overrode `model.control.output.format` from the run configuration
+  - `format` now defaults to `None`, so an unspecified format follows the configured value (falling back to `txt` when no configuration is present); an explicit `format` argument still wins, matching the existing `SUEWSSimulation.save()` behaviour
+
+### 27 May 2026
+
+- [maintenance] Make the SUEWS plugin's MCP server self-bootstrapping via `uvx`, so installing the plugin is the only onboarding step (#1384)
+  - The bundled `.mcp.json` files now spawn `suews-mcp` through `uvx --from git+...#subdirectory=mcp`, which fetches the MCP server and its `supy` / SUEWS dependency into a cached uv environment on first use — removing the separate `pip install` step and the PATH / venv matching the bare console-script command required
+  - The only prerequisite is `uv` on the machine; once `suews-mcp` is published to PyPI the command collapses to `uvx suews-mcp`
+  - `mcp/README.md`, the `/suews` skill onboarding (`SKILL.md`, `references/fresh-site-setup.md`), and the `fresh_site_setup` MCP prompt now lead with the self-bootstrapping path and keep the explicit `pip` / `uv` install as the dev / offline fallback
+
+### 24 May 2026
+
+- [feature][experimental] Ground the SUEWS agent (CLI + `/suews` skill + MCP) in the surface energy balance and make it installable as a Claude Code / Codex plugin (#1384)
+  - Added two MCP tools: `assess_readiness` (reports which site-defining values are still the bundled sample's defaults, each tagged with its energy-balance role, plus a parameter-importance ladder) and `list_docs` (discovers the curated `suews://docs/{slug}` documentation slugs)
+  - `search_schema` is now a semantic ranked search, and the `suews://docs/{slug}` resource serves the tutorial sources
+  - The MCP now carries its procedural contract internally — server instructions on the `initialize` handshake plus three prompts (`fresh_site_setup`, `parameter_importance`, `evaluate_results`) — so the honesty and energy-balance guidance reaches every MCP client (Claude Desktop, Codex, Cursor), not only the Claude Code `/suews` skill
+  - Parameter importance is derived from QN + QF = QS + QE + QH: albedo first, with QH and surface temperature treated as model outputs (never set) and energy-balance closure recognised as automatic rather than a validation check
+  - Data-source recommendations are limited to an authorised registry (ERA5 / ERA5-Land, GLAMOUR, ESA WorldCover, GEDI, GHSL / GHS-POP, SUEWS-database)
+  - The Claude Code / Codex plugin bundle is generated from the single source skill via `make plugin` and is no longer committed; a parity test guards the generator
 
 ### 19 May 2026
 

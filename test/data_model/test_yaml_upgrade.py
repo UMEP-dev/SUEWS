@@ -157,6 +157,212 @@ class TestYamlUpgradeModule:
         with pytest.raises(YamlUpgradeError, match=r"Both 'snowuse'.*'snow_use'"):
             upgrade_yaml(input_path=source, output_path=target)
 
+    @pytest.mark.parametrize(
+        "flat_key",
+        ["capacitance", "outer_cap_fraction", "rcmethod", "rc_method"],
+    )
+    def test_raises_on_nested_and_flat_stebbs_physics_conflict(
+        self,
+        tmp_path: Path,
+        flat_key: str,
+    ):
+        """Upgrade should match runtime/Rust by rejecting ambiguous STEBBS forms."""
+        source = tmp_path / "mixed-stebbs.yml"
+        target = tmp_path / "upgraded.yml"
+        payload = {
+            "schema_version": "2026.5.dev12",
+            "model": {
+                "physics": {
+                    "stebbs": {
+                        "enabled": {"value": True},
+                        "capacitance": {"value": 1},
+                    },
+                    flat_key: {"value": 0},
+                }
+            },
+        }
+        source.write_text(
+            yaml.safe_dump(payload, sort_keys=False),
+            encoding="utf-8",
+        )
+
+        with pytest.raises(YamlUpgradeError, match="flat STEBBS physics switches"):
+            upgrade_yaml(input_path=source, output_path=target)
+
+    @pytest.mark.parametrize("schema_version", ["2026.5", "2026.5.dev12"])
+    @pytest.mark.parametrize(
+        "left,right",
+        [
+            ("capacitance", "outer_cap_fraction"),
+            ("outer_cap_fraction", "rcmethod"),
+            ("rcmethod", "rc_method"),
+            ("setpoint", "setpointmethod"),
+        ],
+    )
+    def test_raises_on_duplicate_nested_stebbs_leaf_aliases(
+        self,
+        tmp_path: Path,
+        schema_version: str,
+        left: str,
+        right: str,
+    ):
+        """Upgrade should reject aliases duplicated inside nested ``stebbs``."""
+        source = tmp_path / "duplicate-nested-stebbs-leaves.yml"
+        target = tmp_path / "upgraded.yml"
+        payload = {
+            "schema_version": schema_version,
+            "model": {
+                "physics": {
+                    "stebbs": {
+                        "enabled": {"value": True},
+                        left: {"value": 1},
+                        right: {"value": 2},
+                    }
+                }
+            },
+        }
+        source.write_text(
+            yaml.safe_dump(payload, sort_keys=False),
+            encoding="utf-8",
+        )
+
+        with pytest.raises(YamlUpgradeError, match="Multiple nested STEBBS"):
+            upgrade_yaml(input_path=source, output_path=target)
+
+    @pytest.mark.parametrize(
+        "schema_version",
+        ["2026.5", "2026.5.dev1", "2026.5.dev12"],
+    )
+    @pytest.mark.parametrize(
+        "left,right",
+        [
+            ("outer_cap_fraction", "rcmethod"),
+            ("outer_cap_fraction", "rc_method"),
+            ("capacitance", "rcmethod"),
+            ("setpoint", "setpointmethod"),
+        ],
+    )
+    def test_raises_on_duplicate_flat_stebbs_leaf_aliases(
+        self,
+        tmp_path: Path,
+        schema_version: str,
+        left: str,
+        right: str,
+    ):
+        """Upgrade should reject flat aliases that target the same nested leaf."""
+        source = tmp_path / "duplicate-stebbs-leaves.yml"
+        target = tmp_path / "upgraded.yml"
+        payload = {
+            "schema_version": schema_version,
+            "model": {
+                "physics": {
+                    "stebbs": {"value": 1},
+                    left: {"value": 1},
+                    right: {"value": 2},
+                }
+            },
+        }
+        source.write_text(
+            yaml.safe_dump(payload, sort_keys=False),
+            encoding="utf-8",
+        )
+
+        with pytest.raises(YamlUpgradeError, match="same nested leaf"):
+            upgrade_yaml(input_path=source, output_path=target)
+
+    @pytest.mark.parametrize("schema_version", ["2026.5", "2026.5.dev12"])
+    def test_raises_on_duplicate_stebbs_master_aliases(
+        self,
+        tmp_path: Path,
+        schema_version: str,
+    ):
+        """Upgrade should reject multiple spellings of the STEBBS master toggle."""
+        source = tmp_path / "duplicate-stebbs-master.yml"
+        target = tmp_path / "upgraded.yml"
+        payload = {
+            "schema_version": schema_version,
+            "model": {
+                "physics": {
+                    "stebbsmethod": {"value": 0},
+                    "stebbs_method": {"value": 1},
+                }
+            },
+        }
+        source.write_text(
+            yaml.safe_dump(payload, sort_keys=False),
+            encoding="utf-8",
+        )
+
+        with pytest.raises(
+            YamlUpgradeError,
+            match="Multiple legacy STEBBS master aliases",
+        ):
+            upgrade_yaml(input_path=source, output_path=target)
+
+    @pytest.mark.parametrize("schema_version", ["2026.5", "2026.5.dev12"])
+    def test_raises_on_stebbs_master_alias_beside_canonical_key(
+        self,
+        tmp_path: Path,
+        schema_version: str,
+    ):
+        """Upgrade should reject canonical ``stebbs`` plus a master alias."""
+        source = tmp_path / "mixed-stebbs-master.yml"
+        target = tmp_path / "upgraded.yml"
+        payload = {
+            "schema_version": schema_version,
+            "model": {
+                "physics": {
+                    "stebbs": {"value": 0},
+                    "stebbs_method": {"value": 1},
+                }
+            },
+        }
+        source.write_text(
+            yaml.safe_dump(payload, sort_keys=False),
+            encoding="utf-8",
+        )
+
+        with pytest.raises(
+            YamlUpgradeError,
+            match="Multiple legacy STEBBS master aliases",
+        ):
+            upgrade_yaml(input_path=source, output_path=target)
+
+    @pytest.mark.parametrize(
+        "schema_version,master_key",
+        [
+            ("2026.5", "stebbsmethod"),
+            ("2026.5", "stebbs_method"),
+            ("2026.5.dev12", "stebbsmethod"),
+            ("2026.5.dev12", "stebbs_method"),
+        ],
+    )
+    def test_single_legacy_stebbs_master_alias_folds(
+        self,
+        tmp_path: Path,
+        schema_version: str,
+        master_key: str,
+    ):
+        """Upgrade should still accept one legacy spelling of the master toggle."""
+        source = tmp_path / "single-stebbs-master.yml"
+        target = tmp_path / "upgraded.yml"
+        payload = {
+            "schema_version": schema_version,
+            "model": {"physics": {master_key: {"value": 2}}},
+        }
+        source.write_text(
+            yaml.safe_dump(payload, sort_keys=False),
+            encoding="utf-8",
+        )
+
+        upgrade_yaml(input_path=source, output_path=target)
+
+        reloaded = yaml.safe_load(target.read_text(encoding="utf-8"))
+        stebbs = reloaded["model"]["physics"]["stebbs"]
+        assert stebbs["enabled"]["value"] is True
+        assert stebbs["parameters"]["value"] == 2
+        assert master_key not in reloaded["model"]["physics"]
+
     def test_missing_signature_raises_error_message_points_at_from_flag(
         self, release_yaml: Path, tmp_path: Path
     ):
@@ -469,14 +675,16 @@ class TestPre2026_1ReleaseTagMigration:
         # CONSTANT=0 so the user's scalars drive the run).
         payload = yaml.safe_load(upgraded.read_text(encoding="utf-8"))
         arch = payload["sites"][0]["properties"]["building_archetype"]
-        assert isinstance(arch.get("temperature_air_heating_setpoint"), dict)
-        assert arch["temperature_air_heating_setpoint"].get("value") is not None
-        assert isinstance(arch.get("temperature_air_cooling_setpoint"), dict)
-        assert arch["temperature_air_cooling_setpoint"].get("value") is not None
-        assert "profile_temperature_air_heating_setpoint" not in arch
-        assert "profile_temperature_air_cooling_setpoint" not in arch
+        assert isinstance(arch.get("setpoint_temperature_heating_air"), dict)
+        assert arch["setpoint_temperature_heating_air"].get("value") is not None
+        assert isinstance(arch.get("setpoint_temperature_cooling_air"), dict)
+        assert arch["setpoint_temperature_cooling_air"].get("value") is not None
+        assert "profile_setpoint_temperature_heating_air" not in arch
+        assert "profile_setpoint_temperature_cooling_air" not in arch
         physics = payload.get("model", {}).get("physics", {})
-        setpointmethod = physics.get("setpoint")
+        # gh#1456: setpoint method now lives under model.physics.stebbs.setpoint.
+        stebbs_phys = physics.get("stebbs", {})
+        setpointmethod = stebbs_phys.get("setpoint") if isinstance(stebbs_phys, dict) else None
         # Either absent (use enum default CONSTANT=0) or explicitly 0/1.
         if setpointmethod is not None:
             value = (
@@ -512,13 +720,14 @@ class TestPreSetpointSplitMigration:
         assert payload["schema_version"] == CURRENT_SCHEMA_VERSION
         arch = payload["sites"][0]["properties"]["building_archetype"]
         stebbs = payload["sites"][0]["properties"]["stebbs"]
-        assert "profile_temperature_air_heating_setpoint" in arch
-        assert "profile_temperature_air_cooling_setpoint" in arch
-        assert isinstance(arch["temperature_air_heating_setpoint"], dict)
-        assert "value" in arch["temperature_air_heating_setpoint"]
+        assert "profile_setpoint_temperature_heating_air" in arch
+        assert "profile_setpoint_temperature_cooling_air" in arch
+        assert isinstance(arch["setpoint_temperature_heating_air"], dict)
+        assert "value" in arch["setpoint_temperature_heating_air"]
         # Profile intent is preserved by defaulting setpoint to SCHEDULED=2
-        # (key was renamed from fused `setpointmethod` to `setpoint` in #1321)
-        assert payload["model"]["physics"]["setpoint"]["value"] == 2
+        # (key was renamed from fused `setpointmethod` to `setpoint` in #1321;
+        # gh#1456 then folded it under model.physics.stebbs.setpoint)
+        assert payload["model"]["physics"]["stebbs"]["setpoint"]["value"] == 2
         # #1240 rename lives under the stebbs sub-tree, not building_archetype.
         assert "DeepSoilTemperature" not in stebbs
         assert "temperature_air_annual_mean" in stebbs

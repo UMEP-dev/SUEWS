@@ -1406,7 +1406,7 @@
           "title": "Emissivity Internal Mass",
           "unit": "dimensionless"
         },
-        "power_air_heating_max": {
+        "max_power_heating_system_air": {
           "anyOf": [
             {
               "anyOf": [
@@ -1426,7 +1426,7 @@
           "default": 0.0,
           "description": "Maximum power demand of heating system [W]",
           "display_name": "Maximum Heating Power",
-          "title": "Power Air Heating Max",
+          "title": "Max Power Heating System Air",
           "unit": "W"
         },
         "volume_hot_water_tank": {
@@ -1452,7 +1452,7 @@
           "title": "Volume Hot Water Tank",
           "unit": "m^3"
         },
-        "power_water_heating_max": {
+        "max_power_heating_system_water": {
           "anyOf": [
             {
               "anyOf": [
@@ -1472,10 +1472,10 @@
           "default": 3000.0,
           "description": "Maximum power demand of water heating system [W]",
           "display_name": "Maximum Hot Water Heating Power",
-          "title": "Power Water Heating Max",
+          "title": "Max Power Heating System Water",
           "unit": "W"
         },
-        "temperature_air_heating_setpoint": {
+        "setpoint_temperature_heating_air": {
           "anyOf": [
             {
               "anyOf": [
@@ -1495,10 +1495,10 @@
           "default": 0.0,
           "description": "Heating setpoint temperature [degC]",
           "display_name": "Heating Setpoint Temperature",
-          "title": "Temperature Air Heating Setpoint",
+          "title": "Setpoint Temperature Heating Air",
           "unit": "degC"
         },
-        "temperature_air_cooling_setpoint": {
+        "setpoint_temperature_cooling_air": {
           "anyOf": [
             {
               "anyOf": [
@@ -1518,10 +1518,10 @@
           "default": 26.0,
           "description": "Cooling setpoint temperature [degC]",
           "display_name": "Cooling Setpoint Temperature",
-          "title": "Temperature Air Cooling Setpoint",
+          "title": "Setpoint Temperature Cooling Air",
           "unit": "degC"
         },
-        "profile_temperature_air_heating_setpoint": {
+        "profile_setpoint_temperature_heating_air": {
           "anyOf": [
             {
               "$ref": "#/$defs/HeatingSetpointProfile"
@@ -1534,7 +1534,7 @@
           "display_name": "Heating setpoint temperature profile",
           "unit": "degC"
         },
-        "profile_temperature_air_cooling_setpoint": {
+        "profile_setpoint_temperature_cooling_air": {
           "anyOf": [
             {
               "$ref": "#/$defs/CoolingSetpointProfile"
@@ -3328,14 +3328,39 @@
       "type": "object"
     },
     "EmissionsMethod": {
-      "description": "Method for calculating anthropogenic heat flux (QF) and CO2 emissions.\n\n0: OBSERVED - Uses observed QF values from forcing file (set to zero to exclude QF from energy balance)\n1: L11 - Loridan et al. (2011) SAHP method with air temperature and population density\n2: J11 - J\u00e4rvi et al. (2011) SAHP_2 method with heating/cooling degree days\n3: L11_UPDATED - Modified Loridan method using daily mean air temperature\n4: J19 - J\u00e4rvi et al. (2019) method with building energy, metabolism, and traffic\n5: J19_UPDATED - As method 4 but also calculates CO2 emissions\n11: BIOGEN_RECT_L11 - Rectangular hyperbola photosynthesis + L11 QF (experimental)\n12: BIOGEN_RECT_J11 - Rectangular hyperbola photosynthesis + J11 QF (experimental)\n13: BIOGEN_RECT_L11U - Rectangular hyperbola photosynthesis + L11_UPDATED QF (experimental)\n14: BIOGEN_RECT_J19 - Rectangular hyperbola photosynthesis + J19 QF (experimental)\n15: BIOGEN_RECT_J19U - Rectangular hyperbola photosynthesis + J19_UPDATED QF (experimental)\n21: BIOGEN_NRECT_L11 - Non-rectangular hyperbola (Bellucco 2017) + L11 QF (experimental)\n22: BIOGEN_NRECT_J11 - Non-rectangular hyperbola (Bellucco 2017) + J11 QF (experimental)\n23: BIOGEN_NRECT_L11U - Non-rectangular hyperbola (Bellucco 2017) + L11_UPDATED QF (experimental)\n24: BIOGEN_NRECT_J19 - Non-rectangular hyperbola (Bellucco 2017) + J19 QF (experimental)\n25: BIOGEN_NRECT_J19U - Non-rectangular hyperbola (Bellucco 2017) + J19_UPDATED QF (experimental)\n41: BIOGEN_COND_L11 - Conductance-based photosynthesis (J\u00e4rvi 2019) + L11 QF (experimental)\n42: BIOGEN_COND_J11 - Conductance-based photosynthesis (J\u00e4rvi 2019) + J11 QF (experimental)\n43: BIOGEN_COND_L11U - Conductance-based photosynthesis (J\u00e4rvi 2019) + L11_UPDATED QF (experimental)\n44: BIOGEN_COND_J19 - Conductance-based photosynthesis (J\u00e4rvi 2019) + J19 QF (experimental)\n45: BIOGEN_COND_J19U - Conductance-based photosynthesis (J\u00e4rvi 2019) + J19_UPDATED QF (experimental)",
+      "description": "Method for calculating anthropogenic heat flux (QF) and CO2 emissions.\n\n0: OBSERVED - Uses observed QF values from forcing file (set to zero to exclude QF from energy balance)\n1: L11 - Loridan et al. (2011) SAHP method with air temperature and population density\n2: J11 - J\u00e4rvi et al. (2011) SAHP_2 method with heating/cooling degree days\n3: L11_UPDATED - Modified Loridan method using daily mean air temperature\n4: J19 - Detailed anthropogenic heat branch with L11 heat basis; CO2 output disabled by the driver for non-biogenic codes\n5: J19_UPDATED - Detailed anthropogenic heat branch with J11 heat basis; CO2 output disabled by the driver for non-biogenic codes\n6: L11_UPDATED_DETAILED - Detailed anthropogenic heat branch with L11_UPDATED heat basis; CO2 output disabled by the driver for non-biogenic codes\n11: BIOGEN_RECT_L11 - Rectangular hyperbola biogenic CO2 + QF-linked anthropogenic CO2 + L11 heat (experimental)\n12: BIOGEN_RECT_J11 - Rectangular hyperbola biogenic CO2 + QF-linked anthropogenic CO2 + J11 heat (experimental)\n13: BIOGEN_RECT_L11_UPDATED - Rectangular hyperbola biogenic CO2 + QF-linked anthropogenic CO2 + L11_UPDATED heat (experimental)\n14: BIOGEN_RECT_L11_DETAILED - Rectangular hyperbola biogenic CO2 + detailed anthropogenic CO2 + L11 heat (experimental)\n15: BIOGEN_RECT_J11_DETAILED - Rectangular hyperbola biogenic CO2 + detailed anthropogenic CO2 + J11 heat (experimental)\n16: BIOGEN_RECT_L11_UPDATED_DETAILED - Rectangular hyperbola biogenic CO2 + detailed anthropogenic CO2 + L11_UPDATED heat (experimental)\n21: BIOGEN_BELLUCCO_LOCAL_L11 - Bellucco local biogenic CO2 + QF-linked anthropogenic CO2 + L11 heat (experimental)\n22: BIOGEN_BELLUCCO_LOCAL_J11 - Bellucco local biogenic CO2 + QF-linked anthropogenic CO2 + J11 heat (experimental)\n23: BIOGEN_BELLUCCO_LOCAL_L11_UPDATED - Bellucco local biogenic CO2 + QF-linked anthropogenic CO2 + L11_UPDATED heat (experimental)\n24: BIOGEN_BELLUCCO_LOCAL_L11_DETAILED - Bellucco local biogenic CO2 + detailed anthropogenic CO2 + L11 heat (experimental)\n25: BIOGEN_BELLUCCO_LOCAL_J11_DETAILED - Bellucco local biogenic CO2 + detailed anthropogenic CO2 + J11 heat (experimental)\n26: BIOGEN_BELLUCCO_LOCAL_L11_UPDATED_DETAILED - Bellucco local biogenic CO2 + detailed anthropogenic CO2 + L11_UPDATED heat (experimental)\n31: BIOGEN_BELLUCCO_GENERAL_L11 - Bellucco general biogenic CO2 + QF-linked anthropogenic CO2 + L11 heat (experimental)\n32: BIOGEN_BELLUCCO_GENERAL_J11 - Bellucco general biogenic CO2 + QF-linked anthropogenic CO2 + J11 heat (experimental)\n33: BIOGEN_BELLUCCO_GENERAL_L11_UPDATED - Bellucco general biogenic CO2 + QF-linked anthropogenic CO2 + L11_UPDATED heat (experimental)\n34: BIOGEN_BELLUCCO_GENERAL_L11_DETAILED - Bellucco general biogenic CO2 + detailed anthropogenic CO2 + L11 heat (experimental)\n35: BIOGEN_BELLUCCO_GENERAL_J11_DETAILED - Bellucco general biogenic CO2 + detailed anthropogenic CO2 + J11 heat (experimental)\n36: BIOGEN_BELLUCCO_GENERAL_L11_UPDATED_DETAILED - Bellucco general biogenic CO2 + detailed anthropogenic CO2 + L11_UPDATED heat (experimental)\n41: BIOGEN_CONDUCTANCE_L11 - Conductance-based biogenic CO2 + QF-linked anthropogenic CO2 + L11 heat (experimental)\n42: BIOGEN_CONDUCTANCE_J11 - Conductance-based biogenic CO2 + QF-linked anthropogenic CO2 + J11 heat (experimental)\n43: BIOGEN_CONDUCTANCE_L11_UPDATED - Conductance-based biogenic CO2 + QF-linked anthropogenic CO2 + L11_UPDATED heat (experimental)\n44: BIOGEN_CONDUCTANCE_L11_DETAILED - Conductance-based biogenic CO2 + detailed anthropogenic CO2 + L11 heat (experimental)\n45: BIOGEN_CONDUCTANCE_J11_DETAILED - Conductance-based biogenic CO2 + detailed anthropogenic CO2 + J11 heat (experimental)\n46: BIOGEN_CONDUCTANCE_L11_UPDATED_DETAILED - Conductance-based biogenic CO2 + detailed anthropogenic CO2 + L11_UPDATED heat (experimental)",
       "enum": [
         0,
         1,
         2,
         3,
         4,
-        5
+        5,
+        6,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        21,
+        22,
+        23,
+        24,
+        25,
+        26,
+        31,
+        32,
+        33,
+        34,
+        35,
+        36,
+        41,
+        42,
+        43,
+        44,
+        45,
+        46
       ],
       "title": "EmissionsMethod",
       "type": "integer"
@@ -7169,7 +7194,7 @@
             }
           ],
           "default": 2,
-          "description": "Method for calculating anthropogenic heat flux (QF) and CO2 emissions. Options: 0 (OBSERVED) = Uses observed QF values from forcing file (set to zero to exclude QF from energy balance); 1 (L11) = Loridan et al. (2011) SAHP method with air temperature and population density; 2 (J11) = J\u00e4rvi et al. (2011) SAHP_2 method with heating/cooling degree days; 3 (L11_UPDATED) = Modified Loridan method using daily mean air temperature; 4 (J19) = J\u00e4rvi et al. (2019) method with building energy, metabolism, and traffic; 5 (J19_UPDATED) = As method 4 but also calculates CO2 emissions; 11 (BIOGEN_RECT_L11) = Rectangular hyperbola photosynthesis + L11 QF (experimental); 12 (BIOGEN_RECT_J11) = Rectangular hyperbola photosynthesis + J11 QF (experimental); 13 (BIOGEN_RECT_L11U) = Rectangular hyperbola photosynthesis + L11_UPDATED QF (experimental); 14 (BIOGEN_RECT_J19) = Rectangular hyperbola photosynthesis + J19 QF (experimental); 15 (BIOGEN_RECT_J19U) = Rectangular hyperbola photosynthesis + J19_UPDATED QF (experimental); 21 (BIOGEN_NRECT_L11) = Non-rectangular hyperbola (Bellucco 2017) + L11 QF (experimental); 22 (BIOGEN_NRECT_J11) = Non-rectangular hyperbola (Bellucco 2017) + J11 QF (experimental); 23 (BIOGEN_NRECT_L11U) = Non-rectangular hyperbola (Bellucco 2017) + L11_UPDATED QF (experimental); 24 (BIOGEN_NRECT_J19) = Non-rectangular hyperbola (Bellucco 2017) + J19 QF (experimental); 25 (BIOGEN_NRECT_J19U) = Non-rectangular hyperbola (Bellucco 2017) + J19_UPDATED QF (experimental); 41 (BIOGEN_COND_L11) = Conductance-based photosynthesis (J\u00e4rvi 2019) + L11 QF (experimental); 42 (BIOGEN_COND_J11) = Conductance-based photosynthesis (J\u00e4rvi 2019) + J11 QF (experimental); 43 (BIOGEN_COND_L11U) = Conductance-based photosynthesis (J\u00e4rvi 2019) + L11_UPDATED QF (experimental); 44 (BIOGEN_COND_J19) = Conductance-based photosynthesis (J\u00e4rvi 2019) + J19 QF (experimental); 45 (BIOGEN_COND_J19U) = Conductance-based photosynthesis (J\u00e4rvi 2019) + J19_UPDATED QF (experimental)",
+          "description": "Method for calculating anthropogenic heat flux (QF) and CO2 emissions. Options: 0 (OBSERVED) = Uses observed QF values from forcing file (set to zero to exclude QF from energy balance); 1 (L11) = Loridan et al. (2011) SAHP method with air temperature and population density; 2 (J11) = J\u00e4rvi et al. (2011) SAHP_2 method with heating/cooling degree days; 3 (L11_UPDATED) = Modified Loridan method using daily mean air temperature; 4 (J19) = Detailed anthropogenic heat branch with L11 heat basis; CO2 output disabled by the driver for non-biogenic codes; 5 (J19_UPDATED) = Detailed anthropogenic heat branch with J11 heat basis; CO2 output disabled by the driver for non-biogenic codes; 6 (L11_UPDATED_DETAILED) = Detailed anthropogenic heat branch with L11_UPDATED heat basis; CO2 output disabled by the driver for non-biogenic codes; 11 (BIOGEN_RECT_L11) = Rectangular hyperbola biogenic CO2 + QF-linked anthropogenic CO2 + L11 heat (experimental); 12 (BIOGEN_RECT_J11) = Rectangular hyperbola biogenic CO2 + QF-linked anthropogenic CO2 + J11 heat (experimental); 13 (BIOGEN_RECT_L11_UPDATED) = Rectangular hyperbola biogenic CO2 + QF-linked anthropogenic CO2 + L11_UPDATED heat (experimental); 14 (BIOGEN_RECT_L11_DETAILED) = Rectangular hyperbola biogenic CO2 + detailed anthropogenic CO2 + L11 heat (experimental); 15 (BIOGEN_RECT_J11_DETAILED) = Rectangular hyperbola biogenic CO2 + detailed anthropogenic CO2 + J11 heat (experimental); 16 (BIOGEN_RECT_L11_UPDATED_DETAILED) = Rectangular hyperbola biogenic CO2 + detailed anthropogenic CO2 + L11_UPDATED heat (experimental); 21 (BIOGEN_BELLUCCO_LOCAL_L11) = Bellucco local biogenic CO2 + QF-linked anthropogenic CO2 + L11 heat (experimental); 22 (BIOGEN_BELLUCCO_LOCAL_J11) = Bellucco local biogenic CO2 + QF-linked anthropogenic CO2 + J11 heat (experimental); 23 (BIOGEN_BELLUCCO_LOCAL_L11_UPDATED) = Bellucco local biogenic CO2 + QF-linked anthropogenic CO2 + L11_UPDATED heat (experimental); 24 (BIOGEN_BELLUCCO_LOCAL_L11_DETAILED) = Bellucco local biogenic CO2 + detailed anthropogenic CO2 + L11 heat (experimental); 25 (BIOGEN_BELLUCCO_LOCAL_J11_DETAILED) = Bellucco local biogenic CO2 + detailed anthropogenic CO2 + J11 heat (experimental); 26 (BIOGEN_BELLUCCO_LOCAL_L11_UPDATED_DETAILED) = Bellucco local biogenic CO2 + detailed anthropogenic CO2 + L11_UPDATED heat (experimental); 31 (BIOGEN_BELLUCCO_GENERAL_L11) = Bellucco general biogenic CO2 + QF-linked anthropogenic CO2 + L11 heat (experimental); 32 (BIOGEN_BELLUCCO_GENERAL_J11) = Bellucco general biogenic CO2 + QF-linked anthropogenic CO2 + J11 heat (experimental); 33 (BIOGEN_BELLUCCO_GENERAL_L11_UPDATED) = Bellucco general biogenic CO2 + QF-linked anthropogenic CO2 + L11_UPDATED heat (experimental); 34 (BIOGEN_BELLUCCO_GENERAL_L11_DETAILED) = Bellucco general biogenic CO2 + detailed anthropogenic CO2 + L11 heat (experimental); 35 (BIOGEN_BELLUCCO_GENERAL_J11_DETAILED) = Bellucco general biogenic CO2 + detailed anthropogenic CO2 + J11 heat (experimental); 36 (BIOGEN_BELLUCCO_GENERAL_L11_UPDATED_DETAILED) = Bellucco general biogenic CO2 + detailed anthropogenic CO2 + L11_UPDATED heat (experimental); 41 (BIOGEN_CONDUCTANCE_L11) = Conductance-based biogenic CO2 + QF-linked anthropogenic CO2 + L11 heat (experimental); 42 (BIOGEN_CONDUCTANCE_J11) = Conductance-based biogenic CO2 + QF-linked anthropogenic CO2 + J11 heat (experimental); 43 (BIOGEN_CONDUCTANCE_L11_UPDATED) = Conductance-based biogenic CO2 + QF-linked anthropogenic CO2 + L11_UPDATED heat (experimental); 44 (BIOGEN_CONDUCTANCE_L11_DETAILED) = Conductance-based biogenic CO2 + detailed anthropogenic CO2 + L11 heat (experimental); 45 (BIOGEN_CONDUCTANCE_J11_DETAILED) = Conductance-based biogenic CO2 + detailed anthropogenic CO2 + J11 heat (experimental); 46 (BIOGEN_CONDUCTANCE_L11_UPDATED_DETAILED) = Conductance-based biogenic CO2 + detailed anthropogenic CO2 + L11_UPDATED heat (experimental)",
           "title": "Emissions",
           "unit": "dimensionless"
         },
@@ -7379,102 +7404,8 @@
           "unit": "dimensionless"
         },
         "stebbs": {
-          "anyOf": [
-            {
-              "$ref": "#/$defs/RefValue_StebbsMethod_"
-            },
-            {
-              "$ref": "#/$defs/StebbsMethod"
-            }
-          ],
-          "default": 0,
-          "description": "Surface Temperature Energy Balance Based Scheme (STEBBS) for facet temperatures. Options: 0 (NONE) = STEBBS calculations disabled; 1 (DEFAULT) = STEBBS enabled with default parameters; 2 (PROVIDED) = STEBBS enabled with user-specified parameters",
-          "title": "Stebbs",
-          "unit": "dimensionless"
-        },
-        "outer_cap_fraction": {
-          "anyOf": [
-            {
-              "$ref": "#/$defs/RefValue_RCMethod_"
-            },
-            {
-              "$ref": "#/$defs/RCMethod"
-            }
-          ],
-          "default": 0,
-          "description": "Method to determine the two weighting factors (wall_outer_heat_capacity_fraction and roof_outer_heat_capacity_fraction) splitting heat capacity of building envelope into two nodes in STEBBS. Options: 0 (DEFAULT) = Default value of 0.5 is used; 1 (PROVIDED) = Use user defined value (wall_outer_heat_capacity_fraction and roof_outer_heat_capacity_fraction) between 0 and 1; 2 (PARAMETERISE) = Use building material thermal property to parameterise the weighting factor",
-          "title": "Outer Cap Fraction",
-          "unit": "dimensionless"
-        },
-        "setpoint": {
-          "anyOf": [
-            {
-              "$ref": "#/$defs/RefValue_SetpointMethod_"
-            },
-            {
-              "$ref": "#/$defs/SetpointMethod"
-            }
-          ],
-          "default": 0,
-          "description": "Method to determine the approach of space heating/cooling setpoints in STEBBS. Options: 0 (Constant) = Use the user-provided heating_setpoint_temperature and cooling_setpoint_temperature throughout the day.; 1 (Dependent) = Use the user-provided setpoints; but it depends on occupants activity status and use unrealistic switch-off setpoints when occupant is inactive.; 2 (Scheduled) = Use the user-provided heating_setpoint_temperature_profile and cooling_setpoint_temperature_profile.",
-          "title": "Setpoint",
-          "unit": "dimensionless"
-        },
-        "same_albedo_wall": {
-          "anyOf": [
-            {
-              "$ref": "#/$defs/RefValue_SameAlbedoWall_"
-            },
-            {
-              "$ref": "#/$defs/SameAlbedoWall"
-            }
-          ],
-          "default": 0,
-          "description": "Controls assumption of same albedoes for walls.",
-          "title": "Same Albedo Wall",
-          "unit": "dimensionless"
-        },
-        "same_albedo_roof": {
-          "anyOf": [
-            {
-              "$ref": "#/$defs/RefValue_SameAlbedoRoof_"
-            },
-            {
-              "$ref": "#/$defs/SameAlbedoRoof"
-            }
-          ],
-          "default": 0,
-          "description": "Controls assumption of same albedoes for roofs.",
-          "title": "Same Albedo Roof",
-          "unit": "dimensionless"
-        },
-        "same_emissivity_wall": {
-          "anyOf": [
-            {
-              "$ref": "#/$defs/RefValue_SameEmissivityWall_"
-            },
-            {
-              "$ref": "#/$defs/SameEmissivityWall"
-            }
-          ],
-          "default": 0,
-          "description": "Controls assumption of same emissivities for walls.",
-          "title": "Same Emissivity Wall",
-          "unit": "dimensionless"
-        },
-        "same_emissivity_roof": {
-          "anyOf": [
-            {
-              "$ref": "#/$defs/RefValue_SameEmissivityRoof_"
-            },
-            {
-              "$ref": "#/$defs/SameEmissivityRoof"
-            }
-          ],
-          "default": 0,
-          "description": "Controls assumption of same emissivities for roofs.",
-          "title": "Same Emissivity Roof",
-          "unit": "dimensionless"
+          "$ref": "#/$defs/StebbsPhysics",
+          "description": "STEBBS physics switches (gh#1456): master toggle (enabled + parameters), capacitance method, setpoint method, and the same-albedo / same-emissivity wall/roof switches."
         },
         "ref": {
           "anyOf": [
@@ -7972,7 +7903,7 @@
       "type": "object"
     },
     "RCMethod": {
-      "description": "Method to determine the two weighting factors (wall_outer_heat_capacity_fraction and roof_outer_heat_capacity_fraction) splitting heat capacity of building envelope into two nodes in STEBBS.\n\n0: DEFAULT - Default value of 0.5 is used\n1: PROVIDED - Use user defined value (wall_outer_heat_capacity_fraction and roof_outer_heat_capacity_fraction) between 0 and 1\n2: PARAMETERISE - Use building material thermal property to parameterise the weighting factor",
+      "description": "Method to determine the two weighting factors (wall_outer_heat_capacity_fraction and roof_outer_heat_capacity_fraction) splitting heat capacity of building envelope into two nodes in STEBBS.\n\nExposed on the YAML / data-model surface as ``stebbs.capacitance`` (the\nfield formerly named ``outer_cap_fraction``, gh#1456). The ``rcmethod``\nDataFrame column the Fortran bridge reads is unchanged.\n\n0: DEFAULT - Default value of 0.5 is used\n1: PROVIDED - Use user defined value (wall_outer_heat_capacity_fraction and roof_outer_heat_capacity_fraction) between 0 and 1\n2: PARAMETERISE - Use building material thermal property to parameterise the weighting factor",
       "enum": [
         0,
         1,
@@ -8702,13 +8633,13 @@
       "title": "RefValue[StabilityMethod]",
       "type": "object"
     },
-    "RefValue_StebbsMethod_": {
+    "RefValue_StebbsParameterSource_": {
       "additionalProperties": false,
       "properties": {
         "value": {
           "anyOf": [
             {
-              "$ref": "#/$defs/StebbsMethod"
+              "$ref": "#/$defs/StebbsParameterSource"
             },
             {
               "type": "null"
@@ -8730,7 +8661,7 @@
       "required": [
         "value"
       ],
-      "title": "RefValue[StebbsMethod]",
+      "title": "RefValue[StebbsParameterSource]",
       "type": "object"
     },
     "RefValue_StorageHeatMethod_": {
@@ -8828,6 +8759,38 @@
         "value"
       ],
       "title": "RefValue[WaterUseMethod]",
+      "type": "object"
+    },
+    "RefValue_bool_": {
+      "additionalProperties": false,
+      "properties": {
+        "value": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Value"
+        },
+        "ref": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Reference"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        }
+      },
+      "required": [
+        "value"
+      ],
+      "title": "RefValue[bool]",
       "type": "object"
     },
     "RefValue_float_": {
@@ -10112,15 +10075,144 @@
       "title": "StabilityMethod",
       "type": "integer"
     },
-    "StebbsMethod": {
-      "description": "Surface Temperature Energy Balance Based Scheme (STEBBS) for facet temperatures.\n\n0: NONE - STEBBS calculations disabled\n1: DEFAULT - STEBBS enabled with default parameters\n2: PROVIDED - STEBBS enabled with user-specified parameters",
+    "StebbsParameterSource": {
+      "description": "Source of STEBBS parameters when STEBBS is enabled (``stebbs.enabled=true``).\n\nOnly consulted when STEBBS is enabled; ignored otherwise. The values equal\nthe non-zero ``StebbsMethod`` codes so the composed ``stebbsmethod`` column\nis simply ``int(parameters)`` whenever STEBBS is enabled (gh#1456).\n\n1: DEFAULT - STEBBS uses default parameters\n2: PROVIDED - STEBBS uses user-specified parameters",
       "enum": [
-        0,
         1,
         2
       ],
-      "title": "StebbsMethod",
+      "title": "StebbsParameterSource",
       "type": "integer"
+    },
+    "StebbsPhysics": {
+      "description": "STEBBS (Surface Temperature Energy Balance Based Scheme) physics switches.\n\nGroups the six STEBBS-scoped method switches that previously sat flat on\n``model.physics`` (gh#1456). The master on/off toggle is split into\n``enabled`` (bool) and ``parameters`` (StebbsParameterSource); the two\ncompose back to the single legacy ``stebbsmethod`` integer column on\n``ModelPhysics.to_df_state`` and are decomposed on ``from_df_state``. The\nDataFrame / Fortran column names are unchanged.",
+      "properties": {
+        "enabled": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/RefValue_bool_"
+            },
+            {
+              "type": "boolean"
+            }
+          ],
+          "default": false,
+          "description": "Master on/off switch for STEBBS. When false, STEBBS calculations are disabled and `parameters` is ignored.",
+          "title": "Enabled",
+          "unit": "dimensionless"
+        },
+        "parameters": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/RefValue_StebbsParameterSource_"
+            },
+            {
+              "$ref": "#/$defs/StebbsParameterSource"
+            }
+          ],
+          "default": 1,
+          "description": "Source of STEBBS parameters when STEBBS is enabled (``stebbs.enabled=true``). Options: 1 (DEFAULT) = STEBBS uses default parameters; 2 (PROVIDED) = STEBBS uses user-specified parameters",
+          "title": "Parameters",
+          "unit": "dimensionless"
+        },
+        "capacitance": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/RefValue_RCMethod_"
+            },
+            {
+              "$ref": "#/$defs/RCMethod"
+            }
+          ],
+          "default": 0,
+          "description": "Method to determine the two weighting factors (wall_outer_heat_capacity_fraction and roof_outer_heat_capacity_fraction) splitting heat capacity of building envelope into two nodes in STEBBS. Options: 0 (DEFAULT) = Default value of 0.5 is used; 1 (PROVIDED) = Use user defined value (wall_outer_heat_capacity_fraction and roof_outer_heat_capacity_fraction) between 0 and 1; 2 (PARAMETERISE) = Use building material thermal property to parameterise the weighting factor",
+          "title": "Capacitance",
+          "unit": "dimensionless"
+        },
+        "setpoint": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/RefValue_SetpointMethod_"
+            },
+            {
+              "$ref": "#/$defs/SetpointMethod"
+            }
+          ],
+          "default": 0,
+          "description": "Method to determine the approach of space heating/cooling setpoints in STEBBS. Options: 0 (Constant) = Use the user-provided heating_setpoint_temperature and cooling_setpoint_temperature throughout the day.; 1 (Dependent) = Use the user-provided setpoints; but it depends on occupants activity status and use unrealistic switch-off setpoints when occupant is inactive.; 2 (Scheduled) = Use the user-provided heating_setpoint_temperature_profile and cooling_setpoint_temperature_profile.",
+          "title": "Setpoint",
+          "unit": "dimensionless"
+        },
+        "same_albedo_wall": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/RefValue_SameAlbedoWall_"
+            },
+            {
+              "$ref": "#/$defs/SameAlbedoWall"
+            }
+          ],
+          "default": 0,
+          "description": "Controls assumption of same albedoes for walls.",
+          "title": "Same Albedo Wall",
+          "unit": "dimensionless"
+        },
+        "same_albedo_roof": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/RefValue_SameAlbedoRoof_"
+            },
+            {
+              "$ref": "#/$defs/SameAlbedoRoof"
+            }
+          ],
+          "default": 0,
+          "description": "Controls assumption of same albedoes for roofs.",
+          "title": "Same Albedo Roof",
+          "unit": "dimensionless"
+        },
+        "same_emissivity_wall": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/RefValue_SameEmissivityWall_"
+            },
+            {
+              "$ref": "#/$defs/SameEmissivityWall"
+            }
+          ],
+          "default": 0,
+          "description": "Controls assumption of same emissivities for walls.",
+          "title": "Same Emissivity Wall",
+          "unit": "dimensionless"
+        },
+        "same_emissivity_roof": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/RefValue_SameEmissivityRoof_"
+            },
+            {
+              "$ref": "#/$defs/SameEmissivityRoof"
+            }
+          ],
+          "default": 0,
+          "description": "Controls assumption of same emissivities for roofs.",
+          "title": "Same Emissivity Roof",
+          "unit": "dimensionless"
+        },
+        "ref": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Reference"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        }
+      },
+      "title": "STEBBS Physics Methods",
+      "type": "object"
     },
     "StebbsProperties": {
       "description": "STEBBS (Surface Temperature Energy Balance for Building Surfaces) model parameters.\n\nControls the building energy balance calculations including internal heating/cooling,\nbuilding materials properties, and thermal behaviour.",
@@ -10311,7 +10403,7 @@
           "title": "Convection Coefficient Window External",
           "unit": "W m^-2 K^-1"
         },
-        "ground_depth": {
+        "depth_ground": {
           "anyOf": [
             {
               "anyOf": [
@@ -10331,7 +10423,7 @@
           "default": 3.0,
           "description": "Depth of external ground (deep soil) [m]",
           "display_name": "Ground Depth",
-          "title": "Ground Depth",
+          "title": "Depth Ground",
           "unit": "m"
         },
         "thermal_conductivity_ground": {
@@ -10404,7 +10496,7 @@
           "title": "Ratio Latent Sensible",
           "unit": "dimensionless"
         },
-        "control_daylight": {
+        "daylight_control": {
           "anyOf": [
             {
               "$ref": "#/$defs/RefValue_int_"
@@ -10419,7 +10511,7 @@
           "default": 0,
           "description": "Integer flag to enable daylight-based lighting control (0 = off, 1 = on)",
           "display_name": "Daylight Control",
-          "title": "Control Daylight",
+          "title": "Daylight Control",
           "unit": "dimensionless"
         },
         "threshold_lighting_illuminance": {
@@ -10469,7 +10561,7 @@
           "title": "Efficiency Heating System Air",
           "unit": "dimensionless"
         },
-        "power_air_cooling_max": {
+        "max_power_cooling_system_air": {
           "anyOf": [
             {
               "anyOf": [
@@ -10489,7 +10581,7 @@
           "default": 0.0,
           "description": "Maximum power demand of cooling system [W]",
           "display_name": "Maximum Cooling Power",
-          "title": "Power Air Cooling Max",
+          "title": "Max Power Cooling System Air",
           "unit": "W"
         },
         "efficiency_cooling_system_air": {
@@ -10515,7 +10607,7 @@
           "title": "Efficiency Cooling System Air",
           "unit": "dimensionless"
         },
-        "ventilation_rate": {
+        "rate_ventilation": {
           "anyOf": [
             {
               "anyOf": [
@@ -10535,7 +10627,7 @@
           "default": 0.0,
           "description": "Ventilation rate (air changes per hour, ACH) [h-1]",
           "display_name": "Ventilation Rate",
-          "title": "Ventilation Rate",
+          "title": "Rate Ventilation",
           "unit": "h^-1"
         },
         "temperature_air_outdoor_initial": {
@@ -10592,7 +10684,7 @@
           "title": "Temperature Air Annual Mean",
           "unit": "degC"
         },
-        "month_mean_air_temperature_diffmax": {
+        "temperature_air_month_mean_diffmax": {
           "anyOf": [
             {
               "anyOf": [
@@ -10612,7 +10704,7 @@
           "default": 10.0,
           "description": "Maximum difference in monthly outdoor air temperature [degC]",
           "display_name": "Maximum difference in monthly outdoor air temperature",
-          "title": "Month Mean Air Temperature Diffmax",
+          "title": "Temperature Air Month Mean Diffmax",
           "unit": "degC"
         },
         "thickness_hot_water_tank_wall": {
@@ -10638,7 +10730,7 @@
           "title": "Thickness Hot Water Tank Wall",
           "unit": "m"
         },
-        "temperature_water_mains": {
+        "temperature_mains_water": {
           "anyOf": [
             {
               "$ref": "#/$defs/RefValue_float_"
@@ -10653,10 +10745,10 @@
           "default": 0.0,
           "description": "Temperature of water coming into the water tank [degC]",
           "display_name": "Mains Water Temperature",
-          "title": "Temperature Water Mains",
+          "title": "Temperature Mains Water",
           "unit": "degC"
         },
-        "area_hot_water_tank_surface": {
+        "surface_area_hot_water_tank": {
           "anyOf": [
             {
               "anyOf": [
@@ -10676,10 +10768,10 @@
           "default": 2.0,
           "description": "Surface area of hot water tank cylinder [m2]",
           "display_name": "Water Tank Surface Area",
-          "title": "Area Hot Water Tank Surface",
+          "title": "Surface Area Hot Water Tank",
           "unit": "m^2"
         },
-        "temperature_water_heating_setpoint": {
+        "setpoint_temperature_heating_water": {
           "anyOf": [
             {
               "anyOf": [
@@ -10699,7 +10791,7 @@
           "default": 60.0,
           "description": "Water tank setpoint temperature [degC]",
           "display_name": "Hot Water Heating Setpoint Temperature",
-          "title": "Temperature Water Heating Setpoint",
+          "title": "Setpoint Temperature Heating Water",
           "unit": "degC"
         },
         "emissivity_hot_water_tank_wall": {
@@ -10774,7 +10866,7 @@
           "title": "Volume Hot Water",
           "unit": "m^3"
         },
-        "area_hot_water_surface": {
+        "surface_area_hot_water": {
           "anyOf": [
             {
               "anyOf": [
@@ -10794,10 +10886,10 @@
           "default": 0.5,
           "description": "Surface area of hot water in vessels in building [m2]",
           "display_name": "Hot Water Surface Area",
-          "title": "Area Hot Water Surface",
+          "title": "Surface Area Hot Water",
           "unit": "m^2"
         },
-        "rate_hot_water_flow": {
+        "rate_flow_hot_water": {
           "anyOf": [
             {
               "anyOf": [
@@ -10817,10 +10909,10 @@
           "default": 0.0,
           "description": "Hot water flow rate from tank to vessel [m3 s-1]",
           "display_name": "Hot Water Flow Rate",
-          "title": "Rate Hot Water Flow",
+          "title": "Rate Flow Hot Water",
           "unit": "m^3 s^-1"
         },
-        "profile_hot_water_flow": {
+        "profile_flow_hot_water": {
           "anyOf": [
             {
               "$ref": "#/$defs/TenMinuteProfile"
@@ -11063,7 +11155,7 @@
           "title": "Conductivity Hot Water Vessel Wall",
           "unit": "W m^-1 K^-1"
         },
-        "convection_coefficient_hot_water_vessel_wall_internal": {
+        "convection_coefficient_hot_water_tank_vessel_internal": {
           "anyOf": [
             {
               "anyOf": [
@@ -11083,10 +11175,10 @@
           "default": 7.7,
           "description": "Effective internal wall convection coefficient of the vessels holding hot water in use in building [W m-2 K-1]",
           "display_name": "Hot Water Vessel Internal Wall Convection Coefficient",
-          "title": "Convection Coefficient Hot Water Vessel Wall Internal",
+          "title": "Convection Coefficient Hot Water Tank Vessel Internal",
           "unit": "W m^-2 K^-1"
         },
-        "convection_coefficient_hot_water_vessel_wall_external": {
+        "convection_coefficient_hot_water_tank_vessel_external": {
           "anyOf": [
             {
               "anyOf": [
@@ -11106,7 +11198,7 @@
           "default": 7.7,
           "description": "Effective external wall convection coefficient of the vessels holding hot water in use in building [W m-2 K-1]",
           "display_name": "Hot Water Vessel External Wall Convection Coefficient",
-          "title": "Convection Coefficient Hot Water Vessel Wall External",
+          "title": "Convection Coefficient Hot Water Tank Vessel External",
           "unit": "W m^-2 K^-1"
         },
         "emissivity_hot_water_vessel_wall": {
@@ -11170,7 +11262,7 @@
           "display_name": "Appliance Profile",
           "unit": "dimensionless"
         },
-        "lighting_power_density": {
+        "power_density_lighting": {
           "anyOf": [
             {
               "anyOf": [
@@ -11190,7 +11282,7 @@
           "default": 2,
           "description": "Lighting power per building floor area [W m-2]",
           "display_name": "Lighting Power Density",
-          "title": "Lighting Power Density",
+          "title": "Power Density Lighting",
           "unit": "W m^-2"
         },
         "ref": {
@@ -12801,7 +12893,7 @@
     }
   },
   "additionalProperties": true,
-  "description": "JSON Schema for SUEWS YAML configuration files. Schema version 2026.5.dev11. Naming-convention completion for the STEBBS building model, combining two rename groups in a single bump (gh#1392 + gh#1394). (a) ArchetypeProperties Tier-1 completion (16 renames): archetype_* namespace prefix for whole-archetype fields (building_name -> archetype_name, building_count -> archetype_building_count, building_height -> archetype_height); geometry quantity-first reorder (footprint_area -> area_footprint, wall_external_area -> area_wall_external, internal_mass_area -> area_internal_mass) with the ratio_* category prefix for fraction fields (internal_volume_ratio -> ratio_internal_mass_volume, window_to_wall_ratio -> ratio_window_to_wall); HVAC + setpoint air_/water_ qualifier (max_heating_power -> power_air_heating_max, maximum_hot_water_heating_power -> power_water_heating_max, hot_water_tank_volume -> volume_hot_water_tank, heating_setpoint_temperature -> temperature_air_heating_setpoint, cooling_setpoint_temperature -> temperature_air_cooling_setpoint) with profile_* for the setpoint/metabolism profiles. Rename table ARCHETYPEPROPERTIES_DEV7_RENAMES; the canonical ARCHETYPEPROPERTIES_RENAMES values chain one hop further to these finals so PascalCase YAMLs still resolve in a single pass. (b) StebbsProperties Rule-2 reorder (44 renames): convection coefficients (wall_internal_convection_coefficient -> convection_coefficient_wall_internal etc., plus floor -> ground_floor), ground (external_ground_conductivity -> thermal_conductivity_ground), metabolism/occupant/daylight/lighting controls (non-physical category prefixes: threshold_metabolism, ratio_latent_sensible, control_daylight, threshold_lighting_illuminance), HVAC + setpoint air_/water_ qualifier (max_cooling_power -> power_air_cooling_max, cooling_system_cop -> efficiency_cooling_system_air, hot_water_heating_setpoint_temperature -> temperature_water_heating_setpoint), initial/climatology temperatures, and the full hot-water subsystem; profile_* for profile fields. Rename table STEBBSPROPERTIES_DEV8_RENAMES. Both tables live in src/supy/data_model/core/field_renames.py; the (2026.5.dev10 -> 2026.5.dev11) migration is registered in src/supy/util/converter/yaml_upgrade.py::_HANDLERS. Bridge DataFrame columns keep the fused PascalCase ancestry via ARCHETYPEPROPERTIES_DEV7_TO_PASCAL and the chained STEBBSPROPERTIES_DEV9_TO_PASCAL map. (c) Reconciled against the Reading STEBBS team's review (D. Hertwig, 2026-05): building_type is dropped (unused by the kernel, hardcoded to 'None'; logged migration drop, not silent), and the wall/roof heat-capacity fraction moves from the outer layer to the external node (fraction_wall/roof_heat_capacity_outer -> fraction_heat_capacity_wall/roof_external). Combines the originally-separate #1392 (Tier 1) and #1394 (Tier 2) PRs.",
+  "description": "JSON Schema for SUEWS YAML configuration files. Schema version 2026.5.dev13. gh#1456: the six flat STEBBS-scoped physics switches on model.physics are relocated into a single nested object model.physics.stebbs. This is a separate structural reshape from the dev12 Column D rename (gh#1452), so it takes its own dev bump. The legacy tri-state master toggle (model.physics.stebbs, a StebbsMethod integer 0/1/2) is split into stebbs.enabled (bool) + stebbs.parameters (default/provided); the two compose losslessly back to the unchanged stebbsmethod DataFrame column (0 if not enabled else int(parameters)). The dev12 flat model.physics.capacitance (RCMethod; was outer_cap_fraction / fused rcmethod) moves to model.physics.stebbs.capacitance with RCMethod semantics unchanged. model.physics.setpoint, same_albedo_wall, same_albedo_roof, same_emissivity_wall and same_emissivity_roof move under the nested object at the same leaf names. All DataFrame / Fortran column names (stebbsmethod, rcmethod, setpointmethod, same_albedo_*, same_emissivity_*) are unchanged -- only the YAML surface and the Python data-model fields move. The flat->nested fold is registered as the (2026.5.dev12 -> 2026.5.dev13) handler in src/supy/util/converter/yaml_upgrade.py::_HANDLERS and applied by the ModelPhysics before-validator (fold_stebbs_physics in src/supy/data_model/core/field_renames.py). The capacitance-vs-fraction semantics settling (#1456 part 2) is deferred to a follow-up.",
   "properties": {
     "name": {
       "default": "sample config",
@@ -12847,20 +12939,20 @@
       "type": "array"
     }
   },
-  "title": "SUEWS Configuration Schema v2026.5.dev11",
+  "title": "SUEWS Configuration Schema v2026.5.dev13",
   "type": "object",
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://umep-dev.github.io/SUEWS/schema/suews-config/2026.5.dev11.json",
-  "version": "2026.5.dev11",
+  "$id": "https://umep-dev.github.io/SUEWS/schema/suews-config/2026.5.dev13.json",
+  "version": "2026.5.dev13",
   "$comment": {
     "generator": "supy.util.schema_publisher",
     "suews_version": "unknown",
-    "schema_version": "2026.5.dev11"
+    "schema_version": "2026.5.dev13"
   },
   "examples": [
     {
       "name": "minimal_config",
-      "schema_version": "2026.5.dev11",
+      "schema_version": "2026.5.dev13",
       "description": "Minimal SUEWS configuration example",
       "model": {
         "control": {

@@ -22,6 +22,7 @@ from supy.data_model.core.field_renames import (
     ANTHRO_RENAMES,
     ARCHETYPEPROPERTIES_DEV6_RENAMES,
     ARCHETYPEPROPERTIES_DEV7_RENAMES,
+    ARCHETYPEPROPERTIES_DEV12_RENAMES,
     ARCHETYPEPROPERTIES_RENAMES,
     ARCHETYPEPROPERTIES_PASCAL_RENAMES,
     ATMOSPHERE_RENAMES,
@@ -46,9 +47,10 @@ from supy.data_model.core.field_renames import (
     SURFACEPROPERTIES_RENAMES,
     VEGETATEDSURFACEPROPERTIES_RENAMES,
     WATERDIST_RENAMES,
+    read_physics_key,
     rename_keys_recursive,
 )
-from supy.data_model.core.model import ModelPhysics
+from supy.data_model.core.model import ModelPhysics, StebbsPhysics
 from supy.data_model.core.site import (
     ArchetypeProperties,
     DectrProperties,
@@ -154,20 +156,51 @@ class TestNewNamesAccepted:
         # or a key that chains to one.
         from supy.data_model.core.field_renames import (
             STEBBSPROPERTIES_DEV8_RENAMES,
+            STEBBSPROPERTIES_DEV12_RENAMES,
         )
         if model_cls.__name__ == "ArchetypeProperties":
             downstream_chain = {
                 **ARCHETYPEPROPERTIES_DEV6_RENAMES,
                 **ARCHETYPEPROPERTIES_DEV7_RENAMES,
+                **ARCHETYPEPROPERTIES_DEV12_RENAMES,
             }
         elif model_cls.__name__ == "StebbsProperties":
-            downstream_chain = dict(STEBBSPROPERTIES_DEV8_RENAMES)
+            downstream_chain = {
+                **STEBBSPROPERTIES_DEV8_RENAMES,
+                **STEBBSPROPERTIES_DEV12_RENAMES,
+            }
         else:
             downstream_chain = {}
+
+        # gh#1456: the STEBBS-scoped ModelPhysics renames resolve into the
+        # nested `stebbs` (StebbsPhysics) object rather than a flat field.
+        # `stebbs` (the master toggle) maps to the nested object itself; the
+        # other STEBBS targets map to a member of StebbsPhysics.
+        stebbs_targets = {
+            "stebbs": None,  # the nested object itself
+            # dev12 Column D (gh#1452) lands the former rcmethod / rc_method /
+            # outer_cap_fraction on the flat name `capacitance`; gh#1456 then
+            # folds it into the nested stebbs.capacitance member.
+            "capacitance": "capacitance",
+            "outer_cap_fraction": "capacitance",
+            "setpoint": "setpoint",
+            "same_albedo_wall": "same_albedo_wall",
+            "same_albedo_roof": "same_albedo_roof",
+            "same_emissivity_wall": "same_emissivity_wall",
+            "same_emissivity_roof": "same_emissivity_roof",
+        }
+        from supy.data_model.core.model import StebbsPhysics
+
         for new_name in renames.values():
             field_name = new_name
             seen = {field_name}
-            while field_name in downstream_chain:
+            # Stop as soon as we hit a real model field — a dev12 final name
+            # may itself appear as a *key* in an earlier dev table (e.g.
+            # `daylight_control` is the dev12 final but is also the dev8 key
+            # `daylight_control -> control_daylight`, reverted at dev12), so
+            # blindly chasing the chain would oscillate. The canonical name is
+            # the terminal model field.
+            while field_name not in model_cls.model_fields and field_name in downstream_chain:
                 field_name = downstream_chain[field_name]
                 assert field_name not in seen, (
                     f"{model_cls.__name__} cyclic downstream rename from "
@@ -176,6 +209,10 @@ class TestNewNamesAccepted:
                 seen.add(field_name)
             if field_name in model_cls.model_fields:
                 continue
+            if model_cls.__name__ == "ModelPhysics" and field_name in stebbs_targets:
+                member = stebbs_targets[field_name]
+                if member is None or member in StebbsPhysics.model_fields:
+                    continue
             raise AssertionError(
                 f"{model_cls.__name__} missing renamed field {field_name!r} "
                 f"(from {new_name!r})"
@@ -283,8 +320,10 @@ class TestBackwardCompat:
         # dev8 cooling_system_cop -> dev9 efficiency_cooling_system_air
         # (Rule 2 + air_ qualifier; COP folded into efficiency).
         assert _unwrap(stebbs.efficiency_cooling_system_air) == 3.5
-        # month_mean_air_temperature_diffmax kept (compound noun, deferred).
-        assert _unwrap(stebbs.month_mean_air_temperature_diffmax) == 14.0
+        # dev9 month_mean_air_temperature_diffmax -> dev12
+        # temperature_air_month_mean_diffmax (gh#1392 follow-up straggler
+        # reorder, Rule 2: temperature quantity leads).
+        assert _unwrap(stebbs.temperature_air_month_mean_diffmax) == 14.0
         # dev8 hot_water_tank_wall_emissivity -> dev9
         # emissivity_hot_water_tank_wall (Rule 2: quantity leads).
         assert _unwrap(stebbs.emissivity_hot_water_tank_wall) == 0.85
@@ -302,7 +341,11 @@ class TestDeprecationWarnings:
             (ModelPhysics, "rsl_method", "roughness_sublayer", 2),
             (ModelPhysics, "gs_model", "surface_conductance", 2),
             (ModelPhysics, "smd_method", "soil_moisture_deficit", 0),
-            (ModelPhysics, "rc_method", "outer_cap_fraction", 1),
+            # dev12 Column D: rcmethod / rc_method / dev11 outer_cap_fraction
+            # all resolve to the final `capacitance` (gh#1392 follow-up).
+            (ModelPhysics, "rc_method", "capacitance", 1),
+            (ModelPhysics, "rcmethod", "capacitance", 1),
+            (ModelPhysics, "outer_cap_fraction", "capacitance", 1),
             # Other classes (Cat 1 only).
             (SurfaceProperties, "soildepth", "soil_depth", 150.0),
             (LAIParams, "baset", "base_temperature", 5.0),
@@ -319,6 +362,41 @@ class TestDeprecationWarnings:
             (StebbsProperties, "DHWWaterVolume", "hot_water_volume", 0.25),
             (StebbsProperties, "CoolingSystemCOP", "cooling_system_cop", 3.5),
             (StebbsProperties, "MonthMeanAirTemperature_diffmax", "month_mean_air_temperature_diffmax", 14.0),
+            # dev11 -> dev12 STEBBS straggler reorder (gh#1392 follow-up): the
+            # dev9-era snake names are accepted and remapped quantity-first.
+            (StebbsProperties, "ground_depth", "depth_ground", 3.0),
+            (StebbsProperties, "ventilation_rate", "rate_ventilation", 0.5),
+            (StebbsProperties, "lighting_power_density", "power_density_lighting", 2.0),
+            (StebbsProperties, "month_mean_air_temperature_diffmax", "temperature_air_month_mean_diffmax", 14.0),
+            # dev11 -> dev12 Column D alignment (gh#1392 follow-up): the
+            # dev9-era snake names are accepted and remapped. Scalar fields
+            # only here; the three profile-typed renames are covered by
+            # test_column_d_profile_renames_emit_deprecation below.
+            # ArchetypeProperties scalar setpoints / powers.
+            (ArchetypeProperties, "power_air_heating_max", "max_power_heating_system_air", 8000.0),
+            (ArchetypeProperties, "power_water_heating_max", "max_power_heating_system_water", 4000.0),
+            (ArchetypeProperties, "temperature_air_heating_setpoint", "setpoint_temperature_heating_air", 19.0),
+            (ArchetypeProperties, "temperature_air_cooling_setpoint", "setpoint_temperature_cooling_air", 24.0),
+            # StebbsProperties scalars.
+            (StebbsProperties, "power_air_cooling_max", "max_power_cooling_system_air", 6000.0),
+            (StebbsProperties, "temperature_water_heating_setpoint", "setpoint_temperature_heating_water", 55.0),
+            (StebbsProperties, "temperature_water_mains", "temperature_mains_water", 10.0),
+            (StebbsProperties, "area_hot_water_tank_surface", "surface_area_hot_water_tank", 2.0),
+            (StebbsProperties, "area_hot_water_surface", "surface_area_hot_water", 0.5),
+            (StebbsProperties, "rate_hot_water_flow", "rate_flow_hot_water", 0.0),
+            (StebbsProperties, "control_daylight", "daylight_control", 1),
+            (
+                StebbsProperties,
+                "convection_coefficient_hot_water_vessel_wall_internal",
+                "convection_coefficient_hot_water_tank_vessel_internal",
+                7.7,
+            ),
+            (
+                StebbsProperties,
+                "convection_coefficient_hot_water_vessel_wall_external",
+                "convection_coefficient_hot_water_tank_vessel_external",
+                7.7,
+            ),
             (SnowParams, "tau_a", "tau_cold_snow", 0.02),
             (SnowParams, "narp_emis_snow", "narp_emissivity_snow", 0.98),
             (SnowParams, "precip_limit", "temperature_rain_snow_threshold", 2.5),
@@ -335,6 +413,52 @@ class TestDeprecationWarnings:
             f"Expected deprecation warning for {old_name} -> {new_name}, got {messages}"
         )
 
+    @pytest.mark.parametrize(
+        "model_cls, old_name, new_name",
+        [
+            # dev11 -> dev12 Column D alignment, profile-typed renames. These
+            # take default_factory-built profile objects, so we let the field
+            # default carry through and only assert the deprecation warning.
+            (
+                ArchetypeProperties,
+                "profile_temperature_air_heating_setpoint",
+                "profile_setpoint_temperature_heating_air",
+            ),
+            (
+                ArchetypeProperties,
+                "profile_temperature_air_cooling_setpoint",
+                "profile_setpoint_temperature_cooling_air",
+            ),
+            (
+                StebbsProperties,
+                "profile_hot_water_flow",
+                "profile_flow_hot_water",
+            ),
+        ],
+    )
+    def test_column_d_profile_renames_emit_deprecation(
+        self, model_cls, old_name, new_name
+    ):
+        """The three dev12 profile-typed renames accept the old name and warn.
+
+        Pass a None value: ``apply_field_renames`` rewrites the key in the
+        ``mode='before'`` validator (emitting the warning) and the Optional
+        profile field tolerates ``None`` at construction.
+        """
+        with warnings.catch_warnings(record=True) as captured:
+            warnings.simplefilter("always", DeprecationWarning)
+            instance = model_cls(**{old_name: None})
+        messages = [
+            str(w.message)
+            for w in captured
+            if issubclass(w.category, DeprecationWarning)
+        ]
+        assert any(old_name in msg and new_name in msg for msg in messages), (
+            f"Expected deprecation warning for {old_name} -> {new_name}, got {messages}"
+        )
+        # The new attribute exists on the model after the rename.
+        assert hasattr(instance, new_name)
+
     def test_new_name_does_not_warn(self):
         with warnings.catch_warnings(record=True) as captured:
             warnings.simplefilter("always", DeprecationWarning)
@@ -343,6 +467,296 @@ class TestDeprecationWarnings:
         # Allow unrelated Pydantic deprecations; assert none mention our renames.
         assert not any("netradiationmethod" in m for m in messages)
         assert not any("net_radiation_method" in m for m in messages)
+
+
+class TestStebbsPhysicsFold:
+    """gh#1456: the flat STEBBS physics switches fold into model.physics.stebbs.
+
+    Covers both public paths: the ModelPhysics before-validator (Pydantic) and
+    the yaml_upgrade migrator. Legacy flat YAMLs must still load, the master
+    toggle must decompose, and capacitance must land in stebbs.capacitance.
+    """
+
+    def test_flat_master_toggle_decomposes_pydantic(self):
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", DeprecationWarning)
+            mp = ModelPhysics(
+                stebbs={"value": 2},
+                outer_cap_fraction={"value": 1},
+                setpoint={"value": 1},
+                same_albedo_wall={"value": 1},
+            )
+        # Master toggle 2 -> enabled + provided parameters.
+        assert _unwrap(mp.stebbs.enabled) is True
+        assert int(_unwrap(mp.stebbs.parameters)) == 2
+        # outer_cap_fraction folds to capacitance.
+        assert int(_unwrap(mp.stebbs.capacitance)) == 1
+        assert int(_unwrap(mp.stebbs.setpoint)) == 1
+        assert int(_unwrap(mp.stebbs.same_albedo_wall)) == 1
+
+    def test_flat_fold_composes_back_to_legacy_columns(self):
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", DeprecationWarning)
+            mp = ModelPhysics(stebbs={"value": 2}, outer_cap_fraction={"value": 2})
+        df = mp.to_df_state(grid_id=1)
+        assert int(df.loc[1, ("stebbsmethod", "0")]) == 2
+        assert int(df.loc[1, ("rcmethod", "0")]) == 2
+
+    def test_disabled_master_composes_to_zero(self):
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", DeprecationWarning)
+            mp = ModelPhysics(stebbs={"value": 0})
+        df = mp.to_df_state(grid_id=1)
+        assert int(df.loc[1, ("stebbsmethod", "0")]) == 0
+        assert _unwrap(mp.stebbs.enabled) is False
+
+    def test_already_nested_passes_through_without_warning(self):
+        with warnings.catch_warnings(record=True) as captured:
+            warnings.simplefilter("always", DeprecationWarning)
+            mp = ModelPhysics(
+                stebbs={
+                    "enabled": {"value": True},
+                    "parameters": {"value": 2},
+                    "capacitance": {"value": 1},
+                }
+            )
+        fold_msgs = [
+            str(w.message)
+            for w in captured
+            if issubclass(w.category, DeprecationWarning) and "gh#1456" in str(w.message)
+        ]
+        assert fold_msgs == [], f"nested form must not warn: {fold_msgs}"
+        assert _unwrap(mp.stebbs.enabled) is True
+        assert int(_unwrap(mp.stebbs.capacitance)) == 1
+
+    def test_nested_legacy_aliases_populate_stebbs_leaves(self):
+        """Legacy aliases inside the nested block match raw Phase B behaviour."""
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", DeprecationWarning)
+            mp = ModelPhysics(
+                stebbs={
+                    "enabled": {"value": True},
+                    "parameters": {"value": 2},
+                    "outer_cap_fraction": {"value": 2},
+                    "setpointmethod": {"value": 2},
+                }
+            )
+
+        assert int(_unwrap(mp.stebbs.capacitance)) == 2
+        assert int(_unwrap(mp.stebbs.setpoint)) == 2
+        df = mp.to_df_state(grid_id=1)
+        assert int(df.loc[1, ("stebbsmethod", "0")]) == 2
+        assert int(df.loc[1, ("rcmethod", "0")]) == 2
+        assert int(df.loc[1, ("setpointmethod", "0")]) == 2
+
+    @pytest.mark.parametrize(
+        "left,right",
+        [
+            ("capacitance", "outer_cap_fraction"),
+            ("outer_cap_fraction", "rcmethod"),
+            ("rcmethod", "rc_method"),
+            ("setpoint", "setpointmethod"),
+        ],
+    )
+    def test_duplicate_nested_stebbs_leaf_aliases_are_rejected(self, left, right):
+        """Nested aliases to the same STEBBS leaf are ambiguous."""
+        payload = {
+            "stebbs": {
+                "enabled": {"value": True},
+                left: {"value": 1},
+                right: {"value": 2},
+            }
+        }
+
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", DeprecationWarning)
+            with pytest.raises(ValueError, match="Multiple nested STEBBS"):
+                ModelPhysics(**payload)
+
+    @pytest.mark.parametrize(
+        "flat_key",
+        ["rcmethod", "capacitance", "outer_cap_fraction"],
+    )
+    def test_nested_and_flat_stebbs_leaves_are_rejected(self, flat_key):
+        """Match the Rust bridge: ambiguous flat+nested STEBBS input fails."""
+        payload = {
+            "stebbs": {
+                "enabled": {"value": True},
+                "capacitance": {"value": 1},
+            },
+            flat_key: {"value": 0},
+        }
+
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", DeprecationWarning)
+            with pytest.raises(ValueError, match="nested 'stebbs'.*flat STEBBS"):
+                ModelPhysics(**payload)
+
+    @pytest.mark.parametrize(
+        "flat_key",
+        ["rcmethod", "capacitance", "outer_cap_fraction"],
+    )
+    def test_built_stebbs_object_and_flat_leaves_are_rejected(self, flat_key):
+        """Programmatic nested objects follow the same ambiguity rule as YAML."""
+        stebbs = StebbsPhysics(
+            enabled={"value": True},
+            capacitance={"value": 1},
+        )
+
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", DeprecationWarning)
+            with pytest.raises(ValueError, match="nested 'stebbs'.*flat STEBBS"):
+                ModelPhysics(stebbs=stebbs, **{flat_key: {"value": 0}})
+
+    @pytest.mark.parametrize(
+        "left,right",
+        [
+            ("outer_cap_fraction", "rcmethod"),
+            ("outer_cap_fraction", "rc_method"),
+            ("capacitance", "rcmethod"),
+            ("setpoint", "setpointmethod"),
+        ],
+    )
+    def test_duplicate_flat_stebbs_leaf_aliases_are_rejected(self, left, right):
+        """Flat aliases to the same nested STEBBS leaf are ambiguous."""
+        payload = {
+            "stebbs": {"value": 1},
+            left: {"value": 1},
+            right: {"value": 2},
+        }
+
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", DeprecationWarning)
+            with pytest.raises(ValueError, match="Use only"):
+                ModelPhysics(**payload)
+
+    def test_single_fold_deprecation_warning(self):
+        with warnings.catch_warnings(record=True) as captured:
+            warnings.simplefilter("always", DeprecationWarning)
+            ModelPhysics(
+                stebbs={"value": 1},
+                outer_cap_fraction={"value": 1},
+                setpoint={"value": 2},
+            )
+        fold_msgs = [
+            str(w.message)
+            for w in captured
+            if issubclass(w.category, DeprecationWarning) and "gh#1456" in str(w.message)
+        ]
+        assert len(fold_msgs) == 1, f"expected one fold warning, got {fold_msgs}"
+
+    def test_legacy_master_toggle_with_ref_stays_legacy(self):
+        """gh#1456 regression: a legacy master toggle carrying provenance.
+
+        ``model.physics.stebbs: {value: 1, ref: {...}}`` is a RefValue scalar
+        (its only keys are ``value``/``ref``), NOT the new nested object.
+        Before the fix, ``ref`` discriminated it as nested, so its ``value``
+        was ignored and ``enabled`` defaulted to false -- silently flipping
+        ``stebbsmethod`` from 1 (enabled) to 0 (disabled).
+        """
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", DeprecationWarning)
+            mp_enabled = ModelPhysics(
+                stebbs={"value": 1, "ref": {"desc": "STEBBS on", "DOI": "10.0/x"}}
+            )
+        # value 1 -> enabled + default parameters; composes to stebbsmethod 1.
+        assert _unwrap(mp_enabled.stebbs.enabled) is True
+        assert mp_enabled.stebbs.enabled.ref.desc == "STEBBS on"
+        assert int(_unwrap(mp_enabled.stebbs.parameters)) == 1
+        df_enabled = mp_enabled.to_df_state(grid_id=1)
+        assert int(df_enabled.loc[1, ("stebbsmethod", "0")]) == 1
+
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", DeprecationWarning)
+            mp_provided = ModelPhysics(
+                stebbs={"value": 2, "ref": {"desc": "STEBBS provided"}}
+            )
+        # value 2 -> enabled + provided parameters; composes to stebbsmethod 2.
+        assert _unwrap(mp_provided.stebbs.enabled) is True
+        assert int(_unwrap(mp_provided.stebbs.parameters)) == 2
+        df_provided = mp_provided.to_df_state(grid_id=1)
+        assert int(df_provided.loc[1, ("stebbsmethod", "0")]) == 2
+
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", DeprecationWarning)
+            mp_off = ModelPhysics(stebbs={"value": 0})
+        # value 0 -> disabled; composes to stebbsmethod 0.
+        assert _unwrap(mp_off.stebbs.enabled) is False
+        df_off = mp_off.to_df_state(grid_id=1)
+        assert int(df_off.loc[1, ("stebbsmethod", "0")]) == 0
+
+    def test_malformed_legacy_stebbs_mapping_is_rejected(self):
+        with pytest.raises(ValueError, match="Legacy 'stebbs' mappings"):
+            ModelPhysics(stebbs={"foo": 1})
+
+    def test_invalid_legacy_stebbs_master_value_is_rejected(self):
+        with pytest.raises(ValueError, match="expects integer 0, 1, or 2"):
+            ModelPhysics(stebbs={"value": 5})
+
+    def test_null_stebbs_master_switch_values_are_rejected(self):
+        with pytest.raises(ValueError, match="enabled/parameters"):
+            ModelPhysics(stebbs={"enabled": {"value": None}})
+        with pytest.raises(ValueError, match="enabled/parameters"):
+            ModelPhysics(
+                stebbs={"enabled": {"value": True}, "parameters": {"value": None}}
+            )
+
+    def test_from_df_state_rejects_invalid_stebbsmethod_code(self):
+        df = ModelPhysics().to_df_state(grid_id=1)
+        df.loc[1, ("stebbsmethod", "0")] = 99
+
+        with pytest.raises(ValueError, match="Invalid stebbsmethod"):
+            ModelPhysics.from_df_state(df, grid_id=1)
+
+    def test_migrator_folds_flat_physics(self):
+        """The yaml_upgrade migrator folds flat physics STEBBS keys to nested."""
+        from supy.util.converter.yaml_upgrade import _apply_stebbs_physics_fold
+
+        cfg = {
+            "model": {
+                "physics": {
+                    "stebbs": {"value": 2},
+                    "outer_cap_fraction": {"value": 1},
+                    "setpoint": {"value": 1},
+                    "same_albedo_wall": {"value": 1},
+                }
+            }
+        }
+        _apply_stebbs_physics_fold(cfg)
+        stebbs = cfg["model"]["physics"]["stebbs"]
+        # Flat siblings removed from top-level physics; folded under stebbs.
+        assert "outer_cap_fraction" not in cfg["model"]["physics"]
+        assert "setpoint" not in cfg["model"]["physics"]
+        assert stebbs["enabled"] == {"value": True}
+        assert stebbs["parameters"] == {"value": 2}
+        assert stebbs["capacitance"] == {"value": 1}
+        assert stebbs["setpoint"] == {"value": 1}
+        assert stebbs["same_albedo_wall"] == {"value": 1}
+
+        cfg_with_ref = {"model": {"physics": {"stebbs": {"value": 1, "ref": {"desc": "toggle"}}}}}
+        _apply_stebbs_physics_fold(cfg_with_ref)
+        assert cfg_with_ref["model"]["physics"]["stebbs"]["enabled"] == {
+            "value": True,
+            "ref": {"desc": "toggle"},
+        }
+
+        cfg_nested_alias = {
+            "model": {
+                "physics": {
+                    "stebbs": {
+                        "enabled": {"value": True},
+                        "outer_cap_fraction": {"value": 2},
+                        "setpointmethod": {"value": 2},
+                    }
+                }
+            }
+        }
+        _apply_stebbs_physics_fold(cfg_nested_alias)
+        stebbs_alias = cfg_nested_alias["model"]["physics"]["stebbs"]
+        assert "outer_cap_fraction" not in stebbs_alias
+        assert "setpointmethod" not in stebbs_alias
+        assert stebbs_alias["capacitance"] == {"value": 2}
+        assert stebbs_alias["setpoint"] == {"value": 2}
 
 
 class TestConflictDetection:
@@ -422,6 +836,50 @@ class TestRawDictCompatibility:
         assert methods["emissions_advanced"] is True
         assert methods["storage_estm"] is True
 
+    def test_analyze_config_methods_accepts_orthogonal_net_radiation(self):
+        config = {
+            "model": {
+                "physics": {
+                    "roughness_sublayer": {"value": 2},
+                    "roughness_length_momentum": {"value": 2},
+                    "net_radiation": {"scheme": "spartacus", "ldown": "air"},
+                    "emissions": {"simple": {"value": 4}},
+                    "storage_heat": {"estm": {"value": 4}},
+                }
+            }
+        }
+
+        methods = analyze_config_methods(config)
+
+        assert methods["roughness_variable"] is True
+        assert methods["netradiation_spartacus"] is True
+        assert methods["emissions_advanced"] is True
+        assert methods["storage_estm"] is True
+
+    def test_read_physics_key_accepts_orthogonal_legacy_name(self):
+        physics = {"netradiationmethod": {"scheme": "narp", "ldown": "air"}}
+
+        assert read_physics_key(physics, "net_radiation") == 3
+
+    def test_analyze_config_methods_accepts_orthogonal_emissions(self):
+        config = {
+            "model": {
+                "physics": {
+                    "emissions": {
+                        "heat": "j11",
+                        "co2": {
+                            "anthropogenic": "detailed",
+                            "biogenic": "conductance",
+                        },
+                    },
+                }
+            }
+        }
+
+        methods = analyze_config_methods(config)
+
+        assert methods["emissions_advanced"] is True
+
     def test_validation_controller_accepts_legacy_physics_names(self):
         config = {
             "model": {
@@ -488,6 +946,143 @@ class TestRawDictCompatibility:
         assert "wall_external_thickness" not in archetype
         assert "wall_thickness" not in archetype
         assert "window_to_wall_ratio" not in archetype
+
+    def test_raw_yaml_stebbs_straggler_renames_reach_current_names(self):
+        """dev11 -> dev12 STEBBS straggler reorder must resolve in the raw-YAML
+        precheck path (Phase A / RENAMED_PARAMS), not only the Pydantic shim.
+
+        Regression for the gap where STEBBSPROPERTIES_DEV12_RENAMES was wired
+        into the model_validator and the migrator but omitted from
+        RAW_YAML_FIELD_RENAMES, so a dev11 YAML using the old keys was
+        mis-reported in validation (old key as unknown extra, new name as
+        missing) instead of being normalised.
+        """
+        payload = {
+            "sites": [
+                {
+                    "properties": {
+                        "stebbs": {
+                            "ground_depth": {"value": 2.0},
+                            "ventilation_rate": {"value": 0.6},
+                            "lighting_power_density": {"value": 2.0},
+                            "month_mean_air_temperature_diffmax": {"value": 10.0},
+                        }
+                    }
+                }
+            ]
+        }
+
+        normalised = rename_keys_recursive(payload, RAW_YAML_FIELD_RENAMES)
+        stebbs = normalised["sites"][0]["properties"]["stebbs"]
+
+        assert stebbs["depth_ground"]["value"] == 2.0
+        assert stebbs["rate_ventilation"]["value"] == 0.6
+        assert stebbs["power_density_lighting"]["value"] == 2.0
+        assert stebbs["temperature_air_month_mean_diffmax"]["value"] == 10.0
+        assert "ground_depth" not in stebbs
+        assert "ventilation_rate" not in stebbs
+        assert "lighting_power_density" not in stebbs
+        assert "month_mean_air_temperature_diffmax" not in stebbs
+
+    def test_raw_yaml_column_d_renames_reach_current_names(self):
+        """dev11 -> dev12 Column D alignment must resolve in the raw-YAML
+        precheck path (Phase A / RENAMED_PARAMS) for BOTH the stebbs and
+        building_archetype containers.
+
+        Regression for the gap where a DEV12 rename dict was wired into the
+        model_validator and the migrator but omitted from
+        RAW_YAML_FIELD_RENAMES (Codex P2 on the original straggler PR), so a
+        dev11 YAML using the old keys was mis-reported in validation.
+        """
+        payload = {
+            "sites": [
+                {
+                    "properties": {
+                        "stebbs": {
+                            "power_air_cooling_max": {"value": 6000.0},
+                            "temperature_water_heating_setpoint": {"value": 55.0},
+                            "temperature_water_mains": {"value": 10.0},
+                            "area_hot_water_tank_surface": {"value": 2.0},
+                            "area_hot_water_surface": {"value": 0.5},
+                            "rate_hot_water_flow": {"value": 0.0},
+                            "profile_hot_water_flow": {"working_day": {}},
+                            "control_daylight": {"value": 1},
+                            "convection_coefficient_hot_water_vessel_wall_internal": {"value": 7.7},
+                            "convection_coefficient_hot_water_vessel_wall_external": {"value": 7.7},
+                        },
+                        "building_archetype": {
+                            "power_air_heating_max": {"value": 8000.0},
+                            "power_water_heating_max": {"value": 4000.0},
+                            "temperature_air_heating_setpoint": {"value": 19.0},
+                            "temperature_air_cooling_setpoint": {"value": 24.0},
+                            "profile_temperature_air_heating_setpoint": {"working_day": {}},
+                            "profile_temperature_air_cooling_setpoint": {"working_day": {}},
+                        },
+                    }
+                }
+            ]
+        }
+
+        normalised = rename_keys_recursive(payload, RAW_YAML_FIELD_RENAMES)
+        props = normalised["sites"][0]["properties"]
+        stebbs = props["stebbs"]
+        archetype = props["building_archetype"]
+
+        # Stebbs (10)
+        assert stebbs["max_power_cooling_system_air"]["value"] == 6000.0
+        assert stebbs["setpoint_temperature_heating_water"]["value"] == 55.0
+        assert stebbs["temperature_mains_water"]["value"] == 10.0
+        assert stebbs["surface_area_hot_water_tank"]["value"] == 2.0
+        assert stebbs["surface_area_hot_water"]["value"] == 0.5
+        assert stebbs["rate_flow_hot_water"]["value"] == 0.0
+        assert "working_day" in stebbs["profile_flow_hot_water"]
+        assert stebbs["daylight_control"]["value"] == 1
+        assert stebbs["convection_coefficient_hot_water_tank_vessel_internal"]["value"] == 7.7
+        assert stebbs["convection_coefficient_hot_water_tank_vessel_external"]["value"] == 7.7
+        for old in (
+            "power_air_cooling_max",
+            "temperature_water_heating_setpoint",
+            "temperature_water_mains",
+            "area_hot_water_tank_surface",
+            "area_hot_water_surface",
+            "rate_hot_water_flow",
+            "profile_hot_water_flow",
+            "control_daylight",
+            "convection_coefficient_hot_water_vessel_wall_internal",
+            "convection_coefficient_hot_water_vessel_wall_external",
+        ):
+            assert old not in stebbs
+
+        # Archetype (6)
+        assert archetype["max_power_heating_system_air"]["value"] == 8000.0
+        assert archetype["max_power_heating_system_water"]["value"] == 4000.0
+        assert archetype["setpoint_temperature_heating_air"]["value"] == 19.0
+        assert archetype["setpoint_temperature_cooling_air"]["value"] == 24.0
+        assert "working_day" in archetype["profile_setpoint_temperature_heating_air"]
+        assert "working_day" in archetype["profile_setpoint_temperature_cooling_air"]
+        for old in (
+            "power_air_heating_max",
+            "power_water_heating_max",
+            "temperature_air_heating_setpoint",
+            "temperature_air_cooling_setpoint",
+            "profile_temperature_air_heating_setpoint",
+            "profile_temperature_air_cooling_setpoint",
+        ):
+            assert old not in archetype
+
+    def test_raw_yaml_modelphysics_capacitance_rename_reaches_current_name(self):
+        """dev12 model.physics rename (outer_cap_fraction -> capacitance) and
+        its legacy ancestry (rcmethod / rc_method) must resolve in the raw-YAML
+        precheck path, not only the Pydantic shim (gh#1392 Column D).
+        """
+        for old_key in ("outer_cap_fraction", "rcmethod", "rc_method"):
+            payload = {"model": {"physics": {old_key: {"value": 1}}}}
+            normalised = rename_keys_recursive(payload, RAW_YAML_FIELD_RENAMES)
+            physics = normalised["model"]["physics"]
+            assert physics["capacitance"]["value"] == 1, (
+                f"{old_key} did not resolve to capacitance: {physics}"
+            )
+            assert old_key not in physics or old_key == "capacitance"
 
     def test_raw_value_reader_accepts_archetype_pre_current_names(self):
         from supy.data_model.validation.core.yaml_helpers import get_value_safe

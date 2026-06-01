@@ -1,0 +1,11 @@
+
+Version 2013a
+--------------------------
+
+#. Radiation selection bug fixed
+#. Aerodynamic resistance – when very low - no longer reverts to neutral
+   (which caused a large jump) – but stays low
+#. Irrigation day of week fixed
+#. New error messages
+#. min file – now includes a decimal time column – see Section 5.4 –
+   Table 5.3

@@ -1,0 +1,25 @@
+.. _new_2017b:
+
+Version 2017b (released on 2 August 2017)
+---------------------------------------------------
+
+`PDF Manual for v2017b <https://zenodo.org/records/17739547/files/SUEWS_V2017b_Manual.pdf?download=1>`_ (archived on `Zenodo <https://doi.org/10.5281/zenodo.17739547>`_)
+
+#. Surface-level diagnostics: T2 (air temperature at 2 m agl), Q2 (air
+   specific humidity at 2 m agl) and U10 (wind speed at 10 m agl) added
+   as default output.
+#. Output in netCDF format. Please note this feature is **NOT** enabled
+   in the public release due to the dependency of netCDF library.
+   Assistance in enabling this feature may be requested to the
+   development team via `SUEWS mail
+   list <https://www.lists.reading.ac.uk/mailman/listinfo/met-suews>`__.
+#. Edits to the manual.
+#. New capabilities being developed, including two new options for
+   calculating storage heat flux (AnOHM, ESTM) and modelling of carbon
+   dioxide fluxes. These are currently under development and **should
+   not be used** in Version 2017b.
+#. Known issues
+
+   #. BLUEWS parameters need to be checked
+   #. Observed soil moisture can not be used as an input
+   #. Wind direction is not currently downscaled so non -999 values will cause an error.

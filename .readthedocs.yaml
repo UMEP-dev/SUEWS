@@ -1,0 +1,19 @@
+# Read the Docs configuration for the `release` branch.
+# This branch carries ONLY pre-built HTML (built from the clean CalVer tag by
+# .github/workflows/docs-release.yml). RTD copies it verbatim -- no source
+# build, no Fortran compiler. Do not edit by hand; the docs-release workflow
+# force-replaces this branch on every release.
+version: 2
+build:
+  os: ubuntu-24.04
+  tools:
+    python: "3.13"  # Required by the RTD v2 schema; unused here.
+  commands:
+    - |
+      if [ ! -f docs/build/html/index.html ]; then
+        echo "ERROR: Pre-built HTML not found on the release branch."
+        exit 1
+      fi
+    - mkdir -p $READTHEDOCS_OUTPUT/html
+    - cp -r docs/build/html/* $READTHEDOCS_OUTPUT/html/
+formats: []

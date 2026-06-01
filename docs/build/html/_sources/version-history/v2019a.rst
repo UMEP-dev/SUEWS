@@ -1,0 +1,38 @@
+
+
+.. _new_2019a:
+
+Version 2019a (released on 15 November 2019)
+----------------------------------------------------
+
+ `Download page (under assets) <https://github.com/Urban-Meteorology-Reading/SUEWS/releases/tag/2019a>`_
+
+- **Improvement**
+
+  #. An anthropogenic emission module is added. Module details refer to Järvi et al. (2019) :cite:`J19`.
+
+  #. A `canyon profile module <rsl_mod>`_ is added. Module details refer to Theeuwes et al. (2019) :cite:`T19`.
+
+
+
+- **Changes**
+
+  #. Input file ``SUEWS_AnthropogenicHeat.txt`` is renamed to ``SUEWS_AnthropogenicEmission.txt`` with new parameters added: `MinFCMetab`, `MaxFCMetab`, `FrPDDwe`, `FcEF_v_kgkmWD` and `FcEF_v_kgkmWE`.
+  #. BLUEWS has been recovered; set `CBLUse` to use it.
+  #. Removed features:
+
+    - SOLWEIG: fully removed from code.
+    - netCDF: fully removed as this is very infrequently used;
+      users who need this are suggested to use ``SuPy`` with help from ``pandas`` and `xarray <https://xarray.pydata.org>`_ to save results in netCDF more elegantly.
+
+
+- **Fix**
+
+  #. Fixed a bug in LAI calculation for longterm runs.
+  #. Fixed a bug in net all-wave radiation differential calculation for OHM.
+  #. Fixed a bug in GDD/SDD calculation that different vegetative land covers could unexpectedly affect each other.
+  #. Fixed water redistribution bug in snow module.
+
+- **Known issues**
+
+  #. Wind direction is not currently downscaled so non -999 values will cause an error.

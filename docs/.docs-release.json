@@ -1,0 +1,7 @@
+{
+  "source_tag": "2026.4.3",
+  "docs_version": "2026.4.3",
+  "docs_built": "2026-06-01T11:44:04.483402+00:00",
+  "builder": "github-actions",
+  "note": "Release docs built at the clean CalVer tag and served by Read the Docs as the 'release' version. Force-replaced on each release by .github/workflows/docs-release.yml."
+}

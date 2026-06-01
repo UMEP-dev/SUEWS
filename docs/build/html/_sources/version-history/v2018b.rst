@@ -1,0 +1,27 @@
+
+.. _new_2018b:
+
+Version 2018b (released on 17 December 2018)
+----------------------------------------------------
+
+`Download page (under assets) <https://github.com/Urban-Meteorology-Reading/SUEWS/releases/tag/2018b>`_
+
+- **Improvement**
+
+  #. Improved calculation of OHM-related radiation terms:
+
+     The temporal difference term ``dQ*/dt`` is now calculated using the time-step-weighted ``dQ*`` of previous time step instead of a series of ``Q*`` values from previous time steps, which improves the usage of memory and allows time-step-varying simulations (needed by WRF-SUEWS coupling).
+
+- **Changes**
+
+  None.
+
+- **Fix**
+
+  #. Fixed a bug in picking up external water use from meteorological forcing file.
+
+- **Known issues**
+
+  #. BLUEWS is disabled
+  #. Observed soil moisture can not be used as an input
+  #. Wind direction is not currently downscaled so non -999 values will cause an error.

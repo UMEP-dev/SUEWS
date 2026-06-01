@@ -1,0 +1,36 @@
+.. _new_2017a:
+
+Version 2017a (released on 1 Feb 2017)
+--------------------------------------
+
+#. Changes to input file formats (including RunControl.nml and
+   InitialConditions files) to facilitate setting up and running the
+   model. Met forcing files no longer need two rows of -9 at the end to
+   indicate the end of the file.
+#. Changes to output file formats (now option to write out only a subset
+   of variables, rather than all variables).
+#. SUEWS can now disaggregate forcing files to the model time-step and
+   aggregate output at the model time-step to lower resolution. This
+   removes the need for the python wrapper used with previous versions.
+#. InitialConditions format and requirements changed. A single file can
+   now be provided for multiple grids. SUEWS will approximate most (but
+   not all) of the required initial conditions if values are unknown.
+   (However, if detailed information about the initial conditions is
+   known, this can still be provided to and used by SUEWS.)
+#. Leaf area index calculations now use parameters provided for each
+   vegetated surface (previously only the deciduous tree LAI development
+   parameters were applied to all vegetated surfaces).
+#. For compatibility with GIS, **the sign convention for longitude has
+   been changed**. Now negative values are to the west, positive values
+   are to the east. Note this appears to have been incorrectly coded in
+   previous versions (but may not necessarily have been problematic).
+#. Storage heat flux calculation adapted for shorter (sub-hourly) model
+   time-step: hysteresis calculation now based on running means over the
+   previous hour.
+#. Improved error handling, including separate files for serious errors
+   (problems.txt) and less critical issues (warnings.txt).
+#. Edits to the manual.
+#. New capabilities being developed, including two new options for
+   calculating storage heat flux (AnOHM, ESTM) and modelling of carbon
+   dioxide fluxes. These are currently under development and **should
+   not be used** in Version 2017a.

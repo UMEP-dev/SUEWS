@@ -352,6 +352,10 @@ pub const FIELD_COMPAT_ALIASES: &[(&str, &str)] = &[
     // spelling needs a direct alias to the bridge column `rcmethod`.
     ("outer_cap_fraction", "rcmethod"),
     ("gs_model", "gsmodel"),
+    // Public sample/config aliases accepted without changing the internal
+    // Fortran-facing switches (gh#1483 naming audit).
+    ("leaf_area_index", "laimethod"),
+    ("snow", "snowuse"),
     // Schema 2026.5.dev1 STEBBS ArchetypeProperties Cat 5 intermediate
     // (gh#1327). After gh#1334 the final names are snake_case; the
     // PascalCase intermediate stays accepted for back-compat.
@@ -818,23 +822,22 @@ pub const PHYSICS_NAME_ALIASES_RS: &[(&str, &[(&str, i64)])] = &[
             ("bh71", 4),
         ],
     ),
-    (
-        "soil_moisture_deficit",
-        &[
-            ("modelled", 0),
-            ("observed_volumetric", 1),
-            ("observed_gravimetric", 2),
-        ],
-    ),
+    ("soil_moisture_deficit", &[("modelled", 0), ("observed", 1)]),
     ("water_use", &[("modelled", 0), ("observed", 1)]),
-    ("laimethod", &[("observed", 0), ("calculated", 1)]),
+    ("laimethod", &[("observed", 0), ("modelled", 1)]),
     (
         "roughness_sublayer",
         &[("most", 0), ("rst", 1), ("t19", 1), ("variable", 2)],
     ),
     (
         "frontal_area_index",
-        &[("use_provided", 0), ("simple_scheme", 1)],
+        &[
+            ("observed", 0),
+            ("provided", 0),
+            ("use_provided", 0),
+            ("modelled", 1),
+            ("simple_scheme", 1),
+        ],
     ),
     (
         "roughness_sublayer_level",
@@ -974,6 +977,62 @@ fn emissions_biogenic_offset(biogenic: &str) -> Option<i64> {
 
 fn collapse_orthogonal_net_radiation(map: &mut serde_yaml::Mapping) -> Result<bool, String> {
     if !map.contains_key(Value::String("scheme".into())) {
+        let scheme_keys: Vec<&str> = ["forcing", "narp", "spartacus"]
+            .iter()
+            .copied()
+            .filter(|key| map.contains_key(Value::String((*key).to_string())))
+            .collect();
+        if scheme_keys.is_empty() {
+            return Ok(false);
+        }
+        if scheme_keys.len() > 1 {
+            return Err(format!(
+                "'net_radiation' received multiple scheme keys ({scheme_keys:?}); supply exactly one."
+            ));
+        }
+
+        let scheme = scheme_keys[0];
+        let scheme_key = Value::String(scheme.to_string());
+        let scoped = match map.get(&scheme_key) {
+            Some(Value::Mapping(inner)) if !inner.contains_key(Value::String("value".into())) => {
+                inner.clone()
+            }
+            _ => return Ok(false),
+        };
+
+        let foreign: Vec<String> = map
+            .keys()
+            .filter_map(|key| match key.as_str() {
+                Some("ref") => None,
+                Some(s) if s == scheme => None,
+                Some(s) => Some(s.to_string()),
+                None => Some(format!("{key:?}")),
+            })
+            .collect();
+        if !foreign.is_empty() {
+            return Err(format!(
+                "'net_radiation.{scheme}' cannot be combined with sibling keys {foreign:?}."
+            ));
+        }
+
+        let carried_ref = map.get(Value::String("ref".into())).cloned();
+        map.clear();
+        map.insert(
+            Value::String("scheme".into()),
+            Value::String(scheme.to_string()),
+        );
+        for (key, value) in scoped {
+            map.insert(key, value);
+        }
+        if let Some(r) = carried_ref {
+            let ref_key = Value::String("ref".into());
+            if !map.contains_key(&ref_key) {
+                map.insert(ref_key, r);
+            }
+        }
+    }
+
+    if !map.contains_key(Value::String("scheme".into())) {
         return Ok(false);
     }
 
@@ -1109,6 +1168,238 @@ fn collapse_orthogonal_emissions(map: &mut serde_yaml::Mapping) -> Result<bool, 
         map.insert(Value::String("ref".into()), r);
     }
     Ok(true)
+}
+
+const STORAGE_HEAT_FAMILIES_RS: &[&str] =
+    &["observed", "ohm", "anohm", "estm", "ehc", "dyohm", "stebbs"];
+
+fn fold_storage_heat_ohm_inc_qf(root: &mut Value) -> Result<(), String> {
+    let physics = match root
+        .get_mut("model")
+        .and_then(|m| m.as_mapping_mut())
+        .and_then(|m| m.get_mut(Value::String("physics".into())))
+        .and_then(|p| p.as_mapping_mut())
+    {
+        Some(p) => p,
+        None => return Ok(()),
+    };
+
+    for outer_key_name in STORAGE_HEAT_OUTER_KEYS {
+        let outer_key = Value::String((*outer_key_name).to_string());
+        let mut block = match physics.get(&outer_key) {
+            Some(Value::Mapping(map)) => map.clone(),
+            _ => continue,
+        };
+
+        if let Some(Value::Mapping(ohm)) = block.get(Value::String("ohm".into())) {
+            let mut ohm_block = ohm.clone();
+            let qf_spellings: Vec<&str> = ["include_qf", "ohm_inc_qf", "ohmincqf"]
+                .iter()
+                .copied()
+                .filter(|key| ohm_block.contains_key(Value::String((*key).to_string())))
+                .collect();
+            if !qf_spellings.is_empty() {
+                if qf_spellings.len() > 1 {
+                    return Err(format!(
+                        "model.physics.{outer_key_name}.ohm contains multiple OHMIncQF spellings ({qf_spellings:?}). Use only 'storage_heat.ohm.include_qf'."
+                    ));
+                }
+
+                if physics.contains_key(Value::String("ohm_inc_qf".into()))
+                    || physics.contains_key(Value::String("ohmincqf".into()))
+                {
+                    return Err(
+                        "Both flat 'ohm_inc_qf' and nested 'storage_heat.ohm.include_qf' are present. Use only the nested form."
+                            .to_string(),
+                    );
+                }
+
+                let foreign: Vec<String> = block
+                    .keys()
+                    .filter_map(|key| match key.as_str() {
+                        Some("ohm") | Some("ref") => None,
+                        Some(s) => Some(s.to_string()),
+                        None => Some(format!("{key:?}")),
+                    })
+                    .collect();
+                if !foreign.is_empty() {
+                    return Err(format!(
+                        "'storage_heat.ohm' cannot be combined with sibling keys {foreign:?}."
+                    ));
+                }
+
+                let qf_key = qf_spellings[0];
+                let qf_value = ohm_block
+                    .remove(Value::String(qf_key.to_string()))
+                    .expect("qf key just matched");
+                let qf_value = if qf_key == "include_qf" {
+                    normalise_include_qf_value(qf_value)?
+                } else {
+                    qf_value
+                };
+                let qf_value = wrap_refvalue(qf_value);
+
+                let inner_foreign: Vec<String> = ohm_block
+                    .keys()
+                    .filter_map(|key| match key.as_str() {
+                        Some("ref") => None,
+                        Some(s) => Some(s.to_string()),
+                        None => Some(format!("{key:?}")),
+                    })
+                    .collect();
+                if !inner_foreign.is_empty() {
+                    return Err(format!(
+                        "'storage_heat.ohm' cannot be combined with sibling keys {inner_foreign:?}."
+                    ));
+                }
+
+                let mut folded = serde_yaml::Mapping::new();
+                folded.insert(Value::String("value".into()), Value::String("ohm".into()));
+                if let Some(r) = ohm_block
+                    .remove(Value::String("ref".into()))
+                    .or_else(|| block.remove(Value::String("ref".into())))
+                {
+                    folded.insert(Value::String("ref".into()), r);
+                }
+                physics.insert(outer_key, Value::Mapping(folded));
+                physics.insert(Value::String("ohm_inc_qf".into()), qf_value);
+                return Ok(());
+            }
+        }
+
+        let qf_spellings: Vec<&str> = ["ohm_inc_qf", "ohmincqf"]
+            .iter()
+            .copied()
+            .filter(|key| block.contains_key(Value::String((*key).to_string())))
+            .collect();
+        if qf_spellings.is_empty() {
+            continue;
+        }
+        if qf_spellings.len() > 1 {
+            return Err(format!(
+                "model.physics.{outer_key_name} contains multiple OHMIncQF spellings ({qf_spellings:?}). Use only 'storage_heat.ohm.include_qf'."
+            ));
+        }
+
+        if physics.contains_key(Value::String("ohm_inc_qf".into()))
+            || physics.contains_key(Value::String("ohmincqf".into()))
+        {
+            return Err(
+                "Both flat 'ohm_inc_qf' and nested 'storage_heat.ohm.include_qf' are present. Use only the nested form."
+                    .to_string(),
+            );
+        }
+
+        let qf_key = qf_spellings[0];
+        let qf_value = block
+            .remove(Value::String(qf_key.to_string()))
+            .expect("qf key just matched");
+        let qf_value = wrap_refvalue(qf_value);
+
+        if block.contains_key(Value::String("scheme".into())) {
+            reject_foreign_keys(&block, &["scheme", "ref"], "storage_heat")?;
+            let scheme = block
+                .remove(Value::String("scheme".into()))
+                .expect("scheme key was present");
+            let carried_ref = block.remove(Value::String("ref".into()));
+            let mut folded = serde_yaml::Mapping::new();
+            folded.insert(Value::String("value".into()), scheme);
+            if let Some(r) = carried_ref {
+                folded.insert(Value::String("ref".into()), r);
+            }
+            physics.insert(outer_key, Value::Mapping(folded));
+            physics.insert(Value::String("ohm_inc_qf".into()), qf_value);
+            return Ok(());
+        }
+
+        let keys: Vec<String> = block
+            .keys()
+            .filter_map(|key| key.as_str().map(str::to_string))
+            .collect();
+        if block.is_empty() {
+            return Err(
+                "Nested 'storage_heat.ohm_inc_qf' requires either 'storage_heat.scheme', \
+                 a storage heat family tag, or 'storage_heat.value'."
+                    .to_string(),
+            );
+        }
+        let all_string_keys = keys.len() == block.len();
+        let is_refvalue_scalar =
+            all_string_keys && keys.iter().all(|key| key == "value" || key == "ref");
+        if is_refvalue_scalar {
+            physics.insert(outer_key, Value::Mapping(block));
+            physics.insert(Value::String("ohm_inc_qf".into()), qf_value);
+            return Ok(());
+        }
+
+        let has_family = STORAGE_HEAT_FAMILIES_RS
+            .iter()
+            .any(|family| block.contains_key(Value::String((*family).to_string())));
+        if has_family {
+            let foreign: Vec<String> = block
+                .keys()
+                .filter_map(|key| match key.as_str() {
+                    Some("ref") => None,
+                    Some(s) if STORAGE_HEAT_FAMILIES_RS.contains(&s) => None,
+                    Some(s) => Some(s.to_string()),
+                    None => Some(format!("{key:?}")),
+                })
+                .collect();
+            if !foreign.is_empty() {
+                return Err(format!(
+                    "'storage_heat' family form cannot be combined with sibling keys {foreign:?}."
+                ));
+            }
+            physics.insert(outer_key, Value::Mapping(block));
+            physics.insert(Value::String("ohm_inc_qf".into()), qf_value);
+            return Ok(());
+        }
+
+        return Err(
+            "Nested 'storage_heat.ohm_inc_qf' requires either 'storage_heat.scheme', \
+             a storage heat family tag, or 'storage_heat.value'."
+                .to_string(),
+        );
+    }
+
+    Ok(())
+}
+
+fn normalise_include_qf_value(value: Value) -> Result<Value, String> {
+    let code = match value {
+        Value::Bool(true) => 1,
+        Value::Bool(false) => 0,
+        Value::Number(n) if n.as_i64() == Some(1) => 1,
+        Value::Number(n) if n.as_i64() == Some(0) => 0,
+        Value::String(raw) => match raw.trim().to_ascii_lowercase().as_str() {
+            "include" | "included" | "true" | "yes" | "y" | "on" | "1" => 1,
+            "exclude" | "excluded" | "false" | "no" | "n" | "off" | "0" => 0,
+            _ => return Err(
+                "Nested 'storage_heat.ohm.include_qf' expects a boolean or 'include'/'exclude'."
+                    .to_string(),
+            ),
+        },
+        _ => {
+            return Err(
+                "Nested 'storage_heat.ohm.include_qf' expects a boolean or 'include'/'exclude'."
+                    .to_string(),
+            )
+        }
+    };
+    Ok(Value::Number(code.into()))
+}
+
+fn wrap_refvalue(value: Value) -> Value {
+    match value {
+        Value::Mapping(map) if map.contains_key(Value::String("value".into())) => {
+            Value::Mapping(map)
+        }
+        other => {
+            let mut map = serde_yaml::Mapping::new();
+            map.insert(Value::String("value".into()), other);
+            Value::Mapping(map)
+        }
+    }
 }
 
 /// Collapse family-tagged nested physics input to the flat `{value: N}`
@@ -1320,23 +1611,30 @@ fn physics_field_key_spellings(field: &str) -> Vec<String> {
         }
     };
 
-    let mut targets: Vec<String> = physics_outer_keys(field)
-        .iter()
-        .map(|key| key.to_string())
-        .collect();
+    let mut targets: Vec<String> = vec![field.to_string()];
+    for key in physics_outer_keys(field) {
+        push(&mut targets, key);
+    }
     for (new, old) in FIELD_RENAMES.iter().chain(FIELD_COMPAT_ALIASES.iter()) {
-        if *new == field && !targets.iter().any(|target| target == old) {
-            targets.push((*old).to_string());
+        if *new == field {
+            push(&mut targets, old);
         }
+    }
+    let alias_keys: Vec<String> = targets
+        .iter()
+        .flat_map(|target| {
+            FIELD_RENAMES
+                .iter()
+                .chain(FIELD_COMPAT_ALIASES.iter())
+                .filter_map(move |(new, old)| (*old == target).then_some((*new).to_string()))
+        })
+        .collect();
+    for key in alias_keys {
+        push(&mut targets, &key);
     }
 
     for target in &targets {
         push(&mut keys, target);
-    }
-    for (new, old) in FIELD_RENAMES.iter().chain(FIELD_COMPAT_ALIASES.iter()) {
-        if targets.iter().any(|target| target == old) {
-            push(&mut keys, new);
-        }
     }
     keys
 }
@@ -1359,6 +1657,7 @@ fn physics_field_key_spellings(field: &str) -> Vec<String> {
 const STEBBS_NESTED_KEYS: &[&str] = &[
     "enabled",
     "parameters",
+    "parameter_source",
     "capacitance",
     "setpoint",
     "same_albedo_wall",
@@ -1371,6 +1670,7 @@ const STEBBS_NESTED_KEYS: &[&str] = &[
 /// object. The Python raw validator accepts these via `RAW_YAML_FIELD_RENAMES`,
 /// so the bridge flatten pre-pass must normalise them too.
 const STEBBS_NESTED_ALIAS_TO_LEAF: &[(&str, &str)] = &[
+    ("parameter_source", "parameters"),
     ("outer_cap_fraction", "capacitance"),
     ("rcmethod", "capacitance"),
     ("rc_method", "capacitance"),
@@ -1676,7 +1976,10 @@ fn should_rename_key_at_path(new_name: &str, path: &str) -> bool {
     // Only the physics option should be folded to `stebbsmethod`; the
     // `sites[].properties.stebbs` section must keep its name so the STEBBS
     // parser can read the parameter and initial-state overrides.
-    new_name != "stebbs" || path == "model.physics"
+    match new_name {
+        "stebbs" | "leaf_area_index" | "snow" => path == "model.physics",
+        _ => true,
+    }
 }
 
 /// Recursively rewrite new snake_case keys to their legacy fused spellings
@@ -1708,6 +2011,7 @@ pub fn normalize_field_names(root: &mut Value) -> Result<(), String> {
     // (master-toggle scalar + flat `outer_cap_fraction`/`setpoint`/`same_*`)
     // still flows through the walker unchanged.
     flatten_stebbs_physics(root)?;
+    fold_storage_heat_ohm_inc_qf(root)?;
     // Nested family form must be collapsed BEFORE the recursive rename
     // walker runs — some family tags (e.g. `stebbs` under `storage_heat`)
     // collide with ModelPhysics field names that the walker would
@@ -2047,6 +2351,17 @@ model:
     }
 
     #[test]
+    fn orthogonal_net_radiation_scheme_scoped_options_collapse() {
+        let yaml = "model:\n  physics:\n    net_radiation:\n      narp:\n        ldown: air\n";
+        let mut root: Value = from_str(yaml).unwrap();
+        normalize_field_names(&mut root).unwrap();
+        let v = root["model"]["physics"]["netradiationmethod"]
+            .get(Value::String("value".into()))
+            .unwrap();
+        assert_eq!(v.as_i64(), Some(3));
+    }
+
+    #[test]
     fn orthogonal_net_radiation_spartacus_collapses() {
         let yaml =
             "model:\n  physics:\n    net_radiation:\n      scheme: spartacus\n      ldown: air\n";
@@ -2107,6 +2422,131 @@ model:
             .get(Value::String("value".into()))
             .unwrap();
         assert_eq!(v.as_i64(), Some(5));
+    }
+
+    #[test]
+    fn storage_heat_owns_ohm_inc_qf_axis() {
+        let yaml = "model:\n  physics:\n    storage_heat:\n      ohm:\n        include_qf: true\n";
+        let mut root: Value = from_str(yaml).unwrap();
+        normalize_field_names(&mut root).unwrap();
+        let physics = &root["model"]["physics"];
+        assert_eq!(
+            physics["storageheatmethod"]
+                .get(Value::String("value".into()))
+                .and_then(|v| v.as_i64()),
+            Some(1)
+        );
+        assert_eq!(
+            physics["ohmincqf"]
+                .get(Value::String("value".into()))
+                .and_then(|v| v.as_i64()),
+            Some(1)
+        );
+    }
+
+    #[test]
+    fn public_physics_aliases_do_not_rename_site_snow_section() {
+        let yaml = "model:\n  physics:\n    leaf_area_index: modelled\n    snow: disabled\nsites:\n- properties:\n    snow:\n      initially: {value: 0}\n";
+        let mut root: Value = from_str(yaml).unwrap();
+        normalize_field_names(&mut root).unwrap();
+        let physics = &root["model"]["physics"];
+        assert_eq!(
+            physics["laimethod"]
+                .get(Value::String("value".into()))
+                .and_then(|v| v.as_i64()),
+            Some(1)
+        );
+        assert_eq!(
+            physics["snowuse"]
+                .get(Value::String("value".into()))
+                .and_then(|v| v.as_i64()),
+            Some(0)
+        );
+
+        let properties = root["sites"][0]["properties"].as_mapping().unwrap();
+        assert!(properties.contains_key(Value::String("snow".into())));
+        assert!(!properties.contains_key(Value::String("snowuse".into())));
+    }
+
+    #[test]
+    fn public_leaf_area_index_alias_collapses_before_rename() {
+        for (name, expected) in [("observed", 0), ("modelled", 1)] {
+            let yaml = format!("model:\n  physics:\n    leaf_area_index: {name}\n");
+            let mut root: Value = from_str(&yaml).unwrap();
+            normalize_field_names(&mut root).unwrap();
+            let physics = &root["model"]["physics"];
+            assert_eq!(
+                physics["laimethod"]
+                    .get(Value::String("value".into()))
+                    .and_then(|v| v.as_i64()),
+                Some(expected)
+            );
+        }
+    }
+
+    #[test]
+    fn storage_heat_legacy_nested_ohm_inc_qf_stays_accepted() {
+        let yaml =
+            "model:\n  physics:\n    storage_heat:\n      scheme: ohm\n      ohm_inc_qf: include\n";
+        let mut root: Value = from_str(yaml).unwrap();
+        normalize_field_names(&mut root).unwrap();
+        let physics = &root["model"]["physics"];
+        assert_eq!(
+            physics["storageheatmethod"]
+                .get(Value::String("value".into()))
+                .and_then(|v| v.as_i64()),
+            Some(1)
+        );
+        assert_eq!(
+            physics["ohmincqf"]
+                .get(Value::String("value".into()))
+                .and_then(|v| v.as_i64()),
+            Some(1)
+        );
+    }
+
+    #[test]
+    fn storage_heat_nested_ohm_inc_qf_rejects_flat_duplicate() {
+        let yaml = "\
+model:
+  physics:
+    storage_heat:
+      ohm:
+        include_qf: false
+    ohm_inc_qf: include
+";
+        let mut root: Value = from_str(yaml).unwrap();
+        let err = normalize_field_names(&mut root).expect_err("duplicate qf must fail");
+        assert!(
+            err.contains("nested 'storage_heat.ohm.include_qf'"),
+            "error was: {err}"
+        );
+    }
+
+    #[test]
+    fn storage_heat_scheme_scoped_qf_rejects_sibling_scheme() {
+        let yaml = "\
+model:
+  physics:
+    storage_heat:
+      ohm:
+        include_qf: false
+      anohm: {}
+";
+        let mut root: Value = from_str(yaml).unwrap();
+        let err = normalize_field_names(&mut root).expect_err("sibling scheme must fail");
+        assert!(err.contains("cannot be combined"), "error was: {err}");
+    }
+
+    #[test]
+    fn storage_heat_nested_ohm_inc_qf_requires_storage_heat_selector() {
+        let yaml = "model:\n  physics:\n    storage_heat:\n      ohm_inc_qf: exclude\n";
+        let mut root: Value = from_str(yaml).unwrap();
+        let err = normalize_field_names(&mut root).expect_err("missing selector must fail");
+        assert!(
+            err.contains("requires either 'storage_heat.scheme'"),
+            "error was: {err}"
+        );
     }
 
     #[test]

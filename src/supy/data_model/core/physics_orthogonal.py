@@ -50,6 +50,12 @@ _EMISSIONS_BIOGENIC_OFFSETS: dict[str, int] = {
     "conductance": 40,
 }
 
+_STORAGE_HEAT_FAMILIES = frozenset(
+    {"observed", "ohm", "anohm", "estm", "ehc", "dyohm", "stebbs"}
+)
+_REFVALUE_KEYS = frozenset({"value", "ref"})
+_STORAGE_HEAT_QF_KEYS = ("include_qf", "ohm_inc_qf", "ohmincqf")
+
 
 def _token(mapping: Mapping[str, Any], key: str, context: str) -> str | None:
     raw = mapping.get(key, _MISSING)
@@ -70,7 +76,150 @@ def _reject_foreign_keys(
         )
 
 
+def fold_storage_heat_ohm_inc_qf(values: dict, class_name: str) -> dict:
+    """Move ``storage_heat.ohm_inc_qf`` to the canonical flat field.
+
+    ``OHMIncQF`` is a sub-choice of the storage heat calculation, but the
+    stable internal and Fortran-facing surface still stores it as the flat
+    ``ohm_inc_qf`` field. This fold lets YAML expose the semantic ownership
+    without changing downstream state layout.
+    """
+    storage = values.get("storage_heat")
+    if not isinstance(storage, Mapping):
+        return values
+
+    if "ohm" in storage and isinstance(storage["ohm"], Mapping):
+        folded = _fold_storage_heat_ohm_block(storage, values, class_name)
+        if folded:
+            return values
+
+    qf_keys = [key for key in ("ohm_inc_qf", "ohmincqf") if key in storage]
+    if not qf_keys:
+        return values
+    if len(qf_keys) > 1:
+        raise ValueError(
+            f"{class_name}: storage_heat contains multiple OHMIncQF spellings "
+            f"({', '.join(qf_keys)}). Use only 'storage_heat.ohm.include_qf'."
+        )
+    flat_qf_keys = [key for key in ("ohm_inc_qf", "ohmincqf") if key in values]
+    if flat_qf_keys:
+        raise ValueError(
+            f"{class_name}: both flat '{flat_qf_keys[0]}' and nested "
+            "'storage_heat.ohm.include_qf' are present. Use only the nested form."
+        )
+
+    block = dict(storage)
+    qf_key = qf_keys[0]
+    qf_value = block.pop(qf_key)
+
+    if "scheme" in block:
+        _reject_foreign_keys(block, {"scheme", "ref"}, "storage_heat")
+        folded: dict[str, Any] = {"value": block["scheme"]}
+        if "ref" in block:
+            folded["ref"] = block["ref"]
+        values["ohm_inc_qf"] = qf_value
+        values["storage_heat"] = folded
+        return values
+
+    keys = set(block)
+    if not keys:
+        raise ValueError(
+            f"{class_name}: nested 'storage_heat.ohm_inc_qf' requires either "
+            "'storage_heat.scheme', a storage heat family tag, or "
+            "'storage_heat.value'."
+        )
+    if keys <= _REFVALUE_KEYS:
+        values["ohm_inc_qf"] = qf_value
+        values["storage_heat"] = block
+        return values
+
+    matched = keys & _STORAGE_HEAT_FAMILIES
+    if matched:
+        foreign = keys - matched - {"ref"}
+        if foreign:
+            raise ValueError(
+                f"{class_name}: 'storage_heat' family form cannot be combined "
+                f"with sibling keys {sorted(foreign)}."
+            )
+        values["ohm_inc_qf"] = qf_value
+        values["storage_heat"] = block
+        return values
+
+    raise ValueError(
+        f"{class_name}: nested 'storage_heat.ohm_inc_qf' requires either "
+        "'storage_heat.scheme', a storage heat family tag, or 'storage_heat.value'."
+    )
+
+
+def _fold_storage_heat_ohm_block(
+    storage: Mapping[str, Any], values: dict, class_name: str
+) -> bool:
+    """Fold ``storage_heat.ohm.include_qf`` to storage heat + OHMIncQF."""
+    ohm_block = dict(storage["ohm"])
+    qf_keys = [key for key in _STORAGE_HEAT_QF_KEYS if key in ohm_block]
+    if not qf_keys:
+        return False
+    if len(qf_keys) > 1:
+        raise ValueError(
+            f"{class_name}: storage_heat.ohm contains multiple OHMIncQF spellings "
+            f"({', '.join(qf_keys)}). Use only 'storage_heat.ohm.include_qf'."
+        )
+    flat_qf_keys = [key for key in ("ohm_inc_qf", "ohmincqf") if key in values]
+    if flat_qf_keys:
+        raise ValueError(
+            f"{class_name}: both flat '{flat_qf_keys[0]}' and nested "
+            "'storage_heat.ohm.include_qf' are present. Use only the nested form."
+        )
+
+    outer_foreign = [key for key in storage if key not in {"ohm", "ref"}]
+    if outer_foreign:
+        raise ValueError(
+            f"{class_name}: 'storage_heat.ohm' cannot be combined with sibling "
+            f"keys {sorted(outer_foreign)}."
+        )
+
+    qf_key = qf_keys[0]
+    qf_value = ohm_block.pop(qf_key)
+    if qf_key == "include_qf":
+        qf_value = _normalise_include_qf(qf_value, class_name)
+
+    inner_foreign = [key for key in ohm_block if key != "ref"]
+    if inner_foreign:
+        raise ValueError(
+            f"{class_name}: 'storage_heat.ohm' cannot be combined with sibling "
+            f"keys {sorted(inner_foreign)}."
+        )
+
+    folded: dict[str, Any] = {"value": "ohm"}
+    if "ref" in ohm_block:
+        folded["ref"] = ohm_block["ref"]
+    elif "ref" in storage:
+        folded["ref"] = storage["ref"]
+    values["storage_heat"] = folded
+    values["ohm_inc_qf"] = qf_value
+    return True
+
+
+def _normalise_include_qf(value: Any, class_name: str) -> Any:
+    """Map public ``include_qf`` predicate values to the OHMIncQF selector."""
+    if isinstance(value, bool):
+        return "include" if value else "exclude"
+    if isinstance(value, int) and value in {0, 1}:
+        return "include" if value else "exclude"
+    if isinstance(value, str):
+        token = value.strip().lower()
+        if token in {"include", "included", "true", "yes", "y", "on", "1"}:
+            return "include"
+        if token in {"exclude", "excluded", "false", "no", "n", "off", "0"}:
+            return "exclude"
+    raise ValueError(
+        f"{class_name}: 'storage_heat.ohm.include_qf' expects a boolean or one of "
+        "'include'/'exclude'."
+    )
+
+
 def _coerce_net_radiation(value: Mapping[str, Any]) -> dict[str, Any]:
+    value = _normalise_net_radiation_shape(value)
     scheme = _token(value, "scheme", "net_radiation")
     if scheme is None:
         raise ValueError("'net_radiation.scheme' is required.")
@@ -121,6 +270,38 @@ def _coerce_net_radiation(value: Mapping[str, Any]) -> dict[str, Any]:
     if ref is not None:
         flat["ref"] = ref
     return flat
+
+
+def _normalise_net_radiation_shape(value: Mapping[str, Any]) -> Mapping[str, Any]:
+    """Accept ``net_radiation.<scheme>`` in addition to ``scheme: <name>``."""
+    if "scheme" in value:
+        return value
+
+    scheme_keys = [key for key in ("forcing", "narp", "spartacus") if key in value]
+    if not scheme_keys:
+        return value
+    if len(scheme_keys) > 1:
+        raise ValueError(
+            "'net_radiation' received multiple scheme keys "
+            f"({', '.join(scheme_keys)}); supply exactly one."
+        )
+
+    scheme = scheme_keys[0]
+    raw_options = value[scheme]
+    if not isinstance(raw_options, Mapping) or "value" in raw_options:
+        return value
+
+    foreign = [key for key in value if key not in {scheme, "ref"}]
+    if foreign:
+        raise ValueError(
+            f"'net_radiation.{scheme}' cannot be combined with sibling keys "
+            f"{sorted(foreign)}."
+        )
+
+    normalised = {"scheme": scheme, **raw_options}
+    if "ref" in value and "ref" not in normalised:
+        normalised["ref"] = value["ref"]
+    return normalised
 
 
 def _emissions_code(heat: str, anthropogenic: str, biogenic: str) -> int:
@@ -209,8 +390,11 @@ def coerce_orthogonal_to_flat(field_name: str, value: Any) -> Any:
     if not isinstance(value, Mapping):
         return value
 
-    if field_name == "net_radiation" and "scheme" in value:
-        return _coerce_net_radiation(value)
+    if field_name == "net_radiation":
+        normalised = _normalise_net_radiation_shape(value)
+        if "scheme" in normalised:
+            return _coerce_net_radiation(normalised)
+        return value
 
     if field_name == "emissions" and ("heat" in value or "co2" in value):
         return _coerce_emissions(value)

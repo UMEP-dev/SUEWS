@@ -13,6 +13,7 @@ Verifies:
 import warnings
 
 import pytest
+
 from supy.validation import analyze_config_methods
 
 pytestmark = pytest.mark.api
@@ -24,7 +25,6 @@ from supy.data_model.core.field_renames import (
     ARCHETYPEPROPERTIES_DEV7_RENAMES,
     ARCHETYPEPROPERTIES_DEV12_RENAMES,
     ARCHETYPEPROPERTIES_RENAMES,
-    ARCHETYPEPROPERTIES_PASCAL_RENAMES,
     ATMOSPHERE_RENAMES,
     DECTRPROPERTIES_RENAMES,
     EHC_RENAMES,
@@ -35,11 +35,9 @@ from supy.data_model.core.field_renames import (
     LAIPARAMS_RENAMES,
     LANDCOVER_RENAMES,
     MODELPHYSICS_RENAMES,
-    MODELPHYSICS_SUFFIX_RENAMES,
     PHENOLOGYSTATE_RENAMES,
     RAW_YAML_FIELD_RENAMES,
     SNOWPARAMS_RENAMES,
-    SNOWPARAMS_INTERMEDIATE_RENAMES,
     SNOWSTATE_RENAMES,
     STEBBSPROPERTIES_RENAMES,
     STEBBSSTATE_RENAMES,
@@ -47,6 +45,7 @@ from supy.data_model.core.field_renames import (
     SURFACEPROPERTIES_RENAMES,
     VEGETATEDSURFACEPROPERTIES_RENAMES,
     WATERDIST_RENAMES,
+    normalise_yaml_renames,
     read_physics_key,
     rename_keys_recursive,
 )
@@ -61,7 +60,6 @@ from supy.data_model.core.site import (
 )
 from supy.data_model.core.surface import SurfaceProperties
 from supy.data_model.validation.core.controller import ValidationController
-
 
 # (ModelClass, rename_dict) pairs covering every class that got renames.
 _RENAMED_CLASSES = [
@@ -946,6 +944,21 @@ class TestRawDictCompatibility:
         assert "wall_external_thickness" not in archetype
         assert "wall_thickness" not in archetype
         assert "window_to_wall_ratio" not in archetype
+
+    def test_public_physics_aliases_are_scoped_to_model_physics(self):
+        payload = {
+            "model": {"physics": {"leaf_area_index": "model", "snow": "disabled"}},
+            "sites": [{"properties": {"snow": {"initially": {"value": 0}}}}],
+        }
+
+        normalised = normalise_yaml_renames(payload)
+
+        physics = normalised["model"]["physics"]
+        assert physics["laimethod"]["value"] == 1
+        assert physics["snow_use"]["value"] == 0
+        properties = normalised["sites"][0]["properties"]
+        assert "snow" in properties
+        assert "snow_use" not in properties
 
     def test_raw_yaml_stebbs_straggler_renames_reach_current_names(self):
         """dev11 -> dev12 STEBBS straggler reorder must resolve in the raw-YAML

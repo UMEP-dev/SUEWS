@@ -20,55 +20,36 @@ model:
     # the chosen physics family or axis is explicit in the sample. Round-trip
     # serializers still emit the canonical flat {value: N} representation.
     net_radiation:
-      scheme: narp
-      ldown: air
+      narp:
+        ldown: air
     emissions:
-      heat: j11
+      heat: J11
       co2:
         anthropogenic: none
         biogenic: none
-    storage_heat: ohm
-    ohm_inc_qf:
-      value: 0
-    roughness_length_momentum:
-      value: 1
-    roughness_length_heat:
-      value: 2
-    stability:
-      value: 3
-    soil_moisture_deficit:
-      value: 0
-    water_use:
-      value: 0
-    roughness_sublayer:
-      value: 2
-    frontal_area_index:
-      value: 0
-    roughness_sublayer_level:
-      value: 1
-    surface_conductance:
-        value: 2
-    laimethod:
-      value: 1
-    snow_use:
-      value: 0
+    storage_heat:
+      ohm:
+        include_qf: false
+    roughness_length_momentum: fixed
+    roughness_length_heat: K09
+    stability: CN98
+    soil_moisture_deficit: model
+    water_use: model
+    roughness_sublayer: variable
+    frontal_area_index: observed
+    roughness_sublayer_level: basic
+    surface_conductance: W16
+    leaf_area_index: model
+    snow: disabled
     stebbs:
-      enabled:
-        value: false
-      parameters:
-        value: 1
-      capacitance:
-        value: 0
-      setpoint:
-        value: 0
-      same_albedo_wall:
-        value: 0
-      same_albedo_roof:
-        value: 0
-      same_emissivity_wall:
-        value: 0
-      same_emissivity_roof:
-        value: 0
+      enabled: false
+      parameter_source: default
+      capacitance: default
+      setpoint: constant
+      same_albedo_wall: disabled
+      same_albedo_roof: disabled
+      same_emissivity_wall: disabled
+      same_emissivity_roof: disabled
 sites:
 - name: KCL
   gridiv: 1

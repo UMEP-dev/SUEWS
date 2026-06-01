@@ -218,6 +218,21 @@ class TestCoerceScalarNames:
         assert coerce_nested_to_flat("net_radiation", "ldown_air") == {"value": 3}
         assert coerce_nested_to_flat("net_radiation", "forcing") == {"value": 0}
 
+    def test_source_choice_names_are_consistent(self):
+        assert coerce_nested_to_flat("laimethod", "model") == {"value": 1}
+        assert coerce_nested_to_flat("frontal_area_index", "observed") == {
+            "value": 0
+        }
+        assert coerce_nested_to_flat("frontal_area_index", "model") == {"value": 1}
+        assert coerce_nested_to_flat("water_use", "model") == {"value": 0}
+        assert coerce_nested_to_flat("soil_moisture_deficit", "model") == {
+            "value": 0
+        }
+
+    def test_lai_calculated_name_is_not_public(self):
+        with pytest.raises(ValueError, match="calculated"):
+            coerce_nested_to_flat("laimethod", "calculated")
+
     def test_unknown_scalar_name_rejected(self):
         with pytest.raises(ValueError, match="unknown scheme name"):
             coerce_nested_to_flat("storage_heat", "not_a_scheme")
@@ -234,14 +249,24 @@ class TestReadableNamesInModels:
         physics = ModelPhysics(
             storage_heat="ohm",
             stability="cn98",
-            snow_use="enabled",
+            snow="enabled",
+            leaf_area_index="model",
             emissions="biogen_conductance_j11_detailed",
         )
 
         assert physics.storage_heat.value.value == 1
         assert physics.stability.value.value == 3
         assert physics.snow_use.value.value == 1
+        assert physics.laimethod.value.value == 1
         assert physics.emissions.value.value == 45
+
+    def test_public_physics_key_aliases_reject_duplicates(self):
+        from supy.data_model.core.model import ModelPhysics
+
+        with pytest.raises(ValueError, match="leaf_area_index"):
+            ModelPhysics(leaf_area_index="model", laimethod="model")
+        with pytest.raises(ValueError, match="snow"):
+            ModelPhysics(snow="disabled", snow_use="disabled")
 
     def test_model_physics_accepts_nested_stebbs_readable_names(self):
         from supy.data_model.core.model import ModelPhysics
@@ -249,7 +274,7 @@ class TestReadableNamesInModels:
         physics = ModelPhysics(
             stebbs={
                 "enabled": True,
-                "parameters": "provided",
+                "parameter_source": "provided",
                 "capacitance": "parameterise",
                 "setpoint": {"value": "scheduled"},
                 "same_albedo_wall": "enabled",
@@ -261,13 +286,20 @@ class TestReadableNamesInModels:
         assert physics.stebbs.setpoint.value.value == 2
         assert physics.stebbs.same_albedo_wall.value.value == 1
 
+    def test_nested_stebbs_public_alias_rejects_duplicate(self):
+        from supy.data_model.core.model import ModelPhysics
+
+        with pytest.raises(ValueError, match="parameter_source"):
+            ModelPhysics(
+                stebbs={"parameter_source": "default", "parameters": "default"}
+            )
+
 
 class TestRegistryEnumParity:
     """The hardcoded readable-name codes must match the live Enum definitions."""
 
     def test_codes_match_enum_values(self):
-        from supy.data_model.core import model as m
-        from supy.data_model.core import physics_families as pf
+        from supy.data_model.core import model as m, physics_families as pf
 
         field_to_enum = {
             "net_radiation": m.NetRadiationMethod,

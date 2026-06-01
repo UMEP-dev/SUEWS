@@ -1,12 +1,12 @@
-import yaml
-from typing import Optional, Union, List
-import numpy as np
-from pydantic import ConfigDict, BaseModel, Field, field_validator, model_validator
-import pandas as pd
 from enum import Enum
 import inspect
+from typing import List, Optional, Union
 
-from .type import RefValue, Reference, FlexibleRefValue, df_from_cols
+import numpy as np
+import pandas as pd
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
+import yaml
+
 from .field_renames import (
     MODELPHYSICS_RENAMES,
     MODELPHYSICS_SUFFIX_RENAMES,
@@ -17,8 +17,11 @@ from .physics_families import (
     MODEL_PHYSICS_ENUM_FIELDS,
     STEBBS_PHYSICS_ENUM_FIELDS,
     coerce_nested_to_flat,
+    fold_public_physics_key_aliases,
+    fold_stebbs_public_key_aliases,
 )
-from .physics_orthogonal import coerce_orthogonal_to_flat
+from .physics_orthogonal import coerce_orthogonal_to_flat, fold_storage_heat_ohm_inc_qf
+from .type import FlexibleRefValue, Reference, RefValue, df_from_cols
 
 
 def _enum_description(enum_class: type[Enum]) -> str:
@@ -806,6 +809,13 @@ class StebbsPhysics(BaseModel):
 
     ref: Optional[Reference] = None
 
+    @model_validator(mode="before")
+    @classmethod
+    def _coerce_public_key_aliases(cls, values):
+        if isinstance(values, dict):
+            return fold_stebbs_public_key_aliases(values, cls.__name__)
+        return values
+
     @field_validator("enabled", "parameters", mode="after")
     @classmethod
     def _require_master_switch_values(cls, value):
@@ -833,6 +843,7 @@ class ModelPhysics(BaseModel):
     @classmethod
     def _rename_physics_fields(cls, values):
         if isinstance(values, dict):
+            values = fold_public_physics_key_aliases(values, cls.__name__)
             # Cat 1 first (fused -> snake_case with suffix), then Cat 2 + 3
             # (suffix drop + abbreviation expansion). Chaining lets a single
             # YAML carrying either legacy shape land on the final name.
@@ -840,6 +851,9 @@ class ModelPhysics(BaseModel):
             values = apply_field_renames(
                 values, MODELPHYSICS_SUFFIX_RENAMES, cls.__name__
             )
+            # gh#1483: expose OHMIncQF under the storage_heat selector while
+            # preserving the flat field used by the internal/Fortran state.
+            values = fold_storage_heat_ohm_inc_qf(values, cls.__name__)
             # gh#1456: fold the legacy flat STEBBS switches into the nested
             # `stebbs` object. Runs after the key renames so a YAML carrying
             # either fused or snake_case legacy spellings lands here. The fold

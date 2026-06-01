@@ -24,12 +24,12 @@ continues to validate and round-trips byte-identically.
 from __future__ import annotations
 
 from collections.abc import Mapping
+from contextlib import suppress
 from enum import Enum
 from numbers import Integral, Real
 from typing import Any
 
-from .physics_orthogonal import coerce_orthogonal_to_flat
-
+from .physics_orthogonal import coerce_orthogonal_to_flat, fold_storage_heat_ohm_inc_qf
 
 PHYSICS_FAMILIES: dict[str, dict[str, frozenset[int]]] = {
     "net_radiation": {
@@ -54,6 +54,17 @@ PHYSICS_FAMILIES: dict[str, dict[str, frozenset[int]]] = {
         "biogenic_bellucco_general": frozenset({31, 32, 33, 34, 35, 36}),
         "biogenic_conductance": frozenset({41, 42, 43, 44, 45, 46}),
     },
+}
+
+PHYSICS_PUBLIC_KEY_ALIASES: dict[str, str] = {
+    # Public sample/config surface names that fold to long-standing internal
+    # ModelPhysics fields without changing the Fortran-facing state columns.
+    "leaf_area_index": "laimethod",
+    "snow": "snow_use",
+}
+
+STEBBS_PUBLIC_KEY_ALIASES: dict[str, str] = {
+    "parameter_source": "parameters",
 }
 
 _PHYSICS_NAME_SPECS: dict[str, list[tuple[int, str, tuple[str, ...]]]] = {
@@ -137,18 +148,21 @@ _PHYSICS_NAME_SPECS: dict[str, list[tuple[int, str, tuple[str, ...]]]] = {
         (4, "businger_hoegstrom", ("bh71",)),
     ],
     "soil_moisture_deficit": [
-        (0, "modelled", ()),
+        (0, "model", ("modelled",)),
         (1, "observed_volumetric", ()),
         (2, "observed_gravimetric", ()),
     ],
-    "water_use": [(0, "modelled", ()), (1, "observed", ())],
-    "laimethod": [(0, "observed", ()), (1, "calculated", ())],
+    "water_use": [(0, "model", ("modelled",)), (1, "observed", ())],
+    "laimethod": [(0, "observed", ()), (1, "model", ())],
     "roughness_sublayer": [
         (0, "most", ()),
         (1, "rst", ("t19",)),
         (2, "variable", ()),
     ],
-    "frontal_area_index": [(0, "use_provided", ()), (1, "simple_scheme", ())],
+    "frontal_area_index": [
+        (0, "observed", ("provided", "use_provided")),
+        (1, "model", ("simple_scheme",)),
+    ],
     "roughness_sublayer_level": [
         (0, "none", ()),
         (1, "basic", ()),
@@ -236,6 +250,34 @@ def _build_lookup_tables() -> tuple[
 
 
 _CODE_TO_CANONICAL, _ALIAS_TO_CODE = _build_lookup_tables()
+
+
+def fold_public_physics_key_aliases(values: dict, class_name: str) -> dict:
+    """Fold public-facing physics key aliases to canonical internal fields."""
+    for public_name, canonical_name in PHYSICS_PUBLIC_KEY_ALIASES.items():
+        if public_name not in values:
+            continue
+        if canonical_name in values:
+            raise ValueError(
+                f"{class_name}: both '{public_name}' and '{canonical_name}' are "
+                f"present. Use only '{public_name}'."
+            )
+        values[canonical_name] = values.pop(public_name)
+    return values
+
+
+def fold_stebbs_public_key_aliases(values: dict, class_name: str) -> dict:
+    """Fold public-facing nested STEBBS aliases to canonical internal leaves."""
+    for public_name, canonical_name in STEBBS_PUBLIC_KEY_ALIASES.items():
+        if public_name not in values:
+            continue
+        if canonical_name in values:
+            raise ValueError(
+                f"{class_name}: both '{public_name}' and '{canonical_name}' are "
+                f"present. Use only '{public_name}'."
+            )
+        values[canonical_name] = values.pop(public_name)
+    return values
 
 
 def resolve_scalar_name(field_name: str, name: str) -> int:
@@ -357,6 +399,11 @@ def flatten_physics_in_config(data: Any) -> Any:
     if not isinstance(physics, dict):
         return data
 
+    fold_public_physics_key_aliases(physics, "ModelPhysics")
+
+    with suppress(TypeError, ValueError):
+        fold_storage_heat_ohm_inc_qf(physics, "ModelPhysics")
+
     for field_name in MODEL_PHYSICS_ENUM_FIELDS:
         if field_name not in physics:
             continue
@@ -368,6 +415,7 @@ def flatten_physics_in_config(data: Any) -> Any:
 
     stebbs = physics.get("stebbs")
     if isinstance(stebbs, dict) and "value" not in stebbs:
+        fold_stebbs_public_key_aliases(stebbs, "StebbsPhysics")
         for field_name in STEBBS_PHYSICS_ENUM_FIELDS:
             if field_name not in stebbs:
                 continue

@@ -2,13 +2,15 @@
 
 from __future__ import annotations
 
+from pathlib import Path
+
 from pydantic import ValidationError
 import pytest
 import yaml
 
-from supy._env import trv_supy_module
 from supy.data_model.core.field_renames import read_physics_key
 from supy.data_model.core.model import ModelPhysics
+from supy.data_model.core.physics_families import flatten_physics_in_config
 from supy.data_model.core.physics_orthogonal import coerce_orthogonal_to_flat
 
 pytestmark = pytest.mark.api
@@ -48,6 +50,12 @@ def test_orthogonal_form_preserves_ref():
     assert result == {"value": 3, "ref": {"doi": "10.example/ref"}}
 
 
+def test_orthogonal_net_radiation_accepts_scheme_scoped_options():
+    assert coerce_orthogonal_to_flat("net_radiation", {"narp": {"ldown": "air"}}) == {
+        "value": 3
+    }
+
+
 def test_non_orthogonal_shapes_pass_through_for_existing_normalisers():
     family = {"spartacus": {"value": 1001}}
     flat = {"value": 3}
@@ -65,20 +73,165 @@ def test_model_physics_accepts_orthogonal_narp_default_variant():
 
 
 def test_sample_config_prefers_nested_readable_physics_defaults():
-    path = trv_supy_module / "sample_data" / "sample_config.yml"
+    path = Path(__file__).resolve().parents[2] / "src/supy/sample_data/sample_config.yml"
     physics = yaml.safe_load(path.read_text(encoding="utf-8"))["model"]["physics"]
 
-    assert physics["net_radiation"] == {"scheme": "narp", "ldown": "air"}
+    assert physics["net_radiation"] == {"narp": {"ldown": "air"}}
     assert physics["emissions"] == {
-        "heat": "j11",
+        "heat": "J11",
         "co2": {"anthropogenic": "none", "biogenic": "none"},
     }
-    assert physics["storage_heat"] == "ohm"
+    assert physics["storage_heat"] == {"ohm": {"include_qf": False}}
+    assert {
+        key: physics[key]
+        for key in (
+            "roughness_length_momentum",
+            "roughness_length_heat",
+            "stability",
+            "soil_moisture_deficit",
+            "water_use",
+            "roughness_sublayer",
+            "frontal_area_index",
+            "roughness_sublayer_level",
+            "surface_conductance",
+            "leaf_area_index",
+            "snow",
+        )
+    } == {
+        "roughness_length_momentum": "fixed",
+        "roughness_length_heat": "K09",
+        "stability": "CN98",
+        "soil_moisture_deficit": "model",
+        "water_use": "model",
+        "roughness_sublayer": "variable",
+        "frontal_area_index": "observed",
+        "roughness_sublayer_level": "basic",
+        "surface_conductance": "W16",
+        "leaf_area_index": "model",
+        "snow": "disabled",
+    }
+    assert physics["stebbs"] == {
+        "enabled": False,
+        "parameter_source": "default",
+        "capacitance": "default",
+        "setpoint": "constant",
+        "same_albedo_wall": "disabled",
+        "same_albedo_roof": "disabled",
+        "same_emissivity_wall": "disabled",
+        "same_emissivity_roof": "disabled",
+    }
 
     parsed = ModelPhysics.model_validate(physics)
-    assert int(_unwrap(parsed.net_radiation)) == 3
-    assert int(_unwrap(parsed.emissions)) == 2
-    assert int(_unwrap(parsed.storage_heat)) == 1
+    assert {
+        "net_radiation": int(_unwrap(parsed.net_radiation)),
+        "emissions": int(_unwrap(parsed.emissions)),
+        "storage_heat": int(_unwrap(parsed.storage_heat)),
+        "ohm_inc_qf": int(_unwrap(parsed.ohm_inc_qf)),
+        "roughness_length_momentum": int(_unwrap(parsed.roughness_length_momentum)),
+        "roughness_length_heat": int(_unwrap(parsed.roughness_length_heat)),
+        "stability": int(_unwrap(parsed.stability)),
+        "soil_moisture_deficit": int(_unwrap(parsed.soil_moisture_deficit)),
+        "water_use": int(_unwrap(parsed.water_use)),
+        "roughness_sublayer": int(_unwrap(parsed.roughness_sublayer)),
+        "frontal_area_index": int(_unwrap(parsed.frontal_area_index)),
+        "roughness_sublayer_level": int(_unwrap(parsed.roughness_sublayer_level)),
+        "surface_conductance": int(_unwrap(parsed.surface_conductance)),
+        "laimethod": int(_unwrap(parsed.laimethod)),
+        "snow_use": int(_unwrap(parsed.snow_use)),
+        "stebbs.enabled": bool(_unwrap(parsed.stebbs.enabled)),
+        "stebbs.parameters": int(_unwrap(parsed.stebbs.parameters)),
+        "stebbs.capacitance": int(_unwrap(parsed.stebbs.capacitance)),
+        "stebbs.setpoint": int(_unwrap(parsed.stebbs.setpoint)),
+        "stebbs.same_albedo_wall": int(_unwrap(parsed.stebbs.same_albedo_wall)),
+        "stebbs.same_albedo_roof": int(_unwrap(parsed.stebbs.same_albedo_roof)),
+        "stebbs.same_emissivity_wall": int(
+            _unwrap(parsed.stebbs.same_emissivity_wall)
+        ),
+        "stebbs.same_emissivity_roof": int(
+            _unwrap(parsed.stebbs.same_emissivity_roof)
+        ),
+    } == {
+        "net_radiation": 3,
+        "emissions": 2,
+        "storage_heat": 1,
+        "ohm_inc_qf": 0,
+        "roughness_length_momentum": 1,
+        "roughness_length_heat": 2,
+        "stability": 3,
+        "soil_moisture_deficit": 0,
+        "water_use": 0,
+        "roughness_sublayer": 2,
+        "frontal_area_index": 0,
+        "roughness_sublayer_level": 1,
+        "surface_conductance": 2,
+        "laimethod": 1,
+        "snow_use": 0,
+        "stebbs.enabled": False,
+        "stebbs.parameters": 1,
+        "stebbs.capacitance": 0,
+        "stebbs.setpoint": 0,
+        "stebbs.same_albedo_wall": 0,
+        "stebbs.same_albedo_roof": 0,
+        "stebbs.same_emissivity_wall": 0,
+        "stebbs.same_emissivity_roof": 0,
+    }
+
+
+def test_storage_heat_owns_ohm_inc_qf_nested_axis():
+    phys = ModelPhysics(storage_heat={"ohm": {"include_qf": True}})
+
+    assert int(_unwrap(phys.storage_heat)) == 1
+    assert int(_unwrap(phys.ohm_inc_qf)) == 1
+
+
+def test_storage_heat_scheme_scoped_include_qf_accepts_yes_no():
+    phys = ModelPhysics(storage_heat={"ohm": {"include_qf": "no"}})
+
+    assert int(_unwrap(phys.storage_heat)) == 1
+    assert int(_unwrap(phys.ohm_inc_qf)) == 0
+
+
+def test_storage_heat_legacy_nested_ohm_inc_qf_stays_accepted():
+    phys = ModelPhysics(storage_heat={"scheme": "ohm", "ohm_inc_qf": "include"})
+
+    assert int(_unwrap(phys.storage_heat)) == 1
+    assert int(_unwrap(phys.ohm_inc_qf)) == 1
+
+
+def test_storage_heat_nested_ohm_inc_qf_rejects_flat_duplicate():
+    with pytest.raises(ValidationError, match="storage_heat\\.ohm\\.include_qf"):
+        ModelPhysics(
+            storage_heat={"ohm": {"include_qf": False}},
+            ohm_inc_qf="include",
+        )
+
+
+def test_storage_heat_scheme_scoped_qf_rejects_sibling_scheme():
+    with pytest.raises(
+        ValidationError,
+        match="storage_heat\\.ohm.*cannot be combined",
+    ):
+        ModelPhysics(storage_heat={"ohm": {"include_qf": False}, "anohm": {}})
+
+
+def test_storage_heat_invalid_nested_qf_is_not_partially_folded():
+    data = {
+        "model": {
+            "physics": {
+                "storage_heat": {
+                    "ohm": {
+                        "include_qf": False,
+                        "unexpected": True,
+                    },
+                }
+            }
+        }
+    }
+    expected = yaml.safe_load(yaml.safe_dump(data))
+
+    flatten_physics_in_config(data)
+
+    assert data == expected
 
 
 def test_model_physics_accepts_orthogonal_spartacus():

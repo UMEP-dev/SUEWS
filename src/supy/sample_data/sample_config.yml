@@ -16,19 +16,18 @@ model:
       groups:
         - "SUEWS"
   physics:
-    # Three fields (net_radiation, storage_heat, emissions) accept a
-    # family-tagged nested form too (gh#972), e.g.:
-    #   net_radiation:
-    #     narp:
-    #       value: 3
-    # The family tag is validated against its numeric codes; round-trip
-    # always emits the flat form below.
+    # These method selectors use the accepted nested/readable input forms so
+    # the chosen physics family or axis is explicit in the sample. Round-trip
+    # serializers still emit the canonical flat {value: N} representation.
     net_radiation:
-      value: 3
+      scheme: narp
+      ldown: air
     emissions:
-      value: 2
-    storage_heat:
-      value: 1
+      heat: j11
+      co2:
+        anthropogenic: none
+        biogenic: none
+    storage_heat: ohm
     ohm_inc_qf:
       value: 0
     roughness_length_momentum:

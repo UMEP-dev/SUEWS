@@ -106,17 +106,11 @@ pub const FIELD_RENAMES: &[(&str, &str)] = &[
     // here; the gh#1329 PascalCase intermediate (WallExternalThickness
     // etc.) lives in FIELD_COMPAT_ALIASES below.
     ("thickness_wall_outer", "WallextThickness"),
-    (
-        "conductivity_wall_outer",
-        "WallextEffectiveConductivity",
-    ),
+    ("conductivity_wall_outer", "WallextEffectiveConductivity"),
     ("density_wall_outer", "WallextDensity"),
     ("specific_heat_capacity_wall_outer", "WallextCp"),
     ("thickness_roof_outer", "RoofextThickness"),
-    (
-        "conductivity_roof_outer",
-        "RoofextEffectiveConductivity",
-    ),
+    ("conductivity_roof_outer", "RoofextEffectiveConductivity"),
     ("density_roof_outer", "RoofextDensity"),
     ("specific_heat_capacity_roof_outer", "RoofextCp"),
     ("archetype_name", "BuildingName"),
@@ -156,10 +150,7 @@ pub const FIELD_RENAMES: &[(&str, &str)] = &[
     ("density_ground_floor", "GroundFloorDensity"),
     ("specific_heat_capacity_ground_floor", "GroundFloorCp"),
     ("thickness_window", "WindowThickness"),
-    (
-        "conductivity_window",
-        "WindowEffectiveConductivity",
-    ),
+    ("conductivity_window", "WindowEffectiveConductivity"),
     ("density_window", "WindowDensity"),
     ("specific_heat_capacity_window", "WindowCp"),
     ("emissivity_window_external", "WindowExternalEmissivity"),
@@ -172,12 +163,15 @@ pub const FIELD_RENAMES: &[(&str, &str)] = &[
     ("emissivity_internal_mass", "InternalMassEmissivity"),
     ("power_air_heating_max", "MaxHeatingPower"),
     ("volume_hot_water_tank", "WaterTankWaterVolume"),
+    ("power_water_heating_max", "MaximumHotWaterHeatingPower"),
     (
-        "power_water_heating_max",
-        "MaximumHotWaterHeatingPower",
+        "temperature_air_heating_setpoint",
+        "HeatingSetpointTemperature",
     ),
-    ("temperature_air_heating_setpoint", "HeatingSetpointTemperature"),
-    ("temperature_air_cooling_setpoint", "CoolingSetpointTemperature"),
+    (
+        "temperature_air_cooling_setpoint",
+        "CoolingSetpointTemperature",
+    ),
     (
         "profile_temperature_air_heating_setpoint",
         "HeatingSetpointTemperatureProfile",
@@ -454,14 +448,8 @@ pub const FIELD_COMPAT_ALIASES: &[(&str, &str)] = &[
         "maximumhotwaterheatingpower",
     ),
     ("hot_water_tank_volume", "watertankwatervolume"),
-    (
-        "heating_setpoint_temperature",
-        "heatingsetpointtemperature",
-    ),
-    (
-        "cooling_setpoint_temperature",
-        "coolingsetpointtemperature",
-    ),
+    ("heating_setpoint_temperature", "heatingsetpointtemperature"),
+    ("cooling_setpoint_temperature", "coolingsetpointtemperature"),
     (
         "heating_setpoint_temperature_profile",
         "heatingsetpointtemperatureprofile",
@@ -485,33 +473,75 @@ pub const FIELD_COMPAT_ALIASES: &[(&str, &str)] = &[
     // Schema 2026.5.dev9 StebbsProperties Rule-2 final names. Python
     // reaches these through the Pydantic rename chain; the Rust CLI bypasses
     // that shim, so current YAML needs a direct alias to the bridge keys.
-    ("convection_coefficient_wall_internal", "wallinternalconvectioncoefficient"),
-    ("convection_coefficient_roof_internal", "roofinternalconvectioncoefficient"),
-    ("convection_coefficient_internal_mass", "internalmassconvectioncoefficient"),
-    ("convection_coefficient_ground_floor_internal", "floorinternalconvectioncoefficient"),
-    ("convection_coefficient_window_internal", "windowinternalconvectioncoefficient"),
-    ("convection_coefficient_wall_external", "wallexternalconvectioncoefficient"),
-    ("convection_coefficient_roof_external", "roofexternalconvectioncoefficient"),
-    ("convection_coefficient_window_external", "windowexternalconvectioncoefficient"),
+    (
+        "convection_coefficient_wall_internal",
+        "wallinternalconvectioncoefficient",
+    ),
+    (
+        "convection_coefficient_roof_internal",
+        "roofinternalconvectioncoefficient",
+    ),
+    (
+        "convection_coefficient_internal_mass",
+        "internalmassconvectioncoefficient",
+    ),
+    (
+        "convection_coefficient_ground_floor_internal",
+        "floorinternalconvectioncoefficient",
+    ),
+    (
+        "convection_coefficient_window_internal",
+        "windowinternalconvectioncoefficient",
+    ),
+    (
+        "convection_coefficient_wall_external",
+        "wallexternalconvectioncoefficient",
+    ),
+    (
+        "convection_coefficient_roof_external",
+        "roofexternalconvectioncoefficient",
+    ),
+    (
+        "convection_coefficient_window_external",
+        "windowexternalconvectioncoefficient",
+    ),
     ("thermal_conductivity_ground", "externalgroundconductivity"),
     ("threshold_metabolism", "metabolismthreshold"),
     ("ratio_latent_sensible", "latentsensibleratio"),
     ("control_daylight", "daylightcontrol"),
-    ("threshold_lighting_illuminance", "lightingilluminancethreshold"),
+    (
+        "threshold_lighting_illuminance",
+        "lightingilluminancethreshold",
+    ),
     ("efficiency_heating_system_air", "heatingsystemefficiency"),
     ("power_air_cooling_max", "maxcoolingpower"),
     ("efficiency_cooling_system_air", "coolingsystemcop"),
-    ("temperature_air_outdoor_initial", "initialoutdoortemperature"),
+    (
+        "temperature_air_outdoor_initial",
+        "initialoutdoortemperature",
+    ),
     ("temperature_air_indoor_initial", "initialindoortemperature"),
     ("temperature_air_annual_mean", "annualmeanairtemperature"),
     ("thickness_hot_water_tank_wall", "watertankwallthickness"),
     ("temperature_water_mains", "mainswatertemperature"),
     ("area_hot_water_tank_surface", "watertanksurfacearea"),
-    ("temperature_water_heating_setpoint", "hotwaterheatingsetpointtemperature"),
-    ("emissivity_hot_water_tank_wall", "hotwatertankwallemissivity"),
-    ("conductivity_hot_water_tank_wall", "hotwatertankwallconductivity"),
+    (
+        "temperature_water_heating_setpoint",
+        "hotwaterheatingsetpointtemperature",
+    ),
+    (
+        "emissivity_hot_water_tank_wall",
+        "hotwatertankwallemissivity",
+    ),
+    (
+        "conductivity_hot_water_tank_wall",
+        "hotwatertankwallconductivity",
+    ),
     ("density_hot_water_tank_wall", "hotwatertankwalldensity"),
-    ("specific_heat_capacity_hot_water_tank_wall", "hotwatertankspecificheatcapacity"),
+    (
+        "specific_heat_capacity_hot_water_tank_wall",
+        "hotwatertankspecificheatcapacity",
+    ),
     (
         "convection_coefficient_hot_water_tank_wall_internal",
         "hotwatertankinternalwallconvectioncoefficient",
@@ -521,9 +551,15 @@ pub const FIELD_COMPAT_ALIASES: &[(&str, &str)] = &[
         "hotwatertankexternalwallconvectioncoefficient",
     ),
     ("thickness_hot_water_vessel_wall", "dhwvesselwallthickness"),
-    ("conductivity_hot_water_vessel_wall", "dhwvesselwallconductivity"),
+    (
+        "conductivity_hot_water_vessel_wall",
+        "dhwvesselwallconductivity",
+    ),
     ("density_hot_water_vessel_wall", "dhwvesseldensity"),
-    ("specific_heat_capacity_hot_water_vessel_wall", "dhwvesselspecificheatcapacity"),
+    (
+        "specific_heat_capacity_hot_water_vessel_wall",
+        "dhwvesselspecificheatcapacity",
+    ),
     (
         "convection_coefficient_hot_water_vessel_wall_internal",
         "dhwvesselinternalwallconvectioncoefficient",
@@ -532,13 +568,22 @@ pub const FIELD_COMPAT_ALIASES: &[(&str, &str)] = &[
         "convection_coefficient_hot_water_vessel_wall_external",
         "dhwvesselexternalwallconvectioncoefficient",
     ),
-    ("emissivity_hot_water_vessel_wall", "dhwvesselwallemissivity"),
+    (
+        "emissivity_hot_water_vessel_wall",
+        "dhwvesselwallemissivity",
+    ),
     ("volume_hot_water", "dhwwatervolume"),
     ("area_hot_water_surface", "dhwsurfacearea"),
     ("rate_hot_water_flow", "hotwaterflowrate"),
     ("density_hot_water", "dhwdensity"),
-    ("specific_heat_capacity_hot_water", "dhwspecificheatcapacity"),
-    ("efficiency_heating_system_water", "hotwaterheatingefficiency"),
+    (
+        "specific_heat_capacity_hot_water",
+        "dhwspecificheatcapacity",
+    ),
+    (
+        "efficiency_heating_system_water",
+        "hotwaterheatingefficiency",
+    ),
     ("profile_hot_water_flow", "hotwaterflowprofile"),
     ("profile_appliance", "applianceprofile"),
     // Schema 2026.5.dev12 STEBBS straggler reorder (gh#1392 follow-up). The
@@ -551,7 +596,10 @@ pub const FIELD_COMPAT_ALIASES: &[(&str, &str)] = &[
     ("depth_ground", "GroundDepth"),
     ("rate_ventilation", "VentilationRate"),
     ("power_density_lighting", "LightingPowerDensity"),
-    ("temperature_air_month_mean_diffmax", "MonthMeanAirTemperature_diffmax"),
+    (
+        "temperature_air_month_mean_diffmax",
+        "MonthMeanAirTemperature_diffmax",
+    ),
     // Schema 2026.5.dev12 Column D alignment (gh#1392 follow-up): sixteen more
     // STEBBS / Archetype fields adopt the Reading STEBBS team's "Column D"
     // names (D. Hertwig / S. Rognone, 2026-05). The current YAML carries the
@@ -564,9 +612,18 @@ pub const FIELD_COMPAT_ALIASES: &[(&str, &str)] = &[
     // so the PascalCase ancestry is required for the profile fields.
     // ArchetypeProperties (6)
     ("max_power_heating_system_air", "MaxHeatingPower"),
-    ("max_power_heating_system_water", "MaximumHotWaterHeatingPower"),
-    ("setpoint_temperature_heating_air", "HeatingSetpointTemperature"),
-    ("setpoint_temperature_cooling_air", "CoolingSetpointTemperature"),
+    (
+        "max_power_heating_system_water",
+        "MaximumHotWaterHeatingPower",
+    ),
+    (
+        "setpoint_temperature_heating_air",
+        "HeatingSetpointTemperature",
+    ),
+    (
+        "setpoint_temperature_cooling_air",
+        "CoolingSetpointTemperature",
+    ),
     (
         "profile_setpoint_temperature_heating_air",
         "HeatingSetpointTemperatureProfile",
@@ -577,7 +634,10 @@ pub const FIELD_COMPAT_ALIASES: &[(&str, &str)] = &[
     ),
     // StebbsProperties (10)
     ("max_power_cooling_system_air", "MaxCoolingPower"),
-    ("setpoint_temperature_heating_water", "HotWaterHeatingSetpointTemperature"),
+    (
+        "setpoint_temperature_heating_water",
+        "HotWaterHeatingSetpointTemperature",
+    ),
     ("temperature_mains_water", "MainsWaterTemperature"),
     ("surface_area_hot_water_tank", "WaterTankSurfaceArea"),
     ("surface_area_hot_water", "DHWSurfaceArea"),
@@ -642,6 +702,168 @@ pub const PHYSICS_FAMILIES_RS: &[(&str, &[(&str, FamilyCodes)])] = &[
             ("biogenic_conductance", &[41, 42, 43, 44, 45, 46]),
         ],
     ),
+];
+
+/// Human-readable scalar name -> code registry for every accepted
+/// model.physics enum surface (gh#1471). Mirrors `_PHYSICS_NAME_SPECS` in
+/// `src/supy/data_model/core/physics_families.py`.
+pub const PHYSICS_NAME_ALIASES_RS: &[(&str, &[(&str, i64)])] = &[
+    (
+        "net_radiation",
+        &[
+            ("observed", 0),
+            ("forcing", 0),
+            ("ldown_observed", 1),
+            ("ldown_cloud", 2),
+            ("ldown_air", 3),
+            ("ldown_surface", 11),
+            ("ldown_cloud_surface", 12),
+            ("ldown_air_surface", 13),
+            ("ldown_zenith", 100),
+            ("ldown_cloud_zenith", 200),
+            ("ldown_air_zenith", 300),
+            ("ldown_ss_observed", 1001),
+            ("ldown_ss_cloud", 1002),
+            ("ldown_ss_air", 1003),
+        ],
+    ),
+    (
+        "emissions",
+        &[
+            ("observed", 0),
+            ("l11", 1),
+            ("j11", 2),
+            ("l11_updated", 3),
+            ("j19", 4),
+            ("j19_updated", 5),
+            ("l11_updated_detailed", 6),
+            ("biogen_rect_l11", 11),
+            ("biogen_rect_j11", 12),
+            ("biogen_rect_l11_updated", 13),
+            ("biogen_rect_l11_detailed", 14),
+            ("biogen_rect_j11_detailed", 15),
+            ("biogen_rect_l11_updated_detailed", 16),
+            ("biogen_bellucco_local_l11", 21),
+            ("biogen_bellucco_local_j11", 22),
+            ("biogen_bellucco_local_l11_updated", 23),
+            ("biogen_bellucco_local_l11_detailed", 24),
+            ("biogen_bellucco_local_j11_detailed", 25),
+            ("biogen_bellucco_local_l11_updated_detailed", 26),
+            ("biogen_bellucco_general_l11", 31),
+            ("biogen_bellucco_general_j11", 32),
+            ("biogen_bellucco_general_l11_updated", 33),
+            ("biogen_bellucco_general_l11_detailed", 34),
+            ("biogen_bellucco_general_j11_detailed", 35),
+            ("biogen_bellucco_general_l11_updated_detailed", 36),
+            ("biogen_conductance_l11", 41),
+            ("biogen_conductance_j11", 42),
+            ("biogen_conductance_l11_updated", 43),
+            ("biogen_conductance_l11_detailed", 44),
+            ("biogen_conductance_j11_detailed", 45),
+            ("biogen_conductance_l11_updated_detailed", 46),
+        ],
+    ),
+    (
+        "storage_heat",
+        &[
+            ("observed", 0),
+            ("ohm", 1),
+            ("ohm_without_qf", 1),
+            ("anohm", 3),
+            ("s17", 3),
+            ("estm", 4),
+            ("o05", 4),
+            ("ehc", 5),
+            ("dyohm", 6),
+            ("l25", 6),
+            ("stebbs", 7),
+        ],
+    ),
+    ("ohm_inc_qf", &[("exclude", 0), ("include", 1)]),
+    (
+        "roughness_length_momentum",
+        &[
+            ("fixed", 1),
+            ("variable", 2),
+            ("macdonald", 3),
+            ("m98", 3),
+            ("lambdap_dependent", 4),
+            ("go99", 4),
+            ("alternative", 5),
+        ],
+    ),
+    (
+        "roughness_length_heat",
+        &[
+            ("brutsaert", 1),
+            ("b82", 1),
+            ("kawai", 2),
+            ("k09", 2),
+            ("voogt_grimmond", 3),
+            ("vg00", 3),
+            ("kanda", 4),
+            ("k07", 4),
+            ("adaptive", 5),
+        ],
+    ),
+    (
+        "stability",
+        &[
+            ("not_used", 0),
+            ("not_used2", 1),
+            ("hoegstrom", 2),
+            ("campbell_norman", 3),
+            ("cn98", 3),
+            ("businger_hoegstrom", 4),
+            ("bh71", 4),
+        ],
+    ),
+    (
+        "soil_moisture_deficit",
+        &[
+            ("modelled", 0),
+            ("observed_volumetric", 1),
+            ("observed_gravimetric", 2),
+        ],
+    ),
+    ("water_use", &[("modelled", 0), ("observed", 1)]),
+    ("laimethod", &[("observed", 0), ("calculated", 1)]),
+    (
+        "roughness_sublayer",
+        &[("most", 0), ("rst", 1), ("t19", 1), ("variable", 2)],
+    ),
+    (
+        "frontal_area_index",
+        &[("use_provided", 0), ("simple_scheme", 1)],
+    ),
+    (
+        "roughness_sublayer_level",
+        &[("none", 0), ("basic", 1), ("detailed", 2)],
+    ),
+    (
+        "surface_conductance",
+        &[("jarvi", 1), ("j11", 1), ("ward", 2), ("w16", 2)],
+    ),
+    ("snow_use", &[("disabled", 0), ("enabled", 1)]),
+    ("stebbs", &[("none", 0), ("default", 1), ("provided", 2)]),
+    ("parameters", &[("default", 1), ("provided", 2)]),
+    (
+        "capacitance",
+        &[
+            ("default", 0),
+            ("provided", 1),
+            ("parameterise", 2),
+            ("parameterize", 2),
+        ],
+    ),
+    (
+        "setpoint",
+        &[("constant", 0), ("dependent", 1), ("scheduled", 2)],
+    ),
+    ("same_albedo_wall", &[("disabled", 0), ("enabled", 1)]),
+    ("same_albedo_roof", &[("disabled", 0), ("enabled", 1)]),
+    ("same_emissivity_wall", &[("disabled", 0), ("enabled", 1)]),
+    ("same_emissivity_roof", &[("disabled", 0), ("enabled", 1)]),
 ];
 
 const NET_RADIATION_OUTER_KEYS: &[&str] = &[
@@ -1019,6 +1241,106 @@ fn collapse_nested_physics(root: &mut Value) -> Result<(), String> {
     Ok(())
 }
 
+fn physics_name_to_code(field: &str, name: &str) -> Option<i64> {
+    let key = name.trim().to_ascii_lowercase();
+    PHYSICS_NAME_ALIASES_RS
+        .iter()
+        .find(|(f, _)| *f == field)
+        .and_then(|(_, aliases)| {
+            aliases
+                .iter()
+                .find(|(n, _)| *n == key)
+                .map(|(_, code)| *code)
+        })
+}
+
+fn collapse_physics_scalar_entry(field: &str, entry: &mut Value) -> Result<bool, String> {
+    if let Some(name) = entry.as_str().map(|s| s.to_string()) {
+        if name.trim().is_empty() {
+            return Ok(false);
+        }
+        let code = physics_name_to_code(field, &name)
+            .ok_or_else(|| format!("'{field}' got unknown scheme name '{name}'."))?;
+        let mut flat = serde_yaml::Mapping::new();
+        flat.insert(Value::String("value".into()), Value::Number(code.into()));
+        *entry = Value::Mapping(flat);
+        return Ok(true);
+    }
+
+    if let Value::Mapping(map) = entry {
+        let value_key = Value::String("value".into());
+        if let Some(name) = map
+            .get(&value_key)
+            .and_then(|v| v.as_str())
+            .map(str::to_string)
+        {
+            if name.trim().is_empty() {
+                return Ok(false);
+            }
+            let code = physics_name_to_code(field, &name)
+                .ok_or_else(|| format!("'{field}' got unknown scheme name '{name}'."))?;
+            map.insert(value_key, Value::Number(code.into()));
+            return Ok(true);
+        }
+    }
+
+    Ok(false)
+}
+
+fn collapse_physics_names(root: &mut Value) -> Result<(), String> {
+    let physics = match root
+        .get_mut("model")
+        .and_then(|m| m.as_mapping_mut())
+        .and_then(|m| m.get_mut(Value::String("physics".into())))
+        .and_then(|p| p.as_mapping_mut())
+    {
+        Some(p) => p,
+        None => return Ok(()),
+    };
+
+    for (field, _) in PHYSICS_NAME_ALIASES_RS {
+        for spelling in physics_field_key_spellings(field) {
+            let key = Value::String(spelling);
+            let entry = match physics.get_mut(&key) {
+                Some(entry) => entry,
+                None => continue,
+            };
+            collapse_physics_scalar_entry(field, entry)?;
+        }
+    }
+
+    Ok(())
+}
+
+fn physics_field_key_spellings(field: &str) -> Vec<String> {
+    let mut keys = vec![field.to_string()];
+    let push = |keys: &mut Vec<String>, key: &str| {
+        if !keys.iter().any(|existing| existing == key) {
+            keys.push(key.to_string());
+        }
+    };
+
+    let mut targets: Vec<String> = physics_outer_keys(field)
+        .iter()
+        .map(|key| key.to_string())
+        .collect();
+    for (new, old) in FIELD_RENAMES.iter().chain(FIELD_COMPAT_ALIASES.iter()) {
+        if *new == field && !targets.iter().any(|target| target == old) {
+            targets.push((*old).to_string());
+        }
+    }
+
+    for target in &targets {
+        push(&mut keys, target);
+    }
+    for (new, old) in FIELD_RENAMES.iter().chain(FIELD_COMPAT_ALIASES.iter()) {
+        if targets.iter().any(|target| target == old) {
+            push(&mut keys, new);
+        }
+    }
+    keys
+}
+
 /// Nested `model.physics.stebbs` leaf keys recognised by the flatten
 /// pre-pass. Mirrors `_STEBBS_NESTED_KEYS` in
 /// `src/supy/data_model/core/field_renames.py` (gh#1456). A `stebbs` mapping
@@ -1081,9 +1403,8 @@ fn is_stebbs_refvalue_scalar(map: &serde_yaml::Mapping) -> bool {
     if !has_value {
         return false;
     }
-    map.keys().all(|k| {
-        matches!(k, Value::String(s) if s == "value" || s == "ref")
-    })
+    map.keys()
+        .all(|k| matches!(k, Value::String(s) if s == "value" || s == "ref"))
 }
 
 fn has_stebbs_nested_key(map: &serde_yaml::Mapping) -> bool {
@@ -1213,6 +1534,9 @@ fn read_parameters_code(entry: &Value) -> Result<i64, String> {
         Value::Bool(false) => {
             Err("model.physics.stebbs.parameters expects 1 or 2, got false".to_string())
         }
+        Value::String(s) => physics_name_to_code("parameters", s).ok_or_else(|| {
+            format!("model.physics.stebbs.parameters got unknown scheme name {s:?}")
+        }),
         other => Err(format!(
             "model.physics.stebbs.parameters expects numeric 1 or 2, got {other:?}"
         )),
@@ -1390,6 +1714,7 @@ pub fn normalize_field_names(root: &mut Value) -> Result<(), String> {
     // otherwise rewrite (`stebbs` -> `stebbsmethod`). See
     // `PHYSICS_FAMILIES_RS` for the full rationale (gh#972).
     collapse_nested_physics(root)?;
+    collapse_physics_names(root)?;
     normalize_field_names_at(root, "<root>")?;
     Ok(())
 }
@@ -1930,6 +2255,85 @@ model:
         );
     }
 
+    #[test]
+    fn readable_physics_names_collapse_to_flat() {
+        let yaml = "\
+model:
+  physics:
+    storage_heat: ohm
+    stability: cn98
+    snow_use: enabled
+";
+        let mut root: Value = from_str(yaml).unwrap();
+        normalize_field_names(&mut root).unwrap();
+        let physics = &root["model"]["physics"];
+        assert_eq!(
+            physics["storageheatmethod"]
+                .get(Value::String("value".into()))
+                .and_then(|v| v.as_i64()),
+            Some(1)
+        );
+        assert_eq!(
+            physics["stabilitymethod"]
+                .get(Value::String("value".into()))
+                .and_then(|v| v.as_i64()),
+            Some(3)
+        );
+        assert_eq!(
+            physics["snowuse"]
+                .get(Value::String("value".into()))
+                .and_then(|v| v.as_i64()),
+            Some(1)
+        );
+    }
+
+    #[test]
+    fn readable_names_under_legacy_and_refvalue_keys_collapse() {
+        let yaml = "\
+model:
+  physics:
+    storage_heat_method: ehc
+    emissionsmethod:
+      value: biogen_conductance_j11_detailed
+";
+        let mut root: Value = from_str(yaml).unwrap();
+        normalize_field_names(&mut root).unwrap();
+        let physics = &root["model"]["physics"];
+        assert_eq!(
+            physics["storageheatmethod"]
+                .get(Value::String("value".into()))
+                .and_then(|v| v.as_i64()),
+            Some(5)
+        );
+        assert_eq!(
+            physics["emissionsmethod"]
+                .get(Value::String("value".into()))
+                .and_then(|v| v.as_i64()),
+            Some(45)
+        );
+    }
+
+    #[test]
+    fn nested_stebbs_readable_names_flatten_to_fused_keys() {
+        let yaml = "\
+model:
+  physics:
+    stebbs:
+      enabled: true
+      parameters: provided
+      capacitance: parameterise
+      setpoint:
+        value: scheduled
+      same_albedo_wall: enabled
+";
+        let mut root: Value = from_str(yaml).unwrap();
+        normalize_field_names(&mut root).unwrap();
+        assert_eq!(physics_i64(&root, "stebbsmethod"), Some(2));
+        assert_eq!(physics_i64(&root, "rcmethod"), Some(2));
+        assert_eq!(physics_i64(&root, "setpointmethod"), Some(2));
+        assert_eq!(physics_i64(&root, "same_albedo_wall"), Some(1));
+    }
+
     // -- gh#1456: nested `model.physics.stebbs` flatten pre-pass --------------
 
     fn physics_i64(root: &Value, key: &str) -> Option<i64> {
@@ -2030,8 +2434,8 @@ model:
 "
             );
             let mut root: Value = from_str(&yaml).unwrap();
-            let err = normalize_field_names(&mut root)
-                .expect_err("duplicate nested aliases must fail");
+            let err =
+                normalize_field_names(&mut root).expect_err("duplicate nested aliases must fail");
             assert!(
                 err.contains("Multiple nested STEBBS"),
                 "unexpected error message: {err}"
@@ -2055,9 +2459,9 @@ model:
     }
 
     #[test]
-    fn nested_stebbs_string_parameters_rejected() {
-        // Python/Pydantic rejects enum-name strings here; the bridge must not
-        // silently run them as PROVIDED.
+    fn nested_stebbs_refvalue_string_parameters_compose_method_two() {
+        // Readable enum-name strings are accepted on input and collapse to the
+        // numeric code before the bridge writes the legacy fused key.
         let yaml = "\
 model:
   physics:
@@ -2066,11 +2470,41 @@ model:
       parameters: {value: provided}
 ";
         let mut root: Value = from_str(yaml).unwrap();
-        let err = normalize_field_names(&mut root).expect_err("string parameters must fail");
+        normalize_field_names(&mut root).unwrap();
+        assert_eq!(physics_i64(&root, "stebbsmethod"), Some(2));
+    }
+
+    #[test]
+    fn nested_stebbs_unknown_string_parameters_rejected() {
+        let yaml = "\
+model:
+  physics:
+    stebbs:
+      enabled: {value: true}
+      parameters: {value: custom}
+";
+        let mut root: Value = from_str(yaml).unwrap();
+        let err =
+            normalize_field_names(&mut root).expect_err("unknown string parameters must fail");
         assert!(
-            err.contains("stebbs.parameters"),
+            err.contains("unknown scheme name"),
             "unexpected error message: {err}"
         );
+    }
+
+    #[test]
+    fn blank_physics_method_strings_preserve_placeholders() {
+        let yaml = "\
+model:
+  physics:
+    roughness_sublayer: ''
+    emissions: {value: ''}
+";
+        let mut root: Value = from_str(yaml).unwrap();
+        normalize_field_names(&mut root).unwrap();
+        let physics = &root["model"]["physics"];
+        assert_eq!(physics["rslmethod"].as_str(), Some(""));
+        assert_eq!(physics["emissionsmethod"]["value"].as_str(), Some(""));
     }
 
     #[test]

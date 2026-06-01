@@ -5024,12 +5024,23 @@ class TestPhaseBRenameAwareLookups:
     def test_stebbsmethod_helper_rejects_invalid_nested_switch_values(self):
         from supy.data_model.validation.core.yaml_helpers import get_stebbsmethod_value
 
-        with pytest.raises(ValueError, match="stebbs.parameters"):
+        assert (
             get_stebbsmethod_value(
                 {
                     "stebbs": {
                         "enabled": {"value": True},
                         "parameters": {"value": "provided"},
+                    }
+                }
+            )
+            == 2
+        )
+        with pytest.raises(ValueError, match="unknown scheme name"):
+            get_stebbsmethod_value(
+                {
+                    "stebbs": {
+                        "enabled": {"value": True},
+                        "parameters": {"value": "custom"},
                     }
                 }
             )

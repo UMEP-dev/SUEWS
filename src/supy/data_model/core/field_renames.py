@@ -11,7 +11,7 @@ import warnings
 from collections.abc import Mapping
 from typing import Any, Dict
 
-from .physics_families import coerce_nested_to_flat
+from .physics_families import coerce_nested_to_flat, flatten_physics_in_config
 from .physics_orthogonal import coerce_orthogonal_to_flat
 
 
@@ -1419,6 +1419,7 @@ def _decompose_stebbs_master(entry: Any) -> tuple[Any, Any]:
             "'stebbs.enabled' / 'stebbs.parameters' for the nested form."
         )
 
+    entry = coerce_nested_to_flat("stebbs", entry)
     raw = _unwrap_scalar(entry)
     if isinstance(raw, bool):
         code = int(raw)
@@ -1786,13 +1787,8 @@ def normalise_yaml_renames(data: Any) -> Any:
                 "ModelPhysics",
                 warn=False,
             )
-            for field_name in ("net_radiation", "storage_heat", "emissions"):
-                if field_name in physics:
-                    physics[field_name] = coerce_nested_to_flat(
-                        field_name,
-                        coerce_orthogonal_to_flat(field_name, physics[field_name]),
-                    )
             model["physics"] = physics
+            flatten_physics_in_config(normalised)
 
     return normalised
 

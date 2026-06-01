@@ -41,7 +41,7 @@ EXAMPLES:
 
 | Year | Features | Bugfixes | Changes | Maintenance | Docs | Total |
 |------|----------|----------|---------|-------------|------|-------|
-| 2026 | 74 | 83 | 30 | 81 | 40 | 309 |
+| 2026 | 75 | 83 | 30 | 81 | 40 | 310 |
 | 2025 | 60 | 68 | 22 | 71 | 36 | 256 |
 | 2024 | 12 | 17 | 1 | 12 | 1 | 43 |
 | 2023 | 11 | 14 | 3 | 9 | 1 | 38 |
@@ -61,7 +61,10 @@ EXAMPLES:
 - [change][experimental] Relocate STEBBS physics switches under `model.physics.stebbs` (#1456)
   - The legacy flat STEBBS physics switches now serialise under the nested `model.physics.stebbs` object, splitting the `stebbs` master toggle into `enabled` plus `parameters`
   - Existing flat YAML input remains accepted and is folded during validation and migration; bridge and Fortran-facing columns such as `stebbsmethod`, `rcmethod`, `setpointmethod`, and the `same_*` switches remain unchanged
-  - This is a structural YAML/data-model move only; the capacitance-method semantics tracked by #1472 remain open
+  - This is a structural YAML/data-model move; the capacitance selector keeps the Reading-requested `capacitance` name while the wall/roof heat-capacity fraction fields remain physical values
+- [feature][experimental] Accept human-readable names for physics method options (#1471)
+  - YAML input now accepts registered readable method tokens such as `storage_heat: ohm`, `stability: cn98`, `snow_use: enabled`, and nested STEBBS leaves such as `stebbs.capacitance: provided`
+  - The accepted names are input-only compatibility forms; validation still normalises to the existing flat enum-code representation and exports canonical numeric `{value: N}` YAML
 
 ### 30 May 2026
 

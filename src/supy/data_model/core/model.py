@@ -13,7 +13,11 @@ from .field_renames import (
     apply_field_renames,
     fold_stebbs_physics,
 )
-from .physics_families import PHYSICS_FAMILIES, coerce_nested_to_flat
+from .physics_families import (
+    MODEL_PHYSICS_ENUM_FIELDS,
+    STEBBS_PHYSICS_ENUM_FIELDS,
+    coerce_nested_to_flat,
+)
 from .physics_orthogonal import coerce_orthogonal_to_flat
 
 
@@ -586,6 +590,7 @@ class RCMethod(Enum):
     def __repr__(self):
         return str(self.value)
 
+
 class SetpointMethod(Enum):
     """
     Method to determine the approach of space heating/cooling setpoints in STEBBS.
@@ -605,6 +610,7 @@ class SetpointMethod(Enum):
     def __repr__(self):
         return str(self.value)
 
+
 class SnowUse(Enum):
     """
     Controls snow process calculations (Järvi et al. 2014).
@@ -621,7 +627,8 @@ class SnowUse(Enum):
 
     def __repr__(self):
         return str(self.value)
-    
+
+
 class SameAlbedoWall(Enum):
     """
     Controls assumption of same albedoes for walls.
@@ -638,7 +645,7 @@ class SameAlbedoWall(Enum):
 
     def __repr__(self):
         return str(self.value)
-    
+
 
 class SameAlbedoRoof(Enum):
     """
@@ -656,7 +663,8 @@ class SameAlbedoRoof(Enum):
 
     def __repr__(self):
         return str(self.value)
-    
+
+
 class SameEmissivityWall(Enum):
     """
     Controls assumption of same emissivities for walls.
@@ -673,7 +681,7 @@ class SameEmissivityWall(Enum):
 
     def __repr__(self):
         return str(self.value)
-    
+
 
 class SameEmissivityRoof(Enum):
     """
@@ -690,8 +698,7 @@ class SameEmissivityRoof(Enum):
         return self.value
 
     def __repr__(self):
-        return str(self.value)    
-
+        return str(self.value)
 
 
 def yaml_equivalent_of_default(dumper, data):
@@ -807,6 +814,13 @@ class StebbsPhysics(BaseModel):
             raise ValueError("STEBBS enabled/parameters switches cannot be null")
         return value
 
+    @field_validator(*STEBBS_PHYSICS_ENUM_FIELDS, mode="before")
+    @classmethod
+    def _coerce_readable_stebbs_physics(cls, value, info):
+        # Accept readable method tokens under the nested STEBBS surface while
+        # keeping the canonical stored shape as the existing enum code.
+        return coerce_nested_to_flat(info.field_name, value)
+
 
 class ModelPhysics(BaseModel):
     """
@@ -823,7 +837,9 @@ class ModelPhysics(BaseModel):
             # (suffix drop + abbreviation expansion). Chaining lets a single
             # YAML carrying either legacy shape land on the final name.
             values = apply_field_renames(values, MODELPHYSICS_RENAMES, cls.__name__)
-            values = apply_field_renames(values, MODELPHYSICS_SUFFIX_RENAMES, cls.__name__)
+            values = apply_field_renames(
+                values, MODELPHYSICS_SUFFIX_RENAMES, cls.__name__
+            )
             # gh#1456: fold the legacy flat STEBBS switches into the nested
             # `stebbs` object. Runs after the key renames so a YAML carrying
             # either fused or snake_case legacy spellings lands here. The fold
@@ -832,12 +848,12 @@ class ModelPhysics(BaseModel):
             values = fold_stebbs_physics(values, cls.__name__)
         return values
 
-    @field_validator(*PHYSICS_FAMILIES.keys(), mode="before")
+    @field_validator(*MODEL_PHYSICS_ENUM_FIELDS, mode="before")
     @classmethod
     def _coerce_nested_physics(cls, value, info):
         # Widens accepted input before FlexibleRefValue resolves:
-        # orthogonal physics tokens and family tags both collapse to
-        # the flat `{value: N}` canonical shape.
+        # orthogonal physics tokens, family tags, and human-readable names
+        # collapse to the flat `{value: N}` canonical shape.
         value = coerce_orthogonal_to_flat(info.field_name, value)
         return coerce_nested_to_flat(info.field_name, value)
 
@@ -1000,7 +1016,9 @@ class ModelPhysics(BaseModel):
         enabled = stebbs.enabled
         enabled = enabled.value if isinstance(enabled, RefValue) else enabled
         parameters = stebbs.parameters
-        parameters = parameters.value if isinstance(parameters, RefValue) else parameters
+        parameters = (
+            parameters.value if isinstance(parameters, RefValue) else parameters
+        )
         cols[("stebbsmethod", "0")] = 0 if not bool(enabled) else int(parameters)
 
         for member_name, col_name in self._STEBBS_FIELD_COL_PAIRS:

@@ -38,7 +38,7 @@ from ...core.field_renames import (
     read_renamed_key,
     rename_keys_recursive,
 )
-from ...core.physics_families import coerce_nested_to_flat
+from ...core.physics_families import coerce_nested_to_flat, flatten_physics_in_config
 from ...core.physics_orthogonal import coerce_orthogonal_to_flat
 
 # Use tzfpy instead of timezonefinder for Windows compatibility
@@ -254,6 +254,7 @@ def _is_stebbs_nested_block(entry):
 
 def _legacy_stebbs_master_value(entry):
     """Compose the legacy tri-state ``stebbsmethod`` from a raw scalar."""
+    entry = coerce_nested_to_flat("stebbs", entry)
     if isinstance(entry, Mapping) and "value" not in entry:
         raise ValueError(
             "Legacy 'stebbs' mappings must use a 'value' key; use "
@@ -1962,6 +1963,7 @@ def run_precheck(path: str) -> dict:
 
     original_data = deepcopy(data)
     data = rename_keys_recursive(data, RAW_YAML_FIELD_RENAMES)
+    flatten_physics_in_config(data)
 
     # ---- Step 1: Print start message ----
     data = precheck_printing(data)

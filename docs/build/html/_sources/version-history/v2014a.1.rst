@@ -1,0 +1,7 @@
+
+Version 2014a.1 (released 26 February 2014)
+--------------------------------------------------------
+
+#. Please see the large number of changes made in the Version 2014a release.
+#. This is a minor change to address installing the software.
+#. Minor updates to the manual

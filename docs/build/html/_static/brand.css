@@ -1,0 +1,129 @@
+/**
+ * SUEWS Brand Styling for Documentation
+ *
+ * Applies SUEWS brand colours to sphinx_book_theme (built on PyData Sphinx Theme).
+ * These CSS custom properties override the theme defaults to align with
+ * the main site design language.
+ *
+ * Reference: https://pydata-sphinx-theme.readthedocs.io/en/stable/user_guide/styling.html
+ */
+
+/* ========== SUEWS Brand Palette ========== */
+:root {
+  /* Brand colours (from site/css/tokens.css) */
+  --suews-sun-gold: #F7B538;
+  --suews-sun-gold-dark: #D4940F;
+  --suews-energy-orange: #E85D04;
+  --suews-water-blue: #0077B6;
+  --suews-water-blue-light: #48CAE4;
+  --suews-sky-blue: #5DADE2;
+  --suews-veg-green: #09a25c;
+  --suews-wave-blue: #0558a5;
+  --suews-urban-slate: #2D3142;
+  --suews-urban-dark: #1A1D2E;
+  --suews-urban-deeper: #0F1119;
+}
+
+/* ========== Light Theme Overrides ========== */
+html[data-theme="light"],
+html:not([data-theme]) {
+  /* Primary accent - water blue for light mode */
+  --pst-color-primary: var(--suews-water-blue);
+  --pst-color-primary-text: #ffffff;
+
+  /* Links */
+  --pst-color-link: var(--suews-water-blue);
+  --pst-color-link-hover: var(--suews-wave-blue);
+
+  /* Secondary accent - sun gold for highlights */
+  --pst-color-secondary: var(--suews-sun-gold);
+
+  /* Info and success colours aligned with brand */
+  --pst-color-success: var(--suews-veg-green);
+  --pst-color-warning: var(--suews-sun-gold);
+  --pst-color-danger: var(--suews-energy-orange);
+  --pst-color-info: var(--suews-water-blue-light);
+
+  /* Sidebar active link */
+  --pst-color-active-navigation: var(--suews-water-blue);
+
+  /* Code blocks - subtle brand hint */
+  --pst-color-inline-code: var(--suews-urban-slate);
+}
+
+/* ========== Dark Theme Overrides ========== */
+html[data-theme="dark"] {
+  /* Primary accent - sun gold for dark mode (better contrast) */
+  --pst-color-primary: var(--suews-sun-gold);
+  --pst-color-primary-text: var(--suews-urban-deeper);
+
+  /* Links */
+  --pst-color-link: var(--suews-sun-gold);
+  --pst-color-link-hover: var(--suews-sun-gold-dark);
+
+  /* Secondary accent */
+  --pst-color-secondary: var(--suews-water-blue-light);
+
+  /* Info and success colours */
+  --pst-color-success: var(--suews-veg-green);
+  --pst-color-warning: var(--suews-sun-gold);
+  --pst-color-danger: var(--suews-energy-orange);
+  --pst-color-info: var(--suews-sky-blue);
+
+  /* Sidebar active link */
+  --pst-color-active-navigation: var(--suews-sun-gold);
+
+  /* Background hints */
+  --pst-color-background: var(--suews-urban-deeper);
+}
+
+/* ========== Custom Component Styling ========== */
+
+/* Admonition styling with brand colours */
+.admonition.note {
+  border-left-color: var(--suews-water-blue);
+}
+
+.admonition.tip,
+.admonition.hint {
+  border-left-color: var(--suews-veg-green);
+}
+
+.admonition.warning,
+.admonition.caution {
+  border-left-color: var(--suews-sun-gold);
+}
+
+.admonition.danger,
+.admonition.error {
+  border-left-color: var(--suews-energy-orange);
+}
+
+/* Version badge styling */
+.bd-header-announcement {
+  background: linear-gradient(90deg, var(--suews-water-blue), var(--suews-sun-gold));
+}
+
+/* Navbar brand area */
+.navbar-brand {
+  font-weight: 500;
+}
+
+/* Code highlighting accent */
+.highlight .hll {
+  background-color: rgba(247, 181, 56, 0.2);
+}
+
+/* Selection colour */
+::selection {
+  background: rgba(0, 119, 182, 0.3);
+}
+
+html[data-theme="dark"] ::selection {
+  background: rgba(247, 181, 56, 0.3);
+}
+
+/* Footer link to brand page */
+.bd-footer a[href*="brand"] {
+  color: var(--suews-sun-gold);
+}

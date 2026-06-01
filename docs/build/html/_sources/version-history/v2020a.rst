@@ -1,0 +1,48 @@
+
+.. _new_2020a:
+
+Version 2020a (released on 14 May 2020)
+----------------------------------------------------
+
+.. note::
+  In a future release, we will **ONLY** deliver SUEWS along with `SuPy <https://supy.readthedocs.io/en/latest/>`_ as a command line tool `suews-run`: release of standalone SUEWS binaries **will be stopped** to ease our maintenance load and to facilitate rapid developments.
+  Users will need to have Python 3.6+ to install SuPy:
+
+  .. code-block:: shell
+
+      python3 -m pip install -U supy
+
+  However, as the source code of SUEWS are public, users can feel free to compile standalone binaries for platforms of their own interests.
+
+
+- **Improvement**
+
+  #. A ponding water scheme is added in the automatic irrigation calculation; useful when a certain depth of ponding water to maintain in irrigation (e.g., flooding irrigation in rice crop-field).
+
+  #. Irrigation fraction can be specified for all surfaces (previously only available for vegetated surfaces)
+
+  #. A U-shape approach for calculating HDD/CDD is introduced to account for a wide comfort zone between heating and cooling critical temperatures.
+
+
+
+- **Changes**
+
+  #. A new `RoughLenHeatMethod` option ``5``: adaptively choose option ``1`` for fully pervious surface or ``2`` otherwise (if any impervious surface exists).
+
+  #. A new column `H_maintain` is added in `SUEWS_Irrigation.txt` to set ponding water depth.
+
+  #. New columns to specify irrigation fractions for non-vegetated surfaces in `SUEWS_SiteSelect.txt`.
+
+  #. A new `scheme option <:ref:scheme_options>`_ `BaseTMethod` in `RunControl.nml` to set calculation scheme for HDD/CDD.
+
+- **Fix**
+
+  NONE.
+
+
+- **Known issues**
+
+  #. Wind direction is not currently downscaled so non -999 values will cause an error.
+
+
+

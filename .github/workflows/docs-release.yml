@@ -107,6 +107,8 @@ jobs:
           persist-credentials: false
 
       - name: Verify tag is on master
+        env:
+          TAG: ${{ needs.resolve.outputs.tag }}
         run: |
           set -euo pipefail
           # The tag checkout already used fetch-depth: 0 (full history); this
@@ -115,7 +117,7 @@ jobs:
           # further back than the shallow window.
           git fetch origin master
           if ! git merge-base --is-ancestor HEAD refs/remotes/origin/master; then
-            echo "::error::Tag ${{ needs.resolve.outputs.tag }} is not on master — refusing to publish"
+            echo "::error::Tag ${TAG} is not on master — refusing to publish"
             exit 1
           fi
 

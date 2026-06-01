@@ -871,6 +871,12 @@ class TestRawDictCompatibility:
         assert read_physics_key(physics, "storage_heat") == 1
         assert read_physics_key(physics, "ohm_inc_qf") == 0
 
+    def test_read_physics_key_rejects_storage_value_plus_nested_qf(self):
+        physics = {"storage_heat": {"ohm": {"value": 1, "include_qf": False}}}
+
+        with pytest.raises(ValueError, match="storage_heat\\.ohm.*inner keys"):
+            read_physics_key(physics, "storage_heat")
+
     def test_legacy_analyze_config_methods_accepts_sample_config(self):
         path = Path(__file__).resolve().parents[2] / "src/supy/sample_data/sample_config.yml"
         config = yaml.safe_load(path.read_text(encoding="utf-8"))

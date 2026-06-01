@@ -392,6 +392,14 @@ def _coerce_family_tag(field_name: str, value: Mapping[str, Any]) -> Any:
             f"(got {type(inner).__name__})."
         )
 
+    inner_foreign = [key for key in inner if key not in {"value", "ref"}]
+    if inner_foreign:
+        raise ValueError(
+            f"'{field_name}.{family}' cannot be combined with inner keys "
+            f"{inner_foreign}. Move scheme-owned sub-options outside the "
+            f"family value form."
+        )
+
     code = inner["value"]
     if isinstance(code, Mapping):
         raise ValueError(

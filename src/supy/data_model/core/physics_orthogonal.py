@@ -186,7 +186,7 @@ def _fold_storage_heat_ohm_block(
     inner_foreign = [key for key in ohm_block if key != "ref"]
     if inner_foreign:
         raise ValueError(
-            f"{class_name}: 'storage_heat.ohm' cannot be combined with sibling "
+            f"{class_name}: 'storage_heat.ohm' cannot be combined with inner "
             f"keys {sorted(inner_foreign)}."
         )
 

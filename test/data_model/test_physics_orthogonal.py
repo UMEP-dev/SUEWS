@@ -234,6 +234,31 @@ def test_storage_heat_invalid_nested_qf_is_not_partially_folded():
     assert data == expected
 
 
+def test_storage_heat_value_plus_nested_qf_is_not_partially_folded():
+    data = {
+        "model": {
+            "physics": {
+                "storage_heat": {
+                    "ohm": {
+                        "value": 1,
+                        "include_qf": False,
+                    },
+                }
+            }
+        }
+    }
+    expected = yaml.safe_load(yaml.safe_dump(data))
+
+    flatten_physics_in_config(data)
+
+    assert data == expected
+
+
+def test_storage_heat_value_plus_nested_qf_rejected_by_model():
+    with pytest.raises(ValidationError, match="storage_heat\\.ohm.*inner keys"):
+        ModelPhysics(storage_heat={"ohm": {"value": 1, "include_qf": False}})
+
+
 def test_model_physics_accepts_orthogonal_spartacus():
     phys = ModelPhysics(net_radiation={"scheme": "spartacus", "ldown": "cloud"})
     assert int(_unwrap(phys.net_radiation)) == 1002

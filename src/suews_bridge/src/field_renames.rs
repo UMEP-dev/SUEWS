@@ -1249,7 +1249,7 @@ fn fold_storage_heat_ohm_inc_qf(root: &mut Value) -> Result<(), String> {
                     .collect();
                 if !inner_foreign.is_empty() {
                     return Err(format!(
-                        "'storage_heat.ohm' cannot be combined with sibling keys {inner_foreign:?}."
+                        "'storage_heat.ohm' cannot be combined with inner keys {inner_foreign:?}."
                     ));
                 }
 
@@ -1494,6 +1494,20 @@ fn collapse_nested_physics(root: &mut Value) -> Result<(), String> {
                 .ok_or_else(|| {
                     format!("'{field_name}.{family}' must be a mapping with a 'value' key")
                 })?;
+
+            let inner_foreign: Vec<String> = inner_map
+                .iter()
+                .filter_map(|(k, _)| match k.as_str() {
+                    Some("value" | "ref") => None,
+                    Some(s) => Some(s.to_string()),
+                    None => Some(format!("{k:?}")),
+                })
+                .collect();
+            if !inner_foreign.is_empty() {
+                return Err(format!(
+                    "'{field_name}.{family}' cannot be combined with inner keys {inner_foreign:?}."
+                ));
+            }
 
             let code = match code_value {
                 Value::Number(n) => n.as_i64().ok_or_else(|| {
@@ -2648,6 +2662,23 @@ model:
         let mut root: Value = from_str(yaml).unwrap();
         let err = normalize_field_names(&mut root).expect_err("wrong family must fail");
         assert!(err.contains("expects one of"), "error was: {err}");
+    }
+
+    #[test]
+    fn nested_family_rejects_inner_foreign_keys() {
+        let yaml = "model:\n  physics:\n    storage_heat:\n      ohm:\n        value: 1\n        include_qf: false\n";
+        let mut root: Value = from_str(yaml).unwrap();
+        let err = normalize_field_names(&mut root).expect_err("inner foreign key must fail");
+        assert!(err.contains("inner keys"), "error was: {err}");
+    }
+
+    #[test]
+    fn nested_family_rejects_non_string_inner_foreign_keys() {
+        let yaml = "model:\n  physics:\n    storage_heat:\n      ohm:\n        value: 1\n        42: false\n";
+        let mut root: Value = from_str(yaml).unwrap();
+        let err = normalize_field_names(&mut root).expect_err("inner foreign key must fail");
+        assert!(err.contains("inner keys"), "error was: {err}");
+        assert!(err.contains("Number(42)"), "error was: {err}");
     }
 
     #[test]

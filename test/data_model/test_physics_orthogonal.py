@@ -6,6 +6,7 @@ from pydantic import ValidationError
 import pytest
 import yaml
 
+from supy._env import trv_supy_module
 from supy.data_model.core.field_renames import read_physics_key
 from supy.data_model.core.model import ModelPhysics
 from supy.data_model.core.physics_orthogonal import coerce_orthogonal_to_flat
@@ -61,6 +62,23 @@ def test_non_orthogonal_shapes_pass_through_for_existing_normalisers():
 def test_model_physics_accepts_orthogonal_narp_default_variant():
     phys = ModelPhysics(net_radiation={"scheme": "narp", "ldown": "air"})
     assert int(_unwrap(phys.net_radiation)) == 3
+
+
+def test_sample_config_prefers_nested_readable_physics_defaults():
+    path = trv_supy_module / "sample_data" / "sample_config.yml"
+    physics = yaml.safe_load(path.read_text(encoding="utf-8"))["model"]["physics"]
+
+    assert physics["net_radiation"] == {"scheme": "narp", "ldown": "air"}
+    assert physics["emissions"] == {
+        "heat": "j11",
+        "co2": {"anthropogenic": "none", "biogenic": "none"},
+    }
+    assert physics["storage_heat"] == "ohm"
+
+    parsed = ModelPhysics.model_validate(physics)
+    assert int(_unwrap(parsed.net_radiation)) == 3
+    assert int(_unwrap(parsed.emissions)) == 2
+    assert int(_unwrap(parsed.storage_heat)) == 1
 
 
 def test_model_physics_accepts_orthogonal_spartacus():

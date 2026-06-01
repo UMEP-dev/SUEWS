@@ -861,8 +861,12 @@ class TestRawDictCompatibility:
 
         assert read_physics_key(physics, "net_radiation") == 3
 
-    def test_read_physics_key_accepts_storage_heat_owned_qf_axis(self):
-        physics = {"storage_heat": {"ohm": {"include_qf": False}}}
+    @pytest.mark.parametrize(
+        "storage_key",
+        ["storage_heat", "storage_heat_method", "storageheatmethod"],
+    )
+    def test_read_physics_key_accepts_storage_heat_owned_qf_axis(self, storage_key):
+        physics = {storage_key: {"ohm": {"include_qf": False}}}
 
         assert read_physics_key(physics, "storage_heat") == 1
         assert read_physics_key(physics, "ohm_inc_qf") == 0

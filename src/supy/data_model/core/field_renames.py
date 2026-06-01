@@ -1621,6 +1621,11 @@ def read_physics_key(physics: dict, new_name: str, default: Any = None):
     """
     if new_name in {"storage_heat", "ohm_inc_qf"} and isinstance(physics, dict):
         physics = dict(physics)
+        if "storage_heat" not in physics:
+            for alias in ("storage_heat_method", "storageheatmethod"):
+                if alias in physics:
+                    physics["storage_heat"] = physics[alias]
+                    break
         fold_storage_heat_ohm_inc_qf(physics, "ModelPhysics")
 
     entry = read_renamed_key(

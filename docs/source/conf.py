@@ -68,11 +68,13 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 try:
     from get_ver_git import get_version_from_git, get_commit_info
 
-    git_version_string = get_version_from_git()
+    docs_version_ref = os.environ.get("SUEWS_DOCS_VERSION_REF")
+    git_version_string = get_version_from_git(docs_version_ref)
     is_dev_version = ".dev" in git_version_string
-    git_commit_short, git_commit_full = get_commit_info()
+    git_commit_short, git_commit_full = get_commit_info(docs_version_ref)
 
     # Debug output for ReadTheDocs
+    print(f"DEBUG: docs_version_ref = {docs_version_ref or 'HEAD'}")
     print(f"DEBUG: git_version_string = {git_version_string}")
     print(f"DEBUG: is_dev_version = {is_dev_version}")
 

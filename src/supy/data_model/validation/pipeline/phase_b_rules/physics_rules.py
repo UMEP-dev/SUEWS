@@ -6,8 +6,10 @@ from ...core.yaml_helpers import get_value_safe
 from ...core.yaml_helpers import unwrap_nested_value as _unwrap_nested_value
 from ...core.yaml_helpers import get_stebbs_block, get_stebbsmethod_value
 from ...core.yaml_helpers import read_physics_key
+from ....core.physics_families import resolve_scalar_name
 
 from collections.abc import Mapping
+from numbers import Integral, Real
 from typing import Dict, List, Optional, Union, Any, Tuple
 
 
@@ -210,7 +212,41 @@ def validate_rslmethod_dependency(rslmethod, stabilitymethod):
     )
 
 
+def _method_code(value, field_name: Optional[str] = None):
+    """Return an integer method code from raw, RefValue, enum, or readable input."""
+    if value is None:
+        return None
+    if isinstance(value, Mapping) and "value" in value:
+        value = value["value"]
+    if hasattr(value, "value"):
+        value = value.value
+    if isinstance(value, bool):
+        return int(value)
+    if isinstance(value, Integral):
+        return int(value)
+    if isinstance(value, Real) and float(value).is_integer():
+        return int(value)
+    if isinstance(value, str):
+        stripped = value.strip()
+        if not stripped:
+            return None
+        if field_name is not None:
+            return resolve_scalar_name(field_name, stripped)
+        return int(stripped)
+    return value
+
+
 def validate_storageheatmethod_dependency(storageheatmethod, ohmincqf):
+    """Validate the legacy StorageHeatMethod-OhmIncQf pair."""
+    return validate_storageheatmethod_dependencies(storageheatmethod, ohmincqf)[0]
+
+
+def validate_storageheatmethod_dependencies(
+    storageheatmethod,
+    ohmincqf,
+    netradiationmethod=None,
+    stebbsmethod=None,
+):
     """
     Validate the dependency between StorageHeatMethod and OhmIncQf model options.
 
@@ -220,32 +256,144 @@ def validate_storageheatmethod_dependency(storageheatmethod, ohmincqf):
         The value of the StorageHeatMethod parameter.
     ohmincqf : int
         The value of the OhmIncQf parameter.
+    netradiationmethod : int, optional
+        The value of the NetRadiationMethod parameter.
+    stebbsmethod : int, optional
+        The composed STEBBS method value.
 
     Returns
     -------
-    ValidationResult
-        The result of the validation, including status, category, parameter,
-        message, and suggested value if applicable.
+    list of ValidationResult
+        Validation results for the storage heat dependency checks.
 
     Notes
     -----
     - If StorageHeatMethod == 1, OhmIncQf must be 0.
-    - If this dependency is not satisfied, an error is returned with a suggested fix.
+    - If OhmIncQf == 1, an OHM-like storage heat branch must be active.
+    - If StorageHeatMethod == 5, NetRadiationMethod must be a SPARTACUS code.
+    - If StorageHeatMethod == 7, STEBBS must be active.
     """
+    storageheatmethod = _method_code(storageheatmethod, "storage_heat")
+    ohmincqf = _method_code(ohmincqf, "ohm_inc_qf")
+    netradiationmethod = _method_code(netradiationmethod, "net_radiation")
+    stebbsmethod = _method_code(stebbsmethod, "stebbs")
+
+    results: List[ValidationResult] = []
+
     if storageheatmethod == 1 and ohmincqf != 0:
-        return ValidationResult(
-            status="ERROR",
-            category="MODEL_OPTIONS",
-            parameter="storageheatmethod-ohmincqf",
-            message=f"StorageHeatMethod is set to {storageheatmethod} and OhmIncQf is set to {ohmincqf}. You should switch to OhmIncQf=0.",
-            suggested_value="Set OhmIncQf to 0",
+        results.append(
+            ValidationResult(
+                status="ERROR",
+                category="MODEL_OPTIONS",
+                parameter="storageheatmethod-ohmincqf",
+                message=f"StorageHeatMethod is set to {storageheatmethod} and OhmIncQf is set to {ohmincqf}. You should switch to OhmIncQf=0.",
+                suggested_value="Set OhmIncQf to 0",
+            )
         )
-    return ValidationResult(
-        status="PASS",
-        category="MODEL_OPTIONS",
-        parameter="storageheatmethod-ohmincqf",
-        message="StorageHeatMethod-OhmIncQf compatibility validated",
-    )
+    elif ohmincqf == 1 and storageheatmethod not in {6, 7}:
+        results.append(
+            ValidationResult(
+                status="ERROR",
+                category="MODEL_OPTIONS",
+                parameter="storageheatmethod-ohmincqf",
+                message=(
+                    "OhmIncQf=1 is only meaningful for OHM-like storage heat "
+                    "branches that include QF. StorageHeatMethod=1 is documented "
+                    "as OHM without QF and must use OhmIncQf=0."
+                ),
+                suggested_value="Use StorageHeatMethod 6 or 7 with OhmIncQf=1, or set OhmIncQf to 0.",
+            )
+        )
+    else:
+        results.append(
+            ValidationResult(
+                status="PASS",
+                category="MODEL_OPTIONS",
+                parameter="storageheatmethod-ohmincqf",
+                message="StorageHeatMethod-OhmIncQf compatibility validated",
+            )
+        )
+
+    if storageheatmethod == 5:
+        if netradiationmethod is None or netradiationmethod <= 1000:
+            results.append(
+                ValidationResult(
+                    status="ERROR",
+                    category="MODEL_OPTIONS",
+                    parameter="storageheatmethod-netradiationmethod",
+                    message=(
+                        "StorageHeatMethod=5 (EHC) requires a SPARTACUS "
+                        "NetRadiationMethod code greater than 1000 so facet "
+                        "radiation is available."
+                    ),
+                    suggested_value="Set net_radiation to a SPARTACUS method such as 1003 or net_radiation.spartacus.ldown=air.",
+                )
+            )
+        else:
+            results.append(
+                ValidationResult(
+                    status="PASS",
+                    category="MODEL_OPTIONS",
+                    parameter="storageheatmethod-netradiationmethod",
+                    message="StorageHeatMethod EHC-SPARTACUS compatibility validated",
+                )
+            )
+
+    if storageheatmethod == 7:
+        if stebbsmethod not in {1, 2}:
+            results.append(
+                ValidationResult(
+                    status="ERROR",
+                    category="MODEL_OPTIONS",
+                    parameter="storageheatmethod-stebbsmethod",
+                    message=(
+                        "StorageHeatMethod=7 uses STEBBS storage heat and "
+                        "requires STEBBS to be enabled."
+                    ),
+                    suggested_value="Set model.physics.stebbs.enabled=true with parameters default or provided.",
+                )
+            )
+        else:
+            results.append(
+                ValidationResult(
+                    status="PASS",
+                    category="MODEL_OPTIONS",
+                    parameter="storageheatmethod-stebbsmethod",
+                    message="StorageHeatMethod-STEBBS compatibility validated",
+                )
+            )
+
+    return results
+
+
+def validate_rcmethod_stebbs_dependency(rcmethod, stebbsmethod):
+    """Validate that non-default RC/capacitance choices are used with STEBBS."""
+    rcmethod = _method_code(rcmethod, "capacitance")
+    stebbsmethod = _method_code(stebbsmethod, "stebbs")
+
+    if rcmethod in (None, 0):
+        return []
+    if stebbsmethod not in {1, 2}:
+        return [
+            ValidationResult(
+                status="ERROR",
+                category="MODEL_OPTIONS",
+                parameter="rcmethod-stebbsmethod",
+                message=(
+                    "Non-default stebbs.capacitance (rcmethod) is only "
+                    "meaningful when STEBBS is enabled."
+                ),
+                suggested_value="Set model.physics.stebbs.enabled=true, or use stebbs.capacitance=default.",
+            )
+        ]
+    return [
+        ValidationResult(
+            status="PASS",
+            category="MODEL_OPTIONS",
+            parameter="rcmethod-stebbsmethod",
+            message="RC/capacitance-STEBBS compatibility validated",
+        )
+    ]
 
 
 def validate_smdmethod_dependency(smdmethod, yaml_data):
@@ -343,20 +491,40 @@ def validate_model_option_dependencies(context) -> List[ValidationResult]:
     
     results = []
     physics = yaml_data.get("model", {}).get("physics", {})
+    if not isinstance(physics, Mapping):
+        physics = {}
 
-    rslmethod = get_value_safe(physics, "roughness_sublayer")
-    stabilitymethod = get_value_safe(physics, "stability")
-    storageheatmethod = get_value_safe(physics, "storage_heat")
-    ohmincqf = get_value_safe(physics, "ohm_inc_qf")
-    smdmethod = get_value_safe(physics, "soil_moisture_deficit")
+    rslmethod = read_physics_key(physics, "roughness_sublayer")
+    stabilitymethod = read_physics_key(physics, "stability")
+    storageheatmethod = read_physics_key(physics, "storage_heat")
+    ohmincqf = read_physics_key(physics, "ohm_inc_qf")
+    smdmethod = read_physics_key(physics, "soil_moisture_deficit")
+    netradiationmethod = read_physics_key(physics, "net_radiation")
+    stebbsmethod = get_stebbsmethod_value(physics)
+    rcmethod = get_value_safe(get_stebbs_block(physics), "capacitance")
 
     # RSL method and stability method dependencies
     result = validate_rslmethod_dependency(rslmethod=rslmethod, stabilitymethod=stabilitymethod)
-    if result is not None: results.append(result)
+    if result is not None:
+        results.append(result)
 
     # Storage heat method and OhmIncQf compatibility check
-    result = validate_storageheatmethod_dependency(storageheatmethod=storageheatmethod, ohmincqf=ohmincqf)
-    if result is not None: results.append(result)
+    results.extend(
+        validate_storageheatmethod_dependencies(
+            storageheatmethod=storageheatmethod,
+            ohmincqf=ohmincqf,
+            netradiationmethod=netradiationmethod,
+            stebbsmethod=stebbsmethod,
+        )
+    )
+
+    # RC/capacitance method and STEBBS compatibility check
+    results.extend(
+        validate_rcmethod_stebbs_dependency(
+            rcmethod=rcmethod,
+            stebbsmethod=stebbsmethod,
+        )
+    )
 
     # SMDMethod and soil_observation dependency
     results.extend(validate_smdmethod_dependency(smdmethod=smdmethod, yaml_data=yaml_data))

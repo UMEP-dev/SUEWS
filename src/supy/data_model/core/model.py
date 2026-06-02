@@ -769,7 +769,11 @@ class StebbsPhysics(BaseModel):
             "Master on/off switch for STEBBS. When false, STEBBS calculations "
             "are disabled and `parameters` is ignored."
         ),
-        json_schema_extra={"unit": "dimensionless"},
+        json_schema_extra={
+            "unit": "dimensionless",
+            "provides_to": ["stebbs.capacitance"],
+            "note": "Enables the STEBBS branch; capacitance/RC options are only meaningful when STEBBS is enabled.",
+        },
     )
     parameters: FlexibleRefValue(StebbsParameterSource) = Field(
         default=StebbsParameterSource.DEFAULT,
@@ -779,7 +783,11 @@ class StebbsPhysics(BaseModel):
     capacitance: FlexibleRefValue(RCMethod) = Field(
         default=RCMethod.DEFAULT,
         description=_enum_description(RCMethod),
-        json_schema_extra={"unit": "dimensionless"},
+        json_schema_extra={
+            "unit": "dimensionless",
+            "depends_on": ["stebbs.enabled"],
+            "note": "Only meaningful when STEBBS is enabled; controls building-envelope heat-capacity splitting.",
+        },
     )
     setpoint: FlexibleRefValue(SetpointMethod) = Field(
         default=SetpointMethod.CONSTANT,
@@ -874,40 +882,72 @@ class ModelPhysics(BaseModel):
     net_radiation: FlexibleRefValue(NetRadiationMethod) = Field(
         default=NetRadiationMethod.LDOWN_AIR,
         description=_enum_description(NetRadiationMethod),
-        json_schema_extra={"unit": "dimensionless"},
+        json_schema_extra={
+            "unit": "dimensionless",
+            "depends_on": ["snow_use"],
+            "provides_to": ["storage_heat"],
+            "note": "Values above 1000 activate SPARTACUS-Surface and provide facet radiation required by EHC storage heat.",
+        },
     )
     emissions: FlexibleRefValue(EmissionsMethod) = Field(
         default=EmissionsMethod.J11,
         description=_enum_description(EmissionsMethod),
-        json_schema_extra={"unit": "dimensionless"},
+        json_schema_extra={
+            "unit": "dimensionless",
+            "provides_to": ["ohm_inc_qf", "energy_balance"],
+            "note": "Determines anthropogenic heat flux (QF) used by the energy balance and OHM QF-inclusion switch.",
+        },
     )
     storage_heat: FlexibleRefValue(StorageHeatMethod) = Field(
         default=StorageHeatMethod.OHM_WITHOUT_QF,
         description=_enum_description(StorageHeatMethod),
-        json_schema_extra={"unit": "dimensionless"},
+        json_schema_extra={
+            "unit": "dimensionless",
+            "depends_on": ["net_radiation", "ohm_inc_qf", "snow_use", "stebbs"],
+            "provides_to": ["energy_balance"],
+            "note": "EHC (5) requires SPARTACUS net radiation; STEBBS storage heat (7) requires STEBBS enabled; OHM-like paths use OhmIncQf.",
+        },
     )
     ohm_inc_qf: FlexibleRefValue(OhmIncQf) = Field(
         default=OhmIncQf.EXCLUDE,
         description=_enum_description(OhmIncQf),
-        json_schema_extra={"unit": "dimensionless"},
+        json_schema_extra={
+            "unit": "dimensionless",
+            "depends_on": ["emissions", "storage_heat"],
+            "provides_to": ["storage_heat"],
+            "note": "Controls whether QF from emissions is added to Q* in OHM-based storage heat calculations.",
+        },
     )
     roughness_length_momentum: FlexibleRefValue(MomentumRoughnessMethod) = Field(
         default=MomentumRoughnessMethod.VARIABLE,
         description=_enum_description(MomentumRoughnessMethod),
-        json_schema_extra={"unit": "dimensionless"},
+        json_schema_extra={
+            "unit": "dimensionless",
+            "provides_to": ["roughness_length_heat", "stability"],
+            "note": "Calculates momentum roughness length (z0m), which feeds heat roughness length and stability corrections.",
+        },
     )
     roughness_length_heat: FlexibleRefValue(HeatRoughnessMethod) = Field(
         default=HeatRoughnessMethod.KAWAI,
         description=_enum_description(HeatRoughnessMethod),
-        json_schema_extra={"unit": "dimensionless"},
+        json_schema_extra={
+            "unit": "dimensionless",
+            "depends_on": ["roughness_length_momentum"],
+            "provides_to": ["stability"],
+            "note": "Calculates heat roughness length (z0h) from z0m for stability corrections.",
+        },
     )
     stability: FlexibleRefValue(StabilityMethod) = Field(
         default=StabilityMethod.CAMPBELL_NORMAN,
         description=_enum_description(StabilityMethod),
         json_schema_extra={
             "unit": "dimensionless",
-            "provides_to": ["roughness_sublayer"],
-            "note": "Provides stability correction functions used by roughness_sublayer calculations",
+            "provides_to": [
+                "roughness_length_momentum",
+                "roughness_length_heat",
+                "roughness_sublayer",
+            ],
+            "note": "Provides stability correction functions used by roughness-length and roughness_sublayer calculations.",
         },
     )
     soil_moisture_deficit: FlexibleRefValue(SMDMethod) = Field(
@@ -965,7 +1005,15 @@ class ModelPhysics(BaseModel):
     snow_use: FlexibleRefValue(SnowUse) = Field(
         default=SnowUse.DISABLED,
         description=_enum_description(SnowUse),
-        json_schema_extra={"unit": "dimensionless"},
+        json_schema_extra={
+            "unit": "dimensionless",
+            "provides_to": [
+                "net_radiation",
+                "storage_heat",
+                "roughness_sublayer_level",
+            ],
+            "note": "Controls snow processes that affect radiation dispatch, storage heat, and near-surface conductance adjustments.",
+        },
     )
     stebbs: StebbsPhysics = Field(
         default_factory=StebbsPhysics,
@@ -974,6 +1022,11 @@ class ModelPhysics(BaseModel):
             "parameters), capacitance method, setpoint method, and the "
             "same-albedo / same-emissivity wall/roof switches."
         ),
+        json_schema_extra={
+            "depends_on": ["storage_heat"],
+            "provides_to": ["stebbs.capacitance"],
+            "note": "When storage_heat selects STEBBS (7), this block enables and parameterises the STEBBS contribution to storage heat.",
+        },
     )
 
     ref: Optional[Reference] = None

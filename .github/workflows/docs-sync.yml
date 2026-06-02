@@ -236,6 +236,8 @@ jobs:
 
       - name: Install supy and build docs
         if: steps.detect.outputs.docs_changed == 'true'
+        env:
+          SOURCE_TAG: ${{ github.ref_type == 'tag' && github.ref_name || '' }}
         run: |
           uv pip install --system ".[docs]"
           python3 scripts/security/remove_legacy_namespace_pth.py
@@ -243,7 +245,9 @@ jobs:
           # Generate data-model RST files first
           make generate-rst
           # Build full HTML (executes tutorials via sphinx-gallery)
-          sphinx-build -M html source build
+          DOCS_VERSION_REF="${SOURCE_TAG:-origin/master}"
+          echo "Building docs version from ${DOCS_VERSION_REF}"
+          SUEWS_DOCS_VERSION_REF="${DOCS_VERSION_REF}" sphinx-build -M html source build
 
       - name: Commit docs build artefacts
         if: steps.detect.outputs.docs_changed == 'true'

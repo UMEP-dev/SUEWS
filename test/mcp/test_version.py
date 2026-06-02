@@ -70,6 +70,50 @@ def test_version_script_writes_supy_and_mcp_version_files(
         assert "__commit_hash__ = commit_hash = '" in text
 
 
+def test_version_script_describes_explicit_source_ref(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Docs builds on the rtd branch must describe the source commit, not rtd HEAD."""
+    version_script = _load_version_script()
+
+    def fake_check_output(command, stderr=None):
+        assert command == [
+            "git",
+            "describe",
+            "--tags",
+            "--long",
+            "--match=[0-9]*",
+            "origin/master",
+        ]
+        return b"2026.6.2.dev-1-g50db70b49c\n"
+
+    monkeypatch.setattr(version_script.subprocess, "check_output", fake_check_output)
+
+    assert version_script.get_version_from_git("origin/master") == "2026.6.2.dev1"
+
+
+def test_version_script_peels_annotated_tag_for_commit_info(monkeypatch: pytest.MonkeyPatch) -> None:
+    version_script = _load_version_script()
+    calls = []
+
+    def fake_check_output(command, stderr=None):
+        calls.append(command)
+        if command == ["git", "rev-parse", "--short=7", "2026.6.2.dev^{}"]:
+            return b"9438baa\n"
+        if command == ["git", "rev-parse", "2026.6.2.dev^{}"]:
+            return b"9438baa1043f5c40fa2e016e4f4e33a98b545657\n"
+        raise AssertionError(f"unexpected command: {command!r}")
+
+    monkeypatch.setattr(version_script.subprocess, "check_output", fake_check_output)
+
+    assert version_script.get_commit_info("2026.6.2.dev") == (
+        "9438baa",
+        "9438baa1043f5c40fa2e016e4f4e33a98b545657",
+    )
+    assert calls == [
+        ["git", "rev-parse", "--short=7", "2026.6.2.dev^{}"],
+        ["git", "rev-parse", "2026.6.2.dev^{}"],
+    ]
+
+
 def test_mcp_server_advertises_package_version() -> None:
     """The MCP ``initialize`` handshake's ``serverInfo.version`` must
     match ``suews_mcp.__version__`` (gh#1401).

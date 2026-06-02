@@ -22,9 +22,9 @@ from __future__ import annotations
 
 import hashlib
 import json
+from pathlib import Path
 import subprocess
 import sys
-from pathlib import Path
 
 import pytest
 
@@ -135,6 +135,22 @@ def test_codex_plugin_references_mcp_servers_in_camelcase(rel_path: str) -> None
     )
 
 
+def test_source_codex_marketplace_disables_raw_repo_install() -> None:
+    """Raw `UMEP-dev/SUEWS` is not the Codex install surface.
+
+    Codex installs only the marketplace plugin source directory
+    (`plugins/suews/`), so the self-contained installable bundle lives in the
+    generated `UMEP-dev/suews-agent` distribution repo instead.
+    """
+    data = _load_json(".agents/plugins/marketplace.json")
+    plugins = data.get("plugins", [])
+    suews = next((p for p in plugins if p.get("name") == "suews"), None)
+
+    assert suews is not None
+    assert suews["source"]["path"] == "./plugins/suews"
+    assert suews["policy"]["installation"] == "NOT_AVAILABLE"
+
+
 def test_claude_marketplace_lists_suews_plugin() -> None:
     """The Claude Code marketplace entry for `suews` references the bundled
     plugin's MCP file."""
@@ -193,6 +209,58 @@ def _skill_manifest(root: Path) -> dict[str, str]:
         if p.is_file() and "__pycache__" not in p.parts and p.suffix != ".pyc":
             out[str(p.relative_to(root))] = hashlib.sha256(p.read_bytes()).hexdigest()
     return out
+
+
+def test_build_agent_plugin_generates_installable_distribution(tmp_path: Path) -> None:
+    """The generated `suews-agent` repo is the self-contained install surface.
+
+    It carries Claude Code's canonical `.claude/skills/suews/` path and Codex's
+    required `plugins/suews/skills/suews/` path, both byte-identical to the
+    source skill.
+    """
+    output = tmp_path / "suews-agent"
+    subprocess.run(
+        [
+            sys.executable,
+            str(REPO_ROOT / "scripts" / "build_agent_plugin.py"),
+            "--output",
+            str(output),
+        ],
+        check=True,
+        capture_output=True,
+    )
+
+    codex_marketplace = json.loads(
+        (output / ".agents" / "plugins" / "marketplace.json").read_text(
+            encoding="utf-8"
+        )
+    )
+    codex_plugin = codex_marketplace["plugins"][0]
+    assert codex_plugin["name"] == "suews"
+    assert codex_plugin["source"]["path"] == "./plugins/suews"
+    assert codex_plugin["policy"]["installation"] == "AVAILABLE"
+
+    claude_marketplace = json.loads(
+        (output / ".claude-plugin" / "marketplace.json").read_text(
+            encoding="utf-8"
+        )
+    )
+    assert [plugin["name"] for plugin in claude_marketplace["plugins"]] == ["suews"]
+
+    assert (output / ".mcp.json").exists()
+    assert (output / "plugins" / "suews" / ".mcp.json").exists()
+    assert (
+        output / "plugins" / "suews" / ".codex-plugin" / "plugin.json"
+    ).exists()
+    assert (output / "plugins" / "suews" / "assets" / "icon.png").exists()
+
+    source = _skill_manifest(REPO_ROOT / ".claude" / "skills" / "suews")
+    claude_skill = _skill_manifest(output / ".claude" / "skills" / "suews")
+    codex_skill = _skill_manifest(
+        output / "plugins" / "suews" / "skills" / "suews"
+    )
+    assert claude_skill == source
+    assert codex_skill == source
 
 
 def test_build_plugin_generates_single_skill_bundle_from_source() -> None:

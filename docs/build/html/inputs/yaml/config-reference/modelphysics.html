@@ -10,7 +10,7 @@
 <meta content="SUEWS YAML configuration for physics methods parameters" name="description" />
 <meta content="SUEWS, YAML, modelphysics, parameters, configuration" name="keywords" />
 
-    <title>4.3.33. Physics Methods &#8212; SUEWS 2026.6.1.dev9143 documentation</title>
+    <title>4.3.33. Physics Methods &#8212; SUEWS 2026.6.2.dev9138 documentation</title>
   
   
   
@@ -46,7 +46,7 @@
   <link rel="preload" as="script" href="../../../_static/scripts/bootstrap.js?digest=8878045cc6db502f8baf" />
 <link rel="preload" as="script" href="../../../_static/scripts/pydata-sphinx-theme.js?digest=8878045cc6db502f8baf" />
 
-    <script src="../../../_static/documentation_options.js?v=65baf6d9"></script>
+    <script src="../../../_static/documentation_options.js?v=80ddc5db"></script>
     <script src="../../../_static/doctools.js?v=9bcbadda"></script>
     <script src="../../../_static/sphinx_highlight.js?v=dc90522c"></script>
     <script src="../../../_static/scripts/sphinx-book-theme.js?v=fab101a9"></script>
@@ -60,7 +60,7 @@
     <link rel="prev" title="4.3.32. Model Control" href="modelcontrol.html" />
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
-  <meta name="docsearch:version" content="2026.6.1.dev9143" />
+  <meta name="docsearch:version" content="2026.6.2.dev9138" />
   </head>
   
   
@@ -102,7 +102,7 @@
   <div class="bd-header-announcement__content">
     <div style="background-color: #f0ad4e; border: 1px solid #eea236; border-radius: 4px; padding: 10px; margin: 10px 0;">
         <strong>⚠️ Development Version:</strong> This documentation was built from a development version
-        (2026.6.1.dev9143, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/36547337987cbe36a5f4bb034ade155336d976e2" style="color: #31708f;">3654733</a>).
+        (2026.6.2.dev9138, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/609cbd65bf17fa09d88fcb528a06341c6da5d255" style="color: #31708f;">609cbd6</a>).
         Features described here may be unstable or subject to change. For stable documentation, please visit the
         <a href="https://docs.suews.io/stable/" style="color: #31708f;">latest release</a>.
     </div>
@@ -149,8 +149,8 @@
       
     
     
-    <img src="../../../_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.6.1.dev9143 documentation - Home"/>
-    <img src="../../../_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.6.1.dev9143 documentation - Home"/>
+    <img src="../../../_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.6.2.dev9138 documentation - Home"/>
+    <img src="../../../_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.6.2.dev9138 documentation - Home"/>
   
   
 </a></div>
@@ -546,6 +546,15 @@
 <p>Model physics configuration options.</p>
 <p class="rubric">Public selector forms</p>
 <p>The scalar <code class="docutils literal notranslate"><span class="pre">{value:</span> <span class="pre">...}</span></code> form remains valid for each selector. The forms below are the public YAML names and nested families accepted by the configuration validators; they are folded to the existing method-code fields before SUEWS runs. Registered selector tokens are case-insensitive; citation-style choices are shown in their preferred case.</p>
+<p class="rubric">Method dependency graph</p>
+<p>The main method interactions are:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">snow_use</span></code> -&gt; <code class="docutils literal notranslate"><span class="pre">net_radiation</span></code> -&gt; <code class="docutils literal notranslate"><span class="pre">storage_heat</span></code> -&gt; <code class="docutils literal notranslate"><span class="pre">energy_balance</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">emissions</span></code> -&gt; <code class="docutils literal notranslate"><span class="pre">ohm_inc_qf</span></code> -&gt; <code class="docutils literal notranslate"><span class="pre">storage_heat</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">storage_heat</span></code> -&gt; <code class="docutils literal notranslate"><span class="pre">stebbs</span></code> -&gt; <code class="docutils literal notranslate"><span class="pre">stebbs.capacitance</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">roughness_length_momentum</span></code> -&gt; <code class="docutils literal notranslate"><span class="pre">roughness_length_heat</span></code> -&gt; <code class="docutils literal notranslate"><span class="pre">stability</span></code> -&gt; <code class="docutils literal notranslate"><span class="pre">roughness_sublayer</span></code> -&gt; <code class="docutils literal notranslate"><span class="pre">roughness_sublayer_level</span></code> -&gt; <code class="docutils literal notranslate"><span class="pre">surface_conductance</span></code></p></li>
+</ul>
+<p>Conditional compatibility checks enforce the critical branches: EHC storage heat requires SPARTACUS net radiation, STEBBS storage heat requires STEBBS enabled, and non-default STEBBS capacitance choices require the STEBBS branch.</p>
 <div class="pst-scrollable-table-container"><table class="table" id="id1">
 <caption><span class="caption-number">Table 4.1 </span><span class="caption-text">Net radiation</span><a class="headerlink" href="#id1" title="Link to this table">#</a></caption>
 <colgroup>
@@ -757,8 +766,8 @@
 <p>The generated parameter list below still includes implementation field    names where they differ from public aliases. In user YAML, prefer    <code class="docutils literal notranslate"><span class="pre">leaf_area_index</span></code> over <code class="docutils literal notranslate"><span class="pre">laimethod</span></code>, <code class="docutils literal notranslate"><span class="pre">snow</span></code> over    <code class="docutils literal notranslate"><span class="pre">snow_use</span></code>, <code class="docutils literal notranslate"><span class="pre">storage_heat.ohm.include_qf</span></code> over flat    <code class="docutils literal notranslate"><span class="pre">ohm_inc_qf</span></code>, and <code class="docutils literal notranslate"><span class="pre">stebbs.parameter_source</span></code> over    <code class="docutils literal notranslate"><span class="pre">stebbs.parameters</span></code>.</p>
 </div>
 <p><strong>Parameters:</strong></p>
-<dl class="input option" id="index-1">
-<dt class="sig sig-object input" id="input-option-net_radiation">
+<dl class="input option" id="net-radiation">
+<span id="index-1"></span><dt class="sig sig-object input" id="input-option-net_radiation">
 <span class="sig-name descname"><span class="pre">net_radiation</span></span><a class="headerlink" href="#input-option-net_radiation" title="Link to this definition">#</a></dt>
 <dd><p>Method for calculating net all-wave radiation (Q*).</p>
 <dl class="field-list">
@@ -774,10 +783,16 @@
 <dd class="field-even"><p><code class="docutils literal notranslate"><span class="pre">3</span></code> (LDOWN_AIR)</p>
 </dd>
 </dl>
+<div class="note admonition">
+<p class="admonition-title">Method Interactions</p>
+<p>Values above 1000 activate SPARTACUS-Surface and provide facet radiation required by EHC storage heat.</p>
+<p><strong>Depends on:</strong> <a class="reference internal" href="#snow-use"><span class="std std-ref">snow_use</span></a>
+<strong>Provides to:</strong> <a class="reference internal" href="#storage-heat"><span class="std std-ref">storage_heat</span></a></p>
+</div>
 </dd></dl>
 
-<dl class="input option" id="index-2">
-<dt class="sig sig-object input" id="input-option-emissions">
+<dl class="input option" id="emissions">
+<span id="index-2"></span><dt class="sig sig-object input" id="input-option-emissions">
 <span class="sig-name descname"><span class="pre">emissions</span></span><a class="headerlink" href="#input-option-emissions" title="Link to this definition">#</a></dt>
 <dd><p>Method for calculating anthropogenic heat flux (QF) and CO2 emissions.</p>
 <div class="admonition note">
@@ -821,10 +836,15 @@
 <dd class="field-even"><p><code class="docutils literal notranslate"><span class="pre">2</span></code> (J11)</p>
 </dd>
 </dl>
+<div class="note admonition">
+<p class="admonition-title">Method Interactions</p>
+<p>Determines anthropogenic heat flux (QF) used by the energy balance and OHM QF-inclusion switch.</p>
+<p><strong>Provides to:</strong> <a class="reference internal" href="#ohm-inc-qf"><span class="std std-ref">ohm_inc_qf</span></a>, <code class="docutils literal notranslate"><span class="pre">energy_balance</span></code></p>
+</div>
 </dd></dl>
 
-<dl class="input option" id="index-3">
-<dt class="sig sig-object input" id="input-option-storage_heat">
+<dl class="input option" id="storage-heat">
+<span id="index-3"></span><dt class="sig sig-object input" id="input-option-storage_heat">
 <span class="sig-name descname"><span class="pre">storage_heat</span></span><a class="headerlink" href="#input-option-storage_heat" title="Link to this definition">#</a></dt>
 <dd><p>Method for calculating storage heat flux (ΔQS).</p>
 <dl class="field-list">
@@ -841,10 +861,16 @@
 <dd class="field-even"><p><code class="docutils literal notranslate"><span class="pre">1</span></code> (OHM_WITHOUT_QF)</p>
 </dd>
 </dl>
+<div class="note admonition">
+<p class="admonition-title">Method Interactions</p>
+<p>EHC (5) requires SPARTACUS net radiation; STEBBS storage heat (7) requires STEBBS enabled; OHM-like paths use OhmIncQf.</p>
+<p><strong>Depends on:</strong> <a class="reference internal" href="#net-radiation"><span class="std std-ref">net_radiation</span></a>, <a class="reference internal" href="#ohm-inc-qf"><span class="std std-ref">ohm_inc_qf</span></a>, <a class="reference internal" href="#snow-use"><span class="std std-ref">snow_use</span></a>, <a class="reference internal" href="stebbsproperties.html#stebbs"><span class="std std-ref">stebbs</span></a>
+<strong>Provides to:</strong> <code class="docutils literal notranslate"><span class="pre">energy_balance</span></code></p>
+</div>
 </dd></dl>
 
-<dl class="input option" id="index-4">
-<dt class="sig sig-object input" id="input-option-ohm_inc_qf">
+<dl class="input option" id="ohm-inc-qf">
+<span id="index-4"></span><dt class="sig sig-object input" id="input-option-ohm_inc_qf">
 <span class="sig-name descname"><span class="pre">ohm_inc_qf</span></span><a class="headerlink" href="#input-option-ohm_inc_qf" title="Link to this definition">#</a></dt>
 <dd><p>Controls inclusion of anthropogenic heat flux in OHM storage heat calculations.</p>
 <dl class="field-list">
@@ -858,10 +884,16 @@
 <dd class="field-even"><p><code class="docutils literal notranslate"><span class="pre">0</span></code> (EXCLUDE)</p>
 </dd>
 </dl>
+<div class="note admonition">
+<p class="admonition-title">Method Interactions</p>
+<p>Controls whether QF from emissions is added to Q* in OHM-based storage heat calculations.</p>
+<p><strong>Depends on:</strong> <a class="reference internal" href="#emissions"><span class="std std-ref">emissions</span></a>, <a class="reference internal" href="#storage-heat"><span class="std std-ref">storage_heat</span></a>
+<strong>Provides to:</strong> <a class="reference internal" href="#storage-heat"><span class="std std-ref">storage_heat</span></a></p>
+</div>
 </dd></dl>
 
-<dl class="input option" id="index-5">
-<dt class="sig sig-object input" id="input-option-roughness_length_momentum">
+<dl class="input option" id="roughness-length-momentum">
+<span id="index-5"></span><dt class="sig sig-object input" id="input-option-roughness_length_momentum">
 <span class="sig-name descname"><span class="pre">roughness_length_momentum</span></span><a class="headerlink" href="#input-option-roughness_length_momentum" title="Link to this definition">#</a></dt>
 <dd><p>Method for calculating momentum roughness length (z0m).</p>
 <dl class="field-list">
@@ -877,10 +909,15 @@
 <dd class="field-even"><p><code class="docutils literal notranslate"><span class="pre">2</span></code> (VARIABLE)</p>
 </dd>
 </dl>
+<div class="note admonition">
+<p class="admonition-title">Method Interactions</p>
+<p>Calculates momentum roughness length (z0m), which feeds heat roughness length and stability corrections.</p>
+<p><strong>Provides to:</strong> <a class="reference internal" href="#roughness-length-heat"><span class="std std-ref">roughness_length_heat</span></a>, <a class="reference internal" href="#stability"><span class="std std-ref">stability</span></a></p>
+</div>
 </dd></dl>
 
-<dl class="input option" id="index-6">
-<dt class="sig sig-object input" id="input-option-roughness_length_heat">
+<dl class="input option" id="roughness-length-heat">
+<span id="index-6"></span><dt class="sig sig-object input" id="input-option-roughness_length_heat">
 <span class="sig-name descname"><span class="pre">roughness_length_heat</span></span><a class="headerlink" href="#input-option-roughness_length_heat" title="Link to this definition">#</a></dt>
 <dd><p>Method for calculating thermal roughness length (z0h).</p>
 <dl class="field-list">
@@ -897,10 +934,16 @@
 <dd class="field-even"><p><code class="docutils literal notranslate"><span class="pre">2</span></code> (KAWAI)</p>
 </dd>
 </dl>
+<div class="note admonition">
+<p class="admonition-title">Method Interactions</p>
+<p>Calculates heat roughness length (z0h) from z0m for stability corrections.</p>
+<p><strong>Depends on:</strong> <a class="reference internal" href="#roughness-length-momentum"><span class="std std-ref">roughness_length_momentum</span></a>
+<strong>Provides to:</strong> <a class="reference internal" href="#stability"><span class="std std-ref">stability</span></a></p>
+</div>
 </dd></dl>
 
-<dl class="input option" id="index-7">
-<dt class="sig sig-object input" id="input-option-stability">
+<dl class="input option" id="stability">
+<span id="index-7"></span><dt class="sig sig-object input" id="input-option-stability">
 <span class="sig-name descname"><span class="pre">stability</span></span><a class="headerlink" href="#input-option-stability" title="Link to this definition">#</a></dt>
 <dd><p>Atmospheric stability correction functions for momentum and heat fluxes.</p>
 <dl class="field-list">
@@ -915,8 +958,8 @@
 </dl>
 <div class="note admonition">
 <p class="admonition-title">Method Interactions</p>
-<p>Provides stability correction functions used by roughness_sublayer calculations</p>
-<p><strong>Provides to:</strong> <span class="xref std std-ref">roughness_sublayer</span></p>
+<p>Provides stability correction functions used by roughness-length and roughness_sublayer calculations.</p>
+<p><strong>Provides to:</strong> <a class="reference internal" href="#roughness-length-momentum"><span class="std std-ref">roughness_length_momentum</span></a>, <a class="reference internal" href="#roughness-length-heat"><span class="std std-ref">roughness_length_heat</span></a>, <a class="reference internal" href="#roughness-sublayer"><span class="std std-ref">roughness_sublayer</span></a></p>
 </div>
 </dd></dl>
 
@@ -976,8 +1019,8 @@
 </div>
 </dd></dl>
 
-<dl class="input option" id="index-11">
-<dt class="sig sig-object input" id="input-option-roughness_sublayer">
+<dl class="input option" id="roughness-sublayer">
+<span id="index-11"></span><dt class="sig sig-object input" id="input-option-roughness_sublayer">
 <span class="sig-name descname"><span class="pre">roughness_sublayer</span></span><a class="headerlink" href="#input-option-roughness_sublayer" title="Link to this definition">#</a></dt>
 <dd><p>Roughness Sublayer (RSL) method for calculating near-surface meteorological diagnostics (2m temperature, 2m humidity, 10m wind speed).</p>
 <dl class="field-list">
@@ -993,8 +1036,8 @@
 <div class="note admonition">
 <p class="admonition-title">Method Interactions</p>
 <p>Determines how near-surface values (2m temp, 10m wind) are calculated from forcing data</p>
-<p><strong>Depends on:</strong> <span class="xref std std-ref">stability</span>
-<strong>Provides to:</strong> <span class="xref std std-ref">roughness_sublayer_level</span></p>
+<p><strong>Depends on:</strong> <a class="reference internal" href="#stability"><span class="std std-ref">stability</span></a>
+<strong>Provides to:</strong> <a class="reference internal" href="#roughness-sublayer-level"><span class="std std-ref">roughness_sublayer_level</span></a></p>
 </div>
 </dd></dl>
 
@@ -1014,8 +1057,8 @@
 </dl>
 </dd></dl>
 
-<dl class="input option" id="index-13">
-<dt class="sig sig-object input" id="input-option-roughness_sublayer_level">
+<dl class="input option" id="roughness-sublayer-level">
+<span id="index-13"></span><dt class="sig sig-object input" id="input-option-roughness_sublayer_level">
 <span class="sig-name descname"><span class="pre">roughness_sublayer_level</span></span><a class="headerlink" href="#input-option-roughness_sublayer_level" title="Link to this definition">#</a></dt>
 <dd><p>Method for incorporating local environmental feedbacks on surface processes, particularly vegetation phenology and evapotranspiration responses to urban heat island effects.</p>
 <dl class="field-list">
@@ -1033,13 +1076,13 @@
 <div class="note admonition">
 <p class="admonition-title">Method Interactions</p>
 <p>Uses near-surface values from roughness_sublayer to modify vegetation processes</p>
-<p><strong>Depends on:</strong> <span class="xref std std-ref">roughness_sublayer</span>
-<strong>Provides to:</strong> <span class="xref std std-ref">surface_conductance</span></p>
+<p><strong>Depends on:</strong> <a class="reference internal" href="#roughness-sublayer"><span class="std std-ref">roughness_sublayer</span></a>
+<strong>Provides to:</strong> <a class="reference internal" href="#surface-conductance"><span class="std std-ref">surface_conductance</span></a></p>
 </div>
 </dd></dl>
 
-<dl class="input option" id="index-14">
-<dt class="sig sig-object input" id="input-option-surface_conductance">
+<dl class="input option" id="surface-conductance">
+<span id="index-14"></span><dt class="sig sig-object input" id="input-option-surface_conductance">
 <span class="sig-name descname"><span class="pre">surface_conductance</span></span><a class="headerlink" href="#input-option-surface_conductance" title="Link to this definition">#</a></dt>
 <dd><p>Stomatal conductance parameterisation method for vegetation surfaces.</p>
 <dl class="field-list">
@@ -1056,12 +1099,12 @@
 <div class="note admonition">
 <p class="admonition-title">Method Interactions</p>
 <p>Stomatal conductance model influenced by roughness_sublayer_level adjustments</p>
-<p><strong>Depends on:</strong> <span class="xref std std-ref">roughness_sublayer_level</span></p>
+<p><strong>Depends on:</strong> <a class="reference internal" href="#roughness-sublayer-level"><span class="std std-ref">roughness_sublayer_level</span></a></p>
 </div>
 </dd></dl>
 
-<dl class="input option" id="index-15">
-<dt class="sig sig-object input" id="input-option-snow_use">
+<dl class="input option" id="snow-use">
+<span id="index-15"></span><dt class="sig sig-object input" id="input-option-snow_use">
 <span class="sig-name descname"><span class="pre">snow_use</span></span><a class="headerlink" href="#input-option-snow_use" title="Link to this definition">#</a></dt>
 <dd><p>Controls snow process calculations (Järvi et al. 2014).</p>
 <dl class="field-list">
@@ -1075,12 +1118,23 @@
 <dd class="field-even"><p><code class="docutils literal notranslate"><span class="pre">0</span></code> (DISABLED)</p>
 </dd>
 </dl>
+<div class="note admonition">
+<p class="admonition-title">Method Interactions</p>
+<p>Controls snow processes that affect radiation dispatch, storage heat, and near-surface conductance adjustments.</p>
+<p><strong>Provides to:</strong> <a class="reference internal" href="#net-radiation"><span class="std std-ref">net_radiation</span></a>, <a class="reference internal" href="#storage-heat"><span class="std std-ref">storage_heat</span></a>, <a class="reference internal" href="#roughness-sublayer-level"><span class="std std-ref">roughness_sublayer_level</span></a></p>
+</div>
 </dd></dl>
 
-<dl class="input option" id="index-16">
-<dt class="sig sig-object input" id="input-option-stebbs">
+<dl class="input option" id="stebbs">
+<span id="index-16"></span><dt class="sig sig-object input" id="input-option-stebbs">
 <span class="sig-name descname"><span class="pre">stebbs</span></span><a class="headerlink" href="#input-option-stebbs" title="Link to this definition">#</a></dt>
 <dd><p>STEBBS physics switches (gh#1456): master toggle (enabled + parameters), capacitance method, setpoint method, and the same-albedo / same-emissivity wall/roof switches.</p>
+<div class="note admonition">
+<p class="admonition-title">Method Interactions</p>
+<p>When storage_heat selects STEBBS (7), this block enables and parameterises the STEBBS contribution to storage heat.</p>
+<p><strong>Depends on:</strong> <a class="reference internal" href="#storage-heat"><span class="std std-ref">storage_heat</span></a>
+<strong>Provides to:</strong> <code class="docutils literal notranslate"><span class="pre">stebbs.capacitance</span></code></p>
+</div>
 <p>The <code class="docutils literal notranslate"><span class="pre">stebbs</span></code> parameter group is defined by the <a class="reference internal" href="stebbsphysics.html"><span class="doc">STEBBS Physics Methods</span></a> structure.</p>
 </dd></dl>
 
@@ -1161,8 +1215,8 @@ By SUEWS dev team led by Prof Sue Grimmond
   <div class="footer-item">
     
 <div class="extra_footer">
-  <p>Version: 2026.6.1.dev9143 |
-    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/36547337987cbe36a5f4bb034ade155336d976e2">3654733</a> |
+  <p>Version: 2026.6.2.dev9138 |
+    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/609cbd65bf17fa09d88fcb528a06341c6da5d255">609cbd6</a> |
     <a href="https://umep-dev.github.io/SUEWS/brand/showcase.html">Brand</a></p>
 </div>
   </div>

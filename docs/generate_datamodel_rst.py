@@ -30,6 +30,23 @@ except ImportError:
 class RSTGenerator:
     """Generate RST documentation from extracted model documentation."""
 
+    RELATIONSHIP_REF_TARGETS = frozenset(
+        {
+            "net_radiation",
+            "emissions",
+            "storage_heat",
+            "ohm_inc_qf",
+            "roughness_length_momentum",
+            "roughness_length_heat",
+            "stability",
+            "roughness_sublayer",
+            "roughness_sublayer_level",
+            "surface_conductance",
+            "snow_use",
+            "stebbs",
+        }
+    )
+
     def __init__(self, doc_data: dict[str, Any]):
         """
         Initialize the RST generator with extracted documentation data.
@@ -165,6 +182,20 @@ class RSTGenerator:
             "method-code fields before SUEWS runs. Registered selector tokens are "
             "case-insensitive; citation-style choices are shown in their preferred "
             "case.",
+            "",
+            ".. rubric:: Method dependency graph",
+            "",
+            "The main method interactions are:",
+            "",
+            "- ``snow_use`` -> ``net_radiation`` -> ``storage_heat`` -> ``energy_balance``",
+            "- ``emissions`` -> ``ohm_inc_qf`` -> ``storage_heat``",
+            "- ``storage_heat`` -> ``stebbs`` -> ``stebbs.capacitance``",
+            "- ``roughness_length_momentum`` -> ``roughness_length_heat`` -> ``stability`` -> ``roughness_sublayer`` -> ``roughness_sublayer_level`` -> ``surface_conductance``",
+            "",
+            "Conditional compatibility checks enforce the critical branches: EHC "
+            "storage heat requires SPARTACUS net radiation, STEBBS storage heat "
+            "requires STEBBS enabled, and non-default STEBBS capacitance choices "
+            "require the STEBBS branch.",
             "",
             ".. list-table:: Net radiation",
             "   :header-rows: 1",
@@ -347,7 +378,7 @@ class RSTGenerator:
 
         # Add reference label for physics method fields with relationships
         # Note: diagmethod→rslmethod, localclimatemethod→rsllevel (legacy rename)
-        if field_name in {
+        if field_name in RSTGenerator.RELATIONSHIP_REF_TARGETS or field_name in {
             "stabilitymethod",
             "rslmethod",  # was diagmethod
             "rsllevel",  # was localclimatemethod
@@ -357,6 +388,17 @@ class RSTGenerator:
             lines.append("")
 
         return lines
+
+    @classmethod
+    def _format_relationship_targets(cls, targets: list[str]) -> str:
+        """Format relationship targets as RST refs only when labels exist."""
+        refs = []
+        for target in targets:
+            if target in cls.RELATIONSHIP_REF_TARGETS:
+                refs.append(f":ref:`{target} <{target}>`")
+            else:
+                refs.append(f"``{target}``")
+        return ", ".join(refs)
 
     @staticmethod
     def _format_field_description(field_doc: dict[str, Any]) -> list[str]:
@@ -513,13 +555,13 @@ class RSTGenerator:
             # Add depends_on
             depends = relationships.get("depends_on", [])
             if depends:
-                refs = ", ".join(f":ref:`{d} <{d}>`" for d in depends)
+                refs = self._format_relationship_targets(depends)
                 lines.append(f"      **Depends on:** {refs}")
 
             # Add provides_to
             provides = relationships.get("provides_to", [])
             if provides:
-                refs = ", ".join(f":ref:`{p} <{p}>`" for p in provides)
+                refs = self._format_relationship_targets(provides)
                 lines.append(f"      **Provides to:** {refs}")
 
         return lines

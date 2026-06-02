@@ -53,6 +53,28 @@ def test_modelphysics_selector_guide_lists_registered_edge_tokens() -> None:
     assert resolve_scalar_name("roughness_sublayer", "rst") == 1
 
 
+def test_modelphysics_selector_guide_includes_dependency_graph() -> None:
+    module = _load_generator_module()
+
+    guide = "\n".join(module.RSTGenerator._format_modelphysics_selector_guide())
+
+    assert ".. rubric:: Method dependency graph" in guide
+    assert "``emissions`` -> ``ohm_inc_qf`` -> ``storage_heat``" in guide
+    assert "EHC storage heat requires SPARTACUS net radiation" in guide
+
+
+def test_relationship_targets_ref_only_documented_fields() -> None:
+    module = _load_generator_module()
+
+    rendered = module.RSTGenerator._format_relationship_targets(
+        ["storage_heat", "energy_balance", "stebbs.capacitance"]
+    )
+
+    assert ":ref:`storage_heat <storage_heat>`" in rendered
+    assert "``energy_balance``" in rendered
+    assert "``stebbs.capacitance``" in rendered
+
+
 def _documented_choice_rows(lines: list[str]) -> list[tuple[str, str]]:
     rows: list[tuple[str, str]] = []
     for index, line in enumerate(lines[:-1]):

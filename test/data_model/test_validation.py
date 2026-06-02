@@ -2563,6 +2563,13 @@ sites:
 
 def test_phase_b_storageheatmethod_ohmincqf_validation(registry):
     """Test StorageHeatMethod-OhmIncQf validation in Phase B."""
+    from supy.data_model.validation.pipeline.phase_b_rules.physics_rules import (
+        validate_storageheatmethod_dependency,
+    )
+
+    legacy_result = validate_storageheatmethod_dependency(1, 0)
+    assert legacy_result.parameter == "storageheatmethod-ohmincqf"
+    assert legacy_result.status == "PASS"
 
     # Test incompatible combination: StorageHeatMethod=1 requires OhmIncQf=0
     yaml_data_incompatible = {
@@ -2610,6 +2617,159 @@ def test_phase_b_storageheatmethod_ohmincqf_validation(registry):
         "StorageHeatMethod-OhmIncQf compatibility validated"
         in storage_results[0].message
     )
+
+
+def test_phase_b_storageheatmethod_ehc_requires_spartacus(registry):
+    """EHC storage heat needs SPARTACUS facet radiation."""
+    yaml_data_incompatible = {
+        "model": {
+            "physics": {
+                "storage_heat": "ehc",
+                "net_radiation": {"narp": {"ldown": "air"}},
+                "ohm_inc_qf": "exclude",
+            }
+        }
+    }
+
+    results = registry["option_dependencies"](
+        ValidationContext(yaml_data=yaml_data_incompatible)
+    )
+
+    storage_results = [
+        r for r in results if r.parameter == "storageheatmethod-netradiationmethod"
+    ]
+    assert len(storage_results) == 1
+    assert storage_results[0].status == "ERROR"
+    assert "requires a SPARTACUS NetRadiationMethod" in storage_results[0].message
+
+    yaml_data_compatible = {
+        "model": {
+            "physics": {
+                "storage_heat": "ehc",
+                "net_radiation": {"spartacus": {"ldown": "air"}},
+                "ohm_inc_qf": "exclude",
+            }
+        }
+    }
+
+    results = registry["option_dependencies"](
+        ValidationContext(yaml_data=yaml_data_compatible)
+    )
+
+    storage_results = [
+        r for r in results if r.parameter == "storageheatmethod-netradiationmethod"
+    ]
+    assert len(storage_results) == 1
+    assert storage_results[0].status == "PASS"
+
+
+def test_phase_b_storageheatmethod_stebbs_requires_stebbs_enabled(registry):
+    """STEBBS storage heat requires the nested STEBBS branch to be active."""
+    yaml_data_incompatible = {
+        "model": {
+            "physics": {
+                "storage_heat": "stebbs",
+                "ohm_inc_qf": "exclude",
+                "stebbs": {"enabled": False},
+            }
+        }
+    }
+
+    results = registry["option_dependencies"](
+        ValidationContext(yaml_data=yaml_data_incompatible)
+    )
+
+    storage_results = [
+        r for r in results if r.parameter == "storageheatmethod-stebbsmethod"
+    ]
+    assert len(storage_results) == 1
+    assert storage_results[0].status == "ERROR"
+    assert "requires STEBBS to be enabled" in storage_results[0].message
+
+    yaml_data_compatible = {
+        "model": {
+            "physics": {
+                "storage_heat": "stebbs",
+                "ohm_inc_qf": "include",
+                "stebbs": {"enabled": True, "parameters": "default"},
+            }
+        }
+    }
+
+    results = registry["option_dependencies"](
+        ValidationContext(yaml_data=yaml_data_compatible)
+    )
+
+    storage_results = [
+        r for r in results if r.parameter == "storageheatmethod-stebbsmethod"
+    ]
+    assert len(storage_results) == 1
+    assert storage_results[0].status == "PASS"
+
+
+def test_phase_b_ohmincqf_include_requires_ohm_like_storage(registry):
+    """The QF inclusion switch is invalid outside OHM-like storage heat paths."""
+    yaml_data = {
+        "model": {
+            "physics": {
+                "storage_heat": "ehc",
+                "net_radiation": {"spartacus": {"ldown": "air"}},
+                "ohm_inc_qf": "include",
+            }
+        }
+    }
+
+    results = registry["option_dependencies"](ValidationContext(yaml_data=yaml_data))
+
+    storage_results = [
+        r for r in results if r.parameter == "storageheatmethod-ohmincqf"
+    ]
+    assert len(storage_results) == 1
+    assert storage_results[0].status == "ERROR"
+    assert "OhmIncQf=1 is only meaningful" in storage_results[0].message
+
+
+def test_phase_b_rcmethod_requires_stebbs_enabled(registry):
+    """Non-default STEBBS capacitance/RC choices require STEBBS enabled."""
+    yaml_data_incompatible = {
+        "model": {
+            "physics": {
+                "stebbs": {
+                    "enabled": False,
+                    "capacitance": "provided",
+                }
+            }
+        }
+    }
+
+    results = registry["option_dependencies"](
+        ValidationContext(yaml_data=yaml_data_incompatible)
+    )
+
+    rcmethod_results = [r for r in results if r.parameter == "rcmethod-stebbsmethod"]
+    assert len(rcmethod_results) == 1
+    assert rcmethod_results[0].status == "ERROR"
+    assert "only meaningful when STEBBS is enabled" in rcmethod_results[0].message
+
+    yaml_data_compatible = {
+        "model": {
+            "physics": {
+                "stebbs": {
+                    "enabled": True,
+                    "parameters": "provided",
+                    "capacitance": "provided",
+                }
+            }
+        }
+    }
+
+    results = registry["option_dependencies"](
+        ValidationContext(yaml_data=yaml_data_compatible)
+    )
+
+    rcmethod_results = [r for r in results if r.parameter == "rcmethod-stebbsmethod"]
+    assert len(rcmethod_results) == 1
+    assert rcmethod_results[0].status == "PASS"
 
 
 def test_phase_b_rsl_stabilitymethod_validation(registry):

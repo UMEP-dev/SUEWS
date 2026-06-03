@@ -46,6 +46,13 @@
             <p class="subpage-lede">A standing check: does each SUEWS release still reproduce the observed urban energy balance as well as the last?</p>
             <p class="subpage-intro">Evaluated against eddy-covariance flux observations at the Kc1 tower, following <a href="https://doi.org/10.1016/j.uclim.2016.05.001">Ward&nbsp;et&nbsp;al.&nbsp;(2016)</a>. Each release is scored on the bias (MBE) and absolute error (MAE) of its modelled fluxes; a release is flagged when any flux degrades against the reference.</p>
 
+            <div class="bm-releases" role="group" aria-label="Model release">
+                <span class="bm-releases-label">Release</span>
+                <button class="bm-release" type="button">2025.7</button>
+                <button class="bm-release" type="button">2026.1</button>
+                <button class="bm-release" type="button" aria-current="true">2026.4 <span class="latest">latest</span></button>
+            </div>
+
             <div class="bm-verdict" data-state="fail" role="status">
                 <span class="bm-status"><span class="disc" aria-hidden="true"></span><span class="glyph" aria-hidden="true">&#9650;</span> Regression flagged</span>
                 <p class="bm-verdict-summary">v2026.4.3 improved error on four of five fluxes &mdash; but sensible heat <span style="font-style:normal">Q<sub>H</sub></span> rose <b style="font-style:normal;color:var(--bad)">+1.77</b> above the 2016a reference.</p>

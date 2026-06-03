@@ -42,6 +42,13 @@
             <h1 class="subpage-title">The <em>benchmark suite</em></h1>
             <p class="subpage-lede">Every SUEWS release is re-run against eddy-covariance observations in cities worldwide &mdash; a standing scoreboard of model fidelity.</p>
             <p class="subpage-intro">Each site scores the modelled energy balance against tower measurements; a release is flagged the moment any flux degrades against its reference. <b style="color:var(--text-secondary);font-weight:500">Three of four sites</b> clear the current release, <span class="mono" style="font-family:'JetBrains Mono',monospace;font-size:0.85rem">v2026.4.3</span>.</p>
+            <div class="bm-releases" role="group" aria-label="Model release">
+                <span class="bm-releases-label">Release</span>
+                <button class="bm-release" type="button">2025.7</button>
+                <button class="bm-release" type="button">2026.1</button>
+                <button class="bm-release" type="button" aria-current="true">2026.4 <span class="latest">latest</span></button>
+                <p class="bm-releases-note">The scoreboard reflects the selected release; each release keeps its own results, so regressions can be traced to the version that introduced them.</p>
+            </div>
         </header>
 
         <section class="subpage-group">

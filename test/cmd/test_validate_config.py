@@ -499,6 +499,57 @@ def test_validate_flat_stebbs_form_not_flagged_missing(tmp_path: Path) -> None:
     )
 
 
+def test_validate_pipeline_cleans_legacy_flat_stebbs_updated_yaml(
+    tmp_path: Path,
+) -> None:
+    """gh#1497: full validate output folds old flat STEBBS switches."""
+    from supy.cmd.validate_config import cli as validate_cli
+
+    payload = _load_sample_dict()
+    physics = payload["model"]["physics"]
+    physics["stebbs"] = {"value": 0}
+    physics["outer_cap_fraction"] = {"value": 0}
+    physics["setpoint"] = {"value": 1}
+    physics["same_albedo_wall"] = {"value": 0}
+    physics["same_albedo_roof"] = {"value": 0}
+    physics["same_emissivity_wall"] = {"value": 0}
+    physics["same_emissivity_roof"] = {"value": 0}
+
+    config_path = tmp_path / "legacy_stebbs.yml"
+    _write_yaml(config_path, payload)
+
+    runner = CliRunner()
+    result = runner.invoke(validate_cli, ["--forcing", "off", str(config_path)])
+
+    assert result.exit_code == 0, result.output
+    updated_path = tmp_path / "updated_legacy_stebbs.yml"
+    assert updated_path.exists(), result.output
+    updated = yaml.safe_load(updated_path.read_text(encoding="utf-8"))
+    updated_physics = updated["model"]["physics"]
+    updated_stebbs = updated_physics["stebbs"]
+
+    assert "value" not in updated_stebbs
+    for flat_key in (
+        "capacitance",
+        "outer_cap_fraction",
+        "setpoint",
+        "same_albedo_wall",
+        "same_albedo_roof",
+        "same_emissivity_wall",
+        "same_emissivity_roof",
+    ):
+        assert flat_key not in updated_physics
+
+    assert updated_stebbs["enabled"] == {"value": False}
+    assert updated_stebbs["parameters"] == {"value": 1}
+    assert updated_stebbs["capacitance"] == {"value": 0}
+    assert updated_stebbs["setpoint"] == {"value": 1}
+    assert updated_stebbs["same_albedo_wall"] == {"value": 0}
+    assert updated_stebbs["same_albedo_roof"] == {"value": 0}
+    assert updated_stebbs["same_emissivity_wall"] == {"value": 0}
+    assert updated_stebbs["same_emissivity_roof"] == {"value": 0}
+
+
 def test_validate_full_pipeline_emits_json_envelope(tmp_path: Path) -> None:
     """The non-dry-run pipeline path must honour ``--format json`` and
     emit a canonical envelope on stdout (gh#1409 follow-up).

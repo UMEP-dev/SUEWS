@@ -94,6 +94,11 @@ tmy = [
     "metpy",  # Required for UMEP EPW conversion (util/_UMEP2epw.py)
 ]
 
+# NB: the regression-benchmark suite has no public dependency here on purpose.
+# The benchmark metrics/logic will be vendored into `benchmark/` after review;
+# any remaining third-party benchmark deps are installed inside the benchmark
+# workflow so this published package stays pip-installable for everyone.
+
 # Core development tooling (kept separate from docs to reduce supply-chain surface)
 dev = [
     # Testing

@@ -4,10 +4,18 @@ import subprocess
 from copy import deepcopy
 import pandas as pd
 from pathlib import Path
+from typing import Optional
 
 from .report_writer import REPORT_WRITER
-from ...core.field_renames import RAW_YAML_FIELD_RENAMES
-from ...core.physics_families import flatten_physics_in_config
+from ...core.field_renames import (
+    RAW_YAML_FIELD_RENAMES,
+    STEBBS_PHYSICS_LEAF_RENAMES,
+)
+from ...core.physics_families import (
+    STEBBS_PUBLIC_KEY_ALIASES,
+    coerce_nested_to_flat,
+    flatten_physics_in_config,
+)
 
 RENAMED_PARAMS = {
     "cp": "rho_cp",
@@ -174,6 +182,184 @@ def _normalise_model_control_subobjects(
         # ModelControl._coerce_legacy_output_file).
         replacements.append(("output_file", "output"))
 
+    return normalised, replacements
+
+
+_STEBBS_REFVALUE_KEYS = frozenset({"value", "ref"})
+_STEBBS_NESTED_KEYS = frozenset(
+    {
+        "enabled",
+        "parameters",
+        *STEBBS_PUBLIC_KEY_ALIASES,
+        *STEBBS_PHYSICS_LEAF_RENAMES.keys(),
+        *STEBBS_PHYSICS_LEAF_RENAMES.values(),
+    }
+)
+
+
+def _is_stebbs_master_scalar(entry: object) -> bool:
+    """Return True when ``stebbs`` is the legacy RefValue master toggle."""
+    return (
+        isinstance(entry, dict)
+        and "value" in entry
+        and set(entry) <= _STEBBS_REFVALUE_KEYS
+    )
+
+
+def _wrapped_stebbs_value(value: object, ref: object = None) -> dict:
+    wrapped = {"value": value}
+    if ref is not None:
+        wrapped["ref"] = ref
+    return wrapped
+
+
+def _decompose_stebbs_master_for_phase_a(
+    entry: object,
+) -> Optional[tuple[dict, dict]]:
+    """Split legacy ``stebbs`` 0/1/2 into nested enabled/parameters values."""
+    try:
+        entry = coerce_nested_to_flat("stebbs", entry)
+    except (TypeError, ValueError):
+        return None
+
+    ref = entry.get("ref") if isinstance(entry, dict) else None
+    raw = (
+        entry.get("value")
+        if isinstance(entry, dict) and "value" in entry
+        else entry
+    )
+
+    if isinstance(raw, bool):
+        code = int(raw)
+    elif isinstance(raw, int):
+        code = raw
+    elif isinstance(raw, float) and raw.is_integer():
+        code = int(raw)
+    else:
+        return None
+
+    if code == 0:
+        return _wrapped_stebbs_value(False, ref), _wrapped_stebbs_value(1)
+    if code == 1:
+        return _wrapped_stebbs_value(True, ref), _wrapped_stebbs_value(1)
+    if code == 2:
+        return _wrapped_stebbs_value(True, ref), _wrapped_stebbs_value(2)
+    return None
+
+
+def _set_if_missing_or_nullish(target: dict, key: str, value: object) -> bool:
+    """Set ``target[key]`` only when absent or carrying a null placeholder."""
+    if key not in target or _is_nullish_tree(target.get(key)):
+        target[key] = value
+        return True
+    return False
+
+
+def _normalise_model_physics_stebbs(
+    config_data: object,
+) -> tuple[object, list[tuple[str, str]]]:
+    """Fold legacy flat STEBBS physics switches before Phase A comparison.
+
+    Phase A writes the user-facing updated YAML from parsed data. Mirror the
+    runtime STEBBS fold here so old flat siblings are migrated into the nested
+    ``model.physics.stebbs`` block instead of being reported as extras while
+    null nested placeholders are inserted.
+    """
+    if not isinstance(config_data, dict):
+        return config_data, []
+
+    normalised = deepcopy(config_data)
+    model = normalised.get("model")
+    if not isinstance(model, dict):
+        return normalised, []
+    physics = model.get("physics")
+    if not isinstance(physics, dict):
+        return normalised, []
+
+    replacements: list[tuple[str, str]] = []
+    existing = physics.get("stebbs")
+    flat_stebbs_keys_present = [
+        key for key in STEBBS_PHYSICS_LEAF_RENAMES if key in physics
+    ]
+    nested_already = (
+        isinstance(existing, dict)
+        and not _is_stebbs_master_scalar(existing)
+        and any(key in existing for key in _STEBBS_NESTED_KEYS)
+    )
+
+    stebbs_block: dict = (
+        dict(existing) if isinstance(existing, dict) and nested_already else {}
+    )
+
+    if isinstance(existing, dict) and "value" in existing:
+        decomposed = _decompose_stebbs_master_for_phase_a(existing)
+        if decomposed is not None:
+            enabled, parameters = decomposed
+            stebbs_block.pop("value", None)
+            # A RefValue-style ``ref`` belongs to the legacy master toggle and
+            # is carried onto ``enabled`` by ``_decompose_stebbs_master...``.
+            stebbs_block.pop("ref", None)
+            _set_if_missing_or_nullish(stebbs_block, "enabled", enabled)
+            _set_if_missing_or_nullish(stebbs_block, "parameters", parameters)
+            replacements.append(("stebbs.value", "stebbs.enabled/parameters"))
+        elif nested_already and _is_nullish_tree(existing.get("value")):
+            stebbs_block.pop("value", None)
+            stebbs_block.pop("ref", None)
+            replacements.append(("stebbs.value", "stebbs.enabled/parameters"))
+        elif (
+            flat_stebbs_keys_present
+            and not nested_already
+            and not _is_nullish_tree(existing)
+        ):
+            stebbs_block = dict(existing)
+    elif "stebbs" in physics and not nested_already:
+        decomposed = _decompose_stebbs_master_for_phase_a(existing)
+        if decomposed is not None:
+            enabled, parameters = decomposed
+            stebbs_block["enabled"] = enabled
+            stebbs_block["parameters"] = parameters
+            replacements.append(("stebbs", "stebbs.enabled/parameters"))
+        elif flat_stebbs_keys_present:
+            if isinstance(existing, dict):
+                if not _is_nullish_tree(existing):
+                    stebbs_block = dict(existing)
+            elif existing is not None:
+                stebbs_block = {"value": existing}
+
+    for public_key, canonical_key in STEBBS_PUBLIC_KEY_ALIASES.items():
+        if public_key not in stebbs_block:
+            continue
+        public_value = stebbs_block.pop(public_key)
+        _set_if_missing_or_nullish(stebbs_block, canonical_key, public_value)
+        replacements.append((f"stebbs.{public_key}", f"stebbs.{canonical_key}"))
+
+    for old_key, nested_leaf in STEBBS_PHYSICS_LEAF_RENAMES.items():
+        if old_key == nested_leaf or old_key not in stebbs_block:
+            continue
+        old_value = stebbs_block.pop(old_key)
+        _set_if_missing_or_nullish(stebbs_block, nested_leaf, old_value)
+        replacements.append((f"stebbs.{old_key}", f"stebbs.{nested_leaf}"))
+
+    for flat_key, nested_leaf in STEBBS_PHYSICS_LEAF_RENAMES.items():
+        if flat_key not in physics:
+            continue
+        flat_value = physics.pop(flat_key)
+        _set_if_missing_or_nullish(stebbs_block, nested_leaf, flat_value)
+        replacements.append((flat_key, f"stebbs.{nested_leaf}"))
+
+    if stebbs_block:
+        physics["stebbs"] = stebbs_block
+
+    return normalised, replacements
+
+
+def _normalise_phase_a_compatibility(
+    config_data: object,
+) -> tuple[object, list[tuple[str, str]]]:
+    """Apply compatibility folds Phase A must share with the runtime loader."""
+    normalised, replacements = _normalise_model_control_subobjects(config_data)
+    normalised, stebbs_replacements = _normalise_model_physics_stebbs(normalised)
+    replacements.extend(stebbs_replacements)
     return normalised, replacements
 
 
@@ -434,8 +620,8 @@ def find_extra_parameters(user_data, standard_data, current_path=""):
     """Find parameters that exist in user data but not in standard data."""
     extra_params = []
     if current_path == "":
-        user_data, _ = _normalise_model_control_subobjects(user_data)
-        standard_data, _ = _normalise_model_control_subobjects(standard_data)
+        user_data, _ = _normalise_phase_a_compatibility(user_data)
+        standard_data, _ = _normalise_phase_a_compatibility(standard_data)
         flatten_physics_in_config(user_data)
         flatten_physics_in_config(standard_data)
 
@@ -484,8 +670,8 @@ def find_extra_parameters_in_lists(user_list, standard_list, current_path=""):
 def find_missing_parameters(user_data, standard_data, current_path=""):
     missing_params = []
     if current_path == "":
-        user_data, _ = _normalise_model_control_subobjects(user_data)
-        standard_data, _ = _normalise_model_control_subobjects(standard_data)
+        user_data, _ = _normalise_phase_a_compatibility(user_data)
+        standard_data, _ = _normalise_phase_a_compatibility(standard_data)
         flatten_physics_in_config(user_data)
         flatten_physics_in_config(standard_data)
 
@@ -1834,13 +2020,14 @@ def annotate_missing_parameters(
         )
         user_data = yaml.safe_load(original_yaml_content)
         parsed_renames = handle_renamed_parameters_in_parsed_yaml(user_data)
-        normalised_user_data, control_replacements = _normalise_model_control_subobjects(
-            user_data
-        )
-        control_normalised = normalised_user_data != user_data
+        (
+            normalised_user_data,
+            compatibility_replacements,
+        ) = _normalise_phase_a_compatibility(user_data)
+        compatibility_normalised = normalised_user_data != user_data
         user_data = normalised_user_data
-        parsed_renames.extend(control_replacements)
-        if parsed_renames or control_normalised:
+        parsed_renames.extend(compatibility_replacements)
+        if parsed_renames or compatibility_normalised:
             seen_replacements = set(renamed_replacements)
             for replacement in parsed_renames:
                 if replacement not in seen_replacements:

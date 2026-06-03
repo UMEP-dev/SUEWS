@@ -170,7 +170,24 @@ The lineage below mirrors ``SCHEMA_VERSIONS`` in
 the schema that shipped with it via
 ``supy.util.converter.yaml_upgrade._PACKAGE_TO_SCHEMA``.
 
-**Schema 2026.5.dev13** (current; nest the STEBBS physics switches under ``model.physics.stebbs``)
+**Schema 2026.5.dev14** (current; align the ``frontal_area_index`` selector on the observed/modelled axis)
+   gh#1495. The ``model.physics.frontal_area_index`` readable selector is
+   reduced to the canonical ``observed`` / ``modelled`` pair shared with
+   ``laimethod``, ``water_use`` and ``soil_moisture_deficit``. The synonym
+   string aliases ``provided``, ``use_provided`` and ``simple_scheme`` are
+   retired from the accepted YAML values - a literal tightening, hence the
+   dev bump. The internal source-of-input enums are realigned to the same
+   axis (``LAIMethod.CALCULATED`` -> ``MODELLED``;
+   ``FAIMethod.USE_PROVIDED`` / ``SIMPLE_SCHEME`` -> ``OBSERVED`` /
+   ``MODELLED``) with their integer values unchanged, so ``df_state`` and
+   integer-form YAML round-trip identically. The
+   ``(2026.5.dev13 -> 2026.5.dev14)`` migration is registered in
+   ``src/supy/util/converter/yaml_upgrade.py::_HANDLERS`` and rewrites any
+   retired ``frontal_area_index`` string alias to its canonical replacement
+   (``provided`` / ``use_provided`` -> ``observed``, ``simple_scheme`` ->
+   ``modelled``) so an older YAML still loads.
+
+**Schema 2026.5.dev13** (nest the STEBBS physics switches under ``model.physics.stebbs``)
    gh#1456. The six flat STEBBS-scoped switches on ``model.physics`` are
    grouped into a single nested object ``model.physics.stebbs``. This is a
    separate structural reshape from the dev12 Column D rename (gh#1452), so

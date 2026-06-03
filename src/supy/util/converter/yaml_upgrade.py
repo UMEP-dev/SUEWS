@@ -1115,6 +1115,63 @@ def _apply_stebbs_straggler_renames(cfg: dict) -> None:
             _rename_field(physics, old, new)
 
 
+# gh#1495 dev13 -> dev14: the frontal_area_index readable selector dropped
+# its synonym string aliases. Map any retired alias to the canonical
+# observed/modelled value so an older YAML keeps loading.
+_FAI_ALIAS_CANONICAL: dict[str, str] = {
+    "provided": "observed",
+    "use_provided": "observed",
+    "simple_scheme": "modelled",
+}
+
+
+def _apply_fai_alias_canonicalisation(cfg: dict) -> None:
+    """Rewrite retired frontal_area_index string aliases in place.
+
+    gh#1495 dev13 -> dev14. The ``frontal_area_index`` readable selector was
+    reduced to the canonical ``observed`` / ``modelled`` pair; the synonym
+    aliases ``provided`` / ``use_provided`` / ``simple_scheme`` are no longer
+    accepted. An older YAML that used a synonym is rewritten to its canonical
+    replacement (``provided`` / ``use_provided`` -> ``observed``,
+    ``simple_scheme`` -> ``modelled``) so it still loads. Integer values and
+    already-canonical names are untouched.
+    """
+    model = cfg.get("model")
+    if not isinstance(model, dict):
+        return
+    physics = model.get("physics")
+    if not isinstance(physics, dict):
+        return
+    entry = physics.get("frontal_area_index")
+    wrapped = isinstance(entry, dict) and "value" in entry
+    raw = entry["value"] if wrapped else entry
+    if not isinstance(raw, str):
+        return
+    canonical = _FAI_ALIAS_CANONICAL.get(raw.strip().lower())
+    if canonical is None:
+        return
+    if wrapped:
+        entry["value"] = canonical
+    else:
+        physics["frontal_area_index"] = canonical
+    _log(
+        f"[yaml-upgrade]   frontal_area_index {raw!r} -> {canonical!r} "
+        "(retired synonym alias canonicalised)"
+    )
+
+
+def _migrate_2026_5_dev13_to_current(cfg: dict) -> dict:
+    """Upgrade 2026.5.dev13-shaped YAMLs to the current schema.
+
+    dev13 -> dev14 (gh#1495): canonicalise the retired frontal_area_index
+    string aliases (provided / use_provided -> observed, simple_scheme ->
+    modelled). No earlier delta is outstanding at dev13.
+    """
+    cfg = _strip_internal_only_fields(cfg)
+    _apply_fai_alias_canonicalisation(cfg)
+    return cfg
+
+
 def _migrate_2026_5_dev12_to_current(cfg: dict) -> dict:
     """Upgrade 2026.5.dev12-shaped YAMLs to the current schema.
 
@@ -1127,6 +1184,7 @@ def _migrate_2026_5_dev12_to_current(cfg: dict) -> dict:
     """
     cfg = _strip_internal_only_fields(cfg)
     _apply_stebbs_physics_fold(cfg)
+    _apply_fai_alias_canonicalisation(cfg)
     return cfg
 
 
@@ -1142,6 +1200,7 @@ def _migrate_2026_5_dev11_to_current(cfg: dict) -> dict:
     cfg = _strip_internal_only_fields(cfg)
     _apply_stebbs_straggler_renames(cfg)
     _apply_stebbs_physics_fold(cfg)
+    _apply_fai_alias_canonicalisation(cfg)
     return cfg
 
 
@@ -1158,6 +1217,7 @@ def _migrate_2026_5_dev10_to_current(cfg: dict) -> dict:
     _apply_naming_completion_renames(cfg)
     _apply_stebbs_straggler_renames(cfg)
     _apply_stebbs_physics_fold(cfg)
+    _apply_fai_alias_canonicalisation(cfg)
     return cfg
 
 
@@ -1172,6 +1232,7 @@ def _migrate_2026_5_dev9_to_current(cfg: dict) -> dict:
     _apply_naming_completion_renames(cfg)
     _apply_stebbs_straggler_renames(cfg)
     _apply_stebbs_physics_fold(cfg)
+    _apply_fai_alias_canonicalisation(cfg)
     return cfg
 
 
@@ -1190,6 +1251,7 @@ def _migrate_2026_5_dev8_to_current(cfg: dict) -> dict:
     _apply_naming_completion_renames(cfg)
     _apply_stebbs_straggler_renames(cfg)
     _apply_stebbs_physics_fold(cfg)
+    _apply_fai_alias_canonicalisation(cfg)
     return cfg
 
 
@@ -1206,6 +1268,7 @@ def _migrate_2026_5_dev7_to_current(cfg: dict) -> dict:
     _apply_naming_completion_renames(cfg)
     _apply_stebbs_straggler_renames(cfg)
     _apply_stebbs_physics_fold(cfg)
+    _apply_fai_alias_canonicalisation(cfg)
     return cfg
 
 
@@ -1223,6 +1286,7 @@ def _migrate_2026_5_dev6_to_current(cfg: dict) -> dict:
     _apply_naming_completion_renames(cfg)
     _apply_stebbs_straggler_renames(cfg)
     _apply_stebbs_physics_fold(cfg)
+    _apply_fai_alias_canonicalisation(cfg)
     return cfg
 
 
@@ -1240,6 +1304,7 @@ def _migrate_2026_5_dev5_to_current(cfg: dict) -> dict:
     _apply_naming_completion_renames(cfg)
     _apply_stebbs_straggler_renames(cfg)
     _apply_stebbs_physics_fold(cfg)
+    _apply_fai_alias_canonicalisation(cfg)
     return cfg
 
 
@@ -1257,6 +1322,7 @@ def _migrate_2026_5_dev4_to_current(cfg: dict) -> dict:
     _apply_naming_completion_renames(cfg)
     _apply_stebbs_straggler_renames(cfg)
     _apply_stebbs_physics_fold(cfg)
+    _apply_fai_alias_canonicalisation(cfg)
     return cfg
 
 
@@ -1276,6 +1342,7 @@ def _migrate_2026_5_dev3_to_current(cfg: dict) -> dict:
     _apply_naming_completion_renames(cfg)
     _apply_stebbs_straggler_renames(cfg)
     _apply_stebbs_physics_fold(cfg)
+    _apply_fai_alias_canonicalisation(cfg)
     return cfg
 
 
@@ -1297,6 +1364,7 @@ def _migrate_2026_5_dev2_to_current(cfg: dict) -> dict:
     _apply_naming_completion_renames(cfg)
     _apply_stebbs_straggler_renames(cfg)
     _apply_stebbs_physics_fold(cfg)
+    _apply_fai_alias_canonicalisation(cfg)
     return cfg
 
 
@@ -1349,6 +1417,7 @@ def _migrate_2026_5_to_current(cfg: dict) -> dict:
     _apply_naming_completion_renames(cfg)
     _apply_stebbs_straggler_renames(cfg)
     _apply_stebbs_physics_fold(cfg)
+    _apply_fai_alias_canonicalisation(cfg)
     return cfg
 
 
@@ -1371,6 +1440,7 @@ def _migrate_2026_5_dev1_to_current(cfg: dict) -> dict:
     _apply_naming_completion_renames(cfg)
     _apply_stebbs_straggler_renames(cfg)
     _apply_stebbs_physics_fold(cfg)
+    _apply_fai_alias_canonicalisation(cfg)
     return cfg
 
 
@@ -1449,8 +1519,12 @@ _HANDLERS: dict[tuple[str, str], Handler] = {
     # naming-convention completion; the dev11 -> dev12 delta (gh#1452) applies
     # the STEBBS/Archetype Column D alignment; the dev12 -> dev13 delta
     # (gh#1456) folds the flat STEBBS physics switches under the nested
-    # model.physics.stebbs object. Every to-current handler runs the Column D
-    # straggler renames then _apply_stebbs_physics_fold last.
+    # model.physics.stebbs object; the dev13 -> dev14 delta (gh#1495)
+    # canonicalises the retired frontal_area_index string aliases
+    # (provided / use_provided -> observed, simple_scheme -> modelled). Every
+    # to-current handler runs the Column D straggler renames, then
+    # _apply_stebbs_physics_fold, then _apply_fai_alias_canonicalisation last.
+    ("2026.5.dev13", CURRENT_SCHEMA_VERSION): _migrate_2026_5_dev13_to_current,
     ("2026.5.dev12", CURRENT_SCHEMA_VERSION): _migrate_2026_5_dev12_to_current,
     ("2026.5.dev11", CURRENT_SCHEMA_VERSION): _migrate_2026_5_dev11_to_current,
     ("2026.5.dev10", CURRENT_SCHEMA_VERSION): _migrate_2026_5_dev10_to_current,

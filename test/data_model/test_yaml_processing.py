@@ -51,6 +51,7 @@ from supy.data_model.validation.pipeline.phase_a import (
     PHYSICS_OPTIONS,
     RENAMED_PARAMS,
     _is_default_backed_control_path,
+    _normalise_phase_a_compatibility,
     annotate_missing_parameters,
     create_analysis_report,
     create_clean_missing_param_annotation,
@@ -669,6 +670,21 @@ sites:
             self.assertNotIn("model.physics.stebbs.value", report_content)
             self.assertNotIn("model.physics.capacitance", report_content)
             self.assertNotIn("model.physics.same_albedo_wall", report_content)
+
+    def test_gh1497_malformed_stebbs_value_is_not_silently_dropped(self):
+        """Phase A cleanup must not hide an invalid legacy master toggle."""
+        data = deepcopy(self.standard_data)
+        physics = data["model"]["physics"]
+        physics["stebbs"] = {"value": 9}
+        physics["outer_cap_fraction"] = {"value": 0}
+
+        normalised, _ = _normalise_phase_a_compatibility(data)
+        normalised_physics = normalised["model"]["physics"]
+        normalised_stebbs = normalised_physics["stebbs"]
+
+        self.assertEqual(normalised_stebbs["value"], 9)
+        self.assertEqual(normalised_stebbs["capacitance"], {"value": 0})
+        self.assertNotIn("outer_cap_fraction", normalised_physics)
 
     def test_gh1417_empty_current_output_wins_over_legacy_duplicate(self):
         """An empty current output block is valid and should not be overwritten."""

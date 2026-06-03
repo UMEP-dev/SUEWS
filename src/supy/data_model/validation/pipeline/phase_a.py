@@ -13,6 +13,7 @@ from ...core.field_renames import (
 )
 from ...core.physics_families import (
     STEBBS_PUBLIC_KEY_ALIASES,
+    coerce_nested_to_flat,
     flatten_physics_in_config,
 )
 
@@ -216,6 +217,11 @@ def _decompose_stebbs_master_for_phase_a(
     entry: object,
 ) -> Optional[tuple[dict, dict]]:
     """Split legacy ``stebbs`` 0/1/2 into nested enabled/parameters values."""
+    try:
+        entry = coerce_nested_to_flat("stebbs", entry)
+    except (TypeError, ValueError):
+        return None
+
     ref = entry.get("ref") if isinstance(entry, dict) else None
     raw = (
         entry.get("value")
@@ -272,6 +278,9 @@ def _normalise_model_physics_stebbs(
 
     replacements: list[tuple[str, str]] = []
     existing = physics.get("stebbs")
+    flat_stebbs_keys_present = [
+        key for key in STEBBS_PHYSICS_LEAF_RENAMES if key in physics
+    ]
     nested_already = (
         isinstance(existing, dict)
         and not _is_stebbs_master_scalar(existing)
@@ -293,6 +302,16 @@ def _normalise_model_physics_stebbs(
             _set_if_missing_or_nullish(stebbs_block, "enabled", enabled)
             _set_if_missing_or_nullish(stebbs_block, "parameters", parameters)
             replacements.append(("stebbs.value", "stebbs.enabled/parameters"))
+        elif nested_already and _is_nullish_tree(existing.get("value")):
+            stebbs_block.pop("value", None)
+            stebbs_block.pop("ref", None)
+            replacements.append(("stebbs.value", "stebbs.enabled/parameters"))
+        elif (
+            flat_stebbs_keys_present
+            and not nested_already
+            and not _is_nullish_tree(existing)
+        ):
+            stebbs_block = dict(existing)
     elif "stebbs" in physics and not nested_already:
         decomposed = _decompose_stebbs_master_for_phase_a(existing)
         if decomposed is not None:
@@ -300,6 +319,12 @@ def _normalise_model_physics_stebbs(
             stebbs_block["enabled"] = enabled
             stebbs_block["parameters"] = parameters
             replacements.append(("stebbs", "stebbs.enabled/parameters"))
+        elif flat_stebbs_keys_present:
+            if isinstance(existing, dict):
+                if not _is_nullish_tree(existing):
+                    stebbs_block = dict(existing)
+            elif existing is not None:
+                stebbs_block = {"value": existing}
 
     for public_key, canonical_key in STEBBS_PUBLIC_KEY_ALIASES.items():
         if public_key not in stebbs_block:

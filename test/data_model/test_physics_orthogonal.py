@@ -50,6 +50,16 @@ def test_orthogonal_form_preserves_ref():
     assert result == {"value": 3, "ref": {"doi": "10.example/ref"}}
 
 
+def test_orthogonal_forcing_scheme_preserves_ref():
+    # gh#1495 review: the `forcing` scheme (code 0) has its own branch that
+    # carries no ldown/variant; confirm a `ref` survives on that path too.
+    result = coerce_orthogonal_to_flat(
+        "net_radiation",
+        {"scheme": "forcing", "ref": {"doi": "10.example/forcing"}},
+    )
+    assert result == {"value": 0, "ref": {"doi": "10.example/forcing"}}
+
+
 def test_orthogonal_net_radiation_accepts_scheme_scoped_options():
     assert coerce_orthogonal_to_flat("net_radiation", {"narp": {"ldown": "air"}}) == {
         "value": 3

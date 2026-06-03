@@ -54,6 +54,13 @@ EXAMPLES:
 
 ## 2026
 
+### 3 Jun 2026
+
+- [change][experimental] Align physics method selectors on the observed/modelled axis (#1501)
+  - `model.physics.frontal_area_index` now exposes only the canonical readable names `observed` and `modelled`; the synonym aliases `provided`, `use_provided`, and `simple_scheme` are removed so it matches `laimethod`, `water_use`, and `soil_moisture_deficit`
+  - Internal source-of-input enums aligned to one vocabulary: `LAIMethod.CALCULATED` becomes `MODELLED`, and `FAIMethod.USE_PROVIDED` / `SIMPLE_SCHEME` become `OBSERVED` / `MODELLED`; integer values are unchanged, so existing YAML and `df_state` round-trip identically
+  - `net_radiation` scalar-name errors now point scheme families (`narp`, `spartacus`) at the nested family form rather than only listing the `ldown_*` names
+
 ### 1 Jun 2026
 
 - [feature][experimental] Expose active physics selectors in `suews inspect` output (#1484)

@@ -831,13 +831,7 @@ pub const PHYSICS_NAME_ALIASES_RS: &[(&str, &[(&str, i64)])] = &[
     ),
     (
         "frontal_area_index",
-        &[
-            ("observed", 0),
-            ("provided", 0),
-            ("use_provided", 0),
-            ("modelled", 1),
-            ("simple_scheme", 1),
-        ],
+        &[("observed", 0), ("modelled", 1)],
     ),
     (
         "roughness_sublayer_level",

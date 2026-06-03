@@ -55,7 +55,7 @@
 
             <div class="bm-verdict" data-state="fail" role="status">
                 <span class="bm-status"><span class="disc" aria-hidden="true"></span><span class="glyph" aria-hidden="true">&#9650;</span> Regression flagged</span>
-                <p class="bm-verdict-summary">v2026.4.3 improved error on four of five fluxes &mdash; but sensible heat <span style="font-style:normal">Q<sub>H</sub></span> rose <b style="font-style:normal;color:var(--bad)">+1.77</b> above the 2016a reference.</p>
+                <p class="bm-verdict-summary">Better than v2026.1 on <b style="font-style:normal;color:var(--text-primary)">11 of 20 cases</b> &mdash; but sensible heat <span style="font-style:normal">Q<sub>H</sub></span> regressed across most time intervals.</p>
                 <div class="bm-chips">
                     <span class="bm-chip">site <b>UK&#8209;LO&#8209;KCL</b></span>
                     <span class="bm-chip">period <b>2011&ndash;2013</b></span>
@@ -64,6 +64,66 @@
                 </div>
             </div>
         </header>
+
+        <section class="subpage-group">
+            <div class="subpage-group-header">
+                <span class="subpage-group-label">Change since v2026.1</span>
+                <span class="subpage-group-line"></span>
+            </div>
+            <p class="bm-summary-lead">Across <b>20 cases</b> &mdash; five fluxes &times; four time intervals &mdash; v2026.4.3 is better on <b>11</b>, unchanged on <b>6</b>, and worse on <b>3</b> than the previous release. The regression is confined to one flux.</p>
+
+            <div class="bm-proportion-wrap">
+                <div class="bm-proportion" role="img" aria-label="11 of 20 cases better, 6 unchanged, 3 worse than v2026.1">
+                    <div class="seg better" style="flex:11"></div>
+                    <div class="seg same" style="flex:6"></div>
+                    <div class="seg worse" style="flex:3"></div>
+                </div>
+                <div class="bm-proportion-legend">
+                    <span><i style="background:var(--veg-green)"></i><b>11</b> better &middot; 55%</span>
+                    <span><i style="background:var(--text-muted)"></i><b>6</b> same &middot; 30%</span>
+                    <span><i style="background:var(--energy-orange)"></i><b>3</b> worse &middot; 15%</span>
+                </div>
+            </div>
+
+            <div class="bm-matrix" role="table" aria-label="Better, same or worse by flux and time interval">
+                <div class="corner"></div>
+                <div class="col-h" role="columnheader">Full</div>
+                <div class="col-h" role="columnheader">Seasonal</div>
+                <div class="col-h" role="columnheader">Monthly</div>
+                <div class="col-h" role="columnheader">Daily</div>
+
+                <div class="row-h"><span class="bm-swatch" style="background:var(--flux-kup)"></span>K<sub>up</sub></div>
+                <div class="bm-cell" data-state="same"   title="same">&ndash;</div>
+                <div class="bm-cell" data-state="same"   title="same">&ndash;</div>
+                <div class="bm-cell" data-state="better" title="better">&#9650;</div>
+                <div class="bm-cell" data-state="same"   title="same">&ndash;</div>
+
+                <div class="row-h"><span class="bm-swatch" style="background:var(--flux-lup)"></span>L<sub>up</sub></div>
+                <div class="bm-cell" data-state="better" title="better">&#9650;</div>
+                <div class="bm-cell" data-state="better" title="better">&#9650;</div>
+                <div class="bm-cell" data-state="better" title="better">&#9650;</div>
+                <div class="bm-cell" data-state="same"   title="same">&ndash;</div>
+
+                <div class="row-h"><span class="bm-swatch" style="background:var(--flux-qn)"></span>Q<sub>N</sub></div>
+                <div class="bm-cell" data-state="better" title="better">&#9650;</div>
+                <div class="bm-cell" data-state="better" title="better">&#9650;</div>
+                <div class="bm-cell" data-state="better" title="better">&#9650;</div>
+                <div class="bm-cell" data-state="better" title="better">&#9650;</div>
+
+                <div class="row-h"><span class="bm-swatch" style="background:var(--flux-qh)"></span>Q<sub>H</sub></div>
+                <div class="bm-cell" data-state="worse"  title="worse">&#9660;</div>
+                <div class="bm-cell" data-state="worse"  title="worse">&#9660;</div>
+                <div class="bm-cell" data-state="same"   title="same">&ndash;</div>
+                <div class="bm-cell" data-state="worse"  title="worse">&#9660;</div>
+
+                <div class="row-h"><span class="bm-swatch" style="background:var(--flux-qe)"></span>Q<sub>E</sub></div>
+                <div class="bm-cell" data-state="better" title="better">&#9650;</div>
+                <div class="bm-cell" data-state="better" title="better">&#9650;</div>
+                <div class="bm-cell" data-state="same"   title="same">&ndash;</div>
+                <div class="bm-cell" data-state="better" title="better">&#9650;</div>
+            </div>
+            <p class="bm-matrix-note">&#9650; better &middot; &ndash; same &middot; &#9660; worse, versus v2026.1 by mean absolute error. The regression sits entirely in sensible heat Q<sub>H</sub>, and clears on the monthly mean &mdash; the detail below shows where in the year it bites.</p>
+        </section>
 
         <section class="subpage-group">
             <div class="subpage-group-header">

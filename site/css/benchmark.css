@@ -213,6 +213,100 @@
   font-style: italic;
 }
 
+/* ========== Headline summary: better / same / worse vs previous ========== */
+.bm-summary-lead {
+  font-family: 'Crimson Pro', Georgia, serif;
+  font-size: 1.25rem;
+  line-height: 1.5;
+  color: var(--text-secondary);
+  max-width: 640px;
+  margin-bottom: 28px;
+}
+.bm-summary-lead b { color: var(--text-primary); font-weight: 500; font-style: normal; }
+
+.bm-proportion-wrap { max-width: 560px; margin-bottom: 40px; }
+.bm-proportion {
+  display: flex;
+  height: 18px;
+  border-radius: 3px;
+  overflow: hidden;
+  border: 1px solid var(--border-light);
+}
+.bm-proportion .seg { height: 100%; }
+.bm-proportion .seg.better { background: var(--good); }
+.bm-proportion .seg.same   { background: var(--text-muted); }
+.bm-proportion .seg.worse  { background: var(--bad); }
+.bm-proportion-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 24px;
+  margin-top: 14px;
+}
+.bm-proportion-legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.76rem;
+  color: var(--text-secondary);
+}
+.bm-proportion-legend i { width: 11px; height: 11px; border-radius: 2px; flex-shrink: 0; }
+.bm-proportion-legend b { color: var(--text-primary); font-weight: 500; }
+
+/* flux x time-interval matrix */
+.bm-matrix {
+  display: grid;
+  grid-template-columns: minmax(96px, auto) repeat(4, minmax(54px, 1fr));
+  gap: 8px;
+  align-items: center;
+  max-width: 560px;
+}
+.bm-matrix .col-h {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.64rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--text-muted);
+  text-align: center;
+  padding-bottom: 4px;
+}
+.bm-matrix .corner { content: ''; }
+.bm-matrix .row-h {
+  font-family: 'Crimson Pro', Georgia, serif;
+  font-size: 1.05rem;
+  color: var(--text-primary);
+  display: flex;
+  align-items: center;
+  gap: 9px;
+}
+.bm-cell {
+  height: 38px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.9rem;
+  border: 1px solid var(--border-light);
+  color: var(--text-muted);
+}
+.bm-cell[data-state="better"] {
+  background: color-mix(in srgb, var(--good) 15%, transparent);
+  border-color: color-mix(in srgb, var(--good) 38%, transparent);
+  color: var(--good);
+}
+.bm-cell[data-state="worse"] {
+  background: color-mix(in srgb, var(--bad) 15%, transparent);
+  border-color: color-mix(in srgb, var(--bad) 38%, transparent);
+  color: var(--bad);
+}
+.bm-matrix-note {
+  margin-top: 16px;
+  font-size: 0.82rem;
+  font-style: italic;
+  color: var(--text-muted);
+}
+
 /* ========== Release-regression chart ========== */
 .bm-figure { position: relative; z-index: 10; }
 .bm-chart {

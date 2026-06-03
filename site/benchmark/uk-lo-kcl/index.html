@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SUEWS Benchmark — King's College London (Ward 2016)</title>
+    <meta name="description" content="Regression benchmark of the SUEWS urban land-surface model against eddy-covariance observations at King's College London.">
+    <link rel="icon" type="image/svg+xml" href="/brand/assets/icon/suews-icon-dark.svg">
+    <!-- no-flash theme init -->
+    <script>
+        (function () {
+            var s = localStorage.getItem('theme');
+            var t = s || (window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark');
+            document.documentElement.setAttribute('data-theme', t);
+        })();
+    </script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&family=Crimson+Pro:ital,wght@0,400;0,500;1,400&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/css/tokens.css">
+    <link rel="stylesheet" href="/css/base.css">
+    <link rel="stylesheet" href="/css/subpage.css">
+    <link rel="stylesheet" href="/css/benchmark.css">
+</head>
+<body>
+    <button class="theme-toggle" id="themeToggle" aria-label="Toggle theme">
+        <svg class="icon-sun" viewBox="0 0 24 24">
+            <circle cx="12" cy="12" r="5"/>
+            <line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/>
+            <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/>
+            <line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/>
+            <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
+        </svg>
+        <svg class="icon-moon" viewBox="0 0 24 24">
+            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+        </svg>
+    </button>
+
+    <div class="signature-ring" aria-hidden="true"></div>
+
+    <div class="container">
+        <header class="subpage-header">
+            <a class="back-link" href="/benchmark/"><span class="arrow">&larr;</span> Benchmark suite</a>
+            <div class="subpage-label">Regression benchmark <span class="bm-crumb"><span class="sep">/</span> UK-LO-KCL</span></div>
+            <h1 class="subpage-title">Energy balance at <em>King&rsquo;s College London</em></h1>
+            <p class="subpage-lede">A standing check: does each SUEWS release still reproduce the observed urban energy balance as well as the last?</p>
+            <p class="subpage-intro">Evaluated against eddy-covariance flux observations at the Kc1 tower, following <a href="https://doi.org/10.1016/j.uclim.2016.05.001">Ward&nbsp;et&nbsp;al.&nbsp;(2016)</a>. Each release is scored on the bias (MBE) and absolute error (MAE) of its modelled fluxes; a release is flagged when any flux degrades against the reference.</p>
+
+            <div class="bm-verdict" data-state="fail" role="status">
+                <span class="bm-status"><span class="disc" aria-hidden="true"></span><span class="glyph" aria-hidden="true">&#9650;</span> Regression flagged</span>
+                <p class="bm-verdict-summary">v2026.4.3 improved error on four of five fluxes &mdash; but sensible heat <span style="font-style:normal">Q<sub>H</sub></span> rose <b style="font-style:normal;color:var(--bad)">+1.77</b> above the 2016a reference.</p>
+                <div class="bm-chips">
+                    <span class="bm-chip">site <b>UK&#8209;LO&#8209;KCL</b></span>
+                    <span class="bm-chip">period <b>2011&ndash;2013</b></span>
+                    <span class="bm-chip">SuPy <b>v2026.4.3</b></span>
+                    <span class="bm-chip">n <b>&#8776;24.7k h</b></span>
+                </div>
+            </div>
+        </header>
+
+        <section class="subpage-group">
+            <div class="subpage-group-header">
+                <span class="subpage-group-label">Energy balance</span>
+                <span class="subpage-group-line"></span>
+            </div>
+            <div class="bm-table-wrap">
+                <table class="bm-table">
+                    <thead>
+                        <tr>
+                            <th class="var-col" rowspan="2">Flux</th>
+                            <th class="group" colspan="2">MAE</th>
+                            <th class="group" colspan="2">MBE</th>
+                            <th rowspan="2">&Delta; MAE vs ref</th>
+                        </tr>
+                        <tr>
+                            <th>2016a</th><th>v2026.4.3</th>
+                            <th>2016a</th><th>v2026.4.3</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td class="var-col"><span class="bm-swatch" style="background:var(--flux-kup)"></span>K<sub>up</sub> <span class="unit">reflected SW</span></td>
+                            <td class="ref">2.47</td><td>2.46</td>
+                            <td class="ref">&minus;0.90</td><td>&minus;0.90</td>
+                            <td><span class="bm-delta better"><span class="arrow">&darr;</span>0.01</span></td>
+                        </tr>
+                        <tr>
+                            <td class="var-col"><span class="bm-swatch" style="background:var(--flux-lup)"></span>L<sub>up</sub> <span class="unit">outgoing LW</span></td>
+                            <td class="ref">5.24</td><td>4.48</td>
+                            <td class="ref">&minus;1.82</td><td>&minus;1.69</td>
+                            <td><span class="bm-delta better"><span class="arrow">&darr;</span>0.76</span></td>
+                        </tr>
+                        <tr>
+                            <td class="var-col"><span class="bm-swatch" style="background:var(--flux-qn)"></span>Q<sub>N</sub> <span class="unit">net all-wave</span></td>
+                            <td class="ref">24.34</td><td>8.55</td>
+                            <td class="ref">1.12</td><td>2.56</td>
+                            <td><span class="bm-delta better"><span class="arrow">&darr;</span>15.79</span></td>
+                        </tr>
+                        <tr>
+                            <td class="var-col"><span class="bm-swatch" style="background:var(--flux-qh)"></span>Q<sub>H</sub> <span class="unit">sensible heat</span></td>
+                            <td class="ref">37.74</td><td>39.51</td>
+                            <td class="ref">8.26</td><td>12.13</td>
+                            <td><span class="bm-delta worse"><span class="arrow">&uarr;</span>1.77</span></td>
+                        </tr>
+                        <tr>
+                            <td class="var-col"><span class="bm-swatch" style="background:var(--flux-qe)"></span>Q<sub>E</sub> <span class="unit">latent heat</span></td>
+                            <td class="ref">17.19</td><td>14.58</td>
+                            <td class="ref">9.79</td><td>5.64</td>
+                            <td><span class="bm-delta better"><span class="arrow">&darr;</span>2.61</span></td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+            <p class="bm-table-note">All fluxes in W&nbsp;m&#8315;&#178;. Lower MAE is better; &darr; marks an improvement on the 2016a reference, &uarr; a regression.</p>
+        </section>
+
+        <section class="subpage-group">
+            <div class="subpage-group-header">
+                <span class="subpage-group-label">Release regression</span>
+                <span class="subpage-group-line"></span>
+            </div>
+            <figure class="bm-figure">
+                <svg class="bm-chart" viewBox="0 0 760 380" role="img" aria-label="Mean absolute error of each flux across the last three SUEWS releases. QH rises while the others fall or hold steady.">
+                    <!-- gridlines -->
+                    <line class="grid" x1="56" y1="336" x2="640" y2="336"/>
+                    <line class="grid" x1="56" y1="232" x2="640" y2="232"/>
+                    <line class="grid" x1="56" y1="128" x2="640" y2="128"/>
+                    <line class="grid" x1="56" y1="24"  x2="640" y2="24"/>
+                    <!-- y axis -->
+                    <line class="axis" x1="56" y1="24" x2="56" y2="336"/>
+                    <text class="tick" x="48" y="340" text-anchor="end">0</text>
+                    <text class="tick" x="48" y="236" text-anchor="end">15</text>
+                    <text class="tick" x="48" y="132" text-anchor="end">30</text>
+                    <text class="tick" x="48" y="28"  text-anchor="end">45</text>
+                    <text class="tick" x="20" y="180" text-anchor="middle" transform="rotate(-90 20 180)">MAE (W m&#8315;&#178;)</text>
+                    <!-- x ticks -->
+                    <text class="tick" x="56"  y="356" text-anchor="middle">2025.7</text>
+                    <text class="tick" x="348" y="356" text-anchor="middle">2026.1</text>
+                    <text class="tick" x="640" y="356" text-anchor="middle">2026.4</text>
+                    <!-- series -->
+                    <polyline class="series" style="stroke:var(--flux-qh)" points="56,72.5 348,68.4 640,62.2"/>
+                    <polyline class="series" style="stroke:var(--flux-qe)" points="56,221.6 348,230.6 640,234.8"/>
+                    <polyline class="series" style="stroke:var(--flux-qn)" points="56,252.8 348,268.1 640,276.4"/>
+                    <polyline class="series" style="stroke:var(--flux-lup)" points="56,302 348,304.1 640,304.8"/>
+                    <polyline class="series" style="stroke:var(--flux-kup)" points="56,318.7 348,318.7 640,318.7"/>
+                    <!-- dots -->
+                    <g class="dot" style="fill:var(--flux-qh)"><circle cx="56" cy="72.5" r="3.5"/><circle cx="348" cy="68.4" r="3.5"/><circle cx="640" cy="62.2" r="3.5"/></g>
+                    <g class="dot" style="fill:var(--flux-qe)"><circle cx="56" cy="221.6" r="3.5"/><circle cx="348" cy="230.6" r="3.5"/><circle cx="640" cy="234.8" r="3.5"/></g>
+                    <g class="dot" style="fill:var(--flux-qn)"><circle cx="56" cy="252.8" r="3.5"/><circle cx="348" cy="268.1" r="3.5"/><circle cx="640" cy="276.4" r="3.5"/></g>
+                    <g class="dot" style="fill:var(--flux-lup)"><circle cx="56" cy="302" r="3.5"/><circle cx="348" cy="304.1" r="3.5"/><circle cx="640" cy="304.8" r="3.5"/></g>
+                    <g class="dot" style="fill:var(--flux-kup)"><circle cx="56" cy="318.7" r="3.5"/><circle cx="348" cy="318.7" r="3.5"/><circle cx="640" cy="318.7" r="3.5"/></g>
+                    <!-- right-edge series labels -->
+                    <text class="series-label" style="fill:var(--flux-qh)" x="650" y="66">QH</text>
+                    <text class="series-label" style="fill:var(--flux-qe)" x="650" y="239">QE</text>
+                    <text class="series-label" style="fill:var(--flux-qn)" x="650" y="280">QN</text>
+                    <text class="series-label" style="fill:var(--flux-lup)" x="650" y="309">Lup</text>
+                    <text class="series-label" style="fill:var(--flux-kup)" x="650" y="322">Kup</text>
+                </svg>
+                <div class="bm-legend" aria-hidden="true">
+                    <span><i style="background:var(--flux-kup)"></i>K<sub>up</sub></span>
+                    <span><i style="background:var(--flux-lup)"></i>L<sub>up</sub></span>
+                    <span><i style="background:var(--flux-qn)"></i>Q<sub>N</sub></span>
+                    <span><i style="background:var(--flux-qh)"></i>Q<sub>H</sub></span>
+                    <span><i style="background:var(--flux-qe)"></i>Q<sub>E</sub></span>
+                </div>
+                <figcaption class="bm-figcaption">Mean absolute error by release. Net radiation Q<sub>N</sub> and the latent and longwave terms have improved steadily; sensible heat Q<sub>H</sub> has crept upward over the last two releases &mdash; the change this benchmark exists to catch.</figcaption>
+            </figure>
+        </section>
+
+        <section class="subpage-group">
+            <div class="subpage-group-header">
+                <span class="subpage-group-label">Provenance &amp; configuration</span>
+                <span class="subpage-group-line"></span>
+            </div>
+            <dl class="bm-prov">
+                <div><dt>Site</dt><dd>King&rsquo;s College London <span class="mono">UK-LO-KCL</span></dd></div>
+                <div><dt>Evaluation period</dt><dd><span class="mono">2011-01-01 &ndash; 2013-12-31</span></dd></div>
+                <div><dt>Observations</dt><dd>Eddy-covariance fluxes, Kc1 <span class="mono">restricted</span></dd></div>
+                <div><dt>Reference</dt><dd>Ward&nbsp;et&nbsp;al. 2016 <span class="mono">2016a</span></dd></div>
+                <div><dt>SuPy version</dt><dd><span class="mono">v2026.4.3</span></dd></div>
+                <div><dt>Net radiation</dt><dd><span class="mono">NARP</span></dd></div>
+                <div><dt>Storage heat</dt><dd><span class="mono">OHM</span></dd></div>
+                <div><dt>Roughness sublayer</dt><dd><span class="mono">RSL (MOST)</span></dd></div>
+            </dl>
+        </section>
+
+        <section class="subpage-notes">
+            <p>The evaluation observations are access-restricted and are fetched at run time from a protected archive; only the derived statistics above are published. See the <a href="https://docs.suews.io/stable/">SUEWS documentation</a> for the model description and the benchmarking methodology.</p>
+        </section>
+    </div>
+
+    <footer class="footer">
+        <div class="container">
+            <nav class="footer-nav" aria-label="Secondary navigation">
+                <ul>
+                    <li><a href="/team/">Team</a></li>
+                    <li><a href="/funding/">Funding</a></li>
+                    <li><a href="/dependencies/">Dependencies</a></li>
+                    <li><a href="/brand/">Brand</a></li>
+                </ul>
+            </nav>
+            <p class="footer-legal">&copy; 2025&ndash;<span id="current-year"></span> SUEWS Team</p>
+        </div>
+    </footer>
+
+    <script>
+        document.getElementById('current-year').textContent = new Date().getFullYear();
+        const toggle = document.getElementById('themeToggle');
+        const root = document.documentElement;
+        function getPreferredTheme() {
+            const saved = localStorage.getItem('theme');
+            if (saved) return saved;
+            return window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
+        }
+        function setTheme(theme) {
+            root.setAttribute('data-theme', theme === 'light' ? 'light' : 'dark');
+            localStorage.setItem('theme', theme);
+        }
+        setTheme(getPreferredTheme());
+        toggle.addEventListener('click', () => {
+            const current = root.getAttribute('data-theme') ||
+                (window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark');
+            setTheme(current === 'light' ? 'dark' : 'light');
+        });
+        window.matchMedia('(prefers-color-scheme: light)').addEventListener('change', (e) => {
+            if (!localStorage.getItem('theme')) setTheme(e.matches ? 'light' : 'dark');
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SUEWS Benchmark Suite</title>
+    <meta name="description" content="A standing scoreboard of SUEWS model fidelity: every release re-run against eddy-covariance observations across cities.">
+    <link rel="icon" type="image/svg+xml" href="/brand/assets/icon/suews-icon-dark.svg">
+    <script>
+        (function () {
+            var s = localStorage.getItem('theme');
+            var t = s || (window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark');
+            document.documentElement.setAttribute('data-theme', t);
+        })();
+    </script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&family=Crimson+Pro:ital,wght@0,400;0,500;1,400&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/css/tokens.css">
+    <link rel="stylesheet" href="/css/base.css">
+    <link rel="stylesheet" href="/css/subpage.css">
+    <link rel="stylesheet" href="/css/benchmark.css">
+</head>
+<body>
+    <button class="theme-toggle" id="themeToggle" aria-label="Toggle theme">
+        <svg class="icon-sun" viewBox="0 0 24 24">
+            <circle cx="12" cy="12" r="5"/>
+            <line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/>
+            <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/>
+            <line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/>
+            <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
+        </svg>
+        <svg class="icon-moon" viewBox="0 0 24 24"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+    </button>
+
+    <div class="signature-ring" aria-hidden="true"></div>
+
+    <div class="container">
+        <header class="subpage-header">
+            <a class="back-link" href="/"><span class="arrow">&larr;</span> suews.io</a>
+            <div class="subpage-label">Regression benchmark</div>
+            <h1 class="subpage-title">The <em>benchmark suite</em></h1>
+            <p class="subpage-lede">Every SUEWS release is re-run against eddy-covariance observations in cities worldwide &mdash; a standing scoreboard of model fidelity.</p>
+            <p class="subpage-intro">Each site scores the modelled energy balance against tower measurements; a release is flagged the moment any flux degrades against its reference. <b style="color:var(--text-secondary);font-weight:500">Three of four sites</b> clear the current release, <span class="mono" style="font-family:'JetBrains Mono',monospace;font-size:0.85rem">v2026.4.3</span>.</p>
+        </header>
+
+        <section class="subpage-group">
+            <div class="subpage-group-header">
+                <span class="subpage-group-label">Sites</span>
+                <span class="subpage-group-line"></span>
+            </div>
+            <div class="bm-suite">
+                <a class="bm-suite-row" href="uk-lo-kcl/" data-state="fail">
+                    <span class="disc" aria-hidden="true"></span>
+                    <span><span class="bm-site-name">London</span><span class="bm-site-meta">UK-LO-KCL &middot; King&rsquo;s College London</span></span>
+                    <span class="bm-site-status">Regression flagged &mdash; Q<sub>H</sub></span>
+                    <span class="bm-site-release">v2026.4.3</span>
+                    <span class="go" aria-hidden="true">&rarr;</span>
+                </a>
+                <div class="bm-suite-row" data-state="pass">
+                    <span class="disc" aria-hidden="true"></span>
+                    <span><span class="bm-site-name">Basel</span><span class="bm-site-meta">CH-BS-KLI &middot; Klingelbergstrasse</span></span>
+                    <span class="bm-site-status">All fluxes within reference</span>
+                    <span class="bm-site-release">v2026.4.3</span>
+                    <span class="go" aria-hidden="true"></span>
+                </div>
+                <div class="bm-suite-row" data-state="pass">
+                    <span class="disc" aria-hidden="true"></span>
+                    <span><span class="bm-site-name">Berlin</span><span class="bm-site-meta">DE-BE-ROT &middot; Rothenburgstrasse</span></span>
+                    <span class="bm-site-status">All fluxes within reference</span>
+                    <span class="bm-site-release">v2026.4.3</span>
+                    <span class="go" aria-hidden="true"></span>
+                </div>
+                <div class="bm-suite-row" data-state="pass">
+                    <span class="disc" aria-hidden="true"></span>
+                    <span><span class="bm-site-name">Helsinki</span><span class="bm-site-meta">FI-HE-IMU &middot; Kumpula</span></span>
+                    <span class="bm-site-status">All fluxes within reference</span>
+                    <span class="bm-site-release">v2026.4.3</span>
+                    <span class="go" aria-hidden="true"></span>
+                </div>
+            </div>
+            <p class="bm-suite-note">London is live; Basel, Berlin and Helsinki rows illustrate the multi-site layout as further sites are onboarded.</p>
+        </section>
+
+        <section class="subpage-notes">
+            <p>Evaluation observations are access-restricted and fetched at run time from a protected archive &mdash; only the derived statistics on each site page are published. See the <a href="https://docs.suews.io/stable/">SUEWS documentation</a> for the model description and benchmarking methodology.</p>
+        </section>
+    </div>
+
+    <footer class="footer">
+        <div class="container">
+            <nav class="footer-nav" aria-label="Secondary navigation">
+                <ul>
+                    <li><a href="/team/">Team</a></li>
+                    <li><a href="/funding/">Funding</a></li>
+                    <li><a href="/dependencies/">Dependencies</a></li>
+                    <li><a href="/brand/">Brand</a></li>
+                </ul>
+            </nav>
+            <p class="footer-legal">&copy; 2025&ndash;<span id="current-year"></span> SUEWS Team</p>
+        </div>
+    </footer>
+
+    <script>
+        document.getElementById('current-year').textContent = new Date().getFullYear();
+        const toggle = document.getElementById('themeToggle');
+        const root = document.documentElement;
+        function getPreferredTheme() {
+            const saved = localStorage.getItem('theme');
+            if (saved) return saved;
+            return window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
+        }
+        function setTheme(theme) {
+            root.setAttribute('data-theme', theme === 'light' ? 'light' : 'dark');
+            localStorage.setItem('theme', theme);
+        }
+        setTheme(getPreferredTheme());
+        toggle.addEventListener('click', () => {
+            const current = root.getAttribute('data-theme') ||
+                (window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark');
+            setTheme(current === 'light' ? 'dark' : 'light');
+        });
+        window.matchMedia('(prefers-color-scheme: light)').addEventListener('change', (e) => {
+            if (!localStorage.getItem('theme')) setTheme(e.matches ? 'light' : 'dark');
+        });
+    </script>
+</body>
+</html>

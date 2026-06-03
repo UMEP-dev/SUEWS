@@ -245,6 +245,7 @@ def test_build_agent_plugin_generates_installable_distribution(tmp_path: Path) -
             encoding="utf-8"
         )
     )
+    assert "version" not in claude_marketplace["metadata"]
     assert [plugin["name"] for plugin in claude_marketplace["plugins"]] == ["suews"]
 
     assert (output / ".mcp.json").exists()

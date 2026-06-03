@@ -109,13 +109,15 @@ def _claude_marketplace() -> dict[str, Any]:
     suews = next(
         plugin for plugin in source["plugins"] if plugin["name"] == PLUGIN_NAME
     )
+    metadata = {
+        **source["metadata"],
+        "repository": f"https://github.com/{MARKETPLACE_REPO}",
+    }
+    metadata.pop("version", None)
     return {
         "name": "suews",
         "owner": source["owner"],
-        "metadata": {
-            **source["metadata"],
-            "repository": f"https://github.com/{MARKETPLACE_REPO}",
-        },
+        "metadata": metadata,
         "plugins": [suews],
     }
 
@@ -148,7 +150,8 @@ codex plugin add suews@suews
 
 ## Contents
 
-- `.claude-plugin/marketplace.json` and `.claude/skills/suews/` for Claude Code.
+- `.claude-plugin/marketplace.json` and `.claude/skills/suews/` for Claude Code
+  (git commit identifies the installed plugin version).
 - `.agents/plugins/marketplace.json` and `plugins/suews/` for Codex.
 - `.mcp.json` files that launch `suews-mcp` through `uvx`.
 

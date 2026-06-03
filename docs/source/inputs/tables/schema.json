@@ -3878,7 +3878,7 @@
       "type": "object"
     },
     "FAIMethod": {
-      "description": "Method for calculating frontal area index (FAI) - the ratio of frontal area to plan area.\n\n0: USE_PROVIDED - Use FAI values provided in site parameters (FAIBldg, FAIEveTree, FAIDecTree)\n1: SIMPLE_SCHEME - Calculate FAI using simple scheme based on surface fractions and heights (see issue #192)",
+      "description": "Method for calculating frontal area index (FAI) - the ratio of frontal area to plan area.\n\n0: OBSERVED - Use FAI values provided in site parameters (FAIBldg, FAIEveTree, FAIDecTree)\n1: MODELLED - Calculate FAI using simple scheme based on surface fractions and heights (see issue #192)",
       "enum": [
         0,
         1
@@ -6720,7 +6720,7 @@
       "type": "object"
     },
     "LAIMethod": {
-      "description": "Method for determining leaf area index (LAI).\n\n0: OBSERVED - Uses observed LAI values from the forcing file (lai column); the same value is applied to every vegetation class each day, and every timestep must carry a non-missing, non-negative observation. The -999 missing sentinel (and other negative placeholders) is not permitted on this path. Genuine zero observations are honoured.\n1: CALCULATED - LAI calculated internally from growing-degree-day (GDD) and senescence-degree-day (SDD) thresholds.",
+      "description": "Method for determining leaf area index (LAI).\n\n0: OBSERVED - Uses observed LAI values from the forcing file (lai column); the same value is applied to every vegetation class each day, and every timestep must carry a non-missing, non-negative observation. The -999 missing sentinel (and other negative placeholders) is not permitted on this path. Genuine zero observations are honoured.\n1: MODELLED - LAI modelled internally from growing-degree-day (GDD) and senescence-degree-day (SDD) thresholds.",
       "enum": [
         0,
         1
@@ -7354,7 +7354,7 @@
             }
           ],
           "default": 1,
-          "description": "Method for determining leaf area index (LAI). Options: 0 (OBSERVED) = Uses observed LAI values from the forcing file (lai column); the same value is applied to every vegetation class each day, and every timestep must carry a non-missing, non-negative observation. The -999 missing sentinel (and other negative placeholders) is not permitted on this path. Genuine zero observations are honoured.; 1 (CALCULATED) = LAI calculated internally from growing-degree-day (GDD) and senescence-degree-day (SDD) thresholds.",
+          "description": "Method for determining leaf area index (LAI). Options: 0 (OBSERVED) = Uses observed LAI values from the forcing file (lai column); the same value is applied to every vegetation class each day, and every timestep must carry a non-missing, non-negative observation. The -999 missing sentinel (and other negative placeholders) is not permitted on this path. Genuine zero observations are honoured.; 1 (MODELLED) = LAI modelled internally from growing-degree-day (GDD) and senescence-degree-day (SDD) thresholds.",
           "note": "Set to 0 (OBSERVED) to prescribe LAI from the lai column of the meteorological forcing.",
           "title": "Laimethod",
           "unit": "dimensionless"
@@ -7390,7 +7390,7 @@
             }
           ],
           "default": 0,
-          "description": "Method for calculating frontal area index (FAI) - the ratio of frontal area to plan area. Options: 0 (USE_PROVIDED) = Use FAI values provided in site parameters (FAIBldg, FAIEveTree, FAIDecTree); 1 (SIMPLE_SCHEME) = Calculate FAI using simple scheme based on surface fractions and heights (see issue #192)",
+          "description": "Method for calculating frontal area index (FAI) - the ratio of frontal area to plan area. Options: 0 (OBSERVED) = Use FAI values provided in site parameters (FAIBldg, FAIEveTree, FAIDecTree); 1 (MODELLED) = Calculate FAI using simple scheme based on surface fractions and heights (see issue #192)",
           "title": "Frontal Area Index",
           "unit": "dimensionless"
         },

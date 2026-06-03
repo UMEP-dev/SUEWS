@@ -160,8 +160,11 @@ _PHYSICS_NAME_SPECS: dict[str, list[tuple[int, str, tuple[str, ...]]]] = {
         (2, "variable", ()),
     ],
     "frontal_area_index": [
-        (0, "observed", ("provided", "use_provided")),
-        (1, "modelled", ("simple_scheme",)),
+        # Source-of-input selector on the shared observed/modelled axis
+        # (matches laimethod, water_use, soil_moisture_deficit). Code 0 takes
+        # the site-supplied FAI ("observed"); code 1 derives it internally.
+        (0, "observed", ()),
+        (1, "modelled", ()),
     ],
     "roughness_sublayer_level": [
         (0, "none", ()),
@@ -342,7 +345,16 @@ def resolve_scalar_name(field_name: str, name: str) -> int:
         return table[key]
     valid = sorted(table)
     hint = ""
-    if field_name in {"net_radiation", "emissions"}:
+    families = PHYSICS_FAMILIES.get(field_name)
+    if families and key in families:
+        # The name is a scheme *family* (e.g. net_radiation: narp / spartacus)
+        # that spans several codes, so it cannot resolve to a single scalar.
+        # Point the user at the nested family form instead of a bare scalar.
+        hint = (
+            f" {name!r} is a scheme family for '{field_name}'; give it in the "
+            f"nested form, e.g. {field_name}: {{{key}: {{value: <code>}}}}."
+        )
+    elif field_name in {"net_radiation", "emissions"}:
         hint = " Orthogonal decomposed mappings are also accepted for this field."
     raise ValueError(
         f"'{field_name}' got unknown scheme name {name!r}; valid names: {valid}.{hint}"

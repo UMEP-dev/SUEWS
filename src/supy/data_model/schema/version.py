@@ -22,7 +22,7 @@ import warnings
 # schema-versioning.md` (Dev-label convention). Every structural PR
 # between releases bumps the dev counter instead of consuming a new
 # CalVer label.
-CURRENT_SCHEMA_VERSION = "2026.5.dev13"
+CURRENT_SCHEMA_VERSION = "2026.5.dev14"
 
 # Schema version history and descriptions.
 #
@@ -430,6 +430,22 @@ SCHEMA_VERSIONS: dict[str, str] = {
         "ModelPhysics before-validator (fold_stebbs_physics in "
         "src/supy/data_model/core/field_renames.py). The capacitance-vs-fraction "
         "semantics settling (#1456 part 2) is deferred to a follow-up."
+    ),
+    "2026.5.dev14": (
+        "gh#1495 follow-up: the model.physics.frontal_area_index readable "
+        "selector is reduced to the canonical observed/modelled pair shared "
+        "with laimethod, water_use and soil_moisture_deficit. The synonym "
+        "string aliases provided, use_provided and simple_scheme are retired "
+        "from the accepted YAML values -- a literal tightening, hence the dev "
+        "bump. The internal source-of-input enums are realigned to the same "
+        "axis (LAIMethod.CALCULATED -> MODELLED; FAIMethod.USE_PROVIDED / "
+        "SIMPLE_SCHEME -> OBSERVED / MODELLED) with their integer values "
+        "unchanged, so df_state and integer-form YAML round-trip identically. "
+        "The (2026.5.dev13 -> 2026.5.dev14) handler in "
+        "src/supy/util/converter/yaml_upgrade.py rewrites any retired "
+        "frontal_area_index string alias to its canonical replacement "
+        "(provided / use_provided -> observed, simple_scheme -> modelled) so "
+        "an older YAML still loads."
     ),
 }
 

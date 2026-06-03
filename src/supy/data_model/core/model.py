@@ -420,11 +420,11 @@ class LAIMethod(Enum):
     Method for determining leaf area index (LAI).
 
     0: OBSERVED - Uses observed LAI values from the forcing file (lai column); the same value is applied to every vegetation class each day, and every timestep must carry a non-missing, non-negative observation. The -999 missing sentinel (and other negative placeholders) is not permitted on this path. Genuine zero observations are honoured.
-    1: CALCULATED - LAI calculated internally from growing-degree-day (GDD) and senescence-degree-day (SDD) thresholds.
+    1: MODELLED - LAI modelled internally from growing-degree-day (GDD) and senescence-degree-day (SDD) thresholds.
     """
 
     OBSERVED = 0
-    CALCULATED = 1
+    MODELLED = 1
 
     def __int__(self):
         return self.value
@@ -457,12 +457,12 @@ class FAIMethod(Enum):
     """
     Method for calculating frontal area index (FAI) - the ratio of frontal area to plan area.
 
-    0: USE_PROVIDED - Use FAI values provided in site parameters (FAIBldg, FAIEveTree, FAIDecTree)
-    1: SIMPLE_SCHEME - Calculate FAI using simple scheme based on surface fractions and heights (see issue #192)
+    0: OBSERVED - Use FAI values provided in site parameters (FAIBldg, FAIEveTree, FAIDecTree)
+    1: MODELLED - Calculate FAI using simple scheme based on surface fractions and heights (see issue #192)
     """
 
-    USE_PROVIDED = 0  # Use FAI values from site parameters
-    SIMPLE_SCHEME = 1  # Calculate FAI using simple scheme (sqrt(fr)*h for buildings, empirical for trees)
+    OBSERVED = 0  # Use FAI values from site parameters
+    MODELLED = 1  # Calculate FAI using simple scheme (sqrt(fr)*h for buildings, empirical for trees)
 
     def __new__(cls, value):
         obj = object.__new__(cls)
@@ -961,7 +961,7 @@ class ModelPhysics(BaseModel):
         json_schema_extra={"unit": "dimensionless"},
     )
     laimethod: FlexibleRefValue(LAIMethod) = Field(
-        default=LAIMethod.CALCULATED,
+        default=LAIMethod.MODELLED,
         description=_enum_description(LAIMethod),
         json_schema_extra={
             "unit": "dimensionless",
@@ -979,7 +979,7 @@ class ModelPhysics(BaseModel):
         },
     )
     frontal_area_index: FlexibleRefValue(FAIMethod) = Field(
-        default=FAIMethod.USE_PROVIDED,
+        default=FAIMethod.OBSERVED,
         description=_enum_description(FAIMethod),
         json_schema_extra={"unit": "dimensionless"},
     )
@@ -1128,7 +1128,7 @@ class ModelPhysics(BaseModel):
 
         # New options: optional in legacy DataFrames, default if missing
         optional_new_attrs_with_defaults = {
-            "laimethod": LAIMethod.CALCULATED,
+            "laimethod": LAIMethod.MODELLED,
         }
 
         for attr in required_attrs:

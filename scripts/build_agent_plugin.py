@@ -138,8 +138,11 @@ This is a generated distribution mirror, not a development repository. Treat it
 as read-only for human edits: changes should be made in `{SOURCE_REPO}`, merged
 to `master`, and then published here by the SUEWS agent-plugin sync workflow.
 
-The `main` branch should be protected so direct pushes are limited to the
-dedicated sync automation identity used by `{SOURCE_REPO}`.
+The `main` branch should be protected. In the current low-friction setup, the
+sync workflow pushes with a fine-grained `SUEWS_AGENT_PUSH_TOKEN` stored only in
+`{SOURCE_REPO}`, with the token owner kept as the temporary maintainer
+exception. Do not push manual content edits here; they will be overwritten by
+the next generated sync.
 
 ## Install
 

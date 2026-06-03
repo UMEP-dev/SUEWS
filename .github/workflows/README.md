@@ -130,6 +130,9 @@ These have been replaced by the unified `auto-format.yml` workflow that runs onl
     ```
 - `CLAUDE_CODE_OAUTH_TOKEN`: OAuth token used by Claude Code workflows
 - `RTD_PUSH_TOKEN`: PAT used only for syncing the protected `rtd` branch
+- `SUEWS_AGENT_PUSH_TOKEN`: fine-grained PAT used only by
+  `sync-agent-plugin.yml` to publish the generated `UMEP-dev/suews-agent`
+  repository. Scope it to `UMEP-dev/suews-agent` with Contents read/write.
 
 
 ## Security Configuration

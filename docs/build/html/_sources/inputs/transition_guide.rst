@@ -180,6 +180,38 @@ The sections below summarise what users see change between schemas.
 The authoritative lineage (including release-tag to schema mapping)
 lives in :ref:`schema_version_history`.
 
+Upgrading to Schema 2026.5.dev14 (align ``frontal_area_index`` on the observed/modelled axis)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Schema ``2026.5.dev14`` is the current in-development shape (gh#1495).
+The ``model.physics.frontal_area_index`` readable selector now exposes
+only the canonical ``observed`` / ``modelled`` pair, matching
+``laimethod``, ``water_use`` and ``soil_moisture_deficit``. The synonym
+string aliases ``provided``, ``use_provided`` and ``simple_scheme`` are
+no longer accepted. Integer-form values (``{value: 0}`` / ``{value: 1}``)
+are unaffected, and the migrator rewrites any retired string alias to its
+canonical replacement.
+
+Before (retired alias)::
+
+   model:
+     physics:
+       frontal_area_index: provided
+
+After (canonical)::
+
+   model:
+     physics:
+       frontal_area_index: observed
+
+The mapping is ``provided`` / ``use_provided`` -> ``observed`` and
+``simple_scheme`` -> ``modelled``. Run the migrator to rewrite an
+existing YAML:
+
+.. code-block:: bash
+
+   suews schema migrate your_config.yml --target-version 2026.5.dev14
+
 Upgrading to Schema 2026.5.dev13 (nest the STEBBS physics switches)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 

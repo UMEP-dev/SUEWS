@@ -1,0 +1,17 @@
+:root {
+  --bg-color: #f8f9fa;
+  --text-color: #212529;
+  --header-bg: linear-gradient(to right, #003366, #0059b3);
+  --link-color: white;
+  --link-hover: rgba(255, 255, 255, 0.2);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg-color: #1e1e1e;
+    --text-color: #f1f1f1;
+    --header-bg: linear-gradient(to right, #222, #444);
+    --link-color: #e0e0e0;
+    --link-hover: rgba(255, 255, 255, 0.1);
+  }
+}

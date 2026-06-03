@@ -1,0 +1,29 @@
+.text-block {
+    font-size: 0.95rem;
+    line-height: 1.6;
+    margin-bottom: 1rem;
+}
+
+.text-block h5 {
+    font-weight: 600;
+    margin-bottom: 0.5rem;
+}
+
+
+.test-flag {
+  color: white;
+  padding: 5px 10px;
+  border-radius: 3px;
+  display: inline-block;
+  margin: 5px 0;
+  font-weight: bold;
+  font-family: sans-serif;
+}
+
+.test-flag.passed {
+  background-color: green;
+}
+
+.test-flag.failed {
+  background-color: red;
+}

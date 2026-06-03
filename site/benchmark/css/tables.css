@@ -1,0 +1,228 @@
+table {
+  border-collapse: collapse;
+  font-size: 0.9rem;
+  max-width: 600px;
+  width: auto;
+}
+
+th, td {
+  border: 1px solid #999;
+  padding: 4px 8px;
+  text-align: center;
+}
+
+table.plain-table {
+  font-size: 0.9rem;
+  border-collapse: collapse;
+  width: auto;
+  max-width: 600px;
+}
+
+td.highlight-best {
+  background-color: yellow;
+}
+td.negative {
+  background-color: rgba(255, 0, 0, 0.5);
+  color: white;
+}
+td.positive {
+  background-color: rgba(0, 128, 0, 0.5);
+  color: white;
+}
+
+.summary-bar {
+    display: inline-flex;
+    flex-wrap: nowrap;
+    gap: 2px;
+    margin-bottom: 1em;
+    padding: 0.1em;
+    border-radius: 2px;
+    /* background-color: #f8f9fa; */
+}
+
+.summary-cell {
+    display: inline-flex; /* Or just `flex`, depending on your layout needs */
+    align-items: center;
+    justify-content: center;
+    padding: 0.5em 1em; /* Add padding instead of fixed size */
+    font-size: 0.7em;
+    font-weight: bold;
+    text-align: center;
+    white-space: nowrap; /* Optional: prevents text from wrapping */
+    border-radius: 3px;
+    background-color: #e9ecef; /* Optional: visual styling */
+}
+
+
+.summary-cell:last-child {
+    border-right: none;
+}
+
+.summary-pass {
+    background-color: #5cb85c; /* green */
+    color: white;
+}
+
+.summary-fail {
+    background-color: #d9534f; /* red */
+    color: white;
+}
+
+.summary-unknown {
+    background-color: #ccc;
+    color: black;
+}
+.summary-counts {
+    display: flex;
+    gap: 1em;
+    margin-top: 0.5em;
+    font-size: 0.85em;
+    align-items: center;
+}
+
+.count-label {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.2em 0.6em;
+    border-radius: 12px;
+    font-weight: bold;
+    background-color: #e9ecef;
+    color: #333;
+}
+
+.count-label::before {
+    margin-right: 0.4em;
+}
+
+.count-label.pass {
+    background-color: #d4edda;
+    color: #155724;
+}
+
+.count-label.pass::before {
+    content: "✔️"; /* Or use an icon font or SVG if preferred */
+}
+
+.count-label.fail {
+    background-color: #f8d7da;
+    color: #721c24;
+}
+
+.count-label.fail::before {
+    content: "❌";
+}
+
+.count-label.unknown {
+    background-color: #fff3cd;
+    color: #856404;
+}
+
+.count-label.unknown::before {
+    content: "❓";
+}
+
+.summary-variable-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5em;
+}
+
+.summary-variable-line {
+    display: flex;
+    align-items: center;
+    gap: 1em;
+    flex-wrap: wrap;
+}
+
+.summary-variable-name {
+    min-width: 100px;
+    font-size: 0.9em;
+}
+
+.summary-bar-inline {
+    display: inline-flex;
+    gap: 2px;
+    flex-wrap: wrap;
+}
+
+.summary-cell {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0.2em 0.5em;
+    font-size: 0.7em;
+    font-weight: bold;
+    border-radius: 3px;
+    white-space: nowrap;
+    text-align: center;
+    background-color: #dee2e6;
+}
+
+.summary-pass {
+    background-color: #d4edda;
+    color: #155724;
+}
+
+.summary-fail {
+    background-color: #f8d7da;
+    color: #721c24;
+}
+
+.summary-unknown {
+    background-color: #fff3cd;
+    color: #856404;
+}
+
+.summary-inline-counts {
+    display: inline-flex;
+    gap: 0.5em;
+    font-size: 0.75em;
+    align-items: center;
+}
+
+.count-label {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.1em 0.4em;
+    border-radius: 12px;
+    font-weight: bold;
+    background-color: #e9ecef;
+    color: #333;
+}
+
+.count-label.pass {
+    background-color: #d4edda;
+    color: #155724;
+}
+
+.count-label.fail {
+    background-color: #f8d7da;
+    color: #721c24;
+}
+
+.count-label.unknown {
+    background-color: #fff3cd;
+    color: #856404;
+}
+
+
+.pass-ratio-summary {
+    font-size: 0.85em;
+    margin-top: 1em;
+    display: flex;
+    flex-direction: column;
+    gap: 0.3em;
+}
+
+
+
+@media (prefers-color-scheme: dark) {
+  table, th, td {
+    border-color: #bbb;
+  }
+  /* Optional: adjust highlight colors for dark mode */
+  .highlight-best {
+    background-color: #b07e00 !important;
+    color: black !important;
+  }
+}

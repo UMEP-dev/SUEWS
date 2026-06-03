@@ -1,0 +1,27 @@
+.navbar-brand {
+  font-size: 1.5rem;
+  font-weight: 600;
+}
+
+.nav-link {
+  text-decoration: none;
+  padding: 10px 16px;
+  border-radius: 5px;
+  transition: background-color 0.3s ease;
+  color: var(--link-color);
+  font-weight: 500;
+  display: inline-block;
+}
+
+.nav-link:hover {
+  background-color: var(--link-hover);
+  text-decoration: underline;
+}
+
+.nav-container {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  justify-content: flex-end;
+  align-items: center;
+}

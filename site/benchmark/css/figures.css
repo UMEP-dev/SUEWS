@@ -1,0 +1,62 @@
+.img-fluid {
+  margin-bottom: 2rem;
+  border: 1px solid #dee2e6;
+  border-radius: 0.375rem;
+  padding: 1rem;
+  transition: box-shadow 0.15s ease-in-out;
+  height: 50%;
+  width: 50%;
+}
+
+.figure-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 1.5rem;
+  padding: 1rem 0;
+}
+
+.figure-grid .img-fluid {
+  width: 100%;
+  height: auto;
+  object-fit: contain;
+}
+
+.figure-card img {
+  cursor: zoom-in;
+  transition: transform 0.2s;
+}
+
+.figure-card img:hover {
+  transform: scale(1.02);
+}
+
+
+Figure wrapper
+figure {
+    margin: 1.5rem 0;
+    text-align: center;
+}
+
+/* Image responsiveness (if you're not using Bootstrap) */
+figure img {
+    max-width: 100%;
+    height: auto;
+    display: block;
+    /* margin-left: auto; */
+    /* margin-right: auto; */
+}
+
+/* Caption styling */
+.figure-caption {
+    font-size: 0.95rem;
+    color: #666;
+    margin-top: 0.5rem;
+    font-style: italic;
+    line-height: 1.4;
+}
+
+/* Optional: Add a soft border or shadow to images */
+figure img {
+    border-radius: 4px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+}

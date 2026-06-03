@@ -35,7 +35,9 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
 
-      - name: Checkout generated agent repository
+      # The SUEWS_AGENT_PUSH_TOKEN must persist so the generated plugin can be pushed
+      # back to UMEP-dev/suews-agent; persist-credentials:false is not applicable here.
+      - name: Checkout generated agent repository # zizmor: ignore[artipacked]
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
         with:
           repository: UMEP-dev/suews-agent

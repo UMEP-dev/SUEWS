@@ -44,174 +44,146 @@
             <div class="subpage-label">Regression benchmark <span class="bm-crumb"><span class="sep">/</span> UK-LO-KCL</span></div>
             <h1 class="subpage-title">Energy balance at <em>King&rsquo;s College London</em></h1>
             <p class="subpage-lede">Modelled energy-balance fluxes at the Kc1 tower, scored against eddy-covariance observations.</p>
-            <p class="subpage-intro">Reference: <a href="https://doi.org/10.1016/j.uclim.2016.05.001">Ward&nbsp;et&nbsp;al.&nbsp;(2016)</a>. Each flux is scored by mean bias (MBE) and mean absolute error (MAE) against the observations; a case is flagged when its MAE exceeds the reference.</p>
+            <p class="subpage-intro">Reference observations: <a href="https://doi.org/10.1016/j.uclim.2016.05.001">Ward&nbsp;et&nbsp;al.&nbsp;(2016)</a>. Each flux is scored by mean bias (MBE) and mean absolute error (MAE) against the observations. This is the first SUEWS release on record for this site; later releases are scored against it to flag regressions.</p>
 
             <div class="bm-releases" role="group" aria-label="Model release">
                 <span class="bm-releases-label">Release</span>
-                <button class="bm-release" type="button">2025.7</button>
-                <button class="bm-release" type="button">2026.1</button>
+                <button class="bm-release" type="button" disabled>2025.7</button>
+                <button class="bm-release" type="button" disabled>2026.1</button>
                 <button class="bm-release" type="button" aria-current="true">2026.4 <span class="latest">latest</span></button>
+                <p class="bm-releases-note">Only v2026.4.3 has been run so far; earlier releases will be backfilled to build the regression history.</p>
             </div>
 
-            <div class="bm-verdict" data-state="fail" role="status">
-                <span class="bm-status"><span class="disc" aria-hidden="true"></span><span class="glyph" aria-hidden="true">&#9650;</span> Regression flagged</span>
-                <p class="bm-verdict-summary"><b style="font-style:normal;color:var(--text-primary)">12 of 20 cases</b> improved on the 2016a reference; 4 unchanged, 4 worse. The 4 worse cases are all sensible heat <span style="font-style:normal">Q<sub>H</sub></span>.</p>
+            <div class="bm-verdict" data-state="baseline" role="status">
+                <span class="bm-status"><span class="disc" aria-hidden="true"></span> Baseline established</span>
+                <p class="bm-verdict-summary">v2026.4.3 scored against the Ward&nbsp;et&nbsp;al. (2016) observations. Mean absolute error spans <b style="font-style:normal;color:var(--text-primary)">3.0&ndash;37.8&nbsp;W&nbsp;m<sup>&minus;2</sup></b> across the five fluxes; sensible heat Q<sub>H</sub>, the energy-balance residual, carries the largest error.</p>
                 <div class="bm-chips">
                     <span class="bm-chip">site <b>UK&#8209;LO&#8209;KCL</b></span>
                     <span class="bm-chip">period <b>2011&ndash;2013</b></span>
                     <span class="bm-chip">SUEWS <b>v2026.4.3</b></span>
-                    <span class="bm-chip">n <b>&#8776;24.7k h</b></span>
+                    <span class="bm-chip">n <b>&#8776;8.7k h</b></span>
                 </div>
             </div>
         </header>
 
         <section class="subpage-group">
             <div class="subpage-group-header">
-                <span class="subpage-group-label">Change vs the 2016a reference</span>
+                <span class="subpage-group-label">Error by flux</span>
                 <span class="subpage-group-line"></span>
             </div>
-            <p class="bm-summary-lead">Across <b>20 cases</b> &mdash; five fluxes &times; four time intervals &mdash; v2026.4.3 is better on <b>12</b>, unchanged on <b>4</b>, and worse on <b>4</b> than the 2016a reference. The 4 worse cases are all sensible heat Q<sub>H</sub>.</p>
-
-            <div class="bm-proportion-wrap">
-                <div class="bm-proportion" role="img" aria-label="12 of 20 cases better, 4 unchanged, 4 worse than the 2016a reference">
-                    <div class="seg better" style="flex:12"></div>
-                    <div class="seg same" style="flex:4"></div>
-                    <div class="seg worse" style="flex:4"></div>
-                </div>
-                <div class="bm-proportion-legend">
-                    <span><i style="background:var(--veg-green)"></i><b>12</b> better &middot; 60%</span>
-                    <span><i style="background:var(--text-muted)"></i><b>4</b> same &middot; 20%</span>
-                    <span><i style="background:var(--energy-orange)"></i><b>4</b> worse &middot; 20%</span>
-                </div>
-            </div>
-
-            <div class="bm-matrix" role="table" aria-label="Better, same or worse by flux and time interval, versus the 2016a reference">
-                <div class="corner"></div>
-                <div class="col-h" role="columnheader">Full</div>
-                <div class="col-h" role="columnheader">Seasonal</div>
-                <div class="col-h" role="columnheader">Monthly</div>
-                <div class="col-h" role="columnheader">Daily</div>
-
-                <div class="row-h"><span class="bm-swatch" style="background:var(--flux-kup)"></span>K<sub>up</sub></div>
-                <div class="bm-cell" data-state="same"   title="same">&ndash;</div>
-                <div class="bm-cell" data-state="same"   title="same">&ndash;</div>
-                <div class="bm-cell" data-state="same"   title="same">&ndash;</div>
-                <div class="bm-cell" data-state="same"   title="same">&ndash;</div>
-
-                <div class="row-h"><span class="bm-swatch" style="background:var(--flux-lup)"></span>L<sub>up</sub></div>
-                <div class="bm-cell" data-state="better" title="better">&#9650;</div>
-                <div class="bm-cell" data-state="better" title="better">&#9650;</div>
-                <div class="bm-cell" data-state="better" title="better">&#9650;</div>
-                <div class="bm-cell" data-state="better" title="better">&#9650;</div>
-
-                <div class="row-h"><span class="bm-swatch" style="background:var(--flux-qn)"></span>Q<sub>N</sub></div>
-                <div class="bm-cell" data-state="better" title="better">&#9650;</div>
-                <div class="bm-cell" data-state="better" title="better">&#9650;</div>
-                <div class="bm-cell" data-state="better" title="better">&#9650;</div>
-                <div class="bm-cell" data-state="better" title="better">&#9650;</div>
-
-                <div class="row-h"><span class="bm-swatch" style="background:var(--flux-qh)"></span>Q<sub>H</sub></div>
-                <div class="bm-cell" data-state="worse"  title="worse">&#9660;</div>
-                <div class="bm-cell" data-state="worse"  title="worse">&#9660;</div>
-                <div class="bm-cell" data-state="worse"  title="worse">&#9660;</div>
-                <div class="bm-cell" data-state="worse"  title="worse">&#9660;</div>
-
-                <div class="row-h"><span class="bm-swatch" style="background:var(--flux-qe)"></span>Q<sub>E</sub></div>
-                <div class="bm-cell" data-state="better" title="better">&#9650;</div>
-                <div class="bm-cell" data-state="better" title="better">&#9650;</div>
-                <div class="bm-cell" data-state="better" title="better">&#9650;</div>
-                <div class="bm-cell" data-state="better" title="better">&#9650;</div>
-            </div>
-            <p class="bm-matrix-note">&#9650; better &middot; &ndash; same &middot; &#9660; worse, v2026.4.3 vs the 2016a reference by mean absolute error (same = within 0.1 W m&#8315;&#178;). Q<sub>H</sub> exceeds the reference at all four resolutions (&plus;1.77 full, &plus;7.62 daily).</p>
+            <figure class="bm-figure">
+                <svg class="bm-chart" viewBox="0 0 720 232" role="img" aria-label="Mean absolute error by flux, full period, in watts per square metre: QH 37.76, QE 14.27, QN 10.85, Lup 5.74, Kup 3.04.">
+                    <line class="axis" x1="92" y1="22" x2="92" y2="206"/>
+                    <!-- QH -->
+                    <text class="tick" x="82" y="49" text-anchor="end">QH</text>
+                    <rect x="92" y="34" width="500" height="20" rx="2" fill="var(--flux-qh)"/>
+                    <text class="tick" x="600" y="49" style="fill:var(--text-secondary)">37.76</text>
+                    <!-- QE -->
+                    <text class="tick" x="82" y="87" text-anchor="end">QE</text>
+                    <rect x="92" y="72" width="189" height="20" rx="2" fill="var(--flux-qe)"/>
+                    <text class="tick" x="289" y="87" style="fill:var(--text-secondary)">14.27</text>
+                    <!-- QN -->
+                    <text class="tick" x="82" y="125" text-anchor="end">QN</text>
+                    <rect x="92" y="110" width="144" height="20" rx="2" fill="var(--flux-qn)"/>
+                    <text class="tick" x="244" y="125" style="fill:var(--text-secondary)">10.85</text>
+                    <!-- Lup -->
+                    <text class="tick" x="82" y="163" text-anchor="end">Lup</text>
+                    <rect x="92" y="148" width="76" height="20" rx="2" fill="var(--flux-lup)"/>
+                    <text class="tick" x="176" y="163" style="fill:var(--text-secondary)">5.74</text>
+                    <!-- Kup -->
+                    <text class="tick" x="82" y="201" text-anchor="end">Kup</text>
+                    <rect x="92" y="186" width="40" height="20" rx="2" fill="var(--flux-kup)"/>
+                    <text class="tick" x="140" y="201" style="fill:var(--text-secondary)">3.04</text>
+                </svg>
+                <figcaption class="bm-figcaption">Mean absolute error against the Ward&nbsp;et&nbsp;al. (2016) observations, full period (W m&#8315;&#178;). Lower is better.</figcaption>
+            </figure>
         </section>
 
         <section class="subpage-group">
             <div class="subpage-group-header">
-                <span class="subpage-group-label">Energy balance</span>
+                <span class="subpage-group-label">Energy balance &mdash; full period</span>
                 <span class="subpage-group-line"></span>
             </div>
             <div class="bm-table-wrap">
                 <table class="bm-table">
                     <thead>
                         <tr>
-                            <th class="var-col" rowspan="2">Flux</th>
-                            <th class="group" colspan="2">MAE</th>
-                            <th class="group" colspan="2">MBE</th>
-                            <th rowspan="2">&Delta; MAE vs ref</th>
-                        </tr>
-                        <tr>
-                            <th>2016a</th><th>v2026.4.3</th>
-                            <th>2016a</th><th>v2026.4.3</th>
+                            <th class="var-col">Flux</th>
+                            <th>MAE</th>
+                            <th>MBE</th>
+                            <th>n</th>
                         </tr>
                     </thead>
                     <tbody>
                         <tr>
                             <td class="var-col"><span class="bm-swatch" style="background:var(--flux-kup)"></span>K<sub>up</sub> <span class="unit">reflected SW</span></td>
-                            <td class="ref">2.47</td><td>2.46</td>
-                            <td class="ref">&minus;0.90</td><td>&minus;0.90</td>
-                            <td><span class="bm-delta" style="color:var(--text-muted)">&#8776;0</span></td>
+                            <td>3.04</td><td>&minus;1.06</td><td class="ref">8686</td>
                         </tr>
                         <tr>
                             <td class="var-col"><span class="bm-swatch" style="background:var(--flux-lup)"></span>L<sub>up</sub> <span class="unit">outgoing LW</span></td>
-                            <td class="ref">5.24</td><td>4.48</td>
-                            <td class="ref">&minus;1.82</td><td>&minus;1.69</td>
-                            <td><span class="bm-delta better"><span class="arrow">&darr;</span>0.76</span></td>
+                            <td>5.74</td><td>&minus;4.96</td><td class="ref">8689</td>
                         </tr>
                         <tr>
                             <td class="var-col"><span class="bm-swatch" style="background:var(--flux-qn)"></span>Q<sub>N</sub> <span class="unit">net all-wave</span></td>
-                            <td class="ref">24.34</td><td>8.55</td>
-                            <td class="ref">1.12</td><td>2.56</td>
-                            <td><span class="bm-delta better"><span class="arrow">&darr;</span>15.79</span></td>
+                            <td>10.85</td><td>&plus;6.00</td><td class="ref">8689</td>
                         </tr>
                         <tr>
                             <td class="var-col"><span class="bm-swatch" style="background:var(--flux-qh)"></span>Q<sub>H</sub> <span class="unit">sensible heat</span></td>
-                            <td class="ref">37.74</td><td>39.51</td>
-                            <td class="ref">8.26</td><td>12.13</td>
-                            <td><span class="bm-delta worse"><span class="arrow">&uarr;</span>1.77</span></td>
+                            <td>37.76</td><td>&plus;1.60</td><td class="ref">8044</td>
                         </tr>
                         <tr>
                             <td class="var-col"><span class="bm-swatch" style="background:var(--flux-qe)"></span>Q<sub>E</sub> <span class="unit">latent heat</span></td>
-                            <td class="ref">17.19</td><td>14.58</td>
-                            <td class="ref">9.79</td><td>5.64</td>
-                            <td><span class="bm-delta better"><span class="arrow">&darr;</span>2.61</span></td>
+                            <td>14.27</td><td>&plus;5.33</td><td class="ref">7456</td>
                         </tr>
                     </tbody>
                 </table>
             </div>
-            <p class="bm-table-note">All fluxes in W&nbsp;m&#8315;&#178;. Lower MAE is better; &darr; marks an improvement on the 2016a reference, &uarr; a regression.</p>
+            <p class="bm-table-note">All fluxes in W&nbsp;m&#8315;&#178;, hourly, full period (2011&ndash;2013). MAE is mean absolute error; MBE is mean bias (model &minus; observation). n is the count of valid model&ndash;observation pairs.</p>
         </section>
 
         <section class="subpage-group">
             <div class="subpage-group-header">
-                <span class="subpage-group-label">Change in error by flux</span>
+                <span class="subpage-group-label">Mean absolute error by season</span>
                 <span class="subpage-group-line"></span>
             </div>
-            <figure class="bm-figure">
-                <svg class="bm-chart" viewBox="0 0 720 232" role="img" aria-label="Change in mean absolute error against the 2016a reference by flux, full period, in watts per square metre: QN minus 15.79, QE minus 2.61, Lup minus 0.76, Kup minus 0.01, QH plus 1.77.">
-                    <line class="axis" x1="92" y1="22" x2="92" y2="206"/>
-                    <!-- QN -->
-                    <text class="tick" x="82" y="49" text-anchor="end">QN</text>
-                    <rect x="92" y="34" width="527" height="20" rx="2" fill="var(--good)"/>
-                    <text class="tick" x="627" y="49" style="fill:var(--good)">&minus;15.79</text>
-                    <!-- QE -->
-                    <text class="tick" x="82" y="87" text-anchor="end">QE</text>
-                    <rect x="92" y="72" width="87" height="20" rx="2" fill="var(--good)"/>
-                    <text class="tick" x="187" y="87" style="fill:var(--good)">&minus;2.61</text>
-                    <!-- Lup -->
-                    <text class="tick" x="82" y="125" text-anchor="end">Lup</text>
-                    <rect x="92" y="110" width="25" height="20" rx="2" fill="var(--good)"/>
-                    <text class="tick" x="125" y="125" style="fill:var(--good)">&minus;0.76</text>
-                    <!-- Kup -->
-                    <text class="tick" x="82" y="163" text-anchor="end">Kup</text>
-                    <rect x="92" y="148" width="2" height="20" rx="1" fill="var(--text-muted)"/>
-                    <text class="tick" x="102" y="163">&minus;0.01</text>
-                    <!-- QH -->
-                    <text class="tick" x="82" y="201" text-anchor="end">QH</text>
-                    <rect x="92" y="186" width="59" height="20" rx="2" fill="var(--bad)"/>
-                    <text class="tick" x="159" y="201" style="fill:var(--bad)">+1.77</text>
-                </svg>
-                <figcaption class="bm-figcaption">Change in mean absolute error against the 2016a reference, full period (W m&#8315;&#178;). Negative is lower error; positive is higher.</figcaption>
-            </figure>
+            <div class="bm-matrix" role="table" aria-label="Mean absolute error by flux and season, watts per square metre">
+                <div class="corner"></div>
+                <div class="col-h" role="columnheader">DJF</div>
+                <div class="col-h" role="columnheader">MAM</div>
+                <div class="col-h" role="columnheader">JJA</div>
+                <div class="col-h" role="columnheader">SON</div>
+
+                <div class="row-h"><span class="bm-swatch" style="background:var(--flux-kup)"></span>K<sub>up</sub></div>
+                <div class="bm-cell num">2.35</div>
+                <div class="bm-cell num">3.55</div>
+                <div class="bm-cell num">3.67</div>
+                <div class="bm-cell num">2.57</div>
+
+                <div class="row-h"><span class="bm-swatch" style="background:var(--flux-lup)"></span>L<sub>up</sub></div>
+                <div class="bm-cell num">4.74</div>
+                <div class="bm-cell num">7.33</div>
+                <div class="bm-cell num">6.00</div>
+                <div class="bm-cell num">4.83</div>
+
+                <div class="row-h"><span class="bm-swatch" style="background:var(--flux-qn)"></span>Q<sub>N</sub></div>
+                <div class="bm-cell num">7.23</div>
+                <div class="bm-cell num">13.53</div>
+                <div class="bm-cell num">13.68</div>
+                <div class="bm-cell num">8.92</div>
+
+                <div class="row-h"><span class="bm-swatch" style="background:var(--flux-qh)"></span>Q<sub>H</sub></div>
+                <div class="bm-cell num">32.44</div>
+                <div class="bm-cell num">41.89</div>
+                <div class="bm-cell num">38.81</div>
+                <div class="bm-cell num">37.66</div>
+
+                <div class="row-h"><span class="bm-swatch" style="background:var(--flux-qe)"></span>Q<sub>E</sub></div>
+                <div class="bm-cell num">9.94</div>
+                <div class="bm-cell num">14.37</div>
+                <div class="bm-cell num">18.11</div>
+                <div class="bm-cell num">14.45</div>
+            </div>
+            <p class="bm-matrix-note">Mean absolute error (W m&#8315;&#178;) by flux and season, v2026.4.3. DJF / MAM / JJA / SON are winter / spring / summer / autumn. Latent heat Q<sub>E</sub> peaks in summer (JJA); shortwave and net radiation errors track the seasonal radiation cycle.</p>
         </section>
 
         <section class="subpage-group">
@@ -223,8 +195,9 @@
                 <div><dt>Site</dt><dd>King&rsquo;s College London <span class="mono">UK-LO-KCL</span></dd></div>
                 <div><dt>Evaluation period</dt><dd><span class="mono">2011-01-01 &ndash; 2013-12-31</span></dd></div>
                 <div><dt>Observations</dt><dd>Eddy-covariance fluxes, Kc1 <span class="mono">restricted</span></dd></div>
-                <div><dt>Reference</dt><dd>Ward&nbsp;et&nbsp;al. 2016 <span class="mono">2016a</span></dd></div>
+                <div><dt>Reference</dt><dd>Ward&nbsp;et&nbsp;al. (2016)</dd></div>
                 <div><dt>SUEWS version</dt><dd><span class="mono">v2026.4.3</span></dd></div>
+                <div><dt>Statistics</dt><dd>Recomputed: model vs observations</dd></div>
                 <div><dt>Net radiation</dt><dd><span class="mono">NARP</span></dd></div>
                 <div><dt>Storage heat</dt><dd><span class="mono">OHM</span></dd></div>
                 <div><dt>Roughness sublayer</dt><dd><span class="mono">RSL (MOST)</span></dd></div>

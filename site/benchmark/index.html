@@ -41,13 +41,13 @@
             <div class="subpage-label">Regression benchmark</div>
             <h1 class="subpage-title">The <em>benchmark suite</em></h1>
             <p class="subpage-lede">SUEWS releases scored against eddy-covariance observations at urban flux sites.</p>
-            <p class="subpage-intro">Each site scores the modelled energy balance against tower observations; a site is flagged when any flux exceeds its reference. One site is benchmarked so far &mdash; London, on <span class="mono" style="font-family:'JetBrains Mono',monospace;font-size:0.85rem">v2026.4.3</span>; further sites are planned.</p>
+            <p class="subpage-intro">Each site scores the modelled energy balance against tower observations. One site is benchmarked so far &mdash; London, on <span class="mono" style="font-family:'JetBrains Mono',monospace;font-size:0.85rem">v2026.4.3</span> &mdash; establishing a baseline; later releases are scored against it to flag regressions. Further sites are planned.</p>
             <div class="bm-releases" role="group" aria-label="Model release">
                 <span class="bm-releases-label">Release</span>
-                <button class="bm-release" type="button">2025.7</button>
-                <button class="bm-release" type="button">2026.1</button>
+                <button class="bm-release" type="button" disabled>2025.7</button>
+                <button class="bm-release" type="button" disabled>2026.1</button>
                 <button class="bm-release" type="button" aria-current="true">2026.4 <span class="latest">latest</span></button>
-                <p class="bm-releases-note">The scoreboard reflects the selected release; each release keeps its own results.</p>
+                <p class="bm-releases-note">Only v2026.4.3 has been run so far; earlier releases will be backfilled to build the regression history.</p>
             </div>
         </header>
 
@@ -57,15 +57,10 @@
                 <span class="subpage-group-line"></span>
             </div>
             <div class="bm-suite">
-                <a class="bm-suite-row" href="uk-lo-kcl/" data-state="fail">
+                <a class="bm-suite-row" href="uk-lo-kcl/" data-state="baseline">
                     <span class="disc" aria-hidden="true"></span>
                     <span><span class="bm-site-name">London</span><span class="bm-site-meta">UK-LO-KCL &middot; King&rsquo;s College London</span></span>
-                    <span class="bm-site-change">
-                        <span class="bm-minibar" role="img" aria-label="12 of 20 cases better, 4 same, 4 worse than the 2016a reference">
-                            <span class="seg better" style="flex:12"></span><span class="seg same" style="flex:4"></span><span class="seg worse" style="flex:4"></span>
-                        </span>
-                        <span class="bm-change-counts"><span class="up">&#9650;12 better</span><span class="down">&#9660;4 worse</span></span>
-                    </span>
+                    <span class="bm-site-status-line">Baseline &middot; MAE 3.0&ndash;37.8 W m<sup>&minus;2</sup></span>
                     <span class="bm-site-release">v2026.4.3</span>
                     <span class="go" aria-hidden="true">&rarr;</span>
                 </a>

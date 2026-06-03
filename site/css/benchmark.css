@@ -406,6 +406,14 @@
 .bm-suite-row .disc { width: 11px; height: 11px; border-radius: 50%; }
 .bm-suite-row[data-state="pass"] .disc { background: var(--good); }
 .bm-suite-row[data-state="fail"] .disc { background: var(--bad); }
+.bm-suite-row[data-state="planned"] .disc { background: none; border: 1px solid var(--border-medium); }
+.bm-suite-row[data-state="planned"] .bm-site-name { color: var(--text-secondary); }
+.bm-planned {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.74rem;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+}
 
 .bm-site-name {
   display: block;

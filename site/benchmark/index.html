@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>SUEWS Benchmark Suite</title>
-    <meta name="description" content="A standing scoreboard of SUEWS model fidelity: every release re-run against eddy-covariance observations across cities.">
+    <meta name="description" content="SUEWS model releases scored against eddy-covariance observations at urban flux sites.">
     <link rel="icon" type="image/svg+xml" href="/brand/assets/icon/suews-icon-dark.svg">
     <script>
         (function () {
@@ -40,14 +40,14 @@
             <a class="back-link" href="/"><span class="arrow">&larr;</span> suews.io</a>
             <div class="subpage-label">Regression benchmark</div>
             <h1 class="subpage-title">The <em>benchmark suite</em></h1>
-            <p class="subpage-lede">Every SUEWS release is re-run against eddy-covariance observations in cities worldwide &mdash; a standing scoreboard of model fidelity.</p>
-            <p class="subpage-intro">Each site scores the modelled energy balance against tower measurements; a release is flagged the moment any flux degrades against its reference. <b style="color:var(--text-secondary);font-weight:500">Three of four sites</b> clear the current release, <span class="mono" style="font-family:'JetBrains Mono',monospace;font-size:0.85rem">v2026.4.3</span>.</p>
+            <p class="subpage-lede">SUEWS releases scored against eddy-covariance observations at urban flux sites.</p>
+            <p class="subpage-intro">Each site scores the modelled energy balance against tower observations; a site is flagged when any flux exceeds its reference. One site is benchmarked so far &mdash; London, on <span class="mono" style="font-family:'JetBrains Mono',monospace;font-size:0.85rem">v2026.4.3</span>; further sites are planned.</p>
             <div class="bm-releases" role="group" aria-label="Model release">
                 <span class="bm-releases-label">Release</span>
                 <button class="bm-release" type="button">2025.7</button>
                 <button class="bm-release" type="button">2026.1</button>
                 <button class="bm-release" type="button" aria-current="true">2026.4 <span class="latest">latest</span></button>
-                <p class="bm-releases-note">The scoreboard reflects the selected release; each release keeps its own results, so regressions can be traced to the version that introduced them.</p>
+                <p class="bm-releases-note">The scoreboard reflects the selected release; each release keeps its own results.</p>
             </div>
         </header>
 
@@ -61,52 +61,37 @@
                     <span class="disc" aria-hidden="true"></span>
                     <span><span class="bm-site-name">London</span><span class="bm-site-meta">UK-LO-KCL &middot; King&rsquo;s College London</span></span>
                     <span class="bm-site-change">
-                        <span class="bm-minibar" role="img" aria-label="11 of 20 cases better, 6 same, 3 worse vs the previous release">
-                            <span class="seg better" style="flex:11"></span><span class="seg same" style="flex:6"></span><span class="seg worse" style="flex:3"></span>
+                        <span class="bm-minibar" role="img" aria-label="12 of 20 cases better, 4 same, 4 worse than the 2016a reference">
+                            <span class="seg better" style="flex:12"></span><span class="seg same" style="flex:4"></span><span class="seg worse" style="flex:4"></span>
                         </span>
-                        <span class="bm-change-counts"><span class="up">&#9650;11 better</span><span class="down">&#9660;3 worse</span></span>
+                        <span class="bm-change-counts"><span class="up">&#9650;12 better</span><span class="down">&#9660;4 worse</span></span>
                     </span>
                     <span class="bm-site-release">v2026.4.3</span>
                     <span class="go" aria-hidden="true">&rarr;</span>
                 </a>
-                <div class="bm-suite-row" data-state="pass">
+                <div class="bm-suite-row" data-state="planned">
                     <span class="disc" aria-hidden="true"></span>
-                    <span><span class="bm-site-name">Basel</span><span class="bm-site-meta">CH-BS-KLI &middot; Klingelbergstrasse</span></span>
-                    <span class="bm-site-change">
-                        <span class="bm-minibar" role="img" aria-label="14 of 20 cases better, 6 same, none worse vs the previous release">
-                            <span class="seg better" style="flex:14"></span><span class="seg same" style="flex:6"></span>
-                        </span>
-                        <span class="bm-change-counts"><span class="up">&#9650;14 better</span><span>0 worse</span></span>
-                    </span>
-                    <span class="bm-site-release">v2026.4.3</span>
+                    <span><span class="bm-site-name">Basel</span><span class="bm-site-meta">esmae preset</span></span>
+                    <span class="bm-planned">Not yet benchmarked</span>
+                    <span class="bm-site-release">&mdash;</span>
                     <span class="go" aria-hidden="true"></span>
                 </div>
-                <div class="bm-suite-row" data-state="pass">
+                <div class="bm-suite-row" data-state="planned">
                     <span class="disc" aria-hidden="true"></span>
-                    <span><span class="bm-site-name">Berlin</span><span class="bm-site-meta">DE-BE-ROT &middot; Rothenburgstrasse</span></span>
-                    <span class="bm-site-change">
-                        <span class="bm-minibar" role="img" aria-label="8 of 20 cases better, 12 same, none worse vs the previous release">
-                            <span class="seg better" style="flex:8"></span><span class="seg same" style="flex:12"></span>
-                        </span>
-                        <span class="bm-change-counts"><span class="up">&#9650;8 better</span><span>0 worse</span></span>
-                    </span>
-                    <span class="bm-site-release">v2026.4.3</span>
+                    <span><span class="bm-site-name">Berlin</span><span class="bm-site-meta">esmae preset</span></span>
+                    <span class="bm-planned">Not yet benchmarked</span>
+                    <span class="bm-site-release">&mdash;</span>
                     <span class="go" aria-hidden="true"></span>
                 </div>
-                <div class="bm-suite-row" data-state="pass">
+                <div class="bm-suite-row" data-state="planned">
                     <span class="disc" aria-hidden="true"></span>
-                    <span><span class="bm-site-name">Helsinki</span><span class="bm-site-meta">FI-HE-IMU &middot; Kumpula</span></span>
-                    <span class="bm-site-change">
-                        <span class="bm-minibar" role="img" aria-label="16 of 20 cases better, 4 same, none worse vs the previous release">
-                            <span class="seg better" style="flex:16"></span><span class="seg same" style="flex:4"></span>
-                        </span>
-                        <span class="bm-change-counts"><span class="up">&#9650;16 better</span><span>0 worse</span></span>
-                    </span>
-                    <span class="bm-site-release">v2026.4.3</span>
+                    <span><span class="bm-site-name">IMU</span><span class="bm-site-meta">esmae preset</span></span>
+                    <span class="bm-planned">Not yet benchmarked</span>
+                    <span class="bm-site-release">&mdash;</span>
                     <span class="go" aria-hidden="true"></span>
                 </div>
             </div>
-            <p class="bm-suite-note">London is live; Basel, Berlin and Helsinki rows illustrate the multi-site layout as further sites are onboarded.</p>
+            <p class="bm-suite-note">London (UK-LO-KCL) is benchmarked. Basel, Berlin and IMU are sites esmae has presets for &mdash; not yet benchmarked here.</p>
         </section>
 
         <section class="subpage-notes">

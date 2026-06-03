@@ -1,0 +1,117 @@
+name: Sync SUEWS agent plugin
+
+on:
+  push:
+    branches: [master]
+    paths:
+      - '.claude/skills/suews/**'
+      - '.claude-plugin/marketplace.json'
+      - '.agents/plugins/marketplace.json'
+      - '.mcp.json'
+      - 'plugins/suews/.mcp.json'
+      - 'plugins/suews/.codex-plugin/**'
+      - 'plugins/suews/assets/**'
+      - 'scripts/build_agent_plugin.py'
+      - 'LICENSE'
+      - '.github/workflows/sync-agent-plugin.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: sync-agent-plugin
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  sync:
+    name: Publish generated agent repository
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout SUEWS source
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Checkout generated agent repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          repository: UMEP-dev/suews-agent
+          path: suews-agent
+          token: ${{ secrets.SUEWS_AGENT_PUSH_TOKEN }}
+          fetch-depth: 0
+
+      - name: Generate agent repository
+        run: python scripts/build_agent_plugin.py --output suews-agent
+
+      - name: Validate generated layout
+        run: |
+          python - <<'PY'
+          import hashlib
+          import json
+          from pathlib import Path
+
+          source = Path(".claude/skills/suews")
+          output = Path("suews-agent")
+
+          def manifest(root: Path) -> dict[str, str]:
+              return {
+                  str(path.relative_to(root)): hashlib.sha256(path.read_bytes()).hexdigest()
+                  for path in sorted(root.rglob("*"))
+                  if path.is_file()
+                  and "__pycache__" not in path.parts
+                  and path.suffix != ".pyc"
+              }
+
+          codex_marketplace = json.loads(
+              (output / ".agents/plugins/marketplace.json").read_text()
+          )
+          codex_plugin = codex_marketplace["plugins"][0]
+          assert codex_plugin["name"] == "suews"
+          assert codex_plugin["source"]["path"] == "./plugins/suews"
+          assert codex_plugin["policy"]["installation"] == "AVAILABLE"
+
+          claude_marketplace = json.loads(
+              (output / ".claude-plugin/marketplace.json").read_text()
+          )
+          assert "version" not in claude_marketplace["metadata"]
+          assert [plugin["name"] for plugin in claude_marketplace["plugins"]] == ["suews"]
+
+          required = [
+              output / ".mcp.json",
+              output / "plugins/suews/.mcp.json",
+              output / "plugins/suews/.codex-plugin/plugin.json",
+              output / "plugins/suews/assets/icon.png",
+          ]
+          for path in required:
+              assert path.exists(), f"missing generated file: {path}"
+
+          assert manifest(output / ".claude/skills/suews") == manifest(source)
+          assert manifest(output / "plugins/suews/skills/suews") == manifest(source)
+          PY
+
+      - name: Publish if changed
+        working-directory: suews-agent
+        env:
+          SOURCE_SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          git config user.name "SUEWS agent sync"
+          git config user.email "actions@github.com"
+
+          git add .
+          if git diff --cached --quiet; then
+            echo "suews-agent is already up to date."
+            exit 0
+          fi
+
+          git commit \
+            -m "Sync generated SUEWS agent plugin" \
+            -m "Generated from UMEP-dev/SUEWS commit ${SOURCE_SHA}."
+          # SUEWS_AGENT_PUSH_TOKEN must be a fine-grained PAT with Contents
+          # read/write on UMEP-dev/suews-agent, owned by an account that holds
+          # the bypass on the protected main branch (currently sunt05).
+          # Otherwise this push fails with an opaque 403.
+          git push origin HEAD:main

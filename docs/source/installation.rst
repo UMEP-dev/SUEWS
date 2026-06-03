@@ -250,9 +250,7 @@ Add the SUEWS agent marketplace:
     codex plugin marketplace add UMEP-dev/suews-agent
     codex plugin add suews@suews
 
-Then install the plugin from the plugin browser: open Codex, run
-``/plugins``, select the ``SUEWS`` marketplace, and choose the ``SUEWS``
-plugin. The same plugin works across the Codex CLI, the Codex Desktop App
+The same plugin works across the Codex CLI, the Codex Desktop App
 (macOS / Windows), and the Codex IDE extensions for VS Code and JetBrains.
 
 **Cursor and other MCP-only tools**

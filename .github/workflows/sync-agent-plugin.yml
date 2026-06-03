@@ -110,4 +110,8 @@ jobs:
           git commit \
             -m "Sync generated SUEWS agent plugin" \
             -m "Generated from UMEP-dev/SUEWS commit ${SOURCE_SHA}."
+          # SUEWS_AGENT_PUSH_TOKEN must be a fine-grained PAT with Contents
+          # read/write on UMEP-dev/suews-agent, owned by an account that holds
+          # the bypass on the protected main branch (currently sunt05).
+          # Otherwise this push fails with an opaque 403.
           git push origin HEAD:main

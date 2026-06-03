@@ -1,0 +1,109 @@
+# Per-PR benchmark preview on Cloudflare Pages.
+#
+# Restores the "preview link in the PR thread" UX that the GitHub Pages workflow
+# had to drop (#1432): GitHub Pages is single-site, so a PR deploy republished
+# production suews.io (trusted-domain risk). Cloudflare Pages deploys each PR to
+# its OWN isolated *.pages.dev preview URL, so unmerged PR content never touches
+# the production domain.
+#
+# Auth: secrets.CLOUDFLARE_API_TOKEN (scoped Pages:Edit) + vars.CLOUDFLARE_ACCOUNT_ID.
+# Fork PRs get no secrets -> the job is skipped (cannot deploy), same fork model
+# as the Pages workflow. Trigger is `pull_request` (NOT pull_request_target), and
+# the blast radius of any same-repo PR is an ephemeral preview URL, never suews.io.
+name: Benchmark preview (Cloudflare Pages)
+
+on:
+  pull_request:
+    paths:
+      - "benchmark/**"
+      - "site/benchmark/**"
+      - ".github/workflows/cloudflare-pages-preview.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pull-requests: write
+
+concurrency:
+  group: bench-preview-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  preview:
+    runs-on: ubuntu-latest
+    # Fork PRs cannot read secrets -> skip rather than fail.
+    if: ${{ github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6
+        with:
+          python-version: "3.12"
+
+      # Produce the benchmark site into _bench_site/.
+      #
+      # TODO (Stage 2): generate the page here from the CURRENT model + the
+      # restricted-Zenodo observations, e.g.
+      #   uv pip install --system <benchmark deps>
+      #   ZENODO_TOKEN=${{ secrets.ZENODO_TOKEN }} \
+      #     python benchmark/run_benchmark.py --obs-source "zenodo:${{ vars.BENCHMARK_PROD_RECID }}/Kc1_Obs.csv" --out _bench_site
+      #   npx --yes staticrypt "_bench_site/**/*.html" -p "${{ secrets.BENCHMARK_PAGE_PASSWORD }}" --short -d _bench_site
+      # Until that build is wired, fall back to the committed demo site (synthetic
+      # Zenodo data, already staticrypt-gated) so the preview mechanism is exercised.
+      - name: Build benchmark site
+        id: build
+        run: |
+          mkdir -p _bench_site
+          if [ -d site/benchmark ]; then
+            cp -r site/benchmark/. _bench_site/
+            echo "built=true" >> "$GITHUB_OUTPUT"
+            echo "Using committed site/benchmark (synthetic-data demo)."
+          else
+            echo "built=false" >> "$GITHUB_OUTPUT"
+            echo "No benchmark site to deploy yet (Stage-2 build not wired)."
+          fi
+
+      - name: Deploy preview to Cloudflare Pages
+        id: deploy
+        if: steps.build.outputs.built == 'true'
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          BRANCH="pr-${PR_NUMBER:-manual}"
+          OUT=$(npx --yes wrangler@4 pages deploy _bench_site \
+                  --project-name suews-benchmark-preview \
+                  --branch "$BRANCH" --commit-dirty=true 2>&1)
+          echo "$OUT"
+          URL=$(printf '%s' "$OUT" | grep -oE 'https://[a-z0-9.-]+\.pages\.dev' | tail -1)
+          ALIAS="https://${BRANCH}.suews-benchmark-preview.pages.dev"
+          echo "url=$URL" >> "$GITHUB_OUTPUT"
+          echo "alias=$ALIAS" >> "$GITHUB_OUTPUT"
+
+      - name: Comment preview URL on the PR
+        if: github.event_name == 'pull_request' && steps.deploy.outputs.url != ''
+        uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b # v7
+        env:
+          DEPLOY_URL: ${{ steps.deploy.outputs.url }}
+          ALIAS_URL: ${{ steps.deploy.outputs.alias }}
+        with:
+          script: |
+            const marker = '<!-- bench-cf-preview -->';
+            const body = `${marker}\n## Benchmark preview (Cloudflare Pages)\n\n`
+              + `- This deployment: ${process.env.DEPLOY_URL}\n`
+              + `- Branch alias: ${process.env.ALIAS_URL}\n\n`
+              + `Password-gated (staticrypt). Isolated \`*.pages.dev\` preview — not the production suews.io site.`;
+            const {owner, repo} = context.repo;
+            const issue_number = context.issue.number;
+            const comments = await github.rest.issues.listComments({owner, repo, issue_number});
+            const existing = comments.data.find(c => c.body && c.body.includes(marker));
+            if (existing) {
+              await github.rest.issues.updateComment({owner, repo, comment_id: existing.id, body});
+            } else {
+              await github.rest.issues.createComment({owner, repo, issue_number, body});
+            }

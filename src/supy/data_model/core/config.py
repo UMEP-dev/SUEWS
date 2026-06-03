@@ -2827,14 +2827,14 @@ class SUEWSConfig(BaseModel):
             return getattr(value, "value", value)
 
         lai_method = _scalar_value(
-            getattr(physics, "laimethod", LAIMethod.CALCULATED)
+            getattr(physics, "laimethod", LAIMethod.MODELLED)
         )
         require_calculated_lai = lai_method != LAIMethod.OBSERVED.value
 
         fai_method = _scalar_value(
-            getattr(physics, "frontal_area_index", FAIMethod.USE_PROVIDED)
+            getattr(physics, "frontal_area_index", FAIMethod.OBSERVED)
         )
-        require_provided_fai = fai_method == FAIMethod.USE_PROVIDED.value
+        require_provided_fai = fai_method == FAIMethod.OBSERVED.value
 
         def _raw_site_properties(site_index: int) -> Dict[str, Any]:
             """Return the raw ``sites[i].properties`` dict, or an empty
@@ -3355,9 +3355,9 @@ class SUEWSConfig(BaseModel):
             return getattr(value, "value", value)
 
         fai_method = _scalar_value(
-            getattr(physics, "frontal_area_index", FAIMethod.USE_PROVIDED)
+            getattr(physics, "frontal_area_index", FAIMethod.OBSERVED)
         )
-        require_provided_fai = fai_method == FAIMethod.USE_PROVIDED.value
+        require_provided_fai = fai_method == FAIMethod.OBSERVED.value
 
         surface_types = ["bldgs", "grass", "dectr", "evetr", "bsoil", "paved", "water"]
 

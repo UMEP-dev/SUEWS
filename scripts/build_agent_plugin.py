@@ -132,6 +132,15 @@ This repository is generated from
 plugin contents by hand; update the canonical SUEWS skill in the source
 repository and regenerate this distribution.
 
+## Repository Governance
+
+This is a generated distribution mirror, not a development repository. Treat it
+as read-only for human edits: changes should be made in `{SOURCE_REPO}`, merged
+to `master`, and then published here by the SUEWS agent-plugin sync workflow.
+
+The `main` branch should be protected so direct pushes are limited to the
+dedicated sync automation identity used by `{SOURCE_REPO}`.
+
 ## Install
 
 Claude Code:

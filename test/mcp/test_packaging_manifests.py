@@ -255,6 +255,10 @@ def test_build_agent_plugin_generates_installable_distribution(tmp_path: Path) -
     ).exists()
     assert (output / "plugins" / "suews" / "assets" / "icon.png").exists()
 
+    readme = (output / "README.md").read_text(encoding="utf-8")
+    assert "generated distribution mirror" in readme
+    assert "SUEWS agent-plugin sync workflow" in readme
+
     source = _skill_manifest(REPO_ROOT / ".claude" / "skills" / "suews")
     claude_skill = _skill_manifest(output / ".claude" / "skills" / "suews")
     codex_skill = _skill_manifest(

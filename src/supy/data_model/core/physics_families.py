@@ -24,12 +24,13 @@ continues to validate and round-trips byte-identically.
 from __future__ import annotations
 
 from collections.abc import Mapping
+from contextlib import suppress
 from enum import Enum
 from numbers import Integral, Real
+import re
 from typing import Any
 
-from .physics_orthogonal import coerce_orthogonal_to_flat
-
+from .physics_orthogonal import coerce_orthogonal_to_flat, fold_storage_heat_ohm_inc_qf
 
 PHYSICS_FAMILIES: dict[str, dict[str, frozenset[int]]] = {
     "net_radiation": {
@@ -54,6 +55,17 @@ PHYSICS_FAMILIES: dict[str, dict[str, frozenset[int]]] = {
         "biogenic_bellucco_general": frozenset({31, 32, 33, 34, 35, 36}),
         "biogenic_conductance": frozenset({41, 42, 43, 44, 45, 46}),
     },
+}
+
+PHYSICS_PUBLIC_KEY_ALIASES: dict[str, str] = {
+    # Public sample/config surface names that fold to long-standing internal
+    # ModelPhysics fields without changing the Fortran-facing state columns.
+    "leaf_area_index": "laimethod",
+    "snow": "snow_use",
+}
+
+STEBBS_PUBLIC_KEY_ALIASES: dict[str, str] = {
+    "parameter_source": "parameters",
 }
 
 _PHYSICS_NAME_SPECS: dict[str, list[tuple[int, str, tuple[str, ...]]]] = {
@@ -138,17 +150,22 @@ _PHYSICS_NAME_SPECS: dict[str, list[tuple[int, str, tuple[str, ...]]]] = {
     ],
     "soil_moisture_deficit": [
         (0, "modelled", ()),
-        (1, "observed_volumetric", ()),
-        (2, "observed_gravimetric", ()),
+        (1, "observed", ()),
     ],
     "water_use": [(0, "modelled", ()), (1, "observed", ())],
-    "laimethod": [(0, "observed", ()), (1, "calculated", ())],
+    "laimethod": [(0, "observed", ()), (1, "modelled", ())],
     "roughness_sublayer": [
         (0, "most", ()),
         (1, "rst", ("t19",)),
         (2, "variable", ()),
     ],
-    "frontal_area_index": [(0, "use_provided", ()), (1, "simple_scheme", ())],
+    "frontal_area_index": [
+        # Source-of-input selector on the shared observed/modelled axis
+        # (matches laimethod, water_use, soil_moisture_deficit). Code 0 takes
+        # the site-supplied FAI ("observed"); code 1 derives it internally.
+        (0, "observed", ()),
+        (1, "modelled", ()),
+    ],
     "roughness_sublayer_level": [
         (0, "none", ()),
         (1, "basic", ()),
@@ -236,6 +253,88 @@ def _build_lookup_tables() -> tuple[
 
 
 _CODE_TO_CANONICAL, _ALIAS_TO_CODE = _build_lookup_tables()
+_CITATION_ALIAS_RE = re.compile(r"^[a-z]{1,3}\d{2}$")
+_CITATION_PREFERRED_FIELDS = frozenset(
+    {
+        "emissions",
+        "roughness_length_momentum",
+        "roughness_length_heat",
+        "stability",
+        "surface_conductance",
+    }
+)
+_COMPATIBILITY_DISPLAY_NAMES = {
+    ("soil_moisture_deficit", 2): "observed",
+}
+_PHYSICS_CANONICAL_TO_PUBLIC = {
+    canonical_name: public_name
+    for public_name, canonical_name in PHYSICS_PUBLIC_KEY_ALIASES.items()
+}
+_STEBBS_CANONICAL_TO_PUBLIC = {
+    canonical_name: public_name
+    for public_name, canonical_name in STEBBS_PUBLIC_KEY_ALIASES.items()
+}
+
+
+def accepted_physics_names(field_name: str) -> tuple[str, ...]:
+    """Return registered readable names accepted for one physics selector."""
+    return tuple(sorted(_ALIAS_TO_CODE.get(field_name, ())))
+
+
+def canonical_physics_name(field_name: str, code: int) -> str | None:
+    """Return the canonical readable name for a physics selector code."""
+    return _CODE_TO_CANONICAL.get(field_name, {}).get(int(code))
+
+
+def preferred_physics_name(field_name: str, code: int) -> str | None:
+    """Return the preferred public readable name for a physics selector code."""
+    code_int = int(code)
+    if (field_name, code_int) in _COMPATIBILITY_DISPLAY_NAMES:
+        return _COMPATIBILITY_DISPLAY_NAMES[(field_name, code_int)]
+    if field_name in _CITATION_PREFERRED_FIELDS:
+        table = _ALIAS_TO_CODE.get(field_name, {})
+        for name, alias_code in table.items():
+            if alias_code == code_int and _CITATION_ALIAS_RE.match(name):
+                return name.upper()
+    return canonical_physics_name(field_name, code_int)
+
+
+def public_model_physics_key(field_name: str) -> str:
+    """Return the preferred public key for a top-level ModelPhysics field."""
+    return _PHYSICS_CANONICAL_TO_PUBLIC.get(field_name, field_name)
+
+
+def public_stebbs_physics_key(field_name: str) -> str:
+    """Return the preferred public key for a nested STEBBS physics field."""
+    return _STEBBS_CANONICAL_TO_PUBLIC.get(field_name, field_name)
+
+
+def fold_public_physics_key_aliases(values: dict, class_name: str) -> dict:
+    """Fold public-facing physics key aliases to canonical internal fields."""
+    for public_name, canonical_name in PHYSICS_PUBLIC_KEY_ALIASES.items():
+        if public_name not in values:
+            continue
+        if canonical_name in values:
+            raise ValueError(
+                f"{class_name}: both '{public_name}' and '{canonical_name}' are "
+                f"present. Use only '{public_name}'."
+            )
+        values[canonical_name] = values.pop(public_name)
+    return values
+
+
+def fold_stebbs_public_key_aliases(values: dict, class_name: str) -> dict:
+    """Fold public-facing nested STEBBS aliases to canonical internal leaves."""
+    for public_name, canonical_name in STEBBS_PUBLIC_KEY_ALIASES.items():
+        if public_name not in values:
+            continue
+        if canonical_name in values:
+            raise ValueError(
+                f"{class_name}: both '{public_name}' and '{canonical_name}' are "
+                f"present. Use only '{public_name}'."
+            )
+        values[canonical_name] = values.pop(public_name)
+    return values
 
 
 def resolve_scalar_name(field_name: str, name: str) -> int:
@@ -246,7 +345,16 @@ def resolve_scalar_name(field_name: str, name: str) -> int:
         return table[key]
     valid = sorted(table)
     hint = ""
-    if field_name in {"net_radiation", "emissions"}:
+    families = PHYSICS_FAMILIES.get(field_name)
+    if families and key in families:
+        # The name is a scheme *family* (e.g. net_radiation: narp / spartacus)
+        # that spans several codes, so it cannot resolve to a single scalar.
+        # Point the user at the nested family form instead of a bare scalar.
+        hint = (
+            f" {name!r} is a scheme family for '{field_name}'; give it in the "
+            f"nested form, e.g. {field_name}: {{{key}: {{value: <code>}}}}."
+        )
+    elif field_name in {"net_radiation", "emissions"}:
         hint = " Orthogonal decomposed mappings are also accepted for this field."
     raise ValueError(
         f"'{field_name}' got unknown scheme name {name!r}; valid names: {valid}.{hint}"
@@ -294,6 +402,14 @@ def _coerce_family_tag(field_name: str, value: Mapping[str, Any]) -> Any:
         raise ValueError(
             f"'{field_name}.{family}' must be a mapping with a 'value' key "
             f"(got {type(inner).__name__})."
+        )
+
+    inner_foreign = [key for key in inner if key not in {"value", "ref"}]
+    if inner_foreign:
+        raise ValueError(
+            f"'{field_name}.{family}' cannot be combined with inner keys "
+            f"{inner_foreign}. Move scheme-owned sub-options outside the "
+            f"family value form."
         )
 
     code = inner["value"]
@@ -357,6 +473,11 @@ def flatten_physics_in_config(data: Any) -> Any:
     if not isinstance(physics, dict):
         return data
 
+    fold_public_physics_key_aliases(physics, "ModelPhysics")
+
+    with suppress(TypeError, ValueError):
+        fold_storage_heat_ohm_inc_qf(physics, "ModelPhysics")
+
     for field_name in MODEL_PHYSICS_ENUM_FIELDS:
         if field_name not in physics:
             continue
@@ -368,6 +489,7 @@ def flatten_physics_in_config(data: Any) -> Any:
 
     stebbs = physics.get("stebbs")
     if isinstance(stebbs, dict) and "value" not in stebbs:
+        fold_stebbs_public_key_aliases(stebbs, "StebbsPhysics")
         for field_name in STEBBS_PHYSICS_ENUM_FIELDS:
             if field_name not in stebbs:
                 continue

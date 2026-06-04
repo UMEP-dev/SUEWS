@@ -297,6 +297,27 @@ def test_validate_single_file_rejects_negative_sfr(tmp_path: Path) -> None:
     assert errors, "expected at least one error for a negative sfr"
 
 
+def test_validate_single_file_rejects_storage_value_plus_nested_qf(
+    tmp_path: Path,
+) -> None:
+    """Malformed storage-heat family values must not be partially folded."""
+    from supy.cmd.validate_config import validate_single_file
+    from supy.data_model.schema.publisher import generate_json_schema
+
+    payload = _load_sample_dict()
+    payload["model"]["physics"]["storage_heat"] = {
+        "ohm": {"value": 1, "include_qf": False}
+    }
+    config_path = tmp_path / "bad_storage_heat.yml"
+    _write_yaml(config_path, payload)
+
+    schema = generate_json_schema()
+    is_valid, errors = validate_single_file(config_path, schema, show_details=True)
+
+    assert not is_valid
+    assert any("storage_heat.ohm" in error.message for error in errors), errors
+
+
 # ---------------------------------------------------------------------------
 # Critical-physics structural-presence — gh#1409
 # ---------------------------------------------------------------------------
@@ -476,6 +497,57 @@ def test_validate_flat_stebbs_form_not_flagged_missing(tmp_path: Path) -> None:
     assert not missing_flat, (
         f"flat-form physics switches false-flagged missing: {missing_flat}"
     )
+
+
+def test_validate_pipeline_cleans_legacy_flat_stebbs_updated_yaml(
+    tmp_path: Path,
+) -> None:
+    """gh#1497: full validate output folds old flat STEBBS switches."""
+    from supy.cmd.validate_config import cli as validate_cli
+
+    payload = _load_sample_dict()
+    physics = payload["model"]["physics"]
+    physics["stebbs"] = {"value": 0}
+    physics["outer_cap_fraction"] = {"value": 0}
+    physics["setpoint"] = {"value": 1}
+    physics["same_albedo_wall"] = {"value": 0}
+    physics["same_albedo_roof"] = {"value": 0}
+    physics["same_emissivity_wall"] = {"value": 0}
+    physics["same_emissivity_roof"] = {"value": 0}
+
+    config_path = tmp_path / "legacy_stebbs.yml"
+    _write_yaml(config_path, payload)
+
+    runner = CliRunner()
+    result = runner.invoke(validate_cli, ["--forcing", "off", str(config_path)])
+
+    assert result.exit_code == 0, result.output
+    updated_path = tmp_path / "updated_legacy_stebbs.yml"
+    assert updated_path.exists(), result.output
+    updated = yaml.safe_load(updated_path.read_text(encoding="utf-8"))
+    updated_physics = updated["model"]["physics"]
+    updated_stebbs = updated_physics["stebbs"]
+
+    assert "value" not in updated_stebbs
+    for flat_key in (
+        "capacitance",
+        "outer_cap_fraction",
+        "setpoint",
+        "same_albedo_wall",
+        "same_albedo_roof",
+        "same_emissivity_wall",
+        "same_emissivity_roof",
+    ):
+        assert flat_key not in updated_physics
+
+    assert updated_stebbs["enabled"] == {"value": False}
+    assert updated_stebbs["parameters"] == {"value": 1}
+    assert updated_stebbs["capacitance"] == {"value": 0}
+    assert updated_stebbs["setpoint"] == {"value": 1}
+    assert updated_stebbs["same_albedo_wall"] == {"value": 0}
+    assert updated_stebbs["same_albedo_roof"] == {"value": 0}
+    assert updated_stebbs["same_emissivity_wall"] == {"value": 0}
+    assert updated_stebbs["same_emissivity_roof"] == {"value": 0}
 
 
 def test_validate_full_pipeline_emits_json_envelope(tmp_path: Path) -> None:

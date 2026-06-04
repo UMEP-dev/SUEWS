@@ -1,0 +1,30 @@
+{
+  "config_hash": "6e86ee2aed7864258e298a026deed9a452ca7ea9d2a69489c9af20d4263aea44",
+  "config_schema_on_load": null,
+  "error": null,
+  "fingerprint": "04e8ed553f7d6206245ce917af749ba70c48a56d1c1266b2c650ced97fc055e3",
+  "fingerprint_rerun": "04e8ed553f7d6206245ce917af749ba70c48a56d1c1266b2c650ced97fc055e3",
+  "forcing_hash": "cd8a461423bda16c4bf60f9213392f1fa99479e5ccb24486debceb8a9b1c5bbf",
+  "forcing_note": "converted to 24-col canonical SUEWS forcing (3 LAI cols -> 1, all -999; isec dropped)",
+  "obs_hash": "202a9a41201408352dd10b4164bba5395d54dc6b798b2cfaa8557607d2338925",
+  "obs_source": "zenodo:508375/Kc1_Obs.csv (restricted sandbox)",
+  "period": {
+    "end": "2013-12-31",
+    "start": "2011-01-01"
+  },
+  "platform": {
+    "machine": "arm64",
+    "numpy": "2.4.6",
+    "os": "macOS",
+    "pandas": "2.3.3",
+    "python": "3.12.7",
+    "supy": "2025.7.6"
+  },
+  "reproducible": true,
+  "run_timestamp_utc": "2026-06-04T06:24:59.377569+00:00",
+  "schema_version": null,
+  "stats_module_hash": "ac04bd1b5ed3915b4c12c5fe2be1d9c68b88f46170b3db792bb081ebfbb76350",
+  "status": "ok",
+  "supy_version": "2025.7.6",
+  "version": "2025.7.6"
+}

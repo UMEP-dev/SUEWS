@@ -157,12 +157,11 @@ suews-mcp --help                   # should print "--root" usage
 suews knowledge manifest           # confirms the bundled pack version
 ```
 
-## Recommended path: install via the SUEWS plugin
+## Recommended path: install via the SUEWS agent plugin
 
-The `suews` plugin in `.claude-plugin/marketplace.json` (Claude Code) and
-`.codex-plugin/plugin.json` (Codex) **already references this MCP server**
-via the bundled `.mcp.json` files. Those files spawn the server through
-`uvx` (uv's tool runner):
+The generated `UMEP-dev/suews-agent` marketplace ships the `suews` plugin
+for Claude Code and Codex. Its bundled `.mcp.json` files reference this MCP
+server and spawn it through `uvx` (uv's tool runner):
 
 ```json
 { "mcpServers": { "suews": { "command": "uvx",
@@ -190,7 +189,7 @@ the published git source, not a local editable install.
 Add the marketplace once, then install the plugin:
 
 ```
-/plugin marketplace add UMEP-dev/SUEWS
+/plugin marketplace add UMEP-dev/suews-agent
 /plugin install suews@suews
 ```
 

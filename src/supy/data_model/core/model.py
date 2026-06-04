@@ -1,12 +1,12 @@
-import yaml
-from typing import Optional, Union, List
-import numpy as np
-from pydantic import ConfigDict, BaseModel, Field, field_validator, model_validator
-import pandas as pd
 from enum import Enum
 import inspect
+from typing import List, Optional, Union
 
-from .type import RefValue, Reference, FlexibleRefValue, df_from_cols
+import numpy as np
+import pandas as pd
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
+import yaml
+
 from .field_renames import (
     MODELPHYSICS_RENAMES,
     MODELPHYSICS_SUFFIX_RENAMES,
@@ -17,8 +17,11 @@ from .physics_families import (
     MODEL_PHYSICS_ENUM_FIELDS,
     STEBBS_PHYSICS_ENUM_FIELDS,
     coerce_nested_to_flat,
+    fold_public_physics_key_aliases,
+    fold_stebbs_public_key_aliases,
 )
-from .physics_orthogonal import coerce_orthogonal_to_flat
+from .physics_orthogonal import coerce_orthogonal_to_flat, fold_storage_heat_ohm_inc_qf
+from .type import FlexibleRefValue, Reference, RefValue, df_from_cols
 
 
 def _enum_description(enum_class: type[Enum]) -> str:
@@ -417,11 +420,11 @@ class LAIMethod(Enum):
     Method for determining leaf area index (LAI).
 
     0: OBSERVED - Uses observed LAI values from the forcing file (lai column); the same value is applied to every vegetation class each day, and every timestep must carry a non-missing, non-negative observation. The -999 missing sentinel (and other negative placeholders) is not permitted on this path. Genuine zero observations are honoured.
-    1: CALCULATED - LAI calculated internally from growing-degree-day (GDD) and senescence-degree-day (SDD) thresholds.
+    1: MODELLED - LAI modelled internally from growing-degree-day (GDD) and senescence-degree-day (SDD) thresholds.
     """
 
     OBSERVED = 0
-    CALCULATED = 1
+    MODELLED = 1
 
     def __int__(self):
         return self.value
@@ -454,12 +457,12 @@ class FAIMethod(Enum):
     """
     Method for calculating frontal area index (FAI) - the ratio of frontal area to plan area.
 
-    0: USE_PROVIDED - Use FAI values provided in site parameters (FAIBldg, FAIEveTree, FAIDecTree)
-    1: SIMPLE_SCHEME - Calculate FAI using simple scheme based on surface fractions and heights (see issue #192)
+    0: OBSERVED - Use FAI values provided in site parameters (FAIBldg, FAIEveTree, FAIDecTree)
+    1: MODELLED - Calculate FAI using simple scheme based on surface fractions and heights (see issue #192)
     """
 
-    USE_PROVIDED = 0  # Use FAI values from site parameters
-    SIMPLE_SCHEME = 1  # Calculate FAI using simple scheme (sqrt(fr)*h for buildings, empirical for trees)
+    OBSERVED = 0  # Use FAI values from site parameters
+    MODELLED = 1  # Calculate FAI using simple scheme (sqrt(fr)*h for buildings, empirical for trees)
 
     def __new__(cls, value):
         obj = object.__new__(cls)
@@ -766,7 +769,11 @@ class StebbsPhysics(BaseModel):
             "Master on/off switch for STEBBS. When false, STEBBS calculations "
             "are disabled and `parameters` is ignored."
         ),
-        json_schema_extra={"unit": "dimensionless"},
+        json_schema_extra={
+            "unit": "dimensionless",
+            "provides_to": ["stebbs.capacitance"],
+            "note": "Enables the STEBBS branch; capacitance/RC options are only meaningful when STEBBS is enabled.",
+        },
     )
     parameters: FlexibleRefValue(StebbsParameterSource) = Field(
         default=StebbsParameterSource.DEFAULT,
@@ -776,7 +783,11 @@ class StebbsPhysics(BaseModel):
     capacitance: FlexibleRefValue(RCMethod) = Field(
         default=RCMethod.DEFAULT,
         description=_enum_description(RCMethod),
-        json_schema_extra={"unit": "dimensionless"},
+        json_schema_extra={
+            "unit": "dimensionless",
+            "depends_on": ["stebbs.enabled"],
+            "note": "Only meaningful when STEBBS is enabled; controls building-envelope heat-capacity splitting.",
+        },
     )
     setpoint: FlexibleRefValue(SetpointMethod) = Field(
         default=SetpointMethod.CONSTANT,
@@ -806,6 +817,13 @@ class StebbsPhysics(BaseModel):
 
     ref: Optional[Reference] = None
 
+    @model_validator(mode="before")
+    @classmethod
+    def _coerce_public_key_aliases(cls, values):
+        if isinstance(values, dict):
+            return fold_stebbs_public_key_aliases(values, cls.__name__)
+        return values
+
     @field_validator("enabled", "parameters", mode="after")
     @classmethod
     def _require_master_switch_values(cls, value):
@@ -833,6 +851,7 @@ class ModelPhysics(BaseModel):
     @classmethod
     def _rename_physics_fields(cls, values):
         if isinstance(values, dict):
+            values = fold_public_physics_key_aliases(values, cls.__name__)
             # Cat 1 first (fused -> snake_case with suffix), then Cat 2 + 3
             # (suffix drop + abbreviation expansion). Chaining lets a single
             # YAML carrying either legacy shape land on the final name.
@@ -840,6 +859,9 @@ class ModelPhysics(BaseModel):
             values = apply_field_renames(
                 values, MODELPHYSICS_SUFFIX_RENAMES, cls.__name__
             )
+            # gh#1483: expose OHMIncQF under the storage_heat selector while
+            # preserving the flat field used by the internal/Fortran state.
+            values = fold_storage_heat_ohm_inc_qf(values, cls.__name__)
             # gh#1456: fold the legacy flat STEBBS switches into the nested
             # `stebbs` object. Runs after the key renames so a YAML carrying
             # either fused or snake_case legacy spellings lands here. The fold
@@ -860,40 +882,72 @@ class ModelPhysics(BaseModel):
     net_radiation: FlexibleRefValue(NetRadiationMethod) = Field(
         default=NetRadiationMethod.LDOWN_AIR,
         description=_enum_description(NetRadiationMethod),
-        json_schema_extra={"unit": "dimensionless"},
+        json_schema_extra={
+            "unit": "dimensionless",
+            "depends_on": ["snow_use"],
+            "provides_to": ["storage_heat"],
+            "note": "Values above 1000 activate SPARTACUS-Surface and provide facet radiation required by EHC storage heat.",
+        },
     )
     emissions: FlexibleRefValue(EmissionsMethod) = Field(
         default=EmissionsMethod.J11,
         description=_enum_description(EmissionsMethod),
-        json_schema_extra={"unit": "dimensionless"},
+        json_schema_extra={
+            "unit": "dimensionless",
+            "provides_to": ["ohm_inc_qf", "energy_balance"],
+            "note": "Determines anthropogenic heat flux (QF) used by the energy balance and OHM QF-inclusion switch.",
+        },
     )
     storage_heat: FlexibleRefValue(StorageHeatMethod) = Field(
         default=StorageHeatMethod.OHM_WITHOUT_QF,
         description=_enum_description(StorageHeatMethod),
-        json_schema_extra={"unit": "dimensionless"},
+        json_schema_extra={
+            "unit": "dimensionless",
+            "depends_on": ["net_radiation", "ohm_inc_qf", "snow_use", "stebbs"],
+            "provides_to": ["energy_balance"],
+            "note": "EHC (5) requires SPARTACUS net radiation; STEBBS storage heat (7) requires STEBBS enabled; OHM-like paths use OhmIncQf.",
+        },
     )
     ohm_inc_qf: FlexibleRefValue(OhmIncQf) = Field(
         default=OhmIncQf.EXCLUDE,
         description=_enum_description(OhmIncQf),
-        json_schema_extra={"unit": "dimensionless"},
+        json_schema_extra={
+            "unit": "dimensionless",
+            "depends_on": ["emissions", "storage_heat"],
+            "provides_to": ["storage_heat"],
+            "note": "Controls whether QF from emissions is added to Q* in OHM-based storage heat calculations.",
+        },
     )
     roughness_length_momentum: FlexibleRefValue(MomentumRoughnessMethod) = Field(
         default=MomentumRoughnessMethod.VARIABLE,
         description=_enum_description(MomentumRoughnessMethod),
-        json_schema_extra={"unit": "dimensionless"},
+        json_schema_extra={
+            "unit": "dimensionless",
+            "provides_to": ["roughness_length_heat", "stability"],
+            "note": "Calculates momentum roughness length (z0m), which feeds heat roughness length and stability corrections.",
+        },
     )
     roughness_length_heat: FlexibleRefValue(HeatRoughnessMethod) = Field(
         default=HeatRoughnessMethod.KAWAI,
         description=_enum_description(HeatRoughnessMethod),
-        json_schema_extra={"unit": "dimensionless"},
+        json_schema_extra={
+            "unit": "dimensionless",
+            "depends_on": ["roughness_length_momentum"],
+            "provides_to": ["stability"],
+            "note": "Calculates heat roughness length (z0h) from z0m for stability corrections.",
+        },
     )
     stability: FlexibleRefValue(StabilityMethod) = Field(
         default=StabilityMethod.CAMPBELL_NORMAN,
         description=_enum_description(StabilityMethod),
         json_schema_extra={
             "unit": "dimensionless",
-            "provides_to": ["roughness_sublayer"],
-            "note": "Provides stability correction functions used by roughness_sublayer calculations",
+            "provides_to": [
+                "roughness_length_momentum",
+                "roughness_length_heat",
+                "roughness_sublayer",
+            ],
+            "note": "Provides stability correction functions used by roughness-length and roughness_sublayer calculations.",
         },
     )
     soil_moisture_deficit: FlexibleRefValue(SMDMethod) = Field(
@@ -907,7 +961,7 @@ class ModelPhysics(BaseModel):
         json_schema_extra={"unit": "dimensionless"},
     )
     laimethod: FlexibleRefValue(LAIMethod) = Field(
-        default=LAIMethod.CALCULATED,
+        default=LAIMethod.MODELLED,
         description=_enum_description(LAIMethod),
         json_schema_extra={
             "unit": "dimensionless",
@@ -925,7 +979,7 @@ class ModelPhysics(BaseModel):
         },
     )
     frontal_area_index: FlexibleRefValue(FAIMethod) = Field(
-        default=FAIMethod.USE_PROVIDED,
+        default=FAIMethod.OBSERVED,
         description=_enum_description(FAIMethod),
         json_schema_extra={"unit": "dimensionless"},
     )
@@ -951,7 +1005,15 @@ class ModelPhysics(BaseModel):
     snow_use: FlexibleRefValue(SnowUse) = Field(
         default=SnowUse.DISABLED,
         description=_enum_description(SnowUse),
-        json_schema_extra={"unit": "dimensionless"},
+        json_schema_extra={
+            "unit": "dimensionless",
+            "provides_to": [
+                "net_radiation",
+                "storage_heat",
+                "roughness_sublayer_level",
+            ],
+            "note": "Controls snow processes that affect radiation dispatch, storage heat, and near-surface conductance adjustments.",
+        },
     )
     stebbs: StebbsPhysics = Field(
         default_factory=StebbsPhysics,
@@ -960,6 +1022,11 @@ class ModelPhysics(BaseModel):
             "parameters), capacitance method, setpoint method, and the "
             "same-albedo / same-emissivity wall/roof switches."
         ),
+        json_schema_extra={
+            "depends_on": ["storage_heat"],
+            "provides_to": ["stebbs.capacitance"],
+            "note": "When storage_heat selects STEBBS (7), this block enables and parameterises the STEBBS contribution to storage heat.",
+        },
     )
 
     ref: Optional[Reference] = None
@@ -1061,7 +1128,7 @@ class ModelPhysics(BaseModel):
 
         # New options: optional in legacy DataFrames, default if missing
         optional_new_attrs_with_defaults = {
-            "laimethod": LAIMethod.CALCULATED,
+            "laimethod": LAIMethod.MODELLED,
         }
 
         for attr in required_attrs:

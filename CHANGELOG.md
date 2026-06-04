@@ -41,7 +41,7 @@ EXAMPLES:
 
 | Year | Features | Bugfixes | Changes | Maintenance | Docs | Total |
 |------|----------|----------|---------|-------------|------|-------|
-| 2026 | 75 | 83 | 30 | 81 | 40 | 310 |
+| 2026 | 77 | 83 | 30 | 81 | 40 | 312 |
 | 2025 | 60 | 68 | 22 | 71 | 36 | 256 |
 | 2024 | 12 | 17 | 1 | 12 | 1 | 43 |
 | 2023 | 11 | 14 | 3 | 9 | 1 | 38 |
@@ -53,6 +53,29 @@ EXAMPLES:
 | 2017 | 9 | 0 | 3 | 2 | 0 | 14 |
 
 ## 2026
+
+### 3 Jun 2026
+
+- [change][experimental] Align physics method selectors on the observed/modelled axis (#1501)
+  - `model.physics.frontal_area_index` now exposes only the canonical readable names `observed` and `modelled`; the synonym aliases `provided`, `use_provided`, and `simple_scheme` are removed so it matches `laimethod`, `water_use`, and `soil_moisture_deficit`
+  - Internal source-of-input enums aligned to one vocabulary: `LAIMethod.CALCULATED` becomes `MODELLED`, and `FAIMethod.USE_PROVIDED` / `SIMPLE_SCHEME` become `OBSERVED` / `MODELLED`; integer values are unchanged, so existing YAML and `df_state` round-trip identically
+  - `net_radiation` scalar-name errors now point scheme families (`narp`, `spartacus`) at the nested family form rather than only listing the `ldown_*` names
+
+### 1 Jun 2026
+
+- [feature][experimental] Expose active physics selectors in `suews inspect` output (#1484)
+  - `suews inspect --format json` now includes a structured `physics` block so CLI/MCP clients and AI agents can see each active `model.physics` selector, its numeric code, and accepted readable names without re-deriving them from schema internals
+  - The inspect surface uses public-facing keys such as `leaf_area_index`, `snow`, and `stebbs.parameter_source`, while carrying `internal_key` for the long-standing Fortran-facing names where useful
+  - `storage_heat.ohm.include_qf` is reported under the active OHM storage-heat branch rather than as a top-level `ohm_inc_qf` selector, and is hidden when OHM is not selected
+
+- [feature][experimental] Advertise readable sample-config physics defaults with nested orthogonal groupings (#1483)
+  - `model.physics.storage_heat.ohm.include_qf` now represents the OHM QF inclusion choice under the storage heat selector in the sample config, while legacy flat `ohm_inc_qf` input remains accepted and normalised to the existing Fortran-facing state
+  - `model.physics.net_radiation.narp.ldown` is accepted as the scheme-scoped spelling for NARP longwave forcing options, while the existing `scheme: narp` form remains accepted
+  - The sample also uses readable net-radiation and emissions groupings plus citation-style aliases such as `J11`, `K09`, `CN98`, and `W16` so new YAML users see semantic axes rather than opaque integer method codes
+  - `model.physics.leaf_area_index` and `model.physics.snow` are accepted as public-facing aliases for the existing LAI and snow switches, folding back to `laimethod` and `snow_use` internally
+  - Source-choice physics options now use the consistent public names `observed` and `modelled`; older readable aliases such as `provided`, `use_provided`, and `simple_scheme` remain accepted where already introduced, while `laimethod: calculated` and `laimethod: model` are no longer readable public options
+  - `model.physics.soil_moisture_deficit` now exposes only `modelled` and `observed` as readable public names; the old volumetric/gravimetric split remains an internal numeric compatibility path pending the water/soil-moisture unit unification work
+  - `model.physics.stebbs.parameter_source` is accepted as the public nested spelling for the STEBBS parameter-source choice, folding back to `stebbs.parameters` internally
 
 ### 31 May 2026
 

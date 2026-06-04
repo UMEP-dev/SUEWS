@@ -1,0 +1,24 @@
+# SUEWS multi-version benchmark proof — local-only artefacts
+#
+# SENSITIVE inputs: never commit observations or forcing (raw or derived).
+inputs/Kc1_data_ldown.txt
+inputs/Kc1_Obs.csv
+inputs/Kc1_forcing_canonical.txt
+
+# Fetched obs + forcing (restricted Zenodo) and run scratch — sensitive / transient.
+# Any underscore-prefixed results dir is scratch and must never be committed.
+results/_obs_fetch/
+results/_zsupply/
+results/_fromzenodo/
+results/_*/
+
+# Per-version pinned virtualenvs (large, machine-specific)
+.venv-*/
+
+# Model run scratch / SUEWS logs
+results/**/run/
+SuPy.log
+
+# Python cache
+__pycache__/
+*.pyc

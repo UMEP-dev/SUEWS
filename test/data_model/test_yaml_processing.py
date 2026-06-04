@@ -51,6 +51,7 @@ from supy.data_model.validation.pipeline.phase_a import (
     PHYSICS_OPTIONS,
     RENAMED_PARAMS,
     _is_default_backed_control_path,
+    _normalise_phase_a_compatibility,
     annotate_missing_parameters,
     create_analysis_report,
     create_clean_missing_param_annotation,
@@ -582,6 +583,108 @@ sites:
             report_content = report_file.read_text(encoding="utf-8")
             self.assertIn("forcing_file changed to forcing.file", report_content)
             self.assertIn("output_file changed to output", report_content)
+
+    def test_gh1497_flat_stebbs_physics_is_folded_before_phase_a_output(self):
+        """Legacy flat STEBBS switches should not survive in updated YAML."""
+        data = deepcopy(self.standard_data)
+        physics = data["model"]["physics"]
+        physics["stebbs"] = {
+            "value": 0,
+            "capacitance": {"value": None},
+            "setpoint": {"value": None},
+            "same_albedo_wall": {"value": None},
+            "same_albedo_roof": {"value": None},
+            "same_emissivity_wall": {"value": None},
+            "same_emissivity_roof": {"value": None},
+        }
+        physics["outer_cap_fraction"] = {"value": 2}
+        physics["setpoint"] = {"value": 1}
+        physics["same_albedo_wall"] = {"value": 0}
+        physics["same_albedo_roof"] = {"value": 1}
+        physics["same_emissivity_wall"] = {"value": 0}
+        physics["same_emissivity_roof"] = {"value": 1}
+
+        missing_paths = {
+            path for path, _, _ in find_missing_parameters(data, self.standard_data)
+        }
+        extra_paths = set(find_extra_parameters(data, self.standard_data))
+
+        for leaf in (
+            "capacitance",
+            "setpoint",
+            "same_albedo_wall",
+            "same_albedo_roof",
+            "same_emissivity_wall",
+            "same_emissivity_roof",
+        ):
+            self.assertNotIn(f"model.physics.stebbs.{leaf}", missing_paths)
+            self.assertNotIn(f"model.physics.{leaf}", extra_paths)
+        self.assertNotIn("model.physics.outer_cap_fraction", extra_paths)
+        self.assertNotIn("model.physics.stebbs.value", extra_paths)
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            tmp_path = Path(tmpdir)
+            user_file = tmp_path / "legacy-stebbs.yml"
+            standard_file = tmp_path / "standard.yml"
+            updated_file = tmp_path / "updated.yml"
+            report_file = tmp_path / "report.txt"
+
+            user_file.write_text(
+                yaml.safe_dump(data, sort_keys=False),
+                encoding="utf-8",
+            )
+            standard_file.write_text(
+                yaml.safe_dump(self.standard_data, sort_keys=False),
+                encoding="utf-8",
+            )
+
+            annotate_missing_parameters(
+                user_file=str(user_file),
+                standard_file=str(standard_file),
+                uptodate_file=str(updated_file),
+                report_file=str(report_file),
+                mode="public",
+                phase="A",
+                forcing="off",
+            )
+
+            updated_data = yaml.safe_load(updated_file.read_text(encoding="utf-8"))
+            updated_physics = updated_data["model"]["physics"]
+            updated_stebbs = updated_physics["stebbs"]
+
+            self.assertNotIn("value", updated_stebbs)
+            self.assertNotIn("capacitance", updated_physics)
+            self.assertNotIn("outer_cap_fraction", updated_physics)
+            self.assertNotIn("setpoint", updated_physics)
+            self.assertNotIn("same_albedo_wall", updated_physics)
+            self.assertEqual(updated_stebbs["enabled"], {"value": False})
+            self.assertEqual(updated_stebbs["parameters"], {"value": 1})
+            self.assertEqual(updated_stebbs["capacitance"], {"value": 2})
+            self.assertEqual(updated_stebbs["setpoint"], {"value": 1})
+            self.assertEqual(updated_stebbs["same_albedo_wall"], {"value": 0})
+            self.assertEqual(updated_stebbs["same_albedo_roof"], {"value": 1})
+            self.assertEqual(updated_stebbs["same_emissivity_wall"], {"value": 0})
+            self.assertEqual(updated_stebbs["same_emissivity_roof"], {"value": 1})
+
+            report_content = report_file.read_text(encoding="utf-8")
+            self.assertNotIn("model.physics.stebbs.value", report_content)
+            self.assertNotIn("model.physics.capacitance", report_content)
+            self.assertNotIn("model.physics.same_albedo_wall", report_content)
+
+    def test_gh1497_malformed_stebbs_value_is_not_silently_dropped(self):
+        """Phase A cleanup must not hide an invalid legacy master toggle."""
+        data = deepcopy(self.standard_data)
+        physics = data["model"]["physics"]
+        physics["stebbs"] = {"value": 9}
+        physics["outer_cap_fraction"] = {"value": 0}
+
+        normalised, _ = _normalise_phase_a_compatibility(data)
+        normalised_physics = normalised["model"]["physics"]
+        normalised_stebbs = normalised_physics["stebbs"]
+
+        self.assertEqual(normalised_stebbs["value"], 9)
+        self.assertEqual(normalised_stebbs["capacitance"], {"value": 0})
+        self.assertNotIn("outer_cap_fraction", normalised_physics)
 
     def test_gh1417_empty_current_output_wins_over_legacy_duplicate(self):
         """An empty current output block is valid and should not be overwritten."""

@@ -3878,7 +3878,7 @@
       "type": "object"
     },
     "FAIMethod": {
-      "description": "Method for calculating frontal area index (FAI) - the ratio of frontal area to plan area.\n\n0: USE_PROVIDED - Use FAI values provided in site parameters (FAIBldg, FAIEveTree, FAIDecTree)\n1: SIMPLE_SCHEME - Calculate FAI using simple scheme based on surface fractions and heights (see issue #192)",
+      "description": "Method for calculating frontal area index (FAI) - the ratio of frontal area to plan area.\n\n0: OBSERVED - Use FAI values provided in site parameters (FAIBldg, FAIEveTree, FAIDecTree)\n1: MODELLED - Calculate FAI using simple scheme based on surface fractions and heights (see issue #192)",
       "enum": [
         0,
         1
@@ -6720,7 +6720,7 @@
       "type": "object"
     },
     "LAIMethod": {
-      "description": "Method for determining leaf area index (LAI).\n\n0: OBSERVED - Uses observed LAI values from the forcing file (lai column); the same value is applied to every vegetation class each day, and every timestep must carry a non-missing, non-negative observation. The -999 missing sentinel (and other negative placeholders) is not permitted on this path. Genuine zero observations are honoured.\n1: CALCULATED - LAI calculated internally from growing-degree-day (GDD) and senescence-degree-day (SDD) thresholds.",
+      "description": "Method for determining leaf area index (LAI).\n\n0: OBSERVED - Uses observed LAI values from the forcing file (lai column); the same value is applied to every vegetation class each day, and every timestep must carry a non-missing, non-negative observation. The -999 missing sentinel (and other negative placeholders) is not permitted on this path. Genuine zero observations are honoured.\n1: MODELLED - LAI modelled internally from growing-degree-day (GDD) and senescence-degree-day (SDD) thresholds.",
       "enum": [
         0,
         1
@@ -7180,7 +7180,14 @@
             }
           ],
           "default": 3,
+          "depends_on": [
+            "snow_use"
+          ],
           "description": "Method for calculating net all-wave radiation (Q*). Options: 0 (OBSERVED) = Uses observed Q* values from forcing file; 1 (LDOWN_OBSERVED) = Models Q* using NARP (Net All-wave Radiation Parameterization; Offerle et al. 2003, Loridan et al. 2011) with observed longwave down radiation (L\u2193) from forcing file; 2 (LDOWN_CLOUD) = Models Q* using NARP with L\u2193 estimated from cloud cover fraction; 3 (LDOWN_AIR) = Models Q* using NARP with L\u2193 estimated from air temperature and relative humidity; 11 (LDOWN_SURFACE) = Surface temperature variant of method 1 (not recommended); 12 (LDOWN_CLOUD_SURFACE) = Surface temperature variant of method 2 (not recommended); 13 (LDOWN_AIR_SURFACE) = Surface temperature variant of method 3 (not recommended); 100 (LDOWN_ZENITH) = Zenith angle correction variant of method 1 (not recommended); 200 (LDOWN_CLOUD_ZENITH) = Zenith angle correction variant of method 2 (not recommended); 300 (LDOWN_AIR_ZENITH) = Zenith angle correction variant of method 3 (not recommended); 1001 (LDOWN_SS_OBSERVED) = SPARTACUS-Surface integration with observed L\u2193 (experimental); 1002 (LDOWN_SS_CLOUD) = SPARTACUS-Surface integration with L\u2193 from cloud fraction (experimental); 1003 (LDOWN_SS_AIR) = SPARTACUS-Surface integration with L\u2193 from air temperature/humidity (experimental)",
+          "note": "Values above 1000 activate SPARTACUS-Surface and provide facet radiation required by EHC storage heat.",
+          "provides_to": [
+            "storage_heat"
+          ],
           "title": "Net Radiation",
           "unit": "dimensionless"
         },
@@ -7195,6 +7202,11 @@
           ],
           "default": 2,
           "description": "Method for calculating anthropogenic heat flux (QF) and CO2 emissions. Options: 0 (OBSERVED) = Uses observed QF values from forcing file (set to zero to exclude QF from energy balance); 1 (L11) = Loridan et al. (2011) SAHP method with air temperature and population density; 2 (J11) = J\u00e4rvi et al. (2011) SAHP_2 method with heating/cooling degree days; 3 (L11_UPDATED) = Modified Loridan method using daily mean air temperature; 4 (J19) = Detailed anthropogenic heat branch with L11 heat basis; CO2 output disabled by the driver for non-biogenic codes; 5 (J19_UPDATED) = Detailed anthropogenic heat branch with J11 heat basis; CO2 output disabled by the driver for non-biogenic codes; 6 (L11_UPDATED_DETAILED) = Detailed anthropogenic heat branch with L11_UPDATED heat basis; CO2 output disabled by the driver for non-biogenic codes; 11 (BIOGEN_RECT_L11) = Rectangular hyperbola biogenic CO2 + QF-linked anthropogenic CO2 + L11 heat (experimental); 12 (BIOGEN_RECT_J11) = Rectangular hyperbola biogenic CO2 + QF-linked anthropogenic CO2 + J11 heat (experimental); 13 (BIOGEN_RECT_L11_UPDATED) = Rectangular hyperbola biogenic CO2 + QF-linked anthropogenic CO2 + L11_UPDATED heat (experimental); 14 (BIOGEN_RECT_L11_DETAILED) = Rectangular hyperbola biogenic CO2 + detailed anthropogenic CO2 + L11 heat (experimental); 15 (BIOGEN_RECT_J11_DETAILED) = Rectangular hyperbola biogenic CO2 + detailed anthropogenic CO2 + J11 heat (experimental); 16 (BIOGEN_RECT_L11_UPDATED_DETAILED) = Rectangular hyperbola biogenic CO2 + detailed anthropogenic CO2 + L11_UPDATED heat (experimental); 21 (BIOGEN_BELLUCCO_LOCAL_L11) = Bellucco local biogenic CO2 + QF-linked anthropogenic CO2 + L11 heat (experimental); 22 (BIOGEN_BELLUCCO_LOCAL_J11) = Bellucco local biogenic CO2 + QF-linked anthropogenic CO2 + J11 heat (experimental); 23 (BIOGEN_BELLUCCO_LOCAL_L11_UPDATED) = Bellucco local biogenic CO2 + QF-linked anthropogenic CO2 + L11_UPDATED heat (experimental); 24 (BIOGEN_BELLUCCO_LOCAL_L11_DETAILED) = Bellucco local biogenic CO2 + detailed anthropogenic CO2 + L11 heat (experimental); 25 (BIOGEN_BELLUCCO_LOCAL_J11_DETAILED) = Bellucco local biogenic CO2 + detailed anthropogenic CO2 + J11 heat (experimental); 26 (BIOGEN_BELLUCCO_LOCAL_L11_UPDATED_DETAILED) = Bellucco local biogenic CO2 + detailed anthropogenic CO2 + L11_UPDATED heat (experimental); 31 (BIOGEN_BELLUCCO_GENERAL_L11) = Bellucco general biogenic CO2 + QF-linked anthropogenic CO2 + L11 heat (experimental); 32 (BIOGEN_BELLUCCO_GENERAL_J11) = Bellucco general biogenic CO2 + QF-linked anthropogenic CO2 + J11 heat (experimental); 33 (BIOGEN_BELLUCCO_GENERAL_L11_UPDATED) = Bellucco general biogenic CO2 + QF-linked anthropogenic CO2 + L11_UPDATED heat (experimental); 34 (BIOGEN_BELLUCCO_GENERAL_L11_DETAILED) = Bellucco general biogenic CO2 + detailed anthropogenic CO2 + L11 heat (experimental); 35 (BIOGEN_BELLUCCO_GENERAL_J11_DETAILED) = Bellucco general biogenic CO2 + detailed anthropogenic CO2 + J11 heat (experimental); 36 (BIOGEN_BELLUCCO_GENERAL_L11_UPDATED_DETAILED) = Bellucco general biogenic CO2 + detailed anthropogenic CO2 + L11_UPDATED heat (experimental); 41 (BIOGEN_CONDUCTANCE_L11) = Conductance-based biogenic CO2 + QF-linked anthropogenic CO2 + L11 heat (experimental); 42 (BIOGEN_CONDUCTANCE_J11) = Conductance-based biogenic CO2 + QF-linked anthropogenic CO2 + J11 heat (experimental); 43 (BIOGEN_CONDUCTANCE_L11_UPDATED) = Conductance-based biogenic CO2 + QF-linked anthropogenic CO2 + L11_UPDATED heat (experimental); 44 (BIOGEN_CONDUCTANCE_L11_DETAILED) = Conductance-based biogenic CO2 + detailed anthropogenic CO2 + L11 heat (experimental); 45 (BIOGEN_CONDUCTANCE_J11_DETAILED) = Conductance-based biogenic CO2 + detailed anthropogenic CO2 + J11 heat (experimental); 46 (BIOGEN_CONDUCTANCE_L11_UPDATED_DETAILED) = Conductance-based biogenic CO2 + detailed anthropogenic CO2 + L11_UPDATED heat (experimental)",
+          "note": "Determines anthropogenic heat flux (QF) used by the energy balance and OHM QF-inclusion switch.",
+          "provides_to": [
+            "ohm_inc_qf",
+            "energy_balance"
+          ],
           "title": "Emissions",
           "unit": "dimensionless"
         },
@@ -7208,7 +7220,17 @@
             }
           ],
           "default": 1,
+          "depends_on": [
+            "net_radiation",
+            "ohm_inc_qf",
+            "snow_use",
+            "stebbs"
+          ],
           "description": "Method for calculating storage heat flux (\u0394QS). Options: 0 (OBSERVED) = Uses observed \u0394QS values from forcing file; 1 (OHM_WITHOUT_QF) = Objective Hysteresis Model using Q* only (use with OhmIncQf=0); 3 (ANOHM) = Analytical OHM (Sun et al., 2017) - not recommended; 4 (ESTM) = Element Surface Temperature Method (Offerle et al., 2005) - not recommended; 5 (EHC) = Explicit Heat Conduction model with separate roof/wall/ground temperatures; 6 (DyOHM) = Dynamic Objective Hysteresis Model (Liu et al., 2025) with dynamic coefficients; 7 (STEBBS) = use STEBBS storage heat flux for building, others use OHM",
+          "note": "EHC (5) requires SPARTACUS net radiation; STEBBS storage heat (7) requires STEBBS enabled; OHM-like paths use OhmIncQf.",
+          "provides_to": [
+            "energy_balance"
+          ],
           "title": "Storage Heat",
           "unit": "dimensionless"
         },
@@ -7222,7 +7244,15 @@
             }
           ],
           "default": 0,
+          "depends_on": [
+            "emissions",
+            "storage_heat"
+          ],
           "description": "Controls inclusion of anthropogenic heat flux in OHM storage heat calculations. Options: 0 (EXCLUDE) = Use Q* only (required when StorageHeatMethod=1); 1 (INCLUDE) = Use Q*+QF (for other OHM-based storage heat methods)",
+          "note": "Controls whether QF from emissions is added to Q* in OHM-based storage heat calculations.",
+          "provides_to": [
+            "storage_heat"
+          ],
           "title": "Ohm Inc Qf",
           "unit": "dimensionless"
         },
@@ -7237,6 +7267,11 @@
           ],
           "default": 2,
           "description": "Method for calculating momentum roughness length (z0m). Options: 1 (FIXED) = Fixed roughness length from site parameters; 2 (VARIABLE) = Variable based on vegetation LAI using rule of thumb (Grimmond & Oke 1999); 3 (MACDONALD) = MacDonald et al. (1998) morphometric method based on building geometry; 4 (LAMBDAP_DEPENDENT) = Varies with plan area fraction \u03bbp (Grimmond & Oke 1999); 5 (ALTERNATIVE) = Alternative variable method",
+          "note": "Calculates momentum roughness length (z0m), which feeds heat roughness length and stability corrections.",
+          "provides_to": [
+            "roughness_length_heat",
+            "stability"
+          ],
           "title": "Roughness Length Momentum",
           "unit": "dimensionless"
         },
@@ -7250,7 +7285,14 @@
             }
           ],
           "default": 2,
+          "depends_on": [
+            "roughness_length_momentum"
+          ],
           "description": "Method for calculating thermal roughness length (z0h). Options: 1 (BRUTSAERT) = Brutsaert (1982) z0h = z0m/10 (see Grimmond & Oke 1986); 2 (KAWAI) = Kawai et al. (2009) formulation; 3 (VOOGT_GRIMMOND) = Voogt and Grimmond (2000) formulation; 4 (KANDA) = Kanda et al. (2007) formulation; 5 (ADAPTIVE) = Adaptively using z0m based on pervious coverage: if fully pervious, use method 1; otherwise, use method 2",
+          "note": "Calculates heat roughness length (z0h) from z0m for stability corrections.",
+          "provides_to": [
+            "stability"
+          ],
           "title": "Roughness Length Heat",
           "unit": "dimensionless"
         },
@@ -7265,8 +7307,10 @@
           ],
           "default": 3,
           "description": "Atmospheric stability correction functions for momentum and heat fluxes. Options: 0 (NOT_USED) = Reserved; 1 (NOT_USED2) = Reserved; 2 (HOEGSTROM) = Dyer (1974)/H\u00f6gstr\u00f6m (1988) for momentum, Van Ulden & Holtslag (1985) for stable conditions (not recommended); 3 (CAMPBELL_NORMAN) = Campbell & Norman (1998) formulations for both momentum and heat; 4 (BUSINGER_HOEGSTROM) = Businger et al. (1971)/H\u00f6gstr\u00f6m (1988) formulations (not recommended)",
-          "note": "Provides stability correction functions used by roughness_sublayer calculations",
+          "note": "Provides stability correction functions used by roughness-length and roughness_sublayer calculations.",
           "provides_to": [
+            "roughness_length_momentum",
+            "roughness_length_heat",
             "roughness_sublayer"
           ],
           "title": "Stability",
@@ -7310,7 +7354,7 @@
             }
           ],
           "default": 1,
-          "description": "Method for determining leaf area index (LAI). Options: 0 (OBSERVED) = Uses observed LAI values from the forcing file (lai column); the same value is applied to every vegetation class each day, and every timestep must carry a non-missing, non-negative observation. The -999 missing sentinel (and other negative placeholders) is not permitted on this path. Genuine zero observations are honoured.; 1 (CALCULATED) = LAI calculated internally from growing-degree-day (GDD) and senescence-degree-day (SDD) thresholds.",
+          "description": "Method for determining leaf area index (LAI). Options: 0 (OBSERVED) = Uses observed LAI values from the forcing file (lai column); the same value is applied to every vegetation class each day, and every timestep must carry a non-missing, non-negative observation. The -999 missing sentinel (and other negative placeholders) is not permitted on this path. Genuine zero observations are honoured.; 1 (MODELLED) = LAI modelled internally from growing-degree-day (GDD) and senescence-degree-day (SDD) thresholds.",
           "note": "Set to 0 (OBSERVED) to prescribe LAI from the lai column of the meteorological forcing.",
           "title": "Laimethod",
           "unit": "dimensionless"
@@ -7346,7 +7390,7 @@
             }
           ],
           "default": 0,
-          "description": "Method for calculating frontal area index (FAI) - the ratio of frontal area to plan area. Options: 0 (USE_PROVIDED) = Use FAI values provided in site parameters (FAIBldg, FAIEveTree, FAIDecTree); 1 (SIMPLE_SCHEME) = Calculate FAI using simple scheme based on surface fractions and heights (see issue #192)",
+          "description": "Method for calculating frontal area index (FAI) - the ratio of frontal area to plan area. Options: 0 (OBSERVED) = Use FAI values provided in site parameters (FAIBldg, FAIEveTree, FAIDecTree); 1 (MODELLED) = Calculate FAI using simple scheme based on surface fractions and heights (see issue #192)",
           "title": "Frontal Area Index",
           "unit": "dimensionless"
         },
@@ -7400,12 +7444,25 @@
           ],
           "default": 0,
           "description": "Controls snow process calculations (J\u00e4rvi et al. 2014). Options: 0 (DISABLED) = Snow processes not included; 1 (ENABLED) = Snow accumulation, melt, and albedo effects included",
+          "note": "Controls snow processes that affect radiation dispatch, storage heat, and near-surface conductance adjustments.",
+          "provides_to": [
+            "net_radiation",
+            "storage_heat",
+            "roughness_sublayer_level"
+          ],
           "title": "Snow Use",
           "unit": "dimensionless"
         },
         "stebbs": {
           "$ref": "#/$defs/StebbsPhysics",
-          "description": "STEBBS physics switches (gh#1456): master toggle (enabled + parameters), capacitance method, setpoint method, and the same-albedo / same-emissivity wall/roof switches."
+          "depends_on": [
+            "storage_heat"
+          ],
+          "description": "STEBBS physics switches (gh#1456): master toggle (enabled + parameters), capacitance method, setpoint method, and the same-albedo / same-emissivity wall/roof switches.",
+          "note": "When storage_heat selects STEBBS (7), this block enables and parameterises the STEBBS contribution to storage heat.",
+          "provides_to": [
+            "stebbs.capacitance"
+          ]
         },
         "ref": {
           "anyOf": [
@@ -10098,6 +10155,10 @@
           ],
           "default": false,
           "description": "Master on/off switch for STEBBS. When false, STEBBS calculations are disabled and `parameters` is ignored.",
+          "note": "Enables the STEBBS branch; capacitance/RC options are only meaningful when STEBBS is enabled.",
+          "provides_to": [
+            "stebbs.capacitance"
+          ],
           "title": "Enabled",
           "unit": "dimensionless"
         },
@@ -10125,7 +10186,11 @@
             }
           ],
           "default": 0,
+          "depends_on": [
+            "stebbs.enabled"
+          ],
           "description": "Method to determine the two weighting factors (wall_outer_heat_capacity_fraction and roof_outer_heat_capacity_fraction) splitting heat capacity of building envelope into two nodes in STEBBS. Options: 0 (DEFAULT) = Default value of 0.5 is used; 1 (PROVIDED) = Use user defined value (wall_outer_heat_capacity_fraction and roof_outer_heat_capacity_fraction) between 0 and 1; 2 (PARAMETERISE) = Use building material thermal property to parameterise the weighting factor",
+          "note": "Only meaningful when STEBBS is enabled; controls building-envelope heat-capacity splitting.",
           "title": "Capacitance",
           "unit": "dimensionless"
         },

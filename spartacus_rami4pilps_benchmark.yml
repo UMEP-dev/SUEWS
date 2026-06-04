@@ -18,7 +18,7 @@ model:
         - "SPARTACUS" # SR - include SPARTACUS output groups for benchmarking
   physics:
     net_radiation:
-      value: 1001 # SR - we are providing kdown to SPARTACUS from forcing file
+      value: 1003 # SR - we are providing kdown to SPARTACUS from forcing file
     emissions:
       heat: J11
       co2:

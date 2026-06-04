@@ -4,7 +4,7 @@ A multi-version regression check: the same site (KCL/London, Ward et al. 2016), 
 
 ## How it works
 
-Each release runs a config valid in its own schema, over a fixed period, against eddy-covariance observations; only the supy version changes, so any difference is attributable to the model. Performance is the mean absolute error (MAE) and mean bias (MBE) of the energy-balance fluxes (Kup, Lup, QN, QH, QE). Each run is reproducible — re-running a release yields a byte-identical statistics fingerprint — and a release is compared with the previous one to flag regressions. The metrics are vendored here (`bench_stats.py`), so the benchmark has no external private dependency.
+Each release runs a config valid in its own schema, over a fixed period, against eddy-covariance observations; only the supy version changes, so any difference is attributable to the model. Two axes are scored: the **energy-balance fluxes** (Kup, Lup, QN, QH, QE) by mean absolute error (MAE) and mean bias (MBE), and the **near-surface air temperature** — the model's RSL vertical profile is interpolated to the tower measurement heights (6.5 / 12.5 / 16 m) and scored against the observed T over two 2013 measurement windows. Each run is reproducible — re-running a release yields byte-identical statistics fingerprints (one per axis) — and a release is compared with the previous one to flag regressions. The metrics are vendored here (`bench_stats.py`, `bench_rsl.py`), so the benchmark has no external private dependency.
 
 ## Why a separate data-supply layer
 
@@ -13,7 +13,8 @@ The evaluation observations are sensitive and must never live in this public rep
 ## Components
 
 - `data_supply.py` — resolves an evaluation-data source to a local path: `local:/path/to/file.csv` for local development; `zenodo:<recid>[/<file>]` for CI, with `Authorization: Bearer $ZENODO_TOKEN` for restricted records (`ZENODO_BASE` switches production vs sandbox).
-- `bench_stats.py` — vendored MAE/MBE/n statistics and the reproducibility fingerprint.
+- `bench_stats.py` — vendored MAE/MBE/n statistics and the reproducibility fingerprint for the energy-balance fluxes.
+- `bench_rsl.py` — vendored RSL air-temperature statistics: interpolates the model temperature profile to the obs heights (a port of esmae's `interpolate_heights`) and scores MAE/MBE over the two 2013 windows, with its own fingerprint.
 - `run_benchmark.py` — the driver: runs one pinned supy release twice and asserts a byte-identical fingerprint; tolerant of the per-release `run()` API differences.
 - `assemble_index.py` — builds `results/index.json` and asserts the cross-release invariants (identical obs/forcing/stats across releases).
 - `check_supply.py` — CI proof that the restricted dataset can be fetched via a secret and has the expected energy-balance schema (non-sensitive summary only).

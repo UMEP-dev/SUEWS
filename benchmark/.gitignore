@@ -22,3 +22,6 @@ SuPy.log
 # Python cache
 __pycache__/
 *.pyc
+
+# RSL air-temperature obs (sensitive)
+inputs/df_Ta_comb.h5

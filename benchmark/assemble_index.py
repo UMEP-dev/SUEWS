@@ -33,9 +33,14 @@ for V in VERSIONS:
     entry["config_hash"] = prov.get("config_hash")
     entry["config_file"] = f"inputs/config_{V}.yml"
     if prov["status"] == "ok":
-        stats = json.load(open(RES / V / "stats.json"))["stats"]
+        sj = json.load(open(RES / V / "stats.json"))
+        stats = sj["stats"]
         entry["full"] = {f: stats[f]["full"]["all"] for f in FLUXES}
         entry["seasonal"] = {f: stats[f]["seasonal"] for f in FLUXES}
+        # RSL air-temperature axis (additive; present once the release exposes a usable RSL profile)
+        if "rsl" in sj:
+            entry["rsl"] = sj["rsl"]  # heights, windows, fingerprint, stats
+            entry["rsl_reproducible"] = prov.get("rsl_reproducible")
         # obs/forcing/stats-module are shared across releases; config is NOT (per-release).
         for k in ("obs_hash", "forcing_hash", "stats_module_hash"):
             shared.setdefault(k, prov[k])
@@ -65,3 +70,13 @@ print("\n=== 2026.1.28 -> 2026.4.3 full-period MAE delta ===")
 a = index["versions"]["2026.1.28"]["full"]; b = index["versions"]["2026.4.3"]["full"]
 for f in FLUXES:
     print(f"  {f}: {a[f]['MAE']:.2f} -> {b[f]['MAE']:.2f}  (d={b[f]['MAE']-a[f]['MAE']:+.3f})")
+
+print("\n=== RSL air-temperature MAE (full, by height) per version ===")
+for V in VERSIONS:
+    e = index["versions"][V]
+    if e.get("status") != "ok" or "rsl" not in e:
+        print(f"  {V:12} (no RSL)"); continue
+    rs = e["rsl"]["stats"]
+    print(f"  {V:12} " + "  ".join(
+        f"{h}m {rs[h]['full']['all']['MAE']:.2f}/{rs[h]['full']['all']['MBE']:+.2f}"
+        for h in ["6.5", "12.5", "16.0"]))

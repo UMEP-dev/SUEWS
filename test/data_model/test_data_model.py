@@ -23,7 +23,12 @@ from supy.data_model import (
     SiteProperties,
     SUEWSConfig,
 )
-from supy.data_model.core.model import ModelControl, ModelPhysics, SetpointMethod
+from supy.data_model.core.model import (
+    ModelControl,
+    ModelPhysics,
+    SetpointMethod,
+    StebbsParameterSource,
+)
 
 pytestmark = pytest.mark.api
 
@@ -359,7 +364,9 @@ class TestLegacyDfStateStebbsDefaults(unittest.TestCase):
         df = self.df_physics.drop(columns=[("stebbsmethod", "0")])
         phys = ModelPhysics.from_df_state(df, grid_id=1)
         self.assertFalse(phys.stebbs.enabled.value)
-        self.assertEqual(int(phys.stebbs.parameters.value), 1)
+        self.assertEqual(
+            phys.stebbs.parameters.value, StebbsParameterSource.DEFAULT
+        )
 
     def test_invalid_stebbsmethod_still_rejected(self):
         """A present-but-invalid ``stebbsmethod`` value is still rejected; only

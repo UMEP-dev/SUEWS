@@ -57,7 +57,7 @@
 
             <!-- Overview panel: verdict + at-a-glance error across all releases -->
             <div class="bm-verdict" data-state="pass" role="status">
-                <span class="bm-status"><span class="disc" aria-hidden="true"></span><span class="glyph" aria-hidden="true">&#10003;</span> No regression across releases</span>
+                <span class="bm-status"><span class="disc" aria-hidden="true"></span><span class="glyph" aria-hidden="true">&#10003;</span> No energy-balance regression across releases</span>
                 <p class="bm-verdict-summary">Energy-balance error is <b style="font-style:normal;color:var(--text-primary)">unchanged</b> across all five benchmarked releases (2025.7 &rarr; 2026.4); the largest shift in any flux is <b style="font-style:normal;color:var(--text-primary)">0.03&nbsp;W&nbsp;m<sup>&minus;2</sup></b> (Q<sub>E</sub>). Sensible heat Q<sub>H</sub>, the residual, carries the largest absolute error throughout.</p>
                 <div class="bm-chips">
                     <span class="bm-chip">site <b>UK&#8209;LO&#8209;KCL</b></span>
@@ -227,7 +227,7 @@
                     <span class="bm-eb-n num" data-rcell="6.5:n">2986</span>
                 </div>
             </div>
-            <p class="bm-table-note">Modelled air temperature interpolated from the RSL vertical profile to the tower heights, scored against observations over two 2013 windows (Jan&ndash;Mar, Apr&ndash;Jun); bar length and shade both grow with the error. MAE/MBE in K; n is valid hourly pairs. Across releases the profile error is steady (~0.3&ndash;0.4 K) through 2026.1 and rises slightly at 2026.4 (6.5 m: 0.42 &rarr; 0.54 K) &mdash; a small change the energy-balance axis does not show.</p>
+            <p class="bm-table-note">Modelled air temperature interpolated from the RSL vertical profile to the tower heights, scored against observations over two 2013 windows (Jan&ndash;Mar, Apr&ndash;Jun); bar length and shade both grow with the error. MAE/MBE in K; n is valid hourly pairs. Across releases the profile error is steady (~0.3&ndash;0.4 K) through 2026.1 and rises slightly at 2026.4 (6.5 m: 0.42 &rarr; 0.54 K). That shift is isolated to the diagnosed near-surface profile and traces to a 2026.4 change in the model backend, not the surface physics &mdash; the energy-balance fluxes are unchanged.</p>
         </section>
 
         <section class="subpage-group">

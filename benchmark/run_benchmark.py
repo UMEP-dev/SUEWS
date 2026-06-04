@@ -230,7 +230,11 @@ def main() -> int:
         prov["reproducible"] = bool(fp1 == fp2)
         prov["rsl_fingerprint"] = rfp1
         prov["rsl_fingerprint_rerun"] = rfp2
-        rsl_produced = (rsl_obs is not None) and (rfp1 is not None)
+        # An asymmetric outcome (one run yields an RSL fingerprint, the
+        # other does not) is itself non-reproducible: count the axis as
+        # produced if EITHER run yielded a fingerprint, so the rsl_ok check
+        # below catches the mismatch instead of silently passing.
+        rsl_produced = (rsl_obs is not None) and (rfp1 is not None or rfp2 is not None)
         rsl_ok = (rfp1 == rfp2) if rsl_produced else True
         prov["rsl_reproducible"] = bool(rfp1 == rfp2) if rsl_produced else None
         if rsl_obs is not None and not rsl_produced:

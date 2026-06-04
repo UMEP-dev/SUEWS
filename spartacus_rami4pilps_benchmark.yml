@@ -3206,7 +3206,7 @@ sites:
           value: 0.0
     vertical_layers:
       nlayer:
-        value: 2 # SR - this should match RAMI4PILPS number of layers, which I believe is 2
+        value: 2 # SR - this match RAMI4PILPS number of layers
       height:
         value:
         - 0.0

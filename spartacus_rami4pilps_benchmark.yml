@@ -3214,12 +3214,12 @@ sites:
         - 14.0 # SR - edited to match height of RAMI4PILPS case
       veg_frac:
         value:
-        - 0.0 # SR - needs to be edited according to RAMI4PILPS case
-        - 0.0 # SR - needs to be edited according to RAMI4PILPS case
+        - 0.3 # SR - edited to match RAMI4PILPS case
+        - 0.3 # SR - edited to match RAMI4PILPS case
       veg_scale:
         value:
-        - 10.0 # SR - edited to match height of RAMI4PILPS case
-        - 10.0 # SR - needs to be edited according to RAMI4PILPS case
+        - 10.0 # SR - edited to match RAMI4PILPS case
+        - 10.0 # SR - edited to match RAMI4PILPS case
       building_frac:
         value:
         - 0.0 # SR - no buildings in RAMI4PILPS case

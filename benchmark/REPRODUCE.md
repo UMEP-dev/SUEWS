@@ -39,7 +39,7 @@ The obs and forcing are access-restricted; fetching them needs a Zenodo token wi
 export ZENODO_TOKEN=<your-token>          # do not commit; do not print
 export ZENODO_BASE=https://sandbox.zenodo.org   # omit for production zenodo.org
 mkdir -p results/_zsupply
-for F in Kc1_Obs.csv Kc1_forcing_canonical.txt; do
+for F in Kc1_Obs.csv Kc1_forcing_canonical.txt df_Ta_comb.h5; do
   python3 data_supply.py fetch "zenodo:<record-id>/$F" results/_zsupply
 done
 ```
@@ -51,6 +51,7 @@ for V in 2025.7.6 2025.10.15 2025.11.20 2026.1.28 2026.4.3; do
   uv venv --python 3.12 .venv-$V
   uv pip install --python .venv-$V/bin/python "supy==$V"
   case $V in 2025.*) uv pip install --python .venv-$V/bin/python "pandas<3" ;; esac
+  uv pip install --python .venv-$V/bin/python tables   # read the RSL obs (.h5)
   uv pip freeze --python .venv-$V/bin/python > results/$V/freeze.txt
 done
 ```
@@ -67,12 +68,15 @@ for V in 2025.7.6 2025.10.15 2025.11.20 2026.1.28 2026.4.3; do
     --config  inputs/config_$V.yml \
     --forcing results/_zsupply/Kc1_forcing_canonical.txt \
     --obs     results/_zsupply/Kc1_Obs.csv \
+    --rsl-obs results/_zsupply/df_Ta_comb.h5 \
     --freeze  results/$V/freeze.txt \
     --outdir  results/$V
 done
 ```
 
 `run_benchmark.py` runs supy twice and asserts the two fingerprints match. It tolerates the API differences across releases: newer releases accept `start_date` / `end_date` on `run()`; 2025.7.x do not (a plain `run()` over the full forcing, which spans exactly the fixed period, is equivalent); and 2025.7.6's `SUEWSSimulation.run()` wrapper unpacks two values from `run_supy_ser`, which returns four in that release, so the driver bypasses the wrapper and calls the engine directly, taking the model output.
+
+`--rsl-obs` enables the second axis (air temperature). From the same model run the driver takes the RSL vertical profile, interpolates the modelled temperature to the obs heights (6.5 / 12.5 / 16 m, a port of esmae's `interpolate_heights`), and scores MAE/MBE against the observed T over the two 2013 windows (Jan&ndash;Mar, Apr&ndash;Jun). It carries its own fingerprint (`rsl_fingerprint`), reproduced on the second run. The RSL axis is additive and fault-tolerant: a release whose output lacks a usable RSL profile is logged with `rsl_note` and still produces its energy-balance result.
 
 ## 4. Build the combined index
 
@@ -83,8 +87,9 @@ python3 assemble_index.py   # asserts the shared obs/forcing/stats-module hashes
 
 ## Files
 
-- `bench_stats.py` -- vendored MAE/MBE/n statistics and the fingerprint (shared by all releases).
-- `run_benchmark.py` -- the driver (runs one pinned release twice; tolerant of the per-release API differences).
+- `bench_stats.py` -- vendored MAE/MBE/n statistics and the fingerprint for the energy-balance fluxes.
+- `bench_rsl.py` -- vendored RSL air-temperature statistics: profile-to-height interpolation, MAE/MBE over the two 2013 windows, and the RSL fingerprint.
+- `run_benchmark.py` -- the driver (runs one pinned release twice; tolerant of the per-release API differences; scores EB always and the RSL axis when `--rsl-obs` is given).
 - `data_supply.py` -- the Zenodo / local obs+forcing resolver.
 - `assemble_index.py` -- builds `results/index.json` and asserts the cross-release invariants.
 - `inputs/` -- the configs (committed); forcing and obs (gitignored).

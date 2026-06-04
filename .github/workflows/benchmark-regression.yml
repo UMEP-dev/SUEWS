@@ -89,9 +89,10 @@ jobs:
         env:
           ZENODO_TOKEN: ${{ secrets.ZENODO_TOKEN }}
           ZENODO_BASE: https://zenodo.org
+          PROD_RECID: ${{ vars.BENCHMARK_PROD_RECID }}
         run: |
           for F in Kc1_Obs.csv Kc1_forcing_canonical.txt; do
-            python benchmark/data_supply.py fetch "zenodo:${{ vars.BENCHMARK_PROD_RECID }}/$F" "$RUNNER_TEMP/obs"
+            python benchmark/data_supply.py fetch "zenodo:${PROD_RECID}/$F" "$RUNNER_TEMP/obs"
           done
       - name: Run the benchmark for the current release (reproducible + regression gate)
         # run_benchmark.py runs the pinned model twice and asserts a byte-identical

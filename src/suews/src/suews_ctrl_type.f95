@@ -132,7 +132,7 @@ MODULE module_ctrl_type
    CONTAINS
       PROCEDURE :: ALLOCATE => allocate_site_prm_c
       PROCEDURE :: DEALLOCATE => deallocate_site_prm_c
-      PROCEDURE :: cal_surf => SUEWS_cal_surf_DTS
+      PROCEDURE :: cal_surf => SUEWS_cal_surf
 
    END TYPE SUEWS_SITE
 
@@ -593,7 +593,7 @@ CONTAINS
 
 
 
-   SUBROUTINE SUEWS_cal_surf_DTS( &
+   SUBROUTINE SUEWS_cal_surf( &
       self, & !inout
       config & !input
       ) ! output
@@ -676,7 +676,7 @@ CONTAINS
 
       END ASSOCIATE
 
-   END SUBROUTINE SUEWS_cal_surf_DTS
+   END SUBROUTINE SUEWS_cal_surf
 
    SUBROUTINE check_and_reset_unsafe_states(self, ref_state)
       CLASS(SUEWS_STATE), INTENT(inout) :: self

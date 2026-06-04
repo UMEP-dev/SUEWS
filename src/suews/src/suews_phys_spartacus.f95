@@ -312,12 +312,14 @@ CONTAINS
       END IF
       config%iverbose = 3
       config%n_vegetation_region_urban = n_vegetation_region_urban
-      config%n_vegetation_region_forest = n_vegetation_region_urban ! use the same complexity for urban as forests
+      ! config%n_vegetation_region_forest = n_vegetation_region_urban ! use the same complexity for urban as forests
+      config%n_vegetation_region_forest = 1 ! hardwired for RAMI case, but should become an input in YAML
       config%nsw = nsw
       config%nlw = nlw
       config%n_stream_sw_urban = n_stream_sw_urban
       config%n_stream_lw_urban = n_stream_lw_urban
-      config%n_stream_sw_forest = n_stream_sw_urban ! use the same complexity for urban as forests
+      ! config%n_stream_sw_forest = n_stream_sw_urban ! use the same complexity for urban as forests
+      config%n_stream_sw_forest = 1 ! hardwired for RAMI case, but should become an input in YAML
       config%n_stream_lw_forest = n_stream_lw_urban ! use the same complexity for urban as forests
       CALL config%consolidate()
 

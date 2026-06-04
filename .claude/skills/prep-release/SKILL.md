@@ -28,7 +28,8 @@ This workflow is **workspace-independent** - run from any worktree.
 8. **Submit PR** - Create PR, wait for CI, merge to master
 9. **Tag release** - Tag the merge commit on master
 10. **Verify** - Monitor Actions, PyPI, GitHub Release, Zenodo
-11. **Update umep-reqs** - PR to update supy version in UMEP-dev/umep-reqs
+11. **Benchmark the release** - Once the release is on PyPI, run the multi-version benchmark for the new version: per-release schema-valid config, reproducible fingerprint, regression check vs the previous release, then update the benchmark page + `benchmark/results/index.json` and version the Zenodo reproducibility stack. See `## Benchmark the release`.
+12. **Update umep-reqs** - PR to update supy version in UMEP-dev/umep-reqs
 
 Details: `references/release-steps.md`
 
@@ -108,6 +109,8 @@ Selection criteria:
 [PASS/FAIL] PR merged to master
 [PASS/FAIL] Git tag created on merge commit
 [PASS/FAIL] GitHub Release published (triggers Zenodo DOI)
+[PASS/FAIL] Release benchmarked: reproducible fingerprint, per-release schema-valid config, no energy-balance regression vs previous release (or regression reviewed and accepted)
+[PASS/FAIL] Benchmark page + benchmark/results/index.json updated; Zenodo reproducibility stack versioned for the new release
 [PASS/FAIL] umep-reqs PR created (UMEP-dev/umep-reqs)
 Ready: YES/NO
 ```
@@ -190,8 +193,23 @@ The runtime pin is `numpy>=1.22`, so the same wheel works in QGIS 3 LTR
 The UMEP (`rc1`) variant was retired in 2026-04 once the Rust bridge
 removed all NumPy C-ABI dependencies.
 
+## Benchmark the release
+
+Every release is added to the multi-version regression benchmark (KCL/London, Ward 2016), so the suite shows performance across releases and flags regressions. The harness lives in `benchmark/`; full method in `benchmark/REPRODUCE.md`. Run this **after** the release is on PyPI (so `supy==<version>` installs).
+
+Steps (one new release point):
+
+1. **Pinned env** - `uv venv --python 3.12 benchmark/.venv-<version>`; `uv pip install "supy==<version>"`. Pin `pandas<3` for pre-2026 releases (their `read_forcing` breaks under pandas 3); keep `numpy` at the ABI the wheel was built against. Save `freeze.txt`.
+2. **Per-release config** - generate a config valid in the release's OWN schema by a load->dump round-trip in that release's venv (`SUEWSSimulation(canonical).config.model_dump()` to `inputs/config_<version>.yml`); record `config_schema_on_load` + `config_hash`. `suews-convert` is NOT a YAML schema migrator. Never reuse a foreign-schema config silently.
+3. **Run** - fetch obs + forcing from the restricted Zenodo record (token via the `ZENODO_TOKEN` secret/env; never print or commit it), then `run_benchmark.py` over the fixed period **twice**; require a byte-identical fingerprint (the reproducibility gate). Log an install/run failure with the exact error rather than inventing a number.
+4. **Regression check** - compare the new release's MAE/MBE against the previous release; treat a material increase in any flux as a regression to review (this is the release gate, advisory unless agreed otherwise).
+5. **Publish derived results** - `assemble_index.py` -> `benchmark/results/index.json`; update `site/benchmark/` (suite row + per-site detail) so the new release appears; add it as a new version in the restricted Zenodo reproducibility stack (and the data record if obs/forcing changed). Commit derived stats + the per-release config only; **never** commit obs/forcing (gitignored).
+
+Governance gate: the fully-automated CI version needs the real observations on a **restricted production Zenodo record** plus a `ZENODO_TOKEN` GitHub secret and data-owner (Grimmond-group) sign-off. Until that lands, run this step manually against the restricted sandbox record; only derived statistics are ever published.
+
 ## References
 
+- `benchmark/REPRODUCE.md` - Benchmark method + exact commands
 - `references/release-steps.md` - Full step-by-step guide
 - `references/assessment-criteria.md` - Decision scoring
 - Repo: `dev-ref/RELEASE_MANUAL.md` - Complete manual (in repository root)

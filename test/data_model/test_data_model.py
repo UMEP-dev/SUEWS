@@ -23,7 +23,7 @@ from supy.data_model import (
     SiteProperties,
     SUEWSConfig,
 )
-from supy.data_model.core.model import ModelControl
+from supy.data_model.core.model import ModelControl, ModelPhysics, SetpointMethod
 
 pytestmark = pytest.mark.api
 
@@ -324,6 +324,61 @@ def test_refvalue_equality(value_a, value_b, should_equal):
         assert value_a == value_b
     else:
         assert value_a != value_b
+
+
+class TestLegacyDfStateStebbsDefaults(unittest.TestCase):
+    """gh#1500: ``ModelPhysics.from_df_state`` must default the newer STEBBS
+    method columns that legacy / pre-STEBBS DataFrames lack, rather than
+    aborting with ``Missing attribute '...'``.
+
+    The reported regression was ``setpointmethod`` (added in the 2026.1.28
+    setpoint split, #1317) being treated as a required df_state column, so
+    converting a legacy table set predating it failed. gh#1456 already moved
+    ``setpointmethod`` / ``rcmethod`` into the defaulting STEBBS-column set;
+    ``stebbsmethod`` is hardened here so a DataFrame predating STEBBS entirely
+    (the premise of legacy-table conversion) reconstructs with STEBBS disabled
+    instead of raising.
+    """
+
+    def setUp(self):
+        path = Path(sp.__file__).parent / "sample_data" / "sample_config.yml"
+        self.df_physics = SUEWSConfig.from_yaml(path).model.physics.to_df_state(
+            grid_id=1
+        )
+
+    def test_missing_setpointmethod_defaults_to_constant(self):
+        """Dropping ``setpointmethod`` defaults the setpoint scheme rather than
+        raising (the exact gh#1500 minimal repro at the ModelPhysics level)."""
+        df = self.df_physics.drop(columns=[("setpointmethod", "0")])
+        phys = ModelPhysics.from_df_state(df, grid_id=1)
+        self.assertEqual(phys.stebbs.setpoint.value, SetpointMethod.CONSTANT)
+
+    def test_missing_stebbsmethod_defaults_to_disabled(self):
+        """A pre-STEBBS DataFrame (no ``stebbsmethod`` column) reconstructs with
+        STEBBS disabled instead of aborting."""
+        df = self.df_physics.drop(columns=[("stebbsmethod", "0")])
+        phys = ModelPhysics.from_df_state(df, grid_id=1)
+        self.assertFalse(phys.stebbs.enabled.value)
+        self.assertEqual(int(phys.stebbs.parameters.value), 1)
+
+    def test_invalid_stebbsmethod_still_rejected(self):
+        """A present-but-invalid ``stebbsmethod`` value is still rejected; only
+        the missing-column case defaults."""
+        df = self.df_physics.copy()
+        df.loc[1, ("stebbsmethod", "0")] = 3
+        with self.assertRaises(ValueError):
+            ModelPhysics.from_df_state(df, grid_id=1)
+
+    def test_issue_minimal_repro_via_suews_config(self):
+        """The gh#1500 symptom at config level: drop ``setpointmethod`` from a
+        full df_state and round-trip through ``SUEWSConfig.from_df_state``."""
+        path = Path(sp.__file__).parent / "sample_data" / "sample_config.yml"
+        df = SUEWSConfig.from_yaml(path).to_df_state()
+        df_legacy = df.drop(columns=[("setpointmethod", "0")])
+        config = SUEWSConfig.from_df_state(df_legacy)
+        self.assertEqual(
+            config.model.physics.stebbs.setpoint.value, SetpointMethod.CONSTANT
+        )
 
 
 class TestGrididErrorTransformation(unittest.TestCase):

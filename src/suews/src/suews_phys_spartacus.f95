@@ -447,11 +447,11 @@ CONTAINS
       IF (sfr_surf(ConifSurf) + sfr_surf(DecidSurf) > 0.0) THEN
          canopy_props%veg_fraction = veg_frac(:)
          canopy_props%veg_scale = veg_scale(:)
-         ! ! --- DEBUG: hardwire veg_ext to match SPARTACUS-Surface test/simple forest case
-         ! IF (nlayer == 2) THEN
-         !    veg_ext(1) = 0.0D0
-         !    veg_ext(2) = 0.25D0
-         ! END IF
+         ! hardwired veg_ext to match SPARTACUS-Surface RAMI case
+         IF (nlayer == 2) THEN
+            veg_ext(1) = 0.0D0
+            veg_ext(2) = 0.25D0
+         END IF
          canopy_props%veg_ext = veg_ext(:)
          canopy_props%veg_fsd = veg_fsd(:)
          canopy_props%veg_contact_fraction = veg_contact_fraction(:)

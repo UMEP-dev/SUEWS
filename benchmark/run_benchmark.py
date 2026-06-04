@@ -210,7 +210,12 @@ def main() -> int:
         obs = load_obs(args.obs)
         rsl_obs = None
         if args.rsl_obs:
-            rsl_obs = bench_rsl.load_obs_T(args.rsl_obs).resample("1h").mean()
+            _obs_T = bench_rsl.load_obs_T(args.rsl_obs)
+            # Mask the -999 sentinel BEFORE the hourly mean: resampling would
+            # otherwise average it with valid half-hour samples into a bogus
+            # finite temperature that the exact-(-999) pair mask later misses.
+            _obs_T = _obs_T.where(_obs_T != bench_rsl.MISSING)
+            rsl_obs = _obs_T.resample("1h").mean()
             prov["rsl_obs_hash"] = sha256_file(args.rsl_obs)
             prov["rsl_stats_module_hash"] = sha256_file(str(Path(bench_rsl.__file__)))
         # record schema recorded on the loaded config

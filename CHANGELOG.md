@@ -54,6 +54,12 @@ EXAMPLES:
 
 ## 2026
 
+### 4 Jun 2026
+
+- [bugfix] Legacy SUEWS table to YAML conversion no longer aborts on a missing `stebbsmethod` df_state column (#1500)
+  - `ModelPhysics.from_df_state` now defaults a missing `stebbsmethod` column to `0` (STEBBS disabled) instead of raising `Missing attribute 'stebbsmethod'`, consistent with how the adjacent newer STEBBS columns (`setpointmethod`, `rcmethod`) already default; a present-but-invalid value is still rejected
+  - The originally reported `setpointmethod` symptom was already resolved by the #1456 STEBBS relocation; this completes the issue by hardening the last hard-required STEBBS column and adds regression tests covering both the `setpointmethod` and `stebbsmethod` legacy-DataFrame cases
+
 ### 3 Jun 2026
 
 - [change][experimental] Align physics method selectors on the observed/modelled axis (#1501)

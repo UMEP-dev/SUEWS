@@ -65,7 +65,7 @@ CONTAINS
       REAL(KIND(1D0)) :: t, psi
       REAL(KIND(1D0)) :: altitude, zen !azimuth,zenith
       REAL(KIND(1D0)) :: CI, c, I0, Kt, Tw, Tg
-      REAL(KIND(1D0)) :: Ta, RH, P, radG, radD, radI !,idectime,tdectime!dectime,
+      REAL(KIND(1D0)) :: radD, radI !,idectime,tdectime!dectime,
       REAL(KIND(1D0)) :: I0et, CIuncorr !,lati
       REAL(KIND(1D0)) :: SNDN, SNUP, DEC, DAYL !,timestepdec,YEAR
       REAL(KIND(1D0)) :: msteg, emis_sky, ea

@@ -185,8 +185,9 @@ CONTAINS
       REAL(KIND(1D0)), DIMENSION(15) :: wall_net_lw_spc
       REAL(KIND(1D0)), DIMENSION(15) :: sfr_roof_spc
       REAL(KIND(1D0)), DIMENSION(15) :: sfr_wall_spc
-      REAL(KIND(1D0)), DIMENSION(15) :: veg_abs_sw_spc ! SW vegetation absorption per layer
       REAL(KIND(1D0)) :: grnd_dn_sw_spc
+      REAL(KIND(1D0)), DIMENSION(15) :: veg_abs_sw_spc ! SW vegetation absorption per layer
+      
       ! --------------------------------------------------------------------------------
 
       REAL(KIND(1D0)), DIMENSION(ncolumnsDataOutSPARTACUS - 5), INTENT(OUT) :: dataOutLineSPARTACUS
@@ -257,7 +258,7 @@ CONTAINS
       ! initialize the output variables
       dataOutLineSPARTACUS = -999.
 
-      PRINT *, 'SZA = ', zenith_deg
+      ! PRINT *, 'SZA = ', zenith_deg
 
       sfr_roof_spc = -999.
       sfr_roof_spc(1:nlayer) = sfr_roof
@@ -444,6 +445,11 @@ CONTAINS
       IF (sfr_surf(ConifSurf) + sfr_surf(DecidSurf) > 0.0) THEN
          canopy_props%veg_fraction = veg_frac(:)
          canopy_props%veg_scale = veg_scale(:)
+         ! ! --- DEBUG: hardwire veg_ext to match SPARTACUS-Surface test/simple forest case
+         ! IF (nlayer == 2) THEN
+         !    veg_ext(1) = 0.0D0
+         !    veg_ext(2) = 0.25D0
+         ! END IF
          canopy_props%veg_ext = veg_ext(:)
          canopy_props%veg_fsd = veg_fsd(:)
          canopy_props%veg_contact_fraction = veg_contact_fraction(:)
@@ -700,7 +706,7 @@ CONTAINS
       END IF
 
       !-----------------------------------------------------------------
-      ! Shortwave vegetation absorption per layer (W m-2), from sw_flux
+      ! Shortwave vegetation absorption per layer (W m-2), from sw_flux - beginning - SR
       !-----------------------------------------------------------------
       veg_abs_sw_spc = -999.0D0
 
@@ -724,6 +730,10 @@ CONTAINS
             END IF
          END IF
       END IF
+
+      !-----------------------------------------------------------------
+      ! Shortwave vegetation absorption per layer (W m-2), from sw_flux - end - SR
+      !-----------------------------------------------------------------
 
       ! albedo
       IF (config%do_sw) THEN
@@ -942,8 +952,8 @@ CONTAINS
           sfr_roof_spc, &
           sfr_wall_spc, &
           clear_air_abs_lw_spc, &
-          veg_abs_sw_spc, &
-          grnd_dn_sw_spc &
+          grnd_dn_sw_spc, &
+          veg_abs_sw_spc &
           ]
 
       !!!!!!!!!!!!!! Clear from memory !!!!!!!!!!!!!

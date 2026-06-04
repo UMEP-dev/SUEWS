@@ -1,0 +1,114 @@
+# SUEWS regression benchmark — see benchmark/README.md.
+#
+# Stage 1 (active): prove the sensitive-data supply path end-to-end in CI —
+#   a GitHub secret unlocks a RESTRICTED Zenodo record holding the evaluation
+#   dataset; the dataset is fetched on the ephemeral runner and schema-checked.
+#   Uses the SANDBOX record + synthetic (fabricated) data, so no real sensitive
+#   observations and no data-governance dependency.
+# Stage 2 (disabled below): build the current model and run the multi-version
+#   benchmark (benchmark/run_benchmark.py) against the real restricted
+#   observations, then publish the derived statistics. The page carries only
+#   derived stats (no raw data), so no page-level password is needed.
+name: Benchmark regression
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "17 3 * * *" # daily 03:17 UTC (off-minute, per CI conventions)
+  # Run on PRs that touch the benchmark itself, so changes here are validated.
+  # (Same-repo branch -> has secrets access; fork PRs do not and will skip cleanly.)
+  pull_request:
+    paths:
+      - "benchmark/**"
+      - ".github/workflows/benchmark-regression.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: benchmark-regression
+  cancel-in-progress: false
+
+jobs:
+  # Stage 1 — data-supply proof (restricted Zenodo via a GitHub secret).
+  supply-proof:
+    runs-on: ubuntu-latest
+    # Fork PRs cannot read secrets; skip rather than fail.
+    if: ${{ github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6
+        with:
+          python-version: "3.12"
+
+      - name: Install minimal deps
+        run: python -m pip install --no-input pandas
+
+      - name: Fetch restricted evaluation dataset from Zenodo and validate schema
+        working-directory: benchmark
+        env:
+          # Map the SANDBOX secret to the generic var the resolver reads.
+          ZENODO_TOKEN: ${{ secrets.ZENODO_SANDBOX_TOKEN }}
+          ZENODO_BASE: https://sandbox.zenodo.org
+          OBS_SOURCE: zenodo:${{ vars.BENCHMARK_SANDBOX_RECID || '508290' }}/synthetic_eb_obs.csv
+          BENCHMARK_OUT: ${{ github.workspace }}/benchmark_supply_out
+        run: python check_supply.py
+
+      - name: Upload supply summary (non-sensitive)
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7
+        with:
+          name: benchmark-supply-summary
+          path: benchmark_supply_out/
+
+  # Stage 2 — full regression of the CURRENT model against the REAL restricted
+  # observations, using the vendored multi-version harness (benchmark/run_benchmark.py).
+  # DISABLED until: (a) data-governance sign-off to host the KCL observations on a
+  # restricted PRODUCTION Zenodo record, and (b) the per-release config + page-wiring
+  # are finalised. Shown here so the target shape is reviewable.
+  full-benchmark:
+    if: false
+    runs-on: ubuntu-latest
+    needs: supply-proof
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          persist-credentials: false
+      - name: Build current SUEWS (Fortran + Rust) + install supy
+        uses: ./.github/actions/build-suews
+      - name: Install benchmark requirements
+        # The benchmark stats are vendored under benchmark/ (bench_stats.py); only
+        # stdlib + numpy/pandas are needed at run time.
+        run: uv pip install --system numpy pandas
+      - name: Fetch real obs + forcing (restricted production Zenodo)
+        env:
+          ZENODO_TOKEN: ${{ secrets.ZENODO_TOKEN }}
+          ZENODO_BASE: https://zenodo.org
+          PROD_RECID: ${{ vars.BENCHMARK_PROD_RECID }}
+        run: |
+          for F in Kc1_Obs.csv Kc1_forcing_canonical.txt; do
+            python benchmark/data_supply.py fetch "zenodo:${PROD_RECID}/$F" "$RUNNER_TEMP/obs"
+          done
+      - name: Run the benchmark for the current release (reproducible + regression gate)
+        # run_benchmark.py runs the pinned model twice and asserts a byte-identical
+        # fingerprint; the regression decision vs the previous release is applied here.
+        run: |
+          V="$(python -c 'import supy; print(supy.__version__)')"
+          python benchmark/run_benchmark.py \
+            --version "$V" \
+            --config benchmark/inputs/UK-LO-KCL_Ward.yaml \
+            --forcing "$RUNNER_TEMP/obs/Kc1_forcing_canonical.txt" \
+            --obs "$RUNNER_TEMP/obs/Kc1_Obs.csv" \
+            --freeze "$RUNNER_TEMP/freeze.txt" \
+            --outdir "benchmark/results/$V"
+          python benchmark/assemble_index.py
+      - name: Publish derived statistics to the benchmark page
+        # Only derived stats are published (no raw data, so no page-level password);
+        # wires results/index.json into site/benchmark and hands off to the Pages deploy.
+        run: |
+          echo "TODO at enablement - render results/index.json into site/benchmark and deploy"

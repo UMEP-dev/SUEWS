@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SUEWS Benchmark Suite</title>
+    <meta name="description" content="SUEWS model releases scored against eddy-covariance observations at urban flux sites.">
+    <link rel="icon" type="image/svg+xml" href="/brand/assets/icon/suews-icon-dark.svg">
+    <script>
+        (function () {
+            var s = localStorage.getItem('theme');
+            var t = s || (window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark');
+            document.documentElement.setAttribute('data-theme', t);
+        })();
+    </script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&family=Crimson+Pro:ital,wght@0,400;0,500;1,400&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/css/tokens.css">
+    <link rel="stylesheet" href="/css/base.css">
+    <link rel="stylesheet" href="/css/subpage.css">
+    <link rel="stylesheet" href="/css/benchmark.css?v=4">
+</head>
+<body>
+    <button class="theme-toggle" id="themeToggle" aria-label="Toggle theme">
+        <svg class="icon-sun" viewBox="0 0 24 24">
+            <circle cx="12" cy="12" r="5"/>
+            <line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/>
+            <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/>
+            <line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/>
+            <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
+        </svg>
+        <svg class="icon-moon" viewBox="0 0 24 24"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+    </button>
+
+    <div class="signature-ring" aria-hidden="true"></div>
+
+    <div class="container">
+        <header class="subpage-header">
+            <a class="back-link" href="/"><span class="arrow">&larr;</span> suews.io</a>
+            <div class="subpage-label">Regression benchmark</div>
+            <h1 class="subpage-title">The <em>benchmark suite</em></h1>
+            <p class="subpage-lede">SUEWS releases scored against eddy-covariance observations at urban flux sites.</p>
+            <p class="subpage-intro">Each site scores the modelled energy balance against tower observations across SUEWS releases. One site is benchmarked so far &mdash; London, across five releases (<span class="mono" style="font-family:'JetBrains Mono',monospace;font-size:0.85rem">2025.7 &ndash; 2026.4</span>), with no regression detected. Open a site to compare releases. Further sites are planned.</p>
+        </header>
+
+        <section class="subpage-group">
+            <div class="subpage-group-header">
+                <span class="subpage-group-label">Sites</span>
+                <span class="subpage-group-line"></span>
+            </div>
+            <div class="bm-suite">
+                <a class="bm-suite-row" href="uk-lo-kcl/" data-state="pass">
+                    <span class="disc" aria-hidden="true"></span>
+                    <span><span class="bm-site-name">London</span><span class="bm-site-meta">UK-LO-KCL &middot; King&rsquo;s College London</span></span>
+                    <span class="bm-site-change">
+                        <span class="bm-minibar" role="img" aria-label="Latest release vs previous, across 25 cases: 3 better, 21 same, 1 worse">
+                            <span class="seg better" style="flex:3"></span><span class="seg same" style="flex:21"></span><span class="seg worse" style="flex:1"></span>
+                        </span>
+                        <span class="bm-change-counts"><span class="up">&#9650;3</span><span>&middot; 21 same</span><span class="down">&#9660;1</span></span>
+                    </span>
+                    <span class="bm-site-release">v2026.4.3</span>
+                    <span class="go" aria-hidden="true">&rarr;</span>
+                </a>
+                <div class="bm-suite-row" data-state="planned">
+                    <span class="disc" aria-hidden="true"></span>
+                    <span><span class="bm-site-name">Basel</span><span class="bm-site-meta">esmae preset</span></span>
+                    <span class="bm-planned">Not yet benchmarked</span>
+                    <span class="bm-site-release">&mdash;</span>
+                    <span class="go" aria-hidden="true"></span>
+                </div>
+                <div class="bm-suite-row" data-state="planned">
+                    <span class="disc" aria-hidden="true"></span>
+                    <span><span class="bm-site-name">Berlin</span><span class="bm-site-meta">esmae preset</span></span>
+                    <span class="bm-planned">Not yet benchmarked</span>
+                    <span class="bm-site-release">&mdash;</span>
+                    <span class="go" aria-hidden="true"></span>
+                </div>
+                <div class="bm-suite-row" data-state="planned">
+                    <span class="disc" aria-hidden="true"></span>
+                    <span><span class="bm-site-name">IMU</span><span class="bm-site-meta">esmae preset</span></span>
+                    <span class="bm-planned">Not yet benchmarked</span>
+                    <span class="bm-site-release">&mdash;</span>
+                    <span class="go" aria-hidden="true"></span>
+                </div>
+            </div>
+            <p class="bm-suite-note">The bar shows the latest release vs the previous one across 25 cases (5 fluxes &times; full + 4 seasons): <span style="color:var(--veg-green)">better</span> / <span style="color:var(--text-secondary)">same</span> / <span style="color:var(--energy-orange)">worse</span>, within 0.05&nbsp;W&nbsp;m&#8315;&#178;. Basel, Berlin and IMU are sites esmae has presets for &mdash; not yet benchmarked here.</p>
+        </section>
+
+        <section class="subpage-group">
+            <div class="subpage-group-header">
+                <span class="subpage-group-label">Methodology</span>
+                <span class="subpage-group-line"></span>
+            </div>
+            <ul class="bm-method">
+                <li>Each SUEWS release is run on the <b>same</b> site configuration, meteorological forcing and observations, over a <b>fixed</b> evaluation period &mdash; only the model version changes, so any difference is attributable to the model.</li>
+                <li>Each release runs a configuration <b>valid in its own schema</b>; performance is the mean absolute error (MAE) and mean bias (MBE) of the modelled energy-balance fluxes (K<sub>up</sub>, L<sub>up</sub>, Q<sub>N</sub>, Q<sub>H</sub>, Q<sub>E</sub>) against the eddy-covariance observations.</li>
+                <li>A release is compared with the previous one to flag <b>regressions</b>; a site is flagged if error grows materially.</li>
+                <li>Every run is <b>reproducible</b>: re-running a release yields a byte-identical statistics fingerprint.</li>
+                <li>Observations are <b>access-restricted</b> and fetched at run time from a protected archive; only the derived statistics shown here are published.</li>
+            </ul>
+        </section>
+
+        <section class="subpage-notes">
+            <p>See the <a href="https://docs.suews.io/stable/">SUEWS documentation</a> for the model description.</p>
+        </section>
+    </div>
+
+    <footer class="footer">
+        <div class="container">
+            <nav class="footer-nav" aria-label="Secondary navigation">
+                <ul>
+                    <li><a href="/team/">Team</a></li>
+                    <li><a href="/funding/">Funding</a></li>
+                    <li><a href="/dependencies/">Dependencies</a></li>
+                    <li><a href="/brand/">Brand</a></li>
+                </ul>
+            </nav>
+            <p class="footer-legal">&copy; 2025&ndash;<span id="current-year"></span> SUEWS Team</p>
+        </div>
+    </footer>
+
+    <script>
+        document.getElementById('current-year').textContent = new Date().getFullYear();
+        const toggle = document.getElementById('themeToggle');
+        const root = document.documentElement;
+        function getPreferredTheme() {
+            const saved = localStorage.getItem('theme');
+            if (saved) return saved;
+            return window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
+        }
+        function setTheme(theme) {
+            root.setAttribute('data-theme', theme === 'light' ? 'light' : 'dark');
+            localStorage.setItem('theme', theme);
+        }
+        setTheme(getPreferredTheme());
+        toggle.addEventListener('click', () => {
+            const current = root.getAttribute('data-theme') ||
+                (window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark');
+            setTheme(current === 'light' ? 'dark' : 'light');
+        });
+        window.matchMedia('(prefers-color-scheme: light)').addEventListener('change', (e) => {
+            if (!localStorage.getItem('theme')) setTheme(e.matches ? 'light' : 'dark');
+        });
+    </script>
+</body>
+</html>

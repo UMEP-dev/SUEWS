@@ -56,11 +56,18 @@ def interpolate_heights(rsl: pd.DataFrame, heights=HEIGHTS, var: str = "T") -> p
     v = np.where(v == MISSING, np.nan, v)
     n_rows, n_levels = z.shape
     out = pd.DataFrame(index=rsl.index)
+    zmin, zmax = z[:, 0], z[:, n_levels - 1]  # z is ascending per row
     for h in heights:
         col = np.full(n_rows, np.nan, dtype=float)
         iu = np.array([np.searchsorted(z[i], h, side="right") for i in range(n_rows)])
+        # Clamp into the last interval so a height equal to the top level is
+        # still scored: searchsorted(side="right") returns n_levels there, and
+        # at the upper node (h == zh) the formula reproduces that level's value
+        # exactly. Rows where h falls outside the row's [zmin, zmax] are dropped
+        # by the in-range mask below rather than by the index bounds.
+        iu = np.clip(iu, 1, n_levels - 1)
         il = iu - 1
-        ok = np.where((il >= 0) & (iu < n_levels))[0]
+        ok = np.where((h >= zmin) & (h <= zmax))[0]
         if ok.size:
             zl, zh = z[ok, il[ok]], z[ok, iu[ok]]
             vl, vh = v[ok, il[ok]], v[ok, iu[ok]]

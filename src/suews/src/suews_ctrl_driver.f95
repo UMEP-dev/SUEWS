@@ -27,9 +27,7 @@ MODULE SUEWS_Driver
                             output_line, output_block
    USE meteo, ONLY: qsatf, RH2qa, qa2RH
    USE module_phys_atmmoiststab, ONLY: cal_AtmMoist, cal_Stab, stab_psi_heat, stab_psi_mom, SUEWS_update_atmState
-   USE module_phys_narp, ONLY: NARP_cal_SunPosition, NARP_cal_SunPosition_DTS
-   USE module_phys_atmmoiststab, ONLY: cal_AtmMoist, cal_Stab, stab_psi_heat, stab_psi_mom
-   USE module_phys_narp, ONLY: NARP_cal_SunPosition
+   USE module_phys_narp, ONLY: NARP_cal_SunPosition, NARP_update_SunPosition
    USE module_phys_spartacus, ONLY: SPARTACUS
    USE module_phys_resist, ONLY: AerodynamicResistance, BoundaryLayerResistance, SurfaceResistance, &
                             SUEWS_cal_RoughnessParameters
@@ -37,14 +35,13 @@ MODULE SUEWS_Driver
    USE module_phys_estm, ONLY: ESTM
    USE module_phys_ehc, ONLY: EHC
    USE module_phys_snow, ONLY: SnowCalc, MeltHeat, SnowUpdate, update_snow_albedo, update_snow_dens
-   USE module_phys_dailystate, ONLY: update_DailyStateLine_DTS, SUEWS_cal_DailyState
+   USE module_phys_dailystate, ONLY: update_DailyStateLine, SUEWS_cal_DailyState
    USE module_phys_waterdist, ONLY: &
       drainage, cal_water_storage_surf, &
       cal_water_storage_building, &
       SUEWS_cal_SoilState, &
       SUEWS_update_SoilMoist, &
       ReDistributeWater, SUEWS_cal_HorizontalSoilWater, &
-      SUEWS_cal_HorizontalSoilWater_DTS, &
       SUEWS_cal_WaterUse
    USE module_phys_lumps, ONLY: LUMPS_cal_QHQE
    USE module_phys_evap, ONLY: cal_evap_multi
@@ -62,10 +59,10 @@ MODULE SUEWS_Driver
       ncolumnsDataOutSTEBBS, ncolumnsDataOutNHood
    USE module_ctrl_const_moist, ONLY: avcp, avdens, lv_J_kg
    USE module_phys_solweig, ONLY: SOLWEIG_cal_main
-   USE module_phys_beers, ONLY: BEERS_cal_main, BEERS_cal_main_DTS
+   USE module_phys_beers, ONLY: BEERS_cal_main
    USE module_phys_stebbs, ONLY: stebbsonlinecouple
    USE module_ctrl_version, ONLY: git_commit, compiler_ver ! these are automatically generated during compilation time
-   USE module_util_time, ONLY: SUEWS_cal_dectime_DTS, SUEWS_cal_tstep_DTS, SUEWS_cal_weekday_DTS, &
+   USE module_util_time, ONLY: SUEWS_cal_dectime, SUEWS_cal_tstep, SUEWS_cal_weekday, &
                           SUEWS_cal_DLS
    ! Re-export error state from module_ctrl_error_state for Python/f90wrap access
    USE module_ctrl_error_state, ONLY: supy_error_flag, supy_error_code, supy_error_message, &
@@ -252,10 +249,10 @@ CONTAINS
                modState) ! input/output:
 
             !=================Calculate sun position=================
-            IF (Diagnose == 1) WRITE (*, *) 'Calling NARP_cal_SunPosition...'
+            IF (Diagnose == 1) WRITE (*, *) 'Calling NARP_update_SunPosition...'
             ! print *, 'timer: azimuth, zenith_deg', timer%azimuth, timer%zenith_deg
-            CALL NARP_cal_SunPosition_DTS( &
-               timer, config, forcing, siteInfo, & !input
+            CALL NARP_update_SunPosition( &
+               timer, siteInfo, & !input
                modState) ! input/output:
 
             !=================Calculation of density and other water related parameters=================
@@ -286,28 +283,28 @@ CONTAINS
                ! the modules are called in the following order:
                ! ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
                ! part A: modules that are called multiple times per timestep to achieve convergence
-               ! A1. SUEWS_cal_DailyState_DTS: update phenology and land cover states at a daily scale - which may occur either at the beginning or end of a day
-               ! A2. SUEWS_cal_WaterUse_DTS: calculate water use
-               ! A3. SUEWS_cal_AnthropogenicEmission_DTS: calculate anthropogenic heat and CO2 fluxes
-               ! A4. SUEWS_cal_Qn_DTS: calculate net all-wave radiation
-               ! A5. SUEWS_cal_Qs_DTS: calculate storage heat flux
-               ! A6. SUEWS_cal_Water_DTS: calculate surface water balance
-               ! A7. SUEWS_cal_Resistance_DTS: calculate various resistances
-               ! A8.1 (optional) SUEWS_cal_snow_DTS: calculate snow-related energy balance if snowuse == 1
-               ! A8.2 (optional) SUEWS_cal_QE_DTS: calculate non-snow-related energy balance if snowuse == 0
-               ! A9. SUEWS_cal_HorizontalSoilWater_DTS: calculate redistribution of soil water between land covers within a grid cell
-               ! A10. SUEWS_cal_SoilState_DTS: calculate stored soil water
-               ! A11. SUEWS_cal_QH_DTS: calculate sensible heat flux
+               ! A1. SUEWS_cal_DailyState: update phenology and land cover states at a daily scale - which may occur either at the beginning or end of a day
+               ! A2. SUEWS_cal_WaterUse: calculate water use
+               ! A3. SUEWS_cal_AnthropogenicEmission: calculate anthropogenic heat and CO2 fluxes
+               ! A4. SUEWS_cal_Qn: calculate net all-wave radiation
+               ! A5. SUEWS_cal_Qs: calculate storage heat flux
+               ! A6. SUEWS_cal_Water: calculate surface water balance
+               ! A7. SUEWS_cal_Resistance: calculate various resistances
+               ! A8.1 (optional) SUEWS_cal_snow: calculate snow-related energy balance if snowuse == 1
+               ! A8.2 (optional) SUEWS_cal_QE: calculate non-snow-related energy balance if snowuse == 0
+               ! A9. SUEWS_cal_HorizontalSoilWater: calculate redistribution of soil water between land covers within a grid cell
+               ! A10. SUEWS_cal_SoilState: calculate stored soil water
+               ! A11. SUEWS_cal_QH: calculate sensible heat flux
                ! ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
                ! part B: modules that are called once per timestep due to computational inefficiency
-               ! B1. RSLProfile_DTS: calculate RSL profiles of wind speed, temperature and humidity
-               ! B2. SUEWS_cal_BiogenCO2_DTS: calculate CO2 fluxes from biogenic sources
+               ! B1. RSLProfile: calculate RSL profiles of wind speed, temperature and humidity
+               ! B2. SUEWS_cal_BiogenCO2: calculate CO2 fluxes from biogenic sources
                ! ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
                ! WIP: the wrapper subroutines for different physical processes have the same structure to allow easy implementation of new functionalities
                ! the structure is as follows:
                ! --------------------------------------------------------------------------------
-               ! SUEWS_cal_<module_name>_DTS( & ! `DTS` stands for `derived type structure`
+               ! SUEWS_cal_<module_name>( &
                !    timer, & ! time related variables <input>
                !    forcing & ! meteorological forcing variables <input>
                !    siteInfo, & ! site information <input>
@@ -514,8 +511,8 @@ CONTAINS
 
             !==============use BEERS to get localised radiation flux==================
             ! TS 14 Jan 2021: BEERS is a modified version of SOLWEIG
-            IF (Diagnose == 1) WRITE (*, *) 'Calling BEERS_cal_main_DTS...'
-            CALL BEERS_cal_main_DTS( &
+            IF (Diagnose == 1) WRITE (*, *) 'Calling BEERS_cal_main...'
+            CALL BEERS_cal_main( &
                timer, config, forcing, siteInfo, & ! input
                modState, & ! input/output:
                dataOutLineBEERS) ! output
@@ -529,14 +526,14 @@ CONTAINS
 
 
             !==============translation of  output variables into output array===========
-            IF (Diagnose == 1) WRITE (*, *) 'Calling BEERS_cal_main_DTS...'
+            IF (Diagnose == 1) WRITE (*, *) 'Calling SUEWS_update_outputLine...'
             CALL SUEWS_update_outputLine( &
                timer, config, forcing, siteInfo, & ! input
                modState, & ! input/output:
                datetimeLine, dataOutLineSUEWS) !output
 
             IF (config%StorageHeatMethod == 5) THEN
-               IF (Diagnose == 1) WRITE (*, *) 'Calling ECH_update_outputLine_DTS...'
+               IF (Diagnose == 1) WRITE (*, *) 'Calling EHC_update_outputLine...'
                CALL EHC_update_outputLine( &
                   timer, & !input
                   modState, & ! input/output:
@@ -544,8 +541,8 @@ CONTAINS
             END IF
 
             ! daily state_id:
-            IF (Diagnose == 1) WRITE (*, *) 'Calling update_DailyStateLine_DTS...'
-            CALL update_DailyStateLine_DTS( &
+            IF (Diagnose == 1) WRITE (*, *) 'Calling update_DailyStateLine...'
+            CALL update_DailyStateLine( &
                timer, config, forcing, siteInfo, & ! input
                modState, & ! input/output:
                dataOutLineDailyState) !out
@@ -602,8 +599,8 @@ CONTAINS
 
       USE module_ctrl_type, ONLY: SUEWS_CONFIG, SUEWS_FORCING, SUEWS_TIMER, SUEWS_SITE, &
                                   SUEWS_STATE, output_line, anthroEMIS_PRM
-      USE module_util_time, ONLY: SUEWS_cal_dectime_DTS, SUEWS_cal_tstep_DTS, &
-                                  SUEWS_cal_weekday_DTS, SUEWS_cal_DLS
+      USE module_util_time, ONLY: SUEWS_cal_dectime, SUEWS_cal_tstep, &
+                                  SUEWS_cal_weekday, SUEWS_cal_DLS
 
       IMPLICIT NONE
 
@@ -637,9 +634,9 @@ CONTAINS
          timer%isec = 0
 
          ! Calculate derived timer values
-         CALL SUEWS_cal_dectime_DTS(timer, timer%dectime)
-         CALL SUEWS_cal_tstep_DTS(timer, timer%nsh, timer%nsh_real, timer%tstep_real)
-         CALL SUEWS_cal_weekday_DTS(timer, siteInfo, timer%dayofWeek_id)
+         CALL SUEWS_cal_dectime(timer, timer%dectime)
+         CALL SUEWS_cal_tstep(timer, timer%nsh, timer%nsh_real, timer%tstep_real)
+         CALL SUEWS_cal_weekday(timer, siteInfo, timer%dayofWeek_id)
          CALL SUEWS_cal_DLS(timer, ahemisPrm, timer%DLS)
 
          ! === Update forcing from forcing block ===
@@ -5628,16 +5625,16 @@ CONTAINS
          timer%imin = INT(MetForcingBlock(ir, 4))
          timer%isec = 0 ! NOT used by SUEWS but by WRF-SUEWS via the cal_main interface
          ! calculate dectime
-         CALL SUEWS_cal_dectime_DTS( &
+         CALL SUEWS_cal_dectime( &
             timer, & ! input
             timer%dectime) ! output
          ! calculate tstep related VARIABLES
-         CALL SUEWS_cal_tstep_DTS( &
+         CALL SUEWS_cal_tstep( &
             timer, & ! input
             timer%nsh, timer%nsh_real, timer%tstep_real) ! output
 
          ! calculate dayofweek information
-         CALL SUEWS_cal_weekday_DTS( &
+         CALL SUEWS_cal_weekday( &
             timer, siteInfo, & !input
             timer%dayofWeek_id) !output
 
@@ -5646,10 +5643,7 @@ CONTAINS
             timer, ahemisPrm, & !input
             timer%DLS) !output
 
-         ! CALL NARP_cal_SunPosition_DTS( &
-         !    timer, & !input:
-         !    siteInfo, &
-         !    timer%azimuth, timer%zenith_deg) !output:
+         ! CALL NARP_update_SunPosition(timer, siteInfo, mod_State)
          ! print *, 'azimuth, zenith_deg', timer%azimuth, timer%zenith_deg
 
          forcing%qn1_obs = MetForcingBlock(ir, 5) !Real values (kind(1d0))

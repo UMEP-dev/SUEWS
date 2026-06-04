@@ -41,6 +41,12 @@ for V in VERSIONS:
         if "rsl" in sj:
             entry["rsl"] = sj["rsl"]  # heights, windows, fingerprint, stats
             entry["rsl_reproducible"] = prov.get("rsl_reproducible")
+            # RSL obs + stats-module are shared across every release that exposes
+            # the air-temperature axis; guard the cross-release comparison exactly
+            # as the energy-balance axis is guarded below.
+            for k in ("rsl_obs_hash", "rsl_stats_module_hash"):
+                shared.setdefault(k, prov[k])
+                assert prov[k] == shared[k], f"{V} {k} differs across versions!"
         # obs/forcing/stats-module are shared across releases; config is NOT (per-release).
         for k in ("obs_hash", "forcing_hash", "stats_module_hash"):
             shared.setdefault(k, prov[k])

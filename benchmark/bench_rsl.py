@@ -48,6 +48,12 @@ def interpolate_heights(rsl: pd.DataFrame, heights=HEIGHTS, var: str = "T") -> p
     var_cols = [f"{var}_{int(str(c).split('_')[1])}" for c in z_cols]
     z = rsl[z_cols].to_numpy(dtype=float)
     v = rsl[var_cols].to_numpy(dtype=float)
+    # A missing level (-999) must not be interpolated across: mixing the
+    # sentinel with a real temperature yields a bogus finite value that the
+    # downstream finite-pair mask would then count as valid. Promote it to
+    # NaN (np.where returns a fresh writable array) so any height bracketed
+    # by a missing level drops out cleanly.
+    v = np.where(v == MISSING, np.nan, v)
     n_rows, n_levels = z.shape
     out = pd.DataFrame(index=rsl.index)
     for h in heights:

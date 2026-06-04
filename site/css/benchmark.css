@@ -10,17 +10,20 @@
  * Requires tokens.css, base.css and subpage.css to be loaded first.
  */
 
-/* ========== Per-flux palette mapping (the palette is the model) ========== */
+/* ========== Colour language ==========
+ * Colour encodes MAGNITUDE, never variable identity. A single accent
+ * (Sun Core orange) carries error: the more error, the more vivid the
+ * fill -- on the metric bars and the heat-map cells alike. Shade is
+ * normalised within each panel (the W m-2 panels and the K panel each
+ * keep their own scale), so a glance shows where error is large vs
+ * small. Direction of change (improvement vs regression) is the only
+ * other colour meaning -- green = better, orange = worse -- and it
+ * shares orange's "bad" pole, so the two readings stay harmonious.
+ * Variable identity is carried by the row label, not by colour. */
 :root {
-  --flux-kup: var(--sun-gold);       /* reflected shortwave  */
-  --flux-lup: var(--sun-gold-dark);  /* outgoing longwave    */
-  --flux-qn:  var(--sky-blue);       /* net all-wave         */
-  --flux-qh:  var(--energy-orange);  /* sensible heat        */
-  --flux-qe:  var(--water-blue);     /* latent heat (water)  */
   --good: var(--veg-green);
   --bad:  var(--energy-orange);
 }
-[data-theme="light"] { --flux-qn: var(--wave-blue); }
 
 /* ========== Release rail (the version dimension) ========== */
 .bm-releases {
@@ -199,15 +202,6 @@
 .bm-table td.ref { color: var(--text-muted); }     /* reference column is quieter */
 .bm-table td .n { color: var(--text-muted); }
 
-/* small swatch keyed to the flux; the name beside it carries the meaning */
-.bm-swatch {
-  display: inline-block;
-  width: 9px; height: 9px;
-  border-radius: 2px;
-  margin-right: 10px;
-  vertical-align: baseline;
-}
-
 /* delta vs reference: sign + arrow + colour (triple-encoded), not colour-only */
 .bm-delta { font-size: 0.82rem; white-space: nowrap; }
 .bm-delta .arrow { margin-right: 3px; }
@@ -261,7 +255,8 @@
   min-width: 3px;
   border-radius: 3px;
   flex-shrink: 0;
-  transition: width var(--transition-standard);
+  /* length AND shade both track the error; colour is set inline / by JS */
+  transition: width var(--transition-standard), background var(--transition-standard);
 }
 .bm-eb-mae {
   font-family: 'JetBrains Mono', monospace;

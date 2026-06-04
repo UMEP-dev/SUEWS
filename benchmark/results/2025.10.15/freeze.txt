@@ -2,6 +2,7 @@ annotated-types==0.7.0
 asteval==1.0.8
 atmosp==0.2.16
 attrs==26.1.0
+blosc2==4.4.1
 cdsapi==0.7.7
 certifi==2026.5.20
 chardet==7.4.3
@@ -27,9 +28,11 @@ locket==1.0.0
 markdown-it-py==4.2.0
 matplotlib==3.10.9
 mdurl==0.1.2
+msgpack==1.1.2
 multiprocess==0.70.19
 multiurl==0.3.7
 narwhals==2.22.0
+ndindex==1.10.1
 numdifftools==0.9.42
 numexpr==2.14.1
 numpy==2.4.6
@@ -38,6 +41,7 @@ pandas==2.3.3
 partd==1.4.2
 pillow==12.2.0
 platypus-opt==1.0.4
+py-cpuinfo==9.0.0
 pyarrow==24.0.0
 pydantic==2.13.4
 pydantic-core==2.46.4
@@ -55,6 +59,7 @@ scipy==1.17.1
 seaborn==0.13.2
 six==1.17.0
 supy==2025.10.15
+tables==3.11.1
 threadpoolctl==3.6.0
 toolz==1.1.0
 tqdm==4.67.3

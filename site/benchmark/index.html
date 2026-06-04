@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>SUEWS Benchmark Suite</title>
     <meta name="description" content="SUEWS model releases scored against eddy-covariance observations at urban flux sites.">
-    <link rel="icon" type="image/svg+xml" href="/brand/assets/icon/suews-icon-dark.svg">
+    <link rel="icon" type="image/svg+xml" href="/brand/assets/icon-disk/suews-icon-dark-disk.svg">
     <script>
         (function () {
             var s = localStorage.getItem('theme');
@@ -19,7 +19,7 @@
     <link rel="stylesheet" href="/css/tokens.css">
     <link rel="stylesheet" href="/css/base.css">
     <link rel="stylesheet" href="/css/subpage.css">
-    <link rel="stylesheet" href="/css/benchmark.css?v=4">
+    <link rel="stylesheet" href="/css/benchmark.css?v=5">
 </head>
 <body>
     <button class="theme-toggle" id="themeToggle" aria-label="Toggle theme">
@@ -41,7 +41,7 @@
             <div class="subpage-label">Regression benchmark</div>
             <h1 class="subpage-title">The <em>benchmark suite</em></h1>
             <p class="subpage-lede">SUEWS releases scored against eddy-covariance observations at urban flux sites.</p>
-            <p class="subpage-intro">Each site scores the modelled energy balance against tower observations across SUEWS releases. One site is benchmarked so far &mdash; London, across five releases (<span class="mono" style="font-family:'JetBrains Mono',monospace;font-size:0.85rem">2025.7 &ndash; 2026.4</span>), with no regression detected. Open a site to compare releases. Further sites are planned.</p>
+            <p class="subpage-intro">Each site scores the modelled energy balance and air temperature against tower observations across SUEWS releases. One site is benchmarked so far &mdash; London, across five releases (<span class="mono" style="font-family:'JetBrains Mono',monospace;font-size:0.85rem">2025.7 &ndash; 2026.4</span>), with no energy-balance regression detected. Open a site to compare releases. Further sites are planned.</p>
         </header>
 
         <section class="subpage-group">
@@ -54,10 +54,10 @@
                     <span class="disc" aria-hidden="true"></span>
                     <span><span class="bm-site-name">London</span><span class="bm-site-meta">UK-LO-KCL &middot; King&rsquo;s College London</span></span>
                     <span class="bm-site-change">
-                        <span class="bm-minibar" role="img" aria-label="Latest release vs previous, across 25 cases: 3 better, 21 same, 1 worse">
-                            <span class="seg better" style="flex:3"></span><span class="seg same" style="flex:21"></span><span class="seg worse" style="flex:1"></span>
+                        <span class="bm-minibar" role="img" aria-label="Latest release vs previous, across 34 cases: 3 better, 27 same, 4 worse">
+                            <span class="seg better" style="flex:3"></span><span class="seg same" style="flex:27"></span><span class="seg worse" style="flex:4"></span>
                         </span>
-                        <span class="bm-change-counts"><span class="up">&#9650;3</span><span>&middot; 21 same</span><span class="down">&#9660;1</span></span>
+                        <span class="bm-change-counts"><span class="up">&#9650;3</span><span>&middot; 27 same</span><span class="down">&#9660;4</span></span>
                     </span>
                     <span class="bm-site-release">v2026.4.3</span>
                     <span class="go" aria-hidden="true">&rarr;</span>
@@ -84,7 +84,7 @@
                     <span class="go" aria-hidden="true"></span>
                 </div>
             </div>
-            <p class="bm-suite-note">The bar shows the latest release vs the previous one across 25 cases (5 fluxes &times; full + 4 seasons): <span style="color:var(--veg-green)">better</span> / <span style="color:var(--text-secondary)">same</span> / <span style="color:var(--energy-orange)">worse</span>, within 0.05&nbsp;W&nbsp;m&#8315;&#178;. Basel, Berlin and IMU are sites esmae has presets for &mdash; not yet benchmarked here.</p>
+            <p class="bm-suite-note">The bar shows the latest release vs the previous one across 34 cases &mdash; 25 energy-balance (5 fluxes &times; full + 4 seasons, within 0.05&nbsp;W&nbsp;m&#8315;&#178;) and 9 air-temperature (3 RSL heights &times; full + 2 windows, within 0.05&nbsp;K): <span style="color:var(--veg-green)">better</span> / <span style="color:var(--text-secondary)">same</span> / <span style="color:var(--energy-orange)">worse</span>. Basel, Berlin and IMU are sites esmae has presets for &mdash; not yet benchmarked here.</p>
         </section>
 
         <section class="subpage-group">
@@ -94,7 +94,7 @@
             </div>
             <ul class="bm-method">
                 <li>Each SUEWS release is run on the <b>same</b> site configuration, meteorological forcing and observations, over a <b>fixed</b> evaluation period &mdash; only the model version changes, so any difference is attributable to the model.</li>
-                <li>Each release runs a configuration <b>valid in its own schema</b>; performance is the mean absolute error (MAE) and mean bias (MBE) of the modelled energy-balance fluxes (K<sub>up</sub>, L<sub>up</sub>, Q<sub>N</sub>, Q<sub>H</sub>, Q<sub>E</sub>) against the eddy-covariance observations.</li>
+                <li>Each release runs a configuration <b>valid in its own schema</b>; performance is the mean absolute error (MAE) and mean bias (MBE) of the modelled energy-balance fluxes (K<sub>up</sub>, L<sub>up</sub>, Q<sub>N</sub>, Q<sub>H</sub>, Q<sub>E</sub>) and the RSL air-temperature profile against the tower observations.</li>
                 <li>A release is compared with the previous one to flag <b>regressions</b>; a site is flagged if error grows materially.</li>
                 <li>Every run is <b>reproducible</b>: re-running a release yields a byte-identical statistics fingerprint.</li>
                 <li>Observations are <b>access-restricted</b> and fetched at run time from a protected archive; only the derived statistics shown here are published.</li>

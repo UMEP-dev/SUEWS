@@ -15,6 +15,8 @@
   "shared_inputs": {
     "forcing_hash": "cd8a461423bda16c4bf60f9213392f1fa99479e5ccb24486debceb8a9b1c5bbf",
     "obs_hash": "202a9a41201408352dd10b4164bba5395d54dc6b798b2cfaa8557607d2338925",
+    "rsl_obs_hash": "b3e64e86f614a892a017287ca6b06e45c4f1a7fc7b20239a37b54583b8d4790a",
+    "rsl_stats_module_hash": "f44c3aa0b7f871e010d73d9bd36094787c74f33aa84e4e16ee28e6b82bc56964",
     "stats_module_hash": "ac04bd1b5ed3915b4c12c5fe2be1d9c68b88f46170b3db792bb081ebfbb76350"
   },
   "site": "UK-LO-KCL",
@@ -53,6 +55,90 @@
       },
       "pandas": "2.3.3",
       "reproducible": true,
+      "rsl": {
+        "fingerprint": "e8f19b4958961787b80d9ad7ec89e2bd81f2592873e7ab18a4a2a345552e0b41",
+        "heights": [
+          6.5,
+          12.5,
+          16.0
+        ],
+        "stats": {
+          "12.5": {
+            "full": {
+              "all": {
+                "MAE": 0.29,
+                "MBE": -0.1,
+                "n": 2986
+              }
+            },
+            "window": {
+              "Apr-Jun": {
+                "MAE": 0.34,
+                "MBE": -0.14,
+                "n": 1322
+              },
+              "Jan-Mar": {
+                "MAE": 0.25,
+                "MBE": -0.07,
+                "n": 1664
+              }
+            }
+          },
+          "16.0": {
+            "full": {
+              "all": {
+                "MAE": 0.29,
+                "MBE": -0.21,
+                "n": 2986
+              }
+            },
+            "window": {
+              "Apr-Jun": {
+                "MAE": 0.35,
+                "MBE": -0.28,
+                "n": 1322
+              },
+              "Jan-Mar": {
+                "MAE": 0.24,
+                "MBE": -0.16,
+                "n": 1664
+              }
+            }
+          },
+          "6.5": {
+            "full": {
+              "all": {
+                "MAE": 0.42,
+                "MBE": -0.31,
+                "n": 2986
+              }
+            },
+            "window": {
+              "Apr-Jun": {
+                "MAE": 0.32,
+                "MBE": -0.11,
+                "n": 1322
+              },
+              "Jan-Mar": {
+                "MAE": 0.5,
+                "MBE": -0.47,
+                "n": 1664
+              }
+            }
+          }
+        },
+        "windows": {
+          "Apr-Jun": [
+            "2013-04-28",
+            "2013-06-27"
+          ],
+          "Jan-Mar": [
+            "2013-01-01",
+            "2013-03-18"
+          ]
+        }
+      },
+      "rsl_reproducible": true,
       "schema_version": "0.1",
       "seasonal": {
         "Kup": {
@@ -203,6 +289,90 @@
       },
       "pandas": "2.3.3",
       "reproducible": true,
+      "rsl": {
+        "fingerprint": "e8f19b4958961787b80d9ad7ec89e2bd81f2592873e7ab18a4a2a345552e0b41",
+        "heights": [
+          6.5,
+          12.5,
+          16.0
+        ],
+        "stats": {
+          "12.5": {
+            "full": {
+              "all": {
+                "MAE": 0.29,
+                "MBE": -0.1,
+                "n": 2986
+              }
+            },
+            "window": {
+              "Apr-Jun": {
+                "MAE": 0.34,
+                "MBE": -0.14,
+                "n": 1322
+              },
+              "Jan-Mar": {
+                "MAE": 0.25,
+                "MBE": -0.07,
+                "n": 1664
+              }
+            }
+          },
+          "16.0": {
+            "full": {
+              "all": {
+                "MAE": 0.29,
+                "MBE": -0.21,
+                "n": 2986
+              }
+            },
+            "window": {
+              "Apr-Jun": {
+                "MAE": 0.35,
+                "MBE": -0.28,
+                "n": 1322
+              },
+              "Jan-Mar": {
+                "MAE": 0.24,
+                "MBE": -0.16,
+                "n": 1664
+              }
+            }
+          },
+          "6.5": {
+            "full": {
+              "all": {
+                "MAE": 0.42,
+                "MBE": -0.31,
+                "n": 2986
+              }
+            },
+            "window": {
+              "Apr-Jun": {
+                "MAE": 0.32,
+                "MBE": -0.11,
+                "n": 1322
+              },
+              "Jan-Mar": {
+                "MAE": 0.5,
+                "MBE": -0.47,
+                "n": 1664
+              }
+            }
+          }
+        },
+        "windows": {
+          "Apr-Jun": [
+            "2013-04-28",
+            "2013-06-27"
+          ],
+          "Jan-Mar": [
+            "2013-01-01",
+            "2013-03-18"
+          ]
+        }
+      },
+      "rsl_reproducible": true,
       "schema_version": "0.1",
       "seasonal": {
         "Kup": {
@@ -353,6 +523,90 @@
       },
       "pandas": "2.3.3",
       "reproducible": true,
+      "rsl": {
+        "fingerprint": "e8f19b4958961787b80d9ad7ec89e2bd81f2592873e7ab18a4a2a345552e0b41",
+        "heights": [
+          6.5,
+          12.5,
+          16.0
+        ],
+        "stats": {
+          "12.5": {
+            "full": {
+              "all": {
+                "MAE": 0.29,
+                "MBE": -0.1,
+                "n": 2986
+              }
+            },
+            "window": {
+              "Apr-Jun": {
+                "MAE": 0.34,
+                "MBE": -0.14,
+                "n": 1322
+              },
+              "Jan-Mar": {
+                "MAE": 0.25,
+                "MBE": -0.07,
+                "n": 1664
+              }
+            }
+          },
+          "16.0": {
+            "full": {
+              "all": {
+                "MAE": 0.29,
+                "MBE": -0.21,
+                "n": 2986
+              }
+            },
+            "window": {
+              "Apr-Jun": {
+                "MAE": 0.35,
+                "MBE": -0.28,
+                "n": 1322
+              },
+              "Jan-Mar": {
+                "MAE": 0.24,
+                "MBE": -0.16,
+                "n": 1664
+              }
+            }
+          },
+          "6.5": {
+            "full": {
+              "all": {
+                "MAE": 0.42,
+                "MBE": -0.31,
+                "n": 2986
+              }
+            },
+            "window": {
+              "Apr-Jun": {
+                "MAE": 0.32,
+                "MBE": -0.11,
+                "n": 1322
+              },
+              "Jan-Mar": {
+                "MAE": 0.5,
+                "MBE": -0.47,
+                "n": 1664
+              }
+            }
+          }
+        },
+        "windows": {
+          "Apr-Jun": [
+            "2013-04-28",
+            "2013-06-27"
+          ],
+          "Jan-Mar": [
+            "2013-01-01",
+            "2013-03-18"
+          ]
+        }
+      },
+      "rsl_reproducible": true,
       "schema_version": null,
       "seasonal": {
         "Kup": {
@@ -503,6 +757,90 @@
       },
       "pandas": "3.0.3",
       "reproducible": true,
+      "rsl": {
+        "fingerprint": "e8f19b4958961787b80d9ad7ec89e2bd81f2592873e7ab18a4a2a345552e0b41",
+        "heights": [
+          6.5,
+          12.5,
+          16.0
+        ],
+        "stats": {
+          "12.5": {
+            "full": {
+              "all": {
+                "MAE": 0.29,
+                "MBE": -0.1,
+                "n": 2986
+              }
+            },
+            "window": {
+              "Apr-Jun": {
+                "MAE": 0.34,
+                "MBE": -0.14,
+                "n": 1322
+              },
+              "Jan-Mar": {
+                "MAE": 0.25,
+                "MBE": -0.07,
+                "n": 1664
+              }
+            }
+          },
+          "16.0": {
+            "full": {
+              "all": {
+                "MAE": 0.29,
+                "MBE": -0.21,
+                "n": 2986
+              }
+            },
+            "window": {
+              "Apr-Jun": {
+                "MAE": 0.35,
+                "MBE": -0.28,
+                "n": 1322
+              },
+              "Jan-Mar": {
+                "MAE": 0.24,
+                "MBE": -0.16,
+                "n": 1664
+              }
+            }
+          },
+          "6.5": {
+            "full": {
+              "all": {
+                "MAE": 0.42,
+                "MBE": -0.31,
+                "n": 2986
+              }
+            },
+            "window": {
+              "Apr-Jun": {
+                "MAE": 0.32,
+                "MBE": -0.11,
+                "n": 1322
+              },
+              "Jan-Mar": {
+                "MAE": 0.5,
+                "MBE": -0.47,
+                "n": 1664
+              }
+            }
+          }
+        },
+        "windows": {
+          "Apr-Jun": [
+            "2013-04-28",
+            "2013-06-27"
+          ],
+          "Jan-Mar": [
+            "2013-01-01",
+            "2013-03-18"
+          ]
+        }
+      },
+      "rsl_reproducible": true,
       "schema_version": "2025.12",
       "seasonal": {
         "Kup": {
@@ -653,6 +991,90 @@
       },
       "pandas": "3.0.3",
       "reproducible": true,
+      "rsl": {
+        "fingerprint": "ed8fb3ad5cd93e4b00803c2bec36ae404e1521d001492b3709350e94bf28b29c",
+        "heights": [
+          6.5,
+          12.5,
+          16.0
+        ],
+        "stats": {
+          "12.5": {
+            "full": {
+              "all": {
+                "MAE": 0.32,
+                "MBE": -0.16,
+                "n": 2986
+              }
+            },
+            "window": {
+              "Apr-Jun": {
+                "MAE": 0.35,
+                "MBE": -0.09,
+                "n": 1322
+              },
+              "Jan-Mar": {
+                "MAE": 0.3,
+                "MBE": -0.22,
+                "n": 1664
+              }
+            }
+          },
+          "16.0": {
+            "full": {
+              "all": {
+                "MAE": 0.33,
+                "MBE": -0.25,
+                "n": 2986
+              }
+            },
+            "window": {
+              "Apr-Jun": {
+                "MAE": 0.34,
+                "MBE": -0.22,
+                "n": 1322
+              },
+              "Jan-Mar": {
+                "MAE": 0.32,
+                "MBE": -0.28,
+                "n": 1664
+              }
+            }
+          },
+          "6.5": {
+            "full": {
+              "all": {
+                "MAE": 0.54,
+                "MBE": -0.41,
+                "n": 2986
+              }
+            },
+            "window": {
+              "Apr-Jun": {
+                "MAE": 0.35,
+                "MBE": -0.07,
+                "n": 1322
+              },
+              "Jan-Mar": {
+                "MAE": 0.7,
+                "MBE": -0.69,
+                "n": 1664
+              }
+            }
+          }
+        },
+        "windows": {
+          "Apr-Jun": [
+            "2013-04-28",
+            "2013-06-27"
+          ],
+          "Jan-Mar": [
+            "2013-01-01",
+            "2013-03-18"
+          ]
+        }
+      },
+      "rsl_reproducible": true,
       "schema_version": "2025.12",
       "seasonal": {
         "Kup": {

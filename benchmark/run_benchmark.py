@@ -34,6 +34,7 @@ import numpy as np
 import pandas as pd
 
 import bench_stats
+import bench_rsl
 
 warnings.filterwarnings("ignore")
 
@@ -98,7 +99,17 @@ def run_once(config_path: str, forcing_path: str) -> pd.DataFrame:
     suews = suews[bench_stats.FLUXES]
     # 5-min -> hourly, end-of-hour label to match obs (timestamp = period end)
     hourly = suews.resample("1h", label="right", closed="right").mean()
-    return hourly
+    return hourly, df
+
+
+def rsl_model_T(df: pd.DataFrame, heights) -> pd.DataFrame:
+    """Model air temperature interpolated from the RSL profile to the obs
+    heights, hourly mean. Additive to the EB path; does not affect EB stats."""
+    rsl = df.xs("RSL", axis=1, level=0)
+    if df.index.nlevels > 1:
+        grid0 = df.index.get_level_values(0).unique()[0]
+        rsl = rsl.xs(grid0, axis=0, level=0)
+    return bench_rsl.interpolate_heights(rsl, heights).resample("1h").mean()
 
 
 def build_pairs(model_hourly: pd.DataFrame, obs: pd.DataFrame) -> pd.DataFrame:
@@ -111,12 +122,24 @@ def build_pairs(model_hourly: pd.DataFrame, obs: pd.DataFrame) -> pd.DataFrame:
     return pairs
 
 
-def compute_fingerprint(config_path, forcing_path, obs) -> tuple[str, pd.DataFrame]:
-    model_hourly = run_once(config_path, forcing_path)
+def compute_fingerprint(config_path, forcing_path, obs, rsl_obs=None):
+    """Returns (eb_fp, eb_tab, rsl_fp, rsl_tab). RSL is computed from the SAME
+    model run when rsl_obs is given; otherwise rsl_fp/rsl_tab are None."""
+    model_hourly, df = run_once(config_path, forcing_path)
     pairs = build_pairs(model_hourly, obs)
     tab = bench_stats.compute_stats(pairs)
     fp = bench_stats.fingerprint(tab)
-    return fp, tab
+    rsl_fp = rsl_tab = None
+    if rsl_obs is not None:
+        # RSL is additive: a failure here (e.g. an older release with a different
+        # RSL output shape) must NOT invalidate the energy-balance result.
+        try:
+            modT = rsl_model_T(df, bench_rsl.HEIGHTS)
+            rsl_tab = bench_rsl.compute_rsl_stats(modT, rsl_obs)
+            rsl_fp = bench_rsl.fingerprint(rsl_tab)
+        except Exception:
+            rsl_fp = rsl_tab = None
+    return fp, tab, rsl_fp, rsl_tab
 
 
 def main() -> int:
@@ -126,6 +149,8 @@ def main() -> int:
     ap.add_argument("--forcing", required=True)
     ap.add_argument("--obs", required=True)
     ap.add_argument("--obs-source", default="zenodo:508375/Kc1_Obs.csv (restricted sandbox)")
+    ap.add_argument("--rsl-obs", default=None,
+                    help="optional df_Ta_comb.h5 (RSL air-temperature obs); enables the RSL axis")
     ap.add_argument("--freeze", required=True)
     ap.add_argument("--outdir", required=True)
     args = ap.parse_args()
@@ -174,11 +199,25 @@ def main() -> int:
         "fingerprint": None,
         "fingerprint_rerun": None,
         "reproducible": None,
+        "rsl_obs_hash": None,
+        "rsl_fingerprint": None,
+        "rsl_fingerprint_rerun": None,
+        "rsl_reproducible": None,
         "error": None,
     }
 
     try:
         obs = load_obs(args.obs)
+        rsl_obs = None
+        if args.rsl_obs:
+            _obs_T = bench_rsl.load_obs_T(args.rsl_obs)
+            # Mask the -999 sentinel BEFORE the hourly mean: resampling would
+            # otherwise average it with valid half-hour samples into a bogus
+            # finite temperature that the exact-(-999) pair mask later misses.
+            _obs_T = _obs_T.where(_obs_T != bench_rsl.MISSING)
+            rsl_obs = _obs_T.resample("1h").mean()
+            prov["rsl_obs_hash"] = sha256_file(args.rsl_obs)
+            prov["rsl_stats_module_hash"] = sha256_file(str(Path(bench_rsl.__file__)))
         # record schema recorded on the loaded config
         try:
             from supy import SUEWSSimulation
@@ -188,14 +227,25 @@ def main() -> int:
         except Exception:
             pass
 
-        fp1, tab1 = compute_fingerprint(args.config, args.forcing, obs)
-        fp2, tab2 = compute_fingerprint(args.config, args.forcing, obs)
+        fp1, tab1, rfp1, rtab1 = compute_fingerprint(args.config, args.forcing, obs, rsl_obs)
+        fp2, tab2, rfp2, rtab2 = compute_fingerprint(args.config, args.forcing, obs, rsl_obs)
 
         prov["fingerprint"] = fp1
         prov["fingerprint_rerun"] = fp2
         prov["reproducible"] = bool(fp1 == fp2)
-        prov["status"] = "ok" if fp1 == fp2 else "failed"
-        if fp1 != fp2:
+        prov["rsl_fingerprint"] = rfp1
+        prov["rsl_fingerprint_rerun"] = rfp2
+        # An asymmetric outcome (one run yields an RSL fingerprint, the
+        # other does not) is itself non-reproducible: count the axis as
+        # produced if EITHER run yielded a fingerprint, so the rsl_ok check
+        # below catches the mismatch instead of silently passing.
+        rsl_produced = (rsl_obs is not None) and (rfp1 is not None or rfp2 is not None)
+        rsl_ok = (rfp1 == rfp2) if rsl_produced else True
+        prov["rsl_reproducible"] = bool(rfp1 == rfp2) if rsl_produced else None
+        if rsl_obs is not None and not rsl_produced:
+            prov["rsl_note"] = "RSL obs supplied but no RSL stats produced (no usable RSL profile in this release's output)"
+        prov["status"] = "ok" if (fp1 == fp2 and rsl_ok) else "failed"
+        if fp1 != fp2 or not rsl_ok:
             prov["error"] = "fingerprint mismatch between two runs in the same pinned env"
 
         stats_json = {
@@ -207,8 +257,17 @@ def main() -> int:
             "fingerprint": fp1,
             "stats": bench_stats.to_nested_json(tab1),
         }
+        if rtab1 is not None:
+            stats_json["rsl"] = {
+                "heights": bench_rsl.HEIGHTS,
+                "windows": bench_rsl.WINDOWS,
+                "fingerprint": rfp1,
+                "stats": bench_rsl.to_nested_json(rtab1),
+            }
         (outdir / "stats.json").write_text(json.dumps(stats_json, indent=2, sort_keys=True))
         tab1.to_csv(outdir / "stats_table.csv", index=False)
+        if rtab1 is not None:
+            rtab1.to_csv(outdir / "rsl_table.csv", index=False)
 
     except Exception as e:
         prov["status"] = "failed"
@@ -217,8 +276,8 @@ def main() -> int:
     (outdir / "provenance.json").write_text(json.dumps(prov, indent=2, sort_keys=True))
     # freeze is written by the caller; just confirm path here
     print(f"[{args.version}] status={prov['status']} "
-          f"fp={prov['fingerprint']} rerun={prov['fingerprint_rerun']} "
-          f"reproducible={prov['reproducible']}")
+          f"eb_fp={(prov['fingerprint'] or '-')[:12]} eb_repro={prov['reproducible']} "
+          f"rsl_fp={(prov['rsl_fingerprint'] or '-')[:12]} rsl_repro={prov['rsl_reproducible']}")
     if prov["error"]:
         print(prov["error"][:600], file=sys.stderr)
     return 0 if prov["status"] == "ok" else 1

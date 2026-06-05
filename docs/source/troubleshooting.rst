@@ -55,7 +55,7 @@ First time steps of storage output could give NaN values during the initial conv
 
 First things to Check if the program seems to have problems
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
--  Check the Python runtime logs (SuPy logger output). Legacy ``problems.txt``/``warnings.txt`` files are no longer written.
+-  Check the Python runtime logs (SuPy logger output). Legacy ``problems.txt``/``warnings.txt`` files are no longer written. SuPy logs to the console by default; to capture the output in a file, call :func:`supy.enable_file_logging` or set the ``SUPY_LOGFILE`` / ``SUPY_LOG_DIR`` environment variable (see :ref:`api_core_functions`).
 -  Check file options – in RunControl.nml.
 -  Look in the output directory for the SS_FileChoices.txt. This allows you to check all options that were used in the run. You may want to compare it with the original version supplied with the model.
 -  Note there can not be missing time steps in the data. If you need help with this you may want to checkout `UMEP <https://umep-docs.readthedocs.io/>`__

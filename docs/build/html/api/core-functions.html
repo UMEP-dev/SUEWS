@@ -8,8 +8,8 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <meta property="article:modified_time" content="2025-11-20T11:17:06+00:00" />
-    <title>6.2. Core Functions &#8212; SUEWS 2026.6.5 documentation</title>
+    <meta property="article:modified_time" content="2026-06-05T16:06:25+00:00" />
+    <title>6.2. Core Functions &#8212; SUEWS 2026.6.5.dev3 documentation</title>
   
   
   
@@ -45,7 +45,7 @@
   <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=8878045cc6db502f8baf" />
 <link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=8878045cc6db502f8baf" />
 
-    <script src="../_static/documentation_options.js?v=72daed37"></script>
+    <script src="../_static/documentation_options.js?v=7433e969"></script>
     <script src="../_static/doctools.js?v=9bcbadda"></script>
     <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
     <script src="../_static/scripts/sphinx-book-theme.js?v=fab101a9"></script>
@@ -59,8 +59,8 @@
     <link rel="prev" title="6.1. SUEWSSimulation Class" href="simulation.html" />
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
-  <meta name="docsearch:version" content="2026.6.5" />
-    <meta name="docbuild:last-update" content="2025-11-20"/>
+  <meta name="docsearch:version" content="2026.6.5.dev3" />
+    <meta name="docbuild:last-update" content="2026-06-05"/>
   </head>
   
   
@@ -98,6 +98,16 @@
   <div class="pst-async-banner-revealer d-none">
   <aside id="bd-header-version-warning" class="d-none d-print-none" aria-label="Version warning"></aside>
 </div>
+<aside class="bd-header-announcement" aria-label="Announcement">
+  <div class="bd-header-announcement__content">
+    <div style="background-color: #f0ad4e; border: 1px solid #eea236; border-radius: 4px; padding: 10px; margin: 10px 0;">
+        <strong>⚠️ Development Version:</strong> This documentation was built from a development version
+        (2026.6.5.dev3, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/10736198f87749940eae2540177a345bdc06b166" style="color: #31708f;">1073619</a>).
+        Features described here may be unstable or subject to change. For stable documentation, please visit the
+        <a href="https://docs.suews.io/stable/" style="color: #31708f;">latest release</a>.
+    </div>
+    </div>
+</aside>
 
   
     <header class="bd-header navbar navbar-expand-lg bd-navbar d-print-none">
@@ -139,8 +149,8 @@
       
     
     
-    <img src="../_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.6.5 documentation - Home"/>
-    <img src="../_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.6.5 documentation - Home"/>
+    <img src="../_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.6.5.dev3 documentation - Home"/>
+    <img src="../_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.6.5.dev3 documentation - Home"/>
   
   
 </a></div>
@@ -288,6 +298,8 @@
 <li class="toctree-l3"><a class="reference internal" href="_autosummary/supy.load_forcing_grid.html">6.2.1.4. supy.load_forcing_grid</a></li>
 <li class="toctree-l3"><a class="reference internal" href="_autosummary/supy.load_sample_data.html">6.2.1.5. supy.load_sample_data</a></li>
 <li class="toctree-l3"><a class="reference internal" href="_autosummary/supy.show_version.html">6.2.1.6. supy.show_version</a></li>
+<li class="toctree-l3"><a class="reference internal" href="_autosummary/supy.enable_file_logging.html">6.2.3.1. supy.enable_file_logging</a></li>
+<li class="toctree-l3"><a class="reference internal" href="_autosummary/supy.disable_file_logging.html">6.2.3.2. supy.disable_file_logging</a></li>
 </ul>
 </details></li>
 <li class="toctree-l2 has-children"><a class="reference internal" href="utility-functions.html">6.3. Utility Functions</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
@@ -589,6 +601,7 @@
                 <ul class="visible nav section-nav flex-column">
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#main-functions-deprecated">6.2.1. Main Functions (Deprecated)</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#legacy-workflow-reference">6.2.2. Legacy Workflow Reference</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#logging-controls">6.2.3. Logging Controls</a></li>
 </ul>
             </nav>
         </div>
@@ -662,6 +675,40 @@ Use <a class="reference internal" href="simulation.html#supy.SUEWSSimulation" ti
 </ol>
 <p><strong>Recommended</strong>: See <a class="reference internal" href="simulation.html"><span class="doc">SUEWSSimulation Class</span></a> for the modern object-oriented interface.</p>
 </section>
+<section id="logging-controls">
+<h2><span class="section-number">6.2.3. </span>Logging Controls<a class="headerlink" href="#logging-controls" title="Link to this heading">#</a></h2>
+<p>These functions are not deprecated; they control where SuPy writes its logs.</p>
+<div class="pst-scrollable-table-container"><table class="autosummary longtable table">
+<tbody>
+<tr class="row-odd"><td><p><a class="reference internal" href="_autosummary/supy.enable_file_logging.html#supy.enable_file_logging" title="supy.enable_file_logging"><code class="xref py py-obj docutils literal notranslate"><span class="pre">enable_file_logging</span></code></a>([path])</p></td>
+<td><p>Write SuPy log messages to a file (opt-in).</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="_autosummary/supy.disable_file_logging.html#supy.disable_file_logging" title="supy.disable_file_logging"><code class="xref py py-obj docutils literal notranslate"><span class="pre">disable_file_logging</span></code></a>()</p></td>
+<td><p>Detach and close the opt-in file handler, if one is active.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<p>By default SuPy logs only to the console; no <code class="docutils literal notranslate"><span class="pre">SuPy.log</span></code> file is created.
+Call <a class="reference internal" href="_autosummary/supy.enable_file_logging.html#supy.enable_file_logging" title="supy.enable_file_logging"><code class="xref py py-func docutils literal notranslate"><span class="pre">enable_file_logging()</span></code></a> to also write a log file (lazily created on
+the first message, so an unused logger leaves no stray file) and
+<a class="reference internal" href="_autosummary/supy.disable_file_logging.html#supy.disable_file_logging" title="supy.disable_file_logging"><code class="xref py py-func docutils literal notranslate"><span class="pre">disable_file_logging()</span></code></a> to stop it again:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span><span class="w"> </span><span class="nn">supy</span>
+
+<span class="n">supy</span><span class="o">.</span><span class="n">enable_file_logging</span><span class="p">()</span>                  <span class="c1"># writes SuPy.log in the current directory</span>
+<span class="n">supy</span><span class="o">.</span><span class="n">enable_file_logging</span><span class="p">(</span><span class="s2">&quot;~/logs/run.log&quot;</span><span class="p">)</span>  <span class="c1"># a specific file (~ is expanded)</span>
+<span class="n">supy</span><span class="o">.</span><span class="n">disable_file_logging</span><span class="p">()</span>                 <span class="c1"># stop writing to the file</span>
+</pre></div>
+</div>
+<p>To log into a directory (created if needed), use the <code class="docutils literal notranslate"><span class="pre">SUPY_LOG_DIR</span></code>
+environment variable, which always writes <code class="docutils literal notranslate"><span class="pre">SuPy.log</span></code> inside it. File logging
+can be enabled entirely without code by setting an environment variable before
+importing supy:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="nb">export</span><span class="w"> </span><span class="nv">SUPY_LOGFILE</span><span class="o">=</span>~/logs/run.log<span class="w">   </span><span class="c1"># explicit file path</span>
+<span class="nb">export</span><span class="w"> </span><span class="nv">SUPY_LOG_DIR</span><span class="o">=</span>~/logs<span class="w">           </span><span class="c1"># directory; file is SuPy.log inside it</span>
+</pre></div>
+</div>
+</section>
 </section>
 
 
@@ -713,6 +760,7 @@ Use <a class="reference internal" href="simulation.html#supy.SUEWSSimulation" ti
     <ul class="visible nav section-nav flex-column">
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#main-functions-deprecated">6.2.1. Main Functions (Deprecated)</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#legacy-workflow-reference">6.2.2. Legacy Workflow Reference</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#logging-controls">6.2.3. Logging Controls</a></li>
 </ul>
   </nav></div>
 
@@ -746,7 +794,7 @@ By SUEWS dev team led by Prof Sue Grimmond
   
   <div class="footer-item">
     <p class="last-updated">
-  Last updated on 2025-11-20.
+  Last updated on 2026-06-05.
   <br/>
 </p>
   </div>
@@ -754,8 +802,8 @@ By SUEWS dev team led by Prof Sue Grimmond
   <div class="footer-item">
     
 <div class="extra_footer">
-  <p>Version: 2026.6.5 |
-    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/011ac3ac7cc9cc82253e17481cf4a8d8d24daeaf">011ac3a</a> |
+  <p>Version: 2026.6.5.dev3 |
+    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/10736198f87749940eae2540177a345bdc06b166">1073619</a> |
     <a href="https://umep-dev.github.io/SUEWS/brand/showcase.html">Brand</a></p>
 </div>
   </div>

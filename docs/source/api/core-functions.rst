@@ -43,3 +43,35 @@ The legacy functional API workflow consists of:
 4. **Save results**: :func:`save_supy` to write outputs to disk (deprecated)
 
 **Recommended**: See :doc:`simulation` for the modern object-oriented interface.
+
+Logging Controls
+----------------
+
+These functions are not deprecated; they control where SuPy writes its logs.
+
+.. autosummary::
+    :toctree: _autosummary
+
+    enable_file_logging
+    disable_file_logging
+
+By default SuPy logs only to the console; no ``SuPy.log`` file is created.
+Call :func:`enable_file_logging` to also write a log file (lazily created on
+the first message, so an unused logger leaves no stray file) and
+:func:`disable_file_logging` to stop it again:
+
+.. code-block:: python
+
+    import supy
+
+    supy.enable_file_logging()              # writes SuPy.log in the current directory
+    supy.enable_file_logging("~/supy-logs") # or into a chosen directory
+    supy.disable_file_logging()             # stop writing to the file
+
+File logging can also be enabled without code by setting an environment
+variable before importing supy:
+
+.. code-block:: bash
+
+    export SUPY_LOGFILE=~/supy-logs/run.log   # explicit file path
+    export SUPY_LOG_DIR=~/supy-logs           # directory; file is SuPy.log inside it

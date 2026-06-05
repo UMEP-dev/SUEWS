@@ -52,7 +52,8 @@
                 <button class="bm-release" type="button" data-ver="2025.10.15">2025.10</button>
                 <button class="bm-release" type="button" data-ver="2025.11.20">2025.11</button>
                 <button class="bm-release" type="button" data-ver="2026.1.28">2026.1</button>
-                <button class="bm-release" type="button" data-ver="2026.4.3" aria-current="true">2026.4 <span class="latest">latest</span></button>
+                <button class="bm-release" type="button" data-ver="2026.4.3">2026.4</button>
+                <button class="bm-release" type="button" data-ver="2026.6.5" aria-current="true">2026.6 <span class="latest">latest</span></button>
             </div>
 
             <!-- Overview panel: verdict + at-a-glance error across all releases -->
@@ -63,7 +64,7 @@
                     <span class="bm-chip">site <b>UK&#8209;LO&#8209;KCL</b></span>
                     <span class="bm-chip">period <b>2011&ndash;2013</b></span>
                     <span class="bm-chip">releases <b>5</b></span>
-                    <span class="bm-chip">latest <b>v2026.4.3</b></span>
+                    <span class="bm-chip">latest <b>v2026.6.5</b></span>
                 </div>
             </div>
         </header>
@@ -122,7 +123,7 @@
 
         <section class="subpage-group">
             <div class="subpage-group-header">
-                <span class="subpage-group-label">Energy balance &mdash; <span class="sel-ver">v2026.4.3</span></span>
+                <span class="subpage-group-label">Energy balance &mdash; <span class="sel-ver">v2026.6.5</span></span>
                 <span class="subpage-group-line"></span>
             </div>
             <div class="bm-eb" role="table" aria-label="Energy-balance error by flux for the selected release">
@@ -168,7 +169,7 @@
 
         <section class="subpage-group">
             <div class="subpage-group-header">
-                <span class="subpage-group-label">Error by season &mdash; <span class="sel-ver">v2026.4.3</span></span>
+                <span class="subpage-group-label">Error by season &mdash; <span class="sel-ver">v2026.6.5</span></span>
                 <span class="subpage-group-line"></span>
             </div>
             <div class="bm-matrix" role="table" aria-label="Mean absolute error by flux and season, watts per square metre; cell shade increases with error">
@@ -198,7 +199,7 @@
 
         <section class="subpage-group">
             <div class="subpage-group-header">
-                <span class="subpage-group-label">Air temperature &mdash; RSL profile &mdash; <span class="sel-ver">v2026.4.3</span></span>
+                <span class="subpage-group-label">Air temperature &mdash; RSL profile &mdash; <span class="sel-ver">v2026.6.5</span></span>
                 <span class="subpage-group-line"></span>
             </div>
             <div class="bm-eb" role="table" aria-label="RSL air-temperature error by measurement height">
@@ -240,7 +241,7 @@
                 <div><dt>Evaluation period</dt><dd><span class="mono">2011-01-01 &ndash; 2013-12-31</span></dd></div>
                 <div><dt>Observations</dt><dd>Eddy-covariance fluxes, Kc1 <span class="mono">restricted</span></dd></div>
                 <div><dt>Reference</dt><dd>Ward&nbsp;et&nbsp;al. (2016)</dd></div>
-                <div><dt>Releases benchmarked</dt><dd><span class="mono">2025.7.6, 2025.10.15, 2025.11.20, 2026.1.28, 2026.4.3</span></dd></div>
+                <div><dt>Releases benchmarked</dt><dd><span class="mono">2025.7.6, 2025.10.15, 2025.11.20, 2026.1.28, 2026.4.3, 2026.6.5</span></dd></div>
                 <div><dt>Config</dt><dd>Per-release, each valid in its own schema</dd></div>
                 <div><dt>Reproducibility</dt><dd>Per-release fingerprint reproduces on re-run</dd></div>
                 <div><dt>Net radiation</dt><dd><span class="mono">NARP</span></dd></div>
@@ -294,8 +295,8 @@
 
     <!-- Release selector: switch the displayed release's stats (real data) -->
     <script>
-        const BENCH = {"2025.7.6":{"full":{"Kup":[2.45,-0.87,24738],"Lup":[4.48,-1.69,24700],"QN":[8.54,2.53,24160],"QH":[39.53,12.14,22137],"QE":[14.62,5.78,19535]},"seas":{"Kup":[2.02,2.82,2.77,2.22],"Lup":[4.19,5.39,4.89,3.59],"QN":[6.07,11.33,10.77,6.2],"QH":[33.97,40.52,42.78,40.9],"QE":[10.28,14.49,19.05,14.15]}},"2025.10.15":{"full":{"Kup":[2.45,-0.87,24738],"Lup":[4.48,-1.69,24700],"QN":[8.54,2.53,24160],"QH":[39.53,12.14,22137],"QE":[14.62,5.78,19535]},"seas":{"Kup":[2.02,2.82,2.77,2.22],"Lup":[4.19,5.39,4.89,3.59],"QN":[6.07,11.33,10.77,6.2],"QH":[33.97,40.52,42.78,40.9],"QE":[10.28,14.49,19.05,14.15]}},"2025.11.20":{"full":{"Kup":[2.45,-0.87,24738],"Lup":[4.48,-1.69,24700],"QN":[8.54,2.53,24160],"QH":[39.53,12.14,22137],"QE":[14.62,5.78,19535]},"seas":{"Kup":[2.02,2.82,2.77,2.22],"Lup":[4.19,5.39,4.89,3.59],"QN":[6.07,11.33,10.77,6.2],"QH":[33.97,40.52,42.78,40.9],"QE":[10.28,14.49,19.05,14.15]}},"2026.1.28":{"full":{"Kup":[2.45,-0.87,24738],"Lup":[4.48,-1.69,24700],"QN":[8.54,2.53,24160],"QH":[39.53,12.14,22137],"QE":[14.62,5.78,19535]},"seas":{"Kup":[2.02,2.82,2.77,2.22],"Lup":[4.19,5.39,4.89,3.59],"QN":[6.07,11.33,10.77,6.2],"QH":[33.97,40.52,42.78,40.9],"QE":[10.28,14.49,19.05,14.15]}},"2026.4.3":{"full":{"Kup":[2.46,-0.9,24738],"Lup":[4.48,-1.69,24700],"QN":[8.54,2.56,24160],"QH":[39.52,12.17,22137],"QE":[14.59,5.65,19535]},"seas":{"Kup":[2.04,2.83,2.77,2.23],"Lup":[4.19,5.39,4.89,3.59],"QN":[6.07,11.33,10.77,6.2],"QH":[34.04,40.5,42.77,40.8],"QE":[10.2,14.48,19.07,14.08]}}};
-        const RSL = {"2025.7.6":{"6.5":[0.42,-0.31,2986,0.5,0.32],"12.5":[0.29,-0.1,2986,0.25,0.34],"16.0":[0.29,-0.21,2986,0.24,0.35]},"2025.10.15":{"6.5":[0.42,-0.31,2986,0.5,0.32],"12.5":[0.29,-0.1,2986,0.25,0.34],"16.0":[0.29,-0.21,2986,0.24,0.35]},"2025.11.20":{"6.5":[0.42,-0.31,2986,0.5,0.32],"12.5":[0.29,-0.1,2986,0.25,0.34],"16.0":[0.29,-0.21,2986,0.24,0.35]},"2026.1.28":{"6.5":[0.42,-0.31,2986,0.5,0.32],"12.5":[0.29,-0.1,2986,0.25,0.34],"16.0":[0.29,-0.21,2986,0.24,0.35]},"2026.4.3":{"6.5":[0.54,-0.41,2986,0.7,0.35],"12.5":[0.32,-0.16,2986,0.3,0.35],"16.0":[0.33,-0.25,2986,0.32,0.34]}};
+        const BENCH = {"2025.7.6":{"full":{"Kup":[2.45,-0.87,24738],"Lup":[4.48,-1.69,24700],"QN":[8.54,2.53,24160],"QH":[39.53,12.14,22137],"QE":[14.62,5.78,19535]},"seas":{"Kup":[2.02,2.82,2.77,2.22],"Lup":[4.19,5.39,4.89,3.59],"QN":[6.07,11.33,10.77,6.2],"QH":[33.97,40.52,42.78,40.9],"QE":[10.28,14.49,19.05,14.15]}},"2025.10.15":{"full":{"Kup":[2.45,-0.87,24738],"Lup":[4.48,-1.69,24700],"QN":[8.54,2.53,24160],"QH":[39.53,12.14,22137],"QE":[14.62,5.78,19535]},"seas":{"Kup":[2.02,2.82,2.77,2.22],"Lup":[4.19,5.39,4.89,3.59],"QN":[6.07,11.33,10.77,6.2],"QH":[33.97,40.52,42.78,40.9],"QE":[10.28,14.49,19.05,14.15]}},"2025.11.20":{"full":{"Kup":[2.45,-0.87,24738],"Lup":[4.48,-1.69,24700],"QN":[8.54,2.53,24160],"QH":[39.53,12.14,22137],"QE":[14.62,5.78,19535]},"seas":{"Kup":[2.02,2.82,2.77,2.22],"Lup":[4.19,5.39,4.89,3.59],"QN":[6.07,11.33,10.77,6.2],"QH":[33.97,40.52,42.78,40.9],"QE":[10.28,14.49,19.05,14.15]}},"2026.1.28":{"full":{"Kup":[2.45,-0.87,24738],"Lup":[4.48,-1.69,24700],"QN":[8.54,2.53,24160],"QH":[39.53,12.14,22137],"QE":[14.62,5.78,19535]},"seas":{"Kup":[2.02,2.82,2.77,2.22],"Lup":[4.19,5.39,4.89,3.59],"QN":[6.07,11.33,10.77,6.2],"QH":[33.97,40.52,42.78,40.9],"QE":[10.28,14.49,19.05,14.15]}},"2026.4.3":{"full":{"Kup":[2.46,-0.9,24738],"Lup":[4.48,-1.69,24700],"QN":[8.54,2.56,24160],"QH":[39.52,12.17,22137],"QE":[14.59,5.65,19535]},"seas":{"Kup":[2.04,2.83,2.77,2.23],"Lup":[4.19,5.39,4.89,3.59],"QN":[6.07,11.33,10.77,6.2],"QH":[34.04,40.5,42.77,40.8],"QE":[10.2,14.48,19.07,14.08]}},"2026.6.5":{"full":{"Kup":[2.46,-0.9,24738],"Lup":[4.48,-1.69,24700],"QN":[8.54,2.56,24160],"QH":[39.52,12.17,22137],"QE":[14.59,5.65,19535]},"seas":{"Kup":[2.04,2.83,2.77,2.23],"Lup":[4.19,5.39,4.89,3.59],"QN":[6.07,11.33,10.77,6.2],"QH":[34.04,40.5,42.77,40.8],"QE":[10.2,14.48,19.07,14.08]}}};
+        const RSL = {"2025.7.6":{"6.5":[0.42,-0.31,2986,0.5,0.32],"12.5":[0.29,-0.1,2986,0.25,0.34],"16.0":[0.29,-0.21,2986,0.24,0.35]},"2025.10.15":{"6.5":[0.42,-0.31,2986,0.5,0.32],"12.5":[0.29,-0.1,2986,0.25,0.34],"16.0":[0.29,-0.21,2986,0.24,0.35]},"2025.11.20":{"6.5":[0.42,-0.31,2986,0.5,0.32],"12.5":[0.29,-0.1,2986,0.25,0.34],"16.0":[0.29,-0.21,2986,0.24,0.35]},"2026.1.28":{"6.5":[0.42,-0.31,2986,0.5,0.32],"12.5":[0.29,-0.1,2986,0.25,0.34],"16.0":[0.29,-0.21,2986,0.24,0.35]},"2026.4.3":{"6.5":[0.54,-0.41,2986,0.7,0.35],"12.5":[0.32,-0.16,2986,0.3,0.35],"16.0":[0.33,-0.25,2986,0.32,0.34]},"2026.6.5":{"6.5":[0.54,-0.41,2986,0.7,0.35],"12.5":[0.32,-0.16,2986,0.3,0.35],"16.0":[0.33,-0.25,2986,0.32,0.34]}};
         const FL = ["Kup", "Lup", "QN", "QH", "QE"];
         const HT = ["6.5", "12.5", "16.0"];
         const EB_SCALE = 45, RSL_SCALE = 0.7;
@@ -336,7 +337,7 @@
         document.querySelectorAll(".bm-release[data-ver]").forEach(b => {
             b.addEventListener("click", () => render(b.dataset.ver));
         });
-        render("2026.4.3");
+        render("2026.6.5");
     </script>
 </body>
 </html>

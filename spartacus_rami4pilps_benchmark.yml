@@ -108,7 +108,7 @@ sites:
       veg_fsd_const:
         value: 0.29289 # SR - vegetation_fsd value from from /test/rami4pilps/config.nam
       veg_ssa_lw:
-        value: 0.06
+        value: 0.01 # SR - value from Robin's RAMI4PILPS case
       veg_ssa_sw:
         value: 0.1301 # SR - vegetation_sw_ssa value from from /test/rami4pilps/config.nam
     stebbs:

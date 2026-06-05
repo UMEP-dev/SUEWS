@@ -4,7 +4,7 @@ dumps the exact numbers needed to wire the page (no hand transcription)."""
 import json
 from pathlib import Path
 
-VERSIONS = ["2025.7.6", "2025.10.15", "2025.11.20", "2026.1.28", "2026.4.3"]
+VERSIONS = ["2025.7.6", "2025.10.15", "2025.11.20", "2026.1.28", "2026.4.3", "2026.6.5"]
 FLUXES = ["Kup", "Lup", "QN", "QH", "QE"]
 RES = Path("results")
 

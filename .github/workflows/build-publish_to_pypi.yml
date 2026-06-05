@@ -524,6 +524,9 @@ jobs:
           path: dist/
           merge-multiple: true
 
+      - name: Exclude suews-mcp (shipped via the agent plugin from git, not PyPI)
+        run: rm -f dist/suews_mcp-* dist/suews-mcp-*
+
       - name: Publish wheels to Test PyPI
         uses: pypa/gh-action-pypi-publish@cef221092ed1bacb1cc03d23a2d87d1d172e277b # release/v1.14 (v1.14.0 tag commit lacks a published ghcr image)
         with:
@@ -564,6 +567,9 @@ jobs:
         with:
           path: dist/
           merge-multiple: true
+
+      - name: Exclude suews-mcp (shipped via the agent plugin from git, not PyPI)
+        run: rm -f dist/suews_mcp-* dist/suews-mcp-*
 
       - name: Publish all wheels to PyPI
         uses: pypa/gh-action-pypi-publish@cef221092ed1bacb1cc03d23a2d87d1d172e277b # release/v1.14 (v1.14.0 tag commit lacks a published ghcr image)

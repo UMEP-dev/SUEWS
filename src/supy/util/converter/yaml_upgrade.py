@@ -74,16 +74,10 @@ _PACKAGE_TO_SCHEMA: dict[str, str] = {
     # original schema label and upgrades to the new one via the registered
     # handler below, not by silent remapping.
     "2026.4.3": "2026.4",
-    # Dev-cycle vendored fixtures: filename stem maps to its own schema label
-    # so test_release_compat.py exercises the (label -> current) handler.
-    # dev6 fixture covers the dev6 -> dev7 ArchetypeProperties Rule 2 reorder
-    # (master). dev8 fixture covers the new gh#1372 dev8 -> dev9 cumulative
-    # forcing + output restructure. dev7 was an identity stamp on master
-    # (PR#1395 registry refresh) so no separate fixture is needed.
-    "2026.5.dev6": "2026.5.dev6",
-    "2026.5.dev8": "2026.5.dev8",
-    "2026.5.dev9": "2026.5.dev9",
-    "2026.5.dev10": "2026.5.dev10",
+    # 2026.6.5 ships the collapsed "2026.5" schema (the 2026.5.dev1..dev14
+    # cycle folded into one label in the release PR). Its own config parses
+    # directly under the current validator (identity path).
+    "2026.6.5": "2026.5",
 }
 
 
@@ -1160,214 +1154,6 @@ def _apply_fai_alias_canonicalisation(cfg: dict) -> None:
     )
 
 
-def _migrate_2026_5_dev13_to_current(cfg: dict) -> dict:
-    """Upgrade 2026.5.dev13-shaped YAMLs to the current schema.
-
-    dev13 -> dev14 (gh#1495): canonicalise the retired frontal_area_index
-    string aliases (provided / use_provided -> observed, simple_scheme ->
-    modelled). No earlier delta is outstanding at dev13.
-    """
-    cfg = _strip_internal_only_fields(cfg)
-    _apply_fai_alias_canonicalisation(cfg)
-    return cfg
-
-
-def _migrate_2026_5_dev12_to_current(cfg: dict) -> dict:
-    """Upgrade 2026.5.dev12-shaped YAMLs to the current schema.
-
-    dev12 -> dev13 (gh#1456): fold the six flat STEBBS physics switches
-    under the nested model.physics.stebbs object (master toggle decomposed
-    into enabled + parameters; the dev12 flat `capacitance` -- and the older
-    `outer_cap_fraction` spelling -- moved to stebbs.capacitance; setpoint
-    and same_* moved at their leaf names). No earlier delta is outstanding
-    at dev12, so this is the STEBBS fold alone.
-    """
-    cfg = _strip_internal_only_fields(cfg)
-    _apply_stebbs_physics_fold(cfg)
-    _apply_fai_alias_canonicalisation(cfg)
-    return cfg
-
-
-def _migrate_2026_5_dev11_to_current(cfg: dict) -> dict:
-    """Upgrade 2026.5.dev11-shaped YAMLs to the current schema.
-
-    dev11 -> dev12 applies the STEBBS / Archetype Column D alignment
-    (the four compound-noun stragglers plus the sixteen-field Column D
-    reorder per the Reading STEBBS team review, gh#1452). dev12 -> dev13
-    (gh#1456) then folds the flat STEBBS physics switches under the nested
-    model.physics.stebbs object.
-    """
-    cfg = _strip_internal_only_fields(cfg)
-    _apply_stebbs_straggler_renames(cfg)
-    _apply_stebbs_physics_fold(cfg)
-    _apply_fai_alias_canonicalisation(cfg)
-    return cfg
-
-
-def _migrate_2026_5_dev10_to_current(cfg: dict) -> dict:
-    """Upgrade 2026.5.dev10-shaped YAMLs to the current schema.
-
-    dev10 -> dev11 applies the naming-convention completion: the
-    ArchetypeProperties Tier-1 (16) and StebbsProperties Rule-2 (44)
-    renames combined in a single bump (gh#1392 + gh#1394). dev11 -> dev12
-    (gh#1456) then folds the flat STEBBS physics switches under the nested
-    model.physics.stebbs object.
-    """
-    cfg = _strip_internal_only_fields(cfg)
-    _apply_naming_completion_renames(cfg)
-    _apply_stebbs_straggler_renames(cfg)
-    _apply_stebbs_physics_fold(cfg)
-    _apply_fai_alias_canonicalisation(cfg)
-    return cfg
-
-
-def _migrate_2026_5_dev9_to_current(cfg: dict) -> dict:
-    """Upgrade 2026.5.dev9-shaped YAMLs to the current schema.
-
-    dev9 -> dev10 was the PR#1420 identity stamp (no YAML rewrite); the
-    dev10 -> dev11 delta applies the naming-convention completion
-    (ArchetypeProperties Tier-1 + StebbsProperties Rule-2 renames).
-    """
-    cfg = _strip_internal_only_fields(cfg)
-    _apply_naming_completion_renames(cfg)
-    _apply_stebbs_straggler_renames(cfg)
-    _apply_stebbs_physics_fold(cfg)
-    _apply_fai_alias_canonicalisation(cfg)
-    return cfg
-
-
-def _migrate_2026_5_dev8_to_current(cfg: dict) -> dict:
-    """Upgrade 2026.5.dev8-shaped YAMLs to the current schema.
-
-    Applies the gh#1372 cumulative model.control restructure
-    (dev8 -> dev9): forcing_file -> forcing.file, then output_file ->
-    output (with inner path -> dir, legacy string form dropped).
-    Forcing-restructure runs first to keep audit logs aligned with the
-    gh#1372 chronology.
-    """
-    cfg = _strip_internal_only_fields(cfg)
-    _apply_forcing_subobject_restructure(cfg)
-    _apply_output_subobject_restructure(cfg)
-    _apply_naming_completion_renames(cfg)
-    _apply_stebbs_straggler_renames(cfg)
-    _apply_stebbs_physics_fold(cfg)
-    _apply_fai_alias_canonicalisation(cfg)
-    return cfg
-
-
-def _migrate_2026_5_dev7_to_current(cfg: dict) -> dict:
-    """Upgrade 2026.5.dev7-shaped YAMLs to the current schema.
-
-    dev7 -> dev8 was an identity stamp (PR#1395 canonical registry
-    refresh; YAML surface unchanged). dev8 -> dev9 applies the gh#1372
-    cumulative model.control restructure (forcing then output).
-    """
-    cfg = _strip_internal_only_fields(cfg)
-    _apply_forcing_subobject_restructure(cfg)
-    _apply_output_subobject_restructure(cfg)
-    _apply_naming_completion_renames(cfg)
-    _apply_stebbs_straggler_renames(cfg)
-    _apply_stebbs_physics_fold(cfg)
-    _apply_fai_alias_canonicalisation(cfg)
-    return cfg
-
-
-def _migrate_2026_5_dev6_to_current(cfg: dict) -> dict:
-    """Upgrade 2026.5.dev6-shaped YAMLs to the current schema.
-
-    Chains the dev6 -> dev7 ArchetypeProperties Rule 2 reorder (44
-    renames) and the gh#1372 cumulative dev8 -> dev9 restructure
-    (forcing then output). dev7 -> dev8 was an identity stamp.
-    """
-    cfg = _strip_internal_only_fields(cfg)
-    _apply_arch_rule2_renames(cfg)
-    _apply_forcing_subobject_restructure(cfg)
-    _apply_output_subobject_restructure(cfg)
-    _apply_naming_completion_renames(cfg)
-    _apply_stebbs_straggler_renames(cfg)
-    _apply_stebbs_physics_fold(cfg)
-    _apply_fai_alias_canonicalisation(cfg)
-    return cfg
-
-
-def _migrate_2026_5_dev5_to_current(cfg: dict) -> dict:
-    """Upgrade 2026.5.dev5 YAMLs to current.
-
-    dev5 -> dev6 was accept-only validator tightening (no YAML
-    rewrite); chains the dev6 -> dev7 ArchetypeProperties Rule 2
-    reorder and the gh#1372 dev8 -> dev9 restructure.
-    """
-    cfg = _strip_internal_only_fields(cfg)
-    _apply_arch_rule2_renames(cfg)
-    _apply_forcing_subobject_restructure(cfg)
-    _apply_output_subobject_restructure(cfg)
-    _apply_naming_completion_renames(cfg)
-    _apply_stebbs_straggler_renames(cfg)
-    _apply_stebbs_physics_fold(cfg)
-    _apply_fai_alias_canonicalisation(cfg)
-    return cfg
-
-
-def _migrate_2026_5_dev4_to_current(cfg: dict) -> dict:
-    """Upgrade 2026.5.dev4 YAMLs to current.
-
-    dev4 -> dev5 was accept-only nested physics widening (no YAML
-    rewrite); chains the dev6 -> dev7 ArchetypeProperties Rule 2
-    reorder and the gh#1372 dev8 -> dev9 restructure.
-    """
-    cfg = _strip_internal_only_fields(cfg)
-    _apply_arch_rule2_renames(cfg)
-    _apply_forcing_subobject_restructure(cfg)
-    _apply_output_subobject_restructure(cfg)
-    _apply_naming_completion_renames(cfg)
-    _apply_stebbs_straggler_renames(cfg)
-    _apply_stebbs_physics_fold(cfg)
-    _apply_fai_alias_canonicalisation(cfg)
-    return cfg
-
-
-def _migrate_2026_5_dev3_to_current(cfg: dict) -> dict:
-    """Upgrade 2026.5.dev3-shaped YAMLs to the current schema.
-
-    Chains the gh#1334 follow-through hot-water unification
-    (dev3 -> dev4; 14 renames), the dev6 -> dev7 ArchetypeProperties
-    Rule 2 reorder (44 renames), and the gh#1372 dev8 -> dev9
-    cumulative restructure (forcing then output).
-    """
-    cfg = _strip_internal_only_fields(cfg)
-    _apply_hot_water_unification_renames(cfg)
-    _apply_arch_rule2_renames(cfg)
-    _apply_forcing_subobject_restructure(cfg)
-    _apply_output_subobject_restructure(cfg)
-    _apply_naming_completion_renames(cfg)
-    _apply_stebbs_straggler_renames(cfg)
-    _apply_stebbs_physics_fold(cfg)
-    _apply_fai_alias_canonicalisation(cfg)
-    return cfg
-
-
-def _migrate_2026_5_dev2_to_current(cfg: dict) -> dict:
-    """Upgrade 2026.5.dev2-shaped YAMLs to the current schema.
-
-    Chains gh#1334 (dev2 -> dev3: retires STEBBS PascalCase; 124
-    renames), the gh#1334 follow-through (dev3 -> dev4: hot-water
-    prefix unification; 14 renames), the dev6 -> dev7
-    ArchetypeProperties Rule 2 reorder, and the gh#1372 dev8 -> dev9
-    cumulative restructure (forcing then output).
-    """
-    cfg = _strip_internal_only_fields(cfg)
-    _apply_stebbs_snake_renames(cfg)
-    _apply_hot_water_unification_renames(cfg)
-    _apply_arch_rule2_renames(cfg)
-    _apply_forcing_subobject_restructure(cfg)
-    _apply_output_subobject_restructure(cfg)
-    _apply_naming_completion_renames(cfg)
-    _apply_stebbs_straggler_renames(cfg)
-    _apply_stebbs_physics_fold(cfg)
-    _apply_fai_alias_canonicalisation(cfg)
-    return cfg
-
-
 def _migrate_2026_5_to_current(cfg: dict) -> dict:
     """Upgrade 2026.5-shaped YAMLs to the current schema.
 
@@ -1408,29 +1194,6 @@ def _migrate_2026_5_to_current(cfg: dict) -> dict:
     """
     cfg = _strip_internal_only_fields(cfg)
     _apply_arch_ext_renames(cfg)
-    _apply_modelphysics_suffix_renames(cfg)
-    _apply_stebbs_snake_renames(cfg)
-    _apply_hot_water_unification_renames(cfg)
-    _apply_arch_rule2_renames(cfg)
-    _apply_forcing_subobject_restructure(cfg)
-    _apply_output_subobject_restructure(cfg)
-    _apply_naming_completion_renames(cfg)
-    _apply_stebbs_straggler_renames(cfg)
-    _apply_stebbs_physics_fold(cfg)
-    _apply_fai_alias_canonicalisation(cfg)
-    return cfg
-
-
-def _migrate_2026_5_dev1_to_current(cfg: dict) -> dict:
-    """Upgrade 2026.5.dev1-shaped YAMLs to the current schema.
-
-    Chains the Cat 2+3 ModelPhysics suffix/abbreviation rewrite (gh#1321),
-    the gh#1334 STEBBS/Snow snake_case sweep, the gh#1334 follow-through
-    hot-water prefix unification, the dev6 -> dev7 ArchetypeProperties
-    Rule 2 reorder, and the gh#1372 dev8 -> dev9 cumulative restructure
-    (forcing then output).
-    """
-    cfg = _strip_internal_only_fields(cfg)
     _apply_modelphysics_suffix_renames(cfg)
     _apply_stebbs_snake_renames(cfg)
     _apply_hot_water_unification_renames(cfg)
@@ -1494,50 +1257,20 @@ _HANDLERS: dict[tuple[str, str], Handler] = {
     # target, e.g. migrate(..., to_version="2026.4")).
     ("2026.1", "2026.4"): _migrate_2026_1_to_2026_4,
     ("2025.12", "2026.4"): _migrate_2025_12_to_2026_4,
-    # Intermediate stops at 2026.5 (callers pinning Category 1 only).
-    ("2026.4", "2026.5"): _migrate_2026_4_to_2026_5,
-    # Chains to the current schema (2026.5.dev11: Cat 1 snake_case sweep
-    # + Cat 5 STEBBS ext rename + Cat 2+3 ModelPhysics suffix drop
-    # + gh#1334 STEBBS/Snow snake_case + gh#1334 follow-through hot-water
-    # prefix unification + gh#972 accept-only nested physics sub-options
-    # + gh#1333 site-level completeness validator tightening
-    # + naming convention Rule 2 ArchetypeProperties reorder
-    # + PR#1395 canonical registry refresh (identity)
-    # + gh#1372 cumulative model.control restructure: forcing_file ->
-    #   forcing.file then output_file -> output (path -> dir, drop legacy
-    #   string form)
-    # + PR#1420 stacked follow-up fixed the extended forcing adapter and
-    #   per-vegetation LAI projection without changing the YAML surface.
-    # + naming-convention completion (gh#1392 + gh#1394): ArchetypeProperties
-    #   Tier-1 (16) + StebbsProperties Rule-2 (44) renames.
-    # The dev4 -> dev5, dev5 -> dev6, and dev7 -> dev8 deltas are
-    # accept-only / contract tightening / identity migrations with no YAML
-    # rewrite; the dev6 -> dev7 delta is a pure key rename and the
-    # dev8 -> dev9 delta combines the two gh#1372 restructures into a
-    # single bump per the dev-label convention. The dev9 -> dev10 delta is
-    # the PR#1420 identity stamp; the dev10 -> dev11 delta applies the
-    # naming-convention completion; the dev11 -> dev12 delta (gh#1452) applies
-    # the STEBBS/Archetype Column D alignment; the dev12 -> dev13 delta
-    # (gh#1456) folds the flat STEBBS physics switches under the nested
-    # model.physics.stebbs object; the dev13 -> dev14 delta (gh#1495)
-    # canonicalises the retired frontal_area_index string aliases
-    # (provided / use_provided -> observed, simple_scheme -> modelled). Every
-    # to-current handler runs the Column D straggler renames, then
-    # _apply_stebbs_physics_fold, then _apply_fai_alias_canonicalisation last.
-    ("2026.5.dev13", CURRENT_SCHEMA_VERSION): _migrate_2026_5_dev13_to_current,
-    ("2026.5.dev12", CURRENT_SCHEMA_VERSION): _migrate_2026_5_dev12_to_current,
-    ("2026.5.dev11", CURRENT_SCHEMA_VERSION): _migrate_2026_5_dev11_to_current,
-    ("2026.5.dev10", CURRENT_SCHEMA_VERSION): _migrate_2026_5_dev10_to_current,
-    ("2026.5.dev9", CURRENT_SCHEMA_VERSION): _migrate_2026_5_dev9_to_current,
-    ("2026.5.dev8", CURRENT_SCHEMA_VERSION): _migrate_2026_5_dev8_to_current,
-    ("2026.5.dev7", CURRENT_SCHEMA_VERSION): _migrate_2026_5_dev7_to_current,
-    ("2026.5.dev6", CURRENT_SCHEMA_VERSION): _migrate_2026_5_dev6_to_current,
-    ("2026.5.dev5", CURRENT_SCHEMA_VERSION): _migrate_2026_5_dev5_to_current,
-    ("2026.5.dev4", CURRENT_SCHEMA_VERSION): _migrate_2026_5_dev4_to_current,
-    ("2026.5.dev3", CURRENT_SCHEMA_VERSION): _migrate_2026_5_dev3_to_current,
-    ("2026.5.dev2", CURRENT_SCHEMA_VERSION): _migrate_2026_5_dev2_to_current,
-    ("2026.5.dev1", CURRENT_SCHEMA_VERSION): _migrate_2026_5_dev1_to_current,
-    ("2026.5", CURRENT_SCHEMA_VERSION): _migrate_2026_5_to_current,
+    # Upgrade each prior released schema straight to the current 2026.5
+    # schema. 2026.5 is the collapse of the 2026.5.dev1..dev14 development
+    # cycle into a single released label (see SCHEMA_VERSIONS["2026.5"] and
+    # `.claude/rules/python/schema-versioning.md`). The (2026.4 -> 2026.5)
+    # handler therefore applies the whole union of dev-cycle deltas in
+    # order: #1256 Category 1 snake_case sweep, #1327 STEBBS ext->External,
+    # #1321 ModelPhysics suffix drop, #1334 + #1337 STEBBS/Snow snake_case
+    # and hot-water prefix unification, #972 accept-only nested physics,
+    # #1333 completeness-validator tightening, the naming-convention Rule 2
+    # reorders (#1395 / gh#1392 / gh#1394), #1372 model.control restructure
+    # (+#1420 forcing-adapter follow-up), gh#1452 Column D alignment,
+    # gh#1456 STEBBS physics fold, and gh#1495 frontal_area_index selector.
+    # _migrate_2026_4_to_current chains _migrate_2026_4_to_2026_5 (Category 1)
+    # then _migrate_2026_5_to_current (the remaining dev-cycle union).
     ("2026.4", CURRENT_SCHEMA_VERSION): _migrate_2026_4_to_current,
     ("2026.1", CURRENT_SCHEMA_VERSION): _migrate_2026_1_to_current,
     ("2025.12", CURRENT_SCHEMA_VERSION): _migrate_2025_12_to_current,

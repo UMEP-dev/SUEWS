@@ -54,11 +54,26 @@ EXAMPLES:
 
 ## 2026
 
+### 5 Jun 2026
+
+- [change] Finalised the YAML configuration schema to `2026.5` for the 2026.6.5 release (#1256, #1321, #1327, #1333, #1334, #1337, #1372, #1392, #1394, #1452, #1456, #1495)
+  - The `2026.5.dev1`..`2026.5.dev14` development-cycle labels are collapsed into the single released `2026.5` schema; `sample_config.yml`, the migration handlers, and the vendored release fixture now carry `2026.5`
+  - User YAMLs from `2026.4` (or any earlier supported schema) upgrade in one step via `suews-schema migrate your_config.yml` -- the `(2026.4 -> 2026.5)` handler applies the full union of the cycle's renames and restructures and logs every field rename/drop
+  - No model output change: the KCL/London (Ward et al. 2016) energy-balance benchmark fingerprint is byte-identical to the 2026.4.3 release
+
 ### 4 Jun 2026
 
 - [bugfix] Legacy SUEWS table to YAML conversion no longer aborts on a missing `stebbsmethod` df_state column (#1500)
   - `ModelPhysics.from_df_state` now defaults a missing `stebbsmethod` column to `0` (STEBBS disabled) instead of raising `Missing attribute 'stebbsmethod'`, consistent with how the adjacent newer STEBBS columns (`setpointmethod`, `rcmethod`) already default; a present-but-invalid value is still rejected
   - The originally reported `setpointmethod` symptom was already resolved by the #1456 STEBBS relocation; this completes the issue by hardening the last hard-required STEBBS column and adds regression tests covering both the `setpointmethod` and `stebbsmethod` legacy-DataFrame cases
+
+- [bugfix] Hardened legacy STEBBS `df_state` defaults so older state DataFrames load without the newer nested STEBBS columns (#1510)
+
+- [maintenance] Added a multi-version energy-balance benchmark: a reproducibility harness (byte-identical stats fingerprint per release), restricted Zenodo data supply, and public benchmark pages at suews.io/benchmark (KCL/London, Ward et al. 2016) (#1506)
+
+- [maintenance] Extended the benchmark with a near-surface (RSL) air-temperature axis as a second evaluation dimension (#1508)
+
+- [maintenance] Removed leftover derived-type (`dts`) field-name suffixes and redundant Fortran declarations (#1511)
 
 ### 3 Jun 2026
 
@@ -66,6 +81,16 @@ EXAMPLES:
   - `model.physics.frontal_area_index` now exposes only the canonical readable names `observed` and `modelled`; the synonym aliases `provided`, `use_provided`, and `simple_scheme` are removed so it matches `laimethod`, `water_use`, and `soil_moisture_deficit`
   - Internal source-of-input enums aligned to one vocabulary: `LAIMethod.CALCULATED` becomes `MODELLED`, and `FAIMethod.USE_PROVIDED` / `SIMPLE_SCHEME` become `OBSERVED` / `MODELLED`; integer values are unchanged, so existing YAML and `df_state` round-trip identically
   - `net_radiation` scalar-name errors now point scheme families (`narp`, `spartacus`) at the nested family form rather than only listing the `ldown_*` names
+
+- [bugfix] Fold legacy flat STEBBS physics switches into the nested `model.physics.stebbs` object during validation so pre-#1456 configs validate cleanly (#1499)
+
+- [feature][experimental] SUEWS agent plugin -- early access to driving SUEWS from AI coding agents (#1496)
+  - Bundles the SUEWS MCP server so an agent (for example Claude) can scaffold, inspect, validate, and run configurations through structured tools rather than by guesswork; pairs with the self-bootstrapping `uvx` MCP install (#1384), the agent-facing `suews inspect` physics block (#1484), and the readable sample-config physics groupings (#1483)
+  - Deliberately early-stage and under active development: the interfaces will change and it is not production-ready yet. We are excited about this direction and will keep building it out
+
+- [maintenance] Resolved the Python interpreter in the `validate-tutorial` hook rather than relying on a bare `python` (#1503)
+
+- [maintenance] Pinned the agent push-token checkout to silence the zizmor `artipacked` finding (#1504)
 
 ### 1 Jun 2026
 

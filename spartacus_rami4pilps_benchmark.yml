@@ -86,11 +86,11 @@ sites:
       air_ext_lw:
         value: 0.0
       air_ext_sw:
-        value: 0.000001
+        value: 0.00001 # RAMI4PILPS CASE
       air_ssa_lw:
         value: 0.0
       air_ssa_sw:
-        value: 0.95
+        value: 0.999 # RAMI4PILPS CASE
       ground_albedo_dir_mult_fact:
         value: 1.0
       n_stream_lw_urban:

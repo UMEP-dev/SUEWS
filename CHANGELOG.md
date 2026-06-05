@@ -56,6 +56,12 @@ EXAMPLES:
 
 ### 5 Jun 2026
 
+- [change][experimental] File logging is now opt-in: importing or using `supy` no longer drops an (often empty) `SuPy.log` into the current working directory (#1516)
+  - Previously a `TimedRotatingFileHandler` was attached at import time and eagerly created `SuPy.log` in the CWD the moment any submodule was used, whether or not anything was ever logged
+  - Console logging is unchanged; only the file handler is now off by default
+  - Enable file logging on demand with `supy.enable_file_logging()` (defaults to `SuPy.log` in the CWD, or pass a path/directory) and turn it off with `supy.disable_file_logging()`
+  - Or enable it without code via the `SUPY_LOGFILE` (explicit path) / `SUPY_LOG_DIR` (directory) environment variables
+  - When enabled, the file is created lazily on the first emitted record (`delay=True`), so no stray empty file appears
 - [change] Finalised the YAML configuration schema to `2026.5` for the 2026.6.5 release (#1256, #1321, #1327, #1333, #1334, #1337, #1372, #1392, #1394, #1452, #1456, #1495)
   - The `2026.5.dev1`..`2026.5.dev14` development-cycle labels are collapsed into the single released `2026.5` schema; `sample_config.yml`, the migration handlers, and the vendored release fixture now carry `2026.5`
   - User YAMLs from `2026.4` (or any earlier supported schema) upgrade in one step via `suews-schema migrate your_config.yml` -- the `(2026.4 -> 2026.5)` handler applies the full union of the cycle's renames and restructures and logs every field rename/drop

@@ -42,6 +42,7 @@ MODULE module_phys_spartacus
    USE, INTRINSIC :: ieee_arithmetic, ONLY: IEEE_IS_NAN
 
    IMPLICIT NONE
+   INTEGER :: debug_call_count = 0
 
 CONTAINS
    SUBROUTINE SPARTACUS_Initialise
@@ -169,6 +170,7 @@ CONTAINS
       REAL(KIND(1D0)) :: grnd_net_lw_spc
       REAL(KIND(1D0)) :: top_dn_lw_spc
       REAL(KIND(1D0)) :: top_dn_dir_sw_spc
+      REAL(KIND(1D0)) :: top_flux_dn_diffuse_sw
       REAL(KIND(1D0)) :: top_net_sw_spc
       REAL(KIND(1D0)) :: grnd_dn_dir_sw_spc
       REAL(KIND(1D0)) :: grnd_net_sw_spc
@@ -215,7 +217,7 @@ CONTAINS
       REAL(KIND(1D0)), DIMENSION(nsurf) :: tsfc_surf_K
       REAL(KIND(1D0)) :: tair_K
       ! top-of-canopy diffuse sw downward
-      REAL(KIND(1D0)) :: top_flux_dn_diffuse_sw
+
       REAL(KIND(1D0)) :: ground_frac_spc, surface_frac_sum
       ! plan area weighted albedo and emissivity of surfaces not including buildings and trees
       REAL(KIND(1D0)) :: alb_no_tree_bldg, emis_no_tree_bldg
@@ -455,6 +457,27 @@ CONTAINS
          canopy_props%veg_ext = veg_ext(:)
          canopy_props%veg_fsd = veg_fsd(:)
          canopy_props%veg_contact_fraction = veg_contact_fraction(:)
+         ! Zero veg_fraction where veg_ext is zero to prevent
+         ! calc_matrices_sw_eig receiving all-zero gamma matrices -> NaN.
+         ! When ext=0 the layer is transparent: the vegetation-free
+         ! shortcut in spartacus_forest_sw handles this correctly.
+         !DO jlay = 1, nlayer
+         !   IF (veg_ext(jlay) <= 0.0D0) canopy_props%veg_fraction(jlay) = 0.0D0
+         !END DO
+      END IF
+
+      IF (kdown > 10.0D0 .AND. debug_call_count <= 1) THEN
+         PRINT *, '[SPARTACUS DEBUG] building_frac(:)  = ', canopy_props%building_fraction
+         PRINT *, '[SPARTACUS DEBUG] building_scale(:) = ', canopy_props%building_scale
+         PRINT *, '[SPARTACUS DEBUG] veg_fraction(:)   = ', canopy_props%veg_fraction
+         PRINT *, '[SPARTACUS DEBUG] veg_scale(:)      = ', canopy_props%veg_scale
+         PRINT *, '[SPARTACUS DEBUG] veg_ext(:)        = ', canopy_props%veg_ext
+         PRINT *, '[SPARTACUS DEBUG] veg_fsd(:)        = ', canopy_props%veg_fsd
+         PRINT *, '[SPARTACUS DEBUG] air_ext_sw        = ', air_ext_sw
+         PRINT *, '[SPARTACUS DEBUG] air_ssa_sw        = ', air_ssa_sw
+         PRINT *, '[SPARTACUS DEBUG] veg_ssa_sw        = ', veg_ssa_sw
+         PRINT *, '[SPARTACUS DEBUG] i_representation  = ', canopy_props%i_representation
+         PRINT *, '[SPARTACUS DEBUG] height(:)         = ', height
       END IF
 
       !!!!!!!!!!!!!! allocate and set canopy top forcing !!!!!!!!!!!!!!
@@ -636,6 +659,21 @@ CONTAINS
             CALL lw_flux%SUM(lw_internal, lw_norm)
          END IF
       END DO
+
+      ! ---- DEBUG: raw radsurf output ----
+      IF (kdown > 10.0D0 .AND. debug_call_count <= 3) THEN
+         debug_call_count = debug_call_count + 1
+         PRINT *, '[SPARTACUS DEBUG] After radsurf loop:'
+         PRINT *, '[SPARTACUS DEBUG] sw_flux%top_net    = ', sw_flux%top_net(nspec, ncol)
+         PRINT *, '[SPARTACUS DEBUG] sw_flux%top_dn     = ', sw_flux%top_dn(nspec, ncol)
+         PRINT *, '[SPARTACUS DEBUG] sw_flux%ground_net = ', sw_flux%ground_net(nspec, ncol)
+         PRINT *, '[SPARTACUS DEBUG] sw_norm_dir%top_net= ', sw_norm_dir%top_net(nspec, ncol)
+         PRINT *, '[SPARTACUS DEBUG] sw_norm_diff%top_net=', sw_norm_diff%top_net(nspec, ncol)
+         PRINT *, '[SPARTACUS DEBUG] cos_sza            = ', canopy_props%cos_sza
+         PRINT *, '[SPARTACUS DEBUG] alb_no_tree_bldg   = ', alb_no_tree_bldg
+         PRINT *, '[SPARTACUS DEBUG] sw_flat_net_spc    = ', sw_flat_net_spc
+      END IF
+      ! ---- END DEBUG ----
 
       ! At night the normalised SW solver may retain NaNs that survive
       ! multiplication by zero incoming shortwave on some x86 runners.
@@ -931,6 +969,7 @@ CONTAINS
       dataOutLineSPARTACUS = &
          [alb_spc, emis_spc, &
           top_dn_dir_sw_spc, &
+          top_flux_dn_diffuse_sw, &
           sw_up_spc, &
           top_dn_lw_spc, &
           lw_up_spc, &

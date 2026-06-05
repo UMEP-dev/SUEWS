@@ -8,7 +8,7 @@ model:
     end_time: "2012-06-22" # SR - 22 June
     forcing:
       file:
-        value: Kc_2012_data_60.txt
+        value: Kc1_data_ldown.txt
     output:
       format: txt
       freq: 3600
@@ -18,7 +18,7 @@ model:
         - "SPARTACUS" # SR - include SPARTACUS output groups for benchmarking
   physics:
     net_radiation:
-      value: 1003 # SR - we are providing kdown to SPARTACUS from forcing file
+      value: 1001 # SR - we are providing kdown to SPARTACUS from forcing file
     emissions:
       heat: J11
       co2:
@@ -86,7 +86,7 @@ sites:
       air_ext_lw:
         value: 0.0
       air_ext_sw:
-        value: 0.0
+        value: 0.000001
       air_ssa_lw:
         value: 0.0
       air_ssa_sw:

@@ -11,6 +11,7 @@ LEGACY_SPARTACUS_DEFS = [
     ("alb", "-", "bulk albedo from spartacus", 0),
     ("emis", "-", "bulk emissivity from spartacus", 0),
     ("KTopDnDir", "W m-2", "sw downwelling direct radiation at top-of-canopy", 0),
+    ("KTopDnDif", "W m-2", "sw downwelling diffuse radiation at top-of-canopy", 0),
     ("Kup", "W m-2", "sw upward flux from spartacus", 0),
     ("LTopDn", "W m-2", "lw downwelling radiation at top-of-canopy", 0),
     ("Lup", "W m-2", "lw upward flux from spartacus", 0),

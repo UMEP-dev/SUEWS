@@ -52,19 +52,25 @@ def get_console_handler():
 def _coerce_logfile_path(path):
     """Resolve a user-supplied location to a concrete log-file path.
 
+    A leading ``~`` is expanded to the user's home directory. The path is
+    treated as a directory (the default ``SuPy.log`` name is appended) only
+    when it already exists as a directory or is written with a trailing
+    separator; otherwise it is taken as the log-file path itself.
+
     Parameters
     ----------
     path : str or pathlib.Path
-        A log-file path, or a directory (existing, or written with a trailing
-        separator) in which the default ``SuPy.log`` name is used.
+        A log-file path, or a directory in which the default ``SuPy.log`` name
+        is used.
 
     Returns
     -------
     pathlib.Path
         The resolved log-file path.
     """
-    path_logfile = Path(path)
-    if path_logfile.is_dir() or str(path).endswith((os.sep, "/")):
+    raw = str(path)
+    path_logfile = Path(path).expanduser()
+    if path_logfile.is_dir() or raw.endswith((os.sep, "/")):
         return path_logfile / LOG_FILE
     return path_logfile
 
@@ -161,8 +167,11 @@ def enable_file_logging(path=None):
     Parameters
     ----------
     path : str or pathlib.Path, optional
-        Target log file, or a directory in which a ``SuPy.log`` file is
-        written. Defaults to ``SuPy.log`` in the current working directory.
+        Target log file (a leading ``~`` is expanded to the home directory),
+        or an existing directory / a path with a trailing separator, in which
+        a ``SuPy.log`` file is written. Defaults to ``SuPy.log`` in the current
+        working directory. For a directory that may not exist yet, prefer the
+        ``SUPY_LOG_DIR`` environment variable.
 
     Returns
     -------

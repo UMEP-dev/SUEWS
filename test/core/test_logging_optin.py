@@ -91,3 +91,13 @@ def test_env_var_opt_in_writes_to_requested_dir(tmp_path):
     assert (log_dir / LOG_FILE).exists(), res.stderr
     # The current working directory must stay clean.
     assert not (tmp_path / LOG_FILE).exists()
+
+
+def test_logfile_path_expands_user():
+    """A leading ``~`` in the log path is expanded to the home directory."""
+    from supy._env import _coerce_logfile_path
+
+    resolved = str(_coerce_logfile_path("~/supy_logtest_dir/run.log"))
+    assert "~" not in resolved
+    assert resolved.startswith(os.path.expanduser("~"))
+    assert resolved.endswith("run.log")

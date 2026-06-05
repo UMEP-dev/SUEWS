@@ -64,14 +64,16 @@ the first message, so an unused logger leaves no stray file) and
 
     import supy
 
-    supy.enable_file_logging()              # writes SuPy.log in the current directory
-    supy.enable_file_logging("~/supy-logs") # or into a chosen directory
-    supy.disable_file_logging()             # stop writing to the file
+    supy.enable_file_logging()                  # writes SuPy.log in the current directory
+    supy.enable_file_logging("~/logs/run.log")  # a specific file (~ is expanded)
+    supy.disable_file_logging()                 # stop writing to the file
 
-File logging can also be enabled without code by setting an environment
-variable before importing supy:
+To log into a directory (created if needed), use the ``SUPY_LOG_DIR``
+environment variable, which always writes ``SuPy.log`` inside it. File logging
+can be enabled entirely without code by setting an environment variable before
+importing supy:
 
 .. code-block:: bash
 
-    export SUPY_LOGFILE=~/supy-logs/run.log   # explicit file path
-    export SUPY_LOG_DIR=~/supy-logs           # directory; file is SuPy.log inside it
+    export SUPY_LOGFILE=~/logs/run.log   # explicit file path
+    export SUPY_LOG_DIR=~/logs           # directory; file is SuPy.log inside it

@@ -161,7 +161,7 @@ def save_snapshot(filepath: Path, snapshot_dir: Path):
     }
 
     metadata_path = snapshot_dir / f"CLAUDE.md.{timestamp}.json"
-    metadata_path.write_text(json.dumps(metadata, indent=2))
+    metadata_path.write_text(json.dumps(metadata, indent=2), encoding="utf-8")
 
     return snapshot_path
 

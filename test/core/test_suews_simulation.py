@@ -953,7 +953,7 @@ class TestPathResolution:
         """Test that absolute paths are returned unchanged."""
         # Create config file
         config_file = tmp_path / "config.yml"
-        config_file.write_text("sites:\n  - name: test\n")
+        config_file.write_text("sites:\n  - name: test\n", encoding="utf-8")
 
         sim = SUEWSSimulation()
         sim._config_path = config_file
@@ -967,9 +967,9 @@ class TestPathResolution:
         """Test that relative paths are resolved relative to config file."""
         # Create config file and forcing file
         config_file = tmp_path / "config.yml"
-        config_file.write_text("sites:\n  - name: test\n")
+        config_file.write_text("sites:\n  - name: test\n", encoding="utf-8")
         forcing_file = tmp_path / "forcing.txt"
-        forcing_file.write_text("# forcing data")
+        forcing_file.write_text("# forcing data", encoding="utf-8")
 
         sim = SUEWSSimulation()
         sim._config_path = config_file
@@ -981,7 +981,7 @@ class TestPathResolution:
     def test_resolve_relative_path_list(self, tmp_path):
         """Test that list of relative paths are all resolved."""
         config_file = tmp_path / "config.yml"
-        config_file.write_text("sites:\n  - name: test\n")
+        config_file.write_text("sites:\n  - name: test\n", encoding="utf-8")
 
         sim = SUEWSSimulation()
         sim._config_path = config_file
@@ -997,7 +997,7 @@ class TestPathResolution:
     def test_resolve_mixed_absolute_relative_list(self, tmp_path):
         """Test list with mixed absolute and relative paths."""
         config_file = tmp_path / "config.yml"
-        config_file.write_text("sites:\n  - name: test\n")
+        config_file.write_text("sites:\n  - name: test\n", encoding="utf-8")
 
         sim = SUEWSSimulation()
         sim._config_path = config_file
@@ -1017,7 +1017,7 @@ class TestPathResolution:
         forcing_dir.mkdir()
 
         config_file = config_dir / "config.yml"
-        config_file.write_text("sites:\n  - name: test\n")
+        config_file.write_text("sites:\n  - name: test\n", encoding="utf-8")
 
         sim = SUEWSSimulation()
         sim._config_path = config_file
@@ -1159,7 +1159,7 @@ class TestContinuationRuns:
     def test_from_state_unsupported_format(self, tmp_path):
         """Test error handling for unsupported file format."""
         invalid_file = tmp_path / "state.txt"
-        invalid_file.write_text("dummy content")
+        invalid_file.write_text("dummy content", encoding="utf-8")
 
         with pytest.raises(ValueError, match="Unsupported state file format"):
             SUEWSSimulation.from_state(invalid_file)

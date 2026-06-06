@@ -36,13 +36,13 @@ def load_supy_resource(resource_path: str) -> str:
     resource = supy_resources
     for part in parts:
         resource = resource / part
-    return resource.read_text()
+    return resource.read_text(encoding="utf-8")
 
 
 def write_temp_sparse_schema_file(schema_version: str) -> Path:
     """Write the sparse fixture with an explicit schema stamp."""
     sparse_config = Path(__file__).parent.parent / "fixtures" / "sparse_site.yml"
-    sparse_text = sparse_config.read_text()
+    sparse_text = sparse_config.read_text(encoding="utf-8")
 
     with tempfile.NamedTemporaryFile(encoding="utf-8", mode="w", suffix=".yml", delete=False) as f:
         f.write(f"schema_version: '{schema_version}'\n{sparse_text}")

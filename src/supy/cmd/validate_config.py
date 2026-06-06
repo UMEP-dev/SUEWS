@@ -1294,7 +1294,7 @@ def _execute_pipeline(
     import tempfile
 
     sample_data_files = importlib.resources.files("supy") / "sample_data"
-    standard_config_content = (sample_data_files / "sample_config.yml").read_text()
+    standard_config_content = (sample_data_files / "sample_config.yml").read_text(encoding="utf-8")
 
     # Write to a persistent temp file that won't be deleted during pipeline execution
     with tempfile.NamedTemporaryFile(

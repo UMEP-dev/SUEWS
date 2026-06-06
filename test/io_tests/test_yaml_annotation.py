@@ -126,7 +126,7 @@ sites:
             SUEWSConfig.from_yaml(test_file, auto_generate_annotated=True)
 
         assert annotated_path.exists()
-        annotated_content = annotated_path.read_text()
+        annotated_content = annotated_path.read_text(encoding="utf-8")
         assert "bldgh:" in annotated_content
         assert "faibldg:" in annotated_content
 
@@ -140,14 +140,14 @@ def test_annotation_includes_tree_and_lai_requirements_from_sparse_fixture(tmp_p
     """Annotated sparse fixture should include the new tree and LAI placeholders."""
     sparse_fixture = Path("test/fixtures/sparse_site.yml")
     test_file = tmp_path / sparse_fixture.name
-    test_file.write_text(sparse_fixture.read_text(encoding="utf-8"))
+    test_file.write_text(sparse_fixture.read_text(encoding="utf-8"), encoding="utf-8")
     annotated_path = tmp_path / f"{test_file.stem}_annotated.yml"
 
     with pytest.raises(ValueError):
         SUEWSConfig.from_yaml(test_file, auto_generate_annotated=True)
 
     assert annotated_path.exists()
-    annotated_content = annotated_path.read_text()
+    annotated_content = annotated_path.read_text(encoding="utf-8")
     assert "fai_evergreen_tree:" in annotated_content
     assert "height_evergreen_tree:" in annotated_content
     assert "fai_deciduous_tree:" in annotated_content

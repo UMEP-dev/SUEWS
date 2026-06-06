@@ -51,7 +51,7 @@ def test_phase_a_emits_json_sidecar(tmp_path, sample_config_path):
     json_path = report_file.with_suffix(".json")
     assert json_path.exists(), "Phase A should write a JSON sidecar"
 
-    payload = json.loads(json_path.read_text())
+    payload = json.loads(json_path.read_text(encoding="utf-8"))
     assert payload["phase"] == "A"
     assert payload["status"] in {"PASSED", "WARNING", "FAILED"}
     assert isinstance(payload["issues"], list)
@@ -85,7 +85,7 @@ def test_phase_b_emits_json_sidecar(tmp_path, sample_config_path):
     json_path = science_report.with_suffix(".json")
     assert json_path.exists(), "Phase B should write a JSON sidecar"
 
-    payload = json.loads(json_path.read_text())
+    payload = json.loads(json_path.read_text(encoding="utf-8"))
     assert payload["phase"] == "B"
     assert payload["status"] in {"PASSED", "WARNING", "FAILED"}
     assert isinstance(payload["issues"], list)
@@ -114,7 +114,7 @@ def test_phase_c_emits_json_for_passing_config(tmp_path, sample_config_path):
     assert report.phase == "C"
     json_path = pydantic_report.with_suffix(".json")
     assert json_path.exists()
-    payload = json.loads(json_path.read_text())
+    payload = json.loads(json_path.read_text(encoding="utf-8"))
     assert payload["phase"] == "C"
     # Sample config should pass; status is PASSED unless there are
     # legitimate warnings in the sample.
@@ -130,7 +130,8 @@ def test_phase_c_emits_structured_pydantic_errors_for_bad_config(tmp_path):
         "  control:\n"
         "    tstep: not_an_int\n"
         "    forcing_file: forcing.txt\n"
-        "sites: []\n"
+        "sites: []\n",
+        encoding="utf-8",
     )
     pydantic_yaml = tmp_path / "pydantic.yml"
     pydantic_report = tmp_path / "pydantic_report.txt"
@@ -144,7 +145,7 @@ def test_phase_c_emits_structured_pydantic_errors_for_bad_config(tmp_path):
     )
 
     assert report.has_errors, "A malformed config must produce errors"
-    payload = json.loads(pydantic_report.with_suffix(".json").read_text())
+    payload = json.loads(pydantic_report.with_suffix(".json").read_text(encoding="utf-8"))
     assert payload["phase"] == "C"
     assert payload["status"] == "FAILED"
     # At least one issue should be a structured Pydantic error.
@@ -169,7 +170,7 @@ def test_phase_b_text_report_unchanged(tmp_path, sample_config_path):
     )
 
     assert science_report.exists()
-    text = science_report.read_text()
+    text = science_report.read_text(encoding="utf-8")
     assert len(text) > 0
     # The text report still uses the historical section markers.
     # Downstream tooling that greps these strings must continue to work.

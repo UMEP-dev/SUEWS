@@ -141,7 +141,7 @@ class TestDatabasePrepareAPI(TestCase):
         schema = generate_json_schema(version="2026.5.dev5")
 
         with tempfile.NamedTemporaryFile(encoding="utf-8", mode="w", suffix=".yml", delete=False) as f:
-            f.write(f"schema_version: '2026.5.dev5'\n{sparse_config.read_text()}")
+            f.write(f"schema_version: '2026.5.dev5'\n{sparse_config.read_text(encoding='utf-8')}")
             temp_path = Path(f.name)
 
         try:

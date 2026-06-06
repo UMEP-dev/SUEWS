@@ -56,7 +56,7 @@ for V in VERSIONS:
     index["versions"][V] = entry
 
 index["shared_inputs"] = shared
-(RES / "index.json").write_text(json.dumps(index, indent=2, sort_keys=True))
+(RES / "index.json").write_text(json.dumps(index, indent=2, sort_keys=True), encoding="utf-8")
 print("index.json written; shared input hashes identical across all OK versions.")
 
 print("\n=== full-period MAE/MBE per version ===")

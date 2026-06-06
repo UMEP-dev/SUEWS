@@ -264,7 +264,7 @@ def main() -> int:
                 "fingerprint": rfp1,
                 "stats": bench_rsl.to_nested_json(rtab1),
             }
-        (outdir / "stats.json").write_text(json.dumps(stats_json, indent=2, sort_keys=True))
+        (outdir / "stats.json").write_text(json.dumps(stats_json, indent=2, sort_keys=True), encoding="utf-8")
         tab1.to_csv(outdir / "stats_table.csv", index=False)
         if rtab1 is not None:
             rtab1.to_csv(outdir / "rsl_table.csv", index=False)
@@ -273,7 +273,7 @@ def main() -> int:
         prov["status"] = "failed"
         prov["error"] = f"{type(e).__name__}: {e}\n{traceback.format_exc()}"
 
-    (outdir / "provenance.json").write_text(json.dumps(prov, indent=2, sort_keys=True))
+    (outdir / "provenance.json").write_text(json.dumps(prov, indent=2, sort_keys=True), encoding="utf-8")
     # freeze is written by the caller; just confirm path here
     print(f"[{args.version}] status={prov['status']} "
           f"eb_fp={(prov['fingerprint'] or '-')[:12]} eb_repro={prov['reproducible']} "

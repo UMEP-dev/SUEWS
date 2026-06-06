@@ -367,7 +367,7 @@ FileCode='test'
 FileInputPath="./Input/"
 FileOutputPath="./Output/"
 /
-""")
+""", encoding="utf-8")
 
             # Deliberately do NOT create SPARTACUS.nml
             # This simulates old (pre-2018) runcontrol files
@@ -524,7 +524,7 @@ FileOutputPath="./Output/"
         with tempfile.TemporaryDirectory() as temp_dir:
             # Create malformed YAML
             bad_yaml = Path(temp_dir) / "bad.yml"
-            bad_yaml.write_text("{{invalid yaml")
+            bad_yaml.write_text("{{invalid yaml", encoding="utf-8")
 
             with self.assertRaises((ValueError, RuntimeError, yaml.YAMLError)):
                 sp.init_supy(bad_yaml)

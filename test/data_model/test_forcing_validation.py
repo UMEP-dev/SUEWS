@@ -228,9 +228,9 @@ def test_python_rust_whitelist_parity():
     )
 
     rust_src = Path(__file__).resolve().parents[2] / "src" / "suews_bridge" / "src" / "forcing.rs"
-    text = rust_src.read_text()
+    text = rust_src.read_text(encoding="utf-8")
     rust_io_src = Path(__file__).resolve().parents[2] / "src" / "suews_bridge" / "src" / "forcing_io.rs"
-    text_io = rust_io_src.read_text()
+    text_io = rust_io_src.read_text(encoding="utf-8")
 
     def _list(name: str) -> set[str]:
         import re

@@ -32,7 +32,7 @@ class ChangelogRestructurer:
         if not self.changelog_path.exists():
             raise FileNotFoundError(f"{self.changelog_path} not found")
 
-        content = self.changelog_path.read_text()
+        content = self.changelog_path.read_text(encoding="utf-8")
         lines = content.split("\n")
 
         # Structure to hold parsed data
@@ -363,7 +363,7 @@ class ChangelogRestructurer:
         print(f"\nOriginal backed up to: {backup_path}")
 
         # Write new changelog
-        self.changelog_path.write_text(markdown)
+        self.changelog_path.write_text(markdown, encoding="utf-8")
         print(f"✓ Restructured CHANGELOG saved to: {self.changelog_path}")
 
         # Summary statistics

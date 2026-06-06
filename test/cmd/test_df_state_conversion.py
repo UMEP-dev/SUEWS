@@ -26,7 +26,7 @@ class TestDfStateDetection:
     def test_detect_nml_input(self, tmp_path):
         """Test detection of RunControl.nml input."""
         nml_file = tmp_path / "RunControl.nml"
-        nml_file.write_text("&runcontrol\n/\n")
+        nml_file.write_text("&runcontrol\n/\n", encoding="utf-8")
 
         assert detect_input_type(nml_file) == "nml"
 

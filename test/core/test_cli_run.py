@@ -113,7 +113,8 @@ model:
 sites:
   - name: TestSite
     gridiv: 1
-"""
+""",
+            encoding="utf-8",
         )
 
         result = self.run_suews_run(cli_runner, str(minimal_yaml), check=False)
@@ -159,7 +160,7 @@ sites:
         # Use CliRunner's isolated_filesystem for clean working directory
         with cli_runner.isolated_filesystem():
             # Copy sample YAML to config.yml in isolated dir
-            Path("config.yml").write_text(sample_yaml.read_text(), encoding="utf-8")
+            Path("config.yml").write_text(sample_yaml.read_text(encoding="utf-8"), encoding="utf-8")
 
             result = self.run_suews_run(cli_runner, check=False)
             if result.returncode == 0:
@@ -185,7 +186,7 @@ sites:
     def test_invalid_yaml_syntax(self, cli_runner, tmp_path):
         """Test error handling for malformed YAML."""
         bad_yaml = tmp_path / "bad.yml"
-        bad_yaml.write_text("model:\n  control\n    invalid yaml")
+        bad_yaml.write_text("model:\n  control\n    invalid yaml", encoding="utf-8")
 
         result = self.run_suews_run(cli_runner, str(bad_yaml), check=False)
         assert result.returncode != 0

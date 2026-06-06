@@ -65,7 +65,7 @@ jobs:
         if: steps.bypass.outputs.bypass != 'true'
         run: python -m pip install 'ruff==0.15.16'
 
-      - name: Run encoding audit
+      - name: Run encoding audit (ruff PLW1514)
         if: steps.bypass.outputs.bypass != 'true'
         run: |
           set -eu
@@ -76,3 +76,11 @@ jobs:
             echo "See .claude/rules/python/conventions.md (rule 6) and gh#1097."
             exit 1
           fi
+
+      - name: Run pathlib encoding audit (read_text/write_text)
+        if: steps.bypass.outputs.bypass != 'true'
+        # Complements PLW1514, which only flags calls whose receiver type ruff
+        # can resolve. This AST check catches read_text/write_text on any
+        # receiver (e.g. `p.write_text(...)` where `p` is a variable) -- the
+        # gap that hid the original snapshot-write bug.
+        run: python scripts/lint/check_pathlib_encoding.py

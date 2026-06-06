@@ -2403,7 +2403,7 @@ sites:
                 SUEWSConfig.from_yaml(yaml_path, auto_generate_annotated=True)
 
             assert annotated_path.exists()
-            content = annotated_path.read_text()
+            content = annotated_path.read_text(encoding="utf-8")
 
             # Should have missing parameter annotations
             assert "[ERROR] MISSING:" in content
@@ -2462,7 +2462,7 @@ sites:
                 "Annotated YAML should be generated even when load raises, "
                 "provided auto_generate_annotated=True"
             )
-            content = annotated_path.read_text()
+            content = annotated_path.read_text(encoding="utf-8")
             assert "ANNOTATED SUEWS CONFIGURATION" in content
             assert "bldgh" in content
             annotated_path.unlink()
@@ -4453,7 +4453,7 @@ sites:
           faibldg: {value: 0.3}
 """
         config_path = tmp_path / "partial_land_cover.yml"
-        config_path.write_text(config_yaml)
+        config_path.write_text(config_yaml, encoding="utf-8")
 
         with pytest.raises(ValueError) as exc_info:
             SUEWSConfig.from_yaml(str(config_path))
@@ -4536,7 +4536,7 @@ sites:
           sfr: {value: 0.0}
 """
         config_path = tmp_path / "fai_simple_scheme.yml"
-        config_path.write_text(config_yaml)
+        config_path.write_text(config_yaml, encoding="utf-8")
 
         config = SUEWSConfig.from_yaml(str(config_path))
         assert config is not None
@@ -4626,7 +4626,7 @@ sites:
           sfr: {value: 0.0}
 """
         config_path = tmp_path / "lai_observed.yml"
-        config_path.write_text(config_yaml)
+        config_path.write_text(config_yaml, encoding="utf-8")
 
         config = SUEWSConfig.from_yaml(str(config_path))
         assert config is not None

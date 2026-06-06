@@ -525,7 +525,7 @@ def test_flexible_refvalue_with_cleaning():
     sample_config_resource = supy_resources / "sample_data" / "sample_config.yml"
 
     # Load the config data
-    original_data = yaml.safe_load(sample_config_resource.read_text())
+    original_data = yaml.safe_load(sample_config_resource.read_text(encoding="utf-8"))
 
     # Create a cleaned version
     cleaned_data = copy.deepcopy(original_data)
@@ -875,7 +875,7 @@ class TestSUEWSSimulationRefValue:
         sample_config_resource = supy_resources / "sample_data" / "sample_config.yml"
 
         # Load sample config
-        original_data = yaml.safe_load(sample_config_resource.read_text())
+        original_data = yaml.safe_load(sample_config_resource.read_text(encoding="utf-8"))
 
         # Create RefValue list with the sample forcing file
         forcing_list = [str(sample_forcing)]
@@ -908,7 +908,7 @@ class TestSUEWSSimulationRefValue:
         sample_config_resource = supy_resources / "sample_data" / "sample_config.yml"
 
         # Load sample config
-        original_data = yaml.safe_load(sample_config_resource.read_text())
+        original_data = yaml.safe_load(sample_config_resource.read_text(encoding="utf-8"))
 
         # Create RefValue string with the sample forcing file
         ref_forcing = RefValue(str(sample_forcing))

@@ -23,7 +23,7 @@ MODULE_PATH = ROOT / "src" / "supy" / "_supy_module.py"
 
 def _load_warn_helper():
     """Compile `_warn_functional_deprecation` without importing supy."""
-    module_ast = ast.parse(MODULE_PATH.read_text(), filename=str(MODULE_PATH))
+    module_ast = ast.parse(MODULE_PATH.read_text(encoding="utf-8"), filename=str(MODULE_PATH))
 
     deprecations = None
     warn_func_node = None

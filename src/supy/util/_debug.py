@@ -37,7 +37,7 @@ def save_zip_debug(df_forcing, df_state_init, error_info=None):
     # save error information if provided
     if error_info is not None:
         path_error = path_dir_save / "error_info.md"
-        with open(path_error, "w") as f:
+        with open(path_error, "w", encoding="utf-8") as f:
             # Write timestamp as header
             f.write(f"# SuPy Error Report\n\n")
             f.write(f"## Timestamp\n")

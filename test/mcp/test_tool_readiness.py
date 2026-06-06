@@ -49,11 +49,11 @@ def test_customised_location_leaves_assumed_list(tmp_path: Path) -> None:
     """Changing the location moves it from assumed to looks_customised."""
     from suews_mcp.tools import assess_readiness
 
-    cfg = yaml.safe_load(_sample().read_text())
+    cfg = yaml.safe_load(_sample().read_text(encoding="utf-8"))
     cfg["sites"][0]["properties"]["lat"]["value"] = 33.45  # Phoenix-ish
     cfg["sites"][0]["properties"]["lng"]["value"] = -112.07
     out = tmp_path / "phoenix.yml"
-    out.write_text(yaml.safe_dump(cfg))
+    out.write_text(yaml.safe_dump(cfg), encoding="utf-8")
 
     env = assess_readiness(str(out), project_root=str(tmp_path))
     assert env["status"] == "success", env.get("errors")

@@ -202,7 +202,7 @@ class JsonYamlAnnotator:
     ) -> Path:
         """Generate annotated YAML file with validation feedback."""
         # Read original YAML
-        with open(input_path, "r") as f:
+        with open(input_path, "r", encoding="utf-8") as f:
             yaml_content = f.read()
 
         # Parse to data structure

@@ -60,7 +60,7 @@ def update_yaml_schema_version(
         return False
 
     try:
-        with open(file_path, "r") as f:
+        with open(file_path, "r", encoding="utf-8") as f:
             config = yaml.safe_load(f)
 
         if not isinstance(config, dict):
@@ -114,7 +114,7 @@ def update_yaml_schema_version(
                     config["description"] = desc
 
         # Write back to file
-        with open(file_path, "w") as f:
+        with open(file_path, "w", encoding="utf-8") as f:
             yaml.dump(
                 config, f, default_flow_style=False, sort_keys=False, allow_unicode=True
             )
@@ -168,7 +168,7 @@ def find_yaml_configs(
         if not any(excluded in f.parts for excluded in excluded_dirs):
             # Try to detect if it's a SUEWS config
             try:
-                with open(f, "r") as file:
+                with open(f, "r", encoding="utf-8") as file:
                     content = yaml.safe_load(file)
                     if isinstance(content, dict) and (
                         "model" in content or "sites" in content

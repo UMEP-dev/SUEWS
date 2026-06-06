@@ -278,7 +278,7 @@ def migrate_config_file(
         raise FileNotFoundError(f"Input file not found: {input_path}")
 
     # Load configuration
-    with open(input_file, "r") as f:
+    with open(input_file, "r", encoding="utf-8") as f:
         config = yaml.safe_load(f)
 
     # Migrate
@@ -287,7 +287,7 @@ def migrate_config_file(
 
     # Save
     output_file = Path(output_path) if output_path else input_file
-    with open(output_file, "w") as f:
+    with open(output_file, "w", encoding="utf-8") as f:
         yaml.dump(migrated, f, default_flow_style=False, sort_keys=False)
 
     logger.info(f"Migrated configuration saved to {output_file}")
@@ -303,7 +303,7 @@ def check_migration_needed(config_path: str) -> bool:
     Returns:
         True if migration is needed, False otherwise
     """
-    with open(config_path, "r") as f:
+    with open(config_path, "r", encoding="utf-8") as f:
         config = yaml.safe_load(f)
 
     migrator = SchemaMigrator()

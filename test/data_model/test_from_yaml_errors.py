@@ -26,7 +26,7 @@ pytestmark = pytest.mark.api
 def sample_config_dict() -> dict:
     """Load the packaged sample configuration as a mutable dict."""
     path = trv_supy_module / "sample_data" / "sample_config.yml"
-    with path.open() as f:
+    with path.open(encoding="utf-8") as f:
         return yaml.safe_load(f)
 
 

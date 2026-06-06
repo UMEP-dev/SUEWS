@@ -59,13 +59,13 @@ class TestModelPhysicsNested:
 
 class TestYamlRoundTrip:
     def test_flat_yaml_loads(self):
-        cfg = yaml.safe_load((_FIXTURES / "flat.yml").read_text())
+        cfg = yaml.safe_load((_FIXTURES / "flat.yml").read_text(encoding="utf-8"))
         phys = ModelPhysics(**cfg["model"]["physics"])
         assert int(_unwrap(phys.net_radiation)) == 1001
 
     def test_nested_yaml_loads_to_same_internal_state(self):
-        flat_cfg = yaml.safe_load((_FIXTURES / "flat.yml").read_text())
-        nested_cfg = yaml.safe_load((_FIXTURES / "nested.yml").read_text())
+        flat_cfg = yaml.safe_load((_FIXTURES / "flat.yml").read_text(encoding="utf-8"))
+        nested_cfg = yaml.safe_load((_FIXTURES / "nested.yml").read_text(encoding="utf-8"))
 
         flat = ModelPhysics(**flat_cfg["model"]["physics"])
         nested = ModelPhysics(**nested_cfg["model"]["physics"])
@@ -74,7 +74,7 @@ class TestYamlRoundTrip:
         assert flat.model_dump(mode="json") == nested.model_dump(mode="json")
 
     def test_nested_yaml_dumps_to_flat(self):
-        nested_cfg = yaml.safe_load((_FIXTURES / "nested.yml").read_text())
+        nested_cfg = yaml.safe_load((_FIXTURES / "nested.yml").read_text(encoding="utf-8"))
         phys = ModelPhysics(**nested_cfg["model"]["physics"])
 
         dumped_text = yaml.safe_dump(phys.model_dump(mode="json"))
@@ -84,7 +84,7 @@ class TestYamlRoundTrip:
         assert "simple:" not in dumped_text
 
     def test_mixed_reject_yaml_raises(self):
-        cfg = yaml.safe_load((_FIXTURES / "mixed_reject.yml").read_text())
+        cfg = yaml.safe_load((_FIXTURES / "mixed_reject.yml").read_text(encoding="utf-8"))
         with pytest.raises(ValidationError) as exc:
             ModelPhysics(**cfg["model"]["physics"])
         assert "expects one of" in str(exc.value)

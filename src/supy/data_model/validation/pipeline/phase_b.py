@@ -306,7 +306,7 @@ def validate_phase_b_inputs(
     try:
         from ...core.physics_families import flatten_physics_in_config
 
-        with open(uptodate_yaml_file, "r") as f:
+        with open(uptodate_yaml_file, "r", encoding="utf-8") as f:
             uptodate_content = f.read()
             # Normalise legacy field spellings to current names so the science
             # checks below match configs that bypass Phase A's normalisation
@@ -320,7 +320,7 @@ def validate_phase_b_inputs(
 
         user_data = load_user_yaml_normalised(user_yaml_file)
 
-        with open(standard_yaml_file, "r") as f:
+        with open(standard_yaml_file, "r", encoding="utf-8") as f:
             standard_data = yaml.safe_load(f)
 
         # Collapse readable physics names for raw-dict science checks.

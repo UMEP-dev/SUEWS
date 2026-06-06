@@ -126,7 +126,7 @@ def convert_pydantic_location_to_gridid_path(loc_tuple, input_yaml_file):
             site_index = loc_tuple[i + 1]
             try:
                 # Load YAML to get the actual GRIDID
-                with open(input_yaml_file, "r") as f:
+                with open(input_yaml_file, "r", encoding="utf-8") as f:
                     yaml_data = yaml.safe_load(f)
 
                 if (
@@ -328,7 +328,7 @@ def generate_phase_c_report(
                     if field_name in ["lat", "lon", "alt"]:
                         # Try to get GRIDID for first site as fallback
                         try:
-                            with open(input_yaml_file, "r") as f:
+                            with open(input_yaml_file, "r", encoding="utf-8") as f:
                                 yaml_data = yaml.safe_load(f)
                             if (
                                 "sites" in yaml_data

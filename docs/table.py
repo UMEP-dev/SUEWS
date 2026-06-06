@@ -94,7 +94,7 @@ def readfile(infile):
     """
     infile = path.realpath(infile)
     try:
-        with open(infile, "r") as f:
+        with open(infile, "r", encoding="utf-8") as f:
             data = f.read()
         return data
     except Exception as e:
@@ -113,7 +113,7 @@ def writefile(outfile, data):
     """
     outfile = path.realpath(outfile)
     try:
-        with open(outfile, "w") as f:
+        with open(outfile, "w", encoding="utf-8") as f:
             f.write(data)
         return 0
     except Exception as e:

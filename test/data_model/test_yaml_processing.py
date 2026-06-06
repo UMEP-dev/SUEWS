@@ -78,7 +78,7 @@ class TestUptodateYaml(unittest.TestCase):
         cls.standard_file = trv_supy_module / "sample_data" / "sample_config.yml"
 
         # Load the standard configuration
-        with cls.standard_file.open() as f:
+        with cls.standard_file.open(encoding="utf-8") as f:
             cls.standard_data = yaml.safe_load(f)
 
         # Create test data scenarios
@@ -866,7 +866,7 @@ sites:
         with tempfile.TemporaryDirectory() as temp_dir:
             # Create temporary user file with issues
             user_file = os.path.join(temp_dir, "user.yml")
-            with open(user_file, "w") as f:
+            with open(user_file, "w", encoding="utf-8") as f:
                 yaml.dump(self.missing_physics_yaml, f)
 
             # Create output file paths
@@ -886,7 +886,7 @@ sites:
             self.assertTrue(os.path.exists(report_file))
 
             # Verify uptodate file content
-            with open(uptodate_file) as f:
+            with open(uptodate_file, encoding="utf-8") as f:
                 uptodate_content = f.read()
 
             self.assertIn("Updated YAML", uptodate_content)
@@ -894,7 +894,7 @@ sites:
             self.assertIn("value: null", uptodate_content)
 
             # Verify report file content
-            with open(report_file) as f:
+            with open(report_file, encoding="utf-8") as f:
                 report_content = f.read()
 
             self.assertIn("# SUEWS Validation Report", report_content)
@@ -1008,7 +1008,7 @@ class TestRealWorldScenarios(unittest.TestCase):
     def setUp(self):
         """Set up with real standard configuration."""
         self.standard_file = trv_supy_module / "sample_data" / "sample_config.yml"
-        with self.standard_file.open() as f:
+        with self.standard_file.open(encoding="utf-8") as f:
             self.standard_data = yaml.safe_load(f)
 
     def test_benchmark_configuration_compatibility(self):
@@ -1155,7 +1155,7 @@ sites:
 
             # Write the problematic user config
             user_file = os.path.join(temp_dir, "comprehensive_user.yml")
-            with open(user_file, "w") as f:
+            with open(user_file, "w", encoding="utf-8") as f:
                 f.write(problematic_yaml_content.strip())
 
             # Define output files
@@ -1184,7 +1184,7 @@ sites:
             )
 
             # === VERIFY UPTODATE YAML CONTENT ===
-            with open(uptodate_file) as f:
+            with open(uptodate_file, encoding="utf-8") as f:
                 uptodate_content = f.read()
 
             # Should contain header
@@ -1255,7 +1255,7 @@ sites:
             )
 
             # === VERIFY REPORT CONTENT ===
-            with open(report_file) as f:
+            with open(report_file, encoding="utf-8") as f:
                 report_content = f.read()
 
             # Should contain all sections
@@ -1328,7 +1328,7 @@ sites:
 
             # === VERIFY DATA COMPLETENESS ===
             # Load both original and updated YAML for comparison
-            with open(user_file) as f:
+            with open(user_file, encoding="utf-8") as f:
                 original_data = yaml.safe_load(f.read())
 
             updated_data = yaml.safe_load(uptodate_content)
@@ -1476,7 +1476,7 @@ sites:
 
             # Write large config
             user_file = os.path.join(temp_dir, "large_user.yml")
-            with open(user_file, "w") as f:
+            with open(user_file, "w", encoding="utf-8") as f:
                 yaml.dump(large_config, f)
 
             uptodate_file = os.path.join(temp_dir, "uptodate_large_user.yml")
@@ -1506,7 +1506,7 @@ sites:
             self.assertTrue(os.path.exists(report_file))
 
             # Verify content correctness even with larger scale
-            with open(uptodate_file) as f:
+            with open(uptodate_file, encoding="utf-8") as f:
                 uptodate_content = f.read()
 
             # Should handle all sites correctly
@@ -3531,10 +3531,10 @@ class TestProcessorFixtures:
         user_file = Path(temp_directory) / "user_config.yml"
         standard_file = Path(temp_directory) / "standard_config.yml"
 
-        with open(user_file, "w") as f:
+        with open(user_file, "w", encoding="utf-8") as f:
             yaml.dump(minimal_user_config, f, default_flow_style=False)
 
-        with open(standard_file, "w") as f:
+        with open(standard_file, "w", encoding="utf-8") as f:
             yaml.dump(sample_standard_config, f, default_flow_style=False)
 
         return {
@@ -3980,12 +3980,12 @@ class TestPhaseAUptoDateYaml(TestProcessorFixtures):
         """Test mode-dependent extra parameter handling."""
         # Add extra parameter to user config
         user_file = temp_yaml_files["user_file"]
-        with open(user_file) as f:
+        with open(user_file, encoding="utf-8") as f:
             data = yaml.safe_load(f)
 
         data["model"]["control"]["custom_param"] = "test_value"
 
-        with open(user_file, "w") as f:
+        with open(user_file, "w", encoding="utf-8") as f:
             yaml.dump(data, f)
 
         # Run Phase A with specified mode
@@ -4009,7 +4009,7 @@ class TestPhaseAUptoDateYaml(TestProcessorFixtures):
         assert os.path.exists(report_file), "Report file should be created"
 
         # Check output file content for mode-dependent behavior
-        with open(output_file) as f:
+        with open(output_file, encoding="utf-8") as f:
             output_data = yaml.safe_load(f)
 
         if expected_behavior in [
@@ -4023,7 +4023,7 @@ class TestPhaseAUptoDateYaml(TestProcessorFixtures):
             )
 
             # Check that the report contains ACTION NEEDED section with extra parameter warning
-            with open(report_file) as f:
+            with open(report_file, encoding="utf-8") as f:
                 report_content = f.read()
             assert "## ACTION NEEDED" in report_content, (
                 "Report should have ACTION NEEDED section in public mode"
@@ -4766,7 +4766,7 @@ class TestPhaseCReporting(TestProcessorFixtures):
         assert result is None
         assert os.path.exists(output_file), "Report file should be created"
 
-        with open(output_file) as f:
+        with open(output_file, encoding="utf-8") as f:
             report_content = f.read()
 
         assert "# SUEWS Validation Report" in report_content
@@ -4776,7 +4776,7 @@ class TestPhaseCReporting(TestProcessorFixtures):
     def test_report_consolidation_with_previous_phases(self, temp_directory):
         """Test report consolidation with Phase A and B information."""
         phase_a_report = os.path.join(temp_directory, "reportA_test.txt")
-        with open(phase_a_report, "w") as f:
+        with open(phase_a_report, "w", encoding="utf-8") as f:
             f.write("# SUEWS - Phase A Report\n")
             f.write("## ACTION NEEDED\n")
             f.write("- Found (1) missing parameter: gsmodel\n")
@@ -4798,7 +4798,7 @@ class TestPhaseCReporting(TestProcessorFixtures):
 
         assert result is None
 
-        with open(output_file) as f:
+        with open(output_file, encoding="utf-8") as f:
             report_content = f.read()
 
         assert "# SUEWS Validation Report" in report_content
@@ -5007,7 +5007,7 @@ class TestSuewsYamlProcessorOrchestrator(TestProcessorFixtures):
         """Test error handling with invalid YAML syntax."""
         invalid_yaml_file = Path(temp_directory) / "invalid.yml"
 
-        with open(invalid_yaml_file, "w") as f:
+        with open(invalid_yaml_file, "w", encoding="utf-8") as f:
             f.write("invalid: yaml: content: [unclosed bracket")
 
         try:
@@ -5037,7 +5037,7 @@ class TestSuewsYamlProcessorOrchestrator(TestProcessorFixtures):
 
         # Test creating a test file to verify write permissions
         test_file = output_dir / "test_cleanup.yml"
-        with open(test_file, "w") as f:
+        with open(test_file, "w", encoding="utf-8") as f:
             f.write("test: cleanup_validation")
 
         assert test_file.exists(), "Should be able to create files in output directory"

@@ -154,8 +154,8 @@ def test_resolve_suews_executable_prefers_sibling_of_sys_executable(
     bin_dir.mkdir()
     fake_python = bin_dir / "python3"
     fake_suews = bin_dir / "suews"
-    fake_python.write_text("#!/bin/sh\nexit 0\n")
-    fake_suews.write_text("#!/bin/sh\nexit 0\n")
+    fake_python.write_text("#!/bin/sh\nexit 0\n", encoding="utf-8")
+    fake_suews.write_text("#!/bin/sh\nexit 0\n", encoding="utf-8")
     fake_python.chmod(0o755)
     fake_suews.chmod(0o755)
 
@@ -182,14 +182,14 @@ def test_resolve_suews_executable_falls_back_to_path(
     bin_dir = tmp_path / "bin"
     bin_dir.mkdir()
     fake_python = bin_dir / "python3"
-    fake_python.write_text("#!/bin/sh\nexit 0\n")
+    fake_python.write_text("#!/bin/sh\nexit 0\n", encoding="utf-8")
     fake_python.chmod(0o755)
 
     # PATH-only suews lives elsewhere.
     path_dir = tmp_path / "system" / "bin"
     path_dir.mkdir(parents=True)
     path_suews = path_dir / "suews"
-    path_suews.write_text("#!/bin/sh\nexit 0\n")
+    path_suews.write_text("#!/bin/sh\nexit 0\n", encoding="utf-8")
     path_suews.chmod(0o755)
 
     monkeypatch.setattr(sys, "executable", str(fake_python))
@@ -213,7 +213,7 @@ def test_resolve_suews_executable_returns_name_when_unreachable(
     bin_dir = tmp_path / "bin"
     bin_dir.mkdir()
     fake_python = bin_dir / "python3"
-    fake_python.write_text("")
+    fake_python.write_text("", encoding="utf-8")
     fake_python.chmod(0o755)
 
     monkeypatch.setattr(sys, "executable", str(fake_python))
@@ -238,8 +238,8 @@ def test_run_suews_cli_uses_resolver_by_default(
     bin_dir.mkdir()
     fake_python = bin_dir / "python3"
     fake_suews = bin_dir / "suews"
-    fake_python.write_text("")
-    fake_suews.write_text("")
+    fake_python.write_text("", encoding="utf-8")
+    fake_suews.write_text("", encoding="utf-8")
     fake_python.chmod(0o755)
     fake_suews.chmod(0o755)
 

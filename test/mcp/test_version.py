@@ -34,7 +34,7 @@ def test_mcp_runtime_version_matches_supy() -> None:
 
 def test_mcp_pyproject_uses_generated_dynamic_version() -> None:
     pyproject = REPO_ROOT / "mcp" / "pyproject.toml"
-    text = pyproject.read_text()
+    text = pyproject.read_text(encoding="utf-8")
 
     assert 'dynamic = ["version"]' in text
     assert 'version = "0.1.0"' not in text
@@ -61,7 +61,7 @@ def test_version_script_writes_supy_and_mcp_version_files(
         Path("mcp/src/suews_mcp/_version_scm.py"),
     ):
         generated = tmp_path / rel_path
-        text = generated.read_text()
+        text = generated.read_text(encoding="utf-8")
         assert "__version__ = version = '2026.5.1.dev2'" in text
         assert "__version_tuple__ = version_tuple = (2026, 5, 1, 'dev2')" in text
         # gh#1401: the build-time commit hash is baked in so the envelope

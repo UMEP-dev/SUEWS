@@ -33,12 +33,12 @@ def test_missing_baseline_column_raises(tmp_path):
     raises ValueError whose message contains the canonical name."""
     from supy.util._io import read_forcing
 
-    text = CANONICAL_FIXTURE.read_text()
+    text = CANONICAL_FIXTURE.read_text(encoding="utf-8")
     lines = text.splitlines()
     header = lines[0].replace("Tair", "temperature")
     bad = "\n".join([header, *lines[1:]])
     bad_path = tmp_path / "bad.txt"
-    bad_path.write_text(bad)
+    bad_path.write_text(bad, encoding="utf-8")
     with pytest.raises(ValueError, match=r"\bTair\b"):
         read_forcing(str(bad_path), tstep_mod=None)
 
@@ -47,13 +47,13 @@ def test_unknown_column_warns(tmp_path):
     """T6: an unknown column produces a UserWarning but the run continues."""
     from supy.util._io import read_forcing
 
-    text = CANONICAL_FIXTURE.read_text()
+    text = CANONICAL_FIXTURE.read_text(encoding="utf-8")
     lines = text.splitlines()
     header = lines[0] + " weird_var"
     rows = [line + " 0.0" for line in lines[1:]]
     augmented = "\n".join([header, *rows])
     path = tmp_path / "with_weird.txt"
-    path.write_text(augmented)
+    path.write_text(augmented, encoding="utf-8")
     with pytest.warns(UserWarning, match="weird_var"):
         df = read_forcing(str(path), tstep_mod=None)
     assert "weird_var" not in df.columns
@@ -63,7 +63,7 @@ def test_missing_optional_column_filled_with_sentinel(tmp_path):
     """Missing optional canonical columns are filled with -999."""
     from supy.util._io import read_forcing
 
-    text = CANONICAL_FIXTURE.read_text()
+    text = CANONICAL_FIXTURE.read_text(encoding="utf-8")
     lines = text.splitlines()
     header_tokens = lines[0].split()
     drop_idx = header_tokens.index("snow")
@@ -74,7 +74,7 @@ def test_missing_optional_column_filled_with_sentinel(tmp_path):
         new_rows.append(" ".join(t for i, t in enumerate(toks) if i != drop_idx))
     text_out = "\n".join([new_header, *new_rows])
     path = tmp_path / "no_snow.txt"
-    path.write_text(text_out)
+    path.write_text(text_out, encoding="utf-8")
     df = read_forcing(str(path), tstep_mod=None)
     assert "snow" in df.columns
     assert (df["snow"] == -999.0).all()
@@ -85,14 +85,14 @@ def test_per_landcover_columns_separated_into_extras(tmp_path):
     not in the kernel-facing DataFrame; main DataFrame shape unchanged."""
     from supy.suews_forcing import SUEWSForcing
 
-    text = CANONICAL_FIXTURE.read_text()
+    text = CANONICAL_FIXTURE.read_text(encoding="utf-8")
     lines = text.splitlines()
     header = lines[0] + " lai_evetr lai_dectr lai_grass wuh_paved"
     new_lines = [header]
     for row in lines[1:]:
         new_lines.append(row + " 1.5 2.5 3.5 0.25")
     p = tmp_path / "kc_per_landcover.txt"
-    p.write_text("\n".join(new_lines))
+    p.write_text("\n".join(new_lines), encoding="utf-8")
 
     forcing = SUEWSForcing.from_file(str(p))
     assert hasattr(forcing, "extras")
@@ -116,14 +116,14 @@ def test_lai_per_landcover_rejected_for_non_vegetated_surface(tmp_path):
     plumbed through extras."""
     from supy.suews_forcing import SUEWSForcing
 
-    text = CANONICAL_FIXTURE.read_text()
+    text = CANONICAL_FIXTURE.read_text(encoding="utf-8")
     lines = text.splitlines()
     header = lines[0] + " lai_paved lai_water"
     new_lines = [header]
     for row in lines[1:]:
         new_lines.append(row + " 0.1 0.2")
     p = tmp_path / "kc_lai_nonveg.txt"
-    p.write_text("\n".join(new_lines))
+    p.write_text("\n".join(new_lines), encoding="utf-8")
 
     with pytest.warns(UserWarning):
         forcing = SUEWSForcing.from_file(str(p))
@@ -137,14 +137,14 @@ def test_wuh_per_landcover_accepts_every_surface(tmp_path):
     and ornamental water features on the open-water surface."""
     from supy.suews_forcing import SUEWSForcing
 
-    text = CANONICAL_FIXTURE.read_text()
+    text = CANONICAL_FIXTURE.read_text(encoding="utf-8")
     lines = text.splitlines()
     header = lines[0] + " wuh_paved wuh_grass wuh_water"
     new_lines = [header]
     for row in lines[1:]:
         new_lines.append(row + " 0.05 0.30 0.10")
     p = tmp_path / "kc_wuh_mixed.txt"
-    p.write_text("\n".join(new_lines))
+    p.write_text("\n".join(new_lines), encoding="utf-8")
 
     forcing = SUEWSForcing.from_file(str(p))
     assert "wuh_paved" in forcing.extras
@@ -160,10 +160,11 @@ def test_per_landcover_extras_survive_resampling(tmp_path):
     from supy.suews_forcing import SUEWSForcing
 
     sample = files("supy") / "sample_data" / "Kc_2012_data_60.txt"
-    lines = sample.read_text().splitlines()
+    lines = sample.read_text(encoding="utf-8").splitlines()
     path = tmp_path / "hourly_extra.txt"
     path.write_text(
-        "\n".join([lines[0] + " lai_evetr", *[line + " 1.5" for line in lines[1:5]]])
+        "\n".join([lines[0] + " lai_evetr", *[line + " 1.5" for line in lines[1:5]]]),
+        encoding="utf-8",
     )
 
     forcing = SUEWSForcing.from_file(str(path))
@@ -178,10 +179,11 @@ def test_wuh_per_landcover_extras_resample_as_timestep_sum(tmp_path):
     from supy.suews_forcing import SUEWSForcing
 
     sample = files("supy") / "sample_data" / "Kc_2012_data_60.txt"
-    lines = sample.read_text().splitlines()
+    lines = sample.read_text(encoding="utf-8").splitlines()
     path = tmp_path / "hourly_wuh_extra.txt"
     path.write_text(
-        "\n".join([lines[0] + " wuh_grass", *[line + " 12.0" for line in lines[1:4]]])
+        "\n".join([lines[0] + " wuh_grass", *[line + " 12.0" for line in lines[1:4]]]),
+        encoding="utf-8",
     )
 
     forcing = SUEWSForcing.from_file(str(path))
@@ -194,7 +196,7 @@ def test_per_landcover_extras_survive_time_slicing(tmp_path):
     """Sliced SUEWSForcing objects keep time-aligned extras."""
     from supy.suews_forcing import SUEWSForcing
 
-    text = CANONICAL_FIXTURE.read_text()
+    text = CANONICAL_FIXTURE.read_text(encoding="utf-8")
     lines = text.splitlines()
     path = tmp_path / "kc_extra_slice.txt"
     data_rows = [
@@ -202,7 +204,8 @@ def test_per_landcover_extras_survive_time_slicing(tmp_path):
         for i, line in enumerate(lines[1:])
     ]
     path.write_text(
-        "\n".join([lines[0] + " lai_evetr wuh_grass", *data_rows])
+        "\n".join([lines[0] + " lai_evetr wuh_grass", *data_rows]),
+        encoding="utf-8",
     )
 
     forcing = SUEWSForcing.from_file(str(path), tstep_mod=None)
@@ -221,11 +224,12 @@ def test_mixed_case_headers_across_files_coalesce(tmp_path):
     """Case-insensitive matching works across concatenated forcing files."""
     from supy.util._io import read_forcing
 
-    text = CANONICAL_FIXTURE.read_text()
+    text = CANONICAL_FIXTURE.read_text(encoding="utf-8")
     lines = text.splitlines()
-    (tmp_path / "a.txt").write_text("\n".join(lines[:3]))
+    (tmp_path / "a.txt").write_text("\n".join(lines[:3]), encoding="utf-8")
     (tmp_path / "b.txt").write_text(
-        "\n".join([lines[0].replace("Tair", "TAIR"), *lines[3:5]])
+        "\n".join([lines[0].replace("Tair", "TAIR"), *lines[3:5]]),
+        encoding="utf-8",
     )
 
     df = read_forcing(str(tmp_path / "*.txt"), tstep_mod=None)

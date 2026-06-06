@@ -1543,7 +1543,7 @@ def validate_forcing_data(user_yaml_file: str, physics: dict = None) -> tuple:
 
     try:
         # Load user YAML to extract forcing file path
-        with open(user_yaml_file, "r") as f:
+        with open(user_yaml_file, "r", encoding="utf-8") as f:
             user_data = yaml.safe_load(f)
 
         # Navigate to model.control.forcing_file
@@ -2013,7 +2013,7 @@ def annotate_missing_parameters(
     forcing="on",
 ):
     try:
-        with open(user_file, "r") as f:
+        with open(user_file, "r", encoding="utf-8") as f:
             original_yaml_content = f.read()
         original_yaml_content, renamed_replacements = handle_renamed_parameters(
             original_yaml_content
@@ -2044,7 +2044,7 @@ def annotate_missing_parameters(
                 allow_unicode=True,
             )
             original_yaml_content = stream.getvalue()
-        with open(standard_file, "r") as f:
+        with open(standard_file, "r", encoding="utf-8") as f:
             standard_data = yaml.safe_load(f)
         # Collapse readable physics names in both trees before structure diffs.
         flatten_physics_in_config(user_data)

@@ -34,7 +34,7 @@ class SchemaRegistry:
         """Load existing registry or create new one."""
         if self.registry_path.exists():
             try:
-                return json.loads(self.registry_path.read_text())
+                return json.loads(self.registry_path.read_text(encoding="utf-8"))
             except (json.JSONDecodeError, FileNotFoundError):
                 pass
 
@@ -73,7 +73,7 @@ class SchemaRegistry:
 
     def _save_registry(self):
         """Save the registry to disk."""
-        self.registry_path.write_text(json.dumps(self._registry, indent=2))
+        self.registry_path.write_text(json.dumps(self._registry, indent=2), encoding="utf-8")
 
     def get_all_versions(self) -> List[str]:
         """Get list of all registered schema versions."""

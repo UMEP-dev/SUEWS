@@ -31,7 +31,7 @@ def get_token():
     if tok:
         return tok.strip()
     if os.path.exists(_TOKEN_FILE):
-        return Path(_TOKEN_FILE).read_text().strip()
+        return Path(_TOKEN_FILE).read_text(encoding="utf-8").strip()
     return None
 
 

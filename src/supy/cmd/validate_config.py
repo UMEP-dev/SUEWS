@@ -114,7 +114,7 @@ def validate_single_file(
 
     try:
         # Load configuration
-        with open(file_path, "r") as f:
+        with open(file_path, "r", encoding="utf-8") as f:
             config = yaml.safe_load(f)
         flatten_physics_in_config(config)
 
@@ -691,7 +691,7 @@ def migrate(file, output, to_version):
 
     try:
         # Load configuration
-        with open(path, "r") as f:
+        with open(path, "r", encoding="utf-8") as f:
             config = yaml.safe_load(f)
 
         # Detect current version
@@ -712,7 +712,7 @@ def migrate(file, output, to_version):
         )
 
         # Save
-        with open(output_path, "w") as f:
+        with open(output_path, "w", encoding="utf-8") as f:
             yaml.dump(migrated, f, default_flow_style=False, sort_keys=False)
 
         console.print(f"\n[green]✓ Migration complete![/green]")
@@ -804,7 +804,7 @@ def version(files, update, target_version, backup):
     for file_path in files:
         path = Path(file_path)
         try:
-            with open(path, "r") as f:
+            with open(path, "r", encoding="utf-8") as f:
                 cfg = yaml.safe_load(f) or {}
             current = cfg.get("schema_version") or "not specified"
 
@@ -823,7 +823,7 @@ def version(files, update, target_version, backup):
                         backup_path = path.with_suffix(".backup.yml")
                         path.rename(backup_path)
                     cfg["schema_version"] = new_version
-                    with open(path, "w") as f:
+                    with open(path, "w", encoding="utf-8") as f:
                         yaml.dump(cfg, f, default_flow_style=False, sort_keys=False)
                     action = f"Updated -> {new_version}"
                 else:
@@ -878,7 +878,7 @@ def export(output, version, fmt):
             default_name = f"suews-schema-v{schema_version}.json"
 
         if output:
-            Path(output).write_text(content)
+            Path(output).write_text(content, encoding="utf-8")
             console.print(f"[green]✓ Schema exported to {output}[/green]")
         else:
             console.print(
@@ -904,7 +904,7 @@ def _experimental_features_restriction(user_yaml_file, mode):
         return True, [], None  # Dev mode allows all features
 
     try:
-        with open(user_yaml_file, "r") as f:
+        with open(user_yaml_file, "r", encoding="utf-8") as f:
             user_yaml_data = yaml.safe_load(f)
     except Exception as e:
         return False, [], f"Error reading YAML file: {e}"
@@ -1294,11 +1294,11 @@ def _execute_pipeline(
     import tempfile
 
     sample_data_files = importlib.resources.files("supy") / "sample_data"
-    standard_config_content = (sample_data_files / "sample_config.yml").read_text()
+    standard_config_content = (sample_data_files / "sample_config.yml").read_text(encoding="utf-8")
 
     # Write to a persistent temp file that won't be deleted during pipeline execution
     with tempfile.NamedTemporaryFile(
-        mode="w", suffix=".yml", delete=False
+        encoding="utf-8", mode="w", suffix=".yml", delete=False
     ) as tmp_standard:
         tmp_standard.write(standard_config_content)
         standard_yaml_file = tmp_standard.name

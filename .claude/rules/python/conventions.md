@@ -66,7 +66,27 @@ SUEWS-specific Python conventions. Complements ruff for standard linting.
    ```
    **Why**: Windows uses locale-specific encodings by default (e.g., cp1252, cp1253).
    Unicode characters like `→` cause `UnicodeEncodeError` and produce empty files.
-   See issue #1097 for details.
+   See issue #1097 for details. This also covers `read_text`/`write_text` and
+   text-mode `tempfile.NamedTemporaryFile`.
+
+   **Enforced in CI**: `.github/workflows/encoding-audit.yml` runs two
+   complementary checks over the repo on every PR touching a `.py` file:
+   - ruff `PLW1514` (`unspecified-encoding`) — covers builtin `open()`,
+     text-mode `tempfile.NamedTemporaryFile`, and `read_text`/`write_text`
+     whose receiver type ruff can resolve. The rule is preview-only, so
+     the workflow passes `--preview` explicitly. Most violations autofix
+     with `ruff check --preview --select PLW1514 --fix --unsafe-fixes .`.
+   - `scripts/lint/check_pathlib_encoding.py` — an AST check that flags
+     `read_text`/`write_text`, and text-mode `Path.open()`, on *any*
+     receiver (e.g. `p.write_text(...)` or `with p.open() as f:` where `p`
+     is a plain variable), which PLW1514 silently skips because it cannot
+     infer the type. The `.open()` check is mode-aware: it skips binary
+     modes and `zipfile`/`tarfile`-style `.open(name)` calls (non-mode
+     first arg) to avoid false positives. `read_text`/`write_text` are
+     pathlib-specific names, so those are flagged unconditionally.
+
+   A maintainer can label a PR `0-ci:encoding-audit-ok` to bypass when a
+   flagged call is genuinely correct without UTF-8.
 
 ---
 

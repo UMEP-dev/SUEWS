@@ -32,7 +32,7 @@ class ChangelogRestructurer:
         if not self.changelog_path.exists():
             raise FileNotFoundError(f"{self.changelog_path} not found")
 
-        content = self.changelog_path.read_text()
+        content = self.changelog_path.read_text(encoding="utf-8")
         lines = content.split("\n")
 
         # Structure to hold parsed data
@@ -326,7 +326,7 @@ class ChangelogRestructurer:
 
     def save_json_debug(self, data: Dict, filename: str = "changelog_debug.json"):
         """Save parsed data to JSON for debugging"""
-        with open(filename, "w") as f:
+        with open(filename, "w", encoding="utf-8") as f:
             # Convert datetime objects to strings for JSON serialization
             json_data = data.copy()
             json.dump(json_data, f, indent=2, default=str)
@@ -363,7 +363,7 @@ class ChangelogRestructurer:
         print(f"\nOriginal backed up to: {backup_path}")
 
         # Write new changelog
-        self.changelog_path.write_text(markdown)
+        self.changelog_path.write_text(markdown, encoding="utf-8")
         print(f"✓ Restructured CHANGELOG saved to: {self.changelog_path}")
 
         # Summary statistics

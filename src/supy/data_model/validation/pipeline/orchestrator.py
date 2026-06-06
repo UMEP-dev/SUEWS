@@ -84,7 +84,7 @@ def detect_nlayer_from_user_yaml(user_yaml_file: str) -> int:
         nlayer value (defaults to 3 if not found or on error)
     """
     try:
-        with open(user_yaml_file, "r") as f:
+        with open(user_yaml_file, "r", encoding="utf-8") as f:
             user_data = yaml.safe_load(f)
 
         # Navigate: sites[0].properties.vertical_layers.nlayer.value
@@ -306,7 +306,7 @@ def validate_input_file(user_yaml_file: str) -> str:
         )
 
     try:
-        with open(user_yaml_file, "r") as f:
+        with open(user_yaml_file, "r", encoding="utf-8") as f:
             f.read(1)
     except PermissionError:
         raise PermissionError(f"Cannot read input file: {user_yaml_file}")
@@ -1018,7 +1018,7 @@ def _run_phase_c_legacy(
                     with importlib.resources.as_file(
                         sample_data_files / "sample_config.yml"
                     ) as standard_yaml_path:
-                        with open(standard_yaml_path, "r") as f:
+                        with open(standard_yaml_path, "r", encoding="utf-8") as f:
                             standard_data = yaml.safe_load(f)
                         flatten_physics_in_config(standard_data)
                 except FileNotFoundError:
@@ -1552,7 +1552,7 @@ Modes:
             try:
                 import yaml
 
-                with open(user_yaml_file, "r") as f:
+                with open(user_yaml_file, "r", encoding="utf-8") as f:
                     user_yaml_data = yaml.safe_load(f)
                 flatten_physics_in_config(user_yaml_data)
 

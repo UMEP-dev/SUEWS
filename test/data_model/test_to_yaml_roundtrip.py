@@ -20,7 +20,7 @@ pytestmark = pytest.mark.api
 def standard_data():
     """Load the standard sample_config.yml as reference."""
     path = trv_supy_module / "sample_data" / "sample_config.yml"
-    with path.open() as f:
+    with path.open(encoding="utf-8") as f:
         return yaml.safe_load(f)
 
 
@@ -44,14 +44,14 @@ class TestToYamlRoundTrip:
         """Clean export should not add parameters absent from sample_config (#1288)."""
         # ARRANGE
         with tempfile.NamedTemporaryFile(
-            suffix=".yml", delete=False, mode="w"
+            encoding="utf-8", suffix=".yml", delete=False, mode="w"
         ) as tmp:
             tmp_path = tmp.name
 
         # ACT
         sample_config.to_yaml(tmp_path, include_internal=False)
 
-        with open(tmp_path) as f:
+        with open(tmp_path, encoding="utf-8") as f:
             user_data = yaml.safe_load(f)
 
         extra = find_extra_parameters(user_data, standard_data)
@@ -68,14 +68,14 @@ class TestToYamlRoundTrip:
         """to_yaml() should not include _yaml_path or _auto_generate_annotated."""
         # ARRANGE
         with tempfile.NamedTemporaryFile(
-            suffix=".yml", delete=False, mode="w"
+            encoding="utf-8", suffix=".yml", delete=False, mode="w"
         ) as tmp:
             tmp_path = tmp.name
 
         # ACT
         sample_config.to_yaml(tmp_path)
 
-        with open(tmp_path) as f:
+        with open(tmp_path, encoding="utf-8") as f:
             user_data = yaml.safe_load(f)
 
         # ASSERT
@@ -88,14 +88,14 @@ class TestToYamlRoundTrip:
         """to_yaml(include_internal=False) should exclude internal_only fields."""
         # ARRANGE
         with tempfile.NamedTemporaryFile(
-            suffix=".yml", delete=False, mode="w"
+            encoding="utf-8", suffix=".yml", delete=False, mode="w"
         ) as tmp:
             tmp_path = tmp.name
 
         # ACT
         sample_config.to_yaml(tmp_path, include_internal=False)
 
-        with open(tmp_path) as f:
+        with open(tmp_path, encoding="utf-8") as f:
             user_data = yaml.safe_load(f)
 
         # ASSERT - sample_config always includes at least one site
@@ -139,7 +139,7 @@ class TestToYamlRoundTrip:
         sample_config.sites[0].initial_states.qn_surfs = [1.0] * 7
 
         with tempfile.NamedTemporaryFile(
-            suffix=".yml", delete=False, mode="w"
+            encoding="utf-8", suffix=".yml", delete=False, mode="w"
         ) as tmp:
             tmp_path = tmp.name
 

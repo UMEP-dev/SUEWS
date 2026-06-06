@@ -4185,7 +4185,7 @@ def test_dls_consistency_validation_in_suews_config():
     import yaml
 
     sample_path = trv_supy_module / "sample_data" / "sample_config.yml"
-    with sample_path.open() as f:
+    with sample_path.open(encoding="utf-8") as f:
         config_data = yaml.safe_load(f)
 
     # Test 1: Both None - valid
@@ -4223,7 +4223,7 @@ def test_dls_leap_year_validation_in_suews_config():
     from supy.data_model.core import SUEWSConfig
 
     sample_path = trv_supy_module / "sample_data" / "sample_config.yml"
-    with sample_path.open() as f:
+    with sample_path.open(encoding="utf-8") as f:
         config_data = yaml.safe_load(f)
 
     # Set DLS values
@@ -4250,7 +4250,7 @@ def test_dls_location_based_informational_messages_in_suews_config():
     from supy.data_model.core import SUEWSConfig
 
     sample_path = trv_supy_module / "sample_data" / "sample_config.yml"
-    with sample_path.open() as f:
+    with sample_path.open(encoding="utf-8") as f:
         config_data = yaml.safe_load(f)
 
     # Set year to 2024 (leap year) and add site name

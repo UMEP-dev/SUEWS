@@ -78,7 +78,7 @@ class TestUptodateYaml(unittest.TestCase):
         cls.standard_file = trv_supy_module / "sample_data" / "sample_config.yml"
 
         # Load the standard configuration
-        with cls.standard_file.open() as f:
+        with cls.standard_file.open(encoding="utf-8") as f:
             cls.standard_data = yaml.safe_load(f)
 
         # Create test data scenarios
@@ -1008,7 +1008,7 @@ class TestRealWorldScenarios(unittest.TestCase):
     def setUp(self):
         """Set up with real standard configuration."""
         self.standard_file = trv_supy_module / "sample_data" / "sample_config.yml"
-        with self.standard_file.open() as f:
+        with self.standard_file.open(encoding="utf-8") as f:
             self.standard_data = yaml.safe_load(f)
 
     def test_benchmark_configuration_compatibility(self):

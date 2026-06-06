@@ -20,7 +20,7 @@ pytestmark = pytest.mark.api
 def standard_data():
     """Load the standard sample_config.yml as reference."""
     path = trv_supy_module / "sample_data" / "sample_config.yml"
-    with path.open() as f:
+    with path.open(encoding="utf-8") as f:
         return yaml.safe_load(f)
 
 

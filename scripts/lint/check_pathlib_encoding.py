@@ -35,6 +35,9 @@ from pathlib import Path
 
 METHODS = {"read_text", "write_text"}
 
+# Characters that make up a file-mode string (e.g. "r", "w", "rb", "a+").
+_MODE_CHARS = set("rwxabt+")
+
 # Directories that never contain first-party source to lint.
 EXCLUDE_DIRS = {
     ".git",
@@ -61,6 +64,49 @@ def _has_encoding(call: ast.Call) -> bool:
     return False
 
 
+def _looks_like_mode(s: str) -> bool:
+    """True if ``s`` looks like a file-mode string (``"r"``, ``"w"``, ``"rb"``)."""
+    return bool(s) and all(c in _MODE_CHARS for c in s)
+
+
+def _open_is_unencoded_text(call: ast.Call) -> bool:
+    """Decide whether a ``.open(...)`` call is an unencoded *text-mode* open.
+
+    Returns True only when we can prove the call opens in text mode without an
+    explicit encoding. This deliberately skips:
+      - binary modes (``"rb"``/``"wb"``) -- encoding is illegal there;
+      - calls whose first arg is a non-mode string (``zf.open("x.txt")``) or a
+        non-constant -- almost certainly ``zipfile``/``tarfile``/``importlib``
+        style, not ``pathlib.Path.open``, so flagging would be a false positive.
+    """
+    if _has_encoding(call):
+        return False
+
+    mode = None
+    if call.args:
+        first = call.args[0]
+        if isinstance(first, ast.Constant) and isinstance(first.value, str):
+            mode = first.value
+        else:
+            # non-constant / non-str first arg -> can't prove text; skip.
+            return False
+    else:
+        for kw in call.keywords:
+            if kw.arg == "mode":
+                if isinstance(kw.value, ast.Constant) and isinstance(
+                    kw.value.value, str
+                ):
+                    mode = kw.value.value
+                else:
+                    return False
+        if mode is None:
+            mode = "r"  # pathlib default
+
+    if not _looks_like_mode(mode):
+        return False  # e.g. "data.csv" -> zipfile-style name, not a mode
+    return "b" not in mode
+
+
 def check_file(path: Path) -> list[tuple[int, str]]:
     try:
         tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
@@ -68,13 +114,13 @@ def check_file(path: Path) -> list[tuple[int, str]]:
         return []
     findings: list[tuple[int, str]] = []
     for node in ast.walk(tree):
-        if (
-            isinstance(node, ast.Call)
-            and isinstance(node.func, ast.Attribute)
-            and node.func.attr in METHODS
-            and not _has_encoding(node)
-        ):
-            findings.append((node.lineno, node.func.attr))
+        if not (isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute)):
+            continue
+        attr = node.func.attr
+        if attr in METHODS and not _has_encoding(node):
+            findings.append((node.lineno, attr))
+        elif attr == "open" and _open_is_unencoded_text(node):
+            findings.append((node.lineno, "open"))
     return findings
 
 

@@ -150,7 +150,7 @@ def save_snapshot(filepath: Path, snapshot_dir: Path):
     snapshot_path = snapshot_dir / f"CLAUDE.md.{timestamp}"
 
     content = filepath.read_text(encoding="utf-8")
-    snapshot_path.write_text(content)
+    snapshot_path.write_text(content, encoding="utf-8")
 
     # Also save metadata
     metadata = {

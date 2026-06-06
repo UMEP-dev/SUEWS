@@ -17,6 +17,11 @@ name: Encoding audit
 
 on:
   pull_request:
+    # Include labeled/unlabeled so adding the bypass label after a failed run
+    # re-triggers the gate. Default types (opened/synchronize/reopened) do not
+    # fire on label changes -- that is why the schema-audit gate needs a
+    # close/reopen to pick a label up; this gate does not.
+    types: [opened, synchronize, reopened, labeled, unlabeled]
     paths:
       - '**.py'
       - '.github/workflows/encoding-audit.yml'

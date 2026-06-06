@@ -19,7 +19,7 @@ index = {
 
 shared = {}
 for V in VERSIONS:
-    prov = json.load(open(RES / V / "provenance.json"))
+    prov = json.load(open(RES / V / "provenance.json", encoding="utf-8"))
     entry = {
         "status": prov["status"],
         "reproducible": prov.get("reproducible"),
@@ -33,7 +33,7 @@ for V in VERSIONS:
     entry["config_hash"] = prov.get("config_hash")
     entry["config_file"] = f"inputs/config_{V}.yml"
     if prov["status"] == "ok":
-        sj = json.load(open(RES / V / "stats.json"))
+        sj = json.load(open(RES / V / "stats.json", encoding="utf-8"))
         stats = sj["stats"]
         entry["full"] = {f: stats[f]["full"]["all"] for f in FLUXES}
         entry["seasonal"] = {f: stats[f]["seasonal"] for f in FLUXES}

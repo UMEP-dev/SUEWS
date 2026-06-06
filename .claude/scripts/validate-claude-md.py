@@ -68,7 +68,7 @@ def check_file_integrity(filepath: Path) -> dict:
             "stats": {},
         }
 
-    content = filepath.read_text()
+    content = filepath.read_text(encoding="utf-8")
     lines = content.splitlines()
 
     warnings = []
@@ -149,7 +149,7 @@ def save_snapshot(filepath: Path, snapshot_dir: Path):
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     snapshot_path = snapshot_dir / f"CLAUDE.md.{timestamp}"
 
-    content = filepath.read_text()
+    content = filepath.read_text(encoding="utf-8")
     snapshot_path.write_text(content)
 
     # Also save metadata

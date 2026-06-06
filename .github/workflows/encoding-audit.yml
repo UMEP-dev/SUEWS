@@ -1,0 +1,73 @@
+name: Encoding audit
+
+# Block any text-mode file operation that omits an explicit `encoding`.
+#
+# Without `encoding=`, `open()` / `read_text()` / `write_text()` /
+# `tempfile.NamedTemporaryFile()` inherit the platform default, which is
+# cp1252 on Windows. Writing Unicode (degree signs, accented site names,
+# tqdm progress bars) through such a stream raises UnicodeEncodeError.
+# This bit us in the 2026-06-06 nightly (a tqdm 4.68.1 release exposed a
+# long-latent `open(os.devnull, "w")`), and the same class recurred from
+# gh#1097. The ruff rule that catches it (PLW1514, unspecified-encoding)
+# is preview-only, so `--preview` is passed explicitly rather than relying
+# on the `preview = true` flag in .ruff.toml.
+#
+# Maintainers can label a PR `0-ci:encoding-audit-ok` to bypass when a
+# flagged call is genuinely correct without UTF-8 (rare).
+
+on:
+  pull_request:
+    paths:
+      - '**.py'
+      - '.github/workflows/encoding-audit.yml'
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  check-encoding:
+    name: Require explicit encoding on text I/O
+    runs-on: ubuntu-latest
+    steps:
+      - name: Decide whether to skip (PR has bypass label)
+        id: bypass
+        env:
+          LABELS: ${{ toJSON(github.event.pull_request.labels.*.name) }}
+        run: |
+          set -eu
+          echo "Labels on this PR: $LABELS"
+          if printf '%s' "$LABELS" | grep -q '"0-ci:encoding-audit-ok"'; then
+            echo "bypass=true" >> "$GITHUB_OUTPUT"
+            echo "PR carries label '0-ci:encoding-audit-ok'; skipping encoding audit."
+          else
+            echo "bypass=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Checkout
+        if: steps.bypass.outputs.bypass != 'true'
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          persist-credentials: false
+
+      - name: Set up Python
+        if: steps.bypass.outputs.bypass != 'true'
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6
+        with:
+          python-version: '3.12'
+
+      - name: Install ruff
+        if: steps.bypass.outputs.bypass != 'true'
+        run: python -m pip install 'ruff==0.15.16'
+
+      - name: Run encoding audit
+        if: steps.bypass.outputs.bypass != 'true'
+        run: |
+          set -eu
+          if ! ruff check --preview --select PLW1514 --output-format github .; then
+            echo "::error::Text-mode file I/O without explicit encoding detected."
+            echo "Add encoding=\"utf-8\" to the flagged call(s). Most can be fixed automatically:"
+            echo "    ruff check --preview --select PLW1514 --fix --unsafe-fixes ."
+            echo "See .claude/rules/python/conventions.md (rule 6) and gh#1097."
+            exit 1
+          fi

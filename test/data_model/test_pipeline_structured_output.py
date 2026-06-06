@@ -228,7 +228,7 @@ def test_pipeline_writes_json_sidecars_alongside_text_reports(tmp_path, sample_c
 
     # Each sidecar carries the same canonical schema.
     for r in (a_report, b_report, c_report):
-        payload = json.loads(Path(r.json_report_path).read_text())
+        payload = json.loads(Path(r.json_report_path).read_text(encoding="utf-8"))
         assert set(payload.keys()) == {
             "phase", "status", "issues", "yaml_in", "yaml_out",
             "text_report_path", "json_report_path", "extra",

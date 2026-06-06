@@ -412,7 +412,7 @@ class TestGrididErrorTransformation(unittest.TestCase):
             for i, gid in enumerate(gridid_values)
         ]
         config_path = Path(self.temp_dir) / "config_test.yml"
-        with open(config_path, "w") as f:
+        with open(config_path, "w", encoding="utf-8") as f:
             yaml.dump({"name": "Test Config", "sites": sites}, f)
         return config_path
 
@@ -462,7 +462,7 @@ class TestGrididErrorTransformation(unittest.TestCase):
 
         sites = [{"gridiv": {"value": 777}, "properties": {"lat": None, "lng": 0.0}}]
         config_path = Path(self.temp_dir) / "config_refvalue.yml"
-        with open(config_path, "w") as f:
+        with open(config_path, "w", encoding="utf-8") as f:
             yaml.dump({"name": "Test", "sites": sites}, f)
 
         with self.assertRaises(ValueError) as cm:
@@ -705,7 +705,7 @@ model:
     diagnose: 0
 """
 
-    with tempfile.NamedTemporaryFile(mode="w", suffix=".yml", delete=False) as f:
+    with tempfile.NamedTemporaryFile(encoding="utf-8", mode="w", suffix=".yml", delete=False) as f:
         f.write(yaml_content)
         yaml_path = Path(f.name)
 
@@ -740,7 +740,7 @@ model:
         desc: "Full diagnostics enabled"
 """
 
-    with tempfile.NamedTemporaryFile(mode="w", suffix=".yml", delete=False) as f:
+    with tempfile.NamedTemporaryFile(encoding="utf-8", mode="w", suffix=".yml", delete=False) as f:
         f.write(yaml_content)
         yaml_path = Path(f.name)
 
@@ -777,7 +777,7 @@ model:
         desc: "Basic diagnostics"
 """
 
-    with tempfile.NamedTemporaryFile(mode="w", suffix=".yml", delete=False) as f:
+    with tempfile.NamedTemporaryFile(encoding="utf-8", mode="w", suffix=".yml", delete=False) as f:
         f.write(yaml_content)
         yaml_path = Path(f.name)
 

@@ -326,7 +326,7 @@ class ChangelogRestructurer:
 
     def save_json_debug(self, data: Dict, filename: str = "changelog_debug.json"):
         """Save parsed data to JSON for debugging"""
-        with open(filename, "w") as f:
+        with open(filename, "w", encoding="utf-8") as f:
             # Convert datetime objects to strings for JSON serialization
             json_data = data.copy()
             json.dump(json_data, f, indent=2, default=str)

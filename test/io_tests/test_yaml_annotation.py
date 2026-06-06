@@ -42,7 +42,7 @@ sites:
 """
 
     # Create temporary file
-    with tempfile.NamedTemporaryFile(mode="w", suffix=".yml", delete=False) as f:
+    with tempfile.NamedTemporaryFile(encoding="utf-8", mode="w", suffix=".yml", delete=False) as f:
         f.write(yaml_content)
         test_file = Path(f.name)
 
@@ -59,7 +59,7 @@ sites:
         # Check if annotation was successful (Windows compatibility)
         if annotated_path.exists():
             # Read annotated content
-            with open(annotated_path, "r") as f:
+            with open(annotated_path, "r", encoding="utf-8") as f:
                 annotated_content = f.read()
 
             # Verify annotations are present
@@ -116,7 +116,7 @@ sites:
           sfr: {value: 0.01}
 """
 
-    with tempfile.NamedTemporaryFile(mode="w", suffix=".yml", delete=False) as f:
+    with tempfile.NamedTemporaryFile(encoding="utf-8", mode="w", suffix=".yml", delete=False) as f:
         f.write(yaml_content)
         test_file = Path(f.name)
 
@@ -140,7 +140,7 @@ def test_annotation_includes_tree_and_lai_requirements_from_sparse_fixture(tmp_p
     """Annotated sparse fixture should include the new tree and LAI placeholders."""
     sparse_fixture = Path("test/fixtures/sparse_site.yml")
     test_file = tmp_path / sparse_fixture.name
-    test_file.write_text(sparse_fixture.read_text())
+    test_file.write_text(sparse_fixture.read_text(encoding="utf-8"))
     annotated_path = tmp_path / f"{test_file.stem}_annotated.yml"
 
     with pytest.raises(ValueError):
@@ -175,7 +175,7 @@ def test_annotation_with_sample_config():
         output_file = Path(tmpdir) / "sample_annotated.yml"
         annotated_file = config.generate_annotated_yaml(sample_config, output_file)
 
-        with open(annotated_file, "r") as f:
+        with open(annotated_file, "r", encoding="utf-8") as f:
             content = f.read()
 
         # Should have header
@@ -198,7 +198,7 @@ sites:
       alt: {value: 10.0}
 """
 
-    with tempfile.NamedTemporaryFile(mode="w", suffix=".yml", delete=False) as f:
+    with tempfile.NamedTemporaryFile(encoding="utf-8", mode="w", suffix=".yml", delete=False) as f:
         f.write(yaml_content)
         test_file = Path(f.name)
 
@@ -241,7 +241,7 @@ sites:
       # Missing required land_cover
 """
 
-    with tempfile.NamedTemporaryFile(mode="w", suffix=".yml", delete=False) as f:
+    with tempfile.NamedTemporaryFile(encoding="utf-8", mode="w", suffix=".yml", delete=False) as f:
         f.write(yaml_content)
         test_file = Path(f.name)
 
@@ -262,7 +262,7 @@ sites:
         annotated_path = Path(str(test_file).replace(".yml", "_annotated.yml"))
         if annotated_path.exists():
             # Verify content
-            with open(annotated_path, "r") as f:
+            with open(annotated_path, "r", encoding="utf-8") as f:
                 content = f.read()
             assert "[ERROR] MISSING:" in content
             # Cleanup

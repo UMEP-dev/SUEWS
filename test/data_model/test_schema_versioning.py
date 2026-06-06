@@ -44,7 +44,7 @@ def write_temp_sparse_schema_file(schema_version: str) -> Path:
     sparse_config = Path(__file__).parent.parent / "fixtures" / "sparse_site.yml"
     sparse_text = sparse_config.read_text()
 
-    with tempfile.NamedTemporaryFile(mode="w", suffix=".yml", delete=False) as f:
+    with tempfile.NamedTemporaryFile(encoding="utf-8", mode="w", suffix=".yml", delete=False) as f:
         f.write(f"schema_version: '{schema_version}'\n{sparse_text}")
         return Path(f.name)
 
@@ -184,7 +184,7 @@ class TestSchemaVersioning:
     def test_from_yaml_with_schema_version(self):
         """Test loading YAML with schema version."""
         # Create a temporary YAML file
-        with tempfile.NamedTemporaryFile(mode="w", suffix=".yml", delete=False) as f:
+        with tempfile.NamedTemporaryFile(encoding="utf-8", mode="w", suffix=".yml", delete=False) as f:
             yaml_content = {
                 "name": "test_config",
                 "schema_version": "1.0",
@@ -351,7 +351,7 @@ class TestSchemaVersionUtility:
     def test_update_yaml_schema_version(self):
         """Test updating schema version in YAML file."""
         # Create a temporary YAML file
-        with tempfile.NamedTemporaryFile(mode="w", suffix=".yml", delete=False) as f:
+        with tempfile.NamedTemporaryFile(encoding="utf-8", mode="w", suffix=".yml", delete=False) as f:
             yaml_content = {
                 "name": "test_config",
                 "description": "Test configuration",
@@ -367,7 +367,7 @@ class TestSchemaVersionUtility:
             assert result is True
 
             # Read back and verify
-            with open(yaml_path, "r") as f:
+            with open(yaml_path, "r", encoding="utf-8") as f:
                 updated = yaml.safe_load(f)
 
             assert updated["schema_version"] == "1.0"
@@ -381,7 +381,7 @@ class TestSchemaVersionUtility:
     def test_migrate_from_dual_version(self):
         """Test migration from old dual-version system."""
         # Create a file with old dual-version system
-        with tempfile.NamedTemporaryFile(mode="w", suffix=".yml", delete=False) as f:
+        with tempfile.NamedTemporaryFile(encoding="utf-8", mode="w", suffix=".yml", delete=False) as f:
             yaml_content = {
                 "name": "test_config_v1.0",
                 "version": "2025.8.1.dev0",
@@ -399,7 +399,7 @@ class TestSchemaVersionUtility:
             assert result is True
 
             # Read back and verify
-            with open(yaml_path, "r") as f:
+            with open(yaml_path, "r", encoding="utf-8") as f:
                 updated = yaml.safe_load(f)
 
             # New field added

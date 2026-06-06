@@ -66,7 +66,16 @@ SUEWS-specific Python conventions. Complements ruff for standard linting.
    ```
    **Why**: Windows uses locale-specific encodings by default (e.g., cp1252, cp1253).
    Unicode characters like `→` cause `UnicodeEncodeError` and produce empty files.
-   See issue #1097 for details.
+   See issue #1097 for details. This also covers `read_text`/`write_text` and
+   text-mode `tempfile.NamedTemporaryFile`.
+
+   **Enforced in CI**: `.github/workflows/encoding-audit.yml` runs ruff
+   `PLW1514` (`unspecified-encoding`) over the repo on every PR touching a
+   `.py` file. The rule is preview-only, so the workflow passes `--preview`
+   explicitly. Most violations autofix with
+   `ruff check --preview --select PLW1514 --fix --unsafe-fixes .`; a
+   maintainer can label a PR `0-ci:encoding-audit-ok` to bypass when a
+   flagged call is genuinely correct without UTF-8.
 
 ---
 

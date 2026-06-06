@@ -26,7 +26,7 @@ path_rules_indiv = trv_supy_module.joinpath("checker_rules_indiv.json")
 
 # opening the check list file
 def load_rules(path_rules) -> Dict:
-    with open(path_rules) as cf:
+    with open(path_rules, encoding="utf-8") as cf:
         dict_rules = json.load(cf)
 
     # making the keys lowercase to be consistent with supy

@@ -37,12 +37,35 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-# Time columns that always lead a legacy SUEWS output (by name).
+# Canonical time columns (after renaming) that lead every legacy output.
 TIME_COLS = ["Year", "DOY", "Hour", "Min"]
 
 # Flux columns to summarise, in the modern benchmark's flux vocabulary. The
-# legacy headers already use exactly these names (Kup, Lup, QN, QH, QE).
+# later-era headers already use exactly these names (Kup, Lup, QN, QH, QE); the
+# 2016a-era header uses lowercase (kup, lup, qn, ...) -- both map here.
 SUMMARY_FLUXES = ["QN", "QH", "QE", "Kup", "Lup"]
+
+# Header-vocabulary normalisation. Two output formats exist across the lineage:
+#   * 2016a-era (80-col, '%'-prefixed lowercase header): time = iy/id/it/imin,
+#     fluxes = kdown/kup/ldown/lup/qn/qh/qe.
+#   * 2017b+ era (73/87-col): time = Year/DOY/Hour/Min, fluxes = QN/QH/QE/Kup/Lup.
+# We map every recognised legacy spelling onto the canonical names above so the
+# summary code is era-agnostic. Matching is case-insensitive (see _canon_columns).
+_TIME_ALIASES = {
+    "year": "Year", "iy": "Year",
+    "doy": "DOY", "id": "DOY", "dy": "DOY",
+    "hour": "Hour", "it": "Hour",
+    "min": "Min", "imin": "Min",
+}
+_FLUX_ALIASES = {
+    "qn": "QN", "qstar": "QN", "q*": "QN",
+    "qh": "QH", "h": "QH",
+    "qe": "QE", "e": "QE",
+    "kup": "Kup",
+    "lup": "Lup",
+    "kdown": "Kdown", "kdn": "Kdown",
+    "ldown": "Ldown", "ldn": "Ldown",
+}
 
 MISSING = -999.0
 
@@ -64,12 +87,41 @@ def _clean_numeric(df: pd.DataFrame) -> pd.DataFrame:
     return out.mask(out == MISSING)
 
 
-def read_legacy_output(path: str | Path) -> pd.DataFrame:
-    """Read a legacy ``*_SUEWS_<res>.txt`` into a DatetimeIndex-ed frame.
+def _canon_columns(columns: list[str]) -> list[str]:
+    """Map a raw legacy header onto canonical time + flux names.
 
-    The index is reconstructed from ``Year`` + ``DOY`` + ``Hour`` + ``Min``
-    (SUEWS writes day-of-year, not calendar month/day). Flux and time columns
-    are numeric; ``******`` / ``NaN`` / ``Inf`` / -999 become NaN.
+    Strips a leading ``%`` (the 2016a header marker), then renames any
+    recognised legacy spelling (case-insensitively) to its canonical form.
+    Unrecognised columns are passed through verbatim (still available by their
+    original name), so this only *adds* canonical aliases for the columns we
+    summarise -- it never drops information.
+    """
+    out: list[str] = []
+    seen: set[str] = set()
+    for raw in columns:
+        name = raw.strip().lstrip("%").strip()
+        key = name.lower()
+        canon = _TIME_ALIASES.get(key) or _FLUX_ALIASES.get(key) or name
+        # Guard against a header that already carries both spellings (e.g. a
+        # later format with a stray lowercase duplicate): keep the first.
+        if canon in seen and canon != name:
+            canon = name
+        seen.add(canon)
+        out.append(canon)
+    return out
+
+
+def read_legacy_output(path: str | Path) -> pd.DataFrame:
+    """Read a legacy SUEWS output table into a DatetimeIndex-ed frame.
+
+    Handles both lineage formats by header *name*, never position:
+      * 2016a-era ``<code><grid>_<year>_<res>.txt`` ('%'-prefixed lowercase
+        header, time = iy/id/it/imin, fluxes = kdown/kup/.../qn/qh/qe);
+      * 2017b+ ``*_SUEWS_<res>.txt`` (time = Year/DOY/Hour/Min, fluxes =
+        QN/QH/QE/Kup/Lup).
+    The index is reconstructed from Year + day-of-year + Hour + Min (SUEWS
+    writes day-of-year, not calendar month/day). Flux and time columns are
+    numeric; ``******`` / ``NaN`` / ``Inf`` / -999 become NaN.
     """
     path = Path(path)
     # whitespace-delimited; Fortran overflow/invalid tokens -> NaN on read.
@@ -79,7 +131,7 @@ def read_legacy_output(path: str | Path) -> pd.DataFrame:
         na_values=["******", "*******", "********", "NaN", "Inf", "-Inf", "Infinity"],
         engine="python",
     )
-    df.columns = [c.strip() for c in df.columns]
+    df.columns = _canon_columns(list(df.columns))
     missing_time = [c for c in TIME_COLS if c not in df.columns]
     if missing_time:
         raise ValueError(

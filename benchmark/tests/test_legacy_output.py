@@ -17,6 +17,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 import legacy_output as lo  # noqa: E402
 
 FIXTURE = Path(__file__).resolve().parent / "fixtures" / "legacy_SUEWS_60.txt"
+FIXTURE_2016A = Path(__file__).resolve().parent / "fixtures" / "legacy_2016a_5.txt"
 
 
 def test_read_builds_datetime_index():
@@ -88,6 +89,33 @@ def test_missing_time_column_raises(tmp_path):
     bad.write_text("Year DOY Hour QN\n2011 1 1 5.0\n", encoding="utf-8")
     with pytest.raises(ValueError):
         lo.read_legacy_output(bad)
+
+
+def test_reads_2016a_lowercase_percent_header():
+    # 2016a output: '%'-prefixed lowercase header (iy/id/it/imin, qn/kup/...).
+    df = lo.read_legacy_output(FIXTURE_2016A)
+    assert isinstance(df.index, pd.DatetimeIndex)
+    # Canonical flux names are present after alias normalisation.
+    for flux in ("QN", "QH", "QE", "Kup", "Lup"):
+        assert flux in df.columns, f"{flux} missing after canonicalisation"
+    # 2012 is a leap year: DOY 1 hour 1 -> 2012-01-01 01:00.
+    assert df.index[0] == pd.Timestamp("2012-01-01 01:00")
+    # DOY 60 in a leap year -> 2012-02-29.
+    assert df.index[2] == pd.Timestamp("2012-02-29 12:00")
+    # The '%'-marker column maps to Year, not a stray '%iy' column.
+    assert "Year" in df.columns and "%iy" not in df.columns
+
+
+def test_2016a_star_token_and_summary():
+    df = lo.read_legacy_output(FIXTURE_2016A)
+    # kdown ******  -> NaN (it is the down-welling SW, not summarised, but parsed).
+    assert np.isnan(df["Kdown"].iloc[-1])
+    summary = lo.raw_flux_summary(df)
+    assert set(summary.keys()) == {"QN", "QH", "QE", "Kup", "Lup"}
+    qn = summary["QN"]["full"]
+    assert qn["n"] == 5
+    assert qn["min"] == -50.0
+    assert qn["max"] == 330.0
 
 
 def test_obs_path_reuses_bench_stats():

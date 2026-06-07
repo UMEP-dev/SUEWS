@@ -31,6 +31,7 @@ era-correct forcing convention by ``legacy_input.stage_run``.
 """
 from __future__ import annotations
 
+import re
 import shlex
 import subprocess
 from dataclasses import dataclass, field
@@ -51,23 +52,48 @@ class LegacySpec:
     build_layout: str         # "root" (2016a) | "sourcecode" (2018+)
     input_convention: str     # "2016a" | "2020a" (legacy_input.stage_run)
     source_subdir: str        # Release/InputTables/<ver> subpath in the git tag
+    output_glob: str          # era-correct output filename glob (under Output dir)
+    site: str = "Kc"          # canonical site code (KCL) -- "test" for dev fixtures
 
 
-# The two PROVEN binaries from the pilot (reused, not rebuilt).
+# The PROVEN binaries from the pilot (reused, not rebuilt). Output globs differ
+# by era: 2016a writes <code><grid>_<year>_<res>.txt (no '_SUEWS_'); the
+# 2017b+ era writes *_SUEWS_<res>.txt.
 SPECS: dict[str, LegacySpec] = {
-    "2020a": LegacySpec(
-        tag="2020a",
-        binary_path=f"{SCRATCH_ROOT}/2020a/SUEWS-SourceCode/SUEWS_V2020a",
-        build_layout="sourcecode",
-        input_convention="2020a",
-        source_subdir="Release/InputTables/2020a",
-    ),
     "2016a": LegacySpec(
         tag="2016a",
         binary_path=f"{SCRATCH_ROOT}/2016a/SUEWS_V2016a",
         build_layout="root",
         input_convention="2016a",
         source_subdir="Release/InputTables/2016a",
+        output_glob="*_[0-9]*.txt",   # Kc1_<year>_<res>.txt (filtered below)
+        site="Kc",
+    ),
+    # 2018c: clean canonical KCL input (CBLUse=0, SOLWEIGUse=0, FileCode=Kc),
+    # sourcecode build layout. This is the faithful KCL companion to 2016a --
+    # the 2020a tag vendors only the entangled 'test'/'test1' dev-regression
+    # fixture (CBL+ESTM, non-KCL), so 2018c is the canonical-KCL run for the
+    # later schema era. See the Phase-A report for the full rationale.
+    "2018c": LegacySpec(
+        tag="2018c",
+        binary_path=f"{SCRATCH_ROOT}/2018c/SUEWS-SourceCode/SUEWS_V2018c",
+        build_layout="sourcecode",
+        input_convention="2020a",
+        source_subdir="Release/InputTables/2018c",
+        output_glob="*_SUEWS_*.txt",
+        site="Kc",
+    ),
+    # 2020a: only the 'test'/'test1' dev-regression input is vendored at this
+    # tag (FileCode='test', CBL/ESTM enabled, non-KCL). Kept for build-layout
+    # coverage; its run is faithful to that test input, NOT a KCL run.
+    "2020a": LegacySpec(
+        tag="2020a",
+        binary_path=f"{SCRATCH_ROOT}/2020a/SUEWS-SourceCode/SUEWS_V2020a",
+        build_layout="sourcecode",
+        input_convention="2020a",
+        source_subdir="Release/InputTables/2020a",
+        output_glob="*_SUEWS_*.txt",
+        site="test",
     ),
 }
 
@@ -78,6 +104,20 @@ class BanburyUnreachable(RuntimeError):
 
 class ZeroGridError(RuntimeError):
     """Raised when a legacy run identifies 0 grids (staging failure)."""
+
+    def __init__(self, message: str, problems: str = "", run_log: str = ""):
+        super().__init__(message)
+        self.problems = problems
+        self.run_log = run_log
+
+
+class RunFailure(RuntimeError):
+    """Raised when the binary aborts at runtime (EOF, bounds, CBL/ESTM, etc.).
+
+    Distinct from ZeroGridError (a staging failure that registers no site):
+    here the site is registered and the run starts, but the physics or a file
+    read aborts. Carries the run log + problems.txt for diagnosis.
+    """
 
     def __init__(self, message: str, problems: str = "", run_log: str = ""):
         super().__init__(message)
@@ -126,13 +166,40 @@ def detect_zero_grids(run_log: str) -> bool:
     The legacy binary prints ``Grids identified:   0 grids`` (and a garbage
     year range ``2147483647 to -2147483648``) when staging failed to register
     any site. Either marker is decisive.
+
+    The grid count is matched with a word boundary so a *zero* count is not
+    confused with a non-zero count that merely ends in zero -- e.g.
+    ``Maximum No. grids allowed: 10000 grids`` must NOT trip the detector
+    (the ``0 grids`` substring of ``10000 grids`` was a real false-positive
+    before the boundary was added).
     """
-    low = run_log
-    if "0 grids" in low.replace("  ", " "):
+    if re.search(r"(?<!\d)0\s+grids\b", run_log):
         return True
-    if "2147483647" in low:
+    if "2147483647" in run_log:
         return True
     return False
+
+
+def detect_runtime_crash(run_log: str) -> str:
+    """Return a short reason string if the run aborted, else ''.
+
+    Recognises the gfortran runtime-error signatures (EOF on a met file, an
+    array-bounds violation under -fbounds-check) and SUEWS's own fatal
+    "ERROR! ... stopped" / "Program stopped" messages. Used to surface a clear
+    RunFailure rather than mislabelling a physics/IO abort as a zero-grid
+    staging issue.
+    """
+    for marker, reason in (
+        ("End of file", "End of file reading met forcing"),
+        ("below lower bound", "array index out of bounds (-fbounds-check)"),
+        ("Fortran runtime error", "Fortran runtime error"),
+        ("Program stopped", "SUEWS Program stopped"),
+        ("ERROR! SUEWS run stopped", "SUEWS run stopped"),
+        ("ERROR! Program stopped", "SUEWS Program stopped"),
+    ):
+        if marker in run_log:
+            return reason
+    return ""
 
 
 def ping(runner: Runner = _ssh_runner, timeout_s: int = 20) -> bool:
@@ -292,15 +359,25 @@ class LegacyFortranProvider(EngineProvider):
                 problems=problems_text,
                 run_log=log_text,
             )
+        crash = detect_runtime_crash(log_text) or detect_runtime_crash(run_log_blob)
+        if crash:
+            raise RunFailure(
+                f"{spec.tag}: binary aborted ({crash}); see run.log",
+                problems=problems_text,
+                run_log=log_text,
+            )
 
-        # Locate the SUEWS output file on Banbury.
+        # Locate the SUEWS output file on Banbury (era-correct glob; exclude the
+        # auxiliary FileChoices / DailyState side-files the 2016a binary emits).
         rc, out, _ = self._runner(
-            f"ls {shlex.quote(run_dir)}/*Output*/*_SUEWS_*.txt 2>/dev/null | head -1", 60
+            f"ls {shlex.quote(run_dir)}/*Output*/{spec.output_glob} 2>/dev/null "
+            f"| grep -ivE 'FileChoices|DailyState|OutputFormat' | head -1",
+            60,
         )
         remote_out = out.strip().splitlines()[0] if out.strip() else ""
         if not remote_out:
-            raise ZeroGridError(
-                f"{spec.tag}: no *_SUEWS_*.txt produced (see problems.txt)",
+            raise RunFailure(
+                f"{spec.tag}: no output matching {spec.output_glob} produced",
                 problems=problems_text,
                 run_log=log_text,
             )

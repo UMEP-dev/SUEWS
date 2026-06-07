@@ -18,6 +18,22 @@ def test_detect_zero_grids_signatures():
     assert lp.detect_zero_grids("Grids identified:           0 grids")
     assert lp.detect_zero_grids("Years identified:  2147483647 to -2147483648")
     assert not lp.detect_zero_grids("Grids identified:           1 grids")
+    # Regression: "Maximum No. grids allowed: 10000 grids" must NOT trip the
+    # detector -- "0 grids" is a substring of "10000 grids" (the 2018c run
+    # completed cleanly but was mislabelled zero-grid before the word boundary).
+    assert not lp.detect_zero_grids(" Maximum No. grids allowed:       10000 grids")
+    assert not lp.detect_zero_grids("No. grids identified:           1 grids")
+
+
+def test_detect_runtime_crash_signatures():
+    assert lp.detect_runtime_crash("Fortran runtime error: End of file")
+    assert lp.detect_runtime_crash(
+        "Index '0' of dimension 1 of array 'daywat' below lower bound of 1"
+    )
+    assert lp.detect_runtime_crash("ERROR! SUEWS run stopped.")
+    assert lp.detect_runtime_crash(" Program stopped: CBL file problem")
+    # A clean run log is not a crash.
+    assert lp.detect_runtime_crash("SUEWS run completed") == ""
 
 
 def test_ping_raises_when_unreachable():
@@ -88,8 +104,17 @@ def test_run_rejects_unknown_tag():
 
 
 def test_specs_cover_required_versions():
-    assert set(lp.SPECS) >= {"2016a", "2020a"}
+    assert set(lp.SPECS) >= {"2016a", "2018c", "2020a"}
     assert lp.SPECS["2016a"].build_layout == "root"
     assert lp.SPECS["2020a"].build_layout == "sourcecode"
     assert lp.SPECS["2016a"].input_convention == "2016a"
     assert lp.SPECS["2020a"].input_convention == "2020a"
+    # 2016a writes <code><grid>_<year>_<res>.txt (no '_SUEWS_'); later eras use
+    # the '_SUEWS_' marker.
+    assert "_SUEWS_" not in lp.SPECS["2016a"].output_glob
+    assert "_SUEWS_" in lp.SPECS["2018c"].output_glob
+    assert "_SUEWS_" in lp.SPECS["2020a"].output_glob
+    # Site provenance: 2016a + 2018c are canonical KCL; 2020a is the dev fixture.
+    assert lp.SPECS["2016a"].site == "Kc"
+    assert lp.SPECS["2018c"].site == "Kc"
+    assert lp.SPECS["2020a"].site == "test"

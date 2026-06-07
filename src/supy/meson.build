@@ -85,6 +85,7 @@ py.install_sources(
             'util/converter/df_state.py',
             'util/converter/table/__init__.py',
             'util/converter/table/table.py',
+            'util/converter/table/reverse.py',
             'util/converter/table/profile_manager.py',
             'util/converter/table/rules.csv',
             'util/converter/yaml.py',

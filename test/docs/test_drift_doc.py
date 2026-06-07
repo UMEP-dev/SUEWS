@@ -4,7 +4,7 @@ from pathlib import Path
 
 import pytest
 
-DOC = Path(__file__).resolve().parents[2] / "docs/source/version-history/drift.rst"
+DOC = Path(__file__).resolve().parents[2] / "docs/source/benchmark/drift.rst"
 
 # gh#1300: every test file must carry a nature marker (api | physics).
 pytestmark = pytest.mark.api

@@ -1,11 +1,13 @@
-.. _version_drift:
+.. _benchmark_drift:
 
 Cross-version drift
 ===================
 
-SUEWS tracks three loosely coupled notions of "version": the **package
-version** (the CalVer release that compiled the physics), the **schema
-version** (the YAML input surface), and the **documented version history**.
+Complementing the per-site :ref:`benchmark report <benchmark_report>`, this
+page describes how model results move *across releases*. SUEWS tracks three
+loosely coupled notions of "version": the **package version** (the CalVer
+release that compiled the physics), the **schema version** (the YAML input
+surface), and the **documented** :ref:`version history <version_history>`.
 The model-version registry binds these together and records, for every
 release, how reproducible its results are.
 

@@ -11,7 +11,6 @@ Version History
 .. toctree::
    :maxdepth: 1
 
-   drift
    v2026.6.5
    v2026.4.3
    v2026.1.28

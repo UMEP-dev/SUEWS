@@ -137,6 +137,7 @@ How to support SUEWS?
    integration/index
    troubleshooting
    benchmark/benchmark_report
+   benchmark/drift
    notation
    version-history/version-history
 

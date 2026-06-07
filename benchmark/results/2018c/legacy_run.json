@@ -18,15 +18,15 @@
     "start": "2012-01-01 01:00"
   },
   "provenance": {
-    "binary_path": "/scratch/ucfbuna/retro-pilot/2018c/SUEWS-SourceCode/SUEWS_V2018c",
+    "binary_path": "SUEWS_V2018c",
     "build_flags": "make FFLAGS='-O3 -fPIC -fbounds-check -cpp -Wno-unused-dummy-argument -Wno-unused-variable -fallow-argument-mismatch'",
     "build_layout": "sourcecode",
     "generated": "2026-06-07T13:06:38+00:00",
     "gfortran": "11.5.0 (GCC 11, Red Hat)",
-    "host": "banbury (tailscale)",
+    "host": "remote-compute",
     "input_convention": "2020a",
     "input_source": "Release/InputTables/2018c",
-    "output_remote_path": "/scratch/ucfbuna/retro-pilot/run_2018c_1/Output/Kc1_2012_SUEWS_60.txt"
+    "output_remote_path": "Output/Kc1_2012_SUEWS_60.txt"
   },
   "raw_summary": {
     "Kup": {

@@ -2,22 +2,23 @@
 
 Realises the ``EngineProvider`` seam for the legacy Fortran-binary era. A run
 re-executes a historical version's *own* canonical input through that version's
-recompiled binary on Banbury, deterministically, and returns a parsed
+recompiled binary on the remote host, deterministically, and returns a parsed
 raw-flux summary + output fingerprint (no observations required -- see the
 module-level note in ``legacy_output``).
 
 Design:
 
-  * **Heavy compute on Banbury.** Building and running legacy SUEWS happens on
-    the Banbury server (reached over Tailscale). This module orchestrates;
-    Banbury executes. All SSH goes through an injectable ``runner`` callable so
-    the orchestration logic is unit-testable without a network.
-  * **Reuse prebuilt binaries.** The pilot left compiled binaries under
-    ``/scratch/ucfbuna/retro-pilot/``; ``run`` reuses them and only rebuilds if
-    the binary is missing (via the proven per-layout recipe).
-  * **Fail fast, never hang.** Every remote call carries a timeout. If Banbury
-    is unreachable the provider raises ``BanburyUnreachable`` immediately rather
-    than blocking.
+  * **Heavy compute on the remote host.** Building and running legacy SUEWS
+    happens on the remote compute host (reached over Tailscale). This module
+    orchestrates; the remote host executes. All SSH goes through an injectable
+    ``runner`` callable so the orchestration logic is unit-testable without a
+    network.
+  * **Reuse prebuilt binaries.** The pilot left compiled binaries under the
+    scratch root; ``run`` reuses them and only rebuilds if the binary is
+    missing (via the proven per-layout recipe).
+  * **Fail fast, never hang.** Every remote call carries a timeout. If the
+    remote host is unreachable the provider raises ``RemoteHostUnreachable``
+    immediately rather than blocking.
   * **Determinism gate.** ``run`` executes the binary twice in separate dirs and
     requires a bit-identical output fingerprint (the Phase-1 reproducibility
     contract). A mismatch raises ``DeterminismError``.
@@ -31,6 +32,7 @@ era-correct forcing convention by ``legacy_input.stage_run``.
 """
 from __future__ import annotations
 
+import os
 import re
 import shlex
 import subprocess
@@ -39,16 +41,20 @@ from typing import Callable
 
 from engine_provider import EngineProvider
 
-# Banbury over Tailscale (the working route; NOT the direct hostname alias).
-BANBURY_HOST = "ucfbuna@100.73.109.43"
-SCRATCH_ROOT = "/scratch/ucfbuna/retro-pilot"
+# Remote compute host + scratch root, sourced from the environment so no
+# internal-infrastructure identifiers are hard-coded. ``SUEWS_LEGACY_COMPUTE_HOST``
+# is an SSH target (``user@host``) reached over the configured network route;
+# ``SUEWS_LEGACY_COMPUTE_SCRATCH`` is the writable scratch root used for builds
+# and run dirs.
+COMPUTE_HOST = os.environ.get("SUEWS_LEGACY_COMPUTE_HOST", "")
+SCRATCH_ROOT = os.environ.get("SUEWS_LEGACY_COMPUTE_SCRATCH", "/tmp/suews-retro")
 
 # Per-version execution metadata: where the prebuilt binary lives, the build
 # layout, and the forcing-staging convention legacy_input must apply.
 @dataclass(frozen=True)
 class LegacySpec:
     tag: str
-    binary_path: str          # absolute path to the prebuilt binary on Banbury
+    binary_path: str          # absolute path to the prebuilt binary on the remote host
     build_layout: str         # "root" (2016a) | "sourcecode" (2018+)
     input_convention: str     # "2016a" | "2020a" (legacy_input.stage_run)
     source_subdir: str        # Release/InputTables/<ver> subpath in the git tag
@@ -98,8 +104,8 @@ SPECS: dict[str, LegacySpec] = {
 }
 
 
-class BanburyUnreachable(RuntimeError):
-    """Raised when the Banbury host cannot be reached (fail fast, no hang)."""
+class RemoteHostUnreachable(RuntimeError):
+    """Raised when the remote host cannot be reached (fail fast, no hang)."""
 
 
 class ZeroGridError(RuntimeError):
@@ -138,12 +144,12 @@ Runner = Callable[[str, int], "tuple[int, str, str]"]
 
 
 def _ssh_runner(command: str, timeout_s: int) -> "tuple[int, str, str]":
-    """Default runner: run ``command`` on Banbury over SSH, with a hard timeout."""
+    """Default runner: run ``command`` on the remote host over SSH, with a hard timeout."""
     ssh_cmd = [
         "ssh",
         "-o", "ConnectTimeout=10",
         "-o", "BatchMode=yes",
-        BANBURY_HOST,
+        COMPUTE_HOST,
         command,
     ]
     try:
@@ -154,8 +160,8 @@ def _ssh_runner(command: str, timeout_s: int) -> "tuple[int, str, str]":
             timeout=timeout_s,
         )
     except subprocess.TimeoutExpired as exc:
-        raise BanburyUnreachable(
-            f"Banbury command timed out after {timeout_s}s: {command[:80]}..."
+        raise RemoteHostUnreachable(
+            f"remote command timed out after {timeout_s}s: {command[:80]}..."
         ) from exc
     return proc.returncode, proc.stdout, proc.stderr
 
@@ -203,17 +209,17 @@ def detect_runtime_crash(run_log: str) -> str:
 
 
 def ping(runner: Runner = _ssh_runner, timeout_s: int = 20) -> bool:
-    """Cheap reachability probe. Raises BanburyUnreachable on failure."""
-    rc, out, err = runner("echo BANBURY_OK", timeout_s)
-    if rc != 0 or "BANBURY_OK" not in out:
-        raise BanburyUnreachable(
-            f"Banbury probe failed (rc={rc}): {err.strip() or out.strip()}"
+    """Cheap reachability probe. Raises RemoteHostUnreachable on failure."""
+    rc, out, err = runner("echo REMOTE_OK", timeout_s)
+    if rc != 0 or "REMOTE_OK" not in out:
+        raise RemoteHostUnreachable(
+            f"remote host probe failed (rc={rc}): {err.strip() or out.strip()}"
         )
     return True
 
 
 def binary_exists(spec: LegacySpec, runner: Runner = _ssh_runner, timeout_s: int = 20) -> bool:
-    """Check the prebuilt binary is present and executable on Banbury."""
+    """Check the prebuilt binary is present and executable on the remote host."""
     rc, out, _ = runner(f"test -x {shlex.quote(spec.binary_path)} && echo OK", timeout_s)
     return rc == 0 and "OK" in out
 
@@ -235,7 +241,7 @@ class LegacyRunResult:
 class LegacyFortranProvider(EngineProvider):
     """Re-execute a legacy version's canonical input through its own binary.
 
-    ``run(tag)`` performs the full Banbury orchestration. The ``EngineProvider``
+    ``run(tag)`` performs the full remote-host orchestration. The ``EngineProvider``
     ABC declares ``run(tag, config, forcing)``; this provider's orchestration is
     keyed on ``tag`` alone (the canonical input is materialised from the git
     tag, not passed in), so ``config``/``forcing`` are accepted but ignored.
@@ -277,7 +283,7 @@ class LegacyFortranProvider(EngineProvider):
     # --- the full run ---
 
     def run(self, tag: str, config=None, forcing=None) -> LegacyRunResult:  # noqa: D401
-        """Execute ``tag``'s canonical input on Banbury, twice, deterministically."""
+        """Execute ``tag``'s canonical input on the remote host, twice, deterministically."""
         if tag not in SPECS:
             raise KeyError(f"no LegacySpec for {tag!r} (known: {sorted(SPECS)})")
         spec = SPECS[tag]
@@ -286,7 +292,7 @@ class LegacyFortranProvider(EngineProvider):
         ping(self._runner)
         if not binary_exists(spec, self._runner):
             raise BuildMissingError(
-                f"prebuilt binary missing at {spec.binary_path}; rebuild on Banbury "
+                f"prebuilt binary missing at {spec.binary_path}; rebuild on the remote host "
                 f"with the {spec.build_layout}-layout recipe before re-running"
             )
 
@@ -315,14 +321,14 @@ class LegacyFortranProvider(EngineProvider):
             build_layout=spec.build_layout,
             output_remote_path=r0["output_remote_path"],
             provenance={
-                "host": BANBURY_HOST,
+                "host": COMPUTE_HOST,
                 "input_convention": spec.input_convention,
                 "run_fingerprints": [fp1, fp2],
             },
         )
 
     def _stage_and_run(self, spec: LegacySpec, run_subdir: str) -> dict:
-        """Stage + run once on Banbury, returning parsed output + fingerprints.
+        """Stage + run once on the remote host, returning parsed output + fingerprints.
 
         Parses the fetched output locally with ``legacy_output`` so the parsing
         is identical to the unit-tested path.
@@ -367,7 +373,7 @@ class LegacyFortranProvider(EngineProvider):
                 run_log=log_text,
             )
 
-        # Locate the SUEWS output file on Banbury (era-correct glob; exclude the
+        # Locate the SUEWS output file on the remote host (era-correct glob; exclude the
         # auxiliary FileChoices / DailyState side-files the 2016a binary emits).
         rc, out, _ = self._runner(
             f"ls {shlex.quote(run_dir)}/*Output*/{spec.output_glob} 2>/dev/null "
@@ -387,7 +393,7 @@ class LegacyFortranProvider(EngineProvider):
             local = Path(td) / "out.txt"
             scp = subprocess.run(
                 ["scp", "-o", "ConnectTimeout=10", "-o", "BatchMode=yes",
-                 f"{BANBURY_HOST}:{remote_out}", str(local)],
+                 f"{COMPUTE_HOST}:{remote_out}", str(local)],
                 capture_output=True, text=True, timeout=120,
             )
             if scp.returncode != 0:

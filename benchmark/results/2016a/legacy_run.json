@@ -23,15 +23,15 @@
     "start": "2012-01-01 00:00"
   },
   "provenance": {
-    "binary_path": "/scratch/ucfbuna/retro-pilot/2016a/SUEWS_V2016a",
+    "binary_path": "SUEWS_V2016a",
     "build_flags": "make CFLAGS='-O3 -fbounds-check -cpp -fallow-argument-mismatch -ffree-line-length-none -Wno-unused-variable -Wno-unused-dummy-argument'",
     "build_layout": "root",
     "generated": "2026-06-07T13:06:04+00:00",
     "gfortran": "11.5.0 (GCC 11, Red Hat)",
-    "host": "banbury (tailscale)",
+    "host": "remote-compute",
     "input_convention": "2016a",
     "input_source": "Release/InputTables/2016a",
-    "output_remote_path": "/scratch/ucfbuna/retro-pilot/run_2016a_1/UK_London_Output/Kc1_2012_5.txt"
+    "output_remote_path": "UK_London_Output/Kc1_2012_5.txt"
   },
   "raw_summary": {
     "Kup": {

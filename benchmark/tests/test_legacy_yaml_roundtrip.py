@@ -79,8 +79,8 @@ def test_legacy_yaml_loads_and_roundtrips(yaml_path):
 def test_legacy_yaml_is_clean_of_local_paths():
     """No absolute/temp path artefacts leak into the stored YAMLs.
 
-    The forward converter can leave an absolute ``/private/var/folders/...``
-    temp ``output.dir`` and an absolute forcing path; Phase B cleans both to
+    The forward converter can leave an absolute machine-specific temp path as
+    the ``output.dir`` and an absolute forcing path; Phase B cleans both to
     neutral placeholders. Guard against a regression that re-commits a
     machine-specific path.
     """

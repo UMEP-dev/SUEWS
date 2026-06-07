@@ -237,3 +237,136 @@ def test_stage_run_default_convention_unchanged(tmp_path):
     assert info["convention"] == "2020a"
     assert info["forcing_name"] == "Kc_2011_data_60.txt"
     assert info["disaggregated"] is False
+
+
+# --- new helpers: split / completeness / terminator / SiteSelect trim ---
+
+def test_split_forcing_by_year_groups_rows(tmp_path):
+    f = tmp_path / "Kc_data.txt"
+    f.write_text(
+        "iy id it imin qn\n"
+        "2011 1 0 0 1\n"
+        "2011 1 1 0 2\n"
+        "2012 1 0 0 3\n",
+        encoding="utf-8",
+    )
+    split = li.split_forcing_by_year(f, skip_header=1)
+    assert split["header"].startswith("iy id it imin")
+    assert sorted(split["by_year"]) == [2011, 2012]
+    assert len(split["by_year"][2011]) == 2
+    assert len(split["by_year"][2012]) == 1
+
+
+def test_year_is_complete_detects_hour_zero_start():
+    # Starts at hour 0 -> complete.
+    assert li.year_is_complete([["2012", "1", "0", "0", "5"]])
+    # Starts at hour 1 (missing hour 0) -> incomplete (the KCL-2011 defect).
+    assert not li.year_is_complete([["2011", "1", "1", "0", "5"]])
+    assert not li.year_is_complete([])
+
+
+def test_write_year_forcing_adds_terminator(tmp_path):
+    dst = tmp_path / "Kc1_2012_data_5.txt"
+    rows = [["2012", "1", "0", "0", "100"], ["2012", "1", "1", "0", "200"]]
+    n = li.write_year_forcing("iy id it imin qn", rows, dst, tstep_minutes=5)
+    assert n == 24  # 2 hourly * 12 sub-steps (terminator not counted)
+    lines = dst.read_text().splitlines()
+    assert lines[0] == "iy id it imin qn"        # header
+    assert lines[1] == "2012 1 0 0 100"          # first 5-min step
+    assert lines[12] == "2012 1 0 55 100"        # last sub-step of hour 0
+    # Terminator: a -9-leading row so the binary's `if (iv==-9) exit` fires.
+    assert lines[-1].split()[0] == "-9"
+
+
+def test_siteselect_helpers_filter_years():
+    text = (
+        "1\t2\t3\n"
+        "Grid\tYear\tlat\n"
+        "1\t2011\t51.5\n"
+        "1\t2012\t51.5\n"
+        "1\t2013\t51.5\n"
+        "!\t1\tcomment\n"
+    )
+    assert li._siteselect_data_years(text) == [2011, 2012, 2013]
+    trimmed = li.restrict_siteselect_to_years(text, {2012})
+    assert li._siteselect_data_years(trimmed) == [2012]
+    # Headers + comment row survive.
+    assert "Grid\tYear\tlat" in trimmed
+    assert "comment" in trimmed
+
+
+def _make_2016a_multiyear(src: Path):
+    """2016a tables with a multi-year forcing: 2011 incomplete, 2012 complete."""
+    src.mkdir(parents=True, exist_ok=True)
+    (src / "RunControl.nml").write_text(RUN_CONTROL_2016A, encoding="utf-8")
+    (src / "InitialConditionsKc1_2011.nml").write_text("&IC\n/\n", encoding="utf-8")
+    ss = (
+        "1\t2\t3\n"
+        "Grid\tYear\tlat\n"
+        "1\t2011\t51.51\n"
+        "1\t2012\t51.51\n"
+    )
+    (src / "SUEWS_SiteSelect.txt").write_text(ss, encoding="utf-8")
+    for name in ("NonVeg", "Veg", "Water"):
+        (src / f"SUEWS_{name}.txt").write_text(f"# {name}\n1 2 3\n", encoding="utf-8")
+    # 2011 starts at hour 1 (incomplete); 2012 starts at hour 0 (complete).
+    (src / "Kc_data.txt").write_text(
+        "iy id it imin qn\n"
+        "2011 1 1 0 -999\n"
+        "2012 1 0 0 100\n"
+        "2012 1 1 0 110\n",
+        encoding="utf-8",
+    )
+
+
+def test_stage_run_2016a_skips_incomplete_year(tmp_path):
+    src = tmp_path / "InputTables"
+    run = tmp_path / "run"
+    _make_2016a_multiyear(src)
+    info = li.stage_run(src, run, convention="2016a")
+
+    # 2011 (starts hour 1) skipped; 2012 (complete) staged.
+    assert info["years_staged"] == [2012]
+    assert 2011 in info["years_skipped"]
+    input_dir = Path(info["input_path"])
+    assert (input_dir / "Kc1_2012_data_5.txt").is_file()
+    assert not (input_dir / "Kc1_2011_data_5.txt").is_file()
+    # SiteSelect trimmed to the staged year only.
+    trimmed = (input_dir / "SUEWS_SiteSelect.txt").read_text()
+    assert li._siteselect_data_years(trimmed) == [2012]
+    # Per-year IC created for the staged year.
+    assert (input_dir / "InitialConditionsKc1_2012.nml").is_file()
+
+
+def test_stage_run_2016a_raises_when_no_complete_year(tmp_path):
+    src = tmp_path / "InputTables"
+    src.mkdir(parents=True)
+    (src / "RunControl.nml").write_text(RUN_CONTROL_2016A, encoding="utf-8")
+    (src / "InitialConditionsKc1_2011.nml").write_text("&IC\n/\n", encoding="utf-8")
+    (src / "SUEWS_SiteSelect.txt").write_text(
+        "1\t2\nGrid\tYear\n1\t2011\n", encoding="utf-8"
+    )
+    # Only year 2011, and it starts at hour 1 (incomplete).
+    (src / "Kc_data.txt").write_text(
+        "iy id it imin qn\n2011 1 1 0 -999\n", encoding="utf-8"
+    )
+    with pytest.raises(ValueError):
+        li.stage_run(src, run := tmp_path / "run", convention="2016a")
+
+
+def test_stage_run_2020a_copies_all_prestamped_forcings(tmp_path):
+    src = tmp_path / "InputTables"
+    run = tmp_path / "run"
+    src.mkdir(parents=True)
+    (src / "RunControl.nml").write_text(RUN_CONTROL, encoding="utf-8")  # Tstep=300, res default 3600
+    (src / "InitialConditionstest1_2005.nml").write_text("x", encoding="utf-8")
+    (src / "SUEWS_SiteSelect.txt").write_text("1 2\nGrid Year\n1 2004\n1 2005\n", encoding="utf-8")
+    # FileCode in RUN_CONTROL is 'Kc'; pre-stamped per-year forcing at 60 min.
+    (src / "Kc_2004_data_60.txt").write_text("h\n2004 1 0 0\n", encoding="utf-8")
+    (src / "Kc_2005_data_60.txt").write_text("h\n2005 1 0 0\n", encoding="utf-8")
+    info = li.stage_run(src, run, convention="2020a")
+    input_dir = Path(info["input_path"])
+    # BOTH years' forcing copied (the binary opens one file per year).
+    assert (input_dir / "Kc_2004_data_60.txt").is_file()
+    assert (input_dir / "Kc_2005_data_60.txt").is_file()
+    assert set(info["forcing_files"]) == {"Kc_2004_data_60.txt", "Kc_2005_data_60.txt"}

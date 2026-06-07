@@ -232,6 +232,140 @@ def disaggregate_hourly_to_tstep(
     return n_written
 
 
+def split_forcing_by_year(src_forcing: str | Path, *, skip_header: int) -> dict:
+    """Split a multi-year hourly forcing into ``{year: [row-token-lists]}``.
+
+    The 2016a-era binary runs year-by-year, opening one
+    ``<code><grid>_<year>_data_<tstep>.txt`` per year (each containing only that
+    year's rows, terminated by a ``-9`` sentinel row). The vendored KCL
+    ``Kc_data.txt`` is a single multi-year file, so we split it on the year
+    column (col 1 = iy). Returns an ordered mapping year -> list of token lists
+    plus the header line, so the caller can write per-year files.
+    """
+    src = Path(src_forcing)
+    lines = src.read_text(encoding="utf-8", errors="replace").splitlines()
+    header_lines = lines[:skip_header]
+    header = header_lines[-1] if header_lines else ""
+    by_year: dict[int, list[list[str]]] = {}
+    for line in lines[skip_header:]:
+        if not line.strip():
+            continue
+        tok = line.split()
+        if len(tok) < 4:
+            continue
+        try:
+            year = int(float(tok[0]))
+        except ValueError:
+            continue
+        by_year.setdefault(year, []).append(tok)
+    return {"header": header, "by_year": by_year}
+
+
+def year_is_complete(rows: list[list[str]]) -> bool:
+    """True if a year's hourly rows start at hour 0 (a clean calendar start).
+
+    The 2016a binary's ``dayofWeek`` indexing assumes each year begins at its
+    first timestep (hour 0). A year whose forcing starts mid-day (e.g. the
+    vendored KCL 2011 starts at hour 1, missing hour 0) makes ``dayofWeek``
+    return 0 and trips an array-bounds crash in ``SUEWS_DailyState.f95`` (the
+    ``DayWat(0)`` access). Such years are excluded from the faithful run rather
+    than silently producing a corrupt result. Rows are token lists with
+    col 3 (0-based) = it (hour), col 4 = imin.
+    """
+    if not rows:
+        return False
+    first = rows[0]
+    try:
+        return int(float(first[2])) == 0 and int(float(first[3])) == 0
+    except (ValueError, IndexError):
+        return False
+
+
+def write_year_forcing(
+    header: str,
+    rows: list[list[str]],
+    dst_forcing: str | Path,
+    *,
+    tstep_minutes: int,
+    n_cols: int | None = None,
+) -> int:
+    """Write one year's 5-min, ``-9``-terminated forcing file.
+
+    Each hourly row is hold-disaggregated to ``tstep_minutes`` (imin stamped
+    0, tstep, 2*tstep, ...), then a single ``-9 -9 ...`` terminator row is
+    appended -- the sentinel the 2016a binary scans for to find the end of the
+    met file (``read(10,*) iv; if (iv == -9) exit`` in ``SUEWS_Program.f95``).
+    Returns the number of data rows written (excluding header + terminator).
+    """
+    dst = Path(dst_forcing)
+    if 60 % tstep_minutes != 0:
+        raise ValueError(f"tstep_minutes={tstep_minutes} does not divide 60")
+    nsub = 60 // tstep_minutes
+    ncol = n_cols if n_cols is not None else (len(header.split()) or 24)
+    out_lines: list[str] = [header] if header else []
+    n_written = 0
+    for tok in rows:
+        if int(float(tok[3])) != 0:
+            raise ValueError(
+                f"{dst.name}: expected hourly rows (imin==0) for hold-"
+                f"disaggregation, found imin={tok[3]}"
+            )
+        for k in range(nsub):
+            new_tok = list(tok)
+            new_tok[3] = str(k * tstep_minutes)
+            out_lines.append(" ".join(new_tok))
+            n_written += 1
+    out_lines.append(" ".join(["-9"] * ncol))  # terminator row
+    dst.write_text("\n".join(out_lines) + "\n", encoding="utf-8")
+    return n_written
+
+
+def _siteselect_data_years(text: str) -> list[int]:
+    """Return the 4-digit data-row years declared in a SUEWS_SiteSelect.txt.
+
+    Data rows have an integer grid id in col 1 and a 4-digit 20xx year in col 2.
+    The numbered header (``1 2 3 ...``), the name header (``Grid Year ...``) and
+    the trailing ``!`` comment block are skipped.
+    """
+    years: list[int] = []
+    for line in text.splitlines():
+        tok = line.split()
+        if len(tok) < 2:
+            continue
+        if not tok[0].isdigit():
+            continue
+        y = tok[1]
+        if y.isdigit() and len(y) == 4 and y.startswith("20"):
+            years.append(int(y))
+    return years
+
+
+def restrict_siteselect_to_years(text: str, keep_years: set[int]) -> str:
+    """Drop SiteSelect data rows whose year is not in ``keep_years``.
+
+    Header rows, the numbered row and the trailing comment block are preserved
+    verbatim; only the grid-year *data* rows are filtered. This keeps the
+    binary's ``FirstYear..LastYear`` span aligned with the years we actually
+    staged forcing for.
+    """
+    out: list[str] = []
+    for line in text.splitlines():
+        tok = line.split()
+        is_data = (
+            len(tok) >= 2
+            and tok[0].isdigit()
+            and tok[1].isdigit()
+            and len(tok[1]) == 4
+            and tok[1].startswith("20")
+        )
+        if is_data:
+            if int(tok[1]) in keep_years:
+                out.append(line)
+        else:
+            out.append(line)
+    return "\n".join(out) + "\n"
+
+
 def _resolve_under_run_dir(run_dir: Path, nml_path: str) -> Path:
     """Resolve a RunControl path (usually './UK_London_Input/') under run_dir."""
     p = Path(nml_path)
@@ -314,8 +448,12 @@ def stage_run(
         if nml.name == "RunControl.nml":
             continue
         shutil.copy2(nml, input_path / nml.name)
+    # Copy auxiliary input subdirs the binary may open (CBL / ESTM init data).
+    for sub in ("CBLinputfiles",):
+        sub_src = src / sub
+        if sub_src.is_dir():
+            shutil.copytree(sub_src, input_path / sub, dirs_exist_ok=True)
 
-    forcing_src = _locate_forcing(src, rc.file_code)
     info: dict = {
         "run_dir": str(run_dir),
         "input_path": str(input_path),
@@ -328,32 +466,110 @@ def stage_run(
     }
 
     if convention == "2020a":
-        # <code>_<year>_data_<res>.txt, copied verbatim (binary disaggregates).
-        forcing_name = forcing_filename(rc.file_code, year, rc.resolution_minutes)
-        shutil.copy2(forcing_src, input_path / forcing_name)
-        info["resolution_minutes"] = rc.resolution_minutes
-        info["forcing_name"] = forcing_name
-        info["expected_output_glob"] = (
-            f"{rc.file_code}_*_{year}_SUEWS_{rc.resolution_minutes}.txt"
-        )
-        info["disaggregated"] = False
+        _stage_2020a_forcing(src, input_path, rc, year, info)
     else:  # 2016a
-        grid = detect_grid(src)
-        tstep_min = rc.tstep_minutes
-        forcing_name = forcing_filename_gridstamped(rc.file_code, grid, year, tstep_min)
-        n_written = disaggregate_hourly_to_tstep(
-            forcing_src,
-            input_path / forcing_name,
-            tstep_minutes=tstep_min,
-            skip_header=rc.skip_header_met,
-        )
-        info["grid"] = grid
-        info["resolution_minutes"] = tstep_min
-        info["forcing_name"] = forcing_name
-        info["expected_output_glob"] = (
-            f"{rc.file_code}_*_{year}_SUEWS_{tstep_min}.txt"
-        )
-        info["disaggregated"] = True
-        info["forcing_rows_written"] = n_written
+        _stage_2016a_forcing(src, input_path, rc, year, info)
 
     return info
+
+
+def _stage_2020a_forcing(src: Path, input_path: Path, rc: RunControl, year: int, info: dict) -> None:
+    """2017b+ staging: place year-stamped forcing the binary disaggregates.
+
+    If the source already ships per-year, correctly-named
+    ``<code>_<year>_data_<res>.txt`` files (the 2020a dev-regression set does),
+    copy ALL of them verbatim -- the binary may run several years and opens one
+    file per year. Otherwise fall back to year-stamping a single bare
+    ``<code>_data.txt``.
+    """
+    res = rc.resolution_minutes
+    prestamped = sorted(src.glob(f"{rc.file_code}_[0-9][0-9][0-9][0-9]_data_{res}.txt"))
+    staged_forcings: list[str] = []
+    if prestamped:
+        for f in prestamped:
+            shutil.copy2(f, input_path / f.name)
+            staged_forcings.append(f.name)
+        forcing_name = forcing_filename(rc.file_code, year, res)
+    else:
+        forcing_src = _locate_forcing(src, rc.file_code)
+        forcing_name = forcing_filename(rc.file_code, year, res)
+        shutil.copy2(forcing_src, input_path / forcing_name)
+        staged_forcings.append(forcing_name)
+    info["resolution_minutes"] = res
+    info["forcing_name"] = forcing_name
+    info["forcing_files"] = staged_forcings
+    info["expected_output_glob"] = f"{rc.file_code}_*_SUEWS_{res}.txt"
+    info["disaggregated"] = False
+
+
+def _stage_2016a_forcing(src: Path, input_path: Path, rc: RunControl, year: int, info: dict) -> None:
+    """2016a staging: per-year, grid-stamped, ``-9``-terminated tstep forcing.
+
+    The 2016a binary runs each year declared in SiteSelect, opening
+    ``<code><grid>_<year>_data_<tstep_min>.txt`` per year. We:
+      1. split the multi-year ``<code>_data.txt`` by year;
+      2. keep only years that are BOTH declared in SiteSelect AND complete
+         (start at hour 0 -- incomplete years trip a DayWat(0) bounds crash);
+      3. write each kept year's 5-min, ``-9``-terminated forcing + a matching
+         InitialConditions file; and
+      4. trim SiteSelect to the kept years so FirstYear..LastYear aligns.
+    """
+    grid = detect_grid(src)
+    tstep_min = rc.tstep_minutes
+    forcing_src = _locate_forcing(src, rc.file_code)
+    split = split_forcing_by_year(forcing_src, skip_header=rc.skip_header_met)
+    header = split["header"]
+    by_year = split["by_year"]
+    n_cols = len(header.split()) or 24
+
+    siteselect = (src / "SUEWS_SiteSelect.txt").read_text(encoding="utf-8", errors="replace")
+    declared = set(_siteselect_data_years(siteselect))
+
+    kept: list[int] = []
+    skipped: dict[int, str] = {}
+    total_rows = 0
+    for y in sorted(by_year):
+        if declared and y not in declared:
+            skipped[y] = "not in SiteSelect"
+            continue
+        rows = by_year[y]
+        if not year_is_complete(rows):
+            skipped[y] = "incomplete (does not start at hour 0)"
+            continue
+        fname = forcing_filename_gridstamped(rc.file_code, grid, y, tstep_min)
+        n = write_year_forcing(
+            header, rows, input_path / fname,
+            tstep_minutes=tstep_min, n_cols=n_cols,
+        )
+        total_rows += n
+        # Per-year InitialConditions file (binary builds the name as
+        # InitialConditions<code><grid>_<year>.nml); copy the template IC.
+        ic_name = f"InitialConditions{rc.file_code}{grid}_{y}.nml"
+        ic_dst = input_path / ic_name
+        if not ic_dst.exists():
+            templates = sorted(input_path.glob(f"InitialConditions{rc.file_code}*.nml"))
+            if templates:
+                shutil.copy2(templates[0], ic_dst)
+        kept.append(y)
+
+    if not kept:
+        raise ValueError(
+            f"no complete, SiteSelect-declared year in {forcing_src.name} "
+            f"(declared={sorted(declared)}, found={sorted(by_year)}); cannot stage"
+        )
+
+    # Trim SiteSelect to the years we actually staged forcing for.
+    trimmed = restrict_siteselect_to_years(siteselect, set(kept))
+    (input_path / "SUEWS_SiteSelect.txt").write_text(trimmed, encoding="utf-8")
+
+    # Report a representative forcing name (the first kept year, or the
+    # requested year if it was kept) for callers/tests.
+    repr_year = year if year in kept else kept[0]
+    info["grid"] = grid
+    info["resolution_minutes"] = tstep_min
+    info["forcing_name"] = forcing_filename_gridstamped(rc.file_code, grid, repr_year, tstep_min)
+    info["years_staged"] = kept
+    info["years_skipped"] = skipped
+    info["expected_output_glob"] = f"{rc.file_code}{grid}_*_{tstep_min}.txt"
+    info["disaggregated"] = True
+    info["forcing_rows_written"] = total_rows

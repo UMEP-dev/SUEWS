@@ -191,7 +191,7 @@ def test_disaggregate_hourly_to_tstep_holds_values(tmp_path):
     dst = tmp_path / "out.txt"
     n = li.disaggregate_hourly_to_tstep(src, dst, tstep_minutes=5, skip_header=1)
     assert n == 24  # 2 hourly rows * 12 sub-steps
-    lines = dst.read_text().splitlines()
+    lines = dst.read_text(encoding="utf-8").splitlines()
     assert lines[0] == "iy id it imin qn"  # header preserved
     # First 12 rows: hour 0, imin 0,5,...,55, qn held at 100.
     assert lines[1] == "2011 1 0 0 100"
@@ -270,7 +270,7 @@ def test_write_year_forcing_adds_terminator(tmp_path):
     rows = [["2012", "1", "0", "0", "100"], ["2012", "1", "1", "0", "200"]]
     n = li.write_year_forcing("iy id it imin qn", rows, dst, tstep_minutes=5)
     assert n == 24  # 2 hourly * 12 sub-steps (terminator not counted)
-    lines = dst.read_text().splitlines()
+    lines = dst.read_text(encoding="utf-8").splitlines()
     assert lines[0] == "iy id it imin qn"        # header
     assert lines[1] == "2012 1 0 0 100"          # first 5-min step
     assert lines[12] == "2012 1 0 55 100"        # last sub-step of hour 0
@@ -332,7 +332,7 @@ def test_stage_run_2016a_skips_incomplete_year(tmp_path):
     assert (input_dir / "Kc1_2012_data_5.txt").is_file()
     assert not (input_dir / "Kc1_2011_data_5.txt").is_file()
     # SiteSelect trimmed to the staged year only.
-    trimmed = (input_dir / "SUEWS_SiteSelect.txt").read_text()
+    trimmed = (input_dir / "SUEWS_SiteSelect.txt").read_text(encoding="utf-8")
     assert li._siteselect_data_years(trimmed) == [2012]
     # Per-year IC created for the staged year.
     assert (input_dir / "InitialConditionsKc1_2012.nml").is_file()

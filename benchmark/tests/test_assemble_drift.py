@@ -25,19 +25,19 @@ INDEX = {
 
 
 def test_assemble_writes_report_and_csv(tmp_path):
-    (tmp_path / "index.json").write_text(json.dumps(INDEX))
+    (tmp_path / "index.json").write_text(json.dumps(INDEX), encoding="utf-8")
     report = assemble_drift(results_dir=tmp_path, baseline_tag="2025.1.1")
 
     report_path = tmp_path / "drift_report.json"
     csv_path = tmp_path / "drift_table.csv"
     assert report_path.exists() and csv_path.exists()
 
-    saved = json.loads(report_path.read_text())
+    saved = json.loads(report_path.read_text(encoding="utf-8"))
     assert saved["site"] == "TEST"
     assert saved["baseline_tag"] == "2025.1.1"
     assert saved["records"], "expected at least one drift record"
 
-    rows = list(csv.DictReader(csv_path.open()))
+    rows = list(csv.DictReader(csv_path.open(encoding="utf-8")))
     header = ["from_tag", "to_tag", "framing", "flux", "interval", "bucket", "metric", "value"]
     assert list(rows[0].keys()) == header
     metrics = {r["metric"] for r in rows}
@@ -45,7 +45,7 @@ def test_assemble_writes_report_and_csv(tmp_path):
 
 
 def test_assemble_is_idempotent(tmp_path):
-    (tmp_path / "index.json").write_text(json.dumps(INDEX))
+    (tmp_path / "index.json").write_text(json.dumps(INDEX), encoding="utf-8")
     assemble_drift(results_dir=tmp_path, baseline_tag="2025.1.1")
     first = (tmp_path / "drift_table.csv").read_bytes()
     assemble_drift(results_dir=tmp_path, baseline_tag="2025.1.1")

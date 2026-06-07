@@ -110,5 +110,11 @@ jobs:
       - name: Publish derived statistics to the benchmark page
         # Only derived stats are published (no raw data, so no page-level password);
         # wires results/index.json into site/benchmark and hands off to the Pages deploy.
+        # NOTE at enablement: also run `python benchmark/assemble_drift.py` and stage
+        # benchmark/results/{drift_report.json,drift_table.csv} into
+        # site/benchmark/results/ so the cross-version drift page
+        # (site/benchmark/drift/index.html, which fetches ../results/drift_table.csv)
+        # has data once deployed.
         run: |
           echo "TODO at enablement - render results/index.json into site/benchmark and deploy"
+          echo "TODO at enablement - assemble_drift.py and stage drift_table.csv into site/benchmark/results"

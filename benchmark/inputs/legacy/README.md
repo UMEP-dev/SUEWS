@@ -50,8 +50,8 @@ For each stored YAML, `tests/test_legacy_yaml_roundtrip.py` asserts:
 The forward converter leaves two machine-specific artefacts; both are cleaned to
 neutral placeholders. No physics value is hand-edited.
 
-- `model.control.output.dir` — converter writes an absolute
-  `/private/var/folders/.../Output` temp path → set to `./output`.
+- `model.control.output.dir` — converter writes an absolute machine-specific
+  temp-dir path → set to `./output`.
 - `model.control.forcing.file` — a `forcing.txt` placeholder (or an absolute
   temp path where the converter located a year-stamped forcing). The legacy
   forcing is not year-stamped in a way the YAML path needs, and forcing wiring

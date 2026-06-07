@@ -65,20 +65,37 @@ from ...data_model.schema.migration import SchemaMigrator
 #   pre-#1261 setpoint split, still carries DeepSoilTemperature and the
 #   DHW volume bounds).
 # * `2026.4` is the current schema (post-#1240 / #1242 / #1261).
-_PACKAGE_TO_SCHEMA: dict[str, str] = {
+# Historical literal kept as a fallback (and regression anchor) in case the
+# shipped registry is unavailable for any reason. The live mapping below is
+# DERIVED from src/supy/_model_registry/registry.yaml so the lineage has a
+# single source of truth; this fallback must stay equal to the derived map.
+_PACKAGE_TO_SCHEMA_FALLBACK: dict[str, str] = {
     "2025.10.15": "2025.12",
     "2025.11.20": "2025.12",
     "2026.1.28": "2026.1",
-    # 2026.4.3 pinned to the literal "2026.4" schema it shipped under; when
-    # CURRENT_SCHEMA_VERSION bumps, the previous release tag keeps its
-    # original schema label and upgrades to the new one via the registered
-    # handler below, not by silent remapping.
     "2026.4.3": "2026.4",
-    # 2026.6.5 ships the collapsed "2026.5" schema (the 2026.5.dev1..dev14
-    # cycle folded into one label in the release PR). Its own config parses
-    # directly under the current validator (identity path).
     "2026.6.5": "2026.5",
 }
+
+
+def _build_package_to_schema() -> dict[str, str]:
+    """Derive the release-tag -> schema map from the shipped registry.
+
+    Falls back to the historical literal if the registry cannot be imported
+    (e.g. a partial install), so the upgrader never loses this mapping.
+    """
+    try:
+        from supy._model_registry import list_model_versions
+    except Exception:
+        return dict(_PACKAGE_TO_SCHEMA_FALLBACK)
+    return {
+        v.tag: v.schema_version
+        for v in list_model_versions()
+        if v.schema_version is not None
+    }
+
+
+_PACKAGE_TO_SCHEMA: dict[str, str] = _build_package_to_schema()
 
 
 def _resolve_package_to_schema(version: str) -> str:

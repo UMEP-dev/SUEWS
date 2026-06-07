@@ -15,8 +15,6 @@ from typing import Iterator, Optional
 
 from packaging.version import InvalidVersion, Version
 
-_EB_FLUXES = ("Kup", "Lup", "QN", "QH", "QE")
-
 
 @dataclass(frozen=True)
 class DriftRecord:

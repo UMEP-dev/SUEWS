@@ -1,0 +1,120 @@
+{
+  "deterministic": true,
+  "engine": "compile",
+  "fluxes": [
+    "QN",
+    "QH",
+    "QE",
+    "Kup",
+    "Lup"
+  ],
+  "n_rows": 96,
+  "obs_based_stats": null,
+  "obs_note": "Obs-based MAE/MBE not computed: KCL observations are on a restricted store and the legacy forcing carries -999 obs columns. Raw per-flux summary + determinism fingerprint is the Phase-A deliverable.",
+  "output_file_sha256": "ca1152736f78e85b58e52406e3cf369bd569cb26448160141e8abccc1e57e8c9",
+  "output_fingerprint": "1180dec2b2686e2a3b91bb8369b44086bb5f481150abb989d2557d3a191cde7a",
+  "period": {
+    "end": "2005-01-01 00:00",
+    "start": "2004-12-28 01:00"
+  },
+  "provenance": {
+    "binary_path": "/scratch/ucfbuna/retro-pilot/2020a/SUEWS-SourceCode/SUEWS_V2020a",
+    "build_flags": "make FFLAGS='-O3 -fPIC -fbounds-check -cpp -Wno-unused-dummy-argument -Wno-unused-variable -fallow-argument-mismatch'",
+    "build_layout": "sourcecode",
+    "generated": "2026-06-07T13:06:42+00:00",
+    "gfortran": "11.5.0 (GCC 11, Red Hat)",
+    "host": "banbury (tailscale)",
+    "input_convention": "2020a",
+    "input_source": "Release/InputTables/2020a",
+    "output_remote_path": "/scratch/ucfbuna/retro-pilot/run_2020a_1/Output/test1_2004_SUEWS_60.txt"
+  },
+  "raw_summary": {
+    "Kup": {
+      "full": {
+        "max": 41.3441,
+        "mean": 5.7635,
+        "min": 0.0,
+        "n": 96
+      },
+      "seasonal": {
+        "DJF": {
+          "max": 41.3441,
+          "mean": 5.7635,
+          "min": 0.0,
+          "n": 96
+        }
+      }
+    },
+    "Lup": {
+      "full": {
+        "max": 340.7642,
+        "mean": 322.7083,
+        "min": 295.849,
+        "n": 96
+      },
+      "seasonal": {
+        "DJF": {
+          "max": 340.7642,
+          "mean": 322.7083,
+          "min": 295.849,
+          "n": 96
+        }
+      }
+    },
+    "QE": {
+      "full": {
+        "max": 16.5626,
+        "mean": 4.8039,
+        "min": -1.3339,
+        "n": 96
+      },
+      "seasonal": {
+        "DJF": {
+          "max": 16.5626,
+          "mean": 4.8039,
+          "min": -1.3339,
+          "n": 96
+        }
+      }
+    },
+    "QH": {
+      "full": {
+        "max": 146.7098,
+        "mean": 54.8409,
+        "min": 6.8974,
+        "n": 96
+      },
+      "seasonal": {
+        "DJF": {
+          "max": 146.7098,
+          "mean": 54.8409,
+          "min": 6.8974,
+          "n": 96
+        }
+      }
+    },
+    "QN": {
+      "full": {
+        "max": 178.1081,
+        "mean": -10.4769,
+        "min": -64.3337,
+        "n": 96
+      },
+      "seasonal": {
+        "DJF": {
+          "max": 178.1081,
+          "mean": -10.4769,
+          "min": -64.3337,
+          "n": 96
+        }
+      }
+    }
+  },
+  "run_fingerprints": [
+    "1180dec2b2686e2a3b91bb8369b44086bb5f481150abb989d2557d3a191cde7a",
+    "1180dec2b2686e2a3b91bb8369b44086bb5f481150abb989d2557d3a191cde7a"
+  ],
+  "site": "test",
+  "site_note": "dev-regression 'test'/'test1' fixture (NOT KCL); only input vendored at this tag",
+  "tag": "2020a"
+}

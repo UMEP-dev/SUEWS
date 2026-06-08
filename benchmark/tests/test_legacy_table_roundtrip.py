@@ -24,9 +24,7 @@ import pytest
 import yaml
 
 pytest.importorskip("supy")
-from supy._load import (
-    load_InitialCond_grid_df,
-)
+from supy._load import load_InitialCond_grid_df  # noqa: PLC2701
 from supy.data_model.core.config import SUEWSConfig
 from supy.util.converter.table import reverse as R
 from supy.util.converter.table.table import (

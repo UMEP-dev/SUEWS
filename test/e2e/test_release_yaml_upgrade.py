@@ -32,6 +32,7 @@ def test_release_yaml_upgrade_preserves_migration_intent(tmp_path):
     building_archetype = payload["sites"][0]["properties"]["building_archetype"]
     stebbs = payload["sites"][0]["properties"]["stebbs"]
     assert "Wallx1" not in building_archetype
-    assert "wall_outer_heat_capacity_fraction" in building_archetype
+    assert "wall_outer_heat_capacity_fraction" not in building_archetype
+    assert "fraction_heat_capacity_wall_external" in building_archetype
     assert "DHWVesselEmissivity" not in stebbs
     assert "MinimumVolumeOfDHWinUse" not in stebbs

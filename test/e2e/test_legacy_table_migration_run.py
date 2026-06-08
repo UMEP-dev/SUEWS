@@ -10,6 +10,21 @@ from supy.cmd.table_converter import convert_table_cmd
 pytestmark = [pytest.mark.api, pytest.mark.e2e]
 
 
+def _forcing_with_valid_water_use(source, destination):
+    lines = source.read_text(encoding="utf-8").splitlines()
+    header = lines[0].split()
+    water_use_index = header.index("wuh")
+
+    updated = [lines[0]]
+    for line in lines[1:]:
+        values = line.split()
+        values[water_use_index] = "0.0"
+        updated.append(" ".join(values))
+
+    destination.write_text("\n".join(updated) + "\n", encoding="utf-8")
+    return destination
+
+
 def test_legacy_table_conversion_output_can_run(tmp_path):
     """Scenario: legacy-table-migration-run.
 
@@ -21,6 +36,7 @@ def test_legacy_table_conversion_output_can_run(tmp_path):
     """
     input_file = FIXTURES / "data_test" / "AVL_1_LDN1" / "RunControl.nml"
     forcing_file = FIXTURES / "benchmark1" / "forcing" / "Kc1_2011_data_5_tiny.txt"
+    forcing_with_water_use = tmp_path / "Kc1_2011_data_5_tiny_wuh.txt"
     output_file = tmp_path / "converted.yml"
 
     result = CliRunner().invoke(
@@ -33,7 +49,7 @@ def test_legacy_table_conversion_output_can_run(tmp_path):
     assert output_file.exists()
 
     sim = SUEWSSimulation(str(output_file))
-    sim.update_forcing(str(forcing_file))
+    sim.update_forcing(str(_forcing_with_valid_water_use(forcing_file, forcing_with_water_use)))
     df_output = as_dataframe(sim.run())
 
     assert not df_output.empty

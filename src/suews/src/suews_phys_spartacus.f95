@@ -258,53 +258,57 @@ CONTAINS
 
       IF (DiagQN == 1) PRINT *, 'in SPARTACUS, starting ...'
 
-      PRINT *, '--- SPARTACUS raw input debug start ---'
-      PRINT *, 'DiagQN = ', DiagQN
-      PRINT *, 'zenith_deg = ', zenith_deg
-      PRINT *, 'nlayer = ', nlayer
-      PRINT *, 'Tair_C = ', Tair_C
-      PRINT *, 'kdown = ', kdown
-      PRINT *, 'ldown = ', ldown
-      PRINT *, 'n_vegetation_region_urban = ', n_vegetation_region_urban
-      PRINT *, 'n_stream_sw_urban = ', n_stream_sw_urban
-      PRINT *, 'n_stream_lw_urban = ', n_stream_lw_urban
-      PRINT *, 'sw_dn_direct_frac = ', sw_dn_direct_frac
-      PRINT *, 'air_ext_sw = ', air_ext_sw
-      PRINT *, 'air_ssa_sw = ', air_ssa_sw
-      PRINT *, 'veg_ssa_sw = ', veg_ssa_sw
-      PRINT *, 'air_ext_lw = ', air_ext_lw
-      PRINT *, 'air_ssa_lw = ', air_ssa_lw
-      PRINT *, 'veg_ssa_lw = ', veg_ssa_lw
-      PRINT *, 'veg_fsd_const = ', veg_fsd_const
-      PRINT *, 'veg_contact_fraction_const = ', veg_contact_fraction_const
-      PRINT *, 'ground_albedo_dir_mult_fact = ', ground_albedo_dir_mult_fact
-      PRINT *, 'use_sw_direct_albedo = ', use_sw_direct_albedo
+      debug_call_count = debug_call_count + 1
+      IF (debug_call_count == 1) THEN
+         PRINT *, '--- SPARTACUS raw input debug start ---'
+         PRINT *, 'DiagQN = ', DiagQN
+         PRINT *, 'zenith_deg = ', zenith_deg
+         PRINT *, 'nlayer = ', nlayer
+         PRINT *, 'Tair_C = ', Tair_C
+         PRINT *, 'kdown = ', kdown
+         PRINT *, 'ldown = ', ldown
+         PRINT *, 'n_vegetation_region_urban = ', n_vegetation_region_urban
+         PRINT *, 'n_stream_sw_urban = ', n_stream_sw_urban
+         PRINT *, 'n_stream_lw_urban = ', n_stream_lw_urban
+         PRINT *, 'sw_dn_direct_frac = ', sw_dn_direct_frac
+         PRINT *, 'air_ext_sw = ', air_ext_sw
+         PRINT *, 'air_ssa_sw = ', air_ssa_sw
+         PRINT *, 'veg_ssa_sw = ', veg_ssa_sw
+         PRINT *, 'air_ext_lw = ', air_ext_lw
+         PRINT *, 'air_ssa_lw = ', air_ssa_lw
+         PRINT *, 'veg_ssa_lw = ', veg_ssa_lw
+         PRINT *, 'veg_fsd_const = ', veg_fsd_const
+         PRINT *, 'veg_contact_fraction_const = ', veg_contact_fraction_const
+         PRINT *, 'ground_albedo_dir_mult_fact = ', ground_albedo_dir_mult_fact
+         PRINT *, 'use_sw_direct_albedo = ', use_sw_direct_albedo
 
-      PRINT *, 'tsfc_surf = ', tsfc_surf
-      PRINT *, 'tsfc_roof = ', tsfc_roof
-      PRINT *, 'tsfc_wall = ', tsfc_wall
-      PRINT *, 'sfr_surf = ', sfr_surf
-      PRINT *, 'alb_surf = ', alb_surf
-      PRINT *, 'emis_surf = ', emis_surf
-      PRINT *, 'LAI_id = ', LAI_id
+         PRINT *, 'tsfc_surf = ', tsfc_surf
+         PRINT *, 'tsfc_roof = ', tsfc_roof
+         PRINT *, 'tsfc_wall = ', tsfc_wall
+         PRINT *, 'sfr_surf = ', sfr_surf
+         PRINT *, 'alb_surf = ', alb_surf
+         PRINT *, 'emis_surf = ', emis_surf
+         PRINT *, 'LAI_id = ', LAI_id
 
-      PRINT *, 'height = ', height
-      PRINT *, 'building_frac = ', building_frac
-      PRINT *, 'veg_frac = ', veg_frac
-      PRINT *, 'sfr_roof = ', sfr_roof
-      PRINT *, 'sfr_wall = ', sfr_wall
-      PRINT *, 'building_scale = ', building_scale
-      PRINT *, 'veg_scale = ', veg_scale
-      PRINT *, 'alb_roof = ', alb_roof
-      PRINT *, 'emis_roof = ', emis_roof
-      PRINT *, 'alb_wall = ', alb_wall
-      PRINT *, 'emis_wall = ', emis_wall
+         PRINT *, 'height = ', height
+         PRINT *, 'building_frac = ', building_frac
+         PRINT *, 'veg_frac = ', veg_frac
+         PRINT *, 'sfr_roof = ', sfr_roof
+         PRINT *, 'sfr_wall = ', sfr_wall
+         PRINT *, 'building_scale = ', building_scale
+         PRINT *, 'veg_scale = ', veg_scale
+         PRINT *, 'alb_roof = ', alb_roof
+         PRINT *, 'emis_roof = ', emis_roof
+         PRINT *, 'alb_wall = ', alb_wall
+         PRINT *, 'emis_wall = ', emis_wall
 
-      PRINT *, 'roof_albedo_dir_mult_fact = '
-      PRINT *, roof_albedo_dir_mult_fact
-      PRINT *, 'wall_specular_frac = '
-      PRINT *, wall_specular_frac
-      PRINT *, '--- SPARTACUS raw input debug end ---'
+         PRINT *, 'roof_albedo_dir_mult_fact = '
+         PRINT *, roof_albedo_dir_mult_fact
+         PRINT *, 'wall_specular_frac = '
+         PRINT *, wall_specular_frac
+         PRINT *, '--- SPARTACUS raw input debug end ---'
+
+      END IF
 
       ! initialize the output variables
       dataOutLineSPARTACUS = -999.

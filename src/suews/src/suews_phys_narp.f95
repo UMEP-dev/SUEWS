@@ -637,144 +637,30 @@ CONTAINS
 
    END SUBROUTINE NARP_cal_SunPosition
 
-   SUBROUTINE NARP_cal_SunPosition_DTS( &
-      timer, config, forcing, siteInfo, & !input
-      modState) ! input/output:
-      ! solarState)
-      ! sunazimuth, sunzenith)
+   SUBROUTINE NARP_update_SunPosition( &
+      timer, siteInfo, & ! input
+      modState) ! input/output
 
-      USE module_ctrl_type, ONLY: &
-         SUEWS_TIMER, SUEWS_SITE, SUEWS_CONFIG, SUEWS_FORCING, &
-         solar_State, SUEWS_STATE
+      USE module_ctrl_type, ONLY: SUEWS_TIMER, SUEWS_SITE, SUEWS_STATE
 
       IMPLICIT NONE
 
       TYPE(SUEWS_TIMER), INTENT(IN) :: timer
-      TYPE(SUEWS_CONFIG), INTENT(IN) :: config
-      TYPE(SUEWS_FORCING), INTENT(IN) :: forcing
       TYPE(SUEWS_SITE), INTENT(IN) :: siteInfo
-
       TYPE(SUEWS_STATE), INTENT(INOUT) :: modState
 
-      REAL(KIND(1D0)) :: year, idectime
+      REAL(KIND(1D0)) :: year
+      REAL(KIND(1D0)) :: idectime
 
-      REAL(KIND(1D0)) :: sec
-      INTEGER :: month, day, hour, min, seas, dayofyear, year_int
+      year = REAL(timer%iy, KIND(1D0))
+      idectime = timer%dectime - timer%tstep/2/86400
 
-      REAL(KIND(1D0)) :: juliancentury, julianday, julianephemeris_century, julianephemeris_day, &
-                         julianephemeris_millenium
-      REAL(KIND(1D0)) :: earth_heliocentric_positionlatitude, earth_heliocentric_positionlongitude, &
-                         earth_heliocentric_positionradius
-      REAL(KIND(1D0)) :: sun_geocentric_positionlatitude, sun_geocentric_positionlongitude
-      REAL(KIND(1D0)) :: nutationlongitude, nutationobliquity
-      REAL(KIND(1D0)) :: corr_obliquity
-      REAL(KIND(1D0)) :: aberration_correction
-      REAL(KIND(1D0)) :: apparent_sun_longitude
-      REAL(KIND(1D0)) :: apparent_stime_at_greenwich
-      REAL(KIND(1D0)) :: sun_rigth_ascension
-      REAL(KIND(1D0)) :: sun_geocentric_declination
-      REAL(KIND(1D0)) :: observer_local_hour
-      REAL(KIND(1D0)) :: topocentric_sun_positionrigth_ascension, topocentric_sun_positionrigth_ascension_parallax
-      REAL(KIND(1D0)) :: topocentric_sun_positiondeclination
-      REAL(KIND(1D0)) :: topocentric_local_hour
+      CALL NARP_cal_SunPosition( &
+         year, idectime, siteInfo%timezone, &
+         siteInfo%lat, siteInfo%lon, siteInfo%alt, &
+         modState%solarState%azimuth_deg, modState%solarState%zenith_deg)
 
-      ASSOCIATE ( &
-         solarState => modState%solarState &
-         )
-         ASSOCIATE ( &
-            iy => timer%iy, &
-            dectime => timer%dectime, &
-            tstep => timer%tstep, &
-            UTC => siteInfo%timezone, &
-            locationlatitude => siteInfo%lat, &
-            locationlongitude => siteInfo%lon, &
-            locationaltitude => siteInfo%alt, &
-            azimuth_deg => solarState%azimuth_deg, &
-            zenith_deg => solarState%zenith_deg &
-            )
-            year = REAL(iy, KIND(1D0))
-            idectime = dectime - tstep/2/86400
-
-            ! This function compute the sun position (zenith and azimuth angle (in degrees) at the observer
-            ! location) as a function of the observer local time and position.
-            !
-            ! Input lat and lng should be in degrees, alt in meters.
-            !
-            ! It is an implementation of the algorithm presented by Reda et Andreas in:
-            ! Reda, I., Andreas, A. (2003) Solar position algorithm for solar
-            ! radiation application. National Renewable Energy Laboratory (NREL)
-            ! Technical report NREL/TP-560-34302.
-            ! This document is available at www.osti.gov/bridge
-            ! Code is translated from matlab code by Fredrik Lindberg (fredrikl@gvc.gu.se)
-            ! Last modified: LJ 27 Jan 2016 - Tabs removed
-
-            ! Convert to timevectors from dectime and year
-            CALL dectime_to_timevec(idectime, hour, min, sec)
-            dayofyear = FLOOR(idectime)
-            year_int = INT(year)
-            CALL day2month(dayofyear, month, day, seas, year_int, locationlatitude)
-
-            ! 1. Calculate the Julian Day, and Century. Julian Ephemeris day, century
-            ! and millenium are calculated using a mean delta_t of 33.184 seconds.
-            CALL julian_calculation(year, month, day, hour, min, sec, UTC, juliancentury, julianday, julianephemeris_century, &
-                                    julianephemeris_day, julianephemeris_millenium)
-
-            ! 2. Calculate the Earth heliocentric longitude, latitude, and radius
-            ! vector (L, B, and R)
-            CALL earth_heliocentric_position_calculation(julianephemeris_millenium, earth_heliocentric_positionlatitude,&
-            &earth_heliocentric_positionlongitude, earth_heliocentric_positionradius)
-
-            ! 3. Calculate the geocentric longitude and latitude
-            CALL sun_geocentric_position_calculation(earth_heliocentric_positionlongitude, earth_heliocentric_positionlatitude,&
-            & sun_geocentric_positionlatitude, sun_geocentric_positionlongitude)
-
-            ! 4. Calculate the nutation in longitude and obliquity (in degrees).
-            CALL nutation_calculation(julianephemeris_century, nutationlongitude, nutationobliquity)
-
-            ! 5. Calculate the true obliquity of the ecliptic (in degrees).
-            CALL corr_obliquity_calculation(julianephemeris_millenium, nutationobliquity, corr_obliquity)
-
-            ! 6. Calculate the aberration correction (in degrees)
-            CALL abberation_correction_calculation(earth_heliocentric_positionradius, aberration_correction)
-
-            ! 7. Calculate the apparent sun longitude in degrees)
-            CALL apparent_sun_longitude_calculation(sun_geocentric_positionlongitude, nutationlongitude,&
-            & aberration_correction, apparent_sun_longitude)
-
-            ! 8. Calculate the apparent sideral time at Greenwich (in degrees)
-            CALL apparent_stime_at_greenwich_calculation(julianday, juliancentury, nutationlongitude, &
-            &corr_obliquity, apparent_stime_at_greenwich)
-
-            ! 9. Calculate the sun rigth ascension (in degrees)
-            CALL sun_rigth_ascension_calculation(apparent_sun_longitude, corr_obliquity, sun_geocentric_positionlatitude, &
-            &sun_rigth_ascension)
-
-            ! 10. Calculate the geocentric sun declination (in degrees). Positive or
-            ! negative if the sun is north or south of the celestial equator.
-            CALL sun_geocentric_declination_calculation(apparent_sun_longitude, corr_obliquity, sun_geocentric_positionlatitude, &
-            &sun_geocentric_declination)
-
-            ! 11. Calculate the observer local hour angle (in degrees, westward from south).
-            CALL observer_local_hour_calculation( &
-               apparent_stime_at_greenwich, locationlongitude, sun_rigth_ascension, observer_local_hour)
-
-            ! 12. Calculate the topocentric sun position (rigth ascension, declination and
-            ! rigth ascension parallax in degrees)
-            CALL topocentric_sun_position_calculate(topocentric_sun_positionrigth_ascension,&
-            &topocentric_sun_positionrigth_ascension_parallax, topocentric_sun_positiondeclination, locationaltitude,&
-            &locationlatitude, observer_local_hour, sun_rigth_ascension, sun_geocentric_declination,&
-            &earth_heliocentric_positionradius)
-
-            ! 13. Calculate the topocentric local hour angle (in degrees)
-            CALL topocentric_local_hour_calculate(observer_local_hour, topocentric_sun_positionrigth_ascension_parallax,&
-            & topocentric_local_hour)
-
-            ! 14. Calculate the topocentric zenith and azimuth angle (in degrees)
-            CALL sun_topocentric_zenith_angle_calculate(locationlatitude, topocentric_sun_positiondeclination,&
-            & topocentric_local_hour, azimuth_deg, zenith_deg)
-         END ASSOCIATE
-      END ASSOCIATE
-   END SUBROUTINE NARP_cal_SunPosition_DTS
+   END SUBROUTINE NARP_update_SunPosition
 
    !================================ Subfunction definitions ========================================================!
    SUBROUTINE julian_calculation(year, month, day, hour, min, sec, UTC, juliancentury, julianday, julianephemeris_century&

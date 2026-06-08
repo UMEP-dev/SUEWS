@@ -170,7 +170,10 @@ class TestYamlUpgradeModule:
         source = tmp_path / "mixed-stebbs.yml"
         target = tmp_path / "upgraded.yml"
         payload = {
-            "schema_version": "2026.5.dev12",
+            # 2026.4 is the nearest real pre-fold schema; the
+            # (2026.4 -> 2026.5) handler runs the STEBBS physics fold that
+            # rejects a flat switch beside the nested stebbs object.
+            "schema_version": "2026.4",
             "model": {
                 "physics": {
                     "stebbs": {
@@ -189,7 +192,7 @@ class TestYamlUpgradeModule:
         with pytest.raises(YamlUpgradeError, match="flat STEBBS physics switches"):
             upgrade_yaml(input_path=source, output_path=target)
 
-    @pytest.mark.parametrize("schema_version", ["2026.5", "2026.5.dev12"])
+    @pytest.mark.parametrize("schema_version", ["2026.4"])
     @pytest.mark.parametrize(
         "left,right",
         [
@@ -226,12 +229,19 @@ class TestYamlUpgradeModule:
             encoding="utf-8",
         )
 
-        with pytest.raises(YamlUpgradeError, match="Multiple nested STEBBS"):
+        # Either the nested-leaf collision is caught by the STEBBS fold, or
+        # a fused/snake legacy pair (e.g. rcmethod/rc_method) is caught one
+        # stage earlier by the Category 1 rename conflict guard. Both reject
+        # the ambiguous input rather than silently resolving it.
+        with pytest.raises(
+            YamlUpgradeError,
+            match=r"Multiple nested STEBBS|Both '\w+' \(deprecated\)",
+        ):
             upgrade_yaml(input_path=source, output_path=target)
 
     @pytest.mark.parametrize(
         "schema_version",
-        ["2026.5", "2026.5.dev1", "2026.5.dev12"],
+        ["2026.4"],
     )
     @pytest.mark.parametrize(
         "left,right",
@@ -270,7 +280,7 @@ class TestYamlUpgradeModule:
         with pytest.raises(YamlUpgradeError, match="same nested leaf"):
             upgrade_yaml(input_path=source, output_path=target)
 
-    @pytest.mark.parametrize("schema_version", ["2026.5", "2026.5.dev12"])
+    @pytest.mark.parametrize("schema_version", ["2026.4"])
     def test_raises_on_duplicate_stebbs_master_aliases(
         self,
         tmp_path: Path,
@@ -295,11 +305,11 @@ class TestYamlUpgradeModule:
 
         with pytest.raises(
             YamlUpgradeError,
-            match="Multiple legacy STEBBS master aliases",
+            match=r"Multiple legacy STEBBS master aliases|Both '\w+' \(deprecated\)",
         ):
             upgrade_yaml(input_path=source, output_path=target)
 
-    @pytest.mark.parametrize("schema_version", ["2026.5", "2026.5.dev12"])
+    @pytest.mark.parametrize("schema_version", ["2026.4"])
     def test_raises_on_stebbs_master_alias_beside_canonical_key(
         self,
         tmp_path: Path,
@@ -324,17 +334,15 @@ class TestYamlUpgradeModule:
 
         with pytest.raises(
             YamlUpgradeError,
-            match="Multiple legacy STEBBS master aliases",
+            match=r"Multiple legacy STEBBS master aliases|Both '\w+' \(deprecated\)",
         ):
             upgrade_yaml(input_path=source, output_path=target)
 
     @pytest.mark.parametrize(
         "schema_version,master_key",
         [
-            ("2026.5", "stebbsmethod"),
-            ("2026.5", "stebbs_method"),
-            ("2026.5.dev12", "stebbsmethod"),
-            ("2026.5.dev12", "stebbs_method"),
+            ("2026.4", "stebbsmethod"),
+            ("2026.4", "stebbs_method"),
         ],
     )
     def test_single_legacy_stebbs_master_alias_folds(
@@ -865,14 +873,6 @@ def test_forcing_file_list_migrates_to_forcing_subobject():
     assert out["model"]["control"]["forcing"] == {"file": ["a.txt", "b.txt"]}
 
 
-def test_dev6_to_current_handler_registered():
-    """Compatibility from 2026.5.dev6 must be granted via _HANDLERS."""
-    from supy.data_model.schema.version import CURRENT_SCHEMA_VERSION
-    from supy.util.converter.yaml_upgrade import _HANDLERS
-
-    assert ("2026.5.dev6", CURRENT_SCHEMA_VERSION) in _HANDLERS
-
-
 def test_forcing_both_keys_new_wins():
     """If both ``forcing_file`` and ``forcing.file`` exist, the new shape
     wins and the legacy key is dropped — mirrors the output handler
@@ -897,10 +897,13 @@ class TestOutputSubobjectRestructure:
     """gh#1372 follow-up: dev7 -> dev8 lifts output_file -> output."""
 
     def _migrate(self, cfg: dict) -> dict:
+        # The dev7 -> current handler was collapsed into the 2026.5 release
+        # schema; the output_file -> output lift it performed lives in
+        # _apply_output_subobject_restructure, which is the unit under test.
         from supy.util.converter.yaml_upgrade import (
-            _migrate_2026_5_dev7_to_current,
+            _apply_output_subobject_restructure,
         )
-        return _migrate_2026_5_dev7_to_current(cfg)
+        return _apply_output_subobject_restructure(cfg)
 
     def test_dict_form_lifts_and_renames_path(self):
         cfg = {
@@ -982,10 +985,3 @@ class TestOutputSubobjectRestructure:
         assert "output_file" not in out["model"]["control"]
         assert out["model"]["control"]["output"]["dir"] == "./new"
         assert out["model"]["control"]["output"]["format"] == "parquet"
-
-    def test_dev7_to_current_handler_registered(self):
-        """Compatibility from 2026.5.dev7 must be granted via _HANDLERS."""
-        from supy.data_model.schema.version import CURRENT_SCHEMA_VERSION
-        from supy.util.converter.yaml_upgrade import _HANDLERS
-
-        assert ("2026.5.dev7", CURRENT_SCHEMA_VERSION) in _HANDLERS

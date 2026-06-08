@@ -56,7 +56,7 @@ class TestSaveSuPy:
             assert suews_file.stat().st_size > 0, "SUEWS file is empty"
 
             # Read and verify content
-            with open(suews_file, "r") as f:
+            with open(suews_file, "r", encoding="utf-8") as f:
                 lines = f.readlines()
                 assert len(lines) > 1, "SUEWS file has no data rows"
                 # Check header contains expected columns

@@ -56,7 +56,7 @@ def main() -> int:
             "required_present": not missing,
             "missing_required": missing,
         }
-        (out_dir / "supply_summary.json").write_text(json.dumps(summary, indent=2))
+        (out_dir / "supply_summary.json").write_text(json.dumps(summary, indent=2), encoding="utf-8")
         print("[supply] summary:", json.dumps(summary))
 
         if missing:

@@ -1493,7 +1493,7 @@ class SUEWSConfig(BaseModel):
         try:
             import yaml
 
-            with open(yaml_path, "r") as f:
+            with open(yaml_path, "r", encoding="utf-8") as f:
                 data = yaml.safe_load(f)
 
             # Navigate to the surface using path like "sites[0]/properties/land_cover/paved"
@@ -4334,7 +4334,7 @@ class SUEWSConfig(BaseModel):
         Returns:
             SUEWSConfig: Instance of SUEWSConfig initialized from YAML
         """
-        with open(path, "r") as file:
+        with open(path, "r", encoding="utf-8") as file:
             config_data = yaml.load(file, Loader=yaml.FullLoader)
 
         # Snapshot the raw user YAML so site-level completeness checks can
@@ -4397,7 +4397,7 @@ class SUEWSConfig(BaseModel):
 
     def create_multi_index_columns(self, columns_file: str) -> pd.MultiIndex:
         """Create MultiIndex from df_state_columns.txt"""
-        with open(columns_file, "r") as f:
+        with open(columns_file, "r", encoding="utf-8") as f:
             lines = f.readlines()
 
         tuples = []

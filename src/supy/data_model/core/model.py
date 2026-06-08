@@ -1145,13 +1145,16 @@ class ModelPhysics(BaseModel):
             except KeyError:
                 properties[attr] = RefValue(int(default_enum))
 
-        # gh#1456: reconstruct the nested StebbsPhysics from the unchanged
-        # fused columns. `stebbsmethod` is required; the rest fall back to
-        # their defaults if absent from a legacy DataFrame.
+        # gh#1456 / gh#1500: reconstruct the nested StebbsPhysics from the
+        # unchanged fused columns. A DataFrame predating STEBBS lacks the
+        # `stebbsmethod` column entirely (the premise of legacy-table
+        # conversion), so default it to 0 (STEBBS disabled) -- consistent with
+        # `dict_RunControl_default` and the other newer STEBBS columns below --
+        # rather than aborting. A present-but-invalid value is still rejected.
         try:
             stebbsmethod = int(df.loc[grid_id, ("stebbsmethod", "0")])
         except KeyError:
-            raise ValueError("Missing attribute 'stebbsmethod' in the DataFrame")
+            stebbsmethod = int(StebbsMethod.NONE)
         if stebbsmethod not in (0, 1, 2):
             raise ValueError(
                 f"Invalid stebbsmethod value {stebbsmethod}; expected 0, 1, or 2"

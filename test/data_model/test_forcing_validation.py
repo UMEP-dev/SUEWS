@@ -36,24 +36,22 @@ def test_model_control_accepts_legacy_forcing_file():
 
 
 def test_current_schema_version_bumped_for_forcing_restructure():
-    """gh#1372 forcing.file restructure must be documented in the dev9 entry."""
+    """gh#1372 forcing.file restructure must be documented in the 2026.5 entry."""
     from supy.data_model.schema.version import CURRENT_SCHEMA_VERSION, SCHEMA_VERSIONS
 
-    # gh#1372 collapse (post-review): the forcing+output restructures
-    # ship together as a single 2026.5.dev9 cumulative bump per the
-    # dev-label convention (`.claude/rules/python/schema-versioning.md`)
-    # rather than re-using master's dev7 (PR#1390 ArchetypeProperties
-    # Rule 2 reorder) and dev8 (PR#1395 registry refresh) labels.
-    assert "2026.5.dev9" in SCHEMA_VERSIONS
-    desc = SCHEMA_VERSIONS["2026.5.dev9"]
+    # The gh#1372 forcing+output restructure landed during the 2026.5
+    # development cycle (originally the dev9 cumulative bump). That cycle
+    # was collapsed into the single released "2026.5" schema in the
+    # 2026.6.5 release PR (`.claude/rules/python/schema-versioning.md`), so
+    # the restructure is now documented in the consolidated 2026.5 entry.
+    assert "2026.5" in SCHEMA_VERSIONS
+    desc = SCHEMA_VERSIONS["2026.5"]
     assert "forcing" in desc.lower()
     assert "1372" in desc
 
-    # Use packaging.version so the comparison stays correct once the dev
-    # counter rolls into double digits (lexical "2026.5.dev10" < "dev9").
     from packaging.version import Version
 
-    assert Version(CURRENT_SCHEMA_VERSION) >= Version("2026.5.dev9")
+    assert Version(CURRENT_SCHEMA_VERSION) >= Version("2026.5")
 
 
 def test_validate_forcing_columns_against_physics_raises_for_missing_ldown():
@@ -230,9 +228,9 @@ def test_python_rust_whitelist_parity():
     )
 
     rust_src = Path(__file__).resolve().parents[2] / "src" / "suews_bridge" / "src" / "forcing.rs"
-    text = rust_src.read_text()
+    text = rust_src.read_text(encoding="utf-8")
     rust_io_src = Path(__file__).resolve().parents[2] / "src" / "suews_bridge" / "src" / "forcing_io.rs"
-    text_io = rust_io_src.read_text()
+    text_io = rust_io_src.read_text(encoding="utf-8")
 
     def _list(name: str) -> set[str]:
         import re

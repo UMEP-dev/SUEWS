@@ -669,7 +669,7 @@ def gen_epw(
         path_epw.parent.mkdir(parents=True)
     path_epw.touch(exist_ok=True)
     df_epw.to_csv(path_epw, index=None, header=None)
-    text_data = path_epw.read_text().split("\n")
+    text_data = path_epw.read_text(encoding="utf-8").split("\n")
     # delete the csv file
     path_epw.unlink()
 
@@ -697,7 +697,7 @@ DATA PERIODS,1,1,Data,Sunday,1/1,12/31
     #     s = ''.join(lines)
 
     # write out the actual EPW file
-    path_epw.write_text(text_epw)
+    path_epw.write_text(text_epw, encoding="utf-8")
     # with open(path_epw, "w") as fp:
     #     fp.write(text_epw)
 

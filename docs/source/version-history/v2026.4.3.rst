@@ -1,6 +1,4 @@
 
-.. _new_latest:
-
 .. _new_2026.4.3:
 
 Version 2026.4.3 (released on 3 April 2026)

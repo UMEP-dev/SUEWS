@@ -104,7 +104,7 @@ class TestDatabasePrepareAPI(TestCase):
 
         schema = generate_json_schema()
 
-        with tempfile.NamedTemporaryFile(mode="w", suffix=".yml", delete=False) as f:
+        with tempfile.NamedTemporaryFile(encoding="utf-8", mode="w", suffix=".yml", delete=False) as f:
             # Malformed YAML to test parse error handling (unclosed brackets)
             f.write("invalid: yaml: content: [[[")
             temp_path = Path(f.name)
@@ -140,8 +140,8 @@ class TestDatabasePrepareAPI(TestCase):
         sparse_config = Path(__file__).parent.parent / "fixtures" / "sparse_site.yml"
         schema = generate_json_schema(version="2026.5.dev5")
 
-        with tempfile.NamedTemporaryFile(mode="w", suffix=".yml", delete=False) as f:
-            f.write(f"schema_version: '2026.5.dev5'\n{sparse_config.read_text()}")
+        with tempfile.NamedTemporaryFile(encoding="utf-8", mode="w", suffix=".yml", delete=False) as f:
+            f.write(f"schema_version: '2026.5.dev5'\n{sparse_config.read_text(encoding='utf-8')}")
             temp_path = Path(f.name)
 
         try:

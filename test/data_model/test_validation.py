@@ -2362,7 +2362,7 @@ sites:
           # Missing critical params
 """
 
-        with tempfile.NamedTemporaryFile(mode="w", suffix=".yml", delete=False) as f:
+        with tempfile.NamedTemporaryFile(encoding="utf-8", mode="w", suffix=".yml", delete=False) as f:
             f.write(config_yaml)
             yaml_path = Path(f.name)
 
@@ -2393,7 +2393,7 @@ sites:
           sfr: {value: 0.3}
 """
 
-        with tempfile.NamedTemporaryFile(mode="w", suffix=".yml", delete=False) as f:
+        with tempfile.NamedTemporaryFile(encoding="utf-8", mode="w", suffix=".yml", delete=False) as f:
             f.write(config_yaml)
             yaml_path = Path(f.name)
         annotated_path = yaml_path.parent / f"{yaml_path.stem}_annotated.yml"
@@ -2403,7 +2403,7 @@ sites:
                 SUEWSConfig.from_yaml(yaml_path, auto_generate_annotated=True)
 
             assert annotated_path.exists()
-            content = annotated_path.read_text()
+            content = annotated_path.read_text(encoding="utf-8")
 
             # Should have missing parameter annotations
             assert "[ERROR] MISSING:" in content
@@ -2448,7 +2448,7 @@ sites:
           # Missing bldgh and faibldg parameters
 """
 
-        with tempfile.NamedTemporaryFile(mode="w", suffix=".yml", delete=False) as f:
+        with tempfile.NamedTemporaryFile(encoding="utf-8", mode="w", suffix=".yml", delete=False) as f:
             f.write(config_yaml)
             yaml_path = Path(f.name)
         annotated_path = yaml_path.parent / f"{yaml_path.stem}_annotated.yml"
@@ -2462,7 +2462,7 @@ sites:
                 "Annotated YAML should be generated even when load raises, "
                 "provided auto_generate_annotated=True"
             )
-            content = annotated_path.read_text()
+            content = annotated_path.read_text(encoding="utf-8")
             assert "ANNOTATED SUEWS CONFIGURATION" in content
             assert "bldgh" in content
             annotated_path.unlink()
@@ -2534,7 +2534,7 @@ sites:
           sfr: {value: 0.2}
 """
 
-    with tempfile.NamedTemporaryFile(mode="w", suffix=".yml", delete=False) as f:
+    with tempfile.NamedTemporaryFile(encoding="utf-8", mode="w", suffix=".yml", delete=False) as f:
         f.write(yaml_content)
         yaml_path = Path(f.name)
 
@@ -3131,7 +3131,7 @@ def test_nlayer_height_array_dimension_error():
     sample_data_dir = Path(sp.__file__).parent / "sample_data"
     config_path = sample_data_dir / "sample_config.yml"
 
-    with open(config_path, "r") as f:
+    with open(config_path, "r", encoding="utf-8") as f:
         user_data = yaml.safe_load(f)
 
     # Set nlayer=3 but truncate height array to 2 elements
@@ -3172,7 +3172,7 @@ def test_nlayer_veg_frac_array_dimension_error():
     sample_data_dir = Path(sp.__file__).parent / "sample_data"
     config_path = sample_data_dir / "sample_config.yml"
 
-    with open(config_path, "r") as f:
+    with open(config_path, "r", encoding="utf-8") as f:
         user_data = yaml.safe_load(f)
 
     # Set nlayer=5 but truncate veg_frac to 3 elements
@@ -3213,7 +3213,7 @@ def test_nlayer_multiple_arrays_dimension_errors():
     sample_data_dir = Path(sp.__file__).parent / "sample_data"
     config_path = sample_data_dir / "sample_config.yml"
 
-    with open(config_path, "r") as f:
+    with open(config_path, "r", encoding="utf-8") as f:
         user_data = yaml.safe_load(f)
 
     # Set nlayer=4 but truncate multiple arrays
@@ -3248,7 +3248,7 @@ def test_nlayer_no_errors_when_correct():
     sample_data_dir = Path(sp.__file__).parent / "sample_data"
     config_path = sample_data_dir / "sample_config.yml"
 
-    with open(config_path, "r") as f:
+    with open(config_path, "r", encoding="utf-8") as f:
         user_data = yaml.safe_load(f)
 
     # Detect nlayer from the config
@@ -3278,7 +3278,7 @@ def test_nlayer_roofs_walls_dimension_error_with_templates():
     sample_data_dir = Path(sp.__file__).parent / "sample_data"
     config_path = sample_data_dir / "sample_config.yml"
 
-    with open(config_path, "r") as f:
+    with open(config_path, "r", encoding="utf-8") as f:
         user_data = yaml.safe_load(f)
 
     # Set nlayer to 2 but keep only 1 roof and 1 wall element
@@ -3353,7 +3353,7 @@ def test_forcing_validation_missing_file():
         "model": {"control": {"forcing_file": {"value": "nonexistent_forcing.txt"}}}
     }
 
-    with tempfile.NamedTemporaryFile(mode="w", suffix=".yml", delete=False) as f:
+    with tempfile.NamedTemporaryFile(encoding="utf-8", mode="w", suffix=".yml", delete=False) as f:
         yaml.dump(test_config, f)
         config_path = f.name
 
@@ -3403,7 +3403,7 @@ def test_forcing_validation_valid_forcing_file():
         "wdir": [180.0] * 5,
     }
 
-    with tempfile.NamedTemporaryFile(mode="w", suffix=".txt", delete=False) as f:
+    with tempfile.NamedTemporaryFile(encoding="utf-8", mode="w", suffix=".txt", delete=False) as f:
         df = pd.DataFrame(forcing_data)
         df.to_csv(f, sep=" ", index=False)
         forcing_path = f.name
@@ -3411,7 +3411,7 @@ def test_forcing_validation_valid_forcing_file():
     # Create test config
     test_config = {"model": {"control": {"forcing_file": {"value": forcing_path}}}}
 
-    with tempfile.NamedTemporaryFile(mode="w", suffix=".yml", delete=False) as f:
+    with tempfile.NamedTemporaryFile(encoding="utf-8", mode="w", suffix=".yml", delete=False) as f:
         yaml.dump(test_config, f)
         config_path = f.name
 
@@ -3460,7 +3460,7 @@ def test_forcing_validation_invalid_ranges():
         "wdir": [180.0] * 5,
     }
 
-    with tempfile.NamedTemporaryFile(mode="w", suffix=".txt", delete=False) as f:
+    with tempfile.NamedTemporaryFile(encoding="utf-8", mode="w", suffix=".txt", delete=False) as f:
         df = pd.DataFrame(forcing_data)
         df.to_csv(f, sep=" ", index=False)
         forcing_path = f.name
@@ -3468,7 +3468,7 @@ def test_forcing_validation_invalid_ranges():
     # Create test config
     test_config = {"model": {"control": {"forcing_file": {"value": forcing_path}}}}
 
-    with tempfile.NamedTemporaryFile(mode="w", suffix=".yml", delete=False) as f:
+    with tempfile.NamedTemporaryFile(encoding="utf-8", mode="w", suffix=".yml", delete=False) as f:
         yaml.dump(test_config, f)
         config_path = f.name
 
@@ -3497,7 +3497,7 @@ def test_forcing_validation_no_forcing_file_in_config():
     # Create config without forcing_file
     test_config = {"model": {"control": {}}}
 
-    with tempfile.NamedTemporaryFile(mode="w", suffix=".yml", delete=False) as f:
+    with tempfile.NamedTemporaryFile(encoding="utf-8", mode="w", suffix=".yml", delete=False) as f:
         yaml.dump(test_config, f)
         config_path = f.name
 
@@ -3583,7 +3583,7 @@ def test_forcing_validation_can_be_disabled():
         )
 
         # Verify report does not contain forcing validation errors
-        with open(report_path, "r") as f:
+        with open(report_path, "r", encoding="utf-8") as f:
             report_content = f.read()
 
         assert "forcing data validation error" not in report_content.lower()
@@ -3629,7 +3629,7 @@ def test_forcing_validation_line_number_accuracy():
         "wdir": [180.0] * 10,
     }
 
-    with tempfile.NamedTemporaryFile(mode="w", suffix=".txt", delete=False) as f:
+    with tempfile.NamedTemporaryFile(encoding="utf-8", mode="w", suffix=".txt", delete=False) as f:
         df = pd.DataFrame(forcing_data)
         df.to_csv(f, sep=" ", index=False)
         forcing_path = f.name
@@ -3637,7 +3637,7 @@ def test_forcing_validation_line_number_accuracy():
     # Create test config
     test_config = {"model": {"control": {"forcing_file": {"value": forcing_path}}}}
 
-    with tempfile.NamedTemporaryFile(mode="w", suffix=".yml", delete=False) as f:
+    with tempfile.NamedTemporaryFile(encoding="utf-8", mode="w", suffix=".yml", delete=False) as f:
         yaml.dump(test_config, f)
         config_path = f.name
 
@@ -3699,7 +3699,7 @@ def test_forcing_validation_refvalue_format():
         "wdir": [180.0] * 3,
     }
 
-    with tempfile.NamedTemporaryFile(mode="w", suffix=".txt", delete=False) as f:
+    with tempfile.NamedTemporaryFile(encoding="utf-8", mode="w", suffix=".txt", delete=False) as f:
         df = pd.DataFrame(forcing_data)
         df.to_csv(f, sep=" ", index=False)
         forcing_path = f.name
@@ -3717,7 +3717,7 @@ def test_forcing_validation_refvalue_format():
         }
     }
 
-    with tempfile.NamedTemporaryFile(mode="w", suffix=".yml", delete=False) as f:
+    with tempfile.NamedTemporaryFile(encoding="utf-8", mode="w", suffix=".yml", delete=False) as f:
         yaml.dump(test_config, f)
         config_path = f.name
 
@@ -3767,7 +3767,7 @@ def test_forcing_validation_multiple_files():
         "wdir": [180.0] * 3,
     }
 
-    with tempfile.NamedTemporaryFile(mode="w", suffix=".txt", delete=False) as f:
+    with tempfile.NamedTemporaryFile(encoding="utf-8", mode="w", suffix=".txt", delete=False) as f:
         df1 = pd.DataFrame(forcing_data1)
         df1.to_csv(f, sep=" ", index=False)
         forcing_path1 = f.name
@@ -3776,7 +3776,7 @@ def test_forcing_validation_multiple_files():
     forcing_data2 = forcing_data1.copy()
     forcing_data2["rain"] = [-1.0, -2.0, -3.0]
 
-    with tempfile.NamedTemporaryFile(mode="w", suffix=".txt", delete=False) as f:
+    with tempfile.NamedTemporaryFile(encoding="utf-8", mode="w", suffix=".txt", delete=False) as f:
         df2 = pd.DataFrame(forcing_data2)
         df2.to_csv(f, sep=" ", index=False)
         forcing_path2 = f.name
@@ -3786,7 +3786,7 @@ def test_forcing_validation_multiple_files():
         "model": {"control": {"forcing_file": [forcing_path1, forcing_path2]}}
     }
 
-    with tempfile.NamedTemporaryFile(mode="w", suffix=".yml", delete=False) as f:
+    with tempfile.NamedTemporaryFile(encoding="utf-8", mode="w", suffix=".yml", delete=False) as f:
         yaml.dump(test_config, f)
         config_path = f.name
 
@@ -3828,7 +3828,7 @@ def test_forcing_validation_cli_integration(cli_runner):
     sample_config = sample_data_dir / "sample_config.yml"
 
     # Read sample config and get forcing file path
-    with open(sample_config, "r") as f:
+    with open(sample_config, "r", encoding="utf-8") as f:
         config_data = yaml.safe_load(f)
 
     # Create a temporary config with invalid forcing data
@@ -3875,7 +3875,7 @@ def test_forcing_validation_cli_integration(cli_runner):
         }
 
         test_config_path = tmpdir_path / "test_config.yml"
-        with open(test_config_path, "w") as f:
+        with open(test_config_path, "w", encoding="utf-8") as f:
             yaml.dump(test_config_data, f)
 
         # Test 1: Default behavior (forcing validation enabled)
@@ -3886,7 +3886,7 @@ def test_forcing_validation_cli_integration(cli_runner):
         assert len(report_files) == 1, (
             f"Expected 1 report file, found {len(report_files)}: {list(tmpdir_path.iterdir())}"
         )
-        with open(report_files[0], "r") as f:
+        with open(report_files[0], "r", encoding="utf-8") as f:
             report_content = f.read()
         assert "forcing data validation error" in report_content.lower(), (
             f"Expected forcing validation error in report, but got:\n{report_content[:500]}"
@@ -3906,7 +3906,7 @@ def test_forcing_validation_cli_integration(cli_runner):
         assert len(report_files) == 1, (
             f"Expected 1 report file, found {len(report_files)}"
         )
-        with open(report_files[0], "r") as f:
+        with open(report_files[0], "r", encoding="utf-8") as f:
             report_content = f.read()
         assert "forcing data validation error" not in report_content.lower(), (
             f"Expected no forcing validation errors when disabled, but got:\n{report_content[:500]}"
@@ -4185,7 +4185,7 @@ def test_dls_consistency_validation_in_suews_config():
     import yaml
 
     sample_path = trv_supy_module / "sample_data" / "sample_config.yml"
-    with sample_path.open() as f:
+    with sample_path.open(encoding="utf-8") as f:
         config_data = yaml.safe_load(f)
 
     # Test 1: Both None - valid
@@ -4223,7 +4223,7 @@ def test_dls_leap_year_validation_in_suews_config():
     from supy.data_model.core import SUEWSConfig
 
     sample_path = trv_supy_module / "sample_data" / "sample_config.yml"
-    with sample_path.open() as f:
+    with sample_path.open(encoding="utf-8") as f:
         config_data = yaml.safe_load(f)
 
     # Set DLS values
@@ -4250,7 +4250,7 @@ def test_dls_location_based_informational_messages_in_suews_config():
     from supy.data_model.core import SUEWSConfig
 
     sample_path = trv_supy_module / "sample_data" / "sample_config.yml"
-    with sample_path.open() as f:
+    with sample_path.open(encoding="utf-8") as f:
         config_data = yaml.safe_load(f)
 
     # Set year to 2024 (leap year) and add site name
@@ -4453,7 +4453,7 @@ sites:
           faibldg: {value: 0.3}
 """
         config_path = tmp_path / "partial_land_cover.yml"
-        config_path.write_text(config_yaml)
+        config_path.write_text(config_yaml, encoding="utf-8")
 
         with pytest.raises(ValueError) as exc_info:
             SUEWSConfig.from_yaml(str(config_path))
@@ -4536,14 +4536,14 @@ sites:
           sfr: {value: 0.0}
 """
         config_path = tmp_path / "fai_simple_scheme.yml"
-        config_path.write_text(config_yaml)
+        config_path.write_text(config_yaml, encoding="utf-8")
 
         config = SUEWSConfig.from_yaml(str(config_path))
         assert config is not None
 
         annotated_path = Path(config.generate_annotated_yaml(str(config_path)))
         try:
-            annotated = annotated_path.read_text()
+            annotated = annotated_path.read_text(encoding="utf-8")
             assert "faibldg:" not in annotated
         finally:
             annotated_path.unlink(missing_ok=True)
@@ -4626,7 +4626,7 @@ sites:
           sfr: {value: 0.0}
 """
         config_path = tmp_path / "lai_observed.yml"
-        config_path.write_text(config_yaml)
+        config_path.write_text(config_yaml, encoding="utf-8")
 
         config = SUEWSConfig.from_yaml(str(config_path))
         assert config is not None

@@ -10,17 +10,20 @@
  * Requires tokens.css, base.css and subpage.css to be loaded first.
  */
 
-/* ========== Per-flux palette mapping (the palette is the model) ========== */
+/* ========== Colour language ==========
+ * Colour encodes MAGNITUDE, never variable identity. A single accent
+ * (Sun Core orange) carries error: the more error, the more vivid the
+ * fill -- on the metric bars and the heat-map cells alike. Shade is
+ * normalised within each panel (the W m-2 panels and the K panel each
+ * keep their own scale), so a glance shows where error is large vs
+ * small. Direction of change (improvement vs regression) is the only
+ * other colour meaning -- green = better, orange = worse -- and it
+ * shares orange's "bad" pole, so the two readings stay harmonious.
+ * Variable identity is carried by the row label, not by colour. */
 :root {
-  --flux-kup: var(--sun-gold);       /* reflected shortwave  */
-  --flux-lup: var(--sun-gold-dark);  /* outgoing longwave    */
-  --flux-qn:  var(--sky-blue);       /* net all-wave         */
-  --flux-qh:  var(--energy-orange);  /* sensible heat        */
-  --flux-qe:  var(--water-blue);     /* latent heat (water)  */
   --good: var(--veg-green);
   --bad:  var(--energy-orange);
 }
-[data-theme="light"] { --flux-qn: var(--wave-blue); }
 
 /* ========== Release rail (the version dimension) ========== */
 .bm-releases {
@@ -199,15 +202,6 @@
 .bm-table td.ref { color: var(--text-muted); }     /* reference column is quieter */
 .bm-table td .n { color: var(--text-muted); }
 
-/* small swatch keyed to the flux; the name beside it carries the meaning */
-.bm-swatch {
-  display: inline-block;
-  width: 9px; height: 9px;
-  border-radius: 2px;
-  margin-right: 10px;
-  vertical-align: baseline;
-}
-
 /* delta vs reference: sign + arrow + colour (triple-encoded), not colour-only */
 .bm-delta { font-size: 0.82rem; white-space: nowrap; }
 .bm-delta .arrow { margin-right: 3px; }
@@ -261,7 +255,8 @@
   min-width: 3px;
   border-radius: 3px;
   flex-shrink: 0;
-  transition: width var(--transition-standard);
+  /* length AND shade both track the error; colour is set inline / by JS */
+  transition: width var(--transition-standard), background var(--transition-standard);
 }
 .bm-eb-mae {
   font-family: 'JetBrains Mono', monospace;
@@ -407,14 +402,128 @@
 
 /* release heat-map: same cells, five release columns */
 .bm-matrix-releases {
-  grid-template-columns: minmax(96px, auto) repeat(5, minmax(54px, 1fr));
-  max-width: 640px;
+  grid-template-columns: minmax(80px, auto) repeat(6, minmax(72px, 1fr));
+  max-width: 780px;
+}
+.bm-matrix-releases .col-h {
+  font-size: 0.6rem;
+  letter-spacing: 0.03em;
+  white-space: nowrap;
 }
 .bm-matrix-note {
   margin-top: 16px;
   font-size: 0.82rem;
   font-style: italic;
   color: var(--text-muted);
+}
+
+/* ========== Two-release compare (side-by-side spec cards) ========== */
+.bm-cmp-select {
+  width: 100%;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.85rem;
+  padding: 9px 12px;
+  background: none;
+  color: var(--text-primary);
+  border: 1px solid var(--border-light);
+  border-radius: 6px;
+  cursor: pointer;
+  transition: border-color var(--transition-standard);
+}
+.bm-cmp-select:hover,
+.bm-cmp-select:focus-visible { border-color: var(--border-medium); }
+.bm-cmp2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+  max-width: 760px;
+}
+.bm-cmp2-col { display: flex; flex-direction: column; gap: 14px; }
+.bm-cmp2-card {
+  border: 1px solid var(--border-light);
+  border-radius: 8px;
+  padding: 22px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  align-items: center;
+  text-align: center;
+}
+.bm-cmp2-ver {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 1.5rem;
+  font-weight: 500;
+  color: var(--text-primary);
+}
+.bm-cmp2-tag {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.56rem;
+  text-transform: uppercase;
+  letter-spacing: 0.18em;
+  color: var(--text-muted);
+}
+.bm-cmp2-tag.latest { color: var(--accent-label); }
+.bm-cmp2-body { display: flex; flex-direction: column; }
+.bm-cmp2-sub {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.56rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--text-muted);
+  padding: 4px 0 6px;
+  border-bottom: 1px solid var(--border-medium);
+  margin-bottom: 2px;
+}
+.bm-cmp2-body .bm-cmp2-sub ~ .bm-cmp2-sub { padding-top: 20px; }
+.bm-cmp2-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 11px 0;
+  border-bottom: 1px solid var(--border-light);
+}
+.bm-cmp2-row:last-child { border-bottom: none; }
+.bm-cmp2-label {
+  font-family: 'Crimson Pro', Georgia, serif;
+  font-size: 1.02rem;
+  color: var(--text-primary);
+}
+.bm-cmp2-label .unit {
+  font-family: 'Instrument Sans', system-ui, sans-serif;
+  font-size: 0.68rem;
+  color: var(--text-muted);
+  margin-left: 5px;
+}
+.bm-cmp2-val {
+  font-family: 'JetBrains Mono', monospace;
+  font-variant-numeric: tabular-nums;
+  font-size: 0.95rem;
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+.bm-cmp2-delta { font-size: 0.78rem; margin-left: 8px; color: var(--text-muted); }
+.bm-cmp2-delta.same { color: var(--text-muted); }
+.bm-cmp2-delta.better { color: var(--veg-green); }
+.bm-cmp2-delta.worse { color: var(--energy-orange); }
+@media (max-width: 560px) {
+  .bm-cmp2 { grid-template-columns: 1fr; gap: 18px; }
+  .bm-cmp2-label .unit { display: none; }
+}
+
+/* ========== Act break: across-releases vs single-release ========== */
+.bm-act-break {
+  margin-top: 44px;
+  padding-top: 34px;
+  border-top: 1px solid var(--border-medium);
+}
+.bm-act-eyebrow {
+  font-family: 'Crimson Pro', Georgia, serif;
+  font-size: 1.7rem;
+  font-weight: 500;
+  line-height: 1.2;
+  color: var(--text-primary);
+  margin-bottom: 12px;
 }
 
 /* ========== Release-regression chart ========== */

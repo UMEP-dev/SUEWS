@@ -180,492 +180,70 @@ The sections below summarise what users see change between schemas.
 The authoritative lineage (including release-tag to schema mapping)
 lives in :ref:`schema_version_history`.
 
-Upgrading to Schema 2026.5.dev10 (PR #1420 stacked forcing adapter follow-up)
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Upgrading to Schema 2026.5
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Schema ``2026.5.dev10`` is the current in-development shape. The YAML
-object tree is unchanged from ``2026.5.dev9``; this bump documents the
-forcing-file adapter semantics introduced by the stacked PR on top of
-the named-column forcing work.
+Schema ``2026.5`` is the YAML schema shipped with release ``2026.6.5``.
+It is the single released label collapsing the ``2026.5.dev1`` ..
+``2026.5.dev14`` development cycle: one ``(2026.4 -> 2026.5)`` handler
+applies the union of every dev-cycle delta. Upgrading from ``2026.4``
+(shipped with 2026.4.3) brings the following user-visible changes:
 
-Forcing files may still carry whitelisted extension columns, but the
-kernel-facing view remains a fixed 23-column block. When
-``laimethod=0`` uses observed LAI, the adapter now projects
-``lai_evetr``, ``lai_dectr`` and ``lai_grass`` into kernel columns
-21-23 in that vegetation order. For each vegetation class, a supplied
-``lai_<veg>`` column overrides the bulk ``lai`` column; if the
-class-specific column is absent, bulk ``lai`` is used as the fallback.
-Older forcing files that only provide bulk ``lai`` therefore continue
-to work unchanged.
+- **Fused field names to snake_case** (#1256, Category 1): for example
+  ``netradiationmethod`` -> ``net_radiation_method``, ``soildepth`` ->
+  ``soil_depth``, ``baset`` -> ``base_temperature``, ``crwmax`` ->
+  ``water_holding_capacity_max``, and 55 more across the model-physics,
+  surface, LAI, vegetation and snow blocks.
+- **ModelPhysics selector renames** (#1321): the ``_method`` /
+  ``_model`` suffixes are dropped and domain abbreviations expanded,
+  giving ``net_radiation``, ``storage_heat``, ``emissions``,
+  ``stability``, ``water_use``, ``roughness_sublayer``,
+  ``frontal_area_index`` and ``surface_conductance``.
+- **STEBBS YAML fully snake_case** (#1334, #1337, #1327): the
+  PascalCase exception is retired (124 renames across
+  ``building_archetype``, ``stebbs`` and ``snow``), and the hot-water
+  subsystem is unified under ``hot_water_*`` (the opaque ``dhw_*``
+  prefix is dropped). For example ``WallThickness`` ->
+  ``wall_thickness``, ``DHWWaterVolume`` -> ``hot_water_volume``.
+- **Naming-convention reorder** (#1392, #1394, #1452): field names are
+  reordered quantity-first
+  (``wall_external_thickness`` -> ``thickness_wall_outer``), the
+  ``archetype_*`` namespace prefix is applied to whole-archetype fields
+  (``building_name`` -> ``archetype_name``), and ``building_type`` is
+  dropped.
+- **``model.control`` restructure** (#1372, #1420):
+  ``model.control.forcing_file`` -> ``model.control.forcing.file`` and
+  ``model.control.output_file`` -> ``model.control.output`` (inner
+  ``path`` -> ``dir``; the legacy ``output_file: "name.txt"`` string
+  form is removed). Per-land-cover ``lai_<surface>`` /
+  ``wuh_<surface>`` forcing columns are now accepted.
+- **STEBBS physics nested** (#1456): the flat ``model.physics`` STEBBS
+  switches fold under ``model.physics.stebbs`` (``stebbs.enabled`` +
+  ``stebbs.parameters``; ``capacitance``, ``setpoint``,
+  ``same_albedo_*`` and ``same_emissivity_*`` move at their leaf
+  names).
+- **``frontal_area_index`` selector** (#1495): reduced to ``observed``
+  / ``modelled``; the ``provided``, ``use_provided`` and
+  ``simple_scheme`` aliases are retired.
 
-For ``laimethod=0``, observed LAI is no longer clipped to the
-configuration's ``LAImin`` / ``LAImax`` envelope. Non-missing,
-non-negative observations, including genuine zero values, pass through
-to ``DailyState``.
-
-Per-surface water-use columns such as ``wuh_paved`` and
-``wuh_grass`` remain accepted extension metadata. They are preserved
-on ``SUEWSForcing.extras`` / ``ForcingData.extras`` for downstream
-work, but they do not change current Fortran water-use calculations:
-bulk ``Wuh`` is still the only water-use forcing consumed by the
-kernel.
-
-The ``2026.5.dev9 -> 2026.5.dev10`` migration is an identity stamp. Run
-the migrator only to refresh the top-level ``schema_version`` field:
-
-.. code-block:: bash
-
-   suews schema migrate your_config.yml --target-version 2026.5.dev10
-
-For legacy table-to-YAML conversion plus schema stamping, use:
-
-.. code-block:: bash
-
-   suews-convert --to 2026.5.dev10 in.yml out.yml
-
-Upgrading to Schema 2026.5.dev9 (gh#1372 cumulative model.control restructure)
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-Schema ``2026.5.dev9`` bundles
-the gh#1372 forcing- and output-config restructures into a single dev
-bump, per the dev-label convention
-(``.claude/rules/python/schema-versioning.md``): rather than
-re-using already-published dev labels, the cumulative delta lands on a
-fresh dev9 with one migration handler.
-
-Two YAML changes ship together; the migrator
-(``suews schema migrate your_config.yml --target-version 2026.5.dev9``)
-applies forcing-restructure first, then output-restructure, so the
-audit log reads in the order users will recognise from the gh#1372
-work.
-
-(a) **Forcing restructure**: ``model.control.forcing_file`` moves
-under a new ``forcing`` sub-object.
-
-.. code-block:: yaml
-   :caption: Before (dev6 / dev7 / dev8)
-
-   model:
-     control:
-       forcing_file: forcing.txt
-
-.. code-block:: yaml
-   :caption: After (dev9)
-
-   model:
-     control:
-       forcing:
-         file: forcing.txt
-
-The forcing-file reader also switches from positional to **named-column**
-matching: column names in the forcing file header are now read and
-used to match canonical variable names. Files whose headers already
-use the canonical names (the standard SUEWS distribution shape)
-continue to work unchanged. Files with custom or mis-typed headers
-(for example ``temperature`` instead of ``Tair``) will now raise
-``ValueError`` at load time citing the expected canonical name. See
-:ref:`named_column_forcing` for the full canonical name list and
-per-landcover whitelist.
-
-(b) **Output restructure**: ``model.control.output_file:`` becomes
-the sibling ``model.control.output:`` block, mirroring the
-``forcing:`` restructure. The inner ``path:`` field is renamed to
-``dir:`` (clarifies it as a directory).
-
-.. code-block:: yaml
-   :caption: Before (dev6 / dev7 / dev8)
-
-   model:
-     control:
-       output_file:
-         format: parquet
-         freq: 3600
-         path: ./out
-
-.. code-block:: yaml
-   :caption: After (dev9)
-
-   model:
-     control:
-       output:
-         format: parquet
-         freq: 3600
-         dir: ./out
-
-The legacy string form ``output_file: "name.txt"`` was already
-silently ignored from 2025.10.15 and is now dropped outright by the
-migrator. The Pydantic ``ModelControl`` class retains a deprecated
-``output_file`` ``@property`` alias (with ``DeprecationWarning``,
-scheduled for removal in 2026.6) so external Python consumers (UMEP
-postprocessor, etc.) keep reading
-``config.model.control.output_file.dir`` until they migrate.
-
-Run ``suews-convert --to 2026.5.dev9 in.yml out.yml`` to rewrite an
-older YAML; the in-memory ``_coerce_legacy_output_file`` validator
-also accepts the legacy shape at load time and emits a
-``DeprecationWarning`` pointing at the new key.
-
-Upgrading to Schema 2026.5.dev8 (PR#1395 registry refresh - identity)
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-Identity migration. The canonical rename registries refresh to point
-directly at the dev7 final ArchetypeProperties names; the YAML
-surface itself is unchanged from ``2026.5.dev7``. No user action is
-required to reach dev8 from dev7. Users at dev6 or earlier should
-target ``2026.5.dev9`` directly via
-``suews schema migrate ... --target-version 2026.5.dev9``.
-
-Upgrading to Schema 2026.5.dev7 (naming convention Rule 2 reorder for ArchetypeProperties)
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-44 ``ArchetypeProperties`` field names under
-``sites[].properties.building_archetype.*`` have been reordered to
-follow Rule 2 of the SUEWS naming convention
-(``.claude/rules/naming-convention.md``): physical quantity leads,
-then component, then sub-class.
-
-The rename covers wall, roof, window, ground_floor, and internal_mass
-bulk-material and surface optical properties. Three orthogonal moves
-are embedded in the rename, applied per field as appropriate:
-
-- **Reorder so the physical quantity leads** - ``thickness``,
-  ``density``, ``conductivity``, ``specific_heat_capacity``,
-  ``emissivity``, ``transmissivity``, ``absorptivity``,
-  ``reflectivity``. For example
-  ``wall_external_thickness`` -> ``thickness_wall_outer``,
-  ``wall_external_emissivity`` -> ``emissivity_wall_external``.
-- **Layer-to-insulation qualifier renamed external -> outer**. The
-  convention's "Specific tokens" rule reserves ``outer/inner`` for
-  the bulk-material layer and ``external/internal`` for the radiative
-  surface. So ``wall_external_thickness`` becomes
-  ``thickness_wall_outer`` (bulk layer); ``wall_external_emissivity``
-  stays ``emissivity_wall_external`` (radiative surface).
-- **The effective_ qualifier dropped on the conductivity rows**
-  (``wall_effective_conductivity`` -> ``conductivity_wall``). It was
-  used inconsistently - the sibling ``density`` and
-  ``specific_heat_capacity`` rows did not carry it.
-
-Wall and roof heat-capacity distribution rows take the
-``fraction_*`` non-physical category prefix per Rule 2:
-``wall_outer_heat_capacity_fraction`` ->
-``fraction_wall_heat_capacity_outer``.
-
-Run the migrator to bring an existing YAML onto the new shape (or
-target ``2026.5.dev9`` directly to also pick up the gh#1372
-restructure):
+Run the migrator to bring an existing YAML onto the new shape:
 
 .. code-block:: bash
 
-   suews schema migrate your_config.yml --target-version 2026.5.dev9
+   suews schema migrate your_config.yml --target-version 2026.5
 
-Every rename is logged via ``[yaml-upgrade]   renamed 'old' ->
-'new'`` so the user can verify each substitution. The Pydantic
-backward-compat shim still accepts the pre-dev7 names at load time,
-emitting a ``DeprecationWarning``; YAMLs that round-trip through the
-migrator come out in the new spellings and no longer warn.
+For a combined legacy-table-plus-schema upgrade, use ``suews-convert``,
+which runs the table conversion first and then walks the schema chain
+to the same shape.
 
-Cross-layer (Fortran TYPE members, Rust struct fields, DataFrame
-column keys) is unchanged - the bridge map composes through the
-chained ``ARCHETYPEPROPERTIES_DEV7_TO_PASCAL`` lookup so the legacy
-fused column key (``wallextthickness``, etc.) is still produced from
-the new Pydantic field name.
-
-Upgrading to Schema 2026.5.dev6 (gh#1333 site-level completeness validator)
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-Schema ``2026.5.dev6`` is an intermediate dev label (the current
-in-development shape is ``2026.5.dev9``; see the sections above). The
-YAML shape at dev6 is byte-for-byte identical to ``2026.5.dev5`` —
-this is a pure validator-contract tightening, not a structural
-rename.
-
-Previously, declaring a vegetated or building surface with
-``sfr > 0`` but omitting the physics-required completion fields
-produced a WARNING summary at load time, then silently ran to
-all-NaN output on x86_64. From ``2026.5.dev6`` onwards,
-:py:meth:`SUEWSConfig.from_yaml` raises ``ValueError`` instead, naming
-every missing field. Affected blocks:
-
-- **Phenology** (``lai_max``, ``base_temperature``,
-  ``base_temperature_senescence``, ``gdd_full``, ``sdd_full``) on any
-  active vegetated surface (``dectr`` / ``evetr`` / ``grass`` with
-  ``sfr > 0``).
-- **Conductance** (all eleven ``g_max`` / ``g_k`` / ``g_q_base`` /
-  ``g_q_shape`` / ``g_t`` / ``g_sm`` / ``kmax`` / ``s1`` / ``s2`` /
-  ``tl`` / ``th`` fields) whenever any vegetated surface is active,
-  for both ``GSModel.JARVI`` and ``GSModel.WARD``.
-- **Building morphology** (``bldgh``, ``faibldg``) when
-  ``bldgs.sfr > 0``.
-- **Tree morphology** (``height_evergreen_tree`` / ``fai_evergreen_tree``
-  when ``evetr.sfr > 0``; ``height_deciduous_tree`` /
-  ``fai_deciduous_tree`` when ``dectr.sfr > 0``).
-
-Trigger conditions: the check fires only when the configuration is
-loaded from a YAML file via :py:meth:`SUEWSConfig.from_yaml` and the
-user explicitly declared the surface as a mapping in the raw YAML.
-Surfaces that pydantic materialised from ``default_factory`` because
-the user omitted them are skipped, so programmatic
-``SUEWSConfig(sites=[Site(...)])`` constructions and sparse test /
-docs YAMLs that only exercise unrelated aspects (timezone, output
-configuration, ...) remain permissive.
-
-Because the YAML shape is unchanged, no ``suews schema migrate`` run
-is strictly required to move to ``2026.5.dev6``. Run the migrator
-only to refresh the ``schema_version`` stamp if you pin the field:
-
-.. code-block:: bash
-
-   suews schema migrate your_config.yml --target-version 2026.5.dev6
-
-Users hitting the new raise should either (a) fill in the missing
-fields the error message names, or (b) remove the offending surface
-declaration entirely (``sfr: 0``, or drop the block) if the
-simulation was never meant to include that cover type.
-
-Upgrading to Schema 2026.5.dev5 (gh#972 nested physics family tags)
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-Schema ``2026.5.dev5`` widens acceptance for three
-``model.physics`` fields: ``net_radiation``, ``storage_heat``, and
-``emissions``. Users may now provide a family-tagged nested form such
-as ``net_radiation: {spartacus: {value: 1001}}`` alongside the
-existing flat ``{value: 1001}`` form. Family tag is validated against
-its numeric codes at load time; canonical internal shape remains flat,
-and YAML dump / migration continue to emit the flat form unchanged.
-
-Because the change is accept-only, the ``2026.5.dev4 ->
-2026.5.dev5`` migration is an identity pass. Run:
-
-.. code-block:: bash
-
-   suews schema migrate your_config.yml --target-version 2026.5.dev5
-
-Upgrading to Schema 2026.5.dev4 (gh#1334 follow-through via PR #1337: STEBBS hot-water prefix unification)
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-Schema ``2026.5.dev4`` unifies the STEBBS hot-water subsystem under
-a single ``hot_water_*`` prefix, dropping the opaque ``dhw_``
-acronym and the redundant ``water_tank_*`` sibling that survived
-the gh#1334 PascalCase sweep at dev3. Tank vs vessel physical
-separation is preserved through ``_tank_`` and ``_vessel_``
-component qualifiers; only the prefix becomes consistent.
-
-- ``ArchetypeProperties`` (1 rename) — ``water_tank_water_volume``
-  -> ``hot_water_tank_volume`` (drops redundant trailing
-  ``water``).
-- ``StebbsProperties`` (13 renames) —
-  ``water_tank_wall_thickness`` -> ``hot_water_tank_wall_thickness``,
-  ``water_tank_surface_area`` -> ``hot_water_tank_surface_area``,
-  ``dhw_water_volume`` -> ``hot_water_volume``,
-  ``dhw_surface_area`` -> ``hot_water_surface_area``,
-  ``dhw_specific_heat_capacity`` ->
-  ``hot_water_specific_heat_capacity``,
-  ``dhw_density`` -> ``hot_water_density``, plus the seven
-  ``dhw_vessel_*`` -> ``hot_water_vessel_*`` renames
-  (``wall_thickness``, ``specific_heat_capacity``, ``density``,
-  ``wall_conductivity``, ``internal_wall_convection_coefficient``,
-  ``external_wall_convection_coefficient``, ``wall_emissivity``).
-
-Legacy ``dhw_*`` and ``water_tank_*`` spellings continue to load
-via the Pydantic shim with a ``DeprecationWarning``. Run
-``suews schema migrate --target-version 2026.5.dev4 <your.yml>``
-to rewrite them in place. Rust struct fields and the c_api shadow
-keep ``dhw_*`` internally — cross-layer work is tracked in #1324.
-
-Upgrading to Schema 2026.5.dev3 (gh#1334: STEBBS + Snow user-facing YAML to snake_case)
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-Schema ``2026.5.dev3`` retires the pre-gh#1334 STEBBS PascalCase
-exception on the user-facing YAML surface — the full
-``site.properties.stebbs``, ``site.properties.building_archetype``
-and ``site.properties.snow`` sub-trees now follow the same
-``snake_case`` convention as the rest of the config. 124 renames in
-one schema bump:
-
-- ``ArchetypeProperties`` (62 renames) — ``BuildingType`` ->
-  ``building_type``, ``stebbs_Height`` -> ``building_height``,
-  ``WWR`` -> ``window_to_wall_ratio``, ``WallThickness`` ->
-  ``wall_thickness``, ``WallCp`` -> ``wall_specific_heat_capacity``,
-  ``WallOuterCapFrac`` -> ``wall_outer_heat_capacity_fraction``,
-  ``WallAbsorbtivity`` -> ``wall_absorptivity`` (spelling fix),
-  ``FloorThickness`` -> ``ground_floor_thickness`` (aligned with
-  ``GroundFloor*`` siblings), ``WaterTankWaterVolume`` ->
-  ``water_tank_water_volume``, and so on for every wall/roof/window/
-  floor/internal-mass/setpoint/profile field.
-- ``StebbsProperties`` (50 renames) —
-  ``WallInternalConvectionCoefficient`` ->
-  ``wall_internal_convection_coefficient``, ``CoolingSystemCOP`` ->
-  ``cooling_system_cop``,
-  ``MonthMeanAirTemperature_diffmax`` ->
-  ``month_mean_air_temperature_diffmax``. The ``DHW*`` family becomes
-  ``dhw_*`` (``DHWWaterVolume`` -> ``dhw_water_volume``,
-  ``DHWVesselWallEmissivity`` -> ``dhw_vessel_wall_emissivity``); the
-  parallel ``HotWater*`` family becomes ``hot_water_*``
-  (``HotWaterTankWallDensity`` -> ``hot_water_tank_wall_density``).
-  The two prefixes are kept distinct at the snake_case layer to
-  mirror the Rust bridge structs in
-  ``src/suews_bridge/src/stebbs_prm.rs``; unifying them is tracked
-  as Tier B work under #1324.
-- ``SnowParams`` (11 renames — clarity clean-ups on existing
-  snake_case) — ``precip_limit`` ->
-  ``temperature_rain_snow_threshold`` (semantic fix: the value is a
-  temperature, unit ``degC``, despite the pre-gh#1334 name);
-  ``tau_a``/``tau_f``/``tau_r`` ->
-  ``tau_cold_snow``/``tau_melting_snow``/``tau_refreezing_snow``;
-  ``snow_limit_building``/``_paved`` -> ``snow_depth_limit_*``;
-  ``snowprof_24hr`` -> ``snow_profile_24hr``; ``narp_emis_snow`` ->
-  ``narp_emissivity_snow``; ``temp_melt_factor`` ->
-  ``temperature_melt_factor``; ``rad_melt_factor`` ->
-  ``radiation_melt_factor``.
-
-Fortran TYPE members and Rust struct fields are **not** affected —
-those live in the Tier B/C/D cascade tracked in #1324/#1325/#1326.
-DataFrame column names also stay in their legacy spellings, preserved
-via ``_ARCHETYPE_LEGACY_COL_NAMES`` / ``_STEBBS_LEGACY_COL_NAMES``
-ClassVars on the respective Pydantic models, so the Fortran bridge
-keeps working without changes.
-
-The rename tables live in
-``src/supy/data_model/core/field_renames.py``
-(``ARCHETYPEPROPERTIES_RENAMES``, ``ARCHETYPEPROPERTIES_PASCAL_RENAMES``,
-``STEBBSPROPERTIES_RENAMES``, ``SNOWPARAMS_RENAMES``, and
-``SNOWPARAMS_INTERMEDIATE_RENAMES``). Both legacy shapes (PascalCase
-from Schema 2026.5.dev2 and the pre-gh#1327 fused ``Wallext``/``Roofext``
-cluster) continue to load under a ``DeprecationWarning``. Run:
-
-.. code-block:: bash
-
-   suews schema migrate your_config.yml --target-version 2026.5.dev3
-
-Use this historical target when you specifically want the pre-hot-water
-unification ``2026.5.dev3`` spellings. To land on the current schema
-instead, omit ``--target-version`` or point it at ``2026.5.dev9``.
-
-Upgrading to Schema 2026.5.dev2 (Categories 2+3 of #1256: suffix drop, abbreviation expansion)
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-Schema ``2026.5.dev2`` applies
-Categories 2 and 3 of #1256 (gh#1321) to ``model.physics``: 15 fields
-strip the redundant ``_method`` / ``_model`` suffix (the enum type
-itself already carries "method") and expand opaque domain
-abbreviations (``SMD``, ``RSL``, ``FAI``, ``RC``, ``GS``) into
-self-documenting names:
-
-- ``net_radiation_method`` -> ``net_radiation``
-- ``emissions_method`` -> ``emissions``
-- ``storage_heat_method`` -> ``storage_heat``
-- ``roughness_length_momentum_method`` -> ``roughness_length_momentum``
-- ``roughness_length_heat_method`` -> ``roughness_length_heat``
-- ``stability_method`` -> ``stability``
-- ``water_use_method`` -> ``water_use``
-- ``stebbs_method`` -> ``stebbs``
-- ``setpointmethod`` -> ``setpoint`` (fused leftover from Category 1)
-- ``smd_method`` -> ``soil_moisture_deficit``
-- ``rsl_method`` -> ``roughness_sublayer``
-- ``rsl_level`` -> ``roughness_sublayer_level``
-- ``fai_method`` -> ``frontal_area_index``
-- ``rc_method`` -> ``outer_cap_fraction``
-- ``gs_model`` -> ``surface_conductance``
-
-Enum types (``NetRadiationMethod``, ``SMDMethod`` etc.) are unchanged;
-only the YAML key and Pydantic attribute move. DataFrame column names
-stay in their legacy fused spellings for the Fortran bridge.
-
-The full mapping lives in
-``src/supy/data_model/core/field_renames.py``
-(``MODELPHYSICS_RENAMES`` folds fused legacy directly to the final,
-``MODELPHYSICS_SUFFIX_RENAMES`` catches the Category 1 intermediate
-spellings from Schema 2026.5). Both legacy shapes continue to load
-under a ``DeprecationWarning``. Run:
-
-.. code-block:: bash
-
-   suews schema migrate your_config.yml --target-version 2026.5.dev2
-
-The migrator accepts any registered intermediate (``2025.12``,
-``2026.1``, ``2026.4``, ``2026.5``, ``2026.5.dev1``) and walks the
-chain to the current schema in one call. Your values survive the
-rename untouched.
-
-Upgrading to Schema 2026.5.dev1 (Category 5 of #1256: STEBBS `ext` split)
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-Schema ``2026.5.dev1`` is the current in-development shape. It
-applies Category 5 of #1256 (gh#1327): eight STEBBS
-``ArchetypeProperties`` fields with the fused ``ext`` fragment are
-rewritten to the spelt-out ``External`` form, bringing them into
-line with sibling ``WallExternalEmissivity`` /
-``RoofExternalEmissivity``:
-
-- ``WallextThickness`` -> ``WallExternalThickness``
-- ``WallextEffectiveConductivity`` ->
-  ``WallExternalEffectiveConductivity``
-- ``WallextDensity`` -> ``WallExternalDensity``
-- ``WallextCp`` -> ``WallExternalCp``
-- ``RoofextThickness`` -> ``RoofExternalThickness``
-- ``RoofextEffectiveConductivity`` ->
-  ``RoofExternalEffectiveConductivity``
-- ``RoofextDensity`` -> ``RoofExternalDensity``
-- ``RoofextCp`` -> ``RoofExternalCp``
-
-STEBBS PascalCase itself is kept (it matches the Fortran-side STEBBS
-interface); the Fortran-side identifiers are unchanged and the
-Python-to-Fortran bridge reverses the rename before handoff.
-
-The full mapping lives in
-``src/supy/data_model/core/field_renames.py``. Legacy spellings
-continue to load under a ``DeprecationWarning`` so existing YAMLs
-are not broken, but new configurations should use the new names and
-persisted YAMLs should be migrated. Run:
-
-.. code-block:: bash
-
-   suews schema migrate your_config.yml --target-version 2026.5.dev1
-
-The migrator accepts any registered intermediate (for example
-``2025.12``, ``2026.1``, ``2026.4`` or ``2026.5``) and walks the
-chain to the current schema in one call. Your values survive the
-rename untouched — only the key names change.
-
-.. note::
-
-   ``2026.5.dev1`` is a PEP 440 pre-release label used during the
-   2026.5 development cycle. The release PR will collapse this label
-   (and any further ``.devN`` increments) into a single ``2026.5``
-   entry; at that point ``--target-version 2026.5`` becomes the
-   canonical invocation for this migration.
-
-Upgrading to Schema 2026.5 (Category 1 of #1256: snake_case sweep)
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-Schema ``2026.5`` is the Category 1 base on top of which the
-``.devN`` dev cycle builds. It applies Category 1 of #1256: 59
-fused compound field names in
-``ModelPhysics``, ``SurfaceProperties``, ``LAIParams``,
-``VegetatedSurfaceProperties``, ``EvetrProperties``,
-``DectrProperties``, and ``SnowParams`` are rewritten to
-``snake_case``. Examples:
-
-- ``netradiationmethod`` -> ``net_radiation_method``
-- ``storageheatmethod`` -> ``storage_heat_method``
-- ``soildepth`` -> ``soil_depth``
-- ``soilstorecap`` -> ``soil_store_capacity``
-- ``baset`` -> ``base_temperature``
-- ``crwmax`` -> ``water_holding_capacity_max``
-- ``laimin`` / ``laimax`` -> ``lai_min`` / ``lai_max``
-
-Callers pinning ``--target-version 2026.5`` stop here; the default
-``--target-version 2026.6`` picks up the STEBBS ``ext`` rename on
-top.
-
-.. note::
-
-   The standalone Rust CLI (``suews run config.yml``) accepts both the
-   new ``snake_case`` spellings and the legacy fused spellings
-   transparently (gh#1322). You do not need to run ``suews schema
-   migrate`` purely to use the CLI — migration is only required when
-   persisting a canonical 2026.5-shaped YAML, for example alongside a
-   release fixture or before sharing a config with collaborators.
+The handler logs every field rename and drop via
+``[yaml-upgrade]   renamed 'old' -> 'new'`` (and a human-readable
+reason on each drop), so you can audit and reconstruct intent. Legacy
+spellings continue to load through the Pydantic backward-compat shims
+under a ``DeprecationWarning``; YAMLs that round-trip through the
+migrator come out in the new spellings and no longer warn. Bridge
+DataFrame / Fortran column names are unchanged, so there is **no
+model-output change** versus ``2026.4.3``.
 
 Upgrading to Schema 2026.4 (SUEWS 2026.4.3)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -778,7 +356,9 @@ alongside the existing flat ``{value: N}`` shape:
 - ``net_radiation`` — families ``forcing``, ``narp``, ``spartacus``.
 - ``storage_heat`` — families ``observed``, ``ohm``, ``anohm``,
   ``estm``, ``ehc``, ``dyohm``, ``stebbs``.
-- ``emissions`` — families ``observed``, ``simple``.
+- ``emissions`` — families ``observed``, ``simple``,
+  ``biogenic_rectangular``, ``biogenic_bellucco_local``,
+  ``biogenic_bellucco_general``, ``biogenic_conductance``.
 
 Family-tagged form:
 
@@ -814,7 +394,50 @@ emitted in the flat form.
 
 The Rust CLI (``suews run``) accepts the same two shapes via the
 bridge-side normaliser in ``src/suews_bridge/src/field_renames.rs``.
-Orthogonal-axis decomposition (``net_radiation: {scheme: narp,
-ldown: air}``) and human-readable code names (``ohm``, ``K09``,
-``CN98``) are planned as follow-up work and will track under a
-separate issue once this plumbing is proven.
+
+``net_radiation`` also accepts an orthogonal decomposition of the
+same numeric codes:
+
+.. code-block:: yaml
+
+   model:
+     physics:
+       net_radiation:
+         scheme: narp
+         ldown: air
+
+This is equivalent to ``net_radiation: {value: 3}``. Supported
+schemes are ``forcing`` (no ``ldown`` or ``variant``), ``narp``
+(``ldown`` of ``observed``, ``cloud``, or ``air``; optional
+``variant`` of ``standard``, ``surface``, or ``zenith``), and
+``spartacus`` (``ldown`` of ``observed``, ``cloud``, or ``air``).
+As with the family-tagged form, the orthogonal form is accept-only:
+round-tripping emits the flat numeric form. Human-readable method
+aliases beyond this explicit decomposition remain out of scope.
+
+``emissions`` also accepts an orthogonal decomposition of the heat/QF
+and CO2 axes:
+
+.. code-block:: yaml
+
+   model:
+     physics:
+       emissions:
+         heat: j11
+         co2:
+           anthropogenic: detailed
+           biogenic: conductance
+
+This is equivalent to ``emissions: {value: 45}``. Supported ``heat``
+values are ``observed``, ``l11``, ``j11``, and ``l11_updated``.
+When omitted, ``co2`` defaults to no CO2 calculation, so ``heat:
+j11`` is equivalent to ``emissions: {value: 2}``. Supported
+``co2.anthropogenic`` values are ``qf_linked`` and ``detailed``;
+supported ``co2.biogenic`` values are ``rectangular``,
+``bellucco_local``, ``bellucco_general``, and ``conductance``.
+The legacy Fortran code represents anthropogenic and biogenic CO2
+together in the ``11-16`` / ``21-26`` / ``31-36`` / ``41-46``
+families, so the orthogonal form rejects unsupported "CO2-only"
+combinations rather than assigning misleading semantics. Non-biogenic
+flat codes ``4-6`` remain accepted as legacy detailed-heat settings,
+but their CO2 fluxes are discarded by the driver.

@@ -56,6 +56,9 @@ __all__ = [
     "SUEWSOutput",
     # Exceptions
     "SUEWSKernelError",
+    # Logging (opt-in file logging)
+    "enable_file_logging",
+    "disable_file_logging",
     # Version
     "show_version",
     "__version__",
@@ -188,6 +191,14 @@ def __getattr__(name):
             return _lazy_cache[name]
         except ImportError:
             return None
+
+    # Opt-in file logging controls (lightweight: only touches `_env`)
+    if name in {"enable_file_logging", "disable_file_logging"}:
+        from ._env import disable_file_logging, enable_file_logging
+
+        _lazy_cache["enable_file_logging"] = enable_file_logging
+        _lazy_cache["disable_file_logging"] = disable_file_logging
+        return _lazy_cache[name]
 
     # Version info
     if name == "show_version":

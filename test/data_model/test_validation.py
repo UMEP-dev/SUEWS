@@ -70,10 +70,36 @@ def registry():
 # then inject the desired physics settings.
 def make_cfg(**physics_kwargs):
     cfg = SUEWSConfig.model_construct()  # bypass validation
-    # physics values wrapped in a simple .value holder
-    phys = SimpleNamespace(**{
-        k: SimpleNamespace(value=v) for k, v in physics_kwargs.items()
-    })
+    # gh#1456: the STEBBS-scoped switches moved under a nested
+    # `model.physics.stebbs` object. The legacy `stebbs` master toggle is
+    # split into `enabled` + `parameters`; the other switches keep their
+    # leaf names (outer_cap_fraction -> capacitance). Tests pass the legacy
+    # flat kwargs; this helper folds them into the nested SimpleNamespace
+    # shape the validators now read.
+    _stebbs_leaf = {
+        "outer_cap_fraction": "capacitance",
+        "capacitance": "capacitance",
+        "setpoint": "setpoint",
+        "same_albedo_wall": "same_albedo_wall",
+        "same_albedo_roof": "same_albedo_roof",
+        "same_emissivity_wall": "same_emissivity_wall",
+        "same_emissivity_roof": "same_emissivity_roof",
+    }
+    top_kwargs = {}
+    stebbs_members = {}
+    for key, value in physics_kwargs.items():
+        if key == "stebbs":
+            # Decompose the legacy tri-state master toggle.
+            code = int(value)
+            stebbs_members["enabled"] = SimpleNamespace(value=(code != 0))
+            stebbs_members["parameters"] = SimpleNamespace(value=(2 if code == 2 else 1))
+        elif key in _stebbs_leaf:
+            stebbs_members[_stebbs_leaf[key]] = SimpleNamespace(value=value)
+        else:
+            top_kwargs[key] = SimpleNamespace(value=value)
+    phys = SimpleNamespace(**top_kwargs)
+    if stebbs_members:
+        phys.stebbs = SimpleNamespace(**stebbs_members)
     cfg.model = SimpleNamespace(physics=phys)
     return cfg
 
@@ -741,16 +767,69 @@ def test_needs_same_emissivity_wall_validation_true_and_false():
     cfg2 = make_cfg(same_emissivity_wall=0)
     assert cfg2._needs_same_emissivity_wall_validation() is False
 
+def test_phase_b_stebbs_rules_fire_with_nested_enabled_form(registry):
+    """gh#1456: the STEBBS phase-B rules must fire when STEBBS is enabled via the nested form.
+
+    Before the fix these rules read ``get_value_safe(physics, "stebbs")`` which
+    returned the nested dict (never ``== 1``), so the archetype radiation
+    sum-to-1 ERROR check and the setpoint scalar/profile ERROR checks were
+    silently disabled for every new-form config. This test pins them firing.
+    """
+    nested_enabled = {
+        "enabled": {"value": True},
+        "parameters": {"value": 1},
+        "setpoint": {"value": 0},
+    }
+    # archetype radiation properties that violate the sum-to-1 rule.
+    yaml_data = {
+        "model": {"physics": {"stebbs": copy.deepcopy(nested_enabled)}},
+        "sites": [
+            {
+                "name": "site1",
+                "gridiv": 1,
+                "properties": {
+                    "building_archetype": {
+                        "wall_reflectivity": {"value": 0.5},
+                        "wall_absorptivity": {"value": 0.5},
+                        "wall_transmissivity": {"value": 0.5},
+                        # setpointmethod==0 -> scalar setpoints required and missing
+                    },
+                },
+            }
+        ],
+    }
+
+    # archetype_properties: sum-to-1 ERROR must fire.
+    arche = registry["archetype_properties"](ValidationContext(yaml_data=yaml_data))
+    assert any(r.status == "ERROR" for r in arche), (
+        "archetype radiation sum-to-1 ERROR should fire when STEBBS enabled (nested form)"
+    )
+
+    # setpoint: scalar heating/cooling setpoints required (method 0) and missing.
+    setp = registry["setpoint"](ValidationContext(yaml_data=yaml_data))
+    setp_params = {r.parameter for r in setp if r.status == "ERROR"}
+    # dev12 Column D names (gh#1452): setpoint_temperature_{heating,cooling}_air.
+    assert "setpoint_temperature_heating_air" in setp_params
+    assert "setpoint_temperature_cooling_air" in setp_params
+
+    # When STEBBS is disabled (composes to 0), none of these rules fire.
+    yaml_disabled = copy.deepcopy(yaml_data)
+    yaml_disabled["model"]["physics"]["stebbs"]["enabled"] = {"value": False}
+    assert registry["archetype_properties"](ValidationContext(yaml_data=yaml_disabled)) == []
+    assert registry["setpoint"](ValidationContext(yaml_data=yaml_disabled)) == []
+
+
 def test_phase_b_validate_model_option_same_albedo_disabled(registry):
     """Test validate_model_option_same_albedo returns WARNING when option is disabled (==0)."""
 
+    # gh#1456: the same_albedo switches now live under model.physics.stebbs.*.
     yaml_data_wall = {
         "model": {
             "physics": {
-                "same_albedo_wall": {"value": 0}
+                "stebbs": {"same_albedo_wall": {"value": 0}}
             }
         },
-        "sites": [{"name": "site1", "properties": {}}],  
+        "sites": [{"name": "site1", "properties": {}}],
     }
 
     results_wall = registry["same_albedo"](ValidationContext(yaml_data=yaml_data_wall))
@@ -762,10 +841,10 @@ def test_phase_b_validate_model_option_same_albedo_disabled(registry):
     yaml_data_roof = {
         "model": {
             "physics": {
-                "same_albedo_roof": {"value": 0}
+                "stebbs": {"same_albedo_roof": {"value": 0}}
             }
         },
-        "sites": [{"name": "site1", "properties": {}}],  
+        "sites": [{"name": "site1", "properties": {}}],
     }
     results_roof = registry["same_albedo"](ValidationContext(yaml_data=yaml_data_roof))
     assert len(results_roof) == 1
@@ -776,13 +855,14 @@ def test_phase_b_validate_model_option_same_albedo_disabled(registry):
 def test_phase_b_validate_model_option_same_emissivity_disabled(registry):
     """Test validate_model_option_same_emissivity returns WARNING when option is disabled (==0)."""
 
+    # gh#1456: the same_emissivity switches now live under model.physics.stebbs.*.
     yaml_data_wall = {
         "model": {
             "physics": {
-                "same_emissivity_wall": {"value": 0}
+                "stebbs": {"same_emissivity_wall": {"value": 0}}
             }
         },
-        "sites": [{"name": "site1", "properties": {}}],  
+        "sites": [{"name": "site1", "properties": {}}],
     }
     results_wall = registry["same_emissivity"](ValidationContext(yaml_data=yaml_data_wall))
     assert len(results_wall) == 1
@@ -792,10 +872,10 @@ def test_phase_b_validate_model_option_same_emissivity_disabled(registry):
     yaml_data_roof = {
         "model": {
             "physics": {
-                "same_emissivity_roof": {"value": 0}
+                "stebbs": {"same_emissivity_roof": {"value": 0}}
             }
         },
-        "sites": [{"name": "site1", "properties": {}}],  
+        "sites": [{"name": "site1", "properties": {}}],
     }
     results_roof = registry["same_emissivity"](ValidationContext(yaml_data=yaml_data_roof))
     assert len(results_roof) == 1
@@ -828,7 +908,7 @@ def test_phase_b_forcing_height_error_and_warning(registry):
                     "land_cover": {
                         "bldgs": {"bldgh": {"value": 6.0}, "sfr": {"value": 0.4}},
                     },
-                    "building_archetype": {"building_height": {"value": 8.0}},
+                    "building_archetype": {"archetype_height": {"value": 8.0}},
                     "vertical_layers": {"height": {"value": [0, 5, 12, 0]}},
                 },
             }
@@ -868,7 +948,7 @@ def test_phase_b_forcing_height_valid(registry):
                     "land_cover": {
                         "bldgs": {"bldgh": {"value": 10.0}, "sfr": {"value": 0.3}},
                     },
-                    "building_archetype": {"building_height": {"value": 12.0}},
+                    "building_archetype": {"archetype_height": {"value": 12.0}},
                     "vertical_layers": {"height": {"value": [0, 5, 12, 15]}},
                 },
             }
@@ -879,7 +959,7 @@ def test_phase_b_forcing_height_valid(registry):
     assert not results
 
 def test_phase_b_forcing_height_only_stebbs_height(registry):
-    """Test validate_forcing_height_vs_buildings uses building_height if present."""
+    """Test validate_forcing_height_vs_buildings uses archetype_height if present."""
     yaml_data = {
         "model": {
             "physics": {
@@ -895,7 +975,7 @@ def test_phase_b_forcing_height_only_stebbs_height(registry):
                     "land_cover": {
                         "bldgs": {"bldgh": {"value": 7.0}, "sfr": {"value": 0.4}},
                     },
-                    "building_archetype": {"building_height": {"value": 7.0}},
+                    "building_archetype": {"archetype_height": {"value": 7.0}},
                 },
             }
         ],
@@ -952,6 +1032,40 @@ def test_phase_b_forcing_height_only_spartacus_top(registry):
     expected_min_z_mean = 2.0 * 3.0
     assert any(str(expected_min_z_mean) in e.suggested_value for e in errors)
     assert any("mean building height" in e.message for e in errors)
+
+
+@pytest.mark.parametrize(
+    "net_radiation",
+    [
+        {"value": 1003},
+        {"scheme": "spartacus", "ldown": "air"},
+        {"spartacus": {"value": 1003}},
+    ],
+)
+def test_phase_b_forcing_height_spartacus_accept_forms_use_vertical_top(registry, net_radiation):
+    """SPARTACUS accept forms must all include vertical-layer top in h_max."""
+    yaml_data = {
+        "model": {"physics": {"net_radiation": net_radiation}},
+        "sites": [
+            {
+                "name": "TestSite",
+                "gridiv": 1,
+                "properties": {
+                    "z": {"value": 40.0},
+                    "land_cover": {
+                        "bldgs": {"bldgh": {"value": 10.0}, "sfr": {"value": 0.4}},
+                    },
+                    "vertical_layers": {"height": {"value": [0.0, 25.0, 50.0]}},
+                },
+            }
+        ],
+    }
+
+    results = registry["forcing_height"](ValidationContext(yaml_data=yaml_data))
+
+    warnings = [r for r in results if r.status == "WARNING"]
+    assert any("1.5* max building height" in w.message for w in warnings)
+    assert any("max building height=50.0" in w.suggested_value for w in warnings)
     
 def test_phase_b_forcing_height_missing_bldgh_or_sfr(registry):
     yaml_data = {
@@ -982,7 +1096,7 @@ def test_phase_b_forcing_height_above_max(registry):
                 "properties": {
                     "z": {"value": 100.0},  # way above
                     "land_cover": {"bldgs": {"bldgh": {"value": 10.0}, "sfr": {"value": 0.4}}},
-                    "building_archetype": {"building_height": {"value": 15.0}},
+                    "building_archetype": {"archetype_height": {"value": 15.0}},
                 },
             }
         ],
@@ -1016,7 +1130,7 @@ def test_phase_b_forcing_height_sfr_boundary(registry):
 
 def test_validate_model_option_rcmethod_missing_params(registry):
     yaml_data = {
-        "model": {"physics": {"outer_cap_fraction": {"value": 1}}},
+        "model": {"physics": {"stebbs": {"capacitance": {"value": 1}}}},
         "sites": [{
             "name": "site1",
             "properties": {
@@ -1026,19 +1140,19 @@ def test_validate_model_option_rcmethod_missing_params(registry):
     }
     results = registry["rcmethod"](ValidationContext(yaml_data=yaml_data))
     params = [r.parameter for r in results]
-    assert any("fraction_roof_heat_capacity_outer" in p for p in params)
-    assert any("fraction_wall_heat_capacity_outer" in p for p in params)
+    assert any("fraction_heat_capacity_roof_external" in p for p in params)
+    assert any("fraction_heat_capacity_wall_external" in p for p in params)
     assert all(r.status == "ERROR" for r in results)
 
 def test_validate_model_option_rcmethod_enabled_invalid_values(registry):
     yaml_data = {
-        "model": {"physics": {"outer_cap_fraction": {"value": 1}}},
+        "model": {"physics": {"stebbs": {"capacitance": {"value": 1}}}},
         "sites": [{
             "name": "site1",
             "properties": {
                 "building_archetype": {
-                    "fraction_roof_heat_capacity_outer": {"value": 1.5},
-                    "fraction_wall_heat_capacity_outer": {"value": -0.2},
+                    "fraction_heat_capacity_roof_external": {"value": 1.5},
+                    "fraction_heat_capacity_wall_external": {"value": -0.2},
                 },
             }
         }],
@@ -1049,13 +1163,13 @@ def test_validate_model_option_rcmethod_enabled_invalid_values(registry):
 
 def test_validate_model_option_rcmethod_enabled_valid_values(registry):
     yaml_data = {
-        "model": {"physics": {"outer_cap_fraction": {"value": 1}}},
+        "model": {"physics": {"stebbs": {"capacitance": {"value": 1}}}},
         "sites": [{
             "name": "site1",
             "properties": {
                 "building_archetype": {
-                    "fraction_roof_heat_capacity_outer": {"value": 0.5},
-                    "fraction_wall_heat_capacity_outer": {"value": 0.5},
+                    "fraction_heat_capacity_roof_external": {"value": 0.5},
+                    "fraction_heat_capacity_wall_external": {"value": 0.5},
                 },
             }
         }],
@@ -1065,7 +1179,7 @@ def test_validate_model_option_rcmethod_enabled_valid_values(registry):
 
 def test_adjust_model_option_rcmethod_sets_defaults():
     yaml_data = {
-        "model": {"physics": {"outer_cap_fraction": {"value": 0}}},
+        "model": {"physics": {"stebbs": {"capacitance": {"value": 0}}}},
         "sites": [{
             "name": "site1",
             "properties": {
@@ -1075,20 +1189,20 @@ def test_adjust_model_option_rcmethod_sets_defaults():
     }
     updated_data, adjustments = adjust_model_option_rcmethod(yaml_data)
     ba = updated_data["sites"][0]["properties"]["building_archetype"]
-    assert ba["fraction_roof_heat_capacity_outer"]["value"] == 0.5
-    assert ba["fraction_wall_heat_capacity_outer"]["value"] == 0.5
-    assert any(adj.parameter == "building_archetype.fraction_roof_heat_capacity_outer" for adj in adjustments)
-    assert any(adj.parameter == "building_archetype.fraction_wall_heat_capacity_outer" for adj in adjustments)
+    assert ba["fraction_heat_capacity_roof_external"]["value"] == 0.5
+    assert ba["fraction_heat_capacity_wall_external"]["value"] == 0.5
+    assert any(adj.parameter == "building_archetype.fraction_heat_capacity_roof_external" for adj in adjustments)
+    assert any(adj.parameter == "building_archetype.fraction_heat_capacity_wall_external" for adj in adjustments)
 
 def test_adjust_model_option_rcmethod_no_action_when_already_set():
     yaml_data = {
-        "model": {"physics": {"outer_cap_fraction": {"value": 0}}},
+        "model": {"physics": {"stebbs": {"capacitance": {"value": 0}}}},
         "sites": [{
             "name": "site1",
             "properties": {
                 "building_archetype": {
-                    "fraction_roof_heat_capacity_outer": {"value": 0.5},
-                    "fraction_wall_heat_capacity_outer": {"value": 0.5},
+                    "fraction_heat_capacity_roof_external": {"value": 0.5},
+                    "fraction_heat_capacity_wall_external": {"value": 0.5},
                 },
             }
         }],
@@ -1099,16 +1213,16 @@ def test_adjust_model_option_rcmethod_no_action_when_already_set():
 def test_adjust_model_option_setpointmethod_sets_profiles_to_null_when_0_or_1():
     # setpoint == 0: should nullify all profile entries
     yaml_data = {
-        "model": {"physics": {"setpoint": {"value": 0}}},
+        "model": {"physics": {"stebbs": {"setpoint": {"value": 0}}}},
         "sites": [{
             "name": "site1",
             "properties": {
                 "building_archetype": {
-                    "heating_setpoint_temperature_profile": {
+                    "profile_setpoint_temperature_heating_air": {
                         "working_day": {"0": 21.0, "1": 22.0},
                         "holiday": {"0": 20.0, "1": 21.0},
                     },
-                    "cooling_setpoint_temperature_profile": {
+                    "profile_setpoint_temperature_cooling_air": {
                         "working_day": {"0": 25.0, "1": 26.0},
                         "holiday": {"0": 24.0, "1": 25.0},
                     },
@@ -1118,26 +1232,26 @@ def test_adjust_model_option_setpointmethod_sets_profiles_to_null_when_0_or_1():
     }
     updated, adjustments = adjust_model_option_setpointmethod(yaml_data)
     ba = updated["sites"][0]["properties"]["building_archetype"]
-    for prof in ["heating_setpoint_temperature_profile", "cooling_setpoint_temperature_profile"]:
+    for prof in ["profile_setpoint_temperature_heating_air", "profile_setpoint_temperature_cooling_air"]:
         for daytype in ["working_day", "holiday"]:
             for hour in ba[prof][daytype]:
                 assert ba[prof][daytype][hour] is None
-    assert any(a.parameter == "building_archetype.heating_setpoint_temperature_profile.working_day" for a in adjustments)
-    assert any(a.parameter == "building_archetype.cooling_setpoint_temperature_profile.holiday" for a in adjustments)
+    assert any(a.parameter == "building_archetype.profile_setpoint_temperature_heating_air.working_day" for a in adjustments)
+    assert any(a.parameter == "building_archetype.profile_setpoint_temperature_cooling_air.holiday" for a in adjustments)
 
 def test_adjust_model_option_setpointmethod_sets_profiles_to_null_when_1():
     # setpoint == 1: should nullify all profile entries
     yaml_data = {
-        "model": {"physics": {"setpoint": {"value": 1}}},
+        "model": {"physics": {"stebbs": {"setpoint": {"value": 1}}}},
         "sites": [{
             "name": "site1",
             "properties": {
                 "building_archetype": {
-                    "heating_setpoint_temperature_profile": {
+                    "profile_setpoint_temperature_heating_air": {
                         "working_day": {"0": 21.0},
                         "holiday": {"0": 20.0},
                     },
-                    "cooling_setpoint_temperature_profile": {
+                    "profile_setpoint_temperature_cooling_air": {
                         "working_day": {"0": 25.0},
                         "holiday": {"0": 24.0},
                     },
@@ -1147,56 +1261,56 @@ def test_adjust_model_option_setpointmethod_sets_profiles_to_null_when_1():
     }
     updated, adjustments = adjust_model_option_setpointmethod(yaml_data)
     ba = updated["sites"][0]["properties"]["building_archetype"]
-    for prof in ["heating_setpoint_temperature_profile", "cooling_setpoint_temperature_profile"]:
+    for prof in ["profile_setpoint_temperature_heating_air", "profile_setpoint_temperature_cooling_air"]:
         for daytype in ["working_day", "holiday"]:
             for hour in ba[prof][daytype]:
                 assert ba[prof][daytype][hour] is None
-    assert any(a.parameter == "building_archetype.heating_setpoint_temperature_profile.working_day" for a in adjustments)
+    assert any(a.parameter == "building_archetype.profile_setpoint_temperature_heating_air.working_day" for a in adjustments)
 
 def test_adjust_model_option_setpointmethod_sets_temps_to_null_when_2():
-    # setpoint == 2: should nullify heating_setpoint_temperature and cooling_setpoint_temperature
+    # setpoint == 2: should nullify setpoint_temperature_heating_air and setpoint_temperature_cooling_air
     yaml_data = {
-        "model": {"physics": {"setpoint": {"value": 2}}},
+        "model": {"physics": {"stebbs": {"setpoint": {"value": 2}}}},
         "sites": [{
             "name": "site1",
             "properties": {
                 "building_archetype": {
-                    "heating_setpoint_temperature": {"value": 21.0},
-                    "cooling_setpoint_temperature": {"value": 25.0},
+                    "setpoint_temperature_heating_air": {"value": 21.0},
+                    "setpoint_temperature_cooling_air": {"value": 25.0},
                 }
             }
         }],
     }
     updated, adjustments = adjust_model_option_setpointmethod(yaml_data)
     ba = updated["sites"][0]["properties"]["building_archetype"]
-    assert ba["heating_setpoint_temperature"]["value"] is None
-    assert ba["cooling_setpoint_temperature"]["value"] is None
-    assert any(a.parameter == "building_archetype.heating_setpoint_temperature" for a in adjustments)
-    assert any(a.parameter == "building_archetype.cooling_setpoint_temperature" for a in adjustments)
+    assert ba["setpoint_temperature_heating_air"]["value"] is None
+    assert ba["setpoint_temperature_cooling_air"]["value"] is None
+    assert any(a.parameter == "building_archetype.setpoint_temperature_heating_air" for a in adjustments)
+    assert any(a.parameter == "building_archetype.setpoint_temperature_cooling_air" for a in adjustments)
 
 def test_adjust_model_option_setpointmethod_no_action_when_already_null():
     # Should not add adjustments if already null
     yaml_data = {
-        "model": {"physics": {"setpoint": {"value": 2}}},
+        "model": {"physics": {"stebbs": {"setpoint": {"value": 2}}}},
         "sites": [{
             "name": "site1",
             "properties": {
                 "building_archetype": {
-                    "heating_setpoint_temperature": {"value": None},
-                    "cooling_setpoint_temperature": {"value": None},
+                    "setpoint_temperature_heating_air": {"value": None},
+                    "setpoint_temperature_cooling_air": {"value": None},
                 }
             }
         }],
     }
     updated, adjustments = adjust_model_option_setpointmethod(yaml_data)
     ba = updated["sites"][0]["properties"]["building_archetype"]
-    assert ba["heating_setpoint_temperature"]["value"] is None
-    assert ba["cooling_setpoint_temperature"]["value"] is None
+    assert ba["setpoint_temperature_heating_air"]["value"] is None
+    assert ba["setpoint_temperature_cooling_air"]["value"] is None
     assert len(adjustments) == 0
 
 def test_validate_model_option_rcmethod2_missing_params(registry):
     yaml_data = {
-        "model": {"physics": {"outer_cap_fraction": {"value": 2}}},
+        "model": {"physics": {"stebbs": {"capacitance": {"value": 2}}}},
         "sites": [{
             "name": "site1",
             "properties": {"building_archetype": {}},
@@ -1215,7 +1329,7 @@ def test_validate_model_option_rcmethod2_missing_params(registry):
 
 def test_validate_model_option_rcmethod2_all_params_provided(registry):
     yaml_data = {
-        "model": {"physics": {"outer_cap_fraction": {"value": 2}}},
+        "model": {"physics": {"stebbs": {"capacitance": {"value": 2}}}},
         "sites": [{
             "name": "site1",
             "properties": {
@@ -1250,7 +1364,7 @@ def test_validate_model_option_rcmethod2_all_params_provided(registry):
 
 def test_validate_model_option_rcmethod2_some_params_missing(registry):
     yaml_data = {
-        "model": {"physics": {"outer_cap_fraction": {"value": 2}}},
+        "model": {"physics": {"stebbs": {"capacitance": {"value": 2}}}},
         "sites": [{
             "name": "site1",
             "properties": {
@@ -1277,13 +1391,13 @@ def test_validate_model_option_rcmethod2_some_params_missing(registry):
 
 def test_validate_model_option_setpointmethod_0_or_1_all_params(registry):
     yaml_data = {
-        "model": {"physics": {"setpoint": {"value": 0}}},
+        "model": {"physics": {"stebbs": {"setpoint": {"value": 0}}}},
         "sites": [{
             "name": "site1",
             "properties": {
                 "building_archetype": {
-                    "heating_setpoint_temperature": {"value": 21.0},
-                    "cooling_setpoint_temperature": {"value": 25.0},
+                    "setpoint_temperature_heating_air": {"value": 21.0},
+                    "setpoint_temperature_cooling_air": {"value": 25.0},
                 }
             }
         }],
@@ -1292,21 +1406,22 @@ def test_validate_model_option_setpointmethod_0_or_1_all_params(registry):
     assert not results or all(r.status != "ERROR" for r in results)
 
 def test_validate_model_option_setpointmethod_0_or_1_missing_params(registry):
+    # gh#1456: STEBBS master toggle + setpoint method nested under model.physics.stebbs.
     yaml_data = {
-        "model": {"physics": {"setpoint": {"value": 1}, "stebbs": {"value":1}}},
+        "model": {"physics": {"stebbs": {"enabled": {"value": True}, "parameters": {"value": 1}, "setpoint": {"value": 1}}}},
         "sites": [{
             "name": "site1",
             "properties": {
                 "building_archetype": {
-                    # "heating_setpoint_temperature" missing
-                    "cooling_setpoint_temperature": {"value": 25.0},
+                    # "setpoint_temperature_heating_air" missing
+                    "setpoint_temperature_cooling_air": {"value": 25.0},
                 }
             }
         }],
     }
     results = registry["setpoint"](ValidationContext(yaml_data=yaml_data))
     error_params = [r.parameter for r in results if r.status == "ERROR"]
-    assert "heating_setpoint_temperature" in error_params
+    assert "setpoint_temperature_heating_air" in error_params
     assert all("must be set" in r.message for r in results if r.status == "ERROR")
 
 def test_validate_model_option_setpointmethod_2_all_profiles_valid(registry):
@@ -1314,17 +1429,18 @@ def test_validate_model_option_setpointmethod_2_all_profiles_valid(registry):
     heating_holiday = {str(i): 19.0 for i in range(1, 145)}
     cooling_working = {str(i): 26.0 for i in range(1, 145)}
     cooling_holiday = {str(i): 25.5 for i in range(1, 145)}
+    # gh#1456: STEBBS master toggle + setpoint method nested under model.physics.stebbs.
     yaml_data = {
-        "model": {"physics": {"setpoint": {"value": 2}}},
+        "model": {"physics": {"stebbs": {"enabled": {"value": True}, "parameters": {"value": 1}, "setpoint": {"value": 2}}}},
         "sites": [{
             "name": "site1",
             "properties": {
                 "building_archetype": {
-                    "heating_setpoint_temperature_profile": {
+                    "profile_setpoint_temperature_heating_air": {
                         "working_day": heating_working,
                         "holiday": heating_holiday,
                     },
-                    "cooling_setpoint_temperature_profile": {
+                    "profile_setpoint_temperature_cooling_air": {
                         "working_day": cooling_working,
                         "holiday": cooling_holiday,
                     },
@@ -1336,17 +1452,18 @@ def test_validate_model_option_setpointmethod_2_all_profiles_valid(registry):
     assert not results or all(r.status != "ERROR" for r in results)
 
 def test_validate_model_option_setpointmethod_2_missing_profile_entries(registry):
+    # gh#1456: STEBBS master toggle + setpoint method nested under model.physics.stebbs.
     yaml_data = {
-        "model": {"physics": {"setpoint": {"value": 2}, "stebbs": {"value": 1}}},
+        "model": {"physics": {"stebbs": {"enabled": {"value": True}, "parameters": {"value": 1}, "setpoint": {"value": 2}}}},
         "sites": [{
             "name": "site1",
             "properties": {
                 "building_archetype": {
-                    "heating_setpoint_temperature_profile": {
+                    "profile_setpoint_temperature_heating_air": {
                         "working_day": {"0": None, "1": 19.5},
                         "holiday": {"0": 19.0, "1": None},
                     },
-                    "cooling_setpoint_temperature_profile": {
+                    "profile_setpoint_temperature_cooling_air": {
                         "working_day": {"0": 26.0, "1": None},
                         "holiday": {"0": None, "1": 26.5},
                     },
@@ -1356,22 +1473,23 @@ def test_validate_model_option_setpointmethod_2_missing_profile_entries(registry
     }
     results = registry["setpoint"](ValidationContext(yaml_data=yaml_data))
     error_params = [r.parameter for r in results if r.status == "ERROR"]
-    assert "heating_setpoint_temperature_profile" in error_params
-    assert "cooling_setpoint_temperature_profile" in error_params
+    assert "profile_setpoint_temperature_heating_air" in error_params
+    assert "profile_setpoint_temperature_cooling_air" in error_params
     assert any("null entries" in r.message for r in results if r.status == "ERROR")
 
 def test_validate_model_option_setpointmethod_2_out_of_range(registry):
+    # gh#1456: STEBBS master toggle + setpoint method nested under model.physics.stebbs.
     yaml_data = {
-        "model": {"physics": {"setpoint": {"value": 2}, "stebbs": {"value": 1}}},
+        "model": {"physics": {"stebbs": {"enabled": {"value": True}, "parameters": {"value": 1}, "setpoint": {"value": 2}}}},
         "sites": [{
             "name": "site1",
             "properties": {
                 "building_archetype": {
-                    "heating_setpoint_temperature_profile": {
+                    "profile_setpoint_temperature_heating_air": {
                         "working_day": {"0": 31.0, "1": 19.5},
                         "holiday": {"0": 19.0, "1": 30.0},
                     },
-                    "cooling_setpoint_temperature_profile": {
+                    "profile_setpoint_temperature_cooling_air": {
                         "working_day": {"0": 14.0, "1": 27.0},
                         "holiday": {"0": 25.5, "1": 15.0},
                     },
@@ -1380,23 +1498,24 @@ def test_validate_model_option_setpointmethod_2_out_of_range(registry):
         }],
     }
     results = registry["setpoint"](ValidationContext(yaml_data=yaml_data))
-    heating_errors = [r for r in results if r.parameter == "heating_setpoint_temperature_profile" and r.status == "ERROR"]
-    cooling_errors = [r for r in results if r.parameter == "cooling_setpoint_temperature_profile" and r.status == "ERROR"]
+    heating_errors = [r for r in results if r.parameter == "profile_setpoint_temperature_heating_air" and r.status == "ERROR"]
+    cooling_errors = [r for r in results if r.parameter == "profile_setpoint_temperature_cooling_air" and r.status == "ERROR"]
     assert any("values >= 30.0" in r.message for r in heating_errors)
     assert any("values <= 15.0" in r.message for r in cooling_errors)
 
 def test_validate_model_option_setpointmethod_2_invalid_slice_keys(registry):
+    # gh#1456: STEBBS master toggle + setpoint method nested under model.physics.stebbs.
     yaml_data = {
-        "model": {"physics": {"setpoint": {"value": 2}, "stebbs": {"value": 1}}},
+        "model": {"physics": {"stebbs": {"enabled": {"value": True}, "parameters": {"value": 1}, "setpoint": {"value": 2}}}},
         "sites": [{
             "name": "site1",
             "properties": {
                 "building_archetype": {
-                    "heating_setpoint_temperature_profile": {
+                    "profile_setpoint_temperature_heating_air": {
                         "working_day": {"0": 20.0, "1": 19.5},
                         "holiday": {"1": 19.0, "2": 18.5},
                     },
-                    "cooling_setpoint_temperature_profile": {
+                    "profile_setpoint_temperature_cooling_air": {
                         "working_day": {"1": 26.0, "145": 27.0},
                         "holiday": {"1": 25.5, "2": 26.5},
                     },
@@ -1406,8 +1525,8 @@ def test_validate_model_option_setpointmethod_2_invalid_slice_keys(registry):
     }
     results = registry["setpoint"](ValidationContext(yaml_data=yaml_data))
     error_params = [r.parameter for r in results if r.status == "ERROR"]
-    assert "heating_setpoint_temperature_profile.working_day" in error_params
-    assert "cooling_setpoint_temperature_profile.working_day" in error_params
+    assert "profile_setpoint_temperature_heating_air.working_day" in error_params
+    assert "profile_setpoint_temperature_cooling_air.working_day" in error_params
     assert any(
         "Only entries 1-144 are valid." in r.message
         for r in results
@@ -1415,7 +1534,7 @@ def test_validate_model_option_setpointmethod_2_invalid_slice_keys(registry):
     )
     
 def test_validate_model_option_stebbsmethod_hotwaterflowprofile_valid(registry):
-    """Test hot_water_flow_profile accepts only 0 or 1 values."""
+    """Test profile_flow_hot_water accepts only 0 or 1 values."""
 
     yaml_data = {
         "model": {"physics": {"stebbs": {"value": 1}}},
@@ -1423,7 +1542,7 @@ def test_validate_model_option_stebbsmethod_hotwaterflowprofile_valid(registry):
             "name": "site1",
             "properties": {
                 "stebbs": {
-                    "hot_water_flow_profile": {
+                    "profile_flow_hot_water": {
                         "working_day": {"0": 0, "1": 1, "2": 0.0, "3": 1.0},
                         "holiday": {"0": 1, "1": 0, "2": 1.0, "3": 0.0},
                     }
@@ -1432,10 +1551,10 @@ def test_validate_model_option_stebbsmethod_hotwaterflowprofile_valid(registry):
         }],
     }
     results = registry["stebbs_props"](ValidationContext(yaml_data=yaml_data))
-    assert not results, "Should not return errors for valid hot_water_flow_profile values"
+    assert not results, "Should not return errors for valid profile_flow_hot_water values"
 
 def test_validate_model_option_stebbsmethod_hotwaterflowprofile_invalid(registry):
-    """Test hot_water_flow_profile returns ERROR for invalid values."""
+    """Test profile_flow_hot_water returns ERROR for invalid values."""
 
     yaml_data = {
         "model": {"physics": {"stebbs": {"value": 1}}},
@@ -1443,7 +1562,7 @@ def test_validate_model_option_stebbsmethod_hotwaterflowprofile_invalid(registry
             "name": "site1",
             "properties": {
                 "stebbs": {
-                    "hot_water_flow_profile": {
+                    "profile_flow_hot_water": {
                         "working_day": {"0": 2, "1": -1, "2": 0.5},
                         "holiday": {"0": "yes", "1": None},
                     }
@@ -1453,16 +1572,16 @@ def test_validate_model_option_stebbsmethod_hotwaterflowprofile_invalid(registry
     }
     results = registry["stebbs_props"](ValidationContext(yaml_data=yaml_data))
     error_params = [r.parameter for r in results]
-    assert "stebbs.hot_water_flow_profile.working_day.0" in error_params
-    assert "stebbs.hot_water_flow_profile.working_day.1" in error_params
-    assert "stebbs.hot_water_flow_profile.working_day.2" in error_params
-    assert "stebbs.hot_water_flow_profile.holiday.0" in error_params
-    assert "stebbs.hot_water_flow_profile.holiday.1" in error_params
+    assert "stebbs.profile_flow_hot_water.working_day.0" in error_params
+    assert "stebbs.profile_flow_hot_water.working_day.1" in error_params
+    assert "stebbs.profile_flow_hot_water.working_day.2" in error_params
+    assert "stebbs.profile_flow_hot_water.holiday.0" in error_params
+    assert "stebbs.profile_flow_hot_water.holiday.1" in error_params
     assert all(r.status == "ERROR" for r in results)
     assert all("must be 0 or 1" in r.message for r in results)
 
 def test_validate_model_option_stebbsmethod_hotwaterflowprofile_missing(registry):
-    """Test hot_water_flow_profile missing returns no errors."""
+    """Test profile_flow_hot_water missing returns no errors."""
 
     yaml_data = {
         "model": {"physics": {"stebbs": {"value": 1}}},
@@ -1470,16 +1589,16 @@ def test_validate_model_option_stebbsmethod_hotwaterflowprofile_missing(registry
             "name": "site1",
             "properties": {
                 "stebbs": {
-                    # hot_water_flow_profile missing
+                    # profile_flow_hot_water missing
                 }
             }
         }],
     }
     results = registry["stebbs_props"](ValidationContext(yaml_data=yaml_data))
-    assert not results, "Should not return errors if hot_water_flow_profile is missing"
+    assert not results, "Should not return errors if profile_flow_hot_water is missing"
 
 def test_validate_model_option_stebbsmethod_hotwaterflowprofile_partial(registry):
-    """Test hot_water_flow_profile with partial valid/invalid values."""
+    """Test profile_flow_hot_water with partial valid/invalid values."""
 
     yaml_data = {
         "model": {"physics": {"stebbs": {"value": 1}}},
@@ -1487,7 +1606,7 @@ def test_validate_model_option_stebbsmethod_hotwaterflowprofile_partial(registry
             "name": "site1",
             "properties": {
                 "stebbs": {
-                    "hot_water_flow_profile": {
+                    "profile_flow_hot_water": {
                         "working_day": {"0": 1, "1": 0, "2": 2},
                         "holiday": {"0": 0, "1": 1, "2": -1},
                     }
@@ -1497,8 +1616,8 @@ def test_validate_model_option_stebbsmethod_hotwaterflowprofile_partial(registry
     }
     results = registry["stebbs_props"](ValidationContext(yaml_data=yaml_data))
     error_params = [r.parameter for r in results]
-    assert "stebbs.hot_water_flow_profile.working_day.2" in error_params
-    assert "stebbs.hot_water_flow_profile.holiday.2" in error_params
+    assert "stebbs.profile_flow_hot_water.working_day.2" in error_params
+    assert "stebbs.profile_flow_hot_water.holiday.2" in error_params
     assert all(r.status == "ERROR" for r in results)
     assert len(results) == 2
 
@@ -1538,7 +1657,7 @@ def test_validate_model_option_stebbsmethod_daylightcontrol_valid(registry):
     assert not results, "Should not return errors for valid DaylightControl=1.0 with LightingIlluminanceThreshold"
 
 def test_validate_model_option_stebbsmethod_daylightcontrol_missing_lit(registry):
-    """Test daylight_control == 1 but lighting_illuminance_threshold missing returns error."""
+    """Test daylight_control == 1 but threshold_lighting_illuminance missing returns error."""
     yaml_data = {
         "model": {"physics": {"stebbs": {"value": 1}}},
         "sites": [{
@@ -1546,14 +1665,14 @@ def test_validate_model_option_stebbsmethod_daylightcontrol_missing_lit(registry
             "properties": {
                 "stebbs": {
                     "daylight_control": {"value": 1}
-                    # lighting_illuminance_threshold missing
+                    # threshold_lighting_illuminance missing
                 }
             }
         }],
     }
     results = registry["daylight_control"](ValidationContext(yaml_data=yaml_data))
     assert len(results) == 1
-    assert results[0].parameter == "stebbs.lighting_illuminance_threshold"
+    assert results[0].parameter == "stebbs.threshold_lighting_illuminance"
     assert results[0].status == "ERROR"
     assert "must be provided" in results[0].message
 
@@ -1663,7 +1782,7 @@ def test_daylight_control_daylightcontrol_zero(registry):
 
 
 def test_validate_model_option_stebbsmethod_occupants_zero_metabolismprofile_nonzero(registry):
-    """Test error when occupants=0.0 but metabolism_profile has nonzero values."""
+    """Test error when occupants=0.0 but profile_metabolism has nonzero values."""
 
     yaml_data = {
         "model": {"physics": {"stebbs": {"value": 1}}},
@@ -1672,7 +1791,7 @@ def test_validate_model_option_stebbsmethod_occupants_zero_metabolismprofile_non
             "properties": {
                 "building_archetype": {
                     "occupants": {"value": 0.0},
-                    "metabolism_profile": {
+                    "profile_metabolism": {
                         "working_day": {"0": 0, "1": 1.2, "2": 0},
                         "holiday": {"0": 0, "1": 0, "2": 0.5},
                     },
@@ -1683,7 +1802,7 @@ def test_validate_model_option_stebbsmethod_occupants_zero_metabolismprofile_non
     }
     results = registry["occupants_metabolism"](ValidationContext(yaml_data=yaml_data))
     error_params = [r.parameter for r in results]
-    assert "building_archetype.metabolism_profile" in error_params
+    assert "building_archetype.profile_metabolism" in error_params
     assert any("nonzero entries" in r.message for r in results)
     assert all(r.status == "ERROR" for r in results)
 
@@ -1697,7 +1816,7 @@ def test_validate_model_option_stebbsmethod_occupants_zero_metabolismprofile_all
             "properties": {
                 "building_archetype": {
                     "occupants": {"value": 0.0},
-                    "metabolism_profile": {
+                    "profile_metabolism": {
                         "working_day": {"0": 0, "1": 0.0, "2": None},
                         "holiday": {"0": 0, "1": 0.0, "2": None},
                     },
@@ -1719,7 +1838,7 @@ def test_validate_model_option_stebbsmethod_occupants_nonzero_metabolismprofile_
             "properties": {
                 "building_archetype": {
                     "occupants": {"value": 2.0},
-                    "metabolism_profile": {
+                    "profile_metabolism": {
                         "working_day": {"0": 1.1, "1": 1.2},
                         "holiday": {"0": 0.9, "1": 1.0},
                     },
@@ -1734,31 +1853,31 @@ def test_validate_model_option_stebbsmethod_occupants_nonzero_metabolismprofile_
 @pytest.mark.parametrize(
     "wwr, nullify, keep",
     [
-        (0.0,  # window_to_wall_ratio==0: nullify window params
-         ["window_internal_convection_coefficient", "window_external_convection_coefficient"],
-         ["wall_external_convection_coefficient", "wall_internal_convection_coefficient"]),
-        (1.0,  # window_to_wall_ratio==1: nullify wall params
-         ["wall_external_convection_coefficient", "wall_internal_convection_coefficient"],
-         ["window_internal_convection_coefficient", "window_external_convection_coefficient"]),
-        (0.5,  # window_to_wall_ratio!=0,1: nullify nothing
-         [], ["window_internal_convection_coefficient", "window_external_convection_coefficient",
-              "wall_external_convection_coefficient", "wall_internal_convection_coefficient"]),
+        (0.0,  # ratio_window_to_wall==0: nullify window params
+         ["convection_coefficient_window_internal", "convection_coefficient_window_external"],
+         ["convection_coefficient_wall_external", "convection_coefficient_wall_internal"]),
+        (1.0,  # ratio_window_to_wall==1: nullify wall params
+         ["convection_coefficient_wall_external", "convection_coefficient_wall_internal"],
+         ["convection_coefficient_window_internal", "convection_coefficient_window_external"]),
+        (0.5,  # ratio_window_to_wall!=0,1: nullify nothing
+         [], ["convection_coefficient_window_internal", "convection_coefficient_window_external",
+              "convection_coefficient_wall_external", "convection_coefficient_wall_internal"]),
     ],
 )
 def test_adjust_model_option_stebbsmethod_nullification(wwr, nullify, keep):
-    """Test adjust_model_option_stebbsmethod nullifies correct params based on window_to_wall_ratio."""
+    """Test adjust_model_option_stebbsmethod nullifies correct params based on ratio_window_to_wall."""
     yaml_data = {
         "model": {"physics": {"stebbs": {"value": 1}}},
         "sites": [{
             "properties": {
                 "stebbs": {
-                    "window_internal_convection_coefficient": {"value": 5.0},
-                    "window_external_convection_coefficient": {"value": 6.0},
-                    "wall_external_convection_coefficient": {"value": 8.0},
-                    "wall_internal_convection_coefficient": {"value": 9.0},
+                    "convection_coefficient_window_internal": {"value": 5.0},
+                    "convection_coefficient_window_external": {"value": 6.0},
+                    "convection_coefficient_wall_external": {"value": 8.0},
+                    "convection_coefficient_wall_internal": {"value": 9.0},
                 },
                 "building_archetype": {
-                    "window_to_wall_ratio": {"value": wwr},
+                    "ratio_window_to_wall": {"value": wwr},
                     "thickness_window": {"value": 0.2},
                     "conductivity_window": {"value": 1.1},
                     "density_window": {"value": 2500},
@@ -1839,11 +1958,11 @@ def test_adjust_model_option_stebbsmethod_not_one_no_action():
         "sites": [{
             "properties": {
                 "stebbs": {
-                    "window_internal_convection_coefficient": {"value": 5.0},
-                    "wall_external_convection_coefficient": {"value": 8.0},
+                    "convection_coefficient_window_internal": {"value": 5.0},
+                    "convection_coefficient_wall_external": {"value": 8.0},
                 },
                 "building_archetype": {
-                    "window_to_wall_ratio": {"value": 0.0},
+                    "ratio_window_to_wall": {"value": 0.0},
                     "thickness_window": {"value": 0.2},
                     "thickness_wall": {"value": 0.35},
                 },
@@ -1852,7 +1971,7 @@ def test_adjust_model_option_stebbsmethod_not_one_no_action():
     }
     updated, adjustments = adjust_model_option_stebbsmethod(yaml_data)
     props = updated["sites"][0]["properties"]
-    for param in ["window_internal_convection_coefficient", "wall_external_convection_coefficient"]:
+    for param in ["convection_coefficient_window_internal", "convection_coefficient_wall_external"]:
         assert props["stebbs"][param]["value"] == yaml_data["sites"][0]["properties"]["stebbs"][param]["value"]
     for param in ["thickness_window", "thickness_wall"]:
         assert props["building_archetype"][param]["value"] == yaml_data["sites"][0]["properties"]["building_archetype"][param]["value"]
@@ -1869,14 +1988,14 @@ def test_needs_spartacus_validation_true_and_false():
     assert cfg2._needs_spartacus_validation() is False
 
 def test_validate_spartacus_building_height_error():
+    # gh#1456: make_cfg already builds the nested stebbs (enabled+parameters)
+    # block from the legacy `stebbs=1` kwarg; the validator composes the
+    # stebbsmethod from it, so no raw-int override is needed.
     cfg = make_cfg(net_radiation=1001, stebbs=1)
-    # _unwrap_value only unwraps RefValue/Enum, not SimpleNamespace;
-    # set stebbsmethod as a raw int so the validator can parse it.
-    cfg.model.physics.stebbs = 1
 
-    # bldgh and building_height both exceed height[nlayer]
+    # bldgh and archetype_height both exceed height[nlayer]
     bldgs = SimpleNamespace(bldgh=15.0)
-    building_archetype = SimpleNamespace(building_height=20.0)
+    building_archetype = SimpleNamespace(archetype_height=20.0)
     vertical_layers = SimpleNamespace(height=[5.0, 10.0, 12.0], nlayer=1)
     props = SimpleNamespace(
         land_cover=SimpleNamespace(bldgs=bldgs),
@@ -1888,16 +2007,16 @@ def test_validate_spartacus_building_height_error():
 
     assert len(msgs) == 2
     assert any("bldgh=15.0" in m and "height[1]=10.0" in m for m in msgs)
-    assert any("building_height=20.0" in m and "height[1]=10.0" in m for m in msgs)
+    assert any("archetype_height=20.0" in m and "height[1]=10.0" in m for m in msgs)
 
 
 def test_validate_spartacus_building_height_no_error():
+    # gh#1456: nested stebbs block built by make_cfg; no raw-int override.
     cfg = make_cfg(net_radiation=1001, stebbs=1)
-    cfg.model.physics.stebbs = 1
 
-    # bldgh and building_height do not exceed height[nlayer]
+    # bldgh and archetype_height do not exceed height[nlayer]
     bldgs = SimpleNamespace(bldgh=8.0)
-    building_archetype = SimpleNamespace(building_height=9.0)
+    building_archetype = SimpleNamespace(archetype_height=9.0)
     vertical_layers = SimpleNamespace(height=[5.0, 10.0, 12.0], nlayer=1)
     props = SimpleNamespace(
         land_cover=SimpleNamespace(bldgs=bldgs),
@@ -1910,12 +2029,12 @@ def test_validate_spartacus_building_height_no_error():
 
 
 def test_validate_spartacus_building_height_stebbs_off():
-    """building_height should NOT be checked when stebbsmethod != 1."""
+    """archetype_height should NOT be checked when stebbsmethod != 1."""
     cfg = make_cfg(net_radiation=1001, stebbs=0)
 
-    # building_height exceeds domain top, but stebbsmethod is off
+    # archetype_height exceeds domain top, but stebbsmethod is off
     bldgs = SimpleNamespace(bldgh=8.0)
-    building_archetype = SimpleNamespace(building_height=20.0)
+    building_archetype = SimpleNamespace(archetype_height=20.0)
     vertical_layers = SimpleNamespace(height=[5.0, 10.0, 12.0], nlayer=1)
     props = SimpleNamespace(
         land_cover=SimpleNamespace(bldgs=bldgs),
@@ -2243,7 +2362,7 @@ sites:
           # Missing critical params
 """
 
-        with tempfile.NamedTemporaryFile(mode="w", suffix=".yml", delete=False) as f:
+        with tempfile.NamedTemporaryFile(encoding="utf-8", mode="w", suffix=".yml", delete=False) as f:
             f.write(config_yaml)
             yaml_path = Path(f.name)
 
@@ -2274,7 +2393,7 @@ sites:
           sfr: {value: 0.3}
 """
 
-        with tempfile.NamedTemporaryFile(mode="w", suffix=".yml", delete=False) as f:
+        with tempfile.NamedTemporaryFile(encoding="utf-8", mode="w", suffix=".yml", delete=False) as f:
             f.write(config_yaml)
             yaml_path = Path(f.name)
         annotated_path = yaml_path.parent / f"{yaml_path.stem}_annotated.yml"
@@ -2284,7 +2403,7 @@ sites:
                 SUEWSConfig.from_yaml(yaml_path, auto_generate_annotated=True)
 
             assert annotated_path.exists()
-            content = annotated_path.read_text()
+            content = annotated_path.read_text(encoding="utf-8")
 
             # Should have missing parameter annotations
             assert "[ERROR] MISSING:" in content
@@ -2329,7 +2448,7 @@ sites:
           # Missing bldgh and faibldg parameters
 """
 
-        with tempfile.NamedTemporaryFile(mode="w", suffix=".yml", delete=False) as f:
+        with tempfile.NamedTemporaryFile(encoding="utf-8", mode="w", suffix=".yml", delete=False) as f:
             f.write(config_yaml)
             yaml_path = Path(f.name)
         annotated_path = yaml_path.parent / f"{yaml_path.stem}_annotated.yml"
@@ -2343,7 +2462,7 @@ sites:
                 "Annotated YAML should be generated even when load raises, "
                 "provided auto_generate_annotated=True"
             )
-            content = annotated_path.read_text()
+            content = annotated_path.read_text(encoding="utf-8")
             assert "ANNOTATED SUEWS CONFIGURATION" in content
             assert "bldgh" in content
             annotated_path.unlink()
@@ -2415,7 +2534,7 @@ sites:
           sfr: {value: 0.2}
 """
 
-    with tempfile.NamedTemporaryFile(mode="w", suffix=".yml", delete=False) as f:
+    with tempfile.NamedTemporaryFile(encoding="utf-8", mode="w", suffix=".yml", delete=False) as f:
         f.write(yaml_content)
         yaml_path = Path(f.name)
 
@@ -2444,6 +2563,13 @@ sites:
 
 def test_phase_b_storageheatmethod_ohmincqf_validation(registry):
     """Test StorageHeatMethod-OhmIncQf validation in Phase B."""
+    from supy.data_model.validation.pipeline.phase_b_rules.physics_rules import (
+        validate_storageheatmethod_dependency,
+    )
+
+    legacy_result = validate_storageheatmethod_dependency(1, 0)
+    assert legacy_result.parameter == "storageheatmethod-ohmincqf"
+    assert legacy_result.status == "PASS"
 
     # Test incompatible combination: StorageHeatMethod=1 requires OhmIncQf=0
     yaml_data_incompatible = {
@@ -2491,6 +2617,159 @@ def test_phase_b_storageheatmethod_ohmincqf_validation(registry):
         "StorageHeatMethod-OhmIncQf compatibility validated"
         in storage_results[0].message
     )
+
+
+def test_phase_b_storageheatmethod_ehc_requires_spartacus(registry):
+    """EHC storage heat needs SPARTACUS facet radiation."""
+    yaml_data_incompatible = {
+        "model": {
+            "physics": {
+                "storage_heat": "ehc",
+                "net_radiation": {"narp": {"ldown": "air"}},
+                "ohm_inc_qf": "exclude",
+            }
+        }
+    }
+
+    results = registry["option_dependencies"](
+        ValidationContext(yaml_data=yaml_data_incompatible)
+    )
+
+    storage_results = [
+        r for r in results if r.parameter == "storageheatmethod-netradiationmethod"
+    ]
+    assert len(storage_results) == 1
+    assert storage_results[0].status == "ERROR"
+    assert "requires a SPARTACUS NetRadiationMethod" in storage_results[0].message
+
+    yaml_data_compatible = {
+        "model": {
+            "physics": {
+                "storage_heat": "ehc",
+                "net_radiation": {"spartacus": {"ldown": "air"}},
+                "ohm_inc_qf": "exclude",
+            }
+        }
+    }
+
+    results = registry["option_dependencies"](
+        ValidationContext(yaml_data=yaml_data_compatible)
+    )
+
+    storage_results = [
+        r for r in results if r.parameter == "storageheatmethod-netradiationmethod"
+    ]
+    assert len(storage_results) == 1
+    assert storage_results[0].status == "PASS"
+
+
+def test_phase_b_storageheatmethod_stebbs_requires_stebbs_enabled(registry):
+    """STEBBS storage heat requires the nested STEBBS branch to be active."""
+    yaml_data_incompatible = {
+        "model": {
+            "physics": {
+                "storage_heat": "stebbs",
+                "ohm_inc_qf": "exclude",
+                "stebbs": {"enabled": False},
+            }
+        }
+    }
+
+    results = registry["option_dependencies"](
+        ValidationContext(yaml_data=yaml_data_incompatible)
+    )
+
+    storage_results = [
+        r for r in results if r.parameter == "storageheatmethod-stebbsmethod"
+    ]
+    assert len(storage_results) == 1
+    assert storage_results[0].status == "ERROR"
+    assert "requires STEBBS to be enabled" in storage_results[0].message
+
+    yaml_data_compatible = {
+        "model": {
+            "physics": {
+                "storage_heat": "stebbs",
+                "ohm_inc_qf": "include",
+                "stebbs": {"enabled": True, "parameters": "default"},
+            }
+        }
+    }
+
+    results = registry["option_dependencies"](
+        ValidationContext(yaml_data=yaml_data_compatible)
+    )
+
+    storage_results = [
+        r for r in results if r.parameter == "storageheatmethod-stebbsmethod"
+    ]
+    assert len(storage_results) == 1
+    assert storage_results[0].status == "PASS"
+
+
+def test_phase_b_ohmincqf_include_requires_ohm_like_storage(registry):
+    """The QF inclusion switch is invalid outside OHM-like storage heat paths."""
+    yaml_data = {
+        "model": {
+            "physics": {
+                "storage_heat": "ehc",
+                "net_radiation": {"spartacus": {"ldown": "air"}},
+                "ohm_inc_qf": "include",
+            }
+        }
+    }
+
+    results = registry["option_dependencies"](ValidationContext(yaml_data=yaml_data))
+
+    storage_results = [
+        r for r in results if r.parameter == "storageheatmethod-ohmincqf"
+    ]
+    assert len(storage_results) == 1
+    assert storage_results[0].status == "ERROR"
+    assert "OhmIncQf=1 is only meaningful" in storage_results[0].message
+
+
+def test_phase_b_rcmethod_requires_stebbs_enabled(registry):
+    """Non-default STEBBS capacitance/RC choices require STEBBS enabled."""
+    yaml_data_incompatible = {
+        "model": {
+            "physics": {
+                "stebbs": {
+                    "enabled": False,
+                    "capacitance": "provided",
+                }
+            }
+        }
+    }
+
+    results = registry["option_dependencies"](
+        ValidationContext(yaml_data=yaml_data_incompatible)
+    )
+
+    rcmethod_results = [r for r in results if r.parameter == "rcmethod-stebbsmethod"]
+    assert len(rcmethod_results) == 1
+    assert rcmethod_results[0].status == "ERROR"
+    assert "only meaningful when STEBBS is enabled" in rcmethod_results[0].message
+
+    yaml_data_compatible = {
+        "model": {
+            "physics": {
+                "stebbs": {
+                    "enabled": True,
+                    "parameters": "provided",
+                    "capacitance": "provided",
+                }
+            }
+        }
+    }
+
+    results = registry["option_dependencies"](
+        ValidationContext(yaml_data=yaml_data_compatible)
+    )
+
+    rcmethod_results = [r for r in results if r.parameter == "rcmethod-stebbsmethod"]
+    assert len(rcmethod_results) == 1
+    assert rcmethod_results[0].status == "PASS"
 
 
 def test_phase_b_rsl_stabilitymethod_validation(registry):
@@ -2585,7 +2864,7 @@ def test_phase_b_model_option_dependencies_comprehensive(registry):
 
 
 def test_phase_b_annual_mean_air_temperature_from_cru(cru_data_available):
-    """Test that annual_mean_air_temperature is populated from CRU annual mean data."""
+    """Test that temperature_air_annual_mean is populated from CRU annual mean data."""
     from supy.data_model.validation.pipeline.phase_b import (
         adjust_surface_temperatures,
         get_mean_annual_air_temperature,
@@ -2606,10 +2885,10 @@ def test_phase_b_annual_mean_air_temperature_from_cru(cru_data_available):
                     "lat": {"value": test_lat},
                     "lng": {"value": test_lon},
                     "stebbs": {
-                        "annual_mean_air_temperature": {
+                        "temperature_air_annual_mean": {
                             "value": 999.0
                         },  # Wrong value to be updated
-                        "initial_outdoor_temperature": {
+                        "temperature_air_outdoor_initial": {
                             "value": 999.0
                         },  # Will be updated with monthly temp
                     },
@@ -2622,9 +2901,9 @@ def test_phase_b_annual_mean_air_temperature_from_cru(cru_data_available):
     # Run adjustment
     updated_data, adjustments = adjust_surface_temperatures(yaml_data, start_date)
 
-    # Check that annual_mean_air_temperature was updated
+    # Check that temperature_air_annual_mean was updated
     updated_annual_temp = updated_data["sites"][0]["properties"]["stebbs"][
-        "annual_mean_air_temperature"
+        "temperature_air_annual_mean"
     ]["value"]
     assert updated_annual_temp == annual_temp, (
         f"Expected {annual_temp}, got {updated_annual_temp}"
@@ -2632,7 +2911,7 @@ def test_phase_b_annual_mean_air_temperature_from_cru(cru_data_available):
 
     # Check that adjustment was recorded
     annual_temp_adjustments = [
-        adj for adj in adjustments if adj.parameter == "stebbs.annual_mean_air_temperature"
+        adj for adj in adjustments if adj.parameter == "stebbs.temperature_air_annual_mean"
     ]
     assert len(annual_temp_adjustments) == 1
     adj = annual_temp_adjustments[0]
@@ -2643,7 +2922,7 @@ def test_phase_b_annual_mean_air_temperature_from_cru(cru_data_available):
 
 
 def test_phase_b_annual_mean_air_temperature_no_update_if_same(cru_data_available):
-    """Test that annual_mean_air_temperature is not updated if already correct."""
+    """Test that temperature_air_annual_mean is not updated if already correct."""
     from supy.data_model.validation.pipeline.phase_b import (
         adjust_surface_temperatures,
         get_mean_annual_air_temperature,
@@ -2664,7 +2943,7 @@ def test_phase_b_annual_mean_air_temperature_no_update_if_same(cru_data_availabl
                     "lat": {"value": test_lat},
                     "lng": {"value": test_lon},
                     "stebbs": {
-                        "annual_mean_air_temperature": {
+                        "temperature_air_annual_mean": {
                             "value": annual_temp
                         },  # Already correct
                     },
@@ -2679,7 +2958,7 @@ def test_phase_b_annual_mean_air_temperature_no_update_if_same(cru_data_availabl
 
     # Check that NO adjustment was made (value already correct)
     annual_temp_adjustments = [
-        adj for adj in adjustments if adj.parameter == "stebbs.annual_mean_air_temperature"
+        adj for adj in adjustments if adj.parameter == "stebbs.temperature_air_annual_mean"
     ]
     assert len(annual_temp_adjustments) == 0, (
         "Should not adjust if value already correct"
@@ -2687,7 +2966,7 @@ def test_phase_b_annual_mean_air_temperature_no_update_if_same(cru_data_availabl
 
 
 def test_phase_b_annual_mean_air_temperature_missing_stebbs():
-    """Test graceful handling when annual_mean_air_temperature is not in stebbs."""
+    """Test graceful handling when temperature_air_annual_mean is not in stebbs."""
     from supy.data_model.validation.pipeline.phase_b import adjust_surface_temperatures
 
     # Test coordinates
@@ -2695,7 +2974,7 @@ def test_phase_b_annual_mean_air_temperature_missing_stebbs():
     test_lon = -0.1
     start_date = "2020-01-15"
 
-    # Create test YAML without annual_mean_air_temperature
+    # Create test YAML without temperature_air_annual_mean
     yaml_data = {
         "sites": [
             {
@@ -2703,8 +2982,8 @@ def test_phase_b_annual_mean_air_temperature_missing_stebbs():
                     "lat": {"value": test_lat},
                     "lng": {"value": test_lon},
                     "stebbs": {
-                        "initial_outdoor_temperature": {"value": 10.0},
-                        # annual_mean_air_temperature NOT present
+                        "temperature_air_outdoor_initial": {"value": 10.0},
+                        # temperature_air_annual_mean NOT present
                     },
                 },
                 "initial_states": {},
@@ -2715,9 +2994,9 @@ def test_phase_b_annual_mean_air_temperature_missing_stebbs():
     # Run adjustment - should not crash
     updated_data, adjustments = adjust_surface_temperatures(yaml_data, start_date)
 
-    # Check that no annual_mean_air_temperature adjustment was attempted
+    # Check that no temperature_air_annual_mean adjustment was attempted
     annual_temp_adjustments = [
-        adj for adj in adjustments if adj.parameter == "stebbs.annual_mean_air_temperature"
+        adj for adj in adjustments if adj.parameter == "stebbs.temperature_air_annual_mean"
     ]
     assert len(annual_temp_adjustments) == 0
 
@@ -2852,7 +3131,7 @@ def test_nlayer_height_array_dimension_error():
     sample_data_dir = Path(sp.__file__).parent / "sample_data"
     config_path = sample_data_dir / "sample_config.yml"
 
-    with open(config_path, "r") as f:
+    with open(config_path, "r", encoding="utf-8") as f:
         user_data = yaml.safe_load(f)
 
     # Set nlayer=3 but truncate height array to 2 elements
@@ -2893,7 +3172,7 @@ def test_nlayer_veg_frac_array_dimension_error():
     sample_data_dir = Path(sp.__file__).parent / "sample_data"
     config_path = sample_data_dir / "sample_config.yml"
 
-    with open(config_path, "r") as f:
+    with open(config_path, "r", encoding="utf-8") as f:
         user_data = yaml.safe_load(f)
 
     # Set nlayer=5 but truncate veg_frac to 3 elements
@@ -2934,7 +3213,7 @@ def test_nlayer_multiple_arrays_dimension_errors():
     sample_data_dir = Path(sp.__file__).parent / "sample_data"
     config_path = sample_data_dir / "sample_config.yml"
 
-    with open(config_path, "r") as f:
+    with open(config_path, "r", encoding="utf-8") as f:
         user_data = yaml.safe_load(f)
 
     # Set nlayer=4 but truncate multiple arrays
@@ -2969,7 +3248,7 @@ def test_nlayer_no_errors_when_correct():
     sample_data_dir = Path(sp.__file__).parent / "sample_data"
     config_path = sample_data_dir / "sample_config.yml"
 
-    with open(config_path, "r") as f:
+    with open(config_path, "r", encoding="utf-8") as f:
         user_data = yaml.safe_load(f)
 
     # Detect nlayer from the config
@@ -2999,7 +3278,7 @@ def test_nlayer_roofs_walls_dimension_error_with_templates():
     sample_data_dir = Path(sp.__file__).parent / "sample_data"
     config_path = sample_data_dir / "sample_config.yml"
 
-    with open(config_path, "r") as f:
+    with open(config_path, "r", encoding="utf-8") as f:
         user_data = yaml.safe_load(f)
 
     # Set nlayer to 2 but keep only 1 roof and 1 wall element
@@ -3074,7 +3353,7 @@ def test_forcing_validation_missing_file():
         "model": {"control": {"forcing_file": {"value": "nonexistent_forcing.txt"}}}
     }
 
-    with tempfile.NamedTemporaryFile(mode="w", suffix=".yml", delete=False) as f:
+    with tempfile.NamedTemporaryFile(encoding="utf-8", mode="w", suffix=".yml", delete=False) as f:
         yaml.dump(test_config, f)
         config_path = f.name
 
@@ -3124,7 +3403,7 @@ def test_forcing_validation_valid_forcing_file():
         "wdir": [180.0] * 5,
     }
 
-    with tempfile.NamedTemporaryFile(mode="w", suffix=".txt", delete=False) as f:
+    with tempfile.NamedTemporaryFile(encoding="utf-8", mode="w", suffix=".txt", delete=False) as f:
         df = pd.DataFrame(forcing_data)
         df.to_csv(f, sep=" ", index=False)
         forcing_path = f.name
@@ -3132,7 +3411,7 @@ def test_forcing_validation_valid_forcing_file():
     # Create test config
     test_config = {"model": {"control": {"forcing_file": {"value": forcing_path}}}}
 
-    with tempfile.NamedTemporaryFile(mode="w", suffix=".yml", delete=False) as f:
+    with tempfile.NamedTemporaryFile(encoding="utf-8", mode="w", suffix=".yml", delete=False) as f:
         yaml.dump(test_config, f)
         config_path = f.name
 
@@ -3181,7 +3460,7 @@ def test_forcing_validation_invalid_ranges():
         "wdir": [180.0] * 5,
     }
 
-    with tempfile.NamedTemporaryFile(mode="w", suffix=".txt", delete=False) as f:
+    with tempfile.NamedTemporaryFile(encoding="utf-8", mode="w", suffix=".txt", delete=False) as f:
         df = pd.DataFrame(forcing_data)
         df.to_csv(f, sep=" ", index=False)
         forcing_path = f.name
@@ -3189,7 +3468,7 @@ def test_forcing_validation_invalid_ranges():
     # Create test config
     test_config = {"model": {"control": {"forcing_file": {"value": forcing_path}}}}
 
-    with tempfile.NamedTemporaryFile(mode="w", suffix=".yml", delete=False) as f:
+    with tempfile.NamedTemporaryFile(encoding="utf-8", mode="w", suffix=".yml", delete=False) as f:
         yaml.dump(test_config, f)
         config_path = f.name
 
@@ -3218,7 +3497,7 @@ def test_forcing_validation_no_forcing_file_in_config():
     # Create config without forcing_file
     test_config = {"model": {"control": {}}}
 
-    with tempfile.NamedTemporaryFile(mode="w", suffix=".yml", delete=False) as f:
+    with tempfile.NamedTemporaryFile(encoding="utf-8", mode="w", suffix=".yml", delete=False) as f:
         yaml.dump(test_config, f)
         config_path = f.name
 
@@ -3304,7 +3583,7 @@ def test_forcing_validation_can_be_disabled():
         )
 
         # Verify report does not contain forcing validation errors
-        with open(report_path, "r") as f:
+        with open(report_path, "r", encoding="utf-8") as f:
             report_content = f.read()
 
         assert "forcing data validation error" not in report_content.lower()
@@ -3350,7 +3629,7 @@ def test_forcing_validation_line_number_accuracy():
         "wdir": [180.0] * 10,
     }
 
-    with tempfile.NamedTemporaryFile(mode="w", suffix=".txt", delete=False) as f:
+    with tempfile.NamedTemporaryFile(encoding="utf-8", mode="w", suffix=".txt", delete=False) as f:
         df = pd.DataFrame(forcing_data)
         df.to_csv(f, sep=" ", index=False)
         forcing_path = f.name
@@ -3358,7 +3637,7 @@ def test_forcing_validation_line_number_accuracy():
     # Create test config
     test_config = {"model": {"control": {"forcing_file": {"value": forcing_path}}}}
 
-    with tempfile.NamedTemporaryFile(mode="w", suffix=".yml", delete=False) as f:
+    with tempfile.NamedTemporaryFile(encoding="utf-8", mode="w", suffix=".yml", delete=False) as f:
         yaml.dump(test_config, f)
         config_path = f.name
 
@@ -3420,7 +3699,7 @@ def test_forcing_validation_refvalue_format():
         "wdir": [180.0] * 3,
     }
 
-    with tempfile.NamedTemporaryFile(mode="w", suffix=".txt", delete=False) as f:
+    with tempfile.NamedTemporaryFile(encoding="utf-8", mode="w", suffix=".txt", delete=False) as f:
         df = pd.DataFrame(forcing_data)
         df.to_csv(f, sep=" ", index=False)
         forcing_path = f.name
@@ -3438,7 +3717,7 @@ def test_forcing_validation_refvalue_format():
         }
     }
 
-    with tempfile.NamedTemporaryFile(mode="w", suffix=".yml", delete=False) as f:
+    with tempfile.NamedTemporaryFile(encoding="utf-8", mode="w", suffix=".yml", delete=False) as f:
         yaml.dump(test_config, f)
         config_path = f.name
 
@@ -3488,7 +3767,7 @@ def test_forcing_validation_multiple_files():
         "wdir": [180.0] * 3,
     }
 
-    with tempfile.NamedTemporaryFile(mode="w", suffix=".txt", delete=False) as f:
+    with tempfile.NamedTemporaryFile(encoding="utf-8", mode="w", suffix=".txt", delete=False) as f:
         df1 = pd.DataFrame(forcing_data1)
         df1.to_csv(f, sep=" ", index=False)
         forcing_path1 = f.name
@@ -3497,7 +3776,7 @@ def test_forcing_validation_multiple_files():
     forcing_data2 = forcing_data1.copy()
     forcing_data2["rain"] = [-1.0, -2.0, -3.0]
 
-    with tempfile.NamedTemporaryFile(mode="w", suffix=".txt", delete=False) as f:
+    with tempfile.NamedTemporaryFile(encoding="utf-8", mode="w", suffix=".txt", delete=False) as f:
         df2 = pd.DataFrame(forcing_data2)
         df2.to_csv(f, sep=" ", index=False)
         forcing_path2 = f.name
@@ -3507,7 +3786,7 @@ def test_forcing_validation_multiple_files():
         "model": {"control": {"forcing_file": [forcing_path1, forcing_path2]}}
     }
 
-    with tempfile.NamedTemporaryFile(mode="w", suffix=".yml", delete=False) as f:
+    with tempfile.NamedTemporaryFile(encoding="utf-8", mode="w", suffix=".yml", delete=False) as f:
         yaml.dump(test_config, f)
         config_path = f.name
 
@@ -3549,7 +3828,7 @@ def test_forcing_validation_cli_integration(cli_runner):
     sample_config = sample_data_dir / "sample_config.yml"
 
     # Read sample config and get forcing file path
-    with open(sample_config, "r") as f:
+    with open(sample_config, "r", encoding="utf-8") as f:
         config_data = yaml.safe_load(f)
 
     # Create a temporary config with invalid forcing data
@@ -3596,7 +3875,7 @@ def test_forcing_validation_cli_integration(cli_runner):
         }
 
         test_config_path = tmpdir_path / "test_config.yml"
-        with open(test_config_path, "w") as f:
+        with open(test_config_path, "w", encoding="utf-8") as f:
             yaml.dump(test_config_data, f)
 
         # Test 1: Default behavior (forcing validation enabled)
@@ -3607,7 +3886,7 @@ def test_forcing_validation_cli_integration(cli_runner):
         assert len(report_files) == 1, (
             f"Expected 1 report file, found {len(report_files)}: {list(tmpdir_path.iterdir())}"
         )
-        with open(report_files[0], "r") as f:
+        with open(report_files[0], "r", encoding="utf-8") as f:
             report_content = f.read()
         assert "forcing data validation error" in report_content.lower(), (
             f"Expected forcing validation error in report, but got:\n{report_content[:500]}"
@@ -3627,7 +3906,7 @@ def test_forcing_validation_cli_integration(cli_runner):
         assert len(report_files) == 1, (
             f"Expected 1 report file, found {len(report_files)}"
         )
-        with open(report_files[0], "r") as f:
+        with open(report_files[0], "r", encoding="utf-8") as f:
             report_content = f.read()
         assert "forcing data validation error" not in report_content.lower(), (
             f"Expected no forcing validation errors when disabled, but got:\n{report_content[:500]}"
@@ -3906,7 +4185,7 @@ def test_dls_consistency_validation_in_suews_config():
     import yaml
 
     sample_path = trv_supy_module / "sample_data" / "sample_config.yml"
-    with sample_path.open() as f:
+    with sample_path.open(encoding="utf-8") as f:
         config_data = yaml.safe_load(f)
 
     # Test 1: Both None - valid
@@ -3944,7 +4223,7 @@ def test_dls_leap_year_validation_in_suews_config():
     from supy.data_model.core import SUEWSConfig
 
     sample_path = trv_supy_module / "sample_data" / "sample_config.yml"
-    with sample_path.open() as f:
+    with sample_path.open(encoding="utf-8") as f:
         config_data = yaml.safe_load(f)
 
     # Set DLS values
@@ -3971,7 +4250,7 @@ def test_dls_location_based_informational_messages_in_suews_config():
     from supy.data_model.core import SUEWSConfig
 
     sample_path = trv_supy_module / "sample_data" / "sample_config.yml"
-    with sample_path.open() as f:
+    with sample_path.open(encoding="utf-8") as f:
         config_data = yaml.safe_load(f)
 
     # Set year to 2024 (leap year) and add site name
@@ -4174,7 +4453,7 @@ sites:
           faibldg: {value: 0.3}
 """
         config_path = tmp_path / "partial_land_cover.yml"
-        config_path.write_text(config_yaml)
+        config_path.write_text(config_yaml, encoding="utf-8")
 
         with pytest.raises(ValueError) as exc_info:
             SUEWSConfig.from_yaml(str(config_path))
@@ -4257,14 +4536,14 @@ sites:
           sfr: {value: 0.0}
 """
         config_path = tmp_path / "fai_simple_scheme.yml"
-        config_path.write_text(config_yaml)
+        config_path.write_text(config_yaml, encoding="utf-8")
 
         config = SUEWSConfig.from_yaml(str(config_path))
         assert config is not None
 
         annotated_path = Path(config.generate_annotated_yaml(str(config_path)))
         try:
-            annotated = annotated_path.read_text()
+            annotated = annotated_path.read_text(encoding="utf-8")
             assert "faibldg:" not in annotated
         finally:
             annotated_path.unlink(missing_ok=True)
@@ -4347,7 +4626,7 @@ sites:
           sfr: {value: 0.0}
 """
         config_path = tmp_path / "lai_observed.yml"
-        config_path.write_text(config_yaml)
+        config_path.write_text(config_yaml, encoding="utf-8")
 
         config = SUEWSConfig.from_yaml(str(config_path))
         assert config is not None
@@ -4373,8 +4652,8 @@ def _phase_b_science_fixture():
                         "paved": {"sfr": {"value": 0.99995}},
                     },
                     "stebbs": {
-                        "initial_outdoor_temperature": {"value": 0.0},
-                        "annual_mean_air_temperature": {"value": 0.0},
+                        "temperature_air_outdoor_initial": {"value": 0.0},
+                        "temperature_air_annual_mean": {"value": 0.0},
                     },
                 },
                 "initial_states": {
@@ -4388,6 +4667,49 @@ def _phase_b_science_fixture():
             }
         ],
     }
+
+
+@pytest.mark.parametrize(
+    ("emissions_method", "expects_error"),
+    [
+        (5, False),
+        (11, True),
+    ],
+)
+def test_land_cover_validator_handles_current_biogenic_names_for_disabled_co2(
+    registry, emissions_method, expects_error
+):
+    yaml_data = {
+        "model": {"physics": {"emissions": {"value": emissions_method}}},
+        "sites": [
+            {
+                "gridiv": {"value": 101},
+                "properties": {
+                    "land_cover": {
+                        "dectr": {
+                            "sfr": {"value": 1.0},
+                            "alpha_bio_co2": {"value": None},
+                            "beta_bio_co2": {"value": None},
+                            "theta_bio_co2": {"value": None},
+                            "resp_a": {"value": None},
+                            "resp_b": {"value": None},
+                        }
+                    }
+                },
+            }
+        ],
+    }
+
+    results = registry["land_cover"](ValidationContext(yaml_data=yaml_data))
+
+    has_biogenic_error = any(
+        result.status == "ERROR"
+        and result.parameter.startswith("dectr.")
+        and result.parameter.split(".")[-1]
+        in {"alpha_bio_co2", "beta_bio_co2", "theta_bio_co2", "resp_a", "resp_b"}
+        for result in results
+    )
+    assert has_biogenic_error is expects_error
 
 
 def test_phase_b_collect_science_suggestions_does_not_mutate(monkeypatch):
@@ -4587,3 +4909,511 @@ def test_suews_validate_help_exposes_science_fixes(cli_runner):
 
     assert result.exit_code == 0
     assert "--science-fixes" in result.output
+
+
+class TestPhaseBRenameAwareLookups:
+    """Phase B rules read the RAW (un-normalised) user YAML in standalone / BC
+    mode, so they must resolve legacy spellings of renamed fields. Regression for
+    the gap (Codex review) where a still-compatible dev11 config was wrongly
+    flagged missing (physics) or silently skipped (STEBBS) because the rules
+    looked up only the current name.
+    """
+
+    # The required flat model.physics keys (mirrors validate_physics_parameters).
+    _REQUIRED_FLAT_PHYSICS = [
+        "net_radiation", "emissions", "storage_heat", "ohm_inc_qf",
+        "roughness_length_momentum", "roughness_length_heat", "stability",
+        "soil_moisture_deficit", "water_use", "roughness_sublayer",
+        "frontal_area_index", "roughness_sublayer_level", "surface_conductance",
+        "snow_use",
+    ]
+    # gh#1456: the STEBBS switches are required under the nested
+    # model.physics.stebbs sub-object.
+    _REQUIRED_STEBBS = [
+        "capacitance", "setpoint", "same_albedo_wall", "same_albedo_roof",
+        "same_emissivity_wall", "same_emissivity_roof",
+    ]
+
+    def _build_physics(self):
+        """A complete model.physics dict in the nested gh#1456 shape."""
+        physics = {k: {"value": 1} for k in self._REQUIRED_FLAT_PHYSICS}
+        physics["stebbs"] = {k: {"value": 1} for k in self._REQUIRED_STEBBS}
+        return physics
+
+    def _physics_ctx(self, physics):
+        return SimpleNamespace(yaml_data={"model": {"physics": physics}})
+
+    def test_legacy_capacitance_spelling_satisfies_requirement(self):
+        from supy.data_model.validation.pipeline.phase_b_rules.physics_rules import (
+            validate_physics_parameters,
+        )
+
+        # gh#1456: capacitance is now a nested model.physics.stebbs leaf. Its
+        # legacy spelling `outer_cap_fraction` placed in the nested stebbs block
+        # must still satisfy the requirement (rename-aware lookup).
+        physics = self._build_physics()
+        physics["stebbs"]["outer_cap_fraction"] = physics["stebbs"].pop("capacitance")
+        errors = [
+            r
+            for r in validate_physics_parameters(self._physics_ctx(physics))
+            if r.status == "ERROR" and "capacitance" in (r.parameter or "")
+        ]
+        assert errors == [], (
+            "legacy `outer_cap_fraction` should satisfy the nested "
+            "`stebbs.capacitance` requirement in un-normalised Phase B input"
+        )
+
+    def test_nested_stebbs_block_can_be_discriminated_by_alias_only(self):
+        from supy.data_model.validation.core.yaml_helpers import get_stebbs_block
+
+        block = get_stebbs_block({"stebbs": {"rcmethod": {"value": 2}}})
+
+        assert block == {"capacitance": {"value": 2}}
+
+    def test_flat_stebbs_switches_satisfy_nested_requirements(self):
+        from supy.data_model.validation.pipeline.phase_b_rules.physics_rules import (
+            validate_physics_parameters,
+        )
+
+        # The standalone rule may receive a current-but-flat raw YAML view before
+        # the Phase B load chokepoint folds gh#1456 STEBBS switches. The shared
+        # STEBBS helper must expose the same nested view Pydantic accepts.
+        physics = self._build_physics()
+        stebbs_leaves = physics.pop("stebbs")
+        physics["stebbs"] = {"value": 1}
+        physics.update(stebbs_leaves)
+
+        errors = [
+            r
+            for r in validate_physics_parameters(self._physics_ctx(physics))
+            if r.status == "ERROR" and "model.physics.stebbs" in (r.parameter or "")
+        ]
+        assert errors == []
+
+    def test_genuinely_absent_capacitance_still_flagged(self):
+        from supy.data_model.validation.pipeline.phase_b_rules.physics_rules import (
+            validate_physics_parameters,
+        )
+
+        physics = self._build_physics()
+        del physics["stebbs"]["capacitance"]  # neither current nor legacy spelling present
+        errors = [
+            r
+            for r in validate_physics_parameters(self._physics_ctx(physics))
+            if r.status == "ERROR" and "capacitance" in (r.parameter or "")
+        ]
+        assert len(errors) == 1, "a truly absent required key must still be flagged"
+
+    def test_legacy_control_daylight_is_validated_not_skipped(self):
+        from supy.data_model.validation.pipeline.phase_b_rules.stebbs_rules import (
+            check_daylight_control,
+        )
+
+        ctx = SimpleNamespace(
+            yaml_data={
+                "model": {"physics": {"stebbs": {"value": 1}}},
+                "sites": [
+                    {
+                        "gridiv": 1,
+                        # legacy spelling of daylight_control with an invalid value
+                        "properties": {"stebbs": {"control_daylight": {"value": 5}}},
+                    }
+                ],
+            }
+        )
+        errors = [
+            r for r in check_daylight_control(ctx) if "daylight_control" in (r.parameter or "")
+        ]
+        assert len(errors) == 1, (
+            "legacy `control_daylight` with an invalid value must be flagged, "
+            "not skipped because the rule only looked up `daylight_control`"
+        )
+
+    def _empty_param_errors(self, physics):
+        from supy.data_model.validation.pipeline.phase_b_rules.physics_rules import (
+            validate_physics_parameters,
+        )
+
+        return {
+            r.parameter
+            for r in validate_physics_parameters(self._physics_ctx(physics))
+            if r.status == "ERROR" and "null value" in r.message
+        }
+
+    def test_empty_required_physics_mapping_flagged(self):
+        # A present-but-value-less mapping (`capacitance: {}`) must be flagged
+        # empty — get_value_safe returns the bare mapping, so the rename-aware
+        # rewrite must not let it slip through (regression guard). gh#1456:
+        # capacitance is checked under the nested model.physics.stebbs block.
+        physics = self._build_physics()
+        physics["stebbs"]["capacitance"] = {}
+        assert "model.physics.stebbs.capacitance" in self._empty_param_errors(physics)
+        # and via the legacy spelling
+        physics = self._build_physics()
+        del physics["stebbs"]["capacitance"]
+        physics["stebbs"]["outer_cap_fraction"] = {}
+        assert "model.physics.stebbs.capacitance" in self._empty_param_errors(physics)
+
+    def test_nested_family_and_valid_values_not_flagged_empty(self):
+        # The gh#972 nested-family form and a valid 0 must NOT be flagged empty.
+        physics = self._build_physics()
+        physics["net_radiation"] = {"spartacus": {"value": 1001}}
+        physics["stebbs"]["capacitance"] = {"value": 0}
+        flagged = self._empty_param_errors(physics)
+        assert "model.physics.net_radiation" not in flagged
+        assert "model.physics.stebbs.capacitance" not in flagged
+
+    def test_stebbsmethod_helper_defaults_partial_nested_block_to_disabled(self):
+        from supy.data_model.validation.core.yaml_helpers import get_stebbsmethod_value
+
+        assert get_stebbsmethod_value({"stebbs": {"capacitance": {"value": 1}}}) == 0
+        assert get_stebbsmethod_value({"capacitance": {"value": 1}}) == 0
+        assert (
+            get_stebbsmethod_value(
+                {"stebbs": {"value": 2}, "capacitance": {"value": 1}}
+            )
+            == 2
+        )
+
+    @pytest.mark.parametrize("legacy_key", ["stebbsmethod", "stebbs_method"])
+    def test_stebbsmethod_helper_reads_legacy_master_aliases(self, legacy_key):
+        from supy.data_model.validation.core.yaml_helpers import get_stebbsmethod_value
+
+        assert get_stebbsmethod_value({legacy_key: {"value": 1}}) == 1
+        assert get_stebbsmethod_value({legacy_key: {"value": 2}}) == 2
+        assert get_stebbsmethod_value({legacy_key: {"value": 0}}) == 0
+
+    @pytest.mark.parametrize("legacy_key", ["stebbsmethod", "stebbs_method"])
+    def test_stebbsmethod_helper_rejects_mixed_master_aliases(self, legacy_key):
+        from supy.data_model.validation.core.yaml_helpers import get_stebbsmethod_value
+
+        with pytest.raises(ValueError, match="legacy STEBBS master aliases"):
+            get_stebbsmethod_value(
+                {
+                    "stebbs": {"enabled": {"value": False}},
+                    legacy_key: {"value": 1},
+                }
+            )
+
+    def test_stebbsmethod_helper_rejects_duplicate_legacy_master_aliases(self):
+        from supy.data_model.validation.core.yaml_helpers import get_stebbsmethod_value
+
+        with pytest.raises(ValueError, match="Multiple legacy STEBBS master aliases"):
+            get_stebbsmethod_value(
+                {
+                    "stebbsmethod": {"value": 0},
+                    "stebbs_method": {"value": 1},
+                }
+            )
+
+    @pytest.mark.parametrize(
+        "flat_key",
+        ["rcmethod", "capacitance", "outer_cap_fraction"],
+    )
+    def test_stebbs_block_helper_rejects_mixed_flat_nested_leaves(self, flat_key):
+        from supy.data_model.validation.core.yaml_helpers import get_stebbs_block
+
+        with pytest.raises(ValueError, match="flat STEBBS physics switches"):
+            get_stebbs_block(
+                {
+                    "stebbs": {
+                        "enabled": {"value": True},
+                        "capacitance": {"value": 1},
+                    },
+                    flat_key: {"value": 0},
+                }
+            )
+
+    @pytest.mark.parametrize(
+        "left,right",
+        [
+            ("outer_cap_fraction", "rcmethod"),
+            ("outer_cap_fraction", "rc_method"),
+            ("capacitance", "rcmethod"),
+            ("setpoint", "setpointmethod"),
+        ],
+    )
+    def test_stebbs_block_helper_rejects_duplicate_flat_leaf_aliases(
+        self,
+        left,
+        right,
+    ):
+        from supy.data_model.validation.core.yaml_helpers import get_stebbs_block
+
+        with pytest.raises(ValueError, match="same nested leaf"):
+            get_stebbs_block(
+                {
+                    "stebbs": {"value": 1},
+                    left: {"value": 1},
+                    right: {"value": 2},
+                }
+            )
+
+    @pytest.mark.parametrize(
+        "left,right",
+        [
+            ("capacitance", "outer_cap_fraction"),
+            ("outer_cap_fraction", "rcmethod"),
+            ("rcmethod", "rc_method"),
+            ("setpoint", "setpointmethod"),
+        ],
+    )
+    def test_stebbs_block_helper_rejects_duplicate_nested_leaf_aliases(
+        self,
+        left,
+        right,
+    ):
+        from supy.data_model.validation.core.yaml_helpers import (
+            get_stebbs_block,
+            get_stebbsmethod_value,
+        )
+
+        physics = {
+            "stebbs": {
+                "enabled": {"value": True},
+                left: {"value": 1},
+                right: {"value": 2},
+            }
+        }
+
+        with pytest.raises(ValueError, match="Multiple nested STEBBS"):
+            get_stebbs_block(physics)
+        with pytest.raises(ValueError, match="Multiple nested STEBBS"):
+            get_stebbsmethod_value(physics)
+
+    def test_stebbsmethod_helper_rejects_invalid_nested_switch_values(self):
+        from supy.data_model.validation.core.yaml_helpers import get_stebbsmethod_value
+
+        assert (
+            get_stebbsmethod_value(
+                {
+                    "stebbs": {
+                        "enabled": {"value": True},
+                        "parameters": {"value": "provided"},
+                    }
+                }
+            )
+            == 2
+        )
+        with pytest.raises(ValueError, match="unknown scheme name"):
+            get_stebbsmethod_value(
+                {
+                    "stebbs": {
+                        "enabled": {"value": True},
+                        "parameters": {"value": "custom"},
+                    }
+                }
+            )
+        with pytest.raises(ValueError, match="stebbs.parameters"):
+            get_stebbsmethod_value(
+                {
+                    "stebbs": {
+                        "enabled": {"value": False},
+                        "parameters": {"value": 99},
+                    }
+                }
+            )
+        with pytest.raises(ValueError, match="stebbs.enabled"):
+            get_stebbsmethod_value({"stebbs": {"enabled": {"value": 2}}})
+
+    def test_stebbsmethod_helper_parses_pydantic_bool_strings(self):
+        from supy.data_model.validation.core.yaml_helpers import get_stebbsmethod_value
+
+        assert get_stebbsmethod_value({"stebbs": {"enabled": {"value": "yes"}}}) == 1
+        assert get_stebbsmethod_value({"stebbs": {"enabled": {"value": "off"}}}) == 0
+
+    def test_stebbsmethod_helper_rejects_malformed_legacy_stebbs_mapping(self):
+        from supy.data_model.validation.core.yaml_helpers import get_stebbsmethod_value
+
+        with pytest.raises(ValueError, match="Legacy 'stebbs' mappings"):
+            get_stebbsmethod_value({"stebbs": {"foo": 1}})
+
+
+class TestStandaloneValidationRenameNormalisation:
+    """gh#1457: the standalone Phase B/C validation path (``suews validate`` in
+    BC / C / AC modes) inspects the raw user YAML without going through
+    ``SUEWSConfig.from_yaml``'s normalisation. A normalise-once step at each
+    phase's load chokepoint lets every rule match a legacy spelling of a renamed
+    field. These guard the chokepoints rather than the individual rules (the
+    per-rule routing is covered by ``TestPhaseBRenameAwareLookups``).
+    """
+
+    def test_normalise_helper_rewrites_nested_legacy(self):
+        from supy.data_model.core.field_renames import normalise_yaml_renames
+
+        out = normalise_yaml_renames(
+            {"sites": [{"stebbs": {"outer_cap_fraction": {"value": 1}}}]}
+        )
+        assert out["sites"][0]["stebbs"] == {"capacitance": {"value": 1}}
+
+    def test_normalise_helper_idempotent_on_current_names(self):
+        from supy.data_model.core.field_renames import normalise_yaml_renames
+
+        current = {"sites": [{"stebbs": {"capacitance": {"value": 1}}}]}
+        assert normalise_yaml_renames(current) == current
+
+    def test_normalise_helper_folds_flat_stebbs_physics(self):
+        from supy.data_model.core.field_renames import normalise_yaml_renames
+
+        payload = {
+            "model": {
+                "physics": {
+                    "stebbs": {"value": 2},
+                    "rcmethod": {"value": 1},
+                    "setpoint": {"value": 1},
+                    "same_albedo_wall": {"value": 1},
+                }
+            }
+        }
+
+        with warnings.catch_warnings(record=True) as captured:
+            warnings.simplefilter("always", DeprecationWarning)
+            out = normalise_yaml_renames(payload)
+
+        physics = out["model"]["physics"]
+        stebbs = physics["stebbs"]
+        assert "rcmethod" not in physics
+        assert "capacitance" not in physics
+        assert "setpoint" not in physics
+        assert stebbs["enabled"] == {"value": True}
+        assert stebbs["parameters"] == {"value": 2}
+        assert stebbs["capacitance"] == {"value": 1}
+        assert stebbs["setpoint"] == {"value": 1}
+        assert stebbs["same_albedo_wall"] == {"value": 1}
+        assert not [
+            w
+            for w in captured
+            if issubclass(w.category, DeprecationWarning)
+            and "gh#1456" in str(w.message)
+        ]
+
+    def test_normalise_helper_rewrites_nested_stebbs_aliases(self):
+        from supy.data_model.core.field_renames import normalise_yaml_renames
+
+        out = normalise_yaml_renames(
+            {
+                "model": {
+                    "physics": {
+                        "stebbs": {
+                            "enabled": {"value": True},
+                            "outer_cap_fraction": {"value": 2},
+                            "setpointmethod": {"value": 2},
+                        }
+                    }
+                }
+            }
+        )
+
+        stebbs = out["model"]["physics"]["stebbs"]
+        assert "outer_cap_fraction" not in stebbs
+        assert "setpointmethod" not in stebbs
+        assert stebbs["capacitance"] == {"value": 2}
+        assert stebbs["setpoint"] == {"value": 2}
+
+    def test_normalise_helper_keeps_ambiguous_config_unchanged(self):
+        # Both a legacy and its current spelling present is ambiguous; the helper
+        # must return the data untouched (not raise) so the downstream validator
+        # reports the conflict. This guarantees normalisation can only resolve
+        # rename-blindness, never introduce a new failure.
+        from supy.data_model.core.field_renames import normalise_yaml_renames
+
+        both = {
+            "physics": {
+                "outer_cap_fraction": {"value": 1},
+                "capacitance": {"value": 2},
+            }
+        }
+        assert normalise_yaml_renames(both) == both
+
+    def test_normalise_helper_passes_through_non_mappings(self):
+        from supy.data_model.core.field_renames import normalise_yaml_renames
+
+        assert normalise_yaml_renames([1, 2]) == [1, 2]
+        assert normalise_yaml_renames("scalar") == "scalar"
+        assert normalise_yaml_renames(None) is None
+
+    def test_phase_b_load_normalises_legacy_user_yaml(self, tmp_path):
+        # The Phase B load chokepoint must hand current names to the science
+        # checks (CRU diffmax ~phase_b:1206, setpoint cleanup ~phase_b:2051),
+        # which look up the current spelling only.
+        import json
+        from supy.data_model.validation.pipeline.phase_b import (
+            validate_phase_b_inputs,
+        )
+
+        legacy = tmp_path / "legacy.yml"
+        legacy.write_text(
+            "sites:\n"
+            "- properties:\n"
+            "    stebbs:\n"
+            "      outer_cap_fraction: {value: 1.0}\n"
+            "      month_mean_air_temperature_diffmax: {value: 5.0}\n"
+            "      heating_setpoint_temperature: {value: 19.0}\n",
+            encoding="utf-8",
+        )
+        # Same file for all three args; only the user / uptodate dicts are
+        # asserted (standard_data is the packaged sample in real runs).
+        uptodate_data, user_data, _ = validate_phase_b_inputs(
+            str(legacy), str(legacy), str(legacy)
+        )
+        for data in (uptodate_data, user_data):
+            dumped = json.dumps(data)
+            assert "outer_cap_fraction" not in dumped
+            assert "capacitance" in dumped
+            assert "month_mean_air_temperature_diffmax" not in dumped
+            assert "temperature_air_month_mean_diffmax" in dumped
+            assert "heating_setpoint_temperature" not in dumped
+            assert "setpoint_temperature_heating_air" in dumped
+
+    def test_legacy_null_capacitance_caught_as_critical_after_normalisation(self):
+        # The crash-path regression. A user-supplied null under the legacy
+        # spelling must be recognised as a critical null (failing validation with
+        # an actionable message) instead of slipping through to a later
+        # int(None) crash in df_state conversion.
+        from supy.data_model.validation.pipeline.orchestrator import (
+            detect_pydantic_defaults,
+        )
+        from supy.data_model.core.field_renames import normalise_yaml_renames
+
+        # Pydantic-processed data carries the current nested name with a null value.
+        processed = {
+            "model": {"physics": {"stebbs": {"capacitance": {"value": None}}}}
+        }
+        legacy_raw = {"model": {"physics": {"outer_cap_fraction": {"value": None}}}}
+
+        # Without normalisation the orchestrator looks up `capacitance`, absent
+        # from the legacy raw data, so the null is NOT flagged critical.
+        crit_raw, _ = detect_pydantic_defaults(legacy_raw, processed, "", {})
+        assert not any(c["field_name"] == "capacitance" for c in crit_raw)
+
+        # With the gh#1457 normalise-once step the legacy null is recognised.
+        crit_norm, _ = detect_pydantic_defaults(
+            normalise_yaml_renames(legacy_raw), processed, "", {}
+        )
+        assert any(c["field_name"] == "capacitance" for c in crit_norm)
+
+    def test_load_user_yaml_normalised_rewrites_legacy_file(self, tmp_path):
+        # The single load chokepoint: reading a legacy-spelling file from disk
+        # yields current names, so every standalone rule matches regardless of
+        # the spelling the user wrote.
+        import json
+        from supy.data_model.validation.core.yaml_helpers import (
+            load_user_yaml_normalised,
+        )
+
+        legacy = tmp_path / "legacy.yml"
+        legacy.write_text(
+            "model:\n"
+            "  physics:\n"
+            "    rcmethod: {value: 1}\n"
+            "sites:\n"
+            "- properties:\n"
+            "    stebbs:\n"
+            "      heating_setpoint_temperature: {value: 19.0}\n",
+            encoding="utf-8",
+        )
+        dumped = json.dumps(load_user_yaml_normalised(str(legacy)))
+        assert "rcmethod" not in dumped
+        assert "capacitance" in dumped
+        assert "heating_setpoint_temperature" not in dumped
+        assert "setpoint_temperature_heating_air" in dumped

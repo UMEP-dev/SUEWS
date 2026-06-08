@@ -504,7 +504,7 @@ def main():
         print_results(results, show_info=args.show_info)
         sys.stdout = sys.__stdout__
 
-        with open(args.report, "w") as f:
+        with open(args.report, "w", encoding="utf-8") as f:
             f.write(output.getvalue())
         print(f"Report written to: {args.report}")
     else:

@@ -54,6 +54,28 @@ def test_inspect_sample_config_returns_surface_fractions_summing_to_one() -> Non
     assert data["forcing_summary"]["n_columns"] == 24
     assert data["forcing_summary"]["columns"][0] == "iy"
 
+    physics = data["physics"]
+    assert physics["net_radiation"]["code"] == 3
+    assert physics["net_radiation"]["selected"] == "ldown_air"
+    assert "ldown_air" in physics["net_radiation"]["accepted_names"]
+    assert physics["emissions"]["selected"] == "J11"
+    assert "canonical_name" not in physics["emissions"]
+    assert physics["storage_heat"]["selected"] == "ohm"
+    assert physics["roughness_length_heat"]["selected"] == "K09"
+    assert physics["stability"]["selected"] == "CN98"
+    assert physics["surface_conductance"]["selected"] == "W16"
+    assert physics["surface_conductance"]["canonical_name"] == "ward"
+    assert "ohm_inc_qf" not in physics
+    storage_ohm = physics["storage_heat"]["ohm"]
+    assert storage_ohm["include_qf_selected"] == "exclude"
+    assert storage_ohm["include_qf"] is False
+    assert physics["leaf_area_index"]["internal_key"] == "laimethod"
+    assert physics["leaf_area_index"]["selected"] == "modelled"
+    assert physics["snow"]["internal_key"] == "snow_use"
+    assert physics["snow"]["selected"] == "disabled"
+    assert physics["stebbs"]["parameter_source"]["internal_key"] == "parameters"
+    assert physics["stebbs"]["parameter_source"]["selected"] == "default"
+
     fractions = data["surface_cover_fraction"]
     assert set(fractions) == {
         "paved",
@@ -103,6 +125,103 @@ def test_inspect_list_forcing_reports_each_file(tmp_path: Path) -> None:
     assert [item["n_columns"] for item in summary["files"]] == [24, 24]
 
 
+def test_inspect_only_reports_ohm_qf_axis_when_ohm_is_selected() -> None:
+    """OHMIncQF stays hidden unless storage_heat is actually OHM."""
+    from supy.cmd.inspect_config import _physics_summary
+
+    physics = _physics_summary(
+        {
+            "physics": {
+                "storage_heat": {"value": 5},
+                "ohm_inc_qf": {"value": 0},
+            }
+        }
+    )
+
+    assert physics["storage_heat"]["selected"] == "ehc"
+    assert "ohm" not in physics["storage_heat"]
+
+
+def test_inspect_reports_ohm_qf_include_branch() -> None:
+    """The OHM-owned QF axis reports the true/include case directly."""
+    from supy.cmd.inspect_config import _physics_summary
+
+    physics = _physics_summary(
+        {
+            "physics": {
+                "storage_heat": {"value": 1},
+                "ohm_inc_qf": {"value": 1},
+            }
+        }
+    )
+
+    ohm = physics["storage_heat"]["ohm"]
+    assert ohm["include_qf"] is True
+    assert ohm["include_qf_code"] == 1
+    assert ohm["include_qf_selected"] == "include"
+
+
+def test_inspect_handles_missing_physics_block() -> None:
+    """The new physics envelope key remains stable when physics is absent."""
+    from supy.cmd.inspect_config import _physics_summary
+
+    assert _physics_summary({}) == {}
+
+
+def test_inspect_unwraps_stebbs_enabled_refvalue() -> None:
+    """STEBBS enabled must unwrap RefValue-like dicts before bool conversion."""
+    from supy.cmd.inspect_config import _physics_summary
+
+    physics = _physics_summary(
+        {
+            "physics": {
+                "stebbs": {
+                    "enabled": {"value": False, "ref": {"DOI": "10.test/ref"}},
+                },
+            }
+        }
+    )
+
+    assert physics["stebbs"]["enabled"] is False
+
+
+def test_inspect_labels_smd_numeric_compatibility_code() -> None:
+    """SMD code 2 remains readable as the unified observed source choice."""
+    from supy.cmd.inspect_config import _physics_summary
+
+    physics = _physics_summary(
+        {
+            "physics": {
+                "soil_moisture_deficit": {"value": 2},
+            }
+        }
+    )
+
+    smd = physics["soil_moisture_deficit"]
+    assert smd["code"] == 2
+    assert smd["selected"] == "observed"
+    assert smd["selected_name_is_lossy"] is True
+    assert smd["accepted_names"] == ["modelled", "observed"]
+
+
+def test_inspect_distinguishes_smd_observed_codes() -> None:
+    """SMD observed codes share a public name but code 2 is marked lossy."""
+    from supy.cmd.inspect_config import _physics_summary
+
+    physics = _physics_summary(
+        {
+            "physics": {
+                "soil_moisture_deficit": {"value": 1},
+            }
+        }
+    )
+
+    smd = physics["soil_moisture_deficit"]
+    assert smd["code"] == 1
+    assert smd["selected"] == "observed"
+    assert "selected_name_is_lossy" not in smd
+
+
 def test_inspect_top_level_command_metadata_is_not_duplicated() -> None:
     """The unified ``suews inspect`` path records the command once."""
     from supy.cmd.suews_cli import cli
@@ -131,6 +250,9 @@ def test_inspect_text_format_prints_overview() -> None:
     assert result.exit_code == 0, result.output
     assert "Configuration:" in result.output
     assert "Sites" in result.output
+    assert "Physics selectors:" in result.output
+    assert "leaf_area_index:" in result.output
+    assert "storage_heat.ohm.include_qf:" in result.output
 
 
 def test_inspect_invalid_yaml_returns_error_envelope(tmp_path: Path) -> None:

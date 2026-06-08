@@ -13,7 +13,7 @@
   "plugins": [
     {
       "name": "suews",
-      "description": "Run, validate, and analyse SUEWS urban climate simulations from your AI assistant. Bundles workflow rules, the `suews-mcp` Model Context Protocol server (validation, inspection, summarise/compare/diagnose, init/convert, versioned knowledge pack), forcing-data checks, output interpretation, and common-error diagnostics.",
+      "description": "Run, validate, and analyse SUEWS urban climate simulations from your AI assistant. Bundles workflow rules, the `suews-mcp` Model Context Protocol server (validation, inspection, summarise/compare/diagnose, init/convert, versioned knowledge pack), fresh-site simulation guidance with assumption ledgers/readiness levels, forcing-data checks, output interpretation, and common-error diagnostics.",
       "source": "./",
       "skills": [
         "./.claude/skills/suews"

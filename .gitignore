@@ -671,3 +671,9 @@ test/fixtures/gh846/*.zip
 # `suews-schema publish`; the canonical committed copy lives at
 # docs/source/inputs/tables/schema.json)
 site/schemas/
+
+# Generated plugin bundle: `make plugin` (scripts/build_plugin.py) copies the
+# single-source skill from .claude/skills/suews into the distributable plugin.
+# It is a build artifact (regenerated locally / in CI before publishing), so the
+# duplicated skill copy is not committed; only the plugin manifests + assets are.
+plugins/suews/skills/

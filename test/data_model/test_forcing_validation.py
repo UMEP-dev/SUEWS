@@ -36,24 +36,22 @@ def test_model_control_accepts_legacy_forcing_file():
 
 
 def test_current_schema_version_bumped_for_forcing_restructure():
-    """gh#1372 forcing.file restructure must be documented in the dev9 entry."""
+    """gh#1372 forcing.file restructure must be documented in the 2026.5 entry."""
     from supy.data_model.schema.version import CURRENT_SCHEMA_VERSION, SCHEMA_VERSIONS
 
-    # gh#1372 collapse (post-review): the forcing+output restructures
-    # ship together as a single 2026.5.dev9 cumulative bump per the
-    # dev-label convention (`.claude/rules/python/schema-versioning.md`)
-    # rather than re-using master's dev7 (PR#1390 ArchetypeProperties
-    # Rule 2 reorder) and dev8 (PR#1395 registry refresh) labels.
-    assert "2026.5.dev9" in SCHEMA_VERSIONS
-    desc = SCHEMA_VERSIONS["2026.5.dev9"]
+    # The gh#1372 forcing+output restructure landed during the 2026.5
+    # development cycle (originally the dev9 cumulative bump). That cycle
+    # was collapsed into the single released "2026.5" schema in the
+    # 2026.6.5 release PR (`.claude/rules/python/schema-versioning.md`), so
+    # the restructure is now documented in the consolidated 2026.5 entry.
+    assert "2026.5" in SCHEMA_VERSIONS
+    desc = SCHEMA_VERSIONS["2026.5"]
     assert "forcing" in desc.lower()
     assert "1372" in desc
 
-    # Use packaging.version so the comparison stays correct once the dev
-    # counter rolls into double digits (lexical "2026.5.dev10" < "dev9").
     from packaging.version import Version
 
-    assert Version(CURRENT_SCHEMA_VERSION) >= Version("2026.5.dev9")
+    assert Version(CURRENT_SCHEMA_VERSION) >= Version("2026.5")
 
 
 def test_validate_forcing_columns_against_physics_raises_for_missing_ldown():
@@ -229,33 +227,52 @@ def test_python_rust_whitelist_parity():
         WUH_LANDCOVER_SUFFIXES,
     )
 
-    rust_src = Path(__file__).resolve().parents[2] / "src" / "suews_bridge" / "src" / "forcing_io.rs"
-    text = rust_src.read_text()
+    rust_src = Path(__file__).resolve().parents[2] / "src" / "suews_bridge" / "src" / "forcing.rs"
+    text = rust_src.read_text(encoding="utf-8")
+    rust_io_src = Path(__file__).resolve().parents[2] / "src" / "suews_bridge" / "src" / "forcing_io.rs"
+    text_io = rust_io_src.read_text(encoding="utf-8")
 
     def _list(name: str) -> set[str]:
-        match = re.search(rf"const {name}: &\[&str\] = &\[(.*?)\];", text, re.DOTALL)
-        if match is None:
-            raise AssertionError(f"const {name} not found in forcing_io.rs")
-        return set(re.findall(r'"([^"]+)"', match.group(1)))
+        import re
 
-    assert _list("PER_LANDCOVER_FORCING_VARS") == set(PER_LANDCOVER_FORCING_VARS)
+        # old form: const &[&str]
+        match = re.search(
+            rf"const {name}: &\[&str\] = &\[(.*?)\];",
+            text,
+            re.DOTALL,
+        )
+        if match:
+            return set(re.findall(r'"([^"]+)"', match.group(1)))
+
+        # new form: pub static &[&PerLandcoverVar]
+        match = re.search(
+            rf"pub static {name}: &\[\&PerLandcoverVar\] = &\[(.*?)\];",
+            text,
+            re.DOTALL,
+        )
+        if match:
+            return set(re.findall(r"&([A-Za-z0-9_]+)", match.group(1)))
+
+        raise AssertionError(f"{name} not found in forcing.rs")
+
+    rust_per_landcover_vars = _list("PER_LANDCOVER_FORCING_VARS")
+    assert set((var.lower() for var in rust_per_landcover_vars)) == set(PER_LANDCOVER_FORCING_VARS)
     assert _list("LANDCOVER_SUFFIXES") == set(LANDCOVER_SUFFIXES)
     assert _list("LAI_LANDCOVER_SUFFIXES") == set(LAI_LANDCOVER_SUFFIXES)
-    assert _list("WUH_LANDCOVER_SUFFIXES") == set(WUH_LANDCOVER_SUFFIXES)
     assert _list("BASELINE_FORCING_COLUMNS") == {c.lower() for c in BASELINE_DATETIME_FORCING_SET|BASELINE_FORCING_COLUMNS_SET}
 
     unused_canonical_match = re.search(
-        r"let unused_canonical = \[(.*?)\];", text, re.DOTALL
+        r"let unused_canonical = \[(.*?)\];", text_io, re.DOTALL
     )
     assert unused_canonical_match is not None, (
         "Rust reader must explicitly accept canonical columns that are not "
-        "passed into the 23-column kernel block"
+        "passed into the 30-column kernel block"
     )
     assert set(re.findall(r'"([^"]+)"', unused_canonical_match.group(1))) == {
         "kdiff", "kdir", "wdir",
     }
 
-    fill_match = re.search(r"const FORCING_OPTIONAL_FILL: f64 = ([-\d.]+);", text)
+    fill_match = re.search(r"const FORCING_OPTIONAL_FILL: f64 = ([-\d.]+);", text_io)
     assert fill_match is not None, "FORCING_OPTIONAL_FILL not found in forcing_io.rs"
     assert float(fill_match.group(1)) == FORCING_OPTIONAL_FILL
 

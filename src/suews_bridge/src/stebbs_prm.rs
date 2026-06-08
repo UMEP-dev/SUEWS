@@ -4,7 +4,7 @@ use crate::ffi;
 
 pub const STEBBS_PRM_PROFILE_STEPS: usize = 144;
 pub const STEBBS_PRM_PROFILE_GROUPS: usize = 2;
-pub const STEBBS_PRM_FLAT_LEN: usize = 333;
+pub const STEBBS_PRM_FLAT_LEN: usize = 331;
 pub const STEBBS_PRM_SCHEMA_VERSION: u32 = 3;
 
 pub type StebbsPrmSchema = crate::codec::SimpleSchema;
@@ -48,8 +48,6 @@ pub struct StebbsPrm {
     pub dhw_density: f64,
     pub hot_water_tank_wall_density: f64,
     pub dhw_vessel_density: f64,
-    pub hot_water_tank_building_wall_view_factor: f64,
-    pub hot_water_tank_internal_mass_view_factor: f64,
     pub hot_water_tank_wall_conductivity: f64,
     pub hot_water_tank_internal_wall_convection_coefficient: f64,
     pub hot_water_tank_external_wall_convection_coefficient: f64,
@@ -99,8 +97,6 @@ impl Default for StebbsPrm {
             dhw_density: 0.0,
             hot_water_tank_wall_density: 0.0,
             dhw_vessel_density: 0.0,
-            hot_water_tank_building_wall_view_factor: 0.0,
-            hot_water_tank_internal_mass_view_factor: 0.0,
             hot_water_tank_wall_conductivity: 0.0,
             hot_water_tank_internal_wall_convection_coefficient: 0.0,
             hot_water_tank_external_wall_convection_coefficient: 0.0,
@@ -171,8 +167,6 @@ impl StebbsPrm {
         let dhw_density = next();
         let hot_water_tank_wall_density = next();
         let dhw_vessel_density = next();
-        let hot_water_tank_building_wall_view_factor = next();
-        let hot_water_tank_internal_mass_view_factor = next();
         let hot_water_tank_wall_conductivity = next();
         let hot_water_tank_internal_wall_convection_coefficient = next();
         let hot_water_tank_external_wall_convection_coefficient = next();
@@ -217,8 +211,6 @@ impl StebbsPrm {
             dhw_density,
             hot_water_tank_wall_density,
             dhw_vessel_density,
-            hot_water_tank_building_wall_view_factor,
-            hot_water_tank_internal_mass_view_factor,
             hot_water_tank_wall_conductivity,
             hot_water_tank_internal_wall_convection_coefficient,
             hot_water_tank_external_wall_convection_coefficient,
@@ -273,8 +265,6 @@ impl StebbsPrm {
         flat.push(self.dhw_density);
         flat.push(self.hot_water_tank_wall_density);
         flat.push(self.dhw_vessel_density);
-        flat.push(self.hot_water_tank_building_wall_view_factor);
-        flat.push(self.hot_water_tank_internal_mass_view_factor);
         flat.push(self.hot_water_tank_wall_conductivity);
         flat.push(self.hot_water_tank_internal_wall_convection_coefficient);
         flat.push(self.hot_water_tank_external_wall_convection_coefficient);
@@ -352,8 +342,6 @@ pub fn stebbs_prm_field_names() -> Vec<String> {
     names.push("dhw_density".to_string());
     names.push("hot_water_tank_wall_density".to_string());
     names.push("dhw_vessel_density".to_string());
-    names.push("hot_water_tank_building_wall_view_factor".to_string());
-    names.push("hot_water_tank_internal_mass_view_factor".to_string());
     names.push("hot_water_tank_wall_conductivity".to_string());
     names.push("hot_water_tank_internal_wall_convection_coefficient".to_string());
     names.push("hot_water_tank_external_wall_convection_coefficient".to_string());

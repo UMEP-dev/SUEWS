@@ -69,7 +69,7 @@ def read_yaml_file(file_path: Path) -> Tuple[dict, Optional[str]]:
         Tuple of (config_dict, schema_version)
     """
     try:
-        with open(file_path, "r") as f:
+        with open(file_path, "r", encoding="utf-8") as f:
             config = yaml.safe_load(f)
         schema_version = config.get("schema_version")
         return config, schema_version
@@ -291,7 +291,7 @@ def version(ctx, files, update, target_version, backup):
                             f".backup-{datetime.now():%Y%m%d-%H%M%S}.yml"
                         )
                         path.rename(backup_path)
-                        with open(path, "w") as f:
+                        with open(path, "w", encoding="utf-8") as f:
                             config["schema_version"] = new_version
                             yaml.dump(
                                 config, f, default_flow_style=False, sort_keys=False
@@ -299,7 +299,7 @@ def version(ctx, files, update, target_version, backup):
                         action = f"Updated → {new_version}"
                     else:
                         config["schema_version"] = new_version
-                        with open(path, "w") as f:
+                        with open(path, "w", encoding="utf-8") as f:
                             yaml.dump(
                                 config, f, default_flow_style=False, sort_keys=False
                             )
@@ -386,7 +386,7 @@ def migrate(ctx, files, target_version, output_dir, backup, dry_run):
                     out_file = path.with_suffix(".migrated.yml")
 
                 # Save migrated configuration
-                with open(out_file, "w") as f:
+                with open(out_file, "w", encoding="utf-8") as f:
                     yaml.dump(migrated, f, default_flow_style=False, sort_keys=False)
 
                 # Validate migrated config
@@ -472,7 +472,7 @@ def export(ctx, output, version, format):
         # Write to file or stdout
         if output:
             output_path = Path(output)
-            output_path.write_text(output_content)
+            output_path.write_text(output_content, encoding="utf-8")
             if not quiet:
                 console.print(f"[green]✓[/green] Schema exported to {output_path}")
         else:

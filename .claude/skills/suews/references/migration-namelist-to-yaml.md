@@ -9,7 +9,7 @@ all new work; convert old cases with `suews convert`.
 
 ```bash
 suews convert -i RunControl.nml -o config.yml --format json
-suews validate config.yml --format json
+suews validate --format json config.yml
 ```
 
 The first command produces a current-schema YAML. The second confirms it

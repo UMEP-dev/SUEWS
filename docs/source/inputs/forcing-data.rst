@@ -314,7 +314,7 @@ observed LAI cycle is driven by rainfall (monsoon grasslands, semi-arid sites) o
 remote-sensing product is available, users can bypass the internal scheme by:
 
 1. Setting ``model.physics.laimethod: 0`` in the YAML configuration (0 = OBSERVED,
-   1 = CALCULATED; default is 1).
+   1 = MODELLED; default is 1).
 2. Populating the ``lai`` column of the meteorological forcing file with a **non-negative**
    observation at every timestep, in |m^2| |m^-2|. A genuine zero observation (e.g.
    complete winter dieback) is valid. Choosing the observed path commits the user to

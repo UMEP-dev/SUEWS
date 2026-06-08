@@ -917,7 +917,7 @@ CONTAINS
    END SUBROUTINE SUEWS_update_DailyState
 
    ! transfer results to a one-line output for SUEWS_cal_DailyState
-   SUBROUTINE update_DailyStateLine_DTS( &
+   SUBROUTINE update_DailyStateLine( &
       timer, config, forcing, siteInfo, & ! input
       modState, & ! input/output:
       DailyStateLine) !out
@@ -1008,7 +1008,7 @@ CONTAINS
          END ASSOCIATE
       END ASSOCIATE
 
-   END SUBROUTINE update_DailyStateLine_DTS
+   END SUBROUTINE update_DailyStateLine
 
 END MODULE module_phys_dailystate
 

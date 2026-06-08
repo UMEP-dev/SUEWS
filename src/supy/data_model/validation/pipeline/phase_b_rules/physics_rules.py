@@ -4,8 +4,12 @@ from .rules_core import (
 )
 from ...core.yaml_helpers import get_value_safe
 from ...core.yaml_helpers import unwrap_nested_value as _unwrap_nested_value
+from ...core.yaml_helpers import get_stebbs_block, get_stebbsmethod_value
+from ...core.yaml_helpers import read_physics_key
+from ....core.physics_families import resolve_scalar_name
 
 from collections.abc import Mapping
+from numbers import Integral, Real
 from typing import Dict, List, Optional, Union, Any, Tuple
 
 
@@ -69,44 +73,82 @@ def validate_physics_parameters(context) -> List[ValidationResult]:
         "roughness_sublayer_level",
         "surface_conductance",
         "snow_use",
-        "stebbs",
-        "outer_cap_fraction",
+    ]
+
+    # gh#1456: the STEBBS switches now live under model.physics.stebbs.*.
+    # `enabled`/`parameters` (master toggle) carry sensible defaults and are
+    # not required; the remaining switches are required, but checked against
+    # the nested `stebbs` sub-object rather than the flat physics dict.
+    required_stebbs_params = [
+        "capacitance",
+        "setpoint",
         "same_albedo_wall",
         "same_albedo_roof",
         "same_emissivity_wall",
         "same_emissivity_roof",
-        "setpoint",
+    ]
+    stebbs_block = get_stebbs_block(physics)
+
+    # (display path, container, key) for every required physics switch.
+    # The family switches are read from the flat model.physics dict; the
+    # relocated STEBBS switches (gh#1456) from the nested model.physics.stebbs
+    # sub-object.
+    required_checks = [
+        (f"model.physics.{param}", physics, param) for param in required_physics_params
+    ] + [
+        (f"model.physics.stebbs.{param}", stebbs_block, param)
+        for param in required_stebbs_params
     ]
 
+    # Resolve each required key rename-aware. In Phase-B-standalone / BC mode the
+    # input YAML is not Phase-A-normalised, so a still-compatible config may use a
+    # legacy spelling (e.g. `outer_cap_fraction` for `capacitance`, or the
+    # long-renamed `netradiationmethod` for `net_radiation`). get_value_safe
+    # accepts both spellings; the _MISSING sentinel distinguishes an absent key
+    # from one present with a null value (so the two checks below stay distinct).
+    _MISSING = object()
+    _present = {
+        path: get_value_safe(container, key, _MISSING)
+        for path, container, key in required_checks
+    }
     missing_params = [
-        param for param in required_physics_params if param not in physics
+        (path, key)
+        for path, _container, key in required_checks
+        if _present[path] is _MISSING
     ]
     if missing_params:
-        for param in missing_params:
+        for path, key in missing_params:
             results.append(
                 ValidationResult(
                     status="ERROR",
                     category="PHYSICS",
-                    parameter=f"model.physics.{param}",
-                    message=f"Physics parameter '{param}' is required but missing or null. This parameter controls critical model behaviour and must be specified for the simulation to run properly.",
-                    suggested_value=f"Set '{param}' to an appropriate value. Consult the SUEWS documentation for parameter descriptions and typical values: https://docs.suews.io/latest/",
+                    parameter=path,
+                    message=f"Physics parameter '{key}' is required but missing or null. This parameter controls critical model behaviour and must be specified for the simulation to run properly.",
+                    suggested_value=f"Set '{key}' to an appropriate value. Consult the SUEWS documentation for parameter descriptions and typical values: https://docs.suews.io/latest/",
                 )
             )
 
+    def _is_empty(value):
+        # Null / empty scalar, or a present-but-value-less mapping such as
+        # `capacitance: {}` (get_value_safe returns the bare mapping when there
+        # is no `value` key). A *non-empty* mapping is the gh#972 nested-family
+        # form (e.g. `{spartacus: {value: 1}}`) and is NOT empty.
+        return value in ("", None) or (isinstance(value, dict) and not value)
+
     empty_params = [
-        param
-        for param in required_physics_params
-        if param in physics and physics.get(param, {}).get("value") in ("", None)
+        (path, key)
+        for path, _container, key in required_checks
+        if _present[path] is not _MISSING and _is_empty(_present[path])
     ]
     if empty_params:
-        for param in empty_params:
+        for path, key in empty_params:
             results.append(
                 ValidationResult(
                     status="ERROR",
                     category="PHYSICS",
-                    parameter=f"model.physics.{param}",
-                    message=f"Physics parameter '{param}' has null value. This parameter controls critical model behaviour and must be set for proper simulation.",
-                    suggested_value=f"Set '{param}' to an appropriate non-null value. Check documentation for parameter details: https://docs.suews.io/stable",
+                    parameter=path,
+                    message=f"Physics parameter '{key}' has null value. This parameter controls critical model behaviour and must be set for proper simulation.",
+                    suggested_value=f"Set '{key}' to an appropriate non-null value. Check documentation for parameter details: https://docs.suews.io/stable",
                 )
             )
 
@@ -170,7 +212,41 @@ def validate_rslmethod_dependency(rslmethod, stabilitymethod):
     )
 
 
+def _method_code(value, field_name: Optional[str] = None):
+    """Return an integer method code from raw, RefValue, enum, or readable input."""
+    if value is None:
+        return None
+    if isinstance(value, Mapping) and "value" in value:
+        value = value["value"]
+    if hasattr(value, "value"):
+        value = value.value
+    if isinstance(value, bool):
+        return int(value)
+    if isinstance(value, Integral):
+        return int(value)
+    if isinstance(value, Real) and float(value).is_integer():
+        return int(value)
+    if isinstance(value, str):
+        stripped = value.strip()
+        if not stripped:
+            return None
+        if field_name is not None:
+            return resolve_scalar_name(field_name, stripped)
+        return int(stripped)
+    return value
+
+
 def validate_storageheatmethod_dependency(storageheatmethod, ohmincqf):
+    """Validate the legacy StorageHeatMethod-OhmIncQf pair."""
+    return validate_storageheatmethod_dependencies(storageheatmethod, ohmincqf)[0]
+
+
+def validate_storageheatmethod_dependencies(
+    storageheatmethod,
+    ohmincqf,
+    netradiationmethod=None,
+    stebbsmethod=None,
+):
     """
     Validate the dependency between StorageHeatMethod and OhmIncQf model options.
 
@@ -180,32 +256,144 @@ def validate_storageheatmethod_dependency(storageheatmethod, ohmincqf):
         The value of the StorageHeatMethod parameter.
     ohmincqf : int
         The value of the OhmIncQf parameter.
+    netradiationmethod : int, optional
+        The value of the NetRadiationMethod parameter.
+    stebbsmethod : int, optional
+        The composed STEBBS method value.
 
     Returns
     -------
-    ValidationResult
-        The result of the validation, including status, category, parameter,
-        message, and suggested value if applicable.
+    list of ValidationResult
+        Validation results for the storage heat dependency checks.
 
     Notes
     -----
     - If StorageHeatMethod == 1, OhmIncQf must be 0.
-    - If this dependency is not satisfied, an error is returned with a suggested fix.
+    - If OhmIncQf == 1, an OHM-like storage heat branch must be active.
+    - If StorageHeatMethod == 5, NetRadiationMethod must be a SPARTACUS code.
+    - If StorageHeatMethod == 7, STEBBS must be active.
     """
+    storageheatmethod = _method_code(storageheatmethod, "storage_heat")
+    ohmincqf = _method_code(ohmincqf, "ohm_inc_qf")
+    netradiationmethod = _method_code(netradiationmethod, "net_radiation")
+    stebbsmethod = _method_code(stebbsmethod, "stebbs")
+
+    results: List[ValidationResult] = []
+
     if storageheatmethod == 1 and ohmincqf != 0:
-        return ValidationResult(
-            status="ERROR",
-            category="MODEL_OPTIONS",
-            parameter="storageheatmethod-ohmincqf",
-            message=f"StorageHeatMethod is set to {storageheatmethod} and OhmIncQf is set to {ohmincqf}. You should switch to OhmIncQf=0.",
-            suggested_value="Set OhmIncQf to 0",
+        results.append(
+            ValidationResult(
+                status="ERROR",
+                category="MODEL_OPTIONS",
+                parameter="storageheatmethod-ohmincqf",
+                message=f"StorageHeatMethod is set to {storageheatmethod} and OhmIncQf is set to {ohmincqf}. You should switch to OhmIncQf=0.",
+                suggested_value="Set OhmIncQf to 0",
+            )
         )
-    return ValidationResult(
-        status="PASS",
-        category="MODEL_OPTIONS",
-        parameter="storageheatmethod-ohmincqf",
-        message="StorageHeatMethod-OhmIncQf compatibility validated",
-    )
+    elif ohmincqf == 1 and storageheatmethod not in {6, 7}:
+        results.append(
+            ValidationResult(
+                status="ERROR",
+                category="MODEL_OPTIONS",
+                parameter="storageheatmethod-ohmincqf",
+                message=(
+                    "OhmIncQf=1 is only meaningful for OHM-like storage heat "
+                    "branches that include QF. StorageHeatMethod=1 is documented "
+                    "as OHM without QF and must use OhmIncQf=0."
+                ),
+                suggested_value="Use StorageHeatMethod 6 or 7 with OhmIncQf=1, or set OhmIncQf to 0.",
+            )
+        )
+    else:
+        results.append(
+            ValidationResult(
+                status="PASS",
+                category="MODEL_OPTIONS",
+                parameter="storageheatmethod-ohmincqf",
+                message="StorageHeatMethod-OhmIncQf compatibility validated",
+            )
+        )
+
+    if storageheatmethod == 5:
+        if netradiationmethod is None or netradiationmethod <= 1000:
+            results.append(
+                ValidationResult(
+                    status="ERROR",
+                    category="MODEL_OPTIONS",
+                    parameter="storageheatmethod-netradiationmethod",
+                    message=(
+                        "StorageHeatMethod=5 (EHC) requires a SPARTACUS "
+                        "NetRadiationMethod code greater than 1000 so facet "
+                        "radiation is available."
+                    ),
+                    suggested_value="Set net_radiation to a SPARTACUS method such as 1003 or net_radiation.spartacus.ldown=air.",
+                )
+            )
+        else:
+            results.append(
+                ValidationResult(
+                    status="PASS",
+                    category="MODEL_OPTIONS",
+                    parameter="storageheatmethod-netradiationmethod",
+                    message="StorageHeatMethod EHC-SPARTACUS compatibility validated",
+                )
+            )
+
+    if storageheatmethod == 7:
+        if stebbsmethod not in {1, 2}:
+            results.append(
+                ValidationResult(
+                    status="ERROR",
+                    category="MODEL_OPTIONS",
+                    parameter="storageheatmethod-stebbsmethod",
+                    message=(
+                        "StorageHeatMethod=7 uses STEBBS storage heat and "
+                        "requires STEBBS to be enabled."
+                    ),
+                    suggested_value="Set model.physics.stebbs.enabled=true with parameters default or provided.",
+                )
+            )
+        else:
+            results.append(
+                ValidationResult(
+                    status="PASS",
+                    category="MODEL_OPTIONS",
+                    parameter="storageheatmethod-stebbsmethod",
+                    message="StorageHeatMethod-STEBBS compatibility validated",
+                )
+            )
+
+    return results
+
+
+def validate_rcmethod_stebbs_dependency(rcmethod, stebbsmethod):
+    """Validate that non-default RC/capacitance choices are used with STEBBS."""
+    rcmethod = _method_code(rcmethod, "capacitance")
+    stebbsmethod = _method_code(stebbsmethod, "stebbs")
+
+    if rcmethod in (None, 0):
+        return []
+    if stebbsmethod not in {1, 2}:
+        return [
+            ValidationResult(
+                status="ERROR",
+                category="MODEL_OPTIONS",
+                parameter="rcmethod-stebbsmethod",
+                message=(
+                    "Non-default stebbs.capacitance (rcmethod) is only "
+                    "meaningful when STEBBS is enabled."
+                ),
+                suggested_value="Set model.physics.stebbs.enabled=true, or use stebbs.capacitance=default.",
+            )
+        ]
+    return [
+        ValidationResult(
+            status="PASS",
+            category="MODEL_OPTIONS",
+            parameter="rcmethod-stebbsmethod",
+            message="RC/capacitance-STEBBS compatibility validated",
+        )
+    ]
 
 
 def validate_smdmethod_dependency(smdmethod, yaml_data):
@@ -303,20 +491,40 @@ def validate_model_option_dependencies(context) -> List[ValidationResult]:
     
     results = []
     physics = yaml_data.get("model", {}).get("physics", {})
+    if not isinstance(physics, Mapping):
+        physics = {}
 
-    rslmethod = get_value_safe(physics, "roughness_sublayer")
-    stabilitymethod = get_value_safe(physics, "stability")
-    storageheatmethod = get_value_safe(physics, "storage_heat")
-    ohmincqf = get_value_safe(physics, "ohm_inc_qf")
-    smdmethod = get_value_safe(physics, "soil_moisture_deficit")
+    rslmethod = read_physics_key(physics, "roughness_sublayer")
+    stabilitymethod = read_physics_key(physics, "stability")
+    storageheatmethod = read_physics_key(physics, "storage_heat")
+    ohmincqf = read_physics_key(physics, "ohm_inc_qf")
+    smdmethod = read_physics_key(physics, "soil_moisture_deficit")
+    netradiationmethod = read_physics_key(physics, "net_radiation")
+    stebbsmethod = get_stebbsmethod_value(physics)
+    rcmethod = get_value_safe(get_stebbs_block(physics), "capacitance")
 
     # RSL method and stability method dependencies
     result = validate_rslmethod_dependency(rslmethod=rslmethod, stabilitymethod=stabilitymethod)
-    if result is not None: results.append(result)
+    if result is not None:
+        results.append(result)
 
     # Storage heat method and OhmIncQf compatibility check
-    result = validate_storageheatmethod_dependency(storageheatmethod=storageheatmethod, ohmincqf=ohmincqf)
-    if result is not None: results.append(result)
+    results.extend(
+        validate_storageheatmethod_dependencies(
+            storageheatmethod=storageheatmethod,
+            ohmincqf=ohmincqf,
+            netradiationmethod=netradiationmethod,
+            stebbsmethod=stebbsmethod,
+        )
+    )
+
+    # RC/capacitance method and STEBBS compatibility check
+    results.extend(
+        validate_rcmethod_stebbs_dependency(
+            rcmethod=rcmethod,
+            stebbsmethod=stebbsmethod,
+        )
+    )
 
     # SMDMethod and soil_observation dependency
     results.extend(validate_smdmethod_dependency(smdmethod=smdmethod, yaml_data=yaml_data))
@@ -412,10 +620,10 @@ def check_outercapfrac_facet(building_archetype, facet, site_idx, site_gridid):
         A validation result indicating an error if the fraction is missing or out of the valid range (0, 1), with a suggested value for correction.
     Notes
     -----
-    - When rcmethod is set to 1, the fraction_{facet}_heat_capacity_outer parameter must be explicitly set and strictly between 0 and 1.
+    - When rcmethod is set to 1, the fraction_heat_capacity_{facet}_external parameter must be explicitly set and strictly between 0 and 1.
     - Returns an error if the parameter is missing or outside the valid range, including a message and suggested value.
     """
-    key = f"fraction_{facet}_heat_capacity_outer"
+    key = f"fraction_heat_capacity_{facet}_external"
     facet_frac_entry = building_archetype.get(key, {})
     facet_frac = facet_frac_entry.get("value") if isinstance(facet_frac_entry, Mapping) else facet_frac_entry
 
@@ -463,7 +671,8 @@ def validate_model_option_rcmethod(context) -> List[ValidationResult]:
 
     results = []
     physics = yaml_data.get("model", {}).get("physics", {})
-    rcmethod_value = get_value_safe(physics, "outer_cap_fraction")
+    # gh#1456: capacitance method moved to model.physics.stebbs.capacitance.
+    rcmethod_value = get_value_safe(get_stebbs_block(physics), "capacitance")
 
     sites = yaml_data.get("sites", [])
     for site_idx, site in enumerate(sites):
@@ -579,12 +788,14 @@ def validate_model_option_same_albedo(context) -> List[ValidationResult]:
         depending on the validation result.
     """
     yaml_data = context.yaml_data
-    
+
     results = []
     physics = yaml_data.get("model", {}).get("physics", {})
 
-    same_albedo_roof = get_value_safe(physics, "same_albedo_roof")
-    same_albedo_wall = get_value_safe(physics, "same_albedo_wall")
+    # gh#1456: the same_albedo switches moved under model.physics.stebbs.*.
+    stebbs_block = get_stebbs_block(physics)
+    same_albedo_roof = get_value_safe(stebbs_block, "same_albedo_roof")
+    same_albedo_wall = get_value_safe(stebbs_block, "same_albedo_wall")
 
     if same_albedo_wall == 0:
         for site in yaml_data.get("sites", []):
@@ -626,8 +837,10 @@ def validate_model_option_same_emissivity(context) -> List[ValidationResult]:
     yaml_data = context.yaml_data
     physics = yaml_data.get("model", {}).get("physics", {})
 
-    same_emissivity_roof = get_value_safe(physics, "same_emissivity_roof")
-    same_emissivity_wall = get_value_safe(physics, "same_emissivity_wall")
+    # gh#1456: the same_emissivity switches moved under model.physics.stebbs.*.
+    stebbs_block = get_stebbs_block(physics)
+    same_emissivity_roof = get_value_safe(stebbs_block, "same_emissivity_roof")
+    same_emissivity_wall = get_value_safe(stebbs_block, "same_emissivity_wall")
 
     if same_emissivity_wall == 0:
         for site in yaml_data.get("sites", []):
@@ -722,7 +935,7 @@ def validate_forcing_height_vs_buildings(context) -> List[ValidationResult]:
 
     - The maximum building height is defined as the largest of:
         - land_cover.bldgs.bldgh
-        - building_archetype.building_height (if stebbsmethod == 1)
+        - building_archetype.archetype_height (if stebbsmethod == 1)
         - The last non-zero value in vertical_layers.height
           (SPARTACUS top height, if enabled)
     """
@@ -750,13 +963,15 @@ def validate_forcing_height_vs_buildings(context) -> List[ValidationResult]:
 
     physics = yaml_data.get("model", {}).get("physics", {})
 
-    stebbsmethod_val = _unwrap_nested_value(physics.get("stebbs"))
+    # gh#1456: compose the legacy stebbsmethod integer from the nested
+    # model.physics.stebbs block (enabled + parameters).
+    stebbsmethod_val = get_stebbsmethod_value(physics)
     try:
         stebbsmethod_val = int(stebbsmethod_val)
     except (TypeError, ValueError):
         stebbsmethod_val = None
 
-    netradiationmethod_val = _unwrap_nested_value(physics.get("net_radiation"))
+    netradiationmethod_val = read_physics_key(physics, "net_radiation", 0)
     try:
         netradiationmethod_val = int(netradiationmethod_val)
     except (TypeError, ValueError):
@@ -783,7 +998,7 @@ def validate_forcing_height_vs_buildings(context) -> List[ValidationResult]:
         if stebbsmethod_val == 1:
             archetype = _unwrap_nested_value(props.get("building_archetype"))
             if isinstance(archetype, Mapping):
-                stebbs_height = _as_float(_unwrap_nested_value(archetype.get("building_height")))
+                stebbs_height = _as_float(_unwrap_nested_value(archetype.get("archetype_height")))
 
         # SPARTACUS heights (only if SPARTACUS is enabled via netradiationmethod)
         spartacus_top = None

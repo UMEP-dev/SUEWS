@@ -24,12 +24,17 @@ from ...data_model.core.field_renames import (
     DECTRPROPERTIES_RENAMES,
     EVETRPROPERTIES_RENAMES,
     LAIPARAMS_RENAMES,
+    MODELPHYSICS_DEV12_RENAMES,
     MODELPHYSICS_SUFFIX_RENAMES,
     SNOWPARAMS_RENAMES,
     SNOWPARAMS_INTERMEDIATE_RENAMES,
     ARCHETYPEPROPERTIES_DEV3_RENAMES,
     ARCHETYPEPROPERTIES_DEV6_RENAMES,
+    ARCHETYPEPROPERTIES_DEV7_RENAMES,
+    ARCHETYPEPROPERTIES_DEV12_RENAMES,
     STEBBSPROPERTIES_DEV3_RENAMES,
+    STEBBSPROPERTIES_DEV8_RENAMES,
+    STEBBSPROPERTIES_DEV12_RENAMES,
     STEBBSPROPERTIES_RENAMES,
     SURFACEPROPERTIES_RENAMES,
     VEGETATEDSURFACEPROPERTIES_RENAMES,
@@ -69,16 +74,10 @@ _PACKAGE_TO_SCHEMA: dict[str, str] = {
     # original schema label and upgrades to the new one via the registered
     # handler below, not by silent remapping.
     "2026.4.3": "2026.4",
-    # Dev-cycle vendored fixtures: filename stem maps to its own schema label
-    # so test_release_compat.py exercises the (label -> current) handler.
-    # dev6 fixture covers the dev6 -> dev7 ArchetypeProperties Rule 2 reorder
-    # (master). dev8 fixture covers the new gh#1372 dev8 -> dev9 cumulative
-    # forcing + output restructure. dev7 was an identity stamp on master
-    # (PR#1395 registry refresh) so no separate fixture is needed.
-    "2026.5.dev6": "2026.5.dev6",
-    "2026.5.dev8": "2026.5.dev8",
-    "2026.5.dev9": "2026.5.dev9",
-    "2026.5.dev10": "2026.5.dev10",
+    # 2026.6.5 ships the collapsed "2026.5" schema (the 2026.5.dev1..dev14
+    # cycle folded into one label in the release PR). Its own config parses
+    # directly under the current validator (identity path).
+    "2026.6.5": "2026.5",
 }
 
 
@@ -360,6 +359,28 @@ _MODELPHYSICS_SUFFIX_RENAMES_TABLE: tuple[tuple[str, str], ...] = tuple(
     MODELPHYSICS_SUFFIX_RENAMES.items()
 ) + (("setpointmethod", "setpoint"),)
 
+_STEBBS_MASTER_ALIAS_KEYS: tuple[str, ...] = (
+    "stebbs",
+    "stebbsmethod",
+    "stebbs_method",
+)
+
+
+def _stebbs_master_aliases(physics: dict) -> list[str]:
+    """Return present flat STEBBS master-toggle spellings."""
+    return [key for key in _STEBBS_MASTER_ALIAS_KEYS if key in physics]
+
+
+def _reject_duplicate_stebbs_master_aliases(physics: dict) -> list[str]:
+    """Reject ambiguous STEBBS master-toggle aliases and return the winner."""
+    aliases = _stebbs_master_aliases(physics)
+    if len(aliases) > 1:
+        raise YamlUpgradeError(
+            "Multiple legacy STEBBS master aliases "
+            f"({', '.join(aliases)}) are present. Use only one spelling."
+        )
+    return aliases
+
 
 # gh#1334 (2026.5.dev2 -> 2026.5.dev3): convert STEBBS PascalCase to snake_case
 # on the full user-facing YAML surface plus opaque-abbreviation clean-ups in
@@ -419,6 +440,71 @@ _STEBBS_RENAMES_DEV3_TO_DEV4: tuple[tuple[str, str], ...] = tuple(
 # canonical dict in field_renames.py.
 _ARCH_RENAMES_DEV6_TO_DEV7: tuple[tuple[str, str], ...] = tuple(
     ARCHETYPEPROPERTIES_DEV6_RENAMES.items()
+)
+
+
+# Schema 2026.5.dev10 -> 2026.5.dev11: naming-convention completion for the
+# STEBBS building model, combining two independent rename groups in a single
+# bump (gh#1392 + gh#1394). ArchetypeProperties Tier-1 completion (16 renames:
+# archetype_* namespace, area_*/ratio_* geometry, power_*/temperature_air_*/
+# volume_hot_water_tank/profile_* HVAC) on the `building_archetype` container, and
+# StebbsProperties Rule-2 reorder (44 renames) on the `stebbs` container. Both
+# are pure key reorders sourced from the canonical dicts in field_renames.py.
+_ARCH_RENAMES_TIER1_TO_DEV11: tuple[tuple[str, str], ...] = tuple(
+    ARCHETYPEPROPERTIES_DEV7_RENAMES.items()
+)
+_STEBBS_RENAMES_RULE2_TO_DEV11: tuple[tuple[str, str], ...] = tuple(
+    STEBBSPROPERTIES_DEV8_RENAMES.items()
+)
+
+# Fields dropped at dev10 -> dev11 (D. Hertwig col D, 2026-05). Each drop carries
+# a reason so the removal is logged rather than swallowed by Pydantic
+# ``extra="ignore"`` (``TestNoSilentFieldDrops`` enforces this).
+_ARCH_DROPS_TO_DEV11: tuple[tuple[str, str], ...] = (
+    (
+        "building_type",
+        "unused by the STEBBS kernel (hardcoded to 'None'); removed per the "
+        "Reading STEBBS team review (gh#1392)",
+    ),
+    (
+        # Pre-gh#1334 PascalCase spelling: older YAMLs reach the dev10 -> dev11
+        # step still carrying `BuildingType` (no longer snaked, since the rename
+        # entry was removed with the field). Drop it under the same reason.
+        "BuildingType",
+        "unused by the STEBBS kernel (hardcoded to 'None'); removed per the "
+        "Reading STEBBS team review (gh#1392)",
+    ),
+)
+
+# StebbsProperties fields dropped at dev10 -> dev11 (D. Hertwig col D, 2026-05).
+# The two hot-water-tank view factors were dead inputs: the STEBBS radiative
+# transfer hardcodes BVF_tank=0.0 / MVF_tank=1.0 and never read them.
+_STEBBS_DROPS_TO_DEV11: tuple[tuple[str, str], ...] = (
+    (
+        "hot_water_tank_building_wall_view_factor",
+        "dead input - STEBBS radiative transfer hardcodes the tank-wall view "
+        "factor (BVF_tank=0.0); never consumed (gh#1392)",
+    ),
+    (
+        "hot_water_tank_internal_mass_view_factor",
+        "dead input - STEBBS radiative transfer hardcodes the tank-internal-mass "
+        "view factor (MVF_tank=1.0); never consumed (gh#1392)",
+    ),
+)
+
+# Schema 2026.5.dev11 -> 2026.5.dev12: align STEBBS and Archetype field names
+# with the Reading STEBBS team's "Column D" naming (gh#1392 follow-up;
+# D. Hertwig / S. Rognone, 2026-05). Pure snake->snake key reorders. The ten
+# StebbsProperties renames apply to the `stebbs` container; the six
+# ArchetypeProperties renames (qualifier-first powers + setpoints/profiles)
+# apply to the `building_archetype` container. Sourced directly from the two
+# DEV12 rename dicts so the migrator, the Pydantic shim, and the raw-YAML
+# precheck path all draw from a single source of truth.
+_STEBBS_RENAMES_STRAGGLERS_TO_DEV12: tuple[tuple[str, str], ...] = tuple(
+    STEBBSPROPERTIES_DEV12_RENAMES.items()
+)
+_ARCH_RENAMES_COLUMN_D_TO_DEV12: tuple[tuple[str, str], ...] = tuple(
+    ARCHETYPEPROPERTIES_DEV12_RENAMES.items()
 )
 
 
@@ -581,8 +667,217 @@ def _apply_modelphysics_suffix_renames(cfg: dict) -> None:
     physics = model.get("physics")
     if not isinstance(physics, dict):
         return
+    _reject_duplicate_stebbs_master_aliases(physics)
+    leaf_conflicts = _stebbs_leaf_alias_conflicts(physics)
+    if leaf_conflicts:
+        raise YamlUpgradeError(
+            "Multiple flat STEBBS physics switches map to the same nested leaf "
+            f"({_format_stebbs_leaf_alias_conflicts(leaf_conflicts)}). Use only "
+            "one spelling."
+        )
     for old, new in _MODELPHYSICS_SUFFIX_RENAMES_TABLE:
         _rename_field(physics, old, new)
+
+
+# gh#1456: dev12 -> dev13 STEBBS flat -> nested fold.
+#
+# The five non-master STEBBS switches move under model.physics.stebbs at the
+# leaf names below; the master toggle (`stebbs`, a tri-state integer) is
+# decomposed into stebbs.enabled + stebbs.parameters. Renames flow through
+# _rename_field so each move is logged (TestNoSilentFieldDrops enforces this).
+# When this fold runs after the dev11 -> dev12 Column D straggler renames the
+# flat capacitance key is already spelled `capacitance`; the older
+# `outer_cap_fraction` / fused `rcmethod` spellings are accepted too so a
+# hand-written legacy YAML still folds. All three relocate to stebbs.capacitance.
+_STEBBS_PHYSICS_LEAF_RENAMES_TO_DEV12: tuple[tuple[str, str], ...] = (
+    ("capacitance", "capacitance"),
+    ("outer_cap_fraction", "capacitance"),
+    ("rcmethod", "capacitance"),
+    ("rc_method", "capacitance"),
+    ("setpoint", "setpoint"),
+    ("setpointmethod", "setpoint"),
+    ("same_albedo_wall", "same_albedo_wall"),
+    ("same_albedo_roof", "same_albedo_roof"),
+    ("same_emissivity_wall", "same_emissivity_wall"),
+    ("same_emissivity_roof", "same_emissivity_roof"),
+)
+
+
+def _stebbs_flat_leaf_siblings(physics: dict) -> list[str]:
+    """Return flat STEBBS leaf keys present beside a nested ``stebbs`` block."""
+    return sorted(
+        {
+            old_key
+            for old_key, _leaf in _STEBBS_PHYSICS_LEAF_RENAMES_TO_DEV12
+            if old_key in physics
+        }
+    )
+
+
+def _stebbs_leaf_alias_conflicts(physics: dict) -> list[tuple[str, list[str]]]:
+    """Return flat STEBBS alias groups that would collide after folding."""
+    present_by_leaf: dict[str, list[str]] = {}
+    for old_key, nested_leaf in _STEBBS_PHYSICS_LEAF_RENAMES_TO_DEV12:
+        if old_key in physics:
+            present_by_leaf.setdefault(nested_leaf, []).append(old_key)
+    return [
+        (leaf, sorted(keys))
+        for leaf, keys in sorted(present_by_leaf.items())
+        if len(keys) > 1
+    ]
+
+
+def _format_stebbs_leaf_alias_conflicts(
+    conflicts: list[tuple[str, list[str]]],
+) -> str:
+    """Format colliding flat STEBBS aliases for migration errors."""
+    return "; ".join(
+        f"{', '.join(keys)} -> stebbs.{leaf}" for leaf, keys in conflicts
+    )
+
+
+def _decompose_stebbs_master_value(entry):
+    """Decompose a legacy flat `stebbs` master toggle into (enabled, params).
+
+    Returns RefValue-wrapped scalars. 0 -> (False, 1); 1 -> (True, 1);
+    2 -> (True, 2).
+    """
+    ref = entry.get("ref") if isinstance(entry, dict) else None
+
+    def _wrapped(value, *, carry_ref=False):
+        wrapped = {"value": value}
+        if carry_ref and ref is not None:
+            wrapped["ref"] = ref
+        return wrapped
+
+    if isinstance(entry, dict) and "value" not in entry:
+        raise ValueError(
+            "Legacy 'stebbs' mappings must use a 'value' key; use "
+            "'stebbs.enabled' / 'stebbs.parameters' for the nested form."
+        )
+
+    raw = entry.get("value") if isinstance(entry, dict) and "value" in entry else entry
+    if isinstance(raw, bool):
+        code = int(raw)
+    elif isinstance(raw, int):
+        code = raw
+    elif isinstance(raw, float) and raw.is_integer():
+        code = int(raw)
+    else:
+        raise ValueError(
+            "Legacy 'stebbs' master toggle expects integer 0, 1, or 2."
+        )
+    if code == 0:
+        return _wrapped(False, carry_ref=True), _wrapped(1)
+    if code == 1:
+        return _wrapped(True, carry_ref=True), _wrapped(1)
+    if code == 2:
+        return _wrapped(True, carry_ref=True), _wrapped(2)
+    raise ValueError("Legacy 'stebbs' master toggle expects integer 0, 1, or 2.")
+
+
+def _apply_stebbs_physics_fold(cfg: dict) -> None:
+    """Fold the flat STEBBS physics switches under model.physics.stebbs in place.
+
+    gh#1456 dev12 -> dev13. Decomposes the legacy `stebbs` master toggle into
+    `stebbs.enabled` + `stebbs.parameters`, and moves outer_cap_fraction /
+    rcmethod -> stebbs.capacitance, setpoint / setpointmethod -> stebbs.setpoint,
+    and the four same_* switches under the nested object. No-op when the YAML is
+    already nested (the master toggle's keys are enabled/parameters/...). Each
+    move is logged via _rename_field; no silent drops.
+    """
+    model = cfg.get("model")
+    if not isinstance(model, dict):
+        return
+    physics = model.get("physics")
+    if not isinstance(physics, dict):
+        return
+
+    master_aliases = _reject_duplicate_stebbs_master_aliases(physics)
+    master_alias = master_aliases[0] if master_aliases else None
+    existing = physics.get("stebbs")
+    nested_keys = {
+        "enabled",
+        "parameters",
+        *[old for old, _new in _STEBBS_PHYSICS_LEAF_RENAMES_TO_DEV12],
+        *[new for _old, new in _STEBBS_PHYSICS_LEAF_RENAMES_TO_DEV12],
+    }
+    already_nested = isinstance(existing, dict) and any(
+        k in existing for k in nested_keys
+    )
+
+    if already_nested:
+        flat_conflicts = _stebbs_flat_leaf_siblings(physics)
+        if flat_conflicts:
+            raise YamlUpgradeError(
+                "Both nested 'stebbs' and flat STEBBS physics switches "
+                f"({', '.join(flat_conflicts)}) are present. Use only the "
+                "nested 'stebbs' form."
+            )
+        stebbs_block = existing
+    else:
+        stebbs_block = {}
+        if master_alias is not None:
+            enabled, parameters = _decompose_stebbs_master_value(
+                physics.pop(master_alias)
+            )
+            stebbs_block["enabled"] = enabled
+            stebbs_block["parameters"] = parameters
+            _log(
+                f"[yaml-upgrade]   decomposed {master_alias!r} master toggle -> "
+                "'stebbs.enabled' + 'stebbs.parameters'"
+            )
+
+    nested_conflicts = _stebbs_leaf_alias_conflicts(stebbs_block)
+    if nested_conflicts:
+        raise YamlUpgradeError(
+            "Multiple nested STEBBS physics switches map to the same nested leaf "
+            f"({_format_stebbs_leaf_alias_conflicts(nested_conflicts)}). Use only "
+            "one spelling."
+        )
+
+    leaf_conflicts = _stebbs_leaf_alias_conflicts(physics)
+    if leaf_conflicts:
+        raise YamlUpgradeError(
+            "Multiple flat STEBBS physics switches map to the same nested leaf "
+            f"({_format_stebbs_leaf_alias_conflicts(leaf_conflicts)}). Use only "
+            "one spelling."
+        )
+
+    for old_nested, nested_leaf in _STEBBS_PHYSICS_LEAF_RENAMES_TO_DEV12:
+        if old_nested == nested_leaf or old_nested not in stebbs_block:
+            continue
+        if nested_leaf in stebbs_block:
+            stebbs_block.pop(old_nested)
+            _log(
+                f"[yaml-upgrade]   rename 'stebbs.{old_nested}' -> "
+                f"'stebbs.{nested_leaf}' skipped (target already present, "
+                f"dropping stale 'stebbs.{old_nested}' value)"
+            )
+        else:
+            stebbs_block[nested_leaf] = stebbs_block.pop(old_nested)
+            _log(
+                f"[yaml-upgrade]   renamed 'stebbs.{old_nested}' -> "
+                f"'stebbs.{nested_leaf}'"
+            )
+
+    for old_flat, nested_leaf in _STEBBS_PHYSICS_LEAF_RENAMES_TO_DEV12:
+        if old_flat in physics:
+            if nested_leaf in stebbs_block:
+                physics.pop(old_flat)
+                _log(
+                    f"[yaml-upgrade]   rename {old_flat!r} -> "
+                    f"'stebbs.{nested_leaf}' skipped (target already present, "
+                    f"dropping stale {old_flat!r} value)"
+                )
+            else:
+                stebbs_block[nested_leaf] = physics.pop(old_flat)
+                _log(
+                    f"[yaml-upgrade]   moved {old_flat!r} -> 'stebbs.{nested_leaf}'"
+                )
+
+    if stebbs_block:
+        physics["stebbs"] = stebbs_block
 
 
 def _migrate_2026_4_to_2026_5(cfg: dict) -> dict:
@@ -759,108 +1054,104 @@ def _apply_arch_rule2_renames(cfg: dict) -> None:
             _rename_field(arch, old, new)
 
 
-def _migrate_2026_5_dev8_to_current(cfg: dict) -> dict:
-    """Upgrade 2026.5.dev8-shaped YAMLs to the current schema.
+def _apply_naming_completion_renames(cfg: dict) -> None:
+    """Apply the dev10 -> dev11 naming-convention completion.
 
-    Applies the gh#1372 cumulative model.control restructure
-    (dev8 -> dev9): forcing_file -> forcing.file, then output_file ->
-    output (with inner path -> dir, legacy string form dropped).
-    Forcing-restructure runs first to keep audit logs aligned with the
-    gh#1372 chronology.
+    Two independent rename groups shipped together (gh#1392 + gh#1394):
+    ArchetypeProperties Tier-1 completion on the ``building_archetype``
+    container (plus the ``building_type`` drop and the wall/roof
+    heat-capacity-fraction outer->external move from the Reading STEBBS
+    team review), and StebbsProperties Rule-2 reorder on the ``stebbs``
+    container. Renames are pure key reorders; ``building_type`` is dropped
+    with a logged reason. Runs after every earlier rename layer so it sees
+    the snake_case names those layers produce.
+
+    Each rename flows through ``_rename_field`` so a per-field log line
+    is emitted (``TestNoSilentFieldDrops`` enforces this).
     """
-    cfg = _strip_internal_only_fields(cfg)
-    _apply_forcing_subobject_restructure(cfg)
-    _apply_output_subobject_restructure(cfg)
-    return cfg
+    for arch in _walk_site_container(cfg, "building_archetype"):
+        for old, new in _ARCH_RENAMES_TIER1_TO_DEV11:
+            _rename_field(arch, old, new)
+        for name, reason in _ARCH_DROPS_TO_DEV11:
+            _drop_obsolete_field(arch, name, reason)
+    for stebbs in _walk_site_container(cfg, "stebbs"):
+        for old, new in _STEBBS_RENAMES_RULE2_TO_DEV11:
+            _rename_field(stebbs, old, new)
+        for name, reason in _STEBBS_DROPS_TO_DEV11:
+            _drop_obsolete_field(stebbs, name, reason)
 
 
-def _migrate_2026_5_dev7_to_current(cfg: dict) -> dict:
-    """Upgrade 2026.5.dev7-shaped YAMLs to the current schema.
+def _apply_stebbs_straggler_renames(cfg: dict) -> None:
+    """Apply the dev11 -> dev12 STEBBS / Archetype Column D alignment.
 
-    dev7 -> dev8 was an identity stamp (PR#1395 canonical registry
-    refresh; YAML surface unchanged). dev8 -> dev9 applies the gh#1372
-    cumulative model.control restructure (forcing then output).
+    The original four compound-noun stragglers kept at dev9 (gh#1392) plus the
+    sixteen-field Column D alignment confirmed by the Reading STEBBS team review
+    (D. Hertwig / S. Rognone, 2026-05). The ten StebbsProperties renames apply
+    to the ``stebbs`` container; the six ArchetypeProperties renames
+    (qualifier-first powers + setpoints/profiles) apply to the
+    ``building_archetype`` container. The single ModelPhysics rename
+    (``outer_cap_fraction`` -> ``capacitance``) applies to the top-level
+    ``model.physics`` container. Pure key reorders. Runs after every earlier
+    rename layer so it sees the snake_case names those layers produce.
+
+    Each rename flows through ``_rename_field`` so a per-field log line is
+    emitted (``TestNoSilentFieldDrops`` enforces this).
     """
-    cfg = _strip_internal_only_fields(cfg)
-    _apply_forcing_subobject_restructure(cfg)
-    _apply_output_subobject_restructure(cfg)
-    return cfg
+    for stebbs in _walk_site_container(cfg, "stebbs"):
+        for old, new in _STEBBS_RENAMES_STRAGGLERS_TO_DEV12:
+            _rename_field(stebbs, old, new)
+    for arch in _walk_site_container(cfg, "building_archetype"):
+        for old, new in _ARCH_RENAMES_COLUMN_D_TO_DEV12:
+            _rename_field(arch, old, new)
+    physics = cfg.get("model", {}).get("physics")
+    if isinstance(physics, dict):
+        for old, new in MODELPHYSICS_DEV12_RENAMES.items():
+            _rename_field(physics, old, new)
 
 
-def _migrate_2026_5_dev6_to_current(cfg: dict) -> dict:
-    """Upgrade 2026.5.dev6-shaped YAMLs to the current schema.
+# gh#1495 dev13 -> dev14: the frontal_area_index readable selector dropped
+# its synonym string aliases. Map any retired alias to the canonical
+# observed/modelled value so an older YAML keeps loading.
+_FAI_ALIAS_CANONICAL: dict[str, str] = {
+    "provided": "observed",
+    "use_provided": "observed",
+    "simple_scheme": "modelled",
+}
 
-    Chains the dev6 -> dev7 ArchetypeProperties Rule 2 reorder (44
-    renames) and the gh#1372 cumulative dev8 -> dev9 restructure
-    (forcing then output). dev7 -> dev8 was an identity stamp.
+
+def _apply_fai_alias_canonicalisation(cfg: dict) -> None:
+    """Rewrite retired frontal_area_index string aliases in place.
+
+    gh#1495 dev13 -> dev14. The ``frontal_area_index`` readable selector was
+    reduced to the canonical ``observed`` / ``modelled`` pair; the synonym
+    aliases ``provided`` / ``use_provided`` / ``simple_scheme`` are no longer
+    accepted. An older YAML that used a synonym is rewritten to its canonical
+    replacement (``provided`` / ``use_provided`` -> ``observed``,
+    ``simple_scheme`` -> ``modelled``) so it still loads. Integer values and
+    already-canonical names are untouched.
     """
-    cfg = _strip_internal_only_fields(cfg)
-    _apply_arch_rule2_renames(cfg)
-    _apply_forcing_subobject_restructure(cfg)
-    _apply_output_subobject_restructure(cfg)
-    return cfg
-
-
-def _migrate_2026_5_dev5_to_current(cfg: dict) -> dict:
-    """Upgrade 2026.5.dev5 YAMLs to current.
-
-    dev5 -> dev6 was accept-only validator tightening (no YAML
-    rewrite); chains the dev6 -> dev7 ArchetypeProperties Rule 2
-    reorder and the gh#1372 dev8 -> dev9 restructure.
-    """
-    cfg = _strip_internal_only_fields(cfg)
-    _apply_arch_rule2_renames(cfg)
-    _apply_forcing_subobject_restructure(cfg)
-    _apply_output_subobject_restructure(cfg)
-    return cfg
-
-
-def _migrate_2026_5_dev4_to_current(cfg: dict) -> dict:
-    """Upgrade 2026.5.dev4 YAMLs to current.
-
-    dev4 -> dev5 was accept-only nested physics widening (no YAML
-    rewrite); chains the dev6 -> dev7 ArchetypeProperties Rule 2
-    reorder and the gh#1372 dev8 -> dev9 restructure.
-    """
-    cfg = _strip_internal_only_fields(cfg)
-    _apply_arch_rule2_renames(cfg)
-    _apply_forcing_subobject_restructure(cfg)
-    _apply_output_subobject_restructure(cfg)
-    return cfg
-
-
-def _migrate_2026_5_dev3_to_current(cfg: dict) -> dict:
-    """Upgrade 2026.5.dev3-shaped YAMLs to the current schema.
-
-    Chains the gh#1334 follow-through hot-water unification
-    (dev3 -> dev4; 14 renames), the dev6 -> dev7 ArchetypeProperties
-    Rule 2 reorder (44 renames), and the gh#1372 dev8 -> dev9
-    cumulative restructure (forcing then output).
-    """
-    cfg = _strip_internal_only_fields(cfg)
-    _apply_hot_water_unification_renames(cfg)
-    _apply_arch_rule2_renames(cfg)
-    _apply_forcing_subobject_restructure(cfg)
-    _apply_output_subobject_restructure(cfg)
-    return cfg
-
-
-def _migrate_2026_5_dev2_to_current(cfg: dict) -> dict:
-    """Upgrade 2026.5.dev2-shaped YAMLs to the current schema.
-
-    Chains gh#1334 (dev2 -> dev3: retires STEBBS PascalCase; 124
-    renames), the gh#1334 follow-through (dev3 -> dev4: hot-water
-    prefix unification; 14 renames), the dev6 -> dev7
-    ArchetypeProperties Rule 2 reorder, and the gh#1372 dev8 -> dev9
-    cumulative restructure (forcing then output).
-    """
-    cfg = _strip_internal_only_fields(cfg)
-    _apply_stebbs_snake_renames(cfg)
-    _apply_hot_water_unification_renames(cfg)
-    _apply_arch_rule2_renames(cfg)
-    _apply_forcing_subobject_restructure(cfg)
-    _apply_output_subobject_restructure(cfg)
-    return cfg
+    model = cfg.get("model")
+    if not isinstance(model, dict):
+        return
+    physics = model.get("physics")
+    if not isinstance(physics, dict):
+        return
+    entry = physics.get("frontal_area_index")
+    wrapped = isinstance(entry, dict) and "value" in entry
+    raw = entry["value"] if wrapped else entry
+    if not isinstance(raw, str):
+        return
+    canonical = _FAI_ALIAS_CANONICAL.get(raw.strip().lower())
+    if canonical is None:
+        return
+    if wrapped:
+        entry["value"] = canonical
+    else:
+        physics["frontal_area_index"] = canonical
+    _log(
+        f"[yaml-upgrade]   frontal_area_index {raw!r} -> {canonical!r} "
+        "(retired synonym alias canonicalised)"
+    )
 
 
 def _migrate_2026_5_to_current(cfg: dict) -> dict:
@@ -909,25 +1200,10 @@ def _migrate_2026_5_to_current(cfg: dict) -> dict:
     _apply_arch_rule2_renames(cfg)
     _apply_forcing_subobject_restructure(cfg)
     _apply_output_subobject_restructure(cfg)
-    return cfg
-
-
-def _migrate_2026_5_dev1_to_current(cfg: dict) -> dict:
-    """Upgrade 2026.5.dev1-shaped YAMLs to the current schema.
-
-    Chains the Cat 2+3 ModelPhysics suffix/abbreviation rewrite (gh#1321),
-    the gh#1334 STEBBS/Snow snake_case sweep, the gh#1334 follow-through
-    hot-water prefix unification, the dev6 -> dev7 ArchetypeProperties
-    Rule 2 reorder, and the gh#1372 dev8 -> dev9 cumulative restructure
-    (forcing then output).
-    """
-    cfg = _strip_internal_only_fields(cfg)
-    _apply_modelphysics_suffix_renames(cfg)
-    _apply_stebbs_snake_renames(cfg)
-    _apply_hot_water_unification_renames(cfg)
-    _apply_arch_rule2_renames(cfg)
-    _apply_forcing_subobject_restructure(cfg)
-    _apply_output_subobject_restructure(cfg)
+    _apply_naming_completion_renames(cfg)
+    _apply_stebbs_straggler_renames(cfg)
+    _apply_stebbs_physics_fold(cfg)
+    _apply_fai_alias_canonicalisation(cfg)
     return cfg
 
 
@@ -981,35 +1257,20 @@ _HANDLERS: dict[tuple[str, str], Handler] = {
     # target, e.g. migrate(..., to_version="2026.4")).
     ("2026.1", "2026.4"): _migrate_2026_1_to_2026_4,
     ("2025.12", "2026.4"): _migrate_2025_12_to_2026_4,
-    # Intermediate stops at 2026.5 (callers pinning Category 1 only).
-    ("2026.4", "2026.5"): _migrate_2026_4_to_2026_5,
-    # Chains to the current schema (2026.5.dev10: Cat 1 snake_case sweep
-    # + Cat 5 STEBBS ext rename + Cat 2+3 ModelPhysics suffix drop
-    # + gh#1334 STEBBS/Snow snake_case + gh#1334 follow-through hot-water
-    # prefix unification + gh#972 accept-only nested physics sub-options
-    # + gh#1333 site-level completeness validator tightening
-    # + naming convention Rule 2 ArchetypeProperties reorder
-    # + PR#1395 canonical registry refresh (identity)
-    # + gh#1372 cumulative model.control restructure: forcing_file ->
-    #   forcing.file then output_file -> output (path -> dir, drop legacy
-    #   string form)
-    # + PR#1420 stacked follow-up fixed the extended forcing adapter and
-    #   per-vegetation LAI projection without changing the YAML surface.
-    # The dev4 -> dev5, dev5 -> dev6, and dev7 -> dev8 deltas are
-    # accept-only / contract tightening / identity migrations with no YAML
-    # rewrite; the dev6 -> dev7 delta is a pure key rename and the
-    # dev8 -> dev9 delta combines the two gh#1372 restructures into a
-    # single bump per the dev-label convention.
-    ("2026.5.dev9", CURRENT_SCHEMA_VERSION): _identity,
-    ("2026.5.dev8", CURRENT_SCHEMA_VERSION): _migrate_2026_5_dev8_to_current,
-    ("2026.5.dev7", CURRENT_SCHEMA_VERSION): _migrate_2026_5_dev7_to_current,
-    ("2026.5.dev6", CURRENT_SCHEMA_VERSION): _migrate_2026_5_dev6_to_current,
-    ("2026.5.dev5", CURRENT_SCHEMA_VERSION): _migrate_2026_5_dev5_to_current,
-    ("2026.5.dev4", CURRENT_SCHEMA_VERSION): _migrate_2026_5_dev4_to_current,
-    ("2026.5.dev3", CURRENT_SCHEMA_VERSION): _migrate_2026_5_dev3_to_current,
-    ("2026.5.dev2", CURRENT_SCHEMA_VERSION): _migrate_2026_5_dev2_to_current,
-    ("2026.5.dev1", CURRENT_SCHEMA_VERSION): _migrate_2026_5_dev1_to_current,
-    ("2026.5", CURRENT_SCHEMA_VERSION): _migrate_2026_5_to_current,
+    # Upgrade each prior released schema straight to the current 2026.5
+    # schema. 2026.5 is the collapse of the 2026.5.dev1..dev14 development
+    # cycle into a single released label (see SCHEMA_VERSIONS["2026.5"] and
+    # `.claude/rules/python/schema-versioning.md`). The (2026.4 -> 2026.5)
+    # handler therefore applies the whole union of dev-cycle deltas in
+    # order: #1256 Category 1 snake_case sweep, #1327 STEBBS ext->External,
+    # #1321 ModelPhysics suffix drop, #1334 + #1337 STEBBS/Snow snake_case
+    # and hot-water prefix unification, #972 accept-only nested physics,
+    # #1333 completeness-validator tightening, the naming-convention Rule 2
+    # reorders (#1395 / gh#1392 / gh#1394), #1372 model.control restructure
+    # (+#1420 forcing-adapter follow-up), gh#1452 Column D alignment,
+    # gh#1456 STEBBS physics fold, and gh#1495 frontal_area_index selector.
+    # _migrate_2026_4_to_current chains _migrate_2026_4_to_2026_5 (Category 1)
+    # then _migrate_2026_5_to_current (the remaining dev-cycle union).
     ("2026.4", CURRENT_SCHEMA_VERSION): _migrate_2026_4_to_current,
     ("2026.1", CURRENT_SCHEMA_VERSION): _migrate_2026_1_to_current,
     ("2025.12", CURRENT_SCHEMA_VERSION): _migrate_2025_12_to_current,

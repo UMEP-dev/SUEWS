@@ -78,7 +78,7 @@ def main(argv: list[str]) -> int:
             auto_applied += 1
             continue
         checked += 1
-        if file_has_nature_marker(path.read_text()):
+        if file_has_nature_marker(path.read_text(encoding="utf-8")):
             continue
         missing.append(rel.as_posix())
 

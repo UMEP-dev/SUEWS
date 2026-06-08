@@ -34,7 +34,7 @@ def test_mcp_runtime_version_matches_supy() -> None:
 
 def test_mcp_pyproject_uses_generated_dynamic_version() -> None:
     pyproject = REPO_ROOT / "mcp" / "pyproject.toml"
-    text = pyproject.read_text()
+    text = pyproject.read_text(encoding="utf-8")
 
     assert 'dynamic = ["version"]' in text
     assert 'version = "0.1.0"' not in text
@@ -61,13 +61,57 @@ def test_version_script_writes_supy_and_mcp_version_files(
         Path("mcp/src/suews_mcp/_version_scm.py"),
     ):
         generated = tmp_path / rel_path
-        text = generated.read_text()
+        text = generated.read_text(encoding="utf-8")
         assert "__version__ = version = '2026.5.1.dev2'" in text
         assert "__version_tuple__ = version_tuple = (2026, 5, 1, 'dev2')" in text
         # gh#1401: the build-time commit hash is baked in so the envelope
         # ``meta.git_commit`` field still carries provenance after a wheel
         # install (no .git directory at runtime).
         assert "__commit_hash__ = commit_hash = '" in text
+
+
+def test_version_script_describes_explicit_source_ref(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Docs builds on the rtd branch must describe the source commit, not rtd HEAD."""
+    version_script = _load_version_script()
+
+    def fake_check_output(command, stderr=None):
+        assert command == [
+            "git",
+            "describe",
+            "--tags",
+            "--long",
+            "--match=[0-9]*",
+            "origin/master",
+        ]
+        return b"2026.6.2.dev-1-g50db70b49c\n"
+
+    monkeypatch.setattr(version_script.subprocess, "check_output", fake_check_output)
+
+    assert version_script.get_version_from_git("origin/master") == "2026.6.2.dev1"
+
+
+def test_version_script_peels_annotated_tag_for_commit_info(monkeypatch: pytest.MonkeyPatch) -> None:
+    version_script = _load_version_script()
+    calls = []
+
+    def fake_check_output(command, stderr=None):
+        calls.append(command)
+        if command == ["git", "rev-parse", "--short=7", "2026.6.2.dev^{}"]:
+            return b"9438baa\n"
+        if command == ["git", "rev-parse", "2026.6.2.dev^{}"]:
+            return b"9438baa1043f5c40fa2e016e4f4e33a98b545657\n"
+        raise AssertionError(f"unexpected command: {command!r}")
+
+    monkeypatch.setattr(version_script.subprocess, "check_output", fake_check_output)
+
+    assert version_script.get_commit_info("2026.6.2.dev") == (
+        "9438baa",
+        "9438baa1043f5c40fa2e016e4f4e33a98b545657",
+    )
+    assert calls == [
+        ["git", "rev-parse", "--short=7", "2026.6.2.dev^{}"],
+        ["git", "rev-parse", "2026.6.2.dev^{}"],
+    ]
 
 
 def test_mcp_server_advertises_package_version() -> None:

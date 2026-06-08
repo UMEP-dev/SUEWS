@@ -41,7 +41,7 @@ EXAMPLES:
 
 | Year | Features | Bugfixes | Changes | Maintenance | Docs | Total |
 |------|----------|----------|---------|-------------|------|-------|
-| 2026 | 74 | 83 | 29 | 81 | 40 | 308 |
+| 2026 | 77 | 83 | 30 | 81 | 40 | 312 |
 | 2025 | 60 | 68 | 22 | 71 | 36 | 256 |
 | 2024 | 12 | 17 | 1 | 12 | 1 | 43 |
 | 2023 | 11 | 14 | 3 | 9 | 1 | 38 |
@@ -53,6 +53,117 @@ EXAMPLES:
 | 2017 | 9 | 0 | 3 | 2 | 0 | 14 |
 
 ## 2026
+
+### 5 Jun 2026
+
+- [change][experimental] File logging is now opt-in: importing or using `supy` no longer drops an (often empty) `SuPy.log` into the current working directory (#1516)
+  - Previously a `TimedRotatingFileHandler` was attached at import time and eagerly created `SuPy.log` in the CWD the moment any submodule was used, whether or not anything was ever logged
+  - Console logging is unchanged; only the file handler is now off by default
+  - Enable file logging on demand with `supy.enable_file_logging()` (defaults to `SuPy.log` in the CWD, or pass a path/directory) and turn it off with `supy.disable_file_logging()`
+  - Or enable it without code via the `SUPY_LOGFILE` (explicit path) / `SUPY_LOG_DIR` (directory) environment variables
+  - When enabled, the file is created lazily on the first emitted record (`delay=True`), so no stray empty file appears
+- [change] Finalised the YAML configuration schema to `2026.5` for the 2026.6.5 release (#1256, #1321, #1327, #1333, #1334, #1337, #1372, #1392, #1394, #1452, #1456, #1495)
+  - The `2026.5.dev1`..`2026.5.dev14` development-cycle labels are collapsed into the single released `2026.5` schema; `sample_config.yml`, the migration handlers, and the vendored release fixture now carry `2026.5`
+  - User YAMLs from `2026.4` (or any earlier supported schema) upgrade in one step via `suews-schema migrate your_config.yml` -- the `(2026.4 -> 2026.5)` handler applies the full union of the cycle's renames and restructures and logs every field rename/drop
+  - No model output change: the KCL/London (Ward et al. 2016) energy-balance benchmark fingerprint is byte-identical to the 2026.4.3 release
+
+### 4 Jun 2026
+
+- [bugfix] Legacy SUEWS table to YAML conversion no longer aborts on a missing `stebbsmethod` df_state column (#1500)
+  - `ModelPhysics.from_df_state` now defaults a missing `stebbsmethod` column to `0` (STEBBS disabled) instead of raising `Missing attribute 'stebbsmethod'`, consistent with how the adjacent newer STEBBS columns (`setpointmethod`, `rcmethod`) already default; a present-but-invalid value is still rejected
+  - The originally reported `setpointmethod` symptom was already resolved by the #1456 STEBBS relocation; this completes the issue by hardening the last hard-required STEBBS column and adds regression tests covering both the `setpointmethod` and `stebbsmethod` legacy-DataFrame cases
+
+- [bugfix] Hardened legacy STEBBS `df_state` defaults so older state DataFrames load without the newer nested STEBBS columns (#1510)
+
+- [maintenance] Added a multi-version energy-balance benchmark: a reproducibility harness (byte-identical stats fingerprint per release), restricted Zenodo data supply, and public benchmark pages at suews.io/benchmark (KCL/London, Ward et al. 2016) (#1506)
+
+- [maintenance] Extended the benchmark with a near-surface (RSL) air-temperature axis as a second evaluation dimension (#1508)
+
+- [maintenance] Removed leftover derived-type (`dts`) field-name suffixes and redundant Fortran declarations (#1511)
+
+### 3 Jun 2026
+
+- [change][experimental] Align physics method selectors on the observed/modelled axis (#1501)
+  - `model.physics.frontal_area_index` now exposes only the canonical readable names `observed` and `modelled`; the synonym aliases `provided`, `use_provided`, and `simple_scheme` are removed so it matches `laimethod`, `water_use`, and `soil_moisture_deficit`
+  - Internal source-of-input enums aligned to one vocabulary: `LAIMethod.CALCULATED` becomes `MODELLED`, and `FAIMethod.USE_PROVIDED` / `SIMPLE_SCHEME` become `OBSERVED` / `MODELLED`; integer values are unchanged, so existing YAML and `df_state` round-trip identically
+  - `net_radiation` scalar-name errors now point scheme families (`narp`, `spartacus`) at the nested family form rather than only listing the `ldown_*` names
+
+- [bugfix] Fold legacy flat STEBBS physics switches into the nested `model.physics.stebbs` object during validation so pre-#1456 configs validate cleanly (#1499)
+
+- [feature][experimental] SUEWS agent plugin -- early access to driving SUEWS from AI coding agents (#1496)
+  - Bundles the SUEWS MCP server so an agent (for example Claude) can scaffold, inspect, validate, and run configurations through structured tools rather than by guesswork; pairs with the self-bootstrapping `uvx` MCP install (#1384), the agent-facing `suews inspect` physics block (#1484), and the readable sample-config physics groupings (#1483)
+  - Deliberately early-stage and under active development: the interfaces will change and it is not production-ready yet. We are excited about this direction and will keep building it out
+
+- [maintenance] Resolved the Python interpreter in the `validate-tutorial` hook rather than relying on a bare `python` (#1503)
+
+- [maintenance] Pinned the agent push-token checkout to silence the zizmor `artipacked` finding (#1504)
+
+### 1 Jun 2026
+
+- [feature][experimental] Expose active physics selectors in `suews inspect` output (#1484)
+  - `suews inspect --format json` now includes a structured `physics` block so CLI/MCP clients and AI agents can see each active `model.physics` selector, its numeric code, and accepted readable names without re-deriving them from schema internals
+  - The inspect surface uses public-facing keys such as `leaf_area_index`, `snow`, and `stebbs.parameter_source`, while carrying `internal_key` for the long-standing Fortran-facing names where useful
+  - `storage_heat.ohm.include_qf` is reported under the active OHM storage-heat branch rather than as a top-level `ohm_inc_qf` selector, and is hidden when OHM is not selected
+
+- [feature][experimental] Advertise readable sample-config physics defaults with nested orthogonal groupings (#1483)
+  - `model.physics.storage_heat.ohm.include_qf` now represents the OHM QF inclusion choice under the storage heat selector in the sample config, while legacy flat `ohm_inc_qf` input remains accepted and normalised to the existing Fortran-facing state
+  - `model.physics.net_radiation.narp.ldown` is accepted as the scheme-scoped spelling for NARP longwave forcing options, while the existing `scheme: narp` form remains accepted
+  - The sample also uses readable net-radiation and emissions groupings plus citation-style aliases such as `J11`, `K09`, `CN98`, and `W16` so new YAML users see semantic axes rather than opaque integer method codes
+  - `model.physics.leaf_area_index` and `model.physics.snow` are accepted as public-facing aliases for the existing LAI and snow switches, folding back to `laimethod` and `snow_use` internally
+  - Source-choice physics options now use the consistent public names `observed` and `modelled`; older readable aliases such as `provided`, `use_provided`, and `simple_scheme` remain accepted where already introduced, while `laimethod: calculated` and `laimethod: model` are no longer readable public options
+  - `model.physics.soil_moisture_deficit` now exposes only `modelled` and `observed` as readable public names; the old volumetric/gravimetric split remains an internal numeric compatibility path pending the water/soil-moisture unit unification work
+  - `model.physics.stebbs.parameter_source` is accepted as the public nested spelling for the STEBBS parameter-source choice, folding back to `stebbs.parameters` internally
+
+### 31 May 2026
+
+- [maintenance] Narrow the PyPI publish workflow's tag trigger to CalVer-only, so non-supy tags (e.g. SUEWS-agent releases) do not trigger a supy wheel build + publish (#1384)
+  - `.github/workflows/build-publish_to_pypi.yml` now triggers on `tags: ['[0-9]*']`, mirroring the existing pattern in `.github/workflows/docs-sync.yml`. Tags like `agent/v0.3` are ignored by the publish workflow; users pick up agent updates via `/plugin update`, not a PyPI release
+- [change][experimental] Relocate STEBBS physics switches under `model.physics.stebbs` (#1456)
+  - The legacy flat STEBBS physics switches now serialise under the nested `model.physics.stebbs` object, splitting the `stebbs` master toggle into `enabled` plus `parameters`
+  - Existing flat YAML input remains accepted and is folded during validation and migration; bridge and Fortran-facing columns such as `stebbsmethod`, `rcmethod`, `setpointmethod`, and the `same_*` switches remain unchanged
+  - This is a structural YAML/data-model move; the capacitance selector keeps the Reading-requested `capacitance` name while the wall/roof heat-capacity fraction fields remain physical values
+- [feature][experimental] Accept human-readable names for physics method options (#1471)
+  - YAML input now accepts registered readable method tokens such as `storage_heat: ohm`, `stability: cn98`, `snow_use: enabled`, and nested STEBBS leaves such as `stebbs.capacitance: provided`
+  - The accepted names are input-only compatibility forms; validation still normalises to the existing flat enum-code representation and exports canonical numeric `{value: N}` YAML
+
+### 30 May 2026
+
+- [bugfix] Validator report no longer collapses to a lone `schema_version` INFO line when that field is absent (#1466, #1458)
+  - When a user YAML omitted `schema_version`, Phase C detected it as a normal default and built an INFO entry, which made the multi-phase consolidation short-circuit to an INFO-only report — silently dropping the Phase A renamed-parameter list and the Phase B `REVIEW ADVISED` / `SUGGESTED UPDATES` sections carried in `no_action_messages`
+  - The INFO-only path now fires only for single-phase Phase C runs; multi-phase runs always route through `create_consolidated_report`, folding any Phase C defaults into the `INFO` section alongside (not instead of) the upstream phase sections
+- [feature][experimental] Expand `suews validate` JSON report to include non-error informational messages (#1467)
+  - The JSON sidecar (`report_<name>.json`) written next to the text report is now the consolidated multi-phase `ValidationReport` (`{overall_status, phases:[...]}`), carrying every phase's issues across all severities (`ERROR`, `WARNING`, `INFO`, `SUGGESTION`, `APPLIED_FIX`, `PASS`), not just validation errors. This matches the `data.validation_report` field already exposed by `--format json`. Per-phase sidecars written by direct `run_phase_*` library calls are unchanged (still `PhaseReport`).
+
+### 29 May 2026
+
+- [bugfix] Make standalone Phase B/C validation rename-aware (#1457)
+  - `suews validate` in standalone (BC/C/AC) mode inspected the raw user YAML by current field name without the old->new normalisation that `SUEWSConfig.from_yaml` applies, so a still-compatible config written with a legacy spelling of a field renamed in #1452 (e.g. `outer_cap_fraction` for `capacitance`, `month_mean_air_temperature_diffmax`, the scalar `*_setpoint` names) was mishandled by three raw-dict checks
+  - Most seriously, a legacy `outer_cap_fraction: {value: null}` slipped the orchestrator's critical-null check and could later crash df_state conversion via `int(None)`; the CRU diffmax update and the setpoint-cleanup science adjustment in Phase B were also silently skipped
+  - Fixed by normalising the loaded YAML once at each phase's load chokepoint (`load_user_yaml_normalised` / `normalise_yaml_renames`) so every standalone rule sees current names; a config carrying both a legacy and its current spelling is left untouched so the downstream validator still reports the conflict
+  - The normal `SUEWSConfig.from_yaml` load path was never affected (its sub-models normalise via `@model_validator(mode="before")`)
+
+### 28 May 2026
+
+- [bugfix] `SUEWSOutput.save()` no longer forces parquet output regardless of the configured format (#1451)
+  - The `format` parameter defaulted to `"parquet"`, which always satisfied the `output_format is None` short-circuit in `_save_supy()` and overrode `model.control.output.format` from the run configuration
+  - `format` now defaults to `None`, so an unspecified format follows the configured value (falling back to `txt` when no configuration is present); an explicit `format` argument still wins, matching the existing `SUEWSSimulation.save()` behaviour
+
+### 27 May 2026
+
+- [maintenance] Make the SUEWS plugin's MCP server self-bootstrapping via `uvx`, so installing the plugin is the only onboarding step (#1384)
+  - The bundled `.mcp.json` files now spawn `suews-mcp` through `uvx --from git+...#subdirectory=mcp`, which fetches the MCP server and its `supy` / SUEWS dependency into a cached uv environment on first use — removing the separate `pip install` step and the PATH / venv matching the bare console-script command required
+  - The only prerequisite is `uv` on the machine; once `suews-mcp` is published to PyPI the command collapses to `uvx suews-mcp`
+  - `mcp/README.md`, the `/suews` skill onboarding (`SKILL.md`, `references/fresh-site-setup.md`), and the `fresh_site_setup` MCP prompt now lead with the self-bootstrapping path and keep the explicit `pip` / `uv` install as the dev / offline fallback
+
+### 24 May 2026
+
+- [feature][experimental] Ground the SUEWS agent (CLI + `/suews` skill + MCP) in the surface energy balance and make it installable as a Claude Code / Codex plugin (#1384)
+  - Added two MCP tools: `assess_readiness` (reports which site-defining values are still the bundled sample's defaults, each tagged with its energy-balance role, plus a parameter-importance ladder) and `list_docs` (discovers the curated `suews://docs/{slug}` documentation slugs)
+  - `search_schema` is now a semantic ranked search, and the `suews://docs/{slug}` resource serves the tutorial sources
+  - The MCP now carries its procedural contract internally — server instructions on the `initialize` handshake plus three prompts (`fresh_site_setup`, `parameter_importance`, `evaluate_results`) — so the honesty and energy-balance guidance reaches every MCP client (Claude Desktop, Codex, Cursor), not only the Claude Code `/suews` skill
+  - Parameter importance is derived from QN + QF = QS + QE + QH: albedo first, with QH and surface temperature treated as model outputs (never set) and energy-balance closure recognised as automatic rather than a validation check
+  - Data-source recommendations are limited to an authorised registry (ERA5 / ERA5-Land, GLAMOUR, ESA WorldCover, GEDI, GHSL / GHS-POP, SUEWS-database)
+  - The Claude Code / Codex plugin bundle is generated from the single source skill via `make plugin` and is no longer committed; a parity test guards the generator
 
 ### 19 May 2026
 

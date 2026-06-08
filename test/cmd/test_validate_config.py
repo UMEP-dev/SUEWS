@@ -142,6 +142,70 @@ def test_validate_pipeline_c_json_accepts_multiple_files() -> None:
 
 
 # ---------------------------------------------------------------------------
+# Report consolidation regressions — gh#1466 / gh#1458
+# ---------------------------------------------------------------------------
+
+
+def _copy_sample_data(dst: Path) -> Path:
+    """Copy the bundled sample config and its forcing file into ``dst``.
+
+    The forcing file must sit beside the config so Phase B forcing
+    validation resolves it and the science checks run end-to-end. Returns
+    the path to the copied ``sample_config.yml``.
+    """
+    sample_dir = files("supy").joinpath("sample_data")
+    if not sample_dir.joinpath("sample_config.yml").is_file():
+        pytest.skip("Sample data not available")
+    for resource in sample_dir.iterdir():
+        if resource.is_file():
+            (dst / resource.name).write_bytes(resource.read_bytes())
+    return dst / "sample_config.yml"
+
+
+def test_missing_schema_version_keeps_review_and_suggestion_sections(
+    tmp_path: Path,
+) -> None:
+    """A YAML missing ``schema_version`` must still surface the Phase B
+    ``REVIEW ADVISED`` / ``SUGGESTED UPDATES`` sections — gh#1466 / gh#1458.
+
+    Root cause: Phase C's INFO consolidation short-circuited to an
+    INFO-only report whenever it detected *any* default value. A missing
+    ``schema_version`` is the common trigger, so the upstream phase
+    content carried in ``no_action_messages`` (Phase A renames, Phase B
+    review/suggestion sections) was silently dropped — the report
+    collapsed to a single ``## INFO`` line about the missing field.
+    """
+    from supy.cmd.validate_config import cli as validate_cli
+
+    config_path = _copy_sample_data(tmp_path)
+
+    # Strip the ``schema_version`` line textually so the rest of the
+    # bundled config is byte-for-byte unchanged (no YAML round-trip).
+    original = config_path.read_text(encoding="utf-8")
+    stripped = "".join(
+        line
+        for line in original.splitlines(keepends=True)
+        if not line.startswith("schema_version")
+    )
+    assert stripped != original, "fixture must contain a schema_version line"
+    config_path.write_text(stripped, encoding="utf-8")
+
+    runner = CliRunner()
+    result = runner.invoke(validate_cli, ["--mode", "dev", str(config_path)])
+    assert result.exit_code in {0, 1}, result.output
+
+    report_path = tmp_path / "report_sample_config.txt"
+    assert report_path.exists(), result.output
+    report = report_path.read_text(encoding="utf-8")
+
+    # The missing-schema_version INFO is expected to be reported ...
+    assert "schema_version" in report, report
+    # ... but it must NOT have replaced the upstream phase sections.
+    assert "## REVIEW ADVISED" in report, report
+    assert "## SUGGESTED UPDATES" in report, report
+
+
+# ---------------------------------------------------------------------------
 # Validation edge cases — CLI path
 # ---------------------------------------------------------------------------
 
@@ -233,6 +297,27 @@ def test_validate_single_file_rejects_negative_sfr(tmp_path: Path) -> None:
     assert errors, "expected at least one error for a negative sfr"
 
 
+def test_validate_single_file_rejects_storage_value_plus_nested_qf(
+    tmp_path: Path,
+) -> None:
+    """Malformed storage-heat family values must not be partially folded."""
+    from supy.cmd.validate_config import validate_single_file
+    from supy.data_model.schema.publisher import generate_json_schema
+
+    payload = _load_sample_dict()
+    payload["model"]["physics"]["storage_heat"] = {
+        "ohm": {"value": 1, "include_qf": False}
+    }
+    config_path = tmp_path / "bad_storage_heat.yml"
+    _write_yaml(config_path, payload)
+
+    schema = generate_json_schema()
+    is_valid, errors = validate_single_file(config_path, schema, show_details=True)
+
+    assert not is_valid
+    assert any("storage_heat.ohm" in error.message for error in errors), errors
+
+
 # ---------------------------------------------------------------------------
 # Critical-physics structural-presence — gh#1409
 # ---------------------------------------------------------------------------
@@ -305,6 +390,7 @@ def test_validate_flags_missing_critical_physics_params(tmp_path: Path) -> None:
     from supy.data_model.validation.pipeline.orchestrator import (
         CRITICAL_PHYSICS_PARAMS,
     )
+    from supy.data_model.core.field_renames import STEBBS_PHYSICS_LEAF_RENAMES
 
     payload = _minimal_paved_only_config(CURRENT_SCHEMA_VERSION)
     config_path = tmp_path / "missing_physics.yml"
@@ -320,11 +406,148 @@ def test_validate_flags_missing_critical_physics_params(tmp_path: Path) -> None:
         for err in errors
         if getattr(err, "field", "").startswith("model.physics.")
     }
-    expected = {f"model.physics.{name}" for name in CRITICAL_PHYSICS_PARAMS}
+    # gh#1456: STEBBS critical leaves are reported under the nested
+    # model.physics.stebbs.* path; the remaining physics params stay flat.
+    stebbs_leaf_names = set(STEBBS_PHYSICS_LEAF_RENAMES.values())
+    expected = {
+        (
+            f"model.physics.stebbs.{name}"
+            if name in stebbs_leaf_names
+            else f"model.physics.{name}"
+        )
+        for name in CRITICAL_PHYSICS_PARAMS
+    }
     assert flagged == expected, (
         f"missing fields not flagged: {expected - flagged}; "
         f"unexpected fields flagged: {flagged - expected}"
     )
+
+
+def test_validate_flat_stebbs_form_not_flagged_missing(tmp_path: Path) -> None:
+    """gh#1456 regression: a current-target YAML in the legacy FLAT form.
+
+    The relocated STEBBS leaves (``capacitance``/``setpoint``/``same_*``)
+    may still be written flat under ``model.physics`` alongside a flat
+    ``stebbs: {value: 1}`` master toggle. ``SUEWSConfig.from_yaml`` folds
+    those flat keys to the nested ``stebbs`` block and accepts them, so
+    the dry-run critical-physics check must too. Before the fix it looked
+    for the leaves only inside ``physics["stebbs"]`` and false-reported
+    them missing.
+    """
+    from supy.cmd.validate_config import validate_single_file
+    from supy.data_model.schema.publisher import generate_json_schema
+    from supy.data_model.schema.version import CURRENT_SCHEMA_VERSION
+
+    payload = _minimal_paved_only_config(CURRENT_SCHEMA_VERSION)
+    # Populate every required family switch plus the relocated STEBBS leaves
+    # in the FLAT form (directly under model.physics, with a flat master
+    # toggle). This is a still-accepted shape that the loader folds.
+    payload["model"]["physics"] = {
+        "net_radiation": {"value": 3},
+        "emissions": {"value": 2},
+        "storage_heat": {"value": 1},
+        "ohm_inc_qf": {"value": 0},
+        "roughness_length_momentum": {"value": 2},
+        "roughness_length_heat": {"value": 2},
+        "stability": {"value": 3},
+        "soil_moisture_deficit": {"value": 0},
+        "water_use": {"value": 0},
+        "roughness_sublayer": {"value": 1},
+        "frontal_area_index": {"value": 0},
+        "roughness_sublayer_level": {"value": 0},
+        "surface_conductance": {"value": 1},
+        "snow_use": {"value": 0},
+        # Flat STEBBS master toggle + relocated leaves (legacy flat form).
+        "stebbs": {"value": 1},
+        "capacitance": {"value": 1},
+        "setpoint": {"value": 0},
+        "same_albedo_wall": {"value": 1},
+        "same_albedo_roof": {"value": 1},
+        "same_emissivity_wall": {"value": 1},
+        "same_emissivity_roof": {"value": 1},
+    }
+    config_path = tmp_path / "flat_stebbs.yml"
+    _write_yaml(config_path, payload)
+
+    schema = generate_json_schema()
+    _is_valid, errors = validate_single_file(config_path, schema, show_details=True)
+
+    # The relocated leaves must NOT appear as missing critical physics
+    # parameters now that the dry-run path folds the flat form first.
+    missing_stebbs = [
+        field
+        for err in errors
+        for field in [getattr(err, "field", "") or ""]
+        if field.startswith("model.physics.stebbs.")
+        and "missing" in (getattr(err, "message", "") or "").lower()
+    ]
+    assert not missing_stebbs, (
+        f"flat-form STEBBS leaves false-flagged missing: {missing_stebbs}"
+    )
+    # And none of the required family switches should be missing either.
+    missing_flat = [
+        field
+        for err in errors
+        for field in [getattr(err, "field", "") or ""]
+        if field.startswith("model.physics.")
+        and not field.startswith("model.physics.stebbs.")
+        and "required physics parameter is missing"
+        in (getattr(err, "message", "") or "")
+    ]
+    assert not missing_flat, (
+        f"flat-form physics switches false-flagged missing: {missing_flat}"
+    )
+
+
+def test_validate_pipeline_cleans_legacy_flat_stebbs_updated_yaml(
+    tmp_path: Path,
+) -> None:
+    """gh#1497: full validate output folds old flat STEBBS switches."""
+    from supy.cmd.validate_config import cli as validate_cli
+
+    payload = _load_sample_dict()
+    physics = payload["model"]["physics"]
+    physics["stebbs"] = {"value": 0}
+    physics["outer_cap_fraction"] = {"value": 0}
+    physics["setpoint"] = {"value": 1}
+    physics["same_albedo_wall"] = {"value": 0}
+    physics["same_albedo_roof"] = {"value": 0}
+    physics["same_emissivity_wall"] = {"value": 0}
+    physics["same_emissivity_roof"] = {"value": 0}
+
+    config_path = tmp_path / "legacy_stebbs.yml"
+    _write_yaml(config_path, payload)
+
+    runner = CliRunner()
+    result = runner.invoke(validate_cli, ["--forcing", "off", str(config_path)])
+
+    assert result.exit_code == 0, result.output
+    updated_path = tmp_path / "updated_legacy_stebbs.yml"
+    assert updated_path.exists(), result.output
+    updated = yaml.safe_load(updated_path.read_text(encoding="utf-8"))
+    updated_physics = updated["model"]["physics"]
+    updated_stebbs = updated_physics["stebbs"]
+
+    assert "value" not in updated_stebbs
+    for flat_key in (
+        "capacitance",
+        "outer_cap_fraction",
+        "setpoint",
+        "same_albedo_wall",
+        "same_albedo_roof",
+        "same_emissivity_wall",
+        "same_emissivity_roof",
+    ):
+        assert flat_key not in updated_physics
+
+    assert updated_stebbs["enabled"] == {"value": False}
+    assert updated_stebbs["parameters"] == {"value": 1}
+    assert updated_stebbs["capacitance"] == {"value": 0}
+    assert updated_stebbs["setpoint"] == {"value": 1}
+    assert updated_stebbs["same_albedo_wall"] == {"value": 0}
+    assert updated_stebbs["same_albedo_roof"] == {"value": 0}
+    assert updated_stebbs["same_emissivity_wall"] == {"value": 0}
+    assert updated_stebbs["same_emissivity_roof"] == {"value": 0}
 
 
 def test_validate_full_pipeline_emits_json_envelope(tmp_path: Path) -> None:
@@ -409,7 +632,152 @@ def test_validate_full_pipeline_experimental_restriction_emits_json_envelope(
     envelope = json.loads(result.stdout)
     assert envelope["status"] == "error"
     assert envelope["errors"][0]["code"] == "experimental_features_restricted"
-    assert "STEBBS method" in envelope["data"]["restrictions"][0]
+    # gh#1456: master toggle is now model.physics.stebbs.enabled; the
+    # restriction message reflects the new nested surface.
+    assert "STEBBS is enabled" in envelope["data"]["restrictions"][0]
+
+
+def test_public_mode_restriction_honours_nested_stebbs_bool_strings(
+    tmp_path: Path,
+) -> None:
+    from supy.cmd.validate_config import _experimental_features_restriction
+
+    payload = {"model": {"physics": {"stebbs": {"enabled": {"value": "off"}}}}}
+    config_path = tmp_path / "public-ok.yml"
+    _write_yaml(config_path, payload)
+
+    ok, restrictions, read_error = _experimental_features_restriction(
+        str(config_path), "public"
+    )
+
+    assert ok is True
+    assert restrictions == []
+    assert read_error is None
+
+    payload["model"]["physics"]["stebbs"]["enabled"]["value"] = "yes"
+    _write_yaml(config_path, payload)
+    ok, restrictions, read_error = _experimental_features_restriction(
+        str(config_path), "public"
+    )
+
+    assert ok is False
+    assert "STEBBS is enabled" in restrictions[0]
+    assert read_error is None
+
+
+@pytest.mark.parametrize("legacy_key", ["stebbsmethod", "stebbs_method"])
+def test_public_mode_restriction_honours_legacy_stebbs_aliases(
+    tmp_path: Path,
+    legacy_key: str,
+) -> None:
+    from supy.cmd.validate_config import _experimental_features_restriction
+
+    payload = {"model": {"physics": {legacy_key: {"value": 1}}}}
+    config_path = tmp_path / "public-legacy.yml"
+    _write_yaml(config_path, payload)
+
+    ok, restrictions, read_error = _experimental_features_restriction(
+        str(config_path), "public"
+    )
+
+    assert ok is False
+    assert "STEBBS is enabled" in restrictions[0]
+    assert read_error is None
+
+    payload["model"]["physics"][legacy_key]["value"] = 0
+    _write_yaml(config_path, payload)
+    ok, restrictions, read_error = _experimental_features_restriction(
+        str(config_path), "public"
+    )
+
+    assert ok is True
+    assert restrictions == []
+    assert read_error is None
+
+
+@pytest.mark.parametrize("legacy_key", ["stebbsmethod", "stebbs_method"])
+def test_public_mode_restriction_rejects_mixed_stebbs_master_aliases(
+    tmp_path: Path,
+    legacy_key: str,
+) -> None:
+    from supy.cmd.validate_config import _experimental_features_restriction
+
+    payload = {
+        "model": {
+            "physics": {
+                "stebbs": {"enabled": {"value": False}},
+                legacy_key: {"value": 1},
+            }
+        }
+    }
+    config_path = tmp_path / "public-mixed-master.yml"
+    _write_yaml(config_path, payload)
+
+    ok, restrictions, read_error = _experimental_features_restriction(
+        str(config_path), "public"
+    )
+
+    assert ok is False
+    assert "Invalid STEBBS physics configuration" in restrictions[0]
+    assert legacy_key in restrictions[0]
+    assert read_error is None
+
+
+def test_public_mode_restriction_rejects_duplicate_legacy_stebbs_aliases(
+    tmp_path: Path,
+) -> None:
+    from supy.cmd.validate_config import _experimental_features_restriction
+
+    payload = {
+        "model": {
+            "physics": {
+                "stebbsmethod": {"value": 0},
+                "stebbs_method": {"value": 1},
+            }
+        }
+    }
+    config_path = tmp_path / "public-duplicate-master.yml"
+    _write_yaml(config_path, payload)
+
+    ok, restrictions, read_error = _experimental_features_restriction(
+        str(config_path), "public"
+    )
+
+    assert ok is False
+    assert "Invalid STEBBS physics configuration" in restrictions[0]
+    assert "stebbsmethod" in restrictions[0]
+    assert "stebbs_method" in restrictions[0]
+    assert read_error is None
+
+
+def test_public_mode_restriction_rejects_duplicate_nested_stebbs_aliases(
+    tmp_path: Path,
+) -> None:
+    from supy.cmd.validate_config import _experimental_features_restriction
+
+    payload = {
+        "model": {
+            "physics": {
+                "stebbs": {
+                    "enabled": {"value": False},
+                    "capacitance": {"value": 1},
+                    "outer_cap_fraction": {"value": 2},
+                }
+            }
+        }
+    }
+    config_path = tmp_path / "public-duplicate-nested.yml"
+    _write_yaml(config_path, payload)
+
+    ok, restrictions, read_error = _experimental_features_restriction(
+        str(config_path), "public"
+    )
+
+    assert ok is False
+    assert "Invalid STEBBS physics configuration" in restrictions[0]
+    assert "outer_cap_fraction" in restrictions[0]
+    assert "capacitance" in restrictions[0]
+    assert read_error is None
 
 
 def test_emit_pipeline_result_warning_status_matches_inner_report(
@@ -478,3 +846,205 @@ def test_validate_passes_when_critical_physics_present(tmp_path: Path) -> None:
     assert physics_findings == [], (
         "sample config should not trigger physics structural-presence findings"
     )
+
+
+def test_validate_sidecar_includes_non_error_info_messages(tmp_path: Path) -> None:
+    """gh#1467: the consolidated CLI JSON sidecar carries non-error issues.
+
+    Dropping the optional ``sites[0].properties.h_std`` makes the run
+    succeed (exit 0) while Phase A records a non-error ``A.MISSING_PARAM``
+    warning. That informational message must appear in the JSON sidecar,
+    not only in the text report. Anchored on the deterministic ``h_std``
+    signal (the sample config's Phase B issues are environment-dependent).
+    """
+    from supy.cmd.validate_config import cli as validate_cli
+
+    with _sample_yaml_path() as sample:
+        data = yaml.safe_load(sample.read_text(encoding="utf-8"))
+    data["sites"][0]["properties"].pop("h_std")
+
+    config_path = tmp_path / "myconfig.yml"
+    _write_yaml(config_path, data)
+
+    runner = CliRunner()
+    result = runner.invoke(validate_cli, ["--forcing", "off", str(config_path)])
+    assert result.exit_code == 0, result.output
+
+    sidecar = tmp_path / "report_myconfig.json"
+    assert sidecar.exists(), "sidecar JSON not written"
+    payload = json.loads(sidecar.read_text(encoding="utf-8"))
+
+    # Consolidated sidecar is a multi-phase ValidationReport (gh#1467),
+    # not a single Phase-C PhaseReport.
+    assert "overall_status" in payload, payload.keys()
+    assert isinstance(payload.get("phases"), list)
+    assert {p["phase"] for p in payload["phases"]} >= {"A", "B", "C"}
+
+    all_issues = [i for p in payload["phases"] for i in p["issues"]]
+    assert any(
+        i["code"] == "A.MISSING_PARAM"
+        and "h_std" in (i.get("yaml_path") or "")
+        and i["severity"] != "ERROR"
+        for i in all_issues
+    ), f"h_std informational issue missing from sidecar: {all_issues}"
+
+    # gh#1467: the consolidated sidecar must not publish paths to files that
+    # no longer exist. In a multi-phase run the intermediate temp reports and
+    # updated*_ YAMLs are merged/deleted, so every path the sidecar advertises
+    # must resolve, and report paths point at the surviving consolidated pair.
+    assert "temp_report" not in sidecar.read_text(encoding="utf-8")
+    for p in payload["phases"]:
+        assert Path(p["text_report_path"]).name == "report_myconfig.txt"
+        assert Path(p["json_report_path"]).name == "report_myconfig.json"
+        for key in ("text_report_path", "json_report_path", "yaml_in", "yaml_out"):
+            val = p.get(key)
+            assert val is None or Path(val).exists(), (
+                f"sidecar phase {p['phase']} {key}={val} does not exist"
+            )
+
+
+def test_validate_sidecar_is_validation_report_for_clean_config(tmp_path: Path) -> None:
+    """The consolidated CLI sidecar is a multi-phase ValidationReport even
+    for the bundled sample config (which already carries Phase B notes)."""
+    from supy.cmd.validate_config import cli as validate_cli
+
+    with _sample_yaml_path() as sample:
+        config_path = tmp_path / "clean.yml"
+        config_path.write_text(sample.read_text(encoding="utf-8"), encoding="utf-8")
+
+    runner = CliRunner()
+    result = runner.invoke(validate_cli, ["--forcing", "off", str(config_path)])
+    assert result.exit_code == 0, result.output
+
+    payload = json.loads((tmp_path / "report_clean.json").read_text(encoding="utf-8"))
+    assert payload["overall_status"] in {"PASSED", "WARNING"}
+    assert {p["phase"] for p in payload["phases"]} >= {"A", "B", "C"}
+    # Each phase entry preserves the PhaseReport shape.
+    for phase_entry in payload["phases"]:
+        assert {"phase", "status", "issues"} <= set(phase_entry)
+
+
+def test_validate_sidecar_keeps_info_alongside_errors(tmp_path: Path) -> None:
+    """A failing config keeps Phase A informational issues beside Phase C
+    errors in the same consolidated sidecar."""
+    from supy.cmd.validate_config import cli as validate_cli
+
+    with _sample_yaml_path() as sample:
+        data = yaml.safe_load(sample.read_text(encoding="utf-8"))
+    data["sites"][0]["properties"].pop("h_std")  # -> A.MISSING_PARAM (info)
+    data["sites"][0]["properties"]["bogus_extra_param"] = 42  # -> C.PYDANTIC error
+
+    config_path = tmp_path / "bad.yml"
+    _write_yaml(config_path, data)
+
+    runner = CliRunner()
+    result = runner.invoke(validate_cli, ["--forcing", "off", str(config_path)])
+    assert result.exit_code != 0, result.output
+
+    payload = json.loads((tmp_path / "report_bad.json").read_text(encoding="utf-8"))
+    assert payload["overall_status"] == "FAILED"
+    all_issues = [i for p in payload["phases"] for i in p["issues"]]
+    assert any(i["code"].startswith("C.PYDANTIC") for i in all_issues), all_issues
+    assert any(i["code"] == "A.MISSING_PARAM" for i in all_issues), all_issues
+
+
+def test_emit_pipeline_result_writes_consolidated_sidecar(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """gh#1467: `_emit_pipeline_result` writes the consolidated
+    ValidationReport sidecar beside the report, in both output modes."""
+    from supy.cmd.validate_config import _emit_pipeline_result
+    from supy.data_model.validation.pipeline.report_schema import (
+        Issue,
+        PhaseReport,
+        SEVERITY_INFO,
+        SEVERITY_ERROR,
+    )
+
+    phases = [
+        PhaseReport(
+            phase="A",
+            issues=[Issue(phase="A", severity=SEVERITY_INFO, code="A.INFO.NOTE",
+                          message="informational note", yaml_path="model.physics")],
+        ),
+        PhaseReport(
+            phase="C",
+            issues=[Issue(phase="C", severity=SEVERITY_ERROR, code="C.PYDANTIC.X",
+                          message="bad value", yaml_path="sites.1.properties.lat")],
+        ),
+    ]
+    report_path = tmp_path / "report_x.txt"
+
+    exit_code = _emit_pipeline_result(
+        phases=phases,
+        report_path=report_path,
+        yaml_path=tmp_path / "updated_x.yml",
+        out_format="table",
+        command="suews validate",
+        started_at="2026-05-30T00:00:00Z",
+    )
+    assert exit_code == 1  # has an ERROR
+
+    sidecar = tmp_path / "report_x.json"
+    assert sidecar.exists()
+    payload = json.loads(sidecar.read_text(encoding="utf-8"))
+    assert payload["overall_status"] == "FAILED"
+    assert {p["phase"] for p in payload["phases"]} == {"A", "C"}
+    info_codes = [i["code"] for p in payload["phases"] for i in p["issues"]]
+    assert "A.INFO.NOTE" in info_codes  # non-error info survived
+    assert "C.PYDANTIC.X" in info_codes
+    capsys.readouterr()  # drain captured table output
+
+
+def test_emit_pipeline_result_clears_missing_phase_yaml_paths(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """gh#1467: a failed phase's missing yaml_out is cleared, not repointed to
+    another phase's surviving file (and intermediate paths never dangle)."""
+    from supy.cmd.validate_config import _emit_pipeline_result
+    from supy.data_model.validation.pipeline.report_schema import (
+        Issue,
+        PhaseReport,
+        SEVERITY_ERROR,
+    )
+
+    existing_yaml = tmp_path / "updated_x.yml"
+    existing_yaml.write_text("name: x\n", encoding="utf-8")
+    report_path = tmp_path / "report_x.txt"
+
+    phases = [
+        # Successful Phase A whose intermediate output was deleted on consolidation.
+        PhaseReport(
+            phase="A",
+            issues=[],
+            yaml_in=str(tmp_path / "missing_in.yml"),
+            yaml_out=str(tmp_path / "updatedA_x.yml"),
+        ),
+        # Failed Phase B that never produced an output YAML.
+        PhaseReport(
+            phase="B",
+            issues=[Issue(phase="B", severity=SEVERITY_ERROR, code="B.X", message="boom")],
+            yaml_out=str(tmp_path / "updatedB_x.yml"),
+        ),
+    ]
+
+    _emit_pipeline_result(
+        phases=phases,
+        report_path=report_path,
+        yaml_path=existing_yaml,
+        out_format="table",
+        command="suews validate",
+        started_at="2026-05-31T00:00:00Z",
+    )
+    capsys.readouterr()
+
+    payload = json.loads((tmp_path / "report_x.json").read_text(encoding="utf-8"))
+    by_phase = {p["phase"]: p for p in payload["phases"]}
+    # Vanished intermediate/failed YAML paths are cleared, not repointed.
+    assert by_phase["A"]["yaml_in"] is None
+    assert by_phase["A"]["yaml_out"] is None
+    assert by_phase["B"]["yaml_out"] is None
+    # No phase falsely claims the surviving final YAML as its own output.
+    assert all(p["yaml_out"] != str(existing_yaml) for p in payload["phases"])

@@ -1,9 +1,11 @@
 """End-to-end tests for the validator pipeline's structured JSON output.
 
 Each phase (A, B, C) writes a ``<report>.json`` sidecar next to the
-existing ``<report>.txt``. The sidecar conforms to ``PhaseReport.to_dict()``
-from ``report_schema.py`` and is the canonical machine-readable
-representation of the phase's findings.
+existing ``<report>.txt``. A direct ``run_phase_*`` call writes a
+``PhaseReport``; the full ``suews validate`` CLI run writes a
+consolidated ``ValidationReport`` (gh#1467, covered in
+``test/cmd/test_validate_config.py``). Both are the canonical
+machine-readable representation of the validator's findings.
 """
 
 from __future__ import annotations
@@ -49,7 +51,7 @@ def test_phase_a_emits_json_sidecar(tmp_path, sample_config_path):
     json_path = report_file.with_suffix(".json")
     assert json_path.exists(), "Phase A should write a JSON sidecar"
 
-    payload = json.loads(json_path.read_text())
+    payload = json.loads(json_path.read_text(encoding="utf-8"))
     assert payload["phase"] == "A"
     assert payload["status"] in {"PASSED", "WARNING", "FAILED"}
     assert isinstance(payload["issues"], list)
@@ -83,7 +85,7 @@ def test_phase_b_emits_json_sidecar(tmp_path, sample_config_path):
     json_path = science_report.with_suffix(".json")
     assert json_path.exists(), "Phase B should write a JSON sidecar"
 
-    payload = json.loads(json_path.read_text())
+    payload = json.loads(json_path.read_text(encoding="utf-8"))
     assert payload["phase"] == "B"
     assert payload["status"] in {"PASSED", "WARNING", "FAILED"}
     assert isinstance(payload["issues"], list)
@@ -112,7 +114,7 @@ def test_phase_c_emits_json_for_passing_config(tmp_path, sample_config_path):
     assert report.phase == "C"
     json_path = pydantic_report.with_suffix(".json")
     assert json_path.exists()
-    payload = json.loads(json_path.read_text())
+    payload = json.loads(json_path.read_text(encoding="utf-8"))
     assert payload["phase"] == "C"
     # Sample config should pass; status is PASSED unless there are
     # legitimate warnings in the sample.
@@ -128,7 +130,8 @@ def test_phase_c_emits_structured_pydantic_errors_for_bad_config(tmp_path):
         "  control:\n"
         "    tstep: not_an_int\n"
         "    forcing_file: forcing.txt\n"
-        "sites: []\n"
+        "sites: []\n",
+        encoding="utf-8",
     )
     pydantic_yaml = tmp_path / "pydantic.yml"
     pydantic_report = tmp_path / "pydantic_report.txt"
@@ -142,7 +145,7 @@ def test_phase_c_emits_structured_pydantic_errors_for_bad_config(tmp_path):
     )
 
     assert report.has_errors, "A malformed config must produce errors"
-    payload = json.loads(pydantic_report.with_suffix(".json").read_text())
+    payload = json.loads(pydantic_report.with_suffix(".json").read_text(encoding="utf-8"))
     assert payload["phase"] == "C"
     assert payload["status"] == "FAILED"
     # At least one issue should be a structured Pydantic error.
@@ -167,7 +170,7 @@ def test_phase_b_text_report_unchanged(tmp_path, sample_config_path):
     )
 
     assert science_report.exists()
-    text = science_report.read_text()
+    text = science_report.read_text(encoding="utf-8")
     assert len(text) > 0
     # The text report still uses the historical section markers.
     # Downstream tooling that greps these strings must continue to work.
@@ -226,9 +229,45 @@ def test_pipeline_writes_json_sidecars_alongside_text_reports(tmp_path, sample_c
 
     # Each sidecar carries the same canonical schema.
     for r in (a_report, b_report, c_report):
-        payload = json.loads(Path(r.json_report_path).read_text())
+        payload = json.loads(Path(r.json_report_path).read_text(encoding="utf-8"))
         assert set(payload.keys()) == {
             "phase", "status", "issues", "yaml_in", "yaml_out",
             "text_report_path", "json_report_path", "extra",
         }
         assert payload["phase"] == r.phase
+
+
+def test_write_consolidated_sidecar_swallows_io_failure(tmp_path):
+    """gh#1467: a sidecar write to an unwritable path must not raise."""
+    from supy.cmd.validate_config import _write_consolidated_sidecar
+    from supy.data_model.validation.pipeline.report_schema import PhaseReport
+
+    # Parent directory does not exist -> write raises OSError, swallowed.
+    bad_report = tmp_path / "missing_dir" / "report_x.txt"
+    _write_consolidated_sidecar([PhaseReport(phase="C", issues=[])], str(bad_report))
+    assert not (tmp_path / "missing_dir" / "report_x.json").exists()
+
+
+def test_write_consolidated_sidecar_writes_validation_report(tmp_path):
+    """gh#1467: the helper serialises a ValidationReport for a phases list."""
+    import json as _json
+    from supy.cmd.validate_config import _write_consolidated_sidecar
+    from supy.data_model.validation.pipeline.report_schema import (
+        Issue,
+        PhaseReport,
+        SEVERITY_INFO,
+    )
+
+    phases = [
+        PhaseReport(phase="A", issues=[
+            Issue(phase="A", severity=SEVERITY_INFO, code="A.X", message="hi"),
+        ]),
+        PhaseReport(phase="C", issues=[]),
+    ]
+    report = tmp_path / "report_y.txt"
+    _write_consolidated_sidecar(phases, str(report))
+
+    payload = _json.loads((tmp_path / "report_y.json").read_text(encoding="utf-8"))
+    assert payload["overall_status"] == "PASSED"  # INFO is neither error nor warning
+    assert {p["phase"] for p in payload["phases"]} == {"A", "C"}
+    assert payload["phases"][0]["issues"][0]["code"] == "A.X"

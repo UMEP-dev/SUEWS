@@ -2,38 +2,39 @@ use std::collections::HashMap;
 use std::fs;
 use std::path::Path;
 
-pub const MET_FORCING_COLS: usize = 23;
-
-// gh#1372 — Baseline-required columns; the loader errors if any is missing.
-// Names are lower-cased; lookups are case-insensitive.
-const BASELINE_FORCING_COLUMNS: &[&str] = &[
-    "iy", "id", "it", "imin", "tair", "rh", "u", "pres", "kdown", "rain",
-];
-
-// gh#1372 — Per-landcover whitelist: <var>_<surface>. `wuh` covers
-// per-surface external water use — irrigation and impervious-surface
-// washing on land surfaces, fountains and ornamental water features
-// on the open-water surface — and is therefore accepted on every
-// surface. `lai` is leaf-area index and is meaningful only for the
-// three vegetated surfaces. The bulk site-level columns `Wuh` /
-// `xsmd` remain in the canonical block — `xsmd` is intentionally NOT
-// per-landcover (it is fed in as a single bulk soil-moisture-deficit
-// value).
-const PER_LANDCOVER_FORCING_VARS: &[&str] = &["lai", "wuh"];
-const LANDCOVER_SUFFIXES: &[&str] = &[
-    "paved", "bldgs", "evetr", "dectr", "grass", "bsoil", "water",
-];
-const LAI_LANDCOVER_SUFFIXES: &[&str] = &["evetr", "dectr", "grass"];
-const WUH_LANDCOVER_SUFFIXES: &[&str] = &[
-    "paved", "bldgs", "evetr", "dectr", "grass", "bsoil", "water",
-];
+use crate::forcing::{
+    BASELINE_FORCING_COLUMNS, // TODO: migrate to field descriptors
+    PER_LANDCOVER_FORCING_VARS,
+    SUEWS_FORCING_BASE_FLAT_LEN,
+    PerLandcoverVar,
+    SuewsField,
+    FieldDescriptor,
+    InterpKind,
+    FIELD_DESCRIPTORS,
+    field_by_name,
+};
+use crate::forcing_time::{
+    TIME_COLUMNS,
+    TIME_COLUMN_COUNT,
+    to_seconds,
+    from_seconds,
+};
 
 const FORCING_OPTIONAL_FILL: f64 = -999.0;
+
+// pub const MET_FORCING_COLS: usize = 30;
+pub const FORCING_BLOCK_STRIDE: usize = 
+    TIME_COLUMN_COUNT + SUEWS_FORCING_BASE_FLAT_LEN;
+
+pub const DATETIME_COLUMNS: &[&str] = &[
+    "iy", "id", "it", "imin",
+];
 
 #[derive(Debug, Clone)]
 pub struct ForcingData {
     pub block: Vec<f64>,
     pub len_sim: usize,
+    pub stride: usize,
     pub extras: HashMap<String, Vec<f64>>,
 }
 
@@ -51,20 +52,50 @@ fn find_col(cols: &HashMap<String, usize>, name: &str) -> Result<usize, String> 
 
 fn is_per_landcover(name: &str) -> Option<String> {
     let lowered = name.to_ascii_lowercase();
+
     for var in PER_LANDCOVER_FORCING_VARS {
-        let prefix = format!("{var}_");
-        if let Some(suffix) = lowered.strip_prefix(&prefix) {
-            let allowed: &[&str] = match *var {
-                "lai" => LAI_LANDCOVER_SUFFIXES,
-                "wuh" => WUH_LANDCOVER_SUFFIXES,
-                _ => LANDCOVER_SUFFIXES,
-            };
-            if allowed.contains(&suffix) {
+        if let Some(suffix) = lowered.strip_prefix(&format!("{}_", var.prefix)) {
+            if var.allowed_suffixes.contains(&suffix) {
                 return Some(lowered);
             }
         }
     }
+
     None
+}
+
+fn per_landcover_fields(prefix: &str) -> Vec<SuewsField> {
+    FIELD_DESCRIPTORS
+        .iter()
+        .filter(|d| d.field.name().starts_with(prefix))
+        .map(|d| d.field)
+        .collect()
+}
+
+struct InterpGroups {
+    inst: Vec<usize>,
+    avg: Vec<usize>,
+    sum: Vec<usize>,
+}
+
+impl InterpGroups {
+    fn from_schema() -> Self {
+        let mut inst = Vec::new();
+        let mut avg = Vec::new();
+        let mut sum = Vec::new();
+
+        for d in FIELD_DESCRIPTORS.iter() {
+            let idx = d.field.index();
+
+            match d.interp {
+                InterpKind::Instantaneous => inst.push(idx),
+                InterpKind::Average => avg.push(idx),
+                InterpKind::Sum => sum.push(idx),
+            }
+        }
+
+        Self { inst, avg, sum }
+    }
 }
 
 pub fn read_forcing_block(path: &Path) -> Result<ForcingData, String> {
@@ -97,34 +128,19 @@ pub fn read_forcing_block(path: &Path) -> Result<ForcingData, String> {
     }
 
     // Baseline-required columns must all be present (case-insensitive).
-    for name in BASELINE_FORCING_COLUMNS {
-        find_col(&col_idx, name)?;
+    for d in FIELD_DESCRIPTORS.iter().filter(|d| d.required) {
+        let found = d.csv_names.iter().any(|name| {
+            col_idx.contains_key(&name.to_ascii_lowercase())
+        });
+
+        if !found {
+            return Err(format!(
+                "forcing header missing required column for `{}`",
+                d.field.name()
+            ));
+        }
     }
 
-    // Mapping of canonical optional columns -> flat-block index.
-    let optional_map: [(usize, &str); 15] = [
-        (4, "qn"),
-        (5, "qh"),
-        (6, "qe"),
-        (7, "qs"),
-        (8, "qf"),
-        (9, "u"),
-        (10, "rh"),
-        (11, "tair"),
-        (12, "pres"),
-        (13, "rain"),
-        (14, "kdown"),
-        (15, "snow"),
-        (16, "ldown"),
-        (17, "fcld"),
-        (18, "wuh"),
-    ];
-    // xsmd (19) is also canonical and read identically. Bulk `lai` remains a
-    // canonical input column but is projected into the three vegetation-class
-    // kernel slots below.
-    let extra_canonical: [(usize, &str); 1] = [(19, "xsmd")];
-    let lai_kernel_map: [(usize, &str); 3] =
-        [(20, "lai_evetr"), (21, "lai_dectr"), (22, "lai_grass")];
     // Accepted canonical forcing columns that the current 23-column kernel
     // block does not consume.
     let unused_canonical = ["kdiff", "kdir", "wdir"];
@@ -135,19 +151,45 @@ pub fn read_forcing_block(path: &Path) -> Result<ForcingData, String> {
     let imin_col = find_col(&col_idx, "imin")?;
 
     // Identify per-landcover columns up-front so we can pre-allocate Vec<f64>.
-    let canonical_lower: Vec<&str> = {
-        let mut v: Vec<&str> = BASELINE_FORCING_COLUMNS.to_vec();
-        for (_, name) in optional_map.iter().chain(extra_canonical.iter()) {
-            v.push(name);
+    let is_canonical = |name: &str| {
+        let lowered = name.to_ascii_lowercase();
+
+        // time columns
+        if DATETIME_COLUMNS
+            .iter()
+            .any(|c| c.eq_ignore_ascii_case(name))
+        {
+            return true;
         }
-        v.push("lai");
-        v.extend(unused_canonical);
-        v
+
+        // explicitly ignored / legacy-but-accepted canonical columns
+        if unused_canonical
+            .iter()
+            .any(|c| c.eq_ignore_ascii_case(name))
+        {
+            return true;
+        }
+
+        // per-landcover bulk variables (lai, wuh, etc.)
+        if PER_LANDCOVER_FORCING_VARS.iter().any(|var| {
+            lowered == var.prefix
+                || lowered.starts_with(&format!("{}_", var.prefix))
+        }) {
+            return true;
+        }
+
+        // normal canonical fields (with aliases)
+        FIELD_DESCRIPTORS.iter().any(|d| {
+            d.csv_names.iter().any(|n| {
+                n.eq_ignore_ascii_case(name)
+            })
+        })
     };
+
     let mut extras_targets: Vec<(String, usize)> = Vec::new();
     for (idx, header) in headers.iter().enumerate() {
         let lowered = header.to_ascii_lowercase();
-        if canonical_lower.contains(&lowered.as_str()) {
+        if is_canonical(&lowered) {
             continue;
         }
         match is_per_landcover(&lowered) {
@@ -180,31 +222,41 @@ pub fn read_forcing_block(path: &Path) -> Result<ForcingData, String> {
             ));
         }
 
-        let mut row = vec![FORCING_OPTIONAL_FILL; MET_FORCING_COLS];
-        row[0] = parse_f64(parts[iy_col], line_no, "iy")?;
-        row[1] = parse_f64(parts[id_col], line_no, "id")?;
-        row[2] = parse_f64(parts[it_col], line_no, "it")?;
-        row[3] = parse_f64(parts[imin_col], line_no, "imin")?;
+        let mut row = vec![FORCING_OPTIONAL_FILL; FORCING_BLOCK_STRIDE];
+        let t = TIME_COLUMNS;
 
-        for (target_idx, col_name) in optional_map.iter().chain(extra_canonical.iter()) {
-            if let Some(source_idx) = col_idx.get(*col_name) {
-                row[*target_idx] = parse_f64(parts[*source_idx], line_no, col_name)?;
-            }
+        row[t.iy] = parse_f64(parts[iy_col], line_no, "iy")?;
+        row[t.id] = parse_f64(parts[id_col], line_no, "id")?;
+        row[t.it] = parse_f64(parts[it_col], line_no, "it")?;
+        row[t.imin] = parse_f64(parts[imin_col], line_no, "imin")?;
+
+        for d in FIELD_DESCRIPTORS.iter() {
+            apply_field(
+                &mut row,
+                d.field,
+                &col_idx,
+                &parts,
+                line_no,
+                None,
+            )?;
         }
-
-        let bulk_lai_col = col_idx.get("lai").copied();
-        for (target_idx, lai_col_name) in &lai_kernel_map {
-            if let Some(source_idx) = col_idx.get(*lai_col_name).copied().or(bulk_lai_col) {
-                row[*target_idx] = parse_f64(parts[source_idx], line_no, *lai_col_name)?;
-            }
+        for field in per_landcover_fields("lai") {
+            apply_field(
+                &mut row,
+                field,
+                &col_idx,
+                &parts,
+                line_no,
+                Some("lai"),
+            )?;
         }
 
         // Convert pressure from kPa (SUEWS input convention) to hPa (Fortran internal).
         // Matches supy/_load.py: df_forcing_met["pres"] *= 10.
         // pres is in BASELINE_FORCING_COLUMNS so it is always read; defend against
         // the sentinel anyway in case a future change relaxes that requirement.
-        if row[12] != FORCING_OPTIONAL_FILL {
-            row[12] *= 10.0;
+        if row[SuewsField::pres.index()] != FORCING_OPTIONAL_FILL {
+            row[SuewsField::pres.index()] *= 10.0;
         }
 
         block.extend_from_slice(&row);
@@ -228,88 +280,13 @@ pub fn read_forcing_block(path: &Path) -> Result<ForcingData, String> {
         block,
         len_sim,
         extras,
+        stride: FORCING_BLOCK_STRIDE
     })
 }
 
-// ---------------------------------------------------------------------------
-// Forcing time interpolation
-// ---------------------------------------------------------------------------
-
-/// Forcing columns interpolated as instantaneous point values (linear).
-const INST_COLS: [usize; 10] = [
-    9,  // U
-    10, // RH
-    11, // Tair
-    12, // pres
-    15, // snow
-    17, // fcld
-    19, // xsmd
-    20, // lai_evetr
-    21, // lai_dectr
-    22, // lai_grass
-];
-
-/// Forcing columns interpolated as period averages (shift by -tstep_in/2, then linear).
-const AVG_COLS: [usize; 7] = [
-    4,  // qn
-    5,  // qh
-    6,  // qe
-    7,  // qs
-    8,  // qf
-    14, // kdown
-    16, // ldown
-];
-
-/// Forcing columns interpolated as period sums (proportional redistribution).
-const SUM_COLS: [usize; 2] = [
-    13, // rain
-    18, // wuh
-];
-
-fn is_leap_year(year: i32) -> bool {
-    (year % 4 == 0 && year % 100 != 0) || year % 400 == 0
-}
-
-fn days_in_year(year: i32) -> i64 {
-    if is_leap_year(year) {
-        366
-    } else {
-        365
-    }
-}
-
-/// Convert (year, day-of-year, hour, minute) to seconds since Jan 1 00:00 of `base_year`.
-fn to_seconds(iy: i32, id: i32, it: i32, imin: i32, base_year: i32) -> i64 {
-    let mut days: i64 = 0;
-    for y in base_year..iy {
-        days += days_in_year(y);
-    }
-    days += (id - 1) as i64; // id is 1-based
-    days * 86400 + it as i64 * 3600 + imin as i64 * 60
-}
-
-/// Convert seconds since Jan 1 00:00 of `base_year` back to (year, doy, hour, minute).
-fn from_seconds(total_sec: i64, base_year: i32) -> (i32, i32, i32, i32) {
-    let mut remaining = total_sec;
-    let mut year = base_year;
-    loop {
-        let year_sec = days_in_year(year) * 86400;
-        if remaining < year_sec {
-            break;
-        }
-        remaining -= year_sec;
-        year += 1;
-    }
-    let day_of_year = (remaining / 86400) as i32 + 1; // 1-based
-    remaining %= 86400;
-    let hour = (remaining / 3600) as i32;
-    remaining %= 3600;
-    let minute = (remaining / 60) as i32;
-    (year, day_of_year, hour, minute)
-}
 
 fn row_val(forcing: &ForcingData, row: usize, col: usize) -> f64 {
-    forcing.block[row * MET_FORCING_COLS + col]
+    forcing.block[row * forcing.stride + col]
 }
 
 /// Detect forcing input resolution (seconds) from the first two rows.
@@ -317,21 +294,23 @@ fn detect_tstep_in(forcing: &ForcingData) -> Result<i32, String> {
     if forcing.len_sim < 2 {
         return Err("need at least 2 forcing rows to detect resolution".into());
     }
+    let t = TIME_COLUMNS;
     let base_iy = row_val(forcing, 0, 0) as i32;
     let t0 = to_seconds(
-        row_val(forcing, 0, 0) as i32,
-        row_val(forcing, 0, 1) as i32,
-        row_val(forcing, 0, 2) as i32,
-        row_val(forcing, 0, 3) as i32,
+        row_val(forcing, 0, t.iy) as i32,
+        row_val(forcing, 0, t.id) as i32,
+        row_val(forcing, 0, t.it) as i32,
+        row_val(forcing, 0, t.imin) as i32,
         base_iy,
     );
     let t1 = to_seconds(
-        row_val(forcing, 1, 0) as i32,
-        row_val(forcing, 1, 1) as i32,
-        row_val(forcing, 1, 2) as i32,
-        row_val(forcing, 1, 3) as i32,
+        row_val(forcing, 1, t.iy) as i32,
+        row_val(forcing, 1, t.id) as i32,
+        row_val(forcing, 1, t.it) as i32,
+        row_val(forcing, 1, t.imin) as i32,
         base_iy,
     );
+
     let diff = t1 - t0;
     if diff <= 0 {
         return Err(format!(
@@ -339,6 +318,47 @@ fn detect_tstep_in(forcing: &ForcingData) -> Result<i32, String> {
         ));
     }
     Ok(diff as i32)
+}
+
+fn apply_field(
+    row: &mut [f64],
+    field: SuewsField,
+    col_idx: &HashMap<String, usize>,
+    parts: &[&str],
+    line_no: usize,
+    fallback: Option<&str>,
+) -> Result<(), String> {
+    let desc = FIELD_DESCRIPTORS
+        .iter()
+        .find(|d| d.field == field)
+        .ok_or_else(|| format!("unknown field {:?}", field))?;
+
+    let source = desc.csv_names.iter()
+        .find_map(|name| {
+            col_idx
+                .get(&name.to_ascii_lowercase())
+                .copied()
+                .map(|idx| (*name, idx))
+        })
+        .or_else(|| {
+            fallback.and_then(|fb| {
+                col_idx
+                    .get(&fb.to_ascii_lowercase())
+                    .copied()
+                    .map(|idx| (fb, idx))
+            })
+        });
+
+    if let Some((name, idx)) = source {
+        row[field.index()] = parse_f64(parts[idx], line_no, name)?;
+    } else if desc.required {
+        return Err(format!(
+            "missing required column for `{}`",
+            desc.field.name()
+        ));
+    }
+
+    Ok(())
 }
 
 /// Interpolate forcing data from input resolution to model timestep.
@@ -354,6 +374,8 @@ pub fn interpolate_forcing(forcing: &ForcingData, tstep_mod: i32) -> Result<Forc
     if n_in < 2 {
         return Ok(forcing.clone());
     }
+
+    let groups = InterpGroups::from_schema();
 
     let tstep_in = detect_tstep_in(forcing)?;
     if tstep_in == tstep_mod {
@@ -378,13 +400,14 @@ pub fn interpolate_forcing(forcing: &ForcingData, tstep_mod: i32) -> Result<Forc
 
     // Convert input times to seconds from base year
     let base_iy = row_val(forcing, 0, 0) as i32;
+    let t = TIME_COLUMNS;
     let t_in: Vec<i64> = (0..n_in)
         .map(|i| {
             to_seconds(
-                row_val(forcing, i, 0) as i32,
-                row_val(forcing, i, 1) as i32,
-                row_val(forcing, i, 2) as i32,
-                row_val(forcing, i, 3) as i32,
+                row_val(forcing, i, t.iy) as i32,
+                row_val(forcing, i, t.id) as i32,
+                row_val(forcing, i, t.it) as i32,
+                row_val(forcing, i, t.imin) as i32,
                 base_iy,
             )
         })
@@ -402,17 +425,18 @@ pub fn interpolate_forcing(forcing: &ForcingData, tstep_mod: i32) -> Result<Forc
         ));
     }
 
-    let mut block = vec![0.0_f64; n_out * MET_FORCING_COLS];
+    let mut block = vec![0.0_f64; n_out * forcing.stride];
 
     // --- Time columns (0=iy, 1=id, 2=it, 3=imin) ---
     for j in 0..n_out {
         let t = t_out_start + j as i64 * tstep_mod_i64;
         let (iy, id, it, imin) = from_seconds(t, base_iy);
-        let base = j * MET_FORCING_COLS;
-        block[base] = iy as f64;
-        block[base + 1] = id as f64;
-        block[base + 2] = it as f64;
-        block[base + 3] = imin as f64;
+        let base = j * forcing.stride;
+        let t = TIME_COLUMNS;
+        block[base + t.iy] = iy as f64;
+        block[base + t.id] = id as f64;
+        block[base + t.it] = it as f64;
+        block[base + t.imin] = imin as f64;
     }
 
     // --- Instantaneous: linear interpolation between input points ---
@@ -423,7 +447,7 @@ pub fn interpolate_forcing(forcing: &ForcingData, tstep_mod: i32) -> Result<Forc
     // behaviour which sets t_end to NaN before interpolation.
     let t_in_0 = t_in[0];
     let t_in_penult = t_in[n_in - 2];
-    for &col in &INST_COLS {
+    for &col in &groups.inst {
         for j in 0..n_out {
             let t = t_out_start + j as i64 * tstep_mod_i64;
             let v = if t <= t_in_0 {
@@ -439,7 +463,7 @@ pub fn interpolate_forcing(forcing: &ForcingData, tstep_mod: i32) -> Result<Forc
                 let v1 = row_val(forcing, i + 1, col);
                 v0 + alpha * (v1 - v0)
             };
-            block[j * MET_FORCING_COLS + col] = v;
+            block[j * forcing.stride + col] = v;
         }
     }
 
@@ -448,7 +472,7 @@ pub fn interpolate_forcing(forcing: &ForcingData, tstep_mod: i32) -> Result<Forc
     let half_in = tstep_in_i64 / 2;
     let t_shifted_0 = t_in_0 - half_in;
     let t_shifted_last = t_in[n_in - 1] - half_in;
-    for &col in &AVG_COLS {
+    for &col in &groups.avg {
         for j in 0..n_out {
             let t = t_out_start + j as i64 * tstep_mod_i64;
             let v = if t <= t_shifted_0 {
@@ -464,7 +488,7 @@ pub fn interpolate_forcing(forcing: &ForcingData, tstep_mod: i32) -> Result<Forc
                 let v1 = row_val(forcing, i + 1, col);
                 v0 + alpha * (v1 - v0)
             };
-            block[j * MET_FORCING_COLS + col] = v;
+            block[j * forcing.stride + col] = v;
         }
     }
 
@@ -479,11 +503,11 @@ pub fn interpolate_forcing(forcing: &ForcingData, tstep_mod: i32) -> Result<Forc
     // that the Fortran observed-water-use path would treat as a real
     // negative water flux instead of "missing".
     let scale = tstep_mod as f64 / tstep_in_f64;
-    for &col in &SUM_COLS {
+    for &col in &groups.sum {
         for j in 0..n_out {
             let i = j / ratio;
             let v_in = row_val(forcing, i, col);
-            block[j * MET_FORCING_COLS + col] = if v_in == FORCING_OPTIONAL_FILL {
+            block[j * forcing.stride + col] = if v_in == FORCING_OPTIONAL_FILL {
                 FORCING_OPTIONAL_FILL
             } else {
                 v_in * scale
@@ -495,6 +519,7 @@ pub fn interpolate_forcing(forcing: &ForcingData, tstep_mod: i32) -> Result<Forc
         block,
         len_sim: n_out,
         extras: HashMap::new(),
+        stride: FORCING_BLOCK_STRIDE,
     })
 }
 
@@ -508,7 +533,7 @@ mod tests {
         let path = Path::new("../../test/fixtures/benchmark1/forcing/Kc1_2011_data_5_short.txt");
         let forcing = read_forcing_block(path).expect("fixture forcing should parse");
         assert!(forcing.len_sim > 10);
-        assert_eq!(forcing.block.len(), forcing.len_sim * MET_FORCING_COLS);
+        assert_eq!(forcing.block.len(), forcing.len_sim * FORCING_BLOCK_STRIDE);
         assert_eq!(forcing.block[0], 2011.0);
         assert_eq!(forcing.block[1], 1.0);
         assert_eq!(forcing.block[2], 0.0);
@@ -539,12 +564,12 @@ mod tests {
     #[test]
     fn detect_resolution_hourly() {
         // Two rows one hour apart: (2012,1,1,0) and (2012,1,2,0)
-        let mut block = vec![0.0_f64; 2 * MET_FORCING_COLS];
+        let mut block = vec![0.0_f64; 2 * FORCING_BLOCK_STRIDE];
         block[0] = 2012.0;
         block[1] = 1.0;
         block[2] = 1.0;
         block[3] = 0.0;
-        let r1 = MET_FORCING_COLS;
+        let r1 = FORCING_BLOCK_STRIDE;
         block[r1] = 2012.0;
         block[r1 + 1] = 1.0;
         block[r1 + 2] = 2.0;
@@ -553,28 +578,30 @@ mod tests {
             block,
             len_sim: 2,
             extras: HashMap::new(),
+            stride: FORCING_BLOCK_STRIDE,
         };
         assert_eq!(detect_tstep_in(&forcing).unwrap(), 3600);
     }
 
     #[test]
     fn interpolate_noop_when_same_resolution() {
-        let mut block = vec![0.0_f64; 2 * MET_FORCING_COLS];
+        let mut block = vec![0.0_f64; 2 * FORCING_BLOCK_STRIDE];
         block[0] = 2012.0;
         block[1] = 1.0;
         block[2] = 0.0;
         block[3] = 5.0;
-        block[9] = 5.0;
-        let r1 = MET_FORCING_COLS;
+        block[SuewsField::u.index()] = 5.0;
+        let r1 = FORCING_BLOCK_STRIDE;
         block[r1] = 2012.0;
         block[r1 + 1] = 1.0;
         block[r1 + 2] = 0.0;
         block[r1 + 3] = 10.0;
-        block[r1 + 9] = 10.0;
+        block[r1 + SuewsField::u.index()] = 10.0;
         let forcing = ForcingData {
             block: block.clone(),
             len_sim: 2,
             extras: HashMap::new(),
+            stride: FORCING_BLOCK_STRIDE,
         };
         let result = interpolate_forcing(&forcing, 300).unwrap();
         assert_eq!(result.len_sim, 2);
@@ -584,39 +611,40 @@ mod tests {
     #[test]
     fn interpolate_hourly_to_5min() {
         // 3 hourly rows to 36 five-minute rows
-        let mut block = vec![0.0_f64; 3 * MET_FORCING_COLS];
+        let mut block = vec![0.0_f64; 3 * FORCING_BLOCK_STRIDE];
         // Row 0: (2012, 1, 1, 0), U=10
         block[0] = 2012.0;
         block[1] = 1.0;
         block[2] = 1.0;
         block[3] = 0.0;
-        block[9] = 10.0; // U (inst)
-        block[14] = 100.0; // kdown (avg)
-        block[13] = 12.0; // rain (sum)
+        block[SuewsField::u.index()] = 10.0; // U (inst)
+        block[SuewsField::kdown.index()] = 100.0; // kdown (avg)
+        block[SuewsField::rain.index()] = 12.0; // rain (sum)
 
         // Row 1: (2012, 1, 2, 0), U=20
-        let r1 = MET_FORCING_COLS;
+        let r1 = FORCING_BLOCK_STRIDE;
         block[r1] = 2012.0;
         block[r1 + 1] = 1.0;
         block[r1 + 2] = 2.0;
         block[r1 + 3] = 0.0;
-        block[r1 + 9] = 20.0;
-        block[r1 + 14] = 200.0;
-        block[r1 + 13] = 24.0;
+        block[r1 + SuewsField::u.index()] = 20.0;
+        block[r1 + SuewsField::kdown.index()] = 200.0;
+        block[r1 + SuewsField::rain.index()] = 24.0;
         // Row 2: (2012, 1, 3, 0), U=30
-        let r2 = 2 * MET_FORCING_COLS;
+        let r2 = 2 * FORCING_BLOCK_STRIDE;
         block[r2] = 2012.0;
         block[r2 + 1] = 1.0;
         block[r2 + 2] = 3.0;
         block[r2 + 3] = 0.0;
-        block[r2 + 9] = 30.0;
-        block[r2 + 14] = 300.0;
-        block[r2 + 13] = 0.0;
+        block[r2 + SuewsField::u.index()] = 30.0;
+        block[r2 + SuewsField::kdown.index()] = 300.0;
+        block[r2 + SuewsField::rain.index()] = 0.0;
 
         let forcing = ForcingData {
             block,
             len_sim: 3,
             extras: HashMap::new(),
+            stride: FORCING_BLOCK_STRIDE,
         };
         let result = interpolate_forcing(&forcing, 300).unwrap();
         assert_eq!(result.len_sim, 36); // 3 * 12
@@ -632,19 +660,19 @@ mod tests {
         assert_eq!(row_val(&result, 35, 3), 0.0);
 
         // Instantaneous: first 11 rows are before t_in[0], should be backfilled to 10.0
-        assert_eq!(row_val(&result, 0, 9), 10.0);
+        assert_eq!(row_val(&result, 0, SuewsField::u.index()), 10.0);
         // Row 11 = t_in[0] = (2012,1,1,0): U=10
-        assert_eq!(row_val(&result, 11, 9), 10.0);
+        assert_eq!(row_val(&result, 11, SuewsField::temp_c.index()), 10.0);
         // Row 23 = t_in[1] = (2012,1,2,0): U=20
-        assert_eq!(row_val(&result, 23, 9), 20.0);
+        assert_eq!(row_val(&result, 23, SuewsField::u.index()), 20.0);
         // Row 17 = midpoint between t_in[0] and t_in[1]: U=15
-        assert!((row_val(&result, 17, 9) - 15.0).abs() < 0.01);
+        assert!((row_val(&result, 17, SuewsField::u.index()) - 15.0).abs() < 0.01);
 
         // Sum: rain is redistributed. Row 0's input rain=12.0, scale=1/12=1.0
-        assert!((row_val(&result, 0, 13) - 1.0).abs() < 1e-9);
-        assert!((row_val(&result, 11, 13) - 1.0).abs() < 1e-9);
+        assert!((row_val(&result, 0, SuewsField::rain.index()) - 1.0).abs() < 1e-9);
+        assert!((row_val(&result, 11, SuewsField::rain.index()) - 1.0).abs() < 1e-9);
         // Row 12 maps to input row 1: rain=24.0 → 2.0
-        assert!((row_val(&result, 12, 13) - 2.0).abs() < 1e-9);
+        assert!((row_val(&result, 12, SuewsField::rain.index()) - 2.0).abs() < 1e-9);
     }
 
     #[test]
@@ -676,14 +704,12 @@ mod tests {
         let path = Path::new("../../test/fixtures/forcing/kc_per_landcover.txt");
         let forcing = read_forcing_block(path).expect("per-landcover fixture");
         assert!(forcing.extras.contains_key("lai_evetr"));
-        assert!(forcing.extras.contains_key("wuh_paved"));
         assert_eq!(forcing.extras["lai_evetr"].len(), forcing.len_sim);
-        assert_eq!(row_val(&forcing, 0, 20), forcing.extras["lai_evetr"][0]);
-        assert_eq!(row_val(&forcing, 0, 21), forcing.extras["lai_dectr"][0]);
-        assert_eq!(row_val(&forcing, 0, 22), forcing.extras["lai_grass"][0]);
-        assert_ne!(row_val(&forcing, 0, 18), forcing.extras["wuh_paved"][0]);
+        assert_eq!(row_val(&forcing, 0, SuewsField::lai_evetr.index()), forcing.extras["lai_evetr"][0]);
+        assert_eq!(row_val(&forcing, 0, SuewsField::lai_dectr.index()), forcing.extras["lai_dectr"][0]);
+        assert_eq!(row_val(&forcing, 0, SuewsField::lai_grass.index()), forcing.extras["lai_grass"][0]);
         // Canonical block unchanged in shape.
-        assert_eq!(forcing.block.len(), forcing.len_sim * MET_FORCING_COLS);
+        assert_eq!(forcing.block.len(), forcing.len_sim * FORCING_BLOCK_STRIDE);
     }
 
     #[test]
@@ -695,9 +721,9 @@ mod tests {
         writeln!(f, "iy id it imin Tair RH U pres kdown rain lai").unwrap();
         writeln!(f, "2011 1 0 5 18.0 80.0 2.0 100.0 0.0 0.0 2.75").unwrap();
         let forcing = read_forcing_block(&path).expect("bulk-lai fixture");
-        assert_eq!(row_val(&forcing, 0, 20), 2.75);
-        assert_eq!(row_val(&forcing, 0, 21), 2.75);
-        assert_eq!(row_val(&forcing, 0, 22), 2.75);
+        assert_eq!(row_val(&forcing, 0, SuewsField::lai_evetr.index()), 2.75);
+        assert_eq!(row_val(&forcing, 0, SuewsField::lai_dectr.index()), 2.75);
+        assert_eq!(row_val(&forcing, 0, SuewsField::lai_grass.index()), 2.75);
     }
 
     #[test]
@@ -719,7 +745,7 @@ mod tests {
         writeln!(f, "2011 1 0 10 18.5 79.0 2.1 100.0 0.0 0.0").unwrap();
         let forcing = read_forcing_block(&path).expect("baseline-only fixture");
         assert_eq!(forcing.len_sim, 2);
-        assert_eq!(forcing.block.len(), forcing.len_sim * MET_FORCING_COLS);
+        assert_eq!(forcing.block.len(), forcing.len_sim * FORCING_BLOCK_STRIDE);
         // Optional canonical columns: qn(4), qh(5), qe(6), qs(7), qf(8),
         // snow(15), ldown(16), fcld(17), wuh(18), xsmd(19), and the three
         // LAI kernel columns (20..22). All must hold -999 sentinel for both rows.

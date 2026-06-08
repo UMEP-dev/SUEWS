@@ -34,19 +34,22 @@ model:
     snow_use:
       value: 0
     stebbs:
-      value: 0
-    outer_cap_fraction:
-      value: 0
-    same_albedo_wall:
-      value: 0
-    same_albedo_roof:
-      value: 0
-    same_emissivity_wall:
-      value: 0
-    same_emissivity_roof:
-      value: 0
-    setpoint:
-      value: 0
+      enabled:
+        value: false
+      parameters:
+        value: 1
+      capacitance:
+        value: 0
+      setpoint:
+        value: 0
+      same_albedo_wall:
+        value: 0
+      same_albedo_roof:
+        value: 0
+      same_emissivity_wall:
+        value: 0
+      same_emissivity_roof:
+        value: 0
 sites:
 - name: KCL
   gridiv: 1
@@ -112,21 +115,21 @@ sites:
       veg_ssa_sw:
         value: 0.46
     stebbs:
-      WallInternalConvectionCoefficient:
+      convection_coefficient_wall_internal:
         value: 5.0
-      InternalMassConvectionCoefficient:
+      convection_coefficient_internal_mass:
         value: 5.0
-      FloorInternalConvectionCoefficient:
+      convection_coefficient_ground_floor_internal:
         value: 1.0
-      WindowInternalConvectionCoefficient:
+      convection_coefficient_window_internal:
         value: 5.0
-      WallExternalConvectionCoefficient:
+      convection_coefficient_wall_external:
         value: 30.0
-      WindowExternalConvectionCoefficient:
+      convection_coefficient_window_external:
         value: 30.0
-      GroundDepth:
+      depth_ground:
         value: 1.0
-      ExternalGroundConductivity:
+      thermal_conductivity_ground:
         value: 3.0
       IndoorAirDensity:
         value: 1.0
@@ -138,15 +141,15 @@ sites:
         value: 0.2
       WallSkyViewFactor:
         value: 0.3
-      MetabolismThreshold:
+      threshold_metabolism:
         value: 74.3
-      LatentSensibleRatio:
+      ratio_latent_sensible:
         value: 0.5
-      DaylightControl:
+      daylight_control:
         value: 1
-      LightingIlluminanceThreshold:
+      threshold_lighting_illuminance:
         value: 300.0
-      ApplianceProfile:
+      profile_appliance:
         working_day:
           '1': 1.0
           '2': 1.0
@@ -437,15 +440,15 @@ sites:
           '142': 1.0
           '143': 1.0
           '144': 1.0
-      LightingPowerDensity:
+      power_density_lighting:
         value: 2.0
-      HeatingSystemEfficiency:
+      efficiency_heating_system_air:
         value: 0.8
-      MaxCoolingPower:
+      max_power_cooling_system_air:
         value: 5000.0
-      CoolingSystemCOP:
+      efficiency_cooling_system_air:
         value: 5.0
-      VentilationRate:
+      rate_ventilation:
         value: 0.4
       IndoorAirStartTemperature:
         value: 18.0
@@ -469,15 +472,15 @@ sites:
         value: 25.0
       ExternalWallWaterTankTemperature:
         value: 25.0
-      WaterTankWallThickness:
+      thickness_hot_water_tank_wall:
         value: 0.03
-      MainsWaterTemperature:
+      temperature_mains_water:
         value: 8.0
-      WaterTankSurfaceArea:
+      surface_area_hot_water_tank:
         value: 10.0
-      HotWaterHeatingSetpointTemperature:
+      setpoint_temperature_heating_water:
         value: 50.0
-      HotWaterTankWallEmissivity:
+      emissivity_hot_water_tank_wall:
         value: 0.8
       DomesticHotWaterTemperatureInUseInBuilding:
         value: 35.0
@@ -485,17 +488,17 @@ sites:
         value: 25.0
       ExternalWallDHWVesselTemperature:
         value: 18.0
-      DHWVesselWallThickness:
+      thickness_hot_water_vessel_wall:
         value: 0.01
-      DHWWaterVolume:
+      volume_hot_water:
         value: 15.0
-      DHWSurfaceArea:
+      surface_area_hot_water:
         value: 1.5
       DHWVesselEmissivity:
         value: 0.8
-      HotWaterFlowRate:
+      rate_flow_hot_water:
         value: 0.001
-      HotWaterFlowProfile:
+      profile_flow_hot_water:
         working_day:
           '1': 1.0
           '2': 1.0
@@ -786,46 +789,41 @@ sites:
           '142': 1.0
           '143': 1.0
           '144': 1.0
-      DHWSpecificHeatCapacity:
+      specific_heat_capacity_hot_water:
         value: 5000.0
-      HotWaterTankSpecificHeatCapacity:
+      specific_heat_capacity_hot_water_tank_wall:
         value: 1500.0
-      DHWVesselSpecificHeatCapacity:
+      specific_heat_capacity_hot_water_vessel_wall:
         value: 1500.0
-      DHWDensity:
+      density_hot_water:
         value: 1000.0
-      HotWaterTankWallDensity:
+      density_hot_water_tank_wall:
         value: 1000.0
-      DHWVesselDensity:
+      density_hot_water_vessel_wall:
         value: 1500.0
-      HotWaterTankBuildingWallViewFactor:
-        value: 0.1
-      HotWaterTankInternalMassViewFactor:
-        value: 0.9
-      HotWaterTankWallConductivity:
+      conductivity_hot_water_tank_wall:
         value: 0.05
-      HotWaterTankInternalWallConvectionCoefficient:
+      convection_coefficient_hot_water_tank_wall_internal:
         value: 200.0
-      HotWaterTankExternalWallConvectionCoefficient:
+      convection_coefficient_hot_water_tank_wall_external:
         value: 5.0
-      DHWVesselWallConductivity:
+      conductivity_hot_water_vessel_wall:
         value: 0.5
-      DHWVesselInternalWallConvectionCoefficient:
+      convection_coefficient_hot_water_tank_vessel_internal:
         value: 300.0
-      DHWVesselExternalWallConvectionCoefficient:
+      convection_coefficient_hot_water_tank_vessel_external:
         value: 1.0
-      DHWVesselWallEmissivity:
+      emissivity_hot_water_vessel_wall:
         value: 0.8
-      HotWaterHeatingEfficiency:
+      efficiency_heating_system_water:
         value: 0.8
     building_archetype:
-      BuildingType: test
-      BuildingName: test
-      BuildingCount:
+      archetype_name: test
+      archetype_building_count:
         value: 1
-      Occupants:
+      occupants:
         value: 0
-      MetabolismProfile:
+      profile_metabolism:
         working_day:
           '1': 1
           '2': 1
@@ -1116,82 +1114,82 @@ sites:
           '142': 1
           '143': 1
           '144': 1
-      stebbs_Height:
+      archetype_height:
         value: 10.0
-      FootprintArea:
+      area_footprint:
         value: 50.0
-      WallExternalArea:
+      area_wall_external:
         value: 330.0
-      RatioInternalVolume:
+      ratio_internal_mass_volume:
         value: 0.1
-      InternalMassArea:
+      area_internal_mass:
         value: 100
-      WWR:
+      ratio_window_to_wall:
         value: 0.2
-      WallThickness:
+      thickness_wall:
         value: 0.125
-      WallEffectiveConductivity:
+      conductivity_wall:
         value: 0.5
-      WallDensity:
+      density_wall:
         value: 1500.0
-      WallCp:
+      specific_heat_capacity_wall:
         value: 1000.0
       Wallx1:
         value: 0.2
-      WallExternalEmissivity:
+      emissivity_wall_external:
         value: 0.85
-      WallInternalEmissivity:
+      emissivity_wall_internal:
         value: 0.85
-      WallTransmissivity:
+      transmissivity_wall_external:
         value: 0.0
-      WallAbsorbtivity:
+      absorptivity_wall_external:
         value: 0.8
-      WallReflectivity:
+      reflectivity_wall_external:
         value: 0.2
-      FloorThickness:
+      thickness_ground_floor:
         value: 0.25
-      GroundFloorEffectiveConductivity:
+      conductivity_ground_floor:
         value: 0.1
-      GroundFloorDensity:
+      density_ground_floor:
         value: 400.0
-      GroundFloorCp:
+      specific_heat_capacity_ground_floor:
         value: 1600.0
-      WindowThickness:
+      thickness_window:
         value: 0.0025
-      WindowEffectiveConductivity:
+      conductivity_window:
         value: 0.06
-      WindowDensity:
+      density_window:
         value: 2750.0
-      WindowCp:
+      specific_heat_capacity_window:
         value: 900.0
-      WindowExternalEmissivity:
+      emissivity_window_external:
         value: 0.7
-      WindowInternalEmissivity:
+      emissivity_window_internal:
         value: 0.7
-      WindowTransmissivity:
+      transmissivity_window_external:
         value: 0.9
-      WindowAbsorbtivity:
+      absorptivity_window_external:
         value: 0.09
-      WindowReflectivity:
+      reflectivity_window_external:
         value: 0.01
-      InternalMassDensity:
+      density_internal_mass:
         value: 1750.0
-      InternalMassCp:
+      specific_heat_capacity_internal_mass:
         value: 1250.0
-      InternalMassEmissivity:
+      emissivity_internal_mass:
         value: 0.8
-      MaxHeatingPower:
+      max_power_heating_system_air:
         value: 50000.0
-      WaterTankWaterVolume:
+      volume_hot_water_tank:
         value: 0.3
-      MaximumHotWaterHeatingPower:
+      max_power_heating_system_water:
         value: 50000.0
-      HeatingSetpointTemperature:
+      setpoint_temperature_heating_air:
         value: 18.0
-      CoolingSetpointTemperature:
+      setpoint_temperature_cooling_air:
         value: 27.0
-      HeatingSetpointTemperatureProfile: null
-      CoolingSetpointTemperatureProfile: null
+      profile_setpoint_temperature_heating_air: null
+      profile_setpoint_temperature_cooling_air: null
     conductance:
       g_max:
         value: 3.5

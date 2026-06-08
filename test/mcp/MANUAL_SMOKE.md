@@ -8,8 +8,8 @@ up with a working MCP server that answers Sue's canonical questions
 with cited evidence.
 
 Run before each release that touches anything under `mcp/`,
-`.claude-plugin/`, `.codex-plugin/`, `plugins/suews/`, or any
-`suews knowledge` surface.
+`.claude-plugin/`, `.codex-plugin/`, `plugins/suews/`,
+`scripts/build_agent_plugin.py`, or any `suews knowledge` surface.
 
 ---
 
@@ -30,6 +30,7 @@ misleading results.
 ### Install
 
 - [ ] Claude Code is on the version that supports plugin marketplaces.
+- [ ] The SUEWS agent marketplace is installed from `UMEP-dev/suews-agent`.
 - [ ] `/plugin install suews` (or equivalent marketplace UI) completes
       without error.
 - [ ] After install, restart Claude Code so the MCP server is spawned
@@ -85,6 +86,8 @@ pack contents need investigation — see "Failure templates" below.
 
 - [ ] Codex CLI is on the version that supports `.codex-plugin/`
       manifests.
+- [ ] The SUEWS agent marketplace is installed with
+      `codex plugin marketplace add UMEP-dev/suews-agent`.
 - [ ] Plugin install / enable for `suews` completes without error.
 - [ ] Restart the Codex session so the MCP server is registered.
 

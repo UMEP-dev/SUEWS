@@ -20,8 +20,11 @@ table, not to plugin-bundled ``.mcp.json``. References:
 
 from __future__ import annotations
 
+import hashlib
 import json
 from pathlib import Path
+import subprocess
+import sys
 
 import pytest
 
@@ -132,6 +135,22 @@ def test_codex_plugin_references_mcp_servers_in_camelcase(rel_path: str) -> None
     )
 
 
+def test_source_codex_marketplace_disables_raw_repo_install() -> None:
+    """Raw `UMEP-dev/SUEWS` is not the Codex install surface.
+
+    Codex installs only the marketplace plugin source directory
+    (`plugins/suews/`), so the self-contained installable bundle lives in the
+    generated `UMEP-dev/suews-agent` distribution repo instead.
+    """
+    data = _load_json(".agents/plugins/marketplace.json")
+    plugins = data.get("plugins", [])
+    suews = next((p for p in plugins if p.get("name") == "suews"), None)
+
+    assert suews is not None
+    assert suews["source"]["path"] == "./plugins/suews"
+    assert suews["policy"]["installation"] == "NOT_AVAILABLE"
+
+
 def test_claude_marketplace_lists_suews_plugin() -> None:
     """The Claude Code marketplace entry for `suews` references the bundled
     plugin's MCP file."""
@@ -181,3 +200,96 @@ def test_top_level_and_bundled_plugin_resolve_to_same_command() -> None:
             f"server '{name}': command differs between top-level "
             f"({top_cmd!r}) and bundled ({bundled_cmd!r})."
         )
+
+
+def _skill_manifest(root: Path) -> dict[str, str]:
+    """Map of relative path -> sha256 for every file under a skill dir."""
+    out: dict[str, str] = {}
+    for p in sorted(root.rglob("*")):
+        if p.is_file() and "__pycache__" not in p.parts and p.suffix != ".pyc":
+            out[str(p.relative_to(root))] = hashlib.sha256(p.read_bytes()).hexdigest()
+    return out
+
+
+def test_build_agent_plugin_generates_installable_distribution(tmp_path: Path) -> None:
+    """The generated `suews-agent` repo is the self-contained install surface.
+
+    It carries Claude Code's canonical `.claude/skills/suews/` path and Codex's
+    required `plugins/suews/skills/suews/` path, both byte-identical to the
+    source skill.
+    """
+    output = tmp_path / "suews-agent"
+    subprocess.run(
+        [
+            sys.executable,
+            str(REPO_ROOT / "scripts" / "build_agent_plugin.py"),
+            "--output",
+            str(output),
+        ],
+        check=True,
+        capture_output=True,
+    )
+
+    codex_marketplace = json.loads(
+        (output / ".agents" / "plugins" / "marketplace.json").read_text(
+            encoding="utf-8"
+        )
+    )
+    codex_plugin = codex_marketplace["plugins"][0]
+    assert codex_plugin["name"] == "suews"
+    assert codex_plugin["source"]["path"] == "./plugins/suews"
+    assert codex_plugin["policy"]["installation"] == "AVAILABLE"
+
+    claude_marketplace = json.loads(
+        (output / ".claude-plugin" / "marketplace.json").read_text(
+            encoding="utf-8"
+        )
+    )
+    assert "version" not in claude_marketplace["metadata"]
+    assert [plugin["name"] for plugin in claude_marketplace["plugins"]] == ["suews"]
+
+    assert (output / ".mcp.json").exists()
+    assert (output / "plugins" / "suews" / ".mcp.json").exists()
+    assert (
+        output / "plugins" / "suews" / ".codex-plugin" / "plugin.json"
+    ).exists()
+    assert (output / "plugins" / "suews" / "assets" / "icon.png").exists()
+
+    readme = (output / "README.md").read_text(encoding="utf-8")
+    assert "generated distribution mirror" in readme
+    assert "SUEWS agent-plugin sync workflow" in readme
+
+    source = _skill_manifest(REPO_ROOT / ".claude" / "skills" / "suews")
+    claude_skill = _skill_manifest(output / ".claude" / "skills" / "suews")
+    codex_skill = _skill_manifest(
+        output / "plugins" / "suews" / "skills" / "suews"
+    )
+    assert claude_skill == source
+    assert codex_skill == source
+
+
+def test_build_plugin_generates_single_skill_bundle_from_source() -> None:
+    """`scripts/build_plugin.py` (`make plugin`) generates the distributable
+    bundle from the single source `.claude/skills/suews/`. The bundle
+    (`plugins/suews/skills/`) is a gitignored build artifact — there is no
+    committed copy to drift — so this runs the generator and verifies its
+    output: exactly one skill (`suews`; fresh-site setup is a reference inside
+    it, not a separate skill), byte-identical to the source.
+    """
+    subprocess.run(
+        [sys.executable, str(REPO_ROOT / "scripts" / "build_plugin.py")],
+        check=True,
+        capture_output=True,
+    )
+    bundle_skills = REPO_ROOT / "plugins" / "suews" / "skills"
+    dirs = sorted(p.name for p in bundle_skills.iterdir() if p.is_dir())
+    assert dirs == ["suews"], f"bundle should ship only 'suews', found: {dirs}"
+
+    src = _skill_manifest(REPO_ROOT / ".claude" / "skills" / "suews")
+    bundle = _skill_manifest(bundle_skills / "suews")
+    assert src == bundle, (
+        "build_plugin.py output differs from .claude/skills/suews/ — generator bug. "
+        f"source-only: {sorted(set(src) - set(bundle))}; "
+        f"bundle-only: {sorted(set(bundle) - set(src))}; "
+        f"differing: {sorted(k for k in src if k in bundle and src[k] != bundle[k])}"
+    )

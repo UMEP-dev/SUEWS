@@ -21,20 +21,22 @@ This workflow is **workspace-independent** - run from any worktree.
 1. **Select dev tag** - Pick a CI-verified dev tag as release base
 2. **Create release branch** - `git checkout -b release/YYYY.M.D origin/master`
 3. **Schema version audit** - `git log <last-release-tag>..HEAD -- src/supy/data_model/`. If any commit is a structural change (see `.claude/rules/python/schema-versioning.md` for triggers), confirm that `CURRENT_SCHEMA_VERSION` was bumped, `SCHEMA_VERSIONS` has a matching entry, `sample_config.yml` carries the new version, and `yaml_upgrade.py::_HANDLERS` has a `(previous_schema -> current_schema)` handler (the handler registry is the single source of truth for compatibility; `is_schema_compatible` derives from it). Stop and fix if any are missing — this was the gap closed in gh#1304.
-4. **CHANGELOG analysis** - Use log-changes or manual (current format)
-5. **Update docs** - CHANGELOG.md, version history RST (`:pr:` syntax), toctree
-6. **GitHub Release notes** - Create `.github/releases/YYYY.M.D.md` (Markdown)
-7. **Issue tracking** - Update the release issue, create sub-issues for manual steps
-8. **Submit PR** - Create PR, wait for CI, merge to master
-9. **Tag release** - Tag the merge commit on master
-10. **Verify** - Monitor Actions, PyPI, GitHub Release, Zenodo
-11. **Update umep-reqs** - PR to update supy version in UMEP-dev/umep-reqs
+4. **Benchmark gate (PREREQUISITE)** - Build supy from the release candidate (the selected dev tag / release branch via the `build-suews` artefact or `make dev` — NOT PyPI, which has nothing yet) and run the multi-version benchmark: require a reproducible fingerprint and **no energy-balance regression vs the previous release**. This **gates the release** — do NOT proceed to deposit (PR merge, tag, PyPI, GitHub Release, Zenodo) on an unreviewed regression. See `## Benchmark gate`.
+5. **CHANGELOG analysis** - Use log-changes or manual (current format)
+6. **Update docs** - CHANGELOG.md, version history RST (`:pr:` syntax), toctree
+7. **GitHub Release notes** - Create `.github/releases/YYYY.M.D.md` (Markdown)
+8. **Issue tracking** - Update the release issue, create sub-issues for manual steps
+9. **Submit PR** - Create PR, wait for CI, merge to master
+10. **Tag release** - Tag the merge commit on master
+11. **Verify** - Monitor Actions, PyPI, GitHub Release, Zenodo
+12. **Record benchmark result** - After publication, append the released version to the benchmark page + `benchmark/results/index.json` and version the Zenodo reproducibility stack (the gate already ran the numbers; this publishes them under the final version). See `## Benchmark gate`.
+13. **Update umep-reqs** - PR to update supy version in UMEP-dev/umep-reqs
 
 Details: `references/release-steps.md`
 
 ## Issue Tracking and Sub-Issues
 
-The release issue (labelled `2-meta:release`) tracks the overall release. Steps 0-6 are automated by the prep-release workflow and the PR. Steps 7-10 are **manual** and must not be closed by the PR merge.
+The release issue (labelled `2-meta:release`) tracks the overall release. Steps 0-3 and 5-7 are automated by the prep-release workflow and the PR; the **benchmark gate (step 4) is a hard prerequisite that must pass before depositing**. Steps 8-13 are **manual** and must not be closed by the PR merge.
 
 When preparing a release:
 
@@ -100,6 +102,7 @@ Selection criteria:
 [PASS/FAIL] Release branch created
 [PASS/FAIL] Schema version sync (sample_config.yml matches CURRENT_SCHEMA_VERSION; run /verify-build)
 [PASS/FAIL] Schema version bump covers every structural data_model change since last tag (see .claude/rules/python/schema-versioning.md)
+[PASS/FAIL] BENCHMARK GATE (prerequisite, before depositing): candidate build reproducible (byte-identical fingerprint) + per-release schema-valid config + NO energy-balance regression vs previous release (or regression reviewed and accepted)
 [PASS/FAIL] Knowledge pack rebuilt against HEAD (run `suews knowledge build --output src/supy/knowledge/pack/current --repo-root .` if data_model/ or cmd/ touched since last release; see gh#1406)
 [PASS/FAIL] Docs updated (CHANGELOG, version-history RST)
 [PASS/FAIL] GitHub Release notes created (.github/releases/)
@@ -108,6 +111,7 @@ Selection criteria:
 [PASS/FAIL] PR merged to master
 [PASS/FAIL] Git tag created on merge commit
 [PASS/FAIL] GitHub Release published (triggers Zenodo DOI)
+[PASS/FAIL] Benchmark result recorded: released version added to page + benchmark/results/index.json; Zenodo reproducibility stack versioned
 [PASS/FAIL] umep-reqs PR created (UMEP-dev/umep-reqs)
 Ready: YES/NO
 ```
@@ -190,8 +194,24 @@ The runtime pin is `numpy>=1.22`, so the same wheel works in QGIS 3 LTR
 The UMEP (`rc1`) variant was retired in 2026-04 once the Rust bridge
 removed all NumPy C-ABI dependencies.
 
+## Benchmark gate
+
+The release is benchmarked against the multi-version regression suite (KCL/London, Ward 2016) **as a prerequisite, before any depositing** (PR merge, tag, PyPI, GitHub Release, Zenodo). A regression must be caught and reviewed *before* shipping, not recorded afterwards. The harness lives in `benchmark/`; full method in `benchmark/REPRODUCE.md`.
+
+The gate runs against the **release candidate**, NOT PyPI (the version is not published yet):
+
+1. **Build the candidate** - obtain supy for the selected dev tag / release branch from the `build-suews` CI artefact (preferred — it is the same wheel that ships) or `make dev` in a clean venv. Do NOT `pip install "supy==<version>"` — that version does not exist on PyPI until step 11. For older releases, pin a compatible `pandas` (pre-2026 releases need `pandas<3`); keep `numpy` at the wheel's ABI. Save `freeze.txt`.
+2. **Per-release config** - generate a config valid in the candidate's OWN schema by a load->dump round-trip in that build (`SUEWSSimulation(canonical).config.model_dump()` to `inputs/config_<version>.yml`); record `config_schema_on_load` + `config_hash`. `suews-convert` is NOT a YAML schema migrator. Never reuse a foreign-schema config silently.
+3. **Run + reproducibility** - fetch obs + forcing from the restricted Zenodo record (token via the `ZENODO_TOKEN` secret/env; never print or commit it), then `run_benchmark.py` over the fixed period **twice**; require a byte-identical fingerprint. Log a build/run failure with the exact error rather than inventing a number.
+4. **Regression decision (the gate)** - compare the candidate's MAE/MBE against the previous release. A material increase in any flux is a **regression: stop and review before depositing**. Only proceed to deposit when the gate passes or the regression is explicitly reviewed and accepted.
+
+After the release is published (step 11), **record** the result (step 12): run `assemble_index.py` -> `benchmark/results/index.json`, update `site/benchmark/` (suite row + per-site detail) so the final version appears, and add it as a new version in the restricted Zenodo reproducibility stack (and the data record if obs/forcing changed). Commit derived stats + the per-release config only; **never** commit obs/forcing (gitignored).
+
+Governance gate: the fully-automated CI version needs the real observations on a **restricted production Zenodo record** plus a `ZENODO_TOKEN` GitHub secret and data-owner (Grimmond-group) sign-off. Until that lands, run the gate manually against the restricted sandbox record; only derived statistics are ever published.
+
 ## References
 
+- `benchmark/REPRODUCE.md` - Benchmark method + exact commands
 - `references/release-steps.md` - Full step-by-step guide
 - `references/assessment-criteria.md` - Decision scoring
 - Repo: `dev-ref/RELEASE_MANUAL.md` - Complete manual (in repository root)

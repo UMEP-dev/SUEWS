@@ -50,6 +50,8 @@ except ImportError:
 from supy.data_model.validation.pipeline.phase_a import (
     PHYSICS_OPTIONS,
     RENAMED_PARAMS,
+    _is_default_backed_control_path,
+    _normalise_phase_a_compatibility,
     annotate_missing_parameters,
     create_analysis_report,
     create_clean_missing_param_annotation,
@@ -76,7 +78,7 @@ class TestUptodateYaml(unittest.TestCase):
         cls.standard_file = trv_supy_module / "sample_data" / "sample_config.yml"
 
         # Load the standard configuration
-        with cls.standard_file.open() as f:
+        with cls.standard_file.open(encoding="utf-8") as f:
             cls.standard_data = yaml.safe_load(f)
 
         # Create test data scenarios
@@ -197,6 +199,106 @@ sites:
         # Test that all PHYSICS_OPTIONS entries are classified correctly
         for physics_param in PHYSICS_OPTIONS:
             self.assertTrue(is_physics_option(f"model.physics.{physics_param}"))
+
+    def test_stebbs_toggle_omission_not_flagged_critical(self):
+        """gh#1456 regression: omitting stebbs.enabled/.parameters is fine.
+
+        ``enabled`` (default false) and ``parameters`` (default DEFAULT) carry
+        safe model defaults. A user who provides a nested ``stebbs`` block but
+        leaves the master toggle out must NOT have those two flagged as missing
+        critical physics parameters. This keeps Phase A consistent with Phase B
+        (physics_rules.py), which deliberately requires only the relocated
+        leaves (capacitance / setpoint / same_*), not the toggle.
+        """
+        # Both toggle keys are recognised physics-option paths...
+        self.assertTrue(is_physics_option("model.physics.stebbs.enabled"))
+        self.assertTrue(is_physics_option("model.physics.stebbs.parameters"))
+        # ...but they are treated as default-backed, so omission is not required.
+        self.assertTrue(
+            _is_default_backed_control_path("model.physics.stebbs.enabled")
+        )
+        self.assertTrue(
+            _is_default_backed_control_path("model.physics.stebbs.parameters")
+        )
+
+        # A nested stebbs block that omits enabled/parameters but provides the
+        # relocated leaves.
+        user_yaml = {
+            "name": "test config",
+            "model": {
+                "control": {"tstep": 300},
+                "physics": {
+                    **{
+                        param: {"value": 1}
+                        for param in (
+                            "net_radiation",
+                            "emissions",
+                            "storage_heat",
+                            "ohm_inc_qf",
+                            "roughness_length_momentum",
+                            "roughness_length_heat",
+                            "stability",
+                            "soil_moisture_deficit",
+                            "water_use",
+                            "roughness_sublayer",
+                            "frontal_area_index",
+                            "roughness_sublayer_level",
+                            "surface_conductance",
+                            "snow_use",
+                        )
+                    },
+                    "stebbs": {
+                        # enabled / parameters deliberately omitted.
+                        "capacitance": {"value": 1},
+                        "setpoint": {"value": 0},
+                        "same_albedo_wall": {"value": 1},
+                        "same_albedo_roof": {"value": 1},
+                        "same_emissivity_wall": {"value": 1},
+                        "same_emissivity_roof": {"value": 1},
+                    },
+                },
+            },
+            "sites": [{"name": "test", "gridiv": 1}],
+        }
+
+        missing_params = find_missing_parameters(user_yaml, self.standard_data)
+        missing_paths = {path for path, _, _ in missing_params}
+        self.assertNotIn(
+            "model.physics.stebbs.enabled",
+            missing_paths,
+            "stebbs.enabled is default-backed; omitting it must not be flagged",
+        )
+        self.assertNotIn(
+            "model.physics.stebbs.parameters",
+            missing_paths,
+            "stebbs.parameters is default-backed; omitting it must not be flagged",
+        )
+
+        # Sanity: a genuinely missing required physics option IS still flagged
+        # critical (so the fix does not blanket-suppress physics detection).
+        user_yaml_missing_netrad = {
+            "name": "test config",
+            "model": {
+                "control": {"tstep": 300},
+                "physics": {
+                    "emissions": {"value": 2},
+                    # net_radiation deliberately absent.
+                    "storage_heat": {"value": 1},
+                },
+            },
+            "sites": [{"name": "test", "gridiv": 1}],
+        }
+        missing2 = find_missing_parameters(
+            user_yaml_missing_netrad, self.standard_data
+        )
+        critical2 = {
+            path for path, _, is_physics in missing2 if is_physics
+        }
+        self.assertIn(
+            "model.physics.net_radiation",
+            critical2,
+            "a genuinely missing required physics option must stay critical",
+        )
 
     def test_missing_parameter_detection_physics(self):
         """Test detection of missing URGENT physics parameters."""
@@ -482,6 +584,108 @@ sites:
             self.assertIn("forcing_file changed to forcing.file", report_content)
             self.assertIn("output_file changed to output", report_content)
 
+    def test_gh1497_flat_stebbs_physics_is_folded_before_phase_a_output(self):
+        """Legacy flat STEBBS switches should not survive in updated YAML."""
+        data = deepcopy(self.standard_data)
+        physics = data["model"]["physics"]
+        physics["stebbs"] = {
+            "value": 0,
+            "capacitance": {"value": None},
+            "setpoint": {"value": None},
+            "same_albedo_wall": {"value": None},
+            "same_albedo_roof": {"value": None},
+            "same_emissivity_wall": {"value": None},
+            "same_emissivity_roof": {"value": None},
+        }
+        physics["outer_cap_fraction"] = {"value": 2}
+        physics["setpoint"] = {"value": 1}
+        physics["same_albedo_wall"] = {"value": 0}
+        physics["same_albedo_roof"] = {"value": 1}
+        physics["same_emissivity_wall"] = {"value": 0}
+        physics["same_emissivity_roof"] = {"value": 1}
+
+        missing_paths = {
+            path for path, _, _ in find_missing_parameters(data, self.standard_data)
+        }
+        extra_paths = set(find_extra_parameters(data, self.standard_data))
+
+        for leaf in (
+            "capacitance",
+            "setpoint",
+            "same_albedo_wall",
+            "same_albedo_roof",
+            "same_emissivity_wall",
+            "same_emissivity_roof",
+        ):
+            self.assertNotIn(f"model.physics.stebbs.{leaf}", missing_paths)
+            self.assertNotIn(f"model.physics.{leaf}", extra_paths)
+        self.assertNotIn("model.physics.outer_cap_fraction", extra_paths)
+        self.assertNotIn("model.physics.stebbs.value", extra_paths)
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            tmp_path = Path(tmpdir)
+            user_file = tmp_path / "legacy-stebbs.yml"
+            standard_file = tmp_path / "standard.yml"
+            updated_file = tmp_path / "updated.yml"
+            report_file = tmp_path / "report.txt"
+
+            user_file.write_text(
+                yaml.safe_dump(data, sort_keys=False),
+                encoding="utf-8",
+            )
+            standard_file.write_text(
+                yaml.safe_dump(self.standard_data, sort_keys=False),
+                encoding="utf-8",
+            )
+
+            annotate_missing_parameters(
+                user_file=str(user_file),
+                standard_file=str(standard_file),
+                uptodate_file=str(updated_file),
+                report_file=str(report_file),
+                mode="public",
+                phase="A",
+                forcing="off",
+            )
+
+            updated_data = yaml.safe_load(updated_file.read_text(encoding="utf-8"))
+            updated_physics = updated_data["model"]["physics"]
+            updated_stebbs = updated_physics["stebbs"]
+
+            self.assertNotIn("value", updated_stebbs)
+            self.assertNotIn("capacitance", updated_physics)
+            self.assertNotIn("outer_cap_fraction", updated_physics)
+            self.assertNotIn("setpoint", updated_physics)
+            self.assertNotIn("same_albedo_wall", updated_physics)
+            self.assertEqual(updated_stebbs["enabled"], {"value": False})
+            self.assertEqual(updated_stebbs["parameters"], {"value": 1})
+            self.assertEqual(updated_stebbs["capacitance"], {"value": 2})
+            self.assertEqual(updated_stebbs["setpoint"], {"value": 1})
+            self.assertEqual(updated_stebbs["same_albedo_wall"], {"value": 0})
+            self.assertEqual(updated_stebbs["same_albedo_roof"], {"value": 1})
+            self.assertEqual(updated_stebbs["same_emissivity_wall"], {"value": 0})
+            self.assertEqual(updated_stebbs["same_emissivity_roof"], {"value": 1})
+
+            report_content = report_file.read_text(encoding="utf-8")
+            self.assertNotIn("model.physics.stebbs.value", report_content)
+            self.assertNotIn("model.physics.capacitance", report_content)
+            self.assertNotIn("model.physics.same_albedo_wall", report_content)
+
+    def test_gh1497_malformed_stebbs_value_is_not_silently_dropped(self):
+        """Phase A cleanup must not hide an invalid legacy master toggle."""
+        data = deepcopy(self.standard_data)
+        physics = data["model"]["physics"]
+        physics["stebbs"] = {"value": 9}
+        physics["outer_cap_fraction"] = {"value": 0}
+
+        normalised, _ = _normalise_phase_a_compatibility(data)
+        normalised_physics = normalised["model"]["physics"]
+        normalised_stebbs = normalised_physics["stebbs"]
+
+        self.assertEqual(normalised_stebbs["value"], 9)
+        self.assertEqual(normalised_stebbs["capacitance"], {"value": 0})
+        self.assertNotIn("outer_cap_fraction", normalised_physics)
+
     def test_gh1417_empty_current_output_wins_over_legacy_duplicate(self):
         """An empty current output block is valid and should not be overwritten."""
         data = deepcopy(self.standard_data)
@@ -662,7 +866,7 @@ sites:
         with tempfile.TemporaryDirectory() as temp_dir:
             # Create temporary user file with issues
             user_file = os.path.join(temp_dir, "user.yml")
-            with open(user_file, "w") as f:
+            with open(user_file, "w", encoding="utf-8") as f:
                 yaml.dump(self.missing_physics_yaml, f)
 
             # Create output file paths
@@ -682,7 +886,7 @@ sites:
             self.assertTrue(os.path.exists(report_file))
 
             # Verify uptodate file content
-            with open(uptodate_file) as f:
+            with open(uptodate_file, encoding="utf-8") as f:
                 uptodate_content = f.read()
 
             self.assertIn("Updated YAML", uptodate_content)
@@ -690,7 +894,7 @@ sites:
             self.assertIn("value: null", uptodate_content)
 
             # Verify report file content
-            with open(report_file) as f:
+            with open(report_file, encoding="utf-8") as f:
                 report_content = f.read()
 
             self.assertIn("# SUEWS Validation Report", report_content)
@@ -804,7 +1008,7 @@ class TestRealWorldScenarios(unittest.TestCase):
     def setUp(self):
         """Set up with real standard configuration."""
         self.standard_file = trv_supy_module / "sample_data" / "sample_config.yml"
-        with self.standard_file.open() as f:
+        with self.standard_file.open(encoding="utf-8") as f:
             self.standard_data = yaml.safe_load(f)
 
     def test_benchmark_configuration_compatibility(self):
@@ -951,7 +1155,7 @@ sites:
 
             # Write the problematic user config
             user_file = os.path.join(temp_dir, "comprehensive_user.yml")
-            with open(user_file, "w") as f:
+            with open(user_file, "w", encoding="utf-8") as f:
                 f.write(problematic_yaml_content.strip())
 
             # Define output files
@@ -980,7 +1184,7 @@ sites:
             )
 
             # === VERIFY UPTODATE YAML CONTENT ===
-            with open(uptodate_file) as f:
+            with open(uptodate_file, encoding="utf-8") as f:
                 uptodate_content = f.read()
 
             # Should contain header
@@ -1051,7 +1255,7 @@ sites:
             )
 
             # === VERIFY REPORT CONTENT ===
-            with open(report_file) as f:
+            with open(report_file, encoding="utf-8") as f:
                 report_content = f.read()
 
             # Should contain all sections
@@ -1124,7 +1328,7 @@ sites:
 
             # === VERIFY DATA COMPLETENESS ===
             # Load both original and updated YAML for comparison
-            with open(user_file) as f:
+            with open(user_file, encoding="utf-8") as f:
                 original_data = yaml.safe_load(f.read())
 
             updated_data = yaml.safe_load(uptodate_content)
@@ -1272,7 +1476,7 @@ sites:
 
             # Write large config
             user_file = os.path.join(temp_dir, "large_user.yml")
-            with open(user_file, "w") as f:
+            with open(user_file, "w", encoding="utf-8") as f:
                 yaml.dump(large_config, f)
 
             uptodate_file = os.path.join(temp_dir, "uptodate_large_user.yml")
@@ -1302,7 +1506,7 @@ sites:
             self.assertTrue(os.path.exists(report_file))
 
             # Verify content correctness even with larger scale
-            with open(uptodate_file) as f:
+            with open(uptodate_file, encoding="utf-8") as f:
                 uptodate_content = f.read()
 
             # Should handle all sites correctly
@@ -2250,7 +2454,7 @@ def build_minimal_yaml(stebbsmethod_value: int, stebbs_block: dict):
 
 def test_stebbsmethod0_nullifies_all_stebbs_values():
     stebbs_block = {
-        "wall_internal_convection_coefficient": {"value": 5.0},
+        "convection_coefficient_wall_internal": {"value": 5.0},
         "nested": {"WindowExternalConvectionCoefficient": {"value": 30.0}},
     }
     data = build_minimal_yaml(0, stebbs_block)
@@ -2258,20 +2462,71 @@ def test_stebbsmethod0_nullifies_all_stebbs_values():
 
     out = result["sites"][0]["properties"]["stebbs"]
     # top‐level keys
-    assert out["wall_internal_convection_coefficient"]["value"] is None
+    assert out["convection_coefficient_wall_internal"]["value"] is None
     # nested dict also nullified
     assert out["nested"]["WindowExternalConvectionCoefficient"]["value"] is None
 
 
 def test_stebbsmethod1_leaves_stebbs_untouched():
     stebbs_block = {
-        "wall_internal_convection_coefficient": {"value": 5.0},
+        "convection_coefficient_wall_internal": {"value": 5.0},
     }
     data = build_minimal_yaml(1, stebbs_block)
     result = precheck_model_option_rules(deepcopy(data))
 
     out = result["sites"][0]["properties"]["stebbs"]
-    assert out["wall_internal_convection_coefficient"]["value"] == 5.0
+    assert out["convection_coefficient_wall_internal"]["value"] == 5.0
+
+
+def test_stebbsmethod0_nested_disabled_nullifies_all_stebbs_values():
+    """gh#1456: nested STEBBS disabled (enabled=false) must still nullify site params.
+
+    The precheck composes the legacy stebbsmethod from the nested
+    model.physics.stebbs block; a disabled nested toggle composes to 0 and
+    triggers the same cleanup as the legacy flat ``{"value": 0}`` form.
+    """
+    stebbs_block = {
+        "convection_coefficient_wall_internal": {"value": 5.0},
+        "nested": {"WindowExternalConvectionCoefficient": {"value": 30.0}},
+    }
+    data = {
+        "model": {
+            "physics": {
+                "stebbs": {
+                    "enabled": {"value": False},
+                    "parameters": {"value": 1},
+                }
+            }
+        },
+        "sites": [{"properties": {"stebbs": deepcopy(stebbs_block)}}],
+    }
+    result = precheck_model_option_rules(deepcopy(data))
+
+    out = result["sites"][0]["properties"]["stebbs"]
+    assert out["convection_coefficient_wall_internal"]["value"] is None
+    assert out["nested"]["WindowExternalConvectionCoefficient"]["value"] is None
+
+
+def test_stebbsmethod1_nested_enabled_leaves_stebbs_untouched():
+    """gh#1456: nested STEBBS enabled (composes to 1) must NOT nullify params."""
+    stebbs_block = {
+        "convection_coefficient_wall_internal": {"value": 5.0},
+    }
+    data = {
+        "model": {
+            "physics": {
+                "stebbs": {
+                    "enabled": {"value": True},
+                    "parameters": {"value": 1},
+                }
+            }
+        },
+        "sites": [{"properties": {"stebbs": deepcopy(stebbs_block)}}],
+    }
+    result = precheck_model_option_rules(deepcopy(data))
+
+    out = result["sites"][0]["properties"]["stebbs"]
+    assert out["convection_coefficient_wall_internal"]["value"] == 5.0
 
 
 def test_stebbsmethod0_nullifies_building_archetype_values():
@@ -2318,17 +2573,18 @@ def test_stebbsmethod0_nullifies_ten_minute_profiles():
     for schedule in profiles.values():
         assert all(value is None for value in schedule.values())
 
+
 def _build_site_with_co2(co2_block):
     return {"properties": {"anthropogenic_emissions": {"co2": co2_block}}}
 
 
-def test_emissionsmethod_less_than_5_nullifies_co2_block():
+def test_emissionsmethod_non_biogenic_nullifies_co2_block():
     co2_block = {
         "co2pointsource": {"value": 0.1},
         "nested": {"ef_umolco2perj": {"value": 2.0}},
     }
     data = {
-        "model": {"physics": {"emissions": 0}},  # < 5 => CO2 disabled
+        "model": {"physics": {"emissions": 6}},  # 0..6 => CO2 output disabled
         "sites": [_build_site_with_co2(co2_block)],
     }
     result = precheck_model_option_rules(deepcopy(data))
@@ -2336,6 +2592,44 @@ def test_emissionsmethod_less_than_5_nullifies_co2_block():
     out = result["sites"][0]["properties"]["anthropogenic_emissions"]["co2"]
     assert out["co2pointsource"]["value"] is None
     assert out["nested"]["ef_umolco2perj"]["value"] is None
+
+
+def test_orthogonal_heat_only_emissions_nullifies_co2_block():
+    co2_block = {"co2pointsource": {"value": 0.1}}
+    data = {
+        "model": {"physics": {"emissions": {"heat": "j11"}}},
+        "sites": [_build_site_with_co2(co2_block)],
+    }
+    result = precheck_model_option_rules(deepcopy(data))
+
+    co2 = result["sites"][0]["properties"]["anthropogenic_emissions"]["co2"]
+    assert co2["co2pointsource"]["value"] is None
+
+
+def test_orthogonal_heat_only_emissions_nullifies_current_biogenic_names():
+    data = {
+        "model": {"physics": {"emissions": {"heat": "j11"}}},
+        "sites": [
+            {
+                "properties": {
+                    "land_cover": {
+                        "dectr": {
+                            "alpha_bio_co2": {"value": 0.8},
+                            "beta_bio_co2": {"value": [1.0, 2.0]},
+                        }
+                    },
+                    "anthropogenic_emissions": {
+                        "co2": {"co2pointsource": {"value": 0.1}}
+                    },
+                }
+            }
+        ],
+    }
+    result = precheck_model_option_rules(deepcopy(data))
+
+    dectr = result["sites"][0]["properties"]["land_cover"]["dectr"]
+    assert dectr["alpha_bio_co2"]["value"] is None
+    assert dectr["beta_bio_co2"]["value"] == [None, None]
 
 
 def test_empty_co2_block_is_handled_gracefully():
@@ -2359,7 +2653,7 @@ def test_emissionsmethod_none_leaves_co2_untouched():
     }
     out = precheck_model_option_rules(deepcopy(data))
     co2 = out["sites"][0]["properties"]["anthropogenic_emissions"]["co2"]
-    # should remain numeric value because emissionsmethod not in 0..4
+    # should remain numeric value because emissionsmethod is missing
     assert co2["co2pointsource"]["value"] == 0.1
 
 
@@ -2446,6 +2740,27 @@ def test_nullify_biogenic_in_props_nullifies_values_and_lists():
 
     # unrelated param not in the target list remains unchanged
     assert dectr["unrelated_param"]["value"] == 2.5
+
+
+def test_nullify_biogenic_in_props_handles_current_bio_co2_names():
+    """Current YAML spellings should be nullified as well as legacy columns."""
+    props = {
+        "land_cover": {
+            "dectr": {
+                "alpha_bio_co2": {"value": 0.8},
+                "beta_bio_co2": {"value": [1.0, 2.0]},
+                "theta_bio_co2": 42.0,
+            }
+        }
+    }
+
+    changed = _nullify_biogenic_in_props(props)
+    assert changed is True
+
+    dectr = props["land_cover"]["dectr"]
+    assert dectr["alpha_bio_co2"]["value"] is None
+    assert dectr["beta_bio_co2"]["value"] == [None, None]
+    assert dectr["theta_bio_co2"] is None
 
 
 def test_nullify_biogenic_in_props_handles_grass_and_evetr():
@@ -3216,10 +3531,10 @@ class TestProcessorFixtures:
         user_file = Path(temp_directory) / "user_config.yml"
         standard_file = Path(temp_directory) / "standard_config.yml"
 
-        with open(user_file, "w") as f:
+        with open(user_file, "w", encoding="utf-8") as f:
             yaml.dump(minimal_user_config, f, default_flow_style=False)
 
-        with open(standard_file, "w") as f:
+        with open(standard_file, "w", encoding="utf-8") as f:
             yaml.dump(sample_standard_config, f, default_flow_style=False)
 
         return {
@@ -3665,12 +3980,12 @@ class TestPhaseAUptoDateYaml(TestProcessorFixtures):
         """Test mode-dependent extra parameter handling."""
         # Add extra parameter to user config
         user_file = temp_yaml_files["user_file"]
-        with open(user_file) as f:
+        with open(user_file, encoding="utf-8") as f:
             data = yaml.safe_load(f)
 
         data["model"]["control"]["custom_param"] = "test_value"
 
-        with open(user_file, "w") as f:
+        with open(user_file, "w", encoding="utf-8") as f:
             yaml.dump(data, f)
 
         # Run Phase A with specified mode
@@ -3694,7 +4009,7 @@ class TestPhaseAUptoDateYaml(TestProcessorFixtures):
         assert os.path.exists(report_file), "Report file should be created"
 
         # Check output file content for mode-dependent behavior
-        with open(output_file) as f:
+        with open(output_file, encoding="utf-8") as f:
             output_data = yaml.safe_load(f)
 
         if expected_behavior in [
@@ -3708,7 +4023,7 @@ class TestPhaseAUptoDateYaml(TestProcessorFixtures):
             )
 
             # Check that the report contains ACTION NEEDED section with extra parameter warning
-            with open(report_file) as f:
+            with open(report_file, encoding="utf-8") as f:
                 report_content = f.read()
             assert "## ACTION NEEDED" in report_content, (
                 "Report should have ACTION NEEDED section in public mode"
@@ -3742,8 +4057,13 @@ class TestPhaseAUptoDateYaml(TestProcessorFixtures):
             "roughness_sublayer_level",
             "surface_conductance",
             "snow_use",
+            # gh#1456: the STEBBS switches live under model.physics.stebbs.*;
+            # PHYSICS_OPTIONS carries the nested-object key plus the leaf
+            # names so is_physics_option matches the new paths.
             "stebbs",
-            "outer_cap_fraction",
+            "enabled",
+            "parameters",
+            "capacitance",
             "same_albedo_wall",
             "same_albedo_roof",
             "same_emissivity_wall",
@@ -3772,7 +4092,8 @@ class TestPhaseBScienceCheck(TestProcessorFixtures):
 
     def test_physics_parameters_validation_success(self, registry):
         """Test successful physics parameter validation."""
-        # Use a known set of physics options for testing
+        # Use a known set of physics options for testing. gh#1456: the
+        # STEBBS switches live under the nested model.physics.stebbs object.
         physics_options = {
             "net_radiation",
             "emissions",
@@ -3788,18 +4109,21 @@ class TestPhaseBScienceCheck(TestProcessorFixtures):
             "roughness_sublayer_level",
             "surface_conductance",
             "snow_use",
-            "stebbs",
-            "outer_cap_fraction",
+        }
+        stebbs_options = {
+            "enabled",
+            "parameters",
+            "capacitance",
+            "setpoint",
             "same_albedo_wall",
             "same_albedo_roof",
             "same_emissivity_wall",
             "same_emissivity_roof",
-            "setpoint",
         }
 
-        valid_yaml = {
-            "model": {"physics": {param: {"value": 1} for param in physics_options}}
-        }
+        physics = {param: {"value": 1} for param in physics_options}
+        physics["stebbs"] = {param: {"value": 1} for param in stebbs_options}
+        valid_yaml = {"model": {"physics": physics}}
         context = science_check.ValidationContext(yaml_data=valid_yaml)
         # Function returns list of ValidationResult objects, empty list means success
         results = registry["physics_params"](context)
@@ -3859,7 +4183,7 @@ class TestPhaseBScienceCheck(TestProcessorFixtures):
             "surface_conductance",
             "snow_use",
             "stebbs",
-            "outer_cap_fraction",
+            "capacitance",
         }
 
         null_yaml = {
@@ -4008,7 +4332,7 @@ class TestPhaseBScienceCheck(TestProcessorFixtures):
         "supy.data_model.validation.pipeline.phase_b.get_mean_monthly_air_temperature"
     )
     def test_stebbs_temperature_parameter_updates(self, mock_cru):
-        """Test STEBBS initial_outdoor_temperature updates."""
+        """Test STEBBS temperature_air_outdoor_initial updates."""
         # Mock CRU temperature data
         mock_cru.return_value = 12.5  # Test temperature value
 
@@ -4019,8 +4343,8 @@ class TestPhaseBScienceCheck(TestProcessorFixtures):
                         "lat": {"value": 51.5},
                         "lng": {"value": -0.12},
                         "stebbs": {
-                            "initial_outdoor_temperature": {"value": 25.0},
-                            "wall_internal_convection_coefficient": {
+                            "temperature_air_outdoor_initial": {"value": 25.0},
+                            "convection_coefficient_wall_internal": {
                                 "value": 5.0
                             },  # Control parameter
                         },
@@ -4037,18 +4361,18 @@ class TestPhaseBScienceCheck(TestProcessorFixtures):
         # Check that CRU temperature function was called
         mock_cru.assert_called_with(51.5, -0.12, 1)  # lat, lng, month=1 (January)
 
-        # Verify that STEBBS initial_outdoor_temperature was updated
+        # Verify that STEBBS temperature_air_outdoor_initial was updated
         stebbs_props = result["sites"][0]["properties"]["stebbs"]
-        assert stebbs_props["initial_outdoor_temperature"]["value"] == 12.5
+        assert stebbs_props["temperature_air_outdoor_initial"]["value"] == 12.5
 
         # Verify control parameter unchanged
-        assert stebbs_props["wall_internal_convection_coefficient"]["value"] == 5.0
+        assert stebbs_props["convection_coefficient_wall_internal"]["value"] == 5.0
 
         # Verify adjustments recorded (single parameter)
         stebbs_adjustments = [adj for adj in adjustments if "stebbs" in adj.parameter]
         assert len(stebbs_adjustments) == 1
         assert any(
-            "initial_outdoor_temperature" in adj.parameter for adj in stebbs_adjustments
+            "temperature_air_outdoor_initial" in adj.parameter for adj in stebbs_adjustments
         )
 
     @patch(
@@ -4075,7 +4399,7 @@ class TestPhaseBScienceCheck(TestProcessorFixtures):
                             "lat": {"value": 52.0},
                             "lng": {"value": 1.0},
                             "stebbs": {
-                                "initial_outdoor_temperature": {"value": 999.0},
+                                "temperature_air_outdoor_initial": {"value": 999.0},
                             },
                         }
                     }
@@ -4091,7 +4415,7 @@ class TestPhaseBScienceCheck(TestProcessorFixtures):
 
             # Verify temperature values updated
             stebbs_props = result["sites"][0]["properties"]["stebbs"]
-            assert stebbs_props["initial_outdoor_temperature"]["value"] == mock_temp
+            assert stebbs_props["temperature_air_outdoor_initial"]["value"] == mock_temp
 
     @patch(
         "supy.data_model.validation.pipeline.phase_b.get_mean_monthly_air_temperature"
@@ -4117,7 +4441,7 @@ class TestPhaseBScienceCheck(TestProcessorFixtures):
                         "lat": {"value": 51.5},
                         "lng": {"value": -0.12},
                         "stebbs": {
-                            "initial_outdoor_temperature": {"value": 100.0},
+                            "temperature_air_outdoor_initial": {"value": 100.0},
                         },
                     }
                 },
@@ -4126,7 +4450,7 @@ class TestPhaseBScienceCheck(TestProcessorFixtures):
                         "lat": {"value": 55.8},
                         "lng": {"value": -4.25},
                         "stebbs": {
-                            "initial_outdoor_temperature": {"value": 300.0},
+                            "temperature_air_outdoor_initial": {"value": 300.0},
                         },
                     }
                 },
@@ -4142,10 +4466,10 @@ class TestPhaseBScienceCheck(TestProcessorFixtures):
 
         # Verify each site gets appropriate temperature
         site0_stebbs = result["sites"][0]["properties"]["stebbs"]
-        assert site0_stebbs["initial_outdoor_temperature"]["value"] == 8.2
+        assert site0_stebbs["temperature_air_outdoor_initial"]["value"] == 8.2
 
         site1_stebbs = result["sites"][1]["properties"]["stebbs"]
-        assert site1_stebbs["initial_outdoor_temperature"]["value"] == 5.1
+        assert site1_stebbs["temperature_air_outdoor_initial"]["value"] == 5.1
 
     @patch(
         "supy.data_model.validation.pipeline.phase_b.get_mean_monthly_air_temperature"
@@ -4161,7 +4485,7 @@ class TestPhaseBScienceCheck(TestProcessorFixtures):
                         "lat": {"value": 50.0},
                         "lng": {"value": 2.0},
                         "stebbs": {
-                            "initial_outdoor_temperature": {"value": 99.0},
+                            "temperature_air_outdoor_initial": {"value": 99.0},
                             # OtherParameter present
                             "OtherParameter": {"value": 42.0},
                         },
@@ -4174,7 +4498,7 @@ class TestPhaseBScienceCheck(TestProcessorFixtures):
 
         # Verify available parameter was updated
         stebbs_props = result["sites"][0]["properties"]["stebbs"]
-        assert stebbs_props["initial_outdoor_temperature"]["value"] == 15.8
+        assert stebbs_props["temperature_air_outdoor_initial"]["value"] == 15.8
 
         # Verify legacy parameters were not added
         assert "WindowOutdoorSurfaceTemperature" not in stebbs_props
@@ -4199,7 +4523,7 @@ class TestPhaseBScienceCheck(TestProcessorFixtures):
                         "lat": {"value": 45.0},
                         "lng": {"value": 5.0},
                         "stebbs": {
-                            "initial_outdoor_temperature": {"value": cru_temp},
+                            "temperature_air_outdoor_initial": {"value": cru_temp},
                         },
                     }
                 }
@@ -4212,7 +4536,7 @@ class TestPhaseBScienceCheck(TestProcessorFixtures):
 
         # Verify value remains correct (no change needed)
         stebbs_props = result["sites"][0]["properties"]["stebbs"]
-        assert stebbs_props["initial_outdoor_temperature"]["value"] == cru_temp
+        assert stebbs_props["temperature_air_outdoor_initial"]["value"] == cru_temp
 
         # Verify no adjustments were made
         stebbs_adjustments = [adj for adj in adjustments if "stebbs" in adj.parameter]
@@ -4271,7 +4595,7 @@ class TestPhaseCPydanticValidation(TestProcessorFixtures):
             "surface_conductance",
             "snow_use",
             "stebbs",
-            "outer_cap_fraction",
+            "capacitance",
         }
 
         complete_config = {
@@ -4352,7 +4676,7 @@ class TestPhaseCPydanticValidation(TestProcessorFixtures):
             "surface_conductance",
             "snow_use",
             "stebbs",
-            "outer_cap_fraction",
+            "capacitance",
         }
 
         rsl_config = {
@@ -4442,7 +4766,7 @@ class TestPhaseCReporting(TestProcessorFixtures):
         assert result is None
         assert os.path.exists(output_file), "Report file should be created"
 
-        with open(output_file) as f:
+        with open(output_file, encoding="utf-8") as f:
             report_content = f.read()
 
         assert "# SUEWS Validation Report" in report_content
@@ -4452,7 +4776,7 @@ class TestPhaseCReporting(TestProcessorFixtures):
     def test_report_consolidation_with_previous_phases(self, temp_directory):
         """Test report consolidation with Phase A and B information."""
         phase_a_report = os.path.join(temp_directory, "reportA_test.txt")
-        with open(phase_a_report, "w") as f:
+        with open(phase_a_report, "w", encoding="utf-8") as f:
             f.write("# SUEWS - Phase A Report\n")
             f.write("## ACTION NEEDED\n")
             f.write("- Found (1) missing parameter: gsmodel\n")
@@ -4474,7 +4798,7 @@ class TestPhaseCReporting(TestProcessorFixtures):
 
         assert result is None
 
-        with open(output_file) as f:
+        with open(output_file, encoding="utf-8") as f:
             report_content = f.read()
 
         assert "# SUEWS Validation Report" in report_content
@@ -4683,7 +5007,7 @@ class TestSuewsYamlProcessorOrchestrator(TestProcessorFixtures):
         """Test error handling with invalid YAML syntax."""
         invalid_yaml_file = Path(temp_directory) / "invalid.yml"
 
-        with open(invalid_yaml_file, "w") as f:
+        with open(invalid_yaml_file, "w", encoding="utf-8") as f:
             f.write("invalid: yaml: content: [unclosed bracket")
 
         try:
@@ -4713,7 +5037,7 @@ class TestSuewsYamlProcessorOrchestrator(TestProcessorFixtures):
 
         # Test creating a test file to verify write permissions
         test_file = output_dir / "test_cleanup.yml"
-        with open(test_file, "w") as f:
+        with open(test_file, "w", encoding="utf-8") as f:
             f.write("test: cleanup_validation")
 
         assert test_file.exists(), "Should be able to create files in output directory"

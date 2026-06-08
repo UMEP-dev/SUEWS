@@ -146,7 +146,7 @@ def test_main_entry_chdirs_to_repo_root(branched_repo: Path) -> None:
     target_dir = branched_repo / "scripts" / "lint"
     target_dir.mkdir(parents=True)
     script_copy = target_dir / SCRIPT_PATH.name
-    script_copy.write_text(SCRIPT_PATH.read_text(), encoding="utf-8")
+    script_copy.write_text(SCRIPT_PATH.read_text(encoding="utf-8"), encoding="utf-8")
     nested = branched_repo / "src"
     assert nested.is_dir()
 

@@ -11,6 +11,7 @@ import json
 import sys
 import os
 from contextlib import nullcontext as _nullcontext
+from copy import deepcopy
 from pathlib import Path
 import importlib.resources
 from typing import Optional, List
@@ -64,7 +65,12 @@ except Exception:
 # Import from supy modules
 try:
     from ..data_model.core.config import SUEWSConfig
-    from ..data_model.core.field_renames import read_physics_key
+    from ..data_model.core.field_renames import (
+        read_physics_key,
+        fold_stebbs_physics as _fold_stebbs_physics,
+        STEBBS_PHYSICS_LEAF_RENAMES as _STEBBS_PHYSICS_LEAF_RENAMES,
+    )
+    from ..data_model.core.physics_families import flatten_physics_in_config
     from ..data_model.schema.version import CURRENT_SCHEMA_VERSION
     from ..data_model.schema.publisher import generate_json_schema
     from ..data_model.schema.migration import SchemaMigrator, check_migration_needed
@@ -74,7 +80,12 @@ except ImportError:
 
     sys.path.append(str(Path(__file__).parent.parent.parent))
     from supy.data_model.core.config import SUEWSConfig
-    from supy.data_model.core.field_renames import read_physics_key
+    from supy.data_model.core.field_renames import (
+        read_physics_key,
+        fold_stebbs_physics as _fold_stebbs_physics,
+        STEBBS_PHYSICS_LEAF_RENAMES as _STEBBS_PHYSICS_LEAF_RENAMES,
+    )
+    from supy.data_model.core.physics_families import flatten_physics_in_config
     from supy.data_model.schema.version import CURRENT_SCHEMA_VERSION
     from supy.data_model.schema.publisher import generate_json_schema
     from supy.data_model.schema.migration import SchemaMigrator, check_migration_needed
@@ -103,8 +114,9 @@ def validate_single_file(
 
     try:
         # Load configuration
-        with open(file_path, "r") as f:
+        with open(file_path, "r", encoding="utf-8") as f:
             config = yaml.safe_load(f)
+        flatten_physics_in_config(config)
 
         target_is_current = (
             schema_version is None or schema_version == CURRENT_SCHEMA_VERSION
@@ -169,11 +181,36 @@ def validate_single_file(
             )
             if not isinstance(user_physics, dict):
                 user_physics = {}
+            # gh#1456: the STEBBS switches moved under model.physics.stebbs.*.
+            # The critical-physics list carries their bare leaf names, so look
+            # those leaves up inside the nested `stebbs` block rather than flat
+            # on physics. The nested-leaf names are the values of
+            # STEBBS_PHYSICS_LEAF_RENAMES.
+            #
+            # A current-target YAML may still be written in the legacy FLAT
+            # form (`capacitance`/`setpoint`/`same_*` directly under
+            # model.physics, with a flat `stebbs` master toggle) -- the real
+            # loader (SUEWSConfig.from_yaml) folds those flat keys to the
+            # nested shape and accepts them. Apply the SAME fold to a deep copy
+            # here before the per-leaf lookup so the dry-run path agrees with
+            # the loader instead of false-reporting the leaves missing.
+            folded_physics = _fold_stebbs_physics(
+                deepcopy(user_physics), "model.physics"
+            )
+            stebbs_leaf_names = set(_STEBBS_PHYSICS_LEAF_RENAMES.values())
+            user_stebbs = folded_physics.get("stebbs")
+            if not isinstance(user_stebbs, dict):
+                user_stebbs = {}
             for param_name in CRITICAL_PHYSICS_PARAMS:
-                if read_physics_key(
-                    user_physics, param_name, default=_PHYSICS_KEY_MISSING
-                ) is _PHYSICS_KEY_MISSING:
+                if param_name in stebbs_leaf_names:
+                    container = user_stebbs
+                    field_path = f"model.physics.stebbs.{param_name}"
+                else:
+                    container = user_physics
                     field_path = f"model.physics.{param_name}"
+                if read_physics_key(
+                    container, param_name, default=_PHYSICS_KEY_MISSING
+                ) is _PHYSICS_KEY_MISSING:
                     message = (
                         f"{field_path}: required physics parameter is missing "
                         "from the input YAML; runtime requires an explicit "
@@ -654,7 +691,7 @@ def migrate(file, output, to_version):
 
     try:
         # Load configuration
-        with open(path, "r") as f:
+        with open(path, "r", encoding="utf-8") as f:
             config = yaml.safe_load(f)
 
         # Detect current version
@@ -675,7 +712,7 @@ def migrate(file, output, to_version):
         )
 
         # Save
-        with open(output_path, "w") as f:
+        with open(output_path, "w", encoding="utf-8") as f:
             yaml.dump(migrated, f, default_flow_style=False, sort_keys=False)
 
         console.print(f"\n[green]✓ Migration complete![/green]")
@@ -767,7 +804,7 @@ def version(files, update, target_version, backup):
     for file_path in files:
         path = Path(file_path)
         try:
-            with open(path, "r") as f:
+            with open(path, "r", encoding="utf-8") as f:
                 cfg = yaml.safe_load(f) or {}
             current = cfg.get("schema_version") or "not specified"
 
@@ -786,7 +823,7 @@ def version(files, update, target_version, backup):
                         backup_path = path.with_suffix(".backup.yml")
                         path.rename(backup_path)
                     cfg["schema_version"] = new_version
-                    with open(path, "w") as f:
+                    with open(path, "w", encoding="utf-8") as f:
                         yaml.dump(cfg, f, default_flow_style=False, sort_keys=False)
                     action = f"Updated -> {new_version}"
                 else:
@@ -841,7 +878,7 @@ def export(output, version, fmt):
             default_name = f"suews-schema-v{schema_version}.json"
 
         if output:
-            Path(output).write_text(content)
+            Path(output).write_text(content, encoding="utf-8")
             console.print(f"[green]✓ Schema exported to {output}[/green]")
         else:
             console.print(
@@ -867,15 +904,16 @@ def _experimental_features_restriction(user_yaml_file, mode):
         return True, [], None  # Dev mode allows all features
 
     try:
-        with open(user_yaml_file, "r") as f:
+        with open(user_yaml_file, "r", encoding="utf-8") as f:
             user_yaml_data = yaml.safe_load(f)
     except Exception as e:
         return False, [], f"Error reading YAML file: {e}"
 
-    # Read physics keys via read_physics_key, which accepts both the new
-    # snake_case name and its legacy alias — the Pydantic shim accepts both,
-    # so this gate must as well.
+    # Read physics keys via helpers that accept both the new snake_case name
+    # and its legacy alias — the Pydantic shim accepts both, so this gate must
+    # as well.
     from ..data_model.core.field_renames import read_physics_key
+    from ..data_model.validation.core.yaml_helpers import get_stebbsmethod_value
 
     physics = (
         user_yaml_data.get("model", {}).get("physics", {})
@@ -884,9 +922,15 @@ def _experimental_features_restriction(user_yaml_file, mode):
     )
     restrictions_violated = []
 
-    stebbs_method = read_physics_key(physics, "stebbs")
-    if stebbs_method is not None and stebbs_method != 0:
-        restrictions_violated.append("STEBBS method is enabled (stebbs_method != 0)")
+    # gh#1456: use the shared composer so nested bool-like strings (`off`,
+    # `false`, `0`, etc.) follow the same semantics as Pydantic.
+    try:
+        stebbsmethod = get_stebbsmethod_value(physics)
+    except ValueError as exc:
+        restrictions_violated.append(f"Invalid STEBBS physics configuration: {exc}")
+        stebbsmethod = None
+    if stebbsmethod is not None and stebbsmethod != 0:
+        restrictions_violated.append("STEBBS is enabled (stebbs.enabled is true)")
 
     snowuse = read_physics_key(physics, "snow_use")
     if snowuse is not None and snowuse != 0:
@@ -908,7 +952,7 @@ def _print_experimental_features_restriction(restrictions_violated):
     console.print("\n[yellow]Options to resolve:[/yellow]")
     console.print("  1. Switch to dev mode: [cyan]--mode dev[/cyan]")
     console.print("  2. Disable experimental features in your YAML file and rerun")
-    console.print("     Example: Set [cyan]stebbs_method: {value: 0}[/cyan]")
+    console.print("     Example: Set [cyan]stebbs.enabled: {value: false}[/cyan]")
 
 
 def _check_experimental_features_restriction(user_yaml_file, mode):
@@ -945,6 +989,48 @@ def _format_phase_output(
         )
         return output
     return None
+
+
+def _write_consolidated_sidecar(phases: list, report_path) -> None:
+    """Write the consolidated multi-phase ``ValidationReport`` JSON sidecar.
+
+    gh#1467: the CLI sidecar (``<report>.json``) carries the full
+    multi-phase ``ValidationReport`` (every phase, every severity) so
+    non-error informational messages reach machine consumers, not just
+    validation errors. The payload is identical to the stdout
+    ``--format json`` envelope's ``data.validation_report``.
+
+    This supersedes the Phase-C-only ``PhaseReport`` sidecar that
+    ``run_phase_c`` (and the move/copy helpers) leave at this path during
+    the pipeline run. A serialisation or I/O failure is swallowed (with a
+    ``SUEWS_DEBUG`` note) so a sidecar problem never breaks validation,
+    mirroring ``_sync_report_json_paths``.
+
+    Parameters
+    ----------
+    phases : list
+        The ``PhaseReport`` objects for the phases that ran, in order.
+    report_path : str or pathlib.Path
+        Final text report path; the sidecar is written beside it with a
+        ``.json`` suffix.
+    """
+    if not report_path:
+        return
+
+    from ..data_model.validation.pipeline.report_schema import (
+        JSON_REPORT_WRITER,
+        ValidationReport,
+    )
+
+    json_path = Path(report_path).with_suffix(".json")
+    try:
+        JSON_REPORT_WRITER.write(json_path, ValidationReport(phases=list(phases)))
+    except (OSError, TypeError, ValueError) as exc:
+        if os.environ.get("SUEWS_DEBUG", "").lower() in ("1", "true", "yes"):
+            print(
+                f"[DEBUG] consolidated sidecar write failed for {json_path}: {exc}",
+                file=sys.stderr,
+            )
 
 
 def _emit_pipeline_result(
@@ -992,6 +1078,36 @@ def _emit_pipeline_result(
 
     has_errors = any(p.has_errors for p in phases)
     ok = not has_errors
+
+    # gh#1467: in a consolidated run the per-phase intermediate artefacts
+    # (temp_report*_ reports, updated*_ YAMLs) are merged into and deleted in
+    # favour of the single final report/YAML. Their in-memory PhaseReport
+    # objects still carry the intermediate paths, so normalise each phase's
+    # paths to the surviving artefacts before publishing them — otherwise the
+    # JSON sidecar and envelope advertise paths to files that no longer exist.
+    if report_path:
+        final_text_report = str(report_path)
+        final_json_report = str(Path(report_path).with_suffix(".json"))
+        for phase_report in phases:
+            # The consolidated report supersedes the per-phase reports.
+            phase_report.text_report_path = final_text_report
+            phase_report.json_report_path = final_json_report
+            # Per-phase YAML artefacts are intermediate: a phase's input or
+            # output may have been consolidated/deleted, or never produced by
+            # a failed phase. Clear any path that no longer resolves rather
+            # than mislabel another phase's surviving file as this one's.
+            # Paths that still exist (the original user YAML, or the final
+            # phase's own output) are left intact, so the surviving final
+            # YAML is still attributed to the phase that actually produced it.
+            if phase_report.yaml_in and not Path(phase_report.yaml_in).exists():
+                phase_report.yaml_in = None
+            if phase_report.yaml_out and not Path(phase_report.yaml_out).exists():
+                phase_report.yaml_out = None
+
+    # gh#1467: persist the consolidated multi-phase ValidationReport as the
+    # JSON sidecar next to the final text report, in BOTH table and json
+    # output modes (the sidecar is a disk artefact, independent of stdout).
+    _write_consolidated_sidecar(phases, report_path)
 
     if out_format == "json":
         validation_report = ValidationReport(phases=list(phases))
@@ -1178,11 +1294,11 @@ def _execute_pipeline(
     import tempfile
 
     sample_data_files = importlib.resources.files("supy") / "sample_data"
-    standard_config_content = (sample_data_files / "sample_config.yml").read_text()
+    standard_config_content = (sample_data_files / "sample_config.yml").read_text(encoding="utf-8")
 
     # Write to a persistent temp file that won't be deleted during pipeline execution
     with tempfile.NamedTemporaryFile(
-        mode="w", suffix=".yml", delete=False
+        encoding="utf-8", mode="w", suffix=".yml", delete=False
     ) as tmp_standard:
         tmp_standard.write(standard_config_content)
         standard_yaml_file = tmp_standard.name

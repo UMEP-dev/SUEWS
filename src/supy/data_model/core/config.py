@@ -203,73 +203,70 @@ class SUEWSConfig(BaseModel):
 
     # Class-level constant for STEBBS validation parameters
     STEBBS_REQUIRED_PARAMS: ClassVar[List[str]] = [
-        "wall_internal_convection_coefficient",
-        "internal_mass_convection_coefficient",
-        "floor_internal_convection_coefficient",
-        "window_internal_convection_coefficient",
-        "wall_external_convection_coefficient",
-        "window_external_convection_coefficient",
-        "ground_depth",
-        "external_ground_conductivity",
-        "metabolism_threshold",
-        "latent_sensible_ratio",
+        "convection_coefficient_wall_internal",
+        "convection_coefficient_internal_mass",
+        "convection_coefficient_ground_floor_internal",
+        "convection_coefficient_window_internal",
+        "convection_coefficient_wall_external",
+        "convection_coefficient_window_external",
+        "depth_ground",
+        "thermal_conductivity_ground",
+        "threshold_metabolism",
+        "ratio_latent_sensible",
         "daylight_control",
-        "lighting_illuminance_threshold",
-        "appliance_profile",
-        "lighting_power_density",
-        "heating_system_efficiency",
-        "max_cooling_power",
-        "cooling_system_cop",
-        "ventilation_rate",
-        "initial_outdoor_temperature",
-        "initial_indoor_temperature",
-        "annual_mean_air_temperature",
-        "month_mean_air_temperature_diffmax",
-        "hot_water_tank_wall_thickness",
-        "mains_water_temperature",
-        "hot_water_tank_surface_area",
-        "hot_water_heating_setpoint_temperature",
-        "hot_water_tank_wall_emissivity",
-        "hot_water_vessel_wall_thickness",
-        "hot_water_volume",
-        "hot_water_surface_area",
-        "hot_water_flow_rate",
-        "hot_water_flow_profile",
-        "hot_water_specific_heat_capacity",
-        "hot_water_tank_specific_heat_capacity",
-        "hot_water_vessel_specific_heat_capacity",
-        "hot_water_density",
-        "hot_water_tank_wall_density",
-        "hot_water_vessel_density",
-        "hot_water_tank_building_wall_view_factor",
-        "hot_water_tank_internal_mass_view_factor",
-        "hot_water_tank_wall_conductivity",
-        "hot_water_tank_internal_wall_convection_coefficient",
-        "hot_water_tank_external_wall_convection_coefficient",
-        "hot_water_vessel_wall_conductivity",
-        "hot_water_vessel_internal_wall_convection_coefficient",
-        "hot_water_vessel_external_wall_convection_coefficient",
-        "hot_water_vessel_wall_emissivity",
-        "hot_water_heating_efficiency",
+        "threshold_lighting_illuminance",
+        "profile_appliance",
+        "power_density_lighting",
+        "efficiency_heating_system_air",
+        "max_power_cooling_system_air",
+        "efficiency_cooling_system_air",
+        "rate_ventilation",
+        "temperature_air_outdoor_initial",
+        "temperature_air_indoor_initial",
+        "temperature_air_annual_mean",
+        "temperature_air_month_mean_diffmax",
+        "thickness_hot_water_tank_wall",
+        "temperature_mains_water",
+        "surface_area_hot_water_tank",
+        "setpoint_temperature_heating_water",
+        "emissivity_hot_water_tank_wall",
+        "thickness_hot_water_vessel_wall",
+        "volume_hot_water",
+        "surface_area_hot_water",
+        "rate_flow_hot_water",
+        "profile_flow_hot_water",
+        "specific_heat_capacity_hot_water",
+        "specific_heat_capacity_hot_water_tank_wall",
+        "specific_heat_capacity_hot_water_vessel_wall",
+        "density_hot_water",
+        "density_hot_water_tank_wall",
+        "density_hot_water_vessel_wall",
+        "conductivity_hot_water_tank_wall",
+        "convection_coefficient_hot_water_tank_wall_internal",
+        "convection_coefficient_hot_water_tank_wall_external",
+        "conductivity_hot_water_vessel_wall",
+        "convection_coefficient_hot_water_tank_vessel_internal",
+        "convection_coefficient_hot_water_tank_vessel_external",
+        "emissivity_hot_water_vessel_wall",
+        "efficiency_heating_system_water",
     ]
 
     ARCHETYPE_REQUIRED_PARAMS: ClassVar[List[str]] = [
-        "building_type",
-        "building_name",
-        "building_count",
+        "archetype_name",
+        "archetype_building_count",
         "occupants",
-        "metabolism_profile",
-        "building_height",
-        "footprint_area",
-        "wall_external_area",
-        "internal_volume_ratio",
-        "internal_mass_area",
-        "window_to_wall_ratio",
+        "profile_metabolism",
+        "archetype_height",
+        "area_footprint",
+        "area_wall_external",
+        "ratio_internal_mass_volume",
+        "area_internal_mass",
+        "ratio_window_to_wall",
         "thickness_wall",
         "conductivity_wall",
         "density_wall",
         "specific_heat_capacity_wall",
-        "fraction_wall_heat_capacity_outer",
+        "fraction_heat_capacity_wall_external",
         "emissivity_wall_external",
         "emissivity_wall_internal",
         "transmissivity_wall_external",
@@ -291,13 +288,13 @@ class SUEWSConfig(BaseModel):
         "density_internal_mass",
         "specific_heat_capacity_internal_mass",
         "emissivity_internal_mass",
-        "max_heating_power",
-        "hot_water_tank_volume",
-        "maximum_hot_water_heating_power",
-        "heating_setpoint_temperature",
-        "cooling_setpoint_temperature",
-        "heating_setpoint_temperature_profile",
-        "cooling_setpoint_temperature_profile",
+        "max_power_heating_system_air",
+        "volume_hot_water_tank",
+        "max_power_heating_system_water",
+        "setpoint_temperature_heating_air",
+        "setpoint_temperature_cooling_air",
+        "profile_setpoint_temperature_heating_air",
+        "profile_setpoint_temperature_cooling_air",
     ]
 
     # Sort the filtered columns numerically
@@ -1496,7 +1493,7 @@ class SUEWSConfig(BaseModel):
         try:
             import yaml
 
-            with open(yaml_path, "r") as f:
+            with open(yaml_path, "r", encoding="utf-8") as f:
                 data = yaml.safe_load(f)
 
             # Navigate to the surface using path like "sites[0]/properties/land_cover/paved"
@@ -1534,29 +1531,52 @@ class SUEWSConfig(BaseModel):
             self._validation_summary["sites_with_issues"].append(site_name)
         return True
 
-    def _needs_stebbs_validation(self) -> bool:
+    def _composed_stebbsmethod(self):
         """
-        Return True if STEBBS should be validated,
-        i.e. physics.stebbs == 1.
-        """
+        Compose the legacy ``stebbsmethod`` integer from the nested STEBBS block.
 
+        gh#1456: the STEBBS master toggle is now nested as
+        ``model.physics.stebbs.enabled`` + ``.parameters``. These compose back
+        to the single legacy ``stebbsmethod`` code: ``0`` when disabled,
+        otherwise ``int(parameters)`` (1 for DEFAULT, 2 for PROVIDED).
+
+        Returns
+        -------
+        int or None
+            The composed ``stebbsmethod`` code (0/1/2), or ``None`` when the
+            STEBBS block / toggle is absent or unreadable.
+        """
         if not hasattr(self.model, "physics") or not hasattr(
             self.model.physics, "stebbs"
         ):
-            return False
+            return None
 
-        stebbs_method = self.model.physics.stebbs
+        stebbs = self.model.physics.stebbs
 
-        if hasattr(stebbs_method, "value"):
-            stebbs_method = stebbs_method.value
-        if hasattr(stebbs_method, "__int__"):
-            stebbs_method = int(stebbs_method)
-        if isinstance(stebbs_method, str) and stebbs_method == "1":
-            stebbs_method = 1
+        enabled = getattr(stebbs, "enabled", None)
+        if hasattr(enabled, "value"):
+            enabled = enabled.value
+        if not bool(enabled):
+            return 0
 
-        # print(f"Final stebbs_method value for validation: {stebbs_method} (type: {type(stebbs_method)})")
+        parameters = getattr(stebbs, "parameters", None)
+        if hasattr(parameters, "value"):
+            parameters = parameters.value
+        if hasattr(parameters, "__int__"):
+            parameters = int(parameters)
+        if isinstance(parameters, str) and parameters.isdigit():
+            parameters = int(parameters)
 
-        return stebbs_method == 1
+        return parameters if isinstance(parameters, int) else 1
+
+    def _needs_stebbs_validation(self) -> bool:
+        """
+        Return True if STEBBS should be validated.
+
+        i.e. STEBBS is enabled with default parameters (composed
+        ``stebbsmethod`` == 1).
+        """
+        return self._composed_stebbsmethod() == 1
 
     def _validate_stebbs(self, site: Site, site_index: int) -> List[str]:
         """
@@ -1627,14 +1647,14 @@ class SUEWSConfig(BaseModel):
                 if val is None:
                     missing_params.append(param)
 
-        # Check if window_to_wall_ratio is present and zero or one
-        wwr = getattr(building_archetype, "window_to_wall_ratio", None)
+        # Check if ratio_window_to_wall is present and zero or one
+        wwr = getattr(building_archetype, "ratio_window_to_wall", None)
         wwr_val = _unwrap_value(wwr) if wwr is not None else None
 
         # Window parameter lists
         window_params_stebbs = [
-            "window_internal_convection_coefficient",
-            "window_external_convection_coefficient",
+            "convection_coefficient_window_internal",
+            "convection_coefficient_window_external",
         ]
         window_params_bldgarc = [
             "thickness_window",
@@ -1648,10 +1668,10 @@ class SUEWSConfig(BaseModel):
             "reflectivity_window_external",
         ]
 
-        # Wall parameter lists for window_to_wall_ratio == 1.0
+        # Wall parameter lists for ratio_window_to_wall == 1.0
         wall_params_stebbs = [
-            "wall_external_convection_coefficient",
-            "wall_internal_convection_coefficient",
+            "convection_coefficient_wall_external",
+            "convection_coefficient_wall_internal",
             ]
         wall_params_bldgarc = [
             "emissivity_wall_external",
@@ -1666,7 +1686,9 @@ class SUEWSConfig(BaseModel):
         ]
 
         # Check setpoint value
-        setpointmethod = getattr(self.model.physics, "setpoint", None)
+        # gh#1456: setpoint method moved to model.physics.stebbs.setpoint.
+        stebbs_physics = getattr(self.model.physics, "stebbs", None)
+        setpointmethod = getattr(stebbs_physics, "setpoint", None) if stebbs_physics is not None else None
         setpointmethod_val = _unwrap_value(setpointmethod) if setpointmethod is not None else None
         try:
             setpointmethod_val = int(setpointmethod_val)
@@ -1675,12 +1697,12 @@ class SUEWSConfig(BaseModel):
 
         # Setpoint parameter groups
         setpoint_params_bldgarc = [
-            "heating_setpoint_temperature",
-            "cooling_setpoint_temperature",
+            "setpoint_temperature_heating_air",
+            "setpoint_temperature_cooling_air",
         ]
         setpoint_profile_params_bldgarc = [
-            "heating_setpoint_temperature_profile",
-            "cooling_setpoint_temperature_profile",
+            "profile_setpoint_temperature_heating_air",
+            "profile_setpoint_temperature_cooling_air",
         ]
 
         # Daylight control parameter groups
@@ -1691,7 +1713,7 @@ class SUEWSConfig(BaseModel):
         except (TypeError, ValueError):
             daylightcontrol_val = None
 
-        daylightcontrol_params_stebbs = ["lighting_illuminance_threshold"]
+        daylightcontrol_params_stebbs = ["threshold_lighting_illuminance"]
 
         # Determine which params to require based on WWR
         if wwr_val == 0.0:
@@ -1907,10 +1929,12 @@ class SUEWSConfig(BaseModel):
         validation for identical surface properties (e.g., albedo or emissivity)
         across all relevant layers.
         """
+        # gh#1456: same_albedo_* moved under model.physics.stebbs.
         physics = getattr(self.model, "physics", None)
-        if not physics or not hasattr(physics, attr):
+        stebbs = getattr(physics, "stebbs", None) if physics else None
+        if not stebbs or not hasattr(stebbs, attr):
             return False
-        val = getattr(getattr(physics, attr), "value", getattr(physics, attr))
+        val = getattr(getattr(stebbs, attr), "value", getattr(stebbs, attr))
         try:
             return int(val) == 1
         except (TypeError, ValueError):
@@ -1970,10 +1994,12 @@ class SUEWSConfig(BaseModel):
         configuration is explicitly enabled (set to 1), which triggers
         validation for identical surface emissivity across all relevant layers.
         """
+        # gh#1456: same_emissivity_* moved under model.physics.stebbs.
         physics = getattr(self.model, "physics", None)
-        if not physics or not hasattr(physics, attr):
+        stebbs = getattr(physics, "stebbs", None) if physics else None
+        if not stebbs or not hasattr(stebbs, attr):
             return False
-        val = getattr(getattr(physics, attr), "value", getattr(physics, attr))
+        val = getattr(getattr(stebbs, attr), "value", getattr(stebbs, attr))
         try:
             return int(val) == 1
         except (TypeError, ValueError):
@@ -2302,7 +2328,7 @@ class SUEWSConfig(BaseModel):
 
         If SPARTACUS is enabled, this function enforces that:
         - The building height (bldgh) does not exceed the domain top (height[nlayer]).
-        - If stebbs_method == 1, the archetype's building_height also does not exceed the domain top.
+        - If stebbs_method == 1, the archetype's archetype_height also does not exceed the domain top.
 
         Parameters
         ----------
@@ -2319,7 +2345,7 @@ class SUEWSConfig(BaseModel):
         Notes
         -----
         - The domain top is defined as the last entry in the vertical_layers.height array (height[nlayer]).
-        - If stebbs_method == 1, both bldgh and building_height are checked.
+        - If stebbs_method == 1, both bldgh and archetype_height are checked.
         - All issues are reported with the site name for clarity.
         """
         issues: List[str] = []
@@ -2346,20 +2372,17 @@ class SUEWSConfig(BaseModel):
                     f"Site '{site_name}' has bldgh={bldgh} exceeding SPARTACUS domain top (height[{nlayer}]={spartacus_top})."
                 )
 
-            # If stebbs == 1, also check building_height
-            stebbs_method = _unwrap_value(getattr(self.model.physics, "stebbs", None))
-
-            try:
-                stebbs_method_val = int(stebbs_method)
-            except (TypeError, ValueError):
-                stebbs_method_val = None
+            # If stebbs == 1, also check archetype_height
+            # gh#1456: compose the legacy stebbsmethod from the nested
+            # model.physics.stebbs (enabled + parameters) block.
+            stebbs_method_val = self._composed_stebbsmethod()
 
             if stebbs_method_val == 1:
                 building_archetype = getattr(props, "building_archetype", None)
-                building_height = _unwrap_value(getattr(building_archetype, "building_height", None)) if building_archetype else None
+                building_height = _unwrap_value(getattr(building_archetype, "archetype_height", None)) if building_archetype else None
                 if building_height is not None and building_height > spartacus_top:
                     issues.append(
-                        f"Site '{site_name}' has building_height={building_height} exceeding SPARTACUS domain top (height[{nlayer}]={spartacus_top})."
+                        f"Site '{site_name}' has archetype_height={building_height} exceeding SPARTACUS domain top (height[{nlayer}]={spartacus_top})."
                     )
         return issues
 
@@ -2692,21 +2715,31 @@ class SUEWSConfig(BaseModel):
             return critical_issues
 
         physics = self.model.physics
+        # gh#1456: several critical physics switches now live on the nested
+        # model.physics.stebbs object. Resolve each critical param against the
+        # top-level physics first, then the nested stebbs container.
+        stebbs = getattr(physics, "stebbs", None)
 
         for param_name in CRITICAL_PHYSICS_PARAMS:
             if hasattr(physics, param_name):
-                param_value = getattr(physics, param_name)
-                # Handle RefValue wrapper
-                if hasattr(param_value, "value"):
-                    actual_value = param_value.value
-                else:
-                    actual_value = param_value
+                container = physics
+            elif stebbs is not None and hasattr(stebbs, param_name):
+                container = stebbs
+            else:
+                continue
 
-                # Check if the parameter is null
-                if actual_value is None:
-                    critical_issues.append(
-                        f"{param_name} is set to null and will cause runtime crash - must be set to appropriate non-null value"
-                    )
+            param_value = getattr(container, param_name)
+            # Handle RefValue wrapper
+            if hasattr(param_value, "value"):
+                actual_value = param_value.value
+            else:
+                actual_value = param_value
+
+            # Check if the parameter is null
+            if actual_value is None:
+                critical_issues.append(
+                    f"{param_name} is set to null and will cause runtime crash - must be set to appropriate non-null value"
+                )
 
         return critical_issues
 
@@ -2794,14 +2827,14 @@ class SUEWSConfig(BaseModel):
             return getattr(value, "value", value)
 
         lai_method = _scalar_value(
-            getattr(physics, "laimethod", LAIMethod.CALCULATED)
+            getattr(physics, "laimethod", LAIMethod.MODELLED)
         )
         require_calculated_lai = lai_method != LAIMethod.OBSERVED.value
 
         fai_method = _scalar_value(
-            getattr(physics, "frontal_area_index", FAIMethod.USE_PROVIDED)
+            getattr(physics, "frontal_area_index", FAIMethod.OBSERVED)
         )
-        require_provided_fai = fai_method == FAIMethod.USE_PROVIDED.value
+        require_provided_fai = fai_method == FAIMethod.OBSERVED.value
 
         def _raw_site_properties(site_index: int) -> Dict[str, Any]:
             """Return the raw ``sites[i].properties`` dict, or an empty
@@ -3322,9 +3355,9 @@ class SUEWSConfig(BaseModel):
             return getattr(value, "value", value)
 
         fai_method = _scalar_value(
-            getattr(physics, "frontal_area_index", FAIMethod.USE_PROVIDED)
+            getattr(physics, "frontal_area_index", FAIMethod.OBSERVED)
         )
-        require_provided_fai = fai_method == FAIMethod.USE_PROVIDED.value
+        require_provided_fai = fai_method == FAIMethod.OBSERVED.value
 
         surface_types = ["bldgs", "grass", "dectr", "evetr", "bsoil", "paved", "water"]
 
@@ -4301,7 +4334,7 @@ class SUEWSConfig(BaseModel):
         Returns:
             SUEWSConfig: Instance of SUEWSConfig initialized from YAML
         """
-        with open(path, "r") as file:
+        with open(path, "r", encoding="utf-8") as file:
             config_data = yaml.load(file, Loader=yaml.FullLoader)
 
         # Snapshot the raw user YAML so site-level completeness checks can
@@ -4364,7 +4397,7 @@ class SUEWSConfig(BaseModel):
 
     def create_multi_index_columns(self, columns_file: str) -> pd.MultiIndex:
         """Create MultiIndex from df_state_columns.txt"""
-        with open(columns_file, "r") as f:
+        with open(columns_file, "r", encoding="utf-8") as f:
             lines = f.readlines()
 
         tuples = []

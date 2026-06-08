@@ -24,6 +24,7 @@ from contextlib import redirect_stdout, redirect_stderr
 from pathlib import Path
 
 from .report_writer import REPORT_WRITER
+from ...core.physics_families import flatten_physics_in_config
 
 # Import Phase A and B functions
 try:
@@ -58,8 +59,13 @@ CRITICAL_PHYSICS_PARAMS = (
     "roughness_sublayer_level",
     "surface_conductance",
     "snow_use",
-    "stebbs",
-    "outer_cap_fraction",
+    # gh#1456: the STEBBS switches now live under model.physics.stebbs.*.
+    # detect_pydantic_defaults recurses into nested dicts and keys the
+    # critical-null check on the bare leaf name, so the nested leaves are
+    # listed here. `enabled`/`parameters` are intentionally omitted -- the
+    # master toggle defaults sensibly (off / default-params) and must not be
+    # flagged as a "missing critical" when a user simply leaves STEBBS off.
+    "capacitance",
     "setpoint",
     "same_albedo_wall",
     "same_albedo_roof",
@@ -78,7 +84,7 @@ def detect_nlayer_from_user_yaml(user_yaml_file: str) -> int:
         nlayer value (defaults to 3 if not found or on error)
     """
     try:
-        with open(user_yaml_file, "r") as f:
+        with open(user_yaml_file, "r", encoding="utf-8") as f:
             user_data = yaml.safe_load(f)
 
         # Navigate: sites[0].properties.vertical_layers.nlayer.value
@@ -300,7 +306,7 @@ def validate_input_file(user_yaml_file: str) -> str:
         )
 
     try:
-        with open(user_yaml_file, "r") as f:
+        with open(user_yaml_file, "r", encoding="utf-8") as f:
             f.read(1)
     except PermissionError:
         raise PermissionError(f"Cannot read input file: {user_yaml_file}")
@@ -974,9 +980,17 @@ def _run_phase_c_legacy(
             try:
                 # Load original YAML data for comparison
                 import yaml
+                from ..core.yaml_helpers import load_user_yaml_normalised
 
-                with open(input_yaml_file, "r") as f:
-                    original_data = yaml.safe_load(f)
+                # Normalise legacy field spellings so the critical-null
+                # comparison below (detect_pydantic_defaults) matches the
+                # current-name keys in processed_data. Without this, a legacy
+                # spelling of a renamed critical parameter (e.g.
+                # outer_cap_fraction -> capacitance) set to null slips the
+                # critical-null check and can crash later in df_state conversion
+                # via int(None). gh#1457.
+                original_data = load_user_yaml_normalised(input_yaml_file)
+                flatten_physics_in_config(original_data)
 
                 config = SUEWSConfig.from_yaml(input_yaml_file)
 
@@ -1004,8 +1018,9 @@ def _run_phase_c_legacy(
                     with importlib.resources.as_file(
                         sample_data_files / "sample_config.yml"
                     ) as standard_yaml_path:
-                        with open(standard_yaml_path, "r") as f:
+                        with open(standard_yaml_path, "r", encoding="utf-8") as f:
                             standard_data = yaml.safe_load(f)
+                        flatten_physics_in_config(standard_data)
                 except FileNotFoundError:
                     print(
                         "Warning: Standard config file not found, reporting all defaults"
@@ -1142,8 +1157,16 @@ def _run_phase_c_legacy(
                         ):
                             consolidated_no_action.append(line.strip())
 
-                # Only add INFO section if there are items to show
-                if consolidated_no_action:
+                # A single-phase Phase C run that detected defaults reports
+                # them as the whole story (INFO-only). For multi-phase runs
+                # the upstream sections (Phase A renames, Phase B REVIEW
+                # ADVISED / SUGGESTED UPDATES carried in no_action_messages)
+                # are consolidated below and must NOT be replaced by an
+                # INFO-only report — see gh#1458, gh#1466. Defer to
+                # create_consolidated_report in that case.
+                if consolidated_no_action and not (
+                    phases_run and len(phases_run) > 1
+                ):
                     success_report = f"""# {title}
 # ============================================
 # Mode: {"Public" if mode.lower() == "public" else mode.title()}
@@ -1191,8 +1214,10 @@ def _run_phase_c_legacy(
                             print(f"[DEBUG]   Taking multi-phase consolidation path", file=sys.stderr)
                         # Multi-phase consolidation: use passed messages or extract from files
                         if no_action_messages is not None:
-                            # Use passed messages (variable-based approach)
-                            all_messages = no_action_messages
+                            # Use passed messages (variable-based approach).
+                            # Copy so the INFO prepend below cannot mutate the
+                            # caller's list.
+                            all_messages = list(no_action_messages)
                         else:
                             # Fallback: extract from files (file-based approach)
                             all_messages = []
@@ -1212,6 +1237,17 @@ def _run_phase_c_legacy(
                                         science_report_file
                                     )
                                 )
+
+                        # Fold any defaults Phase C detected itself (e.g. a
+                        # missing schema_version) into the INFO section so they
+                        # appear alongside the upstream phase sections rather
+                        # than replacing them (gh#1458, gh#1466).
+                        if consolidated_no_action:
+                            all_messages = [
+                                "## INFO",
+                                *consolidated_no_action,
+                                *all_messages,
+                            ]
 
                         # Create consolidated final report
                         create_consolidated_report(
@@ -1516,14 +1552,18 @@ Modes:
             try:
                 import yaml
 
-                with open(user_yaml_file, "r") as f:
+                with open(user_yaml_file, "r", encoding="utf-8") as f:
                     user_yaml_data = yaml.safe_load(f)
+                flatten_physics_in_config(user_yaml_data)
 
                 # Check public mode restrictions.
-                # Read physics keys via read_physics_key, which accepts both
-                # the new snake_case name and its legacy alias — the Pydantic
-                # shim accepts both, so this gate must as well.
+                # Read physics keys via helpers that accept both the new
+                # snake_case name and its legacy alias — the Pydantic shim
+                # accepts both, so this gate must as well.
                 from supy.data_model.core.field_renames import read_physics_key
+                from supy.data_model.validation.core.yaml_helpers import (
+                    get_stebbsmethod_value,
+                )
 
                 physics = (
                     user_yaml_data.get("model", {}).get("physics", {})
@@ -1532,10 +1572,18 @@ Modes:
                 )
                 restrictions_violated = []
 
-                stebbs_method = read_physics_key(physics, "stebbs")
-                if stebbs_method is not None and stebbs_method != 0:
+                # gh#1456: use the shared composer so nested bool-like strings
+                # (`off`, `false`, `0`, etc.) follow Pydantic semantics.
+                try:
+                    stebbsmethod = get_stebbsmethod_value(physics)
+                except ValueError as exc:
                     restrictions_violated.append(
-                        "STEBBS is enabled (stebbs != 0)"
+                        f"Invalid STEBBS physics configuration: {exc}"
+                    )
+                    stebbsmethod = None
+                if stebbsmethod is not None and stebbsmethod != 0:
+                    restrictions_violated.append(
+                        "STEBBS is enabled (stebbs.enabled is true)"
                     )
 
                 snowuse = read_physics_key(physics, "snow_use")
@@ -1561,7 +1609,7 @@ Modes:
                     print(
                         "  2. Disable developer features in your YAML file and rerun processor:"
                     )
-                    print("     - Set stebbs = 0 (if enabled)")
+                    print("     - Set stebbs.enabled = false (if enabled)")
                     print("     - Set snow_use = 0 (if enabled)")
                     print()
                     print("Processor halted due to mode restrictions")

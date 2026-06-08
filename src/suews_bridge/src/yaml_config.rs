@@ -1695,7 +1695,12 @@ fn apply_building_archetype_overrides(
             continue;
         }
 
-        if field_name == "appliance_profile" {
+        // `profile_appliance` (dev12) aliases to the fused `applianceprofile`
+        // in FIELD_RENAMES, unlike sibling profile fields which carry PascalCase
+        // ancestry (see field_renames.rs "PascalCase ancestry" note). The fused
+        // form does not de-camelCase back to `appliance_profile`, so match it
+        // explicitly or the canonical key silently drops the profile (gh#1459).
+        if field_name == "appliance_profile" || field_name == "applianceprofile" {
             apply_day_profile_overrides(&mut mapped, field_value, "applianceprofile", 144)?;
             continue;
         }
@@ -1753,9 +1758,12 @@ fn apply_stebbs_overrides(site: &mut SuewsSite, site_root: &Value) -> Result<(),
             continue;
         }
 
-        if field_name == "appliance_profile" {
-            // STEBBS YAML stores appliance demand profile under `stebbs`, but
-            // the physics consumes it from building archetype parameters.
+        // STEBBS YAML stores appliance demand profile under `stebbs`, but
+        // the physics consumes it from building archetype parameters. The dev12
+        // key `profile_appliance` aliases to the fused `applianceprofile`, which
+        // does not de-camelCase back to `appliance_profile`; match both so the
+        // canonical key applies the profile (gh#1459).
+        if field_name == "appliance_profile" || field_name == "applianceprofile" {
             apply_day_profile_overrides(
                 &mut archetype_mapped,
                 field_value,
@@ -2367,6 +2375,30 @@ mod tests {
     }
 
     #[test]
+    fn applies_appliance_profile_under_canonical_key() {
+        // gh#1459: the dev12 key `profile_appliance` must still drive the
+        // appliance demand profile through the Rust loader. It aliases to the
+        // fused `applianceprofile`, which earlier slipped past the override
+        // matcher and silently left the profile at its zero default.
+        let yaml_str =
+            include_str!("../../../test/fixtures/data_test/stebbs_test/sample_config.yml");
+        let mut root: Value = serde_yaml::from_str(yaml_str).expect("fixture YAML should parse");
+        let run_cfg = load_run_config_from_value(&mut root).expect("run config should parse");
+        let max_appliance = run_cfg
+            .site
+            .building_archtype
+            .applianceprofile
+            .iter()
+            .flatten()
+            .cloned()
+            .fold(0.0_f64, f64::max);
+        assert!(
+            max_appliance > 1.0,
+            "appliance profile not applied from `profile_appliance` (max={max_appliance})"
+        );
+    }
+
+    #[test]
     fn parses_ohm_legacy_surface_field_names() {
         let yaml_str =
             include_str!("../../../test/fixtures/data_test/stebbs_test/sample_config.yml");
@@ -2417,12 +2449,16 @@ mod tests {
             include_str!("../../../test/fixtures/data_test/stebbs_test/sample_config.yml");
         let mut root: Value = serde_yaml::from_str(yaml_str).expect("fixture YAML should parse");
         let site = first_site_mut(&mut root).expect("fixture should contain a first site");
+        // The raw fixture key is the canonical dev12 name (gh#1459); the
+        // validator's error label is the normalised internal name
+        // (`HeatingSetpointTemperatureProfile`, via `profile_label`), so the
+        // navigation key and the asserted label intentionally differ.
         let working_day = get_path_mut(
             site,
             &[
                 "properties",
                 "building_archetype",
-                "HeatingSetpointTemperatureProfile",
+                "profile_setpoint_temperature_heating_air",
                 "working_day",
             ],
         )
@@ -2445,12 +2481,14 @@ mod tests {
             include_str!("../../../test/fixtures/data_test/stebbs_test/sample_config.yml");
         let mut root: Value = serde_yaml::from_str(yaml_str).expect("fixture YAML should parse");
         let site = first_site_mut(&mut root).expect("fixture should contain a first site");
+        // Raw fixture key is the canonical dev12 name (gh#1459); the error
+        // label below stays the normalised internal name (`profile_label`).
         let working_day = get_path_mut(
             site,
             &[
                 "properties",
                 "building_archetype",
-                "CoolingSetpointTemperatureProfile",
+                "profile_setpoint_temperature_cooling_air",
                 "working_day",
             ],
         )
@@ -2477,8 +2515,9 @@ mod tests {
     // accepts either spelling transparently and returns the same
     // `RunConfig` regardless of which one the user wrote.
     //
-    // The fixture already carries new-style names; the legacy variant is
-    // produced by running `normalize_field_names` on a cloned tree first.
+    // The fixture carries new-style names throughout (ModelPhysics since
+    // #1308, STEBBS/archetype since gh#1459); the legacy variant is produced
+    // by running `normalize_field_names` on a cloned tree first.
 
     const FIXTURE_NEW_NAMES: &str =
         include_str!("../../../test/fixtures/data_test/stebbs_test/sample_config.yml");
@@ -2496,6 +2535,15 @@ mod tests {
         assert_eq!(run_cfg.config.net_radiation_method, 1003);
         assert_eq!(run_cfg.config.storage_heat_method, 7);
         assert_eq!(run_cfg.config.emissions_method, 2);
+
+        // gh#1456: STEBBS switches sourced from the nested
+        // `model.physics.stebbs` object in the fixture (enabled=true,
+        // parameters=1 -> stebbsmethod 1; capacitance=2 -> rcmethod 2;
+        // setpoint=0). These land at flat config indices 18/19/20
+        // (Fortran flat(19)/flat(20)/flat(21)).
+        assert_eq!(run_cfg.config.stebbs_method, 1);
+        assert_eq!(run_cfg.config.rc_method, 2);
+        assert_eq!(run_cfg.config.setpoint_method, 0);
 
         // Surface fields — paved `state_limit` = 0.48 in the fixture.
         assert!((run_cfg.site.lc_paved.state_limit - 0.48).abs() < 1.0e-12);
@@ -2611,6 +2659,68 @@ mod tests {
                 - cfg_old.site.lc_paved.soil.soil_store_capacity)
                 .abs()
                 < 1.0e-12
+        );
+    }
+
+    #[test]
+    fn load_run_config_nested_and_flat_stebbs_parse_identically() {
+        // gh#1456 highest-risk check (design doc section 5.1): the nested
+        // `model.physics.stebbs` object and the legacy flat form must produce
+        // identical Fortran config, especially flat(19)=stebbsmethod,
+        // flat(20)=rcmethod, flat(21)=setpointmethod.
+        //
+        // `cfg_nested` parses the fixture as-is (nested shape). `cfg_flat`
+        // rewrites the nested object into the legacy flat keys the pre-gh#1456
+        // YAML used (master toggle `stebbs: {value: 1}` composed from
+        // enabled=true+parameters=1, plus flat `outer_cap_fraction` /
+        // `setpoint` / `same_*` siblings).
+        let mut root_nested: Value =
+            serde_yaml::from_str(FIXTURE_NEW_NAMES).expect("fixture YAML should parse");
+        let mut root_flat: Value =
+            serde_yaml::from_str(FIXTURE_NEW_NAMES).expect("fixture YAML should parse");
+
+        let physics = get_path_mut(&mut root_flat, &["model", "physics"])
+            .expect("fixture should contain model.physics");
+        let Value::Mapping(map) = physics else {
+            panic!("model.physics should be a mapping");
+        };
+        // Drop the nested object and lay down the legacy flat equivalents.
+        map.remove(Value::String("stebbs".into()));
+        let flat = |v: i64| {
+            let mut m = serde_yaml::Mapping::new();
+            m.insert(Value::String("value".into()), Value::Number(v.into()));
+            Value::Mapping(m)
+        };
+        // enabled=true, parameters=1 -> master toggle StebbsMethod code 1.
+        map.insert(Value::String("stebbs".into()), flat(1));
+        map.insert(Value::String("outer_cap_fraction".into()), flat(2));
+        map.insert(Value::String("setpoint".into()), flat(0));
+        map.insert(Value::String("same_albedo_wall".into()), flat(0));
+        map.insert(Value::String("same_albedo_roof".into()), flat(0));
+        map.insert(Value::String("same_emissivity_wall".into()), flat(0));
+        map.insert(Value::String("same_emissivity_roof".into()), flat(0));
+
+        let cfg_nested =
+            load_run_config_from_value(&mut root_nested).expect("parse nested STEBBS");
+        let cfg_flat = load_run_config_from_value(&mut root_flat).expect("parse flat STEBBS");
+
+        // flat(19)/flat(20)/flat(21) — the only STEBBS switches in the c_api
+        // flat config indices (the four same_* switches are Python-only).
+        assert_eq!(cfg_nested.config.stebbs_method, 1);
+        assert_eq!(cfg_nested.config.rc_method, 2);
+        assert_eq!(cfg_nested.config.setpoint_method, 0);
+        assert_eq!(cfg_nested.config.stebbs_method, cfg_flat.config.stebbs_method);
+        assert_eq!(cfg_nested.config.rc_method, cfg_flat.config.rc_method);
+        assert_eq!(
+            cfg_nested.config.setpoint_method,
+            cfg_flat.config.setpoint_method
+        );
+
+        // The full flat config arrays must be byte-for-byte identical.
+        assert_eq!(
+            cfg_nested.config.to_flat(),
+            cfg_flat.config.to_flat(),
+            "nested and flat STEBBS YAML must yield identical Fortran config"
         );
     }
 

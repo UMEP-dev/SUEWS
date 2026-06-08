@@ -23,19 +23,36 @@ SUEWS-specific Python conventions. Complements ruff for standard linting.
 
 ## Critical Rules
 
-1. **Config separation**: No config objects in low-level functions
+1. **Python 3.9 compatibility**: Use `Optional[X]` not `X | None` for union types
+   ```python
+   from typing import Optional, Union
+
+   # BAD: PEP 604 syntax requires Python 3.10+
+   def foo(x: str | None = None): ...
+   def bar(items: list[int] | None): ...
+
+   # GOOD: Works on Python 3.9+
+   def foo(x: Optional[str] = None): ...
+   def bar(items: Optional[list[int]]): ...
+   ```
+   **Why**: PEP 604 union syntax (`X | Y`) requires Python 3.10+. Pydantic evaluates
+   type hints at runtime, so `from __future__ import annotations` is not a safe
+   workaround. Enforced by ruff rule `FA102` (configured in `.ruff.toml`), which is
+   marked `unfixable` there because its autofix would add the unsafe future import.
+
+2. **Config separation**: No config objects in low-level functions
    ```python
    # BAD: def save_supy(df_output, config): ...
    # GOOD: def save_supy(df_output, freq_s: int = 3600): ...
    ```
 
-2. **Deep copy**: Use `copy.deepcopy()` for mutable state
+3. **Deep copy**: Use `copy.deepcopy()` for mutable state
 
-3. **Logging**: Use `logger_supy` not `print()`
+4. **Logging**: Use `logger_supy` not `print()`
 
-4. **pathlib**: Use `Path` not `os.path`
+5. **pathlib**: Use `Path` not `os.path`
 
-5. **UTF-8 encoding**: Always specify `encoding="utf-8"` for file operations
+6. **UTF-8 encoding**: Always specify `encoding="utf-8"` for file operations
    ```python
    # BAD: Windows default encoding (cp1252/cp1253) breaks Unicode
    with open(path, "w") as f:
@@ -49,7 +66,27 @@ SUEWS-specific Python conventions. Complements ruff for standard linting.
    ```
    **Why**: Windows uses locale-specific encodings by default (e.g., cp1252, cp1253).
    Unicode characters like `→` cause `UnicodeEncodeError` and produce empty files.
-   See issue #1097 for details.
+   See issue #1097 for details. This also covers `read_text`/`write_text` and
+   text-mode `tempfile.NamedTemporaryFile`.
+
+   **Enforced in CI**: `.github/workflows/encoding-audit.yml` runs two
+   complementary checks over the repo on every PR touching a `.py` file:
+   - ruff `PLW1514` (`unspecified-encoding`) — covers builtin `open()`,
+     text-mode `tempfile.NamedTemporaryFile`, and `read_text`/`write_text`
+     whose receiver type ruff can resolve. The rule is preview-only, so
+     the workflow passes `--preview` explicitly. Most violations autofix
+     with `ruff check --preview --select PLW1514 --fix --unsafe-fixes .`.
+   - `scripts/lint/check_pathlib_encoding.py` — an AST check that flags
+     `read_text`/`write_text`, and text-mode `Path.open()`, on *any*
+     receiver (e.g. `p.write_text(...)` or `with p.open() as f:` where `p`
+     is a plain variable), which PLW1514 silently skips because it cannot
+     infer the type. The `.open()` check is mode-aware: it skips binary
+     modes and `zipfile`/`tarfile`-style `.open(name)` calls (non-mode
+     first arg) to avoid false positives. `read_text`/`write_text` are
+     pathlib-specific names, so those are flagged unconditionally.
+
+   A maintainer can label a PR `0-ci:encoding-audit-ok` to bypass when a
+   flagged call is genuinely correct without UTF-8.
 
 ---
 

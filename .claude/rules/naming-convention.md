@@ -4,10 +4,14 @@ Rules for naming user-facing identifiers in SUEWS — YAML parameters, YAML
 enum values, forcing column names, error-message field references, and
 the Python data-model field names that mirror them.
 
-> **Status (2026-04-29)**: This document is under review. It is the
-> canonical reference for any rename PR while the team signs off. Once
-> signed off, the "draft" framing here is removed. Track sign-off in
-> the originating PR.
+> **Status**: Adopted. Drafted 2026-04-29 and reviewed and merged via
+> the RFC pull request #1377 on 2026-05-01 (review by C. S. Grimmond);
+> the merge date is recorded here retrospectively. This is the canonical
+> reference for naming decisions across SUEWS user-facing identifiers
+> and the Python data-model fields that mirror them. The word-ordering
+> rules below are settled; their application to specific STEBBS field
+> names is still being reconciled with the Reading STEBBS team
+> (see the originating rename PRs).
 
 > **Scope**: User-facing identifiers and the Python data-model fields
 > that mirror them. Fortran TYPE members and Rust struct field names
@@ -121,9 +125,11 @@ Examples:
 
 - `profile_appliance` (was `appliance_profile`).
 - `profile_metabolism` (was `metabolism_profile`).
-- `control_daylight` (was `daylight_control`).
 - `ratio_internal_volume` (was `internal_volume_ratio`).
 - `threshold_lighting_illuminance` (was `lighting_illuminance_threshold`).
+- (`control_*` has no current STEBBS instance: the one boolean switch,
+  `daylight_control`, keeps the Reading idiom rather than the prefix —
+  see Specific tokens.)
 
 Adding a new category prefix requires a convention amendment. The list
 above is closed; do not invent new prefixes inline.
@@ -146,6 +152,30 @@ This exception exists because `name_archetype` reads as *the name of
 the namespace itself*, not *a name field within an archetype*. New
 namespace prefixes require a convention amendment — they are not
 added casually.
+
+### Exception — established compound nouns are kept intact
+
+A small set of identifiers are recognised compound nouns or
+terms-of-art whose constituent words form a single conventional phrase.
+Reordering them to put a physical quantity first would *reduce*
+readability rather than improve grep-ability, so they are kept as
+written and **not** reordered under Rule 2:
+
+- `ground_depth`
+- `ventilation_rate`
+- `lighting_power_density`
+
+The test for membership: the phrase is one a domain reader would say
+aloud as a unit ("ventilation rate", "lighting power density"), and
+splitting the quantity off the front would read awkwardly
+(`rate_ventilation`, `power_density_lighting`). This list is closed;
+adding to it requires a convention amendment. When in doubt, apply
+Rule 2 (reorder) — this exception is deliberately narrow.
+
+`month_mean_air_temperature_diffmax` is **not** in this list: it was
+reordered under Rule 2 to the canonical `temperature_air_month_mean_diffmax`
+(dev12, gh#1452). The physical quantity (`temperature_air`) leads, so the
+grep-ability argument applied and the compound-noun exception did not.
 
 ---
 
@@ -324,25 +354,39 @@ canonical choices.
     beyond the building). The wall / roof / window context
     disambiguates.
 - **Building floor at ground level** — `ground_floor` (two words),
-  not `groundfloor`. Snake_case applies.
-- **Heating / cooling distinguishers** — when a STEBBS field could
-  apply to either air or water systems, the qualifier must be
-  explicit. Combined with Rule 2 (physical quantity first), the
-  resulting forms are:
-  - Setpoint temperatures: `temperature_air_heating_setpoint`,
-    `temperature_air_cooling_setpoint`,
-    `temperature_water_heating_setpoint`. The physical quantity is
-    `temperature`; `setpoint` is a sub-class qualifier (a target
-    temperature, as opposed to an observed or controlled one), so it
-    falls at the end. Setpoint *profiles* extend this:
-    `temperature_air_heating_setpoint_profile`.
-  - Maximum powers: `power_air_heating_max`, `power_air_cooling_max`,
-    `power_water_heating_max`. The physical quantity is `power`;
-    `max` is the sub-class qualifier. Same shape as `lai_max`,
-    `snow_density_max`, etc.
-  - Do not leave the `air_` / `water_` qualifier out — bare
-    `temperature_heating_setpoint` is ambiguous between air-system
+  not `groundfloor`. Snake_case applies. The Reading STEBBS team's
+  Column D (2026-05) proposed the fused `groundfloor`; we keep the
+  two-word form because "ground floor" is two words in English
+  (unlike `groundwater`, genuinely one word), and re-fusing it would
+  reintroduce exactly the run-together token the de-fusing effort
+  (`soildepth` → `soil_depth`, `ground_depth`) set out to remove.
+- **Rated capacities and setpoints lead with the qualifier.** Rule 2
+  trails a qualifier that *bounds* a varying quantity (`lai_max`,
+  `snow_density_max` — the seasonal peak of a quantity that changes
+  over the run). But where the qualifier *names* the quantity itself
+  — a rated capacity ("maximum power") or a target ("setpoint
+  temperature"), both fixed parameters rather than bounds on a time
+  series — the qualifier+quantity compound leads as a unit. The
+  STEBBS heating/cooling fields take this shape, adopted from the
+  Reading STEBBS team's Column D (D. Hertwig / S. Rognone, 2026-05):
+  - Setpoint temperatures: `setpoint_temperature_heating_air`,
+    `setpoint_temperature_cooling_air`,
+    `setpoint_temperature_heating_water`. Profiles extend this:
+    `profile_setpoint_temperature_heating_air`,
+    `profile_setpoint_temperature_cooling_air`.
+  - Maximum powers: `max_power_heating_system_air`,
+    `max_power_cooling_system_air`,
+    `max_power_heating_system_water`.
+  - The `air` / `water` medium qualifier must stay explicit — here it
+    trails (`..._heating_system_air`) — because bare
+    `setpoint_temperature_heating` is ambiguous between air-system
     and DHW-system control.
+- **DHW vessel convection coefficients** group under the hot-water
+  tank system: `convection_coefficient_hot_water_tank_vessel_internal`
+  and `..._external`, sitting alongside the tank wall's
+  `convection_coefficient_hot_water_tank_wall_internal` / `..._external`
+  (Reading Column D, 2026-05). The vessel is modelled as part of the
+  tank system, hence the shared `hot_water_tank_` prefix.
 - **`effective_` qualifier** — drop it unless the partner parameters
   for the same component (density, specific heat capacity) also use
   it. The current STEBBS use of `effective_conductivity` next to
@@ -432,14 +476,14 @@ stebbs:
       specific_heat_capacity_wall_outer: 920
       emissivity_wall_external: 0.92             # surface property
       emissivity_wall_internal: 0.93             # surface property
-      temperature_air_heating_setpoint: 19.0     # Rule 2: temperature leads
-      temperature_air_cooling_setpoint: 24.0
-      temperature_water_heating_setpoint: 55.0
-      power_air_heating_max: 8000.0              # Rule 2: power leads
-      power_air_cooling_max: 6000.0
-      power_water_heating_max: 4000.0
+      setpoint_temperature_heating_air: 19.0     # qualifier-first: target temperature
+      setpoint_temperature_cooling_air: 24.0
+      setpoint_temperature_heating_water: 55.0
+      max_power_heating_system_air: 8000.0       # qualifier-first: rated capacity
+      max_power_cooling_system_air: 6000.0
+      max_power_heating_system_water: 4000.0
       profile_appliance: [...]
-      control_daylight: true
+      daylight_control: true
       ratio_internal_volume: 0.3
 ```
 
@@ -454,16 +498,20 @@ Notes on the diff:
   alone — surface property keeps `external`).
 - `effective_conductivity` → `conductivity` (Specific tokens).
 - `heating_setpoint_temperature` →
-  `temperature_air_heating_setpoint`. Three changes at once:
-  Rule 2 puts `temperature` first; the `air_` qualifier
-  disambiguates from DHW (`temperature_water_heating_setpoint`);
-  `setpoint` becomes the trailing sub-class qualifier.
-- `max_heating_power` → `power_air_heating_max`. Rule 2 puts
-  `power` first; `max` is the sub-class qualifier.
+  `setpoint_temperature_heating_air`. "Setpoint temperature" is a
+  named target quantity, so the `setpoint` qualifier leads as a unit
+  (Rated-capacities-and-setpoints rule); the `air` medium qualifier
+  trails to disambiguate from DHW
+  (`setpoint_temperature_heating_water`).
+- `max_heating_power` → `max_power_heating_system_air`. "Maximum
+  power" is a rated capacity, so the `max` qualifier leads; the
+  `air` medium trails.
 - `appliance_profile` → `profile_appliance` (Rule 2 —
   non-physical-quantity, category leads).
-- `daylight_control` → `control_daylight` (same reason).
-- `internal_volume_ratio` → `ratio_internal_volume` (same reason).
+- `daylight_control` — kept as the Reading idiom (the `control_`
+  category prefix is not applied to this flag).
+- `internal_volume_ratio` → `ratio_internal_volume` (Rule 2 —
+  non-physical-quantity, category leads).
 
 The forcing file under this convention (using aliases per Rule 5):
 

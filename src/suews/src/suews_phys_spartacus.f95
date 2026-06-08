@@ -466,20 +466,6 @@ CONTAINS
          !END DO
       END IF
 
-      IF (kdown > 10.0D0 .AND. debug_call_count <= 1) THEN
-         PRINT *, '[SPARTACUS DEBUG] building_frac(:)  = ', canopy_props%building_fraction
-         PRINT *, '[SPARTACUS DEBUG] building_scale(:) = ', canopy_props%building_scale
-         PRINT *, '[SPARTACUS DEBUG] veg_fraction(:)   = ', canopy_props%veg_fraction
-         PRINT *, '[SPARTACUS DEBUG] veg_scale(:)      = ', canopy_props%veg_scale
-         PRINT *, '[SPARTACUS DEBUG] veg_ext(:)        = ', canopy_props%veg_ext
-         PRINT *, '[SPARTACUS DEBUG] veg_fsd(:)        = ', canopy_props%veg_fsd
-         PRINT *, '[SPARTACUS DEBUG] air_ext_sw        = ', air_ext_sw
-         PRINT *, '[SPARTACUS DEBUG] air_ssa_sw        = ', air_ssa_sw
-         PRINT *, '[SPARTACUS DEBUG] veg_ssa_sw        = ', veg_ssa_sw
-         PRINT *, '[SPARTACUS DEBUG] i_representation  = ', canopy_props%i_representation
-         PRINT *, '[SPARTACUS DEBUG] height(:)         = ', height
-      END IF
-
       !!!!!!!!!!!!!! allocate and set canopy top forcing !!!!!!!!!!!!!!
       IF (DiagQN == 1) PRINT *, 'in SPARTACUS, setting canopy top forcing ...'
       ALLOCATE (top_flux_dn_sw(nspec, ncol))
@@ -659,21 +645,6 @@ CONTAINS
             CALL lw_flux%SUM(lw_internal, lw_norm)
          END IF
       END DO
-
-      ! ---- DEBUG: raw radsurf output ----
-      IF (kdown > 10.0D0 .AND. debug_call_count <= 3) THEN
-         debug_call_count = debug_call_count + 1
-         PRINT *, '[SPARTACUS DEBUG] After radsurf loop:'
-         PRINT *, '[SPARTACUS DEBUG] sw_flux%top_net    = ', sw_flux%top_net(nspec, ncol)
-         PRINT *, '[SPARTACUS DEBUG] sw_flux%top_dn     = ', sw_flux%top_dn(nspec, ncol)
-         PRINT *, '[SPARTACUS DEBUG] sw_flux%ground_net = ', sw_flux%ground_net(nspec, ncol)
-         PRINT *, '[SPARTACUS DEBUG] sw_norm_dir%top_net= ', sw_norm_dir%top_net(nspec, ncol)
-         PRINT *, '[SPARTACUS DEBUG] sw_norm_diff%top_net=', sw_norm_diff%top_net(nspec, ncol)
-         PRINT *, '[SPARTACUS DEBUG] cos_sza            = ', canopy_props%cos_sza
-         PRINT *, '[SPARTACUS DEBUG] alb_no_tree_bldg   = ', alb_no_tree_bldg
-         PRINT *, '[SPARTACUS DEBUG] sw_flat_net_spc    = ', sw_flat_net_spc
-      END IF
-      ! ---- END DEBUG ----
 
       ! At night the normalised SW solver may retain NaNs that survive
       ! multiplication by zero incoming shortwave on some x86 runners.

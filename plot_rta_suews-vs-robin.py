@@ -16,7 +16,7 @@ SPARTACUS_FILE = Path("/Users/silviarognone/Documents/UrbanClimate/SUEWS/Output/
 # RAMI4PILPS NetCDF inputs/outputs (Robin)
 HERE = Path(__file__).resolve().parent
 RAMI_SZA_NC = HERE / "rami4pilps.nc"
-RAMI_CASE_NC = HERE / "rami4pilps_vis-med-0.3_out.nc"
+RAMI_CASE_NC = HERE / "rami4pilps_vis-snw-0.3-1-2_out.nc"
 
 OUTPUT_FIG = HERE / "plot_rta_figure.png"
 
@@ -72,7 +72,7 @@ def load_suews_spartacus_rta():
 
     # We only need Zenith for x-axis from SUEWS, but we must use SPARTACUS top-down SW
     check_columns(df_suews, TIME_KEYS + ["Zenith"], "SUEWS file")
-    check_columns(df_sp, TIME_KEYS + ["KTopDnDir", "KTopNet", "GrndDnSWSpc"], "SPARTACUS file")
+    check_columns(df_sp, TIME_KEYS + ["KTopDnDir", "KTopDnDif", "Kup", "GrndDnSWSpc"], "SPARTACUS file")
 
     veg_cols = find_veg_abs_columns(df_sp.columns)
     if not veg_cols:
@@ -98,19 +98,19 @@ def load_suews_spartacus_rta():
 
     # Keep only needed columns
     df_suews = df_suews[TIME_KEYS + ["Zenith"]].copy()
-    df_sp = df_sp[TIME_KEYS + ["KTopDnDir", "KTopNet", "GrndDnSWSpc"] + abs_cols_used].copy()
+    df_sp = df_sp[TIME_KEYS + ["KTopDnDir", "KTopDnDif", "Kup", "GrndDnSWSpc"] + abs_cols_used].copy()
 
     # Merge on timestamps
     df = pd.merge(df_suews, df_sp, on=TIME_KEYS, how="inner")
     if df.empty:
         raise ValueError("Merge produced no rows. Check timestamps in SUEWS/SPARTACUS outputs.")
 
-    # Use SPARTACUS forcing as "top_dn" to match RAMI top_flux_dn_sw
-    df["top_dn"] = df["KTopDnDir"]
+    # Kdown = direct + diffuse at top of canopy
+    df["top_dn"] = df["KTopDnDir"] + df["KTopDnDif"]
 
     # RAMI-consistent definitions
-    # Reflectance flux = top_dn - top_net
-    df["R_raw"] = df["top_dn"] - df["KTopNet"]
+    # Reflectance flux = Kup (upward SW, stored directly)
+    df["R_raw"] = df["Kup"]
     df["T_raw"] = df["GrndDnSWSpc"]
     if ABS_MODE == "layer2":
         df["A_raw"] = df[abs_cols_used[0]]

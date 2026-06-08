@@ -468,6 +468,7 @@ def reverse_convert_table(
     to_ver: str,
     legacy_extras: dict,
     from_ver: str | None = None,
+    legacy_terminators: bool = True,
 ) -> None:
     """Regenerate ``to_ver`` legacy tables from a ``2025a`` table set.
 
@@ -487,6 +488,13 @@ def reverse_convert_table(
         The block from :func:`capture_legacy_extras` for the same ``to_ver``.
     from_ver : str, optional
         Schema version of ``src_dir``; defaults to ``"2025a"``.
+    legacy_terminators : bool, optional
+        Append the two ``-9`` end-of-data sentinel rows the legacy Fortran
+        reader requires (``clean_legacy_table`` strips them for the modern
+        form). Default True so the output is execution-ready; the round-trip
+        data comparison is unaffected because the table reader stops at the
+        first ``-9`` row. Verified: the 2016a binary runs the resulting tables
+        end to end.
     """
     src_dir, out_dir = Path(src_dir), Path(out_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
@@ -508,3 +516,11 @@ def reverse_convert_table(
         path_table = out_dir / fname
         if path_table.exists():
             _reorder_table_columns(path_table, target_header)
+
+    # Append the legacy end-of-data sentinel rows the Fortran reader needs.
+    if legacy_terminators:
+        for path_table in out_dir.glob("SUEWS_*.txt"):
+            text = path_table.read_text(encoding="utf-8")
+            if not text.endswith("\n"):
+                text += "\n"
+            path_table.write_text(text + "-9\n-9\n", encoding="utf-8")

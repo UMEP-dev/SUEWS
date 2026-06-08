@@ -11,14 +11,14 @@ converter's float reformatting, e.g. ``4.11e6`` <-> ``4110000.0``). This is the
 guarantee that matters for re-running the historical Fortran, which reads these
 tables positionally with a list-directed (format-free) parse.
 
-Fixtures are the canonical KCL ``Release/InputTables/<ver>`` sets vendored in the
-``2020a`` git tag; the test extracts them with ``git archive`` and skips cleanly
-where the tag (or git) is unavailable. ``2018b`` is the narrowest delta on the
-chain (one captured delete) and ``2016a`` the widest (173 adds, root layout).
+Fixtures are the canonical KCL parameter tables (no forcing) vendored under
+``test/fixtures/legacy_tables/<ver>/`` (see that README for provenance), so the
+test is self-contained under the standard CI checkout. ``2018b`` is the
+narrowest delta on the chain (one captured delete) and ``2016a`` the widest
+(173 adds, root layout).
 """
 from pathlib import Path
 import shutil
-import subprocess
 
 import pytest
 import yaml
@@ -33,29 +33,26 @@ from supy.util.converter.table.table import (
 )
 from supy.util.converter.table.table_writer import df_state_to_tables
 
-_REPO_ROOT = Path(__file__).resolve().parents[2]
-_TAG = "2020a"
+# Nature axis (gh#1300): exercises the converter / pandas / pydantic surface,
+# not compiled physics.
+pytestmark = pytest.mark.api
+
+# Vendored canonical-KCL parameter tables (no forcing) -- see the fixture
+# README. Self-contained so the test runs under the standard (shallow) CI
+# checkout, rather than extracting from a git tag.
+_FIXTURE_ROOT = Path(__file__).resolve().parents[1] / "fixtures" / "legacy_tables"
 
 
 def _extract_legacy_tables(ver: str, dest: Path) -> Path:
-    """Extract ``Release/InputTables/<ver>`` from the 2020a tag, or skip."""
-    rel = f"Release/InputTables/{ver}"
-    dest.mkdir(parents=True, exist_ok=True)
-    try:
-        archive = subprocess.run(
-            ["git", "-C", str(_REPO_ROOT), "archive", _TAG, rel],
-            capture_output=True,
-            check=True,
-        ).stdout
-    except (subprocess.CalledProcessError, FileNotFoundError) as exc:
-        pytest.skip(f"legacy fixture {ver} unavailable from tag {_TAG}: {exc}")
-    tar_in = dest / "archive.tar"
-    tar_in.write_bytes(archive)
-    shutil.unpack_archive(str(tar_in), str(dest))
-    src = dest / rel
+    """Copy the vendored ``<ver>`` parameter-table fixture into ``dest``."""
+    src = _FIXTURE_ROOT / ver
     if not (src / "RunControl.nml").exists():
-        pytest.skip(f"legacy fixture {ver} missing RunControl.nml")
-    return src
+        pytest.skip(f"legacy table fixture {ver} not vendored under {_FIXTURE_ROOT}")
+    dest.mkdir(parents=True, exist_ok=True)
+    for f in src.iterdir():
+        if f.is_file():
+            shutil.copyfile(f, dest / f.name)
+    return dest
 
 
 def _num(token: str):

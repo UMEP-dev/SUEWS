@@ -4626,6 +4626,12 @@ class SUEWSConfig(BaseModel):
         for key in ("_yaml_path", "_auto_generate_annotated", "_yaml_raw"):
             config_dict.pop(key, None)
 
+        # `strict_initial_state_bounds` is a converter-set legacy-compatibility
+        # flag; surface it only when actively relaxed (False), so normal configs
+        # stay clean and the field does not appear in user-facing exports.
+        if config_dict.get("strict_initial_state_bounds") is True:
+            config_dict.pop("strict_initial_state_bounds", None)
+
         if not include_internal:
             _strip_internal_fields(config_dict, type(self))
 

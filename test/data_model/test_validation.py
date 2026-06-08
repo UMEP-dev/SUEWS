@@ -443,6 +443,38 @@ def test_validate_albedo_id_within_range():
         SUEWSConfig(sites=[site])
 
 
+def test_relax_initial_albedo_bounds_allows_legacy_out_of_range():
+    """``strict_initial_state_bounds=False`` downgrades the alb_id check to a warning.
+
+    Legacy table sets can carry an initial albedo outside the seasonal
+    ``[alb_min, alb_max]`` envelope (the old Fortran never enforced it). The
+    opt-in relaxation, set by ``suews-convert`` for legacy sources, lets such a
+    config load while preserving the faithful value. The strict default still
+    raises (see ``test_validate_albedo_id_within_range``).
+    """
+    evetr_props = EvetrProperties(
+        alb_min=0.11,
+        alb_max=0.12,
+        lai=LAIParams(lai_min=1.0, lai_max=3.0),
+    )
+    site = Site(
+        properties=SiteProperties(land_cover=LandCover(evetr=evetr_props)),
+        initial_states=InitialStates(
+            evetr=InitialStateEvetr(alb_id=0.10, lai_id=2.0)
+        ),
+    )
+
+    # Strict (default) rejects the out-of-range initial albedo.
+    with pytest.raises(ValueError, match="alb_id"):
+        SUEWSConfig(sites=[site])
+
+    # Relaxed loads and preserves the faithful value.
+    config = SUEWSConfig(sites=[site], strict_initial_state_bounds=False)
+    assert config.strict_initial_state_bounds is False
+    alb_id = config.sites[0].initial_states.evetr.alb_id
+    assert getattr(alb_id, "value", alb_id) == pytest.approx(0.10)
+
+
 def test_auto_albedo_midrange_interpolation():
     """Test linear interpolation at mid-range LAI produces expected intermediate albedo.
 

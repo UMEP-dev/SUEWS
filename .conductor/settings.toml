@@ -1,0 +1,7 @@
+"$schema" = "https://conductor.build/schemas/settings.repo.schema.json"
+
+[scripts]
+setup = "./scripts/conductor/setup.sh"
+run = "./scripts/conductor/run.sh"
+archive = "./scripts/conductor/archive.sh"
+run_mode = "concurrent"

@@ -660,8 +660,11 @@ docs/source/api/_autosummary/
 test/fixtures/gh846/*.zip
 
 
-# Conductor worktree workspaces
-.conductor/
+# Conductor project settings and local worktree state
+.conductor/*
+!.conductor/
+!.conductor/settings.toml
+.conductor/settings.local.toml
 
 # Conductor agent collaboration directory
 .context/

@@ -182,7 +182,7 @@ The forcing file must be a text file with specific columns in the correct order.
 
 - Data must be continuous (no gaps)
 - Time stamps indicate the **end** of each period
-- Use local time (not UTC)
+- Use local standard time (fixed UTC offset, not civil time with daylight-saving shifts; see :doc:`/inputs/forcing-data` for details)
 - Use -999 for missing optional variables
 
 For detailed format specifications, column order, and optional variables, see :doc:`/inputs/forcing-data`.

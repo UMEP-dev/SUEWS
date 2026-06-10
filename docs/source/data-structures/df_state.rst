@@ -2062,7 +2062,7 @@
 .. option:: timezone
 
     :Description:
-        Time zone [h] for site relative to UTC (east is positive). This should be set according to the times given in the meteorological forcing file(s).
+        Fixed time zone offset [h] from UTC (east is positive), e.g. 0 for UK/GMT, 1 for France/CET. This is a standard-time offset that does not change with daylight saving. Forcing data timestamps must use this same fixed offset year-round.
     :Dimensionality:
         0
     :Dimensionality Remarks:

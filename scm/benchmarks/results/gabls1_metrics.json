@@ -1,0 +1,30 @@
+{
+  "case": "GABLS1 (Beare et al. 2006; Cuxart et al. 2006)",
+  "reference": {
+    "h_les_range_m": [
+      150,
+      250
+    ],
+    "h_les_typical_m": 200,
+    "ustar_les_range_ms": [
+      0.25,
+      0.3
+    ],
+    "notes": "LES ensemble, quasi-steady after 8-9 h; long-tail SCM schemes over-deepen the SBL"
+  },
+  "scm_sharp": {
+    "h_ri_m": 197.6,
+    "h_stress_m": 167.8,
+    "ustar_ms": 0.274,
+    "sfc_heat_flux_Kms": -0.0108,
+    "jet_height_m": 184.4,
+    "jet_speed_ms": 9.73
+  },
+  "scm_long_tail": {
+    "h_ri_m": 181.6,
+    "h_stress_m": 378.3,
+    "ustar_ms": 0.293,
+    "jet_height_m": 284.4,
+    "jet_speed_ms": 9.2
+  }
+}

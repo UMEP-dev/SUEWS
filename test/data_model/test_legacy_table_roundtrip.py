@@ -274,3 +274,114 @@ def test_edit_propagates_through_full_roundtrip(tmp_path):
     nv_header, nv_rows = R._read_table(rev / "SUEWS_NonVeg.txt")
     paved_row = next(r for r in nv_rows if r[0] == paved_code)
     assert float(paved_row[nv_header.index("AlbedoMax")]) == pytest.approx(0.42)
+
+
+# --------------------------------------------------------------------------- #
+# Native modern -> legacy -> modern (the cross-era benchmark direction)
+# --------------------------------------------------------------------------- #
+# After ``modern -> legacy -> modern`` the only df_state variables allowed to
+# differ are:
+# - derived/transient initial state the model recomputes on start-up;
+# - the veg albedo canonicalisation (the driver re-derives ``alb(veg)`` from
+#   ``albXXX_id`` each step, so the pair is one logical value);
+# - era-representability: parameters the target version cannot express.
+_MLM_DERIVED = {"hdd_id", "tair_av", "tmax_id", "tmin_id", "tstep_prev"}
+_MLM_COMMON = _MLM_DERIVED | {
+    "alb",  # veg albedo canonicalisation
+    "rslmethod",
+    "rsllevel",  # RunControl flags introduced after 2018b
+    "snowalb",  # no snowalb0 key in the era InitialConditions nml
+    "soilstore_surf",  # water-surface soil store absent from the era nml
+    "use_sw_direct_albedo",  # SPARTACUS (2024a+): no legacy representation
+}
+_MLM_ALLOWED = {
+    "2016a": _MLM_COMMON
+    | {
+        # introduced 2017a/2018a: not representable in 2016a tables
+        "popprof_24hr",
+        "qf0_beu",
+        "trafficrate",
+        "pormin_dec",
+    },
+    "2018b": _MLM_COMMON,
+}
+
+
+def _sample_df_state():
+    from supy._env import trv_supy_module  # noqa: PLC0415
+
+    cfg = SUEWSConfig(
+        **yaml.safe_load(
+            (trv_supy_module / "sample_data" / "sample_config.yml").read_text(
+                encoding="utf-8"
+            )
+        )
+    )
+    return cfg.to_df_state()
+
+
+def _df_state_diff_vars(df, df2):
+    """Variables whose values differ between two df_state frames (first grid)."""
+    grid = df.index[0]
+    common = [c for c in df.columns if c in df2.columns]
+    return {
+        c[0]
+        for c in common
+        if not _values_equal(str(df.loc[grid, c]), str(df2.loc[grid, c]))
+    }
+
+
+@pytest.mark.parametrize("ver", ["2016a", "2018b"])
+def test_modern_to_legacy_to_modern_roundtrip(ver, tmp_path):
+    """A native modern config survives ``modern -> legacy -> modern``.
+
+    Drives the writer + reverse converter from the shipped sample config (no
+    legacy original), regenerates ``ver`` tables, forward-converts them back,
+    and reloads. Everything the target version can represent must round-trip;
+    the allowed residual is pinned per era (derived state, the veg-albedo
+    canonicalisation, era-representability losses).
+    """
+    df = _sample_df_state()
+
+    src = _extract_legacy_tables(ver, tmp_path / "src")
+    template = tmp_path / "T0"
+    convert_table(str(src), str(template), ver, "2025a", validate_profiles=False)
+    rev = _reverse_via_writer(df, template, ver, src, tmp_path)
+
+    back = tmp_path / "T2"
+    convert_table(str(rev), str(back), ver, "2025a", validate_profiles=False)
+    df2 = load_InitialCond_grid_df(next(back.rglob("RunControl.nml")))
+
+    unexpected = _df_state_diff_vars(df, df2) - _MLM_ALLOWED[ver]
+    assert not unexpected, (
+        f"{ver} modern->legacy->modern lost unexpected variables: "
+        f"{sorted(unexpected)}"
+    )
+
+
+def test_cross_version_chain_2016a_modern_2018b(tmp_path):
+    """Arbitrary-direction chain: ``2016a tables -> modern -> 2018b tables -> modern``.
+
+    Loads the 2016a fixture into the modern representation, regenerates a
+    *different* era's tables (2018b) from it, forward-converts those back, and
+    confirms the two modern states agree on everything 2018b can represent.
+    """
+    src_a = _extract_legacy_tables("2016a", tmp_path / "srcA")
+    template_a, df = _forward_to_yaml("2016a", src_a, tmp_path)
+
+    src_b = _extract_legacy_tables("2018b", tmp_path / "srcB")
+    template_b = tmp_path / "TB"
+    convert_table(str(src_b), str(template_b), "2018b", "2025a", validate_profiles=False)
+    tmp_b = tmp_path / "legB"
+    tmp_b.mkdir()
+    rev_b = _reverse_via_writer(df, template_b, "2018b", src_b, tmp_b)
+
+    back = tmp_path / "T2B"
+    convert_table(str(rev_b), str(back), "2018b", "2025a", validate_profiles=False)
+    df2 = load_InitialCond_grid_df(next(back.rglob("RunControl.nml")))
+
+    unexpected = _df_state_diff_vars(df, df2) - _MLM_ALLOWED["2018b"]
+    assert not unexpected, (
+        "2016a->modern->2018b->modern chain lost unexpected variables: "
+        f"{sorted(unexpected)}"
+    )

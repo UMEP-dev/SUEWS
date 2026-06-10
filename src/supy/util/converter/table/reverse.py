@@ -398,6 +398,146 @@ def _rename_file(d: Path, old: str, new: str) -> None:
         src.rename(dst)
 
 
+# When a variable moves between SiteSelect and a characteristic table, the
+# per-row value mapping follows this SiteSelect code column.
+_MOVE_LINK_COLS = {
+    "SUEWS_AnthropogenicHeat.txt": "AnthropogenicCode",
+    "SUEWS_AnthropogenicEmission.txt": "AnthropogenicCode",
+}
+
+
+def _nml_scalar(token: str):
+    """Coerce a table token to the scalar type a namelist write expects."""
+    try:
+        f = float(token)
+        return int(f) if f == int(f) else f
+    except (TypeError, ValueError):
+        return token
+
+
+def _harvest_moves(d: Path, step) -> dict:
+    """Capture live values for same-step cross-file moves before they drop.
+
+    A forward *move* is encoded in ``rules.csv`` as ``Add(file_new, var)`` +
+    ``Delete(file_old, var)`` within one version step (e.g. the anthropogenic
+    profile codes, SiteSelect -> AnthropogenicHeat at 2017a->2018a; ``z``,
+    RunControl.nml -> SiteSelect at 2016a->2017a). Reversing the step drops
+    ``file_new``'s column (Add-undo) and restores ``file_old``'s (Delete-undo);
+    this harvests ``file_new``'s values first, mapped into ``file_old``'s row
+    space, so the restore reflects the current table state rather than the
+    ``legacy_extras`` snapshot.
+
+    Returns ``{(file_old, var): {"values": {rowkey: token}}}`` for tables or
+    ``{(file_old, var): {"scalar": value}}`` for namelist targets.
+    """
+    adds: dict[str, str] = {}
+    for _, r in step[step["Action"] == "Add"].iterrows():
+        adds[str(r["Variable"])] = str(r["File"])
+
+    out: dict = {}
+    for _, r in step[step["Action"] == "Delete"].iterrows():
+        var, file_old = str(r["Variable"]), str(r["File"])
+        file_new = adds.get(var)
+        if file_new is None or file_new == file_old:
+            continue
+        src = d / file_new
+        if not src.exists():
+            continue
+
+        if file_old.endswith(".nml"):
+            # Table -> nml reversed: collapse the per-row values to a scalar.
+            header, rows = _read_table(src)
+            if var not in header or not rows:
+                continue
+            vi = header.index(var)
+            tokens = {row[vi] for row in rows if len(row) > vi}
+            if len(tokens) > 1:
+                logger_supy.warning(
+                    f"move-carry {var}: heterogeneous per-row values {tokens}; "
+                    f"the {file_old} scalar takes the first row's value"
+                )
+            out[file_old, var] = {"scalar": _nml_scalar(rows[0][vi])}
+
+        elif file_old == "SUEWS_SiteSelect.txt":
+            # Characteristic table -> SiteSelect: follow the linking Code.
+            link = _MOVE_LINK_COLS.get(file_new)
+            tgt = d / file_old
+            if link is None or not tgt.exists():
+                if link is None:
+                    logger_supy.warning(
+                        f"move-carry {var}: no link column registered for "
+                        f"{file_new}; falling back to the extras snapshot"
+                    )
+                continue
+            sh, srows = _read_table(src)
+            th, trows = _read_table(tgt)
+            if var not in sh or link not in th:
+                continue
+            vi, li = sh.index(var), th.index(link)
+            by_code = {row[0]: row[vi] for row in srows if len(row) > vi}
+            values = {
+                row[0]: by_code[row[li]]
+                for row in trows
+                if len(row) > li and row[li] in by_code
+            }
+            if values:
+                out[file_old, var] = {"values": values}
+
+        else:
+            # Same-keyed tables: carry per first-column key directly.
+            sh, srows = _read_table(src)
+            if var not in sh:
+                continue
+            vi = sh.index(var)
+            out[file_old, var] = {
+                "values": {row[0]: row[vi] for row in srows if len(row) > vi}
+            }
+
+    # Renamed moves and one-to-many splits from the shared registry: restore
+    # the source from the destination columns' consensus (first value, warning
+    # when they disagree -- the old schema cannot represent the difference).
+    from .table import _CARRY_REGISTRY
+
+    step_key = None
+    if len(step):
+        step_key = (str(step.iloc[0]["From"]), str(step.iloc[0]["To"]))
+    for entry in _CARRY_REGISTRY.get(step_key, []):
+        sfile, svar = entry["src"]
+        per_key: dict[str, list] = {}
+        for dfile, dvar in entry["dst"]:
+            path = d / dfile
+            if not path.exists():
+                continue
+            header, rows = _read_table(path)
+            if dvar not in header:
+                continue
+            vi = header.index(dvar)
+            for row in rows:
+                if len(row) > vi:
+                    per_key.setdefault(row[0], []).append(row[vi])
+        if not per_key:
+            continue
+        if sfile.endswith(".nml"):
+            tokens = [v for vals in per_key.values() for v in vals]
+            if len(set(tokens)) > 1:
+                logger_supy.warning(
+                    f"carry {svar}: destination values disagree {sorted(set(tokens))};"
+                    f" the {sfile} scalar takes the first"
+                )
+            out[sfile, svar] = {"scalar": _nml_scalar(tokens[0])}
+        else:
+            values = {}
+            for key, vals in per_key.items():
+                if len(set(vals)) > 1:
+                    logger_supy.warning(
+                        f"carry {svar}: row {key} destinations disagree "
+                        f"{sorted(set(vals))}; keeping {vals[0]}"
+                    )
+                values[key] = vals[0]
+            out[sfile, svar] = {"values": values}
+    return out
+
+
 def _reverse_step(d: Path, from_ver: str, to_ver: str, extras: dict) -> None:
     """Undo one forward edge ``from_ver -> to_ver`` in directory ``d``.
 
@@ -427,6 +567,15 @@ def _reverse_step(d: Path, from_ver: str, to_ver: str, extras: dict) -> None:
     for _, r in step[step["Action"] == "Rename_File"].iterrows():
         _rename_file(d, old=str(r["File"]), new=str(r["Value"]))
 
+    # 2b. Harvest cross-file moves (same-step Delete in one file + Add in
+    # another for the same variable) BEFORE the Add-undo drops the modern
+    # column. The carried values take precedence over ``legacy_extras`` in the
+    # Delete-undo, so the regenerated legacy table reflects the current state,
+    # not the stale source snapshot. Without this, e.g. the anthropogenic
+    # profile codes (SiteSelect -> AnthropogenicHeat at 2017a->2018a) reset to
+    # whatever the extras donor carried.
+    carried = _harvest_moves(d, step)
+
     # 3. Group the column/key actions by their (source-side) file name.
     col_actions = step[step["Action"].isin(["Add", "Delete", "Rename"])]
     for fname in sorted(set(col_actions["File"].astype(str))):
@@ -442,16 +591,23 @@ def _reverse_step(d: Path, from_ver: str, to_ver: str, extras: dict) -> None:
             elif path.exists():
                 _drop_table_column(path, var)
 
-        # 3b. Undo Deletes (restore source-present columns/keys from extras).
+        # 3b. Undo Deletes (restore source-present columns/keys; carried
+        # move values take precedence over the extras snapshot).
         for _, r in grp[grp["Action"] == "Delete"].iterrows():
             var = str(r["Variable"])
             spec = deleted.get(fname, {}).get(var)
-            if spec is None:
+            carry = carried.get((fname, var))
+            if spec is None and carry is None:
                 continue  # not in source (add-then-delete transient): skip
             if is_nml:
-                _restore_nml_key(path, var, spec["scalar"])
+                scalar = carry["scalar"] if carry else spec["scalar"]
+                _restore_nml_key(path, var, scalar)
             elif path.exists():
-                _restore_table_column(path, var, spec["col"], spec["values"])
+                values = dict(spec["values"]) if spec else {}
+                if carry:
+                    values.update(carry["values"])
+                col = spec["col"] if spec else len(_read_table(path)[0]) + 1
+                _restore_table_column(path, var, col, values)
 
         # 3c. Undo Renames (forward old->new becomes new->old).
         for _, r in grp[grp["Action"] == "Rename"].iterrows():

@@ -20,8 +20,8 @@ import re
 import shutil
 from shutil import copyfile, move, rmtree
 import sys
-import textwrap
 from tempfile import TemporaryDirectory
+import textwrap
 
 # ignore warnings raised by numpy when reading-in -9 lines
 import warnings
@@ -1237,6 +1237,230 @@ def _build_file_list(fromDir, fromVer):
     return fileList
 
 
+# --------------------------------------------------------------------------- #
+# Cross-file column moves
+# --------------------------------------------------------------------------- #
+# rules.csv encodes a column *move* as Add(file_new, var) + Delete(file_old,
+# var) within one version step (e.g. the anthropogenic profile codes,
+# SiteSelect -> AnthropogenicHeat at 2017a -> 2018a; ``z``, RunControl.nml ->
+# SiteSelect at 2016a -> 2017a). Historically the Add wrote its hardcoded
+# default and the Delete discarded the user's values, silently resetting the
+# moved parameters. The helpers below harvest the values before the per-file
+# actions run and re-apply them afterwards.
+
+# When the move source is SiteSelect, the per-row value mapping follows this
+# SiteSelect code column into the destination characteristic table.
+_MOVE_LINK_COLS = {
+    "SUEWS_AnthropogenicHeat.txt": "AnthropogenicCode",
+    "SUEWS_AnthropogenicEmission.txt": "AnthropogenicCode",
+}
+
+# Same-name cross-file moves are detected automatically from rules.csv; the
+# registry below lists the carries whose value mapping the rules cannot
+# express -- renamed moves (gsChoice -> gsModel) and one-to-many splits
+# (TCritic -> TCritic_{Heating,Cooling}_{WD,WE}). Forward conversion seeds
+# every destination column from the source value; reverse conversion restores
+# the source from the destinations' consensus (first value, with a warning
+# when they disagree -- the old schema cannot represent the difference).
+_CARRY_REGISTRY = {
+    ("2016a", "2017a"): [
+        {
+            "src": ("RunControl.nml", "gsChoice"),
+            "dst": [("SUEWS_Conductance.txt", "gsModel")],
+        },
+        {
+            "src": ("RunControl.nml", "TIMEZONE"),
+            "dst": [("SUEWS_SiteSelect.txt", "Timezone")],
+        },
+    ],
+    ("2017a", "2018a"): [
+        {
+            "src": ("SUEWS_AnthropogenicHeat.txt", "AHMin"),
+            "dst": [
+                ("SUEWS_AnthropogenicHeat.txt", "AHMin_WD"),
+                ("SUEWS_AnthropogenicHeat.txt", "AHMin_WE"),
+            ],
+        },
+        {
+            "src": ("SUEWS_AnthropogenicHeat.txt", "AHSlope"),
+            "dst": [
+                ("SUEWS_AnthropogenicHeat.txt", "AHSlope_Heating_WD"),
+                ("SUEWS_AnthropogenicHeat.txt", "AHSlope_Heating_WE"),
+                ("SUEWS_AnthropogenicHeat.txt", "AHSlope_Cooling_WD"),
+                ("SUEWS_AnthropogenicHeat.txt", "AHSlope_Cooling_WE"),
+            ],
+        },
+        {
+            "src": ("SUEWS_AnthropogenicHeat.txt", "TCritic"),
+            "dst": [
+                ("SUEWS_AnthropogenicHeat.txt", "TCritic_Heating_WD"),
+                ("SUEWS_AnthropogenicHeat.txt", "TCritic_Heating_WE"),
+                ("SUEWS_AnthropogenicHeat.txt", "TCritic_Cooling_WD"),
+                ("SUEWS_AnthropogenicHeat.txt", "TCritic_Cooling_WE"),
+            ],
+        },
+        {
+            "src": ("SUEWS_SiteSelect.txt", "TrafficRate"),
+            "dst": [
+                ("SUEWS_SiteSelect.txt", "TrafficRate_WD"),
+                ("SUEWS_SiteSelect.txt", "TrafficRate_WE"),
+            ],
+        },
+        {
+            "src": ("SUEWS_SiteSelect.txt", "BuildEnergyUse"),
+            "dst": [
+                ("SUEWS_SiteSelect.txt", "QF0_BEU_WD"),
+                ("SUEWS_SiteSelect.txt", "QF0_BEU_WE"),
+            ],
+        },
+    ],
+    ("2018c", "2019a"): [
+        {
+            "src": ("SUEWS_AnthropogenicHeat.txt", "FcEF_v_kgkm"),
+            "dst": [
+                ("SUEWS_AnthropogenicHeat.txt", "FcEF_v_kgkmWD"),
+                ("SUEWS_AnthropogenicHeat.txt", "FcEF_v_kgkmWE"),
+            ],
+        },
+    ],
+}
+
+
+def _step_moves(fromVer, toVer):
+    """Same-step cross-file Add+Delete pairs: ``[(var, file_old, file_new)]``."""
+    step = rules[(rules["From"] == fromVer) & (rules["To"] == toVer)]
+    adds = {
+        str(r["Variable"]): str(r["File"])
+        for _, r in step[step["Action"] == "Add"].iterrows()
+    }
+    moves = []
+    for _, r in step[step["Action"] == "Delete"].iterrows():
+        var, file_old = str(r["Variable"]), str(r["File"])
+        file_new = adds.get(var)
+        if file_new and file_new != file_old:
+            moves.append((var, file_old, file_new))
+    return moves
+
+
+def _read_nml_value(path, var):
+    """Return ``var``'s value from a namelist file, or None."""
+    try:
+        nml = f90nml.read(str(path))
+    except Exception:
+        return None
+    for section in nml.values():
+        if var.lower() in section:
+            return section[var.lower()]
+    return None
+
+
+def _harvest_step_moves(toDir, fromVer, toVer):
+    """Read move/split source values from the still-source-schema ``toDir``.
+
+    Returns a list of ``{"mode", "value"|"values", "targets": [(file, var)]}``
+    items; ``_apply_step_moves`` re-applies them after the per-file actions.
+    """
+    from .reverse import _read_table  # call-time import: reverse imports table
+
+    harvested = []
+
+    def harvest_source(sfile, svar, targets):
+        src = Path(toDir) / sfile
+        if not src.exists():
+            return
+        if sfile.endswith(".nml"):
+            value = _read_nml_value(src, svar)
+            if value is not None:
+                harvested.append({
+                    "mode": "broadcast",
+                    "value": value,
+                    "targets": targets,
+                })
+            return
+        header, rows = _read_table(src)
+        if svar not in header:
+            return
+        vi = header.index(svar)
+        values = {row[0]: row[vi] for row in rows if len(row) > vi}
+        if values:
+            harvested.append({"mode": "by_key", "values": values, "targets": targets})
+
+    # 1. Same-name cross-file moves detected from rules.csv.
+    for var, file_old, file_new in _step_moves(fromVer, toVer):
+        src = Path(toDir) / file_old
+        if not src.exists():
+            continue
+        if file_old.endswith(".nml"):
+            harvest_source(file_old, var, [(file_new, var)])
+        elif file_old == "SUEWS_SiteSelect.txt":
+            # SiteSelect -> characteristic table: group rows by the linking
+            # code; heterogeneous values per code cannot be represented in
+            # the destination row, so warn and keep the first.
+            link = _MOVE_LINK_COLS.get(file_new)
+            header, rows = _read_table(src)
+            if link is None or link not in header or var not in header:
+                continue
+            vi, li = header.index(var), header.index(link)
+            by_code = {}
+            for row in rows:
+                if len(row) > max(vi, li):
+                    by_code.setdefault(row[li], []).append(row[vi])
+            values = {}
+            for code, vals in by_code.items():
+                if len(set(vals)) > 1:
+                    logger_supy.warning(
+                        f"move-carry {var}: grids sharing {link}={code} have "
+                        f"different values {sorted(set(vals))}; keeping {vals[0]}"
+                    )
+                values[code] = vals[0]
+            if values:
+                harvested.append({
+                    "mode": "by_key",
+                    "values": values,
+                    "targets": [(file_new, var)],
+                })
+        else:
+            harvest_source(file_old, var, [(file_new, var)])
+
+    # 2. Renamed moves and one-to-many splits from the registry.
+    for entry in _CARRY_REGISTRY.get((fromVer, toVer), []):
+        sfile, svar = entry["src"]
+        harvest_source(sfile, svar, entry["dst"])
+
+    return harvested
+
+
+def _apply_step_moves(toDir, harvested, fromVer, toVer):
+    """Overwrite the Add defaults in the move destinations with the harvest."""
+    from .reverse import _read_table, _write_table  # call-time import
+
+    step = rules[(rules["From"] == fromVer) & (rules["To"] == toVer)]
+    renames = {
+        str(r["File"]): str(r["Value"])
+        for _, r in step[step["Action"] == "Rename_File"].iterrows()
+    }
+    for item in harvested:
+        for fname, var in item["targets"]:
+            path = Path(toDir) / fname
+            if not path.exists():  # the destination was renamed in this step
+                path = Path(toDir) / renames.get(fname, fname)
+                if not path.exists():
+                    continue
+            header, rows = _read_table(path)
+            if var not in header:
+                continue
+            vi = header.index(var)
+            if item["mode"] == "broadcast":
+                for row in rows:
+                    if len(row) > vi:
+                        row[vi] = str(item["value"])
+            else:
+                for row in rows:
+                    if row and len(row) > vi and row[0] in item["values"]:
+                        row[vi] = item["values"][row[0]]
+            _write_table(path, header, rows)
+
+
 # a single conversion between two versions
 def SUEWS_Converter_single(fromDir, toDir, fromVer, toVer):
     # copy files in fromDir to toDir, only: *.nml, SUEWS_*.txt
@@ -1265,6 +1489,10 @@ def SUEWS_Converter_single(fromDir, toDir, fromVer, toVer):
 
     # Note: File cleaning is now done once in convert_table() when files are first copied
     # This avoids redundant cleaning during chained conversions
+
+    # Harvest cross-file column moves while toDir still holds the source
+    # schema; re-applied after the per-file actions (see _harvest_step_moves).
+    moved_values = _harvest_step_moves(toDir, fromVer, toVer)
 
     # Special handling: Create SPARTACUS.nml and GridLayoutKc.nml when converting 2023a→2024a
     # These files are introduced in 2024a and should only be created at this specific step
@@ -1463,6 +1691,9 @@ cp_surf(7,:) = 1.9e6, 1.1e6, 1.1e6, 1.5e6, 1.6e6
             )
             # Don't continue with a broken conversion - fail fast
             raise RuntimeError(f"Conversion stopped at {fileX}: {e!s}") from e
+
+    # Re-apply harvested cross-file moves over the Add defaults.
+    _apply_step_moves(toDir, moved_values, fromVer, toVer)
 
 
 def SUEWS_Converter_file(fileX, actionList):

@@ -418,6 +418,15 @@ _NML_KEY_MAP = {
     "soilstorewaterstate": ("soilstore_surf", "(6,)"),
 }
 
+# Keys safe to ADD when an InitialConditions file omits them: declared in the
+# era namelist since 2016a (verified against the 2016a-tag source), so every
+# legacy reader accepts them. soilstorewaterstate is deliberately excluded --
+# the 2016a declaration does not include it.
+_NML_ADD_IF_MISSING = {
+    "porosity0": ("porosity_id", "0"),
+    "snowalb0": ("snowalb", "0"),
+}
+
 
 def _update_nml_from_df(out_dir: Path, df_state: pd.DataFrame) -> int:
     """Write ``df_state`` scalars into the RunControl / InitialConditions nml.
@@ -469,6 +478,23 @@ def _update_nml_from_df(out_dir: Path, df_state: pd.DataFrame) -> int:
                         changed = True
                         written += 1
                     break
+        # Add df-backed keys the file omits but every era's namelist declares
+        # (a namelist read tolerates absent keys, so era files often skip
+        # them; the declaration has carried these since 2016a). Keys absent
+        # from older declarations (e.g. soilstorewaterstate) must NOT be
+        # added -- an undeclared key aborts the era's namelist read.
+        if name.startswith("initialconditions"):
+            present = {k for section in nml.values() for k in section}
+            for key, (var, index) in _NML_ADD_IF_MISSING.items():
+                if key in present:
+                    continue
+                value = _df_get(df_state, grid, var, index)
+                if value is None:
+                    continue
+                first_section = next(iter(nml.values()))
+                first_section[key] = float(value)
+                changed = True
+                written += 1
         if changed:
             nml.write(str(path), force=True)
     return written

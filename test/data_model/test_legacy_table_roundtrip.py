@@ -327,9 +327,7 @@ _MLM_COMMON = _MLM_DERIVED | {
     "alb",  # veg albedo canonicalisation
     "rslmethod",
     "rsllevel",  # RunControl flags introduced after 2018b
-    "snowalb",  # snowalb0 key absent from the era InitialConditions nml
-    "porosity_id",  # porosity0 key absent from several era InitialConditions
-    "soilstore_surf",  # water-surface soil store absent from the era nml
+    "soilstore_surf",  # water-surface store: not in the era nml declaration
     "use_sw_direct_albedo",  # SPARTACUS (2024a+): no legacy representation
 }
 # Pre-2018a eras: single-column WD/WE families (TrafficRate, BuildEnergyUse,

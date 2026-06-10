@@ -8,8 +8,8 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <meta property="article:modified_time" content="2026-06-03T08:07:05+00:00" />
-    <title>4.2. Meteorological Forcing Data &#8212; SUEWS 2026.6.6.dev2 documentation</title>
+    <meta property="article:modified_time" content="2026-06-10T09:33:20+00:00" />
+    <title>4.2. Meteorological Forcing Data &#8212; SUEWS 2026.6.10.dev1 documentation</title>
   
   
   
@@ -45,7 +45,7 @@
   <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=8878045cc6db502f8baf" />
 <link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=8878045cc6db502f8baf" />
 
-    <script src="../_static/documentation_options.js?v=629f1bb8"></script>
+    <script src="../_static/documentation_options.js?v=12eb1401"></script>
     <script src="../_static/doctools.js?v=9bcbadda"></script>
     <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
     <script src="../_static/scripts/sphinx-book-theme.js?v=fab101a9"></script>
@@ -59,8 +59,8 @@
     <link rel="prev" title="4.1. YAML Configuration Format" href="yaml/index.html" />
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
-  <meta name="docsearch:version" content="2026.6.6.dev2" />
-    <meta name="docbuild:last-update" content="2026-06-03"/>
+  <meta name="docsearch:version" content="2026.6.10.dev1" />
+    <meta name="docbuild:last-update" content="2026-06-10"/>
   </head>
   
   
@@ -102,7 +102,7 @@
   <div class="bd-header-announcement__content">
     <div style="background-color: #f0ad4e; border: 1px solid #eea236; border-radius: 4px; padding: 10px; margin: 10px 0;">
         <strong>⚠️ Development Version:</strong> This documentation was built from a development version
-        (2026.6.6.dev2, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/b79b87ef63a7428af8d86982fec25b4ed78f6625" style="color: #31708f;">b79b87e</a>).
+        (2026.6.10.dev1, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/27945c13ebd8c835c3acd24f95fe767a013dc6a7" style="color: #31708f;">27945c1</a>).
         Features described here may be unstable or subject to change. For stable documentation, please visit the
         <a href="https://docs.suews.io/stable/" style="color: #31708f;">latest release</a>.
     </div>
@@ -149,8 +149,8 @@
       
     
     
-    <img src="../_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.6.6.dev2 documentation - Home"/>
-    <img src="../_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.6.6.dev2 documentation - Home"/>
+    <img src="../_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.6.10.dev1 documentation - Home"/>
+    <img src="../_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.6.10.dev1 documentation - Home"/>
   
   
 </a></div>
@@ -817,9 +817,17 @@ sets emits a <code class="docutils literal notranslate"><span class="pre">UserWa
 <li><p>For 5-minute data at 10:05, the measurement covers 10:00-10:05</p></li>
 </ul>
 </li>
-<li><p><strong>Time zone</strong>: Use <strong>local time</strong>, not UTC</p></li>
+<li><p><strong>Time zone</strong>: Use <strong>local standard time</strong> (i.e. a fixed UTC offset), not UTC and not civil time with daylight-saving transitions</p></li>
 <li><p><strong>Complete days</strong>: Files must contain whole days of data</p></li>
 </ul>
+<div class="admonition important">
+<p class="admonition-title">Important</p>
+<p><strong>Local standard time, not civil time</strong></p>
+<p>“Local time” in SUEWS means <strong>local standard time</strong> – the fixed UTC offset for the site’s time zone, applied uniformly throughout the year. Do <strong>not</strong> use civil time that includes daylight-saving (summer-time) transitions.</p>
+<p>For example, a UK site uses GMT (UTC+0) year-round. Converting to <code class="docutils literal notranslate"><span class="pre">Europe/London</span></code> would introduce DST shifts that create one missing row in spring and one duplicate row in autumn, causing SUEWS to reject the forcing file. For a site in France, use CET (UTC+1) year-round, not CEST in summer.</p>
+<p>The <a class="reference internal" href="yaml/config-reference/siteproperties.html#input-option-timezone" title="timezone"><code class="xref input input-option docutils literal notranslate"><span class="pre">timezone</span></code></a> parameter in the YAML configuration is this same fixed offset (<code class="docutils literal notranslate"><span class="pre">0</span></code> for the UK, <code class="docutils literal notranslate"><span class="pre">1</span></code> for France). SUEWS accounts for daylight saving internally through the <a class="reference internal" href="yaml/config-reference/anthropogenicemissions.html#input-option-startdls" title="startdls"><code class="xref input input-option docutils literal notranslate"><span class="pre">startdls</span></code></a> and <a class="reference internal" href="yaml/config-reference/anthropogenicemissions.html#input-option-enddls" title="enddls"><code class="xref input input-option docutils literal notranslate"><span class="pre">enddls</span></code></a> parameters, which adjust diurnal activity profiles for anthropogenic heat and water use – the forcing timestamps themselves always stay in standard time.</p>
+<p>When comparing SUEWS output against observational data, verify that both datasets use the same time convention. Observations recorded in civil time (with DST) must be converted to local standard time before comparison.</p>
+</div>
 <p><strong>File Naming</strong></p>
 <p>Files should follow this naming convention:</p>
 <ul class="simple">
@@ -1177,7 +1185,7 @@ unexpected outputs.</p>
 <ul class="simple">
 <li><p><strong>“Division by zero”</strong>: Wind speed &lt; 0.01 m/s</p></li>
 <li><p><strong>“Negative radiation”</strong>: Check kdown is always ≥ 0</p></li>
-<li><p><strong>“Time mismatch”</strong>: Ensure local time is used</p></li>
+<li><p><strong>“Time mismatch”</strong>: Ensure local standard time is used (see note above)</p></li>
 <li><p><strong>“Missing data”</strong>: Use -999, not blank or NaN</p></li>
 </ul>
 </section>
@@ -1462,7 +1470,7 @@ By SUEWS dev team led by Prof Sue Grimmond
   
   <div class="footer-item">
     <p class="last-updated">
-  Last updated on 2026-06-03.
+  Last updated on 2026-06-10.
   <br/>
 </p>
   </div>
@@ -1470,8 +1478,8 @@ By SUEWS dev team led by Prof Sue Grimmond
   <div class="footer-item">
     
 <div class="extra_footer">
-  <p>Version: 2026.6.6.dev2 |
-    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/b79b87ef63a7428af8d86982fec25b4ed78f6625">b79b87e</a> |
+  <p>Version: 2026.6.10.dev1 |
+    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/27945c13ebd8c835c3acd24f95fe767a013dc6a7">27945c1</a> |
     <a href="https://umep-dev.github.io/SUEWS/brand/showcase.html">Brand</a></p>
 </div>
   </div>

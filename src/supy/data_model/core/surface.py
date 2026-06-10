@@ -422,13 +422,8 @@ class SurfaceProperties(BaseModel):
                     value = defaults.get(field_name, 0.0)
                 cols[(col_name, f"({surf_idx},)")] = value
 
-        # add dummy columns to conform to SUEWS convention
-        list_cols = [
-            "ohm_threshsw",
-            "ohm_threshwd",
-        ]
-        for col in list_cols:
-            cols[(col, "(7,)")] = 0
+        # The snow-row thresholds ("(7,)") are written by SnowParams, not
+        # fabricated here: a dummy 0 used to overwrite snow's real values.
 
         # Merge all DataFrames
         df_base = df_from_cols(cols, index=pd.Index([grid_id], name="grid"))

@@ -25,6 +25,7 @@ from .surface import (
     WaterProperties,
     VerticalLayers,
 )
+from .ohm import OHMCoefficients, OHM_Coefficient_season_wetness
 from .field_renames import (
     LAIPARAMS_RENAMES,
     VEGETATEDSURFACEPROPERTIES_RENAMES,
@@ -993,6 +994,18 @@ class GrassProperties(VegetatedSurfaceProperties):
         return instance
 
 
+def _default_snow_ohm_coef() -> "OHM_Coefficient_season_wetness":
+    """Canonical snow OHM coefficients (the row shipped in every sample
+    SUEWS_OHMCoefficients.txt), applied to all four season/wetness states."""
+    snow_row = {"a1": 0.25, "a2": 0.6, "a3": -30.0}
+    return OHM_Coefficient_season_wetness(
+        summer_dry=OHMCoefficients(**snow_row),
+        summer_wet=OHMCoefficients(**snow_row),
+        winter_dry=OHMCoefficients(**snow_row),
+        winter_wet=OHMCoefficients(**snow_row),
+    )
+
+
 class SnowParams(BaseModel):
     model_config = ConfigDict(title="Snow")
 
@@ -1112,6 +1125,27 @@ class SnowParams(BaseModel):
             "display_name": "Radiation Melt Factor",
         },
     )
+    ohm_threshold_summer_winter: Optional[FlexibleRefValue(float)] = Field(
+        default=10.0,
+        description="Summer/winter threshold based on temperature for the snow surface's OHM calculation",
+        json_schema_extra={
+            "unit": "degC",
+            "display_name": "OHM Summer Wet Threshold (Snow)",
+        },
+    )
+    ohm_threshold_wet_dry: Optional[FlexibleRefValue(float)] = Field(
+        default=0.9,
+        description="Soil moisture threshold determining whether wet/dry OHM coefficients are applied to the snow surface",
+        json_schema_extra={
+            "unit": "dimensionless",
+            "display_name": "OHM Winter Dry Threshold (Snow)",
+        },
+    )
+    ohm_coef: Optional[OHM_Coefficient_season_wetness] = Field(
+        default_factory=lambda: _default_snow_ohm_coef(),
+        description="OHM coefficients for the snow surface (df_state surface index 7)",
+        json_schema_extra={"display_name": "OHM Coefficients (Snow)"},
+    )
 
     ref: Optional[Reference] = None
 
@@ -1168,7 +1202,22 @@ class SnowParams(BaseModel):
                 val = defaults.get(param_name, 0.0)
             cols[(param_name, "0")] = val
 
+        # Snow's OHM parameters live at surface index 7 (df_state convention).
+        for col, value in [
+            ("ohm_threshsw", self.ohm_threshold_summer_winter),
+            ("ohm_threshwd", self.ohm_threshold_wet_dry),
+        ]:
+            if value is not None:
+                val = value.value if isinstance(value, RefValue) else value
+            else:
+                val = 0.0
+            cols[(col, "(7,)")] = val
+
         df_state = df_from_cols(cols, index=pd.Index([grid_id], name="grid"))
+
+        ohm_coef = self.ohm_coef if self.ohm_coef is not None else _default_snow_ohm_coef()
+        df_ohm = ohm_coef.to_df_state(grid_id, 7)
+        df_state = df_state.combine_first(df_ohm)
 
         df_hourly_profile = self.snow_profile_24hr.to_df_state(grid_id, "snowprof_24hr")
         df_state = df_state.combine_first(df_hourly_profile)
@@ -1214,8 +1263,21 @@ class SnowParams(BaseModel):
         # the Pydantic shim renames the kwarg to `snow_profile_24hr` on the way in).
         snowprof_24hr = HourlyProfile.from_df_state(df, grid_id, "snowprof_24hr")
 
+        # Snow's OHM parameters live at surface index 7 (df_state convention).
+        ohm_params = {}
+        if ("ohm_coef", "(7, 0, 0)") in df.columns:
+            ohm_params["ohm_coef"] = OHM_Coefficient_season_wetness.from_df_state(
+                df, grid_id, 7
+            )
+        for field_name, col in [
+            ("ohm_threshold_summer_winter", "ohm_threshsw"),
+            ("ohm_threshold_wet_dry", "ohm_threshwd"),
+        ]:
+            if (col, "(7,)") in df.columns:
+                ohm_params[field_name] = RefValue(df.loc[grid_id, (col, "(7,)")])
+
         # Construct and return the SnowParams instance
-        return cls(snowprof_24hr=snowprof_24hr, **scalar_params)
+        return cls(snowprof_24hr=snowprof_24hr, **ohm_params, **scalar_params)
 
 
 class LandCover(BaseModel):

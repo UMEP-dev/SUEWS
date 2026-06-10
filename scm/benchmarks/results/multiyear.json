@@ -1,0 +1,23 @@
+{
+  "experiment": "3-year coupled urban + rural companion (2012 KCL forcing recycled; leap day handled)",
+  "coupled_steps_total": 631296,
+  "timing": {
+    "native_rural_s": 76.0,
+    "native_urban_s": 84.0,
+    "native_total_s": 160.0,
+    "spinup_offline_s": 28.6,
+    "python_projected_h": 22.7,
+    "python_ms_per_step_measured": 129.6,
+    "effective_speedup": 511.0,
+    "sim_years_per_wallclock_min": 2.2
+  },
+  "climatology": {
+    "uhi2m_nocturnal_mean_K": 3.18,
+    "uhi2m_nocturnal_jja_K": 1.72,
+    "uhi2m_nocturnal_djf_K": 4.14,
+    "h_bl_daymax_mean_urban_m": 1117.0,
+    "h_bl_daymax_mean_rural_m": 824.0,
+    "h_bl_daymax_jja_urban_m": 1549.0,
+    "h_bl_daymax_djf_urban_m": 574.0
+  }
+}

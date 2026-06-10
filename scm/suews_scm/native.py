@@ -40,6 +40,11 @@ SCM_PARAM_DEFAULTS = {
     "wstar_fac": 0.6,
     "stable_fn": 0,  # 0 = sharp cut-off, 1 = long tail
     "use_background": 0,  # set automatically when a background is supplied
+    # synoptic relaxation of the whole column towards a profile anchored
+    # at the observed air state [s; 0 = off]. Used by the rural companion
+    # in multi-season runs (a closed column drifts cold through winter);
+    # native backend only.
+    "obs_anchor_tau": 0.0,
 }
 
 SCM_DIAG_COLS = ["tair_mod", "rh_mod", "u_mod", "h_bl", "wth", "wq", "tau_adv"]
@@ -80,11 +85,24 @@ def background_arrays(background, t0):
     )
 
 
+def _grid_levels(dz0, ztop, stretch):
+    """Replicate the column grid generation to predict the level count
+    and centre heights (same arithmetic as Grid / scm_column_init)."""
+    zi = [0.0]
+    dz = dz0
+    while zi[-1] < ztop:
+        zi.append(zi[-1] + dz)
+        dz *= stretch
+    z = [0.5 * (a + b) for a, b in zip(zi[:-1], zi[1:])]
+    return z
+
+
 def run_coupled_native(
     config,
     df_forcing,
     state_json=None,
     background=None,
+    snapshot_every_h=None,
     **scm_overrides,
 ):
     """Run the coupled SUEWS-SCM natively in Fortran.
@@ -103,14 +121,20 @@ def run_coupled_native(
     background : dict, optional
         Background atmosphere (``times``, ``z``, ``theta``, ``q``) from a
         companion rural run; enables the ventilation term.
+    snapshot_every_h : float, optional
+        Record column theta/q profiles every this many hours; the
+        snapshots are returned in the same dict format that
+        :meth:`CoupledSCM.run` produces (and that ``make_background``
+        consumes), so a native rural run can ventilate a native urban one.
     **scm_overrides
         Any :data:`SCM_PARAM_DEFAULTS` key.
 
     Returns
     -------
-    (pandas.DataFrame, pandas.DataFrame, str)
+    (pandas.DataFrame, pandas.DataFrame, str) or
+    (pandas.DataFrame, pandas.DataFrame, dict, str) when snapshots are on
         Standard SUEWS output (multi-group columns), per-step SCM
-        diagnostics, and the final state JSON.
+        diagnostics, [profile snapshots,] and the final state JSON.
     """
     import yaml as _yaml
     from supy._run_rust import (
@@ -147,16 +171,29 @@ def run_coupled_native(
     params = scm_params_vector(**scm_overrides)
     forcing_flat = _prepare_forcing_block(df_forcing).ravel(order="C").tolist()
 
-    output_flat, scm_flat, state_json_out, len_sim = rust.run_suews_scm(
-        config_yaml,
-        forcing_flat,
-        len(df_forcing),
-        params,
-        bg_t,
-        bg_z,
-        bg_theta,
-        bg_q,
-        state_json=state_json,
+    snap_every = 0
+    nz_snap = 0
+    if snapshot_every_h is not None:
+        tstep = int((df_forcing.index[1] - df_forcing.index[0]).total_seconds())
+        snap_every = max(int(snapshot_every_h * 3600 / tstep), 1)
+        p = dict(SCM_PARAM_DEFAULTS)
+        p.update({k: scm_overrides[k] for k in scm_overrides if k in p})
+        nz_snap = len(_grid_levels(p["dz0"], p["ztop"], p["stretch"]))
+
+    output_flat, scm_flat, snap_z, snap_theta, snap_q, state_json_out, len_sim = (
+        rust.run_suews_scm(
+            config_yaml,
+            forcing_flat,
+            len(df_forcing),
+            params,
+            bg_t,
+            bg_z,
+            bg_theta,
+            bg_q,
+            state_json=state_json,
+            snap_every=snap_every,
+            nz_snap=nz_snap,
+        )
     )
     if len_sim != len(df_forcing):
         raise RuntimeError(
@@ -167,4 +204,16 @@ def run_coupled_native(
     scm_arr = np.asarray(scm_flat, dtype=float).reshape((len_sim, len(SCM_DIAG_COLS)))
     df_scm = pd.DataFrame(scm_arr, columns=SCM_DIAG_COLS, index=df_forcing.index)
     df_scm = df_scm.mask(df_scm == -999.0)
+
+    if snap_every > 0:
+        n_snap = -(-len_sim // snap_every)  # ceil division
+        snaps = dict(
+            times=list(df_forcing.index[::snap_every][:n_snap]),
+            z=np.asarray(snap_z, dtype=float),
+            theta=list(
+                np.asarray(snap_theta, dtype=float).reshape((n_snap, nz_snap))
+            ),
+            q=list(np.asarray(snap_q, dtype=float).reshape((n_snap, nz_snap))),
+        )
+        return df_output, df_scm, snaps, state_json_out
     return df_output, df_scm, state_json_out

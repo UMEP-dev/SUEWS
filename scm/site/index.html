@@ -194,6 +194,33 @@
   .schematic .lvl { stroke: var(--border-medium); }
   .schematic .grd { stroke: var(--text-muted); }
 
+  /* ---------- interactive panels ----------
+     the lab panels are always-dark instruments (matching the figures),
+     so their internal text colours are pinned, not themed */
+  .lab { background: var(--panel-figure); border: 1px solid var(--border-light); border-radius: 6px; padding: var(--space-md); }
+  .lab canvas { width: 100%; height: auto; display: block; }
+  .lab .readouts { color: rgba(255,255,255,0.55); }
+  .lab .readouts b { color: rgba(255,255,255,0.92); }
+  .lab .stamp { color: rgba(255,255,255,0.72); }
+  .lab button.play { color: rgba(255,255,255,0.9); border-color: rgba(255,255,255,0.28); }
+  .lab button.play:hover { border-color: var(--sun-gold); color: var(--sun-gold); }
+  .controls { display: flex; flex-direction: column; gap: 1.1rem; margin-top: var(--space-md); }
+  .controls label { display: block; font-size: 0.88rem; color: var(--text-secondary); }
+  .controls label b { color: var(--text-primary); font-weight: 600; }
+  .controls .val { font-family: "JetBrains Mono", monospace; color: var(--accent); float: right; }
+  .controls input[type="range"] { width: 100%; accent-color: var(--accent); margin-top: 0.35rem; cursor: pointer; }
+  .readouts { display: flex; gap: 2rem; flex-wrap: wrap; margin-top: var(--space-sm); font-size: 0.85rem; color: var(--text-muted); }
+  .readouts b { font-family: "JetBrains Mono", monospace; font-size: 1.05rem; color: var(--text-primary); display: block; font-weight: 500; }
+  .scrub-row { display: flex; align-items: center; gap: 1rem; margin-top: var(--space-sm); }
+  .scrub-row input[type="range"] { flex: 1; accent-color: var(--accent); cursor: pointer; }
+  button.play {
+    background: none; border: 1px solid var(--border-medium); border-radius: 999px;
+    color: var(--text-primary); font: inherit; font-size: 0.85rem;
+    padding: 0.3rem 1.1rem; cursor: pointer; white-space: nowrap;
+  }
+  button.play:hover { border-color: var(--accent); color: var(--accent); }
+  .stamp { font-family: "JetBrains Mono", monospace; font-size: 0.85rem; color: var(--text-secondary); min-width: 11ch; }
+
   /* ---------- motion ---------- */
   @media (prefers-reduced-motion: no-preference) {
     .reveal { opacity: 0; transform: translateY(14px); transition: opacity 0.7s cubic-bezier(0.22,1,0.36,1), transform 0.7s cubic-bezier(0.22,1,0.36,1); }
@@ -525,12 +552,116 @@
       </dl>
     </div>
   </article>
+
+  <article class="study flip">
+    <figure class="fig">
+      <img src="assets/fig_multiyear.png" alt="Three panels: monthly mean two-metre temperatures for urban and rural columns over three coupled years, the seasonal cycle of the nocturnal heat island, and a log-scale wall-clock comparison between the projected Python loop and the measured native run.">
+      <figcaption>Three coupled years (the 2012 KCL forcing recycled as 2012–2014),
+      urban column plus its rural companion — six column-years of fully coupled
+      simulation through the native Fortran loop.</figcaption>
+    </figure>
+    <div>
+      <h3>4 · Three years, 160 seconds</h3>
+      <p>This is what the 555&times; buys: boundary-layer <em>climatology</em>.
+      The seasonal cycles of the heat island and of boundary-layer depth emerge
+      from six column-years of surface–air negotiation that the Python loop
+      would have needed a day of compute to produce. For multi-season stability
+      the long-tail closure is used and the rural companion is synoptically
+      anchored to the observed air state (τ = 24 h) — the urban column stays
+      fully prognostic.</p>
+      <dl class="metrics">
+        <div><dt>Six column-years, native</dt><dd>160 s<small>measured; Python loop projected 23 h at its measured 130 ms/step</small></dd></div>
+        <div><dt>Simulation pace</dt><dd>2.2 yr min⁻¹<small>coupled column-years per wall-clock minute</small></dd></div>
+        <div><dt>Nocturnal UHI, summer / winter</dt><dd>+1.72 / +4.14 K<small>JJA / DJF means at screen level, emergent</small></dd></div>
+        <div><dt>Daily max BL depth, summer / winter</dt><dd>1549 / 574 m<small>urban column, JJA / DJF means</small></dd></div>
+      </dl>
+      <p class="caveat-inline">Caveats: the three years repeat 2012's weather, so
+      interannual variability here measures the coupled system's internal state
+      memory, not the climate's; and the synoptic anchor draws on observations
+      made at an urban site, so the rural reference is conservative — both are
+      design choices of the demonstrator, stated rather than hidden.</p>
+    </div>
+  </article>
+</section>
+
+<!-- ================= interactive ================= -->
+<section id="lab" class="reveal">
+  <p class="sec-label">IV · In your hands</p>
+  <h2>What a column knows that a flat model cannot</h2>
+  <p>
+    A vanilla land-surface model carries one air temperature, at one height, handed to it
+    from a file. Everything below — a boundary layer you can steer, and five days of real
+    coupled vertical structure — is state that simply does not exist in an offline model.
+    Both panels run live in your browser; the first integrates the same slab equations as
+    <span style="font-family:'JetBrains Mono',monospace;font-size:0.85em;">suews_scm.slab</span>.
+  </p>
+
+  <article class="study" style="grid-template-columns: minmax(0,8fr) minmax(0,4fr);">
+    <div class="lab">
+      <canvas id="slab-canvas" width="1320" height="560" role="img"
+        aria-label="Live integration of the slab boundary-layer model: boundary-layer depth and mixed-layer temperature through a daytime cycle, responding to the sliders."></canvas>
+      <div class="readouts" role="status" aria-live="off">
+        <span>peak depth<b id="slab-hmax">–</b></span>
+        <span>day's warming<b id="slab-dth">–</b></span>
+        <span>heat diluted through<b id="slab-dilute">–</b></span>
+      </div>
+    </div>
+    <div>
+      <h3>Steer a boundary layer</h3>
+      <p>The CLASS slab equations (Tennekes 1973) integrated live, 06:00–20:00.
+      Push the city's sensible heat up and watch the air answer: a deeper, warmer
+      boundary layer. An offline model would change the flux — <em>and stop</em>.</p>
+      <div class="controls">
+        <label><b>Peak sensible heat flux</b> <span class="val" id="v-qh">180 W m⁻²</span>
+          <input type="range" id="s-qh" min="40" max="400" step="10" value="180"
+            aria-label="Peak sensible heat flux, watts per square metre"></label>
+        <label><b>Anthropogenic heat</b> <span class="val" id="v-qf">0 W m⁻²</span>
+          <input type="range" id="s-qf" min="0" max="150" step="5" value="0"
+            aria-label="Anthropogenic heat flux, watts per square metre"></label>
+        <label><b>Stratification above</b> <span class="val" id="v-gam">6.0 K km⁻¹</span>
+          <input type="range" id="s-gam" min="2" max="10" step="0.5" value="6"
+            aria-label="Free-atmosphere lapse rate, kelvin per kilometre"></label>
+        <label><b>Entrainment ratio β</b> <span class="val" id="v-beta">0.20</span>
+          <input type="range" id="s-beta" min="0" max="0.4" step="0.05" value="0.2"
+            aria-label="Entrainment ratio beta"></label>
+      </div>
+      <p class="caveat-inline">Grey curves: the default city for comparison.
+      The same equations pass this page's analytic benchmarks to 0.3 %.</p>
+    </div>
+  </article>
+
+  <article class="study" style="grid-template-columns: minmax(0,4fr) minmax(0,8fr);">
+    <div>
+      <h3>Five days of vertical structure</h3>
+      <p>Real output from the native three-year run: hourly θ(z) for the urban
+      (gold) and rural (green) columns through the July 2012 heat spell. Watch the
+      mixed layer grow each morning, the inversion sharpen, the night reset —
+      and the urban column stay warmer aloft after dark.</p>
+      <p><strong>This entire panel is invisible to an offline model.</strong> Its
+      atmosphere is a single number per variable at a single height; it cannot
+      tell you how deep the city's influence reaches, only what happens at the ground.</p>
+    </div>
+    <div class="lab">
+      <canvas id="prof-canvas" width="1320" height="640" role="img"
+        aria-label="Hourly potential-temperature profiles of the urban and rural columns through five July days, with the diagnosed boundary-layer height marked."></canvas>
+      <div class="scrub-row">
+        <button class="play" id="prof-play" aria-label="Play or pause the profile animation">Play</button>
+        <input type="range" id="prof-slider" min="0" max="119" step="1" value="14"
+          aria-label="Hour selector for the profile sequence">
+        <span class="stamp" id="prof-stamp">–</span>
+      </div>
+      <div class="readouts" role="status" aria-live="off">
+        <span>boundary layer<b id="prof-h">–</b></span>
+        <span>urban 2-m temperature<b id="prof-t2">–</b></span>
+      </div>
+    </div>
+  </article>
 </section>
 
 <!-- ================= run it ================= -->
 <section id="run" class="reveal">
-  <p class="sec-label">IV · Run it</p>
-  <h2>Everything regenerates from six scripts</h2>
+  <p class="sec-label">V · Run it</p>
+  <h2>Everything regenerates from eight scripts</h2>
   <pre><code><span class="c"># from the SUEWS repository root, dev environment built (make dev)</span>
 <span class="k">cd</span> scm
 python -m pytest tests/                  <span class="c"># 24 unit + regression tests</span>
@@ -539,7 +670,9 @@ python benchmarks/run_cbl.py             <span class="c"># convective growth vs 
 python benchmarks/run_coupled_kcl.py     <span class="c"># coupled vs London observations (~6 min)</span>
 python demos/demo_urban_rural.py         <span class="c"># the emergent heat island</span>
 python demos/demo_anthropogenic_heat.py  <span class="c"># waste-heat scenarios</span>
-python demos/demo_cool_roofs.py          <span class="c"># albedo mitigation, atmosphere responding</span></code></pre>
+python demos/demo_cool_roofs.py          <span class="c"># albedo mitigation, atmosphere responding</span>
+python benchmarks/run_native_vs_python.py <span class="c"># backend equivalence + the 555x</span>
+python benchmarks/run_multiyear.py       <span class="c"># three coupled years in ~3 min (native)</span></code></pre>
   <p style="margin-top: var(--space-md); font-size: 0.95rem;">
     The package is ~1,200 lines of documented NumPy on top of
     <a href="https://docs.suews.io/stable/">SUEWS / SuPy</a>; metrics are written as JSON
@@ -549,7 +682,7 @@ python demos/demo_cool_roofs.py          <span class="c"># albedo mitigation, at
 
 <!-- ================= limitations ================= -->
 <section id="limits" class="reveal">
-  <p class="sec-label">V · Honest limitations</p>
+  <p class="sec-label">VI · Honest limitations</p>
   <h2>What a single column cannot tell you</h2>
   <ul class="limits">
     <li>One column is one city: sea breezes, heterogeneity and synoptic change enter only through the prescribed radiation and the ventilation term.</li>
@@ -562,7 +695,7 @@ python demos/demo_cool_roofs.py          <span class="c"># albedo mitigation, at
 
 <!-- ================= references ================= -->
 <section id="refs" class="reveal">
-  <p class="sec-label">VI · References</p>
+  <p class="sec-label">VII · References</p>
   <h2>Sources</h2>
   <ol class="refs">
     <li>Beare R. J. et al. (2006) An intercomparison of large-eddy simulations of the stable boundary layer. <i>Boundary-Layer Meteorol.</i></li>
@@ -589,7 +722,256 @@ python demos/demo_cool_roofs.py          <span class="c"># albedo mitigation, at
 
 </div>
 
+<script src="assets/scm_data.js"></script>
 <script>
+  /* ==================== shared canvas helpers ==================== */
+  // instrument palette: the lab canvases stay dark in both themes,
+  // matching the static figures, so their colours are constants
+  const INK = {
+    fg: "#e8eaf2", sec: "#c8cde0", mut: "#9aa0b4",
+    gold: "#F7B538", green: "#09a25c", sky: "#5DADE2",
+  };
+  function cssVar(name) {
+    return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+  }
+  function setupCanvas(canvas) {
+    const dpr = window.devicePixelRatio || 1;
+    const cssW = canvas.clientWidth || canvas.width;
+    const aspect = canvas.getAttribute("height") / canvas.getAttribute("width");
+    const cssH = cssW * aspect;
+    canvas.width = Math.round(cssW * dpr);
+    canvas.height = Math.round(cssH * dpr);
+    const ctx = canvas.getContext("2d");
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    return { ctx: ctx, w: cssW, h: cssH };
+  }
+  function axes(ctx, x0, y0, x1, y1, opts) {
+    // panel frame + ticks; y grows upward in data space
+    const mut = INK.mut;
+    const grid = "rgba(128,136,160,0.18)";
+    ctx.strokeStyle = grid; ctx.lineWidth = 1; ctx.font = "11px 'JetBrains Mono', monospace";
+    ctx.fillStyle = mut;
+    (opts.xticks || []).forEach(function (t) {
+      const px = x0 + (t - opts.xmin) / (opts.xmax - opts.xmin) * (x1 - x0);
+      ctx.beginPath(); ctx.moveTo(px, y0); ctx.lineTo(px, y1); ctx.stroke();
+      ctx.textAlign = "center";
+      ctx.fillText(opts.xfmt ? opts.xfmt(t) : t, px, y0 + 16);
+    });
+    (opts.yticks || []).forEach(function (t) {
+      const py = y0 - (t - opts.ymin) / (opts.ymax - opts.ymin) * (y0 - y1);
+      ctx.beginPath(); ctx.moveTo(x0, py); ctx.lineTo(x1, py); ctx.stroke();
+      ctx.textAlign = "right";
+      ctx.fillText(opts.yfmt ? opts.yfmt(t) : t, x0 - 7, py + 4);
+    });
+    ctx.fillStyle = INK.sec;
+    ctx.font = "12px 'Instrument Sans', sans-serif";
+    if (opts.xlabel) { ctx.textAlign = "center"; ctx.fillText(opts.xlabel, (x0 + x1) / 2, y0 + 34); }
+    if (opts.title) { ctx.textAlign = "left"; ctx.fillText(opts.title, x0, y1 - 10); }
+  }
+  function polyline(ctx, pts, colour, width, dash) {
+    if (!pts.length) return;
+    ctx.strokeStyle = colour; ctx.lineWidth = width || 1.8;
+    ctx.setLineDash(dash || []);
+    ctx.beginPath();
+    pts.forEach(function (p, i) { if (i === 0) ctx.moveTo(p[0], p[1]); else ctx.lineTo(p[0], p[1]); });
+    ctx.stroke();
+    ctx.setLineDash([]);
+  }
+
+  /* ==================== slab boundary-layer sandbox ====================
+     The CLASS slab equations (Tennekes 1973) - the same physics as
+     suews_scm/slab.py - integrated with RK4 over a 06:00-20:00 day. */
+  (function () {
+    const canvas = document.getElementById("slab-canvas");
+    if (!canvas) return;
+    const RHO_CP = 1.2 * 1005.0;       // [J m-3 K-1]
+    const T0 = 6, T1 = 20;             // integration window [h]
+    const H0 = 150, TH0 = 288, DTH0 = 1.0, DTH_MIN = 0.05;
+
+    function rhs(s, F, gamma, beta) { // s = [h, theta_m, dtheta]
+      const h = Math.max(s[0], 10);
+      const Fp = Math.max(F, 0);
+      const we = s[2] > DTH_MIN ? beta * Fp / s[2] : Fp / (gamma * h);
+      const dh = we;
+      const dth = (F + we * s[2]) / h;
+      const ddth = gamma * we - dth;
+      return [dh, dth, ddth];
+    }
+    function integrate(qhPeak, qf, gammaKm, beta) {
+      const gamma = gammaKm / 1000.0;
+      let s = [H0, TH0, DTH0];
+      const out = [{ t: T0, h: H0, th: TH0 }];
+      const dt = 60;
+      const n = (T1 - T0) * 60;
+      for (let i = 1; i <= n; i++) {
+        const tH = T0 + i / 60.0;
+        const F = (qhPeak * Math.sin(Math.PI * (tH - T0) / (T1 - T0)) + qf) / RHO_CP;
+        const k1 = rhs(s, F, gamma, beta);
+        const s2 = s.map((v, j) => v + 0.5 * dt * k1[j]);
+        const k2 = rhs(s2, F, gamma, beta);
+        const s3 = s.map((v, j) => v + 0.5 * dt * k2[j]);
+        const k3 = rhs(s3, F, gamma, beta);
+        const s4 = s.map((v, j) => v + dt * k3[j]);
+        const k4 = rhs(s4, F, gamma, beta);
+        s = s.map((v, j) => v + dt / 6 * (k1[j] + 2 * k2[j] + 2 * k3[j] + k4[j]));
+        s[2] = Math.max(s[2], 0);
+        if (i % 10 === 0) out.push({ t: tH, h: s[0], th: s[1] });
+      }
+      return out;
+    }
+    const REF = integrate(180, 0, 6, 0.2);
+
+    const ids = { qh: "s-qh", qf: "s-qf", gam: "s-gam", beta: "s-beta" };
+    function vals() {
+      return {
+        qh: +document.getElementById(ids.qh).value,
+        qf: +document.getElementById(ids.qf).value,
+        gam: +document.getElementById(ids.gam).value,
+        beta: +document.getElementById(ids.beta).value,
+      };
+    }
+    function draw() {
+      const v = vals();
+      document.getElementById("v-qh").textContent = v.qh + " W m⁻²";
+      document.getElementById("v-qf").textContent = v.qf + " W m⁻²";
+      document.getElementById("v-gam").textContent = v.gam.toFixed(1) + " K km⁻¹";
+      document.getElementById("v-beta").textContent = v.beta.toFixed(2);
+      const cur = integrate(v.qh, v.qf, v.gam, v.beta);
+
+      const { ctx, w, h } = setupCanvas(canvas);
+      ctx.clearRect(0, 0, w, h);
+      const mid = w / 2;
+      const pads = { l: 52, r: 16, t: 26, b: 44 };
+      const hMax = Math.max(2600, Math.max.apply(null, cur.map(p => p.h)) * 1.1);
+      const thMax = Math.max(296, Math.max.apply(null, cur.map(p => p.th)) + 1);
+
+      function panel(x0, x1, ymin, ymax, key, title, yfmt) {
+        const px0 = x0 + pads.l, px1 = x1 - pads.r, py0 = h - pads.b, py1 = pads.t;
+        axes(ctx, px0, py0, px1, py1, {
+          xmin: T0, xmax: T1, xticks: [6, 10, 14, 18],
+          xfmt: t => t + ":00", xlabel: "local time",
+          ymin: ymin, ymax: ymax,
+          yticks: yfmt === null ? [500, 1000, 1500, 2000, 2500].filter(t => t < ymax)
+                                : [288, 290, 292, 294, 296].filter(t => t < ymax),
+          yfmt: yfmt, title: title,
+        });
+        const toPx = p => [
+          px0 + (p.t - T0) / (T1 - T0) * (px1 - px0),
+          py0 - (p[key] - ymin) / (ymax - ymin) * (py0 - py1),
+        ];
+        polyline(ctx, REF.map(toPx), INK.mut, 1.2, [4, 4]);
+        polyline(ctx, cur.map(toPx), key === "h" ? INK.sky : INK.gold, 2.2);
+      }
+      panel(0, mid, 0, hMax, "h", "boundary-layer depth (m)", null);
+      panel(mid, w, 287, thMax, "th", "mixed-layer temperature (K)", t => t);
+
+      const last = cur[cur.length - 1];
+      const peakH = Math.max.apply(null, cur.map(p => p.h));
+      document.getElementById("slab-hmax").textContent = Math.round(peakH) + " m";
+      document.getElementById("slab-dth").textContent = "+" + (last.th - TH0).toFixed(1) + " K";
+      document.getElementById("slab-dilute").textContent =
+        (peakH / 1000).toFixed(1) + " km of air";
+    }
+    Object.values(ids).forEach(id =>
+      document.getElementById(id).addEventListener("input", draw));
+    window.addEventListener("resize", draw);
+    document.getElementById("theme-toggle").addEventListener("click",
+      () => requestAnimationFrame(draw));
+    requestAnimationFrame(draw); // after the theme attribute is applied
+  })();
+
+  /* ==================== profile scrubber ====================
+     Real hourly theta(z) from the native three-year coupled run. */
+  (function () {
+    const canvas = document.getElementById("prof-canvas");
+    if (!canvas || !window.SCM_DATA) return;
+    const D = window.SCM_DATA;
+    const slider = document.getElementById("prof-slider");
+    const stamp = document.getElementById("prof-stamp");
+    const playBtn = document.getElementById("prof-play");
+    slider.max = D.times.length - 1;
+
+    const allTh = D.theta_urban.concat(D.theta_rural);
+    let thMin = Infinity, thMax = -Infinity;
+    allTh.forEach(row => row.forEach(v => {
+      if (v < thMin) thMin = v;
+      if (v > thMax) thMax = v;
+    }));
+    thMin = Math.floor(thMin - 0.5); thMax = Math.ceil(thMax + 0.5);
+    const zMax = D.z[D.z.length - 1];
+
+    function draw(i) {
+      const { ctx, w, h } = setupCanvas(canvas);
+      ctx.clearRect(0, 0, w, h);
+      const px0 = 60, px1 = w - 18, py0 = h - 46, py1 = 24;
+      const yticks = [500, 1000, 1500, 2000, 2500].filter(t => t < zMax);
+      const xticks = [];
+      for (let t = thMin; t <= thMax; t += 4) xticks.push(t);
+      axes(ctx, px0, py0, px1, py1, {
+        xmin: thMin, xmax: thMax, xticks: xticks, xfmt: t => t,
+        xlabel: "potential temperature (K)",
+        ymin: 0, ymax: zMax, yticks: yticks, yfmt: t => t,
+        title: "height (m)",
+      });
+      const toPx = (th, z) => [
+        px0 + (th - thMin) / (thMax - thMin) * (px1 - px0),
+        py0 - z / zMax * (py0 - py1),
+      ];
+      // ghost: same hour yesterday, for continuity
+      if (i >= 24) {
+        polyline(ctx, D.theta_urban[i - 24].map((v, k) => toPx(v, D.z[k])),
+                 "rgba(247,181,56,0.25)", 1.2);
+      }
+      polyline(ctx, D.theta_rural[i].map((v, k) => toPx(v, D.z[k])),
+               INK.green, 1.8);
+      polyline(ctx, D.theta_urban[i].map((v, k) => toPx(v, D.z[k])),
+               INK.gold, 2.4);
+      // boundary-layer height marker
+      if (D.h_bl[i] !== null && D.h_bl[i] < zMax) {
+        const py = py0 - D.h_bl[i] / zMax * (py0 - py1);
+        polyline(ctx, [[px0, py], [px1, py]], INK.sky, 1.2, [6, 5]);
+        ctx.fillStyle = INK.sky;
+        ctx.font = "11px 'JetBrains Mono', monospace";
+        ctx.textAlign = "right";
+        ctx.fillText("h = " + D.h_bl[i] + " m", px1 - 4, py - 6);
+      }
+      // legend
+      ctx.font = "11.5px 'Instrument Sans', sans-serif"; ctx.textAlign = "left";
+      ctx.fillStyle = INK.gold; ctx.fillText("urban", px0 + 10, py1 + 14);
+      ctx.fillStyle = INK.green; ctx.fillText("rural", px0 + 58, py1 + 14);
+
+      stamp.textContent = D.times[i];
+      document.getElementById("prof-h").textContent =
+        D.h_bl[i] === null ? "–" : D.h_bl[i] + " m";
+      document.getElementById("prof-t2").textContent =
+        D.t2[i] === null ? "–" : D.t2[i].toFixed(1) + " °C";
+    }
+
+    let timer = null;
+    const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    function stop() {
+      if (timer) { clearInterval(timer); timer = null; playBtn.textContent = "Play"; }
+    }
+    if (reduced) {
+      playBtn.style.display = "none"; // manual scrubbing only
+    } else {
+      playBtn.addEventListener("click", function () {
+        if (timer) { stop(); return; }
+        playBtn.textContent = "Pause";
+        timer = setInterval(function () {
+          let i = (+slider.value + 1) % D.times.length;
+          slider.value = i;
+          draw(i);
+        }, 140);
+      });
+    }
+    slider.addEventListener("input", function () { stop(); draw(+slider.value); });
+    window.addEventListener("resize", () => draw(+slider.value));
+    document.getElementById("theme-toggle").addEventListener("click",
+      () => requestAnimationFrame(() => draw(+slider.value)));
+    requestAnimationFrame(() => draw(+slider.value)); // after theme applies
+  })();
+
   (function () {
     const root = document.documentElement;
     const btn = document.getElementById("theme-toggle");

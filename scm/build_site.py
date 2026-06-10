@@ -31,6 +31,7 @@ def main():
     qf = load(DEMOS / "demo_qf.json")
     cr = load(DEMOS / "demo_cool_roofs.json")
     nat = load(BENCH / "native_vs_python.json")
+    my = load(BENCH / "multiyear.json")
 
     t = kcl["tair"]
     rmse_all = t["all"]["rmse"]
@@ -77,6 +78,13 @@ def main():
         "NAT_AGREE_MEAN": f"{nat['backend_agreement']['tair_abs_diff_mean_K']:.2f}",
         "NAT_RMSE": f"{nat['skill_vs_obs']['native']['rmse']:.1f}",
         "PY_RMSE": f"{nat['skill_vs_obs']['python']['rmse']:.1f}",
+        "MY_NATIVE_S": f"{my['timing']['native_total_s']:.0f}",
+        "MY_PY_H": f"{my['timing']['python_projected_h']:.0f}",
+        "MY_PACE": f"{my['timing']['sim_years_per_wallclock_min']:.1f}",
+        "MY_UHI_JJA": f"{my['climatology']['uhi2m_nocturnal_jja_K']:+.2f}",
+        "MY_UHI_DJF": f"{my['climatology']['uhi2m_nocturnal_djf_K']:+.2f}",
+        "MY_H_JJA": f"{my['climatology']['h_bl_daymax_jja_urban_m']:.0f}",
+        "MY_H_DJF": f"{my['climatology']['h_bl_daymax_djf_urban_m']:.0f}",
         "SUPY_VERSION": supy.__version__,
         "GEN_DATE": gen_date,
     }

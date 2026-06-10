@@ -737,7 +737,8 @@ CONTAINS
       dataOutBlockAll, ncols_all, &
       scm_params_flat, n_scm_params, &
       bg_nt, bg_nz, bg_t_sec, bg_z, bg_theta_flat, bg_q_flat, &
-      dataOutBlockSCM)
+      dataOutBlockSCM, &
+      snap_every, n_snap, nz_snap, snap_z, snap_theta, snap_q)
       ! ==========================================================================
       ! Coupled single-column run: as SUEWS_cal_multitsteps_dts, but the air
       ! temperature, humidity and wind speed that SUEWS sees each step come
@@ -759,6 +760,7 @@ CONTAINS
                                  scm_column_set_profiles, scm_column_step, &
                                  scm_sample_zmeas, scm_wind_nudge, scm_ventilate, &
                                  scm_background_on_grid, scm_kinematic_fluxes, &
+                                 scm_obs_anchor, &
                                  SCM_DIAG_NCOL
 
       IMPLICIT NONE
@@ -779,6 +781,12 @@ CONTAINS
       REAL(KIND(1D0)), DIMENSION(MAX(bg_nt*bg_nz, 1)), INTENT(IN) :: bg_theta_flat
       REAL(KIND(1D0)), DIMENSION(MAX(bg_nt*bg_nz, 1)), INTENT(IN) :: bg_q_flat
       REAL(KIND(1D0)), DIMENSION(len_sim, SCM_DIAG_NCOL), INTENT(OUT) :: dataOutBlockSCM
+      ! optional hourly (or any-stride) column profile snapshots:
+      ! snap_every <= 0 disables; nz_snap must equal the column level count
+      INTEGER, INTENT(IN) :: snap_every, n_snap, nz_snap
+      REAL(KIND(1D0)), DIMENSION(MAX(nz_snap, 1)), INTENT(OUT) :: snap_z
+      REAL(KIND(1D0)), DIMENSION(MAX(n_snap*nz_snap, 1)), INTENT(OUT) :: snap_theta
+      REAL(KIND(1D0)), DIMENSION(MAX(n_snap*nz_snap, 1)), INTENT(OUT) :: snap_q
 
       ! local variables
       TYPE(SUEWS_FORCING) :: forcing
@@ -788,7 +796,7 @@ CONTAINS
       TYPE(dts_scm_background) :: bg
       TYPE(dts_scm_params) :: prm
       LOGICAL :: prm_ok, use_bg
-      INTEGER :: ir, col_offset, isub, it, iz
+      INTEGER :: ir, col_offset, isub, it, iz, i_snap
       REAL(KIND(1D0)) :: z_meas, dt_col, t_sec
       REAL(KIND(1D0)) :: tair_c, rh_pct, wind, q_zm, p_zm
       REAL(KIND(1D0)) :: qh, qe, ustar, wth, wq, u_obs, h_bl, tau_adv
@@ -796,6 +804,10 @@ CONTAINS
 
       dataOutBlockAll = 0.0D0
       dataOutBlockSCM = -999.0D0
+      snap_z = -999.0D0
+      snap_theta = -999.0D0
+      snap_q = -999.0D0
+      i_snap = 0
 
       CALL scm_params_from_flat(scm_params_flat, n_scm_params, prm, prm_ok)
       IF (.NOT. prm_ok) THEN
@@ -817,6 +829,17 @@ CONTAINS
                                    MetForcingBlock(1, 12), MetForcingBlock(1, 11), &
                                    MetForcingBlock(1, 10), MetForcingBlock(1, 13))
       ALLOCATE (theta_bg(col%n), q_bg(col%n))
+
+      IF (snap_every > 0) THEN
+         IF (nz_snap /= col%n) THEN
+            modState%errorState%flag = .TRUE.
+            modState%errorState%code = 106
+            modState%errorState%message = &
+               'SUEWS_cal_multitsteps_scm: snapshot level count does not match the column grid'
+            RETURN
+         END IF
+         snap_z(1:col%n) = col%z
+      END IF
 
       ! --- background atmosphere (rural companion), optional ---
       use_bg = prm%use_background .AND. bg_nt > 0 .AND. bg_nz > 1
@@ -895,7 +918,19 @@ CONTAINS
             END IF
             CALL scm_wind_nudge(col, prm, dt_col, u_obs, z_meas)
             IF (use_bg) CALL scm_ventilate(col, prm, dt_col, theta_bg, q_bg, h_bl, tau_adv)
+            CALL scm_obs_anchor(col, prm, dt_col, z_meas, &
+                                MetForcingBlock(ir, 12), MetForcingBlock(ir, 11), &
+                                MetForcingBlock(ir, 13))
          END DO
+
+         ! === profile snapshots (post-step state, as the Python reference) ===
+         IF (snap_every > 0) THEN
+            IF (MOD(ir - 1, snap_every) == 0 .AND. i_snap < n_snap) THEN
+               snap_theta(i_snap*nz_snap + 1:(i_snap + 1)*nz_snap) = col%theta
+               snap_q(i_snap*nz_snap + 1:(i_snap + 1)*nz_snap) = col%q
+               i_snap = i_snap + 1
+            END IF
+         END IF
 
          ! === SCM diagnostics: the air SUEWS saw + column state ===
          dataOutBlockSCM(ir, 1) = tair_c

@@ -576,6 +576,19 @@ pub struct ScmInput {
     pub bg_z: Vec<f64>,
     pub bg_theta: Vec<f64>,
     pub bg_q: Vec<f64>,
+    /// snapshot the column profiles every this many steps (0 = off)
+    pub snap_every: usize,
+    /// number of column levels expected when snapshotting (must match the
+    /// grid implied by params; the Fortran side validates)
+    pub nz_snap: usize,
+}
+
+/// Profile snapshots returned by a coupled SCM run.
+pub struct ScmSnapshots {
+    pub z: Vec<f64>,
+    pub theta: Vec<f64>, // n_snap * nz, time-major
+    pub q: Vec<f64>,
+    pub n_snap: usize,
 }
 
 /// Number of per-step SCM diagnostic columns (matches `SCM_DIAG_NCOL` in
@@ -583,7 +596,7 @@ pub struct ScmInput {
 pub const SCM_DIAG_NCOL: usize = 7;
 
 /// Length of the flat SCM parameter vector (matches `SCM_PARAMS_LEN`).
-pub const SCM_PARAMS_LEN: usize = 23;
+pub const SCM_PARAMS_LEN: usize = 24;
 
 pub fn run_from_config_str_and_forcing(
     config_yaml: &str,
@@ -873,7 +886,7 @@ pub fn run_from_config_str_and_forcing_scm(
     len_sim: usize,
     state_json: Option<&str>,
     scm: ScmInput,
-) -> Result<(Vec<f64>, Vec<f64>, SuewsState, usize), BridgeError> {
+) -> Result<(Vec<f64>, Vec<f64>, ScmSnapshots, SuewsState, usize), BridgeError> {
     let mut run_cfg = load_run_config_from_str(config_yaml).map_err(simulation_error)?;
 
     if len_sim == 0 {
@@ -977,7 +990,7 @@ pub fn run_from_config_str_and_forcing_scm(
         run_cfg.state.ohm_state.ws_rav = 2.0;
     }
 
-    let (sim_out, scm_block) = run_simulation_scm(
+    let (sim_out, scm_block, snaps) = run_simulation_scm(
         SimulationInput {
             timer: run_cfg.timer,
             config: run_cfg.config,
@@ -992,14 +1005,14 @@ pub fn run_from_config_str_and_forcing_scm(
         &scm,
     )?;
 
-    Ok((sim_out.output_block, scm_block, sim_out.state, len_sim))
+    Ok((sim_out.output_block, scm_block, snaps, sim_out.state, len_sim))
 }
 
 /// Like [`run_simulation`] but through the coupled-SCM Fortran entry point.
 pub fn run_simulation_scm(
     input: SimulationInput,
     scm: &ScmInput,
-) -> Result<(SimulationOutput, Vec<f64>), BridgeError> {
+) -> Result<(SimulationOutput, Vec<f64>, ScmSnapshots), BridgeError> {
     if input.len_sim == 0 {
         return Err(BridgeError::SimulationError {
             code: -1,
@@ -1056,6 +1069,17 @@ pub fn run_simulation_scm(
             })?;
     let mut output_block = vec![0.0_f64; output_len];
     let mut scm_block = vec![0.0_f64; input.len_sim * SCM_DIAG_NCOL];
+
+    // snapshot buffers (1-element placeholders when disabled)
+    let n_snap = if scm.snap_every > 0 {
+        input.len_sim.div_ceil(scm.snap_every)
+    } else {
+        0
+    };
+    let snap_vals = (n_snap * scm.nz_snap).max(1);
+    let mut snap_z = vec![0.0_f64; scm.nz_snap.max(1)];
+    let mut snap_theta = vec![0.0_f64; snap_vals];
+    let mut snap_q = vec![0.0_f64; snap_vals];
 
     let bg_nt = scm.bg_t_sec.len();
     let bg_nz = scm.bg_z.len();
@@ -1127,6 +1151,9 @@ pub fn run_simulation_scm(
             bg_z_buf.as_ptr(),
             bg_theta_buf.as_ptr(),
             bg_q_buf.as_ptr(),
+            i32_len(scm.snap_every, "snapshot stride")?,
+            i32_len(n_snap, "snapshot count")?,
+            i32_len(scm.nz_snap, "snapshot level count")?,
             timer_out.as_mut_ptr(),
             timer_len_i32,
             state_out.as_mut_ptr(),
@@ -1135,6 +1162,10 @@ pub fn run_simulation_scm(
             output_len_i32,
             scm_block.as_mut_ptr(),
             scm_out_len_i32,
+            snap_z.as_mut_ptr(),
+            snap_theta.as_mut_ptr(),
+            snap_q.as_mut_ptr(),
+            i32_len(snap_vals, "snapshot buffer length")?,
             &mut sim_err_code as *mut i32,
             sim_err_message.as_mut_ptr(),
             sim_err_message_len_i32,
@@ -1173,6 +1204,12 @@ pub fn run_simulation_scm(
             output_block,
         },
         scm_block,
+        ScmSnapshots {
+            z: snap_z,
+            theta: snap_theta,
+            q: snap_q,
+            n_snap,
+        },
     ))
 }
 

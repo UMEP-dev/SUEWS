@@ -107,7 +107,8 @@ pub use roughness::*;
 pub use sim::{
     run_from_config_str_and_forcing, run_from_config_str_and_forcing_scm,
     run_from_config_str_and_forcing_with_state,
-    run_simulation, run_simulation_scm, ScmInput, SimulationInput, SimulationOutput,
+    run_simulation, run_simulation_scm, ScmInput, ScmSnapshots, SimulationInput,
+    SimulationOutput,
     SiteScalars, OUTPUT_SUEWS_COLS, OUTPUT_ALL_COLS, OUTPUT_GROUP_LAYOUT,
     SCM_DIAG_NCOL, SCM_PARAMS_LEN,
 };
@@ -4116,7 +4117,7 @@ mod python_bindings {
     /// (tair_c, rh_pct, u_ms, h_bl, wth, wq, tau_adv).
     #[cfg(feature = "physics")]
     #[pyfunction(name = "run_suews_scm")]
-    #[pyo3(signature = (config_yaml, forcing_block, len_sim, scm_params, bg_t_sec, bg_z, bg_theta, bg_q, state_json=None))]
+    #[pyo3(signature = (config_yaml, forcing_block, len_sim, scm_params, bg_t_sec, bg_z, bg_theta, bg_q, state_json=None, snap_every=0, nz_snap=0))]
     #[allow(clippy::too_many_arguments)]
     fn run_suews_scm_py(
         config_yaml: &str,
@@ -4128,25 +4129,38 @@ mod python_bindings {
         bg_theta: Vec<f64>,
         bg_q: Vec<f64>,
         state_json: Option<&str>,
-    ) -> PyResult<(Vec<f64>, Vec<f64>, String, usize)> {
+        snap_every: usize,
+        nz_snap: usize,
+    ) -> PyResult<(Vec<f64>, Vec<f64>, Vec<f64>, Vec<f64>, Vec<f64>, String, usize)> {
         let scm = ScmInput {
             params: scm_params,
             bg_t_sec,
             bg_z,
             bg_theta,
             bg_q,
+            snap_every,
+            nz_snap,
         };
-        let (output_block, scm_block, state, actual_len) = run_from_config_str_and_forcing_scm(
-            config_yaml,
-            forcing_block,
-            len_sim,
-            state_json,
-            scm,
-        )
-        .map_err(map_bridge_error)?;
+        let (output_block, scm_block, snaps, state, actual_len) =
+            run_from_config_str_and_forcing_scm(
+                config_yaml,
+                forcing_block,
+                len_sim,
+                state_json,
+                scm,
+            )
+            .map_err(map_bridge_error)?;
         let state_json_out = serde_json::to_string(&suews_state_to_nested_payload(&state))
             .map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(e.to_string()))?;
-        Ok((output_block, scm_block, state_json_out, actual_len))
+        Ok((
+            output_block,
+            scm_block,
+            snaps.z,
+            snaps.theta,
+            snaps.q,
+            state_json_out,
+            actual_len,
+        ))
     }
 
     /// Run multiple grid cells in parallel using Rayon thread pool.

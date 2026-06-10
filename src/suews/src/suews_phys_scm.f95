@@ -40,6 +40,7 @@ MODULE module_phys_scm
    PUBLIC :: scm_sample_zmeas, scm_wind_nudge, scm_ventilate
    PUBLIC :: scm_background_on_grid, scm_q_from_rh
    PUBLIC :: scm_column_set_profiles, scm_rho_air, scm_kinematic_fluxes
+   PUBLIC :: scm_obs_anchor
    PUBLIC :: SCM_PARAMS_LEN, SCM_DIAG_NCOL
 
    ! ---- physical constants (match scm/suews_scm/constants.py exactly) ----
@@ -52,7 +53,7 @@ MODULE module_phys_scm
    REAL(KIND(1D0)), PARAMETER :: VONK = 0.4D0 ! von Karman [-]
    REAL(KIND(1D0)), PARAMETER :: EPS_W = 0.622D0 ! Mw/Md [-]
 
-   INTEGER, PARAMETER :: SCM_PARAMS_LEN = 23 ! length of the flat parameter vector
+   INTEGER, PARAMETER :: SCM_PARAMS_LEN = 24 ! length of the flat parameter vector
    INTEGER, PARAMETER :: SCM_DIAG_NCOL = 7 ! per-step diagnostic columns
 
    ! flat parameter vector layout (1-based; keep in step with
@@ -67,6 +68,11 @@ MODULE module_phys_scm
    ! 19 cg_a [-]          20 excess_b [-]     21 wstar_fac [-]
    ! 22 stable_fn [0 = sharp cut-off, 1 = long tail]
    ! 23 use_background [0/1]
+   ! 24 obs_anchor_tau [s; 0 = off] - synoptic relaxation of the whole
+   !    column towards a profile anchored at the observed air state
+   !    (standard SCM representation of large-scale advection; used by
+   !    the rural companion in multi-season runs, where a closed column
+   !    would otherwise drift cold through the winter)
 
    TYPE :: dts_scm_params
       REAL(KIND(1D0)) :: dz0 = 20.0D0 ! [m]
@@ -92,6 +98,7 @@ MODULE module_phys_scm
       REAL(KIND(1D0)) :: wstar_fac = 0.6D0 ! [-]
       INTEGER :: stable_fn = 0 ! 0 sharp, 1 long tail
       LOGICAL :: use_background = .FALSE.
+      REAL(KIND(1D0)) :: obs_anchor_tau = 0.0D0 ! [s], 0 = off
    END TYPE dts_scm_params
 
    TYPE :: dts_scm_column
@@ -157,6 +164,7 @@ CONTAINS
       prm%wstar_fac = flat(21)
       prm%stable_fn = INT(flat(22))
       prm%use_background = (flat(23) > 0.5D0)
+      prm%obs_anchor_tau = flat(24)
       ok = .TRUE.
    END SUBROUTINE scm_params_from_flat
 
@@ -645,6 +653,7 @@ CONTAINS
       REAL(KIND(1D0)), INTENT(OUT) :: theta_bg(col%n), q_bg(col%n)
 
       INTEGER :: it, k
+      REAL(KIND(1D0)) :: row_theta(bg%nz), row_q(bg%nz)
       ! latest snapshot at or before t_sec (clamped to the first one)
       it = 1
       DO k = 2, bg%nt
@@ -654,9 +663,12 @@ CONTAINS
             EXIT
          END IF
       END DO
+      ! contiguous copies avoid per-call array temporaries in the interp
+      row_theta = bg%theta(it, :)
+      row_q = bg%q(it, :)
       DO k = 1, col%n
-         theta_bg(k) = scm_interp1(col%z(k), bg%z, bg%theta(it, :), bg%nz)
-         q_bg(k) = scm_interp1(col%z(k), bg%z, bg%q(it, :), bg%nz)
+         theta_bg(k) = scm_interp1(col%z(k), bg%z, row_theta, bg%nz)
+         q_bg(k) = scm_interp1(col%z(k), bg%z, row_q, bg%nz)
       END DO
    END SUBROUTINE scm_background_on_grid
 
@@ -714,6 +726,46 @@ CONTAINS
       rh_pct = MIN(MAX(scm_rh_from_q(q_zm, t_air, p_zm), 2.0D0), 100.0D0)
       wind = MAX(HYPOT(u_zm, v_zm), 0.5D0)
    END SUBROUTINE scm_sample_zmeas
+
+   !=====================================================================
+   ! synoptic anchor: relax the whole column towards a profile anchored
+   ! at the observed air state at the measurement height. The reference
+   ! has the same shape as the initial profiles (well-mixed below
+   ! h_init, prescribed lapse rates above), so with a time scale of a
+   ! day or more the column keeps its own diurnal cycle while following
+   ! the regional air mass across seasons.
+   !=====================================================================
+   SUBROUTINE scm_obs_anchor(col, prm, dt, z_meas, tair_c, rh_pct, pres_hpa)
+      TYPE(dts_scm_column), INTENT(INOUT) :: col
+      TYPE(dts_scm_params), INTENT(IN) :: prm
+      REAL(KIND(1D0)), INTENT(IN) :: dt ! [s]
+      REAL(KIND(1D0)), INTENT(IN) :: z_meas ! [m]
+      REAL(KIND(1D0)), INTENT(IN) :: tair_c ! observed air temperature [degC]
+      REAL(KIND(1D0)), INTENT(IN) :: rh_pct ! observed relative humidity [%]
+      REAL(KIND(1D0)), INTENT(IN) :: pres_hpa ! observed pressure [hPa]
+
+      REAL(KIND(1D0)) :: p_sfc, t_air, h_scale, p_zm, theta_m, q_m, fac
+      REAL(KIND(1D0)) :: theta_ref_k, q_ref_k
+      INTEGER :: k
+
+      IF (prm%obs_anchor_tau <= 0.0D0) RETURN
+      IF (tair_c < -90.0D0 .OR. rh_pct < 0.0D0) RETURN ! missing observation
+
+      p_sfc = pres_hpa*100.0D0
+      t_air = tair_c + 273.15D0
+      h_scale = R_D*t_air/GRAV
+      p_zm = p_sfc*EXP(-z_meas/h_scale)
+      theta_m = t_air/scm_exner(p_zm)
+      q_m = scm_q_from_rh(rh_pct, t_air, p_zm)
+
+      fac = dt/prm%obs_anchor_tau
+      DO k = 1, col%n
+         theta_ref_k = theta_m + prm%gamma_theta*MAX(col%z(k) - prm%h_init, 0.0D0)
+         q_ref_k = MAX(q_m + prm%gamma_q*MAX(col%z(k) - prm%h_init, 0.0D0), 1.0D-5)
+         col%theta(k) = col%theta(k) + fac*(theta_ref_k - col%theta(k))
+         col%q(k) = col%q(k) + fac*(q_ref_k - col%q(k))
+      END DO
+   END SUBROUTINE scm_obs_anchor
 
    !=====================================================================
    ! convert SUEWS energy fluxes to kinematic fluxes for the column

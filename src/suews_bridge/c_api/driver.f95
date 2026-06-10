@@ -351,10 +351,12 @@ subroutine suews_scm_multitsteps_c( &
    nlayer, ndepth, &
    scm_params_flat, scm_params_len, &
    bg_nt, bg_nz, bg_t_sec, bg_z, bg_theta_flat, bg_q_flat, &
+   snap_every, n_snap, nz_snap, &
    timer_out, timer_out_len, &
    state_out_flat, state_out_len, &
    output_flat, output_len, &
    scm_out_flat, scm_out_len, &
+   snap_z_out, snap_theta_out, snap_q_out, snap_buf_len, &
    sim_err_code, sim_err_message, sim_err_message_len, &
    err) bind(C, name='suews_scm_multitsteps_c')
 
@@ -401,6 +403,9 @@ subroutine suews_scm_multitsteps_c( &
    real(c_double), intent(in) :: bg_z(*)
    real(c_double), intent(in) :: bg_theta_flat(*)
    real(c_double), intent(in) :: bg_q_flat(*)
+   integer(c_int), value, intent(in) :: snap_every
+   integer(c_int), value, intent(in) :: n_snap
+   integer(c_int), value, intent(in) :: nz_snap
 
    real(c_double), intent(out) :: timer_out(*)
    integer(c_int), value, intent(in) :: timer_out_len
@@ -410,6 +415,10 @@ subroutine suews_scm_multitsteps_c( &
    integer(c_int), value, intent(in) :: output_len
    real(c_double), intent(out) :: scm_out_flat(*)
    integer(c_int), value, intent(in) :: scm_out_len
+   real(c_double), intent(out) :: snap_z_out(*)
+   real(c_double), intent(out) :: snap_theta_out(*)
+   real(c_double), intent(out) :: snap_q_out(*)
+   integer(c_int), value, intent(in) :: snap_buf_len
 
    integer(c_int), intent(out) :: sim_err_code
    character(c_char), intent(out) :: sim_err_message(*)
@@ -427,12 +436,15 @@ subroutine suews_scm_multitsteps_c( &
    real(c_double), dimension(:), allocatable :: scm_params_local
    real(c_double), dimension(:), allocatable :: bg_t_local, bg_z_local
    real(c_double), dimension(:), allocatable :: bg_theta_local, bg_q_local
+   real(c_double), dimension(:), allocatable :: snap_z_local
+   real(c_double), dimension(:), allocatable :: snap_theta_local, snap_q_local
 
    integer :: len_sim_i
    integer :: forcing_cols_i
    integer :: nlayer_i
    integer :: ndepth_i
    integer :: bg_nt_i, bg_nz_i, n_bg_vals
+   integer :: snap_every_i, n_snap_i, nz_snap_i, n_snap_vals
    integer :: ir
    integer :: ic
    integer :: idx
@@ -490,6 +502,15 @@ subroutine suews_scm_multitsteps_c( &
    if (scm_out_len<len_sim*int(SCM_DIAG_NCOL, c_int)) then
       err = SUEWS_CAPI_BAD_BUFFER
       return
+   end if
+   snap_every_i = int(snap_every)
+   n_snap_i = int(n_snap)
+   nz_snap_i = int(nz_snap)
+   if (snap_every_i>0) then
+      if (n_snap_i<=0 .or. nz_snap_i<=0 .or. snap_buf_len<n_snap*nz_snap) then
+         err = SUEWS_CAPI_BAD_BUFFER
+         return
+      end if
    end if
 
    call validate_member_toc(site_flat_len, site_toc, site_toc_len, site_member_count, local_err)
@@ -574,6 +595,11 @@ subroutine suews_scm_multitsteps_c( &
       return
    end if
 
+   n_snap_vals = max(n_snap_i*nz_snap_i, 1)
+   allocate (snap_z_local(max(nz_snap_i, 1)), source=0.0d0)
+   allocate (snap_theta_local(n_snap_vals), source=0.0d0)
+   allocate (snap_q_local(n_snap_vals), source=0.0d0)
+
    call state_local%errorState%reset()
    call SUEWS_cal_multitsteps_scm( &
       timer_local, metforcing_block, len_sim_i, &
@@ -581,7 +607,14 @@ subroutine suews_scm_multitsteps_c( &
       state_local, dataout_block, ncols_all, &
       scm_params_local, SCM_PARAMS_LEN, &
       bg_nt_i, bg_nz_i, bg_t_local, bg_z_local, bg_theta_local, bg_q_local, &
-      scmout_block)
+      scmout_block, &
+      snap_every_i, n_snap_i, nz_snap_i, snap_z_local, snap_theta_local, snap_q_local)
+
+   if (snap_every_i>0) then
+      snap_z_out(1:nz_snap_i) = snap_z_local(1:nz_snap_i)
+      snap_theta_out(1:n_snap_i*nz_snap_i) = snap_theta_local(1:n_snap_i*nz_snap_i)
+      snap_q_out(1:n_snap_i*nz_snap_i) = snap_q_local(1:n_snap_i*nz_snap_i)
+   end if
 
    call pack_timer(timer_local, timer_out, timer_out_len, local_err)
    if (local_err/=SUEWS_CAPI_OK) then

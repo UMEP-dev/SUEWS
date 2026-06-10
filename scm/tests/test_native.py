@@ -44,7 +44,7 @@ def sample():
 
 def test_param_vector_matches_coupled_defaults():
     params = scm_params_vector()
-    assert len(params) == 23
+    assert len(params) == 24
     scm_defaults = CoupledSCM.__init__.__defaults__
     # spot-check the physically critical entries against CoupledSCM defaults
     assert params[0] == 20.0  # dz0

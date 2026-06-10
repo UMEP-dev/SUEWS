@@ -568,6 +568,23 @@ fn fortran_weekday_from_ymd(year: i32, month: i32, day: i32) -> i32 {
     w + 1
 }
 
+/// SCM (coupled single-column) extension input: flat parameter vector plus
+/// an optional background atmosphere (see `module_phys_scm` for the layout).
+pub struct ScmInput {
+    pub params: Vec<f64>,
+    pub bg_t_sec: Vec<f64>,
+    pub bg_z: Vec<f64>,
+    pub bg_theta: Vec<f64>,
+    pub bg_q: Vec<f64>,
+}
+
+/// Number of per-step SCM diagnostic columns (matches `SCM_DIAG_NCOL` in
+/// `suews_phys_scm.f95`): tair_c, rh_pct, u_ms, h_bl, wth, wq, tau_adv.
+pub const SCM_DIAG_NCOL: usize = 7;
+
+/// Length of the flat SCM parameter vector (matches `SCM_PARAMS_LEN`).
+pub const SCM_PARAMS_LEN: usize = 23;
+
 pub fn run_from_config_str_and_forcing(
     config_yaml: &str,
     forcing_block: Vec<f64>,
@@ -838,6 +855,325 @@ pub fn run_from_config_str_and_forcing_with_state(
     })?;
 
     Ok((sim_out.output_block, sim_out.state, len_sim))
+}
+
+/// Coupled single-column run: as the plain run functions, but the timestep
+/// loop runs `SUEWS_cal_multitsteps_scm` so air temperature, humidity and
+/// wind are prognosed by the 1-D boundary-layer column.
+///
+/// Returns `(output_block, scm_block, state, len_sim)` where `scm_block` is
+/// `len_sim * SCM_DIAG_NCOL` row-major per-step SCM diagnostics.
+///
+/// NOTE: the run-config preparation below is kept in step with
+/// `run_from_config_str_and_forcing` / `..._with_state`; update all three
+/// together if the stepping semantics change.
+pub fn run_from_config_str_and_forcing_scm(
+    config_yaml: &str,
+    forcing_block: Vec<f64>,
+    len_sim: usize,
+    state_json: Option<&str>,
+    scm: ScmInput,
+) -> Result<(Vec<f64>, Vec<f64>, SuewsState, usize), BridgeError> {
+    let mut run_cfg = load_run_config_from_str(config_yaml).map_err(simulation_error)?;
+
+    if len_sim == 0 {
+        return Err(simulation_error(
+            "forcing block must contain at least one timestep",
+        ));
+    }
+
+    let expected_forcing_len = len_sim
+        .checked_mul(MET_FORCING_COLS)
+        .ok_or_else(|| simulation_error("forcing block length overflow"))?;
+    if forcing_block.len() != expected_forcing_len {
+        return Err(simulation_error(format!(
+            "forcing block length mismatch: got {}, expected {}",
+            forcing_block.len(),
+            expected_forcing_len
+        )));
+    }
+
+    if scm.params.len() < SCM_PARAMS_LEN {
+        return Err(simulation_error(format!(
+            "SCM parameter vector too short: got {}, expected {}",
+            scm.params.len(),
+            SCM_PARAMS_LEN
+        )));
+    }
+    let bg_nt = scm.bg_t_sec.len();
+    let bg_nz = scm.bg_z.len();
+    if scm.bg_theta.len() != bg_nt * bg_nz || scm.bg_q.len() != bg_nt * bg_nz {
+        return Err(simulation_error(format!(
+            "SCM background shape mismatch: nt={bg_nt}, nz={bg_nz}, theta={}, q={}",
+            scm.bg_theta.len(),
+            scm.bg_q.len()
+        )));
+    }
+
+    if let Some(state_str) = state_json {
+        let state_value: serde_json::Value = serde_json::from_str(state_str)
+            .map_err(|e| simulation_error(format!("invalid state JSON: {e}")))?;
+        run_cfg.state = suews_state_from_nested_payload(&state_value)?;
+    }
+
+    let first_row = &forcing_block[..MET_FORCING_COLS];
+    run_cfg.timer.iy = parse_time_cell(first_row[0], "iy")?;
+    run_cfg.timer.id = parse_time_cell(first_row[1], "id")?;
+    run_cfg.timer.it = parse_time_cell(first_row[2], "it")?;
+    run_cfg.timer.imin = parse_time_cell(first_row[3], "imin")?;
+    run_cfg.timer.isec = 0;
+    run_cfg.timer.tstep_prev = run_cfg.timer.tstep;
+    run_cfg.timer.tstep_real = run_cfg.timer.tstep as f64;
+    run_cfg.timer.nsh_real = 3600.0 / run_cfg.timer.tstep as f64;
+    run_cfg.timer.nsh = (3600 / run_cfg.timer.tstep).max(1);
+    run_cfg.timer.dt_since_start = run_cfg.timer.tstep;
+    run_cfg.timer.dt_since_start_prev = 0;
+    run_cfg.timer.dectime = (run_cfg.timer.id - 1) as f64
+        + run_cfg.timer.it as f64 / 24.0
+        + run_cfg.timer.imin as f64 / (60.0 * 24.0)
+        + run_cfg.timer.isec as f64 / (3600.0 * 24.0);
+
+    let month = day_of_year_to_month(run_cfg.timer.iy, run_cfg.timer.id)?;
+    let day_of_month = {
+        let month_days_common = [31_i32, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
+        let month_days_leap = [31_i32, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
+        let month_days = if is_leap_year(run_cfg.timer.iy) {
+            &month_days_leap
+        } else {
+            &month_days_common
+        };
+        let mut remaining = run_cfg.timer.id;
+        for (idx, days) in month_days.iter().enumerate() {
+            if idx as i32 + 1 == month {
+                break;
+            }
+            remaining -= *days;
+        }
+        remaining
+    };
+    run_cfg.timer.dayofweek_id[0] = fortran_weekday_from_ymd(run_cfg.timer.iy, month, day_of_month);
+    run_cfg.timer.dayofweek_id[1] = month;
+    run_cfg.timer.dayofweek_id[2] = if run_cfg.site_scalars.lat >= 0.0 {
+        if (4..=9).contains(&month) {
+            1
+        } else {
+            2
+        }
+    } else if month >= 10 || month <= 3 {
+        1
+    } else {
+        2
+    };
+
+    if state_json.is_none() {
+        // match SUEWS_cal_multitsteps state initialisation for cold starts
+        let first_tair = first_row[11];
+        for v in run_cfg.state.heat_state.temp_surf_dyohm.iter_mut() {
+            *v = first_tair;
+        }
+        for v in run_cfg.state.heat_state.tsfc_surf_dyohm.iter_mut() {
+            *v = first_tair;
+        }
+        run_cfg.state.ohm_state.ws_rav = 2.0;
+    }
+
+    let (sim_out, scm_block) = run_simulation_scm(
+        SimulationInput {
+            timer: run_cfg.timer,
+            config: run_cfg.config,
+            site: run_cfg.site,
+            site_scalars: run_cfg.site_scalars,
+            state: run_cfg.state,
+            forcing_block,
+            len_sim,
+            nlayer: run_cfg.nlayer,
+            ndepth: run_cfg.ndepth,
+        },
+        &scm,
+    )?;
+
+    Ok((sim_out.output_block, scm_block, sim_out.state, len_sim))
+}
+
+/// Like [`run_simulation`] but through the coupled-SCM Fortran entry point.
+pub fn run_simulation_scm(
+    input: SimulationInput,
+    scm: &ScmInput,
+) -> Result<(SimulationOutput, Vec<f64>), BridgeError> {
+    if input.len_sim == 0 {
+        return Err(BridgeError::SimulationError {
+            code: -1,
+            message: "forcing block must contain at least one timestep".to_string(),
+        });
+    }
+
+    let expected_forcing_len = input.len_sim.checked_mul(MET_FORCING_COLS).ok_or_else(|| {
+        BridgeError::SimulationError {
+            code: -1,
+            message: "forcing block length overflow".to_string(),
+        }
+    })?;
+
+    if input.forcing_block.len() != expected_forcing_len {
+        return Err(BridgeError::SimulationError {
+            code: -1,
+            message: format!(
+                "forcing block length mismatch: got {}, expected {}",
+                input.forcing_block.len(),
+                expected_forcing_len
+            ),
+        });
+    }
+
+    if input.nlayer <= 0 || input.ndepth <= 0 {
+        return Err(BridgeError::SimulationError {
+            code: -1,
+            message: "nlayer and ndepth must be positive".to_string(),
+        });
+    }
+
+    let timer_in = input.timer.to_flat();
+    let config_in = input.config.to_flat();
+    let site_members = encode_site_members(&input.site)?;
+    let site_scalars = encode_site_scalars(&input.site_scalars);
+    let state_members = encode_state_members(&input.state)?;
+
+    if timer_in.len() != SUEWS_TIMER_FLAT_LEN {
+        return Err(BridgeError::BadState);
+    }
+
+    validate_site_codec(&site_members.flat, &site_members.toc, input.nlayer, input.ndepth)?;
+
+    let mut timer_out = vec![0.0_f64; SUEWS_TIMER_FLAT_LEN];
+    let mut state_out = vec![0.0_f64; state_members.flat.len()];
+    let output_len =
+        input
+            .len_sim
+            .checked_mul(OUTPUT_ALL_COLS)
+            .ok_or_else(|| BridgeError::SimulationError {
+                code: -1,
+                message: "output block length overflow".to_string(),
+            })?;
+    let mut output_block = vec![0.0_f64; output_len];
+    let mut scm_block = vec![0.0_f64; input.len_sim * SCM_DIAG_NCOL];
+
+    let bg_nt = scm.bg_t_sec.len();
+    let bg_nz = scm.bg_z.len();
+    // FFI buffers must be non-empty even when no background is supplied
+    let bg_t_buf: Vec<f64> = if bg_nt > 0 { scm.bg_t_sec.clone() } else { vec![0.0] };
+    let bg_z_buf: Vec<f64> = if bg_nz > 0 { scm.bg_z.clone() } else { vec![0.0] };
+    let bg_theta_buf: Vec<f64> = if bg_nt * bg_nz > 0 {
+        scm.bg_theta.clone()
+    } else {
+        vec![0.0]
+    };
+    let bg_q_buf: Vec<f64> = if bg_nt * bg_nz > 0 {
+        scm.bg_q.clone()
+    } else {
+        vec![0.0]
+    };
+
+    let mut sim_err_code = 0_i32;
+    let mut sim_err_message = vec![0 as c_char; 1024];
+    let mut err = -1_i32;
+
+    let timer_len_i32 = i32_len(timer_in.len(), "timer length")?;
+    let config_len_i32 = i32_len(config_in.len(), "config length")?;
+    let site_flat_len_i32 = i32_len(site_members.flat.len(), "site flat length")?;
+    let site_scalars_len_i32 = i32_len(site_scalars.len(), "site scalars length")?;
+    let site_toc_len_i32 = i32_len(site_members.toc.len(), "site toc length")?;
+    let site_member_count_i32 = i32_len(SITE_MEMBER_COUNT, "site member count")?;
+    let state_flat_len_i32 = i32_len(state_members.flat.len(), "state flat length")?;
+    let state_toc_len_i32 = i32_len(state_members.toc.len(), "state toc length")?;
+    let state_member_count_i32 = i32_len(STATE_MEMBER_COUNT, "state member count")?;
+    let len_sim_i32 = i32_len(input.len_sim, "len_sim")?;
+    let forcing_cols_i32 = i32_len(MET_FORCING_COLS, "forcing column count")?;
+    let state_out_len_i32 = i32_len(state_out.len(), "state output length")?;
+    let output_len_i32 = i32_len(output_block.len(), "output length")?;
+    let scm_out_len_i32 = i32_len(scm_block.len(), "scm output length")?;
+    let scm_params_len_i32 = i32_len(scm.params.len(), "scm params length")?;
+    let bg_nt_i32 = i32_len(bg_nt, "background time count")?;
+    let bg_nz_i32 = i32_len(bg_nz, "background level count")?;
+    let sim_err_message_len_i32 = i32_len(sim_err_message.len(), "error message length")?;
+
+    unsafe {
+        ffi::suews_scm_multitsteps_c(
+            timer_in.as_ptr(),
+            timer_len_i32,
+            config_in.as_ptr(),
+            config_len_i32,
+            site_scalars.as_ptr(),
+            site_scalars_len_i32,
+            site_members.flat.as_ptr(),
+            site_flat_len_i32,
+            site_members.toc.as_ptr(),
+            site_toc_len_i32,
+            site_member_count_i32,
+            state_members.flat.as_ptr(),
+            state_flat_len_i32,
+            state_members.toc.as_ptr(),
+            state_toc_len_i32,
+            state_member_count_i32,
+            input.forcing_block.as_ptr(),
+            len_sim_i32,
+            forcing_cols_i32,
+            input.nlayer,
+            input.ndepth,
+            scm.params.as_ptr(),
+            scm_params_len_i32,
+            bg_nt_i32,
+            bg_nz_i32,
+            bg_t_buf.as_ptr(),
+            bg_z_buf.as_ptr(),
+            bg_theta_buf.as_ptr(),
+            bg_q_buf.as_ptr(),
+            timer_out.as_mut_ptr(),
+            timer_len_i32,
+            state_out.as_mut_ptr(),
+            state_out_len_i32,
+            output_block.as_mut_ptr(),
+            output_len_i32,
+            scm_block.as_mut_ptr(),
+            scm_out_len_i32,
+            &mut sim_err_code as *mut i32,
+            sim_err_message.as_mut_ptr(),
+            sim_err_message_len_i32,
+            &mut err as *mut i32,
+        );
+    }
+
+    if err != ffi::SUEWS_CAPI_OK {
+        return Err(BridgeError::from_code(err));
+    }
+
+    if sim_err_code != 0 {
+        let message = unsafe { CStr::from_ptr(sim_err_message.as_ptr()) }
+            .to_string_lossy()
+            .trim()
+            .to_string();
+        return Err(BridgeError::SimulationError {
+            code: sim_err_code,
+            message,
+        });
+    }
+
+    let timer = SuewsTimer::from_flat(&timer_out)?;
+    let state = decode_state_members(
+        &input.state,
+        &state_out,
+        &state_members.toc,
+        input.nlayer as usize,
+        input.ndepth as usize,
+    )?;
+
+    Ok((
+        SimulationOutput {
+            timer,
+            state,
+            output_block,
+        },
+        scm_block,
+    ))
 }
 
 pub fn run_simulation(input: SimulationInput) -> Result<SimulationOutput, BridgeError> {

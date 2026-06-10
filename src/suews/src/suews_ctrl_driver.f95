@@ -730,6 +730,224 @@ CONTAINS
    END SUBROUTINE SUEWS_cal_multitsteps_dts
 ! ================================================================================
 
+   SUBROUTINE SUEWS_cal_multitsteps_scm( &
+      timer, MetForcingBlock, len_sim, &
+      config, siteInfo, &
+      modState, &
+      dataOutBlockAll, ncols_all, &
+      scm_params_flat, n_scm_params, &
+      bg_nt, bg_nz, bg_t_sec, bg_z, bg_theta_flat, bg_q_flat, &
+      dataOutBlockSCM)
+      ! ==========================================================================
+      ! Coupled single-column run: as SUEWS_cal_multitsteps_dts, but the air
+      ! temperature, humidity and wind speed that SUEWS sees each step come
+      ! from a prognostic 1-D boundary-layer column (module_phys_scm), and the
+      ! SUEWS turbulent fluxes drive the column in return. Radiation,
+      ! precipitation and pressure remain prescribed from the forcing block.
+      !
+      ! The column may be ventilated by a background (rural companion)
+      ! atmosphere supplied as hourly profiles; see module_phys_scm for the
+      ! physics and scm/ (Python reference + benchmarks) for validation.
+      ! ==========================================================================
+
+      USE module_ctrl_type, ONLY: SUEWS_CONFIG, SUEWS_FORCING, SUEWS_TIMER, SUEWS_SITE, &
+                                  SUEWS_STATE, output_line, anthroEMIS_PRM
+      USE module_util_time, ONLY: SUEWS_cal_dectime, SUEWS_cal_tstep, &
+                                  SUEWS_cal_weekday, SUEWS_cal_DLS
+      USE module_phys_scm, ONLY: dts_scm_column, dts_scm_background, dts_scm_params, &
+                                 scm_params_from_flat, scm_column_init, &
+                                 scm_column_set_profiles, scm_column_step, &
+                                 scm_sample_zmeas, scm_wind_nudge, scm_ventilate, &
+                                 scm_background_on_grid, scm_kinematic_fluxes, &
+                                 SCM_DIAG_NCOL
+
+      IMPLICIT NONE
+
+      TYPE(SUEWS_TIMER), INTENT(INOUT) :: timer
+      INTEGER, INTENT(IN) :: len_sim
+      REAL(KIND(1D0)), DIMENSION(len_sim, 23), INTENT(IN) :: MetForcingBlock
+      TYPE(SUEWS_CONFIG), INTENT(IN) :: config
+      TYPE(SUEWS_SITE), INTENT(IN) :: siteInfo
+      TYPE(SUEWS_STATE), INTENT(INOUT) :: modState
+      INTEGER, INTENT(IN) :: ncols_all
+      REAL(KIND(1D0)), DIMENSION(len_sim, ncols_all), INTENT(OUT) :: dataOutBlockAll
+      INTEGER, INTENT(IN) :: n_scm_params
+      REAL(KIND(1D0)), DIMENSION(n_scm_params), INTENT(IN) :: scm_params_flat
+      INTEGER, INTENT(IN) :: bg_nt, bg_nz
+      REAL(KIND(1D0)), DIMENSION(MAX(bg_nt, 1)), INTENT(IN) :: bg_t_sec
+      REAL(KIND(1D0)), DIMENSION(MAX(bg_nz, 1)), INTENT(IN) :: bg_z
+      REAL(KIND(1D0)), DIMENSION(MAX(bg_nt*bg_nz, 1)), INTENT(IN) :: bg_theta_flat
+      REAL(KIND(1D0)), DIMENSION(MAX(bg_nt*bg_nz, 1)), INTENT(IN) :: bg_q_flat
+      REAL(KIND(1D0)), DIMENSION(len_sim, SCM_DIAG_NCOL), INTENT(OUT) :: dataOutBlockSCM
+
+      ! local variables
+      TYPE(SUEWS_FORCING) :: forcing
+      TYPE(output_line) :: output_line_local
+      TYPE(anthroEMIS_PRM) :: ahemisPrm
+      TYPE(dts_scm_column) :: col
+      TYPE(dts_scm_background) :: bg
+      TYPE(dts_scm_params) :: prm
+      LOGICAL :: prm_ok, use_bg
+      INTEGER :: ir, col_offset, isub, it, iz
+      REAL(KIND(1D0)) :: z_meas, dt_col, t_sec
+      REAL(KIND(1D0)) :: tair_c, rh_pct, wind, q_zm, p_zm
+      REAL(KIND(1D0)) :: qh, qe, ustar, wth, wq, u_obs, h_bl, tau_adv
+      REAL(KIND(1D0)), ALLOCATABLE :: theta_bg(:), q_bg(:)
+
+      dataOutBlockAll = 0.0D0
+      dataOutBlockSCM = -999.0D0
+
+      CALL scm_params_from_flat(scm_params_flat, n_scm_params, prm, prm_ok)
+      IF (.NOT. prm_ok) THEN
+         modState%errorState%flag = .TRUE.
+         modState%errorState%code = 106
+         modState%errorState%message = 'SUEWS_cal_multitsteps_scm: bad SCM parameter vector'
+         RETURN
+      END IF
+
+      ahemisPrm%start_dls = siteInfo%anthroemis%start_dls
+      ahemisPrm%end_dls = siteInfo%anthroemis%end_dls
+
+      z_meas = siteInfo%z
+      dt_col = REAL(timer%tstep, KIND(1D0))/REAL(prm%substeps, KIND(1D0))
+
+      ! --- column initialised from the first forcing record ---
+      CALL scm_column_init(col, prm, MetForcingBlock(1, 12), MetForcingBlock(1, 13))
+      CALL scm_column_set_profiles(col, prm, z_meas, &
+                                   MetForcingBlock(1, 12), MetForcingBlock(1, 11), &
+                                   MetForcingBlock(1, 10), MetForcingBlock(1, 13))
+      ALLOCATE (theta_bg(col%n), q_bg(col%n))
+
+      ! --- background atmosphere (rural companion), optional ---
+      use_bg = prm%use_background .AND. bg_nt > 0 .AND. bg_nz > 1
+      IF (use_bg) THEN
+         bg%nt = bg_nt
+         bg%nz = bg_nz
+         ALLOCATE (bg%t_sec(bg_nt), bg%z(bg_nz), bg%theta(bg_nt, bg_nz), bg%q(bg_nt, bg_nz))
+         bg%t_sec = bg_t_sec(1:bg_nt)
+         bg%z = bg_z(1:bg_nz)
+         DO it = 1, bg_nt
+            DO iz = 1, bg_nz
+               bg%theta(it, iz) = bg_theta_flat((it - 1)*bg_nz + iz)
+               bg%q(it, iz) = bg_q_flat((it - 1)*bg_nz + iz)
+            END DO
+         END DO
+      END IF
+
+      DO ir = 1, len_sim, 1
+         ! === timer (as in SUEWS_cal_multitsteps_dts) ===
+         timer%iy = INT(MetForcingBlock(ir, 1))
+         timer%id = INT(MetForcingBlock(ir, 2))
+         timer%it = INT(MetForcingBlock(ir, 3))
+         timer%imin = INT(MetForcingBlock(ir, 4))
+         timer%isec = 0
+         CALL SUEWS_cal_dectime(timer, timer%dectime)
+         CALL SUEWS_cal_tstep(timer, timer%nsh, timer%nsh_real, timer%tstep_real)
+         CALL SUEWS_cal_weekday(timer, siteInfo, timer%dayofWeek_id)
+         CALL SUEWS_cal_DLS(timer, ahemisPrm, timer%DLS)
+
+         ! === sample the column at the forcing height ===
+         CALL scm_sample_zmeas(col, z_meas, tair_c, rh_pct, wind, q_zm, p_zm)
+
+         ! === forcing: prescribed sky, prognostic air ===
+         forcing%qn1_obs = MetForcingBlock(ir, 5)
+         forcing%qs_obs = MetForcingBlock(ir, 8)
+         forcing%qf_obs = MetForcingBlock(ir, 9)
+         forcing%U = wind
+         forcing%RH = rh_pct
+         forcing%temp_c = tair_c
+         forcing%pres = MetForcingBlock(ir, 13)
+         forcing%rain = MetForcingBlock(ir, 14)
+         forcing%kdown = MetForcingBlock(ir, 15)
+         forcing%snow_fraction = MetForcingBlock(ir, 16)
+         forcing%l_down = MetForcingBlock(ir, 17)
+         forcing%f_cloud = MetForcingBlock(ir, 18)
+         forcing%Wu_m3 = MetForcingBlock(ir, 19)
+         forcing%xsmd = MetForcingBlock(ir, 20)
+         forcing%LAI_evetr = MetForcingBlock(ir, 21)
+         forcing%LAI_dectr = MetForcingBlock(ir, 22)
+         forcing%LAI_grass = MetForcingBlock(ir, 23)
+
+         CALL SUEWS_cal_Main( &
+            timer, forcing, config, siteInfo, &
+            modState, &
+            output_line_local)
+
+         ! === feed the surface fluxes back into the column ===
+         qh = modState%heatState%qh
+         qe = modState%heatState%qe
+         ustar = MAX(modState%atmState%u_star, 0.05D0)
+         CALL scm_kinematic_fluxes(qh, qe, tair_c + 273.15D0, p_zm, q_zm, wth, wq)
+
+         u_obs = MAX(MetForcingBlock(ir, 10), 0.5D0)
+         t_sec = REAL(ir - 1, KIND(1D0))*REAL(timer%tstep, KIND(1D0))
+         IF (use_bg) CALL scm_background_on_grid(bg, col, t_sec, theta_bg, q_bg)
+
+         tau_adv = -999.0D0
+         DO isub = 1, prm%substeps
+            CALL scm_column_step(col, prm, dt_col, wth, wq, ustar, h_bl)
+            IF (h_bl < -998.0D0) THEN
+               modState%errorState%flag = .TRUE.
+               modState%errorState%code = 106
+               modState%errorState%message = &
+                  'SUEWS_cal_multitsteps_scm: column state became non-finite'
+               RETURN
+            END IF
+            CALL scm_wind_nudge(col, prm, dt_col, u_obs, z_meas)
+            IF (use_bg) CALL scm_ventilate(col, prm, dt_col, theta_bg, q_bg, h_bl, tau_adv)
+         END DO
+
+         ! === SCM diagnostics: the air SUEWS saw + column state ===
+         dataOutBlockSCM(ir, 1) = tair_c
+         dataOutBlockSCM(ir, 2) = rh_pct
+         dataOutBlockSCM(ir, 3) = wind
+         dataOutBlockSCM(ir, 4) = h_bl
+         dataOutBlockSCM(ir, 5) = wth
+         dataOutBlockSCM(ir, 6) = wq
+         dataOutBlockSCM(ir, 7) = tau_adv
+
+         ! === standard output packing (as SUEWS_cal_multitsteps_dts) ===
+         col_offset = 0
+         dataOutBlockAll(ir, col_offset + 1:col_offset + ncolumnsDataOutSUEWS) = &
+            output_line_local%dataOutLineSUEWS
+         col_offset = col_offset + ncolumnsDataOutSUEWS
+         dataOutBlockAll(ir, col_offset + 1:col_offset + ncolumnsDataOutSnow) = &
+            output_line_local%dataOutLineSnow
+         col_offset = col_offset + ncolumnsDataOutSnow
+         dataOutBlockAll(ir, col_offset + 1:col_offset + ncolumnsDataOutBEERS) = &
+            output_line_local%dataOutLineBEERS
+         col_offset = col_offset + ncolumnsDataOutBEERS
+         dataOutBlockAll(ir, col_offset + 1:col_offset + ncolumnsDataOutESTM) = &
+            output_line_local%dataOutLineESTM
+         col_offset = col_offset + ncolumnsDataOutESTM
+         dataOutBlockAll(ir, col_offset + 1:col_offset + ncolumnsDataOutEHC) = &
+            output_line_local%dataOutLineEHC
+         col_offset = col_offset + ncolumnsDataOutEHC
+         dataOutBlockAll(ir, col_offset + 1:col_offset + ncolumnsDataOutDailyState) = &
+            output_line_local%dataOutLineDailyState
+         col_offset = col_offset + ncolumnsDataOutDailyState
+         dataOutBlockAll(ir, col_offset + 1:col_offset + ncolumnsDataOutRSL) = &
+            output_line_local%dataoutLineRSL
+         col_offset = col_offset + ncolumnsDataOutRSL
+         dataOutBlockAll(ir, col_offset + 1:col_offset + ncolumnsDataOutDebug) = &
+            output_line_local%dataOutLineDebug
+         col_offset = col_offset + ncolumnsDataOutDebug
+         dataOutBlockAll(ir, col_offset + 1:col_offset + ncolumnsDataOutSPARTACUS) = &
+            output_line_local%dataOutLineSPARTACUS
+         col_offset = col_offset + ncolumnsDataOutSPARTACUS
+         dataOutBlockAll(ir, col_offset + 1:col_offset + ncolumnsDataOutSTEBBS) = &
+            output_line_local%dataOutLineSTEBBS
+         col_offset = col_offset + ncolumnsDataOutSTEBBS
+         dataOutBlockAll(ir, col_offset + 1:col_offset + ncolumnsDataOutNHood) = &
+            output_line_local%dataOutLineNHood
+
+         timer%dt_since_start = timer%dt_since_start + timer%tstep
+
+      END DO
+
+   END SUBROUTINE SUEWS_cal_multitsteps_scm
+! ================================================================================
+
    SUBROUTINE update_debug_info( &
       timer, config, forcing, siteInfo, & ! input
       modState_init, & ! input

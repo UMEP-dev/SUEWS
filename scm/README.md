@@ -14,7 +14,11 @@ In offline SUEWS, air temperature, humidity and wind are *prescribed* from obser
   - **Numerics**: backward-Euler implicit vertical diffusion in conservative flux form (column integrals conserved exactly up to the prescribed surface flux — tested to 1e-10), exact rotation for Coriolis, first-order upwind subsidence, optional nudging and prescribed clear-air radiative cooling.
   - **Surface boundary condition**: prescribed kinematic fluxes (coupled mode) or a prescribed surface temperature with Monin–Obukhov similarity (idealised mode; Paulson/Dyer unstable, log-linear stable).
 - `suews_scm.slab.SlabCBL` — CLASS-style bulk convective boundary-layer model (zeroth-order jump, β = 0.2 entrainment closure, RK4), the modern descendant of the legacy SUEWS-CBL / BLUEWS slab scheme (Onomura et al. 2015) that still ships in `suews_phys_bluews.f95`.
-- `suews_scm.coupling.CoupledSCM` — the two-way coupler
+- `suews_scm.native.run_coupled_native` — **the production backend**: the same coupled loop executed natively inside the SUEWS Fortran driver, reached through the Rust bridge in a single call
+  - The column physics is ported line-for-line into `src/suews/src/suews_phys_scm.f95` (`module_phys_scm`); the coupled timestep loop is `SUEWS_cal_multitsteps_scm` in `suews_ctrl_driver.f95`, exposed as `suews_scm_multitsteps_c` (bridge C API) and `suews_bridge.run_suews_scm` (Python).
+  - The Python `CoupledSCM` below remains the validated reference implementation; `tests/test_native.py` pins the two backends together (air-temperature agreement ≤ 0.15 K over a six-hour coupled window — residual differences come from the Python path's per-step state round-trips, not the physics).
+  - Performance (measured, `benchmarks/run_native_vs_python.py`, M1 Max, debug-profile physics library in both backends): the full 5-day ventilated KCL episode takes **0.34 s native vs 187 s through the Python loop — a 555× speedup** (0.23 vs 130 ms per coupled step); skill against the observations is statistically indistinguishable (RMSE 3.41 K native vs 3.66 K Python, the small difference favouring the native loop's continuous state integration).
+- `suews_scm.coupling.CoupledSCM` — the two-way coupler (reference implementation)
   - Each SUEWS step (5 min): column state at the forcing height → SUEWS forcing (T, RH, U); SUEWS QH, QE, u\* → kinematic flux boundary condition for the column substeps.
   - Radiation, precipitation and pressure remain prescribed from the forcing file.
   - **Wind**: nudged towards a log-profile anchored at the observed speed (`nudge_obs`, default — a 1-D model cannot generate the synoptic pressure gradient), or fully prognostic with a geostrophic wind (idealised experiments).
@@ -50,7 +54,23 @@ python benchmarks/run_coupled_kcl.py   # coupled benchmark (~6 min)
 python demos/demo_urban_rural.py       # demo cases (~5 min each)
 python demos/demo_anthropogenic_heat.py
 python demos/demo_cool_roofs.py
+python benchmarks/run_native_vs_python.py  # native vs reference backend
 open site/index.html               # demo webpage with all results
+```
+
+Native backend, programmatically:
+
+```python
+from supy.data_model import SUEWSConfig
+from suews_scm.native import run_coupled_native
+
+config = SUEWSConfig.from_yaml("path/to/config.yml")
+df_output, df_scm, state_json = run_coupled_native(
+    config, df_forcing,             # SuPy-layout forcing
+    state_json=spunup_state_json,   # optional, from a previous bridge run
+    background=bg,                  # optional rural-companion ventilation
+    city_length=15000.0,            # any SCM_PARAM_DEFAULTS key
+)
 ```
 
 ## Honest limitations

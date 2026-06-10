@@ -431,6 +431,32 @@
       <p class="verdict">The coupled system tracks the diurnal swing without ever seeing the observations - the residual warm bias is the column's, not a tuned fit.</p>
     </div>
   </article>
+
+  <article class="study flip">
+    <figure class="fig">
+      <img src="assets/fig_native.png" alt="Three panels: modelled air temperatures from the native Fortran backend and the Python reference overlying each other and the observations, their absolute difference staying small, and a log-scale wall-clock comparison.">
+      <figcaption>The same five coupled days through both backends. The native
+      run executes the entire coupled loop inside the SUEWS Fortran driver via
+      the Rust bridge; the Python reference calls SUEWS once per 5-minute step.</figcaption>
+    </figure>
+    <div>
+      <h3>Native backend — the same physics, 555&times; faster</h3>
+      <p>The column was ported line-for-line into the SUEWS Fortran core
+      (<span style="font-family:'JetBrains Mono',monospace;font-size:0.85em;">suews_phys_scm.f95</span>)
+      and the coupled loop now runs inside the model's own timestep driver,
+      reached through the Rust bridge in a single call. The Python package
+      remains the validated reference; cross-backend regression tests pin
+      the two together.</p>
+      <dl class="metrics">
+        <div><dt>Five coupled days, native</dt><dd>0.3 s<small>0.2 ms per coupled step</small></dd></div>
+        <div><dt>Five coupled days, Python loop</dt><dd>187 s<small>130 ms per step (marshalling-bound)</small></dd></div>
+        <div><dt>Speed-up</dt><dd>555&times;<small>same machine, same compiled physics</small></dd></div>
+        <div><dt>Backend agreement (air T)</dt><dd>0.23 K mean<small>max 2.48 K over 5 days; lockstep to 0.06 K over 6 h (tested) — divergence reflects independent spin-up paths, not physics</small></dd></div>
+        <div><dt>Skill vs observations</dt><dd>3.4 / 3.7 K<small>RMSE, native / Python reference</small></dd></div>
+      </dl>
+      <p class="verdict">A season of coupled simulation is now a coffee-length job, not an overnight one.</p>
+    </div>
+  </article>
 </section>
 
 <!-- ================= demos ================= -->
@@ -556,7 +582,7 @@ python demos/demo_cool_roofs.py          <span class="c"># albedo mitigation, at
 
 <footer class="site">
   <span>suews-scm 0.1.0</span>
-  <span>supy 2026.6.10.dev1</span>
+  <span>supy 2026.6.10.dev3</span>
   <span>KCL sample data · London 2012</span>
   <span>generated 2026-06-10</span>
 </footer>

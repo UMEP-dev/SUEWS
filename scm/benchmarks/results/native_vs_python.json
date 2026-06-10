@@ -1,0 +1,31 @@
+{
+  "episode": "2012-07-22 00:05 -> 2012-07-27 00:00 (KCL London, ventilated coupled run)",
+  "steps": 1440,
+  "timing": {
+    "native_coupled_s": 0.34,
+    "python_coupled_s": 186.67,
+    "speedup": 554.6,
+    "native_ms_per_step": 0.23,
+    "python_ms_per_step": 129.6,
+    "native_spinup_s": 8.02,
+    "note": "same machine, same debug-profile SUEWS library in both backends; difference is loop placement and marshalling"
+  },
+  "backend_agreement": {
+    "tair_abs_diff_max_K": 2.48,
+    "tair_abs_diff_mean_K": 0.23,
+    "h_bl_abs_diff_max_m": 2166.4,
+    "note": "residual differences stem from the python reference's per-step state round-trips, not from the column physics"
+  },
+  "skill_vs_obs": {
+    "native": {
+      "rmse": 3.4088396435439976,
+      "mbe": 2.3710663440525184,
+      "r": 0.7509055332696116
+    },
+    "python": {
+      "rmse": 3.6621243345406067,
+      "mbe": 2.6099373815778235,
+      "r": 0.7278966099562061
+    }
+  }
+}

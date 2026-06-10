@@ -30,6 +30,7 @@ def main():
     ur = load(DEMOS / "demo_urban_rural.json")
     qf = load(DEMOS / "demo_qf.json")
     cr = load(DEMOS / "demo_cool_roofs.json")
+    nat = load(BENCH / "native_vs_python.json")
 
     t = kcl["tair"]
     rmse_all = t["all"]["rmse"]
@@ -67,6 +68,15 @@ def main():
         "CR_DQN": f"{cr['dQn_daytime_mean_wm2']:+.0f}",
         "CR_BLH_B": f"{cr['bl_height_max_base_m']:.0f}",
         "CR_BLH_C": f"{cr['bl_height_max_cool_m']:.0f}",
+        "NAT_SPEEDUP": f"{nat['timing']['speedup']:.0f}",
+        "NAT_TIME": f"{nat['timing']['native_coupled_s']:.1f}",
+        "PY_TIME": f"{nat['timing']['python_coupled_s']:.0f}",
+        "NAT_PER_STEP": f"{nat['timing']['native_ms_per_step']:.1f}",
+        "PY_PER_STEP": f"{nat['timing']['python_ms_per_step']:.0f}",
+        "NAT_AGREE_MAX": f"{nat['backend_agreement']['tair_abs_diff_max_K']:.2f}",
+        "NAT_AGREE_MEAN": f"{nat['backend_agreement']['tair_abs_diff_mean_K']:.2f}",
+        "NAT_RMSE": f"{nat['skill_vs_obs']['native']['rmse']:.1f}",
+        "PY_RMSE": f"{nat['skill_vs_obs']['python']['rmse']:.1f}",
         "SUPY_VERSION": supy.__version__,
         "GEN_DATE": gen_date,
     }

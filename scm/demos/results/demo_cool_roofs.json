@@ -1,0 +1,10 @@
+{
+  "case": "building-facet albedo 0.12 -> 0.55, KCL London, 23-26 July 2012, coupled SCM",
+  "dT_daytime_mean_K": -0.14,
+  "dT_max_cooling_K": -3.06,
+  "dQn_daytime_mean_wm2": -69.0,
+  "dQh_daytime_mean_wm2": -31.2,
+  "dQs_daytime_mean_wm2": -41.5,
+  "bl_height_max_base_m": 2890.0,
+  "bl_height_max_cool_m": 2880.0
+}

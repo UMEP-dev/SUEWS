@@ -1,0 +1,40 @@
+{
+  "site": "KCL, central London (SuPy sample), forcing height 40 m",
+  "episode": "2012-07-22 00:05 to 2012-07-27 00:00 (clearest 4-day summer window; day 1 excluded from metrics as spin-up)",
+  "configuration": "two-way coupled T and q; wind nudged to observations (tau = 30 min); radiation and precipitation prescribed; clear-sky radiative cooling 2 K/day; urban column ventilated by a companion rural column (tau_adv = 15 km / U)",
+  "tau_adv_mean_s": 4931.0,
+  "tair": {
+    "all": {
+      "rmse": 3.6621243345406067,
+      "mbe": 2.6099373815778235,
+      "r": 0.7278966099562061,
+      "n": 1153
+    },
+    "daytime": {
+      "rmse": 3.0486629944390975,
+      "mbe": 1.6740835431492096,
+      "r": 0.7549533662850445,
+      "n": 724
+    },
+    "nighttime": {
+      "rmse": 4.512080329735759,
+      "mbe": 4.189327076268539,
+      "r": 0.7767499224896344,
+      "n": 429
+    },
+    "obs_diurnal_amplitude": 7.659999999999999,
+    "mod_diurnal_amplitude": 4.19919254949333
+  },
+  "rh": {
+    "all": {
+      "rmse": 12.475479886254064,
+      "mbe": -8.403836440803856,
+      "r": 0.6011872026127584,
+      "n": 1153
+    }
+  },
+  "qh_coupled_vs_offline_rmse": 11.518906145468774,
+  "qe_coupled_vs_offline_rmse": 5.852199048112161,
+  "h_bl_max_m": 2424.931232436516,
+  "lineage": "coupling strategy follows BLUEWS / SUEWS-CBL (Onomura et al. 2015, Urban Climate 11:1-23), extended with a rural-background ventilation term"
+}

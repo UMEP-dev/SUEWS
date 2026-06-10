@@ -1,0 +1,243 @@
+name: Build release docs anchor
+
+# Builds a clean, versioned documentation anchor for a release tag and moves
+# that tag onto it, so Read the Docs serves `stable` WITHOUT a "Development
+# Version" banner.
+#
+# Why this exists
+# ---------------
+# `docs-sync.yml` builds the rolling `latest` docs on the `rtd` branch with
+# `SUEWS_DOCS_VERSION_REF=origin/master`, so the resolved version carries a
+# `.dev` suffix and `docs/source/conf.py` bakes a "Development Version" banner
+# into every page. RTD copies that pre-built HTML verbatim. If a release tag is
+# pointed at that HTML, `stable` inherits the dev banner.
+#
+# This workflow rebuilds the HTML with `SUEWS_DOCS_VERSION_REF=<release_tag>`,
+# so `get_ver_git.get_version_from_git("2026.6.5")` resolves to a clean
+# (non-`.dev`) version, `is_dev_version` is False, and no banner is emitted.
+# It then creates an off-master anchor commit and force-moves the tag onto it.
+#
+# Base branch: `rtd` (not `master`). `master` does not carry `.readthedocs.yaml`
+# or the pre-built sphinx-gallery; the `rtd` branch carries both plus the latest
+# docs source (master is merged into `rtd` by `docs-sync.yml`). Run this only
+# AFTER `docs-sync.yml` has synced the desired docs content onto `rtd`.
+#
+# Safety
+# ------
+# - The release tag must already exist; this workflow never creates a new tag.
+# - The anchor commit is off-master (a child of `rtd` HEAD). `docs-sync.yml`'s
+#   `guard` job and `build-publish_to_pypi.yml`'s tag verification both skip
+#   off-master tags gracefully, so the move produces no red CI.
+# - Only the tag is pushed; neither `master` nor `rtd` is advanced.
+#
+# See dev-ref/RELEASE_MANUAL.md ("Documentation on Read the Docs") and
+# .claude/rules/docs/release-docs-sanity.md.
+
+on:
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: "Existing release tag to anchor (e.g. 2026.6.5)"
+        type: string
+        required: true
+      source_ref:
+        description: "Branch carrying the docs source + RTD config to build from"
+        type: string
+        required: false
+        default: "rtd"
+
+concurrency:
+  group: release-docs-anchor
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  anchor:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    environment: rtd-sync
+
+    steps:
+      # ----------------------------------------------------------------
+      # 1. Checkout the docs source branch (rtd) with full history + tags
+      # ----------------------------------------------------------------
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          ref: ${{ github.event.inputs.source_ref }}
+          fetch-depth: 0
+          fetch-tags: true
+          persist-credentials: false
+
+      - name: Configure git
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+      # ----------------------------------------------------------------
+      # 2. The tag must already exist (never create a new release tag)
+      # ----------------------------------------------------------------
+      - name: Verify release tag exists
+        env:
+          RELEASE_TAG: ${{ github.event.inputs.release_tag }}
+        run: |
+          set -euo pipefail
+          if ! git rev-parse -q --verify "refs/tags/${RELEASE_TAG}^{commit}" >/dev/null; then
+            echo "::error::Release tag '${RELEASE_TAG}' does not exist. This workflow only re-anchors existing release tags."
+            exit 1
+          fi
+          echo "Anchoring existing tag: ${RELEASE_TAG}"
+
+      # ----------------------------------------------------------------
+      # 3. Fail fast if the tag does not resolve to a clean (non-.dev) version
+      # ----------------------------------------------------------------
+      - name: Assert clean version resolves
+        env:
+          RELEASE_TAG: ${{ github.event.inputs.release_tag }}
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import os, sys
+          from get_ver_git import get_version_from_git
+          tag = os.environ["RELEASE_TAG"]
+          ver = get_version_from_git(tag)
+          print(f"get_version_from_git({tag!r}) -> {ver}")
+          if ".dev" in ver:
+              print(f"::error::Tag {tag} resolves to a development version ({ver}); "
+                    f"the anchor would carry a Development Version banner. Aborting.")
+              sys.exit(1)
+          PY
+
+      # ----------------------------------------------------------------
+      # 4. Toolchain + build dependencies (mirrors docs-sync.yml)
+      # ----------------------------------------------------------------
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y gfortran
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@38f3f104447c67c051c4a08e39b64a148898af3a # v4
+        with:
+          enable-cache: false
+
+      - name: Set up Python
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6
+        with:
+          python-version: "3.13"
+
+      # ----------------------------------------------------------------
+      # 5. Build HTML with the release tag as the version ref
+      # ----------------------------------------------------------------
+      - name: Install supy and build docs
+        env:
+          RELEASE_TAG: ${{ github.event.inputs.release_tag }}
+        run: |
+          set -euo pipefail
+          uv pip install --system ".[docs]"
+          python3 scripts/security/remove_legacy_namespace_pth.py
+          cd docs
+          make generate-rst
+          echo "Building docs version from tag ${RELEASE_TAG}"
+          SUEWS_DOCS_VERSION_REF="${RELEASE_TAG}" sphinx-build -M html source build
+
+      # ----------------------------------------------------------------
+      # 6. Sanity gate: the built HTML must NOT carry the dev banner
+      #    (operationalises .claude/rules/docs/release-docs-sanity.md)
+      # ----------------------------------------------------------------
+      - name: Assert no Development Version banner in built HTML
+        run: |
+          set -euo pipefail
+          if grep -rl "Development Version" docs/build/html >/dev/null 2>&1; then
+            echo "::error::Built HTML still contains a 'Development Version' banner. The version ref did not resolve clean."
+            grep -rl "Development Version" docs/build/html | head -5
+            exit 1
+          fi
+          echo "OK: no Development Version banner in built HTML"
+
+      # ----------------------------------------------------------------
+      # 7. Create the off-master anchor commit (child of the source branch)
+      # ----------------------------------------------------------------
+      - name: Commit anchor artefacts
+        id: anchor
+        env:
+          RELEASE_TAG: ${{ github.event.inputs.release_tag }}
+          SOURCE_REF: ${{ github.event.inputs.source_ref }}
+        run: |
+          set -euo pipefail
+          # Mark the gallery as pre-built (RTD orchestration signal)
+          touch docs/source/auto_examples/.prebuilt
+
+          git add -f docs/source/auto_examples/
+          git add -f docs/source/sg_execution_times.rst 2>/dev/null || true
+
+          # Refresh pre-built HTML, dropping stale files from renamed pages
+          git rm -r --cached --quiet docs/build/html/ 2>/dev/null || true
+          git add -f docs/build/html/
+
+          # Provenance metadata records the release tag this anchor serves
+          python3 - <<'PY'
+          import json, datetime, os, subprocess
+          anchor_source_commit = subprocess.check_output(
+              ["git", "rev-parse", "HEAD"], text=True
+          ).strip()
+          data = {
+              "source_branch": os.environ["SOURCE_REF"],
+              "source_commit": anchor_source_commit,
+              "source_tag": os.environ["RELEASE_TAG"],
+              "docs_built": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+              "builder": "github-actions (release-docs-anchor)",
+          }
+          with open("docs/.docs-source.json", "w") as f:
+              json.dump(data, f, indent=2)
+              f.write("\n")
+          PY
+          git add docs/.docs-source.json
+
+          git commit -m "docs: pre-built HTML for the ${RELEASE_TAG} release (RTD docs anchor)" \
+            || { echo "::error::Nothing to commit; the source branch HTML may already be at this version."; exit 1; }
+
+          ANCHOR_SHA="$(git rev-parse HEAD)"
+          echo "anchor_sha=${ANCHOR_SHA}" >> "$GITHUB_OUTPUT"
+          echo "Anchor commit: ${ANCHOR_SHA}"
+
+      # ----------------------------------------------------------------
+      # 8. Move the tag onto the anchor and push ONLY the tag
+      # ----------------------------------------------------------------
+      - name: Move release tag onto anchor and push
+        env:
+          RELEASE_TAG: ${{ github.event.inputs.release_tag }}
+          ANCHOR_SHA: ${{ steps.anchor.outputs.anchor_sha }}
+          SOURCE_REF: ${{ github.event.inputs.source_ref }}
+          RTD_PUSH_TOKEN: ${{ secrets.RTD_PUSH_TOKEN }}
+        run: |
+          set -euo pipefail
+          git tag -f "${RELEASE_TAG}" "${ANCHOR_SHA}"
+          if ! git push --force \
+              "https://x-access-token:${RTD_PUSH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" \
+              "refs/tags/${RELEASE_TAG}"; then
+            echo "::error::Failed to force-push tag ${RELEASE_TAG} (likely a tag-protection ruleset)."
+            echo "The anchor commit was built successfully at ${ANCHOR_SHA}."
+            echo "A maintainer can move the tag manually:"
+            echo "    git fetch origin ${SOURCE_REF}"
+            echo "    git tag -f ${RELEASE_TAG} ${ANCHOR_SHA}"
+            echo "    git push -f origin refs/tags/${RELEASE_TAG}"
+            exit 1
+          fi
+          echo "Moved ${RELEASE_TAG} onto anchor ${ANCHOR_SHA}."
+          echo "Read the Docs will rebuild 'stable' (and the ${RELEASE_TAG} version) from this tag."
+
+      - name: Summary
+        if: always()
+        env:
+          RELEASE_TAG: ${{ github.event.inputs.release_tag }}
+          ANCHOR_SHA: ${{ steps.anchor.outputs.anchor_sha }}
+        run: |
+          {
+            echo "## Release docs anchor"
+            echo ""
+            echo "- Tag: \`${RELEASE_TAG}\`"
+            echo "- Anchor commit: \`${ANCHOR_SHA:-<not built>}\`"
+            echo "- Built with: \`SUEWS_DOCS_VERSION_REF=${RELEASE_TAG}\` (clean version, no dev banner)"
+          } >> "$GITHUB_STEP_SUMMARY"

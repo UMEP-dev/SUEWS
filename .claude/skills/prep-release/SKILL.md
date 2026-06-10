@@ -24,11 +24,13 @@ This workflow is **workspace-independent** - run from any worktree.
 4. **Benchmark gate (PREREQUISITE)** - Build supy from the release candidate (the selected dev tag / release branch via the `build-suews` artefact or `make dev` — NOT PyPI, which has nothing yet) and run the multi-version benchmark: require a reproducible fingerprint and **no energy-balance regression vs the previous release**. This **gates the release** — do NOT proceed to deposit (PR merge, tag, PyPI, GitHub Release, Zenodo) on an unreviewed regression. See `## Benchmark gate`.
 5. **CHANGELOG analysis** - Use log-changes or manual (current format)
 6. **Update docs** - CHANGELOG.md, version history RST (`:pr:` syntax), toctree
+6a. **Docs sanity check** - Regenerate `docs/source/inputs/tables/schema.json` (`suews schema export -o ...`) and scan for stray `.dev` schema labels per `.claude/rules/docs/release-docs-sanity.md`. The banner-free `stable` build is produced post-tag by `release-docs-anchor.yml` (step 11a).
 7. **GitHub Release notes** - Create `.github/releases/YYYY.M.D.md` (Markdown)
 8. **Issue tracking** - Update the release issue, create sub-issues for manual steps
 9. **Submit PR** - Create PR, wait for CI, merge to master
 10. **Tag release** - Tag the merge commit on master
 11. **Verify** - Monitor Actions, PyPI, GitHub Release, Zenodo
+11a. **Publish stable docs** - After the PyPI wheel lands and `docs-sync.yml` has refreshed the `rtd` branch, run the `release-docs-anchor.yml` workflow with `release_tag=YYYY.M.D` (`gh workflow run release-docs-anchor.yml -f release_tag=YYYY.M.D`). It builds a banner-free anchor and moves the tag onto it so RTD `stable` shows a clean version (replaces the manual tag-move in `dev-ref/RELEASE_MANUAL.md`). See `.claude/rules/docs/release-docs-sanity.md`.
 12. **Record benchmark result** - After publication, append the released version to the benchmark page + `benchmark/results/index.json` and version the Zenodo reproducibility stack (the gate already ran the numbers; this publishes them under the final version). See `## Benchmark gate`.
 13. **Update umep-reqs** - PR to update supy version in UMEP-dev/umep-reqs
 
@@ -105,12 +107,14 @@ Selection criteria:
 [PASS/FAIL] BENCHMARK GATE (prerequisite, before depositing): candidate build reproducible (byte-identical fingerprint) + per-release schema-valid config + NO energy-balance regression vs previous release (or regression reviewed and accepted)
 [PASS/FAIL] Knowledge pack rebuilt against HEAD (run `suews knowledge build --output src/supy/knowledge/pack/current --repo-root .` if data_model/ or cmd/ touched since last release; see gh#1406)
 [PASS/FAIL] Docs updated (CHANGELOG, version-history RST)
+[PASS/FAIL] Docs sanity check (.claude/rules/docs/release-docs-sanity.md): schema.json regenerated to the released label; no stray .dev schema labels in user-facing docs (scan excludes legitimate dev-cycle narration)
 [PASS/FAIL] GitHub Release notes created (.github/releases/)
 [PASS/FAIL] Release issue updated, sub-issues created for manual steps
 [PASS/FAIL] PR submitted and CI passed
 [PASS/FAIL] PR merged to master
 [PASS/FAIL] Git tag created on merge commit
 [PASS/FAIL] GitHub Release published (triggers Zenodo DOI)
+[PASS/FAIL] Stable docs published: release-docs-anchor.yml run for the tag; RTD stable shows clean version (no Development Version banner)
 [PASS/FAIL] Benchmark result recorded: released version added to page + benchmark/results/index.json; Zenodo reproducibility stack versioned
 [PASS/FAIL] umep-reqs PR created (UMEP-dev/umep-reqs)
 Ready: YES/NO

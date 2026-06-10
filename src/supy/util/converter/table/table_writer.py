@@ -90,13 +90,26 @@ class _TableStore:
             self._paths[path.name] = path
 
     def site_row(self, grid) -> tuple[list[str], list[str]]:
-        """Return (header, the SiteSelect data row) for ``grid``."""
+        """Return (header, the SiteSelect data row) for ``grid``.
+
+        The template provides *structure*, not identity: when the requested
+        grid is absent (e.g. writing a config into another site's era
+        template), the first data row is adopted and renumbered to ``grid``.
+        """
         header, rows = self._tables["SUEWS_SiteSelect.txt"]
         gi = header.index("Grid")
+        target = _norm_code(grid)
         for row in rows:
-            if row[gi] == str(grid):
+            if _norm_code(row[gi]) == target:
                 return header, row
-        raise KeyError(f"grid {grid} not in SiteSelect template")
+        if not rows:
+            raise KeyError(f"SiteSelect template has no data rows for grid {grid}")
+        logger_supy.warning(
+            f"grid {grid} not in SiteSelect template; adopting the template's "
+            f"first row (grid {rows[0][gi]}) and renumbering"
+        )
+        rows[0][gi] = _fmt(grid)
+        return header, rows[0]
 
     @staticmethod
     def set_site(header: list[str], row: list[str], col: str, value) -> bool:

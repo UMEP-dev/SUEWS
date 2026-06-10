@@ -47,6 +47,7 @@ list_ver_to = rules["To"].unique().tolist()
 VERSION_SEQUENCE = [
     "2016a",
     "2017a",
+    "2017b",
     "2018a",
     "2018b",
     "2018c",
@@ -1628,12 +1629,15 @@ cp_surf(7,:) = 1.9e6, 1.1e6, 1.1e6, 1.5e6, 1.6e6
                 f.write(gridlayout_content)
             logger_supy.info(f"Created placeholder GridLayoutKc.nml for {toVer}")
 
-    # list all files involved in the given conversion
-    posRules = np.unique(
-        np.where(
-            np.array(rules.loc[:, ["From", "To"]].values.tolist()) == [fromVer, toVer]
-        )[0]
-    )
+    # list all files involved in the given conversion. The match must require
+    # BOTH endpoints: `arr == [fromVer, toVer]` collected row indices where
+    # EITHER column matched, silently pulling in other steps' rules whenever
+    # two edges share an endpoint (harmless only while the version graph was
+    # a simple chain).
+    arr_from_to = np.array(rules.loc[:, ["From", "To"]].values.tolist())
+    posRules = np.where(
+        (arr_from_to[:, 0] == fromVer) & (arr_from_to[:, 1] == toVer)
+    )[0]
     filesToConvert = set(rules["File"][posRules]) - {"-999"}
 
     # Also include SUEWS_*.txt files that exist in source but aren't in rules

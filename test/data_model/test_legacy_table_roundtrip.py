@@ -37,10 +37,30 @@ from supy.util.converter.table.table_writer import df_state_to_tables
 # not compiled physics.
 pytestmark = pytest.mark.api
 
-# Vendored canonical-KCL parameter tables (no forcing) -- see the fixture
-# README. Self-contained so the test runs under the standard (shallow) CI
-# checkout, rather than extracting from a git tag.
+# Vendored parameter tables (no forcing) -- see the fixture README.
+# Self-contained so the test runs under the standard (shallow) CI checkout,
+# rather than extracting from a git tag.
 _FIXTURE_ROOT = Path(__file__).resolve().parents[1] / "fixtures" / "legacy_tables"
+
+# Every version with vendored fixtures. The two anchors run in the normal CI
+# tier; the rest carry the ``slow`` marker (full matrix runs in the ``all``
+# tier and locally).
+_ANCHOR_VERSIONS = ["2016a", "2018b"]
+_ALL_VERSIONS = [
+    "2016a",
+    "2017a",
+    "2017b",
+    "2018a",
+    "2018b",
+    "2018c",
+    "2019a",
+    "2019b",
+    "2020a",
+]
+_MATRIX = [
+    ver if ver in _ANCHOR_VERSIONS else pytest.param(ver, marks=pytest.mark.slow)
+    for ver in _ALL_VERSIONS
+]
 
 
 def _extract_legacy_tables(ver: str, dest: Path) -> Path:
@@ -69,7 +89,16 @@ def _values_equal(a: str, b: str) -> bool:
     return a == b
 
 
-def _compare_table(path_expected: Path, path_actual: Path) -> list[str]:
+# Columns where the modern data model canonicalises the legacy ``-999``
+# "unset / derive internally" sentinel to an explicit default on the YAML leg
+# (e.g. ``faibldg: None -> 0.3`` in ``to_df_state``). Exempted only in the
+# through-YAML round-trip; the table-only round-trip stays strict.
+_SENTINEL_CANONICALISED_COLS = {"FAI_Bldgs", "FAI_DecTr", "FAI_EveTr"}
+
+
+def _compare_table(
+    path_expected: Path, path_actual: Path, sentinel_defaults_ok: bool = False
+) -> list[str]:
     """Return a list of faithfulness violations (empty == faithful)."""
     he, re_ = R._read_table(path_expected)
     ha, ra = R._read_table(path_actual)
@@ -94,11 +123,17 @@ def _compare_table(path_expected: Path, path_actual: Path) -> list[str]:
             ve = de[code][ie] if len(de[code]) > ie else None
             va = da[code][ia] if len(da[code]) > ia else None
             if not _values_equal(ve, va):
+                if (
+                    sentinel_defaults_ok
+                    and col in _SENTINEL_CANONICALISED_COLS
+                    and _num(ve) == -999
+                ):
+                    continue
                 issues.append(f"value Code {code} {col}: expected={ve} actual={va}")
     return issues
 
 
-@pytest.mark.parametrize("ver", ["2018b", "2016a"])
+@pytest.mark.parametrize("ver", _MATRIX)
 def test_legacy_table_roundtrip_is_faithful(ver, tmp_path):
     """``legacy -> 2025a -> legacy`` regenerates the source tables faithfully."""
     src = _extract_legacy_tables(ver, tmp_path / "src")
@@ -199,7 +234,7 @@ def _reverse_via_writer(df, template: Path, ver: str, src: Path, tmp: Path) -> P
     return rev
 
 
-@pytest.mark.parametrize("ver", ["2016a", "2018b"])
+@pytest.mark.parametrize("ver", _MATRIX)
 def test_full_roundtrip_legacy_yaml_legacy_is_faithful(ver, tmp_path):
     """``legacy tables -> modern YAML -> legacy tables`` regenerates the source.
 
@@ -222,7 +257,9 @@ def test_full_roundtrip_legacy_yaml_legacy_is_faithful(ver, tmp_path):
     for tbl in sorted(src.glob("SUEWS_*.txt")):
         regenerated = rev / tbl.name
         assert regenerated.exists(), f"{tbl.name} not regenerated for {ver}"
-        issues = _compare_table(cleaned / tbl.name, regenerated)
+        issues = _compare_table(
+            cleaned / tbl.name, regenerated, sentinel_defaults_ok=True
+        )
         if issues:
             failures[tbl.name] = issues[:5]
 
@@ -290,25 +327,60 @@ _MLM_COMMON = _MLM_DERIVED | {
     "alb",  # veg albedo canonicalisation
     "rslmethod",
     "rsllevel",  # RunControl flags introduced after 2018b
-    "snowalb",  # no snowalb0 key in the era InitialConditions nml
+    "snowalb",  # snowalb0 key absent from the era InitialConditions nml
+    "porosity_id",  # porosity0 key absent from several era InitialConditions
     "soilstore_surf",  # water-surface soil store absent from the era nml
     "use_sw_direct_albedo",  # SPARTACUS (2024a+): no legacy representation
 }
+# Pre-2018a eras: single-column WD/WE families (TrafficRate, BuildEnergyUse,
+# TCritic) and no per-purpose population/traffic profiles -- heterogeneous
+# modern values collapse with a warning.
+_MLM_PRE2018A = {
+    "popprof_24hr",
+    "traffprof_24hr",
+    "baset_cooling",
+    "baset_heating",
+    "qf0_beu",
+    "trafficrate",
+}
 _MLM_ALLOWED = {
-    "2016a": _MLM_COMMON
-    | {
-        # introduced 2017a/2018a: not representable in 2016a tables
-        "popprof_24hr",
-        "qf0_beu",
-        "trafficrate",
-        "pormin_dec",
-    },
+    "2016a": _MLM_COMMON | _MLM_PRE2018A | {"pormin_dec"},
+    "2017a": _MLM_COMMON | _MLM_PRE2018A,
+    "2017b": _MLM_COMMON | _MLM_PRE2018A,
+    "2018a": _MLM_COMMON,
     "2018b": _MLM_COMMON,
+    "2018c": _MLM_COMMON,
+    "2019a": _MLM_COMMON,
+    "2019b": _MLM_COMMON,
+    "2020a": _MLM_COMMON,
+}
+
+# Perturbations for the stress variant: values absent from any fixture,
+# exercising every writer/carry path (direct WD/WE pairs, two-level profile
+# codes with WD != WE forcing clone-on-write, OHM de-aliasing, parameter
+# vectors, nml-backed initial state, cross-file moves and splits).
+_MLM_PERTURB = {
+    ("qf0_beu", "(0,)"): 0.7,
+    ("qf0_beu", "(1,)"): 0.9,
+    ("trafficrate", "(0,)"): 0.02,
+    ("trafficrate", "(1,)"): 0.05,
+    ("ahprof_24hr", "(3, 0)"): 0.31,
+    ("ahprof_24hr", "(3, 1)"): 0.77,
+    ("popprof_24hr", "(5, 0)"): 0.41,
+    ("popprof_24hr", "(5, 1)"): 0.62,
+    ("ohm_coef", "(0, 0, 0)"): 0.31,
+    ("laipower", "(2, 1)"): 0.04,
+    ("storedrainprm", "(1, 2)"): 0.6,
+    ("soilstore_surf", "(3,)"): 120.0,
+    ("baset_heating", "(0,)"): 13.0,
+    ("baset_heating", "(1,)"): 15.0,
+    ("z", "0"): 25.0,
+    ("stabilitymethod", "0"): 1,
 }
 
 
 def _sample_df_state():
-    from supy._env import trv_supy_module  # noqa: PLC0415
+    from supy._env import trv_supy_module  # noqa: PLC0415, PLC2701
 
     cfg = SUEWSConfig(
         **yaml.safe_load(
@@ -331,7 +403,19 @@ def _df_state_diff_vars(df, df2):
     }
 
 
-@pytest.mark.parametrize("ver", ["2016a", "2018b"])
+def _mlm_chain(df, ver: str, tmp_path: Path):
+    """``df_state -> <ver> legacy tables -> 2025a -> df_state``."""
+    src = _extract_legacy_tables(ver, tmp_path / "src")
+    template = tmp_path / "T0"
+    convert_table(str(src), str(template), ver, "2025a", validate_profiles=False)
+    rev = _reverse_via_writer(df, template, ver, src, tmp_path)
+
+    back = tmp_path / "T2"
+    convert_table(str(rev), str(back), ver, "2025a", validate_profiles=False)
+    return load_InitialCond_grid_df(next(back.rglob("RunControl.nml")))
+
+
+@pytest.mark.parametrize("ver", _MATRIX)
 def test_modern_to_legacy_to_modern_roundtrip(ver, tmp_path):
     """A native modern config survives ``modern -> legacy -> modern``.
 
@@ -342,21 +426,46 @@ def test_modern_to_legacy_to_modern_roundtrip(ver, tmp_path):
     canonicalisation, era-representability losses).
     """
     df = _sample_df_state()
-
-    src = _extract_legacy_tables(ver, tmp_path / "src")
-    template = tmp_path / "T0"
-    convert_table(str(src), str(template), ver, "2025a", validate_profiles=False)
-    rev = _reverse_via_writer(df, template, ver, src, tmp_path)
-
-    back = tmp_path / "T2"
-    convert_table(str(rev), str(back), ver, "2025a", validate_profiles=False)
-    df2 = load_InitialCond_grid_df(next(back.rglob("RunControl.nml")))
+    df2 = _mlm_chain(df, ver, tmp_path)
 
     unexpected = _df_state_diff_vars(df, df2) - _MLM_ALLOWED[ver]
     assert not unexpected, (
         f"{ver} modern->legacy->modern lost unexpected variables: "
         f"{sorted(unexpected)}"
     )
+
+
+@pytest.mark.parametrize("ver", _MATRIX)
+def test_modern_perturbed_to_legacy_roundtrip(ver, tmp_path):
+    """Perturbed values survive ``modern -> legacy -> modern`` cell-for-cell.
+
+    Stresses every writer/carry path with values present in no fixture
+    (``_MLM_PERTURB``): WD/WE asymmetry forcing clone-on-write profile
+    splits, distinct per-surface OHM coefficients, parameter vectors,
+    nml-backed state, and the cross-file move/split carries. Each perturbed
+    cell the era can represent must come back exactly.
+    """
+    df = _sample_df_state()
+    grid = df.index[0]
+    for key, value in _MLM_PERTURB.items():
+        assert key in df.columns, f"perturbation key missing from df_state: {key}"
+        df.loc[grid, key] = value
+
+    df2 = _mlm_chain(df, ver, tmp_path)
+
+    unexpected = _df_state_diff_vars(df, df2) - _MLM_ALLOWED[ver]
+    assert not unexpected, (
+        f"{ver} perturbed modern->legacy->modern lost unexpected variables: "
+        f"{sorted(unexpected)}"
+    )
+    lost = [
+        (key, value, df2.loc[grid, key])
+        for key, value in _MLM_PERTURB.items()
+        if key[0] not in _MLM_ALLOWED[ver]  # representability-lost vars excluded
+        and key in df2.columns
+        and not _values_equal(str(value), str(df2.loc[grid, key]))
+    ]
+    assert not lost, f"{ver} perturbations lost through the round-trip: {lost}"
 
 
 def test_cross_version_chain_2016a_modern_2018b(tmp_path):
@@ -367,7 +476,7 @@ def test_cross_version_chain_2016a_modern_2018b(tmp_path):
     confirms the two modern states agree on everything 2018b can represent.
     """
     src_a = _extract_legacy_tables("2016a", tmp_path / "srcA")
-    template_a, df = _forward_to_yaml("2016a", src_a, tmp_path)
+    _, df = _forward_to_yaml("2016a", src_a, tmp_path)
 
     src_b = _extract_legacy_tables("2018b", tmp_path / "srcB")
     template_b = tmp_path / "TB"
@@ -384,4 +493,34 @@ def test_cross_version_chain_2016a_modern_2018b(tmp_path):
     assert not unexpected, (
         "2016a->modern->2018b->modern chain lost unexpected variables: "
         f"{sorted(unexpected)}"
+    )
+
+
+def test_yaml_upgrade_chain_old_schema_to_legacy(tmp_path):
+    """Full arbitrary chain: old-schema YAML -> current YAML -> legacy -> modern.
+
+    Starts from the oldest vendored release config (pre-``schema_version``),
+    upgrades it through the schema-migration handlers, regenerates 2016a
+    tables from it, forward-converts them back, and confirms nothing the era
+    can represent is lost. This is the user-facing journey of running a
+    years-old YAML against a historical table format.
+    """
+    from supy.util.converter.yaml_upgrade import upgrade_yaml  # noqa: PLC0415
+
+    release_configs = _FIXTURE_ROOT.parent / "release_configs"
+    old_yaml = release_configs / "2025.10.15.yml"
+    if not old_yaml.exists():
+        pytest.skip("release config fixture 2025.10.15.yml not vendored")
+
+    upgraded = tmp_path / "current.yml"
+    upgrade_yaml(old_yaml, upgraded, from_ver="2025.10.15")
+    cfg = SUEWSConfig(**yaml.safe_load(upgraded.read_text(encoding="utf-8")))
+    df = cfg.to_df_state()
+
+    df2 = _mlm_chain(df, "2016a", tmp_path)
+
+    unexpected = _df_state_diff_vars(df, df2) - _MLM_ALLOWED["2016a"]
+    assert not unexpected, (
+        "old-schema YAML -> current -> 2016a -> modern chain lost unexpected "
+        f"variables: {sorted(unexpected)}"
     )

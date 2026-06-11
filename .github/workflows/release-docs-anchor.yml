@@ -139,8 +139,16 @@ jobs:
           python3 scripts/security/remove_legacy_namespace_pth.py
           cd docs
           make generate-rst
+          # Force a FULL clean rebuild. The rtd branch ships pre-built
+          # docs/build/html that docs-sync built with a .dev version, so it
+          # carries the "Development Version" banner on every page. An
+          # incremental sphinx-build only re-renders pages whose source
+          # changed; unchanged pages would keep the stale dev banner. The
+          # version flip (.dev -> clean) is a theme-level change that does not
+          # invalidate per-page doctrees, so we must rebuild from scratch.
+          rm -rf build
           echo "Building docs version from tag ${RELEASE_TAG}"
-          SUEWS_DOCS_VERSION_REF="${RELEASE_TAG}" sphinx-build -M html source build
+          SUEWS_DOCS_VERSION_REF="${RELEASE_TAG}" sphinx-build -M html source build -E -a
 
       # ----------------------------------------------------------------
       # 6. Sanity gate: the built HTML must NOT carry the dev banner

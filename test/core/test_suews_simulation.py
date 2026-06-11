@@ -257,18 +257,18 @@ class TestConfigSitesUpdate:
         assert sim_single_site.config.sites[0].properties.lng.value == -0.13
 
     def test_site_name_nonexistent_multi_sites(self, sim_multi_site):
-        """Test that non-matching site name is skipped gracefully when multiple sites exist."""
-        original_name1 = sim_multi_site.config.sites[0].name
-        original_name2 = sim_multi_site.config.sites[1].name
+        """Test that a non-matching site name raises when multiple sites exist.
 
-        # Update with non-existent site name should be skipped
-        sim_multi_site.update_config({
-            "sites": {"NonExistent": {"name": "ShouldNotApply"}}
-        })
-
-        # Both sites should remain unchanged
-        assert sim_multi_site.config.sites[0].name == original_name1
-        assert sim_multi_site.config.sites[1].name == original_name2
+        Changed in gh#1530: previously the unmatched name was silently
+        skipped, turning a misspelled site target into a no-op. Strict
+        dict updates now raise so the typo is caught. (Ambiguous
+        single-site shorthand keys remain a skip-with-warning - see
+        test_single_site_shorthand_fails_gracefully_multi_site.)
+        """
+        with pytest.raises(ValueError, match="NonExistent"):
+            sim_multi_site.update_config({
+                "sites": {"NonExistent": {"name": "ShouldNotApply"}}
+            })
 
     def test_site_name_multi_site_selective(self, sim_multi_site):
         """Test updating only one site by name when multiple sites exist."""
@@ -563,6 +563,23 @@ class TestConfigFromDict:
         f = sim_from_yaml.config.model.control.forcing.file
         inner = f.value if hasattr(f, "value") else f
         assert inner == "new_forcing.txt"
+
+    def test_update_config_unknown_site_name_multi_site_raises(self, sim_from_yaml):
+        """A typo'd site name must raise when multiple sites exist.
+
+        gh#1530 review follow-up: silently skipping an unmatched site name
+        makes a misspelled target a no-op exactly where selecting the
+        wrong site is most likely. (Ambiguous single-site shorthand with
+        multiple sites stays a skip-with-warning - pinned behaviour.)
+        """
+        import copy
+
+        site2 = copy.deepcopy(sim_from_yaml.config.sites[0])
+        site2.name = "Swindon"
+        sim_from_yaml.config.sites.append(site2)
+
+        with pytest.raises(ValueError, match="TypoSite"):
+            sim_from_yaml.update_config({"sites": {"TypoSite": {"gridiv": 9}}})
 
     def test_partial_dict_without_existing_config_raises_clearly(self):
         """A partial dict with no base config must raise an informative error.

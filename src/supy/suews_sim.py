@@ -342,12 +342,20 @@ class SUEWSSimulation:
                         return
                     # Unmatched site name with a single site: patch that site
                     apply_site_patch(0, value)
-                else:
-                    # Ambiguous with multiple sites: skip rather than guess
+                elif hasattr(config.sites[0], key):
+                    # Single-site shorthand used with multiple sites is
+                    # ambiguous: skip rather than guess which site to patch
                     logger_supy.warning(
-                        "Skipping ambiguous sites update key '%s': no site "
-                        "with that name and multiple sites configured",
+                        "Skipping ambiguous sites update key '%s': "
+                        "single-site shorthand with multiple sites configured",
                         key,
+                    )
+                else:
+                    # Not a site field, so it can only be a (misspelled or
+                    # stale) site name: raise rather than silently no-op
+                    raise ValueError(
+                        f"Unknown site '{key}' in sites update. "
+                        f"Configured sites: {', '.join(map(repr, site_names))}"
                     )
 
         # Deep-copied so the legacy-input coercions (which restructure

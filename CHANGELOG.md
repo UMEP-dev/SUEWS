@@ -62,7 +62,7 @@ EXAMPLES:
   - New `SUEWSConfig.from_dict()` classmethod is the single validated construction path; `from_yaml()` delegates to it
 - [change] Dict updates via `update_config()` are now strict and explicit (#1530)
   - Unknown keys raise `ValueError` instead of being silently dropped (this previously masked no-op "updates" in two bundled tutorials, now corrected)
-  - List values (including a plain `sites` list) replace the existing list; the `{index: patch}` / `{site_name: patch}` / single-site shorthand forms for `sites` are unchanged
+  - List values (including a plain `sites` list) replace the existing list; the `{index: patch}` / `{site_name: patch}` / single-site shorthand forms for `sites` are kept, but an unmatched site name now raises when multiple sites exist (previously a silent no-op); legacy field aliases (`stabilitymethod`, `output_file`, `forcing_file`, ...) are normalised in partial updates exactly as in full input
   - A partial dict with no existing configuration raises an informative error instead of failing later with `No objects to concatenate`
   - Partial updates merge onto only the explicitly-set fields (`exclude_unset`), so conditional validators no longer mistake pydantic defaults for user-declared values on sparse configs
 - [change] Hardened configuration loading and mutation (#1530 follow-ups)

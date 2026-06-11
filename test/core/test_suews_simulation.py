@@ -581,6 +581,56 @@ class TestConfigFromDict:
         with pytest.raises(ValueError, match="TypoSite"):
             sim_from_yaml.update_config({"sites": {"TypoSite": {"gridiv": 9}}})
 
+    def test_init_from_full_dict_auto_loads_forcing(self, sample_config_dict):
+        """Full-dict init must auto-load resolvable forcing like YAML init.
+
+        gh#1530 review follow-up: the dict branch never called
+        _try_load_forcing_from_config, so a dict with an absolute (or
+        cwd-resolvable) forcing path left forcing empty while the same
+        data via a YAML file auto-loaded it.
+        """
+        forcing_abs = files("supy").joinpath("sample_data/Kc_2012_data_60.txt")
+        cfg = dict(sample_config_dict)
+        cfg["model"]["control"]["forcing"]["file"] = str(forcing_abs)
+
+        sim = SUEWSSimulation(cfg)
+
+        assert sim._df_forcing is not None
+        assert len(sim._df_forcing) > 0
+
+    def test_update_config_refvalue_ref_only_patch(self, tmp_path):
+        """A ref-only patch must keep the field's current value.
+
+        gh#1530 review follow-up: when the current form of a field is a
+        bare scalar (or the base dump lacks the key), a metadata-only
+        patch like {'ref': {...}} produced a value-less RefValue dict
+        and failed validation; the merge must seed the current value.
+        """
+        import yaml
+
+        sparse = {
+            "name": "sparse",
+            "model": {"control": {"tstep": 300}},
+            "sites": [
+                {
+                    "name": "s1",
+                    "gridiv": 1,
+                    "properties": {"lat": 51.5, "lng": 0.1},
+                }
+            ],
+        }
+        path = tmp_path / "sparse.yml"
+        path.write_text(yaml.safe_dump(sparse, sort_keys=False), encoding="utf-8")
+        sim = SUEWSSimulation(str(path))
+
+        sim.update_config({
+            "model": {"control": {"tstep": {"ref": {"desc": "site doc"}}}}
+        })
+
+        tstep = sim.config.model.control.tstep
+        assert int(tstep.value if hasattr(tstep, "value") else tstep) == 300
+        assert getattr(tstep, "ref", None) is not None
+
     def test_partial_dict_without_existing_config_raises_clearly(self):
         """A partial dict with no base config must raise an informative error.
 

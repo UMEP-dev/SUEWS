@@ -6,6 +6,7 @@ Provides a user-friendly wrapper around the existing SuPy infrastructure.
 """
 
 import copy
+from enum import Enum
 from pathlib import Path, PurePosixPath
 from typing import Any, Optional, Union
 import warnings
@@ -179,6 +180,12 @@ class SUEWSSimulation:
                         "partial updates via update_config()."
                     )
                 self._config = candidate
+
+                # Parity with the YAML branch: auto-load forcing declared
+                # in the config. Relative paths resolve against the CWD
+                # here (no file anchor); failures warn rather than raise.
+                if auto_load_forcing:
+                    self._try_load_forcing_from_config()
             else:
                 # Merge the partial update onto the existing config, then
                 # re-validate the whole configuration so enum coercion,
@@ -293,12 +300,33 @@ class SUEWSSimulation:
                     if isinstance(base_val, dict):
                         base_val.update(patch)
                     else:
+                        if "value" not in patch:
+                            # Metadata-only patch with no dumped base entry
+                            # (field at its default): seed the current value
+                            # so re-validation does not see a value-less dict
+                            seed = attr.model_dump(exclude_none=True, mode="json")
+                            seed.update(patch)
+                            patch = seed
                         base_dict[key] = patch
                 elif isinstance(value, dict) and isinstance(attr, BaseModel):
                     base_val = base_dict.get(key)
                     if not isinstance(base_val, dict):
                         base_dict[key] = base_val = {}
                     merge_node(attr, base_val, value, key_path)
+                elif (
+                    isinstance(value, dict)
+                    and set(value) <= set(RefValue.model_fields)
+                    and "value" not in value
+                    and attr is not None
+                    and not isinstance(attr, (dict, list))
+                ):
+                    # Metadata-only RefValue-shaped patch on a bare-valued
+                    # field: seed the current value before re-validation
+                    current = attr.value if isinstance(attr, Enum) else attr
+                    base_dict[key] = {
+                        "value": copy.deepcopy(current),
+                        **copy.deepcopy(value),
+                    }
                 else:
                     # Scalars, enums, lists, and dict input for non-model
                     # nodes replace wholesale; validation coerces the result

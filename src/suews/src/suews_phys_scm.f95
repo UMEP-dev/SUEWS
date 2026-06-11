@@ -1,32 +1,87 @@
 !========================================================================================
-! SUEWS single-column model (SCM) atmospheric column
+! SUEWS coupled single-column model (SCM) - atmospheric boundary-layer column
 !
-! Native Fortran port of the validated Python reference implementation in
-! scm/suews_scm/column.py + scm/suews_scm/coupling.py (kept in lock-step;
-! the Python package carries the benchmark suite: GABLS1 vs the LES
-! ensemble of Beare et al. 2006, convective growth vs Tennekes 1973).
+! STATUS: research preview. The physics below is the single maintained
+! implementation; the coupled timestep loop is SUEWS_cal_multitsteps_scm in
+! suews_ctrl_driver.f95, exposed as suews_scm_multitsteps_c (bridge C API)
+! and supy.scm.run_scm (Python). User documentation:
+!     docs/source/integration/scm-coupled.rst
+! Interactive companion page: site/preview/scm/ (suews.io/preview/scm).
 !
-! Physics:
-! - unstable: first-order non-local K-profile within the diagnosed
-!   boundary layer (Troen & Mahrt 1986) with the counter-gradient term
-!   and turbulent Prandtl number of Holtslag & Boville (1993);
-! - stable/neutral and free atmosphere: local Blackadar mixing length
-!   with a sharp Richardson-number cut-off (Cuxart et al. 2006 showed
-!   long tails over-deepen the SBL; the long-tail form is selectable);
-! - boundary-layer height: bulk Richardson number with the
-!   Vogelezang & Holtslag (1996) 100*ustar^2 shear term and a
-!   Troen-Mahrt convective thermal excess;
-! - numerics: backward-Euler implicit vertical diffusion in conservative
-!   flux form (column integrals conserved exactly up to the surface flux).
+! ---------------------------------------------------------------------------
+! SCIENTIFIC NOTE
+! ---------------------------------------------------------------------------
+! Purpose. Offline SUEWS consumes prescribed meteorology, so the atmosphere
+! can never respond to the surface. This module makes air temperature,
+! humidity and wind prognostic: a 1-D boundary-layer column whose lower
+! boundary condition is the SUEWS surface, so that urban heat islands,
+! boundary-layer depth and the air-temperature response to surface change
+! become model outputs rather than inputs. It is the modern descendant of
+! the SUEWS-CBL / BLUEWS slab scheme (Onomura et al. 2015, Urban Climate
+! 11, 1-23; still in suews_phys_bluews.f95), generalised from a daytime
+! slab to a multi-level column able to run full diurnal cycles and seasons.
 !
-! Coupled mode only: the surface boundary condition is the kinematic flux
-! pair (wth, wq) plus friction velocity supplied by SUEWS each substep.
-! Wind is relaxed towards a log profile anchored at the observed speed
-! (a 1-D column cannot generate the synoptic pressure gradient), and the
-! column may be ventilated by a background (rural companion) atmosphere
-! on the advective time scale tau = city_length / U.
+! Physics.
+! - Unstable conditions: first-order non-local K-profile closure within the
+!   diagnosed boundary layer (Troen & Mahrt 1986, Boundary-Layer Meteorol.),
+!   with the counter-gradient correction and turbulent Prandtl number of
+!   Holtslag & Boville (1993, J. Climate).
+! - Stable conditions and the free atmosphere: local Blackadar mixing length
+!   with a Richardson-number stability function. Two forms, selectable via
+!   the parameter vector (entry 22): sharp cut-off f = (1 - Ri/0.2)^2,
+!   which reproduces the GABLS1 LES ensemble (Beare et al. 2006,
+!   Boundary-Layer Meteorol.); long tail f = 1/(1 + 10 Ri), REQUIRED for
+!   multi-season runs - the sharp form decouples the winter stable boundary
+!   layer and lets near-surface air cool without bound, the same runaway
+!   that pushed operational NWP to long tails (cf. Cuxart et al. 2006).
+! - Boundary-layer height: bulk Richardson number (critical value 0.25)
+!   with the Vogelezang & Holtslag (1996) 100*ustar^2 shear term and a
+!   Troen-Mahrt convective thermal excess.
+! - Ventilation: a fixed column over a city is not a closed system;
+!   advection replaces urban-heated air with upstream air on a time scale
+!   tau = city_length/U (~1 h for central London). The column may relax
+!   towards a background atmosphere (hourly profiles from a companion
+!   rural coupled run) at that rate. Without this term the urban column
+!   warms by several kelvin per day, because an urban surface keeps a
+!   positive sensible heat flux all night - exactly why BLUEWS ran
+!   daytime-only with daily re-initialisation.
+! - Synoptic anchor (parameter 24, obs_anchor_tau): whole-column relaxation
+!   towards a profile anchored at the observed air state - the standard
+!   single-column representation of large-scale advection. A closed rural
+!   companion drifts cold through winter without it (the column reached
+!   -93 degC in testing); with tau = 1 day its diurnal cycle survives
+!   while it follows the regional air mass across seasons.
 !
-! Author: ported from the suews-scm Python reference, 2026.
+! Numerics. Backward-Euler implicit vertical diffusion in conservative
+! flux form: column integrals are conserved exactly up to the prescribed
+! surface flux (verified to 1e-10 relative during development). Surface
+! boundary condition: kinematic flux pair (wth, wq) plus friction velocity
+! from SUEWS each substep; momentum uses an implicit linearised drag and a
+! relaxation towards a log profile anchored at the observed wind speed
+! (a 1-D column cannot generate the synoptic pressure gradient).
+!
+! Validation evidence (archived in test/fixtures/scm/ with figures in
+! docs/source/assets/img/scm/; regenerated numbers, not hand-tuned):
+! - GABLS1 stable boundary layer: depth 168/198 m (stress/bulk-Ri) vs the
+!   150-250 m LES ensemble range; ustar 0.274 m/s; supergeostrophic
+!   low-level jet at 184 m; long-tail over-deepening reproduced.
+! - Convective growth: within 4.0% of the Tennekes (1973) analytic
+!   entrainment law; known first-order limitation: flux-profile
+!   entrainment ratio 0.06 vs LES 0.15-0.25 (cf. Noh et al. 2003).
+! - Coupled vs observations (KCL London, 5 July 2012 days): air-T RMSE
+!   3.7 K (3.0 day / 4.5 night), r = 0.73, observations never shown to
+!   the model after initialisation.
+! - Multi-year (3 coupled years, urban + anchored rural companion):
+!   emergent nocturnal UHI 3.2 K mean; urban daily-max BL depth 1549 m
+!   (JJA) / 574 m (DJF); six column-years in 160 s wall-clock.
+!
+! Provenance. The physics was developed and validated in a pure-Python
+! reference implementation, ported here line-for-line, and pinned by
+! cross-backend regression (air-T agreement <= 0.06 K over a 6-h coupled
+! window). The reference package - including its analytic/conservation
+! test suite - was then retired; it remains in repository history at
+! commits 96513b82f, 2ca25d90f, dc939564a, 7bcf157f0. Regression
+! coverage for this module: test/test_scm_native.py.
 !========================================================================================
 MODULE module_phys_scm
 
@@ -43,7 +98,7 @@ MODULE module_phys_scm
    PUBLIC :: scm_obs_anchor
    PUBLIC :: SCM_PARAMS_LEN, SCM_DIAG_NCOL
 
-   ! ---- physical constants (match scm/suews_scm/constants.py exactly) ----
+   ! ---- physical constants (as the retired Python reference; see header) ----
    REAL(KIND(1D0)), PARAMETER :: GRAV = 9.81D0 ! [m s-2]
    REAL(KIND(1D0)), PARAMETER :: R_D = 287.05D0 ! [J kg-1 K-1]
    REAL(KIND(1D0)), PARAMETER :: CP_AIR = 1005.0D0 ! [J kg-1 K-1]
@@ -57,7 +112,7 @@ MODULE module_phys_scm
    INTEGER, PARAMETER :: SCM_DIAG_NCOL = 7 ! per-step diagnostic columns
 
    ! flat parameter vector layout (1-based; keep in step with
-   ! scm/suews_scm/native.py and suews_bridge/src/lib.rs):
+   ! supy/scm.py and suews_bridge/src/lib.rs):
    !  1 dz0 [m]            2 ztop [m]          3 stretch [-]
    !  4 h_init [m]         5 gamma_theta [K m-1] 6 gamma_q [kg kg-1 m-1]
    !  7 z_ft_nudge [m]     8 tau_ft [s]        9 tau_wind [s]
@@ -169,7 +224,7 @@ CONTAINS
    END SUBROUTINE scm_params_from_flat
 
    !=====================================================================
-   ! thermodynamic helpers (match scm/suews_scm/thermo.py exactly)
+   ! thermodynamic helpers (Magnus form, Alduchov & Eskridge 1996)
    !=====================================================================
    PURE ELEMENTAL FUNCTION scm_exner(p) RESULT(ex)
       REAL(KIND(1D0)), INTENT(IN) :: p ! [Pa]
@@ -239,7 +294,7 @@ CONTAINS
    END FUNCTION scm_interp1
 
    !=====================================================================
-   ! Thomas algorithm (port of scm/suews_scm/tridiag.py)
+   ! Thomas algorithm for the implicit diffusion systems
    !=====================================================================
    SUBROUTINE scm_solve_tridiag(lower, diag, upper, rhs, x, n)
       INTEGER, INTENT(IN) :: n
@@ -261,7 +316,7 @@ CONTAINS
    END SUBROUTINE scm_solve_tridiag
 
    !=====================================================================
-   ! column initialisation (port of CoupledSCM._init_column)
+   ! column initialisation (grid construction + pressure levels)
    !=====================================================================
    SUBROUTINE scm_column_init(col, prm, tair_c, pres_hpa)
       TYPE(dts_scm_column), INTENT(OUT) :: col
@@ -363,7 +418,7 @@ CONTAINS
 
    !=====================================================================
    ! one column step with prescribed surface fluxes
-   ! (port of ColumnModel.step, prescribed-flux branch, f = 0)
+   ! (prescribed-flux mode; no Coriolis - wind is observation-nudged)
    !=====================================================================
    SUBROUTINE scm_column_step(col, prm, dt, wth, wq, ustar_in, h_out)
       TYPE(dts_scm_column), INTENT(INOUT) :: col
@@ -590,7 +645,7 @@ CONTAINS
 
    !=====================================================================
    ! backward-Euler implicit diffusion in conservative flux form
-   ! (port of ColumnModel._assemble_diffusion)
+   ! (conservative flux form; surface flux enters the lowest cell)
    !=====================================================================
    SUBROUTINE scm_diffuse(col, phi, k_iface, dt, flux_sfc, drag, src)
       TYPE(dts_scm_column), INTENT(IN) :: col
@@ -769,7 +824,7 @@ CONTAINS
 
    !=====================================================================
    ! convert SUEWS energy fluxes to kinematic fluxes for the column
-   ! (port of the conversion in CoupledSCM.run)
+   ! (rho from virtual temperature; constants as the module header)
    !=====================================================================
    SUBROUTINE scm_kinematic_fluxes(qh_wm2, qe_wm2, tair_k, p_pa, q_kgkg, wth, wq)
       REAL(KIND(1D0)), INTENT(IN) :: qh_wm2 ! sensible heat flux [W m-2]

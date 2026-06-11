@@ -1,7 +1,0 @@
-demos/cache/
-__pycache__/
-*.pyc
-.pytest_cache/
-
-# regenerable bulk diagnostics (JSON metrics are kept; parquet is not)
-benchmarks/results/*.parquet

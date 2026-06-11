@@ -54,6 +54,16 @@ EXAMPLES:
 
 ## 2026
 
+### 11 Jun 2026
+
+- [feature][experimental] Added a coupled single-column model (SCM): a prognostic 1-D atmospheric boundary-layer column running inside the SUEWS timestep driver, so air temperature, humidity and wind become model outputs rather than prescribed forcing
+  - Physics in `suews_phys_scm.f95` (Troen-Mahrt non-local K-profile, Richardson-number stable closure with sharp/long-tail options, bulk-Ri boundary-layer height, rural-background ventilation, synoptic anchor); coupled loop `SUEWS_cal_multitsteps_scm`, exposed through the Rust bridge as `run_suews_scm` and in Python as `supy.scm.run_scm`
+  - Validated against the GABLS1 LES ensemble, the Tennekes (1973) convective growth law, and five coupled July days over central London (3.7 K air-temperature RMSE without seeing the observations); evidence archived under `test/fixtures/scm/` with figures in `docs/source/assets/img/scm/`
+  - The whole coupled loop runs natively (about 0.25 ms per 5-min step; six coupled column-years in 160 s) - 500x faster than per-step coupling through the Python API, making multi-year boundary-layer climatology routine
+  - The pure-Python reference implementation used for the validation campaign was retired after cross-backend pinning; it remains in git history (see `test/fixtures/scm/README.md`)
+- [doc] Added the coupled SCM documentation page (`docs/source/integration/scm-coupled.rst`): formulation, closure guidance for multi-season runs, validation summary, usage, limitations and provenance
+- [maintenance] Added an interactive research-preview page at `site/preview/scm/` (live in-browser slab boundary-layer sandbox, hourly profile scrubber from a three-year coupled run) linked from the landing page; regression tests in `test/test_scm_native.py`
+
 ### 5 Jun 2026
 
 - [change][experimental] File logging is now opt-in: importing or using `supy` no longer drops an (often empty) `SuPy.log` into the current working directory (#1516)

@@ -14,6 +14,7 @@ py.install_sources(
         '_var_metadata.py',
         '_version.py',
         '_version_scm.py',
+        'scm.py',
         'suews_checkpoint.py',
         'suews_forcing.py',
         'suews_output.py',

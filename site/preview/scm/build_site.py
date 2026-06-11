@@ -11,11 +11,11 @@ Usage: python build_site.py
 import json
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parent
-BENCH = ROOT / "benchmarks" / "results"
-DEMOS = ROOT / "demos" / "results"
-TEMPLATE = ROOT / "site" / "index.template.html"
-SITE = ROOT / "site" / "index.html"
+HERE = Path(__file__).resolve().parent
+REPO = HERE.parents[2]
+METRICS = REPO / "test" / "fixtures" / "scm"
+TEMPLATE = HERE / "index.template.html"
+SITE = HERE / "index.html"
 
 
 def load(path):
@@ -26,12 +26,15 @@ def load(path):
 def main():
     import supy
 
-    kcl = load(BENCH / "coupled_kcl_metrics.json")
-    ur = load(DEMOS / "demo_urban_rural.json")
-    qf = load(DEMOS / "demo_qf.json")
-    cr = load(DEMOS / "demo_cool_roofs.json")
-    nat = load(BENCH / "native_vs_python.json")
-    my = load(BENCH / "multiyear.json")
+    kcl = load(METRICS / "coupled_kcl_metrics.json")
+    # demo metrics from the archived validation runs (the demo scripts
+    # were retired with the Python reference implementation; provenance:
+    # test/fixtures/scm/README.md)
+    ur = load(METRICS / "demo_urban_rural.json")
+    qf = load(METRICS / "demo_qf.json")
+    cr = load(METRICS / "demo_cool_roofs.json")
+    nat = load(METRICS / "native_vs_python.json")
+    my = load(METRICS / "multiyear.json")
 
     t = kcl["tair"]
     rmse_all = t["all"]["rmse"]

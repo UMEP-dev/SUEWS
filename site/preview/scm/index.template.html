@@ -3,8 +3,8 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>suews-scm — a single column of urban air</title>
-<meta name="description" content="A research-grade single-column model over the SUEWS framework: model description, benchmarks against published results, and coupled urban-climate experiments.">
+<title>SUEWS preview — a single column of urban air</title>
+<meta name="description" content="Research preview: the SUEWS coupled single-column model — scientific description, benchmarks against published results, coupled urban-climate experiments, and live in-browser physics.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&family=Crimson+Pro:ital,wght@0,400;0,500;0,600;1,400&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
@@ -91,6 +91,22 @@
   }
   .wordmark { font-family: "JetBrains Mono", monospace; font-size: 0.95rem; color: var(--text-secondary); letter-spacing: 0.02em; }
   .wordmark b { color: var(--text-primary); font-weight: 500; }
+  .wordmark a { color: inherit; text-decoration: none; }
+  .wordmark a:hover b { color: var(--accent); }
+
+  /* ---------- research-preview strip ---------- */
+  .preview-note {
+    display: flex; align-items: baseline; gap: 0.9rem; flex-wrap: wrap;
+    padding: 0.65rem 0; border-bottom: 1px solid var(--border-light);
+    font-size: 0.88rem; color: var(--text-secondary);
+  }
+  .preview-note .badge {
+    font-family: "JetBrains Mono", monospace; font-size: 0.72rem;
+    letter-spacing: 0.12em; text-transform: uppercase;
+    color: var(--accent); border: 1px solid var(--accent);
+    border-radius: 999px; padding: 0.1rem 0.7rem; white-space: nowrap;
+  }
+  .preview-note a { white-space: nowrap; }
   #theme-toggle {
     background: none; border: 1px solid var(--border-medium); border-radius: 999px;
     color: var(--text-secondary); font: inherit; font-size: 0.85rem;
@@ -240,9 +256,18 @@
 <div class="wrap">
 
 <header class="site">
-  <div class="wordmark"><b>SUEWS</b> / suews-scm · research demonstrator</div>
+  <div class="wordmark"><a href="https://suews.io"><b>SUEWS</b></a> / preview · single-column model</div>
   <button id="theme-toggle" aria-pressed="false" aria-label="Switch colour theme">Light</button>
 </header>
+
+<div class="preview-note" role="note">
+  <span class="badge">Research preview</span>
+  <span>An experimental SUEWS capability: the physics ships in the model core;
+  the interface may still change. Every number on this page regenerates from
+  archived, version-controlled metrics.</span>
+  <span><a href="https://docs.suews.io/latest/integration/scm-coupled.html">Documentation</a> ·
+  <a href="https://github.com/UMEP-dev/SUEWS">Source</a></span>
+</div>
 
 <!-- ================= hero ================= -->
 <div class="hero">
@@ -258,7 +283,8 @@
     <div>
       <h1>A single column of <em>urban air</em></h1>
       <p class="dek">
-        Offline, SUEWS is told what the air above a city is doing. <strong>suews-scm</strong>
+        Offline, SUEWS is told what the air above a city is doing. <strong>the SUEWS
+        single-column model</strong>
         closes the loop: a one-dimensional atmospheric boundary-layer column rides on the
         SUEWS surface scheme, so air temperature, humidity and boundary-layer depth become
         things the model <em>predicts</em> — and urban climate questions at the city scale
@@ -358,7 +384,7 @@
         A column fixed over a city is not a closed box. Advection replaces urban-heated
         air with upstream air on a time scale of roughly an hour; without that exchange the
         modelled city warms without limit, because an urban surface keeps a positive
-        sensible heat flux all night. suews-scm represents this with a
+        sensible heat flux all night. The model represents this with a
         <strong>companion rural column</strong> — itself a coupled SUEWS run over grassland,
         cooling at night through its own surface — whose profiles ventilate the urban
         column at the rate the wind dictates.
@@ -374,9 +400,10 @@
         SUEWS-CBL (BLUEWS) scheme that still ships in the Fortran code — for theory work
         and rapid experiments.</p></li>
       <li><b>Two-way coupler.</b>
-        <p>SuPy in stepwise mode: surface state carried forward each step, fluxes exchanged
-        both ways, wind either nudged to observations or fully prognostic for idealised
-        experiments. Rural-background ventilation with τ&nbsp;=&nbsp;L/U.</p></li>
+        <p>The coupled loop runs inside the SUEWS timestep driver itself (Fortran,
+        reached through the Rust bridge): fluxes exchanged both ways every five
+        minutes, wind nudged to observations, rural-background ventilation with
+        τ = L/U — about 0.25 ms per coupled step.</p></li>
     </ol>
   </div>
 </section>
@@ -592,8 +619,8 @@
     A vanilla land-surface model carries one air temperature, at one height, handed to it
     from a file. Everything below — a boundary layer you can steer, and five days of real
     coupled vertical structure — is state that simply does not exist in an offline model.
-    Both panels run live in your browser; the first integrates the same slab equations as
-    <span style="font-family:'JetBrains Mono',monospace;font-size:0.85em;">suews_scm.slab</span>.
+    Both panels run live in your browser; the first integrates the same CLASS slab equations the benchmark campaign
+    validated against analytic theory.
   </p>
 
   <article class="study" style="grid-template-columns: minmax(0,8fr) minmax(0,4fr);">
@@ -661,22 +688,32 @@
 <!-- ================= run it ================= -->
 <section id="run" class="reveal">
   <p class="sec-label">V · Run it</p>
-  <h2>Everything regenerates from eight scripts</h2>
-  <pre><code><span class="c"># from the SUEWS repository root, dev environment built (make dev)</span>
-<span class="k">cd</span> scm
-python -m pytest tests/                  <span class="c"># 24 unit + regression tests</span>
-python benchmarks/run_gabls1.py          <span class="c"># stable boundary layer vs LES ensemble</span>
-python benchmarks/run_cbl.py             <span class="c"># convective growth vs analytic theory</span>
-python benchmarks/run_coupled_kcl.py     <span class="c"># coupled vs London observations (~6 min)</span>
-python demos/demo_urban_rural.py         <span class="c"># the emergent heat island</span>
-python demos/demo_anthropogenic_heat.py  <span class="c"># waste-heat scenarios</span>
-python demos/demo_cool_roofs.py          <span class="c"># albedo mitigation, atmosphere responding</span>
-python benchmarks/run_native_vs_python.py <span class="c"># backend equivalence + the 555x</span>
-python benchmarks/run_multiyear.py       <span class="c"># three coupled years in ~3 min (native)</span></code></pre>
+  <h2>One import, in the released core</h2>
+  <pre><code><span class="c"># the coupled loop runs inside the compiled SUEWS core (Fortran via</span>
+<span class="c"># the Rust bridge); Python only marshals. Research preview interface.</span>
+<span class="k">import</span> supy <span class="k">as</span> sp
+<span class="k">from</span> supy.scm <span class="k">import</span> run_scm, make_rural_config, make_background, tile_forcing
+<span class="k">from</span> supy.data_model <span class="k">import</span> SUEWSConfig
+
+config = SUEWSConfig.from_yaml(<span class="c">"config.yml"</span>)
+df_state, df_forcing = sp.load_sample_data()
+
+<span class="c"># rural companion provides the ventilating background air ...</span>
+rural = make_rural_config(config)
+_, _, snaps, _ = run_scm(rural, df_forcing, snapshot_every_h=1.0,
+                         obs_anchor_tau=86400.0, stable_fn=1)
+
+<span class="c"># ... and the urban column negotiates with its own atmosphere</span>
+df_output, df_scm, state = run_scm(config, df_forcing,
+                                   background=make_background(snaps), stable_fn=1)</code></pre>
   <p style="margin-top: var(--space-md); font-size: 0.95rem;">
-    The package is ~1,200 lines of documented NumPy on top of
-    <a href="https://docs.suews.io/stable/">SUEWS / SuPy</a>; metrics are written as JSON
-    next to each script, figures land in <code style="font-family:'JetBrains Mono',monospace;font-size:0.85em;">site/assets/</code>.
+    Full scientific description, options and provenance:
+    <a href="https://docs.suews.io/latest/integration/scm-coupled.html">the documentation page</a>.
+    The archived validation metrics live under
+    <code style="font-family:'JetBrains Mono',monospace;font-size:0.85em;">test/fixtures/scm/</code>
+    in the repository; the pure-Python reference implementation that produced the
+    benchmark campaign (and its 26-test suite) is retained in git history — every
+    figure above carries that lineage rather than being a one-off artefact.
   </p>
 </section>
 
@@ -714,8 +751,9 @@ python benchmarks/run_multiyear.py       <span class="c"># three coupled years i
 </section>
 
 <footer class="site">
-  <span>suews-scm 0.1.0</span>
+  <span>SUEWS single-column model · research preview</span>
   <span>supy [[SUPY_VERSION]]</span>
+  <span>evidence: test/fixtures/scm · lineage 96513b8..7bcf157</span>
   <span>KCL sample data · London 2012</span>
   <span>generated [[GEN_DATE]]</span>
 </footer>
@@ -780,7 +818,8 @@ python benchmarks/run_multiyear.py       <span class="c"># three coupled years i
 
   /* ==================== slab boundary-layer sandbox ====================
      The CLASS slab equations (Tennekes 1973) - the same physics as
-     suews_scm/slab.py - integrated with RK4 over a 06:00-20:00 day. */
+     the retired Python reference (suews_scm/slab.py,
+     in git history) - integrated with RK4 over a 06:00-20:00 day. */
   (function () {
     const canvas = document.getElementById("slab-canvas");
     if (!canvas) return;

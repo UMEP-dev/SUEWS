@@ -11,6 +11,9 @@ Rules for numerical comparisons, test validation, and diagnostic investigations.
 2. **Run the existing test before writing custom scripts.** If a test exists for the comparison you need, run it (`pytest path::Class::method -v`). Only write custom code if no test covers the question.
 
 3. **Trace every public execution path before declaring a fix complete.** When a behavioural contract changes, verify the recommended API, deprecated APIs, and any unchecked/bypass mode separately. Shared validators are not enough unless every public path actually reaches them.
+   - For configuration behaviour, cover equivalent input forms explicitly: YAML path, in-memory mapping/dict, direct config object, and any documented update/patch API.
+   - If a public path accepts raw mappings, include at least one regression that exercises schema coercion/normalisation (for example renamed keys, readable physics names, `RefValue` fields, or defaults) and one ordinary collection field. This catches bypasses of Pydantic validators and list-specific special cases.
+   - When a path intentionally bypasses validation, assert the bypass semantics directly and name the bypass in the test.
 
 ## When results look unexpected
 

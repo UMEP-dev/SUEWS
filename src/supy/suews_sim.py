@@ -236,7 +236,33 @@ class SUEWSSimulation:
             if not k.startswith("_")
         }
 
+        def normalise_legacy_input(model_cls, upd):
+            """Run the model's mode='before' validators on an update dict.
+
+            The full from_dict/from_yaml path normalises legacy input
+            forms (field renames such as ``stabilitymethod`` ->
+            ``stability``, the ``output_file``/``forcing_file`` lifts)
+            through each model's before-validators. Partial updates must
+            accept the same forms, so the patch is run through the same
+            machinery before the unknown-key check (gh#1530 follow-up).
+            """
+            decorators = getattr(model_cls, "__pydantic_decorators__", None)
+            if decorators is None:
+                return upd
+            for name, decorator in decorators.model_validators.items():
+                if decorator.info.mode != "before":
+                    continue
+                validator = getattr(model_cls, name, None)
+                if validator is None:
+                    continue
+                result = validator(upd)
+                if isinstance(result, dict):
+                    upd = result
+            return upd
+
         def merge_node(node_obj, base_dict, upd, path):
+            if isinstance(node_obj, BaseModel) and not isinstance(node_obj, RefValue):
+                upd = normalise_legacy_input(type(node_obj), dict(upd))
             for key, value in upd.items():
                 key_path = f"{path}.{key}" if path else str(key)
                 if not path and key == "sites":
@@ -324,7 +350,9 @@ class SUEWSSimulation:
                         key,
                     )
 
-        merge_node(config, base, updates, "")
+        # Deep-copied so the legacy-input coercions (which restructure
+        # nested dicts in place) never mutate the caller's update dict.
+        merge_node(config, base, copy.deepcopy(updates), "")
         return base
 
     def update_forcing(

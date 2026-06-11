@@ -532,6 +532,38 @@ class TestConfigFromDict:
         tstep = sim.config.model.control.tstep
         assert int(tstep.value if hasattr(tstep, "value") else tstep) == 600
 
+    def test_update_config_legacy_field_name_renamed(self, sim_from_yaml):
+        """Legacy field names must work in partial updates as in full input.
+
+        gh#1530 review follow-up: the full YAML/dict path normalises
+        deprecated names (e.g. ``stabilitymethod`` -> ``stability``) via
+        before-validators; partial updates must accept them identically.
+        """
+        sim_from_yaml.update_config({"model": {"physics": {"stabilitymethod": 3}}})
+
+        st = sim_from_yaml.config.model.physics.stability
+        inner = st.value if hasattr(st, "value") else st
+        assert int(inner) == 3
+
+    def test_update_config_legacy_output_file(self, sim_from_yaml):
+        """The deprecated output_file dict form must lift under output."""
+        sim_from_yaml.update_config({
+            "model": {"control": {"output_file": {"freq": 1800}}}
+        })
+
+        freq = sim_from_yaml.config.model.control.output.freq
+        assert int(freq.value if hasattr(freq, "value") else freq) == 1800
+
+    def test_update_config_legacy_forcing_file(self, sim_from_yaml):
+        """The deprecated forcing_file form must move under forcing.file."""
+        sim_from_yaml.update_config(
+            {"model": {"control": {"forcing_file": "new_forcing.txt"}}},
+        )
+
+        f = sim_from_yaml.config.model.control.forcing.file
+        inner = f.value if hasattr(f, "value") else f
+        assert inner == "new_forcing.txt"
+
     def test_partial_dict_without_existing_config_raises_clearly(self):
         """A partial dict with no base config must raise an informative error.
 

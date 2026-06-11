@@ -43,10 +43,10 @@ model:
       parameter_source: default
       capacitance: default
       setpoint: constant
-      same_albedo_wall: disabled
-      same_albedo_roof: disabled
-      same_emissivity_wall: disabled
-      same_emissivity_roof: disabled
+      same_albedo_wall: enabled
+      same_albedo_roof: enabled
+      same_emissivity_wall: enabled
+      same_emissivity_roof: enabled
 sites:
 - name: KCL
   gridiv: 1
@@ -1122,7 +1122,7 @@ sites:
       absorptivity_wall_external:
         value: 0.655
       reflectivity_wall_external:
-        value: 0.345
+        value: 0.2
       thickness_roof:
         value: 0.031
       conductivity_roof:
@@ -1150,7 +1150,7 @@ sites:
       absorptivity_roof_external:
         value: 0.655
       reflectivity_roof_external:
-        value: 0.345
+        value: 0.2
       thickness_ground_floor:
         value: 0.227
       conductivity_ground_floor:
@@ -3266,9 +3266,9 @@ sites:
         wall_specular_frac:
           value: 0.1
       - alb:
-          value: 0.5
+          value: 0.2 # SR-building - edited to match SIMPLE case
         emis:
-          value: 0.95
+          value: 0.9 # SR-building - edited to match SIMPLE case
         thermal_layers:
           dz:
             value:

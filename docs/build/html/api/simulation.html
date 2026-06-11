@@ -9,7 +9,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
     <meta property="article:modified_time" content="2026-04-24T12:58:49+00:00" />
-    <title>6.1. SUEWSSimulation Class &#8212; SUEWS 2026.6.11.dev4 documentation</title>
+    <title>6.1. SUEWSSimulation Class &#8212; SUEWS 2026.6.11.dev6 documentation</title>
   
   
   
@@ -45,7 +45,7 @@
   <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=8878045cc6db502f8baf" />
 <link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=8878045cc6db502f8baf" />
 
-    <script src="../_static/documentation_options.js?v=4fb944ef"></script>
+    <script src="../_static/documentation_options.js?v=e3314694"></script>
     <script src="../_static/doctools.js?v=9bcbadda"></script>
     <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
     <script src="../_static/scripts/sphinx-book-theme.js?v=fab101a9"></script>
@@ -59,7 +59,7 @@
     <link rel="prev" title="6. Python API Reference" href="../api.html" />
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
-  <meta name="docsearch:version" content="2026.6.11.dev4" />
+  <meta name="docsearch:version" content="2026.6.11.dev6" />
     <meta name="docbuild:last-update" content="2026-04-24"/>
   </head>
   
@@ -102,7 +102,7 @@
   <div class="bd-header-announcement__content">
     <div style="background-color: #f0ad4e; border: 1px solid #eea236; border-radius: 4px; padding: 10px; margin: 10px 0;">
         <strong>⚠️ Development Version:</strong> This documentation was built from a development version
-        (2026.6.11.dev4, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/038cc7b4e2cc1dcacea87c55fdc78c437dc381c0" style="color: #31708f;">038cc7b</a>).
+        (2026.6.11.dev6, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/3b55efb273e2939f7283af9a723a963070721b90" style="color: #31708f;">3b55efb</a>).
         Features described here may be unstable or subject to change. For stable documentation, please visit the
         <a href="https://docs.suews.io/stable/" style="color: #31708f;">latest release</a>.
     </div>
@@ -149,8 +149,8 @@
       
     
     
-    <img src="../_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.6.11.dev4 documentation - Home"/>
-    <img src="../_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.6.11.dev4 documentation - Home"/>
+    <img src="../_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.6.11.dev6 documentation - Home"/>
+    <img src="../_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.6.11.dev6 documentation - Home"/>
   
   
 </a></div>
@@ -1201,10 +1201,20 @@ To change them, update your configuration file or use
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
-<li><p><strong>config</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a><em>, </em><em>Path</em><em>, </em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.14)"><em>dict</em></a><em>, or </em><em>SUEWSConfig</em>) – Configuration source:
+<li><p><strong>config</strong> (<a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#str" title="(in Python v3.14)"><em>str</em></a><em>, </em><em>Path</em><em>, </em><a class="reference external" href="https://docs.python.org/3/library/stdtypes.html#dict" title="(in Python v3.14)"><em>dict</em></a><em>, or </em><em>SUEWSConfig</em>) – <p>Configuration source:
 - Path to YAML file
-- Dictionary with parameters (can be partial)
-- SUEWSConfig object</p></li>
+- Dictionary with parameters: a full configuration dict when no</p>
+<blockquote>
+<div><p>config is loaded yet, or a partial update merged onto the
+existing config. Either way the result is re-validated through
+<code class="docutils literal notranslate"><span class="pre">SUEWSConfig</span></code>, so enum/RefValue coercion and range checks
+apply exactly as for YAML input. Unknown keys raise
+<code class="docutils literal notranslate"><span class="pre">ValueError</span></code>; list values replace the existing list.</p>
+</div></blockquote>
+<ul>
+<li><p>SUEWSConfig object</p></li>
+</ul>
+</p></li>
 <li><p><strong>auto_load_forcing</strong> (<a class="reference external" href="https://docs.python.org/3/library/functions.html#bool" title="(in Python v3.14)"><em>bool</em></a><em>, </em><em>optional</em>) – <p>If True (default), automatically load forcing data specified in the
 config file. If False, forcing must be loaded explicitly using
 <code class="docutils literal notranslate"><span class="pre">update_forcing()</span></code>.</p>
@@ -1667,8 +1677,8 @@ By SUEWS dev team led by Prof Sue Grimmond
   <div class="footer-item">
     
 <div class="extra_footer">
-  <p>Version: 2026.6.11.dev4 |
-    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/038cc7b4e2cc1dcacea87c55fdc78c437dc381c0">038cc7b</a> |
+  <p>Version: 2026.6.11.dev6 |
+    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/3b55efb273e2939f7283af9a723a963070721b90">3b55efb</a> |
     <a href="https://umep-dev.github.io/SUEWS/brand/showcase.html">Brand</a></p>
 </div>
   </div>

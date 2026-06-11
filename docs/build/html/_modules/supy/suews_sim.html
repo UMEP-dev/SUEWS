@@ -7,7 +7,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>supy.suews_sim &#8212; SUEWS 2026.6.11.dev4 documentation</title>
+    <title>supy.suews_sim &#8212; SUEWS 2026.6.11.dev6 documentation</title>
   
   
   
@@ -43,7 +43,7 @@
   <link rel="preload" as="script" href="../../_static/scripts/bootstrap.js?digest=8878045cc6db502f8baf" />
 <link rel="preload" as="script" href="../../_static/scripts/pydata-sphinx-theme.js?digest=8878045cc6db502f8baf" />
 
-    <script src="../../_static/documentation_options.js?v=4fb944ef"></script>
+    <script src="../../_static/documentation_options.js?v=e3314694"></script>
     <script src="../../_static/doctools.js?v=9bcbadda"></script>
     <script src="../../_static/sphinx_highlight.js?v=dc90522c"></script>
     <script src="../../_static/scripts/sphinx-book-theme.js?v=fab101a9"></script>
@@ -55,7 +55,7 @@
     <link rel="search" title="Search" href="../../search.html" />
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
-  <meta name="docsearch:version" content="2026.6.11.dev4" />
+  <meta name="docsearch:version" content="2026.6.11.dev6" />
   </head>
   
   
@@ -97,7 +97,7 @@
   <div class="bd-header-announcement__content">
     <div style="background-color: #f0ad4e; border: 1px solid #eea236; border-radius: 4px; padding: 10px; margin: 10px 0;">
         <strong>⚠️ Development Version:</strong> This documentation was built from a development version
-        (2026.6.11.dev4, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/038cc7b4e2cc1dcacea87c55fdc78c437dc381c0" style="color: #31708f;">038cc7b</a>).
+        (2026.6.11.dev6, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/3b55efb273e2939f7283af9a723a963070721b90" style="color: #31708f;">3b55efb</a>).
         Features described here may be unstable or subject to change. For stable documentation, please visit the
         <a href="https://docs.suews.io/stable/" style="color: #31708f;">latest release</a>.
     </div>
@@ -146,8 +146,8 @@
       
     
     
-    <img src="../../_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.6.11.dev4 documentation - Home"/>
-    <img src="../../_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.6.11.dev4 documentation - Home"/>
+    <img src="../../_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.6.11.dev6 documentation - Home"/>
+    <img src="../../_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.6.11.dev6 documentation - Home"/>
   
   
 </a></div>
@@ -542,11 +542,13 @@
 <span class="sd">&quot;&quot;&quot;</span>
 
 <span class="kn">import</span><span class="w"> </span><span class="nn">copy</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">enum</span><span class="w"> </span><span class="kn">import</span> <span class="n">Enum</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">pathlib</span><span class="w"> </span><span class="kn">import</span> <span class="n">Path</span><span class="p">,</span> <span class="n">PurePosixPath</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">Any</span><span class="p">,</span> <span class="n">Optional</span><span class="p">,</span> <span class="n">Union</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">warnings</span>
 
 <span class="kn">import</span><span class="w"> </span><span class="nn">pandas</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">pd</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">pydantic</span><span class="w"> </span><span class="kn">import</span> <span class="n">BaseModel</span>
 
 <span class="kn">from</span><span class="w"> </span><span class="nn">._check</span><span class="w"> </span><span class="kn">import</span> <span class="n">check_forcing</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">._env</span><span class="w"> </span><span class="kn">import</span> <span class="n">logger_supy</span>
@@ -619,7 +621,8 @@
 <span class="sd">        config : str, Path, dict, or SUEWSConfig, optional</span>
 <span class="sd">            Initial configuration source:</span>
 <span class="sd">            - Path to YAML configuration file</span>
-<span class="sd">            - Dictionary with configuration parameters</span>
+<span class="sd">            - Dictionary with a full configuration (YAML-shaped, validated</span>
+<span class="sd">              through ``SUEWSConfig`` exactly like a YAML file)</span>
 <span class="sd">            - SUEWSConfig object</span>
 <span class="sd">            - None to create empty simulation</span>
 <span class="sd">        &quot;&quot;&quot;</span>
@@ -652,7 +655,12 @@
 <span class="sd">        config : str, Path, dict, or SUEWSConfig</span>
 <span class="sd">            Configuration source:</span>
 <span class="sd">            - Path to YAML file</span>
-<span class="sd">            - Dictionary with parameters (can be partial)</span>
+<span class="sd">            - Dictionary with parameters: a full configuration dict when no</span>
+<span class="sd">              config is loaded yet, or a partial update merged onto the</span>
+<span class="sd">              existing config. Either way the result is re-validated through</span>
+<span class="sd">              ``SUEWSConfig``, so enum/RefValue coercion and range checks</span>
+<span class="sd">              apply exactly as for YAML input. Unknown keys raise</span>
+<span class="sd">              ``ValueError``; list values replace the existing list.</span>
 <span class="sd">            - SUEWSConfig object</span>
 <span class="sd">        auto_load_forcing : bool, optional</span>
 <span class="sd">            If True (default), automatically load forcing data specified in the</span>
@@ -698,12 +706,39 @@
                 <span class="bp">self</span><span class="o">.</span><span class="n">_try_load_forcing_from_config</span><span class="p">()</span>
 
         <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">config</span><span class="p">,</span> <span class="nb">dict</span><span class="p">):</span>
-            <span class="c1"># Update existing config with dictionary</span>
             <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_config</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
-                <span class="bp">self</span><span class="o">.</span><span class="n">_config</span> <span class="o">=</span> <span class="n">SUEWSConfig</span><span class="p">()</span>
+                <span class="c1"># No existing config: treat the dict as a full configuration</span>
+                <span class="c1"># and build it through the validated SUEWSConfig path</span>
+                <span class="c1"># (gh#1530). Partial dicts are only meaningful as updates to</span>
+                <span class="c1"># an existing configuration.</span>
+                <span class="n">candidate</span> <span class="o">=</span> <span class="n">SUEWSConfig</span><span class="o">.</span><span class="n">from_dict</span><span class="p">(</span><span class="n">config</span><span class="p">)</span>
+                <span class="k">if</span> <span class="ow">not</span> <span class="n">candidate</span><span class="o">.</span><span class="n">sites</span><span class="p">:</span>
+                    <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                        <span class="s2">&quot;Configuration dict defines no sites. Provide a full &quot;</span>
+                        <span class="s2">&quot;configuration dict (including &#39;sites&#39;), or load a &quot;</span>
+                        <span class="s2">&quot;YAML file / SUEWSConfig first and then apply &quot;</span>
+                        <span class="s2">&quot;partial updates via update_config().&quot;</span>
+                    <span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_config</span> <span class="o">=</span> <span class="n">candidate</span>
 
-            <span class="c1"># Deep update the configuration</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">_update_config_from_dict</span><span class="p">(</span><span class="n">config</span><span class="p">)</span>
+                <span class="c1"># Parity with the YAML branch: auto-load forcing declared</span>
+                <span class="c1"># in the config. Relative paths resolve against the CWD</span>
+                <span class="c1"># here (no file anchor); failures warn rather than raise.</span>
+                <span class="k">if</span> <span class="n">auto_load_forcing</span><span class="p">:</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">_try_load_forcing_from_config</span><span class="p">()</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="c1"># Merge the partial update onto the existing config, then</span>
+                <span class="c1"># re-validate the whole configuration so enum coercion,</span>
+                <span class="c1"># RefValue wrapping, and range checks all apply (gh#1530).</span>
+                <span class="c1"># The merged dict is the user&#39;s effective input (original</span>
+                <span class="c1"># explicitly-set fields plus this update), so from_dict&#39;s</span>
+                <span class="c1"># default raw snapshot of it is the correct record for</span>
+                <span class="c1"># raw-gated completeness checks.</span>
+                <span class="n">merged</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_merge_config_updates</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_config</span><span class="p">,</span> <span class="n">config</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_config</span> <span class="o">=</span> <span class="n">SUEWSConfig</span><span class="o">.</span><span class="n">from_dict</span><span class="p">(</span>
+                    <span class="n">merged</span><span class="p">,</span>
+                    <span class="n">yaml_path</span><span class="o">=</span><span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_config_path</span><span class="p">)</span> <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_config_path</span> <span class="k">else</span> <span class="kc">None</span><span class="p">,</span>
+                <span class="p">)</span>
 
             <span class="c1"># Regenerate state DataFrame</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">_df_state_init</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_config</span><span class="o">.</span><span class="n">to_df_state</span><span class="p">()</span>
@@ -716,50 +751,186 @@
         <span class="k">return</span> <span class="bp">self</span></div>
 
 
-    <span class="k">def</span><span class="w"> </span><span class="nf">_update_config_from_dict</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">updates</span><span class="p">:</span> <span class="nb">dict</span><span class="p">):</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Apply dictionary updates to configuration.&quot;&quot;&quot;</span>
+    <span class="nd">@staticmethod</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">_merge_config_updates</span><span class="p">(</span><span class="n">config</span><span class="p">:</span> <span class="n">SUEWSConfig</span><span class="p">,</span> <span class="n">updates</span><span class="p">:</span> <span class="nb">dict</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Merge a partial update dict onto a validated config&#39;s dump.</span>
 
-        <span class="k">def</span><span class="w"> </span><span class="nf">recursive_update</span><span class="p">(</span><span class="n">obj</span><span class="p">,</span> <span class="n">upd</span><span class="p">):</span>
+<span class="sd">        Returns a plain dict ready for re-validation through</span>
+<span class="sd">        ``SUEWSConfig.from_dict``; the configuration is never mutated in</span>
+<span class="sd">        place, so enum coercion, RefValue wrapping, and range checks always</span>
+<span class="sd">        apply to the merged result (gh#1530).</span>
+
+<span class="sd">        Merge semantics:</span>
+<span class="sd">        - dicts merge recursively into model-backed nodes; unknown field</span>
+<span class="sd">          names raise ``ValueError`` instead of being silently dropped</span>
+<span class="sd">        - ``{&quot;value&quot;: ...}`` dicts merge into RefValue leaves; any other</span>
+<span class="sd">          dict shape on a RefValue leaf replaces it wholesale (alternate</span>
+<span class="sd">          readable input forms are re-validated, not merged)</span>
+<span class="sd">        - lists replace wholesale</span>
+<span class="sd">        - ``sites`` additionally accepts the established mini-language:</span>
+<span class="sd">          ``{index: patch}``, ``{site_name: patch}``, or a single-site</span>
+<span class="sd">          shorthand patch</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># Dump only what the user explicitly set (exclude_unset): merging</span>
+        <span class="c1"># onto a full dump would materialise pydantic defaults as if the</span>
+        <span class="c1"># user had declared them, so conditional validators gated on</span>
+        <span class="c1"># model_fields_set or on the raw-input snapshot (e.g. RSL/faibldg,</span>
+        <span class="c1"># site completeness) would fire false errors on sparse configs.</span>
+        <span class="c1"># Internal bookkeeping keys are re-stamped by from_dict; carrying</span>
+        <span class="c1"># them through the merge would nest snapshots inside snapshots.</span>
+        <span class="n">base</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="n">k</span><span class="p">:</span> <span class="n">v</span>
+            <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">config</span><span class="o">.</span><span class="n">model_dump</span><span class="p">(</span><span class="n">exclude_unset</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">mode</span><span class="o">=</span><span class="s2">&quot;json&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">items</span><span class="p">()</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">k</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s2">&quot;_&quot;</span><span class="p">)</span>
+        <span class="p">}</span>
+
+        <span class="k">def</span><span class="w"> </span><span class="nf">normalise_legacy_input</span><span class="p">(</span><span class="n">model_cls</span><span class="p">,</span> <span class="n">upd</span><span class="p">):</span>
+<span class="w">            </span><span class="sd">&quot;&quot;&quot;Run the model&#39;s mode=&#39;before&#39; validators on an update dict.</span>
+
+<span class="sd">            The full from_dict/from_yaml path normalises legacy input</span>
+<span class="sd">            forms (field renames such as ``stabilitymethod`` -&gt;</span>
+<span class="sd">            ``stability``, the ``output_file``/``forcing_file`` lifts)</span>
+<span class="sd">            through each model&#39;s before-validators. Partial updates must</span>
+<span class="sd">            accept the same forms, so the patch is run through the same</span>
+<span class="sd">            machinery before the unknown-key check (gh#1530 follow-up).</span>
+<span class="sd">            &quot;&quot;&quot;</span>
+            <span class="n">decorators</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">model_cls</span><span class="p">,</span> <span class="s2">&quot;__pydantic_decorators__&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">decorators</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="k">return</span> <span class="n">upd</span>
+            <span class="k">for</span> <span class="n">name</span><span class="p">,</span> <span class="n">decorator</span> <span class="ow">in</span> <span class="n">decorators</span><span class="o">.</span><span class="n">model_validators</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+                <span class="k">if</span> <span class="n">decorator</span><span class="o">.</span><span class="n">info</span><span class="o">.</span><span class="n">mode</span> <span class="o">!=</span> <span class="s2">&quot;before&quot;</span><span class="p">:</span>
+                    <span class="k">continue</span>
+                <span class="n">validator</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">model_cls</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+                <span class="k">if</span> <span class="n">validator</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                    <span class="k">continue</span>
+                <span class="n">result</span> <span class="o">=</span> <span class="n">validator</span><span class="p">(</span><span class="n">upd</span><span class="p">)</span>
+                <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">result</span><span class="p">,</span> <span class="nb">dict</span><span class="p">):</span>
+                    <span class="n">upd</span> <span class="o">=</span> <span class="n">result</span>
+            <span class="k">return</span> <span class="n">upd</span>
+
+        <span class="k">def</span><span class="w"> </span><span class="nf">merge_node</span><span class="p">(</span><span class="n">node_obj</span><span class="p">,</span> <span class="n">base_dict</span><span class="p">,</span> <span class="n">upd</span><span class="p">,</span> <span class="n">path</span><span class="p">):</span>
+            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">node_obj</span><span class="p">,</span> <span class="n">BaseModel</span><span class="p">)</span> <span class="ow">and</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">node_obj</span><span class="p">,</span> <span class="n">RefValue</span><span class="p">):</span>
+                <span class="n">upd</span> <span class="o">=</span> <span class="n">normalise_legacy_input</span><span class="p">(</span><span class="nb">type</span><span class="p">(</span><span class="n">node_obj</span><span class="p">),</span> <span class="nb">dict</span><span class="p">(</span><span class="n">upd</span><span class="p">))</span>
             <span class="k">for</span> <span class="n">key</span><span class="p">,</span> <span class="n">value</span> <span class="ow">in</span> <span class="n">upd</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
-                <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">obj</span><span class="p">,</span> <span class="n">key</span><span class="p">):</span>
-                    <span class="n">attr</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">obj</span><span class="p">,</span> <span class="n">key</span><span class="p">)</span>
-                    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="nb">dict</span><span class="p">)</span> <span class="ow">and</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">attr</span><span class="p">,</span> <span class="s2">&quot;__dict__&quot;</span><span class="p">):</span>
-                        <span class="c1"># Recursive to read nested dictionaries</span>
-                        <span class="n">recursive_update</span><span class="p">(</span><span class="n">attr</span><span class="p">,</span> <span class="n">value</span><span class="p">)</span>
-                    <span class="c1"># Check whether site index or site name is provided</span>
-                    <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">attr</span><span class="p">,</span> <span class="nb">list</span><span class="p">):</span>
-                        <span class="n">site_key</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">value</span><span class="o">.</span><span class="n">keys</span><span class="p">())[</span><span class="mi">0</span><span class="p">]</span>
-                        <span class="n">site_value</span> <span class="o">=</span> <span class="n">value</span><span class="p">[</span><span class="n">site_key</span><span class="p">]</span>
-                        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">site_key</span><span class="p">,</span> <span class="nb">int</span><span class="p">):</span>
-                            <span class="c1"># Select site on index</span>
-                            <span class="n">attr</span> <span class="o">=</span> <span class="n">attr</span><span class="p">[</span><span class="n">site_key</span><span class="p">]</span>
-                            <span class="n">recursive_update</span><span class="p">(</span><span class="n">attr</span><span class="p">,</span> <span class="n">site_value</span><span class="p">)</span>
-                        <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">site_key</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
-                            <span class="c1"># Select site on name</span>
-                            <span class="n">attr_site</span> <span class="o">=</span> <span class="nb">next</span><span class="p">(</span>
-                                <span class="p">(</span><span class="n">item</span> <span class="k">for</span> <span class="n">item</span> <span class="ow">in</span> <span class="n">attr</span> <span class="k">if</span> <span class="n">item</span><span class="o">.</span><span class="n">name</span> <span class="o">==</span> <span class="n">site_key</span><span class="p">),</span>
-                                <span class="kc">None</span><span class="p">,</span>
-                            <span class="p">)</span>
-                            <span class="k">if</span> <span class="n">attr_site</span><span class="p">:</span>
-                                <span class="n">recursive_update</span><span class="p">(</span><span class="n">attr_site</span><span class="p">,</span> <span class="n">site_value</span><span class="p">)</span>
-                            <span class="k">elif</span> <span class="nb">len</span><span class="p">(</span><span class="n">attr</span><span class="p">)</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
-                                <span class="c1"># Without name or index and only one site</span>
-                                <span class="n">attr_site</span> <span class="o">=</span> <span class="n">attr</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
-                                <span class="c1"># Distinguish site name pattern from shorthand</span>
-                                <span class="c1"># If site_key is an attribute on the site object, it&#39;s shorthand</span>
-                                <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">attr_site</span><span class="p">,</span> <span class="n">site_key</span><span class="p">):</span>
-                                    <span class="c1"># Shorthand pattern: {&#39;name&#39;: &#39;test&#39;} or {&#39;properties&#39;: {...}}</span>
-                                    <span class="n">recursive_update</span><span class="p">(</span><span class="n">attr_site</span><span class="p">,</span> <span class="n">value</span><span class="p">)</span>
-                                <span class="k">else</span><span class="p">:</span>
-                                    <span class="c1"># Site name pattern: {&#39;NonExistent&#39;: {&#39;gridiv&#39;: 99}}</span>
-                                    <span class="n">recursive_update</span><span class="p">(</span><span class="n">attr_site</span><span class="p">,</span> <span class="n">site_value</span><span class="p">)</span>
-                            <span class="k">else</span><span class="p">:</span>
-                                <span class="c1"># Otherwise skip these parameters</span>
-                                <span class="k">continue</span>
+                <span class="n">key_path</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">path</span><span class="si">}</span><span class="s2">.</span><span class="si">{</span><span class="n">key</span><span class="si">}</span><span class="s2">&quot;</span> <span class="k">if</span> <span class="n">path</span> <span class="k">else</span> <span class="nb">str</span><span class="p">(</span><span class="n">key</span><span class="p">)</span>
+                <span class="k">if</span> <span class="ow">not</span> <span class="n">path</span> <span class="ow">and</span> <span class="n">key</span> <span class="o">==</span> <span class="s2">&quot;sites&quot;</span><span class="p">:</span>
+                    <span class="n">merge_sites</span><span class="p">(</span><span class="n">base_dict</span><span class="p">,</span> <span class="n">value</span><span class="p">)</span>
+                    <span class="k">continue</span>
+                <span class="k">if</span> <span class="p">(</span>
+                    <span class="nb">isinstance</span><span class="p">(</span><span class="n">node_obj</span><span class="p">,</span> <span class="n">BaseModel</span><span class="p">)</span>
+                    <span class="ow">and</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">node_obj</span><span class="p">,</span> <span class="n">RefValue</span><span class="p">)</span>
+                    <span class="ow">and</span> <span class="n">key</span> <span class="ow">not</span> <span class="ow">in</span> <span class="nb">type</span><span class="p">(</span><span class="n">node_obj</span><span class="p">)</span><span class="o">.</span><span class="n">model_fields</span>
+                <span class="p">):</span>
+                    <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Unknown configuration key: &#39;</span><span class="si">{</span><span class="n">key_path</span><span class="si">}</span><span class="s2">&#39;&quot;</span><span class="p">)</span>
+                <span class="n">attr</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">node_obj</span><span class="p">,</span> <span class="n">key</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span> <span class="k">if</span> <span class="n">node_obj</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="k">else</span> <span class="kc">None</span>
+                <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">attr</span><span class="p">,</span> <span class="n">RefValue</span><span class="p">):</span>
+                    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="nb">dict</span><span class="p">)</span> <span class="ow">and</span> <span class="ow">not</span> <span class="p">(</span>
+                        <span class="nb">set</span><span class="p">(</span><span class="n">value</span><span class="p">)</span> <span class="o">&lt;=</span> <span class="nb">set</span><span class="p">(</span><span class="n">RefValue</span><span class="o">.</span><span class="n">model_fields</span><span class="p">)</span>
+                    <span class="p">):</span>
+                        <span class="c1"># Alternate readable input form; replace wholesale</span>
+                        <span class="n">base_dict</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">=</span> <span class="n">copy</span><span class="o">.</span><span class="n">deepcopy</span><span class="p">(</span><span class="n">value</span><span class="p">)</span>
+                        <span class="k">continue</span>
+                    <span class="c1"># Scalars become {&quot;value&quot;: ...} so the field keeps its</span>
+                    <span class="c1"># RefValue shape (and any ref metadata) across updates</span>
+                    <span class="n">patch</span> <span class="o">=</span> <span class="p">(</span>
+                        <span class="n">copy</span><span class="o">.</span><span class="n">deepcopy</span><span class="p">(</span><span class="n">value</span><span class="p">)</span>
+                        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="nb">dict</span><span class="p">)</span>
+                        <span class="k">else</span> <span class="p">{</span><span class="s2">&quot;value&quot;</span><span class="p">:</span> <span class="n">copy</span><span class="o">.</span><span class="n">deepcopy</span><span class="p">(</span><span class="n">value</span><span class="p">)}</span>
+                    <span class="p">)</span>
+                    <span class="n">base_val</span> <span class="o">=</span> <span class="n">base_dict</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">key</span><span class="p">)</span>
+                    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">base_val</span><span class="p">,</span> <span class="nb">dict</span><span class="p">):</span>
+                        <span class="n">base_val</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">patch</span><span class="p">)</span>
                     <span class="k">else</span><span class="p">:</span>
-                        <span class="nb">setattr</span><span class="p">(</span><span class="n">obj</span><span class="p">,</span> <span class="n">key</span><span class="p">,</span> <span class="n">value</span><span class="p">)</span>
+                        <span class="k">if</span> <span class="s2">&quot;value&quot;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">patch</span><span class="p">:</span>
+                            <span class="c1"># Metadata-only patch with no dumped base entry</span>
+                            <span class="c1"># (field at its default): seed the current value</span>
+                            <span class="c1"># so re-validation does not see a value-less dict</span>
+                            <span class="n">seed</span> <span class="o">=</span> <span class="n">attr</span><span class="o">.</span><span class="n">model_dump</span><span class="p">(</span><span class="n">exclude_none</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">mode</span><span class="o">=</span><span class="s2">&quot;json&quot;</span><span class="p">)</span>
+                            <span class="n">seed</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">patch</span><span class="p">)</span>
+                            <span class="n">patch</span> <span class="o">=</span> <span class="n">seed</span>
+                        <span class="n">base_dict</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">=</span> <span class="n">patch</span>
+                <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="nb">dict</span><span class="p">)</span> <span class="ow">and</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">attr</span><span class="p">,</span> <span class="n">BaseModel</span><span class="p">):</span>
+                    <span class="n">base_val</span> <span class="o">=</span> <span class="n">base_dict</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">key</span><span class="p">)</span>
+                    <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">base_val</span><span class="p">,</span> <span class="nb">dict</span><span class="p">):</span>
+                        <span class="n">base_dict</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">=</span> <span class="n">base_val</span> <span class="o">=</span> <span class="p">{}</span>
+                    <span class="n">merge_node</span><span class="p">(</span><span class="n">attr</span><span class="p">,</span> <span class="n">base_val</span><span class="p">,</span> <span class="n">value</span><span class="p">,</span> <span class="n">key_path</span><span class="p">)</span>
+                <span class="k">elif</span> <span class="p">(</span>
+                    <span class="nb">isinstance</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="nb">dict</span><span class="p">)</span>
+                    <span class="ow">and</span> <span class="nb">set</span><span class="p">(</span><span class="n">value</span><span class="p">)</span> <span class="o">&lt;=</span> <span class="nb">set</span><span class="p">(</span><span class="n">RefValue</span><span class="o">.</span><span class="n">model_fields</span><span class="p">)</span>
+                    <span class="ow">and</span> <span class="s2">&quot;value&quot;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">value</span>
+                    <span class="ow">and</span> <span class="n">attr</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span>
+                    <span class="ow">and</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">attr</span><span class="p">,</span> <span class="p">(</span><span class="nb">dict</span><span class="p">,</span> <span class="nb">list</span><span class="p">))</span>
+                <span class="p">):</span>
+                    <span class="c1"># Metadata-only RefValue-shaped patch on a bare-valued</span>
+                    <span class="c1"># field: seed the current value before re-validation</span>
+                    <span class="n">current</span> <span class="o">=</span> <span class="n">attr</span><span class="o">.</span><span class="n">value</span> <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">attr</span><span class="p">,</span> <span class="n">Enum</span><span class="p">)</span> <span class="k">else</span> <span class="n">attr</span>
+                    <span class="n">base_dict</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">=</span> <span class="p">{</span>
+                        <span class="s2">&quot;value&quot;</span><span class="p">:</span> <span class="n">copy</span><span class="o">.</span><span class="n">deepcopy</span><span class="p">(</span><span class="n">current</span><span class="p">),</span>
+                        <span class="o">**</span><span class="n">copy</span><span class="o">.</span><span class="n">deepcopy</span><span class="p">(</span><span class="n">value</span><span class="p">),</span>
+                    <span class="p">}</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="c1"># Scalars, enums, lists, and dict input for non-model</span>
+                    <span class="c1"># nodes replace wholesale; validation coerces the result</span>
+                    <span class="n">base_dict</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">=</span> <span class="n">copy</span><span class="o">.</span><span class="n">deepcopy</span><span class="p">(</span><span class="n">value</span><span class="p">)</span>
 
-        <span class="n">recursive_update</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_config</span><span class="p">,</span> <span class="n">updates</span><span class="p">)</span>
+        <span class="k">def</span><span class="w"> </span><span class="nf">apply_site_patch</span><span class="p">(</span><span class="n">index</span><span class="p">,</span> <span class="n">patch</span><span class="p">):</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">patch</span><span class="p">,</span> <span class="nb">dict</span><span class="p">):</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                    <span class="sa">f</span><span class="s2">&quot;Site update for sites[</span><span class="si">{</span><span class="n">index</span><span class="si">}</span><span class="s2">] must be a dict, &quot;</span>
+                    <span class="sa">f</span><span class="s2">&quot;got </span><span class="si">{</span><span class="nb">type</span><span class="p">(</span><span class="n">patch</span><span class="p">)</span><span class="o">.</span><span class="vm">__name__</span><span class="si">}</span><span class="s2">&quot;</span>
+                <span class="p">)</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="mi">0</span> <span class="o">&lt;=</span> <span class="n">index</span> <span class="o">&lt;</span> <span class="nb">len</span><span class="p">(</span><span class="n">config</span><span class="o">.</span><span class="n">sites</span><span class="p">):</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                    <span class="sa">f</span><span class="s2">&quot;Site index </span><span class="si">{</span><span class="n">index</span><span class="si">}</span><span class="s2"> out of range &quot;</span>
+                    <span class="sa">f</span><span class="s2">&quot;(</span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">config</span><span class="o">.</span><span class="n">sites</span><span class="p">)</span><span class="si">}</span><span class="s2"> site(s) configured)&quot;</span>
+                <span class="p">)</span>
+            <span class="n">merge_node</span><span class="p">(</span>
+                <span class="n">config</span><span class="o">.</span><span class="n">sites</span><span class="p">[</span><span class="n">index</span><span class="p">],</span>
+                <span class="n">base</span><span class="p">[</span><span class="s2">&quot;sites&quot;</span><span class="p">][</span><span class="n">index</span><span class="p">],</span>
+                <span class="n">patch</span><span class="p">,</span>
+                <span class="sa">f</span><span class="s2">&quot;sites[</span><span class="si">{</span><span class="n">index</span><span class="si">}</span><span class="s2">]&quot;</span><span class="p">,</span>
+            <span class="p">)</span>
+
+        <span class="k">def</span><span class="w"> </span><span class="nf">merge_sites</span><span class="p">(</span><span class="n">base_dict</span><span class="p">,</span> <span class="n">sites_value</span><span class="p">):</span>
+            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">sites_value</span><span class="p">,</span> <span class="nb">list</span><span class="p">):</span>
+                <span class="c1"># Plain list replaces the sites list wholesale</span>
+                <span class="n">base_dict</span><span class="p">[</span><span class="s2">&quot;sites&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">copy</span><span class="o">.</span><span class="n">deepcopy</span><span class="p">(</span><span class="n">sites_value</span><span class="p">)</span>
+                <span class="k">return</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">sites_value</span><span class="p">,</span> <span class="nb">dict</span><span class="p">)</span> <span class="ow">or</span> <span class="ow">not</span> <span class="n">sites_value</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;&#39;sites&#39; update must be a non-empty dict or a list&quot;</span><span class="p">)</span>
+            <span class="n">site_names</span> <span class="o">=</span> <span class="p">[</span><span class="nb">getattr</span><span class="p">(</span><span class="n">site</span><span class="p">,</span> <span class="s2">&quot;name&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span> <span class="k">for</span> <span class="n">site</span> <span class="ow">in</span> <span class="n">config</span><span class="o">.</span><span class="n">sites</span><span class="p">]</span>
+            <span class="k">for</span> <span class="n">key</span><span class="p">,</span> <span class="n">value</span> <span class="ow">in</span> <span class="n">sites_value</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+                <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">key</span><span class="p">,</span> <span class="nb">int</span><span class="p">):</span>
+                    <span class="n">apply_site_patch</span><span class="p">(</span><span class="n">key</span><span class="p">,</span> <span class="n">value</span><span class="p">)</span>
+                <span class="k">elif</span> <span class="n">key</span> <span class="ow">in</span> <span class="n">site_names</span><span class="p">:</span>
+                    <span class="n">apply_site_patch</span><span class="p">(</span><span class="n">site_names</span><span class="o">.</span><span class="n">index</span><span class="p">(</span><span class="n">key</span><span class="p">),</span> <span class="n">value</span><span class="p">)</span>
+                <span class="k">elif</span> <span class="nb">len</span><span class="p">(</span><span class="n">config</span><span class="o">.</span><span class="n">sites</span><span class="p">)</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+                    <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">config</span><span class="o">.</span><span class="n">sites</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">key</span><span class="p">):</span>
+                        <span class="c1"># Single-site shorthand: the whole dict is one patch</span>
+                        <span class="n">apply_site_patch</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">sites_value</span><span class="p">)</span>
+                        <span class="k">return</span>
+                    <span class="c1"># Unmatched site name with a single site: patch that site</span>
+                    <span class="n">apply_site_patch</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">value</span><span class="p">)</span>
+                <span class="k">elif</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">config</span><span class="o">.</span><span class="n">sites</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">key</span><span class="p">):</span>
+                    <span class="c1"># Single-site shorthand used with multiple sites is</span>
+                    <span class="c1"># ambiguous: skip rather than guess which site to patch</span>
+                    <span class="n">logger_supy</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span>
+                        <span class="s2">&quot;Skipping ambiguous sites update key &#39;</span><span class="si">%s</span><span class="s2">&#39;: &quot;</span>
+                        <span class="s2">&quot;single-site shorthand with multiple sites configured&quot;</span><span class="p">,</span>
+                        <span class="n">key</span><span class="p">,</span>
+                    <span class="p">)</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="c1"># Not a site field, so it can only be a (misspelled or</span>
+                    <span class="c1"># stale) site name: raise rather than silently no-op</span>
+                    <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                        <span class="sa">f</span><span class="s2">&quot;Unknown site &#39;</span><span class="si">{</span><span class="n">key</span><span class="si">}</span><span class="s2">&#39; in sites update. &quot;</span>
+                        <span class="sa">f</span><span class="s2">&quot;Configured sites: </span><span class="si">{</span><span class="s1">&#39;, &#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="nb">map</span><span class="p">(</span><span class="nb">repr</span><span class="p">,</span><span class="w"> </span><span class="n">site_names</span><span class="p">))</span><span class="si">}</span><span class="s2">&quot;</span>
+                    <span class="p">)</span>
+
+        <span class="c1"># Deep-copied so the legacy-input coercions (which restructure</span>
+        <span class="c1"># nested dicts in place) never mutate the caller&#39;s update dict.</span>
+        <span class="n">merge_node</span><span class="p">(</span><span class="n">config</span><span class="p">,</span> <span class="n">base</span><span class="p">,</span> <span class="n">copy</span><span class="o">.</span><span class="n">deepcopy</span><span class="p">(</span><span class="n">updates</span><span class="p">),</span> <span class="s2">&quot;&quot;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">base</span>
 
 <div class="viewcode-block" id="SUEWSSimulation.update_forcing">
 <a class="viewcode-back" href="../../api/simulation.html#supy.SUEWSSimulation.update_forcing">[docs]</a>
@@ -2061,8 +2232,8 @@ By SUEWS dev team led by Prof Sue Grimmond
   <div class="footer-item">
     
 <div class="extra_footer">
-  <p>Version: 2026.6.11.dev4 |
-    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/038cc7b4e2cc1dcacea87c55fdc78c437dc381c0">038cc7b</a> |
+  <p>Version: 2026.6.11.dev6 |
+    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/3b55efb273e2939f7283af9a723a963070721b90">3b55efb</a> |
     <a href="https://umep-dev.github.io/SUEWS/brand/showcase.html">Brand</a></p>
 </div>
   </div>

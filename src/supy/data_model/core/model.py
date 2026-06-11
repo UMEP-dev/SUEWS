@@ -845,7 +845,7 @@ class ModelPhysics(BaseModel):
     Model physics configuration options.
     """
 
-    model_config = ConfigDict(title="Physics Methods")
+    model_config = ConfigDict(title="Physics Methods", validate_assignment=True)
 
     @model_validator(mode="before")
     @classmethod
@@ -1295,7 +1295,7 @@ class ForcingControl(BaseModel):
 
 
 class ModelControl(BaseModel):
-    model_config = ConfigDict(title="Model Control")
+    model_config = ConfigDict(title="Model Control", validate_assignment=True)
 
     @model_validator(mode="before")
     @classmethod
@@ -1493,7 +1493,7 @@ class ModelControl(BaseModel):
 
 
 class Model(BaseModel):
-    model_config = ConfigDict(title="Model Configuration")
+    model_config = ConfigDict(title="Model Configuration", validate_assignment=True)
 
     control: ModelControl = Field(
         default_factory=ModelControl,

@@ -149,12 +149,18 @@ jobs:
       - name: Assert no Development Version banner in built HTML
         run: |
           set -euo pipefail
-          if grep -rl "Development Version" docs/build/html >/dev/null 2>&1; then
-            echo "::error::Built HTML still contains a 'Development Version' banner. The version ref did not resolve clean."
-            grep -rl "Development Version" docs/build/html | head -5
+          # Match the banner-specific sentence from docs/source/conf.py's
+          # announcement HTML ("This documentation was built from a development
+          # version"). Do NOT grep the bare phrase "Development Version" -- it
+          # legitimately appears in installation.rst (TestPyPI dev builds) and
+          # the aggregated searchindex.js, which would be false positives.
+          BANNER_PHRASE="built from a development version"
+          if grep -rl "${BANNER_PHRASE}" docs/build/html >/dev/null 2>&1; then
+            echo "::error::Built HTML still contains the dev-version banner. The version ref did not resolve clean."
+            grep -rl "${BANNER_PHRASE}" docs/build/html | head -5
             exit 1
           fi
-          echo "OK: no Development Version banner in built HTML"
+          echo "OK: no dev-version banner in built HTML"
 
       # ----------------------------------------------------------------
       # 7. Create the off-master anchor commit (child of the source branch)

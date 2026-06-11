@@ -1,7 +1,7 @@
 {
-  "source_branch": "master",
-  "source_commit": "eddb9438de9df6d0e6be5167708c1c9bfde2b290",
-  "source_tag": "",
-  "docs_built": "2026-06-11T06:49:59.138491+00:00",
-  "builder": "github-actions"
+  "source_branch": "rtd",
+  "source_commit": "4b480c2187deb6884d5b5b9b7f1abc72a1bdc200",
+  "source_tag": "2026.6.5",
+  "docs_built": "2026-06-11T07:21:37.575427+00:00",
+  "builder": "github-actions (release-docs-anchor)"
 }

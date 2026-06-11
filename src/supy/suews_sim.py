@@ -6,11 +6,13 @@ Provides a user-friendly wrapper around the existing SuPy infrastructure.
 """
 
 import copy
+from enum import Enum
 from pathlib import Path, PurePosixPath
 from typing import Any, Optional, Union
 import warnings
 
 import pandas as pd
+from pydantic import BaseModel
 
 from ._check import check_forcing
 from ._env import logger_supy
@@ -81,7 +83,8 @@ class SUEWSSimulation:
         config : str, Path, dict, or SUEWSConfig, optional
             Initial configuration source:
             - Path to YAML configuration file
-            - Dictionary with configuration parameters
+            - Dictionary with a full configuration (YAML-shaped, validated
+              through ``SUEWSConfig`` exactly like a YAML file)
             - SUEWSConfig object
             - None to create empty simulation
         """
@@ -112,7 +115,12 @@ class SUEWSSimulation:
         config : str, Path, dict, or SUEWSConfig
             Configuration source:
             - Path to YAML file
-            - Dictionary with parameters (can be partial)
+            - Dictionary with parameters: a full configuration dict when no
+              config is loaded yet, or a partial update merged onto the
+              existing config. Either way the result is re-validated through
+              ``SUEWSConfig``, so enum/RefValue coercion and range checks
+              apply exactly as for YAML input. Unknown keys raise
+              ``ValueError``; list values replace the existing list.
             - SUEWSConfig object
         auto_load_forcing : bool, optional
             If True (default), automatically load forcing data specified in the
@@ -158,12 +166,39 @@ class SUEWSSimulation:
                 self._try_load_forcing_from_config()
 
         elif isinstance(config, dict):
-            # Update existing config with dictionary
             if self._config is None:
-                self._config = SUEWSConfig()
+                # No existing config: treat the dict as a full configuration
+                # and build it through the validated SUEWSConfig path
+                # (gh#1530). Partial dicts are only meaningful as updates to
+                # an existing configuration.
+                candidate = SUEWSConfig.from_dict(config)
+                if not candidate.sites:
+                    raise ValueError(
+                        "Configuration dict defines no sites. Provide a full "
+                        "configuration dict (including 'sites'), or load a "
+                        "YAML file / SUEWSConfig first and then apply "
+                        "partial updates via update_config()."
+                    )
+                self._config = candidate
 
-            # Deep update the configuration
-            self._update_config_from_dict(config)
+                # Parity with the YAML branch: auto-load forcing declared
+                # in the config. Relative paths resolve against the CWD
+                # here (no file anchor); failures warn rather than raise.
+                if auto_load_forcing:
+                    self._try_load_forcing_from_config()
+            else:
+                # Merge the partial update onto the existing config, then
+                # re-validate the whole configuration so enum coercion,
+                # RefValue wrapping, and range checks all apply (gh#1530).
+                # The merged dict is the user's effective input (original
+                # explicitly-set fields plus this update), so from_dict's
+                # default raw snapshot of it is the correct record for
+                # raw-gated completeness checks.
+                merged = self._merge_config_updates(self._config, config)
+                self._config = SUEWSConfig.from_dict(
+                    merged,
+                    yaml_path=str(self._config_path) if self._config_path else None,
+                )
 
             # Regenerate state DataFrame
             self._df_state_init = self._config.to_df_state()
@@ -175,50 +210,186 @@ class SUEWSSimulation:
 
         return self
 
-    def _update_config_from_dict(self, updates: dict):
-        """Apply dictionary updates to configuration."""
+    @staticmethod
+    def _merge_config_updates(config: SUEWSConfig, updates: dict) -> dict:
+        """Merge a partial update dict onto a validated config's dump.
 
-        def recursive_update(obj, upd):
+        Returns a plain dict ready for re-validation through
+        ``SUEWSConfig.from_dict``; the configuration is never mutated in
+        place, so enum coercion, RefValue wrapping, and range checks always
+        apply to the merged result (gh#1530).
+
+        Merge semantics:
+        - dicts merge recursively into model-backed nodes; unknown field
+          names raise ``ValueError`` instead of being silently dropped
+        - ``{"value": ...}`` dicts merge into RefValue leaves; any other
+          dict shape on a RefValue leaf replaces it wholesale (alternate
+          readable input forms are re-validated, not merged)
+        - lists replace wholesale
+        - ``sites`` additionally accepts the established mini-language:
+          ``{index: patch}``, ``{site_name: patch}``, or a single-site
+          shorthand patch
+        """
+        # Dump only what the user explicitly set (exclude_unset): merging
+        # onto a full dump would materialise pydantic defaults as if the
+        # user had declared them, so conditional validators gated on
+        # model_fields_set or on the raw-input snapshot (e.g. RSL/faibldg,
+        # site completeness) would fire false errors on sparse configs.
+        # Internal bookkeeping keys are re-stamped by from_dict; carrying
+        # them through the merge would nest snapshots inside snapshots.
+        base = {
+            k: v
+            for k, v in config.model_dump(exclude_unset=True, mode="json").items()
+            if not k.startswith("_")
+        }
+
+        def normalise_legacy_input(model_cls, upd):
+            """Run the model's mode='before' validators on an update dict.
+
+            The full from_dict/from_yaml path normalises legacy input
+            forms (field renames such as ``stabilitymethod`` ->
+            ``stability``, the ``output_file``/``forcing_file`` lifts)
+            through each model's before-validators. Partial updates must
+            accept the same forms, so the patch is run through the same
+            machinery before the unknown-key check (gh#1530 follow-up).
+            """
+            decorators = getattr(model_cls, "__pydantic_decorators__", None)
+            if decorators is None:
+                return upd
+            for name, decorator in decorators.model_validators.items():
+                if decorator.info.mode != "before":
+                    continue
+                validator = getattr(model_cls, name, None)
+                if validator is None:
+                    continue
+                result = validator(upd)
+                if isinstance(result, dict):
+                    upd = result
+            return upd
+
+        def merge_node(node_obj, base_dict, upd, path):
+            if isinstance(node_obj, BaseModel) and not isinstance(node_obj, RefValue):
+                upd = normalise_legacy_input(type(node_obj), dict(upd))
             for key, value in upd.items():
-                if hasattr(obj, key):
-                    attr = getattr(obj, key)
-                    if isinstance(value, dict) and hasattr(attr, "__dict__"):
-                        # Recursive to read nested dictionaries
-                        recursive_update(attr, value)
-                    # Check whether site index or site name is provided
-                    elif isinstance(attr, list):
-                        site_key = list(value.keys())[0]
-                        site_value = value[site_key]
-                        if isinstance(site_key, int):
-                            # Select site on index
-                            attr = attr[site_key]
-                            recursive_update(attr, site_value)
-                        elif isinstance(site_key, str):
-                            # Select site on name
-                            attr_site = next(
-                                (item for item in attr if item.name == site_key),
-                                None,
-                            )
-                            if attr_site:
-                                recursive_update(attr_site, site_value)
-                            elif len(attr) == 1:
-                                # Without name or index and only one site
-                                attr_site = attr[0]
-                                # Distinguish site name pattern from shorthand
-                                # If site_key is an attribute on the site object, it's shorthand
-                                if hasattr(attr_site, site_key):
-                                    # Shorthand pattern: {'name': 'test'} or {'properties': {...}}
-                                    recursive_update(attr_site, value)
-                                else:
-                                    # Site name pattern: {'NonExistent': {'gridiv': 99}}
-                                    recursive_update(attr_site, site_value)
-                            else:
-                                # Otherwise skip these parameters
-                                continue
+                key_path = f"{path}.{key}" if path else str(key)
+                if not path and key == "sites":
+                    merge_sites(base_dict, value)
+                    continue
+                if (
+                    isinstance(node_obj, BaseModel)
+                    and not isinstance(node_obj, RefValue)
+                    and key not in type(node_obj).model_fields
+                ):
+                    raise ValueError(f"Unknown configuration key: '{key_path}'")
+                attr = getattr(node_obj, key, None) if node_obj is not None else None
+                if isinstance(attr, RefValue):
+                    if isinstance(value, dict) and not (
+                        set(value) <= set(RefValue.model_fields)
+                    ):
+                        # Alternate readable input form; replace wholesale
+                        base_dict[key] = copy.deepcopy(value)
+                        continue
+                    # Scalars become {"value": ...} so the field keeps its
+                    # RefValue shape (and any ref metadata) across updates
+                    patch = (
+                        copy.deepcopy(value)
+                        if isinstance(value, dict)
+                        else {"value": copy.deepcopy(value)}
+                    )
+                    base_val = base_dict.get(key)
+                    if isinstance(base_val, dict):
+                        base_val.update(patch)
                     else:
-                        setattr(obj, key, value)
+                        if "value" not in patch:
+                            # Metadata-only patch with no dumped base entry
+                            # (field at its default): seed the current value
+                            # so re-validation does not see a value-less dict
+                            seed = attr.model_dump(exclude_none=True, mode="json")
+                            seed.update(patch)
+                            patch = seed
+                        base_dict[key] = patch
+                elif isinstance(value, dict) and isinstance(attr, BaseModel):
+                    base_val = base_dict.get(key)
+                    if not isinstance(base_val, dict):
+                        base_dict[key] = base_val = {}
+                    merge_node(attr, base_val, value, key_path)
+                elif (
+                    isinstance(value, dict)
+                    and set(value) <= set(RefValue.model_fields)
+                    and "value" not in value
+                    and attr is not None
+                    and not isinstance(attr, (dict, list))
+                ):
+                    # Metadata-only RefValue-shaped patch on a bare-valued
+                    # field: seed the current value before re-validation
+                    current = attr.value if isinstance(attr, Enum) else attr
+                    base_dict[key] = {
+                        "value": copy.deepcopy(current),
+                        **copy.deepcopy(value),
+                    }
+                else:
+                    # Scalars, enums, lists, and dict input for non-model
+                    # nodes replace wholesale; validation coerces the result
+                    base_dict[key] = copy.deepcopy(value)
 
-        recursive_update(self._config, updates)
+        def apply_site_patch(index, patch):
+            if not isinstance(patch, dict):
+                raise ValueError(
+                    f"Site update for sites[{index}] must be a dict, "
+                    f"got {type(patch).__name__}"
+                )
+            if not 0 <= index < len(config.sites):
+                raise ValueError(
+                    f"Site index {index} out of range "
+                    f"({len(config.sites)} site(s) configured)"
+                )
+            merge_node(
+                config.sites[index],
+                base["sites"][index],
+                patch,
+                f"sites[{index}]",
+            )
+
+        def merge_sites(base_dict, sites_value):
+            if isinstance(sites_value, list):
+                # Plain list replaces the sites list wholesale
+                base_dict["sites"] = copy.deepcopy(sites_value)
+                return
+            if not isinstance(sites_value, dict) or not sites_value:
+                raise ValueError("'sites' update must be a non-empty dict or a list")
+            site_names = [getattr(site, "name", None) for site in config.sites]
+            for key, value in sites_value.items():
+                if isinstance(key, int):
+                    apply_site_patch(key, value)
+                elif key in site_names:
+                    apply_site_patch(site_names.index(key), value)
+                elif len(config.sites) == 1:
+                    if hasattr(config.sites[0], key):
+                        # Single-site shorthand: the whole dict is one patch
+                        apply_site_patch(0, sites_value)
+                        return
+                    # Unmatched site name with a single site: patch that site
+                    apply_site_patch(0, value)
+                elif hasattr(config.sites[0], key):
+                    # Single-site shorthand used with multiple sites is
+                    # ambiguous: skip rather than guess which site to patch
+                    logger_supy.warning(
+                        "Skipping ambiguous sites update key '%s': "
+                        "single-site shorthand with multiple sites configured",
+                        key,
+                    )
+                else:
+                    # Not a site field, so it can only be a (misspelled or
+                    # stale) site name: raise rather than silently no-op
+                    raise ValueError(
+                        f"Unknown site '{key}' in sites update. "
+                        f"Configured sites: {', '.join(map(repr, site_names))}"
+                    )
+
+        # Deep-copied so the legacy-input coercions (which restructure
+        # nested dicts in place) never mutate the caller's update dict.
+        merge_node(config, base, copy.deepcopy(updates), "")
+        return base
 
     def update_forcing(
         self, forcing_data: Union[str, Path, list, pd.DataFrame, SUEWSForcing]

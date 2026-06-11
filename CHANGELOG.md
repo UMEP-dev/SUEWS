@@ -65,6 +65,20 @@ EXAMPLES:
 - [maintenance] Added an interactive research-preview page at `site/preview/scm/` (live in-browser slab boundary-layer sandbox, hourly profile scrubber from a three-year coupled run) linked from the landing page; regression tests in `test/test_scm_native.py`
 - [feature][experimental] Added the user-facing `model.physics.scm` YAML block for the coupled single-column model (#1529): stability function as a string option (`sharp`/`long_tail`, no numeric codes), vertical grid, initial-profile lapse rates, nudging/ventilation/synoptic-anchor time scales and substep count, all validated on load and consumed by `supy.scm.run_scm` (precedence: defaults < `model.physics.scm` < keyword overrides); schema bumped to `2026.6.dev1` (purely additive — every valid `2026.5` YAML round-trips unchanged), with the migration handler, sample-config block, schema-versioning and transition-guide documentation updated together
 - [change][experimental] Hardened the SCM contract after review (#1529): `supy.scm.run_scm` now always returns a named `ScmResult`; `use_background` left the public surface (derived from the validated `background` argument); finite/range parameter validation mirrored in Python and Fortran; calendar-safe `tile_forcing` (rejects partial years, irregular steps, impossible leap tilings); requested-but-invalid ventilation backgrounds and undersized snapshot buffers are hard errors instead of silent fallbacks; per-row timestep propagation to the column; explicit buffer-length contracts on the bridge C API; deterministic preview-page generation with a strict token contract and `--check` mode
+- [bugfix] `SUEWSSimulation(config=dict)` and `update_config(dict)` now route through validated `SUEWSConfig` construction instead of mutating model internals by hand (#1530)
+  - Initialising from a full YAML-shaped dict previously failed with `<enum 'Enum'> cannot set attribute 'value'` or `'list' object has no attribute 'keys'`; it now behaves identically to loading the same data from a YAML file
+  - Partial update dicts are deep-merged onto the existing configuration and the result is re-validated, so enum coercion, RefValue wrapping, and range checks apply to dict input exactly as for YAML
+  - New `SUEWSConfig.from_dict()` classmethod is the single validated construction path; `from_yaml()` delegates to it
+- [change] Dict updates via `update_config()` are now strict and explicit (#1530)
+  - Unknown keys raise `ValueError` instead of being silently dropped (this previously masked no-op "updates" in two bundled tutorials, now corrected)
+  - List values (including a plain `sites` list) replace the existing list; the `{index: patch}` / `{site_name: patch}` / single-site shorthand forms for `sites` are kept, but an unmatched site name now raises when multiple sites exist (previously a silent no-op); legacy field aliases (`stabilitymethod`, `output_file`, `forcing_file`, ...) are normalised in partial updates exactly as in full input
+  - A partial dict with no existing configuration raises an informative error instead of failing later with `No objects to concatenate`
+  - Partial updates merge onto only the explicitly-set fields (`exclude_unset`), so conditional validators no longer mistake pydantic defaults for user-declared values on sparse configs
+- [change] Hardened configuration loading and mutation (#1530 follow-ups)
+  - YAML configs are now parsed with `yaml.safe_load`; `yaml.FullLoader` could construct live Python objects from tags such as `!!python/name:os.system` embedded in a config file
+  - Unknown top-level keys in a config (YAML or dict) raise `ValueError` instead of being silently retained as inert extras
+  - Site-completeness checks now apply to dict-loaded configs exactly as to YAML files (previously gated on the YAML file path, so the in-memory dict path skipped them)
+  - `validate_assignment` enabled on `SUEWSConfig`, `Model`, `ModelControl`, `ModelPhysics`, and `Site`, so direct attribute assignment is validated and coerced instead of stored raw
 
 ### 5 Jun 2026
 

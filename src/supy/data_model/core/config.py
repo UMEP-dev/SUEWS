@@ -127,6 +127,20 @@ def _get_basemodel_type(annotation):
     return None
 
 
+def _assign_trusted(model_obj, field, value):
+    """Assign a field without triggering validate_assignment.
+
+    Named validation bypass for the legacy df_state -> config
+    reconstruction (``from_df_state``): that path predates validation and
+    must keep accepting raw values that cross-field validators would
+    reject (users mutate df_state directly in the deprecated DataFrame
+    workflow). Keeps ``model_fields_set`` accurate so ``exclude_unset``
+    dumps still include the assigned fields.
+    """
+    object.__setattr__(model_obj, field, value)
+    model_obj.__pydantic_fields_set__.add(field)
+
+
 def _strip_internal_fields(data, model_cls):
     """Recursively remove fields marked with internal_only=True from a model_dump dict.
 
@@ -172,7 +186,39 @@ def _strip_internal_fields(data, model_cls):
 class SUEWSConfig(BaseModel):
     """Main SUEWS configuration."""
 
-    model_config = ConfigDict(title="SUEWS Configuration", extra="allow")
+    # extra="allow" exists solely for the private bookkeeping keys below;
+    # user-facing unknown keys are rejected by _reject_unknown_top_level_keys.
+    model_config = ConfigDict(
+        title="SUEWS Configuration",
+        extra="allow",
+        validate_assignment=True,
+    )
+
+    @model_validator(mode="before")
+    @classmethod
+    def _reject_unknown_top_level_keys(cls, values):
+        """Reject unknown top-level keys instead of silently retaining them.
+
+        gh#1530 follow-up: with ``extra="allow"`` a typo such as ``site:``
+        would be kept as an inert extra attribute and the user's data
+        silently ignored. Underscore-prefixed keys are the reserved internal
+        bookkeeping namespace (``_yaml_path``, ``_auto_generate_annotated``,
+        ``_yaml_raw``, ``_validation_summary``) and round-trip freely.
+        """
+        if isinstance(values, dict):
+            unknown = [
+                key
+                for key in values
+                if key not in cls.model_fields
+                and not str(key).startswith("_")
+            ]
+            if unknown:
+                valid = ", ".join(sorted(cls.model_fields))
+                raise ValueError(
+                    f"Unknown top-level configuration key(s): "
+                    f"{', '.join(map(repr, unknown))}. Valid keys: {valid}"
+                )
+        return values
 
     name: str = Field(
         default="sample config",
@@ -452,7 +498,10 @@ class SUEWSConfig(BaseModel):
                     f"Output frequency must be positive, got {output_control.freq}s"
                 )
 
+            # tstep is FlexibleRefValue: unwrap a RefValue form before the
+            # modulo check (gh#1530 follow-up)
             tstep = self.model.control.tstep
+            tstep = getattr(tstep, "value", tstep)
             if output_control.freq % tstep != 0:
                 raise ValueError(
                     f"Output frequency ({output_control.freq}s) must be a multiple of timestep ({tstep}s)"
@@ -2788,14 +2837,16 @@ class SUEWSConfig(BaseModel):
 
         Notes
         -----
-        Gated on ``self._yaml_path`` AND on raw-YAML presence in
-        ``self._yaml_raw``. The check fires only when:
+        Gated on raw-input presence in ``self._yaml_raw``. The check
+        fires only when:
 
-        1. The configuration was loaded from a YAML file (not a
-           programmatic ``SUEWSConfig(sites=[Site(...)])`` construction),
-           AND
+        1. The configuration was loaded from user-shaped input — a YAML
+           file via ``from_yaml`` or a dict via ``from_dict``, both of
+           which record the raw input (not a programmatic
+           ``SUEWSConfig(sites=[Site(...)])`` construction, which does
+           not), AND
         2. The site carries an explicit ``land_cover`` mapping in the raw
-           YAML. Within that block, both user-declared surface mappings
+           input. Within that block, both user-declared surface mappings
            and omitted surfaces that remain active through
            ``default_factory`` are checked. Sites that omit
            ``land_cover`` entirely are skipped.
@@ -2812,7 +2863,7 @@ class SUEWSConfig(BaseModel):
         """
         issues: List[Dict[str, str]] = []
 
-        if getattr(self, "_yaml_path", None) is None:
+        if getattr(self, "_yaml_raw", None) is None:
             return issues
 
         if not getattr(self, "sites", None):
@@ -4335,16 +4386,53 @@ class SUEWSConfig(BaseModel):
             SUEWSConfig: Instance of SUEWSConfig initialized from YAML
         """
         with open(path, "r", encoding="utf-8") as file:
-            config_data = yaml.load(file, Loader=yaml.FullLoader)
+            config_data = yaml.safe_load(file)
 
-        # Snapshot the raw user YAML so site-level completeness checks can
+        return cls.from_dict(
+            config_data,
+            use_conditional_validation=use_conditional_validation,
+            strict=strict,
+            auto_generate_annotated=auto_generate_annotated,
+            yaml_path=path,
+        )
+
+    @classmethod
+    def from_dict(
+        cls,
+        config_data: dict,
+        use_conditional_validation: bool = True,
+        strict: bool = True,
+        auto_generate_annotated: bool = False,
+        yaml_path: Optional[str] = None,
+    ) -> "SUEWSConfig":
+        """Initialize SUEWSConfig from a configuration dict with validation.
+
+        This is the single validated construction path for dict input
+        (gh#1530); ``from_yaml`` delegates here after reading the file.
+
+        Args:
+            config_data (dict): Configuration data, YAML-shaped.
+            use_conditional_validation (bool): Whether to use conditional validation
+            strict (bool): If True, raise errors on validation failure
+            auto_generate_annotated (bool): If True, automatically generate annotated YAML when validation issues found
+            yaml_path (str, optional): Source YAML path, when loaded from a file.
+
+        Returns:
+            SUEWSConfig: Validated instance of SUEWSConfig
+        """
+        # Work on a copy so the caller's dict is never mutated (validators
+        # such as the legacy output_file coercion pop keys in place).
+        config_data = deepcopy(config_data)
+
+        # Snapshot the raw user input so site-level completeness checks can
         # distinguish user-declared surfaces from pydantic-factory defaults
         # (gh#1333 follow-up). Deep-copied so later mutations of
         # ``config_data`` do not bleed into the validator's view.
         yaml_raw_snapshot = deepcopy(config_data)
 
-        # Store yaml path in config data for later use
-        config_data["_yaml_path"] = path
+        # Store source path (if any) in config data for later use
+        if yaml_path is not None:
+            config_data["_yaml_path"] = yaml_path
         config_data["_auto_generate_annotated"] = auto_generate_annotated
         config_data["_yaml_raw"] = yaml_raw_snapshot
 
@@ -4556,35 +4644,37 @@ class SUEWSConfig(BaseModel):
 
             # Set site properties
             site_properties = SiteProperties.from_df_state(df, grid_id)
-            site.properties = site_properties
+            _assign_trusted(site, "properties", site_properties)
 
             # Set initial states
             initial_states = InitialStates.from_df_state(df, grid_id)
-            site.initial_states = initial_states
+            _assign_trusted(site, "initial_states", initial_states)
 
             sites.append(site)
 
         # Update config with reconstructed data
-        config.sites = sites
+        _assign_trusted(config, "sites", sites)
 
         # Reconstruct model
-        config.model = Model.from_df_state(df, grid_ids[0])
+        _assign_trusted(config, "model", Model.from_df_state(df, grid_ids[0]))
 
         # Set name and description, using defaults if columns don't exist
         if ("config", "0") in df.columns:
-            config.name = df.loc[grid_ids[0], ("config", "0")]
+            _assign_trusted(config, "name", df.loc[grid_ids[0], ("config", "0")])
         elif "config" in df.columns:
-            config.name = df["config"].iloc[0]
+            _assign_trusted(config, "name", df["config"].iloc[0])
         else:
-            config.name = "Converted from legacy format"
+            _assign_trusted(config, "name", "Converted from legacy format")
 
         if ("description", "0") in df.columns:
-            config.description = df.loc[grid_ids[0], ("description", "0")]
+            _assign_trusted(config, "description", df.loc[grid_ids[0], ("description", "0")])
         elif "description" in df.columns:
-            config.description = df["description"].iloc[0]
+            _assign_trusted(config, "description", df["description"].iloc[0])
         else:
-            config.description = (
-                "Configuration converted from legacy SUEWS table format"
+            _assign_trusted(
+                config,
+                "description",
+                "Configuration converted from legacy SUEWS table format",
             )
 
         return config

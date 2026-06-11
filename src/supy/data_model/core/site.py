@@ -3170,7 +3170,7 @@ class Site(BaseModel):
     including all physical properties, initial states, and model parameters.
     """
 
-    model_config = ConfigDict(title="Site Configuration")
+    model_config = ConfigDict(title="Site Configuration", validate_assignment=True)
 
     name: str = Field(description="Name of the site", default="test site")
     gridiv: int = Field(

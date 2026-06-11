@@ -1029,6 +1029,15 @@ class ModelPhysics(BaseModel):
             "note": "When storage_heat selects STEBBS (7), this block enables and parameterises the STEBBS contribution to storage heat.",
         },
     )
+    scm: Optional[SCMConfig] = Field(
+        default=None,
+        description=(
+            "Coupled single-column model configuration (research preview). "
+            "Consumed by supy.scm.run_scm as the parameter source; has no "
+            "DataFrame-state representation and does not affect standard "
+            "offline runs."
+        ),
+    )
 
     ref: Optional[Reference] = None
 
@@ -1503,15 +1512,6 @@ class Model(BaseModel):
     physics: ModelPhysics = Field(
         default_factory=ModelPhysics,
         description="Model physics parameters including surface properties, coefficients, etc.",
-    )
-    scm: Optional[SCMConfig] = Field(
-        default=None,
-        description=(
-            "Coupled single-column model configuration (research preview). "
-            "Consumed by supy.scm.run_scm as the parameter source; has no "
-            "DataFrame-state representation and does not affect standard "
-            "offline runs."
-        ),
     )
 
     def to_df_state(self, grid_id: int) -> pd.DataFrame:

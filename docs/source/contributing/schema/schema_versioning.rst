@@ -171,7 +171,7 @@ the schema that shipped with it via
 ``supy.util.converter.yaml_upgrade._PACKAGE_TO_SCHEMA``.
 
 **Schema 2026.6.dev1** (current; development)
-   Adds the optional ``model.scm`` block configuring the coupled
+   Adds the optional ``model.physics.scm`` block configuring the coupled
    single-column model (research preview, #1529): ``stability``
    (``sharp`` / ``long_tail``), the vertical ``grid``, initial-profile
    lapse rates, the nudging / ventilation / synoptic-anchor time scales

@@ -184,7 +184,7 @@ Schema ``2026.6.dev1`` (development): optional SCM block
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 The current development cycle adds one **optional** section — nothing
-existing changes. ``model.scm`` configures the coupled single-column
+existing changes. ``model.physics.scm`` configures the coupled single-column
 model (research preview; see :doc:`/integration/scm-coupled`): the
 stability function (``sharp`` / ``long_tail``), the column grid,
 initial-profile lapse rates, nudging / ventilation / synoptic-anchor

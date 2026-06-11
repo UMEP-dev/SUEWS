@@ -35,7 +35,7 @@ CURRENT_SCHEMA_VERSION = "2026.6.dev1"
 # schema identities rather than synthetic labels.
 SCHEMA_VERSIONS: dict[str, str] = {
     "2026.6.dev1": (
-        "Adds the optional `model.scm` block (coupled single-column model, "
+        "Adds the optional `model.physics.scm` block (coupled single-column model, "
         "research preview, #1529): stability ('sharp'/'long_tail'), vertical "
         "grid, initial-profile lapse rates, nudging/ventilation/anchor time "
         "scales and substep count for supy.scm.run_scm. Purely additive - "

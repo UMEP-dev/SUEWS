@@ -1252,7 +1252,7 @@ def _migrate_2026_1_to_current(cfg: dict) -> dict:
 def _migrate_2026_5_to_2026_6_dev1(cfg: dict) -> dict:
     """2026.5 -> 2026.6.dev1 (#1529): purely additive.
 
-    The cycle adds the optional ``model.scm`` block (coupled single-column
+    The cycle adds the optional ``model.physics.scm`` block (coupled single-column
     model, research preview). No field is renamed, dropped, retyped or made
     required, so a 2026.5 YAML upgrades by relabelling alone; configs
     without the block keep the documented SCM defaults.
@@ -1264,7 +1264,7 @@ _HANDLERS: dict[tuple[str, str], Handler] = {
     # Identity at the current schema is explicit so the dispatch completes
     # even when no real upgrade is needed.
     (CURRENT_SCHEMA_VERSION, CURRENT_SCHEMA_VERSION): _identity,
-    # 2026.6.dev1 cycle: optional model.scm block, additive only (#1529).
+    # 2026.6.dev1 cycle: optional model.physics.scm block, additive only (#1529).
     ("2026.5", CURRENT_SCHEMA_VERSION): _migrate_2026_5_to_2026_6_dev1,
     # Intermediate stops at 2026.4 (used by callers pinning an older
     # target, e.g. migrate(..., to_version="2026.4")).

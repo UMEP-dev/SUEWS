@@ -175,36 +175,38 @@ the `preview page <https://suews.io/preview/scm/>`_.
 Configuration
 =============
 
-The SCM is configured through the optional ``scm`` block under ``model``
-in the standard SUEWS YAML configuration (schema ``2026.6.dev1``; the
-block is purely additive, so existing configurations remain valid and
-unchanged). It has no DataFrame-state representation and does not affect
-standard offline runs — it is read by :func:`~supy.scm.run_scm` as the
-parameter source, with keyword arguments taking precedence.
+The SCM is configured through the optional ``scm`` block under
+``model.physics`` in the standard SUEWS YAML configuration (schema
+``2026.6.dev1``; the block is purely additive, so existing configurations
+remain valid and unchanged). It has no DataFrame-state representation and
+does not affect standard offline runs — it is read by
+:func:`~supy.scm.run_scm` as the parameter source, with keyword arguments
+taking precedence.
 
 .. code-block:: yaml
 
    model:
-     scm:                              # research preview
-       stability: long_tail            # 'sharp' (GABLS1-faithful) or
-                                       # 'long_tail' (multi-season runs)
-       grid:
-         thickness_first_layer: 20.0   # [m]
-         height_top: 3000.0            # [m]
-         ratio_stretch: 1.06
-       height_mixed_layer_init: 300.0  # [m]
-       lapse_rate_theta: 0.006         # [K m-1]
-       lapse_rate_humidity: -5.0e-7    # [kg kg-1 m-1]
-       height_nudging_free_atmosphere: 1500.0   # [m]
-       timescale_nudging_free_atmosphere: 86400.0  # [s]
-       timescale_wind_nudging: 1800.0  # [s]
-       rate_radiative_cooling: 2.0     # [K day-1]
-       length_city: 15000.0            # [m]
-       timescale_ventilation_min: 900.0  # [s]
-       timescale_obs_anchor: 0.0       # [s]; 86400 for the rural
-                                       # companion in multi-season runs
-       count_substeps: 5
-       z0m_wind_profile: 1.0           # [m]
+     physics:
+       scm:                              # research preview
+         stability: long_tail            # 'sharp' (GABLS1-faithful) or
+                                         # 'long_tail' (multi-season runs)
+         grid:
+           thickness_first_layer: 20.0   # [m]
+           height_top: 3000.0            # [m]
+           ratio_stretch: 1.06
+         height_mixed_layer_init: 300.0  # [m]
+         lapse_rate_theta: 0.006         # [K m-1]
+         lapse_rate_humidity: -5.0e-7    # [kg kg-1 m-1]
+         height_nudging_free_atmosphere: 1500.0   # [m]
+         timescale_nudging_free_atmosphere: 86400.0  # [s]
+         timescale_wind_nudging: 1800.0  # [s]
+         rate_radiative_cooling: 2.0     # [K day-1]
+         length_city: 15000.0            # [m]
+         timescale_ventilation_min: 900.0  # [s]
+         timescale_obs_anchor: 0.0       # [s]; 86400 for the rural
+                                         # companion in multi-season runs
+         count_substeps: 5
+         z0m_wind_profile: 1.0           # [m]
 
 All fields are optional with the defaults shown. The block is validated
 on load (finite/range contracts mirrored in Python and Fortran), and the
@@ -242,8 +244,8 @@ Usage
    res.output["SUEWS"]["QH"]      # standard SUEWS output
    res.diagnostics["tair_mod"]    # prognostic air temperature
 
-Parameter precedence is: documented defaults, then the ``model.scm``
-configuration block, then keyword overrides.
+Parameter precedence is: documented defaults, then the
+``model.physics.scm`` configuration block, then keyword overrides.
 :func:`~supy.scm.run_scm` always returns an
 :class:`~supy.scm.ScmResult` with ``output`` (standard SUEWS output),
 ``diagnostics`` (per-step column diagnostics: air temperature, humidity

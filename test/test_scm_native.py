@@ -242,14 +242,14 @@ def test_snapshots_and_background_round_trip(sample):
 
 
 # ----------------------------------------------------------------------
-# user-facing YAML configuration (model.scm)
+# user-facing YAML configuration (model.physics.scm)
 # ----------------------------------------------------------------------
 def test_config_block_parses_and_maps(sample):
     from supy.scm import overrides_from_config
 
     config, _ = sample
-    assert config.model.scm is not None  # sample config carries the block
-    ov = overrides_from_config(config.model.scm)
+    assert config.model.physics.scm is not None  # sample config carries the block
+    ov = overrides_from_config(config.model.physics.scm)
     assert ov["stable_fn"] == 0
     assert ov["dz0"] == 20.0
     assert ov["ztop"] == 3000.0
@@ -264,13 +264,17 @@ def test_config_block_optional_and_round_trips(sample):
 
     config, _ = sample
     dumped = config.model_dump(exclude_none=True, mode="json")
-    assert "scm" in dumped["model"]
+    assert "scm" in dumped["model"]["physics"]
     # a config without the block parses, stays absent, and dumps without it
     bare = dict(dumped)
-    bare["model"] = {k: v for k, v in dumped["model"].items() if k != "scm"}
+    bare["model"] = dict(dumped["model"])
+    bare["model"]["physics"] = {
+        k: v for k, v in dumped["model"]["physics"].items() if k != "scm"
+    }
     cfg2 = SUEWSConfig(**bare)
-    assert cfg2.model.scm is None
-    assert "scm" not in cfg2.model_dump(exclude_none=True, mode="json")["model"]
+    assert cfg2.model.physics.scm is None
+    dumped2 = cfg2.model_dump(exclude_none=True, mode="json")
+    assert "scm" not in dumped2["model"]["physics"]
 
 
 def test_config_block_validation():
@@ -302,8 +306,8 @@ def test_run_scm_honours_config_block_with_kwarg_precedence(sample):
     window = df_forcing.loc["2012-07-01 00:05":"2012-07-01 01:00"]
 
     cfg = config.model_copy(deep=True)
-    cfg.model.scm.stability = "long_tail"
-    cfg.model.scm.count_substeps = 2
+    cfg.model.physics.scm.stability = "long_tail"
+    cfg.model.physics.scm.count_substeps = 2
     res = run_scm(cfg, window)  # config-sourced parameters
     assert np.isfinite(res.diagnostics["tair_mod"]).all()
 

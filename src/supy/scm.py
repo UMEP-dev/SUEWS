@@ -153,7 +153,7 @@ SCM_DIAG_COLS = ["tair_mod", "rh_mod", "u_mod", "h_bl", "wth", "wq", "tau_adv"]
 
 
 def overrides_from_config(scm_config):
-    """Translate a ``model.scm`` configuration block (the user-facing YAML
+    """Translate a ``model.physics.scm`` configuration block (the user-facing YAML
     surface, :class:`supy.data_model.SCMConfig`) into the internal
     parameter names accepted by :func:`run_scm`."""
     out = {}
@@ -377,11 +377,11 @@ def run_scm(
 
     Notes
     -----
-    Parameter precedence: documented defaults < the ``model.scm`` block of
-    the configuration (when ``config`` is a
+    Parameter precedence: documented defaults < the ``model.physics.scm``
+    block of the configuration (when ``config`` is a
     :class:`~supy.data_model.SUEWSConfig` carrying one) < keyword
     overrides. When ``config`` is given as a raw YAML string the
-    ``model.scm`` block is not interpreted; use keyword overrides.
+    ``model.physics.scm`` block is not interpreted; use keyword overrides.
 
     Returns
     -------
@@ -415,9 +415,10 @@ def run_scm(
             sort_keys=False,
             Dumper=_yaml_Dumper,
         )
-        # the user-facing model.scm block supplies parameter defaults;
-        # explicit keyword overrides win
-        scm_block = getattr(getattr(config, "model", None), "scm", None)
+        # the user-facing model.physics.scm block supplies parameter
+        # defaults; explicit keyword overrides win
+        model_block = getattr(config, "model", None)
+        scm_block = getattr(getattr(model_block, "physics", None), "scm", None)
         if scm_block is not None:
             scm_overrides = {**overrides_from_config(scm_block), **scm_overrides}
 

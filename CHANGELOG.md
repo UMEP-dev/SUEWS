@@ -63,6 +63,7 @@ EXAMPLES:
   - The pure-Python reference implementation used for the validation campaign was retired after cross-backend pinning; it remains in git history (see `test/fixtures/scm/README.md`)
 - [doc] Added the coupled SCM documentation page (`docs/source/integration/scm-coupled.rst`): formulation, closure guidance for multi-season runs, validation summary, usage, limitations and provenance
 - [maintenance] Added an interactive research-preview page at `site/preview/scm/` (live in-browser slab boundary-layer sandbox, hourly profile scrubber from a three-year coupled run) linked from the landing page; regression tests in `test/test_scm_native.py`
+- [change][experimental] Hardened the SCM contract after review (#1529): `supy.scm.run_scm` now always returns a named `ScmResult`; `use_background` left the public surface (derived from the validated `background` argument); finite/range parameter validation mirrored in Python and Fortran; calendar-safe `tile_forcing` (rejects partial years, irregular steps, impossible leap tilings); requested-but-invalid ventilation backgrounds and undersized snapshot buffers are hard errors instead of silent fallbacks; per-row timestep propagation to the column; explicit buffer-length contracts on the bridge C API; deterministic preview-page generation with a strict token contract and `--check` mode
 
 ### 5 Jun 2026
 

@@ -30,28 +30,44 @@ Scientific summary
   single-column representation of large-scale advection; required for
   the rural companion in multi-season runs.
 
+What is prescribed and what is prognostic
+-----------------------------------------
+Air temperature and humidity are fully prognostic. Wind is relaxed
+towards a log profile anchored at the observed speed (a 1-D column
+cannot generate the synoptic pressure gradient). Radiation,
+precipitation and pressure remain prescribed from the forcing file.
+
 Validation evidence
 -------------------
 The physics was developed and validated through a pure-Python reference
 implementation (GABLS1 stable-boundary-layer case within the LES ranges
 of Beare et al. 2006 on every diagnostic; convective growth within 4 %
 of the Tennekes 1973 analytic law; five coupled July days over central
-London with 3.4 K air-temperature RMSE against observations never shown
-to the model). The reference implementation was retired once the native
-port was pinned to it (air-temperature agreement <= 0.06 K over a
-six-hour coupled window); it remains available in git history — see the
-provenance section of :doc:`the documentation page
-</integration/scm-coupled>` and the archived figures and metrics under
-``docs/source/assets/img/scm/`` and ``test/fixtures/scm/``.
+London with 3.4 K air-temperature RMSE, the air-temperature
+observations withheld after initialisation). The reference
+implementation was retired once the native port was pinned to it
+(air-temperature agreement <= 0.06 K over a six-hour coupled window;
+over five free-running days the trajectories agree to 0.23 K mean with
+transient divergence up to 2.5 K at morning transitions, while skill
+against observations is statistically indistinguishable). It remains
+available in git history — see the provenance section of :doc:`the
+documentation page </integration/scm-coupled>` and the archived figures
+and metrics under ``docs/source/assets/img/scm/`` and
+``test/fixtures/scm/``.
 
 Usage
 -----
+>>> from pathlib import Path
 >>> import supy as sp
 >>> from supy.scm import run_scm
 >>> from supy.data_model import SUEWSConfig
->>> config = SUEWSConfig.from_yaml("config.yml")
->>> df_state, df_forcing = sp.load_sample_data()
->>> df_output, df_scm, state_json = run_scm(config, df_forcing)
+>>> config = SUEWSConfig.from_yaml(
+...     Path(sp.__file__).parent / "sample_data" / "sample_config.yml"
+... )  # or your own configuration file
+>>> df_state, df_forcing = sp.load_sample_data()  # or your own forcing
+>>> res = run_scm(config, df_forcing.loc["2012-07-01":"2012-07-03"])
+>>> res.output["SUEWS"]["QH"]  # standard SUEWS output
+>>> res.diagnostics["tair_mod"]  # prognostic air temperature
 
 References
 ----------
@@ -62,11 +78,20 @@ Tennekes (1973) J. Atmos. Sci.; Troen & Mahrt (1986) Boundary-Layer
 Meteorol.; Vogelezang & Holtslag (1996) Boundary-Layer Meteorol.
 """
 
+import math
+from dataclasses import dataclass
+from typing import Optional
+
 import numpy as np
 import pandas as pd
 
-# Flat parameter vector, ordered to match SCM_PARAMS_LEN in
-# suews_phys_scm.f95 — keep the two in lock-step.
+# ----------------------------------------------------------------------
+# parameter surface
+# ----------------------------------------------------------------------
+# Public, user-overridable parameters. ``use_background`` is part of the
+# Fortran vector but is NOT public: it is derived from whether a
+# validated background atmosphere is supplied (review finding: exposing
+# it allowed inconsistent runs such as background data without the flag).
 SCM_PARAM_DEFAULTS = {
     "dz0": 20.0,  # [m] first-layer thickness
     "ztop": 3000.0,  # [m] column top
@@ -90,23 +115,145 @@ SCM_PARAM_DEFAULTS = {
     "excess_b": 8.5,  # [-] convective thermal excess coefficient
     "wstar_fac": 0.6,  # [-] w* weighting in the velocity scale
     "stable_fn": 0,  # 0 = sharp cut-off, 1 = long tail (multi-season)
-    "use_background": 0,  # set automatically when a background is supplied
     "obs_anchor_tau": 0.0,  # [s] synoptic anchor; 0 = off
 }
+
+# Fortran flat-vector layout (keep in lock-step with SCM_PARAMS_LEN and
+# the layout comment in suews_phys_scm.f95). ``use_background`` is
+# internal and injected by :func:`_params_vector`.
+_PARAM_ORDER = [
+    "dz0", "ztop", "stretch", "h_init", "gamma_theta", "gamma_q",
+    "z_ft_nudge", "tau_ft", "tau_wind", "radiative_cooling",
+    "city_length", "tau_adv_min", "substeps", "z0m_wind", "lambda_mix",
+    "ric_stable", "ric_h", "k_background", "cg_a", "excess_b",
+    "wstar_fac", "stable_fn", "use_background", "obs_anchor_tau",
+]
+
+_MAX_GRID_LEVELS = 500
 
 SCM_DIAG_COLS = ["tair_mod", "rh_mod", "u_mod", "h_bl", "wth", "wq", "tau_adv"]
 
 
-def scm_params_vector(**overrides):
-    """Flat SCM parameter vector in the Fortran layout."""
-    params = dict(SCM_PARAM_DEFAULTS)
-    unknown = set(overrides) - set(params)
+@dataclass
+class ScmResult:
+    """Stable return contract of :func:`run_scm`.
+
+    Attributes
+    ----------
+    output : pandas.DataFrame
+        Standard SUEWS output (multi-group columns).
+    diagnostics : pandas.DataFrame
+        Per-step SCM diagnostics (:data:`SCM_DIAG_COLS`).
+    snapshots : dict or None
+        Hourly column profiles (``times``, ``z``, ``theta``, ``q``) when
+        ``snapshot_every_h`` was set; ``None`` otherwise. Feeds
+        :func:`make_background`.
+    state_json : str
+        Final SUEWS state, accepted by a subsequent run's
+        ``state_json`` argument.
+    """
+
+    output: pd.DataFrame
+    diagnostics: pd.DataFrame
+    snapshots: Optional[dict]
+    state_json: str
+
+
+def _validate_params(params):
+    """Range/finiteness validation mirrored by the Fortran-side validator."""
+
+    def _finite(name, lo=None, hi=None, lo_open=False):
+        v = float(params[name])
+        if not math.isfinite(v):
+            raise ValueError(f"SCM parameter {name} must be finite, got {v}")
+        if lo is not None and (v <= lo if lo_open else v < lo):
+            cmp = ">" if lo_open else ">="
+            raise ValueError(f"SCM parameter {name} must be {cmp} {lo}, got {v}")
+        if hi is not None and v > hi:
+            raise ValueError(f"SCM parameter {name} must be <= {hi}, got {v}")
+        return v
+
+    dz0 = _finite("dz0", 0.0, lo_open=True)
+    ztop = _finite("ztop", 0.0, lo_open=True)
+    if ztop <= dz0:
+        raise ValueError(f"SCM parameter ztop ({ztop}) must exceed dz0 ({dz0})")
+    _finite("stretch", 1.0, 1.5)
+    _finite("h_init", 0.0, lo_open=True)
+    _finite("gamma_theta", 0.0, 0.1, lo_open=True)
+    gq = float(params["gamma_q"])
+    if not math.isfinite(gq) or abs(gq) > 1.0e-3:
+        raise ValueError(f"SCM parameter gamma_q out of range: {gq}")
+    _finite("z_ft_nudge", 0.0)
+    _finite("tau_ft", 0.0, lo_open=True)
+    _finite("tau_wind", 0.0, lo_open=True)
+    _finite("radiative_cooling", 0.0)
+    _finite("city_length", 0.0, lo_open=True)
+    _finite("tau_adv_min", 0.0, lo_open=True)
+    substeps = params["substeps"]
+    if int(substeps) != substeps or not (1 <= int(substeps) <= 100):
+        raise ValueError(f"SCM parameter substeps must be an integer in [1, 100], got {substeps}")
+    _finite("z0m_wind", 0.0, lo_open=True)
+    _finite("lambda_mix", 0.0, lo_open=True)
+    _finite("ric_stable", 0.0, 10.0, lo_open=True)
+    _finite("ric_h", 0.0, 10.0, lo_open=True)
+    _finite("k_background", 0.0)
+    _finite("cg_a", 0.0)
+    _finite("excess_b", 0.0)
+    _finite("wstar_fac", 0.0)
+    if params["stable_fn"] not in (0, 1):
+        raise ValueError(f"SCM parameter stable_fn must be 0 or 1, got {params['stable_fn']}")
+    _finite("obs_anchor_tau", 0.0)
+
+    n_levels = len(_grid_levels(dz0, ztop, float(params["stretch"])))
+    if not (4 <= n_levels <= _MAX_GRID_LEVELS):
+        raise ValueError(
+            f"SCM grid (dz0={dz0}, ztop={ztop}, stretch={params['stretch']}) "
+            f"gives {n_levels} levels; expected 4 to {_MAX_GRID_LEVELS}"
+        )
+
+
+def _params_vector(overrides, use_background):
+    """Validated flat parameter vector in the Fortran layout."""
+    if "use_background" in overrides:
+        raise ValueError(
+            "use_background is not user-settable; it is derived from the "
+            "`background` argument of run_scm()"
+        )
+    unknown = set(overrides) - set(SCM_PARAM_DEFAULTS)
     if unknown:
         raise ValueError(f"unknown SCM parameters: {sorted(unknown)}")
+    params = dict(SCM_PARAM_DEFAULTS)
     params.update(overrides)
-    return [float(params[k]) for k in SCM_PARAM_DEFAULTS]
+    _validate_params(params)
+    params["use_background"] = 1 if use_background else 0
+    return [float(params[k]) for k in _PARAM_ORDER]
 
 
+def scm_params_vector(**overrides):
+    """Validated flat SCM parameter vector (no background; for inspection
+    and for the cross-layer layout tests)."""
+    return _params_vector(overrides, use_background=False)
+
+
+def _grid_levels(dz0, ztop, stretch):
+    """Replicate the Fortran grid generation (same float arithmetic) to
+    predict the column level count for snapshot buffers."""
+    zi = [0.0]
+    dz = dz0
+    while zi[-1] < ztop:
+        zi.append(zi[-1] + dz)
+        dz *= stretch
+        if len(zi) > _MAX_GRID_LEVELS + 1:
+            raise ValueError(
+                f"SCM grid exceeds {_MAX_GRID_LEVELS} levels "
+                f"(dz0={dz0}, ztop={ztop}, stretch={stretch})"
+            )
+    return [0.5 * (a + b) for a, b in zip(zi[:-1], zi[1:])]
+
+
+# ----------------------------------------------------------------------
+# background atmosphere
+# ----------------------------------------------------------------------
 def make_background(snaps):
     """Package profile snapshots from one run as the ventilating
     background atmosphere for another (rural companion -> urban)."""
@@ -119,19 +266,35 @@ def make_background(snaps):
 
 
 def background_arrays(background, t0):
-    """Flatten a background dict for the bridge (times as seconds since
-    ``t0``, the first timestamp of the coupled run; the Fortran side does
-    a floor lookup in time and linear interpolation in height)."""
+    """Validate and flatten a background dict for the bridge.
+
+    Times become seconds since ``t0`` (the first timestamp of the
+    coupled run); the Fortran side does a floor lookup in time and
+    linear interpolation in height. Raises ``ValueError`` on any
+    structural defect rather than letting the kernel run ventilated by
+    garbage.
+    """
     times = pd.DatetimeIndex(background["times"])
     t_sec = ((times - pd.Timestamp(t0)).total_seconds()).to_numpy(dtype=float)
     z = np.asarray(background["z"], dtype=float)
     theta = np.asarray(background["theta"], dtype=float)
     q = np.asarray(background["q"], dtype=float)
+
+    if t_sec.size < 1 or z.size < 2:
+        raise ValueError(
+            f"background needs >=1 time and >=2 levels, got {t_sec.size} x {z.size}"
+        )
     if theta.shape != (t_sec.size, z.size) or q.shape != theta.shape:
         raise ValueError(
             f"background shape mismatch: times={t_sec.size}, z={z.size}, "
             f"theta={theta.shape}, q={q.shape}"
         )
+    if not np.all(np.diff(t_sec) > 0):
+        raise ValueError("background times must be strictly increasing")
+    if not np.all(np.diff(z) > 0):
+        raise ValueError("background heights must be strictly increasing")
+    if not (np.isfinite(theta).all() and np.isfinite(q).all()):
+        raise ValueError("background theta/q contain non-finite values")
     return (
         t_sec.tolist(),
         z.tolist(),
@@ -140,17 +303,9 @@ def background_arrays(background, t0):
     )
 
 
-def _grid_levels(dz0, ztop, stretch):
-    """Replicate the Fortran grid generation (same float arithmetic) to
-    predict the column level count for snapshot buffers."""
-    zi = [0.0]
-    dz = dz0
-    while zi[-1] < ztop:
-        zi.append(zi[-1] + dz)
-        dz *= stretch
-    return [0.5 * (a + b) for a, b in zip(zi[:-1], zi[1:])]
-
-
+# ----------------------------------------------------------------------
+# the coupled run
+# ----------------------------------------------------------------------
 def run_scm(
     config,
     df_forcing,
@@ -178,18 +333,19 @@ def run_scm(
         the config-derived cold-start state is used.
     background : dict, optional
         Background atmosphere (``times``, ``z``, ``theta``, ``q``) from a
-        companion run; enables the ventilation term (tau = city_length/U).
+        companion run; validated, then enables the ventilation term
+        (tau = city_length / U).
     snapshot_every_h : float, optional
         Record column theta/q profiles every this many hours and return
-        them (the dict feeds :func:`make_background`).
+        them in ``ScmResult.snapshots``.
     **scm_overrides
-        Any :data:`SCM_PARAM_DEFAULTS` key.
+        Any :data:`SCM_PARAM_DEFAULTS` key; values are validated.
 
     Returns
     -------
-    (df_output, df_scm, state_json) or (df_output, df_scm, snaps, state_json)
-        Standard SUEWS output, per-step SCM diagnostics
-        (:data:`SCM_DIAG_COLS`), [profile snapshots,] final state JSON.
+    ScmResult
+        Stable named result: ``output``, ``diagnostics``, ``snapshots``
+        (``None`` unless requested), ``state_json``.
     """
     import yaml as _yaml
 
@@ -219,12 +375,11 @@ def run_scm(
         )
 
     if background is not None:
-        scm_overrides.setdefault("use_background", 1)
         bg_t, bg_z, bg_theta, bg_q = background_arrays(background, df_forcing.index[0])
     else:
         bg_t, bg_z, bg_theta, bg_q = [], [], [], []
 
-    params = scm_params_vector(**scm_overrides)
+    params = _params_vector(scm_overrides, use_background=background is not None)
     forcing_flat = _prepare_forcing_block(df_forcing).ravel(order="C").tolist()
 
     snap_every = 0
@@ -261,6 +416,7 @@ def run_scm(
     df_scm = pd.DataFrame(scm_arr, columns=SCM_DIAG_COLS, index=df_forcing.index)
     df_scm = df_scm.mask(df_scm == -999.0)
 
+    snaps = None
     if snap_every > 0:
         n_snap = -(-len_sim // snap_every)
         snaps = dict(
@@ -269,25 +425,66 @@ def run_scm(
             theta=list(np.asarray(snap_theta, dtype=float).reshape((n_snap, nz_snap))),
             q=list(np.asarray(snap_q, dtype=float).reshape((n_snap, nz_snap))),
         )
-        return df_output, df_scm, snaps, state_json_out
-    return df_output, df_scm, state_json_out
+    return ScmResult(
+        output=df_output,
+        diagnostics=df_scm,
+        snapshots=snaps,
+        state_json=state_json_out,
+    )
 
 
 # ----------------------------------------------------------------------
 # experiment helpers
 # ----------------------------------------------------------------------
 def tile_forcing(df_forcing, years):
-    """Recycle a forcing year over several calendar years (multi-year
-    experiments with a single observed year; leap day handled)."""
+    """Recycle one full forcing year over several calendar years.
+
+    The input must be a regular, gap-free record covering exactly one
+    calendar year with SUEWS end-of-interval timestamps (first record at
+    ``YYYY-01-01 00:00 + step``, last at ``(YYYY+1)-01-01 00:00``).
+    Anything else is rejected rather than silently re-stamped — partial
+    years, irregular steps or multi-year inputs would otherwise produce
+    plausible-looking but miscalendared experiments.
+
+    The leap day is dropped when tiling onto a non-leap target year. A
+    leap *target* year cannot be built from a non-leap source (the model
+    would need a 29 February that does not exist) and is rejected.
+    """
+    idx = df_forcing.index
+    if len(idx) < 2:
+        raise ValueError("forcing must contain at least two records")
+    steps = pd.unique(np.diff(idx.values))
+    if len(steps) != 1:
+        raise ValueError("forcing index must be regular (single time step, no gaps)")
+    freq = pd.Timedelta(steps[0])
+    if freq <= pd.Timedelta(0) or (pd.Timedelta(days=1) % freq) != pd.Timedelta(0):
+        raise ValueError(f"forcing step {freq} must be positive and divide one day")
+
+    y0 = idx[0].year
+    src_leap = pd.Timestamp(f"{y0}-12-31").is_leap_year
+    expected_start = pd.Timestamp(f"{y0}-01-01") + freq
+    expected_end = pd.Timestamp(f"{y0 + 1}-01-01")
+    if idx[0] != expected_start or idx[-1] != expected_end:
+        raise ValueError(
+            "forcing must cover exactly one calendar year with end-of-interval "
+            f"timestamps ({expected_start} .. {expected_end}); "
+            f"got {idx[0]} .. {idx[-1]}"
+        )
+
     blocks = []
     for year in years:
+        tgt_leap = pd.Timestamp(f"{year}-12-31").is_leap_year
         df = df_forcing.copy()
-        leap = (year % 4 == 0) and (year % 100 != 0 or year % 400 == 0)
-        if not leap:
+        if src_leap and not tgt_leap:
             df = df[~((df.index.month == 2) & (df.index.day == 29))]
-        idx = pd.date_range(start=f"{year}-01-01 00:05", periods=len(df), freq="5min")
-        df = df.set_axis(idx)
-        blocks.append(df)
+        elif tgt_leap and not src_leap:
+            raise ValueError(
+                f"cannot tile a non-leap source year ({y0}) onto leap year {year}"
+            )
+        new_idx = pd.date_range(
+            start=pd.Timestamp(f"{year}-01-01") + freq, periods=len(df), freq=freq
+        )
+        blocks.append(df.set_axis(new_idx))
     return pd.concat(blocks)
 
 

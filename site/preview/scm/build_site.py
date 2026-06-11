@@ -1,14 +1,27 @@
-"""Fill the demo webpage placeholders from the generated metric JSON files.
+"""Generate the SCM preview page from the archived validation metrics.
 
-Reads the JSON written by every benchmark/demo script and substitutes the
-``[[TOKEN]]`` placeholders in ``site/index.html`` in place, so the page
-always shows the numbers actually produced by the latest runs - no
-hand-copied figures.
+Substitutes every ``[[TOKEN]]`` placeholder in ``index.template.html``
+with values read from the version-controlled fixtures under
+``test/fixtures/scm/`` and writes ``index.html``. The build is strict
+and deterministic:
 
-Usage: python build_site.py
+- the template token set and the substitution table must match exactly
+  (missing, unknown or leftover tokens fail the build with exit code 1);
+- no wall-clock or environment values enter the output - the footer
+  provenance (generation date, SuPy version) comes from the committed
+  ``provenance.json`` fixture, so regenerating the page on any machine
+  on any day yields byte-identical output.
+
+Usage:
+    python build_site.py          # regenerate index.html
+    python build_site.py --check  # verify the committed index.html is
+                                  # fresh (exit 2 on drift); used in tests
 """
 
+import argparse
 import json
+import re
+import sys
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
@@ -17,41 +30,36 @@ METRICS = REPO / "test" / "fixtures" / "scm"
 TEMPLATE = HERE / "index.template.html"
 SITE = HERE / "index.html"
 
+TOKEN_RE = re.compile(r"\[\[([A-Z0-9_]+)\]\]")
+
 
 def load(path):
-    with open(path) as f:
+    with open(path, encoding="utf-8") as f:
         return json.load(f)
 
 
-def main():
-    import supy
-
+def build_replacements():
+    """Substitution table, built solely from committed fixtures."""
     kcl = load(METRICS / "coupled_kcl_metrics.json")
-    # demo metrics from the archived validation runs (the demo scripts
-    # were retired with the Python reference implementation; provenance:
-    # test/fixtures/scm/README.md)
     ur = load(METRICS / "demo_urban_rural.json")
     qf = load(METRICS / "demo_qf.json")
     cr = load(METRICS / "demo_cool_roofs.json")
     nat = load(METRICS / "native_vs_python.json")
     my = load(METRICS / "multiyear.json")
+    prov = load(METRICS / "provenance.json")
 
     t = kcl["tair"]
     rmse_all = t["all"]["rmse"]
     verdict = (
-        "The coupled system tracks the diurnal swing without ever seeing the "
-        "observations - the residual warm bias is the column's, not a tuned fit."
+        "The coupled system tracks the diurnal swing with the air-temperature "
+        "observations withheld after initialisation - the residual warm bias "
+        "is the column's, not a tuned fit."
         if rmse_all < 5.0
         else "Captures the phase of the diurnal cycle; the warm bias reflects "
         "the closed-column tendency discussed in the limitations."
     )
 
-    # build the substitution table from a real Python clock value only once,
-    # passed in via the file's own mtime to stay deterministic on re-runs
-    import datetime
-    gen_date = datetime.date.today().isoformat()
-
-    repl = {
+    return {
         "RMSE_ALL": f"{rmse_all:.1f}",
         "RMSE_DAY": f"{t['daytime']['rmse']:.1f}",
         "RMSE_NIGHT": f"{t['nighttime']['rmse']:.1f}",
@@ -88,23 +96,66 @@ def main():
         "MY_UHI_DJF": f"{my['climatology']['uhi2m_nocturnal_djf_K']:+.2f}",
         "MY_H_JJA": f"{my['climatology']['h_bl_daymax_jja_urban_m']:.0f}",
         "MY_H_DJF": f"{my['climatology']['h_bl_daymax_djf_urban_m']:.0f}",
-        "SUPY_VERSION": supy.__version__,
-        "GEN_DATE": gen_date,
+        "SUPY_VERSION": prov["supy_version"],
+        "GEN_DATE": prov["evidence_generated"],
     }
 
-    html = TEMPLATE.read_text()
-    missing = []
-    for key, val in repl.items():
-        token = f"[[{key}]]"
-        if token not in html:
-            missing.append(key)
-        html = html.replace(token, str(val))
-    SITE.write_text(html)
 
-    import re
-    leftover = re.findall(r"\[\[[A-Z_]+\]\]", html)
-    print(f"substituted {len(repl)} tokens; missing in template: {missing or 'none'}")
-    print(f"unfilled placeholders remaining: {leftover or 'none'}")
+def render():
+    """Render the page; raise SystemExit(1) on any token contract breach."""
+    template = TEMPLATE.read_text(encoding="utf-8")
+    repl = build_replacements()
+
+    template_tokens = set(TOKEN_RE.findall(template))
+    table_tokens = set(repl)
+    problems = []
+    if table_tokens - template_tokens:
+        problems.append(
+            f"tokens in table but not in template: {sorted(table_tokens - template_tokens)}"
+        )
+    if template_tokens - table_tokens:
+        problems.append(
+            f"tokens in template but not in table: {sorted(template_tokens - table_tokens)}"
+        )
+    if problems:
+        for p in problems:
+            print(f"ERROR: {p}", file=sys.stderr)
+        raise SystemExit(1)
+
+    html = template
+    for key, val in repl.items():
+        html = html.replace(f"[[{key}]]", str(val))
+
+    leftover = TOKEN_RE.findall(html)
+    if leftover:
+        print(f"ERROR: unfilled placeholders after substitution: {leftover}", file=sys.stderr)
+        raise SystemExit(1)
+    return html
+
+
+def main(argv=None):
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument(
+        "--check",
+        action="store_true",
+        help="verify the committed index.html matches the fixtures (exit 2 on drift)",
+    )
+    args = parser.parse_args(argv)
+
+    html = render()
+    if args.check:
+        committed = SITE.read_text(encoding="utf-8") if SITE.exists() else ""
+        if committed != html:
+            print(
+                "ERROR: committed index.html is stale - regenerate with "
+                "`python build_site.py`",
+                file=sys.stderr,
+            )
+            raise SystemExit(2)
+        print("index.html is fresh")
+        return
+    SITE.write_text(html, encoding="utf-8")
+    print(f"rendered index.html ({len(TOKEN_RE.findall(TEMPLATE.read_text(encoding='utf-8')))} tokens)")
 
 
 if __name__ == "__main__":

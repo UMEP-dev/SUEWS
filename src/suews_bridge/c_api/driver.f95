@@ -347,10 +347,11 @@ subroutine suews_scm_multitsteps_c( &
    site_toc, site_toc_len, site_member_count, &
    state_flat, state_flat_len, &
    state_toc, state_toc_len, state_member_count, &
-   forcing_flat, len_sim, forcing_cols, &
+   forcing_flat, forcing_len, len_sim, forcing_cols, &
    nlayer, ndepth, &
    scm_params_flat, scm_params_len, &
-   bg_nt, bg_nz, bg_t_sec, bg_z, bg_theta_flat, bg_q_flat, &
+   bg_nt, bg_nz, bg_t_sec, bg_t_len, bg_z, bg_z_len, &
+   bg_theta_flat, bg_q_flat, bg_vals_len, &
    snap_every, n_snap, nz_snap, &
    timer_out, timer_out_len, &
    state_out_flat, state_out_len, &
@@ -390,6 +391,7 @@ subroutine suews_scm_multitsteps_c( &
    integer(c_int), value, intent(in) :: state_member_count
 
    real(c_double), intent(in) :: forcing_flat(*)
+   integer(c_int), value, intent(in) :: forcing_len
    integer(c_int), value, intent(in) :: len_sim
    integer(c_int), value, intent(in) :: forcing_cols
    integer(c_int), value, intent(in) :: nlayer
@@ -400,9 +402,12 @@ subroutine suews_scm_multitsteps_c( &
    integer(c_int), value, intent(in) :: bg_nt
    integer(c_int), value, intent(in) :: bg_nz
    real(c_double), intent(in) :: bg_t_sec(*)
+   integer(c_int), value, intent(in) :: bg_t_len
    real(c_double), intent(in) :: bg_z(*)
+   integer(c_int), value, intent(in) :: bg_z_len
    real(c_double), intent(in) :: bg_theta_flat(*)
    real(c_double), intent(in) :: bg_q_flat(*)
+   integer(c_int), value, intent(in) :: bg_vals_len
    integer(c_int), value, intent(in) :: snap_every
    integer(c_int), value, intent(in) :: n_snap
    integer(c_int), value, intent(in) :: nz_snap
@@ -496,6 +501,21 @@ subroutine suews_scm_multitsteps_c( &
       return
    end if
    if (bg_nt_i<0 .or. bg_nz_i<0) then
+      err = SUEWS_CAPI_BAD_BUFFER
+      return
+   end if
+   ! explicit input-length contracts (review finding: a direct C caller
+   ! could otherwise pass inconsistent dimensions and the copies below
+   ! would read past the provided memory); products in 64-bit
+   if (int(len_sim, 8)*int(forcing_cols, 8) > int(forcing_len, 8)) then
+      err = SUEWS_CAPI_BAD_BUFFER
+      return
+   end if
+   if (bg_nt > bg_t_len .or. bg_nz > bg_z_len) then
+      err = SUEWS_CAPI_BAD_BUFFER
+      return
+   end if
+   if (int(bg_nt, 8)*int(bg_nz, 8) > int(bg_vals_len, 8)) then
       err = SUEWS_CAPI_BAD_BUFFER
       return
    end if

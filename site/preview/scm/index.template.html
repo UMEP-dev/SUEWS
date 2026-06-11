@@ -468,8 +468,10 @@
     <figure class="fig">
       <img src="assets/fig_coupled_kcl.png" alt="Four panels: modelled versus observed air temperature time series at 40 metres over five July days, the mean diurnal cycle, diagnosed boundary-layer height, and surface fluxes compared between coupled and offline runs.">
       <figcaption>Coupled run over the clearest 2012 summer window at the KCL site,
-      central London. The temperature SUEWS receives is the column's own — the
-      observation curve is never shown to the model after initialisation.</figcaption>
+      central London. The temperature SUEWS receives is the column's own: the
+      air-temperature observations are withheld after initialisation, while
+      radiation, precipitation and pressure stay prescribed and wind is nudged
+      towards the observed speed.</figcaption>
     </figure>
     <div>
       <h3>London, observed — the real city</h3>
@@ -498,9 +500,11 @@
       <p>The column was ported line-for-line into the SUEWS Fortran core
       (<span style="font-family:'JetBrains Mono',monospace;font-size:0.85em;">suews_phys_scm.f95</span>)
       and the coupled loop now runs inside the model's own timestep driver,
-      reached through the Rust bridge in a single call. The Python package
-      remains the validated reference; cross-backend regression tests pin
-      the two together.</p>
+      reached through the Rust bridge in a single call. A six-hour lockstep
+      regression pins the two backends to within 0.06 K; over five
+      free-running days the trajectories agree to 0.23 K on average, with
+      transient divergence up to 2.5 K at morning transitions, while skill
+      against the observations is statistically indistinguishable.</p>
       <dl class="metrics">
         <div><dt>Five coupled days, native</dt><dd>[[NAT_TIME]] s<small>[[NAT_PER_STEP]] ms per coupled step</small></dd></div>
         <div><dt>Five coupled days, Python loop</dt><dd>[[PY_TIME]] s<small>[[PY_PER_STEP]] ms per step (marshalling-bound)</small></dd></div>
@@ -690,22 +694,24 @@
   <p class="sec-label">V · Run it</p>
   <h2>One import, in the released core</h2>
   <pre><code><span class="c"># the coupled loop runs inside the compiled SUEWS core (Fortran via</span>
-<span class="c"># the Rust bridge); Python only marshals. Research preview interface.</span>
+<span class="c"># the Rust bridge); Python only marshals. Runs as-is on the bundled</span>
+<span class="c"># sample dataset - point config/forcing at your own site to go further.</span>
+<span class="k">from</span> pathlib <span class="k">import</span> Path
 <span class="k">import</span> supy <span class="k">as</span> sp
-<span class="k">from</span> supy.scm <span class="k">import</span> run_scm, make_rural_config, make_background, tile_forcing
+<span class="k">from</span> supy.scm <span class="k">import</span> run_scm, make_rural_config, make_background
 <span class="k">from</span> supy.data_model <span class="k">import</span> SUEWSConfig
 
-config = SUEWSConfig.from_yaml(<span class="c">"config.yml"</span>)
+config = SUEWSConfig.from_yaml(Path(sp.__file__).parent / <span class="c">"sample_data"</span> / <span class="c">"sample_config.yml"</span>)
 df_state, df_forcing = sp.load_sample_data()
+window = df_forcing.loc[<span class="c">"2012-07-22"</span>:<span class="c">"2012-07-26"</span>]
 
 <span class="c"># rural companion provides the ventilating background air ...</span>
-rural = make_rural_config(config)
-_, _, snaps, _ = run_scm(rural, df_forcing, snapshot_every_h=1.0,
-                         obs_anchor_tau=86400.0, stable_fn=1)
+rural = run_scm(make_rural_config(config), window, snapshot_every_h=1.0)
 
 <span class="c"># ... and the urban column negotiates with its own atmosphere</span>
-df_output, df_scm, state = run_scm(config, df_forcing,
-                                   background=make_background(snaps), stable_fn=1)</code></pre>
+res = run_scm(config, window, background=make_background(rural.snapshots))
+res.output[<span class="c">"SUEWS"</span>][<span class="c">"QH"</span>]      <span class="c"># standard SUEWS output</span>
+res.diagnostics[<span class="c">"tair_mod"</span>]   <span class="c"># prognostic air temperature</span></code></pre>
   <p style="margin-top: var(--space-md); font-size: 0.95rem;">
     Full scientific description, options and provenance:
     <a href="https://docs.suews.io/latest/integration/scm-coupled.html">the documentation page</a>.

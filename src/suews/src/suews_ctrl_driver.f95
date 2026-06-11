@@ -760,7 +760,7 @@ CONTAINS
                                  scm_column_set_profiles, scm_column_step, &
                                  scm_sample_zmeas, scm_wind_nudge, scm_ventilate, &
                                  scm_background_on_grid, scm_kinematic_fluxes, &
-                                 scm_obs_anchor, &
+                                 scm_obs_anchor, scm_background_valid, &
                                  SCM_DIAG_NCOL
 
       IMPLICIT NONE
@@ -796,6 +796,7 @@ CONTAINS
       TYPE(dts_scm_background) :: bg
       TYPE(dts_scm_params) :: prm
       LOGICAL :: prm_ok, use_bg
+      CHARACTER(len=256) :: prm_msg
       INTEGER :: ir, col_offset, isub, it, iz, i_snap
       REAL(KIND(1D0)) :: z_meas, dt_col, t_sec
       REAL(KIND(1D0)) :: tair_c, rh_pct, wind, q_zm, p_zm
@@ -809,11 +810,11 @@ CONTAINS
       snap_q = -999.0D0
       i_snap = 0
 
-      CALL scm_params_from_flat(scm_params_flat, n_scm_params, prm, prm_ok)
+      CALL scm_params_from_flat(scm_params_flat, n_scm_params, prm, prm_ok, prm_msg)
       IF (.NOT. prm_ok) THEN
          modState%errorState%flag = .TRUE.
          modState%errorState%code = 106
-         modState%errorState%message = 'SUEWS_cal_multitsteps_scm: bad SCM parameter vector'
+         modState%errorState%message = 'SUEWS_cal_multitsteps_scm: '//TRIM(prm_msg)
          RETURN
       END IF
 
@@ -821,7 +822,7 @@ CONTAINS
       ahemisPrm%end_dls = siteInfo%anthroemis%end_dls
 
       z_meas = siteInfo%z
-      dt_col = REAL(timer%tstep, KIND(1D0))/REAL(prm%substeps, KIND(1D0))
+      t_sec = 0.0D0 ! elapsed time since run start, accumulated per row
 
       ! --- column initialised from the first forcing record ---
       CALL scm_column_init(col, prm, MetForcingBlock(1, 12), MetForcingBlock(1, 13))
@@ -841,9 +842,19 @@ CONTAINS
          snap_z(1:col%n) = col%z
       END IF
 
-      ! --- background atmosphere (rural companion), optional ---
-      use_bg = prm%use_background .AND. bg_nt > 0 .AND. bg_nz > 1
+      ! --- background atmosphere (rural companion) ---
+      ! A requested-but-invalid background is a hard error, NOT a silent
+      ! fall-back to a closed column (review finding: the closed column
+      ! is a different physical system and drifts warm).
+      use_bg = prm%use_background
       IF (use_bg) THEN
+         IF (bg_nt <= 0 .OR. bg_nz <= 1) THEN
+            modState%errorState%flag = .TRUE.
+            modState%errorState%code = 106
+            modState%errorState%message = &
+               'SUEWS_cal_multitsteps_scm: ventilation requested but background arrays are missing'
+            RETURN
+         END IF
          bg%nt = bg_nt
          bg%nz = bg_nz
          ALLOCATE (bg%t_sec(bg_nt), bg%z(bg_nz), bg%theta(bg_nt, bg_nz), bg%q(bg_nt, bg_nz))
@@ -855,6 +866,25 @@ CONTAINS
                bg%q(it, iz) = bg_q_flat((it - 1)*bg_nz + iz)
             END DO
          END DO
+         IF (.NOT. scm_background_valid(bg)) THEN
+            modState%errorState%flag = .TRUE.
+            modState%errorState%code = 106
+            modState%errorState%message = &
+               'SUEWS_cal_multitsteps_scm: background atmosphere invalid '// &
+               '(times/heights must increase strictly; theta/q must be finite)'
+            RETURN
+         END IF
+      END IF
+
+      ! --- snapshot buffer contract ---
+      IF (snap_every > 0) THEN
+         IF (n_snap < (len_sim + snap_every - 1)/snap_every) THEN
+            modState%errorState%flag = .TRUE.
+            modState%errorState%code = 106
+            modState%errorState%message = &
+               'SUEWS_cal_multitsteps_scm: snapshot buffer smaller than the expected count'
+            RETURN
+         END IF
       END IF
 
       DO ir = 1, len_sim, 1
@@ -896,14 +926,20 @@ CONTAINS
             modState, &
             output_line_local)
 
+         ! surface errors stop the run before fluxes feed the column
+         IF (modState%errorState%flag) RETURN
+
          ! === feed the surface fluxes back into the column ===
          qh = modState%heatState%qh
          qe = modState%heatState%qe
          ustar = MAX(modState%atmState%u_star, 0.05D0)
          CALL scm_kinematic_fluxes(qh, qe, tair_c + 273.15D0, p_zm, q_zm, wth, wq)
 
+         ! the column substep follows the CURRENT row's timestep, so
+         ! variable-timestep forcing keeps surface and column in sync
+         dt_col = timer%tstep_real/REAL(prm%substeps, KIND(1D0))
+
          u_obs = MAX(MetForcingBlock(ir, 10), 0.5D0)
-         t_sec = REAL(ir - 1, KIND(1D0))*REAL(timer%tstep, KIND(1D0))
          IF (use_bg) CALL scm_background_on_grid(bg, col, t_sec, theta_bg, q_bg)
 
          tau_adv = -999.0D0
@@ -977,6 +1013,7 @@ CONTAINS
             output_line_local%dataOutLineNHood
 
          timer%dt_since_start = timer%dt_since_start + timer%tstep
+         t_sec = t_sec + timer%tstep_real
 
       END DO
 

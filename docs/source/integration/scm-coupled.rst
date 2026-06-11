@@ -139,8 +139,9 @@ the `preview page <https://suews.io/preview/scm/>`_.
   explicit entrainment closure (Noh et al., 2003).
 - **Coupled against observations** — five July 2012 days over central
   London (KCL site): air-temperature RMSE 3.7 K (3.0 K daytime / 4.5 K
-  nighttime), correlation 0.73, against observations never shown to the
-  model after initialisation.
+  nighttime), correlation 0.73. The air-temperature observations are
+  withheld after initialisation; radiation, precipitation and pressure
+  remain prescribed, and wind is nudged towards the observed speed.
 - **Multi-year climatology** — three coupled years (urban plus anchored
   rural companion): nocturnal screen-level heat island 3.2 K on
   average; urban daily-maximum boundary-layer depth 1549 m (JJA) versus
@@ -160,7 +161,8 @@ the `preview page <https://suews.io/preview/scm/>`_.
          fluxes compared with an offline run.
 
    Five coupled days over central London; the temperature SUEWS receives
-   is the column's own.
+   is the column's own (air-temperature observations withheld after
+   initialisation).
 
 .. figure:: /assets/img/scm/fig_multiyear.png
    :alt: Three coupled years: monthly mean urban and rural two-metre
@@ -175,32 +177,39 @@ Usage
 
 .. code-block:: python
 
+   from pathlib import Path
+
    import supy as sp
    from supy.scm import run_scm, make_rural_config, make_background
    from supy.data_model import SUEWSConfig
 
-   config = SUEWSConfig.from_yaml("config.yml")
+   # runs as-is on the bundled sample dataset; point the config and
+   # forcing at your own site to go further
+   config = SUEWSConfig.from_yaml(
+       Path(sp.__file__).parent / "sample_data" / "sample_config.yml"
+   )
    df_state, df_forcing = sp.load_sample_data()
+   window = df_forcing.loc["2012-07-22":"2012-07-26"]
 
    # rural companion provides the ventilating background air
-   rural = make_rural_config(config)
-   _, _, snaps, _ = run_scm(
-       rural, df_forcing,
-       snapshot_every_h=1.0, obs_anchor_tau=86400.0, stable_fn=1,
-   )
+   rural = run_scm(make_rural_config(config), window, snapshot_every_h=1.0)
 
    # urban column, ventilated, fully prognostic
-   df_output, df_scm, state_json = run_scm(
-       config, df_forcing,
-       background=make_background(snaps), stable_fn=1,
-   )
+   res = run_scm(config, window, background=make_background(rural.snapshots))
+   res.output["SUEWS"]["QH"]      # standard SUEWS output
+   res.diagnostics["tair_mod"]    # prognostic air temperature
 
-``df_output`` is the standard SUEWS output; ``df_scm`` carries the
-per-step column diagnostics (air temperature, humidity and wind at the
-forcing height, boundary-layer depth, kinematic fluxes, ventilation
-time scale). For multi-year experiments from a single observed year,
+:func:`~supy.scm.run_scm` always returns an
+:class:`~supy.scm.ScmResult` with ``output`` (standard SUEWS output),
+``diagnostics`` (per-step column diagnostics: air temperature, humidity
+and wind at the forcing height, boundary-layer depth, kinematic fluxes,
+ventilation time scale), ``snapshots`` (``None`` unless
+``snapshot_every_h`` is set) and ``state_json``. All parameter
+overrides are validated against finite/range contracts mirrored by the
+Fortran side. For multi-year experiments from a single observed year,
 :func:`~supy.scm.tile_forcing` recycles the forcing across calendar
-years with the leap day handled.
+years (the input must cover exactly one calendar year on a regular
+step; the leap day is handled, and impossible tilings are rejected).
 
 Key options (all :data:`~supy.scm.SCM_PARAM_DEFAULTS` keys may be
 overridden as keyword arguments):

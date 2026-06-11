@@ -1,0 +1,12 @@
+{
+  "note": "Provenance of the archived SCM validation campaign; consumed by site/preview/scm/build_site.py so the committed page is deterministic.",
+  "evidence_generated": "2026-06-10",
+  "supy_version": "2026.6.10.dev1",
+  "machine": "Apple M1 Max, debug-profile physics library in both backends",
+  "reference_implementation_commits": [
+    "96513b82f",
+    "2ca25d90f",
+    "dc939564a",
+    "7bcf157f0"
+  ]
+}

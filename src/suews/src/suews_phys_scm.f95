@@ -95,7 +95,7 @@ MODULE module_phys_scm
    PUBLIC :: scm_sample_zmeas, scm_wind_nudge, scm_ventilate
    PUBLIC :: scm_background_on_grid, scm_q_from_rh
    PUBLIC :: scm_column_set_profiles, scm_rho_air, scm_kinematic_fluxes
-   PUBLIC :: scm_obs_anchor
+   PUBLIC :: scm_obs_anchor, scm_background_valid
    PUBLIC :: SCM_PARAMS_LEN, SCM_DIAG_NCOL
 
    ! ---- physical constants (as the retired Python reference; see header) ----
@@ -186,16 +186,39 @@ MODULE module_phys_scm
 CONTAINS
 
    !=====================================================================
-   ! parameter unpacking
+   ! parameter unpacking and contract validation
+   !
+   ! This is a real validator, not just a copier (review finding):
+   ! non-finite values, invalid grid geometry, non-positive time scales,
+   ! negative diffusivities or unsupported options are rejected with a
+   ! specific message before any column is constructed. The accepted
+   ! ranges are mirrored by the Python-side validator in supy/scm.py.
    !=====================================================================
-   SUBROUTINE scm_params_from_flat(flat, n_flat, prm, ok)
+   SUBROUTINE scm_params_from_flat(flat, n_flat, prm, ok, msg)
+      USE, INTRINSIC :: ieee_arithmetic, ONLY: IEEE_IS_FINITE
+
       REAL(KIND(1D0)), INTENT(IN) :: flat(*)
       INTEGER, INTENT(IN) :: n_flat
       TYPE(dts_scm_params), INTENT(OUT) :: prm
       LOGICAL, INTENT(OUT) :: ok
+      CHARACTER(len=*), INTENT(OUT) :: msg
+
+      INTEGER :: k, n_levels
+      REAL(KIND(1D0)) :: zi_val, dzk
 
       ok = .FALSE.
-      IF (n_flat < SCM_PARAMS_LEN) RETURN
+      msg = ''
+      IF (n_flat < SCM_PARAMS_LEN) THEN
+         msg = 'SCM parameter vector too short'
+         RETURN
+      END IF
+      DO k = 1, SCM_PARAMS_LEN
+         IF (.NOT. IEEE_IS_FINITE(flat(k))) THEN
+            WRITE (msg, '(A,I0,A)') 'SCM parameter ', k, ' is not finite'
+            RETURN
+         END IF
+      END DO
+
       prm%dz0 = flat(1)
       prm%ztop = flat(2)
       prm%stretch = flat(3)
@@ -208,7 +231,7 @@ CONTAINS
       prm%radiative_cooling = flat(10)
       prm%city_length = flat(11)
       prm%tau_adv_min = flat(12)
-      prm%substeps = MAX(INT(flat(13)), 1)
+      prm%substeps = INT(flat(13))
       prm%z0m_wind = flat(14)
       prm%lambda_mix = flat(15)
       prm%ric_stable = flat(16)
@@ -220,6 +243,84 @@ CONTAINS
       prm%stable_fn = INT(flat(22))
       prm%use_background = (flat(23) > 0.5D0)
       prm%obs_anchor_tau = flat(24)
+
+      IF (prm%dz0 <= 0.0D0 .OR. prm%ztop <= prm%dz0) THEN
+         msg = 'SCM grid geometry invalid: require ztop > dz0 > 0'
+         RETURN
+      END IF
+      IF (prm%stretch < 1.0D0 .OR. prm%stretch > 1.5D0) THEN
+         msg = 'SCM stretch must be within [1.0, 1.5]'
+         RETURN
+      END IF
+      IF (prm%h_init <= 0.0D0) THEN
+         msg = 'SCM h_init must be positive'
+         RETURN
+      END IF
+      IF (prm%gamma_theta <= 0.0D0 .OR. prm%gamma_theta > 0.1D0) THEN
+         msg = 'SCM gamma_theta must be within (0, 0.1] K m-1'
+         RETURN
+      END IF
+      IF (ABS(prm%gamma_q) > 1.0D-3) THEN
+         msg = 'SCM gamma_q magnitude too large'
+         RETURN
+      END IF
+      IF (prm%z_ft_nudge < 0.0D0 .OR. prm%tau_ft <= 0.0D0 .OR. prm%tau_wind <= 0.0D0) THEN
+         msg = 'SCM nudging settings invalid (z_ft_nudge >= 0; tau_ft, tau_wind > 0)'
+         RETURN
+      END IF
+      IF (prm%radiative_cooling < 0.0D0) THEN
+         msg = 'SCM radiative_cooling must be non-negative'
+         RETURN
+      END IF
+      IF (prm%city_length <= 0.0D0 .OR. prm%tau_adv_min <= 0.0D0) THEN
+         msg = 'SCM ventilation settings invalid (city_length, tau_adv_min > 0)'
+         RETURN
+      END IF
+      IF (prm%substeps < 1 .OR. prm%substeps > 100) THEN
+         msg = 'SCM substeps must be within [1, 100]'
+         RETURN
+      END IF
+      IF (prm%z0m_wind <= 0.0D0 .OR. prm%lambda_mix <= 0.0D0) THEN
+         msg = 'SCM z0m_wind and lambda_mix must be positive'
+         RETURN
+      END IF
+      IF (prm%ric_stable <= 0.0D0 .OR. prm%ric_stable > 10.0D0 .OR. &
+          prm%ric_h <= 0.0D0 .OR. prm%ric_h > 10.0D0) THEN
+         msg = 'SCM critical Richardson numbers must be within (0, 10]'
+         RETURN
+      END IF
+      IF (prm%k_background < 0.0D0 .OR. prm%cg_a < 0.0D0 .OR. &
+          prm%excess_b < 0.0D0 .OR. prm%wstar_fac < 0.0D0) THEN
+         msg = 'SCM closure coefficients must be non-negative'
+         RETURN
+      END IF
+      IF (prm%stable_fn /= 0 .AND. prm%stable_fn /= 1) THEN
+         msg = 'SCM stable_fn must be 0 (sharp) or 1 (long tail)'
+         RETURN
+      END IF
+      IF (prm%obs_anchor_tau < 0.0D0) THEN
+         msg = 'SCM obs_anchor_tau must be non-negative'
+         RETURN
+      END IF
+
+      ! grid level count bounded (mirrors the Python-side cap)
+      n_levels = 0
+      zi_val = 0.0D0
+      dzk = prm%dz0
+      DO WHILE (zi_val < prm%ztop)
+         zi_val = zi_val + dzk
+         dzk = dzk*prm%stretch
+         n_levels = n_levels + 1
+         IF (n_levels > 500) THEN
+            msg = 'SCM grid exceeds 500 levels'
+            RETURN
+         END IF
+      END DO
+      IF (n_levels < 4) THEN
+         msg = 'SCM grid has fewer than 4 levels'
+         RETURN
+      END IF
+
       ok = .TRUE.
    END SUBROUTINE scm_params_from_flat
 
@@ -357,7 +458,14 @@ CONTAINS
          col%dzc(k) = col%z(k + 1) - col%z(k)
       END DO
 
-      ! --- pressure levels (constant scale height per run) ---
+      ! --- pressure levels (constant scale height, fixed per run) ---
+      ! Approximation, documented: the column's pressure/Exner levels are
+      ! built once from the first forcing record, while SUEWS receives the
+      ! current row pressure each step. A +-2 % synoptic surface-pressure
+      ! swing maps to ~0.1-0.2 K in the theta<->T conversion at the
+      ! measurement height; the systematic component cancels because
+      ! initialisation and sampling share the same levels. Accepted for
+      ! the research preview; revisit if sub-0.1 K fidelity is needed.
       p_sfc = pres_hpa*100.0D0
       t_air = tair_c + 273.15D0
 
@@ -486,9 +594,11 @@ CONTAINS
       CALL scm_diffuse(col, col%u, k_m, dt, 0.0D0, drag, src_zero)
       CALL scm_diffuse(col, col%v, k_m, dt, 0.0D0, drag, src_zero)
 
-      ! fail loudly rather than propagate NaNs into SUEWS forcing
-      IF (col%theta(1) /= col%theta(1)) THEN
-         CALL set_supy_error(106, 'scm_column_step: column temperature became NaN')
+      ! fail loudly rather than propagate non-finite values into SUEWS
+      ! forcing: all prognostic arrays and the diagnosed depth are
+      ! screened (NaN and infinity alike), not just the lowest theta
+      IF (.NOT. scm_state_finite(col, h)) THEN
+         CALL set_supy_error(106, 'scm_column_step: column state became non-finite')
          h_out = -999.0D0
          RETURN
       END IF
@@ -496,6 +606,23 @@ CONTAINS
       col%h_last = h
       h_out = h
    END SUBROUTINE scm_column_step
+
+   !=====================================================================
+   ! finite-state screen for the prognostic column
+   !=====================================================================
+   PURE FUNCTION scm_state_finite(col, h) RESULT(is_finite)
+      USE, INTRINSIC :: ieee_arithmetic, ONLY: IEEE_IS_FINITE
+
+      TYPE(dts_scm_column), INTENT(IN) :: col
+      REAL(KIND(1D0)), INTENT(IN) :: h
+      LOGICAL :: is_finite
+
+      is_finite = IEEE_IS_FINITE(h) .AND. &
+                  ALL(IEEE_IS_FINITE(col%theta)) .AND. &
+                  ALL(IEEE_IS_FINITE(col%q)) .AND. &
+                  ALL(IEEE_IS_FINITE(col%u)) .AND. &
+                  ALL(IEEE_IS_FINITE(col%v))
+   END FUNCTION scm_state_finite
 
    !=====================================================================
    ! boundary-layer height by the bulk Richardson number method
@@ -726,6 +853,28 @@ CONTAINS
          q_bg(k) = scm_interp1(col%z(k), bg%z, row_q, bg%nz)
       END DO
    END SUBROUTINE scm_background_on_grid
+
+   !=====================================================================
+   ! structural validation of a background atmosphere
+   !=====================================================================
+   PURE FUNCTION scm_background_valid(bg) RESULT(valid)
+      USE, INTRINSIC :: ieee_arithmetic, ONLY: IEEE_IS_FINITE
+
+      TYPE(dts_scm_background), INTENT(IN) :: bg
+      LOGICAL :: valid
+      INTEGER :: k
+
+      valid = .FALSE.
+      IF (bg%nt < 1 .OR. bg%nz < 2) RETURN
+      DO k = 2, bg%nt
+         IF (bg%t_sec(k) <= bg%t_sec(k - 1)) RETURN
+      END DO
+      DO k = 2, bg%nz
+         IF (bg%z(k) <= bg%z(k - 1)) RETURN
+      END DO
+      IF (.NOT. (ALL(IEEE_IS_FINITE(bg%theta)) .AND. ALL(IEEE_IS_FINITE(bg%q)))) RETURN
+      valid = .TRUE.
+   END FUNCTION scm_background_valid
 
    !=====================================================================
    ! advective ventilation towards the background air, tau = L / U

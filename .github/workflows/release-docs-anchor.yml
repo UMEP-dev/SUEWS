@@ -139,8 +139,16 @@ jobs:
           python3 scripts/security/remove_legacy_namespace_pth.py
           cd docs
           make generate-rst
+          # Force a FULL clean rebuild. The rtd branch ships pre-built
+          # docs/build/html that docs-sync built with a .dev version, so it
+          # carries the "Development Version" banner on every page. An
+          # incremental sphinx-build only re-renders pages whose source
+          # changed; unchanged pages would keep the stale dev banner. The
+          # version flip (.dev -> clean) is a theme-level change that does not
+          # invalidate per-page doctrees, so we must rebuild from scratch.
+          rm -rf build
           echo "Building docs version from tag ${RELEASE_TAG}"
-          SUEWS_DOCS_VERSION_REF="${RELEASE_TAG}" sphinx-build -M html source build
+          SUEWS_DOCS_VERSION_REF="${RELEASE_TAG}" sphinx-build -M html source build -E -a
 
       # ----------------------------------------------------------------
       # 6. Sanity gate: the built HTML must NOT carry the dev banner
@@ -149,12 +157,18 @@ jobs:
       - name: Assert no Development Version banner in built HTML
         run: |
           set -euo pipefail
-          if grep -rl "Development Version" docs/build/html >/dev/null 2>&1; then
-            echo "::error::Built HTML still contains a 'Development Version' banner. The version ref did not resolve clean."
-            grep -rl "Development Version" docs/build/html | head -5
+          # Match the banner-specific sentence from docs/source/conf.py's
+          # announcement HTML ("This documentation was built from a development
+          # version"). Do NOT grep the bare phrase "Development Version" -- it
+          # legitimately appears in installation.rst (TestPyPI dev builds) and
+          # the aggregated searchindex.js, which would be false positives.
+          BANNER_PHRASE="built from a development version"
+          if grep -rl "${BANNER_PHRASE}" docs/build/html >/dev/null 2>&1; then
+            echo "::error::Built HTML still contains the dev-version banner. The version ref did not resolve clean."
+            grep -rl "${BANNER_PHRASE}" docs/build/html | head -5
             exit 1
           fi
-          echo "OK: no Development Version banner in built HTML"
+          echo "OK: no dev-version banner in built HTML"
 
       # ----------------------------------------------------------------
       # 7. Create the off-master anchor commit (child of the source branch)

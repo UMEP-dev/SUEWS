@@ -500,6 +500,38 @@ class TestConfigFromDict:
                 "model": {"physics": {"nonexistent_param": 1}}
             })
 
+    def test_partial_update_on_sparse_yaml_config(self, tmp_path):
+        """A trivial update on a sparse YAML config must not raise.
+
+        gh#1530 review follow-up: the merge path snapshotted the full
+        config dump (with materialised default land-cover surfaces) as
+        the raw-YAML record, so the site-completeness validator treated
+        pydantic defaults as user-declared and raised unrelated errors
+        for updates like a timestep change. The original raw YAML must
+        be preserved through merge-then-revalidate.
+        """
+        import yaml
+
+        sparse = {
+            "name": "sparse",
+            "model": {"control": {"tstep": 300}},
+            "sites": [
+                {
+                    "name": "s1",
+                    "gridiv": 1,
+                    "properties": {"lat": 51.5, "lng": 0.1},
+                }
+            ],
+        }
+        path = tmp_path / "sparse.yml"
+        path.write_text(yaml.safe_dump(sparse, sort_keys=False), encoding="utf-8")
+
+        sim = SUEWSSimulation(str(path))
+        sim.update_config({"model": {"control": {"tstep": 600}}})
+
+        tstep = sim.config.model.control.tstep
+        assert int(tstep.value if hasattr(tstep, "value") else tstep) == 600
+
     def test_partial_dict_without_existing_config_raises_clearly(self):
         """A partial dict with no base config must raise an informative error.
 

@@ -2820,14 +2820,16 @@ class SUEWSConfig(BaseModel):
 
         Notes
         -----
-        Gated on ``self._yaml_path`` AND on raw-YAML presence in
-        ``self._yaml_raw``. The check fires only when:
+        Gated on raw-input presence in ``self._yaml_raw``. The check
+        fires only when:
 
-        1. The configuration was loaded from a YAML file (not a
-           programmatic ``SUEWSConfig(sites=[Site(...)])`` construction),
-           AND
+        1. The configuration was loaded from user-shaped input — a YAML
+           file via ``from_yaml`` or a dict via ``from_dict``, both of
+           which record the raw input (not a programmatic
+           ``SUEWSConfig(sites=[Site(...)])`` construction, which does
+           not), AND
         2. The site carries an explicit ``land_cover`` mapping in the raw
-           YAML. Within that block, both user-declared surface mappings
+           input. Within that block, both user-declared surface mappings
            and omitted surfaces that remain active through
            ``default_factory`` are checked. Sites that omit
            ``land_cover`` entirely are skipped.
@@ -2844,7 +2846,7 @@ class SUEWSConfig(BaseModel):
         """
         issues: List[Dict[str, str]] = []
 
-        if getattr(self, "_yaml_path", None) is None:
+        if getattr(self, "_yaml_raw", None) is None:
             return issues
 
         if not getattr(self, "sites", None):

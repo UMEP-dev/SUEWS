@@ -192,3 +192,24 @@ class TestDictInputHardening:
         config.model.control.tstep = 600
         tstep = config.model.control.tstep
         assert int(tstep.value if hasattr(tstep, "value") else tstep) == 600
+
+    def test_from_dict_runs_completeness_checks_like_yaml(
+        self, sample_config_dict, tmp_path
+    ):
+        """Dict input must hit the same site-completeness checks as YAML.
+
+        gh#1530 review follow-up: the completeness validator was gated on
+        ``_yaml_path``, so the in-memory dict path silently skipped checks
+        that the same data loaded from a file would fail.
+        """
+        from copy import deepcopy
+
+        broken = deepcopy(sample_config_dict)
+        broken["sites"][0]["properties"]["land_cover"]["grass"].pop("lai")
+
+        path = _write_yaml(tmp_path, broken)
+        with pytest.raises(ValueError):
+            SUEWSConfig.from_yaml(str(path))
+
+        with pytest.raises(ValueError):
+            SUEWSConfig.from_dict(broken)

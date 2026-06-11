@@ -183,6 +183,10 @@ class SUEWSSimulation:
                 # Merge the partial update onto the existing config, then
                 # re-validate the whole configuration so enum coercion,
                 # RefValue wrapping, and range checks all apply (gh#1530).
+                # The merged dict is the user's effective input (original
+                # explicitly-set fields plus this update), so from_dict's
+                # default raw snapshot of it is the correct record for
+                # raw-gated completeness checks.
                 merged = self._merge_config_updates(self._config, config)
                 self._config = SUEWSConfig.from_dict(
                     merged,
@@ -219,11 +223,16 @@ class SUEWSSimulation:
           ``{index: patch}``, ``{site_name: patch}``, or a single-site
           shorthand patch
         """
+        # Dump only what the user explicitly set (exclude_unset): merging
+        # onto a full dump would materialise pydantic defaults as if the
+        # user had declared them, so conditional validators gated on
+        # model_fields_set or on the raw-input snapshot (e.g. RSL/faibldg,
+        # site completeness) would fire false errors on sparse configs.
         # Internal bookkeeping keys are re-stamped by from_dict; carrying
         # them through the merge would nest snapshots inside snapshots.
         base = {
             k: v
-            for k, v in config.model_dump(exclude_none=True, mode="json").items()
+            for k, v in config.model_dump(exclude_unset=True, mode="json").items()
             if not k.startswith("_")
         }
 

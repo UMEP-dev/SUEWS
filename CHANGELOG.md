@@ -54,6 +54,23 @@ EXAMPLES:
 
 ## 2026
 
+### 11 Jun 2026
+
+- [bugfix] `SUEWSSimulation(config=dict)` and `update_config(dict)` now route through validated `SUEWSConfig` construction instead of mutating model internals by hand (#1530)
+  - Initialising from a full YAML-shaped dict previously failed with `<enum 'Enum'> cannot set attribute 'value'` or `'list' object has no attribute 'keys'`; it now behaves identically to loading the same data from a YAML file
+  - Partial update dicts are deep-merged onto the existing configuration and the result is re-validated, so enum coercion, RefValue wrapping, and range checks apply to dict input exactly as for YAML
+  - New `SUEWSConfig.from_dict()` classmethod is the single validated construction path; `from_yaml()` delegates to it
+- [change] Dict updates via `update_config()` are now strict and explicit (#1530)
+  - Unknown keys raise `ValueError` instead of being silently dropped (this previously masked no-op "updates" in two bundled tutorials, now corrected)
+  - List values (including a plain `sites` list) replace the existing list; the `{index: patch}` / `{site_name: patch}` / single-site shorthand forms for `sites` are kept, but an unmatched site name now raises when multiple sites exist (previously a silent no-op); legacy field aliases (`stabilitymethod`, `output_file`, `forcing_file`, ...) are normalised in partial updates exactly as in full input
+  - A partial dict with no existing configuration raises an informative error instead of failing later with `No objects to concatenate`
+  - Partial updates merge onto only the explicitly-set fields (`exclude_unset`), so conditional validators no longer mistake pydantic defaults for user-declared values on sparse configs
+- [change] Hardened configuration loading and mutation (#1530 follow-ups)
+  - YAML configs are now parsed with `yaml.safe_load`; `yaml.FullLoader` could construct live Python objects from tags such as `!!python/name:os.system` embedded in a config file
+  - Unknown top-level keys in a config (YAML or dict) raise `ValueError` instead of being silently retained as inert extras
+  - Site-completeness checks now apply to dict-loaded configs exactly as to YAML files (previously gated on the YAML file path, so the in-memory dict path skipped them)
+  - `validate_assignment` enabled on `SUEWSConfig`, `Model`, `ModelControl`, `ModelPhysics`, and `Site`, so direct attribute assignment is validated and coerced instead of stored raw
+
 ### 5 Jun 2026
 
 - [change][experimental] File logging is now opt-in: importing or using `supy` no longer drops an (often empty) `SuPy.log` into the current working directory (#1516)

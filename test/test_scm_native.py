@@ -239,3 +239,75 @@ def test_snapshots_and_background_round_trip(sample):
 
     res = run_scm(config, window, background=make_background(rural.snapshots))
     assert np.isfinite(res.diagnostics["tau_adv"].iloc[-1])
+
+
+# ----------------------------------------------------------------------
+# user-facing YAML configuration (model.scm)
+# ----------------------------------------------------------------------
+def test_config_block_parses_and_maps(sample):
+    from supy.scm import overrides_from_config
+
+    config, _ = sample
+    assert config.model.scm is not None  # sample config carries the block
+    ov = overrides_from_config(config.model.scm)
+    assert ov["stable_fn"] == 0
+    assert ov["dz0"] == 20.0
+    assert ov["ztop"] == 3000.0
+    assert ov["city_length"] == 15000.0
+    assert ov["substeps"] == 5
+    # mapped names are all valid run_scm parameters
+    assert set(ov) <= set(SCM_PARAM_DEFAULTS)
+
+
+def test_config_block_optional_and_round_trips(sample):
+    from supy.data_model import SUEWSConfig
+
+    config, _ = sample
+    dumped = config.model_dump(exclude_none=True, mode="json")
+    assert "scm" in dumped["model"]
+    # a config without the block parses, stays absent, and dumps without it
+    bare = dict(dumped)
+    bare["model"] = {k: v for k, v in dumped["model"].items() if k != "scm"}
+    cfg2 = SUEWSConfig(**bare)
+    assert cfg2.model.scm is None
+    assert "scm" not in cfg2.model_dump(exclude_none=True, mode="json")["model"]
+
+
+def test_config_block_validation():
+    from supy.data_model import SCMConfig
+
+    with pytest.raises(Exception):
+        SCMConfig(stability="no_such_option")
+    with pytest.raises(Exception):
+        SCMConfig(grid={"thickness_first_layer": 50.0, "height_top": 40.0})
+    with pytest.raises(Exception):
+        SCMConfig(count_substeps=0)
+
+
+def test_schema_chain_accepts_2026_5():
+    from supy.data_model.schema.version import CURRENT_SCHEMA_VERSION
+    from supy.util.converter.yaml_upgrade import _HANDLERS
+
+    assert CURRENT_SCHEMA_VERSION == "2026.6.dev1"
+    assert ("2026.5", CURRENT_SCHEMA_VERSION) in _HANDLERS
+    # additive cycle: the handler is a relabel-only migration
+    cfg = {"schema_version": "2026.5", "model": {}}
+    out = _HANDLERS[("2026.5", CURRENT_SCHEMA_VERSION)](dict(cfg))
+    assert out["model"] == {}
+
+
+@needs_native
+def test_run_scm_honours_config_block_with_kwarg_precedence(sample):
+    config, df_forcing = sample
+    window = df_forcing.loc["2012-07-01 00:05":"2012-07-01 01:00"]
+
+    cfg = config.model_copy(deep=True)
+    cfg.model.scm.stability = "long_tail"
+    cfg.model.scm.count_substeps = 2
+    res = run_scm(cfg, window)  # config-sourced parameters
+    assert np.isfinite(res.diagnostics["tair_mod"]).all()
+
+    # keyword overrides beat the config block (invalid override proves
+    # the merged path is the one validated)
+    with pytest.raises(ValueError):
+        run_scm(cfg, window, substeps=0)

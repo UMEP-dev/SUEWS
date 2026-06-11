@@ -131,7 +131,41 @@ _PARAM_ORDER = [
 
 _MAX_GRID_LEVELS = 500
 
+# YAML surface (data_model.core.scm.SCMConfig field) -> internal parameter
+# name. The YAML names follow the SUEWS naming convention; the internal
+# names match the Fortran parameter-vector layout.
+_CONFIG_FIELD_MAP = {
+    "height_mixed_layer_init": "h_init",
+    "lapse_rate_theta": "gamma_theta",
+    "lapse_rate_humidity": "gamma_q",
+    "height_nudging_free_atmosphere": "z_ft_nudge",
+    "timescale_nudging_free_atmosphere": "tau_ft",
+    "timescale_wind_nudging": "tau_wind",
+    "rate_radiative_cooling": "radiative_cooling",
+    "length_city": "city_length",
+    "timescale_ventilation_min": "tau_adv_min",
+    "timescale_obs_anchor": "obs_anchor_tau",
+    "count_substeps": "substeps",
+    "z0m_wind_profile": "z0m_wind",
+}
+
 SCM_DIAG_COLS = ["tair_mod", "rh_mod", "u_mod", "h_bl", "wth", "wq", "tau_adv"]
+
+
+def overrides_from_config(scm_config):
+    """Translate a ``model.scm`` configuration block (the user-facing YAML
+    surface, :class:`supy.data_model.SCMConfig`) into the internal
+    parameter names accepted by :func:`run_scm`."""
+    out = {}
+    stab = scm_config.stability
+    stab = stab.value if hasattr(stab, "value") else str(stab)
+    out["stable_fn"] = 1 if stab == "long_tail" else 0
+    out["dz0"] = float(scm_config.grid.thickness_first_layer)
+    out["ztop"] = float(scm_config.grid.height_top)
+    out["stretch"] = float(scm_config.grid.ratio_stretch)
+    for yaml_name, internal in _CONFIG_FIELD_MAP.items():
+        out[internal] = getattr(scm_config, yaml_name)
+    return out
 
 
 @dataclass
@@ -341,6 +375,14 @@ def run_scm(
     **scm_overrides
         Any :data:`SCM_PARAM_DEFAULTS` key; values are validated.
 
+    Notes
+    -----
+    Parameter precedence: documented defaults < the ``model.scm`` block of
+    the configuration (when ``config`` is a
+    :class:`~supy.data_model.SUEWSConfig` carrying one) < keyword
+    overrides. When ``config`` is given as a raw YAML string the
+    ``model.scm`` block is not interpreted; use keyword overrides.
+
     Returns
     -------
     ScmResult
@@ -373,6 +415,11 @@ def run_scm(
             sort_keys=False,
             Dumper=_yaml_Dumper,
         )
+        # the user-facing model.scm block supplies parameter defaults;
+        # explicit keyword overrides win
+        scm_block = getattr(getattr(config, "model", None), "scm", None)
+        if scm_block is not None:
+            scm_overrides = {**overrides_from_config(scm_block), **scm_overrides}
 
     if background is not None:
         bg_t, bg_z, bg_theta, bg_q = background_arrays(background, df_forcing.index[0])

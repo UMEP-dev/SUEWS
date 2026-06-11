@@ -13,6 +13,9 @@ See README.md for detailed unit conventions and usage examples.
 
 # Import everything from core module
 from .core import (
+    SCMConfig,
+    SCMGridConfig,
+    SCMStability,
     # Configuration
     SUEWSConfig,
     init_config_from_yaml,
@@ -73,6 +76,9 @@ except ImportError:
 __all__ = [
     # Configuration
     "SUEWSConfig",
+    "SCMConfig",
+    "SCMGridConfig",
+    "SCMStability",
     "init_config_from_yaml",
     # Core models
     "Site",

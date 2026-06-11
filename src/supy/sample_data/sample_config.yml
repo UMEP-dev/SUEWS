@@ -1,7 +1,25 @@
 name: sample_config
-schema_version: '2026.5'
+schema_version: '2026.6.dev1'
 description: Sample configuration built from benchmark 1a (Ward et al. 2016) model configuration
 model:
+  scm: # coupled single-column model (research preview; used by supy.scm.run_scm)
+    stability: sharp # 'long_tail' required for runs crossing seasons
+    grid:
+      thickness_first_layer: 20.0 # [m]
+      height_top: 3000.0 # [m]
+      ratio_stretch: 1.06
+    height_mixed_layer_init: 300.0 # [m]
+    lapse_rate_theta: 0.006 # [K m-1]
+    lapse_rate_humidity: -5.0e-07 # [kg kg-1 m-1]
+    height_nudging_free_atmosphere: 1500.0 # [m]
+    timescale_nudging_free_atmosphere: 86400.0 # [s]
+    timescale_wind_nudging: 1800.0 # [s]
+    rate_radiative_cooling: 2.0 # [K day-1] clear-sky longwave divergence
+    length_city: 15000.0 # [m] upstream fetch; tau_ventilation = length_city / U
+    timescale_ventilation_min: 900.0 # [s]
+    timescale_obs_anchor: 0.0 # [s] synoptic anchor; 0 = off (rural companion: 86400)
+    count_substeps: 5
+    z0m_wind_profile: 1.0 # [m]
   control:
     tstep: 300
     start_time: "2011-01-01"

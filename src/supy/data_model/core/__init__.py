@@ -16,6 +16,7 @@ from .site import (
     GrassProperties,
 )
 from .model import Model, ModelPhysics, ModelControl
+from .scm import SCMConfig, SCMGridConfig, SCMStability
 from .surface import (
     SurfaceProperties,
     PavedProperties,

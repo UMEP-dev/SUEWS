@@ -180,6 +180,26 @@ The sections below summarise what users see change between schemas.
 The authoritative lineage (including release-tag to schema mapping)
 lives in :ref:`schema_version_history`.
 
+Schema ``2026.6.dev1`` (development): optional SCM block
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The current development cycle adds one **optional** section — nothing
+existing changes. ``model.scm`` configures the coupled single-column
+model (research preview; see :doc:`/integration/scm-coupled`): the
+stability function (``sharp`` / ``long_tail``), the column grid,
+initial-profile lapse rates, nudging / ventilation / synoptic-anchor
+time scales and the substep count used by ``supy.scm.run_scm``.
+
+No action is needed: a ``2026.5`` configuration remains valid as-is and
+upgrades by relabelling alone —
+
+.. code-block:: bash
+
+   suews schema migrate your_config.yml
+
+Configurations without the block keep the documented SCM defaults; the
+block does not affect standard (offline) SUEWS runs.
+
 Upgrading to Schema 2026.5
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 

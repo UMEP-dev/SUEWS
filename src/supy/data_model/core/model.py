@@ -21,6 +21,7 @@ from .physics_families import (
     fold_stebbs_public_key_aliases,
 )
 from .physics_orthogonal import coerce_orthogonal_to_flat, fold_storage_heat_ohm_inc_qf
+from .scm import SCMConfig
 from .type import FlexibleRefValue, Reference, RefValue, df_from_cols
 
 
@@ -1502,6 +1503,15 @@ class Model(BaseModel):
     physics: ModelPhysics = Field(
         default_factory=ModelPhysics,
         description="Model physics parameters including surface properties, coefficients, etc.",
+    )
+    scm: Optional[SCMConfig] = Field(
+        default=None,
+        description=(
+            "Coupled single-column model configuration (research preview). "
+            "Consumed by supy.scm.run_scm as the parameter source; has no "
+            "DataFrame-state representation and does not affect standard "
+            "offline runs."
+        ),
     )
 
     def to_df_state(self, grid_id: int) -> pd.DataFrame:

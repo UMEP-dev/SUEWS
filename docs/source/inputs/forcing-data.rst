@@ -122,7 +122,7 @@ Where:
 Named-column forcing files (gh#1372)
 ------------------------------------
 
-Since schema 2026.5.dev7, SUEWS reads forcing files by **column name**,
+Since schema 2026.5, SUEWS reads forcing files by **column name**,
 not by column position. The header line is required and its content is
 matched, case-insensitively, against the canonical column list above.
 
@@ -222,7 +222,7 @@ YAML Configuration
 ------------------
 
 In your YAML configuration, specify the forcing file(s) under the
-``forcing`` sub-object (schema 2026.5.dev7 onwards; see
+``forcing`` sub-object (schema 2026.5 onwards; see
 :ref:`transition_guide` for the rename of the legacy
 ``model.control.forcing_file`` key):
 

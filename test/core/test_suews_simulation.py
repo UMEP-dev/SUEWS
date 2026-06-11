@@ -406,7 +406,7 @@ class TestConfigFromDict:
         import yaml
 
         yaml_path = files("supy").joinpath("sample_data/sample_config.yml")
-        return yaml.safe_load(yaml_path.read_text())
+        return yaml.safe_load(yaml_path.read_text(encoding="utf-8"))
 
     @pytest.fixture
     def sim_from_yaml(self):

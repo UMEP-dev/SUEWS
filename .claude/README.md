@@ -36,6 +36,7 @@ This directory contains all Claude Code-specific documentation, plans, and confi
 │   ├── setup-dev/         # Environment setup guide
 │   ├── start-work/        # Workflow selector & launcher
 │   ├── sync-docs/         # Doc-code consistency
+│   ├── republish-docs/    # Republish/revise released docs (clean anchor)
 │   ├── verify-build/      # Build config checks
 │   └── queue-pr/         # PR coordination and merge queue preflight
 │
@@ -84,6 +85,7 @@ Skills perform specific workflows when invoked via `/skill-name`. Each skill has
 - `/prep-release` - Prepare release
 - `/setup-dev` - Set up development environment
 - `/sync-docs` - Check doc-code consistency
+- `/republish-docs` - Republish/revise docs for an already-released version (move tag to a clean anchor)
 - `/verify-build` - Verify build configuration
 - `/queue-pr` - Coordinate PRs before merge queue
 

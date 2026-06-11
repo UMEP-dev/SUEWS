@@ -33,6 +33,7 @@ Full setup: `/setup-dev` | Style check: `/lint-code` | Build check: `/verify-bui
 - `/setup-dev` - Environment setup
 - `/lint-code` - Check code style
 - `/sync-docs` - Doc-code consistency
+- `/republish-docs` - Republish/revise released docs (move tag to clean anchor)
 - `/verify-build` - Build configuration
 - `/audit-pr` - Review pull requests
 - `/queue-pr` - Coordinate PRs before merge queue

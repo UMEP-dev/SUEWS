@@ -37,11 +37,14 @@ creates an off-master anchor commit, and force-moves the tag onto it. Do **not**
 point a release tag at the `rtd` branch HEAD directly — its HTML carries the
 dev banner.
 
-**Manual check** (after RTD rebuilds the moved tag):
+**Manual check** (after RTD rebuilds the moved tag). Grep the banner-specific
+sentence, not the bare phrase "Development Version" -- the latter legitimately
+appears in `installation.rst` (TestPyPI dev builds) and `searchindex.js`:
 
 ```bash
-# Should print nothing for the stable/release build
-curl -fsSL https://docs.suews.io/stable/inputs/forcing-data.html | grep -c "Development Version"
+# Should print 0 for the stable/release build
+curl -fsSL https://docs.suews.io/stable/inputs/forcing-data.html \
+  | grep -c "built from a development version"
 ```
 
 ### 2. No `.dev` in user-facing schema labels

@@ -172,7 +172,39 @@ def _strip_internal_fields(data, model_cls):
 class SUEWSConfig(BaseModel):
     """Main SUEWS configuration."""
 
-    model_config = ConfigDict(title="SUEWS Configuration", extra="allow")
+    # extra="allow" exists solely for the private bookkeeping keys below;
+    # user-facing unknown keys are rejected by _reject_unknown_top_level_keys.
+    model_config = ConfigDict(
+        title="SUEWS Configuration",
+        extra="allow",
+        validate_assignment=True,
+    )
+
+    @model_validator(mode="before")
+    @classmethod
+    def _reject_unknown_top_level_keys(cls, values):
+        """Reject unknown top-level keys instead of silently retaining them.
+
+        gh#1530 follow-up: with ``extra="allow"`` a typo such as ``site:``
+        would be kept as an inert extra attribute and the user's data
+        silently ignored. Underscore-prefixed keys are the reserved internal
+        bookkeeping namespace (``_yaml_path``, ``_auto_generate_annotated``,
+        ``_yaml_raw``, ``_validation_summary``) and round-trip freely.
+        """
+        if isinstance(values, dict):
+            unknown = [
+                key
+                for key in values
+                if key not in cls.model_fields
+                and not str(key).startswith("_")
+            ]
+            if unknown:
+                valid = ", ".join(sorted(cls.model_fields))
+                raise ValueError(
+                    f"Unknown top-level configuration key(s): "
+                    f"{', '.join(map(repr, unknown))}. Valid keys: {valid}"
+                )
+        return values
 
     name: str = Field(
         default="sample config",
@@ -4335,7 +4367,7 @@ class SUEWSConfig(BaseModel):
             SUEWSConfig: Instance of SUEWSConfig initialized from YAML
         """
         with open(path, "r", encoding="utf-8") as file:
-            config_data = yaml.load(file, Loader=yaml.FullLoader)
+            config_data = yaml.safe_load(file)
 
         return cls.from_dict(
             config_data,

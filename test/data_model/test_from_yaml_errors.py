@@ -62,9 +62,7 @@ class TestFromYamlDriftHints:
         """
         # ARRANGE
         drifted = dict(sample_config_dict)
-        drifted["sites"][0]["properties"][
-            "removed_field_from_old_release"
-        ] = 42
+        drifted["sites"][0]["properties"]["removed_field_from_old_release"] = 42
         path = _write_yaml(tmp_path, drifted)
 
         # ACT / ASSERT
@@ -121,9 +119,7 @@ class TestFromYamlDriftHints:
         message = str(excinfo.value)
         assert "Detected schema version: 2025.12" in message
 
-    def test_unsigned_yaml_hint_requests_from_ver(
-        self, sample_config_dict, tmp_path
-    ):
+    def test_unsigned_yaml_hint_requests_from_ver(self, sample_config_dict, tmp_path):
         """Unsigned YAMLs must not be told to run the bare suews-convert command.
 
         The CLI rejects unsigned YAMLs unless `-f/--from` is supplied, so
@@ -145,3 +141,54 @@ class TestFromYamlDriftHints:
         assert "No schema_version field in YAML" in message
         assert "-f <release-tag>" in message
         assert f"Detected schema version: {CURRENT_SCHEMA_VERSION}" not in message
+
+
+class TestDictInputHardening:
+    """gh#1530 follow-ups: safe YAML loading and loud unknown-key handling."""
+
+    def test_from_yaml_rejects_python_object_tags(self, sample_config_dict, tmp_path):
+        """from_yaml must not construct arbitrary Python objects from tags.
+
+        yaml.FullLoader resolves ``!!python/name:os.system`` to the live
+        function; safe loading must reject the tag at parse time instead.
+        """
+        tagged = dict(sample_config_dict)
+        tagged["description"] = "PLACEHOLDER_FOR_TAG"
+        path = _write_yaml(tmp_path, tagged)
+        text = path.read_text(encoding="utf-8")
+        path.write_text(
+            text.replace("PLACEHOLDER_FOR_TAG", "!!python/name:os.system"),
+            encoding="utf-8",
+        )
+
+        with pytest.raises(yaml.YAMLError):
+            SUEWSConfig.from_yaml(str(path))
+
+    def test_unknown_top_level_key_raises(self, sample_config_dict):
+        """Unknown top-level keys must raise, not be silently retained."""
+        drifted = dict(sample_config_dict)
+        drifted["stray_key"] = 1
+
+        with pytest.raises(ValueError, match="stray_key"):
+            SUEWSConfig.from_dict(drifted)
+
+    def test_internal_bookkeeping_keys_accepted(self, sample_config_dict, tmp_path):
+        """The private _yaml_* keys must keep working through from_yaml."""
+        path = _write_yaml(tmp_path, sample_config_dict)
+        config = SUEWSConfig.from_yaml(str(path))
+        assert getattr(config, "_yaml_path", None) == str(path)
+
+    def test_assignment_is_validated(self, sample_config_dict):
+        """Direct attribute assignment must be validated, not stored raw."""
+        config = SUEWSConfig.from_dict(sample_config_dict)
+
+        with pytest.raises(ValueError):
+            config.model.physics.net_radiation = "not_a_method"
+
+        with pytest.raises(ValueError):
+            config.sites = "not a list"
+
+        # Valid assignments still coerce and succeed
+        config.model.control.tstep = 600
+        tstep = config.model.control.tstep
+        assert int(tstep.value if hasattr(tstep, "value") else tstep) == 600

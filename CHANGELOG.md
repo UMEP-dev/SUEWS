@@ -64,6 +64,10 @@ EXAMPLES:
   - Unknown keys raise `ValueError` instead of being silently dropped (this previously masked no-op "updates" in two bundled tutorials, now corrected)
   - List values (including a plain `sites` list) replace the existing list; the `{index: patch}` / `{site_name: patch}` / single-site shorthand forms for `sites` are unchanged
   - A partial dict with no existing configuration raises an informative error instead of failing later with `No objects to concatenate`
+- [change] Hardened configuration loading and mutation (#1530 follow-ups)
+  - YAML configs are now parsed with `yaml.safe_load`; `yaml.FullLoader` could construct live Python objects from tags such as `!!python/name:os.system` embedded in a config file
+  - Unknown top-level keys in a config (YAML or dict) raise `ValueError` instead of being silently retained as inert extras
+  - `validate_assignment` enabled on `SUEWSConfig`, `Model`, `ModelControl`, `ModelPhysics`, and `Site`, so direct attribute assignment is validated and coerced instead of stored raw
 
 ### 5 Jun 2026
 

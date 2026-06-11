@@ -389,6 +389,129 @@ class TestConfigSitesUpdate:
         )
 
 
+class TestConfigFromDict:
+    """Regression tests for gh#1530: dict configs must use validated construction.
+
+    ``SUEWSSimulation(config=dict)`` and ``update_config(dict)`` must route
+    through the validated ``SUEWSConfig`` path rather than mutating model
+    internals by hand, so enum coercion, RefValue wrapping, and range checks
+    all apply to dict input exactly as they do to YAML files.
+    """
+
+    pytestmark = pytest.mark.cfg
+
+    @pytest.fixture
+    def sample_config_dict(self):
+        """Full configuration dict, as a user would get from yaml.safe_load."""
+        import yaml
+
+        yaml_path = files("supy").joinpath("sample_data/sample_config.yml")
+        return yaml.safe_load(yaml_path.read_text())
+
+    @pytest.fixture
+    def sim_from_yaml(self):
+        """Simulation loaded from the bundled sample YAML."""
+        yaml_path = files("supy").joinpath("sample_data/sample_config.yml")
+        return SUEWSSimulation(str(yaml_path))
+
+    def test_init_from_full_config_dict(self, sample_config_dict):
+        """Constructor must accept a full YAML-shaped dict (gh#1530)."""
+        sim = SUEWSSimulation(sample_config_dict)
+
+        assert sim.config is not None
+        assert sim._df_state_init is not None
+        assert len(sim.config.sites) == 1
+
+    def test_full_dict_equivalent_to_yaml(self, sample_config_dict, sim_from_yaml):
+        """Dict and YAML construction must produce the same initial state."""
+        sim_dict = SUEWSSimulation(sample_config_dict)
+
+        pd.testing.assert_frame_equal(
+            sim_dict._df_state_init,
+            sim_from_yaml._df_state_init,
+            check_dtype=False,
+        )
+
+    def test_update_config_full_dict_on_empty_sim(self, sample_config_dict):
+        """update_config with a full dict must work without a prior config."""
+        sim = SUEWSSimulation()
+        sim.update_config(sample_config_dict)
+
+        assert sim.config is not None
+        assert sim._df_state_init is not None
+
+    def test_update_config_int_enum_revalidated(self, sim_from_yaml):
+        """A raw int for an enum field must be coerced, not stored verbatim."""
+        from supy.data_model import RefValue
+        from supy.data_model.core.model import NetRadiationMethod
+
+        sim_from_yaml.update_config({"model": {"physics": {"net_radiation": 1}}})
+
+        nr = sim_from_yaml.config.model.physics.net_radiation
+        inner = nr.value if isinstance(nr, RefValue) else nr
+        assert isinstance(inner, NetRadiationMethod), (
+            f"Expected validated enum, got {type(inner).__name__}: {inner!r}"
+        )
+        assert int(inner) == 1
+        # State regeneration must still work after the update
+        assert sim_from_yaml._df_state_init is not None
+
+    def test_update_config_refvalue_enum_dict(self, sim_from_yaml):
+        """A RefValue-style {'value': N} enum update must coerce to the enum."""
+        from supy.data_model import RefValue
+        from supy.data_model.core.model import NetRadiationMethod
+
+        sim_from_yaml.update_config({
+            "model": {"physics": {"net_radiation": {"value": 3}}}
+        })
+
+        nr = sim_from_yaml.config.model.physics.net_radiation
+        inner = nr.value if isinstance(nr, RefValue) else nr
+        assert isinstance(inner, NetRadiationMethod), (
+            f"Expected validated enum, got {type(inner).__name__}: {inner!r}"
+        )
+        assert int(inner) == 3
+
+    def test_update_config_sites_as_list(self, sim_from_yaml):
+        """A plain list for sites must replace the sites list (gh#1530 comment)."""
+        site_dict = sim_from_yaml.config.sites[0].model_dump(
+            exclude_none=True, mode="json"
+        )
+        site_dict["name"] = "ReplacedSite"
+
+        sim_from_yaml.update_config({"sites": [site_dict]})
+
+        assert len(sim_from_yaml.config.sites) == 1
+        assert sim_from_yaml.config.sites[0].name == "ReplacedSite"
+
+    def test_update_config_plain_list_field(self, sim_from_yaml):
+        """List-valued fields other than sites must be updatable."""
+        sim_from_yaml.update_config({
+            "model": {"control": {"output": {"groups": ["SUEWS", "DailyState"]}}}
+        })
+
+        groups = sim_from_yaml.config.model.control.output.groups
+        assert list(groups) == ["SUEWS", "DailyState"]
+
+    def test_update_config_unknown_key_raises(self, sim_from_yaml):
+        """Unknown keys in an update dict must raise, not vanish silently."""
+        with pytest.raises((ValueError, KeyError)):
+            sim_from_yaml.update_config({
+                "model": {"physics": {"nonexistent_param": 1}}
+            })
+
+    def test_partial_dict_without_existing_config_raises_clearly(self):
+        """A partial dict with no base config must raise an informative error.
+
+        Previously this produced a cryptic downstream failure
+        (``No objects to concatenate``) from ``to_df_state`` on a site-less
+        default config (gh#1530 comment).
+        """
+        sim = SUEWSSimulation()
+        with pytest.raises(ValueError, match="site"):
+            sim.update_config({"model": {"control": {"tstep": 600}}})
+
+
 class TestForcing:
     """Test forcing data loading."""
 

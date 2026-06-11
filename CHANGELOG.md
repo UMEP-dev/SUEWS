@@ -54,6 +54,17 @@ EXAMPLES:
 
 ## 2026
 
+### 11 Jun 2026
+
+- [bugfix] `SUEWSSimulation(config=dict)` and `update_config(dict)` now route through validated `SUEWSConfig` construction instead of mutating model internals by hand (#1530)
+  - Initialising from a full YAML-shaped dict previously failed with `<enum 'Enum'> cannot set attribute 'value'` or `'list' object has no attribute 'keys'`; it now behaves identically to loading the same data from a YAML file
+  - Partial update dicts are deep-merged onto the existing configuration and the result is re-validated, so enum coercion, RefValue wrapping, and range checks apply to dict input exactly as for YAML
+  - New `SUEWSConfig.from_dict()` classmethod is the single validated construction path; `from_yaml()` delegates to it
+- [change] Dict updates via `update_config()` are now strict and explicit (#1530)
+  - Unknown keys raise `ValueError` instead of being silently dropped (this previously masked no-op "updates" in two bundled tutorials, now corrected)
+  - List values (including a plain `sites` list) replace the existing list; the `{index: patch}` / `{site_name: patch}` / single-site shorthand forms for `sites` are unchanged
+  - A partial dict with no existing configuration raises an informative error instead of failing later with `No objects to concatenate`
+
 ### 5 Jun 2026
 
 - [change][experimental] File logging is now opt-in: importing or using `supy` no longer drops an (often empty) `SuPy.log` into the current working directory (#1516)

@@ -4337,14 +4337,51 @@ class SUEWSConfig(BaseModel):
         with open(path, "r", encoding="utf-8") as file:
             config_data = yaml.load(file, Loader=yaml.FullLoader)
 
-        # Snapshot the raw user YAML so site-level completeness checks can
+        return cls.from_dict(
+            config_data,
+            use_conditional_validation=use_conditional_validation,
+            strict=strict,
+            auto_generate_annotated=auto_generate_annotated,
+            yaml_path=path,
+        )
+
+    @classmethod
+    def from_dict(
+        cls,
+        config_data: dict,
+        use_conditional_validation: bool = True,
+        strict: bool = True,
+        auto_generate_annotated: bool = False,
+        yaml_path: Optional[str] = None,
+    ) -> "SUEWSConfig":
+        """Initialize SUEWSConfig from a configuration dict with validation.
+
+        This is the single validated construction path for dict input
+        (gh#1530); ``from_yaml`` delegates here after reading the file.
+
+        Args:
+            config_data (dict): Configuration data, YAML-shaped.
+            use_conditional_validation (bool): Whether to use conditional validation
+            strict (bool): If True, raise errors on validation failure
+            auto_generate_annotated (bool): If True, automatically generate annotated YAML when validation issues found
+            yaml_path (str, optional): Source YAML path, when loaded from a file.
+
+        Returns:
+            SUEWSConfig: Validated instance of SUEWSConfig
+        """
+        # Work on a copy so the caller's dict is never mutated (validators
+        # such as the legacy output_file coercion pop keys in place).
+        config_data = deepcopy(config_data)
+
+        # Snapshot the raw user input so site-level completeness checks can
         # distinguish user-declared surfaces from pydantic-factory defaults
         # (gh#1333 follow-up). Deep-copied so later mutations of
         # ``config_data`` do not bleed into the validator's view.
         yaml_raw_snapshot = deepcopy(config_data)
 
-        # Store yaml path in config data for later use
-        config_data["_yaml_path"] = path
+        # Store source path (if any) in config data for later use
+        if yaml_path is not None:
+            config_data["_yaml_path"] = yaml_path
         config_data["_auto_generate_annotated"] = auto_generate_annotated
         config_data["_yaml_raw"] = yaml_raw_snapshot
 

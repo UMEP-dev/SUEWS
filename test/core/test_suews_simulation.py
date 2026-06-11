@@ -631,6 +631,22 @@ class TestConfigFromDict:
         assert int(tstep.value if hasattr(tstep, "value") else tstep) == 300
         assert getattr(tstep, "ref", None) is not None
 
+    def test_update_config_refvalue_tstep_with_output_freq(self, sim_from_yaml):
+        """RefValue-style tstep updates must work with output.freq set.
+
+        gh#1530 review follow-up: validate_model_output_config computed
+        ``freq % tstep`` without unwrapping a RefValue-wrapped tstep,
+        so a documented RefValue patch raised TypeError-as-schema-drift
+        whenever an output frequency was configured.
+        """
+        sim_from_yaml.update_config({"model": {"control": {"output": {"freq": 3600}}}})
+        sim_from_yaml.update_config({
+            "model": {"control": {"tstep": {"value": 300, "ref": {"desc": "doc"}}}}
+        })
+
+        tstep = sim_from_yaml.config.model.control.tstep
+        assert int(tstep.value if hasattr(tstep, "value") else tstep) == 300
+
     def test_partial_dict_without_existing_config_raises_clearly(self):
         """A partial dict with no base config must raise an informative error.
 

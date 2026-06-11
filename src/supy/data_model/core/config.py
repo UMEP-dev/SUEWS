@@ -498,7 +498,10 @@ class SUEWSConfig(BaseModel):
                     f"Output frequency must be positive, got {output_control.freq}s"
                 )
 
+            # tstep is FlexibleRefValue: unwrap a RefValue form before the
+            # modulo check (gh#1530 follow-up)
             tstep = self.model.control.tstep
+            tstep = getattr(tstep, "value", tstep)
             if output_control.freq % tstep != 0:
                 raise ValueError(
                     f"Output frequency ({output_control.freq}s) must be a multiple of timestep ({tstep}s)"

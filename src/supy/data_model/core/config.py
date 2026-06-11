@@ -127,6 +127,20 @@ def _get_basemodel_type(annotation):
     return None
 
 
+def _assign_trusted(model_obj, field, value):
+    """Assign a field without triggering validate_assignment.
+
+    Named validation bypass for the legacy df_state -> config
+    reconstruction (``from_df_state``): that path predates validation and
+    must keep accepting raw values that cross-field validators would
+    reject (users mutate df_state directly in the deprecated DataFrame
+    workflow). Keeps ``model_fields_set`` accurate so ``exclude_unset``
+    dumps still include the assigned fields.
+    """
+    object.__setattr__(model_obj, field, value)
+    model_obj.__pydantic_fields_set__.add(field)
+
+
 def _strip_internal_fields(data, model_cls):
     """Recursively remove fields marked with internal_only=True from a model_dump dict.
 
@@ -4627,35 +4641,37 @@ class SUEWSConfig(BaseModel):
 
             # Set site properties
             site_properties = SiteProperties.from_df_state(df, grid_id)
-            site.properties = site_properties
+            _assign_trusted(site, "properties", site_properties)
 
             # Set initial states
             initial_states = InitialStates.from_df_state(df, grid_id)
-            site.initial_states = initial_states
+            _assign_trusted(site, "initial_states", initial_states)
 
             sites.append(site)
 
         # Update config with reconstructed data
-        config.sites = sites
+        _assign_trusted(config, "sites", sites)
 
         # Reconstruct model
-        config.model = Model.from_df_state(df, grid_ids[0])
+        _assign_trusted(config, "model", Model.from_df_state(df, grid_ids[0]))
 
         # Set name and description, using defaults if columns don't exist
         if ("config", "0") in df.columns:
-            config.name = df.loc[grid_ids[0], ("config", "0")]
+            _assign_trusted(config, "name", df.loc[grid_ids[0], ("config", "0")])
         elif "config" in df.columns:
-            config.name = df["config"].iloc[0]
+            _assign_trusted(config, "name", df["config"].iloc[0])
         else:
-            config.name = "Converted from legacy format"
+            _assign_trusted(config, "name", "Converted from legacy format")
 
         if ("description", "0") in df.columns:
-            config.description = df.loc[grid_ids[0], ("description", "0")]
+            _assign_trusted(config, "description", df.loc[grid_ids[0], ("description", "0")])
         elif "description" in df.columns:
-            config.description = df["description"].iloc[0]
+            _assign_trusted(config, "description", df["description"].iloc[0])
         else:
-            config.description = (
-                "Configuration converted from legacy SUEWS table format"
+            _assign_trusted(
+                config,
+                "description",
+                "Configuration converted from legacy SUEWS table format",
             )
 
         return config

@@ -42,8 +42,6 @@ MODULE module_phys_spartacus
    USE, INTRINSIC :: ieee_arithmetic, ONLY: IEEE_IS_NAN
 
    IMPLICIT NONE
-   INTEGER :: debug_call_count = 0
-
 CONTAINS
    SUBROUTINE SPARTACUS_Initialise
       USE module_ctrl_const_datain, ONLY: fileinputpath
@@ -74,18 +72,51 @@ CONTAINS
       invalid_real = IEEE_IS_NAN(value) .OR. value /= value
    END FUNCTION invalid_real
 
+   FUNCTION interp_profile_z(z_x, z, v) RESULT(v_x)
+      REAL(KIND(1D0)), INTENT(IN) :: z_x
+      REAL(KIND(1D0)), DIMENSION(:), INTENT(IN) :: z
+      REAL(KIND(1D0)), DIMENSION(:), INTENT(IN) :: v
+      REAL(KIND(1D0)) :: v_x
+      REAL(KIND(1D0)) :: dz
+      INTEGER :: i
+      INTEGER :: n
+
+      n = SIZE(z)
+      v_x = 0D0
+      IF (n < 1 .OR. SIZE(v) /= n) RETURN
+      IF (z_x <= z(1)) THEN
+         v_x = v(1)
+      ELSE IF (z_x >= z(n)) THEN
+         v_x = v(n)
+      ELSE
+         DO i = 1, n - 1
+            IF (z_x >= z(i) .AND. z_x <= z(i + 1)) THEN
+               dz = z(i + 1) - z(i)
+               IF (ABS(dz) <= eps_fp) THEN
+                  v_x = v(i)
+               ELSE
+                  v_x = v(i) + (z_x - z(i))*(v(i + 1) - v(i))/dz
+               END IF
+               RETURN
+            END IF
+         END DO
+         v_x = v(n)
+      END IF
+   END FUNCTION interp_profile_z
+
    SUBROUTINE SPARTACUS( &
       DiagQN, & !input:
       sfr_surf, zenith_deg, nlayer, & !input:
       tsfc_surf, tsfc_roof, tsfc_wall, &
-      kdown, ldown, Tair_C, alb_surf, emis_surf, LAI_id, &
+      kdown, ldown, Tair_C, rsl_z, rsl_t_C, alb_surf, emis_surf, LAI_id, &
       n_vegetation_region_urban, &
       n_stream_sw_urban, n_stream_lw_urban, &
       sw_dn_direct_frac, air_ext_sw, air_ssa_sw, &
       veg_ssa_sw, air_ext_lw, air_ssa_lw, veg_ssa_lw, &
       veg_fsd_const, veg_contact_fraction_const, &
       ground_albedo_dir_mult_fact, use_sw_direct_albedo, &
-      height, building_frac, veg_frac, sfr_roof, sfr_wall, &
+      height, bldgH, sfr_evetr, sfr_dectr, EveTreeH, DecTreeH, &
+      building_frac, veg_frac, sfr_roof, sfr_wall, &
       building_scale, veg_scale, & !input:
       alb_roof, emis_roof, alb_wall, emis_wall, &
       roof_albedo_dir_mult_fact, wall_specular_frac, &
@@ -119,6 +150,8 @@ CONTAINS
       ! TODO: tsurf_0 and temp_C need to be made vertically distributed
       REAL(KIND(1D0)), DIMENSION(nlayer), INTENT(IN) :: tsfc_roof, tsfc_wall
       REAL(KIND(1D0)), INTENT(IN) :: Tair_C
+      REAL(KIND(1D0)), DIMENSION(:), INTENT(IN) :: rsl_z
+      REAL(KIND(1D0)), DIMENSION(:), INTENT(IN) :: rsl_t_C
 
       REAL(KIND(1D0)), INTENT(IN) :: kdown
       REAL(KIND(1D0)), INTENT(IN) :: ldown
@@ -216,6 +249,7 @@ CONTAINS
       REAL(KIND(1D0)), DIMENSION(nlayer) :: tsfc_roof_K, tsfc_wall_K
       REAL(KIND(1D0)), DIMENSION(nsurf) :: tsfc_surf_K
       REAL(KIND(1D0)) :: tair_K
+      REAL(KIND(1D0)) :: tair_veg_K
       ! top-of-canopy diffuse sw downward
 
       REAL(KIND(1D0)) :: ground_frac_spc, surface_frac_sum
@@ -234,6 +268,11 @@ CONTAINS
       LOGICAL, INTENT(IN) :: use_sw_direct_albedo
 
       REAL(KIND(1D0)), DIMENSION(nlayer + 1), INTENT(IN) :: height
+      REAL(KIND(1D0)), INTENT(IN) :: bldgH
+      REAL(KIND(1D0)), INTENT(IN) :: sfr_evetr
+      REAL(KIND(1D0)), INTENT(IN) :: sfr_dectr
+      REAL(KIND(1D0)), INTENT(IN) :: EveTreeH
+      REAL(KIND(1D0)), INTENT(IN) :: DecTreeH
       REAL(KIND(1D0)), DIMENSION(nlayer), INTENT(IN) :: building_frac ! cumulative building fraction at each layer
       REAL(KIND(1D0)), DIMENSION(nlayer), INTENT(IN) :: veg_frac
       REAL(KIND(1D0)), DIMENSION(nlayer), INTENT(IN) :: sfr_roof ! individual surface fraction of roofs at each layer
@@ -253,62 +292,61 @@ CONTAINS
       REAL(KIND(1D0)), DIMENSION(nspec, nlayer) :: roof_emissivity
       REAL(KIND(1D0)), DIMENSION(nspec, nlayer) :: wall_emissivity
       REAL(KIND(1D0)), DIMENSION(nlayer) :: veg_fsd, veg_contact_fraction
-      ! INTEGER :: i
-      ! REAL(KIND(1D0)) :: debug1, debug2
+      REAL(KIND(1D0)) :: bldgH_use
+      REAL(KIND(1D0)) :: EveTreeH_use
+      REAL(KIND(1D0)) :: DecTreeH_use
+      REAL(KIND(1D0)) :: sfr_evetr_use
+      REAL(KIND(1D0)) :: sfr_dectr_use
+      REAL(KIND(1D0)) :: tree_frac_sum
+      REAL(KIND(1D0)) :: veg_air_height
+      REAL(KIND(1D0)) :: Tair_hbh_C
+      REAL(KIND(1D0)) :: Tair_veg_C
+      LOGICAL :: use_evetr
+      LOGICAL :: use_dectr
+      LOGICAL :: rsl_profile_valid
+      bldgH_use = bldgH
+      IF (invalid_real(bldgH_use) .OR. bldgH_use <= 0D0) bldgH_use = height(nlayer + 1)
+
+      sfr_evetr_use = sfr_evetr
+      sfr_dectr_use = sfr_dectr
+      EveTreeH_use = EveTreeH
+      DecTreeH_use = DecTreeH
+      IF (invalid_real(sfr_evetr_use) .OR. sfr_evetr_use <= 0D0) sfr_evetr_use = 0D0
+      IF (invalid_real(sfr_dectr_use) .OR. sfr_dectr_use <= 0D0) sfr_dectr_use = 0D0
+      IF (invalid_real(EveTreeH_use) .OR. EveTreeH_use <= 0D0) EveTreeH_use = 0D0
+      IF (invalid_real(DecTreeH_use) .OR. DecTreeH_use <= 0D0) DecTreeH_use = 0D0
+
+      use_evetr = sfr_evetr_use > eps_fp .AND. EveTreeH_use > eps_fp
+      use_dectr = sfr_dectr_use > eps_fp .AND. DecTreeH_use > eps_fp
+      tree_frac_sum = sfr_evetr_use + sfr_dectr_use
+      IF (use_evetr .AND. use_dectr) THEN
+         veg_air_height = (sfr_evetr_use*EveTreeH_use + sfr_dectr_use*DecTreeH_use)/tree_frac_sum
+      ELSEIF (use_evetr) THEN
+         veg_air_height = EveTreeH_use/2D0
+      ELSEIF (use_dectr) THEN
+         veg_air_height = DecTreeH_use/2D0
+      ELSE
+         veg_air_height = bldgH_use/2D0
+      END IF
+      IF (invalid_real(veg_air_height) .OR. veg_air_height <= 0D0) veg_air_height = bldgH_use/2D0
+
+      rsl_profile_valid = SIZE(rsl_z) > 1 .AND. SIZE(rsl_z) == SIZE(rsl_t_C)
+      IF (rsl_profile_valid) THEN
+         rsl_profile_valid = ALL(rsl_z > -900D0) .AND. ANY(rsl_t_C > -900D0) &
+                             .AND. .NOT. ANY(invalid_real(rsl_z)) &
+                             .AND. .NOT. ANY(invalid_real(rsl_t_C))
+      END IF
+
+      Tair_hbh_C = Tair_C
+      Tair_veg_C = Tair_C
+      IF (rsl_profile_valid) THEN
+         Tair_hbh_C = interp_profile_z(bldgH_use/2D0, rsl_z, rsl_t_C)
+         Tair_veg_C = interp_profile_z(veg_air_height, rsl_z, rsl_t_C)
+         IF (invalid_real(Tair_hbh_C) .OR. Tair_hbh_C <= -900D0) Tair_hbh_C = Tair_C
+         IF (invalid_real(Tair_veg_C) .OR. Tair_veg_C <= -900D0) Tair_veg_C = Tair_C
+      END IF
 
       IF (DiagQN == 1) PRINT *, 'in SPARTACUS, starting ...'
-
-      debug_call_count = debug_call_count + 1
-      IF (debug_call_count == 1) THEN
-         PRINT *, '--- SPARTACUS raw input debug start ---'
-         PRINT *, 'DiagQN = ', DiagQN
-         PRINT *, 'zenith_deg = ', zenith_deg
-         PRINT *, 'nlayer = ', nlayer
-         PRINT *, 'Tair_C = ', Tair_C
-         PRINT *, 'kdown = ', kdown
-         PRINT *, 'ldown = ', ldown
-         PRINT *, 'n_vegetation_region_urban = ', n_vegetation_region_urban
-         PRINT *, 'n_stream_sw_urban = ', n_stream_sw_urban
-         PRINT *, 'n_stream_lw_urban = ', n_stream_lw_urban
-         PRINT *, 'sw_dn_direct_frac = ', sw_dn_direct_frac
-         PRINT *, 'air_ext_sw = ', air_ext_sw
-         PRINT *, 'air_ssa_sw = ', air_ssa_sw
-         PRINT *, 'veg_ssa_sw = ', veg_ssa_sw
-         PRINT *, 'air_ext_lw = ', air_ext_lw
-         PRINT *, 'air_ssa_lw = ', air_ssa_lw
-         PRINT *, 'veg_ssa_lw = ', veg_ssa_lw
-         PRINT *, 'veg_fsd_const = ', veg_fsd_const
-         PRINT *, 'veg_contact_fraction_const = ', veg_contact_fraction_const
-         PRINT *, 'ground_albedo_dir_mult_fact = ', ground_albedo_dir_mult_fact
-         PRINT *, 'use_sw_direct_albedo = ', use_sw_direct_albedo
-
-         PRINT *, 'tsfc_surf = ', tsfc_surf
-         PRINT *, 'tsfc_roof = ', tsfc_roof
-         PRINT *, 'tsfc_wall = ', tsfc_wall
-         PRINT *, 'sfr_surf = ', sfr_surf
-         PRINT *, 'alb_surf = ', alb_surf
-         PRINT *, 'emis_surf = ', emis_surf
-         PRINT *, 'LAI_id = ', LAI_id
-
-         PRINT *, 'height = ', height
-         PRINT *, 'building_frac = ', building_frac
-         PRINT *, 'veg_frac = ', veg_frac
-         PRINT *, 'sfr_roof = ', sfr_roof
-         PRINT *, 'sfr_wall = ', sfr_wall
-         PRINT *, 'building_scale = ', building_scale
-         PRINT *, 'veg_scale = ', veg_scale
-         PRINT *, 'alb_roof = ', alb_roof
-         PRINT *, 'emis_roof = ', emis_roof
-         PRINT *, 'alb_wall = ', alb_wall
-         PRINT *, 'emis_wall = ', emis_wall
-
-         PRINT *, 'roof_albedo_dir_mult_fact = '
-         PRINT *, roof_albedo_dir_mult_fact
-         PRINT *, 'wall_specular_frac = '
-         PRINT *, wall_specular_frac
-         PRINT *, '--- SPARTACUS raw input debug end ---'
-
-      END IF
 
       ! initialize the output variables
       dataOutLineSPARTACUS = -999.
@@ -453,7 +491,8 @@ CONTAINS
       tsfc_surf_K = tsfc_surf + 273.15 ! convert surface temperature to Kelvin
       tsfc_roof_K = tsfc_roof + 273.15 ! convert surface temperature to Kelvin
       tsfc_wall_K = tsfc_wall + 273.15 ! convert surface temperature to Kelvin
-      tair_K = Tair_C + 273.15 ! convert air temperature to Kelvin
+      tair_K = Tair_hbh_C + 273.15 ! convert air temperature to Kelvin
+      tair_veg_K = Tair_veg_C + 273.15 ! convert vegetation air temperature to Kelvin
 
       ! set ground temperature as the area-weighted average of the surface temperature of all land covers but buildings
       IF (1.0D0 - sfr_surf(BldgSurf) > eps_fp) THEN
@@ -465,7 +504,7 @@ CONTAINS
 
       canopy_props%roof_temperature = tsfc_roof_K
       canopy_props%wall_temperature = tsfc_wall_K
-      canopy_props%clear_air_temperature = tair_K
+      canopy_props%clear_air_temperature = tair_veg_K
       ! allocate_canopy only allocates veg_* when do_vegetation=.TRUE.,
       ! but downstream radsurf code may still access them.  Ensure they
       ! exist (zeroed) so that assignments and reads are always valid.
@@ -483,11 +522,11 @@ CONTAINS
          ALLOCATE(canopy_props%veg_fsd(canopy_props%ntotlay))
       IF (.NOT. ALLOCATED(canopy_props%veg_contact_fraction)) &
          ALLOCATE(canopy_props%veg_contact_fraction(canopy_props%ntotlay))
-      canopy_props%veg_temperature = tair_K
-      canopy_props%veg_air_temperature = tair_K
+      canopy_props%veg_temperature = tair_veg_K
+      canopy_props%veg_air_temperature = tair_veg_K
       IF (sfr_surf(ConifSurf) + sfr_surf(DecidSurf) > 0.0) THEN
-         canopy_props%veg_temperature = DOT_PRODUCT(tsfc_surf_K(ConifSurf:DecidSurf), sfr_surf(ConifSurf:DecidSurf))
-         canopy_props%veg_air_temperature = tair_K
+         canopy_props%veg_temperature = tair_veg_K
+         canopy_props%veg_air_temperature = tair_veg_K
       END IF
 
       ! set building and vegetation properties

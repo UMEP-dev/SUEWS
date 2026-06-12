@@ -1501,6 +1501,8 @@ CONTAINS
             qn_wall => heatState%qn_wall, &
             Tsurf_ind => heatState%Tsurf_ind, &
             buildings => stebbsState%buildings, &
+            rsl_z => stebbsState%z_array, &
+            rsl_t_C => stebbsState%dataout_line_t_rsl, &
             spartacusPrm => siteInfo%spartacus, &
             spartacusLayerPrm => siteInfo%spartacus_layer, &
             NARP_TRANS_SITE => siteInfo%NARP_TRANS_SITE, &
@@ -1542,6 +1544,11 @@ CONTAINS
                veg_contact_fraction_const => spartacusPrm%veg_contact_fraction_const, &
                ground_albedo_dir_mult_fact => spartacusPrm%ground_albedo_dir_mult_fact, &
                height => spartacusPrm%height, &
+               bldgH => bldgPrm%height_building, &
+               sfr_evetr => evetrPrm%sfr, &
+               sfr_dectr => dectrPrm%sfr, &
+               EveTreeH => evetrPrm%height_evergreen_tree, &
+               DecTreeH => dectrPrm%height_deciduous_tree, &
                tau_a => snowPrm%tau_a, &
                tau_f => snowPrm%tau_f, &
                SnowAlbMax => snowPrm%snow_albedo_max, &
@@ -1614,14 +1621,15 @@ CONTAINS
                         Diagqn, & !input:
                         sfr_surf, zenith_deg, nlayer, & !input:
                         tsfc_surf, tsfc_roof, tsfc_wall, &
-                        kdown, ldown, Tair_C, alb, emis, LAI_id, &
+                        kdown, ldown, Tair_C, rsl_z, rsl_t_C, alb, emis, LAI_id, &
                         n_vegetation_region_urban, &
                         n_stream_sw_urban, n_stream_lw_urban, &
                         sw_dn_direct_frac, air_ext_sw, air_ssa_sw, &
                         veg_ssa_sw, air_ext_lw, air_ssa_lw, veg_ssa_lw, &
                         veg_fsd_const, veg_contact_fraction_const, &
                         ground_albedo_dir_mult_fact, use_sw_direct_albedo, &
-                        height, building_frac, veg_frac, sfr_roof, sfr_wall, &
+                        height, bldgH, sfr_evetr, sfr_dectr, EveTreeH, DecTreeH, &
+                        building_frac, veg_frac, sfr_roof, sfr_wall, &
                         building_scale, veg_scale, & !input:
                         alb_roof, emis_roof, alb_wall, emis_wall, &
                         roof_albedo_dir_mult_fact, wall_specular_frac, &

@@ -30,6 +30,7 @@ This directory contains all Claude Code-specific documentation, plans, and confi
 ├── skills/                # Action-oriented workflows (invoked via /skill-name)
 │   ├── audit-pr/          # PR review orchestrator
 │   ├── examine-issue/     # Issue analysis
+│   ├── fix-issue/         # Issue-to-PR workflow
 │   ├── lint-code/         # Code style (references rules/)
 │   ├── log-changes/       # CHANGELOG management
 │   ├── prep-release/      # Release preparation
@@ -38,7 +39,9 @@ This directory contains all Claude Code-specific documentation, plans, and confi
 │   ├── sync-docs/         # Doc-code consistency
 │   ├── republish-docs/    # Republish/revise released docs (clean anchor)
 │   ├── verify-build/      # Build config checks
-│   └── queue-pr/         # PR coordination and merge queue preflight
+│   ├── queue-pr/          # PR coordination and merge queue preflight
+│   ├── triage-issue/      # Issue governance (audit/rewrite/split)
+│   └── split-pr/          # Carve an oversized PR into a stacked series
 │
 ├── reference/             # Templates and static reference
 │   └── templates/         # Reusable templates
@@ -79,7 +82,10 @@ Skills perform specific workflows when invoked via `/skill-name`. Each skill has
 
 - `/start-work` - **Entry point** for all workflows (feature, bugfix, release, docs, refactoring, CI/build)
 - `/audit-pr <PR>` - Review a pull request comprehensively
+- `/split-pr <PR>` - Carve an oversized PR into a stacked series of small PRs
 - `/examine-issue <issue>` - Analyse a GitHub issue
+- `/triage-issue <issue>` - Audit, rewrite, or split an issue (governance)
+- `/fix-issue <issue>` - Triage and implement an issue to PR-ready status
 - `/lint-code` - Check code style
 - `/log-changes` - Update CHANGELOG
 - `/prep-release` - Prepare release
@@ -105,6 +111,11 @@ start-work ──────────┬── examine-issue (analysis)
    selector)          ├── prep-release (release workflow)
                       └── verify-build (CI/build workflow)
 
+fix-issue ────────────┬── triage-issue (readiness)
+  (issue to PR)       ├── lint-code / sync-docs / verify-build
+                      ├── log-changes
+                      └── audit-pr (PR readiness)
+
 prep-release ────────┬── verify-build (pre-flight)
                      ├── sync-docs (pre-flight)
                      ├── lint-code (pre-flight)
@@ -125,6 +136,7 @@ pre-commit hook ─────┬── ruff (Python)
 ## Quick Navigation
 
 - **"Start a new task"** -> `/start-work`
+- **"Fix a GitHub issue"** -> `/fix-issue <issue>`
 - **"How do I set up my environment?"** -> `/setup-dev`
 - **"Check my code style"** -> `/lint-code`
 - **"Update the CHANGELOG"** -> `/log-changes`

@@ -17,7 +17,19 @@ narrowed or broadened.]
 
 ## Original report
 
-> [Original issue body, preserved verbatim or clearly marked.]
+Reported by @<author-handle> on <created-date> under the title
+"<original-title>" (from `gh issue view --json author,createdAt,title`). Keep this
+attribution even when the body or title is rewritten: it makes the raiser and the
+original framing visible in the body itself, not only in GitHub's author field and
+edit timeline.
+
+<details>
+<summary>Original report (verbatim)</summary>
+
+[Original issue body, preserved verbatim. A collapsible block keeps code fences,
+lists, and YAML intact, which a blockquote would mangle.]
+
+</details>
 
 ## Discussion summary
 

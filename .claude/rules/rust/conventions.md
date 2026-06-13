@@ -105,6 +105,22 @@ The bridge marshals data between Fortran flat arrays and typed Rust structs:
 
 ---
 
+## Code Size (heuristics, not gates)
+
+- **One concern per module.** Follow the existing layout: each responsibility has
+  its own file (`ffi.rs`, `codec.rs`, `sim.rs`, ...), and each new state or
+  parameter type gets its own `<name>_state.rs` / `<name>_prm.rs` (see "Adding a
+  New State Type"). Do not accumulate unrelated types in one module.
+- **Small functions.** Keep functions focused. Run locally, `cargo clippy` warns
+  on `too_many_arguments` (>7 args) by default; cognitive-complexity is a
+  `nursery` lint you must opt into (`cargo clippy -- -W clippy::cognitive_complexity`
+  or a `[lints]` entry). Use these as informal signals -- nothing in CI or the
+  Makefile currently runs clippy, so it is not an automated gate.
+- A change that only stays small by editing an oversized module is a signal to
+  split off a preparatory refactor first (see `.claude/rules/work-sizing.md`).
+
+---
+
 ## Key Rules
 
 - **Never bypass the codec** -- all Fortran data access goes through `StateCodec` traits, not raw pointer arithmetic

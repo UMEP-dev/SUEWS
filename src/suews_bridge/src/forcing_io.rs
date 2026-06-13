@@ -3,15 +3,11 @@ use std::fs;
 use std::path::Path;
 
 use crate::forcing::{
-    BASELINE_FORCING_COLUMNS, // TODO: migrate to field descriptors
     PER_LANDCOVER_FORCING_VARS,
     SUEWS_FORCING_BASE_FLAT_LEN,
-    PerLandcoverVar,
     SuewsField,
-    FieldDescriptor,
     InterpKind,
     FIELD_DESCRIPTORS,
-    field_by_name,
 };
 use crate::forcing_time::{
     TIME_COLUMNS,

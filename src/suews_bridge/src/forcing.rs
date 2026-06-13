@@ -24,12 +24,6 @@ pub type SuewsForcingValuesPayload = ValuesPayloadWithDims;
 pub const BASELINE_FORCING_COLUMNS: &[&str] = &[
     "iy", "id", "it", "imin", "tair", "rh", "u", "pres", "kdown", "rain",
 ];
-const LANDCOVER_SUFFIXES: &[&str] = &[
-    "paved", "bldgs", "evetr", "dectr", "grass", "bsoil", "water",
-];
-const WU_LANDCOVER_SUFFIXES: &[&str] = &[
-    "paved", "bldgs", "evetr", "dectr", "grass", "bsoil", "water",
-];
 const LAI_LANDCOVER_SUFFIXES: &[&str] = &["evetr", "dectr", "grass"];
 
 pub struct PerLandcoverVar {
@@ -197,12 +191,6 @@ suews_fields! {
     (lai_grass, 22, ["lai_grass"], InterpKind::Instantaneous, false),
 
     // (tair_av_5d, 1, ["tair_av_5d"], InterpKind::Instantaneous),
-}
-
-fn is_required_field(name: &str) -> bool {
-    BASELINE_FORCING_COLUMNS
-        .iter()
-        .any(|&x| x == name)
 }
 
 pub fn field_by_name(name: &str) -> Option<SuewsField> {

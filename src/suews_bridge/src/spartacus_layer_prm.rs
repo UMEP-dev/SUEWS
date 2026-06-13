@@ -34,6 +34,7 @@ pub struct SpartacusLayerPrmSchema {
 pub type SpartacusLayerPrmValuesPayload = ValuesPayloadWithDims;
 
 #[derive(Debug, Clone, PartialEq)]
+#[derive(Default)]
 pub struct SpartacusLayerPrm {
     pub nlayer: usize,
     pub nspec: usize,
@@ -49,24 +50,6 @@ pub struct SpartacusLayerPrm {
     pub wall_specular_frac: Vec<f64>,
 }
 
-impl Default for SpartacusLayerPrm {
-    fn default() -> Self {
-        Self {
-            nlayer: 0,
-            nspec: 0,
-            building_frac: Vec::new(),
-            building_scale: Vec::new(),
-            veg_frac: Vec::new(),
-            veg_scale: Vec::new(),
-            alb_roof: Vec::new(),
-            emis_roof: Vec::new(),
-            alb_wall: Vec::new(),
-            emis_wall: Vec::new(),
-            roof_albedo_dir_mult_fact: Vec::new(),
-            wall_specular_frac: Vec::new(),
-        }
-    }
-}
 
 fn matrix_len(nspec: usize, nlayer: usize) -> Result<usize, BridgeError> {
     nspec.checked_mul(nlayer).ok_or(BridgeError::BadState)

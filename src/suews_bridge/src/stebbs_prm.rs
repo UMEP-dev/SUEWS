@@ -155,9 +155,9 @@ impl StebbsPrm {
 
         let mut hot_water_flow_profile =
             [[0.0_f64; STEBBS_PRM_PROFILE_STEPS]; STEBBS_PRM_PROFILE_GROUPS];
-        for day_type in 0..STEBBS_PRM_PROFILE_GROUPS {
-            for step in 0..STEBBS_PRM_PROFILE_STEPS {
-                hot_water_flow_profile[day_type][step] = next();
+        for day_row in &mut hot_water_flow_profile {
+            for slot in day_row.iter_mut() {
+                *slot = next();
             }
         }
 

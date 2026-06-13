@@ -1,3 +1,22 @@
+// Crate-level lint allowances for the SUEWS Rust bridge. Each is justified;
+// every other clippy lint is gated (`-D warnings`) by .github/workflows/rust-clippy.yml.
+//
+// useless_conversion: pyo3's `#[pymethods]` proc-macro expands every
+//   PyResult-returning method with an internal conversion to `PyErr`, which
+//   clippy flags as useless against the generated (unmodifiable) code -- there
+//   is no `.into()` in our source to remove. Standard pyo3 macro noise.
+// non_camel_case_types: the bridge mirrors SUEWS's community-standard forcing
+//   and variable identifiers (qh, qe, kdown, temp_c, ...), deliberately
+//   lower-case per .claude/rules/naming-convention.md Rule 5.
+// type_complexity / too_many_arguments: the FFI/binding surface has wide tuple
+//   returns and many-parameter constructors inherent to the model.
+//   .claude/rules/rust/conventions.md treats both as informal signals,
+//   explicitly "not an automated gate".
+#![allow(clippy::useless_conversion)]
+#![allow(non_camel_case_types)]
+#![allow(clippy::type_complexity)]
+#![allow(clippy::too_many_arguments)]
+
 mod anthro_emis_prm;
 mod anthro_heat_prm;
 mod anthroemis;
@@ -4157,7 +4176,7 @@ mod python_bindings {
         results
             .into_iter()
             .collect::<Result<Vec<_>, String>>()
-            .map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(e))
+            .map_err(pyo3::exceptions::PyRuntimeError::new_err)
     }
 
     /// Run multiple grid cells in parallel using injected previous states.
@@ -4224,7 +4243,7 @@ mod python_bindings {
         results
             .into_iter()
             .collect::<Result<Vec<_>, String>>()
-            .map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(e))
+            .map_err(pyo3::exceptions::PyRuntimeError::new_err)
     }
 
     /// Return the output group layout as a list of (name, ncols) tuples.

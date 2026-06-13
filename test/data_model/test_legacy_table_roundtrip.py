@@ -313,6 +313,45 @@ def test_edit_propagates_through_full_roundtrip(tmp_path):
     assert float(paved_row[nv_header.index("AlbedoMax")]) == pytest.approx(0.42)
 
 
+def test_waterdist_remainder_routes_to_correct_legacy_column(tmp_path):
+    """The waterdist final-row remainder regenerates into the right legacy column.
+
+    Regression for the reverse writer passing the list-valued column spec
+    ``['ToRunoff', 'ToSoilStore']`` straight to ``set_cell(col: str)``, which
+    matched no header and silently no-op'd -- losing an edited
+    ``waterdist[(7, surf)]``. df_state stores a single combined remainder per
+    source surface (the loader sums the two legacy columns into it); the writer
+    must route it to ``ToRunoff`` for impervious source surfaces (paved) and
+    ``ToSoilStore`` for pervious ones (grass), zeroing the other column.
+    """
+    ver = "2016a"
+    src = _extract_legacy_tables(ver, tmp_path / "src")
+    template = tmp_path / "T0"
+    convert_table(str(src), str(template), ver, "2025a", validate_profiles=False)
+    df = load_InitialCond_grid_df(next(template.rglob("RunControl.nml")))
+    grid = df.index[0]
+    # waterdist source-surface positions: 0=paved (impervious), 4=grass (pervious).
+    df.loc[grid, ("waterdist", "(7, 0)")] = 0.33
+    df.loc[grid, ("waterdist", "(7, 4)")] = 0.44
+
+    written = df_state_to_tables(df, template, tmp_path / "Tprime")
+    ss_header, ss_rows = R._read_table(next(written.rglob("SUEWS_SiteSelect.txt")))
+    wd_header, wd_rows = R._read_table(
+        next(written.rglob("SUEWS_WithinGridWaterDist.txt"))
+    )
+
+    def _wd_row(code_col):
+        code = ss_rows[0][ss_header.index(code_col)]
+        return next(r for r in wd_rows if r[0] == code)
+
+    paved = _wd_row("WithinGridPavedCode")
+    grass = _wd_row("WithinGridGrassCode")
+    assert float(paved[wd_header.index("ToRunoff")]) == pytest.approx(0.33)
+    assert float(paved[wd_header.index("ToSoilStore")]) == pytest.approx(0.0)
+    assert float(grass[wd_header.index("ToSoilStore")]) == pytest.approx(0.44)
+    assert float(grass[wd_header.index("ToRunoff")]) == pytest.approx(0.0)
+
+
 # --------------------------------------------------------------------------- #
 # Native modern -> legacy -> modern (the cross-era benchmark direction)
 # --------------------------------------------------------------------------- #

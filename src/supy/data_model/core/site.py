@@ -1130,7 +1130,7 @@ class SnowParams(BaseModel):
         description="Summer/winter threshold based on temperature for the snow surface's OHM calculation",
         json_schema_extra={
             "unit": "degC",
-            "display_name": "OHM Summer Wet Threshold (Snow)",
+            "display_name": "OHM Summer/Winter Threshold (Snow)",
         },
     )
     ohm_threshold_wet_dry: Optional[FlexibleRefValue(float)] = Field(
@@ -1138,11 +1138,11 @@ class SnowParams(BaseModel):
         description="Soil moisture threshold determining whether wet/dry OHM coefficients are applied to the snow surface",
         json_schema_extra={
             "unit": "dimensionless",
-            "display_name": "OHM Winter Dry Threshold (Snow)",
+            "display_name": "OHM Wet/Dry Threshold (Snow)",
         },
     )
     ohm_coef: Optional[OHM_Coefficient_season_wetness] = Field(
-        default_factory=lambda: _default_snow_ohm_coef(),
+        default_factory=_default_snow_ohm_coef,
         description="OHM coefficients for the snow surface (df_state surface index 7)",
         json_schema_extra={"display_name": "OHM Coefficients (Snow)"},
     )

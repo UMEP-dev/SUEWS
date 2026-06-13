@@ -192,6 +192,29 @@ def _df_get(df_state: pd.DataFrame, grid, var: str, index: str):
 _SITESELECT = "__siteselect__"
 
 
+def _write_split_remainder(store, fname, code, col, position, value) -> int:
+    """Route a waterdist runoff/soil-store remainder to its legacy column.
+
+    The waterdist final row holds a single combined remainder per source surface
+    in df_state -- the loader sums the legacy ``ToRunoff`` and ``ToSoilStore``
+    columns into it. Route it back to the structurally-correct column (impervious
+    source surfaces, paved=0 and bldgs=1, drain to runoff; pervious surfaces 2..5
+    to soil store) and zero the other so both legacy columns are fully determined
+    by df_state rather than left at template values.
+    """
+    runoff_col = next((c for c in col if "Runoff" in c), None)
+    soilstore_col = next((c for c in col if "SoilStore" in c), None)
+    impervious = position in {0, 1}
+    target = runoff_col if impervious else soilstore_col
+    other = soilstore_col if impervious else runoff_col
+    written = 0
+    if target is not None:
+        written += store.set_cell(fname, code, target, value)
+    if other is not None:
+        written += store.set_cell(fname, code, other, 0.0)
+    return written
+
+
 def _fill_from_df_state(store: _TableStore, df_state: pd.DataFrame, grid) -> int:
     """Overwrite every mapped input cell for ``grid`` from ``df_state``.
 
@@ -237,7 +260,16 @@ def _fill_from_df_state(store: _TableStore, df_state: pd.DataFrame, grid) -> int
                     if fname is None or code is None:
                         continue
                     value = df(var, f"({k}, {position})")
-                    if value is not None:
+                    if value is None:
+                        continue
+                    if isinstance(col, list):
+                        # waterdist final row maps to two legacy columns
+                        # (ToRunoff / ToSoilStore); route the single df remainder
+                        # to the structurally-correct one and zero the other.
+                        written += _write_split_remainder(
+                            store, fname, code, col, position, transform(value)
+                        )
+                    else:
                         written += store.set_cell(fname, code, col, transform(value))
             continue
 

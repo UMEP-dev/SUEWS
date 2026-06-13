@@ -32,6 +32,7 @@ from __future__ import annotations
 
 from pathlib import Path
 from shutil import copyfile
+from typing import Optional
 
 from chardet import detect
 import f90nml
@@ -623,7 +624,7 @@ def reverse_convert_table(
     out_dir,
     to_ver: str,
     legacy_extras: dict,
-    from_ver: str | None = None,
+    from_ver: Optional[str] = None,
     legacy_terminators: bool = True,
 ) -> None:
     """Regenerate ``to_ver`` legacy tables from a ``2025a`` table set.

@@ -38,6 +38,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 from shutil import copytree, rmtree
+from typing import Optional
 
 import pandas as pd
 
@@ -148,7 +149,7 @@ class _TableStore:
                 return row[ci]
         return None
 
-    def clone_row(self, fname: str, code: str) -> str | None:
+    def clone_row(self, fname: str, code: str) -> Optional[str]:
         """Append a copy of ``code``'s row under a fresh integer Code; return it.
 
         Used by the de-aliasing pass: when two references resolve to one

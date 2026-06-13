@@ -86,13 +86,17 @@ def _build_package_to_schema() -> dict[str, str]:
     """
     try:
         from supy._model_registry import list_model_versions
+
+        # Build inside the try: registry.yaml is read lazily on the first call
+        # to list_model_versions(), so a missing/malformed registry raises here
+        # (not at import) and must also degrade to the literal fallback.
+        return {
+            v.tag: v.schema_version
+            for v in list_model_versions()
+            if v.schema_version is not None
+        }
     except Exception:
         return dict(_PACKAGE_TO_SCHEMA_FALLBACK)
-    return {
-        v.tag: v.schema_version
-        for v in list_model_versions()
-        if v.schema_version is not None
-    }
 
 
 _PACKAGE_TO_SCHEMA: dict[str, str] = _build_package_to_schema()

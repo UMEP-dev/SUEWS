@@ -23,7 +23,7 @@ London input (`FileCode='Kc'`):
 | 2018c   | `Kc`     | **Phase-C candidate** | Byte-identical InputTables to 2018b (same git tree). |
 | 2019a   | `test`   | no           | Synthetic dev fixture. |
 | 2020a   | `test`   | no           | Synthetic dev fixture (Gothenburg). |
-| 2021a   | —        | no           | No `Release/InputTables/2021a` in the `2020a` tag. |
+| 2021a   | -        | no           | No `Release/InputTables/2021a` in the `2020a` tag. |
 
 The `test`/`Ls` versions are synthetic or a different site and are out of scope
 for the KCL benchmark lineage.
@@ -42,28 +42,28 @@ For each stored YAML, `tests/test_legacy_yaml_roundtrip.py` asserts:
 |---------|-------|-------------------|----------------|
 | 2016a   | yes   | yes (`df.equals` True) | (1, 2866) |
 | 2017b   | yes   | yes (`df.equals` True) | (1, 2866) |
-| 2018b   | **no** | n/a (fails at load) | — |
-| 2018c   | **no** | n/a (fails at load) | — |
+| 2018b   | **no** | n/a (fails at load) | - |
+| 2018c   | **no** | n/a (fails at load) | - |
 
 ## Cosmetic cleanups applied (no physics hand-edited)
 
 The forward converter leaves two machine-specific artefacts; both are cleaned to
 neutral placeholders. No physics value is hand-edited.
 
-- `model.control.output.dir` — converter writes an absolute machine-specific
-  temp-dir path → set to `./output`.
-- `model.control.forcing.file` — a `forcing.txt` placeholder (or an absolute
+- `model.control.output.dir` - converter writes an absolute machine-specific
+  temp-dir path -> set to `./output`.
+- `model.control.forcing.file` - a `forcing.txt` placeholder (or an absolute
   temp path where the converter located a year-stamped forcing). The legacy
   forcing is not year-stamped in a way the YAML path needs, and forcing wiring
   is a separate concern (handled by the legacy run staging in
-  `benchmark/legacy_input.py`) → set to a neutral `forcing.txt` placeholder.
+  `benchmark/legacy_input.py`) -> set to a neutral `forcing.txt` placeholder.
 
 `name`/`description` were also made version-specific (metadata only).
 
-## 2018b / 2018c — Phase-C candidates (load failure, not round-trip failure)
+## 2018b / 2018c - Phase-C candidates (load failure, not round-trip failure)
 
 2018b and 2018c ship **byte-identical** InputTables (same git tree
-`b99627f9…`), so they produce identical YAML and the same failure. The current
+`b99627f9...`), so they produce identical YAML and the same failure. The current
 validator **rejects the converted config at load time**:
 
 ```
@@ -72,7 +72,7 @@ test site evergreen trees: alb_id (0.1) must be in range
 ```
 
 This is a **genuine inconsistency in the source KCL tables**, carried through
-faithfully by the converter — not a converter or round-trip bug:
+faithfully by the converter - not a converter or round-trip bug:
 
 - The KCL `SUEWS_SiteSelect.txt` sets `Code_EveTr=662`, but `SUEWS_Veg.txt`
   row 662 is labelled "DecTr London" with `AlbedoMin=0.12, AlbedoMax=0.18`; the
@@ -101,14 +101,14 @@ RunControl keys. These are the fields a Phase-C reverse bridge must restore from
 a version-tagged `legacy_extras` block. Per-version counts (from the converter
 log):
 
-- **2016a** (chained 2016a→2025a): 173 columns added, 18 RunControl renames,
-  19 deletes. The widest gap — adds the full ESTM-class fractions/codes, AnOHM
+- **2016a** (chained 2016a->2025a): 173 columns added, 18 RunControl renames,
+  19 deletes. The widest gap - adds the full ESTM-class fractions/codes, AnOHM
   coefficients (`AnOHM_Cp/Kk/Ch`), OHM thresholds (`OHMThresh_SW/WD`),
   RSL/FAI method flags (`rslmethod`, `rsllevel`, `faimethod`), anthropogenic-CO2
   and BEU traffic fields, internal/wall thermal layers, etc.
-- **2017b** (via 2017a→2025a): 57 columns added, 8 renames, 13 deletes — mostly
+- **2017b** (via 2017a->2025a): 57 columns added, 8 renames, 13 deletes - mostly
   the anthropogenic-emission / CO2 / traffic-profile and RSL/FAI additions.
-- **2018b/2018c** (2018b→2025a): 18 columns added, 1 rename, 3 deletes — the
+- **2018b/2018c** (2018b->2025a): 18 columns added, 1 rename, 3 deletes - the
   narrowest gap (`rslmethod`, `rsllevel`, `faimethod`, `BaseTMethod`,
   `CO2PointSource`, irrigation-fraction split, `H_maintain`, `n_buildings`,
   `rcmethod`, `FcEF_v_kgkmWD/WE`, `FrPDDwe`, metabolism min/max).

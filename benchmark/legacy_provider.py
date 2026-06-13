@@ -9,19 +9,21 @@ module-level note in ``legacy_output``).
 Design:
 
   * **Heavy compute on the remote host.** Building and running legacy SUEWS
-    happens on the remote compute host (reached over Tailscale). This module
-    orchestrates; the remote host executes. All SSH goes through an injectable
-    ``runner`` callable so the orchestration logic is unit-testable without a
-    network.
+    happens on the remote compute host (reached over the configured network
+    route). This module orchestrates; the remote host executes. All SSH goes
+    through an injectable ``runner`` callable so the orchestration logic is
+    unit-testable without a network.
   * **Reuse prebuilt binaries.** The pilot left compiled binaries under the
-    scratch root; ``run`` reuses them and only rebuilds if the binary is
-    missing (via the proven per-layout recipe).
+    scratch root; ``run`` reuses them and raises ``BuildMissingError`` when the
+    binary is absent (rebuilding via the per-layout recipe is a manual
+    remote-host step).
   * **Fail fast, never hang.** Every remote call carries a timeout. If the
     remote host is unreachable the provider raises ``RemoteHostUnreachable``
     immediately rather than blocking.
   * **Determinism gate.** ``run`` executes the binary twice in separate dirs and
-    requires a bit-identical output fingerprint (the Phase-1 reproducibility
-    contract). A mismatch raises ``DeterminismError``.
+    requires an identical numeric output fingerprint -- the parsed flux content
+    compared after canonical formatting, not a raw byte hash (the Phase-1
+    reproducibility contract). A mismatch raises ``DeterminismError``.
   * **Zero-grid escalation.** If SUEWS identifies 0 grids (the classic legacy
     staging failure), the provider raises ``ZeroGridError`` carrying the
     ``problems.txt`` + run log, rather than silently producing nothing.

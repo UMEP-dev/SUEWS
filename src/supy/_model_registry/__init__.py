@@ -9,9 +9,9 @@ This package deliberately lives OUTSIDE ``supy.data_model`` so that edits do
 not trip the schema-version-audit CI gate -- the registry is not part of the
 YAML input surface.
 
-The YAML data file (``registry.yaml``) is validated against ``ModelVersion``
-on load, so a malformed edit fails loudly at import rather than silently at
-use.
+The YAML data file (``registry.yaml``) is read and validated against
+``ModelVersion`` lazily on first access (cached), so a malformed edit fails
+loudly the first time the registry is queried rather than at import time.
 """
 
 from __future__ import annotations

@@ -68,6 +68,17 @@ def registry():
 
 # Helper to construct a SUEWSConfig without running Pydantic on sites,
 # then inject the desired physics settings.
+def _force_set(model_obj, field, value):
+    """Named validation bypass for fixture mocks.
+
+    SUEWSConfig has ``validate_assignment=True`` (gh#1530 follow-up), so a
+    plain assignment would reject the SimpleNamespace stand-ins these
+    validator unit tests rely on. ``object.__setattr__`` skips pydantic's
+    assignment validation deliberately and only here.
+    """
+    object.__setattr__(model_obj, field, value)
+
+
 def make_cfg(**physics_kwargs):
     cfg = SUEWSConfig.model_construct()  # bypass validation
     # gh#1456: the STEBBS-scoped switches moved under a nested
@@ -100,7 +111,7 @@ def make_cfg(**physics_kwargs):
     phys = SimpleNamespace(**top_kwargs)
     if stebbs_members:
         phys.stebbs = SimpleNamespace(**stebbs_members)
-    cfg.model = SimpleNamespace(physics=phys)
+    _force_set(cfg, "model", SimpleNamespace(physics=phys))
     return cfg
 
 
@@ -2047,7 +2058,7 @@ def test_validate_spartacus_building_height_stebbs_off():
 
 def test_validate_spartacus_sfr_mismatch_bldgs_frac():
     cfg = SUEWSConfig.model_construct()
-    cfg.model = SimpleNamespace(physics=SimpleNamespace(net_radiation=1001))
+    _force_set(cfg, "model", SimpleNamespace(physics=SimpleNamespace(net_radiation=1001)))
     bldgs = SimpleNamespace(sfr=0.6)  
     lc = SimpleNamespace(bldgs=bldgs, evetr=None, dectr=None)
     vertical_layers = SimpleNamespace(
@@ -2066,7 +2077,7 @@ def test_validate_spartacus_sfr_mismatch_bldgs_frac():
 
 def test_validate_spartacus_sfr_consistent_values():
     cfg = SUEWSConfig.model_construct()
-    cfg.model = SimpleNamespace(physics=SimpleNamespace(net_radiation=1001))
+    _force_set(cfg, "model", SimpleNamespace(physics=SimpleNamespace(net_radiation=1001)))
     bldgs = SimpleNamespace(sfr=0.3)  
     evetr = SimpleNamespace(sfr=0.1)
     dectr = SimpleNamespace(sfr=0.2)
@@ -2083,7 +2094,7 @@ def test_validate_spartacus_sfr_consistent_values():
 def test_validate_spartacus_sfr_mismatch_veg_frac():
     """SPARTACUS SFR validation flags mismatch between evetr.sfr + dectr.sfr and veg_frac[0]."""
     cfg = SUEWSConfig.model_construct()
-    cfg.model = SimpleNamespace(physics=SimpleNamespace(net_radiation=1001))
+    _force_set(cfg, "model", SimpleNamespace(physics=SimpleNamespace(net_radiation=1001)))
 
     # land_cover vegetation: evetr + dectr = 0.4
     evetr = SimpleNamespace(sfr=0.1)
@@ -2170,7 +2181,7 @@ def test_validate_spartacus_veg_dimensions_missing_nlayer():
 def test_validate_spartacus_veg_dimensions_passing_case():
     """Passing case: dectreeh=12, height=[0, 5, 10, 15, 20], veg_frac=[0.3, 0.3, 0.2, 0, 0]"""
     cfg = SUEWSConfig.model_construct()
-    cfg.model = SimpleNamespace(physics=SimpleNamespace(net_radiation=1001))
+    _force_set(cfg, "model", SimpleNamespace(physics=SimpleNamespace(net_radiation=1001)))
     lc = SimpleNamespace(dectr=SimpleNamespace(height_deciduous_tree=12.0), evetr=None)
     vertical_layers = SimpleNamespace(
         height=[0, 5, 10, 15, 20],
@@ -2186,7 +2197,7 @@ def test_validate_spartacus_veg_dimensions_failing_case():
     Tree at 12 m falls in layer 10-15 m (layer_index=3), so veg_frac[3]=0.1 in the
     15-20 m layer should be flagged."""
     cfg = SUEWSConfig.model_construct()
-    cfg.model = SimpleNamespace(physics=SimpleNamespace(net_radiation=1001))
+    _force_set(cfg, "model", SimpleNamespace(physics=SimpleNamespace(net_radiation=1001)))
     lc = SimpleNamespace(dectr=SimpleNamespace(height_deciduous_tree=12.0), evetr=None)
     vertical_layers = SimpleNamespace(
         height=[0, 5, 10, 15, 20],
@@ -2201,7 +2212,7 @@ def test_validate_spartacus_veg_dimensions_failing_case():
 def test_validate_spartacus_veg_dimensions_boundary_case():
     """Boundary case: max_tree exactly on a layer boundary."""
     cfg = SUEWSConfig.model_construct()
-    cfg.model = SimpleNamespace(physics=SimpleNamespace(net_radiation=1001))
+    _force_set(cfg, "model", SimpleNamespace(physics=SimpleNamespace(net_radiation=1001)))
     lc = SimpleNamespace(dectr=SimpleNamespace(height_deciduous_tree=15.0), evetr=None)
     vertical_layers = SimpleNamespace(
         height=[0, 5, 10, 15, 20],
@@ -2215,7 +2226,7 @@ def test_validate_spartacus_veg_dimensions_boundary_case():
 def test_validate_spartacus_veg_dimensions_exceeds_all_case():
     """Exceeds-all case: max_tree=100 with height=[0, 5, 10] — should produce the 'exceeds' message."""
     cfg = SUEWSConfig.model_construct()
-    cfg.model = SimpleNamespace(physics=SimpleNamespace(net_radiation=1001))
+    _force_set(cfg, "model", SimpleNamespace(physics=SimpleNamespace(net_radiation=1001)))
     # Note: dectrh and evetrh are attributes of land_cover.dectr and land_cover.evetr, not land_cover itself
     dectr = SimpleNamespace(height_deciduous_tree=100.0)
     lc = SimpleNamespace(dectr=dectr, evetr=None)

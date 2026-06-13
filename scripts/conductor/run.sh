@@ -38,9 +38,19 @@ find_free_port() {
     echo "$port"
 }
 
-PORT_SITE=$(find_free_port 3000)
-PORT_DOCS=$(find_free_port 8000)
-PORT_DASH=$(find_free_port 4000)
+# Prefer the workspace's allocated port range (CONDUCTOR_PORT..+9) so
+# parallel workspaces get non-overlapping ports by construction; fall back
+# to the legacy fixed bases when running outside Conductor. The dashboard
+# takes CONDUCTOR_PORT itself so Conductor's "Open" button lands on it.
+if [ -n "$CONDUCTOR_PORT" ]; then
+    PORT_DASH=$(find_free_port "$CONDUCTOR_PORT")
+    PORT_SITE=$(find_free_port $((CONDUCTOR_PORT + 1)))
+    PORT_DOCS=$(find_free_port $((CONDUCTOR_PORT + 2)))
+else
+    PORT_SITE=$(find_free_port 3000)
+    PORT_DOCS=$(find_free_port 8000)
+    PORT_DASH=$(find_free_port 4000)
+fi
 echo "[run] Ports: site=$PORT_SITE docs=$PORT_DOCS dashboard=$PORT_DASH"
 
 # Track background PIDs so the trap can kill each whole process group.

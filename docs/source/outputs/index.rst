@@ -54,7 +54,7 @@ Temporal Information
 
 .. note::
 
-   Temporal information in output files (``iy``, ``id``, ``it``, ``imin``) are in **local time**
+   Temporal information in output files (``iy``, ``id``, ``it``, ``imin``) are in **local standard time**
    (consistent with :ref:`met_forcing`) and indicate the **ending timestamp** of each period.
 
    For example, for hourly data, ``2021-09-12 13:00`` indicates a record for the period

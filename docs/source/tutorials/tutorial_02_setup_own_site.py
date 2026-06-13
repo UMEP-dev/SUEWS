@@ -64,23 +64,22 @@ print("Location: lat=36.6, lng=-97.5")
 # Configure Land Cover Fractions
 # ------------------------------
 #
-# SUEWS divides the urban surface into 7 land cover types:
-#
-# - 0: Paved surfaces
-# - 1: Buildings
-# - 2: Evergreen trees
-# - 3: Deciduous trees
-# - 4: Grass
-# - 5: Bare soil
-# - 6: Water
+# SUEWS divides the urban surface into 7 land cover types: paved surfaces,
+# buildings, evergreen trees, deciduous trees, grass, bare soil, and water.
 #
 # Fractions must sum to 1.0. For this grassland site, we set 100% grass.
 
 sim.update_config({
     "sites": {0: {
-        "initial_states": {
-            "sfr_surf": [0, 0, 0, 0, 1.0, 0, 0],  # 100% grass (index 4)
-        }
+        "properties": {"land_cover": {
+            "paved": {"sfr": 0.0},
+            "bldgs": {"sfr": 0.0},
+            "evetr": {"sfr": 0.0},
+            "dectr": {"sfr": 0.0},
+            "grass": {"sfr": 1.0},
+            "bsoil": {"sfr": 0.0},
+            "water": {"sfr": 0.0},
+        }}
     }}
 })
 
@@ -99,9 +98,11 @@ sim.update_config({
         "properties": {
             # Measurement height (metres) - affects aerodynamic calculations
             "z": 40.0,
-            # Disable anthropogenic heat (rural site)
-            "popdensdaytime": 0,
-            "popdensnighttime": 0,
+            # Disable anthropogenic heat (rural site): zero population density
+            "anthropogenic_emissions": {"heat": {
+                "popdensdaytime": {"working_day": 0, "holiday": 0},
+                "popdensnighttime": 0,
+            }},
         }
     }}
 })

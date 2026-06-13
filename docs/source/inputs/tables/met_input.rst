@@ -8,7 +8,7 @@ SUEWS is designed to run using commonly measured meteorological variables (e.g. 
 When preparing this input file, please note the following:
 
 -  Required inputs must be continuous – i.e. **gap fill** any missing data.
--  Temporal information (i.e., ``iy``, ``id``, ``it`` and ``imin``) should be in **local time** and indicate the ending timestamp of corresponding periods: e.g. for hourly data, ``2021-09-12 13:00`` indicates a record for the period between ``2021-09-12 12:00`` (inclusive) and ``2021-09-12 13:00`` (exclusive).
+-  Temporal information (i.e., ``iy``, ``id``, ``it`` and ``imin``) should be in **local standard time** (i.e. a fixed UTC offset with no daylight-saving transitions; see :ref:`met_forcing`) and indicate the ending timestamp of corresponding periods: e.g. for hourly data, ``2021-09-12 13:00`` indicates a record for the period between ``2021-09-12 12:00`` (inclusive) and ``2021-09-12 13:00`` (exclusive).
 -  The `table <SSss_YYYY_data_tt.txt>` below gives the must-use (`MU`) and optional (`O`) additional input variables. If an optional input variable (`O`) is not available or will not be used by the model, enter ‘-999’ for this column.
 
 
@@ -255,7 +255,7 @@ Complete example for processing weather station data:
 **Common Issues and Solutions**
 
 - **Missing longwave radiation**: Use empirical relationships based on air temperature and humidity
-- **Inconsistent time zones**: Ensure all data is in local time for the study location
+- **Inconsistent time zones**: Ensure all data is in local standard time for the study location (see :ref:`met_forcing`)
 - **Sub-daily precipitation**: Aggregate appropriately while preserving intensity patterns
 - **Wind speed at different heights**: Apply logarithmic wind profile corrections if needed
 - **Pressure measurements**: Distinguish between station and sea-level pressure corrections

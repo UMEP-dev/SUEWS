@@ -33,8 +33,11 @@ Full setup: `/setup-dev` | Style check: `/lint-code` | Build check: `/verify-bui
 - `/setup-dev` - Environment setup
 - `/lint-code` - Check code style
 - `/sync-docs` - Doc-code consistency
+- `/fix-issue` - Triage and implement a GitHub issue to PR-ready status
+- `/republish-docs` - Republish/revise released docs (move tag to clean anchor)
 - `/verify-build` - Build configuration
 - `/audit-pr` - Review pull requests
+- `/split-pr` - Carve an oversized PR into a stacked series of small PRs
 - `/queue-pr` - Coordinate PRs before merge queue
 - `/log-changes` - Update CHANGELOG
 - `/prep-release` - Prepare releases

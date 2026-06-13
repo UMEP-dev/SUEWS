@@ -5,7 +5,7 @@ from pydantic import (
     Field,
     field_validator,
     model_validator,
-    field_serializer,
+    model_serializer,
 )
 import numpy as np
 import pandas as pd
@@ -110,6 +110,17 @@ class RefValue(BaseModel, Generic[T]):
                 return self.value
         # For other modes, use default behavior
         return super().model_dump(**kwargs)
+
+    @model_serializer(mode="wrap")
+    def _serialize_with_value_key(self, handler, info):
+        """Keep ``value: null`` in nested dumps for schema-valid YAML."""
+        if info.mode == "json" and self.value is None:
+            data = {"value": None}
+            if self.ref is not None or not info.exclude_none:
+                data["ref"] = self.ref
+            return data
+
+        return handler(self)
 
     @classmethod
     def wrap(cls, value: Union[T, "RefValue[T]"]) -> "RefValue[T]":

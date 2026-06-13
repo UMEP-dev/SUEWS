@@ -15,6 +15,39 @@ Separation of concerns between configuration parsing and implementation.
 
 ---
 
+## Validated Configuration Boundary
+
+Raw mappings are input data, not configuration objects. This includes
+YAML-loaded dictionaries, JSON-like payloads, and partial update dictionaries.
+
+- **DO**: Route full mapping inputs through the canonical Pydantic model path
+  (`SUEWSConfig` or another schema-owned constructor) so field renames,
+  readable physics names, `RefValue` wrappers, defaults, and conditional
+  validators all run.
+- **DO**: Keep equivalent public input forms semantically equivalent. A YAML
+  file, an in-memory mapping loaded from that YAML, and a `SUEWSConfig` object
+  should reach the same normalisation and validation path unless the API
+  documents a narrower contract.
+- **DO**: For partial updates, merge at the plain-data layer and revalidate the
+  resulting model. The merge function may prepare data; Pydantic remains the
+  validation boundary.
+- **DON'T**: Recursively `setattr` user mappings into existing Pydantic model
+  instances as the mechanism for parsing or validating configuration. That
+  bypasses field validators and breaks wrapped fields such as physics selectors.
+- **DON'T**: Infer special semantics from a Python container type alone. Lists
+  replace by default unless an API explicitly documents collection-specific
+  patch semantics.
+
+If collection-specific updates are needed, expose them as named API behaviour
+(for example, "update site by name/index") rather than guessing that every
+list-valued config field is that collection.
+
+Validation bypasses such as `model_construct`, `use_conditional_validation=False`,
+or backend-specific unchecked paths must be named, isolated, and covered by
+tests that state the bypass contract explicitly.
+
+---
+
 ## High-Level Classes (e.g., SUEWSSimulation)
 
 - **DO**: Parse and interpret configuration objects
@@ -101,3 +134,8 @@ When implementing a feature that uses configuration:
 - [ ] Convert types as needed (e.g., ensure integers)
 - [ ] Pass only primitive types or simple objects to low-level methods
 - [ ] Keep configuration parsing logic in one place
+- [ ] Route raw mapping inputs through the validated config model path
+- [ ] Revalidate after partial config merges; do not mutate Pydantic model
+      internals with recursive `setattr`
+- [ ] Define list update semantics explicitly; do not assume list-valued fields
+      are site collections

@@ -108,6 +108,23 @@ SUEWS-specific Python conventions. Complements ruff for standard linting.
 
 ---
 
+## Code Size (heuristics, not gates)
+
+- **Single-responsibility functions.** Keep functions focused and small (aim well
+  under ~75 lines); extract helpers rather than nesting deeply. ruff complexity
+  lints apply where configured.
+- **Cohesive modules.** Split a module that has grown to cover several unrelated
+  responsibilities; prefer several small modules over one catch-all.
+- **Modest argument counts.** Combined with the config-separation rule above,
+  prefer small, explicit signatures; pass plain values, not config objects.
+- **Exemptions.** Pydantic data-model classes with long field enumerations and
+  generated files (`_suews_driver.py`, `_version.py`) are exempt from the
+  function/module-length heuristics.
+- A fix that only stays small by editing an oversized function is a signal to
+  split off a preparatory refactor first (see `.claude/rules/work-sizing.md`).
+
+---
+
 ## Examples
 
 ```python

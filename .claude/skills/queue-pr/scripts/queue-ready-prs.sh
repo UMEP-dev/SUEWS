@@ -232,6 +232,14 @@ done < "$order_tsv"
 open_count="$(wc -l < "$prs_tsv" | tr -d ' ')"
 ready_count="$(wc -l < "$ready_tsv" | tr -d ' ')"
 queueable_count="$(wc -l < "$order_tsv" | tr -d ' ')"
+total_open="$(gh api -X GET search/issues -f q="repo:$(gh repo view --json nameWithOwner --jq .nameWithOwner) is:pr is:open base:$base" --jq .total_count 2>/dev/null || echo "")"
+if [ -n "$total_open" ] && [ "$open_count" -lt "$total_open" ]; then
+    truncated="yes"
+elif [ "$open_count" -ge "$limit" ]; then
+    truncated="yes"
+else
+    truncated="no"
+fi
 scan_time="$(date -u '+%Y-%m-%d %H:%M UTC')"
 marker="<!-- suews-merge-queue-coordinator:v1 -->"
 
@@ -381,6 +389,7 @@ elif [ "$enqueue" -eq 1 ]; then
 else
     printf 'Mode: dry-run\n'
 fi
+printf 'Scope: base=%s, ready-for-review filter; %s fetched / %s open; truncated: %s\n' "$base" "$open_count" "${total_open:-unknown}" "$truncated"
 printf 'Candidates: %s open PRs, %s ready-for-review, %s queueable\n\n' "$open_count" "$ready_count" "$queueable_count"
 
 printf 'Queue order:\n'

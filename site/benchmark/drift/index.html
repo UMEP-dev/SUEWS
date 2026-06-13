@@ -1,0 +1,124 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>SUEWS cross-version drift</title>
+  <style>
+    :root {
+      --deep-blue: #2D3142;
+      --golden-sun: #F7B538;
+      --ink: #e8e8ea;
+      --panel: #20222e;
+      --line: #3a3d4d;
+    }
+    html { color-scheme: dark; }
+    body {
+      margin: 0; padding: 2rem;
+      background: var(--deep-blue); color: var(--ink);
+      font-family: "Instrument Sans", system-ui, sans-serif;
+      line-height: 1.5;
+    }
+    h1 { font-family: "Crimson Pro", Georgia, serif; font-weight: 600; }
+    .controls { margin: 1rem 0; }
+    button {
+      background: var(--panel); color: var(--ink);
+      border: 1px solid var(--line); border-radius: 6px;
+      padding: 0.5rem 1rem; cursor: pointer; font: inherit;
+    }
+    button[aria-pressed="true"] {
+      border-color: var(--golden-sun); color: var(--golden-sun);
+    }
+    button:focus-visible { outline: 3px solid var(--golden-sun); outline-offset: 2px; }
+    table { border-collapse: collapse; width: 100%; margin-top: 1rem; }
+    th, td { border: 1px solid var(--line); padding: 0.4rem 0.6rem; text-align: right; }
+    th:first-child, td:first-child,
+    th:nth-child(2), td:nth-child(2),
+    th:nth-child(3), td:nth-child(3),
+    th:nth-child(4), td:nth-child(4) { text-align: left; }
+    caption { text-align: left; color: var(--golden-sun); margin-bottom: 0.5rem; }
+    @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+  </style>
+</head>
+<body>
+  <h1>SUEWS cross-version drift</h1>
+  <p>
+    Change in energy-balance error (MAE, MBE) between SUEWS releases on a fixed
+    site, forcing, and observations. Descriptive drift -- not a reproduction
+    claim. Source: <code>benchmark/results/drift_table.csv</code>.
+  </p>
+  <div class="controls" role="group" aria-label="Drift framing">
+    <button id="btn-consecutive" aria-pressed="true">Consecutive</button>
+    <button id="btn-baseline" aria-pressed="false">Baseline</button>
+  </div>
+  <table id="drift">
+    <caption id="cap">Consecutive drift (release vs previous release)</caption>
+    <thead>
+      <tr>
+        <th>From</th><th>To</th><th>Flux</th><th>Interval</th><th>Bucket</th>
+        <th>Metric</th><th>Value (W m-2)</th>
+      </tr>
+    </thead>
+    <tbody id="rows"></tbody>
+  </table>
+
+  <script>
+    const DATA_URL = "../results/drift_table.csv";
+    let allRows = [];
+
+    function parseCsv(text) {
+      const [head, ...lines] = text.trim().split("\n");
+      const cols = head.split(",");
+      return lines.map((line) => {
+        const cells = line.split(",");
+        return Object.fromEntries(cols.map((c, i) => [c, cells[i]]));
+      });
+    }
+
+    function render(framing) {
+      const tbody = document.getElementById("rows");
+      tbody.innerHTML = "";
+      allRows
+        .filter((r) => r.framing === framing)
+        .forEach((r) => {
+          const tr = document.createElement("tr");
+          [r.from_tag, r.to_tag, r.flux, r.interval, r.bucket, r.metric, r.value]
+            .forEach((v) => {
+              const td = document.createElement("td");
+              td.textContent = v;
+              tr.appendChild(td);
+            });
+          tbody.appendChild(tr);
+        });
+      document.getElementById("cap").textContent =
+        framing === "consecutive"
+          ? "Consecutive drift (release vs previous release)"
+          : "Baseline drift (release vs pinned baseline)";
+    }
+
+    function setFraming(framing) {
+      document.getElementById("btn-consecutive")
+        .setAttribute("aria-pressed", String(framing === "consecutive"));
+      document.getElementById("btn-baseline")
+        .setAttribute("aria-pressed", String(framing === "baseline"));
+      render(framing);
+    }
+
+    document.getElementById("btn-consecutive")
+      .addEventListener("click", () => setFraming("consecutive"));
+    document.getElementById("btn-baseline")
+      .addEventListener("click", () => setFraming("baseline"));
+
+    fetch(DATA_URL)
+      .then((r) => r.text())
+      .then((text) => {
+        allRows = parseCsv(text);
+        setFraming("consecutive");
+      })
+      .catch(() => {
+        document.getElementById("cap").textContent =
+          "Could not load drift_table.csv (run benchmark/assemble_drift.py).";
+      });
+  </script>
+</body>
+</html>

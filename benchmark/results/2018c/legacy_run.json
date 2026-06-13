@@ -1,0 +1,210 @@
+{
+  "deterministic": true,
+  "engine": "compile",
+  "fluxes": [
+    "QN",
+    "QH",
+    "QE",
+    "Kup",
+    "Lup"
+  ],
+  "n_rows": 8784,
+  "obs_based_stats": null,
+  "obs_note": "Obs-based MAE/MBE not computed: KCL observations are on a restricted store and the legacy forcing carries -999 obs columns. Raw per-flux summary + determinism fingerprint is the Phase-A deliverable.",
+  "output_file_sha256": "68ca9649298d75e0db386b86fba769c87f4cf1b2496795ba391586837f71882b",
+  "output_fingerprint": "da8133fb9c238eb28a3145e024bb33827f4ffa43f5341886fd9215176843c935",
+  "period": {
+    "end": "2013-01-01 00:00",
+    "start": "2012-01-01 01:00"
+  },
+  "provenance": {
+    "binary_path": "SUEWS_V2018c",
+    "build_flags": "make FFLAGS='-O3 -fPIC -fbounds-check -cpp -Wno-unused-dummy-argument -Wno-unused-variable -fallow-argument-mismatch'",
+    "build_layout": "sourcecode",
+    "generated": "2026-06-07T13:06:38+00:00",
+    "gfortran": "11.5.0 (GCC 11, Red Hat)",
+    "host": "remote-compute",
+    "input_convention": "2020a",
+    "input_source": "Release/InputTables/2018c",
+    "output_remote_path": "Output/Kc1_2012_SUEWS_60.txt"
+  },
+  "raw_summary": {
+    "Kup": {
+      "full": {
+        "max": 106.2756,
+        "mean": 13.0361,
+        "min": 0.0,
+        "n": 8784
+      },
+      "seasonal": {
+        "DJF": {
+          "max": 57.726,
+          "mean": 4.5195,
+          "min": 0.0,
+          "n": 2184
+        },
+        "JJA": {
+          "max": 106.2756,
+          "mean": 20.7396,
+          "min": 0.0,
+          "n": 2208
+        },
+        "MAM": {
+          "max": 103.1889,
+          "mean": 17.3754,
+          "min": 0.0,
+          "n": 2208
+        },
+        "SON": {
+          "max": 81.8417,
+          "mean": 9.3776,
+          "min": 0.0,
+          "n": 2184
+        }
+      }
+    },
+    "Lup": {
+      "full": {
+        "max": 512.7227,
+        "mean": 376.3442,
+        "min": 288.0257,
+        "n": 8784
+      },
+      "seasonal": {
+        "DJF": {
+          "max": 401.1471,
+          "mean": 342.5982,
+          "min": 288.0257,
+          "n": 2184
+        },
+        "JJA": {
+          "max": 512.7227,
+          "mean": 411.0498,
+          "min": 350.4068,
+          "n": 2208
+        },
+        "MAM": {
+          "max": 498.2478,
+          "mean": 374.5552,
+          "min": 321.0843,
+          "n": 2208
+        },
+        "SON": {
+          "max": 493.9178,
+          "mean": 376.812,
+          "min": 321.3288,
+          "n": 2184
+        }
+      }
+    },
+    "QE": {
+      "full": {
+        "max": 102.9572,
+        "mean": 6.6303,
+        "min": 0.2507,
+        "n": 8784
+      },
+      "seasonal": {
+        "DJF": {
+          "max": 59.314,
+          "mean": 4.4398,
+          "min": 0.2507,
+          "n": 2184
+        },
+        "JJA": {
+          "max": 102.9572,
+          "mean": 9.3559,
+          "min": 0.7319,
+          "n": 2208
+        },
+        "MAM": {
+          "max": 90.3129,
+          "mean": 6.5554,
+          "min": 0.4997,
+          "n": 2208
+        },
+        "SON": {
+          "max": 52.0448,
+          "mean": 6.1411,
+          "min": 0.4535,
+          "n": 2184
+        }
+      }
+    },
+    "QH": {
+      "full": {
+        "max": 157.3656,
+        "mean": 37.8966,
+        "min": -29.9189,
+        "n": 8784
+      },
+      "seasonal": {
+        "DJF": {
+          "max": 98.4676,
+          "mean": 29.3196,
+          "min": -23.8865,
+          "n": 2184
+        },
+        "JJA": {
+          "max": 153.2052,
+          "mean": 45.3524,
+          "min": -29.6661,
+          "n": 2208
+        },
+        "MAM": {
+          "max": 157.3656,
+          "mean": 42.469,
+          "min": -29.9189,
+          "n": 2208
+        },
+        "SON": {
+          "max": 127.1184,
+          "mean": 34.3132,
+          "min": -22.242,
+          "n": 2184
+        }
+      }
+    },
+    "QN": {
+      "full": {
+        "max": 644.8176,
+        "mean": 43.0813,
+        "min": -85.0613,
+        "n": 8784
+      },
+      "seasonal": {
+        "DJF": {
+          "max": 329.7399,
+          "mean": -15.4389,
+          "min": -75.2054,
+          "n": 2184
+        },
+        "JJA": {
+          "max": 644.8176,
+          "mean": 98.4196,
+          "min": -69.9349,
+          "n": 2208
+        },
+        "MAM": {
+          "max": 634.3047,
+          "mean": 67.5224,
+          "min": -85.0613,
+          "n": 2208
+        },
+        "SON": {
+          "max": 482.8242,
+          "mean": 20.9452,
+          "min": -77.0553,
+          "n": 2184
+        }
+      }
+    }
+  },
+  "run_fingerprints": [
+    "da8133fb9c238eb28a3145e024bb33827f4ffa43f5341886fd9215176843c935",
+    "da8133fb9c238eb28a3145e024bb33827f4ffa43f5341886fd9215176843c935"
+  ],
+  "site": "Kc",
+  "site_note": "canonical KCL (King's College London) input",
+  "tag": "2018c"
+}

@@ -64,6 +64,8 @@ Look for:
 - `ready`: clear enough to implement or review.
 - `needs-repro`: bug report needs a minimal reproduction.
 - `needs-scope`: feature/refactor scope needs clarification.
+- `needs-split`: bundles several independent concerns that should be decomposed
+  into focused child issues under the original as a parent.
 - `needs-acceptance`: expected outcome is not yet testable.
 - `needs-summary`: useful context exists in comments but needs a maintainer summary.
 - `misframed`: title/body describe a downstream symptom after triage has
@@ -79,5 +81,7 @@ Ask:
 - Does the body distinguish symptom from root cause where known?
 - Would a contributor know what files, API, CLI command, or docs area to inspect?
 - Can a PR author derive tests or acceptance criteria from the issue?
+- Does the issue cover a single actionable concern, or several that should be
+  separate child issues? (see `.claude/rules/work-sizing.md`)
 - Are important discoveries currently buried only in comments?
 - If the framing changed, is the original issue author's contribution preserved?

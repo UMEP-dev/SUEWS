@@ -4217,10 +4217,11 @@ class SUEWSConfig(BaseModel):
         *,
         had_signature: bool = True,
     ) -> ValidationError:
-        """Transform Pydantic validation errors to use GRIDID instead of array indices.
+        """Transform Pydantic validation errors to label sites by GRIDID.
 
-        Uses structured error data to avoid string replacement collisions when
-        GRIDID values overlap with array indices (e.g., site 0 has GRIDID=1).
+        Uses structured error data to avoid string replacement collisions, and
+        formats locations as ``sites[gridiv=...]`` so a GRIDID such as 1 is not
+        mistaken for a second list item.
 
         `had_signature` carries whether the source YAML actually shipped a
         `schema_version` field. It is forwarded to `_drift_hint` so unsigned
@@ -4247,19 +4248,6 @@ class SUEWSConfig(BaseModel):
         modified_errors = []
         for err in error.errors():
             err_copy = err.copy()
-            loc_list = list(err_copy["loc"])
-
-            # Replace numeric site index with GRIDID in location tuple
-            if (
-                len(loc_list) >= 2
-                and loc_list[0] == "sites"
-                and isinstance(loc_list[1], int)
-            ):
-                site_idx = loc_list[1]
-                if site_idx in site_gridid_map:
-                    loc_list[1] = site_gridid_map[site_idx]
-
-            err_copy["loc"] = tuple(loc_list)
             modified_errors.append(err_copy)
 
         # Format into readable message
@@ -4268,7 +4256,7 @@ class SUEWSConfig(BaseModel):
         ]
 
         for err in modified_errors:
-            loc_str = ".".join(str(x) for x in err["loc"])
+            loc_str = cls._format_validation_loc(err["loc"], site_gridid_map)
             error_lines.append(loc_str)
             error_lines.append(
                 f"  {err['msg']} [type={err['type']}]"
@@ -4294,6 +4282,29 @@ class SUEWSConfig(BaseModel):
 
         error_msg = "\n".join(error_lines)
         raise ValueError(f"SUEWS Configuration Validation Error:\n{error_msg}")
+
+    @staticmethod
+    def _format_validation_loc(loc: tuple, site_gridid_map: dict) -> str:
+        """Format a Pydantic error location with explicit site GRIDID labels."""
+        parts = []
+        index = 0
+        while index < len(loc):
+            item = loc[index]
+            if (
+                item == "sites"
+                and index + 1 < len(loc)
+                and isinstance(loc[index + 1], int)
+            ):
+                site_idx = loc[index + 1]
+                if site_idx in site_gridid_map:
+                    parts.append(f"sites[gridiv={site_gridid_map[site_idx]}]")
+                else:
+                    parts.append(f"sites[{site_idx}]")
+                index += 2
+                continue
+            parts.append(str(item))
+            index += 1
+        return ".".join(parts)
 
     @classmethod
     def _drift_hint(

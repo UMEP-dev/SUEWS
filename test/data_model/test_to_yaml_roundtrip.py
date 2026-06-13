@@ -11,6 +11,7 @@ import pytest
 import yaml
 from supy._env import trv_supy_module
 from supy.data_model.core.config import SUEWSConfig
+from supy.data_model.core.type import RefValue
 from supy.data_model.validation.pipeline.phase_a import find_extra_parameters
 
 pytestmark = pytest.mark.api
@@ -155,3 +156,60 @@ class TestToYamlRoundTrip:
         assert reloaded.sites[0].initial_states.qn_surfs == [1.0] * 7
 
         Path(tmp_path).unlink(missing_ok=True)
+
+    def test_refvalue_none_co2_fields_round_trip(self, sample_config, tmp_path):
+        """Unused CO2 RefValue fields should not serialise as empty mappings."""
+        # ARRANGE
+        co2 = sample_config.sites[0].properties.anthropogenic_emissions.co2
+        fields = [
+            "co2pointsource",
+            "ef_umolco2perj",
+            "enef_v_jkm",
+            "trafficunits",
+        ]
+        for field in fields:
+            setattr(co2, field, RefValue(None))
+
+        path_out = tmp_path / "roundtrip.yml"
+
+        # ACT
+        sample_config.to_yaml(path_out)
+        saved = yaml.safe_load(path_out.read_text(encoding="utf-8"))
+        reloaded = SUEWSConfig.from_yaml(path_out)
+
+        # ASSERT
+        saved_co2 = saved["sites"][0]["properties"]["anthropogenic_emissions"]["co2"]
+        reloaded_co2 = reloaded.sites[0].properties.anthropogenic_emissions.co2
+        for field in fields:
+            assert saved_co2[field] == {"value": None}
+            assert getattr(reloaded_co2, field).value is None
+
+    def test_refvalue_none_land_cover_co2_fields_round_trip(
+        self, sample_config, tmp_path
+    ):
+        """CO2-related vegetated land-cover fields should share the same contract."""
+        # ARRANGE
+        land_cover = sample_config.sites[0].properties.land_cover
+        surface_types = ["evetr", "dectr", "grass"]
+        for surface_type in surface_types:
+            surface = getattr(land_cover, surface_type)
+            surface.alpha_enh_bioco2 = RefValue(None)
+
+        path_out = tmp_path / "land-cover-roundtrip.yml"
+
+        # ACT
+        sample_config.to_yaml(path_out)
+        saved = yaml.safe_load(path_out.read_text(encoding="utf-8"))
+        reloaded = SUEWSConfig.from_yaml(path_out)
+
+        # ASSERT
+        saved_land_cover = saved["sites"][0]["properties"]["land_cover"]
+        reloaded_land_cover = reloaded.sites[0].properties.land_cover
+        for surface_type in surface_types:
+            assert saved_land_cover[surface_type]["alpha_enh_bioco2"] == {
+                "value": None
+            }
+            assert (
+                getattr(reloaded_land_cover, surface_type).alpha_enh_bioco2.value
+                is None
+            )

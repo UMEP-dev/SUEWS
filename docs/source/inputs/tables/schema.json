@@ -12958,7 +12958,7 @@
     }
   },
   "additionalProperties": true,
-  "description": "JSON Schema for SUEWS YAML configuration files. Schema version 2026.5.dev13. gh#1456: the six flat STEBBS-scoped physics switches on model.physics are relocated into a single nested object model.physics.stebbs. This is a separate structural reshape from the dev12 Column D rename (gh#1452), so it takes its own dev bump. The legacy tri-state master toggle (model.physics.stebbs, a StebbsMethod integer 0/1/2) is split into stebbs.enabled (bool) + stebbs.parameters (default/provided); the two compose losslessly back to the unchanged stebbsmethod DataFrame column (0 if not enabled else int(parameters)). The dev12 flat model.physics.capacitance (RCMethod; was outer_cap_fraction / fused rcmethod) moves to model.physics.stebbs.capacitance with RCMethod semantics unchanged. model.physics.setpoint, same_albedo_wall, same_albedo_roof, same_emissivity_wall and same_emissivity_roof move under the nested object at the same leaf names. All DataFrame / Fortran column names (stebbsmethod, rcmethod, setpointmethod, same_albedo_*, same_emissivity_*) are unchanged -- only the YAML surface and the Python data-model fields move. The flat->nested fold is registered as the (2026.5.dev12 -> 2026.5.dev13) handler in src/supy/util/converter/yaml_upgrade.py::_HANDLERS and applied by the ModelPhysics before-validator (fold_stebbs_physics in src/supy/data_model/core/field_renames.py). The capacitance-vs-fraction semantics settling (#1456 part 2) is deferred to a follow-up.",
+  "description": "JSON Schema for SUEWS YAML configuration files. Schema version 2026.5. Released schema for 2026.6.5 (collapsed from the 2026.5.dev1..dev14 cycle). Union of the #1256 naming convention sweep plus the STEBBS, forcing/output and physics-selector restructures landed between the 2026.4.3 and 2026.6.5 releases:\n  * #1256 Category 1: 59 fused compound field names in ModelPhysics, SurfaceProperties, LAIParams, the vegetated-surface classes and SnowParams rewritten to snake_case (netradiationmethod -> net_radiation_method, soildepth -> soil_depth, baset -> base_temperature, crwmax -> water_holding_capacity_max).\n  * #1327 Category 5: eight STEBBS ArchetypeProperties `ext` fields spelt out to `External`.\n  * #1321 Categories 2+3: 15 ModelPhysics fields stripped of the redundant `_method` / `_model` suffix and de-abbreviated (net_radiation, storage_heat, emissions, stability, water_use, roughness_sublayer, frontal_area_index, surface_conductance, ...).\n  * #1334 + follow-through (#1337): the full STEBBS + Snow YAML surface converted to snake_case (124 renames; retires the STEBBS PascalCase exception) and the hot-water subsystem unified under a single hot_water_* prefix (dhw_* dropped).\n  * #972: accept-only widening for nested physics sub-options (family-tagged shapes); canonical YAML still dumps flat.\n  * #1333: site-level completeness validator now raises (was warn) when an active surface omits physics-required phenology / conductance / morphology inputs.\n  * Naming-convention Rule 2 (#1395 and gh#1392 / gh#1394): ArchetypeProperties and StebbsProperties reordered quantity-first (thickness_wall_outer, emissivity_wall_external, ...), the archetype_* namespace prefix introduced, building_type dropped (logged), and the layer qualifier `external` -> `outer` for bulk-material rows.\n  * #1372: model.control restructured -- forcing_file -> forcing.file and output_file -> output (inner path -> dir, legacy string form dropped); forcing-file header columns are now read and per-land-cover lai_<surface> / wuh_<surface> extras accepted (#1420 adapter follow-up; laimethod=0 observed LAI no longer clipped to LAImin/LAImax).\n  * gh#1452 (Column D, Reading STEBBS review): qualifier-first powers / setpoints (max_power_heating_system_air, setpoint_temperature_heating_air, ...) and the four compound-noun stragglers reordered.\n  * gh#1456: the flat STEBBS-scoped physics switches folded under a nested model.physics.stebbs object (master toggle -> enabled + parameters; capacitance / setpoint / same_albedo_* / same_emissivity_* moved at their leaf names).\n  * gh#1495: model.physics.frontal_area_index reduced to the canonical observed/modelled pair; the provided / use_provided / simple_scheme string aliases retired.\nFull rename tables live in src/supy/data_model/core/field_renames.py; the (2026.4 -> 2026.5) migration in src/supy/util/converter/yaml_upgrade.py::_HANDLERS applies the whole union in order.",
   "properties": {
     "name": {
       "default": "sample config",
@@ -13004,20 +13004,20 @@
       "type": "array"
     }
   },
-  "title": "SUEWS Configuration Schema v2026.5.dev13",
+  "title": "SUEWS Configuration Schema v2026.5",
   "type": "object",
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://umep-dev.github.io/SUEWS/schema/suews-config/2026.5.dev13.json",
-  "version": "2026.5.dev13",
+  "$id": "https://umep-dev.github.io/SUEWS/schema/suews-config/2026.5.json",
+  "version": "2026.5",
   "$comment": {
     "generator": "supy.util.schema_publisher",
     "suews_version": "unknown",
-    "schema_version": "2026.5.dev13"
+    "schema_version": "2026.5"
   },
   "examples": [
     {
       "name": "minimal_config",
-      "schema_version": "2026.5.dev13",
+      "schema_version": "2026.5",
       "description": "Minimal SUEWS configuration example",
       "model": {
         "control": {

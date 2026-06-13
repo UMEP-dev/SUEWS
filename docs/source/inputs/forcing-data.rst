@@ -122,7 +122,7 @@ Where:
 Named-column forcing files (gh#1372)
 ------------------------------------
 
-Since schema 2026.5.dev7, SUEWS reads forcing files by **column name**,
+Since schema 2026.5, SUEWS reads forcing files by **column name**,
 not by column position. The header line is required and its content is
 matched, case-insensitively, against the canonical column list above.
 
@@ -182,8 +182,18 @@ Important Requirements
   - For hourly data at 13:00, the measurement covers 12:00-13:00
   - For 5-minute data at 10:05, the measurement covers 10:00-10:05
 
-- **Time zone**: Use **local time**, not UTC
+- **Time zone**: Use **local standard time** (i.e. a fixed UTC offset), not UTC and not civil time with daylight-saving transitions
 - **Complete days**: Files must contain whole days of data
+
+.. important:: **Local standard time, not civil time**
+
+   "Local time" in SUEWS means **local standard time** -- the fixed UTC offset for the site's time zone, applied uniformly throughout the year. Do **not** use civil time that includes daylight-saving (summer-time) transitions.
+
+   For example, a UK site uses GMT (UTC+0) year-round. Converting to ``Europe/London`` would introduce DST shifts that create one missing row in spring and one duplicate row in autumn, causing SUEWS to reject the forcing file. For a site in France, use CET (UTC+1) year-round, not CEST in summer.
+
+   The :input:option:`timezone` parameter in the YAML configuration is this same fixed offset (``0`` for the UK, ``1`` for France). SUEWS accounts for daylight saving internally through the :input:option:`startdls` and :input:option:`enddls` parameters, which adjust diurnal activity profiles for anthropogenic heat and water use -- the forcing timestamps themselves always stay in standard time.
+
+   When comparing SUEWS output against observational data, verify that both datasets use the same time convention. Observations recorded in civil time (with DST) must be converted to local standard time before comparison.
 
 **File Naming**
 
@@ -212,7 +222,7 @@ YAML Configuration
 ------------------
 
 In your YAML configuration, specify the forcing file(s) under the
-``forcing`` sub-object (schema 2026.5.dev7 onwards; see
+``forcing`` sub-object (schema 2026.5 onwards; see
 :ref:`transition_guide` for the rename of the legacy
 ``model.control.forcing_file`` key):
 
@@ -531,7 +541,7 @@ Check your data for:
 
 - **"Division by zero"**: Wind speed < 0.01 m/s
 - **"Negative radiation"**: Check kdown is always ≥ 0
-- **"Time mismatch"**: Ensure local time is used
+- **"Time mismatch"**: Ensure local standard time is used (see note above)
 - **"Missing data"**: Use -999, not blank or NaN
 
 Validating Forcing Data

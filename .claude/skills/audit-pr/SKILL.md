@@ -14,9 +14,29 @@ gh pr view {pr} --json number,title,files,commits
 gh pr diff {pr} --name-only
 ```
 
+## Size Gate (run first)
+
+Before the detailed review, assess the review surface. If the PR is too large to
+review well in one pass, or bundles unrelated concerns, lead with a split
+recommendation instead of spending the review on an unreviewable diff:
+
+- Check diff scope: `gh pr diff {pr} --name-only` plus additions/deletions per
+  file. Watch for a large meaningful diff, many touched subsystems, or a mix of
+  refactor + behaviour change + formatting.
+- Apply `.claude/rules/work-sizing.md`. If the PR fails the right-sized-PR test,
+  recommend splitting it (a stacked series of small PRs, or carving out
+  mechanical/generated changes first) before review. PR size relates to
+  function/file/module granularity and the language conventions.
+- State the proposed split concretely: which files/concerns go in which PR, and
+  the suggested order. This is a recommendation; do not rewrite the branch.
+- A best-effort review may still follow if the author prefers, but the size
+  recommendation comes first.
+- To carry out the split, hand off to `split-pr`; audit-pr only recommends.
+
 ## Workflow
 
 - **Context**: Gather files, classify changes
+- **Size gate (first)**: see "Size Gate" above -- recommend a split before reviewing an oversized or bundled PR
 - **Code Style**: lint-code
 - **Scientific**: Physics validation (if applicable)
 - **Testing**: Coverage, FIRST principles
@@ -69,6 +89,8 @@ Details: `references/style-checks.md`
 
 === DRAFT SUMMARY ===
 **Status**: Needs attention / Ready
+Verdict: clean | needs-attention
+Size gate: pass | split-recommended
 
 | Category | Status |
 |----------|--------|
@@ -78,7 +100,10 @@ Details: `references/style-checks.md`
 | Docs | PASS/FAIL |
 
 ### Key Findings
-- [issues list]
+- [severity] finding (severity = blocking | major | minor | false-positive)
+
+The `Verdict`, `Size gate`, and per-finding `[severity]` tags are the fields a
+consuming skill (e.g. `fix-issue` step 5) branches on; keep them explicit.
 
 ### Suggested Reviewers
 @reviewer (module:name)
@@ -87,6 +112,34 @@ Details: `references/style-checks.md`
 ## Approval Options
 
 `approve` | `approve with edits` | `skip line comments` | `cancel`
+
+## Privacy scrub gate
+
+Before drafting any line comment or summary, scan the model-authored finding text
+(problem descriptions, summary, reviewer notes) for internal tracker IDs
+(`PER-\d+` and similar), absolute local/home paths (`/Users/...`,
+worktree/internal-tooling paths), and private host names (internal compute
+servers and the like). Redact these in distilled text. If a private token appears inside a
+verbatim quote pulled from the diff, CI log, or stack trace that must be preserved
+to make the finding actionable, replace it with neutral phrasing or escalate
+rather than post as-is. This operationalises the "Privacy is a hard invariant on
+every outward write" rule in `.claude/rules/autonomous-workflow.md`.
+
+## Autonomous Mode
+
+audit-pr is a read-only review stage in the issue -> PR -> merge pipeline. Under
+an autonomous orchestrator it NEVER posts to GitHub; its terminal output is the
+drafted review plus the machine-readable handoff block (`Verdict`, `Size gate`,
+per-finding `[severity]`).
+
+- Auto-applicable (read-only / self-scoped): gather context, run the Size Gate,
+  perform the review, and emit the verdict block. This review-and-emit tier is the
+  only one an opt-in standing approval can cover.
+- Human-gated, always escalate (never auto-applied, in any mode): posting any line
+  comment or review onto the PR. The "Wait for human confirmation" step is NOT
+  satisfied by a batch standing approval; there is no standing approval for
+  posting. The autonomous terminal is escalate-with-draft, the same shape as
+  `triage-issue`'s needs-discussion and `queue-pr`'s merge escalation.
 
 ## References
 

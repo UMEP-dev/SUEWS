@@ -2943,7 +2943,7 @@ class SiteProperties(BaseModel):
         default=40.0,
     )
     timezone: FlexibleRefValue(Union[TimezoneOffset, float]) = Field(
-        description="Time zone offset from UTC",
+        description="Fixed time zone offset from UTC in hours (e.g. 0 for UK/GMT, 1 for France/CET). This is a standard-time offset that does not change with daylight saving. Forcing data timestamps must use this same fixed offset year-round.",
         json_schema_extra={"unit": "h", "display_name": "Time zone (UTC offset)"},
         default=TimezoneOffset.UTC,
     )
@@ -3232,7 +3232,7 @@ class Site(BaseModel):
     including all physical properties, initial states, and model parameters.
     """
 
-    model_config = ConfigDict(title="Site Configuration")
+    model_config = ConfigDict(title="Site Configuration", validate_assignment=True)
 
     name: str = Field(description="Name of the site", default="test site")
     gridiv: int = Field(

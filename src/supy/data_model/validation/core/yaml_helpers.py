@@ -1959,7 +1959,7 @@ def run_precheck(path: str) -> dict:
 
     # ---- Step 0: Load yaml from path into a dict ----
     with open(path, "r", encoding="utf-8") as file:
-        data = yaml.load(file, Loader=yaml.FullLoader)
+        data = yaml.safe_load(file)
 
     original_data = deepcopy(data)
     data = rename_keys_recursive(data, RAW_YAML_FIELD_RENAMES)

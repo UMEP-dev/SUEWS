@@ -257,18 +257,18 @@ class TestConfigSitesUpdate:
         assert sim_single_site.config.sites[0].properties.lng.value == -0.13
 
     def test_site_name_nonexistent_multi_sites(self, sim_multi_site):
-        """Test that non-matching site name is skipped gracefully when multiple sites exist."""
-        original_name1 = sim_multi_site.config.sites[0].name
-        original_name2 = sim_multi_site.config.sites[1].name
+        """Test that a non-matching site name raises when multiple sites exist.
 
-        # Update with non-existent site name should be skipped
-        sim_multi_site.update_config({
-            "sites": {"NonExistent": {"name": "ShouldNotApply"}}
-        })
-
-        # Both sites should remain unchanged
-        assert sim_multi_site.config.sites[0].name == original_name1
-        assert sim_multi_site.config.sites[1].name == original_name2
+        Changed in gh#1530: previously the unmatched name was silently
+        skipped, turning a misspelled site target into a no-op. Strict
+        dict updates now raise so the typo is caught. (Ambiguous
+        single-site shorthand keys remain a skip-with-warning - see
+        test_single_site_shorthand_fails_gracefully_multi_site.)
+        """
+        with pytest.raises(ValueError, match="NonExistent"):
+            sim_multi_site.update_config({
+                "sites": {"NonExistent": {"name": "ShouldNotApply"}}
+            })
 
     def test_site_name_multi_site_selective(self, sim_multi_site):
         """Test updating only one site by name when multiple sites exist."""
@@ -387,6 +387,276 @@ class TestConfigSitesUpdate:
         assert sim_single_site.config.sites[0].gridiv == 99, (
             "Bug detected: Single-site fallback not working (line 148 uses 'value' instead of 'site_value')"
         )
+
+
+class TestConfigFromDict:
+    """Regression tests for gh#1530: dict configs must use validated construction.
+
+    ``SUEWSSimulation(config=dict)`` and ``update_config(dict)`` must route
+    through the validated ``SUEWSConfig`` path rather than mutating model
+    internals by hand, so enum coercion, RefValue wrapping, and range checks
+    all apply to dict input exactly as they do to YAML files.
+    """
+
+    pytestmark = pytest.mark.cfg
+
+    @pytest.fixture
+    def sample_config_dict(self):
+        """Full configuration dict, as a user would get from yaml.safe_load."""
+        import yaml
+
+        yaml_path = files("supy").joinpath("sample_data/sample_config.yml")
+        return yaml.safe_load(yaml_path.read_text(encoding="utf-8"))
+
+    @pytest.fixture
+    def sim_from_yaml(self):
+        """Simulation loaded from the bundled sample YAML."""
+        yaml_path = files("supy").joinpath("sample_data/sample_config.yml")
+        return SUEWSSimulation(str(yaml_path))
+
+    def test_init_from_full_config_dict(self, sample_config_dict):
+        """Constructor must accept a full YAML-shaped dict (gh#1530)."""
+        sim = SUEWSSimulation(sample_config_dict)
+
+        assert sim.config is not None
+        assert sim._df_state_init is not None
+        assert len(sim.config.sites) == 1
+
+    def test_full_dict_equivalent_to_yaml(self, sample_config_dict, sim_from_yaml):
+        """Dict and YAML construction must produce the same initial state."""
+        sim_dict = SUEWSSimulation(sample_config_dict)
+
+        pd.testing.assert_frame_equal(
+            sim_dict._df_state_init,
+            sim_from_yaml._df_state_init,
+            check_dtype=False,
+        )
+
+    def test_update_config_full_dict_on_empty_sim(self, sample_config_dict):
+        """update_config with a full dict must work without a prior config."""
+        sim = SUEWSSimulation()
+        sim.update_config(sample_config_dict)
+
+        assert sim.config is not None
+        assert sim._df_state_init is not None
+
+    def test_update_config_int_enum_revalidated(self, sim_from_yaml):
+        """A raw int for an enum field must be coerced, not stored verbatim."""
+        from supy.data_model import RefValue
+        from supy.data_model.core.model import NetRadiationMethod
+
+        sim_from_yaml.update_config({"model": {"physics": {"net_radiation": 1}}})
+
+        nr = sim_from_yaml.config.model.physics.net_radiation
+        inner = nr.value if isinstance(nr, RefValue) else nr
+        assert isinstance(inner, NetRadiationMethod), (
+            f"Expected validated enum, got {type(inner).__name__}: {inner!r}"
+        )
+        assert int(inner) == 1
+        # State regeneration must still work after the update
+        assert sim_from_yaml._df_state_init is not None
+
+    def test_update_config_refvalue_enum_dict(self, sim_from_yaml):
+        """A RefValue-style {'value': N} enum update must coerce to the enum."""
+        from supy.data_model import RefValue
+        from supy.data_model.core.model import NetRadiationMethod
+
+        sim_from_yaml.update_config({
+            "model": {"physics": {"net_radiation": {"value": 3}}}
+        })
+
+        nr = sim_from_yaml.config.model.physics.net_radiation
+        inner = nr.value if isinstance(nr, RefValue) else nr
+        assert isinstance(inner, NetRadiationMethod), (
+            f"Expected validated enum, got {type(inner).__name__}: {inner!r}"
+        )
+        assert int(inner) == 3
+
+    def test_update_config_sites_as_list(self, sim_from_yaml):
+        """A plain list for sites must replace the sites list (gh#1530 comment)."""
+        site_dict = sim_from_yaml.config.sites[0].model_dump(
+            exclude_none=True, mode="json"
+        )
+        site_dict["name"] = "ReplacedSite"
+
+        sim_from_yaml.update_config({"sites": [site_dict]})
+
+        assert len(sim_from_yaml.config.sites) == 1
+        assert sim_from_yaml.config.sites[0].name == "ReplacedSite"
+
+    def test_update_config_plain_list_field(self, sim_from_yaml):
+        """List-valued fields other than sites must be updatable."""
+        sim_from_yaml.update_config({
+            "model": {"control": {"output": {"groups": ["SUEWS", "DailyState"]}}}
+        })
+
+        groups = sim_from_yaml.config.model.control.output.groups
+        assert list(groups) == ["SUEWS", "DailyState"]
+
+    def test_update_config_unknown_key_raises(self, sim_from_yaml):
+        """Unknown keys in an update dict must raise, not vanish silently."""
+        with pytest.raises((ValueError, KeyError)):
+            sim_from_yaml.update_config({
+                "model": {"physics": {"nonexistent_param": 1}}
+            })
+
+    def test_partial_update_on_sparse_yaml_config(self, tmp_path):
+        """A trivial update on a sparse YAML config must not raise.
+
+        gh#1530 review follow-up: the merge path snapshotted the full
+        config dump (with materialised default land-cover surfaces) as
+        the raw-YAML record, so the site-completeness validator treated
+        pydantic defaults as user-declared and raised unrelated errors
+        for updates like a timestep change. The original raw YAML must
+        be preserved through merge-then-revalidate.
+        """
+        import yaml
+
+        sparse = {
+            "name": "sparse",
+            "model": {"control": {"tstep": 300}},
+            "sites": [
+                {
+                    "name": "s1",
+                    "gridiv": 1,
+                    "properties": {"lat": 51.5, "lng": 0.1},
+                }
+            ],
+        }
+        path = tmp_path / "sparse.yml"
+        path.write_text(yaml.safe_dump(sparse, sort_keys=False), encoding="utf-8")
+
+        sim = SUEWSSimulation(str(path))
+        sim.update_config({"model": {"control": {"tstep": 600}}})
+
+        tstep = sim.config.model.control.tstep
+        assert int(tstep.value if hasattr(tstep, "value") else tstep) == 600
+
+    def test_update_config_legacy_field_name_renamed(self, sim_from_yaml):
+        """Legacy field names must work in partial updates as in full input.
+
+        gh#1530 review follow-up: the full YAML/dict path normalises
+        deprecated names (e.g. ``stabilitymethod`` -> ``stability``) via
+        before-validators; partial updates must accept them identically.
+        """
+        sim_from_yaml.update_config({"model": {"physics": {"stabilitymethod": 3}}})
+
+        st = sim_from_yaml.config.model.physics.stability
+        inner = st.value if hasattr(st, "value") else st
+        assert int(inner) == 3
+
+    def test_update_config_legacy_output_file(self, sim_from_yaml):
+        """The deprecated output_file dict form must lift under output."""
+        sim_from_yaml.update_config({
+            "model": {"control": {"output_file": {"freq": 1800}}}
+        })
+
+        freq = sim_from_yaml.config.model.control.output.freq
+        assert int(freq.value if hasattr(freq, "value") else freq) == 1800
+
+    def test_update_config_legacy_forcing_file(self, sim_from_yaml):
+        """The deprecated forcing_file form must move under forcing.file."""
+        sim_from_yaml.update_config(
+            {"model": {"control": {"forcing_file": "new_forcing.txt"}}},
+        )
+
+        f = sim_from_yaml.config.model.control.forcing.file
+        inner = f.value if hasattr(f, "value") else f
+        assert inner == "new_forcing.txt"
+
+    def test_update_config_unknown_site_name_multi_site_raises(self, sim_from_yaml):
+        """A typo'd site name must raise when multiple sites exist.
+
+        gh#1530 review follow-up: silently skipping an unmatched site name
+        makes a misspelled target a no-op exactly where selecting the
+        wrong site is most likely. (Ambiguous single-site shorthand with
+        multiple sites stays a skip-with-warning - pinned behaviour.)
+        """
+        import copy
+
+        site2 = copy.deepcopy(sim_from_yaml.config.sites[0])
+        site2.name = "Swindon"
+        sim_from_yaml.config.sites.append(site2)
+
+        with pytest.raises(ValueError, match="TypoSite"):
+            sim_from_yaml.update_config({"sites": {"TypoSite": {"gridiv": 9}}})
+
+    def test_init_from_full_dict_auto_loads_forcing(self, sample_config_dict):
+        """Full-dict init must auto-load resolvable forcing like YAML init.
+
+        gh#1530 review follow-up: the dict branch never called
+        _try_load_forcing_from_config, so a dict with an absolute (or
+        cwd-resolvable) forcing path left forcing empty while the same
+        data via a YAML file auto-loaded it.
+        """
+        forcing_abs = files("supy").joinpath("sample_data/Kc_2012_data_60.txt")
+        cfg = dict(sample_config_dict)
+        cfg["model"]["control"]["forcing"]["file"] = str(forcing_abs)
+
+        sim = SUEWSSimulation(cfg)
+
+        assert sim._df_forcing is not None
+        assert len(sim._df_forcing) > 0
+
+    def test_update_config_refvalue_ref_only_patch(self, tmp_path):
+        """A ref-only patch must keep the field's current value.
+
+        gh#1530 review follow-up: when the current form of a field is a
+        bare scalar (or the base dump lacks the key), a metadata-only
+        patch like {'ref': {...}} produced a value-less RefValue dict
+        and failed validation; the merge must seed the current value.
+        """
+        import yaml
+
+        sparse = {
+            "name": "sparse",
+            "model": {"control": {"tstep": 300}},
+            "sites": [
+                {
+                    "name": "s1",
+                    "gridiv": 1,
+                    "properties": {"lat": 51.5, "lng": 0.1},
+                }
+            ],
+        }
+        path = tmp_path / "sparse.yml"
+        path.write_text(yaml.safe_dump(sparse, sort_keys=False), encoding="utf-8")
+        sim = SUEWSSimulation(str(path))
+
+        sim.update_config({
+            "model": {"control": {"tstep": {"ref": {"desc": "site doc"}}}}
+        })
+
+        tstep = sim.config.model.control.tstep
+        assert int(tstep.value if hasattr(tstep, "value") else tstep) == 300
+        assert getattr(tstep, "ref", None) is not None
+
+    def test_update_config_refvalue_tstep_with_output_freq(self, sim_from_yaml):
+        """RefValue-style tstep updates must work with output.freq set.
+
+        gh#1530 review follow-up: validate_model_output_config computed
+        ``freq % tstep`` without unwrapping a RefValue-wrapped tstep,
+        so a documented RefValue patch raised TypeError-as-schema-drift
+        whenever an output frequency was configured.
+        """
+        sim_from_yaml.update_config({"model": {"control": {"output": {"freq": 3600}}}})
+        sim_from_yaml.update_config({
+            "model": {"control": {"tstep": {"value": 300, "ref": {"desc": "doc"}}}}
+        })
+
+        tstep = sim_from_yaml.config.model.control.tstep
+        assert int(tstep.value if hasattr(tstep, "value") else tstep) == 300
+
+    def test_partial_dict_without_existing_config_raises_clearly(self):
+        """A partial dict with no base config must raise an informative error.
+
+        Previously this produced a cryptic downstream failure
+        (``No objects to concatenate``) from ``to_df_state`` on a site-less
+        default config (gh#1530 comment).
+        """
+        sim = SUEWSSimulation()
+        with pytest.raises(ValueError, match="site"):
+            sim.update_config({"model": {"control": {"tstep": 600}}})
 
 
 class TestForcing:

@@ -96,6 +96,10 @@ py.install_sources(
             'sample_data/Kc_2012_data_60.txt'
         ],
         [
+            '_model_registry/__init__.py',
+            '_model_registry/registry.yaml'
+        ],
+        [
             'ext_data/CRU_TS4.06_1991_2020.parquet',
             'ext_data/README.md'
         ],

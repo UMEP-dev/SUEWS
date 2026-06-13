@@ -1,0 +1,215 @@
+{
+  "caveats": [
+    "Output capped at 100000 rows by the 2016a binary's MaxLinesMet block reader (2 of 3 year-blocks emitted); period ends mid-Dec 2012.",
+    "QN max is a large transient: the KCL forcing supplies -999 for kdown/ldown so the 2016a binary models radiation, and the early-run values include spin-up extremes. Faithful-by-construction to the binary on this input; the contract here is determinism, not obs agreement.",
+    "Year 2011 was skipped (its forcing starts at hour 1, missing hour 0, which trips a DayWat(0) bounds crash); only the complete year 2012 ran."
+  ],
+  "deterministic": true,
+  "engine": "compile",
+  "fluxes": [
+    "QN",
+    "QH",
+    "QE",
+    "Kup",
+    "Lup"
+  ],
+  "n_rows": 100000,
+  "obs_based_stats": null,
+  "obs_note": "Obs-based MAE/MBE not computed: KCL observations are on a restricted store and the legacy forcing carries -999 obs columns. Raw per-flux summary + determinism fingerprint is the Phase-A deliverable.",
+  "output_file_sha256": "fdd698668bc829f900d40243b04495194131f2ce9f05f4422e6c377e2b88bf2c",
+  "output_fingerprint": "f6b2dafda77bdb3a95ad9d2835492ff458917bccccbddfbf37623dd82f4fd2b4",
+  "period": {
+    "end": "2012-12-13 05:15",
+    "start": "2012-01-01 00:00"
+  },
+  "provenance": {
+    "binary_path": "SUEWS_V2016a",
+    "build_flags": "make CFLAGS='-O3 -fbounds-check -cpp -fallow-argument-mismatch -ffree-line-length-none -Wno-unused-variable -Wno-unused-dummy-argument'",
+    "build_layout": "root",
+    "generated": "2026-06-07T13:06:04+00:00",
+    "gfortran": "11.5.0 (GCC 11, Red Hat)",
+    "host": "remote-compute",
+    "input_convention": "2016a",
+    "input_source": "Release/InputTables/2016a",
+    "output_remote_path": "UK_London_Output/Kc1_2012_5.txt"
+  },
+  "raw_summary": {
+    "Kup": {
+      "full": {
+        "max": 100.494,
+        "mean": 11.6978,
+        "min": -735.2491,
+        "n": 99940
+      },
+      "seasonal": {
+        "DJF": {
+          "max": 50.8247,
+          "mean": 3.7682,
+          "min": -735.2491,
+          "n": 20740
+        },
+        "JJA": {
+          "max": 100.494,
+          "mean": 18.1373,
+          "min": 0.0,
+          "n": 26496
+        },
+        "MAM": {
+          "max": 89.4016,
+          "mean": 14.9756,
+          "min": 0.0,
+          "n": 26496
+        },
+        "SON": {
+          "max": 72.7886,
+          "mean": 8.1488,
+          "min": 0.0,
+          "n": 26208
+        }
+      }
+    },
+    "Lup": {
+      "full": {
+        "max": 725.7175,
+        "mean": 377.0724,
+        "min": 287.2348,
+        "n": 100000
+      },
+      "seasonal": {
+        "DJF": {
+          "max": 725.7175,
+          "mean": 339.0574,
+          "min": 287.2348,
+          "n": 20800
+        },
+        "JJA": {
+          "max": 514.5635,
+          "mean": 410.5651,
+          "min": 349.4741,
+          "n": 26496
+        },
+        "MAM": {
+          "max": 498.728,
+          "mean": 374.2717,
+          "min": 320.8813,
+          "n": 26496
+        },
+        "SON": {
+          "max": 494.3303,
+          "mean": 376.2138,
+          "min": 318.4488,
+          "n": 26208
+        }
+      }
+    },
+    "QE": {
+      "full": {
+        "max": 679.9986,
+        "mean": 34.7751,
+        "min": -176.7401,
+        "n": 99998
+      },
+      "seasonal": {
+        "DJF": {
+          "max": 387.9879,
+          "mean": 17.1445,
+          "min": -76.0986,
+          "n": 20798
+        },
+        "JJA": {
+          "max": 679.9986,
+          "mean": 52.2991,
+          "min": -176.7401,
+          "n": 26496
+        },
+        "MAM": {
+          "max": 503.5486,
+          "mean": 32.9422,
+          "min": -134.9048,
+          "n": 26496
+        },
+        "SON": {
+          "max": 358.3607,
+          "mean": 32.9026,
+          "min": -15.504,
+          "n": 26208
+        }
+      }
+    },
+    "QH": {
+      "full": {
+        "max": 799.222,
+        "mean": 82.4797,
+        "min": -942.0693,
+        "n": 99966
+      },
+      "seasonal": {
+        "DJF": {
+          "max": 799.222,
+          "mean": 61.6188,
+          "min": -942.0693,
+          "n": 20768
+        },
+        "JJA": {
+          "max": 731.8213,
+          "mean": 99.0838,
+          "min": -240.2047,
+          "n": 26494
+        },
+        "MAM": {
+          "max": 751.4634,
+          "mean": 85.9248,
+          "min": -261.983,
+          "n": 26496
+        },
+        "SON": {
+          "max": 629.4769,
+          "mean": 78.7423,
+          "min": -85.3683,
+          "n": 26208
+        }
+      }
+    },
+    "QN": {
+      "full": {
+        "max": 4068.0515,
+        "mean": 51.0925,
+        "min": -84.4614,
+        "n": 100000
+      },
+      "seasonal": {
+        "DJF": {
+          "max": 4068.0515,
+          "mean": -2.9589,
+          "min": -74.2357,
+          "n": 20800
+        },
+        "JJA": {
+          "max": 725.8713,
+          "mean": 101.5632,
+          "min": -72.8165,
+          "n": 26496
+        },
+        "MAM": {
+          "max": 655.1438,
+          "mean": 71.0502,
+          "min": -84.4614,
+          "n": 26496
+        },
+        "SON": {
+          "max": 500.5257,
+          "mean": 22.7881,
+          "min": -77.1856,
+          "n": 26208
+        }
+      }
+    }
+  },
+  "run_fingerprints": [
+    "f6b2dafda77bdb3a95ad9d2835492ff458917bccccbddfbf37623dd82f4fd2b4",
+    "f6b2dafda77bdb3a95ad9d2835492ff458917bccccbddfbf37623dd82f4fd2b4"
+  ],
+  "site": "Kc",
+  "site_note": "canonical KCL (King's College London) input",
+  "tag": "2016a"
+}

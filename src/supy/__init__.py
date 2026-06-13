@@ -62,6 +62,10 @@ __all__ = [
     # Version
     "show_version",
     "__version__",
+    # Model-version registry (read-only lineage API)
+    "list_model_versions",
+    "model_version_info",
+    "schema_for",
     # CLI
     "SUEWS",
 ]
@@ -205,6 +209,19 @@ def __getattr__(name):
         from ._version import show_version
 
         _lazy_cache[name] = show_version
+        return _lazy_cache[name]
+
+    # Model-version registry (read-only lineage API)
+    if name in {"list_model_versions", "model_version_info", "schema_for"}:
+        from ._model_registry import (
+            list_model_versions,
+            model_version_info,
+            schema_for,
+        )
+
+        _lazy_cache["list_model_versions"] = list_model_versions
+        _lazy_cache["model_version_info"] = model_version_info
+        _lazy_cache["schema_for"] = schema_for
         return _lazy_cache[name]
 
     # CLI command

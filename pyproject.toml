@@ -1,11 +1,19 @@
 [build-system]
 requires = [
     "wheel",
-    "f90wrap==0.2.16",
-    "numpy>=2.0",
-    "meson-python>=0.12.0",
+    "meson-python>=0.17",
+    "meson>=1.3.0",  # required for tool.meson-python.limited-api support
 ]
 build-backend = 'mesonpy'
+
+[tool.meson-python]
+# Emit cp39-abi3 wheel tag when built under CPython 3.9.
+# The Rust bridge uses PyO3 with abi3-py39 (stable ABI), so one wheel
+# covers cp39..cp3xx. See src/suews_bridge/Cargo.toml.
+limited-api = true
+
+[tool.meson-python.args]
+setup = ["-Dpython.allow_limited_api=true"]
 
 [project]
 name = "supy"
@@ -22,13 +30,14 @@ readme = "README.md"
 dependencies = [
     # Data processing
     "pandas",
-    "numpy>=2.0",
-    "scipy",
+    "numpy>=1.22",  # Covers current QGIS 3 LTR / QGIS 4 NumPy stacks; no ABI constraint (Rust bridge is NumPy-free)
+    "scipy<1.15; python_version >= '3.11' and python_version < '3.13' and platform_system == 'Linux'",  # manylinux2014 wheels
+    "scipy; python_version < '3.11' or python_version >= '3.13' or platform_system != 'Linux'",  # Others use latest
     # xarray removed - only needed for gridded ERA5 (install separately)
     # dask removed - CLI uses stdlib multiprocessing.pool.ThreadPool
 
     # Model requirements
-    "pydantic",
+    "pydantic>=2.12",
     "pyyaml",  # YAML configuration parsing (used in data_model/core/config.py)
     "f90nml",
     
@@ -85,7 +94,12 @@ tmy = [
     "metpy",  # Required for UMEP EPW conversion (util/_UMEP2epw.py)
 ]
 
-# Single dev group combining test + development tools
+# NB: the regression-benchmark suite (benchmark/) declares no public dependency
+# here on purpose. Its metrics are vendored in benchmark/bench_stats.py and the
+# only run-time deps (numpy/pandas) are installed inside the benchmark workflow,
+# so this published package stays pip-installable for everyone.
+
+# Core development tooling (kept separate from docs to reduce supply-chain surface)
 dev = [
     # Testing
     "pytest",
@@ -97,42 +111,61 @@ dev = [
     
     # Development
     "ipykernel",
-    
+]
+
+# Documentation tooling (isolated from the default dev environment).
+# Runtime support remains Python 3.9+; documentation builds require Python 3.11+
+# because current Sphinx extension versions, notably sphinx-design 0.7+, do.
+docs = [
     # Documentation - Essential only (based on conf.py usage)
-    "sphinx>=4.0,<8.2",
+    "sphinx>=7,<9",
     "sphinx-autobuild",
     "sphinx-book-theme",        # Active theme in conf.py
-    "nbsphinx",                 # Jupyter notebook support
-    "recommonmark",             # Markdown support
     "pybtex",                   # Bibliography processing
-    "sphinxcontrib.bibtex~=2.4", # Bibliography support (heavily customised)
-    "sphinx-panels",            # Panel layouts
-    "sphinx-design",            # Collapsible sections for YAML config docs
+    "sphinxcontrib-bibtex>=2.6,<3", # Bibliography support (heavily customised)
+    # Collapsible sections for YAML config docs (>=0.7 supports Sphinx 8)
+    "sphinx-design>=0.7.0; python_version >= '3.11'",
     "sphinx-last-updated-by-git", # Git info in docs
     "sphinx-click",             # CLI documentation
-    "sphinx_comments",          # Comments (may be re-enabled)
-    "docutils>=0.16,<0.17",     # Version pinned for compatibility
+    "sphinx-gallery>=0.16.0",   # Gallery examples from Python scripts (GH-1029)
+    "docutils>=0.21,<0.22",     # Sphinx 8 requires docutils >=0.21
     "jinja2>=3.0",         # Version pinned for compatibility - # MP removed upper limit
 ]
 
 [project.scripts]
-suews-run = "supy.cmd.SUEWS:SUEWS"
-suews-convert = "supy.cmd.table_converter:convert_table_cmd"
-suews-validate = "supy.cmd.validate_config:main"
-suews-schema = "supy.cmd.schema_cli:main"
+# Unified CLI dispatcher. `suews <subcmd>` is the canonical entry point;
+# the hyphenated scripts below are deprecated aliases that print a notice
+# and forward to the matching subcommand.
+suews = "supy.cmd.suews_cli:main"
+suews-run = "supy.cmd.suews_cli:run_alias"
+suews-convert = "supy.cmd.suews_cli:convert_alias"
+suews-validate = "supy.cmd.suews_cli:validate_alias"
+suews-schema = "supy.cmd.suews_cli:schema_alias"
+suews-inspect = "supy.cmd.suews_cli:inspect_alias"
 
 [tool.pytest.ini_options]
 filterwarnings = [
     "ignore::UserWarning:pydantic.main",
 ]
-# Test markers for tiered CI testing
+# Test markers.
+# Two orthogonal axes (gh#1300):
+#   nature:  physics | api   -- what the test actually exercises
+#   tier:    smoke | core | cfg | slow | util -- how fast/expensive it is
+# Every test file must carry at least one of {physics, api}; tier markers
+# compose with the nature axis.
 markers = [
+    # Nature axis (gh#1300) -- orthogonal to tier.
+    "physics: Numerical/binary correctness; sufficient to run once per (OS, arch) on the canonical Python",
+    "api: Python wrapper correctness; run across (platform x Python) because pandas/numpy/pydantic surface varies",
+    # Tier axis
     "smoke: Minimal wheel validation (~6 tests, ~60s)",
+    "smoke_bridge: Bridge-loading subset run across cp39..cp3xx after a single abi3 build",
     "core: Core physics & logic tests (Fortran, driver)",
+    "rust: Rust bridge backend tests (requires suews_bridge with physics feature)",
     "util: Utility function tests (non-critical)",
     "cfg: Config/schema validation tests",
     "slow: Tests taking >30s individually",
-    "qgis: UMEP plugin tests in test/umep/ (Windows + Python 3.12 only)",
+    "qgis: UMEP plugin integration tests in test/umep/ (Windows + Python 3.12 target)",
 ]
 
 [tool.ruff]

@@ -3,6 +3,8 @@
 MODULE module_util_meteo
 
    USE module_ctrl_const_mathconst
+   USE module_ctrl_error, ONLY: ErrorHint
+   USE module_ctrl_type, ONLY: SUEWS_STATE
    IMPLICIT NONE
 
    ! REAL (KIND(1d0)),PARAMETER ::  PI=3.141592654
@@ -146,7 +148,7 @@ CONTAINS
    !Changed to use the updated version (Buck research manual, 1996) from Buck (1981)
    !For water different equations in cold and warm temperatures
 
-   FUNCTION sat_vap_press_x(Temp_c, PRESS_hPa, from, dectime) RESULT(es_hPa)
+   FUNCTION sat_vap_press_x(Temp_c, PRESS_hPa, from, dectime, modState) RESULT(es_hPa)
       ! USE module_ctrl_const_time
       ! USE defaultnotUsed
       IMPLICIT NONE
@@ -155,6 +157,7 @@ CONTAINS
       REAL(KIND(1D0)) :: e_mb, f, press_kpa, es_hPA
       INTEGER :: from, iv
       INTEGER, PARAMETER :: notUsedI = -55
+      TYPE(SUEWS_STATE), INTENT(INOUT), OPTIONAL :: modState
 
       es_hPa = 1000 ! initialise as 1000
 
@@ -162,7 +165,7 @@ CONTAINS
       IF (ABS(temp_C) < 0.001000) THEN
          IF (from == 1) THEN ! not from determining Tw
             iv = INT(press_Hpa)
-            CALL errorHint(29, 'Function sat_vap_press: temp_C, dectime,press_Hpa = ', temp_C, dectime, iv)
+            CALL errorHint(29, 'Function sat_vap_press: temp_C, dectime,press_Hpa = ', temp_C, dectime, iv, modState)
 
          END IF
          temp_C = 0.001000
@@ -186,14 +189,14 @@ CONTAINS
          END IF
 
       ELSE
-         CALL ErrorHint(28, 'FUNCTION sat_vap_press: [Temperature is out of range], Temp_C,dectime', Temp_C, dectime, notUsedI)
+         CALL ErrorHint(28, 'FUNCTION sat_vap_press: [Temperature is out of range], Temp_C,dectime', Temp_C, dectime, notUsedI, modState)
 
       END IF
 
       RETURN
    END FUNCTION sat_vap_press_x
 
-   FUNCTION sat_vap_pressIce(Temp_c, PRESS_hPa, from, dectime) RESULT(es_hPa)
+   FUNCTION sat_vap_pressIce(Temp_c, PRESS_hPa, from, dectime, modState) RESULT(es_hPa)
       ! USE module_ctrl_const_time
       ! USE defaultnotUsed
       IMPLICIT NONE
@@ -201,6 +204,7 @@ CONTAINS
       REAL(KIND(1D0)) :: e_mb, f, temp_C, press_hpa, press_kpa, es_hPA, dectime !,pw
       INTEGER :: from, iv
       INTEGER, PARAMETER :: notUsedI = -55
+      TYPE(SUEWS_STATE), INTENT(INOUT), OPTIONAL :: modState
 
       ! initialisation
       es_hPa = 10
@@ -209,7 +213,7 @@ CONTAINS
       IF (ABS(temp_C) < 0.001000) THEN
          IF (from == 1) THEN ! not from determining Tw
             iv = INT(press_Hpa)
-            CALL errorHint(29, 'Function sat_vap_press: temp_C, dectime,press_Hpa = ', temp_C, dectime, iv)
+            CALL errorHint(29, 'Function sat_vap_press: temp_C, dectime,press_Hpa = ', temp_C, dectime, iv, modState)
 
          END IF
          temp_C = 0.001000
@@ -223,7 +227,7 @@ CONTAINS
          es_hPa = e_mb*f
 
       ELSE
-         CALL ErrorHint(28, 'FUNCTION sat_vap_press: [Temperature is out of range], Temp_C,dectime', Temp_C, dectime, notUsedI)
+         CALL ErrorHint(28, 'FUNCTION sat_vap_press: [Temperature is out of range], Temp_C,dectime', Temp_C, dectime, notUsedI, modState)
 
       END IF
 
@@ -242,7 +246,7 @@ CONTAINS
    END FUNCTION spec_hum_def
 
    ! ==============================================================================
-   FUNCTION spec_heat_beer(Temp_C, rh, rho_v, rho_d) RESULT(cp)
+   FUNCTION spec_heat_beer(Temp_C, rh, rho_v, rho_d, modState) RESULT(cp)
       ! Input: Air temperature, relative humidity, water vapour and dry air densities
       ! Output: heat capacity in units J kg-1 K-1
       ! Reference: Tom Beer, CSIRO, 1990. Applied Environmetrics Meteorological Tables.
@@ -253,6 +257,7 @@ CONTAINS
       IMPLICIT NONE
 
       REAL(KIND(1D0)) :: cp, cpd, cpm, rho_v, rho_d, rh, temp_C
+      TYPE(SUEWS_STATE), INTENT(INOUT), OPTIONAL :: modState
 
       !Garratt equation a20 (1992)
       CPd = 1005.0 + ((Temp_C + 23.16)**2)/3364.0 !Changed from 23.15 to 23.16
@@ -262,7 +267,7 @@ CONTAINS
             (10.+0.5*rH)*(Temp_C/100.)**2
 
       IF (ABS(rho_d) < 0.000100 .OR. ABS(rho_v) < 0.000100 .OR. ABS(rho_d + rho_v) < 0.000100) THEN
-         CALL ErrorHint(42, 'spec-heat_beer', rho_v, rho_d, INT(Temp_C))
+         CALL ErrorHint(42, 'spec-heat_beer', rho_v, rho_d, INT(Temp_C), modState)
       END IF
 
       cp = cpd*(rho_d/(rho_d + rho_v)) + cpm*(rho_v/(rho_d + rho_v))
@@ -275,7 +280,7 @@ CONTAINS
    !sg sep 99 converted f90 FUNCTION
    !Added calcualation of latent heat of sublimation, LJ June 2012
 
-   FUNCTION Lat_vap(Temp_C, Ea_hPa, Press_hPa, cp, dectime) RESULT(lv_J_kg)
+   FUNCTION Lat_vap(Temp_C, Ea_hPa, Press_hPa, cp, dectime, modState) RESULT(lv_J_kg)
       !Input: Air temperature, Water vapour pressure, Air pressure, heat capacity
       !Output: latent heat of vaporization
 
@@ -291,6 +296,7 @@ CONTAINS
       LOGICAL :: switch1 = .FALSE., switch2 = .FALSE. !,debug=.true.
       INTEGER :: ii, from = 2
       REAL(KIND(1D0)), PARAMETER :: notUsed = -55.55
+      TYPE(SUEWS_STATE), INTENT(INOUT), OPTIONAL :: modState
 
       ea_fix = ea_hPa
       !if(debug) write(*,*)Temp_C, 'LV'
@@ -304,23 +310,23 @@ CONTAINS
       incr = 3.
       DO ii = 1, 100
          IF (Press_hPa < 900) THEN
-            CALL ErrorHint(45, 'function Lat_vap', Press_hPA, notUsed, ii)
+            CALL ErrorHint(45, 'function Lat_vap', Press_hPA, notUsed, ii, modState)
          END IF
 
          ! if(debug.and.dectime>55.13.and.dectime<55.2)write(35,*)'% 1',Tw
 
-         es_tw = sat_vap_press_x(Tw, Press_hPa, from, dectime) !Calculate saturation vapour pressure in hPa
+         es_tw = sat_vap_press_x(Tw, Press_hPa, from, dectime, modState) !Calculate saturation vapour pressure in hPa
 
          !if(debug.and.dectime>55.13.and.dectime<55.2)write(35,*)'% 2',Tw
 
          IF (Press_hPa < 900) THEN
-            CALL ErrorHint(45, 'function Lat_vap - 2', Press_hPA, notUsed, ii)
+            CALL ErrorHint(45, 'function Lat_vap - 2', Press_hPA, notUsed, ii, modState)
          END IF
 
-         psyc = psyc_const(cp, Press_hPa, lv_J_kg) !in units hPa/K
+         psyc = psyc_const(cp, Press_hPa, lv_J_kg, modState) !in units hPa/K
 
          IF (Press_hPa < 900) THEN
-            CALL ErrorHint(45, 'function Lat _vap -31', Press_hPA, notUsed, ii)
+            CALL ErrorHint(45, 'function Lat _vap -31', Press_hPA, notUsed, ii, modState)
          END IF
 
          ea_est = es_tw - psyc*(temp_C - tw)
@@ -407,17 +413,19 @@ CONTAINS
    !sg june 99 f90
    !calculate psyc - psychrometic constant Fritschen and Gay (1979)
 
-   FUNCTION psyc_const(cp, Press_hPa, lv_J_kg) RESULT(psyc_hPa) !In units hPa/K
+   FUNCTION psyc_const(cp, Press_hPa, lv_J_kg, modState) RESULT(psyc_hPa) !In units hPa/K
       USE module_ctrl_const_gas
+      USE module_ctrl_type, ONLY: SUEWS_STATE
 
       IMPLICIT NONE
       REAL(KIND(1D0)) :: cp, lv_J_kg, press_hPa, psyc_hpa
+      TYPE(SUEWS_STATE), INTENT(INOUT), OPTIONAL :: modState
 
       ! cp for moist air (shuttleworth p 4.13)
       IF (cp*press_hPa < 900 .OR. lv_J_kg < 10000) THEN
          CALL errorHint(19, &
                         'in psychrometric constant calculation:  cp [J kg-1 K-1], p [hPa], Lv [J kg-1]', &
-                        cp, Press_hPa, INT(lv_J_kg))
+                        cp, Press_hPa, INT(lv_J_kg), modState)
       END IF
 
       psyc_hPa = (cp*press_hPa)/(epsil*lv_J_kg)
@@ -493,12 +501,13 @@ CONTAINS
    END FUNCTION slopeIce_svp
 
    !------------------------------------------------------------------------
-   FUNCTION qsatf(T, PMB) RESULT(qsat)
+   FUNCTION qsatf(T, PMB, modState) RESULT(qsat)
       !       MRR, 1987
       ! AT TEMPERATURE T (DEG C) AND PRESSURE PMB (MB), GET SATURATION SPECIFIC
       !       HUMIDITY (KG/KG) FROM TETEN FORMULA
 
       REAL(KIND(1D0)) :: T, es, qsat, PMB
+      TYPE(SUEWS_STATE), INTENT(INOUT), OPTIONAL :: modState
 
       REAL(KIND(1D0)), PARAMETER :: &
          !Teten coefficients
@@ -509,7 +518,7 @@ CONTAINS
          molar_wat_vap = 0.0180153 !Molar fraction of water vapor in kg/mol
 
       IF (t > 55) THEN
-         CALL ErrorHint(34, 'Function qsatf', T, 0.00D0, -55)
+         CALL ErrorHint(34, 'Function qsatf', T, 0.00D0, -55, modState)
       END IF
 
       ES = A*dEXP(B*T/(C + T))

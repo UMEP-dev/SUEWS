@@ -1,231 +1,150 @@
 ---
 name: audit-pr
-description: Review SUEWS pull requests comprehensively. Use when reviewing PRs, checking code before merge, or when asked to review changes. Performs scientific validity assessment for physics modules, code style checking (Fortran and Python conventions), test coverage analysis, documentation verification, and merge readiness evaluation. Posts line-specific comments via GitHub API and provides concise summary. Coordinates with lint-code, sync-docs, and verify-build skills.
+description: Review SUEWS PRs. Drafts comments for approval before posting.
 ---
 
-# SUEWS PR Review
+# Audit PR
 
-Comprehensive PR review with GitHub integration. Drafts comments for human approval before posting.
+Comprehensive PR review with GitHub integration.
 
 ## Quick Start
 
 ```bash
-# Get PR info
 gh pr view {pr} --json number,title,files,commits
 gh pr diff {pr} --name-only
 ```
 
----
+## Size Gate (run first)
 
-## Step 1: PR Context
+Before the detailed review, assess the review surface. If the PR is too large to
+review well in one pass, or bundles unrelated concerns, lead with a split
+recommendation instead of spending the review on an unreviewable diff:
 
-Gather PR information:
+- Check diff scope: `gh pr diff {pr} --name-only` plus additions/deletions per
+  file. Watch for a large meaningful diff, many touched subsystems, or a mix of
+  refactor + behaviour change + formatting.
+- Apply `.claude/rules/work-sizing.md`. If the PR fails the right-sized-PR test,
+  recommend splitting it (a stacked series of small PRs, or carving out
+  mechanical/generated changes first) before review. PR size relates to
+  function/file/module granularity and the language conventions.
+- State the proposed split concretely: which files/concerns go in which PR, and
+  the suggested order. This is a recommendation; do not rewrite the branch.
+- A best-effort review may still follow if the author prefers, but the size
+  recommendation comes first.
+- To carry out the split, hand off to `split-pr`; audit-pr only recommends.
 
-```bash
-# Changed files
-gh pr diff {pr} --name-only
+## Workflow
 
-# Full diff
-gh pr diff {pr}
+- **Context**: Gather files, classify changes
+- **Size gate (first)**: see "Size Gate" above -- recommend a split before reviewing an oversized or bundled PR
+- **Code Style**: lint-code
+- **Scientific**: Physics validation (if applicable)
+- **Testing**: Coverage, FIRST principles
+- **Docs**: CHANGELOG, PR description
+- **Governance**: Check feature status tags (see below)
+- **Schema version audit**: If the PR touches `src/supy/data_model/`, apply the triggers in `.claude/rules/python/schema-versioning.md`. Field rename, removal, type change, or required-field addition should be accompanied by a bump to `CURRENT_SCHEMA_VERSION`, a new `SCHEMA_VERSIONS` entry, a matching handler in `src/supy/util/converter/yaml_upgrade.py`, and a `sample_config.yml` resync. Flag any of these that are missing. CI gate `.github/workflows/schema-version-audit.yml` runs the automated check; if the PR carries the `0-ci:schema-audit-ok` bypass label, verify from the diff yourself that the reason is genuinely cosmetic before approving.
+- **Build**: CI status, meson.build
+- **Draft**: Comments for approval
+- **Approval**: Wait for human confirmation
+- **Post**: Only after approval
 
-# Structured file info with line counts
-gh api repos/UMEP-dev/SUEWS/pulls/{pr}/files --jq '.[] | {filename, status, additions, deletions}'
-```
+## Governance Check
 
-Classify changes:
-- **Physics** (`src/suews/src/suews_phys_*.f95`) → requires scientific review
-- **Utility** (`src/suews/src/suews_util_*.f95`) → code review only
-- **Control** (`src/suews/src/suews_ctrl_*.f95`) → code review only
-- **Python** (`src/supy/*.py`) → code review only
+For PRs that add new features or breaking changes:
 
----
+- Verify CHANGELOG entries have appropriate status tags
+- New `[feature]` entries should have `[experimental]` tag by default
+- Flag if `[stable]` tag is used without governance approval
+- Check PR description mentions if feature is experimental
 
-## Step 2: Code Style
+**Questions to ask**:
+- Is this feature ready for public announcement?
+- Does it have associated publication/evaluation?
+- Has the governance panel reviewed it?
 
-Apply lint-code skill checks. Reference: `dev-ref/CODING_GUIDELINES.md`
+Details: `references/workflow-steps.md`
 
-### Fortran
+## Change Classification
 
-| Check | Pattern | Example Issue |
-|-------|---------|---------------|
-| File naming | `suews_<cat>_<name>.f95` | `snow.f95` → `suews_phys_snow.f95` |
-| Module naming | `module_<cat>_<name>` | `Snow_Module` → `module_phys_snow` |
-| IMPLICIT NONE | Required in all modules | Missing `IMPLICIT NONE` |
-| Type naming | `TYPE :: dts_<name>` | `snowstate` → `dts_snow_state` |
-| Precision | `KIND(1D0)` or `REAL64` | Bare `REAL` usage |
-| Units | `! [K]`, `! [W m-2]` | Missing unit annotation |
+| Type | Pattern | Review |
+|------|---------|--------|
+| Physics | `suews_phys_*.f95` | Scientific + code |
+| Utility | `suews_util_*.f95` | Code only |
+| Control | `suews_ctrl_*.f95` | Code only |
+| Python | `src/supy/*.py` | Code only |
 
-### Python
+## Code Style Quick Reference
 
-| Check | Pattern | Example Issue |
-|-------|---------|---------------|
-| DataFrame prefix | `df_` | `forcing` → `df_forcing` |
-| Dict prefix | `dict_` | `state` → `dict_state` |
-| Path prefix | `path_` | `file` → `path_file` |
-| Logging | `logger_supy` | Using `print()` |
-| Paths | `pathlib.Path` | Using `os.path` |
-| Type hints | Required for public functions | Missing hints |
-| Docstrings | NumPy style | Google style |
+**Fortran**: File naming, module naming, IMPLICIT NONE, precision, units
+**Python**: Variable prefixes, logging, pathlib, type hints, docstrings
 
----
+Details: `references/style-checks.md`
 
-## Step 3: Scientific Review
-
-**Only for physics changes** (`suews_phys_*.f95`).
-
-### Module Identification
-
-Map files to module labels from `dev-ref/REVIEW_PROCESS.md`:
-
-| File Pattern | Module Label | Reviewers |
-|--------------|--------------|-----------|
-| `suews_phys_stebbs` | `module:stebbs` | @yiqing1021, @denisehertwig |
-| `suews_phys_rslprof` | `module:rslprof` | @vitorlavor, @suegrimmond |
-| `suews_phys_spartacus` | `module:spartacus` | @suegrimmond, @yiqing1021 |
-| `suews_phys_snow` | `module:snow` | @havum, @ljarvi |
-| `suews_phys_ehc` | `module:ehc` | @sunt05 |
-| `suews_phys_anohm` | `module:anohm` | @sunt05 |
-| General | Overall | @sunt05, @MatthewPaskin |
-
-### Validation Checks
-
-1. **Equations**: Verify against literature/documentation
-2. **Units**: Check dimensional consistency
-3. **Boundary conditions**: Verify edge case handling
-4. **Conservation**: Energy balance `Rn = QH + QE + QS + QF`
-
-### AI-Assisted Changes
-
-Flag for extra scrutiny:
-- Verify physical reasoning, not just code correctness
-- Check for subtle errors in equations
-- Ensure consistency with SUEWS physics
-
----
-
-## Step 4: Testing Review
-
-Reference: `dev-ref/testing/TESTING_GUIDELINES.md`
-
-| Requirement | Target |
-|-------------|--------|
-| New code coverage | ≥80% |
-| Critical paths | 95-100% |
-| Physics validation | Required for physics changes |
-
-Check for:
-- FIRST principles (Fast, Independent, Repeatable, Self-validating, Timely)
-- AAA pattern (Arrange-Act-Assert)
-- Physics tests verify conservation laws
-- Tolerance-based assertions (`np.allclose()`)
-
----
-
-## Step 5: Documentation Review
-
-| Check | Requirement |
-|-------|-------------|
-| CHANGELOG | Entry with correct category |
-| PR description | Scientific rationale (if physics) |
-| User docs | Updated if user-facing |
-
-CHANGELOG categories: `[feature]`, `[bugfix]`, `[change]`, `[maintenance]`, `[doc]`
-
----
-
-## Step 6: Build Review
-
-```bash
-# Check CI status
-gh pr checks {pr}
-
-# Verify meson.build includes new files
-# New .f95 files must be in src/suews/meson.build
-# New .py files must be in appropriate __init__.py
-```
-
----
-
-## Step 7: Draft Comments
-
-Present drafted comments to human reviewer:
+## Draft Output Format
 
 ```
 === DRAFT LINE COMMENTS ===
-
-1. src/suews/src/suews_phys_snow.f95:42
-   > Fortran: Use `REAL(KIND(1D0))` for consistent precision
-
-2. src/supy/_load.py:78
-   > Python: Rename to `df_output` (DataFrame prefix convention)
+1. file.f95:42
+   > Issue description
 
 === DRAFT SUMMARY ===
-
-## PR Review Summary
-
-**Status**: Needs attention
+**Status**: Needs attention / Ready
+Verdict: clean | needs-attention
+Size gate: pass | split-recommended
 
 | Category | Status |
 |----------|--------|
-| Code Style | FAIL |
-| Scientific | PASS |
-| Testing | PASS |
-| Documentation | PASS |
+| Code Style | PASS/FAIL |
+| Scientific | PASS/FAIL/N/A |
+| Testing | PASS/FAIL |
+| Docs | PASS/FAIL |
 
 ### Key Findings
-- 2 code style issues (see line comments)
+- [severity] finding (severity = blocking | major | minor | false-positive)
+
+The `Verdict`, `Size gate`, and per-finding `[severity]` tags are the fields a
+consuming skill (e.g. `fix-issue` step 5) branches on; keep them explicit.
 
 ### Suggested Reviewers
-@sunt05 (module:snow)
-
----
-*2 line comments posted for specific issues*
+@reviewer (module:name)
 ```
 
----
+## Approval Options
 
-## Step 8: Human Approval
+`approve` | `approve with edits` | `skip line comments` | `cancel`
 
-Ask reviewer:
+## Privacy scrub gate
 
-> Review the drafted comments above. Reply with:
-> - `approve` - post all comments as drafted
-> - `approve with edits` - provide edited versions
-> - `skip line comments` - post only summary
-> - `cancel` - don't post any comments
+Before drafting any line comment or summary, scan the model-authored finding text
+(problem descriptions, summary, reviewer notes) for internal tracker IDs
+(`PER-\d+` and similar), absolute local/home paths (`/Users/...`,
+worktree/internal-tooling paths), and private host names (internal compute
+servers and the like). Redact these in distilled text. If a private token appears inside a
+verbatim quote pulled from the diff, CI log, or stack trace that must be preserved
+to make the finding actionable, replace it with neutral phrasing or escalate
+rather than post as-is. This operationalises the "Privacy is a hard invariant on
+every outward write" rule in `.claude/rules/autonomous-workflow.md`.
 
-**Wait for explicit approval before posting.**
+## Autonomous Mode
 
----
+audit-pr is a read-only review stage in the issue -> PR -> merge pipeline. Under
+an autonomous orchestrator it NEVER posts to GitHub; its terminal output is the
+drafted review plus the machine-readable handoff block (`Verdict`, `Size gate`,
+per-finding `[severity]`).
 
-## Step 9: Post Comments
-
-Only after approval:
-
-**Line comments:**
-```bash
-gh api repos/UMEP-dev/SUEWS/pulls/{pr}/comments \
-  -f body="Fortran: Use \`REAL(KIND(1D0))\` for consistent precision" \
-  -f commit_id="$COMMIT_SHA" \
-  -f path="src/suews/src/suews_phys_snow.f95" \
-  -f line=42 \
-  -f side="RIGHT"
-```
-
-**Summary comment:**
-```bash
-gh api repos/UMEP-dev/SUEWS/issues/{pr}/comments \
-  -f body="$SUMMARY_MARKDOWN"
-```
-
-Report: "Posted N line comments and 1 summary comment to PR #X"
-
----
+- Auto-applicable (read-only / self-scoped): gather context, run the Size Gate,
+  perform the review, and emit the verdict block. This review-and-emit tier is the
+  only one an opt-in standing approval can cover.
+- Human-gated, always escalate (never auto-applied, in any mode): posting any line
+  comment or review onto the PR. The "Wait for human confirmation" step is NOT
+  satisfied by a batch standing approval; there is no standing approval for
+  posting. The autonomous terminal is escalate-with-draft, the same shape as
+  `triage-issue`'s needs-discussion and `queue-pr`'s merge escalation.
 
 ## References
 
-- Detailed checklist: `references/review-checklist.md`
-- Coding guidelines: `dev-ref/CODING_GUIDELINES.md`
-- Fortran conventions: `dev-ref/FORTRAN_NAMING_CONVENTIONS.md`
-- Review process: `dev-ref/REVIEW_PROCESS.md`
-- Testing guidelines: `dev-ref/testing/TESTING_GUIDELINES.md`
+- `references/review-checklist.md` - Detailed checklist
+- `references/workflow-steps.md` - Full workflow
+- `references/style-checks.md` - Style rules
+- `dev-ref/CODING_GUIDELINES.md`
+- `dev-ref/REVIEW_PROCESS.md`

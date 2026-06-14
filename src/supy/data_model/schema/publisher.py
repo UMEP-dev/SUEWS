@@ -135,7 +135,7 @@ def _get_minimal_example() -> Dict[str, Any]:
         "schema_version": CURRENT_SCHEMA_VERSION,
         "description": "Minimal SUEWS configuration example",
         "model": {
-            "control": {"tstep": 3600, "forcing_file": "forcing.txt"},
+            "control": {"tstep": 3600, "forcing": {"file": "forcing.txt"}},
             "physics": {},
         },
         "sites": [
@@ -176,10 +176,10 @@ def save_schema(
     if format == "yaml":
         import yaml
 
-        with open(output_path, "w") as f:
+        with open(output_path, "w", encoding="utf-8") as f:
             yaml.dump(schema, f, default_flow_style=False, sort_keys=False)
     else:
-        with open(output_path, "w") as f:
+        with open(output_path, "w", encoding="utf-8") as f:
             json.dump(schema, f, indent=2)
 
     print(f"Schema saved to {output_path}")
@@ -202,22 +202,22 @@ def create_schema_bundle(output_dir: Path, version: Optional[str] = None) -> Non
 
     # Save in multiple formats
     # JSON format
-    with open(output_dir / "schema.json", "w") as f:
+    with open(output_dir / "schema.json", "w", encoding="utf-8") as f:
         json.dump(schema, f, indent=2)
 
     # YAML format
     import yaml
 
-    with open(output_dir / "schema.yaml", "w") as f:
+    with open(output_dir / "schema.yaml", "w", encoding="utf-8") as f:
         yaml.dump(schema, f, default_flow_style=False, sort_keys=False)
 
     # Minified JSON
-    with open(output_dir / "schema.min.json", "w") as f:
+    with open(output_dir / "schema.min.json", "w", encoding="utf-8") as f:
         json.dump(schema, f, separators=(",", ":"))
 
     # Internal schema (with internal fields)
     internal_schema = generate_json_schema(version, include_internal=True)
-    with open(output_dir / "schema-internal.json", "w") as f:
+    with open(output_dir / "schema-internal.json", "w", encoding="utf-8") as f:
         json.dump(internal_schema, f, indent=2)
 
     # Create README
@@ -284,7 +284,7 @@ For issues or questions about the schema, please visit:
 https://github.com/UMEP-dev/SUEWS
 """
 
-    with open(output_dir / "README.md", "w") as f:
+    with open(output_dir / "README.md", "w", encoding="utf-8") as f:
         f.write(readme_content)
 
     print(f"Schema bundle created in {output_dir}")
@@ -311,12 +311,12 @@ def validate_config_against_schema(
     import jsonschema
 
     # Load configuration
-    with open(config_path, "r") as f:
+    with open(config_path, "r", encoding="utf-8") as f:
         config = yaml.safe_load(f)
 
     # Load or generate schema
     if schema_path:
-        with open(schema_path, "r") as f:
+        with open(schema_path, "r", encoding="utf-8") as f:
             if schema_path.suffix == ".yaml":
                 schema = yaml.safe_load(f)
             else:

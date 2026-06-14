@@ -15,6 +15,7 @@ import pandas as pd
 import pytest
 
 import supy as sp
+from supy._load import trim_df_state
 from supy.data_model import (
     InitialStates,
     RefValue,
@@ -22,7 +23,14 @@ from supy.data_model import (
     SiteProperties,
     SUEWSConfig,
 )
-from supy.data_model.core.model import ModelControl
+from supy.data_model.core.model import (
+    ModelControl,
+    ModelPhysics,
+    SetpointMethod,
+    StebbsParameterSource,
+)
+
+pytestmark = pytest.mark.api
 
 
 class TestSUEWSConfig(unittest.TestCase):
@@ -33,7 +41,7 @@ class TestSUEWSConfig(unittest.TestCase):
         )
         self.config = SUEWSConfig.from_yaml(self.path_sample_config)
 
-    @pytest.mark.smoke
+    @pytest.mark.cfg
     def test_config_conversion_cycle(self):
         """Test if SUEWS configuration can be correctly converted between YAML and DataFrame formats."""
         print("\n========================================")
@@ -53,8 +61,8 @@ class TestSUEWSConfig(unittest.TestCase):
             self.config.model.control.tstep, config_reconst.model.control.tstep
         )
         self.assertEqual(
-            self.config.model.physics.netradiationmethod.value,
-            config_reconst.model.physics.netradiationmethod.value,
+            self.config.model.physics.net_radiation.value,
+            config_reconst.model.physics.net_radiation.value,
         )
         self.assertEqual(
             self.config.sites[0].properties.lat.value,
@@ -113,6 +121,81 @@ class TestSUEWSConfig(unittest.TestCase):
             df_state_init, df_state_reconst, check_dtype=False, check_like=True
         )
 
+    @pytest.mark.cfg
+    def test_setpoint_profiles_survive_trimmed_df_state_roundtrip(self):
+        """Test scheduled STEBBS setpoint fields persist through trimmed df_state roundtrip."""
+        config = SUEWSConfig(
+            model={"physics": {"setpoint": 2}},
+            sites=[
+                {
+                    "properties": {
+                        "building_archetype": {
+                            "profile_setpoint_temperature_heating_air": {
+                                "working_day": {str(i): 18.0 for i in range(1, 145)},
+                                "holiday": {str(i): 17.0 for i in range(1, 145)},
+                            },
+                            "profile_setpoint_temperature_cooling_air": {
+                                "working_day": {str(i): 26.0 for i in range(1, 145)},
+                                "holiday": {str(i): 27.0 for i in range(1, 145)},
+                            },
+                        }
+                    }
+                }
+            ],
+        )
+
+        df_state = config.to_df_state()
+        df_state_trimmed = trim_df_state(df_state)
+        config_reconst = SUEWSConfig.from_df_state(df_state_trimmed)
+
+        self.assertEqual(config_reconst.model.physics.stebbs.setpoint.value.value, 2)
+        self.assertEqual(
+            config_reconst.sites[0]
+            .properties.building_archetype.profile_setpoint_temperature_heating_air
+            .working_day["1"],
+            18.0,
+        )
+        self.assertEqual(
+            config_reconst.sites[0]
+            .properties.building_archetype.profile_setpoint_temperature_cooling_air
+            .holiday["144"],
+            27.0,
+        )
+
+    def test_setpoint_profile_defaults_use_off_values(self):
+        config = SUEWSConfig(sites=[{}])
+        archetype = config.sites[0].properties.building_archetype
+
+        self.assertEqual(archetype.profile_setpoint_temperature_heating_air.working_day["1"], 0.0)
+        self.assertEqual(archetype.profile_setpoint_temperature_heating_air.holiday["144"], 0.0)
+        self.assertEqual(archetype.profile_setpoint_temperature_cooling_air.working_day["1"], 100.0)
+        self.assertEqual(archetype.profile_setpoint_temperature_cooling_air.holiday["144"], 100.0)
+
+    def test_internal_mass_area_roundtrip(self):
+        config = SUEWSConfig(
+            sites=[
+                {
+                    "properties": {
+                        "building_archetype": {
+                            "area_internal_mass": {"value": 100.0},
+                        }
+                    }
+                }
+            ]
+        )
+
+        self.assertEqual(
+            config.sites[0].properties.building_archetype.area_internal_mass.value,
+            100.0,
+        )
+
+        config_reconst = SUEWSConfig.from_df_state(config.to_df_state())
+
+        self.assertEqual(
+            config_reconst.sites[0].properties.building_archetype.area_internal_mass.value,
+            100.0,
+        )
+
     def test_model_physics_validation(self):
         """Test that SUEWSConfig allows physics combinations - validation moved to Phase B.
 
@@ -124,8 +207,8 @@ class TestSUEWSConfig(unittest.TestCase):
             sites=[{}],
             model={
                 "physics": {
-                    "storageheatmethod": {"value": 1},
-                    "ohmincqf": {
+                    "storage_heat": {"value": 1},
+                    "ohm_inc_qf": {
                         "value": 1
                     },  # This incompatible combination is now allowed at config level
                 }
@@ -133,7 +216,7 @@ class TestSUEWSConfig(unittest.TestCase):
         )
         self.assertIsInstance(config1, SUEWSConfig)
 
-        config2 = SUEWSConfig(sites=[{}], model={"physics": {"snowuse": {"value": 1}}})
+        config2 = SUEWSConfig(sites=[{}], model={"physics": {"snow_use": {"value": 1}}})
         self.assertIsInstance(config2, SUEWSConfig)
 
         # Note: These physics compatibility checks now happen in Phase B validation
@@ -248,8 +331,65 @@ def test_refvalue_equality(value_a, value_b, should_equal):
         assert value_a != value_b
 
 
+class TestLegacyDfStateStebbsDefaults(unittest.TestCase):
+    """gh#1500: ``ModelPhysics.from_df_state`` must default the newer STEBBS
+    method columns that legacy / pre-STEBBS DataFrames lack, rather than
+    aborting with ``Missing attribute '...'``.
+
+    The reported regression was ``setpointmethod`` (added in the 2026.1.28
+    setpoint split, #1317) being treated as a required df_state column, so
+    converting a legacy table set predating it failed. gh#1456 already moved
+    ``setpointmethod`` / ``rcmethod`` into the defaulting STEBBS-column set;
+    ``stebbsmethod`` is hardened here so a DataFrame predating STEBBS entirely
+    (the premise of legacy-table conversion) reconstructs with STEBBS disabled
+    instead of raising.
+    """
+
+    def setUp(self):
+        path = Path(sp.__file__).parent / "sample_data" / "sample_config.yml"
+        self.df_physics = SUEWSConfig.from_yaml(path).model.physics.to_df_state(
+            grid_id=1
+        )
+
+    def test_missing_setpointmethod_defaults_to_constant(self):
+        """Dropping ``setpointmethod`` defaults the setpoint scheme rather than
+        raising (the exact gh#1500 minimal repro at the ModelPhysics level)."""
+        df = self.df_physics.drop(columns=[("setpointmethod", "0")])
+        phys = ModelPhysics.from_df_state(df, grid_id=1)
+        self.assertEqual(phys.stebbs.setpoint.value, SetpointMethod.CONSTANT)
+
+    def test_missing_stebbsmethod_defaults_to_disabled(self):
+        """A pre-STEBBS DataFrame (no ``stebbsmethod`` column) reconstructs with
+        STEBBS disabled instead of aborting."""
+        df = self.df_physics.drop(columns=[("stebbsmethod", "0")])
+        phys = ModelPhysics.from_df_state(df, grid_id=1)
+        self.assertFalse(phys.stebbs.enabled.value)
+        self.assertEqual(
+            phys.stebbs.parameters.value, StebbsParameterSource.DEFAULT
+        )
+
+    def test_invalid_stebbsmethod_still_rejected(self):
+        """A present-but-invalid ``stebbsmethod`` value is still rejected; only
+        the missing-column case defaults."""
+        df = self.df_physics.copy()
+        df.loc[1, ("stebbsmethod", "0")] = 3
+        with self.assertRaises(ValueError):
+            ModelPhysics.from_df_state(df, grid_id=1)
+
+    def test_issue_minimal_repro_via_suews_config(self):
+        """The gh#1500 symptom at config level: drop ``setpointmethod`` from a
+        full df_state and round-trip through ``SUEWSConfig.from_df_state``."""
+        path = Path(sp.__file__).parent / "sample_data" / "sample_config.yml"
+        df = SUEWSConfig.from_yaml(path).to_df_state()
+        df_legacy = df.drop(columns=[("setpointmethod", "0")])
+        config = SUEWSConfig.from_df_state(df_legacy)
+        self.assertEqual(
+            config.model.physics.stebbs.setpoint.value, SetpointMethod.CONSTANT
+        )
+
+
 class TestGrididErrorTransformation(unittest.TestCase):
-    """Test GRIDID transformation in validation error messages."""
+    """Test explicit GRIDID labels in validation error messages."""
 
     def setUp(self):
         """Set up test environment."""
@@ -268,11 +408,14 @@ class TestGrididErrorTransformation(unittest.TestCase):
         import yaml
 
         sites = [
-            {"gridiv": gid, "properties": {"lat": None if i == 0 else 51.5, "lng": 0.0}}
+            {
+                "gridiv": gid,
+                "properties": {"lat": None if i == 0 else 51.5, "lng": 0.0},
+            }
             for i, gid in enumerate(gridid_values)
         ]
         config_path = Path(self.temp_dir) / "config_test.yml"
-        with open(config_path, "w") as f:
+        with open(config_path, "w", encoding="utf-8") as f:
             yaml.dump({"name": "Test Config", "sites": sites}, f)
         return config_path
 
@@ -281,8 +424,10 @@ class TestGrididErrorTransformation(unittest.TestCase):
 
         Tests the bug fix for string replacement collision:
         Site 0 with GRIDID=1, Site 1 with GRIDID=200.
-        Old approach would replace sites.0 -> sites.1, then sites.1 -> sites.200,
-        resulting in site 0's error showing as sites.200 incorrectly.
+        Old approach replaced sites.0 -> sites.1, then sites.1 -> sites.200,
+        resulting in site 0's error showing as sites.200 incorrectly. The
+        current output labels GRIDID explicitly so it cannot be read as an
+        array index.
         """
         config_path = self._create_invalid_config([1, 200])
 
@@ -290,11 +435,12 @@ class TestGrididErrorTransformation(unittest.TestCase):
             SUEWSConfig.from_yaml(config_path)
 
         error_msg = str(cm.exception)
-        # Only site 0 (GRIDID=1) has invalid data, so should see sites.1
-        self.assertIn("sites.1", error_msg)
+        # Only site 0 (GRIDID=1) has invalid data.
+        self.assertIn("sites[gridiv=1]", error_msg)
         # Should NOT see sites.200 (site 1 is valid)
         self.assertNotIn("sites.200", error_msg)
-        # Should NOT see sites.0 (array index should be replaced with GRIDID)
+        # Should NOT show an ambiguous dotted index/GRIDID location.
+        self.assertNotIn("sites.1", error_msg)
         self.assertNotIn("sites.0", error_msg)
 
     def test_gridid_substring_collision(self):
@@ -310,25 +456,28 @@ class TestGrididErrorTransformation(unittest.TestCase):
 
         error_msg = str(cm.exception)
         # Only site 0 (GRIDID=10) has invalid data
-        self.assertIn("sites.10", error_msg)
+        self.assertIn("sites[gridiv=10]", error_msg)
         # Should NOT see sites.100 (site 1 is valid)
         self.assertNotIn("sites.100", error_msg)
-        # Should NOT see sites.0 (array index should be replaced)
+        # Should NOT show an ambiguous dotted index/GRIDID location.
+        self.assertNotIn("sites.10", error_msg)
         self.assertNotIn("sites.0", error_msg)
 
     def test_gridid_refvalue_format(self):
         """Test GRIDID extraction from RefValue format."""
         import yaml
 
-        sites = [{"gridiv": {"value": 777}, "properties": {"lat": None, "lng": 0.0}}]
+        sites = [
+            {"gridiv": {"value": 777}, "properties": {"lat": None, "lng": 0.0}}
+        ]
         config_path = Path(self.temp_dir) / "config_refvalue.yml"
-        with open(config_path, "w") as f:
+        with open(config_path, "w", encoding="utf-8") as f:
             yaml.dump({"name": "Test", "sites": sites}, f)
 
         with self.assertRaises(ValueError) as cm:
             SUEWSConfig.from_yaml(config_path)
 
-        self.assertIn("sites.777", str(cm.exception))
+        self.assertIn("sites[gridiv=777]", str(cm.exception))
 
 
 if __name__ == "__main__":
@@ -385,7 +534,7 @@ def test_flexible_refvalue_with_cleaning():
     sample_config_resource = supy_resources / "sample_data" / "sample_config.yml"
 
     # Load the config data
-    original_data = yaml.safe_load(sample_config_resource.read_text())
+    original_data = yaml.safe_load(sample_config_resource.read_text(encoding="utf-8"))
 
     # Create a cleaned version
     cleaned_data = copy.deepcopy(original_data)
@@ -442,7 +591,7 @@ def test_flexible_refvalue_with_cleaning():
         ("tstep", lambda c: c.model.control.tstep),
         ("forcing_file", lambda c: c.model.control.forcing_file),
         ("lat", lambda c: c.sites[0].properties.lat),
-        ("emissionsmethod", lambda c: c.model.physics.emissionsmethod),
+        ("emissions", lambda c: c.model.physics.emissions),
         ("raincover", lambda c: c.sites[0].properties.lumps.raincover),
         ("g_max", lambda c: c.sites[0].properties.conductance.g_max),
     ]
@@ -565,7 +714,7 @@ model:
     diagnose: 0
 """
 
-    with tempfile.NamedTemporaryFile(mode="w", suffix=".yml", delete=False) as f:
+    with tempfile.NamedTemporaryFile(encoding="utf-8", mode="w", suffix=".yml", delete=False) as f:
         f.write(yaml_content)
         yaml_path = Path(f.name)
 
@@ -600,7 +749,7 @@ model:
         desc: "Full diagnostics enabled"
 """
 
-    with tempfile.NamedTemporaryFile(mode="w", suffix=".yml", delete=False) as f:
+    with tempfile.NamedTemporaryFile(encoding="utf-8", mode="w", suffix=".yml", delete=False) as f:
         f.write(yaml_content)
         yaml_path = Path(f.name)
 
@@ -637,7 +786,7 @@ model:
         desc: "Basic diagnostics"
 """
 
-    with tempfile.NamedTemporaryFile(mode="w", suffix=".yml", delete=False) as f:
+    with tempfile.NamedTemporaryFile(encoding="utf-8", mode="w", suffix=".yml", delete=False) as f:
         f.write(yaml_content)
         yaml_path = Path(f.name)
 
@@ -735,7 +884,7 @@ class TestSUEWSSimulationRefValue:
         sample_config_resource = supy_resources / "sample_data" / "sample_config.yml"
 
         # Load sample config
-        original_data = yaml.safe_load(sample_config_resource.read_text())
+        original_data = yaml.safe_load(sample_config_resource.read_text(encoding="utf-8"))
 
         # Create RefValue list with the sample forcing file
         forcing_list = [str(sample_forcing)]
@@ -768,7 +917,7 @@ class TestSUEWSSimulationRefValue:
         sample_config_resource = supy_resources / "sample_data" / "sample_config.yml"
 
         # Load sample config
-        original_data = yaml.safe_load(sample_config_resource.read_text())
+        original_data = yaml.safe_load(sample_config_resource.read_text(encoding="utf-8"))
 
         # Create RefValue string with the sample forcing file
         ref_forcing = RefValue(str(sample_forcing))

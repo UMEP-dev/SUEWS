@@ -6,30 +6,47 @@ This directory contains all Claude Code-specific documentation, plans, and confi
 
 ```
 .claude/
-├── commands/              # Thin wrappers that invoke skills
-│   ├── audit-pr.md        # Review a pull request
-│   ├── setup-dev.md       # Set up development environment
-│   ├── lint-code.md       # Check code style
-│   ├── log-changes.md     # Analyse code changes, update CHANGELOG
-│   ├── prep-release.md    # Prepare release
-│   ├── sync-docs.md       # Check doc-code consistency
-│   └── verify-build.md    # Verify build configuration
+├── rules/                 # AUTO-LOADED conventions (path-conditional)
+│   ├── 00-project-essentials.md    # Always loaded
+│   ├── fortran/
+│   │   └── conventions.md          # When editing src/suews/**/*.f9*
+│   ├── python/
+│   │   ├── conventions.md          # When editing src/supy/**/*.py
+│   │   └── config-patterns.md      # When editing src/supy/**/*.py
+│   ├── docs/
+│   │   └── conventions.md          # When editing docs/**/*
+│   ├── tests/
+│   │   └── patterns.md             # When editing test*/**/*.py
+│   ├── changelog/
+│   │   └── format.md               # When editing CHANGELOG.md
+│   └── ci/
+│       └── conventions.md          # When editing .github/workflows/**/*
 │
-├── skills/                # Action-oriented workflows
+├── hooks/                 # Claude Code hooks (auto-triggered)
+│   ├── session-start.sh          # SessionStart: environment setup
+│   ├── validate-tutorial.sh      # PostToolUse: tutorial validation
+│   └── pre-commit-check.sh       # PreToolUse: quality gate on git commit
+│
+├── skills/                # Action-oriented workflows (invoked via /skill-name)
 │   ├── audit-pr/          # PR review orchestrator
-│   ├── lint-code/         # Code style conventions (includes naming)
+│   ├── examine-issue/     # Issue analysis
+│   ├── fix-issue/         # Issue-to-PR workflow
+│   ├── lint-code/         # Code style (references rules/)
 │   ├── log-changes/       # CHANGELOG management
-│   ├── prep-release/      # Release preparation (composes other skills)
+│   ├── prep-release/      # Release preparation
 │   ├── setup-dev/         # Environment setup guide
-│   ├── sync-docs/         # Documentation content consistency
-│   └── verify-build/      # Build configuration checks
+│   ├── start-work/        # Workflow selector & launcher
+│   ├── sync-docs/         # Doc-code consistency
+│   ├── republish-docs/    # Republish/revise released docs (clean anchor)
+│   ├── verify-build/      # Build config checks
+│   ├── queue-pr/          # PR coordination and merge queue preflight
+│   ├── triage-issue/      # Issue governance (audit/rewrite/split)
+│   └── split-pr/          # Carve an oversized PR into a stacked series
 │
-├── reference/             # Knowledge documents (not actionable)
-│   ├── code-patterns.md   # Config patterns, DRY principles
-│   ├── test-patterns.md   # Test design with FIRST principles
+├── reference/             # Templates and static reference
 │   └── templates/         # Reusable templates
 │
-├── scripts/               # Shared infrastructure
+├── scripts/               # Infrastructure
 │   ├── validate-claude-md.py
 │   ├── pre-commit-hook.sh
 │   └── setup-claude-protection.sh
@@ -39,94 +56,181 @@ This directory contains all Claude Code-specific documentation, plans, and confi
 
 ## Concepts
 
-### Skills (Action-Oriented)
+### Rules (Auto-Loaded)
 
-Skills perform specific workflows. Each skill has:
+Rules in `.claude/rules/` are **automatically loaded** when Claude Code starts a session.
+
+**Path-conditional loading**: Rules with `paths:` frontmatter only load when working with matching files:
+```yaml
+---
+paths:
+  - src/suews/**/*.f9*
+---
+```
+
+**Always loaded**: Rules without `paths:` frontmatter (like `00-project-essentials.md`) load for every session.
+
+### Skills (On-Demand)
+
+Skills perform specific workflows when invoked via `/skill-name`. Each skill has:
 - `SKILL.md` - Main content with frontmatter (name, description)
-- Optional subdirectories for references, templates, or scripts
+- Optional subdirectories for references
 
-**Key principle**: Skills DO things. If it's purely reference knowledge, it belongs in `reference/`.
-
-### Reference Documents (Knowledge)
-
-Reference documents contain patterns and guidelines that inform work but don't perform actions:
-- `code-patterns.md` - How to write config code, documentation
-- `test-patterns.md` - How to design tests with FIRST principles
-
-### Commands (Thin Wrappers)
-
-Commands are entry points that invoke skills. They provide:
-- Short description for the command menu
-- Any dynamic context (git status, dates, etc.)
-- Reference to the skill to invoke
-
-### Scripts (Infrastructure)
-
-Scripts handle CLAUDE.md protection and Git hooks - shared infrastructure that isn't skill-specific.
+**Key difference from rules**: Skills are invoked explicitly; rules are always available.
 
 ## Available Skills
 
-| Skill | Purpose |
-|-------|---------|
-| `audit-pr` | Comprehensive PR review (orchestrates other skills) |
-| `lint-code` | Code style + variant-neutral naming (Fortran, Python, RST, MD) |
-| `log-changes` | CHANGELOG management and formatting |
-| `prep-release` | Release preparation (composes verify-build, log-changes) |
-| `setup-dev` | Environment setup (uv, venv, mamba, compilers) |
-| `sync-docs` | Documentation-code content consistency |
-| `verify-build` | Build configuration consistency |
+- `/start-work` - **Entry point** for all workflows (feature, bugfix, release, docs, refactoring, CI/build)
+- `/audit-pr <PR>` - Review a pull request comprehensively
+- `/split-pr <PR>` - Carve an oversized PR into a stacked series of small PRs
+- `/examine-issue <issue>` - Analyse a GitHub issue
+- `/triage-issue <issue>` - Audit, rewrite, or split an issue (governance)
+- `/fix-issue <issue>` - Triage and implement an issue to PR-ready status
+- `/lint-code` - Check code style
+- `/log-changes` - Update CHANGELOG
+- `/prep-release` - Prepare release
+- `/setup-dev` - Set up development environment
+- `/sync-docs` - Check doc-code consistency
+- `/republish-docs` - Republish/revise docs for an already-released version (move tag to a clean anchor)
+- `/verify-build` - Verify build configuration
+- `/queue-pr` - Coordinate PRs before merge queue
 
-## Available Commands
+## Rules vs Skills
 
-| Command | Purpose |
-|---------|---------|
-| `/audit-pr <PR>` | Review a pull request comprehensively |
-| `/setup-dev` | Set up development environment |
-| `/lint-code` | Check code style |
-| `/log-changes` | Update CHANGELOG |
-| `/prep-release` | Prepare release |
-| `/sync-docs` | Check doc-code consistency |
-| `/verify-build` | Verify build configuration |
+- **Loading**: Rules are automatic; skills are on-demand
+- **Purpose**: Rules define conventions/guidelines; skills perform workflows/actions
+- **Location**: Rules in `.claude/rules/`; skills in `.claude/skills/`
+- **Invocation**: Rules need none; skills via `/skill-name`
+- **Path-conditional**: Rules yes (`paths:` frontmatter); skills no
 
-## Reference Documents
-
-| Document | Use When |
-|----------|----------|
-| `reference/code-patterns.md` | Implementing features, writing docs |
-| `reference/test-patterns.md` | Writing tests, setting tolerances |
-| `reference/templates/` | Creating commits, planning features |
-
-## Skill Relationships
+## Skill & Hook Relationships
 
 ```
-prep-release ──┬── verify-build (pre-flight)
-               ├── sync-docs (pre-flight)
-               ├── lint-code (pre-flight)
-               └── log-changes (CHANGELOG)
+start-work ──────────┬── examine-issue (analysis)
+  (workflow           ├── gh-link (branch)
+   selector)          ├── prep-release (release workflow)
+                      └── verify-build (CI/build workflow)
 
-audit-pr ──────┬── lint-code (style review)
-               ├── sync-docs (doc review)
-               └── verify-build (build review)
+fix-issue ────────────┬── triage-issue (readiness)
+  (issue to PR)       ├── lint-code / sync-docs / verify-build
+                      ├── log-changes
+                      └── audit-pr (PR readiness)
 
-lint-code ─────── Includes variant-neutral naming (was check-naming)
+prep-release ────────┬── verify-build (pre-flight)
+                     ├── sync-docs (pre-flight)
+                     ├── lint-code (pre-flight)
+                     └── log-changes (CHANGELOG)
+
+audit-pr ────────────┬── lint-code (style review)
+                     ├── sync-docs (doc review)
+                     └── verify-build (build review)
+
+pre-commit hook ─────┬── ruff (Python)
+  (auto on            ├── fprettify (Fortran)
+   git commit)        ├── meson.build check (new files)
+                      ├── RST heading check (docs)
+                      ├── CHANGELOG format check
+                      └── make test-smoke (Python/Fortran only)
 ```
 
 ## Quick Navigation
 
-**"How do I set up my environment?"** -> `/setup-dev` or `setup-dev` skill
-**"Check my code style"** -> `/lint-code` or `lint-code` skill
-**"Update the CHANGELOG"** -> `/log-changes`
-**"Prepare for release"** -> `/prep-release`
-**"Understand code patterns"** -> `reference/code-patterns.md`
-**"How to write tests"** -> `reference/test-patterns.md`
+- **"Start a new task"** -> `/start-work`
+- **"Fix a GitHub issue"** -> `/fix-issue <issue>`
+- **"How do I set up my environment?"** -> `/setup-dev`
+- **"Check my code style"** -> `/lint-code`
+- **"Update the CHANGELOG"** -> `/log-changes`
+- **"Prepare for release"** -> `/prep-release`
+- **"Fortran conventions"** -> `.claude/rules/fortran/`
+- **"Python conventions"** -> `.claude/rules/python/`
+- **"Test patterns"** -> `.claude/rules/tests/`
+- **"CI/GitHub Actions"** -> `.claude/rules/ci/`
 
-## For Claude Code Sessions
+## Development Workflows
 
-1. Check current branch: `git branch --show-current`
-2. Environment setup: Use `setup-dev` skill
-3. Before committing: Use `lint-code` skill
+All workflows begin with `/start-work`, which uses a two-step selection:
+1. **Category**: Create, Review, or Maintenance
+2. **Specific workflow**: depends on category
+
+### Create Workflows
+
+**Feature Development**
+1. `/examine-issue <N>` -- analyse and assess complexity
+2. `/start-work` setup -- branch, build, baseline tests
+3. Implement (auto-loaded rules guide coding)
+4. `git commit` -- pre-commit hook auto-runs quality checks
+5. `/sync-docs` + `/log-changes` + `make docs`
+6. `/gh-sync` + `gh pr create` -- rebase and create PR
+7. `/audit-pr <N>` -- review
+8. `/gh-debrief` -- verify closure
+
+**Bug Fix**
+1. `/examine-issue <N>` -- triage
+2. `/start-work` setup -- branch, build, baseline
+3. Implement fix + regression test
+4. `git commit` -- hook runs checks
+5. `/log-changes` ([bugfix]) + `gh pr create` + `/audit-pr`
+
+**Refactoring**
+1. `/examine-issue <N>` -- understand scope
+2. `make test` (full baseline)
+3. Implement, `make test` (compare)
+4. `git commit` -- hook checks
+5. `/sync-docs` + `/log-changes` ([change])
+6. `/audit-pr` (refactoring mode)
+
+**Documentation Only**
+1. Create branch, `make dev`, `make docs` (baseline)
+2. Edit docs, `/sync-docs`, `/lint-code`
+3. `/log-changes` ([doc]), PR
+
+### Review Workflows
+
+**Examine Issue**: `/examine-issue <N>` -- analyse issue, assess complexity, suggest approach
+**Audit PR**: `/audit-pr <N>` -- comprehensive review (style + scientific + testing + docs + build)
+**Check GitHub**: `/gh-check` -- show assigned issues, review requests, mentions
+
+### Maintenance Workflows
+
+**Release**
+1. `/prep-release` -- assess necessity
+2. Pre-flight: `/verify-build` + `/sync-docs` + `/lint-code`
+3. `/log-changes` -- finalise CHANGELOG
+4. PR, CI, merge, tag via `/gh-release`
+5. Monitor PyPI, GitHub Release, Zenodo
+
+**CI/Build**
+1. `/verify-build` -- identify issues
+2. Fix, `/verify-build` -- confirm
+3. `make test-smoke`, `/log-changes` ([maintenance]), PR
+
+**Checks**: Run `/verify-build` + `/sync-docs` + `/lint-code` together, report summary
+
+## Hook Infrastructure
+
+Claude Code hooks run automatically at specific trigger points:
+
+- **SessionStart** (`session-start.sh`): Installs system deps, creates venv, builds SUEWS on session init
+- **PostToolUse on Edit/Write** (`validate-tutorial.sh`): Validates tutorial Python files after editing
+- **PreToolUse on Bash** (`pre-commit-check.sh`): Quality gate on `git commit` -- file-type-specific checks:
+  - Python: `ruff check` + `ruff format --check`
+  - Fortran: `fprettify --diff` + meson.build new-file check
+  - RST: heading level validation
+  - CHANGELOG: date format + category tag validation
+  - `make test-smoke`: runs only when Python or Fortran files are staged
+
+Global hooks (in `~/.claude/settings.json`):
+- **PostToolUse on Edit/Write/MultiEdit**: runs `ruff check --fix` + `ruff format` on Python files
+
+## Post-Merge Verification
+
+After a PR is merged, verify via `/gh-debrief`:
+- Issue closed (if linked with "Fixes #N")
+- CI green on master
+- Documentation deployed (if docs changed)
+- No regression in dev tag CI
 
 ## Git Policy
 
-- Commit: All directories and files
-- Ignore: settings.local.json, any temp-* files
+- **Commit**: All directories and files
+- **Ignore**: settings.local.json, any temp-* files

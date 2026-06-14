@@ -73,7 +73,8 @@ A valid SUEWS configuration requires many parameters beyond this minimal example
    model:
      control:
        tstep: 3600                    # Time step [s]
-       forcing_file: "forcing.txt"    # Meteorological data
+       forcing:
+         file: "forcing.txt"          # Meteorological data
        start_time: "2020-01-01"       # Start date
        end_time: "2020-12-31"         # End date
 
@@ -123,6 +124,25 @@ The full documentation for all YAML parameters is available in the :doc:`config-
 - Default values
 - Cross-references between related parameters
 
+Internal-only parameters 
+------------------------
+
+Some parameters exist in the YAML schema but are **internal-only** and are therefore intentionally omitted from ``sample_config.yml``. 
+The following parameters were removed from the sample configuration for clarity:
+
+- ``diagnose``
+- ``dqndt``
+- ``dqnsdt``
+- ``dt_since_start``
+- ``lenday_id``
+- ``qn_av``
+- ``qn_s_av``
+- ``tair_av``
+- ``tmax_id``
+- ``tmin_id``
+- ``tstep_prev``
+- ``snowfallcum``
+
 
 Forcing Data
 ------------
@@ -133,13 +153,15 @@ Meteorological forcing data drives the SUEWS simulation. You specify the forcing
 
    model:
      control:
-       forcing_file: "forcing/met_data_2020.txt"
+       forcing:
+         file: "forcing/met_data_2020.txt"
        # Or use multiple files:
-       forcing_file:
-         - "forcing/met_data_2020_Q1.txt"
-         - "forcing/met_data_2020_Q2.txt"
-         - "forcing/met_data_2020_Q3.txt"
-         - "forcing/met_data_2020_Q4.txt"
+       forcing:
+         file:
+           - "forcing/met_data_2020_Q1.txt"
+           - "forcing/met_data_2020_Q2.txt"
+           - "forcing/met_data_2020_Q3.txt"
+           - "forcing/met_data_2020_Q4.txt"
 
 **Forcing File Format**
 
@@ -151,7 +173,7 @@ The forcing file must be a text file with specific columns in the correct order.
 2. **Wind speed** [m/s] - minimum 0.01 m/s
 3. **Relative humidity** [%]
 4. **Air temperature** [°C]
-5. **Pressure** [kPa]
+5. **Pressure** [kPa] - ideally 3, at least 2 decimal places
 6. **Rainfall** [mm]
 7. **Incoming shortwave radiation** [W/m²] - must be > 0
 8. **Incoming longwave radiation** [W/m²] - optional, will be modeled if missing (use -999)
@@ -160,7 +182,7 @@ The forcing file must be a text file with specific columns in the correct order.
 
 - Data must be continuous (no gaps)
 - Time stamps indicate the **end** of each period
-- Use local time (not UTC)
+- Use local standard time (fixed UTC offset, not civil time with daylight-saving shifts; see :doc:`/inputs/forcing-data` for details)
 - Use -999 for missing optional variables
 
 For detailed format specifications, column order, and optional variables, see :doc:`/inputs/forcing-data`.
@@ -226,7 +248,8 @@ Urban Site Configuration
    model:
      control:
        tstep: 3600
-       forcing_file: "london_met_2020.txt"
+       forcing:
+         file: "london_met_2020.txt"
        start_time: "2020-01-01"
        end_time: "2020-12-31"
      physics:
@@ -259,7 +282,7 @@ Urban Site Configuration
 Tips for Success
 ----------------
 
-1. **Start with the sample**: Always begin with ``sample_config.yml`` and modify it
+1. **Start with the sample**: Always begin with ``sample_config.yml`` and modify it — configs that omit physics-required blocks (``conductance``, per-surface ``lai``, tree ``fai_*``/``height_*``, ``bldgs.bldgh``/``faibldg``) raise a :class:`ValueError` at load (gh#1333)
 2. **Validate early**: Run validation before long simulations
 3. **Check the report**: Understand what the validator changed
 4. **Use meaningful names**: Help yourself remember what each simulation is for
@@ -271,4 +294,4 @@ Getting Help
 - **Validation issues**: Check the report file (``report_*.txt``)
 - **Parameter documentation**: See the error messages from validation
 - **Examples**: Look in ``sample_data/`` directory
-- **Community support**: `SUEWS Community <https://suews.discourse.group/>`_
+- **Community support**: `SUEWS Community <https://community.suews.io/invites/bKjzoboyVV>`_

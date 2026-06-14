@@ -118,7 +118,7 @@ For detailed information on each scheme, selection guidance, and comparison tabl
 Storage Heat Flux (:math:`\Delta Q_S`)
 ---------------------------------------
 
-Storage heat flux represents heat stored in and released from urban fabric (buildings, roads, soil). SUEWS provides five sub-models of varying complexity, plus the option to use observed values.
+Storage heat flux represents heat stored in and released from urban fabric (buildings, roads, soil). SUEWS provides six sub-models of varying complexity, plus the option to use observed values.
 
 **Modules:** ``suews_phys_ohm.f95``, ``suews_phys_anohm.f95``, ``suews_phys_estm.f95``, ``suews_phys_ehc.f95``, ``suews_phys_stebbs.f95``
 
@@ -128,6 +128,7 @@ Storage heat flux represents heat stored in and released from urban fabric (buil
 - **AnOHM** (Analytical Objective Hysteresis Model) :cite:`S17` - OHM approach using analytically-derived coefficients. |NotRecmd|
 - **ESTM** (Element Surface Temperature Method) :cite:`O05` - Heat transfer through urban facets (roof, wall, road, interior) is calculated from surface temperature measurements and knowledge of material properties. |NotRecmd|
 - **EHC** (Explicit Heat Conduction) - Separate roof/wall/ground temperatures
+- **DyOHM** (Dynamic Objective Hysteresis Model) (Liu et al., in prep.) - Extends OHM with coefficients computed dynamically from material thermal properties (thermal conductivity) and meteorological conditions; requires vertical wall layer configuration.
 - **STEBBS** (Surface Temperature Energy Balance Based Scheme) - Facet temperatures (building, paved, vegetation, soil, water)
 - **Observed** - Storage heat flux can be supplied with the meteorological forcing data
 

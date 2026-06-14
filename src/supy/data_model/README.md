@@ -141,10 +141,10 @@ from supy.data_model import ArchetypeProperties
 
 # Define building archetype
 archetype = ArchetypeProperties(
-    stebbs_Height=RefValue(25.0),                    # m
-    FootprintArea=RefValue(100.0),                   # m^2
-    WallEffectiveConductivity=RefValue(1.5),         # W m^-1 K^-1
-    HeatingSetpointTemperature=RefValue(20.0),       # degC
+    building_height=RefValue(25.0),                  # m
+    footprint_area=RefValue(100.0),                  # m^2
+    wall_effective_conductivity=RefValue(1.5),       # W m^-1 K^-1
+    heating_setpoint_temperature=RefValue(20.0),     # degC
 )
 ```
 

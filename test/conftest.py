@@ -1,10 +1,119 @@
 """pytest configuration for SUEWS test suite."""
 
 import subprocess
+import sys
+import warnings
+from pathlib import Path
+
+# Make the standalone suews_mcp package importable when it is not pip-installed
+# (e.g. wheel CI installs only the supy wheel). Done at the root conftest rather
+# than test/mcp/conftest.py because pytest's default `prepend` import mode gives
+# every conftest.py the bare module name `conftest`, and a per-subdirectory
+# conftest.py shadows this one — breaking `from conftest import TIMESTEPS_PER_DAY`
+# in test/physics and test/umep during collection (gh#1384 follow-up).
+_MCP_SRC = Path(__file__).resolve().parents[1] / "mcp" / "src"
+if _MCP_SRC.is_dir() and str(_MCP_SRC) not in sys.path:
+    sys.path.insert(0, str(_MCP_SRC))
 
 import pytest
 import supy
 from click.testing import CliRunner
+
+
+# =============================================================================
+# Debug Decorators - Centralised to avoid duplication in test files
+# =============================================================================
+
+try:
+    from debug_utils import (
+        debug_on_ci,
+        debug_dataframe_output,
+        debug_water_balance,
+        capture_test_artifacts,
+        analyze_dailystate_nan,
+    )
+except ImportError:
+    # No-op fallbacks when debug_utils is not available
+    def debug_on_ci(func):
+        return func
+
+    def debug_dataframe_output(func):
+        return func
+
+    def debug_water_balance(func):
+        return func
+
+    def capture_test_artifacts(name):
+        return lambda func: func
+
+    def analyze_dailystate_nan(func):
+        return func
+
+
+# =============================================================================
+# Global Test Configuration
+# =============================================================================
+
+# Named constants for test clarity
+TIMESTEPS_PER_DAY = 288  # 24*60/5 = 288 five-minute intervals
+
+
+@pytest.fixture
+def cru_data_available():
+    """Skip the test when CRU climatology data is not available.
+
+    Several phase-B validation helpers (`get_mean_annual_air_temperature`,
+    `get_mean_monthly_air_temperature`, `get_monthly_air_temperature_diffmax`)
+    read from a CRU NetCDF that is not vendored with the repository. CI
+    runners and contributor environments without the file should treat the
+    dependent tests as skipped, not failed.
+
+    The probe uses a known-good mid-latitude land cell (45 N, 10 E).
+    """
+    from supy.data_model.validation.pipeline.phase_b import (
+        get_mean_annual_air_temperature,
+    )
+
+    if get_mean_annual_air_temperature(45.0, 10.0) is None:
+        pytest.skip("CRU climatology data not available")
+
+
+@pytest.fixture(autouse=True)
+def suppress_import_warnings():
+    """Suppress ImportWarning globally for all tests.
+
+    This centralises the warning suppression that was previously
+    duplicated in setUp methods across multiple test files.
+    """
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore", category=ImportWarning)
+        yield
+
+
+@pytest.fixture(autouse=True)
+def _clear_mcp_caches():
+    """Clear the per-process ``suews_mcp`` caches around every test.
+
+    ``schema_search._SCHEMA_CACHE`` and ``readiness._SAMPLE_CACHE`` cache
+    *successful* CLI envelopes for the process lifetime (correct in production),
+    so a test that monkeypatches ``run_suews_cli`` with a fake success would
+    poison them for later tests. Defined here, not in ``test/mcp/conftest.py``,
+    for the same reason the MCP ``sys.path`` insertion lives at the top of this
+    file: a per-subdirectory ``conftest.py`` shadows the bare ``conftest`` module
+    name and breaks ``from conftest import ...`` in other test directories.
+    No-op when ``suews_mcp`` is not importable (e.g. the supy-only wheel CI).
+    """
+    try:
+        from suews_mcp.tools import readiness, schema_search
+
+        caches = (schema_search._SCHEMA_CACHE, readiness._SAMPLE_CACHE)
+    except ImportError:
+        caches = ()
+    for cache in caches:
+        cache.clear()
+    yield
+    for cache in caches:
+        cache.clear()
 
 
 # =============================================================================
@@ -160,39 +269,101 @@ def pytest_configure():
 
 
 def pytest_collection_modifyitems(items):
-    """Ensure test_sample_output runs first, then API equivalence tests, to avoid Fortran state interference.
-
-    The sample output validation test must run FIRST before any other tests because:
-    - The Fortran model maintains internal state between test runs
-    - Even API equivalence tests can pollute the Fortran state
-    - This causes small numerical differences that accumulate over simulations
-    - Uninitialized memory from previous runs can pollute output arrays
+    """Order tests to catch import breakages first, then protect Fortran state.
 
     Test ordering:
-    1. test_sample_output.py tests (highest priority - must be completely clean)
-    2. API equivalence tests (need clean state, but less critical than sample output)
-    3. All other tests
+    1. test_api_surface.py (meta validation - catches broken imports immediately)
+    2. test_sample_output.py (reference output - needs completely clean Fortran state)
+    3. API equivalence tests (need clean state, but less critical than sample output)
+    4. All other tests
     """
-    # Separate into three priority groups
+    api_surface_tests = []
     sample_output_tests = []
     api_equivalence_tests = []
     other_tests = []
 
     for item in items:
-        # Priority 1: test_sample_output.py must run first
-        if "test_sample_output" in str(item.fspath) or "core/test_sample_output" in str(
+        if "test_api_surface" in str(item.fspath):
+            api_surface_tests.append(item)
+        elif "test_sample_output" in str(item.fspath) or "core/test_sample_output" in str(
             item.fspath
         ):
             sample_output_tests.append(item)
-        # Priority 2: API equivalence tests need clean state but less critical
         elif (
             "test_functional_matches_oop" in item.nodeid
             or "TestPublicAPIEquivalence" in item.nodeid
         ):
             api_equivalence_tests.append(item)
-        # Priority 3: All other tests
         else:
             other_tests.append(item)
 
-    # Run in priority order: sample_output → API equivalence → others
-    items[:] = sample_output_tests + api_equivalence_tests + other_tests
+    items[:] = (
+        api_surface_tests
+        + sample_output_tests
+        + api_equivalence_tests
+        + other_tests
+    )
+
+
+# =============================================================================
+# gh#1300 — enforce the physics/api nature axis on full-tree runs.
+# =============================================================================
+
+
+def _invocation_targets_full_test_tree(config):
+    """True when the pytest invocation covers the whole `test/` tree.
+
+    The lint below should fire on CI-style invocations (`pytest test`,
+    `pytest` from rootdir, or with marker-only filters) and stay out of the
+    way during local iteration on a single file or subdirectory.
+    """
+    args = list(config.invocation_params.args or ())
+    path_args = [a for a in args if not a.startswith("-")]
+    if not path_args:
+        return True
+    test_dir = (Path(str(config.rootpath)) / "test").resolve()
+    for arg in path_args:
+        try:
+            resolved = Path(arg).resolve()
+        except (OSError, ValueError):
+            return False
+        if resolved != test_dir:
+            return False
+    return True
+
+
+def pytest_collection_finish(session):
+    """Enforce that every collected test carries `physics` or `api` (gh#1300).
+
+    Rationale: the two-axis taxonomy only works if every file declares which
+    axis it belongs to. A missing nature marker would silently drop a file
+    out of CI once the matrix is split in a follow-up PR. Fail loudly at
+    collection time on full-tree runs so the gap is caught before CI.
+    """
+    if not _invocation_targets_full_test_tree(session.config):
+        return
+
+    missing_files = []
+    for item in session.items:
+        marker_names = {m.name for m in item.iter_markers()}
+        if "physics" in marker_names or "api" in marker_names:
+            continue
+        try:
+            rel = Path(str(item.fspath)).resolve().relative_to(
+                Path(str(session.config.rootpath)).resolve()
+            )
+        except ValueError:
+            rel = Path(str(item.fspath))
+        rel_str = str(rel)
+        if rel_str not in missing_files:
+            missing_files.append(rel_str)
+
+    if missing_files:
+        bullet = "\n  - ".join(missing_files)
+        raise pytest.UsageError(
+            "gh#1300 marker lint: these test files are missing both "
+            "`physics` and `api` markers. Every test file must carry at "
+            "least one of the two nature markers (use `pytestmark = "
+            "pytest.mark.api` or `pytest.mark.physics` at module level, or "
+            "auto-apply via `pytest_collection_modifyitems`):\n  - " + bullet
+        )

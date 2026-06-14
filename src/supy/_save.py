@@ -91,8 +91,10 @@ def gen_df_year(df_save, year, grid, group, output_level):
     df_grid_group = df_grid[group].copy()
     # get temporal index
     idx_dt = df_grid_group.index
-    freq = idx_dt.to_series().diff().iloc[-1]
-    df_grid_group = df_grid_group.asfreq(freq)
+    if len(idx_dt) > 1:
+        freq = idx_dt.to_series().diff().iloc[-1]
+        if pd.notna(freq):
+            df_grid_group = df_grid_group.asfreq(freq)
     # select output variables in `SUEWS` based on output level
     if group == "SUEWS":
         # Filter to only variables that exist in the dataframe
@@ -126,8 +128,8 @@ def save_df_grid_group(df_year, grid, group, dir_save, site):
     # starting year
     try:
         year = df_year.index[0].year
-    except:
-        print(df_year)
+    except (AttributeError, IndexError):
+        logger_supy.debug("Could not extract year from df_year index:\n%s", df_year)
 
     # sample file name: 'Kc98_2012_SUEWS_60.txt'
     file_out = f"{site}{grid}_{year}_{group}_{freq_min}.txt"
@@ -264,18 +266,24 @@ def save_df_output(
         df_save_no_daily = df_save
 
     # resample `df_output` at `freq_save` (excluding DailyState)
-    df_rsmp = resample_output(df_save_no_daily, freq_save)
+    if len(df_save_no_daily.columns) > 0:
+        df_rsmp = resample_output(df_save_no_daily, freq_save, _internal=True)
+    else:
+        df_rsmp = None
 
     # dataframes to save
     if save_tstep:
         # both original and resampled output dataframes
-        list_df_save = [df_save, df_rsmp]
+        list_df_save = [
+            df for df in [df_save, df_rsmp] if df is not None and len(df.columns) > 0
+        ]
     else:
         # combine resampled data with DailyState (if it exists)
         list_df_save = []
         if df_dailystate is not None:
             list_df_save.append(df_dailystate)
-        list_df_save.append(df_rsmp)
+        if df_rsmp is not None:
+            list_df_save.append(df_rsmp)
 
     # save output at the resampling frequency
     for i, df_save in enumerate(list_df_save):
@@ -390,12 +398,17 @@ def save_df_output(
 def save_df_ser(df_save, path_dir_save, site, output_level):
     list_grid = df_save.index.get_level_values("grid").unique()
     list_group = df_save.columns.get_level_values("group").unique()
-    list_year = df_save.index.get_level_values("datetime").year[:-1].unique()
+    is_dailystate_only = len(list_group) == 1 and list_group[0] == "DailyState"
+    idx_year = df_save.index.get_level_values("datetime").year
+    if is_dailystate_only:
+        list_year = idx_year.unique()
+    else:
+        # the last index value is dropped as supy uses starting timestamp of each year
+        # for naming files
+        list_year = idx_year[:-1].unique()
     list_path_save_df = []
     for grid in list_grid:
         for group in list_group:
-            # the last index value is dropped as supy uses starting timestamp of each year
-            # for naming files
             for year in list_year:
                 df_year = gen_df_year(df_save, year, grid, group, output_level)
                 if df_year.shape[0] > 0:
@@ -592,6 +605,7 @@ def save_df_output_parquet(
     site: str = "",
     path_dir_save: Path = Path("."),
     save_tstep=False,
+    save_state: bool = True,
 ) -> list:
     """Save supy output to Parquet format.
 
@@ -634,7 +648,7 @@ def save_df_output_parquet(
 
     if not save_tstep:
         # Resample output
-        df_rsmp = resample_output(df_save, freq_save)
+        df_rsmp = resample_output(df_save, freq_save, _internal=True)
 
         # MP: TODO: This causes duplicate entries for DailyState. Why keep the original resolution?
         # Keep DailyState at original resolution
@@ -672,15 +686,17 @@ def save_df_output_parquet(
     )
     list_path_save.append(path_output)
 
-    # Save final state separately
-    filename_state = (
-        f"{site}_SUEWS_state_final.parquet" if site else "SUEWS_state_final.parquet"
-    )
-    path_state = path_dir_save / filename_state
-    df_state_final.to_parquet(
-        path_state, engine=engine, compression="snappy", index=True
-    )
-    list_path_save.append(path_state)
+    if save_state:
+        filename_state = (
+            f"{site}_SUEWS_state_final.parquet"
+            if site
+            else "SUEWS_state_final.parquet"
+        )
+        path_state = path_dir_save / filename_state
+        df_state_final.to_parquet(
+            path_state, engine=engine, compression="snappy", index=True
+        )
+        list_path_save.append(path_state)
 
     # Save metadata as a separate small parquet file
     filename_meta = (

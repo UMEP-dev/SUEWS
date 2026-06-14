@@ -104,7 +104,7 @@ class TestDatabasePrepareAPI(TestCase):
 
         schema = generate_json_schema()
 
-        with tempfile.NamedTemporaryFile(mode="w", suffix=".yml", delete=False) as f:
+        with tempfile.NamedTemporaryFile(encoding="utf-8", mode="w", suffix=".yml", delete=False) as f:
             # Malformed YAML to test parse error handling (unclosed brackets)
             f.write("invalid: yaml: content: [[[")
             temp_path = Path(f.name)
@@ -114,6 +114,44 @@ class TestDatabasePrepareAPI(TestCase):
             # Should not crash, should return invalid
             self.assertIsInstance(is_valid, bool)
             self.assertIsInstance(errors, list)
+        finally:
+            temp_path.unlink()
+
+    def test_validate_single_file_sparse_config_is_invalid(self):
+        """Sparse YAML must fail file-backed model validation."""
+        from supy.cmd.validate_config import validate_single_file
+        from supy.data_model.schema.publisher import generate_json_schema
+
+        schema = generate_json_schema()
+        sparse_config = Path(__file__).parent.parent / "fixtures" / "sparse_site.yml"
+
+        is_valid, errors = validate_single_file(sparse_config, schema)
+
+        self.assertFalse(is_valid)
+        messages = "\n".join(getattr(err, "message", str(err)) for err in errors)
+        self.assertIn("faibldg", messages)
+        self.assertIn("conductance.g_max", messages)
+
+    def test_validate_single_file_explicit_older_schema_stays_schema_only(self):
+        """Explicit older targets should not run current-schema semantic checks."""
+        from supy.cmd.validate_config import validate_single_file
+        from supy.data_model.schema.publisher import generate_json_schema
+
+        sparse_config = Path(__file__).parent.parent / "fixtures" / "sparse_site.yml"
+        schema = generate_json_schema(version="2026.5.dev5")
+
+        with tempfile.NamedTemporaryFile(encoding="utf-8", mode="w", suffix=".yml", delete=False) as f:
+            f.write(f"schema_version: '2026.5.dev5'\n{sparse_config.read_text(encoding='utf-8')}")
+            temp_path = Path(f.name)
+
+        try:
+            is_valid, errors = validate_single_file(
+                temp_path,
+                schema,
+                schema_version="2026.5.dev5",
+            )
+            self.assertTrue(is_valid)
+            self.assertEqual(errors, [])
         finally:
             temp_path.unlink()
 

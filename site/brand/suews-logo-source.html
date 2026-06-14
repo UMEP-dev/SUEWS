@@ -1,25 +1,39 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="dark">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>SUEWS Logo Workshop</title>
+
+  <!-- Shared CSS -->
+  <link rel="stylesheet" href="/css/tokens.css">
+  <link rel="stylesheet" href="/css/base.css">
+
   <style>
-    * { margin: 0; padding: 0; box-sizing: border-box; }
+    /* ========== Page-specific styles ========== */
     body {
-      font-family: system-ui, -apple-system, sans-serif;
-      background: #1a1a2e;
-      min-height: 100vh;
       padding: 2rem;
     }
-    h1, h2 { color: #fff; font-weight: 300; }
-    h2 { font-size: 1.2rem; margin: 2rem 0 1rem; opacity: 0.7; }
-    .container { max-width: 1200px; margin: 0 auto; }
+
+    h1 {
+      font-family: 'Crimson Pro', Georgia, serif;
+      font-weight: 300;
+      margin-bottom: 0.5rem;
+    }
+
+    h2 {
+      font-size: 1.2rem;
+      font-weight: 300;
+      margin: 2rem 0 1rem;
+      opacity: 0.7;
+    }
+
     .grid {
       display: grid;
       grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
       gap: 2rem;
     }
+
     .card {
       background: #fff;
       border-radius: 16px;
@@ -29,17 +43,26 @@
       align-items: center;
       gap: 1rem;
     }
-    .card.dark { background: #2d3142; }
+
+    .card.dark {
+      background: var(--urban-slate);
+    }
+
     .card.checker {
       background: repeating-conic-gradient(#ccc 0% 25%, #fff 0% 50%) 50% / 20px 20px;
     }
+
     .card h3 {
       font-size: 0.75rem;
       text-transform: uppercase;
       letter-spacing: 0.1em;
       color: #666;
     }
-    .card.dark h3 { color: #aaa; }
+
+    .card.dark h3 {
+      color: #aaa;
+    }
+
     .sizes {
       display: flex;
       gap: 2rem;
@@ -47,8 +70,16 @@
       flex-wrap: wrap;
       justify-content: center;
     }
-    .size-item { text-align: center; }
-    .size-item p { font-size: 0.7rem; color: #666; margin-top: 0.5rem; }
+
+    .size-item {
+      text-align: center;
+    }
+
+    .size-item p {
+      font-size: 0.7rem;
+      color: #666;
+      margin-top: 0.5rem;
+    }
   </style>
 </head>
 <body>

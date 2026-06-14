@@ -11,6 +11,9 @@ Version History
 .. toctree::
    :maxdepth: 1
 
+   v2026.6.5
+   v2026.4.3
+   v2026.1.28
    v2025.11.20
    v2025.10.15
    v2020a

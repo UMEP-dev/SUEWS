@@ -8,171 +8,21 @@
     <link rel="canonical" href="https://suews.io/">
 
     <!-- Favicon -->
-    <link rel="icon" type="image/svg+xml" href="/brand/assets/icon/suews-icon-dark.svg">
+    <link rel="icon" type="image/svg+xml" href="/brand/assets/icon-disk/suews-icon-dark-disk.svg">
 
     <!-- Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&family=Crimson+Pro:ital,wght@0,400;0,500;1,400&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 
+    <!-- Shared CSS -->
+    <link rel="stylesheet" href="/css/tokens.css">
+    <link rel="stylesheet" href="/css/base.css">
+
     <style>
-        /* ========== Theme Variables ========== */
-        :root {
-            /* Logo palette (constant) */
-            --sun-gold: #F7B538;
-            --sun-gold-dark: #D4940F;
-            --energy-orange: #E85D04;
-            --water-blue: #0077B6;
-            --water-blue-light: #48CAE4;
-            --urban-slate: #2D3142;
-            --urban-dark: #1A1D2E;
-            --urban-deeper: #0F1119;
-
-            /* Default: Dark theme */
-            --bg-primary: #0F1119;
-            --bg-secondary: #1A1D2E;
-            --bg-card: rgba(255,255,255,0.02);
-            --bg-card-hover: rgba(255,255,255,0.04);
-            --border-light: rgba(255,255,255,0.06);
-            --border-medium: rgba(255,255,255,0.12);
-            --text-primary: rgba(255,255,255,0.92);
-            --text-secondary: rgba(255,255,255,0.6);
-            --text-muted: rgba(255,255,255,0.35);
-            --shadow-card: 0 4px 20px rgba(0,0,0,0.3);
-            --accent-highlight: var(--sun-gold);
-            --accent-label: var(--sun-gold);
-            --grid-line: rgba(45,49,66,0.4);
-            --contour-opacity: 0.15;
-            --glow-opacity: 0.12;
-            --logo-bg: #2D3142;
-            --logo-buildings: #5D5852;
-            --logo-stroke: none;
-            --logo-stroke-width: 0;
-        }
-
-        /* Light theme */
-        [data-theme="light"] {
-            --bg-primary: #FAFBFC;
-            --bg-secondary: #F1F5F9;
-            --bg-card: #FFFFFF;
-            --bg-card-hover: #FFFFFF;
-            --border-light: #E2E8F0;
-            --border-medium: #CBD5E1;
-            --text-primary: #1E293B;
-            --text-secondary: #475569;
-            --text-muted: #94A3B8;
-            --shadow-card: 0 4px 20px rgba(0,0,0,0.06);
-            --accent-highlight: var(--water-blue);
-            --accent-label: var(--sun-gold-dark);
-            --grid-line: #E2E8F0;
-            --contour-opacity: 0.08;
-            --glow-opacity: 0.08;
-            --logo-bg: #F8FAFC;
-            --logo-buildings: #2D3142;
-            --logo-stroke: #E2E8F0;
-            --logo-stroke-width: 2;
-        }
-
-        /* System preference detection */
-        @media (prefers-color-scheme: light) {
-            :root:not([data-theme="dark"]) {
-                --bg-primary: #FAFBFC;
-                --bg-secondary: #F1F5F9;
-                --bg-card: #FFFFFF;
-                --bg-card-hover: #FFFFFF;
-                --border-light: #E2E8F0;
-                --border-medium: #CBD5E1;
-                --text-primary: #1E293B;
-                --text-secondary: #475569;
-                --text-muted: #94A3B8;
-                --shadow-card: 0 4px 20px rgba(0,0,0,0.06);
-                --accent-highlight: var(--water-blue);
-                --accent-label: var(--sun-gold-dark);
-                --grid-line: #E2E8F0;
-                --contour-opacity: 0.08;
-                --glow-opacity: 0.08;
-                --logo-bg: #F8FAFC;
-                --logo-buildings: #2D3142;
-                --logo-stroke: #E2E8F0;
-                --logo-stroke-width: 2;
-            }
-        }
-
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
-        html {
-            scroll-behavior: smooth;
-        }
-
+        /* ========== Page-specific styles ========== */
         body {
-            font-family: 'Instrument Sans', system-ui, sans-serif;
-            line-height: 1.6;
-            color: var(--text-primary);
-            background: var(--bg-primary);
-            min-height: 100vh;
             overflow-x: hidden;
-            transition: background-color 0.3s ease, color 0.3s ease;
-        }
-
-        /* ========== Theme Toggle Button ========== */
-        .theme-toggle {
-            position: fixed;
-            top: 24px;
-            right: 24px;
-            z-index: 1000;
-            width: 44px;
-            height: 44px;
-            border-radius: 12px;
-            border: 1px solid var(--border-light);
-            background: var(--bg-card);
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            transition: all 0.3s ease;
-            backdrop-filter: blur(8px);
-        }
-
-        .theme-toggle:hover {
-            border-color: var(--border-medium);
-            transform: scale(1.05);
-        }
-
-        .theme-toggle svg {
-            width: 20px;
-            height: 20px;
-            stroke: var(--text-secondary);
-            stroke-width: 2;
-            fill: none;
-            transition: stroke 0.3s ease;
-        }
-
-        .theme-toggle:hover svg {
-            stroke: var(--text-primary);
-        }
-
-        .theme-toggle .icon-sun,
-        .theme-toggle .icon-moon {
-            position: absolute;
-            transition: opacity 0.3s ease, transform 0.3s ease;
-        }
-
-        /* Dark mode: show sun icon (to switch to light) */
-        :root:not([data-theme="light"]) .theme-toggle .icon-sun { opacity: 1; transform: rotate(0deg); }
-        :root:not([data-theme="light"]) .theme-toggle .icon-moon { opacity: 0; transform: rotate(-90deg); }
-
-        /* Light mode: show moon icon (to switch to dark) */
-        [data-theme="light"] .theme-toggle .icon-sun { opacity: 0; transform: rotate(90deg); }
-        [data-theme="light"] .theme-toggle .icon-moon { opacity: 1; transform: rotate(0deg); }
-
-        /* System light preference without explicit theme */
-        @media (prefers-color-scheme: light) {
-            :root:not([data-theme]) .theme-toggle .icon-sun { opacity: 0; transform: rotate(90deg); }
-            :root:not([data-theme]) .theme-toggle .icon-moon { opacity: 1; transform: rotate(0deg); }
         }
 
         /* ========== Background Elements ========== */
@@ -206,30 +56,25 @@
             transition: opacity 0.3s ease;
         }
 
+        /* Topographic contour rings — static. The rings themselves are the
+           signature; motion here previously competed with the wave + sun glow. */
         .contour-line {
             position: absolute;
             border: 1px solid var(--water-blue);
             border-radius: 50%;
-            animation: pulse 8s ease-in-out infinite;
+            opacity: 0.25;
         }
 
         .contour-line:nth-child(1) { width: 300px; height: 300px; top: 10%; left: -100px; }
-        .contour-line:nth-child(2) { width: 500px; height: 500px; top: 5%; left: -150px; animation-delay: 0.5s; }
-        .contour-line:nth-child(3) { width: 700px; height: 700px; top: 0%; left: -200px; animation-delay: 1s; }
-        .contour-line:nth-child(4) { width: 400px; height: 400px; bottom: 10%; right: -150px; border-color: var(--sun-gold); animation-delay: 2s; }
-        .contour-line:nth-child(5) { width: 600px; height: 600px; bottom: 5%; right: -200px; border-color: var(--sun-gold); animation-delay: 2.5s; }
+        .contour-line:nth-child(2) { width: 500px; height: 500px; top: 5%; left: -150px; }
+        .contour-line:nth-child(3) { width: 700px; height: 700px; top: 0%; left: -200px; }
+        .contour-line:nth-child(4) { width: 400px; height: 400px; bottom: 10%; right: -150px; border-color: var(--sun-gold); }
+        .contour-line:nth-child(5) { width: 600px; height: 600px; bottom: 5%; right: -200px; border-color: var(--sun-gold); }
 
-        @keyframes pulse {
-            0%, 100% { transform: scale(1); opacity: 0.3; }
-            50% { transform: scale(1.05); opacity: 0.15; }
-        }
-
-        /* ========== Layout ========== */
+        /* ========== Layout (extends base.css) ========== */
         .container {
             position: relative;
             z-index: 10;
-            max-width: 1200px;
-            margin: 0 auto;
             padding: 0 40px;
         }
 
@@ -307,12 +152,7 @@
             filter: drop-shadow(0 16px 50px rgba(0,0,0,0.2));
         }
 
-        /* Logo animations */
-        @keyframes sun-glow {
-            0%, 100% { transform: scale(0.96); }
-            50% { transform: scale(1.06); }
-        }
-
+        /* Logo animations (wave-undulate extends base.css with more keyframes) */
         @keyframes wave-undulate {
             0%, 100% { transform: translateY(0) scaleY(1); }
             25% { transform: translateY(-8px) scaleY(1.05); }
@@ -334,11 +174,6 @@
         /* ========== Hero Content ========== */
         .hero-content {
             animation: slideUp 0.8s ease-out;
-        }
-
-        @keyframes slideUp {
-            from { opacity: 0; transform: translateY(30px); }
-            to { opacity: 1; transform: translateY(0); }
         }
 
         .hero-label {
@@ -387,11 +222,11 @@
         }
 
         .hero-description {
-            font-size: 1.1rem;
+            font-size: 1.05rem;
             color: var(--text-secondary);
-            line-height: 1.8;
+            line-height: 1.7;
             max-width: 500px;
-            margin-bottom: 40px;
+            margin-bottom: 32px;
         }
 
         @media (max-width: 900px) {
@@ -406,7 +241,10 @@
         }
 
         @media (max-width: 900px) {
-            .badges { justify-content: center; }
+            .badges {
+                justify-content: center;
+                padding-bottom: 160px; /* Space for absolute stats bar */
+            }
         }
 
         .badges a {
@@ -414,7 +252,8 @@
             transition: opacity 0.3s ease;
         }
 
-        .badges a:hover { opacity: 1; }
+        .badges a:hover,
+        .badges a:focus-visible { opacity: 1; }
         .badges img { height: 22px; }
 
         /* ========== Stats Bar ========== */
@@ -449,11 +288,6 @@
         .stat:nth-child(2) { animation-delay: 0.4s; }
         .stat:nth-child(3) { animation-delay: 0.5s; }
 
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(10px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-
         .stat-value {
             font-family: 'JetBrains Mono', monospace;
             font-size: 2rem;
@@ -477,20 +311,7 @@
             transition: background-color 0.3s ease;
         }
 
-        .section-header {
-            display: flex;
-            align-items: center;
-            gap: 24px;
-            margin-bottom: 60px;
-        }
-
-        .section-number {
-            font-family: 'JetBrains Mono', monospace;
-            font-size: 0.75rem;
-            color: var(--water-blue);
-            letter-spacing: 0.1em;
-        }
-
+        /* Section header (extends base.css) */
         .section-title {
             font-family: 'Crimson Pro', Georgia, serif;
             font-size: 2rem;
@@ -498,10 +319,26 @@
             letter-spacing: -0.01em;
         }
 
-        .section-line {
+        /* ========== Resource Tier Labels ========== */
+        .resource-tier-label {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.7rem;
+            text-transform: uppercase;
+            letter-spacing: 0.2em;
+            color: var(--text-muted);
+            margin: 48px 0 20px;
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .resource-tier-label:first-child { margin-top: 0; }
+
+        .resource-tier-label::after {
+            content: '';
             flex: 1;
             height: 1px;
-            background: linear-gradient(90deg, var(--border-medium), transparent);
+            background: var(--border-light);
         }
 
         /* ========== Resource Cards ========== */
@@ -509,6 +346,21 @@
             display: grid;
             grid-template-columns: repeat(3, 1fr);
             gap: 24px;
+        }
+
+        /* Secondary "Connect" tier — same width, visually lighter */
+        .resource-grid.tier-connect .resource-card {
+            padding: 24px 22px;
+            background: transparent;
+            box-shadow: none;
+        }
+
+        .resource-grid.tier-connect .resource-card:hover {
+            background: var(--bg-card);
+        }
+
+        .resource-grid.tier-connect .card-title {
+            font-size: 1rem;
         }
 
         @media (max-width: 900px) {
@@ -545,27 +397,20 @@
             to { opacity: 1; transform: translateY(0); }
         }
 
-        .resource-card::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            height: 3px;
-            background: linear-gradient(90deg, var(--water-blue), var(--sun-gold));
-            transform: scaleX(0);
-            transform-origin: left;
-            transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-        }
-
         .resource-card:hover {
             background: var(--bg-card-hover);
             border-color: var(--border-medium);
             transform: translateY(-4px);
         }
 
-        .resource-card:hover::before {
-            transform: scaleX(1);
+        /* Each card carries its concept's accent colour via --card-accent
+           (set per-card on the .resource-card element). Palette maps to the
+           model's physics: sun = knowledge (docs), water = fluid (python/hydro),
+           slate = urban fabric (schema/source), vegetation = ecosystem (umep),
+           sun-core = community warmth. */
+        .resource-card {
+            --card-accent: var(--water-blue);
+            --card-accent-soft: rgba(0,119,182,0.1);
         }
 
         .card-icon {
@@ -574,21 +419,20 @@
             display: flex;
             align-items: center;
             justify-content: center;
-            background: rgba(0,119,182,0.1);
+            background: var(--card-accent-soft);
             border-radius: 10px;
             margin-bottom: 20px;
-            transition: all 0.3s ease;
+            transition: transform 0.3s ease, background-color 0.3s ease;
         }
 
         .resource-card:hover .card-icon {
-            background: rgba(0,119,182,0.15);
             transform: scale(1.05);
         }
 
         .card-icon svg {
             width: 22px;
             height: 22px;
-            stroke: var(--water-blue);
+            stroke: var(--card-accent);
             stroke-width: 1.5;
             fill: none;
         }
@@ -608,8 +452,8 @@
         .card-description code {
             font-family: 'JetBrains Mono', monospace;
             font-size: 0.8rem;
-            background: rgba(0,119,182,0.1);
-            color: var(--water-blue);
+            background: var(--card-accent-soft);
+            color: var(--card-accent);
             padding: 3px 8px;
             border-radius: 4px;
         }
@@ -621,89 +465,17 @@
             transition: background-color 0.3s ease;
         }
 
-        .applications-box {
-            background: linear-gradient(135deg, rgba(0,119,182,0.04) 0%, rgba(247,181,56,0.04) 100%);
-            border: 1px solid var(--border-light);
-            border-radius: 16px;
-            padding: 48px;
-            position: relative;
-            overflow: hidden;
-            transition: border-color 0.3s ease;
-        }
-
-        .applications-box::before {
-            content: '';
-            position: absolute;
-            top: -50%;
-            right: -20%;
-            width: 400px;
-            height: 400px;
-            background: radial-gradient(circle, rgba(0,119,182,0.06) 0%, transparent 70%);
-            pointer-events: none;
-        }
-
-        .applications-title {
-            font-family: 'Crimson Pro', Georgia, serif;
-            font-size: 1.5rem;
-            font-weight: 400;
-            margin-bottom: 32px;
-            position: relative;
-        }
-
-        .applications-grid {
-            display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 16px 40px;
-            position: relative;
-        }
-
-        @media (max-width: 800px) {
-            .applications-grid { grid-template-columns: repeat(2, 1fr); }
-        }
-
-        @media (max-width: 500px) {
-            .applications-grid { grid-template-columns: 1fr; }
-            .applications-box { padding: 32px 24px; }
-        }
-
-        .app-item {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            font-size: 0.95rem;
-            color: var(--text-secondary);
-            padding: 8px 0;
-            transition: color 0.3s ease;
-        }
-
-        .app-item:hover { color: var(--text-primary); }
-
-        .app-bullet {
-            width: 6px;
-            height: 6px;
-            background: linear-gradient(135deg, var(--water-blue), var(--water-blue-light));
-            border-radius: 50%;
-            flex-shrink: 0;
-        }
-
-        /* ========== Footer ========== */
-        .footer {
-            border-top: 1px solid var(--border-light);
-            padding: 60px 0;
-            text-align: center;
-            background: var(--bg-secondary);
-            transition: background-color 0.3s ease, border-color 0.3s ease;
-        }
-
-        .footer-institutions {
-            font-size: 0.85rem;
-            color: var(--text-muted);
-            margin-bottom: 24px;
-            line-height: 1.8;
-        }
-
-        .footer-legal {
-            font-size: 0.8rem;
+        /* Paper-count caption under each Application card. Reuses the same
+           uppercase-tracked register as .resource-tier-label for tonal
+           consistency with the Resources section above. */
+        .card-meta {
+            display: block;
+            margin-top: 12px;
+            font-family: 'Instrument Sans', system-ui, sans-serif;
+            font-size: 0.7rem;
+            font-weight: 500;
+            letter-spacing: 0.18em;
+            text-transform: uppercase;
             color: var(--text-muted);
         }
 
@@ -717,12 +489,12 @@
             flex-direction: column;
             align-items: center;
             gap: 8px;
-            animation: bounce 2s ease-in-out infinite;
+            opacity: 0.8;
+            transition: opacity 0.3s ease;
         }
 
-        @keyframes bounce {
-            0%, 100% { transform: translateX(-50%) translateY(0); }
-            50% { transform: translateX(-50%) translateY(8px); }
+        .scroll-indicator:hover {
+            opacity: 1;
         }
 
         .scroll-indicator span {
@@ -801,11 +573,11 @@
                     <h1 class="hero-title">
                         <span class="highlight">SUEWS</span>
                     </h1>
-                    <p class="hero-subtitle">Surface Urban Energy & Water Balance Scheme</p>
+                    <p class="hero-subtitle">Surface Urban Energy &amp; Water Balance Scheme</p>
                     <p class="hero-description">
                         A physically-based model for simulating energy, water, and carbon dioxide fluxes
-                        in cities. Developed through international collaboration for urban climate research,
-                        planning applications, and environmental assessment.
+                        in cities. Developed through <a href="/team/">international collaboration</a>
+                        for urban climate research, planning applications, and environmental assessment.
                     </p>
                     <div class="badges">
                         <a href="https://github.com/UMEP-dev/SUEWS/releases/latest"><img src="https://img.shields.io/github/v/release/UMEP-dev/SUEWS?style=flat-square&label=release" alt="Latest Release"></a>
@@ -847,21 +619,21 @@
     <section class="resources">
         <div class="container">
             <div class="section-header">
-                <span class="section-number">01</span>
                 <h2 class="section-title">Resources</h2>
                 <div class="section-line"></div>
             </div>
 
-            <div class="resource-grid">
-                <a href="https://code.suews.io" class="resource-card">
+            <div class="resource-tier-label">Use SUEWS</div>
+            <div class="resource-grid tier-use">
+                <a href="https://pypi.org/project/supy/" class="resource-card" style="--card-accent: var(--water-blue); --card-accent-soft: rgba(0,119,182,0.12);">
                     <div class="card-icon">
-                        <svg viewBox="0 0 24 24"><path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"/></svg>
+                        <svg viewBox="0 0 24 24"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
                     </div>
-                    <h3 class="card-title">Source Code</h3>
-                    <p class="card-description">GitHub repository with source code, issue tracking, and development</p>
+                    <h3 class="card-title">Install</h3>
+                    <p class="card-description">SuPy on the Python Package Index: <code>pip install supy</code></p>
                 </a>
 
-                <a href="https://docs.suews.io" class="resource-card">
+                <a href="https://docs.suews.io" class="resource-card" style="--card-accent: var(--sun-gold); --card-accent-soft: rgba(247,181,56,0.12);">
                     <div class="card-icon">
                         <svg viewBox="0 0 24 24"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/><line x1="8" y1="7" x2="16" y2="7"/><line x1="8" y1="11" x2="14" y2="11"/></svg>
                     </div>
@@ -869,7 +641,26 @@
                     <p class="card-description">User guide, scientific background, tutorials, and API reference</p>
                 </a>
 
-                <a href="schemas/suews-config/" class="resource-card">
+                <a href="https://community.suews.io/invites/bKjzoboyVV" class="resource-card" style="--card-accent: var(--energy-orange); --card-accent-soft: rgba(232,93,4,0.12);">
+                    <div class="card-icon">
+                        <svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+                    </div>
+                    <h3 class="card-title">Community</h3>
+                    <p class="card-description">Invite-only discussion forum &mdash; click to request access</p>
+                </a>
+            </div>
+
+            <div class="resource-tier-label">Explore further</div>
+            <div class="resource-grid tier-connect">
+                <a href="https://code.suews.io" class="resource-card" style="--card-accent: var(--wave-blue); --card-accent-soft: rgba(5,88,165,0.15);">
+                    <div class="card-icon">
+                        <svg viewBox="0 0 24 24"><path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"/></svg>
+                    </div>
+                    <h3 class="card-title">Source Code</h3>
+                    <p class="card-description">GitHub repository, issue tracking, and development</p>
+                </a>
+
+                <a href="schemas/suews-config/" class="resource-card" style="--card-accent: var(--sky-blue); --card-accent-soft: rgba(93,173,226,0.14);">
                     <div class="card-icon">
                         <svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/></svg>
                     </div>
@@ -877,28 +668,12 @@
                     <p class="card-description">YAML configuration schemas for model input validation</p>
                 </a>
 
-                <a href="https://pypi.org/project/supy/" class="resource-card">
+                <a href="/benchmark/" class="resource-card" style="--card-accent: var(--water-blue); --card-accent-soft: rgba(0,119,182,0.12);">
                     <div class="card-icon">
-                        <svg viewBox="0 0 24 24"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
+                        <svg viewBox="0 0 24 24"><polyline points="3 16 9 10 13 14 21 5"/><line x1="3" y1="3" x2="3" y2="21"/><line x1="3" y1="21" x2="21" y2="21"/></svg>
                     </div>
-                    <h3 class="card-title">Python Package</h3>
-                    <p class="card-description">SuPy wrapper for Python: <code>pip install supy</code></p>
-                </a>
-
-                <a href="https://umep-docs.readthedocs.io" class="resource-card">
-                    <div class="card-icon">
-                        <svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="9"/><rect x="14" y="3" width="7" height="5"/><rect x="14" y="12" width="7" height="9"/><rect x="3" y="16" width="7" height="5"/></svg>
-                    </div>
-                    <h3 class="card-title">UMEP</h3>
-                    <p class="card-description">Comprehensive urban climate tool in QGIS, also provides GUI for running SUEWS</p>
-                </a>
-
-                <a href="https://community.suews.io" class="resource-card">
-                    <div class="card-icon">
-                        <svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
-                    </div>
-                    <h3 class="card-title">Community</h3>
-                    <p class="card-description">Discussion forum for questions and community support</p>
+                    <h3 class="card-title">Benchmarks</h3>
+                    <p class="card-description">How well each release reproduces the observed urban energy balance</p>
                 </a>
             </div>
         </div>
@@ -907,34 +682,66 @@
     <!-- Applications Section -->
     <section class="applications">
         <div class="container">
-            <div class="applications-box">
-                <h3 class="applications-title">Research Applications</h3>
-                <div class="applications-grid">
-                    <div class="app-item">
-                        <span class="app-bullet"></span>
-                        <span>Urban heat island analysis</span>
+            <div class="section-header">
+                <h2 class="section-title">Research applications</h2>
+                <div class="section-line"></div>
+            </div>
+
+            <div class="resource-tier-label">By topic &mdash; click through to filtered publications</div>
+            <div class="resource-grid">
+                <a href="https://docs.suews.io/stable/related_publications.html?topic=energy-balance" class="resource-card" style="--card-accent: var(--sky-blue); --card-accent-soft: rgba(93,173,226,0.14);">
+                    <div class="card-icon">
+                        <svg viewBox="0 0 24 24"><path d="M4 12h16"/><path d="M12 4v16"/><circle cx="12" cy="12" r="3"/></svg>
                     </div>
-                    <div class="app-item">
-                        <span class="app-bullet"></span>
-                        <span>Building energy demand</span>
+                    <h3 class="card-title">Energy balance</h3>
+                    <p class="card-description">Surface energy balance partitioning and flux schemes &mdash; Q*, Q<sub>E</sub>, Q<sub>H</sub>.</p>
+                    <span class="card-meta">9 papers</span>
+                </a>
+
+                <a href="https://docs.suews.io/stable/related_publications.html?topic=water-balance" class="resource-card" style="--card-accent: var(--water-blue); --card-accent-soft: rgba(0,119,182,0.12);">
+                    <div class="card-icon">
+                        <svg viewBox="0 0 24 24"><path d="M12 3l6 8a6 6 0 1 1-12 0z"/></svg>
                     </div>
-                    <div class="app-item">
-                        <span class="app-bullet"></span>
-                        <span>Urban water management</span>
+                    <h3 class="card-title">Water balance</h3>
+                    <p class="card-description">Urban hydrology &mdash; evapotranspiration, snow, irrigation, runoff.</p>
+                    <span class="card-meta">10 papers</span>
+                </a>
+
+                <a href="https://docs.suews.io/stable/related_publications.html?topic=radiation" class="resource-card" style="--card-accent: var(--sun-gold); --card-accent-soft: rgba(247,181,56,0.12);">
+                    <div class="card-icon">
+                        <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v3M12 19v3M4.93 4.93l2.12 2.12M16.95 16.95l2.12 2.12M2 12h3M19 12h3M4.93 19.07l2.12-2.12M16.95 7.05l2.12-2.12"/></svg>
                     </div>
-                    <div class="app-item">
-                        <span class="app-bullet"></span>
-                        <span>Green infrastructure planning</span>
+                    <h3 class="card-title">Radiation</h3>
+                    <p class="card-description">Net all-wave radiation, SOLWEIG, mean radiant temperature.</p>
+                    <span class="card-meta">7 papers</span>
+                </a>
+
+                <a href="https://docs.suews.io/stable/related_publications.html?topic=anthropogenic-heat" class="resource-card" style="--card-accent: var(--energy-orange); --card-accent-soft: rgba(232,93,4,0.12);">
+                    <div class="card-icon">
+                        <svg viewBox="0 0 24 24"><path d="M14 14.76V3.5a2.5 2.5 0 0 0-5 0v11.26a4 4 0 1 0 5 0z"/><line x1="11.5" y1="7" x2="11.5" y2="15"/></svg>
                     </div>
-                    <div class="app-item">
-                        <span class="app-bullet"></span>
-                        <span>Climate adaptation strategies</span>
+                    <h3 class="card-title">Anthropogenic heat</h3>
+                    <p class="card-description">Q<sub>F</sub> modelling &mdash; building, traffic, and metabolism emissions.</p>
+                    <span class="card-meta">6 papers</span>
+                </a>
+
+                <a href="https://docs.suews.io/stable/related_publications.html?topic=building-energy" class="resource-card" style="--card-accent: var(--wave-blue); --card-accent-soft: rgba(5,88,165,0.15);">
+                    <div class="card-icon">
+                        <svg viewBox="0 0 24 24"><rect x="5" y="3" width="14" height="18" rx="1"/><line x1="9" y1="7" x2="11" y2="7"/><line x1="9" y1="11" x2="11" y2="11"/><path d="M15 9l-2 4h3l-2 4"/></svg>
                     </div>
-                    <div class="app-item">
-                        <span class="app-bullet"></span>
-                        <span>Carbon flux estimation</span>
+                    <h3 class="card-title">Building energy</h3>
+                    <p class="card-description">Urban meteorology for building energy simulations &mdash; uTMY, vertical profiles.</p>
+                    <span class="card-meta">7 papers</span>
+                </a>
+
+                <a href="https://docs.suews.io/stable/related_publications.html?topic=carbon-flux" class="resource-card" style="--card-accent: var(--veg-green); --card-accent-soft: rgba(9,162,92,0.12);">
+                    <div class="card-icon">
+                        <svg viewBox="0 0 24 24"><path d="M17 8C8 10 5.9 16.17 3.82 21.34L5.7 22l1-2.77c.53.1 1.07.17 1.59.17C19 19.4 22 12.5 22 6c-1 1-3 2-5 2z"/><path d="M6 20C9 16 14 14 18 10"/></svg>
                     </div>
-                </div>
+                    <h3 class="card-title">Carbon flux</h3>
+                    <p class="card-description">Urban CO<sub>2</sub> exchange &mdash; biogenic and anthropogenic sources, tree sequestration.</p>
+                    <span class="card-meta">3 papers</span>
+                </a>
             </div>
         </div>
     </section>
@@ -942,18 +749,22 @@
     <!-- Footer -->
     <footer class="footer">
         <div class="container">
-            <p class="footer-institutions">
-                University of Reading · University College London · University of Helsinki · University of Gothenburg<br>
-                and collaborators worldwide
-            </p>
-            <p class="footer-legal">© 2025 SUEWS Development Team</p>
-            <p style="font-size: 0.75rem; color: var(--text-muted); margin-top: 16px;">
-                Branding designed with AI assistance · <a href="/brand/" style="color: var(--text-muted); text-decoration: underline;">View design approach</a>
-            </p>
+            <nav class="footer-nav" aria-label="Secondary navigation">
+                <ul>
+                    <li><a href="/team/">Team</a></li>
+                    <li><a href="/funding/">Funding</a></li>
+                    <li><a href="/dependencies/">Dependencies</a></li>
+                    <li><a href="/brand/">Brand</a></li>
+                </ul>
+            </nav>
+            <p class="footer-legal">&copy; 2025&ndash;<span id="current-year"></span> SUEWS Team</p>
         </div>
     </footer>
 
     <script>
+        // Dynamic copyright year
+        document.getElementById('current-year').textContent = new Date().getFullYear();
+
         // Theme Toggle Logic
         const toggle = document.getElementById('themeToggle');
         const root = document.documentElement;
@@ -991,6 +802,73 @@
                 setTheme(e.matches ? 'light' : 'dark');
             }
         });
+
+        // Local Development Mode Detection
+        (function() {
+            const isLocalDev = window.location.hostname === 'localhost' ||
+                               window.location.hostname === '127.0.0.1';
+
+            if (isLocalDev) {
+                // Update docs card link to local server (use 127.0.0.1 for IPv4 compatibility)
+                const docsCard = document.querySelector('a.resource-card[href="https://docs.suews.io"]');
+                if (docsCard) {
+                    docsCard.href = 'http://127.0.0.1:8000';
+                    docsCard.querySelector('.card-description').innerHTML =
+                        '<span style="color: var(--sun-gold);">LOCAL:</span> http://127.0.0.1:8000';
+                }
+
+                // Rewrite Applications cards so each ?topic=<slug> link points at
+                // the local docs livehtml instead of the production /stable/ path,
+                // and flag the meta line so the local routing is visible.
+                document.querySelectorAll(
+                    'a.resource-card[href^="https://docs.suews.io/stable/"]'
+                ).forEach(card => {
+                    card.href = card.href.replace(
+                        'https://docs.suews.io/stable/',
+                        'http://127.0.0.1:8000/'
+                    );
+                    const meta = card.querySelector('.card-meta');
+                    if (meta && !meta.dataset.localFlagged) {
+                        meta.dataset.localFlagged = '1';
+                        const original = meta.textContent;
+                        meta.innerHTML =
+                            '<span style="color: var(--sun-gold);">LOCAL</span> &middot; ' +
+                            original;
+                    }
+                });
+
+                // Create and inject dev banner
+                const banner = document.createElement('div');
+                banner.id = 'dev-banner';
+                banner.innerHTML = `
+                    <span>LOCAL DEVELOPMENT</span>
+                    <span style="opacity: 0.7; margin-left: 16px;">
+                        Site: ${window.location.host} |
+                        Docs: <a href="http://127.0.0.1:8000" style="color: inherit;">127.0.0.1:8000</a>
+                    </span>
+                `;
+                banner.style.cssText = `
+                    position: fixed;
+                    top: 0;
+                    left: 0;
+                    right: 0;
+                    background: linear-gradient(90deg, var(--energy-orange), var(--sun-gold));
+                    color: #000;
+                    padding: 8px 20px;
+                    font-size: 0.75rem;
+                    font-weight: 600;
+                    text-transform: uppercase;
+                    letter-spacing: 0.1em;
+                    z-index: 9999;
+                    text-align: center;
+                    font-family: 'JetBrains Mono', monospace;
+                `;
+                document.body.prepend(banner);
+
+                // Adjust body padding for banner
+                document.body.style.paddingTop = '36px';
+            }
+        })();
     </script>
 </body>
 </html>

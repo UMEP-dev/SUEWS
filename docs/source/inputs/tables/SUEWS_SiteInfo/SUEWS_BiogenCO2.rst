@@ -5,9 +5,12 @@
 SUEWS_BiogenCO2.txt
 ~~~~~~~~~~~~~~~~~~~
 
-.. caution::
+.. note::
 
-	The BiogenCO2 part is under development and not ready for use.
+	The biogenic CO2 module is **experimental**. While scientifically validated against
+	established photosynthesis models (rectangular/non-rectangular hyperbola, conductance-based),
+	users should verify results for their specific applications.
+	See :ref:`troubleshooting` for guidance on common issues with FcPhoto calculations.
 
 
 `SUEWS_BiogenCO2.txt` provides the parameters needed to model

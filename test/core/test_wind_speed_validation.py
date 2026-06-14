@@ -6,6 +6,8 @@ import numpy as np
 from supy._check import check_forcing, check_range, FORCING_REQUIREMENTS
 from supy._check import dict_rules_indiv
 
+pytestmark = pytest.mark.api
+
 
 class TestWindSpeedValidation:
     """Test class for wind speed validation."""

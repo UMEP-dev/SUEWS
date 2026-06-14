@@ -4,8 +4,101 @@ import os
 import re
 import yaml
 
+from .report_writer import REPORT_WRITER
+
 # Use unified report title for all validation phases
 REPORT_TITLE = "SUEWS Validation Report"
+
+
+def collect_phase_c_issues(input_yaml_file: str):
+    """Run a structured Pydantic validation pass and return canonical ``Issue``\\ s.
+
+    The orchestrator's ``run_phase_c`` calls ``SUEWSConfig.from_yaml``
+    which formats Pydantic ``ValidationError`` into a string-only
+    ``ValueError`` (see ``SUEWSConfig._transform_validation_error``).
+    This helper sidesteps that wrapper by calling ``SUEWSConfig`` directly
+    so the raw ``ValidationError.errors()`` survive into the JSON sidecar.
+    The cost is one extra Pydantic pass per failing config, which is
+    acceptable for the validation surface.
+    """
+    from .report_schema import Issue, SEVERITY_ERROR
+
+    issues = []
+
+    try:
+        from supy.data_model import SUEWSConfig
+    except ImportError as exc:
+        issues.append(Issue(
+            phase="C",
+            severity=SEVERITY_ERROR,
+            code="C.PIPELINE.IMPORT_ERROR",
+            message=f"Cannot import SUEWSConfig: {exc}",
+            category="PIPELINE",
+        ))
+        return issues
+
+    try:
+        with open(input_yaml_file, "r", encoding="utf-8") as fh:
+            config_data = yaml.safe_load(fh)
+    except (OSError, yaml.YAMLError) as exc:
+        issues.append(Issue(
+            phase="C",
+            severity=SEVERITY_ERROR,
+            code="C.PIPELINE.YAML_PARSE_ERROR",
+            message=str(exc),
+            category="PIPELINE",
+        ))
+        return issues
+
+    if not isinstance(config_data, dict):
+        issues.append(Issue(
+            phase="C",
+            severity=SEVERITY_ERROR,
+            code="C.PIPELINE.YAML_NOT_MAPPING",
+            message="YAML root is not a mapping",
+            category="PIPELINE",
+        ))
+        return issues
+
+    # Replicate the minimal fields ``from_yaml`` injects so the model
+    # construction reaches Pydantic with the same shape, but without
+    # the ValidationError-to-ValueError wrapping.
+    config_data.setdefault("_yaml_path", input_yaml_file)
+
+    try:
+        from pydantic import ValidationError
+    except ImportError:
+        ValidationError = None
+
+    try:
+        SUEWSConfig(**config_data)
+        return issues  # No errors
+    except Exception as exc:
+        if ValidationError is not None and isinstance(exc, ValidationError):
+            for err in exc.errors():
+                loc_tuple = err.get("loc", ())
+                gridid_path = convert_pydantic_location_to_gridid_path(
+                    loc_tuple, input_yaml_file
+                )
+                err_type = err.get("type", "value_error")
+                code_slug = str(err_type).upper().replace(".", "_")
+                issues.append(Issue(
+                    phase="C",
+                    severity=SEVERITY_ERROR,
+                    code=f"C.PYDANTIC.{code_slug}",
+                    message=err.get("msg", str(err)),
+                    yaml_path=gridid_path,
+                    category="CONFIG_CONSISTENCY",
+                ))
+        else:
+            issues.append(Issue(
+                phase="C",
+                severity=SEVERITY_ERROR,
+                code="C.PIPELINE.EXCEPTION",
+                message=str(exc),
+                category="PIPELINE",
+            ))
+        return issues
 
 
 def convert_pydantic_location_to_gridid_path(loc_tuple, input_yaml_file):
@@ -33,7 +126,7 @@ def convert_pydantic_location_to_gridid_path(loc_tuple, input_yaml_file):
             site_index = loc_tuple[i + 1]
             try:
                 # Load YAML to get the actual GRIDID
-                with open(input_yaml_file, "r") as f:
+                with open(input_yaml_file, "r", encoding="utf-8") as f:
                     yaml_data = yaml.safe_load(f)
 
                 if (
@@ -199,8 +292,7 @@ def generate_phase_c_report(
         ) = _parse_consolidated_messages(no_action_messages)
     elif phase_a_report_file and os.path.exists(phase_a_report_file):
         try:
-            with open(phase_a_report_file, "r") as f:
-                report_content = f.read()
+            report_content = REPORT_WRITER.read(phase_a_report_file)
             (
                 phase_a_renames,
                 phase_a_optional_missing,
@@ -236,7 +328,7 @@ def generate_phase_c_report(
                     if field_name in ["lat", "lon", "alt"]:
                         # Try to get GRIDID for first site as fallback
                         try:
-                            with open(input_yaml_file, "r") as f:
+                            with open(input_yaml_file, "r", encoding="utf-8") as f:
                                 yaml_data = yaml.safe_load(f)
                             if (
                                 "sites" in yaml_data
@@ -303,9 +395,11 @@ def generate_phase_c_report(
                             param_name = issue.split(" is set to null")[0]
                             issue_field_name = param_name
                             issue_path = f"model.physics.{param_name}"
-                        elif " → " in issue:
-                            # StorageHeat parameter format: "site: storageheatmethod=6 → properties.lambda_c must be set"
-                            parts = issue.split(" → ", 1)
+                        elif " -> " in issue or " \u2192 " in issue:
+                            # StorageHeat parameter format: "site: storageheatmethod=6 -> properties.lambda_c must be set"
+                            # Handle both ASCII (->) and Unicode (→) for backward compatibility
+                            separator = " -> " if " -> " in issue else " \u2192 "
+                            parts = issue.split(separator, 1)
                             if len(parts) == 2:
                                 site_part = parts[0].strip()
                                 param_part = parts[1].strip()
@@ -372,9 +466,11 @@ def generate_phase_c_report(
                         param_name = issue.split(" is set to null")[0]
                         field_name = param_name
                         path = f"model.physics.{param_name}"
-                    elif " → " in issue:
-                        # StorageHeat parameter format: "site: storageheatmethod=6 → properties.lambda_c must be set"
-                        parts = issue.split(" → ", 1)
+                    elif " -> " in issue or " \u2192 " in issue:
+                        # StorageHeat parameter format: "site: storageheatmethod=6 -> properties.lambda_c must be set"
+                        # Handle both ASCII (->) and Unicode (→) for backward compatibility
+                        separator = " -> " if " -> " in issue else " \u2192 "
+                        parts = issue.split(separator, 1)
                         if len(parts) == 2:
                             site_part = parts[0].strip()
                             param_part = parts[1].strip()
@@ -485,8 +581,7 @@ def generate_phase_c_report(
 
     report_lines.extend(["", "# " + "=" * 50])
 
-    with open(output_report_file, "w") as f:
-        f.write("\n".join(report_lines))
+    REPORT_WRITER.write(output_report_file, "\n".join(report_lines))
 
 
 def generate_fallback_report(
@@ -517,8 +612,7 @@ def generate_fallback_report(
         ) = _parse_consolidated_messages(no_action_messages)
     elif phase_a_report_file and os.path.exists(phase_a_report_file):
         try:
-            with open(phase_a_report_file, "r") as f:
-                report_content = f.read()
+            report_content = REPORT_WRITER.read(phase_a_report_file)
             (
                 phase_a_renames,
                 phase_a_optional_missing,
@@ -576,5 +670,4 @@ def generate_fallback_report(
 # ==================================================
 """
 
-    with open(output_report_file, "w") as f:
-        f.write(error_report)
+    REPORT_WRITER.write(output_report_file, error_report)

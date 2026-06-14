@@ -63,4 +63,5 @@ DHWVesselExternalWallConvectionCoefficient=1.0
 DHWVesselWallEmissivity=0.8
 HotWaterHeatingEfficiency=0.8
 MinimumVolumeOfDHWinUse=1.0
+MaximumVolumeOfDHWinUse=100.0
 /

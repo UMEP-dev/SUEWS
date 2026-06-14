@@ -27,6 +27,7 @@ def detect_input_type(input_file: Union[str, Path]) -> str:
     Returns:
         'nml' for RunControl.nml (table conversion)
         'df_state' for CSV/pickle files
+        'yaml' for an existing YAML configuration (cross-release upgrade)
 
     Raises:
         ValueError: If input is not a file or has unknown extension
@@ -40,7 +41,8 @@ def detect_input_type(input_file: Union[str, Path]) -> str:
         raise ValueError(
             f"Input must be a file, not a directory. Got: {input_path}\n"
             f"For table conversion, specify: path/to/RunControl.nml\n"
-            f"For df_state conversion, specify: path/to/df_state.csv or .pkl"
+            f"For df_state conversion, specify: path/to/df_state.csv or .pkl\n"
+            f"For YAML upgrade, specify: path/to/config.yml"
         )
 
     # Check file type
@@ -48,10 +50,13 @@ def detect_input_type(input_file: Union[str, Path]) -> str:
         return "nml"
     elif input_path.suffix in [".csv", ".pkl", ".pickle"]:
         return "df_state"
+    elif input_path.suffix in [".yml", ".yaml"]:
+        return "yaml"
     else:
         raise ValueError(
             f"Unknown input file type: {input_path.suffix}\n"
-            f"Supported: RunControl.nml for tables, .csv/.pkl for df_state"
+            f"Supported: RunControl.nml for tables, .csv/.pkl for df_state, "
+            f".yml/.yaml for cross-release YAML upgrade"
         )
 
 

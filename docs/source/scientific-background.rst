@@ -52,4 +52,4 @@ The following pages provide detailed information on:
 - :ref:`water_balance`: Components of the surface water balance (:math:`P`, :math:`I`, :math:`E`, :math:`\Delta S`, :math:`R`)
 - :ref:`supporting_processes`: Supporting processes and schemes (LAI, stability, RSL, CBL, CO2)
 
-More information on the scientific background of SUEWS, please refer to :ref:`suews_publications` while more general urban climate and hydrology references are available in the :ref:`refs` section.
+More information on the scientific background of SUEWS, please refer to :ref:`Recent_publications` while more general urban climate and hydrology references are available in the :ref:`refs` section.

@@ -272,21 +272,6 @@ CONTAINS
 
 ! Calculate dectime
    SUBROUTINE SUEWS_cal_dectime( &
-      id, it, imin, isec, & ! input
-      dectime) ! output
-      IMPLICIT NONE
-      INTEGER, INTENT(in) :: id, it, imin, isec
-
-      REAL(KIND(1D0)), INTENT(out) :: dectime ! nsh in type real
-
-      dectime = REAL(id - 1, KIND(1D0)) &
-                + REAL(it, KIND(1D0))/24 &
-                + REAL(imin, KIND(1D0))/(60*24) &
-                + REAL(isec, KIND(1D0))/(60*60*24)
-
-   END SUBROUTINE SUEWS_cal_dectime
-
-   SUBROUTINE SUEWS_cal_dectime_DTS( &
       timer, & ! input
       dectime) ! output
       USE module_ctrl_type, ONLY: SUEWS_TIMER
@@ -312,25 +297,10 @@ CONTAINS
                 + REAL(imin, KIND(1D0))/(60*24) &
                 + REAL(isec, KIND(1D0))/(60*60*24)
 
-   END SUBROUTINE SUEWS_cal_dectime_DTS
+   END SUBROUTINE SUEWS_cal_dectime
 
 ! Calculate tstep-derived variables
    SUBROUTINE SUEWS_cal_tstep( &
-      tstep, & ! input
-      nsh, nsh_real, tstep_real) ! output
-      IMPLICIT NONE
-      INTEGER, INTENT(in) :: tstep ! number of timesteps per hour
-      ! values that are derived from tstep
-      INTEGER, INTENT(out) :: nsh ! number of timesteps per hour
-      REAL(KIND(1D0)), INTENT(out) :: nsh_real ! nsh in type real
-      REAL(KIND(1D0)), INTENT(out) :: tstep_real ! tstep in type real
-      nsh = 3600/tstep
-      nsh_real = nsh*1.0
-      tstep_real = tstep*1.0
-
-   END SUBROUTINE SUEWS_cal_tstep
-
-   SUBROUTINE SUEWS_cal_tstep_DTS( &
       timer, & ! input
       nsh, nsh_real, tstep_real) ! output
       USE module_ctrl_type, ONLY: SUEWS_TIMER
@@ -350,34 +320,9 @@ CONTAINS
       nsh_real = nsh*1.0
       tstep_real = tstep*1.0
 
-   END SUBROUTINE SUEWS_cal_tstep_DTS
+   END SUBROUTINE SUEWS_cal_tstep
 
    SUBROUTINE SUEWS_cal_weekday( &
-      iy, id, lat, & !input
-      dayofWeek_id) !output
-      IMPLICIT NONE
-
-      INTEGER, INTENT(in) :: iy ! year
-      INTEGER, INTENT(in) :: id ! day of year
-      REAL(KIND(1D0)), INTENT(in) :: lat
-
-      INTEGER, DIMENSION(3), INTENT(OUT) :: dayofWeek_id
-
-      INTEGER :: wd
-      INTEGER :: mb
-      INTEGER :: date
-      INTEGER :: seas
-
-      CALL day2month(id, mb, date, seas, iy, lat) !Calculate real date from doy
-      CALL Day_of_Week(date, mb, iy, wd) !Calculate weekday (1=Sun, ..., 7=Sat)
-
-      dayofWeek_id(1) = wd !Day of week
-      dayofWeek_id(2) = mb !Month
-      dayofweek_id(3) = seas !Season
-
-   END SUBROUTINE SUEWS_cal_weekday
-
-   SUBROUTINE SUEWS_cal_weekday_DTS( &
       timer, siteInfo, & !input
       dayofWeek_id) !output
 
@@ -410,22 +355,9 @@ CONTAINS
       dayofWeek_id(2) = mb !Month
       dayofweek_id(3) = seas !Season
 
-   END SUBROUTINE SUEWS_cal_weekday_DTS
+   END SUBROUTINE SUEWS_cal_weekday
 
    SUBROUTINE SUEWS_cal_DLS( &
-      id, startDLS, endDLS, & !input
-      DLS) !output
-      IMPLICIT NONE
-
-      INTEGER, INTENT(in) :: id, startDLS, endDLS
-      INTEGER, INTENT(out) :: DLS
-
-      DLS = 0
-      IF (id > startDLS .AND. id < endDLS) dls = 1
-
-   END SUBROUTINE SUEWS_cal_DLS
-
-   SUBROUTINE SUEWS_cal_DLS_DTS( &
       timer, ahemisPrm, & !input
       DLS) !output
 
@@ -440,13 +372,13 @@ CONTAINS
       INTEGER, INTENT(out) :: DLS
 
       id = timer%id
-      startDLS = ahemisPrm%startDLS
-      endDLS = ahemisPrm%endDLS
+      startDLS = ahemisPrm%start_dls
+      endDLS = ahemisPrm%end_dls
 
       DLS = 0
       IF (id > startDLS .AND. id < endDLS) dls = 1
 
-   END SUBROUTINE SUEWS_cal_DLS_DTS
+   END SUBROUTINE SUEWS_cal_DLS
 
 END MODULE module_util_time
 

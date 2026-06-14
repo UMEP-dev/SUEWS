@@ -2,10 +2,16 @@
 
 import tempfile
 from pathlib import Path
-import pandas as pd
+
 import numpy as np
+import pandas as pd
 import pytest
+
 import supy as sp
+from conftest import TIMESTEPS_PER_DAY
+from supy.data_model.core.model import OutputControl
+
+pytestmark = pytest.mark.physics
 
 
 class TestDailyStateOutput:
@@ -17,7 +23,9 @@ class TestDailyStateOutput:
         df_state_init, df_forcing = sp.load_SampleData()
 
         # Run for multiple days to ensure we have DailyState data
-        df_forcing_multi_day = df_forcing.iloc[: 288 * 3]  # 3 days of 5-min data
+        df_forcing_multi_day = df_forcing.iloc[
+            : TIMESTEPS_PER_DAY * 3
+        ]  # 3 days of 5-min data
 
         # Run simulation
         df_output, df_state_final = sp.run_supy(df_forcing_multi_day, df_state_init)
@@ -52,7 +60,7 @@ class TestDailyStateOutput:
         df_state_init, df_forcing = sp.load_SampleData()
 
         # Run for multiple days
-        df_forcing_multi_day = df_forcing.iloc[: 288 * 3]  # 3 days
+        df_forcing_multi_day = df_forcing.iloc[: TIMESTEPS_PER_DAY * 3]  # 3 days
 
         # Run simulation
         df_output, df_state_final = sp.run_supy(df_forcing_multi_day, df_state_init)
@@ -99,7 +107,7 @@ class TestDailyStateOutput:
         df_state_init, df_forcing = sp.load_SampleData()
 
         # Run for multiple days
-        df_forcing_multi_day = df_forcing.iloc[: 288 * 2]  # 2 days
+        df_forcing_multi_day = df_forcing.iloc[: TIMESTEPS_PER_DAY * 2]  # 2 days
 
         # Run simulation
         df_output, df_state_final = sp.run_supy(df_forcing_multi_day, df_state_init)
@@ -118,3 +126,32 @@ class TestDailyStateOutput:
                 # DailyState should not be affected by output frequency
                 df_ds = pd.read_csv(dailystate_files[0], sep="\t")
                 assert len(df_ds) > 0, f"DailyState should have data at freq={freq_s}"
+
+    def test_dailystate_only_output_config_saves_file(self):
+        """Test that requesting only DailyState writes a populated output file."""
+        df_state_init, df_forcing = sp.load_SampleData()
+        df_forcing_one_day = df_forcing.iloc[:TIMESTEPS_PER_DAY]
+
+        df_output, df_state_final = sp.run_supy(df_forcing_one_day, df_state_init)
+
+        with tempfile.TemporaryDirectory() as dir_temp:
+            list_files = sp.save_supy(
+                df_output,
+                df_state_final,
+                path_dir_save=dir_temp,
+                output_config=OutputControl(groups=["DailyState"]),
+            )
+
+            assert [f.name for f in list_files if "SUEWS" in f.name] == []
+            dailystate_files = [f for f in list_files if "DailyState" in f.name]
+            assert len(dailystate_files) == 1
+
+            df_saved = pd.read_csv(dailystate_files[0], sep="\t")
+            data_cols = [
+                c
+                for c in df_saved.columns
+                if c not in ["Year", "DOY", "Hour", "Min", "Dectime"]
+            ]
+
+            assert len(df_saved) == 1
+            assert (df_saved[data_cols] != -999).any().any()

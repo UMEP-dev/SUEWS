@@ -20,6 +20,7 @@ from pydantic import (
     conlist,
     ValidationError,
 )
+from collections.abc import Mapping
 import numpy as np
 import pandas as pd
 import yaml
@@ -28,6 +29,17 @@ import os
 from copy import deepcopy
 from datetime import datetime
 import pytz
+from ...core.field_renames import (
+    RAW_YAML_FIELD_RENAMES,
+    STEBBS_PHYSICS_LEAF_RENAMES,
+    has_renamed_key,
+    normalise_yaml_renames,
+    read_physics_key,
+    read_renamed_key,
+    rename_keys_recursive,
+)
+from ...core.physics_families import coerce_nested_to_flat, flatten_physics_in_config
+from ...core.physics_orthogonal import coerce_orthogonal_to_flat
 
 # Use tzfpy instead of timezonefinder for Windows compatibility
 # tzfpy has pre-built Windows wheels and provides similar functionality
@@ -57,6 +69,16 @@ except ImportError:
             "Neither tzfpy nor timezonefinder available. DST calculations will be skipped.",
             UserWarning,
         )
+
+
+def _fallback_timezone_name(lat: float, lng: float) -> Optional[str]:
+    """Small deterministic timezone fallback for simple UTC and London cases."""
+    if 49.0 <= lat <= 61.0 and -8.5 <= lng <= 2.5:
+        return "Europe/London"
+    if -1.0 <= lat <= 1.0 and -1.0 <= lng <= 1.0:
+        return "Etc/GMT"
+    return None
+
 
 # Optional import - use standalone if supy not available
 try:
@@ -89,7 +111,27 @@ except ImportError:
             return False
 
     trv_supy_module = MockTraversable()
-import os
+
+
+def load_user_yaml_normalised(path: str) -> Any:
+    """Load a user YAML file and normalise legacy field spellings to current names.
+
+    The single load chokepoint for the standalone validation pipeline (gh#1457).
+    Routing every raw user-YAML read through this helper means a new load site
+    cannot silently forget to normalise: ``SUEWSConfig.from_yaml`` normalises
+    before validation, but the standalone Phase B/C path does not, so rules that
+    look up the current name would otherwise miss a legacy spelling.
+
+    Args:
+        path: Path to the user YAML file.
+
+    Returns:
+        The parsed YAML with legacy field spellings rewritten to current names
+        (or untouched if both a legacy and current spelling are present; see
+        ``normalise_yaml_renames``).
+    """
+    with open(path, "r", encoding="utf-8") as f:
+        return normalise_yaml_renames(yaml.safe_load(f))
 
 
 def get_value_safe(param_dict, param_key, default=None):
@@ -103,11 +145,355 @@ def get_value_safe(param_dict, param_key, default=None):
     Returns:
         The parameter value, handling both RefValue {"value": X} and plain X formats
     """
-    param = param_dict.get(param_key, default)
-    if isinstance(param, dict) and "value" in param:
+    param = read_renamed_key(
+        param_dict,
+        param_key,
+        renames=RAW_YAML_FIELD_RENAMES,
+        default=default,
+    )
+    param = coerce_orthogonal_to_flat(param_key, param)
+    param = coerce_nested_to_flat(param_key, param)
+    if isinstance(param, Mapping) and "value" in param:
         return param["value"]  # RefValue format: {"value": 1}
     else:
         return param  # Plain format: 1
+
+
+_STEBBS_MISSING = object()
+_STEBBS_REFVALUE_KEYS = frozenset({"value", "ref"})
+_STEBBS_NESTED_KEYS = frozenset(
+    {
+        "enabled",
+        "parameters",
+        *STEBBS_PHYSICS_LEAF_RENAMES.keys(),
+        *STEBBS_PHYSICS_LEAF_RENAMES.values(),
+    }
+)
+_STEBBS_BOOL_TRUE = frozenset({"1", "true", "t", "yes", "y", "on"})
+_STEBBS_BOOL_FALSE = frozenset({"0", "false", "f", "no", "n", "off"})
+
+
+def _stebbs_master_aliases(physics):
+    """Return legacy master-toggle aliases present beside ``stebbs``."""
+    if not isinstance(physics, Mapping):
+        return []
+    return sorted(
+        old_key
+        for old_key, new_key in RAW_YAML_FIELD_RENAMES.items()
+        if old_key != "stebbs" and new_key == "stebbs" and old_key in physics
+    )
+
+
+def _stebbs_leaf_alias_conflicts(physics):
+    """Return flat STEBBS alias groups that would collide after folding."""
+    if not isinstance(physics, Mapping):
+        return []
+    present_by_leaf = {}
+    for old_key, nested_leaf in STEBBS_PHYSICS_LEAF_RENAMES.items():
+        if old_key in physics:
+            present_by_leaf.setdefault(nested_leaf, []).append(old_key)
+    return [
+        (leaf, sorted(keys))
+        for leaf, keys in sorted(present_by_leaf.items())
+        if len(keys) > 1
+    ]
+
+
+def _format_stebbs_leaf_alias_conflicts(conflicts):
+    """Format colliding flat STEBBS aliases for validation errors."""
+    return "; ".join(
+        f"{', '.join(keys)} -> stebbs.{leaf}" for leaf, keys in conflicts
+    )
+
+
+def _stebbs_flat_leaf_siblings(physics):
+    """Return flat STEBBS leaf keys present beside a nested ``stebbs`` block."""
+    if not isinstance(physics, Mapping):
+        return []
+    return sorted({key for key in STEBBS_PHYSICS_LEAF_RENAMES if key in physics})
+
+
+def _read_raw_stebbs_entry(physics):
+    """Read ``stebbs`` while rejecting ambiguous master-toggle aliases."""
+    aliases = _stebbs_master_aliases(physics)
+    if len(aliases) > 1:
+        raise ValueError(
+            "Multiple legacy STEBBS master aliases "
+            f"({', '.join(aliases)}) are present. Use only one spelling."
+        )
+    if isinstance(physics, Mapping) and "stebbs" in physics and aliases:
+        raise ValueError(
+            "Both 'stebbs' and legacy STEBBS master aliases "
+            f"({', '.join(aliases)}) are present. Use only 'stebbs'."
+        )
+    return read_renamed_key(
+        physics,
+        "stebbs",
+        renames=RAW_YAML_FIELD_RENAMES,
+        default=_STEBBS_MISSING,
+    )
+
+
+def _is_stebbs_refvalue_scalar(entry):
+    """Return True for a RefValue-style legacy ``stebbs`` master toggle."""
+    return (
+        isinstance(entry, Mapping)
+        and "value" in entry
+        and set(entry) <= _STEBBS_REFVALUE_KEYS
+    )
+
+
+def _is_stebbs_nested_block(entry):
+    """Return True when ``entry`` is the nested STEBBS physics object."""
+    return (
+        isinstance(entry, Mapping)
+        and not _is_stebbs_refvalue_scalar(entry)
+        and any(key in entry for key in _STEBBS_NESTED_KEYS)
+    )
+
+
+def _legacy_stebbs_master_value(entry):
+    """Compose the legacy tri-state ``stebbsmethod`` from a raw scalar."""
+    entry = coerce_nested_to_flat("stebbs", entry)
+    if isinstance(entry, Mapping) and "value" not in entry:
+        raise ValueError(
+            "Legacy 'stebbs' mappings must use a 'value' key; use "
+            "'stebbs.enabled' / 'stebbs.parameters' for the nested form."
+        )
+    raw = entry["value"] if isinstance(entry, Mapping) and "value" in entry else entry
+    if isinstance(raw, bool):
+        code = int(raw)
+    elif isinstance(raw, int):
+        code = raw
+    elif isinstance(raw, float) and raw.is_integer():
+        code = int(raw)
+    else:
+        raise ValueError(
+            "Legacy 'stebbs' master toggle expects integer 0, 1, or 2."
+        )
+    if code == 0:
+        return 0
+    if code == 1:
+        return 1
+    if code == 2:
+        return 2
+    raise ValueError("Legacy 'stebbs' master toggle expects integer 0, 1, or 2.")
+
+
+def _parse_stebbs_enabled_value(raw):
+    """Parse ``stebbs.enabled`` with Pydantic-compatible bool coercion."""
+    if isinstance(raw, bool):
+        return raw
+    if isinstance(raw, int):
+        if raw in (0, 1):
+            return bool(raw)
+    elif isinstance(raw, float) and raw in (0.0, 1.0):
+        return bool(raw)
+    elif isinstance(raw, str):
+        lowered = raw.lower()
+        if lowered in _STEBBS_BOOL_TRUE:
+            return True
+        if lowered in _STEBBS_BOOL_FALSE:
+            return False
+    raise ValueError("model.physics.stebbs.enabled expects a boolean value.")
+
+
+def _parse_stebbs_parameters_value(raw):
+    """Parse ``stebbs.parameters`` with Pydantic-compatible enum coercion."""
+    if isinstance(raw, bool):
+        if raw:
+            return 1
+    elif isinstance(raw, int):
+        if raw in (1, 2):
+            return raw
+    elif isinstance(raw, float) and raw in (1.0, 2.0):
+        return int(raw)
+    raise ValueError("model.physics.stebbs.parameters expects integer 1 or 2.")
+
+
+def get_stebbs_block(physics):
+    """Return a folded ``model.physics.stebbs`` view (or {} if absent).
+
+    gh#1456: the STEBBS switches moved under a nested ``stebbs`` object. This
+    helper isolates that container so callers can read its leaves
+    (``capacitance``, ``setpoint``, ``same_*``) uniformly against the
+    YAML-dict representation. For raw Phase B callers that have not gone through
+    Pydantic, it also folds still-accepted flat sibling switches into a transient
+    nested view.
+
+    Parameters
+    ----------
+    physics : Mapping
+        The ``model.physics`` dict (or anything mapping-like).
+
+    Returns
+    -------
+    Mapping
+        The nested ``stebbs`` sub-dict, including any accepted flat sibling
+        switches, or ``{}`` when it is absent.
+    """
+    if not isinstance(physics, Mapping):
+        return {}
+    block = _read_raw_stebbs_entry(physics)
+    folded = dict(block) if _is_stebbs_nested_block(block) else {}
+
+    if folded:
+        nested_conflicts = _stebbs_leaf_alias_conflicts(folded)
+        if nested_conflicts:
+            raise ValueError(
+                "Multiple nested STEBBS physics switches map to the same nested "
+                f"leaf ({_format_stebbs_leaf_alias_conflicts(nested_conflicts)}). "
+                "Use only one spelling."
+            )
+
+        flat_conflicts = _stebbs_flat_leaf_siblings(physics)
+        if flat_conflicts:
+            raise ValueError(
+                "Both nested 'stebbs' and flat STEBBS physics switches "
+                f"({', '.join(flat_conflicts)}) are present. Use only the "
+                "nested 'stebbs' form."
+            )
+
+    leaf_conflicts = _stebbs_leaf_alias_conflicts(physics)
+    if leaf_conflicts:
+        raise ValueError(
+            "Multiple flat STEBBS physics switches map to the same nested leaf "
+            f"({_format_stebbs_leaf_alias_conflicts(leaf_conflicts)}). Use only "
+            "one spelling."
+        )
+
+    for old_key, nested_leaf in STEBBS_PHYSICS_LEAF_RENAMES.items():
+        if old_key == nested_leaf or old_key not in folded:
+            continue
+        value = folded.pop(old_key)
+        if nested_leaf not in folded:
+            folded[nested_leaf] = value
+
+    for _flat_key, nested_leaf in STEBBS_PHYSICS_LEAF_RENAMES.items():
+        if nested_leaf in folded:
+            continue
+        value = read_renamed_key(
+            physics,
+            nested_leaf,
+            renames=RAW_YAML_FIELD_RENAMES,
+            default=_STEBBS_MISSING,
+        )
+        if value is not _STEBBS_MISSING:
+            folded[nested_leaf] = value
+
+    return folded
+
+
+def get_stebbsmethod_value(physics):
+    """Return the composed legacy ``stebbsmethod`` integer from physics.
+
+    Accepts both the new nested shape (``model.physics.stebbs.enabled`` +
+    ``.parameters``, composing to ``0`` / ``int(parameters)``) and the legacy
+    flat ``stebbs`` tri-state integer. Returns ``None`` when neither is
+    present.
+
+    Parameters
+    ----------
+    physics : Mapping
+        The ``model.physics`` dict.
+
+    Returns
+    -------
+    int or None
+        The composed ``stebbsmethod`` code (0/1/2), or ``None`` when the
+        master toggle is absent.
+    """
+    if not isinstance(physics, Mapping):
+        return None
+
+    raw_stebbs = _read_raw_stebbs_entry(physics)
+    stebbs_block = get_stebbs_block(physics)
+
+    if raw_stebbs is not _STEBBS_MISSING and not _is_stebbs_nested_block(raw_stebbs):
+        return _legacy_stebbs_master_value(raw_stebbs)
+
+    if stebbs_block:
+        # Validate a present parameters value even when disabled, matching the
+        # Pydantic field contract and the Rust bridge flattening pre-pass.
+        raw_parameters = get_value_safe(
+            stebbs_block,
+            "parameters",
+            _STEBBS_MISSING,
+        )
+        parameters = (
+            1
+            if raw_parameters is _STEBBS_MISSING
+            else _parse_stebbs_parameters_value(raw_parameters)
+        )
+        enabled = _parse_stebbs_enabled_value(
+            get_value_safe(stebbs_block, "enabled", False)
+        )
+        if not enabled:
+            return 0
+        return parameters
+
+    return None
+
+
+def unwrap_value(val):
+    """
+    Unwrap RefValue and Enum values consistently.
+
+    This helper ensures consistent handling of RefValue wrappers and Enum values
+    throughout the validation logic.
+
+    Args:
+        val: The value to unwrap (could be RefValue, Enum, or raw value)
+
+    Returns:
+        The unwrapped raw value
+    """
+    # Handle RefValue wrapper
+    if (
+        hasattr(val, "value")
+        and hasattr(val, "__class__")
+        and "RefValue" in val.__class__.__name__
+    ):
+        val = val.value
+
+    # Handle Enum values (which also have .value attribute)
+    if (
+        hasattr(val, "value")
+        and hasattr(val, "__class__")
+        and "Enum" in str(val.__class__.__bases__)
+    ):
+        val = val.value
+
+    return val
+
+
+def unwrap_nested_value(x: Any) -> Any:
+    """Unwrap RefValue-like objects or {"value": ...} dicts recursively.
+
+    Handles dicts with a "value" key nested within other dicts or objects
+    that have a "value" attribute, recursively unwrapping up to 10 levels deep.
+
+    Args:
+        x (Any): The value to unwrap. Can be a dict with a "value" key,
+            an object with a "value" attribute, or any other type.
+
+    Returns:
+        Any: The unwrapped value, or None if input is None.
+    """
+    cur = x
+    for _ in range(10):
+        if cur is None:
+            return None
+        # dict YAML form
+        if isinstance(cur, Mapping) and "value" in cur:
+            cur = cur["value"]
+            continue
+        # RefValue-like form
+        if hasattr(cur, "value"):
+            cur = cur.value
+            continue
+        break
+    return cur
 
 
 class SeasonCheck(BaseModel):
@@ -157,12 +543,13 @@ class DLSCheck(BaseModel):
     def compute_dst_transitions(self):
         if not HAS_TIMEZONE_FINDER:
             logger_supy.debug(
-                "[DLS] No timezone finder available, skipping DST calculation."
+                "[DLS] No timezone finder available, using limited fallback."
             )
-            return None, None, None
+            tz_name = _fallback_timezone_name(self.lat, self.lng)
+        else:
+            tf = TimezoneFinder()
+            tz_name = tf.timezone_at(lat=self.lat, lng=self.lng)
 
-        tf = TimezoneFinder()
-        tz_name = tf.timezone_at(lat=self.lat, lng=self.lng)
 
         if not tz_name:
             logger_supy.debug(
@@ -353,11 +740,14 @@ def _nullify_biogenic_in_props(props: dict) -> bool:
 
     params = (
         "alpha_bioco2",
+        "alpha_bio_co2",
         "alpha_enh_bioco2",
         "beta_bioco2",
+        "beta_bio_co2",
         "beta_enh_bioco2",
         "min_res_bioco2",
         "theta_bioco2",
+        "theta_bio_co2",
         "resp_a",
         "resp_b",
     )
@@ -495,7 +885,7 @@ def save_precheck_diff_report(diffs: List[dict], original_yaml_path: str):
     report_filename = f"precheck_report_{os.path.basename(original_yaml_path).replace('.yml', '.csv')}"
     report_path = os.path.join(os.path.dirname(original_yaml_path), report_filename)
 
-    with open(report_path, "w", newline="") as csvfile:
+    with open(report_path, "w", encoding="utf-8", newline="") as csvfile:
         writer = csv.DictWriter(
             csvfile,
             fieldnames=["site", "parameter", "old_value", "new_value", "reason"],
@@ -607,6 +997,43 @@ def get_mean_monthly_air_temperature(
         temperature = float(nearby_data.iloc[0]["NormalTemperature"])
 
     return temperature
+
+def get_monthly_air_temperature_diffmax(
+    lat: float, lon: float, spatial_res: float = 0.5
+) -> float:
+    """
+    Calculates the maximum difference between mean monthly air temperatures
+    using CRU TS4.06 climatological data. The result is the difference between
+    the warmest and coldest mean monthly temperature within the annual cycle
+    at the specified location.
+
+    Parameters
+    ----------
+    lat : float
+        Site latitude in degrees (positive for Northern Hemisphere, negative for Southern).
+    lon : float
+        Site longitude in degrees (-180 to 180).
+    spatial_res : float, optional
+        Search spatial resolution for nearest CRU grid cell (default is 0.5).
+
+    Returns
+    -------
+    float
+        Maximum difference in mean monthly air temperature (°C).
+
+    Raises
+    ------
+    ValueError
+        If input values are invalid or CRU data cannot be found.
+    FileNotFoundError
+        If the CRU data file is missing.
+    """
+    monthly_temps = []
+    for month in range(1, 13):
+        monthly_temp = get_mean_monthly_air_temperature(lat, lon, month, spatial_res)
+        monthly_temps.append(monthly_temp)
+    diffmax = float(max(monthly_temps) - min(monthly_temps))
+    return diffmax
 
 
 def get_mean_annual_air_temperature(
@@ -732,20 +1159,20 @@ def precheck_model_physics_params(data: dict) -> dict:
     is skipped (used to allow partial configurations during early stages).
 
     Required fields include:
-        - netradiationmethod
-        - emissionsmethod
-        - storageheatmethod
-        - ohmincqf
-        - roughlenmommethod
-        - roughlenheatmethod
-        - stabilitymethod
-        - smdmethod
-        - waterusemethod
-        - rslmethod
-        - faimethod
-        - rsllevel
-        - snowuse
-        - stebbsmethod
+        - net_radiation
+        - emissions
+        - storage_heat
+        - ohm_inc_qf
+        - roughness_length_momentum
+        - roughness_length_heat
+        - stability
+        - soil_moisture_deficit
+        - water_use
+        - roughness_sublayer
+        - frontal_area_index
+        - roughness_sublayer_level
+        - snow_use
+        - stebbs
 
     Args:
         data (dict): YAML configuration data loaded as a dictionary.
@@ -764,27 +1191,27 @@ def precheck_model_physics_params(data: dict) -> dict:
         return data
 
     required = [
-        "netradiationmethod",
-        "emissionsmethod",
-        "storageheatmethod",
-        "ohmincqf",
-        "roughlenmommethod",
-        "roughlenheatmethod",
-        "stabilitymethod",
-        "smdmethod",
-        "waterusemethod",
-        "rslmethod",
-        "faimethod",
-        "rsllevel",
-        "snowuse",
-        "stebbsmethod",
+        "net_radiation",
+        "emissions",
+        "storage_heat",
+        "ohm_inc_qf",
+        "roughness_length_momentum",
+        "roughness_length_heat",
+        "stability",
+        "soil_moisture_deficit",
+        "water_use",
+        "roughness_sublayer",
+        "frontal_area_index",
+        "roughness_sublayer_level",
+        "snow_use",
+        "stebbs",
     ]
 
-    missing = [k for k in required if k not in physics]
+    missing = [k for k in required if not has_renamed_key(physics, k)]
     if missing:
         raise ValueError(f"[model.physics] Missing required params: {missing}")
 
-    empty = [k for k in required if get_value_safe(physics, k) in ("", None)]
+    empty = [k for k in required if read_physics_key(physics, k) in ("", None)]
     if empty:
         raise ValueError(f"[model.physics] Empty or null values for: {empty}")
 
@@ -797,7 +1224,7 @@ def precheck_model_options_constraints(data: dict) -> dict:
     Enforce internal consistency between model physics options.
 
     This function verifies logical dependencies between selected model physics methods.
-    Specifically, if 'rslmethod' is set to 2, it enforces that 'stabilitymethod' equals 3,
+    Specifically, if 'roughness_sublayer' is set to 2, it enforces that 'stability' equals 3,
     as required for diagnostic aerodynamic calculations.
 
     Args:
@@ -812,15 +1239,15 @@ def precheck_model_options_constraints(data: dict) -> dict:
 
     physics = data.get("model", {}).get("physics", {})
 
-    diag = get_value_safe(physics, "rslmethod")
-    stability = get_value_safe(physics, "stabilitymethod")
+    diag = read_physics_key(physics, "roughness_sublayer")
+    stability = read_physics_key(physics, "stability")
 
     if diag == 2 and stability != 3:
         raise ValueError(
-            "[model.physics] If rslmethod == 2, stabilitymethod must be 3."
+            "[model.physics] If roughness_sublayer == 2, stability must be 3."
         )
 
-    logger_supy.debug("rslmethod-stabilitymethod constraint passed.")
+    logger_supy.debug("roughness_sublayer-stability constraint passed.")
     return data
 
 
@@ -930,8 +1357,8 @@ def precheck_site_season_adjustments(
 
         if sfr > 0:
             lai = dectr.get("lai", {})
-            laimin = get_value_safe(lai, "laimin")
-            laimax = get_value_safe(lai, "laimax")
+            laimin = get_value_safe(lai, "lai_min")
+            laimax = get_value_safe(lai, "lai_max")
             lai_val = None
 
             if laimin is not None and laimax is not None:
@@ -1407,20 +1834,41 @@ def precheck_model_option_rules(data: dict) -> dict:
     """
     physics = data.get("model", {}).get("physics", {})
 
-    # Helper: recursively nullify any "value" leaves in the passed block
-    def _recursive_nullify(block: dict):
-        for key, val in block.items():
-            if isinstance(val, dict):
-                if "value" in val:
-                    val["value"] = None
+    def _recursive_nullify(block):
+        if isinstance(block, dict):
+            for key, val in block.items():
+                if isinstance(val, dict):
+                    if "value" in val:
+                        inner = val["value"]
+                        if isinstance(inner, list):
+                            val["value"] = [None] * len(inner)
+                        else:
+                            val["value"] = None
+                    else:
+                        _recursive_nullify(val)
+                elif isinstance(val, list):
+                    for idx, item in enumerate(val):
+                        if isinstance(item, (dict, list)):
+                            _recursive_nullify(item)
+                        else:
+                            val[idx] = None
                 else:
-                    _recursive_nullify(val)
+                    block[key] = None
+        elif isinstance(block, list):
+            for idx, item in enumerate(block):
+                if isinstance(item, (dict, list)):
+                    _recursive_nullify(item)
+                else:
+                    block[idx] = None
 
-    # --- STEBBSMETHOD RULE: when stebbsmethod == 0, wipe out all stebbs params ---
-    stebbsmethod = get_value_safe(physics, "stebbsmethod")
+    # --- STEBBS RULE: when stebbs == 0, wipe out all stebbs params ---
+    # gh#1456: compose the legacy stebbsmethod integer from the nested
+    # model.physics.stebbs block (enabled + parameters); also accepts the
+    # legacy flat scalar shape.
+    stebbsmethod = get_stebbsmethod_value(physics)
     if stebbsmethod == 0:
         logger_supy.info(
-            "[precheck] stebbsmethod==0 detected → nullifying all 'stebbs' values."
+            "[precheck] stebbs==0 detected -> nullifying all 'stebbs' values."
         )
         for site_idx, site in enumerate(data.get("sites", [])):
             props = site.get("properties", {}) or {}
@@ -1439,11 +1887,11 @@ def precheck_model_option_rules(data: dict) -> dict:
                 site["properties"] = props
                 data["sites"][site_idx] = site
 
-    # --- EMISSIONS / CO2 RULE: when emissionsmethod 0..4, CO2 is not computed, nullify co2 params ---
-    emissionsmethod = get_value_safe(physics, "emissionsmethod")
-    if emissionsmethod is not None and emissionsmethod in (0, 1, 2, 3, 4):
+    # --- EMISSIONS / CO2 RULE: when emissions 0..6, CO2 is not output, nullify co2 params ---
+    emissionsmethod = get_value_safe(physics, "emissions")
+    if emissionsmethod is not None and emissionsmethod in (0, 1, 2, 3, 4, 5, 6):
         logger_supy.info(
-            "[precheck] emissionsmethod 0..4 detected → nullifying 'anthropogenic_emissions.co2' values."
+            "[precheck] emissions 0..6 detected -> nullifying 'anthropogenic_emissions.co2' values."
         )
 
         for site_idx, site in enumerate(data.get("sites", [])):
@@ -1510,10 +1958,12 @@ def run_precheck(path: str) -> dict:
     """
 
     # ---- Step 0: Load yaml from path into a dict ----
-    with open(path, "r") as file:
-        data = yaml.load(file, Loader=yaml.FullLoader)
+    with open(path, "r", encoding="utf-8") as file:
+        data = yaml.safe_load(file)
 
     original_data = deepcopy(data)
+    data = rename_keys_recursive(data, RAW_YAML_FIELD_RENAMES)
+    flatten_physics_in_config(data)
 
     # ---- Step 1: Print start message ----
     data = precheck_printing(data)
@@ -1560,7 +2010,7 @@ def run_precheck(path: str) -> dict:
     output_filename = f"py0_{os.path.basename(path)}"
     output_path = os.path.join(os.path.dirname(path), output_filename)
 
-    with open(output_path, "w") as f:
+    with open(output_path, "w", encoding="utf-8", newline="\n") as f:
         yaml.dump(data, f, sort_keys=False, allow_unicode=True)
 
     logger_supy.info(f"Saved updated YAML file to: {output_path}")

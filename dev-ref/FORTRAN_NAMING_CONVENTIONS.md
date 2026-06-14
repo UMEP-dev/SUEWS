@@ -427,18 +427,18 @@ When renaming modules:
 
 ### Automated Naming Checker
 
-Location: `scripts/check_naming_conventions.py`
+Location: `scripts/suews/check_naming_conventions.py`
 
 **Usage**:
 ```bash
 # Check all Fortran files
-python scripts/check_naming_conventions.py
+python scripts/suews/check_naming_conventions.py
 
 # Check specific files
-python scripts/check_naming_conventions.py src/suews/src/suews_phys_snow.f95
+python scripts/suews/check_naming_conventions.py src/suews/src/suews_phys_snow.f95
 
 # Generate report
-python scripts/check_naming_conventions.py --report naming_report.txt
+python scripts/suews/check_naming_conventions.py --report naming_report.txt
 ```
 
 **What it checks**:
@@ -456,7 +456,7 @@ Add to `.pre-commit-config.yaml`:
   hooks:
     - id: fortran-naming-check
       name: Fortran Naming Convention Check
-      entry: python scripts/check_naming_conventions.py
+      entry: python scripts/suews/check_naming_conventions.py
       language: python
       files: \.f95$
       pass_filenames: true
@@ -474,7 +474,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Check Fortran Naming
-        run: python scripts/check_naming_conventions.py
+        run: python scripts/suews/check_naming_conventions.py
 ```
 
 ---

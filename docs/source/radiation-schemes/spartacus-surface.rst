@@ -190,6 +190,7 @@ Outputs
 See output file ``SSss_YYYY_SPARTACUS_TT.txt``.
 
 .. _spartacus_parameters:
+.. _more_SS_details:
 
 Parameter Details
 -----------------
@@ -206,7 +207,7 @@ Given reflectance :math:`r` and transmittance :math:`t` spectra the SSA is calcu
 
 .. math:: \text{SSA} = \ \frac{\int_{\sim 400\ \text{nm}}^{\sim 2200\ \text{nm}}{r \times S}\text{dλ}}{\int_{\sim 400\ \text{nm}}^{\sim 2200\ \text{nm}}S\text{dλ}} + \frac{\int_{\sim 400\ \text{nm}}^{\sim 2200\ \text{nm}}{t \times S}\text{dλ}}{\int_{\sim 400\ \text{nm}}^{\sim 2200\ \text{nm}}S\text{dλ}}
 
-where :math:`S` clear-sky surface spectrum :numref:`rami5`.
+where :math:`S` is the clear-sky surface spectrum (see :numref:`rami5`).
 
 The integrals are performed between 400 nm and 2200 nm because this is the spectral range that RAMI5\ :sup:`5` Järvselja birch stand forest spectra are available.
 

@@ -220,4 +220,4 @@ Test coverage includes:
 
 - [JSON Schema Specification](https://json-schema.org/)
 - [Pydantic Schema Export](https://docs.pydantic.dev/latest/usage/json_schema/)
-- [SUEWS Configuration Guide](https://suews.readthedocs.io/configuration)
+- [SUEWS Configuration Guide](https://docs.suews.io/configuration)

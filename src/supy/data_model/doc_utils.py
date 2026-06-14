@@ -517,8 +517,8 @@ class ModelDocExtractor:
             "z",
             "z_meas",
             "tstep",
-            "forcing_file",
-            "output_file",
+            "forcing",
+            "output",
             "start_time",
             "end_time",
             "population",
@@ -554,6 +554,8 @@ class ModelDocExtractor:
             "bldg_height",
             "wall_area",
             "roof_area",
+            "fai",
+            "sathydraulicconduct",
         ]
 
         model_contexts = [

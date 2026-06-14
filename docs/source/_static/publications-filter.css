@@ -1,0 +1,77 @@
+/*
+ * publications-filter.css — chip styling for the topic filter on
+ * `related_publications` and `community_publications`.
+ *
+ * Uses pydata_sphinx_theme / sphinx_book_theme CSS custom properties
+ * (`--pst-color-*`) so the chips feel native to the docs theme in both
+ * light and dark modes, with sensible fallbacks.
+ */
+
+.pub-filter {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 16px 0 28px;
+  padding: 0;
+}
+
+.pub-filter__chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 14px;
+  font: inherit;
+  font-size: 0.85rem;
+  line-height: 1.4;
+  color: var(--pst-color-text-base, #374151);
+  background: transparent;
+  border: 1px solid var(--pst-color-border, rgba(0, 0, 0, 0.15));
+  border-radius: 999px;
+  cursor: pointer;
+  transition: background-color 200ms ease, border-color 200ms ease, color 200ms ease;
+  white-space: nowrap;
+}
+
+.pub-filter__chip:hover:not(:disabled) {
+  border-color: var(--pst-color-primary, #0558a5);
+  color: var(--pst-color-primary, #0558a5);
+}
+
+.pub-filter__chip:focus-visible {
+  outline: 2px solid var(--pst-color-primary, #0558a5);
+  outline-offset: 2px;
+}
+
+.pub-filter__chip.is-active {
+  background: var(--pst-color-primary, #0558a5);
+  border-color: var(--pst-color-primary, #0558a5);
+  color: var(--pst-color-background, #ffffff);
+}
+
+.pub-filter__chip.is-empty,
+.pub-filter__chip:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.pub-filter__chip--all {
+  font-weight: 500;
+}
+
+.pub-filter__count {
+  font-size: 0.75rem;
+  opacity: 0.75;
+  font-variant-numeric: tabular-nums;
+}
+
+.pub-filter__empty {
+  margin: 12px 0 24px;
+  font-style: italic;
+  color: var(--pst-color-text-muted, #6b7280);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pub-filter__chip {
+    transition: none;
+  }
+}

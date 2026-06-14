@@ -121,7 +121,7 @@ File related options
 	:Requirement:
 		Optional
 	:Description:
-		Controls whether the warnings.txt file is written or not.
+		Controls whether warning messages are emitted (e.g., to console / Python logger).
 	:Configuration:
 		.. csv-table::
 			:file: csv-table/SuppressWarnings.csv

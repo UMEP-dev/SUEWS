@@ -77,7 +77,7 @@ A state-of-the-art multi-layer radiation transfer scheme solving 3D radiative tr
 - Detailed canopy-atmosphere interaction research
 - Applications requiring vertical radiation profiles
 
-:doc:`Read more about SPARTACUS-Surface → <spartacus_surface>`
+:doc:`Read more about SPARTACUS-Surface → <spartacus-surface>`
 
 Scheme Comparison
 -----------------

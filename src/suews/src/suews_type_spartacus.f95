@@ -23,6 +23,9 @@ module module_type_spartacus
        REAL(KIND(1D0)) :: veg_fsd_const = 0.0D0 ! Vegetation fractional standard deviation constant [-]
        REAL(KIND(1D0)) :: veg_ssa_lw = 0.0D0 ! Longwave vegetation single scattering albedo [-]
        REAL(KIND(1D0)) :: veg_ssa_sw = 0.0D0 ! Shortwave vegetation single scattering albedo [-]
+    CONTAINS
+       PROCEDURE :: ALLOCATE => allocate_spartacus_prm
+       PROCEDURE :: DEALLOCATE => deallocate_spartacus_prm
     END TYPE SPARTACUS_PRM
 
     TYPE, PUBLIC :: SPARTACUS_LAYER_PRM
@@ -78,5 +81,25 @@ CONTAINS
        IF (ALLOCATED(self%wall_specular_frac)) DEALLOCATE (self%wall_specular_frac)
 
     END SUBROUTINE deallocate_spartacus_layer_prm_c
+
+    SUBROUTINE allocate_spartacus_prm(self, nlayer)
+       IMPLICIT NONE
+       CLASS(SPARTACUS_PRM), INTENT(inout) :: self
+       INTEGER, INTENT(in) :: nlayer
+
+       CALL self%DEALLOCATE()
+       ! Height array has nlayer+1 levels (ground + layer tops)
+       ALLOCATE (self%height(nlayer + 1))
+       self%height = 0.0D0
+
+    END SUBROUTINE allocate_spartacus_prm
+
+    SUBROUTINE deallocate_spartacus_prm(self)
+       IMPLICIT NONE
+       CLASS(SPARTACUS_PRM), INTENT(inout) :: self
+
+       IF (ALLOCATED(self%height)) DEALLOCATE (self%height)
+
+    END SUBROUTINE deallocate_spartacus_prm
 
 end module module_type_spartacus

@@ -1,0 +1,13 @@
+name: nested_physics
+schema_version: '2026.5.dev5'
+model:
+  physics:
+    net_radiation:
+      spartacus:
+        value: 1001
+    storage_heat:
+      ehc:
+        value: 5
+    emissions:
+      simple:
+        value: 2

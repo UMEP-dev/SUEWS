@@ -1,107 +1,81 @@
 # CLAUDE.md
 
-This file provides guidance to Claude Code when working with code in this repository.
+Guidance for Claude Code in this repository.
 
-## ⚠️ CLAUDE.md Protection Active
+## Quick Start
 
-This file is protected against accidental truncation or content loss via pre-commit hook, GitHub Actions, and backup system.
-
-## Style Guidelines
-
-- **Language**: Use British English for all documentation, code comments, file names, and communication
-  - **Exception**: Technical terms follow scientific computing conventions (e.g., "analyze" not "analyse", following numpy/scipy/matplotlib standard)
-- **No emoji-like characters** in print/logging functions - use only plain ASCII characters
-
-## Common Workflow
-
-**When no .venv detected** (auto-setup pattern):
 ```bash
-uv venv                      # Create environment
-source .venv/bin/activate    # Activate
-make dev                     # Install SUEWS in editable mode
-make test                    # Run tests if needed
+uv venv && source .venv/bin/activate && make dev && make test-smoke
 ```
 
-For detailed setup options, see `.claude/reference/quick-start.md`
+Full setup: `/setup-dev` | Style check: `/lint-code` | Build check: `/verify-build` | PR review: `/audit-pr`
 
-## Documentation Structure
+## Essential Rules
 
-- **Developer reference**: `dev-ref/` - Coding guidelines, testing patterns, interfaces
-- **Testing patterns**: `dev-ref/testing/` - Test design, error handling, CI tiers
-- **User documentation**: `docs/` - Sphinx-generated user-facing documentation
-- **Claude Code workspace**: `.claude/` - See `.claude/README.md` for structure
+- **British English** (exception: numpy/scipy conventions like "analyze")
+- **No emoji** in print/logging - plain ASCII only
+- **Test before commit**: `make test-smoke`
+- **Git remote**: `origin` only (`git@github.com:UMEP-dev/SUEWS.git`)
+- **New source files**: Add to `meson.build`
 
-## Documentation Building
+## Project Structure
 
-**Building documentation**:
-```bash
-make docs                    # Build HTML documentation (runs Sphinx)
-cd docs && make livehtml     # Live-reload development server
-```
+| Directory | Purpose | Rules |
+|-----------|---------|-------|
+| `src/suews/src/` | Fortran | `.claude/rules/fortran/` |
+| `src/supy/` | Python | `.claude/rules/python/` |
+| `docs/` | Documentation | `.claude/rules/docs/` |
+| `test/` | Tests | `.claude/rules/tests/` |
+| `.github/workflows/` | CI/Actions | `.claude/rules/ci/` |
 
-**Key documentation points**:
-- Documentation uses Sphinx with reStructuredText and Markdown
-- **Auto-generated files** (DO NOT edit directly):
-  - `docs/source/inputs/yaml/config-reference/` - RST files generated from Pydantic data models
-  - These are rebuilt automatically when running `make docs`
-- **Manually edited files** (safe to modify):
-  - All other files in `docs/source/` including main documentation, guides, tutorials
-  - To change auto-generation logic, modify `docs/generate_datamodel_rst.py`
-- Documentation dependencies included in main environment (`dev` extras)
+## Skills
 
-**When modifying documentation**:
-- Edit source files in `docs/source/`
-- Images go in `docs/source/images/` with descriptive names
-- Use cross-references and proper RST/Markdown syntax
-- Run `make docs` locally to check changes before committing
+- `/setup-dev` - Environment setup
+- `/lint-code` - Check code style
+- `/sync-docs` - Doc-code consistency
+- `/fix-issue` - Triage and implement a GitHub issue to PR-ready status
+- `/republish-docs` - Republish/revise released docs (move tag to clean anchor)
+- `/verify-build` - Build configuration
+- `/audit-pr` - Review pull requests
+- `/split-pr` - Carve an oversized PR into a stacked series of small PRs
+- `/queue-pr` - Coordinate PRs before merge queue
+- `/log-changes` - Update CHANGELOG
+- `/prep-release` - Prepare releases
 
-## Git and GitHub
+## Auto-Loaded Rules
 
-- **IMPORTANT**: Always use `origin` as the only git remote for this repository
-- Check remotes: `git remote -v`
-- If multiple remotes exist, remove all except `origin` (git@github.com:UMEP-dev/SUEWS.git)
+Rules in `.claude/rules/` load automatically based on files being edited.
 
-## Testing Requirements
+## Design Context
 
-**IMPORTANT**: Before committing, ALWAYS run `make test`
+Applies to any SUEWS-facing surface: `site/` landing, brand showcase, future dashboards, interactive docs. Full rationale and tie-breaker principles live in `.impeccable.md` at project root — read it before any design work (`/craft`, `/polish`, `/critique`, `/animate`, etc.).
 
-For benchmark test details and debugging guidance, see `.claude/reference/testing-guide.md`
+- **Users** — Two audiences, equally weighted:
+  - Urban climate researchers & PhD students verifying SUEWS is scientifically sound.
+  - Architects, engineers, and built-environment consultancies (Foster + Partners, Arup pattern) assessing commercial fit.
+  - Job-to-be-done: "Convince me in 30 seconds this is a serious, well-maintained, scientifically grounded model — then get me to the docs."
+- **Brand personality** — *Quietly confident, not fancy.* Rigorous, grounded, unshowy, enduring. Emotional goals: trust, competence, calm. No hype, no glow, no "revolutionary".
+- **Aesthetic direction** — Established visual system in `site/` is canonical:
+  - Palette tied to the model's physics (Deep Blue `#2D3142`, Golden Sun `#F7B538`, Sun Core `#E85D04`, Forest Green `#09a25c`, Ocean Blue `#0077B6`, Sky Blue `#5DADE2`, Wave Blue `#0558a5`).
+  - Dark default with working light toggle; honour `prefers-color-scheme`.
+  - Typography kept: Crimson Pro (display), Instrument Sans (UI), JetBrains Mono (code). Load-bearing on the landing — do not churn. For *new* surfaces, reach beyond these first.
+  - Signature motifs: topographic contour rings, golden-hour halo, golden-ratio logo composition. Protect; do not dilute.
+- **Anti-references** — Do NOT look like a generic AI/ML startup (cyan-on-dark, purple gradients, glassmorphism), a 2024–2025 AI template (identical card grids, gradient text), a consumer SaaS page, or a legacy university department site.
+- **Accessibility** — Target WCAG 2.2 AA (not AAA — fights the editorial register). Required on every surface:
+  - Contrast audited against the actual palette (the `text-muted` token is borderline for small text).
+  - Honour `prefers-reduced-motion` — the landing page has several concurrent animations.
+  - Visible keyboard focus rings everywhere.
+  - No colour-only meaning; ensure the Crimson Pro weights are real, not synthetic bold.
+- **Design principles** (tie-breakers when a change is contested):
+  1. Evidence over assertion.
+  2. Restraint is the voice.
+  3. The palette is the model.
+  4. Readable first, elegant second.
+  5. Keep the topographic signature.
 
-## Development Reminders
+## References
 
-- **Check for existing .venv** with editable supy - if so, use it rather than rebuilding
-- **Include new files in meson.build** when creating source files:
-  - Python files (.py) in `src/supy/`
-  - Fortran files (.f90, .f95) in `src/suews/src/`
-- **After conversation compaction**, remember to `source .venv/bin/activate` if venv exists
-- **Documentation generation**: Only modify `generate_datamodel_rst.py` script, not the generated YAML RST files directly
-
-## Configuration Pattern
-
-When implementing features with configuration objects, follow strict separation of concerns between configuration parsing (high-level) and implementation (low-level).
-
-See `.claude/reference/config-patterns.md` for detailed pattern and examples.
-
-## Variable Definition Patterns
-
-- **Output variables**: Python-only (OUTPUT_REGISTRY in `src/supy/data_model/output/`)
-- **Input configuration**: Dual-source (Fortran + Python Pydantic models)
-
-Use the `apply-patterns` skill for detailed patterns and examples.
-
-## Documentation Principles
-
-Follow DRY (Don't Repeat Yourself) and "Brief Overview Pattern":
-- Main files provide concise overviews
-- Details go in `.claude/reference/`
-- Guides go in `.claude/howto/`
-
-See `.claude/reference/maintenance-principles.md` for complete principles and CHANGELOG rules.
-
-## Quick Reference
-
-**Environment setup**: `.claude/reference/quick-start.md`
-**Testing guide**: `.claude/reference/testing-guide.md`
-**Config patterns**: `.claude/reference/config-patterns.md`
-**Maintenance principles**: `.claude/reference/maintenance-principles.md`
-**Claude workspace**: `.claude/README.md`
+- `.impeccable.md` - Design context (full rationale, used by impeccable-family skills)
+- `.claude/README.md` - Full workspace documentation
+- `.claude/skills/` - Detailed skill workflows
+- `.claude/rules/` - Style conventions

@@ -41,11 +41,7 @@ __all__ = [
     "check_state",
     "init_config",
     "run_supy_sample",
-    "resample_output",
-    # Debug utilities
-    "pack_dts_state_selective",
-    "inspect_dts_structure",
-    "dict_structure",
+    "resample_output",  # Deprecated - use SUEWSOutput.resample() instead
     # Modules
     "util",
     "data_model",
@@ -55,15 +51,46 @@ __all__ = [
     "ValidationResult",
     # Modern interface
     "SUEWSSimulation",
+    "SUEWSCheckpoint",
+    "SUEWSForcing",
+    "SUEWSOutput",
+    # Exceptions
+    "SUEWSKernelError",
+    # Logging (opt-in file logging)
+    "enable_file_logging",
+    "disable_file_logging",
     # Version
     "show_version",
     "__version__",
+    # Model-version registry (read-only lineage API)
+    "list_model_versions",
+    "model_version_info",
+    "schema_for",
     # CLI
     "SUEWS",
 ]
 
 # Cache for lazy-loaded modules and attributes
 _lazy_cache = {}
+
+# Procedural-API names that must emit a one-shot FutureWarning on first
+# attribute access (gh#1370 phase 2 — visibility). Kept in sync with
+# `supy._supy_module._FUNCTIONAL_DEPRECATIONS`; a regression test asserts
+# the two are equal so a future addition cannot drift silently. Hard-coded
+# here so the lazy-import router does not need to load `_supy_module` on
+# every attribute miss — that would defeat fast CLI startup.
+_DEPRECATED_FUNCTIONAL_NAMES = frozenset({
+    "init_supy",
+    "load_forcing_grid",
+    "load_sample_data",
+    "load_SampleData",
+    "load_config_from_df",
+    "run_supy",
+    "run_supy_sample",
+    "save_supy",
+    "init_config",
+    "resample_output",
+})
 
 
 def __getattr__(name):
@@ -74,49 +101,38 @@ def __getattr__(name):
     if name in _lazy_cache:
         return _lazy_cache[name]
 
-    # Core functions from _supy_module
-    if name in {
-        "init_supy",
-        "load_SampleData",
-        "load_sample_data",
-        "load_forcing_grid",
-        "load_config_from_df",
-        "run_supy",
-        "save_supy",
-        "check_forcing",
-        "check_state",
-        "init_config",
-        "run_supy_sample",
-    }:
+    # Procedural API: emit a one-shot FutureWarning on first attribute access
+    # so users importing the symbol see the migration nudge immediately rather
+    # than only when the function is called (gh#1370 phase 2). Subsequent
+    # accesses hit `_lazy_cache` and stay silent. The in-body
+    # `_warn_functional_deprecation` calls inside each function definition
+    # remain as a safety net for code that bypasses `__getattr__`.
+    if name in _DEPRECATED_FUNCTIONAL_NAMES:
+        from . import _supy_module
+
+        _supy_module._warn_functional_deprecation(name)
+        _lazy_cache[name] = getattr(_supy_module, name)
+        return _lazy_cache[name]
+
+    # Non-deprecated `_supy_module` exports (utilities — keep silent)
+    if name in {"check_forcing", "check_state"}:
         from . import _supy_module
 
         _lazy_cache[name] = getattr(_supy_module, name)
         return _lazy_cache[name]
 
-    # resample_output can come from either module
-    if name == "resample_output":
-        from ._supy_module import resample_output
-
-        _lazy_cache[name] = resample_output
-        return _lazy_cache[name]
-
-    # Debug utilities from _post
-    if name in {"pack_dts_state_selective", "inspect_dts_structure", "dict_structure"}:
-        from . import _post
-
-        _lazy_cache[name] = getattr(_post, name)
-        return _lazy_cache[name]
-
     # Submodules
     if name == "util":
-        from . import util
+        import importlib
 
+        util = importlib.import_module(".util", __name__)
         _lazy_cache[name] = util
         return _lazy_cache[name]
 
     if name == "data_model":
-        from . import data_model
+        import importlib
 
+        data_model = importlib.import_module(".data_model", __name__)
         _lazy_cache[name] = data_model
         return _lazy_cache[name]
 
@@ -153,6 +169,41 @@ def __getattr__(name):
         except ImportError:
             return None
 
+    if name == "SUEWSCheckpoint":
+        try:
+            from .suews_checkpoint import SUEWSCheckpoint
+
+            _lazy_cache[name] = SUEWSCheckpoint
+            return _lazy_cache[name]
+        except ImportError:
+            return None
+
+    if name == "SUEWSForcing":
+        try:
+            from .suews_forcing import SUEWSForcing
+
+            _lazy_cache[name] = SUEWSForcing
+            return _lazy_cache[name]
+        except ImportError:
+            return None
+
+    if name == "SUEWSOutput":
+        try:
+            from .suews_output import SUEWSOutput
+
+            _lazy_cache[name] = SUEWSOutput
+            return _lazy_cache[name]
+        except ImportError:
+            return None
+
+    # Opt-in file logging controls (lightweight: only touches `_env`)
+    if name in {"enable_file_logging", "disable_file_logging"}:
+        from ._env import disable_file_logging, enable_file_logging
+
+        _lazy_cache["enable_file_logging"] = enable_file_logging
+        _lazy_cache["disable_file_logging"] = disable_file_logging
+        return _lazy_cache[name]
+
     # Version info
     if name == "show_version":
         from ._version import show_version
@@ -160,11 +211,38 @@ def __getattr__(name):
         _lazy_cache[name] = show_version
         return _lazy_cache[name]
 
+    # Model-version registry (read-only lineage API)
+    if name in {"list_model_versions", "model_version_info", "schema_for"}:
+        from ._model_registry import (
+            list_model_versions,
+            model_version_info,
+            schema_for,
+        )
+
+        _lazy_cache["list_model_versions"] = list_model_versions
+        _lazy_cache["model_version_info"] = model_version_info
+        _lazy_cache["schema_for"] = schema_for
+        return _lazy_cache[name]
+
     # CLI command
     if name == "SUEWS":
         from .cmd import SUEWS
 
         _lazy_cache[name] = SUEWS
+        return _lazy_cache[name]
+
+    # Exception for Fortran kernel errors (kept for backward compatibility)
+    if name == "SUEWSKernelError":
+
+        class SUEWSKernelError(RuntimeError):
+            """Error raised when the SUEWS Fortran kernel encounters a fatal condition."""
+
+            def __init__(self, code=None, message=None):
+                self.code = code
+                self.message = message or "SUEWS kernel error"
+                super().__init__(f"SUEWS kernel error (code={code}): {self.message}")
+
+        _lazy_cache[name] = SUEWSKernelError
         return _lazy_cache[name]
 
     raise AttributeError(f"module 'supy' has no attribute {name!r}")

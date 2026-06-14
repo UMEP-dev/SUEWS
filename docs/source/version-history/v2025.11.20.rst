@@ -1,6 +1,4 @@
 
-.. _new_latest:
-
 .. _new_2025.11.20:
 
 Version 2025.11.20 (released on 20 November 2025)

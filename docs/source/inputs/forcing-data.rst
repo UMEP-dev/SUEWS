@@ -28,7 +28,7 @@ SUEWS requires continuous meteorological data representative of the neighbourhoo
           properties:
             z: 50.0  # Forcing height in metres
 
-   See :yaml:option:`z` for full documentation, and :ref:`rsl_mod` in :doc:`/parameterisations-and-sub-models` for details on profile calculations.
+   See :input:option:`z` for full documentation, and :ref:`rsl_mod` in :doc:`/supporting-processes` for details on profile calculations.
 
 Data Requirements
 -----------------
@@ -117,6 +117,60 @@ Where:
    2020  1  1  60  -999  -999  -999  -999  -999  2.3  84  5.3  101.3  0.2  0  -999  318  -999  -999  -999  -999  -999  -999  -999
    2020  1  2   0  -999  -999  -999  -999  -999  2.0  86  5.1  101.2  0.0  0  -999  312  -999  -999  -999  -999  -999  -999  -999
 
+.. _named_column_forcing:
+
+Named-column forcing files (gh#1372)
+------------------------------------
+
+Since schema 2026.5, SUEWS reads forcing files by **column name**,
+not by column position. The header line is required and its content is
+matched, case-insensitively, against the canonical column list above.
+
+* **Required (baseline)**: ``iy``, ``id``, ``it``, ``imin``, ``Tair``,
+  ``RH``, ``U``, ``pres``, ``kdown``, ``rain``. Missing any of these
+  raises ``ValueError`` at load time.
+* **Required (physics-conditional)**: depending on the chosen physics
+  path, additional columns become mandatory. For example,
+  ``model.physics.net_radiation = 0`` requires ``qn``;
+  ``net_radiation = 1`` or ``11`` requires ``ldown``;
+  ``net_radiation = 2`` or ``12`` requires ``fcld``. The error
+  message cites the offending column and the physics method that
+  requires it.
+* **Optional canonical columns**: missing canonical columns outside the
+  required set are filled with ``-999.0`` (the SUEWS sentinel). Column
+  order is irrelevant.
+* **Per-landcover variants**: the loader also accepts whitelisted
+  ``<var>_<surface>`` columns:
+
+  - ``lai_<surface>`` is accepted **only for vegetated surfaces** —
+    ``evetr``, ``dectr``, ``grass``. ``lai_paved`` / ``lai_bldgs`` /
+    ``lai_bsoil`` / ``lai_water`` are not meaningful and are treated
+    as unknown (warn-and-drop).
+  - ``wuh_<surface>`` (external water use — irrigation,
+    impervious-surface washing, fountains, ornamental water features)
+    is accepted on every surface, including the open-water surface
+    via ``wuh_water`` (a fountain or pond top-up adds water to the
+    ``water`` surface itself).
+
+    **Units and convention**: each ``wuh_<surface>`` value is a depth
+    in **mm per forcing time step**, the same unit as ``rain``. The
+    depth is interpreted as falling on **that surface only** — not
+    spread over the whole grid. The grid-total contribution is
+    therefore ``wuh_<surface> × sfr_<surface>``. Worked example: with
+    grass occupying 20% of the grid and ``wuh_grass = 5`` (mm in this
+    time step), the grass surface receives 5 mm of irrigation depth
+    and the site-mean external water-use input is
+    ``5 × 0.20 = 1`` mm. The rainfall-aligned unit also lets users
+    drop ERA5-style hourly water-flux columns straight in without
+    extra rescaling.
+
+  Whitelisted columns are preserved on ``SUEWSForcing.extras`` for
+  downstream physics work; the kernel itself continues to use the bulk
+  ``lai`` and ``Wuh`` columns. Soil-moisture deficit (``xsmd``) is a
+  bulk site-level quantity and is intentionally not per-landcover.
+* **Unknown columns**: any column not in the canonical or whitelisted
+  sets emits a ``UserWarning`` and is dropped.
+
 Important Requirements
 ----------------------
 
@@ -128,8 +182,18 @@ Important Requirements
   - For hourly data at 13:00, the measurement covers 12:00-13:00
   - For 5-minute data at 10:05, the measurement covers 10:00-10:05
 
-- **Time zone**: Use **local time**, not UTC
+- **Time zone**: Use **local standard time** (i.e. a fixed UTC offset), not UTC and not civil time with daylight-saving transitions
 - **Complete days**: Files must contain whole days of data
+
+.. important:: **Local standard time, not civil time**
+
+   "Local time" in SUEWS means **local standard time** -- the fixed UTC offset for the site's time zone, applied uniformly throughout the year. Do **not** use civil time that includes daylight-saving (summer-time) transitions.
+
+   For example, a UK site uses GMT (UTC+0) year-round. Converting to ``Europe/London`` would introduce DST shifts that create one missing row in spring and one duplicate row in autumn, causing SUEWS to reject the forcing file. For a site in France, use CET (UTC+1) year-round, not CEST in summer.
+
+   The :input:option:`timezone` parameter in the YAML configuration is this same fixed offset (``0`` for the UK, ``1`` for France). SUEWS accounts for daylight saving internally through the :input:option:`startdls` and :input:option:`enddls` parameters, which adjust diurnal activity profiles for anthropogenic heat and water use -- the forcing timestamps themselves always stay in standard time.
+
+   When comparing SUEWS output against observational data, verify that both datasets use the same time convention. Observations recorded in civil time (with DST) must be converted to local standard time before comparison.
 
 **File Naming**
 
@@ -157,19 +221,31 @@ Examples:
 YAML Configuration
 ------------------
 
-In your YAML configuration, specify the forcing file(s):
+In your YAML configuration, specify the forcing file(s) under the
+``forcing`` sub-object (schema 2026.5 onwards; see
+:ref:`transition_guide` for the rename of the legacy
+``model.control.forcing_file`` key):
 
 .. code-block:: yaml
 
    model:
      control:
-       forcing_file: "forcing/Kc_2020_data_60.txt"
-       
-       # Or multiple files for continuous multi-year runs:
-       forcing_file:
-         - "forcing/Kc_2020_data_60.txt"
-         - "forcing/Kc_2021_data_60.txt"
-         - "forcing/Kc_2022_data_60.txt"
+       forcing:
+         file: "forcing/Kc_2020_data_60.txt"
+
+Or, for continuous multi-year runs, supply a list under the same
+``forcing.file`` key (the loader concatenates them in chronological
+order):
+
+.. code-block:: yaml
+
+   model:
+     control:
+       forcing:
+         file:
+           - "forcing/Kc_2020_data_60.txt"
+           - "forcing/Kc_2021_data_60.txt"
+           - "forcing/Kc_2022_data_60.txt"
 
 Optional Variables
 ------------------
@@ -223,7 +299,7 @@ These additional variables can enhance model performance but are not required:
    * - Leaf area index
      - m²/m²
      - lai
-     - If not modeled
+     - If ``model.physics.laimethod = 0`` (see :ref:`prescribed-lai`)
    * - Diffuse radiation
      - W/m²
      - kdiff
@@ -236,6 +312,51 @@ These additional variables can enhance model performance but are not required:
      - degrees
      - wdir
      - Currently not used
+
+.. _prescribed-lai:
+
+Prescribing Observed LAI
+------------------------
+
+By default SUEWS computes leaf area index (LAI) internally using growing-degree-day (GDD) and
+senescence-degree-day (SDD) thresholds on daily mean air temperature. For sites where the
+observed LAI cycle is driven by rainfall (monsoon grasslands, semi-arid sites) or where a
+remote-sensing product is available, users can bypass the internal scheme by:
+
+1. Setting ``model.physics.laimethod: 0`` in the YAML configuration (0 = OBSERVED,
+   1 = MODELLED; default is 1).
+2. Populating the ``lai`` column of the meteorological forcing file with a **non-negative**
+   observation at every timestep, in |m^2| |m^-2|. A genuine zero observation (e.g.
+   complete winter dieback) is valid. Choosing the observed path commits the user to
+   providing an observation for every timestep; the ``-999`` missing sentinel is
+   **not** a permitted fallback here and the pre-flight validator rejects any strictly
+   negative value (including ``-999`` and other sentinels). If observations are
+   unavailable for part of the run, either switch to ``laimethod: 1`` (internally
+   calculated) or gap-fill the ``lai`` column with non-negative values before feeding
+   it to SUEWS.
+
+.. note::
+   When ``laimethod: 0`` is set, the single scalar ``lai`` value from the forcing file is
+   applied uniformly to all three vegetation classes (evergreen trees, deciduous trees,
+   grass) each day.
+
+.. important::
+   Observed LAI values are clamped into each vegetation class's
+   ``[laimin, laimax]`` envelope at runtime. The same clamp is applied to the
+   parameterised branch (``laimethod: 1``); the observed branch enforces it too
+   for consistency and because the downstream conductance and active-vegetation
+   fraction calculations (``LAI / laimax`` in ``suews_phys_resist`` and
+   ``suews_phys_biogenco2``) require ``LAI <= laimax`` to stay physically
+   meaningful.
+
+   If you supply observations that should pass through unchanged — e.g. a genuine
+   winter dieback with ``LAI = 0`` — configure the corresponding class's
+   ``laimin`` to zero in the site configuration. Similarly, widen ``laimax`` if
+   observations legitimately exceed the default site canopy capacity. The
+   pre-flight validator (:func:`~supy._check.check_forcing`) issues a warning
+   when any forcing value would be clamped, so the user sees once that
+   observations are being modified rather than discovering it through
+   unexpected outputs.
 
 Generating Forcing Data from ERA5
 ----------------------------------
@@ -286,6 +407,115 @@ For model-level data or spatial grids, use the gridded dataset:
 
 See :func:`~supy.util.gen_forcing_era5` API documentation for all options.
 
+Using EPW Weather Files
+-----------------------
+
+EPW (EnergyPlus Weather) files are a common format for building energy simulation, often derived from Typical Meteorological Year (TMY) data. SUEWS can read EPW data via the :func:`~supy.util.read_epw` utility function.
+
+**Important: Measurement Height Assumptions**
+
+EPW files follow standard meteorological station conventions with fixed measurement heights:
+
+.. list-table::
+   :header-rows: 1
+   :widths: 30 30 40
+
+   * - Variable
+     - EPW Height
+     - SUEWS Forcing Variable
+   * - Wind speed
+     - 10 m agl
+     - U
+   * - Air temperature
+     - 2 m agl
+     - Tair
+   * - Relative humidity
+     - 2 m agl
+     - RH
+
+**Correct Configuration for EPW Data**
+
+When using EPW data, set the forcing height to match the wind speed measurement:
+
+.. code-block:: yaml
+
+   sites:
+     - name: "MySite"
+       properties:
+         z: 10.0  # Must be 10 m to match EPW wind speed height
+
+.. warning::
+
+   Using EPW data with a different forcing height (e.g., ``z: 50``) will cause incorrect wind profile calculations, as SUEWS assumes all forcing data originate from the specified height.
+
+**Basic Workflow**
+
+.. code-block:: python
+
+   import supy as sp
+   import pandas as pd
+   from pathlib import Path
+
+   # 1. Read EPW file (wind speed at 10 m by default)
+   df_epw = sp.util.read_epw(Path("weather.epw"))
+
+   # 2. Extract and rename columns for SUEWS forcing
+   df_forcing = pd.DataFrame({
+       'U': df_epw['Wind Speed'],
+       'Tair': df_epw['Dry Bulb Temperature'],
+       'RH': df_epw['Relative Humidity'],
+       'pres': df_epw['Atmospheric Station Pressure'] / 1000,  # Pa to kPa
+       'kdown': df_epw['Global Horizontal Radiation'],
+       'ldown': df_epw['Horizontal Infrared Radiation Intensity'],
+       'rain': df_epw['Liquid Precipitation Depth'],
+   }, index=df_epw.index)
+
+   # 3. Fill required time columns
+   df_forcing['iy'] = df_forcing.index.year
+   df_forcing['id'] = df_forcing.index.dayofyear
+   df_forcing['it'] = df_forcing.index.hour
+   df_forcing['imin'] = df_forcing.index.minute
+
+**Wind Speed Height Correction**
+
+If you need EPW wind speed at a different height (e.g., to match flux tower measurements at 50 m), use the ``target_height`` parameter:
+
+.. code-block:: python
+
+   # Read EPW and extrapolate wind speed from 10 m to 50 m
+   df_epw = sp.util.read_epw(
+       Path("weather.epw"),
+       target_height=50.0,  # Target height [m]
+       z0m=0.5              # Urban roughness length [m]
+   )
+
+This applies a logarithmic wind profile correction assuming neutral atmospheric conditions.
+
+.. note::
+
+   The log-law correction assumes neutral atmospheric stability. Under strongly stable or unstable conditions, actual wind profiles may differ significantly. For most applications using EPW data, setting ``z=10`` in your site configuration is the simpler and recommended approach.
+
+**Comparison with ERA5**
+
+Unlike EPW files with fixed heights, ERA5 forcing data from :func:`~supy.util.gen_forcing_era5` are extrapolated to a user-specified height (default 100 m) using Monin-Obukhov Similarity Theory.
+
+.. list-table::
+   :header-rows: 1
+   :widths: 25 35 40
+
+   * - Data Source
+     - Wind Speed Height
+     - Recommended ``z`` Setting
+   * - EPW files
+     - Fixed at 10 m
+     - ``z: 10``
+   * - ERA5 (timeseries)
+     - Extrapolated to ``hgt_agl_diag`` (default 100 m)
+     - Match ``hgt_agl_diag`` value
+   * - Flux tower
+     - Tower-specific
+     - Actual measurement height
+
 Data Preparation Tips
 ---------------------
 
@@ -311,7 +541,7 @@ Check your data for:
 
 - **"Division by zero"**: Wind speed < 0.01 m/s
 - **"Negative radiation"**: Check kdown is always ≥ 0
-- **"Time mismatch"**: Ensure local time is used
+- **"Time mismatch"**: Ensure local standard time is used (see note above)
 - **"Missing data"**: Use -999, not blank or NaN
 
 Validating Forcing Data
@@ -368,7 +598,8 @@ SUEWS provides the ``check_forcing()`` function to validate your forcing data fi
      - Volumetric soil moisture
    * - lai
      - 0 - 15 m²/m²
-     - Leaf area index
+     - Observed leaf area index (consumed only when ``model.physics.laimethod: 0``;
+       otherwise ignored — see :ref:`prescribed-lai`)
    * - kdiff, kdir
      - 0 - 1400 W/m²
      - Radiation components

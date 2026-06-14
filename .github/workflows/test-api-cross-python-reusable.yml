@@ -1,0 +1,92 @@
+# Reusable workflow: install the cp39-abi3 wheel into each supported CPython
+# version and run `pytest -m "api and <tier>"`. Normal tiers exclude the
+# QGIS/UMEP integration lane; `all` keeps it for scheduled/release/manual
+# validation where the Windows + Python 3.12 cell matches current QGIS 3 LTR
+# and QGIS 4 Windows runtimes.
+#
+# Called by build-publish_to_pypi.yml. The `api` marker (gh#1300) covers the
+# Python wrapper surface — pandas/numpy/pydantic, CLI, SUEWSSimulation —
+# which varies per interpreter, so it needs full (platform x Python)
+# coverage. Physics tests are binary-determined and run once per platform
+# during the build step instead. By isolating the matrix here, the caller
+# job shows a single static name that groups cleanly in the Actions UI
+# (mirroring the build-wheels-reusable pattern).
+
+name: API cross-CPython tests (reusable)
+
+on:
+  workflow_call:
+    inputs:
+      buildplat_json:
+        description: 'JSON array of [runner, platform_name, arch] triples'
+        required: true
+        type: string
+      api_python_json:
+        description: 'JSON array of test-time CPython tags (e.g. ["cp39","cp314"])'
+        required: true
+        type: string
+      test_tier:
+        description: 'Test tier (smoke|core|cfg|standard|all); composed with the `api` marker'
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  api_cross_python:
+    name: ${{ matrix.python_version }}-${{ matrix.buildplat[1] }} ${{ matrix.buildplat[2] }}
+    runs-on: ${{ matrix.buildplat[0] }}
+    strategy:
+      fail-fast: false
+      matrix:
+        buildplat: ${{ fromJson(inputs.buildplat_json) }}
+        python_version: ${{ fromJson(inputs.api_python_json) }}
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          persist-credentials: false
+
+      - name: Resolve Python version (cp39 -> 3.9)
+        id: pyver
+        shell: bash
+        env:
+          PV: ${{ matrix.python_version }}
+        run: |
+          echo "spec=3.${PV#cp3}" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6
+        with:
+          python-version: ${{ steps.pyver.outputs.spec }}
+
+      - name: Download wheel for this platform
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+        with:
+          name: cp39-${{ matrix.buildplat[1] }}-${{ matrix.buildplat[2] }}
+          path: wheelhouse/
+
+      - name: Compose pytest marker expression for api tier
+        id: marker
+        shell: bash
+        env:
+          TIER: ${{ inputs.test_tier }}
+        run: |
+          case "$TIER" in
+            smoke)    EXPR='api and smoke and not slow and not qgis' ;;
+            core)     EXPR='api and (smoke or core) and not slow and not qgis' ;;
+            cfg)      EXPR='api and (smoke or cfg) and not slow and not qgis' ;;
+            standard) EXPR='api and not slow and not qgis' ;;
+            all)      EXPR='api' ;;
+            *)        echo "::error::Unknown test_tier: $TIER"; exit 1 ;;
+          esac
+          echo "expr=$EXPR" >> "$GITHUB_OUTPUT"
+
+      - name: Install wheel and run api tests
+        shell: bash
+        env:
+          MARKER_EXPR: ${{ steps.marker.outputs.expr }}
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install pytest
+          python -m pip install wheelhouse/*.whl
+          python -m pytest test -m "$MARKER_EXPR" -v --tb=short

@@ -2,6 +2,8 @@
 
 from pathlib import Path
 
+from conftest import TIMESTEPS_PER_DAY
+import pandas as pd
 import pytest
 
 try:
@@ -10,13 +12,18 @@ except ImportError:
     from importlib_resources import files
 
 import supy as sp
+import supy._run_rust as run_rust_module
+from supy.suews_checkpoint import SUEWSCheckpoint
+import supy.suews_sim as suews_sim_module
 from supy.suews_sim import SUEWSSimulation
+
+pytestmark = pytest.mark.api
 
 
 class TestInit:
     """Test initialization."""
 
-    @pytest.mark.smoke
+    @pytest.mark.core
     def test_empty_init(self):
         """Test empty initialization."""
         sim = SUEWSSimulation()
@@ -24,7 +31,7 @@ class TestInit:
         assert sim.forcing is None
         assert sim.results is None
 
-    @pytest.mark.smoke
+    @pytest.mark.core
     def test_yaml_init(self):
         """Test initialization from YAML."""
         yaml_path = files("supy").joinpath("sample_data/sample_config.yml")
@@ -32,7 +39,7 @@ class TestInit:
         assert sim.config is not None
         assert sim._df_state_init is not None
 
-    @pytest.mark.smoke
+    @pytest.mark.core
     def test_from_sample_data(self):
         """Test initialization from sample data factory method."""
         sim = SUEWSSimulation.from_sample_data()
@@ -110,7 +117,8 @@ class TestConfig:
         assert not isinstance(sim.config.model.control, dict)
 
         # Verify other attributes on control are preserved
-        assert hasattr(sim.config.model.control, "forcing_file")
+        assert hasattr(sim.config.model.control, "forcing")
+        assert hasattr(sim.config.model.control.forcing, "file")
         assert hasattr(sim.config.model.control, "diagnose")
 
     def test_update_config_deeply_nested_dict(self):
@@ -249,18 +257,18 @@ class TestConfigSitesUpdate:
         assert sim_single_site.config.sites[0].properties.lng.value == -0.13
 
     def test_site_name_nonexistent_multi_sites(self, sim_multi_site):
-        """Test that non-matching site name is skipped gracefully when multiple sites exist."""
-        original_name1 = sim_multi_site.config.sites[0].name
-        original_name2 = sim_multi_site.config.sites[1].name
+        """Test that a non-matching site name raises when multiple sites exist.
 
-        # Update with non-existent site name should be skipped
-        sim_multi_site.update_config({
-            "sites": {"NonExistent": {"name": "ShouldNotApply"}}
-        })
-
-        # Both sites should remain unchanged
-        assert sim_multi_site.config.sites[0].name == original_name1
-        assert sim_multi_site.config.sites[1].name == original_name2
+        Changed in gh#1530: previously the unmatched name was silently
+        skipped, turning a misspelled site target into a no-op. Strict
+        dict updates now raise so the typo is caught. (Ambiguous
+        single-site shorthand keys remain a skip-with-warning - see
+        test_single_site_shorthand_fails_gracefully_multi_site.)
+        """
+        with pytest.raises(ValueError, match="NonExistent"):
+            sim_multi_site.update_config({
+                "sites": {"NonExistent": {"name": "ShouldNotApply"}}
+            })
 
     def test_site_name_multi_site_selective(self, sim_multi_site):
         """Test updating only one site by name when multiple sites exist."""
@@ -381,6 +389,276 @@ class TestConfigSitesUpdate:
         )
 
 
+class TestConfigFromDict:
+    """Regression tests for gh#1530: dict configs must use validated construction.
+
+    ``SUEWSSimulation(config=dict)`` and ``update_config(dict)`` must route
+    through the validated ``SUEWSConfig`` path rather than mutating model
+    internals by hand, so enum coercion, RefValue wrapping, and range checks
+    all apply to dict input exactly as they do to YAML files.
+    """
+
+    pytestmark = pytest.mark.cfg
+
+    @pytest.fixture
+    def sample_config_dict(self):
+        """Full configuration dict, as a user would get from yaml.safe_load."""
+        import yaml
+
+        yaml_path = files("supy").joinpath("sample_data/sample_config.yml")
+        return yaml.safe_load(yaml_path.read_text(encoding="utf-8"))
+
+    @pytest.fixture
+    def sim_from_yaml(self):
+        """Simulation loaded from the bundled sample YAML."""
+        yaml_path = files("supy").joinpath("sample_data/sample_config.yml")
+        return SUEWSSimulation(str(yaml_path))
+
+    def test_init_from_full_config_dict(self, sample_config_dict):
+        """Constructor must accept a full YAML-shaped dict (gh#1530)."""
+        sim = SUEWSSimulation(sample_config_dict)
+
+        assert sim.config is not None
+        assert sim._df_state_init is not None
+        assert len(sim.config.sites) == 1
+
+    def test_full_dict_equivalent_to_yaml(self, sample_config_dict, sim_from_yaml):
+        """Dict and YAML construction must produce the same initial state."""
+        sim_dict = SUEWSSimulation(sample_config_dict)
+
+        pd.testing.assert_frame_equal(
+            sim_dict._df_state_init,
+            sim_from_yaml._df_state_init,
+            check_dtype=False,
+        )
+
+    def test_update_config_full_dict_on_empty_sim(self, sample_config_dict):
+        """update_config with a full dict must work without a prior config."""
+        sim = SUEWSSimulation()
+        sim.update_config(sample_config_dict)
+
+        assert sim.config is not None
+        assert sim._df_state_init is not None
+
+    def test_update_config_int_enum_revalidated(self, sim_from_yaml):
+        """A raw int for an enum field must be coerced, not stored verbatim."""
+        from supy.data_model import RefValue
+        from supy.data_model.core.model import NetRadiationMethod
+
+        sim_from_yaml.update_config({"model": {"physics": {"net_radiation": 1}}})
+
+        nr = sim_from_yaml.config.model.physics.net_radiation
+        inner = nr.value if isinstance(nr, RefValue) else nr
+        assert isinstance(inner, NetRadiationMethod), (
+            f"Expected validated enum, got {type(inner).__name__}: {inner!r}"
+        )
+        assert int(inner) == 1
+        # State regeneration must still work after the update
+        assert sim_from_yaml._df_state_init is not None
+
+    def test_update_config_refvalue_enum_dict(self, sim_from_yaml):
+        """A RefValue-style {'value': N} enum update must coerce to the enum."""
+        from supy.data_model import RefValue
+        from supy.data_model.core.model import NetRadiationMethod
+
+        sim_from_yaml.update_config({
+            "model": {"physics": {"net_radiation": {"value": 3}}}
+        })
+
+        nr = sim_from_yaml.config.model.physics.net_radiation
+        inner = nr.value if isinstance(nr, RefValue) else nr
+        assert isinstance(inner, NetRadiationMethod), (
+            f"Expected validated enum, got {type(inner).__name__}: {inner!r}"
+        )
+        assert int(inner) == 3
+
+    def test_update_config_sites_as_list(self, sim_from_yaml):
+        """A plain list for sites must replace the sites list (gh#1530 comment)."""
+        site_dict = sim_from_yaml.config.sites[0].model_dump(
+            exclude_none=True, mode="json"
+        )
+        site_dict["name"] = "ReplacedSite"
+
+        sim_from_yaml.update_config({"sites": [site_dict]})
+
+        assert len(sim_from_yaml.config.sites) == 1
+        assert sim_from_yaml.config.sites[0].name == "ReplacedSite"
+
+    def test_update_config_plain_list_field(self, sim_from_yaml):
+        """List-valued fields other than sites must be updatable."""
+        sim_from_yaml.update_config({
+            "model": {"control": {"output": {"groups": ["SUEWS", "DailyState"]}}}
+        })
+
+        groups = sim_from_yaml.config.model.control.output.groups
+        assert list(groups) == ["SUEWS", "DailyState"]
+
+    def test_update_config_unknown_key_raises(self, sim_from_yaml):
+        """Unknown keys in an update dict must raise, not vanish silently."""
+        with pytest.raises((ValueError, KeyError)):
+            sim_from_yaml.update_config({
+                "model": {"physics": {"nonexistent_param": 1}}
+            })
+
+    def test_partial_update_on_sparse_yaml_config(self, tmp_path):
+        """A trivial update on a sparse YAML config must not raise.
+
+        gh#1530 review follow-up: the merge path snapshotted the full
+        config dump (with materialised default land-cover surfaces) as
+        the raw-YAML record, so the site-completeness validator treated
+        pydantic defaults as user-declared and raised unrelated errors
+        for updates like a timestep change. The original raw YAML must
+        be preserved through merge-then-revalidate.
+        """
+        import yaml
+
+        sparse = {
+            "name": "sparse",
+            "model": {"control": {"tstep": 300}},
+            "sites": [
+                {
+                    "name": "s1",
+                    "gridiv": 1,
+                    "properties": {"lat": 51.5, "lng": 0.1},
+                }
+            ],
+        }
+        path = tmp_path / "sparse.yml"
+        path.write_text(yaml.safe_dump(sparse, sort_keys=False), encoding="utf-8")
+
+        sim = SUEWSSimulation(str(path))
+        sim.update_config({"model": {"control": {"tstep": 600}}})
+
+        tstep = sim.config.model.control.tstep
+        assert int(tstep.value if hasattr(tstep, "value") else tstep) == 600
+
+    def test_update_config_legacy_field_name_renamed(self, sim_from_yaml):
+        """Legacy field names must work in partial updates as in full input.
+
+        gh#1530 review follow-up: the full YAML/dict path normalises
+        deprecated names (e.g. ``stabilitymethod`` -> ``stability``) via
+        before-validators; partial updates must accept them identically.
+        """
+        sim_from_yaml.update_config({"model": {"physics": {"stabilitymethod": 3}}})
+
+        st = sim_from_yaml.config.model.physics.stability
+        inner = st.value if hasattr(st, "value") else st
+        assert int(inner) == 3
+
+    def test_update_config_legacy_output_file(self, sim_from_yaml):
+        """The deprecated output_file dict form must lift under output."""
+        sim_from_yaml.update_config({
+            "model": {"control": {"output_file": {"freq": 1800}}}
+        })
+
+        freq = sim_from_yaml.config.model.control.output.freq
+        assert int(freq.value if hasattr(freq, "value") else freq) == 1800
+
+    def test_update_config_legacy_forcing_file(self, sim_from_yaml):
+        """The deprecated forcing_file form must move under forcing.file."""
+        sim_from_yaml.update_config(
+            {"model": {"control": {"forcing_file": "new_forcing.txt"}}},
+        )
+
+        f = sim_from_yaml.config.model.control.forcing.file
+        inner = f.value if hasattr(f, "value") else f
+        assert inner == "new_forcing.txt"
+
+    def test_update_config_unknown_site_name_multi_site_raises(self, sim_from_yaml):
+        """A typo'd site name must raise when multiple sites exist.
+
+        gh#1530 review follow-up: silently skipping an unmatched site name
+        makes a misspelled target a no-op exactly where selecting the
+        wrong site is most likely. (Ambiguous single-site shorthand with
+        multiple sites stays a skip-with-warning - pinned behaviour.)
+        """
+        import copy
+
+        site2 = copy.deepcopy(sim_from_yaml.config.sites[0])
+        site2.name = "Swindon"
+        sim_from_yaml.config.sites.append(site2)
+
+        with pytest.raises(ValueError, match="TypoSite"):
+            sim_from_yaml.update_config({"sites": {"TypoSite": {"gridiv": 9}}})
+
+    def test_init_from_full_dict_auto_loads_forcing(self, sample_config_dict):
+        """Full-dict init must auto-load resolvable forcing like YAML init.
+
+        gh#1530 review follow-up: the dict branch never called
+        _try_load_forcing_from_config, so a dict with an absolute (or
+        cwd-resolvable) forcing path left forcing empty while the same
+        data via a YAML file auto-loaded it.
+        """
+        forcing_abs = files("supy").joinpath("sample_data/Kc_2012_data_60.txt")
+        cfg = dict(sample_config_dict)
+        cfg["model"]["control"]["forcing"]["file"] = str(forcing_abs)
+
+        sim = SUEWSSimulation(cfg)
+
+        assert sim._df_forcing is not None
+        assert len(sim._df_forcing) > 0
+
+    def test_update_config_refvalue_ref_only_patch(self, tmp_path):
+        """A ref-only patch must keep the field's current value.
+
+        gh#1530 review follow-up: when the current form of a field is a
+        bare scalar (or the base dump lacks the key), a metadata-only
+        patch like {'ref': {...}} produced a value-less RefValue dict
+        and failed validation; the merge must seed the current value.
+        """
+        import yaml
+
+        sparse = {
+            "name": "sparse",
+            "model": {"control": {"tstep": 300}},
+            "sites": [
+                {
+                    "name": "s1",
+                    "gridiv": 1,
+                    "properties": {"lat": 51.5, "lng": 0.1},
+                }
+            ],
+        }
+        path = tmp_path / "sparse.yml"
+        path.write_text(yaml.safe_dump(sparse, sort_keys=False), encoding="utf-8")
+        sim = SUEWSSimulation(str(path))
+
+        sim.update_config({
+            "model": {"control": {"tstep": {"ref": {"desc": "site doc"}}}}
+        })
+
+        tstep = sim.config.model.control.tstep
+        assert int(tstep.value if hasattr(tstep, "value") else tstep) == 300
+        assert getattr(tstep, "ref", None) is not None
+
+    def test_update_config_refvalue_tstep_with_output_freq(self, sim_from_yaml):
+        """RefValue-style tstep updates must work with output.freq set.
+
+        gh#1530 review follow-up: validate_model_output_config computed
+        ``freq % tstep`` without unwrapping a RefValue-wrapped tstep,
+        so a documented RefValue patch raised TypeError-as-schema-drift
+        whenever an output frequency was configured.
+        """
+        sim_from_yaml.update_config({"model": {"control": {"output": {"freq": 3600}}}})
+        sim_from_yaml.update_config({
+            "model": {"control": {"tstep": {"value": 300, "ref": {"desc": "doc"}}}}
+        })
+
+        tstep = sim_from_yaml.config.model.control.tstep
+        assert int(tstep.value if hasattr(tstep, "value") else tstep) == 300
+
+    def test_partial_dict_without_existing_config_raises_clearly(self):
+        """A partial dict with no base config must raise an informative error.
+
+        Previously this produced a cryptic downstream failure
+        (``No objects to concatenate``) from ``to_df_state`` on a site-less
+        default config (gh#1530 comment).
+        """
+        sim = SUEWSSimulation()
+        with pytest.raises(ValueError, match="site"):
+            sim.update_config({"model": {"control": {"tstep": 600}}})
+
+
 class TestForcing:
     """Test forcing data loading."""
 
@@ -401,6 +679,255 @@ class TestForcing:
 class TestRun:
     """Test simulation execution."""
 
+    @staticmethod
+    def _multi_site_config():
+        """Return a sample config with two distinct grids."""
+        config = SUEWSSimulation.from_sample_data().config.model_copy(deep=True)
+        site2 = config.sites[0].model_copy(deep=True)
+        site2.gridiv = 2
+        site2.name = "Grid 2"
+        config.sites.append(site2)
+        return config
+
+    @staticmethod
+    def _fake_output_for_config(config, df_forcing):
+        """Return a minimal multi-grid output frame for chunking tests."""
+        list_df_output = []
+        for site in config.sites:
+            grid_id = run_rust_module._normalise_grid_id(site.gridiv)
+            index = pd.MultiIndex.from_product(
+                [[grid_id], df_forcing.index],
+                names=["grid", "datetime"],
+            )
+            list_df_output.append(pd.DataFrame({"QH": 0.0}, index=index))
+        return pd.concat(list_df_output)
+
+    @staticmethod
+    def _patch_run_suews_rust_chunked(monkeypatch):
+        """Patch the Rust runner and return captured parallelism kwargs."""
+        captured = {}
+
+        def fake_check_rust_available():
+            return object()
+
+        def fake_check_forcing(*args, **kwargs):
+            return []
+
+        def fake_run_suews_rust_chunked(
+            config,
+            df_forcing,
+            chunk_day,
+            serial_mode=False,
+            max_workers=None,
+            initial_state_json_by_grid=None,
+        ):
+            captured["serial_mode"] = serial_mode
+            captured["max_workers"] = max_workers
+            captured["initial_state_json_by_grid"] = initial_state_json_by_grid
+            return pd.DataFrame(index=df_forcing.index), None
+
+        monkeypatch.setattr(
+            suews_sim_module, "_check_rust_available", fake_check_rust_available
+        )
+        monkeypatch.setattr(suews_sim_module, "check_forcing", fake_check_forcing)
+        monkeypatch.setattr(
+            suews_sim_module,
+            "run_suews_rust_chunked",
+            fake_run_suews_rust_chunked,
+        )
+        return captured
+
+    def test_run_n_jobs_defaults_to_rayon_default(self, monkeypatch):
+        """Test default n_jobs preserves uncapped parallel execution."""
+        sim = SUEWSSimulation.from_sample_data()
+        sim._df_forcing = sim._df_forcing.iloc[:2]
+        captured = self._patch_run_suews_rust_chunked(monkeypatch)
+
+        sim.run()
+
+        assert captured["serial_mode"] is False
+        assert captured["max_workers"] is None
+
+    def test_run_n_jobs_one_forces_serial(self, monkeypatch):
+        """Test n_jobs=1 disables the multi-grid Rayon path."""
+        sim = SUEWSSimulation.from_sample_data()
+        sim._df_forcing = sim._df_forcing.iloc[:2]
+        captured = self._patch_run_suews_rust_chunked(monkeypatch)
+
+        sim.run(n_jobs=1)
+
+        assert captured["serial_mode"] is True
+        assert captured["max_workers"] == 1
+
+    def test_run_n_jobs_positive_caps_workers(self, monkeypatch):
+        """Test positive n_jobs reaches the Rust bridge as max_workers."""
+        sim = SUEWSSimulation.from_sample_data()
+        sim._df_forcing = sim._df_forcing.iloc[:2]
+        captured = self._patch_run_suews_rust_chunked(monkeypatch)
+
+        sim.run(n_jobs=3)
+
+        assert captured["serial_mode"] is False
+        assert captured["max_workers"] == 3
+
+    @pytest.mark.parametrize("n_jobs", [True, False, 0, -2, 1.5, "2"])
+    def test_run_n_jobs_rejects_invalid_values(self, n_jobs):
+        """Test n_jobs validation rejects ambiguous worker controls."""
+        sim = SUEWSSimulation()
+
+        with pytest.raises(ValueError, match="n_jobs must be"):
+            sim.run(n_jobs=n_jobs)
+
+    def test_chunked_run_forwards_worker_cap_per_chunk(self, monkeypatch):
+        """Test chunked multi-grid runs keep n_jobs after the first chunk."""
+        config = self._multi_site_config()
+        df_forcing = SUEWSSimulation.from_sample_data()._df_forcing.iloc[
+            : TIMESTEPS_PER_DAY + 1
+        ]
+        calls = []
+
+        def fake_run_suews_rust_multi(
+            config, df_forcing, serial_mode=False, max_workers=None
+        ):
+            calls.append(("fresh", serial_mode, max_workers))
+            dict_state_json = {
+                run_rust_module._normalise_grid_id(site.gridiv): "state"
+                for site in config.sites
+            }
+            return self._fake_output_for_config(config, df_forcing), dict_state_json
+
+        def fake_run_suews_rust_multi_with_state(
+            config,
+            df_forcing,
+            dict_state_json_by_grid,
+            serial_mode=False,
+            max_workers=None,
+        ):
+            calls.append(("state", serial_mode, max_workers))
+            assert sorted(dict_state_json_by_grid) == [1, 2]
+            return (
+                self._fake_output_for_config(config, df_forcing),
+                dict_state_json_by_grid,
+            )
+
+        monkeypatch.setattr(
+            run_rust_module, "run_suews_rust_multi", fake_run_suews_rust_multi
+        )
+        monkeypatch.setattr(
+            run_rust_module,
+            "run_suews_rust_multi_with_state",
+            fake_run_suews_rust_multi_with_state,
+        )
+
+        run_rust_module.run_suews_rust_chunked(
+            config=config,
+            df_forcing=df_forcing,
+            chunk_day=1,
+            serial_mode=False,
+            max_workers=3,
+        )
+
+        assert calls == [("fresh", False, 3), ("state", False, 3)]
+
+    def test_checkpointed_run_forwards_worker_cap(self, monkeypatch):
+        """Test resumed multi-grid runs keep n_jobs on the first chunk."""
+        config = self._multi_site_config()
+        df_forcing = SUEWSSimulation.from_sample_data()._df_forcing.iloc[:2]
+        calls = []
+
+        def fail_run_suews_rust_multi(*args, **kwargs):
+            raise AssertionError("checkpointed runs should use the state-aware path")
+
+        def fake_run_suews_rust_multi_with_state(
+            config,
+            df_forcing,
+            dict_state_json_by_grid,
+            serial_mode=False,
+            max_workers=None,
+        ):
+            calls.append(("state", serial_mode, max_workers))
+            assert sorted(dict_state_json_by_grid) == [1, 2]
+            return (
+                self._fake_output_for_config(config, df_forcing),
+                dict_state_json_by_grid,
+            )
+
+        monkeypatch.setattr(
+            run_rust_module, "run_suews_rust_multi", fail_run_suews_rust_multi
+        )
+        monkeypatch.setattr(
+            run_rust_module,
+            "run_suews_rust_multi_with_state",
+            fake_run_suews_rust_multi_with_state,
+        )
+
+        run_rust_module.run_suews_rust_chunked(
+            config=config,
+            df_forcing=df_forcing,
+            chunk_day=3660,
+            serial_mode=False,
+            max_workers=4,
+            initial_state_json_by_grid={1: "state-1", 2: "state-2"},
+        )
+
+        assert calls == [("state", False, 4)]
+
+    def test_multi_with_state_passes_worker_cap_to_rust(self, monkeypatch):
+        """Test state-aware multi-grid wrapper forwards max_workers."""
+        config = self._multi_site_config()
+        df_forcing = SUEWSSimulation.from_sample_data()._df_forcing.iloc[:2]
+        captured = {}
+
+        class FakeRustModule:
+            def run_suews_multi_with_state(
+                self,
+                list_config_jsons,
+                forcing_flat,
+                len_forcing,
+                list_state_jsons,
+                max_workers,
+            ):
+                captured["n_config"] = len(list_config_jsons)
+                captured["len_forcing"] = len_forcing
+                captured["list_state_jsons"] = list_state_jsons
+                captured["max_workers"] = max_workers
+                return [
+                    (idx, [], f"new-state-{idx}", len_forcing)
+                    for idx in range(len(list_config_jsons))
+                ]
+
+        def fake_parse_output_block(output_flat, len_sim, grid_id):
+            index = pd.MultiIndex.from_product(
+                [[grid_id], df_forcing.index[:len_sim]],
+                names=["grid", "datetime"],
+            )
+            return pd.DataFrame({"QH": 0.0}, index=index)
+
+        monkeypatch.setattr(
+            run_rust_module, "_check_rust_available", lambda: FakeRustModule()
+        )
+        monkeypatch.setattr(
+            run_rust_module, "_validate_output_layout", lambda rust_module: None
+        )
+        monkeypatch.setattr(
+            run_rust_module, "_parse_output_block", fake_parse_output_block
+        )
+
+        _, dict_state_json = run_rust_module.run_suews_rust_multi_with_state(
+            config=config,
+            df_forcing=df_forcing,
+            dict_state_json_by_grid={1: "state-1", 2: "state-2"},
+            max_workers=5,
+        )
+
+        assert captured == {
+            "n_config": 2,
+            "len_forcing": 2,
+            "list_state_jsons": ["state-1", "state-2"],
+            "max_workers": 5,
+        }
+        assert dict_state_json == {1: "new-state-0", 2: "new-state-1"}
+
     def test_basic_run(self):
         """Test basic simulation run."""
         df_state, df_forcing = sp.load_SampleData()
@@ -408,10 +935,10 @@ class TestRun:
         sim._df_state_init = df_state
         sim.update_forcing(df_forcing.iloc[:24])  # 2 hours
 
-        results = sim.run()
-        assert results is not None
-        assert len(results) > 0
-        assert "QH" in results.columns.get_level_values("var")
+        output = sim.run()
+        assert output is not None
+        assert len(output.df) > 0
+        assert "QH" in output.df.columns.get_level_values("var")
 
     def test_run_without_forcing(self):
         """Test run fails without forcing."""
@@ -458,24 +985,24 @@ class TestRun:
 
         # Run WITHOUT passing start_date/end_date arguments
         # Should use config values as fallback
-        results = sim.run()
+        output = sim.run()
 
         # Verify results are filtered to the config date range
-        assert results is not None
-        assert len(results) > 0
+        assert output is not None
+        assert len(output.df) > 0
 
         # Results should be approximately one day of timesteps, with small tolerance
         # for edge effects (first/last timestep handling)
         tolerance = 5
-        assert len(results) <= expected_timesteps_per_day + tolerance, (
+        assert len(output.times) <= expected_timesteps_per_day + tolerance, (
             f"Expected ~{expected_timesteps_per_day} timesteps for 1 day "
-            f"(at {timestep_minutes}-min resolution), got {len(results)}. "
+            f"(at {timestep_minutes}-min resolution), got {len(output.times)}. "
             f"Config date range not being respected (full forcing has {full_forcing_len})."
         )
 
         # Verify the results are within the configured date
-        results_start_date = results.index.get_level_values("datetime").min().date()
-        results_end_date = results.index.get_level_values("datetime").max().date()
+        results_start_date = output.times.min().date()
+        results_end_date = output.times.max().date()
         assert results_start_date == full_forcing_start.date()
         assert results_end_date == full_forcing_start.date()
 
@@ -497,6 +1024,8 @@ class TestSave:
         assert isinstance(paths, list)
         assert len(paths) > 0
         assert any(Path(p).exists() for p in paths)
+        assert any("checkpoint.json" in Path(p).name for p in paths)
+        assert not any("df_state" in Path(p).name for p in paths)
 
     def test_save_without_results(self):
         """Test save fails without results."""
@@ -694,7 +1223,7 @@ class TestPathResolution:
         """Test that absolute paths are returned unchanged."""
         # Create config file
         config_file = tmp_path / "config.yml"
-        config_file.write_text("sites:\n  - name: test\n")
+        config_file.write_text("sites:\n  - name: test\n", encoding="utf-8")
 
         sim = SUEWSSimulation()
         sim._config_path = config_file
@@ -708,9 +1237,9 @@ class TestPathResolution:
         """Test that relative paths are resolved relative to config file."""
         # Create config file and forcing file
         config_file = tmp_path / "config.yml"
-        config_file.write_text("sites:\n  - name: test\n")
+        config_file.write_text("sites:\n  - name: test\n", encoding="utf-8")
         forcing_file = tmp_path / "forcing.txt"
-        forcing_file.write_text("# forcing data")
+        forcing_file.write_text("# forcing data", encoding="utf-8")
 
         sim = SUEWSSimulation()
         sim._config_path = config_file
@@ -722,7 +1251,7 @@ class TestPathResolution:
     def test_resolve_relative_path_list(self, tmp_path):
         """Test that list of relative paths are all resolved."""
         config_file = tmp_path / "config.yml"
-        config_file.write_text("sites:\n  - name: test\n")
+        config_file.write_text("sites:\n  - name: test\n", encoding="utf-8")
 
         sim = SUEWSSimulation()
         sim._config_path = config_file
@@ -738,7 +1267,7 @@ class TestPathResolution:
     def test_resolve_mixed_absolute_relative_list(self, tmp_path):
         """Test list with mixed absolute and relative paths."""
         config_file = tmp_path / "config.yml"
-        config_file.write_text("sites:\n  - name: test\n")
+        config_file.write_text("sites:\n  - name: test\n", encoding="utf-8")
 
         sim = SUEWSSimulation()
         sim._config_path = config_file
@@ -758,7 +1287,7 @@ class TestPathResolution:
         forcing_dir.mkdir()
 
         config_file = config_dir / "config.yml"
-        config_file.write_text("sites:\n  - name: test\n")
+        config_file.write_text("sites:\n  - name: test\n", encoding="utf-8")
 
         sim = SUEWSSimulation()
         sim._config_path = config_file
@@ -772,70 +1301,71 @@ class TestPathResolution:
 
 
 class TestContinuationRuns:
-    """Test continuation runs using from_state() method."""
+    """Test continuation runs using typed checkpoints."""
 
-    def test_from_state_csv(self, tmp_path):
-        """Test loading state from CSV for continuation."""
+    def test_from_checkpoint_file(self, tmp_path):
+        """Test loading typed checkpoint JSON for continuation."""
         # Run initial simulation
         sim1 = SUEWSSimulation.from_sample_data()
 
         # Save full forcing before subsetting
-        df_forcing_full = sim1.forcing.copy()
+        df_forcing_full = sim1.forcing.df.copy()
 
-        df_forcing = df_forcing_full.iloc[:288]  # First day only
+        df_forcing = df_forcing_full.iloc[:TIMESTEPS_PER_DAY]  # First day only
         sim1.update_forcing(df_forcing)
-        sim1.run()
+        output1 = sim1.run()
+        assert isinstance(output1.checkpoint, SUEWSCheckpoint)
 
-        # Save state
+        # Save checkpoint
         paths = sim1.save(str(tmp_path))
 
-        # Find state file
-        state_file = [p for p in paths if "df_state" in str(p)][0]
-        assert Path(state_file).exists()
+        checkpoint_file = [p for p in paths if "checkpoint.json" in str(p)][0]
+        assert Path(checkpoint_file).exists()
 
         # Load state for continuation
-        sim2 = SUEWSSimulation.from_state(state_file)
-        assert sim2._df_state_init is not None
+        sim2 = SUEWSSimulation.from_checkpoint(sim1.config, checkpoint_file)
+        assert sim2.checkpoint is not None
         assert sim2.is_ready() is False  # No forcing yet
 
         # Add forcing and run continuation
-        df_forcing_2 = df_forcing_full.iloc[288:576]  # Second day
+        df_forcing_2 = df_forcing_full.iloc[
+            TIMESTEPS_PER_DAY : TIMESTEPS_PER_DAY * 2
+        ]  # Second day
         sim2.update_forcing(df_forcing_2)
         assert sim2.is_ready() is True
 
         sim2.run()
         assert sim2.is_complete() is True
 
-    @pytest.mark.skip(
-        reason="Parquet format parameter not being passed correctly - pre-existing issue"
-    )
-    def test_from_state_parquet(self, tmp_path):
-        """Test loading state from Parquet for continuation."""
+    def test_save_parquet_writes_checkpoint_not_df_state(self, tmp_path):
+        """Test OOP parquet save writes checkpoint as the restart artifact."""
         pytest.importorskip("pyarrow", reason="Parquet support requires pyarrow")
 
         # Run initial simulation
         sim1 = SUEWSSimulation.from_sample_data()
 
         # Save full forcing before subsetting
-        df_forcing_full = sim1.forcing.copy()
+        df_forcing_full = sim1.forcing.df.copy()
 
-        df_forcing = df_forcing_full.iloc[:288]  # First day only
+        df_forcing = df_forcing_full.iloc[:TIMESTEPS_PER_DAY]  # First day only
         sim1.update_forcing(df_forcing)
         sim1.run()
 
-        # Save state in Parquet format
+        # Save output in Parquet format
         paths = sim1.save(str(tmp_path), format="parquet")
 
-        # Find state file (looks for pattern: {site}_SUEWS_state_final.parquet)
-        state_file = [p for p in paths if "SUEWS_state_final.parquet" in str(p)][0]
-        assert Path(state_file).exists()
+        checkpoint_file = [p for p in paths if "checkpoint.json" in str(p)][0]
+        assert Path(checkpoint_file).exists()
+        assert not any("SUEWS_state_final.parquet" in str(p) for p in paths)
 
         # Load state for continuation
-        sim2 = SUEWSSimulation.from_state(state_file)
-        assert sim2._df_state_init is not None
+        sim2 = SUEWSSimulation.from_checkpoint(sim1.config, checkpoint_file)
+        assert sim2.checkpoint is not None
 
         # Continue simulation
-        df_forcing_2 = df_forcing_full.iloc[288:576]  # Second day
+        df_forcing_2 = df_forcing_full.iloc[
+            TIMESTEPS_PER_DAY : TIMESTEPS_PER_DAY * 2
+        ]  # Second day
         sim2.update_forcing(df_forcing_2)
         sim2.run()
         assert sim2.is_complete() is True
@@ -846,9 +1376,9 @@ class TestContinuationRuns:
         sim1 = SUEWSSimulation.from_sample_data()
 
         # Save full forcing before subsetting
-        df_forcing_full = sim1.forcing.copy()
+        df_forcing_full = sim1.forcing.df.copy()
 
-        df_forcing = df_forcing_full.iloc[:288]
+        df_forcing = df_forcing_full.iloc[:TIMESTEPS_PER_DAY]
         sim1.update_forcing(df_forcing)
         sim1.run()
 
@@ -856,12 +1386,13 @@ class TestContinuationRuns:
         df_state_final = sim1.state_final
 
         # Create new simulation from DataFrame
-        sim2 = SUEWSSimulation.from_state(df_state_final)
+        with pytest.warns(DeprecationWarning, match="legacy DFState"):
+            sim2 = SUEWSSimulation.from_state(df_state_final)
         assert sim2._df_state_init is not None
         assert sim2.is_ready() is False  # No forcing yet
 
         # Continue simulation
-        df_forcing_2 = df_forcing_full.iloc[288:576]
+        df_forcing_2 = df_forcing_full.iloc[TIMESTEPS_PER_DAY : TIMESTEPS_PER_DAY * 2]
         sim2.update_forcing(df_forcing_2)
         sim2.run()
         assert sim2.is_complete() is True
@@ -881,10 +1412,13 @@ class TestContinuationRuns:
         state_file = tmp_path / "df_state_old.csv"
         df_state.to_csv(state_file)
 
-        # Loading should trigger version warning
-        with pytest.warns(UserWarning, match="compatibility issues"):
+        # Loading should trigger legacy and version warnings
+        with pytest.warns(Warning) as warning_record:
             sim2 = SUEWSSimulation.from_state(state_file)
 
+        warning_messages = [str(item.message) for item in warning_record]
+        assert any("legacy DFState" in msg for msg in warning_messages)
+        assert any("compatibility issues" in msg for msg in warning_messages)
         assert sim2._df_state_init is not None
 
     def test_from_state_file_not_found(self):
@@ -895,7 +1429,7 @@ class TestContinuationRuns:
     def test_from_state_unsupported_format(self, tmp_path):
         """Test error handling for unsupported file format."""
         invalid_file = tmp_path / "state.txt"
-        invalid_file.write_text("dummy content")
+        invalid_file.write_text("dummy content", encoding="utf-8")
 
         with pytest.raises(ValueError, match="Unsupported state file format"):
             SUEWSSimulation.from_state(invalid_file)

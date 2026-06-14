@@ -5,7 +5,6 @@ try:
 except ImportError:
     # backport for python < 3.9
     from importlib_resources import files
-# from .supy_driver import __version__ as sd_ver
 from ._env import trv_supy_module
 import json
 import sys
@@ -86,8 +85,6 @@ def show_version(mode="simple", as_json=False):
     """
     dict_info_supy = {}
     dict_info_supy["supy"] = __version__
-    # dict_info_supy["supy_driver"] = __version_driver__
-    # dict_info['system'] = {'platform':sys.platform,'python_version':sys.version}
 
     if as_json:
         if as_json is True:

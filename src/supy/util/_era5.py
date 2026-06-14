@@ -14,7 +14,11 @@ from numpy import cos, deg2rad, sin, sqrt
 
 from .._env import logger_supy
 
-warnings.simplefilter(action="ignore", category=FutureWarning)
+warnings.filterwarnings(
+    action="ignore",
+    category=FutureWarning,
+    module=r"^pandas(\.|$)",
+)
 
 
 ################################################
@@ -274,8 +278,10 @@ def safe_stdout_stderr():
         yield
         return
 
-    # Replace None streams with devnull
-    devnull = open(os.devnull, "w")
+    # Replace None streams with devnull. Force UTF-8 so libraries that emit
+    # Unicode (e.g. tqdm progress bars) don't crash on Windows, whose default
+    # cp1252 codec cannot encode them (see gh#1097, gh#902).
+    devnull = open(os.devnull, "w", encoding="utf-8")
     try:
         if stdout_was_none:
             sys.stdout = devnull

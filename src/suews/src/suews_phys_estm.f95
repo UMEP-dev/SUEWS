@@ -208,6 +208,7 @@ MODULE module_phys_estm_solver
    !     Copyright (c) 2001 MyCompany. All rights reserved.
 
    USE module_ctrl_const_physconst, ONLY: eps_fp
+   USE module_ctrl_error_state, ONLY: add_supy_warning
    IMPLICIT NONE
 
 CONTAINS
@@ -253,7 +254,7 @@ CONTAINS
       END DO
       niter = i - 1
       IF (.NOT. converged) THEN
-         PRINT *, "Solution did not converge. Niter=", niter, " Error=", e
+         CALL add_supy_warning('NewtonPolynomial did not converge, returning initial guess')
          x = x0
       END IF
    END FUNCTION NewtonPolynomial
@@ -301,7 +302,7 @@ CONTAINS
 
    SUBROUTINE Solar_angles(lat, lng, timezone, dectime, decl, zenith, azimuth)
 
-      REAL, INTENT(in) :: lat, lng, timezone, dectime
+      REAL(KIND(1D0)), INTENT(in) :: lat, lng, timezone, dectime
       INTEGER :: doy, hour, mn
       REAL(KIND(1D0)), INTENT(out) :: decl, zenith, azimuth
       REAL(KIND(1D0)) :: ha, latr, eqtime, tst, &
@@ -376,21 +377,6 @@ CONTAINS
    END FUNCTION kdown_surface
 
    !=======================================================
-   ! FUNCTION SmithLambda(lat) RESULT(G)
-   !    !read kriged data based on Smith 1966 (JAM)
-   !    INTEGER :: lat, ios
-   !    REAL, DIMENSION(365) :: G
-
-   !    OPEN (99, file="Smith1966.grd", access="direct", action="read", recl=365*4, iostat=ios)
-   !    IF (ios /= 0) THEN
-   !       PRINT *, "Iostat=", ios, " reading Smith1966.grd"
-   !       STOP
-   !    END IF
-   !    READ (99, rec=lat + 1, iostat=ios) G
-   !    IF (ios /= 0) PRINT *, "Iostat=", ios, " reading Smith1966.grd"
-   !    CLOSE (99)
-   ! END FUNCTION SmithLambda
-   !=======================================================
    FUNCTION transmissivity_CD(P, Td, G, zenith) RESULT(trans) !!!!!FO!!!!! ,doy
       ! bulk atmospheric transmissivity (Crawford and Duchon, 1999)
       ! P = pressure (hPa)
@@ -417,55 +403,6 @@ CONTAINS
       Ta = 0.935**m !4th trans coeff
       trans = TrTpg*Tw*Ta !bulk atmospherics transmissivity
    END FUNCTION transmissivity_CD
-
-   !   !=======================================================
-   !   ! NB:this FUNCTION is problematic:
-   !   ! these variables are NEVER initialized/calculated: tr,tg,tw,ta
-   !   ! but used for calcuLAItng Sdir!
-   !   FUNCTION kdown_niemala(S0,vap_press,Tk) RESULT(kdown)           !!!!!FO!!!!! ,albedo
-   !     !from Niemala et al. 2001. Atmospheric Research 58:141-154
-   !     ! using generalized formula only, no empirical data from site
-   !     !11 October 2001
-   !     ! S0=base solar insolation at the surface
-   !     ! albedo = surface albedo (required for multireflection diffuse)
-   !     ! vap_press=screen level vapor pressure (Pa)
-   !     ! Tk=screen level air temperature (K)
-   !     ! ta=aerosol transmissivity
-   !     ! tR=Rayleigh scattering transmissivity
-   !     ! tg=uniformly mixed gas transmissivity
-   !     ! tw=water vapor transmissivity
-   !     ! toz=ozone transmissivity
-   ! !!!!!!!INCOMPLETE
-   !     REAL  ::S0,vap_press,Tk,kdown           !!!!!FO!!!!! ,albedo
-   !     REAL  ::Sdir,Diffuse,Diffuse_R,Diffuse_a,Diffuse_m
-   !     REAL  ::tr,tg,tw,ta,toz, theta
-   !     CALL transmissivity(vap_press,Tk,theta,tr,tg,tw,ta,toz)
-   !     Sdir=0.9751*S0*tr*tg*tw*ta*toz
-   !     Diffuse_R=0.
-   !     Diffuse_a=0.
-   !     Diffuse_m=0.
-   !     Diffuse=Diffuse_R+Diffuse_a+Diffuse_m
-   !     kdown=Sdir+Diffuse
-   !   END FUNCTION kdown_niemala
-   !   !=======================================================
-   !   SUBROUTINE transmissivity(vap_press,Tk,theta,tr,tg,tw,ta,toz)
-   !     !calculates atmospheric transmissivities for
-   !     ! ta=aerosol transmissivity
-   !     ! tR=Rayleigh scattering transmissivity
-   !     ! tg=uniformly mixed gas transmissivity
-   !     ! tw=water vapor transmissivity
-   !     ! toz=ozone transmissivity
-   !     ! from Iqbal (1983) and Niemala(2001)
-   !     ! vap_press (Pa)
-   !     ! Tk air temp (K)
-   !     ! w=precipitable water content (cm)
-   !     !==========INCOMPLETE
-   !     REAL  ::Tk, vap_press,theta
-   !     REAL  ::tr,tg,tw,ta,toz,w
-   !     w=0.493*vap_press/Tk
-   !     ta=0.59+0.012*theta-1.336e-4*theta*theta
-   !
-   !   END SUBROUTINE transmissivity
 
    !=======================================================
    FUNCTION solar_ESdist(doy) RESULT(Rse)
@@ -642,6 +579,9 @@ MODULE module_phys_estm
    ! revision history:
    ! TS 09 Oct 2017: re-organised ESTM subroutines into a module
    !===============================================================================
+   USE module_ctrl_error_state, ONLY: supy_error_flag, add_supy_warning
+   USE module_ctrl_error, ONLY: ErrorHint
+   USE module_ctrl_type, ONLY: SUEWS_STATE
    IMPLICIT NONE
 
 CONTAINS
@@ -649,7 +589,7 @@ CONTAINS
    !======================================================================================
    ! Subroutine to read in ESTM data in the same way as met data (SUEWS_InitializeMetData)
    ! HCW 30 Jun 2016
-   SUBROUTINE SUEWS_GetESTMData(lunit)
+   SUBROUTINE SUEWS_GetESTMData(lunit, modState)
       USE module_ctrl_const_allocate, ONLY: ncolsestmdata, estmforcingdata
       USE module_ctrl_const_datain, ONLY: fileestmts, skipheadermet
       USE module_ctrl_const_sues, ONLY: tstep_real, tstep
@@ -659,6 +599,7 @@ CONTAINS
       IMPLICIT NONE
 
       INTEGER, INTENT(in) :: lunit
+      TYPE(SUEWS_STATE), INTENT(INOUT), OPTIONAL :: modState
       INTEGER :: i, iyy !,RunNumber,NSHcounter
       INTEGER :: iostat_var
       REAL(KIND(1D0)), DIMENSION(ncolsESTMdata) :: ESTMArray
@@ -696,7 +637,8 @@ CONTAINS
             tstep_estm = ((ESTMArray(4) + 60*ESTMArray(3)) - (imin_prev + 60*ih_prev))*60 !tstep in seconds
             IF (tstep_estm /= tstep_real .AND. ESTMArray(2) == iday_prev) THEN
                CALL ErrorHint(39, 'TSTEP in RunControl does not match TSTEP of ESTM data (DOY).', &
-                              REAL(tstep, KIND(1D0)), tstep_estm, INT(ESTMArray(2)))
+                              REAL(tstep, KIND(1D0)), tstep_estm, INT(ESTMArray(2)), modState)
+               IF (supy_error_flag) RETURN
             END IF
          END IF
       END DO
@@ -705,7 +647,7 @@ CONTAINS
 
       RETURN
 
-315   CALL errorHint(11, TRIM(fileESTMTs), notUsed, notUsed, ios_out)
+315   CALL errorHint(11, TRIM(fileESTMTs), notUsed, notUsed, ios_out, modState)
 
    END SUBROUTINE SUEWS_GetESTMData
    !======================================================================================
@@ -802,7 +744,6 @@ CONTAINS
          tin_surf, tin_surf_grids, &
          nspec
       USE module_ctrl_const_datain, ONLY: FileInputPath, filecode
-      USE module_util_stringmod, ONLY: writenum
       IMPLICIT NONE
       INTEGER, INTENT(IN) :: gridIV
       INTEGER, INTENT(IN) :: diagnose
@@ -860,7 +801,7 @@ CONTAINS
          cp_surf
 
       IF (MultipleLayoutFiles) THEN
-         CALL writenum(gridIV, str_gridIV, 'i4')
+         WRITE (str_gridIV, '(i0)') gridIV
          FileLayout = 'GridLayout'//TRIM(filecode)//TRIM(str_gridIV)//'.nml'
       ELSE
          FileLayout = 'GridLayout'//TRIM(filecode)//'.nml'
@@ -1203,7 +1144,7 @@ CONTAINS
       ALLOCATE (temp_surf_grids(NumberOfGrids, nsurf, ndepth))
 
       DO i_grid = 1, NumberOfGrids
-         PRINT *, 'Reading layout data for grid ', i_grid
+         IF (Diagnose == 1) PRINT *, 'Reading layout data for grid ', i_grid
          CALL load_GridLayout(i_grid, flag_mutiple_layout_files, diagnose)
       END DO
 
@@ -1480,6 +1421,7 @@ CONTAINS
       !ivf_rw=1.-ivf_ri-ivf_rf;
       !ivf_fr=ivf_rf;
 
+      ! Validate internal view factors sum to 1 (configuration check)
       IF ((ivf_ii + ivf_iw + ivf_ir + ivf_if > 1.0001) .OR. &
           (ivf_wi + ivf_ww + ivf_wr + ivf_wf > 1.0001) .OR. &
           (ivf_ri + ivf_rw + ivf_rf > 1.0001) .OR. &
@@ -1488,7 +1430,7 @@ CONTAINS
           (ivf_wi + ivf_ww + ivf_wr + ivf_wf < 0.9999) .OR. &
           (ivf_ri + ivf_rw + ivf_rf < 0.9999) .OR. &
           (ivf_fi + ivf_fw + ivf_fr < 0.9999)) THEN
-         PRINT *, "At least one internal view factor <> 1. Check ivf in ESTMinput.nml"
+         CALL add_supy_warning('ESTM: At least one internal view factor <> 1. Check ivf in ESTMinput.nml')
       END IF
 
       !=======Initial setting==============================================
@@ -2239,358 +2181,6 @@ CONTAINS
 
    END SUBROUTINE ESTM
 
-   ! ===============================================================================================
-   ! extended ESTM, TS 20 Jan 2022
-   ! ESTM_ehc accoutns for
-   ! 1. heterogeneous building facets (roofs, walls) at different vertical levels
-   ! 2. all standard ground-level surfaces (dectr, evetr, grass, bsoil and water)
-   ! SUBROUTINE ESTM_ehc( &
-   !    tstep, & !input
-   !    nlayer, &
-   !    QG_surf, qg_roof, qg_wall, &
-   !    tsfc_roof, tin_roof, temp_in_roof, k_roof, cp_roof, dz_roof, sfr_roof, & !input
-   !    tsfc_wall, tin_wall, temp_in_wall, k_wall, cp_wall, dz_wall, sfr_wall, & !input
-   !    tsfc_surf, tin_surf, temp_in_surf, k_surf, cp_surf, dz_surf, sfr_surf, & !input
-   !    temp_out_roof, QS_roof, & !output
-   !    temp_out_wall, QS_wall, & !output
-   !    temp_out_surf, QS_surf, & !output
-   !    QS) !output
-   !    USE module_ctrl_const_allocate, ONLY: &
-   !       nsurf, ndepth, &
-   !       PavSurf, BldgSurf, ConifSurf, DecidSurf, GrassSurf, BSoilSurf, WaterSurf
-   !    USE heatflux, ONLY: heatcond1d_ext, heatcond1d_vstep
-
-   !    IMPLICIT NONE
-   !    INTEGER, INTENT(in) :: tstep
-   !    INTEGER, INTENT(in) :: nlayer ! number of vertical levels in urban canopy
-
-   !    REAL(KIND(1D0)), DIMENSION(nsurf), INTENT(in) :: QG_surf ! ground heat flux
-   !    ! extended for ESTM_ehc
-
-   !    ! keys:
-   !    ! tsfc: surface temperature
-   !    ! tin: indoor/deep bottom temperature
-   !    ! temp_in: temperature at inner interfaces
-   !    ! k: thermal conductivity
-   !    ! cp: heat capacity
-   !    ! dz: thickness of each layer
-   !    ! roof/wall/surf: roof/wall/ground surface types
-
-   !    ! input arrays: roof facets
-   !    REAL(KIND(1D0)), DIMENSION(nlayer), INTENT(in) :: qg_roof
-   !    REAL(KIND(1D0)), DIMENSION(nlayer), INTENT(in) :: tsfc_roof
-   !    REAL(KIND(1D0)), DIMENSION(nlayer), INTENT(in) :: tin_roof
-   !    REAL(KIND(1D0)), DIMENSION(nlayer), INTENT(in) :: sfr_roof
-   !    REAL(KIND(1D0)), DIMENSION(nlayer, ndepth), INTENT(in) :: temp_in_roof
-   !    REAL(KIND(1D0)), DIMENSION(nlayer, ndepth), INTENT(in) :: k_roof
-   !    REAL(KIND(1D0)), DIMENSION(nlayer, ndepth), INTENT(in) :: cp_roof
-   !    REAL(KIND(1D0)), DIMENSION(nlayer, ndepth), INTENT(in) :: dz_roof
-   !    ! input arrays: wall facets
-   !    REAL(KIND(1D0)), DIMENSION(nlayer), INTENT(in) :: qg_wall
-   !    REAL(KIND(1D0)), DIMENSION(nlayer), INTENT(in) :: tsfc_wall
-   !    REAL(KIND(1D0)), DIMENSION(nlayer), INTENT(in) :: tin_wall
-   !    REAL(KIND(1D0)), DIMENSION(nlayer), INTENT(in) :: sfr_wall
-   !    REAL(KIND(1D0)), DIMENSION(nlayer, ndepth), INTENT(in) :: temp_in_wall
-   !    REAL(KIND(1D0)), DIMENSION(nlayer, ndepth), INTENT(in) :: k_wall
-   !    REAL(KIND(1D0)), DIMENSION(nlayer, ndepth), INTENT(in) :: cp_wall
-   !    REAL(KIND(1D0)), DIMENSION(nlayer, ndepth), INTENT(in) :: dz_wall
-   !    ! input arrays: standard suews surfaces
-   !    REAL(KIND(1D0)), DIMENSION(nsurf), INTENT(in) :: tsfc_surf
-   !    REAL(KIND(1D0)), DIMENSION(nsurf), INTENT(in) :: tin_surf
-   !    REAL(KIND(1D0)), DIMENSION(nsurf), INTENT(in) :: sfr_surf
-   !    REAL(KIND(1D0)), DIMENSION(nsurf, ndepth), INTENT(in) :: temp_in_surf
-   !    REAL(KIND(1D0)), DIMENSION(nsurf, ndepth), INTENT(in) :: k_surf
-   !    REAL(KIND(1D0)), DIMENSION(nsurf, ndepth), INTENT(in) :: cp_surf
-   !    REAL(KIND(1D0)), DIMENSION(nsurf, ndepth), INTENT(in) :: dz_surf
-
-   !    ! output arrays
-   !    ! roof facets
-   !    REAL(KIND(1D0)), DIMENSION(nlayer), INTENT(out) :: QS_roof
-   !    REAL(KIND(1D0)), DIMENSION(nlayer, ndepth), INTENT(out) :: temp_out_roof !interface temperature between depth layers
-   !    ! wall facets
-   !    REAL(KIND(1D0)), DIMENSION(nlayer), INTENT(out) :: QS_wall
-   !    REAL(KIND(1D0)), DIMENSION(nlayer, ndepth), INTENT(out) :: temp_out_wall !interface temperature between depth layers
-   !    ! standard suews surfaces
-   !    REAL(KIND(1D0)), DIMENSION(nsurf), INTENT(out) :: QS_surf
-   !    REAL(KIND(1D0)), DIMENSION(nsurf, ndepth), INTENT(out) :: temp_out_surf !interface temperature between depth layers
-
-   !    ! grid aggregated results
-   !    REAL(KIND(1D0)), INTENT(out) :: QS
-
-   !    ! internal use
-   !    ! temporary arrays in calculations
-   !    ! note: nsurf is used as the maximum number of surfaces
-   !    REAL(KIND(1D0)), DIMENSION(:), ALLOCATABLE :: tsfc_cal
-   !    REAL(KIND(1D0)), DIMENSION(:), ALLOCATABLE :: tin_cal
-   !    REAL(KIND(1D0)), DIMENSION(:, :), ALLOCATABLE :: temp_cal
-   !    REAL(KIND(1D0)), DIMENSION(:, :), ALLOCATABLE :: k_cal
-   !    REAL(KIND(1D0)), DIMENSION(:, :), ALLOCATABLE :: cp_cal
-   !    REAL(KIND(1D0)), DIMENSION(:, :), ALLOCATABLE :: dz_cal
-   !    REAL(KIND(1D0)), DIMENSION(:), ALLOCATABLE :: qs_cal
-
-   !    ! REAL(KIND(1D0)), DIMENSION(ndepth) :: temp_all_cal
-   !    ! surface temperatures at innermost depth layer
-   !    ! REAL(KIND(1D0)) :: temp_IBC
-   !    INTEGER :: i_facet, i_group, nfacet, i_depth
-
-   !    ! settings for boundary conditions
-   !    REAL(KIND(1D0)), DIMENSION(2) :: bc
-
-   !    ! use temperature as boundary conditions
-   !    LOGICAL, DIMENSION(2) :: bctype
-   !    LOGICAL :: debug
-
-   !    ! use finite depth heat conduction solver
-   !    LOGICAL :: use_heatcond1d, use_heatcond1d_water
-
-   !    ! normalised surface fractions
-   !    REAL(KIND(1D0)), DIMENSION(nlayer) :: sfr_roof_n
-   !    REAL(KIND(1D0)), DIMENSION(nlayer) :: sfr_wall_n
-
-   !    ! initialise solver flags
-   !    use_heatcond1d = .TRUE.
-   !    use_heatcond1d_water = .FALSE.
-   !    debug = .FALSE.
-
-   !    ! normalised surface fractions
-   !    ! NB: the sum of sfr_roof (sfr_wall) is NOT unity; so need to be normalised by the sum
-   !    sfr_roof_n = sfr_roof/SUM(sfr_roof)
-   !    sfr_wall_n = sfr_wall/SUM(sfr_wall)
-   !    ! sub-facets of buildings: e.g. walls, roofs, etc.
-   !    DO i_group = 1, 3
-
-   !       ! allocate arrays
-   !       IF (i_group == 1) THEN
-   !          ! PRINT *, 'group: ', 'roof'
-   !          nfacet = nlayer
-   !       ELSE IF (i_group == 2) THEN
-   !          ! PRINT *, 'group: ', 'wall'
-   !          nfacet = nlayer
-   !       ELSE IF (i_group == 3) THEN
-   !          ! PRINT *, 'group: ', 'surf'
-   !          nfacet = nsurf
-   !       END IF
-   !       ! PRINT *, 'nfacet here: ', nfacet
-   !       ALLOCATE (tsfc_cal(nfacet))
-   !       ALLOCATE (tin_cal(nfacet))
-   !       ALLOCATE (qs_cal(nfacet))
-   !       ALLOCATE (temp_cal(nfacet, ndepth))
-   !       ALLOCATE (k_cal(nfacet, ndepth))
-   !       ALLOCATE (cp_cal(nfacet, ndepth))
-   !       ALLOCATE (dz_cal(nfacet, ndepth))
-   !       ! PRINT *, 'allocation done! '
-
-   !       ! translate input arrays of facet groups to internal use arrays
-   !       IF (i_group == 1) THEN
-   !          ! PRINT *, 'translation for roof! '
-   !          ! TODO: to update with actual values from input files
-   !          tsfc_cal(1:nfacet) = tsfc_roof(1:nfacet)
-   !          ! PRINT *, 'tsfc_cal for roof! ', tsfc_cal
-   !          tin_cal(1:nfacet) = tin_roof(1:nfacet)
-   !          ! PRINT *, 'tin_cal for roof! ', tin_cal
-   !          temp_cal(1:nfacet, 1:ndepth) = temp_in_roof(1:nfacet, 1:ndepth)
-   !          ! PRINT *, 'temp_cal for roof! ',temp_cal
-   !          k_cal(1:nfacet, 1:ndepth) = k_roof(1:nfacet, 1:ndepth)
-   !          ! PRINT *, 'k_roof for roof! ',k_roof(1,:)
-   !          cp_cal(1:nfacet, 1:ndepth) = cp_roof(1:nfacet, 1:ndepth)
-   !          dz_cal(1:nfacet, 1:ndepth) = dz_roof(1:nfacet, 1:ndepth)
-   !          ! qs_cal(1:nfacet) = qs_roof(1:nfacet)
-   !       ELSE IF (i_group == 2) THEN
-   !          ! PRINT *, 'translation for wall! '
-   !          ! TODO: to update with actual values from input files
-   !          tsfc_cal(1:nfacet) = tsfc_wall(1:nfacet)
-   !          tin_cal(1:nfacet) = tin_wall(1:nfacet)
-   !          temp_cal(1:nfacet, 1:ndepth) = temp_in_wall(1:nfacet, 1:ndepth)
-   !          ! TODO: temporarily set this for testing
-   !          k_cal(1:nfacet, 1:ndepth) = k_wall(1:nfacet, 1:ndepth)
-   !          cp_cal(1:nfacet, 1:ndepth) = cp_wall(1:nfacet, 1:ndepth)
-   !          dz_cal(1:nfacet, 1:ndepth) = dz_wall(1:nfacet, 1:ndepth)
-   !          ! qs_cal(1:nfacet) = qs_wall(1:nfacet)
-
-   !       ELSE IF (i_group == 3) THEN
-   !          ! PRINT *, 'translation for surf! '
-   !          ! nfacet = nsurf
-   !          tsfc_cal(1:nfacet) = tsfc_surf(1:nfacet)
-   !          tin_cal(1:nfacet) = tin_surf(1:nfacet)
-   !          temp_cal(1:nfacet, 1:ndepth) = temp_in_surf(1:nfacet, 1:ndepth)
-   !          ! TODO: to update with actual values from input files
-   !          k_cal(1:nfacet, 1:ndepth) = k_surf(1:nfacet, 1:ndepth)
-   !          cp_cal(1:nfacet, 1:ndepth) = cp_surf(1:nfacet, 1:ndepth)
-   !          dz_cal(1:nfacet, 1:ndepth) = dz_surf(1:nfacet, 1:ndepth)
-   !          ! k_cal(1:nfacet, 1:ndepth) = 1.2
-   !          ! cp_cal(1:nfacet, 1:ndepth) = 2E6
-   !          ! dz_cal(1:nfacet, 1:ndepth) = 0.1
-   !          ! qs_cal(1:nfacet) = QS_surf(1:nfacet)
-   !       END IF
-   !       ! PRINT *, 'translation done! '
-   !       ! TODO: temporary setting
-   !       ! k_cal(1:nfacet, 1:ndepth) = 1.2
-   !       ! cp_cal(1:nfacet, 1:ndepth) = 2E6
-   !       ! dz_cal(1:nfacet, 1:ndepth) = 0.2
-
-   !       ! PRINT *, 'nfacet: ', nfacet
-   !       DO i_facet = 1, nfacet
-   !          ! PRINT *, 'i_facet: ', i_facet
-   !          ! ASSOCIATE (v => dz_cal(i_facet, 1:ndepth))
-   !          !    PRINT *, 'dz_cal in ESTM_ehc', v, SIZE(v)
-   !          ! END ASSOCIATE
-
-   !          ! determine the calculation method
-   !          IF (i_group == 3) THEN
-   !             use_heatcond1d = .TRUE.
-   !             IF (i_facet == BldgSurf) THEN
-   !                ! building surface needs a different treatment
-   !                use_heatcond1d = .FALSE.
-   !             ELSE IF (i_facet == WaterSurf) THEN
-   !                ! water surface needs a different treatment
-   !                use_heatcond1d = .FALSE.
-   !                use_heatcond1d_water = .TRUE.
-   !             END IF
-   !          ELSE
-   !             use_heatcond1d = .TRUE.
-   !          END IF
-
-   !          ! actual heat conduction calculations
-   !          IF (dz_cal(i_facet, 1) /= -999.0 .AND. use_heatcond1d) THEN
-
-   !             ! surface heat flux
-   !             IF (i_group == 1) THEN
-   !                bc(1) = qg_roof(i_facet)
-   !             ELSE IF (i_group == 2) THEN
-   !                bc(1) = qg_wall(i_facet)
-   !             ELSE IF (i_group == 3) THEN
-   !                bc(1) = QG_surf(i_facet)
-   !             END IF
-   !             ! bctype(1) = .TRUE.
-   !             bc(1) = tsfc_cal(i_facet)
-   !             bctype(1) = .FALSE.
-
-   !             !TODO: should be a prescribed temperature of the innermost boundary
-   !             bc(2) = tin_cal(i_facet)
-   !             bctype(2) = .FALSE.
-
-   !             ! IF (i_group == 3 .AND. i_facet == 3) THEN
-   !             ! PRINT *, 'temp_cal before: ', temp_cal(i_facet, :)
-   !             ! PRINT *, 'k_cal: ', k_cal(i_facet, 1:ndepth)
-   !             ! PRINT *, 'cp_cal: ', cp_cal(i_facet, 1:ndepth)
-   !             ! PRINT *, 'dz_cal: ', dz_cal(i_facet, 1:ndepth)
-   !             ! PRINT *, 'bc: ', bc
-
-   !             ! END IF
-
-   !             ! 1D heat conduction for finite depth layers
-
-   !             ! IF ((i_group == 3) .AND. (i_facet == 1)) THEN
-   !             !    debug = .FALSE.
-   !             ! ELSE
-   !             !    debug = .FALSE.
-   !             ! END IF
-   !             ! CALL heatcond1d_ext( &
-   !             CALL heatcond1d_vstep( &
-   !                temp_cal(i_facet, :), &
-   !                QS_cal(i_facet), &
-   !                tsfc_cal(i_facet), &
-   !                dz_cal(i_facet, 1:ndepth), &
-   !                tstep*1.D0, &
-   !                k_cal(i_facet, 1:ndepth), &
-   !                cp_cal(i_facet, 1:ndepth), &
-   !                bc, &
-   !                bctype, debug)
-
-   !             ! update temperature at all inner interfaces
-   !             ! tin_cal(i_facet, :) = temp_all_cal
-   !             ! IF (i_group == 3 .AND. i_facet == 3) THEN
-   !             ! PRINT *, 'temp_cal after: ', temp_cal(i_facet, :)
-   !             ! PRINT *, 'QS_cal after: ', QS_cal(i_facet)
-   !             ! PRINT *, 'k_cal: ', k_cal(i_facet, 1:ndepth)
-   !             ! PRINT *, 'cp_cal: ', cp_cal(i_facet, 1:ndepth)
-   !             ! PRINT *, 'dz_cal: ', dz_cal(i_facet, 1:ndepth)
-   !             ! PRINT *, 'bc: ', bc
-   !             ! PRINT *, ''
-
-   !             ! END IF
-   !          END IF
-
-   !          IF (dz_cal(i_facet, 1) /= -999.0 .AND. use_heatcond1d_water) THEN
-   !             ! temperatures at all interfaces, including the outmost surface
-   !             ! temp_all_cal = temp_cal(i_facet, :)
-
-   !             ! outermost surface temperature
-   !             ! bc(1) = tsfc_cal(i_facet)
-   !             bc(1) = tsfc_cal(i_facet)
-   !             bctype(1) = .FALSE.
-
-   !             !TODO: should be a prescribed temperature of the innermost boundary
-   !             bc(2) = tin_cal(i_facet)
-   !             bctype(2) = .FALSE.
-
-   !             ! 1D heat conduction for finite depth layers
-   !             ! TODO: this should be a water specific heat conduction solver: to implement
-   !             ! CALL heatcond1d_ext( &
-   !             CALL heatcond1d_vstep( &
-   !                temp_cal(i_facet, :), &
-   !                QS_cal(i_facet), &
-   !                tsfc_cal(i_facet), &
-   !                dz_cal(i_facet, 1:ndepth), &
-   !                tstep*1.D0, &
-   !                k_cal(i_facet, 1:ndepth), &
-   !                cp_cal(i_facet, 1:ndepth), &
-   !                bc, &
-   !                bctype, debug)
-
-   !             ! ! update temperature at all inner interfaces
-   !             ! temp_cal(i_facet, :) = temp_all_cal
-   !          END IF
-
-   !       END DO ! end of i_facet loop
-
-   !       ! translate results to back to the output arrays of facet groups
-   !       IF (i_group == 1) THEN
-   !          QS_roof = QS_cal(1:nfacet)
-   !          ! tsfc_roof = tsfc_cal(1:nfacet)
-   !          temp_out_roof = temp_cal(:nfacet, :)
-   !       ELSE IF (i_group == 2) THEN
-   !          QS_wall = QS_cal(1:nfacet)
-   !          ! tsfc_wall = tsfc_cal(1:nfacet)
-   !          temp_out_wall = temp_cal(:nfacet, :)
-   !       ELSE IF (i_group == 3) THEN
-   !          QS_surf = QS_cal(1:nfacet)
-   !          ! tsfc_surf = tsfc_cal(1:nfacet)
-   !          temp_out_surf = temp_cal(:nfacet, :)
-   !       END IF
-
-   !       ! deallocate memory
-   !       DEALLOCATE (tsfc_cal)
-   !       DEALLOCATE (tin_cal)
-   !       DEALLOCATE (qs_cal)
-   !       DEALLOCATE (temp_cal)
-   !       DEALLOCATE (k_cal)
-   !       DEALLOCATE (cp_cal)
-   !       DEALLOCATE (dz_cal)
-
-   !    END DO ! end do i_group
-
-   !    ! aggregated results
-   !    ! building surface
-   !    ! PRINT *, 'QS_roof in ESTM_ehc', DOT_PRODUCT(QS_roof, sfr_roof), 'for', sfr_roof
-   !    ! PRINT *, 'QS_wall in ESTM_ehc', DOT_PRODUCT(QS_wall, sfr_wall), 'for', sfr_wall
-   !    IF (sfr_surf(BldgSurf) < 1.0E-8) THEN
-   !       QS_surf(BldgSurf) = 0.0
-   !    ELSE
-   !       QS_surf(BldgSurf) = (DOT_PRODUCT(QS_roof, sfr_roof) + DOT_PRODUCT(QS_wall, sfr_wall))/sfr_surf(BldgSurf)
-   !    END IF
-
-   !    DO i_depth = 1, ndepth
-   !       temp_out_surf(BldgSurf, i_depth) = &
-   !          (DOT_PRODUCT(temp_out_roof(:, i_depth), sfr_roof) &
-   !           + DOT_PRODUCT(temp_out_wall(:, i_depth), sfr_wall)) &
-   !          /(SUM(sfr_roof) + SUM(sfr_wall))
-   !    END DO
-
-   !    ! all standard suews surfaces
-   !    qs = DOT_PRODUCT(QS_surf, sfr_surf)
-
-   ! END SUBROUTINE ESTM_ehc
    ! ===============================================================================================
    !===============set variable of invalid value to NAN====================================
    ELEMENTAL FUNCTION set_nan(x) RESULT(xx)

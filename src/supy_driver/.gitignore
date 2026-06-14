@@ -1,6 +1,0 @@
-*.f90
-*.f95
-*.fpp
-*.c
-src.*
-.f2py_f2cmap

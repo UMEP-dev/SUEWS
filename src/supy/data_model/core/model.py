@@ -1,13 +1,27 @@
-import yaml
-from typing import Optional, Union, List
-import numpy as np
-from pydantic import ConfigDict, BaseModel, Field, field_validator, model_validator
-import pandas as pd
 from enum import Enum
 import inspect
+from typing import List, Optional, Union
 
-from .type import RefValue, Reference, FlexibleRefValue
-from .type import init_df_state
+import numpy as np
+import pandas as pd
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
+import yaml
+
+from .field_renames import (
+    MODELPHYSICS_RENAMES,
+    MODELPHYSICS_SUFFIX_RENAMES,
+    apply_field_renames,
+    fold_stebbs_physics,
+)
+from .physics_families import (
+    MODEL_PHYSICS_ENUM_FIELDS,
+    STEBBS_PHYSICS_ENUM_FIELDS,
+    coerce_nested_to_flat,
+    fold_public_physics_key_aliases,
+    fold_stebbs_public_key_aliases,
+)
+from .physics_orthogonal import coerce_orthogonal_to_flat, fold_storage_heat_ohm_inc_qf
+from .type import FlexibleRefValue, Reference, RefValue, df_from_cols
 
 
 def _enum_description(enum_class: type[Enum]) -> str:
@@ -75,27 +89,78 @@ class EmissionsMethod(Enum):
     """
     Method for calculating anthropogenic heat flux (QF) and CO2 emissions.
 
-    0: OBSERVED - Uses observed QF values from forcing file. Set to zero in forcing file to exclude QF from energy balance
-    1: L11 - Loridan et al. (2011) SAHP method. Linear relation with air temperature, weekday/weekend profiles, scales with population density
-    2: J11 - Järvi et al. (2011) SAHP_2 method. Uses heating/cooling degree days, weekday/weekend differences via profiles and coefficients
-    3: L11_UPDATED - Modified Loridan method using daily mean air temperature instead of instantaneous values
-    4: J19 - Järvi et al. (2019) method. Includes building energy use, human metabolism, and traffic contributions
-    5: J19_UPDATED - As method 4 but also calculates CO2 emissions (biogenic and anthropogenic components)
+    0: OBSERVED - Uses observed QF values from forcing file (set to zero to exclude QF from energy balance)
+    1: L11 - Loridan et al. (2011) SAHP method with air temperature and population density
+    2: J11 - Järvi et al. (2011) SAHP_2 method with heating/cooling degree days
+    3: L11_UPDATED - Modified Loridan method using daily mean air temperature
+    4: J19 - Detailed anthropogenic heat branch with L11 heat basis; CO2 output disabled by the driver for non-biogenic codes
+    5: J19_UPDATED - Detailed anthropogenic heat branch with J11 heat basis; CO2 output disabled by the driver for non-biogenic codes
+    6: L11_UPDATED_DETAILED - Detailed anthropogenic heat branch with L11_UPDATED heat basis; CO2 output disabled by the driver for non-biogenic codes
+    11: BIOGEN_RECT_L11 - Rectangular hyperbola biogenic CO2 + QF-linked anthropogenic CO2 + L11 heat (experimental)
+    12: BIOGEN_RECT_J11 - Rectangular hyperbola biogenic CO2 + QF-linked anthropogenic CO2 + J11 heat (experimental)
+    13: BIOGEN_RECT_L11_UPDATED - Rectangular hyperbola biogenic CO2 + QF-linked anthropogenic CO2 + L11_UPDATED heat (experimental)
+    14: BIOGEN_RECT_L11_DETAILED - Rectangular hyperbola biogenic CO2 + detailed anthropogenic CO2 + L11 heat (experimental)
+    15: BIOGEN_RECT_J11_DETAILED - Rectangular hyperbola biogenic CO2 + detailed anthropogenic CO2 + J11 heat (experimental)
+    16: BIOGEN_RECT_L11_UPDATED_DETAILED - Rectangular hyperbola biogenic CO2 + detailed anthropogenic CO2 + L11_UPDATED heat (experimental)
+    21: BIOGEN_BELLUCCO_LOCAL_L11 - Bellucco local biogenic CO2 + QF-linked anthropogenic CO2 + L11 heat (experimental)
+    22: BIOGEN_BELLUCCO_LOCAL_J11 - Bellucco local biogenic CO2 + QF-linked anthropogenic CO2 + J11 heat (experimental)
+    23: BIOGEN_BELLUCCO_LOCAL_L11_UPDATED - Bellucco local biogenic CO2 + QF-linked anthropogenic CO2 + L11_UPDATED heat (experimental)
+    24: BIOGEN_BELLUCCO_LOCAL_L11_DETAILED - Bellucco local biogenic CO2 + detailed anthropogenic CO2 + L11 heat (experimental)
+    25: BIOGEN_BELLUCCO_LOCAL_J11_DETAILED - Bellucco local biogenic CO2 + detailed anthropogenic CO2 + J11 heat (experimental)
+    26: BIOGEN_BELLUCCO_LOCAL_L11_UPDATED_DETAILED - Bellucco local biogenic CO2 + detailed anthropogenic CO2 + L11_UPDATED heat (experimental)
+    31: BIOGEN_BELLUCCO_GENERAL_L11 - Bellucco general biogenic CO2 + QF-linked anthropogenic CO2 + L11 heat (experimental)
+    32: BIOGEN_BELLUCCO_GENERAL_J11 - Bellucco general biogenic CO2 + QF-linked anthropogenic CO2 + J11 heat (experimental)
+    33: BIOGEN_BELLUCCO_GENERAL_L11_UPDATED - Bellucco general biogenic CO2 + QF-linked anthropogenic CO2 + L11_UPDATED heat (experimental)
+    34: BIOGEN_BELLUCCO_GENERAL_L11_DETAILED - Bellucco general biogenic CO2 + detailed anthropogenic CO2 + L11 heat (experimental)
+    35: BIOGEN_BELLUCCO_GENERAL_J11_DETAILED - Bellucco general biogenic CO2 + detailed anthropogenic CO2 + J11 heat (experimental)
+    36: BIOGEN_BELLUCCO_GENERAL_L11_UPDATED_DETAILED - Bellucco general biogenic CO2 + detailed anthropogenic CO2 + L11_UPDATED heat (experimental)
+    41: BIOGEN_CONDUCTANCE_L11 - Conductance-based biogenic CO2 + QF-linked anthropogenic CO2 + L11 heat (experimental)
+    42: BIOGEN_CONDUCTANCE_J11 - Conductance-based biogenic CO2 + QF-linked anthropogenic CO2 + J11 heat (experimental)
+    43: BIOGEN_CONDUCTANCE_L11_UPDATED - Conductance-based biogenic CO2 + QF-linked anthropogenic CO2 + L11_UPDATED heat (experimental)
+    44: BIOGEN_CONDUCTANCE_L11_DETAILED - Conductance-based biogenic CO2 + detailed anthropogenic CO2 + L11 heat (experimental)
+    45: BIOGEN_CONDUCTANCE_J11_DETAILED - Conductance-based biogenic CO2 + detailed anthropogenic CO2 + J11 heat (experimental)
+    46: BIOGEN_CONDUCTANCE_L11_UPDATED_DETAILED - Conductance-based biogenic CO2 + detailed anthropogenic CO2 + L11_UPDATED heat (experimental)
     """
 
-    # just a demo to show how to use Enum for emissionsmethod
     OBSERVED = 0
     L11 = 1
     J11 = 2
     L11_UPDATED = 3
+    # Legacy Python member names are retained for API compatibility; the
+    # descriptions above reflect the Fortran branch semantics.
     J19 = 4
     J19_UPDATED = 5
+    L11_UPDATED_DETAILED = 6
+    BIOGEN_RECT_L11 = 11
+    BIOGEN_RECT_J11 = 12
+    BIOGEN_RECT_L11_UPDATED = 13
+    BIOGEN_RECT_L11_DETAILED = 14
+    BIOGEN_RECT_J11_DETAILED = 15
+    BIOGEN_RECT_L11_UPDATED_DETAILED = 16
+    BIOGEN_BELLUCCO_LOCAL_L11 = 21
+    BIOGEN_BELLUCCO_LOCAL_J11 = 22
+    BIOGEN_BELLUCCO_LOCAL_L11_UPDATED = 23
+    BIOGEN_BELLUCCO_LOCAL_L11_DETAILED = 24
+    BIOGEN_BELLUCCO_LOCAL_J11_DETAILED = 25
+    BIOGEN_BELLUCCO_LOCAL_L11_UPDATED_DETAILED = 26
+    BIOGEN_BELLUCCO_GENERAL_L11 = 31
+    BIOGEN_BELLUCCO_GENERAL_J11 = 32
+    BIOGEN_BELLUCCO_GENERAL_L11_UPDATED = 33
+    BIOGEN_BELLUCCO_GENERAL_L11_DETAILED = 34
+    BIOGEN_BELLUCCO_GENERAL_J11_DETAILED = 35
+    BIOGEN_BELLUCCO_GENERAL_L11_UPDATED_DETAILED = 36
+    BIOGEN_CONDUCTANCE_L11 = 41
+    BIOGEN_CONDUCTANCE_J11 = 42
+    BIOGEN_CONDUCTANCE_L11_UPDATED = 43
+    BIOGEN_CONDUCTANCE_L11_DETAILED = 44
+    BIOGEN_CONDUCTANCE_J11_DETAILED = 45
+    BIOGEN_CONDUCTANCE_L11_UPDATED_DETAILED = 46
 
     def __new__(cls, value):
         obj = object.__new__(cls)
         obj._value_ = value
         # Mark internal options
-        if value in [3, 5]:  # L11_UPDATED and J19_UPDATED
+        if value in [3, 5, 6]:  # L11_UPDATED and hidden detailed variants
             obj._internal = True
         else:
             obj._internal = False
@@ -350,6 +415,24 @@ class WaterUseMethod(Enum):
         return str(self.value)
 
 
+class LAIMethod(Enum):
+    """
+    Method for determining leaf area index (LAI).
+
+    0: OBSERVED - Uses observed LAI values from the forcing file (lai column); the same value is applied to every vegetation class each day, and every timestep must carry a non-missing, non-negative observation. The -999 missing sentinel (and other negative placeholders) is not permitted on this path. Genuine zero observations are honoured.
+    1: MODELLED - LAI modelled internally from growing-degree-day (GDD) and senescence-degree-day (SDD) thresholds.
+    """
+
+    OBSERVED = 0
+    MODELLED = 1
+
+    def __int__(self):
+        return self.value
+
+    def __repr__(self):
+        return str(self.value)
+
+
 class RSLMethod(Enum):
     """
     Roughness Sublayer (RSL) method for calculating near-surface meteorological diagnostics (2m temperature, 2m humidity, 10m wind speed).
@@ -374,12 +457,12 @@ class FAIMethod(Enum):
     """
     Method for calculating frontal area index (FAI) - the ratio of frontal area to plan area.
 
-    0: USE_PROVIDED - Use FAI values provided in site parameters (FAIBldg, FAIEveTree, FAIDecTree)
-    1: SIMPLE_SCHEME - Calculate FAI using simple scheme based on surface fractions and heights (see issue #192)
+    0: OBSERVED - Use FAI values provided in site parameters (FAIBldg, FAIEveTree, FAIDecTree)
+    1: MODELLED - Calculate FAI using simple scheme based on surface fractions and heights (see issue #192)
     """
 
-    USE_PROVIDED = 0  # Use FAI values from site parameters
-    SIMPLE_SCHEME = 1  # Calculate FAI using simple scheme (sqrt(fr)*h for buildings, empirical for trees)
+    OBSERVED = 0  # Use FAI values from site parameters
+    MODELLED = 1  # Calculate FAI using simple scheme (sqrt(fr)*h for buildings, empirical for trees)
 
     def __new__(cls, value):
         obj = object.__new__(cls)
@@ -446,6 +529,12 @@ class StebbsMethod(Enum):
     0: NONE - STEBBS calculations disabled
     1: DEFAULT - STEBBS enabled with default parameters
     2: PROVIDED - STEBBS enabled with user-specified parameters
+
+    Retained for the integer DataFrame-column semantics (the ``stebbsmethod``
+    column the Fortran bridge reads). On the YAML / data-model surface this
+    tri-state is split into ``stebbs.enabled`` (bool) and ``stebbs.parameters``
+    (StebbsParameterSource); the two compose back to this integer code via
+    ``to_df_state`` / decompose on ``from_df_state`` (gh#1456).
     """
 
     NONE = 0
@@ -459,18 +548,64 @@ class StebbsMethod(Enum):
         return str(self.value)
 
 
+class StebbsParameterSource(Enum):
+    """
+    Source of STEBBS parameters when STEBBS is enabled (``stebbs.enabled=true``).
+
+    Only consulted when STEBBS is enabled; ignored otherwise. The values equal
+    the non-zero ``StebbsMethod`` codes so the composed ``stebbsmethod`` column
+    is simply ``int(parameters)`` whenever STEBBS is enabled (gh#1456).
+
+    1: DEFAULT - STEBBS uses default parameters
+    2: PROVIDED - STEBBS uses user-specified parameters
+    """
+
+    DEFAULT = 1
+    PROVIDED = 2
+
+    def __int__(self):
+        return self.value
+
+    def __repr__(self):
+        return str(self.value)
+
+
 class RCMethod(Enum):
     """
-    Method to split building envelope heat capacity in STEBBS.
+    Method to determine the two weighting factors (wall_outer_heat_capacity_fraction and roof_outer_heat_capacity_fraction) splitting heat capacity of building envelope into two nodes in STEBBS.
 
-    0: NONE - No heat capacity splitting applied
-    1: PROVIDED - Use user defined value (fractional x1) between 0 and 1
-    2: PARAMETERISE - Use building material thermal property to parameterise the weighting factor x1
+    Exposed on the YAML / data-model surface as ``stebbs.capacitance`` (the
+    field formerly named ``outer_cap_fraction``, gh#1456). The ``rcmethod``
+    DataFrame column the Fortran bridge reads is unchanged.
+
+    0: DEFAULT - Default value of 0.5 is used
+    1: PROVIDED - Use user defined value (wall_outer_heat_capacity_fraction and roof_outer_heat_capacity_fraction) between 0 and 1
+    2: PARAMETERISE - Use building material thermal property to parameterise the weighting factor
     """
 
-    NONE = 0
+    DEFAULT = 0
     PROVIDED = 1
     PARAMETERISE = 2
+
+    def __int__(self):
+        return self.value
+
+    def __repr__(self):
+        return str(self.value)
+
+
+class SetpointMethod(Enum):
+    """
+    Method to determine the approach of space heating/cooling setpoints in STEBBS.
+
+    0: Constant - Use the user-provided heating_setpoint_temperature and cooling_setpoint_temperature throughout the day.
+    1: Dependent - Use the user-provided setpoints; but it depends on occupants activity status and use unrealistic switch-off setpoints when occupant is inactive.
+    2: Scheduled - Use the user-provided heating_setpoint_temperature_profile and cooling_setpoint_temperature_profile.
+    """
+
+    CONSTANT = 0
+    DEPENDENT = 1
+    SCHEDULED = 2
 
     def __int__(self):
         return self.value
@@ -485,6 +620,78 @@ class SnowUse(Enum):
 
     0: DISABLED - Snow processes not included
     1: ENABLED - Snow accumulation, melt, and albedo effects included
+    """
+
+    DISABLED = 0
+    ENABLED = 1
+
+    def __int__(self):
+        return self.value
+
+    def __repr__(self):
+        return str(self.value)
+
+
+class SameAlbedoWall(Enum):
+    """
+    Controls assumption of same albedoes for walls.
+
+    0: OFF
+    1: ON
+    """
+
+    DISABLED = 0
+    ENABLED = 1
+
+    def __int__(self):
+        return self.value
+
+    def __repr__(self):
+        return str(self.value)
+
+
+class SameAlbedoRoof(Enum):
+    """
+    Controls assumption of same albedoes for roofs.
+
+    0: OFF
+    1: ON
+    """
+
+    DISABLED = 0
+    ENABLED = 1
+
+    def __int__(self):
+        return self.value
+
+    def __repr__(self):
+        return str(self.value)
+
+
+class SameEmissivityWall(Enum):
+    """
+    Controls assumption of same emissivities for walls.
+
+    0: OFF
+    1: ON
+    """
+
+    DISABLED = 0
+    ENABLED = 1
+
+    def __int__(self):
+        return self.value
+
+    def __repr__(self):
+        return str(self.value)
+
+
+class SameEmissivityRoof(Enum):
+    """
+    Controls assumption of same emissivities for roofs.
+
+    0: OFF
+    1: ON
     """
 
     DISABLED = 0
@@ -523,16 +730,114 @@ for enum_class in [
     StabilityMethod,
     SMDMethod,
     WaterUseMethod,
+    LAIMethod,
     RSLMethod,
     FAIMethod,
     RSLLevel,
     GSModel,
     StebbsMethod,
+    StebbsParameterSource,
     RCMethod,
+    SetpointMethod,
     SnowUse,
     OhmIncQf,
+    SameAlbedoWall,
+    SameAlbedoRoof,
+    SameEmissivityWall,
+    SameEmissivityRoof,
 ]:
     yaml.add_representer(enum_class, yaml_equivalent_of_default)
+
+
+class StebbsPhysics(BaseModel):
+    """
+    STEBBS (Surface Temperature Energy Balance Based Scheme) physics switches.
+
+    Groups the six STEBBS-scoped method switches that previously sat flat on
+    ``model.physics`` (gh#1456). The master on/off toggle is split into
+    ``enabled`` (bool) and ``parameters`` (StebbsParameterSource); the two
+    compose back to the single legacy ``stebbsmethod`` integer column on
+    ``ModelPhysics.to_df_state`` and are decomposed on ``from_df_state``. The
+    DataFrame / Fortran column names are unchanged.
+    """
+
+    model_config = ConfigDict(title="STEBBS Physics Methods")
+
+    enabled: FlexibleRefValue(bool) = Field(
+        default=False,
+        description=(
+            "Master on/off switch for STEBBS. When false, STEBBS calculations "
+            "are disabled and `parameters` is ignored."
+        ),
+        json_schema_extra={
+            "unit": "dimensionless",
+            "provides_to": ["stebbs.capacitance"],
+            "note": "Enables the STEBBS branch; capacitance/RC options are only meaningful when STEBBS is enabled.",
+        },
+    )
+    parameters: FlexibleRefValue(StebbsParameterSource) = Field(
+        default=StebbsParameterSource.DEFAULT,
+        description=_enum_description(StebbsParameterSource),
+        json_schema_extra={"unit": "dimensionless"},
+    )
+    capacitance: FlexibleRefValue(RCMethod) = Field(
+        default=RCMethod.DEFAULT,
+        description=_enum_description(RCMethod),
+        json_schema_extra={
+            "unit": "dimensionless",
+            "depends_on": ["stebbs.enabled"],
+            "note": "Only meaningful when STEBBS is enabled; controls building-envelope heat-capacity splitting.",
+        },
+    )
+    setpoint: FlexibleRefValue(SetpointMethod) = Field(
+        default=SetpointMethod.CONSTANT,
+        description=_enum_description(SetpointMethod),
+        json_schema_extra={"unit": "dimensionless"},
+    )
+    same_albedo_wall: FlexibleRefValue(SameAlbedoWall) = Field(
+        default=SameAlbedoWall.DISABLED,
+        description=_enum_description(SameAlbedoWall),
+        json_schema_extra={"unit": "dimensionless"},
+    )
+    same_albedo_roof: FlexibleRefValue(SameAlbedoRoof) = Field(
+        default=SameAlbedoRoof.DISABLED,
+        description=_enum_description(SameAlbedoRoof),
+        json_schema_extra={"unit": "dimensionless"},
+    )
+    same_emissivity_wall: FlexibleRefValue(SameEmissivityWall) = Field(
+        default=SameEmissivityWall.DISABLED,
+        description=_enum_description(SameEmissivityWall),
+        json_schema_extra={"unit": "dimensionless"},
+    )
+    same_emissivity_roof: FlexibleRefValue(SameEmissivityRoof) = Field(
+        default=SameEmissivityRoof.DISABLED,
+        description=_enum_description(SameEmissivityRoof),
+        json_schema_extra={"unit": "dimensionless"},
+    )
+
+    ref: Optional[Reference] = None
+
+    @model_validator(mode="before")
+    @classmethod
+    def _coerce_public_key_aliases(cls, values):
+        if isinstance(values, dict):
+            return fold_stebbs_public_key_aliases(values, cls.__name__)
+        return values
+
+    @field_validator("enabled", "parameters", mode="after")
+    @classmethod
+    def _require_master_switch_values(cls, value):
+        inner = value.value if isinstance(value, RefValue) else value
+        if inner is None:
+            raise ValueError("STEBBS enabled/parameters switches cannot be null")
+        return value
+
+    @field_validator(*STEBBS_PHYSICS_ENUM_FIELDS, mode="before")
+    @classmethod
+    def _coerce_readable_stebbs_physics(cls, value, info):
+        # Accept readable method tokens under the nested STEBBS surface while
+        # keeping the canonical stored shape as the existing enum code.
+        return coerce_nested_to_flat(info.field_name, value)
 
 
 class ModelPhysics(BaseModel):
@@ -540,145 +845,255 @@ class ModelPhysics(BaseModel):
     Model physics configuration options.
     """
 
-    model_config = ConfigDict(title="Physics Methods")
+    model_config = ConfigDict(title="Physics Methods", validate_assignment=True)
 
-    netradiationmethod: FlexibleRefValue(NetRadiationMethod) = Field(
+    @model_validator(mode="before")
+    @classmethod
+    def _rename_physics_fields(cls, values):
+        if isinstance(values, dict):
+            values = fold_public_physics_key_aliases(values, cls.__name__)
+            # Cat 1 first (fused -> snake_case with suffix), then Cat 2 + 3
+            # (suffix drop + abbreviation expansion). Chaining lets a single
+            # YAML carrying either legacy shape land on the final name.
+            values = apply_field_renames(values, MODELPHYSICS_RENAMES, cls.__name__)
+            values = apply_field_renames(
+                values, MODELPHYSICS_SUFFIX_RENAMES, cls.__name__
+            )
+            # gh#1483: expose OHMIncQF under the storage_heat selector while
+            # preserving the flat field used by the internal/Fortran state.
+            values = fold_storage_heat_ohm_inc_qf(values, cls.__name__)
+            # gh#1456: fold the legacy flat STEBBS switches into the nested
+            # `stebbs` object. Runs after the key renames so a YAML carrying
+            # either fused or snake_case legacy spellings lands here. The fold
+            # subsumes the dev12 `outer_cap_fraction`/`rcmethod` -> `capacitance`
+            # Column D rename by relocating it to `stebbs.capacitance`.
+            values = fold_stebbs_physics(values, cls.__name__)
+        return values
+
+    @field_validator(*MODEL_PHYSICS_ENUM_FIELDS, mode="before")
+    @classmethod
+    def _coerce_nested_physics(cls, value, info):
+        # Widens accepted input before FlexibleRefValue resolves:
+        # orthogonal physics tokens, family tags, and human-readable names
+        # collapse to the flat `{value: N}` canonical shape.
+        value = coerce_orthogonal_to_flat(info.field_name, value)
+        return coerce_nested_to_flat(info.field_name, value)
+
+    net_radiation: FlexibleRefValue(NetRadiationMethod) = Field(
         default=NetRadiationMethod.LDOWN_AIR,
         description=_enum_description(NetRadiationMethod),
-        json_schema_extra={"unit": "dimensionless"},
+        json_schema_extra={
+            "unit": "dimensionless",
+            "depends_on": ["snow_use"],
+            "provides_to": ["storage_heat"],
+            "note": "Values above 1000 activate SPARTACUS-Surface and provide facet radiation required by EHC storage heat.",
+        },
     )
-    emissionsmethod: FlexibleRefValue(EmissionsMethod) = Field(
+    emissions: FlexibleRefValue(EmissionsMethod) = Field(
         default=EmissionsMethod.J11,
         description=_enum_description(EmissionsMethod),
-        json_schema_extra={"unit": "dimensionless"},
+        json_schema_extra={
+            "unit": "dimensionless",
+            "provides_to": ["ohm_inc_qf", "energy_balance"],
+            "note": "Determines anthropogenic heat flux (QF) used by the energy balance and OHM QF-inclusion switch.",
+        },
     )
-    storageheatmethod: FlexibleRefValue(StorageHeatMethod) = Field(
+    storage_heat: FlexibleRefValue(StorageHeatMethod) = Field(
         default=StorageHeatMethod.OHM_WITHOUT_QF,
         description=_enum_description(StorageHeatMethod),
-        json_schema_extra={"unit": "dimensionless"},
+        json_schema_extra={
+            "unit": "dimensionless",
+            "depends_on": ["net_radiation", "ohm_inc_qf", "snow_use", "stebbs"],
+            "provides_to": ["energy_balance"],
+            "note": "EHC (5) requires SPARTACUS net radiation; STEBBS storage heat (7) requires STEBBS enabled; OHM-like paths use OhmIncQf.",
+        },
     )
-    ohmincqf: FlexibleRefValue(OhmIncQf) = Field(
+    ohm_inc_qf: FlexibleRefValue(OhmIncQf) = Field(
         default=OhmIncQf.EXCLUDE,
         description=_enum_description(OhmIncQf),
-        json_schema_extra={"unit": "dimensionless"},
+        json_schema_extra={
+            "unit": "dimensionless",
+            "depends_on": ["emissions", "storage_heat"],
+            "provides_to": ["storage_heat"],
+            "note": "Controls whether QF from emissions is added to Q* in OHM-based storage heat calculations.",
+        },
     )
-    roughlenmommethod: FlexibleRefValue(MomentumRoughnessMethod) = Field(
+    roughness_length_momentum: FlexibleRefValue(MomentumRoughnessMethod) = Field(
         default=MomentumRoughnessMethod.VARIABLE,
         description=_enum_description(MomentumRoughnessMethod),
-        json_schema_extra={"unit": "dimensionless"},
+        json_schema_extra={
+            "unit": "dimensionless",
+            "provides_to": ["roughness_length_heat", "stability"],
+            "note": "Calculates momentum roughness length (z0m), which feeds heat roughness length and stability corrections.",
+        },
     )
-    roughlenheatmethod: FlexibleRefValue(HeatRoughnessMethod) = Field(
+    roughness_length_heat: FlexibleRefValue(HeatRoughnessMethod) = Field(
         default=HeatRoughnessMethod.KAWAI,
         description=_enum_description(HeatRoughnessMethod),
-        json_schema_extra={"unit": "dimensionless"},
+        json_schema_extra={
+            "unit": "dimensionless",
+            "depends_on": ["roughness_length_momentum"],
+            "provides_to": ["stability"],
+            "note": "Calculates heat roughness length (z0h) from z0m for stability corrections.",
+        },
     )
-    stabilitymethod: FlexibleRefValue(StabilityMethod) = Field(
+    stability: FlexibleRefValue(StabilityMethod) = Field(
         default=StabilityMethod.CAMPBELL_NORMAN,
         description=_enum_description(StabilityMethod),
         json_schema_extra={
             "unit": "dimensionless",
-            "provides_to": ["rslmethod"],
-            "note": "Provides stability correction functions used by rslmethod calculations",
+            "provides_to": [
+                "roughness_length_momentum",
+                "roughness_length_heat",
+                "roughness_sublayer",
+            ],
+            "note": "Provides stability correction functions used by roughness-length and roughness_sublayer calculations.",
         },
     )
-    smdmethod: FlexibleRefValue(SMDMethod) = Field(
+    soil_moisture_deficit: FlexibleRefValue(SMDMethod) = Field(
         default=SMDMethod.MODELLED,
         description=_enum_description(SMDMethod),
         json_schema_extra={"unit": "dimensionless"},
     )
-    waterusemethod: FlexibleRefValue(WaterUseMethod) = Field(
+    water_use: FlexibleRefValue(WaterUseMethod) = Field(
         default=WaterUseMethod.MODELLED,
         description=_enum_description(WaterUseMethod),
         json_schema_extra={"unit": "dimensionless"},
     )
-    rslmethod: FlexibleRefValue(RSLMethod) = Field(
+    laimethod: FlexibleRefValue(LAIMethod) = Field(
+        default=LAIMethod.MODELLED,
+        description=_enum_description(LAIMethod),
+        json_schema_extra={
+            "unit": "dimensionless",
+            "note": "Set to 0 (OBSERVED) to prescribe LAI from the lai column of the meteorological forcing.",
+        },
+    )
+    roughness_sublayer: FlexibleRefValue(RSLMethod) = Field(
         default=RSLMethod.VARIABLE,
         description=_enum_description(RSLMethod),
         json_schema_extra={
             "unit": "dimensionless",
-            "depends_on": ["stabilitymethod"],
-            "provides_to": ["rsllevel"],
+            "depends_on": ["stability"],
+            "provides_to": ["roughness_sublayer_level"],
             "note": "Determines how near-surface values (2m temp, 10m wind) are calculated from forcing data",
         },
     )
-    faimethod: FlexibleRefValue(FAIMethod) = Field(
-        default=FAIMethod.USE_PROVIDED,
+    frontal_area_index: FlexibleRefValue(FAIMethod) = Field(
+        default=FAIMethod.OBSERVED,
         description=_enum_description(FAIMethod),
         json_schema_extra={"unit": "dimensionless"},
     )
-    rsllevel: FlexibleRefValue(RSLLevel) = Field(
+    roughness_sublayer_level: FlexibleRefValue(RSLLevel) = Field(
         default=RSLLevel.NONE,
         description=_enum_description(RSLLevel),
         json_schema_extra={
             "unit": "dimensionless",
-            "depends_on": ["rslmethod"],
-            "provides_to": ["gsmodel"],
-            "note": "Uses near-surface values from rslmethod to modify vegetation processes",
+            "depends_on": ["roughness_sublayer"],
+            "provides_to": ["surface_conductance"],
+            "note": "Uses near-surface values from roughness_sublayer to modify vegetation processes",
         },
     )
-    gsmodel: FlexibleRefValue(GSModel) = Field(
+    surface_conductance: FlexibleRefValue(GSModel) = Field(
         default=GSModel.WARD,
         description=_enum_description(GSModel),
         json_schema_extra={
             "unit": "dimensionless",
-            "depends_on": ["rsllevel"],
-            "note": "Stomatal conductance model influenced by rsllevel adjustments",
+            "depends_on": ["roughness_sublayer_level"],
+            "note": "Stomatal conductance model influenced by roughness_sublayer_level adjustments",
         },
     )
-    snowuse: FlexibleRefValue(SnowUse) = Field(
+    snow_use: FlexibleRefValue(SnowUse) = Field(
         default=SnowUse.DISABLED,
         description=_enum_description(SnowUse),
-        json_schema_extra={"unit": "dimensionless"},
+        json_schema_extra={
+            "unit": "dimensionless",
+            "provides_to": [
+                "net_radiation",
+                "storage_heat",
+                "roughness_sublayer_level",
+            ],
+            "note": "Controls snow processes that affect radiation dispatch, storage heat, and near-surface conductance adjustments.",
+        },
     )
-    stebbsmethod: FlexibleRefValue(StebbsMethod) = Field(
-        default=StebbsMethod.NONE,
-        description=_enum_description(StebbsMethod),
-        json_schema_extra={"unit": "dimensionless"},
+    stebbs: StebbsPhysics = Field(
+        default_factory=StebbsPhysics,
+        description=(
+            "STEBBS physics switches (gh#1456): master toggle (enabled + "
+            "parameters), capacitance method, setpoint method, and the "
+            "same-albedo / same-emissivity wall/roof switches."
+        ),
+        json_schema_extra={
+            "depends_on": ["storage_heat"],
+            "provides_to": ["stebbs.capacitance"],
+            "note": "When storage_heat selects STEBBS (7), this block enables and parameterises the STEBBS contribution to storage heat.",
+        },
     )
-    rcmethod: FlexibleRefValue(RCMethod) = Field(
-        default=RCMethod.NONE,
-        description=_enum_description(RCMethod),
-        json_schema_extra={"unit": "dimensionless"},
-    )
+
     ref: Optional[Reference] = None
 
     # We then need to set to 0 (or None) all the CO2-related parameters or rules
     # in the code and return them accordingly in the yml file.
 
+    # (Python field name, DataFrame column name for Fortran bridge)
+    # DataFrame columns keep the legacy fused spellings -- the Fortran side
+    # reads state by positional/fused keys. Only the left column moves.
+    _FIELD_COL_PAIRS = [
+        ("net_radiation", "netradiationmethod"),
+        ("emissions", "emissionsmethod"),
+        ("storage_heat", "storageheatmethod"),
+        ("ohm_inc_qf", "ohmincqf"),
+        ("roughness_length_momentum", "roughlenmommethod"),
+        ("roughness_length_heat", "roughlenheatmethod"),
+        ("stability", "stabilitymethod"),
+        ("soil_moisture_deficit", "smdmethod"),
+        ("water_use", "waterusemethod"),
+        ("laimethod", "laimethod"),
+        ("roughness_sublayer", "rslmethod"),
+        ("frontal_area_index", "faimethod"),
+        ("roughness_sublayer_level", "rsllevel"),
+        ("surface_conductance", "gsmodel"),
+        ("snow_use", "snowuse"),
+    ]
+
+    # (StebbsPhysics member, DataFrame column name). The six STEBBS switches
+    # are nested under `self.stebbs` (gh#1456) but keep their fused legacy
+    # column names so the Fortran bridge is untouched. `stebbsmethod` is
+    # composed from the (enabled, parameters) pair below, not listed here.
+    _STEBBS_FIELD_COL_PAIRS = [
+        ("capacitance", "rcmethod"),
+        ("setpoint", "setpointmethod"),
+        ("same_albedo_wall", "same_albedo_wall"),
+        ("same_albedo_roof", "same_albedo_roof"),
+        ("same_emissivity_wall", "same_emissivity_wall"),
+        ("same_emissivity_roof", "same_emissivity_roof"),
+    ]
+
     def to_df_state(self, grid_id: int) -> pd.DataFrame:
         """Convert model physics properties to DataFrame state format."""
-        df_state = init_df_state(grid_id)
-
-        # Helper function to set values in DataFrame
-        def set_df_value(col_name: str, value: float):
-            idx_str = "0"
-            if (col_name, idx_str) not in df_state.columns:
-                # df_state[(col_name, idx_str)] = np.nan
-                df_state[(col_name, idx_str)] = None
+        cols = {("gridiv", "0"): grid_id}
+        for field_name, col_name in self._FIELD_COL_PAIRS:
+            value = getattr(self, field_name)
             val = value.value if isinstance(value, RefValue) else value
-            df_state.at[grid_id, (col_name, idx_str)] = int(val)
+            cols[(col_name, "0")] = int(val)
 
-        list_attr = [
-            "netradiationmethod",
-            "emissionsmethod",
-            "storageheatmethod",
-            "ohmincqf",
-            "roughlenmommethod",
-            "roughlenheatmethod",
-            "stabilitymethod",
-            "smdmethod",
-            "waterusemethod",
-            "rslmethod",
-            "faimethod",
-            "rsllevel",
-            "gsmodel",
-            "snowuse",
-            "stebbsmethod",
-            "rcmethod",
-        ]
-        for attr in list_attr:
-            set_df_value(attr, getattr(self, attr))
-        return df_state
+        # gh#1456: compose the legacy `stebbsmethod` integer column from the
+        # nested (enabled, parameters) pair, and write the remaining STEBBS
+        # switches from their nested members.
+        stebbs = self.stebbs
+        enabled = stebbs.enabled
+        enabled = enabled.value if isinstance(enabled, RefValue) else enabled
+        parameters = stebbs.parameters
+        parameters = (
+            parameters.value if isinstance(parameters, RefValue) else parameters
+        )
+        cols[("stebbsmethod", "0")] = 0 if not bool(enabled) else int(parameters)
+
+        for member_name, col_name in self._STEBBS_FIELD_COL_PAIRS:
+            value = getattr(stebbs, member_name)
+            val = value.value if isinstance(value, RefValue) else value
+            cols[(col_name, "0")] = int(val)
+
+        return df_from_cols(cols, index=pd.Index([grid_id], name="grid"))
 
     @classmethod
     def from_df_state(cls, df: pd.DataFrame, grid_id: int) -> "ModelPhysics":
@@ -692,10 +1107,9 @@ class ModelPhysics(BaseModel):
         Returns:
             ModelPhysics: Instance of ModelPhysics
         """
+        properties: dict = {}
 
-        properties = {}
-
-        list_attr = [
+        required_attrs = [
             "netradiationmethod",
             "emissionsmethod",
             "storageheatmethod",
@@ -710,15 +1124,72 @@ class ModelPhysics(BaseModel):
             "rsllevel",
             "gsmodel",
             "snowuse",
-            "stebbsmethod",
-            "rcmethod",
         ]
 
-        for attr in list_attr:
+        # New options: optional in legacy DataFrames, default if missing
+        optional_new_attrs_with_defaults = {
+            "laimethod": LAIMethod.MODELLED,
+        }
+
+        for attr in required_attrs:
             try:
                 properties[attr] = RefValue(int(df.loc[grid_id, (attr, "0")]))
             except KeyError:
                 raise ValueError(f"Missing attribute '{attr}' in the DataFrame")
+
+        # Optional new attributes
+        for attr, default_enum in optional_new_attrs_with_defaults.items():
+            try:
+                value = df.loc[grid_id, (attr, "0")]
+                properties[attr] = RefValue(int(value))
+            except KeyError:
+                properties[attr] = RefValue(int(default_enum))
+
+        # gh#1456 / gh#1500: reconstruct the nested StebbsPhysics from the
+        # unchanged fused columns. A DataFrame predating STEBBS lacks the
+        # `stebbsmethod` column entirely (the premise of legacy-table
+        # conversion), so default it to 0 (STEBBS disabled) -- consistent with
+        # `dict_RunControl_default` and the other newer STEBBS columns below --
+        # rather than aborting. A present-but-invalid value is still rejected.
+        try:
+            stebbsmethod = int(df.loc[grid_id, ("stebbsmethod", "0")])
+        except KeyError:
+            stebbsmethod = int(StebbsMethod.NONE)
+        if stebbsmethod not in (0, 1, 2):
+            raise ValueError(
+                f"Invalid stebbsmethod value {stebbsmethod}; expected 0, 1, or 2"
+            )
+        # Decompose: 0 -> (disabled, default); 1 -> (enabled, default);
+        # 2 -> (enabled, provided).
+        stebbs_props: dict = {
+            "enabled": RefValue(stebbsmethod != 0),
+            "parameters": RefValue(
+                StebbsParameterSource.PROVIDED
+                if stebbsmethod == 2
+                else StebbsParameterSource.DEFAULT
+            ),
+        }
+        stebbs_col_defaults = {
+            "capacitance": ("rcmethod", RCMethod.DEFAULT),
+            "setpoint": ("setpointmethod", SetpointMethod.CONSTANT),
+            "same_albedo_wall": ("same_albedo_wall", SameAlbedoWall.DISABLED),
+            "same_albedo_roof": ("same_albedo_roof", SameAlbedoRoof.DISABLED),
+            "same_emissivity_wall": (
+                "same_emissivity_wall",
+                SameEmissivityWall.DISABLED,
+            ),
+            "same_emissivity_roof": (
+                "same_emissivity_roof",
+                SameEmissivityRoof.DISABLED,
+            ),
+        }
+        for member_name, (col_name, default_enum) in stebbs_col_defaults.items():
+            try:
+                value = df.loc[grid_id, (col_name, "0")]
+                stebbs_props[member_name] = RefValue(int(value))
+            except KeyError:
+                stebbs_props[member_name] = RefValue(int(default_enum))
+        properties["stebbs"] = StebbsPhysics(**stebbs_props)
 
         return cls(**properties)
 
@@ -738,10 +1209,17 @@ class OutputFormat(Enum):
         return self.value
 
 
-class OutputConfig(BaseModel):
-    """Configuration for model output files."""
+class OutputControl(BaseModel):
+    """Configuration block for model output files.
 
-    model_config = ConfigDict(title="Output Configuration")
+    Renamed from ``OutputConfig`` and lifted out of the legacy
+    ``Union[str, OutputConfig]`` ``output_file`` field in gh#1372 follow-up,
+    so the ``model.control`` surface is uniform with the new ``forcing:``
+    sub-object. The legacy string form (silently ignored since 2025.10.15)
+    is dropped.
+    """
+
+    model_config = ConfigDict(title="Output Control")
 
     format: OutputFormat = Field(
         default=OutputFormat.TXT,
@@ -755,10 +1233,29 @@ class OutputConfig(BaseModel):
         default=None,
         description="List of output groups to save (only applies to txt format). Available groups: 'SUEWS', 'DailyState', 'snow', 'ESTM', 'RSL', 'BL', 'debug'. If not specified, defaults to ['SUEWS', 'DailyState']",
     )
-    path: Optional[str] = Field(
+    dir: Optional[str] = Field(
         default=None,
-        description="Output directory path where result files will be saved. If not specified, defaults to current working directory.",
+        description="Output directory where result files will be saved. If not specified, defaults to the current working directory.",
     )
+
+    @property
+    def path(self):
+        """Deprecated alias for ``OutputControl.dir``.
+
+        External Python consumers (UMEP postprocessor, etc.) that still
+        read ``config.model.control.output_file.path`` keep working
+        through the gh#1372 migration window. Scheduled for removal in
+        2026.6.
+        """
+        import warnings
+
+        warnings.warn(
+            "`OutputControl.path` is deprecated; use `OutputControl.dir` "
+            "instead. Scheduled for removal in 2026.6.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        return self.dir
 
     @field_validator("groups")
     def validate_groups(cls, v):
@@ -773,24 +1270,130 @@ class OutputConfig(BaseModel):
         return v
 
 
+class ForcingControl(BaseModel):
+    """Configuration block for meteorological forcing input.
+
+    Created in gh#1372 so future forcing-related fields (sub-hourly
+    disaggregation, gh#1373; resampling policy; etc.) have a stable
+    home rather than accreting flat ``forcing_*`` siblings under
+    :class:`ModelControl`.
+    """
+
+    model_config = ConfigDict(title="Forcing Control")
+
+    file: Union[FlexibleRefValue(str), FlexibleRefValue(List[str])] = Field(
+        default="forcing.txt",
+        description=(
+            "Path(s) to meteorological forcing data file(s). This can be "
+            "either: (1) A single file path as a string (e.g., 'forcing.txt'), "
+            "or (2) A list of file paths (e.g., ['forcing_2020.txt', "
+            "'forcing_2021.txt']). When multiple files are provided, they "
+            "are concatenated in chronological order. For details, see "
+            ":ref:`met_input`."
+        ),
+    )
+
+
 class ModelControl(BaseModel):
-    model_config = ConfigDict(title="Model Control")
+    model_config = ConfigDict(title="Model Control", validate_assignment=True)
+
+    @model_validator(mode="before")
+    @classmethod
+    def _coerce_legacy_forcing_file(cls, values):
+        """Accept legacy ``forcing_file`` input by moving it under ``forcing.file``."""
+        if not isinstance(values, dict) or "forcing_file" not in values:
+            return values
+
+        values = values.copy()
+        legacy_forcing_file = values.pop("forcing_file")
+        forcing = values.get("forcing")
+
+        if isinstance(forcing, dict):
+            forcing = forcing.copy()
+            forcing.setdefault("file", legacy_forcing_file)
+        else:
+            forcing = {"file": legacy_forcing_file}
+        values["forcing"] = forcing
+        return values
+
+    @model_validator(mode="before")
+    @classmethod
+    def _coerce_legacy_output_file(cls, values):
+        """Accept legacy ``output_file`` input by lifting it under ``output``.
+
+        Three input shapes are handled:
+
+        * dict form ``output_file: {...}`` is moved to ``output: {...}`` and
+          its inner ``path`` field is renamed to ``dir``;
+        * string form ``output_file: 'name.txt'`` is dropped (the string form
+          has been silently ignored since 2025.10.15);
+        * if both ``output_file`` and ``output`` are present, ``output`` wins
+          and the legacy key is dropped.
+
+        A one-shot ``DeprecationWarning`` fires whenever ``output_file`` is
+        encountered so users see their migration target.
+        """
+        import warnings
+
+        if not isinstance(values, dict) or "output_file" not in values:
+            return values
+
+        values = values.copy()
+        legacy = values.pop("output_file")
+
+        if "output" in values:
+            warnings.warn(
+                "Both `output_file` and `output` were supplied; the legacy "
+                "`output_file` value is ignored.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+            return values
+
+        if isinstance(legacy, dict):
+            migrated = {k: v for k, v in legacy.items() if k != "path"}
+            if "path" in legacy and "dir" not in migrated:
+                migrated["dir"] = legacy["path"]
+            values["output"] = migrated
+            warnings.warn(
+                "`model.control.output_file` is deprecated; lifted under "
+                "`model.control.output` (path -> dir).",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+            return values
+
+        # Legacy string form: silently dropped at runtime since 2025.10.15;
+        # we now warn explicitly.
+        warnings.warn(
+            "`model.control.output_file` string form is ignored; use the "
+            "`output:` sub-object instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        return values
 
     tstep: FlexibleRefValue(int) = Field(
         default=300, description="Time step in seconds for model calculations"
     )
-    forcing_file: Union[FlexibleRefValue(str), FlexibleRefValue(List[str])] = Field(
-        default="forcing.txt",
-        description="Path(s) to meteorological forcing data file(s). This can be either: (1) A single file path as a string (e.g., 'forcing.txt'), or (2) A list of file paths (e.g., ['forcing_2020.txt', 'forcing_2021.txt', 'forcing_2022.txt']). When multiple files are provided, they will be automatically concatenated in chronological order. The forcing data contains time-series meteorological measurements that drive SUEWS simulations. For detailed information about required variables, file format, and data preparation guidelines, see :ref:`met_input`.",
+    forcing: ForcingControl = Field(
+        default_factory=ForcingControl,
+        description="Meteorological forcing configuration (file path(s) and related options).",
     )
     kdownzen: Optional[FlexibleRefValue(int)] = Field(
         default=None,
         description="Use zenithal correction for downward shortwave radiation",
         json_schema_extra={"internal_only": True},
     )
-    output_file: Union[str, OutputConfig] = Field(
-        default="output.txt",
-        description="Output file configuration. DEPRECATED: String values are ignored and will issue a warning. Please use an OutputConfig object specifying format ('txt' or 'parquet'), frequency (seconds, must be multiple of tstep), and groups to save (for txt format only). Example: {'format': 'parquet', 'freq': 3600} or {'format': 'txt', 'freq': 1800, 'groups': ['SUEWS', 'DailyState', 'ESTM']}. For detailed information about output variables and file structure, see :ref:`output_files`.",
+    output: OutputControl = Field(
+        default_factory=OutputControl,
+        description=(
+            "Output configuration: file format ('txt' or 'parquet'), "
+            "frequency (seconds, must be a multiple of tstep), groups "
+            "(txt only) and the output directory ('dir'). For detailed "
+            "information about output variables and file structure, see "
+            ":ref:`output_files`."
+        ),
     )
     # daylightsaving_method: int
     diagnose: FlexibleRefValue(int) = Field(
@@ -809,6 +1412,53 @@ class ModelControl(BaseModel):
 
     ref: Optional[Reference] = None
 
+    @property
+    def forcing_file(self):
+        """Backward-compatible alias for ``model.control.forcing.file``."""
+        return self.forcing.file
+
+    @forcing_file.setter
+    def forcing_file(self, value):
+        self.forcing.file = ForcingControl(file=value).file
+
+    @property
+    def output_file(self):
+        """Deprecated alias for ``model.control.output``.
+
+        External Python consumers (UMEP postprocessor, etc.) that still
+        read ``config.model.control.output_file`` keep working through
+        the gh#1372 migration window. Scheduled for removal in 2026.6.
+        """
+        import warnings
+
+        warnings.warn(
+            "`model.control.output_file` is deprecated; read "
+            "`model.control.output` instead. Scheduled for removal in 2026.6.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        return self.output
+
+    @output_file.setter
+    def output_file(self, value):
+        import warnings
+
+        warnings.warn(
+            "`model.control.output_file` is deprecated; set "
+            "`model.control.output` instead. Scheduled for removal in 2026.6.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        if isinstance(value, OutputControl):
+            self.output = value
+        elif isinstance(value, dict):
+            self.output = OutputControl(**value)
+        else:
+            raise TypeError(
+                "`output_file` must be an OutputControl instance or a dict; "
+                f"got {type(value).__name__}."
+            )
+
     @field_validator("tstep", "diagnose", mode="after")
     def validate_int_float(cls, v):
         if isinstance(v, (np.float64, np.float32)):
@@ -819,23 +1469,14 @@ class ModelControl(BaseModel):
 
     def to_df_state(self, grid_id: int) -> pd.DataFrame:
         """Convert model control properties to DataFrame state format."""
-        df_state = init_df_state(grid_id)
-
-        # Helper function to set values in DataFrame
-        def set_df_value(col_name: str, value: float):
-            idx_str = "0"
-            if (col_name, idx_str) not in df_state.columns:
-                # df_state[(col_name, idx_str)] = np.nan
-                df_state[(col_name, idx_str)] = None
-            df_state.at[grid_id, (col_name, idx_str)] = value
-
+        cols = {("gridiv", "0"): grid_id}
         list_attr = ["tstep", "diagnose"]
         for attr in list_attr:
             value = getattr(self, attr)
             # Extract value from RefValue if needed
             val = value.value if isinstance(value, RefValue) else value
-            set_df_value(attr, val)
-        return df_state
+            cols[(attr, "0")] = val
+        return df_from_cols(cols, index=pd.Index([grid_id], name="grid"))
 
     @classmethod
     def from_df_state(cls, df: pd.DataFrame, grid_id: int) -> "ModelControl":
@@ -852,7 +1493,7 @@ class ModelControl(BaseModel):
 
 
 class Model(BaseModel):
-    model_config = ConfigDict(title="Model Configuration")
+    model_config = ConfigDict(title="Model Configuration", validate_assignment=True)
 
     control: ModelControl = Field(
         default_factory=ModelControl,
@@ -865,7 +1506,9 @@ class Model(BaseModel):
 
     def to_df_state(self, grid_id: int) -> pd.DataFrame:
         """Convert model to DataFrame state format"""
-        df_state = init_df_state(grid_id)
+        df_state = df_from_cols(
+            {("gridiv", "0"): grid_id}, index=pd.Index([grid_id], name="grid")
+        )
         df_control = self.control.to_df_state(grid_id)
         df_physics = self.physics.to_df_state(grid_id)
         df_state = pd.concat([df_state, df_control, df_physics], axis=1)

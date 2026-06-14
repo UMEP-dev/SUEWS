@@ -5,8 +5,11 @@ If you want to build SUEWS from source for local use, this guide covers prerequi
 ## Prerequisites
 
 - Python 3.9+
-- `gfortran` compiler
-- [`uv`](https://docs.astral.sh/uv/) (recommended) or `pip`/`conda`/`mamba`
+- `gfortran` compiler (≥ 9.3.0)
+  - macOS: `brew install gcc`
+  - Ubuntu/Debian: `sudo apt-get install gfortran`
+  - Windows (MSYS2 UCRT64): `pacman -S mingw-w64-ucrt-x86_64-gcc-fortran`
+- [`uv`](https://docs.astral.sh/uv/) (recommended) or `pip`
 
 ## Quick Start
 
@@ -28,15 +31,6 @@ make dev                        # Install SUEWS in editable mode
 make test
 ```
 
-### Alternative: Using conda/mamba
-
-```bash
-# Create and activate conda environment
-mamba env create -f env.yml
-mamba activate suews-dev
-make dev
-```
-
 ### Alternative: Using pip directly
 
 ```bash
@@ -54,12 +48,14 @@ pip install -e .
 - `pytest test -m slow -v` - Run slow tests manually
 
 ### Documentation
+- `make docs-setup` - Install docs tooling and strip legacy namespace `.pth` hooks
 - `make docs` - Build HTML documentation
 - `cd docs && make livehtml` - Live-reload development server
 
 ### Maintenance
 - `make clean` - Smart clean (preserves active `.venv`)
 - `make format` - Format Python (ruff) and Fortran (fprettify)
+- `make audit-deps` - Audit dependency advisories and startup hooks
 - `make help` - Show all available commands
 
 ### Common Workflows
@@ -73,6 +69,9 @@ git pull && make dev
 
 # Build and test changes
 make dev && make test
+
+# Build docs (first time needs docs-setup)
+make dev && make docs-setup && make docs
 ```
 
 ## Additional Notes

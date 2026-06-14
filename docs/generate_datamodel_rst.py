@@ -30,6 +30,23 @@ except ImportError:
 class RSTGenerator:
     """Generate RST documentation from extracted model documentation."""
 
+    RELATIONSHIP_REF_TARGETS = frozenset(
+        {
+            "net_radiation",
+            "emissions",
+            "storage_heat",
+            "ohm_inc_qf",
+            "roughness_length_momentum",
+            "roughness_length_heat",
+            "stability",
+            "roughness_sublayer",
+            "roughness_sublayer_level",
+            "surface_conductance",
+            "snow_use",
+            "stebbs",
+        }
+    )
+
     def __init__(self, doc_data: dict[str, Any]):
         """
         Initialize the RST generator with extracted documentation data.
@@ -132,6 +149,9 @@ class RSTGenerator:
             lines.append(description)
             lines.append("")
 
+        if model_name == "ModelPhysics":
+            lines.extend(self._format_modelphysics_selector_guide())
+
         # Add parameters section
         if model_doc.get("fields"):
             lines.append("**Parameters:**")
@@ -143,6 +163,176 @@ class RSTGenerator:
                 lines.append("")  # Blank line between fields
 
         return "\n".join(lines)
+
+    @staticmethod
+    def _format_modelphysics_selector_guide() -> list[str]:
+        """Format public ModelPhysics selector families.
+
+        The generated field list below is extracted from the Pydantic model.
+        This guide documents the public YAML shapes accepted by the validators,
+        including aliases and nested forms that fold to the long-standing
+        DataFrame / Fortran method columns.
+        """
+        return [
+            ".. rubric:: Public selector forms",
+            "",
+            "The scalar ``{value: ...}`` form remains valid for each selector. "
+            "The forms below are the public YAML names and nested families accepted "
+            "by the configuration validators; they are folded to the existing "
+            "method-code fields before SUEWS runs. Registered selector tokens are "
+            "case-insensitive; citation-style choices are shown in their preferred "
+            "case.",
+            "",
+            ".. rubric:: Method dependency graph",
+            "",
+            "The main method interactions are:",
+            "",
+            "- ``snow_use`` -> ``net_radiation`` -> ``storage_heat`` -> ``energy_balance``",
+            "- ``emissions`` -> ``ohm_inc_qf`` -> ``storage_heat``",
+            "- ``storage_heat`` -> ``stebbs`` -> ``stebbs.capacitance``",
+            "- ``roughness_length_momentum`` -> ``roughness_length_heat`` -> ``stability`` -> ``roughness_sublayer`` -> ``roughness_sublayer_level`` -> ``surface_conductance``",
+            "",
+            "Conditional compatibility checks enforce the critical branches: EHC "
+            "storage heat requires SPARTACUS net radiation, STEBBS storage heat "
+            "requires STEBBS enabled, and non-default STEBBS capacitance choices "
+            "require the STEBBS branch.",
+            "",
+            ".. list-table:: Net radiation",
+            "   :header-rows: 1",
+            "   :widths: 30 35 35",
+            "",
+            "   * - Public path",
+            "     - Choices",
+            "     - Notes",
+            "   * - ``net_radiation``",
+            "     - ``forcing`` / ``observed``; nested ``narp``; nested ``spartacus``",
+            "     - Selects observed net all-wave radiation, or a nested NARP/SPARTACUS form.",
+            "   * - ``net_radiation.narp.ldown``",
+            "     - ``observed``; ``cloud``; ``air``",
+            "     - Longwave-down source for NARP.",
+            "   * - ``net_radiation.narp.variant``",
+            "     - ``standard``; ``surface``; ``zenith``",
+            "     - Optional NARP variant; ``standard`` is the default.",
+            "   * - ``net_radiation.spartacus.ldown``",
+            "     - ``observed``; ``cloud``; ``air``",
+            "     - Longwave-down source for SPARTACUS-Surface.",
+            "",
+            ".. list-table:: Emissions",
+            "   :header-rows: 1",
+            "   :widths: 30 35 35",
+            "",
+            "   * - Public path",
+            "     - Choices",
+            "     - Notes",
+            "   * - ``emissions.heat``",
+            "     - ``observed``; ``L11``; ``J11``; ``L11_updated``",
+            "     - Observed QF cannot be combined with CO2 axes; use modelled heat when CO2 is enabled.",
+            "   * - ``emissions.co2.anthropogenic``",
+            "     - ``none``; ``qf_linked``; ``detailed``",
+            "     - Anthropogenic CO2 branch; use ``none`` only when biogenic is also ``none``.",
+            "   * - ``emissions.co2.biogenic``",
+            "     - ``none``; ``rectangular``; ``bellucco_local``; ``bellucco_general``; ``conductance``",
+            "     - Biogenic CO2 family; a family requires anthropogenic ``qf_linked`` or ``detailed``.",
+            "",
+            ".. list-table:: Storage heat",
+            "   :header-rows: 1",
+            "   :widths: 30 35 35",
+            "",
+            "   * - Public path",
+            "     - Choices",
+            "     - Notes",
+            "   * - ``storage_heat``",
+            "     - ``observed``; ``ohm``; ``anohm``; ``estm``; ``ehc``; ``dyohm``; ``stebbs``",
+            "     - Storage heat source or model family.",
+            "   * - ``storage_heat.ohm.include_qf``",
+            "     - ``true`` / ``false``; ``include`` / ``exclude``",
+            "     - Public home for the OHM QF-inclusion switch.",
+            "",
+            ".. list-table:: Observed/modelled source selectors",
+            "   :header-rows: 1",
+            "   :widths: 30 35 35",
+            "",
+            "   * - Public path",
+            "     - Choices",
+            "     - Notes",
+            "   * - ``soil_moisture_deficit``",
+            "     - ``modelled``; ``observed``",
+            "     - Selects water-balance SMD or forcing-file soil moisture.",
+            "   * - ``water_use``",
+            "     - ``modelled``; ``observed``",
+            "     - Selects modelled irrigation/water use or forcing-file values.",
+            "   * - ``leaf_area_index``",
+            "     - ``observed``; ``modelled``",
+            "     - Public alias for the LAI method selector.",
+            "   * - ``frontal_area_index``",
+            "     - ``observed``; ``modelled``",
+            "     - Selects observed or modelled frontal area index.",
+            "   * - ``snow``",
+            "     - ``disabled``; ``enabled``",
+            "     - Public alias for the snow-process switch.",
+            "",
+            ".. list-table:: Other method selectors",
+            "   :header-rows: 1",
+            "   :widths: 30 35 35",
+            "",
+            "   * - Public path",
+            "     - Choices",
+            "     - Notes",
+            "   * - ``roughness_length_momentum``",
+            "     - ``fixed``; ``variable``; ``macdonald`` / ``M98``; ``lambdap_dependent`` / ``GO99``; ``alternative``",
+            "     - Momentum roughness-length method.",
+            "   * - ``roughness_length_heat``",
+            "     - ``brutsaert`` / ``B82``; ``kawai`` / ``K09``; ``voogt_grimmond`` / ``VG00``; ``kanda`` / ``K07``; ``adaptive``",
+            "     - Heat roughness-length method.",
+            "   * - ``stability``",
+            "     - ``not_used``; ``not_used2``; ``hoegstrom``; ``CN98``; ``BH71``",
+            "     - Atmospheric stability correction method.",
+            "   * - ``roughness_sublayer``",
+            "     - ``most``; ``rst`` / ``T19``; ``variable``",
+            "     - Roughness sublayer treatment.",
+            "   * - ``roughness_sublayer_level``",
+            "     - ``none``; ``basic``; ``detailed``",
+            "     - Roughness sublayer detail level.",
+            "   * - ``surface_conductance``",
+            "     - ``J11``; ``W16``",
+            "     - Surface conductance method.",
+            "",
+            ".. list-table:: STEBBS",
+            "   :header-rows: 1",
+            "   :widths: 30 35 35",
+            "",
+            "   * - Public path",
+            "     - Choices",
+            "     - Notes",
+            "   * - ``stebbs.enabled``",
+            "     - ``false``; ``true``",
+            "     - Master STEBBS switch.",
+            "   * - ``stebbs.parameter_source``",
+            "     - ``default``; ``provided``",
+            "     - Public alias for the STEBBS parameter-source selector.",
+            "   * - ``stebbs.capacitance``",
+            "     - ``default``; ``provided``; ``parameterise``",
+            "     - Reading/STEBBS public selector name for the RC-method choice.",
+            "   * - ``stebbs.setpoint``",
+            "     - ``constant``; ``dependent``; ``scheduled``",
+            "     - Space-heating/cooling setpoint method.",
+            "   * - ``stebbs.same_albedo_wall``; ``stebbs.same_albedo_roof``",
+            "     - ``disabled``; ``enabled``",
+            "     - Wall and roof albedo assumptions.",
+            "   * - ``stebbs.same_emissivity_wall``; ``stebbs.same_emissivity_roof``",
+            "     - ``disabled``; ``enabled``",
+            "     - Wall and roof emissivity assumptions.",
+            "",
+            ".. note::",
+            "",
+            "   The generated parameter list below still includes implementation field "
+            "   names where they differ from public aliases. In user YAML, prefer "
+            "   ``leaf_area_index`` over ``laimethod``, ``snow`` over "
+            "   ``snow_use``, ``storage_heat.ohm.include_qf`` over flat "
+            "   ``ohm_inc_qf``, and ``stebbs.parameter_source`` over "
+            "   ``stebbs.parameters``.",
+            "",
+        ]
 
     @staticmethod
     def _format_meta_tags(model_name: str, model_doc: dict[str, Any]) -> list[str]:
@@ -188,7 +378,7 @@ class RSTGenerator:
 
         # Add reference label for physics method fields with relationships
         # Note: diagmethod→rslmethod, localclimatemethod→rsllevel (legacy rename)
-        if field_name in {
+        if field_name in RSTGenerator.RELATIONSHIP_REF_TARGETS or field_name in {
             "stabilitymethod",
             "rslmethod",  # was diagmethod
             "rsllevel",  # was localclimatemethod
@@ -198,6 +388,17 @@ class RSTGenerator:
             lines.append("")
 
         return lines
+
+    @classmethod
+    def _format_relationship_targets(cls, targets: list[str]) -> str:
+        """Format relationship targets as RST refs only when labels exist."""
+        refs = []
+        for target in targets:
+            if target in cls.RELATIONSHIP_REF_TARGETS:
+                refs.append(f":ref:`{target} <{target}>`")
+            else:
+                refs.append(f"``{target}``")
+        return ", ".join(refs)
 
     @staticmethod
     def _format_field_description(field_doc: dict[str, Any]) -> list[str]:
@@ -280,6 +481,23 @@ class RSTGenerator:
 
         # Add options if present
         if field_doc.get("options"):
+            # Check if any options are experimental
+            has_experimental = any(
+                "(experimental)" in opt.get("description", "").lower()
+                for opt in field_doc["options"]
+            )
+
+            # Add admonition before options if experimental options exist
+            if has_experimental:
+                lines.append("   .. note::")
+                lines.append("")
+                lines.append(
+                    "      Some options below are marked as **experimental**. "
+                    "While scientifically validated, users should verify results "
+                    "for their specific applications."
+                )
+                lines.append("")
+
             lines.append("   :Options:")
             for opt in field_doc["options"]:
                 opt_str = self._format_option(opt)
@@ -293,7 +511,7 @@ class RSTGenerator:
             lines.append(f"   :Unit: {formatted_unit}")
 
         # Add default/sample value
-        default_label, default_value = self._format_default(field_doc, model_name)
+        default_label, default_value = self._format_default(field_doc)
         if default_label is not None and default_value is not None:
             lines.append(f"   :{default_label}: {default_value}")
 
@@ -337,13 +555,13 @@ class RSTGenerator:
             # Add depends_on
             depends = relationships.get("depends_on", [])
             if depends:
-                refs = ", ".join(f":ref:`{d} <{d}>`" for d in depends)
+                refs = self._format_relationship_targets(depends)
                 lines.append(f"      **Depends on:** {refs}")
 
             # Add provides_to
             provides = relationships.get("provides_to", [])
             if provides:
-                refs = ", ".join(f":ref:`{p} <{p}>`" for p in provides)
+                refs = self._format_relationship_targets(provides)
                 lines.append(f"      **Provides to:** {refs}")
 
         return lines
@@ -357,8 +575,8 @@ class RSTGenerator:
         # Add index entries
         lines.extend(self._add_field_index_entries(field_name, model_name))
 
-        # Use yaml:option directive for YAML configuration options
-        lines.append(f".. yaml:option:: {field_name}")
+        # Use input:option directive for YAML configuration options
+        lines.append(f".. input:option:: {field_name}")
         lines.append("")
 
         # Add description
@@ -476,9 +694,7 @@ class RSTGenerator:
         return " ".join(formatted)
 
     @staticmethod
-    def _format_default(
-        field_doc: dict[str, Any], model_name: str = ""
-    ) -> tuple[str, str]:  # noqa: PLR0912
+    def _format_default(field_doc: dict[str, Any]) -> tuple[str, str]:  # noqa: PLR0912
         """Format default value for display with consistent labeling.
 
         Returns appropriate label-value pair based on field characteristics:
@@ -487,9 +703,11 @@ class RSTGenerator:
         - Optional without defaults: ("Default", "None (optional)")
         - Nested models: (None, None) to skip display
 
+        Site-specific fields (detected by doc_utils.py pattern matching) show
+        "Example" instead of "Default" to indicate values are illustrative.
+
         Args:
-            field_doc: Field documentation dictionary
-            model_name: Name of the containing model (for context)
+            field_doc: Field documentation dictionary with is_site_specific flag
         """
         nested_model = field_doc.get("nested_model")
 
@@ -521,20 +739,9 @@ class RSTGenerator:
                 return "Default", "None (optional)"
 
         # We have a non-None default value - format it
-        # Determine if this is a site/surface-specific model
-        # These models contain fields that vary by site or surface type
-        site_surface_models = {
-            "Site",
-            "SiteProperties",
-            "PavedProperties",
-            "BldgsProperties",
-            "EvetrProperties",
-            "DectrProperties",
-            "GrassProperties",
-            "BsoilProperties",
-            "WaterProperties",
-        }
-        is_site_specific = model_name in site_surface_models
+        # Use the is_site_specific flag from doc_utils.py extraction
+        # This provides field-level granularity based on pattern matching
+        is_site_specific = field_doc.get("is_site_specific", False)
 
         # Format the value for display
         if isinstance(default, (str, int, float, bool)):
@@ -1121,7 +1328,7 @@ class RSTGenerator:
             field_name = field["name"]
             if field_name == "ref":
                 continue
-            lines.append(f"{dropdown_indent}- :yaml:option:`{field_name}`")
+            lines.append(f"{dropdown_indent}- :input:option:`{field_name}`")
         lines.append("")
 
         return lines
@@ -1244,7 +1451,7 @@ class RSTGenerator:
             field_name = field["name"]
             if field_name == "ref":
                 continue
-            lines.append(f"{dropdown_indent}- :yaml:option:`{field_name}`")
+            lines.append(f"{dropdown_indent}- :input:option:`{field_name}`")
         lines.append("")
 
         return lines
@@ -1339,13 +1546,13 @@ class RSTGenerator:
                 field_name = (
                     field.get("name", field) if isinstance(field, dict) else field
                 )
-                lines.append(f"{indent}   * :yaml:option:`{field_name}`")
+                lines.append(f"{indent}   * :input:option:`{field_name}`")
         else:
             for field in filtered_fields:
                 field_name = (
                     field.get("name", field) if isinstance(field, dict) else field
                 )
-                lines.append(f"{indent}* :yaml:option:`{field_name}`")
+                lines.append(f"{indent}* :input:option:`{field_name}`")
 
         return lines
 
@@ -1392,13 +1599,13 @@ class RSTGenerator:
                 field_name = field["name"]
                 if field_name == "ref":
                     continue
-                lines.append(f"{indent}         * :yaml:option:`{field_name}`")
+                lines.append(f"{indent}         * :input:option:`{field_name}`")
         else:
             for field in fields:
                 field_name = field["name"]
                 if field_name == "ref":
                     continue
-                lines.append(f"{indent}      * :yaml:option:`{field_name}`")
+                lines.append(f"{indent}      * :input:option:`{field_name}`")
 
         lines.append("")
         return lines
@@ -1631,13 +1838,13 @@ class RSTGenerator:
                                 for field in tab_content:
                                     if field["name"] != "ref":
                                         lines.append(
-                                            f"{indent}         * :yaml:option:`{field['name']}`"
+                                            f"{indent}         * :input:option:`{field['name']}`"
                                         )
                             else:
                                 for field in tab_content:
                                     if field["name"] != "ref":
                                         lines.append(
-                                            f"{indent}      * :yaml:option:`{field['name']}`"
+                                            f"{indent}      * :input:option:`{field['name']}`"
                                         )
                             lines.append("")
                         else:
@@ -1697,13 +1904,13 @@ class RSTGenerator:
                                             for field in child_fields:
                                                 if field.get("name") != "ref":
                                                     lines.append(
-                                                        f"{indent}{next_level_indent}   - :yaml:option:`{field['name']}`"
+                                                        f"{indent}{next_level_indent}   - :input:option:`{field['name']}`"
                                                     )
                                         else:
                                             for field in child_fields:
                                                 if field.get("name") != "ref":
                                                     lines.append(
-                                                        f"{indent}{next_level_indent}* :yaml:option:`{field['name']}`"
+                                                        f"{indent}{next_level_indent}* :input:option:`{field['name']}`"
                                                     )
                                         lines.append("")
 
@@ -1746,14 +1953,14 @@ class RSTGenerator:
                                             for field in nested_fields:
                                                 if field.get("name") != "ref":
                                                     lines.append(
-                                                        f"{indent}{next_level_indent}     - :yaml:option:`{field['name']}`"
+                                                        f"{indent}{next_level_indent}     - :input:option:`{field['name']}`"
                                                     )
                                             lines.append("")
                                         elif nested_field_count > 0:
                                             for field in nested_fields:
                                                 if field.get("name") != "ref":
                                                     lines.append(
-                                                        f"{indent}{next_level_indent}  - :yaml:option:`{field['name']}`"
+                                                        f"{indent}{next_level_indent}  - :input:option:`{field['name']}`"
                                                     )
                                             lines.append("")
 

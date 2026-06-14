@@ -1,35 +1,413 @@
 import yaml
 import os
 import subprocess
+from copy import deepcopy
 import pandas as pd
 from pathlib import Path
+from typing import Optional
+
+from .report_writer import REPORT_WRITER
+from ...core.field_renames import (
+    RAW_YAML_FIELD_RENAMES,
+    STEBBS_PHYSICS_LEAF_RENAMES,
+)
+from ...core.physics_families import (
+    STEBBS_PUBLIC_KEY_ALIASES,
+    coerce_nested_to_flat,
+    flatten_physics_in_config,
+)
 
 RENAMED_PARAMS = {
     "cp": "rho_cp",
-    "diagmethod": "rslmethod",
-    "localclimatemethod": "rsllevel",
+    "diagmethod": "roughness_sublayer",
+    "localclimatemethod": "roughness_sublayer_level",
     "chanohm": "ch_anohm",
     "cpanohm": "rho_cp_anohm",
     "kkanohm": "k_anohm",
+    # Phase 2 + 3 renames: fused -> snake_case -> final (#1256, #1321)
+    **RAW_YAML_FIELD_RENAMES,
 }
 PHYSICS_OPTIONS = {
-    "netradiationmethod",
-    "emissionsmethod",
-    "storageheatmethod",
-    "ohmincqf",
-    "roughlenmommethod",
-    "roughlenheatmethod",
-    "stabilitymethod",
-    "smdmethod",
-    "waterusemethod",
-    "rslmethod",
-    "faimethod",
-    "rsllevel",
-    "gsmodel",
-    "snowuse",
-    "stebbsmethod",
-    "rcmethod",
+    "net_radiation",
+    "emissions",
+    "storage_heat",
+    "ohm_inc_qf",
+    "roughness_length_momentum",
+    "roughness_length_heat",
+    "stability",
+    "soil_moisture_deficit",
+    "water_use",
+    "roughness_sublayer",
+    "frontal_area_index",
+    "roughness_sublayer_level",
+    "surface_conductance",
+    "snow_use",
+    # gh#1456: the STEBBS switches now live under model.physics.stebbs.*; the
+    # nested leaf names are listed so is_physics_option() matches the new paths.
+    "stebbs",
+    "enabled",
+    "parameters",
+    "capacitance",
+    "same_albedo_wall",
+    "same_albedo_roof",
+    "same_emissivity_wall",
+    "same_emissivity_roof",
+    "setpoint",
 }
+
+ALLOWED_REF_KEYS = {"desc", "DOI", "ID"}
+
+_MISSING = object()
+
+
+def _is_nullish_tree(value: object) -> bool:
+    """Return True when a generated placeholder carries no user value."""
+    if value is None:
+        return True
+    if isinstance(value, dict):
+        return all(_is_nullish_tree(item) for item in value.values())
+    if isinstance(value, list):
+        return all(_is_nullish_tree(item) for item in value)
+    return False
+
+
+def _is_generated_null_placeholder(value: object) -> bool:
+    """Return True for non-empty containers that only contain null placeholders."""
+    if value is None:
+        return True
+    if isinstance(value, dict):
+        return bool(value) and all(
+            _is_generated_null_placeholder(item) for item in value.values()
+        )
+    if isinstance(value, list):
+        return bool(value) and all(
+            _is_generated_null_placeholder(item) for item in value
+        )
+    return False
+
+
+# Exact paths whose omission Phase A must not flag, because Pydantic backs
+# them with a safe default. gh#1456 adds the relocated STEBBS master toggle
+# (``enabled`` default false, ``parameters`` default DEFAULT) so that omitting
+# it is not treated as a missing critical physics parameter -- consistent with
+# Phase B (physics_rules.py), which deliberately requires only the relocated
+# leaves (capacitance / setpoint / same_*), not the toggle.
+_DEFAULT_BACKED_CONTROL_PATHS = frozenset(
+    {
+        "model.control.forcing",
+        "model.control.forcing.file",
+        "model.control.output",
+        "model.physics.stebbs.enabled",
+        "model.physics.stebbs.parameters",
+    }
+)
+
+
+def _is_default_backed_control_path(param_path: str) -> bool:
+    """Phase A should not materialise nulls for Pydantic-defaulted controls.
+
+    The STEBBS master toggle (``model.physics.stebbs.enabled`` /
+    ``.parameters``) stays recognised by ``is_physics_option()`` but is treated
+    as default-backed here, so its absence is not flagged critical (gh#1456).
+    """
+    return param_path in _DEFAULT_BACKED_CONTROL_PATHS or param_path.startswith(
+        "model.control.output."
+    )
+
+
+def _normalise_model_control_subobjects(
+    config_data: object,
+) -> tuple[object, list[tuple[str, str]]]:
+    """Normalise legacy model.control sub-objects before Phase A comparison.
+
+    The Pydantic layer already accepts ``forcing_file`` and ``output_file``.
+    Phase A must mirror that compatibility before comparing a user YAML
+    against the current sample config; otherwise it inserts all-null current
+    sub-objects that later take precedence over the valid legacy blocks.
+
+    The returned ``replacements`` list records every legacy key that has
+    been consumed so the report writer can surface the migration in
+    ``renamed_replacements``. The note is recorded both when legacy values
+    are migrated into the modern block and when a current modern block
+    already exists and the legacy duplicate is dropped — mirroring the
+    ``DeprecationWarning`` that ``ModelControl._coerce_legacy_*`` emits at
+    runtime, so the user sees the same migration breadcrumb in
+    ``report_config.txt``.
+    """
+    if not isinstance(config_data, dict):
+        return config_data, []
+
+    normalised = deepcopy(config_data)
+    model = normalised.get("model")
+    if not isinstance(model, dict):
+        return normalised, []
+    control = model.get("control")
+    if not isinstance(control, dict):
+        return normalised, []
+
+    replacements: list[tuple[str, str]] = []
+
+    legacy_forcing = control.pop("forcing_file", _MISSING)
+    if legacy_forcing is not _MISSING:
+        forcing = control.get("forcing")
+        if not isinstance(forcing, dict) or _is_nullish_tree(forcing):
+            control["forcing"] = {"file": legacy_forcing}
+        elif "file" not in forcing or _is_nullish_tree(forcing.get("file")):
+            forcing["file"] = legacy_forcing
+        # else: current forcing.file is real; legacy value is dropped, but
+        # we still record the key migration so the user sees it.
+        replacements.append(("forcing_file", "forcing.file"))
+
+    legacy_output = control.pop("output_file", _MISSING)
+    if legacy_output is not _MISSING:
+        output = control.get("output")
+        output_is_placeholder = output is None or (
+            isinstance(output, dict) and _is_generated_null_placeholder(output)
+        )
+        if output_is_placeholder:
+            if isinstance(legacy_output, dict):
+                migrated = {
+                    key: value
+                    for key, value in legacy_output.items()
+                    if key != "path"
+                }
+                if "path" in legacy_output and "dir" not in migrated:
+                    migrated["dir"] = legacy_output["path"]
+                control["output"] = migrated
+            else:
+                control.pop("output", None)
+        # Always record the migration: either we lifted legacy values into
+        # the modern block, or a real current `output` block already exists
+        # and the legacy duplicate has been dropped (current wins, matching
+        # ModelControl._coerce_legacy_output_file).
+        replacements.append(("output_file", "output"))
+
+    return normalised, replacements
+
+
+_STEBBS_REFVALUE_KEYS = frozenset({"value", "ref"})
+_STEBBS_NESTED_KEYS = frozenset(
+    {
+        "enabled",
+        "parameters",
+        *STEBBS_PUBLIC_KEY_ALIASES,
+        *STEBBS_PHYSICS_LEAF_RENAMES.keys(),
+        *STEBBS_PHYSICS_LEAF_RENAMES.values(),
+    }
+)
+
+
+def _is_stebbs_master_scalar(entry: object) -> bool:
+    """Return True when ``stebbs`` is the legacy RefValue master toggle."""
+    return (
+        isinstance(entry, dict)
+        and "value" in entry
+        and set(entry) <= _STEBBS_REFVALUE_KEYS
+    )
+
+
+def _wrapped_stebbs_value(value: object, ref: object = None) -> dict:
+    wrapped = {"value": value}
+    if ref is not None:
+        wrapped["ref"] = ref
+    return wrapped
+
+
+def _decompose_stebbs_master_for_phase_a(
+    entry: object,
+) -> Optional[tuple[dict, dict]]:
+    """Split legacy ``stebbs`` 0/1/2 into nested enabled/parameters values."""
+    try:
+        entry = coerce_nested_to_flat("stebbs", entry)
+    except (TypeError, ValueError):
+        return None
+
+    ref = entry.get("ref") if isinstance(entry, dict) else None
+    raw = (
+        entry.get("value")
+        if isinstance(entry, dict) and "value" in entry
+        else entry
+    )
+
+    if isinstance(raw, bool):
+        code = int(raw)
+    elif isinstance(raw, int):
+        code = raw
+    elif isinstance(raw, float) and raw.is_integer():
+        code = int(raw)
+    else:
+        return None
+
+    if code == 0:
+        return _wrapped_stebbs_value(False, ref), _wrapped_stebbs_value(1)
+    if code == 1:
+        return _wrapped_stebbs_value(True, ref), _wrapped_stebbs_value(1)
+    if code == 2:
+        return _wrapped_stebbs_value(True, ref), _wrapped_stebbs_value(2)
+    return None
+
+
+def _set_if_missing_or_nullish(target: dict, key: str, value: object) -> bool:
+    """Set ``target[key]`` only when absent or carrying a null placeholder."""
+    if key not in target or _is_nullish_tree(target.get(key)):
+        target[key] = value
+        return True
+    return False
+
+
+def _normalise_model_physics_stebbs(
+    config_data: object,
+) -> tuple[object, list[tuple[str, str]]]:
+    """Fold legacy flat STEBBS physics switches before Phase A comparison.
+
+    Phase A writes the user-facing updated YAML from parsed data. Mirror the
+    runtime STEBBS fold here so old flat siblings are migrated into the nested
+    ``model.physics.stebbs`` block instead of being reported as extras while
+    null nested placeholders are inserted.
+    """
+    if not isinstance(config_data, dict):
+        return config_data, []
+
+    normalised = deepcopy(config_data)
+    model = normalised.get("model")
+    if not isinstance(model, dict):
+        return normalised, []
+    physics = model.get("physics")
+    if not isinstance(physics, dict):
+        return normalised, []
+
+    replacements: list[tuple[str, str]] = []
+    existing = physics.get("stebbs")
+    flat_stebbs_keys_present = [
+        key for key in STEBBS_PHYSICS_LEAF_RENAMES if key in physics
+    ]
+    nested_already = (
+        isinstance(existing, dict)
+        and not _is_stebbs_master_scalar(existing)
+        and any(key in existing for key in _STEBBS_NESTED_KEYS)
+    )
+
+    stebbs_block: dict = (
+        dict(existing) if isinstance(existing, dict) and nested_already else {}
+    )
+
+    if isinstance(existing, dict) and "value" in existing:
+        decomposed = _decompose_stebbs_master_for_phase_a(existing)
+        if decomposed is not None:
+            enabled, parameters = decomposed
+            stebbs_block.pop("value", None)
+            # A RefValue-style ``ref`` belongs to the legacy master toggle and
+            # is carried onto ``enabled`` by ``_decompose_stebbs_master...``.
+            stebbs_block.pop("ref", None)
+            _set_if_missing_or_nullish(stebbs_block, "enabled", enabled)
+            _set_if_missing_or_nullish(stebbs_block, "parameters", parameters)
+            replacements.append(("stebbs.value", "stebbs.enabled/parameters"))
+        elif nested_already and _is_nullish_tree(existing.get("value")):
+            stebbs_block.pop("value", None)
+            stebbs_block.pop("ref", None)
+            replacements.append(("stebbs.value", "stebbs.enabled/parameters"))
+        elif (
+            flat_stebbs_keys_present
+            and not nested_already
+            and not _is_nullish_tree(existing)
+        ):
+            stebbs_block = dict(existing)
+    elif "stebbs" in physics and not nested_already:
+        decomposed = _decompose_stebbs_master_for_phase_a(existing)
+        if decomposed is not None:
+            enabled, parameters = decomposed
+            stebbs_block["enabled"] = enabled
+            stebbs_block["parameters"] = parameters
+            replacements.append(("stebbs", "stebbs.enabled/parameters"))
+        elif flat_stebbs_keys_present:
+            if isinstance(existing, dict):
+                if not _is_nullish_tree(existing):
+                    stebbs_block = dict(existing)
+            elif existing is not None:
+                stebbs_block = {"value": existing}
+
+    for public_key, canonical_key in STEBBS_PUBLIC_KEY_ALIASES.items():
+        if public_key not in stebbs_block:
+            continue
+        public_value = stebbs_block.pop(public_key)
+        _set_if_missing_or_nullish(stebbs_block, canonical_key, public_value)
+        replacements.append((f"stebbs.{public_key}", f"stebbs.{canonical_key}"))
+
+    for old_key, nested_leaf in STEBBS_PHYSICS_LEAF_RENAMES.items():
+        if old_key == nested_leaf or old_key not in stebbs_block:
+            continue
+        old_value = stebbs_block.pop(old_key)
+        _set_if_missing_or_nullish(stebbs_block, nested_leaf, old_value)
+        replacements.append((f"stebbs.{old_key}", f"stebbs.{nested_leaf}"))
+
+    for flat_key, nested_leaf in STEBBS_PHYSICS_LEAF_RENAMES.items():
+        if flat_key not in physics:
+            continue
+        flat_value = physics.pop(flat_key)
+        _set_if_missing_or_nullish(stebbs_block, nested_leaf, flat_value)
+        replacements.append((flat_key, f"stebbs.{nested_leaf}"))
+
+    if stebbs_block:
+        physics["stebbs"] = stebbs_block
+
+    return normalised, replacements
+
+
+def _normalise_phase_a_compatibility(
+    config_data: object,
+) -> tuple[object, list[tuple[str, str]]]:
+    """Apply compatibility folds Phase A must share with the runtime loader."""
+    normalised, replacements = _normalise_model_control_subobjects(config_data)
+    normalised, stebbs_replacements = _normalise_model_physics_stebbs(normalised)
+    replacements.extend(stebbs_replacements)
+    return normalised, replacements
+
+
+def _strip_ref_blocks(obj):
+    """
+    Recursively transform the config tree for structural checks.
+
+    This function processes the configuration tree to handle 'ref' sections and their keys
+    according to the following rules:
+
+    - 'ref' sections are allowed anywhere in the tree.
+    - Inside a 'ref' section, keys listed in ALLOWED_REF_KEYS are ignored (not compared).
+    - Any other key under 'ref' is kept so it can be flagged as extra.
+
+    Parameters
+    ----------
+    obj : Any
+        The configuration object (dict, list, or other) to process.
+
+    Returns
+    -------
+    Any
+        The processed configuration object with allowed 'ref' keys removed, 
+        so they can pass structural checks against sample config.
+    """
+    if isinstance(obj, dict):
+        new = {}
+        for k, v in obj.items():
+            if k == "ref":
+                if isinstance(v, dict):
+                    invalid = {}
+                    for subk, subv in v.items():
+                        if subk in ALLOWED_REF_KEYS:
+                            continue
+                        invalid[subk] = _strip_ref_blocks(subv)
+                    if invalid:
+                        new["ref"] = invalid
+                else:
+                    new["ref"] = _strip_ref_blocks(v)
+            else:
+                new[k] = _strip_ref_blocks(v)
+        return new
+
+    if isinstance(obj, list):
+        return [_strip_ref_blocks(v) for v in obj]
+
+    return obj
+
 
 
 def handle_renamed_parameters(yaml_content: str):
@@ -46,6 +424,24 @@ def handle_renamed_parameters(yaml_content: str):
                 )
                 replacements.append((old_key, new_key))
     return "\n".join(lines), replacements
+
+
+def handle_renamed_parameters_in_parsed_yaml(obj):
+    """Rename deprecated keys in parsed YAML structures where line matching misses."""
+    replacements = []
+
+    if isinstance(obj, dict):
+        for old_key, new_key in list(RENAMED_PARAMS.items()):
+            if old_key in obj and new_key not in obj:
+                obj[new_key] = obj.pop(old_key)
+                replacements.append((old_key, new_key))
+        for value in obj.values():
+            replacements.extend(handle_renamed_parameters_in_parsed_yaml(value))
+    elif isinstance(obj, list):
+        for item in obj:
+            replacements.extend(handle_renamed_parameters_in_parsed_yaml(item))
+
+    return replacements
 
 
 def is_physics_option(param_path):
@@ -70,7 +466,6 @@ def get_allowed_nested_sections_in_properties():
         "model",
         "state",
         "site",
-        "core",
         "ohm",
         "profile",
         "surface",
@@ -84,7 +479,7 @@ def get_allowed_nested_sections_in_properties():
         try:
             # Import the module dynamically
             module = importlib.import_module(
-                f".{module_name}", package="supy.data_model"
+                f".{module_name}", package="supy.data_model.core"
             )
 
             # Find all classes in the module that are BaseModel subclasses
@@ -130,7 +525,7 @@ def get_allowed_nested_sections_in_properties():
 
         # Validate these exist in the actual models (best effort)
         try:
-            from .site import SiteProperties
+            from ...core.site import SiteProperties
 
             actual_fields = set(SiteProperties.model_fields.keys())
             validated_sections = static_sections.intersection(actual_fields)
@@ -224,6 +619,12 @@ def categorise_extra_parameters(extra_params: list) -> dict:
 def find_extra_parameters(user_data, standard_data, current_path=""):
     """Find parameters that exist in user data but not in standard data."""
     extra_params = []
+    if current_path == "":
+        user_data, _ = _normalise_phase_a_compatibility(user_data)
+        standard_data, _ = _normalise_phase_a_compatibility(standard_data)
+        flatten_physics_in_config(user_data)
+        flatten_physics_in_config(standard_data)
+
     if isinstance(user_data, dict) and isinstance(standard_data, dict):
         for key, user_value in user_data.items():
             full_path = f"{current_path}.{key}" if current_path else key
@@ -268,10 +669,18 @@ def find_extra_parameters_in_lists(user_list, standard_list, current_path=""):
 
 def find_missing_parameters(user_data, standard_data, current_path=""):
     missing_params = []
+    if current_path == "":
+        user_data, _ = _normalise_phase_a_compatibility(user_data)
+        standard_data, _ = _normalise_phase_a_compatibility(standard_data)
+        flatten_physics_in_config(user_data)
+        flatten_physics_in_config(standard_data)
+
     if isinstance(standard_data, dict):
         user_dict = user_data if isinstance(user_data, dict) else {}
         for key, standard_value in standard_data.items():
             full_path = f"{current_path}.{key}" if current_path else key
+            if _is_default_backed_control_path(full_path):
+                continue
             if key not in user_dict:
                 is_physics = is_physics_option(full_path)
                 missing_params.append((full_path, standard_value, is_physics))
@@ -635,6 +1044,12 @@ def create_uptodate_yaml_header():
 def create_clean_missing_param_annotation(param_name, standard_value):
     """Create missing parameter annotation without inline comments for clean YAML."""
     lines = []
+
+    if param_name in ["qn_surfs", "dqndt_surf"]:
+        null_array = ["null"] * 7
+        lines.append(f"{param_name}: [{', '.join(null_array)}]")
+        return lines
+
     if isinstance(standard_value, dict):
         lines.append(f"{param_name}:")
         for key, value in standard_value.items():
@@ -707,19 +1122,32 @@ def create_null_roof_wall_template(reference_element: dict) -> dict:
 
 
 def validate_nlayer_dimensions(user_data: dict, nlayer: int) -> tuple:
-    """Validate that vertical layer array dimensions match nlayer value.
+    """
+    Validate that vertical layer array dimensions match the specified nlayer value.
 
-    Pads arrays with null values when dimensions don't match, but records errors
-    so validation fails and user is asked to replace nulls with actual values.
+    This function checks that certain arrays in the user_data dictionary have the correct
+    length according to the nlayer parameter. If arrays are too short, they are padded
+    with null values (None), and if they are too long, an error is recorded but the array
+    is not modified. For nested arrays (e.g., roofs, walls), missing elements are padded
+    with a null template matching the structure of the first element if available.
 
-    Args:
-        user_data: User YAML data (dict)
-        nlayer: Detected nlayer value
+    Parameters
+    ----------
+    user_data : dict
+        The user YAML data as a dictionary.
+    nlayer : int
+        The expected number of vertical layers.
 
-    Returns:
-        Tuple of (modified_user_data, dimension_errors) where dimension_errors is a list of
-        (path, expected_length, actual_length, nulls_added) tuples describing validation errors.
-        User must replace the null values with actual values.
+    Returns
+    -------
+    tuple
+        A tuple (modified_user_data, dimension_errors), where:
+        - modified_user_data : dict
+            The user_data dictionary with arrays padded as needed.
+        - dimension_errors : list of tuple
+            Each tuple is (path, expected_length, actual_length, nulls_added), describing
+            the location and nature of any dimension mismatch. The user must replace any
+            null values with actual values.
     """
     dimension_errors = []
 
@@ -932,19 +1360,73 @@ def validate_nlayer_dimensions(user_data: dict, nlayer: int) -> tuple:
 
     return user_data, dimension_errors
 
+def validate_nlayer_limit(user_data: dict) -> list:
+    """
+    Validate that the 'nlayer' parameter does not exceed the supported limit (15) for each site.
+
+    Parameters
+    ----------
+    user_data : dict
+        The user YAML data as a dictionary.
+
+    Returns
+    -------
+    errors : list of tuple
+        Each tuple is (path, nlayer_value, error_message) for each site where nlayer > 15 or cannot be interpreted.
+    """
+    errors = []
+    if not user_data or "sites" not in user_data:
+        return errors
+
+    sites = user_data.get("sites", [])
+    if not isinstance(sites, list):
+        return errors
+
+    for site_idx, site in enumerate(sites):
+        nlayer = None
+        try:
+            nlayer = site.get("properties", {}).get("vertical_layers", {}).get("nlayer", None)
+            # Handle RefValue wrapper
+            if isinstance(nlayer, dict) and "value" in nlayer:
+                nlayer = nlayer["value"]
+        except Exception:
+            pass
+        if nlayer is not None:
+            try:
+                nlayer_int = int(nlayer)
+                if nlayer_int > 15:
+                    path = f"sites[{site_idx}].properties.vertical_layers.nlayer"
+                    errors.append((path, nlayer_int, f"nlayer={nlayer_int} exceeds the supported range [1, 15]. The SPARTACUS radiation scheme supports up to 15 vertical layers. Reduce nlayer to proceed."))
+            except Exception:
+                path = f"sites[{site_idx}].properties.vertical_layers.nlayer"
+                errors.append((path, nlayer, "Could not interpret nlayer value for limit check."))
+    return errors
 
 def _validate_single_forcing_file(
-    forcing_path: Path, yaml_dir: Path, physics: dict = None
+    forcing_path: Path, yaml_dir: Path, physics: dict = None,
 ) -> list:
-    """Validate a single forcing data file.
+    """
+    Validate a single forcing data file.
 
-    Args:
-        forcing_path: Path to forcing file (relative or absolute)
-        yaml_dir: Directory containing the YAML config (for resolving relative paths)
-        physics: Optional physics configuration dict for physics-specific validation
+    Parameters
+    ----------
+    forcing_path : Path
+        Path to the forcing file (can be relative or absolute).
+    yaml_dir : Path
+        Directory containing the YAML configuration file (used to resolve relative paths).
+    physics : dict, optional
+        Physics configuration dictionary for physics-specific validation (default is None).
 
-    Returns:
-        List of error messages (empty if valid)
+    Returns
+    -------
+    list of str
+        List of error messages. Returns an empty list if the file is valid.
+
+    Notes
+    -----
+    - This function attempts to resolve the forcing file path relative to the YAML directory if not absolute.
+    - It loads the forcing data and runs validation using SuPy's `check_forcing` function.
+    - Error messages are cleaned and contextualized with file information.
     """
     import re
     import logging
@@ -1030,22 +1512,38 @@ def _validate_single_forcing_file(
 
 
 def validate_forcing_data(user_yaml_file: str, physics: dict = None) -> tuple:
-    """Validate forcing data file(s) referenced in user YAML.
+    """
+    Validate forcing data file(s) referenced in the user YAML configuration.
 
-    Args:
-        user_yaml_file: Path to user YAML configuration file
-        physics: Optional physics configuration dict for physics-specific validation
+    Parameters
+    ----------
+    user_yaml_file : str
+        Path to the user YAML configuration file.
+    physics : dict, optional
+        Physics configuration dictionary for physics-specific validation (default is None).
 
-    Returns:
-        Tuple of (forcing_errors, forcing_file_paths) where forcing_errors is a list of error messages
-        and forcing_file_paths is the path(s) to the forcing file(s) (or None if not found).
+    Returns
+    -------
+    tuple
+        A tuple (forcing_errors, forcing_file_paths) where:
+        - forcing_errors : list of str
+            List of error messages encountered during validation. Empty if no errors.
+        - forcing_file_paths : str or list or None
+            The path(s) to the forcing file(s) as specified in the YAML, or None if not found.
+
+    Notes
+    -----
+    This function loads the user YAML file, extracts the forcing file(s) path(s) from
+    `model.control.forcing_file`, and validates each file using SuPy's forcing checker.
+    It supports both single file and list of files. Error messages are contextualized
+    and cleaned for user readability.
     """
     forcing_errors = []
     forcing_file_paths = None
 
     try:
         # Load user YAML to extract forcing file path
-        with open(user_yaml_file, "r") as f:
+        with open(user_yaml_file, "r", encoding="utf-8") as f:
             user_data = yaml.safe_load(f)
 
         # Navigate to model.control.forcing_file
@@ -1060,10 +1558,20 @@ def validate_forcing_data(user_yaml_file: str, physics: dict = None) -> tuple:
         if not isinstance(control, dict):
             return forcing_errors, forcing_file_paths
 
-        forcing_file = control.get("forcing_file", None)
+        # Prefer the new `forcing.file` shape (schema 2026.5.dev7+);
+        # fall back to legacy `forcing_file`. Mirrors the precedence used
+        # by the Rust raw-YAML reader (`yaml_config.rs::read_forcing_rel`)
+        # and the in-memory `ModelControl._coerce_legacy_forcing_file`.
+        forcing_file = None
+        forcing_block = control.get("forcing")
+        if isinstance(forcing_block, dict):
+            forcing_file = forcing_block.get("file")
+        if forcing_file is None:
+            forcing_file = control.get("forcing_file")
         if forcing_file is None:
             forcing_errors.append(
-                "Forcing file path not found in model.control.forcing_file"
+                "Forcing file path not found in model.control.forcing.file "
+                "(also accepts legacy model.control.forcing_file)"
             )
             return forcing_errors, forcing_file_paths
 
@@ -1218,6 +1726,7 @@ def create_analysis_report(
     phase="A",
     dimension_errors=None,
     forcing_errors=None,
+    nlayer_limit_errors=None,
 ):
     """Create analysis report with summary of changes."""
     report_lines = []
@@ -1241,6 +1750,7 @@ def create_analysis_report(
     extra_count = len(extra_params) if extra_params else 0
     dimension_errors_count = len(dimension_errors) if dimension_errors else 0
     forcing_errors_count = len(forcing_errors) if forcing_errors else 0
+    nlayer_limit_errors_count = len(nlayer_limit_errors) if nlayer_limit_errors else 0
 
     # ACTION NEEDED section - critical/urgent parameters, dimension errors, forcing errors, AND forbidden extra parameters
     # Categorise extra parameters to find forbidden ones
@@ -1342,6 +1852,7 @@ def create_analysis_report(
             )
             report_lines.append("")
 
+
         # Critical missing parameters
         if urgent_count > 0:
             report_lines.append(
@@ -1354,7 +1865,7 @@ def create_analysis_report(
                         f"-- {param_name} has been added to the updated YAML and set to null"
                     )
                     report_lines.append(
-                        f"   Suggested fix: Set appropriate value based on SUEWS documentation -- https://suews.readthedocs.io/latest/"
+                        f"   Suggested fix: Set appropriate value based on SUEWS documentation -- https://docs.suews.io/latest/"
                     )
             if forbidden_extras:
                 report_lines.append("")  # Add spacing if both sections present
@@ -1401,7 +1912,7 @@ def create_analysis_report(
             param_name = param_path.split(".")[-1]
             report_lines.append(f"-- {param_name} at level {param_path}")
             report_lines.append(
-                f"   Suggested fix: You selected Public mode. Consider either to switch to Dev mode, or remove this extra parameter since this is not in the standard yaml."
+                f"   Suggested fix: You are in Public mode. Consider switching to Dev mode, or remove this extra parameter as it is not in the standard yaml."
             )
         report_lines.append("")
 
@@ -1419,7 +1930,10 @@ def create_analysis_report(
         )
 
     has_no_action_items = (
-        optional_count > 0 or allowed_extras_count > 0 or renamed_count > 0
+        optional_count > 0
+        or allowed_extras_count > 0
+        or renamed_count > 0
+        or nlayer_limit_errors_count > 0
     )
 
     if has_no_action_items:
@@ -1460,11 +1974,18 @@ def create_analysis_report(
                 for param_path in no_action_extras:
                     param_name = param_path.split(".")[-1]
                     report_lines.append(f"-- {param_name} at level {param_path}")
-                report_lines.append("")
 
-                # Show forbidden location extra parameters as ACTION NEEDED
-                # (These will be moved to the ACTION NEEDED section below)
-                # We'll handle this below when updating that section
+        if nlayer_limit_errors_count > 0:
+            report_lines.append(
+                f"- Detected ({nlayer_limit_errors_count}) nlayer warning(s):"
+            )
+            for path, nlayer_value, message in nlayer_limit_errors:
+                value_display = f" (value={nlayer_value})" if nlayer_value is not None else ""
+                report_lines.append(f"-- {path}{value_display}: {message}")
+                report_lines.append(
+                    "The SPARTACUS radiation scheme supports up to 15 vertical layers."
+                )
+            report_lines.append("")
 
     # If neither ACTION NEEDED nor NO ACTION NEEDED sections were added,
     # indicate that Phase A passed without issues
@@ -1492,26 +2013,69 @@ def annotate_missing_parameters(
     forcing="on",
 ):
     try:
-        with open(user_file, "r") as f:
+        with open(user_file, "r", encoding="utf-8") as f:
             original_yaml_content = f.read()
         original_yaml_content, renamed_replacements = handle_renamed_parameters(
             original_yaml_content
         )
         user_data = yaml.safe_load(original_yaml_content)
-        with open(standard_file, "r") as f:
+        parsed_renames = handle_renamed_parameters_in_parsed_yaml(user_data)
+        (
+            normalised_user_data,
+            compatibility_replacements,
+        ) = _normalise_phase_a_compatibility(user_data)
+        compatibility_normalised = normalised_user_data != user_data
+        user_data = normalised_user_data
+        parsed_renames.extend(compatibility_replacements)
+        if parsed_renames or compatibility_normalised:
+            seen_replacements = set(renamed_replacements)
+            for replacement in parsed_renames:
+                if replacement not in seen_replacements:
+                    renamed_replacements.append(replacement)
+                    seen_replacements.add(replacement)
+            import io
+
+            stream = io.StringIO()
+            yaml.dump(
+                user_data,
+                stream,
+                default_flow_style=False,
+                sort_keys=False,
+                allow_unicode=True,
+            )
+            original_yaml_content = stream.getvalue()
+        with open(standard_file, "r", encoding="utf-8") as f:
             standard_data = yaml.safe_load(f)
+        # Collapse readable physics names in both trees before structure diffs.
+        flatten_physics_in_config(user_data)
+        flatten_physics_in_config(standard_data)
     except FileNotFoundError as e:
         print(f"Error: File not found - {e}")
-        return
+        return _phase_a_failure_report(
+            user_file=user_file,
+            uptodate_file=uptodate_file,
+            report_file=report_file,
+            code="A.PIPELINE.FILE_NOT_FOUND",
+            message=f"File not found: {e}",
+        )
     except yaml.YAMLError as e:
         print(f"Error: Invalid YAML - {e}")
-        return
+        return _phase_a_failure_report(
+            user_file=user_file,
+            uptodate_file=uptodate_file,
+            report_file=report_file,
+            code="A.PIPELINE.YAML_PARSE_ERROR",
+            message=f"Invalid YAML: {e}",
+        )
 
     # Validate nlayer dimensions if nlayer is provided
     dimension_errors = []
     if nlayer is not None:
         user_data, dimension_errors = validate_nlayer_dimensions(user_data, nlayer)
         # user_data now contains padded arrays with nulls - we'll write this back
+
+    # Validate nlayer limit regardless of CLI nlayer flag
+    nlayer_limit_errors = validate_nlayer_limit(user_data)
 
     # Validate forcing data if enabled
     forcing_errors = []
@@ -1522,8 +2086,11 @@ def annotate_missing_parameters(
             physics_config = user_data["model"]["physics"]
         forcing_errors, _ = validate_forcing_data(user_file, physics=physics_config)
 
-    missing_params = find_missing_parameters(user_data, standard_data)
-    extra_params = find_extra_parameters(user_data, standard_data)
+    user_data_no_ref = _strip_ref_blocks(user_data)
+    standard_data_no_ref = _strip_ref_blocks(standard_data)
+
+    missing_params = find_missing_parameters(user_data_no_ref, standard_data_no_ref)
+    extra_params = find_extra_parameters(user_data_no_ref, standard_data_no_ref)
 
     # Generate content for both files
     if (
@@ -1532,6 +2099,7 @@ def annotate_missing_parameters(
         or extra_params
         or dimension_errors
         or forcing_errors
+        or nlayer_limit_errors
     ):
         # If dimension errors occurred, serialize the modified user_data with padded nulls
         if dimension_errors:
@@ -1564,6 +2132,7 @@ def annotate_missing_parameters(
             phase,
             dimension_errors,
             forcing_errors,
+            nlayer_limit_errors,
         )
     else:
         print("No missing in standard or renamed in standard parameters found!")
@@ -1571,7 +2140,7 @@ def annotate_missing_parameters(
         uptodate_content = create_uptodate_yaml_header() + original_yaml_content
         uptodate_filename = os.path.basename(uptodate_file) if uptodate_file else None
         report_content = create_analysis_report(
-            [], [], [], uptodate_filename, mode, phase, [], forcing_errors
+            [], [], [], uptodate_filename, mode, phase, [], forcing_errors, []
         )
 
     # Print clean terminal output based on critical parameters, dimension errors, and forcing errors
@@ -1579,14 +2148,15 @@ def annotate_missing_parameters(
         (path, val, is_phys) for path, val, is_phys in missing_params if is_phys
     ]
 
-    if critical_params or dimension_errors or forcing_errors:
+    has_action_needed = bool(critical_params or dimension_errors or forcing_errors)
+    if has_action_needed:
         if critical_params:
-            print(f"Action needed: CRITICAL parameters missing:")
+            print("Action needed: CRITICAL parameters missing:")
             for param_path, standard_value, _ in critical_params:
                 param_name = param_path.split(".")[-1]
                 print(f"  - {param_name}")
         if dimension_errors:
-            print(f"Action needed: DIMENSION MISMATCH errors:")
+            print("Action needed: DIMENSION MISMATCH errors:")
             for path, expected, actual, nulls_added in dimension_errors:
                 array_name = path.split(".")[-1]
                 if nulls_added > 0:
@@ -1598,7 +2168,7 @@ def annotate_missing_parameters(
                         f"  - {array_name}: has {actual} elements, expected {expected}"
                     )
         if forcing_errors:
-            print(f"Action needed: FORCING DATA validation errors:")
+            print("Action needed: FORCING DATA validation errors:")
             for error_msg in forcing_errors[:3]:  # Show first 3 errors
                 print(f"  - {error_msg}")
             if len(forcing_errors) > 3:
@@ -1616,16 +2186,176 @@ def annotate_missing_parameters(
     else:
         print("PHASE A -- PASSED")
 
+    if nlayer_limit_errors:
+        print("Warning: NLAYERS exceeding recommended limit:")
+        for path, nlayer_value, message in nlayer_limit_errors:
+            value_display = f" (value={nlayer_value})" if nlayer_value is not None else ""
+            print(f"  - {path}{value_display}: {message}")
+        print("")
+
     # Write output files
     if uptodate_file:
-        with open(uptodate_file, "w") as f:
+        with open(uptodate_file, "w", encoding="utf-8", newline="\n") as f:
             f.write(uptodate_content)
         # print(f"\n Clean YAML written to: {uptodate_file}")
 
     if report_file:
-        with open(report_file, "w") as f:
-            f.write(report_content)
+        import sys
+        debug = os.environ.get("SUEWS_DEBUG", "").lower() in ("1", "true", "yes")
+        if debug:
+            print(f"[DEBUG] Phase A: Writing report ({len(report_content)} chars) to {report_file}", file=sys.stderr)
+        REPORT_WRITER.write(report_file, report_content)
+        if debug:
+            actual_size = os.path.getsize(report_file) if os.path.exists(report_file) else -1
+            print(f"[DEBUG] Phase A: After write, file size: {actual_size} bytes", file=sys.stderr)
         # print(f" Analysis report written to: {report_file}")
+
+    from .report_schema import PhaseReport
+
+    issues = _issues_from_phase_a_state(
+        missing_params=missing_params,
+        renamed_replacements=renamed_replacements,
+        extra_params=extra_params,
+        dimension_errors=dimension_errors,
+        forcing_errors=forcing_errors,
+        nlayer_limit_errors=nlayer_limit_errors,
+    )
+    return PhaseReport(
+        phase="A",
+        issues=issues,
+        yaml_in=user_file,
+        yaml_out=uptodate_file,
+        text_report_path=report_file,
+    )
+
+
+def _phase_a_failure_report(
+    *,
+    user_file,
+    uptodate_file,
+    report_file,
+    code: str,
+    message: str,
+):
+    """Build a single-error ``PhaseReport`` for Phase A I/O failures."""
+    from .report_schema import Issue, PhaseReport, SEVERITY_ERROR
+
+    return PhaseReport(
+        phase="A",
+        issues=[Issue(
+            phase="A",
+            severity=SEVERITY_ERROR,
+            code=code,
+            message=message,
+            category="PIPELINE",
+        )],
+        yaml_in=user_file,
+        yaml_out=uptodate_file,
+        text_report_path=report_file,
+    )
+
+
+def _issues_from_phase_a_state(
+    *,
+    missing_params,
+    renamed_replacements,
+    extra_params,
+    dimension_errors,
+    forcing_errors,
+    nlayer_limit_errors,
+):
+    """Translate Phase A's accumulated lists into ``Issue`` objects.
+
+    Producer shapes (do not deviate — these are the contracts of the
+    upstream finder/validator helpers):
+
+    - ``missing_params``: list of ``(full_path, standard_value, is_physics)``.
+      ``is_physics`` flags the entry as a CRITICAL parameter.
+    - ``renamed_replacements``: list of ``(old_key, new_key)``.
+    - ``extra_params``: list of ``full_path`` strings.
+    - ``dimension_errors``: list of ``(path, expected_len, actual_len, nulls_added)``.
+    - ``nlayer_limit_errors``: list of ``(path, nlayer_value, error_message)``.
+    - ``forcing_errors``: list of plain message strings.
+    """
+    from .report_schema import (
+        Issue,
+        SEVERITY_APPLIED_FIX,
+        SEVERITY_ERROR,
+        SEVERITY_WARNING,
+    )
+
+    issues = []
+
+    for entry in missing_params or []:
+        full_path, _standard_value, is_physics = entry
+        severity = SEVERITY_ERROR if is_physics else SEVERITY_WARNING
+        issues.append(Issue(
+            phase="A",
+            severity=severity,
+            code="A.MISSING_PARAM.CRITICAL" if is_physics else "A.MISSING_PARAM",
+            message=f"Missing parameter: {full_path}",
+            yaml_path=str(full_path),
+            category="STRUCTURE",
+        ))
+
+    for old_key, new_key in renamed_replacements or []:
+        issues.append(Issue(
+            phase="A",
+            severity=SEVERITY_APPLIED_FIX,
+            code="A.RENAMED_PARAM",
+            message=f"Renamed {old_key} -> {new_key}",
+            yaml_path=str(new_key),
+            category="STRUCTURE",
+            applied_fix=True,
+        ))
+
+    for full_path in extra_params or []:
+        issues.append(Issue(
+            phase="A",
+            severity=SEVERITY_WARNING,
+            code="A.EXTRA_PARAM",
+            message=f"Parameter not in standard schema: {full_path}",
+            yaml_path=str(full_path),
+            category="STRUCTURE",
+        ))
+
+    for entry in dimension_errors or []:
+        path, expected, actual, nulls_added = entry
+        message = (
+            f"{path}: has {actual} elements, expected {expected}"
+        )
+        if nulls_added:
+            message += f" (added {nulls_added} null(s))"
+        issues.append(Issue(
+            phase="A",
+            severity=SEVERITY_ERROR,
+            code="A.DIMENSION_MISMATCH",
+            message=message,
+            yaml_path=str(path),
+            category="STRUCTURE",
+        ))
+
+    for entry in nlayer_limit_errors or []:
+        path, _value, err_message = entry
+        issues.append(Issue(
+            phase="A",
+            severity=SEVERITY_WARNING,
+            code="A.NLAYER_LIMIT",
+            message=err_message,
+            yaml_path=str(path),
+            category="STRUCTURE",
+        ))
+
+    for err_message in forcing_errors or []:
+        issues.append(Issue(
+            phase="A",
+            severity=SEVERITY_ERROR,
+            code="A.FORCING",
+            message=str(err_message),
+            category="FORCING",
+        ))
+
+    return issues
 
 
 def get_current_git_branch() -> str:

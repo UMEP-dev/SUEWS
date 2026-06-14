@@ -9,7 +9,13 @@ from pydantic import (
     PrivateAttr,
 )
 
-from .type import RefValue, Reference, FlexibleRefValue, init_df_state, SurfaceType
+from .type import (
+    RefValue,
+    Reference,
+    FlexibleRefValue,
+    df_from_cols,
+    SurfaceType,
+)
 from ..._env import logger_supy
 
 
@@ -20,13 +26,13 @@ class SurfaceInitialState(BaseModel):
 
     state: FlexibleRefValue(float) = Field(
         description="Initial water state of the surface",
-        json_schema_extra={"unit": "mm", "display_name": "State"},
+        json_schema_extra={"unit": "mm", "display_name": "Initial Surface Water State"},
         default=0.0,
         ge=0,
     )  # Default set to 0.0 means dry surface.
     soilstore: FlexibleRefValue(float) = Field(
         description="Initial soil store. Related to Soil Moisture Deficit (SMD) as SMD = soilstorecap - soilstore.",
-        json_schema_extra={"unit": "mm", "display_name": "Soilstore"},
+        json_schema_extra={"unit": "mm", "display_name": "Initial Soil Store"},
         default=150.0,
         ge=10,
     )  # Default set to 150.0 (wet soil) and ge=10 (less than 10 would be too dry) are physically reasonable for a model run.
@@ -118,52 +124,53 @@ class SurfaceInitialState(BaseModel):
         Returns:
             pd.DataFrame: DataFrame containing initial state parameters
         """
-        df_state = init_df_state(grid_id)
-
         # Get surface index
         if vert_idx is None:
-            idx = self.get_surface_index()
+            surf_idx = self.get_surface_index()
             str_type = "surf"
         else:
-            idx = vert_idx
+            surf_idx = vert_idx
             str_type = "roof" if is_roof else "wall"
         # Set basic state parameters
-        df_state[(f"state_{str_type}", f"({idx},)")] = (
-            self.state.value if isinstance(self.state, RefValue) else self.state
-        )
-        df_state[(f"soilstore_{str_type}", f"({idx},)")] = (
-            self.soilstore.value
-            if isinstance(self.soilstore, RefValue)
-            else self.soilstore
-        )
+        cols = {
+            ("gridiv", "0"): grid_id,
+            (f"state_{str_type}", f"({surf_idx},)"): (
+                self.state.value if isinstance(self.state, RefValue) else self.state
+            ),
+            (f"soilstore_{str_type}", f"({surf_idx},)"): (
+                self.soilstore.value
+                if isinstance(self.soilstore, RefValue)
+                else self.soilstore
+            ),
+        }
 
         # Set snow/ice parameters if present
         if self.snowfrac is not None:
-            df_state[(f"snowfrac", f"({idx},)")] = (
+            cols[(f"snowfrac", f"({surf_idx},)")] = (
                 self.snowfrac.value
                 if isinstance(self.snowfrac, RefValue)
                 else self.snowfrac
             )
         if self.snowpack is not None:
-            df_state[(f"snowpack", f"({idx},)")] = (
+            cols[(f"snowpack", f"({surf_idx},)")] = (
                 self.snowpack.value
                 if isinstance(self.snowpack, RefValue)
                 else self.snowpack
             )
         if self.icefrac is not None:
-            df_state[(f"icefrac", f"({idx},)")] = (
+            cols[(f"icefrac", f"({surf_idx},)")] = (
                 self.icefrac.value
                 if isinstance(self.icefrac, RefValue)
                 else self.icefrac
             )
         if self.snowwater is not None:
-            df_state[(f"snowwater", f"({idx},)")] = (
+            cols[(f"snowwater", f"({surf_idx},)")] = (
                 self.snowwater.value
                 if isinstance(self.snowwater, RefValue)
                 else self.snowwater
             )
         if self.snowdens is not None:
-            df_state[(f"snowdens", f"({idx},)")] = (
+            cols[(f"snowdens", f"({surf_idx},)")] = (
                 self.snowdens.value
                 if isinstance(self.snowdens, RefValue)
                 else self.snowdens
@@ -176,18 +183,18 @@ class SurfaceInitialState(BaseModel):
             else self.temperature
         )
         for i, temp in enumerate(temp_values):
-            df_state[(f"temp_{str_type}", f"({idx}, {i})")] = temp
+            cols[(f"temp_{str_type}", f"({surf_idx}, {i})")] = temp
 
         if self.tsfc is not None:
-            df_state[(f"tsfc_{str_type}", f"({idx},)")] = (
+            cols[(f"tsfc_{str_type}", f"({surf_idx},)")] = (
                 self.tsfc.value if isinstance(self.tsfc, RefValue) else self.tsfc
             )
         if self.tin is not None:
-            df_state[(f"tin_{str_type}", f"({idx},)")] = (
+            cols[(f"tin_{str_type}", f"({surf_idx},)")] = (
                 self.tin.value if isinstance(self.tin, RefValue) else self.tin
             )
 
-        return df_state
+        return df_from_cols(cols, index=pd.Index([grid_id], name="grid"))
 
     @classmethod
     def from_df_state(
@@ -289,19 +296,19 @@ class WaterUse(BaseModel):
 
     wu_total: FlexibleRefValue(float) = Field(
         description="Total water use",
-        json_schema_extra={"unit": "mm", "display_name": "Wu Total"},
+        json_schema_extra={"unit": "mm", "display_name": "Total Water Use"},
         default=0.0,
         ge=0,
     )  # Default set to 0.0 means no irrigation.
     wu_auto: FlexibleRefValue(float) = Field(
         description="Automatic water use",
-        json_schema_extra={"unit": "mm", "display_name": "Wu Auto"},
+        json_schema_extra={"unit": "mm", "display_name": "Automatic Water Use"},
         default=0.0,
         ge=0,
     )
     wu_manual: FlexibleRefValue(float) = Field(
         description="Manual water use",
-        json_schema_extra={"unit": "mm", "display_name": "Wu Manual"},
+        json_schema_extra={"unit": "mm", "display_name": "Manual Water Use"},
         default=0.0,
         ge=0,
     )
@@ -310,21 +317,25 @@ class WaterUse(BaseModel):
 
     def to_df_state(self, veg_idx: int, grid_id: int) -> pd.DataFrame:
         """Convert water use to DataFrame state format."""
-        df_state = init_df_state(grid_id)
-        df_state.loc[grid_id, ("wuday_id", f"({veg_idx * 3 + 0},)")] = (
-            self.wu_total.value
-            if isinstance(self.wu_total, RefValue)
-            else self.wu_total
-        )
-        df_state.loc[grid_id, ("wuday_id", f"({veg_idx * 3 + 1},)")] = (
-            self.wu_auto.value if isinstance(self.wu_auto, RefValue) else self.wu_auto
-        )
-        df_state.loc[grid_id, ("wuday_id", f"({veg_idx * 3 + 2},)")] = (
-            self.wu_manual.value
-            if isinstance(self.wu_manual, RefValue)
-            else self.wu_manual
-        )
-        return df_state
+        cols = {
+            ("gridiv", "0"): grid_id,
+            ("wuday_id", f"({veg_idx * 3 + 0},)"): (
+                self.wu_total.value
+                if isinstance(self.wu_total, RefValue)
+                else self.wu_total
+            ),
+            ("wuday_id", f"({veg_idx * 3 + 1},)"): (
+                self.wu_auto.value
+                if isinstance(self.wu_auto, RefValue)
+                else self.wu_auto
+            ),
+            ("wuday_id", f"({veg_idx * 3 + 2},)"): (
+                self.wu_manual.value
+                if isinstance(self.wu_manual, RefValue)
+                else self.wu_manual
+            ),
+        }
+        return df_from_cols(cols, index=pd.Index([grid_id], name="grid"))
 
     @classmethod
     def from_df_state(cls, df: pd.DataFrame, veg_idx: int, grid_id: int) -> "WaterUse":
@@ -365,26 +376,42 @@ class InitialStateVeg(SurfaceInitialState):
 
     model_config = ConfigDict(title="Vegetation Initial State")
 
-    alb_id: FlexibleRefValue(float) = Field(
-        description="Albedo at the start of the model run.",
-        json_schema_extra={"unit": "dimensionless", "display_name": "Alb Id"},
-        default=0.25,
+    alb_id: Optional[FlexibleRefValue(float)] = Field(
+        description=(
+            "Albedo at the start of the model run. If not provided, it is "
+            "computed from the LAI state and vegetation-specific albedo limits "
+            "(alb_min, alb_max). Trees follow a direct LAI-albedo relationship "
+            "(denser canopy -> higher albedo due to leaves being more reflective "
+            "than bark), while grass follows a reversed relationship (denser grass "
+            "-> lower albedo as soil is more reflective than grass blades)."
+        ),
+        json_schema_extra={"unit": "dimensionless", "display_name": "Initial Albedo"},
+        default=None,
         ge=0.0,
         le=1.0,
     )
     lai_id: FlexibleRefValue(float) = Field(
         description="Leaf area index at the start of the model run.",
-        json_schema_extra={"unit": "m^2 m^-2", "display_name": "Lai Id"},
+        json_schema_extra={
+            "unit": "m^2 m^-2",
+            "display_name": "Initial Leaf Area Index",
+        },
         default=1.0,
     )
     gdd_id: FlexibleRefValue(float) = Field(
         description="Growing degree days at the start of the model run",
-        json_schema_extra={"unit": "degC d", "display_name": "Gdd Id"},
+        json_schema_extra={
+            "unit": "degC d",
+            "display_name": "Initial Growing Degree Days",
+        },
         default=0,
     )  # We need to check this and give info for setting values.
     sdd_id: FlexibleRefValue(float) = Field(
         description="Senescence degree days at the start of the model run",
-        json_schema_extra={"unit": "degC d", "display_name": "Sdd Id"},
+        json_schema_extra={
+            "unit": "degC d",
+            "display_name": "Initial Senescence Degree Days",
+        },
         default=0,
     )  # This need to be consistent with GDD.
     wu: WaterUse = Field(
@@ -392,6 +419,23 @@ class InitialStateVeg(SurfaceInitialState):
     )
 
     ref: Optional[Reference] = None
+
+    def _get_alb_id_value(self) -> float:
+        """Return a usable albedo value, falling back to a legacy default."""
+        alb_val = (
+            self.alb_id.value if isinstance(self.alb_id, RefValue) else self.alb_id
+        )
+        if alb_val is None:
+            # Only reached when no land_cover properties are available to
+            # derive albedo (the normal auto-calculation path runs in
+            # SUEWSConfig.set_default_vegetation_albedo before this).
+            logger_supy.warning(
+                "alb_id is None for %s; using legacy default 0.25. "
+                "Set alb_id explicitly or provide LAI params for auto-calculation.",
+                type(self).__name__,
+            )
+            return 0.25
+        return alb_val
 
     def to_df_state(self, grid_id: int) -> pd.DataFrame:
         """Convert vegetated surface initial state to DataFrame state format.
@@ -411,23 +455,30 @@ class InitialStateVeg(SurfaceInitialState):
 
         # Add vegetated surface specific parameters
         # alb is universal so use surf_idx
-        df_state[("alb", f"({surf_idx},)")] = (
-            self.alb_id.value if isinstance(self.alb_id, RefValue) else self.alb_id
-        )
-        # others are aligned with veg_idx
-        df_state[("lai_id", f"({veg_idx},)")] = (
-            self.lai_id.value if isinstance(self.lai_id, RefValue) else self.lai_id
-        )
-        df_state[("gdd_id", f"({veg_idx},)")] = (
-            self.gdd_id.value if isinstance(self.gdd_id, RefValue) else self.gdd_id
-        )
-        df_state[("sdd_id", f"({veg_idx},)")] = (
-            self.sdd_id.value if isinstance(self.sdd_id, RefValue) else self.sdd_id
-        )
+        alb_val = self._get_alb_id_value()
+        cols = {
+            ("alb", f"({surf_idx},)"): alb_val,
+            ("lai_id", f"({veg_idx},)"): (
+                self.lai_id.value
+                if isinstance(self.lai_id, RefValue)
+                else self.lai_id
+            ),
+            ("gdd_id", f"({veg_idx},)"): (
+                self.gdd_id.value
+                if isinstance(self.gdd_id, RefValue)
+                else self.gdd_id
+            ),
+            ("sdd_id", f"({veg_idx},)"): (
+                self.sdd_id.value
+                if isinstance(self.sdd_id, RefValue)
+                else self.sdd_id
+            ),
+        }
+        df_veg = df_from_cols(cols, index=df_state.index)
 
         # Add water use parameters
         df_wu = self.wu.to_df_state(veg_idx, grid_id)
-        df_state = pd.concat([df_state, df_wu], axis=1)
+        df_state = pd.concat([df_state, df_veg, df_wu], axis=1)
 
         # Drop any duplicate columns
         df_state = df_state.loc[:, ~df_state.columns.duplicated()]
@@ -483,10 +534,12 @@ class InitialStateEvetr(InitialStateVeg):
     def to_df_state(self, grid_id: int) -> pd.DataFrame:
         """Convert evergreen tree initial state to DataFrame state format."""
         df_state = super().to_df_state(grid_id)
-        df_state[("albevetr_id", "0")] = (
-            self.alb_id.value if isinstance(self.alb_id, RefValue) else self.alb_id
-        )
-        return df_state
+        alb_val = self._get_alb_id_value()
+        cols = {
+            ("albevetr_id", "0"): alb_val
+        }
+        df_evetr = df_from_cols(cols, index=df_state.index)
+        return pd.concat([df_state, df_evetr], axis=1)
 
     @classmethod
     def from_df_state(
@@ -524,14 +577,14 @@ class InitialStateDectr(InitialStateVeg):
 
     porosity_id: FlexibleRefValue(float) = Field(
         description="Porosity for deciduous trees at the start of the model run",
-        json_schema_extra={"unit": "dimensionless", "display_name": "Porosity Id"},
+        json_schema_extra={"unit": "dimensionless", "display_name": "Initial Porosity"},
         default=0.2,
         ge=0,
         le=1,
     )
     decidcap_id: FlexibleRefValue(float) = Field(
         description="Deciduous capacity for deciduous trees at the start of the model run",
-        json_schema_extra={"unit": "mm", "display_name": "Decidcap Id"},
+        json_schema_extra={"unit": "mm", "display_name": "Initial Deciduous Capacity"},
         default=0.3,
         ge=0,
     )
@@ -552,21 +605,22 @@ class InitialStateDectr(InitialStateVeg):
         df_state = super().to_df_state(grid_id)
 
         # Add deciduous tree specific parameters
-        df_state[("porosity_id", "0")] = (
-            self.porosity_id.value
-            if isinstance(self.porosity_id, RefValue)
-            else self.porosity_id
-        )
-        df_state[("decidcap_id", "0")] = (
-            self.decidcap_id.value
-            if isinstance(self.decidcap_id, RefValue)
-            else self.decidcap_id
-        )
-        df_state[("albdectr_id", "0")] = (
-            self.alb_id.value if isinstance(self.alb_id, RefValue) else self.alb_id
-        )
-
-        return df_state
+        alb_val = self._get_alb_id_value()
+        cols = {
+            ("porosity_id", "0"): (
+                self.porosity_id.value
+                if isinstance(self.porosity_id, RefValue)
+                else self.porosity_id
+            ),
+            ("decidcap_id", "0"): (
+                self.decidcap_id.value
+                if isinstance(self.decidcap_id, RefValue)
+                else self.decidcap_id
+            ),
+            ("albdectr_id", "0"): alb_val,
+        }
+        df_dectr = df_from_cols(cols, index=df_state.index)
+        return pd.concat([df_state, df_dectr], axis=1)
 
     @classmethod
     def from_df_state(
@@ -614,10 +668,12 @@ class InitialStateGrass(InitialStateVeg):
     def to_df_state(self, grid_id: int) -> pd.DataFrame:
         """Convert grass initial state to DataFrame state format."""
         df_state = super().to_df_state(grid_id)
-        df_state[("albgrass_id", "0")] = (
-            self.alb_id.value if isinstance(self.alb_id, RefValue) else self.alb_id
-        )
-        return df_state
+        alb_val = self._get_alb_id_value()
+        cols = {
+            ("albgrass_id", "0"): alb_val
+        }
+        df_grass = df_from_cols(cols, index=df_state.index)
+        return pd.concat([df_state, df_grass], axis=1)
 
     @classmethod
     def from_df_state(
@@ -660,7 +716,7 @@ class InitialStateWater(SurfaceInitialState):
     # Override soilstore for water surfaces to allow 0 (water doesn't have soil)
     soilstore: FlexibleRefValue(float) = Field(
         description="Initial soil store (not applicable for water surfaces)",
-        json_schema_extra={"unit": "mm", "display_name": "Soilstore"},
+        json_schema_extra={"unit": "mm", "display_name": "Initial Soil Store"},
         default=0.0,
         ge=0,  # Water surfaces can have 0 soilstore
     )
@@ -682,7 +738,7 @@ class HDD_ID(BaseModel):
         description="Current day's heating degree days accumulation [degC]",
         json_schema_extra={
             "unit": "degC",
-            "display_name": "Hdd Accum",
+            "display_name": "Heating Degree Days Accumulation",
             "internal_only": True,
         },
     )
@@ -691,7 +747,7 @@ class HDD_ID(BaseModel):
         description="Current day's cooling degree days accumulation [degC]",
         json_schema_extra={
             "unit": "degC",
-            "display_name": "Cdd Accum",
+            "display_name": "Cooling Degree Days Accumulation",
             "internal_only": True,
         },
     )
@@ -700,7 +756,7 @@ class HDD_ID(BaseModel):
         description="Current day's temperature accumulation for daily mean [degC]",
         json_schema_extra={
             "unit": "degC",
-            "display_name": "Temp Accum",
+            "display_name": "Temperature Accumulation",
             "internal_only": True,
         },
     )
@@ -709,7 +765,7 @@ class HDD_ID(BaseModel):
         description="5-day running mean temperature accumulation [degC]",
         json_schema_extra={
             "unit": "degC",
-            "display_name": "Temp 5Day Accum",
+            "display_name": "5-Day Temperature Accumulation",
             "internal_only": True,
         },
     )
@@ -718,16 +774,16 @@ class HDD_ID(BaseModel):
         description="Current day's precipitation total [mm]",
         json_schema_extra={
             "unit": "mm",
-            "display_name": "Precip Accum",
+            "display_name": "Precipitation Accumulation",
             "internal_only": True,
         },
     )
     days_since_rain_accum: float = Field(
         default=0.0,
-        description="Days since rain counter (current) [days]",
+        description="Days since rain counter (current) [d]",
         json_schema_extra={
-            "unit": "days",
-            "display_name": "Days Since Rain Accum",
+            "unit": "d",
+            "display_name": "Days Since Rain (Accumulator)",
             "internal_only": True,
         },
     )
@@ -738,7 +794,7 @@ class HDD_ID(BaseModel):
         description="Previous day's heating degree days for QF calculations [degC]",
         json_schema_extra={
             "unit": "degC",
-            "display_name": "Hdd Daily",
+            "display_name": "Daily Heating Degree Days",
             "internal_only": True,
         },
     )
@@ -747,7 +803,7 @@ class HDD_ID(BaseModel):
         description="Previous day's cooling degree days for QF calculations [degC]",
         json_schema_extra={
             "unit": "degC",
-            "display_name": "Cdd Daily",
+            "display_name": "Daily Cooling Degree Days",
             "internal_only": True,
         },
     )
@@ -756,7 +812,7 @@ class HDD_ID(BaseModel):
         description="Previous day's mean temperature for water use calculations [degC]",
         json_schema_extra={
             "unit": "degC",
-            "display_name": "Temp Daily Mean",
+            "display_name": "Daily Mean Temperature",
             "internal_only": True,
         },
     )
@@ -765,7 +821,7 @@ class HDD_ID(BaseModel):
         description="Previous 5-day running mean temperature for QF calculations [degC]",
         json_schema_extra={
             "unit": "degC",
-            "display_name": "Temp 5Day Mean",
+            "display_name": "5-Day Mean Temperature",
             "internal_only": True,
         },
     )
@@ -774,15 +830,15 @@ class HDD_ID(BaseModel):
         description="Previous day's precipitation total [mm]",
         json_schema_extra={
             "unit": "mm",
-            "display_name": "Precip Daily Total",
+            "display_name": "Daily Precipitation Total",
             "internal_only": True,
         },
     )
     days_since_rain: float = Field(
         default=0.0,
-        description="Days since rain for irrigation calculations [days]",
+        description="Days since rain for irrigation calculations [d]",
         json_schema_extra={
-            "unit": "days",
+            "unit": "d",
             "display_name": "Days Since Rain",
             "internal_only": True,
         },
@@ -875,22 +931,57 @@ class InitialStates(BaseModel):
     )
     roofs: Optional[List[SurfaceInitialState]] = Field(
         default=[
-            SurfaceInitialState(),
-            SurfaceInitialState(),
-            SurfaceInitialState(),
+            SurfaceInitialState(
+                snowfrac=None, snowpack=None, icefrac=None,
+                snowwater=None, snowdens=None,
+            ),
+            SurfaceInitialState(
+                snowfrac=None, snowpack=None, icefrac=None,
+                snowwater=None, snowdens=None,
+            ),
+            SurfaceInitialState(
+                snowfrac=None, snowpack=None, icefrac=None,
+                snowwater=None, snowdens=None,
+            ),
         ],
         description="Initial states for roof layers",
         json_schema_extra={"display_name": "Roofs"},
     )
     walls: Optional[List[SurfaceInitialState]] = Field(
         default=[
-            SurfaceInitialState(),
-            SurfaceInitialState(),
-            SurfaceInitialState(),
+            SurfaceInitialState(
+                snowfrac=None, snowpack=None, icefrac=None,
+                snowwater=None, snowdens=None,
+            ),
+            SurfaceInitialState(
+                snowfrac=None, snowpack=None, icefrac=None,
+                snowwater=None, snowdens=None,
+            ),
+            SurfaceInitialState(
+                snowfrac=None, snowpack=None, icefrac=None,
+                snowwater=None, snowdens=None,
+            ),
         ],
         description="Initial states for wall layers",
         json_schema_extra={"display_name": "Walls"},
     )
+
+    @model_validator(mode="after")
+    def _clear_building_surface_snow(self):
+        """Roofs and walls do not track snow state independently.
+
+        Snow on buildings is tracked via the aggregate Bldgs surface type.
+        Proper per-surface snow handling is deferred to a future snow module update.
+        """
+        for surfaces in (self.roofs, self.walls):
+            if surfaces:
+                for surf in surfaces:
+                    surf.snowfrac = None
+                    surf.snowpack = None
+                    surf.icefrac = None
+                    surf.snowwater = None
+                    surf.snowdens = None
+        return self
 
     dqndt: float = Field(
         default=0,
@@ -984,14 +1075,101 @@ class InitialStates(BaseModel):
         description="Heating degree days and meteorological tracking parameters (internal use only)",
     )
 
+    # Atmospheric state for continuation runs (resistance calculations)
+    l_mod: float = Field(
+        default=0.0,
+        description="Obukhov length [m] for stability calculations",
+        json_schema_extra={
+            "display_name": "Obukhov Length",
+            "internal_only": True,
+        },
+    )
+    ustar: float = Field(
+        default=0.0,
+        description="Friction velocity [m s-1]",
+        json_schema_extra={
+            "display_name": "Friction Velocity",
+            "internal_only": True,
+        },
+    )
+    ra_h: float = Field(
+        default=0.0,
+        description="Aerodynamic resistance for heat [s m-1]",
+        json_schema_extra={
+            "display_name": "Aerodynamic Resistance",
+            "internal_only": True,
+        },
+    )
+    rb: float = Field(
+        default=0.0,
+        description="Boundary layer resistance [s m-1]",
+        json_schema_extra={
+            "display_name": "Boundary Layer Resistance",
+            "internal_only": True,
+        },
+    )
+    rs: float = Field(
+        default=0.0,
+        description="Surface resistance [s m-1]",
+        json_schema_extra={
+            "display_name": "Surface Resistance",
+            "internal_only": True,
+        },
+    )
+    qn_surfs: List[Optional[float]] = Field(
+        default_factory=lambda: [0.0] * 7,
+        json_schema_extra={
+            "display_name": "Initial QN for each surface",
+            "internal_only": True,
+        },
+        description="Initial QN for each surface (internal use only)",
+    )
+    dqndt_surf: List[Optional[float]] = Field(
+        default_factory=lambda: [0.0] * 7,
+        json_schema_extra={
+            "display_name": "Initial dQN/dt for each surface",
+            "internal_only": True,
+        },
+        description="Initial dQN/dt for each surface (internal use only)",
+    )
     def to_df_state(self, grid_id: int) -> pd.DataFrame:
         """Convert initial states to DataFrame state format."""
-        df_state = init_df_state(grid_id)
+        index = pd.Index([grid_id], name="grid")
 
-        # Add snowalb
-        df_state[("snowalb", "0")] = (
-            self.snowalb.value if isinstance(self.snowalb, RefValue) else self.snowalb
-        )
+        cols = {
+            ("gridiv", "0"): grid_id,
+            ("snowalb", "0"): (
+                self.snowalb.value
+                if isinstance(self.snowalb, RefValue)
+                else self.snowalb
+            ),
+            ("dqndt", "0"): self.dqndt,
+            ("dqnsdt", "0"): self.dqnsdt,
+            ("dt_since_start", "0"): self.dt_since_start,
+            ("lenday_id", "0"): self.lenday_id,
+            ("qn_av", "0"): self.qn_av,
+            ("qn_s_av", "0"): self.qn_s_av,
+            ("tair_av", "0"): self.tair_av,
+            ("tmax_id", "0"): self.tmax_id,
+            ("tmin_id", "0"): self.tmin_id,
+            ("tstep_prev", "0"): self.tstep_prev,
+            ("snowfallcum", "0"): self.snowfallcum,
+        }
+
+        # qn_surfs (7)
+        for i, val in enumerate(self.qn_surfs):
+            cols[("qn_surfs", f"({i},)")] = val
+
+        # dqndt_surf (7)
+        for i, val in enumerate(self.dqndt_surf):
+            cols[("dqndt_surf", f"({i},)")] = val
+
+        # special treatment for hdd_id - convert to list format for legacy compatibility
+        hdd_list = self.hdd_id.to_list()
+        for i, hdd in enumerate(hdd_list):
+            cols[(f"hdd_id", f"({i},)")] = hdd
+
+        frames = [df_from_cols(cols, index=index)]
 
         # Add surface states
         surfaces = {
@@ -1005,38 +1183,17 @@ class InitialStates(BaseModel):
         }
         # Add surface states
         for surface in surfaces.values():
-            df_surface = surface.to_df_state(grid_id)
-            df_state = pd.concat([df_state, df_surface], axis=1)
+            frames.append(surface.to_df_state(grid_id))
 
         # Add roof and wall states
         for facet_list, facet_type in [(self.roofs, "roof"), (self.walls, "wall")]:
             if facet_list is not None:  # Check for None explicitly
                 for i, facet in enumerate(facet_list):
                     is_roof = facet_type == "roof"
-                    df_facet = facet.to_df_state(grid_id, i, is_roof)
-                    df_state = pd.concat([df_state, df_facet], axis=1)
-                    df_state = df_state.sort_index(axis=1)
+                    frames.append(facet.to_df_state(grid_id, i, is_roof))
 
-        # Add these attributes to the DataFrame
-        df_state[("dqndt", "0")] = self.dqndt
-        df_state[("dqnsdt", "0")] = self.dqnsdt
-        df_state[("dt_since_start", "0")] = self.dt_since_start
-        df_state[("lenday_id", "0")] = self.lenday_id
-        df_state[("qn_av", "0")] = self.qn_av
-        df_state[("qn_s_av", "0")] = self.qn_s_av
-        df_state[("tair_av", "0")] = self.tair_av
-        df_state[("tmax_id", "0")] = self.tmax_id
-        df_state[("tmin_id", "0")] = self.tmin_id
-        df_state[("tstep_prev", "0")] = self.tstep_prev
-        df_state[("snowfallcum", "0")] = self.snowfallcum
-
+        df_state = pd.concat(frames, axis=1)
         df_state = df_state.sort_index(axis=1)
-        # special treatment for hdd_id - convert to list format for legacy compatibility
-        hdd_list = self.hdd_id.to_list()
-        for i, hdd in enumerate(hdd_list):
-            df_state[(f"hdd_id", f"({i},)")] = hdd
-        df_state = df_state.sort_index(axis=1)
-
         # Drop duplicate columns while preserving first occurrence
         df_state = df_state.loc[:, ~df_state.columns.duplicated(keep="first")]
 
@@ -1103,7 +1260,9 @@ class InitialStates(BaseModel):
         snowfallcum = df.loc[grid_id, ("snowfallcum", "0")]
         hdd_id_list = [df.loc[grid_id, (f"hdd_id", f"({i},)")] for i in range(12)]
         hdd_id = HDD_ID.from_list(hdd_id_list)
-
+        qn_surfs = [float(df.loc[grid_id, ("qn_surfs", f"({i},)")]) for i in range(7)]
+        dqndt_surf = [float(df.loc[grid_id, ("dqndt_surf", f"({i},)")]) for i in range(7)]
+        
         initital_state = {
             "snowalb": snowalb,
             "paved": surfaces["paved"],
@@ -1127,6 +1286,8 @@ class InitialStates(BaseModel):
             "tstep_prev": tstep_prev,
             "snowfallcum": snowfallcum,
             "hdd_id": hdd_id,
+            "qn_surfs": qn_surfs,
+            "dqndt_surf": dqndt_surf
         }
 
         return cls(

@@ -29,6 +29,13 @@ html: $(RST_STAMP) $(OUTPUT_RST_STAMP)
 clean:
 	@$(SPHINXBUILD) -M clean "$(SOURCEDIR)" "$(BUILDDIR)" $(SPHINXOPTS)
 
+# Override with `make livehtml LIVEHTML_OPEN_BROWSER=""` to suppress the
+# auto-opened browser tab (used by the Conductor run script).
+LIVEHTML_OPEN_BROWSER ?= --open-browser
+# Override with `make livehtml LIVEHTML_PORT=8001` to avoid port conflicts
+# (e.g. when multiple Conductor workspaces run in parallel).
+LIVEHTML_PORT ?= 8000
+
 # Live-reloading server with incremental builds
 livehtml: $(RST_STAMP) $(OUTPUT_RST_STAMP)
 	@echo "Starting live-reload server with incremental builds..."
@@ -37,8 +44,10 @@ livehtml: $(RST_STAMP) $(OUTPUT_RST_STAMP)
 	sphinx-autobuild -j auto \
 		--re-ignore 'supy\.util\..*' \
 		--ignore "source/SuPy.log" \
+		--ignore "source/auto_examples/*" \
 		--watch ../src/supy/data_model \
-		--open-browser \
+		--port $(LIVEHTML_PORT) \
+		$(LIVEHTML_OPEN_BROWSER) \
 		"$(SOURCEDIR)" "$(BUILDDIR)/html" \
 		$(SPHINXOPTS)
 

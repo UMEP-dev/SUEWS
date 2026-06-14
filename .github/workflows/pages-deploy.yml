@@ -2,21 +2,24 @@ name: GitHub Pages Deploy
 
 # RELIABLE GITHUB PAGES DEPLOYMENT
 # =================================
-# Deploys static content from site/ to GitHub Pages.
+# Deploys static content from site/ and Sphinx docs to GitHub Pages.
 # - Push to master: Deploy production site
-# - Pull request: Add preview to /preview/pr-{NUMBER}/
+# - Pull request: Add preview to /preview/pr-{NUMBER}/ (site + docs)
 # - Manual dispatch: Force redeploy
 #
 # Previews are ephemeral - each deployment includes full site from repo.
 # No wget required; repo content is the single source of truth.
 #
 # NOTE: Schema hosting removed - validation handled by Pydantic at runtime
+# NOTE: Fork PRs cannot deploy (no OIDC tokens) but still build docs for validation
 
 on:
   push:
     branches: [master]
     paths:
       - 'site/**'
+      - 'docs/**'
+      - 'src/supy/data_model/**'
       - '.github/workflows/pages-deploy.yml'
 
   pull_request:
@@ -47,7 +50,34 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          fetch-depth: 0  # Required for sphinx-last-updated-by-git
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6
+        with:
+          # Documentation tooling requires Python 3.11+; runtime support remains 3.9+.
+          python-version: '3.13'
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@38f3f104447c67c051c4a08e39b64a148898af3a # v4
+
+      - name: Install pandoc
+        run: sudo apt-get update && sudo apt-get install -y pandoc
+
+      - name: Build documentation
+        if: github.event_name != 'pull_request'
+        env:
+          CI: "true"  # Enable reduced computation in sphinx-gallery examples
+        run: |
+          uv venv
+          source .venv/bin/activate
+          # Use non-editable install for CI to avoid meson-python cache path issues
+          uv pip install ".[docs]"
+          python scripts/security/remove_legacy_namespace_pth.py
+          make docs
 
       - name: Build site
         run: |
@@ -64,16 +94,25 @@ jobs:
             cp -r site/* "_site/${PR_DIR}/"
             echo "Preview created at /${PR_DIR}/"
 
+            # Copy Sphinx docs to preview when available (push/manual builds)
+            if [ -d docs/build/html ]; then
+              mkdir -p "_site/${PR_DIR}/docs"
+              cp -r docs/build/html/* "_site/${PR_DIR}/docs/"
+              echo "Docs preview created at /${PR_DIR}/docs/"
+            fi
+
             # Rewrite absolute paths for preview context
             # /brand/ → /preview/pr-N/brand/ so links work within preview
+            # https://docs.suews.io → /preview/pr-N/docs/ so docs links use preview
             echo "Rewriting absolute paths for preview..."
-            find "_site/${PR_DIR}" -name "*.html" -type f | while read -r f; do
+            find "_site/${PR_DIR}" -name "*.html" -type f -not -path "*/${PR_DIR}/docs/*" | while read -r f; do
               sed -i "s|href=\"/brand/|href=\"/${PR_DIR}/brand/|g" "$f"
               sed -i "s|href=\"/\"|href=\"/${PR_DIR}/\"|g" "$f"
+              sed -i "s|href=\"https://docs.suews.io[/]*\"|href=\"/${PR_DIR}/docs/\"|g" "$f"
             done
 
             # Inject preview banner into site pages
-            PREVIEW_BANNER='<div id="preview-banner" style="background:linear-gradient(90deg,#ffeb3b,#ffc107);color:#333;padding:10px 20px;text-align:center;font-family:system-ui,-apple-system,sans-serif;font-size:13px;position:fixed;top:0;left:0;right:0;z-index:9999;box-shadow:0 2px 8px rgba(0,0,0,0.15);"><strong>Preview - PR #'"${PR_NUM}"'</strong> \&nbsp;\| <a href="https://suews.io/" style="color:#1565c0;text-decoration:underline;">Production</a> \&nbsp;\| <a href="https://github.com/UMEP-dev/SUEWS/pull/'"${PR_NUM}"'" style="color:#1565c0;text-decoration:underline;">View PR</a></div><style>body{padding-top:40px !important;}</style>'
+            PREVIEW_BANNER='<div id="preview-banner" style="background:linear-gradient(90deg,#0077B6,#F7B538);color:#fff;padding:10px 20px;text-align:center;font-family:system-ui,-apple-system,sans-serif;font-size:13px;position:fixed;top:0;left:0;right:0;z-index:9999;box-shadow:0 2px 8px rgba(0,0,0,0.15);"><strong>Preview - PR #'"${PR_NUM}"'</strong> \&nbsp;\| <a href="https://suews.io/" style="color:#fff;text-decoration:underline;">Production</a> \&nbsp;\| <a href="https://github.com/UMEP-dev/SUEWS/pull/'"${PR_NUM}"'" style="color:#fff;text-decoration:underline;">View PR</a></div><style>body{padding-top:40px !important;}</style>'
 
             for page in index.html brand/index.html brand/brand-workshop.html brand/suews-logo-source.html; do
               target="_site/${PR_DIR}/${page}"
@@ -84,31 +123,102 @@ jobs:
                 echo "Injected preview banner into ${page}"
               fi
             done
+
+            # Inject preview banner into docs pages (Sphinx theme structure)
+            DOCS_BANNER='<div id="preview-banner" style="background:linear-gradient(90deg,#0077B6,#F7B538);color:#fff;padding:8px 16px;text-align:center;font-family:system-ui,-apple-system,sans-serif;font-size:12px;position:fixed;top:0;left:0;right:0;z-index:9999;box-shadow:0 2px 8px rgba(0,0,0,0.15);"><strong>Docs Preview - PR #'"${PR_NUM}"'</strong> \&nbsp;\| <a href="https://docs.suews.io/" style="color:#fff;text-decoration:underline;">Production Docs</a> \&nbsp;\| <a href="https://github.com/UMEP-dev/SUEWS/pull/'"${PR_NUM}"'" style="color:#fff;text-decoration:underline;">View PR</a></div><style>.bd-header{top:36px !important;}.bd-sidebar-primary{top:calc(var(--pst-header-height) + 36px) !important;}</style>'
+
+            find "_site/${PR_DIR}/docs" -name "*.html" -type f | while read -r f; do
+              # Inject banner after <body> tag
+              sed -i "s|<body |<body>${DOCS_BANNER}<body-placeholder |g" "$f"
+              sed -i "s|<body-placeholder |<div |g" "$f"
+            done
+            echo "Injected preview banner into docs pages"
           fi
 
           touch _site/.nojekyll
           echo "Site ready: $(find _site -type f | wc -l) files"
 
-      - uses: actions/configure-pages@v5
-      - uses: actions/upload-pages-artifact@v3
+      # Fork PRs cannot deploy - they lack OIDC tokens required by deploy-pages
+      # Detect fork: compare PR head repo with base repo
+      - name: Check if fork PR
+        id: fork-check
+        env:
+          HEAD_REPO_FULL_NAME: ${{ github.event.pull_request.head.repo.full_name || '' }}
+          BASE_REPO_FULL_NAME: ${{ github.repository }}
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            HEAD_REPO="${HEAD_REPO_FULL_NAME}"
+            BASE_REPO="${BASE_REPO_FULL_NAME}"
+            if [ "$HEAD_REPO" != "$BASE_REPO" ]; then
+              echo "is_fork=true" >> $GITHUB_OUTPUT
+              echo "::notice::Fork PR detected ($HEAD_REPO) - skipping deployment"
+            else
+              echo "is_fork=false" >> $GITHUB_OUTPUT
+            fi
+          else
+            echo "is_fork=false" >> $GITHUB_OUTPUT
+          fi
+
+      - uses: actions/configure-pages@45bfe0192ca1faeb007ade9deae92b16b8254a0d # v6
+        if: github.event_name != 'pull_request' && steps.fork-check.outputs.is_fork != 'true'
+
+      - uses: actions/upload-pages-artifact@7b1f4a764d45c48632c6b24a0339c27f5614fb0b # v4
+        if: github.event_name != 'pull_request' && steps.fork-check.outputs.is_fork != 'true'
         with:
           path: _site
-      - uses: actions/deploy-pages@v4
+
+      - uses: actions/deploy-pages@cd2ce8fcbc39b97be8ca5fce6e763baed58fa128 # v5
+        if: github.event_name != 'pull_request' && steps.fork-check.outputs.is_fork != 'true'
         id: deployment
 
+      - name: Comment fork PR status
+        if: github.event_name == 'pull_request' && steps.fork-check.outputs.is_fork == 'true'
+        continue-on-error: true  # Token may lack permission for fork PRs
+        uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b # v7
+        with:
+          script: |
+            const prNumber = context.issue.number;
+            const body = `## Docs Build Validated ✓
+
+            Documentation built successfully. Preview deployment is not available for fork PRs (GitHub security restriction).
+
+            A maintainer can test the preview locally with \`make docs\`.`;
+
+            const comments = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: prNumber
+            });
+
+            const botComment = comments.data.find(c =>
+              c.user.type === 'Bot' && c.body.includes('Docs Build Validated')
+            );
+
+            if (!botComment) {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: prNumber,
+                body
+              });
+            }
+
       - name: Comment preview URL
-        if: github.event_name == 'pull_request'
-        uses: actions/github-script@v7
+        if: github.event_name == 'pull_request' && steps.fork-check.outputs.is_fork != 'true' && steps.deployment.outputs.page_url != ''
+        uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b # v7
         with:
           script: |
             const prNumber = context.issue.number;
             const body = `## Preview Deployed
 
-            **Preview:** https://suews.io/preview/pr-${prNumber}/
+            | Content | Preview URL |
+            |---------|-------------|
+            | Site | https://suews.io/preview/pr-${prNumber}/ |
+            | Docs | https://suews.io/preview/pr-${prNumber}/docs/ |
 
             > [!NOTE]
             > This preview is ephemeral. It will be lost when:
-            > - Another PR with \`site/\` changes is pushed
+            > - Another PR with \`site/\` or \`docs/\` changes is pushed
             > - Changes are merged to master
             > - A manual workflow dispatch runs
             >

@@ -2,10 +2,9 @@
 
 This module tests the functions used by UMEP Processor plugin:
 - init_config_from_yaml(): Load configuration
-- config.to_df_state(): Convert to DataFrame
+- SUEWSSimulation(config.yml): Preferred YAML-backed runtime
 - load_forcing_grid(): Load forcing data
-- run_supy(): Execute model
-- save_supy(): Save output
+- run_supy()/save_supy(): Legacy DFState compatibility
 
 Reference:
 https://github.com/UMEP-dev/UMEP-processing/blob/82bc3266d8cb4d04359994b1cae5cf082d09c47c/processor/suews_algorithm.py#L265
@@ -20,6 +19,7 @@ from unittest import TestCase
 import pandas as pd
 
 import supy as sp
+from conftest import TIMESTEPS_PER_DAY
 
 
 class TestSUEWSProcessorAPI(TestCase):
@@ -52,27 +52,15 @@ class TestSUEWSProcessorAPI(TestCase):
         self.assertTrue(hasattr(config, "model"))
         self.assertTrue(hasattr(config, "sites"))
 
-    def test_config_to_df_state(self):
-        """Test config.to_df_state() method used by UMEP."""
-        from supy.data_model import init_config_from_yaml
-
+    def test_yaml_config_runtime(self):
+        """Test the preferred YAML-backed runtime used by UMEP."""
         if not self.sample_config.exists():
             self.skipTest("Sample config not available")
 
-        config = init_config_from_yaml(self.sample_config)
-
-        # UMEP calls config.to_df_state()
-        self.assertTrue(
-            hasattr(config, "to_df_state"),
-            "Config object must have to_df_state() method",
-        )
-
-        df_state = config.to_df_state()
-
-        # Verify DataFrame structure
-        self.assertIsInstance(df_state, pd.DataFrame)
-        self.assertFalse(df_state.empty)
-        self.assertEqual(df_state.index.name, "grid")
+        sim = sp.SUEWSSimulation(self.sample_config)
+        self.assertIsNotNone(sim.config)
+        self.assertIsNotNone(sim.state_init)
+        self.assertIsNotNone(sim.forcing)
 
     def test_load_forcing_grid_import(self):
         """Test that load_forcing_grid is importable from expected location."""
@@ -121,9 +109,9 @@ class TestSUEWSProcessorAPI(TestCase):
         )
 
         # Run with chunk_day parameter as UMEP does
-        # Use short forcing for test speed: 288 = 24h x 12 intervals/h (5-min data)
+        # Use short forcing for test speed (one day of 5-min data)
         df_output, df_state_final = sp.run_supy(
-            df_forcing.iloc[:288],
+            df_forcing.iloc[:TIMESTEPS_PER_DAY],
             df_state_init,
             chunk_day=1,
             check_input=False,
@@ -154,9 +142,9 @@ class TestSUEWSProcessorAPI(TestCase):
             self.sample_config, grid=grid, df_state_init=df_state_init
         )
 
-        # 288 = 24h x 12 intervals/h (5-min data)
+        # One day of 5-min data
         df_output, df_state_final = sp.run_supy(
-            df_forcing.iloc[:288],
+            df_forcing.iloc[:TIMESTEPS_PER_DAY],
             df_state_init,
             check_input=False,
         )

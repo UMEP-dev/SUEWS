@@ -1,7 +1,13 @@
 # command line tools
 import click
+import logging
+import multiprocessing
+import os
 import sys
 from pathlib import Path
+
+# Get logger for CLI warnings (configured in _env.py when heavy imports load)
+logger_cli = logging.getLogger("SuPy.CLI")
 
 # Lazy import flag - heavy modules imported only when needed
 _HEAVY_IMPORTS_LOADED = False
@@ -19,9 +25,7 @@ def _load_heavy_imports():
 
     # These imports trigger slow package discovery via importlib.resources.files()
     global _init_supy, _run_supy, _save_supy, _load_forcing_grid, pd
-    global load_SUEWS_nml_simple, SUEWSSimulation, YAML_SUPPORT, ThreadPool
-
-    from multiprocessing.pool import ThreadPool
+    global load_SUEWS_nml_simple, SUEWSSimulation, YAML_SUPPORT
     from .._supy_module import (
         _init_supy,
         _run_supy,
@@ -102,7 +106,8 @@ def _run_with_yaml(config_path):
         if sim.forcing is None:
             click.echo("Error: No forcing data found in configuration.", err=True)
             click.echo(
-                "Please ensure 'forcing_file' is specified in the YAML config.",
+                "Please ensure 'forcing.file' is specified in the YAML config "
+                "(legacy 'forcing_file' is also accepted via auto-migration).",
                 err=True,
             )
             sys.exit(1)
@@ -131,8 +136,15 @@ def _run_with_yaml(config_path):
     except FileNotFoundError as e:
         click.echo(f"Error: {e}", err=True)
         sys.exit(1)
+    except KeyboardInterrupt:
+        click.echo("\nSimulation interrupted by user.", err=True)
+        sys.exit(130)
     except Exception as e:
+        import traceback
+
         click.echo(f"Error running simulation: {e}", err=True)
+        click.echo("\nFull traceback:", err=True)
+        click.echo(traceback.format_exc(), err=True)
         sys.exit(1)
 
 
@@ -154,7 +166,7 @@ def _run_with_namelist(path_runcontrol):
         "Please migrate to YAML configuration:\n\n"
         f"  1. Convert: suews-convert -i {path_runcontrol.name} -o config.yml\n"
         "  2. Run:     suews-run config.yml\n\n"
-        "For more information, see: https://suews.readthedocs.io/\n"
+        "For more information, see: https://docs.suews.io/\n"
         "=" * 60 + "\n",
         err=True,
     )
@@ -186,8 +198,19 @@ def _run_with_namelist(path_runcontrol):
                 idx_dt = df_forcing.index
                 start, end = idx_dt.min(), idx_dt.max()
                 click.echo(f"grid {grid}: {start} - {end}")
-            # use thread-based parallelization for multi-grid simulations
-            with ThreadPool() as pool:
+
+            # Fortran SAVE variables are shared across threads: use process-based pools.
+            mp_context = os.environ.get("SUPY_MP_CONTEXT", "spawn")
+            try:
+                ctx = multiprocessing.get_context(mp_context)
+            except ValueError as e:
+                msg = f"Invalid SUPY_MP_CONTEXT={mp_context!r} ({e}); falling back to 'spawn'."
+                click.echo(msg, err=True)
+                logger_cli.warning(msg)
+                ctx = multiprocessing.get_context("spawn")
+
+            processes = min(len(list_grid), os.cpu_count() or 1)
+            with ctx.Pool(processes=processes) as pool:
                 list_res = pool.starmap(_run_supy, list_input)
             try:
                 list_df_output, list_df_state_final = zip(*list_res)
@@ -196,8 +219,8 @@ def _run_with_namelist(path_runcontrol):
                     list_df_state_final, names=["grid", "datetime"]
                 )
 
-            except:
-                raise RuntimeError("SUEWS kernel error")
+            except Exception as e:
+                raise RuntimeError("SUEWS kernel error") from e
 
         else:
             # uniform met forcing condition across grids:
@@ -224,9 +247,16 @@ def _run_with_namelist(path_runcontrol):
         # return
         click.echo("\nSUEWS run successfully done!")
 
-    except:
-        # click.echo(f'{str(path_runcontrol)} not existing!')
-        sys.exit()
+    except KeyboardInterrupt:
+        click.echo("\nSimulation interrupted by user.", err=True)
+        sys.exit(130)
+    except Exception as e:
+        import traceback
+
+        click.echo(f"Error: {e}", err=True)
+        click.echo("\nFull traceback:", err=True)
+        click.echo(traceback.format_exc(), err=True)
+        sys.exit(1)
 
 
 # run the whole supy workflow mimicking SUEWS binary
@@ -256,7 +286,7 @@ To migrate from namelist to YAML:
     $ suews-convert -i RunControl.nml -o config.yml
     $ suews-run config.yml
 
-For more information, see: https://suews.readthedocs.io/
+For more information, see: https://docs.suews.io/
 """,
 )
 @click.argument(
@@ -279,7 +309,7 @@ def SUEWS(config_file, path_runcontrol):
 ===========================================
 SUEWS version: {_get_version()}
 
-Documentation: https://suews.readthedocs.io/
+Website: https://suews.io/
 ===========================================
     """
     )

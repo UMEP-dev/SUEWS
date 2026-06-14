@@ -20,8 +20,8 @@ import re
 import shutil
 from shutil import copyfile, move, rmtree
 import sys
-import textwrap
 from tempfile import TemporaryDirectory
+import textwrap
 
 # ignore warnings raised by numpy when reading-in -9 lines
 import warnings
@@ -47,6 +47,7 @@ list_ver_to = rules["To"].unique().tolist()
 VERSION_SEQUENCE = [
     "2016a",
     "2017a",
+    "2017b",
     "2018a",
     "2018b",
     "2018c",
@@ -597,6 +598,30 @@ def detect_table_version(input_dir):
 # rename, delete, add, move
 
 
+def _read_table_tokens(path):
+    """Read a two-line-header SUEWS table without pandas inference."""
+    lines = Path(path).read_text(encoding="utf-8").splitlines()
+    if len(lines) < 2:
+        return [], []
+    headers = lines[1].split()
+    rows = []
+    for line in lines[2:]:
+        fields = line.split()
+        if not fields or fields[0].startswith("-9"):
+            break
+        rows.append(fields)
+    return headers, rows
+
+
+def _write_table_tokens(path, headers, rows):
+    """Write a two-line-header SUEWS table without legacy footer rows."""
+    path = Path(path)
+    index_line = " ".join(str(i + 1) for i in range(len(headers)))
+    lines = [index_line, " ".join(headers)]
+    lines.extend(" ".join(row) for row in rows)
+    path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+
+
 # rename:
 # rename file
 def rename_file(toFile, _toVar, _toCol, toVal):
@@ -617,59 +642,15 @@ def rename_var(toFile, toVar, _toCol, toVal):
         logger_supy.info(f"{toFile} {toVar} {toVal}")
         rename_var_nml(toFile, toVar, toVal)
     else:
-        # First, read the file to find where data ends (before -9 lines)
-        with open(toFile, encoding="utf-8") as f:
-            lines = f.readlines()
-
-        # Find where data ends (first line starting with -9)
-        data_end_idx = len(lines)
-        for i, line in enumerate(lines):
-            if line.strip().startswith("-9"):
-                data_end_idx = i
-                break
-
-        # Read only the data portion
-        try:
-            dataX = pd.read_csv(
-                toFile,
-                sep=r"\s+",
-                comment="!",
-                encoding="UTF8",
-                skiprows=2,  # Skip both header lines
-                nrows=data_end_idx - 2 if data_end_idx > 2 else None,
-                header=None,
-            )
-            # Get the header from the second line
-            if len(lines) > 1:
-                headers = lines[1].strip().split()
-                dataX.columns = headers
-        except Exception as e:
-            logger_supy.error(f"Could not read {toFile}: {e}")
-            return
-
         # Rename the column
-        if toVar in dataX.columns:
-            dataX = dataX.rename(columns={toVar: toVal})
+        path = Path(toFile)
+        headers, rows = _read_table_tokens(path)
+        if toVar in headers:
+            headers[headers.index(toVar)] = toVal
         else:
             logger_supy.warning(f"Column {toVar} not found in {toFile}")
 
-        # Get headers
-        headers = list(dataX.columns)
-
-        # Create header line
-        headerLine = (
-            " ".join(str(i + 1) for i in range(len(headers))) + "\n" + " ".join(headers)
-        )
-
-        # Convert to string
-        dataX = dataX.astype(str)
-
-        # Write the file
-        with open(toFile, "w", encoding="utf-8") as f:
-            f.write(headerLine + "\n")
-            dataX.to_csv(f, sep=" ", index=False, header=False)
-            # NO footer lines - these are legacy and should not be added
-
+        _write_table_tokens(path, headers, rows)
         logger_supy.debug(f"Renamed {toVar} to {toVal} in {toFile}")
         return
 
@@ -693,60 +674,20 @@ def delete_var(toFile, toVar, _toCol, toVal):
     if toFile.endswith(".nml"):
         delete_var_nml(toFile, toVar, toVal)
     else:
-        # First, read the file to find where data ends (before -9 lines)
-        with open(toFile, encoding="utf-8") as f:
-            lines = f.readlines()
-
-        # Find where data ends (first line starting with -9)
-        data_end_idx = len(lines)
-        for i, line in enumerate(lines):
-            if line.strip().startswith("-9"):
-                data_end_idx = i
-                break
-
-        # Read only the data portion
-        try:
-            dataX = pd.read_csv(
-                toFile,
-                sep=r"\s+",
-                comment="!",
-                encoding="UTF8",
-                skiprows=2,  # Skip both header lines
-                nrows=data_end_idx - 2 if data_end_idx > 2 else None,
-                header=None,
-            )
-            # Get the header from the second line
-            if len(lines) > 1:
-                headers = lines[1].strip().split()
-                dataX.columns = headers
-        except Exception as e:
-            logger_supy.error(f"Could not read {toFile}: {e}")
-            return
+        path = Path(toFile)
+        headers, rows = _read_table_tokens(path)
 
         # Delete the column
-        if toVar in dataX.columns:
-            dataX = dataX.drop(columns=[toVar])
-        else:
+        if toVar not in headers:
             logger_supy.warning(f"Column {toVar} not found in {toFile}")
             return
+        idx = headers.index(toVar)
+        headers.pop(idx)
+        for row in rows:
+            if len(row) > idx:
+                row.pop(idx)
 
-        # Get headers after deletion
-        headers = list(dataX.columns)
-
-        # Create header line
-        headerLine = (
-            " ".join(str(i + 1) for i in range(len(headers))) + "\n" + " ".join(headers)
-        )
-
-        # Convert to string
-        dataX = dataX.astype(str)
-
-        # Write the file
-        with open(toFile, "w", encoding="utf-8") as f:
-            f.write(headerLine + "\n")
-            dataX.to_csv(f, sep=" ", index=False, header=False)
-            # NO footer lines - these are legacy and should not be added
-
+        _write_table_tokens(path, headers, rows)
         logger_supy.debug(f"Deleted column {toVar} from {toFile}")
         return
 
@@ -1013,43 +954,8 @@ def add_var(toFile, toVar, toCol, toVal):
     if toFile.endswith(".nml"):
         add_var_nml(toFile, toVar, toVal)
     else:
-        # First, read the file to find where data ends (before -9 lines)
-        with open(toFile, encoding="utf-8") as f:
-            lines = f.readlines()
-
-        # Find where data ends (first line starting with -9)
-        data_end_idx = len(lines)
-        for i, line in enumerate(lines):
-            if line.strip().startswith("-9"):
-                data_end_idx = i
-                break
-
-        # Read only the data portion (skip headers and footers)
-        try:
-            # Use pandas to read only the data lines
-            dataX = pd.read_csv(
-                toFile,
-                sep=r"\s+",  # Use regex for whitespace separation
-                comment="!",
-                encoding="UTF8",
-                skiprows=2,  # Skip both header lines
-                nrows=data_end_idx - 2
-                if data_end_idx > 2
-                else None,  # Read only data rows
-                header=None,  # No header in data
-            )
-
-            # Get the header from the second line
-            if len(lines) > 1:
-                headers = lines[1].strip().split()
-                dataX.columns = headers
-            else:
-                headers = []
-        except Exception as e:
-            logger_supy.debug(f"Could not read {toFile} with pandas: {e}")
-            # If file doesn't exist or is empty, create minimal structure
-            dataX = pd.DataFrame()
-            headers = []
+        path = Path(toFile)
+        headers, rows = _read_table_tokens(path)
 
         # Check if column already exists
         if toVar in headers:
@@ -1064,32 +970,18 @@ def add_var(toFile, toVar, toCol, toVal):
         # Insert the new column at the specified position
         if target_col <= len(headers):
             headers.insert(target_col, toVar)
-            # Add the new column to dataX with the default value
-            if not dataX.empty:
-                # Insert column with the same value for all rows
-                dataX.insert(target_col, toVar, toVal)
-            else:
-                # Create a new dataframe with just the header
-                dataX = pd.DataFrame(columns=headers)
+            for row in rows:
+                if target_col > len(row):
+                    row.extend(["-999"] * (target_col - len(row)))
+                row.insert(target_col, str(toVal))
+        else:
+            logger_supy.warning(
+                f"Column position {toCol} is beyond {toFile}'s "
+                f"{len(headers)} columns; {toVar} not added"
+            )
+            return
 
-        # Create header line with column indices
-        headerLine = (
-            " ".join(str(i + 1) for i in range(len(headers))) + "\n" + " ".join(headers)
-        )
-
-        # Save the dataframe to file
-        # Convert to string to ensure all values are saved as text
-        if not dataX.empty:
-            dataX = dataX.astype(str)
-
-        # Write the file with headers
-        with open(toFile, "w", encoding="utf-8") as f:
-            # Write header lines
-            f.write(headerLine + "\n")
-            # Write data without index (only if there's data)
-            if not dataX.empty:
-                dataX.to_csv(f, sep=" ", index=False, header=False)
-            # NO footer lines - these are legacy and should not be added
+        _write_table_tokens(path, headers, rows)
 
 
 def add_var_nml(toFile, toVar, toVal):
@@ -1123,7 +1015,7 @@ def change_var_nml(toFile, toVar, toVal):
 
 def _copy_and_clean_files(fromDir, toDir, file_patterns, clean_txt=True):
     """Copy files matching patterns and optionally clean text files."""
-    for fileX in os.listdir(fromDir):
+    for fileX in sorted(os.listdir(fromDir)):
         if any(fnmatch(fileX, p) for p in file_patterns):
             file_src = os.path.join(fromDir, fileX)
             file_dst = os.path.join(toDir, fileX)
@@ -1173,9 +1065,10 @@ def _handle_same_version_copy(fromDir, toDir, fromVer):
     path_output.mkdir(exist_ok=True)
 
     # Move table files to Input directory
-    list_table_input = list(Path(toDir).glob("SUEWS*.txt")) + [
-        x for x in Path(toDir).glob("*.nml") if "RunControl" not in str(x)
-    ]
+    list_table_input = sorted(
+        list(Path(toDir).glob("SUEWS*.txt"))
+        + [x for x in Path(toDir).glob("*.nml") if "RunControl" not in str(x)]
+    )
     for fileX in list_table_input:
         move(fileX.resolve(), path_input / fileX.name)
 
@@ -1193,7 +1086,7 @@ def _build_file_list(fromDir, fromVer):
         logger_supy.warning(
             f"RunControl.nml not found in {fromDir}, checking root directory"
         )
-        for fileX in os.listdir(fromDir):
+        for fileX in sorted(os.listdir(fromDir)):
             if any(fnmatch(fileX, p) for p in ["SUEWS*.txt", "*.nml", "*.txt"]):
                 fileList.append(("", fileX))
         return fileList
@@ -1223,18 +1116,242 @@ def _build_file_list(fromDir, fromVer):
             # If not relative, use empty string
             subdir = ""
 
-        for fileX in os.listdir(input_dir):
+        for fileX in sorted(os.listdir(input_dir)):
             if fnmatch(fileX, "SUEWS_*.txt") or fnmatch(fileX, "*.nml"):
                 fileList.append((subdir, fileX))
                 logger_supy.debug(f"Found file in {subdir}: {fileX}")
 
     # Also check root for .nml files and txt files
-    for fileX in os.listdir(fromDir):
+    for fileX in sorted(os.listdir(fromDir)):
         if fnmatch(fileX, "*.nml") or fnmatch(fileX, "*.txt"):
             fileList.append(("", fileX))
             logger_supy.debug(f"Found file in root: {fileX}")
 
     return fileList
+
+
+# --------------------------------------------------------------------------- #
+# Cross-file column moves
+# --------------------------------------------------------------------------- #
+# rules.csv encodes a column *move* as Add(file_new, var) + Delete(file_old,
+# var) within one version step (e.g. the anthropogenic profile codes,
+# SiteSelect -> AnthropogenicHeat at 2017a -> 2018a; ``z``, RunControl.nml ->
+# SiteSelect at 2016a -> 2017a). Historically the Add wrote its hardcoded
+# default and the Delete discarded the user's values, silently resetting the
+# moved parameters. The helpers below harvest the values before the per-file
+# actions run and re-apply them afterwards.
+
+# When the move source is SiteSelect, the per-row value mapping follows this
+# SiteSelect code column into the destination characteristic table.
+_MOVE_LINK_COLS = {
+    "SUEWS_AnthropogenicHeat.txt": "AnthropogenicCode",
+    "SUEWS_AnthropogenicEmission.txt": "AnthropogenicCode",
+}
+
+# Same-name cross-file moves are detected automatically from rules.csv; the
+# registry below lists the carries whose value mapping the rules cannot
+# express -- renamed moves (gsChoice -> gsModel) and one-to-many splits
+# (TCritic -> TCritic_{Heating,Cooling}_{WD,WE}). Forward conversion seeds
+# every destination column from the source value; reverse conversion restores
+# the source from the destinations' consensus (first value, with a warning
+# when they disagree -- the old schema cannot represent the difference).
+_CARRY_REGISTRY = {
+    ("2016a", "2017a"): [
+        {
+            "src": ("RunControl.nml", "gsChoice"),
+            "dst": [("SUEWS_Conductance.txt", "gsModel")],
+        },
+        {
+            "src": ("RunControl.nml", "TIMEZONE"),
+            "dst": [("SUEWS_SiteSelect.txt", "Timezone")],
+        },
+    ],
+    ("2017a", "2018a"): [
+        {
+            "src": ("SUEWS_AnthropogenicHeat.txt", "AHMin"),
+            "dst": [
+                ("SUEWS_AnthropogenicHeat.txt", "AHMin_WD"),
+                ("SUEWS_AnthropogenicHeat.txt", "AHMin_WE"),
+            ],
+        },
+        {
+            "src": ("SUEWS_AnthropogenicHeat.txt", "AHSlope"),
+            "dst": [
+                ("SUEWS_AnthropogenicHeat.txt", "AHSlope_Heating_WD"),
+                ("SUEWS_AnthropogenicHeat.txt", "AHSlope_Heating_WE"),
+                ("SUEWS_AnthropogenicHeat.txt", "AHSlope_Cooling_WD"),
+                ("SUEWS_AnthropogenicHeat.txt", "AHSlope_Cooling_WE"),
+            ],
+        },
+        {
+            "src": ("SUEWS_AnthropogenicHeat.txt", "TCritic"),
+            "dst": [
+                ("SUEWS_AnthropogenicHeat.txt", "TCritic_Heating_WD"),
+                ("SUEWS_AnthropogenicHeat.txt", "TCritic_Heating_WE"),
+                ("SUEWS_AnthropogenicHeat.txt", "TCritic_Cooling_WD"),
+                ("SUEWS_AnthropogenicHeat.txt", "TCritic_Cooling_WE"),
+            ],
+        },
+        {
+            "src": ("SUEWS_SiteSelect.txt", "TrafficRate"),
+            "dst": [
+                ("SUEWS_SiteSelect.txt", "TrafficRate_WD"),
+                ("SUEWS_SiteSelect.txt", "TrafficRate_WE"),
+            ],
+        },
+        {
+            "src": ("SUEWS_SiteSelect.txt", "BuildEnergyUse"),
+            "dst": [
+                ("SUEWS_SiteSelect.txt", "QF0_BEU_WD"),
+                ("SUEWS_SiteSelect.txt", "QF0_BEU_WE"),
+            ],
+        },
+    ],
+    ("2018c", "2019a"): [
+        {
+            "src": ("SUEWS_AnthropogenicHeat.txt", "FcEF_v_kgkm"),
+            "dst": [
+                ("SUEWS_AnthropogenicHeat.txt", "FcEF_v_kgkmWD"),
+                ("SUEWS_AnthropogenicHeat.txt", "FcEF_v_kgkmWE"),
+            ],
+        },
+    ],
+}
+
+
+def _step_moves(fromVer, toVer):
+    """Same-step cross-file Add+Delete pairs: ``[(var, file_old, file_new)]``."""
+    step = rules[(rules["From"] == fromVer) & (rules["To"] == toVer)]
+    adds = {
+        str(r["Variable"]): str(r["File"])
+        for _, r in step[step["Action"] == "Add"].iterrows()
+    }
+    moves = []
+    for _, r in step[step["Action"] == "Delete"].iterrows():
+        var, file_old = str(r["Variable"]), str(r["File"])
+        file_new = adds.get(var)
+        if file_new and file_new != file_old:
+            moves.append((var, file_old, file_new))
+    return moves
+
+
+def _read_nml_value(path, var):
+    """Return ``var``'s value from a namelist file, or None."""
+    try:
+        nml = f90nml.read(str(path))
+    except Exception:
+        return None
+    for section in nml.values():
+        if var.lower() in section:
+            return section[var.lower()]
+    return None
+
+
+def _harvest_step_moves(toDir, fromVer, toVer):
+    """Read move/split source values from the still-source-schema ``toDir``.
+
+    Returns a list of ``{"mode", "value"|"values", "targets": [(file, var)]}``
+    items; ``_apply_step_moves`` re-applies them after the per-file actions.
+    """
+    from .reverse import _read_table  # call-time import: reverse imports table
+
+    harvested = []
+
+    def harvest_source(sfile, svar, targets):
+        src = Path(toDir) / sfile
+        if not src.exists():
+            return
+        if sfile.endswith(".nml"):
+            value = _read_nml_value(src, svar)
+            if value is not None:
+                harvested.append({
+                    "mode": "broadcast",
+                    "value": value,
+                    "targets": targets,
+                })
+            return
+        header, rows = _read_table(src)
+        if svar not in header:
+            return
+        vi = header.index(svar)
+        values = {row[0]: row[vi] for row in rows if len(row) > vi}
+        if values:
+            harvested.append({"mode": "by_key", "values": values, "targets": targets})
+
+    # 1. Same-name cross-file moves detected from rules.csv.
+    for var, file_old, file_new in _step_moves(fromVer, toVer):
+        src = Path(toDir) / file_old
+        if not src.exists():
+            continue
+        if file_old.endswith(".nml"):
+            harvest_source(file_old, var, [(file_new, var)])
+        elif file_old == "SUEWS_SiteSelect.txt":
+            # SiteSelect -> characteristic table: group rows by the linking
+            # code; heterogeneous values per code cannot be represented in
+            # the destination row, so warn and keep the first.
+            link = _MOVE_LINK_COLS.get(file_new)
+            header, rows = _read_table(src)
+            if link is None or link not in header or var not in header:
+                continue
+            vi, li = header.index(var), header.index(link)
+            by_code = {}
+            for row in rows:
+                if len(row) > max(vi, li):
+                    by_code.setdefault(row[li], []).append(row[vi])
+            values = {}
+            for code, vals in by_code.items():
+                if len(set(vals)) > 1:
+                    logger_supy.warning(
+                        f"move-carry {var}: grids sharing {link}={code} have "
+                        f"different values {sorted(set(vals))}; keeping {vals[0]}"
+                    )
+                values[code] = vals[0]
+            if values:
+                harvested.append({
+                    "mode": "by_key",
+                    "values": values,
+                    "targets": [(file_new, var)],
+                })
+        else:
+            harvest_source(file_old, var, [(file_new, var)])
+
+    # 2. Renamed moves and one-to-many splits from the registry.
+    for entry in _CARRY_REGISTRY.get((fromVer, toVer), []):
+        sfile, svar = entry["src"]
+        harvest_source(sfile, svar, entry["dst"])
+
+    return harvested
+
+
+def _apply_step_moves(toDir, harvested, fromVer, toVer):
+    """Overwrite the Add defaults in the move destinations with the harvest."""
+    from .reverse import _read_table, _write_table  # call-time import
+
+    step = rules[(rules["From"] == fromVer) & (rules["To"] == toVer)]
+    renames = {
+        str(r["File"]): str(r["Value"])
+        for _, r in step[step["Action"] == "Rename_File"].iterrows()
+    }
+    for item in harvested:
+        for fname, var in item["targets"]:
+            path = Path(toDir) / fname
+            if not path.exists():  # the destination was renamed in this step
+                path = Path(toDir) / renames.get(fname, fname)
+                if not path.exists():
+                    continue
+            header, rows = _read_table(path)
+            if var not in header:
+                continue
+            vi = header.index(var)
+            if item["mode"] == "broadcast":
+                for row in rows:
+                    if len(row) > vi:
+                        row[vi] = str(item["value"])
+            else:
+                for row in rows:
+                    if row and len(row) > vi and row[0] in item["values"]:
+                        row[vi] = item["values"][row[0]]
+            _write_table(path, header, rows)
 
 
 # a single conversion between two versions
@@ -1265,6 +1382,10 @@ def SUEWS_Converter_single(fromDir, toDir, fromVer, toVer):
 
     # Note: File cleaning is now done once in convert_table() when files are first copied
     # This avoids redundant cleaning during chained conversions
+
+    # Harvest cross-file column moves while toDir still holds the source
+    # schema; re-applied after the per-file actions (see _harvest_step_moves).
+    moved_values = _harvest_step_moves(toDir, fromVer, toVer)
 
     # Special handling: Create SPARTACUS.nml and GridLayoutKc.nml when converting 2023a→2024a
     # These files are introduced in 2024a and should only be created at this specific step
@@ -1400,18 +1521,21 @@ cp_surf(7,:) = 1.9e6, 1.1e6, 1.1e6, 1.5e6, 1.6e6
                 f.write(gridlayout_content)
             logger_supy.info(f"Created placeholder GridLayoutKc.nml for {toVer}")
 
-    # list all files involved in the given conversion
-    posRules = np.unique(
-        np.where(
-            np.array(rules.loc[:, ["From", "To"]].values.tolist()) == [fromVer, toVer]
-        )[0]
-    )
+    # list all files involved in the given conversion. The match must require
+    # BOTH endpoints: `arr == [fromVer, toVer]` collected row indices where
+    # EITHER column matched, silently pulling in other steps' rules whenever
+    # two edges share an endpoint (harmless only while the version graph was
+    # a simple chain).
+    arr_from_to = np.array(rules.loc[:, ["From", "To"]].values.tolist())
+    posRules = np.where(
+        (arr_from_to[:, 0] == fromVer) & (arr_from_to[:, 1] == toVer)
+    )[0]
     filesToConvert = set(rules["File"][posRules]) - {"-999"}
 
     # Also include SUEWS_*.txt files that exist in source but aren't in rules
     # This ensures files like OHMCoefficients, Profiles, Soil, WithinGridWaterDist are preserved
     existing_files = set()
-    for fileX in os.listdir(toDir):
+    for fileX in sorted(os.listdir(toDir)):
         if fnmatch(fileX, "SUEWS_*.txt"):
             existing_files.add(fileX)
 
@@ -1420,13 +1544,13 @@ cp_surf(7,:) = 1.9e6, 1.1e6, 1.1e6, 1.5e6, 1.6e6
     files_without_rules = existing_files - filesToConvert
     if files_without_rules:
         logger_supy.info(
-            f"Files without rules (will be preserved): {list(files_without_rules)}"
+            f"Files without rules (will be preserved): {sorted(files_without_rules)}"
         )
 
     # Combine both sets
-    filesToConvert |= files_without_rules
+    filesToConvert = sorted(filesToConvert | files_without_rules)
 
-    logger_supy.info(f"filesToConvert: {list(filesToConvert)}")
+    logger_supy.info(f"filesToConvert: {filesToConvert}")
 
     for fileX in filesToConvert:
         logger_supy.info(f"working on file: {fileX}")
@@ -1463,6 +1587,9 @@ cp_surf(7,:) = 1.9e6, 1.1e6, 1.1e6, 1.5e6, 1.6e6
             )
             # Don't continue with a broken conversion - fail fast
             raise RuntimeError(f"Conversion stopped at {fileX}: {e!s}") from e
+
+    # Re-apply harvested cross-file moves over the Add defaults.
+    _apply_step_moves(toDir, moved_values, fromVer, toVer)
 
 
 def SUEWS_Converter_file(fileX, actionList):
@@ -1705,7 +1832,7 @@ def convert_table(
             str(Path(fromDir) / "RunControl.nml")
         ).runcontrol
         path_input = (Path(fromDir) / ser_nml["fileinputpath"]).resolve()
-        list_table_input = (
+        list_table_input = sorted(
             list(
                 path_input.glob("SUEWS_*.txt")
             )  # Fixed: Added underscore to match SUEWS_*.txt files
@@ -1768,7 +1895,7 @@ def convert_table(
 
                 # Save snapshot in debug mode
                 if debug_dir is not None:
-                    for file in Path(tempDir_2).glob("*"):
+                    for file in sorted(Path(tempDir_2).glob("*")):
                         copyfile(file, snapshot_dir / file.name)
                     logger_supy.info(
                         f"Debug: Saved snapshot of {chain_ver[i]} in {snapshot_dir}"
@@ -1805,7 +1932,7 @@ def convert_table(
 
                 # Save snapshot in debug mode
                 if debug_dir is not None:
-                    for file in Path(tempDir_1).glob("*"):
+                    for file in sorted(Path(tempDir_1).glob("*")):
                         copyfile(file, snapshot_dir / file.name)
                     logger_supy.info(
                         f"Debug: Saved snapshot of {chain_ver[i]} in {snapshot_dir}"
@@ -1869,7 +1996,7 @@ def convert_table(
                 Path(dir_temp) / f"step_{chain_ver[2]}_to_{chain_ver[1]}_final"
             )
             snapshot_dir.mkdir(exist_ok=True)
-            for file in Path(toDir).glob("*"):
+            for file in sorted(Path(toDir).glob("*")):
                 if file.is_file():
                     copyfile(file, snapshot_dir / file.name)
             logger_supy.info(f"Debug: Saved final snapshot in {snapshot_dir}")
@@ -1888,9 +2015,10 @@ def convert_table(
     path_input.mkdir(exist_ok=True)
     path_output.mkdir(exist_ok=True)
 
-    list_table_input = list(Path(toDir).glob("SUEWS*.txt")) + [
-        x for x in Path(toDir).glob("*.nml") if "RunControl" not in str(x)
-    ]
+    list_table_input = sorted(
+        list(Path(toDir).glob("SUEWS*.txt"))
+        + [x for x in Path(toDir).glob("*.nml") if "RunControl" not in str(x)]
+    )
 
     for fileX in list_table_input:
         # Check if we need to rename InitialConditions files when multipleinitfiles == 0

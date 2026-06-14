@@ -54,6 +54,19 @@ EXAMPLES:
 
 ## 2026
 
+### 13 Jun 2026
+
+- [feature][experimental] Bidirectional legacy table conversion: regenerate any historical SUEWS table set (`2016a`-`2020a`) from a modern YAML config / `df_state`, complementing the existing forward (`suews-convert`) path, so a configuration can move between any `(version, representation)` pair in either direction (#1522)
+  - New reverse table converter and `df_state -> tables` writer (the previously-missing exporter); the round-trip is verified byte-level across all nine historical versions, with a perturbed-config matrix stressing every value-carry path (weekday/weekend asymmetry, per-surface OHM, parameter vectors, namelist-backed state, cross-file moves and splits)
+- [bugfix] Snow-surface OHM coefficients and thresholds were fabricated from the paved surface in the data model (#1522)
+  - Every surface wrote its own OHM coefficients into `df_state` snow index 7 and `SurfaceProperties` wrote dummy `0` thresholds there, while `SnowParams` carried no fields for them -- so a legacy-loaded config silently ran snow OHM with paved coefficients and a 0 degC threshold
+  - `SnowParams` now owns `ohm_coef` / `ohm_threshold_summer_winter` / `ohm_threshold_wet_dry`, defaulted to the canonical snow OHM row (thresholds 10 degC summer/winter, 0.9 wet/dry); the fabrication is removed
+  - Snow-surface storage-heat output therefore changes for runs with snow enabled; runs without snow are unaffected. The new fields are optional with defaults, so existing YAMLs round-trip unchanged and no schema-version bump is required
+  - The reverse writer routes the combined within-grid runoff/soil-store remainder back to the structurally-correct legacy column (impervious source surfaces to `ToRunoff`, pervious to `ToSoilStore`) instead of silently dropping edited values
+- [bugfix] `2017b` could not be converted at all -- an orphan in the converter version graph crashed with a cryptic `TypeError`; its table format is byte-identical to `2017a`, so it now joins the graph via a zero-delta equivalence edge (#1522)
+- [bugfix] Converter rule matching collected rows where *either* version-graph endpoint matched, which was wrong once two edges shared an endpoint; it now requires both endpoints (#1522)
+- [feature][experimental] Opt-in `SUEWSConfig.strict_initial_state_bounds` (default `True`, strict behaviour unchanged) lets a faithfully-converted legacy config whose initial albedo sits outside the modern seasonal range load with a warning instead of a hard validation error; `suews-convert` sets it for legacy conversions (#1522)
+
 ### 11 Jun 2026
 
 - [bugfix] `SUEWSSimulation(config=dict)` and `update_config(dict)` now route through validated `SUEWSConfig` construction instead of mutating model internals by hand (#1530)

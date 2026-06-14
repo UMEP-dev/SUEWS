@@ -136,14 +136,44 @@ subset per matrix cell.
 
 ## Test File Locations
 
+**All tests live under `test/`. Do not place `test_*.py` anywhere else in the
+repository** — not in `benchmark/tests/`, not beside the source they exercise,
+not in any tool subtree. Pick the subdirectory by what the test exercises:
+
 ```
 test/
 ├── core/           # API, CLI, utilities
-├── data_model/     # Pydantic configuration
+├── data_model/     # Pydantic config + converters (yaml_upgrade, table converter)
 ├── physics/        # Scientific validation
 ├── io_tests/       # Input/output handling
-└── fixtures/       # Test data and benchmarks
+├── cmd/            # CLI entry points
+├── docs/           # Documentation checks
+└── fixtures/       # Test data
 ```
+
+### Why this is a hard rule, not a preference
+
+Only `test/` is wired into the project's test machinery:
+
+- **CI runs `pytest test`** (the cross-CPython matrix in
+  `test-api-cross-python-reusable.yml`). A `test_*.py` outside `test/` runs in
+  **no CI job** — it silently provides zero coverage, however green it looks
+  locally.
+- **The nature-marker gate** (`scripts/lint/check_test_markers.py` +
+  `test/conftest.py`) only walks `test/`. Tests placed elsewhere escape the
+  `api` / `physics` marker discipline entirely.
+- Shared fixtures, conftest helpers, and tier markers (`smoke` / `slow` / …)
+  are all rooted at `test/`.
+
+So a test's *location* determines whether it is actually run and disciplined.
+A test for shipped `src/supy/**` code that lives under `benchmark/` is the
+canonical mistake: it tests core code but is invisible to CI. Move it to the
+matching `test/` subdirectory and give it a nature marker.
+
+If a fixture lives in a git tag or external source, **vendor a minimal,
+self-contained copy under `test/fixtures/`** rather than fetching at test time
+— the standard CI checkout is shallow and tag-less, so a tag-fetching test
+skips (no coverage). See `test/fixtures/legacy_tables/` for the pattern.
 
 ---
 

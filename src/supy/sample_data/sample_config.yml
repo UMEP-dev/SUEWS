@@ -2291,6 +2291,39 @@ sites:
         value: 0.14
       radiation_melt_factor:
         value: 0.001
+      ohm_threshold_summer_winter:
+        value: 10.0
+      ohm_threshold_wet_dry:
+        value: 0.9
+      ohm_coef:
+        summer_dry:
+          a1:
+            value: 0.25
+          a2:
+            value: 0.6
+          a3:
+            value: -30.0
+        summer_wet:
+          a1:
+            value: 0.25
+          a2:
+            value: 0.6
+          a3:
+            value: -30.0
+        winter_dry:
+          a1:
+            value: 0.25
+          a2:
+            value: 0.6
+          a3:
+            value: -30.0
+        winter_wet:
+          a1:
+            value: 0.25
+          a2:
+            value: 0.6
+          a3:
+            value: -30.0
     land_cover:
       paved:
         sfr:

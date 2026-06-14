@@ -1,0 +1,9 @@
+&InitialConditions
+LeavesOutInitially=0
+SoilstorePavedState=120
+SoilstoreBldgsState=120
+SoilstoreEveTrstate=120
+SoilstoreDecTrState=120
+SoilstoreGrassState=120
+SoilstoreBSoilState=120
+/

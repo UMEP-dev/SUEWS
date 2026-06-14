@@ -235,6 +235,17 @@ class SUEWSConfig(BaseModel):
         description="Description of this SUEWS configuration",
         json_schema_extra={"display_name": "Configuration Description"},
     )
+    strict_initial_state_bounds: bool = Field(
+        default=True,
+        description=(
+            "Enforce that initial-state values (e.g. initial albedo) lie within "
+            "their seasonal parameter ranges. Set to False by suews-convert for "
+            "legacy table sets whose source data carries faithful out-of-range "
+            "initial conditions the legacy Fortran never enforced; relaxing the "
+            "check then logs a warning instead of failing validation."
+        ),
+        json_schema_extra={"display_name": "Strict Initial-State Bounds"},
+    )
     model: Model = Field(
         default_factory=Model,
         description="Model control and physics parameters",
@@ -919,9 +930,15 @@ class SUEWSConfig(BaseModel):
                         alb_id_val = _unwrap_value(surface_state.alb_id)
                         if alb_id_val is not None:
                             if not (alb_min_val <= alb_id_val <= alb_max_val):
-                                errors.append(
+                                msg = (
                                     f"{site_name} {surface_description}: alb_id ({alb_id_val}) must be in range [alb_min, alb_max] ([{alb_min_val}, {alb_max_val}] provided)"
                                 )
+                                if self.strict_initial_state_bounds:
+                                    errors.append(msg)
+                                else:
+                                    logger_supy.warning(
+                                        f"Relaxed initial-state bound (legacy): {msg}"
+                                    )
 
         if errors:
             raise ValueError("; ".join(errors))
@@ -4709,6 +4726,12 @@ class SUEWSConfig(BaseModel):
         # Strip private implementation fields
         for key in ("_yaml_path", "_auto_generate_annotated", "_yaml_raw"):
             config_dict.pop(key, None)
+
+        # `strict_initial_state_bounds` is a converter-set legacy-compatibility
+        # flag; surface it only when actively relaxed (False), so normal configs
+        # stay clean and the field does not appear in user-facing exports.
+        if config_dict.get("strict_initial_state_bounds") is True:
+            config_dict.pop("strict_initial_state_bounds", None)
 
         if not include_internal:
             _strip_internal_fields(config_dict, type(self))

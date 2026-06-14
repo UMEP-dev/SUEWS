@@ -1,7 +1,7 @@
 {
   "source_branch": "master",
-  "source_commit": "c73a644d7dbc34efd900dd9dede0ef6f5ca91914",
+  "source_commit": "4d4afaca68c81ee8dd878690539883676d806d17",
   "source_tag": "",
-  "docs_built": "2026-06-13T19:46:07.681552+00:00",
+  "docs_built": "2026-06-14T09:01:49.861174+00:00",
   "builder": "github-actions"
 }

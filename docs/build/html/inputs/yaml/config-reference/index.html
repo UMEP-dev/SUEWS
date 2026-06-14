@@ -8,7 +8,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>4.3. YAML Configuration Reference &#8212; SUEWS 2026.6.13.dev3 documentation</title>
+    <title>4.3. YAML Configuration Reference &#8212; SUEWS 2026.6.14.dev1 documentation</title>
   
   
   
@@ -44,7 +44,7 @@
   <link rel="preload" as="script" href="../../../_static/scripts/bootstrap.js?digest=8878045cc6db502f8baf" />
 <link rel="preload" as="script" href="../../../_static/scripts/pydata-sphinx-theme.js?digest=8878045cc6db502f8baf" />
 
-    <script src="../../../_static/documentation_options.js?v=133366b6"></script>
+    <script src="../../../_static/documentation_options.js?v=5aa55350"></script>
     <script src="../../../_static/doctools.js?v=9bcbadda"></script>
     <script src="../../../_static/sphinx_highlight.js?v=dc90522c"></script>
     <script src="../../../_static/scripts/sphinx-book-theme.js?v=fab101a9"></script>
@@ -58,7 +58,7 @@
     <link rel="prev" title="4.2. Meteorological Forcing Data" href="../../forcing-data.html" />
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
-  <meta name="docsearch:version" content="2026.6.13.dev3" />
+  <meta name="docsearch:version" content="2026.6.14.dev1" />
   </head>
   
   
@@ -100,7 +100,7 @@
   <div class="bd-header-announcement__content">
     <div style="background-color: #f0ad4e; border: 1px solid #eea236; border-radius: 4px; padding: 10px; margin: 10px 0;">
         <strong>⚠️ Development Version:</strong> This documentation was built from a development version
-        (2026.6.13.dev3, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/c73a644d7dbc34efd900dd9dede0ef6f5ca91914" style="color: #31708f;">c73a644</a>).
+        (2026.6.14.dev1, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/4d4afaca68c81ee8dd878690539883676d806d17" style="color: #31708f;">4d4afac</a>).
         Features described here may be unstable or subject to change. For stable documentation, please visit the
         <a href="https://docs.suews.io/stable/" style="color: #31708f;">latest release</a>.
     </div>
@@ -147,8 +147,8 @@
       
     
     
-    <img src="../../../_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.6.13.dev3 documentation - Home"/>
-    <img src="../../../_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.6.13.dev3 documentation - Home"/>
+    <img src="../../../_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.6.14.dev1 documentation - Home"/>
+    <img src="../../../_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.6.14.dev1 documentation - Home"/>
   
   
 </a></div>
@@ -559,6 +559,7 @@ Parameters</label><div class="sd-tab-content docutils">
 <li><p><a class="reference internal" href="suewsconfig.html#input-option-name" title="name"><code class="xref input input-option docutils literal notranslate"><span class="pre">name</span></code></a></p></li>
 <li><p><a class="reference internal" href="suewsconfig.html#input-option-schema_version" title="schema_version"><code class="xref input input-option docutils literal notranslate"><span class="pre">schema_version</span></code></a></p></li>
 <li><p><a class="reference internal" href="suewsconfig.html#input-option-description" title="description"><code class="xref input input-option docutils literal notranslate"><span class="pre">description</span></code></a></p></li>
+<li><p><a class="reference internal" href="suewsconfig.html#input-option-strict_initial_state_bounds" title="strict_initial_state_bounds"><code class="xref input input-option docutils literal notranslate"><span class="pre">strict_initial_state_bounds</span></code></a></p></li>
 </ul>
 </div>
 <input id="sd-tab-item-1" name="sd-tab-set-0" type="radio">
@@ -994,7 +995,7 @@ Snow</label><div class="sd-tab-content docutils">
 <p><a class="reference internal" href="snowparams.html"><span class="doc">Snow</span></a></p>
 <details class="sd-sphinx-override sd-dropdown sd-card sd-mb-3 sd-shadow-sm">
 <summary class="sd-summary-title sd-card-header">
-<span class="sd-summary-text">17 parameters</span><span class="sd-summary-state-marker sd-summary-chevron-down"><svg version="1.1" width="1.5em" height="1.5em" class="sd-octicon sd-octicon-chevron-down" viewBox="0 0 24 24" aria-hidden="true"><path d="M5.22 8.22a.749.749 0 0 0 0 1.06l6.25 6.25a.749.749 0 0 0 1.06 0l6.25-6.25a.749.749 0 1 0-1.06-1.06L12 13.939 6.28 8.22a.749.749 0 0 0-1.06 0Z"></path></svg></span></summary><div class="sd-summary-content sd-card-body docutils">
+<span class="sd-summary-text">19 parameters</span><span class="sd-summary-state-marker sd-summary-chevron-down"><svg version="1.1" width="1.5em" height="1.5em" class="sd-octicon sd-octicon-chevron-down" viewBox="0 0 24 24" aria-hidden="true"><path d="M5.22 8.22a.749.749 0 0 0 0 1.06l6.25 6.25a.749.749 0 0 0 1.06 0l6.25-6.25a.749.749 0 1 0-1.06-1.06L12 13.939 6.28 8.22a.749.749 0 0 0-1.06 0Z"></path></svg></span></summary><div class="sd-summary-content sd-card-body docutils">
 <ul class="simple">
 <li><p class="sd-card-text"><a class="reference internal" href="snowparams.html#input-option-water_holding_capacity_max" title="water_holding_capacity_max"><code class="xref input input-option docutils literal notranslate"><span class="pre">water_holding_capacity_max</span></code></a></p></li>
 <li><p class="sd-card-text"><a class="reference internal" href="snowparams.html#input-option-water_holding_capacity_min" title="water_holding_capacity_min"><code class="xref input input-option docutils literal notranslate"><span class="pre">water_holding_capacity_min</span></code></a></p></li>
@@ -1013,9 +1014,14 @@ Snow</label><div class="sd-tab-content docutils">
 <li><p class="sd-card-text"><a class="reference internal" href="snowparams.html#input-option-tau_refreezing_snow" title="tau_refreezing_snow"><code class="xref input input-option docutils literal notranslate"><span class="pre">tau_refreezing_snow</span></code></a></p></li>
 <li><p class="sd-card-text"><a class="reference internal" href="snowparams.html#input-option-temperature_melt_factor" title="temperature_melt_factor"><code class="xref input input-option docutils literal notranslate"><span class="pre">temperature_melt_factor</span></code></a></p></li>
 <li><p class="sd-card-text"><a class="reference internal" href="snowparams.html#input-option-radiation_melt_factor" title="radiation_melt_factor"><code class="xref input input-option docutils literal notranslate"><span class="pre">radiation_melt_factor</span></code></a></p></li>
+<li><p class="sd-card-text"><a class="reference internal" href="waterproperties.html#input-option-ohm_threshold_summer_winter" title="ohm_threshold_summer_winter"><code class="xref input input-option docutils literal notranslate"><span class="pre">ohm_threshold_summer_winter</span></code></a></p></li>
+<li><p class="sd-card-text"><a class="reference internal" href="waterproperties.html#input-option-ohm_threshold_wet_dry" title="ohm_threshold_wet_dry"><code class="xref input input-option docutils literal notranslate"><span class="pre">ohm_threshold_wet_dry</span></code></a></p></li>
 </ul>
 </div>
-</details></div>
+</details><ul class="simple">
+<li><p><a class="reference internal" href="ohm_coefficient_season_wetness.html"><span class="doc">Seasonal/Wetness OHM Coefficients</span></a></p></li>
+</ul>
+</div>
 <input id="sd-tab-item-22" name="sd-tab-set-5" type="radio">
 <label class="sd-tab-label" for="sd-tab-item-22" id="soil-observation-configuration">
 Soil Observation Configuration</label><div class="sd-tab-content docutils">
@@ -1565,8 +1571,8 @@ By SUEWS dev team led by Prof Sue Grimmond
   <div class="footer-item">
     
 <div class="extra_footer">
-  <p>Version: 2026.6.13.dev3 |
-    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/c73a644d7dbc34efd900dd9dede0ef6f5ca91914">c73a644</a> |
+  <p>Version: 2026.6.14.dev1 |
+    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/4d4afaca68c81ee8dd878690539883676d806d17">4d4afac</a> |
     <a href="https://umep-dev.github.io/SUEWS/brand/showcase.html">Brand</a></p>
 </div>
   </div>

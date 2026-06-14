@@ -145,6 +145,10 @@ enum Commands {
     },
 }
 
+// Variant names are the clap-derived CLI command names (schema-json,
+// sample-json, ...). The shared affix is intentional; renaming the variants
+// would change the public CLI surface.
+#[allow(clippy::enum_variant_names)]
 #[derive(Debug, Subcommand, Clone)]
 enum StandardSchemaAction {
     /// Print JSON schema.
@@ -155,6 +159,8 @@ enum StandardSchemaAction {
     SampleValuesJson,
 }
 
+// Variant names are stable CLI command names (see StandardSchemaAction).
+#[allow(clippy::enum_variant_names)]
 #[derive(Debug, Subcommand, Clone)]
 enum SuewsSiteSchemaAction {
     /// Print JSON schema.
@@ -203,6 +209,8 @@ enum SchemaType {
     },
 }
 
+// Variant names are stable CLI command names (see StandardSchemaAction).
+#[allow(clippy::enum_variant_names)]
 #[derive(Debug, Subcommand, Clone)]
 enum SchemaConfigType {
     /// SUEWS_CONFIG.

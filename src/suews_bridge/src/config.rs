@@ -14,6 +14,7 @@ pub type SuewsConfigSchema = crate::codec::SimpleSchema;
 pub type SuewsConfigValuesPayload = ValuesPayload;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Default)]
 pub struct SuewsConfig {
     pub rsl_method: i32,
     pub emissions_method: i32,
@@ -39,34 +40,6 @@ pub struct SuewsConfig {
     pub flag_test: bool,
 }
 
-impl Default for SuewsConfig {
-    fn default() -> Self {
-        Self {
-            rsl_method: 0,
-            emissions_method: 0,
-            rough_len_heat_method: 0,
-            rough_len_mom_method: 0,
-            fai_method: 0,
-            smd_method: 0,
-            water_use_method: 0,
-            net_radiation_method: 0,
-            stability_method: 0,
-            storage_heat_method: 0,
-            diagnose: 0,
-            snow_use: 0,
-            use_sw_direct_albedo: false,
-            ohm_inc_qf: 0,
-            diag_qs: 0,
-            evap_method: 0,
-            lai_method: 0,
-            rsl_level: 0,
-            stebbs_method: 0,
-            rc_method: 0,
-            setpoint_method: 0,
-            flag_test: false,
-        }
-    }
-}
 
 fn decode_int(value: f64) -> Result<i32, BridgeError> {
     if !value.is_finite() {

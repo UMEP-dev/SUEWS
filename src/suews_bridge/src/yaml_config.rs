@@ -598,12 +598,12 @@ fn apply_vertical_layers_overrides(site: &mut SuewsSite, site_root: &Value) {
     if let Some(height_values) =
         read_numeric_sequence(site_root, &["properties", "vertical_layers", "height"])
     {
-        if site.spartacus.height.len() == height_values.len() {
-            assign_prefix(
-                site.spartacus.height.as_mut_slice(),
-                height_values.as_slice(),
-            );
-        } else if !site.spartacus.height.is_empty() {
+        // Both former branches (lengths match, or height non-empty) did the
+        // same prefix-assign, so they collapse to one condition. Behaviour is
+        // unchanged; the duplicated else-if may have been intended to differ.
+        if site.spartacus.height.len() == height_values.len()
+            || !site.spartacus.height.is_empty()
+        {
             assign_prefix(
                 site.spartacus.height.as_mut_slice(),
                 height_values.as_slice(),
@@ -1959,9 +1959,9 @@ fn apply_state_overrides(state: &mut SuewsState, site_root: &Value) {
             {
                 let start = surface_idx * ndepth;
                 if start + ndepth <= state.heat_state.temp_surf.len() {
-                    for depth_idx in 0..temps.len().min(ndepth) {
-                        state.heat_state.temp_surf[start + depth_idx] = temps[depth_idx];
-                    }
+                    let copy_len = temps.len().min(ndepth);
+                    state.heat_state.temp_surf[start..start + copy_len]
+                        .copy_from_slice(&temps[..copy_len]);
                 }
             }
         }
@@ -2054,9 +2054,9 @@ fn apply_state_overrides(state: &mut SuewsState, site_root: &Value) {
                 if let Some(temps) = read_numeric_sequence(roof_root, &["temperature"]) {
                     let start = layer_idx * ndepth;
                     if start + ndepth <= state.heat_state.temp_roof.len() {
-                        for depth_idx in 0..temps.len().min(ndepth) {
-                            state.heat_state.temp_roof[start + depth_idx] = temps[depth_idx];
-                        }
+                        let copy_len = temps.len().min(ndepth);
+                        state.heat_state.temp_roof[start..start + copy_len]
+                            .copy_from_slice(&temps[..copy_len]);
                     }
                 }
             }
@@ -2085,9 +2085,9 @@ fn apply_state_overrides(state: &mut SuewsState, site_root: &Value) {
                 if let Some(temps) = read_numeric_sequence(wall_root, &["temperature"]) {
                     let start = layer_idx * ndepth;
                     if start + ndepth <= state.heat_state.temp_wall.len() {
-                        for depth_idx in 0..temps.len().min(ndepth) {
-                            state.heat_state.temp_wall[start + depth_idx] = temps[depth_idx];
-                        }
+                        let copy_len = temps.len().min(ndepth);
+                        state.heat_state.temp_wall[start..start + copy_len]
+                            .copy_from_slice(&temps[..copy_len]);
                     }
                 }
             }
@@ -2160,7 +2160,7 @@ fn apply_site_scalar_overrides(site_scalars: &mut SiteScalars, site_root: &Value
     }
 }
 
-fn read_sites_indexed<'a>(root: &'a Value, idx: usize) -> Option<&'a Value> {
+fn read_sites_indexed(root: &Value, idx: usize) -> Option<&Value> {
     let sites = get_path(root, &["sites"])?;
     match sites {
         Value::Sequence(items) => items.get(idx),

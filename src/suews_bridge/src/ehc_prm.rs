@@ -37,6 +37,7 @@ pub struct EhcPrmSchema {
 pub type EhcPrmValuesPayload = ValuesPayloadWithDims;
 
 #[derive(Debug, Clone, PartialEq)]
+#[derive(Default)]
 pub struct EhcPrm {
     pub nlayer: usize,
     pub ndepth: usize,
@@ -60,32 +61,6 @@ pub struct EhcPrm {
     pub dz_surf: Vec<f64>,
 }
 
-impl Default for EhcPrm {
-    fn default() -> Self {
-        Self {
-            nlayer: 0,
-            ndepth: 0,
-            soil_storecap_roof: Vec::new(),
-            soil_storecap_wall: Vec::new(),
-            state_limit_roof: Vec::new(),
-            state_limit_wall: Vec::new(),
-            wet_thresh_roof: Vec::new(),
-            wet_thresh_wall: Vec::new(),
-            tin_roof: Vec::new(),
-            tin_wall: Vec::new(),
-            tin_surf: Vec::new(),
-            k_roof: Vec::new(),
-            k_wall: Vec::new(),
-            k_surf: Vec::new(),
-            cp_roof: Vec::new(),
-            cp_wall: Vec::new(),
-            cp_surf: Vec::new(),
-            dz_roof: Vec::new(),
-            dz_wall: Vec::new(),
-            dz_surf: Vec::new(),
-        }
-    }
-}
 
 fn matrix_len(nlayer: usize, ndepth: usize) -> Result<usize, BridgeError> {
     nlayer.checked_mul(ndepth).ok_or(BridgeError::BadState)

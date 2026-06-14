@@ -111,13 +111,39 @@ The bridge marshals data between Fortran flat arrays and typed Rust structs:
   its own file (`ffi.rs`, `codec.rs`, `sim.rs`, ...), and each new state or
   parameter type gets its own `<name>_state.rs` / `<name>_prm.rs` (see "Adding a
   New State Type"). Do not accumulate unrelated types in one module.
-- **Small functions.** Keep functions focused. Run locally, `cargo clippy` warns
-  on `too_many_arguments` (>7 args) by default; cognitive-complexity is a
-  `nursery` lint you must opt into (`cargo clippy -- -W clippy::cognitive_complexity`
-  or a `[lints]` entry). Use these as informal signals -- nothing in CI or the
-  Makefile currently runs clippy, so it is not an automated gate.
+- **Small functions.** Keep functions focused. `cargo clippy` is an automated
+  CI gate (`.github/workflows/rust-clippy.yml`, `-D warnings`); see "Clippy CI
+  gate" below. `too_many_arguments` (>7 args) and `type_complexity` are
+  deliberately allowed crate-wide (top of `src/suews_bridge/src/lib.rs`) and so
+  remain informal signals, not gating -- the FFI/binding surface has many-arg
+  constructors and wide tuple returns inherent to the model. Cognitive-complexity
+  is a `nursery` lint you must still opt into (`cargo clippy -- -W
+  clippy::cognitive_complexity` or a `[lints]` entry).
 - A change that only stays small by editing an oversized module is a signal to
   split off a preparatory refactor first (see `.claude/rules/work-sizing.md`).
+
+---
+
+## Clippy CI gate
+
+`cargo clippy` is a CI check on any PR touching `src/suews_bridge/**`
+(`.github/workflows/rust-clippy.yml`, `-D warnings`, `--all-features
+--all-targets`).
+
+- **Lint-only build.** The job sets `SUEWS_BRIDGE_LINT_ONLY=1`, which makes
+  `build.rs` skip native Fortran compilation/linking and only generate
+  `output_cols.rs`. clippy type-checks the whole crate (including the
+  `physics`-gated FFI) without gfortran or any prebuilt SUEWS `.mod` / static
+  libs, because a check build never links.
+- **Justified crate-wide allowances** live at the top of `lib.rs`:
+  `useless_conversion` (pyo3 `#[pymethods]` macro noise), `non_camel_case_types`
+  (community-standard forcing/variable names, naming-convention Rule 5),
+  `type_complexity` and `too_many_arguments` (informal signals; see "Code
+  Size"). Everything else is denied. Prefer a *scoped* `#[allow]` with a
+  one-line justification for a genuine local false positive over widening the
+  crate-level set.
+- **Bypass.** A maintainer may add the `0-ci:clippy-ok` label to skip the gate
+  for a PR.
 
 ---
 
@@ -127,4 +153,6 @@ The bridge marshals data between Fortran flat arrays and typed Rust structs:
 - **Feature-gate physics** -- all FFI calls must be behind `#[cfg(feature = "physics")]`
 - **build.rs source list** -- when adding Fortran C API files to `c_api/`, also add them to the compilation list in `build.rs`
 - **Test via CLI** -- the `main.rs` CLI with JSON I/O is the fastest way to test bridge changes without Python: `cargo run -- qs --help`
-- **Standard Rust style** -- `cargo fmt` and `cargo clippy` apply; no project-specific overrides
+- **Standard Rust style** -- `cargo fmt` applies. `cargo clippy` is gated in CI
+  (see "Clippy CI gate"); the only project-specific overrides are the justified
+  crate-level allowances at the top of `lib.rs`

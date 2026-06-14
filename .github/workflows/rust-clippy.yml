@@ -1,0 +1,95 @@
+name: Rust clippy
+
+# Lint the Rust bridge (src/suews_bridge/) with cargo clippy.
+#
+# Motivation: .claude/rules/rust/conventions.md noted that clippy was run only
+# locally and "nothing in CI or the Makefile currently runs clippy, so it is
+# not an automated gate." Python (ruff) and Fortran (fprettify) both have one;
+# the ~34k-line Rust bridge did not. This workflow closes that gap.
+#
+# Lint-only mode (no Fortran build needed):
+#   The bridge's build.rs normally compiles the Fortran C API via gfortran and
+#   depends on prebuilt SUEWS .mod / static-lib artefacts. clippy only
+#   type-checks (it never links), so none of that is required: build.rs honours
+#   SUEWS_BRIDGE_LINT_ONLY=1 by generating the one Rust file the sources need
+#   (output_cols.rs, produced by parsing Fortran *source* text) and returning
+#   before any compilation. This lets the gate lint the whole bridge --
+#   including the `physics`-gated FFI under --all-features -- with no gfortran,
+#   no SUEWS Fortran build, and no .mod files. It uses the runner's preinstalled
+#   rustup, so the only third-party action is the SHA-pinned actions/checkout
+#   (satisfies workflow-security.yml).
+#
+# Maintainers can label a PR `0-ci:clippy-ok` to bypass when a flagged lint is a
+# genuine false positive better suppressed with a scoped `#[allow]` in a
+# follow-up. Justified, codebase-wide allowances live at the top of
+# src/suews_bridge/src/lib.rs.
+
+on:
+  pull_request:
+    # labeled/unlabeled so adding the bypass label after a failed run re-triggers
+    # the gate (same rationale as encoding-audit.yml).
+    types: [opened, synchronize, reopened, labeled, unlabeled]
+    paths:
+      - 'src/suews_bridge/**'
+      - '.github/workflows/rust-clippy.yml'
+
+permissions:
+  contents: read
+  pull-requests: read
+
+concurrency:
+  group: rust-clippy-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  clippy:
+    name: cargo clippy (suews_bridge)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Decide whether to skip (PR has bypass label)
+        id: bypass
+        env:
+          LABELS: ${{ toJSON(github.event.pull_request.labels.*.name) }}
+        run: |
+          set -eu
+          echo "Labels on this PR: $LABELS"
+          if printf '%s' "$LABELS" | grep -q '"0-ci:clippy-ok"'; then
+            echo "bypass=true" >> "$GITHUB_OUTPUT"
+            echo "PR carries label '0-ci:clippy-ok'; skipping clippy gate."
+          else
+            echo "bypass=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Checkout
+        if: steps.bypass.outputs.bypass != 'true'
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          persist-credentials: false
+
+      - name: Add clippy component
+        if: steps.bypass.outputs.bypass != 'true'
+        run: |
+          set -eu
+          rustup component add clippy
+          rustc --version
+          cargo clippy --version
+
+      - name: Run clippy (deny warnings)
+        if: steps.bypass.outputs.bypass != 'true'
+        env:
+          # Skip native Fortran compilation/linking in build.rs (see header).
+          SUEWS_BRIDGE_LINT_ONLY: '1'
+        run: |
+          set -eu
+          if ! cargo clippy \
+                --manifest-path src/suews_bridge/Cargo.toml \
+                --all-features --all-targets \
+                -- -D warnings; then
+            echo "::error::cargo clippy reported warnings/errors in src/suews_bridge/."
+            echo "Reproduce locally:"
+            echo "    SUEWS_BRIDGE_LINT_ONLY=1 cargo clippy --manifest-path src/suews_bridge/Cargo.toml --all-features --all-targets -- -D warnings"
+            echo "See .claude/rules/rust/conventions.md. For a genuine false positive, add a scoped"
+            echo "#[allow] (justified allowances live at the top of src/suews_bridge/src/lib.rs),"
+            echo "or a maintainer may bypass with the '0-ci:clippy-ok' label."
+            exit 1
+          fi

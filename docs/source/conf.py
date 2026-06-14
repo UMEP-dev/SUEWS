@@ -340,6 +340,9 @@ exclude_patterns = [
     "_build",
     "**.ipynb_checkpoints",
     "build",
+    # Auto-generated RST fragment pulled into global_applications.rst via
+    # ``.. include::``; excluded so it is not also parsed as a standalone page.
+    "assets/wos-papers/global_applications_generated.rst",
 ]
 # tags.add('html')
 # if tags.has('html'):

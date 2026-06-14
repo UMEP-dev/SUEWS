@@ -133,6 +133,61 @@ def _compare_table(
     return issues
 
 
+def _codes(rows: list[list[str]]) -> list[str]:
+    return [row[0] for row in rows]
+
+
+def test_chained_forward_conversion_preserves_code_sets_when_table_reader_fails(
+    tmp_path, monkeypatch
+):
+    """Regression for gh#1522: table edits must not empty legacy rows."""
+    import pandas as pd  # noqa: PLC0415
+
+    import supy.util.converter.table.table as table_mod  # noqa: PLC0415
+
+    original_read_csv = table_mod.pd.read_csv
+    edited_table_names = {
+        "SUEWS_AnthropogenicHeat.txt",
+        "SUEWS_Irrigation.txt",
+    }
+
+    def fail_target_table_reads(path, *args, **kwargs):
+        if Path(path).name in edited_table_names:
+            raise pd.errors.ParserError("simulated Windows parser failure")
+        return original_read_csv(path, *args, **kwargs)
+
+    src = _extract_legacy_tables("2018b", tmp_path / "src")
+    out = tmp_path / "out"
+    monkeypatch.setattr(table_mod.pd, "read_csv", fail_target_table_reads)
+
+    convert_table(str(src), str(out), "2018b", "2025a", validate_profiles=False)
+
+    anth_src_header, anth_src_rows = R._read_table(src / "SUEWS_AnthropogenicHeat.txt")
+    anth_header, anth_rows = R._read_table(
+        next(out.rglob("SUEWS_AnthropogenicEmission.txt"))
+    )
+    assert _codes(anth_rows) == _codes(anth_src_rows)
+    assert len(anth_rows) == len(anth_src_rows)
+    assert {
+        "MinFCMetab",
+        "MaxFCMetab",
+        "FrPDDwe",
+        "FcEF_v_kgkmWD",
+        "FcEF_v_kgkmWE",
+        "CO2PointSource",
+        "BaseT_HC",
+    } <= set(anth_header)
+    assert "FcEF_v_kgkm" not in anth_header
+    assert "BaseTHDD" not in anth_header
+    assert "BaseTHDD" in anth_src_header
+
+    _, irr_src_rows = R._read_table(src / "SUEWS_Irrigation.txt")
+    irr_header, irr_rows = R._read_table(next(out.rglob("SUEWS_Irrigation.txt")))
+    assert _codes(irr_rows) == _codes(irr_src_rows)
+    assert len(irr_rows) == len(irr_src_rows)
+    assert "H_maintain" in irr_header
+
+
 @pytest.mark.parametrize("ver", _MATRIX)
 def test_legacy_table_roundtrip_is_faithful(ver, tmp_path):
     """``legacy -> 2025a -> legacy`` regenerates the source tables faithfully."""

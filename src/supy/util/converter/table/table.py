@@ -1015,7 +1015,7 @@ def change_var_nml(toFile, toVar, toVal):
 
 def _copy_and_clean_files(fromDir, toDir, file_patterns, clean_txt=True):
     """Copy files matching patterns and optionally clean text files."""
-    for fileX in os.listdir(fromDir):
+    for fileX in sorted(os.listdir(fromDir)):
         if any(fnmatch(fileX, p) for p in file_patterns):
             file_src = os.path.join(fromDir, fileX)
             file_dst = os.path.join(toDir, fileX)
@@ -1065,9 +1065,10 @@ def _handle_same_version_copy(fromDir, toDir, fromVer):
     path_output.mkdir(exist_ok=True)
 
     # Move table files to Input directory
-    list_table_input = list(Path(toDir).glob("SUEWS*.txt")) + [
-        x for x in Path(toDir).glob("*.nml") if "RunControl" not in str(x)
-    ]
+    list_table_input = sorted(
+        list(Path(toDir).glob("SUEWS*.txt"))
+        + [x for x in Path(toDir).glob("*.nml") if "RunControl" not in str(x)]
+    )
     for fileX in list_table_input:
         move(fileX.resolve(), path_input / fileX.name)
 
@@ -1085,7 +1086,7 @@ def _build_file_list(fromDir, fromVer):
         logger_supy.warning(
             f"RunControl.nml not found in {fromDir}, checking root directory"
         )
-        for fileX in os.listdir(fromDir):
+        for fileX in sorted(os.listdir(fromDir)):
             if any(fnmatch(fileX, p) for p in ["SUEWS*.txt", "*.nml", "*.txt"]):
                 fileList.append(("", fileX))
         return fileList
@@ -1115,13 +1116,13 @@ def _build_file_list(fromDir, fromVer):
             # If not relative, use empty string
             subdir = ""
 
-        for fileX in os.listdir(input_dir):
+        for fileX in sorted(os.listdir(input_dir)):
             if fnmatch(fileX, "SUEWS_*.txt") or fnmatch(fileX, "*.nml"):
                 fileList.append((subdir, fileX))
                 logger_supy.debug(f"Found file in {subdir}: {fileX}")
 
     # Also check root for .nml files and txt files
-    for fileX in os.listdir(fromDir):
+    for fileX in sorted(os.listdir(fromDir)):
         if fnmatch(fileX, "*.nml") or fnmatch(fileX, "*.txt"):
             fileList.append(("", fileX))
             logger_supy.debug(f"Found file in root: {fileX}")
@@ -1534,7 +1535,7 @@ cp_surf(7,:) = 1.9e6, 1.1e6, 1.1e6, 1.5e6, 1.6e6
     # Also include SUEWS_*.txt files that exist in source but aren't in rules
     # This ensures files like OHMCoefficients, Profiles, Soil, WithinGridWaterDist are preserved
     existing_files = set()
-    for fileX in os.listdir(toDir):
+    for fileX in sorted(os.listdir(toDir)):
         if fnmatch(fileX, "SUEWS_*.txt"):
             existing_files.add(fileX)
 
@@ -1543,13 +1544,13 @@ cp_surf(7,:) = 1.9e6, 1.1e6, 1.1e6, 1.5e6, 1.6e6
     files_without_rules = existing_files - filesToConvert
     if files_without_rules:
         logger_supy.info(
-            f"Files without rules (will be preserved): {list(files_without_rules)}"
+            f"Files without rules (will be preserved): {sorted(files_without_rules)}"
         )
 
     # Combine both sets
-    filesToConvert |= files_without_rules
+    filesToConvert = sorted(filesToConvert | files_without_rules)
 
-    logger_supy.info(f"filesToConvert: {list(filesToConvert)}")
+    logger_supy.info(f"filesToConvert: {filesToConvert}")
 
     for fileX in filesToConvert:
         logger_supy.info(f"working on file: {fileX}")
@@ -1831,7 +1832,7 @@ def convert_table(
             str(Path(fromDir) / "RunControl.nml")
         ).runcontrol
         path_input = (Path(fromDir) / ser_nml["fileinputpath"]).resolve()
-        list_table_input = (
+        list_table_input = sorted(
             list(
                 path_input.glob("SUEWS_*.txt")
             )  # Fixed: Added underscore to match SUEWS_*.txt files
@@ -1894,7 +1895,7 @@ def convert_table(
 
                 # Save snapshot in debug mode
                 if debug_dir is not None:
-                    for file in Path(tempDir_2).glob("*"):
+                    for file in sorted(Path(tempDir_2).glob("*")):
                         copyfile(file, snapshot_dir / file.name)
                     logger_supy.info(
                         f"Debug: Saved snapshot of {chain_ver[i]} in {snapshot_dir}"
@@ -1931,7 +1932,7 @@ def convert_table(
 
                 # Save snapshot in debug mode
                 if debug_dir is not None:
-                    for file in Path(tempDir_1).glob("*"):
+                    for file in sorted(Path(tempDir_1).glob("*")):
                         copyfile(file, snapshot_dir / file.name)
                     logger_supy.info(
                         f"Debug: Saved snapshot of {chain_ver[i]} in {snapshot_dir}"
@@ -1995,7 +1996,7 @@ def convert_table(
                 Path(dir_temp) / f"step_{chain_ver[2]}_to_{chain_ver[1]}_final"
             )
             snapshot_dir.mkdir(exist_ok=True)
-            for file in Path(toDir).glob("*"):
+            for file in sorted(Path(toDir).glob("*")):
                 if file.is_file():
                     copyfile(file, snapshot_dir / file.name)
             logger_supy.info(f"Debug: Saved final snapshot in {snapshot_dir}")
@@ -2014,9 +2015,10 @@ def convert_table(
     path_input.mkdir(exist_ok=True)
     path_output.mkdir(exist_ok=True)
 
-    list_table_input = list(Path(toDir).glob("SUEWS*.txt")) + [
-        x for x in Path(toDir).glob("*.nml") if "RunControl" not in str(x)
-    ]
+    list_table_input = sorted(
+        list(Path(toDir).glob("SUEWS*.txt"))
+        + [x for x in Path(toDir).glob("*.nml") if "RunControl" not in str(x)]
+    )
 
     for fileX in list_table_input:
         # Check if we need to rename InitialConditions files when multipleinitfiles == 0

@@ -69,7 +69,14 @@ fn main() {
     // text (no compiler invoked). Generating it and returning early lets CI
     // lint the whole bridge -- including the `physics`-gated FFI -- without a
     // SUEWS Fortran build, gfortran, or any `.mod` files present.
-    if env::var_os("SUEWS_BRIDGE_LINT_ONLY").is_some() {
+    // Declare the env var as a build input so toggling it between a lint-only
+    // check and a full build in the same target dir re-runs this script. Without
+    // this, Cargo (which already tracks only the rerun-if-changed inputs above)
+    // never re-runs on the env change and a later full build silently reuses the
+    // no-link lint-only output. Match exactly "1" so `SUEWS_BRIDGE_LINT_ONLY=0`
+    // does not accidentally enable lint-only mode.
+    println!("cargo:rerun-if-env-changed=SUEWS_BRIDGE_LINT_ONLY");
+    if env::var("SUEWS_BRIDGE_LINT_ONLY").as_deref() == Ok("1") {
         generate_output_col_constants(&manifest_dir, &out_dir);
         return;
     }

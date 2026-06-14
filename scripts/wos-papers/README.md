@@ -1,62 +1,78 @@
 # SUEWS Publications Tracker
 
-Automated retrieval and analysis of SUEWS-related publications from Web of Science.
+Automated retrieval and analysis of SUEWS-related publications from Web of
+Science. The output drives the [Global Applications](https://docs.suews.io/stable/global_applications.html)
+documentation page.
 
 ## Overview
 
-This tool queries the Web of Science Expanded API to retrieve all papers related to the SUEWS (Surface Urban Energy and Water Balance Scheme) model. It extracts metadata, abstracts, and generates outputs in multiple formats for documentation and analysis.
+This tool queries the Web of Science Expanded API for all papers related to the
+SUEWS (Surface Urban Energy and Water Balance Scheme) model, enriches DOIs and
+journal names against Crossref, analyses the geographic and thematic spread, and
+writes the artefacts that build the documentation page.
 
 ## Requirements
 
-- Python 3.10+
+- Python 3.9+
 - `requests` library
-- Web of Science API key (institutional subscription required)
+- A Web of Science **Expanded** API key (institutional subscription). The
+  Starter key is not sufficient — see [Troubleshooting](#403-forbidden-error).
+- Network access to Crossref for the enrichment pass (skippable with
+  `--no-enrich`).
 
 ### Installation
 
 ```bash
-# From SUEWS repository root
-cd scripts/wos-papers
 pip install requests
 ```
 
 ## Usage
 
-### Basic Usage
+### Basic usage
 
 ```bash
-# Set your WoS API key
-export WOS_API_KEY="your-api-key-here"
+# Set your WoS Expanded API key
+export WOS_EXPANDED_API_KEY="your-api-key-here"
 
-# Run with default settings
-python fetch_suews_papers.py
+# Refresh every documentation artefact in place (run from the repo root)
+python scripts/wos-papers/fetch_suews_papers.py
 
-# Specify output directory
-python fetch_suews_papers.py --output-dir ./output
+# Write everything flat into a scratch directory instead
+python scripts/wos-papers/fetch_suews_papers.py --output-dir ./output
 
-# Generate specific formats only
-python fetch_suews_papers.py --formats json markdown
+# Skip the Crossref enrichment pass (journal names are still title-cased)
+python scripts/wos-papers/fetch_suews_papers.py --no-enrich
 ```
 
-### Command Line Options
+### Command-line options
 
 | Option | Description | Default |
 |--------|-------------|---------|
-| `--output-dir`, `-o` | Output directory | Current directory |
-| `--formats`, `-f` | Output formats: json, bibtex, markdown, all | json |
+| `--docs-dir` | Documentation source root; artefacts go to their canonical locations beneath it | `<repo>/docs/source` |
+| `--output-dir`, `-o` | Write all artefacts flat into this directory instead of their canonical locations | (unset) |
+| `--formats`, `-f` | Output formats: `json`, `bibtex`, `markdown`, `csv`, `rst`, `all` | `json bibtex csv rst` |
 | `--query`, `-q` | Custom WoS search query | SUEWS search |
+| `--no-enrich` | Skip Crossref enrichment | (enrichment on) |
 
-### Output Files
+### Output files
 
-The script generates:
+With the defaults (no `--output-dir`), the script writes to the canonical
+documentation locations:
 
-- `suews_wos_papers.json` - Full data with metadata and analysis (default)
-- `suews_wos_papers.bib` - BibTeX entries (optional, use `--formats bibtex`)
-- `suews_wos_papers.md` - Markdown summary (optional, use `--formats markdown`)
+- `docs/source/assets/wos-papers/suews_wos_papers.json` — full data with metadata
+  and analysis.
+- `docs/source/assets/wos-papers/suews_wos_papers.csv` — spreadsheet table used by
+  the page's "All Publications" section.
+- `docs/source/assets/refs/refs-wos.bib` — BibTeX bibliography cited on the page.
+- `docs/source/assets/wos-papers/global_applications_generated.rst` — generated
+  RST fragment (stats + geographic/thematic tables) included by
+  `global_applications.rst`.
+- `docs/source/assets/wos-papers/suews_wos_papers.md` — Markdown summary
+  (`--formats markdown` only).
 
 ## Methodology
 
-### Search Strategy
+### Search strategy
 
 The default query searches for SUEWS-related papers using:
 
@@ -68,139 +84,111 @@ Where:
 - `TS` = Topic (searches title, abstract, author keywords, and Keywords Plus)
 - `TI` = Title
 
-This captures papers that:
-1. Mention "SUEWS" in title, abstract, or keywords
-2. Use the full model name
-3. Have SUEWS in the title specifically
-
-### Data Extraction
+### Data extraction
 
 For each paper, the script extracts:
 
 | Field | Source | Notes |
 |-------|--------|-------|
 | UID | WoS unique identifier | Primary key |
-| Title | `static_data.summary.titles` | HTML tags stripped |
-| Authors | `static_data.summary.names` | First 10 stored |
-| Journal | `static_data.summary.titles[type=source]` | |
+| Title | `static_data.summary.titles[type=item]` | Markup/entities cleaned |
+| Authors | `static_data.summary.names` | Full author list |
+| Journal | `static_data.summary.titles[type=source]` | Title-cased; canonicalised via Crossref |
 | Year | `static_data.summary.pub_info.pubyear` | |
 | Volume/Issue/Pages | `static_data.summary.pub_info` | |
-| DOI | `dynamic_data.cluster_related.identifiers` | |
-| Abstract | `fullrecord_metadata.abstracts` | |
+| DOI | `dynamic_data.cluster_related.identifiers` | Sibling of `static_data` on the record; verified/filled via Crossref |
+| Abstract | `fullrecord_metadata.abstracts` | Stored in JSON only, not in the `.bib` |
 | Keywords | `fullrecord_metadata.keywords` | |
+| Affiliations | `fullrecord_metadata.addresses` | Best effort |
 
-### Analysis Metrics
+### Crossref enrichment
+
+After parsing, each paper is matched against Crossref (guarded by a title
+similarity check and a +/-1 year tolerance) to:
+
+- verify or fill in the DOI;
+- replace the raw WoS ALL-CAPS journal name with Crossref's canonical container
+  title.
+
+Journal names are always title-cased as a deterministic baseline, so the step
+degrades gracefully if Crossref is unavailable. Use `--no-enrich` to skip it.
+
+### Citation keys
+
+Each paper is assigned a deterministic `<FirstAuthorSurname><Year>` BibTeX key
+(with a lowercase-letter suffix on collision). Keys are checked against the other
+project bibliographies (`refs-SUEWS.bib`, `refs-others.bib`,
+`refs-community.bib`) so `refs-wos.bib` never introduces a duplicate key. The
+same keys are used in the BibTeX file, the CSV, and the page's `:cite:`
+references.
+
+### Analysis metrics
 
 The script analyses papers for:
 
-1. **Geographic Distribution**: Cities/regions mentioned in abstracts
-   - Regions: Asia, Europe, North America, Oceania, Other
-   - Pattern matching for 50+ city names
+1. **Geographic distribution**: cities/regions matched (whole-word,
+   case-insensitive) in title and abstract text, keyed by region.
+2. **Application types**: thematic categorisation (Surface Energy Balance, Urban
+   Heat Island, CO2/Carbon Flux, Building Energy, Urban Vegetation, Water
+   Balance, Climate Scenarios, Model Development, Model Evaluation).
+3. **Temporal trends**: publication-year distribution.
 
-2. **Application Types**: Thematic categorisation
-   - Surface Energy Balance
-   - Urban Heat Island
-   - CO2/Carbon Flux
-   - Building Energy
-   - Urban Vegetation
-   - Water Balance/Hydrology
-   - Climate Scenarios
-   - Model Development
-   - Model Evaluation
-
-3. **Temporal Trends**: Publication year distribution
-
-### API Details
+### API details
 
 - **Endpoint**: `https://wos-api.clarivate.com/api/wos` (Expanded API)
-- **Rate Limiting**: 0.5 seconds between requests
-- **Batch Size**: 50 records per request
-- **Authentication**: API key via `X-ApiKey` header
+- **Rate limiting**: 0.5 s between WoS requests; 0.2 s between Crossref requests
+- **Batch size**: 50 records per request
+- **Authentication**: API key via the `X-ApiKey` header
 
-## Updating the Documentation
+## Updating the documentation
 
-To update SUEWS documentation with latest publications:
-
-1. Run the script:
-   ```bash
-   python fetch_suews_papers.py --output-dir ../../docs/source/assets/wos-papers/
-   ```
-
-2. Review the generated `suews_wos_papers.json`
-
-3. Commit changes:
-   ```bash
-   git add docs/source/assets/wos-papers/suews_wos_papers.json
-   git commit -m "docs: update WoS publications data"
-   ```
-
-## Data Quality Notes
-
-- **Coverage**: Web of Science indexes major academic journals but may miss:
-  - Conference papers (unless in proceedings indexed by WoS)
-  - Theses and dissertations
-  - Technical reports
-  - Non-English publications
-
-- **Abstracts**: Some older papers may lack abstracts in WoS
-
-- **DOIs**: Not all papers have DOIs, especially older publications
-
-- **Author Names**: Stored as provided by WoS; name variations may exist
-
-## Example Output
-
+```bash
+# From the repository root
+export WOS_EXPANDED_API_KEY="your-api-key"
+python scripts/wos-papers/fetch_suews_papers.py
 ```
-============================================================
-SUEWS Papers - Web of Science Fetcher
-============================================================
-Query: TS=SUEWS OR TS="Surface Urban Energy and Water Balance Scheme"
-Output: ./output
 
-Connecting to Web of Science API...
-Fetching: 68/68 papers
-Parsing records...
-Analysing papers...
+Then review and commit the regenerated artefacts:
 
-Total papers found: 68
-Year range: 2011 - 2026
-Unique locations: 36
-
-JSON: ./output/suews_wos_papers.json
-
-Done!
+```bash
+git add docs/source/assets/wos-papers/ docs/source/assets/refs/refs-wos.bib
+git commit -m "docs: update WoS publications data"
 ```
+
+## Data quality notes
+
+- **Coverage**: Web of Science indexes major academic journals but may miss
+  conference papers, theses, technical reports, and non-English publications.
+- **Geographic/thematic tags** are inferred from title and abstract text, so a
+  paper is counted under a city or theme only where that term appears.
+- **DOIs**: filled from WoS and verified against Crossref; a few very old papers
+  may still lack one.
 
 ## Troubleshooting
 
-### API Key Issues
+### API key not set
 
 ```
-Error: WOS_API_KEY environment variable not set
+Error: WOS_EXPANDED_API_KEY environment variable not set
 ```
-Solution: Export your API key before running:
+
+Export your Expanded API key before running:
+
 ```bash
-export WOS_API_KEY="your-key"
+export WOS_EXPANDED_API_KEY="your-key"
 ```
 
-### 403 Forbidden Error
+### 403 Forbidden error
 
-The Starter API (`api.clarivate.com/apis/wos-starter`) returns 403 for some subscriptions. This script uses the Expanded API which typically works with institutional subscriptions.
+The script uses the Web of Science **Expanded** API
+(`wos-api.clarivate.com/api/wos`), which needs an Expanded subscription key. A
+Starter key (`api.clarivate.com/apis/wos-starter`) returns HTTP 403 against this
+endpoint — set `WOS_EXPANDED_API_KEY` rather than a Starter key.
 
-### Rate Limiting (429)
+### Rate limiting (429)
 
-If you receive rate limit errors, the script automatically waits between requests. Increase `rate_limit` in `WoSClient` if needed.
-
-## Contributing
-
-To improve this script:
-
-1. Fork the repository
-2. Create a feature branch
-3. Make changes
-4. Submit a pull request
-
-Please ensure any new location patterns or application categories are well-documented.
+The script waits between requests. If you still hit limits, increase
+`rate_limit` in `WoSClient`.
 
 ## License
 

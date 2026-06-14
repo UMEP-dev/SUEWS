@@ -598,6 +598,30 @@ def detect_table_version(input_dir):
 # rename, delete, add, move
 
 
+def _read_table_tokens(path):
+    """Read a two-line-header SUEWS table without pandas inference."""
+    lines = Path(path).read_text(encoding="utf-8").splitlines()
+    if len(lines) < 2:
+        return [], []
+    headers = lines[1].split()
+    rows = []
+    for line in lines[2:]:
+        fields = line.split()
+        if not fields or fields[0].startswith("-9"):
+            break
+        rows.append(fields)
+    return headers, rows
+
+
+def _write_table_tokens(path, headers, rows):
+    """Write a two-line-header SUEWS table without legacy footer rows."""
+    path = Path(path)
+    index_line = " ".join(str(i + 1) for i in range(len(headers)))
+    lines = [index_line, " ".join(headers)]
+    lines.extend(" ".join(row) for row in rows)
+    path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+
+
 # rename:
 # rename file
 def rename_file(toFile, _toVar, _toCol, toVal):
@@ -618,59 +642,15 @@ def rename_var(toFile, toVar, _toCol, toVal):
         logger_supy.info(f"{toFile} {toVar} {toVal}")
         rename_var_nml(toFile, toVar, toVal)
     else:
-        # First, read the file to find where data ends (before -9 lines)
-        with open(toFile, encoding="utf-8") as f:
-            lines = f.readlines()
-
-        # Find where data ends (first line starting with -9)
-        data_end_idx = len(lines)
-        for i, line in enumerate(lines):
-            if line.strip().startswith("-9"):
-                data_end_idx = i
-                break
-
-        # Read only the data portion
-        try:
-            dataX = pd.read_csv(
-                toFile,
-                sep=r"\s+",
-                comment="!",
-                encoding="UTF8",
-                skiprows=2,  # Skip both header lines
-                nrows=data_end_idx - 2 if data_end_idx > 2 else None,
-                header=None,
-            )
-            # Get the header from the second line
-            if len(lines) > 1:
-                headers = lines[1].strip().split()
-                dataX.columns = headers
-        except Exception as e:
-            logger_supy.error(f"Could not read {toFile}: {e}")
-            return
-
         # Rename the column
-        if toVar in dataX.columns:
-            dataX = dataX.rename(columns={toVar: toVal})
+        path = Path(toFile)
+        headers, rows = _read_table_tokens(path)
+        if toVar in headers:
+            headers[headers.index(toVar)] = toVal
         else:
             logger_supy.warning(f"Column {toVar} not found in {toFile}")
 
-        # Get headers
-        headers = list(dataX.columns)
-
-        # Create header line
-        headerLine = (
-            " ".join(str(i + 1) for i in range(len(headers))) + "\n" + " ".join(headers)
-        )
-
-        # Convert to string
-        dataX = dataX.astype(str)
-
-        # Write the file
-        with open(toFile, "w", encoding="utf-8") as f:
-            f.write(headerLine + "\n")
-            dataX.to_csv(f, sep=" ", index=False, header=False)
-            # NO footer lines - these are legacy and should not be added
-
+        _write_table_tokens(path, headers, rows)
         logger_supy.debug(f"Renamed {toVar} to {toVal} in {toFile}")
         return
 
@@ -694,60 +674,20 @@ def delete_var(toFile, toVar, _toCol, toVal):
     if toFile.endswith(".nml"):
         delete_var_nml(toFile, toVar, toVal)
     else:
-        # First, read the file to find where data ends (before -9 lines)
-        with open(toFile, encoding="utf-8") as f:
-            lines = f.readlines()
-
-        # Find where data ends (first line starting with -9)
-        data_end_idx = len(lines)
-        for i, line in enumerate(lines):
-            if line.strip().startswith("-9"):
-                data_end_idx = i
-                break
-
-        # Read only the data portion
-        try:
-            dataX = pd.read_csv(
-                toFile,
-                sep=r"\s+",
-                comment="!",
-                encoding="UTF8",
-                skiprows=2,  # Skip both header lines
-                nrows=data_end_idx - 2 if data_end_idx > 2 else None,
-                header=None,
-            )
-            # Get the header from the second line
-            if len(lines) > 1:
-                headers = lines[1].strip().split()
-                dataX.columns = headers
-        except Exception as e:
-            logger_supy.error(f"Could not read {toFile}: {e}")
-            return
+        path = Path(toFile)
+        headers, rows = _read_table_tokens(path)
 
         # Delete the column
-        if toVar in dataX.columns:
-            dataX = dataX.drop(columns=[toVar])
-        else:
+        if toVar not in headers:
             logger_supy.warning(f"Column {toVar} not found in {toFile}")
             return
+        idx = headers.index(toVar)
+        headers.pop(idx)
+        for row in rows:
+            if len(row) > idx:
+                row.pop(idx)
 
-        # Get headers after deletion
-        headers = list(dataX.columns)
-
-        # Create header line
-        headerLine = (
-            " ".join(str(i + 1) for i in range(len(headers))) + "\n" + " ".join(headers)
-        )
-
-        # Convert to string
-        dataX = dataX.astype(str)
-
-        # Write the file
-        with open(toFile, "w", encoding="utf-8") as f:
-            f.write(headerLine + "\n")
-            dataX.to_csv(f, sep=" ", index=False, header=False)
-            # NO footer lines - these are legacy and should not be added
-
+        _write_table_tokens(path, headers, rows)
         logger_supy.debug(f"Deleted column {toVar} from {toFile}")
         return
 
@@ -1014,43 +954,8 @@ def add_var(toFile, toVar, toCol, toVal):
     if toFile.endswith(".nml"):
         add_var_nml(toFile, toVar, toVal)
     else:
-        # First, read the file to find where data ends (before -9 lines)
-        with open(toFile, encoding="utf-8") as f:
-            lines = f.readlines()
-
-        # Find where data ends (first line starting with -9)
-        data_end_idx = len(lines)
-        for i, line in enumerate(lines):
-            if line.strip().startswith("-9"):
-                data_end_idx = i
-                break
-
-        # Read only the data portion (skip headers and footers)
-        try:
-            # Use pandas to read only the data lines
-            dataX = pd.read_csv(
-                toFile,
-                sep=r"\s+",  # Use regex for whitespace separation
-                comment="!",
-                encoding="UTF8",
-                skiprows=2,  # Skip both header lines
-                nrows=data_end_idx - 2
-                if data_end_idx > 2
-                else None,  # Read only data rows
-                header=None,  # No header in data
-            )
-
-            # Get the header from the second line
-            if len(lines) > 1:
-                headers = lines[1].strip().split()
-                dataX.columns = headers
-            else:
-                headers = []
-        except Exception as e:
-            logger_supy.debug(f"Could not read {toFile} with pandas: {e}")
-            # If file doesn't exist or is empty, create minimal structure
-            dataX = pd.DataFrame()
-            headers = []
+        path = Path(toFile)
+        headers, rows = _read_table_tokens(path)
 
         # Check if column already exists
         if toVar in headers:
@@ -1065,32 +970,18 @@ def add_var(toFile, toVar, toCol, toVal):
         # Insert the new column at the specified position
         if target_col <= len(headers):
             headers.insert(target_col, toVar)
-            # Add the new column to dataX with the default value
-            if not dataX.empty:
-                # Insert column with the same value for all rows
-                dataX.insert(target_col, toVar, toVal)
-            else:
-                # Create a new dataframe with just the header
-                dataX = pd.DataFrame(columns=headers)
+            for row in rows:
+                if target_col > len(row):
+                    row.extend(["-999"] * (target_col - len(row)))
+                row.insert(target_col, str(toVal))
+        else:
+            logger_supy.warning(
+                f"Column position {toCol} is beyond {toFile}'s "
+                f"{len(headers)} columns; {toVar} not added"
+            )
+            return
 
-        # Create header line with column indices
-        headerLine = (
-            " ".join(str(i + 1) for i in range(len(headers))) + "\n" + " ".join(headers)
-        )
-
-        # Save the dataframe to file
-        # Convert to string to ensure all values are saved as text
-        if not dataX.empty:
-            dataX = dataX.astype(str)
-
-        # Write the file with headers
-        with open(toFile, "w", encoding="utf-8") as f:
-            # Write header lines
-            f.write(headerLine + "\n")
-            # Write data without index (only if there's data)
-            if not dataX.empty:
-                dataX.to_csv(f, sep=" ", index=False, header=False)
-            # NO footer lines - these are legacy and should not be added
+        _write_table_tokens(path, headers, rows)
 
 
 def add_var_nml(toFile, toVar, toVal):

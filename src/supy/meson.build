@@ -84,6 +84,7 @@ py.install_sources(
             'util/converter/__init__.py',
             'util/converter/df_state.py',
             'util/converter/table/__init__.py',
+            'util/converter/table/legacy.py',
             'util/converter/table/table.py',
             'util/converter/table/reverse.py',
             'util/converter/table/table_writer.py',

@@ -33,6 +33,7 @@ import pandas as pd
 
 from ...._env import logger_supy, trv_supy_module
 from ...._load import load_SUEWS_nml_simple
+from .legacy import LegacyTable, read_legacy_table, write_legacy_table
 from .profile_manager import ProfileManager
 
 warnings.filterwarnings("ignore")
@@ -600,26 +601,13 @@ def detect_table_version(input_dir):
 
 def _read_table_tokens(path):
     """Read a two-line-header SUEWS table without pandas inference."""
-    lines = Path(path).read_text(encoding="utf-8").splitlines()
-    if len(lines) < 2:
-        return [], []
-    headers = lines[1].split()
-    rows = []
-    for line in lines[2:]:
-        fields = line.split()
-        if not fields or fields[0].startswith("-9"):
-            break
-        rows.append(fields)
-    return headers, rows
+    table = read_legacy_table(path)
+    return table.headers, table.rows
 
 
 def _write_table_tokens(path, headers, rows):
     """Write a two-line-header SUEWS table without legacy footer rows."""
-    path = Path(path)
-    index_line = " ".join(str(i + 1) for i in range(len(headers)))
-    lines = [index_line, " ".join(headers)]
-    lines.extend(" ".join(row) for row in rows)
-    path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    write_legacy_table(path, LegacyTable(headers=list(headers), rows=list(rows)))
 
 
 # rename:
@@ -703,71 +691,12 @@ def delete_var_nml(toFile, toVar, _toVal):
     nml.write(toFile, force=True)
 
 
-def _should_skip_line(line):
-    """Check if a line should be skipped during cleaning."""
-    stripped = line.strip()
-    # Skip empty lines and full-line comments
-    if not stripped or stripped.startswith("#"):
-        return True
-
-    # Detect whether this looks like a data line (starts with numeric code)
-    first_token = stripped.split()[0]
-    is_data_line = first_token.lstrip("-").isdigit()
-
-    # Skip lines that contain triple quotes or problematic quoted comments
-    if '"""' in line:
-        return True
-    if (
-        '"' in line
-        and not is_data_line
-        and ("Vegetation (average)" in line or "used for" in line)
-    ):
-        return True
-
-    # Skip lines starting with -9 (legacy footers)
-    return stripped.startswith("-9")
-
-
-def _process_line(line):
-    """Process a single line: remove comments and tabs."""
-    # Replace tabs with spaces
-    line = line.replace("\t", " ")
-
-    # Remove inline comments (everything after !)
-    if "!" in line:
-        line = line[: line.index("!")].rstrip()
-
-    return line
-
-
-def _ensure_consistent_columns(fields, header_col_count):
-    """Ensure field count matches header column count."""
-    if not header_col_count:
-        return fields
-
-    if len(fields) == header_col_count:
-        return fields
-
-    # Truncate extra fields or pad with -999
-    if len(fields) > header_col_count:
-        return fields[:header_col_count]
-    else:
-        while len(fields) < header_col_count:
-            fields.append("-999")
-        return fields
-
-
 def clean_legacy_table(file_path, output_path=None):
-    r"""
-    Clean legacy SUEWS table files for pandas compatibility.
+    r"""Normalise a legacy SUEWS table before schema conversion.
 
-    This function:
-    - Removes inline comments (text after ! character)
-    - Standardizes line endings (removes \r)
-    - Removes empty trailing columns
-    - Ensures consistent column counts
-    - Handles tab-separated values
-    - Removes ALL lines that start with -9 (legacy footers)
+    The normaliser follows the old Fortran table contract: whitespace-delimited
+    records, ``!`` inline comments, and ``-9`` end-of-data sentinels. It rejects
+    malformed rows instead of padding missing fields into plausible output.
 
     Args:
         file_path: Path to the input file
@@ -781,167 +710,23 @@ def clean_legacy_table(file_path, output_path=None):
         output_path = file_path
 
     logger_supy.debug(f"Cleaning legacy file: {file_path}")
-
-    # Track what was cleaned for reporting
-    cleaning_actions = []
-
-    with open(file_path, encoding="utf-8", errors="replace") as f:
-        lines = f.readlines()
-
-    if len(lines) < 2:
-        logger_supy.warning(
-            f"File {file_path} has less than 2 lines, skipping cleaning"
-        )
-        return file_path
-
-    header_lines = []  # Store header lines (first 2 lines)
-    data_lines = []  # Store data lines
-    header_col_count = None
-    line_count = 0  # Track non-empty lines
-
-    # Track cleaning statistics
-    comments_removed = 0
-    tabs_replaced = 0
-    footer_removed = False
-    columns_adjusted = 0
-
-    for i, raw_line in enumerate(lines):
-        # Remove carriage returns and trailing whitespace
-        line = raw_line.replace("\r", "").rstrip()
-
-        # Track tabs for reporting
-        if "\t" in line:
-            tabs_replaced += 1
-
-        # Check if line should be skipped
-        if _should_skip_line(line):
-            if line.strip().startswith("-9"):
-                footer_removed = True
-                logger_supy.debug(
-                    f"Removing legacy footer line {i + 1}: {line[:50]}... Stopping read after footer."
-                )
-                break  # Stop processing after footer
-            elif '"""' in line or (
-                '"' in line and ("Vegetation (average)" in line or "used for" in line)
-            ):
-                logger_supy.debug(
-                    f"Skipping line {i + 1} with problematic quoted comments: {line[:50]}..."
-                )
-                cleaning_actions.append(f"Removed metadata line {i + 1}")
-            continue
-
-        # Process the line (remove comments and tabs)
-        original_line = line
-        line = _process_line(line)
-        if "!" in original_line:
-            comments_removed += 1
-
-        # Split by spaces (tabs have been replaced with spaces)
-        fields = line.split()
-
-        # Skip empty lines after processing
-        if not fields:
-            continue
-
-        # For the header rows (first 2 non-empty lines), establish column count
-        if line_count < 2:
-            # Store header line
-            header_lines.append(" ".join(fields))
-            line_count += 1
-
-            # Set column count from the SECOND line (column names), not first
-            # First line may have trailing empty fields from tabs
-            if line_count == 2:
-                header_col_count = len(fields)
-                logger_supy.debug(
-                    f"Header column count set to {header_col_count} from column names line"
-                )
-                # Adjust first header line if needed
-                if len(header_lines[0].split()) != header_col_count:
-                    first_line_fields = header_lines[0].split()
-                    if len(first_line_fields) > header_col_count:
-                        header_lines[0] = " ".join(first_line_fields[:header_col_count])
-                        logger_supy.debug(
-                            f"Adjusted first header line from {len(first_line_fields)} to {header_col_count} fields"
-                        )
-            continue
-
-        # For data lines
-        line_count += 1
-
-        # Ensure consistent column count
-        original_field_count = len(fields)
-        fields = _ensure_consistent_columns(fields, header_col_count)
-        if len(fields) != original_field_count:
-            columns_adjusted += 1
-            if original_field_count > header_col_count:
-                logger_supy.debug(
-                    f"Line {i + 1}: Truncating from {original_field_count} to {header_col_count} fields"
-                )
-
-        # Store processed data line
-        data_lines.append(" ".join(fields))
-
-    # Combine header and data lines
-    cleaned_lines = header_lines + data_lines
-
-    # Note: We do NOT add footer lines - the -9 lines are removed entirely
-
-    # Write cleaned content
-    with open(output_path, "w", encoding="utf-8") as f:
-        f.write("\n".join(cleaned_lines))
-        if cleaned_lines and not cleaned_lines[-1].endswith("\n"):
-            f.write("\n")
-
-    # Report what was cleaned
-    if (
-        comments_removed > 0
-        or tabs_replaced > 0
-        or footer_removed
-        or columns_adjusted > 0
-    ):
-        clean_summary = []
-        if comments_removed > 0:
-            clean_summary.append(f"{comments_removed} inline comments")
-        if tabs_replaced > 0:
-            clean_summary.append(f"{tabs_replaced} tabs replaced")
-        if footer_removed:
-            clean_summary.append("legacy footer removed")
-        if columns_adjusted > 0:
-            clean_summary.append(
-                f"{columns_adjusted} lines adjusted for column consistency"
-            )
-        if cleaning_actions:
-            clean_summary.append(f"{len(cleaning_actions)} metadata lines removed")
-
-        logger_supy.info(
-            f"[OK] Cleaned {Path(file_path).name}: {', '.join(clean_summary)}"
-        )
-    else:
-        logger_supy.debug(f"File {Path(file_path).name} was already clean")
+    table = read_legacy_table(file_path)
+    write_legacy_table(output_path, table)
+    logger_supy.info(
+        f"[OK] Normalised {Path(file_path).name}: "
+        f"{len(table.headers)} columns, {len(table.rows)} rows"
+    )
 
     return output_path
 
 
-# Helper function to read SUEWS files robustly (kept for backward compatibility but simplified)
+# Helper function to read SUEWS files robustly
+# (kept for backward compatibility but simplified).
 def read_suews_table(toFile):
-    """Read SUEWS table file using numpy - simpler approach."""
+    """Read a SUEWS table file using the strict legacy parser."""
     try:
-        dataX = np.genfromtxt(
-            toFile,
-            dtype=str,
-            skip_header=1,
-            comments="!",
-            names=True,
-            invalid_raise=False,
-            encoding="UTF8",
-        )
-
-        # Convert to pandas DataFrame for compatibility
-        if dataX.size == 0:
-            return pd.DataFrame(columns=list(dataX.dtype.names))
-        else:
-            return pd.DataFrame(dataX.tolist(), columns=list(dataX.dtype.names))
+        table = read_legacy_table(toFile)
+        return pd.DataFrame(table.rows, columns=table.headers)
     except Exception as e:
         logger_supy.error(f"Failed to read {toFile}: {e!s}")
         raise

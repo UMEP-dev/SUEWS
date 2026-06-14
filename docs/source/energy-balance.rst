@@ -83,7 +83,7 @@ For detailed information on each scheme, selection guidance, and comparison tabl
 - :ref:`BEERS <beers>` - Point-specific radiation analysis for microclimate and thermal comfort studies
 - :ref:`SPARTACUS-Surface <spartacus_surface>` - Multi-layer radiative transfer for research applications (experimental)
 
-All schemes can optionally use observed radiation components when available (see :ref:`forcing data configuration <forcing-data>`).
+All schemes can optionally use observed radiation components when available (see :ref:`forcing data configuration <met_forcing>`).
 
 Detailed Radiation Scheme Documentation
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -131,6 +131,8 @@ Storage heat flux represents heat stored in and released from urban fabric (buil
 - **DyOHM** (Dynamic Objective Hysteresis Model) (Liu et al., in prep.) - Extends OHM with coefficients computed dynamically from material thermal properties (thermal conductivity) and meteorological conditions; requires vertical wall layer configuration.
 - **STEBBS** (Surface Temperature Energy Balance Based Scheme) - Facet temperatures (building, paved, vegetation, soil, water)
 - **Observed** - Storage heat flux can be supplied with the meteorological forcing data
+
+.. _heat_fluxes:
 
 Turbulent Heat Fluxes (:math:`Q_H` and :math:`Q_E`)
 ----------------------------------------------------

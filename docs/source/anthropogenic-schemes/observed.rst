@@ -93,7 +93,7 @@ The meteorological forcing file must include a ``qf`` column containing anthropo
 
 If the ``qf`` column is missing or contains missing values, the model will use a default value (typically 0 W m⁻²) or raise an error depending on configuration.
 
-See :ref:`forcing data configuration <forcing-data>` for detailed information on meteorological input files.
+See :ref:`forcing data configuration <met_forcing>` for detailed information on meteorological input files.
 
 Computational Considerations
 -----------------------------

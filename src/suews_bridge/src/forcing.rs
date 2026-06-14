@@ -24,10 +24,13 @@ pub type SuewsForcingValuesPayload = ValuesPayloadWithDims;
 pub const BASELINE_FORCING_COLUMNS: &[&str] = &[
     "iy", "id", "it", "imin", "tair", "rh", "u", "pres", "kdown", "rain",
 ];
+// Rust-side mirror of supy._load.LANDCOVER_SUFFIXES. No Rust code references
+// it directly, but the gh#1372 cross-language guard
+// (test/data_model/test_forcing_validation.py::test_python_rust_whitelist_parity)
+// parses this source file as text and asserts the two whitelists stay in sync,
+// so clippy's dead_code lint is a false positive here.
+#[allow(dead_code)]
 const LANDCOVER_SUFFIXES: &[&str] = &[
-    "paved", "bldgs", "evetr", "dectr", "grass", "bsoil", "water",
-];
-const WU_LANDCOVER_SUFFIXES: &[&str] = &[
     "paved", "bldgs", "evetr", "dectr", "grass", "bsoil", "water",
 ];
 const LAI_LANDCOVER_SUFFIXES: &[&str] = &["evetr", "dectr", "grass"];
@@ -197,12 +200,6 @@ suews_fields! {
     (lai_grass, 22, ["lai_grass"], InterpKind::Instantaneous, false),
 
     // (tair_av_5d, 1, ["tair_av_5d"], InterpKind::Instantaneous),
-}
-
-fn is_required_field(name: &str) -> bool {
-    BASELINE_FORCING_COLUMNS
-        .iter()
-        .any(|&x| x == name)
 }
 
 pub fn field_by_name(name: &str) -> Option<SuewsField> {

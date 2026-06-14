@@ -6,6 +6,12 @@ pub struct TimeColumns {
     pub imin: usize,
 }
 
+impl Default for TimeColumns {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl TimeColumns {
     pub const COUNT: usize = 4;
 

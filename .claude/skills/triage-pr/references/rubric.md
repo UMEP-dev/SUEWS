@@ -84,6 +84,13 @@ alive and someone is on it." `defer` means "valid work, intentionally
 paused, with a named trigger." If the PR has no recent activity and no open
 linked issue with an assignee, prefer `defer` over `continue`.
 
+Note: the scanner does not emit the linked-issue / assignee signal. When the
+`AGE_D` and CI/MERGE signals alone leave the continue/defer choice genuinely
+balanced, look it up out-of-band (for example
+`gh pr view <n> --json closingIssuesReferences` and the linked issue's
+assignees) before deciding. If that lookup is not available or still
+ambiguous, apply the tie-break and `escalate` rather than guessing.
+
 ---
 
 ### defer

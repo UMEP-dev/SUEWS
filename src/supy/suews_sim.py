@@ -27,7 +27,7 @@ from .data_model.core import SUEWSConfig
 from .suews_checkpoint import SUEWSCheckpoint
 from .suews_forcing import SUEWSForcing
 from .suews_output import SUEWSOutput
-from .util._io import read_forcing
+from .util._io import prepare_dataframe_forcing, read_forcing
 
 # Constants
 DEFAULT_OUTPUT_FREQ_SECONDS = 3600  # Default hourly output frequency
@@ -414,9 +414,17 @@ class SUEWSSimulation:
 
         Notes
         -----
-        When loading from file paths, forcing data is resampled to match the
-        model timestep from ``model.control.tstep`` in the configuration.
-        If no configuration is loaded, defaults to 300 seconds (5 minutes).
+        Regardless of input type, forcing data is resampled to match the
+        model timestep from ``model.control.tstep`` in the configuration
+        (defaulting to 300 seconds when no configuration is loaded). In-memory
+        inputs (DataFrame or :class:`~supy.SUEWSForcing`) are validated as
+        already being in the model-ready canonical form -- canonical column
+        names, a :class:`pandas.DatetimeIndex`, and pressure in hPa -- and
+        rejected with a clear error otherwise. Unlike file loading, no column
+        renaming or unit conversion is applied to in-memory inputs; build them
+        with :func:`supy.util.read_forcing` or
+        :meth:`supy.SUEWSForcing.from_file` to guarantee that contract
+        (gh#1537).
 
         Examples
         --------
@@ -443,9 +451,13 @@ class SUEWSSimulation:
         if isinstance(forcing_data, RefValue):
             forcing_data = forcing_data.value
         if isinstance(forcing_data, SUEWSForcing):
-            self._df_forcing = forcing_data.to_dataframe(include_extras=True)
+            self._df_forcing = prepare_dataframe_forcing(
+                forcing_data.to_dataframe(include_extras=True), tstep_mod=tstep_mod
+            )
         elif isinstance(forcing_data, pd.DataFrame):
-            self._df_forcing = forcing_data.copy()
+            self._df_forcing = prepare_dataframe_forcing(
+                forcing_data, tstep_mod=tstep_mod
+            )
         elif isinstance(forcing_data, list):
             # Handle list of files
             self._df_forcing = SUEWSSimulation._load_forcing_from_list(

@@ -58,7 +58,7 @@ EXPECTED_COUNTS = {
     OutputGroup.BEERS: 29,  # BEERS radiation variables
     OutputGroup.DEBUG: 131,  # Debug variables (matches Fortran dataOutLineDebug)
     OutputGroup.EHC: 224,  # EHC variables (2 + 7×15 roof + 7×15 wall)
-    OutputGroup.SPARTACUS: 194,  # SPARTACUS variables (10 scalars + 12×15 layers)
+    OutputGroup.SPARTACUS: 254,  # SPARTACUS variables (14 scalars + 16×15 layers)
     OutputGroup.STEBBS: 82,  # STEBBS variables (matches Fortran truncated names)
     OutputGroup.NHOOD: 1,  # Neighbourhood variables
 }

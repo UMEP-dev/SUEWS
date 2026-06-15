@@ -139,6 +139,8 @@ CONTAINS
       INTEGER(kind=jpim), ALLOCATABLE :: nlay(:)
       INTEGER :: istartcol, iendcol
       INTEGER :: jrepeat, ilay, jlay, jcol
+      INTEGER :: nlay_veg, max_idx     ! NEW: helpers for veg_abs extraction
+      REAL(KIND(1D0)) :: veg_abs_sw_per_veg, A_veg_sw
 
       ! --------------------------------------------------------------------------------
       ! output variables
@@ -172,6 +174,7 @@ CONTAINS
       REAL(KIND(1D0)) :: grnd_dn_dir_sw_spc
       REAL(KIND(1D0)) :: grnd_net_sw_spc
       REAL(KIND(1D0)) :: grnd_vertical_diff
+      REAL(KIND(1D0)) :: grnd_dn_sw_spc
       REAL(KIND(1D0)), DIMENSION(15) :: clear_air_abs_lw_spc
       REAL(KIND(1D0)), DIMENSION(15) :: clear_air_abs_sw_spc
       REAL(KIND(1D0)), DIMENSION(15), INTENT(OUT) :: roof_in_sw_spc
@@ -184,6 +187,13 @@ CONTAINS
       REAL(KIND(1D0)), DIMENSION(15) :: wall_net_lw_spc
       REAL(KIND(1D0)), DIMENSION(15) :: sfr_roof_spc
       REAL(KIND(1D0)), DIMENSION(15) :: sfr_wall_spc
+      REAL(KIND(1D0)), DIMENSION(15) :: veg_abs_sw_spc ! SW vegetation absorption per layer
+      REAL(KIND(1D0)), DIMENSION(15) :: veg_abs_lw_spc ! LW vegetation absorption per layer
+      REAL(KIND(1D0)), DIMENSION(15) :: veg_in_sw_spc ! SW incoming vegetation
+      REAL(KIND(1D0)), DIMENSION(15) :: veg_out_sw_spc ! SW outcoming vegetation
+      ! Optionally:
+      ! REAL(KIND(1D0)), DIMENSION(15) :: veg_in_lw_spc
+      ! REAL(KIND(1D0)), DIMENSION(15) :: veg_out_lw_spc
       ! --------------------------------------------------------------------------------
 
       REAL(KIND(1D0)), DIMENSION(ncolumnsDataOutSPARTACUS - 5), INTENT(OUT) :: dataOutLineSPARTACUS
@@ -224,6 +234,7 @@ CONTAINS
       REAL(KIND(1D0)), ALLOCATABLE :: veg_ext(:)
       ! depth of the vegetated layer
       REAL(KIND(1D0)), ALLOCATABLE :: veg_depth(:)
+      REAL(KIND(1D0)), ALLOCATABLE :: LAI_eff_z(:)
 
       LOGICAL, INTENT(IN) :: use_sw_direct_albedo
 
@@ -249,6 +260,9 @@ CONTAINS
       REAL(KIND(1D0)), DIMENSION(nlayer) :: veg_fsd, veg_contact_fraction
       ! INTEGER :: i
       ! REAL(KIND(1D0)) :: debug1, debug2
+      LOGICAL, SAVE :: did_print = .FALSE.
+      INTEGER :: first_veg_idx
+      REAL(KIND(1D0)) :: lai_remain, sum_dz_rest
 
       IF (DiagQN == 1) PRINT *, 'in SPARTACUS, starting ...'
       ! initialize the output variables
@@ -347,6 +361,8 @@ CONTAINS
       LAI_av = 0.0D0
       veg_depth = 0.0D0
       LAI_av_z = 0.0D0
+      ALLOCATE (LAI_eff_z(nlayer))
+      LAI_eff_z = 0.0D0
       !Calculate the area weighted LAI of trees
       DO jcol = 1, ncol
          ! the 10.**-10 stops the equation blowing up when there are no trees
@@ -369,6 +385,17 @@ CONTAINS
             END IF
          END DO
       END DO
+
+      ! Original LAI profile LAI_av_z: uniform LAI over vegetated depth
+      DO jcol = 1, ncol
+         ilay = canopy_props%istartlay(jcol)
+         DO jlay = 0, nlay(jcol) - 1
+            IF (veg_frac(ilay + jlay) > 0.0D0 .AND. veg_depth(jcol) > 0.0D0) THEN
+               LAI_av_z(ilay + jlay) = LAI_av(jcol) * canopy_props%dz(ilay + jlay) / veg_depth(jcol)
+            END IF
+         END DO
+      END DO
+
       ! find LAV_av_z and veg_ext. Assume the LAI is uniform with height within the vegetation layer.
       DO jcol = 1, ncol
          ilay = canopy_props%istartlay(jcol)
@@ -385,6 +412,42 @@ CONTAINS
             END IF
          END DO
       END DO
+
+      ! Print diagnostics for old LAI_av_z-based veg_ext (once)
+      IF (.NOT. did_print) THEN
+         DO jcol = 1, ncol
+            ilay = canopy_props%istartlay(jcol)
+
+            DO jlay = 0, nlay(jcol) - 1
+               IF (jlay == 0) THEN
+                  PRINT *, 'jlay veg_frac LAI_av LAI_av_z dz veg_ext veg_fsd veg_contact'
+               END IF
+
+               IF (veg_frac(ilay + jlay) > 0.0D0) THEN
+                  PRINT *, jlay, &
+                        veg_frac(ilay + jlay), &
+                        LAI_av(jcol), &
+                        LAI_av_z(ilay + jlay), &
+                        canopy_props%dz(ilay + jlay), &
+                        veg_ext(ilay + jlay), &
+                        veg_fsd(ilay + jlay), &
+                        veg_contact_fraction(ilay + jlay)
+               ELSE
+                  PRINT *, jlay, &
+                        veg_frac(ilay + jlay), &
+                        LAI_av(jcol), &
+                        LAI_av_z(ilay + jlay), &
+                        canopy_props%dz(ilay + jlay), &
+                        0.0D0, &
+                        veg_fsd(ilay + jlay), &
+                        veg_contact_fraction(ilay + jlay)
+               END IF
+            END DO
+         END DO
+
+         did_print = .TRUE.
+      END IF
+
 
       ! set temperature
       tsfc_surf_K = tsfc_surf + 273.15 ! convert surface temperature to Kelvin
@@ -687,6 +750,83 @@ CONTAINS
          qn_spc = sw_flat_net_spc + lw_flat_net_spc
       END IF
 
+      !-----------------------------------------------------------------
+      ! Shortwave vegetation absorption per layer (W m-2), from sw_flux
+      !-----------------------------------------------------------------
+      veg_abs_sw_spc = -999.0D0
+
+      ! Only attempt extraction when SW is active and there is at least one SPARTACUS layer
+      IF (config%do_sw .AND. canopy_props%nlay(1) > 0) THEN
+         ! Some configurations do not allocate sw_flux%veg_abs at all:
+         ! in that case, skip extraction and keep fill values.
+         IF (ALLOCATED(sw_flux%veg_abs)) THEN
+            ! Number of available layers in veg_abs (second dimension)
+            nlay_veg = SIZE(sw_flux%veg_abs, 2)
+
+            ! Required maximum index in veg_abs for this column
+            max_idx = canopy_props%istartlay(1) + MIN(canopy_props%nlay(1), 15) - 1
+
+            IF (nlay_veg >= max_idx) THEN
+               ilay = canopy_props%istartlay(1)
+               DO jlay = 1, MIN(canopy_props%nlay(1), 15)
+                  ! nspec=1, so use first spectral index
+                  veg_abs_sw_spc(jlay) = sw_flux%veg_abs(1, ilay + jlay - 1)
+               END DO
+            END IF
+         END IF
+      END IF
+
+      !-----------------------------------------------------------------
+      ! Longwave vegetation absorption per layer (W m-2), from lw_flux
+      !-----------------------------------------------------------------
+      veg_abs_lw_spc = -999.0D0
+
+      ! Only attempt extraction when LW is active and there is at least one SPARTACUS layer
+      IF (config%do_lw .AND. canopy_props%nlay(1) > 0) THEN
+         ! Some configurations do not allocate lw_flux%veg_abs at all:
+         ! in that case, skip extraction and keep fill values.
+         IF (ALLOCATED(lw_flux%veg_abs)) THEN
+            ! Number of available layers in veg_abs (second dimension)
+            nlay_veg = SIZE(lw_flux%veg_abs, 2)
+
+            ! Required maximum index in veg_abs for this column
+            max_idx = canopy_props%istartlay(1) + MIN(canopy_props%nlay(1), 15) - 1
+
+            IF (nlay_veg >= max_idx) THEN
+               ilay = canopy_props%istartlay(1)
+               DO jlay = 1, MIN(canopy_props%nlay(1), 15)
+                  ! nspec=1, so use first spectral index
+                  veg_abs_lw_spc(jlay) = lw_flux%veg_abs(1, ilay + jlay - 1)
+               END DO
+            END IF
+         END IF
+      END IF
+
+      !-----------------------------------------------------------------
+      ! Vegetation incident and outgoing SW per layer (W m-2 per veg area)
+      ! Approximated from veg_abs_sw_spc and veg_frac using an effective
+      ! absorptance A_veg_sw = 1 - veg_ssa_sw.
+      !-----------------------------------------------------------------
+
+      veg_in_sw_spc  = -999.0D0
+      veg_out_sw_spc = -999.0D0
+
+      IF (config%do_sw .AND. canopy_props%nlay(1) > 0) THEN
+         ilay = canopy_props%istartlay(1)
+
+         DO jlay = 1, MIN(canopy_props%nlay(1), 15)
+
+            IF (veg_frac(ilay + jlay - 1) > 0.0D0 .AND. veg_abs_sw_spc(jlay) > -900.0D0) THEN
+               veg_abs_sw_per_veg = veg_abs_sw_spc(jlay) / veg_frac(ilay + jlay - 1)
+
+               A_veg_sw = MAX(1.0D-3, 1.0D0 - veg_ssa_sw)
+
+               veg_in_sw_spc(jlay)  = veg_abs_sw_per_veg / A_veg_sw
+               veg_out_sw_spc(jlay) = veg_in_sw_spc(jlay) - veg_abs_sw_per_veg
+            END IF
+         END DO
+      END IF
+
       ! albedo
       IF (config%do_sw) THEN
          IF (top_flux_dn_diffuse_sw + top_flux_dn_direct_sw(nspec, ncol) > 0.1) THEN
@@ -743,6 +883,7 @@ CONTAINS
          roof_in_sw_spc(:nlayer) = sw_flux%roof_in(nspec, :nlayer)
          top_dn_dir_sw_spc = sw_flux%top_dn_dir(nspec, ncol)
          top_net_sw_spc = sw_flux%top_net(nspec, ncol)
+         grnd_dn_sw_spc = sw_flux%ground_dn(nspec, ncol)   ! NEW: total downward SW at the ground
          grnd_dn_dir_sw_spc = sw_flux%ground_dn_dir(nspec, ncol)
          grnd_net_sw_spc = sw_flux%ground_net(nspec, ncol)
          grnd_vertical_diff = sw_flux%ground_vertical_diff(nspec, ncol)
@@ -754,6 +895,7 @@ CONTAINS
          roof_in_sw_spc(:nlayer) = 0.0
          top_dn_dir_sw_spc = 0.0
          top_net_sw_spc = 0.0
+         grnd_dn_sw_spc = 0.0
          grnd_dn_dir_sw_spc = 0.0
          grnd_net_sw_spc = 0.0
          grnd_vertical_diff = 0.0
@@ -871,6 +1013,7 @@ CONTAINS
           top_net_sw_spc, &
           top_net_lw_spc, &
           lw_emission_spc, &
+          grnd_dn_sw_spc, &
           grnd_dn_dir_sw_spc, &
           grnd_vertical_diff, &
           grnd_net_sw_spc, &
@@ -886,8 +1029,11 @@ CONTAINS
           wall_net_lw_spc, &
           sfr_roof_spc, &
           sfr_wall_spc, &
-          clear_air_abs_lw_spc &
-          ]
+          clear_air_abs_lw_spc, &
+          veg_abs_sw_spc, &
+          veg_abs_lw_spc, &
+          veg_in_sw_spc, &
+          veg_out_sw_spc ]
 
       !!!!!!!!!!!!!! Clear from memory !!!!!!!!!!!!!
 

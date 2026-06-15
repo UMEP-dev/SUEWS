@@ -26,8 +26,13 @@ import yaml
 pytest.importorskip("supy")
 from supy._load import load_InitialCond_grid_df  # noqa: PLC2701
 from supy.data_model.core.config import SUEWSConfig
+from supy.util.converter.table.legacy import (
+    LegacyTableParseError,
+    parse_legacy_table_text,
+)
 import supy.util.converter.table.reverse as R
 from supy.util.converter.table.table import (
+    add_var,
     clean_legacy_table,
     convert_table,
 )
@@ -135,6 +140,89 @@ def _compare_table(
 
 def _codes(rows: list[list[str]]) -> list[str]:
     return [row[0] for row in rows]
+
+
+def test_legacy_table_parser_normalises_fortran_style_tables():
+    """Parser follows the old Fortran table contract, not CSV inference."""
+    raw = (
+        "\t1\t2\t3\t! ordinal header for humans\n"
+        "Code\tA\tB\t! names\n"
+        "\n"
+        "10\t1\t2\t! inline comment\n"
+        "11   3   4\n"
+        "-9\n"
+        "12 5 6\n"
+    )
+
+    table = parse_legacy_table_text(raw, source="inline")
+
+    assert table.headers == ["Code", "A", "B"]
+    assert table.rows == [["10", "1", "2"], ["11", "3", "4"]]
+    assert table.codes == ["10", "11"]
+    assert table.to_text() == "1 2 3\nCode A B\n10 1 2\n11 3 4\n"
+
+
+@pytest.mark.parametrize(
+    ("row", "message", "allow_trailing_fields"),
+    [
+        ("10 1\n", "expected 3 fields, got 2", True),
+        ("10 1 2 3\n", "expected 3 fields, got 4", False),
+    ],
+)
+def test_legacy_table_parser_rejects_malformed_rows(
+    row, message, allow_trailing_fields
+):
+    """Rows that Fortran would not map positionally are rejected."""
+    raw = "1 2 3\nCode A B\n" + row
+
+    with pytest.raises(LegacyTableParseError, match=message):
+        parse_legacy_table_text(
+            raw,
+            source="bad-table",
+            allow_trailing_fields=allow_trailing_fields,
+        )
+
+
+def test_legacy_table_parser_ignores_fortran_trailing_annotations():
+    """Trailing tokens beyond the fixed read list are non-semantic."""
+    table = parse_legacy_table_text("1 2 3\nCode A B\n10 1 2 204.58\n")
+
+    assert table.rows == [["10", "1", "2"]]
+
+
+def test_legacy_table_parser_rejects_header_only_tables():
+    """A failed parse must not become a plausible header-only table."""
+    with pytest.raises(LegacyTableParseError, match="contains no data rows"):
+        parse_legacy_table_text("1 2\nCode A\n-9\n", source="rowless")
+
+
+def test_table_edit_rejects_malformed_rows_before_write(tmp_path):
+    """Schema edits fail before writing if the normaliser rejects the table."""
+    path = tmp_path / "SUEWS_Test.txt"
+    original = "1 2 3\nCode A B\n10 1\n"
+    path.write_text(original, encoding="utf-8")
+
+    with pytest.raises(LegacyTableParseError, match="expected 3 fields, got 2"):
+        add_var(str(path), "C", "2", "9")
+
+    assert path.read_text(encoding="utf-8") == original
+
+
+def test_conversion_rejects_malformed_table_before_output(tmp_path):
+    """Malformed source tables fail before any rowless converted file is written."""
+    src = _extract_legacy_tables("2018b", tmp_path / "src")
+    malformed = src / "SUEWS_Irrigation.txt"
+    lines = malformed.read_text(encoding="utf-8").splitlines()
+    data, marker, comment = lines[2].partition("!")
+    fields = data.split()
+    lines[2] = " ".join(fields[:-1]) + f" {marker}{comment}"
+    malformed.write_text("\n".join(lines) + "\n", encoding="utf-8")
+
+    out = tmp_path / "out"
+    with pytest.raises(LegacyTableParseError, match="malformed data row"):
+        convert_table(str(src), str(out), "2018b", "2025a", validate_profiles=False)
+
+    assert not any(out.rglob("SUEWS_Irrigation.txt"))
 
 
 def test_chained_forward_conversion_preserves_code_sets_when_table_reader_fails(
@@ -250,7 +338,11 @@ def test_runcontrol_roundtrip_preserves_keys(tmp_path):
         f"RunControl key set differs: "
         f"src_only={set(src_rc) - set(rev_rc)} rev_only={set(rev_rc) - set(src_rc)}"
     )
-    diffs = {k: (src_rc[k], rev_rc[k]) for k in src_rc if str(src_rc[k]) != str(rev_rc[k])}
+    diffs = {
+        k: (src_rc[k], rev_rc[k])
+        for k in src_rc
+        if str(src_rc[k]) != str(rev_rc[k])
+    }
     assert not diffs, f"RunControl value diffs: {diffs}"
 
 
@@ -267,7 +359,8 @@ def _forward_to_yaml(ver: str, src: Path, tmp: Path):
     convert_table(str(src), str(template), ver, "2025a", validate_profiles=False)
     df0 = load_InitialCond_grid_df(next(template.rglob("RunControl.nml")))
     cfg = SUEWSConfig.from_df_state(df0)
-    cfg.strict_initial_state_bounds = False  # legacy provenance (C3), as suews-convert does
+    # legacy provenance (C3), as suews-convert does
+    cfg.strict_initial_state_bounds = False
     cfg.to_yaml(tmp / "config.yml")
     df = SUEWSConfig(
         **yaml.safe_load((tmp / "config.yml").read_text(encoding="utf-8"))
@@ -572,7 +665,13 @@ def test_cross_version_chain_2016a_modern_2018b(tmp_path):
 
     src_b = _extract_legacy_tables("2018b", tmp_path / "srcB")
     template_b = tmp_path / "TB"
-    convert_table(str(src_b), str(template_b), "2018b", "2025a", validate_profiles=False)
+    convert_table(
+        str(src_b),
+        str(template_b),
+        "2018b",
+        "2025a",
+        validate_profiles=False,
+    )
     tmp_b = tmp_path / "legB"
     tmp_b.mkdir()
     rev_b = _reverse_via_writer(df, template_b, "2018b", src_b, tmp_b)

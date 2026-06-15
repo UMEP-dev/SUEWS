@@ -51,8 +51,9 @@ LIMIT=200
 FORMAT="table"
 
 usage() {
-    # Print the header comment block (lines 2-37) and exit 0.
-    sed -n '2,37p' "$0" | sed 's/^# \{0,1\}//'
+    # Print the header comment block (lines 2-40, through the inclusion
+    # criteria bullets) and exit 0.
+    sed -n '2,40p' "$0" | sed 's/^# \{0,1\}//'
 }
 
 die() {
@@ -69,11 +70,13 @@ while [ "$#" -gt 0 ]; do
             ;;
         --stale-days)
             [ "$#" -ge 2 ] || die "--stale-days requires a value"
+            [[ "$2" =~ ^[0-9]+$ ]] || die "--stale-days must be a non-negative integer, got: $2"
             STALE_DAYS="$2"
             shift 2
             ;;
         --limit)
             [ "$#" -ge 2 ] || die "--limit requires a value"
+            [[ "$2" =~ ^[0-9]+$ ]] || die "--limit must be a non-negative integer, got: $2"
             LIMIT="$2"
             shift 2
             ;;
@@ -103,6 +106,13 @@ gh auth status >/dev/null 2>&1 || die "gh is not authenticated (run: gh auth log
 # Phase 1: bulk fetch -- all fields except commits to stay under the GitHub
 # GraphQL 500,000-node limit. Including `commits` in a 200-PR request with
 # multi-author commit histories routinely exceeds this cap.
+#
+# Note: `labels`, `updatedAt`, and `headRefName` are fetched but NOT emitted
+# by this scanner. They are reserved for the triage-pr skill router (labels
+# -> check `0-pr:*` state and exclude actively-queued PRs; headRefName ->
+# worktree creation; updatedAt -> fetched but deliberately NOT used for
+# staleness, see the AGE_D note above). Keep them so a future cleanup does
+# not strip fields the router depends on.
 # ---------------------------------------------------------------------------
 
 PRS_JSON="$(gh pr list --repo "$REPO" --state open --limit "$LIMIT" \
@@ -159,9 +169,11 @@ ROWS="$(jq -r \
   def to_epoch:
     (sub("\\.[0-9]+Z$"; "Z") | fromdateiso8601);
 
-  # Detect bot accounts: login ending in [bot] or known list
+  # Detect bot accounts: login ending in [bot] or known list.
+  # Guard against a null login (deleted GitHub accounts produce
+  # .author == null; `null | test(...)` throws and aborts the whole jq).
   def is_bot($login):
-    ($login | test("\\[bot\\]$"))
+    ($login != null and ($login | test("\\[bot\\]$")))
     or (["github-actions","dependabot","codecov","pre-commit-ci","allcontributors"]
         | index($login) != null);
 
@@ -187,8 +199,9 @@ ROWS="$(jq -r \
   # Last commit date from the per-PR Phase 2 map (empty string -> epoch 0)
   | ( $commits_map[$key] | if (. == null or . == "") then 0 else to_epoch end ) as $lastcommit
 
-  # Most recent non-bot comment timestamp
-  | ( [.comments[]? | select(is_bot(.author.login) | not) | .createdAt]
+  # Most recent non-bot comment timestamp. Use .author?.login so a missing
+  # .author key (deleted account) is tolerated rather than aborting.
+  | ( [.comments[]? | select(is_bot(.author?.login) | not) | .createdAt]
       | map(to_epoch) | max // 0 ) as $lastcomment
 
   # Substantive activity = latest of (last commit, last human comment).
@@ -228,7 +241,8 @@ ROWS="$(jq -r \
 SCOPE_LINE="Scope: repo=${REPO}, drafts+stale-ready (stale>${STALE_DAYS}d); ${FETCHED} fetched / ${TOTAL_OPEN} open; truncated: ${TRUNCATED}"
 
 if [ "$FORMAT" = "json" ]; then
-    echo "$SCOPE_LINE"
+    # Scope line goes to stderr so stdout is pure JSON (parsable by `jq .`).
+    echo "$SCOPE_LINE" >&2
     echo "$ROWS" | jq -s --argjson stale "$STALE_DAYS" '
       [.[] | select(
         .state == "draft" or

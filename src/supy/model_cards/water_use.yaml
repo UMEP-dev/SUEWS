@@ -1,0 +1,68 @@
+identity:
+  scheme_name: water_use
+  full_name: External Water Use Method
+  category: water_balance
+  purpose: >-
+    Controls whether external water use (irrigation) is modelled internally
+    or read from observations.
+  version_introduced: "v1.0"
+  original_authors:
+    - "C.S.B. Grimmond"
+  enum_class: WaterUseMethod
+  enum_values: [0, 1]
+
+scientific_basis:
+  theoretical_basis: >-
+    External water use adds water to the surface water balance independently
+    of precipitation, affecting soil moisture and evapotranspiration. Method 0
+    models irrigation based on soil moisture deficit, day of week, and
+    temperature-dependent demand parameters. Method 1 reads observed water
+    use directly from the forcing file.
+  key_publications:
+    - "GO02"
+  key_assumptions:
+    - "Irrigation is distributed across irrigable surface types"
+    - "Modelled irrigation responds to soil moisture deficit"
+
+evaluation_evidence:
+  evaluation_status: peer-reviewed
+  performance_summary: >-
+    Validated as part of the full SUEWS water balance at sites with
+    significant irrigation (e.g., suburban areas in warm climates).
+
+technical_characteristics:
+  spatial_scale:
+    - neighbourhood
+  temporal_resolution:
+    - sub-hourly
+    - hourly
+  required_inputs:
+    parameters:
+      - "Irrigation parameters (automatic/manual fractions, day-of-week profiles)"
+    forcing:
+      - "Observed water use (method 1 only)"
+  outputs:
+    - "External water use per surface type"
+  computational_demand: low
+  data_preparation_demand: low
+
+operational_status:
+  development_status: stable
+  current_maintainers:
+    - name: SUEWS Development Team
+      affiliation: University of Reading / UCL
+  active_development: maintenance-only
+  test_coverage:
+    - "Smoke tests via make test-smoke"
+
+user_guidance:
+  recommended_for:
+    - "Most applications (use method 0 for modelled irrigation)"
+    - "Sites with observed water use data (method 1)"
+  configuration_notes: >-
+    WaterUseMethod=0 models irrigation internally based on soil moisture
+    deficit and irrigation parameters. WaterUseMethod=1 reads observed
+    water use values from the forcing file.
+
+governance:
+  candidate_for_deprecation: false

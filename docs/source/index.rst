@@ -160,6 +160,7 @@ How to support SUEWS?
    :hidden:
 
    parameterisations-and-sub-models
+   scheme-reference/index
    related_publications
    references
 

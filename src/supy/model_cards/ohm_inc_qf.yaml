@@ -1,0 +1,62 @@
+identity:
+  scheme_name: ohm_inc_qf
+  full_name: OHM Anthropogenic Heat Inclusion
+  category: storage_heat
+  purpose: >-
+    Controls whether anthropogenic heat flux (QF) is included in the OHM
+    storage heat calculation, switching between Q* only and Q*+QF as input.
+  version_introduced: "v1.0"
+  original_authors:
+    - "C.S.B. Grimmond"
+  enum_class: OhmIncQf
+  enum_values: [0, 1]
+
+scientific_basis:
+  theoretical_basis: >-
+    OHM calculates storage heat flux from net all-wave radiation and its time
+    derivative. This toggle controls whether the input radiation term is Q*
+    alone (method 0) or Q*+QF (method 1), where QF is the anthropogenic heat
+    flux. Including QF accounts for anthropogenic energy input to the surface
+    energy balance before computing storage heat flux.
+  key_publications:
+    - "GO99"
+  key_assumptions:
+    - "QF contributes to the radiation input term for storage heat calculation"
+
+evaluation_evidence:
+  evaluation_status: peer-reviewed
+  performance_summary: >-
+    Part of the standard OHM framework validated across multiple urban sites.
+
+technical_characteristics:
+  spatial_scale:
+    - neighbourhood
+  temporal_resolution:
+    - sub-hourly
+    - hourly
+  required_inputs:
+    parameters: []
+    forcing: []
+  outputs:
+    - "Modified radiation input to OHM (Q* or Q*+QF)"
+  computational_demand: low
+  data_preparation_demand: low
+
+operational_status:
+  development_status: stable
+  current_maintainers:
+    - name: SUEWS Development Team
+      affiliation: University of Reading / UCL
+  active_development: maintenance-only
+  test_coverage:
+    - "Smoke tests via make test-smoke"
+
+user_guidance:
+  configuration_notes: >-
+    OhmIncQf=0 uses Q* only (required when StorageHeatMethod=1).
+    OhmIncQf=1 uses Q*+QF (for other OHM-based storage heat methods).
+  common_pitfalls:
+    - "OhmIncQf must be 0 when StorageHeatMethod=1; incorrect pairing causes errors"
+
+governance:
+  candidate_for_deprecation: false

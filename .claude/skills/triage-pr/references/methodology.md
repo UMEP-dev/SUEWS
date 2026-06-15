@@ -28,8 +28,9 @@ live in `rubric.md`; this file covers the procedure for applying them.
 
 2. **Check idempotency** before computing a verdict:
    - Does the PR carry the `0-auto:pr-audited` label?
-   - Is `last_substantive_activity <= marker_ts` (no new commits or human
-     comments since the previous audit)?
+   - Is the scanner's `last_activity_at` (the `--json` field carrying the UTC
+     instant of last substantive activity) `<= marker_ts` (no new commits or
+     human comments since the previous audit)?
    - If deferred, has the revisit trigger fired (i.e. `revisit-by:` date <=
      today, or `blocked-on:#N` is now closed)?
    - If ALL three conditions hold (and the revisit trigger has NOT fired for a
@@ -131,14 +132,17 @@ not duplicated. If no marker comment exists yet, a new comment is posted.
 A PR is a no-op for this run when ALL of the following hold:
 
 1. The PR carries the `0-auto:pr-audited` label.
-2. `last_substantive_activity <= marker_ts` -- no new commits or human
-   comments have arrived since the previous audit.
+2. `last_activity_at <= marker_ts` -- no new commits or human comments have
+   arrived since the previous audit. Both sides are absolute UTC instants:
+   `last_activity_at` is the scanner `--json` field; `marker_ts` is the `ts=`
+   value parsed from the marker comment header.
 3. If the PR is deferred: neither revisit trigger has fired.
 
-**Critical: `last_substantive_activity` definition.** Substantive activity is:
+**Critical: `last_activity_at` definition.** The scanner emits `last_activity_at`
+as the UTC instant of last substantive activity:
 
 ```
-last_substantive_activity = max(last_commit_at, last_human_comment_at)
+last_activity_at = max(last_commit_at, last_human_comment_at)
 ```
 
 This is NEVER the raw `updatedAt` field from the GitHub API. The reason is a
@@ -147,8 +151,10 @@ correctness trap: the triage skill's own label writes and comment upserts bump
 triage run would reset the clock, making every PR appear "recently active" on
 the next run and defeating idempotency. The scanner already derives the correct
 substantive timestamp from commit data and filtered (non-bot) comment
-timestamps -- use the scanner's `AGE_D` column as the staleness signal, not the
-raw API field.
+timestamps. Use the scanner's `last_activity_at` field for the absolute
+`<= marker_ts` comparison (it is null only when no commit, comment, or creation
+timestamp is available); the `AGE_D` column is the human-readable staleness
+signal in whole days and is NOT comparable to an absolute marker timestamp.
 
 ### Label transition
 

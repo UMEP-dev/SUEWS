@@ -213,19 +213,29 @@ ROWS="$(jq -r \
   | ( if $act == 0 then (.createdAt | to_epoch) else $act end ) as $act_floor
   | ( ($now - $act_floor) / 86400 | floor ) as $age_days
 
+  # ISO-8601 UTC instant of last substantive activity, for the router
+  # idempotency check (compare against the marker comment ts). Emitted in
+  # JSON only -- the table keeps its fixed 10 columns. Null if unknown.
+  | ( if $act_floor > 0 then ($act_floor | todateiso8601) else null end ) as $last_activity_at
+
   | ci_status(.statusCheckRollup // []) as $ci
 
+  # GitHub returns reviewDecision as an EMPTY STRING (not null) for PRs with
+  # no decision, so `// "NONE"` does NOT fire (the // operator only catches
+  # null/false and "" is truthy). Map empty/absent to "NONE" explicitly. Same
+  # guard on mergeStateStatus, which can also come back as "".
   | {
       pr:     .number,
       state:  (if .isDraft then "draft" else "ready" end),
       ci:     $ci,
-      merge:  (.mergeStateStatus // "UNKNOWN"),
-      review: (.reviewDecision   // "NONE"),
+      merge:  (if (.mergeStateStatus // "") == "" then "UNKNOWN" else .mergeStateStatus end),
+      review: (if (.reviewDecision   // "") == "" then "NONE"    else .reviewDecision   end),
       age_d:  $age_days,
       churn:  (.additions + .deletions),
       files:  (.files | length),
       author: .author.login,
-      title:  (.title | gsub("\t"; " "))
+      title:  (.title | gsub("\t"; " ")),
+      last_activity_at: $last_activity_at
     }
 ' <<<"$PRS_JSON")"
 

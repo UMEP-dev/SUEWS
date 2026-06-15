@@ -7,7 +7,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>supy.util.converter.table.table &#8212; SUEWS 2026.6.15.dev1 documentation</title>
+    <title>supy.util.converter.table.table &#8212; SUEWS 2026.6.15.dev3 documentation</title>
   
   
   
@@ -43,7 +43,7 @@
   <link rel="preload" as="script" href="../../../../../_static/scripts/bootstrap.js?digest=8878045cc6db502f8baf" />
 <link rel="preload" as="script" href="../../../../../_static/scripts/pydata-sphinx-theme.js?digest=8878045cc6db502f8baf" />
 
-    <script src="../../../../../_static/documentation_options.js?v=3e6a8314"></script>
+    <script src="../../../../../_static/documentation_options.js?v=92e2816f"></script>
     <script src="../../../../../_static/doctools.js?v=9bcbadda"></script>
     <script src="../../../../../_static/sphinx_highlight.js?v=dc90522c"></script>
     <script src="../../../../../_static/scripts/sphinx-book-theme.js?v=fab101a9"></script>
@@ -55,7 +55,7 @@
     <link rel="search" title="Search" href="../../../../../search.html" />
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
-  <meta name="docsearch:version" content="2026.6.15.dev1" />
+  <meta name="docsearch:version" content="2026.6.15.dev3" />
   </head>
   
   
@@ -97,7 +97,7 @@
   <div class="bd-header-announcement__content">
     <div style="background-color: #f0ad4e; border: 1px solid #eea236; border-radius: 4px; padding: 10px; margin: 10px 0;">
         <strong>⚠️ Development Version:</strong> This documentation was built from a development version
-        (2026.6.15.dev1, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/e991a2e41d2693ebc0c14adf99097a11d572123e" style="color: #31708f;">e991a2e</a>).
+        (2026.6.15.dev3, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/8038730eff1188f13f8475ab491ad820ef4f43dc" style="color: #31708f;">8038730</a>).
         Features described here may be unstable or subject to change. For stable documentation, please visit the
         <a href="https://docs.suews.io/stable/" style="color: #31708f;">latest release</a>.
     </div>
@@ -146,8 +146,8 @@
       
     
     
-    <img src="../../../../../_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.6.15.dev1 documentation - Home"/>
-    <img src="../../../../../_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.6.15.dev1 documentation - Home"/>
+    <img src="../../../../../_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.6.15.dev3 documentation - Home"/>
+    <img src="../../../../../_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.6.15.dev3 documentation - Home"/>
   
   
 </a></div>
@@ -570,6 +570,7 @@
 
 <span class="kn">from</span><span class="w"> </span><span class="nn">...._env</span><span class="w"> </span><span class="kn">import</span> <span class="n">logger_supy</span><span class="p">,</span> <span class="n">trv_supy_module</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">...._load</span><span class="w"> </span><span class="kn">import</span> <span class="n">load_SUEWS_nml_simple</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">.legacy</span><span class="w"> </span><span class="kn">import</span> <span class="n">LegacyTable</span><span class="p">,</span> <span class="n">read_legacy_table</span><span class="p">,</span> <span class="n">write_legacy_table</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">.profile_manager</span><span class="w"> </span><span class="kn">import</span> <span class="n">ProfileManager</span>
 
 <span class="n">warnings</span><span class="o">.</span><span class="n">filterwarnings</span><span class="p">(</span><span class="s2">&quot;ignore&quot;</span><span class="p">)</span>
@@ -1140,26 +1141,13 @@
 
 <span class="k">def</span><span class="w"> </span><span class="nf">_read_table_tokens</span><span class="p">(</span><span class="n">path</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Read a two-line-header SUEWS table without pandas inference.&quot;&quot;&quot;</span>
-    <span class="n">lines</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">path</span><span class="p">)</span><span class="o">.</span><span class="n">read_text</span><span class="p">(</span><span class="n">encoding</span><span class="o">=</span><span class="s2">&quot;utf-8&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">splitlines</span><span class="p">()</span>
-    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">lines</span><span class="p">)</span> <span class="o">&lt;</span> <span class="mi">2</span><span class="p">:</span>
-        <span class="k">return</span> <span class="p">[],</span> <span class="p">[]</span>
-    <span class="n">headers</span> <span class="o">=</span> <span class="n">lines</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">split</span><span class="p">()</span>
-    <span class="n">rows</span> <span class="o">=</span> <span class="p">[]</span>
-    <span class="k">for</span> <span class="n">line</span> <span class="ow">in</span> <span class="n">lines</span><span class="p">[</span><span class="mi">2</span><span class="p">:]:</span>
-        <span class="n">fields</span> <span class="o">=</span> <span class="n">line</span><span class="o">.</span><span class="n">split</span><span class="p">()</span>
-        <span class="k">if</span> <span class="ow">not</span> <span class="n">fields</span> <span class="ow">or</span> <span class="n">fields</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s2">&quot;-9&quot;</span><span class="p">):</span>
-            <span class="k">break</span>
-        <span class="n">rows</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">fields</span><span class="p">)</span>
-    <span class="k">return</span> <span class="n">headers</span><span class="p">,</span> <span class="n">rows</span>
+    <span class="n">table</span> <span class="o">=</span> <span class="n">read_legacy_table</span><span class="p">(</span><span class="n">path</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">table</span><span class="o">.</span><span class="n">headers</span><span class="p">,</span> <span class="n">table</span><span class="o">.</span><span class="n">rows</span>
 
 
 <span class="k">def</span><span class="w"> </span><span class="nf">_write_table_tokens</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="n">headers</span><span class="p">,</span> <span class="n">rows</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Write a two-line-header SUEWS table without legacy footer rows.&quot;&quot;&quot;</span>
-    <span class="n">path</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">path</span><span class="p">)</span>
-    <span class="n">index_line</span> <span class="o">=</span> <span class="s2">&quot; &quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">i</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">headers</span><span class="p">)))</span>
-    <span class="n">lines</span> <span class="o">=</span> <span class="p">[</span><span class="n">index_line</span><span class="p">,</span> <span class="s2">&quot; &quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">headers</span><span class="p">)]</span>
-    <span class="n">lines</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="s2">&quot; &quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">row</span><span class="p">)</span> <span class="k">for</span> <span class="n">row</span> <span class="ow">in</span> <span class="n">rows</span><span class="p">)</span>
-    <span class="n">path</span><span class="o">.</span><span class="n">write_text</span><span class="p">(</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">lines</span><span class="p">)</span> <span class="o">+</span> <span class="s2">&quot;</span><span class="se">\n</span><span class="s2">&quot;</span><span class="p">,</span> <span class="n">encoding</span><span class="o">=</span><span class="s2">&quot;utf-8&quot;</span><span class="p">)</span>
+    <span class="n">write_legacy_table</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="n">LegacyTable</span><span class="p">(</span><span class="n">headers</span><span class="o">=</span><span class="nb">list</span><span class="p">(</span><span class="n">headers</span><span class="p">),</span> <span class="n">rows</span><span class="o">=</span><span class="nb">list</span><span class="p">(</span><span class="n">rows</span><span class="p">)))</span>
 
 
 <span class="c1"># rename:</span>
@@ -1243,71 +1231,12 @@
     <span class="n">nml</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">toFile</span><span class="p">,</span> <span class="n">force</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
 
 
-<span class="k">def</span><span class="w"> </span><span class="nf">_should_skip_line</span><span class="p">(</span><span class="n">line</span><span class="p">):</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Check if a line should be skipped during cleaning.&quot;&quot;&quot;</span>
-    <span class="n">stripped</span> <span class="o">=</span> <span class="n">line</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span>
-    <span class="c1"># Skip empty lines and full-line comments</span>
-    <span class="k">if</span> <span class="ow">not</span> <span class="n">stripped</span> <span class="ow">or</span> <span class="n">stripped</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s2">&quot;#&quot;</span><span class="p">):</span>
-        <span class="k">return</span> <span class="kc">True</span>
-
-    <span class="c1"># Detect whether this looks like a data line (starts with numeric code)</span>
-    <span class="n">first_token</span> <span class="o">=</span> <span class="n">stripped</span><span class="o">.</span><span class="n">split</span><span class="p">()[</span><span class="mi">0</span><span class="p">]</span>
-    <span class="n">is_data_line</span> <span class="o">=</span> <span class="n">first_token</span><span class="o">.</span><span class="n">lstrip</span><span class="p">(</span><span class="s2">&quot;-&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">isdigit</span><span class="p">()</span>
-
-    <span class="c1"># Skip lines that contain triple quotes or problematic quoted comments</span>
-    <span class="k">if</span> <span class="s1">&#39;&quot;&quot;&quot;&#39;</span> <span class="ow">in</span> <span class="n">line</span><span class="p">:</span>
-        <span class="k">return</span> <span class="kc">True</span>
-    <span class="k">if</span> <span class="p">(</span>
-        <span class="s1">&#39;&quot;&#39;</span> <span class="ow">in</span> <span class="n">line</span>
-        <span class="ow">and</span> <span class="ow">not</span> <span class="n">is_data_line</span>
-        <span class="ow">and</span> <span class="p">(</span><span class="s2">&quot;Vegetation (average)&quot;</span> <span class="ow">in</span> <span class="n">line</span> <span class="ow">or</span> <span class="s2">&quot;used for&quot;</span> <span class="ow">in</span> <span class="n">line</span><span class="p">)</span>
-    <span class="p">):</span>
-        <span class="k">return</span> <span class="kc">True</span>
-
-    <span class="c1"># Skip lines starting with -9 (legacy footers)</span>
-    <span class="k">return</span> <span class="n">stripped</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s2">&quot;-9&quot;</span><span class="p">)</span>
-
-
-<span class="k">def</span><span class="w"> </span><span class="nf">_process_line</span><span class="p">(</span><span class="n">line</span><span class="p">):</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Process a single line: remove comments and tabs.&quot;&quot;&quot;</span>
-    <span class="c1"># Replace tabs with spaces</span>
-    <span class="n">line</span> <span class="o">=</span> <span class="n">line</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s2">&quot;</span><span class="se">\t</span><span class="s2">&quot;</span><span class="p">,</span> <span class="s2">&quot; &quot;</span><span class="p">)</span>
-
-    <span class="c1"># Remove inline comments (everything after !)</span>
-    <span class="k">if</span> <span class="s2">&quot;!&quot;</span> <span class="ow">in</span> <span class="n">line</span><span class="p">:</span>
-        <span class="n">line</span> <span class="o">=</span> <span class="n">line</span><span class="p">[:</span> <span class="n">line</span><span class="o">.</span><span class="n">index</span><span class="p">(</span><span class="s2">&quot;!&quot;</span><span class="p">)]</span><span class="o">.</span><span class="n">rstrip</span><span class="p">()</span>
-
-    <span class="k">return</span> <span class="n">line</span>
-
-
-<span class="k">def</span><span class="w"> </span><span class="nf">_ensure_consistent_columns</span><span class="p">(</span><span class="n">fields</span><span class="p">,</span> <span class="n">header_col_count</span><span class="p">):</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Ensure field count matches header column count.&quot;&quot;&quot;</span>
-    <span class="k">if</span> <span class="ow">not</span> <span class="n">header_col_count</span><span class="p">:</span>
-        <span class="k">return</span> <span class="n">fields</span>
-
-    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">fields</span><span class="p">)</span> <span class="o">==</span> <span class="n">header_col_count</span><span class="p">:</span>
-        <span class="k">return</span> <span class="n">fields</span>
-
-    <span class="c1"># Truncate extra fields or pad with -999</span>
-    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">fields</span><span class="p">)</span> <span class="o">&gt;</span> <span class="n">header_col_count</span><span class="p">:</span>
-        <span class="k">return</span> <span class="n">fields</span><span class="p">[:</span><span class="n">header_col_count</span><span class="p">]</span>
-    <span class="k">else</span><span class="p">:</span>
-        <span class="k">while</span> <span class="nb">len</span><span class="p">(</span><span class="n">fields</span><span class="p">)</span> <span class="o">&lt;</span> <span class="n">header_col_count</span><span class="p">:</span>
-            <span class="n">fields</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s2">&quot;-999&quot;</span><span class="p">)</span>
-        <span class="k">return</span> <span class="n">fields</span>
-
-
 <span class="k">def</span><span class="w"> </span><span class="nf">clean_legacy_table</span><span class="p">(</span><span class="n">file_path</span><span class="p">,</span> <span class="n">output_path</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
-<span class="w">    </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">    Clean legacy SUEWS table files for pandas compatibility.</span>
+<span class="w">    </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;Normalise a legacy SUEWS table before schema conversion.</span>
 
-<span class="sd">    This function:</span>
-<span class="sd">    - Removes inline comments (text after ! character)</span>
-<span class="sd">    - Standardizes line endings (removes \r)</span>
-<span class="sd">    - Removes empty trailing columns</span>
-<span class="sd">    - Ensures consistent column counts</span>
-<span class="sd">    - Handles tab-separated values</span>
-<span class="sd">    - Removes ALL lines that start with -9 (legacy footers)</span>
+<span class="sd">    The normaliser follows the old Fortran table contract: whitespace-delimited</span>
+<span class="sd">    records, ``!`` inline comments, and ``-9`` end-of-data sentinels. It rejects</span>
+<span class="sd">    malformed rows instead of padding missing fields into plausible output.</span>
 
 <span class="sd">    Args:</span>
 <span class="sd">        file_path: Path to the input file</span>
@@ -1321,167 +1250,23 @@
         <span class="n">output_path</span> <span class="o">=</span> <span class="n">file_path</span>
 
     <span class="n">logger_supy</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Cleaning legacy file: </span><span class="si">{</span><span class="n">file_path</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
-
-    <span class="c1"># Track what was cleaned for reporting</span>
-    <span class="n">cleaning_actions</span> <span class="o">=</span> <span class="p">[]</span>
-
-    <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">file_path</span><span class="p">,</span> <span class="n">encoding</span><span class="o">=</span><span class="s2">&quot;utf-8&quot;</span><span class="p">,</span> <span class="n">errors</span><span class="o">=</span><span class="s2">&quot;replace&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
-        <span class="n">lines</span> <span class="o">=</span> <span class="n">f</span><span class="o">.</span><span class="n">readlines</span><span class="p">()</span>
-
-    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">lines</span><span class="p">)</span> <span class="o">&lt;</span> <span class="mi">2</span><span class="p">:</span>
-        <span class="n">logger_supy</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span>
-            <span class="sa">f</span><span class="s2">&quot;File </span><span class="si">{</span><span class="n">file_path</span><span class="si">}</span><span class="s2"> has less than 2 lines, skipping cleaning&quot;</span>
-        <span class="p">)</span>
-        <span class="k">return</span> <span class="n">file_path</span>
-
-    <span class="n">header_lines</span> <span class="o">=</span> <span class="p">[]</span>  <span class="c1"># Store header lines (first 2 lines)</span>
-    <span class="n">data_lines</span> <span class="o">=</span> <span class="p">[]</span>  <span class="c1"># Store data lines</span>
-    <span class="n">header_col_count</span> <span class="o">=</span> <span class="kc">None</span>
-    <span class="n">line_count</span> <span class="o">=</span> <span class="mi">0</span>  <span class="c1"># Track non-empty lines</span>
-
-    <span class="c1"># Track cleaning statistics</span>
-    <span class="n">comments_removed</span> <span class="o">=</span> <span class="mi">0</span>
-    <span class="n">tabs_replaced</span> <span class="o">=</span> <span class="mi">0</span>
-    <span class="n">footer_removed</span> <span class="o">=</span> <span class="kc">False</span>
-    <span class="n">columns_adjusted</span> <span class="o">=</span> <span class="mi">0</span>
-
-    <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">raw_line</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">lines</span><span class="p">):</span>
-        <span class="c1"># Remove carriage returns and trailing whitespace</span>
-        <span class="n">line</span> <span class="o">=</span> <span class="n">raw_line</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s2">&quot;</span><span class="se">\r</span><span class="s2">&quot;</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">rstrip</span><span class="p">()</span>
-
-        <span class="c1"># Track tabs for reporting</span>
-        <span class="k">if</span> <span class="s2">&quot;</span><span class="se">\t</span><span class="s2">&quot;</span> <span class="ow">in</span> <span class="n">line</span><span class="p">:</span>
-            <span class="n">tabs_replaced</span> <span class="o">+=</span> <span class="mi">1</span>
-
-        <span class="c1"># Check if line should be skipped</span>
-        <span class="k">if</span> <span class="n">_should_skip_line</span><span class="p">(</span><span class="n">line</span><span class="p">):</span>
-            <span class="k">if</span> <span class="n">line</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s2">&quot;-9&quot;</span><span class="p">):</span>
-                <span class="n">footer_removed</span> <span class="o">=</span> <span class="kc">True</span>
-                <span class="n">logger_supy</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span>
-                    <span class="sa">f</span><span class="s2">&quot;Removing legacy footer line </span><span class="si">{</span><span class="n">i</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">1</span><span class="si">}</span><span class="s2">: </span><span class="si">{</span><span class="n">line</span><span class="p">[:</span><span class="mi">50</span><span class="p">]</span><span class="si">}</span><span class="s2">... Stopping read after footer.&quot;</span>
-                <span class="p">)</span>
-                <span class="k">break</span>  <span class="c1"># Stop processing after footer</span>
-            <span class="k">elif</span> <span class="s1">&#39;&quot;&quot;&quot;&#39;</span> <span class="ow">in</span> <span class="n">line</span> <span class="ow">or</span> <span class="p">(</span>
-                <span class="s1">&#39;&quot;&#39;</span> <span class="ow">in</span> <span class="n">line</span> <span class="ow">and</span> <span class="p">(</span><span class="s2">&quot;Vegetation (average)&quot;</span> <span class="ow">in</span> <span class="n">line</span> <span class="ow">or</span> <span class="s2">&quot;used for&quot;</span> <span class="ow">in</span> <span class="n">line</span><span class="p">)</span>
-            <span class="p">):</span>
-                <span class="n">logger_supy</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span>
-                    <span class="sa">f</span><span class="s2">&quot;Skipping line </span><span class="si">{</span><span class="n">i</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">1</span><span class="si">}</span><span class="s2"> with problematic quoted comments: </span><span class="si">{</span><span class="n">line</span><span class="p">[:</span><span class="mi">50</span><span class="p">]</span><span class="si">}</span><span class="s2">...&quot;</span>
-                <span class="p">)</span>
-                <span class="n">cleaning_actions</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Removed metadata line </span><span class="si">{</span><span class="n">i</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">1</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
-            <span class="k">continue</span>
-
-        <span class="c1"># Process the line (remove comments and tabs)</span>
-        <span class="n">original_line</span> <span class="o">=</span> <span class="n">line</span>
-        <span class="n">line</span> <span class="o">=</span> <span class="n">_process_line</span><span class="p">(</span><span class="n">line</span><span class="p">)</span>
-        <span class="k">if</span> <span class="s2">&quot;!&quot;</span> <span class="ow">in</span> <span class="n">original_line</span><span class="p">:</span>
-            <span class="n">comments_removed</span> <span class="o">+=</span> <span class="mi">1</span>
-
-        <span class="c1"># Split by spaces (tabs have been replaced with spaces)</span>
-        <span class="n">fields</span> <span class="o">=</span> <span class="n">line</span><span class="o">.</span><span class="n">split</span><span class="p">()</span>
-
-        <span class="c1"># Skip empty lines after processing</span>
-        <span class="k">if</span> <span class="ow">not</span> <span class="n">fields</span><span class="p">:</span>
-            <span class="k">continue</span>
-
-        <span class="c1"># For the header rows (first 2 non-empty lines), establish column count</span>
-        <span class="k">if</span> <span class="n">line_count</span> <span class="o">&lt;</span> <span class="mi">2</span><span class="p">:</span>
-            <span class="c1"># Store header line</span>
-            <span class="n">header_lines</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s2">&quot; &quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">fields</span><span class="p">))</span>
-            <span class="n">line_count</span> <span class="o">+=</span> <span class="mi">1</span>
-
-            <span class="c1"># Set column count from the SECOND line (column names), not first</span>
-            <span class="c1"># First line may have trailing empty fields from tabs</span>
-            <span class="k">if</span> <span class="n">line_count</span> <span class="o">==</span> <span class="mi">2</span><span class="p">:</span>
-                <span class="n">header_col_count</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">fields</span><span class="p">)</span>
-                <span class="n">logger_supy</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span>
-                    <span class="sa">f</span><span class="s2">&quot;Header column count set to </span><span class="si">{</span><span class="n">header_col_count</span><span class="si">}</span><span class="s2"> from column names line&quot;</span>
-                <span class="p">)</span>
-                <span class="c1"># Adjust first header line if needed</span>
-                <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">header_lines</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">split</span><span class="p">())</span> <span class="o">!=</span> <span class="n">header_col_count</span><span class="p">:</span>
-                    <span class="n">first_line_fields</span> <span class="o">=</span> <span class="n">header_lines</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">split</span><span class="p">()</span>
-                    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">first_line_fields</span><span class="p">)</span> <span class="o">&gt;</span> <span class="n">header_col_count</span><span class="p">:</span>
-                        <span class="n">header_lines</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot; &quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">first_line_fields</span><span class="p">[:</span><span class="n">header_col_count</span><span class="p">])</span>
-                        <span class="n">logger_supy</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span>
-                            <span class="sa">f</span><span class="s2">&quot;Adjusted first header line from </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">first_line_fields</span><span class="p">)</span><span class="si">}</span><span class="s2"> to </span><span class="si">{</span><span class="n">header_col_count</span><span class="si">}</span><span class="s2"> fields&quot;</span>
-                        <span class="p">)</span>
-            <span class="k">continue</span>
-
-        <span class="c1"># For data lines</span>
-        <span class="n">line_count</span> <span class="o">+=</span> <span class="mi">1</span>
-
-        <span class="c1"># Ensure consistent column count</span>
-        <span class="n">original_field_count</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">fields</span><span class="p">)</span>
-        <span class="n">fields</span> <span class="o">=</span> <span class="n">_ensure_consistent_columns</span><span class="p">(</span><span class="n">fields</span><span class="p">,</span> <span class="n">header_col_count</span><span class="p">)</span>
-        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">fields</span><span class="p">)</span> <span class="o">!=</span> <span class="n">original_field_count</span><span class="p">:</span>
-            <span class="n">columns_adjusted</span> <span class="o">+=</span> <span class="mi">1</span>
-            <span class="k">if</span> <span class="n">original_field_count</span> <span class="o">&gt;</span> <span class="n">header_col_count</span><span class="p">:</span>
-                <span class="n">logger_supy</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span>
-                    <span class="sa">f</span><span class="s2">&quot;Line </span><span class="si">{</span><span class="n">i</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">1</span><span class="si">}</span><span class="s2">: Truncating from </span><span class="si">{</span><span class="n">original_field_count</span><span class="si">}</span><span class="s2"> to </span><span class="si">{</span><span class="n">header_col_count</span><span class="si">}</span><span class="s2"> fields&quot;</span>
-                <span class="p">)</span>
-
-        <span class="c1"># Store processed data line</span>
-        <span class="n">data_lines</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s2">&quot; &quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">fields</span><span class="p">))</span>
-
-    <span class="c1"># Combine header and data lines</span>
-    <span class="n">cleaned_lines</span> <span class="o">=</span> <span class="n">header_lines</span> <span class="o">+</span> <span class="n">data_lines</span>
-
-    <span class="c1"># Note: We do NOT add footer lines - the -9 lines are removed entirely</span>
-
-    <span class="c1"># Write cleaned content</span>
-    <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">output_path</span><span class="p">,</span> <span class="s2">&quot;w&quot;</span><span class="p">,</span> <span class="n">encoding</span><span class="o">=</span><span class="s2">&quot;utf-8&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
-        <span class="n">f</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">cleaned_lines</span><span class="p">))</span>
-        <span class="k">if</span> <span class="n">cleaned_lines</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">cleaned_lines</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">endswith</span><span class="p">(</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2">&quot;</span><span class="p">):</span>
-            <span class="n">f</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2">&quot;</span><span class="p">)</span>
-
-    <span class="c1"># Report what was cleaned</span>
-    <span class="k">if</span> <span class="p">(</span>
-        <span class="n">comments_removed</span> <span class="o">&gt;</span> <span class="mi">0</span>
-        <span class="ow">or</span> <span class="n">tabs_replaced</span> <span class="o">&gt;</span> <span class="mi">0</span>
-        <span class="ow">or</span> <span class="n">footer_removed</span>
-        <span class="ow">or</span> <span class="n">columns_adjusted</span> <span class="o">&gt;</span> <span class="mi">0</span>
-    <span class="p">):</span>
-        <span class="n">clean_summary</span> <span class="o">=</span> <span class="p">[]</span>
-        <span class="k">if</span> <span class="n">comments_removed</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
-            <span class="n">clean_summary</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">comments_removed</span><span class="si">}</span><span class="s2"> inline comments&quot;</span><span class="p">)</span>
-        <span class="k">if</span> <span class="n">tabs_replaced</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
-            <span class="n">clean_summary</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">tabs_replaced</span><span class="si">}</span><span class="s2"> tabs replaced&quot;</span><span class="p">)</span>
-        <span class="k">if</span> <span class="n">footer_removed</span><span class="p">:</span>
-            <span class="n">clean_summary</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s2">&quot;legacy footer removed&quot;</span><span class="p">)</span>
-        <span class="k">if</span> <span class="n">columns_adjusted</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
-            <span class="n">clean_summary</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
-                <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">columns_adjusted</span><span class="si">}</span><span class="s2"> lines adjusted for column consistency&quot;</span>
-            <span class="p">)</span>
-        <span class="k">if</span> <span class="n">cleaning_actions</span><span class="p">:</span>
-            <span class="n">clean_summary</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">cleaning_actions</span><span class="p">)</span><span class="si">}</span><span class="s2"> metadata lines removed&quot;</span><span class="p">)</span>
-
-        <span class="n">logger_supy</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
-            <span class="sa">f</span><span class="s2">&quot;[OK] Cleaned </span><span class="si">{</span><span class="n">Path</span><span class="p">(</span><span class="n">file_path</span><span class="p">)</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s2">: </span><span class="si">{</span><span class="s1">&#39;, &#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">clean_summary</span><span class="p">)</span><span class="si">}</span><span class="s2">&quot;</span>
-        <span class="p">)</span>
-    <span class="k">else</span><span class="p">:</span>
-        <span class="n">logger_supy</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;File </span><span class="si">{</span><span class="n">Path</span><span class="p">(</span><span class="n">file_path</span><span class="p">)</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s2"> was already clean&quot;</span><span class="p">)</span>
+    <span class="n">table</span> <span class="o">=</span> <span class="n">read_legacy_table</span><span class="p">(</span><span class="n">file_path</span><span class="p">)</span>
+    <span class="n">write_legacy_table</span><span class="p">(</span><span class="n">output_path</span><span class="p">,</span> <span class="n">table</span><span class="p">)</span>
+    <span class="n">logger_supy</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
+        <span class="sa">f</span><span class="s2">&quot;[OK] Normalised </span><span class="si">{</span><span class="n">Path</span><span class="p">(</span><span class="n">file_path</span><span class="p">)</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s2">: &quot;</span>
+        <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">table</span><span class="o">.</span><span class="n">headers</span><span class="p">)</span><span class="si">}</span><span class="s2"> columns, </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">table</span><span class="o">.</span><span class="n">rows</span><span class="p">)</span><span class="si">}</span><span class="s2"> rows&quot;</span>
+    <span class="p">)</span>
 
     <span class="k">return</span> <span class="n">output_path</span>
 
 
-<span class="c1"># Helper function to read SUEWS files robustly (kept for backward compatibility but simplified)</span>
+<span class="c1"># Helper function to read SUEWS files robustly</span>
+<span class="c1"># (kept for backward compatibility but simplified).</span>
 <span class="k">def</span><span class="w"> </span><span class="nf">read_suews_table</span><span class="p">(</span><span class="n">toFile</span><span class="p">):</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Read SUEWS table file using numpy - simpler approach.&quot;&quot;&quot;</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Read a SUEWS table file using the strict legacy parser.&quot;&quot;&quot;</span>
     <span class="k">try</span><span class="p">:</span>
-        <span class="n">dataX</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">genfromtxt</span><span class="p">(</span>
-            <span class="n">toFile</span><span class="p">,</span>
-            <span class="n">dtype</span><span class="o">=</span><span class="nb">str</span><span class="p">,</span>
-            <span class="n">skip_header</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span>
-            <span class="n">comments</span><span class="o">=</span><span class="s2">&quot;!&quot;</span><span class="p">,</span>
-            <span class="n">names</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
-            <span class="n">invalid_raise</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
-            <span class="n">encoding</span><span class="o">=</span><span class="s2">&quot;UTF8&quot;</span><span class="p">,</span>
-        <span class="p">)</span>
-
-        <span class="c1"># Convert to pandas DataFrame for compatibility</span>
-        <span class="k">if</span> <span class="n">dataX</span><span class="o">.</span><span class="n">size</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
-            <span class="k">return</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">(</span><span class="n">columns</span><span class="o">=</span><span class="nb">list</span><span class="p">(</span><span class="n">dataX</span><span class="o">.</span><span class="n">dtype</span><span class="o">.</span><span class="n">names</span><span class="p">))</span>
-        <span class="k">else</span><span class="p">:</span>
-            <span class="k">return</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">(</span><span class="n">dataX</span><span class="o">.</span><span class="n">tolist</span><span class="p">(),</span> <span class="n">columns</span><span class="o">=</span><span class="nb">list</span><span class="p">(</span><span class="n">dataX</span><span class="o">.</span><span class="n">dtype</span><span class="o">.</span><span class="n">names</span><span class="p">))</span>
+        <span class="n">table</span> <span class="o">=</span> <span class="n">read_legacy_table</span><span class="p">(</span><span class="n">toFile</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">(</span><span class="n">table</span><span class="o">.</span><span class="n">rows</span><span class="p">,</span> <span class="n">columns</span><span class="o">=</span><span class="n">table</span><span class="o">.</span><span class="n">headers</span><span class="p">)</span>
     <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
         <span class="n">logger_supy</span><span class="o">.</span><span class="n">error</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Failed to read </span><span class="si">{</span><span class="n">toFile</span><span class="si">}</span><span class="s2">: </span><span class="si">{</span><span class="n">e</span><span class="si">!s}</span><span class="s2">&quot;</span><span class="p">)</span>
         <span class="k">raise</span>
@@ -2713,8 +2498,8 @@ By SUEWS dev team led by Prof Sue Grimmond
   <div class="footer-item">
     
 <div class="extra_footer">
-  <p>Version: 2026.6.15.dev1 |
-    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/e991a2e41d2693ebc0c14adf99097a11d572123e">e991a2e</a> |
+  <p>Version: 2026.6.15.dev3 |
+    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/8038730eff1188f13f8475ab491ad820ef4f43dc">8038730</a> |
     <a href="https://umep-dev.github.io/SUEWS/brand/showcase.html">Brand</a></p>
 </div>
   </div>

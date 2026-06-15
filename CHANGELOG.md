@@ -54,6 +54,13 @@ EXAMPLES:
 
 ## 2026
 
+### 15 Jun 2026
+
+- [bugfix] `SUEWSSimulation.update_forcing()` now normalises in-memory forcing (DataFrame or `SUEWSForcing`) the same way as file/path loading, instead of assigning it directly and bypassing preparation (#1537)
+  - The bypass meant an hourly DataFrame ran at its own timestep rather than the model timestep, so a 300 s model never reached the `23:55` daily-write point and `DailyState` silently stopped being saved
+  - In-memory forcing is now resampled to `model.control.tstep`, and the temporal columns (`iy`/`id`/`it`/`imin`/`isec`) are reasserted from the index so `isec` stays consistent
+  - In-memory inputs are validated as already being in the model-ready canonical form (canonical column names, a `DatetimeIndex`, pressure in hPa) and rejected with a clear error otherwise; pressure that looks like kPa is caught early rather than surfacing later as a generic out-of-range failure. No unit conversion or column renaming is applied to in-memory inputs -- build them via `supy.util.read_forcing` or `SUEWSForcing.from_file` to guarantee the contract
+
 ### 13 Jun 2026
 
 - [feature][experimental] Bidirectional legacy table conversion: regenerate any historical SUEWS table set (`2016a`-`2020a`) from a modern YAML config / `df_state`, complementing the existing forward (`suews-convert`) path, so a configuration can move between any `(version, representation)` pair in either direction (#1522)

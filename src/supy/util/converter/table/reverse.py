@@ -34,10 +34,10 @@ from pathlib import Path
 from shutil import copyfile
 from typing import Optional
 
-from chardet import detect
 import f90nml
 
 from ...._env import logger_supy
+from .legacy import LegacyTable, read_legacy_table, write_legacy_table
 from .table import rules
 
 TARGET_VER = "2025a"
@@ -94,33 +94,6 @@ def _step_rules(from_ver: str, to_ver: str):
 # --------------------------------------------------------------------------- #
 # Tolerant table / namelist IO
 # --------------------------------------------------------------------------- #
-def _decode_text(path: Path) -> str:
-    """Read a legacy table as text, tolerating non-UTF-8 source encodings.
-
-    Legacy SUEWS tables predate the repo's UTF-8 mandate and carry stray
-    Latin-1 bytes (e.g. an accented author name). The forward converter
-    normalises these with ``convert_utf8`` before reading; capture reads the raw
-    source, so it detects the encoding (chardet, Latin-1 fallback) rather than
-    assuming UTF-8.
-
-    Parameters
-    ----------
-    path : Path
-        File to read.
-
-    Returns
-    -------
-    str
-        Decoded text.
-    """
-    raw = path.read_bytes()
-    try:
-        return raw.decode("utf-8")
-    except UnicodeDecodeError:
-        enc = (detect(raw) or {}).get("encoding") or "latin-1"
-        return raw.decode(enc, errors="replace")
-
-
 def _read_table(path: Path) -> tuple[list[str], list[list[str]]]:
     """Parse a SUEWS ``*.txt`` table into ``(header, rows)``.
 
@@ -139,17 +112,8 @@ def _read_table(path: Path) -> tuple[list[str], list[list[str]]]:
         ``(header, rows)`` where ``header`` is the list of column names and
         ``rows`` is a list of token lists (one per data row).
     """
-    lines = _decode_text(path).splitlines()
-    if len(lines) < 2:
-        return [], []
-    header = lines[1].split()
-    rows: list[list[str]] = []
-    for line in lines[2:]:
-        toks = line.split()
-        if not toks or toks[0].startswith("-9"):
-            break
-        rows.append(toks)
-    return header, rows
+    table = read_legacy_table(path)
+    return table.headers, table.rows
 
 
 def _write_table(path: Path, header: list[str], rows: list[list[str]]) -> None:
@@ -164,10 +128,7 @@ def _write_table(path: Path, header: list[str], rows: list[list[str]]) -> None:
     rows : list of list of str
         Data rows as token lists.
     """
-    index_line = " ".join(str(i + 1) for i in range(len(header)))
-    body = [index_line, " ".join(header)]
-    body.extend(" ".join(r) for r in rows)
-    path.write_text("\n".join(body) + "\n", encoding="utf-8")
+    write_legacy_table(path, LegacyTable(headers=list(header), rows=list(rows)))
 
 
 # --------------------------------------------------------------------------- #

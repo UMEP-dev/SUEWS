@@ -50,7 +50,7 @@ live in `rubric.md`; this file covers the procedure for applying them.
      corresponding to the verdict:
      - `advance` -> `0-pr:advance`
      - `continue` -> `0-pr:continue`
-     - `defer` -> `0-pr:defer`
+     - `defer` -> `0-pr:deferred`
      - `close` -> `0-pr:close-proposed`
      - `escalate` -> `0-pr:escalate`
    - Apply the `0-auto:pr-audited` label if it does not already exist.
@@ -100,7 +100,7 @@ A PR carrying `0-pr:deferred` re-enters active triage when EITHER:
 - Its `blocked-on:#N` issue or PR has been closed/merged.
 
 When a trigger has fired, treat the PR as a fresh candidate: recompute the
-verdict from current scanner signals, swap the `0-pr:defer` label off, apply
+verdict from current scanner signals, swap the `0-pr:deferred` label off, apply
 the new label, and upsert the marker comment with the new verdict.
 
 If neither trigger has fired, the PR is a no-op for this run: count it as

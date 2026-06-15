@@ -110,7 +110,7 @@ bash .claude/skills/triage-pr/scripts/scan-prs.sh --json 2>/dev/null | jq .
 |---------|-------|
 | `advance` | `0-pr:advance` |
 | `continue` | `0-pr:continue` |
-| `defer` | `0-pr:defer` |
+| `defer` | `0-pr:deferred` |
 | `close` | `0-pr:close-proposed` |
 | `escalate` | `0-pr:escalate` |
 
@@ -131,13 +131,13 @@ Priority (P0/P1/P2) is **not** a label. It lives in the verdict block only.
 
 ### Maintainer one-off setup
 
-Create these seven labels once in the repository:
+Create these six labels once in the repository:
 
 ```
 0-auto:pr-audited
 0-pr:advance
 0-pr:continue
-0-pr:defer
+0-pr:deferred
 0-pr:close-proposed
 0-pr:escalate
 ```

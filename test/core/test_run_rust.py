@@ -112,3 +112,35 @@ def test_prepare_forcing_block_prefers_per_vegetation_lai():
     np.testing.assert_allclose(block[:, 20], df_forcing["lai_evetr"])
     np.testing.assert_allclose(block[:, 21], df_forcing["lai_dectr"])
     np.testing.assert_allclose(block[:, 22], df_forcing["lai_grass"])
+
+
+def test_prepare_forcing_block_broadcasts_bulk_wuh_to_seven_kernel_columns():
+    df_forcing = _minimal_forcing_frame()
+    df_forcing["Wuh"] = [0.4, 0.5]
+
+    block = _run_rust._prepare_forcing_block(df_forcing)
+
+    assert block.shape == (len(df_forcing), 30)
+    for col in range(23, 30):
+        np.testing.assert_allclose(block[:, col], df_forcing["Wuh"])
+
+
+def test_prepare_forcing_block_prefers_per_surface_wuh():
+    df_forcing = _minimal_forcing_frame()
+    per_surface = {
+        "wuh_paved": [0.11, 0.12],
+        "wuh_bldgs": [0.21, 0.22],
+        "wuh_evetr": [0.31, 0.32],
+        "wuh_dectr": [0.41, 0.42],
+        "wuh_grass": [0.51, 0.52],
+        "wuh_bsoil": [0.61, 0.62],
+        "wuh_water": [0.71, 0.72],
+    }
+    for name, values in per_surface.items():
+        df_forcing[name] = values
+
+    block = _run_rust._prepare_forcing_block(df_forcing)
+
+    assert block.shape == (len(df_forcing), 30)
+    for offset, name in enumerate(per_surface):
+        np.testing.assert_allclose(block[:, 23 + offset], df_forcing[name])

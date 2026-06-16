@@ -24,7 +24,7 @@ docs **anchor** commit; PyPI and Zenodo are untouched.
 - **Cutting a brand-new release** -> use `prep-release` (it already calls the
   same anchor step at step 11a).
 - **Doc-vs-code content consistency** -> use `sync-docs`.
-- **RST / Markdown formatting / ASCII** -> use `lint-code` / `doc-styler`.
+- **RST / Markdown formatting / ASCII** -> use `lint-code` / `audit-docs`.
 
 ## Background (how docs are served)
 

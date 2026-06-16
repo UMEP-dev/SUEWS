@@ -30,7 +30,7 @@ FORCING_ALIASES = {
     "qf": ["anthropogenic_heat"],
     "qs": ["storage_heat"],
     "snow": ["snowfall"],
-    "Wuh": ["water_use", "external_water"],
+    "Wuh": ["water_use", "external_water", "wu_mm"],
     "lai_evetr": ["leaf_area_index_evetr"],
     "lai_dectr": ["leaf_area_index_dectr"],
     "lai_grass": ["leaf_area_index_grass"],

@@ -208,6 +208,106 @@ def test_validate_forcing_columns_rejects_partial_lai_with_invalid_fallback():
         validate_forcing_columns_against_physics(df, physics)
 
 
+def test_validate_forcing_columns_accepts_full_per_surface_wuh_with_bulk_missing():
+    """water_use=observed can use full per-surface wuh even when bulk wuh is sentinel."""
+    import pandas as pd
+    from types import SimpleNamespace
+
+    from supy.data_model.core.forcing_validation import (
+        validate_forcing_columns_against_physics,
+    )
+
+    physics = SimpleNamespace(water_use=1)
+    df = pd.DataFrame(
+        {
+            "wuh": [-999.0, -999.0],
+            "wuh_paved": [0.1, 0.2],
+            "wuh_bldgs": [0.1, 0.2],
+            "wuh_evetr": [0.1, 0.2],
+            "wuh_dectr": [0.1, 0.2],
+            "wuh_grass": [0.1, 0.2],
+            "wuh_bsoil": [0.1, 0.2],
+            "wuh_water": [0.1, 0.2],
+        }
+    )
+
+    validate_forcing_columns_against_physics(df, physics)
+
+
+def test_validate_forcing_columns_accepts_bulk_wuh_fallback():
+    """water_use=observed accepts a bulk wuh column shared across all surfaces."""
+    import pandas as pd
+    from types import SimpleNamespace
+
+    from supy.data_model.core.forcing_validation import (
+        validate_forcing_columns_against_physics,
+    )
+
+    physics = SimpleNamespace(water_use=1)
+    df = pd.DataFrame({"wuh": [0.5, 0.3]})
+
+    validate_forcing_columns_against_physics(df, physics)
+
+
+def test_validate_forcing_columns_rejects_missing_wuh():
+    """water_use=observed requires a wuh column; none present must fail."""
+    import pandas as pd
+    from types import SimpleNamespace
+
+    from supy.data_model.core.forcing_validation import (
+        validate_forcing_columns_against_physics,
+    )
+
+    physics = SimpleNamespace(water_use=1)
+    df = pd.DataFrame({"kdown": [100.0, 120.0]})
+
+    with pytest.raises(ValueError, match=r"wuh.*required.*water_use=1"):
+        validate_forcing_columns_against_physics(df, physics)
+
+
+def test_validate_forcing_columns_rejects_all_sentinel_wuh():
+    """A bulk wuh of all -999 (and no per-surface) must fail under water_use=observed."""
+    import pandas as pd
+    from types import SimpleNamespace
+
+    from supy.data_model.core.forcing_validation import (
+        validate_forcing_columns_against_physics,
+    )
+
+    physics = SimpleNamespace(water_use=1)
+    df = pd.DataFrame({"wuh": [-999.0, -999.0]})
+
+    with pytest.raises(ValueError, match=r"wuh.*valid data.*water_use=1"):
+        validate_forcing_columns_against_physics(df, physics)
+
+
+def test_validate_forcing_columns_rejects_invalid_per_surface_wuh():
+    """Any invalid per-surface wuh source must fail under water_use=observed."""
+    import pandas as pd
+    from types import SimpleNamespace
+
+    from supy.data_model.core.forcing_validation import (
+        validate_forcing_columns_against_physics,
+    )
+
+    physics = SimpleNamespace(water_use=1)
+    df = pd.DataFrame(
+        {
+            "wuh": [0.5, 0.5],
+            "wuh_paved": [0.1, -999.0],
+            "wuh_bldgs": [0.1, 0.2],
+            "wuh_evetr": [0.1, 0.2],
+            "wuh_dectr": [0.1, 0.2],
+            "wuh_grass": [0.1, 0.2],
+            "wuh_bsoil": [0.1, 0.2],
+            "wuh_water": [0.1, 0.2],
+        }
+    )
+
+    with pytest.raises(ValueError, match=r"wuh.*valid data.*water_use=1"):
+        validate_forcing_columns_against_physics(df, physics)
+
+
 def test_python_rust_whitelist_parity():
     """gh#1372 cross-language guard: Python and Rust must agree on the
     per-landcover whitelist, surface short codes, baseline-required set,
@@ -259,6 +359,7 @@ def test_python_rust_whitelist_parity():
     assert set((var.lower() for var in rust_per_landcover_vars)) == set(PER_LANDCOVER_FORCING_VARS)
     assert _list("LANDCOVER_SUFFIXES") == set(LANDCOVER_SUFFIXES)
     assert _list("LAI_LANDCOVER_SUFFIXES") == set(LAI_LANDCOVER_SUFFIXES)
+    assert _list("WU_LANDCOVER_SUFFIXES") == set(WUH_LANDCOVER_SUFFIXES)
     assert _list("BASELINE_FORCING_COLUMNS") == {c.lower() for c in BASELINE_DATETIME_FORCING_SET|BASELINE_FORCING_COLUMNS_SET}
 
     unused_canonical_match = re.search(

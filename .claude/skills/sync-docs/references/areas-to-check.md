@@ -100,7 +100,6 @@ ISSUE: Range mismatch
 
 Check `Makefile` against:
 - `README.md` quick start section
-- `.claude/skills/setup-dev/SKILL.md`
 - `docs/source/installation.rst`
 
 ```

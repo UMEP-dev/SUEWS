@@ -82,7 +82,8 @@ Fused legacy identifiers (e.g. `netradiationmethod`, `storageheatmethod`, `soild
 uv venv && source .venv/bin/activate && make dev && make test-smoke
 ```
 
-For full setup options, use `/setup-dev` command.
+For platform-specific setup (macOS, Linux, Windows), see the `Makefile`
+recipes and the installation docs.
 
 ## Build System Notes
 

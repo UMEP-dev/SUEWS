@@ -218,6 +218,14 @@ CONTAINS
       REAL(KIND(1D0)), DIMENSION(15), INTENT(OUT) :: wall_in_lw_spc
       REAL(KIND(1D0)), DIMENSION(15) :: wall_net_sw_spc
       REAL(KIND(1D0)), DIMENSION(15) :: wall_net_lw_spc
+      REAL(KIND(1D0)), DIMENSION(15) :: roof_in_sw_spc_norm
+      REAL(KIND(1D0)), DIMENSION(15) :: roof_net_sw_spc_norm
+      REAL(KIND(1D0)), DIMENSION(15) :: wall_in_sw_spc_norm
+      REAL(KIND(1D0)), DIMENSION(15) :: wall_net_sw_spc_norm
+      REAL(KIND(1D0)), DIMENSION(15) :: roof_in_lw_spc_norm
+      REAL(KIND(1D0)), DIMENSION(15) :: roof_net_lw_spc_norm
+      REAL(KIND(1D0)), DIMENSION(15) :: wall_in_lw_spc_norm
+      REAL(KIND(1D0)), DIMENSION(15) :: wall_net_lw_spc_norm
       REAL(KIND(1D0)), DIMENSION(15) :: sfr_roof_spc
       REAL(KIND(1D0)), DIMENSION(15) :: sfr_wall_spc
       REAL(KIND(1D0)) :: grnd_dn_sw_spc
@@ -954,37 +962,48 @@ CONTAINS
          grnd_dn_sw_spc = 0.0
       END IF
 
-      ! De-normalise the fluxes
+      ! Plain roof/wall arrays keep the original SPARTACUS values per
+      ! horizontal domain area; *_norm arrays are normalised to facet area.
+      roof_in_sw_spc_norm = roof_in_sw_spc
+      roof_net_sw_spc_norm = roof_net_sw_spc
+      wall_in_sw_spc_norm = wall_in_sw_spc
+      wall_net_sw_spc_norm = wall_net_sw_spc
+      roof_in_lw_spc_norm = roof_in_lw_spc
+      roof_net_lw_spc_norm = roof_net_lw_spc
+      wall_in_lw_spc_norm = wall_in_lw_spc
+      wall_net_lw_spc_norm = wall_net_lw_spc
+
+      ! Normalise roof/wall fluxes to their facet area by dividing by surface fraction.
       IF (config%do_sw) THEN
          WHERE (sfr_wall_spc(:nlayer) > eps_fp)
-            wall_in_sw_spc(:nlayer) = wall_in_sw_spc(:nlayer)/sfr_wall_spc(:nlayer)
-            wall_net_sw_spc(:nlayer) = wall_net_sw_spc(:nlayer)/sfr_wall_spc(:nlayer)
+            wall_in_sw_spc_norm(:nlayer) = wall_in_sw_spc_norm(:nlayer)/sfr_wall_spc(:nlayer)
+            wall_net_sw_spc_norm(:nlayer) = wall_net_sw_spc_norm(:nlayer)/sfr_wall_spc(:nlayer)
          ELSEWHERE
-            wall_in_sw_spc(:nlayer) = 0.0D0
-            wall_net_sw_spc(:nlayer) = 0.0D0
+            wall_in_sw_spc_norm(:nlayer) = 0.0D0
+            wall_net_sw_spc_norm(:nlayer) = 0.0D0
          END WHERE
          WHERE (sfr_roof_spc(:nlayer) > eps_fp)
-            roof_in_sw_spc(:nlayer) = roof_in_sw_spc(:nlayer)/sfr_roof_spc(:nlayer)
-            roof_net_sw_spc(:nlayer) = roof_net_sw_spc(:nlayer)/sfr_roof_spc(:nlayer)
+            roof_in_sw_spc_norm(:nlayer) = roof_in_sw_spc_norm(:nlayer)/sfr_roof_spc(:nlayer)
+            roof_net_sw_spc_norm(:nlayer) = roof_net_sw_spc_norm(:nlayer)/sfr_roof_spc(:nlayer)
          ELSEWHERE
-            roof_in_sw_spc(:nlayer) = 0.0D0
-            roof_net_sw_spc(:nlayer) = 0.0D0
+            roof_in_sw_spc_norm(:nlayer) = 0.0D0
+            roof_net_sw_spc_norm(:nlayer) = 0.0D0
          END WHERE
       END IF
 
       WHERE (sfr_wall_spc(:nlayer) > eps_fp)
-         wall_in_lw_spc(:nlayer) = wall_in_lw_spc(:nlayer)/sfr_wall_spc(:nlayer)
-         wall_net_lw_spc(:nlayer) = wall_net_lw_spc(:nlayer)/sfr_wall_spc(:nlayer)
+         wall_in_lw_spc_norm(:nlayer) = wall_in_lw_spc_norm(:nlayer)/sfr_wall_spc(:nlayer)
+         wall_net_lw_spc_norm(:nlayer) = wall_net_lw_spc_norm(:nlayer)/sfr_wall_spc(:nlayer)
       ELSEWHERE
-         wall_in_lw_spc(:nlayer) = 0.0D0
-         wall_net_lw_spc(:nlayer) = 0.0D0
+         wall_in_lw_spc_norm(:nlayer) = 0.0D0
+         wall_net_lw_spc_norm(:nlayer) = 0.0D0
       END WHERE
       WHERE (sfr_roof_spc(:nlayer) > eps_fp)
-         roof_in_lw_spc(:nlayer) = roof_in_lw_spc(:nlayer)/sfr_roof_spc(:nlayer)
-         roof_net_lw_spc(:nlayer) = roof_net_lw_spc(:nlayer)/sfr_roof_spc(:nlayer)
+         roof_in_lw_spc_norm(:nlayer) = roof_in_lw_spc_norm(:nlayer)/sfr_roof_spc(:nlayer)
+         roof_net_lw_spc_norm(:nlayer) = roof_net_lw_spc_norm(:nlayer)/sfr_roof_spc(:nlayer)
       ELSEWHERE
-         roof_in_lw_spc(:nlayer) = 0.0D0
-         roof_net_lw_spc(:nlayer) = 0.0D0
+         roof_in_lw_spc_norm(:nlayer) = 0.0D0
+         roof_net_lw_spc_norm(:nlayer) = 0.0D0
       END WHERE
 
       !!!!!!!!!!!!!! Bulk KUP, LUP, QSTAR for SUEWS !!!!!!!!!!!!!!
@@ -1001,9 +1020,9 @@ CONTAINS
 
       ! ============================================================
       ! net radiation for roof/wall
-      ! note these fluxes are NOT de-normalised
-      qn_roof = roof_net_lw_spc(:nlayer) + roof_net_sw_spc(:nlayer)
-      qn_wall = wall_net_lw_spc(:nlayer) + wall_net_sw_spc(:nlayer)
+      ! note these fluxes use the facet-area normalised roof/wall arrays above
+      qn_roof = roof_net_lw_spc_norm(:nlayer) + roof_net_sw_spc_norm(:nlayer)
+      qn_wall = wall_net_lw_spc_norm(:nlayer) + wall_net_sw_spc_norm(:nlayer)
 
       ! de-normalise net radiation for roof/wall - these will be used in other SUEWS calculations
       ! note the orignal results from above SS calcuations are normalised by the whole grid area
@@ -1072,14 +1091,22 @@ CONTAINS
           grnd_net_sw_spc, &
           grnd_net_lw_spc, &
           roof_in_sw_spc, &
+          roof_in_sw_spc_norm, &
           roof_net_sw_spc, &
+          roof_net_sw_spc_norm, &
           wall_in_sw_spc, &
+          wall_in_sw_spc_norm, &
           wall_net_sw_spc, &
+          wall_net_sw_spc_norm, &
           clear_air_abs_sw_spc, &
           roof_in_lw_spc, &
+          roof_in_lw_spc_norm, &
           roof_net_lw_spc, &
+          roof_net_lw_spc_norm, &
           wall_in_lw_spc, &
+          wall_in_lw_spc_norm, &
           wall_net_lw_spc, &
+          wall_net_lw_spc_norm, &
           sfr_roof_spc, &
           sfr_wall_spc, &
           clear_air_abs_lw_spc, &

@@ -54,6 +54,13 @@ EXAMPLES:
 
 ## 2026
 
+### 16 Jun 2026
+
+- [feature][experimental] Observed external water use can now be supplied per land cover in the forcing file via `wuh_paved`, `wuh_bldgs`, `wuh_evetr`, `wuh_dectr`, `wuh_grass`, `wuh_bsoil`, `wuh_water` (mm), replacing the single bulk `wuh`/`wu_m3` value when `WaterUseMethod=observed` (#1449)
+  - The kernel forcing block grows from 23 to 30 columns; a forcing file that supplies only the bulk `wuh` column still works, as it is broadcast to all seven surfaces
+  - A surface whose per-cover column is missing (`-999`) contributes zero observed water use for that timestep rather than inheriting the previous value
+  - The physics/forcing pre-check now fails fast when `WaterUseMethod=observed` but no usable `wuh`/per-cover column is present, instead of silently running on the `-999` sentinel
+
 ### 15 Jun 2026
 
 - [bugfix] `SUEWSSimulation.update_forcing()` now normalises in-memory forcing (DataFrame or `SUEWSForcing`) the same way as file/path loading, instead of assigning it directly and bypassing preparation (#1537)

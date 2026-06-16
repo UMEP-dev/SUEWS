@@ -44,9 +44,13 @@ _PHYSICS_REQUIRED_FORCING: dict[tuple[str, int], frozenset[str]] = {
 }
 
 LAI_VEG_COLUMNS = ("lai_evetr", "lai_dectr", "lai_grass")
+# Per-land-cover external water-use forcing columns, named with the same
+# `wuh_<suffix>` convention users write in their forcing files (see
+# supy._load.WUH_LANDCOVER_SUFFIXES). Each falls back to the bulk `wuh`
+# column when its per-surface column is absent, mirroring LAI_VEG_COLUMNS.
 WUH_SURF_COLUMNS = (
-    "wu_mm_paved", "wu_mm_bldgs", "wu_mm_evetr",
-    "wu_mm_evetr", "wu_mm_grass", "wu_mm_bsoil", "wu_mm_water`"
+    "wuh_paved", "wuh_bldgs", "wuh_evetr", "wuh_dectr",
+    "wuh_grass", "wuh_bsoil", "wuh_water",
 )
 
 
@@ -187,6 +191,8 @@ def validate_forcing_columns_against_physics(
                     missing.append((field_name, value, col, reason))
             elif col.lower() == "wuh":
                 reason = _wuh_validity_issue(forcing_columns)
+                if reason is not None:
+                    missing.append((field_name, value, col, reason))
             elif col.lower() not in available:
                 missing.append((field_name, value, col, "missing"))
             elif not _column_has_valid_data(forcing_columns, col.lower()):

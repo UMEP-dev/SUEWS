@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Hook: Check documentation source files for non-ASCII characters
 # Triggered by PostToolUse for Edit/Write on docs/ files
-# Complements the doc-styler skill (.claude/skills/doc-styler/)
+# Complements the audit-docs skill (.claude/skills/audit-docs/)
 
 set -euo pipefail
 
@@ -30,7 +30,7 @@ MATCHES=$(perl -ne 'print "$.:$_" if /[^\x00-\x7F]/' "$FILE_PATH" 2>/dev/null ||
 if [[ -n "$MATCHES" ]]; then
     COUNT=$(echo "$MATCHES" | wc -l | tr -d ' ')
     echo "NON-ASCII CHARACTERS FOUND in $(basename "$FILE_PATH") ($COUNT lines)"
-    echo "Run /doc-styler to fix. Affected lines:"
+    echo "Run /audit-docs to fix. Affected lines:"
     echo "$MATCHES" | head -10
     if [[ "$COUNT" -gt 10 ]]; then
         echo "... and $((COUNT - 10)) more"

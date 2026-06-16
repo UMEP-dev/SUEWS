@@ -44,6 +44,14 @@ _PHYSICS_REQUIRED_FORCING: dict[tuple[str, int], frozenset[str]] = {
 }
 
 LAI_VEG_COLUMNS = ("lai_evetr", "lai_dectr", "lai_grass")
+# Per-land-cover external water-use forcing columns, named with the same
+# `wuh_<suffix>` convention users write in their forcing files (see
+# supy._load.WUH_LANDCOVER_SUFFIXES). Each falls back to the bulk `wuh`
+# column when its per-surface column is absent, mirroring LAI_VEG_COLUMNS.
+WUH_SURF_COLUMNS = (
+    "wuh_paved", "wuh_bldgs", "wuh_evetr", "wuh_dectr",
+    "wuh_grass", "wuh_bsoil", "wuh_water",
+)
 
 
 def _resolve(value: Any) -> Any:
@@ -124,6 +132,25 @@ def _lai_validity_issue(forcing: Any) -> str | None:
             return "all_missing"
     return None
 
+def _wuh_validity_issue(forcing: Any) -> str | None:
+    """Return the validation issue reason for water_use=0, or None."""
+    columns_by_lower = _columns_by_lower(forcing)
+    bulk_wuh_col = columns_by_lower.get("wuh")
+    source_cols: list[Any] = []
+    for wuh_col in WUH_SURF_COLUMNS:
+        source_col = columns_by_lower.get(wuh_col, bulk_wuh_col)
+        if source_col is None:
+            return "missing"
+        source_cols.append(source_col)
+
+    if not hasattr(forcing, "columns"):
+        return None
+
+    for source_col in dict.fromkeys(source_cols):
+        if not _series_has_valid_data(forcing[source_col]):
+            return "all_missing"
+    return None
+
 
 def validate_forcing_columns_against_physics(
     forcing_columns: Any,
@@ -160,6 +187,10 @@ def validate_forcing_columns_against_physics(
         for col in required_cols:
             if col.lower() == "lai":
                 reason = _lai_validity_issue(forcing_columns)
+                if reason is not None:
+                    missing.append((field_name, value, col, reason))
+            elif col.lower() == "wuh":
+                reason = _wuh_validity_issue(forcing_columns)
                 if reason is not None:
                     missing.append((field_name, value, col, reason))
             elif col.lower() not in available:

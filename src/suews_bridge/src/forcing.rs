@@ -34,6 +34,14 @@ const LANDCOVER_SUFFIXES: &[&str] = &[
     "paved", "bldgs", "evetr", "dectr", "grass", "bsoil", "water",
 ];
 const LAI_LANDCOVER_SUFFIXES: &[&str] = &["evetr", "dectr", "grass"];
+// External water use (wuh) is accepted on every surface, so its suffix
+// whitelist mirrors the full LANDCOVER_SUFFIXES set. Kept as a separate
+// named const (referenced by the WUH var below) so the gh#1372
+// cross-language parity guard can assert it against
+// supy._load.WUH_LANDCOVER_SUFFIXES.
+const WU_LANDCOVER_SUFFIXES: &[&str] = &[
+    "paved", "bldgs", "evetr", "dectr", "grass", "bsoil", "water",
+];
 
 pub struct PerLandcoverVar {
     pub prefix: &'static str,
@@ -45,8 +53,14 @@ static LAI: PerLandcoverVar = PerLandcoverVar {
     allowed_suffixes: LAI_LANDCOVER_SUFFIXES,
 };
 
+static WUH: PerLandcoverVar = PerLandcoverVar {
+    prefix: "wuh",
+    allowed_suffixes: WU_LANDCOVER_SUFFIXES,
+};
+
 pub static PER_LANDCOVER_FORCING_VARS: &[&PerLandcoverVar] = &[
     &LAI,
+    &WUH,
 ];
 
 /// Instantaneous: Forcing columns interpolated as instantaneous point values (linear).
@@ -198,6 +212,14 @@ suews_fields! {
     (lai_evetr, 20, ["lai_evetr"], InterpKind::Instantaneous, false),
     (lai_dectr, 21, ["lai_dectr"], InterpKind::Instantaneous, false),
     (lai_grass, 22, ["lai_grass"], InterpKind::Instantaneous, false),
+
+    (wu_mm_paved, 23, ["wu_mm_paved", "wuh_paved"], InterpKind::Sum, false),
+    (wu_mm_bldgs, 24, ["wu_mm_bldgs", "wuh_bldgs"], InterpKind::Sum, false),
+    (wu_mm_evetr, 25, ["wu_mm_evetr", "wuh_evetr"], InterpKind::Sum, false),
+    (wu_mm_dectr, 26, ["wu_mm_dectr", "wuh_dectr"], InterpKind::Sum, false),
+    (wu_mm_grass, 27, ["wu_mm_grass", "wuh_grass"], InterpKind::Sum, false),
+    (wu_mm_bsoil, 28, ["wu_mm_bsoil", "wuh_bsoil"], InterpKind::Sum, false),
+    (wu_mm_water, 29, ["wu_mm_water", "wuh_water"], InterpKind::Sum, false),
 
     // (tair_av_5d, 1, ["tair_av_5d"], InterpKind::Instantaneous),
 }

@@ -31,6 +31,13 @@ MODULE module_c_api_forcing
       REAL(c_double) :: lai_evetr = 0.0_c_double
       REAL(c_double) :: lai_dectr = 0.0_c_double
       REAL(c_double) :: lai_grass = 0.0_c_double
+      REAL(c_double) :: wuh_paved = 0.0_c_double
+      REAL(c_double) :: wuh_bldgs = 0.0_c_double
+      REAL(c_double) :: wuh_evetr = 0.0_c_double
+      REAL(c_double) :: wuh_dectr = 0.0_c_double
+      REAL(c_double) :: wuh_grass = 0.0_c_double
+      REAL(c_double) :: wuh_bsoil = 0.0_c_double
+      REAL(c_double) :: wuh_water = 0.0_c_double
       REAL(c_double) :: snow_fraction = 0.0_c_double
       REAL(c_double) :: xsmd = 0.0_c_double
       REAL(c_double) :: qf_obs = 0.0_c_double
@@ -149,6 +156,13 @@ CONTAINS
       flat(idx) = state%lai_evetr; idx = idx + 1
       flat(idx) = state%lai_dectr; idx = idx + 1
       flat(idx) = state%lai_grass; idx = idx + 1
+      flat(idx) = state%wuh_paved; idx = idx + 1
+      flat(idx) = state%wuh_bldgs; idx = idx + 1
+      flat(idx) = state%wuh_evetr; idx = idx + 1
+      flat(idx) = state%wuh_dectr; idx = idx + 1
+      flat(idx) = state%wuh_grass; idx = idx + 1
+      flat(idx) = state%wuh_bsoil; idx = idx + 1
+      flat(idx) = state%wuh_water; idx = idx + 1
 
       IF (ts5mindata_ir_len > 0_c_int) THEN
          DO i = 1, INT(ts5mindata_ir_len)

@@ -36,6 +36,7 @@ Full setup: `/setup-dev` | Style check: `/lint-code` | Build check: `/verify-bui
 - `/fix-issue` - Triage and implement a GitHub issue to PR-ready status
 - `/republish-docs` - Republish/revise released docs (move tag to clean anchor)
 - `/verify-build` - Build configuration
+- `/triage-pr` - Triage draft and stalled PRs into a disposition (advance/continue/defer/close/escalate)
 - `/audit-pr` - Review pull requests
 - `/split-pr` - Carve an oversized PR into a stacked series of small PRs
 - `/queue-pr` - Coordinate PRs before merge queue

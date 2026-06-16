@@ -26,6 +26,17 @@ Read it alongside `work-sizing.md` (sizing and umbrella decomposition).
 (stages 1-4: triage-issue, fix-issue, audit-pr, split-pr). queue-pr orders ready
 PRs and does not itself apply the sizing criteria.
 
+`triage-pr` is the PR-axis sibling of triage-issue. Where triage-issue grooms the
+issue backlog for readiness, triage-pr grooms the draft and stalled PR backlog for
+disposition. It is a router, not a reviewer: it assigns each PR one of five verdicts
+(`advance`, `continue`, `defer`, `close`, `escalate`) and routes live PRs into the
+existing stages -- `advance` -> audit-pr / split-pr / queue-pr (and the user-level
+prep-pr where applicable); `continue` -> fix-issue / author. `defer` parks the PR
+with a named revisit trigger; `close` and `escalate` are always human-gated. It
+never merges and never closes (terminates at "disposition assigned plus live PRs
+handed off"). The always-human-gated list in the Gating model section already
+covers its close and escalate terminals.
+
 ---
 
 ## Handoff vocabulary (machine-readable)
@@ -53,6 +64,28 @@ without reading prose:
   loop branches on these; `split-recommended` routes to split-pr.
 - split-pr -> queue-pr: `[split-pr] stack plan` with `Completeness:` and
   `Concerns -> Children`.
+- triage-pr -> downstream skills: `[triage-pr] verdict` block per PR. Downstream
+  skills branch on `Verdict` and `Route`; they do not parse prose. The canonical
+  block (reproduce exactly):
+
+  ```
+  [triage-pr] verdict
+  PR: #<n>
+  Verdict: advance | continue | defer | close | escalate
+  Priority: P0 | P1 | P2 | -        (advance only)
+  Route: prep-pr | split-pr | queue-pr | fix-issue | -
+  Reason: <one line>
+  Revisit-by: YYYY-MM-DD | -        (defer only)
+  Blocked-on: #<n> | -             (defer only)
+  Applied: comment | label:<0-pr:...> | ready | none
+  Next: <downstream action / the human question>
+  ```
+
+  `Verdict: close` and `Verdict: escalate` are human terminals: labels
+  `0-pr:close-proposed` / `0-pr:escalate` are applied; no further automated
+  action. Downstream skills pick up `Verdict: advance` (via `Route:
+  prep-pr|split-pr|queue-pr`) and `Verdict: continue` (via `Route: fix-issue`)
+  without reading prose.
 
 ---
 
@@ -135,3 +168,29 @@ a `triaged` or `needs-discussion` verdict; batch mode queries it to skip
 already-processed issues unless updated since. It is bookkeeping, so it is not
 counted as substantive work in the `Applied:` field. A maintainer creates the
 label once; the autonomous tier never creates labels.
+
+## The 0-auto:pr-audited label and 0-pr:* disposition family
+
+`0-auto:pr-audited` is the PR-axis equivalent of `0-auto:audited`. triage-pr
+applies it (if it exists) to every PR that completes a triage run; batch mode
+queries it to skip PRs with no substantive activity since the previous audit. It
+is additive: applied once and left in place on re-runs. Not counted as substantive
+work in the `Applied:` field. A maintainer creates the label once; the autonomous
+tier never creates labels.
+
+The `0-pr:*` disposition family carries the current triage-pr verdict for a PR:
+
+| Verdict | Label |
+|---------|-------|
+| `advance` | `0-pr:advance` |
+| `continue` | `0-pr:continue` |
+| `defer` | `0-pr:deferred` |
+| `close` | `0-pr:close-proposed` |
+| `escalate` | `0-pr:escalate` |
+
+These labels are mutually exclusive: before applying any `0-pr:*` label, remove
+every other `0-pr:*` label already on the PR (state machine -- one label at a
+time). A maintainer creates all six labels once; triage-pr applies those that
+already exist and never creates labels. If a label is absent, the verdict is
+recorded in the marker comment and verdict block only, with a note that the label
+is missing.

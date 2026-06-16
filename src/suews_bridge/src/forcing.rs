@@ -34,6 +34,14 @@ const LANDCOVER_SUFFIXES: &[&str] = &[
     "paved", "bldgs", "evetr", "dectr", "grass", "bsoil", "water",
 ];
 const LAI_LANDCOVER_SUFFIXES: &[&str] = &["evetr", "dectr", "grass"];
+// External water use (wuh) is accepted on every surface, so its suffix
+// whitelist mirrors the full LANDCOVER_SUFFIXES set. Kept as a separate
+// named const (referenced by the WUH var below) so the gh#1372
+// cross-language parity guard can assert it against
+// supy._load.WUH_LANDCOVER_SUFFIXES.
+const WU_LANDCOVER_SUFFIXES: &[&str] = &[
+    "paved", "bldgs", "evetr", "dectr", "grass", "bsoil", "water",
+];
 
 pub struct PerLandcoverVar {
     pub prefix: &'static str,

@@ -221,7 +221,7 @@ def _prepare_forcing_block(df_forcing: pd.DataFrame) -> np.ndarray:
             block[:, target_idx] = df_forcing[source_col].values
         else:
             block[:, target_idx] = -999.0
-    
+
     bulk_wuh_col = columns_by_lower.get("wuh")
     for target_idx, wuh_col in enumerate(WUH_KERNEL_COLUMNS, start=23):
         source_col = columns_by_lower.get(wuh_col, bulk_wuh_col)

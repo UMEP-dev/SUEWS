@@ -1343,6 +1343,11 @@ CONTAINS
                ! Divide observed water use (in m3) by water use area to find water use (in mm)
                ! 2026-05-19, MP: Updated to only take per land cover forcing (incoming in mm)
                IF (WaterUseMethod == 1) THEN !If water use is observed
+                  ! Reset per-surface observed water use each timestep so a
+                  ! surface whose forcing column is missing (-999 sentinel)
+                  ! contributes zero rather than inheriting the previous
+                  ! timestep's value (wu_surf is persistent hydro state).
+                  wu_surf = 0.0D0
                   IF (Wu_mm_paved /= -999) THEN
                      wu_surf(1) = Wu_mm_paved
                   END IF
@@ -1365,7 +1370,7 @@ CONTAINS
                      wu_surf(7) = Wu_mm_water
                   END IF
                   wu = DOT_PRODUCT(wu_surf, sfr_surf)
-                  
+
                ! --------------------------------------------------------------------------------
                ! If water use is modelled, calculate at timestep of model resolution [mm]
                ELSEIF (WaterUseMethod == 0) THEN !If water use is modelled

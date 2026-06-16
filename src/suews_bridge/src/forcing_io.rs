@@ -716,7 +716,7 @@ mod tests {
         assert_eq!(row_val(&forcing, 0, SuewsField::lai_evetr.index()), forcing.extras["lai_evetr"][0]);
         assert_eq!(row_val(&forcing, 0, SuewsField::lai_dectr.index()), forcing.extras["lai_dectr"][0]);
         assert_eq!(row_val(&forcing, 0, SuewsField::lai_grass.index()), forcing.extras["lai_grass"][0]);
-        assert_ne!(row_val(&forcing, 0, SuewsField::wu_m3.index()), forcing.extras["wuh_paved"][0]);
+        assert_eq!(row_val(&forcing, 0, SuewsField::wu_mm_paved.index()), forcing.extras["wuh_paved"][0]);
         // Canonical block unchanged in shape.
         assert_eq!(forcing.block.len(), forcing.len_sim * FORCING_BLOCK_STRIDE);
     }

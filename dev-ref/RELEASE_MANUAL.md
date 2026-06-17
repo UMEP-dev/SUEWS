@@ -32,7 +32,7 @@ SUEWS adopts a **rolling release model** that reflects the continuous nature of 
    git push origin $VERSION
    ```
 4. **Wait ~20 min**: GitHub Actions builds **two versions** in parallel:
-   - `2025.10.14` (one cp39-abi3 wheel per platform, installs on cp39..cp3xx and any NumPy 1.22+/2.x)
+   - `2025.10.14` (one cp312-abi3 wheel per platform, installs on cp312..cp3xx and any NumPy 1.22+/2.x)
 
    Deployed to PyPI → GitHub Release → Zenodo DOI
 5. **Verify**: Check [Actions](https://github.com/UMEP-dev/SUEWS/actions), [PyPI](https://pypi.org/project/supy/), [Zenodo dashboard](https://zenodo.org/me/uploads)
@@ -44,9 +44,9 @@ SUEWS adopts a **rolling release model** that reflects the continuous nature of 
 
 ## Single Wheel Covers All Environments
 
-Every SUEWS release produces **one cp39-abi3 wheel per (OS, arch)** from a single git tag. That wheel installs and runs on:
+Every SUEWS release produces **one cp312-abi3 wheel per (OS, arch)** from a single git tag. That wheel installs and runs on:
 
-- CPython 3.9 through 3.14 (Rust bridge via PyO3 `abi3-py39`)
+- CPython 3.12 through 3.14 (Rust bridge via PyO3 `abi3-py312`)
 - NumPy 1.22+ (including QGIS 3 LTR's NumPy 1.26.4) through NumPy 2.x
 
 ### pip Install Behaviour
@@ -67,8 +67,8 @@ The UMEP (`rc1`) variant was retired in 2026-04 together with `.github/scripts/r
 From a single tag push:
 
 1. **Build** (`build_wheels` job)
-   - Builds one `cp39-abi3` wheel per (OS, arch) via cibuildwheel
-   - The Rust bridge uses PyO3 `abi3-py39`, so the wheel installs on cp39..cp3xx
+   - Builds one `cp312-abi3` wheel per (OS, arch) via cibuildwheel
+   - The Rust bridge uses PyO3 `abi3-py312`, so the wheel installs on cp312..cp3xx
    - Creates version `2024.10.7`
 
 2. **Cross-CPython API tests** (`test_api_cross_python` job)
@@ -619,7 +619,7 @@ This release focuses on [main theme: e.g., enhanced validation capabilities, mod
 pip install --upgrade supy
 ```
 
-The cp39-abi3 wheel installs on any CPython 3.9+ with NumPy 1.22+,
+The cp312-abi3 wheel installs on any CPython 3.12+ with NumPy 1.22+,
 covering QGIS 3 LTR (NumPy 1.26.4), QGIS 4, and standalone Python.
 
 ## Citation

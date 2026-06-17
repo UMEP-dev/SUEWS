@@ -279,6 +279,22 @@ Tier is user-selectable via the `test_tier` input. Matrix depends on `matrix_con
 - **ALL_PYTHON** (6): cp39, cp310, cp311, cp312, cp313, cp314
 - **BOOKEND_PYTHON** (2): cp39, cp314 (oldest + newest)
 
+These lists are the *candidate* CPython window. `determine-matrix.sh` clamps
+their lower edge to `pyproject.toml`'s `requires-python` (via
+`clamp_python_floor.py`), and the build matrix is the abi3 *floor* (lowest
+supported CPython). `requires-python` is the single source of truth for the
+floor, so raising it automatically drops the now-unsupported versions from
+both the build target and the test matrices -- the build matrix can no longer
+drift from the declared support floor (gh#1553).
+
+Because `determine_matrix` runs the matrix script from the **base** branch
+(trusted), it additionally sparse-checks the *built ref's* `pyproject.toml`
+(`github.sha`) as data only and passes it via `PR_PYPROJECT`. This is what
+lets a PR that raises `requires-python` build and test on its own corrected
+matrix; without it, the floor would always be read from base and a
+requires-python bump would fail CI with `cibuildwheel: No build identifiers
+selected`.
+
 ---
 
 ## Merge Queue Coverage Policy

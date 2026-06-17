@@ -389,7 +389,16 @@ class StorageDrainParams(BaseModel):
     store_cap: Optional[FlexibleRefValue(float)] = Field(
         ge=0,
         default=None,
-        description="Current water storage capacity - the actual storage capacity available for surface water retention. This represents the depth of water that can be stored on or in the surface before drainage begins. For paved surfaces, this might represent depression storage; for vegetated surfaces, it includes canopy interception storage.",
+        description=(
+            "Current surface/interception water storage capacity - the actual "
+            "storage capacity available for surface water retention. This represents "
+            "the depth of water that can be stored on or in the surface before "
+            "drainage begins. For paved surfaces, this might represent depression "
+            "storage; for vegetated surfaces, it includes canopy interception "
+            "storage. See the SUEWS SiteInfo typical values page for examples of "
+            "storage-capacity values: "
+            "https://docs.suews.io/latest/inputs/tables/SUEWS_SiteInfo/Typical_Values.html."
+        ),
         json_schema_extra={"unit": "mm", "display_name": "Storage Capacity"},
     )
     drain_eq: FlexibleRefValue(int) = Field(

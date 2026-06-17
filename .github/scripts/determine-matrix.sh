@@ -4,9 +4,10 @@
 # Called from build-publish_to_pypi.yml determine_matrix job.
 # Writes buildplat, python, api_python, test_tier to GITHUB_OUTPUT.
 #
-# "python" is the cibuildwheel build matrix (always cp39 — emits one abi3
-# wheel per platform). Physics tests run during the build step on the
-# build Python only, since they're binary-determined (gh#1300).
+# "python" is the cibuildwheel build matrix (the abi3 floor derived from
+# pyproject's requires-python — emits one abi3 wheel per platform). Physics
+# tests run during the build step on the build Python only, since they're
+# binary-determined (gh#1300).
 # "api_python" is the cross-version matrix used by test-api-cross-python;
 # the api marker covers the Python wrapper surface (pandas/numpy/pydantic,
 # CLI, SUEWSSimulation) and needs full (platform x Python) coverage
@@ -28,6 +29,10 @@
 #   INPUT_PY39..PY314    -- inputs.py39..py314
 #   INPUT_TEST_TIER      -- inputs.test_tier (dispatch only)
 #   GITHUB_REF           -- github.ref (e.g. refs/tags/v2025a1)
+#   PR_PYPROJECT         -- path to the built ref's pyproject.toml (data only;
+#                           the requires-python floor source of truth). The
+#                           caller sparse-checks it from github.sha; defaults
+#                           to ./pyproject.toml.
 
 set -euo pipefail
 
@@ -42,16 +47,33 @@ FULL_PLATFORMS='[["ubuntu-latest", "manylinux", "x86_64"], ["macos-15-intel", "m
 PR_PLATFORMS='[["ubuntu-latest", "manylinux", "x86_64"], ["macos-latest", "macosx", "arm64"], ["windows-2025", "win", "AMD64"]]'
 MINIMAL_PLATFORMS='[["ubuntu-latest", "manylinux", "x86_64"]]'
 
-# Python version presets
-BOOKEND_PYTHON='["cp39", "cp314"]'
-ALL_PYTHON='["cp39", "cp310", "cp311", "cp312", "cp313", "cp314"]'
+# Python version policy.
+#
+# The full candidate CPython window is authored here; its lower edge is then
+# clamped to pyproject's requires-python so the build/test matrix can never
+# drift from the declared support floor (gh#1553: a hardcoded cp39 build
+# target collided with requires-python>=3.12 and cibuildwheel aborted with
+# "No build identifiers selected"). requires-python is the single source of
+# truth for the floor; this list only sets the newest tested edge.
+PYTHON_CANDIDATES='["cp39", "cp310", "cp311", "cp312", "cp313", "cp314"]'
 
-# Build-side Python: always cp39 to emit cp39-abi3 wheels that cover all
-# supported CPython versions. The bridge is PyO3 abi3-py39 and meson-python
-# is configured with limited-api=true in pyproject.toml, so one wheel per
-# (OS, arch) covers cp39..cp3xx. BOOKEND_PYTHON / ALL_PYTHON are retained
-# for test-side matrices, not wheel builds.
-BUILD_PYTHON='["cp39"]'
+# Resolve the floor from the built ref's pyproject (data only; the logic lives
+# in this base-trusted script and its helper). PR_PYPROJECT points at a sparse
+# checkout of github.sha:pyproject.toml; fall back to the repo-root copy.
+PR_PYPROJECT="${PR_PYPROJECT:-pyproject.toml}"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+CLAMP="${SCRIPT_DIR}/clamp_python_floor.py"
+
+# Build-side Python: the abi3 floor (lowest supported CPython). One abi3 wheel
+# built there covers cp<floor>..cp3xx, since the bridge is PyO3 abi3 and
+# meson-python sets limited-api=true in pyproject.toml.
+BUILD_FLOOR="$(python3 "${CLAMP}" --pyproject "${PR_PYPROJECT}" --floor-tag)"
+BUILD_PYTHON="[\"${BUILD_FLOOR}\"]"
+
+# Test-side matrices: the candidate window clamped to the floor. BOOKEND is the
+# floor plus the newest still-supported edge; ALL is every supported version.
+BOOKEND_PYTHON="$(python3 "${CLAMP}" --pyproject "${PR_PYPROJECT}" --bookend "${PYTHON_CANDIDATES}")"
+ALL_PYTHON="$(python3 "${CLAMP}" --pyproject "${PR_PYPROJECT}" --clamp "${PYTHON_CANDIDATES}")"
 
 # Multiplatform needed when compiled extension might change
 NEEDS_MULTIPLATFORM=false

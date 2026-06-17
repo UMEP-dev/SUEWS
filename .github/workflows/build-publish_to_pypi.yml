@@ -298,6 +298,20 @@ jobs:
           sparse-checkout-cone-mode: false
           persist-credentials: false
 
+      # Data-only checkout of the BUILT ref's pyproject.toml (github.sha = the
+      # PR merge commit / pushed commit / dispatched branch tip). The matrix
+      # logic above stays base-trusted; only the requires-python value crosses
+      # the trust boundary, so it cannot execute PR-authored code. This is what
+      # lets the build floor track a PR's requires-python bump (gh#1553).
+      - name: Fetch built-ref pyproject (data only; requires-python floor)
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          ref: ${{ github.sha }}
+          sparse-checkout: pyproject.toml
+          sparse-checkout-cone-mode: false
+          persist-credentials: false
+          path: _pr_meta
+
       - name: Set matrix based on trigger type
         id: set-matrix
         env:
@@ -321,6 +335,7 @@ jobs:
           INPUT_PY314: ${{ inputs.py314 }}
           INPUT_TEST_TIER: ${{ inputs.test_tier }}
           GITHUB_REF: ${{ github.ref }}
+          PR_PYPROJECT: _pr_meta/pyproject.toml
         run: bash .github/scripts/determine-matrix.sh
 
   post-ci-summary:

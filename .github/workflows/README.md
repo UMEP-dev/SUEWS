@@ -46,7 +46,7 @@ Post-merge formatting workflow that:
 ### 3. Build and Publish (`build-publish_to_pypi.yml`)
 Automated build and publish workflow that:
 - Builds wheels for multiple platforms (Linux, macOS, Windows)
-- Supports Python 3.9-3.14
+- Supports Python 3.12-3.14
 - Runs tests on each platform
 - Publishes to TestPyPI on nightly/dev tag builds
 - Publishes to PyPI on tagged releases
@@ -57,13 +57,13 @@ Automated build and publish workflow that:
 When triggering via Actions tab → "Run workflow", you can configure:
 - **matrix_config**: Choose build matrix
   - `full` - All platforms, all Python versions (default)
-  - `pr` - Reduced: Linux + macOS ARM + Windows, Python 3.9 + 3.14
-  - `minimal` - Linux only, Python 3.9 + 3.14
+  - `pr` - Reduced: Linux + macOS ARM + Windows, Python 3.12 + 3.14
+  - `minimal` - Linux only, Python 3.12 + 3.14
   - `custom` - Use individual platform/Python toggles
 - **deploy_target**: `none` (validation) or `testpypi` (PyPI restricted to tags)
 - **test_tier**: `smoke`, `core`, `cfg`, `standard`, or `all`
 
-Every cp39-abi3 wheel also covers the current Windows QGIS 3 LTR and QGIS 4
+Every cp312-abi3 wheel also covers the current Windows QGIS 3 LTR and QGIS 4
 Python line. Both use Python 3.12 on Windows; the runtime pin is
 `numpy>=1.22` and the Rust bridge has no NumPy C-ABI dependency.
 

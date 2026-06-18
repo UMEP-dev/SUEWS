@@ -1,4 +1,4 @@
-# Reusable workflow: install the cp39-abi3 wheel into each supported CPython
+# Reusable workflow: install the cp312-abi3 wheel into each supported CPython
 # version and run `pytest -m "api and <tier>"`. Normal tiers exclude the
 # QGIS/UMEP integration lane; `all` keeps it for scheduled/release/manual
 # validation where the Windows + Python 3.12 cell matches current QGIS 3 LTR
@@ -22,7 +22,7 @@ on:
         required: true
         type: string
       api_python_json:
-        description: 'JSON array of test-time CPython tags (e.g. ["cp39","cp314"])'
+        description: 'JSON array of test-time CPython tags (e.g. ["cp312","cp314"])'
         required: true
         type: string
       test_tier:
@@ -47,7 +47,7 @@ jobs:
         with:
           persist-credentials: false
 
-      - name: Resolve Python version (cp39 -> 3.9)
+      - name: Resolve Python version (cp312 -> 3.12)
         id: pyver
         shell: bash
         env:
@@ -62,7 +62,7 @@ jobs:
       - name: Download wheel for this platform
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
         with:
-          name: cp39-${{ matrix.buildplat[1] }}-${{ matrix.buildplat[2] }}
+          name: cp312-${{ matrix.buildplat[1] }}-${{ matrix.buildplat[2] }}
           path: wheelhouse/
 
       - name: Compose pytest marker expression for api tier

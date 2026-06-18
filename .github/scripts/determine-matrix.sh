@@ -26,7 +26,7 @@
 #   INPUT_PLAT_MACOS_INTEL -- inputs.plat_macos_intel
 #   INPUT_PLAT_MACOS_ARM -- inputs.plat_macos_arm
 #   INPUT_PLAT_WINDOWS   -- inputs.plat_windows
-#   INPUT_PY39..PY314    -- inputs.py39..py314
+#   INPUT_PY312..PY314   -- inputs.py312..py314
 #   INPUT_TEST_TIER      -- inputs.test_tier (dispatch only)
 #   GITHUB_REF           -- github.ref (e.g. refs/tags/v2025a1)
 #   PR_PYPROJECT         -- path to the built ref's pyproject.toml (data only;
@@ -148,7 +148,7 @@ elif [[ "${EVENT_NAME}" == "workflow_dispatch" ]]; then
       ;;
     custom)
       echo "Manual dispatch: custom platform matrix"
-      echo "  Build is always cp39-abi3; py3X toggles select the api cross-CPython matrix"
+      echo "  Build is always cp312-abi3; py3X toggles select the api cross-CPython matrix"
 
       PLATFORMS="["
       [[ "${INPUT_PLAT_LINUX}" == "true" ]] && PLATFORMS+='["ubuntu-latest", "manylinux", "x86_64"],'
@@ -164,9 +164,6 @@ elif [[ "${EVENT_NAME}" == "workflow_dispatch" ]]; then
 
       # Build py3X test matrix from dispatch toggles
       TEST_PYS="["
-      [[ "${INPUT_PY39:-false}"  == "true" ]] && TEST_PYS+='"cp39",'
-      [[ "${INPUT_PY310:-false}" == "true" ]] && TEST_PYS+='"cp310",'
-      [[ "${INPUT_PY311:-false}" == "true" ]] && TEST_PYS+='"cp311",'
       [[ "${INPUT_PY312:-false}" == "true" ]] && TEST_PYS+='"cp312",'
       [[ "${INPUT_PY313:-false}" == "true" ]] && TEST_PYS+='"cp313",'
       [[ "${INPUT_PY314:-false}" == "true" ]] && TEST_PYS+='"cp314",'

@@ -304,7 +304,7 @@ git push origin "$VERSION"
 
 **Monitor (~20 min):**
 - GitHub Actions: build_wheels, test_api_cross_python, publish
-- PyPI: supy `YYYY.M.D` appears (one cp39-abi3 wheel per platform)
+- PyPI: supy `YYYY.M.D` appears (one cp312-abi3 wheel per platform)
 - GitHub Release: created automatically after successful publish
 - Zenodo DOI appears on the dashboard
 - ReadTheDocs build succeeds

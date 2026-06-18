@@ -54,6 +54,12 @@ EXAMPLES:
 
 ## 2026
 
+### 17 Jun 2026
+
+- [maintenance] Raised the minimum supported Python to 3.12, dropping 3.9/3.10/3.11 (#1553)
+  - The single abi3 wheel is now built as cp312-abi3 (PyO3 `abi3-py312`, cibuildwheel `cp312`) and still installs on cp312..cp3xx, covering current QGIS 3 LTR and QGIS 4 (Python 3.12 on Windows)
+  - CI build/test matrices, classifiers, ruff target, and the version-conditional dependency markers were trimmed accordingly
+
 ### 16 Jun 2026
 
 - [feature][experimental] Observed external water use can now be supplied per land cover in the forcing file via `wuh_paved`, `wuh_bldgs`, `wuh_evetr`, `wuh_dectr`, `wuh_grass`, `wuh_bsoil`, `wuh_water` (mm), replacing the single bulk `wuh`/`wu_m3` value when `WaterUseMethod=observed` (#1449)

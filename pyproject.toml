@@ -7,9 +7,9 @@ requires = [
 build-backend = 'mesonpy'
 
 [tool.meson-python]
-# Emit cp39-abi3 wheel tag when built under CPython 3.9.
-# The Rust bridge uses PyO3 with abi3-py39 (stable ABI), so one wheel
-# covers cp39..cp3xx. See src/suews_bridge/Cargo.toml.
+# Emit cp312-abi3 wheel tag when built under CPython 3.12.
+# The Rust bridge uses PyO3 with abi3-py312 (stable ABI), so one wheel
+# covers cp312..cp3xx. See src/suews_bridge/Cargo.toml.
 limited-api = true
 
 [tool.meson-python.args]
@@ -22,7 +22,7 @@ authors = [
     { name = "Dr Ting Sun", email = "ting.sun@ucl.ac.uk" },
 ]
 dynamic = ["version"]
-requires-python = ">=3.9"
+requires-python = ">=3.12"
 license = { text = "GPL-V3.0" }
 readme = "README.md"
 
@@ -31,8 +31,8 @@ dependencies = [
     # Data processing
     "pandas",
     "numpy>=1.22",  # Covers current QGIS 3 LTR / QGIS 4 NumPy stacks; no ABI constraint (Rust bridge is NumPy-free)
-    "scipy<1.15; python_version >= '3.11' and python_version < '3.13' and platform_system == 'Linux'",  # manylinux2014 wheels
-    "scipy; python_version < '3.11' or python_version >= '3.13' or platform_system != 'Linux'",  # Others use latest
+    "scipy<1.15; python_version < '3.13' and platform_system == 'Linux'",  # 3.12 Linux: manylinux2014 wheels
+    "scipy; python_version >= '3.13' or platform_system != 'Linux'",  # Others use latest
     # xarray removed - only needed for gridded ERA5 (install separately)
     # dask removed - CLI uses stdlib multiprocessing.pool.ThreadPool
 
@@ -46,7 +46,7 @@ dependencies = [
     "seaborn",
     "chardet",
     "click",
-    "pyarrow>=20,<21; python_version < '3.14' and platform_system == 'Linux'",  # Linux needs manylinux2014 wheels on CPython 3.9-3.13
+    "pyarrow>=20,<21; python_version < '3.14' and platform_system == 'Linux'",  # Linux needs manylinux2014 wheels on CPython 3.12-3.13
     "pyarrow>=20; python_version < '3.14' and platform_system != 'Linux'",  # Non-Linux platforms may use newer pyarrow binaries
     "pyarrow>=22; python_version >= '3.14'",  # 22.x provides cp314 wheels on manylinux_2_28/macOS/Windows
 
@@ -74,9 +74,6 @@ dependencies = [
 
 classifiers = [
     "Programming Language :: Python :: 3 :: Only",
-    "Programming Language :: Python :: 3.9",
-    "Programming Language :: Python :: 3.10",
-    "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
     "Programming Language :: Python :: 3.14",
@@ -114,8 +111,8 @@ dev = [
 ]
 
 # Documentation tooling (isolated from the default dev environment).
-# Runtime support remains Python 3.9+; documentation builds require Python 3.11+
-# because current Sphinx extension versions, notably sphinx-design 0.7+, do.
+# Runtime support is Python 3.12+, which already satisfies the documentation
+# toolchain floor (current Sphinx extensions, notably sphinx-design 0.7+, need 3.11+).
 docs = [
     # Documentation - Essential only (based on conf.py usage)
     "sphinx>=7,<9",
@@ -124,7 +121,7 @@ docs = [
     "pybtex",                   # Bibliography processing
     "sphinxcontrib-bibtex>=2.6,<3", # Bibliography support (heavily customised)
     # Collapsible sections for YAML config docs (>=0.7 supports Sphinx 8)
-    "sphinx-design>=0.7.0; python_version >= '3.11'",
+    "sphinx-design>=0.7.0",
     "sphinx-last-updated-by-git", # Git info in docs
     "sphinx-click",             # CLI documentation
     "sphinx-gallery>=0.16.0",   # Gallery examples from Python scripts (GH-1029)
@@ -159,7 +156,7 @@ markers = [
     "api: Python wrapper correctness; run across (platform x Python) because pandas/numpy/pydantic surface varies",
     # Tier axis
     "smoke: Minimal wheel validation (~6 tests, ~60s)",
-    "smoke_bridge: Bridge-loading subset run across cp39..cp3xx after a single abi3 build",
+    "smoke_bridge: Bridge-loading subset run across cp312..cp3xx after a single abi3 build",
     "core: Core physics & logic tests (Fortran, driver)",
     "rust: Rust bridge backend tests (requires suews_bridge with physics feature)",
     "util: Utility function tests (non-critical)",
@@ -170,7 +167,7 @@ markers = [
 
 [tool.ruff]
 line-length = 120
-target-version = "py39"
+target-version = "py312"
 
 [tool.ruff.format]
 quote-style = "double"

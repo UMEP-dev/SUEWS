@@ -39,7 +39,7 @@ features = ["ipc"]
 [dependencies.pyo3]
 version = "0.22"
 optional = true
-features = ["abi3-py39"]
+features = ["abi3-py312"]
 
 [dev-dependencies]
 tempfile = "3"

@@ -10,8 +10,8 @@ name: Build and Publish Python wheels to PyPI and TestPyPI
 #   dispatch  -- Manual with configurable matrix, deploy target, test tier
 #
 # Build strategy:
-#   One cp39-abi3 wheel per (OS, arch). The Rust bridge (PyO3 abi3-py39)
-#   makes the binary ABI-stable, so a single wheel installs on cp39..cp3xx.
+#   One cp312-abi3 wheel per (OS, arch). The Rust bridge (PyO3 abi3-py312)
+#   makes the binary ABI-stable, so a single wheel installs on cp312..cp3xx.
 #   Covers current Windows QGIS 3 LTR, QGIS 4, and general users — the runtime
 #   pin is numpy>=1.22 (Rust bridge has no NumPy C-ABI dependency; pure-Python
 #   code uses only NumPy 1.22-compatible APIs).
@@ -74,25 +74,13 @@ on:
         default: true
 
       # Python toggles drive the cross-CPython api-test matrix (gh#1300).
-      # The build is always cp39-abi3 (one wheel covers all supported CPythons),
+      # The build is always cp312-abi3 (one wheel covers all supported CPythons),
       # so these toggles only affect which interpreters install the wheel and
       # run `-m "api and <tier>"` in test_api_cross_python.
-      py39:
-        description: '[custom] Test on Python 3.9 (build is always cp39-abi3)'
+      py312:
+        description: '[custom] Test on Python 3.12 (build is always cp312-abi3)'
         type: boolean
         default: true
-      py310:
-        description: '[custom] Test on Python 3.10'
-        type: boolean
-        default: false
-      py311:
-        description: '[custom] Test on Python 3.11'
-        type: boolean
-        default: false
-      py312:
-        description: '[custom] Test on Python 3.12'
-        type: boolean
-        default: false
       py313:
         description: '[custom] Test on Python 3.13'
         type: boolean
@@ -327,9 +315,6 @@ jobs:
           INPUT_PLAT_MACOS_INTEL: ${{ inputs.plat_macos_intel }}
           INPUT_PLAT_MACOS_ARM: ${{ inputs.plat_macos_arm }}
           INPUT_PLAT_WINDOWS: ${{ inputs.plat_windows }}
-          INPUT_PY39: ${{ inputs.py39 }}
-          INPUT_PY310: ${{ inputs.py310 }}
-          INPUT_PY311: ${{ inputs.py311 }}
           INPUT_PY312: ${{ inputs.py312 }}
           INPUT_PY313: ${{ inputs.py313 }}
           INPUT_PY314: ${{ inputs.py314 }}
@@ -561,8 +546,8 @@ jobs:
       - create_nightly_tag
       - verify-release-tag
     # Production tags only: all platform wheels must succeed AND the
-    # cross-CPython api tests must pass (the only signal the cp39-abi3
-    # wheel imports on cp310..cp314 after the build matrix collapse).
+    # cross-CPython api tests must pass (the only signal the cp312-abi3
+    # wheel imports on cp312..cp314 after the build matrix collapse).
     if: |
       always() &&
       startsWith(github.ref, 'refs/tags') &&

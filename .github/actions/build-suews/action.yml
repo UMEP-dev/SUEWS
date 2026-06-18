@@ -12,7 +12,7 @@ inputs:
     description: 'Architecture (e.g., x86_64, arm64, AMD64)'
     required: true
   python:
-    description: 'Python version to build for (always cp39 — emits cp39-abi3 wheel)'
+    description: 'Python version to build for (always cp312 — emits cp312-abi3 wheel)'
     required: true
   test_tier:
     description: 'Test tier: smoke, core, cfg, standard, or all'
@@ -87,7 +87,7 @@ runs:
           --volume ${{ github.workspace }}/.rust-target-cache:/rust-target-cache
         # CIBW_ENABLE: ${{ inputs.python == 'cp314' && 'cp314' || '' }}
         CIBW_ENVIRONMENT_PASS_LINUX: RUNNER_OS
-        # Use manylinux_2_28 for Python 3.13+ (newer dependencies require it), manylinux2014 for 3.9-3.12 (older Linux compatibility)
+        # Use manylinux_2_28 for Python 3.13+ (newer dependencies require it), manylinux2014 for 3.12 (older Linux compatibility)
         CIBW_MANYLINUX_X86_64_IMAGE: ${{ (inputs.python == 'cp313' || inputs.python == 'cp314') && 'manylinux_2_28' || 'manylinux2014' }}
         CIBW_MANYLINUX_AARCH64_IMAGE: ${{ (inputs.python == 'cp313' || inputs.python == 'cp314') && 'manylinux_2_28' || 'manylinux2014' }}
         # Configure pip and Rust cache — defaults for platforms without

@@ -276,13 +276,15 @@ Tier is user-selectable via the `test_tier` input. Matrix depends on `matrix_con
 
 ### Python version presets
 
-- **ALL_PYTHON** (6): cp39, cp310, cp311, cp312, cp313, cp314
-- **BOOKEND_PYTHON** (2): cp39, cp314 (oldest + newest)
+- **PYTHON_CANDIDATES** (candidate window): cp39, cp310, cp311, cp312, cp313, cp314
+- **ALL_PYTHON** / **BOOKEND_PYTHON** are this window clamped to `requires-python`.
+  With the current `>=3.12` floor the effective sets are `ALL_PYTHON` = cp312,
+  cp313, cp314 and `BOOKEND_PYTHON` = cp312, cp314 (floor + newest); the abi3
+  build matrix is the floor alone (cp312).
 
-These lists are the *candidate* CPython window. `determine-matrix.sh` clamps
-their lower edge to `pyproject.toml`'s `requires-python` (via
-`clamp_python_floor.py`), and the build matrix is the abi3 *floor* (lowest
-supported CPython). `requires-python` is the single source of truth for the
+`determine-matrix.sh` clamps the candidate window's lower edge to
+`pyproject.toml`'s `requires-python` (via `clamp_python_floor.py`), and the
+build matrix is the abi3 *floor* (lowest supported CPython). `requires-python` is the single source of truth for the
 floor, so raising it automatically drops the now-unsupported versions from
 both the build target and the test matrices -- the build matrix can no longer
 drift from the declared support floor (gh#1553).
@@ -304,16 +306,16 @@ The merge queue deliberately uses a reduced matrix rather than the full matrix. 
 **What merge queue covers:**
 
 - 3 platforms: Linux x86_64, macOS ARM64, Windows AMD64
-- 2 Python versions: 3.9 (oldest supported), 3.14 (newest)
+- 2 Python versions: 3.12 (oldest supported), 3.14 (newest)
 - standard test tier: all tests except `slow`-marked
 
 **What merge queue omits:**
 
 - macOS Intel x86_64 (legacy platform, declining user base)
-- Python 3.10-3.13 (intermediate versions)
+- Python 3.13 (intermediate version)
 - `slow`-marked tests (>30s each)
 
-**Rationale:** Full matrix (4 platforms x 6 Python = 24 jobs) would make the merge queue too slow for its purpose as a fast gatekeeper before landing on master. The reduced matrix covers all three major OS families and version boundary extremes where compatibility issues most commonly surface.
+**Rationale:** Full matrix (4 platforms x 3 Python = 12 jobs) would make the merge queue too slow for its purpose as a fast gatekeeper before landing on master. The reduced matrix covers all three major OS families and version boundary extremes where compatibility issues most commonly surface.
 
 **Safety net:**
 

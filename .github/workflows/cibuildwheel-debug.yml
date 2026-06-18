@@ -15,7 +15,7 @@ name: Debug cibuildwheel with SSH
 # 1. Go to Actions tab → Select "Debug cibuildwheel with SSH"
 # 2. Click "Run workflow" and fill in parameters:
 #    - Platform-Arch: Choose from 4 valid combinations (Linux/macOS Intel/macOS ARM/Windows)
-#    - Python: cp39, cp310, cp311, cp312, cp313
+#    - Python: cp312, cp313, cp314
 #    - Debug mode: before-build, after-failure, always, disabled
 # 3. When SSH session starts, connect using the command shown in logs
 # 4. Use Claude Code for help: `claude -p "help me debug this cibuildwheel error"`
@@ -42,14 +42,12 @@ on:
       python_version:
         description: 'Python version'
         required: true
-        default: 'cp311'
+        default: 'cp312'
         type: choice
         options:
-          - cp39
-          - cp310
-          - cp311
           - cp312
           - cp313
+          - cp314
       debug_mode:
         description: 'Debug mode - when to provide SSH access'
         required: true
@@ -66,7 +64,7 @@ permissions:
 
 jobs:
   debug-cibuildwheel:
-    name: Debug ${{ inputs.python_version || 'cp311' }}-${{ inputs.platform_arch || 'macos-latest-arm64' }}
+    name: Debug ${{ inputs.python_version || 'cp312' }}-${{ inputs.platform_arch || 'macos-latest-arm64' }}
     runs-on: ${{
       (inputs.platform_arch || 'macos-latest-arm64') == 'ubuntu-latest-x86_64' && 'ubuntu-latest' ||
       (inputs.platform_arch || 'macos-latest-arm64') == 'macos-15-intel-x86_64' && 'macos-15-intel' ||
@@ -95,7 +93,7 @@ jobs:
         contains(inputs.platform_arch || 'macos-latest-arm64', 'windows') && 'win' }}
 
       # Core cibuildwheel configuration
-      CIBW_BUILD: ${{ inputs.python_version || 'cp311' }}-*
+      CIBW_BUILD: ${{ inputs.python_version || 'cp312' }}-*
       CIBW_ARCHS: ${{
         (inputs.platform_arch || 'macos-latest-arm64') == 'ubuntu-latest-x86_64' && 'x86_64' ||
         (inputs.platform_arch || 'macos-latest-arm64') == 'macos-15-intel-x86_64' && 'x86_64' ||
@@ -232,7 +230,7 @@ jobs:
           echo "Platform-Arch: ${{ inputs.platform_arch || 'macos-latest-arm64' }}"
           echo "Platform: ${DEBUG_PLATFORM}"
           echo "Architecture: ${DEBUG_ARCHITECTURE}"
-          echo "Python Version: ${{ inputs.python_version || 'cp311' }}"
+          echo "Python Version: ${{ inputs.python_version || 'cp312' }}"
           echo "Build Platform: ${DEBUG_BUILDPLAT}"
           echo "Debug Mode: ${DEBUG_MODE_VALUE}"
           echo "Actor: ${WORKFLOW_ACTOR}"
@@ -300,7 +298,7 @@ jobs:
           BUILD_OUTCOME: ${{ steps.build.outcome }}
           BUILD_EXIT_CODE: ${{ steps.build.outputs.exit_code }}
           DEBUG_PLATFORM_ARCH: ${{ inputs.platform_arch || 'macos-latest-arm64' }}
-          DEBUG_PYTHON_VERSION: ${{ inputs.python_version || 'cp311' }}
+          DEBUG_PYTHON_VERSION: ${{ inputs.python_version || 'cp312' }}
         run: |
           # Check if build failed
           if [ "${BUILD_OUTCOME}" == "failure" ] || [ "${BUILD_EXIT_CODE}" != "0" ]; then
@@ -452,7 +450,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7
         with:
-          name: debug-${{ inputs.python_version || 'cp311' }}-${{ inputs.platform_arch || 'macos-latest-arm64' }}-${{ github.run_number }}
+          name: debug-${{ inputs.python_version || 'cp312' }}-${{ inputs.platform_arch || 'macos-latest-arm64' }}-${{ github.run_number }}
           path: debug-artifacts/
           retention-days: 7
 
@@ -460,7 +458,7 @@ jobs:
         if: steps.build.outcome == 'success'
         uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7
         with:
-          name: wheel-${{ inputs.python_version || 'cp311' }}-${{ inputs.platform_arch || 'macos-latest-arm64' }}
+          name: wheel-${{ inputs.python_version || 'cp312' }}-${{ inputs.platform_arch || 'macos-latest-arm64' }}
           path: ./wheelhouse/*.whl
 
       - name: Final status
@@ -468,7 +466,7 @@ jobs:
         shell: bash
         env:
           BUILD_OUTCOME: ${{ steps.build.outcome }}
-          DEBUG_PYTHON_VERSION: ${{ inputs.python_version || 'cp311' }}
+          DEBUG_PYTHON_VERSION: ${{ inputs.python_version || 'cp312' }}
           DEBUG_PLATFORM_ARCH: ${{ inputs.platform_arch || 'macos-latest-arm64' }}
           RUN_NUMBER: ${{ github.run_number }}
         run: |

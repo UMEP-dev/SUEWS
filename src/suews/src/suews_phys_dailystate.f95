@@ -374,6 +374,7 @@ CONTAINS
       Tmin_id, Tmax_id, lenDay_id, & !inout
       HDD_id) !inout
       ! use time, only: id, id_prev_t
+      USE module_util_time, ONLY: cal_weekday_index
       IMPLICIT NONE
 
       INTEGER, DIMENSION(3), INTENT(in) :: DayofWeek_id
@@ -396,9 +397,8 @@ CONTAINS
       REAL(KIND(1D0)) :: BaseT_Heating_use
       REAL(KIND(1D0)) :: BaseT_Cooling_use
 
-      ! Set weekday/weekend counter
-      iu = 1 !Set to 1=weekday
-      IF (DayofWeek_id(1) == 1 .OR. DayofWeek_id(1) == 7) iu = 2 !Set to 2=weekend
+      ! Set weekday/weekend counter (GH#1559: centralised in module_util_time)
+      iu = cal_weekday_index(DayofWeek_id(1))
 
       ! Use weekday/weekend-specific base temperatures for heating/cooling degree day calculations
       BaseT_Heating_use = BaseT_Heating(iu)

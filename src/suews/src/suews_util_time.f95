@@ -380,6 +380,54 @@ CONTAINS
 
    END SUBROUTINE SUEWS_cal_DLS
 
+   !===========================================================================
+   ! Centralised time helpers and timer orchestration (GH#1559).
+   ! Single definition of the daylight-saving profile-hour shift and the
+   ! weekday/weekend index that were previously duplicated across physics
+   ! modules, plus a single entry point that computes all derived timer values.
+   !===========================================================================
+
+   PURE FUNCTION cal_profile_hour(it, dls) RESULT(ih)
+      ! Standard-Time hour for diurnal-profile lookup: undo the daylight-saving
+      ! shift so a forcing hour maps onto the Standard-Time profile.
+      IMPLICIT NONE
+      INTEGER, INTENT(IN) :: it ! forcing hour of day [0-23]
+      INTEGER, INTENT(IN) :: dls ! daylight-saving offset [0 or 1 h]
+      INTEGER :: ih
+
+      ih = it - dls
+      IF (ih < 0) ih = 23
+   END FUNCTION cal_profile_hour
+
+   PURE FUNCTION cal_weekday_index(dow1) RESULT(iu)
+      ! Weekday/weekend index for profile selection: 1 = weekday, 2 = weekend.
+      IMPLICIT NONE
+      INTEGER, INTENT(IN) :: dow1 ! day of week, dayofWeek_id(1): 1=Sun .. 7=Sat
+      INTEGER :: iu
+
+      iu = 1
+      IF (dow1 == 1 .OR. dow1 == 7) iu = 2
+   END FUNCTION cal_weekday_index
+
+   SUBROUTINE SUEWS_cal_timer(timer, siteInfo, ahemisPrm)
+      ! Single entry point that computes all derived timer values for a
+      ! timestep, consolidating the previously separate dectime / tstep /
+      ! weekday / DLS calls. Behaviour is unchanged: each derived value is
+      ! computed exactly as before.
+      USE module_ctrl_type, ONLY: SUEWS_TIMER, SUEWS_SITE, anthroEMIS_PRM
+
+      IMPLICIT NONE
+
+      TYPE(SUEWS_TIMER), INTENT(INOUT) :: timer
+      TYPE(SUEWS_SITE), INTENT(IN) :: siteInfo
+      TYPE(anthroEMIS_PRM), INTENT(IN) :: ahemisPrm
+
+      CALL SUEWS_cal_dectime(timer, timer%dectime)
+      CALL SUEWS_cal_tstep(timer, timer%nsh, timer%nsh_real, timer%tstep_real)
+      CALL SUEWS_cal_weekday(timer, siteInfo, timer%dayofWeek_id)
+      CALL SUEWS_cal_DLS(timer, ahemisPrm, timer%DLS)
+   END SUBROUTINE SUEWS_cal_timer
+
 END MODULE module_util_time
 
 ! Backward compatibility alias (deprecated - will be removed in future version)

@@ -63,7 +63,7 @@ MODULE SUEWS_Driver
    USE module_phys_stebbs, ONLY: stebbsonlinecouple
    USE module_ctrl_version, ONLY: git_commit, compiler_ver ! these are automatically generated during compilation time
    USE module_util_time, ONLY: SUEWS_cal_dectime, SUEWS_cal_tstep, SUEWS_cal_weekday, &
-                          SUEWS_cal_DLS
+                          SUEWS_cal_DLS, SUEWS_cal_timer
    ! Re-export error state from module_ctrl_error_state for Python/f90wrap access
    USE module_ctrl_error_state, ONLY: supy_error_flag, supy_error_code, supy_error_message, &
                                        reset_supy_error, set_supy_error, add_supy_warning
@@ -599,8 +599,7 @@ CONTAINS
 
       USE module_ctrl_type, ONLY: SUEWS_CONFIG, SUEWS_FORCING, SUEWS_TIMER, SUEWS_SITE, &
                                   SUEWS_STATE, output_line, anthroEMIS_PRM
-      USE module_util_time, ONLY: SUEWS_cal_dectime, SUEWS_cal_tstep, &
-                                  SUEWS_cal_weekday, SUEWS_cal_DLS
+      USE module_util_time, ONLY: SUEWS_cal_timer
 
       IMPLICIT NONE
 
@@ -633,11 +632,8 @@ CONTAINS
          timer%imin = INT(MetForcingBlock(ir, 4))
          timer%isec = 0
 
-         ! Calculate derived timer values
-         CALL SUEWS_cal_dectime(timer, timer%dectime)
-         CALL SUEWS_cal_tstep(timer, timer%nsh, timer%nsh_real, timer%tstep_real)
-         CALL SUEWS_cal_weekday(timer, siteInfo, timer%dayofWeek_id)
-         CALL SUEWS_cal_DLS(timer, ahemisPrm, timer%DLS)
+         ! Calculate all derived timer values (GH#1559: centralised)
+         CALL SUEWS_cal_timer(timer, siteInfo, ahemisPrm)
 
          ! === Update forcing from forcing block ===
          ! Note: columns 6, 7 are reserved but not used (qh_obs, qe_obs are outputs not inputs)
@@ -5630,24 +5626,8 @@ CONTAINS
          timer%it = INT(MetForcingBlock(ir, 3))
          timer%imin = INT(MetForcingBlock(ir, 4))
          timer%isec = 0 ! NOT used by SUEWS but by WRF-SUEWS via the cal_main interface
-         ! calculate dectime
-         CALL SUEWS_cal_dectime( &
-            timer, & ! input
-            timer%dectime) ! output
-         ! calculate tstep related VARIABLES
-         CALL SUEWS_cal_tstep( &
-            timer, & ! input
-            timer%nsh, timer%nsh_real, timer%tstep_real) ! output
-
-         ! calculate dayofweek information
-         CALL SUEWS_cal_weekday( &
-            timer, siteInfo, & !input
-            timer%dayofWeek_id) !output
-
-         ! calculate dayofweek information
-         CALL SUEWS_cal_DLS( &
-            timer, ahemisPrm, & !input
-            timer%DLS) !output
+         ! Calculate all derived timer values (GH#1559: centralised)
+         CALL SUEWS_cal_timer(timer, siteInfo, ahemisPrm)
 
          ! CALL NARP_update_SunPosition(timer, siteInfo, mod_State)
          ! print *, 'azimuth, zenith_deg', timer%azimuth, timer%zenith_deg

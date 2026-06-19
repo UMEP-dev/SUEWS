@@ -1232,6 +1232,7 @@ CONTAINS
                                LC_GRASS_PRM, LC_BSOIL_PRM, LC_WATER_PRM, &
                                IRRIGATION_PRM, anthroEmis_STATE, &
                                HYDRO_STATE, SUEWS_STATE
+      USE module_util_time, ONLY: cal_profile_hour, cal_weekday_index
 
       IMPLICIT NONE
 
@@ -1375,16 +1376,10 @@ CONTAINS
                ! If water use is modelled, calculate at timestep of model resolution [mm]
                ELSEIF (WaterUseMethod == 0) THEN !If water use is modelled
 
-                  ! Account for Daylight saving
-                  ih = it - DLS
-                  IF (ih < 0) ih = 23
-
-                  ! Weekday or weekend profile
-                  iu = 1 !Set to 1=weekday
-                  !  IF(DayofWeek(id,1)==1.OR.DayofWeek(id,1)==7) THEN
-                  IF (DayofWeek_id(1) == 1 .OR. DayofWeek_id(1) == 7) THEN
-                     iu = 2 !Set to 2=weekend
-                  END IF
+                  ! Profile-hour (daylight saving) and weekday/weekend index
+                  ! (GH#1559: centralised in module_util_time)
+                  ih = cal_profile_hour(it, DLS)
+                  iu = cal_weekday_index(DayofWeek_id(1))
 
                   WUDay_A_id = 0
                   WUDay_A_id(ConifSurf) = WUDay_id(2)

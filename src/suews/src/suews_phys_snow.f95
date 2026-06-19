@@ -504,6 +504,7 @@ CONTAINS
       !  LJ in 24 May 2013
       !========================================================================
       USE module_phys_waterdist, ONLY: updateFlood
+      USE module_util_time, ONLY: cal_weekday_index
 
       IMPLICIT NONE
       ! INTEGER, PARAMETER::nsurf = 7! number of surface types
@@ -659,9 +660,8 @@ CONTAINS
       ! SnowRemoval = 0.
       tlv_sub = 0.
 
-      ! Use weekday or weekend snow clearing profile
-      iu = 1 !Set to 1=weekday
-      IF (DayofWeek_id(1) == 1 .OR. DayofWeek_id(1) == 7) iu = 2 !Set to 2=weekend
+      ! Use weekday or weekend snow clearing profile (GH#1559: centralised)
+      iu = cal_weekday_index(DayofWeek_id(1))
 
       !write(*,*) is
       runoffSnow_surf(is) = 0. !Initialize for runoff caused by snowmelting

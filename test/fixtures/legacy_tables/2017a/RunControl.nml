@@ -30,7 +30,7 @@
   Tstep=300
   SuppressWarnings=1		!NEW
   ncMode=0
-  nRow=100
+  nRow=3
   nCol=1
   Diagnose=0
 /

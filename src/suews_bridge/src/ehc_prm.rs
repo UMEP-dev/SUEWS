@@ -479,9 +479,6 @@ fn ehc_prm_dims_from_payload(payload: &EhcPrmValuesPayload) -> Result<(usize, us
     let nlayer = nlayer.unwrap_or(0);
     let ndepth = ndepth.unwrap_or(0);
     let surf_len = surf_len.unwrap_or(0);
-    if nlayer == 0 && ndepth != 0 {
-        return Err(BridgeError::BadState);
-    }
     if surf_len != surface_len(nlayer) {
         return Err(BridgeError::BadState);
     }
@@ -656,5 +653,26 @@ mod tests {
         let err = ehc_prm_from_values_payload(&payload)
             .expect_err("surface-class arrays must not be sized like vertical layers");
         assert_eq!(err, BridgeError::BadState);
+    }
+
+    #[test]
+    fn zero_layer_layout_keeps_empty_surface_contract() {
+        let nlayer = 0;
+        let ndepth = 5;
+
+        assert_eq!(
+            ehc_prm_expected_flat_len(nlayer, ndepth).expect("zero-layer layout should fit"),
+            0
+        );
+
+        let state = EhcPrm::from_flat_with_dims(&[], nlayer, ndepth)
+            .expect("zero-layer EHC layout should decode as the empty/default contract");
+        assert_eq!(state.tin_surf.len(), 0);
+        assert_eq!(state.cp_surf.len(), 0);
+
+        let payload = ehc_prm_to_values_payload(&state);
+        let recovered =
+            ehc_prm_from_values_payload(&payload).expect("zero-layer EHC payload should roundtrip");
+        assert_eq!(recovered, state);
     }
 }

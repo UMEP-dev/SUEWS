@@ -1508,7 +1508,8 @@ fn apply_config_overrides(config: &mut SuewsConfig, root: &Value) {
 
 fn apply_ehc_overrides(site: &mut SuewsSite, site_root: &Value, nlayer: usize, ndepth: usize) {
     let layer_mat_len = nlayer * ndepth;
-    let surf_mat_len = NSURF * ndepth;
+    let surf_len = if nlayer == 0 { 0 } else { NSURF };
+    let surf_mat_len = surf_len * ndepth;
 
     site.ehc.nlayer = nlayer;
     site.ehc.ndepth = ndepth;
@@ -1523,7 +1524,7 @@ fn apply_ehc_overrides(site: &mut SuewsSite, site_root: &Value, nlayer: usize, n
     site.ehc.wet_thresh_wall.resize(nlayer, 0.0);
     site.ehc.tin_roof.resize(nlayer, 5.0);
     site.ehc.tin_wall.resize(nlayer, 5.0);
-    site.ehc.tin_surf.resize(NSURF, 2.0);
+    site.ehc.tin_surf.resize(surf_len, 2.0);
     site.ehc.k_roof.resize(layer_mat_len, 0.0);
     site.ehc.k_wall.resize(layer_mat_len, 0.0);
     site.ehc.k_surf.resize(surf_mat_len, 0.0);
@@ -1534,49 +1535,54 @@ fn apply_ehc_overrides(site: &mut SuewsSite, site_root: &Value, nlayer: usize, n
     site.ehc.dz_wall.resize(layer_mat_len, 0.0);
     site.ehc.dz_surf.resize(surf_mat_len, 0.0);
 
-    // Populate k_surf, cp_surf, dz_surf from each surface type's thermal_layers.
-    // Row-major layout: element [surf_idx * ndepth + depth_idx].
-    for &(surface_name, surface_idx) in &SURFACE_YAML_ORDER {
-        let tl_path = ["properties", "land_cover", surface_name, "thermal_layers"];
-        if let Some(k_vals) = read_numeric_sequence(
-            site_root,
-            &[tl_path[0], tl_path[1], tl_path[2], tl_path[3], "k"],
-        ) {
-            for (j, &v) in k_vals.iter().take(ndepth).enumerate() {
-                site.ehc.k_surf[surface_idx * ndepth + j] = v;
-            }
-        }
-        if let Some(cp_vals) = read_numeric_sequence(
-            site_root,
-            &[tl_path[0], tl_path[1], tl_path[2], tl_path[3], "rho_cp"],
-        )
-        .or_else(|| {
-            read_numeric_sequence(
+    if surf_len > 0 {
+        // Populate k_surf, cp_surf, dz_surf from each surface type's thermal_layers.
+        // Row-major layout: element [surf_idx * ndepth + depth_idx].
+        for &(surface_name, surface_idx) in &SURFACE_YAML_ORDER {
+            let tl_path = ["properties", "land_cover", surface_name, "thermal_layers"];
+            if let Some(k_vals) = read_numeric_sequence(
                 site_root,
-                &[tl_path[0], tl_path[1], tl_path[2], tl_path[3], "cp"],
+                &[tl_path[0], tl_path[1], tl_path[2], tl_path[3], "k"],
+            ) {
+                for (j, &v) in k_vals.iter().take(ndepth).enumerate() {
+                    site.ehc.k_surf[surface_idx * ndepth + j] = v;
+                }
+            }
+            if let Some(cp_vals) = read_numeric_sequence(
+                site_root,
+                &[tl_path[0], tl_path[1], tl_path[2], tl_path[3], "rho_cp"],
             )
-        }) {
-            for (j, &v) in cp_vals.iter().take(ndepth).enumerate() {
-                site.ehc.cp_surf[surface_idx * ndepth + j] = v;
+            .or_else(|| {
+                read_numeric_sequence(
+                    site_root,
+                    &[tl_path[0], tl_path[1], tl_path[2], tl_path[3], "cp"],
+                )
+            }) {
+                for (j, &v) in cp_vals.iter().take(ndepth).enumerate() {
+                    site.ehc.cp_surf[surface_idx * ndepth + j] = v;
+                }
             }
-        }
-        if let Some(dz_vals) = read_numeric_sequence(
-            site_root,
-            &[tl_path[0], tl_path[1], tl_path[2], tl_path[3], "dz"],
-        ) {
-            for (j, &v) in dz_vals.iter().take(ndepth).enumerate() {
-                site.ehc.dz_surf[surface_idx * ndepth + j] = v;
+            if let Some(dz_vals) = read_numeric_sequence(
+                site_root,
+                &[tl_path[0], tl_path[1], tl_path[2], tl_path[3], "dz"],
+            ) {
+                for (j, &v) in dz_vals.iter().take(ndepth).enumerate() {
+                    site.ehc.dz_surf[surface_idx * ndepth + j] = v;
+                }
             }
-        }
 
-        // tin_surf from initial_states.<surface>.tin, fallback to temperature[0].
-        if let Some(v) =
-            read_numeric(site_root, &["initial_states", surface_name, "tin"]).or_else(|| {
-                read_numeric_sequence(site_root, &["initial_states", surface_name, "temperature"])
+            // tin_surf from initial_states.<surface>.tin, fallback to temperature[0].
+            if let Some(v) = read_numeric(site_root, &["initial_states", surface_name, "tin"])
+                .or_else(|| {
+                    read_numeric_sequence(
+                        site_root,
+                        &["initial_states", surface_name, "temperature"],
+                    )
                     .and_then(|vals| vals.first().copied())
-            })
-        {
-            site.ehc.tin_surf[surface_idx] = v;
+                })
+            {
+                site.ehc.tin_surf[surface_idx] = v;
+            }
         }
     }
 
@@ -2446,6 +2452,25 @@ mod tests {
         assert!((run_cfg.site.ehc.tin_surf[0] - 17.540002822875977).abs() < 1.0e-12);
         assert!((run_cfg.site.ehc.tin_roof[0] - 17.540002822875977).abs() < 1.0e-12);
         assert!((run_cfg.site.ehc.tin_wall[0] - 17.540002822875977).abs() < 1.0e-12);
+    }
+
+    #[test]
+    fn zero_layer_ehc_yaml_layout_keeps_empty_surface_contract() {
+        let yaml_str =
+            include_str!("../../../test/fixtures/data_test/stebbs_test/sample_config.yml");
+        let mut root: Value = serde_yaml::from_str(yaml_str).expect("fixture YAML should parse");
+        let site = first_site_mut(&mut root).expect("fixture should contain a first site");
+        *get_path_mut(site, &["properties", "vertical_layers", "nlayer", "value"])
+            .expect("fixture should define nlayer") = serde_yaml::to_value(0).unwrap();
+
+        let run_cfg = load_run_config_from_value(&mut root).expect("run config should parse");
+
+        assert_eq!(run_cfg.site.ehc.nlayer, 0);
+        assert_eq!(run_cfg.site.ehc.ndepth, run_cfg.ndepth as usize);
+        assert_eq!(run_cfg.site.ehc.tin_surf.len(), 0);
+        assert_eq!(run_cfg.site.ehc.k_surf.len(), 0);
+        assert_eq!(run_cfg.site.ehc.cp_surf.len(), 0);
+        assert_eq!(run_cfg.site.ehc.dz_surf.len(), 0);
     }
 
     #[test]

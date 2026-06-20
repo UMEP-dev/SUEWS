@@ -57,8 +57,8 @@ EXAMPLES:
 ### 20 Jun 2026
 
 - [bugfix] Corrected EHC heat-storage parameter packing so roof/wall thermal arrays follow SPARTACUS vertical layers while standard surface arrays follow the seven SUEWS surface classes (#1565)
-  - The EHC bridge schema version is now bumped for the changed packed layout, and the lumped-slab EHC path skips invalid surface-class thermal layers instead of zeroing the whole grid-cell storage response
-  - Added smoke regressions for EHC surface heat-capacity sensitivity and invalid-surface handling so these failures are caught earlier without running the full benchmark suite
+  - The EHC bridge schema version is now bumped for the changed packed layout, the zero-layer YAML/bridge/Fortran layout keeps the established empty-payload contract, and the lumped-slab EHC path skips invalid surface-class thermal layers instead of zeroing the whole grid-cell storage response
+  - Added smoke regressions for EHC surface heat-capacity sensitivity, SPARTACUS facet heat-capacity sensitivity, and invalid-surface handling so these failures are caught earlier without running the full benchmark suite
 
 ### 17 Jun 2026
 

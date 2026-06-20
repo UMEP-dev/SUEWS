@@ -432,6 +432,7 @@ CONTAINS
       USE module_ctrl_const_allocate, ONLY: &
          nsurf, ndepth, &
          PavSurf, BldgSurf, ConifSurf, DecidSurf, GrassSurf, BSoilSurf, WaterSurf
+      USE module_ctrl_error_state, ONLY: add_supy_warning
       USE module_phys_ehc_heatflux, ONLY: heatcond1d_vstep, heatcond1d_gstep, heatcond1d_CN, heatcond1d_CN_dense
 
       IMPLICIT NONE
@@ -556,7 +557,10 @@ CONTAINS
                IF (valid_lumped_surf(i_facet)) surface_weight = surface_weight + sfr_surf(i_facet)
             END IF
          END DO
-         IF (surface_weight <= 1.0D-12) RETURN
+         IF (surface_weight <= 1.0D-12) THEN
+            CALL add_supy_warning('EHC lumped slab: no valid positive-fraction surface thermal layers; QS remains zero')
+            RETURN
+         END IF
 
          DO i_depth = 1, ndepth
             layer_cap = 0.0D0
@@ -575,7 +579,10 @@ CONTAINS
                temp_lumped(i_depth) = layer_temp_cap/layer_cap
             END IF
          END DO
-         IF (.NOT. valid_lumped) RETURN
+         IF (.NOT. valid_lumped) THEN
+            CALL add_supy_warning('EHC lumped slab: invalid aggregated heat capacity; QS remains zero')
+            RETURN
+         END IF
 
          DO i_facet = 1, nsurf
             IF (valid_lumped_surf(i_facet)) THEN
@@ -596,8 +603,14 @@ CONTAINS
                END DO
             END IF
          END DO
-         IF (ANY(g_lumped(1:ndepth) <= 1.0D-12)) RETURN
-         IF ((.NOT. use_zero_flux_bottom) .AND. g_lumped(ndepth + 1) <= 1.0D-12) RETURN
+         IF (ANY(g_lumped(1:ndepth) <= 1.0D-12)) THEN
+            CALL add_supy_warning('EHC lumped slab: invalid aggregated internal conductance; QS remains zero')
+            RETURN
+         END IF
+         IF ((.NOT. use_zero_flux_bottom) .AND. g_lumped(ndepth + 1) <= 1.0D-12) THEN
+            CALL add_supy_warning('EHC lumped slab: invalid aggregated lower-boundary conductance; QS remains zero')
+            RETURN
+         END IF
 
          tsfc_lumped = tsfc_lumped/g_lumped(1)
          IF (.NOT. use_zero_flux_bottom) THEN

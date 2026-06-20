@@ -45,6 +45,7 @@ public :: suews_ehc_prm_schema_version
 public :: suews_ehc_prm_default
 public :: suews_ehc_prm_error_message
 public :: ehc_prm_unpack
+public :: ehc_surface_len
 
 contains
 

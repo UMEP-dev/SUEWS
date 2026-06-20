@@ -602,4 +602,59 @@ mod tests {
         let err = ehc_prm_from_values_payload(&payload).expect_err("missing dims should fail");
         assert_eq!(err, BridgeError::BadState);
     }
+
+    #[test]
+    fn mixed_layer_surface_layout_uses_nlayer_and_nsurf() {
+        let nlayer = 3;
+        let ndepth = 2;
+        let expected = 8 * nlayer + NSURF + 6 * nlayer * ndepth + 3 * NSURF * ndepth;
+        assert_eq!(
+            ehc_prm_expected_flat_len(nlayer, ndepth).expect("layout length should fit"),
+            expected
+        );
+
+        let flat: Vec<f64> = (0..expected).map(|i| i as f64).collect();
+        let state = EhcPrm::from_flat_with_dims(&flat, nlayer, ndepth)
+            .expect("mixed EHC layout should decode");
+
+        assert_eq!(state.nlayer, nlayer);
+        assert_eq!(state.ndepth, ndepth);
+        assert_eq!(state.tin_roof.len(), nlayer);
+        assert_eq!(state.tin_wall.len(), nlayer);
+        assert_eq!(state.tin_surf.len(), NSURF);
+        assert_eq!(state.cp_roof.len(), nlayer * ndepth);
+        assert_eq!(state.cp_wall.len(), nlayer * ndepth);
+        assert_eq!(state.cp_surf.len(), NSURF * ndepth);
+
+        let names = ehc_prm_field_names_with_dims(nlayer, ndepth);
+        assert_eq!(names.len(), expected);
+        assert!(names.contains(&"cp_roof_03_02".to_string()));
+        assert!(names.contains(&"cp_wall_03_02".to_string()));
+        assert!(names.contains(&"cp_surf_07_02".to_string()));
+        assert!(!names.contains(&"cp_roof_07_01".to_string()));
+    }
+
+    #[test]
+    fn values_payload_rejects_surface_arrays_sized_like_nlayer() {
+        let nlayer = 3;
+        let ndepth = 2;
+        let bad_surface_len = nlayer;
+        let mut dims = ehc_prm_dims_map(nlayer, ndepth);
+        dims.insert("tin_surf".to_string(), vec![bad_surface_len]);
+        dims.insert("k_surf".to_string(), vec![bad_surface_len, ndepth]);
+        dims.insert("cp_surf".to_string(), vec![bad_surface_len, ndepth]);
+        dims.insert("dz_surf".to_string(), vec![bad_surface_len, ndepth]);
+
+        let bad_len =
+            8 * nlayer + bad_surface_len + 6 * nlayer * ndepth + 3 * bad_surface_len * ndepth;
+        let payload = EhcPrmValuesPayload {
+            schema_version: EHC_PRM_SCHEMA_VERSION,
+            values: vec![0.0; bad_len],
+            dims,
+        };
+
+        let err = ehc_prm_from_values_payload(&payload)
+            .expect_err("surface-class arrays must not be sized like vertical layers");
+        assert_eq!(err, BridgeError::BadState);
+    }
 }

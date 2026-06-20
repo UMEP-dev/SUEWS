@@ -6,6 +6,7 @@ use, intrinsic :: iso_c_binding, only: c_int, c_double, c_char
 use module_c_api_common, only: &
    SUEWS_CAPI_OK, SUEWS_CAPI_BAD_BUFFER, SUEWS_CAPI_BAD_STATE, &
    copy_to_c_buffer, suews_capi_error_text
+use module_ctrl_const_allocate, only: nsurf
 use module_type_ehc, only: EHC_PRM
 
 implicit none
@@ -50,10 +51,10 @@ contains
 subroutine suews_ehc_prm_len(n_flat, nlayer, ndepth, err) bind(C, name='suews_ehc_prm_len')
    implicit none
 
-   integer(c_int), intent(out) :: n_flat
-   integer(c_int), intent(out) :: nlayer
-   integer(c_int), intent(out) :: ndepth
-   integer(c_int), intent(out) :: err
+	   integer(c_int), intent(out) :: n_flat
+	   integer(c_int), intent(out) :: nlayer
+	   integer(c_int), intent(out) :: ndepth
+	   integer(c_int), intent(out) :: err
 
    type(ehc_prm_shadow) :: state
 
@@ -77,15 +78,29 @@ subroutine suews_ehc_prm_default(flat, n_flat, nlayer, ndepth, err) bind(C, name
 
    real(c_double), intent(out) :: flat(*)
    integer(c_int), value, intent(in) :: n_flat
-   integer(c_int), intent(out) :: nlayer
-   integer(c_int), intent(out) :: ndepth
-   integer(c_int), intent(out) :: err
+	   integer(c_int), intent(out) :: nlayer
+	   integer(c_int), intent(out) :: ndepth
+	   integer(c_int), intent(out) :: err
+	   integer(c_int) :: n_surf_ehc
 
    type(ehc_prm_shadow) :: state
 
    call ehc_prm_pack(state, flat, n_flat, nlayer, ndepth, err)
 
 end subroutine suews_ehc_prm_default
+
+integer(c_int) function ehc_surface_len(nlayer) result(n)
+   implicit none
+
+   integer(c_int), intent(in) :: nlayer
+
+   if (nlayer>0_c_int) then
+      n = int(nsurf, c_int)
+   else
+      n = 0_c_int
+   end if
+
+end function ehc_surface_len
 
 subroutine update_len_from_vec(field, nlayer, err)
    implicit none
@@ -138,6 +153,33 @@ subroutine update_len_from_mat(field, nlayer, ndepth, err)
 
 end subroutine update_len_from_mat
 
+subroutine update_depth_from_surf_mat(field, ndepth, err)
+   implicit none
+
+   real(c_double), dimension(:, :), allocatable, intent(in) :: field
+   integer(c_int), intent(inout) :: ndepth
+   integer(c_int), intent(inout) :: err
+   integer(c_int) :: surf_here
+   integer(c_int) :: depth_here
+
+   if (err/=SUEWS_CAPI_OK) return
+   if (.not. allocated(field)) return
+
+   surf_here = int(size(field, 1), c_int)
+   depth_here = int(size(field, 2), c_int)
+   if (surf_here/=int(nsurf, c_int)) then
+      err = SUEWS_CAPI_BAD_STATE
+      return
+   end if
+
+   if (ndepth==0_c_int) then
+      ndepth = depth_here
+   elseif (ndepth/=depth_here) then
+      err = SUEWS_CAPI_BAD_STATE
+   end if
+
+end subroutine update_depth_from_surf_mat
+
 subroutine require_vec_layout(field, nlayer, err)
    implicit none
 
@@ -182,16 +224,65 @@ subroutine require_mat_layout(field, nlayer, ndepth, err)
 
 end subroutine require_mat_layout
 
+subroutine require_surf_vec_layout(field, nlayer, err)
+   implicit none
+
+   real(c_double), dimension(:), allocatable, intent(in) :: field
+   integer(c_int), intent(in) :: nlayer
+   integer(c_int), intent(inout) :: err
+   integer(c_int) :: n_expected
+
+   if (err/=SUEWS_CAPI_OK) return
+   n_expected = ehc_surface_len(nlayer)
+
+   if (n_expected==0_c_int) then
+      if (allocated(field)) err = SUEWS_CAPI_BAD_STATE
+   else
+      if (.not. allocated(field)) then
+         err = SUEWS_CAPI_BAD_STATE
+      elseif (int(size(field), c_int)/=n_expected) then
+         err = SUEWS_CAPI_BAD_STATE
+      end if
+   end if
+
+end subroutine require_surf_vec_layout
+
+subroutine require_surf_mat_layout(field, nlayer, ndepth, err)
+   implicit none
+
+   real(c_double), dimension(:, :), allocatable, intent(in) :: field
+   integer(c_int), intent(in) :: nlayer
+   integer(c_int), intent(in) :: ndepth
+   integer(c_int), intent(inout) :: err
+   integer(c_int) :: n_expected
+
+   if (err/=SUEWS_CAPI_OK) return
+   n_expected = ehc_surface_len(nlayer)
+
+   if (n_expected==0_c_int .or. ndepth==0_c_int) then
+      if (allocated(field)) err = SUEWS_CAPI_BAD_STATE
+   else
+      if (.not. allocated(field)) then
+         err = SUEWS_CAPI_BAD_STATE
+      elseif (int(size(field, 1), c_int)/=n_expected .or. &
+              int(size(field, 2), c_int)/=ndepth) then
+         err = SUEWS_CAPI_BAD_STATE
+      end if
+   end if
+
+end subroutine require_surf_mat_layout
+
 subroutine ehc_prm_layout(state, n_flat, nlayer, ndepth, err)
    implicit none
 
    type(ehc_prm_shadow), intent(in) :: state
    integer(c_int), intent(out) :: n_flat
-   integer(c_int), intent(out) :: nlayer
-   integer(c_int), intent(out) :: ndepth
-   integer(c_int), intent(out) :: err
+	   integer(c_int), intent(out) :: nlayer
+	   integer(c_int), intent(out) :: ndepth
+	   integer(c_int), intent(out) :: err
+	   integer(c_int) :: n_surf_ehc
 
-   nlayer = 0_c_int
+	   nlayer = 0_c_int
    ndepth = 0_c_int
    err = SUEWS_CAPI_OK
 
@@ -200,40 +291,39 @@ subroutine ehc_prm_layout(state, n_flat, nlayer, ndepth, err)
    call update_len_from_vec(state%state_limit_roof, nlayer, err)
    call update_len_from_vec(state%state_limit_wall, nlayer, err)
    call update_len_from_vec(state%wet_thresh_roof, nlayer, err)
-   call update_len_from_vec(state%wet_thresh_wall, nlayer, err)
-   call update_len_from_vec(state%tin_roof, nlayer, err)
-   call update_len_from_vec(state%tin_wall, nlayer, err)
-   call update_len_from_vec(state%tin_surf, nlayer, err)
+	   call update_len_from_vec(state%wet_thresh_wall, nlayer, err)
+	   call update_len_from_vec(state%tin_roof, nlayer, err)
+	   call update_len_from_vec(state%tin_wall, nlayer, err)
 
-   call update_len_from_mat(state%k_roof, nlayer, ndepth, err)
-   call update_len_from_mat(state%k_wall, nlayer, ndepth, err)
-   call update_len_from_mat(state%k_surf, nlayer, ndepth, err)
-   call update_len_from_mat(state%cp_roof, nlayer, ndepth, err)
-   call update_len_from_mat(state%cp_wall, nlayer, ndepth, err)
-   call update_len_from_mat(state%cp_surf, nlayer, ndepth, err)
-   call update_len_from_mat(state%dz_roof, nlayer, ndepth, err)
-   call update_len_from_mat(state%dz_wall, nlayer, ndepth, err)
-   call update_len_from_mat(state%dz_surf, nlayer, ndepth, err)
+	   call update_len_from_mat(state%k_roof, nlayer, ndepth, err)
+	   call update_len_from_mat(state%k_wall, nlayer, ndepth, err)
+	   call update_len_from_mat(state%cp_roof, nlayer, ndepth, err)
+	   call update_len_from_mat(state%cp_wall, nlayer, ndepth, err)
+	   call update_len_from_mat(state%dz_roof, nlayer, ndepth, err)
+	   call update_len_from_mat(state%dz_wall, nlayer, ndepth, err)
+	   call update_depth_from_surf_mat(state%k_surf, ndepth, err)
+	   call update_depth_from_surf_mat(state%cp_surf, ndepth, err)
+	   call update_depth_from_surf_mat(state%dz_surf, ndepth, err)
 
    call require_vec_layout(state%soil_store_capacity_roof, nlayer, err)
    call require_vec_layout(state%soil_store_capacity_wall, nlayer, err)
    call require_vec_layout(state%state_limit_roof, nlayer, err)
    call require_vec_layout(state%state_limit_wall, nlayer, err)
    call require_vec_layout(state%wet_thresh_roof, nlayer, err)
-   call require_vec_layout(state%wet_thresh_wall, nlayer, err)
-   call require_vec_layout(state%tin_roof, nlayer, err)
-   call require_vec_layout(state%tin_wall, nlayer, err)
-   call require_vec_layout(state%tin_surf, nlayer, err)
+	   call require_vec_layout(state%wet_thresh_wall, nlayer, err)
+	   call require_vec_layout(state%tin_roof, nlayer, err)
+	   call require_vec_layout(state%tin_wall, nlayer, err)
+	   call require_surf_vec_layout(state%tin_surf, nlayer, err)
 
-   call require_mat_layout(state%k_roof, nlayer, ndepth, err)
-   call require_mat_layout(state%k_wall, nlayer, ndepth, err)
-   call require_mat_layout(state%k_surf, nlayer, ndepth, err)
-   call require_mat_layout(state%cp_roof, nlayer, ndepth, err)
-   call require_mat_layout(state%cp_wall, nlayer, ndepth, err)
-   call require_mat_layout(state%cp_surf, nlayer, ndepth, err)
-   call require_mat_layout(state%dz_roof, nlayer, ndepth, err)
-   call require_mat_layout(state%dz_wall, nlayer, ndepth, err)
-   call require_mat_layout(state%dz_surf, nlayer, ndepth, err)
+	   call require_mat_layout(state%k_roof, nlayer, ndepth, err)
+	   call require_mat_layout(state%k_wall, nlayer, ndepth, err)
+	   call require_mat_layout(state%cp_roof, nlayer, ndepth, err)
+	   call require_mat_layout(state%cp_wall, nlayer, ndepth, err)
+	   call require_mat_layout(state%dz_roof, nlayer, ndepth, err)
+	   call require_mat_layout(state%dz_wall, nlayer, ndepth, err)
+	   call require_surf_mat_layout(state%k_surf, nlayer, ndepth, err)
+	   call require_surf_mat_layout(state%cp_surf, nlayer, ndepth, err)
+	   call require_surf_mat_layout(state%dz_surf, nlayer, ndepth, err)
 
    if (err/=SUEWS_CAPI_OK) then
       n_flat = 0_c_int
@@ -242,8 +332,10 @@ subroutine ehc_prm_layout(state, n_flat, nlayer, ndepth, err)
 
    if (nlayer==0_c_int) ndepth = 0_c_int
 
-   n_flat = 9_c_int * nlayer + 9_c_int * nlayer * ndepth
-   err = SUEWS_CAPI_OK
+	   n_surf_ehc = ehc_surface_len(nlayer)
+	   n_flat = 8_c_int * nlayer + n_surf_ehc + &
+	            6_c_int * nlayer * ndepth + 3_c_int * n_surf_ehc * ndepth
+	   err = SUEWS_CAPI_OK
 
 end subroutine ehc_prm_layout
 
@@ -383,38 +475,40 @@ subroutine ehc_prm_pack(state, flat, n_flat, nlayer, ndepth, err)
    integer(c_int), intent(in) :: n_flat
    integer(c_int), intent(out) :: nlayer
    integer(c_int), intent(out) :: ndepth
-   integer(c_int), intent(out) :: err
-   integer(c_int) :: n_expected
-   integer(c_int) :: idx
+	   integer(c_int), intent(out) :: err
+	   integer(c_int) :: n_expected
+	   integer(c_int) :: idx
+	   integer(c_int) :: n_surf_ehc
 
-   call ehc_prm_layout(state, n_expected, nlayer, ndepth, err)
-   if (err/=SUEWS_CAPI_OK) return
+	   call ehc_prm_layout(state, n_expected, nlayer, ndepth, err)
+	   if (err/=SUEWS_CAPI_OK) return
 
    if (n_flat<n_expected) then
       err = SUEWS_CAPI_BAD_BUFFER
       return
    end if
 
-   idx = 1_c_int
-   call pack_vec(state%soil_store_capacity_roof, flat, idx, nlayer)
+	   n_surf_ehc = ehc_surface_len(nlayer)
+	   idx = 1_c_int
+	   call pack_vec(state%soil_store_capacity_roof, flat, idx, nlayer)
    call pack_vec(state%soil_store_capacity_wall, flat, idx, nlayer)
    call pack_vec(state%state_limit_roof, flat, idx, nlayer)
    call pack_vec(state%state_limit_wall, flat, idx, nlayer)
    call pack_vec(state%wet_thresh_roof, flat, idx, nlayer)
-   call pack_vec(state%wet_thresh_wall, flat, idx, nlayer)
-   call pack_vec(state%tin_roof, flat, idx, nlayer)
-   call pack_vec(state%tin_wall, flat, idx, nlayer)
-   call pack_vec(state%tin_surf, flat, idx, nlayer)
+	   call pack_vec(state%wet_thresh_wall, flat, idx, nlayer)
+	   call pack_vec(state%tin_roof, flat, idx, nlayer)
+	   call pack_vec(state%tin_wall, flat, idx, nlayer)
+	   call pack_vec(state%tin_surf, flat, idx, n_surf_ehc)
 
-   call pack_mat(state%k_roof, flat, idx, nlayer, ndepth)
-   call pack_mat(state%k_wall, flat, idx, nlayer, ndepth)
-   call pack_mat(state%k_surf, flat, idx, nlayer, ndepth)
-   call pack_mat(state%cp_roof, flat, idx, nlayer, ndepth)
-   call pack_mat(state%cp_wall, flat, idx, nlayer, ndepth)
-   call pack_mat(state%cp_surf, flat, idx, nlayer, ndepth)
-   call pack_mat(state%dz_roof, flat, idx, nlayer, ndepth)
-   call pack_mat(state%dz_wall, flat, idx, nlayer, ndepth)
-   call pack_mat(state%dz_surf, flat, idx, nlayer, ndepth)
+	   call pack_mat(state%k_roof, flat, idx, nlayer, ndepth)
+	   call pack_mat(state%k_wall, flat, idx, nlayer, ndepth)
+	   call pack_mat(state%k_surf, flat, idx, n_surf_ehc, ndepth)
+	   call pack_mat(state%cp_roof, flat, idx, nlayer, ndepth)
+	   call pack_mat(state%cp_wall, flat, idx, nlayer, ndepth)
+	   call pack_mat(state%cp_surf, flat, idx, n_surf_ehc, ndepth)
+	   call pack_mat(state%dz_roof, flat, idx, nlayer, ndepth)
+	   call pack_mat(state%dz_wall, flat, idx, nlayer, ndepth)
+	   call pack_mat(state%dz_surf, flat, idx, n_surf_ehc, ndepth)
 
    err = SUEWS_CAPI_OK
 
@@ -428,20 +522,23 @@ subroutine ehc_prm_unpack(flat, n_flat, nlayer, ndepth, state, err)
    integer(c_int), intent(in) :: nlayer
    integer(c_int), intent(in) :: ndepth
    type(EHC_PRM), intent(inout) :: state
-   integer(c_int), intent(out) :: err
+	   integer(c_int), intent(out) :: err
 
-   integer(c_int) :: n_expected
-   integer(c_int) :: idx
+	   integer(c_int) :: n_expected
+	   integer(c_int) :: idx
+	   integer(c_int) :: n_surf_ehc
 
    if (nlayer<0_c_int .or. ndepth<0_c_int) then
       err = SUEWS_CAPI_BAD_BUFFER
       return
    end if
 
-   n_expected = 9_c_int * nlayer + 9_c_int * nlayer * ndepth
-   if (n_flat<n_expected) then
-      err = SUEWS_CAPI_BAD_BUFFER
-      return
+	   n_surf_ehc = ehc_surface_len(nlayer)
+	   n_expected = 8_c_int * nlayer + n_surf_ehc + &
+	                6_c_int * nlayer * ndepth + 3_c_int * n_surf_ehc * ndepth
+	   if (n_flat<n_expected) then
+	      err = SUEWS_CAPI_BAD_BUFFER
+	      return
    end if
 
    err = SUEWS_CAPI_OK
@@ -450,20 +547,20 @@ subroutine ehc_prm_unpack(flat, n_flat, nlayer, ndepth, state, err)
    call ensure_vec_alloc(state%state_limit_roof, nlayer, err)
    call ensure_vec_alloc(state%state_limit_wall, nlayer, err)
    call ensure_vec_alloc(state%wet_thresh_roof, nlayer, err)
-   call ensure_vec_alloc(state%wet_thresh_wall, nlayer, err)
-   call ensure_vec_alloc(state%tin_roof, nlayer, err)
-   call ensure_vec_alloc(state%tin_wall, nlayer, err)
-   call ensure_vec_alloc(state%tin_surf, nlayer, err)
+	   call ensure_vec_alloc(state%wet_thresh_wall, nlayer, err)
+	   call ensure_vec_alloc(state%tin_roof, nlayer, err)
+	   call ensure_vec_alloc(state%tin_wall, nlayer, err)
+	   call ensure_vec_alloc(state%tin_surf, n_surf_ehc, err)
 
-   call ensure_mat_alloc(state%k_roof, nlayer, ndepth, err)
-   call ensure_mat_alloc(state%k_wall, nlayer, ndepth, err)
-   call ensure_mat_alloc(state%k_surf, nlayer, ndepth, err)
-   call ensure_mat_alloc(state%cp_roof, nlayer, ndepth, err)
-   call ensure_mat_alloc(state%cp_wall, nlayer, ndepth, err)
-   call ensure_mat_alloc(state%cp_surf, nlayer, ndepth, err)
-   call ensure_mat_alloc(state%dz_roof, nlayer, ndepth, err)
-   call ensure_mat_alloc(state%dz_wall, nlayer, ndepth, err)
-   call ensure_mat_alloc(state%dz_surf, nlayer, ndepth, err)
+	   call ensure_mat_alloc(state%k_roof, nlayer, ndepth, err)
+	   call ensure_mat_alloc(state%k_wall, nlayer, ndepth, err)
+	   call ensure_mat_alloc(state%k_surf, n_surf_ehc, ndepth, err)
+	   call ensure_mat_alloc(state%cp_roof, nlayer, ndepth, err)
+	   call ensure_mat_alloc(state%cp_wall, nlayer, ndepth, err)
+	   call ensure_mat_alloc(state%cp_surf, n_surf_ehc, ndepth, err)
+	   call ensure_mat_alloc(state%dz_roof, nlayer, ndepth, err)
+	   call ensure_mat_alloc(state%dz_wall, nlayer, ndepth, err)
+	   call ensure_mat_alloc(state%dz_surf, n_surf_ehc, ndepth, err)
    if (err/=SUEWS_CAPI_OK) return
 
    idx = 1_c_int
@@ -472,20 +569,20 @@ subroutine ehc_prm_unpack(flat, n_flat, nlayer, ndepth, state, err)
    call unpack_vec(flat, idx, state%state_limit_roof, nlayer)
    call unpack_vec(flat, idx, state%state_limit_wall, nlayer)
    call unpack_vec(flat, idx, state%wet_thresh_roof, nlayer)
-   call unpack_vec(flat, idx, state%wet_thresh_wall, nlayer)
-   call unpack_vec(flat, idx, state%tin_roof, nlayer)
-   call unpack_vec(flat, idx, state%tin_wall, nlayer)
-   call unpack_vec(flat, idx, state%tin_surf, nlayer)
+	   call unpack_vec(flat, idx, state%wet_thresh_wall, nlayer)
+	   call unpack_vec(flat, idx, state%tin_roof, nlayer)
+	   call unpack_vec(flat, idx, state%tin_wall, nlayer)
+	   call unpack_vec(flat, idx, state%tin_surf, n_surf_ehc)
 
-   call unpack_mat(flat, idx, state%k_roof, nlayer, ndepth)
-   call unpack_mat(flat, idx, state%k_wall, nlayer, ndepth)
-   call unpack_mat(flat, idx, state%k_surf, nlayer, ndepth)
-   call unpack_mat(flat, idx, state%cp_roof, nlayer, ndepth)
-   call unpack_mat(flat, idx, state%cp_wall, nlayer, ndepth)
-   call unpack_mat(flat, idx, state%cp_surf, nlayer, ndepth)
-   call unpack_mat(flat, idx, state%dz_roof, nlayer, ndepth)
-   call unpack_mat(flat, idx, state%dz_wall, nlayer, ndepth)
-   call unpack_mat(flat, idx, state%dz_surf, nlayer, ndepth)
+	   call unpack_mat(flat, idx, state%k_roof, nlayer, ndepth)
+	   call unpack_mat(flat, idx, state%k_wall, nlayer, ndepth)
+	   call unpack_mat(flat, idx, state%k_surf, n_surf_ehc, ndepth)
+	   call unpack_mat(flat, idx, state%cp_roof, nlayer, ndepth)
+	   call unpack_mat(flat, idx, state%cp_wall, nlayer, ndepth)
+	   call unpack_mat(flat, idx, state%cp_surf, n_surf_ehc, ndepth)
+	   call unpack_mat(flat, idx, state%dz_roof, nlayer, ndepth)
+	   call unpack_mat(flat, idx, state%dz_wall, nlayer, ndepth)
+	   call unpack_mat(flat, idx, state%dz_surf, n_surf_ehc, ndepth)
 
    err = SUEWS_CAPI_OK
 

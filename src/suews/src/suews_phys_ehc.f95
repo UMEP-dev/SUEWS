@@ -30,88 +30,127 @@ CONTAINS
       REAL(KIND(1D0)), INTENT(inout) :: T(:)
       REAL(KIND(1D0)), INTENT(in) :: dx(:), dt, k(:), rhocp(:), bc(2)
       REAL(KIND(1D0)), INTENT(out) :: Qs
-      ! REAL(KIND(1D0)), INTENT(out) :: Tsfc
-      LOGICAL :: bctype(2) ! if true, use surrogate flux as boundary condition
-      ! LOGICAL, INTENT(in) :: debug
       INTEGER :: i, n
-      REAL(KIND(1D0)), ALLOCATABLE :: w(:), a(:), T_temp(:), cfl(:)
-
-      ! REAL(KIND(1D0)) :: cfl_max
+      REAL(KIND(1D0)), ALLOCATABLE :: g_itf(:), T_in(:), T_temp(:), dt_limit(:)
       REAL(KIND(1D0)) :: dt_remain
       REAL(KIND(1D0)) :: dt_step
       REAL(KIND(1D0)) :: dt_step_cfl
+      REAL(KIND(1D0)) :: g_up, g_down, g_left, g_right
+      REAL(KIND(1D0)) :: denom
 
-      REAL(KIND(1D0)), ALLOCATABLE :: T_in(:), T_out(:)
-      ! REAL(KIND(1D0)) :: dt_x ! for recursion
-      ! INTEGER :: n_div ! for recursion
       n = SIZE(T)
-      ALLOCATE (w(0:n), a(n), T_temp(n), cfl(n), T_in(n), T_out(n))
+      Qs = 0.0D0
+      IF (n <= 0 .OR. dt <= 0.0D0) RETURN
+      IF (ANY(dx <= 0.0D0) .OR. ANY(k <= 0.0D0) .OR. ANY(rhocp <= 0.0D0)) RETURN
 
-      ! save initial temperatures
+      ALLOCATE (g_itf(MAX(1, n - 1)), T_in(n), T_temp(n), dt_limit(n))
       T_in = T
-      ! w = interface temperature
-      w(1:n) = T
-      w(0) = bc(1); w(n) = bc(2)
-      !convert from flux to equivalent temperature, not exact
-      ! F = k dT/dX => dx*F/k + T(i+1) = T(i)
-      bctype = .FALSE. ! force to use T as boundary condition, TS 09 Aug 2023
-      IF (bctype(1)) w(0) = bc(1)*0.5*dx(1)/k(1) + w(1)
-      IF (bctype(2)) w(n) = bc(2)*0.5*dx(n)/k(n) + w(n)
-      ! print *, 'bc(1)=', bc(1), 'bc(2)=',bc(2)
-      ! print *, 'w(0)=', w(0), 'w(n)=', w(n)
-      ! print *, 'k=', k, 'dx=', dx
-      a = k/dx
+
+      g_up = 2.0D0*k(1)/dx(1)
+      g_down = 2.0D0*k(n)/dx(n)
       DO i = 1, n - 1
-         w(i) = (T(i + 1)*a(i + 1) + T(i)*a(i))/(a(i) + a(i + 1))
+         denom = k(i + 1)*dx(i) + k(i)*dx(i + 1)
+         g_itf(i) = 2.0D0*k(i)*k(i + 1)/denom
       END DO
 
-      ! fix convergece issue with recursion
+      DO i = 1, n
+         IF (i == 1) THEN
+            g_left = g_up
+         ELSE
+            g_left = g_itf(i - 1)
+         END IF
+         IF (i == n) THEN
+            g_right = g_down
+         ELSE
+            g_right = g_itf(i)
+         END IF
+         dt_limit(i) = rhocp(i)*dx(i)/(g_left + g_right)
+      END DO
+
+      ! Explicit finite-volume update with Dirichlet boundary temperatures.
+      ! Qs is the material heat-content tendency, matching DeltaQS storage.
       dt_remain = dt
-      dt_step_cfl = 0.05*MINVAL(dx**2/(k/rhocp))
-      DO WHILE (dt_remain > 1E-10)
+      dt_step_cfl = 0.45D0*MINVAL(dt_limit)
+      DO WHILE (dt_remain > 1.0D-10)
          dt_step = MIN(dt_step_cfl, dt_remain)
-         !PRINT *, 'dt_remain: ', dt_remain
-         !PRINT *, 'dt_step_cfl: ', dt_step_cfl
-         !PRINT *, '***** dt_step: ', dt_step
-          !!FO!!
-         ! PRINT *, 'w: ', w
-         ! PRINT *, 'rhocp: ', rhocp
-         ! PRINT *, 'dt: ', dt
-         ! PRINT *, 'dx: ', dx
-         ! PRINT *, 'a: ', a
          DO i = 1, n
-            ! PRINT *, 'i: ', i
-            ! PRINT *, 'i: ', (dt/rhocp(i))
-            ! PRINT *, 'i: ', (w(i - 1) - 2*T(i) + w(i))
-            ! PRINT *, 'i: ', 2*a(i)/dx(i)
-            T_temp(i) = &
-               (dt_step/rhocp(i)) &
-               *(w(i - 1) - 2*T(i) + w(i)) &
-               *a(i)/dx(i) &
-               + T(i)
+            IF (i == 1) THEN
+               g_left = g_up*(bc(1) - T(i))
+            ELSE
+               g_left = g_itf(i - 1)*(T(i - 1) - T(i))
+            END IF
+            IF (i == n) THEN
+               g_right = g_down*(bc(2) - T(i))
+            ELSE
+               g_right = g_itf(i)*(T(i + 1) - T(i))
+            END IF
+            T_temp(i) = T(i) + dt_step*(g_left + g_right)/(rhocp(i)*dx(i))
          END DO
          T = T_temp
-         DO i = 1, n - 1
-            w(i) = (T(i + 1)*a(i + 1) + T(i)*a(i))/(a(i) + a(i + 1))
-         END DO
          dt_remain = dt_remain - dt_step
       END DO
-       !!FO!!
-      ! PRINT *, 'T1: ', T1
-      !for storage the internal distribution of heat should not be important
-       !!FO!! k*d(dT/dx)/dx = rhoCp*(dT/dt) => rhoCp*(dT/dt)*dx = dQs => dQs = k*d(dT/dx)
-      ! Qs = (w(0) - T(1))*2*a(1) + (w(n) - T(n))*2*a(n)
-      ! Qs=sum((T1-T)*rhocp*dx)/dt!
-
-      ! Tsfc = w(0)
-      ! save output temperatures
-      T_out = T_temp
-      ! new way for calcualating heat storage
-      Qs = SUM( &
-           (([bc(1), T_out(1:n - 1)] + T_out)/2. & ! updated temperature
-            -([bc(1), T_in(1:n - 1)] + T_in)/2) & ! initial temperature
-           *rhocp*dx/dt)
+      Qs = SUM((T - T_in)*rhocp*dx)/dt
    END SUBROUTINE heatcond1d_vstep
+
+   SUBROUTINE heatcond1d_gstep(T, Qs, heat_cap, g_face, dt, bc, q_top, q_bottom)
+      REAL(KIND(1D0)), INTENT(inout) :: T(:)
+      REAL(KIND(1D0)), INTENT(in) :: heat_cap(:), g_face(:), dt, bc(2)
+      REAL(KIND(1D0)), INTENT(out) :: Qs
+      REAL(KIND(1D0)), INTENT(out), OPTIONAL :: q_top, q_bottom
+      INTEGER :: i, n
+      REAL(KIND(1D0)), ALLOCATABLE :: T_in(:), T_temp(:), dt_limit(:)
+      REAL(KIND(1D0)) :: dt_remain
+      REAL(KIND(1D0)) :: dt_step
+      REAL(KIND(1D0)) :: dt_step_cfl
+      REAL(KIND(1D0)) :: flux_left, flux_right
+      REAL(KIND(1D0)) :: q_top_acc, q_bottom_acc
+
+      n = SIZE(T)
+      Qs = 0.0D0
+      IF (PRESENT(q_top)) q_top = 0.0D0
+      IF (PRESENT(q_bottom)) q_bottom = 0.0D0
+      IF (n <= 0 .OR. dt <= 0.0D0) RETURN
+      IF (SIZE(heat_cap) /= n .OR. SIZE(g_face) /= n + 1) RETURN
+      IF (ANY(heat_cap <= 0.0D0) .OR. ANY(g_face < 0.0D0)) RETURN
+
+      ALLOCATE (T_in(n), T_temp(n), dt_limit(n))
+      T_in = T
+
+      DO i = 1, n
+         IF (g_face(i) + g_face(i + 1) <= 0.0D0) RETURN
+         dt_limit(i) = heat_cap(i)/(g_face(i) + g_face(i + 1))
+      END DO
+
+      ! Explicit finite-volume update for a lumped slab with pre-aggregated
+      ! plan-area heat capacities and interface conductances.
+      dt_remain = dt
+      dt_step_cfl = 0.45D0*MINVAL(dt_limit)
+      q_top_acc = 0.0D0
+      q_bottom_acc = 0.0D0
+      DO WHILE (dt_remain > 1.0D-10)
+         dt_step = MIN(dt_step_cfl, dt_remain)
+         q_top_acc = q_top_acc + dt_step*g_face(1)*(bc(1) - T(1))
+         q_bottom_acc = q_bottom_acc + dt_step*g_face(n + 1)*(T(n) - bc(2))
+         DO i = 1, n
+            IF (i == 1) THEN
+               flux_left = g_face(i)*(bc(1) - T(i))
+            ELSE
+               flux_left = g_face(i)*(T(i - 1) - T(i))
+            END IF
+            IF (i == n) THEN
+               flux_right = g_face(i + 1)*(bc(2) - T(i))
+            ELSE
+               flux_right = g_face(i + 1)*(T(i + 1) - T(i))
+            END IF
+            T_temp(i) = T(i) + dt_step*(flux_left + flux_right)/heat_cap(i)
+         END DO
+         T = T_temp
+         dt_remain = dt_remain - dt_step
+      END DO
+      Qs = SUM((T - T_in)*heat_cap)/dt
+      IF (PRESENT(q_top)) q_top = q_top_acc/dt
+      IF (PRESENT(q_bottom)) q_bottom = q_bottom_acc/dt
+   END SUBROUTINE heatcond1d_gstep
 
    RECURSIVE SUBROUTINE heatcond1d_CN(T, Qs, dx, dt, k, rhocp, bc)
       REAL(KIND(1D0)), INTENT(inout) :: T(:)
@@ -220,7 +259,9 @@ CONTAINS
       ! ---Here we use the outermost surface temperatures to calculate
       ! ------the heat flux from the surface as the change of Qs for SEB
       ! ------considering there might be fluxes going out from the lower boundary
-      Qs = (T_up - T_out(1))*k(1)/(dx(1)*0.5) - (T_out(n) - T_lw)*k(n)/(dx(n)*0.5)
+      Qs = SUM( &
+           (T_out - T_in) &
+           *rhocp*dx/dt)
       ! Qs = (T_out(1) - T_out(2)) * k(1) / dx(1)
       ! Qs = Qs_acc / dt
    END SUBROUTINE heatcond1d_CN
@@ -322,7 +363,7 @@ CONTAINS
          END DO
 
          ! solve the tridiagonal matrix using Thomas algorithm
-         CALL thomas_triMat(vec_lw, vec_diag, vec_up, vec_rhs, n, T_tmp)
+         CALL thomas_triMat(vec_lw, vec_diag, vec_up, vec_rhs, n_tmp, T_tmp)
          dt_remain = dt_remain - dt_step
          Qs_acc = Qs_acc + (T_up - T_tmp(1))*k_tmp(1)/(dx_tmp(1)*0.5)*dt_step
       END DO
@@ -376,12 +417,11 @@ CONTAINS
    ! ===============================================================================================
    ! extended ESTM, TS 20 Jan 2022
    ! renamed to EHC (explicit heat conduction) to avoid confusion with ESTM
-   ! ESTM_ehc accoutns for
-   ! 1. heterogeneous building facets (roofs, walls) at different vertical levels
-   ! 2. all standard ground-level surfaces (dectr, evetr, grass, bsoil and water)
+   ! EHC can calculate storage heat flux as either a coarse plan-area slab
+   ! for OHM-like benchmarks or as facet-resolved roof/wall/surface conduction.
    SUBROUTINE EHC( &
       tstep, & !input
-      nlayer, &
+      nlayer, use_lumped_slab, &
       tsfc_roof, tin_roof, temp_in_roof, k_roof, cp_roof, dz_roof, sfr_roof, & !input
       tsfc_wall, tin_wall, temp_in_wall, k_wall, cp_wall, dz_wall, sfr_wall, & !input
       tsfc_surf, tin_surf, temp_in_surf, k_surf, cp_surf, dz_surf, sfr_surf, & !input
@@ -392,11 +432,12 @@ CONTAINS
       USE module_ctrl_const_allocate, ONLY: &
          nsurf, ndepth, &
          PavSurf, BldgSurf, ConifSurf, DecidSurf, GrassSurf, BSoilSurf, WaterSurf
-      USE module_phys_ehc_heatflux, ONLY: heatcond1d_vstep, heatcond1d_CN, heatcond1d_CN_dense
+      USE module_phys_ehc_heatflux, ONLY: heatcond1d_vstep, heatcond1d_gstep, heatcond1d_CN, heatcond1d_CN_dense
 
       IMPLICIT NONE
       INTEGER, INTENT(in) :: tstep
       INTEGER, INTENT(in) :: nlayer ! number of vertical levels in urban canopy
+      LOGICAL, INTENT(in) :: use_lumped_slab
 
       ! REAL(KIND(1D0)), DIMENSION(nsurf), INTENT(in) :: QG_surf ! ground heat flux
       ! extended for ESTM_ehc
@@ -476,20 +517,118 @@ CONTAINS
 
       ! use finite depth heat conduction solver
       LOGICAL :: use_heatcond1d, use_heatcond1d_water
+      LOGICAL, PARAMETER :: use_zero_flux_bottom = .FALSE.
+      REAL(KIND(1D0)), DIMENSION(ndepth) :: temp_lumped, cap_lumped
+      REAL(KIND(1D0)), DIMENSION(ndepth + 1) :: g_lumped
+      REAL(KIND(1D0)) :: tsfc_lumped, tin_lumped, qs_lumped, qs_per_surface
+      REAL(KIND(1D0)) :: q_top_lumped, q_bottom_lumped
+      REAL(KIND(1D0)) :: surface_weight, layer_cap, layer_temp_cap, face_resistance
+      LOGICAL :: valid_lumped
 
-      ! normalised surface fractions
-      REAL(KIND(1D0)), DIMENSION(nlayer) :: sfr_roof_n
-      REAL(KIND(1D0)), DIMENSION(nlayer) :: sfr_wall_n
+      QS = 0.0D0
+      QS_surf = 0.0D0
+      QS_roof = 0.0D0
+      QS_wall = 0.0D0
+      temp_out_surf = temp_in_surf
+      temp_out_roof = temp_in_roof
+      temp_out_wall = temp_in_wall
+
+      IF (use_lumped_slab) THEN
+         ! Coarse plan-area slab: aggregate only the standard SUEWS surface fractions.
+         ! This keeps EHC comparable to OHM before adding facet-resolved complexity.
+         surface_weight = 0.0D0
+         tsfc_lumped = 0.0D0
+         tin_lumped = 0.0D0
+         g_lumped = 0.0D0
+         cap_lumped = 0.0D0
+         temp_lumped = 0.0D0
+         valid_lumped = .TRUE.
+         DO i_facet = 1, nsurf
+            IF (sfr_surf(i_facet) > 0.0D0) THEN
+               surface_weight = surface_weight + sfr_surf(i_facet)
+               DO i_depth = 1, ndepth
+                  IF (dz_surf(i_facet, i_depth) <= 0.0D0 &
+                      .OR. k_surf(i_facet, i_depth) <= 0.0D0 &
+                      .OR. cp_surf(i_facet, i_depth) <= 0.0D0) valid_lumped = .FALSE.
+               END DO
+            END IF
+         END DO
+         IF (surface_weight <= 1.0D-12) RETURN
+         IF (.NOT. valid_lumped) RETURN
+
+         DO i_depth = 1, ndepth
+            layer_cap = 0.0D0
+            layer_temp_cap = 0.0D0
+            DO i_facet = 1, nsurf
+               IF (sfr_surf(i_facet) > 0.0D0) THEN
+                  layer_cap = layer_cap + sfr_surf(i_facet)*cp_surf(i_facet, i_depth)*dz_surf(i_facet, i_depth)
+                  layer_temp_cap = layer_temp_cap + sfr_surf(i_facet)*cp_surf(i_facet, i_depth) &
+                                   *dz_surf(i_facet, i_depth)*temp_in_surf(i_facet, i_depth)
+               END IF
+            END DO
+            IF (layer_cap <= 1.0D-12) THEN
+               valid_lumped = .FALSE.
+            ELSE
+               cap_lumped(i_depth) = layer_cap
+               temp_lumped(i_depth) = layer_temp_cap/layer_cap
+            END IF
+         END DO
+         IF (.NOT. valid_lumped) RETURN
+
+         DO i_facet = 1, nsurf
+            IF (sfr_surf(i_facet) > 0.0D0) THEN
+               face_resistance = 0.5D0*dz_surf(i_facet, 1)/k_surf(i_facet, 1)
+               g_lumped(1) = g_lumped(1) + sfr_surf(i_facet)/face_resistance
+               tsfc_lumped = tsfc_lumped + sfr_surf(i_facet)*tsfc_surf(i_facet)/face_resistance
+
+               IF (.NOT. use_zero_flux_bottom) THEN
+                  face_resistance = 0.5D0*dz_surf(i_facet, ndepth)/k_surf(i_facet, ndepth)
+                  g_lumped(ndepth + 1) = g_lumped(ndepth + 1) + sfr_surf(i_facet)/face_resistance
+                  tin_lumped = tin_lumped + sfr_surf(i_facet)*tin_surf(i_facet)/face_resistance
+               END IF
+
+               DO i_depth = 1, ndepth - 1
+                  face_resistance = 0.5D0*dz_surf(i_facet, i_depth)/k_surf(i_facet, i_depth) &
+                                    + 0.5D0*dz_surf(i_facet, i_depth + 1)/k_surf(i_facet, i_depth + 1)
+                  g_lumped(i_depth + 1) = g_lumped(i_depth + 1) + sfr_surf(i_facet)/face_resistance
+               END DO
+            END IF
+         END DO
+         IF (ANY(g_lumped(1:ndepth) <= 1.0D-12)) RETURN
+         IF ((.NOT. use_zero_flux_bottom) .AND. g_lumped(ndepth + 1) <= 1.0D-12) RETURN
+
+         tsfc_lumped = tsfc_lumped/g_lumped(1)
+         IF (.NOT. use_zero_flux_bottom) THEN
+            tin_lumped = tin_lumped/g_lumped(ndepth + 1)
+         END IF
+
+         bc(1) = tsfc_lumped
+         bc(2) = tin_lumped
+         CALL heatcond1d_gstep(temp_lumped, qs_lumped, cap_lumped, g_lumped, tstep*1.0D0, bc, &
+                               q_top_lumped, q_bottom_lumped)
+
+         ! With a finite lower boundary, SUEWS needs the outdoor-surface storage
+         ! flux; the material heat-content tendency also includes lower exchange.
+         IF (use_zero_flux_bottom) THEN
+            QS = qs_lumped
+         ELSE
+            QS = q_top_lumped
+         END IF
+         qs_per_surface = QS/surface_weight
+         QS_surf = qs_per_surface
+         QS_roof = 0.0D0
+         QS_wall = 0.0D0
+         DO i_facet = 1, nsurf
+            temp_out_surf(i_facet, :) = temp_lumped
+         END DO
+         RETURN
+      END IF
 
       ! initialise solver flags
       use_heatcond1d = .TRUE.
       use_heatcond1d_water = .FALSE.
       debug = .FALSE.
 
-      ! normalised surface fractions
-      ! NB: the sum of sfr_roof (sfr_wall) is NOT unity; so need to be normalised by the sum
-      sfr_roof_n = sfr_roof/SUM(sfr_roof)
-      sfr_wall_n = sfr_wall/SUM(sfr_wall)
       ! sub-facets of buildings: e.g. walls, roofs, etc.
       DO i_group = 1, 3
 
@@ -505,10 +644,11 @@ CONTAINS
             nfacet = nsurf
          END IF
          ! PRINT *, 'nfacet here: ', nfacet
-         ALLOCATE (tsfc_cal(nfacet))
-         ALLOCATE (tin_cal(nfacet))
-         ALLOCATE (qs_cal(nfacet))
-         ALLOCATE (temp_cal(nfacet, ndepth))
+	         ALLOCATE (tsfc_cal(nfacet))
+	         ALLOCATE (tin_cal(nfacet))
+	         ALLOCATE (qs_cal(nfacet))
+	         qs_cal = 0.0D0
+	         ALLOCATE (temp_cal(nfacet, ndepth))
          ALLOCATE (k_cal(nfacet, ndepth))
          ALLOCATE (cp_cal(nfacet, ndepth))
          ALLOCATE (dz_cal(nfacet, ndepth))

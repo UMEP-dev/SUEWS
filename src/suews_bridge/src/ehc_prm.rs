@@ -2,13 +2,14 @@ use crate::codec::{
     dims_element_count, field_index, require_field_dims, validate_flat_len, PayloadDims,
     ValuesPayloadWithDims,
 };
+use crate::core::NSURF;
 use crate::error::BridgeError;
 use crate::ffi;
 use std::collections::BTreeMap;
 
 pub const EHC_PRM_SCHEMA_VERSION: u32 = 1;
 
-const EHC_VEC_FIELDS: [&str; 9] = [
+const EHC_LAYER_VEC_FIELDS: [&str; 8] = [
     "soil_storecap_roof",
     "soil_storecap_wall",
     "state_limit_roof",
@@ -17,12 +18,28 @@ const EHC_VEC_FIELDS: [&str; 9] = [
     "wet_thresh_wall",
     "tin_roof",
     "tin_wall",
-    "tin_surf",
 ];
 
-const EHC_MAT_FIELDS: [&str; 9] = [
-    "k_roof", "k_wall", "k_surf", "cp_roof", "cp_wall", "cp_surf", "dz_roof", "dz_wall", "dz_surf",
+const EHC_SURF_VEC_FIELDS: [&str; 1] = ["tin_surf"];
+
+const EHC_LAYER_MAT_FIELDS: [&str; 6] = [
+    "k_roof", "k_wall", "cp_roof", "cp_wall", "dz_roof", "dz_wall",
 ];
+
+const EHC_SURF_MAT_FIELDS: [&str; 3] = ["k_surf", "cp_surf", "dz_surf"];
+
+const EHC_FIELD_COUNT: usize = EHC_LAYER_VEC_FIELDS.len()
+    + EHC_SURF_VEC_FIELDS.len()
+    + EHC_LAYER_MAT_FIELDS.len()
+    + EHC_SURF_MAT_FIELDS.len();
+
+const EHC_LAYER_MAT_GROUPS: [[&str; 2]; 3] = [
+    ["k_roof", "k_wall"],
+    ["cp_roof", "cp_wall"],
+    ["dz_roof", "dz_wall"],
+];
+
+const EHC_SURF_MAT_BY_GROUP: [&str; 3] = ["k_surf", "cp_surf", "dz_surf"];
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct EhcPrmSchema {
@@ -36,8 +53,7 @@ pub struct EhcPrmSchema {
 
 pub type EhcPrmValuesPayload = ValuesPayloadWithDims;
 
-#[derive(Debug, Clone, PartialEq)]
-#[derive(Default)]
+#[derive(Debug, Clone, PartialEq, Default)]
 pub struct EhcPrm {
     pub nlayer: usize,
     pub ndepth: usize,
@@ -61,47 +77,86 @@ pub struct EhcPrm {
     pub dz_surf: Vec<f64>,
 }
 
-
 fn matrix_len(nlayer: usize, ndepth: usize) -> Result<usize, BridgeError> {
     nlayer.checked_mul(ndepth).ok_or(BridgeError::BadState)
 }
 
+fn surface_len(nlayer: usize) -> usize {
+    if nlayer == 0 {
+        0
+    } else {
+        NSURF
+    }
+}
+
 pub fn ehc_prm_expected_flat_len(nlayer: usize, ndepth: usize) -> Result<usize, BridgeError> {
-    let vec_len = EHC_VEC_FIELDS
+    let surf_len = surface_len(nlayer);
+    let layer_vec_len = EHC_LAYER_VEC_FIELDS
         .len()
         .checked_mul(nlayer)
         .ok_or(BridgeError::BadState)?;
-    let mat_len = EHC_MAT_FIELDS
+    let layer_mat_len = EHC_LAYER_MAT_FIELDS
         .len()
         .checked_mul(matrix_len(nlayer, ndepth)?)
         .ok_or(BridgeError::BadState)?;
-    vec_len.checked_add(mat_len).ok_or(BridgeError::BadState)
+    let surf_mat_len = EHC_SURF_MAT_FIELDS
+        .len()
+        .checked_mul(matrix_len(surf_len, ndepth)?)
+        .ok_or(BridgeError::BadState)?;
+    layer_vec_len
+        .checked_add(surf_len)
+        .and_then(|v| v.checked_add(layer_mat_len))
+        .and_then(|v| v.checked_add(surf_mat_len))
+        .ok_or(BridgeError::BadState)
 }
 
 fn ehc_prm_dims_map(nlayer: usize, ndepth: usize) -> PayloadDims {
     let mut dims = PayloadDims::new();
-    for field in EHC_VEC_FIELDS {
+    let surf_len = surface_len(nlayer);
+    for field in EHC_LAYER_VEC_FIELDS {
         dims.insert(field.to_string(), vec![nlayer]);
     }
-    for field in EHC_MAT_FIELDS {
+    for field in EHC_SURF_VEC_FIELDS {
+        dims.insert(field.to_string(), vec![surf_len]);
+    }
+    for field in EHC_LAYER_MAT_FIELDS {
         dims.insert(field.to_string(), vec![nlayer, ndepth]);
+    }
+    for field in EHC_SURF_MAT_FIELDS {
+        dims.insert(field.to_string(), vec![surf_len, ndepth]);
     }
     dims
 }
 
 pub fn ehc_prm_field_names_with_dims(nlayer: usize, ndepth: usize) -> Vec<String> {
     let mut names = Vec::new();
+    let surf_len = surface_len(nlayer);
 
-    for field in EHC_VEC_FIELDS {
+    for field in EHC_LAYER_VEC_FIELDS {
         for layer in 0..nlayer {
             names.push(format!("{field}_{:02}", layer + 1));
         }
     }
+    for field in EHC_SURF_VEC_FIELDS {
+        for surf in 0..surf_len {
+            names.push(format!("{field}_{:02}", surf + 1));
+        }
+    }
 
-    for field in EHC_MAT_FIELDS {
-        for layer in 0..nlayer {
+    for (layer_fields, surf_field) in EHC_LAYER_MAT_GROUPS
+        .iter()
+        .zip(EHC_SURF_MAT_BY_GROUP.iter())
+    {
+        for field in layer_fields {
+            for layer in 0..nlayer {
+                for depth in 0..ndepth {
+                    names.push(format!("{field}_{:02}_{:02}", layer + 1, depth + 1));
+                }
+            }
+        }
+        for surf in 0..surf_len {
             for depth in 0..ndepth {
-                names.push(format!("{field}_{:02}_{:02}", layer + 1, depth + 1));
+                names.push(format!("{surf_field}_{:02}_{:02}", surf + 1, depth + 1));
             }
         }
     }
@@ -113,9 +168,11 @@ impl EhcPrm {
     fn validate_layout(&self) -> Result<(), BridgeError> {
         let nlayer = self.nlayer;
         let ndepth = self.ndepth;
-        let nmat = matrix_len(nlayer, ndepth)?;
+        let nsurf_ehc = surface_len(nlayer);
+        let layer_mat_len = matrix_len(nlayer, ndepth)?;
+        let surf_mat_len = matrix_len(nsurf_ehc, ndepth)?;
 
-        let vec_fields = [
+        let layer_vec_fields = [
             &self.soil_storecap_roof,
             &self.soil_storecap_wall,
             &self.state_limit_roof,
@@ -124,27 +181,31 @@ impl EhcPrm {
             &self.wet_thresh_wall,
             &self.tin_roof,
             &self.tin_wall,
-            &self.tin_surf,
         ];
-        for field in vec_fields {
+        for field in layer_vec_fields {
             if field.len() != nlayer {
                 return Err(BridgeError::BadState);
             }
         }
+        if self.tin_surf.len() != nsurf_ehc {
+            return Err(BridgeError::BadState);
+        }
 
-        let mat_fields = [
+        let layer_mat_fields = [
             &self.k_roof,
             &self.k_wall,
-            &self.k_surf,
             &self.cp_roof,
             &self.cp_wall,
-            &self.cp_surf,
             &self.dz_roof,
             &self.dz_wall,
-            &self.dz_surf,
         ];
-        for field in mat_fields {
-            if field.len() != nmat {
+        for field in layer_mat_fields {
+            if field.len() != layer_mat_len {
+                return Err(BridgeError::BadState);
+            }
+        }
+        for field in [&self.k_surf, &self.cp_surf, &self.dz_surf] {
+            if field.len() != surf_mat_len {
                 return Err(BridgeError::BadState);
             }
         }
@@ -160,8 +221,10 @@ impl EhcPrm {
         let expected_len = ehc_prm_expected_flat_len(nlayer, ndepth)?;
         validate_flat_len(flat, expected_len)?;
 
-        let vec_len = nlayer;
-        let mat_len = matrix_len(nlayer, ndepth)?;
+        let layer_vec_len = nlayer;
+        let surf_vec_len = surface_len(nlayer);
+        let layer_mat_len = matrix_len(nlayer, ndepth)?;
+        let surf_mat_len = matrix_len(surf_vec_len, ndepth)?;
         let mut idx = 0_usize;
         let mut take = |count: usize| {
             let out = flat[idx..idx + count].to_vec();
@@ -172,24 +235,24 @@ impl EhcPrm {
         let state = Self {
             nlayer,
             ndepth,
-            soil_storecap_roof: take(vec_len),
-            soil_storecap_wall: take(vec_len),
-            state_limit_roof: take(vec_len),
-            state_limit_wall: take(vec_len),
-            wet_thresh_roof: take(vec_len),
-            wet_thresh_wall: take(vec_len),
-            tin_roof: take(vec_len),
-            tin_wall: take(vec_len),
-            tin_surf: take(vec_len),
-            k_roof: take(mat_len),
-            k_wall: take(mat_len),
-            k_surf: take(mat_len),
-            cp_roof: take(mat_len),
-            cp_wall: take(mat_len),
-            cp_surf: take(mat_len),
-            dz_roof: take(mat_len),
-            dz_wall: take(mat_len),
-            dz_surf: take(mat_len),
+            soil_storecap_roof: take(layer_vec_len),
+            soil_storecap_wall: take(layer_vec_len),
+            state_limit_roof: take(layer_vec_len),
+            state_limit_wall: take(layer_vec_len),
+            wet_thresh_roof: take(layer_vec_len),
+            wet_thresh_wall: take(layer_vec_len),
+            tin_roof: take(layer_vec_len),
+            tin_wall: take(layer_vec_len),
+            tin_surf: take(surf_vec_len),
+            k_roof: take(layer_mat_len),
+            k_wall: take(layer_mat_len),
+            k_surf: take(surf_mat_len),
+            cp_roof: take(layer_mat_len),
+            cp_wall: take(layer_mat_len),
+            cp_surf: take(surf_mat_len),
+            dz_roof: take(layer_mat_len),
+            dz_wall: take(layer_mat_len),
+            dz_surf: take(surf_mat_len),
         };
 
         state.validate_layout()?;
@@ -325,14 +388,15 @@ pub fn ehc_prm_from_ordered_values(values: &[f64]) -> Result<EhcPrm, BridgeError
 }
 
 fn ehc_prm_dims_from_payload(payload: &EhcPrmValuesPayload) -> Result<(usize, usize), BridgeError> {
-    if payload.dims.len() != EHC_VEC_FIELDS.len() + EHC_MAT_FIELDS.len() {
+    if payload.dims.len() != EHC_FIELD_COUNT {
         return Err(BridgeError::BadState);
     }
 
     let mut nlayer: Option<usize> = None;
     let mut ndepth: Option<usize> = None;
+    let mut surf_len: Option<usize> = None;
 
-    for field in EHC_VEC_FIELDS {
+    for field in EHC_LAYER_VEC_FIELDS {
         let dims = require_field_dims(&payload.dims, field, 1)?;
         let layer_here = dims_element_count(&dims)?;
         if let Some(expected) = nlayer {
@@ -344,7 +408,19 @@ fn ehc_prm_dims_from_payload(payload: &EhcPrmValuesPayload) -> Result<(usize, us
         }
     }
 
-    for field in EHC_MAT_FIELDS {
+    for field in EHC_SURF_VEC_FIELDS {
+        let dims = require_field_dims(&payload.dims, field, 1)?;
+        let surf_here = dims_element_count(&dims)?;
+        if let Some(expected) = surf_len {
+            if surf_here != expected {
+                return Err(BridgeError::BadState);
+            }
+        } else {
+            surf_len = Some(surf_here);
+        }
+    }
+
+    for field in EHC_LAYER_MAT_FIELDS {
         let dims = require_field_dims(&payload.dims, field, 2)?;
         let layer_here = dims[0];
         let depth_here = dims[1];
@@ -372,9 +448,41 @@ fn ehc_prm_dims_from_payload(payload: &EhcPrmValuesPayload) -> Result<(usize, us
         }
     }
 
+    for field in EHC_SURF_MAT_FIELDS {
+        let dims = require_field_dims(&payload.dims, field, 2)?;
+        let surf_here = dims[0];
+        let depth_here = dims[1];
+        let mat_len = dims_element_count(&dims)?;
+
+        if let Some(expected) = surf_len {
+            if surf_here != expected {
+                return Err(BridgeError::BadState);
+            }
+        } else {
+            surf_len = Some(surf_here);
+        }
+
+        if let Some(expected) = ndepth {
+            if depth_here != expected {
+                return Err(BridgeError::BadState);
+            }
+        } else {
+            ndepth = Some(depth_here);
+        }
+
+        let expected_mat_len = matrix_len(surf_here, depth_here)?;
+        if mat_len != expected_mat_len {
+            return Err(BridgeError::BadState);
+        }
+    }
+
     let nlayer = nlayer.unwrap_or(0);
     let ndepth = ndepth.unwrap_or(0);
+    let surf_len = surf_len.unwrap_or(0);
     if nlayer == 0 && ndepth != 0 {
+        return Err(BridgeError::BadState);
+    }
+    if surf_len != surface_len(nlayer) {
         return Err(BridgeError::BadState);
     }
     Ok((nlayer, ndepth))

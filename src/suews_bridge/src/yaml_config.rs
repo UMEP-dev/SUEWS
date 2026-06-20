@@ -601,9 +601,7 @@ fn apply_vertical_layers_overrides(site: &mut SuewsSite, site_root: &Value) {
         // Both former branches (lengths match, or height non-empty) did the
         // same prefix-assign, so they collapse to one condition. Behaviour is
         // unchanged; the duplicated else-if may have been intended to differ.
-        if site.spartacus.height.len() == height_values.len()
-            || !site.spartacus.height.is_empty()
-        {
+        if site.spartacus.height.len() == height_values.len() || !site.spartacus.height.is_empty() {
             assign_prefix(
                 site.spartacus.height.as_mut_slice(),
                 height_values.as_slice(),
@@ -835,8 +833,10 @@ fn apply_irrigation_overrides(site: &mut SuewsSite, site_root: &Value) {
     if let Some(v) = read_i32(site_root, &["properties", "irrigation", "ie_end"]) {
         site.irrigation.ie_end = v;
     }
-    if let Some(v) = read_numeric(site_root, &["properties", "irrigation", "internalwateruse_h"])
-    {
+    if let Some(v) = read_numeric(
+        site_root,
+        &["properties", "irrigation", "internalwateruse_h"],
+    ) {
         site.irrigation.internalwateruse_h = v;
     }
 
@@ -1506,35 +1506,33 @@ fn apply_config_overrides(config: &mut SuewsConfig, root: &Value) {
     }
 }
 
-fn apply_ehc_overrides(site: &mut SuewsSite, site_root: &Value, ndepth: usize) {
-    // EHC arrays use NSURF (7) as the first dimension to match the physics loop
-    // which iterates i_surf=1..nsurf. The Fortran C API driver now uses nsurf
-    // (not SPARTACUS nlayer) for EHC buffer sizing and unpacking.
-    let nlayer_ehc = NSURF;
-    let mat_len = nlayer_ehc * ndepth;
+fn apply_ehc_overrides(site: &mut SuewsSite, site_root: &Value, nlayer: usize, ndepth: usize) {
+    let layer_mat_len = nlayer * ndepth;
+    let surf_mat_len = NSURF * ndepth;
 
-    site.ehc.nlayer = nlayer_ehc;
+    site.ehc.nlayer = nlayer;
     site.ehc.ndepth = ndepth;
 
-    // Resize all EHC arrays to correct dimensions (zero-filled by default).
-    site.ehc.soil_storecap_roof.resize(nlayer_ehc, 0.0);
-    site.ehc.soil_storecap_wall.resize(nlayer_ehc, 0.0);
-    site.ehc.state_limit_roof.resize(nlayer_ehc, 0.0);
-    site.ehc.state_limit_wall.resize(nlayer_ehc, 0.0);
-    site.ehc.wet_thresh_roof.resize(nlayer_ehc, 0.0);
-    site.ehc.wet_thresh_wall.resize(nlayer_ehc, 0.0);
-    site.ehc.tin_roof.resize(nlayer_ehc, 5.0);
-    site.ehc.tin_wall.resize(nlayer_ehc, 5.0);
-    site.ehc.tin_surf.resize(nlayer_ehc, 2.0);
-    site.ehc.k_roof.resize(mat_len, 0.0);
-    site.ehc.k_wall.resize(mat_len, 0.0);
-    site.ehc.k_surf.resize(mat_len, 0.0);
-    site.ehc.cp_roof.resize(mat_len, 0.0);
-    site.ehc.cp_wall.resize(mat_len, 0.0);
-    site.ehc.cp_surf.resize(mat_len, 0.0);
-    site.ehc.dz_roof.resize(mat_len, 0.0);
-    site.ehc.dz_wall.resize(mat_len, 0.0);
-    site.ehc.dz_surf.resize(mat_len, 0.0);
+    // Roof and wall arrays follow SPARTACUS vertical layers; standard
+    // surface arrays follow SUEWS surface classes.
+    site.ehc.soil_storecap_roof.resize(nlayer, 0.0);
+    site.ehc.soil_storecap_wall.resize(nlayer, 0.0);
+    site.ehc.state_limit_roof.resize(nlayer, 0.0);
+    site.ehc.state_limit_wall.resize(nlayer, 0.0);
+    site.ehc.wet_thresh_roof.resize(nlayer, 0.0);
+    site.ehc.wet_thresh_wall.resize(nlayer, 0.0);
+    site.ehc.tin_roof.resize(nlayer, 5.0);
+    site.ehc.tin_wall.resize(nlayer, 5.0);
+    site.ehc.tin_surf.resize(NSURF, 2.0);
+    site.ehc.k_roof.resize(layer_mat_len, 0.0);
+    site.ehc.k_wall.resize(layer_mat_len, 0.0);
+    site.ehc.k_surf.resize(surf_mat_len, 0.0);
+    site.ehc.cp_roof.resize(layer_mat_len, 0.0);
+    site.ehc.cp_wall.resize(layer_mat_len, 0.0);
+    site.ehc.cp_surf.resize(surf_mat_len, 0.0);
+    site.ehc.dz_roof.resize(layer_mat_len, 0.0);
+    site.ehc.dz_wall.resize(layer_mat_len, 0.0);
+    site.ehc.dz_surf.resize(surf_mat_len, 0.0);
 
     // Populate k_surf, cp_surf, dz_surf from each surface type's thermal_layers.
     // Row-major layout: element [surf_idx * ndepth + depth_idx].
@@ -1583,7 +1581,7 @@ fn apply_ehc_overrides(site: &mut SuewsSite, site_root: &Value, ndepth: usize) {
     }
 
     if let Some(roofs) = read_sequence(site_root, &["properties", "vertical_layers", "roofs"]) {
-        for (layer_idx, roof_root) in roofs.iter().take(nlayer_ehc).enumerate() {
+        for (layer_idx, roof_root) in roofs.iter().take(nlayer).enumerate() {
             if let Some(v) = read_numeric(roof_root, &["soilstorecap"]) {
                 site.ehc.soil_storecap_roof[layer_idx] = v;
             }
@@ -1615,7 +1613,7 @@ fn apply_ehc_overrides(site: &mut SuewsSite, site_root: &Value, ndepth: usize) {
     }
 
     if let Some(walls) = read_sequence(site_root, &["properties", "vertical_layers", "walls"]) {
-        for (layer_idx, wall_root) in walls.iter().take(nlayer_ehc).enumerate() {
+        for (layer_idx, wall_root) in walls.iter().take(nlayer).enumerate() {
             if let Some(v) = read_numeric(wall_root, &["soilstorecap"]) {
                 site.ehc.soil_storecap_wall[layer_idx] = v;
             }
@@ -1647,7 +1645,7 @@ fn apply_ehc_overrides(site: &mut SuewsSite, site_root: &Value, ndepth: usize) {
     }
 
     if let Some(roofs) = read_sequence(site_root, &["initial_states", "roofs"]) {
-        for (layer_idx, roof_root) in roofs.iter().take(nlayer_ehc).enumerate() {
+        for (layer_idx, roof_root) in roofs.iter().take(nlayer).enumerate() {
             if let Some(v) = read_numeric(roof_root, &["tin"]).or_else(|| {
                 read_numeric_sequence(roof_root, &["temperature"])
                     .and_then(|vals| vals.first().copied())
@@ -1658,7 +1656,7 @@ fn apply_ehc_overrides(site: &mut SuewsSite, site_root: &Value, ndepth: usize) {
     }
 
     if let Some(walls) = read_sequence(site_root, &["initial_states", "walls"]) {
-        for (layer_idx, wall_root) in walls.iter().take(nlayer_ehc).enumerate() {
+        for (layer_idx, wall_root) in walls.iter().take(nlayer).enumerate() {
             if let Some(v) = read_numeric(wall_root, &["tin"]).or_else(|| {
                 read_numeric_sequence(wall_root, &["temperature"])
                     .and_then(|vals| vals.first().copied())
@@ -1811,7 +1809,7 @@ fn apply_site_overrides(
     apply_anthro_emis_overrides(site, site_root);
     apply_building_archetype_overrides(site, site_root)?;
     apply_stebbs_overrides(site, site_root)?;
-    apply_ehc_overrides(site, site_root, ndepth);
+    apply_ehc_overrides(site, site_root, nlayer, ndepth);
     Ok(())
 }
 
@@ -2420,6 +2418,13 @@ mod tests {
 
         let ndepth = run_cfg.ndepth as usize;
         assert!(ndepth > 0);
+        assert_eq!(run_cfg.site.ehc.nlayer, run_cfg.nlayer as usize);
+        assert_eq!(run_cfg.site.ehc.tin_surf.len(), NSURF);
+        assert_eq!(run_cfg.site.ehc.k_surf.len(), NSURF * ndepth);
+        assert_eq!(
+            run_cfg.site.ehc.k_roof.len(),
+            run_cfg.site.ehc.nlayer * ndepth
+        );
 
         assert!((run_cfg.site.ehc.dz_roof[0] - 0.03).abs() < 1.0e-12);
         assert!((run_cfg.site.ehc.k_roof[0] - 0.106).abs() < 1.0e-12);
@@ -2700,8 +2705,7 @@ mod tests {
         map.insert(Value::String("same_emissivity_wall".into()), flat(0));
         map.insert(Value::String("same_emissivity_roof".into()), flat(0));
 
-        let cfg_nested =
-            load_run_config_from_value(&mut root_nested).expect("parse nested STEBBS");
+        let cfg_nested = load_run_config_from_value(&mut root_nested).expect("parse nested STEBBS");
         let cfg_flat = load_run_config_from_value(&mut root_flat).expect("parse flat STEBBS");
 
         // flat(19)/flat(20)/flat(21) — the only STEBBS switches in the c_api
@@ -2709,7 +2713,10 @@ mod tests {
         assert_eq!(cfg_nested.config.stebbs_method, 1);
         assert_eq!(cfg_nested.config.rc_method, 2);
         assert_eq!(cfg_nested.config.setpoint_method, 0);
-        assert_eq!(cfg_nested.config.stebbs_method, cfg_flat.config.stebbs_method);
+        assert_eq!(
+            cfg_nested.config.stebbs_method,
+            cfg_flat.config.stebbs_method
+        );
         assert_eq!(cfg_nested.config.rc_method, cfg_flat.config.rc_method);
         assert_eq!(
             cfg_nested.config.setpoint_method,

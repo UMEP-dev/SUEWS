@@ -415,7 +415,7 @@ fn validate_site_codec(
     let ehc = if ehc_slice.is_empty() {
         ehc_prm_from_ordered_values(ehc_slice)?
     } else {
-        EhcPrm::from_flat_with_dims(ehc_slice, NSURF, ndepth as usize)?
+        EhcPrm::from_flat_with_dims(ehc_slice, nlayer_usize, ndepth as usize)?
     };
     let spartacus_layer_slice = member_slice(site_flat, site_toc, SITE_MEMBER_SPARTACUS_LAYER)?;
     let spartacus_layer = if spartacus_layer_slice.is_empty() {
@@ -883,7 +883,12 @@ pub fn run_simulation(input: SimulationInput) -> Result<SimulationOutput, Bridge
         return Err(BridgeError::BadState);
     }
 
-    validate_site_codec(&site_members.flat, &site_members.toc, input.nlayer, input.ndepth)?;
+    validate_site_codec(
+        &site_members.flat,
+        &site_members.toc,
+        input.nlayer,
+        input.ndepth,
+    )?;
 
     let mut timer_out = vec![0.0_f64; SUEWS_TIMER_FLAT_LEN];
     let mut state_out = vec![0.0_f64; state_members.flat.len()];
@@ -1014,11 +1019,7 @@ mod tests {
         let mut err = -1_i32;
 
         unsafe {
-            ffi::suews_output_group_ncolumns(
-                ncols_arr.as_mut_ptr(),
-                &mut n_groups,
-                &mut err,
-            );
+            ffi::suews_output_group_ncolumns(ncols_arr.as_mut_ptr(), &mut n_groups, &mut err);
         }
 
         assert_eq!(

@@ -59,6 +59,7 @@ py.install_sources(
             'util/_atm.py',
             'util/_attribution/__init__.py',
             'util/_attribution/_core.py',
+            'util/_attribution/_flux_performance.py',
             'util/_attribution/_helpers.py',
             'util/_attribution/_physics.py',
             'util/_attribution/_q2.py',

@@ -15,11 +15,15 @@ pytestmark = [
 SURFACE_NAMES = ("paved", "bldgs", "evetr", "dectr", "grass", "bsoil", "water")
 
 
-def _run_short_ehc_with_surface_cp(rho_cp):
+def _run_short_ehc_with_surface_cp(rho_cp, surface_rho_cp=None):
     sim = sp.SUEWSSimulation.from_sample_data()
-    layer_values = [rho_cp] * 5
+    surface_rho_cp = surface_rho_cp or {}
     surface_updates = {
-        name: {"thermal_layers": {"rho_cp": {"value": layer_values}}}
+        name: {
+            "thermal_layers": {
+                "rho_cp": {"value": [surface_rho_cp.get(name, rho_cp)] * 5}
+            }
+        }
         for name in SURFACE_NAMES
     }
     sim.update_config(
@@ -48,3 +52,9 @@ def test_ehc_lumped_storage_is_sensitive_to_surface_rho_cp():
 
     assert low_cp_qs.shape == high_cp_qs.shape
     assert np.max(np.abs(high_cp_qs - low_cp_qs)) > 1.0
+
+
+def test_ehc_lumped_storage_skips_invalid_surface_without_zeroing_grid():
+    qs = _run_short_ehc_with_surface_cp(1.0e6, surface_rho_cp={"bldgs": 0.0})
+
+    assert np.max(np.abs(qs)) > 1.0

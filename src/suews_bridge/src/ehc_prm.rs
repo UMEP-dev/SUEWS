@@ -7,7 +7,7 @@ use crate::error::BridgeError;
 use crate::ffi;
 use std::collections::BTreeMap;
 
-pub const EHC_PRM_SCHEMA_VERSION: u32 = 1;
+pub const EHC_PRM_SCHEMA_VERSION: u32 = 2;
 
 const EHC_LAYER_VEC_FIELDS: [&str; 8] = [
     "soil_storecap_roof",

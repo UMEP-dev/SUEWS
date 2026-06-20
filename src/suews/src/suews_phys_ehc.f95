@@ -524,6 +524,7 @@ CONTAINS
       REAL(KIND(1D0)) :: q_top_lumped, q_bottom_lumped
       REAL(KIND(1D0)) :: surface_weight, layer_cap, layer_temp_cap, face_resistance
       LOGICAL :: valid_lumped
+      LOGICAL, DIMENSION(nsurf) :: valid_lumped_surf
 
       QS = 0.0D0
       QS_surf = 0.0D0
@@ -543,24 +544,25 @@ CONTAINS
          cap_lumped = 0.0D0
          temp_lumped = 0.0D0
          valid_lumped = .TRUE.
+         valid_lumped_surf = .FALSE.
          DO i_facet = 1, nsurf
             IF (sfr_surf(i_facet) > 0.0D0) THEN
-               surface_weight = surface_weight + sfr_surf(i_facet)
+               valid_lumped_surf(i_facet) = .TRUE.
                DO i_depth = 1, ndepth
                   IF (dz_surf(i_facet, i_depth) <= 0.0D0 &
                       .OR. k_surf(i_facet, i_depth) <= 0.0D0 &
-                      .OR. cp_surf(i_facet, i_depth) <= 0.0D0) valid_lumped = .FALSE.
+                      .OR. cp_surf(i_facet, i_depth) <= 0.0D0) valid_lumped_surf(i_facet) = .FALSE.
                END DO
+               IF (valid_lumped_surf(i_facet)) surface_weight = surface_weight + sfr_surf(i_facet)
             END IF
          END DO
          IF (surface_weight <= 1.0D-12) RETURN
-         IF (.NOT. valid_lumped) RETURN
 
          DO i_depth = 1, ndepth
             layer_cap = 0.0D0
             layer_temp_cap = 0.0D0
             DO i_facet = 1, nsurf
-               IF (sfr_surf(i_facet) > 0.0D0) THEN
+               IF (valid_lumped_surf(i_facet)) THEN
                   layer_cap = layer_cap + sfr_surf(i_facet)*cp_surf(i_facet, i_depth)*dz_surf(i_facet, i_depth)
                   layer_temp_cap = layer_temp_cap + sfr_surf(i_facet)*cp_surf(i_facet, i_depth) &
                                    *dz_surf(i_facet, i_depth)*temp_in_surf(i_facet, i_depth)
@@ -576,7 +578,7 @@ CONTAINS
          IF (.NOT. valid_lumped) RETURN
 
          DO i_facet = 1, nsurf
-            IF (sfr_surf(i_facet) > 0.0D0) THEN
+            IF (valid_lumped_surf(i_facet)) THEN
                face_resistance = 0.5D0*dz_surf(i_facet, 1)/k_surf(i_facet, 1)
                g_lumped(1) = g_lumped(1) + sfr_surf(i_facet)/face_resistance
                tsfc_lumped = tsfc_lumped + sfr_surf(i_facet)*tsfc_surf(i_facet)/face_resistance
@@ -615,11 +617,13 @@ CONTAINS
             QS = q_top_lumped
          END IF
          qs_per_surface = QS/surface_weight
-         QS_surf = qs_per_surface
          QS_roof = 0.0D0
          QS_wall = 0.0D0
          DO i_facet = 1, nsurf
-            temp_out_surf(i_facet, :) = temp_lumped
+            IF (valid_lumped_surf(i_facet)) THEN
+               QS_surf(i_facet) = qs_per_surface
+               temp_out_surf(i_facet, :) = temp_lumped
+            END IF
          END DO
          RETURN
       END IF
@@ -644,11 +648,11 @@ CONTAINS
             nfacet = nsurf
          END IF
          ! PRINT *, 'nfacet here: ', nfacet
-	         ALLOCATE (tsfc_cal(nfacet))
-	         ALLOCATE (tin_cal(nfacet))
-	         ALLOCATE (qs_cal(nfacet))
-	         qs_cal = 0.0D0
-	         ALLOCATE (temp_cal(nfacet, ndepth))
+            ALLOCATE (tsfc_cal(nfacet))
+            ALLOCATE (tin_cal(nfacet))
+            ALLOCATE (qs_cal(nfacet))
+            qs_cal = 0.0D0
+            ALLOCATE (temp_cal(nfacet, ndepth))
          ALLOCATE (k_cal(nfacet, ndepth))
          ALLOCATE (cp_cal(nfacet, ndepth))
          ALLOCATE (dz_cal(nfacet, ndepth))

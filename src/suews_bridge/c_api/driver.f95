@@ -476,9 +476,9 @@ subroutine initialise_site_state( &
 
    integer :: ib
 
-	   call site%allocate(nlayer)
-	   site%nlayer = nlayer
-	   call site%ehc%allocate(nlayer, ndepth)
+   call site%allocate(nlayer)
+   site%nlayer = nlayer
+   call site%ehc%allocate(nlayer, ndepth)
    call site%spartacus_layer%allocate(nlayer)
    call site%spartacus%allocate(nlayer)
 
@@ -556,13 +556,13 @@ subroutine unpack_site_members( &
       err = local_err
       return
    end if
-	   required_len = 8_c_int * int(nlayer, c_int) + int(nsurf, c_int) + &
-	                  6_c_int * int(nlayer * ndepth, c_int) + 3_c_int * int(nsurf * ndepth, c_int)
-	   if (member_len>=required_len) then
-	      call ehc_prm_unpack(site_flat(int(member_offset) + 1), member_len, &
-	                          int(nlayer, c_int), int(ndepth, c_int), site%ehc, local_err)
-	      if (local_err/=SUEWS_CAPI_OK) then
-	         err = local_err
+   required_len = 8_c_int * int(nlayer, c_int) + int(nsurf, c_int) + &
+                  6_c_int * int(nlayer * ndepth, c_int) + 3_c_int * int(nsurf * ndepth, c_int)
+   if (member_len>=required_len) then
+      call ehc_prm_unpack(site_flat(int(member_offset) + 1), member_len, &
+                          int(nlayer, c_int), int(ndepth, c_int), site%ehc, local_err)
+      if (local_err/=SUEWS_CAPI_OK) then
+         err = local_err
          return
       end if
    end if

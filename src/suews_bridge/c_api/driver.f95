@@ -22,7 +22,7 @@ use module_ctrl_type, only: SUEWS_TIMER, SUEWS_CONFIG, SUEWS_SITE, SUEWS_STATE, 
 use module_ctrl_error_state, only: reset_supy_error
 use module_c_api_spartacus_prm, only: spartacus_prm_unpack
 use module_c_api_lumps, only: lumps_prm_unpack
-use module_c_api_ehc_prm, only: ehc_prm_unpack
+use module_c_api_ehc_prm, only: ehc_prm_unpack, ehc_surface_len
 use module_c_api_spartacus_layer_prm, only: spartacus_layer_prm_unpack
 use module_c_api_surf_store, only: surf_store_prm_unpack
 use module_c_api_irrigation_prm, only: irrigation_prm_unpack
@@ -478,7 +478,7 @@ subroutine initialise_site_state( &
 
    call site%allocate(nlayer)
    site%nlayer = nlayer
-   call site%ehc%allocate(7, ndepth)
+   call site%ehc%allocate(nlayer, ndepth)
    call site%spartacus_layer%allocate(nlayer)
    call site%spartacus%allocate(nlayer)
 
@@ -522,6 +522,7 @@ subroutine unpack_site_members( &
    integer(c_int) :: member_len
    integer(c_int) :: local_err
    integer(c_int) :: required_len
+   integer(c_int) :: n_surf_ehc
 
    call member_span_from_toc(site_flat_len, site_toc, site_toc_len, site_member_count, &
                              SUEWS_CAPI_SITE_MEMBER_SPARTACUS, member_offset, member_len, local_err)
@@ -556,9 +557,12 @@ subroutine unpack_site_members( &
       err = local_err
       return
    end if
-   required_len = 9_c_int * int(nsurf, c_int) + 9_c_int * int(nsurf * ndepth, c_int)
+   n_surf_ehc = ehc_surface_len(int(nlayer, c_int))
+   required_len = 8_c_int * int(nlayer, c_int) + n_surf_ehc + &
+                  6_c_int * int(nlayer * ndepth, c_int) + 3_c_int * n_surf_ehc * int(ndepth, c_int)
    if (member_len>=required_len) then
-      call ehc_prm_unpack(site_flat(int(member_offset) + 1), member_len, int(nsurf, c_int), int(ndepth, c_int), site%ehc, local_err)
+      call ehc_prm_unpack(site_flat(int(member_offset) + 1), member_len, &
+                          int(nlayer, c_int), int(ndepth, c_int), site%ehc, local_err)
       if (local_err/=SUEWS_CAPI_OK) then
          err = local_err
          return

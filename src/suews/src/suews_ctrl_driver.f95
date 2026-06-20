@@ -2147,7 +2147,7 @@ CONTAINS
                   ! END ASSOCIATE
                   CALL EHC( &
                      tstep, & !input
-                     nlayer, &
+                     nlayer, config%NetRadiationMethod <= 1000, &
                      ! QG_surf, qg_roof, qg_wall, &
                      tsfc_roof, tin_roof, temp_in_roof, k_roof, cp_roof, dz_roof, sfr_roof, & !input
                      tsfc_wall, tin_wall, temp_in_wall, k_wall, cp_wall, dz_wall, sfr_wall, & !input
@@ -2789,6 +2789,7 @@ CONTAINS
       REAL(KIND(1D0)) :: qe_building !aggregated qe of building facets[W m-2]
       REAL(KIND(1D0)), DIMENSION(nsurf) :: drain
       REAL(KIND(1D0)), DIMENSION(7) :: capStore_surf ! current storage capacity [mm]
+      LOGICAL :: use_building_facets_for_ehc
 
       ! CALL hydroState_next%allocHydro(nlayer)
       ! ALLOCATE (hydroState%soil_store_roof(nlayer))
@@ -2798,6 +2799,7 @@ CONTAINS
 
       ! load dim constants
       nlayer = siteInfo%nlayer
+      use_building_facets_for_ehc = config%StorageHeatMethod == 5 .AND. config%NetRadiationMethod > 1000
 
       ALLOCATE (rss_roof(nlayer))
       ALLOCATE (runoff_roof(nlayer))
@@ -2967,7 +2969,7 @@ CONTAINS
                   rss_surf, ev0_surf, qe0_surf) !output
 
                ! MP: Use EHC
-               IF (storageheatmethod == 5) THEN
+               IF (storageheatmethod == 5 .AND. use_building_facets_for_ehc) THEN
                   ! --- roofs ---
                   ! net available energy for evaporation
                   qn_e_roof = qn_roof + qf - qs_roof ! qn1 changed to qn1_snowfree, lj in May 2013
@@ -3027,7 +3029,7 @@ CONTAINS
                qe_surf = tlv*ev_surf
 
                ! --- update building related ---
-               IF (storageheatmethod == 5) THEN
+               IF (storageheatmethod == 5 .AND. use_building_facets_for_ehc) THEN
                   ! update building specific values
                   qe_surf(BldgSurf) = qe_building
                   state_surf(BldgSurf) = state_building

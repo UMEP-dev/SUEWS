@@ -1,0 +1,14 @@
+{
+  "case": "dry CBL, constant surface heat flux 0.1 K m s-1, gamma 6 K km-1",
+  "reference": {
+    "growth_law": "h = sqrt(h0^2 + 2 (1+2 beta) F t / gamma), Tennekes 1973 / Garratt 1992",
+    "beta_les": 0.2,
+    "beta_les_source": "Sullivan et al. 1998 (LES consensus 0.15-0.25)"
+  },
+  "h_analytic_beta02_6h_m": 1023.7,
+  "h_column_6h_m": 1064.7,
+  "h_slab_6h_m": 1027.0,
+  "rel_error_column": 0.04,
+  "rel_error_slab": 0.0032,
+  "beta_effective_column": 0.06
+}

@@ -14,6 +14,7 @@ py.install_sources(
         '_var_metadata.py',
         '_version.py',
         '_version_scm.py',
+        'scm.py',
         'suews_checkpoint.py',
         'suews_forcing.py',
         'suews_output.py',
@@ -121,6 +122,7 @@ py.install_sources(
             'data_model/core/physics_families.py',
             'data_model/core/physics_orthogonal.py',
             'data_model/core/profile.py',
+            'data_model/core/scm.py',
             'data_model/core/site.py',
             'data_model/core/state.py',
             'data_model/core/surface.py',
@@ -234,6 +236,7 @@ src_f95_all = [
   'suews_phys_ohm.f95',
   'suews_phys_spartacus.f95',
   'suews_phys_stebbs.f95',
+  'suews_phys_scm.f95',
   'suews_ctrl_driver.f95',
 ]
 

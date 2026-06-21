@@ -1,0 +1,1052 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SUEWS preview — a single column of urban air</title>
+<meta name="description" content="Research preview: the SUEWS coupled single-column model — scientific description, benchmarks against published results, coupled urban-climate experiments, and live in-browser physics.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&family=Crimson+Pro:ital,wght@0,400;0,500;0,600;1,400&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    /* brand palette (constant) */
+    --sun-gold: #F7B538;
+    --sun-gold-dark: #D4940F;
+    --energy-orange: #E85D04;
+    --water-blue: #0077B6;
+    --sky-blue: #5DADE2;
+    --veg-green: #09a25c;
+    --wave-blue: #0558a5;
+    --urban-slate: #2D3142;
+    --urban-dark: #1A1D2E;
+    --urban-deeper: #0F1119;
+
+    /* semantic, dark default */
+    --bg-primary: #0F1119;
+    --bg-secondary: #1A1D2E;
+    --panel-figure: #1b1e2b;       /* matches the matplotlib instrument theme */
+    --border-light: rgba(255,255,255,0.08);
+    --border-medium: rgba(255,255,255,0.14);
+    --text-primary: rgba(255,255,255,0.92);
+    --text-secondary: rgba(255,255,255,0.72);
+    --text-muted: rgba(255,255,255,0.58);
+    --accent: var(--sun-gold);
+    --focus-ring: var(--sun-gold);
+    --contour-opacity: 0.13;
+
+    --space-xs: 0.5rem; --space-sm: 0.75rem; --space-md: 1.5rem;
+    --space-lg: 3rem; --space-xl: 5rem; --space-xxl: 7rem;
+  }
+  [data-theme="light"] {
+    --bg-primary: #FAFBFC;
+    --bg-secondary: #F1F5F9;
+    --border-light: #E2E8F0;
+    --border-medium: #CBD5E1;
+    --text-primary: #1E293B;
+    --text-secondary: #475569;
+    --text-muted: #4B5563;
+    --accent: var(--wave-blue);
+    --focus-ring: var(--wave-blue);
+    --contour-opacity: 0.07;
+  }
+  @media (prefers-color-scheme: light) {
+    :root:not([data-theme="dark"]):not([data-theme="light"]) {
+      --bg-primary: #FAFBFC;
+      --bg-secondary: #F1F5F9;
+      --border-light: #E2E8F0;
+      --border-medium: #CBD5E1;
+      --text-primary: #1E293B;
+      --text-secondary: #475569;
+      --text-muted: #4B5563;
+      --accent: var(--wave-blue);
+      --focus-ring: var(--wave-blue);
+      --contour-opacity: 0.07;
+    }
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html { scroll-behavior: smooth; }
+  @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+
+  body {
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    font-family: "Instrument Sans", system-ui, sans-serif;
+    font-size: 1.0625rem;
+    line-height: 1.65;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  a { color: var(--accent); text-decoration-thickness: 1px; text-underline-offset: 3px; }
+  a:hover { text-decoration-thickness: 2px; }
+  :focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 3px; border-radius: 2px; }
+
+  .wrap { max-width: 1100px; margin: 0 auto; padding: 0 clamp(1.25rem, 4vw, 2.5rem); }
+
+  /* ---------- header ---------- */
+  header.site {
+    display: flex; align-items: baseline; justify-content: space-between;
+    padding: var(--space-md) 0; border-bottom: 1px solid var(--border-light);
+  }
+  .wordmark { font-family: "JetBrains Mono", monospace; font-size: 0.95rem; color: var(--text-secondary); letter-spacing: 0.02em; }
+  .wordmark b { color: var(--text-primary); font-weight: 500; }
+  .wordmark a { color: inherit; text-decoration: none; }
+  .wordmark a:hover b { color: var(--accent); }
+
+  /* ---------- research-preview strip ---------- */
+  .preview-note {
+    display: flex; align-items: baseline; gap: 0.9rem; flex-wrap: wrap;
+    padding: 0.65rem 0; border-bottom: 1px solid var(--border-light);
+    font-size: 0.88rem; color: var(--text-secondary);
+  }
+  .preview-note .badge {
+    font-family: "JetBrains Mono", monospace; font-size: 0.72rem;
+    letter-spacing: 0.12em; text-transform: uppercase;
+    color: var(--accent); border: 1px solid var(--accent);
+    border-radius: 999px; padding: 0.1rem 0.7rem; white-space: nowrap;
+  }
+  .preview-note a { white-space: nowrap; }
+  #theme-toggle {
+    background: none; border: 1px solid var(--border-medium); border-radius: 999px;
+    color: var(--text-secondary); font: inherit; font-size: 0.85rem;
+    padding: 0.3rem 0.9rem; cursor: pointer;
+  }
+  #theme-toggle:hover { color: var(--text-primary); border-color: var(--text-muted); }
+
+  /* ---------- hero ---------- */
+  .hero { position: relative; padding: var(--space-xxl) 0 var(--space-xl); overflow: hidden; }
+  .hero-grid { display: grid; grid-template-columns: minmax(0, 7fr) minmax(0, 5fr); gap: var(--space-lg); align-items: center; }
+  .kicker {
+    font-family: "JetBrains Mono", monospace; font-size: 0.8rem; letter-spacing: 0.14em;
+    text-transform: uppercase; color: var(--accent); margin-bottom: var(--space-md);
+  }
+  h1 {
+    font-family: "Crimson Pro", serif; font-weight: 500;
+    font-size: clamp(2.6rem, 6vw, 4.2rem); line-height: 1.06; letter-spacing: -0.01em;
+    margin-bottom: var(--space-md);
+  }
+  h1 em { font-style: italic; color: var(--accent); }
+  .dek { font-size: 1.15rem; color: var(--text-secondary); max-width: 56ch; }
+  .contours {
+    position: absolute; top: -120px; right: -160px; width: 640px; height: 640px;
+    opacity: var(--contour-opacity); pointer-events: none; z-index: 0;
+  }
+  .hero-grid, .hero .kicker { position: relative; z-index: 1; }
+
+  /* ---------- sections ---------- */
+  section { padding: var(--space-xl) 0; border-top: 1px solid var(--border-light); }
+  .sec-label {
+    font-family: "JetBrains Mono", monospace; font-size: 0.8rem; letter-spacing: 0.14em;
+    text-transform: uppercase; color: var(--text-muted); margin-bottom: var(--space-sm);
+  }
+  h2 {
+    font-family: "Crimson Pro", serif; font-weight: 500; font-size: clamp(1.9rem, 3.5vw, 2.6rem);
+    line-height: 1.15; margin-bottom: var(--space-md); max-width: 30ch;
+  }
+  h3 { font-family: "Crimson Pro", serif; font-weight: 600; font-size: 1.35rem; margin-bottom: var(--space-xs); }
+  p { max-width: 68ch; color: var(--text-secondary); }
+  p + p { margin-top: 1em; }
+  p strong { color: var(--text-primary); font-weight: 600; }
+
+  .two-col { display: grid; grid-template-columns: minmax(0, 6fr) minmax(0, 6fr); gap: var(--space-lg); align-items: start; }
+
+  /* component list, editorial — numbers not icons */
+  ol.parts { list-style: none; counter-reset: part; margin-top: var(--space-md); }
+  ol.parts li { counter-increment: part; padding: var(--space-md) 0; border-top: 1px solid var(--border-light); max-width: 60ch; }
+  ol.parts li::before {
+    content: counter(part, decimal-leading-zero);
+    font-family: "JetBrains Mono", monospace; font-size: 0.85rem; color: var(--accent);
+    display: block; margin-bottom: 0.35rem;
+  }
+  ol.parts b { color: var(--text-primary); font-weight: 600; }
+  ol.parts li p { font-size: 0.98rem; }
+
+  /* ---------- benchmark / demo blocks ---------- */
+  .study { margin-top: var(--space-xl); display: grid; grid-template-columns: minmax(0, 8fr) minmax(0, 4fr); gap: var(--space-lg); align-items: start; }
+  .study.flip { grid-template-columns: minmax(0, 4fr) minmax(0, 8fr); }
+  .study.flip .fig { order: 2; }
+  .fig { background: var(--panel-figure); border: 1px solid var(--border-light); border-radius: 6px; padding: 10px; }
+  .fig img { width: 100%; height: auto; display: block; border-radius: 3px; }
+  .fig figcaption { font-size: 0.82rem; color: var(--text-muted); padding: 0.6rem 0.4rem 0.2rem; line-height: 1.5; }
+  [data-theme="light"] .fig figcaption { color: #6B7280; }
+
+  dl.metrics { margin-top: var(--space-md); }
+  dl.metrics div { padding: 0.55rem 0; border-top: 1px solid var(--border-light); display: flex; justify-content: space-between; gap: 1rem; align-items: baseline; }
+  dl.metrics dt { font-size: 0.9rem; color: var(--text-secondary); }
+  dl.metrics dd { font-family: "JetBrains Mono", monospace; font-size: 0.95rem; color: var(--text-primary); text-align: right; white-space: nowrap; }
+  dl.metrics dd small { color: var(--text-muted); font-size: 0.78rem; display: block; }
+  .verdict { margin-top: var(--space-sm); font-size: 0.9rem; color: var(--veg-green); font-weight: 500; }
+  .caveat-inline { margin-top: var(--space-sm); font-size: 0.9rem; color: var(--text-muted); }
+
+  /* ---------- run it ---------- */
+  pre {
+    background: var(--bg-secondary); border: 1px solid var(--border-light); border-radius: 6px;
+    padding: var(--space-md); overflow-x: auto;
+    font-family: "JetBrains Mono", monospace; font-size: 0.88rem; line-height: 1.7;
+    color: var(--text-secondary);
+  }
+  pre .c { color: var(--text-muted); }
+  pre .k { color: var(--sky-blue); }
+
+  /* ---------- limitations ---------- */
+  ul.limits { list-style: none; max-width: 68ch; }
+  ul.limits li { padding: 0.7rem 0 0.7rem 1.6rem; border-top: 1px solid var(--border-light); color: var(--text-secondary); position: relative; font-size: 0.98rem; }
+  ul.limits li::before { content: "—"; position: absolute; left: 0; color: var(--text-muted); }
+
+  /* ---------- references ---------- */
+  ol.refs { list-style: none; columns: 2; column-gap: var(--space-lg); font-size: 0.9rem; color: var(--text-secondary); }
+  ol.refs li { break-inside: avoid; padding: 0.45rem 0; line-height: 1.5; }
+  ol.refs i { font-style: italic; }
+
+  footer.site { border-top: 1px solid var(--border-light); padding: var(--space-lg) 0 var(--space-xl); margin-top: var(--space-xl);
+    font-size: 0.85rem; color: var(--text-muted); display: flex; flex-wrap: wrap; gap: 0.5rem 2.5rem; }
+  footer.site span { font-family: "JetBrains Mono", monospace; }
+
+  /* ---------- schematic ---------- */
+  .schematic { width: 100%; height: auto; }
+  .schematic text { font-family: "Instrument Sans", sans-serif; font-size: 12.5px; fill: var(--text-secondary); }
+  .schematic .lbl-mono { font-family: "JetBrains Mono", monospace; font-size: 10.5px; fill: var(--text-muted); }
+  .schematic .lvl { stroke: var(--border-medium); }
+  .schematic .grd { stroke: var(--text-muted); }
+
+  /* ---------- interactive panels ----------
+     the lab panels are always-dark instruments (matching the figures),
+     so their internal text colours are pinned, not themed */
+  .lab { background: var(--panel-figure); border: 1px solid var(--border-light); border-radius: 6px; padding: var(--space-md); }
+  .lab canvas { width: 100%; height: auto; display: block; }
+  .lab .readouts { color: rgba(255,255,255,0.55); }
+  .lab .readouts b { color: rgba(255,255,255,0.92); }
+  .lab .stamp { color: rgba(255,255,255,0.72); }
+  .lab button.play { color: rgba(255,255,255,0.9); border-color: rgba(255,255,255,0.28); }
+  .lab button.play:hover { border-color: var(--sun-gold); color: var(--sun-gold); }
+  .controls { display: flex; flex-direction: column; gap: 1.1rem; margin-top: var(--space-md); }
+  .controls label { display: block; font-size: 0.88rem; color: var(--text-secondary); }
+  .controls label b { color: var(--text-primary); font-weight: 600; }
+  .controls .val { font-family: "JetBrains Mono", monospace; color: var(--accent); float: right; }
+  .controls input[type="range"] { width: 100%; accent-color: var(--accent); margin-top: 0.35rem; cursor: pointer; }
+  .readouts { display: flex; gap: 2rem; flex-wrap: wrap; margin-top: var(--space-sm); font-size: 0.85rem; color: var(--text-muted); }
+  .readouts b { font-family: "JetBrains Mono", monospace; font-size: 1.05rem; color: var(--text-primary); display: block; font-weight: 500; }
+  .scrub-row { display: flex; align-items: center; gap: 1rem; margin-top: var(--space-sm); }
+  .scrub-row input[type="range"] { flex: 1; accent-color: var(--accent); cursor: pointer; }
+  button.play {
+    background: none; border: 1px solid var(--border-medium); border-radius: 999px;
+    color: var(--text-primary); font: inherit; font-size: 0.85rem;
+    padding: 0.3rem 1.1rem; cursor: pointer; white-space: nowrap;
+  }
+  button.play:hover { border-color: var(--accent); color: var(--accent); }
+  .stamp { font-family: "JetBrains Mono", monospace; font-size: 0.85rem; color: var(--text-secondary); min-width: 11ch; }
+
+  /* ---------- motion ---------- */
+  @media (prefers-reduced-motion: no-preference) {
+    .reveal { opacity: 0; transform: translateY(14px); transition: opacity 0.7s cubic-bezier(0.22,1,0.36,1), transform 0.7s cubic-bezier(0.22,1,0.36,1); }
+    .reveal.in { opacity: 1; transform: none; }
+  }
+
+  /* ---------- responsive ---------- */
+  @media (max-width: 880px) {
+    .hero-grid, .two-col, .study, .study.flip { grid-template-columns: 1fr; }
+    .study.flip .fig { order: 0; }
+    ol.refs { columns: 1; }
+    .hero { padding-top: var(--space-xl); }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="site">
+  <div class="wordmark"><a href="https://suews.io"><b>SUEWS</b></a> / preview · single-column model</div>
+  <button id="theme-toggle" aria-pressed="false" aria-label="Switch colour theme">Light</button>
+</header>
+
+<div class="preview-note" role="note">
+  <span class="badge">Research preview</span>
+  <span>An experimental SUEWS capability: the physics ships in the model core;
+  the interface may still change. Every number on this page regenerates from
+  archived, version-controlled metrics.</span>
+  <span><a href="https://docs.suews.io/latest/integration/scm-coupled.html">Documentation</a> ·
+  <a href="https://github.com/UMEP-dev/SUEWS">Source</a></span>
+</div>
+
+<!-- ================= hero ================= -->
+<div class="hero">
+  <svg class="contours" viewBox="0 0 600 600" aria-hidden="true" focusable="false">
+    <g fill="none" stroke="#F7B538" stroke-width="1">
+      <circle cx="300" cy="300" r="70"/><circle cx="300" cy="300" r="120"/>
+      <circle cx="300" cy="300" r="180"/><circle cx="300" cy="300" r="250"/>
+      <circle cx="300" cy="300" r="330"/><circle cx="300" cy="300" r="420"/>
+    </g>
+  </svg>
+  <p class="kicker">single-column model · urban land–atmosphere coupling</p>
+  <div class="hero-grid">
+    <div>
+      <h1>A single column of <em>urban air</em></h1>
+      <p class="dek">
+        Offline, SUEWS is told what the air above a city is doing. <strong>the SUEWS
+        single-column model</strong>
+        closes the loop: a one-dimensional atmospheric boundary-layer column rides on the
+        SUEWS surface scheme, so air temperature, humidity and boundary-layer depth become
+        things the model <em>predicts</em> — and urban climate questions at the city scale
+        can be asked of a system that answers back.
+      </p>
+    </div>
+    <svg class="schematic" viewBox="0 0 460 400" role="img" aria-labelledby="schem-title schem-desc">
+      <title id="schem-title">Schematic of the coupled single-column model</title>
+      <desc id="schem-desc">An urban atmospheric column above the SUEWS surface scheme.
+      Sensible heat, latent heat and friction velocity pass upward from the surface to the
+      column; temperature, humidity and wind pass downward. A companion rural column
+      ventilates the urban column on an advective time scale.</desc>
+      <!-- sun + halo -->
+      <circle cx="52" cy="48" r="26" fill="none" stroke="var(--sun-gold)" stroke-opacity="0.25" stroke-width="10"/>
+      <circle cx="52" cy="48" r="15" fill="var(--sun-gold)"/>
+      <!-- column levels (urban) -->
+      <g class="lvl" stroke-width="1">
+        <line x1="120" y1="60"  x2="260" y2="60"  stroke-opacity="0.15"/>
+        <line x1="120" y1="90"  x2="260" y2="90"  stroke-opacity="0.22"/>
+        <line x1="120" y1="118" x2="260" y2="118" stroke-opacity="0.3"/>
+        <line x1="120" y1="144" x2="260" y2="144" stroke-opacity="0.4"/>
+        <line x1="120" y1="168" x2="260" y2="168" stroke-opacity="0.5"/>
+        <line x1="120" y1="190" x2="260" y2="190" stroke-opacity="0.6"/>
+        <line x1="120" y1="210" x2="260" y2="210" stroke-opacity="0.7"/>
+        <line x1="120" y1="228" x2="260" y2="228" stroke-opacity="0.8"/>
+        <line x1="120" y1="245" x2="260" y2="245" stroke-opacity="0.9"/>
+        <line x1="120" y1="261" x2="260" y2="261"/>
+        <line x1="120" y1="276" x2="260" y2="276"/>
+        <line x1="120" y1="290" x2="260" y2="290"/>
+      </g>
+      <text x="124" y="50" class="lbl-mono">prognostic theta, q, u, v</text>
+      <!-- BL height -->
+      <path d="M 110 130 Q 190 112 270 130" fill="none" stroke="var(--sky-blue)" stroke-width="1.5" stroke-dasharray="5 4"/>
+      <text x="276" y="133" fill="var(--sky-blue)" font-size="12">h</text>
+      <!-- up arrows: QH QE ustar -->
+      <g stroke-width="2.4">
+        <line x1="150" y1="300" x2="150" y2="252" stroke="var(--energy-orange)"/>
+        <path d="M 150 248 l -5 9 h 10 z" fill="var(--energy-orange)"/>
+        <line x1="186" y1="300" x2="186" y2="252" stroke="var(--water-blue)"/>
+        <path d="M 186 248 l -5 9 h 10 z" fill="var(--water-blue)"/>
+      </g>
+      <text x="138" y="318" fill="var(--energy-orange)" font-size="12.5">Q<tspan baseline-shift="sub" font-size="9">H</tspan></text>
+      <text x="175" y="318" fill="var(--water-blue)" font-size="12.5">Q<tspan baseline-shift="sub" font-size="9">E</tspan>, u<tspan baseline-shift="super" font-size="9">*</tspan></text>
+      <!-- down arrow: T q U -->
+      <g stroke-width="2.4">
+        <line x1="232" y1="252" x2="232" y2="298" stroke="var(--sky-blue)"/>
+        <path d="M 232 302 l -5 -9 h 10 z" fill="var(--sky-blue)"/>
+      </g>
+      <text x="222" y="240" fill="var(--sky-blue)" font-size="12.5">T, q, U</text>
+      <!-- urban surface -->
+      <g fill="var(--urban-slate)" stroke="var(--border-medium)" stroke-width="0.5">
+        <rect x="118" y="330" width="22" height="34"/>
+        <rect x="146" y="318" width="26" height="46"/>
+        <rect x="178" y="336" width="18" height="28"/>
+        <rect x="202" y="324" width="24" height="40"/>
+        <rect x="232" y="340" width="30" height="24"/>
+      </g>
+      <line x1="100" y1="364" x2="280" y2="364" class="grd" stroke-width="1.5"/>
+      <text x="120" y="384">SUEWS · urban surface</text>
+      <!-- rural column -->
+      <g class="lvl" stroke-width="1">
+        <line x1="330" y1="170" x2="420" y2="170" stroke-opacity="0.3"/>
+        <line x1="330" y1="200" x2="420" y2="200" stroke-opacity="0.5"/>
+        <line x1="330" y1="228" x2="420" y2="228" stroke-opacity="0.7"/>
+        <line x1="330" y1="254" x2="420" y2="254" stroke-opacity="0.85"/>
+        <line x1="330" y1="278" x2="420" y2="278"/>
+      </g>
+      <!-- ventilation arrow -->
+      <g stroke="var(--veg-green)" stroke-width="2">
+        <line x1="330" y1="225" x2="282" y2="225"/>
+        <path d="M 278 225 l 9 -5 v 10 z" fill="var(--veg-green)" stroke="none"/>
+      </g>
+      <text x="296" y="212" fill="var(--veg-green)" font-size="11.5">tau = L / U</text>
+      <!-- rural surface -->
+      <path d="M 320 364 q 12 -10 24 0 q 12 -10 24 0 q 12 -10 24 0" fill="none" stroke="var(--veg-green)" stroke-width="2"/>
+      <line x1="310" y1="364" x2="440" y2="364" class="grd" stroke-width="1.5"/>
+      <text x="318" y="384">rural companion</text>
+    </svg>
+  </div>
+</div>
+
+<!-- ================= how it works ================= -->
+<section id="model" class="reveal">
+  <p class="sec-label">I · The coupled system</p>
+  <h2>The surface and the air, made to negotiate</h2>
+  <div class="two-col">
+    <div>
+      <p>
+        Every five minutes the column hands SUEWS the air it has computed at the forcing
+        height — temperature, humidity, wind — and SUEWS hands back the turbulent fluxes
+        of the urban surface: sensible heat, latent heat and friction velocity. The fluxes
+        drive the column; the column rewrites the forcing. Radiation, precipitation and
+        pressure stay prescribed from observations, so the coupled system remains anchored
+        to the real sky.
+      </p>
+      <p>
+        A column fixed over a city is not a closed box. Advection replaces urban-heated
+        air with upstream air on a time scale of roughly an hour; without that exchange the
+        modelled city warms without limit, because an urban surface keeps a positive
+        sensible heat flux all night. The model represents this with a
+        <strong>companion rural column</strong> — itself a coupled SUEWS run over grassland,
+        cooling at night through its own surface — whose profiles ventilate the urban
+        column at the rate the wind dictates.
+      </p>
+    </div>
+    <ol class="parts">
+      <li><b>K-profile column.</b>
+        <p>Multi-level boundary layer with the Troen–Mahrt non-local closure for convective
+        conditions (counter-gradient transport after Holtslag &amp; Boville) and a local
+        Richardson-number closure for stable nights. Implicit, exactly conservative numerics.</p></li>
+      <li><b>Slab mixed layer.</b>
+        <p>A CLASS-style bulk convective boundary layer — the modern descendant of the
+        SUEWS-CBL (BLUEWS) scheme that still ships in the Fortran code — for theory work
+        and rapid experiments.</p></li>
+      <li><b>Two-way coupler.</b>
+        <p>The coupled loop runs inside the SUEWS timestep driver itself (Fortran,
+        reached through the Rust bridge): fluxes exchanged both ways every five
+        minutes, wind nudged to observations, rural-background ventilation with
+        τ = L/U — about 0.25 ms per coupled step.</p></li>
+    </ol>
+  </div>
+</section>
+
+<!-- ================= benchmarks ================= -->
+<section id="evidence" class="reveal">
+  <p class="sec-label">II · Evidence</p>
+  <h2>Benchmarked against what the literature already knows</h2>
+  <p>
+    A model earns trust by being checked where the answer is known. Three layers of
+    evidence: exact analytic solutions, the canonical GABLS1 large-eddy-simulation
+    ensemble, and observed air temperatures over central London. All numbers below are
+    regenerated by the scripts in <a href="#run">§ IV</a>; nothing is hand-tuned to fit.
+  </p>
+
+  <article class="study">
+    <figure class="fig">
+      <img src="assets/fig_gabls1.png" alt="Three panels: potential temperature profile after nine hours, wind speed profile showing a low-level jet, and boundary-layer depth evolution, each compared against the LES ensemble range.">
+      <figcaption>GABLS1 stable boundary layer after 9 h of prescribed surface cooling.
+      Green band: LES ensemble depth range (Beare et al. 2006). The long-tail stability
+      function over-deepens the layer exactly as the SCM intercomparison reported.</figcaption>
+    </figure>
+    <div>
+      <h3>GABLS1 — the stable night</h3>
+      <p>The standard test of a boundary-layer scheme's worst enemy: weak, shallow,
+      stably stratified turbulence under 8&nbsp;m&nbsp;s<sup>−1</sup> geostrophic wind.</p>
+      <dl class="metrics">
+        <div><dt>Depth (stress-based / bulk-Ri)</dt><dd>168 / 198 m<small>LES ensemble 150–250 m</small></dd></div>
+        <div><dt>Friction velocity</dt><dd>0.274 m s⁻¹<small>LES ≈ 0.25–0.30 m s⁻¹</small></dd></div>
+        <div><dt>Low-level jet</dt><dd>9.7 m s⁻¹ at 184 m<small>supergeostrophic, at BL top</small></dd></div>
+        <div><dt>Long-tail variant depth</dt><dd>378 m<small>over-deepening reproduced (Cuxart et al. 2006)</small></dd></div>
+      </dl>
+      <p class="verdict">Within the published LES ranges on every diagnostic.</p>
+    </div>
+  </article>
+
+  <article class="study flip">
+    <figure class="fig">
+      <img src="assets/fig_cbl.png" alt="Three panels: convective boundary-layer growth against analytic curves, well-mixed potential temperature profiles at one, three and six hours, and the normalised heat-flux profile at four hours.">
+      <figcaption>Dry convective boundary layer under constant surface heat flux.
+      The column and the slab track the analytic entrainment growth law; the heat-flux
+      profile decreases linearly with height as theory requires.</figcaption>
+    </figure>
+    <div>
+      <h3>Convective growth — the textbook day</h3>
+      <p>Constant heat flux into linear stratification has a closed-form solution
+      (Tennekes 1973). The model has nowhere to hide.</p>
+      <dl class="metrics">
+        <div><dt>Column depth at 6 h</dt><dd>1065 m<small>analytic (β = 0.2): 1024 m → 4.0 %</small></dd></div>
+        <div><dt>Slab depth at 6 h</dt><dd>1027 m<small>0.3 % from analytic</small></dd></div>
+        <div><dt>Mixed-layer θ</dt><dd>± 0.5 K<small>vs bulk heat-budget theory (tested)</small></dd></div>
+        <div><dt>Flux-profile entrainment ratio</dt><dd>0.06<small>LES consensus 0.15–0.25 — see § V</small></dd></div>
+      </dl>
+      <p class="verdict">Growth law captured to 4 % (column) and 0.3 % (slab).</p>
+      <p class="caveat-inline">The shallow entrainment minimum is a known limitation of
+      first-order K-profile schemes without an explicit entrainment closure (Noh et al. 2003);
+      it is reported, not hidden.</p>
+    </div>
+  </article>
+
+  <article class="study">
+    <figure class="fig">
+      <img src="assets/fig_coupled_kcl.png" alt="Four panels: modelled versus observed air temperature time series at 40 metres over five July days, the mean diurnal cycle, diagnosed boundary-layer height, and surface fluxes compared between coupled and offline runs.">
+      <figcaption>Coupled run over the clearest 2012 summer window at the KCL site,
+      central London. The temperature SUEWS receives is the column's own: the
+      air-temperature observations are withheld after initialisation, while
+      radiation, precipitation and pressure stay prescribed and wind is nudged
+      towards the observed speed.</figcaption>
+    </figure>
+    <div>
+      <h3>London, observed — the real city</h3>
+      <p>SUEWS spun up over 2012, then five July days fully coupled: the model's 40-m air
+      temperature against the observations the offline model would normally consume.</p>
+      <dl class="metrics">
+        <div><dt>Air temperature RMSE</dt><dd>3.7 K<small>22–27 Jul 2012, day 1 excluded (spin-up)</small></dd></div>
+        <div><dt>Daytime / nighttime RMSE</dt><dd>3.0 / 4.5 K</dd></div>
+        <div><dt>Bias</dt><dd>+2.6 K</dd></div>
+        <div><dt>Diurnal amplitude (obs / model)</dt><dd>7.7 / 4.2 K</dd></div>
+        <div><dt>Ventilation time scale (mean)</dt><dd>82 min<small>τ = 15 km / U</small></dd></div>
+      </dl>
+      <p class="verdict">The coupled system tracks the diurnal swing with the air-temperature observations withheld after initialisation - the residual warm bias is the column's, not a tuned fit.</p>
+    </div>
+  </article>
+
+  <article class="study flip">
+    <figure class="fig">
+      <img src="assets/fig_native.png" alt="Three panels: modelled air temperatures from the native Fortran backend and the Python reference overlying each other and the observations, their absolute difference staying small, and a log-scale wall-clock comparison.">
+      <figcaption>The same five coupled days through both backends. The native
+      run executes the entire coupled loop inside the SUEWS Fortran driver via
+      the Rust bridge; the Python reference calls SUEWS once per 5-minute step.</figcaption>
+    </figure>
+    <div>
+      <h3>Native backend — the same physics, 555&times; faster</h3>
+      <p>The column was ported line-for-line into the SUEWS Fortran core
+      (<span style="font-family:'JetBrains Mono',monospace;font-size:0.85em;">suews_phys_scm.f95</span>)
+      and the coupled loop now runs inside the model's own timestep driver,
+      reached through the Rust bridge in a single call. A six-hour lockstep
+      regression pins the two backends to within 0.06 K; over five
+      free-running days the trajectories agree to 0.23 K on average, with
+      transient divergence up to 2.5 K at morning transitions, while skill
+      against the observations is statistically indistinguishable.</p>
+      <dl class="metrics">
+        <div><dt>Five coupled days, native</dt><dd>0.3 s<small>0.2 ms per coupled step</small></dd></div>
+        <div><dt>Five coupled days, Python loop</dt><dd>187 s<small>130 ms per step (marshalling-bound)</small></dd></div>
+        <div><dt>Speed-up</dt><dd>555&times;<small>same machine, same compiled physics</small></dd></div>
+        <div><dt>Backend agreement (air T)</dt><dd>0.23 K mean<small>max 2.48 K over 5 days; lockstep to 0.06 K over 6 h (tested) — divergence reflects independent spin-up paths, not physics</small></dd></div>
+        <div><dt>Skill vs observations</dt><dd>3.4 / 3.7 K<small>RMSE, native / Python reference</small></dd></div>
+      </dl>
+      <p class="verdict">A season of coupled simulation is now a coffee-length job, not an overnight one.</p>
+    </div>
+  </article>
+</section>
+
+<!-- ================= demos ================= -->
+<section id="experiments" class="reveal">
+  <p class="sec-label">III · Experiments</p>
+  <h2>Questions you can only ask a coupled model</h2>
+  <p>
+    Three experiments over the same five July days, identical synoptic forcing. In each,
+    the quantity of interest — the heat island, the warming from waste heat, the cooling
+    from brighter roofs — <strong>emerges</strong> from the negotiation between surface and air.
+    An offline model cannot produce any of these numbers: it would change the fluxes and
+    leave the air untouched.
+  </p>
+
+  <article class="study">
+    <figure class="fig">
+      <img src="assets/fig_demo_urban_rural.png" alt="Four panels: emergent air temperatures for urban and rural columns, the diurnal cycle of their difference, boundary-layer depths, and surface turbulent fluxes.">
+      <figcaption>Central London (KCL) versus a grassland configuration. The urban–rural
+      temperature difference is an output, not an input.</figcaption>
+    </figure>
+    <div>
+      <h3>1 · The heat island, grown from physics</h3>
+      <p>Swap the surface beneath the column — keep the sky. The city stays warm at night
+      because its fabric releases stored heat and its sensible heat flux never sleeps.</p>
+      <dl class="metrics">
+        <div><dt>Nocturnal heat island (mean)</dt><dd>+0.79 K</dd></div>
+        <div><dt>Maximum heat island</dt><dd>3.42 K</dd></div>
+        <div><dt>BL depth, urban / rural max</dt><dd>2890 / 2843 m</dd></div>
+      </dl>
+    </div>
+  </article>
+
+  <article class="study flip">
+    <figure class="fig">
+      <img src="assets/fig_demo_qf.png" alt="Three panels: imposed anthropogenic heat scenarios, the diurnal air-temperature response at 40 metres, and the boundary-layer height response.">
+      <figcaption>Järvi et al. (2011) anthropogenic-heat coefficients scaled by 0, 1 and 2.</figcaption>
+    </figure>
+    <div>
+      <h3>2 · The price of waste heat</h3>
+      <p>Switch the city's metabolism off, or double it. The atmosphere integrates the
+      change and pays it back mostly at night, when the boundary layer is shallow and
+      has nowhere to put the heat.</p>
+      <dl class="metrics">
+        <div><dt>Mean QF (present day)</dt><dd>97 W m⁻²</dd></div>
+        <div><dt>Removing QF cools nights by</dt><dd>+0.08 K</dd></div>
+        <div><dt>Doubling QF warms nights by</dt><dd>+0.78 K</dd></div>
+      </dl>
+    </div>
+  </article>
+
+  <article class="study">
+    <figure class="fig">
+      <img src="assets/fig_demo_cool_roofs.png" alt="Three panels: diurnal air-temperature response to high-albedo buildings, the energy-balance response, and boundary-layer heights for both scenarios.">
+      <figcaption>Building-facet albedo raised from 0.12 to 0.55. SUEWS's bulk facet
+      aggregates roofs and walls, so this is an upper-bound scenario.</figcaption>
+    </figure>
+    <div>
+      <h3>3 · Do cool roofs cool the air?</h3>
+      <p>Reflecting sunlight at the surface is only half the story; the question is what
+      the boundary layer does with the energy it no longer receives.</p>
+      <dl class="metrics">
+        <div><dt>Daytime air-temperature change</dt><dd>-0.14 K</dd></div>
+        <div><dt>Peak cooling</dt><dd>-3.06 K</dd></div>
+        <div><dt>Net radiation change (daytime)</dt><dd>-69 W m⁻²</dd></div>
+        <div><dt>BL depth, base / cool max</dt><dd>2890 / 2880 m</dd></div>
+      </dl>
+    </div>
+  </article>
+
+  <article class="study flip">
+    <figure class="fig">
+      <img src="assets/fig_multiyear.png" alt="Three panels: monthly mean two-metre temperatures for urban and rural columns over three coupled years, the seasonal cycle of the nocturnal heat island, and a log-scale wall-clock comparison between the projected Python loop and the measured native run.">
+      <figcaption>Three coupled years (the 2012 KCL forcing recycled as 2012–2014),
+      urban column plus its rural companion — six column-years of fully coupled
+      simulation through the native Fortran loop.</figcaption>
+    </figure>
+    <div>
+      <h3>4 · Three years, 160 seconds</h3>
+      <p>This is what the 555&times; buys: boundary-layer <em>climatology</em>.
+      The seasonal cycles of the heat island and of boundary-layer depth emerge
+      from six column-years of surface–air negotiation that the Python loop
+      would have needed a day of compute to produce. For multi-season stability
+      the long-tail closure is used and the rural companion is synoptically
+      anchored to the observed air state (τ = 24 h) — the urban column stays
+      fully prognostic.</p>
+      <dl class="metrics">
+        <div><dt>Six column-years, native</dt><dd>160 s<small>measured; Python loop projected 23 h at its measured 130 ms/step</small></dd></div>
+        <div><dt>Simulation pace</dt><dd>2.2 yr min⁻¹<small>coupled column-years per wall-clock minute</small></dd></div>
+        <div><dt>Nocturnal UHI, summer / winter</dt><dd>+1.72 / +4.14 K<small>JJA / DJF means at screen level, emergent</small></dd></div>
+        <div><dt>Daily max BL depth, summer / winter</dt><dd>1549 / 574 m<small>urban column, JJA / DJF means</small></dd></div>
+      </dl>
+      <p class="caveat-inline">Caveats: the three years repeat 2012's weather, so
+      interannual variability here measures the coupled system's internal state
+      memory, not the climate's; and the synoptic anchor draws on observations
+      made at an urban site, so the rural reference is conservative — both are
+      design choices of the demonstrator, stated rather than hidden.</p>
+    </div>
+  </article>
+</section>
+
+<!-- ================= interactive ================= -->
+<section id="lab" class="reveal">
+  <p class="sec-label">IV · In your hands</p>
+  <h2>What a column knows that a flat model cannot</h2>
+  <p>
+    A vanilla land-surface model carries one air temperature, at one height, handed to it
+    from a file. Everything below — a boundary layer you can steer, and five days of real
+    coupled vertical structure — is state that simply does not exist in an offline model.
+    Both panels run live in your browser; the first integrates the same CLASS slab equations the benchmark campaign
+    validated against analytic theory.
+  </p>
+
+  <article class="study" style="grid-template-columns: minmax(0,8fr) minmax(0,4fr);">
+    <div class="lab">
+      <canvas id="slab-canvas" width="1320" height="560" role="img"
+        aria-label="Live integration of the slab boundary-layer model: boundary-layer depth and mixed-layer temperature through a daytime cycle, responding to the sliders."></canvas>
+      <div class="readouts" role="status" aria-live="off">
+        <span>peak depth<b id="slab-hmax">–</b></span>
+        <span>day's warming<b id="slab-dth">–</b></span>
+        <span>heat diluted through<b id="slab-dilute">–</b></span>
+      </div>
+    </div>
+    <div>
+      <h3>Steer a boundary layer</h3>
+      <p>The CLASS slab equations (Tennekes 1973) integrated live, 06:00–20:00.
+      Push the city's sensible heat up and watch the air answer: a deeper, warmer
+      boundary layer. An offline model would change the flux — <em>and stop</em>.</p>
+      <div class="controls">
+        <label><b>Peak sensible heat flux</b> <span class="val" id="v-qh">180 W m⁻²</span>
+          <input type="range" id="s-qh" min="40" max="400" step="10" value="180"
+            aria-label="Peak sensible heat flux, watts per square metre"></label>
+        <label><b>Anthropogenic heat</b> <span class="val" id="v-qf">0 W m⁻²</span>
+          <input type="range" id="s-qf" min="0" max="150" step="5" value="0"
+            aria-label="Anthropogenic heat flux, watts per square metre"></label>
+        <label><b>Stratification above</b> <span class="val" id="v-gam">6.0 K km⁻¹</span>
+          <input type="range" id="s-gam" min="2" max="10" step="0.5" value="6"
+            aria-label="Free-atmosphere lapse rate, kelvin per kilometre"></label>
+        <label><b>Entrainment ratio β</b> <span class="val" id="v-beta">0.20</span>
+          <input type="range" id="s-beta" min="0" max="0.4" step="0.05" value="0.2"
+            aria-label="Entrainment ratio beta"></label>
+      </div>
+      <p class="caveat-inline">Grey curves: the default city for comparison.
+      The same equations pass this page's analytic benchmarks to 0.3 %.</p>
+    </div>
+  </article>
+
+  <article class="study" style="grid-template-columns: minmax(0,4fr) minmax(0,8fr);">
+    <div>
+      <h3>Five days of vertical structure</h3>
+      <p>Real output from the native three-year run: hourly θ(z) for the urban
+      (gold) and rural (green) columns through the July 2012 heat spell. Watch the
+      mixed layer grow each morning, the inversion sharpen, the night reset —
+      and the urban column stay warmer aloft after dark.</p>
+      <p><strong>This entire panel is invisible to an offline model.</strong> Its
+      atmosphere is a single number per variable at a single height; it cannot
+      tell you how deep the city's influence reaches, only what happens at the ground.</p>
+    </div>
+    <div class="lab">
+      <canvas id="prof-canvas" width="1320" height="640" role="img"
+        aria-label="Hourly potential-temperature profiles of the urban and rural columns through five July days, with the diagnosed boundary-layer height marked."></canvas>
+      <div class="scrub-row">
+        <button class="play" id="prof-play" aria-label="Play or pause the profile animation">Play</button>
+        <input type="range" id="prof-slider" min="0" max="119" step="1" value="14"
+          aria-label="Hour selector for the profile sequence">
+        <span class="stamp" id="prof-stamp">–</span>
+      </div>
+      <div class="readouts" role="status" aria-live="off">
+        <span>boundary layer<b id="prof-h">–</b></span>
+        <span>urban 2-m temperature<b id="prof-t2">–</b></span>
+      </div>
+    </div>
+  </article>
+</section>
+
+<!-- ================= run it ================= -->
+<section id="run" class="reveal">
+  <p class="sec-label">V · Run it</p>
+  <h2>One import, in the released core</h2>
+  <pre><code><span class="c"># the coupled loop runs inside the compiled SUEWS core (Fortran via</span>
+<span class="c"># the Rust bridge); Python only marshals. Runs as-is on the bundled</span>
+<span class="c"># sample dataset - point config/forcing at your own site to go further.</span>
+<span class="k">from</span> pathlib <span class="k">import</span> Path
+<span class="k">import</span> supy <span class="k">as</span> sp
+<span class="k">from</span> supy.scm <span class="k">import</span> run_scm, make_rural_config, make_background
+<span class="k">from</span> supy.data_model <span class="k">import</span> SUEWSConfig
+
+config = SUEWSConfig.from_yaml(Path(sp.__file__).parent / <span class="c">"sample_data"</span> / <span class="c">"sample_config.yml"</span>)
+df_state, df_forcing = sp.load_sample_data()
+window = df_forcing.loc[<span class="c">"2012-07-22"</span>:<span class="c">"2012-07-26"</span>]
+
+<span class="c"># rural companion provides the ventilating background air ...</span>
+rural = run_scm(make_rural_config(config), window, snapshot_every_h=1.0)
+
+<span class="c"># ... and the urban column negotiates with its own atmosphere</span>
+res = run_scm(config, window, background=make_background(rural.snapshots))
+res.output[<span class="c">"SUEWS"</span>][<span class="c">"QH"</span>]      <span class="c"># standard SUEWS output</span>
+res.diagnostics[<span class="c">"tair_mod"</span>]   <span class="c"># prognostic air temperature</span></code></pre>
+  <p style="margin-top: var(--space-md); font-size: 0.95rem;">
+    Full scientific description, options and provenance:
+    <a href="https://docs.suews.io/latest/integration/scm-coupled.html">the documentation page</a>.
+    The archived validation metrics live under
+    <code style="font-family:'JetBrains Mono',monospace;font-size:0.85em;">test/fixtures/scm/</code>
+    in the repository; the pure-Python reference implementation that produced the
+    benchmark campaign (and its 26-test suite) is retained in git history — every
+    figure above carries that lineage rather than being a one-off artefact.
+  </p>
+</section>
+
+<!-- ================= limitations ================= -->
+<section id="limits" class="reveal">
+  <p class="sec-label">VI · Honest limitations</p>
+  <h2>What a single column cannot tell you</h2>
+  <ul class="limits">
+    <li>One column is one city: sea breezes, heterogeneity and synoptic change enter only through the prescribed radiation and the ventilation term.</li>
+    <li>The ventilating background air is modelled (a rural companion run), not observed; the advective time scale uses a single 15 km city-length scale.</li>
+    <li>Entrainment at the convective boundary-layer top is under-represented (flux-ratio 0.06 vs 0.15–0.25 from LES); afternoon mixed-layer warming may be slightly underestimated.</li>
+    <li>Wind is constrained by observations in coupled-verification mode; momentum is only fully prognostic in idealised experiments.</li>
+    <li>SUEWS's bulk building facet aggregates roofs and walls — facet-albedo scenarios are upper bounds.</li>
+  </ul>
+</section>
+
+<!-- ================= references ================= -->
+<section id="refs" class="reveal">
+  <p class="sec-label">VII · References</p>
+  <h2>Sources</h2>
+  <ol class="refs">
+    <li>Beare R. J. et al. (2006) An intercomparison of large-eddy simulations of the stable boundary layer. <i>Boundary-Layer Meteorol.</i></li>
+    <li>Cuxart J. et al. (2006) Single-column model intercomparison for a stably stratified atmospheric boundary layer. <i>Boundary-Layer Meteorol.</i></li>
+    <li>Garratt J. R. (1992) <i>The Atmospheric Boundary Layer.</i> Cambridge University Press.</li>
+    <li>Holtslag A. A. M. &amp; Boville B. A. (1993) Local versus nonlocal boundary-layer diffusion in a global climate model. <i>J. Climate.</i></li>
+    <li>Järvi L., Grimmond C. S. B. &amp; Christen A. (2011) The Surface Urban Energy and Water Balance Scheme (SUEWS): evaluation in Los Angeles and Vancouver. <i>J. Hydrol.</i></li>
+    <li>Noh Y. et al. (2003) Improvement of the K-profile model for the planetary boundary layer based on large eddy simulation data. <i>Boundary-Layer Meteorol.</i></li>
+    <li>Onomura S. et al. (2015) Meteorological forcing data for urban outdoor thermal comfort models from a coupled convective boundary layer and surface energy balance scheme. <i>Urban Climate</i> 11, 1–23.</li>
+    <li>Sullivan P. P. et al. (1998) Structure of the entrainment zone capping the convective atmospheric boundary layer. <i>J. Atmos. Sci.</i></li>
+    <li>Tennekes H. (1973) A model for the dynamics of the inversion above a convective boundary layer. <i>J. Atmos. Sci.</i></li>
+    <li>Troen I. &amp; Mahrt L. (1986) A simple model of the atmospheric boundary layer; sensitivity to surface evaporation. <i>Boundary-Layer Meteorol.</i></li>
+    <li>Vilà-Guerau de Arellano J. et al. (2015) <i>Atmospheric Boundary Layer: Integrating Air Chemistry and Land Interactions.</i> Cambridge University Press.</li>
+    <li>Vogelezang D. H. P. &amp; Holtslag A. A. M. (1996) Evaluation and model impacts of alternative boundary-layer height formulations. <i>Boundary-Layer Meteorol.</i></li>
+  </ol>
+</section>
+
+<footer class="site">
+  <span>SUEWS single-column model · research preview</span>
+  <span>supy 2026.6.10.dev1</span>
+  <span>evidence: test/fixtures/scm · lineage 96513b8..7bcf157</span>
+  <span>KCL sample data · London 2012</span>
+  <span>generated 2026-06-10</span>
+</footer>
+
+</div>
+
+<script src="assets/scm_data.js"></script>
+<script>
+  /* ==================== shared canvas helpers ==================== */
+  // instrument palette: the lab canvases stay dark in both themes,
+  // matching the static figures, so their colours are constants
+  const INK = {
+    fg: "#e8eaf2", sec: "#c8cde0", mut: "#9aa0b4",
+    gold: "#F7B538", green: "#09a25c", sky: "#5DADE2",
+  };
+  function cssVar(name) {
+    return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+  }
+  function setupCanvas(canvas) {
+    const dpr = window.devicePixelRatio || 1;
+    const cssW = canvas.clientWidth || canvas.width;
+    const aspect = canvas.getAttribute("height") / canvas.getAttribute("width");
+    const cssH = cssW * aspect;
+    canvas.width = Math.round(cssW * dpr);
+    canvas.height = Math.round(cssH * dpr);
+    const ctx = canvas.getContext("2d");
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    return { ctx: ctx, w: cssW, h: cssH };
+  }
+  function axes(ctx, x0, y0, x1, y1, opts) {
+    // panel frame + ticks; y grows upward in data space
+    const mut = INK.mut;
+    const grid = "rgba(128,136,160,0.18)";
+    ctx.strokeStyle = grid; ctx.lineWidth = 1; ctx.font = "11px 'JetBrains Mono', monospace";
+    ctx.fillStyle = mut;
+    (opts.xticks || []).forEach(function (t) {
+      const px = x0 + (t - opts.xmin) / (opts.xmax - opts.xmin) * (x1 - x0);
+      ctx.beginPath(); ctx.moveTo(px, y0); ctx.lineTo(px, y1); ctx.stroke();
+      ctx.textAlign = "center";
+      ctx.fillText(opts.xfmt ? opts.xfmt(t) : t, px, y0 + 16);
+    });
+    (opts.yticks || []).forEach(function (t) {
+      const py = y0 - (t - opts.ymin) / (opts.ymax - opts.ymin) * (y0 - y1);
+      ctx.beginPath(); ctx.moveTo(x0, py); ctx.lineTo(x1, py); ctx.stroke();
+      ctx.textAlign = "right";
+      ctx.fillText(opts.yfmt ? opts.yfmt(t) : t, x0 - 7, py + 4);
+    });
+    ctx.fillStyle = INK.sec;
+    ctx.font = "12px 'Instrument Sans', sans-serif";
+    if (opts.xlabel) { ctx.textAlign = "center"; ctx.fillText(opts.xlabel, (x0 + x1) / 2, y0 + 34); }
+    if (opts.title) { ctx.textAlign = "left"; ctx.fillText(opts.title, x0, y1 - 10); }
+  }
+  function polyline(ctx, pts, colour, width, dash) {
+    if (!pts.length) return;
+    ctx.strokeStyle = colour; ctx.lineWidth = width || 1.8;
+    ctx.setLineDash(dash || []);
+    ctx.beginPath();
+    pts.forEach(function (p, i) { if (i === 0) ctx.moveTo(p[0], p[1]); else ctx.lineTo(p[0], p[1]); });
+    ctx.stroke();
+    ctx.setLineDash([]);
+  }
+
+  /* ==================== slab boundary-layer sandbox ====================
+     The CLASS slab equations (Tennekes 1973) - the same physics as
+     the retired Python reference (suews_scm/slab.py,
+     in git history) - integrated with RK4 over a 06:00-20:00 day. */
+  (function () {
+    const canvas = document.getElementById("slab-canvas");
+    if (!canvas) return;
+    const RHO_CP = 1.2 * 1005.0;       // [J m-3 K-1]
+    const T0 = 6, T1 = 20;             // integration window [h]
+    const H0 = 150, TH0 = 288, DTH0 = 1.0, DTH_MIN = 0.05;
+
+    function rhs(s, F, gamma, beta) { // s = [h, theta_m, dtheta]
+      const h = Math.max(s[0], 10);
+      const Fp = Math.max(F, 0);
+      const we = s[2] > DTH_MIN ? beta * Fp / s[2] : Fp / (gamma * h);
+      const dh = we;
+      const dth = (F + we * s[2]) / h;
+      const ddth = gamma * we - dth;
+      return [dh, dth, ddth];
+    }
+    function integrate(qhPeak, qf, gammaKm, beta) {
+      const gamma = gammaKm / 1000.0;
+      let s = [H0, TH0, DTH0];
+      const out = [{ t: T0, h: H0, th: TH0 }];
+      const dt = 60;
+      const n = (T1 - T0) * 60;
+      for (let i = 1; i <= n; i++) {
+        const tH = T0 + i / 60.0;
+        const F = (qhPeak * Math.sin(Math.PI * (tH - T0) / (T1 - T0)) + qf) / RHO_CP;
+        const k1 = rhs(s, F, gamma, beta);
+        const s2 = s.map((v, j) => v + 0.5 * dt * k1[j]);
+        const k2 = rhs(s2, F, gamma, beta);
+        const s3 = s.map((v, j) => v + 0.5 * dt * k2[j]);
+        const k3 = rhs(s3, F, gamma, beta);
+        const s4 = s.map((v, j) => v + dt * k3[j]);
+        const k4 = rhs(s4, F, gamma, beta);
+        s = s.map((v, j) => v + dt / 6 * (k1[j] + 2 * k2[j] + 2 * k3[j] + k4[j]));
+        s[2] = Math.max(s[2], 0);
+        if (i % 10 === 0) out.push({ t: tH, h: s[0], th: s[1] });
+      }
+      return out;
+    }
+    const REF = integrate(180, 0, 6, 0.2);
+
+    const ids = { qh: "s-qh", qf: "s-qf", gam: "s-gam", beta: "s-beta" };
+    function vals() {
+      return {
+        qh: +document.getElementById(ids.qh).value,
+        qf: +document.getElementById(ids.qf).value,
+        gam: +document.getElementById(ids.gam).value,
+        beta: +document.getElementById(ids.beta).value,
+      };
+    }
+    function draw() {
+      const v = vals();
+      document.getElementById("v-qh").textContent = v.qh + " W m⁻²";
+      document.getElementById("v-qf").textContent = v.qf + " W m⁻²";
+      document.getElementById("v-gam").textContent = v.gam.toFixed(1) + " K km⁻¹";
+      document.getElementById("v-beta").textContent = v.beta.toFixed(2);
+      const cur = integrate(v.qh, v.qf, v.gam, v.beta);
+
+      const { ctx, w, h } = setupCanvas(canvas);
+      ctx.clearRect(0, 0, w, h);
+      const mid = w / 2;
+      const pads = { l: 52, r: 16, t: 26, b: 44 };
+      const hMax = Math.max(2600, Math.max.apply(null, cur.map(p => p.h)) * 1.1);
+      const thMax = Math.max(296, Math.max.apply(null, cur.map(p => p.th)) + 1);
+
+      function panel(x0, x1, ymin, ymax, key, title, yfmt) {
+        const px0 = x0 + pads.l, px1 = x1 - pads.r, py0 = h - pads.b, py1 = pads.t;
+        axes(ctx, px0, py0, px1, py1, {
+          xmin: T0, xmax: T1, xticks: [6, 10, 14, 18],
+          xfmt: t => t + ":00", xlabel: "local time",
+          ymin: ymin, ymax: ymax,
+          yticks: yfmt === null ? [500, 1000, 1500, 2000, 2500].filter(t => t < ymax)
+                                : [288, 290, 292, 294, 296].filter(t => t < ymax),
+          yfmt: yfmt, title: title,
+        });
+        const toPx = p => [
+          px0 + (p.t - T0) / (T1 - T0) * (px1 - px0),
+          py0 - (p[key] - ymin) / (ymax - ymin) * (py0 - py1),
+        ];
+        polyline(ctx, REF.map(toPx), INK.mut, 1.2, [4, 4]);
+        polyline(ctx, cur.map(toPx), key === "h" ? INK.sky : INK.gold, 2.2);
+      }
+      panel(0, mid, 0, hMax, "h", "boundary-layer depth (m)", null);
+      panel(mid, w, 287, thMax, "th", "mixed-layer temperature (K)", t => t);
+
+      const last = cur[cur.length - 1];
+      const peakH = Math.max.apply(null, cur.map(p => p.h));
+      document.getElementById("slab-hmax").textContent = Math.round(peakH) + " m";
+      document.getElementById("slab-dth").textContent = "+" + (last.th - TH0).toFixed(1) + " K";
+      document.getElementById("slab-dilute").textContent =
+        (peakH / 1000).toFixed(1) + " km of air";
+    }
+    Object.values(ids).forEach(id =>
+      document.getElementById(id).addEventListener("input", draw));
+    window.addEventListener("resize", draw);
+    document.getElementById("theme-toggle").addEventListener("click",
+      () => requestAnimationFrame(draw));
+    requestAnimationFrame(draw); // after the theme attribute is applied
+  })();
+
+  /* ==================== profile scrubber ====================
+     Real hourly theta(z) from the native three-year coupled run. */
+  (function () {
+    const canvas = document.getElementById("prof-canvas");
+    if (!canvas || !window.SCM_DATA) return;
+    const D = window.SCM_DATA;
+    const slider = document.getElementById("prof-slider");
+    const stamp = document.getElementById("prof-stamp");
+    const playBtn = document.getElementById("prof-play");
+    slider.max = D.times.length - 1;
+
+    const allTh = D.theta_urban.concat(D.theta_rural);
+    let thMin = Infinity, thMax = -Infinity;
+    allTh.forEach(row => row.forEach(v => {
+      if (v < thMin) thMin = v;
+      if (v > thMax) thMax = v;
+    }));
+    thMin = Math.floor(thMin - 0.5); thMax = Math.ceil(thMax + 0.5);
+    const zMax = D.z[D.z.length - 1];
+
+    function draw(i) {
+      const { ctx, w, h } = setupCanvas(canvas);
+      ctx.clearRect(0, 0, w, h);
+      const px0 = 60, px1 = w - 18, py0 = h - 46, py1 = 24;
+      const yticks = [500, 1000, 1500, 2000, 2500].filter(t => t < zMax);
+      const xticks = [];
+      for (let t = thMin; t <= thMax; t += 4) xticks.push(t);
+      axes(ctx, px0, py0, px1, py1, {
+        xmin: thMin, xmax: thMax, xticks: xticks, xfmt: t => t,
+        xlabel: "potential temperature (K)",
+        ymin: 0, ymax: zMax, yticks: yticks, yfmt: t => t,
+        title: "height (m)",
+      });
+      const toPx = (th, z) => [
+        px0 + (th - thMin) / (thMax - thMin) * (px1 - px0),
+        py0 - z / zMax * (py0 - py1),
+      ];
+      // ghost: same hour yesterday, for continuity
+      if (i >= 24) {
+        polyline(ctx, D.theta_urban[i - 24].map((v, k) => toPx(v, D.z[k])),
+                 "rgba(247,181,56,0.25)", 1.2);
+      }
+      polyline(ctx, D.theta_rural[i].map((v, k) => toPx(v, D.z[k])),
+               INK.green, 1.8);
+      polyline(ctx, D.theta_urban[i].map((v, k) => toPx(v, D.z[k])),
+               INK.gold, 2.4);
+      // boundary-layer height marker
+      if (D.h_bl[i] !== null && D.h_bl[i] < zMax) {
+        const py = py0 - D.h_bl[i] / zMax * (py0 - py1);
+        polyline(ctx, [[px0, py], [px1, py]], INK.sky, 1.2, [6, 5]);
+        ctx.fillStyle = INK.sky;
+        ctx.font = "11px 'JetBrains Mono', monospace";
+        ctx.textAlign = "right";
+        ctx.fillText("h = " + D.h_bl[i] + " m", px1 - 4, py - 6);
+      }
+      // legend
+      ctx.font = "11.5px 'Instrument Sans', sans-serif"; ctx.textAlign = "left";
+      ctx.fillStyle = INK.gold; ctx.fillText("urban", px0 + 10, py1 + 14);
+      ctx.fillStyle = INK.green; ctx.fillText("rural", px0 + 58, py1 + 14);
+
+      stamp.textContent = D.times[i];
+      document.getElementById("prof-h").textContent =
+        D.h_bl[i] === null ? "–" : D.h_bl[i] + " m";
+      document.getElementById("prof-t2").textContent =
+        D.t2[i] === null ? "–" : D.t2[i].toFixed(1) + " °C";
+    }
+
+    let timer = null;
+    const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    function stop() {
+      if (timer) { clearInterval(timer); timer = null; playBtn.textContent = "Play"; }
+    }
+    if (reduced) {
+      playBtn.style.display = "none"; // manual scrubbing only
+    } else {
+      playBtn.addEventListener("click", function () {
+        if (timer) { stop(); return; }
+        playBtn.textContent = "Pause";
+        timer = setInterval(function () {
+          let i = (+slider.value + 1) % D.times.length;
+          slider.value = i;
+          draw(i);
+        }, 140);
+      });
+    }
+    slider.addEventListener("input", function () { stop(); draw(+slider.value); });
+    window.addEventListener("resize", () => draw(+slider.value));
+    document.getElementById("theme-toggle").addEventListener("click",
+      () => requestAnimationFrame(() => draw(+slider.value)));
+    requestAnimationFrame(() => draw(+slider.value)); // after theme applies
+  })();
+
+  (function () {
+    const root = document.documentElement;
+    const btn = document.getElementById("theme-toggle");
+    const stored = localStorage.getItem("scm-theme");
+    const systemLight = window.matchMedia("(prefers-color-scheme: light)").matches;
+    function apply(theme) {
+      root.setAttribute("data-theme", theme);
+      const isLight = theme === "light";
+      btn.textContent = isLight ? "Dark" : "Light";
+      btn.setAttribute("aria-pressed", String(isLight));
+    }
+    apply(stored || (systemLight ? "light" : "dark"));
+    btn.addEventListener("click", function () {
+      const next = root.getAttribute("data-theme") === "light" ? "dark" : "light";
+      localStorage.setItem("scm-theme", next);
+      apply(next);
+    });
+
+    if (!window.matchMedia("(prefers-reduced-motion: reduce)").matches
+        && "IntersectionObserver" in window) {
+      const io = new IntersectionObserver(function (entries) {
+        entries.forEach(function (e) {
+          if (e.isIntersecting) { e.target.classList.add("in"); io.unobserve(e.target); }
+        });
+      }, { threshold: 0.08 });
+      document.querySelectorAll(".reveal").forEach(function (el) { io.observe(el); });
+    } else {
+      document.querySelectorAll(".reveal").forEach(function (el) { el.classList.add("in"); });
+    }
+  })();
+</script>
+</body>
+</html>

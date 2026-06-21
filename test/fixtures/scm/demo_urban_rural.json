@@ -1,0 +1,13 @@
+{
+  "case": "urban (KCL London) vs rural (grassland) under identical synoptic forcing, 23-26 July 2012, coupled SCM",
+  "uhi2m_mean_nocturnal_K": 0.79,
+  "uhi2m_max_K": 3.42,
+  "uhi2m_mean_K": -0.08,
+  "uhi40m_mean_nocturnal_K": -0.76,
+  "bl_height_max_urban_m": 2890.0,
+  "bl_height_max_rural_m": 2843.0,
+  "qh_daytime_mean_urban": 246.8,
+  "qh_daytime_mean_rural": 199.6,
+  "qe_daytime_mean_urban": 54.2,
+  "qe_daytime_mean_rural": 62.7
+}

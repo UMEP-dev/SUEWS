@@ -23,7 +23,7 @@ import warnings
 # between releases bumps the dev counter instead of consuming a new
 # CalVer label. The 2026.5 cycle (dev1..dev14) was collapsed to the
 # plain `2026.5` label in the 2026.6.5 release PR.
-CURRENT_SCHEMA_VERSION = "2026.5"
+CURRENT_SCHEMA_VERSION = "2026.6.dev1"
 
 # Schema version history and descriptions.
 #
@@ -34,6 +34,15 @@ CURRENT_SCHEMA_VERSION = "2026.5"
 # that shipped it, so the YAML-upgrade dispatcher can reason about real
 # schema identities rather than synthetic labels.
 SCHEMA_VERSIONS: dict[str, str] = {
+    "2026.6.dev1": (
+        "Adds the optional `model.physics.scm` block (coupled single-column model, "
+        "research preview, #1529): stability ('sharp'/'long_tail'), vertical "
+        "grid, initial-profile lapse rates, nudging/ventilation/anchor time "
+        "scales and substep count for supy.scm.run_scm. Purely additive - "
+        "every valid 2026.5 YAML remains valid and round-trips unchanged; "
+        "the block has no DataFrame-state representation and does not "
+        "affect standard offline runs."
+    ),
     "2025.12": (
         "Initial formal YAML schema for the 2025.10.15 / 2025.11.20 releases "
         "(pre-#879 STEBBS layout: Wallx1 / Roofx1, DHWVesselEmissivity, "

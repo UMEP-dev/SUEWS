@@ -21,6 +21,7 @@ from .physics_families import (
     fold_stebbs_public_key_aliases,
 )
 from .physics_orthogonal import coerce_orthogonal_to_flat, fold_storage_heat_ohm_inc_qf
+from .scm import SCMConfig
 from .type import FlexibleRefValue, Reference, RefValue, df_from_cols
 
 
@@ -1027,6 +1028,15 @@ class ModelPhysics(BaseModel):
             "provides_to": ["stebbs.capacitance"],
             "note": "When storage_heat selects STEBBS (7), this block enables and parameterises the STEBBS contribution to storage heat.",
         },
+    )
+    scm: Optional[SCMConfig] = Field(
+        default=None,
+        description=(
+            "Coupled single-column model configuration (research preview). "
+            "Consumed by supy.scm.run_scm as the parameter source; has no "
+            "DataFrame-state representation and does not affect standard "
+            "offline runs."
+        ),
     )
 
     ref: Optional[Reference] = None

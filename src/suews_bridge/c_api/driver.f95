@@ -50,7 +50,8 @@ use module_c_api_heat_state, only: heat_state_unpack
 use module_c_api_roughness, only: roughness_state_unpack
 use module_c_api_stebbs_state, only: stebbs_state_unpack
 use module_c_api_nhood, only: nhood_state_unpack
-use SUEWS_Driver, only: SUEWS_cal_multitsteps_dts
+use SUEWS_Driver, only: SUEWS_cal_multitsteps_dts, SUEWS_cal_multitsteps_scm
+use module_phys_scm, only: SCM_PARAMS_LEN, SCM_DIAG_NCOL
 
 implicit none
 
@@ -111,6 +112,7 @@ integer(c_int), parameter :: SUEWS_CAPI_NHOOD_STATE_LEN = 5_c_int
 integer(c_int), parameter :: SUEWS_CAPI_STEBBS_STATE_RSL_LEN = 30_c_int
 
 public :: suews_cal_multitsteps_c
+public :: suews_scm_multitsteps_c
 
 contains
 
@@ -336,6 +338,343 @@ subroutine suews_cal_multitsteps_c( &
    err = SUEWS_CAPI_OK
 
 end subroutine suews_cal_multitsteps_c
+
+subroutine suews_scm_multitsteps_c( &
+   timer_flat, timer_len, &
+   config_flat, config_len, &
+   site_scalars_flat, site_scalars_len, &
+   site_flat, site_flat_len, &
+   site_toc, site_toc_len, site_member_count, &
+   state_flat, state_flat_len, &
+   state_toc, state_toc_len, state_member_count, &
+   forcing_flat, forcing_len, len_sim, forcing_cols, &
+   nlayer, ndepth, &
+   scm_params_flat, scm_params_len, &
+   bg_nt, bg_nz, bg_t_sec, bg_t_len, bg_z, bg_z_len, &
+   bg_theta_flat, bg_q_flat, bg_vals_len, &
+   snap_every, n_snap, nz_snap, &
+   timer_out, timer_out_len, &
+   state_out_flat, state_out_len, &
+   output_flat, output_len, &
+   scm_out_flat, scm_out_len, &
+   snap_z_out, snap_theta_out, snap_q_out, snap_buf_len, &
+   sim_err_code, sim_err_message, sim_err_message_len, &
+   err) bind(C, name='suews_scm_multitsteps_c')
+
+   ! Coupled single-column variant of suews_cal_multitsteps_c: identical
+   ! marshalling, but the timestep loop runs SUEWS_cal_multitsteps_scm so
+   ! that air temperature, humidity and wind are prognosed by the 1-D
+   ! boundary-layer column (module_phys_scm) rather than prescribed.
+   ! Extra inputs: the flat SCM parameter vector and an optional background
+   ! (rural companion) atmosphere; extra output: per-step SCM diagnostics
+   ! (len_sim rows x SCM_DIAG_NCOL columns, row-major).
+
+   implicit none
+
+   real(c_double), intent(in) :: timer_flat(*)
+   integer(c_int), value, intent(in) :: timer_len
+   real(c_double), intent(in) :: config_flat(*)
+   integer(c_int), value, intent(in) :: config_len
+   real(c_double), intent(in) :: site_scalars_flat(*)
+   integer(c_int), value, intent(in) :: site_scalars_len
+
+   real(c_double), intent(in) :: site_flat(*)
+   integer(c_int), value, intent(in) :: site_flat_len
+   integer(c_int), intent(in) :: site_toc(*)
+   integer(c_int), value, intent(in) :: site_toc_len
+   integer(c_int), value, intent(in) :: site_member_count
+
+   real(c_double), intent(in) :: state_flat(*)
+   integer(c_int), value, intent(in) :: state_flat_len
+   integer(c_int), intent(in) :: state_toc(*)
+   integer(c_int), value, intent(in) :: state_toc_len
+   integer(c_int), value, intent(in) :: state_member_count
+
+   real(c_double), intent(in) :: forcing_flat(*)
+   integer(c_int), value, intent(in) :: forcing_len
+   integer(c_int), value, intent(in) :: len_sim
+   integer(c_int), value, intent(in) :: forcing_cols
+   integer(c_int), value, intent(in) :: nlayer
+   integer(c_int), value, intent(in) :: ndepth
+
+   real(c_double), intent(in) :: scm_params_flat(*)
+   integer(c_int), value, intent(in) :: scm_params_len
+   integer(c_int), value, intent(in) :: bg_nt
+   integer(c_int), value, intent(in) :: bg_nz
+   real(c_double), intent(in) :: bg_t_sec(*)
+   integer(c_int), value, intent(in) :: bg_t_len
+   real(c_double), intent(in) :: bg_z(*)
+   integer(c_int), value, intent(in) :: bg_z_len
+   real(c_double), intent(in) :: bg_theta_flat(*)
+   real(c_double), intent(in) :: bg_q_flat(*)
+   integer(c_int), value, intent(in) :: bg_vals_len
+   integer(c_int), value, intent(in) :: snap_every
+   integer(c_int), value, intent(in) :: n_snap
+   integer(c_int), value, intent(in) :: nz_snap
+
+   real(c_double), intent(out) :: timer_out(*)
+   integer(c_int), value, intent(in) :: timer_out_len
+   real(c_double), intent(out) :: state_out_flat(*)
+   integer(c_int), value, intent(in) :: state_out_len
+   real(c_double), intent(out) :: output_flat(*)
+   integer(c_int), value, intent(in) :: output_len
+   real(c_double), intent(out) :: scm_out_flat(*)
+   integer(c_int), value, intent(in) :: scm_out_len
+   real(c_double), intent(out) :: snap_z_out(*)
+   real(c_double), intent(out) :: snap_theta_out(*)
+   real(c_double), intent(out) :: snap_q_out(*)
+   integer(c_int), value, intent(in) :: snap_buf_len
+
+   integer(c_int), intent(out) :: sim_err_code
+   character(c_char), intent(out) :: sim_err_message(*)
+   integer(c_int), value, intent(in) :: sim_err_message_len
+   integer(c_int), intent(out) :: err
+
+   type(SUEWS_TIMER) :: timer_local
+   type(SUEWS_CONFIG) :: config_local
+   type(SUEWS_SITE) :: site_local
+   type(SUEWS_STATE) :: state_local
+
+   real(c_double), dimension(:, :), allocatable :: metforcing_block
+   real(c_double), dimension(:, :), allocatable :: dataout_block
+   real(c_double), dimension(:, :), allocatable :: scmout_block
+   real(c_double), dimension(:), allocatable :: scm_params_local
+   real(c_double), dimension(:), allocatable :: bg_t_local, bg_z_local
+   real(c_double), dimension(:), allocatable :: bg_theta_local, bg_q_local
+   real(c_double), dimension(:), allocatable :: snap_z_local
+   real(c_double), dimension(:), allocatable :: snap_theta_local, snap_q_local
+
+   integer :: len_sim_i
+   integer :: forcing_cols_i
+   integer :: nlayer_i
+   integer :: ndepth_i
+   integer :: bg_nt_i, bg_nz_i, n_bg_vals
+   integer :: snap_every_i, n_snap_i, nz_snap_i, n_snap_vals
+   integer :: ir
+   integer :: ic
+   integer :: idx
+   integer :: ncols_all
+   integer(c_int) :: local_err
+
+   sim_err_code = 0_c_int
+   call copy_to_c_buffer('', sim_err_message, sim_err_message_len)
+   err = SUEWS_CAPI_OK
+   call reset_supy_error()
+
+   len_sim_i = int(len_sim)
+   forcing_cols_i = int(forcing_cols)
+   nlayer_i = int(nlayer)
+   ndepth_i = int(ndepth)
+   bg_nt_i = int(bg_nt)
+   bg_nz_i = int(bg_nz)
+
+   if (timer_len<SUEWS_CAPI_TIMER_LEN .or. timer_out_len<SUEWS_CAPI_TIMER_LEN) then
+      err = SUEWS_CAPI_BAD_BUFFER
+      return
+   end if
+   if (config_len<SUEWS_CAPI_CONFIG_LEN) then
+      err = SUEWS_CAPI_BAD_BUFFER
+      return
+   end if
+   if (site_scalars_len<SUEWS_CAPI_SITE_SCALARS_LEN) then
+      err = SUEWS_CAPI_BAD_BUFFER
+      return
+   end if
+   if (len_sim_i<=0 .or. forcing_cols_i/=int(SUEWS_CAPI_FORCING_COLS)) then
+      err = SUEWS_CAPI_BAD_BUFFER
+      return
+   end if
+   if (nlayer_i<=0 .or. ndepth_i<=0) then
+      err = SUEWS_CAPI_BAD_STATE
+      return
+   end if
+   if (site_member_count/=SUEWS_CAPI_SITE_MEMBER_COUNT) then
+      err = SUEWS_CAPI_BAD_BUFFER
+      return
+   end if
+   if (state_member_count/=SUEWS_CAPI_STATE_MEMBER_COUNT) then
+      err = SUEWS_CAPI_BAD_BUFFER
+      return
+   end if
+   if (scm_params_len<int(SCM_PARAMS_LEN, c_int)) then
+      err = SUEWS_CAPI_BAD_BUFFER
+      return
+   end if
+   if (bg_nt_i<0 .or. bg_nz_i<0) then
+      err = SUEWS_CAPI_BAD_BUFFER
+      return
+   end if
+   ! explicit input-length contracts (review finding: a direct C caller
+   ! could otherwise pass inconsistent dimensions and the copies below
+   ! would read past the provided memory); products in 64-bit
+   if (int(len_sim, 8)*int(forcing_cols, 8) > int(forcing_len, 8)) then
+      err = SUEWS_CAPI_BAD_BUFFER
+      return
+   end if
+   if (bg_nt > bg_t_len .or. bg_nz > bg_z_len) then
+      err = SUEWS_CAPI_BAD_BUFFER
+      return
+   end if
+   if (int(bg_nt, 8)*int(bg_nz, 8) > int(bg_vals_len, 8)) then
+      err = SUEWS_CAPI_BAD_BUFFER
+      return
+   end if
+   if (scm_out_len<len_sim*int(SCM_DIAG_NCOL, c_int)) then
+      err = SUEWS_CAPI_BAD_BUFFER
+      return
+   end if
+   snap_every_i = int(snap_every)
+   n_snap_i = int(n_snap)
+   nz_snap_i = int(nz_snap)
+   if (snap_every_i>0) then
+      if (n_snap_i<=0 .or. nz_snap_i<=0 .or. snap_buf_len<n_snap*nz_snap) then
+         err = SUEWS_CAPI_BAD_BUFFER
+         return
+      end if
+   end if
+
+   call validate_member_toc(site_flat_len, site_toc, site_toc_len, site_member_count, local_err)
+   if (local_err/=SUEWS_CAPI_OK) then
+      err = local_err
+      return
+   end if
+   call validate_member_toc(state_flat_len, state_toc, state_toc_len, state_member_count, local_err)
+   if (local_err/=SUEWS_CAPI_OK) then
+      err = local_err
+      return
+   end if
+   if (state_out_len<state_flat_len) then
+      err = SUEWS_CAPI_BAD_BUFFER
+      return
+   end if
+
+   ncols_all = ncolumnsDataOutSUEWS + ncolumnsDataOutSnow + ncolumnsDataOutBEERS &
+      + ncolumnsDataOutESTM + ncolumnsDataOutEHC + ncolumnsDataOutDailyState &
+      + ncolumnsDataOutRSL + ncolumnsDataOutDebug + ncolumnsDataOutSPARTACUS &
+      + ncolumnsDataOutSTEBBS + ncolumnsDataOutNHood
+   if (output_len<len_sim * ncols_all) then
+      err = SUEWS_CAPI_BAD_BUFFER
+      return
+   end if
+
+   call unpack_timer(timer_flat, timer_len, timer_local, local_err)
+   if (local_err/=SUEWS_CAPI_OK) then
+      err = local_err
+      return
+   end if
+   call unpack_config(config_flat, config_len, config_local, local_err)
+   if (local_err/=SUEWS_CAPI_OK) then
+      err = local_err
+      return
+   end if
+
+   allocate (metforcing_block(len_sim_i, forcing_cols_i), source=0.0d0)
+   allocate (dataout_block(len_sim_i, ncols_all), source=0.0d0)
+   allocate (scmout_block(len_sim_i, SCM_DIAG_NCOL), source=0.0d0)
+
+   idx = 1
+   do ir = 1, len_sim_i
+      do ic = 1, forcing_cols_i
+         metforcing_block(ir, ic) = forcing_flat(idx)
+         idx = idx + 1
+      end do
+   end do
+
+   allocate (scm_params_local(SCM_PARAMS_LEN))
+   scm_params_local(1:SCM_PARAMS_LEN) = scm_params_flat(1:SCM_PARAMS_LEN)
+
+   n_bg_vals = max(bg_nt_i*bg_nz_i, 1)
+   allocate (bg_t_local(max(bg_nt_i, 1)), bg_z_local(max(bg_nz_i, 1)))
+   allocate (bg_theta_local(n_bg_vals), bg_q_local(n_bg_vals))
+   bg_t_local = 0.0d0
+   bg_z_local = 0.0d0
+   bg_theta_local = 0.0d0
+   bg_q_local = 0.0d0
+   if (bg_nt_i>0) bg_t_local(1:bg_nt_i) = bg_t_sec(1:bg_nt_i)
+   if (bg_nz_i>0) bg_z_local(1:bg_nz_i) = bg_z(1:bg_nz_i)
+   if (bg_nt_i>0 .and. bg_nz_i>0) then
+      bg_theta_local(1:bg_nt_i*bg_nz_i) = bg_theta_flat(1:bg_nt_i*bg_nz_i)
+      bg_q_local(1:bg_nt_i*bg_nz_i) = bg_q_flat(1:bg_nt_i*bg_nz_i)
+   end if
+
+   call initialise_site_state( &
+      site_local, state_local, nlayer_i, ndepth_i, config_local, &
+      site_scalars_flat, site_scalars_len, &
+      site_flat, site_flat_len, site_toc, site_toc_len, site_member_count, &
+      local_err)
+   if (local_err/=SUEWS_CAPI_OK) then
+      err = local_err
+      return
+   end if
+
+   call unpack_state_members( &
+      state_local, nlayer_i, ndepth_i, &
+      state_flat, state_flat_len, state_toc, state_toc_len, state_member_count, local_err)
+   if (local_err/=SUEWS_CAPI_OK) then
+      err = local_err
+      return
+   end if
+
+   n_snap_vals = max(n_snap_i*nz_snap_i, 1)
+   allocate (snap_z_local(max(nz_snap_i, 1)), source=0.0d0)
+   allocate (snap_theta_local(n_snap_vals), source=0.0d0)
+   allocate (snap_q_local(n_snap_vals), source=0.0d0)
+
+   call state_local%errorState%reset()
+   call SUEWS_cal_multitsteps_scm( &
+      timer_local, metforcing_block, len_sim_i, &
+      config_local, site_local, &
+      state_local, dataout_block, ncols_all, &
+      scm_params_local, SCM_PARAMS_LEN, &
+      bg_nt_i, bg_nz_i, bg_t_local, bg_z_local, bg_theta_local, bg_q_local, &
+      scmout_block, &
+      snap_every_i, n_snap_i, nz_snap_i, snap_z_local, snap_theta_local, snap_q_local)
+
+   if (snap_every_i>0) then
+      snap_z_out(1:nz_snap_i) = snap_z_local(1:nz_snap_i)
+      snap_theta_out(1:n_snap_i*nz_snap_i) = snap_theta_local(1:n_snap_i*nz_snap_i)
+      snap_q_out(1:n_snap_i*nz_snap_i) = snap_q_local(1:n_snap_i*nz_snap_i)
+   end if
+
+   call pack_timer(timer_local, timer_out, timer_out_len, local_err)
+   if (local_err/=SUEWS_CAPI_OK) then
+      err = local_err
+      return
+   end if
+
+   idx = 1
+   do ir = 1, len_sim_i
+      do ic = 1, ncols_all
+         output_flat(idx) = dataout_block(ir, ic)
+         idx = idx + 1
+      end do
+   end do
+
+   idx = 1
+   do ir = 1, len_sim_i
+      do ic = 1, SCM_DIAG_NCOL
+         scm_out_flat(idx) = scmout_block(ir, ic)
+         idx = idx + 1
+      end do
+   end do
+
+   if (state_local%errorState%flag) then
+      sim_err_code = int(state_local%errorState%code, c_int)
+      call copy_to_c_buffer(state_local%errorState%message, sim_err_message, sim_err_message_len)
+   end if
+
+   call pack_state_to_output( &
+      state_local, nlayer_i, ndepth_i, &
+      state_out_flat, state_out_len, &
+      state_toc, state_toc_len, state_member_count, local_err)
+   if (local_err/=SUEWS_CAPI_OK) then
+      err = local_err
+      return
+   end if
+
+   err = SUEWS_CAPI_OK
+
+end subroutine suews_scm_multitsteps_c
 
 subroutine validate_member_toc(flat_len, toc, toc_len, member_count, err)
    implicit none

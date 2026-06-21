@@ -9,4 +9,5 @@ This section covers integration of SUEWS/SuPy with external models, complementar
   :maxdepth: 1
 
   model-coupling
+  scm-coupled
   complementary-tools

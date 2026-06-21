@@ -124,9 +124,12 @@ pub use phenology::*;
 pub use roughness::*;
 #[cfg(feature = "physics")]
 pub use sim::{
-    run_from_config_str_and_forcing, run_from_config_str_and_forcing_with_state,
-    run_simulation, SimulationInput, SimulationOutput,
+    run_from_config_str_and_forcing, run_from_config_str_and_forcing_scm,
+    run_from_config_str_and_forcing_with_state,
+    run_simulation, run_simulation_scm, ScmInput, ScmSnapshots, SimulationInput,
+    SimulationOutput,
     SiteScalars, OUTPUT_SUEWS_COLS, OUTPUT_ALL_COLS, OUTPUT_GROUP_LAYOUT,
+    SCM_DIAG_NCOL, SCM_PARAMS_LEN,
 };
 pub use snow::*;
 pub use snow_prm::*;
@@ -4122,6 +4125,63 @@ mod python_bindings {
         Ok((output_block, state_json_out, actual_len))
     }
 
+    /// Coupled single-column run: the air temperature, humidity and wind
+    /// SUEWS sees are prognosed by the 1-D boundary-layer column inside the
+    /// Fortran timestep loop (see `suews_phys_scm.f95`).
+    ///
+    /// `scm_params` is the flat 23-element parameter vector; the background
+    /// (rural companion) atmosphere arrays may be empty for a closed column.
+    /// Returns `(output_block, scm_block, state_json, len_sim)` where
+    /// `scm_block` is `len_sim * 7` row-major per-step diagnostics
+    /// (tair_c, rh_pct, u_ms, h_bl, wth, wq, tau_adv).
+    #[cfg(feature = "physics")]
+    #[pyfunction(name = "run_suews_scm")]
+    #[pyo3(signature = (config_yaml, forcing_block, len_sim, scm_params, bg_t_sec, bg_z, bg_theta, bg_q, state_json=None, snap_every=0, nz_snap=0))]
+    #[allow(clippy::too_many_arguments)]
+    fn run_suews_scm_py(
+        config_yaml: &str,
+        forcing_block: Vec<f64>,
+        len_sim: usize,
+        scm_params: Vec<f64>,
+        bg_t_sec: Vec<f64>,
+        bg_z: Vec<f64>,
+        bg_theta: Vec<f64>,
+        bg_q: Vec<f64>,
+        state_json: Option<&str>,
+        snap_every: usize,
+        nz_snap: usize,
+    ) -> PyResult<(Vec<f64>, Vec<f64>, Vec<f64>, Vec<f64>, Vec<f64>, String, usize)> {
+        let scm = ScmInput {
+            params: scm_params,
+            bg_t_sec,
+            bg_z,
+            bg_theta,
+            bg_q,
+            snap_every,
+            nz_snap,
+        };
+        let (output_block, scm_block, snaps, state, actual_len) =
+            run_from_config_str_and_forcing_scm(
+                config_yaml,
+                forcing_block,
+                len_sim,
+                state_json,
+                scm,
+            )
+            .map_err(map_bridge_error)?;
+        let state_json_out = serde_json::to_string(&suews_state_to_nested_payload(&state))
+            .map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(e.to_string()))?;
+        Ok((
+            output_block,
+            scm_block,
+            snaps.z,
+            snaps.theta,
+            snaps.q,
+            state_json_out,
+            actual_len,
+        ))
+    }
+
     /// Run multiple grid cells in parallel using Rayon thread pool.
     ///
     /// Each element of `config_jsons` is a JSON config string for one grid.
@@ -5482,6 +5542,8 @@ mod python_bindings {
         m.add_function(wrap_pyfunction!(run_suews_py, m)?)?;
         #[cfg(feature = "physics")]
         m.add_function(wrap_pyfunction!(run_suews_with_state_py, m)?)?;
+        #[cfg(feature = "physics")]
+        m.add_function(wrap_pyfunction!(run_suews_scm_py, m)?)?;
         #[cfg(feature = "physics")]
         m.add_function(wrap_pyfunction!(run_suews_multi_py, m)?)?;
         #[cfg(feature = "physics")]

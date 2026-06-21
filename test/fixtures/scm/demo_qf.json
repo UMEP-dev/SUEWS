@@ -1,0 +1,9 @@
+{
+  "case": "anthropogenic heat scaling (0x, 1x, 2x), KCL London, 23-26 July 2012, coupled SCM",
+  "qf_mean_x1_wm2": 96.7,
+  "dT_x0_mean_K": -0.32,
+  "dT_x0_nocturnal_K": 0.08,
+  "dT_x2_mean_K": 0.53,
+  "dT_x2_nocturnal_K": 0.78,
+  "sensitivity_K_per_10Wm2": 0.144
+}

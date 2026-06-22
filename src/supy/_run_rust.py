@@ -28,7 +28,7 @@ LAI_KERNEL_COLUMNS = tuple(f"lai_{suffix}" for suffix in LAI_LANDCOVER_SUFFIXES)
 WUH_KERNEL_COLUMNS = tuple(f"wuh_{suffix}" for suffix in WUH_LANDCOVER_SUFFIXES)
 
 OUTPUT_TIME_COLS = 5
-MET_FORCING_COLS = 20 + len(LAI_KERNEL_COLUMNS) + len(WUH_KERNEL_COLUMNS)
+MET_FORCING_COLS = 22 + len(LAI_KERNEL_COLUMNS) + len(WUH_KERNEL_COLUMNS)
 
 _GROUP_ORDER: tuple[str, ...] = (
     "SUEWS",
@@ -198,6 +198,8 @@ def _prepare_forcing_block(df_forcing: pd.DataFrame) -> np.ndarray:
         (17, "fcld", 0.0),
         (18, "Wuh", 0.0),
         (19, "xsmd", 0.0),
+        (30, "kdiff", -999.0),
+        (31, "kdir", -999.0),
     ]
 
     block = np.zeros((len_sim, MET_FORCING_COLS), dtype=np.float64, order="F")

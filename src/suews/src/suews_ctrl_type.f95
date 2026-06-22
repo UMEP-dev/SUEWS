@@ -190,6 +190,8 @@ MODULE module_ctrl_type
    ! ********** SUEWS_forcing schema **********
    TYPE, PUBLIC :: SUEWS_FORCING
       REAL(KIND(1D0)) :: kdown = 0.0D0 !
+      REAL(KIND(1D0)) :: kdiff = -999.0D0 ! diffuse horizontal irradiance [W m-2]
+      REAL(KIND(1D0)) :: kdir = -999.0D0 ! direct normal irradiance [W m-2]
       REAL(KIND(1D0)) :: l_down = 0.0D0 !
       REAL(KIND(1D0)) :: RH = 0.0D0 !
       REAL(KIND(1D0)) :: pres = 0.0D0 !

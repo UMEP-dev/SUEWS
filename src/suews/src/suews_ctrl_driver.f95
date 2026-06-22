@@ -606,7 +606,7 @@ CONTAINS
       ! Input/Output arguments
       TYPE(SUEWS_TIMER), INTENT(INOUT) :: timer
       INTEGER, INTENT(IN) :: len_sim
-      REAL(KIND(1D0)), DIMENSION(len_sim, 30), INTENT(IN) :: MetForcingBlock
+      REAL(KIND(1D0)), DIMENSION(len_sim, 32), INTENT(IN) :: MetForcingBlock
       TYPE(SUEWS_CONFIG), INTENT(IN) :: config
       TYPE(SUEWS_SITE), INTENT(IN) :: siteInfo
       TYPE(SUEWS_STATE), INTENT(INOUT) :: modState
@@ -660,6 +660,8 @@ CONTAINS
          forcing%Wu_mm_grass = MetForcingBlock(ir, 28)
          forcing%Wu_mm_bsoil = MetForcingBlock(ir, 29)
          forcing%Wu_mm_water = MetForcingBlock(ir, 30)
+         forcing%kdiff = MetForcingBlock(ir, 31)
+         forcing%kdir = MetForcingBlock(ir, 32)
 
          ! === Call main calculation ===
          CALL SUEWS_cal_Main( &

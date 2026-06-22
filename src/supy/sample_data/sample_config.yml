@@ -22,8 +22,7 @@ model:
     net_radiation:
       narp:
         ldown: air
-    kdown_split_method:
-      value: 3
+    kdown_split_method: constant
     emissions:
       heat: J11
       co2:

@@ -732,6 +732,10 @@ pub const PHYSICS_NAME_ALIASES_RS: &[(&str, &[(&str, i64)])] = &[
         ],
     ),
     (
+        "kdown_split_method",
+        &[("forcing", 1), ("constant", 2), ("epw", 3)],
+    ),
+    (
         "emissions",
         &[
             ("observed", 0),
@@ -2728,6 +2732,7 @@ model:
     storage_heat: ohm
     stability: cn98
     snow_use: enabled
+    kdown_split_method: constant
 ";
         let mut root: Value = from_str(yaml).unwrap();
         normalize_field_names(&mut root).unwrap();
@@ -2749,6 +2754,12 @@ model:
                 .get(Value::String("value".into()))
                 .and_then(|v| v.as_i64()),
             Some(1)
+        );
+        assert_eq!(
+            physics["kdown_split_method"]
+                .get(Value::String("value".into()))
+                .and_then(|v| v.as_i64()),
+            Some(2)
         );
     }
 

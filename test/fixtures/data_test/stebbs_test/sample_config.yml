@@ -16,6 +16,7 @@ model:
   physics:
     net_radiation:
       value: 1003
+    kdown_split_method: constant
     emissions:
       value: 2
     storage_heat:

@@ -87,6 +87,7 @@ def test_sample_config_prefers_nested_readable_physics_defaults():
     physics = yaml.safe_load(path.read_text(encoding="utf-8"))["model"]["physics"]
 
     assert physics["net_radiation"] == {"narp": {"ldown": "air"}}
+    assert physics["kdown_split_method"] == "constant"
     assert physics["emissions"] == {
         "heat": "J11",
         "co2": {"anthropogenic": "none", "biogenic": "none"},
@@ -134,6 +135,7 @@ def test_sample_config_prefers_nested_readable_physics_defaults():
     parsed = ModelPhysics.model_validate(physics)
     assert {
         "net_radiation": int(_unwrap(parsed.net_radiation)),
+        "kdown_split_method": int(_unwrap(parsed.kdown_split_method)),
         "emissions": int(_unwrap(parsed.emissions)),
         "storage_heat": int(_unwrap(parsed.storage_heat)),
         "ohm_inc_qf": int(_unwrap(parsed.ohm_inc_qf)),
@@ -162,6 +164,7 @@ def test_sample_config_prefers_nested_readable_physics_defaults():
         ),
     } == {
         "net_radiation": 3,
+        "kdown_split_method": 2,
         "emissions": 2,
         "storage_heat": 1,
         "ohm_inc_qf": 0,

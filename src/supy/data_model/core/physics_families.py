@@ -84,6 +84,11 @@ _PHYSICS_NAME_SPECS: dict[str, list[tuple[int, str, tuple[str, ...]]]] = {
         (1002, "ldown_ss_cloud", ()),
         (1003, "ldown_ss_air", ()),
     ],
+    "kdown_split_method": [
+        (1, "forcing", ()),
+        (2, "constant", ()),
+        (3, "epw", ()),
+    ],
     "emissions": [
         (0, "observed", ()),
         (1, "l11", ()),
@@ -200,6 +205,7 @@ _PHYSICS_NAME_SPECS: dict[str, list[tuple[int, str, tuple[str, ...]]]] = {
 
 MODEL_PHYSICS_ENUM_FIELDS: tuple[str, ...] = (
     "net_radiation",
+    "kdown_split_method",
     "emissions",
     "storage_heat",
     "ohm_inc_qf",

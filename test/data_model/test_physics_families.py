@@ -352,6 +352,7 @@ class TestRegistryEnumParity:
 
         field_to_enum = {
             "net_radiation": m.NetRadiationMethod,
+            "kdown_split_method": m.KdownSplitMethod,
             "emissions": m.EmissionsMethod,
             "storage_heat": m.StorageHeatMethod,
             "ohm_inc_qf": m.OhmIncQf,

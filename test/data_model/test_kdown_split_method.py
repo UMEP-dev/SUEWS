@@ -27,6 +27,20 @@ def test_kdown_split_method_roundtrips_through_df_state(method):
     assert _method_code(restored.kdown_split_method) == method.value
 
 
+@pytest.mark.parametrize(
+    ("name", "method"),
+    [
+        ("forcing", KdownSplitMethod.FORCING),
+        ("constant", KdownSplitMethod.CONSTANT),
+        ("epw", KdownSplitMethod.EPW),
+    ],
+)
+def test_kdown_split_method_accepts_readable_names(name, method):
+    physics = ModelPhysics(kdown_split_method=name)
+
+    assert _method_code(physics.kdown_split_method) == method.value
+
+
 def test_legacy_df_state_defaults_to_epw():
     state = ModelPhysics().to_df_state(grid_id=1).drop(
         columns=[("kdown_split_method", "0")]

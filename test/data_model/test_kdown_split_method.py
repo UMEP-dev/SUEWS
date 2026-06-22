@@ -3,6 +3,8 @@ from pydantic import ValidationError
 
 from supy.data_model.core.model import KdownSplitMethod, ModelPhysics
 
+pytestmark = pytest.mark.api
+
 
 def _method_code(value):
     while hasattr(value, "value"):

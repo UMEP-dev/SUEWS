@@ -63,6 +63,7 @@ MODULE module_ctrl_type
       INTEGER :: SMDMethod = 0 ! Determines method for calculating soil moisture deficit [-]
       INTEGER :: WaterUseMethod = 0 ! Defines how external water use is calculated[-]
       INTEGER :: NetRadiationMethod = 0 ! method for calculation of radiation fluxes [-]
+      INTEGER :: KdownSplitMethod = 3 ! method to partition Kdown into direct and diffuse components [-]
       INTEGER :: StabilityMethod = 0 ! method to calculate atmospheric stability [-]
       INTEGER :: StorageHeatMethod = 0 ! !Determines method for calculating storage heat flux ΔQS [-]
       INTEGER :: Diagnose = 0 ! flag for printing diagnostic info during runtime [N/A]C

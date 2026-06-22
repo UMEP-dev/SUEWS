@@ -981,7 +981,7 @@ CONTAINS
       REAL(KIND(1D0)) :: dewpoint_c
       REAL(KIND(1D0)) :: delta_kn
       REAL(KIND(1D0)) :: dirint_coeff
-      REAL(KIND(1D0)) :: dni
+      REAL(KIND(1D0)) :: kdir
       REAL(KIND(1D0)) :: ecc
       REAL(KIND(1D0)) :: gamma
       REAL(KIND(1D0)) :: i0_normal
@@ -1053,10 +1053,65 @@ CONTAINS
                  + abs_airmass*(-0.000653D0 + 1.4D-5*abs_airmass)))
       kn = kn_clear - delta_kn
       CALL spartacus_dirint_static_coeff(kt_prime, zenith_deg, water_cm, dirint_coeff)
-      dni = MAX(0.0D0, kn*i0_normal*dirint_coeff)
-      kdirect = MIN(kdown, MAX(0.0D0, dni*cos_sza))
+      kdir = MAX(0.0D0, kn*i0_normal*dirint_coeff)
+      kdirect = MIN(kdown, MAX(0.0D0, kdir*cos_sza))
 
    END SUBROUTINE split_shortwave_epw_disc
+
+   SUBROUTINE split_shortwave_forcing(kdown, kdiff, kdir, zenith_deg, kdirect, kdiffuse, valid)
+      ! Convert observed direct-normal and diffuse-horizontal forcing to energy-conserving horizontal
+      ! components. Small closure differences are normalized while preserving
+      ! the observed direct/diffuse ratio.
+      IMPLICIT NONE
+
+      REAL(KIND(1D0)), INTENT(IN) :: kdown
+      REAL(KIND(1D0)), INTENT(IN) :: kdiff
+      REAL(KIND(1D0)), INTENT(IN) :: kdir
+      REAL(KIND(1D0)), INTENT(IN) :: zenith_deg
+      REAL(KIND(1D0)), INTENT(OUT) :: kdirect
+      REAL(KIND(1D0)), INTENT(OUT) :: kdiffuse
+      LOGICAL, INTENT(OUT) :: valid
+
+      REAL(KIND(1D0)) :: closure_error
+      REAL(KIND(1D0)) :: component_sum
+      REAL(KIND(1D0)) :: cos_sza
+      REAL(KIND(1D0)) :: scale
+      REAL(KIND(1D0)), PARAMETER :: pi = 3.141592653589793D0
+
+      kdirect = 0.0D0
+      kdiffuse = 0.0D0
+      valid = .FALSE.
+
+      IF (kdown <= 0.0D0) THEN
+         valid = .TRUE.
+         RETURN
+      END IF
+      IF (kdiff < 0.0D0 .OR. kdir < 0.0D0) RETURN
+      IF (kdiff /= kdiff .OR. kdir /= kdir) RETURN
+
+      cos_sza = MAX(0.0D0, COS(zenith_deg*pi/180.0D0))
+      kdirect = kdir*cos_sza
+      kdiffuse = kdiff
+      component_sum = kdirect + kdiffuse
+      IF (component_sum <= 0.0D0) RETURN
+
+      closure_error = ABS(component_sum - kdown)
+      IF (kdown > 50.0D0) THEN
+         valid = closure_error/kdown <= 0.05D0
+      ELSE
+         valid = closure_error <= 10.0D0
+      END IF
+
+      IF (valid) THEN
+         scale = kdown/component_sum
+         kdirect = kdirect*scale
+         kdiffuse = kdiffuse*scale
+      ELSE
+         kdirect = 0.0D0
+         kdiffuse = 0.0D0
+      END IF
+
+   END SUBROUTINE split_shortwave_forcing
 
    SUBROUTINE spartacus_dirint_static_coeff(kt_prime, zenith_deg, water_cm, coeff)
       ! Static DIRINT coefficient from pvlib's Perez table for the

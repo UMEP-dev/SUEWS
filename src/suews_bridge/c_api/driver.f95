@@ -57,7 +57,7 @@ implicit none
 private
 
 integer(c_int), parameter :: SUEWS_CAPI_TIMER_LEN = 18_c_int
-integer(c_int), parameter :: SUEWS_CAPI_CONFIG_LEN = 22_c_int
+integer(c_int), parameter :: SUEWS_CAPI_CONFIG_LEN = 23_c_int
 integer(c_int), parameter :: SUEWS_CAPI_SITE_SCALARS_LEN = 24_c_int
 integer(c_int), parameter :: SUEWS_CAPI_FORCING_COLS = 32_c_int
 
@@ -1052,6 +1052,7 @@ subroutine unpack_config(flat, n_flat, config, err)
    config%rcmethod = int(nint(flat(20)))
    config%setpointmethod = int(nint(flat(21)))
    config%flag_test = flat(22)>=0.5_c_double
+   config%KdownSplitMethod = int(nint(flat(23)))
 
    err = SUEWS_CAPI_OK
 

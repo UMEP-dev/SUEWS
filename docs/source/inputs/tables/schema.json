@@ -6719,6 +6719,16 @@
       "title": "Irrigation",
       "type": "object"
     },
+    "KdownSplitMethod": {
+      "description": "Method for partitioning global horizontal irradiance into direct and diffuse components.\n\n1: FORCING - Uses direct normal and diffuse horizontal irradiance from forcing data, with EPW fallback when invalid\n2: CONSTANT - Uses the SPARTACUS constant direct-horizontal fraction\n3: EPW - Uses the pressure-corrected DISC/static-DIRINT approach",
+      "enum": [
+        1,
+        2,
+        3
+      ],
+      "title": "KdownSplitMethod",
+      "type": "integer"
+    },
     "LAIMethod": {
       "description": "Method for determining leaf area index (LAI).\n\n0: OBSERVED - Uses observed LAI values from the forcing file (lai column); the same value is applied to every vegetation class each day, and every timestep must carry a non-missing, non-negative observation. The -999 missing sentinel (and other negative placeholders) is not permitted on this path. Genuine zero observations are honoured.\n1: MODELLED - LAI modelled internally from growing-degree-day (GDD) and senescence-degree-day (SDD) thresholds.",
       "enum": [
@@ -7189,6 +7199,24 @@
             "storage_heat"
           ],
           "title": "Net Radiation",
+          "unit": "dimensionless"
+        },
+        "kdown_split_method": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/RefValue_KdownSplitMethod_"
+            },
+            {
+              "$ref": "#/$defs/KdownSplitMethod"
+            }
+          ],
+          "default": 3,
+          "depends_on": [
+            "net_radiation"
+          ],
+          "description": "Method for partitioning global horizontal irradiance into direct and diffuse components. Options: 1 (FORCING) = Uses direct normal and diffuse horizontal irradiance from forcing data, with EPW fallback when invalid; 2 (CONSTANT) = Uses the SPARTACUS constant direct-horizontal fraction; 3 (EPW) = Uses the pressure-corrected DISC/static-DIRINT approach",
+          "note": "Applied when SPARTACUS-Surface is selected by net_radiation.",
+          "title": "Kdown Split Method",
           "unit": "dimensionless"
         },
         "emissions": {
@@ -8111,6 +8139,37 @@
         "value"
       ],
       "title": "RefValue[HeatRoughnessMethod]",
+      "type": "object"
+    },
+    "RefValue_KdownSplitMethod_": {
+      "additionalProperties": false,
+      "properties": {
+        "value": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/KdownSplitMethod"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "ref": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Reference"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        }
+      },
+      "required": [
+        "value"
+      ],
+      "title": "RefValue[KdownSplitMethod]",
       "type": "object"
     },
     "RefValue_LAIMethod_": {

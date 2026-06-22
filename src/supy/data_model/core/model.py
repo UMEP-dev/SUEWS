@@ -225,6 +225,26 @@ class NetRadiationMethod(Enum):
         return str(self.value)
 
 
+class KdownSplitMethod(Enum):
+    """
+    Method for partitioning global horizontal irradiance into direct and diffuse components.
+
+    1: FORCING - Uses direct normal and diffuse horizontal irradiance from forcing data, with EPW fallback when invalid
+    2: CONSTANT - Uses the SPARTACUS constant direct-horizontal fraction
+    3: EPW - Uses the pressure-corrected DISC/static-DIRINT approach
+    """
+
+    FORCING = 1
+    CONSTANT = 2
+    EPW = 3
+
+    def __int__(self):
+        return self.value
+
+    def __repr__(self):
+        return str(self.value)
+
+
 class StorageHeatMethod(Enum):
     """
     Method for calculating storage heat flux (ΔQS).
@@ -723,6 +743,7 @@ def yaml_equivalent_of_default(dumper, data):
 # Register YAML representers for all enums
 for enum_class in [
     NetRadiationMethod,
+    KdownSplitMethod,
     EmissionsMethod,
     StorageHeatMethod,
     MomentumRoughnessMethod,
@@ -889,6 +910,15 @@ class ModelPhysics(BaseModel):
             "note": "Values above 1000 activate SPARTACUS-Surface and provide facet radiation required by EHC storage heat.",
         },
     )
+    kdown_split_method: FlexibleRefValue(KdownSplitMethod) = Field(
+        default=KdownSplitMethod.EPW,
+        description=_enum_description(KdownSplitMethod),
+        json_schema_extra={
+            "unit": "dimensionless",
+            "depends_on": ["net_radiation"],
+            "note": "Applied when SPARTACUS-Surface is selected by net_radiation.",
+        },
+    )
     emissions: FlexibleRefValue(EmissionsMethod) = Field(
         default=EmissionsMethod.J11,
         description=_enum_description(EmissionsMethod),
@@ -1039,6 +1069,7 @@ class ModelPhysics(BaseModel):
     # reads state by positional/fused keys. Only the left column moves.
     _FIELD_COL_PAIRS = [
         ("net_radiation", "netradiationmethod"),
+        ("kdown_split_method", "kdown_split_method"),
         ("emissions", "emissionsmethod"),
         ("storage_heat", "storageheatmethod"),
         ("ohm_inc_qf", "ohmincqf"),
@@ -1129,6 +1160,7 @@ class ModelPhysics(BaseModel):
         # New options: optional in legacy DataFrames, default if missing
         optional_new_attrs_with_defaults = {
             "laimethod": LAIMethod.MODELLED,
+            "kdown_split_method": KdownSplitMethod.EPW,
         }
 
         for attr in required_attrs:

@@ -1504,6 +1504,8 @@ fn apply_config_overrides(config: &mut SuewsConfig, root: &Value) {
     if let Some(v) = read_i32(root, &["model", "control", "diag_qs"]) {
         config.diag_qs = v;
     }
+    config.kdown_split_method =
+        read_i32(root, &["model", "physics", "kdown_split_method"]).unwrap_or(3);
 }
 
 fn apply_ehc_overrides(site: &mut SuewsSite, site_root: &Value, nlayer: usize, ndepth: usize) {

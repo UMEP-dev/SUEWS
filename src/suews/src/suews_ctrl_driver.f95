@@ -28,7 +28,7 @@ MODULE SUEWS_Driver
    USE meteo, ONLY: qsatf, RH2qa, qa2RH
    USE module_phys_atmmoiststab, ONLY: cal_AtmMoist, cal_Stab, stab_psi_heat, stab_psi_mom, SUEWS_update_atmState
    USE module_phys_narp, ONLY: NARP_cal_SunPosition, NARP_update_SunPosition
-   USE module_phys_spartacus, ONLY: SPARTACUS, split_shortwave_epw_disc
+   USE module_phys_spartacus, ONLY: SPARTACUS, split_shortwave_epw_disc, split_shortwave_forcing
    USE module_phys_resist, ONLY: AerodynamicResistance, BoundaryLayerResistance, SurfaceResistance, &
                             SUEWS_cal_RoughnessParameters
    USE module_phys_ohm, ONLY: OHM
@@ -1388,7 +1388,7 @@ CONTAINS
       modState, & ! input/output:
       dataOutLineSPARTACUS) ! output
       USE module_phys_narp, ONLY: RadMethod, NARP
-      USE module_phys_spartacus, ONLY: SPARTACUS, split_shortwave_epw_disc
+      USE module_phys_spartacus, ONLY: SPARTACUS, split_shortwave_epw_disc, split_shortwave_forcing
       USE module_ctrl_type, ONLY: SUEWS_SITE, SUEWS_TIMER, SUEWS_CONFIG, SUEWS_FORCING
       USE module_ctrl_type, ONLY: SUEWS_CONFIG, SUEWS_TIMER, SNOW_STATE, SNOW_PRM, &
                                SUEWS_FORCING, SUEWS_SITE, &
@@ -1413,6 +1413,7 @@ CONTAINS
       REAL(KIND(1D0)) :: SnowAlb ! updated snow albedo [-]
       REAL(KIND(1D0)) :: kdown_direct ! direct-horizontal irradiance [W m-2]
       REAL(KIND(1D0)) :: kdown_diffuse ! diffuse-horizontal irradiance [W m-2]
+      LOGICAL :: forcing_split_valid
 
       REAL(KIND(1D0)), DIMENSION(nsurf) :: lup_ind !outgoing longwave radiation from observation [W m-2]
       REAL(KIND(1D0)), DIMENSION(nsurf) :: kup_ind !outgoing shortwave radiation from observation [W m-2]
@@ -1473,6 +1474,7 @@ CONTAINS
             LAI_id => phenState%LAI_id, &
             storageheatmethod => config%StorageHeatMethod, &
             NetRadiationMethod => config%NetRadiationMethod, &
+            KdownSplitMethod => config%KdownSplitMethod, &
             SnowUse => config%SnowUse, &
             Diagnose => config%Diagnose, &
             use_sw_direct_albedo => config%use_sw_direct_albedo, &
@@ -1617,10 +1619,29 @@ CONTAINS
 
                   IF (Diagqn == 1) WRITE (*, *) 'Calling SPARTACUS:'
                   IF (NetRadiationMethod > 1000) THEN
-                     CALL split_shortwave_epw_disc( &
-                        kdown, id, zenith_deg, Tair_C, avRH, Press_hPa, &
-                        sw_dn_direct_frac, kdown_direct)
-                     kdown_diffuse = MAX(0.0D0, kdown - kdown_direct)
+                     SELECT CASE (KdownSplitMethod)
+                     CASE (1) ! observed kdir (direct-normal) and kdiff (diffuse-horizontal) forcing
+                        CALL split_shortwave_forcing( &
+                           kdown, forcing%kdiff, forcing%kdir, zenith_deg, &
+                           kdown_direct, kdown_diffuse, forcing_split_valid)
+                        IF (.NOT. forcing_split_valid) THEN
+                           CALL split_shortwave_epw_disc( &
+                              kdown, id, zenith_deg, Tair_C, avRH, Press_hPa, &
+                              sw_dn_direct_frac, kdown_direct)
+                           kdown_diffuse = MAX(0.0D0, kdown - kdown_direct)
+                           IF (Diagnose == 1) WRITE (*, *) &
+                              'Invalid kdir/kdiff forcing; using EPW Kdown split.'
+                        END IF
+                     CASE (2) ! constant direct-horizontal fraction
+                        kdown_direct = MAX(0.0D0, kdown) &
+                                       *MAX(0.0D0, MIN(1.0D0, sw_dn_direct_frac))
+                        kdown_diffuse = MAX(0.0D0, kdown) - kdown_direct
+                     CASE DEFAULT ! EPW/DISC static-DIRINT split
+                        CALL split_shortwave_epw_disc( &
+                           kdown, id, zenith_deg, Tair_C, avRH, Press_hPa, &
+                           sw_dn_direct_frac, kdown_direct)
+                        kdown_diffuse = MAX(0.0D0, kdown - kdown_direct)
+                     END SELECT
 
                      ! TODO: TS 14 Feb 2022, ESTM development: introduce facet surface temperatures
                      CALL SPARTACUS( &
@@ -4145,7 +4166,7 @@ CONTAINS
       kkAnOHM, Kmax, LAI_id, LAIMax, LAIMin, &
       LAIPower, LAIType, lat, lng, RSLLevel, MaxConductance, MaxFCMetab, MaxQFMetab, &
       SnowWater, MinFCMetab, MinQFMetab, min_res_bioCO2, &
-      NARP_EMIS_SNOW, NARP_TRANS_SITE, NetRadiationMethod, &
+      NARP_EMIS_SNOW, NARP_TRANS_SITE, NetRadiationMethod, KdownSplitMethod, &
       OHM_coef, OHMIncQF, OHM_threshSW, &
       OHM_threshWD, PipeCapacity, PopDensDaytime, &
       PopDensNighttime, PopProf_24hr, PorMax_dec, PorMin_dec, &
@@ -4275,6 +4296,7 @@ CONTAINS
       INTEGER, INTENT(IN) :: WaterUseMethod !Defines how external water use is calculated[-]
       INTEGER, INTENT(IN) :: RSLLevel !
       INTEGER, INTENT(IN) :: NetRadiationMethod ! method for calculation of radiation fluxes [-]
+      INTEGER, INTENT(IN) :: KdownSplitMethod ! method to partition Kdown into direct and diffuse radiation [-]
       INTEGER, INTENT(IN) :: StabilityMethod !method to calculate atmospheric stability [-]
       INTEGER, INTENT(IN) :: StorageHeatMethod
       INTEGER, INTENT(IN) :: SnowUse ! Determines whether the snow part of the model runs[-]
@@ -4845,6 +4867,7 @@ CONTAINS
       config%SMDMethod = SMDMethod
       config%WaterUseMethod = WaterUseMethod
       config%NetRadiationMethod = NetRadiationMethod
+      config%KdownSplitMethod = KdownSplitMethod
       config%StabilityMethod = StabilityMethod
       config%StorageHeatMethod = StorageHeatMethod
       config%SnowUse = SnowUse

@@ -28,7 +28,7 @@ MODULE SUEWS_Driver
    USE meteo, ONLY: qsatf, RH2qa, qa2RH
    USE module_phys_atmmoiststab, ONLY: cal_AtmMoist, cal_Stab, stab_psi_heat, stab_psi_mom, SUEWS_update_atmState
    USE module_phys_narp, ONLY: NARP_cal_SunPosition, NARP_update_SunPosition
-   USE module_phys_spartacus, ONLY: SPARTACUS
+   USE module_phys_spartacus, ONLY: SPARTACUS, split_shortwave_epw_disc
    USE module_phys_resist, ONLY: AerodynamicResistance, BoundaryLayerResistance, SurfaceResistance, &
                             SUEWS_cal_RoughnessParameters
    USE module_phys_ohm, ONLY: OHM
@@ -1388,7 +1388,7 @@ CONTAINS
       modState, & ! input/output:
       dataOutLineSPARTACUS) ! output
       USE module_phys_narp, ONLY: RadMethod, NARP
-      USE module_phys_spartacus, ONLY: SPARTACUS
+      USE module_phys_spartacus, ONLY: SPARTACUS, split_shortwave_epw_disc
       USE module_ctrl_type, ONLY: SUEWS_SITE, SUEWS_TIMER, SUEWS_CONFIG, SUEWS_FORCING
       USE module_ctrl_type, ONLY: SUEWS_CONFIG, SUEWS_TIMER, SNOW_STATE, SNOW_PRM, &
                                SUEWS_FORCING, SUEWS_SITE, &
@@ -1411,6 +1411,8 @@ CONTAINS
       REAL(KIND(1D0)), DIMENSION(nsurf) :: SnowFrac ! snow fractions of each surface [-]
       REAL(KIND(1D0)) :: albedo_snowfree !estimated albedo for snow-free surface [-]
       REAL(KIND(1D0)) :: SnowAlb ! updated snow albedo [-]
+      REAL(KIND(1D0)) :: kdown_direct ! direct-horizontal irradiance [W m-2]
+      REAL(KIND(1D0)) :: kdown_diffuse ! diffuse-horizontal irradiance [W m-2]
 
       REAL(KIND(1D0)), DIMENSION(nsurf) :: lup_ind !outgoing longwave radiation from observation [W m-2]
       REAL(KIND(1D0)), DIMENSION(nsurf) :: kup_ind !outgoing shortwave radiation from observation [W m-2]
@@ -1615,15 +1617,20 @@ CONTAINS
 
                   IF (Diagqn == 1) WRITE (*, *) 'Calling SPARTACUS:'
                   IF (NetRadiationMethod > 1000) THEN
+                     CALL split_shortwave_epw_disc( &
+                        kdown, id, zenith_deg, Tair_C, avRH, Press_hPa, &
+                        sw_dn_direct_frac, kdown_direct)
+                     kdown_diffuse = MAX(0.0D0, kdown - kdown_direct)
+
                      ! TODO: TS 14 Feb 2022, ESTM development: introduce facet surface temperatures
                      CALL SPARTACUS( &
                         Diagqn, & !input:
-                        sfr_surf, id, zenith_deg, nlayer, & !input:
+                        sfr_surf, zenith_deg, nlayer, & !input:
                         tsfc_surf, tsfc_roof, tsfc_wall, &
-                        kdown, ldown, Tair_C, avRH, Press_hPa, alb, emis, LAI_id, &
+                        kdown, kdown_direct, kdown_diffuse, ldown, Tair_C, alb, emis, LAI_id, &
                         n_vegetation_region_urban, &
                         n_stream_sw_urban, n_stream_lw_urban, &
-                        sw_dn_direct_frac, air_ext_sw, air_ssa_sw, &
+                        air_ext_sw, air_ssa_sw, &
                         veg_ssa_sw, air_ext_lw, air_ssa_lw, veg_ssa_lw, &
                         veg_fsd_const, veg_contact_fraction_const, &
                         ground_albedo_dir_mult_fact, use_sw_direct_albedo, &

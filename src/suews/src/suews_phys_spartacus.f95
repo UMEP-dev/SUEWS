@@ -75,12 +75,12 @@ CONTAINS
 
    SUBROUTINE SPARTACUS( &
       DiagQN, & !input:
-      sfr_surf, doy, zenith_deg, nlayer, & !input:
+      sfr_surf, zenith_deg, nlayer, & !input:
       tsfc_surf, tsfc_roof, tsfc_wall, &
-      kdown, ldown, Tair_C, avRH, Press_hPa, alb_surf, emis_surf, LAI_id, &
+      kdown, kdown_direct, kdown_diffuse, ldown, Tair_C, alb_surf, emis_surf, LAI_id, &
       n_vegetation_region_urban, &
       n_stream_sw_urban, n_stream_lw_urban, &
-      sw_dn_direct_frac, air_ext_sw, air_ssa_sw, &
+      air_ext_sw, air_ssa_sw, &
       veg_ssa_sw, air_ext_lw, air_ssa_lw, veg_ssa_lw, &
       veg_fsd_const, veg_contact_fraction_const, &
       ground_albedo_dir_mult_fact, use_sw_direct_albedo, &
@@ -113,16 +113,15 @@ CONTAINS
       ! Input parameters and variables from SUEWS
       REAL(KIND(1D0)), INTENT(IN) :: zenith_deg
       INTEGER, INTENT(IN) :: DiagQN
-      INTEGER, INTENT(IN) :: doy
       INTEGER, INTENT(IN) :: nlayer
 
       ! TODO: tsurf_0 and temp_C need to be made vertically distributed
       REAL(KIND(1D0)), DIMENSION(nlayer), INTENT(IN) :: tsfc_roof, tsfc_wall
       REAL(KIND(1D0)), INTENT(IN) :: Tair_C
-      REAL(KIND(1D0)), INTENT(IN) :: avRH
-      REAL(KIND(1D0)), INTENT(IN) :: Press_hPa
 
       REAL(KIND(1D0)), INTENT(IN) :: kdown
+      REAL(KIND(1D0)), INTENT(IN) :: kdown_direct
+      REAL(KIND(1D0)), INTENT(IN) :: kdown_diffuse
       REAL(KIND(1D0)), INTENT(IN) :: ldown
       REAL(KIND(1D0)), DIMENSION(NSURF), INTENT(IN) :: tsfc_surf
 
@@ -132,7 +131,7 @@ CONTAINS
       ! SPARTACUS configuration parameters
       INTEGER, INTENT(IN) :: n_vegetation_region_urban, &
                              n_stream_sw_urban, n_stream_lw_urban
-      REAL(KIND(1D0)), INTENT(IN) :: sw_dn_direct_frac, air_ext_sw, air_ssa_sw, &
+      REAL(KIND(1D0)), INTENT(IN) :: air_ext_sw, air_ssa_sw, &
                                      veg_ssa_sw, air_ext_lw, air_ssa_lw, veg_ssa_lw, &
                                      veg_fsd_const, veg_contact_fraction_const, &
                                      ground_albedo_dir_mult_fact
@@ -219,7 +218,6 @@ CONTAINS
       REAL(KIND(1D0)) :: tair_K
       ! top-of-canopy diffuse sw downward
       REAL(KIND(1D0)) :: top_flux_dn_diffuse_sw
-      REAL(KIND(1D0)) :: top_flux_dn_direct_sw_dynamic
       REAL(KIND(1D0)) :: ground_frac_spc, surface_frac_sum
       ! plan area weighted albedo and emissivity of surfaces not including buildings and trees
       REAL(KIND(1D0)) :: alb_no_tree_bldg, emis_no_tree_bldg
@@ -458,11 +456,8 @@ CONTAINS
       ALLOCATE (top_flux_dn_direct_sw(nspec, ncol))
       ALLOCATE (top_flux_dn_lw(nspec, ncol))
       top_flux_dn_sw = kdown ! diffuse + direct
-      CALL spartacus_direct_sw_epw_disc( &
-         kdown, doy, zenith_deg, Tair_C, avRH, Press_hPa, sw_dn_direct_frac, &
-         top_flux_dn_direct_sw_dynamic)
-      top_flux_dn_direct_sw = top_flux_dn_direct_sw_dynamic
-      top_flux_dn_diffuse_sw = top_flux_dn_sw(nspec, ncol) - top_flux_dn_direct_sw(nspec, ncol)
+      top_flux_dn_direct_sw = kdown_direct
+      top_flux_dn_diffuse_sw = kdown_diffuse
       top_flux_dn_lw = ldown
 
       !!!!!!!!!!!!!! allocate and set sw_spectral_props !!!!!!!!!!!!!!
@@ -960,7 +955,7 @@ CONTAINS
 
    END SUBROUTINE SPARTACUS
 
-   SUBROUTINE spartacus_direct_sw_epw_disc(kdown, doy, zenith_deg, Tair_C, RH, Press_hPa, fallback_direct_frac, kdirect)
+   SUBROUTINE split_shortwave_epw_disc(kdown, doy, zenith_deg, Tair_C, RH, Press_hPa, fallback_direct_frac, kdirect)
       ! Estimate direct horizontal SW from global horizontal SW using the
       ! DISC/Perez core used by the EPW writer through pvlib DIRINT.
       !
@@ -1061,7 +1056,7 @@ CONTAINS
       dni = MAX(0.0D0, kn*i0_normal*dirint_coeff)
       kdirect = MIN(kdown, MAX(0.0D0, dni*cos_sza))
 
-   END SUBROUTINE spartacus_direct_sw_epw_disc
+   END SUBROUTINE split_shortwave_epw_disc
 
    SUBROUTINE spartacus_dirint_static_coeff(kt_prime, zenith_deg, water_cm, coeff)
       ! Static DIRINT coefficient from pvlib's Perez table for the

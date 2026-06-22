@@ -41,7 +41,7 @@ EXAMPLES:
 
 | Year | Features | Bugfixes | Changes | Maintenance | Docs | Total |
 |------|----------|----------|---------|-------------|------|-------|
-| 2026 | 77 | 84 | 30 | 81 | 40 | 313 |
+| 2026 | 78 | 84 | 30 | 81 | 40 | 314 |
 | 2025 | 60 | 68 | 22 | 71 | 36 | 256 |
 | 2024 | 12 | 17 | 1 | 12 | 1 | 43 |
 | 2023 | 11 | 14 | 3 | 9 | 1 | 38 |
@@ -53,6 +53,14 @@ EXAMPLES:
 | 2017 | 9 | 0 | 3 | 2 | 0 | 14 |
 
 ## 2026
+
+### 22 Jun 2026
+
+- [feature][experimental] Added configurable partitioning of global horizontal irradiance into direct and diffuse components for SPARTACUS-Surface (#1567)
+  - Wired forcing-file `kdir` (direct-normal irradiance) and `kdiff` (diffuse-horizontal irradiance) through the Python, Rust, C, and Fortran interfaces.
+  - Moved the partition calculation outside SPARTACUS-Surface so it receives prepared direct-horizontal and diffuse-horizontal canopy-top forcing.
+  - Added `model.physics.kdown_split_method` with readable options `forcing`, `constant`, and `epw`.
+
 
 ### 20 Jun 2026
 

@@ -716,6 +716,7 @@ def find_missing_parameters_in_lists(user_list, standard_list, current_path=""):
         "sites[0].properties.vertical_layers.height.value",
         "sites[0].properties.vertical_layers.veg_frac.value",
         "sites[0].properties.vertical_layers.veg_scale.value",
+        "sites[0].properties.vertical_layers.veg_ext.value",
         "sites[0].properties.vertical_layers.building_frac.value",
         "sites[0].properties.vertical_layers.building_scale.value",
     ]
@@ -1152,7 +1153,13 @@ def validate_nlayer_dimensions(user_data: dict, nlayer: int) -> tuple:
     dimension_errors = []
 
     # Arrays that should have nlayer elements
-    nlayer_arrays = ["veg_frac", "veg_scale", "building_frac", "building_scale"]
+    nlayer_arrays = [
+        "veg_frac",
+        "veg_scale",
+        "veg_ext",
+        "building_frac",
+        "building_scale",
+    ]
     # Array that should have nlayer + 1 elements
     nlayer_plus_one_arrays = ["height"]
     # Nested arrays (roofs/walls) that should have nlayer elements each

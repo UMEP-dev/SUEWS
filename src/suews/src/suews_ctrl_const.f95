@@ -609,8 +609,8 @@ MODULE module_ctrl_const_allocate
    REAL(KIND(1D0)), DIMENSION(:, :, :), ALLOCATABLE :: wall_specular_frac_grids
 
    ! SPARTACUS input variables
-   INTEGER :: n_vegetation_region_urban, &
-              n_stream_sw_urban, n_stream_lw_urban
+   INTEGER :: n_vegetation_region_urban, n_vegetation_region_forest, &
+              n_stream_sw_urban, n_stream_sw_forest, n_stream_lw_urban, n_stream_lw_forest
    REAL(KIND(1D0)) :: sw_dn_direct_frac, air_ext_sw, air_ssa_sw, &
                       veg_ssa_sw, air_ext_lw, air_ssa_lw, veg_ssa_lw, &
                       veg_fsd_const, veg_contact_fraction_const, &

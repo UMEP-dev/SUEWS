@@ -1541,8 +1541,11 @@ CONTAINS
                roof_albedo_dir_mult_fact => spartacusLayerPrm%roof_albedo_dir_mult_fact, &
                wall_specular_frac => spartacusLayerPrm%wall_specular_frac, &
                n_vegetation_region_urban => spartacusPrm%n_vegetation_region_urban, &
+               n_vegetation_region_forest => spartacusPrm%n_vegetation_region_forest, &
                n_stream_sw_urban => spartacusPrm%n_stream_sw_urban, &
+               n_stream_sw_forest => spartacusPrm%n_stream_sw_forest, &
                n_stream_lw_urban => spartacusPrm%n_stream_lw_urban, &
+               n_stream_lw_forest => spartacusPrm%n_stream_lw_forest, &
                sw_dn_direct_frac => spartacusPrm%sw_dn_direct_frac, &
                air_ext_sw => spartacusPrm%air_ext_sw, &
                air_ssa_sw => spartacusPrm%air_ssa_sw, &
@@ -1559,6 +1562,7 @@ CONTAINS
                sfr_dectr => dectrPrm%sfr, &
                EveTreeH => evetrPrm%height_evergreen_tree, &
                DecTreeH => dectrPrm%height_deciduous_tree, &
+               veg_ext_input => spartacusLayerPrm%veg_ext, &
                tau_a => snowPrm%tau_a, &
                tau_f => snowPrm%tau_f, &
                SnowAlbMax => snowPrm%snow_albedo_max, &
@@ -1657,14 +1661,15 @@ CONTAINS
                         tsfc_surf, tsfc_roof, tsfc_wall, &
                         kdown, kdown_direct, kdown_diffuse, ldown, Tair_C, rsl_z, rsl_t_C, alb, emis, LAI_id, &
                         n_vegetation_region_urban, &
-                        n_stream_sw_urban, n_stream_lw_urban, &
+                        n_vegetation_region_forest, &
+                        n_stream_sw_urban, n_stream_sw_forest, n_stream_lw_urban, n_stream_lw_forest, &
                         air_ext_sw, air_ssa_sw, &
                         veg_ssa_sw, air_ext_lw, air_ssa_lw, veg_ssa_lw, &
                         veg_fsd_const, veg_contact_fraction_const, &
                         ground_albedo_dir_mult_fact, use_sw_direct_albedo, &
                         height, bldgH, sfr_evetr, sfr_dectr, EveTreeH, DecTreeH, &
                         building_frac, veg_frac, sfr_roof, sfr_wall, &
-                        building_scale, veg_scale, & !input:
+                        building_scale, veg_scale, veg_ext_input, & !input:
                         alb_roof, emis_roof, alb_wall, emis_wall, &
                         roof_albedo_dir_mult_fact, wall_specular_frac, &
                         qn, kup, lup, qn_roof, qn_wall, qn_surf, & !output:
@@ -4181,9 +4186,9 @@ CONTAINS
       PrecipLimit, PrecipLimitAlb, &
       QF0_BEU, Qf_A, Qf_B, Qf_C, &
       nlayer, &
-      n_vegetation_region_urban, &
-      n_stream_sw_urban, n_stream_lw_urban, &
-      sw_dn_direct_frac, air_ext_sw, air_ssa_sw, &
+      n_vegetation_region_urban, n_vegetation_region_forest, &
+      n_stream_sw_urban, n_stream_sw_forest, n_stream_lw_urban, &
+      n_stream_lw_forest, sw_dn_direct_frac, air_ext_sw, air_ssa_sw, &
       veg_ssa_sw, air_ext_lw, air_ssa_lw, veg_ssa_lw, &
       veg_fsd_const, veg_contact_fraction_const, &
       ground_albedo_dir_mult_fact, use_sw_direct_albedo, &
@@ -4225,7 +4230,7 @@ CONTAINS
       HotWaterTankWallConductivity, HotWaterTankInternalWallConvectionCoefficient, &
       HotWaterTankExternalWallConvectionCoefficient, DHWVesselWallConductivity, DHWVesselInternalWallConvectionCoefficient, &
       DHWVesselExternalWallConvectionCoefficient, DHWVesselWallEmissivity, HotWaterHeatingEfficiency, &
-      height, building_frac, veg_frac, building_scale, veg_scale, & !input: SPARTACUS
+      height, building_frac, veg_frac, building_scale, veg_scale, veg_ext, & !input: SPARTACUS
       alb_roof, emis_roof, alb_wall, emis_wall, &
       roof_albedo_dir_mult_fact, wall_specular_frac, &
       RadMeltFact, RAINCOVER, RainMaxRes, resp_a, resp_b, &
@@ -4355,7 +4360,10 @@ CONTAINS
       REAL(KIND(1D0)), INTENT(IN) :: ground_albedo_dir_mult_fact
       INTEGER, INTENT(IN) :: n_stream_lw_urban ! LW streams per hemisphere [-]
       INTEGER, INTENT(IN) :: n_stream_sw_urban ! shortwave diffuse streams per hemisphere [-]
+      INTEGER, INTENT(IN) :: n_stream_lw_forest ! longwave streams per hemisphere for forest columns [-]
+      INTEGER, INTENT(IN) :: n_stream_sw_forest ! shortwave diffuse streams per hemisphere for forest columns [-]
       INTEGER, INTENT(IN) :: n_vegetation_region_urban !Number of regions used to describe vegetation [-]
+      INTEGER, INTENT(IN) :: n_vegetation_region_forest !Number of regions used to describe forest vegetation [-]
       REAL(KIND(1D0)), INTENT(IN) :: sw_dn_direct_frac
       REAL(KIND(1D0)), INTENT(IN) :: veg_contact_fraction_const
       REAL(KIND(1D0)), INTENT(IN) :: veg_fsd_const
@@ -4366,6 +4374,7 @@ CONTAINS
       REAL(KIND(1D0)), DIMENSION(nlayer), INTENT(IN) :: building_scale ! diameter of buildings [[m]
       REAL(KIND(1D0)), DIMENSION(nlayer), INTENT(IN) :: veg_frac !vegetation fraction [-]
       REAL(KIND(1D0)), DIMENSION(nlayer), INTENT(IN) :: veg_scale ! scale of tree crowns [m]
+      REAL(KIND(1D0)), DIMENSION(nlayer), INTENT(IN) :: veg_ext ! vegetation extinction coefficient override [m-1]
       REAL(KIND(1D0)), DIMENSION(nlayer), INTENT(IN) :: alb_roof !albedo of roof [-]
       REAL(KIND(1D0)), DIMENSION(nlayer), INTENT(IN) :: emis_roof ! emissivity of roof [-]
       REAL(KIND(1D0)), DIMENSION(nlayer), INTENT(IN) :: alb_wall !albedo of wall [-]
@@ -4931,7 +4940,10 @@ CONTAINS
       spartacusPrm%ground_albedo_dir_mult_fact = ground_albedo_dir_mult_fact
       spartacusPrm%n_stream_lw_urban = n_stream_lw_urban
       spartacusPrm%n_stream_sw_urban = n_stream_sw_urban
+      spartacusPrm%n_stream_lw_forest = n_stream_lw_forest
+      spartacusPrm%n_stream_sw_forest = n_stream_sw_forest
       spartacusPrm%n_vegetation_region_urban = n_vegetation_region_urban
+      spartacusPrm%n_vegetation_region_forest = n_vegetation_region_forest
       spartacusPrm%sw_dn_direct_frac = sw_dn_direct_frac
       spartacusPrm%veg_contact_fraction_const = veg_contact_fraction_const
       spartacusPrm%veg_fsd_const = veg_fsd_const
@@ -4942,6 +4954,7 @@ CONTAINS
       spartacusLayerPrm%building_scale = building_scale
       spartacusLayerPrm%veg_frac = veg_frac
       spartacusLayerPrm%veg_scale = veg_scale
+      spartacusLayerPrm%veg_ext = veg_ext
       spartacusLayerPrm%alb_roof = alb_roof
       spartacusLayerPrm%emis_roof = emis_roof
       spartacusLayerPrm%alb_wall = alb_wall

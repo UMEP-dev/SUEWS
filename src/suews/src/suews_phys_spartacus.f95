@@ -111,14 +111,15 @@ CONTAINS
       tsfc_surf, tsfc_roof, tsfc_wall, &
       kdown, kdown_direct, kdown_diffuse, ldown, Tair_C, rsl_z, rsl_t_C, alb_surf, emis_surf, LAI_id, &
       n_vegetation_region_urban, &
-      n_stream_sw_urban, n_stream_lw_urban, &
+      n_vegetation_region_forest, &
+      n_stream_sw_urban, n_stream_sw_forest, n_stream_lw_urban, n_stream_lw_forest, &
       air_ext_sw, air_ssa_sw, &
       veg_ssa_sw, air_ext_lw, air_ssa_lw, veg_ssa_lw, &
       veg_fsd_const, veg_contact_fraction_const, &
       ground_albedo_dir_mult_fact, use_sw_direct_albedo, &
       height, bldgH, sfr_evetr, sfr_dectr, EveTreeH, DecTreeH, &
       building_frac, veg_frac, sfr_roof, sfr_wall, &
-      building_scale, veg_scale, & !input:
+      building_scale, veg_scale, veg_ext_input, & !input:
       alb_roof, emis_roof, alb_wall, emis_wall, &
       roof_albedo_dir_mult_fact, wall_specular_frac, &
       qn, kup, lup, qn_roof, qn_wall, qn_surf, & !output:
@@ -165,7 +166,8 @@ CONTAINS
 
       ! SPARTACUS configuration parameters
       INTEGER, INTENT(IN) :: n_vegetation_region_urban, &
-                             n_stream_sw_urban, n_stream_lw_urban
+                             n_vegetation_region_forest, &
+                             n_stream_sw_urban, n_stream_sw_forest, n_stream_lw_urban, n_stream_lw_forest
       REAL(KIND(1D0)), INTENT(IN) :: air_ext_sw, air_ssa_sw, &
                                      veg_ssa_sw, air_ext_lw, air_ssa_lw, veg_ssa_lw, &
                                      veg_fsd_const, veg_contact_fraction_const, &
@@ -294,6 +296,7 @@ CONTAINS
       REAL(KIND(1D0)), DIMENSION(nlayer), INTENT(IN) :: sfr_wall ! individual surface fraction of walls at each layer
       REAL(KIND(1D0)), DIMENSION(nlayer), INTENT(IN) :: building_scale
       REAL(KIND(1D0)), DIMENSION(nlayer), INTENT(IN) :: veg_scale
+      REAL(KIND(1D0)), DIMENSION(nlayer), INTENT(IN) :: veg_ext_input
       REAL(KIND(1D0)), DIMENSION(nlayer), INTENT(IN) :: alb_roof
       REAL(KIND(1D0)), DIMENSION(nlayer), INTENT(IN) :: emis_roof
       REAL(KIND(1D0)), DIMENSION(nlayer), INTENT(IN) :: alb_wall
@@ -418,15 +421,13 @@ CONTAINS
       END IF
       config%iverbose = 3
       config%n_vegetation_region_urban = n_vegetation_region_urban
-      ! config%n_vegetation_region_forest = n_vegetation_region_urban ! use the same complexity for urban as forests
-      config%n_vegetation_region_forest = 1 ! hardwired for RAMI case, but should become an input in YAML
+      config%n_vegetation_region_forest = n_vegetation_region_forest
       config%nsw = nsw
       config%nlw = nlw
       config%n_stream_sw_urban = n_stream_sw_urban
       config%n_stream_lw_urban = n_stream_lw_urban
-      ! config%n_stream_sw_forest = n_stream_sw_urban ! use the same complexity for urban as forests
-      config%n_stream_sw_forest = 1 ! hardwired for RAMI case, but should become an input in YAML
-      config%n_stream_lw_forest = n_stream_lw_urban ! use the same complexity for urban as forests
+      config%n_stream_sw_forest = n_stream_sw_forest
+      config%n_stream_lw_forest = n_stream_lw_forest
       CALL config%consolidate()
 
       !!!!!!!!!!!!!! allocate and set canopy_props !!!!!!!!!!!!!!
@@ -500,6 +501,12 @@ CONTAINS
          END DO
       END DO
 
+      IF (ANY(veg_ext_input > -900.0D0)) THEN
+         DO jlay = 1, nlayer
+            IF (veg_ext_input(jlay) > -900.0D0) veg_ext(jlay) = veg_ext_input(jlay)
+         END DO
+      END IF
+
       ! set temperature
       tsfc_surf_K = tsfc_surf + 273.15 ! convert surface temperature to Kelvin
       tsfc_roof_K = tsfc_roof + 273.15 ! convert surface temperature to Kelvin
@@ -554,18 +561,6 @@ CONTAINS
       IF (sfr_surf(ConifSurf) + sfr_surf(DecidSurf) > 0.0) THEN
          canopy_props%veg_fraction = veg_frac(:)
          canopy_props%veg_scale = veg_scale(:)
-         ! hardwired veg_ext to match SPARTACUS-Surface RAMI case
-         IF (nlayer == 2) THEN
-            !veg_ext(1) = 0.0D0
-            veg_ext(1) = 0.25D0
-            veg_ext(2) = 0.0D0
-         IF (nlayer == 3) THEN
-            !veg_ext(1) = 0.0D0
-            veg_ext(1) = 0.25D0
-            veg_ext(2) = 0.0D0
-            veg_ext(3) = 0.0D0
-         END IF
-         END IF
          canopy_props%veg_ext = veg_ext(:)
          canopy_props%veg_fsd = veg_fsd(:)
          canopy_props%veg_contact_fraction = veg_contact_fraction(:)

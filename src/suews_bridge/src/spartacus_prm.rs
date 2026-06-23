@@ -6,17 +6,20 @@ use crate::error::BridgeError;
 use crate::ffi;
 use std::collections::BTreeMap;
 
-pub const SPARTACUS_PRM_BASE_FLAT_LEN: usize = 14;
-pub const SPARTACUS_PRM_SCHEMA_VERSION: u32 = 1;
+pub const SPARTACUS_PRM_BASE_FLAT_LEN: usize = 17;
+pub const SPARTACUS_PRM_SCHEMA_VERSION: u32 = 3;
 pub const SPARTACUS_PRM_HEIGHT_FIELD: &str = "height";
 
 const SPARTACUS_PRM_HEAD_FIELDS: [&str; 4] =
     ["air_ext_lw", "air_ext_sw", "air_ssa_lw", "air_ssa_sw"];
-const SPARTACUS_PRM_TAIL_FIELDS: [&str; 10] = [
+const SPARTACUS_PRM_TAIL_FIELDS: [&str; 13] = [
     "ground_albedo_dir_mult_fact",
     "n_stream_lw_urban",
     "n_stream_sw_urban",
+    "n_stream_lw_forest",
+    "n_stream_sw_forest",
     "n_vegetation_region_urban",
+    "n_vegetation_region_forest",
     "sw_dn_direct_frac",
     "use_sw_direct_albedo",
     "veg_contact_fraction_const",
@@ -48,7 +51,10 @@ pub struct SpartacusPrm {
     pub ground_albedo_dir_mult_fact: f64,
     pub n_stream_lw_urban: i32,
     pub n_stream_sw_urban: i32,
+    pub n_stream_lw_forest: i32,
+    pub n_stream_sw_forest: i32,
     pub n_vegetation_region_urban: i32,
+    pub n_vegetation_region_forest: i32,
     pub sw_dn_direct_frac: f64,
     pub use_sw_direct_albedo: f64,
     pub veg_contact_fraction_const: f64,
@@ -68,7 +74,10 @@ impl Default for SpartacusPrm {
             ground_albedo_dir_mult_fact: 0.0,
             n_stream_lw_urban: 0,
             n_stream_sw_urban: 0,
+            n_stream_lw_forest: 0,
+            n_stream_sw_forest: 1,
             n_vegetation_region_urban: 0,
+            n_vegetation_region_forest: 1,
             sw_dn_direct_frac: 0.0,
             use_sw_direct_albedo: 0.0,
             veg_contact_fraction_const: 0.0,
@@ -165,7 +174,114 @@ impl SpartacusPrm {
             ground_albedo_dir_mult_fact: next(),
             n_stream_lw_urban: decode_int(next())?,
             n_stream_sw_urban: decode_int(next())?,
+            n_stream_lw_forest: decode_int(next())?,
+            n_stream_sw_forest: decode_int(next())?,
             n_vegetation_region_urban: decode_int(next())?,
+            n_vegetation_region_forest: decode_int(next())?,
+            sw_dn_direct_frac: next(),
+            use_sw_direct_albedo: next(),
+            veg_contact_fraction_const: next(),
+            veg_fsd_const: next(),
+            veg_ssa_lw: next(),
+            veg_ssa_sw: next(),
+        })
+    }
+
+    pub fn from_v2_flat_with_height_len(
+        flat: &[f64],
+        height_len: usize,
+    ) -> Result<Self, BridgeError> {
+        const V2_BASE_FLAT_LEN: usize = 16;
+        let expected = V2_BASE_FLAT_LEN
+            .checked_add(height_len)
+            .ok_or(BridgeError::BadState)?;
+        validate_flat_len(flat, expected)?;
+
+        let mut idx = 0_usize;
+        let mut next = || {
+            let v = flat[idx];
+            idx += 1;
+            v
+        };
+
+        let air_ext_lw = next();
+        let air_ext_sw = next();
+        let air_ssa_lw = next();
+        let air_ssa_sw = next();
+
+        let mut height = Vec::with_capacity(height_len);
+        for _ in 0..height_len {
+            height.push(next());
+        }
+
+        let ground_albedo_dir_mult_fact = next();
+        let n_stream_lw_urban = decode_int(next())?;
+
+        Ok(Self {
+            air_ext_lw,
+            air_ext_sw,
+            air_ssa_lw,
+            air_ssa_sw,
+            height,
+            ground_albedo_dir_mult_fact,
+            n_stream_lw_urban,
+            n_stream_sw_urban: decode_int(next())?,
+            n_stream_lw_forest: n_stream_lw_urban,
+            n_stream_sw_forest: decode_int(next())?,
+            n_vegetation_region_urban: decode_int(next())?,
+            n_vegetation_region_forest: decode_int(next())?,
+            sw_dn_direct_frac: next(),
+            use_sw_direct_albedo: next(),
+            veg_contact_fraction_const: next(),
+            veg_fsd_const: next(),
+            veg_ssa_lw: next(),
+            veg_ssa_sw: next(),
+        })
+    }
+
+    pub fn from_legacy_flat_with_height_len(
+        flat: &[f64],
+        height_len: usize,
+    ) -> Result<Self, BridgeError> {
+        const LEGACY_BASE_FLAT_LEN: usize = 14;
+        let expected = LEGACY_BASE_FLAT_LEN
+            .checked_add(height_len)
+            .ok_or(BridgeError::BadState)?;
+        validate_flat_len(flat, expected)?;
+
+        let mut idx = 0_usize;
+        let mut next = || {
+            let v = flat[idx];
+            idx += 1;
+            v
+        };
+
+        let air_ext_lw = next();
+        let air_ext_sw = next();
+        let air_ssa_lw = next();
+        let air_ssa_sw = next();
+
+        let mut height = Vec::with_capacity(height_len);
+        for _ in 0..height_len {
+            height.push(next());
+        }
+
+        let ground_albedo_dir_mult_fact = next();
+        let n_stream_lw_urban = decode_int(next())?;
+
+        Ok(Self {
+            air_ext_lw,
+            air_ext_sw,
+            air_ssa_lw,
+            air_ssa_sw,
+            height,
+            ground_albedo_dir_mult_fact,
+            n_stream_lw_urban,
+            n_stream_sw_urban: decode_int(next())?,
+            n_stream_lw_forest: n_stream_lw_urban,
+            n_stream_sw_forest: 1,
+            n_vegetation_region_urban: decode_int(next())?,
+            n_vegetation_region_forest: 1,
             sw_dn_direct_frac: next(),
             use_sw_direct_albedo: next(),
             veg_contact_fraction_const: next(),
@@ -186,7 +302,10 @@ impl SpartacusPrm {
         flat.push(self.ground_albedo_dir_mult_fact);
         flat.push(self.n_stream_lw_urban as f64);
         flat.push(self.n_stream_sw_urban as f64);
+        flat.push(self.n_stream_lw_forest as f64);
+        flat.push(self.n_stream_sw_forest as f64);
         flat.push(self.n_vegetation_region_urban as f64);
+        flat.push(self.n_vegetation_region_forest as f64);
         flat.push(self.sw_dn_direct_frac);
         flat.push(self.use_sw_direct_albedo);
         flat.push(self.veg_contact_fraction_const);

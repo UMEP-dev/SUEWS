@@ -73,18 +73,51 @@ CONTAINS
       invalid_real = IEEE_IS_NAN(value) .OR. value /= value
    END FUNCTION invalid_real
 
+   FUNCTION interp_profile_z(z_x, z, v) RESULT(v_x)
+      REAL(KIND(1D0)), INTENT(IN) :: z_x
+      REAL(KIND(1D0)), DIMENSION(:), INTENT(IN) :: z
+      REAL(KIND(1D0)), DIMENSION(:), INTENT(IN) :: v
+      REAL(KIND(1D0)) :: v_x
+      REAL(KIND(1D0)) :: dz
+      INTEGER :: i
+      INTEGER :: n
+
+      n = SIZE(z)
+      v_x = 0D0
+      IF (n < 1 .OR. SIZE(v) /= n) RETURN
+      IF (z_x <= z(1)) THEN
+         v_x = v(1)
+      ELSE IF (z_x >= z(n)) THEN
+         v_x = v(n)
+      ELSE
+         DO i = 1, n - 1
+            IF (z_x >= z(i) .AND. z_x <= z(i + 1)) THEN
+               dz = z(i + 1) - z(i)
+               IF (ABS(dz) <= eps_fp) THEN
+                  v_x = v(i)
+               ELSE
+                  v_x = v(i) + (z_x - z(i))*(v(i + 1) - v(i))/dz
+               END IF
+               RETURN
+            END IF
+         END DO
+         v_x = v(n)
+      END IF
+   END FUNCTION interp_profile_z
+
    SUBROUTINE SPARTACUS( &
       DiagQN, & !input:
       sfr_surf, zenith_deg, nlayer, & !input:
       tsfc_surf, tsfc_roof, tsfc_wall, &
-      kdown, kdown_direct, kdown_diffuse, ldown, Tair_C, alb_surf, emis_surf, LAI_id, &
+      kdown, kdown_direct, kdown_diffuse, ldown, Tair_C, rsl_z, rsl_t_C, alb_surf, emis_surf, LAI_id, &
       n_vegetation_region_urban, &
       n_stream_sw_urban, n_stream_lw_urban, &
       air_ext_sw, air_ssa_sw, &
       veg_ssa_sw, air_ext_lw, air_ssa_lw, veg_ssa_lw, &
       veg_fsd_const, veg_contact_fraction_const, &
       ground_albedo_dir_mult_fact, use_sw_direct_albedo, &
-      height, building_frac, veg_frac, sfr_roof, sfr_wall, &
+      height, bldgH, sfr_evetr, sfr_dectr, EveTreeH, DecTreeH, &
+      building_frac, veg_frac, sfr_roof, sfr_wall, &
       building_scale, veg_scale, & !input:
       alb_roof, emis_roof, alb_wall, emis_wall, &
       roof_albedo_dir_mult_fact, wall_specular_frac, &
@@ -118,6 +151,8 @@ CONTAINS
       ! TODO: tsurf_0 and temp_C need to be made vertically distributed
       REAL(KIND(1D0)), DIMENSION(nlayer), INTENT(IN) :: tsfc_roof, tsfc_wall
       REAL(KIND(1D0)), INTENT(IN) :: Tair_C
+      REAL(KIND(1D0)), DIMENSION(:), INTENT(IN) :: rsl_z
+      REAL(KIND(1D0)), DIMENSION(:), INTENT(IN) :: rsl_t_C
 
       REAL(KIND(1D0)), INTENT(IN) :: kdown
       REAL(KIND(1D0)), INTENT(IN) :: kdown_direct
@@ -141,6 +176,7 @@ CONTAINS
       INTEGER(kind=jpim), ALLOCATABLE :: nlay(:)
       INTEGER :: istartcol, iendcol
       INTEGER :: jrepeat, ilay, jlay, jcol
+      INTEGER :: nlay_veg, nlay_flux, max_idx
 
       ! --------------------------------------------------------------------------------
       ! output variables
@@ -170,6 +206,7 @@ CONTAINS
       REAL(KIND(1D0)) :: grnd_net_lw_spc
       REAL(KIND(1D0)) :: top_dn_lw_spc
       REAL(KIND(1D0)) :: top_dn_dir_sw_spc
+      REAL(KIND(1D0)) :: top_flux_dn_diffuse_sw
       REAL(KIND(1D0)) :: top_net_sw_spc
       REAL(KIND(1D0)) :: grnd_dn_dir_sw_spc
       REAL(KIND(1D0)) :: grnd_net_sw_spc
@@ -190,6 +227,17 @@ CONTAINS
       REAL(KIND(1D0)), DIMENSION(15) :: wall_net_lw_spc
       REAL(KIND(1D0)), DIMENSION(15) :: sfr_roof_spc
       REAL(KIND(1D0)), DIMENSION(15) :: sfr_wall_spc
+      REAL(KIND(1D0)) :: grnd_dn_sw_spc
+      REAL(KIND(1D0)), DIMENSION(15) :: veg_abs_sw_spc ! SW vegetation absorption per layer
+      REAL(KIND(1D0)), DIMENSION(15) :: veg_abs_lw_spc ! LW vegetation absorption per layer
+      REAL(KIND(1D0)), DIMENSION(15) :: flux_dn_layer_top_sw_spc
+      REAL(KIND(1D0)), DIMENSION(15) :: flux_up_layer_top_sw_spc
+      REAL(KIND(1D0)), DIMENSION(15) :: flux_dn_layer_base_sw_spc
+      REAL(KIND(1D0)), DIMENSION(15) :: flux_up_layer_base_sw_spc
+      REAL(KIND(1D0)), DIMENSION(15) :: flux_dn_layer_top_lw_spc
+      REAL(KIND(1D0)), DIMENSION(15) :: flux_up_layer_top_lw_spc
+      REAL(KIND(1D0)), DIMENSION(15) :: flux_dn_layer_base_lw_spc
+      REAL(KIND(1D0)), DIMENSION(15) :: flux_up_layer_base_lw_spc
       ! --------------------------------------------------------------------------------
 
       REAL(KIND(1D0)), DIMENSION(ncolumnsDataOutSPARTACUS - 5), INTENT(OUT) :: dataOutLineSPARTACUS
@@ -216,8 +264,9 @@ CONTAINS
       REAL(KIND(1D0)), DIMENSION(nlayer) :: tsfc_roof_K, tsfc_wall_K
       REAL(KIND(1D0)), DIMENSION(nsurf) :: tsfc_surf_K
       REAL(KIND(1D0)) :: tair_K
+      REAL(KIND(1D0)) :: tair_veg_K
       ! top-of-canopy diffuse sw downward
-      REAL(KIND(1D0)) :: top_flux_dn_diffuse_sw
+
       REAL(KIND(1D0)) :: ground_frac_spc, surface_frac_sum
       ! plan area weighted albedo and emissivity of surfaces not including buildings and trees
       REAL(KIND(1D0)) :: alb_no_tree_bldg, emis_no_tree_bldg
@@ -234,6 +283,11 @@ CONTAINS
       LOGICAL, INTENT(IN) :: use_sw_direct_albedo
 
       REAL(KIND(1D0)), DIMENSION(nlayer + 1), INTENT(IN) :: height
+      REAL(KIND(1D0)), INTENT(IN) :: bldgH
+      REAL(KIND(1D0)), INTENT(IN) :: sfr_evetr
+      REAL(KIND(1D0)), INTENT(IN) :: sfr_dectr
+      REAL(KIND(1D0)), INTENT(IN) :: EveTreeH
+      REAL(KIND(1D0)), INTENT(IN) :: DecTreeH
       REAL(KIND(1D0)), DIMENSION(nlayer), INTENT(IN) :: building_frac ! cumulative building fraction at each layer
       REAL(KIND(1D0)), DIMENSION(nlayer), INTENT(IN) :: veg_frac
       REAL(KIND(1D0)), DIMENSION(nlayer), INTENT(IN) :: sfr_roof ! individual surface fraction of roofs at each layer
@@ -253,10 +307,62 @@ CONTAINS
       REAL(KIND(1D0)), DIMENSION(nspec, nlayer) :: roof_emissivity
       REAL(KIND(1D0)), DIMENSION(nspec, nlayer) :: wall_emissivity
       REAL(KIND(1D0)), DIMENSION(nlayer) :: veg_fsd, veg_contact_fraction
-      ! INTEGER :: i
-      ! REAL(KIND(1D0)) :: debug1, debug2
+      REAL(KIND(1D0)) :: bldgH_use
+      REAL(KIND(1D0)) :: EveTreeH_use
+      REAL(KIND(1D0)) :: DecTreeH_use
+      REAL(KIND(1D0)) :: sfr_evetr_use
+      REAL(KIND(1D0)) :: sfr_dectr_use
+      REAL(KIND(1D0)) :: tree_frac_sum
+      REAL(KIND(1D0)) :: veg_air_height
+      REAL(KIND(1D0)) :: Tair_hbh_C
+      REAL(KIND(1D0)) :: Tair_veg_C
+      LOGICAL :: use_evetr
+      LOGICAL :: use_dectr
+      LOGICAL :: rsl_profile_valid
+      bldgH_use = bldgH
+      IF (invalid_real(bldgH_use) .OR. bldgH_use <= 0D0) bldgH_use = height(nlayer + 1)
+
+      sfr_evetr_use = sfr_evetr
+      sfr_dectr_use = sfr_dectr
+      EveTreeH_use = EveTreeH
+      DecTreeH_use = DecTreeH
+      IF (invalid_real(sfr_evetr_use) .OR. sfr_evetr_use <= 0D0) sfr_evetr_use = 0D0
+      IF (invalid_real(sfr_dectr_use) .OR. sfr_dectr_use <= 0D0) sfr_dectr_use = 0D0
+      IF (invalid_real(EveTreeH_use) .OR. EveTreeH_use <= 0D0) EveTreeH_use = 0D0
+      IF (invalid_real(DecTreeH_use) .OR. DecTreeH_use <= 0D0) DecTreeH_use = 0D0
+
+      use_evetr = sfr_evetr_use > eps_fp .AND. EveTreeH_use > eps_fp
+      use_dectr = sfr_dectr_use > eps_fp .AND. DecTreeH_use > eps_fp
+      tree_frac_sum = sfr_evetr_use + sfr_dectr_use
+      IF (use_evetr .AND. use_dectr) THEN
+         veg_air_height = (sfr_evetr_use*EveTreeH_use + sfr_dectr_use*DecTreeH_use)/tree_frac_sum
+      ELSEIF (use_evetr) THEN
+         veg_air_height = EveTreeH_use/2D0
+      ELSEIF (use_dectr) THEN
+         veg_air_height = DecTreeH_use/2D0
+      ELSE
+         veg_air_height = bldgH_use/2D0
+      END IF
+      IF (invalid_real(veg_air_height) .OR. veg_air_height <= 0D0) veg_air_height = bldgH_use/2D0
+
+      rsl_profile_valid = SIZE(rsl_z) > 1 .AND. SIZE(rsl_z) == SIZE(rsl_t_C)
+      IF (rsl_profile_valid) THEN
+         rsl_profile_valid = ALL(rsl_z > -900D0) .AND. ANY(rsl_t_C > -900D0) &
+                             .AND. .NOT. ANY(invalid_real(rsl_z)) &
+                             .AND. .NOT. ANY(invalid_real(rsl_t_C))
+      END IF
+
+      Tair_hbh_C = Tair_C
+      Tair_veg_C = Tair_C
+      IF (rsl_profile_valid) THEN
+         Tair_hbh_C = interp_profile_z(bldgH_use/2D0, rsl_z, rsl_t_C)
+         Tair_veg_C = interp_profile_z(veg_air_height, rsl_z, rsl_t_C)
+         IF (invalid_real(Tair_hbh_C) .OR. Tair_hbh_C <= -900D0) Tair_hbh_C = Tair_C
+         IF (invalid_real(Tair_veg_C) .OR. Tair_veg_C <= -900D0) Tair_veg_C = Tair_C
+      END IF
 
       IF (DiagQN == 1) PRINT *, 'in SPARTACUS, starting ...'
+
       ! initialize the output variables
       dataOutLineSPARTACUS = -999.
 
@@ -312,12 +418,14 @@ CONTAINS
       END IF
       config%iverbose = 3
       config%n_vegetation_region_urban = n_vegetation_region_urban
-      config%n_vegetation_region_forest = n_vegetation_region_urban ! use the same complexity for urban as forests
+      ! config%n_vegetation_region_forest = n_vegetation_region_urban ! use the same complexity for urban as forests
+      config%n_vegetation_region_forest = 1 ! hardwired for RAMI case, but should become an input in YAML
       config%nsw = nsw
       config%nlw = nlw
       config%n_stream_sw_urban = n_stream_sw_urban
       config%n_stream_lw_urban = n_stream_lw_urban
-      config%n_stream_sw_forest = n_stream_sw_urban ! use the same complexity for urban as forests
+      ! config%n_stream_sw_forest = n_stream_sw_urban ! use the same complexity for urban as forests
+      config%n_stream_sw_forest = 1 ! hardwired for RAMI case, but should become an input in YAML
       config%n_stream_lw_forest = n_stream_lw_urban ! use the same complexity for urban as forests
       CALL config%consolidate()
 
@@ -396,7 +504,8 @@ CONTAINS
       tsfc_surf_K = tsfc_surf + 273.15 ! convert surface temperature to Kelvin
       tsfc_roof_K = tsfc_roof + 273.15 ! convert surface temperature to Kelvin
       tsfc_wall_K = tsfc_wall + 273.15 ! convert surface temperature to Kelvin
-      tair_K = Tair_C + 273.15 ! convert air temperature to Kelvin
+      tair_K = Tair_hbh_C + 273.15 ! convert air temperature to Kelvin
+      tair_veg_K = Tair_veg_C + 273.15 ! convert vegetation air temperature to Kelvin
 
       ! set ground temperature as the area-weighted average of the surface temperature of all land covers but buildings
       IF (1.0D0 - sfr_surf(BldgSurf) > eps_fp) THEN
@@ -408,7 +517,7 @@ CONTAINS
 
       canopy_props%roof_temperature = tsfc_roof_K
       canopy_props%wall_temperature = tsfc_wall_K
-      canopy_props%clear_air_temperature = tair_K
+      canopy_props%clear_air_temperature = tair_veg_K
       ! allocate_canopy only allocates veg_* when do_vegetation=.TRUE.,
       ! but downstream radsurf code may still access them.  Ensure they
       ! exist (zeroed) so that assignments and reads are always valid.
@@ -426,11 +535,11 @@ CONTAINS
          ALLOCATE(canopy_props%veg_fsd(canopy_props%ntotlay))
       IF (.NOT. ALLOCATED(canopy_props%veg_contact_fraction)) &
          ALLOCATE(canopy_props%veg_contact_fraction(canopy_props%ntotlay))
-      canopy_props%veg_temperature = tair_K
-      canopy_props%veg_air_temperature = tair_K
+      canopy_props%veg_temperature = tair_veg_K
+      canopy_props%veg_air_temperature = tair_veg_K
       IF (sfr_surf(ConifSurf) + sfr_surf(DecidSurf) > 0.0) THEN
-         canopy_props%veg_temperature = DOT_PRODUCT(tsfc_surf_K(ConifSurf:DecidSurf), sfr_surf(ConifSurf:DecidSurf))
-         canopy_props%veg_air_temperature = tair_K
+         canopy_props%veg_temperature = tair_veg_K
+         canopy_props%veg_air_temperature = tair_veg_K
       END IF
 
       ! set building and vegetation properties
@@ -445,9 +554,28 @@ CONTAINS
       IF (sfr_surf(ConifSurf) + sfr_surf(DecidSurf) > 0.0) THEN
          canopy_props%veg_fraction = veg_frac(:)
          canopy_props%veg_scale = veg_scale(:)
+         ! hardwired veg_ext to match SPARTACUS-Surface RAMI case
+         IF (nlayer == 2) THEN
+            !veg_ext(1) = 0.0D0
+            veg_ext(1) = 0.25D0
+            veg_ext(2) = 0.0D0
+         IF (nlayer == 3) THEN
+            !veg_ext(1) = 0.0D0
+            veg_ext(1) = 0.25D0
+            veg_ext(2) = 0.0D0
+            veg_ext(3) = 0.0D0
+         END IF
+         END IF
          canopy_props%veg_ext = veg_ext(:)
          canopy_props%veg_fsd = veg_fsd(:)
          canopy_props%veg_contact_fraction = veg_contact_fraction(:)
+         ! Zero veg_fraction where veg_ext is zero to prevent
+         ! calc_matrices_sw_eig receiving all-zero gamma matrices -> NaN.
+         ! When ext=0 the layer is transparent: the vegetation-free
+         ! shortcut in spartacus_forest_sw handles this correctly.
+         !DO jlay = 1, nlayer
+         !   IF (veg_ext(jlay) <= 0.0D0) canopy_props%veg_fraction(jlay) = 0.0D0
+         !END DO
       END IF
 
       !!!!!!!!!!!!!! allocate and set canopy top forcing !!!!!!!!!!!!!!
@@ -492,11 +620,16 @@ CONTAINS
          sw_spectral_props%veg_ssa = veg_ssa_sw
       END IF
       sw_spectral_props%ground_albedo = alb_no_tree_bldg ! albedo excluding buildings and trees
-      sw_spectral_props%roof_albedo = roof_albedo(nspec, ncol) ! albedo of buildings
-      sw_spectral_props%wall_albedo = wall_albedo(nspec, ncol) ! albedo of buildings
-      sw_spectral_props%wall_specular_frac = wall_specular_frac(nspec, ncol)
+      ! Only set roof and wall albedo if building surface fraction is present
+      IF (config%do_urban) THEN
+         sw_spectral_props%roof_albedo = roof_albedo(nspec, ncol) ! albedo of buildings
+         sw_spectral_props%wall_albedo = wall_albedo(nspec, ncol) ! albedo of buildings
+         sw_spectral_props%wall_specular_frac = wall_specular_frac(nspec, ncol)
+      END IF
       sw_spectral_props%ground_albedo_dir = sw_spectral_props%ground_albedo
-      sw_spectral_props%roof_albedo_dir = sw_spectral_props%roof_albedo
+      IF (config%do_urban) THEN
+         sw_spectral_props%roof_albedo_dir = sw_spectral_props%roof_albedo
+      END IF
       IF (config%use_sw_direct_albedo) THEN
          sw_spectral_props%ground_albedo_dir = alb_no_tree_bldg*ground_albedo_dir_mult_fact
          sw_spectral_props%roof_albedo_dir = roof_albedo(nspec, ncol)*roof_albedo_dir_mult_fact(nspec, ncol)
@@ -533,8 +666,10 @@ CONTAINS
          lw_spectral_props%veg_ssa = veg_ssa_lw
       END IF
       lw_spectral_props%ground_emissivity = emis_no_tree_bldg ! emissivity excluding buildings and trees
-      lw_spectral_props%roof_emissivity = roof_emissivity(nspec, ncol) ! emissivity of buildings
-      lw_spectral_props%wall_emissivity = wall_emissivity(nspec, ncol) ! emissivity of buildings
+      IF (config%do_urban) THEN
+         lw_spectral_props%roof_emissivity = roof_emissivity(nspec, ncol) ! emissivity of buildings
+         lw_spectral_props%wall_emissivity = wall_emissivity(nspec, ncol) ! emissivity of buildings
+      END IF
 
       ! print *, 'roof_emissivity in suews-su ', roof_emissivity(nspec,:)
       ! print *, 'wall_emissivity in suews-su ', wall_emissivity(nspec,:)
@@ -693,6 +828,64 @@ CONTAINS
          qn_spc = sw_flat_net_spc + lw_flat_net_spc
       END IF
 
+      !-----------------------------------------------------------------
+      ! Shortwave vegetation absorption per layer (W m-2), from sw_flux - beginning - SR
+      !-----------------------------------------------------------------
+      veg_abs_sw_spc = -999.0D0
+
+      ! Only attempt extraction when SW is active and there is at least one SPARTACUS layer
+      IF (config%do_sw .AND. canopy_props%nlay(1) > 0) THEN
+         ! Some configurations do not allocate sw_flux%veg_abs at all:
+         ! in that case, skip extraction and keep fill values.
+         IF (ALLOCATED(sw_flux%veg_abs)) THEN
+            ! Number of available layers in veg_abs (second dimension)
+            nlay_veg = SIZE(sw_flux%veg_abs, 2)
+
+            ! Required maximum index in veg_abs for this column
+            max_idx = canopy_props%istartlay(1) + MIN(canopy_props%nlay(1), 15) - 1
+
+            IF (nlay_veg >= max_idx) THEN
+               ilay = canopy_props%istartlay(1)
+               DO jlay = 1, MIN(canopy_props%nlay(1), 15)
+                  ! Use the scaled direct+diffuse components directly so this
+                  ! diagnostic is independent of optional profile-flux storage.
+                  veg_abs_sw_spc(jlay) = sw_norm_dir%veg_abs(1, ilay + jlay - 1) &
+                                         + sw_norm_diff%veg_abs(1, ilay + jlay - 1)
+               END DO
+            END IF
+         END IF
+      END IF
+
+      !-----------------------------------------------------------------
+      ! Shortwave vegetation absorption per layer (W m-2), from sw_flux - end - SR
+      !-----------------------------------------------------------------
+
+      !-----------------------------------------------------------------
+      ! Longwave vegetation absorption per layer (W m-2), from lw_flux
+      !-----------------------------------------------------------------
+      veg_abs_lw_spc = -999.0D0
+
+      ! Only attempt extraction when LW is active and there is at least one SPARTACUS layer
+      IF (config%do_lw .AND. canopy_props%nlay(1) > 0) THEN
+         ! Some configurations do not allocate lw_flux%veg_abs at all:
+         ! in that case, skip extraction and keep fill values.
+         IF (ALLOCATED(lw_flux%veg_abs)) THEN
+            ! Number of available layers in veg_abs (second dimension)
+            nlay_veg = SIZE(lw_flux%veg_abs, 2)
+
+            ! Required maximum index in veg_abs for this column
+            max_idx = canopy_props%istartlay(1) + MIN(canopy_props%nlay(1), 15) - 1
+
+            IF (nlay_veg >= max_idx) THEN
+               ilay = canopy_props%istartlay(1)
+               DO jlay = 1, MIN(canopy_props%nlay(1), 15)
+                  ! nspec=1, so use first spectral index
+                  veg_abs_lw_spc(jlay) = lw_flux%veg_abs(1, ilay + jlay - 1)
+               END DO
+            END IF
+         END IF
+      END IF
+
       ! albedo
       IF (config%do_sw) THEN
          IF (top_flux_dn_diffuse_sw + top_flux_dn_direct_sw(nspec, ncol) > 0.1) THEN
@@ -721,19 +914,52 @@ CONTAINS
       ! lw arrays
       clear_air_abs_lw_spc = -999
       clear_air_abs_lw_spc(:nlayer) = lw_flux%clear_air_abs(nspec, :nlayer)
-      wall_net_lw_spc = -999
-      wall_net_lw_spc(:nlayer) = lw_flux%wall_net(nspec, :nlayer)
-      wall_in_lw_spc = -999
-      wall_in_lw_spc(:nlayer) = lw_flux%wall_in(nspec, :nlayer)
-      ! PRINT *, 'wall_net_lw_spc in suews-su', lw_flux%wall_net
-      roof_net_lw_spc = -999
-      roof_net_lw_spc(:nlayer) = lw_flux%roof_net(nspec, :nlayer)
-      ! PRINT *, 'roof_net_lw_spc in suews-su', lw_flux%roof_net
-      roof_in_lw_spc = -999
-      roof_in_lw_spc(:nlayer) = lw_flux%roof_in(nspec, :nlayer)
+      wall_net_lw_spc = -999.0D0
+      wall_in_lw_spc  = -999.0D0
+      roof_net_lw_spc = -999.0D0
+      roof_in_lw_spc  = -999.0D0
+
+      IF (config%do_urban) THEN
+         ! Urban facets exist: safe to read wall/roof fields
+         wall_net_lw_spc(:nlayer) = lw_flux%wall_net(nspec, :nlayer)
+         wall_in_lw_spc(:nlayer)  = lw_flux%wall_in(nspec, :nlayer)
+         roof_net_lw_spc(:nlayer) = lw_flux%roof_net(nspec, :nlayer)
+         roof_in_lw_spc(:nlayer)  = lw_flux%roof_in(nspec, :nlayer)
+      ELSE
+         ! No buildings: define wall/roof contributions as zero (not -999) so downstream math is safe
+         wall_net_lw_spc(:nlayer) = 0.0D0
+         wall_in_lw_spc(:nlayer)  = 0.0D0
+         roof_net_lw_spc(:nlayer) = 0.0D0
+         roof_in_lw_spc(:nlayer)  = 0.0D0
+      END IF
       top_net_lw_spc = lw_flux%top_net(nspec, ncol)
       grnd_net_lw_spc = lw_flux%ground_net(nspec, ncol)
       top_dn_lw_spc = lw_flux%top_dn(nspec, ncol)
+
+      flux_dn_layer_top_lw_spc = -999.0D0
+      flux_up_layer_top_lw_spc = -999.0D0
+      flux_dn_layer_base_lw_spc = -999.0D0
+      flux_up_layer_base_lw_spc = -999.0D0
+      IF (config%do_lw .AND. canopy_props%nlay(1) > 0) THEN
+         IF (ALLOCATED(lw_flux%flux_dn_layer_top)) THEN
+            nlay_flux = SIZE(lw_flux%flux_dn_layer_top, 2)
+            max_idx = canopy_props%istartlay(1) + MIN(canopy_props%nlay(1), 15) - 1
+            IF (nlay_flux >= max_idx) THEN
+               ilay = canopy_props%istartlay(1)
+               DO jlay = 1, MIN(canopy_props%nlay(1), 15)
+                  flux_dn_layer_top_lw_spc(jlay) = lw_flux%flux_dn_layer_top(nspec, ilay + jlay - 1)
+                  flux_up_layer_top_lw_spc(jlay) = lw_flux%flux_up_layer_top(nspec, ilay + jlay - 1)
+                  flux_dn_layer_base_lw_spc(jlay) = lw_flux%flux_dn_layer_base(nspec, ilay + jlay - 1)
+                  flux_up_layer_base_lw_spc(jlay) = lw_flux%flux_up_layer_base(nspec, ilay + jlay - 1)
+               END DO
+            END IF
+         END IF
+      ELSE
+         flux_dn_layer_top_lw_spc = 0.0D0
+         flux_up_layer_top_lw_spc = 0.0D0
+         flux_dn_layer_base_lw_spc = 0.0D0
+         flux_up_layer_base_lw_spc = 0.0D0
+      END IF
 
       ! sw arrays — only read from sw_flux when SW was computed
       clear_air_abs_sw_spc = -999
@@ -745,21 +971,50 @@ CONTAINS
       roof_in_sw_spc = -999
       roof_in_sw_dir_spc = -999
       roof_in_sw_diff_spc = -999
+      flux_dn_layer_top_sw_spc = -999.0D0
+      flux_up_layer_top_sw_spc = -999.0D0
+      flux_dn_layer_base_sw_spc = -999.0D0
+      flux_up_layer_base_sw_spc = -999.0D0
       IF (config%do_sw) THEN
          clear_air_abs_sw_spc(:nlayer) = sw_flux%clear_air_abs(nspec, :nlayer)
-         wall_net_sw_spc(:nlayer) = sw_flux%wall_net(nspec, :nlayer)
-         wall_in_sw_spc(:nlayer) = sw_flux%wall_in(nspec, :nlayer)
-         wall_in_sw_dir_spc(:nlayer) = sw_norm_dir%wall_in(nspec, :nlayer)
-         wall_in_sw_diff_spc(:nlayer) = sw_norm_diff%wall_in(nspec, :nlayer)
-         roof_net_sw_spc(:nlayer) = sw_flux%roof_net(nspec, :nlayer)
-         roof_in_sw_spc(:nlayer) = sw_flux%roof_in(nspec, :nlayer)
-         roof_in_sw_dir_spc(:nlayer) = sw_norm_dir%roof_in(nspec, :nlayer)
-         roof_in_sw_diff_spc(:nlayer) = sw_norm_diff%roof_in(nspec, :nlayer)
+         IF (config%do_urban) THEN
+             wall_net_sw_spc(:nlayer) = sw_flux%wall_net(nspec, :nlayer)
+             wall_in_sw_spc(:nlayer) = sw_flux%wall_in(nspec, :nlayer)
+             wall_in_sw_dir_spc(:nlayer) = sw_norm_dir%wall_in(nspec, :nlayer)
+             wall_in_sw_diff_spc(:nlayer) = sw_norm_diff%wall_in(nspec, :nlayer)
+             roof_net_sw_spc(:nlayer) = sw_flux%roof_net(nspec, :nlayer)
+             roof_in_sw_spc(:nlayer) = sw_flux%roof_in(nspec, :nlayer)
+             roof_in_sw_dir_spc(:nlayer) = sw_norm_dir%roof_in(nspec, :nlayer)
+             roof_in_sw_diff_spc(:nlayer) = sw_norm_diff%roof_in(nspec, :nlayer)
+         ELSE
+             wall_net_sw_spc(:nlayer) = 0.0D0
+             wall_in_sw_spc(:nlayer) = 0.0D0
+             wall_in_sw_dir_spc(:nlayer) = 0.0D0
+             wall_in_sw_diff_spc(:nlayer) = 0.0D0
+             roof_net_sw_spc(:nlayer) = 0.0D0
+             roof_in_sw_spc(:nlayer) = 0.0D0
+             roof_in_sw_dir_spc(:nlayer) = 0.0D0
+             roof_in_sw_diff_spc(:nlayer) = 0.0D0
+         END IF
          top_dn_dir_sw_spc = sw_flux%top_dn_dir(nspec, ncol)
          top_net_sw_spc = sw_flux%top_net(nspec, ncol)
          grnd_dn_dir_sw_spc = sw_flux%ground_dn_dir(nspec, ncol)
          grnd_net_sw_spc = sw_flux%ground_net(nspec, ncol)
          grnd_vertical_diff = sw_flux%ground_vertical_diff(nspec, ncol)
+         grnd_dn_sw_spc = sw_flux%ground_dn(nspec, ncol)
+         IF (ALLOCATED(sw_flux%flux_dn_layer_top) .AND. canopy_props%nlay(1) > 0) THEN
+            nlay_flux = SIZE(sw_flux%flux_dn_layer_top, 2)
+            max_idx = canopy_props%istartlay(1) + MIN(canopy_props%nlay(1), 15) - 1
+            IF (nlay_flux >= max_idx) THEN
+               ilay = canopy_props%istartlay(1)
+               DO jlay = 1, MIN(canopy_props%nlay(1), 15)
+                  flux_dn_layer_top_sw_spc(jlay) = sw_flux%flux_dn_layer_top(nspec, ilay + jlay - 1)
+                  flux_up_layer_top_sw_spc(jlay) = sw_flux%flux_up_layer_top(nspec, ilay + jlay - 1)
+                  flux_dn_layer_base_sw_spc(jlay) = sw_flux%flux_dn_layer_base(nspec, ilay + jlay - 1)
+                  flux_up_layer_base_sw_spc(jlay) = sw_flux%flux_up_layer_base(nspec, ilay + jlay - 1)
+               END DO
+            END IF
+         END IF
       ELSE
          clear_air_abs_sw_spc(:nlayer) = 0.0
          wall_net_sw_spc(:nlayer) = 0.0
@@ -775,9 +1030,14 @@ CONTAINS
          grnd_dn_dir_sw_spc = 0.0
          grnd_net_sw_spc = 0.0
          grnd_vertical_diff = 0.0
+         grnd_dn_sw_spc = 0.0
+         flux_dn_layer_top_sw_spc = 0.0D0
+         flux_up_layer_top_sw_spc = 0.0D0
+         flux_dn_layer_base_sw_spc = 0.0D0
+         flux_up_layer_base_sw_spc = 0.0D0
       END IF
 
-      ! De-normalise the fluxes
+      ! Normalise roof/wall fluxes to their facet area by dividing by surface fraction.
       IF (config%do_sw) THEN
          WHERE (sfr_wall_spc(:nlayer) > eps_fp)
             wall_in_sw_spc(:nlayer) = wall_in_sw_spc(:nlayer)/sfr_wall_spc(:nlayer)
@@ -890,6 +1150,7 @@ CONTAINS
       dataOutLineSPARTACUS = &
          [alb_spc, emis_spc, &
           top_dn_dir_sw_spc, &
+          top_flux_dn_diffuse_sw, &
           sw_up_spc, &
           top_dn_lw_spc, &
           lw_up_spc, &
@@ -901,6 +1162,8 @@ CONTAINS
           grnd_vertical_diff, &
           grnd_net_sw_spc, &
           grnd_net_lw_spc, &
+          lw_dn_grnd, &
+          lw_up_grnd, &
           roof_in_sw_spc, &
           roof_in_sw_dir_spc, &
           roof_in_sw_diff_spc, &
@@ -916,7 +1179,18 @@ CONTAINS
           wall_net_lw_spc, &
           sfr_roof_spc, &
           sfr_wall_spc, &
-          clear_air_abs_lw_spc &
+          clear_air_abs_lw_spc, &
+          grnd_dn_sw_spc, &
+          flux_dn_layer_top_sw_spc, &
+          flux_up_layer_top_sw_spc, &
+          flux_dn_layer_base_sw_spc, &
+          flux_up_layer_base_sw_spc, &
+          flux_dn_layer_top_lw_spc, &
+          flux_up_layer_top_lw_spc, &
+          flux_dn_layer_base_lw_spc, &
+          flux_up_layer_base_lw_spc, &
+          veg_abs_sw_spc, &
+          veg_abs_lw_spc &
           ]
 
       !!!!!!!!!!!!!! Clear from memory !!!!!!!!!!!!!

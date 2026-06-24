@@ -780,20 +780,22 @@ CONTAINS
             lw_flux%ground_dn(nspec, ncol) = ldown
             bc_out%lw_emission(nspec, ncol) = lw_up_grnd_fallback
             bc_out%lw_emissivity(nspec, ncol) = emis_no_tree_bldg
-         ELSE IF (ANY(invalid_real(lw_flux%wall_net(nspec, :nlayer))) &
-                  .OR. ANY(invalid_real(lw_flux%roof_net(nspec, :nlayer)))) THEN
-            ! Partial NaN from integrated-flux singularity: per-layer
-            ! fields (wall, roof, clear-air) are contaminated; top-level
-            ! fluxes remain valid.
-            ! NOTE: zeroing per-layer absorption is non-conservative
-            ! (surface energy budget not closed) but acceptable as a
-            ! crash guard; the top-level net fluxes driving qn are kept.
-            CALL add_supy_warning('SPARTACUS: LW partial NaN detected -- zeroing per-layer fields')
-            lw_flux%clear_air_abs(nspec, :nlayer) = 0.0D0
-            lw_flux%wall_net(nspec, :nlayer) = 0.0D0
-            lw_flux%wall_in(nspec, :nlayer) = 0.0D0
-            lw_flux%roof_net(nspec, :nlayer) = 0.0D0
-            lw_flux%roof_in(nspec, :nlayer) = 0.0D0
+         ELSE IF (config%do_urban) THEN
+            IF (ANY(invalid_real(lw_flux%wall_net(nspec, :nlayer))) &
+                .OR. ANY(invalid_real(lw_flux%roof_net(nspec, :nlayer)))) THEN
+               ! Partial NaN from integrated-flux singularity: per-layer
+               ! fields (wall, roof, clear-air) are contaminated; top-level
+               ! fluxes remain valid.
+               ! NOTE: zeroing per-layer absorption is non-conservative
+               ! (surface energy budget not closed) but acceptable as a
+               ! crash guard; the top-level net fluxes driving qn are kept.
+               CALL add_supy_warning('SPARTACUS: LW partial NaN detected -- zeroing per-layer fields')
+               lw_flux%clear_air_abs(nspec, :nlayer) = 0.0D0
+               lw_flux%wall_net(nspec, :nlayer) = 0.0D0
+               lw_flux%wall_in(nspec, :nlayer) = 0.0D0
+               lw_flux%roof_net(nspec, :nlayer) = 0.0D0
+               lw_flux%roof_in(nspec, :nlayer) = 0.0D0
+            END IF
          END IF
       END IF
 

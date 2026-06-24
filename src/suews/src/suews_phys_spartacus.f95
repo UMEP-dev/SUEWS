@@ -338,7 +338,7 @@ CONTAINS
       use_dectr = sfr_dectr_use > eps_fp .AND. DecTreeH_use > eps_fp
       tree_frac_sum = sfr_evetr_use + sfr_dectr_use
       IF (use_evetr .AND. use_dectr) THEN
-         veg_air_height = (sfr_evetr_use*EveTreeH_use + sfr_dectr_use*DecTreeH_use)/tree_frac_sum
+         veg_air_height = ((sfr_evetr_use*EveTreeH_use + sfr_dectr_use*DecTreeH_use)/tree_frac_sum)/2D0
       ELSEIF (use_evetr) THEN
          veg_air_height = EveTreeH_use/2D0
       ELSEIF (use_dectr) THEN

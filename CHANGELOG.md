@@ -41,16 +41,16 @@ EXAMPLES:
 
 | Year | Features | Bugfixes | Changes | Maintenance | Docs | Total |
 |------|----------|----------|---------|-------------|------|-------|
-| 2026 | 78 | 84 | 30 | 81 | 40 | 314 |
-| 2025 | 60 | 68 | 22 | 71 | 36 | 256 |
-| 2024 | 12 | 17 | 1 | 12 | 1 | 43 |
-| 2023 | 11 | 14 | 3 | 9 | 1 | 38 |
-| 2022 | 15 | 18 | 0 | 7 | 0 | 40 |
-| 2021 | 4 | 5 | 1 | 3 | 6 | 19 |
-| 2020 | 7 | 6 | 0 | 3 | 2 | 18 |
-| 2019 | 4 | 8 | 1 | 6 | 1 | 20 |
-| 2018 | 7 | 1 | 6 | 5 | 0 | 19 |
-| 2017 | 9 | 0 | 3 | 2 | 0 | 14 |
+| 2026 | 79       | 85       | 30 | 81 | 40 | 316   |
+| 2025 | 60       | 68       | 22 | 71 | 36 | 256   |
+| 2024 | 12       | 17       | 1 | 12 | 1 | 43    |
+| 2023 | 11       | 14       | 3 | 9 | 1 | 38    |
+| 2022 | 15       | 18       | 0 | 7 | 0 | 40    |
+| 2021 | 4        | 5        | 1 | 3 | 6 | 19    |
+| 2020 | 7        | 6        | 0 | 3 | 2 | 18    |
+| 2019 | 4        | 8        | 1 | 6 | 1 | 20    |
+| 2018 | 7        | 1        | 6 | 5 | 0 | 19    |
+| 2017 | 9        | 0        | 3 | 2 | 0 | 14    |
 
 ## 2026
 
@@ -60,6 +60,15 @@ EXAMPLES:
   - Wired forcing-file `kdir` (direct-normal irradiance) and `kdiff` (diffuse-horizontal irradiance) through the Python, Rust, C, and Fortran interfaces.
   - Moved the partition calculation outside SPARTACUS-Surface so it receives prepared direct-horizontal and diffuse-horizontal canopy-top forcing.
   - Added `model.physics.kdown_split_method` with readable options `forcing`, `constant`, and `epw`.
+
+- [feature][experimental] Expanded SPARTACUS radiation diagnostics and vegetation-control inputs
+  - Added layer-resolved SW/LW diagnostics, vegetation absorption diagnostics, layer top/base fluxes, and additional ground/top radiation outputs; the SuPy SPARTACUS output metadata now reflects the expanded output schema.
+  - Exposed vegetation-specific SPARTACUS controls through YAML, SuPy, the Rust bridge, and Fortran: `n_stream_lw_forest`, `n_stream_sw_forest`, `n_vegetation_region_forest`, `veg_ext` in vertical layers
+
+- [bugfix] Fixed SPARTACUS mixed-tree and non-urban edge cases
+  - Fixed mixed evergreen/deciduous RSL temperature sampling to use weighted half-tree height (from RSL).
+  - Guarded non-urban/forest-only SPARTACUS paths so direct-albedo and longwave fallback logic no longer touch urban-only roof/wall arrays.
+  - Added tests for mixed-tree RSL sampling height and non-urban direct-albedo SPARTACUS runs.
 
 
 ### 20 Jun 2026

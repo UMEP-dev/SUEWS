@@ -608,7 +608,7 @@ CONTAINS
          ALLOCATE(sw_spectral_props%veg_ssa(nspec, nlayer))
       IF (.NOT. ALLOCATED(sw_spectral_props%ground_albedo_dir)) &
          ALLOCATE(sw_spectral_props%ground_albedo_dir(nspec, ncol))
-      IF (.NOT. ALLOCATED(sw_spectral_props%roof_albedo_dir)) &
+      IF (config%do_urban .AND. .NOT. ALLOCATED(sw_spectral_props%roof_albedo_dir)) &
          ALLOCATE(sw_spectral_props%roof_albedo_dir(nspec, nlayer))
       sw_spectral_props%veg_ssa = 0.0D0
       IF (sfr_surf(ConifSurf) + sfr_surf(DecidSurf) > 0.0) THEN
@@ -627,7 +627,9 @@ CONTAINS
       END IF
       IF (config%use_sw_direct_albedo) THEN
          sw_spectral_props%ground_albedo_dir = alb_no_tree_bldg*ground_albedo_dir_mult_fact
-         sw_spectral_props%roof_albedo_dir = roof_albedo(nspec, ncol)*roof_albedo_dir_mult_fact(nspec, ncol)
+         IF (config%do_urban) THEN
+            sw_spectral_props%roof_albedo_dir = roof_albedo(nspec, ncol)*roof_albedo_dir_mult_fact(nspec, ncol)
+         END IF
       END IF
 
       !!!!!!!!!!!!!! allocate and set lw_spectral_props !!!!!!!!!!!!!!

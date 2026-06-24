@@ -46,7 +46,7 @@ def _fortran_logical_lines(text: str) -> list[str]:
 
 
 def _mixed_tree_veg_air_height_expression() -> str:
-    source = SPARTACUS_SOURCE.read_text()
+    source = SPARTACUS_SOURCE.read_text(encoding="utf-8")
     statements = _fortran_logical_lines(source)
 
     for idx, statement in enumerate(statements):

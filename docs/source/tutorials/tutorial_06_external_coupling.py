@@ -41,7 +41,7 @@ from supy import SUEWSSimulation
 
 
 def QF_simple(T2):
-    """Calculate anthropogenic heat flux from air temperature.
+    r"""Calculate anthropogenic heat flux from air temperature.
 
     Parameters
     ----------

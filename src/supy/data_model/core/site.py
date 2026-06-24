@@ -2747,7 +2747,7 @@ class SPARTACUSParams(BaseModel):
             SPARTACUSParams: An instance of SPARTACUSParams
         """
 
-        spartacus_params = {
+        spartacus_params = [
             "air_ext_lw",
             "air_ext_sw",
             "air_ssa_lw",
@@ -2765,11 +2765,16 @@ class SPARTACUSParams(BaseModel):
             "veg_fsd_const",
             "veg_ssa_lw",
             "veg_ssa_sw",
-        }
+        ]
 
-        params = {
-            param: RefValue(df.loc[grid_id, (param, "0")]) for param in spartacus_params
-        }
+        default_instance = cls()
+        params = {}
+        for param in spartacus_params:
+            col = (param, "0")
+            if col in df.columns:
+                params[param] = RefValue(df.loc[grid_id, col])
+            else:
+                params[param] = getattr(default_instance, param)
 
         return cls(**params)
 

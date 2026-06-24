@@ -23,7 +23,7 @@ import warnings
 # between releases bumps the dev counter instead of consuming a new
 # CalVer label. The 2026.5 cycle (dev1..dev14) was collapsed to the
 # plain `2026.5` label in the 2026.6.5 release PR.
-CURRENT_SCHEMA_VERSION = "2026.5"
+CURRENT_SCHEMA_VERSION = "2026.6.dev1"
 
 # Schema version history and descriptions.
 #
@@ -110,6 +110,14 @@ SCHEMA_VERSIONS: dict[str, str] = {
         "src/supy/data_model/core/field_renames.py; the (2026.4 -> 2026.5) "
         "migration in src/supy/util/converter/yaml_upgrade.py::_HANDLERS "
         "applies the whole union in order."
+    ),
+    "2026.6.dev1": (
+        "Development schema for the SPARTACUS direct/diffuse benchmark work: "
+        "adds the model.physics.kdown_split_method selector, forest-column "
+        "SPARTACUS stream and vegetation-region controls, and the optional "
+        "vertical_layers.veg_ext extinction override. Existing 2026.5 YAMLs "
+        "remain compatible through a no-op migration because all new inputs "
+        "have defaults."
     ),
 }
 

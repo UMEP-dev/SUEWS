@@ -180,6 +180,33 @@ The sections below summarise what users see change between schemas.
 The authoritative lineage (including release-tag to schema mapping)
 lives in :ref:`schema_version_history`.
 
+Upgrading to Schema 2026.6.dev1
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Schema ``2026.6.dev1`` is the current development schema for the
+SPARTACUS direct/diffuse benchmark work. It extends the ``2026.5``
+surface with default-backed controls:
+
+- ``model.physics.kdown_split_method`` selects forcing-provided,
+  constant-fraction, or EPW-derived direct/diffuse shortwave
+  partitioning.
+- ``sites[*].properties.spartacus`` gains forest-column stream and
+  vegetation-region settings:
+  ``n_stream_lw_forest``, ``n_stream_sw_forest`` and
+  ``n_vegetation_region_forest``.
+- ``sites[*].properties.vertical_layers.veg_ext`` optionally overrides
+  the vegetation extinction coefficient per vertical layer; ``-999``
+  keeps the LAI-derived behaviour.
+
+Existing ``2026.5`` YAMLs do not need content edits because all new
+fields have defaults. The registered ``(2026.5 -> 2026.6.dev1)``
+handler is therefore a no-op content migration that stamps the new
+``schema_version``:
+
+.. code-block:: bash
+
+   suews schema migrate your_config.yml
+
 Upgrading to Schema 2026.5
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 

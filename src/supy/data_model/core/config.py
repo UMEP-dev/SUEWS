@@ -151,11 +151,24 @@ def _raw_refvalue(value):
     return value
 
 
-def _find_legacy_spartacus_kdown_direct_fraction(values):
-    """Return the first legacy SPARTACUS direct-fraction value in raw YAML."""
+def _normalise_legacy_kdown_direct_fraction(value):
+    """Return a comparable key for raw legacy direct-fraction values."""
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        try:
+            hash(value)
+        except TypeError:
+            return repr(value)
+        return value
+
+
+def _find_legacy_spartacus_kdown_direct_fractions(values):
+    """Return legacy SPARTACUS direct-fraction values in raw YAML."""
+    fractions = []
     sites = values.get("sites") if isinstance(values, dict) else None
     if not isinstance(sites, list):
-        return _MISSING
+        return fractions
     for site in sites:
         if not isinstance(site, dict):
             continue
@@ -166,8 +179,8 @@ def _find_legacy_spartacus_kdown_direct_fraction(values):
             else {}
         )
         if isinstance(spartacus, dict) and "sw_dn_direct_frac" in spartacus:
-            return _raw_refvalue(spartacus["sw_dn_direct_frac"])
-    return _MISSING
+            fractions.append(_raw_refvalue(spartacus["sw_dn_direct_frac"]))
+    return fractions
 
 
 def _raw_physics_has_kdown_direct_fraction(physics):
@@ -286,9 +299,20 @@ class SUEWSConfig(BaseModel):
         ):
             return values
 
-        legacy_fraction = _find_legacy_spartacus_kdown_direct_fraction(values)
-        if legacy_fraction is not _MISSING:
-            physics["sw_dn_direct_frac"] = legacy_fraction
+        legacy_fractions = _find_legacy_spartacus_kdown_direct_fractions(values)
+        if legacy_fractions:
+            distinct_fractions = {
+                _normalise_legacy_kdown_direct_fraction(fraction)
+                for fraction in legacy_fractions
+            }
+            if len(distinct_fractions) > 1:
+                raise ValueError(
+                    "Legacy sites[*].properties.spartacus.sw_dn_direct_frac "
+                    "contains multiple distinct values. Set the shared "
+                    "model.physics.kdown_split_method.constant.sw_dn_direct_frac "
+                    "value explicitly before migrating."
+                )
+            physics["sw_dn_direct_frac"] = legacy_fractions[0]
         return values
 
     name: str = Field(

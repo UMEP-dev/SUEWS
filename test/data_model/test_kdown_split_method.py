@@ -102,6 +102,58 @@ def test_config_migrates_legacy_spartacus_fraction_to_model_physics():
     assert state.loc[1, ("sw_dn_direct_frac", "0")] == 0.33
 
 
+def test_config_migrates_matching_legacy_spartacus_fractions():
+    cfg = SUEWSConfig.model_validate(
+        {
+            "model": {"physics": {"kdown_split_method": "constant"}},
+            "sites": [
+                {
+                    "gridiv": 1,
+                    "properties": {"spartacus": {"sw_dn_direct_frac": 0.33}},
+                },
+                {
+                    "gridiv": 2,
+                    "properties": {
+                        "spartacus": {"sw_dn_direct_frac": {"value": 0.33}}
+                    },
+                },
+            ],
+        }
+    )
+    state = cfg.to_df_state()
+
+    assert _scalar(cfg.model.physics.sw_dn_direct_frac) == 0.33
+    assert [
+        _scalar(site.properties.spartacus.sw_dn_direct_frac)
+        for site in cfg.sites
+    ] == [0.33, 0.33]
+    assert state.loc[1, ("sw_dn_direct_frac", "0")] == 0.33
+    assert state.loc[2, ("sw_dn_direct_frac", "0")] == 0.33
+
+
+def test_config_rejects_mixed_legacy_spartacus_fractions():
+    with pytest.raises(ValidationError, match="multiple distinct values"):
+        SUEWSConfig.model_validate(
+            {
+                "model": {"physics": {"kdown_split_method": "constant"}},
+                "sites": [
+                    {
+                        "gridiv": 1,
+                        "properties": {
+                            "spartacus": {"sw_dn_direct_frac": 0.2}
+                        },
+                    },
+                    {
+                        "gridiv": 2,
+                        "properties": {
+                            "spartacus": {"sw_dn_direct_frac": 0.8}
+                        },
+                    },
+                ],
+            }
+        )
+
+
 def test_model_owned_kdown_direct_fraction_overrides_spartacus_slot():
     cfg = SUEWSConfig.model_validate(
         {

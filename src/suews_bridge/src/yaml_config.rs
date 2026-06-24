@@ -1837,6 +1837,15 @@ fn apply_site_overrides(
     apply_conductance_overrides(site, root, site_root);
     apply_lumps_overrides(site, site_root);
     apply_spartacus_overrides(site, site_root);
+    if let Some(v) = read_numeric(root, &["model", "physics", "sw_dn_direct_frac"]) {
+        site.spartacus.sw_dn_direct_frac = v;
+    }
+    if let Some(v) = read_numeric(
+        root,
+        &["model", "physics", "kdown_split_constant_direct_fraction"],
+    ) {
+        site.spartacus.sw_dn_direct_frac = v;
+    }
     resize_site_variable_arrays(site, nlayer);
     apply_land_cover_overrides(site, site_root);
     apply_snow_overrides(site, site_root);
@@ -2595,6 +2604,7 @@ mod tests {
         assert_eq!(run_cfg.config.net_radiation_method, 1003);
         assert_eq!(run_cfg.config.storage_heat_method, 7);
         assert_eq!(run_cfg.config.emissions_method, 2);
+        assert!((run_cfg.site.spartacus.sw_dn_direct_frac - 0.45).abs() < 1.0e-12);
 
         // gh#1456: STEBBS switches sourced from the nested
         // `model.physics.stebbs` object in the fixture (enabled=true,

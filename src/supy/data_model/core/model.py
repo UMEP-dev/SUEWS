@@ -20,7 +20,11 @@ from .physics_families import (
     fold_public_physics_key_aliases,
     fold_stebbs_public_key_aliases,
 )
-from .physics_orthogonal import coerce_orthogonal_to_flat, fold_storage_heat_ohm_inc_qf
+from .physics_orthogonal import (
+    coerce_orthogonal_to_flat,
+    fold_kdown_split_constant_direct_fraction,
+    fold_storage_heat_ohm_inc_qf,
+)
 from .type import FlexibleRefValue, Reference, RefValue, df_from_cols
 
 
@@ -230,7 +234,7 @@ class KdownSplitMethod(Enum):
     Method for partitioning global horizontal irradiance into direct and diffuse components.
 
     1: FORCING - Uses direct normal and diffuse horizontal irradiance from forcing data, with EPW fallback when invalid
-    2: CONSTANT - Uses the SPARTACUS constant direct-horizontal fraction
+    2: CONSTANT - Uses the configured sw_dn_direct_frac direct-horizontal fraction
     3: EPW - Uses the pressure-corrected DISC/static-DIRINT approach
     """
 
@@ -883,6 +887,7 @@ class ModelPhysics(BaseModel):
             # gh#1483: expose OHMIncQF under the storage_heat selector while
             # preserving the flat field used by the internal/Fortran state.
             values = fold_storage_heat_ohm_inc_qf(values, cls.__name__)
+            values = fold_kdown_split_constant_direct_fraction(values, cls.__name__)
             # gh#1456: fold the legacy flat STEBBS switches into the nested
             # `stebbs` object. Runs after the key renames so a YAML carrying
             # either fused or snake_case legacy spellings lands here. The fold
@@ -916,7 +921,22 @@ class ModelPhysics(BaseModel):
         json_schema_extra={
             "unit": "dimensionless",
             "depends_on": ["net_radiation"],
-            "note": "Applied when SPARTACUS-Surface is selected by net_radiation.",
+            "note": "Use kdown_split_method.constant.sw_dn_direct_frac when selecting the constant split.",
+        },
+    )
+    sw_dn_direct_frac: FlexibleRefValue(float) = Field(
+        default=0.5,
+        description=(
+            "Direct-horizontal fraction of global shortwave radiation used by "
+            "the constant direct/diffuse split."
+        ),
+        ge=0.0,
+        le=1.0,
+        json_schema_extra={
+            "unit": "dimensionless",
+            "depends_on": ["kdown_split_method"],
+            "display_name": "Sw Dn Direct Frac",
+            "internal_only": True,
         },
     )
     emissions: FlexibleRefValue(EmissionsMethod) = Field(
@@ -1107,6 +1127,14 @@ class ModelPhysics(BaseModel):
             val = value.value if isinstance(value, RefValue) else value
             cols[(col_name, "0")] = int(val)
 
+        direct_fraction = self.sw_dn_direct_frac
+        direct_fraction = (
+            direct_fraction.value
+            if isinstance(direct_fraction, RefValue)
+            else direct_fraction
+        )
+        cols[("sw_dn_direct_frac", "0")] = float(direct_fraction)
+
         # gh#1456: compose the legacy `stebbsmethod` integer column from the
         # nested (enabled, parameters) pair, and write the remaining STEBBS
         # switches from their nested members.
@@ -1162,6 +1190,9 @@ class ModelPhysics(BaseModel):
             "laimethod": LAIMethod.MODELLED,
             "kdown_split_method": KdownSplitMethod.EPW,
         }
+        optional_float_attrs_with_defaults = {
+            "sw_dn_direct_frac": (("sw_dn_direct_frac",), 0.5),
+        }
 
         for attr in required_attrs:
             try:
@@ -1176,6 +1207,17 @@ class ModelPhysics(BaseModel):
                 properties[attr] = RefValue(int(value))
             except KeyError:
                 properties[attr] = RefValue(int(default_enum))
+
+        for field_name, (col_names, default_value) in (
+            optional_float_attrs_with_defaults.items()
+        ):
+            for col_name in col_names:
+                col = (col_name, "0")
+                if col in df.columns:
+                    properties[field_name] = RefValue(float(df.loc[grid_id, col]))
+                    break
+            else:
+                properties[field_name] = RefValue(default_value)
 
         # gh#1456 / gh#1500: reconstruct the nested StebbsPhysics from the
         # unchanged fused columns. A DataFrame predating STEBBS lacks the

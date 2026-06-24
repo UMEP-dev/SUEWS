@@ -22,7 +22,9 @@ model:
     net_radiation:
       narp:
         ldown: air
-    kdown_split_method: constant
+    kdown_split_method:
+      constant:
+        sw_dn_direct_frac: 0.45
     emissions:
       heat: J11
       co2:
@@ -115,8 +117,6 @@ sites:
         value: 1
       n_vegetation_region_forest:
         value: 1
-      sw_dn_direct_frac:
-        value: 0.45
       use_sw_direct_albedo:
         value: 0.0
       veg_contact_fraction_const:

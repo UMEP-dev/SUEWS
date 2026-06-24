@@ -189,7 +189,20 @@ surface with default-backed controls:
 
 - ``model.physics.kdown_split_method`` selects forcing-provided,
   constant-fraction, or EPW-derived direct/diffuse shortwave
-  partitioning.
+  partitioning. The constant split value is nested with the constant
+  selector, for example:
+
+  .. code-block:: yaml
+
+     model:
+       physics:
+         kdown_split_method:
+           constant:
+             sw_dn_direct_frac: 0.45
+
+  Legacy ``sites[*].properties.spartacus.sw_dn_direct_frac`` input is
+  still accepted and copied into the model-owned value when the new
+  field is absent.
 - ``sites[*].properties.spartacus`` gains forest-column stream and
   vegetation-region settings:
   ``n_stream_lw_forest``, ``n_stream_sw_forest`` and

@@ -1363,6 +1363,97 @@ fn fold_storage_heat_ohm_inc_qf(root: &mut Value) -> Result<(), String> {
     Ok(())
 }
 
+fn fold_kdown_split_constant_direct_fraction(root: &mut Value) -> Result<(), String> {
+    let physics = match root
+        .get_mut("model")
+        .and_then(|m| m.as_mapping_mut())
+        .and_then(|m| m.get_mut(Value::String("physics".into())))
+        .and_then(|p| p.as_mapping_mut())
+    {
+        Some(p) => p,
+        None => return Ok(()),
+    };
+
+    let outer_key = Value::String("kdown_split_method".into());
+    let mut split = match physics.get(&outer_key) {
+        Some(Value::Mapping(map)) if map.contains_key(Value::String("constant".into())) => {
+            map.clone()
+        }
+        _ => return Ok(()),
+    };
+
+    let foreign: Vec<String> = split
+        .keys()
+        .filter_map(|key| match key.as_str() {
+            Some("constant") | Some("ref") => None,
+            Some(s) => Some(s.to_string()),
+            None => Some(format!("{key:?}")),
+        })
+        .collect();
+    if !foreign.is_empty() {
+        return Err(format!(
+            "'kdown_split_method.constant' cannot be combined with sibling keys {foreign:?}."
+        ));
+    }
+
+    let mut constant = match split.remove(Value::String("constant".into())) {
+        Some(Value::Mapping(map)) => map,
+        _ => {
+            return Err(
+                "'kdown_split_method.constant' must be a mapping with 'sw_dn_direct_frac'."
+                    .to_string(),
+            )
+        }
+    };
+
+    let fraction_key = "sw_dn_direct_frac";
+    if !constant.contains_key(Value::String(fraction_key.into())) {
+        return Err("'kdown_split_method.constant' requires 'sw_dn_direct_frac'.".to_string());
+    }
+    if physics.contains_key(Value::String("sw_dn_direct_frac".into())) {
+        return Err(
+            "Both flat 'sw_dn_direct_frac' and nested 'kdown_split_method.constant.sw_dn_direct_frac' are present. Use only the nested form."
+                .to_string(),
+        );
+    }
+
+    let fraction_value = constant
+        .remove(Value::String(fraction_key.into()))
+        .expect("fraction key just matched");
+
+    let inner_foreign: Vec<String> = constant
+        .keys()
+        .filter_map(|key| match key.as_str() {
+            Some("ref") => None,
+            Some(s) => Some(s.to_string()),
+            None => Some(format!("{key:?}")),
+        })
+        .collect();
+    if !inner_foreign.is_empty() {
+        return Err(format!(
+            "'kdown_split_method.constant' cannot be combined with inner keys {inner_foreign:?}."
+        ));
+    }
+
+    let mut folded = serde_yaml::Mapping::new();
+    folded.insert(
+        Value::String("value".into()),
+        Value::String("constant".into()),
+    );
+    if let Some(r) = constant
+        .remove(Value::String("ref".into()))
+        .or_else(|| split.remove(Value::String("ref".into())))
+    {
+        folded.insert(Value::String("ref".into()), r);
+    }
+    physics.insert(outer_key, Value::Mapping(folded));
+    physics.insert(
+        Value::String("sw_dn_direct_frac".into()),
+        wrap_refvalue(fraction_value),
+    );
+    Ok(())
+}
+
 fn normalise_include_qf_value(value: Value) -> Result<Value, String> {
     let code = match value {
         Value::Bool(true) => 1,
@@ -2024,6 +2115,7 @@ pub fn normalize_field_names(root: &mut Value) -> Result<(), String> {
     // still flows through the walker unchanged.
     flatten_stebbs_physics(root)?;
     fold_storage_heat_ohm_inc_qf(root)?;
+    fold_kdown_split_constant_direct_fraction(root)?;
     // Nested family form must be collapsed BEFORE the recursive rename
     // walker runs — some family tags (e.g. `stebbs` under `storage_heat`)
     // collide with ModelPhysics field names that the walker would
@@ -2760,6 +2852,32 @@ model:
                 .get(Value::String("value".into()))
                 .and_then(|v| v.as_i64()),
             Some(2)
+        );
+    }
+
+    #[test]
+    fn kdown_constant_direct_fraction_collapses_to_model_owned_scalar() {
+        let yaml = "\
+model:
+  physics:
+    kdown_split_method:
+      constant:
+        sw_dn_direct_frac: 0.45
+";
+        let mut root: Value = from_str(yaml).unwrap();
+        normalize_field_names(&mut root).unwrap();
+        let physics = &root["model"]["physics"];
+        assert_eq!(
+            physics["kdown_split_method"]
+                .get(Value::String("value".into()))
+                .and_then(|v| v.as_i64()),
+            Some(2)
+        );
+        assert_eq!(
+            physics["sw_dn_direct_frac"]
+                .get(Value::String("value".into()))
+                .and_then(|v| v.as_f64()),
+            Some(0.45)
         );
     }
 

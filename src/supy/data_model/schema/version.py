@@ -113,11 +113,13 @@ SCHEMA_VERSIONS: dict[str, str] = {
     ),
     "2026.6.dev1": (
         "Development schema for the SPARTACUS direct/diffuse benchmark work: "
-        "adds the model.physics.kdown_split_method selector, forest-column "
-        "SPARTACUS stream and vegetation-region controls, and the optional "
-        "vertical_layers.veg_ext extinction override. Existing 2026.5 YAMLs "
-        "remain compatible through a no-op migration because all new inputs "
-        "have defaults."
+        "adds the model.physics.kdown_split_method selector with "
+        "model.physics.kdown_split_method.constant.sw_dn_direct_frac for "
+        "constant splits, forest-column SPARTACUS stream and vegetation-region "
+        "controls, and the optional vertical_layers.veg_ext extinction override. "
+        "Existing 2026.5 YAMLs remain compatible through a no-op migration "
+        "because all new inputs have defaults and legacy "
+        "sites[*].properties.spartacus.sw_dn_direct_frac input is migrated."
     ),
 }
 

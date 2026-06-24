@@ -141,6 +141,57 @@ def _assign_trusted(model_obj, field, value):
     model_obj.__pydantic_fields_set__.add(field)
 
 
+_MISSING = object()
+
+
+def _raw_refvalue(value):
+    """Unwrap a YAML RefValue-shaped mapping without normalising nested blocks."""
+    if isinstance(value, dict) and "value" in value:
+        return value["value"]
+    return value
+
+
+def _find_legacy_spartacus_kdown_direct_fraction(values):
+    """Return the first legacy SPARTACUS direct-fraction value in raw YAML."""
+    sites = values.get("sites") if isinstance(values, dict) else None
+    if not isinstance(sites, list):
+        return _MISSING
+    for site in sites:
+        if not isinstance(site, dict):
+            continue
+        spartacus = (
+            site.get("properties", {})
+            .get("spartacus", {})
+            if isinstance(site.get("properties"), dict)
+            else {}
+        )
+        if isinstance(spartacus, dict) and "sw_dn_direct_frac" in spartacus:
+            return _raw_refvalue(spartacus["sw_dn_direct_frac"])
+    return _MISSING
+
+
+def _raw_physics_has_kdown_direct_fraction(physics):
+    """Detect new direct-fraction spellings in a raw ``model.physics`` dict."""
+    if not isinstance(physics, dict):
+        return False
+    if any(
+        key in physics
+        for key in (
+            "kdown_split_constant_direct_fraction",
+            "sw_dn_direct_frac",
+        )
+    ):
+        return True
+    split = physics.get("kdown_split_method")
+    if not isinstance(split, dict):
+        return False
+    constant = split.get("constant")
+    return isinstance(constant, dict) and any(
+        key in constant
+        for key in ("sw_dn_direct_frac",)
+    )
+
+
 def _strip_internal_fields(data, model_cls):
     """Recursively remove fields marked with internal_only=True from a model_dump dict.
 
@@ -220,6 +271,26 @@ class SUEWSConfig(BaseModel):
                 )
         return values
 
+    @model_validator(mode="before")
+    @classmethod
+    def _migrate_legacy_spartacus_kdown_direct_fraction(cls, values):
+        """Accept legacy ``properties.spartacus.sw_dn_direct_frac`` YAML input."""
+        if not isinstance(values, dict):
+            return values
+        model = values.setdefault("model", {})
+        if not isinstance(model, dict):
+            return values
+        physics = model.setdefault("physics", {})
+        if not isinstance(physics, dict) or _raw_physics_has_kdown_direct_fraction(
+            physics
+        ):
+            return values
+
+        legacy_fraction = _find_legacy_spartacus_kdown_direct_fraction(values)
+        if legacy_fraction is not _MISSING:
+            physics["sw_dn_direct_frac"] = legacy_fraction
+        return values
+
     name: str = Field(
         default="sample config",
         description="Name of the SUEWS configuration",
@@ -257,6 +328,18 @@ class SUEWSConfig(BaseModel):
         min_length=1,
         json_schema_extra={"display_name": "Sites"},
     )
+
+    @model_validator(mode="after")
+    def _sync_kdown_direct_fraction_to_spartacus(self) -> "SUEWSConfig":
+        """Mirror model-owned k-down split fraction to the legacy bridge slot."""
+        fraction = _unwrap_value(self.model.physics.sw_dn_direct_frac)
+        for site in self.sites:
+            _assign_trusted(
+                site.properties.spartacus,
+                "sw_dn_direct_frac",
+                float(fraction),
+            )
+        return self
 
     # Class-level constant for STEBBS validation parameters
     STEBBS_REQUIRED_PARAMS: ClassVar[List[str]] = [
@@ -4561,6 +4644,14 @@ class SUEWSConfig(BaseModel):
                 grid_id = self.sites[i].gridiv
                 df_site = self.sites[i].to_df_state(grid_id)
                 df_model = self.model.to_df_state(grid_id)
+                direct_fraction_positions = [
+                    idx
+                    for idx, col in enumerate(df_model.columns)
+                    if col == ("sw_dn_direct_frac", "0")
+                ]
+                if direct_fraction_positions:
+                    direct_fraction = df_model.iloc[0, direct_fraction_positions[0]]
+                    df_site[("sw_dn_direct_frac", "0")] = direct_fraction
                 df_site = pd.concat([df_site, df_model], axis=1)
                 # Remove duplicate columns immediately after combining site+model
                 # This prevents InvalidIndexError when concatenating multiple sites (axis=0)

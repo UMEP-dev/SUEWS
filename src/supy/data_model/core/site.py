@@ -2655,6 +2655,7 @@ class SPARTACUSParams(BaseModel):
         json_schema_extra={
             "unit": "dimensionless",
             "display_name": "Sw Dn Direct Frac",
+            "internal_only": True,
         },
     )
     use_sw_direct_albedo: FlexibleRefValue(float) = Field(

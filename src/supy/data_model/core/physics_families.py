@@ -30,7 +30,11 @@ from numbers import Integral, Real
 import re
 from typing import Any
 
-from .physics_orthogonal import coerce_orthogonal_to_flat, fold_storage_heat_ohm_inc_qf
+from .physics_orthogonal import (
+    coerce_orthogonal_to_flat,
+    fold_kdown_split_constant_direct_fraction,
+    fold_storage_heat_ohm_inc_qf,
+)
 
 PHYSICS_FAMILIES: dict[str, dict[str, frozenset[int]]] = {
     "net_radiation": {
@@ -483,6 +487,10 @@ def flatten_physics_in_config(data: Any) -> Any:
 
     with suppress(TypeError, ValueError):
         fold_storage_heat_ohm_inc_qf(physics, "ModelPhysics")
+    with suppress(TypeError, ValueError):
+        fold_kdown_split_constant_direct_fraction(
+            physics, "ModelPhysics", store_fraction=False
+        )
 
     for field_name in MODEL_PHYSICS_ENUM_FIELDS:
         if field_name not in physics:

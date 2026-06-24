@@ -175,10 +175,14 @@ the schema that shipped with it via
    Development schema for the SPARTACUS direct/diffuse benchmark work.
    It adds ``model.physics.kdown_split_method`` for selecting forcing,
    constant-fraction, or EPW-derived direct/diffuse shortwave
-   partitioning; forest-column SPARTACUS stream and vegetation-region
-   controls; and ``vertical_layers.veg_ext`` as an optional vegetation
-   extinction override. Existing ``2026.5`` YAMLs remain valid because
-   the new inputs are default-backed; the
+   partitioning, with the constant value supplied as
+   ``model.physics.kdown_split_method.constant.sw_dn_direct_frac``;
+   forest-column SPARTACUS stream and vegetation-region controls; and
+   ``vertical_layers.veg_ext`` as an optional vegetation extinction
+   override. Existing ``2026.5`` YAMLs remain valid because the new
+   inputs are default-backed and legacy
+   ``sites[*].properties.spartacus.sw_dn_direct_frac`` input is migrated
+   into the model-owned fraction; the
    ``(2026.5 -> 2026.6.dev1)`` handler is a no-op content migration
    that updates the schema marker.
 

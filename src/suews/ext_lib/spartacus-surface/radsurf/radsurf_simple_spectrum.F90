@@ -49,12 +49,18 @@ contains
          &  * lw_spectral_props%ground_emissivity(1,istartcol:iendcol) &
          &  * canopy_props%ground_temperature(istartcol:iendcol) ** 4
     if (ilay2 >= ilay1) then
-      lw_spectral_props%roof_emission(1,ilay1:ilay2) = StefanBoltzmann &
-           &  * lw_spectral_props%roof_emissivity(1,ilay1:ilay2) &
-           &  * canopy_props%roof_temperature(ilay1:ilay2) ** 4
-      lw_spectral_props%wall_emission(1,ilay1:ilay2) = StefanBoltzmann &
-           &  * lw_spectral_props%wall_emissivity(1,ilay1:ilay2) &
-           &  * canopy_props%wall_temperature(ilay1:ilay2) ** 4
+          if (config%do_urban) then
+               if (allocated(lw_spectral_props%roof_emission)) then
+               lw_spectral_props%roof_emission(1,ilay1:ilay2) = StefanBoltzmann &
+                    & * lw_spectral_props%roof_emissivity(1,ilay1:ilay2) &
+                    & * canopy_props%roof_temperature(ilay1:ilay2) ** 4
+               end if
+               if (allocated(lw_spectral_props%wall_emission)) then
+               lw_spectral_props%wall_emission(1,ilay1:ilay2) = StefanBoltzmann &
+                    & * lw_spectral_props%wall_emissivity(1,ilay1:ilay2) &
+                    & * canopy_props%wall_temperature(ilay1:ilay2) ** 4
+               end if
+          end if
       lw_spectral_props%clear_air_planck(1,ilay1:ilay2) = StefanBoltzmann &
            &  * canopy_props%clear_air_temperature(ilay1:ilay2) ** 4
       if (config%do_vegetation) then

@@ -87,6 +87,9 @@ def test_sample_config_prefers_nested_readable_physics_defaults():
     physics = yaml.safe_load(path.read_text(encoding="utf-8"))["model"]["physics"]
 
     assert physics["net_radiation"] == {"narp": {"ldown": "air"}}
+    assert physics["kdown_split_method"] == {
+        "constant": {"sw_dn_direct_frac": 0.45}
+    }
     assert physics["emissions"] == {
         "heat": "J11",
         "co2": {"anthropogenic": "none", "biogenic": "none"},
@@ -132,8 +135,10 @@ def test_sample_config_prefers_nested_readable_physics_defaults():
     }
 
     parsed = ModelPhysics.model_validate(physics)
+    assert float(_unwrap(parsed.sw_dn_direct_frac)) == 0.45
     assert {
         "net_radiation": int(_unwrap(parsed.net_radiation)),
+        "kdown_split_method": int(_unwrap(parsed.kdown_split_method)),
         "emissions": int(_unwrap(parsed.emissions)),
         "storage_heat": int(_unwrap(parsed.storage_heat)),
         "ohm_inc_qf": int(_unwrap(parsed.ohm_inc_qf)),
@@ -162,6 +167,7 @@ def test_sample_config_prefers_nested_readable_physics_defaults():
         ),
     } == {
         "net_radiation": 3,
+        "kdown_split_method": 2,
         "emissions": 2,
         "storage_heat": 1,
         "ohm_inc_qf": 0,
@@ -267,6 +273,22 @@ def test_storage_heat_value_plus_nested_qf_is_not_partially_folded():
 def test_storage_heat_value_plus_nested_qf_rejected_by_model():
     with pytest.raises(ValidationError, match="storage_heat\\.ohm.*inner keys"):
         ModelPhysics(storage_heat={"ohm": {"value": 1, "include_qf": False}})
+
+
+def test_flatten_physics_accepts_kdown_constant_direct_fraction():
+    data = {
+        "model": {
+            "physics": {
+                "kdown_split_method": {
+                    "constant": {"sw_dn_direct_frac": 0.45}
+                }
+            }
+        }
+    }
+
+    flatten_physics_in_config(data)
+
+    assert data["model"]["physics"] == {"kdown_split_method": {"value": 2}}
 
 
 def test_model_physics_accepts_orthogonal_spartacus():

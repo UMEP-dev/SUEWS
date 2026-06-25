@@ -6719,6 +6719,16 @@
       "title": "Irrigation",
       "type": "object"
     },
+    "KdownSplitMethod": {
+      "description": "Method for partitioning global horizontal irradiance into direct and diffuse components.\n\n1: FORCING - Uses direct normal and diffuse horizontal irradiance from forcing data, with EPW fallback when invalid\n2: CONSTANT - Uses the configured sw_dn_direct_frac direct-horizontal fraction\n3: EPW - Uses the pressure-corrected DISC/static-DIRINT approach",
+      "enum": [
+        1,
+        2,
+        3
+      ],
+      "title": "KdownSplitMethod",
+      "type": "integer"
+    },
     "LAIMethod": {
       "description": "Method for determining leaf area index (LAI).\n\n0: OBSERVED - Uses observed LAI values from the forcing file (lai column); the same value is applied to every vegetation class each day, and every timestep must carry a non-missing, non-negative observation. The -999 missing sentinel (and other negative placeholders) is not permitted on this path. Genuine zero observations are honoured.\n1: MODELLED - LAI modelled internally from growing-degree-day (GDD) and senescence-degree-day (SDD) thresholds.",
       "enum": [
@@ -7189,6 +7199,24 @@
             "storage_heat"
           ],
           "title": "Net Radiation",
+          "unit": "dimensionless"
+        },
+        "kdown_split_method": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/RefValue_KdownSplitMethod_"
+            },
+            {
+              "$ref": "#/$defs/KdownSplitMethod"
+            }
+          ],
+          "default": 3,
+          "depends_on": [
+            "net_radiation"
+          ],
+          "description": "Method for partitioning global horizontal irradiance into direct and diffuse components. Options: 1 (FORCING) = Uses direct normal and diffuse horizontal irradiance from forcing data, with EPW fallback when invalid; 2 (CONSTANT) = Uses the configured sw_dn_direct_frac direct-horizontal fraction; 3 (EPW) = Uses the pressure-corrected DISC/static-DIRINT approach",
+          "note": "Use kdown_split_method.constant.sw_dn_direct_frac when selecting the constant split.",
+          "title": "Kdown Split Method",
           "unit": "dimensionless"
         },
         "emissions": {
@@ -8111,6 +8139,37 @@
         "value"
       ],
       "title": "RefValue[HeatRoughnessMethod]",
+      "type": "object"
+    },
+    "RefValue_KdownSplitMethod_": {
+      "additionalProperties": false,
+      "properties": {
+        "value": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/KdownSplitMethod"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "ref": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Reference"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        }
+      },
+      "required": [
+        "value"
+      ],
+      "title": "RefValue[KdownSplitMethod]",
       "type": "object"
     },
     "RefValue_LAIMethod_": {
@@ -9259,6 +9318,36 @@
           "title": "N Stream Sw Urban",
           "unit": "dimensionless"
         },
+        "n_stream_lw_forest": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/RefValue_int_"
+            },
+            {
+              "type": "integer"
+            }
+          ],
+          "default": 2,
+          "description": "Number of streams for longwave radiation in forest columns",
+          "display_name": "N Stream Lw Forest",
+          "title": "N Stream Lw Forest",
+          "unit": "dimensionless"
+        },
+        "n_stream_sw_forest": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/RefValue_int_"
+            },
+            {
+              "type": "integer"
+            }
+          ],
+          "default": 1,
+          "description": "Number of streams for shortwave radiation in forest columns",
+          "display_name": "N Stream Sw Forest",
+          "title": "N Stream Sw Forest",
+          "unit": "dimensionless"
+        },
         "n_vegetation_region_urban": {
           "anyOf": [
             {
@@ -9274,19 +9363,19 @@
           "title": "N Vegetation Region Urban",
           "unit": "dimensionless"
         },
-        "sw_dn_direct_frac": {
+        "n_vegetation_region_forest": {
           "anyOf": [
             {
-              "$ref": "#/$defs/RefValue_float_"
+              "$ref": "#/$defs/RefValue_int_"
             },
             {
-              "type": "number"
+              "type": "integer"
             }
           ],
-          "default": 0.5,
-          "description": "Fraction of downward shortwave radiation that is direct",
-          "display_name": "Sw Dn Direct Frac",
-          "title": "Sw Dn Direct Frac",
+          "default": 1,
+          "description": "Number of vegetation regions in forest columns",
+          "display_name": "N Vegetation Region Forest",
+          "title": "N Vegetation Region Forest",
           "unit": "dimensionless"
         },
         "use_sw_direct_albedo": {
@@ -9523,7 +9612,7 @@
             }
           ],
           "default": 0.0,
-          "description": "Time zone offset from UTC",
+          "description": "Fixed time zone offset from UTC in hours (e.g. 0 for UK/GMT, 1 for France/CET). This is a standard-time offset that does not change with daylight saving. Forcing data timestamps must use this same fixed offset year-round.",
           "display_name": "Time zone (UTC offset)",
           "title": "Timezone",
           "unit": "h"
@@ -10010,6 +10099,54 @@
           "display_name": "Radiation Melt Factor",
           "title": "Radiation Melt Factor",
           "unit": "mm W^-1 m^2 h^-1"
+        },
+        "ohm_threshold_summer_winter": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/RefValue_float_"
+            },
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": 10.0,
+          "description": "Summer/winter threshold based on temperature for the snow surface's OHM calculation",
+          "display_name": "OHM Summer/Winter Threshold (Snow)",
+          "title": "Ohm Threshold Summer Winter",
+          "unit": "degC"
+        },
+        "ohm_threshold_wet_dry": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/RefValue_float_"
+            },
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": 0.9,
+          "description": "Soil moisture threshold determining whether wet/dry OHM coefficients are applied to the snow surface",
+          "display_name": "OHM Wet/Dry Threshold (Snow)",
+          "title": "Ohm Threshold Wet Dry",
+          "unit": "dimensionless"
+        },
+        "ohm_coef": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/OHM_Coefficient_season_wetness"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "OHM coefficients for the snow surface (df_state surface index 7)",
+          "display_name": "OHM Coefficients (Snow)"
         },
         "ref": {
           "anyOf": [
@@ -11425,7 +11562,7 @@
             }
           ],
           "default": null,
-          "description": "Current water storage capacity - the actual storage capacity available for surface water retention. This represents the depth of water that can be stored on or in the surface before drainage begins. For paved surfaces, this might represent depression storage; for vegetated surfaces, it includes canopy interception storage.",
+          "description": "Current surface/interception water storage capacity - the actual storage capacity available for surface water retention. This represents the depth of water that can be stored on or in the surface before drainage begins. For paved surfaces, this might represent depression storage; for vegetated surfaces, it includes canopy interception storage. See the SUEWS SiteInfo typical values page for examples of storage-capacity values: https://docs.suews.io/latest/inputs/tables/SUEWS_SiteInfo/Typical_Values.html.",
           "display_name": "Storage Capacity",
           "title": "Store Cap",
           "unit": "mm"
@@ -12035,6 +12172,28 @@
           "display_name": "Vegetation Scale",
           "title": "Veg Scale",
           "unit": "dimensionless"
+        },
+        "veg_ext": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/RefValue_List_float__"
+            },
+            {
+              "items": {
+                "type": "number"
+              },
+              "type": "array"
+            }
+          ],
+          "default": [
+            -999.0,
+            -999.0,
+            -999.0
+          ],
+          "description": "Optional vegetation extinction coefficient override in each layer; -999 derives from LAI",
+          "display_name": "Vegetation Extinction",
+          "title": "Veg Ext",
+          "unit": "m-1"
         },
         "building_frac": {
           "anyOf": [
@@ -12958,7 +13117,7 @@
     }
   },
   "additionalProperties": true,
-  "description": "JSON Schema for SUEWS YAML configuration files. Schema version 2026.5. Released schema for 2026.6.5 (collapsed from the 2026.5.dev1..dev14 cycle). Union of the #1256 naming convention sweep plus the STEBBS, forcing/output and physics-selector restructures landed between the 2026.4.3 and 2026.6.5 releases:\n  * #1256 Category 1: 59 fused compound field names in ModelPhysics, SurfaceProperties, LAIParams, the vegetated-surface classes and SnowParams rewritten to snake_case (netradiationmethod -> net_radiation_method, soildepth -> soil_depth, baset -> base_temperature, crwmax -> water_holding_capacity_max).\n  * #1327 Category 5: eight STEBBS ArchetypeProperties `ext` fields spelt out to `External`.\n  * #1321 Categories 2+3: 15 ModelPhysics fields stripped of the redundant `_method` / `_model` suffix and de-abbreviated (net_radiation, storage_heat, emissions, stability, water_use, roughness_sublayer, frontal_area_index, surface_conductance, ...).\n  * #1334 + follow-through (#1337): the full STEBBS + Snow YAML surface converted to snake_case (124 renames; retires the STEBBS PascalCase exception) and the hot-water subsystem unified under a single hot_water_* prefix (dhw_* dropped).\n  * #972: accept-only widening for nested physics sub-options (family-tagged shapes); canonical YAML still dumps flat.\n  * #1333: site-level completeness validator now raises (was warn) when an active surface omits physics-required phenology / conductance / morphology inputs.\n  * Naming-convention Rule 2 (#1395 and gh#1392 / gh#1394): ArchetypeProperties and StebbsProperties reordered quantity-first (thickness_wall_outer, emissivity_wall_external, ...), the archetype_* namespace prefix introduced, building_type dropped (logged), and the layer qualifier `external` -> `outer` for bulk-material rows.\n  * #1372: model.control restructured -- forcing_file -> forcing.file and output_file -> output (inner path -> dir, legacy string form dropped); forcing-file header columns are now read and per-land-cover lai_<surface> / wuh_<surface> extras accepted (#1420 adapter follow-up; laimethod=0 observed LAI no longer clipped to LAImin/LAImax).\n  * gh#1452 (Column D, Reading STEBBS review): qualifier-first powers / setpoints (max_power_heating_system_air, setpoint_temperature_heating_air, ...) and the four compound-noun stragglers reordered.\n  * gh#1456: the flat STEBBS-scoped physics switches folded under a nested model.physics.stebbs object (master toggle -> enabled + parameters; capacitance / setpoint / same_albedo_* / same_emissivity_* moved at their leaf names).\n  * gh#1495: model.physics.frontal_area_index reduced to the canonical observed/modelled pair; the provided / use_provided / simple_scheme string aliases retired.\nFull rename tables live in src/supy/data_model/core/field_renames.py; the (2026.4 -> 2026.5) migration in src/supy/util/converter/yaml_upgrade.py::_HANDLERS applies the whole union in order.",
+  "description": "JSON Schema for SUEWS YAML configuration files. Schema version 2026.6.dev1. Development schema for the SPARTACUS direct/diffuse benchmark work: adds the model.physics.kdown_split_method selector with model.physics.kdown_split_method.constant.sw_dn_direct_frac for constant splits, forest-column SPARTACUS stream and vegetation-region controls, and the optional vertical_layers.veg_ext extinction override. Existing 2026.5 YAMLs remain compatible through a no-op migration because all new inputs have defaults and legacy sites[*].properties.spartacus.sw_dn_direct_frac input is migrated.",
   "properties": {
     "name": {
       "default": "sample config",
@@ -12988,6 +13147,13 @@
       "title": "Description",
       "type": "string"
     },
+    "strict_initial_state_bounds": {
+      "default": true,
+      "description": "Enforce that initial-state values (e.g. initial albedo) lie within their seasonal parameter ranges. Set to False by suews-convert for legacy table sets whose source data carries faithful out-of-range initial conditions the legacy Fortran never enforced; relaxing the check then logs a warning instead of failing validation.",
+      "display_name": "Strict Initial-State Bounds",
+      "title": "Strict Initial State Bounds",
+      "type": "boolean"
+    },
     "model": {
       "$ref": "#/$defs/Model",
       "description": "Model control and physics parameters",
@@ -13004,20 +13170,20 @@
       "type": "array"
     }
   },
-  "title": "SUEWS Configuration Schema v2026.5",
+  "title": "SUEWS Configuration Schema v2026.6.dev1",
   "type": "object",
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://umep-dev.github.io/SUEWS/schema/suews-config/2026.5.json",
-  "version": "2026.5",
+  "$id": "https://umep-dev.github.io/SUEWS/schema/suews-config/2026.6.dev1.json",
+  "version": "2026.6.dev1",
   "$comment": {
     "generator": "supy.util.schema_publisher",
     "suews_version": "unknown",
-    "schema_version": "2026.5"
+    "schema_version": "2026.6.dev1"
   },
   "examples": [
     {
       "name": "minimal_config",
-      "schema_version": "2026.5",
+      "schema_version": "2026.6.dev1",
       "description": "Minimal SUEWS configuration example",
       "model": {
         "control": {

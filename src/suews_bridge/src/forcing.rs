@@ -221,6 +221,9 @@ suews_fields! {
     (wu_mm_bsoil, 28, ["wu_mm_bsoil", "wuh_bsoil"], InterpKind::Sum, false),
     (wu_mm_water, 29, ["wu_mm_water", "wuh_water"], InterpKind::Sum, false),
 
+    (kdiff, 30, ["kdiff"], InterpKind::Average, false),
+    (kdir, 31, ["kdir"], InterpKind::Average, false),
+
     // (tair_av_5d, 1, ["tair_av_5d"], InterpKind::Instantaneous),
 }
 

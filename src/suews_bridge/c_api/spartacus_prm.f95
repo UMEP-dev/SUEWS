@@ -16,8 +16,8 @@ public :: SUEWS_CAPI_OK
 public :: SUEWS_CAPI_BAD_BUFFER
 public :: SUEWS_CAPI_BAD_STATE
 
-integer(c_int), parameter, public :: SUEWS_CAPI_SPARTACUS_PRM_BASE_LEN = 14_c_int
-integer(c_int), parameter, public :: SUEWS_CAPI_SPARTACUS_PRM_SCHEMA_VERSION = 1_c_int
+integer(c_int), parameter, public :: SUEWS_CAPI_SPARTACUS_PRM_BASE_LEN = 17_c_int
+integer(c_int), parameter, public :: SUEWS_CAPI_SPARTACUS_PRM_SCHEMA_VERSION = 3_c_int
 
 type :: spartacus_prm_shadow
    real(c_double) :: air_ext_lw = 0.0_c_double
@@ -28,7 +28,10 @@ type :: spartacus_prm_shadow
    real(c_double) :: ground_albedo_dir_mult_fact = 0.0_c_double
    integer(c_int) :: n_stream_lw_urban = 0_c_int
    integer(c_int) :: n_stream_sw_urban = 0_c_int
+   integer(c_int) :: n_stream_lw_forest = 0_c_int
+   integer(c_int) :: n_stream_sw_forest = 1_c_int
    integer(c_int) :: n_vegetation_region_urban = 0_c_int
+   integer(c_int) :: n_vegetation_region_forest = 1_c_int
    real(c_double) :: sw_dn_direct_frac = 0.0_c_double
    real(c_double) :: use_sw_direct_albedo = 0.0_c_double
    real(c_double) :: veg_contact_fraction_const = 0.0_c_double
@@ -148,7 +151,10 @@ subroutine spartacus_prm_pack(state, flat, n_flat, height_len, nlayer, err)
    flat(idx) = state%ground_albedo_dir_mult_fact; idx = idx + 1_c_int
    flat(idx) = real(state%n_stream_lw_urban, c_double); idx = idx + 1_c_int
    flat(idx) = real(state%n_stream_sw_urban, c_double); idx = idx + 1_c_int
+   flat(idx) = real(state%n_stream_lw_forest, c_double); idx = idx + 1_c_int
+   flat(idx) = real(state%n_stream_sw_forest, c_double); idx = idx + 1_c_int
    flat(idx) = real(state%n_vegetation_region_urban, c_double); idx = idx + 1_c_int
+   flat(idx) = real(state%n_vegetation_region_forest, c_double); idx = idx + 1_c_int
    flat(idx) = state%sw_dn_direct_frac; idx = idx + 1_c_int
    flat(idx) = state%use_sw_direct_albedo; idx = idx + 1_c_int
    flat(idx) = state%veg_contact_fraction_const; idx = idx + 1_c_int
@@ -203,7 +209,10 @@ subroutine spartacus_prm_unpack(flat, n_flat, nlayer, state, err)
    state%ground_albedo_dir_mult_fact = flat(idx); idx = idx + 1_c_int
    state%n_stream_lw_urban = int(nint(flat(idx))); idx = idx + 1_c_int
    state%n_stream_sw_urban = int(nint(flat(idx))); idx = idx + 1_c_int
+   state%n_stream_lw_forest = int(nint(flat(idx))); idx = idx + 1_c_int
+   state%n_stream_sw_forest = int(nint(flat(idx))); idx = idx + 1_c_int
    state%n_vegetation_region_urban = int(nint(flat(idx))); idx = idx + 1_c_int
+   state%n_vegetation_region_forest = int(nint(flat(idx))); idx = idx + 1_c_int
    state%sw_dn_direct_frac = flat(idx); idx = idx + 1_c_int
    state%use_sw_direct_albedo = flat(idx); idx = idx + 1_c_int
    state%veg_contact_fraction_const = flat(idx); idx = idx + 1_c_int

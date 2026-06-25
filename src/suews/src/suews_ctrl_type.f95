@@ -63,6 +63,7 @@ MODULE module_ctrl_type
       INTEGER :: SMDMethod = 0 ! Determines method for calculating soil moisture deficit [-]
       INTEGER :: WaterUseMethod = 0 ! Defines how external water use is calculated[-]
       INTEGER :: NetRadiationMethod = 0 ! method for calculation of radiation fluxes [-]
+      INTEGER :: KdownSplitMethod = 3 ! method to partition Kdown into direct and diffuse components [-]
       INTEGER :: StabilityMethod = 0 ! method to calculate atmospheric stability [-]
       INTEGER :: StorageHeatMethod = 0 ! !Determines method for calculating storage heat flux ΔQS [-]
       INTEGER :: Diagnose = 0 ! flag for printing diagnostic info during runtime [N/A]C
@@ -190,6 +191,8 @@ MODULE module_ctrl_type
    ! ********** SUEWS_forcing schema **********
    TYPE, PUBLIC :: SUEWS_FORCING
       REAL(KIND(1D0)) :: kdown = 0.0D0 !
+      REAL(KIND(1D0)) :: kdiff = -999.0D0 ! diffuse horizontal irradiance [W m-2]
+      REAL(KIND(1D0)) :: kdir = -999.0D0 ! direct normal irradiance [W m-2]
       REAL(KIND(1D0)) :: l_down = 0.0D0 !
       REAL(KIND(1D0)) :: RH = 0.0D0 !
       REAL(KIND(1D0)) :: pres = 0.0D0 !

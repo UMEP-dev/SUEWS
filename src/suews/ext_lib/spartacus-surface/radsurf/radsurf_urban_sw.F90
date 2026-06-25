@@ -827,6 +827,19 @@ contains
         sw_norm_dir%wall_net(:,ilay) = sw_norm_dir%wall_in(:,ilay) &
              &  * (1.0_jprb - wall_albedo(:,jlay))
 
+        if (allocated(sw_norm_dir%flux_dn_layer_top)) then
+          ! Store fluxes at top/base of layer after absorption diagnostics
+          ! have been computed, so these optional outputs cannot affect them.
+          sw_norm_dir%flux_dn_dir_layer_top(:,ilay) = zcos_sza * sum(flux_dn_dir_below(:,1:nreg),2)
+          sw_norm_dir%flux_dn_layer_top(:,ilay) = sw_norm_dir%flux_dn_dir_layer_top(:,ilay) &
+               &  + sum(flux_dn_diff_below(:,1:nreg*ns),2)
+          sw_norm_dir%flux_up_layer_top(:,ilay) = sum(flux_up_below(:,1:nreg*ns),2)
+          sw_norm_dir%flux_dn_dir_layer_base(:,ilay) = zcos_sza * sum(flux_dn_dir_above,2)
+          sw_norm_dir%flux_dn_layer_base(:,ilay) = sw_norm_dir%flux_dn_dir_layer_base(:,ilay) &
+               &  + sum(flux_dn_diff_above,2)
+          sw_norm_dir%flux_up_layer_base(:,ilay) = sum(flux_up_above,2)
+        end if
+
 #ifdef PRINT_ARRAYS
         print *, 'NORMALIZED FLUXES W.R.T. DIRECT INCOMING RADIATION AT LAYER ', jlay
         call print_vector('  flux_dn_dir_below ', flux_dn_dir_below(1,:))
@@ -925,6 +938,15 @@ contains
         end do
         sw_norm_diff%wall_net(:,ilay) = sw_norm_diff%wall_in(:,ilay) &
              &  * (1.0_jprb - wall_albedo(:,jlay))
+
+        if (allocated(sw_norm_diff%flux_dn_layer_top)) then
+          ! Store fluxes at top/base of layer after absorption diagnostics
+          ! have been computed, so these optional outputs cannot affect them.
+          sw_norm_diff%flux_dn_layer_top(:,ilay) = sum(flux_dn_diff_below(:,1:nreg*ns),2)
+          sw_norm_diff%flux_up_layer_top(:,ilay) = sum(flux_up_below(:,1:nreg*ns),2)
+          sw_norm_diff%flux_dn_layer_base(:,ilay) = sum(flux_dn_diff_above,2)
+          sw_norm_diff%flux_up_layer_base(:,ilay) = sum(flux_up_above,2)
+        end if
 
 #ifdef PRINT_ARRAYS
         print *, 'NORMALIZED FLUXES W.R.T. DIFFUSE INCOMING RADIATION AT LAYER ', jlay

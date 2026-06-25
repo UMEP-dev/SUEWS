@@ -335,6 +335,7 @@ fn resize_site_variable_arrays(site: &mut SuewsSite, nlayer: usize) {
     ensure_len_with_default(&mut site.spartacus_layer.building_scale, nlayer, 10.0);
     ensure_len_with_default(&mut site.spartacus_layer.veg_frac, nlayer, 0.0);
     ensure_len_with_default(&mut site.spartacus_layer.veg_scale, nlayer, 10.0);
+    ensure_len_with_default(&mut site.spartacus_layer.veg_ext, nlayer, -999.0);
     ensure_len_with_default(&mut site.spartacus_layer.alb_roof, nlayer, 0.15);
     ensure_len_with_default(
         &mut site.spartacus_layer.emis_roof,
@@ -556,14 +557,33 @@ fn apply_spartacus_overrides(site: &mut SuewsSite, site_root: &Value) {
     if let Some(v) = read_i32(site_root, &["properties", "spartacus", "n_stream_lw_urban"]) {
         site.spartacus.n_stream_lw_urban = v;
     }
+    site.spartacus.n_stream_lw_forest = site.spartacus.n_stream_lw_urban;
     if let Some(v) = read_i32(site_root, &["properties", "spartacus", "n_stream_sw_urban"]) {
         site.spartacus.n_stream_sw_urban = v;
+    }
+    if let Some(v) = read_i32(
+        site_root,
+        &["properties", "spartacus", "n_stream_sw_forest"],
+    ) {
+        site.spartacus.n_stream_sw_forest = v;
+    }
+    if let Some(v) = read_i32(
+        site_root,
+        &["properties", "spartacus", "n_stream_lw_forest"],
+    ) {
+        site.spartacus.n_stream_lw_forest = v;
     }
     if let Some(v) = read_i32(
         site_root,
         &["properties", "spartacus", "n_vegetation_region_urban"],
     ) {
         site.spartacus.n_vegetation_region_urban = v;
+    }
+    if let Some(v) = read_i32(
+        site_root,
+        &["properties", "spartacus", "n_vegetation_region_forest"],
+    ) {
+        site.spartacus.n_vegetation_region_forest = v;
     }
     if let Some(v) = read_numeric(site_root, &["properties", "spartacus", "sw_dn_direct_frac"]) {
         site.spartacus.sw_dn_direct_frac = v;
@@ -641,6 +661,14 @@ fn apply_vertical_layers_overrides(site: &mut SuewsSite, site_root: &Value) {
         assign_prefix(
             site.spartacus_layer.veg_scale.as_mut_slice(),
             veg_scale.as_slice(),
+        );
+    }
+    if let Some(veg_ext) =
+        read_numeric_sequence(site_root, &["properties", "vertical_layers", "veg_ext"])
+    {
+        assign_prefix(
+            site.spartacus_layer.veg_ext.as_mut_slice(),
+            veg_ext.as_slice(),
         );
     }
 
@@ -1504,6 +1532,8 @@ fn apply_config_overrides(config: &mut SuewsConfig, root: &Value) {
     if let Some(v) = read_i32(root, &["model", "control", "diag_qs"]) {
         config.diag_qs = v;
     }
+    config.kdown_split_method =
+        read_i32(root, &["model", "physics", "kdown_split_method"]).unwrap_or(3);
 }
 
 fn apply_ehc_overrides(site: &mut SuewsSite, site_root: &Value, nlayer: usize, ndepth: usize) {
@@ -1807,6 +1837,15 @@ fn apply_site_overrides(
     apply_conductance_overrides(site, root, site_root);
     apply_lumps_overrides(site, site_root);
     apply_spartacus_overrides(site, site_root);
+    if let Some(v) = read_numeric(root, &["model", "physics", "sw_dn_direct_frac"]) {
+        site.spartacus.sw_dn_direct_frac = v;
+    }
+    if let Some(v) = read_numeric(
+        root,
+        &["model", "physics", "kdown_split_constant_direct_fraction"],
+    ) {
+        site.spartacus.sw_dn_direct_frac = v;
+    }
     resize_site_variable_arrays(site, nlayer);
     apply_land_cover_overrides(site, site_root);
     apply_snow_overrides(site, site_root);
@@ -2565,6 +2604,7 @@ mod tests {
         assert_eq!(run_cfg.config.net_radiation_method, 1003);
         assert_eq!(run_cfg.config.storage_heat_method, 7);
         assert_eq!(run_cfg.config.emissions_method, 2);
+        assert!((run_cfg.site.spartacus.sw_dn_direct_frac - 0.45).abs() < 1.0e-12);
 
         // gh#1456: STEBBS switches sourced from the nested
         // `model.physics.stebbs` object in the fixture (enabled=true,

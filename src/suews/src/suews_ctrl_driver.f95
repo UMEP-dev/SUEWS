@@ -28,7 +28,7 @@ MODULE SUEWS_Driver
    USE meteo, ONLY: qsatf, RH2qa, qa2RH
    USE module_phys_atmmoiststab, ONLY: cal_AtmMoist, cal_Stab, stab_psi_heat, stab_psi_mom, SUEWS_update_atmState
    USE module_phys_narp, ONLY: NARP_cal_SunPosition, NARP_update_SunPosition
-   USE module_phys_spartacus, ONLY: SPARTACUS
+   USE module_phys_spartacus, ONLY: SPARTACUS, split_shortwave_epw_disc, split_shortwave_forcing
    USE module_phys_resist, ONLY: AerodynamicResistance, BoundaryLayerResistance, SurfaceResistance, &
                             SUEWS_cal_RoughnessParameters
    USE module_phys_ohm, ONLY: OHM
@@ -606,7 +606,7 @@ CONTAINS
       ! Input/Output arguments
       TYPE(SUEWS_TIMER), INTENT(INOUT) :: timer
       INTEGER, INTENT(IN) :: len_sim
-      REAL(KIND(1D0)), DIMENSION(len_sim, 30), INTENT(IN) :: MetForcingBlock
+      REAL(KIND(1D0)), DIMENSION(len_sim, 32), INTENT(IN) :: MetForcingBlock
       TYPE(SUEWS_CONFIG), INTENT(IN) :: config
       TYPE(SUEWS_SITE), INTENT(IN) :: siteInfo
       TYPE(SUEWS_STATE), INTENT(INOUT) :: modState
@@ -660,6 +660,8 @@ CONTAINS
          forcing%Wu_mm_grass = MetForcingBlock(ir, 28)
          forcing%Wu_mm_bsoil = MetForcingBlock(ir, 29)
          forcing%Wu_mm_water = MetForcingBlock(ir, 30)
+         forcing%kdiff = MetForcingBlock(ir, 31)
+         forcing%kdir = MetForcingBlock(ir, 32)
 
          ! === Call main calculation ===
          CALL SUEWS_cal_Main( &
@@ -1386,7 +1388,7 @@ CONTAINS
       modState, & ! input/output:
       dataOutLineSPARTACUS) ! output
       USE module_phys_narp, ONLY: RadMethod, NARP
-      USE module_phys_spartacus, ONLY: SPARTACUS
+      USE module_phys_spartacus, ONLY: SPARTACUS, split_shortwave_epw_disc, split_shortwave_forcing
       USE module_ctrl_type, ONLY: SUEWS_SITE, SUEWS_TIMER, SUEWS_CONFIG, SUEWS_FORCING
       USE module_ctrl_type, ONLY: SUEWS_CONFIG, SUEWS_TIMER, SNOW_STATE, SNOW_PRM, &
                                SUEWS_FORCING, SUEWS_SITE, &
@@ -1409,6 +1411,9 @@ CONTAINS
       REAL(KIND(1D0)), DIMENSION(nsurf) :: SnowFrac ! snow fractions of each surface [-]
       REAL(KIND(1D0)) :: albedo_snowfree !estimated albedo for snow-free surface [-]
       REAL(KIND(1D0)) :: SnowAlb ! updated snow albedo [-]
+      REAL(KIND(1D0)) :: kdown_direct ! direct-horizontal irradiance [W m-2]
+      REAL(KIND(1D0)) :: kdown_diffuse ! diffuse-horizontal irradiance [W m-2]
+      LOGICAL :: forcing_split_valid
 
       REAL(KIND(1D0)), DIMENSION(nsurf) :: lup_ind !outgoing longwave radiation from observation [W m-2]
       REAL(KIND(1D0)), DIMENSION(nsurf) :: kup_ind !outgoing shortwave radiation from observation [W m-2]
@@ -1469,15 +1474,18 @@ CONTAINS
             LAI_id => phenState%LAI_id, &
             storageheatmethod => config%StorageHeatMethod, &
             NetRadiationMethod => config%NetRadiationMethod, &
+            KdownSplitMethod => config%KdownSplitMethod, &
             SnowUse => config%SnowUse, &
             Diagnose => config%Diagnose, &
             use_sw_direct_albedo => config%use_sw_direct_albedo, &
+            id => timer%id, &
             tstep => timer%tstep, &
             ldown_obs => forcing%l_down, &
             fcld_obs => forcing%f_cloud, &
             kdown => forcing%kdown, &
             Tair_C => forcing%Temp_C, &
             avRH => forcing%RH, &
+            Press_hPa => forcing%pres, &
             qn1_obs => forcing%qn1_obs, &
             SnowPack_prev => snowState%snow_pack, &
             SnowAlb_prev => snowState%snow_albedo, &
@@ -1503,6 +1511,8 @@ CONTAINS
             qn_wall => heatState%qn_wall, &
             Tsurf_ind => heatState%Tsurf_ind, &
             buildings => stebbsState%buildings, &
+            rsl_z => stebbsState%z_array, &
+            rsl_t_C => stebbsState%dataout_line_t_rsl, &
             spartacusPrm => siteInfo%spartacus, &
             spartacusLayerPrm => siteInfo%spartacus_layer, &
             NARP_TRANS_SITE => siteInfo%NARP_TRANS_SITE, &
@@ -1531,8 +1541,11 @@ CONTAINS
                roof_albedo_dir_mult_fact => spartacusLayerPrm%roof_albedo_dir_mult_fact, &
                wall_specular_frac => spartacusLayerPrm%wall_specular_frac, &
                n_vegetation_region_urban => spartacusPrm%n_vegetation_region_urban, &
+               n_vegetation_region_forest => spartacusPrm%n_vegetation_region_forest, &
                n_stream_sw_urban => spartacusPrm%n_stream_sw_urban, &
+               n_stream_sw_forest => spartacusPrm%n_stream_sw_forest, &
                n_stream_lw_urban => spartacusPrm%n_stream_lw_urban, &
+               n_stream_lw_forest => spartacusPrm%n_stream_lw_forest, &
                sw_dn_direct_frac => spartacusPrm%sw_dn_direct_frac, &
                air_ext_sw => spartacusPrm%air_ext_sw, &
                air_ssa_sw => spartacusPrm%air_ssa_sw, &
@@ -1544,6 +1557,12 @@ CONTAINS
                veg_contact_fraction_const => spartacusPrm%veg_contact_fraction_const, &
                ground_albedo_dir_mult_fact => spartacusPrm%ground_albedo_dir_mult_fact, &
                height => spartacusPrm%height, &
+               bldgH => bldgPrm%height_building, &
+               sfr_evetr => evetrPrm%sfr, &
+               sfr_dectr => dectrPrm%sfr, &
+               EveTreeH => evetrPrm%height_evergreen_tree, &
+               DecTreeH => dectrPrm%height_deciduous_tree, &
+               veg_ext_input => spartacusLayerPrm%veg_ext, &
                tau_a => snowPrm%tau_a, &
                tau_f => snowPrm%tau_f, &
                SnowAlbMax => snowPrm%snow_albedo_max, &
@@ -1611,20 +1630,46 @@ CONTAINS
 
                   IF (Diagqn == 1) WRITE (*, *) 'Calling SPARTACUS:'
                   IF (NetRadiationMethod > 1000) THEN
+                     SELECT CASE (KdownSplitMethod)
+                     CASE (1) ! observed kdir (direct-normal) and kdiff (diffuse-horizontal) forcing
+                        CALL split_shortwave_forcing( &
+                           kdown, forcing%kdiff, forcing%kdir, zenith_deg, &
+                           kdown_direct, kdown_diffuse, forcing_split_valid)
+                        IF (.NOT. forcing_split_valid) THEN
+                           CALL split_shortwave_epw_disc( &
+                              kdown, id, zenith_deg, Tair_C, avRH, Press_hPa, &
+                              sw_dn_direct_frac, kdown_direct)
+                           kdown_diffuse = MAX(0.0D0, kdown - kdown_direct)
+                           CALL add_supy_warning( &
+                              'SUEWS: invalid kdir/kdiff forcing; using EPW Kdown split')
+                        END IF
+                     CASE (2) ! constant direct-horizontal fraction
+                        kdown_direct = MAX(0.0D0, kdown) &
+                                       *MAX(0.0D0, MIN(1.0D0, sw_dn_direct_frac))
+                        kdown_diffuse = MAX(0.0D0, kdown) - kdown_direct
+                     CASE DEFAULT ! EPW/DISC static-DIRINT split
+                        CALL split_shortwave_epw_disc( &
+                           kdown, id, zenith_deg, Tair_C, avRH, Press_hPa, &
+                           sw_dn_direct_frac, kdown_direct)
+                        kdown_diffuse = MAX(0.0D0, kdown - kdown_direct)
+                     END SELECT
+
                      ! TODO: TS 14 Feb 2022, ESTM development: introduce facet surface temperatures
                      CALL SPARTACUS( &
                         Diagqn, & !input:
                         sfr_surf, zenith_deg, nlayer, & !input:
                         tsfc_surf, tsfc_roof, tsfc_wall, &
-                        kdown, ldown, Tair_C, alb, emis, LAI_id, &
+                        kdown, kdown_direct, kdown_diffuse, ldown, Tair_C, rsl_z, rsl_t_C, alb, emis, LAI_id, &
                         n_vegetation_region_urban, &
-                        n_stream_sw_urban, n_stream_lw_urban, &
-                        sw_dn_direct_frac, air_ext_sw, air_ssa_sw, &
+                        n_vegetation_region_forest, &
+                        n_stream_sw_urban, n_stream_sw_forest, n_stream_lw_urban, n_stream_lw_forest, &
+                        air_ext_sw, air_ssa_sw, &
                         veg_ssa_sw, air_ext_lw, air_ssa_lw, veg_ssa_lw, &
                         veg_fsd_const, veg_contact_fraction_const, &
                         ground_albedo_dir_mult_fact, use_sw_direct_albedo, &
-                        height, building_frac, veg_frac, sfr_roof, sfr_wall, &
-                        building_scale, veg_scale, & !input:
+                        height, bldgH, sfr_evetr, sfr_dectr, EveTreeH, DecTreeH, &
+                        building_frac, veg_frac, sfr_roof, sfr_wall, &
+                        building_scale, veg_scale, veg_ext_input, & !input:
                         alb_roof, emis_roof, alb_wall, emis_wall, &
                         roof_albedo_dir_mult_fact, wall_specular_frac, &
                         qn, kup, lup, qn_roof, qn_wall, qn_surf, & !output:
@@ -4134,16 +4179,16 @@ CONTAINS
       kkAnOHM, Kmax, LAI_id, LAIMax, LAIMin, &
       LAIPower, LAIType, lat, lng, RSLLevel, MaxConductance, MaxFCMetab, MaxQFMetab, &
       SnowWater, MinFCMetab, MinQFMetab, min_res_bioCO2, &
-      NARP_EMIS_SNOW, NARP_TRANS_SITE, NetRadiationMethod, &
+      NARP_EMIS_SNOW, NARP_TRANS_SITE, NetRadiationMethod, KdownSplitMethod, &
       OHM_coef, OHMIncQF, OHM_threshSW, &
       OHM_threshWD, PipeCapacity, PopDensDaytime, &
       PopDensNighttime, PopProf_24hr, PorMax_dec, PorMin_dec, &
       PrecipLimit, PrecipLimitAlb, &
       QF0_BEU, Qf_A, Qf_B, Qf_C, &
       nlayer, &
-      n_vegetation_region_urban, &
-      n_stream_sw_urban, n_stream_lw_urban, &
-      sw_dn_direct_frac, air_ext_sw, air_ssa_sw, &
+      n_vegetation_region_urban, n_vegetation_region_forest, &
+      n_stream_sw_urban, n_stream_sw_forest, n_stream_lw_urban, &
+      n_stream_lw_forest, sw_dn_direct_frac, air_ext_sw, air_ssa_sw, &
       veg_ssa_sw, air_ext_lw, air_ssa_lw, veg_ssa_lw, &
       veg_fsd_const, veg_contact_fraction_const, &
       ground_albedo_dir_mult_fact, use_sw_direct_albedo, &
@@ -4185,7 +4230,7 @@ CONTAINS
       HotWaterTankWallConductivity, HotWaterTankInternalWallConvectionCoefficient, &
       HotWaterTankExternalWallConvectionCoefficient, DHWVesselWallConductivity, DHWVesselInternalWallConvectionCoefficient, &
       DHWVesselExternalWallConvectionCoefficient, DHWVesselWallEmissivity, HotWaterHeatingEfficiency, &
-      height, building_frac, veg_frac, building_scale, veg_scale, & !input: SPARTACUS
+      height, building_frac, veg_frac, building_scale, veg_scale, veg_ext, & !input: SPARTACUS
       alb_roof, emis_roof, alb_wall, emis_wall, &
       roof_albedo_dir_mult_fact, wall_specular_frac, &
       RadMeltFact, RAINCOVER, RainMaxRes, resp_a, resp_b, &
@@ -4264,6 +4309,7 @@ CONTAINS
       INTEGER, INTENT(IN) :: WaterUseMethod !Defines how external water use is calculated[-]
       INTEGER, INTENT(IN) :: RSLLevel !
       INTEGER, INTENT(IN) :: NetRadiationMethod ! method for calculation of radiation fluxes [-]
+      INTEGER, INTENT(IN) :: KdownSplitMethod ! method to partition Kdown into direct and diffuse radiation [-]
       INTEGER, INTENT(IN) :: StabilityMethod !method to calculate atmospheric stability [-]
       INTEGER, INTENT(IN) :: StorageHeatMethod
       INTEGER, INTENT(IN) :: SnowUse ! Determines whether the snow part of the model runs[-]
@@ -4314,7 +4360,10 @@ CONTAINS
       REAL(KIND(1D0)), INTENT(IN) :: ground_albedo_dir_mult_fact
       INTEGER, INTENT(IN) :: n_stream_lw_urban ! LW streams per hemisphere [-]
       INTEGER, INTENT(IN) :: n_stream_sw_urban ! shortwave diffuse streams per hemisphere [-]
+      INTEGER, INTENT(IN) :: n_stream_lw_forest ! longwave streams per hemisphere for forest columns [-]
+      INTEGER, INTENT(IN) :: n_stream_sw_forest ! shortwave diffuse streams per hemisphere for forest columns [-]
       INTEGER, INTENT(IN) :: n_vegetation_region_urban !Number of regions used to describe vegetation [-]
+      INTEGER, INTENT(IN) :: n_vegetation_region_forest !Number of regions used to describe forest vegetation [-]
       REAL(KIND(1D0)), INTENT(IN) :: sw_dn_direct_frac
       REAL(KIND(1D0)), INTENT(IN) :: veg_contact_fraction_const
       REAL(KIND(1D0)), INTENT(IN) :: veg_fsd_const
@@ -4325,6 +4374,7 @@ CONTAINS
       REAL(KIND(1D0)), DIMENSION(nlayer), INTENT(IN) :: building_scale ! diameter of buildings [[m]
       REAL(KIND(1D0)), DIMENSION(nlayer), INTENT(IN) :: veg_frac !vegetation fraction [-]
       REAL(KIND(1D0)), DIMENSION(nlayer), INTENT(IN) :: veg_scale ! scale of tree crowns [m]
+      REAL(KIND(1D0)), DIMENSION(nlayer), INTENT(IN) :: veg_ext ! vegetation extinction coefficient override [m-1]
       REAL(KIND(1D0)), DIMENSION(nlayer), INTENT(IN) :: alb_roof !albedo of roof [-]
       REAL(KIND(1D0)), DIMENSION(nlayer), INTENT(IN) :: emis_roof ! emissivity of roof [-]
       REAL(KIND(1D0)), DIMENSION(nlayer), INTENT(IN) :: alb_wall !albedo of wall [-]
@@ -4834,6 +4884,7 @@ CONTAINS
       config%SMDMethod = SMDMethod
       config%WaterUseMethod = WaterUseMethod
       config%NetRadiationMethod = NetRadiationMethod
+      config%KdownSplitMethod = KdownSplitMethod
       config%StabilityMethod = StabilityMethod
       config%StorageHeatMethod = StorageHeatMethod
       config%SnowUse = SnowUse
@@ -4889,7 +4940,10 @@ CONTAINS
       spartacusPrm%ground_albedo_dir_mult_fact = ground_albedo_dir_mult_fact
       spartacusPrm%n_stream_lw_urban = n_stream_lw_urban
       spartacusPrm%n_stream_sw_urban = n_stream_sw_urban
+      spartacusPrm%n_stream_lw_forest = n_stream_lw_forest
+      spartacusPrm%n_stream_sw_forest = n_stream_sw_forest
       spartacusPrm%n_vegetation_region_urban = n_vegetation_region_urban
+      spartacusPrm%n_vegetation_region_forest = n_vegetation_region_forest
       spartacusPrm%sw_dn_direct_frac = sw_dn_direct_frac
       spartacusPrm%veg_contact_fraction_const = veg_contact_fraction_const
       spartacusPrm%veg_fsd_const = veg_fsd_const
@@ -4900,6 +4954,7 @@ CONTAINS
       spartacusLayerPrm%building_scale = building_scale
       spartacusLayerPrm%veg_frac = veg_frac
       spartacusLayerPrm%veg_scale = veg_scale
+      spartacusLayerPrm%veg_ext = veg_ext
       spartacusLayerPrm%alb_roof = alb_roof
       spartacusLayerPrm%emis_roof = emis_roof
       spartacusLayerPrm%alb_wall = alb_wall

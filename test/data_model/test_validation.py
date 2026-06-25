@@ -2123,8 +2123,8 @@ def test_validate_spartacus_sfr_consistent_values():
     msgs = cfg._validate_spartacus_sfr(site, 0)
     assert msgs == []
 
-def test_validate_spartacus_sfr_mismatch_veg_frac():
-    """SPARTACUS SFR validation flags mismatch between evetr.sfr + dectr.sfr and veg_frac[0]."""
+def test_validate_spartacus_sfr_allows_veg_frac_below_tree_land_cover():
+    """SPARTACUS allows vegetation geometry that is smaller than tree land cover."""
     cfg = SUEWSConfig.model_construct()
     _force_set(cfg, "model", SimpleNamespace(physics=SimpleNamespace(net_radiation=1001)))
 
@@ -2134,7 +2134,8 @@ def test_validate_spartacus_sfr_mismatch_veg_frac():
     bldgs = SimpleNamespace(sfr=0.2)
     lc = SimpleNamespace(bldgs=bldgs, evetr=evetr, dectr=dectr)
 
-    # vertical_layers veg_frac: [0.1] -> mismatch with 0.4
+    # vertical_layers veg_frac can describe smaller vertical-layer geometry
+    # than the total tree land-cover fraction.
     vertical_layers = SimpleNamespace(
         building_frac=[0.2],
         veg_frac=[0.1],  # veg_frac[0] = 0.1
@@ -2143,12 +2144,7 @@ def test_validate_spartacus_sfr_mismatch_veg_frac():
     site = DummySite(properties=props, name="TestSite")
 
     msgs = cfg._validate_spartacus_sfr(site, 0)
-    assert msgs
-    assert any(
-        "evetr.sfr + dectr.sfr (0.4) does not match vertical_layers.veg_frac[0] (0.1)"
-        in m
-        for m in msgs
-    )
+    assert msgs == []
 
 def test_validate_spartacus_veg_dimensions_valid():
     """Test validate_spartacus_veg_dimensions passes with matching veg_frac and nlayer."""

@@ -2561,11 +2561,12 @@ class SUEWSConfig(BaseModel):
 
     def _validate_spartacus_sfr(self, site: Site, site_index: int) -> list:
         """
-        Validate SPARTACUS building surface fractions for a site.
+        Validate SPARTACUS surface-fraction consistency for a site.
 
-        If SPARTACUS is enabled, this function checks that the building
-        surface fraction (bldgs.sfr) matches the first entry of
-        vertical_layers.building_frac.
+        SPARTACUS vertical-layer fractions describe radiative geometry and
+        may be smaller than the corresponding land-cover surface fractions.
+        The historical first-layer equality checks for buildings and trees
+        are therefore intentionally not enforced here.
 
         Returns
         -------
@@ -2574,41 +2575,10 @@ class SUEWSConfig(BaseModel):
 
         Notes
         -----
-        - Uses a tolerance of 1e-6 for floating point comparisons.
-        - Returns early if required properties are missing.
+        Structural SPARTACUS checks, such as domain height and vegetation
+        above-canopy dimensions, are handled by the dedicated validators.
         """
-        issues: list = []
-        site_name = getattr(site, "name", f"Site {site_index}")
-        props = getattr(site, "properties", None)
-        if not props or not hasattr(props, "land_cover") or not props.land_cover:
-            return issues
-
-        lc = props.land_cover
-        bldgs = getattr(lc, "bldgs", None)
-        vertical_layers = getattr(props, "vertical_layers", None)
-        if not vertical_layers:
-            return issues
-
-        # Unwrap values
-        bldgs_sfr = _unwrap_value(getattr(bldgs, "sfr", None)) if bldgs else None
-
-        building_frac = _unwrap_value(getattr(vertical_layers, "building_frac", None))
-
-        tol = 1e-6
-
-        # Buildings: surface fraction vs first SPARTACUS layer
-        if (
-            isinstance(building_frac, (list, tuple))
-            and len(building_frac) > 0
-            and bldgs_sfr is not None
-        ):
-            if not np.isclose(bldgs_sfr, building_frac[0], atol=tol):
-                issues.append(
-                    f"{site_name}: bldgs.sfr ({bldgs_sfr}) does not match "
-                    f"vertical_layers.building_frac[0] ({building_frac[0]})"
-                )
-
-        return issues
+        return []
 
     def _validate_spartacus_veg_dimensions(self, site: Site, site_index: int) -> list:
         """

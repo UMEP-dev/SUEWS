@@ -42,22 +42,26 @@ def _forest_only_direct_albedo_state(df_state_init):
     return df_state
 
 
-def _mixed_tree_low_veg_layer_state(df_state_init):
+def _low_first_layer_geometry_state(df_state_init):
     df_state = df_state_init.iloc[[0]].copy()
 
     _set_columns(df_state, "sfr_surf", 0.0)
-    df_state.loc[:, ("sfr_surf", "(0,)")] = 0.5
+    df_state.loc[:, ("sfr_surf", "(0,)")] = 0.3
+    df_state.loc[:, ("sfr_surf", "(1,)")] = 0.2
     df_state.loc[:, ("sfr_surf", "(2,)")] = 0.2
     df_state.loc[:, ("sfr_surf", "(3,)")] = 0.3
 
     _set_columns(df_state, "building_frac", 0.0)
+    df_state.loc[:, ("building_frac", "(0,)")] = 0.1
     _set_columns(df_state, "sfr_roof", 0.0)
+    df_state.loc[:, ("sfr_roof", "(0,)")] = 0.1
     _set_columns(df_state, "sfr_wall", 0.0)
+    df_state.loc[:, ("sfr_wall", "(0,)")] = 0.1
     _set_columns(df_state, "veg_frac", 0.0)
     df_state.loc[:, ("veg_frac", "(0,)")] = 0.1
 
-    df_state.loc[:, ("bldgh", "0")] = 0.0
-    df_state.loc[:, ("faibldg", "0")] = 0.0
+    df_state.loc[:, ("bldgh", "0")] = 12.0
+    df_state.loc[:, ("faibldg", "0")] = 0.4
     df_state.loc[:, ("evetreeh", "0")] = 13.1
     df_state.loc[:, ("faievetree", "0")] = 0.3
     df_state.loc[:, ("dectreeh", "0")] = 12.0
@@ -95,9 +99,9 @@ def test_non_urban_spartacus_direct_albedo_runs_without_urban_arrays():
     assert np.isfinite(forest_fluxes.to_numpy()).all()
 
 
-def test_spartacus_runs_when_first_veg_layer_below_tree_land_cover():
+def test_spartacus_runs_when_first_layer_geometry_below_land_cover():
     df_state_init, df_forcing = sp.load_SampleData()
-    df_state = _mixed_tree_low_veg_layer_state(df_state_init)
+    df_state = _low_first_layer_geometry_state(df_state_init)
     df_forcing_daytime = df_forcing.loc[df_forcing["kdown"] > 100].iloc[:2]
 
     with warnings.catch_warnings():

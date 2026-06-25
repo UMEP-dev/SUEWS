@@ -119,7 +119,8 @@ SCHEMA_VERSIONS: dict[str, str] = {
         "controls, and the optional vertical_layers.veg_ext extinction override. "
         "Existing 2026.5 YAMLs remain compatible through a no-op migration "
         "because all new inputs have defaults and legacy "
-        "sites[*].properties.spartacus.sw_dn_direct_frac input is migrated."
+        "sites[*].properties.spartacus.sw_dn_direct_frac input remains "
+        "accepted at parse time and is copied into the model-owned value."
     ),
 }
 

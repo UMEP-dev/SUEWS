@@ -200,9 +200,13 @@ surface with default-backed controls:
            constant:
              sw_dn_direct_frac: 0.45
 
-  Legacy ``sites[*].properties.spartacus.sw_dn_direct_frac`` input is
-  still accepted and copied into the model-owned value when the new
-  field is absent.
+  This value moved from the per-site
+  ``sites[*].properties.spartacus.sw_dn_direct_frac`` location to the
+  model-global ``model.physics`` selector. Legacy input is still accepted
+  when the new field is absent: matching per-site values are copied into the
+  model-owned value, while distinct per-site values raise a ``multiple
+  distinct values`` error and must be reconciled to one shared value before
+  upgrading.
 - ``sites[*].properties.spartacus`` gains forest-column stream and
   vegetation-region settings:
   ``n_stream_lw_forest``, ``n_stream_sw_forest`` and

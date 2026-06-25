@@ -1640,8 +1640,8 @@ CONTAINS
                               kdown, id, zenith_deg, Tair_C, avRH, Press_hPa, &
                               sw_dn_direct_frac, kdown_direct)
                            kdown_diffuse = MAX(0.0D0, kdown - kdown_direct)
-                           IF (Diagnose == 1) WRITE (*, *) &
-                              'Invalid kdir/kdiff forcing; using EPW Kdown split.'
+                           CALL add_supy_warning( &
+                              'SUEWS: invalid kdir/kdiff forcing; using EPW Kdown split')
                         END IF
                      CASE (2) ! constant direct-horizontal fraction
                         kdown_direct = MAX(0.0D0, kdown) &

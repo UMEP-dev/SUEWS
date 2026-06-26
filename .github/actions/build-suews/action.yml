@@ -15,7 +15,7 @@ inputs:
     description: 'Python version to build for (always cp312 — emits cp312-abi3 wheel)'
     required: true
   test_tier:
-    description: 'Test tier: smoke, core, cfg, standard, or all'
+    description: 'Test tier: smoke, core, cfg, standard, physics-full, or all'
     required: false
     default: 'standard'
   is_testpypi_build:
@@ -179,6 +179,7 @@ runs:
               inputs.test_tier == 'core' && '-m "physics and (smoke or core) and not slow"' ||
               inputs.test_tier == 'cfg' && '-m "physics and (smoke or cfg) and not slow"' ||
               inputs.test_tier == 'standard' && '-m "physics and not slow"' ||
+              inputs.test_tier == 'physics-full' && '-m physics' ||
               inputs.test_tier == 'all' && '-m physics' ||
               '-m physics' }}
         MACOSX_DEPLOYMENT_TARGET: '15.0'

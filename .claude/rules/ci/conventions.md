@@ -232,6 +232,7 @@ Test tiers control which pytest markers run during CI builds. Defined via pytest
 - **core** (`-m "smoke or core"`) -- core physics and logic, includes smoke (~2-3 min)
 - **cfg** (`-m "smoke or cfg"`) -- config/schema validation, includes smoke (~2-3 min)
 - **standard** (`-m "not slow"`) -- all tests except slow-marked ones (~5-10 min)
+- **physics-full** (physics axis `-m physics`, incl. `slow`; api axis identical to `standard`) -- the physics-change tier (gh#1576). Widens only the physics axis to include `slow` so an output shift surfaces in the PR/merge queue rather than in the nightly; the api axis stays as `standard`.
 - **all** (no filter) -- full suite including slow tests (~15-30 min)
 
 Each higher tier is a superset of smoke. The `standard` tier excludes only `slow`-marked tests (>30s each).
@@ -255,10 +256,13 @@ The `determine_matrix` job (`build-publish_to_pypi.yml`) assigns tiers based on 
 - python or util: MINIMAL (1), test tier **standard**
 - ci or tests only: MINIMAL (1), test tier **smoke**
 - Python versions: BOOKEND (2)
+- **`0-physics:change` label override (gh#1576)**: a ready PR carrying this label runs test tier **physics-full** instead, so the full `-m physics` suite (incl. `slow`) gates the PR. Platforms are unchanged; physics tests are binary-determined and run on the build Python.
 
 ### Merge queue (`merge_group`)
 
 Always: PR_PLATFORMS (3), BOOKEND (2), test tier **standard**. No path-based differentiation -- the merge queue uses a fixed reduced matrix to validate the merge commit.
+
+**Exception (gh#1576):** when the queued PR carries `0-physics:change`, the merge queue runs test tier **physics-full** so the `slow` physics regression also gates the merge commit (this is the gap that let a known output-changing PR land in #1570). The PR number is derived from the queue ref and validated before the label is queried; if it cannot be identified (e.g. a batched group), the queue fails safe to **physics-full**.
 
 ### Nightly schedule / tag push
 
@@ -313,7 +317,7 @@ The merge queue deliberately uses a reduced matrix rather than the full matrix. 
 
 - macOS Intel x86_64 (legacy platform, declining user base)
 - Python 3.13 (intermediate version)
-- `slow`-marked tests (>30s each)
+- `slow`-marked tests (>30s each) -- **except** for PRs labelled `0-physics:change`, which run the **physics-full** tier so the `slow` physics regression gates the merge (gh#1576)
 
 **Rationale:** Full matrix (4 platforms x 3 Python = 12 jobs) would make the merge queue too slow for its purpose as a fast gatekeeper before landing on master. The reduced matrix covers all three major OS families and version boundary extremes where compatibility issues most commonly surface.
 

@@ -18,7 +18,7 @@ on:
         required: true
         type: string
       test_tier:
-        description: 'Test tier: smoke, core, cfg, standard, or all'
+        description: 'Test tier: smoke, core, cfg, standard, physics-full, or all'
         required: true
         type: string
       is_testpypi_build:

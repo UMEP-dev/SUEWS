@@ -300,10 +300,52 @@ jobs:
           persist-credentials: false
           path: _pr_meta
 
+      # gh#1576: detect the 0-physics:change label so the matrix can run the
+      # full -m physics tier (incl. slow) before merge rather than only in the
+      # nightly. On a PR the labels are in the event payload; in the merge queue
+      # the queue ref (gh-readonly-queue/<base>/pr-<n>-<sha>) carries the PR
+      # number, which we validate before querying the API.
+      - name: Detect physics-change label
+        id: physics-label
+        if: github.event_name == 'pull_request' || github.event_name == 'merge_group'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EVENT_NAME: ${{ github.event_name }}
+          PR_LABELS_JSON: ${{ github.event_name == 'pull_request' && toJSON(github.event.pull_request.labels.*.name) || '[]' }}
+          MERGE_HEAD_REF: ${{ github.event.merge_group.head_ref }}
+          REPO: ${{ github.repository }}
+          LABEL: '0-physics:change'
+        run: |
+          set -euo pipefail
+          found=false
+          if [[ "$EVENT_NAME" == "pull_request" ]]; then
+            # Labels arrive as a JSON array; match exactly via jq (label names
+            # may contain spaces or colons, so avoid newline/word splitting).
+            if printf '%s' "$PR_LABELS_JSON" | jq -e --arg l "$LABEL" 'any(.[]; . == $l)' >/dev/null; then
+              found=true
+            fi
+          elif [[ "$EVENT_NAME" == "merge_group" ]]; then
+            pr_num="$(printf '%s' "$MERGE_HEAD_REF" | sed -nE 's#.*/pr-([0-9]+)-[0-9a-f]+$#\1#p')"
+            if [[ "$pr_num" =~ ^[0-9]+$ ]]; then
+              if gh api "repos/${REPO}/issues/${pr_num}/labels" --jq '[.[].name]' \
+                   | jq -e --arg l "$LABEL" 'any(.[]; . == $l)' >/dev/null; then
+                found=true
+              fi
+            else
+              # Could not identify the queued PR (e.g. a batched group). Fail
+              # safe: run the full physics tier rather than risk missing a shift.
+              echo "::notice::merge_group PR number not parsed from queue ref; running full physics tier as a safe default"
+              found=true
+            fi
+          fi
+          echo "found=$found" >> "$GITHUB_OUTPUT"
+          echo "physics-change label present: $found"
+
       - name: Set matrix based on trigger type
         id: set-matrix
         env:
           EVENT_NAME: ${{ github.event_name }}
+          PHYSICS_CHANGE: ${{ steps.physics-label.outputs.found || 'false' }}
           IS_DRAFT: ${{ github.event.pull_request.draft }}
           FORTRAN_CHANGED: ${{ needs.detect-changes.outputs.fortran-changed || 'false' }}
           RUST_CHANGED: ${{ needs.detect-changes.outputs.rust-changed || 'false' }}

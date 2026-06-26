@@ -61,6 +61,8 @@ EXAMPLES:
   - Wired the `0-physics:change` classification label into `audit-pr`, `triage-pr`, and `triage-issue`; documented it in the `0-` automation namespace and added a contributor pointer in `CONTRIBUTING.md`.
 - [maintenance] CI: run the full physics test tier (incl. `slow`) on `0-physics:change` PRs and in the merge queue (#1576)
   - Added a `physics-full` test tier that widens only the physics axis to include `slow` (the api axis stays as `standard`); `determine-matrix.sh` selects it when the `0-physics:change` label is present, in both the ready-PR and `merge_group` contexts. This closes the gap where the merge queue's `standard` tier excluded `slow` physics, so a known output-changing PR (#1570) merged without the shift being caught until the nightly.
+- [maintenance] Refreshed the STEBBS building-energy regression fixture for the SPARTACUS longwave changes in #1570
+  - Regenerated `test/fixtures/data_test/stebbs_test/sample_output_stebbs.csv` so `QHload_cooling_FA` matches the updated longwave environment around the building. #1570 switched the SPARTACUS canyon clear-air longwave source from the forcing air temperature to the RSL-interpolated in-canopy temperature, which runs ~1 K warmer by day; incoming longwave on the wall rises, indoor air temperature increases ~0.5 K, and the threshold-driven cooling load switches on earlier (peak 28 W vs 19 W). Shortwave inputs, heating, lighting and water-mains outputs are unchanged.
 
 ### 24 Jun 2026
 

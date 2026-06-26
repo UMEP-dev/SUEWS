@@ -68,7 +68,7 @@ SUEWS requires the following meteorological variables:
    * - Incoming shortwave
      - W/m²
      - kdown
-     - Must be > 0
+     - Must be ≥ 0 (0 at night)
    * - Incoming longwave
      - W/m²
      - ldown

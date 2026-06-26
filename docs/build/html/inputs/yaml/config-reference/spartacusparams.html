@@ -10,7 +10,7 @@
 <meta content="SUEWS YAML configuration for spartacus parameters" name="description" />
 <meta content="SUEWS, YAML, spartacusparams, parameters, configuration" name="keywords" />
 
-    <title>4.3.40. SPARTACUS &#8212; SUEWS 2026.6.21.dev2 documentation</title>
+    <title>4.3.40. SPARTACUS &#8212; SUEWS 2026.6.25.dev2 documentation</title>
   
   
   
@@ -46,7 +46,7 @@
   <link rel="preload" as="script" href="../../../_static/scripts/bootstrap.js?digest=8878045cc6db502f8baf" />
 <link rel="preload" as="script" href="../../../_static/scripts/pydata-sphinx-theme.js?digest=8878045cc6db502f8baf" />
 
-    <script src="../../../_static/documentation_options.js?v=f32f9ac8"></script>
+    <script src="../../../_static/documentation_options.js?v=bb61dd99"></script>
     <script src="../../../_static/doctools.js?v=9bcbadda"></script>
     <script src="../../../_static/sphinx_highlight.js?v=dc90522c"></script>
     <script src="../../../_static/scripts/sphinx-book-theme.js?v=fab101a9"></script>
@@ -60,7 +60,7 @@
     <link rel="prev" title="4.3.39. Roof Layer" href="rooflayer.html" />
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
-  <meta name="docsearch:version" content="2026.6.21.dev2" />
+  <meta name="docsearch:version" content="2026.6.25.dev2" />
   </head>
   
   
@@ -102,7 +102,7 @@
   <div class="bd-header-announcement__content">
     <div style="background-color: #f0ad4e; border: 1px solid #eea236; border-radius: 4px; padding: 10px; margin: 10px 0;">
         <strong>⚠️ Development Version:</strong> This documentation was built from a development version
-        (2026.6.21.dev2, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/b9f09bfe806ff5ebbc88ae87c103f5ffa27a007e" style="color: #31708f;">b9f09bf</a>).
+        (2026.6.25.dev2, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/31e4d8bb1b6673f0872edb4b6fa91414ef7dc01f" style="color: #31708f;">31e4d8b</a>).
         Features described here may be unstable or subject to change. For stable documentation, please visit the
         <a href="https://docs.suews.io/stable/" style="color: #31708f;">latest release</a>.
     </div>
@@ -149,8 +149,8 @@
       
     
     
-    <img src="../../../_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.6.21.dev2 documentation - Home"/>
-    <img src="../../../_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.6.21.dev2 documentation - Home"/>
+    <img src="../../../_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.6.25.dev2 documentation - Home"/>
+    <img src="../../../_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.6.25.dev2 documentation - Home"/>
   
   
 </a></div>
@@ -650,6 +650,34 @@
 </dd></dl>
 
 <dl class="input option" id="index-8">
+<dt class="sig sig-object input" id="input-option-n_stream_lw_forest">
+<span class="sig-name descname"><span class="pre">n_stream_lw_forest</span></span><a class="headerlink" href="#input-option-n_stream_lw_forest" title="Link to this definition">#</a></dt>
+<dd><p>Number of streams for longwave radiation in forest columns</p>
+<dl class="field-list simple">
+<dt class="field-odd">Unit<span class="colon">:</span></dt>
+<dd class="field-odd"><p>dimensionless</p>
+</dd>
+<dt class="field-even">Example<span class="colon">:</span></dt>
+<dd class="field-even"><p><code class="docutils literal notranslate"><span class="pre">2</span></code></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="input option" id="index-9">
+<dt class="sig sig-object input" id="input-option-n_stream_sw_forest">
+<span class="sig-name descname"><span class="pre">n_stream_sw_forest</span></span><a class="headerlink" href="#input-option-n_stream_sw_forest" title="Link to this definition">#</a></dt>
+<dd><p>Number of streams for shortwave radiation in forest columns</p>
+<dl class="field-list simple">
+<dt class="field-odd">Unit<span class="colon">:</span></dt>
+<dd class="field-odd"><p>dimensionless</p>
+</dd>
+<dt class="field-even">Example<span class="colon">:</span></dt>
+<dd class="field-even"><p><code class="docutils literal notranslate"><span class="pre">1</span></code></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="input option" id="index-10">
 <dt class="sig sig-object input" id="input-option-n_vegetation_region_urban">
 <span class="sig-name descname"><span class="pre">n_vegetation_region_urban</span></span><a class="headerlink" href="#input-option-n_vegetation_region_urban" title="Link to this definition">#</a></dt>
 <dd><p>Number of vegetation regions in urban areas</p>
@@ -663,21 +691,21 @@
 </dl>
 </dd></dl>
 
-<dl class="input option" id="index-9">
-<dt class="sig sig-object input" id="input-option-sw_dn_direct_frac">
-<span class="sig-name descname"><span class="pre">sw_dn_direct_frac</span></span><a class="headerlink" href="#input-option-sw_dn_direct_frac" title="Link to this definition">#</a></dt>
-<dd><p>Fraction of downward shortwave radiation that is direct</p>
+<dl class="input option" id="index-11">
+<dt class="sig sig-object input" id="input-option-n_vegetation_region_forest">
+<span class="sig-name descname"><span class="pre">n_vegetation_region_forest</span></span><a class="headerlink" href="#input-option-n_vegetation_region_forest" title="Link to this definition">#</a></dt>
+<dd><p>Number of vegetation regions in forest columns</p>
 <dl class="field-list simple">
 <dt class="field-odd">Unit<span class="colon">:</span></dt>
 <dd class="field-odd"><p>dimensionless</p>
 </dd>
 <dt class="field-even">Example<span class="colon">:</span></dt>
-<dd class="field-even"><p><code class="docutils literal notranslate"><span class="pre">0.5</span></code></p>
+<dd class="field-even"><p><code class="docutils literal notranslate"><span class="pre">1</span></code></p>
 </dd>
 </dl>
 </dd></dl>
 
-<dl class="input option" id="index-10">
+<dl class="input option" id="index-12">
 <dt class="sig sig-object input" id="input-option-use_sw_direct_albedo">
 <span class="sig-name descname"><span class="pre">use_sw_direct_albedo</span></span><a class="headerlink" href="#input-option-use_sw_direct_albedo" title="Link to this definition">#</a></dt>
 <dd><p>Flag to use direct albedo for shortwave radiation</p>
@@ -691,7 +719,7 @@
 </dl>
 </dd></dl>
 
-<dl class="input option" id="index-11">
+<dl class="input option" id="index-13">
 <dt class="sig sig-object input" id="input-option-veg_contact_fraction_const">
 <span class="sig-name descname"><span class="pre">veg_contact_fraction_const</span></span><a class="headerlink" href="#input-option-veg_contact_fraction_const" title="Link to this definition">#</a></dt>
 <dd><p>Constant vegetation contact fraction</p>
@@ -705,7 +733,7 @@
 </dl>
 </dd></dl>
 
-<dl class="input option" id="index-12">
+<dl class="input option" id="index-14">
 <dt class="sig sig-object input" id="input-option-veg_fsd_const">
 <span class="sig-name descname"><span class="pre">veg_fsd_const</span></span><a class="headerlink" href="#input-option-veg_fsd_const" title="Link to this definition">#</a></dt>
 <dd><p>Constant vegetation fractional standard deviation</p>
@@ -719,7 +747,7 @@
 </dl>
 </dd></dl>
 
-<dl class="input option" id="index-13">
+<dl class="input option" id="index-15">
 <dt class="sig sig-object input" id="input-option-veg_ssa_lw">
 <span class="sig-name descname"><span class="pre">veg_ssa_lw</span></span><a class="headerlink" href="#input-option-veg_ssa_lw" title="Link to this definition">#</a></dt>
 <dd><p>Vegetation single scattering albedo for longwave radiation</p>
@@ -733,7 +761,7 @@
 </dl>
 </dd></dl>
 
-<dl class="input option" id="index-14">
+<dl class="input option" id="index-16">
 <dt class="sig sig-object input" id="input-option-veg_ssa_sw">
 <span class="sig-name descname"><span class="pre">veg_ssa_sw</span></span><a class="headerlink" href="#input-option-veg_ssa_sw" title="Link to this definition">#</a></dt>
 <dd><p>Vegetation single scattering albedo for shortwave radiation</p>
@@ -747,7 +775,7 @@
 </dl>
 </dd></dl>
 
-<dl class="input option" id="index-15">
+<dl class="input option" id="index-17">
 <dt class="sig sig-object input" id="input-option-ref">
 <span class="sig-name descname"><span class="pre">ref</span></span><a class="headerlink" href="#input-option-ref" title="Link to this definition">#</a></dt>
 <dd><p>The <code class="docutils literal notranslate"><span class="pre">ref</span></code> parameter group is defined by the <a class="reference internal" href="reference.html"><span class="doc">Reference Info</span></a> structure.</p>
@@ -824,8 +852,8 @@ By SUEWS dev team led by Prof Sue Grimmond
   <div class="footer-item">
     
 <div class="extra_footer">
-  <p>Version: 2026.6.21.dev2 |
-    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/b9f09bfe806ff5ebbc88ae87c103f5ffa27a007e">b9f09bf</a> |
+  <p>Version: 2026.6.25.dev2 |
+    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/31e4d8bb1b6673f0872edb4b6fa91414ef7dc01f">31e4d8b</a> |
     <a href="https://umep-dev.github.io/SUEWS/brand/showcase.html">Brand</a></p>
 </div>
   </div>

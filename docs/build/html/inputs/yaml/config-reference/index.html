@@ -8,7 +8,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>4.3. YAML Configuration Reference &#8212; SUEWS 2026.6.21.dev2 documentation</title>
+    <title>4.3. YAML Configuration Reference &#8212; SUEWS 2026.6.25.dev2 documentation</title>
   
   
   
@@ -44,7 +44,7 @@
   <link rel="preload" as="script" href="../../../_static/scripts/bootstrap.js?digest=8878045cc6db502f8baf" />
 <link rel="preload" as="script" href="../../../_static/scripts/pydata-sphinx-theme.js?digest=8878045cc6db502f8baf" />
 
-    <script src="../../../_static/documentation_options.js?v=f32f9ac8"></script>
+    <script src="../../../_static/documentation_options.js?v=bb61dd99"></script>
     <script src="../../../_static/doctools.js?v=9bcbadda"></script>
     <script src="../../../_static/sphinx_highlight.js?v=dc90522c"></script>
     <script src="../../../_static/scripts/sphinx-book-theme.js?v=fab101a9"></script>
@@ -58,7 +58,7 @@
     <link rel="prev" title="4.2. Meteorological Forcing Data" href="../../forcing-data.html" />
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
-  <meta name="docsearch:version" content="2026.6.21.dev2" />
+  <meta name="docsearch:version" content="2026.6.25.dev2" />
   </head>
   
   
@@ -100,7 +100,7 @@
   <div class="bd-header-announcement__content">
     <div style="background-color: #f0ad4e; border: 1px solid #eea236; border-radius: 4px; padding: 10px; margin: 10px 0;">
         <strong>⚠️ Development Version:</strong> This documentation was built from a development version
-        (2026.6.21.dev2, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/b9f09bfe806ff5ebbc88ae87c103f5ffa27a007e" style="color: #31708f;">b9f09bf</a>).
+        (2026.6.25.dev2, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/31e4d8bb1b6673f0872edb4b6fa91414ef7dc01f" style="color: #31708f;">31e4d8b</a>).
         Features described here may be unstable or subject to change. For stable documentation, please visit the
         <a href="https://docs.suews.io/stable/" style="color: #31708f;">latest release</a>.
     </div>
@@ -147,8 +147,8 @@
       
     
     
-    <img src="../../../_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.6.21.dev2 documentation - Home"/>
-    <img src="../../../_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.6.21.dev2 documentation - Home"/>
+    <img src="../../../_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.6.25.dev2 documentation - Home"/>
+    <img src="../../../_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.6.25.dev2 documentation - Home"/>
   
   
 </a></div>
@@ -616,17 +616,20 @@ Physics Methods</label><div class="sd-tab-content docutils">
 Parameters</label><div class="sd-tab-content docutils">
 <table class="hlist"><tr><td><ul class="simple">
 <li><p><a class="reference internal" href="modelphysics.html#input-option-net_radiation" title="net_radiation"><code class="xref input input-option docutils literal notranslate"><span class="pre">net_radiation</span></code></a></p></li>
+<li><p><a class="reference internal" href="modelphysics.html#input-option-kdown_split_method" title="kdown_split_method"><code class="xref input input-option docutils literal notranslate"><span class="pre">kdown_split_method</span></code></a></p></li>
 <li><p><a class="reference internal" href="modelphysics.html#input-option-emissions" title="emissions"><code class="xref input input-option docutils literal notranslate"><span class="pre">emissions</span></code></a></p></li>
 <li><p><a class="reference internal" href="modelphysics.html#input-option-storage_heat" title="storage_heat"><code class="xref input input-option docutils literal notranslate"><span class="pre">storage_heat</span></code></a></p></li>
 <li><p><a class="reference internal" href="modelphysics.html#input-option-ohm_inc_qf" title="ohm_inc_qf"><code class="xref input input-option docutils literal notranslate"><span class="pre">ohm_inc_qf</span></code></a></p></li>
 <li><p><a class="reference internal" href="modelphysics.html#input-option-roughness_length_momentum" title="roughness_length_momentum"><code class="xref input input-option docutils literal notranslate"><span class="pre">roughness_length_momentum</span></code></a></p></li>
+</ul>
+</td><td><ul class="simple">
 <li><p><a class="reference internal" href="modelphysics.html#input-option-roughness_length_heat" title="roughness_length_heat"><code class="xref input input-option docutils literal notranslate"><span class="pre">roughness_length_heat</span></code></a></p></li>
 <li><p><a class="reference internal" href="modelphysics.html#input-option-stability" title="stability"><code class="xref input input-option docutils literal notranslate"><span class="pre">stability</span></code></a></p></li>
 <li><p><a class="reference internal" href="modelphysics.html#input-option-soil_moisture_deficit" title="soil_moisture_deficit"><code class="xref input input-option docutils literal notranslate"><span class="pre">soil_moisture_deficit</span></code></a></p></li>
-</ul>
-</td><td><ul class="simple">
 <li><p><a class="reference internal" href="modelphysics.html#input-option-water_use" title="water_use"><code class="xref input input-option docutils literal notranslate"><span class="pre">water_use</span></code></a></p></li>
 <li><p><a class="reference internal" href="modelphysics.html#input-option-laimethod" title="laimethod"><code class="xref input input-option docutils literal notranslate"><span class="pre">laimethod</span></code></a></p></li>
+</ul>
+</td><td><ul class="simple">
 <li><p><a class="reference internal" href="modelphysics.html#input-option-roughness_sublayer" title="roughness_sublayer"><code class="xref input input-option docutils literal notranslate"><span class="pre">roughness_sublayer</span></code></a></p></li>
 <li><p><a class="reference internal" href="modelphysics.html#input-option-frontal_area_index" title="frontal_area_index"><code class="xref input input-option docutils literal notranslate"><span class="pre">frontal_area_index</span></code></a></p></li>
 <li><p><a class="reference internal" href="modelphysics.html#input-option-roughness_sublayer_level" title="roughness_sublayer_level"><code class="xref input input-option docutils literal notranslate"><span class="pre">roughness_sublayer_level</span></code></a></p></li>
@@ -716,7 +719,7 @@ SPARTACUS</label><div class="sd-tab-content docutils">
 <p><a class="reference internal" href="spartacusparams.html"><span class="doc">SPARTACUS</span></a></p>
 <details class="sd-sphinx-override sd-dropdown sd-card sd-mb-3 sd-shadow-sm">
 <summary class="sd-summary-title sd-card-header">
-<span class="sd-summary-text">14 parameters</span><span class="sd-summary-state-marker sd-summary-chevron-down"><svg version="1.1" width="1.5em" height="1.5em" class="sd-octicon sd-octicon-chevron-down" viewBox="0 0 24 24" aria-hidden="true"><path d="M5.22 8.22a.749.749 0 0 0 0 1.06l6.25 6.25a.749.749 0 0 0 1.06 0l6.25-6.25a.749.749 0 1 0-1.06-1.06L12 13.939 6.28 8.22a.749.749 0 0 0-1.06 0Z"></path></svg></span></summary><div class="sd-summary-content sd-card-body docutils">
+<span class="sd-summary-text">16 parameters</span><span class="sd-summary-state-marker sd-summary-chevron-down"><svg version="1.1" width="1.5em" height="1.5em" class="sd-octicon sd-octicon-chevron-down" viewBox="0 0 24 24" aria-hidden="true"><path d="M5.22 8.22a.749.749 0 0 0 0 1.06l6.25 6.25a.749.749 0 0 0 1.06 0l6.25-6.25a.749.749 0 1 0-1.06-1.06L12 13.939 6.28 8.22a.749.749 0 0 0-1.06 0Z"></path></svg></span></summary><div class="sd-summary-content sd-card-body docutils">
 <ul class="simple">
 <li><p class="sd-card-text"><a class="reference internal" href="spartacusparams.html#input-option-air_ext_lw" title="air_ext_lw"><code class="xref input input-option docutils literal notranslate"><span class="pre">air_ext_lw</span></code></a></p></li>
 <li><p class="sd-card-text"><a class="reference internal" href="spartacusparams.html#input-option-air_ext_sw" title="air_ext_sw"><code class="xref input input-option docutils literal notranslate"><span class="pre">air_ext_sw</span></code></a></p></li>
@@ -725,8 +728,10 @@ SPARTACUS</label><div class="sd-tab-content docutils">
 <li><p class="sd-card-text"><a class="reference internal" href="spartacusparams.html#input-option-ground_albedo_dir_mult_fact" title="ground_albedo_dir_mult_fact"><code class="xref input input-option docutils literal notranslate"><span class="pre">ground_albedo_dir_mult_fact</span></code></a></p></li>
 <li><p class="sd-card-text"><a class="reference internal" href="spartacusparams.html#input-option-n_stream_lw_urban" title="n_stream_lw_urban"><code class="xref input input-option docutils literal notranslate"><span class="pre">n_stream_lw_urban</span></code></a></p></li>
 <li><p class="sd-card-text"><a class="reference internal" href="spartacusparams.html#input-option-n_stream_sw_urban" title="n_stream_sw_urban"><code class="xref input input-option docutils literal notranslate"><span class="pre">n_stream_sw_urban</span></code></a></p></li>
+<li><p class="sd-card-text"><a class="reference internal" href="spartacusparams.html#input-option-n_stream_lw_forest" title="n_stream_lw_forest"><code class="xref input input-option docutils literal notranslate"><span class="pre">n_stream_lw_forest</span></code></a></p></li>
+<li><p class="sd-card-text"><a class="reference internal" href="spartacusparams.html#input-option-n_stream_sw_forest" title="n_stream_sw_forest"><code class="xref input input-option docutils literal notranslate"><span class="pre">n_stream_sw_forest</span></code></a></p></li>
 <li><p class="sd-card-text"><a class="reference internal" href="spartacusparams.html#input-option-n_vegetation_region_urban" title="n_vegetation_region_urban"><code class="xref input input-option docutils literal notranslate"><span class="pre">n_vegetation_region_urban</span></code></a></p></li>
-<li><p class="sd-card-text"><a class="reference internal" href="spartacusparams.html#input-option-sw_dn_direct_frac" title="sw_dn_direct_frac"><code class="xref input input-option docutils literal notranslate"><span class="pre">sw_dn_direct_frac</span></code></a></p></li>
+<li><p class="sd-card-text"><a class="reference internal" href="spartacusparams.html#input-option-n_vegetation_region_forest" title="n_vegetation_region_forest"><code class="xref input input-option docutils literal notranslate"><span class="pre">n_vegetation_region_forest</span></code></a></p></li>
 <li><p class="sd-card-text"><a class="reference internal" href="spartacusparams.html#input-option-use_sw_direct_albedo" title="use_sw_direct_albedo"><code class="xref input input-option docutils literal notranslate"><span class="pre">use_sw_direct_albedo</span></code></a></p></li>
 <li><p class="sd-card-text"><a class="reference internal" href="spartacusparams.html#input-option-veg_contact_fraction_const" title="veg_contact_fraction_const"><code class="xref input input-option docutils literal notranslate"><span class="pre">veg_contact_fraction_const</span></code></a></p></li>
 <li><p class="sd-card-text"><a class="reference internal" href="spartacusparams.html#input-option-veg_fsd_const" title="veg_fsd_const"><code class="xref input input-option docutils literal notranslate"><span class="pre">veg_fsd_const</span></code></a></p></li>
@@ -1243,6 +1248,7 @@ Vertical Layers</label><div class="sd-tab-content docutils">
 <li><p><a class="reference internal" href="verticallayers.html#input-option-height" title="height"><code class="xref input input-option docutils literal notranslate"><span class="pre">height</span></code></a></p></li>
 <li><p><a class="reference internal" href="verticallayers.html#input-option-veg_frac" title="veg_frac"><code class="xref input input-option docutils literal notranslate"><span class="pre">veg_frac</span></code></a></p></li>
 <li><p><a class="reference internal" href="verticallayers.html#input-option-veg_scale" title="veg_scale"><code class="xref input input-option docutils literal notranslate"><span class="pre">veg_scale</span></code></a></p></li>
+<li><p><a class="reference internal" href="verticallayers.html#input-option-veg_ext" title="veg_ext"><code class="xref input input-option docutils literal notranslate"><span class="pre">veg_ext</span></code></a></p></li>
 <li><p><a class="reference internal" href="verticallayers.html#input-option-building_frac" title="building_frac"><code class="xref input input-option docutils literal notranslate"><span class="pre">building_frac</span></code></a></p></li>
 <li><p><a class="reference internal" href="verticallayers.html#input-option-building_scale" title="building_scale"><code class="xref input input-option docutils literal notranslate"><span class="pre">building_scale</span></code></a></p></li>
 <li><p><a class="reference internal" href="rooflayer.html"><span class="doc">Roof Layer</span></a></p>
@@ -1571,8 +1577,8 @@ By SUEWS dev team led by Prof Sue Grimmond
   <div class="footer-item">
     
 <div class="extra_footer">
-  <p>Version: 2026.6.21.dev2 |
-    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/b9f09bfe806ff5ebbc88ae87c103f5ffa27a007e">b9f09bf</a> |
+  <p>Version: 2026.6.25.dev2 |
+    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/31e4d8bb1b6673f0872edb4b6fa91414ef7dc01f">31e4d8b</a> |
     <a href="https://umep-dev.github.io/SUEWS/brand/showcase.html">Brand</a></p>
 </div>
   </div>

@@ -10,7 +10,7 @@
 <meta content="SUEWS YAML configuration for physics methods parameters" name="description" />
 <meta content="SUEWS, YAML, modelphysics, parameters, configuration" name="keywords" />
 
-    <title>4.3.33. Physics Methods &#8212; SUEWS 2026.6.21.dev2 documentation</title>
+    <title>4.3.33. Physics Methods &#8212; SUEWS 2026.6.25.dev2 documentation</title>
   
   
   
@@ -46,7 +46,7 @@
   <link rel="preload" as="script" href="../../../_static/scripts/bootstrap.js?digest=8878045cc6db502f8baf" />
 <link rel="preload" as="script" href="../../../_static/scripts/pydata-sphinx-theme.js?digest=8878045cc6db502f8baf" />
 
-    <script src="../../../_static/documentation_options.js?v=f32f9ac8"></script>
+    <script src="../../../_static/documentation_options.js?v=bb61dd99"></script>
     <script src="../../../_static/doctools.js?v=9bcbadda"></script>
     <script src="../../../_static/sphinx_highlight.js?v=dc90522c"></script>
     <script src="../../../_static/scripts/sphinx-book-theme.js?v=fab101a9"></script>
@@ -60,7 +60,7 @@
     <link rel="prev" title="4.3.32. Model Control" href="modelcontrol.html" />
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
-  <meta name="docsearch:version" content="2026.6.21.dev2" />
+  <meta name="docsearch:version" content="2026.6.25.dev2" />
   </head>
   
   
@@ -102,7 +102,7 @@
   <div class="bd-header-announcement__content">
     <div style="background-color: #f0ad4e; border: 1px solid #eea236; border-radius: 4px; padding: 10px; margin: 10px 0;">
         <strong>⚠️ Development Version:</strong> This documentation was built from a development version
-        (2026.6.21.dev2, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/b9f09bfe806ff5ebbc88ae87c103f5ffa27a007e" style="color: #31708f;">b9f09bf</a>).
+        (2026.6.25.dev2, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/31e4d8bb1b6673f0872edb4b6fa91414ef7dc01f" style="color: #31708f;">31e4d8b</a>).
         Features described here may be unstable or subject to change. For stable documentation, please visit the
         <a href="https://docs.suews.io/stable/" style="color: #31708f;">latest release</a>.
     </div>
@@ -149,8 +149,8 @@
       
     
     
-    <img src="../../../_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.6.21.dev2 documentation - Home"/>
-    <img src="../../../_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.6.21.dev2 documentation - Home"/>
+    <img src="../../../_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.6.25.dev2 documentation - Home"/>
+    <img src="../../../_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.6.25.dev2 documentation - Home"/>
   
   
 </a></div>
@@ -795,8 +795,31 @@
 </div>
 </dd></dl>
 
+<dl class="input option" id="index-2">
+<dt class="sig sig-object input" id="input-option-kdown_split_method">
+<span class="sig-name descname"><span class="pre">kdown_split_method</span></span><a class="headerlink" href="#input-option-kdown_split_method" title="Link to this definition">#</a></dt>
+<dd><p>Method for partitioning global horizontal irradiance into direct and diffuse components.</p>
+<dl class="field-list">
+<dt class="field-odd">Options<span class="colon">:</span></dt>
+<dd class="field-odd"><div class="line-block">
+<div class="line"><code class="docutils literal notranslate"><span class="pre">1</span></code> (FORCING) = Uses direct normal and diffuse horizontal irradiance from forcing data, with EPW fallback when invalid</div>
+<div class="line"><code class="docutils literal notranslate"><span class="pre">2</span></code> (CONSTANT) = Uses the configured sw_dn_direct_frac direct-horizontal fraction</div>
+<div class="line"><code class="docutils literal notranslate"><span class="pre">3</span></code> (EPW) = Uses the pressure-corrected DISC/static-DIRINT approach</div>
+</div>
+</dd>
+<dt class="field-even">Default<span class="colon">:</span></dt>
+<dd class="field-even"><p><code class="docutils literal notranslate"><span class="pre">3</span></code> (EPW)</p>
+</dd>
+</dl>
+<div class="note admonition">
+<p class="admonition-title">Method Interactions</p>
+<p>Use kdown_split_method.constant.sw_dn_direct_frac when selecting the constant split.</p>
+<p><strong>Depends on:</strong> <a class="reference internal" href="#net-radiation"><span class="std std-ref">net_radiation</span></a></p>
+</div>
+</dd></dl>
+
 <dl class="input option" id="emissions">
-<span id="index-2"></span><dt class="sig sig-object input" id="input-option-emissions">
+<span id="index-3"></span><dt class="sig sig-object input" id="input-option-emissions">
 <span class="sig-name descname"><span class="pre">emissions</span></span><a class="headerlink" href="#input-option-emissions" title="Link to this definition">#</a></dt>
 <dd><p>Method for calculating anthropogenic heat flux (QF) and CO2 emissions.</p>
 <div class="admonition note">
@@ -848,7 +871,7 @@
 </dd></dl>
 
 <dl class="input option" id="storage-heat">
-<span id="index-3"></span><dt class="sig sig-object input" id="input-option-storage_heat">
+<span id="index-4"></span><dt class="sig sig-object input" id="input-option-storage_heat">
 <span class="sig-name descname"><span class="pre">storage_heat</span></span><a class="headerlink" href="#input-option-storage_heat" title="Link to this definition">#</a></dt>
 <dd><p>Method for calculating storage heat flux (ΔQS).</p>
 <dl class="field-list">
@@ -874,7 +897,7 @@
 </dd></dl>
 
 <dl class="input option" id="ohm-inc-qf">
-<span id="index-4"></span><dt class="sig sig-object input" id="input-option-ohm_inc_qf">
+<span id="index-5"></span><dt class="sig sig-object input" id="input-option-ohm_inc_qf">
 <span class="sig-name descname"><span class="pre">ohm_inc_qf</span></span><a class="headerlink" href="#input-option-ohm_inc_qf" title="Link to this definition">#</a></dt>
 <dd><p>Controls inclusion of anthropogenic heat flux in OHM storage heat calculations.</p>
 <dl class="field-list">
@@ -897,7 +920,7 @@
 </dd></dl>
 
 <dl class="input option" id="roughness-length-momentum">
-<span id="index-5"></span><dt class="sig sig-object input" id="input-option-roughness_length_momentum">
+<span id="index-6"></span><dt class="sig sig-object input" id="input-option-roughness_length_momentum">
 <span class="sig-name descname"><span class="pre">roughness_length_momentum</span></span><a class="headerlink" href="#input-option-roughness_length_momentum" title="Link to this definition">#</a></dt>
 <dd><p>Method for calculating momentum roughness length (z0m).</p>
 <dl class="field-list">
@@ -921,7 +944,7 @@
 </dd></dl>
 
 <dl class="input option" id="roughness-length-heat">
-<span id="index-6"></span><dt class="sig sig-object input" id="input-option-roughness_length_heat">
+<span id="index-7"></span><dt class="sig sig-object input" id="input-option-roughness_length_heat">
 <span class="sig-name descname"><span class="pre">roughness_length_heat</span></span><a class="headerlink" href="#input-option-roughness_length_heat" title="Link to this definition">#</a></dt>
 <dd><p>Method for calculating thermal roughness length (z0h).</p>
 <dl class="field-list">
@@ -947,7 +970,7 @@
 </dd></dl>
 
 <dl class="input option" id="stability">
-<span id="index-7"></span><dt class="sig sig-object input" id="input-option-stability">
+<span id="index-8"></span><dt class="sig sig-object input" id="input-option-stability">
 <span class="sig-name descname"><span class="pre">stability</span></span><a class="headerlink" href="#input-option-stability" title="Link to this definition">#</a></dt>
 <dd><p>Atmospheric stability correction functions for momentum and heat fluxes.</p>
 <dl class="field-list">
@@ -967,7 +990,7 @@
 </div>
 </dd></dl>
 
-<dl class="input option" id="index-8">
+<dl class="input option" id="index-9">
 <dt class="sig sig-object input" id="input-option-soil_moisture_deficit">
 <span class="sig-name descname"><span class="pre">soil_moisture_deficit</span></span><a class="headerlink" href="#input-option-soil_moisture_deficit" title="Link to this definition">#</a></dt>
 <dd><p>Method for determining soil moisture deficit (SMD).</p>
@@ -985,7 +1008,7 @@
 </dl>
 </dd></dl>
 
-<dl class="input option" id="index-9">
+<dl class="input option" id="index-10">
 <dt class="sig sig-object input" id="input-option-water_use">
 <span class="sig-name descname"><span class="pre">water_use</span></span><a class="headerlink" href="#input-option-water_use" title="Link to this definition">#</a></dt>
 <dd><p>Method for determining external water use (irrigation).</p>
@@ -1002,7 +1025,7 @@
 </dl>
 </dd></dl>
 
-<dl class="input option" id="index-10">
+<dl class="input option" id="index-11">
 <dt class="sig sig-object input" id="input-option-laimethod">
 <span class="sig-name descname"><span class="pre">laimethod</span></span><a class="headerlink" href="#input-option-laimethod" title="Link to this definition">#</a></dt>
 <dd><p>Method for determining leaf area index (LAI).</p>
@@ -1024,7 +1047,7 @@
 </dd></dl>
 
 <dl class="input option" id="roughness-sublayer">
-<span id="index-11"></span><dt class="sig sig-object input" id="input-option-roughness_sublayer">
+<span id="index-12"></span><dt class="sig sig-object input" id="input-option-roughness_sublayer">
 <span class="sig-name descname"><span class="pre">roughness_sublayer</span></span><a class="headerlink" href="#input-option-roughness_sublayer" title="Link to this definition">#</a></dt>
 <dd><p>Roughness Sublayer (RSL) method for calculating near-surface meteorological diagnostics (2m temperature, 2m humidity, 10m wind speed).</p>
 <dl class="field-list">
@@ -1045,7 +1068,7 @@
 </div>
 </dd></dl>
 
-<dl class="input option" id="index-12">
+<dl class="input option" id="index-13">
 <dt class="sig sig-object input" id="input-option-frontal_area_index">
 <span class="sig-name descname"><span class="pre">frontal_area_index</span></span><a class="headerlink" href="#input-option-frontal_area_index" title="Link to this definition">#</a></dt>
 <dd><p>Method for calculating frontal area index (FAI) - the ratio of frontal area to plan area.</p>
@@ -1062,7 +1085,7 @@
 </dd></dl>
 
 <dl class="input option" id="roughness-sublayer-level">
-<span id="index-13"></span><dt class="sig sig-object input" id="input-option-roughness_sublayer_level">
+<span id="index-14"></span><dt class="sig sig-object input" id="input-option-roughness_sublayer_level">
 <span class="sig-name descname"><span class="pre">roughness_sublayer_level</span></span><a class="headerlink" href="#input-option-roughness_sublayer_level" title="Link to this definition">#</a></dt>
 <dd><p>Method for incorporating local environmental feedbacks on surface processes, particularly vegetation phenology and evapotranspiration responses to urban heat island effects.</p>
 <dl class="field-list">
@@ -1086,7 +1109,7 @@
 </dd></dl>
 
 <dl class="input option" id="surface-conductance">
-<span id="index-14"></span><dt class="sig sig-object input" id="input-option-surface_conductance">
+<span id="index-15"></span><dt class="sig sig-object input" id="input-option-surface_conductance">
 <span class="sig-name descname"><span class="pre">surface_conductance</span></span><a class="headerlink" href="#input-option-surface_conductance" title="Link to this definition">#</a></dt>
 <dd><p>Stomatal conductance parameterisation method for vegetation surfaces.</p>
 <dl class="field-list">
@@ -1108,7 +1131,7 @@
 </dd></dl>
 
 <dl class="input option" id="snow-use">
-<span id="index-15"></span><dt class="sig sig-object input" id="input-option-snow_use">
+<span id="index-16"></span><dt class="sig sig-object input" id="input-option-snow_use">
 <span class="sig-name descname"><span class="pre">snow_use</span></span><a class="headerlink" href="#input-option-snow_use" title="Link to this definition">#</a></dt>
 <dd><p>Controls snow process calculations (Järvi et al. 2014).</p>
 <dl class="field-list">
@@ -1130,7 +1153,7 @@
 </dd></dl>
 
 <dl class="input option" id="stebbs">
-<span id="index-16"></span><dt class="sig sig-object input" id="input-option-stebbs">
+<span id="index-17"></span><dt class="sig sig-object input" id="input-option-stebbs">
 <span class="sig-name descname"><span class="pre">stebbs</span></span><a class="headerlink" href="#input-option-stebbs" title="Link to this definition">#</a></dt>
 <dd><p>STEBBS physics switches (gh#1456): master toggle (enabled + parameters), capacitance method, setpoint method, and the same-albedo / same-emissivity wall/roof switches.</p>
 <div class="note admonition">
@@ -1142,7 +1165,7 @@
 <p>The <code class="docutils literal notranslate"><span class="pre">stebbs</span></code> parameter group is defined by the <a class="reference internal" href="stebbsphysics.html"><span class="doc">STEBBS Physics Methods</span></a> structure.</p>
 </dd></dl>
 
-<dl class="input option" id="index-17">
+<dl class="input option" id="index-18">
 <dt class="sig sig-object input" id="input-option-ref">
 <span class="sig-name descname"><span class="pre">ref</span></span><a class="headerlink" href="#input-option-ref" title="Link to this definition">#</a></dt>
 <dd><p>The <code class="docutils literal notranslate"><span class="pre">ref</span></code> parameter group is defined by the <a class="reference internal" href="reference.html"><span class="doc">Reference Info</span></a> structure.</p>
@@ -1219,8 +1242,8 @@ By SUEWS dev team led by Prof Sue Grimmond
   <div class="footer-item">
     
 <div class="extra_footer">
-  <p>Version: 2026.6.21.dev2 |
-    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/b9f09bfe806ff5ebbc88ae87c103f5ffa27a007e">b9f09bf</a> |
+  <p>Version: 2026.6.25.dev2 |
+    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/31e4d8bb1b6673f0872edb4b6fa91414ef7dc01f">31e4d8b</a> |
     <a href="https://umep-dev.github.io/SUEWS/brand/showcase.html">Brand</a></p>
 </div>
   </div>

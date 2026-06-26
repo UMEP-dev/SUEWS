@@ -8,8 +8,8 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <meta property="article:modified_time" content="2026-06-05T06:25:29+00:00" />
-    <title>4.5. Transitioning to YAML-based Configuration &#8212; SUEWS 2026.6.21.dev2 documentation</title>
+    <meta property="article:modified_time" content="2026-06-26T00:09:09+00:00" />
+    <title>4.5. Transitioning to YAML-based Configuration &#8212; SUEWS 2026.6.25.dev2 documentation</title>
   
   
   
@@ -45,7 +45,7 @@
   <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=8878045cc6db502f8baf" />
 <link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=8878045cc6db502f8baf" />
 
-    <script src="../_static/documentation_options.js?v=f32f9ac8"></script>
+    <script src="../_static/documentation_options.js?v=bb61dd99"></script>
     <script src="../_static/doctools.js?v=9bcbadda"></script>
     <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
     <script src="../_static/scripts/sphinx-book-theme.js?v=fab101a9"></script>
@@ -59,8 +59,8 @@
     <link rel="prev" title="4.4. SUEWS Format Converter" href="converter.html" />
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
-  <meta name="docsearch:version" content="2026.6.21.dev2" />
-    <meta name="docbuild:last-update" content="2026-06-05"/>
+  <meta name="docsearch:version" content="2026.6.25.dev2" />
+    <meta name="docbuild:last-update" content="2026-06-26"/>
   </head>
   
   
@@ -102,7 +102,7 @@
   <div class="bd-header-announcement__content">
     <div style="background-color: #f0ad4e; border: 1px solid #eea236; border-radius: 4px; padding: 10px; margin: 10px 0;">
         <strong>⚠️ Development Version:</strong> This documentation was built from a development version
-        (2026.6.21.dev2, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/b9f09bfe806ff5ebbc88ae87c103f5ffa27a007e" style="color: #31708f;">b9f09bf</a>).
+        (2026.6.25.dev2, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/31e4d8bb1b6673f0872edb4b6fa91414ef7dc01f" style="color: #31708f;">31e4d8b</a>).
         Features described here may be unstable or subject to change. For stable documentation, please visit the
         <a href="https://docs.suews.io/stable/" style="color: #31708f;">latest release</a>.
     </div>
@@ -149,8 +149,8 @@
       
     
     
-    <img src="../_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.6.21.dev2 documentation - Home"/>
-    <img src="../_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.6.21.dev2 documentation - Home"/>
+    <img src="../_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.6.25.dev2 documentation - Home"/>
+    <img src="../_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.6.25.dev2 documentation - Home"/>
   
   
 </a></div>
@@ -616,11 +616,12 @@
 </ul>
 </li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#yaml-schema-migrations">4.5.4. YAML Schema Migrations</a><ul class="nav section-nav flex-column">
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#upgrading-to-schema-2026-5">4.5.4.1. Upgrading to Schema 2026.5</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#upgrading-to-schema-2026-4-suews-2026-4-3">4.5.4.2. Upgrading to Schema 2026.4 (SUEWS 2026.4.3)</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#upgrading-to-schema-2026-1-suews-2026-1-28">4.5.4.3. Upgrading to Schema 2026.1 (SUEWS 2026.1.28)</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#preserving-your-values-through-renames">4.5.4.4. Preserving Your Values Through Renames</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#troubleshooting">4.5.4.5. Troubleshooting</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#upgrading-to-schema-2026-6-dev1">4.5.4.1. Upgrading to Schema 2026.6.dev1</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#upgrading-to-schema-2026-5">4.5.4.2. Upgrading to Schema 2026.5</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#upgrading-to-schema-2026-4-suews-2026-4-3">4.5.4.3. Upgrading to Schema 2026.4 (SUEWS 2026.4.3)</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#upgrading-to-schema-2026-1-suews-2026-1-28">4.5.4.4. Upgrading to Schema 2026.1 (SUEWS 2026.1.28)</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#preserving-your-values-through-renames">4.5.4.5. Preserving Your Values Through Renames</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#troubleshooting">4.5.4.6. Troubleshooting</a></li>
 </ul>
 </li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#nested-physics-sub-options-accept-only-gh-972">4.5.5. Nested Physics Sub-Options (accept-only, gh#972)</a></li>
@@ -799,8 +800,49 @@ reason so you can reconstruct intent if needed.</p>
 <p>The sections below summarise what users see change between schemas.
 The authoritative lineage (including release-tag to schema mapping)
 lives in <a class="reference internal" href="../contributing/schema/schema_versioning.html#schema-version-history"><span class="std std-ref">Version History</span></a>.</p>
+<section id="upgrading-to-schema-2026-6-dev1">
+<h3><span class="section-number">4.5.4.1. </span>Upgrading to Schema 2026.6.dev1<a class="headerlink" href="#upgrading-to-schema-2026-6-dev1" title="Link to this heading">#</a></h3>
+<p>Schema <code class="docutils literal notranslate"><span class="pre">2026.6.dev1</span></code> is the current development schema for the
+SPARTACUS direct/diffuse benchmark work. It extends the <code class="docutils literal notranslate"><span class="pre">2026.5</span></code>
+surface with default-backed controls:</p>
+<ul>
+<li><p><code class="docutils literal notranslate"><span class="pre">model.physics.kdown_split_method</span></code> selects forcing-provided,
+constant-fraction, or EPW-derived direct/diffuse shortwave
+partitioning. The constant split value is nested with the constant
+selector, for example:</p>
+<div class="highlight-yaml notranslate"><div class="highlight"><pre><span></span><span class="nt">model</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">physics</span><span class="p">:</span>
+<span class="w">    </span><span class="nt">kdown_split_method</span><span class="p">:</span>
+<span class="w">      </span><span class="nt">constant</span><span class="p">:</span>
+<span class="w">        </span><span class="nt">sw_dn_direct_frac</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">0.45</span>
+</pre></div>
+</div>
+<p>This value moved from the per-site
+<code class="docutils literal notranslate"><span class="pre">sites[*].properties.spartacus.sw_dn_direct_frac</span></code> location to the
+model-global <code class="docutils literal notranslate"><span class="pre">model.physics</span></code> selector. Legacy input is still accepted
+when the new field is absent: matching per-site values are copied into the
+model-owned value, while distinct per-site values raise a <code class="docutils literal notranslate"><span class="pre">multiple</span>
+<span class="pre">distinct</span> <span class="pre">values</span></code> error and must be reconciled to one shared value before
+upgrading.</p>
+</li>
+<li><p><code class="docutils literal notranslate"><span class="pre">sites[*].properties.spartacus</span></code> gains forest-column stream and
+vegetation-region settings:
+<code class="docutils literal notranslate"><span class="pre">n_stream_lw_forest</span></code>, <code class="docutils literal notranslate"><span class="pre">n_stream_sw_forest</span></code> and
+<code class="docutils literal notranslate"><span class="pre">n_vegetation_region_forest</span></code>.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">sites[*].properties.vertical_layers.veg_ext</span></code> optionally overrides
+the vegetation extinction coefficient per vertical layer; <code class="docutils literal notranslate"><span class="pre">-999</span></code>
+keeps the LAI-derived behaviour.</p></li>
+</ul>
+<p>Existing <code class="docutils literal notranslate"><span class="pre">2026.5</span></code> YAMLs do not need content edits because all new
+fields have defaults. The registered <code class="docutils literal notranslate"><span class="pre">(2026.5</span> <span class="pre">-&gt;</span> <span class="pre">2026.6.dev1)</span></code>
+handler is therefore a no-op content migration that stamps the new
+<code class="docutils literal notranslate"><span class="pre">schema_version</span></code>:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>suews<span class="w"> </span>schema<span class="w"> </span>migrate<span class="w"> </span>your_config.yml
+</pre></div>
+</div>
+</section>
 <section id="upgrading-to-schema-2026-5">
-<h3><span class="section-number">4.5.4.1. </span>Upgrading to Schema 2026.5<a class="headerlink" href="#upgrading-to-schema-2026-5" title="Link to this heading">#</a></h3>
+<h3><span class="section-number">4.5.4.2. </span>Upgrading to Schema 2026.5<a class="headerlink" href="#upgrading-to-schema-2026-5" title="Link to this heading">#</a></h3>
 <p>Schema <code class="docutils literal notranslate"><span class="pre">2026.5</span></code> is the YAML schema shipped with release <code class="docutils literal notranslate"><span class="pre">2026.6.5</span></code>.
 It is the single released label collapsing the <code class="docutils literal notranslate"><span class="pre">2026.5.dev1</span></code> ..
 <code class="docutils literal notranslate"><span class="pre">2026.5.dev14</span></code> development cycle: one <code class="docutils literal notranslate"><span class="pre">(2026.4</span> <span class="pre">-&gt;</span> <span class="pre">2026.5)</span></code> handler
@@ -861,7 +903,7 @@ DataFrame / Fortran column names are unchanged, so there is <strong>no
 model-output change</strong> versus <code class="docutils literal notranslate"><span class="pre">2026.4.3</span></code>.</p>
 </section>
 <section id="upgrading-to-schema-2026-4-suews-2026-4-3">
-<h3><span class="section-number">4.5.4.2. </span>Upgrading to Schema 2026.4 (SUEWS 2026.4.3)<a class="headerlink" href="#upgrading-to-schema-2026-4-suews-2026-4-3" title="Link to this heading">#</a></h3>
+<h3><span class="section-number">4.5.4.3. </span>Upgrading to Schema 2026.4 (SUEWS 2026.4.3)<a class="headerlink" href="#upgrading-to-schema-2026-4-suews-2026-4-3" title="Link to this heading">#</a></h3>
 <p>Upgrading from <code class="docutils literal notranslate"><span class="pre">2026.1</span></code> (shipped with 2026.1.28) or earlier applies
 the following deltas:</p>
 <ul class="simple">
@@ -889,7 +931,7 @@ further to the current 2026.5 schema, use
 <code class="docutils literal notranslate"><span class="pre">--target-version</span> <span class="pre">2026.5</span></code> (or omit the flag to reach the latest).</p>
 </section>
 <section id="upgrading-to-schema-2026-1-suews-2026-1-28">
-<h3><span class="section-number">4.5.4.3. </span>Upgrading to Schema 2026.1 (SUEWS 2026.1.28)<a class="headerlink" href="#upgrading-to-schema-2026-1-suews-2026-1-28" title="Link to this heading">#</a></h3>
+<h3><span class="section-number">4.5.4.4. </span>Upgrading to Schema 2026.1 (SUEWS 2026.1.28)<a class="headerlink" href="#upgrading-to-schema-2026-1-suews-2026-1-28" title="Link to this heading">#</a></h3>
 <p>Landed with the STEBBS clean-up (#879). If you are moving from the
 <code class="docutils literal notranslate"><span class="pre">2025.12</span></code> shape (2025.10.15 or 2025.11.20):</p>
 <ul class="simple">
@@ -913,7 +955,7 @@ work; the profiles default to previous scalar behaviour.</p></li>
 <p>Otherwise the 2026.4 -&gt; 2026.5 chain above is applied in one pass.</p>
 </section>
 <section id="preserving-your-values-through-renames">
-<h3><span class="section-number">4.5.4.4. </span>Preserving Your Values Through Renames<a class="headerlink" href="#preserving-your-values-through-renames" title="Link to this heading">#</a></h3>
+<h3><span class="section-number">4.5.4.5. </span>Preserving Your Values Through Renames<a class="headerlink" href="#preserving-your-values-through-renames" title="Link to this heading">#</a></h3>
 <p>The rename handlers preserve the user’s value. When both the old and
 the new key happen to be present in the same YAML (for example if
 you’ve partially hand-edited), the newer value wins and the stale
@@ -925,7 +967,7 @@ upgraded file, pass <code class="docutils literal notranslate"><span class="pre"
 </div>
 </section>
 <section id="troubleshooting">
-<h3><span class="section-number">4.5.4.5. </span>Troubleshooting<a class="headerlink" href="#troubleshooting" title="Link to this heading">#</a></h3>
+<h3><span class="section-number">4.5.4.6. </span>Troubleshooting<a class="headerlink" href="#troubleshooting" title="Link to this heading">#</a></h3>
 <p><strong>Common Issues and Solutions:</strong></p>
 <ol class="arabic simple">
 <li><p><strong>“Could not auto-detect version”</strong></p>
@@ -1106,11 +1148,12 @@ but their CO2 fluxes are discarded by the driver.</p>
 </ul>
 </li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#yaml-schema-migrations">4.5.4. YAML Schema Migrations</a><ul class="nav section-nav flex-column">
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#upgrading-to-schema-2026-5">4.5.4.1. Upgrading to Schema 2026.5</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#upgrading-to-schema-2026-4-suews-2026-4-3">4.5.4.2. Upgrading to Schema 2026.4 (SUEWS 2026.4.3)</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#upgrading-to-schema-2026-1-suews-2026-1-28">4.5.4.3. Upgrading to Schema 2026.1 (SUEWS 2026.1.28)</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#preserving-your-values-through-renames">4.5.4.4. Preserving Your Values Through Renames</a></li>
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#troubleshooting">4.5.4.5. Troubleshooting</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#upgrading-to-schema-2026-6-dev1">4.5.4.1. Upgrading to Schema 2026.6.dev1</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#upgrading-to-schema-2026-5">4.5.4.2. Upgrading to Schema 2026.5</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#upgrading-to-schema-2026-4-suews-2026-4-3">4.5.4.3. Upgrading to Schema 2026.4 (SUEWS 2026.4.3)</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#upgrading-to-schema-2026-1-suews-2026-1-28">4.5.4.4. Upgrading to Schema 2026.1 (SUEWS 2026.1.28)</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#preserving-your-values-through-renames">4.5.4.5. Preserving Your Values Through Renames</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#troubleshooting">4.5.4.6. Troubleshooting</a></li>
 </ul>
 </li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#nested-physics-sub-options-accept-only-gh-972">4.5.5. Nested Physics Sub-Options (accept-only, gh#972)</a></li>
@@ -1147,7 +1190,7 @@ By SUEWS dev team led by Prof Sue Grimmond
   
   <div class="footer-item">
     <p class="last-updated">
-  Last updated on 2026-06-05.
+  Last updated on 2026-06-26.
   <br/>
 </p>
   </div>
@@ -1155,8 +1198,8 @@ By SUEWS dev team led by Prof Sue Grimmond
   <div class="footer-item">
     
 <div class="extra_footer">
-  <p>Version: 2026.6.21.dev2 |
-    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/b9f09bfe806ff5ebbc88ae87c103f5ffa27a007e">b9f09bf</a> |
+  <p>Version: 2026.6.25.dev2 |
+    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/31e4d8bb1b6673f0872edb4b6fa91414ef7dc01f">31e4d8b</a> |
     <a href="https://umep-dev.github.io/SUEWS/brand/showcase.html">Brand</a></p>
 </div>
   </div>

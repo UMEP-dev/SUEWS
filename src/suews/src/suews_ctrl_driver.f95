@@ -25,6 +25,8 @@ MODULE SUEWS_Driver
                             SUEWS_STATE, SUEWS_DEBUG, STEBBS_STATE, BUILDING_ARCHETYPE_PRM, STEBBS_PRM, STEBBS_BLDG, &
                             SUEWS_STATE_BLOCK, &
                             output_line, output_block
+   USE module_type_surface, ONLY: ANOHM_MAX_SAMPLES, ANOHM_MIN_VALID_SAMPLES
+   USE module_phys_anohm, ONLY: AnOHM
    USE meteo, ONLY: qsatf, RH2qa, qa2RH
    USE module_phys_atmmoiststab, ONLY: cal_AtmMoist, cal_Stab, stab_psi_heat, stab_psi_mom, SUEWS_update_atmState
    USE module_phys_narp, ONLY: NARP_cal_SunPosition, NARP_update_SunPosition
@@ -1715,6 +1717,8 @@ CONTAINS
       REAL(KIND(1D0)), DIMENSION(nsurf) :: cpAnOHM ! heat capacity [J m-3 K-1]
       REAL(KIND(1D0)), DIMENSION(nsurf) :: kkAnOHM ! thermal conductivity [W m-1 K-1]
       REAL(KIND(1D0)), DIMENSION(nsurf) :: chAnOHM ! bulk transfer coef [J m-3 K-1]
+      REAL(KIND(1D0)), DIMENSION(nsurf) :: moist_surf ! normalised soil moisture state [-]
+      INTEGER :: is_anohm ! surface loop index for AnOHM moisture mapping
 
       REAL(KIND(1D0)), DIMENSION(27), INTENT(out) :: dataOutLineESTM !data output from ESTM
       REAL(KIND(1D0)), DIMENSION(ncolumnsDataOutSTEBBS - 5), INTENT(out) :: dataOutLineSTEBBS !data output from STEBBS
@@ -2050,7 +2054,8 @@ CONTAINS
                IF (StorageHeatMethod == 0) THEN !Use observed QS
                   qs = qs_obs
 
-               ELSEIF (StorageHeatMethod == 1 .OR. StorageHeatMethod == 6 .OR. StorageHeatMethod == 7) THEN !Use OHM to calculate QS
+               ELSEIF (StorageHeatMethod == 1 .OR. StorageHeatMethod == 6 .OR. StorageHeatMethod == 7 .OR. &
+                       (StorageHeatMethod == 3 .AND. .NOT. ohmState%anohm_coeff_ready)) THEN !OHM, or AnOHM spin-up fallback
                   Tair_mav_5d = HDD_id(10)
                   IF (Diagnose == 1) WRITE (*, *) 'Calling OHM...'
                   CALL OHM(qn_use, qn_surf, ohmState%qn_av, ohmState%dqndt, &
@@ -2099,27 +2104,39 @@ CONTAINS
 
                   END IF
 
-                  ! use AnOHM to calculate QS, TS 14 Mar 2016
-                  ! disable AnOHM, TS 20 Jul 2023
-                  ! ELSEIF (StorageHeatMethod == 3) THEN !
-                  !    IF (Diagnose == 1) WRITE (*, *) 'Calling AnOHM...'
-                  !    ! CALL AnOHM(qn1_use,qn1_store_grid,qn1_av_store_grid,qf,&
-                  !    !      MetForcingData_grid,state_id/StoreDrainPrm(6,:),&
-                  !    !      alb, emis, cpAnOHM, kkAnOHM, chAnOHM,&
-                  !    !      sfr_surf,nsurf,nsh,EmissionsMethod,id,Gridiv,&
-                  !    !      a1,a2,a3,qs,deltaQi)
-                  !    moist_surf = state_id/StoreDrainPrm(6, :)
-                  !    ! CALL AnOHM( &
-                  !    !    tstep, dt_since_start, &
-                  !    !    qn_use, qn_av_prev, dqndt_prev, qf, &
-                  !    !    MetForcingData_grid, moist_surf, &
-                  !    !    alb, emis, cpAnOHM, kkAnOHM, chAnOHM, & ! input
-                  !    !    sfr_surf, nsurf, EmissionsMethod, id, Gridiv, &
-                  !    !    qn_av_next, dqndt_next, &
-                  !    !    a1, a2, a3, qs, deltaQi) ! output
-                  !    QS_surf = qs
-                  !    QS_roof = qs
-                  !    QS_wall = qs
+                  ! AnOHM (StorageHeatMethod=3): coefficients diagnosed from the
+                  ! most recently completed day held in the rolling buffer, so no
+                  ! future forcing data is required. During spin-up (buffer not
+                  ! ready) the OHM branch above produces QS instead.
+               ELSEIF (StorageHeatMethod == 3) THEN
+                  DO is_anohm = 1, nsurf
+                     IF (StoreDrainPrm(6, is_anohm) > 0.0D0) THEN
+                        moist_surf(is_anohm) = MAX(0.0D0, MIN(1.0D0, state_id(is_anohm)/StoreDrainPrm(6, is_anohm)))
+                     ELSE
+                        moist_surf(is_anohm) = 0.0D0
+                     END IF
+                  END DO
+
+                  IF (Diagnose == 1) WRITE (*, *) 'Calling AnOHM...'
+                  CALL AnOHM( &
+                     tstep, dt_since_start, &
+                     qn_use, ohmState%qn_av, ohmState%dqndt, &
+                     ohmState%anohm_coeff_sd(1:ohmState%anohm_coeff_count), &
+                     ohmState%anohm_coeff_ta(1:ohmState%anohm_coeff_count), &
+                     ohmState%anohm_coeff_rh(1:ohmState%anohm_coeff_count), &
+                     ohmState%anohm_coeff_pres(1:ohmState%anohm_coeff_count), &
+                     ohmState%anohm_coeff_ws(1:ohmState%anohm_coeff_count), &
+                     ohmState%anohm_coeff_ah(1:ohmState%anohm_coeff_count), &
+                     ohmState%anohm_coeff_tHr(1:ohmState%anohm_coeff_count), &
+                     moist_surf, &
+                     alb, emis, cpAnOHM, kkAnOHM, chAnOHM, &
+                     sfr_surf, nsurf, ohmState%anohm_coeff_day, Gridiv, &
+                     ohmState%qn_av, ohmState%dqndt, &
+                     a1, a2, a3, qs, deltaQi, &
+                     modState)
+                  QS_surf = qs
+                  QS_roof = qs
+                  QS_wall = qs
 
                   ! !Calculate QS using ESTM
                ELSEIF (StorageHeatMethod == 4 .OR. StorageHeatMethod == 14) THEN
@@ -2172,6 +2189,93 @@ CONTAINS
       END ASSOCIATE
 
    END SUBROUTINE SUEWS_cal_Qs
+!=======================================================================
+
+   SUBROUTINE anohm_rollover_if_needed(timer, ohmState)
+      ! AnOHM (StorageHeatMethod=3): at a day change, promote the just-completed
+      ! working buffer into the coeff buffer and flag readiness once enough
+      ! samples are present. Replaces the legacy future-data forcing dependency.
+      TYPE(SUEWS_TIMER), INTENT(IN) :: timer
+      TYPE(OHM_STATE), INTENT(INOUT) :: ohmState
+
+      IF (ohmState%anohm_working_day == -999) THEN
+         ohmState%anohm_working_day = timer%id
+      END IF
+
+      IF (timer%id /= ohmState%anohm_working_day) THEN
+         IF (ohmState%anohm_working_count > 0) THEN
+            ohmState%anohm_coeff_tHr = ohmState%anohm_working_tHr
+            ohmState%anohm_coeff_sd = ohmState%anohm_working_sd
+            ohmState%anohm_coeff_ta = ohmState%anohm_working_ta
+            ohmState%anohm_coeff_rh = ohmState%anohm_working_rh
+            ohmState%anohm_coeff_pres = ohmState%anohm_working_pres
+            ohmState%anohm_coeff_ws = ohmState%anohm_working_ws
+            ohmState%anohm_coeff_ah = ohmState%anohm_working_ah
+            ohmState%anohm_coeff_day = ohmState%anohm_working_day
+            ohmState%anohm_coeff_count = MIN(ohmState%anohm_working_count, ANOHM_MAX_SAMPLES)
+            ohmState%anohm_coeff_ready = (ohmState%anohm_coeff_count >= ANOHM_MIN_VALID_SAMPLES)
+         ELSE
+            ohmState%anohm_coeff_ready = .FALSE.
+            ohmState%anohm_coeff_count = 0
+            ohmState%anohm_coeff_day = ohmState%anohm_working_day
+            ohmState%anohm_coeff_tHr = -999.0D0
+            ohmState%anohm_coeff_sd = -999.0D0
+            ohmState%anohm_coeff_ta = -999.0D0
+            ohmState%anohm_coeff_rh = -999.0D0
+            ohmState%anohm_coeff_pres = -999.0D0
+            ohmState%anohm_coeff_ws = -999.0D0
+            ohmState%anohm_coeff_ah = -999.0D0
+         END IF
+
+         ohmState%anohm_working_day = timer%id
+         ohmState%anohm_working_count = 0
+         ohmState%anohm_working_tHr = -999.0D0
+         ohmState%anohm_working_sd = -999.0D0
+         ohmState%anohm_working_ta = -999.0D0
+         ohmState%anohm_working_rh = -999.0D0
+         ohmState%anohm_working_pres = -999.0D0
+         ohmState%anohm_working_ws = -999.0D0
+         ohmState%anohm_working_ah = -999.0D0
+      END IF
+
+   END SUBROUTINE anohm_rollover_if_needed
+!=======================================================================
+
+   SUBROUTINE anohm_append_sample(timer, forcing, qf, ohmState)
+      ! AnOHM (StorageHeatMethod=3): append one on-the-hour forcing sample to the
+      ! working buffer for the day in progress.
+      TYPE(SUEWS_TIMER), INTENT(IN) :: timer
+      TYPE(SUEWS_FORCING), INTENT(IN) :: forcing
+      REAL(KIND(1D0)), INTENT(IN) :: qf
+      TYPE(OHM_STATE), INTENT(INOUT) :: ohmState
+
+      INTEGER :: idx
+
+      IF (ohmState%anohm_working_day == -999) THEN
+         ohmState%anohm_working_day = timer%id
+      END IF
+
+      IF (timer%id /= ohmState%anohm_working_day) THEN
+         CALL anohm_rollover_if_needed(timer, ohmState)
+      END IF
+
+      ! only retain one sample per hour, on the hour
+      IF (timer%imin /= 0 .OR. timer%isec /= 0) RETURN
+
+      idx = MIN(timer%it + 1, ANOHM_MAX_SAMPLES)
+      ohmState%anohm_working_tHr(idx) = REAL(timer%it, KIND(1D0))
+      ohmState%anohm_working_sd(idx) = forcing%kdown
+      ohmState%anohm_working_ta(idx) = forcing%temp_c
+      ohmState%anohm_working_rh(idx) = forcing%RH
+      ohmState%anohm_working_pres(idx) = forcing%pres
+      ohmState%anohm_working_ws(idx) = forcing%U
+      ohmState%anohm_working_ah(idx) = qf
+
+      IF (idx > ohmState%anohm_working_count) THEN
+         ohmState%anohm_working_count = idx
+      END IF
+
+   END SUBROUTINE anohm_append_sample
 !=======================================================================
 
 !==========================drainage and runoff================================
@@ -2237,6 +2341,11 @@ CONTAINS
 
             state_id = hydroState%state_surf
             StoreDrainPrm = phenState%storage_drain_params
+            IF (config%StorageHeatMethod == 3) THEN
+               ! AnOHM: accumulate the trailing-day forcing buffer each timestep
+               CALL anohm_rollover_if_needed(timer, modState%ohmState)
+               CALL anohm_append_sample(timer, forcing, modState%heatState%qf, modState%ohmState)
+            END IF
 
             ! sfr_surf = [pavedPrm%sfr, bldgPrm%sfr, evetrPrm%sfr, dectrPrm%sfr, grassPrm%sfr, bsoilPrm%sfr, waterPrm%sfr]
             WaterDist(1, 1) = pavedPrm%waterdist%to_paved

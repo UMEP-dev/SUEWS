@@ -54,6 +54,14 @@ EXAMPLES:
 
 ## 2026
 
+### 26 Jun 2026
+
+- [feature][experimental] Revived the AnOHM analytical storage-heat scheme (`StorageHeatMethod=3`), disabled since 2023, kept as an internal / not-recommended option (supersedes the stalled #1018)
+  - Replaced the future-data forcing dependency with a rolling trailing-day buffer on `OHM_STATE`, so coefficients are diagnosed from the most recently completed day
+  - Removed the minpack dependency: the diurnal sinusoid fit is now closed-form least squares and the Bowen-ratio fixed point a bounded damped iteration, both QGIS-safe (no stdout writes)
+  - Fixed an inverted `MIN`/`MAX` clamp on surface temperature in the Bowen-ratio residual that forced it to <= -40 degC
+  - Added `test/core/test_anohm_revival.py` (runs end-to-end, finite QS, AnOHM path engaged, stays internal)
+
 ### 20 Jun 2026
 
 - [bugfix] Corrected EHC heat-storage parameter packing so roof/wall thermal arrays follow SPARTACUS vertical layers while standard surface arrays follow the seven SUEWS surface classes (#1565)

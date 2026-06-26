@@ -81,6 +81,9 @@ jobs:
             core)     EXPR='api and (smoke or core) and not slow and not qgis' ;;
             cfg)      EXPR='api and (smoke or cfg) and not slow and not qgis' ;;
             standard) EXPR='api and not slow and not qgis' ;;
+            # physics-full (gh#1576): expand only the physics axis to include
+            # slow; the api axis stays identical to standard.
+            physics-full) EXPR='api and not slow and not qgis' ;;
             all)      EXPR='api' ;;
             *)        echo "::error::Unknown test_tier: $TIER"; exit 1 ;;
           esac

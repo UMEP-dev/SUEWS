@@ -59,6 +59,8 @@ EXAMPLES:
 - [maintenance] Added a recorded-scientific-evidence policy for physics-changing PRs (#1576)
   - New `.claude/rules/physics-change-evidence.md`: PRs that change model physics or move a reference output must carry a `## Scientific evidence` PR-body section, obtain domain-owner sign-off, refresh moved fixtures in the same PR, and run the full `-m physics` CI tier before merge.
   - Wired the `0-physics:change` classification label into `audit-pr`, `triage-pr`, and `triage-issue`; documented it in the `0-` automation namespace and added a contributor pointer in `CONTRIBUTING.md`.
+- [maintenance] CI: run the full physics test tier (incl. `slow`) on `0-physics:change` PRs and in the merge queue (#1576)
+  - Added a `physics-full` test tier that widens only the physics axis to include `slow` (the api axis stays as `standard`); `determine-matrix.sh` selects it when the `0-physics:change` label is present, in both the ready-PR and `merge_group` contexts. This closes the gap where the merge queue's `standard` tier excluded `slow` physics, so a known output-changing PR (#1570) merged without the shift being caught until the nightly.
 
 ### 24 Jun 2026
 

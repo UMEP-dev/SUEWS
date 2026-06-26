@@ -21,7 +21,7 @@
 ! Main module following naming standard: matches filename
 MODULE module_phys_anohm
    USE module_phys_ohm, ONLY: OHM_dqndt_cal_X, OHM_QS_cal
-   USE module_ctrl_error_state, ONLY: supy_error_flag
+   USE module_ctrl_error_state, ONLY: supy_error_flag, add_supy_warning
    USE module_ctrl_error, ONLY: ErrorHint
    USE module_ctrl_type, ONLY: SUEWS_STATE
 
@@ -1030,6 +1030,12 @@ CONTAINS
          END IF
       END DO
       xBo = x(1)
+      IF (info == 0) THEN
+         ! cap reached without convergence: keep the last iterate but make it
+         ! visible to SuPy (non-fatal; AnOHM is an internal/experimental scheme)
+         CALL add_supy_warning( &
+            'AnOHM_Bo_cal: Bowen-ratio fixed point did not converge within the iteration cap; using the last iterate')
+      END IF
 
       IF (ALLOCATED(x)) DEALLOCATE (x, stat=err)
       IF (err /= 0) PRINT *, "x: Deallocation request denied"

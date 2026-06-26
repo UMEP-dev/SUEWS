@@ -12,6 +12,7 @@ import numpy as np
 import pytest
 
 import supy as sp
+from supy.data_model.core.model import StorageHeatMethod
 
 pytestmark = [
     pytest.mark.physics,
@@ -28,7 +29,7 @@ def _run_storage_method(method, days=4):
                                "storage_heat": {"value": method}}}}
     )
     end = sim._df_forcing.index[days * 288 - 1]
-    return sim.run(end_date=end).df[("SUEWS", "QS")].to_numpy()
+    return sim.run(end_date=end).df["SUEWS", "QS"].to_numpy()
 
 
 def test_anohm_runs_and_is_finite():
@@ -58,6 +59,4 @@ def test_anohm_path_is_engaged():
 
 def test_anohm_marked_internal():
     """AnOHM stays an internal / not-recommended option (not user-facing)."""
-    from supy.data_model.core.model import StorageHeatMethod
-
     assert StorageHeatMethod.ANOHM._internal is True

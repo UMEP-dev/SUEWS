@@ -611,19 +611,19 @@ contains
         sw_norm_dir%clear_air_abs(:,ilay) = sw_norm_dir%clear_air_abs(:,ilay) &
              &  + air_ext(:,jlay)*(1.0_jprb-air_ssa(:,jlay)) &
              &    * (int_flux_dir(:,1) & ! / cos_sza &
-             &       + sum(int_flux_diff(:,1:ns) * spread(1.0_jprb/lg%mu,nsw,1), 2))
+             &       + sum(int_flux_diff(:,1:ns) * spread(1.0_jprb/lg%mu,1,nsw), 2))
         do jreg = 2,nreg
           ! Absorption by clear-air in the vegetated regions
           sw_norm_dir%veg_air_abs(:,ilay) = sw_norm_dir%veg_air_abs(:,ilay) &
                &  + air_ext(:,jlay)*(1.0_jprb-air_ssa(:,jlay)) & ! Use clear-air properties
                &    * (int_flux_dir(:,jreg) & ! / cos_sza &
                &       + sum(int_flux_diff(:,(jreg-1)*ns+1:jreg*ns) &
-               &             * spread(1.0_jprb/lg%mu,nsw,1), 2))
+               &             * spread(1.0_jprb/lg%mu,1,nsw), 2))
           sw_norm_dir%veg_abs(:,ilay) = sw_norm_dir%veg_abs(:,ilay) &
                &  + veg_ext(jlay)*(1.0_jprb-veg_ssa(:,jlay)) & ! Use vegetation properties
                &    * (int_flux_dir(:,jreg) & ! / cos_sza &
                &       + sum(int_flux_diff(:,(jreg-1)*ns+1:jreg*ns) &
-               &             * spread(1.0_jprb/lg%mu,nsw,1), 2)) * od_scaling(jreg,jlay)
+               &             * spread(1.0_jprb/lg%mu,1,nsw), 2)) * od_scaling(jreg,jlay)
         end do
 
 #ifdef PRINT_ARRAYS
@@ -687,17 +687,17 @@ contains
         ! Absorption by clear-air region - see Eqs. 29 and 30
         sw_norm_diff%clear_air_abs(:,ilay) = sw_norm_diff%clear_air_abs(:,ilay) &
              &  + air_ext(:,jlay)*(1.0_jprb-air_ssa(:,jlay)) &
-             &    * sum(int_flux_diff(:,1:ns) * spread(1.0_jprb/lg%mu,nsw,1), 2)
+             &    * sum(int_flux_diff(:,1:ns) * spread(1.0_jprb/lg%mu,1,nsw), 2)
         do jreg = 2,nreg
           ! Absorption by clear-air in the vegetated regions
           sw_norm_diff%veg_air_abs(:,ilay) = sw_norm_diff%veg_air_abs(:,ilay) &
                &  + air_ext(:,jlay)*(1.0_jprb-air_ssa(:,jlay)) & ! Use clear-air properties
                &    * sum(int_flux_diff(:,(jreg-1)*ns+1:jreg*ns) &
-               &             * spread(1.0_jprb/lg%mu,nsw,1), 2)
+               &             * spread(1.0_jprb/lg%mu,1,nsw), 2)
           sw_norm_diff%veg_abs(:,ilay) = sw_norm_diff%veg_abs(:,ilay) &
                &  + veg_ext(jlay)*(1.0_jprb-veg_ssa(:,jlay)) & ! Use vegetation properties
                &    * sum(int_flux_diff(:,(jreg-1)*ns+1:jreg*ns) &
-               &             * spread(1.0_jprb/lg%mu,nsw,1), 2) * od_scaling(jreg,jlay)
+               &             * spread(1.0_jprb/lg%mu,1,nsw), 2) * od_scaling(jreg,jlay)
         end do
 
 #ifdef PRINT_ARRAYS

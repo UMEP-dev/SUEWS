@@ -55,6 +55,7 @@ _STORAGE_HEAT_FAMILIES = frozenset(
 )
 _REFVALUE_KEYS = frozenset({"value", "ref"})
 _STORAGE_HEAT_QF_KEYS = ("include_qf", "ohm_inc_qf", "ohmincqf")
+_KDOWN_CONSTANT_FRACTION_KEY = "sw_dn_direct_frac"
 
 
 def _token(mapping: Mapping[str, Any], key: str, context: str) -> str | None:
@@ -149,6 +150,67 @@ def fold_storage_heat_ohm_inc_qf(values: dict, class_name: str) -> dict:
         f"{class_name}: nested 'storage_heat.ohm_inc_qf' requires either "
         "'storage_heat.scheme', a storage heat family tag, or 'storage_heat.value'."
     )
+
+
+def fold_kdown_split_constant_direct_fraction(
+    values: dict, class_name: str, *, store_fraction: bool = True
+) -> dict:
+    """Move ``kdown_split_method.constant.sw_dn_direct_frac`` to its flat store.
+
+    The public YAML owns the constant direct/diffuse split fraction under the
+    constant method selector, mirroring ``storage_heat.ohm.include_qf``.
+    """
+    split = values.get("kdown_split_method")
+    if not isinstance(split, Mapping) or "constant" not in split:
+        return values
+
+    outer_foreign = [key for key in split if key not in {"constant", "ref"}]
+    if outer_foreign:
+        raise ValueError(
+            f"{class_name}: 'kdown_split_method.constant' cannot be combined "
+            f"with sibling keys {sorted(outer_foreign)}."
+        )
+
+    block = split["constant"]
+    if not isinstance(block, Mapping):
+        raise ValueError(
+            f"{class_name}: 'kdown_split_method.constant' must be a mapping "
+            "with 'sw_dn_direct_frac'."
+        )
+    block = dict(block)
+
+    if _KDOWN_CONSTANT_FRACTION_KEY not in block:
+        raise ValueError(
+            f"{class_name}: 'kdown_split_method.constant' requires "
+            "'sw_dn_direct_frac'."
+        )
+
+    fraction_value = block.pop(_KDOWN_CONSTANT_FRACTION_KEY)
+    inner_foreign = [key for key in block if key != "ref"]
+    if inner_foreign:
+        raise ValueError(
+            f"{class_name}: 'kdown_split_method.constant' cannot be combined "
+            f"with inner keys {sorted(inner_foreign)}."
+        )
+
+    if store_fraction:
+        flat_key = "sw_dn_direct_frac"
+        if flat_key in values:
+            raise ValueError(
+                f"{class_name}: both flat '{flat_key}' and nested "
+                "'kdown_split_method.constant.sw_dn_direct_frac' are present. "
+                "Use only the nested form."
+            )
+        values[flat_key] = fraction_value
+
+    folded: dict[str, Any] = {"value": "constant"}
+    inner_ref = block.get("ref")
+    outer_ref = split.get("ref")
+    carried = inner_ref if inner_ref is not None else outer_ref
+    if carried is not None:
+        folded["ref"] = carried
+    values["kdown_split_method"] = folded
+    return values
 
 
 def _fold_storage_heat_ohm_block(

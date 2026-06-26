@@ -1,5 +1,5 @@
 name: sample_config
-schema_version: '2026.5'
+schema_version: '2026.6.dev1'
 description: Sample configuration built from benchmark 1a (Ward et al. 2016) model configuration
 model:
   control:
@@ -22,6 +22,9 @@ model:
     net_radiation:
       narp:
         ldown: air
+    kdown_split_method:
+      constant:
+        sw_dn_direct_frac: 0.45
     emissions:
       heat: J11
       co2:
@@ -106,10 +109,14 @@ sites:
         value: 4
       n_stream_sw_urban:
         value: 4
+      n_stream_lw_forest:
+        value: 4
+      n_stream_sw_forest:
+        value: 1
       n_vegetation_region_urban:
         value: 1
-      sw_dn_direct_frac:
-        value: 0.45
+      n_vegetation_region_forest:
+        value: 1
       use_sw_direct_albedo:
         value: 0.0
       veg_contact_fraction_const:
@@ -3265,6 +3272,11 @@ sites:
         - 10.0
         - 10.0
         - 10.0
+      veg_ext:
+        value:
+        - -999.0
+        - -999.0
+        - -999.0
       building_frac:
         value:
         - 0.43

@@ -27,7 +27,7 @@ use crate::snow::snow_state_from_ordered_values;
 use crate::snow_prm::snow_prm_from_ordered_values;
 use crate::solar::solar_state_from_ordered_values;
 use crate::spartacus_layer_prm::{spartacus_layer_prm_from_ordered_values, SpartacusLayerPrm};
-use crate::spartacus_prm::{spartacus_prm_from_ordered_values, SpartacusPrm};
+use crate::spartacus_prm::SpartacusPrm;
 use crate::stebbs_prm::stebbs_prm_from_ordered_values;
 use crate::stebbs_state::stebbs_state_from_ordered_values;
 use crate::suews_site::SuewsSite;
@@ -38,7 +38,7 @@ use crate::yaml_config::load_run_config_from_str;
 use std::ffi::CStr;
 use std::os::raw::c_char;
 
-pub const MET_FORCING_COLS: usize = 30;
+pub const MET_FORCING_COLS: usize = 32;
 
 // Per-group output column counts (including 5-column datetime prefix).
 // Auto-generated from Fortran ncolumnsDataOut* constants in suews_ctrl_const.f95.
@@ -404,8 +404,20 @@ fn validate_site_codec(
     let nlayer_usize = usize::try_from(nlayer).map_err(|_| BridgeError::BadBuffer)?;
 
     let spartacus_slice = member_slice(site_flat, site_toc, SITE_MEMBER_SPARTACUS)?;
+    let legacy_spartacus_len = 14usize
+        .checked_add(nlayer_usize + 1)
+        .ok_or(BridgeError::BadBuffer)?;
+    let v2_spartacus_len = 16usize
+        .checked_add(nlayer_usize + 1)
+        .ok_or(BridgeError::BadBuffer)?;
     let spartacus = if spartacus_slice.len() == 14 {
-        spartacus_prm_from_ordered_values(spartacus_slice)?
+        SpartacusPrm::from_legacy_flat_with_height_len(spartacus_slice, 0)?
+    } else if spartacus_slice.len() == legacy_spartacus_len {
+        SpartacusPrm::from_legacy_flat_with_height_len(spartacus_slice, nlayer_usize + 1)?
+    } else if spartacus_slice.len() == 16 {
+        SpartacusPrm::from_v2_flat_with_height_len(spartacus_slice, 0)?
+    } else if spartacus_slice.len() == v2_spartacus_len {
+        SpartacusPrm::from_v2_flat_with_height_len(spartacus_slice, nlayer_usize + 1)?
     } else {
         SpartacusPrm::from_flat_with_height_len(spartacus_slice, nlayer_usize + 1)?
     };
@@ -421,7 +433,7 @@ fn validate_site_codec(
     let spartacus_layer = if spartacus_layer_slice.is_empty() {
         spartacus_layer_prm_from_ordered_values(spartacus_layer_slice)?
     } else {
-        let base_len = 8usize
+        let base_len = 9usize
             .checked_mul(nlayer_usize)
             .ok_or(BridgeError::BadBuffer)?;
         if spartacus_layer_slice.len() < base_len {

@@ -15,8 +15,8 @@ MODULE module_c_api_config
    PUBLIC :: SUEWS_CAPI_BAD_BUFFER
    PUBLIC :: SUEWS_CAPI_BAD_STATE
 
-   INTEGER(c_int), PARAMETER, PUBLIC :: SUEWS_CAPI_CONFIG_LEN = 22_c_int
-   INTEGER(c_int), PARAMETER, PUBLIC :: SUEWS_CAPI_CONFIG_SCHEMA_VERSION = 2_c_int
+   INTEGER(c_int), PARAMETER, PUBLIC :: SUEWS_CAPI_CONFIG_LEN = 23_c_int
+   INTEGER(c_int), PARAMETER, PUBLIC :: SUEWS_CAPI_CONFIG_SCHEMA_VERSION = 3_c_int
 
    TYPE :: suews_config_shadow
       INTEGER :: rsl_method = 0
@@ -41,6 +41,7 @@ MODULE module_c_api_config
       INTEGER :: rc_method = 0
       INTEGER :: setpoint_method = 0
       LOGICAL :: flag_test = .FALSE.
+      INTEGER :: kdown_split_method = 3
    END TYPE suews_config_shadow
 
    PUBLIC :: suews_config_len
@@ -123,6 +124,7 @@ CONTAINS
       flat(20) = REAL(state%rc_method, c_double)
       flat(21) = REAL(state%setpoint_method, c_double)
       flat(22) = MERGE(1.0_c_double, 0.0_c_double, state%flag_test)
+      flat(23) = REAL(state%kdown_split_method, c_double)
 
       err = SUEWS_CAPI_OK
 

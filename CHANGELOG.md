@@ -54,6 +54,12 @@ EXAMPLES:
 
 ## 2026
 
+### 26 Jun 2026
+
+- [maintenance] Added a recorded-scientific-evidence policy for physics-changing PRs (#1576)
+  - New `.claude/rules/physics-change-evidence.md`: PRs that change model physics or move a reference output must carry a `## Scientific evidence` PR-body section, obtain domain-owner sign-off, refresh moved fixtures in the same PR, and run the full `-m physics` CI tier before merge.
+  - Wired the `0-physics:change` classification label into `audit-pr`, `triage-pr`, and `triage-issue`; documented it in the `0-` automation namespace and added a contributor pointer in `CONTRIBUTING.md`.
+
 ### 24 Jun 2026
 
 - [feature][experimental] Added configurable partitioning of global horizontal irradiance into direct and diffuse components for SPARTACUS-Surface (#1567)

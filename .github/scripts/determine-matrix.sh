@@ -28,6 +28,11 @@
 #   INPUT_PLAT_WINDOWS   -- inputs.plat_windows
 #   INPUT_PY312..PY314   -- inputs.py312..py314
 #   INPUT_TEST_TIER      -- inputs.test_tier (dispatch only)
+#   PHYSICS_CHANGE       -- "true" if the PR carries the 0-physics:change label
+#                           (gh#1576). On a ready PR or in the merge queue this
+#                           forces the physics-full tier so the full -m physics
+#                           suite (incl. slow) runs as a required check before
+#                           merge, not only in the nightly. Defaults to false.
 #   GITHUB_REF           -- github.ref (e.g. refs/tags/v2025a1)
 #   PR_PYPROJECT         -- path to the built ref's pyproject.toml (data only;
 #                           the requires-python floor source of truth). The
@@ -40,6 +45,7 @@ set -euo pipefail
 IS_DRAFT="${IS_DRAFT:-false}"
 INPUT_MATRIX_CONFIG="${INPUT_MATRIX_CONFIG:-}"
 INPUT_TEST_TIER="${INPUT_TEST_TIER:-all}"
+PHYSICS_CHANGE="${PHYSICS_CHANGE:-false}"
 GITHUB_REF="${GITHUB_REF:-}"
 
 # Platform presets
@@ -112,14 +118,30 @@ elif [[ "${EVENT_NAME}" == "pull_request" ]]; then
     echo "buildplat=$MINIMAL_PLATFORMS" >> "$GITHUB_OUTPUT"
     TIER=smoke
   fi
+  # gh#1576: a physics-change PR runs the full physics tier (incl. slow) so an
+  # output shift surfaces here rather than in the nightly. Only the physics axis
+  # widens; the api axis stays as standard (see test-api-cross-python EXPR map).
+  if [[ "${PHYSICS_CHANGE}" == "true" ]]; then
+    echo "Physics-change PR (0-physics:change) - forcing full physics tier (incl. slow)"
+    TIER=physics-full
+  fi
   echo "python=$BUILD_PYTHON" >> "$GITHUB_OUTPUT"
   echo "test_tier=$TIER" >> "$GITHUB_OUTPUT"
 
 elif [[ "${EVENT_NAME}" == "merge_group" ]]; then
-  echo "Merge queue validation - reduced platforms, standard tests"
+  # gh#1576: the merge queue otherwise runs `standard` (slow excluded), which is
+  # how a known output-changing PR landed without the shift being caught. When
+  # the queued PR carries 0-physics:change, run the full physics tier here too.
+  MERGE_TIER=standard
+  if [[ "${PHYSICS_CHANGE}" == "true" ]]; then
+    echo "Merge queue validation - physics-change PR, full physics tier (incl. slow)"
+    MERGE_TIER=physics-full
+  else
+    echo "Merge queue validation - reduced platforms, standard tests"
+  fi
   echo "buildplat=$PR_PLATFORMS" >> "$GITHUB_OUTPUT"
   echo "python=$BUILD_PYTHON" >> "$GITHUB_OUTPUT"
-  echo "test_tier=standard" >> "$GITHUB_OUTPUT"
+  echo "test_tier=$MERGE_TIER" >> "$GITHUB_OUTPUT"
 
 elif [[ "${EVENT_NAME}" == "schedule" ]]; then
   echo "Nightly - full matrix, all tests"

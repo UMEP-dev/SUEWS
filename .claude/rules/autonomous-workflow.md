@@ -194,3 +194,20 @@ time). A maintainer creates all six labels once; triage-pr applies those that
 already exist and never creates labels. If a label is absent, the verdict is
 recorded in the marker comment and verdict block only, with a note that the label
 is missing.
+
+## The 0-physics:change classification label
+
+`0-physics:change` is a classification label in the `0-` automation namespace,
+independent of the `0-pr:*` disposition family (a PR can carry both). It marks
+that a PR changes model physics or moves a reference output, and it activates the
+evidence gate in `.claude/rules/physics-change-evidence.md`: a `## Scientific
+evidence` PR-body section, domain-owner sign-off for any owned subsystem (STEBBS
+-> `@yiqing1021`), the reference-fixture refresh travelling in the same PR, and
+the full `-m physics` CI tier (including `slow`) running as a required check
+before merge. `triage-pr` and `audit-pr` apply it when the diff matches the
+physics-change triggers; a maintainer creates the label once and the autonomous
+tier never creates labels. It is additive (applied once, not swapped) and is not
+counted as substantive work in the `Applied:` field. Unlike
+`0-ci:schema-audit-ok`, there is no cosmetic bypass: the gate is satisfied by
+providing the evidence, not by waiving it. Domain-owner sign-off on a
+physics-change PR is part of the always-human-gated merge gate.

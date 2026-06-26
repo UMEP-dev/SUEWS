@@ -125,6 +125,20 @@ It is additive: apply it once and leave it. Do not remove it on a re-run.
 It enables idempotency: batch re-runs skip PRs carrying this label whose
 last substantive activity predates the previous audit timestamp.
 
+### Classification label: `0-physics:change`
+
+Independent of the disposition label, apply `0-physics:change` (if it exists in
+the repo) when the PR diff touches physics source (`suews_phys_*.f95`, the Rust
+physics backend), moves a reference fixture
+(`test/fixtures/data_test/sample_output.csv.gz`,
+`.../stebbs_test/sample_output_stebbs.csv`, `test/fixtures/benchmark1/*.pkl`), or
+changes a physics-affecting data-model default. It is additive (not part of the
+mutually-exclusive `0-pr:*` family) and activates the evidence requirements in
+`.claude/rules/physics-change-evidence.md`: a `## Scientific evidence` PR-body
+section, domain-owner sign-off, and the full `-m physics` CI tier. When you apply
+it, note in the marker comment that the PR needs the evidence section and owner
+sign-off (STEBBS -> `@yiqing1021`) before it can advance.
+
 ### Priority
 
 Priority (P0/P1/P2) is **not** a label. It lives in the verdict block only.

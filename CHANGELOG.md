@@ -54,6 +54,12 @@ EXAMPLES:
 
 ## 2026
 
+### 28 Jun 2026
+
+- [bugfix] Fixed the flood of `PydanticSerializationUnexpectedValue` warnings when serialising a `SUEWSConfig` (#1569)
+  - `FlexibleRefValue(T)` is `Union[RefValue[T], T]`; Pydantic's union serializer only routes a value to the `RefValue[T]` branch cleanly when the instance is parametrised. Bare `RefValue(value)` constructions (used throughout the `df_state` reconstruction path) produced unparametrised instances, emitting one spurious warning per populated field — hundreds for a config rebuilt via `from_state`/`from_output`.
+  - `RefValue(value)` now auto-parametrises to `RefValue[type(value)]`, matching what validation from YAML already produces, so the warnings no longer arise. No diagnostics are suppressed; serialized output is unchanged.
+
 ### 26 Jun 2026
 
 - [maintenance] Added a recorded-scientific-evidence policy for physics-changing PRs (#1576)

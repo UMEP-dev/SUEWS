@@ -74,6 +74,42 @@ class RefValue(BaseModel, Generic[T]):
         extra="forbid",
     )
 
+    def __new__(cls, value=_REF_VALUE_UNSET, ref=None, **data):
+        """Auto-parametrise the bare generic so ``RefValue(x)`` is ``RefValue[type(x)]``.
+
+        The data model declares fields as ``FlexibleRefValue(T)`` =
+        ``Union[RefValue[T], T]``. Pydantic's union serializer only routes a
+        value cleanly to the ``RefValue[T]`` branch when the instance carries
+        the matching generic parameter; a bare, unparametrised ``RefValue``
+        (from ``RefValue(x)``) matches neither branch's schema and triggers a
+        ``PydanticSerializationUnexpectedValue`` warning per field on dump --
+        hundreds for a config rebuilt from ``df_state`` (gh#1569). Validation
+        from YAML already yields ``RefValue[T]``; this makes the dozens of
+        direct ``RefValue(value)`` reconstruction sites consistent with it.
+
+        Only the bare base class with a concrete, non-``None`` scalar is
+        redirected; already-parametrised subclasses, the keyword-only / unset
+        call shape used during validation and ``model_construct``, and ``None``
+        values (no inferable type) are left untouched.
+        """
+        if cls is RefValue:
+            concrete = value if value is not _REF_VALUE_UNSET else data.get(
+                "value", _REF_VALUE_UNSET
+            )
+            # Resolve numpy scalars to their Python native, so we parametrise on
+            # the Python type (RefValue[float], not RefValue[numpy.float64]) and
+            # never ask Pydantic to build a schema for a numpy type it cannot.
+            if isinstance(concrete, np.generic):
+                concrete = concrete.item()
+            # Only parametrise on the plain types FlexibleRefValue actually uses
+            # and that Pydantic can build a RefValue[T] schema for. Anything else
+            # (None, pandas Timestamps, containers, ...) stays the bare generic.
+            if type(concrete) in (bool, int, float, str) or isinstance(
+                concrete, Enum
+            ):
+                cls = RefValue[type(concrete)]
+        return super().__new__(cls)
+
     def __init__(self, value=_REF_VALUE_UNSET, ref=None, **data):
         # Two call shapes are supported:
         # 1. Direct construction: `RefValue(3.0)` or `RefValue(value=3.0, ref=...)`.
@@ -97,6 +133,10 @@ class RefValue(BaseModel, Generic[T]):
             return float(v)
         if isinstance(v, (np.int64, np.int32)):
             return int(v)
+        if isinstance(v, np.bool_):
+            return bool(v)
+        if isinstance(v, np.str_):
+            return str(v)
         return v
 
     def model_dump(self, **kwargs):

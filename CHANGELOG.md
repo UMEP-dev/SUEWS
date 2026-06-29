@@ -54,6 +54,12 @@ EXAMPLES:
 
 ## 2026
 
+### 29 Jun 2026
+
+- [bugfix] Capped `pandas<3` on the manylinux2014 matrix to stop a numpy/pandas ABI segfault
+  - On CPython 3.10-3.12 Linux, `scipy<1.15` (pinned to retain manylinux2014 wheels) transitively pins `numpy<2.3`. With `pandas` left unpinned, the resolver pulled pandas 3.0.x, whose wheels are ABI-built against numpy>=2.3; running them against numpy 2.2.6 segfaulted inside `DatetimeIndex.shift` (reached via `supy._load.resample_linear_inst`), crashing the nightly `cp312-manylinux` API test job with exit 139.
+  - `pandas` is now constrained to `<3` under exactly the same environment marker as the `scipy<1.15` cap; newer interpreters and non-Linux platforms (which resolve numpy>=2.3) continue to use pandas 3.
+
 ### 28 Jun 2026
 
 - [bugfix] Fixed the flood of `PydanticSerializationUnexpectedValue` warnings when serialising a `SUEWSConfig` (#1569)

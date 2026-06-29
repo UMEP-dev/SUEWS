@@ -546,6 +546,7 @@ CONTAINS
       LOGICAL, DIMENSION(nsurf) :: valid_lumped_surf
       LOGICAL :: use_dual_timescale, use_qs_surface_gradient_alloc, allocation_success
       LOGICAL :: use_state_admittance
+      LOGICAL :: use_ehc_experimental_controls
 
       QS = 0.0D0
       QS_surf = 0.0D0
@@ -555,116 +556,123 @@ CONTAINS
       temp_out_roof = temp_in_roof
       temp_out_wall = temp_in_wall
 
+      use_ehc_experimental_controls = ehc_experimental_controls_enabled()
       use_zero_flux_bottom = .FALSE.
-      CALL GET_ENVIRONMENT_VARIABLE("SUEWS_EHC_ZERO_FLUX_BOTTOM", env_value, STATUS=env_status)
-      IF (env_status == 0) THEN
-         SELECT CASE (TRIM(ADJUSTL(env_value)))
-         CASE ("1", "true", "TRUE", "True", "yes", "YES", "Yes")
-            use_zero_flux_bottom = .TRUE.
-         END SELECT
-      END IF
       use_parallel_surfaces = .FALSE.
-      CALL GET_ENVIRONMENT_VARIABLE("SUEWS_EHC_PARALLEL_SURFACES", env_value, STATUS=env_status)
-      IF (env_status == 0) THEN
-         SELECT CASE (TRIM(ADJUSTL(env_value)))
-         CASE ("1", "true", "TRUE", "True", "yes", "YES", "Yes")
-            use_parallel_surfaces = .TRUE.
-         END SELECT
-      END IF
       bottom_g_scale = 1.0D0
-      CALL GET_ENVIRONMENT_VARIABLE("SUEWS_EHC_BOTTOM_G_SCALE", env_value, STATUS=env_status)
-      IF (env_status == 0 .AND. LEN_TRIM(env_value) > 0) THEN
-         READ (env_value, *, IOSTAT=env_status) bottom_g_scale
-         IF (env_status /= 0) bottom_g_scale = 1.0D0
-         bottom_g_scale = MAX(0.0D0, bottom_g_scale)
-      END IF
       use_dual_timescale = .FALSE.
-      CALL GET_ENVIRONMENT_VARIABLE("SUEWS_EHC_DUAL_TIMESCALE", env_value, STATUS=env_status)
-      IF (env_status == 0) THEN
-         SELECT CASE (TRIM(ADJUSTL(env_value)))
-         CASE ("1", "true", "TRUE", "True", "yes", "YES", "Yes")
-            use_dual_timescale = .TRUE.
-         END SELECT
-      END IF
       dual_fast_weight = 0.35D0
-      CALL GET_ENVIRONMENT_VARIABLE("SUEWS_EHC_FAST_WEIGHT", env_value, STATUS=env_status)
-      IF (env_status == 0 .AND. LEN_TRIM(env_value) > 0) THEN
-         READ (env_value, *, IOSTAT=env_status) dual_fast_weight
-         IF (env_status /= 0) dual_fast_weight = 0.35D0
-      END IF
-      dual_fast_weight = MAX(0.0D0, MIN(1.0D0, dual_fast_weight))
       dual_slow_weight = 1.0D0 - dual_fast_weight
       fast_cap_scale = 0.35D0
-      CALL GET_ENVIRONMENT_VARIABLE("SUEWS_EHC_FAST_CAP_SCALE", env_value, STATUS=env_status)
-      IF (env_status == 0 .AND. LEN_TRIM(env_value) > 0) THEN
-         READ (env_value, *, IOSTAT=env_status) fast_cap_scale
-         IF (env_status /= 0) fast_cap_scale = 0.35D0
-      END IF
-      fast_cap_scale = MAX(0.05D0, fast_cap_scale)
       slow_cap_scale = 1.25D0
-      CALL GET_ENVIRONMENT_VARIABLE("SUEWS_EHC_SLOW_CAP_SCALE", env_value, STATUS=env_status)
-      IF (env_status == 0 .AND. LEN_TRIM(env_value) > 0) THEN
-         READ (env_value, *, IOSTAT=env_status) slow_cap_scale
-         IF (env_status /= 0) slow_cap_scale = 1.25D0
-      END IF
-      slow_cap_scale = MAX(0.05D0, slow_cap_scale)
       fast_g_scale = 1.75D0
-      CALL GET_ENVIRONMENT_VARIABLE("SUEWS_EHC_FAST_G_SCALE", env_value, STATUS=env_status)
-      IF (env_status == 0 .AND. LEN_TRIM(env_value) > 0) THEN
-         READ (env_value, *, IOSTAT=env_status) fast_g_scale
-         IF (env_status /= 0) fast_g_scale = 1.75D0
-      END IF
-      fast_g_scale = MAX(0.05D0, fast_g_scale)
       slow_g_scale = 0.75D0
-      CALL GET_ENVIRONMENT_VARIABLE("SUEWS_EHC_SLOW_G_SCALE", env_value, STATUS=env_status)
-      IF (env_status == 0 .AND. LEN_TRIM(env_value) > 0) THEN
-         READ (env_value, *, IOSTAT=env_status) slow_g_scale
-         IF (env_status /= 0) slow_g_scale = 0.75D0
-      END IF
-      slow_g_scale = MAX(0.05D0, slow_g_scale)
       use_state_admittance = .FALSE.
-      CALL GET_ENVIRONMENT_VARIABLE("SUEWS_EHC_STATE_ADMITTANCE", env_value, STATUS=env_status)
-      IF (env_status == 0) THEN
-         SELECT CASE (TRIM(ADJUSTL(env_value)))
-         CASE ("1", "true", "TRUE", "True", "yes", "YES", "Yes")
-            use_state_admittance = .TRUE.
-         END SELECT
-      END IF
       state_warming_g_boost = 0.50D0
-      CALL GET_ENVIRONMENT_VARIABLE("SUEWS_EHC_WARMING_G_BOOST", env_value, STATUS=env_status)
-      IF (env_status == 0 .AND. LEN_TRIM(env_value) > 0) THEN
-         READ (env_value, *, IOSTAT=env_status) state_warming_g_boost
-         IF (env_status /= 0) state_warming_g_boost = 0.50D0
-      END IF
-      state_warming_g_boost = MAX(0.0D0, MIN(5.0D0, state_warming_g_boost))
       state_cooling_g_damp = 0.35D0
-      CALL GET_ENVIRONMENT_VARIABLE("SUEWS_EHC_COOLING_G_DAMP", env_value, STATUS=env_status)
-      IF (env_status == 0 .AND. LEN_TRIM(env_value) > 0) THEN
-         READ (env_value, *, IOSTAT=env_status) state_cooling_g_damp
-         IF (env_status /= 0) state_cooling_g_damp = 0.35D0
-      END IF
-      state_cooling_g_damp = MAX(0.0D0, MIN(0.95D0, state_cooling_g_damp))
       state_gradient_scale = 2.0D0
-      CALL GET_ENVIRONMENT_VARIABLE("SUEWS_EHC_GRADIENT_SCALE", env_value, STATUS=env_status)
-      IF (env_status == 0 .AND. LEN_TRIM(env_value) > 0) THEN
-         READ (env_value, *, IOSTAT=env_status) state_gradient_scale
-         IF (env_status /= 0) state_gradient_scale = 2.0D0
-      END IF
-      state_gradient_scale = MAX(0.10D0, state_gradient_scale)
       state_min_g_scale = 0.35D0
-      CALL GET_ENVIRONMENT_VARIABLE("SUEWS_EHC_MIN_G_SCALE", env_value, STATUS=env_status)
-      IF (env_status == 0 .AND. LEN_TRIM(env_value) > 0) THEN
-         READ (env_value, *, IOSTAT=env_status) state_min_g_scale
-         IF (env_status /= 0) state_min_g_scale = 0.35D0
-      END IF
-      state_min_g_scale = MAX(0.05D0, MIN(1.0D0, state_min_g_scale))
       use_qs_surface_gradient_alloc = .FALSE.
-      CALL GET_ENVIRONMENT_VARIABLE("SUEWS_EHC_QS_SURF_ALLOC", env_value, STATUS=env_status)
-      IF (env_status == 0) THEN
-         SELECT CASE (TRIM(ADJUSTL(env_value)))
-         CASE ("conductance_gradient", "CONDUCTANCE_GRADIENT", "gradient", "GRADIENT", "1", "true", "TRUE", "True", "yes", "YES", "Yes")
-            use_qs_surface_gradient_alloc = .TRUE.
-         END SELECT
+
+      IF (use_ehc_experimental_controls) THEN
+         CALL GET_ENVIRONMENT_VARIABLE("SUEWS_EHC_ZERO_FLUX_BOTTOM", env_value, STATUS=env_status)
+         IF (env_status == 0) THEN
+            SELECT CASE (TRIM(ADJUSTL(env_value)))
+            CASE ("1", "true", "TRUE", "True", "yes", "YES", "Yes")
+               use_zero_flux_bottom = .TRUE.
+            END SELECT
+         END IF
+         CALL GET_ENVIRONMENT_VARIABLE("SUEWS_EHC_PARALLEL_SURFACES", env_value, STATUS=env_status)
+         IF (env_status == 0) THEN
+            SELECT CASE (TRIM(ADJUSTL(env_value)))
+            CASE ("1", "true", "TRUE", "True", "yes", "YES", "Yes")
+               use_parallel_surfaces = .TRUE.
+            END SELECT
+         END IF
+         CALL GET_ENVIRONMENT_VARIABLE("SUEWS_EHC_BOTTOM_G_SCALE", env_value, STATUS=env_status)
+         IF (env_status == 0 .AND. LEN_TRIM(env_value) > 0) THEN
+            READ (env_value, *, IOSTAT=env_status) bottom_g_scale
+            IF (env_status /= 0) bottom_g_scale = 1.0D0
+            bottom_g_scale = MAX(0.0D0, bottom_g_scale)
+         END IF
+         CALL GET_ENVIRONMENT_VARIABLE("SUEWS_EHC_DUAL_TIMESCALE", env_value, STATUS=env_status)
+         IF (env_status == 0) THEN
+            SELECT CASE (TRIM(ADJUSTL(env_value)))
+            CASE ("1", "true", "TRUE", "True", "yes", "YES", "Yes")
+               use_dual_timescale = .TRUE.
+            END SELECT
+         END IF
+         CALL GET_ENVIRONMENT_VARIABLE("SUEWS_EHC_FAST_WEIGHT", env_value, STATUS=env_status)
+         IF (env_status == 0 .AND. LEN_TRIM(env_value) > 0) THEN
+            READ (env_value, *, IOSTAT=env_status) dual_fast_weight
+            IF (env_status /= 0) dual_fast_weight = 0.35D0
+         END IF
+         dual_fast_weight = MAX(0.0D0, MIN(1.0D0, dual_fast_weight))
+         dual_slow_weight = 1.0D0 - dual_fast_weight
+         CALL GET_ENVIRONMENT_VARIABLE("SUEWS_EHC_FAST_CAP_SCALE", env_value, STATUS=env_status)
+         IF (env_status == 0 .AND. LEN_TRIM(env_value) > 0) THEN
+            READ (env_value, *, IOSTAT=env_status) fast_cap_scale
+            IF (env_status /= 0) fast_cap_scale = 0.35D0
+         END IF
+         fast_cap_scale = MAX(0.05D0, fast_cap_scale)
+         CALL GET_ENVIRONMENT_VARIABLE("SUEWS_EHC_SLOW_CAP_SCALE", env_value, STATUS=env_status)
+         IF (env_status == 0 .AND. LEN_TRIM(env_value) > 0) THEN
+            READ (env_value, *, IOSTAT=env_status) slow_cap_scale
+            IF (env_status /= 0) slow_cap_scale = 1.25D0
+         END IF
+         slow_cap_scale = MAX(0.05D0, slow_cap_scale)
+         CALL GET_ENVIRONMENT_VARIABLE("SUEWS_EHC_FAST_G_SCALE", env_value, STATUS=env_status)
+         IF (env_status == 0 .AND. LEN_TRIM(env_value) > 0) THEN
+            READ (env_value, *, IOSTAT=env_status) fast_g_scale
+            IF (env_status /= 0) fast_g_scale = 1.75D0
+         END IF
+         fast_g_scale = MAX(0.05D0, fast_g_scale)
+         CALL GET_ENVIRONMENT_VARIABLE("SUEWS_EHC_SLOW_G_SCALE", env_value, STATUS=env_status)
+         IF (env_status == 0 .AND. LEN_TRIM(env_value) > 0) THEN
+            READ (env_value, *, IOSTAT=env_status) slow_g_scale
+            IF (env_status /= 0) slow_g_scale = 0.75D0
+         END IF
+         slow_g_scale = MAX(0.05D0, slow_g_scale)
+         CALL GET_ENVIRONMENT_VARIABLE("SUEWS_EHC_STATE_ADMITTANCE", env_value, STATUS=env_status)
+         IF (env_status == 0) THEN
+            SELECT CASE (TRIM(ADJUSTL(env_value)))
+            CASE ("1", "true", "TRUE", "True", "yes", "YES", "Yes")
+               use_state_admittance = .TRUE.
+            END SELECT
+         END IF
+         CALL GET_ENVIRONMENT_VARIABLE("SUEWS_EHC_WARMING_G_BOOST", env_value, STATUS=env_status)
+         IF (env_status == 0 .AND. LEN_TRIM(env_value) > 0) THEN
+            READ (env_value, *, IOSTAT=env_status) state_warming_g_boost
+            IF (env_status /= 0) state_warming_g_boost = 0.50D0
+         END IF
+         state_warming_g_boost = MAX(0.0D0, MIN(5.0D0, state_warming_g_boost))
+         CALL GET_ENVIRONMENT_VARIABLE("SUEWS_EHC_COOLING_G_DAMP", env_value, STATUS=env_status)
+         IF (env_status == 0 .AND. LEN_TRIM(env_value) > 0) THEN
+            READ (env_value, *, IOSTAT=env_status) state_cooling_g_damp
+            IF (env_status /= 0) state_cooling_g_damp = 0.35D0
+         END IF
+         state_cooling_g_damp = MAX(0.0D0, MIN(0.95D0, state_cooling_g_damp))
+         CALL GET_ENVIRONMENT_VARIABLE("SUEWS_EHC_GRADIENT_SCALE", env_value, STATUS=env_status)
+         IF (env_status == 0 .AND. LEN_TRIM(env_value) > 0) THEN
+            READ (env_value, *, IOSTAT=env_status) state_gradient_scale
+            IF (env_status /= 0) state_gradient_scale = 2.0D0
+         END IF
+         state_gradient_scale = MAX(0.10D0, state_gradient_scale)
+         CALL GET_ENVIRONMENT_VARIABLE("SUEWS_EHC_MIN_G_SCALE", env_value, STATUS=env_status)
+         IF (env_status == 0 .AND. LEN_TRIM(env_value) > 0) THEN
+            READ (env_value, *, IOSTAT=env_status) state_min_g_scale
+            IF (env_status /= 0) state_min_g_scale = 0.35D0
+         END IF
+         state_min_g_scale = MAX(0.05D0, MIN(1.0D0, state_min_g_scale))
+         CALL GET_ENVIRONMENT_VARIABLE("SUEWS_EHC_QS_SURF_ALLOC", env_value, STATUS=env_status)
+         IF (env_status == 0) THEN
+            SELECT CASE (TRIM(ADJUSTL(env_value)))
+            CASE ("conductance_gradient", "CONDUCTANCE_GRADIENT", &
+                  "gradient", "GRADIENT", "1", "true", "TRUE", &
+                  "True", "yes", "YES", "Yes")
+               use_qs_surface_gradient_alloc = .TRUE.
+            END SELECT
+         END IF
       END IF
 
       IF (use_lumped_slab) THEN
@@ -1197,6 +1205,22 @@ CONTAINS
       qs_surf = raw_qs_surf*scale_factor
       success = .TRUE.
    END SUBROUTINE allocate_lumped_qs_by_surface_gradient
+
+   LOGICAL FUNCTION ehc_experimental_controls_enabled()
+      IMPLICIT NONE
+      CHARACTER(LEN=32) :: env_value
+      INTEGER :: env_status
+
+      ehc_experimental_controls_enabled = .FALSE.
+      CALL GET_ENVIRONMENT_VARIABLE("SUEWS_EHC_EXPERIMENTAL_CONTROLS", env_value, STATUS=env_status)
+      IF (env_status /= 0) RETURN
+
+      SELECT CASE (TRIM(ADJUSTL(env_value)))
+      CASE ("1", "true", "TRUE", "True", "yes", "YES", "Yes", &
+            "on", "ON", "On")
+         ehc_experimental_controls_enabled = .TRUE.
+      END SELECT
+   END FUNCTION ehc_experimental_controls_enabled
 
 END MODULE module_phys_ehc
 

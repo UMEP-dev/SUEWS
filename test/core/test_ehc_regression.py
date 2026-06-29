@@ -15,7 +15,9 @@ pytestmark = [
 
 
 SURFACE_NAMES = ("paved", "bldgs", "evetr", "dectr", "grass", "bsoil", "water")
+EHC_EXPERIMENTAL_CONTROLS_KEY = "SUEWS_EHC_EXPERIMENTAL_CONTROLS"
 EHC_ITERATION_ENV_KEYS = (
+    EHC_EXPERIMENTAL_CONTROLS_KEY,
     "SUEWS_EHC_ADAPTIVE_RELAX",
     "SUEWS_EHC_DUAL_TIMESCALE",
     "SUEWS_EHC_MAX_ITER",
@@ -34,6 +36,10 @@ EHC_RA_HEAT_ENV_KEYS = (
     "SUEWS_EHC_RA_STATE_LOW_RA_REF",
     "SUEWS_EHC_RA_STATE_USTAR_REF",
 )
+
+
+def _enable_ehc_experimental_controls(monkeypatch):
+    monkeypatch.setenv(EHC_EXPERIMENTAL_CONTROLS_KEY, "1")
 
 
 def _run_short_ehc_with_surface_cp(rho_cp, surface_rho_cp=None, zero_kdown=False):
@@ -155,6 +161,7 @@ def test_ehc_lumped_storage_skips_invalid_surface_without_zeroing_grid():
 
 def test_ehc_dual_timescale_lumped_branch_changes_storage_response(monkeypatch):
     env_keys = [
+        EHC_EXPERIMENTAL_CONTROLS_KEY,
         "SUEWS_EHC_DUAL_TIMESCALE",
         "SUEWS_EHC_FAST_WEIGHT",
         "SUEWS_EHC_FAST_CAP_SCALE",
@@ -166,6 +173,7 @@ def test_ehc_dual_timescale_lumped_branch_changes_storage_response(monkeypatch):
         monkeypatch.delenv(key, raising=False)
     default_qs = _run_short_ehc_with_surface_cp(2.0e6)
 
+    _enable_ehc_experimental_controls(monkeypatch)
     monkeypatch.setenv("SUEWS_EHC_DUAL_TIMESCALE", "1")
     monkeypatch.setenv("SUEWS_EHC_FAST_WEIGHT", "0.45")
     monkeypatch.setenv("SUEWS_EHC_FAST_CAP_SCALE", "0.30")
@@ -180,6 +188,7 @@ def test_ehc_dual_timescale_lumped_branch_changes_storage_response(monkeypatch):
 
 def test_ehc_state_admittance_changes_lumped_storage_response(monkeypatch):
     for key in (
+        EHC_EXPERIMENTAL_CONTROLS_KEY,
         "SUEWS_EHC_STATE_ADMITTANCE",
         "SUEWS_EHC_WARMING_G_BOOST",
         "SUEWS_EHC_COOLING_G_DAMP",
@@ -189,6 +198,7 @@ def test_ehc_state_admittance_changes_lumped_storage_response(monkeypatch):
         monkeypatch.delenv(key, raising=False)
     default_qs = _run_short_ehc_with_surface_cp(2.0e6)
 
+    _enable_ehc_experimental_controls(monkeypatch)
     monkeypatch.setenv("SUEWS_EHC_STATE_ADMITTANCE", "1")
     monkeypatch.setenv("SUEWS_EHC_WARMING_G_BOOST", "0.75")
     monkeypatch.setenv("SUEWS_EHC_COOLING_G_DAMP", "0.40")
@@ -201,10 +211,12 @@ def test_ehc_state_admittance_changes_lumped_storage_response(monkeypatch):
 
 
 def test_ehc_impervious_qf_allocation_changes_lumped_storage_response(monkeypatch):
+    monkeypatch.delenv(EHC_EXPERIMENTAL_CONTROLS_KEY, raising=False)
     monkeypatch.delenv("SUEWS_EHC_QF_SURF_MODE", raising=False)
     monkeypatch.delenv("SUEWS_EHC_QF_IMPERVIOUS_ONLY", raising=False)
     default_qs = _run_short_ehc_with_surface_cp(2.0e6)
 
+    _enable_ehc_experimental_controls(monkeypatch)
     monkeypatch.setenv("SUEWS_EHC_QF_IMPERVIOUS_ONLY", "1")
     impervious_qf_qs = _run_short_ehc_with_surface_cp(2.0e6)
 
@@ -213,10 +225,12 @@ def test_ehc_impervious_qf_allocation_changes_lumped_storage_response(monkeypatc
 
 
 def test_ehc_direct_air_qf_mode_changes_lumped_storage_response(monkeypatch):
+    monkeypatch.delenv(EHC_EXPERIMENTAL_CONTROLS_KEY, raising=False)
     monkeypatch.delenv("SUEWS_EHC_QF_IMPERVIOUS_ONLY", raising=False)
     monkeypatch.delenv("SUEWS_EHC_QF_SURF_MODE", raising=False)
     default_qs = _run_short_ehc_with_surface_cp(2.0e6)
 
+    _enable_ehc_experimental_controls(monkeypatch)
     monkeypatch.setenv("SUEWS_EHC_QF_SURF_MODE", "none")
     direct_air_qf_qs = _run_short_ehc_with_surface_cp(2.0e6)
 
@@ -225,10 +239,12 @@ def test_ehc_direct_air_qf_mode_changes_lumped_storage_response(monkeypatch):
 
 
 def test_ehc_direct_air_qf_mode_changes_coupled_qe_response(monkeypatch):
+    monkeypatch.delenv(EHC_EXPERIMENTAL_CONTROLS_KEY, raising=False)
     monkeypatch.delenv("SUEWS_EHC_QF_IMPERVIOUS_ONLY", raising=False)
     monkeypatch.delenv("SUEWS_EHC_QF_SURF_MODE", raising=False)
     default_fluxes = _run_short_ehc_fluxes_with_surface_cp(2.0e6)
 
+    _enable_ehc_experimental_controls(monkeypatch)
     monkeypatch.setenv("SUEWS_EHC_QF_SURF_MODE", "none")
     direct_air_fluxes = _run_short_ehc_fluxes_with_surface_cp(2.0e6)
 
@@ -236,8 +252,20 @@ def test_ehc_direct_air_qf_mode_changes_coupled_qe_response(monkeypatch):
     assert np.max(np.abs(direct_air_fluxes[:, 1] - default_fluxes[:, 1])) > 0.1
 
 
+def test_ehc_experimental_qf_env_is_ignored_without_gate(monkeypatch):
+    monkeypatch.delenv(EHC_EXPERIMENTAL_CONTROLS_KEY, raising=False)
+    monkeypatch.delenv("SUEWS_EHC_QF_SURF_MODE", raising=False)
+    default_qs = _run_short_ehc_with_surface_cp(2.0e6)
+
+    monkeypatch.setenv("SUEWS_EHC_QF_SURF_MODE", "none")
+    ungated_qs = _run_short_ehc_with_surface_cp(2.0e6)
+
+    np.testing.assert_allclose(ungated_qs, default_qs, rtol=0.0, atol=0.0)
+
+
 def test_ehc_daylight_qf_mode_changes_lumped_storage_response(monkeypatch):
     for key in (
+        EHC_EXPERIMENTAL_CONTROLS_KEY,
         "SUEWS_EHC_QF_IMPERVIOUS_ONLY",
         "SUEWS_EHC_QF_SURF_MODE",
         "SUEWS_EHC_QF_SURF_DAY_FRAC",
@@ -247,6 +275,7 @@ def test_ehc_daylight_qf_mode_changes_lumped_storage_response(monkeypatch):
         monkeypatch.delenv(key, raising=False)
     default_qs = _run_short_ehc_with_surface_cp(2.0e6)
 
+    _enable_ehc_experimental_controls(monkeypatch)
     monkeypatch.setenv("SUEWS_EHC_QF_SURF_MODE", "daylight")
     monkeypatch.setenv("SUEWS_EHC_QF_SURF_DAY_FRAC", "1.0")
     monkeypatch.setenv("SUEWS_EHC_QF_SURF_NIGHT_FRAC", "0.25")
@@ -258,9 +287,11 @@ def test_ehc_daylight_qf_mode_changes_lumped_storage_response(monkeypatch):
 
 
 def test_ehc_surface_gradient_allocation_changes_lumped_storage_response(monkeypatch):
+    monkeypatch.delenv(EHC_EXPERIMENTAL_CONTROLS_KEY, raising=False)
     monkeypatch.delenv("SUEWS_EHC_QS_SURF_ALLOC", raising=False)
     default_qs = _run_short_ehc_with_surface_cp(2.0e6)
 
+    _enable_ehc_experimental_controls(monkeypatch)
     monkeypatch.setenv("SUEWS_EHC_QS_SURF_ALLOC", "conductance_gradient")
     gradient_qs = _run_short_ehc_with_surface_cp(2.0e6)
 
@@ -269,6 +300,7 @@ def test_ehc_surface_gradient_allocation_changes_lumped_storage_response(monkeyp
 
 
 def test_ehc_parallel_standard_surfaces_preserves_heterogeneous_response(monkeypatch):
+    monkeypatch.delenv(EHC_EXPERIMENTAL_CONTROLS_KEY, raising=False)
     monkeypatch.delenv("SUEWS_EHC_PARALLEL_SURFACES", raising=False)
     surface_rho_cp = {
         "paved": 3.2e6,
@@ -281,6 +313,7 @@ def test_ehc_parallel_standard_surfaces_preserves_heterogeneous_response(monkeyp
     }
     pre_lumped_qs = _run_short_ehc_with_surface_cp(2.0e6, surface_rho_cp=surface_rho_cp)
 
+    _enable_ehc_experimental_controls(monkeypatch)
     monkeypatch.setenv("SUEWS_EHC_PARALLEL_SURFACES", "1")
     parallel_qs = _run_short_ehc_with_surface_cp(2.0e6, surface_rho_cp=surface_rho_cp)
 
@@ -292,6 +325,7 @@ def test_ehc_converged_lumped_storage_is_nearly_relaxation_invariant(monkeypatch
     for key in EHC_ITERATION_ENV_KEYS:
         monkeypatch.delenv(key, raising=False)
 
+    _enable_ehc_experimental_controls(monkeypatch)
     monkeypatch.setenv("SUEWS_EHC_MAX_ITER", "120")
     monkeypatch.setenv("SUEWS_EHC_TSFC_RELAX", "0.3")
     slow_relax_qs = _run_short_ehc_with_surface_cp(2.0e6)
@@ -306,8 +340,10 @@ def test_ehc_converged_lumped_storage_is_nearly_relaxation_invariant(monkeypatch
 def test_ehc_ra_heat_factor_changes_lumped_storage_response(monkeypatch):
     for key in EHC_RA_HEAT_ENV_KEYS:
         monkeypatch.delenv(key, raising=False)
+    monkeypatch.delenv(EHC_EXPERIMENTAL_CONTROLS_KEY, raising=False)
     default_qs = _run_short_ehc_with_surface_cp(2.0e6)
 
+    _enable_ehc_experimental_controls(monkeypatch)
     monkeypatch.setenv("SUEWS_EHC_RA_HEAT_FACTOR", "1.5")
     higher_ra_qs = _run_short_ehc_with_surface_cp(2.0e6)
 
@@ -318,8 +354,10 @@ def test_ehc_ra_heat_factor_changes_lumped_storage_response(monkeypatch):
 def test_ehc_state_dependent_ra_heat_guard_changes_lumped_storage_response(monkeypatch):
     for key in EHC_RA_HEAT_ENV_KEYS:
         monkeypatch.delenv(key, raising=False)
+    monkeypatch.delenv(EHC_EXPERIMENTAL_CONTROLS_KEY, raising=False)
     default_qs = _run_short_ehc_with_surface_cp(2.0e6)
 
+    _enable_ehc_experimental_controls(monkeypatch)
     monkeypatch.setenv("SUEWS_EHC_RA_HEAT_MODE", "overcoupled_guard")
     monkeypatch.setenv("SUEWS_EHC_RA_STATE_BOOST", "1.5")
     monkeypatch.setenv("SUEWS_EHC_RA_STATE_KDOWN_MIN", "0.0")
@@ -333,8 +371,10 @@ def test_ehc_state_dependent_ra_heat_guard_changes_lumped_storage_response(monke
 def test_ehc_state_dependent_ra_heat_guard_includes_zero_kdown(monkeypatch):
     for key in EHC_RA_HEAT_ENV_KEYS:
         monkeypatch.delenv(key, raising=False)
+    monkeypatch.delenv(EHC_EXPERIMENTAL_CONTROLS_KEY, raising=False)
     default_qs = _run_short_ehc_with_surface_cp(2.0e6, zero_kdown=True)
 
+    _enable_ehc_experimental_controls(monkeypatch)
     monkeypatch.setenv("SUEWS_EHC_RA_HEAT_MODE", "overcoupled_guard")
     monkeypatch.setenv("SUEWS_EHC_RA_STATE_BOOST", "1.5")
     monkeypatch.setenv("SUEWS_EHC_RA_STATE_KDOWN_MIN", "0.0")
@@ -347,12 +387,14 @@ def test_ehc_state_dependent_ra_heat_guard_includes_zero_kdown(monkeypatch):
 
 def test_ehc_adaptive_relax_limits_high_relax_response(monkeypatch):
     for key in (
+        EHC_EXPERIMENTAL_CONTROLS_KEY,
         "SUEWS_EHC_ADAPTIVE_RELAX",
         "SUEWS_EHC_TSFC_RELAX",
         "SUEWS_EHC_TSFC_STEP_QH_LIMIT",
     ):
         monkeypatch.delenv(key, raising=False)
 
+    _enable_ehc_experimental_controls(monkeypatch)
     monkeypatch.setenv("SUEWS_EHC_TSFC_RELAX", "0.8")
     high_relax_qs = _run_short_ehc_with_surface_cp(2.0e6)
 
@@ -366,6 +408,7 @@ def test_ehc_adaptive_relax_limits_high_relax_response(monkeypatch):
 
 def test_ehc_restore_best_iteration_path_runs(monkeypatch):
     for key in (
+        EHC_EXPERIMENTAL_CONTROLS_KEY,
         "SUEWS_EHC_ADAPTIVE_RELAX",
         "SUEWS_EHC_RESTORE_BEST_ITER",
         "SUEWS_EHC_TSFC_RELAX",
@@ -374,6 +417,7 @@ def test_ehc_restore_best_iteration_path_runs(monkeypatch):
     ):
         monkeypatch.delenv(key, raising=False)
 
+    _enable_ehc_experimental_controls(monkeypatch)
     monkeypatch.setenv("SUEWS_EHC_ADAPTIVE_RELAX", "1")
     monkeypatch.setenv("SUEWS_EHC_RESTORE_BEST_ITER", "always")
     monkeypatch.setenv("SUEWS_EHC_TSFC_RELAX", "1.0")

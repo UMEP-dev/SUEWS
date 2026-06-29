@@ -134,6 +134,7 @@ CONTAINS
       REAL(KIND(1D0)) :: ehc_best_iter_score
       REAL(KIND(1D0)) :: ehc_current_iter_score
       LOGICAL :: ehc_final_converge
+      LOGICAL :: use_ehc_experimental_controls
 
       ! Catch stale/mixed build artefacts early with a clear error instead of
       ! allowing downstream out-of-bounds writes.
@@ -142,7 +143,8 @@ CONTAINS
 
       max_iter = max_iter_default
       ehc_restore_best_mode = 0
-      IF (config%StorageHeatMethod == 5) THEN
+      use_ehc_experimental_controls = ehc_experimental_controls_enabled()
+      IF (config%StorageHeatMethod == 5 .AND. use_ehc_experimental_controls) THEN
          CALL GET_ENVIRONMENT_VARIABLE("SUEWS_EHC_MAX_ITER", max_iter_env_value, STATUS=max_iter_env_status)
          IF (max_iter_env_status == 0 .AND. LEN_TRIM(max_iter_env_value) > 0) THEN
             READ (max_iter_env_value, *, IOSTAT=max_iter_env_status) max_iter
@@ -916,6 +918,7 @@ CONTAINS
       REAL(KIND(1D0)), PARAMETER :: tsfc_iter_step_limit = 10.0D0
       CHARACTER(LEN=64) :: env_value
       LOGICAL :: use_building_facets_for_ehc, use_adaptive_relax
+      LOGICAL :: use_ehc_experimental_controls
 
       ASSOCIATE ( &
          flagState => modState%flagState, &
@@ -965,10 +968,11 @@ CONTAINS
             )
 
             use_building_facets_for_ehc = StorageHeatMethod == 5 .AND. NetRadiationMethod > 1000
+            use_ehc_experimental_controls = ehc_experimental_controls_enabled()
             CALL configure_ehc_qf_surface_allocation(StorageHeatMethod, NetRadiationMethod, sfr_surf, qf, forcing%kdown, qf_surf_ehc)
             tsfc_iter_step_limit_use = tsfc_iter_step_limit
             use_adaptive_relax = .FALSE.
-            IF (StorageHeatMethod == 5) THEN
+            IF (StorageHeatMethod == 5 .AND. use_ehc_experimental_controls) THEN
                CALL GET_ENVIRONMENT_VARIABLE("SUEWS_EHC_ADAPTIVE_RELAX", env_value, STATUS=env_status)
                IF (env_status == 0) THEN
                   SELECT CASE (TRIM(ADJUSTL(env_value)))
@@ -1037,7 +1041,7 @@ CONTAINS
             END IF
             dif_qh_iter = 0.0D0
             qh_flux_tol = 5.0D0
-            IF (StorageHeatMethod == 5) THEN
+            IF (StorageHeatMethod == 5 .AND. use_ehc_experimental_controls) THEN
                CALL GET_ENVIRONMENT_VARIABLE("SUEWS_EHC_QH_FLUX_TOL", env_value, STATUS=env_status)
                IF (env_status == 0 .AND. LEN_TRIM(env_value) > 0) THEN
                   READ (env_value, *, IOSTAT=env_status) qh_flux_tol
@@ -1049,7 +1053,7 @@ CONTAINS
             ! ====test===
             ! see if this converges better
             ratio_iter = 0.3D0
-            IF (StorageHeatMethod == 5) THEN
+            IF (StorageHeatMethod == 5 .AND. use_ehc_experimental_controls) THEN
                CALL GET_ENVIRONMENT_VARIABLE("SUEWS_EHC_TSFC_RELAX", env_value, STATUS=env_status)
                IF (env_status == 0 .AND. LEN_TRIM(env_value) > 0) THEN
                   READ (env_value, *, IOSTAT=env_status) ratio_iter
@@ -3651,7 +3655,7 @@ CONTAINS
                   RA, z0v, & ! output:
                   modState)
 
-               IF (config%StorageHeatMethod == 5) THEN
+               IF (config%StorageHeatMethod == 5 .AND. ehc_experimental_controls_enabled()) THEN
                   ehc_ra_heat_factor = 1.0D0
                   CALL GET_ENVIRONMENT_VARIABLE("SUEWS_EHC_RA_HEAT_FACTOR", env_value, STATUS=env_status)
                   IF (env_status == 0 .AND. LEN_TRIM(env_value) > 0) THEN
@@ -6187,6 +6191,22 @@ CONTAINS
          tsfc_C = qh/(dens_air*vcp_air)*RA + temp_C
       END FUNCTION cal_tsfc
 
+   LOGICAL FUNCTION ehc_experimental_controls_enabled()
+      IMPLICIT NONE
+      CHARACTER(LEN=32) :: env_value
+      INTEGER :: env_status
+
+      ehc_experimental_controls_enabled = .FALSE.
+      CALL GET_ENVIRONMENT_VARIABLE("SUEWS_EHC_EXPERIMENTAL_CONTROLS", env_value, STATUS=env_status)
+      IF (env_status /= 0) RETURN
+
+      SELECT CASE (TRIM(ADJUSTL(env_value)))
+      CASE ("1", "true", "TRUE", "True", "yes", "YES", "Yes", &
+            "on", "ON", "On")
+         ehc_experimental_controls_enabled = .TRUE.
+      END SELECT
+   END FUNCTION ehc_experimental_controls_enabled
+
    SUBROUTINE configure_ehc_qf_surface_allocation(StorageHeatMethod, NetRadiationMethod, sfr_surf, qf, kdown, qf_surf_ehc)
       ! Optional experimental EHC source allocation. The default keeps legacy
       ! behaviour by applying the grid-scale QF to every surface Tsurf residual.
@@ -6213,6 +6233,8 @@ CONTAINS
          ! Building-facet radiation schemes need a roof/wall-specific QF
          ! partition. Keep their legacy behaviour until that partition is defined.
          IF (NetRadiationMethod > 1000) RETURN
+
+         IF (.NOT. ehc_experimental_controls_enabled()) RETURN
 
       qf_surface_mode = "all"
       CALL GET_ENVIRONMENT_VARIABLE("SUEWS_EHC_QF_SURF_MODE", env_value, STATUS=env_status)

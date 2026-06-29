@@ -29,7 +29,12 @@ readme = "README.md"
 # Core runtime dependencies only
 dependencies = [
     # Data processing
-    "pandas",
+    # pandas 3.0 wheels are ABI-built against numpy>=2.3. On the manylinux2014
+    # matrix below, scipy<1.15 transitively pins numpy<2.3, which is ABI-
+    # incompatible with pandas 3.0 and segfaults DatetimeIndex.shift. Keep pandas
+    # <3 there; let newer interpreters/platforms (numpy>=2.3) use pandas 3.
+    "pandas<3; python_version < '3.13' and platform_system == 'Linux'",  # numpy<2.3 (manylinux2014 scipy) is ABI-incompatible with pandas 3.0
+    "pandas; python_version >= '3.13' or platform_system != 'Linux'",  # Others use latest
     "numpy>=1.22",  # Covers current QGIS 3 LTR / QGIS 4 NumPy stacks; no ABI constraint (Rust bridge is NumPy-free)
     "scipy<1.15; python_version < '3.13' and platform_system == 'Linux'",  # 3.12 Linux: manylinux2014 wheels
     "scipy; python_version >= '3.13' or platform_system != 'Linux'",  # Others use latest

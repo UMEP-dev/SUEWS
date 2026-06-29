@@ -17,6 +17,9 @@ rubric and rewrite template.
      or meta/process.
    - Assign an issue-readiness status from `rubric.md`.
    - Note whether the title/body still match the current understanding.
+   - Audit the current `1-*`, `2-*`, `3-*`, and `4-*` labels using
+     `label-hierarchy.md` when the user asks about labels, priority, status, or
+     backlog triage.
 
 3. **Audit**
    - Identify missing elements for the issue type.
@@ -48,7 +51,8 @@ rubric and rewrite template.
    - Show audit result and readiness status.
    - Show a concise comment summary.
    - Show the proposed title/body rewrite.
-   - Show suggested labels or status changes, if any.
+   - Show suggested label additions/removals or status changes, if any, with
+     reasoning for each label layer.
    - State uncertainties or information still needed.
    - Ask for approval before editing.
 
@@ -104,6 +108,15 @@ After the list, group follow-up actions as:
 - supersede
 - close as duplicate
 - leave as ready
+
+For label audits, add a label-hierarchy section using
+`references/label-hierarchy.md`:
+
+```text
+Label hierarchy:
+- #123 - add 2-infra:input; remove none (input validator issue; missing area layer)
+- #145 - add 4-deferred; remove 4-ready (valid old feature, not near-term priority)
+```
 
 ## Proposing a Split
 

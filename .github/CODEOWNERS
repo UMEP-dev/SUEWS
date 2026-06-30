@@ -6,6 +6,7 @@
 /dev-ref/ISSUE_TRIAGE.md @sunt05 @suegrimmond
 /dev-ref/CODING_GUIDELINES.md @sunt05 @suegrimmond
 /dev-ref/FORTRAN_NAMING_CONVENTIONS.md @sunt05 @suegrimmond
+/.github/CODEOWNERS @sunt05 @suegrimmond
 /.claude/skills/audit-pr/ @sunt05 @suegrimmond
 /.claude/rules/ @sunt05 @suegrimmond
 /scripts/lint/ @sunt05 @suegrimmond

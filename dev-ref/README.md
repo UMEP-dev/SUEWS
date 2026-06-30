@@ -36,6 +36,10 @@ This directory contains internal documentation for SUEWS core developers.
   - How we review code
   - What to look for in reviews
 
+- **[Scientific Reviewers](SCIENTIFIC_REVIEWERS.md)** - Manual scientific reviewer routing
+  - Module-specific reviewer suggestions
+  - When and how to request scientific review
+
 ### Testing
 - **[Testing Guidelines](testing/TESTING_GUIDELINES.md)** - Overall testing strategy
   - Test design principles

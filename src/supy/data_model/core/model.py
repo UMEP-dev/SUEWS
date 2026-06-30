@@ -249,6 +249,13 @@ class KdownSplitMethod(Enum):
         return str(self.value)
 
 
+class ForcingTimestampReference(str, Enum):
+    """Clock convention used by meteorological forcing timestamps."""
+
+    LOCAL_STANDARD_TIME = "local_standard_time"
+    UTC = "utc"
+
+
 class StorageHeatMethod(Enum):
     """
     Method for calculating storage heat flux (ΔQS).
@@ -1366,6 +1373,27 @@ class ForcingControl(BaseModel):
             ":ref:`met_input`."
         ),
     )
+    timestamp_reference: FlexibleRefValue(ForcingTimestampReference) = Field(
+        default=ForcingTimestampReference.LOCAL_STANDARD_TIME,
+        description=(
+            "Clock convention used by meteorological forcing timestamps. "
+            "`local_standard_time` means local standard time using the site "
+            "`timezone` offset, matching existing behaviour. `utc` means "
+            "timestamps are UTC and are converted internally for solar geometry "
+            "and standard-time activity profiles."
+        ),
+    )
+
+    @field_validator("timestamp_reference", mode="before")
+    @classmethod
+    def _coerce_timestamp_reference(cls, value):
+        if isinstance(value, str):
+            return value.lower()
+        if isinstance(value, dict) and isinstance(value.get("value"), str):
+            coerced = value.copy()
+            coerced["value"] = coerced["value"].lower()
+            return coerced
+        return value
 
 
 class ModelControl(BaseModel):

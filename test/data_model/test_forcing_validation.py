@@ -2,9 +2,19 @@
 
 import pytest
 
-from supy.data_model.core.model import ForcingControl, ModelControl
+from supy.data_model.core.model import (
+    ForcingControl,
+    ForcingTimestampReference,
+    ModelControl,
+)
 
 pytestmark = pytest.mark.api
+
+
+def _unwrap(value):
+    while hasattr(value, "value"):
+        value = value.value
+    return value
 
 
 def test_forcing_control_accepts_single_path():
@@ -21,11 +31,33 @@ def test_forcing_control_accepts_list_of_paths():
     assert file_value == ["a.txt", "b.txt"]
 
 
+def test_forcing_control_timestamp_reference_defaults_to_local_standard_time():
+    control = ForcingControl(file="forcing.txt")
+    assert _unwrap(control.timestamp_reference) == "local_standard_time"
+
+
+def test_forcing_control_accepts_utc_timestamp_reference():
+    control = ForcingControl(
+        file="forcing.txt",
+        timestamp_reference={"value": "UTC"},
+    )
+    assert _unwrap(control.timestamp_reference) == "utc"
+
+
+def test_forcing_control_rejects_invalid_timestamp_reference():
+    with pytest.raises(ValueError, match="timestamp_reference"):
+        ForcingControl(file="forcing.txt", timestamp_reference="civil")
+
+
 def test_model_control_holds_forcing_subobject():
     """ModelControl exposes .forcing and keeps legacy forcing_file as an alias."""
     control = ModelControl(forcing={"file": "forcing.txt"})
     assert isinstance(control.forcing, ForcingControl)
     assert control.forcing_file == control.forcing.file
+    assert (
+        _unwrap(control.forcing.timestamp_reference)
+        == ForcingTimestampReference.LOCAL_STANDARD_TIME.value
+    )
 
 
 def test_model_control_accepts_legacy_forcing_file():

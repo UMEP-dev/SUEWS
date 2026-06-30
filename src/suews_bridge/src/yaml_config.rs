@@ -1468,7 +1468,17 @@ fn apply_anthro_emis_overrides(site: &mut SuewsSite, site_root: &Value) {
     }
 }
 
-fn apply_config_overrides(config: &mut SuewsConfig, root: &Value) {
+fn forcing_timestamp_reference_code(value: &str) -> Result<i32, String> {
+    match value.trim().to_ascii_lowercase().as_str() {
+        "local_standard_time" => Ok(0),
+        "utc" => Ok(1),
+        other => Err(format!(
+            "`model.control.forcing.timestamp_reference` must be `local_standard_time` or `utc`, got `{other}`."
+        )),
+    }
+}
+
+fn apply_config_overrides(config: &mut SuewsConfig, root: &Value) -> Result<(), String> {
     if let Some(v) = read_i32(root, &["model", "physics", "rslmethod"]) {
         config.rsl_method = v;
     }
@@ -1534,6 +1544,13 @@ fn apply_config_overrides(config: &mut SuewsConfig, root: &Value) {
     }
     config.kdown_split_method =
         read_i32(root, &["model", "physics", "kdown_split_method"]).unwrap_or(3);
+    if let Some(v) = read_string(
+        root,
+        &["model", "control", "forcing", "timestamp_reference"],
+    ) {
+        config.forcing_timestamp_reference = forcing_timestamp_reference_code(&v)?;
+    }
+    Ok(())
 }
 
 fn apply_ehc_overrides(site: &mut SuewsSite, site_root: &Value, nlayer: usize, ndepth: usize) {
@@ -2238,7 +2255,7 @@ pub fn load_run_config_from_value(root: &mut Value) -> Result<RunConfig, String>
     let site_root = read_sites_indexed(root, 0)
         .ok_or_else(|| "config must contain at least one site under `sites`".to_string())?;
 
-    apply_config_overrides(&mut config, root);
+    apply_config_overrides(&mut config, root)?;
 
     let nlayer = read_i32(site_root, &["properties", "vertical_layers", "nlayer"]).unwrap_or(5);
     let ndepth = read_i32(site_root, &["properties", "vertical_layers", "ndepth"]).unwrap_or(5);
@@ -2617,6 +2634,58 @@ mod tests {
 
         // Surface fields — paved `state_limit` = 0.48 in the fixture.
         assert!((run_cfg.site.lc_paved.state_limit - 0.48).abs() < 1.0e-12);
+    }
+
+    #[test]
+    fn load_run_config_defaults_forcing_timestamp_reference_to_local_standard_time() {
+        let mut root: Value =
+            serde_yaml::from_str(FIXTURE_NEW_NAMES).expect("fixture YAML should parse");
+        let run_cfg = load_run_config_from_value(&mut root)
+            .expect("YAML without timestamp_reference should parse without error");
+
+        assert_eq!(run_cfg.config.forcing_timestamp_reference, 0);
+    }
+
+    #[test]
+    fn load_run_config_accepts_utc_forcing_timestamp_reference() {
+        let mut root: Value =
+            serde_yaml::from_str(FIXTURE_NEW_NAMES).expect("fixture YAML should parse");
+        let forcing = get_path_mut(&mut root, &["model", "control", "forcing"])
+            .expect("fixture should contain model.control.forcing");
+        let Value::Mapping(map) = forcing else {
+            panic!("model.control.forcing should be a mapping");
+        };
+        map.insert(
+            Value::String("timestamp_reference".into()),
+            Value::String("utc".into()),
+        );
+
+        let run_cfg = load_run_config_from_value(&mut root)
+            .expect("UTC timestamp_reference YAML should parse without error");
+
+        assert_eq!(run_cfg.config.forcing_timestamp_reference, 1);
+    }
+
+    #[test]
+    fn load_run_config_rejects_invalid_forcing_timestamp_reference() {
+        let mut root: Value =
+            serde_yaml::from_str(FIXTURE_NEW_NAMES).expect("fixture YAML should parse");
+        let forcing = get_path_mut(&mut root, &["model", "control", "forcing"])
+            .expect("fixture should contain model.control.forcing");
+        let Value::Mapping(map) = forcing else {
+            panic!("model.control.forcing should be a mapping");
+        };
+        map.insert(
+            Value::String("timestamp_reference".into()),
+            Value::String("civil".into()),
+        );
+
+        let err = load_run_config_from_value(&mut root)
+            .expect_err("invalid timestamp_reference should fail");
+
+        assert!(err.contains("timestamp_reference"));
+        assert!(err.contains("local_standard_time"));
+        assert!(err.contains("utc"));
     }
 
     #[test]

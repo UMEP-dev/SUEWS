@@ -15,8 +15,8 @@ MODULE module_c_api_timer
    PUBLIC :: SUEWS_CAPI_BAD_BUFFER
    PUBLIC :: SUEWS_CAPI_BAD_STATE
 
-   INTEGER(c_int), PARAMETER, PUBLIC :: SUEWS_CAPI_TIMER_LEN = 18_c_int
-   INTEGER(c_int), PARAMETER, PUBLIC :: SUEWS_CAPI_TIMER_SCHEMA_VERSION = 1_c_int
+   INTEGER(c_int), PARAMETER, PUBLIC :: SUEWS_CAPI_TIMER_LEN = 20_c_int
+   INTEGER(c_int), PARAMETER, PUBLIC :: SUEWS_CAPI_TIMER_SCHEMA_VERSION = 2_c_int
 
    TYPE :: suews_timer_shadow
       INTEGER :: id = 0
@@ -35,6 +35,8 @@ MODULE module_c_api_timer
       INTEGER, DIMENSION(3) :: dayofweek_id = 0
       INTEGER :: dls = 0
       INTEGER :: new_day = 0
+      INTEGER :: it_st = 0
+      REAL(c_double) :: tz_solar = 0.0_c_double
    END TYPE suews_timer_shadow
 
    PUBLIC :: suews_timer_len
@@ -113,6 +115,8 @@ CONTAINS
       flat(16) = REAL(state%dayofweek_id(3), c_double)
       flat(17) = REAL(state%dls, c_double)
       flat(18) = REAL(state%new_day, c_double)
+      flat(19) = REAL(state%it_st, c_double)
+      flat(20) = state%tz_solar
 
       err = SUEWS_CAPI_OK
 

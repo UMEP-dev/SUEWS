@@ -1228,12 +1228,13 @@ def _migrate_2026_5_to_current(cfg: dict) -> dict:
     return cfg
 
 
-def _migrate_2026_5_to_2026_6_dev1(cfg: dict) -> dict:
-    """Stamp the SPARTACUS direct/diffuse dev schema.
+def _migrate_2026_5_to_2026_6_current(cfg: dict) -> dict:
+    """Stamp the current 2026.6 development schema.
 
-    The 2026.6.dev1 YAML delta adds only default-backed SPARTACUS controls
-    (`kdown_split_method`, forest stream settings, and `vertical_layers.veg_ext`),
-    so 2026.5 YAML content does not need reshaping.
+    The 2026.6 development deltas add only default-backed controls
+    (`kdown_split_method`, forest stream settings, `vertical_layers.veg_ext`,
+    and `forcing.timestamp_reference`), so 2026.5 YAML content does not need
+    reshaping.
     """
     return cfg
 
@@ -1302,7 +1303,8 @@ _HANDLERS: dict[tuple[str, str], Handler] = {
     # gh#1456 STEBBS physics fold, and gh#1495 frontal_area_index selector.
     # _migrate_2026_4_to_current chains _migrate_2026_4_to_2026_5 (Category 1)
     # then _migrate_2026_5_to_current (the remaining dev-cycle union).
-    ("2026.5", CURRENT_SCHEMA_VERSION): _migrate_2026_5_to_2026_6_dev1,
+    ("2026.6.dev1", CURRENT_SCHEMA_VERSION): _migrate_2026_5_to_2026_6_current,
+    ("2026.5", CURRENT_SCHEMA_VERSION): _migrate_2026_5_to_2026_6_current,
     ("2026.4", CURRENT_SCHEMA_VERSION): _migrate_2026_4_to_current,
     ("2026.1", CURRENT_SCHEMA_VERSION): _migrate_2026_1_to_current,
     ("2025.12", CURRENT_SCHEMA_VERSION): _migrate_2025_12_to_current,

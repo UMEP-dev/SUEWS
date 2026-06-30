@@ -28,7 +28,7 @@ the structure and format of the configuration file:
   compatibility matrix.
 
 Schema version is distinct from the SUEWS model version. A line such as
-``schema_version: "2026.6.dev1"`` describes the shape of the configuration
+``schema_version: "2026.6.dev2"`` describes the shape of the configuration
 file, while the SUEWS version you installed (for example
 ``2026.4.3``) describes the model code. One schema may validate many
 model releases.
@@ -41,7 +41,7 @@ Add the ``schema_version`` field to the top level of your configuration:
 .. code-block:: yaml
 
    name: my_urban_config
-   schema_version: "2026.6.dev1"
+   schema_version: "2026.6.dev2"
    description: Urban climate simulation for central London
    model:
      # ... model configuration ...
@@ -59,7 +59,7 @@ Schema Version Policy
 Schema labels use **CalVer** (``YYYY.M``, with ``.devN`` labels during
 development), aligned with the SUEWS release in which that shape first
 ships. The next label is chosen from the current month, not incremented
-as a floating-point number — ``2026.6.dev1`` comes after ``2026.5``,
+as a floating-point number — ``2026.6.dev2`` comes after ``2026.5``,
 which comes after ``2026.4``, which comes after ``2026.1``, which comes
 after ``2025.12``.
 
@@ -107,7 +107,7 @@ The three outcomes users see:
 **Older schema with a registered migration**
    .. code-block:: text
 
-      Configuration uses schema 2026.5, current is 2026.6.dev1 (compatible)
+      Configuration uses schema 2026.5, current is 2026.6.dev2 (compatible)
 
    The YAML loads via the chained migration. Regenerate the file with
    :doc:`/inputs/converter` if you want to persist the upgrade.
@@ -115,13 +115,13 @@ The three outcomes users see:
 **Older schema with no registered migration**
    .. code-block:: text
 
-      WARNING: Configuration uses older schema 2025.8, current is 2026.6.dev1.
+      WARNING: Configuration uses older schema 2025.8, current is 2026.6.dev2.
       Consider updating your configuration.
 
 **Newer schema than this SUEWS knows about**
    .. code-block:: text
 
-      WARNING: Configuration uses newer schema 2027.1, this version supports 2026.6.dev1.
+      WARNING: Configuration uses newer schema 2027.1, this version supports 2026.6.dev2.
       Please update SUEWS or use an older configuration.
 
 Migration
@@ -171,7 +171,14 @@ The lineage below mirrors ``SCHEMA_VERSIONS`` in
 the schema that shipped with it via
 ``supy.util.converter.yaml_upgrade._PACKAGE_TO_SCHEMA``.
 
-**Schema 2026.6.dev1** (current; development)
+**Schema 2026.6.dev2** (current; development)
+   Development schema for forcing-clock declaration work. It adds
+   ``model.control.forcing.timestamp_reference`` with default
+   ``local_standard_time`` and accepted values ``local_standard_time`` and
+   ``utc``. Existing YAMLs remain valid because omitted values preserve the
+   previous local-standard-time forcing convention.
+
+**Schema 2026.6.dev1** (development)
    Development schema for the SPARTACUS direct/diffuse benchmark work.
    It adds ``model.physics.kdown_split_method`` for selecting forcing,
    constant-fraction, or EPW-derived direct/diffuse shortwave
@@ -183,7 +190,7 @@ the schema that shipped with it via
    inputs are default-backed and legacy
    ``sites[*].properties.spartacus.sw_dn_direct_frac`` input is migrated
    into the model-owned fraction; the
-   ``(2026.5 -> 2026.6.dev1)`` handler is a no-op content migration
+   ``(2026.5 -> current 2026.6 development)`` handler is a no-op content migration
    that updates the schema marker.
 
 **Schema 2026.5** (released with 2026.6.5)

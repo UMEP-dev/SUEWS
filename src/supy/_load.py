@@ -619,7 +619,15 @@ def resample_linear_avg(data_raw_avg, tstep_in, tstep_mod):
 
 # resample input met forcing to tstep required by model
 def resample_forcing_met(
-    data_met_raw, tstep_in, tstep_mod, lat=51, lon=0, alt=100, timezone=0, kdownzen=0
+    data_met_raw,
+    tstep_in,
+    tstep_mod,
+    lat=51,
+    lon=0,
+    alt=100,
+    timezone=0,
+    kdownzen=0,
+    timestamp_reference="local_standard_time",
 ):
     if tstep_in % tstep_mod != 0:
         raise RuntimeError(
@@ -694,8 +702,9 @@ def resample_forcing_met(
 
     # adjust solar radiation by zenith correction and total amount distribution
     if kdownzen == 1:
+        timezone_solar = 0 if str(timestamp_reference).lower() == "utc" else timezone
         data_met_tstep["kdown"] = resample_kdn(
-            data_met_tstep["kdown"], tstep_mod, timezone, lat, lon, alt
+            data_met_tstep["kdown"], tstep_mod, timezone_solar, lat, lon, alt
         )
 
     # assign temporal info

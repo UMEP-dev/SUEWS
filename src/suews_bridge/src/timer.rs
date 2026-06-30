@@ -2,8 +2,8 @@ use crate::codec::{validate_flat_len, StateCodec, TypeSchema, ValuesPayload};
 use crate::error::BridgeError;
 use crate::ffi;
 
-pub const SUEWS_TIMER_FLAT_LEN: usize = 18;
-pub const SUEWS_TIMER_SCHEMA_VERSION: u32 = 1;
+pub const SUEWS_TIMER_FLAT_LEN: usize = 20;
+pub const SUEWS_TIMER_SCHEMA_VERSION: u32 = 2;
 
 pub type SuewsTimerSchema = crate::codec::SimpleSchema;
 
@@ -27,6 +27,8 @@ pub struct SuewsTimer {
     pub dayofweek_id: [i32; 3],
     pub dls: i32,
     pub new_day: i32,
+    pub it_st: i32,
+    pub tz_solar: f64,
 }
 
 impl Default for SuewsTimer {
@@ -48,6 +50,8 @@ impl Default for SuewsTimer {
             dayofweek_id: [0; 3],
             dls: 0,
             new_day: 0,
+            it_st: 0,
+            tz_solar: 0.0,
         }
     }
 }
@@ -94,6 +98,8 @@ impl SuewsTimer {
             ],
             dls: decode_int(flat[16])?,
             new_day: decode_int(flat[17])?,
+            it_st: decode_int(flat[18])?,
+            tz_solar: flat[19],
         })
     }
 
@@ -117,6 +123,8 @@ impl SuewsTimer {
             self.dayofweek_id[2] as f64,
             self.dls as f64,
             self.new_day as f64,
+            self.it_st as f64,
+            self.tz_solar,
         ]
     }
 }
@@ -160,6 +168,8 @@ pub fn suews_timer_field_names() -> Vec<String> {
         "dayofweek_id_3".to_string(),
         "dls".to_string(),
         "new_day".to_string(),
+        "it_st".to_string(),
+        "tz_solar".to_string(),
     ]
 }
 

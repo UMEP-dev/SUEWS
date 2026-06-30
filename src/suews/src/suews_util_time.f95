@@ -409,23 +409,78 @@ CONTAINS
       IF (dow1 == 1 .OR. dow1 == 7) iu = 2
    END FUNCTION cal_weekday_index
 
-   SUBROUTINE SUEWS_cal_timer(timer, siteInfo, ahemisPrm)
+   SUBROUTINE SUEWS_cal_local_standard_timer(timer, siteInfo, config, timer_st)
+      ! Convert the forcing timestamp to local standard time when the input
+      ! forcing clock is UTC. Standard-time input keeps the raw timestamp.
+      USE module_ctrl_type, ONLY: SUEWS_TIMER, SUEWS_SITE, SUEWS_CONFIG
+
+      IMPLICIT NONE
+
+      TYPE(SUEWS_TIMER), INTENT(IN) :: timer
+      TYPE(SUEWS_SITE), INTENT(IN) :: siteInfo
+      TYPE(SUEWS_CONFIG), INTENT(IN) :: config
+      TYPE(SUEWS_TIMER), INTENT(OUT) :: timer_st
+
+      INTEGER :: offset_minutes
+      INTEGER :: total_minutes
+      INTEGER :: minutes_in_year
+      INTEGER :: year_days
+      INTEGER :: day_minutes
+
+      timer_st = timer
+      offset_minutes = 0
+      IF (config%ForcingTimestampReference == 1) THEN
+         offset_minutes = NINT(siteInfo%timezone*60.0D0)
+      END IF
+
+      IF (offset_minutes == 0) RETURN
+
+      total_minutes = (timer%id - 1)*1440 + timer%it*60 + timer%imin + offset_minutes
+      timer_st%iy = timer%iy
+
+      DO
+         CALL LeapYearCalc(timer_st%iy, year_days)
+         minutes_in_year = year_days*1440
+         IF (total_minutes >= 0 .AND. total_minutes < minutes_in_year) EXIT
+         IF (total_minutes < 0) THEN
+            timer_st%iy = timer_st%iy - 1
+            CALL LeapYearCalc(timer_st%iy, year_days)
+            total_minutes = total_minutes + year_days*1440
+         ELSE
+            total_minutes = total_minutes - minutes_in_year
+            timer_st%iy = timer_st%iy + 1
+         END IF
+      END DO
+
+      timer_st%id = total_minutes/1440 + 1
+      day_minutes = MOD(total_minutes, 1440)
+      timer_st%it = day_minutes/60
+      timer_st%imin = MOD(day_minutes, 60)
+   END SUBROUTINE SUEWS_cal_local_standard_timer
+
+   SUBROUTINE SUEWS_cal_timer(timer, siteInfo, config, ahemisPrm)
       ! Single entry point that computes all derived timer values for a
       ! timestep, consolidating the previously separate dectime / tstep /
-      ! weekday / DLS calls. Behaviour is unchanged: each derived value is
-      ! computed exactly as before.
-      USE module_ctrl_type, ONLY: SUEWS_TIMER, SUEWS_SITE, anthroEMIS_PRM
+      ! weekday / DLS calls. Standard-time forcing follows the legacy clock;
+      ! UTC forcing derives profile/DLS values from local standard time.
+      USE module_ctrl_type, ONLY: SUEWS_TIMER, SUEWS_SITE, SUEWS_CONFIG, anthroEMIS_PRM
 
       IMPLICIT NONE
 
       TYPE(SUEWS_TIMER), INTENT(INOUT) :: timer
       TYPE(SUEWS_SITE), INTENT(IN) :: siteInfo
+      TYPE(SUEWS_CONFIG), INTENT(IN) :: config
       TYPE(anthroEMIS_PRM), INTENT(IN) :: ahemisPrm
+      TYPE(SUEWS_TIMER) :: timer_st
 
       CALL SUEWS_cal_dectime(timer, timer%dectime)
       CALL SUEWS_cal_tstep(timer, timer%nsh, timer%nsh_real, timer%tstep_real)
-      CALL SUEWS_cal_weekday(timer, siteInfo, timer%dayofWeek_id)
-      CALL SUEWS_cal_DLS(timer, ahemisPrm, timer%DLS)
+      CALL SUEWS_cal_local_standard_timer(timer, siteInfo, config, timer_st)
+      CALL SUEWS_cal_weekday(timer_st, siteInfo, timer%dayofWeek_id)
+      CALL SUEWS_cal_DLS(timer_st, ahemisPrm, timer%DLS)
+      timer%it_st = cal_profile_hour(timer_st%it, timer%DLS)
+      timer%tz_solar = siteInfo%timezone
+      IF (config%ForcingTimestampReference == 1) timer%tz_solar = 0.0D0
    END SUBROUTINE SUEWS_cal_timer
 
 END MODULE module_util_time

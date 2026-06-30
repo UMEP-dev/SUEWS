@@ -1232,7 +1232,7 @@ CONTAINS
                                LC_GRASS_PRM, LC_BSOIL_PRM, LC_WATER_PRM, &
                                IRRIGATION_PRM, anthroEmis_STATE, &
                                HYDRO_STATE, SUEWS_STATE
-      USE module_util_time, ONLY: cal_profile_hour, cal_weekday_index
+      USE module_util_time, ONLY: cal_weekday_index
 
       IMPLICIT NONE
 
@@ -1378,7 +1378,7 @@ CONTAINS
 
                   ! Profile-hour (daylight saving) and weekday/weekend index
                   ! (GH#1559: centralised in module_util_time)
-                  ih = cal_profile_hour(it, DLS)
+                  ih = timer%it_st
                   iu = cal_weekday_index(DayofWeek_id(1))
 
                   WUDay_A_id = 0

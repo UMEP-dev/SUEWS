@@ -180,12 +180,30 @@ The sections below summarise what users see change between schemas.
 The authoritative lineage (including release-tag to schema mapping)
 lives in :ref:`schema_version_history`.
 
+Upgrading to Schema 2026.6.dev2
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Schema ``2026.6.dev2`` is the current development schema for forcing-clock
+declaration. It adds:
+
+- ``model.control.forcing.timestamp_reference`` with accepted values
+  ``local_standard_time`` and ``utc``.
+
+The default is ``local_standard_time``, which preserves the existing convention
+that forcing timestamps are in local standard time. Use ``utc`` when the
+forcing file timestamps are UTC; SUEWS will then derive local-standard-time
+profile hours internally and use UTC for solar geometry.
+
+Existing YAMLs do not need content edits because the new field has a default.
+The registered ``(2026.5 -> current 2026.6 development)`` handler is therefore
+a no-op content migration that stamps the new ``schema_version``.
+
 Upgrading to Schema 2026.6.dev1
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Schema ``2026.6.dev1`` is the current development schema for the
-SPARTACUS direct/diffuse benchmark work. It extends the ``2026.5``
-surface with default-backed controls:
+Schema ``2026.6.dev1`` is the development schema for the SPARTACUS
+direct/diffuse benchmark work. It extends the ``2026.5`` surface with
+default-backed controls:
 
 - ``model.physics.kdown_split_method`` selects forcing-provided,
   constant-fraction, or EPW-derived direct/diffuse shortwave
@@ -216,7 +234,7 @@ surface with default-backed controls:
   keeps the LAI-derived behaviour.
 
 Existing ``2026.5`` YAMLs do not need content edits because all new
-fields have defaults. The registered ``(2026.5 -> 2026.6.dev1)``
+fields have defaults. The registered ``(2026.5 -> current 2026.6 development)``
 handler is therefore a no-op content migration that stamps the new
 ``schema_version``:
 

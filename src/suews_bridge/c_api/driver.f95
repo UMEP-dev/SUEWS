@@ -57,8 +57,8 @@ implicit none
 
 private
 
-integer(c_int), parameter :: SUEWS_CAPI_TIMER_LEN = 18_c_int
-integer(c_int), parameter :: SUEWS_CAPI_CONFIG_LEN = 23_c_int
+integer(c_int), parameter :: SUEWS_CAPI_TIMER_LEN = 20_c_int
+integer(c_int), parameter :: SUEWS_CAPI_CONFIG_LEN = 24_c_int
 integer(c_int), parameter :: SUEWS_CAPI_SITE_SCALARS_LEN = 24_c_int
 integer(c_int), parameter :: SUEWS_CAPI_FORCING_COLS = 32_c_int
 
@@ -977,6 +977,8 @@ subroutine unpack_timer(flat, n_flat, timer, err)
    timer%dayofWeek_id(3) = int(nint(flat(16)))
    timer%DLS = int(nint(flat(17)))
    timer%new_day = int(nint(flat(18)))
+   timer%it_st = int(nint(flat(19)))
+   timer%tz_solar = flat(20)
 
    err = SUEWS_CAPI_OK
 
@@ -1013,6 +1015,8 @@ subroutine pack_timer(timer, flat, n_flat, err)
    flat(16) = real(timer%dayofWeek_id(3), c_double)
    flat(17) = real(timer%DLS, c_double)
    flat(18) = real(timer%new_day, c_double)
+   flat(19) = real(timer%it_st, c_double)
+   flat(20) = timer%tz_solar
 
    err = SUEWS_CAPI_OK
 
@@ -1054,6 +1058,7 @@ subroutine unpack_config(flat, n_flat, config, err)
    config%setpointmethod = int(nint(flat(21)))
    config%flag_test = flat(22)>=0.5_c_double
    config%KdownSplitMethod = int(nint(flat(23)))
+   config%ForcingTimestampReference = int(nint(flat(24)))
 
    err = SUEWS_CAPI_OK
 

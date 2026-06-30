@@ -51,7 +51,7 @@ CONTAINS
       ! Simple anthropogenic heat parameterisation and co2 calculation
       ! Calculates QF_SAHP and Fc_anthro
 
-      USE module_util_time, ONLY: cal_profile_hour, cal_weekday_index
+      USE module_util_time, ONLY: cal_weekday_index
 
       IMPLICIT NONE
 
@@ -148,7 +148,7 @@ CONTAINS
       !-----------------------------------------------------------------------
       ! Profile-hour (daylight saving) and weekday/weekend index
       ! (GH#1559: centralised in module_util_time)
-      ih = cal_profile_hour(it, DLS)
+      ih = it
       iu = cal_weekday_index(DayofWeek_id(1))
 
       ! Calculate energy emissions and CO2 from human metabolism -------------

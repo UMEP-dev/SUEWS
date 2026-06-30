@@ -633,7 +633,7 @@ CONTAINS
          timer%isec = 0
 
          ! Calculate all derived timer values (GH#1559: centralised)
-         CALL SUEWS_cal_timer(timer, siteInfo, ahemisPrm)
+         CALL SUEWS_cal_timer(timer, siteInfo, config, ahemisPrm)
 
          ! === Update forcing from forcing block ===
          ! Note: columns 6, 7 are reserved but not used (qh_obs, qe_obs are outputs not inputs)
@@ -1079,7 +1079,7 @@ CONTAINS
                SurfaceArea => siteInfo%SurfaceArea, &
                HDD_id => anthroEmisState%HDD_id, &
                imin => timer%imin, &
-               it => timer%it, &
+               it => timer%it_st, &
                Fc_anthro => anthroEmisState%Fc_anthro, &
                Fc_build => anthroEmisState%Fc_build, &
                Fc_metab => anthroEmisState%Fc_metab, &
@@ -5684,7 +5684,7 @@ CONTAINS
          timer%imin = INT(MetForcingBlock(ir, 4))
          timer%isec = 0 ! NOT used by SUEWS but by WRF-SUEWS via the cal_main interface
          ! Calculate all derived timer values (GH#1559: centralised)
-         CALL SUEWS_cal_timer(timer, siteInfo, ahemisPrm)
+         CALL SUEWS_cal_timer(timer, siteInfo, config, ahemisPrm)
 
          ! CALL NARP_update_SunPosition(timer, siteInfo, mod_State)
          ! print *, 'azimuth, zenith_deg', timer%azimuth, timer%zenith_deg

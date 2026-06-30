@@ -656,7 +656,7 @@ CONTAINS
       idectime = timer%dectime - timer%tstep/2/86400
 
       CALL NARP_cal_SunPosition( &
-         year, idectime, siteInfo%timezone, &
+         year, idectime, timer%tz_solar, &
          siteInfo%lat, siteInfo%lon, siteInfo%alt, &
          modState%solarState%azimuth_deg, modState%solarState%zenith_deg)
 

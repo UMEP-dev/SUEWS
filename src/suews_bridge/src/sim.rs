@@ -1002,8 +1002,12 @@ pub fn run_simulation(input: SimulationInput) -> Result<SimulationOutput, Bridge
 
 #[cfg(test)]
 mod tests {
-    use super::OUTPUT_GROUP_LAYOUT;
+    use super::{run_simulation, SimulationInput, MET_FORCING_COLS, OUTPUT_GROUP_LAYOUT};
     use crate::ffi;
+    use crate::yaml_config::load_run_config_from_str;
+
+    const FIXTURE_CONFIG: &str =
+        include_str!("../../../test/fixtures/data_test/stebbs_test/sample_config.yml");
 
     #[test]
     fn output_group_layout_matches_fortran_ncolumns() {
@@ -1072,5 +1076,101 @@ mod tests {
                 "Rust constant for group '{group_name}' drifted from compiled Fortran metadata"
             );
         }
+    }
+
+    fn fixture_forcing_row() -> Vec<f64> {
+        let mut row = vec![-999.0_f64; MET_FORCING_COLS];
+        let values = [
+            2017.0,
+            226.0,
+            0.0,
+            15.0,
+            -999.0,
+            -999.0,
+            -999.0,
+            -999.0,
+            -999.0,
+            2.0018018018018,
+            66.0653153153153,
+            16.361036036036,
+            100.157661069368,
+            -999.0,
+            0.0,
+            -999.0,
+            -999.0,
+            -999.0,
+            -999.0,
+            -999.0,
+            -999.0,
+            -999.0,
+            -999.0,
+            -999.0,
+        ];
+        row[..values.len()].copy_from_slice(&values);
+        row
+    }
+
+    fn fixture_config_with_timestamp_reference(timestamp_reference: &str) -> String {
+        let yaml = FIXTURE_CONFIG.replace("\r\n", "\n").replace(
+            "    timezone:\n      value: 0",
+            "    timezone:\n      value: 1",
+        );
+        if timestamp_reference == "local_standard_time" {
+            yaml
+        } else {
+            yaml.replace(
+                "        value: test_2017_data_15_mp.txt\n",
+                "        value: test_2017_data_15_mp.txt\n      timestamp_reference: utc\n",
+            )
+        }
+    }
+
+    fn run_one_fixture_timestep(timestamp_reference: &str) -> crate::timer::SuewsTimer {
+        let config_yaml = fixture_config_with_timestamp_reference(timestamp_reference);
+        let mut run_cfg =
+            load_run_config_from_str(&config_yaml).expect("fixture config should parse");
+        let forcing_block = fixture_forcing_row();
+        let first_row = &forcing_block[..MET_FORCING_COLS];
+
+        run_cfg.timer.iy = first_row[0] as i32;
+        run_cfg.timer.id = first_row[1] as i32;
+        run_cfg.timer.it = first_row[2] as i32;
+        run_cfg.timer.imin = first_row[3] as i32;
+        run_cfg.timer.isec = 0;
+        run_cfg.timer.tstep_prev = run_cfg.timer.tstep;
+        run_cfg.timer.tstep_real = run_cfg.timer.tstep as f64;
+        run_cfg.timer.nsh_real = 3600.0 / run_cfg.timer.tstep as f64;
+        run_cfg.timer.nsh = (3600 / run_cfg.timer.tstep).max(1);
+        run_cfg.timer.dt_since_start = run_cfg.timer.tstep;
+        run_cfg.timer.dt_since_start_prev = 0;
+
+        let sim_out = run_simulation(SimulationInput {
+            timer: run_cfg.timer,
+            config: run_cfg.config,
+            site: run_cfg.site,
+            site_scalars: run_cfg.site_scalars,
+            state: run_cfg.state,
+            forcing_block,
+            len_sim: 1,
+            nlayer: run_cfg.nlayer,
+            ndepth: run_cfg.ndepth,
+        })
+        .expect("one-timestep fixture simulation should run");
+
+        sim_out.timer
+    }
+
+    #[test]
+    fn utc_forcing_mode_sets_solar_timezone_and_standard_profile_hour() {
+        let local_standard_timer = run_one_fixture_timestep("local_standard_time");
+        let utc_timer = run_one_fixture_timestep("utc");
+
+        assert_eq!(local_standard_timer.it, 0);
+        assert_eq!(local_standard_timer.it_st, 23);
+        assert!((local_standard_timer.tz_solar - 1.0).abs() < 1.0e-12);
+
+        assert_eq!(utc_timer.it, 0);
+        assert_eq!(utc_timer.it_st, 0);
+        assert!(utc_timer.tz_solar.abs() < 1.0e-12);
     }
 }

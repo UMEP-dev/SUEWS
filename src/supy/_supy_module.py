@@ -340,6 +340,9 @@ def _load_forcing_grid(
             else:
                 # Handle single file
                 path_input = path_site / forcing_file_val
+            timestamp_reference = config.model.control.forcing.timestamp_reference
+            while hasattr(timestamp_reference, "value"):
+                timestamp_reference = timestamp_reference.value
 
         tstep_mod, lat, lon, alt, timezone = df_state_init.loc[
             grid, [(x, "0") for x in ["tstep", "lat", "lng", "alt", "timezone"]]
@@ -361,6 +364,7 @@ def _load_forcing_grid(
                 alt,
                 timezone,
                 kdownzen,
+                "local_standard_time",
             )
         elif path_init.suffix == ".yml":
             df_forcing_met = load_SUEWS_Forcing_met_df_yaml(path_input)
@@ -371,7 +375,14 @@ def _load_forcing_grid(
                 kdownzen = kdownzen.value
             if kdownzen is None:
                 df_forcing_met_tstep = resample_forcing_met(
-                    df_forcing_met, tstep_met_in, tstep_mod, lat, lon, alt, timezone
+                    df_forcing_met,
+                    tstep_met_in,
+                    tstep_mod,
+                    lat,
+                    lon,
+                    alt,
+                    timezone,
+                    timestamp_reference=timestamp_reference,
                 )
             else:
                 df_forcing_met_tstep = resample_forcing_met(
@@ -383,6 +394,7 @@ def _load_forcing_grid(
                     alt,
                     timezone,
                     kdownzen,
+                    timestamp_reference,
                 )
 
         # coerced precision here to prevent numerical errors inside Fortran

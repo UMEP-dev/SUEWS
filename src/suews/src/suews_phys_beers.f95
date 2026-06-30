@@ -139,7 +139,7 @@ CONTAINS
             lat => siteInfo%lat, &
             lng => siteInfo%lon, &
             alt => siteInfo%alt, &
-            timezone => siteInfo%timezone, &
+            timezone => timer%tz_solar, &
             conductancePrm => siteInfo%conductance, &
             tstep_real => timer%tstep_real, &
             avkdn => forcing%kdown, &

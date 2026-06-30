@@ -23,32 +23,19 @@ Apply lint-code checks. See `style-checks.md`.
 ### Suggested Reviewers
 
 Reviewer suggestions are advisory metadata in the audit summary. Derive them
-from changed files, `.github/CODEOWNERS`, and `dev-ref/REVIEW_PROCESS.md`;
-do not request reviews or post comments without explicit approval.
+from changed files, `dev-ref/SCIENTIFIC_REVIEWERS.md`, and
+`dev-ref/REVIEW_PROCESS.md`; do not request reviews or post comments without
+explicit approval.
 
 For changed paths:
 
-1. Match the path against `.github/CODEOWNERS`.
-2. For physics modules, cross-check the table below and the maintained panel in
+1. For physics modules, use the maintained panel in
+   `dev-ref/SCIENTIFIC_REVIEWERS.md`.
+2. If the module is not listed with named reviewers, suggest the default
+   scientific review owners documented in that guide.
+3. For coding style, linting, naming conventions, issue triage, or review
+   process changes, use the code-governance maintainer table in
    `dev-ref/REVIEW_PROCESS.md`.
-3. If the module is not listed with named reviewers, suggest the default
-   scientific review owners: @sunt05, @suegrimmond.
-4. For coding style, linting, naming conventions, issue triage, or review
-   process changes, suggest @sunt05 and @suegrimmond.
-
-### Module Reviewer Reference
-
-| File Pattern | Module | Reviewers |
-|--------------|--------|-----------|
-| `suews_phys_stebbs` | `2-module:stebbs` | @yiqing1021, @denisehertwig |
-| `suews_phys_rslprof` | `2-module:rslprof` | @vitorlavor, @suegrimmond |
-| `suews_phys_spartacus`, `suews_type_spartacus`, `spartacus-surface/` | `2-module:spartacus` | @suegrimmond, @yiqing1021, @vitorlavor |
-| `suews_phys_biogenco2` | `2-module:biogenco2` | @havum, @ljarvi |
-| `suews_phys_snow` | `2-module:snow` | @havum, @ljarvi |
-| `suews_phys_ehc` | `2-module:ehc` | @sunt05 |
-| `suews_phys_anohm` | `2-module:anohm` | @sunt05 |
-| Other `suews_phys_*` files | Matching `2-module:*` | @sunt05, @suegrimmond |
-| General | Overall | @sunt05, @MatthewPaskin |
 
 ### Validation Checks
 

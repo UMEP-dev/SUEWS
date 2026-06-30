@@ -43,8 +43,8 @@ recommendation instead of spending the review on an unreviewable diff:
 - **Docs**: CHANGELOG, PR description
 - **Governance**: Check feature status tags (see below)
 - **Suggested reviewers**: Derive reviewer suggestions from changed files,
-  `.github/CODEOWNERS`, and `dev-ref/REVIEW_PROCESS.md`; include them in the
-  draft summary without treating them as automatic blockers.
+  `dev-ref/SCIENTIFIC_REVIEWERS.md`, and `dev-ref/REVIEW_PROCESS.md`; include
+  them in the draft summary without treating them as automatic blockers.
 - **Schema version audit**: If the PR touches `src/supy/data_model/`, apply the triggers in `.claude/rules/python/schema-versioning.md`. Field rename, removal, type change, or required-field addition should be accompanied by a bump to `CURRENT_SCHEMA_VERSION`, a new `SCHEMA_VERSIONS` entry, a matching handler in `src/supy/util/converter/yaml_upgrade.py`, and a `sample_config.yml` resync. Flag any of these that are missing. CI gate `.github/workflows/schema-version-audit.yml` runs the automated check; if the PR carries the `0-ci:schema-audit-ok` bypass label, verify from the diff yourself that the reason is genuinely cosmetic before approving.
 - **Physics-change evidence audit**: If the diff touches physics source (`suews_phys_*.f95`, Rust physics backend), moves a reference fixture (`test/fixtures/data_test/sample_output.csv.gz`, `.../stebbs_test/sample_output_stebbs.csv`, `test/fixtures/benchmark1/*.pkl`), or changes a physics-affecting data-model default, apply `.claude/rules/physics-change-evidence.md`. Confirm the `0-physics:change` label is present (apply or flag if missing), the PR body has a `## Scientific evidence` section (quantities + mechanism, before/after comparison, sign/magnitude reasoning -- a bare "outputs changed" is blocking), the owner sign-off is present for any owned subsystem (STEBBS -> `@yiqing1021`), any moved fixture is refreshed in this PR (or a linked PR), and the full `-m physics` tier (including `slow`) has run green.
 - **Build**: CI status, meson.build
@@ -73,14 +73,13 @@ Details: `references/workflow-steps.md`
 In every audit summary, include suggested reviewers based on the PR diff:
 
 1. Start from changed files (`gh pr diff {pr} --name-only`).
-2. Match file paths against `.github/CODEOWNERS`; use the last matching entry,
-   which is the rule GitHub applies when several patterns match.
-3. For physics files, cross-check the module owner list in
-   `dev-ref/REVIEW_PROCESS.md` and `references/review-checklist.md`.
-4. For modules without named domain reviewers, suggest the default scientific
-   owners documented in `dev-ref/REVIEW_PROCESS.md`.
-5. For coding style, linting, naming, issue-triage, or review-process changes,
-   suggest the code-governance owners from `.github/CODEOWNERS`.
+2. For physics files, use the manual scientific reviewer routing documented in
+   `dev-ref/SCIENTIFIC_REVIEWERS.md`.
+3. For modules without named domain reviewers, suggest the default scientific
+   owners documented in `dev-ref/SCIENTIFIC_REVIEWERS.md`.
+4. For coding style, linting, naming, issue-triage, or review-process changes,
+   suggest the code-governance maintainers documented in
+   `dev-ref/REVIEW_PROCESS.md`.
 
 These are reviewer suggestions, not permission to request reviews or block a PR
 by themselves. If a physics-changing PR lacks the needed scientific review or
@@ -128,7 +127,7 @@ The `Verdict`, `Size gate`, and per-finding `[severity]` tags are the fields a
 consuming skill (e.g. `fix-issue` step 5) branches on; keep them explicit.
 
 ### Suggested Reviewers
-- @reviewer (source: CODEOWNERS or review panel; reason: changed area)
+- @reviewer (source: dev-ref reviewer guide; reason: changed area)
 ```
 
 ## Approval Options

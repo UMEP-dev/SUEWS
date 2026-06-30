@@ -4,55 +4,38 @@
 
 This document outlines how SUEWS connects issue triage, PR review, scientific
 review, and code-governance ownership. The goal is to preserve the existing
-review panel while making ownership visible to GitHub's review and assignment
-flow.
+review panel while keeping all review requests intentional and manual. SUEWS
+does not maintain a GitHub CODEOWNERS file; maintainer and reviewer routing is
+documented here and in the scientific reviewer guide for humans to apply when a
+PR genuinely needs that expertise.
 
 ## Review and Governance Panels
 
 The SUEWS review panel consists of domain experts responsible for validating
 module-specific scientific changes. The code-governance panel owns review
-process, coding style, issue-triage conventions, and default ownership when a
-module does not yet have named reviewers.
+process, coding style, issue-triage conventions, and workflow administration.
 
 ### Scientific Review Panel
 
-| Module | Label | Reviewers |
-|--------|-------|-----------|
-| STEBBS | [`2-module:stebbs`](https://github.com/UMEP-dev/SUEWS/labels/2-module%3Astebbs) | @yiqing1021, @denisehertwig |
-| RSL Profiles | [`2-module:rslprof`](https://github.com/UMEP-dev/SUEWS/labels/2-module%3Arslprof) | @vitorlavor, @suegrimmond |
-| SPARTACUS | [`2-module:spartacus`](https://github.com/UMEP-dev/SUEWS/labels/2-module%3Aspartacus) | @suegrimmond, @yiqing1021, @vitorlavor |
-| Biogenic CO2 | [`2-module:biogenco2`](https://github.com/UMEP-dev/SUEWS/labels/2-module%3Abiogenco2) | @havum, @ljarvi |
-| Snow | [`2-module:snow`](https://github.com/UMEP-dev/SUEWS/labels/2-module%3Asnow) | @havum, @ljarvi |
-| EHC | [`2-module:ehc`](https://github.com/UMEP-dev/SUEWS/labels/2-module%3Aehc) | @sunt05 |
-| AnOHM | [`2-module:anohm`](https://github.com/UMEP-dev/SUEWS/labels/2-module%3Aanohm) | @sunt05 |
-| Overall | General PRs | @sunt05, @MatthewPaskin |
-
-### Default Scientific Review Coverage
-
-Modules without named domain reviewers are routed to @sunt05 and @suegrimmond
-by default until the panel appoints module-specific reviewers:
-
-- Atmospheric stability ([`2-module:atmmoiststab`](https://github.com/UMEP-dev/SUEWS/labels/2-module%3Aatmmoiststab))
-- Evaporation ([`2-module:evap`](https://github.com/UMEP-dev/SUEWS/labels/2-module%3Aevap))
-- Water distribution ([`2-module:waterdist`](https://github.com/UMEP-dev/SUEWS/labels/2-module%3Awaterdist))
-- Anthropogenic heat ([`2-module:anthro`](https://github.com/UMEP-dev/SUEWS/labels/2-module%3Aanthro))
-- OHM ([`2-module:ohm`](https://github.com/UMEP-dev/SUEWS/labels/2-module%3Aohm))
-- ESTM ([`2-module:estm`](https://github.com/UMEP-dev/SUEWS/labels/2-module%3Aestm))
-- LUMPS ([`2-module:lumps`](https://github.com/UMEP-dev/SUEWS/labels/2-module%3Alumps))
-- NARP ([`2-module:narp`](https://github.com/UMEP-dev/SUEWS/labels/2-module%3Anarp))
-- SOLWEIG ([`2-module:solweig`](https://github.com/UMEP-dev/SUEWS/labels/2-module%3Asolweig))
-- BEERS ([`2-module:beers`](https://github.com/UMEP-dev/SUEWS/labels/2-module%3Abeers))
-- Resistance ([`2-module:resist`](https://github.com/UMEP-dev/SUEWS/labels/2-module%3Aresist))
-- BLUEWS ([`2-module:bluews`](https://github.com/UMEP-dev/SUEWS/labels/2-module%3Abluews))
-- Daily state ([`2-module:dailystate`](https://github.com/UMEP-dev/SUEWS/labels/2-module%3Adailystate))
+Scientific reviewer routing is maintained in
+[`SCIENTIFIC_REVIEWERS.md`](SCIENTIFIC_REVIEWERS.md). Use that guide to identify
+reviewers for physics modules and request them manually when science review is
+needed. Scientific module reviewers are intentionally not wired into GitHub
+automatic review requests.
 
 ### Code Governance Panel
 
-| Area | Owners |
-|------|--------|
-| Review process and issue triage | @sunt05, @suegrimmond |
-| Coding style, linting, and naming conventions | @sunt05, @suegrimmond |
-| GitHub workflow administration | @sunt05 |
+The table below is an advisory maintainer-routing reference. It does not grant
+automatic ownership, create required reviews, or mean every PR touching these
+paths needs a review request.
+
+| Area | Path examples | Suggested maintainers |
+|------|---------------|-----------------------|
+| Review process and issue triage | `dev-ref/REVIEW_PROCESS.md`, `dev-ref/ISSUE_TRIAGE.md` | @sunt05, @suegrimmond |
+| Scientific reviewer guide | `dev-ref/SCIENTIFIC_REVIEWERS.md` | @sunt05, @suegrimmond |
+| Coding style, linting, and naming conventions | `dev-ref/CODING_GUIDELINES.md`, `dev-ref/FORTRAN_NAMING_CONVENTIONS.md`, `scripts/lint/`, `.ruff.toml`, `pyproject.toml` | @sunt05, @suegrimmond |
+| AI review and rule surfaces | `.claude/skills/audit-pr/`, `.claude/rules/` | @sunt05, @suegrimmond |
+| GitHub workflow administration | `.github/workflows/`, `.github/actions/`, `.github/scripts/` | @sunt05 |
 
 ## Review Workflow
 
@@ -68,7 +51,8 @@ When an issue is opened, maintainers apply the MECE label system described in
 
 Assignees are set only when someone is expected to drive the issue. For module
 issues that need scientific input, use the relevant `2-module:*` label and
-`4-needs-science`, then route the discussion to the panel owner listed above.
+`4-needs-science`, then route the discussion to the panel owner listed in
+[`SCIENTIFIC_REVIEWERS.md`](SCIENTIFIC_REVIEWERS.md).
 
 ### 2. PR Triage
 
@@ -77,7 +61,9 @@ When a PR is opened, maintainers perform initial triage:
 1. Assess whether changes affect model physics, scientific calculations, coding
    style, process, or infrastructure.
 2. Determine which labels and ownership areas apply.
-3. Use `.github/CODEOWNERS` to request review from the relevant panel members.
+3. Use the code-governance table above for process and workflow maintainer
+   suggestions, and [`SCIENTIFIC_REVIEWERS.md`](SCIENTIFIC_REVIEWERS.md) for
+   manual scientific reviewer suggestions.
 4. Document physics impact and scientific rationale in the PR description or PR
    comments, rather than creating one-off labels for every review state.
 
@@ -86,7 +72,8 @@ When a PR is opened, maintainers perform initial triage:
 For PRs requiring scientific validation:
 
 1. Apply the relevant `2-module:*` label.
-2. Request review from the domain expert(s) identified by `.github/CODEOWNERS`.
+2. Request review manually from the domain expert(s) identified by
+   [`SCIENTIFIC_REVIEWERS.md`](SCIENTIFIC_REVIEWERS.md).
 3. Provide context about what specifically needs review.
 4. Track review status in PR comments and GitHub's review system.
 
@@ -173,7 +160,9 @@ Module labels identify which physics components are affected:
 ### Simplified Label System
 Following the simplified labeling approach, PRs use:
 - Module labels (as above) to identify affected components
-- Ownership and review requests are routed through `.github/CODEOWNERS`
+- Scientific reviewer suggestions are routed through
+  [`SCIENTIFIC_REVIEWERS.md`](SCIENTIFIC_REVIEWERS.md)
+- Code-governance maintainer suggestions are routed through this document
 - Review status is tracked in PR comments and GitHub's review system
 - Physics impacts are documented in PR descriptions rather than labels
 

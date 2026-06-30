@@ -391,8 +391,8 @@ Troubleshooting
    - Check the debug directory to identify which conversion step failed
    - Report issues with the specific version transition that failed
 
-Nested Physics Sub-Options (accept-only, gh#972)
--------------------------------------------------
+Nested Physics Sub-Options
+--------------------------
 
 Three ``model.physics`` fields accept a family-tagged nested form
 alongside the existing flat ``{value: N}`` shape:

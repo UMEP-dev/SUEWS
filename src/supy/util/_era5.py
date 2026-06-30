@@ -280,7 +280,7 @@ def safe_stdout_stderr():
 
     # Replace None streams with devnull. Force UTF-8 so libraries that emit
     # Unicode (e.g. tqdm progress bars) don't crash on Windows, whose default
-    # cp1252 codec cannot encode them (see gh#1097, gh#902).
+    # cp1252 codec cannot encode them.
     devnull = open(os.devnull, "w", encoding="utf-8")
     try:
         if stdout_was_none:

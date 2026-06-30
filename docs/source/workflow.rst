@@ -612,10 +612,10 @@ Migration Process
 
 .. code-block:: bash
 
-   # Convert legacy table inputs to modern YAML (pending issue #581)
+   # Convert legacy table inputs to modern YAML (under development)
    suews-convert to-yaml -i legacy_input_dir/ -o modern_config.yml
    
-   # Note: This feature is under development (see issue #581)
+   # Note: This feature is under development
    # For now, use the SUEWSSimulation class with existing table inputs or YAML files
 
 **Testing Your Migration:**

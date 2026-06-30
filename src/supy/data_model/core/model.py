@@ -482,7 +482,7 @@ class FAIMethod(Enum):
     Method for calculating frontal area index (FAI) - the ratio of frontal area to plan area.
 
     0: OBSERVED - Use FAI values provided in site parameters (FAIBldg, FAIEveTree, FAIDecTree)
-    1: MODELLED - Calculate FAI using simple scheme based on surface fractions and heights (see issue #192)
+    1: MODELLED - Calculate FAI using simple scheme based on surface fractions and heights
     """
 
     OBSERVED = 0  # Use FAI values from site parameters
@@ -558,7 +558,7 @@ class StebbsMethod(Enum):
     column the Fortran bridge reads). On the YAML / data-model surface this
     tri-state is split into ``stebbs.enabled`` (bool) and ``stebbs.parameters``
     (StebbsParameterSource); the two compose back to this integer code via
-    ``to_df_state`` / decompose on ``from_df_state`` (gh#1456).
+    ``to_df_state`` / decompose on ``from_df_state``.
     """
 
     NONE = 0
@@ -578,7 +578,7 @@ class StebbsParameterSource(Enum):
 
     Only consulted when STEBBS is enabled; ignored otherwise. The values equal
     the non-zero ``StebbsMethod`` codes so the composed ``stebbsmethod`` column
-    is simply ``int(parameters)`` whenever STEBBS is enabled (gh#1456).
+    is simply ``int(parameters)`` whenever STEBBS is enabled.
 
     1: DEFAULT - STEBBS uses default parameters
     2: PROVIDED - STEBBS uses user-specified parameters
@@ -599,7 +599,7 @@ class RCMethod(Enum):
     Method to determine the two weighting factors (wall_outer_heat_capacity_fraction and roof_outer_heat_capacity_fraction) splitting heat capacity of building envelope into two nodes in STEBBS.
 
     Exposed on the YAML / data-model surface as ``stebbs.capacitance`` (the
-    field formerly named ``outer_cap_fraction``, gh#1456). The ``rcmethod``
+    field formerly named ``outer_cap_fraction``). The ``rcmethod``
     DataFrame column the Fortran bridge reads is unchanged.
 
     0: DEFAULT - Default value of 0.5 is used
@@ -779,7 +779,7 @@ class StebbsPhysics(BaseModel):
     STEBBS (Surface Temperature Energy Balance Based Scheme) physics switches.
 
     Groups the six STEBBS-scoped method switches that previously sat flat on
-    ``model.physics`` (gh#1456). The master on/off toggle is split into
+    ``model.physics``. The master on/off toggle is split into
     ``enabled`` (bool) and ``parameters`` (StebbsParameterSource); the two
     compose back to the single legacy ``stebbsmethod`` integer column on
     ``ModelPhysics.to_df_state`` and are decomposed on ``from_df_state``. The
@@ -1068,8 +1068,8 @@ class ModelPhysics(BaseModel):
     stebbs: StebbsPhysics = Field(
         default_factory=StebbsPhysics,
         description=(
-            "STEBBS physics switches (gh#1456): master toggle (enabled + "
-            "parameters), capacitance method, setpoint method, and the "
+            "STEBBS physics switches: master toggle (enabled + parameters), "
+            "capacitance method, setpoint method, and the "
             "same-albedo / same-emissivity wall/roof switches."
         ),
         json_schema_extra={
@@ -1287,10 +1287,9 @@ class OutputControl(BaseModel):
     """Configuration block for model output files.
 
     Renamed from ``OutputConfig`` and lifted out of the legacy
-    ``Union[str, OutputConfig]`` ``output_file`` field in gh#1372 follow-up,
-    so the ``model.control`` surface is uniform with the new ``forcing:``
-    sub-object. The legacy string form (silently ignored since 2025.10.15)
-    is dropped.
+    ``Union[str, OutputConfig]`` ``output_file`` field so the
+    ``model.control`` surface is uniform with the new ``forcing:`` sub-object.
+    The legacy string form (silently ignored since 2025.10.15) is dropped.
     """
 
     model_config = ConfigDict(title="Output Control")
@@ -1317,9 +1316,8 @@ class OutputControl(BaseModel):
         """Deprecated alias for ``OutputControl.dir``.
 
         External Python consumers (UMEP postprocessor, etc.) that still
-        read ``config.model.control.output_file.path`` keep working
-        through the gh#1372 migration window. Scheduled for removal in
-        2026.6.
+        read ``config.model.control.output_file.path`` keep working through the
+        migration window. Scheduled for removal in 2026.6.
         """
         import warnings
 
@@ -1347,10 +1345,9 @@ class OutputControl(BaseModel):
 class ForcingControl(BaseModel):
     """Configuration block for meteorological forcing input.
 
-    Created in gh#1372 so future forcing-related fields (sub-hourly
-    disaggregation, gh#1373; resampling policy; etc.) have a stable
-    home rather than accreting flat ``forcing_*`` siblings under
-    :class:`ModelControl`.
+    Groups forcing-related fields, such as sub-hourly disaggregation and
+    resampling policy, under a stable home rather than accreting flat
+    ``forcing_*`` siblings under :class:`ModelControl`.
     """
 
     model_config = ConfigDict(title="Forcing Control")
@@ -1500,8 +1497,8 @@ class ModelControl(BaseModel):
         """Deprecated alias for ``model.control.output``.
 
         External Python consumers (UMEP postprocessor, etc.) that still
-        read ``config.model.control.output_file`` keep working through
-        the gh#1372 migration window. Scheduled for removal in 2026.6.
+        read ``config.model.control.output_file`` keep working through the
+        migration window. Scheduled for removal in 2026.6.
         """
         import warnings
 

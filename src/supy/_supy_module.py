@@ -80,7 +80,6 @@ def _warn_functional_deprecation(name: str) -> None:
     procedural API in this module is end-user-facing, not a developer-only
     surface, so ``FutureWarning`` is the right Python-level signal — see
     https://docs.python.org/3/library/warnings.html#warning-categories.
-    Tracked under gh#1370 (Phase 2: visibility).
     """
     replacement = _FUNCTIONAL_DEPRECATIONS.get(name, "the object-oriented API")
     warnings.warn(

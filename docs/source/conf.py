@@ -293,8 +293,8 @@ extensions = [
     "sphinx.ext.autosummary",
     "sphinx.ext.intersphinx",
     "sphinx.ext.extlinks",
-    "input_domain",  # Custom domain for input configuration options (see GH#1031)
-    "output_domain",  # Custom domain for output variables (see GH#1031)
+    "input_domain",  # Custom domain for input configuration options
+    "output_domain",  # Custom domain for output variables
     "publications_topic_annotate",  # Tags bibliography <li>s with keyword classes for the client-side topic filter
 
     "sphinx_design",  # For collapsible sections, tabs, and dropdowns in YAML config reference

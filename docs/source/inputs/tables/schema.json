@@ -3878,7 +3878,7 @@
       "type": "object"
     },
     "FAIMethod": {
-      "description": "Method for calculating frontal area index (FAI) - the ratio of frontal area to plan area.\n\n0: OBSERVED - Use FAI values provided in site parameters (FAIBldg, FAIEveTree, FAIDecTree)\n1: MODELLED - Calculate FAI using simple scheme based on surface fractions and heights (see issue #192)",
+      "description": "Method for calculating frontal area index (FAI) - the ratio of frontal area to plan area.\n\n0: OBSERVED - Use FAI values provided in site parameters (FAIBldg, FAIEveTree, FAIDecTree)\n1: MODELLED - Calculate FAI using simple scheme based on surface fractions and heights",
       "enum": [
         0,
         1
@@ -3887,7 +3887,7 @@
       "type": "integer"
     },
     "ForcingControl": {
-      "description": "Configuration block for meteorological forcing input.\n\nCreated in gh#1372 so future forcing-related fields (sub-hourly\ndisaggregation, gh#1373; resampling policy; etc.) have a stable\nhome rather than accreting flat ``forcing_*`` siblings under\n:class:`ModelControl`.",
+      "description": "Configuration block for meteorological forcing input.\n\nGroups forcing-related fields, such as sub-hourly disaggregation and\nresampling policy, under a stable home rather than accreting flat\n``forcing_*`` siblings under :class:`ModelControl`.",
       "properties": {
         "file": {
           "anyOf": [
@@ -7418,7 +7418,7 @@
             }
           ],
           "default": 0,
-          "description": "Method for calculating frontal area index (FAI) - the ratio of frontal area to plan area. Options: 0 (OBSERVED) = Use FAI values provided in site parameters (FAIBldg, FAIEveTree, FAIDecTree); 1 (MODELLED) = Calculate FAI using simple scheme based on surface fractions and heights (see issue #192)",
+          "description": "Method for calculating frontal area index (FAI) - the ratio of frontal area to plan area. Options: 0 (OBSERVED) = Use FAI values provided in site parameters (FAIBldg, FAIEveTree, FAIDecTree); 1 (MODELLED) = Calculate FAI using simple scheme based on surface fractions and heights",
           "title": "Frontal Area Index",
           "unit": "dimensionless"
         },
@@ -7486,7 +7486,7 @@
           "depends_on": [
             "storage_heat"
           ],
-          "description": "STEBBS physics switches (gh#1456): master toggle (enabled + parameters), capacitance method, setpoint method, and the same-albedo / same-emissivity wall/roof switches.",
+          "description": "STEBBS physics switches: master toggle (enabled + parameters), capacitance method, setpoint method, and the same-albedo / same-emissivity wall/roof switches.",
           "note": "When storage_heat selects STEBBS (7), this block enables and parameterises the STEBBS contribution to storage heat.",
           "provides_to": [
             "stebbs.capacitance"
@@ -7659,7 +7659,7 @@
       "type": "integer"
     },
     "OutputControl": {
-      "description": "Configuration block for model output files.\n\nRenamed from ``OutputConfig`` and lifted out of the legacy\n``Union[str, OutputConfig]`` ``output_file`` field in gh#1372 follow-up,\nso the ``model.control`` surface is uniform with the new ``forcing:``\nsub-object. The legacy string form (silently ignored since 2025.10.15)\nis dropped.",
+      "description": "Configuration block for model output files.\n\nRenamed from ``OutputConfig`` and lifted out of the legacy\n``Union[str, OutputConfig]`` ``output_file`` field so the\n``model.control`` surface is uniform with the new ``forcing:`` sub-object.\nThe legacy string form (silently ignored since 2025.10.15) is dropped.",
       "properties": {
         "format": {
           "$ref": "#/$defs/OutputFormat",
@@ -7988,7 +7988,7 @@
       "type": "object"
     },
     "RCMethod": {
-      "description": "Method to determine the two weighting factors (wall_outer_heat_capacity_fraction and roof_outer_heat_capacity_fraction) splitting heat capacity of building envelope into two nodes in STEBBS.\n\nExposed on the YAML / data-model surface as ``stebbs.capacitance`` (the\nfield formerly named ``outer_cap_fraction``, gh#1456). The ``rcmethod``\nDataFrame column the Fortran bridge reads is unchanged.\n\n0: DEFAULT - Default value of 0.5 is used\n1: PROVIDED - Use user defined value (wall_outer_heat_capacity_fraction and roof_outer_heat_capacity_fraction) between 0 and 1\n2: PARAMETERISE - Use building material thermal property to parameterise the weighting factor",
+      "description": "Method to determine the two weighting factors (wall_outer_heat_capacity_fraction and roof_outer_heat_capacity_fraction) splitting heat capacity of building envelope into two nodes in STEBBS.\n\nExposed on the YAML / data-model surface as ``stebbs.capacitance`` (the\nfield formerly named ``outer_cap_fraction``). The ``rcmethod``\nDataFrame column the Fortran bridge reads is unchanged.\n\n0: DEFAULT - Default value of 0.5 is used\n1: PROVIDED - Use user defined value (wall_outer_heat_capacity_fraction and roof_outer_heat_capacity_fraction) between 0 and 1\n2: PARAMETERISE - Use building material thermal property to parameterise the weighting factor",
       "enum": [
         0,
         1,
@@ -10270,7 +10270,7 @@
       "type": "integer"
     },
     "StebbsParameterSource": {
-      "description": "Source of STEBBS parameters when STEBBS is enabled (``stebbs.enabled=true``).\n\nOnly consulted when STEBBS is enabled; ignored otherwise. The values equal\nthe non-zero ``StebbsMethod`` codes so the composed ``stebbsmethod`` column\nis simply ``int(parameters)`` whenever STEBBS is enabled (gh#1456).\n\n1: DEFAULT - STEBBS uses default parameters\n2: PROVIDED - STEBBS uses user-specified parameters",
+      "description": "Source of STEBBS parameters when STEBBS is enabled (``stebbs.enabled=true``).\n\nOnly consulted when STEBBS is enabled; ignored otherwise. The values equal\nthe non-zero ``StebbsMethod`` codes so the composed ``stebbsmethod`` column\nis simply ``int(parameters)`` whenever STEBBS is enabled.\n\n1: DEFAULT - STEBBS uses default parameters\n2: PROVIDED - STEBBS uses user-specified parameters",
       "enum": [
         1,
         2
@@ -10279,7 +10279,7 @@
       "type": "integer"
     },
     "StebbsPhysics": {
-      "description": "STEBBS (Surface Temperature Energy Balance Based Scheme) physics switches.\n\nGroups the six STEBBS-scoped method switches that previously sat flat on\n``model.physics`` (gh#1456). The master on/off toggle is split into\n``enabled`` (bool) and ``parameters`` (StebbsParameterSource); the two\ncompose back to the single legacy ``stebbsmethod`` integer column on\n``ModelPhysics.to_df_state`` and are decomposed on ``from_df_state``. The\nDataFrame / Fortran column names are unchanged.",
+      "description": "STEBBS (Surface Temperature Energy Balance Based Scheme) physics switches.\n\nGroups the six STEBBS-scoped method switches that previously sat flat on\n``model.physics``. The master on/off toggle is split into\n``enabled`` (bool) and ``parameters`` (StebbsParameterSource); the two\ncompose back to the single legacy ``stebbsmethod`` integer column on\n``ModelPhysics.to_df_state`` and are decomposed on ``from_df_state``. The\nDataFrame / Fortran column names are unchanged.",
       "properties": {
         "enabled": {
           "anyOf": [
@@ -13117,7 +13117,7 @@
     }
   },
   "additionalProperties": true,
-  "description": "JSON Schema for SUEWS YAML configuration files. Schema version 2026.6.dev1. Development schema for the SPARTACUS direct/diffuse benchmark work: adds the model.physics.kdown_split_method selector with model.physics.kdown_split_method.constant.sw_dn_direct_frac for constant splits, forest-column SPARTACUS stream and vegetation-region controls, and the optional vertical_layers.veg_ext extinction override. Existing 2026.5 YAMLs remain compatible through a no-op migration because all new inputs have defaults and legacy sites[*].properties.spartacus.sw_dn_direct_frac input is migrated.",
+  "description": "JSON Schema for SUEWS YAML configuration files. Schema version 2026.6.dev1. Development schema for the SPARTACUS direct/diffuse benchmark work: adds the model.physics.kdown_split_method selector with model.physics.kdown_split_method.constant.sw_dn_direct_frac for constant splits, forest-column SPARTACUS stream and vegetation-region controls, and the optional vertical_layers.veg_ext extinction override. Existing 2026.5 YAMLs remain compatible through a no-op migration because all new inputs have defaults and legacy sites[*].properties.spartacus.sw_dn_direct_frac input remains accepted at parse time and is copied into the model-owned value.",
   "properties": {
     "name": {
       "default": "sample config",

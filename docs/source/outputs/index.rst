@@ -65,7 +65,7 @@ Temporal Information
 
 
 Output Timestamp References
-^^^^^^^^^^^^^^^^^^^^^^^^^^^
+---------------------------
 
 By default, saved output timestamps follow the forcing-data convention above:
 local standard time with fixed UTC offsets. To relabel saved output timestamps

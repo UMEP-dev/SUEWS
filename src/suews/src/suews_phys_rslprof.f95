@@ -232,10 +232,11 @@ CONTAINS
 
       ! Upper half: half canyon to canyon top
       dz_can = zH_RSL - zarray(10)
-      DO i = 11, nz_can
+      DO i = 11, nz_can - 1
          zarray(i) = zarray(i - 1) + dz_can*.5
          dz_can = zH_RSL - zarray(i)
       END DO
+      zarray(nz_can) = zH_RSL
 
       ! Above canopy: levels nz_can+1 to nz
       zarray(nz) = zMeas

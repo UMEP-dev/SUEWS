@@ -4,33 +4,38 @@
 
 This document outlines how SUEWS connects issue triage, PR review, scientific
 review, and code-governance ownership. The goal is to preserve the existing
-review panel while keeping scientific review requests intentional and manual.
-GitHub CODEOWNERS is reserved for governance, workflow, linting, and process
-ownership.
+review panel while keeping all review requests intentional and manual. SUEWS
+does not maintain a GitHub CODEOWNERS file; maintainer and reviewer routing is
+documented here and in the scientific reviewer guide for humans to apply when a
+PR genuinely needs that expertise.
 
 ## Review and Governance Panels
 
 The SUEWS review panel consists of domain experts responsible for validating
 module-specific scientific changes. The code-governance panel owns review
-process, coding style, issue-triage conventions, and automatic ownership for
-governance files.
+process, coding style, issue-triage conventions, and workflow administration.
 
 ### Scientific Review Panel
 
 Scientific reviewer routing is maintained in
 [`SCIENTIFIC_REVIEWERS.md`](SCIENTIFIC_REVIEWERS.md). Use that guide to identify
 reviewers for physics modules and request them manually when science review is
-needed. Scientific module reviewers are intentionally not listed in
-`.github/CODEOWNERS`, so GitHub does not request them automatically when a PR is
-marked ready.
+needed. Scientific module reviewers are intentionally not wired into GitHub
+automatic review requests.
 
 ### Code Governance Panel
 
-| Area | Owners |
-|------|--------|
-| Review process and issue triage | @sunt05, @suegrimmond |
-| Coding style, linting, and naming conventions | @sunt05, @suegrimmond |
-| GitHub workflow administration | @sunt05 |
+The table below is an advisory maintainer-routing reference. It does not grant
+automatic ownership, create required reviews, or mean every PR touching these
+paths needs a review request.
+
+| Area | Path examples | Suggested maintainers |
+|------|---------------|-----------------------|
+| Review process and issue triage | `dev-ref/REVIEW_PROCESS.md`, `dev-ref/ISSUE_TRIAGE.md` | @sunt05, @suegrimmond |
+| Scientific reviewer guide | `dev-ref/SCIENTIFIC_REVIEWERS.md` | @sunt05, @suegrimmond |
+| Coding style, linting, and naming conventions | `dev-ref/CODING_GUIDELINES.md`, `dev-ref/FORTRAN_NAMING_CONVENTIONS.md`, `scripts/lint/`, `.ruff.toml`, `pyproject.toml` | @sunt05, @suegrimmond |
+| AI review and rule surfaces | `.claude/skills/audit-pr/`, `.claude/rules/` | @sunt05, @suegrimmond |
+| GitHub workflow administration | `.github/workflows/`, `.github/actions/`, `.github/scripts/` | @sunt05 |
 
 ## Review Workflow
 
@@ -56,9 +61,9 @@ When a PR is opened, maintainers perform initial triage:
 1. Assess whether changes affect model physics, scientific calculations, coding
    style, process, or infrastructure.
 2. Determine which labels and ownership areas apply.
-3. Use `.github/CODEOWNERS` for governance ownership and
-   [`SCIENTIFIC_REVIEWERS.md`](SCIENTIFIC_REVIEWERS.md) for manual scientific
-   reviewer suggestions.
+3. Use the code-governance table above for process and workflow maintainer
+   suggestions, and [`SCIENTIFIC_REVIEWERS.md`](SCIENTIFIC_REVIEWERS.md) for
+   manual scientific reviewer suggestions.
 4. Document physics impact and scientific rationale in the PR description or PR
    comments, rather than creating one-off labels for every review state.
 
@@ -157,8 +162,7 @@ Following the simplified labeling approach, PRs use:
 - Module labels (as above) to identify affected components
 - Scientific reviewer suggestions are routed through
   [`SCIENTIFIC_REVIEWERS.md`](SCIENTIFIC_REVIEWERS.md)
-- CODEOWNERS remains limited to governance, workflow, linting, and process
-  ownership
+- Code-governance maintainer suggestions are routed through this document
 - Review status is tracked in PR comments and GitHub's review system
 - Physics impacts are documented in PR descriptions rather than labels
 

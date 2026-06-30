@@ -209,5 +209,5 @@ PR can be merged when ALL of:
 ## Module Reviewer Mapping
 
 Use `dev-ref/SCIENTIFIC_REVIEWERS.md` as the operational source for suggested
-scientific reviewers in the audit summary. `.github/CODEOWNERS` is reserved for
-governance, workflow, linting, and process ownership.
+scientific reviewers in the audit summary. Use `dev-ref/REVIEW_PROCESS.md` for
+manual code-governance maintainer suggestions.

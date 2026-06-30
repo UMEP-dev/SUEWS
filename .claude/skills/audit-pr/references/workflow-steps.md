@@ -23,8 +23,9 @@ Apply lint-code checks. See `style-checks.md`.
 ### Suggested Reviewers
 
 Reviewer suggestions are advisory metadata in the audit summary. Derive them
-from changed files, `dev-ref/SCIENTIFIC_REVIEWERS.md`, and `.github/CODEOWNERS`;
-do not request reviews or post comments without explicit approval.
+from changed files, `dev-ref/SCIENTIFIC_REVIEWERS.md`, and
+`dev-ref/REVIEW_PROCESS.md`; do not request reviews or post comments without
+explicit approval.
 
 For changed paths:
 
@@ -33,7 +34,8 @@ For changed paths:
 2. If the module is not listed with named reviewers, suggest the default
    scientific review owners documented in that guide.
 3. For coding style, linting, naming conventions, issue triage, or review
-   process changes, suggest @sunt05 and @suegrimmond.
+   process changes, use the code-governance maintainer table in
+   `dev-ref/REVIEW_PROCESS.md`.
 
 ### Validation Checks
 

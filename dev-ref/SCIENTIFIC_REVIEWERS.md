@@ -1,9 +1,8 @@
 # Scientific Reviewer Routing
 
 This guide is the maintained source for scientific reviewer suggestions in
-SUEWS. Scientific reviewer routing is intentionally kept out of
-`.github/CODEOWNERS` so GitHub does not automatically request domain reviewers
-when a PR is marked ready. PR authors and maintainers should request these
+SUEWS. Scientific reviewer routing is intentionally kept out of GitHub automatic
+review-request mechanisms. PR authors and maintainers should request these
 reviews manually when a science or module-specific review is needed.
 
 ## When to Request Scientific Review
@@ -29,8 +28,9 @@ design input. Otherwise wait until the PR is ready enough for a focused review.
    the PR description or a short comment.
 4. Track scientific sign-off through GitHub reviews or PR comments.
 
-Do not rely on `.github/CODEOWNERS` for scientific reviewer requests. CODEOWNERS
-is reserved for governance, workflow, linting, and process ownership.
+Do not rely on GitHub automatic ownership for scientific reviewer requests.
+SUEWS does not maintain a CODEOWNERS file; this guide is advisory routing for
+manual review requests.
 
 ## Named Module Reviewers
 

@@ -154,7 +154,7 @@ def test_text_filename_marks_explicit_timestamp_reference(tmp_path: Path):
 
 
 def test_parquet_uses_same_relabelled_index(tmp_path: Path):
-    pytest.importorskip("pyarrow")
+    pytest.importorskip("pyarrow", reason="Parquet output tests require pyarrow")
     dates = pd.date_range("2020-01-01 12:00", periods=2, freq="h")
     df = _output_for_grid(1, dates)
     state = _state_for_grid([{"grid": 1, "timezone": 1, "startdls": 80, "enddls": 300}])
@@ -176,7 +176,7 @@ def test_parquet_uses_same_relabelled_index(tmp_path: Path):
 
 
 def test_parquet_bundle_marks_explicit_timestamp_reference(tmp_path: Path):
-    pytest.importorskip("pyarrow")
+    pytest.importorskip("pyarrow", reason="Parquet output tests require pyarrow")
     dates = pd.date_range("2020-01-01 12:00", periods=2, freq="h")
     df = _output_for_grid(1, dates)
     state = _state_for_grid([{"grid": 1, "timezone": 1, "startdls": 80, "enddls": 300}])

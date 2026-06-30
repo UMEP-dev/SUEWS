@@ -163,6 +163,7 @@ def test_parquet_uses_same_relabelled_index(tmp_path: Path):
         df,
         state,
         path_dir_save=tmp_path,
+        save_tstep=True,
         save_state=False,
         timestamp_reference="utc",
     )
@@ -185,6 +186,7 @@ def test_parquet_bundle_marks_explicit_timestamp_reference(tmp_path: Path):
         df,
         state,
         path_dir_save=tmp_path,
+        save_tstep=True,
         timestamp_reference="daylight",
     )
 

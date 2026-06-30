@@ -210,17 +210,21 @@ PR can be merged when ALL of:
 
 | Module Label | Files | Reviewers |
 |--------------|-------|-----------|
-| `module:stebbs` | `suews_phys_stebbs*` | @yiqing1021, @denisehertwig |
-| `module:rslprof` | `suews_phys_rslprof*` | @vitorlavor, @suegrimmond |
-| `module:spartacus` | `suews_phys_spartacus*` | @suegrimmond, @yiqing1021 |
-| `module:biogenco2` | `suews_phys_biogen*` | @havum, @ljarvi |
-| `module:snow` | `suews_phys_snow*` | @havum, @ljarvi |
-| `module:ehc` | `suews_phys_ehc*` | @sunt05 |
-| `module:anohm` | `suews_phys_anohm*` | @sunt05 |
-| `module:ohm` | `suews_phys_ohm*` | Seeking reviewer |
-| `module:estm` | `suews_phys_estm*` | Seeking reviewer |
-| `module:lumps` | `suews_phys_lumps*` | Seeking reviewer |
-| `module:narp` | `suews_phys_narp*` | Seeking reviewer |
-| `module:evap` | `suews_phys_evap*` | Seeking reviewer |
-| `module:waterdist` | `suews_phys_waterdist*` | Seeking reviewer |
-| Overall | General PRs | @sunt05, @MatthewPaskin, @dayantur |
+| `2-module:stebbs` | `suews_phys_stebbs*` | @yiqing1021, @denisehertwig |
+| `2-module:rslprof` | `suews_phys_rslprof*` | @vitorlavor, @suegrimmond |
+| `2-module:spartacus` | `suews_phys_spartacus*`, `suews_type_spartacus*`, `spartacus-surface/` | @suegrimmond, @yiqing1021, @vitorlavor |
+| `2-module:biogenco2` | `suews_phys_biogen*` | @havum, @ljarvi |
+| `2-module:snow` | `suews_phys_snow*` | @havum, @ljarvi |
+| `2-module:ehc` | `suews_phys_ehc*` | @sunt05 |
+| `2-module:anohm` | `suews_phys_anohm*` | @sunt05 |
+| `2-module:ohm` | `suews_phys_ohm*` | @sunt05, @suegrimmond |
+| `2-module:estm` | `suews_phys_estm*` | @sunt05, @suegrimmond |
+| `2-module:lumps` | `suews_phys_lumps*` | @sunt05, @suegrimmond |
+| `2-module:narp` | `suews_phys_narp*` | @sunt05, @suegrimmond |
+| `2-module:evap` | `suews_phys_evap*` | @sunt05, @suegrimmond |
+| `2-module:waterdist` | `suews_phys_waterdist*` | @sunt05, @suegrimmond |
+| Overall | General PRs | @sunt05, @MatthewPaskin |
+
+Use `.github/CODEOWNERS` as the operational source for suggested reviewers in
+the audit summary, and use `dev-ref/REVIEW_PROCESS.md` as the maintained human
+explanation of why those reviewers are suggested.

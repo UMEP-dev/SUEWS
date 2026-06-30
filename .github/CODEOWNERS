@@ -1,6 +1,32 @@
 # CODEOWNERS file for SUEWS
 # This file defines who should review changes to specific parts of the codebase
 
+# Governance, review process, and coding style
+/dev-ref/REVIEW_PROCESS.md @sunt05 @suegrimmond
+/dev-ref/ISSUE_TRIAGE.md @sunt05 @suegrimmond
+/dev-ref/CODING_GUIDELINES.md @sunt05 @suegrimmond
+/dev-ref/FORTRAN_NAMING_CONVENTIONS.md @sunt05 @suegrimmond
+/.claude/skills/audit-pr/ @sunt05 @suegrimmond
+/.claude/rules/ @sunt05 @suegrimmond
+/scripts/lint/ @sunt05 @suegrimmond
+/.ruff.toml @sunt05 @suegrimmond
+/pyproject.toml @sunt05 @suegrimmond
+
+# Default scientific review owner for physics modules without a named panel.
+# More specific entries below override this default.
+/src/suews/src/suews_phys_*.f95 @sunt05 @suegrimmond
+
+# Named scientific review panel members by physics module.
+/src/suews/src/suews_phys_stebbs.f95 @yiqing1021 @denisehertwig
+/src/suews/src/suews_phys_rslprof.f95 @vitorlavor @suegrimmond
+/src/suews/src/suews_phys_spartacus.f95 @suegrimmond @yiqing1021 @vitorlavor
+/src/suews/src/suews_type_spartacus.f95 @suegrimmond @yiqing1021 @vitorlavor
+/src/suews/ext_lib/spartacus-surface/ @suegrimmond @yiqing1021 @vitorlavor
+/src/suews/src/suews_phys_biogenco2.f95 @havum @ljarvi
+/src/suews/src/suews_phys_snow.f95 @havum @ljarvi
+/src/suews/src/suews_phys_ehc.f95 @sunt05
+/src/suews/src/suews_phys_anohm.f95 @sunt05
+
 # Workflow files require admin review
 /.github/workflows/ @sunt05
 /.github/actions/ @sunt05

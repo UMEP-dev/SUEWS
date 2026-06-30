@@ -206,25 +206,8 @@ PR can be merged when ALL of:
 
 ---
 
-## Module → Reviewer Mapping
+## Module Reviewer Mapping
 
-| Module Label | Files | Reviewers |
-|--------------|-------|-----------|
-| `2-module:stebbs` | `suews_phys_stebbs*` | @yiqing1021, @denisehertwig |
-| `2-module:rslprof` | `suews_phys_rslprof*` | @vitorlavor, @suegrimmond |
-| `2-module:spartacus` | `suews_phys_spartacus*`, `suews_type_spartacus*`, `spartacus-surface/` | @suegrimmond, @yiqing1021, @vitorlavor |
-| `2-module:biogenco2` | `suews_phys_biogen*` | @havum, @ljarvi |
-| `2-module:snow` | `suews_phys_snow*` | @havum, @ljarvi |
-| `2-module:ehc` | `suews_phys_ehc*` | @sunt05 |
-| `2-module:anohm` | `suews_phys_anohm*` | @sunt05 |
-| `2-module:ohm` | `suews_phys_ohm*` | @sunt05, @suegrimmond |
-| `2-module:estm` | `suews_phys_estm*` | @sunt05, @suegrimmond |
-| `2-module:lumps` | `suews_phys_lumps*` | @sunt05, @suegrimmond |
-| `2-module:narp` | `suews_phys_narp*` | @sunt05, @suegrimmond |
-| `2-module:evap` | `suews_phys_evap*` | @sunt05, @suegrimmond |
-| `2-module:waterdist` | `suews_phys_waterdist*` | @sunt05, @suegrimmond |
-| Overall | General PRs | @sunt05, @MatthewPaskin |
-
-Use `.github/CODEOWNERS` as the operational source for suggested reviewers in
-the audit summary, and use `dev-ref/REVIEW_PROCESS.md` as the maintained human
-explanation of why those reviewers are suggested.
+Use `dev-ref/SCIENTIFIC_REVIEWERS.md` as the operational source for suggested
+scientific reviewers in the audit summary. Use `dev-ref/REVIEW_PROCESS.md` for
+manual code-governance maintainer suggestions.

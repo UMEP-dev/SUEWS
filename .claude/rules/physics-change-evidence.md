@@ -108,10 +108,10 @@ Current owned subsystems:
   `@yiqing1021`.
 
 For subsystems without a named owner, sign-off falls to the maintainer
-(`@sunt05`). The enforcement mechanism (a CODEOWNERS mapping with branch
-protection vs. the manual `audit-pr` gate below) is being decided in gh#1576; in
-the interim, `audit-pr` records the required sign-off and blocks approval until
-it is present.
+(`@sunt05`). Scientific reviewer routing is documented in
+`dev-ref/SCIENTIFIC_REVIEWERS.md` so domain reviewers are requested manually
+when science review is needed. The `audit-pr` gate records the required sign-off
+and blocks approval until it is present.
 
 ### 3. The reference-fixture refresh travels with the change
 

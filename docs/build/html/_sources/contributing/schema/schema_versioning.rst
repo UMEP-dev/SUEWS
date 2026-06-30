@@ -97,7 +97,7 @@ static compatibility table: a version is compatible with the current
 one if and only if it equals the current version or a
 ``(config_version, current_version)`` handler is registered. Adding a
 handler is what makes the previous schema compatible; there is no
-separate table to update (gh#1304).
+separate table to update.
 
 The three outcomes users see:
 

@@ -8,8 +8,8 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <meta property="article:modified_time" content="2026-06-26T09:46:40+00:00" />
-    <title>4.2. Meteorological Forcing Data &#8212; SUEWS 2026.6.30.dev2 documentation</title>
+    <meta property="article:modified_time" content="2026-06-30T22:50:11+00:00" />
+    <title>4.2. Meteorological Forcing Data &#8212; SUEWS 2026.6.30.dev4 documentation</title>
   
   
   
@@ -45,7 +45,7 @@
   <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=8878045cc6db502f8baf" />
 <link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=8878045cc6db502f8baf" />
 
-    <script src="../_static/documentation_options.js?v=e63500d5"></script>
+    <script src="../_static/documentation_options.js?v=c8dc0019"></script>
     <script src="../_static/doctools.js?v=9bcbadda"></script>
     <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
     <script src="../_static/scripts/sphinx-book-theme.js?v=fab101a9"></script>
@@ -59,8 +59,8 @@
     <link rel="prev" title="4.1. YAML Configuration Format" href="yaml/index.html" />
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
-  <meta name="docsearch:version" content="2026.6.30.dev2" />
-    <meta name="docbuild:last-update" content="2026-06-26"/>
+  <meta name="docsearch:version" content="2026.6.30.dev4" />
+    <meta name="docbuild:last-update" content="2026-06-30"/>
   </head>
   
   
@@ -102,7 +102,7 @@
   <div class="bd-header-announcement__content">
     <div style="background-color: #f0ad4e; border: 1px solid #eea236; border-radius: 4px; padding: 10px; margin: 10px 0;">
         <strong>⚠️ Development Version:</strong> This documentation was built from a development version
-        (2026.6.30.dev2, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/574f15f04b00fec405253149ea7b3b348b0ae3ba" style="color: #31708f;">574f15f</a>).
+        (2026.6.30.dev4, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/a2be1e2fb668427829da4c99c66ff21fee3700be" style="color: #31708f;">a2be1e2</a>).
         Features described here may be unstable or subject to change. For stable documentation, please visit the
         <a href="https://docs.suews.io/stable/" style="color: #31708f;">latest release</a>.
     </div>
@@ -149,8 +149,8 @@
       
     
     
-    <img src="../_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.6.30.dev2 documentation - Home"/>
-    <img src="../_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.6.30.dev2 documentation - Home"/>
+    <img src="../_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.6.30.dev4 documentation - Home"/>
+    <img src="../_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.6.30.dev4 documentation - Home"/>
   
   
 </a></div>
@@ -602,7 +602,7 @@
                 <ul class="visible nav section-nav flex-column">
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#data-requirements">4.2.1. Data Requirements</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#file-format">4.2.2. File Format</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#named-column-forcing-files-gh-1372">4.2.3. Named-column forcing files (gh#1372)</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#named-column-forcing-files">4.2.3. Named-column forcing files</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#important-requirements">4.2.4. Important Requirements</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#yaml-configuration">4.2.5. YAML Configuration</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#optional-variables">4.2.6. Optional Variables</a></li>
@@ -754,8 +754,8 @@
 </pre></div>
 </div>
 </section>
-<section id="named-column-forcing-files-gh-1372">
-<span id="named-column-forcing"></span><h2><span class="section-number">4.2.3. </span>Named-column forcing files (gh#1372)<a class="headerlink" href="#named-column-forcing-files-gh-1372" title="Link to this heading">#</a></h2>
+<section id="named-column-forcing-files">
+<span id="named-column-forcing"></span><h2><span class="section-number">4.2.3. </span>Named-column forcing files<a class="headerlink" href="#named-column-forcing-files" title="Link to this heading">#</a></h2>
 <p>Since schema 2026.5, SUEWS reads forcing files by <strong>column name</strong>,
 not by column position. The header line is required and its content is
 matched, case-insensitively, against the canonical column list above.</p>
@@ -1427,7 +1427,7 @@ suews-validate<span class="w"> </span>--forcing<span class="w"> </span>off<span 
     <ul class="visible nav section-nav flex-column">
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#data-requirements">4.2.1. Data Requirements</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#file-format">4.2.2. File Format</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#named-column-forcing-files-gh-1372">4.2.3. Named-column forcing files (gh#1372)</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#named-column-forcing-files">4.2.3. Named-column forcing files</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#important-requirements">4.2.4. Important Requirements</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#yaml-configuration">4.2.5. YAML Configuration</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#optional-variables">4.2.6. Optional Variables</a></li>
@@ -1471,7 +1471,7 @@ By SUEWS dev team led by Prof Sue Grimmond
   
   <div class="footer-item">
     <p class="last-updated">
-  Last updated on 2026-06-26.
+  Last updated on 2026-06-30.
   <br/>
 </p>
   </div>
@@ -1479,8 +1479,8 @@ By SUEWS dev team led by Prof Sue Grimmond
   <div class="footer-item">
     
 <div class="extra_footer">
-  <p>Version: 2026.6.30.dev2 |
-    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/574f15f04b00fec405253149ea7b3b348b0ae3ba">574f15f</a> |
+  <p>Version: 2026.6.30.dev4 |
+    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/a2be1e2fb668427829da4c99c66ff21fee3700be">a2be1e2</a> |
     <a href="https://umep-dev.github.io/SUEWS/brand/showcase.html">Brand</a></p>
 </div>
   </div>

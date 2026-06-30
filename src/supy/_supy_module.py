@@ -962,6 +962,7 @@ def _save_supy(
     # Handle output configuration if provided
     # output_format = "txt"  # default - MP: Moved as argument
     output_groups = None  # default will be handled in save_df_output
+    timestamp_reference = "follow"
 
     if output_config is not None:
         from .data_model.core.model import OutputControl
@@ -974,6 +975,8 @@ def _save_supy(
             # explicitly — an explicit `output_format` kwarg always wins.
             if output_format is None:
                 output_format = str(output_config.format)
+            if hasattr(output_config, "timestamp_reference"):
+                timestamp_reference = output_config.timestamp_reference
             # Get groups for txt format
             if output_format == "txt" and output_config.groups is not None:
                 output_groups = output_config.groups
@@ -1019,6 +1022,7 @@ def _save_supy(
             path_dir_save,
             save_tstep,
             save_state=save_state,
+            timestamp_reference=timestamp_reference,
         )
     else:
         # Save as text files (existing behavior)
@@ -1032,6 +1036,8 @@ def _save_supy(
             save_snow,
             debug,
             output_groups=output_groups,
+            timestamp_reference=timestamp_reference,
+            df_state_final=df_state_final,
         )
 
         # MP: Parquet saves this already - breaks the parquet save check

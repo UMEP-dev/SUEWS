@@ -12,6 +12,7 @@ model:
       format: txt       # Traditional text files (default)
       freq: 1800        # Save half-hourly data (30 min = 1800 s)
       dir: "./results"  # Output directory (optional, defaults to current directory)
+      timestamp_reference: follow  # follow | utc | standard | daylight
       groups:           # Select which output groups to save
         - SUEWS         # Main SUEWS output
         - DailyState    # Daily state variables

@@ -1283,6 +1283,25 @@ class OutputFormat(Enum):
         return self.value
 
 
+class OutputTimestampReference(Enum):
+    """
+    Output timestamp reference options.
+
+    FOLLOW: Preserve the model output timestamp convention.
+    UTC: Relabel output timestamps to UTC.
+    STANDARD: Relabel output timestamps to local standard time.
+    DAYLIGHT: Relabel output timestamps to local daylight time inside the DLS window.
+    """
+
+    FOLLOW = "follow"
+    UTC = "utc"
+    STANDARD = "standard"
+    DAYLIGHT = "daylight"
+
+    def __str__(self):
+        return self.value
+
+
 class OutputControl(BaseModel):
     """Configuration block for model output files.
 
@@ -1310,6 +1329,10 @@ class OutputControl(BaseModel):
     dir: Optional[str] = Field(
         default=None,
         description="Output directory where result files will be saved. If not specified, defaults to the current working directory.",
+    )
+    timestamp_reference: OutputTimestampReference = Field(
+        default=OutputTimestampReference.FOLLOW,
+        description="Timestamp reference for saved output. Options: 'follow' preserves the current output convention, 'utc' relabels to UTC, 'standard' relabels to local standard time, and 'daylight' relabels to daylight time inside the daylight-saving window.",
     )
 
     @property

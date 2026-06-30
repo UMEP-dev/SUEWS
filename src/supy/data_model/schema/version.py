@@ -23,7 +23,7 @@ import warnings
 # between releases bumps the dev counter instead of consuming a new
 # CalVer label. The 2026.5 cycle (dev1..dev14) was collapsed to the
 # plain `2026.5` label in the 2026.6.5 release PR.
-CURRENT_SCHEMA_VERSION = "2026.6.dev1"
+CURRENT_SCHEMA_VERSION = "2026.6.dev2"
 
 # Schema version history and descriptions.
 #
@@ -121,6 +121,11 @@ SCHEMA_VERSIONS: dict[str, str] = {
         "because all new inputs have defaults and legacy "
         "sites[*].properties.spartacus.sw_dn_direct_frac input remains "
         "accepted at parse time and is copied into the model-owned value."
+    ),
+    "2026.6.dev2": (
+        "Development schema adding model.control.output.timestamp_reference for "
+        "presentation-only output timestamp relabelling. Existing YAMLs remain "
+        "compatible because the new field defaults to follow."
     ),
 }
 

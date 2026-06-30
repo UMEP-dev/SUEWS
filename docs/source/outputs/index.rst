@@ -62,3 +62,37 @@ Temporal Information
 
    **Exception for DailyState**: When resampled to daily frequency, DailyState uses
    day-start labelling for readability. See :ref:`output-dailystate` for details.
+
+
+Output Timestamp References
+^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+By default, saved output timestamps follow the forcing-data convention above:
+local standard time with fixed UTC offsets. To relabel saved output timestamps
+for presentation, set ``model.control.output.timestamp_reference`` in the YAML
+configuration:
+
+.. code-block:: yaml
+
+   model:
+     control:
+       output:
+         timestamp_reference: follow
+
+The available values are:
+
+- ``follow``: keep the existing output timestamp convention.
+- ``utc``: label saved output timestamps in UTC.
+- ``standard``: label saved output timestamps in local standard time.
+- ``daylight``: label saved output timestamps in daylight-saving time during
+  the configured daylight-saving period.
+
+This setting changes the labels written to output files only. It does not
+change the forcing data, the model timestep, or the simulated fluxes and state
+variables. ``daylight`` requires ``startdls`` and ``enddls`` in the model
+configuration so SUEWS can identify the daylight-saving period.
+
+When the value is set explicitly to ``utc``, ``standard`` or ``daylight``, the
+saved output filenames include the corresponding time label suffix:
+``_UTC``, ``_STANDARD`` or ``_DAYLIGHT``. The default ``follow`` value keeps the
+historical filenames unchanged.

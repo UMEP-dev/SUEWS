@@ -2611,21 +2611,18 @@ class SUEWSConfig(BaseModel):
 
     def _validate_spartacus_sfr(self, site: Site, site_index: int) -> list:
         """
-        Validate SPARTACUS building surface fractions for a site.
+        Validate SPARTACUS surface-fraction bounds for a site.
 
-        If SPARTACUS is enabled, this function checks that the building
-        surface fraction (bldgs.sfr) matches the first entry of
-        vertical_layers.building_frac.
+        SPARTACUS vertical-layer fractions describe radiative geometry, so the
+        layer fractions do not have to equal the corresponding land-cover
+        fractions. For buildings, building_frac is expected to decrease with
+        height and may be lower than bldgs.sfr, but no layer should exceed the
+        site-level building land-cover fraction.
 
         Returns
         -------
         list of str
             List of issue messages if validation fails; empty if valid.
-
-        Notes
-        -----
-        - Uses a tolerance of 1e-6 for floating point comparisons.
-        - Returns early if required properties are missing.
         """
         issues: list = []
         site_name = getattr(site, "name", f"Site {site_index}")
@@ -2635,27 +2632,25 @@ class SUEWSConfig(BaseModel):
 
         lc = props.land_cover
         bldgs = getattr(lc, "bldgs", None)
-        vertical_layers = getattr(props, "vertical_layers", None)
-        if not vertical_layers:
-            return issues
-
-        # Unwrap values
         bldgs_sfr = _unwrap_value(getattr(bldgs, "sfr", None)) if bldgs else None
 
+        vertical_layers = getattr(props, "vertical_layers", None)
+        if not vertical_layers or bldgs_sfr is None:
+            return issues
+
         building_frac = _unwrap_value(getattr(vertical_layers, "building_frac", None))
+        if not isinstance(building_frac, (list, tuple)):
+            return issues
 
         tol = 1e-6
-
-        # Buildings: surface fraction vs first SPARTACUS layer
-        if (
-            isinstance(building_frac, (list, tuple))
-            and len(building_frac) > 0
-            and bldgs_sfr is not None
-        ):
-            if not np.isclose(bldgs_sfr, building_frac[0], atol=tol):
+        for layer_idx, layer_frac in enumerate(building_frac):
+            layer_frac = _unwrap_value(layer_frac)
+            if layer_frac is None:
+                continue
+            if layer_frac - bldgs_sfr > tol:
                 issues.append(
-                    f"{site_name}: bldgs.sfr ({bldgs_sfr}) does not match "
-                    f"vertical_layers.building_frac[0] ({building_frac[0]})"
+                    f"{site_name}: vertical_layers.building_frac[{layer_idx}] "
+                    f"({layer_frac}) exceeds land_cover.bldgs.sfr ({bldgs_sfr})"
                 )
 
         return issues

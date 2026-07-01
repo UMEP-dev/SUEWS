@@ -2153,21 +2153,37 @@ def test_validate_spartacus_building_height_stebbs_off():
     msgs = cfg._validate_spartacus_building_height(site, 0)
     assert msgs == []
 
-def test_validate_spartacus_sfr_mismatch_bldgs_frac():
+def test_validate_spartacus_sfr_allows_building_frac_below_land_cover():
+    """SPARTACUS allows lower first-layer building geometry smaller than building land cover."""
     cfg = SUEWSConfig.model_construct()
     _force_set(cfg, "model", SimpleNamespace(physics=SimpleNamespace(net_radiation=1001)))
-    bldgs = SimpleNamespace(sfr=0.6)  
+    bldgs = SimpleNamespace(sfr=0.259018017683188)
     lc = SimpleNamespace(bldgs=bldgs, evetr=None, dectr=None)
     vertical_layers = SimpleNamespace(
-        building_frac=[0.3],  
+        building_frac=[0.2533775454108994],
         veg_frac=[0.0],
     )
     props = SimpleNamespace(land_cover=lc, vertical_layers=vertical_layers)
     site = DummySite(properties=props, name="TestSite")
     msgs = cfg._validate_spartacus_sfr(site, 0)
-    assert msgs  
+    assert msgs == []
+
+def test_validate_spartacus_sfr_rejects_building_frac_above_land_cover():
+    """SPARTACUS building geometry cannot exceed the building land-cover fraction."""
+    cfg = SUEWSConfig.model_construct()
+    _force_set(cfg, "model", SimpleNamespace(physics=SimpleNamespace(net_radiation=1001)))
+    bldgs = SimpleNamespace(sfr=0.3)
+    lc = SimpleNamespace(bldgs=bldgs, evetr=None, dectr=None)
+    vertical_layers = SimpleNamespace(
+        building_frac=[0.3, 0.31],
+        veg_frac=[0.0, 0.0],
+    )
+    props = SimpleNamespace(land_cover=lc, vertical_layers=vertical_layers)
+    site = DummySite(properties=props, name="TestSite")
+    msgs = cfg._validate_spartacus_sfr(site, 0)
+    assert msgs
     assert any(
-        "bldgs.sfr (0.6) does not match vertical_layers.building_frac[0] (0.3)"
+        "vertical_layers.building_frac[1] (0.31) exceeds land_cover.bldgs.sfr (0.3)"
         in m
         for m in msgs
     )
@@ -2189,7 +2205,7 @@ def test_validate_spartacus_sfr_consistent_values():
     assert msgs == []
 
 def test_validate_spartacus_sfr_allows_trunk_crown_veg_frac():
-    """SPARTACUS allows lower first-layer vegetation geometry than tree land cover."""
+    """SPARTACUS allows lower first-layer vegetation geometry smaller than tree land cover."""
     cfg = SUEWSConfig.model_construct()
     _force_set(cfg, "model", SimpleNamespace(physics=SimpleNamespace(net_radiation=1001)))
 

@@ -123,11 +123,11 @@ SCHEMA_VERSIONS: dict[str, str] = {
         "accepted at parse time and is copied into the model-owned value."
     ),
     "2026.6.dev2": (
-        "Development schema for gh#1594: model.physics.frontal_area_index "
-        "keeps the observed/modelled selector shape, but the modelled "
-        "internal FAI parameterisation is marked experimental and rejected "
-        "by public-mode validation. Normal users should use observed FAI "
-        "and provide site morphology values."
+        "Development schema for the modelled frontal area index update: "
+        "model.physics.frontal_area_index keeps the observed/modelled "
+        "selector shape, but the modelled internal FAI parameterisation is "
+        "marked experimental and rejected by public-mode validation. Normal "
+        "users should use observed FAI and provide site morphology values."
     ),
 }
 

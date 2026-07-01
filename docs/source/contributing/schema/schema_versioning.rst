@@ -172,7 +172,7 @@ the schema that shipped with it via
 ``supy.util.converter.yaml_upgrade._PACKAGE_TO_SCHEMA``.
 
 **Schema 2026.6.dev2** (current; development)
-   Development schema for gh#1594. It keeps
+   Development schema for the modelled frontal area index update. It keeps
    ``model.physics.frontal_area_index`` as the observed/modelled source
    selector, but marks the modelled internal FAI parameterisation as
    experimental. Public-mode validation now rejects

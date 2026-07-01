@@ -5,13 +5,14 @@ scale problem reported on the community forum and tracked in gh#1594.
 
 ## Problem
 
-With `FAImethod = 1` (MODELLED) the internally-calculated building frontal area
-index is tiny on coarse grids (~0.005 on a 1 km cell), which drives z0m to
-near-zero and produces counter-intuitive, resolution-sensitive wind responses.
+With the legacy `FAImethod = 1` (MODELLED) building branch, the internally
+calculated building frontal area index is tiny on coarse grids (~0.005 on a
+1 km cell), which drives z0m to near-zero and produces counter-intuitive,
+resolution-sensitive wind responses.
 
 ## Root cause
 
-The `FAImethod = 1` building branch is
+The legacy `FAImethod = 1` building branch was
 
     FAIBldg = sqrt(sfr_bldg / surfaceArea) * bldgH        # = lambda_p * H / sqrt(lambda_p * A)
 
@@ -35,7 +36,7 @@ The tree branches (`1.07*lambda_p`, `1.66*(1-P)*lambda_p`) are already
 scale-free because they tie the crown radius to height; only the building branch
 used the grid area.
 
-## Fix (FAImethod = 2, MODELLED_FIXED_WIDTH)
+## Fix (revise FAImethod = 1 and keep it experimental)
 
 Use a fixed characteristic building width `b0` instead of the grid size:
 
@@ -43,7 +44,14 @@ Use a fixed characteristic building width `b0` instead of the grid size:
 
 This is resolution-independent, reduces to the textbook cubic-array result
 (`FAIBldg = lambda_p` when `b0 = H`), and is consistent with the tree branches.
-`FAImethod = 1` is retained unchanged (opt-in change; no existing run moves).
+The change updates the existing modelled branch (`FAImethod = 1`); it does not
+add a new public FAI method.
+
+Because the modelled FAI closure is still experimental, public-mode validation
+rejects `frontal_area_index: modelled`. Normal users should use
+`frontal_area_index: observed` / `FAImethod = 0` and provide site-specific
+building and tree FAI values (`FAIBldg`, `FAIEveTree`, `FAIDecTree`) from
+morphology data.
 
 `b0` is a single universal constant (like the `1.07`/`1.66` tree constants), not
 a per-site input. Literature building footprints (~100-250 m^2, i.e. widths
@@ -55,20 +63,22 @@ Global ML Building Footprints + GLAMOUR heights) is the recommended follow-up.
 ## Impact (see the scripts)
 
 `fai_impact_analytical.py` — closed-form FAIBldg / z0m (MacDonald) / RSL Lc, beta.
-`fai_impact_coupled.py` — coupled supy sweep over building density, FAImethod 1
-vs 2 (2 injected via FAImethod=0 to reuse an unmodified build), MOST and RSL.
+`fai_impact_coupled.py` — coupled supy sweep over building density, comparing
+the revised modelled branch against the legacy #192 formula, MOST and RSL.
 
 Coupled results (H = 22 m, MacDonald roughness, b0 = 15 m, 2-week mean):
 
-- z0m: FAImethod=1 gives 0.009-0.05 m (near-smooth); new gives 0.55-3.2 m
-  (realistic), rising monotonically with density.
-- MOST U10 vs density: FAImethod=1 is ~flat/non-monotonic (~3.5 m/s, density
-  signal lost); new decreases with density (2.95 -> 2.5 m/s), as expected.
-- RSL U10 / U3 vs density: FAImethod=1 barely changes (~3 m/s); new drops
+- z0m: legacy #192 gives 0.009-0.05 m (near-smooth); revised modelled FAI gives
+  0.55-3.2 m (realistic), rising monotonically with density.
+- MOST U10 vs density: legacy #192 is ~flat/non-monotonic (~3.5 m/s, density
+  signal lost); revised modelled FAI decreases with density (2.95 -> 2.5 m/s),
+  as expected.
+- RSL U10 / U3 vs density: legacy #192 barely changes (~3 m/s); revised FAI drops
   strongly with density (U10 1.72 -> 0.02; U3 1.38 -> 0.00), i.e. a physical,
   density-responsive canopy wind field.
 
-The reported anomalies trace to FAImethod=1 leaving the surface aerodynamically
-near-smooth and density-insensitive; the new scheme restores a physical response.
-(The exact sign of the reporter's U10/U3-vs-density curves depends on their full
-configuration; the scripts reproduce the mechanism, not that specific config.)
+The reported anomalies trace to the legacy #192 building branch leaving the
+surface aerodynamically near-smooth and density-insensitive; the revised
+modelled branch restores a physical response. (The exact sign of the reporter's
+U10/U3-vs-density curves depends on their full configuration; the scripts
+reproduce the mechanism, not that specific config.)

@@ -1,10 +1,9 @@
 """Coupled supy impact of the FAIBldg scheme change (gh#1594).
 
-Single-grid density sweep comparing FAImethod=1 (grid-dependent #192) against the
-resolution-independent scheme. The new scheme is exercised by injecting
-FAIBldg = lambda_p * H / b0 through FAImethod=0 (OBSERVED), so the comparison runs
-on an unmodified build; once the FAImethod=2 branch is built, set faimethod=2 and
-drop the injection to confirm identical results.
+Single-grid density sweep comparing the revised FAImethod=1 branch against the
+legacy grid-dependent #192 formula. The legacy branch is emulated by injecting
+FAIBldg = sqrt(lambda_p / A) * H through FAImethod=0 (OBSERVED); the revised
+branch is exercised directly with FAImethod=1.
 
 Diagnostic only: keep to a single grid and a short period (local-run policy).
 """
@@ -22,7 +21,7 @@ H = 22.0
 B0 = 15.0
 
 
-def setup(df0, lp, faimethod, rslm):
+def setup(df0, lp, scheme, rslm):
     d = df0.copy()
     # Isolate buildings: zero trees/bare soil; trade building fraction with paved.
     fr = {0: 1 - 0.14 - 0.03 - lp, 1: lp, 2: 0.0, 3: 0.0, 4: 0.03, 5: 0.0, 6: 0.14}
@@ -31,11 +30,16 @@ def setup(df0, lp, faimethod, rslm):
     d[("bldgh", "0")] = H
     d[("roughlenmommethod", "0")] = 3  # MacDonald: FAI drives z0m
     d[("rslmethod", "0")] = rslm
-    d[("faimethod", "0")] = faimethod
-    if faimethod == 0:
-        d[("faibldg", "0")] = lp * H / B0  # new scheme injected
+    if scheme == "revised":
+        d[("faimethod", "0")] = 1
+    elif scheme == "legacy_192":
+        d[("faimethod", "0")] = 0
+        area = float(d[("surfacearea", "0")].iloc[0])
+        d[("faibldg", "0")] = np.sqrt(lp / area) * H
         d[("faievetree", "0")] = 0.0
         d[("faidectree", "0")] = 0.0
+    else:
+        raise ValueError(f"Unknown FAI scheme: {scheme}")
     return d
 
 
@@ -56,19 +60,19 @@ def main():
     print(f"H={H} m, MacDonald roughness, trees zeroed, b0={B0} m. 2-week mean.\n")
     for rslm, lbl in [(0, "MOST (RSLMethod=0)"), (1, "RSL (RSLMethod=1)")]:
         print(f"=== {lbl} ===")
-        print(" lp  | z0m(new) z0m(#192) | U10(new) U10(#192) | U3(new) U3(#192)")
+        print(" lp  | z0m(rev) z0m(#192) | U10(rev) U10(#192) | U3(rev) U3(#192)")
         for lp in [0.1, 0.2, 0.3, 0.4, 0.5]:
             r = {}
-            for tag, fm in [("new", 0), ("192", 1)]:
-                out, _ = supy.run_supy(f, setup(df0, lp, fm, rslm))
+            for tag, scheme in [("revised", "revised"), ("192", "legacy_192")]:
+                out, _ = supy.run_supy(f, setup(df0, lp, scheme, rslm))
                 z0 = float(out[("SUEWS", "z0m")].mean())
                 u10 = float(out[("SUEWS", "U10")].mean())
                 u3 = u_at(out, 3.0) if rslm == 1 else np.nan
                 r[tag] = (z0, u10, u3)
             print(
-                f" {lp:.1f} |  {r['new'][0]:6.3f}  {r['192'][0]:7.4f}  |  "
-                f"{r['new'][1]:5.2f}   {r['192'][1]:5.2f}   | "
-                f"{r['new'][2]:5.2f}  {r['192'][2]:5.2f}"
+                f" {lp:.1f} |  {r['revised'][0]:6.3f}  {r['192'][0]:7.4f}  |  "
+                f"{r['revised'][1]:5.2f}   {r['192'][1]:5.2f}   | "
+                f"{r['revised'][2]:5.2f}  {r['192'][2]:5.2f}"
             )
 
 

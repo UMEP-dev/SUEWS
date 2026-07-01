@@ -139,6 +139,9 @@ EXAMPLES:
 - [bugfix] `2017b` could not be converted at all -- an orphan in the converter version graph crashed with a cryptic `TypeError`; its table format is byte-identical to `2017a`, so it now joins the graph via a zero-delta equivalence edge (#1522)
 - [bugfix] Converter rule matching collected rows where *either* version-graph endpoint matched, which was wrong once two edges shared an endpoint; it now requires both endpoints (#1522)
 - [feature][experimental] Opt-in `SUEWSConfig.strict_initial_state_bounds` (default `True`, strict behaviour unchanged) lets a faithfully-converted legacy config whose initial albedo sits outside the modern seasonal range load with a warning instead of a hard validation error; `suews-convert` sets it for legacy conversions (#1522)
+- [bugfix] Corrected the grass albedo LAI relationship in the daily-state update (#1134)
+  - `update_Veg` applied the tree formula to grass, so grass albedo rose with LAI through the growing season; grass has the reversed relationship (a denser canopy is less reflective than the bright soil/litter it replaces), so increasing LAI must lower albedo
+  - Brings the Fortran daily-state update in line with the phenology albedo auto-initialisation (#1133) and the `alb_min`/`alb_max` field definitions, which already encode the reversed grass convention
 
 ### 11 Jun 2026
 

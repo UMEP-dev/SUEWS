@@ -85,17 +85,14 @@ def generate_json_schema(
 
 
 def _filter_public_fai_method_docs(schema: Dict[str, Any]) -> Dict[str, Any]:
-    """Hide the experimental modelled FAI option from public schema text.
-
-    The enum still accepts the legacy value so dev/internal workflows are not
-    rejected by JSON Schema before they reach mode-aware validation.
-    """
+    """Hide the experimental modelled FAI option from the public schema."""
 
     defs = schema.get("$defs")
     if isinstance(defs, dict):
         fai_method = defs.get("FAIMethod")
         if isinstance(fai_method, dict):
             fai_method = fai_method.copy()
+            fai_method["enum"] = [0]
             fai_method["description"] = _PUBLIC_FAI_METHOD_ENUM_DESCRIPTION
             defs = defs.copy()
             defs["FAIMethod"] = fai_method

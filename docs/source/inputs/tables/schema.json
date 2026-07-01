@@ -3880,8 +3880,7 @@
     "FAIMethod": {
       "description": "Method for calculating frontal area index (FAI) - the ratio of frontal area to plan area.\n\n0: OBSERVED - Recommended for normal use. Use FAI values provided in site parameters (FAIBldg, FAIEveTree, FAIDecTree).",
       "enum": [
-        0,
-        1
+        0
       ],
       "title": "FAIMethod",
       "type": "integer"

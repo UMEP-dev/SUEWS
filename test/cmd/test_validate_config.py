@@ -778,7 +778,7 @@ def test_public_schema_hides_experimental_modelled_fai() -> None:
     public_schema = generate_json_schema()
     internal_schema = generate_json_schema(include_internal=True)
 
-    assert public_schema["$defs"]["FAIMethod"]["enum"] == [0, 1]
+    assert public_schema["$defs"]["FAIMethod"]["enum"] == [0]
     assert "MODELLED" not in public_schema["$defs"]["FAIMethod"]["description"]
     assert (
         "MODELLED"

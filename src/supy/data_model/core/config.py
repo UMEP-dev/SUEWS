@@ -2611,12 +2611,11 @@ class SUEWSConfig(BaseModel):
 
     def _validate_spartacus_sfr(self, site: Site, site_index: int) -> list:
         """
-        Validate SPARTACUS building and vegetation surface fractions for a site.
+        Validate SPARTACUS building surface fractions for a site.
 
-        If SPARTACUS is enabled, this function checks that:
-        - The building surface fraction (bldgs.sfr) matches the first entry of vertical_layers.building_frac.
-        - The sum of evergreen and deciduous tree surface fractions (evetr.sfr + dectr.sfr)
-          matches the first entry of vertical_layers.veg_frac.
+        If SPARTACUS is enabled, this function checks that the building
+        surface fraction (bldgs.sfr) matches the first entry of
+        vertical_layers.building_frac.
 
         Returns
         -------
@@ -2636,20 +2635,14 @@ class SUEWSConfig(BaseModel):
 
         lc = props.land_cover
         bldgs = getattr(lc, "bldgs", None)
-        evetr = getattr(lc, "evetr", None)
-        dectr = getattr(lc, "dectr", None)
         vertical_layers = getattr(props, "vertical_layers", None)
         if not vertical_layers:
             return issues
 
         # Unwrap values
         bldgs_sfr = _unwrap_value(getattr(bldgs, "sfr", None)) if bldgs else None
-        evetr_sfr = _unwrap_value(getattr(evetr, "sfr", None)) if evetr else 0.0
-        dectr_sfr = _unwrap_value(getattr(dectr, "sfr", None)) if dectr else 0.0
-        veg_sfr = (evetr_sfr or 0.0) + (dectr_sfr or 0.0)
 
         building_frac = _unwrap_value(getattr(vertical_layers, "building_frac", None))
-        veg_frac = _unwrap_value(getattr(vertical_layers, "veg_frac", None))
 
         tol = 1e-6
 
@@ -2663,17 +2656,6 @@ class SUEWSConfig(BaseModel):
                 issues.append(
                     f"{site_name}: bldgs.sfr ({bldgs_sfr}) does not match "
                     f"vertical_layers.building_frac[0] ({building_frac[0]})"
-                )
-
-        # Vegetation: sum of fractions vs first veg_frac entry
-        if (
-            isinstance(veg_frac, (list, tuple))
-            and len(veg_frac) > 0
-        ):
-            if not np.isclose(veg_sfr, veg_frac[0], atol=tol):
-                issues.append(
-                    f"{site_name}: evetr.sfr + dectr.sfr ({veg_sfr}) does not match "
-                    f"vertical_layers.veg_frac[0] ({veg_frac[0]})"
                 )
 
         return issues

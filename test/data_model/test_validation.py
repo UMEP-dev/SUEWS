@@ -2091,21 +2091,22 @@ def test_validate_spartacus_building_height_stebbs_off():
 def test_validate_spartacus_sfr_mismatch_bldgs_frac():
     cfg = SUEWSConfig.model_construct()
     _force_set(cfg, "model", SimpleNamespace(physics=SimpleNamespace(net_radiation=1001)))
-    bldgs = SimpleNamespace(sfr=0.6)  
+    bldgs = SimpleNamespace(sfr=0.184)
     lc = SimpleNamespace(bldgs=bldgs, evetr=None, dectr=None)
     vertical_layers = SimpleNamespace(
-        building_frac=[0.3],  
+        building_frac=[0.153],
         veg_frac=[0.0],
     )
     props = SimpleNamespace(land_cover=lc, vertical_layers=vertical_layers)
     site = DummySite(properties=props, name="TestSite")
     msgs = cfg._validate_spartacus_sfr(site, 0)
-    assert msgs  
-    assert any(
-        "bldgs.sfr (0.6) does not match vertical_layers.building_frac[0] (0.3)"
-        in m
-        for m in msgs
-    )
+    assert msgs
+    message = msgs[0]
+    assert "land_cover.bldgs.sfr (0.184)" in message
+    assert "vertical_layers.building_frac[0] (0.153)" in message
+    assert "absolute difference is 0.031" in message
+    assert "tolerance is 1e-06" in message
+    assert "reconcile the land-cover and 3D morphology inputs" in message
 
 def test_validate_spartacus_sfr_consistent_values():
     cfg = SUEWSConfig.model_construct()
@@ -2145,7 +2146,8 @@ def test_validate_spartacus_sfr_mismatch_veg_frac():
     msgs = cfg._validate_spartacus_sfr(site, 0)
     assert msgs
     assert any(
-        "evetr.sfr + dectr.sfr (0.4) does not match vertical_layers.veg_frac[0] (0.1)"
+        "land_cover.evetr.sfr + land_cover.dectr.sfr (0.4) does not match "
+        "vertical_layers.veg_frac[0] (0.1)"
         in m
         for m in msgs
     )

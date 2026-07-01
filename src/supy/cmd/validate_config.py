@@ -936,6 +936,15 @@ def _experimental_features_restriction(user_yaml_file, mode):
     if snowuse is not None and snowuse != 0:
         restrictions_violated.append("Snow calculations are enabled (snow_use != 0)")
 
+    fai_method = read_physics_key(physics, "frontal_area_index")
+    if str(fai_method).lower() in {"1", "modelled"}:
+        restrictions_violated.append(
+            "Modelled frontal_area_index is experimental "
+            "(frontal_area_index: modelled / faimethod=1); use observed FAI "
+            "and provide bldgs.faibldg, evetr.fai_evergreen_tree, and "
+            "dectr.fai_deciduous_tree values instead"
+        )
+
     if restrictions_violated:
         return False, restrictions_violated, None
 
@@ -952,7 +961,8 @@ def _print_experimental_features_restriction(restrictions_violated):
     console.print("\n[yellow]Options to resolve:[/yellow]")
     console.print("  1. Switch to dev mode: [cyan]--mode dev[/cyan]")
     console.print("  2. Disable experimental features in your YAML file and rerun")
-    console.print("     Example: Set [cyan]stebbs.enabled: {value: false}[/cyan]")
+    console.print("     Example: set [cyan]frontal_area_index: observed[/cyan]")
+    console.print("     Example: set [cyan]stebbs.enabled: {value: false}[/cyan]")
 
 
 def _check_experimental_features_restriction(user_yaml_file, mode):

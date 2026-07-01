@@ -20,6 +20,20 @@ from datetime import datetime
 from ..core import SUEWSConfig
 from .version import CURRENT_SCHEMA_VERSION, SCHEMA_VERSIONS
 
+_PUBLIC_FAI_METHOD_ENUM_DESCRIPTION = (
+    "Method for calculating frontal area index (FAI) - the ratio of frontal "
+    "area to plan area.\n\n"
+    "0: OBSERVED - Recommended for normal use. Use FAI values provided in "
+    "site parameters (FAIBldg, FAIEveTree, FAIDecTree)."
+)
+_PUBLIC_FAI_METHOD_FIELD_DESCRIPTION = (
+    "Method for calculating frontal area index (FAI) - the ratio of frontal "
+    "area to plan area. Options: 0 (OBSERVED) = Recommended for normal use. "
+    "Use FAI values provided in site parameters (FAIBldg, FAIEveTree, "
+    "FAIDecTree). The modelled FAI branch is experimental and reserved for "
+    "dev/internal validation."
+)
+
 
 def generate_json_schema(
     version: Optional[str] = None, include_internal: bool = False
@@ -62,10 +76,43 @@ def generate_json_schema(
     # Filter internal fields if requested
     if not include_internal:
         schema = _filter_internal_fields(schema)
+        schema = _filter_public_fai_method_docs(schema)
 
     # Add examples
     schema["examples"] = [_get_minimal_example()]
 
+    return schema
+
+
+def _filter_public_fai_method_docs(schema: Dict[str, Any]) -> Dict[str, Any]:
+    """Hide the experimental modelled FAI option from the public schema."""
+
+    defs = schema.get("$defs")
+    if isinstance(defs, dict):
+        fai_method = defs.get("FAIMethod")
+        if isinstance(fai_method, dict):
+            fai_method = fai_method.copy()
+            fai_method["enum"] = [0]
+            fai_method["description"] = _PUBLIC_FAI_METHOD_ENUM_DESCRIPTION
+            defs = defs.copy()
+            defs["FAIMethod"] = fai_method
+            schema = schema.copy()
+            schema["$defs"] = defs
+
+    def update_frontal_area_index_fields(node: Any) -> None:
+        if isinstance(node, dict):
+            properties = node.get("properties")
+            if isinstance(properties, dict):
+                fai_field = properties.get("frontal_area_index")
+                if isinstance(fai_field, dict):
+                    fai_field["description"] = _PUBLIC_FAI_METHOD_FIELD_DESCRIPTION
+            for value in node.values():
+                update_frontal_area_index_fields(value)
+        elif isinstance(node, list):
+            for value in node:
+                update_frontal_area_index_fields(value)
+
+    update_frontal_area_index_fields(schema)
     return schema
 
 

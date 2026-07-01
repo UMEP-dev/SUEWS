@@ -427,7 +427,7 @@ CONTAINS
       tsfc_surf, tin_surf, temp_in_surf, k_surf, cp_surf, dz_surf, sfr_surf, & !input
       temp_out_roof, QS_roof, & !output
       temp_out_wall, QS_wall, & !output
-      temp_out_surf, QS_surf, & !output
+      temp_out_surf, temp_fast_surf, temp_slow_surf, QS_surf, & !output
       QS) !output
       USE module_ctrl_const_allocate, ONLY: &
          nsurf, ndepth, &
@@ -489,6 +489,8 @@ CONTAINS
       ! standard suews surfaces
       REAL(KIND(1D0)), DIMENSION(nsurf), INTENT(out) :: QS_surf
       REAL(KIND(1D0)), DIMENSION(nsurf, ndepth), INTENT(out) :: temp_out_surf !interface temperature between depth layers
+      REAL(KIND(1D0)), DIMENSION(nsurf, ndepth), INTENT(inout) :: temp_fast_surf ! fast EHC surface thermal state
+      REAL(KIND(1D0)), DIMENSION(nsurf, ndepth), INTENT(inout) :: temp_slow_surf ! slow EHC surface thermal state
 
       ! grid aggregated results
       REAL(KIND(1D0)), INTENT(out) :: QS
@@ -507,7 +509,7 @@ CONTAINS
       ! REAL(KIND(1D0)), DIMENSION(ndepth) :: temp_all_cal
       ! surface temperatures at innermost depth layer
       ! REAL(KIND(1D0)) :: temp_IBC
-      INTEGER :: i_facet, i_group, nfacet, i_depth
+      INTEGER :: i_facet, i_group, nfacet, i_depth, env_status
 
       ! settings for boundary conditions
       REAL(KIND(1D0)), DIMENSION(2) :: bc
@@ -518,14 +520,33 @@ CONTAINS
 
       ! use finite depth heat conduction solver
       LOGICAL :: use_heatcond1d, use_heatcond1d_water
-      LOGICAL, PARAMETER :: use_zero_flux_bottom = .FALSE.
+      LOGICAL :: use_zero_flux_bottom, use_parallel_surfaces
+      CHARACTER(LEN=32) :: env_value
       REAL(KIND(1D0)), DIMENSION(ndepth) :: temp_lumped, cap_lumped
+      REAL(KIND(1D0)), DIMENSION(ndepth) :: temp_fast_lumped, temp_slow_lumped
+      REAL(KIND(1D0)), DIMENSION(ndepth) :: cap_fast_lumped, cap_slow_lumped
+      REAL(KIND(1D0)), DIMENSION(ndepth) :: temp_branch, cap_branch
       REAL(KIND(1D0)), DIMENSION(ndepth + 1) :: g_lumped
-      REAL(KIND(1D0)) :: tsfc_lumped, tin_lumped, qs_lumped, qs_per_surface
+      REAL(KIND(1D0)), DIMENSION(ndepth + 1) :: g_fast_lumped, g_slow_lumped
+      REAL(KIND(1D0)), DIMENSION(ndepth + 1) :: g_branch
+      REAL(KIND(1D0)) :: tsfc_lumped, tin_lumped, qs_lumped, qs_per_surface, bottom_g_scale
       REAL(KIND(1D0)) :: q_top_lumped, q_bottom_lumped
       REAL(KIND(1D0)) :: surface_weight, layer_cap, layer_temp_cap, face_resistance
+      REAL(KIND(1D0)) :: layer_fast_temp_cap, layer_slow_temp_cap
+      REAL(KIND(1D0)) :: qs_fast_lumped, qs_slow_lumped
+      REAL(KIND(1D0)) :: q_top_fast_lumped, q_bottom_fast_lumped
+      REAL(KIND(1D0)) :: q_top_slow_lumped, q_bottom_slow_lumped
+      REAL(KIND(1D0)) :: dual_fast_weight, dual_slow_weight
+      REAL(KIND(1D0)) :: fast_cap_scale, slow_cap_scale, fast_g_scale, slow_g_scale
+      REAL(KIND(1D0)) :: lumped_layer_temp_for_alloc
+      REAL(KIND(1D0)) :: state_layer_temp, state_top_gradient, state_g_scale
+      REAL(KIND(1D0)) :: state_warming_g_boost, state_cooling_g_damp
+      REAL(KIND(1D0)) :: state_gradient_scale, state_min_g_scale
       LOGICAL :: valid_lumped
       LOGICAL, DIMENSION(nsurf) :: valid_lumped_surf
+      LOGICAL :: use_dual_timescale, use_qs_surface_gradient_alloc, allocation_success
+      LOGICAL :: use_state_admittance
+      LOGICAL :: use_ehc_experimental_controls
 
       QS = 0.0D0
       QS_surf = 0.0D0
@@ -534,6 +555,125 @@ CONTAINS
       temp_out_surf = temp_in_surf
       temp_out_roof = temp_in_roof
       temp_out_wall = temp_in_wall
+
+      use_ehc_experimental_controls = ehc_experimental_controls_enabled()
+      use_zero_flux_bottom = .FALSE.
+      use_parallel_surfaces = .FALSE.
+      bottom_g_scale = 1.0D0
+      use_dual_timescale = .FALSE.
+      dual_fast_weight = 0.35D0
+      dual_slow_weight = 1.0D0 - dual_fast_weight
+      fast_cap_scale = 0.35D0
+      slow_cap_scale = 1.25D0
+      fast_g_scale = 1.75D0
+      slow_g_scale = 0.75D0
+      use_state_admittance = .FALSE.
+      state_warming_g_boost = 0.50D0
+      state_cooling_g_damp = 0.35D0
+      state_gradient_scale = 2.0D0
+      state_min_g_scale = 0.35D0
+      use_qs_surface_gradient_alloc = .FALSE.
+
+      IF (use_ehc_experimental_controls) THEN
+         CALL GET_ENVIRONMENT_VARIABLE("SUEWS_EHC_ZERO_FLUX_BOTTOM", env_value, STATUS=env_status)
+         IF (env_status == 0) THEN
+            SELECT CASE (TRIM(ADJUSTL(env_value)))
+            CASE ("1", "true", "TRUE", "True", "yes", "YES", "Yes")
+               use_zero_flux_bottom = .TRUE.
+            END SELECT
+         END IF
+         CALL GET_ENVIRONMENT_VARIABLE("SUEWS_EHC_PARALLEL_SURFACES", env_value, STATUS=env_status)
+         IF (env_status == 0) THEN
+            SELECT CASE (TRIM(ADJUSTL(env_value)))
+            CASE ("1", "true", "TRUE", "True", "yes", "YES", "Yes")
+               use_parallel_surfaces = .TRUE.
+            END SELECT
+         END IF
+         CALL GET_ENVIRONMENT_VARIABLE("SUEWS_EHC_BOTTOM_G_SCALE", env_value, STATUS=env_status)
+         IF (env_status == 0 .AND. LEN_TRIM(env_value) > 0) THEN
+            READ (env_value, *, IOSTAT=env_status) bottom_g_scale
+            IF (env_status /= 0) bottom_g_scale = 1.0D0
+            bottom_g_scale = MAX(0.0D0, bottom_g_scale)
+         END IF
+         CALL GET_ENVIRONMENT_VARIABLE("SUEWS_EHC_DUAL_TIMESCALE", env_value, STATUS=env_status)
+         IF (env_status == 0) THEN
+            SELECT CASE (TRIM(ADJUSTL(env_value)))
+            CASE ("1", "true", "TRUE", "True", "yes", "YES", "Yes")
+               use_dual_timescale = .TRUE.
+            END SELECT
+         END IF
+         CALL GET_ENVIRONMENT_VARIABLE("SUEWS_EHC_FAST_WEIGHT", env_value, STATUS=env_status)
+         IF (env_status == 0 .AND. LEN_TRIM(env_value) > 0) THEN
+            READ (env_value, *, IOSTAT=env_status) dual_fast_weight
+            IF (env_status /= 0) dual_fast_weight = 0.35D0
+         END IF
+         dual_fast_weight = MAX(0.0D0, MIN(1.0D0, dual_fast_weight))
+         dual_slow_weight = 1.0D0 - dual_fast_weight
+         CALL GET_ENVIRONMENT_VARIABLE("SUEWS_EHC_FAST_CAP_SCALE", env_value, STATUS=env_status)
+         IF (env_status == 0 .AND. LEN_TRIM(env_value) > 0) THEN
+            READ (env_value, *, IOSTAT=env_status) fast_cap_scale
+            IF (env_status /= 0) fast_cap_scale = 0.35D0
+         END IF
+         fast_cap_scale = MAX(0.05D0, fast_cap_scale)
+         CALL GET_ENVIRONMENT_VARIABLE("SUEWS_EHC_SLOW_CAP_SCALE", env_value, STATUS=env_status)
+         IF (env_status == 0 .AND. LEN_TRIM(env_value) > 0) THEN
+            READ (env_value, *, IOSTAT=env_status) slow_cap_scale
+            IF (env_status /= 0) slow_cap_scale = 1.25D0
+         END IF
+         slow_cap_scale = MAX(0.05D0, slow_cap_scale)
+         CALL GET_ENVIRONMENT_VARIABLE("SUEWS_EHC_FAST_G_SCALE", env_value, STATUS=env_status)
+         IF (env_status == 0 .AND. LEN_TRIM(env_value) > 0) THEN
+            READ (env_value, *, IOSTAT=env_status) fast_g_scale
+            IF (env_status /= 0) fast_g_scale = 1.75D0
+         END IF
+         fast_g_scale = MAX(0.05D0, fast_g_scale)
+         CALL GET_ENVIRONMENT_VARIABLE("SUEWS_EHC_SLOW_G_SCALE", env_value, STATUS=env_status)
+         IF (env_status == 0 .AND. LEN_TRIM(env_value) > 0) THEN
+            READ (env_value, *, IOSTAT=env_status) slow_g_scale
+            IF (env_status /= 0) slow_g_scale = 0.75D0
+         END IF
+         slow_g_scale = MAX(0.05D0, slow_g_scale)
+         CALL GET_ENVIRONMENT_VARIABLE("SUEWS_EHC_STATE_ADMITTANCE", env_value, STATUS=env_status)
+         IF (env_status == 0) THEN
+            SELECT CASE (TRIM(ADJUSTL(env_value)))
+            CASE ("1", "true", "TRUE", "True", "yes", "YES", "Yes")
+               use_state_admittance = .TRUE.
+            END SELECT
+         END IF
+         CALL GET_ENVIRONMENT_VARIABLE("SUEWS_EHC_WARMING_G_BOOST", env_value, STATUS=env_status)
+         IF (env_status == 0 .AND. LEN_TRIM(env_value) > 0) THEN
+            READ (env_value, *, IOSTAT=env_status) state_warming_g_boost
+            IF (env_status /= 0) state_warming_g_boost = 0.50D0
+         END IF
+         state_warming_g_boost = MAX(0.0D0, MIN(5.0D0, state_warming_g_boost))
+         CALL GET_ENVIRONMENT_VARIABLE("SUEWS_EHC_COOLING_G_DAMP", env_value, STATUS=env_status)
+         IF (env_status == 0 .AND. LEN_TRIM(env_value) > 0) THEN
+            READ (env_value, *, IOSTAT=env_status) state_cooling_g_damp
+            IF (env_status /= 0) state_cooling_g_damp = 0.35D0
+         END IF
+         state_cooling_g_damp = MAX(0.0D0, MIN(0.95D0, state_cooling_g_damp))
+         CALL GET_ENVIRONMENT_VARIABLE("SUEWS_EHC_GRADIENT_SCALE", env_value, STATUS=env_status)
+         IF (env_status == 0 .AND. LEN_TRIM(env_value) > 0) THEN
+            READ (env_value, *, IOSTAT=env_status) state_gradient_scale
+            IF (env_status /= 0) state_gradient_scale = 2.0D0
+         END IF
+         state_gradient_scale = MAX(0.10D0, state_gradient_scale)
+         CALL GET_ENVIRONMENT_VARIABLE("SUEWS_EHC_MIN_G_SCALE", env_value, STATUS=env_status)
+         IF (env_status == 0 .AND. LEN_TRIM(env_value) > 0) THEN
+            READ (env_value, *, IOSTAT=env_status) state_min_g_scale
+            IF (env_status /= 0) state_min_g_scale = 0.35D0
+         END IF
+         state_min_g_scale = MAX(0.05D0, MIN(1.0D0, state_min_g_scale))
+         CALL GET_ENVIRONMENT_VARIABLE("SUEWS_EHC_QS_SURF_ALLOC", env_value, STATUS=env_status)
+         IF (env_status == 0) THEN
+            SELECT CASE (TRIM(ADJUSTL(env_value)))
+            CASE ("conductance_gradient", "CONDUCTANCE_GRADIENT", &
+                  "gradient", "GRADIENT", "1", "true", "TRUE", &
+                  "True", "yes", "YES", "Yes")
+               use_qs_surface_gradient_alloc = .TRUE.
+            END SELECT
+         END IF
+      END IF
 
       IF (use_lumped_slab) THEN
          ! Coarse plan-area slab: aggregate only the standard SUEWS surface fractions.
@@ -565,11 +705,17 @@ CONTAINS
          DO i_depth = 1, ndepth
             layer_cap = 0.0D0
             layer_temp_cap = 0.0D0
+            layer_fast_temp_cap = 0.0D0
+            layer_slow_temp_cap = 0.0D0
             DO i_facet = 1, nsurf
                IF (valid_lumped_surf(i_facet)) THEN
                   layer_cap = layer_cap + sfr_surf(i_facet)*cp_surf(i_facet, i_depth)*dz_surf(i_facet, i_depth)
                   layer_temp_cap = layer_temp_cap + sfr_surf(i_facet)*cp_surf(i_facet, i_depth) &
                                    *dz_surf(i_facet, i_depth)*temp_in_surf(i_facet, i_depth)
+                  layer_fast_temp_cap = layer_fast_temp_cap + sfr_surf(i_facet)*cp_surf(i_facet, i_depth) &
+                                        *dz_surf(i_facet, i_depth)*temp_fast_surf(i_facet, i_depth)
+                  layer_slow_temp_cap = layer_slow_temp_cap + sfr_surf(i_facet)*cp_surf(i_facet, i_depth) &
+                                        *dz_surf(i_facet, i_depth)*temp_slow_surf(i_facet, i_depth)
                END IF
             END DO
             IF (layer_cap <= 1.0D-12) THEN
@@ -577,10 +723,56 @@ CONTAINS
             ELSE
                cap_lumped(i_depth) = layer_cap
                temp_lumped(i_depth) = layer_temp_cap/layer_cap
+               temp_fast_lumped(i_depth) = layer_fast_temp_cap/layer_cap
+               temp_slow_lumped(i_depth) = layer_slow_temp_cap/layer_cap
             END IF
          END DO
          IF (.NOT. valid_lumped) THEN
             CALL add_supy_warning('EHC lumped slab: invalid aggregated heat capacity; QS remains zero')
+            RETURN
+         END IF
+
+         IF (use_parallel_surfaces) THEN
+            DO i_facet = 1, nsurf
+               IF (valid_lumped_surf(i_facet)) THEN
+                  temp_branch = temp_in_surf(i_facet, :)
+                  cap_branch = cp_surf(i_facet, :)*dz_surf(i_facet, :)
+                  g_branch = 0.0D0
+
+                  face_resistance = 0.5D0*dz_surf(i_facet, 1)/k_surf(i_facet, 1)
+                  g_branch(1) = 1.0D0/face_resistance
+                  IF (.NOT. use_zero_flux_bottom) THEN
+                     face_resistance = 0.5D0*dz_surf(i_facet, ndepth)/k_surf(i_facet, ndepth)
+                     g_branch(ndepth + 1) = bottom_g_scale/face_resistance
+                  END IF
+                  DO i_depth = 1, ndepth - 1
+                     face_resistance = 0.5D0*dz_surf(i_facet, i_depth)/k_surf(i_facet, i_depth) &
+                                       + 0.5D0*dz_surf(i_facet, i_depth + 1)/k_surf(i_facet, i_depth + 1)
+                     g_branch(i_depth + 1) = 1.0D0/face_resistance
+                  END DO
+
+                  IF (ANY(g_branch(1:ndepth) <= 1.0D-12)) THEN
+                     CALL add_supy_warning('EHC parallel slab: invalid internal conductance; surface QS remains zero')
+                     CYCLE
+                  END IF
+                  IF ((.NOT. use_zero_flux_bottom) .AND. g_branch(ndepth + 1) <= 1.0D-12) THEN
+                     CALL add_supy_warning('EHC parallel slab: invalid lower-boundary conductance; surface QS remains zero')
+                     CYCLE
+                  END IF
+
+                  bc(1) = tsfc_surf(i_facet)
+                  bc(2) = tin_surf(i_facet)
+                  CALL heatcond1d_gstep(temp_branch, qs_lumped, cap_branch, g_branch, tstep*1.0D0, bc, &
+                                        q_top_lumped, q_bottom_lumped)
+                  IF (use_zero_flux_bottom) THEN
+                     QS_surf(i_facet) = qs_lumped
+                  ELSE
+                     QS_surf(i_facet) = q_top_lumped
+                  END IF
+                  temp_out_surf(i_facet, :) = temp_branch
+               END IF
+            END DO
+            QS = DOT_PRODUCT(QS_surf, sfr_surf)
             RETURN
          END IF
 
@@ -592,8 +784,8 @@ CONTAINS
 
                IF (.NOT. use_zero_flux_bottom) THEN
                   face_resistance = 0.5D0*dz_surf(i_facet, ndepth)/k_surf(i_facet, ndepth)
-                  g_lumped(ndepth + 1) = g_lumped(ndepth + 1) + sfr_surf(i_facet)/face_resistance
-                  tin_lumped = tin_lumped + sfr_surf(i_facet)*tin_surf(i_facet)/face_resistance
+                  g_lumped(ndepth + 1) = g_lumped(ndepth + 1) + bottom_g_scale*sfr_surf(i_facet)/face_resistance
+                  tin_lumped = tin_lumped + bottom_g_scale*sfr_surf(i_facet)*tin_surf(i_facet)/face_resistance
                END IF
 
                DO i_depth = 1, ndepth - 1
@@ -617,27 +809,89 @@ CONTAINS
             tin_lumped = tin_lumped/g_lumped(ndepth + 1)
          END IF
 
-         bc(1) = tsfc_lumped
-         bc(2) = tin_lumped
-         CALL heatcond1d_gstep(temp_lumped, qs_lumped, cap_lumped, g_lumped, tstep*1.0D0, bc, &
-                               q_top_lumped, q_bottom_lumped)
+         IF (use_state_admittance) THEN
+            IF (use_dual_timescale) THEN
+               state_layer_temp = dual_fast_weight*temp_fast_lumped(1) + dual_slow_weight*temp_slow_lumped(1)
+            ELSE
+               state_layer_temp = temp_lumped(1)
+            END IF
+            state_top_gradient = tsfc_lumped - state_layer_temp
+            IF (state_top_gradient >= 0.0D0) THEN
+               state_g_scale = 1.0D0 + state_warming_g_boost*TANH(state_top_gradient/state_gradient_scale)
+            ELSE
+               state_g_scale = 1.0D0 - state_cooling_g_damp*TANH((-state_top_gradient)/state_gradient_scale)
+               state_g_scale = MAX(state_min_g_scale, state_g_scale)
+            END IF
+            g_lumped(1) = g_lumped(1)*state_g_scale
+         END IF
+
+            bc(1) = tsfc_lumped
+            bc(2) = tin_lumped
+            IF (use_dual_timescale) THEN
+               cap_fast_lumped = cap_lumped*fast_cap_scale
+               cap_slow_lumped = cap_lumped*slow_cap_scale
+               g_fast_lumped = g_lumped*fast_g_scale
+               g_slow_lumped = g_lumped*slow_g_scale
+               lumped_layer_temp_for_alloc = dual_fast_weight*temp_fast_lumped(1) + dual_slow_weight*temp_slow_lumped(1)
+
+               CALL heatcond1d_gstep(temp_fast_lumped, qs_fast_lumped, cap_fast_lumped, g_fast_lumped, tstep*1.0D0, bc, &
+                                     q_top_fast_lumped, q_bottom_fast_lumped)
+            CALL heatcond1d_gstep(temp_slow_lumped, qs_slow_lumped, cap_slow_lumped, g_slow_lumped, tstep*1.0D0, bc, &
+                                  q_top_slow_lumped, q_bottom_slow_lumped)
+
+               IF (use_zero_flux_bottom) THEN
+                  QS = dual_fast_weight*qs_fast_lumped + dual_slow_weight*qs_slow_lumped
+               ELSE
+                  QS = dual_fast_weight*q_top_fast_lumped + dual_slow_weight*q_top_slow_lumped
+               END IF
+               QS_roof = 0.0D0
+               QS_wall = 0.0D0
+               IF (use_qs_surface_gradient_alloc) THEN
+                  CALL allocate_lumped_qs_by_surface_gradient( &
+                     QS, tsfc_surf, sfr_surf, dz_surf, k_surf, lumped_layer_temp_for_alloc, &
+                     valid_lumped_surf, QS_surf, allocation_success)
+               ELSE
+                  allocation_success = .FALSE.
+               END IF
+               IF (.NOT. allocation_success) qs_per_surface = QS/surface_weight
+               DO i_facet = 1, nsurf
+                  IF (valid_lumped_surf(i_facet)) THEN
+                     IF (.NOT. allocation_success) QS_surf(i_facet) = qs_per_surface
+                     temp_fast_surf(i_facet, :) = temp_fast_lumped
+                     temp_slow_surf(i_facet, :) = temp_slow_lumped
+                     temp_out_surf(i_facet, :) = dual_fast_weight*temp_fast_lumped + dual_slow_weight*temp_slow_lumped
+               END IF
+               END DO
+               RETURN
+            END IF
+
+            lumped_layer_temp_for_alloc = temp_lumped(1)
+            CALL heatcond1d_gstep(temp_lumped, qs_lumped, cap_lumped, g_lumped, tstep*1.0D0, bc, &
+                                  q_top_lumped, q_bottom_lumped)
 
          ! With a finite lower boundary, SUEWS needs the outdoor-surface storage
          ! flux; the material heat-content tendency also includes lower exchange.
-         IF (use_zero_flux_bottom) THEN
-            QS = qs_lumped
-         ELSE
-            QS = q_top_lumped
-         END IF
-         qs_per_surface = QS/surface_weight
-         QS_roof = 0.0D0
-         QS_wall = 0.0D0
-         DO i_facet = 1, nsurf
-            IF (valid_lumped_surf(i_facet)) THEN
-               QS_surf(i_facet) = qs_per_surface
-               temp_out_surf(i_facet, :) = temp_lumped
+            IF (use_zero_flux_bottom) THEN
+               QS = qs_lumped
+            ELSE
+               QS = q_top_lumped
             END IF
-         END DO
+            QS_roof = 0.0D0
+            QS_wall = 0.0D0
+            IF (use_qs_surface_gradient_alloc) THEN
+               CALL allocate_lumped_qs_by_surface_gradient( &
+                  QS, tsfc_surf, sfr_surf, dz_surf, k_surf, lumped_layer_temp_for_alloc, &
+                  valid_lumped_surf, QS_surf, allocation_success)
+            ELSE
+               allocation_success = .FALSE.
+            END IF
+            IF (.NOT. allocation_success) qs_per_surface = QS/surface_weight
+            DO i_facet = 1, nsurf
+               IF (valid_lumped_surf(i_facet)) THEN
+                  IF (.NOT. allocation_success) QS_surf(i_facet) = qs_per_surface
+                  temp_out_surf(i_facet, :) = temp_lumped
+               END IF
+            END DO
          RETURN
       END IF
 
@@ -901,6 +1155,72 @@ CONTAINS
       !PRINT *, 'QS_surf in ESTM_ehc', QS_surf
 
    END SUBROUTINE EHC
+
+   SUBROUTINE allocate_lumped_qs_by_surface_gradient( &
+      qs_total, tsfc_surf, sfr_surf, dz_surf, k_surf, temp_ref, valid_surf, qs_surf, success)
+      USE module_ctrl_const_allocate, ONLY: nsurf, ndepth
+
+      IMPLICIT NONE
+
+      REAL(KIND(1D0)), INTENT(IN) :: qs_total
+      REAL(KIND(1D0)), DIMENSION(nsurf), INTENT(IN) :: tsfc_surf
+      REAL(KIND(1D0)), DIMENSION(nsurf), INTENT(IN) :: sfr_surf
+      REAL(KIND(1D0)), DIMENSION(nsurf, ndepth), INTENT(IN) :: dz_surf
+      REAL(KIND(1D0)), DIMENSION(nsurf, ndepth), INTENT(IN) :: k_surf
+      REAL(KIND(1D0)), INTENT(IN) :: temp_ref
+      LOGICAL, DIMENSION(nsurf), INTENT(IN) :: valid_surf
+      REAL(KIND(1D0)), DIMENSION(nsurf), INTENT(OUT) :: qs_surf
+      LOGICAL, INTENT(OUT) :: success
+
+      INTEGER :: i_surf
+      REAL(KIND(1D0)), DIMENSION(nsurf) :: raw_qs_surf
+      REAL(KIND(1D0)), DIMENSION(nsurf) :: top_conductance_surf
+      REAL(KIND(1D0)) :: face_resistance, raw_grid_qs, conductance_grid, scale_factor
+
+      success = .FALSE.
+      qs_surf = 0.0D0
+      raw_qs_surf = 0.0D0
+      top_conductance_surf = 0.0D0
+
+      DO i_surf = 1, nsurf
+         IF (valid_surf(i_surf) .AND. sfr_surf(i_surf) > 0.0D0 &
+             .AND. dz_surf(i_surf, 1) > 0.0D0 .AND. k_surf(i_surf, 1) > 0.0D0) THEN
+            face_resistance = 0.5D0*dz_surf(i_surf, 1)/k_surf(i_surf, 1)
+            IF (face_resistance > 1.0D-12) THEN
+               top_conductance_surf(i_surf) = 1.0D0/face_resistance
+               raw_qs_surf(i_surf) = top_conductance_surf(i_surf)*(tsfc_surf(i_surf) - temp_ref)
+            END IF
+         END IF
+      END DO
+
+      raw_grid_qs = DOT_PRODUCT(raw_qs_surf, sfr_surf)
+      IF (ABS(raw_grid_qs) <= 1.0D-8) THEN
+         conductance_grid = DOT_PRODUCT(top_conductance_surf, sfr_surf)
+         IF (conductance_grid <= 1.0D-12) RETURN
+         raw_qs_surf = top_conductance_surf
+         raw_grid_qs = conductance_grid
+      END IF
+
+      scale_factor = qs_total/raw_grid_qs
+      qs_surf = raw_qs_surf*scale_factor
+      success = .TRUE.
+   END SUBROUTINE allocate_lumped_qs_by_surface_gradient
+
+   LOGICAL FUNCTION ehc_experimental_controls_enabled()
+      IMPLICIT NONE
+      CHARACTER(LEN=32) :: env_value
+      INTEGER :: env_status
+
+      ehc_experimental_controls_enabled = .FALSE.
+      CALL GET_ENVIRONMENT_VARIABLE("SUEWS_EHC_EXPERIMENTAL_CONTROLS", env_value, STATUS=env_status)
+      IF (env_status /= 0) RETURN
+
+      SELECT CASE (TRIM(ADJUSTL(env_value)))
+      CASE ("1", "true", "TRUE", "True", "yes", "YES", "Yes", &
+            "on", "ON", "On")
+         ehc_experimental_controls_enabled = .TRUE.
+      END SELECT
+   END FUNCTION ehc_experimental_controls_enabled
 
 END MODULE module_phys_ehc
 

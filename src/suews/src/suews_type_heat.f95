@@ -10,6 +10,8 @@ module module_type_heat
       REAL(KIND(1D0)), DIMENSION(:, :), ALLOCATABLE :: temp_wall ! interface temperature between depth layers in wall [degC]
       REAL(KIND(1D0)), DIMENSION(:, :), ALLOCATABLE :: temp_surf ! interface temperature between depth layers [degC]
       REAL(KIND(1D0)), DIMENSION(:, :), ALLOCATABLE :: temp_surf_dyohm ! interface temperature between depth layers [degC]
+      REAL(KIND(1D0)), DIMENSION(:, :), ALLOCATABLE :: temp_surf_ehc_fast ! fast EHC surface thermal state [degC]
+      REAL(KIND(1D0)), DIMENSION(:, :), ALLOCATABLE :: temp_surf_ehc_slow ! slow EHC surface thermal state [degC]
       REAL(KIND(1D0)), DIMENSION(:), ALLOCATABLE :: tsfc_roof ! roof surface temperature [degC]
       REAL(KIND(1D0)), DIMENSION(:), ALLOCATABLE :: tsfc_wall ! wall surface temperature [degC]
       REAL(KIND(1D0)), DIMENSION(:), ALLOCATABLE :: tsfc_surf ! surface temperature [degC]
@@ -53,6 +55,9 @@ module module_type_heat
       REAL(KIND(1D0)) :: qh = 0.0D0 !turbulent sensible heat flux [W m-2]
       REAL(KIND(1D0)) :: qh_residual = 0.0D0 ! residual based sensible heat flux [W m-2]
       REAL(KIND(1D0)) :: qh_resist = 0.0D0 !resistance bnased sensible heat flux [W m-2]
+      REAL(KIND(1D0)) :: ehc_iter_dif_tsfc = 0.0D0 ! EHC iteration surface-temperature change [K]
+      REAL(KIND(1D0)) :: ehc_iter_dif_qh = 0.0D0 ! EHC residual-vs-resistance QH mismatch [W m-2]
+      REAL(KIND(1D0)) :: ehc_iter_score = 0.0D0 ! EHC iteration quality score [W m-2 equivalent]
 
       REAL(KIND(1D0)) :: qn = 0.0D0 !net all-wave radiation [W m-2]
       REAL(KIND(1D0)) :: qn_snowfree = 0.0D0 !net all-wave radiation on snow-free surface [W m-2]
@@ -90,6 +95,10 @@ CONTAINS
       ALLOCATE (self%temp_wall(num_layer, num_depth))
       ALLOCATE (self%temp_surf(num_surf, num_depth))
       ALLOCATE (self%temp_surf_dyohm(num_surf, num_depth))
+      ALLOCATE (self%temp_surf_ehc_fast(num_surf, num_depth))
+      ALLOCATE (self%temp_surf_ehc_slow(num_surf, num_depth))
+      self%temp_surf_ehc_fast = 0.0D0
+      self%temp_surf_ehc_slow = 0.0D0
 
       ALLOCATE (self%tsfc_roof(num_layer))
       ALLOCATE (self%tsfc_wall(num_layer))
@@ -129,6 +138,8 @@ CONTAINS
       IF (ALLOCATED(self%tsfc_surf_stepstart)) DEALLOCATE (self%tsfc_surf_stepstart)
       IF (ALLOCATED(self%temp_surf)) DEALLOCATE (self%temp_surf)
       IF (ALLOCATED(self%temp_surf_dyOHM)) DEALLOCATE (self%temp_surf_dyOHM)
+      IF (ALLOCATED(self%temp_surf_ehc_fast)) DEALLOCATE (self%temp_surf_ehc_fast)
+      IF (ALLOCATED(self%temp_surf_ehc_slow)) DEALLOCATE (self%temp_surf_ehc_slow)
       IF (ALLOCATED(self%QS_roof)) DEALLOCATE (self%QS_roof)
       IF (ALLOCATED(self%QN_roof)) DEALLOCATE (self%QN_roof)
       IF (ALLOCATED(self%qe_roof)) DEALLOCATE (self%qe_roof)

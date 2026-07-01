@@ -2477,13 +2477,13 @@ def create_science_report(
             f"- Suggested ({len(suggestions)}) scientific initialisation update(s)."
         )
         report_lines.append(
-            "- These suggestions were not written to YAML. They may be inappropriate "
+            "- These suggestions were not written to the updated YAML. They may be inappropriate "
             "for observed initial states, spin-up workflows, historical timezone "
             "settings, or specialist case studies."
         )
         if science_fixes == "suggest":
             report_lines.append(
-                "- Re-run with --science-fixes apply to apply them, or "
+                "- Re-run with --science-fixes apply to apply them to the updated YAML, or "
                 "--science-fixes off to suppress scientific transformation suggestions."
             )
         for suggestion in suggestions:

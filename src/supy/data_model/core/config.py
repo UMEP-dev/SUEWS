@@ -2603,28 +2603,60 @@ class SUEWSConfig(BaseModel):
 
         tol = 1e-6
 
+        def _fraction_mismatch_message(
+            left_label: str,
+            left_value: float,
+            right_label: str,
+            right_value: float,
+            guidance: str,
+        ) -> str:
+            difference = abs(float(left_value) - float(right_value))
+            return (
+                f"{site_name}: {left_label} ({left_value}) does not match "
+                f"{right_label} ({right_value}); absolute difference is "
+                f"{difference:.6g}, tolerance is {tol:g}. {guidance}"
+            )
+
         # Buildings: surface fraction vs first SPARTACUS layer
         if (
             isinstance(building_frac, (list, tuple))
             and len(building_frac) > 0
             and bldgs_sfr is not None
+            and not np.isclose(bldgs_sfr, building_frac[0], atol=tol, rtol=0.0)
         ):
-            if not np.isclose(bldgs_sfr, building_frac[0], atol=tol):
-                issues.append(
-                    f"{site_name}: bldgs.sfr ({bldgs_sfr}) does not match "
-                    f"vertical_layers.building_frac[0] ({building_frac[0]})"
+            issues.append(
+                _fraction_mismatch_message(
+                    "land_cover.bldgs.sfr",
+                    bldgs_sfr,
+                    "vertical_layers.building_frac[0]",
+                    building_frac[0],
+                    (
+                        "Both fields represent the grid building plan "
+                        "fraction for the lowest SPARTACUS layer; reconcile "
+                        "the land-cover and 3D morphology inputs before "
+                        "running SUEWS."
+                    ),
                 )
+            )
 
         # Vegetation: sum of fractions vs first veg_frac entry
         if (
             isinstance(veg_frac, (list, tuple))
             and len(veg_frac) > 0
+            and not np.isclose(veg_sfr, veg_frac[0], atol=tol, rtol=0.0)
         ):
-            if not np.isclose(veg_sfr, veg_frac[0], atol=tol):
-                issues.append(
-                    f"{site_name}: evetr.sfr + dectr.sfr ({veg_sfr}) does not match "
-                    f"vertical_layers.veg_frac[0] ({veg_frac[0]})"
+            issues.append(
+                _fraction_mismatch_message(
+                    "land_cover.evetr.sfr + land_cover.dectr.sfr",
+                    veg_sfr,
+                    "vertical_layers.veg_frac[0]",
+                    veg_frac[0],
+                    (
+                        "These fields must describe a consistent vegetation "
+                        "fraction for the SPARTACUS layer geometry."
+                    ),
                 )
+            )
 
         return issues
     

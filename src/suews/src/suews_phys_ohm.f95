@@ -528,7 +528,23 @@ CONTAINS
       REAL(KIND(1D0)), INTENT(out) :: a1, a2, a3
 
       REAL(KIND(1D0)) :: surfrac
-      INTEGER :: i, ii, is
+      REAL(KIND(1D0)) :: soil_moisture_ratio
+      INTEGER :: is
+
+      ! Smooth transition parameters (GH-473)
+      ! These provide gradual blending between coefficient regimes to eliminate
+      ! discontinuities and floating-point sensitivity at threshold boundaries
+      REAL(KIND(1D0)), PARAMETER :: temp_trans_width = 2.0D0   ! Temperature transition half-width [degC]
+      REAL(KIND(1D0)), PARAMETER :: moist_trans_width = 0.1D0  ! Moisture ratio transition half-width [-]
+      REAL(KIND(1D0)), PARAMETER :: state_trans_width = 0.5D0  ! State transition half-width [mm]
+
+      ! Blending weights
+      REAL(KIND(1D0)) :: w_summer    ! Weight for summer coefficients (0=winter, 1=summer)
+      REAL(KIND(1D0)) :: w_wet       ! Weight for wet coefficients (0=dry, 1=wet)
+      REAL(KIND(1D0)) :: w_sw, w_sd, w_ww, w_wd  ! Weights for each condition
+      REAL(KIND(1D0)) :: a1_surf, a2_surf, a3_surf  ! Surface-specific blended coefficients
+      REAL(KIND(1D0)) :: thresh_temp, thresh_moist
+      REAL(KIND(1D0)) :: effective_wetness
 
       ! OHM coefficients --------
       ! Set to zero initially
@@ -541,34 +557,82 @@ CONTAINS
       DO is = 1, nsurf
          surfrac = sfr_surf(is)
 
-         ! Use 5-day running mean Tair to decide whether it is summer or winter ----------------
-         IF (Tair_mav_5d >= OHM_threshSW(is)) THEN !Summer
-            ii = 0
-         ELSE !Winter
-            ii = 2
+         ! Calculate summer/winter blending weight using linear ramp (GH-473)
+         ! w_summer = 1 when T >> threshold, 0 when T << threshold
+         thresh_temp = OHM_threshSW(is)
+         IF (Tair_mav_5d >= thresh_temp + temp_trans_width) THEN
+            w_summer = 1.0D0  ! Fully summer
+         ELSE IF (Tair_mav_5d <= thresh_temp - temp_trans_width) THEN
+            w_summer = 0.0D0  ! Fully winter
+         ELSE
+            ! Linear interpolation in transition zone
+            w_summer = (Tair_mav_5d - (thresh_temp - temp_trans_width)) / (2.0D0 * temp_trans_width)
          END IF
 
-         IF (state_id(is) > 0) THEN !Wet surface
-            i = ii + 1
-         ELSE !Dry surface
-            i = ii + 2
-            ! If the surface is dry but SM is close to capacity, use coefficients for wet surfaces
-            IF (is > BldgSurf .AND. is /= WaterSurf) THEN !Wet soil (i.e. EveTr, DecTr, Grass, BSoil surfaces)
-               IF (soilstore_id(is)/SoilStoreCap(is) > OHM_threshWD(is)) THEN
-                  i = ii + 1
+         ! Calculate wet/dry blending weight (GH-473)
+         ! Combine surface wetness state and soil moisture for vegetated surfaces
+         IF (state_id(is) >= state_trans_width) THEN
+            ! Surface is clearly wet
+            w_wet = 1.0D0
+         ELSE IF (state_id(is) <= 0.0D0) THEN
+            ! Surface is dry - check soil moisture for vegetated surfaces
+            IF (is > BldgSurf .AND. is /= WaterSurf .AND. SoilStoreCap(is) > 0.0D0) THEN
+               soil_moisture_ratio = soilstore_id(is) / SoilStoreCap(is)
+               thresh_moist = OHM_threshWD(is)
+               IF (soil_moisture_ratio >= thresh_moist + moist_trans_width) THEN
+                  w_wet = 1.0D0  ! Soil is wet enough to use wet coefficients
+               ELSE IF (soil_moisture_ratio <= thresh_moist - moist_trans_width) THEN
+                  w_wet = 0.0D0  ! Soil is dry
+               ELSE
+                  ! Linear interpolation in transition zone
+                  w_wet = (soil_moisture_ratio - (thresh_moist - moist_trans_width)) / (2.0D0 * moist_trans_width)
                END IF
+            ELSE
+               w_wet = 0.0D0  ! Non-vegetated dry surface
+            END IF
+         ELSE
+            ! Surface wetness in transition zone (0 < state < state_trans_width)
+            effective_wetness = state_id(is) / state_trans_width
+            ! Also consider soil moisture for vegetated surfaces
+            IF (is > BldgSurf .AND. is /= WaterSurf .AND. SoilStoreCap(is) > 0.0D0) THEN
+               soil_moisture_ratio = soilstore_id(is) / SoilStoreCap(is)
+               thresh_moist = OHM_threshWD(is)
+               IF (soil_moisture_ratio >= thresh_moist) THEN
+                  ! Soil moisture adds to wetness
+                  w_wet = effective_wetness + (1.0D0 - effective_wetness) * &
+                          MIN(1.0D0, (soil_moisture_ratio - thresh_moist) / moist_trans_width)
+               ELSE
+                  w_wet = effective_wetness
+               END IF
+            ELSE
+               w_wet = effective_wetness
             END IF
          END IF
 
+         ! Calculate weights for each condition (sum to 1.0)
+         ! OHM_coef indices: 1=summer wet, 2=summer dry, 3=winter wet, 4=winter dry
+         w_sw = w_summer * w_wet              ! Summer wet
+         w_sd = w_summer * (1.0D0 - w_wet)    ! Summer dry
+         w_ww = (1.0D0 - w_summer) * w_wet    ! Winter wet
+         w_wd = (1.0D0 - w_summer) * (1.0D0 - w_wet)  ! Winter dry
+
+         ! Blend coefficients from all four conditions
+         a1_surf = w_sw * OHM_coef(is, 1, 1) + w_sd * OHM_coef(is, 2, 1) + &
+                   w_ww * OHM_coef(is, 3, 1) + w_wd * OHM_coef(is, 4, 1)
+         a2_surf = w_sw * OHM_coef(is, 1, 2) + w_sd * OHM_coef(is, 2, 2) + &
+                   w_ww * OHM_coef(is, 3, 2) + w_wd * OHM_coef(is, 4, 2)
+         a3_surf = w_sw * OHM_coef(is, 1, 3) + w_sd * OHM_coef(is, 2, 3) + &
+                   w_ww * OHM_coef(is, 3, 3) + w_wd * OHM_coef(is, 4, 3)
+
          ! If snow, adjust surface fractions accordingly
-         IF (SnowUse == 1 .AND. is /= BldgSurf .AND. is /= WaterSurf) THEN ! QUESTION: Why is BldgSurf excluded here?
-            surfrac = surfrac*(1 - SnowFrac(is))
+         IF (SnowUse == 1 .AND. is /= BldgSurf .AND. is /= WaterSurf) THEN
+            surfrac = surfrac * (1 - SnowFrac(is))
          END IF
 
          ! Calculate the areally-weighted OHM coefficients
-         a1 = a1 + surfrac*OHM_coef(is, i, 1)
-         a2 = a2 + surfrac*OHM_coef(is, i, 2)
-         a3 = a3 + surfrac*OHM_coef(is, i, 3)
+         a1 = a1 + surfrac * a1_surf
+         a2 = a2 + surfrac * a2_surf
+         a3 = a3 + surfrac * a3_surf
 
       END DO !end of loop over surface types ------------------------------------------------
    END SUBROUTINE OHM_coef_cal

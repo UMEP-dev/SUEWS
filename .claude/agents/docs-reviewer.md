@@ -61,9 +61,9 @@ Release-time (when asked, or when a release tag is in play), additionally apply 
 
 ## Route to the specialised skills rather than reimplementing
 
-- Bulk ASCII fixes in sphinx-gallery tutorials -> recommend / use the `doc-styler` skill.
+- Bulk ASCII fixes in sphinx-gallery tutorials -> recommend / use the `audit-docs` skill.
 - Deep doc-code content consistency -> the `sync-docs` skill.
-- Bibliography topic tags and metadata -> the `curate-refs` skill.
+- Bibliography topic tags and metadata -> the `audit-docs` skill.
 - Republishing an already-released version's docs -> the `republish-docs` skill (human-triggered).
 
 ## Verify before claiming done

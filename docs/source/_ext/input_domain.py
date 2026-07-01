@@ -3,8 +3,6 @@ Sphinx extension for SUEWS input configuration options.
 
 This creates a separate namespace for input configuration options,
 preventing collisions with output variable directives in the documentation.
-
-See GitHub issue #1031 for context.
 """
 
 from sphinx import addnodes

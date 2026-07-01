@@ -635,6 +635,7 @@ CONTAINS
                                SUEWS_SITE, atm_state, ROUGHNESS_STATE, &
                                HEAT_STATE, SUEWS_STATE, STEBBS_STATE, BUILDING_ARCHETYPE_PRM, STEBBS_PRM, &
                                STEBBS_BLDG
+      USE module_util_time, ONLY: cal_weekday_index
       IMPLICIT NONE
       TYPE(SUEWS_CONFIG), INTENT(IN) :: config
       TYPE(SUEWS_TIMER), INTENT(IN) :: timer
@@ -892,8 +893,7 @@ CONTAINS
             sout%ws_exch_hbh = ws_hbh
 
               
-            iu = 1 !Set to 1=weekday
-            IF (DayofWeek_id(1) == 1 .OR. DayofWeek_id(1) == 7) iu = 2 !Set to 2=weekend
+            iu = cal_weekday_index(DayofWeek_id(1)) !GH#1559: centralised
             idx = MIN(143, MAX(0, it*6 + imin/10)) ! 0-based 10-minute slot across the full day
             buildings(1)%metabolic_rate = building_archtype%metabolism_profile(idx, iu)
             buildings(1)%appliance_power_rating = building_archtype%appliance_profile(idx, iu)

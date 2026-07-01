@@ -1073,6 +1073,14 @@ class VerticalLayers(BaseModel):
         description="Scaling factor for vegetation in each layer, length must be nlayer",
         json_schema_extra={"unit": "dimensionless", "display_name": "Vegetation Scale"},
     )
+    veg_ext: FlexibleRefValue(List[float]) = Field(
+        default=[-999.0, -999.0, -999.0],
+        description="Optional vegetation extinction coefficient override in each layer; -999 derives from LAI",
+        json_schema_extra={
+            "unit": "m-1",
+            "display_name": "Vegetation Extinction",
+        },
+    )
     building_frac: FlexibleRefValue(List[float]) = Field(
         default=[0.4, 0.3, 0.2],
         description="Cumulative grid building fraction at each vertical layer (decreasing with height), length must be nlayer",
@@ -1118,7 +1126,7 @@ class VerticalLayers(BaseModel):
             cols[("height", f"({i},)")] = height_val[i]
 
         # Set vegetation and building parameters for each layer
-        for var in ["veg_frac", "veg_scale", "building_frac", "building_scale"]:
+        for var in ["veg_frac", "veg_scale", "veg_ext", "building_frac", "building_scale"]:
             field_val = getattr(self, var)
             var_values = (
                 field_val.value if isinstance(field_val, RefValue) else field_val
@@ -1161,6 +1169,12 @@ class VerticalLayers(BaseModel):
             df.loc[grid_id, ("veg_scale", get_layer_index(i, nlayer))]
             for i in range(nlayer)
         ]
+        veg_ext = [
+            df.loc[grid_id, ("veg_ext", get_layer_index(i, nlayer))]
+            if ("veg_ext", get_layer_index(i, nlayer)) in df.columns
+            else -999.0
+            for i in range(nlayer)
+        ]
         building_frac = [
             df.loc[grid_id, ("building_frac", get_layer_index(i, nlayer))]
             for i in range(nlayer)
@@ -1180,6 +1194,7 @@ class VerticalLayers(BaseModel):
             height=RefValue(height),
             veg_frac=RefValue(veg_frac),
             veg_scale=RefValue(veg_scale),
+            veg_ext=RefValue(veg_ext),
             building_frac=RefValue(building_frac),
             building_scale=RefValue(building_scale),
             roofs=roofs,

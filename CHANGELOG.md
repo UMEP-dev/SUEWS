@@ -41,18 +41,76 @@ EXAMPLES:
 
 | Year | Features | Bugfixes | Changes | Maintenance | Docs | Total |
 |------|----------|----------|---------|-------------|------|-------|
-| 2026 | 77 | 83 | 30 | 81 | 40 | 312 |
-| 2025 | 60 | 68 | 22 | 71 | 36 | 256 |
-| 2024 | 12 | 17 | 1 | 12 | 1 | 43 |
-| 2023 | 11 | 14 | 3 | 9 | 1 | 38 |
-| 2022 | 15 | 18 | 0 | 7 | 0 | 40 |
-| 2021 | 4 | 5 | 1 | 3 | 6 | 19 |
-| 2020 | 7 | 6 | 0 | 3 | 2 | 18 |
-| 2019 | 4 | 8 | 1 | 6 | 1 | 20 |
-| 2018 | 7 | 1 | 6 | 5 | 0 | 19 |
-| 2017 | 9 | 0 | 3 | 2 | 0 | 14 |
+| 2026 | 79       | 85       | 30 | 81 | 40 | 316   |
+| 2025 | 60       | 68       | 22 | 71 | 36 | 256   |
+| 2024 | 12       | 17       | 1 | 12 | 1 | 43    |
+| 2023 | 11       | 14       | 3 | 9 | 1 | 38    |
+| 2022 | 15       | 18       | 0 | 7 | 0 | 40    |
+| 2021 | 4        | 5        | 1 | 3 | 6 | 19    |
+| 2020 | 7        | 6        | 0 | 3 | 2 | 18    |
+| 2019 | 4        | 8        | 1 | 6 | 1 | 20    |
+| 2018 | 7        | 1        | 6 | 5 | 0 | 19    |
+| 2017 | 9        | 0        | 3 | 2 | 0 | 14    |
 
 ## 2026
+
+### 29 Jun 2026
+
+- [bugfix] Capped `pandas<3` on the manylinux2014 matrix to stop a numpy/pandas ABI segfault
+  - On CPython 3.10-3.12 Linux, `scipy<1.15` (pinned to retain manylinux2014 wheels) transitively pins `numpy<2.3`. With `pandas` left unpinned, the resolver pulled pandas 3.0.x, whose wheels are ABI-built against numpy>=2.3; running them against numpy 2.2.6 segfaulted inside `DatetimeIndex.shift` (reached via `supy._load.resample_linear_inst`), crashing the nightly `cp312-manylinux` API test job with exit 139.
+  - `pandas` is now constrained to `<3` under exactly the same environment marker as the `scipy<1.15` cap; newer interpreters and non-Linux platforms (which resolve numpy>=2.3) continue to use pandas 3.
+
+### 28 Jun 2026
+
+- [bugfix] Fixed the flood of `PydanticSerializationUnexpectedValue` warnings when serialising a `SUEWSConfig` (#1569)
+  - `FlexibleRefValue(T)` is `Union[RefValue[T], T]`; Pydantic's union serializer only routes a value to the `RefValue[T]` branch cleanly when the instance is parametrised. Bare `RefValue(value)` constructions (used throughout the `df_state` reconstruction path) produced unparametrised instances, emitting one spurious warning per populated field — hundreds for a config rebuilt via `from_state`/`from_output`.
+  - `RefValue(value)` now auto-parametrises to `RefValue[type(value)]`, matching what validation from YAML already produces, so the warnings no longer arise. No diagnostics are suppressed; serialized output is unchanged.
+
+### 26 Jun 2026
+
+- [maintenance] Added a recorded-scientific-evidence policy for physics-changing PRs (#1576)
+  - New `.claude/rules/physics-change-evidence.md`: PRs that change model physics or move a reference output must carry a `## Scientific evidence` PR-body section, obtain domain-owner sign-off, refresh moved fixtures in the same PR, and run the full `-m physics` CI tier before merge.
+  - Wired the `0-physics:change` classification label into `audit-pr`, `triage-pr`, and `triage-issue`; documented it in the `0-` automation namespace and added a contributor pointer in `CONTRIBUTING.md`.
+- [maintenance] CI: run the full physics test tier (incl. `slow`) on `0-physics:change` PRs and in the merge queue (#1576)
+  - Added a `physics-full` test tier that widens only the physics axis to include `slow` (the api axis stays as `standard`); `determine-matrix.sh` selects it when the `0-physics:change` label is present, in both the ready-PR and `merge_group` contexts. This closes the gap where the merge queue's `standard` tier excluded `slow` physics, so a known output-changing PR (#1570) merged without the shift being caught until the nightly.
+- [maintenance] Refreshed the STEBBS building-energy regression fixture for the SPARTACUS longwave changes in #1570
+  - Regenerated `test/fixtures/data_test/stebbs_test/sample_output_stebbs.csv` so `QHload_cooling_FA` matches the updated longwave environment around the building. #1570 switched the SPARTACUS canyon clear-air longwave source from the forcing air temperature to the RSL-interpolated in-canopy temperature, which runs ~1 K warmer by day; incoming longwave on the wall rises, indoor air temperature increases ~0.5 K, and the threshold-driven cooling load switches on earlier (peak 28 W vs 19 W). Shortwave inputs, heating, lighting and water-mains outputs are unchanged.
+
+### 24 Jun 2026
+
+- [feature][experimental] Added configurable partitioning of global horizontal irradiance into direct and diffuse components for SPARTACUS-Surface (#1567)
+  - Wired forcing-file `kdir` (direct-normal irradiance) and `kdiff` (diffuse-horizontal irradiance) through the Python, Rust, C, and Fortran interfaces.
+  - Moved the partition calculation outside SPARTACUS-Surface so it receives prepared direct-horizontal and diffuse-horizontal canopy-top forcing.
+  - Added `model.physics.kdown_split_method` with readable options `forcing`, `constant`, and `epw`. (#1570)
+
+- [feature][experimental] Expanded SPARTACUS radiation diagnostics and vegetation-control inputs (#1570)
+  - Added layer-resolved SW/LW diagnostics, vegetation absorption diagnostics, layer top/base fluxes, and additional ground/top radiation outputs; the SuPy SPARTACUS output metadata now reflects the expanded output schema.
+  - Exposed vegetation-specific SPARTACUS controls through YAML, SuPy, the Rust bridge, and Fortran: `n_stream_lw_forest`, `n_stream_sw_forest`, `n_vegetation_region_forest`, `veg_ext` in vertical layers
+
+- [bugfix] Fixed SPARTACUS mixed-tree and non-urban edge cases (#1570)
+  - Fixed mixed evergreen/deciduous RSL temperature sampling to use weighted half-tree height (from RSL).
+  - Guarded non-urban/forest-only SPARTACUS paths so direct-albedo and longwave fallback logic no longer touch urban-only roof/wall arrays.
+  - Added tests for mixed-tree RSL sampling height and non-urban direct-albedo SPARTACUS runs.
+
+
+### 20 Jun 2026
+
+- [bugfix] Corrected EHC heat-storage parameter packing so roof/wall thermal arrays follow SPARTACUS vertical layers while standard surface arrays follow the seven SUEWS surface classes (#1565)
+  - The EHC bridge schema version is now bumped for the changed packed layout, the zero-layer YAML/bridge/Fortran layout keeps the established empty-payload contract, and the lumped-slab EHC path skips invalid surface-class thermal layers instead of zeroing the whole grid-cell storage response
+  - Added smoke regressions for EHC surface heat-capacity sensitivity, SPARTACUS facet heat-capacity sensitivity, and invalid-surface handling so these failures are caught earlier without running the full benchmark suite
+
+### 17 Jun 2026
+
+- [maintenance] Raised the minimum supported Python to 3.12, dropping 3.9/3.10/3.11 (#1553)
+  - The single abi3 wheel is now built as cp312-abi3 (PyO3 `abi3-py312`, cibuildwheel `cp312`) and still installs on cp312..cp3xx, covering current QGIS 3 LTR and QGIS 4 (Python 3.12 on Windows)
+  - CI build/test matrices, classifiers, ruff target, and the version-conditional dependency markers were trimmed accordingly
+
+### 16 Jun 2026
+
+- [feature][experimental] Observed external water use can now be supplied per land cover in the forcing file via `wuh_paved`, `wuh_bldgs`, `wuh_evetr`, `wuh_dectr`, `wuh_grass`, `wuh_bsoil`, `wuh_water` (mm), replacing the single bulk `wuh`/`wu_m3` value when `WaterUseMethod=observed` (#1449)
+  - The kernel forcing block grows from 23 to 30 columns; a forcing file that supplies only the bulk `wuh` column still works, as it is broadcast to all seven surfaces
+  - A surface whose per-cover column is missing (`-999`) contributes zero observed water use for that timestep rather than inheriting the previous value
+  - The physics/forcing pre-check now fails fast when `WaterUseMethod=observed` but no usable `wuh`/per-cover column is present, instead of silently running on the `-999` sentinel
 
 ### 15 Jun 2026
 
@@ -60,6 +118,14 @@ EXAMPLES:
   - The bypass meant an hourly DataFrame ran at its own timestep rather than the model timestep, so a 300 s model never reached the `23:55` daily-write point and `DailyState` silently stopped being saved
   - In-memory forcing is now resampled to `model.control.tstep`, and the temporal columns (`iy`/`id`/`it`/`imin`/`isec`) are reasserted from the index so `isec` stays consistent
   - In-memory inputs are validated as already being in the model-ready canonical form (canonical column names, a `DatetimeIndex`, pressure in hPa) and rejected with a clear error otherwise; pressure that looks like kPa is caught early rather than surfacing later as a generic out-of-range failure. No unit conversion or column renaming is applied to in-memory inputs -- build them via `supy.util.read_forcing` or `SUEWSForcing.from_file` to guarantee the contract
+- [maintenance] Publish only the user-facing `suews` plugin from `.claude-plugin/marketplace.json`; drop the `suews-dev` contributor plugin (marketplace version 1.3.0)
+  - Contributor/maintainer skills remain in the repository under `.claude/skills/` and are available on checkout; a published `suews-dev` plugin added a third manifest to keep in sync without adding reach, since its audience already has the repository cloned
+  - Documented the packaging policy in `.claude/README.md`
+- [maintenance] Reorganised the dev skills into two tiers -- workflow (orchestrator) skills led by the `fix-issue` super-workflow, and operation (building-block) skills -- and repackaged `.claude/README.md` and `CLAUDE.md` around that split: rebuilt the relationship diagram and Development Workflows on the current `triage-issue -> fix-issue -> audit-pr -> split-pr -> queue-pr` pipeline, retired the dead `/start-work` entry point, corrected the skills directory tree, added the previously-missing `/triage-issue`, `/curate-refs`, and `/doc-styler` entries, and cross-linked `doc-styler` from `lint-code`
+  - Removed references to personal cross-project skills (`examine-issue`, `gh-sync`, `gh-debrief`, `gh-check`, `gh-link`, `gh-release`) from the committed `.claude/README.md`, replacing them with portable `git`/`gh` commands and the in-repo `triage-issue`/`prep-release` so the workflow docs work for any contributor who clones the repository
+  - Dropped the `## Design Context` section from `CLAUDE.md` (a redundant summary of `.impeccable.md`, which remains the in-repo source of truth) -- it referenced the personal impeccable-family design skills (`/craft`, `/polish`, `/critique`, `/animate`); `CLAUDE.md` now keeps only a neutral pointer to `.impeccable.md`
+- [maintenance] Consolidated the two documentation operation skills into a single `audit-docs` docs sanity-check skill (ASCII/markup from `doc-styler` + bib topic-tags/metadata from `curate-refs`, moved with history); added a `check-bib-tags.sh` PostToolUse hook so `.bib` edits are audited automatically (alongside the existing `check-doc-ascii.sh`), and retargeted the doc hooks and the `00-project-essentials`/`bib-topic-tags` rules to `/audit-docs`
+- [maintenance] Removed the `setup-dev` skill -- general setup is the `make dev` Quick Start one-liner plus the session-start hook; updated the `CLAUDE.md`/`README.md` pointers accordingly
 
 ### 13 Jun 2026
 

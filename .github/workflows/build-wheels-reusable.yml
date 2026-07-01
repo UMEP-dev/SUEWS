@@ -1,7 +1,7 @@
 # Reusable workflow: build SUEWS abi3 wheels with a matrix strategy.
 #
-# Called by build-publish_to_pypi.yml. One cp39-abi3 wheel per (OS, arch)
-# covers cp39..cp3xx. By isolating the matrix here, the caller job can use
+# Called by build-publish_to_pypi.yml. One cp312-abi3 wheel per (OS, arch)
+# covers cp312..cp3xx. By isolating the matrix here, the caller job can use
 # a static name that displays cleanly when skipped.
 
 name: Build wheels (reusable)
@@ -14,11 +14,11 @@ on:
         required: true
         type: string
       python_json:
-        description: 'JSON array of CPython tags used by cibuildwheel (always ["cp39"] — abi3)'
+        description: 'JSON array of CPython tags used by cibuildwheel (always ["cp312"] — abi3)'
         required: true
         type: string
       test_tier:
-        description: 'Test tier: smoke, core, cfg, standard, or all'
+        description: 'Test tier: smoke, core, cfg, standard, physics-full, or all'
         required: true
         type: string
       is_testpypi_build:

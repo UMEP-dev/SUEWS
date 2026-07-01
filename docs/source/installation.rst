@@ -257,7 +257,6 @@ The same plugin works across the Codex CLI, the Codex Desktop App
 
 A Model Context Protocol (MCP) server for SUEWS is in development and will
 provide a universal install path across MCP-aware tools (Cursor, Gemini CLI,
-Goose, JetBrains Junie, etc.). Tracking issue:
-`gh#1364 <https://github.com/UMEP-dev/SUEWS/issues/1364>`_. Until that lands,
-MCP-only users can clone the repository and point their MCP client at the
-bundled CLI surface manually.
+Goose, JetBrains Junie, etc.). Until that support is available, MCP-only users
+can clone the repository and point their MCP client at the bundled CLI surface
+manually.

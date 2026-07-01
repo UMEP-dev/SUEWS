@@ -1,7 +1,0 @@
-# CODEOWNERS file for SUEWS
-# This file defines who should review changes to specific parts of the codebase
-
-# Workflow files require admin review
-/.github/workflows/ @sunt05
-/.github/actions/ @sunt05
-/.github/scripts/ @sunt05

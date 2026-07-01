@@ -10,8 +10,8 @@ name: Build and Publish Python wheels to PyPI and TestPyPI
 #   dispatch  -- Manual with configurable matrix, deploy target, test tier
 #
 # Build strategy:
-#   One cp39-abi3 wheel per (OS, arch). The Rust bridge (PyO3 abi3-py39)
-#   makes the binary ABI-stable, so a single wheel installs on cp39..cp3xx.
+#   One cp312-abi3 wheel per (OS, arch). The Rust bridge (PyO3 abi3-py312)
+#   makes the binary ABI-stable, so a single wheel installs on cp312..cp3xx.
 #   Covers current Windows QGIS 3 LTR, QGIS 4, and general users — the runtime
 #   pin is numpy>=1.22 (Rust bridge has no NumPy C-ABI dependency; pure-Python
 #   code uses only NumPy 1.22-compatible APIs).
@@ -74,25 +74,13 @@ on:
         default: true
 
       # Python toggles drive the cross-CPython api-test matrix (gh#1300).
-      # The build is always cp39-abi3 (one wheel covers all supported CPythons),
+      # The build is always cp312-abi3 (one wheel covers all supported CPythons),
       # so these toggles only affect which interpreters install the wheel and
       # run `-m "api and <tier>"` in test_api_cross_python.
-      py39:
-        description: '[custom] Test on Python 3.9 (build is always cp39-abi3)'
+      py312:
+        description: '[custom] Test on Python 3.12 (build is always cp312-abi3)'
         type: boolean
         default: true
-      py310:
-        description: '[custom] Test on Python 3.10'
-        type: boolean
-        default: false
-      py311:
-        description: '[custom] Test on Python 3.11'
-        type: boolean
-        default: false
-      py312:
-        description: '[custom] Test on Python 3.12'
-        type: boolean
-        default: false
       py313:
         description: '[custom] Test on Python 3.13'
         type: boolean
@@ -298,10 +286,66 @@ jobs:
           sparse-checkout-cone-mode: false
           persist-credentials: false
 
+      # Data-only checkout of the BUILT ref's pyproject.toml (github.sha = the
+      # PR merge commit / pushed commit / dispatched branch tip). The matrix
+      # logic above stays base-trusted; only the requires-python value crosses
+      # the trust boundary, so it cannot execute PR-authored code. This is what
+      # lets the build floor track a PR's requires-python bump (gh#1553).
+      - name: Fetch built-ref pyproject (data only; requires-python floor)
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          ref: ${{ github.sha }}
+          sparse-checkout: pyproject.toml
+          sparse-checkout-cone-mode: false
+          persist-credentials: false
+          path: _pr_meta
+
+      # gh#1576: detect the 0-physics:change label so the matrix can run the
+      # full -m physics tier (incl. slow) before merge rather than only in the
+      # nightly. On a PR the labels are in the event payload; in the merge queue
+      # the queue ref (gh-readonly-queue/<base>/pr-<n>-<sha>) carries the PR
+      # number, which we validate before querying the API.
+      - name: Detect physics-change label
+        id: physics-label
+        if: github.event_name == 'pull_request' || github.event_name == 'merge_group'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EVENT_NAME: ${{ github.event_name }}
+          PR_LABELS_JSON: ${{ github.event_name == 'pull_request' && toJSON(github.event.pull_request.labels.*.name) || '[]' }}
+          MERGE_HEAD_REF: ${{ github.event.merge_group.head_ref }}
+          REPO: ${{ github.repository }}
+          LABEL: '0-physics:change'
+        run: |
+          set -euo pipefail
+          found=false
+          if [[ "$EVENT_NAME" == "pull_request" ]]; then
+            # Labels arrive as a JSON array; match exactly via jq (label names
+            # may contain spaces or colons, so avoid newline/word splitting).
+            if printf '%s' "$PR_LABELS_JSON" | jq -e --arg l "$LABEL" 'any(.[]; . == $l)' >/dev/null; then
+              found=true
+            fi
+          elif [[ "$EVENT_NAME" == "merge_group" ]]; then
+            pr_num="$(printf '%s' "$MERGE_HEAD_REF" | sed -nE 's#.*/pr-([0-9]+)-[0-9a-f]+$#\1#p')"
+            if [[ "$pr_num" =~ ^[0-9]+$ ]]; then
+              if gh api "repos/${REPO}/issues/${pr_num}/labels" --jq '[.[].name]' \
+                   | jq -e --arg l "$LABEL" 'any(.[]; . == $l)' >/dev/null; then
+                found=true
+              fi
+            else
+              # Could not identify the queued PR (e.g. a batched group). Fail
+              # safe: run the full physics tier rather than risk missing a shift.
+              echo "::notice::merge_group PR number not parsed from queue ref; running full physics tier as a safe default"
+              found=true
+            fi
+          fi
+          echo "found=$found" >> "$GITHUB_OUTPUT"
+          echo "physics-change label present: $found"
+
       - name: Set matrix based on trigger type
         id: set-matrix
         env:
           EVENT_NAME: ${{ github.event_name }}
+          PHYSICS_CHANGE: ${{ steps.physics-label.outputs.found || 'false' }}
           IS_DRAFT: ${{ github.event.pull_request.draft }}
           FORTRAN_CHANGED: ${{ needs.detect-changes.outputs.fortran-changed || 'false' }}
           RUST_CHANGED: ${{ needs.detect-changes.outputs.rust-changed || 'false' }}
@@ -313,14 +357,12 @@ jobs:
           INPUT_PLAT_MACOS_INTEL: ${{ inputs.plat_macos_intel }}
           INPUT_PLAT_MACOS_ARM: ${{ inputs.plat_macos_arm }}
           INPUT_PLAT_WINDOWS: ${{ inputs.plat_windows }}
-          INPUT_PY39: ${{ inputs.py39 }}
-          INPUT_PY310: ${{ inputs.py310 }}
-          INPUT_PY311: ${{ inputs.py311 }}
           INPUT_PY312: ${{ inputs.py312 }}
           INPUT_PY313: ${{ inputs.py313 }}
           INPUT_PY314: ${{ inputs.py314 }}
           INPUT_TEST_TIER: ${{ inputs.test_tier }}
           GITHUB_REF: ${{ github.ref }}
+          PR_PYPROJECT: _pr_meta/pyproject.toml
         run: bash .github/scripts/determine-matrix.sh
 
   post-ci-summary:
@@ -546,8 +588,8 @@ jobs:
       - create_nightly_tag
       - verify-release-tag
     # Production tags only: all platform wheels must succeed AND the
-    # cross-CPython api tests must pass (the only signal the cp39-abi3
-    # wheel imports on cp310..cp314 after the build matrix collapse).
+    # cross-CPython api tests must pass (the only signal the cp312-abi3
+    # wheel imports on cp312..cp314 after the build matrix collapse).
     if: |
       always() &&
       startsWith(github.ref, 'refs/tags') &&

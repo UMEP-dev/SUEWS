@@ -17,7 +17,11 @@ from .physics_families import (
     coerce_nested_to_flat,
     flatten_physics_in_config,
 )
-from .physics_orthogonal import coerce_orthogonal_to_flat, fold_storage_heat_ohm_inc_qf
+from .physics_orthogonal import (
+    coerce_orthogonal_to_flat,
+    fold_kdown_split_constant_direct_fraction,
+    fold_storage_heat_ohm_inc_qf,
+)
 
 # -- ModelPhysics (model.py) -------------------------------------------------
 #
@@ -1627,6 +1631,11 @@ def read_physics_key(physics: dict, new_name: str, default: Any = None):
                     physics["storage_heat"] = physics[alias]
                     break
         fold_storage_heat_ohm_inc_qf(physics, "ModelPhysics")
+    if new_name == "kdown_split_method" and isinstance(physics, dict):
+        physics = dict(physics)
+        fold_kdown_split_constant_direct_fraction(
+            physics, "ModelPhysics", store_fraction=False
+        )
 
     entry = read_renamed_key(
         physics,

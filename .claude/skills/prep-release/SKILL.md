@@ -191,7 +191,7 @@ git tag -d "$VERSION" && git push origin ":refs/tags/$VERSION"
 ## Single Wheel per Platform
 
 Each tag triggers one PyPI upload per platform via GitHub Actions:
-- `YYYY.M.D` - cp39-abi3 wheel (installs on cp39..cp3xx)
+- `YYYY.M.D` - cp312-abi3 wheel (installs on cp312..cp3xx)
 
 The runtime pin is `numpy>=1.22`, so the same wheel works in QGIS 3 LTR
 (NumPy 1.26.4), QGIS 4 (NumPy 2.x), and any modern Python environment.

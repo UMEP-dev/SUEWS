@@ -85,3 +85,8 @@ Ask:
   separate child issues? (see `.claude/rules/work-sizing.md`)
 - Are important discoveries currently buried only in comments?
 - If the framing changed, is the original issue author's contribution preserved?
+- Does the issue propose changing model physics or moving a reference output? If
+  so, note in the maintainer summary that the resulting PR is a physics change:
+  it will need the `0-physics:change` label, a `## Scientific evidence` PR-body
+  section, domain-owner sign-off, and the full `-m physics` CI tier (see
+  `.claude/rules/physics-change-evidence.md`).

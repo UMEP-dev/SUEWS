@@ -1,5 +1,5 @@
 name: sample_config
-schema_version: '2026.5'
+schema_version: '2026.6.dev1'
 description: Sample configuration built from benchmark 1a (Ward et al. 2016) model configuration
 model:
   control:
@@ -15,6 +15,10 @@ model:
       dir: "./Output"
       groups:
         - "SUEWS"
+    ref:
+      desc: Ward et al. (2016) benchmark period and output cadence for the sample configuration
+      ID: W16
+      DOI: 10.1016/j.uclim.2016.05.001
   physics:
     # These method selectors use the accepted nested/readable input forms so
     # the chosen physics family or axis is explicit in the sample. Round-trip
@@ -22,6 +26,9 @@ model:
     net_radiation:
       narp:
         ldown: air
+    kdown_split_method:
+      constant:
+        sw_dn_direct_frac: 0.45
     emissions:
       heat: J11
       co2:
@@ -50,6 +57,10 @@ model:
       same_albedo_roof: disabled
       same_emissivity_wall: disabled
       same_emissivity_roof: disabled
+    ref:
+      desc: Ward et al. (2016) model physics choices represented by the sample configuration
+      ID: W16
+      DOI: 10.1016/j.uclim.2016.05.001
 sites:
 - name: KCL
   gridiv: 1
@@ -76,6 +87,10 @@ sites:
       value: 0.0
     narp_trans_site:
       value: 1.0
+    ref:
+      desc: Ward et al. (2016) KCL site properties used by the sample configuration
+      ID: W16
+      DOI: 10.1016/j.uclim.2016.05.001
     # Uncomment below when using observed soil moisture (smdmethod: 1 or 2)
     # soil_observation:
     #   depth: 200.0        # mm - sensor installation depth
@@ -106,10 +121,14 @@ sites:
         value: 4
       n_stream_sw_urban:
         value: 4
+      n_stream_lw_forest:
+        value: 4
+      n_stream_sw_forest:
+        value: 1
       n_vegetation_region_urban:
         value: 1
-      sw_dn_direct_frac:
-        value: 0.45
+      n_vegetation_region_forest:
+        value: 1
       use_sw_direct_albedo:
         value: 0.0
       veg_contact_fraction_const:
@@ -1808,8 +1827,9 @@ sites:
       th:
         value: 55.0
       ref:
-        ID: test id
-        DOI: test doi
+        desc: Ward et al. (2016) SUEWS development and evaluation reference for sample conductance parameters
+        ID: W16
+        DOI: 10.1016/j.uclim.2016.05.001
     irrigation:
       h_maintain:
         value: -999.0
@@ -3246,6 +3266,10 @@ sites:
           value: 0.1
         flowchange:
           value: 0.0
+      ref:
+        desc: Ward et al. (2016) land-cover properties represented by the sample configuration
+        ID: W16
+        DOI: 10.1016/j.uclim.2016.05.001
     vertical_layers:
       nlayer:
         value: 3
@@ -3265,6 +3289,11 @@ sites:
         - 10.0
         - 10.0
         - 10.0
+      veg_ext:
+        value:
+        - -999.0
+        - -999.0
+        - -999.0
       building_frac:
         value:
         - 0.43

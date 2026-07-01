@@ -5,8 +5,8 @@
 line-length = 88
 indent-width = 4
 
-# Assume Python 3.9 (minimum supported version)
-target-version = "py39"
+# Assume Python 3.12 (minimum supported version)
+target-version = "py312"
 
 # Exclude common directories
 exclude = [
@@ -54,9 +54,6 @@ select = [
     "SIM",    # flake8-simplify
     "UP",     # pyupgrade
 
-    # Python version compatibility
-    "FA102",  # PEP 604 unions (X | None) need py3.10 at runtime; guard for py3.9
-
     # Documentation
     "D",      # pydocstyle
     
@@ -101,7 +98,6 @@ unfixable = [
     "B",      # Bugbear rules often need careful review
     "F841",   # Unused variables might be intentional
     "SIM",    # Simplifications might reduce clarity
-    "FA102",  # Autofix adds `from __future__ import annotations`, which breaks Pydantic
 ]
 
 # Allow unused variables when underscore-prefixed.
@@ -142,6 +138,7 @@ dummy-variable-rgx = "^(_+|(_+[a-zA-Z0-9_]*[a-zA-Z0-9]+?))$"
 "docs/source/tutorials/tutorial_05_results_analysis.py" = ["D205", "D400"]
 "docs/source/tutorials/tutorial_06_external_coupling.py" = ["D205", "D301", "D400"]
 "docs/source/tutorials/tutorial_07_attribution.py" = ["D205", "D400"]
+"docs/source/tutorials/tutorial_08_parallel_multi_grid.py" = ["D205", "D400"]
 "docs/table.py" = ["D412"]
 "get_ver_git.py" = ["D103", "D400", "D406", "D407"]
 "scripts/lint/audit_docstrings.py" = ["D103"]

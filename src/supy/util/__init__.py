@@ -76,6 +76,7 @@ from ._attribution import (
     diagnose_t2,
     diagnose_q2,
     diagnose_u10,
+    diagnose_flux_performance,
     # Generic dispatchers
     attribute,
     diagnose,

@@ -369,9 +369,7 @@ def test_python_rust_whitelist_parity():
         "Rust reader must explicitly accept canonical columns that are not "
         "passed into the 30-column kernel block"
     )
-    assert set(re.findall(r'"([^"]+)"', unused_canonical_match.group(1))) == {
-        "kdiff", "kdir", "wdir",
-    }
+    assert set(re.findall(r'"([^"]+)"', unused_canonical_match.group(1))) == {"wdir"}
 
     fill_match = re.search(r"const FORCING_OPTIONAL_FILL: f64 = ([-\d.]+);", text_io)
     assert fill_match is not None, "FORCING_OPTIONAL_FILL not found in forcing_io.rs"

@@ -60,6 +60,20 @@ class TestWindProfiles:
         df_output_rsl, _ = sp.run_supy(df_forcing_short, df_state_init)
         assert not df_output_rsl.empty, "RSL failed to run"
 
+    def test_rsl_grid_includes_exact_canopy_top(self, sample_data):
+        """Regression test for GH#296: RSL level 20 is the canopy top."""
+        df_state_init, df_forcing = sample_data
+        df_state = df_state_init.iloc[[0]].copy()
+
+        df_state.loc[:, ("rslmethod", "0")] = 1
+        df_state.loc[:, ("bldgh", "0")] = 40.0
+
+        df_output, _ = sp.run_supy(df_forcing.iloc[:1], df_state, save_state=False)
+        rsl = df_output.xs("RSL", axis=1, level=0).iloc[0]
+
+        assert rsl["flag_RSL"] == 1
+        assert rsl["z_20"] == pytest.approx(rsl["zH_RSL"], abs=1e-9)
+
     @pytest.mark.parametrize(
         "zh,z0m_in,zdm_in",
         [

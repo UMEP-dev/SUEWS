@@ -260,6 +260,7 @@ class StorageHeatMethod(Enum):
     5: EHC - Explicit Heat Conduction model with separate roof/wall/ground temperatures
     6: DyOHM - Dynamic Objective Hysteresis Model (Liu et al., 2025) with dynamic coefficients
     7: STEBBS - use STEBBS storage heat flux for building, others use OHM
+    16: DyOHM_BUILDING - use DyOHM for building storage heat flux only; ordinary OHM for other land-cover surfaces
     """
 
     # Note: EHC (option 5) implements explicit heat conduction
@@ -273,6 +274,7 @@ class StorageHeatMethod(Enum):
     EHC = 5
     DyOHM = 6
     STEBBS = 7
+    DyOHM_BUILDING = 16
 
     def __new__(cls, value):
         obj = object.__new__(cls)

@@ -272,7 +272,7 @@ def _validate_rsl(self, site: Site, site_index: int) -> List[str]:
 ```python
 def _needs_storage_validation(self) -> bool:
     """Return True if DyOHM storage-heat method is explicitly enabled.
-    Only triggers validation if storageheatmethod == 6 AND the value was explicitly set
+    Only triggers validation if storageheatmethod is 6, 7, or 16 AND the value was explicitly set
     (not just the default value)."""
     # Implementation checks both method value and explicit configuration
     # Returns False by default to avoid triggering on default physics values
@@ -281,7 +281,7 @@ def _validate_storage(self, site: Site, site_index: int) -> List[str]:
     """Validate DyOHM storage heat method parameters."""
 ```
 
-- **Logic**: When `storageheatmethod == 6`, requires `properties.lambda_c` to be set and non-null
+- **Logic**: When `storageheatmethod` is 6, 7, or 16, requires `properties.lambda_c` to be set and non-null
 
 ### 3. STEBBS Method Validation
 

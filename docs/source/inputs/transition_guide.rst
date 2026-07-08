@@ -399,7 +399,7 @@ alongside the existing flat ``{value: N}`` shape:
 
 - ``net_radiation`` — families ``forcing``, ``narp``, ``spartacus``.
 - ``storage_heat`` — families ``observed``, ``ohm``, ``anohm``,
-  ``estm``, ``ehc``, ``dyohm``, ``stebbs``.
+  ``estm``, ``ehc``, ``dyohm``, ``stebbs``, ``dyohm_building``.
 - ``emissions`` — families ``observed``, ``simple``,
   ``biogenic_rectangular``, ``biogenic_bellucco_local``,
   ``biogenic_bellucco_general``, ``biogenic_conductance``.

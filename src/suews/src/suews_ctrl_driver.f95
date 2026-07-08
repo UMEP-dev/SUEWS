@@ -1206,6 +1206,10 @@ CONTAINS
             )
 
             !============= calculate surface temperature based on QS ===============
+            ! Only coupled DyOHM modes feed these temperatures back to radiation.
+            ! Method 16 uses DyOHM for building storage heat flux only.
+            IF (StorageHeatMethod /= 6 .AND. StorageHeatMethod /= 7) RETURN
+
             nz = 5
             z = (/ 0.0D0, 0.03D0, 0.1D0, 1.5D0, 3.0D0 /)
             ! Loop over surfaces
@@ -1670,6 +1674,7 @@ CONTAINS
       ! evaluates both arguments and the allocatable array may be null
       ! before gen_building runs in SUEWS_cal_Qs (gfortran 14+ segfaults).
       REAL(KIND(1D0)), DIMENSION(:), ALLOCATABLE :: tsfc_roof_local, tsfc_wall_local
+      REAL(KIND(1D0)), DIMENSION(nsurf) :: tsfc_surf_storage
 
       ASSOCIATE ( &
          solarState => modState%solarState, &
@@ -1698,6 +1703,10 @@ CONTAINS
          ELSE
             tsfc_roof_local = heatState%tsfc_roof
             tsfc_wall_local = heatState%tsfc_wall
+         END IF
+         tsfc_surf_storage = heatState%tsfc_surf
+         IF (config%StorageHeatMethod == 6 .OR. config%StorageHeatMethod == 7) THEN
+            tsfc_surf_storage = heatState%tsfc_surf_dyohm
          END IF
 
          ASSOCIATE ( &
@@ -1806,7 +1815,7 @@ CONTAINS
                roof_in_lw_spc => heatState%roof_in_lw_spc, &
                wall_in_sw_spc => heatState%wall_in_sw_spc, &
                wall_in_lw_spc => heatState%wall_in_lw_spc, &
-               tsfc_surf => MERGE(heatState%tsfc_surf_dyohm, heatState%tsfc_surf, (storageheatmethod == 6 .OR. storageheatmethod == 7)), &
+               tsfc_surf => tsfc_surf_storage, &
                tsfc_roof => tsfc_roof_local, &
                tsfc_wall => tsfc_wall_local &
                )
@@ -2329,7 +2338,8 @@ CONTAINS
                IF (StorageHeatMethod == 0) THEN !Use observed QS
                   qs = qs_obs
 
-               ELSEIF (StorageHeatMethod == 1 .OR. StorageHeatMethod == 6 .OR. StorageHeatMethod == 7) THEN !Use OHM to calculate QS
+               ELSEIF (StorageHeatMethod == 1 .OR. StorageHeatMethod == 6 .OR. StorageHeatMethod == 7 .OR. &
+                        StorageHeatMethod == 16) THEN !Use OHM to calculate QS
                   Tair_mav_5d = HDD_id(10)
                   IF (Diagnose == 1) WRITE (*, *) 'Calling OHM...'
                   CALL OHM(qn_use, qn_surf, ohmState%qn_av, ohmState%dqndt, &
@@ -2362,17 +2372,18 @@ CONTAINS
                            a1_water, a2_water, a3_water, &
                            a1, a2, a3, qs, qs_surf, deltaQi, &
                            modState)
-                  IF (StorageHeatMethod /= 6 .AND. StorageHeatMethod /= 7) THEN
+                  IF (StorageHeatMethod /= 6 .AND. StorageHeatMethod /= 7 .AND. StorageHeatMethod /= 16) THEN
                      QS_surf = qs
                      QS_roof = qs
                      QS_wall = qs
                   ELSE
-                     ! Methods 6 and 7 
+                     ! Methods 6, 7, and 16 preserve surface-specific storage heat fluxes.
                      IF (StorageHeatMethod == 7) THEN !for method 7 when STEBBS is used for building
                         qs = qs + QS_stebbs * sfr_surf(2)
                         QS_surf(2) = QS_stebbs
                      END IF
-                     ! Method 6 dyOHM for all surfaces.
+                     ! Method 6 uses dyOHM for all surfaces.
+                     ! Method 16 uses dyOHM for building storage heat flux only.
                      QS_roof = QS_surf(2)
                      QS_wall = QS_surf(2)
 

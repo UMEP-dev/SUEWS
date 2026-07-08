@@ -290,7 +290,7 @@ def validate_storageheatmethod_dependencies(
                 suggested_value="Set OhmIncQf to 0",
             )
         )
-    elif ohmincqf == 1 and storageheatmethod not in {6, 7}:
+    elif ohmincqf == 1 and storageheatmethod not in {6, 7, 16}:
         results.append(
             ValidationResult(
                 status="ERROR",
@@ -301,7 +301,7 @@ def validate_storageheatmethod_dependencies(
                     "branches that include QF. StorageHeatMethod=1 is documented "
                     "as OHM without QF and must use OhmIncQf=0."
                 ),
-                suggested_value="Use StorageHeatMethod 6 or 7 with OhmIncQf=1, or set OhmIncQf to 0.",
+                suggested_value="Use StorageHeatMethod 6, 7, or 16 with OhmIncQf=1, or set OhmIncQf to 0.",
             )
         )
     else:

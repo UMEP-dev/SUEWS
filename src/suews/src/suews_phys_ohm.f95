@@ -153,12 +153,15 @@ CONTAINS
       REAL(KIND(1D0)), INTENT(out) :: a1, a2, a3 ! OHM coefficients of grid
       TYPE(SUEWS_STATE), INTENT(INOUT), OPTIONAL :: modState
       INTEGER :: i_surf
+      LOGICAL :: dyohm_all_surfaces, dyohm_with_stebbs, dyohm_building_only, dyohm_active
       ! REAL(KIND(1d0)):: nsh_nna ! number of timesteps per hour with non -999 values (used for spinup)
 
       ! REAL(KIND(1d0)):: dqndt    !Rate of change of net radiation [W m-2 h-1] at t-1
       ! REAL(KIND(1d0)):: surfrac  !Surface fraction accounting for SnowFrac if appropriate
 
       REAL(KIND(1D0)) :: deltaQi0 ! temporarily store
+      REAL(KIND(1D0)) :: surfrac
+      REAL(KIND(1D0)) :: a1_surf_ohm, a2_surf_ohm, a3_surf_ohm
 
       ! REAL(KIND(1d0)):: qn1_store_grid0(nsh), qn1_av_store_grid0(2*nsh+1) ! temporarily store
 
@@ -167,7 +170,12 @@ CONTAINS
       !real(kind(1d0)):: OHM_TForSummer = 10  !Use summer coefficients if 5-day Tair >= 10 degC - modified for UK HCW 14 Dec 2015
       !real(kind(1d0)):: OHM_SMForWet = 0.9  !Use wet coefficients if SM close to soil capacity
 
-      IF (StorageHeatMethod == 6 .OR. storageheatmethod == 7) THEN
+      dyohm_all_surfaces = StorageHeatMethod == 6
+      dyohm_with_stebbs = StorageHeatMethod == 7
+      dyohm_building_only = StorageHeatMethod == 16
+      dyohm_active = dyohm_all_surfaces .OR. dyohm_with_stebbs .OR. dyohm_building_only
+
+      IF (dyohm_active) THEN
          ! MP 14/04/2025
          ! YL 16/10/2025 test using DyOHM for all surface types
          ! get timestamps
@@ -211,37 +219,39 @@ CONTAINS
                                dz_wall(1, 1), cp_wall(1, 1), k_wall(1, 1), lambda_c, &
                                a1_bldg, a2_bldg, a3_bldg & ! Output
                                )
-               !test: using dyOHM for other surface types, assume WS=0 at ground level, lambda_c=1
-               CALL OHM_yl_cal(dt_since_start, &
-                               ws0, T_half_bldg_C, T_prev, qn_rav(1), & ! Input
-                               dz_surf(1, 1), cp_surf(1, 1), k_surf(1, 1), lambda_c1, &
-                               a1_paved, a2_paved, a3_paved & ! Output
-                               )         
-               CALL OHM_yl_cal(dt_since_start, &
-                               ws0, T_half_bldg_C, T_prev, qn_rav(3), & ! Input
-                               dz_surf(3, 1), cp_surf(3, 1), k_surf(3, 1), lambda_c1, &
-                               a1_evetr, a2_evetr, a3_evetr & ! Output
-                               )    
-               CALL OHM_yl_cal(dt_since_start, &
-                               ws0, T_half_bldg_C, T_prev, qn_rav(4), & ! Input
-                               dz_surf(4, 1), cp_surf(4, 1), k_surf(4, 1), lambda_c1, &
-                               a1_dectr, a2_dectr, a3_dectr & ! Output
-                               )                                                                                                                               
-               CALL OHM_yl_cal(dt_since_start, &
-                               ws0, T_half_bldg_C, T_prev, qn_rav(5), & ! Input
-                               dz_surf(5, 1), cp_surf(5, 1), k_surf(5, 1), lambda_c1, &
-                               a1_grass, a2_grass, a3_grass & ! Output
-                               )  
-               CALL OHM_yl_cal(dt_since_start, &
-                               ws0, T_half_bldg_C, T_prev, qn_rav(6), & ! Input
-                               dz_surf(6, 1), cp_surf(6, 1), k_surf(6, 1), lambda_c1, &
-                               a1_bsoil, a2_bsoil, a3_bsoil & ! Output
-                               )  
-               CALL OHM_yl_cal(dt_since_start, &
-                               ws0, T_half_bldg_C, T_prev, qn_rav(7), & ! Input
-                               dz_surf(7, 1), cp_surf(7, 1), k_surf(7, 1), lambda_c1, &
-                               a1_water, a2_water, a3_water & ! Output
-                               )                                                                                                                                                                                                                                                      
+               IF (.NOT. dyohm_building_only) THEN
+                  !test: using dyOHM for other surface types, assume WS=0 at ground level, lambda_c=1
+                  CALL OHM_yl_cal(dt_since_start, &
+                                  ws0, T_half_bldg_C, T_prev, qn_rav(1), & ! Input
+                                  dz_surf(1, 1), cp_surf(1, 1), k_surf(1, 1), lambda_c1, &
+                                  a1_paved, a2_paved, a3_paved & ! Output
+                                  )
+                  CALL OHM_yl_cal(dt_since_start, &
+                                  ws0, T_half_bldg_C, T_prev, qn_rav(3), & ! Input
+                                  dz_surf(3, 1), cp_surf(3, 1), k_surf(3, 1), lambda_c1, &
+                                  a1_evetr, a2_evetr, a3_evetr & ! Output
+                                  )
+                  CALL OHM_yl_cal(dt_since_start, &
+                                  ws0, T_half_bldg_C, T_prev, qn_rav(4), & ! Input
+                                  dz_surf(4, 1), cp_surf(4, 1), k_surf(4, 1), lambda_c1, &
+                                  a1_dectr, a2_dectr, a3_dectr & ! Output
+                                  )
+                  CALL OHM_yl_cal(dt_since_start, &
+                                  ws0, T_half_bldg_C, T_prev, qn_rav(5), & ! Input
+                                  dz_surf(5, 1), cp_surf(5, 1), k_surf(5, 1), lambda_c1, &
+                                  a1_grass, a2_grass, a3_grass & ! Output
+                                  )
+                  CALL OHM_yl_cal(dt_since_start, &
+                                  ws0, T_half_bldg_C, T_prev, qn_rav(6), & ! Input
+                                  dz_surf(6, 1), cp_surf(6, 1), k_surf(6, 1), lambda_c1, &
+                                  a1_bsoil, a2_bsoil, a3_bsoil & ! Output
+                                  )
+                  CALL OHM_yl_cal(dt_since_start, &
+                                  ws0, T_half_bldg_C, T_prev, qn_rav(7), & ! Input
+                                  dz_surf(7, 1), cp_surf(7, 1), k_surf(7, 1), lambda_c1, &
+                                  a1_water, a2_water, a3_water & ! Output
+                                  )
+               END IF
                new_day = 0
                T_prev = T_half_bldg_C
             ELSE IF (last_tstep_Q) THEN
@@ -251,7 +261,7 @@ CONTAINS
             dt_since_start_prev = dt_since_start
          END ASSOCIATE
 
-         IF (StorageHeatMethod == 6) THEN !all surface types use DyOHM
+         IF (dyohm_all_surfaces .OR. dyohm_building_only) THEN !buildings use DyOHM coefficients
             OHM_coef(2, 1, 1) = a1_bldg
             OHM_coef(2, 2, 1) = a1_bldg
             OHM_coef(2, 3, 1) = a1_bldg
@@ -284,6 +294,7 @@ CONTAINS
          END IF 
 
 
+         IF (.NOT. dyohm_building_only) THEN
          OHM_coef(1, 1, 1) = a1_paved
          OHM_coef(1, 2, 1) = a1_paved
          OHM_coef(1, 3, 1) = a1_paved
@@ -372,7 +383,8 @@ CONTAINS
          OHM_coef(7, 1, 3) = a3_water
          OHM_coef(7, 2, 3) = a3_water
          OHM_coef(7, 3, 3) = a3_water
-         OHM_coef(7, 4, 3) = a3_water   
+         OHM_coef(7, 4, 3) = a3_water
+         END IF
 
       END IF
 
@@ -416,32 +428,58 @@ CONTAINS
          ! CALL OHM_dqndt_cal(nsh,qn1,qn1_store_grid,qn1_av_store_grid,dqndt)
          ! print*, 'old dqndt',dqndt
          ! Calculate net storage heat flux
-         IF (StorageHeatMethod == 6 .OR. storageHeatMethod == 7) THEN !for dyOHM for dyOHM+STEBBS
+         IF (dyohm_active) THEN !for dyOHM, dyOHM+STEBBS, or building-only dyOHM
             !calculate dqndt_next for each surface (for dyOHM)
             DO i_surf = 1, nsurf
                CALL OHM_dqndt_cal_X(tstep, dt_since_start, qn_surf_prev(i_surf), qn1_surf(i_surf), dqndt_surf_prev(i_surf), &
                                  qn_surf_next(i_surf), dqndt_surf_next(i_surf))   
             End Do
-            CALL OHM_QS_cal(qn1_surf(1), dqndt_surf_next(1), a1_paved, a2_paved, a3_paved, qs_surf(1))
-            CALL OHM_QS_cal(qn1_surf(2), dqndt_surf_next(2), a1_bldg, a2_bldg, a3_bldg, qs_surf(2))
-            CALL OHM_QS_cal(qn1_surf(3), dqndt_surf_next(3), a1_evetr, a2_evetr, a3_evetr, qs_surf(3))
-            CALL OHM_QS_cal(qn1_surf(4), dqndt_surf_next(4), a1_dectr, a2_dectr, a3_dectr, qs_surf(4))
-            CALL OHM_QS_cal(qn1_surf(5), dqndt_surf_next(5), a1_grass, a2_grass, a3_grass, qs_surf(5))
-            CALL OHM_QS_cal(qn1_surf(6), dqndt_surf_next(6), a1_bsoil, a2_bsoil, a3_bsoil, qs_surf(6))
-            CALL OHM_QS_cal(qn1_surf(7), dqndt_surf_next(7), a1_water, a2_water, a3_water, qs_surf(7))
-            
-            qs = 0
-            IF (StorageHeatMethod == 6) THEN
-               !full dyOHM
+            IF (dyohm_building_only) THEN
+               ! Hybrid method: DyOHM determines building QS; all other
+               ! land-cover surfaces use the ordinary static OHM coefficients.
+               qs = 0
                DO i_surf = 1, nsurf
-                  qs = qs + qs_surf(i_surf) * sfr_surf(i_surf)
-               END DO            
-            ELSE ! STEBBS is used for building, dyOHM-building is not included
-               DO i_surf = 1, nsurf
-                  IF (i_surf /= 2) THEN   ! surface 2 = building
-                     qs = qs + qs_surf(i_surf) * sfr_surf(i_surf)
+                  IF (i_surf == BldgSurf) THEN
+                     CALL OHM_QS_cal(qn1_surf(i_surf), dqndt_surf_next(i_surf), &
+                                     a1_bldg, a2_bldg, a3_bldg, qs_surf(i_surf))
+                  ELSE
+                     CALL OHM_coef_surface(i_surf, nsurf, &
+                                           Tair_mav_5d, OHM_coef, OHM_threshSW, OHM_threshWD, &
+                                           soilstore_id, SoilStoreCap, state_id, &
+                                           BldgSurf, WaterSurf, &
+                                           a1_surf_ohm, a2_surf_ohm, a3_surf_ohm)
+                     CALL OHM_QS_cal(qn1_surf(i_surf), dqndt_surf_next(i_surf), &
+                                     a1_surf_ohm, a2_surf_ohm, a3_surf_ohm, qs_surf(i_surf))
                   END IF
+
+                  surfrac = sfr_surf(i_surf)
+                  IF (SnowUse == 1 .AND. i_surf /= BldgSurf .AND. i_surf /= WaterSurf) THEN
+                     surfrac = surfrac*(1 - SnowFrac(i_surf))
+                  END IF
+                  qs = qs + qs_surf(i_surf)*surfrac
                END DO
+            ELSE
+               CALL OHM_QS_cal(qn1_surf(1), dqndt_surf_next(1), a1_paved, a2_paved, a3_paved, qs_surf(1))
+               CALL OHM_QS_cal(qn1_surf(2), dqndt_surf_next(2), a1_bldg, a2_bldg, a3_bldg, qs_surf(2))
+               CALL OHM_QS_cal(qn1_surf(3), dqndt_surf_next(3), a1_evetr, a2_evetr, a3_evetr, qs_surf(3))
+               CALL OHM_QS_cal(qn1_surf(4), dqndt_surf_next(4), a1_dectr, a2_dectr, a3_dectr, qs_surf(4))
+               CALL OHM_QS_cal(qn1_surf(5), dqndt_surf_next(5), a1_grass, a2_grass, a3_grass, qs_surf(5))
+               CALL OHM_QS_cal(qn1_surf(6), dqndt_surf_next(6), a1_bsoil, a2_bsoil, a3_bsoil, qs_surf(6))
+               CALL OHM_QS_cal(qn1_surf(7), dqndt_surf_next(7), a1_water, a2_water, a3_water, qs_surf(7))
+
+               qs = 0
+               IF (dyohm_all_surfaces) THEN
+                  !full dyOHM
+                  DO i_surf = 1, nsurf
+                     qs = qs + qs_surf(i_surf) * sfr_surf(i_surf)
+                  END DO
+               ELSE ! STEBBS is used for building, dyOHM-building is not included
+                  DO i_surf = 1, nsurf
+                     IF (i_surf /= 2) THEN   ! surface 2 = building
+                        qs = qs + qs_surf(i_surf) * sfr_surf(i_surf)
+                     END IF
+                  END DO
+               END IF
             END IF
 
          ELSE
@@ -505,6 +543,51 @@ CONTAINS
    END SUBROUTINE OHM
 !========================================================================================
 
+   SUBROUTINE OHM_coef_surface(is, nsurf, &
+                               Tair_mav_5d, OHM_coef, OHM_threshSW, OHM_threshWD, &
+                               soilstore_id, SoilStoreCap, state_id, &
+                               BldgSurf, WaterSurf, &
+                               a1_surf, a2_surf, a3_surf)
+      IMPLICIT NONE
+      INTEGER, INTENT(in) :: &
+         is, &
+         nsurf, &
+         BldgSurf, WaterSurf
+      REAL(KIND(1D0)), INTENT(in) :: &
+         Tair_mav_5d, &
+         OHM_coef(nsurf + 1, 4, 3), &
+         OHM_threshSW(nsurf + 1), OHM_threshWD(nsurf + 1), &
+         soilstore_id(nsurf), &
+         SoilStoreCap(nsurf), &
+         state_id(nsurf)
+      REAL(KIND(1D0)), INTENT(out) :: a1_surf, a2_surf, a3_surf
+
+      INTEGER :: i, ii
+
+      IF (Tair_mav_5d >= OHM_threshSW(is)) THEN !Summer
+         ii = 0
+      ELSE !Winter
+         ii = 2
+      END IF
+
+      IF (state_id(is) > 0) THEN !Wet surface
+         i = ii + 1
+      ELSE !Dry surface
+         i = ii + 2
+         ! If the surface is dry but SM is close to capacity, use coefficients for wet surfaces
+         IF (is > BldgSurf .AND. is /= WaterSurf) THEN !Wet soil (i.e. EveTr, DecTr, Grass, BSoil surfaces)
+            IF (soilstore_id(is)/SoilStoreCap(is) > OHM_threshWD(is)) THEN
+               i = ii + 1
+            END IF
+         END IF
+      END IF
+
+      a1_surf = OHM_coef(is, i, 1)
+      a2_surf = OHM_coef(is, i, 2)
+      a3_surf = OHM_coef(is, i, 3)
+   END SUBROUTINE OHM_coef_surface
+!========================================================================================
+
    SUBROUTINE OHM_coef_cal(sfr_surf, nsurf, &
                            Tair_mav_5d, OHM_coef, OHM_threshSW, OHM_threshWD, &
                            soilstore_id, SoilStoreCap, state_id, &
@@ -527,8 +610,8 @@ CONTAINS
          state_id(nsurf) ! wetness status
       REAL(KIND(1D0)), INTENT(out) :: a1, a2, a3
 
-      REAL(KIND(1D0)) :: surfrac
-      INTEGER :: i, ii, is
+      REAL(KIND(1D0)) :: surfrac, a1_surf, a2_surf, a3_surf
+      INTEGER :: is
 
       ! OHM coefficients --------
       ! Set to zero initially
@@ -541,24 +624,11 @@ CONTAINS
       DO is = 1, nsurf
          surfrac = sfr_surf(is)
 
-         ! Use 5-day running mean Tair to decide whether it is summer or winter ----------------
-         IF (Tair_mav_5d >= OHM_threshSW(is)) THEN !Summer
-            ii = 0
-         ELSE !Winter
-            ii = 2
-         END IF
-
-         IF (state_id(is) > 0) THEN !Wet surface
-            i = ii + 1
-         ELSE !Dry surface
-            i = ii + 2
-            ! If the surface is dry but SM is close to capacity, use coefficients for wet surfaces
-            IF (is > BldgSurf .AND. is /= WaterSurf) THEN !Wet soil (i.e. EveTr, DecTr, Grass, BSoil surfaces)
-               IF (soilstore_id(is)/SoilStoreCap(is) > OHM_threshWD(is)) THEN
-                  i = ii + 1
-               END IF
-            END IF
-         END IF
+         CALL OHM_coef_surface(is, nsurf, &
+                               Tair_mav_5d, OHM_coef, OHM_threshSW, OHM_threshWD, &
+                               soilstore_id, SoilStoreCap, state_id, &
+                               BldgSurf, WaterSurf, &
+                               a1_surf, a2_surf, a3_surf)
 
          ! If snow, adjust surface fractions accordingly
          IF (SnowUse == 1 .AND. is /= BldgSurf .AND. is /= WaterSurf) THEN ! QUESTION: Why is BldgSurf excluded here?
@@ -566,9 +636,9 @@ CONTAINS
          END IF
 
          ! Calculate the areally-weighted OHM coefficients
-         a1 = a1 + surfrac*OHM_coef(is, i, 1)
-         a2 = a2 + surfrac*OHM_coef(is, i, 2)
-         a3 = a3 + surfrac*OHM_coef(is, i, 3)
+         a1 = a1 + surfrac*a1_surf
+         a2 = a2 + surfrac*a2_surf
+         a3 = a3 + surfrac*a3_surf
 
       END DO !end of loop over surface types ------------------------------------------------
    END SUBROUTINE OHM_coef_cal

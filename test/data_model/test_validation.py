@@ -2668,7 +2668,7 @@ def test_phase_b_storageheatmethod_ohmincqf_validation(registry):
         "model": {
             "physics": {
                 "storage_heat": "dyohm_building",
-                "ohm_inc_qf": "include",
+                "ohm_inc_qf": "exclude",
             }
         }
     }
@@ -2682,6 +2682,26 @@ def test_phase_b_storageheatmethod_ohmincqf_validation(registry):
     ]
     assert len(storage_results) == 1
     assert storage_results[0].status == "PASS"
+
+    yaml_data_dyohm_building_include_qf = {
+        "model": {
+            "physics": {
+                "storage_heat": "dyohm_building",
+                "ohm_inc_qf": "include",
+            }
+        }
+    }
+
+    results = registry["option_dependencies"](
+        ValidationContext(yaml_data=yaml_data_dyohm_building_include_qf)
+    )
+
+    storage_results = [
+        r for r in results if r.parameter == "storageheatmethod-ohmincqf"
+    ]
+    assert len(storage_results) == 1
+    assert storage_results[0].status == "ERROR"
+    assert "uses DyOHM only for building storage heat flux" in storage_results[0].message
 
 
 def test_phase_b_storageheatmethod_ehc_requires_spartacus(registry):

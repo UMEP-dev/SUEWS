@@ -42,6 +42,18 @@ Detailed checklist for comprehensive PR review.
 - Test files have relaxed requirements
 - Generated files excluded (`_suews_driver.py`, `_version.py`)
 
+### Design and Placement (not just correctness)
+
+- [ ] A new guard/special-case/optimisation lives in the function that owns the
+      operation, not bolted onto one call site
+- [ ] Grep the callers: if the diff patches one of several call sites, flag the
+      unpatched ones (including the recommended OOP path)
+- [ ] New code does not re-derive a value already carried by data/config/state
+      (e.g. native freq via `.diff().median()` instead of `index.freq` / `tstep` /
+      `pd.infer_freq`)
+- [ ] "Output is identical" is not used to conclude "design is fine"
+- [ ] Ref: `.claude/rules/code-design.md` -> "Fix Placement and Encapsulation"
+
 ---
 
 ## Scientific Review Checklist

@@ -54,7 +54,7 @@ EXAMPLES:
 
 ## 2026
 
-### 2 Jul 2026
+### 8 Jul 2026
 
 - [change][experimental] Skip output resampling when it is a no-op (#1599)
   - Saving multi-year sub-hourly runs spent ~80% of the time resampling even when the requested output frequency already matched the model timestep. `resample_output` now returns the frame unchanged (byte-identical) when the data is already at the target frequency.

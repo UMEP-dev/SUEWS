@@ -165,6 +165,45 @@ def pack_df_output_block(dict_output_block, df_forcing_block):
 
 
 # resample supy output
+def _index_freq_matches(df_output, freq):
+    """Return True when ``df_output`` is already at the target frequency ``freq``.
+
+    Uses :func:`pandas.infer_freq`, which returns ``None`` for an irregular or
+    ambiguous index; such an index therefore never matches and always falls
+    through to a real resample (avoiding the false positives a median-of-diffs
+    reconstruction could produce). ``freq`` may be a pandas offset alias
+    (e.g. ``"h"``, ``"5min"``) or a :class:`pandas.Timedelta` (as passed by the
+    save path).
+
+    Parameters
+    ----------
+    df_output : pandas.DataFrame
+        Output frame with a ``datetime`` index level.
+    freq : str or pandas.Timedelta
+        Target resampling frequency.
+
+    Returns
+    -------
+    bool
+        True only when the index cadence is regular and equal to ``freq``.
+    """
+    level = "datetime" if "datetime" in df_output.index.names else -1
+    idx_dt = df_output.index.get_level_values(level).unique().sort_values()
+    if len(idx_dt) < 3:
+        # infer_freq needs at least three timestamps to determine a cadence.
+        return False
+    inferred = pd.infer_freq(idx_dt)
+    if inferred is None:
+        return False
+    to_offset = pd.tseries.frequencies.to_offset
+    try:
+        return pd.Timedelta(to_offset(inferred)) == pd.Timedelta(to_offset(freq))
+    except ValueError:
+        # Non-fixed frequencies (e.g. month-end) cannot become a Timedelta;
+        # compare the offsets directly instead.
+        return to_offset(inferred) == to_offset(freq)
+
+
 def resample_output(df_output, freq="60min", dict_aggm=dict_var_aggm, _internal=False):
     """Resample SUEWS simulation output to a different temporal frequency.
 
@@ -271,6 +310,11 @@ def resample_output(df_output, freq="60min", dict_aggm=dict_var_aggm, _internal=
         from ._supy_module import _warn_functional_deprecation
 
         _warn_functional_deprecation("resample_output")
+
+    # Skip resampling entirely when the data is already at the requested
+    # frequency
+    if _index_freq_matches(df_output, freq):
+        return df_output
 
     # Helper function to resample a group with specified parameters
     def _resample_group(df_group, freq, label, dict_aggm_group, group_name=None):

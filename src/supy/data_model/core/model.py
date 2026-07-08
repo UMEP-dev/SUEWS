@@ -957,7 +957,7 @@ class ModelPhysics(BaseModel):
             "unit": "dimensionless",
             "depends_on": ["net_radiation", "ohm_inc_qf", "snow_use", "stebbs"],
             "provides_to": ["energy_balance"],
-            "note": "EHC (5) requires SPARTACUS net radiation; STEBBS storage heat (7) requires STEBBS enabled; OHM-like paths use OhmIncQf.",
+            "note": "EHC (5) requires SPARTACUS net radiation; STEBBS storage heat (7) requires STEBBS enabled; method 16 uses OhmIncQf=0.",
         },
     )
     ohm_inc_qf: FlexibleRefValue(OhmIncQf) = Field(

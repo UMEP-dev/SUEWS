@@ -180,10 +180,29 @@ The sections below summarise what users see change between schemas.
 The authoritative lineage (including release-tag to schema mapping)
 lives in :ref:`schema_version_history`.
 
+Upgrading to Schema 2026.6.dev2
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Schema ``2026.6.dev2`` adds the opt-in
+``model.physics.storage_heat: dyohm_building`` selector
+(``StorageHeatMethod=16``). This method uses DyOHM to determine the
+building storage heat flux only. Other land-cover surfaces continue to use
+ordinary OHM, and DyOHM surface temperatures are not passed back to the
+radiation calculation.
+
+Existing ``2026.6.dev1`` YAMLs do not need content edits because the new
+selector is optional. The registered ``(2026.6.dev1 -> 2026.6.dev2)``
+handler is therefore a no-op content migration that stamps the new
+``schema_version``:
+
+.. code-block:: bash
+
+   suews schema migrate your_config.yml
+
 Upgrading to Schema 2026.6.dev1
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Schema ``2026.6.dev1`` is the current development schema for the
+Schema ``2026.6.dev1`` is a development schema for the
 SPARTACUS direct/diffuse benchmark work. It extends the ``2026.5``
 surface with default-backed controls:
 

@@ -38,6 +38,46 @@ class TestResampleOutput:
         assert isinstance(output_resampled, sp.SUEWSOutput)
         assert not output_resampled.df.empty
 
+    def test_resample_native_freq_skips_and_is_identical(self):
+        """At the run's native frequency resample_output is a no-op (gh#1599).
+
+        The save path calls resample_output with the model timestep as the
+        target; when the data already has that cadence, resampling must be
+        skipped and the frame returned unchanged (byte-identical), not rebuilt.
+        """
+        df_state_init, df_forcing = sp.load_SampleData()
+        df_output, _ = sp.run_supy(df_forcing.iloc[:48], df_state_init)
+
+        # native cadence of the run (5 min for the sample data)
+        idx_dt = df_output.index.get_level_values("datetime").unique().sort_values()
+        native_freq = pd.infer_freq(idx_dt)
+        assert native_freq is not None
+
+        # both a string alias and the equivalent Timedelta (as the save path
+        # passes) must be recognised and skipped
+        to_offset = pd.tseries.frequencies.to_offset
+        for freq in (native_freq, pd.Timedelta(to_offset(native_freq))):
+            result = resample_output(df_output, freq=freq, _internal=True)
+            assert result is df_output  # skipped -> same object, no work done
+            pd.testing.assert_frame_equal(result, df_output)  # byte-identical
+
+    def test_resample_irregular_index_not_skipped(self):
+        """An irregular index must not be treated as a frequency match (gh#1599).
+
+        infer_freq returns None for irregular cadence, so the guard falls
+        through to a real resample rather than a false-positive skip (which a
+        median-of-diffs reconstruction could wrongly trigger).
+        """
+        from supy._post import _index_freq_matches
+
+        df_state_init, df_forcing = sp.load_SampleData()
+        df_output, _ = sp.run_supy(df_forcing.iloc[:48], df_state_init)
+        # drop interior rows to break the regular 5-min cadence
+        df_irregular = df_output.drop(df_output.index[[10, 25]])
+
+        assert _index_freq_matches(df_output, "5min") is True
+        assert _index_freq_matches(df_irregular, "5min") is False
+
     @analyze_dailystate_nan  # Add NaN analysis even when test passes
     @debug_on_ci
     @capture_test_artifacts("dailystate_resample")

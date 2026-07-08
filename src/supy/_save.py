@@ -266,8 +266,15 @@ def save_df_output(
         df_save_no_daily = df_save
 
     # resample `df_output` at `freq_save` (excluding DailyState)
+    # Only apply when the target freq differs from the run's native timestep
     if len(df_save_no_daily.columns) > 0:
-        df_rsmp = resample_output(df_save_no_daily, freq_save, _internal=True)
+        level = "datetime" if "datetime" in df_save_no_daily.index.names else -1
+        dt = df_save_no_daily.index.get_level_values(level).unique().sort_values()
+        src_freq = dt.to_series().diff().dropna().median()
+        if freq_save == src_freq:
+            df_rsmp = df_save_no_daily
+        else:
+            df_rsmp = resample_output(df_save_no_daily, freq_save, _internal=True)
     else:
         df_rsmp = None
 

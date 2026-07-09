@@ -367,3 +367,68 @@ def pytest_collection_finish(session):
             "pytest.mark.api` or `pytest.mark.physics` at module level, or "
             "auto-apply via `pytest_collection_modifyitems`):\n  - " + bullet
         )
+
+
+# =============================================================================
+# Session-scoped sample simulation fixtures
+# =============================================================================
+#
+# The bundled sample simulation (KCL, 2011-2013, 105408 five-minute
+# timesteps) costs on the order of 5-10 s locally and more on CI Windows to
+# run. Many tests only need to READ a completed run's config, forcing, or
+# output; they do not need to run the model themselves. These fixtures share
+# a single run per test session for that read-only majority. Tests that
+# exercise running, mutation, or lifecycle behaviour (reset, checkpoint
+# continuation, chunking, parallelism, before/after-run state) must keep
+# constructing and running their own `SUEWSSimulation` instance - do not
+# retrofit them onto these fixtures.
+#
+# All four fixtures are lazy (nothing runs at import or collection time) and
+# session-scoped, so the underlying sample run happens at most once per
+# `pytest` invocation, however many tests request it.
+
+
+@pytest.fixture(scope="session")
+def sample_yaml_path() -> Path:
+    """Path to the bundled SUEWS sample YAML configuration.
+
+    Session-scoped since the path is fixed for the process lifetime.
+    """
+    return Path(supy.__file__).parent / "sample_data" / "sample_config.yml"
+
+
+@pytest.fixture(scope="session")
+def sample_data_loaded():
+    """The bundled sample ``(df_state_init, df_forcing)``, loaded once.
+
+    READ-ONLY: consumers MUST ``.copy()`` any frame they intend to mutate.
+    Loading alone (no physics run) is cheap, but sharing it still avoids
+    repeated file I/O and parsing across every test that only needs to read
+    the sample state or forcing.
+    """
+    return supy.load_sample_data()
+
+
+@pytest.fixture(scope="session")
+def completed_sample_sim(sample_yaml_path):
+    """A ``SUEWSSimulation`` built from the sample YAML with ``.run()`` called once.
+
+    READ-ONLY, shared across the whole test session: consumers must not call
+    ``.reset()``, any ``update_*`` method, or ``.run()`` again on this
+    instance, and must not mutate its frames (``config``, ``forcing``,
+    ``state_init``, ``state_final``, the output DataFrame, ...) in place. A
+    test that needs to mutate or re-run the simulation must construct its own
+    instance instead, e.g. via ``SUEWSSimulation.from_sample_data()``.
+    """
+    sim = supy.SUEWSSimulation(str(sample_yaml_path))
+    sim.run()
+    return sim
+
+
+@pytest.fixture(scope="session")
+def sample_run_output(completed_sample_sim):
+    """Convenience accessor for ``completed_sample_sim``'s ``SUEWSOutput``.
+
+    Same READ-ONLY contract as ``completed_sample_sim``.
+    """
+    return completed_sample_sim.output

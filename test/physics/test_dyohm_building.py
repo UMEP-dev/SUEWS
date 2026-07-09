@@ -84,7 +84,7 @@ def test_dyohm_building_qs_behavior_relative_to_ohm():
 
     qs_delta = np.abs(dyohm_mixed["QS"].to_numpy() - ohm_mixed["QS"].to_numpy())
     warm_start = df_forcing.index[0] + pd.Timedelta(days=1)
-    warm_mask = dyohm_mixed.index >= warm_start
+    warm_mask = dyohm_mixed.index.get_level_values("datetime") >= warm_start
     max_qs_delta = float(np.nanmax(qs_delta[warm_mask]))
     assert max_qs_delta > 1.0e-4, (
         "storage_heat=16 should alter storage heat flux when buildings are present; "

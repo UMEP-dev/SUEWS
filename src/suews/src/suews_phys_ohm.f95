@@ -160,8 +160,8 @@ CONTAINS
       ! REAL(KIND(1d0)):: surfrac  !Surface fraction accounting for SnowFrac if appropriate
 
       REAL(KIND(1D0)) :: deltaQi0 ! temporarily store
-      REAL(KIND(1D0)) :: surfrac
       REAL(KIND(1D0)) :: a1_surf_ohm, a2_surf_ohm, a3_surf_ohm
+      REAL(KIND(1D0)) :: qs_ohm_grid, qs_bldg_static, qs_bldg_dyohm
 
       ! REAL(KIND(1d0)):: qn1_store_grid0(nsh), qn1_av_store_grid0(2*nsh+1) ! temporarily store
 
@@ -261,37 +261,39 @@ CONTAINS
             dt_since_start_prev = dt_since_start
          END ASSOCIATE
 
-         IF (dyohm_all_surfaces .OR. dyohm_building_only) THEN !buildings use DyOHM coefficients
-            OHM_coef(2, 1, 1) = a1_bldg
-            OHM_coef(2, 2, 1) = a1_bldg
-            OHM_coef(2, 3, 1) = a1_bldg
-            OHM_coef(2, 4, 1) = a1_bldg
+         IF (dyohm_all_surfaces .OR. dyohm_with_stebbs) THEN
+            IF (dyohm_all_surfaces) THEN ! buildings use DyOHM coefficients
+               OHM_coef(2, 1, 1) = a1_bldg
+               OHM_coef(2, 2, 1) = a1_bldg
+               OHM_coef(2, 3, 1) = a1_bldg
+               OHM_coef(2, 4, 1) = a1_bldg
 
-            OHM_coef(2, 1, 2) = a2_bldg
-            OHM_coef(2, 2, 2) = a2_bldg
-            OHM_coef(2, 3, 2) = a2_bldg
-            OHM_coef(2, 4, 2) = a2_bldg
+               OHM_coef(2, 1, 2) = a2_bldg
+               OHM_coef(2, 2, 2) = a2_bldg
+               OHM_coef(2, 3, 2) = a2_bldg
+               OHM_coef(2, 4, 2) = a2_bldg
 
-            OHM_coef(2, 1, 3) = a3_bldg
-            OHM_coef(2, 2, 3) = a3_bldg
-            OHM_coef(2, 3, 3) = a3_bldg
-            OHM_coef(2, 4, 3) = a3_bldg
-         ELSE ! STEBBS provide building QS
-            OHM_coef(2, 1, 1) = 0
-            OHM_coef(2, 2, 1) = 0
-            OHM_coef(2, 3, 1) = 0
-            OHM_coef(2, 4, 1) = 0
+               OHM_coef(2, 1, 3) = a3_bldg
+               OHM_coef(2, 2, 3) = a3_bldg
+               OHM_coef(2, 3, 3) = a3_bldg
+               OHM_coef(2, 4, 3) = a3_bldg
+            ELSE ! STEBBS provide building QS
+               OHM_coef(2, 1, 1) = 0
+               OHM_coef(2, 2, 1) = 0
+               OHM_coef(2, 3, 1) = 0
+               OHM_coef(2, 4, 1) = 0
 
-            OHM_coef(2, 1, 2) = 0
-            OHM_coef(2, 2, 2) = 0
-            OHM_coef(2, 3, 2) = 0
-            OHM_coef(2, 4, 2) = 0
+               OHM_coef(2, 1, 2) = 0
+               OHM_coef(2, 2, 2) = 0
+               OHM_coef(2, 3, 2) = 0
+               OHM_coef(2, 4, 2) = 0
 
-            OHM_coef(2, 1, 3) = 0
-            OHM_coef(2, 2, 3) = 0
-            OHM_coef(2, 3, 3) = 0
-            OHM_coef(2, 4, 3) = 0
-         END IF 
+               OHM_coef(2, 1, 3) = 0
+               OHM_coef(2, 2, 3) = 0
+               OHM_coef(2, 3, 3) = 0
+               OHM_coef(2, 4, 3) = 0
+            END IF
+         END IF
 
 
          IF (.NOT. dyohm_building_only) THEN
@@ -435,29 +437,26 @@ CONTAINS
                                  qn_surf_next(i_surf), dqndt_surf_next(i_surf))   
             End Do
             IF (dyohm_building_only) THEN
-               ! Hybrid method: DyOHM determines building QS; all other
-               ! land-cover surfaces use the ordinary static OHM coefficients.
-               qs = 0
-               DO i_surf = 1, nsurf
-                  IF (i_surf == BldgSurf) THEN
-                     CALL OHM_QS_cal(qn1_surf(i_surf), dqndt_surf_next(i_surf), &
-                                     a1_bldg, a2_bldg, a3_bldg, qs_surf(i_surf))
-                  ELSE
-                     CALL OHM_coef_surface(i_surf, nsurf, &
-                                           Tair_mav_5d, OHM_coef, OHM_threshSW, OHM_threshWD, &
-                                           soilstore_id, SoilStoreCap, state_id, &
-                                           BldgSurf, WaterSurf, &
-                                           a1_surf_ohm, a2_surf_ohm, a3_surf_ohm)
-                     CALL OHM_QS_cal(qn1_surf(i_surf), dqndt_surf_next(i_surf), &
-                                     a1_surf_ohm, a2_surf_ohm, a3_surf_ohm, qs_surf(i_surf))
-                  END IF
-
-                  surfrac = sfr_surf(i_surf)
-                  IF (SnowUse == 1 .AND. i_surf /= BldgSurf .AND. i_surf /= WaterSurf) THEN
-                     surfrac = surfrac*(1 - SnowFrac(i_surf))
-                  END IF
-                  qs = qs + qs_surf(i_surf)*surfrac
-               END DO
+               ! Hybrid method: start from ordinary grid OHM, then replace
+               ! only the building contribution with DyOHM storage heat.
+               CALL OHM_dqndt_cal_X(tstep, dt_since_start, qn_av_prev, qn1, dqndt_prev, &
+                                 qn_av_next, dqndt_next)
+               CALL OHM_QS_cal(qn1, dqndt_next, a1, a2, a3, qs_ohm_grid)
+               qs = qs_ohm_grid
+               qs_surf = qs_ohm_grid
+               IF (sfr_surf(BldgSurf) > 0.0D0) THEN
+                  CALL OHM_coef_surface(BldgSurf, nsurf, &
+                                        Tair_mav_5d, OHM_coef, OHM_threshSW, OHM_threshWD, &
+                                        soilstore_id, SoilStoreCap, state_id, &
+                                        BldgSurf, WaterSurf, &
+                                        a1_surf_ohm, a2_surf_ohm, a3_surf_ohm)
+                  CALL OHM_QS_cal(qn1, dqndt_next, &
+                                  a1_surf_ohm, a2_surf_ohm, a3_surf_ohm, qs_bldg_static)
+                  CALL OHM_QS_cal(qn1_surf(BldgSurf), dqndt_surf_next(BldgSurf), &
+                                  a1_bldg, a2_bldg, a3_bldg, qs_bldg_dyohm)
+                  qs = qs + sfr_surf(BldgSurf)*(qs_bldg_dyohm - qs_bldg_static)
+                  qs_surf(BldgSurf) = qs_bldg_dyohm
+               END IF
             ELSE
                CALL OHM_QS_cal(qn1_surf(1), dqndt_surf_next(1), a1_paved, a2_paved, a3_paved, qs_surf(1))
                CALL OHM_QS_cal(qn1_surf(2), dqndt_surf_next(2), a1_bldg, a2_bldg, a3_bldg, qs_surf(2))

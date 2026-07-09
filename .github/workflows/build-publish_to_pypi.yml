@@ -275,6 +275,7 @@ jobs:
     if: always() && (needs.detect-changes.result == 'success' || needs.detect-changes.result == 'skipped')
     outputs:
       buildplat: ${{ steps.set-matrix.outputs.buildplat }}
+      api_buildplat: ${{ steps.set-matrix.outputs.api_buildplat }}
       python: ${{ steps.set-matrix.outputs.python }}
       api_python: ${{ steps.set-matrix.outputs.api_python }}
       test_tier: ${{ steps.set-matrix.outputs.test_tier }}
@@ -473,7 +474,7 @@ jobs:
     if: always() && needs.build_wheels.result == 'success'
     uses: ./.github/workflows/test-api-cross-python-reusable.yml
     with:
-      buildplat_json: ${{ needs.determine_matrix.outputs.buildplat }}
+      buildplat_json: ${{ needs.determine_matrix.outputs.api_buildplat }}
       api_python_json: ${{ needs.determine_matrix.outputs.api_python }}
       test_tier: ${{ needs.determine_matrix.outputs.test_tier }}
 

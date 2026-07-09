@@ -97,4 +97,4 @@ jobs:
           python -m pip install --upgrade pip
           python -m pip install pytest
           python -m pip install wheelhouse/*.whl
-          python -m pytest test -m "$MARKER_EXPR" -v --tb=short
+          python -m pytest test -m "$MARKER_EXPR" -v --tb=short --durations=25

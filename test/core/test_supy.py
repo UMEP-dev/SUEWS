@@ -39,6 +39,24 @@ pytestmark = pytest.mark.api
 
 
 class TestSuPy(TestCase):
+    @pytest.fixture(autouse=True, scope="class")
+    @classmethod
+    def _sample_fixtures(cls, request, sample_data_loaded, sample_run_cached):
+        """Bridge session-scoped sample fixtures onto this unittest.TestCase.
+
+        ``sample_data_loaded`` is the bundled ``(df_state_init, df_forcing)``
+        tuple loaded once for the session; ``sample_run_cached`` is the
+        matching functional-API run factory (see conftest.py). Methods below
+        MUST ``.copy()`` any frame they mutate or pass into ``run_supy``.
+
+        ``@classmethod``: a class-scoped fixture runs once per class, not
+        once per test instance, so it must set attributes on ``cls`` rather
+        than being bound as an instance method (pytest deprecates the
+        instance-method form; see PytestRemovedIn10Warning).
+        """
+        request.cls._sample_data = sample_data_loaded
+        request.cls._sample_run = staticmethod(sample_run_cached)
+
     # test if single-tstep mode can run
     @pytest.mark.physics
     @pytest.mark.smoke
@@ -99,8 +117,8 @@ class TestSuPy(TestCase):
         print("Testing if multi-grid simulation can run in parallel...")
         n_grid = 4
 
-        # Load sample data
-        df_state_init, df_forcing_tstep = sp.load_SampleData()
+        # Shared sample data (session-scoped); copy since we mutate below.
+        df_state_init, df_forcing_tstep = self._sample_data
 
         df_state_init_base = df_state_init.copy()
 
@@ -143,12 +161,14 @@ class TestSuPy(TestCase):
         print("\n========================================")
         print("Testing if debug_mode exposes debug output...")
 
-        df_state_init, df_forcing_tstep = sp.load_SampleData()
+        df_state_init, df_forcing_tstep = self._sample_data
         df_forcing_part = df_forcing_tstep.iloc[:24]
 
+        # Own run: debug_mode=True is the kwarg under test, and run_supy may
+        # mutate df_state_init, so pass a copy of the shared state.
         df_output, df_state = sp.run_supy(
             df_forcing_part,
-            df_state_init,
+            df_state_init.copy(),
             debug_mode=True,
         )
 

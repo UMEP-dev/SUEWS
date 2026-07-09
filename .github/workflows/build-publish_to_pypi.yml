@@ -474,7 +474,12 @@ jobs:
     if: always() && needs.build_wheels.result == 'success'
     uses: ./.github/workflows/test-api-cross-python-reusable.yml
     with:
-      buildplat_json: ${{ needs.determine_matrix.outputs.api_buildplat }}
+      # Fall back to the full buildplat when api_buildplat is empty: the
+      # determine_matrix job runs determine-matrix.sh from the BASE branch
+      # (trusted-script design), so a PR that introduces or extends the
+      # api_buildplat output would otherwise hand this job an empty matrix
+      # until the script change lands on master.
+      buildplat_json: ${{ needs.determine_matrix.outputs.api_buildplat || needs.determine_matrix.outputs.buildplat }}
       api_python_json: ${{ needs.determine_matrix.outputs.api_python }}
       test_tier: ${{ needs.determine_matrix.outputs.test_tier }}
 

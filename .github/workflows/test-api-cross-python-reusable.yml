@@ -95,6 +95,6 @@ jobs:
           MARKER_EXPR: ${{ steps.marker.outputs.expr }}
         run: |
           python -m pip install --upgrade pip
-          python -m pip install pytest
+          python -m pip install pytest pytest-xdist
           python -m pip install wheelhouse/*.whl
-          python -m pytest test -m "$MARKER_EXPR" -v --tb=short --durations=25
+          python -m pytest test -m "$MARKER_EXPR" -v --tb=short --durations=25 -n auto --dist loadscope

@@ -162,7 +162,7 @@ runs:
           gcc --version &&
           pip install delvewheel
         CIBW_REPAIR_WHEEL_COMMAND_WINDOWS: "delvewheel repair -w {dest_dir} {wheel}"
-        CIBW_TEST_REQUIRES: pytest
+        CIBW_TEST_REQUIRES: pytest pytest-xdist
         # Test tiers: choose subset based on path detection and trigger.
         # gh#1300: physics tests are binary-determined, so one run per
         # (OS, arch) on the build Python is sufficient. API tests (Python
@@ -174,7 +174,7 @@ runs:
         # which breaks on Windows cmd.exe with quoted marker expressions.
         CIBW_TEST_COMMAND: >-
           python {project}/scripts/suews/run_ci_tests.py {project}
-          -v --tb=short --durations=10
+          -v --tb=short --durations=10 -n auto --dist loadscope
           ${{ inputs.test_tier == 'smoke' && '-m "physics and smoke and not slow"' ||
               inputs.test_tier == 'core' && '-m "physics and (smoke or core) and not slow"' ||
               inputs.test_tier == 'cfg' && '-m "physics and (smoke or cfg) and not slow"' ||

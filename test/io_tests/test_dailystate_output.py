@@ -17,18 +17,15 @@ pytestmark = pytest.mark.physics
 class TestDailyStateOutput:
     """Test suite for DailyState output handling."""
 
-    def test_dailystate_no_resampling(self):
+    def test_dailystate_no_resampling(self, sample_data_loaded, sample_run_cached):
         """Test that DailyState output is not resampled and preserves daily values."""
-        # Load sample data
-        df_state_init, df_forcing = sp.load_SampleData()
-
         # Run for multiple days to ensure we have DailyState data
-        df_forcing_multi_day = df_forcing.iloc[
-            : TIMESTEPS_PER_DAY * 3
-        ]  # 3 days of 5-min data
+        n_steps = TIMESTEPS_PER_DAY * 3  # 3 days of 5-min data
+        _, df_forcing = sample_data_loaded
+        df_forcing_multi_day = df_forcing.iloc[:n_steps]
 
         # Run simulation
-        df_output, df_state_final = sp.run_supy(df_forcing_multi_day, df_state_init)
+        df_output, df_state_final = sample_run_cached(n_steps)
 
         # Check DailyState exists in output
         assert "DailyState" in df_output.columns.get_level_values("group").unique()
@@ -54,16 +51,10 @@ class TestDailyStateOutput:
             "DailyState should only have values at end of day"
         )
 
-    def test_dailystate_save_output(self):
+    def test_dailystate_save_output(self, sample_run_cached):
         """Test that DailyState data is correctly saved to file."""
-        # Load sample data
-        df_state_init, df_forcing = sp.load_SampleData()
-
-        # Run for multiple days
-        df_forcing_multi_day = df_forcing.iloc[: TIMESTEPS_PER_DAY * 3]  # 3 days
-
-        # Run simulation
-        df_output, df_state_final = sp.run_supy(df_forcing_multi_day, df_state_init)
+        # Run for multiple days (3 days of 5-min data)
+        df_output, df_state_final = sample_run_cached(TIMESTEPS_PER_DAY * 3)
 
         # Save output with default settings (should include DailyState)
         with tempfile.TemporaryDirectory() as dir_temp:
@@ -101,16 +92,10 @@ class TestDailyStateOutput:
                     f"Missing days in output. Got DOYs: {list(doy_values)}, expected: {expected_doys}"
                 )
 
-    def test_dailystate_different_output_frequencies(self):
+    def test_dailystate_different_output_frequencies(self, sample_run_cached):
         """Test DailyState output with different resampling frequencies."""
-        # Load sample data
-        df_state_init, df_forcing = sp.load_SampleData()
-
-        # Run for multiple days
-        df_forcing_multi_day = df_forcing.iloc[: TIMESTEPS_PER_DAY * 2]  # 2 days
-
-        # Run simulation
-        df_output, df_state_final = sp.run_supy(df_forcing_multi_day, df_state_init)
+        # Run for multiple days (2 days of 5-min data)
+        df_output, df_state_final = sample_run_cached(TIMESTEPS_PER_DAY * 2)
 
         # Test with different output frequencies
         for freq_s in [300, 1800, 3600]:  # 5min, 30min, 60min
@@ -127,12 +112,9 @@ class TestDailyStateOutput:
                 df_ds = pd.read_csv(dailystate_files[0], sep="\t")
                 assert len(df_ds) > 0, f"DailyState should have data at freq={freq_s}"
 
-    def test_dailystate_only_output_config_saves_file(self):
+    def test_dailystate_only_output_config_saves_file(self, sample_run_cached):
         """Test that requesting only DailyState writes a populated output file."""
-        df_state_init, df_forcing = sp.load_SampleData()
-        df_forcing_one_day = df_forcing.iloc[:TIMESTEPS_PER_DAY]
-
-        df_output, df_state_final = sp.run_supy(df_forcing_one_day, df_state_init)
+        df_output, df_state_final = sample_run_cached(TIMESTEPS_PER_DAY)
 
         with tempfile.TemporaryDirectory() as dir_temp:
             list_files = sp.save_supy(

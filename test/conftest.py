@@ -453,6 +453,10 @@ def sample_run_cached(sample_data_loaded):
     - ``df_state_init`` is copied before being passed into ``run_supy``,
       since the run may mutate it.
     - Identical windows share one run across the whole session.
+    - CAVEAT: the cache key is ``n_steps`` ONLY - any other run parameter
+      (extra ``run_supy`` kwargs such as ``debug_mode``, or a mutated
+      ``df_state_init``) is invisible to the cache, so a test that varies
+      one of those must NOT go through this factory.
     - Use this only when a test consumes the OUTPUT of a run and does not
       itself test the act of running (deprecation warnings, kwargs like
       ``debug_mode``, multi-grid state, checkpoint continuation, ...).

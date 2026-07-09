@@ -57,9 +57,9 @@ runs:
         python3 get_ver_git.py
         echo "Generated version: $(cat src/supy/_version_scm.py | grep __version__)"
 
-    - name: Prepare Rust cache directories
+    - name: Prepare cache directories
       shell: bash
-      run: mkdir -p .cargo-cache .rust-target-cache
+      run: mkdir -p .cargo-cache .rust-target-cache .pip-cache
 
     - name: Cache Rust/Cargo dependencies
       uses: actions/cache@668228422ae6a00e4ad889ee87cd7109ec5666a7 # v5
@@ -71,6 +71,27 @@ runs:
         restore-keys: |
           cargo-${{ inputs.buildplat_name }}-${{ inputs.buildplat_arch }}-${{ inputs.python }}-
 
+    - name: Cache pip downloads
+      uses: actions/cache@668228422ae6a00e4ad889ee87cd7109ec5666a7 # v5
+      with:
+        path: .pip-cache
+        key: pip-${{ inputs.buildplat_name }}-${{ inputs.buildplat_arch }}-${{ hashFiles('pyproject.toml') }}
+        restore-keys: |
+          pip-${{ inputs.buildplat_name }}-${{ inputs.buildplat_arch }}-
+
+    - name: Cache MSYS2 pacman packages (Windows)
+      if: runner.os == 'Windows'
+      uses: actions/cache@668228422ae6a00e4ad889ee87cd7109ec5666a7 # v5
+      with:
+        path: C:\msys64\var\cache\pacman\pkg
+        # No hashFiles source exists for pacman package state, so the key
+        # uses a coarse manual epoch instead of a content hash. Bump the
+        # `msys2-cache-v1` literal below to force-invalidate this cache
+        # (e.g. if it becomes stale or corrupt).
+        key: msys2-pkg-${{ runner.os }}-msys2-cache-v1
+        restore-keys: |
+          msys2-pkg-${{ runner.os }}-
+
     - name: Build wheels
       uses: pypa/cibuildwheel@9c00cb4f6b517705a3794b22395aedc36257242c # v3.2
       env:
@@ -78,13 +99,15 @@ runs:
         CIBW_BUILD: ${{ inputs.python }}-${{ inputs.buildplat_name }}*
         CIBW_ARCHS: ${{ inputs.buildplat_arch }}
         # Mount host cache directories into the Linux Docker container so that
-        # cargo artifacts survive container teardown and can be saved by actions/cache.
+        # cargo artifacts and pip downloads survive container teardown and can
+        # be saved by actions/cache.
         # cibuildwheel uses `docker cp` (not bind mount) for the project, so without
         # explicit volume mounts the compiled deps are lost when the container exits.
         CIBW_CONTAINER_ENGINE: >-
           docker; create_args:
           --volume ${{ github.workspace }}/.cargo-cache:/cargo-cache
           --volume ${{ github.workspace }}/.rust-target-cache:/rust-target-cache
+          --volume ${{ github.workspace }}/.pip-cache:/pip-cache
         # CIBW_ENABLE: ${{ inputs.python == 'cp314' && 'cp314' || '' }}
         CIBW_ENVIRONMENT_PASS_LINUX: RUNNER_OS
         # Use manylinux_2_28 for Python 3.13+ (newer dependencies require it), manylinux2014 for 3.12 (older Linux compatibility)
@@ -97,17 +120,19 @@ runs:
         CIBW_ENVIRONMENT: >
           PIP_ONLY_BINARY=:all:
           PIP_PREFER_BINARY=1
+          PIP_CACHE_DIR=${{ github.workspace }}/.pip-cache
           CARGO_HOME=${{ github.workspace }}/.cargo-cache
           CARGO_TARGET_DIR=${{ github.workspace }}/.rust-target-cache
           SUEWS_KNOWLEDGE_GIT_SHA=${{ github.sha }}
         # Platform-specific: Linux Fortran compiler and Rust toolchain settings
         # NOTE: CIBW_ENVIRONMENT_{PLATFORM} replaces (not merges with) CIBW_ENVIRONMENT,
-        # so PIP_PREFER_BINARY must be repeated here.
+        # so PIP_PREFER_BINARY and PIP_CACHE_DIR must be repeated here.
         CIBW_ENVIRONMENT_LINUX: >
           FCFLAGS="-fno-optimize-sibling-calls -ffree-line-length-none"
           F90=gfortran
           PIP_ONLY_BINARY=:all:
           PIP_PREFER_BINARY=1
+          PIP_CACHE_DIR=/pip-cache
           CARGO_HOME=/cargo-cache
           CARGO_TARGET_DIR=/rust-target-cache
           SUEWS_KNOWLEDGE_GIT_SHA=${{ github.sha }}
@@ -129,7 +154,8 @@ runs:
           C:\msys64\usr\bin\bash.exe -lc "for i in 1 2 3; do pacman -S --needed --noconfirm --disable-download-timeout mingw-w64-ucrt-x86_64-gcc mingw-w64-ucrt-x86_64-gcc-fortran mingw-w64-ucrt-x86_64-binutils mingw-w64-ucrt-x86_64-make mingw-w64-ucrt-x86_64-openblas && break || { echo Retry $i/3 && sleep 15; }; done"
         # Platform-specific: Windows compiler and toolchain settings
         # NOTE: CIBW_ENVIRONMENT_{PLATFORM} replaces (not merges with) CIBW_ENVIRONMENT,
-        # so CARGO_HOME/CARGO_TARGET_DIR and PIP_PREFER_BINARY must be repeated here.
+        # so CARGO_HOME/CARGO_TARGET_DIR, PIP_PREFER_BINARY, and PIP_CACHE_DIR
+        # must be repeated here.
         CIBW_ENVIRONMENT_WINDOWS: >
           PATH="C:\\msys64\\ucrt64\\bin;$PATH"
           CC=gcc
@@ -141,6 +167,7 @@ runs:
           LDFLAGS="-lucrt -static-libgcc -static-libgfortran -LC:/msys64/ucrt64/lib -lsetjmp_compat"
           PIP_ONLY_BINARY=:all:
           PIP_PREFER_BINARY=1
+          PIP_CACHE_DIR='${{ github.workspace }}/.pip-cache'
           CARGO_HOME='${{ github.workspace }}/.cargo-cache'
           CARGO_TARGET_DIR='${{ github.workspace }}/.rust-target-cache'
           SUEWS_KNOWLEDGE_GIT_SHA='${{ github.sha }}'
@@ -162,7 +189,7 @@ runs:
           gcc --version &&
           pip install delvewheel
         CIBW_REPAIR_WHEEL_COMMAND_WINDOWS: "delvewheel repair -w {dest_dir} {wheel}"
-        CIBW_TEST_REQUIRES: pytest
+        CIBW_TEST_REQUIRES: pytest pytest-xdist
         # Test tiers: choose subset based on path detection and trigger.
         # gh#1300: physics tests are binary-determined, so one run per
         # (OS, arch) on the build Python is sufficient. API tests (Python
@@ -174,7 +201,7 @@ runs:
         # which breaks on Windows cmd.exe with quoted marker expressions.
         CIBW_TEST_COMMAND: >-
           python {project}/scripts/suews/run_ci_tests.py {project}
-          -v --tb=short --durations=10
+          -v --tb=short --durations=10 -n auto --dist loadscope
           ${{ inputs.test_tier == 'smoke' && '-m "physics and smoke and not slow"' ||
               inputs.test_tier == 'core' && '-m "physics and (smoke or core) and not slow"' ||
               inputs.test_tier == 'cfg' && '-m "physics and (smoke or cfg) and not slow"' ||

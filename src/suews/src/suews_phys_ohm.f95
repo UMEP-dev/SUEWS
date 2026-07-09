@@ -220,7 +220,9 @@ CONTAINS
                                a1_bldg, a2_bldg, a3_bldg & ! Output
                                )
                IF (.NOT. dyohm_building_only) THEN
-                  !test: using dyOHM for other surface types, assume WS=0 at ground level, lambda_c=1
+                  ! Fully coupled DyOHM modes update dynamic coefficients for
+                  ! non-building surfaces. DyOHM-building leaves them as ordinary OHM.
+                  ! For non-building surfaces, assume WS=0 at ground level and lambda_c=1.
                   CALL OHM_yl_cal(dt_since_start, &
                                   ws0, T_half_bldg_C, T_prev, qn_rav(1), & ! Input
                                   dz_surf(1, 1), cp_surf(1, 1), k_surf(1, 1), lambda_c1, &
@@ -297,95 +299,95 @@ CONTAINS
 
 
          IF (.NOT. dyohm_building_only) THEN
-         OHM_coef(1, 1, 1) = a1_paved
-         OHM_coef(1, 2, 1) = a1_paved
-         OHM_coef(1, 3, 1) = a1_paved
-         OHM_coef(1, 4, 1) = a1_paved
+            OHM_coef(1, 1, 1) = a1_paved
+            OHM_coef(1, 2, 1) = a1_paved
+            OHM_coef(1, 3, 1) = a1_paved
+            OHM_coef(1, 4, 1) = a1_paved
 
-         OHM_coef(1, 1, 2) = a2_paved
-         OHM_coef(1, 2, 2) = a2_paved
-         OHM_coef(1, 3, 2) = a2_paved
-         OHM_coef(1, 4, 2) = a2_paved
+            OHM_coef(1, 1, 2) = a2_paved
+            OHM_coef(1, 2, 2) = a2_paved
+            OHM_coef(1, 3, 2) = a2_paved
+            OHM_coef(1, 4, 2) = a2_paved
 
-         OHM_coef(1, 1, 3) = a3_paved
-         OHM_coef(1, 2, 3) = a3_paved
-         OHM_coef(1, 3, 3) = a3_paved
-         OHM_coef(1, 4, 3) = a3_paved
+            OHM_coef(1, 1, 3) = a3_paved
+            OHM_coef(1, 2, 3) = a3_paved
+            OHM_coef(1, 3, 3) = a3_paved
+            OHM_coef(1, 4, 3) = a3_paved
 
-         OHM_coef(3, 1, 1) = a1_evetr
-         OHM_coef(3, 2, 1) = a1_evetr
-         OHM_coef(3, 3, 1) = a1_evetr
-         OHM_coef(3, 4, 1) = a1_evetr
+            OHM_coef(3, 1, 1) = a1_evetr
+            OHM_coef(3, 2, 1) = a1_evetr
+            OHM_coef(3, 3, 1) = a1_evetr
+            OHM_coef(3, 4, 1) = a1_evetr
 
-         OHM_coef(3, 1, 2) = a2_evetr
-         OHM_coef(3, 2, 2) = a2_evetr
-         OHM_coef(3, 3, 2) = a2_evetr
-         OHM_coef(3, 4, 2) = a2_evetr
+            OHM_coef(3, 1, 2) = a2_evetr
+            OHM_coef(3, 2, 2) = a2_evetr
+            OHM_coef(3, 3, 2) = a2_evetr
+            OHM_coef(3, 4, 2) = a2_evetr
 
-         OHM_coef(3, 1, 3) = a3_evetr
-         OHM_coef(3, 2, 3) = a3_evetr
-         OHM_coef(3, 3, 3) = a3_evetr
-         OHM_coef(3, 4, 3) = a3_evetr   
+            OHM_coef(3, 1, 3) = a3_evetr
+            OHM_coef(3, 2, 3) = a3_evetr
+            OHM_coef(3, 3, 3) = a3_evetr
+            OHM_coef(3, 4, 3) = a3_evetr
 
-         OHM_coef(4, 1, 1) = a1_dectr
-         OHM_coef(4, 2, 1) = a1_dectr
-         OHM_coef(4, 3, 1) = a1_dectr
-         OHM_coef(4, 4, 1) = a1_dectr
+            OHM_coef(4, 1, 1) = a1_dectr
+            OHM_coef(4, 2, 1) = a1_dectr
+            OHM_coef(4, 3, 1) = a1_dectr
+            OHM_coef(4, 4, 1) = a1_dectr
 
-         OHM_coef(4, 1, 2) = a2_dectr
-         OHM_coef(4, 2, 2) = a2_dectr
-         OHM_coef(4, 3, 2) = a2_dectr
-         OHM_coef(4, 4, 2) = a2_dectr
+            OHM_coef(4, 1, 2) = a2_dectr
+            OHM_coef(4, 2, 2) = a2_dectr
+            OHM_coef(4, 3, 2) = a2_dectr
+            OHM_coef(4, 4, 2) = a2_dectr
 
-         OHM_coef(4, 1, 3) = a3_dectr
-         OHM_coef(4, 2, 3) = a3_dectr
-         OHM_coef(4, 3, 3) = a3_dectr
-         OHM_coef(4, 4, 3) = a3_dectr  
+            OHM_coef(4, 1, 3) = a3_dectr
+            OHM_coef(4, 2, 3) = a3_dectr
+            OHM_coef(4, 3, 3) = a3_dectr
+            OHM_coef(4, 4, 3) = a3_dectr
 
-         OHM_coef(5, 1, 1) = a1_grass
-         OHM_coef(5, 2, 1) = a1_grass
-         OHM_coef(5, 3, 1) = a1_grass
-         OHM_coef(5, 4, 1) = a1_grass
+            OHM_coef(5, 1, 1) = a1_grass
+            OHM_coef(5, 2, 1) = a1_grass
+            OHM_coef(5, 3, 1) = a1_grass
+            OHM_coef(5, 4, 1) = a1_grass
 
-         OHM_coef(5, 1, 2) = a2_grass
-         OHM_coef(5, 2, 2) = a2_grass
-         OHM_coef(5, 3, 2) = a2_grass
-         OHM_coef(5, 4, 2) = a2_grass
+            OHM_coef(5, 1, 2) = a2_grass
+            OHM_coef(5, 2, 2) = a2_grass
+            OHM_coef(5, 3, 2) = a2_grass
+            OHM_coef(5, 4, 2) = a2_grass
 
-         OHM_coef(5, 1, 3) = a3_grass
-         OHM_coef(5, 2, 3) = a3_grass
-         OHM_coef(5, 3, 3) = a3_grass
-         OHM_coef(5, 4, 3) = a3_grass    
+            OHM_coef(5, 1, 3) = a3_grass
+            OHM_coef(5, 2, 3) = a3_grass
+            OHM_coef(5, 3, 3) = a3_grass
+            OHM_coef(5, 4, 3) = a3_grass
 
-         OHM_coef(6, 1, 1) = a1_bsoil
-         OHM_coef(6, 2, 1) = a1_bsoil
-         OHM_coef(6, 3, 1) = a1_bsoil
-         OHM_coef(6, 4, 1) = a1_bsoil
+            OHM_coef(6, 1, 1) = a1_bsoil
+            OHM_coef(6, 2, 1) = a1_bsoil
+            OHM_coef(6, 3, 1) = a1_bsoil
+            OHM_coef(6, 4, 1) = a1_bsoil
 
-         OHM_coef(6, 1, 2) = a2_bsoil
-         OHM_coef(6, 2, 2) = a2_bsoil
-         OHM_coef(6, 3, 2) = a2_bsoil
-         OHM_coef(6, 4, 2) = a2_bsoil
+            OHM_coef(6, 1, 2) = a2_bsoil
+            OHM_coef(6, 2, 2) = a2_bsoil
+            OHM_coef(6, 3, 2) = a2_bsoil
+            OHM_coef(6, 4, 2) = a2_bsoil
 
-         OHM_coef(6, 1, 3) = a3_bsoil
-         OHM_coef(6, 2, 3) = a3_bsoil
-         OHM_coef(6, 3, 3) = a3_bsoil
-         OHM_coef(6, 4, 3) = a3_bsoil    
+            OHM_coef(6, 1, 3) = a3_bsoil
+            OHM_coef(6, 2, 3) = a3_bsoil
+            OHM_coef(6, 3, 3) = a3_bsoil
+            OHM_coef(6, 4, 3) = a3_bsoil
 
-         OHM_coef(7, 1, 1) = a1_water
-         OHM_coef(7, 2, 1) = a1_water
-         OHM_coef(7, 3, 1) = a1_water
-         OHM_coef(7, 4, 1) = a1_water
+            OHM_coef(7, 1, 1) = a1_water
+            OHM_coef(7, 2, 1) = a1_water
+            OHM_coef(7, 3, 1) = a1_water
+            OHM_coef(7, 4, 1) = a1_water
 
-         OHM_coef(7, 1, 2) = a2_water
-         OHM_coef(7, 2, 2) = a2_water
-         OHM_coef(7, 3, 2) = a2_water
-         OHM_coef(7, 4, 2) = a2_water
+            OHM_coef(7, 1, 2) = a2_water
+            OHM_coef(7, 2, 2) = a2_water
+            OHM_coef(7, 3, 2) = a2_water
+            OHM_coef(7, 4, 2) = a2_water
 
-         OHM_coef(7, 1, 3) = a3_water
-         OHM_coef(7, 2, 3) = a3_water
-         OHM_coef(7, 3, 3) = a3_water
-         OHM_coef(7, 4, 3) = a3_water
+            OHM_coef(7, 1, 3) = a3_water
+            OHM_coef(7, 2, 3) = a3_water
+            OHM_coef(7, 3, 3) = a3_water
+            OHM_coef(7, 4, 3) = a3_water
          END IF
 
       END IF

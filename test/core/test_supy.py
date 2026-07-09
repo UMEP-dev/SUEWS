@@ -29,9 +29,6 @@ test_data_dir = Path(__file__).parent.parent / "fixtures" / "data_test"
 
 # Note: sample_output.pkl testing has been moved to test_sample_output.py
 
-# Enable all tests on all platforms and Python versions
-flag_full_test = True
-
 # Note: Sample data loading moved to individual test methods to avoid test interference
 # This prevents caching issues when tests run in sequence
 
@@ -326,44 +323,6 @@ class TestSuPy(TestCase):
 
         print("Version tracking works correctly through checkpoint save/load/run cycle")
 
-    # # test if single-tstep and multi-tstep modes can produce the same SUEWS results
-    # @skipUnless(flag_full_test, "Full test is not required.")
-    # def test_is_supy_euqal_mode(self):
-    #     print("\n========================================")
-    #     print("Testing if single-tstep and multi-tstep modes can produce the same SUEWS results...")
-    #     df_state_init, df_forcing_tstep = sp.load_SampleData()
-    #     df_forcing_part = df_forcing_tstep.iloc[: 12*8]
-
-    # # single-step results
-    # df_output_s, df_state_s = sp.run_supy(
-    #     df_forcing_part, df_state_init, save_state=True
-    # )
-    # df_res_s = (
-    #     df_output_s.loc[:, list_grp_test]
-    #     .fillna(-999.0)
-    #     .sort_index(axis=1)
-    #     .round(6)
-    #     .applymap(lambda x: -999.0 if np.abs(x) > 3e4 else x)
-    # )
-
-    # df_state_init, df_forcing_tstep = sp.load_SampleData()
-    # # multi-step results
-    # df_output_m, df_state_m = sp.run_supy(
-    #     df_forcing_part, df_state_init, save_state=False
-    # )
-    # df_res_m = (
-    #     df_output_m.loc[:, list_grp_test]
-    #     .fillna(-999.0)
-    #     .sort_index(axis=1)
-    #     .round(6)
-    #     .applymap(lambda x: -999.0 if np.abs(x) > 3e4 else x)
-    # )
-    # # print(df_res_m.iloc[:3, 86], df_res_s.iloc[:3, 86])
-    # pd.testing.assert_frame_equal(
-    #     left=df_res_s,
-    #     right=df_res_m,
-    # )
-
     # test saving output files working
     def test_is_supy_save_working(self):
         print("\n========================================")
@@ -396,33 +355,6 @@ class TestSuPy(TestCase):
             print(f"Running time: {t_end - t_start:.2f} s for {n_grid} grids")
             sys.stdout = sys.__stdout__
             print("Captured:\n", capturedOutput.getvalue())
-
-    # TODO: disable this test for now - need to recover in the future
-    # # test saving output files working
-    # @skipUnless(flag_full_test, "Full test is not required.")
-    # def test_is_checking_complete(self):
-    #     print("\n========================================")
-    #     print("Testing if checking-complete is working...")
-    #     df_state_init, df_forcing_tstep = sp.load_SampleData()
-    #     dict_rules = sp._check.dict_rules_indiv
-
-    #     # variables in loaded dataframe
-    #     set_var_df_init = set(df_state_init.columns.get_level_values("var"))
-
-    #     # variables in dict_rules
-    #     set_var_dict_rules = set(list(dict_rules.keys()))
-
-    #     # common variables
-    #     set_var_common = set_var_df_init.intersection(set_var_dict_rules)
-
-    #     # test if common variables are all those in `df_state_init`
-    #     test_common_all = set_var_df_init == set_var_common
-    #     if not test_common_all:
-    #         print("Variables not in `dict_rules` but in `df_state_init`:")
-    #         print(set_var_df_init.difference(set_var_common))
-    #         print("Variables not in `df_state_init` but in `dict_rules`:")
-    #         print(set_var_common.difference(set_var_df_init))
-    #     self.assertTrue(test_common_all)
 
     # test ERA5 forcing generation
     def test_gen_forcing(self):
@@ -492,20 +424,18 @@ class TestSuPy(TestCase):
         print("\n========================================")
         print("Testing if dailystate are written out correctly...")
 
-        # Create simulation with sample data
-        sim = SUEWSSimulation.from_sample_data()
-
-        # Run for 10 days
+        # Run for 10 days via the shared cached functional-API run (verified
+        # equivalent to SUEWSSimulation.from_sample_data().run() for this
+        # window - see task-4-report.md).
         n_days = 10
-        end_index = TIMESTEPS_PER_DAY * n_days - 1  # 0-indexed
-        results = sim.run(end_date=sim.forcing.index[end_index])
+        df_output, df_state_final = self._sample_run(TIMESTEPS_PER_DAY * n_days)
 
         # Check that DailyState exists in output
-        groups = results.columns.get_level_values("group").unique()
+        groups = df_output.columns.get_level_values("group").unique()
         self.assertIn("DailyState", groups, "DailyState should be in output groups")
 
         # Use xs() for robust MultiIndex column access across platforms
-        df_dailystate = results.xs("DailyState", level="group", axis=1)
+        df_dailystate = df_output.xs("DailyState", level="group", axis=1)
 
         # More robust check: Count rows that have at least one non-NaN value
         # This avoids issues with dropna() behavior across pandas versions
@@ -550,22 +480,21 @@ class TestSuPy(TestCase):
         print("\n========================================")
         print("Testing if water balance is closed...")
 
-        # Create simulation with sample data
-        sim = SUEWSSimulation.from_sample_data()
-
-        # Run for 100 days
+        # Run for 100 days via the shared cached functional-API run (verified
+        # equivalent to SUEWSSimulation.from_sample_data().run() for this
+        # window - see task-4-report.md).
         n_days = 100
-        end_index = TIMESTEPS_PER_DAY * n_days - 1  # 0-indexed
-        results = sim.run(end_date=sim.forcing.index[end_index])
+        df_output, df_state_final = self._sample_run(TIMESTEPS_PER_DAY * n_days)
 
         # Get soilstore from debug output
-        df_soilstore = results.loc[1, "debug"].filter(regex="^ss_.*_next$")
-        ser_sfr_surf = sim._df_state_init.sfr_surf.iloc[0]
+        df_soilstore = df_output.loc[1, "debug"].filter(regex="^ss_.*_next$")
+        df_state_init, _ = self._sample_data
+        ser_sfr_surf = df_state_init.sfr_surf.iloc[0]
         ser_soilstore = df_soilstore.dot(ser_sfr_surf.values)
 
         # Get water balance
-        df_water = results.SUEWS[["Rain", "Irr", "Evap", "RO", "State"]].assign(
-            SoilStore=ser_soilstore, TotalStore=ser_soilstore + results.SUEWS.State
+        df_water = df_output.SUEWS[["Rain", "Irr", "Evap", "RO", "State"]].assign(
+            SoilStore=ser_soilstore, TotalStore=ser_soilstore + df_output.SUEWS.State
         )
 
         # ===============================

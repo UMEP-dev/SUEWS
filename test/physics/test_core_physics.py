@@ -34,13 +34,25 @@ pytestmark = [pytest.mark.physics, pytest.mark.core]
 class TestPhysicalValidation(TestCase):
     """Test physical validity of SUEWS outputs."""
 
+    @pytest.fixture(autouse=True, scope="class")
     @classmethod
-    def setUpClass(cls):
-        """Run the shared weekly simulation once for all physical checks."""
-        cls.df_state_init, cls.df_forcing = sp.load_SampleData()
-        cls.df_forcing_week = cls.df_forcing.iloc[: TIMESTEPS_PER_DAY * 7]
-        cls.df_output, cls.df_state_final = sp.run_supy(
-            cls.df_forcing_week, cls.df_state_init
+    def _sample_fixtures(cls, request, sample_data_loaded, sample_run_cached):
+        """Bridge session-scoped sample fixtures onto this unittest.TestCase.
+
+        Runs the shared weekly window once via the cached functional-API
+        factory (``sample_run_cached``, see conftest.py) instead of calling
+        ``run_supy`` directly in ``setUpClass``.
+
+        ``@classmethod``: a class-scoped fixture runs once per class, not
+        once per test instance, so it must set attributes on ``cls`` rather
+        than being bound as an instance method (pytest deprecates the
+        instance-method form; see PytestRemovedIn10Warning).
+        """
+        df_state_init, df_forcing = sample_data_loaded
+        request.cls.df_state_init = df_state_init
+        request.cls.df_forcing_week = df_forcing.iloc[: TIMESTEPS_PER_DAY * 7].copy()
+        request.cls.df_output, request.cls.df_state_final = sample_run_cached(
+            TIMESTEPS_PER_DAY * 7
         )
 
     def test_physical_bounds(self):
@@ -406,6 +418,18 @@ class TestPhysicalValidation(TestCase):
 class TestNumericalStability(TestCase):
     """Test numerical stability under various conditions."""
 
+    @pytest.fixture(autouse=True, scope="class")
+    @classmethod
+    def _sample_fixtures(cls, request, sample_data_loaded):
+        """Bridge the shared sample-data load onto this unittest.TestCase.
+
+        These tests mutate forcing (zero/extreme conditions) and must run
+        their own ``run_supy`` call per scenario, so only the read-only
+        ``(df_state_init, df_forcing)`` load is shared via
+        ``sample_data_loaded`` - not the cached run factory (see conftest.py).
+        """
+        request.cls._sample_data = sample_data_loaded
+
     def test_zero_forcing_stability(self):
         """
         Test model stability with zero/minimal forcing.
@@ -422,8 +446,8 @@ class TestNumericalStability(TestCase):
 
         This tests numerical stability and proper initialization.
         """
-        # Create minimal forcing
-        df_state_init, df_forcing = sp.load_SampleData()
+        # Shared sample data (session-scoped); copy since we mutate below.
+        df_state_init, df_forcing = self._sample_data
 
         # Create zero forcing (except mandatory fields)
         df_zero = df_forcing.iloc[:TIMESTEPS_PER_DAY].copy()  # One day
@@ -446,7 +470,7 @@ class TestNumericalStability(TestCase):
 
         # Model should run without crashing
         try:
-            df_output, df_state = sp.run_supy(df_zero, df_state_init)
+            df_output, df_state = sp.run_supy(df_zero, df_state_init.copy())
             success = True
         except Exception as e:
             success = False
@@ -493,7 +517,8 @@ class TestNumericalStability(TestCase):
         This ensures the model can handle diverse climates without
         special case handling or artificial limits.
         """
-        df_state_init, df_forcing = sp.load_SampleData()
+        # Shared sample data (session-scoped); copy since we mutate below.
+        df_state_init, df_forcing = self._sample_data
 
         # Test hot conditions
         df_hot = df_forcing.iloc[:TIMESTEPS_PER_DAY].copy()
@@ -501,7 +526,7 @@ class TestNumericalStability(TestCase):
         df_hot["RH"] = 20  # Low humidity
 
         try:
-            df_out_hot, _ = sp.run_supy(df_hot, df_state_init)
+            df_out_hot, _ = sp.run_supy(df_hot, df_state_init.copy())
             hot_success = True
         except:
             hot_success = False
@@ -514,7 +539,7 @@ class TestNumericalStability(TestCase):
         df_cold["RH"] = 80  # High humidity
 
         try:
-            df_out_cold, _ = sp.run_supy(df_cold, df_state_init)
+            df_out_cold, _ = sp.run_supy(df_cold, df_state_init.copy())
             cold_success = True
         except:
             cold_success = False

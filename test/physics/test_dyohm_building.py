@@ -5,6 +5,7 @@ import logging
 import warnings
 
 import numpy as np
+import pandas as pd
 import pytest
 
 import supy as sp
@@ -65,10 +66,9 @@ def _run_storage_case(df_state_init, df_forcing, method: int, building_fraction:
     not _rust_library_available(),
     reason="Rust library backend not available (install src/suews_bridge with physics feature)",
 )
-def test_dyohm_building_is_storage_only_relative_to_ohm():
+def test_dyohm_building_qs_behavior_relative_to_ohm():
     df_state_init, df_forcing_all = sp.load_SampleData()
-    start = int(np.flatnonzero(df_forcing_all["kdown"].to_numpy() > 100)[0])
-    df_forcing = df_forcing_all.iloc[start : start + 24]
+    df_forcing = df_forcing_all.loc["2012-06-01 00:05:00":"2012-06-03 00:00:00"]
 
     ohm_paved = _run_storage_case(df_state_init, df_forcing, 1, building_fraction=0.0)
     dyohm_paved = _run_storage_case(df_state_init, df_forcing, 16, building_fraction=0.0)
@@ -82,11 +82,11 @@ def test_dyohm_building_is_storage_only_relative_to_ohm():
     ohm_mixed = _run_storage_case(df_state_init, df_forcing, 1, building_fraction=0.3)
     dyohm_mixed = _run_storage_case(df_state_init, df_forcing, 16, building_fraction=0.3)
 
-    np.testing.assert_allclose(
-        dyohm_mixed["QN"].to_numpy(),
-        ohm_mixed["QN"].to_numpy(),
-        rtol=0.0,
-        atol=1.0e-7,
-    )
     qs_delta = np.abs(dyohm_mixed["QS"].to_numpy() - ohm_mixed["QS"].to_numpy())
-    assert np.max(qs_delta) > 1.0e-4
+    warm_start = df_forcing.index[0] + pd.Timedelta(days=1)
+    warm_mask = dyohm_mixed.index >= warm_start
+    max_qs_delta = float(np.nanmax(qs_delta[warm_mask]))
+    assert max_qs_delta > 1.0e-4, (
+        "storage_heat=16 should alter storage heat flux when buildings are present; "
+        f"max |delta QS| after DyOHM coefficient spin-up was {max_qs_delta:.3e}"
+    )

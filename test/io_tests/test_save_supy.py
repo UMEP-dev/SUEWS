@@ -1,11 +1,8 @@
 """Test save_supy functionality with various output configurations."""
 
 import pytest
-import pandas as pd
-import numpy as np
 from pathlib import Path
 import tempfile
-import shutil
 import supy as sp
 from supy._supy_module import _save_supy
 from supy.data_model.core import SUEWSConfig
@@ -17,21 +14,6 @@ pytestmark = pytest.mark.api
 
 class TestSaveSuPy:
     """Test saving functionality of SuPy outputs."""
-
-    @pytest.fixture(scope="class")
-    def sample_output(self):
-        """Create sample output data for testing.
-
-        Class-scoped: the short simulation runs once and the read-only
-        ``(df_output, df_state_final)`` tuple is shared across every test
-        in the class (each test writes to its own ``TemporaryDirectory``).
-        """
-        # Load sample data and run a short simulation
-        df_state_init, df_forcing = sp.load_sample_data()
-        # Use just 3 days for faster tests
-        df_forcing_subset = df_forcing[: 24 * 3]
-        df_output, df_state_final = sp.run_supy(df_forcing_subset, df_state_init)
-        return df_output, df_state_final
 
     def test_save_default_groups(self, sample_output):
         """Test that default saving includes SUEWS and DailyState groups."""

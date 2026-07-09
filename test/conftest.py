@@ -2,8 +2,10 @@
 
 import subprocess
 import sys
+import tempfile
 import warnings
 from pathlib import Path
+from types import SimpleNamespace
 
 # Make the standalone suews_mcp package importable when it is not pip-installed
 # (e.g. wheel CI installs only the supy wheel). Done at the root conftest rather
@@ -16,6 +18,7 @@ if _MCP_SRC.is_dir() and str(_MCP_SRC) not in sys.path:
     sys.path.insert(0, str(_MCP_SRC))
 
 import pytest
+import pandas as pd
 import supy
 from click.testing import CliRunner
 
@@ -56,6 +59,89 @@ except ImportError:
 
 # Named constants for test clarity
 TIMESTEPS_PER_DAY = 288  # 24*60/5 = 288 five-minute intervals
+SAMPLE_OUTPUT_DAYS = 2
+SAMPLE_OUTPUT_FORCING_ROWS = TIMESTEPS_PER_DAY * SAMPLE_OUTPUT_DAYS
+
+_SAMPLE_RUN_TEMP_DIR = None
+_SAMPLE_RUN_ARTIFACT_DIR = None
+
+
+def _write_sample_run_artifact(artifact_dir):
+    df_state_init, df_forcing = supy.load_sample_data()
+    df_output, df_state_final = supy.run_supy(
+        df_forcing.iloc[:SAMPLE_OUTPUT_FORCING_ROWS],
+        df_state_init,
+        check_input=False,
+    )
+
+    frames = {
+        "df_state_init": df_state_init,
+        "df_forcing": df_forcing,
+        "df_output": df_output,
+        "df_state_final": df_state_final,
+    }
+    for name, frame in frames.items():
+        frame.to_pickle(artifact_dir / f"{name}.pkl")
+
+
+def _get_sample_run_artifact(artifact_dir=None):
+    """Return the per-process transient sample-run artefact directory."""
+    global _SAMPLE_RUN_ARTIFACT_DIR, _SAMPLE_RUN_TEMP_DIR
+
+    if _SAMPLE_RUN_ARTIFACT_DIR is not None:
+        return _SAMPLE_RUN_ARTIFACT_DIR
+
+    if artifact_dir is None:
+        _SAMPLE_RUN_TEMP_DIR = tempfile.TemporaryDirectory(prefix="suews-sample-run-")
+        artifact_dir = Path(_SAMPLE_RUN_TEMP_DIR.name)
+
+    _write_sample_run_artifact(artifact_dir)
+    _SAMPLE_RUN_ARTIFACT_DIR = artifact_dir
+    return artifact_dir
+
+
+def load_sample_run():
+    """Return isolated copies of the shared sample run artefacts."""
+    artifact_dir = _get_sample_run_artifact()
+
+    def load_frame(name):
+        return pd.read_pickle(artifact_dir / f"{name}.pkl").copy(deep=True)
+
+    return SimpleNamespace(
+        df_state_init=load_frame("df_state_init"),
+        df_forcing=load_frame("df_forcing"),
+        df_output=load_frame("df_output"),
+        df_state_final=load_frame("df_state_final"),
+    )
+
+
+def load_sample_output():
+    """Return isolated copies of the shared sample output and final state."""
+    artifact_dir = _get_sample_run_artifact()
+    return (
+        pd.read_pickle(artifact_dir / "df_output.pkl").copy(deep=True),
+        pd.read_pickle(artifact_dir / "df_state_final.pkl").copy(deep=True),
+    )
+
+
+@pytest.fixture(scope="session")
+def sample_run_artifact(tmp_path_factory):
+    """Run the bundled sample once and persist transient outputs for reuse."""
+    if _SAMPLE_RUN_ARTIFACT_DIR is not None:
+        return _SAMPLE_RUN_ARTIFACT_DIR
+    return _get_sample_run_artifact(tmp_path_factory.mktemp("sample-run"))
+
+
+@pytest.fixture
+def sample_run(sample_run_artifact):
+    """Return isolated copies of the shared sample run artefacts."""
+    return load_sample_run()
+
+
+@pytest.fixture
+def sample_output(sample_run_artifact):
+    """Return the shared sample output and final state as isolated copies."""
+    return load_sample_output()
 
 
 @pytest.fixture

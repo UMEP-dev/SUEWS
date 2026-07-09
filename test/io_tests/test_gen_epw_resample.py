@@ -1,11 +1,9 @@
 """Test gen_epw with resampling functionality (GitHub issue #150)."""
 
-import numpy as np
 import pandas as pd
 import pytest
 
 import supy as sp
-from conftest import TIMESTEPS_PER_DAY
 
 pytestmark = pytest.mark.api
 
@@ -22,13 +20,12 @@ def pvlib_available():
 class TestGenEpwResample:
     """Tests for gen_epw with frequency parameter and resample_output exposure."""
 
-    def test_resample_output_in_util(self):
+    def test_resample_output_in_util(self, sample_output):
         """Test that resample_output is accessible via supy.util."""
         assert hasattr(sp.util, "resample_output")
 
         # Test it works with actual data
-        df_state_init, df_forcing = sp.load_SampleData()
-        df_output, _ = sp.run_supy(df_forcing.iloc[:48], df_state_init)
+        df_output, _ = sample_output
 
         df_hourly = sp.util.resample_output(df_output, freq="h")
 
@@ -39,10 +36,9 @@ class TestGenEpwResample:
         assert isinstance(df_hourly.index, pd.MultiIndex)
         assert "grid" in df_hourly.index.names
 
-    def test_resample_output_frequency_aliases(self):
+    def test_resample_output_frequency_aliases(self, sample_output):
         """Test that different frequency aliases work correctly."""
-        df_state_init, df_forcing = sp.load_SampleData()
-        df_output, _ = sp.run_supy(df_forcing.iloc[:144], df_state_init)  # 12 hours
+        df_output, _ = sample_output
 
         # Test various frequency aliases
         for freq in ["30min", "60min", "h", "1h"]:
@@ -54,12 +50,9 @@ class TestGenEpwResample:
         df_hourly = sp.util.resample_output(df_output, freq="h")
         assert len(df_hourly) < len(df_30min)
 
-    def test_resample_aggregation_methods(self):
+    def test_resample_aggregation_methods(self, sample_output):
         """Test that aggregation methods are applied correctly."""
-        df_state_init, df_forcing = sp.load_SampleData()
-        df_output, _ = sp.run_supy(
-            df_forcing.iloc[:TIMESTEPS_PER_DAY], df_state_init
-        )  # 1 day
+        df_output, _ = sample_output
 
         df_hourly = sp.util.resample_output(df_output, freq="h")
 
@@ -80,41 +73,37 @@ class TestGenEpwMultiIndexInput:
     """Tests for gen_epw handling MultiIndex input directly."""
 
     @pytest.fixture
-    def sample_output(self):
-        """Create sample SUEWS output for testing."""
-        df_state_init, df_forcing = sp.load_SampleData()
-        # Use enough data for meaningful test but not too much
-        df_output, _ = sp.run_supy(
-            df_forcing.iloc[:TIMESTEPS_PER_DAY], df_state_init
-        )  # 1 day
+    def sample_df_output(self, sample_output):
+        """Return the shared sample SUEWS output for gen_epw tests."""
+        df_output, _ = sample_output
         return df_output
 
-    def test_gen_epw_accepts_multiindex(self, sample_output, tmp_path):
+    def test_gen_epw_accepts_multiindex(self, sample_df_output, tmp_path):
         """Test that gen_epw accepts MultiIndex input without freq."""
-        grid = sample_output.index.get_level_values("grid")[0]
+        grid = sample_df_output.index.get_level_values("grid")[0]
 
         df_epw, meta, path = sp.util.gen_epw(
-            sample_output.loc[grid, "SUEWS"],
+            sample_df_output.loc[grid, "SUEWS"],
             lat=51.5,
             lon=-0.1,
             path_epw=tmp_path / "test.epw",
         )
         assert isinstance(df_epw, pd.DataFrame)
 
-    def test_gen_epw_with_grid_extraction(self, sample_output, tmp_path):
+    def test_gen_epw_with_grid_extraction(self, sample_df_output, tmp_path):
         """Test that gen_epw extracts grid automatically from MultiIndex."""
         df_epw, meta, path = sp.util.gen_epw(
-            sample_output,
+            sample_df_output,
             lat=51.5,
             lon=-0.1,
             path_epw=tmp_path / "test_auto.epw",
         )
         assert isinstance(df_epw, pd.DataFrame)
 
-    def test_gen_epw_with_freq_param(self, sample_output, tmp_path):
+    def test_gen_epw_with_freq_param(self, sample_df_output, tmp_path):
         """Test that gen_epw accepts freq parameter for resampling."""
         df_epw, meta, path = sp.util.gen_epw(
-            sample_output,
+            sample_df_output,
             lat=51.5,
             lon=-0.1,
             freq="h",
@@ -122,12 +111,12 @@ class TestGenEpwMultiIndexInput:
         )
         assert isinstance(df_epw, pd.DataFrame)
 
-    def test_gen_epw_with_specific_grid(self, sample_output, tmp_path):
+    def test_gen_epw_with_specific_grid(self, sample_df_output, tmp_path):
         """Test that gen_epw accepts specific grid parameter."""
-        grid = sample_output.index.get_level_values("grid")[0]
+        grid = sample_df_output.index.get_level_values("grid")[0]
 
         df_epw, meta, path = sp.util.gen_epw(
-            sample_output,
+            sample_df_output,
             lat=51.5,
             lon=-0.1,
             grid=grid,
@@ -135,10 +124,10 @@ class TestGenEpwMultiIndexInput:
         )
         assert isinstance(df_epw, pd.DataFrame)
 
-    def test_gen_epw_freq_with_extracted_data(self, sample_output, tmp_path):
+    def test_gen_epw_freq_with_extracted_data(self, sample_df_output, tmp_path):
         """Test that freq works with pre-extracted single-grid data."""
-        grid = sample_output.index.get_level_values("grid")[0]
-        df_single = sample_output.loc[grid, "SUEWS"]
+        grid = sample_df_output.index.get_level_values("grid")[0]
+        df_single = sample_df_output.loc[grid, "SUEWS"]
 
         df_epw, meta, path = sp.util.gen_epw(
             df_single,

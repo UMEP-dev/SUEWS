@@ -19,19 +19,16 @@ class TestSaveSuPy:
     """Test saving functionality of SuPy outputs."""
 
     @pytest.fixture(scope="class")
-    def sample_output(self):
-        """Create sample output data for testing.
+    def sample_output(self, sample_run_cached):
+        """Sample output data for testing.
 
-        Class-scoped: the short simulation runs once and the read-only
-        ``(df_output, df_state_final)`` tuple is shared across every test
-        in the class (each test writes to its own ``TemporaryDirectory``).
+        72 steps (6 hours of the sample's 5-min forcing) for faster tests.
+        Class-scoped: one copy is retrieved once for the class and the
+        read-only ``(df_output, df_state_final)`` tuple is shared across
+        every test in the class (each test writes to its own
+        ``TemporaryDirectory``), backed by the shared session run cache.
         """
-        # Load sample data and run a short simulation
-        df_state_init, df_forcing = sp.load_sample_data()
-        # Use just 3 days for faster tests
-        df_forcing_subset = df_forcing[: 24 * 3]
-        df_output, df_state_final = sp.run_supy(df_forcing_subset, df_state_init)
-        return df_output, df_state_final
+        return sample_run_cached(24 * 3)
 
     def test_save_default_groups(self, sample_output):
         """Test that default saving includes SUEWS and DailyState groups."""

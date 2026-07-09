@@ -433,20 +433,21 @@ CONTAINS
          ! print*, 'old dqndt',dqndt
          ! Calculate net storage heat flux
          IF (dyohm_active) THEN !for dyOHM, dyOHM+STEBBS, or building-only dyOHM
-            !calculate dqndt_next for each surface (for dyOHM)
-            DO i_surf = 1, nsurf
-               CALL OHM_dqndt_cal_X(tstep, dt_since_start, qn_surf_prev(i_surf), qn1_surf(i_surf), dqndt_surf_prev(i_surf), &
-                                 qn_surf_next(i_surf), dqndt_surf_next(i_surf))   
-            End Do
             IF (dyohm_building_only) THEN
                ! Hybrid method: start from ordinary grid OHM, then replace
                ! only the building contribution with DyOHM storage heat.
+               qn_surf_next = qn_surf_prev
+               dqndt_surf_next = dqndt_surf_prev
                CALL OHM_dqndt_cal_X(tstep, dt_since_start, qn_av_prev, qn1, dqndt_prev, &
                                  qn_av_next, dqndt_next)
                CALL OHM_QS_cal(qn1, dqndt_next, a1, a2, a3, qs_ohm_grid)
                qs = qs_ohm_grid
                qs_surf = qs_ohm_grid
                IF (sfr_surf(BldgSurf) > 0.0D0) THEN
+                  CALL OHM_dqndt_cal_X(tstep, dt_since_start, &
+                                       qn_surf_prev(BldgSurf), qn1_surf(BldgSurf), &
+                                       dqndt_surf_prev(BldgSurf), &
+                                       qn_surf_next(BldgSurf), dqndt_surf_next(BldgSurf))
                   CALL OHM_coef_surface(BldgSurf, nsurf, &
                                         Tair_mav_5d, OHM_coef, OHM_threshSW, OHM_threshWD, &
                                         soilstore_id, SoilStoreCap, state_id, &
@@ -460,6 +461,11 @@ CONTAINS
                   qs_surf(BldgSurf) = qs_bldg_dyohm
                END IF
             ELSE
+               ! Calculate dqndt_next for each surface in full DyOHM modes.
+               DO i_surf = 1, nsurf
+                  CALL OHM_dqndt_cal_X(tstep, dt_since_start, qn_surf_prev(i_surf), qn1_surf(i_surf), dqndt_surf_prev(i_surf), &
+                                    qn_surf_next(i_surf), dqndt_surf_next(i_surf))
+               END DO
                CALL OHM_QS_cal(qn1_surf(1), dqndt_surf_next(1), a1_paved, a2_paved, a3_paved, qs_surf(1))
                CALL OHM_QS_cal(qn1_surf(2), dqndt_surf_next(2), a1_bldg, a2_bldg, a3_bldg, qs_surf(2))
                CALL OHM_QS_cal(qn1_surf(3), dqndt_surf_next(3), a1_evetr, a2_evetr, a3_evetr, qs_surf(3))

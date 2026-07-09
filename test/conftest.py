@@ -383,8 +383,12 @@ def pytest_collection_finish(session):
 # constructing and running their own `SUEWSSimulation` instance - do not
 # retrofit them onto these fixtures.
 #
-# All four fixtures are lazy (nothing runs at import or collection time) and
-# session-scoped, so the underlying sample run happens at most once per
+# `sample_run_cached` extends the same idea to the functional API
+# (`supy.run_supy`), memoising by forcing window rather than always the full
+# range - see its own docstring for the copy contract.
+#
+# All five fixtures are lazy (nothing runs at import or collection time) and
+# session-scoped, so each underlying sample run happens at most once per
 # `pytest` invocation, however many tests request it.
 
 
@@ -432,3 +436,37 @@ def sample_run_output(completed_sample_sim):
     Same READ-ONLY contract as ``completed_sample_sim``.
     """
     return completed_sample_sim.output
+
+
+@pytest.fixture(scope="session")
+def sample_run_cached(sample_data_loaded):
+    """Session-scoped factory memoising functional-API sample runs by window.
+
+    Returns a callable ``_run(n_steps=None)`` that runs
+    ``supy.run_supy(df_forcing.iloc[:n_steps], df_state_init)`` on the
+    bundled sample data (full range when ``n_steps`` is ``None``) and
+    computes it at most once per distinct window for the session.
+
+    CONTRACT:
+    - Every call returns ``.copy()`` of both ``(df_output, df_state_final)``
+      so no consumer can poison the cache by mutating what it gets back.
+    - ``df_state_init`` is copied before being passed into ``run_supy``,
+      since the run may mutate it.
+    - Identical windows share one run across the whole session.
+    - Use this only when a test consumes the OUTPUT of a run and does not
+      itself test the act of running (deprecation warnings, kwargs like
+      ``debug_mode``, multi-grid state, checkpoint continuation, ...).
+    """
+    df_state_init, df_forcing = sample_data_loaded
+    cache: dict = {}
+
+    def _run(n_steps=None):
+        if n_steps not in cache:
+            df_forcing_window = (
+                df_forcing if n_steps is None else df_forcing.iloc[:n_steps]
+            )
+            cache[n_steps] = supy.run_supy(df_forcing_window, df_state_init.copy())
+        df_output, df_state_final = cache[n_steps]
+        return df_output.copy(), df_state_final.copy()
+
+    return _run

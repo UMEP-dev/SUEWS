@@ -92,7 +92,7 @@ class TestResampleOutput:
         self, monkeypatch
     ):
         """A clear frequency mismatch should not scan the full index."""
-        from supy import _post
+        import supy._post as _post
         from supy._post import _index_freq_matches
 
         df_output = _regular_output_frame(freq="5min")

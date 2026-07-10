@@ -124,7 +124,7 @@ SCHEMA_VERSIONS: dict[str, str] = {
     ),
     "2026.6.dev2": (
         "Development schema adding storage_heat=dyohm_building "
-        "(StorageHeatMethod=16): DyOHM determines building storage heat flux "
+        "(StorageHeatMethod=8): DyOHM determines building storage heat flux "
         "only, ordinary OHM remains active for other land-cover surfaces, and "
         "the DyOHM surface-temperature feedback to radiation stays disabled "
         "for this method. Existing 2026.6.dev1 YAMLs remain compatible through "

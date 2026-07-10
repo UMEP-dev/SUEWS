@@ -50,7 +50,7 @@ PHYSICS_FAMILIES: dict[str, dict[str, frozenset[int]]] = {
         "ehc": frozenset({5}),
         "dyohm": frozenset({6}),
         "stebbs": frozenset({7}),
-        "dyohm_building": frozenset({16}),
+        "dyohm_building": frozenset({8}),
     },
     "emissions": {
         "observed": frozenset({0}),
@@ -135,7 +135,7 @@ _PHYSICS_NAME_SPECS: dict[str, list[tuple[int, str, tuple[str, ...]]]] = {
         (5, "ehc", ()),
         (6, "dyohm", ("l25",)),
         (7, "stebbs", ()),
-        (16, "dyohm_building", ("dyohm_buildings", "dyohm_bldg", "dyohm_bldgs")),
+        (8, "dyohm_building", ("dyohm_buildings", "dyohm_bldg", "dyohm_bldgs")),
     ],
     "ohm_inc_qf": [(0, "exclude", ()), (1, "include", ())],
     "roughness_length_momentum": [

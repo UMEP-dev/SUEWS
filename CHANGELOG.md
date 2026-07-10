@@ -57,7 +57,7 @@ EXAMPLES:
 ### 9 Jul 2026
 
 - [feature][experimental] Added the `dyohm_building` storage-heat option (#1601)
-  - Exposed `model.physics.storage_heat: dyohm_building` (`StorageHeatMethod=16`) so DyOHM determines the building storage heat flux while other land-cover surfaces continue to use ordinary OHM.
+  - Exposed `model.physics.storage_heat: dyohm_building` (`StorageHeatMethod=8`) so DyOHM determines the building storage heat flux while other land-cover surfaces continue to use ordinary OHM.
 
 ### 8 Jul 2026
 

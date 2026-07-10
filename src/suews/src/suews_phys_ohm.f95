@@ -172,7 +172,7 @@ CONTAINS
 
       dyohm_all_surfaces = StorageHeatMethod == 6
       dyohm_with_stebbs = StorageHeatMethod == 7
-      dyohm_building_only = StorageHeatMethod == 16
+      dyohm_building_only = StorageHeatMethod == 8
       dyohm_active = dyohm_all_surfaces .OR. dyohm_with_stebbs .OR. dyohm_building_only
 
       IF (dyohm_active) THEN
@@ -442,19 +442,33 @@ CONTAINS
                                  qn_av_next, dqndt_next)
                CALL OHM_QS_cal(qn1, dqndt_next, a1, a2, a3, qs_ohm_grid)
                qs = qs_ohm_grid
-               qs_surf = qs_ohm_grid
+               ! Per-surface static-OHM fluxes from each surface's own
+               ! coefficients, driven by the same grid qn1/dqndt as the areal
+               ! aggregate, so SUM(sfr_surf*qs_surf) matches qs by construction
+               ! (snow-free; with snow, OHM_coef_cal adjusts the fractions).
+               ! Absent surfaces keep the grid value: their qs_surf carries no
+               ! areal weight but still feeds the per-surface energy-balance
+               ! iteration, and the grid value keeps that path identical to
+               ! ordinary OHM (StorageHeatMethod=1).
+               DO i_surf = 1, nsurf
+                  IF (sfr_surf(i_surf) > 0.0D0) THEN
+                     CALL OHM_coef_surface(i_surf, nsurf, &
+                                           Tair_mav_5d, OHM_coef, OHM_threshSW, OHM_threshWD, &
+                                           soilstore_id, SoilStoreCap, state_id, &
+                                           BldgSurf, WaterSurf, &
+                                           a1_surf_ohm, a2_surf_ohm, a3_surf_ohm)
+                     CALL OHM_QS_cal(qn1, dqndt_next, &
+                                     a1_surf_ohm, a2_surf_ohm, a3_surf_ohm, qs_surf(i_surf))
+                  ELSE
+                     qs_surf(i_surf) = qs_ohm_grid
+                  END IF
+               END DO
                IF (sfr_surf(BldgSurf) > 0.0D0) THEN
                   CALL OHM_dqndt_cal_X(tstep, dt_since_start, &
                                        qn_surf_prev(BldgSurf), qn1_surf(BldgSurf), &
                                        dqndt_surf_prev(BldgSurf), &
                                        qn_surf_next(BldgSurf), dqndt_surf_next(BldgSurf))
-                  CALL OHM_coef_surface(BldgSurf, nsurf, &
-                                        Tair_mav_5d, OHM_coef, OHM_threshSW, OHM_threshWD, &
-                                        soilstore_id, SoilStoreCap, state_id, &
-                                        BldgSurf, WaterSurf, &
-                                        a1_surf_ohm, a2_surf_ohm, a3_surf_ohm)
-                  CALL OHM_QS_cal(qn1, dqndt_next, &
-                                  a1_surf_ohm, a2_surf_ohm, a3_surf_ohm, qs_bldg_static)
+                  qs_bldg_static = qs_surf(BldgSurf)
                   CALL OHM_QS_cal(qn1_surf(BldgSurf), dqndt_surf_next(BldgSurf), &
                                   a1_bldg, a2_bldg, a3_bldg, qs_bldg_dyohm)
                   qs = qs + sfr_surf(BldgSurf)*(qs_bldg_dyohm - qs_bldg_static)

@@ -174,7 +174,7 @@ the schema that shipped with it via
 
 **Schema 2026.6.dev2** (current; development)
    Development schema adding ``storage_heat=dyohm_building``
-   (``StorageHeatMethod=16``). This option uses DyOHM to determine the
+   (``StorageHeatMethod=8``). This option uses DyOHM to determine the
    building storage heat flux only; other land-cover surfaces continue to
    use ordinary OHM, and DyOHM surface temperatures are not fed back into
    the radiation calculation. Existing ``2026.6.dev1`` YAMLs remain valid

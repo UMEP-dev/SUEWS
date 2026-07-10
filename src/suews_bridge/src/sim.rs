@@ -627,7 +627,7 @@ pub fn run_from_config_str_and_forcing(
     // Fully coupled DyOHM modes (6/7) also need surface-layer properties for
     // their surface-temperature update.
     let storage_heat_method = run_cfg.config.storage_heat_method;
-    if storage_heat_method == 6 || storage_heat_method == 7 || storage_heat_method == 16 {
+    if storage_heat_method == 6 || storage_heat_method == 7 || storage_heat_method == 8 {
         let lambda_c = run_cfg.site_scalars.lambda_c;
         if lambda_c <= 0.0 {
             return Err(simulation_error(format!(
@@ -773,7 +773,7 @@ pub fn run_from_config_str_and_forcing_with_state(
         + run_cfg.timer.isec as f64 / (3600.0 * 24.0);
 
     let storage_heat_method = run_cfg.config.storage_heat_method;
-    if storage_heat_method == 6 || storage_heat_method == 7 || storage_heat_method == 16 {
+    if storage_heat_method == 6 || storage_heat_method == 7 || storage_heat_method == 8 {
         let lambda_c = run_cfg.site_scalars.lambda_c;
         if lambda_c <= 0.0 {
             return Err(simulation_error(format!(

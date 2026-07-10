@@ -12,6 +12,25 @@ import supy as sp
 
 pytestmark = [pytest.mark.physics, pytest.mark.core]
 
+QS_SURF_COLUMNS = [
+    "QS_Paved",
+    "QS_Bldgs",
+    "QS_EveTr",
+    "QS_DecTr",
+    "QS_Grass",
+    "QS_BSoil",
+    "QS_Water",
+]
+TS_DYOHM_COLUMNS = [
+    "Ts_Paved_dyohm",
+    "Ts_Bldgs_dyohm",
+    "Ts_EveTr_dyohm",
+    "Ts_DecTr_dyohm",
+    "Ts_Grass_dyohm",
+    "Ts_BSoil_dyohm",
+    "Ts_Water_dyohm",
+]
+
 
 def _rust_library_available() -> bool:
     """Return True when the Rust Python bridge exposes run_suews()."""
@@ -38,7 +57,7 @@ def _state_for_storage_method(df_state_init, method: int, building_fraction: flo
     df_state.loc[:, ("ohmincqf", "0")] = 0
 
     # Make the aggregate and surface OHM histories identical at startup so a
-    # paved-only method-16 run can collapse exactly to traditional OHM.
+    # paved-only method-8 run can collapse exactly to traditional OHM.
     qn_av = df_state.loc[:, ("qn_av", "0")].iloc[0]
     dqndt = df_state.loc[:, ("dqndt", "0")].iloc[0]
     for idx in range(7):
@@ -52,6 +71,9 @@ def _run_storage_case(df_state_init, df_forcing, method: int, building_fraction:
     df_state = _state_for_storage_method(df_state_init, method, building_fraction)
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
+        # check_input=False: the state is hand-edited above (surface fractions,
+        # storage-heat method) and deliberately bypasses YAML-level validation;
+        # the physics contract under test does not depend on it.
         df_output, _ = sp.run_supy(
             df_forcing,
             df_state,
@@ -71,7 +93,7 @@ def test_dyohm_building_qs_behavior_relative_to_ohm():
     df_forcing = df_forcing_all.loc["2012-06-01 00:05:00":"2012-06-03 00:00:00"]
 
     ohm_paved = _run_storage_case(df_state_init, df_forcing, 1, building_fraction=0.0)
-    dyohm_paved = _run_storage_case(df_state_init, df_forcing, 16, building_fraction=0.0)
+    dyohm_paved = _run_storage_case(df_state_init, df_forcing, 8, building_fraction=0.0)
     np.testing.assert_allclose(
         dyohm_paved["QS"].to_numpy(),
         ohm_paved["QS"].to_numpy(),
@@ -80,13 +102,58 @@ def test_dyohm_building_qs_behavior_relative_to_ohm():
     )
 
     ohm_mixed = _run_storage_case(df_state_init, df_forcing, 1, building_fraction=0.3)
-    dyohm_mixed = _run_storage_case(df_state_init, df_forcing, 16, building_fraction=0.3)
+    dyohm_mixed = _run_storage_case(df_state_init, df_forcing, 8, building_fraction=0.3)
 
     qs_delta = np.abs(dyohm_mixed["QS"].to_numpy() - ohm_mixed["QS"].to_numpy())
     warm_start = df_forcing.index[0] + pd.Timedelta(days=1)
     warm_mask = dyohm_mixed.index.get_level_values("datetime") >= warm_start
     max_qs_delta = float(np.nanmax(qs_delta[warm_mask]))
     assert max_qs_delta > 1.0e-4, (
-        "storage_heat=16 should alter storage heat flux when buildings are present; "
+        "storage_heat=8 should alter storage heat flux when buildings are present; "
         f"max |delta QS| after DyOHM coefficient spin-up was {max_qs_delta:.3e}"
     )
+
+    # Per-surface storage heat fluxes must close against the grid flux:
+    # QS = SUM(sfr_i * QS_i) holds by construction for method 8 (snow-free),
+    # because non-building surfaces carry their own static-OHM fluxes and the
+    # building carries the DyOHM flux used in the grid replacement term.
+    building_fraction = 0.3
+    sfr = np.array([1.0 - building_fraction, building_fraction, 0, 0, 0, 0, 0])
+    qs_weighted = dyohm_mixed[QS_SURF_COLUMNS].to_numpy() @ sfr
+    np.testing.assert_allclose(
+        qs_weighted,
+        dyohm_mixed["QS"].to_numpy(),
+        rtol=0.0,
+        atol=1.0e-6,
+        err_msg="per-surface QS does not close against grid QS under method 8",
+    )
+
+
+@pytest.mark.skipif(
+    not _rust_library_available(),
+    reason="Rust library backend not available (install src/suews_bridge with physics feature)",
+)
+def test_dyohm_tsurf_diagnostic_scope():
+    """Ts_*_dyohm evolves for pre-existing methods; method 8 skips it.
+
+    Regression for the driver guard in suews_update_tsurf_dyohm: an early
+    RETURN keyed too broadly would freeze the Ts_*_dyohm diagnostic columns
+    for ordinary OHM runs, silently diverging from the vendored reference
+    outputs.
+    """
+    df_state_init, df_forcing_all = sp.load_SampleData()
+    df_forcing = df_forcing_all.loc["2012-06-01 00:05:00":"2012-06-02 00:00:00"]
+
+    ohm_run = _run_storage_case(df_state_init, df_forcing, 1, building_fraction=0.3)
+    for col in TS_DYOHM_COLUMNS:
+        assert ohm_run[col].nunique() > 1, (
+            f"{col} is frozen under storage_heat=1; the DyOHM surface-temperature "
+            "diagnostic must keep evolving for pre-existing storage-heat methods"
+        )
+
+    dyohm_bldg_run = _run_storage_case(df_state_init, df_forcing, 8, building_fraction=0.3)
+    for col in TS_DYOHM_COLUMNS:
+        assert dyohm_bldg_run[col].nunique() == 1, (
+            f"{col} varies under storage_heat=8; dyohm_building does not "
+            "calculate DyOHM conductive surface temperatures by design"
+        )

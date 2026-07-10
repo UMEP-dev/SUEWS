@@ -185,7 +185,7 @@ Upgrading to Schema 2026.6.dev2
 
 Schema ``2026.6.dev2`` adds the opt-in
 ``model.physics.storage_heat: dyohm_building`` selector
-(``StorageHeatMethod=16``). This method uses DyOHM to determine the
+(``StorageHeatMethod=8``). This method uses DyOHM to determine the
 building storage heat flux only. Other land-cover surfaces continue to use
 ordinary OHM, and DyOHM surface temperatures are not passed back to the
 radiation calculation.

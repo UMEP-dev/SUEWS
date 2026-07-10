@@ -693,7 +693,7 @@ pub const PHYSICS_FAMILIES_RS: &[(&str, &[(&str, FamilyCodes)])] = &[
             ("ehc", &[5]),
             ("dyohm", &[6]),
             ("stebbs", &[7]),
-            ("dyohm_building", &[16]),
+            ("dyohm_building", &[8]),
         ],
     ),
     (
@@ -786,10 +786,10 @@ pub const PHYSICS_NAME_ALIASES_RS: &[(&str, &[(&str, i64)])] = &[
             ("dyohm", 6),
             ("l25", 6),
             ("stebbs", 7),
-            ("dyohm_building", 16),
-            ("dyohm_buildings", 16),
-            ("dyohm_bldg", 16),
-            ("dyohm_bldgs", 16),
+            ("dyohm_building", 8),
+            ("dyohm_buildings", 8),
+            ("dyohm_bldg", 8),
+            ("dyohm_bldgs", 8),
         ],
     ),
     ("ohm_inc_qf", &[("exclude", 0), ("include", 1)]),
@@ -2549,7 +2549,7 @@ model:
         let v = root["model"]["physics"]["storageheatmethod"]
             .get(Value::String("value".into()))
             .unwrap();
-        assert_eq!(v.as_i64(), Some(16));
+        assert_eq!(v.as_i64(), Some(8));
     }
 
     #[test]

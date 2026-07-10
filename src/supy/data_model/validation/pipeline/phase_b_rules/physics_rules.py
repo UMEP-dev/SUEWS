@@ -290,16 +290,16 @@ def validate_storageheatmethod_dependencies(
                 suggested_value="Set OhmIncQf to 0",
             )
         )
-    elif storageheatmethod == 16 and ohmincqf != 0:
+    elif storageheatmethod == 8 and ohmincqf != 0:
         results.append(
             ValidationResult(
                 status="ERROR",
                 category="MODEL_OPTIONS",
                 parameter="storageheatmethod-ohmincqf",
                 message=(
-                    "StorageHeatMethod 16 (dyohm_building) uses DyOHM only for "
-                    "building storage heat flux and follows OHM-without-QF "
-                    "semantics for this compatibility switch. Set OhmIncQf=0."
+                    "StorageHeatMethod 8 (dyohm_building) uses DyOHM only for "
+                    "the building storage heat flux; all other land-cover "
+                    "surfaces use ordinary OHM, which requires OhmIncQf=0."
                 ),
                 suggested_value="Set OhmIncQf to 0",
             )

@@ -2,7 +2,7 @@
 # Determine the cibuildwheel build matrix based on trigger type and change detection.
 #
 # Called from build-publish_to_pypi.yml determine_matrix job.
-# Writes buildplat, python, api_python, test_tier to GITHUB_OUTPUT.
+# Writes buildplat, api_buildplat, python, api_python, test_tier to GITHUB_OUTPUT.
 #
 # "python" is the cibuildwheel build matrix (the abi3 floor derived from
 # pyproject's requires-python — emits one abi3 wheel per platform). Physics
@@ -12,6 +12,12 @@
 # the api marker covers the Python wrapper surface (pandas/numpy/pydantic,
 # CLI, SUEWSSimulation) and needs full (platform x Python) coverage
 # (BOOKEND for PRs, ALL for nightly/tag).
+# "api_buildplat" is the platform matrix consumed by test-api-cross-python
+# (the wheel-build job keeps plain "buildplat"). Identical to "buildplat" on
+# every branch except the nightly schedule, where it drops macos-15-intel
+# (see NIGHTLY_API_PLATFORMS below) -- macOS Intel wheels are still built and
+# release-gated, only nightly api-test coverage on that runner class is
+# dropped.
 #
 # Required environment variables:
 #   EVENT_NAME           -- github.event_name
@@ -53,6 +59,17 @@ FULL_PLATFORMS='[["ubuntu-latest", "manylinux", "x86_64"], ["macos-15-intel", "m
 PR_PLATFORMS='[["ubuntu-latest", "manylinux", "x86_64"], ["macos-15", "macosx", "arm64"], ["windows-2025", "win", "AMD64"]]'
 MINIMAL_PLATFORMS='[["ubuntu-latest", "manylinux", "x86_64"]]'
 
+# Nightly-only api-test preset: FULL_PLATFORMS minus macos-15-intel. Run
+# 28990965739 (9 Jul 2026) showed the nightly `api cross-CPython` job on
+# macos-15-intel waiting ~3h54m for a scarce macOS Intel runner while every
+# other job finished within a few minutes -- wall clock 4h39m for a run that
+# should take well under an hour. macOS Intel wheels are still built and
+# release-gated (see FULL_PLATFORMS above); only the nightly api-test
+# coverage on that platform is dropped, since it is a declining platform
+# already excluded from PR/merge-queue via PR_PLATFORMS. See api_buildplat
+# below.
+NIGHTLY_API_PLATFORMS='[["ubuntu-latest", "manylinux", "x86_64"], ["macos-15", "macosx", "arm64"], ["windows-2025", "win", "AMD64"]]'
+
 # Python version policy.
 #
 # The full candidate CPython window is authored here; its lower edge is then
@@ -93,14 +110,17 @@ if [[ "${EVENT_NAME}" == "pull_request" ]] && [[ "${IS_DRAFT}" == "true" ]]; the
   if [[ "${FORTRAN_CHANGED}" == "true" ]] || [[ "${RUST_CHANGED}" == "true" ]]; then
     echo "Draft PR with fortran/rust changes - reduced platforms, core tests"
     echo "buildplat=$PR_PLATFORMS" >> "$GITHUB_OUTPUT"
+    echo "api_buildplat=$PR_PLATFORMS" >> "$GITHUB_OUTPUT"
     echo "test_tier=core" >> "$GITHUB_OUTPUT"
   elif [[ "${BUILD_CHANGED}" == "true" ]]; then
     echo "Draft PR with build-system changes - reduced platforms, cfg tests"
     echo "buildplat=$PR_PLATFORMS" >> "$GITHUB_OUTPUT"
+    echo "api_buildplat=$PR_PLATFORMS" >> "$GITHUB_OUTPUT"
     echo "test_tier=cfg" >> "$GITHUB_OUTPUT"
   else
     echo "Draft PR with python/util/ci/tests changes - minimal platform, smoke tests"
     echo "buildplat=$MINIMAL_PLATFORMS" >> "$GITHUB_OUTPUT"
+    echo "api_buildplat=$MINIMAL_PLATFORMS" >> "$GITHUB_OUTPUT"
     echo "test_tier=smoke" >> "$GITHUB_OUTPUT"
   fi
   echo "python=$BUILD_PYTHON" >> "$GITHUB_OUTPUT"
@@ -110,12 +130,15 @@ elif [[ "${EVENT_NAME}" == "pull_request" ]]; then
   if [[ "$NEEDS_MULTIPLATFORM" == "true" ]]; then
     echo "Ready PR with fortran/build changes - reduced platforms, standard tests"
     echo "buildplat=$PR_PLATFORMS" >> "$GITHUB_OUTPUT"
+    echo "api_buildplat=$PR_PLATFORMS" >> "$GITHUB_OUTPUT"
   elif [[ "${PYTHON_CHANGED}" == "true" ]] || [[ "${UTIL_CHANGED}" == "true" ]]; then
     echo "Ready PR with python/util changes - minimal platform, standard tests"
     echo "buildplat=$MINIMAL_PLATFORMS" >> "$GITHUB_OUTPUT"
+    echo "api_buildplat=$MINIMAL_PLATFORMS" >> "$GITHUB_OUTPUT"
   else
     echo "Ready PR with ci/tests-only changes - minimal platform, smoke tests"
     echo "buildplat=$MINIMAL_PLATFORMS" >> "$GITHUB_OUTPUT"
+    echo "api_buildplat=$MINIMAL_PLATFORMS" >> "$GITHUB_OUTPUT"
     TIER=smoke
   fi
   # gh#1576: a physics-change PR runs the full physics tier (incl. slow) so an
@@ -140,12 +163,14 @@ elif [[ "${EVENT_NAME}" == "merge_group" ]]; then
     echo "Merge queue validation - reduced platforms, standard tests"
   fi
   echo "buildplat=$PR_PLATFORMS" >> "$GITHUB_OUTPUT"
+  echo "api_buildplat=$PR_PLATFORMS" >> "$GITHUB_OUTPUT"
   echo "python=$BUILD_PYTHON" >> "$GITHUB_OUTPUT"
   echo "test_tier=$MERGE_TIER" >> "$GITHUB_OUTPUT"
 
 elif [[ "${EVENT_NAME}" == "schedule" ]]; then
-  echo "Nightly - full matrix, all tests"
+  echo "Nightly - full matrix, all tests (api tests skip macos-15-intel; see NIGHTLY_API_PLATFORMS)"
   echo "buildplat=$FULL_PLATFORMS" >> "$GITHUB_OUTPUT"
+  echo "api_buildplat=$NIGHTLY_API_PLATFORMS" >> "$GITHUB_OUTPUT"
   echo "python=$BUILD_PYTHON" >> "$GITHUB_OUTPUT"
   echo "test_tier=all" >> "$GITHUB_OUTPUT"
   API_PYTHON="$ALL_PYTHON"
@@ -155,17 +180,20 @@ elif [[ "${EVENT_NAME}" == "workflow_dispatch" ]]; then
     full)
       echo "Manual dispatch: full matrix"
       echo "buildplat=$FULL_PLATFORMS" >> "$GITHUB_OUTPUT"
+      echo "api_buildplat=$FULL_PLATFORMS" >> "$GITHUB_OUTPUT"
       echo "python=$BUILD_PYTHON" >> "$GITHUB_OUTPUT"
       API_PYTHON="$ALL_PYTHON"
       ;;
     pr)
       echo "Manual dispatch: PR-style reduced matrix"
       echo "buildplat=$PR_PLATFORMS" >> "$GITHUB_OUTPUT"
+      echo "api_buildplat=$PR_PLATFORMS" >> "$GITHUB_OUTPUT"
       echo "python=$BUILD_PYTHON" >> "$GITHUB_OUTPUT"
       ;;
     minimal)
       echo "Manual dispatch: minimal matrix"
       echo "buildplat=$MINIMAL_PLATFORMS" >> "$GITHUB_OUTPUT"
+      echo "api_buildplat=$MINIMAL_PLATFORMS" >> "$GITHUB_OUTPUT"
       echo "python=$BUILD_PYTHON" >> "$GITHUB_OUTPUT"
       ;;
     custom)
@@ -197,6 +225,7 @@ elif [[ "${EVENT_NAME}" == "workflow_dispatch" ]]; then
       fi
 
       echo "buildplat=$PLATFORMS" >> "$GITHUB_OUTPUT"
+      echo "api_buildplat=$PLATFORMS" >> "$GITHUB_OUTPUT"
       echo "python=$BUILD_PYTHON" >> "$GITHUB_OUTPUT"
       API_PYTHON="$TEST_PYS"
       ;;
@@ -204,9 +233,11 @@ elif [[ "${EVENT_NAME}" == "workflow_dispatch" ]]; then
   echo "test_tier=${INPUT_TEST_TIER}" >> "$GITHUB_OUTPUT"
 
 else
-  # Tag pushes - full matrix for releases
+  # Tag pushes - full matrix for releases (Intel api coverage retained: releases
+  # stay fully gated, unlike the nightly api_buildplat trim above)
   echo "Tag release - full matrix, all tests"
   echo "buildplat=$FULL_PLATFORMS" >> "$GITHUB_OUTPUT"
+  echo "api_buildplat=$FULL_PLATFORMS" >> "$GITHUB_OUTPUT"
   echo "python=$BUILD_PYTHON" >> "$GITHUB_OUTPUT"
   echo "test_tier=all" >> "$GITHUB_OUTPUT"
   API_PYTHON="$ALL_PYTHON"

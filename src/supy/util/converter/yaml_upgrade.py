@@ -1238,6 +1238,16 @@ def _migrate_2026_5_to_2026_6_dev1(cfg: dict) -> dict:
     return cfg
 
 
+def _migrate_2026_6_dev1_to_current(cfg: dict) -> dict:
+    """Stamp the output timestamp-reference dev schema.
+
+    The 2026.6.dev2 YAML delta adds only a default-backed
+    ``model.control.output.timestamp_reference`` option, so existing
+    2026.6.dev1 YAML content does not need reshaping.
+    """
+    return cfg
+
+
 def _migrate_2026_4_to_current(cfg: dict) -> dict:
     """Chain 2026.4 -> 2026.5 Cat 1 -> dev1 ext -> dev2 suffix -> dev3 STEBBS snake."""
     cfg = _migrate_2026_4_to_2026_5(cfg)
@@ -1303,6 +1313,7 @@ _HANDLERS: dict[tuple[str, str], Handler] = {
     # _migrate_2026_4_to_current chains _migrate_2026_4_to_2026_5 (Category 1)
     # then _migrate_2026_5_to_current (the remaining dev-cycle union).
     ("2026.5", CURRENT_SCHEMA_VERSION): _migrate_2026_5_to_2026_6_dev1,
+    ("2026.6.dev1", CURRENT_SCHEMA_VERSION): _migrate_2026_6_dev1_to_current,
     ("2026.4", CURRENT_SCHEMA_VERSION): _migrate_2026_4_to_current,
     ("2026.1", CURRENT_SCHEMA_VERSION): _migrate_2026_1_to_current,
     ("2025.12", CURRENT_SCHEMA_VERSION): _migrate_2025_12_to_current,

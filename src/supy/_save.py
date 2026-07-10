@@ -1,5 +1,6 @@
 from pathlib import Path
 from typing import Tuple
+from importlib.util import find_spec
 
 import f90nml
 import pandas as pd
@@ -9,6 +10,187 @@ import pandas as pd
 from ._env import logger_supy
 from ._load import load_SUEWS_dict_ModConfig
 from ._post import resample_output, df_var as df_var_out
+
+
+def _normalise_timestamp_reference(timestamp_reference) -> str:
+    label = getattr(timestamp_reference, "value", timestamp_reference)
+    return "follow" if label is None else str(label).lower()
+
+
+def _timestamp_reference_filename_suffix(timestamp_reference) -> str:
+    label = _normalise_timestamp_reference(timestamp_reference)
+    suffixes = {
+        "follow": "",
+        "utc": "_UTC",
+        "standard": "_STANDARD",
+        "daylight": "_DAYLIGHT",
+    }
+    try:
+        return suffixes[label]
+    except KeyError as exc:
+        raise ValueError(
+            "Invalid output timestamp reference "
+            f"{timestamp_reference!r}; expected follow, utc, standard, or daylight."
+        ) from exc
+
+
+def _state_scalar(df_state_final: pd.DataFrame, grid, name: str):
+    """Read a per-grid scalar from DFState's legacy column shapes."""
+    if df_state_final is None or df_state_final.empty:
+        raise ValueError(
+            f"Cannot relabel output timestamps without df_state_final field {name!r}."
+        )
+
+    try:
+        row = df_state_final.loc[grid]
+    except KeyError:
+        try:
+            row = df_state_final.loc[int(grid)]
+        except (KeyError, TypeError, ValueError):
+            if len(df_state_final.index) != 1:
+                raise
+            row = df_state_final.iloc[0]
+
+    if isinstance(row.index, pd.MultiIndex):
+        key = (name, "0")
+        if key in row.index:
+            return row.loc[key]
+        matches = [col for col in row.index if str(col[0]).lower() == name.lower()]
+        if matches:
+            return row.loc[matches[0]]
+
+    if name in row.index:
+        return row.loc[name]
+
+    matches = [col for col in row.index if str(col).lower() == name.lower()]
+    if matches:
+        return row.loc[matches[0]]
+
+    raise ValueError(f"Cannot relabel output timestamps: missing DFState field {name!r}.")
+
+
+def _dls_mask(idx_dt: pd.DatetimeIndex, startdls: float, enddls: float) -> pd.Series:
+    seconds = (
+        idx_dt.hour * 3600
+        + idx_dt.minute * 60
+        + idx_dt.second
+        + idx_dt.microsecond / 1_000_000
+    )
+    decimal_doy = idx_dt.dayofyear.to_numpy(dtype=float) + seconds / 86400
+    if startdls <= enddls:
+        return (decimal_doy >= startdls) & (decimal_doy < enddls)
+    return (decimal_doy >= startdls) | (decimal_doy < enddls)
+
+
+def _relabel_datetime_index(
+    idx_dt: pd.DatetimeIndex,
+    timestamp_reference,
+    timezone_offset,
+    startdls=None,
+    enddls=None,
+) -> pd.DatetimeIndex:
+    label = _normalise_timestamp_reference(timestamp_reference)
+    if label in {"follow", "standard"}:
+        return idx_dt
+    if label == "utc":
+        return idx_dt - pd.to_timedelta(float(timezone_offset), unit="h")
+    if label == "daylight":
+        if startdls is None or enddls is None:
+            raise ValueError(
+                "output.timestamp_reference='daylight' requires startdls and enddls."
+            )
+        dls_offsets = pd.to_timedelta(
+            _dls_mask(idx_dt, float(startdls), float(enddls)).astype(int), unit="h"
+        )
+        return idx_dt + dls_offsets
+    raise ValueError(
+        "Invalid output timestamp reference "
+        f"{timestamp_reference!r}; expected follow, utc, standard, or daylight."
+    )
+
+
+def relabel_output_timestamps(
+    df_output: pd.DataFrame,
+    timestamp_reference,
+    df_state_final: pd.DataFrame | None,
+) -> pd.DataFrame:
+    """Relabel output timestamps without changing computed values."""
+    label = _normalise_timestamp_reference(timestamp_reference)
+    if label == "follow":
+        return df_output
+
+    df_relabelled = df_output.copy()
+    index = df_relabelled.index
+
+    if isinstance(index, pd.MultiIndex):
+        if "datetime" not in index.names:
+            raise ValueError(
+                "Cannot relabel output timestamps: index has no datetime level."
+            )
+        datetime_level = index.names.index("datetime")
+        grid_level = index.names.index("grid") if "grid" in index.names else None
+        idx_dt = pd.DatetimeIndex(index.get_level_values(datetime_level))
+
+        if grid_level is None:
+            grid = df_state_final.index[0] if df_state_final is not None else None
+            new_dt = _relabel_datetime_index(
+                idx_dt,
+                label,
+                _state_scalar(df_state_final, grid, "timezone"),
+                _state_scalar(df_state_final, grid, "startdls")
+                if label == "daylight"
+                else None,
+                _state_scalar(df_state_final, grid, "enddls")
+                if label == "daylight"
+                else None,
+            )
+        else:
+            grids = index.get_level_values(grid_level)
+            new_dt = pd.Series(idx_dt, index=range(len(idx_dt)), dtype="datetime64[ns]")
+            for grid in pd.Index(grids).unique():
+                mask = grids == grid
+                startdls = (
+                    _state_scalar(df_state_final, grid, "startdls")
+                    if label == "daylight"
+                    else None
+                )
+                enddls = (
+                    _state_scalar(df_state_final, grid, "enddls")
+                    if label == "daylight"
+                    else None
+                )
+                new_dt.loc[mask] = _relabel_datetime_index(
+                    pd.DatetimeIndex(idx_dt[mask]),
+                    label,
+                    _state_scalar(df_state_final, grid, "timezone"),
+                    startdls,
+                    enddls,
+                )
+            new_dt = pd.DatetimeIndex(new_dt)
+
+        arrays = [
+            new_dt if i == datetime_level else index.get_level_values(i)
+            for i in range(index.nlevels)
+        ]
+        df_relabelled.index = pd.MultiIndex.from_arrays(arrays, names=index.names)
+        return df_relabelled
+
+    if isinstance(index, pd.DatetimeIndex):
+        grid = df_state_final.index[0] if df_state_final is not None else None
+        df_relabelled.index = _relabel_datetime_index(
+            index,
+            label,
+            _state_scalar(df_state_final, grid, "timezone"),
+            _state_scalar(df_state_final, grid, "startdls")
+            if label == "daylight"
+            else None,
+            _state_scalar(df_state_final, grid, "enddls")
+            if label == "daylight"
+            else None,
+        )
+        return df_relabelled
+
+    raise ValueError("Cannot relabel output timestamps: index is not datetime-like.")
 
 
 def gen_df_save(df_grid_group: pd.DataFrame) -> pd.DataFrame:
@@ -113,7 +295,7 @@ def gen_df_year(df_save, year, grid, group, output_level):
     return df_year
 
 
-def save_df_grid_group(df_year, grid, group, dir_save, site):
+def save_df_grid_group(df_year, grid, group, dir_save, site, timestamp_reference="follow"):
     # processing path
     path_dir = Path(dir_save)
     # pandas bug here: monotonic datetime index would lose `freq` once `pd.concat`ed
@@ -132,7 +314,8 @@ def save_df_grid_group(df_year, grid, group, dir_save, site):
         logger_supy.debug("Could not extract year from df_year index:\n%s", df_year)
 
     # sample file name: 'Kc98_2012_SUEWS_60.txt'
-    file_out = f"{site}{grid}_{year}_{group}_{freq_min}.txt"
+    timestamp_suffix = _timestamp_reference_filename_suffix(timestamp_reference)
+    file_out = f"{site}{grid}_{year}_{group}_{freq_min}{timestamp_suffix}.txt"
     # 'DailyState_1440' will be trimmed
     file_out = file_out.replace("DailyState_1440", "DailyState")
     path_out = path_dir / file_out
@@ -197,6 +380,8 @@ def save_df_output(
     save_snow=True,
     debug=False,
     output_groups=None,
+    timestamp_reference="follow",
+    df_state_final: pd.DataFrame | None = None,
 ) -> list:
     """save supy output dataframe to txt files
 
@@ -312,6 +497,7 @@ def save_df_output(
             # Update the index
             df_save.index = df_save.index.set_levels(idx_dt, level="datetime")
         # For DailyState data, we don't need to shift the index as it already represents daily values
+        df_save = relabel_output_timestamps(df_save, timestamp_reference, df_state_final)
         # tidy up columns so only necessary groups are included in the output
         df_save.columns = df_save.columns.remove_unused_levels()
         # import os
@@ -331,7 +517,9 @@ def save_df_output(
         #
         # else:
         # SERIAL mode: only on Windows
-        list_path_save_df = save_df_ser(df_save, path_dir_save, site, output_level)
+        list_path_save_df = save_df_ser(
+            df_save, path_dir_save, site, output_level, timestamp_reference
+        )
 
         # add up path list
         list_path_save += list_path_save_df
@@ -395,7 +583,7 @@ def save_df_output(
 
 
 # save `df_save` in serial mode
-def save_df_ser(df_save, path_dir_save, site, output_level):
+def save_df_ser(df_save, path_dir_save, site, output_level, timestamp_reference="follow"):
     list_grid = df_save.index.get_level_values("grid").unique()
     list_group = df_save.columns.get_level_values("group").unique()
     is_dailystate_only = len(list_group) == 1 and list_group[0] == "DailyState"
@@ -413,7 +601,7 @@ def save_df_ser(df_save, path_dir_save, site, output_level):
                 df_year = gen_df_year(df_save, year, grid, group, output_level)
                 if df_year.shape[0] > 0:
                     path_save = save_df_grid_group(
-                        df_year, grid, group, path_dir_save, site
+                        df_year, grid, group, path_dir_save, site, timestamp_reference
                     )
                     list_path_save_df.append(path_save)
     return list_path_save_df
@@ -606,6 +794,7 @@ def save_df_output_parquet(
     path_dir_save: Path = Path("."),
     save_tstep=False,
     save_state: bool = True,
+    timestamp_reference="follow",
 ) -> list:
     """Save supy output to Parquet format.
 
@@ -630,15 +819,12 @@ def save_df_output_parquet(
         List containing paths to saved Parquet files
     """
     # Check if pyarrow is available
-    try:
-        import pyarrow
-
-        engine = "pyarrow"
-    except ImportError as e:
+    if find_spec("pyarrow") is None:
         raise ImportError(
             "Parquet output requires 'pyarrow'. "
             "Install with: pip install 'supy[parquet]' or pip install pyarrow"
-        ) from e
+        )
+    engine = "pyarrow"
 
     from ._version import __version__
 
@@ -661,11 +847,21 @@ def save_df_output_parquet(
     else:
         df_to_save = df_save
 
+    df_to_save = relabel_output_timestamps(
+        df_to_save, timestamp_reference, df_state_final
+    )
+
     # Construct filenames
     list_path_save = []
+    timestamp_suffix = _timestamp_reference_filename_suffix(timestamp_reference)
+    timestamp_reference_name = _normalise_timestamp_reference(timestamp_reference)
 
     # Save output data
-    filename_output = f"{site}_SUEWS_output.parquet" if site else "SUEWS_output.parquet"
+    filename_output = (
+        f"{site}_SUEWS_output{timestamp_suffix}.parquet"
+        if site
+        else f"SUEWS_output{timestamp_suffix}.parquet"
+    )
     path_output = path_dir_save / filename_output
 
     # Save with metadata
@@ -673,6 +869,7 @@ def save_df_output_parquet(
         "site": site,
         "output_frequency_s": freq_s,
         "save_tstep": save_tstep,
+        "timestamp_reference": timestamp_reference_name,
         "creation_time": pd.Timestamp.now().isoformat(),
         "version": __version__,
     }
@@ -688,9 +885,9 @@ def save_df_output_parquet(
 
     if save_state:
         filename_state = (
-            f"{site}_SUEWS_state_final.parquet"
+            f"{site}_SUEWS_state_final{timestamp_suffix}.parquet"
             if site
-            else "SUEWS_state_final.parquet"
+            else f"SUEWS_state_final{timestamp_suffix}.parquet"
         )
         path_state = path_dir_save / filename_state
         df_state_final.to_parquet(
@@ -700,7 +897,9 @@ def save_df_output_parquet(
 
     # Save metadata as a separate small parquet file
     filename_meta = (
-        f"{site}_SUEWS_metadata.parquet" if site else "SUEWS_metadata.parquet"
+        f"{site}_SUEWS_metadata{timestamp_suffix}.parquet"
+        if site
+        else f"SUEWS_metadata{timestamp_suffix}.parquet"
     )
     path_meta = path_dir_save / filename_meta
     df_meta = pd.DataFrame([metadata])

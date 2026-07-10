@@ -193,7 +193,7 @@ Important Requirements
 
    The :input:option:`timezone` parameter in the YAML configuration is this same fixed offset (``0`` for the UK, ``1`` for France). SUEWS accounts for daylight saving internally through the :input:option:`startdls` and :input:option:`enddls` parameters, which adjust diurnal activity profiles for anthropogenic heat and water use -- the forcing timestamps themselves always stay in standard time.
 
-   When comparing SUEWS output against observational data, verify that both datasets use the same time convention. Observations recorded in civil time (with DST) must be converted to local standard time before comparison.
+   When comparing SUEWS output against observational data, verify that both datasets use the same time convention. By default, SUEWS output follows the forcing-file convention. To relabel output timestamps for presentation without recalculating the run, set ``model.control.output.timestamp_reference`` to ``utc``, ``standard`` or ``daylight``.
 
 **File Naming**
 

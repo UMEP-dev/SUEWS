@@ -33,7 +33,7 @@ from copy import deepcopy
 from pathlib import Path
 import warnings
 
-from .model import FAIMethod, LAIMethod, Model, OutputControl
+from .model import FAIMethod, LAIMethod, Model, OutputTimestampReference
 from .site import Site, SiteProperties, InitialStates, LandCover, LAIParams
 from .type import SurfaceType
 
@@ -624,6 +624,57 @@ class SUEWSConfig(BaseModel):
                 raise ValueError(
                     f"Output frequency ({output_control.freq}s) must be a multiple of timestep ({tstep}s)"
                 )
+        return self
+
+    @model_validator(mode="after")
+    def validate_model_output_timestamp_reference(self) -> "SUEWSConfig":
+        """Validate output timestamp reference against site timezone fields."""
+        timestamp_reference = self.model.control.output.timestamp_reference
+        if timestamp_reference == OutputTimestampReference.FOLLOW:
+            return self
+
+        errors = []
+        for site_index, site in enumerate(self.sites):
+            site_name = getattr(site, "name", f"Site {site_index + 1}")
+            if not site.properties:
+                continue
+
+            timezone_val = _unwrap_value(site.properties.timezone)
+            is_zero_offset = False
+            try:
+                is_zero_offset = float(timezone_val) == 0.0
+            except (TypeError, ValueError):
+                pass
+
+            if timestamp_reference in {
+                OutputTimestampReference.STANDARD,
+                OutputTimestampReference.DAYLIGHT,
+            } and is_zero_offset:
+                warnings.warn(
+                    f"{site_name}: output.timestamp_reference={timestamp_reference.value!r} "
+                    "uses a zero UTC offset, so labels will match UTC except "
+                    "for any daylight-saving adjustment.",
+                    UserWarning,
+                    stacklevel=2,
+                )
+
+            if timestamp_reference != OutputTimestampReference.DAYLIGHT:
+                continue
+
+            anthro = site.properties.anthropogenic_emissions
+            startdls_val = _unwrap_value(anthro.startdls)
+            enddls_val = _unwrap_value(anthro.enddls)
+            if startdls_val is None or enddls_val is None:
+                errors.append(
+                    f"{site_name}: output.timestamp_reference='daylight' requires "
+                    "both anthropogenic_emissions.startdls and "
+                    "anthropogenic_emissions.enddls."
+                )
+
+        if errors:
+            raise ValueError(
+                "Output timestamp reference validation failed: " + "; ".join(errors)
+            )
         return self
 
     @model_validator(mode="after")

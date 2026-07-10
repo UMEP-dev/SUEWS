@@ -242,7 +242,7 @@ class RSTGenerator:
             "     - Choices",
             "     - Notes",
             "   * - ``storage_heat``",
-            "     - ``observed``; ``ohm``; ``anohm``; ``estm``; ``ehc``; ``dyohm``; ``stebbs``",
+            "     - ``observed``; ``ohm``; ``anohm``; ``estm``; ``ehc``; ``dyohm``; ``stebbs``; ``dyohm_building``",
             "     - Storage heat source or model family.",
             "   * - ``storage_heat.ohm.include_qf``",
             "     - ``true`` / ``false``; ``include`` / ``exclude``",

@@ -623,11 +623,11 @@ pub fn run_from_config_str_and_forcing(
         + run_cfg.timer.imin as f64 / (60.0 * 24.0)
         + run_cfg.timer.isec as f64 / (3600.0 * 24.0);
 
-    // Guardrail: DyOHM (storageheatmethod 6/7) requires positive material
-    // properties and lambda_c. Catch malformed config input before entering
-    // Fortran to avoid opaque runtime errors.
+    // Guardrail: DyOHM-based methods (6/7/8) need positive building material
+    // properties and lambda_c. Fully coupled modes (6/7) additionally need
+    // surface-layer properties for their surface-temperature update.
     let storage_heat_method = run_cfg.config.storage_heat_method;
-    if storage_heat_method == 6 || storage_heat_method == 7 {
+    if storage_heat_method == 6 || storage_heat_method == 7 || storage_heat_method == 8 {
         let lambda_c = run_cfg.site_scalars.lambda_c;
         if lambda_c <= 0.0 {
             return Err(simulation_error(format!(
@@ -644,16 +644,18 @@ pub fn run_from_config_str_and_forcing(
             )));
         }
 
-        for surf_idx in 0..NSURF {
-            let offset = surf_idx;
-            let dz = run_cfg.site.ehc.dz_surf.get(offset).copied().unwrap_or(0.0);
-            let cp = run_cfg.site.ehc.cp_surf.get(offset).copied().unwrap_or(0.0);
-            let k = run_cfg.site.ehc.k_surf.get(offset).copied().unwrap_or(0.0);
-            if dz <= 0.0 || cp <= 0.0 || k <= 0.0 {
-                return Err(simulation_error(format!(
-                    "invalid EHC surface layer(1,{}) for DyOHM: dz={dz}, cp={cp}, k={k}",
-                    surf_idx + 1
-                )));
+        if storage_heat_method == 6 || storage_heat_method == 7 {
+            for surf_idx in 0..NSURF {
+                let offset = surf_idx;
+                let dz = run_cfg.site.ehc.dz_surf.get(offset).copied().unwrap_or(0.0);
+                let cp = run_cfg.site.ehc.cp_surf.get(offset).copied().unwrap_or(0.0);
+                let k = run_cfg.site.ehc.k_surf.get(offset).copied().unwrap_or(0.0);
+                if dz <= 0.0 || cp <= 0.0 || k <= 0.0 {
+                    return Err(simulation_error(format!(
+                        "invalid EHC surface layer(1,{}) for DyOHM: dz={dz}, cp={cp}, k={k}",
+                        surf_idx + 1
+                    )));
+                }
             }
         }
     }
@@ -771,7 +773,7 @@ pub fn run_from_config_str_and_forcing_with_state(
         + run_cfg.timer.isec as f64 / (3600.0 * 24.0);
 
     let storage_heat_method = run_cfg.config.storage_heat_method;
-    if storage_heat_method == 6 || storage_heat_method == 7 {
+    if storage_heat_method == 6 || storage_heat_method == 7 || storage_heat_method == 8 {
         let lambda_c = run_cfg.site_scalars.lambda_c;
         if lambda_c <= 0.0 {
             return Err(simulation_error(format!(
@@ -788,16 +790,18 @@ pub fn run_from_config_str_and_forcing_with_state(
             )));
         }
 
-        for surf_idx in 0..NSURF {
-            let offset = surf_idx;
-            let dz = run_cfg.site.ehc.dz_surf.get(offset).copied().unwrap_or(0.0);
-            let cp = run_cfg.site.ehc.cp_surf.get(offset).copied().unwrap_or(0.0);
-            let k = run_cfg.site.ehc.k_surf.get(offset).copied().unwrap_or(0.0);
-            if dz <= 0.0 || cp <= 0.0 || k <= 0.0 {
-                return Err(simulation_error(format!(
-                    "invalid EHC surface layer(1,{}) for DyOHM: dz={dz}, cp={cp}, k={k}",
-                    surf_idx + 1
-                )));
+        if storage_heat_method == 6 || storage_heat_method == 7 {
+            for surf_idx in 0..NSURF {
+                let offset = surf_idx;
+                let dz = run_cfg.site.ehc.dz_surf.get(offset).copied().unwrap_or(0.0);
+                let cp = run_cfg.site.ehc.cp_surf.get(offset).copied().unwrap_or(0.0);
+                let k = run_cfg.site.ehc.k_surf.get(offset).copied().unwrap_or(0.0);
+                if dz <= 0.0 || cp <= 0.0 || k <= 0.0 {
+                    return Err(simulation_error(format!(
+                        "invalid EHC surface layer(1,{}) for DyOHM: dz={dz}, cp={cp}, k={k}",
+                        surf_idx + 1
+                    )));
+                }
             }
         }
     }

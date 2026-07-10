@@ -184,6 +184,9 @@ def test_needs_storage_validation_true_and_false():
     assert cfg._needs_storage_validation() is False  # Disabled by default now
     cfg2 = make_cfg(storage_heat=1)
     assert cfg2._needs_storage_validation() is False
+    cfg3 = make_cfg(storage_heat=8)
+    cfg3.model.physics.model_fields_set = {"storage_heat"}
+    assert cfg3._needs_storage_validation() is True
 
 
 def test_validate_storage_requires_numeric_and_lambda():
@@ -2660,6 +2663,45 @@ def test_phase_b_storageheatmethod_ohmincqf_validation(registry):
         "StorageHeatMethod-OhmIncQf compatibility validated"
         in storage_results[0].message
     )
+
+    yaml_data_dyohm_building = {
+        "model": {
+            "physics": {
+                "storage_heat": "dyohm_building",
+                "ohm_inc_qf": "exclude",
+            }
+        }
+    }
+
+    results = registry["option_dependencies"](
+        ValidationContext(yaml_data=yaml_data_dyohm_building)
+    )
+
+    storage_results = [
+        r for r in results if r.parameter == "storageheatmethod-ohmincqf"
+    ]
+    assert len(storage_results) == 1
+    assert storage_results[0].status == "PASS"
+
+    yaml_data_dyohm_building_include_qf = {
+        "model": {
+            "physics": {
+                "storage_heat": "dyohm_building",
+                "ohm_inc_qf": "include",
+            }
+        }
+    }
+
+    results = registry["option_dependencies"](
+        ValidationContext(yaml_data=yaml_data_dyohm_building_include_qf)
+    )
+
+    storage_results = [
+        r for r in results if r.parameter == "storageheatmethod-ohmincqf"
+    ]
+    assert len(storage_results) == 1
+    assert storage_results[0].status == "ERROR"
+    assert "uses DyOHM only for the building storage heat flux" in storage_results[0].message
 
 
 def test_phase_b_storageheatmethod_ehc_requires_spartacus(registry):

@@ -200,11 +200,17 @@ def _index_freq_matches(df_output, freq):
         # Non-fixed frequencies (e.g. month-end) cannot be compared from a
         # single interval, so fall through to the full regularity check.
         target_delta = None
-    if target_delta is not None and idx_dt[1] - idx_dt[0] != target_delta:
+    if (
+        target_delta is not None
+        and idx_dt.tz is None
+        and idx_dt[1] - idx_dt[0] != target_delta
+    ):
         # The very first interval already disagrees with a fixed target
         # cadence. A regular index's inferred frequency always matches its
         # own interval spacing, so infer_freq (which scans the whole index)
-        # could not possibly find a match here either; skip the scan.
+        # could not possibly find a match here either; skip the scan. Keep
+        # timezone-aware indexes on the full check because a valid calendar
+        # cadence can span a 23- or 25-hour daylight-saving transition.
         return False
     inferred = pd.infer_freq(idx_dt)
     if inferred is None:
@@ -526,5 +532,3 @@ def is_numeric(obj):
     if isinstance(obj, np.ndarray):
         return np.issubdtype(obj.dtype, np.number)
     return False
-
-

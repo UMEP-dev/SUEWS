@@ -17,17 +17,28 @@ from conftest import (
 pytestmark = pytest.mark.api
 
 
-def _regular_output_frame(periods=6, freq="5min"):
+def _regular_output_frame(periods=6, freq="5min", start="2023-01-01", tz=None):
     """Minimal frame for tests that exercise only index-frequency mechanics."""
-    dates = pd.date_range("2023-01-01", periods=periods, freq=freq)
+    dates = pd.date_range(start, periods=periods, freq=freq, tz=tz)
     index = pd.MultiIndex.from_product([[1], dates], names=["grid", "datetime"])
     columns = pd.MultiIndex.from_tuples(
         [("SUEWS", "QH")],
         names=["group", "var"],
     )
-    return pd.DataFrame(
-        np.arange(periods).reshape(-1, 1), index=index, columns=columns
+    return pd.DataFrame(np.arange(periods).reshape(-1, 1), index=index, columns=columns)
+
+
+@pytest.mark.parametrize("start", ["2024-03-31", "2024-10-27"])
+def test_native_daily_timezone_aware_freq_across_dst_is_skipped(start):
+    """Recognise daily cadence across 23- and 25-hour DST transitions."""
+    df_output = _regular_output_frame(
+        periods=4,
+        freq="D",
+        start=start,
+        tz="Europe/London",
     )
+
+    assert resample_output(df_output, freq="D", _internal=True) is df_output
 
 
 class TestResampleOutput:

@@ -192,16 +192,29 @@ def _index_freq_matches(df_output, freq):
     if len(idx_dt) < 3:
         # infer_freq needs at least three timestamps to determine a cadence.
         return False
+    to_offset = pd.tseries.frequencies.to_offset
+    target_offset = to_offset(freq)
+    try:
+        target_delta = pd.Timedelta(target_offset)
+    except ValueError:
+        # Non-fixed frequencies (e.g. month-end) cannot be compared from a
+        # single interval, so fall through to the full regularity check.
+        target_delta = None
+    if target_delta is not None and idx_dt[1] - idx_dt[0] != target_delta:
+        # The very first interval already disagrees with a fixed target
+        # cadence. A regular index's inferred frequency always matches its
+        # own interval spacing, so infer_freq (which scans the whole index)
+        # could not possibly find a match here either; skip the scan.
+        return False
     inferred = pd.infer_freq(idx_dt)
     if inferred is None:
         return False
-    to_offset = pd.tseries.frequencies.to_offset
     try:
-        return pd.Timedelta(to_offset(inferred)) == pd.Timedelta(to_offset(freq))
+        return pd.Timedelta(to_offset(inferred)) == target_delta
     except ValueError:
         # Non-fixed frequencies (e.g. month-end) cannot become a Timedelta;
         # compare the offsets directly instead.
-        return to_offset(inferred) == to_offset(freq)
+        return to_offset(inferred) == target_offset
 
 
 def resample_output(df_output, freq="60min", dict_aggm=dict_var_aggm, _internal=False):

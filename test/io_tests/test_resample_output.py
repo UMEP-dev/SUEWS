@@ -17,6 +17,19 @@ from conftest import (
 pytestmark = pytest.mark.api
 
 
+def _regular_output_frame(periods=6, freq="5min"):
+    """Minimal frame for tests that exercise only index-frequency mechanics."""
+    dates = pd.date_range("2023-01-01", periods=periods, freq=freq)
+    index = pd.MultiIndex.from_product([[1], dates], names=["grid", "datetime"])
+    columns = pd.MultiIndex.from_tuples(
+        [("SUEWS", "QH")],
+        names=["group", "var"],
+    )
+    return pd.DataFrame(
+        np.arange(periods).reshape(-1, 1), index=index, columns=columns
+    )
+
+
 class TestResampleOutput:
     """Test suite for resample_output functionality."""
 
@@ -74,6 +87,22 @@ class TestResampleOutput:
 
         assert _index_freq_matches(df_output, "5min") is True
         assert _index_freq_matches(df_irregular, "5min") is False
+
+    def test_resample_non_native_freq_short_circuits_before_infer_freq(
+        self, monkeypatch
+    ):
+        """A clear frequency mismatch should not scan the full index."""
+        from supy import _post
+        from supy._post import _index_freq_matches
+
+        df_output = _regular_output_frame(freq="5min")
+
+        def fail_infer_freq(_idx):
+            raise AssertionError("infer_freq should not run for an obvious mismatch")
+
+        monkeypatch.setattr(_post.pd, "infer_freq", fail_infer_freq)
+
+        assert _index_freq_matches(df_output, "60min") is False
 
     @analyze_dailystate_nan  # Add NaN analysis even when test passes
     @debug_on_ci

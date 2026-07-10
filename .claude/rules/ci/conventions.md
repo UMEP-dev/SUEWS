@@ -260,7 +260,10 @@ The `determine_matrix` job (`build-publish_to_pypi.yml`) assigns tiers based on 
 
 ### Merge queue (`merge_group`)
 
-Always: PR_PLATFORMS (3), BOOKEND (2), test tier **standard**. No path-based differentiation -- the merge queue uses a fixed reduced matrix to validate the merge commit.
+Always: PR_PLATFORMS (3), the abi3 build floor (1 Python), test tier
+**standard**. No path-based differentiation -- the merge queue uses a fixed
+reduced matrix to validate the merge commit. Ready-PR CI has already exercised
+both Python bookends; the queue repeats the combined tree on the floor only.
 
 **Exception (gh#1576):** when the queued PR carries `0-physics:change`, the merge queue runs test tier **physics-full** so the `slow` physics regression also gates the merge commit (this is the gap that let a known output-changing PR land in #1570). The PR number is derived from the queue ref and validated before the label is queried; if it cannot be identified (e.g. a batched group), the queue fails safe to **physics-full**.
 
@@ -328,16 +331,20 @@ The merge queue deliberately uses a reduced matrix rather than the full matrix. 
 **What merge queue covers:**
 
 - 3 platforms: Linux x86_64, macOS ARM64, Windows AMD64
-- 2 Python versions: 3.12 (oldest supported), 3.14 (newest)
+- 1 Python version: 3.12 (the abi3 floor and oldest supported)
 - standard test tier: all tests except `slow`-marked
 
 **What merge queue omits:**
 
 - macOS Intel x86_64 (legacy platform, declining user base)
-- Python 3.13 (intermediate version)
+- Python 3.13 and 3.14 (covered by ready-PR bookends and nightly/release CI)
 - `slow`-marked tests (>30s each) -- **except** for PRs labelled `0-physics:change`, which run the **physics-full** tier so the `slow` physics regression gates the merge (gh#1576)
 
-**Rationale:** Full matrix (4 platforms x 3 Python = 12 jobs) would make the merge queue too slow for its purpose as a fast gatekeeper before landing on master. The reduced matrix covers all three major OS families and version boundary extremes where compatibility issues most commonly surface.
+**Rationale:** Full matrix (4 platforms x 3 Python = 12 jobs), or even
+repeating both bookends on all three queue platforms, duplicates work already
+performed on the ready PR and multiplies the memory-heavy API suite. The queue
+keeps all three major OS families and revalidates the combined tree on the
+oldest supported Python; nightly and release CI retain cross-version coverage.
 
 **Safety net:**
 

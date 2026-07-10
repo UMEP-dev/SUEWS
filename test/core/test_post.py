@@ -36,9 +36,11 @@ class TestResampleOutput(TestCase):
         than being bound as an instance method (pytest deprecates the
         instance-method form; see PytestRemovedIn10Warning).
         """
-        request.cls.df_output, request.cls.df_state = sample_run_cached(
+        request.cls.df_output, _ = sample_run_cached(
             TIMESTEPS_PER_DAY * 7
         )
+        yield
+        del request.cls.df_output
 
     def test_resample_output_hourly(self):
         """Test resampling output to hourly frequency."""
@@ -306,9 +308,11 @@ class TestPostProcessingUtilities(TestCase):
         than being bound as an instance method (pytest deprecates the
         instance-method form; see PytestRemovedIn10Warning).
         """
-        request.cls.df_output, request.cls.df_state = sample_run_cached(
+        request.cls.df_output, _ = sample_run_cached(
             TIMESTEPS_PER_DAY * 2
         )
+        yield
+        del request.cls.df_output
 
     def test_output_groups(self):
         """Test output group structure."""
@@ -441,10 +445,13 @@ class TestMultiGridPostProcessing(TestCase):
 
         # Run short simulation
         df_forcing_short = df_forcing.iloc[:TIMESTEPS_PER_DAY].copy()  # One day
-        request.cls.df_output, request.cls.df_state = sp.run_supy(
+        request.cls.df_output, _ = sp.run_supy(
             df_forcing_short, df_state_multi, check_input=False
         )
         request.cls.n_grids = n_grids
+        yield
+        del request.cls.df_output
+        del request.cls.n_grids
 
     def test_multigrid_resample(self):
         """Test resampling multi-grid output."""
@@ -521,6 +528,8 @@ class TestErrorHandling(TestCase):
         instance-method form; see PytestRemovedIn10Warning).
         """
         request.cls.df_output, _ = sample_run_cached(TIMESTEPS_PER_DAY)
+        yield
+        del request.cls.df_output
 
     def test_invalid_frequency(self):
         """Test handling of invalid resampling frequency."""

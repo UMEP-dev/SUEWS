@@ -4808,46 +4808,23 @@ class TestSuewsYamlProcessorOrchestrator(TestProcessorFixtures):
     """Test suite for orchestrator functionality."""
 
     def test_individual_phase_execution(self, temp_yaml_files):
-        """Test individual phase execution (A, B, C)."""
-        # Test that the run_phase_a function exists and can be called
-        if hasattr(suews_yaml_processor, "run_phase_a"):
-            try:
-                result_a = suews_yaml_processor.run_phase_a(
-                    user_file=temp_yaml_files["user_file"],
-                    standard_file=temp_yaml_files["standard_file"],
-                    output_dir=temp_yaml_files["temp_dir"],
-                    mode="public",
-                )
-                # Test passes if function exists and doesn't crash
-                assert True, "run_phase_a function executed successfully"
+        """Phase A orchestration returns a report and writes both artefacts."""
+        output_dir = Path(temp_yaml_files["temp_dir"])
+        updated_yaml = output_dir / "phase_a_updated.yml"
+        report_file = output_dir / "phase_a_report.txt"
 
-            except Exception as e:
-                # Function exists but may have parameter/implementation issues
-                assert True, f"run_phase_a exists but has issues: {e}"
-        else:
-            # Test that the orchestrator has some phase execution functionality
-            assert hasattr(suews_yaml_processor, "main"), (
-                "Orchestrator should have main function"
-            )
+        phase_report = suews_yaml_processor.run_phase_a(
+            user_yaml_file=temp_yaml_files["user_file"],
+            standard_yaml_file=temp_yaml_files["standard_file"],
+            uptodate_file=str(updated_yaml),
+            report_file=str(report_file),
+            mode="public",
+            silent=True,
+        )
 
-    def test_combined_workflow_execution(self, temp_yaml_files):
-        """Test combined workflow execution (AB, AC, BC, ABC)."""
-        # Test basic orchestrator functionality
-        if hasattr(suews_yaml_processor, "main"):
-            # Test that main function exists (this is the primary orchestrator entry point)
-            assert callable(suews_yaml_processor.main), (
-                "Main function should be callable"
-            )
-        else:
-            # Test for other orchestrator patterns
-            orchestrator_functions = [
-                attr
-                for attr in dir(suews_yaml_processor)
-                if "run" in attr.lower() or "workflow" in attr.lower()
-            ]
-            assert len(orchestrator_functions) > 0, (
-                f"Should have orchestrator functions, found: {orchestrator_functions}"
-            )
+        assert phase_report.phase == "A"
+        assert updated_yaml.exists()
+        assert report_file.exists()
 
     def test_pydantic_defaults_detection(self):
         """Test detection of Pydantic defaults in configuration."""

@@ -15,8 +15,9 @@ the install is a separate concern owned by ``test_version.py`` and the
 from __future__ import annotations
 
 import asyncio
-import shutil
 from pathlib import Path
+import shutil
+import sys
 
 import pytest
 
@@ -26,22 +27,29 @@ pytestmark = pytest.mark.api
 REPO_ROOT = Path(__file__).resolve().parents[2]
 
 
-pytest.importorskip(
-    "mcp",
-    reason="The 'mcp' SDK is not installed. Install with `uv pip install -e mcp/` or `pip install mcp>=1.2`.",
-)
+try:
+    from mcp.client.stdio import StdioServerParameters, stdio_client
+
+    from mcp import ClientSession
+except ImportError as exc:
+    pytest.skip(
+        "The MCP SDK is unavailable in the active Python environment. "
+        "Install with `uv pip install --python .venv/bin/python -e mcp/` "
+        f"({exc}).",
+        allow_module_level=True,
+    )
 
 
-def _suews_mcp_resolvable() -> bool:
-    return shutil.which("suews-mcp") is not None
+_ACTIVE_BIN_DIR = Path(sys.executable).resolve().parent
+_SUEWS_MCP_COMMAND = shutil.which("suews-mcp", path=str(_ACTIVE_BIN_DIR))
 
 
 pytestmark_skipif = pytest.mark.skipif(
-    not _suews_mcp_resolvable(),
+    _SUEWS_MCP_COMMAND is None,
     reason=(
-        "`suews-mcp` is not on PATH. Run `uv pip install -e mcp/` (or "
-        "`pip install -e mcp/`) from the repo root before running this "
-        "test."
+        "`suews-mcp` is not installed beside the active Python interpreter. "
+        "Run `uv pip install --python .venv/bin/python -e mcp/` from the "
+        "repo root before running this test."
     ),
 )
 
@@ -92,11 +100,8 @@ EXPECTED_PROMPTS = frozenset({
 
 async def _run_handshake() -> dict:
     """Spawn `suews-mcp`, do the JSON-RPC handshake, return what we discovered."""
-    from mcp import ClientSession
-    from mcp.client.stdio import StdioServerParameters, stdio_client
-
     server_params = StdioServerParameters(
-        command="suews-mcp",
+        command=_SUEWS_MCP_COMMAND,
         env={"SUEWS_MCP_PROJECT_ROOT": str(REPO_ROOT)},
     )
 
@@ -114,9 +119,7 @@ async def _run_handshake() -> dict:
             )
 
             return {
-                "server_name": getattr(
-                    init_result.serverInfo, "name", None
-                ),
+                "server_name": getattr(init_result.serverInfo, "name", None),
                 "instructions": getattr(init_result, "instructions", None),
                 "tool_names": frozenset(t.name for t in tools_result.tools),
                 "resource_templates": frozenset(
@@ -126,9 +129,7 @@ async def _run_handshake() -> dict:
                 "static_resources": frozenset(
                     str(r.uri) for r in static_resources_result.resources
                 ),
-                "prompt_names": frozenset(
-                    p.name for p in prompts_result.prompts
-                ),
+                "prompt_names": frozenset(p.name for p in prompts_result.prompts),
                 "manifest_envelope": manifest_result,
             }
 
@@ -265,8 +266,9 @@ async def _run_baseline_then_concurrent(
     """
     import time
 
-    from mcp import ClientSession
     from mcp.client.stdio import StdioServerParameters, stdio_client
+
+    from mcp import ClientSession
 
     server_params = StdioServerParameters(
         command="suews-mcp",
@@ -453,7 +455,7 @@ def test_read_knowledge_manifest_returns_provenance() -> None:
     data = payload.get("data") or {}
     manifest = data.get("manifest") or data
     for required in ("pack_version", "schema_version", "git_sha"):
-        assert required in manifest and manifest[required], (
+        assert manifest.get(required), (
             f"Manifest missing required provenance field {required!r}. "
             f"Got keys: {sorted(manifest.keys())}"
         )

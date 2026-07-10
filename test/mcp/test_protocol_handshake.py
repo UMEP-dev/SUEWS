@@ -27,17 +27,23 @@ pytestmark = pytest.mark.api
 REPO_ROOT = Path(__file__).resolve().parents[2]
 
 
-try:
-    from mcp.client.stdio import StdioServerParameters, stdio_client
-
-    from mcp import ClientSession
-except ImportError as exc:
-    pytest.skip(
+_mcp_session = pytest.importorskip(
+    "mcp.client.session",
+    reason=(
         "The MCP SDK is unavailable in the active Python environment. "
-        "Install with `uv pip install --python .venv/bin/python -e mcp/` "
-        f"({exc}).",
-        allow_module_level=True,
-    )
+        "Install with `uv pip install --python .venv/bin/python -e mcp/`."
+    ),
+)
+_mcp_stdio = pytest.importorskip(
+    "mcp.client.stdio",
+    reason=(
+        "The MCP stdio client is unavailable in the active Python environment. "
+        "Install with `uv pip install --python .venv/bin/python -e mcp/`."
+    ),
+)
+ClientSession = _mcp_session.ClientSession
+StdioServerParameters = _mcp_stdio.StdioServerParameters
+stdio_client = _mcp_stdio.stdio_client
 
 
 _ACTIVE_BIN_DIR = Path(sys.executable).resolve().parent

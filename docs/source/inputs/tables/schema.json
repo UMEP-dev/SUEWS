@@ -11634,7 +11634,7 @@
       "type": "object"
     },
     "StorageHeatMethod": {
-      "description": "Method for calculating storage heat flux (\u0394QS).\n\n0: OBSERVED - Uses observed \u0394QS values from forcing file\n1: OHM_WITHOUT_QF - Objective Hysteresis Model using Q* only (use with OhmIncQf=0)\n3: ANOHM - Analytical OHM (Sun et al., 2017) - not recommended\n4: ESTM - Element Surface Temperature Method (Offerle et al., 2005) - not recommended\n5: EHC - Explicit Heat Conduction model with separate roof/wall/ground temperatures\n6: DyOHM - Dynamic Objective Hysteresis Model (Liu et al., 2025) with dynamic coefficients\n7: STEBBS - use STEBBS storage heat flux for building, others use OHM\n16: DyOHM_BUILDING - use DyOHM for building storage heat flux only; ordinary OHM for other land-cover surfaces",
+      "description": "Method for calculating storage heat flux (\u0394QS).\n\n0: OBSERVED - Uses observed \u0394QS values from forcing file\n1: OHM_WITHOUT_QF - Objective Hysteresis Model using Q* only (use with OhmIncQf=0)\n3: ANOHM - Analytical OHM (Sun et al., 2017) - not recommended\n4: ESTM - Element Surface Temperature Method (Offerle et al., 2005) - not recommended\n5: EHC - Explicit Heat Conduction model with separate roof/wall/ground temperatures\n6: DyOHM - Dynamic Objective Hysteresis Model (Liu et al., 2025) with dynamic coefficients\n7: STEBBS - use STEBBS storage heat flux for building, others use OHM\n8: DyOHM_BUILDING - use DyOHM for building storage heat flux only; ordinary OHM for other land-cover surfaces",
       "enum": [
         0,
         1,

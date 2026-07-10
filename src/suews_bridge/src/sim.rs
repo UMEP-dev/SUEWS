@@ -623,9 +623,9 @@ pub fn run_from_config_str_and_forcing(
         + run_cfg.timer.imin as f64 / (60.0 * 24.0)
         + run_cfg.timer.isec as f64 / (3600.0 * 24.0);
 
-    // Guardrail: DyOHM needs positive building material properties and lambda_c.
-    // Fully coupled DyOHM modes (6/7) also need surface-layer properties for
-    // their surface-temperature update.
+    // Guardrail: DyOHM-based methods (6/7/8) need positive building material
+    // properties and lambda_c. Fully coupled modes (6/7) additionally need
+    // surface-layer properties for their surface-temperature update.
     let storage_heat_method = run_cfg.config.storage_heat_method;
     if storage_heat_method == 6 || storage_heat_method == 7 || storage_heat_method == 8 {
         let lambda_c = run_cfg.site_scalars.lambda_c;

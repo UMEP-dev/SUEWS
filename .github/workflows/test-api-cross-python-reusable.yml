@@ -97,11 +97,9 @@ jobs:
           MARKER_EXPR: ${{ steps.marker.outputs.expr }}
         run: |
           python -m pip install --upgrade pip
-          python -m pip install pytest pytest-xdist
+          python -m pip install pytest
           python -m pip install wheelhouse/*.whl
-          # -n 2 (not auto): each xdist worker holds its own session-scoped
-          # sample-run caches (test/conftest.py), and 4 workers OOM-killed
-          # 16 GB Linux runners ("runner has received a shutdown signal" at a
-          # reproducible suite position) and swap-crawled 7 GB macOS runners.
-          # Two workers keep most of the wall-time win at half the footprint.
-          python -m pytest test -m "$MARKER_EXPR" -v --tb=short --durations=25 -n 2 --dist loadscope
+          # Run in one process. xdist duplicates every session fixture per
+          # worker; the API lane contains simulation outputs large enough to
+          # exhaust hosted-runner memory even with two workers.
+          python -m pytest test -m "$MARKER_EXPR" -v --tb=short --durations=25

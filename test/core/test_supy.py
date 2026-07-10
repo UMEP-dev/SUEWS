@@ -15,6 +15,7 @@ from supy import SUEWSSimulation
 
 # Import debug utilities from conftest (centralised)
 from conftest import (
+    SHORT_RUN_STEPS,
     TIMESTEPS_PER_DAY,
     capture_test_artifacts,
     debug_dataframe_output,
@@ -121,7 +122,9 @@ class TestSuPy(TestCase):
 
         df_state_init_multi = pd.concat([df_state_init_base for x in range(n_grid)])
         df_state_init_multi.index = pd.RangeIndex(n_grid, name="grid")
-        df_forcing_part = df_forcing_tstep.iloc[: TIMESTEPS_PER_DAY * 60]
+        # The contract is multi-grid execution plus save output; two hours is
+        # sufficient and avoids retaining 60 days of four-grid output.
+        df_forcing_part = df_forcing_tstep.iloc[:SHORT_RUN_STEPS]
         t_start = time()
         df_output, df_state = sp.run_supy(df_forcing_part, df_state_init_multi)
         t_end = time()
@@ -480,11 +483,11 @@ class TestSuPy(TestCase):
         print("\n========================================")
         print("Testing if water balance is closed...")
 
-        # Run for 100 days via the shared cached functional-API run (verified
-        # equivalent to SUEWSSimulation.from_sample_data().run() for this
-        # window - see task-4-report.md).
-        n_days = 100
-        df_output, df_state_final = self._sample_run(TIMESTEPS_PER_DAY * n_days)
+        # Seven days include both wet and dry periods in the bundled forcing
+        # and reuse the same cached window as the post-processing tests. The
+        # per-timestep closure contract does not require a 100-day output.
+        n_days = 7
+        df_output, _ = self._sample_run(TIMESTEPS_PER_DAY * n_days)
 
         # Get soilstore from debug output
         df_soilstore = df_output.loc[1, "debug"].filter(regex="^ss_.*_next$")

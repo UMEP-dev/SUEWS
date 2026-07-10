@@ -9,35 +9,34 @@ from supy.util._ohm import derive_ohm_coef, sim_ohm
 pytestmark = pytest.mark.api
 
 
+@pytest.fixture(scope="module")
+def fitted_diurnal_data():
+    """Deterministic diurnal data and its shared OHM fit."""
+    rng = np.random.default_rng(seed=2026)
+    n_days = 7
+    n_hours = n_days * 24
+    idx = pd.date_range("2023-07-01", periods=n_hours, freq="h")
+    hours = np.arange(n_hours) % 24
+
+    qn = pd.Series(
+        400 * np.maximum(0, np.sin(np.pi * (hours - 6) / 12))
+        + rng.normal(0, 10, n_hours),
+        index=idx,
+    )
+    qs = pd.Series(
+        150 * np.maximum(0, np.sin(np.pi * (hours - 4) / 12))
+        + rng.normal(0, 5, n_hours),
+        index=idx,
+    )
+    return qn, qs, derive_ohm_coef(qs, qn)
+
+
 class TestOHMCalculations:
     """Test OHM coefficient derivation and heat storage calculations."""
 
-    @pytest.fixture
-    def diurnal_data(self):
-        """Create sample diurnal radiation/storage data."""
-        n_days = 7
-        n_hours = n_days * 24
-        idx = pd.date_range("2023-07-01", periods=n_hours, freq="h")
-        hours = np.arange(n_hours) % 24
-
-        # Net radiation with diurnal cycle
-        qn = pd.Series(
-            400 * np.maximum(0, np.sin(np.pi * (hours - 6) / 12))
-            + np.random.normal(0, 10, n_hours),
-            index=idx,
-        )
-        # Storage heat flux with phase lag
-        qs = pd.Series(
-            150 * np.maximum(0, np.sin(np.pi * (hours - 4) / 12))
-            + np.random.normal(0, 5, n_hours),
-            index=idx,
-        )
-        return qn, qs
-
-    def test_coefficient_derivation(self, diurnal_data):
+    def test_coefficient_derivation(self, fitted_diurnal_data):
         """Test OHM coefficient derivation gives physically reasonable values."""
-        qn, qs = diurnal_data
-        a1, a2, a3 = derive_ohm_coef(qs, qn)
+        _, _, (a1, a2, a3) = fitted_diurnal_data
 
         # a1: QN coefficient (typically 0.1-0.5 for urban surfaces)
         assert 0 < a1 < 1.0, f"a1={a1:.3f} outside expected range"
@@ -46,10 +45,9 @@ class TestOHMCalculations:
         # a3: intercept
         assert abs(a3) < 50, f"a3={a3:.3f} unreasonably large"
 
-    def test_model_fit_quality(self, diurnal_data):
+    def test_model_fit_quality(self, fitted_diurnal_data):
         """Test that OHM model fits observations reasonably well."""
-        qn, qs = diurnal_data
-        a1, a2, a3 = derive_ohm_coef(qs, qn)
+        qn, qs, (a1, a2, a3) = fitted_diurnal_data
         qs_calc = sim_ohm(qn, a1, a2, a3)
 
         # Calculate R²
@@ -91,21 +89,21 @@ class TestOHMCalculations:
         qe = pd.Series(150 * np.maximum(0, np.sin(np.pi * (hours - 8) / 12)), index=idx)
         qs = qn - qh - qe  # Storage by residual
 
-        a1, a2, a3 = derive_ohm_coef(qs, qn)
+        a1, _, _ = derive_ohm_coef(qs, qn)
 
         # Peak storage should be positive (storing heat)
         assert qs[qn.idxmax()] > 0, "Peak storage should be positive"
         # a1 should be positive
         assert a1 > 0, "a1 should be positive for energy balance"
 
-    def test_missing_data_handling(self, diurnal_data):
+    def test_missing_data_handling(self, fitted_diurnal_data):
         """Test OHM handles missing data gracefully."""
-        qn, qs = diurnal_data
+        qn, qs, _ = fitted_diurnal_data
 
         # Introduce gaps
         qn_gaps = qn.copy()
         qs_gaps = qs.copy()
-        gap_mask = np.random.random(len(qn)) < 0.1
+        gap_mask = np.random.default_rng(seed=2026).random(len(qn)) < 0.1
         qn_gaps[gap_mask] = np.nan
         qs_gaps[gap_mask] = np.nan
 

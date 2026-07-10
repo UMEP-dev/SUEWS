@@ -278,8 +278,8 @@ fixtures in `test/conftest.py` rather than building or running a fresh
 
 - `sample_data_loaded` -- the bundled `(df_state_init, df_forcing)`, loaded
   once per session (read-only; `.copy()` before mutating)
-- `completed_sample_sim` -- a `SUEWSSimulation` built from the sample YAML
-  with `.run()` already called (read-only; do not `.reset()`, mutate, or
+- `completed_sample_sim` -- a short `SUEWSSimulation` built from the sample
+  YAML with `.run()` already called (read-only; do not `.reset()`, mutate, or
   re-run)
 - `sample_run_cached` -- a session-scoped factory memoising functional-API
   (`supy.run_supy`) sample runs by forcing window

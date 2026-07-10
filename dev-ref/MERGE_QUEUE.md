@@ -28,8 +28,7 @@ merge_group:
 
 ### Validation Matrix
 - **Platforms**: Linux (manylinux) + ARM Mac + Windows
-- **Python versions**: 3.12 and 3.14 (bookend versions -- 3.12 is the
-  `requires-python` floor per gh#1553, not 3.9)
+- **Python version**: 3.12 (the `requires-python` / abi3 floor per gh#1553)
 - **Test tier**: `standard` (more thorough than PR smoke tests)
 
 ### Gate Job
@@ -193,9 +192,11 @@ gh pr edit <FAILING_PR_NUMBER> --remove-from-merge-queue
 | Nightly | All (incl. x86 Mac) for the wheel build; api tests skip x86 Mac (runner scarcity -- see run 28990965739) | 3.12-3.14 | all |
 | Release (tag push) | All (incl. x86 Mac), api tests included | 3.12-3.14 | all |
 
-Python versions are the `requires-python` floor (3.12) plus the newest
-supported CPython (3.14); the candidate window is clamped in
-`.github/scripts/determine-matrix.sh` and tracks `pyproject.toml` (gh#1553).
+Ready-PR CI tests the oldest and newest supported CPython bookends. The merge
+queue revalidates the combined tree on the `requires-python` floor (3.12)
+only; nightly and release runs retain the wider cross-version matrix. The
+floor is clamped in `.github/scripts/determine-matrix.sh` and tracks
+`pyproject.toml` (gh#1553).
 
 ### Path-Based Skipping
 

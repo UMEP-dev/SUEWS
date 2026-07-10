@@ -41,7 +41,7 @@ EXAMPLES:
 
 | Year | Features | Bugfixes | Changes | Maintenance | Docs | Total |
 |------|----------|----------|---------|-------------|------|-------|
-| 2026 | 79       | 85       | 30 | 81 | 40 | 316   |
+| 2026 | 80       | 85       | 30 | 81 | 40 | 317   |
 | 2025 | 60       | 68       | 22 | 71 | 36 | 256   |
 | 2024 | 12       | 17       | 1 | 12 | 1 | 43    |
 | 2023 | 11       | 14       | 3 | 9 | 1 | 38    |
@@ -53,6 +53,11 @@ EXAMPLES:
 | 2017 | 9        | 0        | 3 | 2 | 0 | 14    |
 
 ## 2026
+
+### 9 Jul 2026
+
+- [feature][experimental] Added the `dyohm_building` storage-heat option (#1601)
+  - Exposed `model.physics.storage_heat: dyohm_building` (`StorageHeatMethod=8`) so DyOHM determines the building storage heat flux while other land-cover surfaces continue to use ordinary OHM.
 
 ### 8 Jul 2026
 

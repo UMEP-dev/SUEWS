@@ -36,9 +36,11 @@ class TestRegistryShape:
             "ehc",
             "dyohm",
             "stebbs",
+            "dyohm_building",
         }
         assert fams["ohm"] == frozenset({1})
         assert fams["ehc"] == frozenset({5})
+        assert fams["dyohm_building"] == frozenset({8})
 
     def test_emissions_families(self):
         fams = PHYSICS_FAMILIES["emissions"]
@@ -191,6 +193,9 @@ class TestCoerceScalarNames:
     def test_family_tag_name_resolves(self):
         assert coerce_nested_to_flat("storage_heat", "ohm") == {"value": 1}
         assert coerce_nested_to_flat("storage_heat", "ehc") == {"value": 5}
+        assert coerce_nested_to_flat("storage_heat", "dyohm_building") == {
+            "value": 8
+        }
 
     def test_enum_member_name_resolves(self):
         assert coerce_nested_to_flat("storage_heat", "ohm_without_qf") == {"value": 1}
@@ -283,6 +288,7 @@ class TestCoerceScalarNames:
         assert preferred_physics_name("storage_heat", 3) == "anohm"
         assert preferred_physics_name("storage_heat", 4) == "estm"
         assert preferred_physics_name("storage_heat", 6) == "dyohm"
+        assert preferred_physics_name("storage_heat", 8) == "dyohm_building"
         assert preferred_physics_name("roughness_sublayer", 1) == "rst"
         assert preferred_physics_name("soil_moisture_deficit", 2) == "observed"
         assert "w16" in accepted_physics_names("surface_conductance")

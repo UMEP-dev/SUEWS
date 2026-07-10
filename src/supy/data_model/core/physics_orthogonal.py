@@ -51,7 +51,7 @@ _EMISSIONS_BIOGENIC_OFFSETS: dict[str, int] = {
 }
 
 _STORAGE_HEAT_FAMILIES = frozenset(
-    {"observed", "ohm", "anohm", "estm", "ehc", "dyohm", "stebbs"}
+    {"observed", "ohm", "anohm", "estm", "ehc", "dyohm", "stebbs", "dyohm_building"}
 )
 _REFVALUE_KEYS = frozenset({"value", "ref"})
 _STORAGE_HEAT_QF_KEYS = ("include_qf", "ohm_inc_qf", "ohmincqf")

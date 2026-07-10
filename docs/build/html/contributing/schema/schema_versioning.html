@@ -8,8 +8,8 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <meta property="article:modified_time" content="2026-06-30T22:50:11+00:00" />
-    <title>YAML Configuration Schema Versioning &#8212; SUEWS 2026.7.10.dev2 documentation</title>
+    <meta property="article:modified_time" content="2026-07-10T12:07:51+00:00" />
+    <title>YAML Configuration Schema Versioning &#8212; SUEWS 2026.7.10.dev3 documentation</title>
   
   
   
@@ -45,7 +45,7 @@
   <link rel="preload" as="script" href="../../_static/scripts/bootstrap.js?digest=8878045cc6db502f8baf" />
 <link rel="preload" as="script" href="../../_static/scripts/pydata-sphinx-theme.js?digest=8878045cc6db502f8baf" />
 
-    <script src="../../_static/documentation_options.js?v=f8efab21"></script>
+    <script src="../../_static/documentation_options.js?v=4313293c"></script>
     <script src="../../_static/doctools.js?v=9bcbadda"></script>
     <script src="../../_static/sphinx_highlight.js?v=dc90522c"></script>
     <script src="../../_static/scripts/sphinx-book-theme.js?v=fab101a9"></script>
@@ -57,8 +57,8 @@
     <link rel="search" title="Search" href="../../search.html" />
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
-  <meta name="docsearch:version" content="2026.7.10.dev2" />
-    <meta name="docbuild:last-update" content="2026-06-30"/>
+  <meta name="docsearch:version" content="2026.7.10.dev3" />
+    <meta name="docbuild:last-update" content="2026-07-10"/>
   </head>
   
   
@@ -100,7 +100,7 @@
   <div class="bd-header-announcement__content">
     <div style="background-color: #f0ad4e; border: 1px solid #eea236; border-radius: 4px; padding: 10px; margin: 10px 0;">
         <strong>⚠️ Development Version:</strong> This documentation was built from a development version
-        (2026.7.10.dev2, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/6e0745a27e094a8bf66b2b009e6199b9700d67a7" style="color: #31708f;">6e0745a</a>).
+        (2026.7.10.dev3, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/7d9d5b763a1adac137aa7c07375905fff83132be" style="color: #31708f;">7d9d5b7</a>).
         Features described here may be unstable or subject to change. For stable documentation, please visit the
         <a href="https://docs.suews.io/stable/" style="color: #31708f;">latest release</a>.
     </div>
@@ -147,8 +147,8 @@
       
     
     
-    <img src="../../_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.7.10.dev2 documentation - Home"/>
-    <img src="../../_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.7.10.dev2 documentation - Home"/>
+    <img src="../../_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.7.10.dev3 documentation - Home"/>
+    <img src="../../_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.7.10.dev3 documentation - Home"/>
   
   
 </a></div>
@@ -656,7 +656,7 @@ migration handler that upgrades older YAMLs to the current shape.</p></li>
 compatibility matrix.</p></li>
 </ul>
 <p>Schema version is distinct from the SUEWS model version. A line such as
-<code class="docutils literal notranslate"><span class="pre">schema_version:</span> <span class="pre">&quot;2026.6.dev1&quot;</span></code> describes the shape of the configuration
+<code class="docutils literal notranslate"><span class="pre">schema_version:</span> <span class="pre">&quot;2026.6.dev2&quot;</span></code> describes the shape of the configuration
 file, while the SUEWS version you installed (for example
 <code class="docutils literal notranslate"><span class="pre">2026.4.3</span></code>) describes the model code. One schema may validate many
 model releases.</p>
@@ -665,7 +665,7 @@ model releases.</p>
 <h2>Schema Version Field<a class="headerlink" href="#schema-version-field" title="Link to this heading">#</a></h2>
 <p>Add the <code class="docutils literal notranslate"><span class="pre">schema_version</span></code> field to the top level of your configuration:</p>
 <div class="highlight-yaml notranslate"><div class="highlight"><pre><span></span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">my_urban_config</span>
-<span class="nt">schema_version</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;2026.6.dev1&quot;</span>
+<span class="nt">schema_version</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;2026.6.dev2&quot;</span>
 <span class="nt">description</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Urban climate simulation for central London</span>
 <span class="nt">model</span><span class="p">:</span>
 <span class="w">  </span><span class="c1"># ... model configuration ...</span>
@@ -683,7 +683,8 @@ tell which shape the file targets.</p>
 <p>Schema labels use <strong>CalVer</strong> (<code class="docutils literal notranslate"><span class="pre">YYYY.M</span></code>, with <code class="docutils literal notranslate"><span class="pre">.devN</span></code> labels during
 development), aligned with the SUEWS release in which that shape first
 ships. The next label is chosen from the current month, not incremented
-as a floating-point number — <code class="docutils literal notranslate"><span class="pre">2026.6.dev1</span></code> comes after <code class="docutils literal notranslate"><span class="pre">2026.5</span></code>,
+as a floating-point number — <code class="docutils literal notranslate"><span class="pre">2026.6.dev2</span></code> comes after <code class="docutils literal notranslate"><span class="pre">2026.6.dev1</span></code>,
+which comes after <code class="docutils literal notranslate"><span class="pre">2026.5</span></code>,
 which comes after <code class="docutils literal notranslate"><span class="pre">2026.4</span></code>, which comes after <code class="docutils literal notranslate"><span class="pre">2026.1</span></code>, which comes
 after <code class="docutils literal notranslate"><span class="pre">2025.12</span></code>.</p>
 <p>A bump happens when a PR to <code class="docutils literal notranslate"><span class="pre">src/supy/data_model/</span></code> makes a previously
@@ -724,18 +725,18 @@ separate table to update.</p>
 <dl>
 <dt><strong>Current version</strong></dt><dd><p>Configuration loads with no warning.</p>
 </dd>
-<dt><strong>Older schema with a registered migration</strong></dt><dd><div class="highlight-text notranslate"><div class="highlight"><pre><span></span>Configuration uses schema 2026.5, current is 2026.6.dev1 (compatible)
+<dt><strong>Older schema with a registered migration</strong></dt><dd><div class="highlight-text notranslate"><div class="highlight"><pre><span></span>Configuration uses schema 2026.5, current is 2026.6.dev2 (compatible)
 </pre></div>
 </div>
 <p>The YAML loads via the chained migration. Regenerate the file with
 <a class="reference internal" href="../../inputs/converter.html"><span class="doc">SUEWS Format Converter</span></a> if you want to persist the upgrade.</p>
 </dd>
-<dt><strong>Older schema with no registered migration</strong></dt><dd><div class="highlight-text notranslate"><div class="highlight"><pre><span></span>WARNING: Configuration uses older schema 2025.8, current is 2026.6.dev1.
+<dt><strong>Older schema with no registered migration</strong></dt><dd><div class="highlight-text notranslate"><div class="highlight"><pre><span></span>WARNING: Configuration uses older schema 2025.8, current is 2026.6.dev2.
 Consider updating your configuration.
 </pre></div>
 </div>
 </dd>
-<dt><strong>Newer schema than this SUEWS knows about</strong></dt><dd><div class="highlight-text notranslate"><div class="highlight"><pre><span></span>WARNING: Configuration uses newer schema 2027.1, this version supports 2026.6.dev1.
+<dt><strong>Newer schema than this SUEWS knows about</strong></dt><dd><div class="highlight-text notranslate"><div class="highlight"><pre><span></span>WARNING: Configuration uses newer schema 2027.1, this version supports 2026.6.dev2.
 Please update SUEWS or use an older configuration.
 </pre></div>
 </div>
@@ -783,7 +784,16 @@ suews<span class="w"> </span>schema<span class="w"> </span>migrate<span class="w
 the schema that shipped with it via
 <code class="docutils literal notranslate"><span class="pre">supy.util.converter.yaml_upgrade._PACKAGE_TO_SCHEMA</span></code>.</p>
 <dl>
-<dt><strong>Schema 2026.6.dev1</strong> (current; development)</dt><dd><p>Development schema for the SPARTACUS direct/diffuse benchmark work.
+<dt><strong>Schema 2026.6.dev2</strong> (current; development)</dt><dd><p>Development schema adding <code class="docutils literal notranslate"><span class="pre">storage_heat=dyohm_building</span></code>
+(<code class="docutils literal notranslate"><span class="pre">StorageHeatMethod=8</span></code>). This option uses DyOHM to determine the
+building storage heat flux only; other land-cover surfaces continue to
+use ordinary OHM, and DyOHM surface temperatures are not fed back into
+the radiation calculation. Existing <code class="docutils literal notranslate"><span class="pre">2026.6.dev1</span></code> YAMLs remain valid
+because the selector is opt-in; the
+<code class="docutils literal notranslate"><span class="pre">(2026.6.dev1</span> <span class="pre">-&gt;</span> <span class="pre">2026.6.dev2)</span></code> handler is a no-op content migration
+that updates the schema marker.</p>
+</dd>
+<dt><strong>Schema 2026.6.dev1</strong> (development)</dt><dd><p>Development schema for the SPARTACUS direct/diffuse benchmark work.
 It adds <code class="docutils literal notranslate"><span class="pre">model.physics.kdown_split_method</span></code> for selecting forcing,
 constant-fraction, or EPW-derived direct/diffuse shortwave
 partitioning, with the constant value supplied as
@@ -988,7 +998,7 @@ By SUEWS dev team led by Prof Sue Grimmond
   
   <div class="footer-item">
     <p class="last-updated">
-  Last updated on 2026-06-30.
+  Last updated on 2026-07-10.
   <br/>
 </p>
   </div>
@@ -996,8 +1006,8 @@ By SUEWS dev team led by Prof Sue Grimmond
   <div class="footer-item">
     
 <div class="extra_footer">
-  <p>Version: 2026.7.10.dev2 |
-    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/6e0745a27e094a8bf66b2b009e6199b9700d67a7">6e0745a</a> |
+  <p>Version: 2026.7.10.dev3 |
+    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/7d9d5b763a1adac137aa7c07375905fff83132be">7d9d5b7</a> |
     <a href="https://umep-dev.github.io/SUEWS/brand/showcase.html">Brand</a></p>
 </div>
   </div>

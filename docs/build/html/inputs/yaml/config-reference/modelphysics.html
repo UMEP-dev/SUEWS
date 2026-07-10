@@ -10,7 +10,7 @@
 <meta content="SUEWS YAML configuration for physics methods parameters" name="description" />
 <meta content="SUEWS, YAML, modelphysics, parameters, configuration" name="keywords" />
 
-    <title>4.3.33. Physics Methods &#8212; SUEWS 2026.7.10.dev2 documentation</title>
+    <title>4.3.33. Physics Methods &#8212; SUEWS 2026.7.10.dev3 documentation</title>
   
   
   
@@ -46,7 +46,7 @@
   <link rel="preload" as="script" href="../../../_static/scripts/bootstrap.js?digest=8878045cc6db502f8baf" />
 <link rel="preload" as="script" href="../../../_static/scripts/pydata-sphinx-theme.js?digest=8878045cc6db502f8baf" />
 
-    <script src="../../../_static/documentation_options.js?v=f8efab21"></script>
+    <script src="../../../_static/documentation_options.js?v=4313293c"></script>
     <script src="../../../_static/doctools.js?v=9bcbadda"></script>
     <script src="../../../_static/sphinx_highlight.js?v=dc90522c"></script>
     <script src="../../../_static/scripts/sphinx-book-theme.js?v=fab101a9"></script>
@@ -60,7 +60,7 @@
     <link rel="prev" title="4.3.32. Model Control" href="modelcontrol.html" />
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
-  <meta name="docsearch:version" content="2026.7.10.dev2" />
+  <meta name="docsearch:version" content="2026.7.10.dev3" />
   </head>
   
   
@@ -102,7 +102,7 @@
   <div class="bd-header-announcement__content">
     <div style="background-color: #f0ad4e; border: 1px solid #eea236; border-radius: 4px; padding: 10px; margin: 10px 0;">
         <strong>⚠️ Development Version:</strong> This documentation was built from a development version
-        (2026.7.10.dev2, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/6e0745a27e094a8bf66b2b009e6199b9700d67a7" style="color: #31708f;">6e0745a</a>).
+        (2026.7.10.dev3, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/7d9d5b763a1adac137aa7c07375905fff83132be" style="color: #31708f;">7d9d5b7</a>).
         Features described here may be unstable or subject to change. For stable documentation, please visit the
         <a href="https://docs.suews.io/stable/" style="color: #31708f;">latest release</a>.
     </div>
@@ -149,8 +149,8 @@
       
     
     
-    <img src="../../../_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.7.10.dev2 documentation - Home"/>
-    <img src="../../../_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.7.10.dev2 documentation - Home"/>
+    <img src="../../../_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.7.10.dev3 documentation - Home"/>
+    <img src="../../../_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.7.10.dev3 documentation - Home"/>
   
   
 </a></div>
@@ -636,7 +636,7 @@
 </thead>
 <tbody>
 <tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">storage_heat</span></code></p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">observed</span></code>; <code class="docutils literal notranslate"><span class="pre">ohm</span></code>; <code class="docutils literal notranslate"><span class="pre">anohm</span></code>; <code class="docutils literal notranslate"><span class="pre">estm</span></code>; <code class="docutils literal notranslate"><span class="pre">ehc</span></code>; <code class="docutils literal notranslate"><span class="pre">dyohm</span></code>; <code class="docutils literal notranslate"><span class="pre">stebbs</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">observed</span></code>; <code class="docutils literal notranslate"><span class="pre">ohm</span></code>; <code class="docutils literal notranslate"><span class="pre">anohm</span></code>; <code class="docutils literal notranslate"><span class="pre">estm</span></code>; <code class="docutils literal notranslate"><span class="pre">ehc</span></code>; <code class="docutils literal notranslate"><span class="pre">dyohm</span></code>; <code class="docutils literal notranslate"><span class="pre">stebbs</span></code>; <code class="docutils literal notranslate"><span class="pre">dyohm_building</span></code></p></td>
 <td><p>Storage heat source or model family.</p></td>
 </tr>
 <tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">storage_heat.ohm.include_qf</span></code></p></td>
@@ -882,6 +882,7 @@
 <div class="line"><code class="docutils literal notranslate"><span class="pre">5</span></code> (EHC) = Explicit Heat Conduction model with separate roof/wall/ground temperatures</div>
 <div class="line"><code class="docutils literal notranslate"><span class="pre">6</span></code> (DyOHM) = Dynamic Objective Hysteresis Model (Liu et al., 2025) with dynamic coefficients</div>
 <div class="line"><code class="docutils literal notranslate"><span class="pre">7</span></code> (STEBBS) = use STEBBS storage heat flux for building, others use OHM</div>
+<div class="line"><code class="docutils literal notranslate"><span class="pre">8</span></code> (DyOHM_BUILDING) = use DyOHM for building storage heat flux only</div>
 </div>
 </dd>
 <dt class="field-even">Default<span class="colon">:</span></dt>
@@ -890,7 +891,7 @@
 </dl>
 <div class="note admonition">
 <p class="admonition-title">Method Interactions</p>
-<p>EHC (5) requires SPARTACUS net radiation; STEBBS storage heat (7) requires STEBBS enabled; OHM-like paths use OhmIncQf.</p>
+<p>EHC (5) requires SPARTACUS net radiation; STEBBS storage heat (7) requires STEBBS enabled; OHM-like paths use OhmIncQf, with method 8 (dyohm_building) requiring OhmIncQf=0.</p>
 <p><strong>Depends on:</strong> <a class="reference internal" href="#net-radiation"><span class="std std-ref">net_radiation</span></a>, <a class="reference internal" href="#ohm-inc-qf"><span class="std std-ref">ohm_inc_qf</span></a>, <a class="reference internal" href="#snow-use"><span class="std std-ref">snow_use</span></a>, <a class="reference internal" href="stebbsproperties.html#stebbs"><span class="std std-ref">stebbs</span></a>
 <strong>Provides to:</strong> <code class="docutils literal notranslate"><span class="pre">energy_balance</span></code></p>
 </div>
@@ -1242,8 +1243,8 @@ By SUEWS dev team led by Prof Sue Grimmond
   <div class="footer-item">
     
 <div class="extra_footer">
-  <p>Version: 2026.7.10.dev2 |
-    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/6e0745a27e094a8bf66b2b009e6199b9700d67a7">6e0745a</a> |
+  <p>Version: 2026.7.10.dev3 |
+    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/7d9d5b763a1adac137aa7c07375905fff83132be">7d9d5b7</a> |
     <a href="https://umep-dev.github.io/SUEWS/brand/showcase.html">Brand</a></p>
 </div>
   </div>

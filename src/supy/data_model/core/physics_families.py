@@ -171,7 +171,8 @@ _PHYSICS_NAME_SPECS: dict[str, list[tuple[int, str, tuple[str, ...]]]] = {
     "frontal_area_index": [
         # Source-of-input selector on the shared observed/modelled axis
         # (matches laimethod, water_use, soil_moisture_deficit). Code 0 takes
-        # the site-supplied FAI ("observed"); code 1 derives it internally.
+        # the site-supplied FAI ("observed"); code 1 derives it internally but
+        # is experimental and restricted from public-mode validation (gh#1594).
         (0, "observed", ()),
         (1, "modelled", ()),
     ],

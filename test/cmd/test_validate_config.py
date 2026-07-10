@@ -695,6 +695,102 @@ def test_public_mode_restriction_honours_legacy_stebbs_aliases(
     assert read_error is None
 
 
+@pytest.mark.parametrize(
+    ("key", "value"),
+    [
+        ("frontal_area_index", {"value": 1}),
+        ("frontal_area_index", "modelled"),
+        ("faimethod", {"value": 1}),
+        ("fai_method", "modelled"),
+    ],
+)
+def test_public_mode_restriction_rejects_modelled_fai(
+    tmp_path: Path,
+    key: str,
+    value: object,
+) -> None:
+    from supy.cmd.validate_config import _experimental_features_restriction
+
+    payload = {"model": {"physics": {key: value}}}
+    config_path = tmp_path / "public-modelled-fai.yml"
+    _write_yaml(config_path, payload)
+
+    ok, restrictions, read_error = _experimental_features_restriction(
+        str(config_path), "public"
+    )
+
+    assert ok is False
+    assert "Modelled frontal_area_index is experimental" in restrictions[0]
+    assert "use observed FAI" in restrictions[0]
+    assert read_error is None
+
+
+@pytest.mark.parametrize(
+    ("key", "value"),
+    [
+        ("frontal_area_index", {"value": 0}),
+        ("frontal_area_index", "observed"),
+        ("faimethod", {"value": 0}),
+        ("fai_method", "observed"),
+    ],
+)
+def test_public_mode_restriction_allows_observed_fai(
+    tmp_path: Path,
+    key: str,
+    value: object,
+) -> None:
+    from supy.cmd.validate_config import _experimental_features_restriction
+
+    payload = {"model": {"physics": {key: value}}}
+    config_path = tmp_path / "public-observed-fai.yml"
+    _write_yaml(config_path, payload)
+
+    ok, restrictions, read_error = _experimental_features_restriction(
+        str(config_path), "public"
+    )
+
+    assert ok is True
+    assert restrictions == []
+    assert read_error is None
+
+
+def test_dev_mode_restriction_allows_modelled_fai(tmp_path: Path) -> None:
+    from supy.cmd.validate_config import _experimental_features_restriction
+
+    config_path = tmp_path / "dev-modelled-fai.yml"
+    _write_yaml(
+        config_path,
+        {"model": {"physics": {"frontal_area_index": "modelled"}}},
+    )
+
+    ok, restrictions, read_error = _experimental_features_restriction(
+        str(config_path), "dev"
+    )
+
+    assert ok is True
+    assert restrictions == []
+    assert read_error is None
+
+
+def test_public_schema_hides_experimental_modelled_fai() -> None:
+    from supy.data_model.schema.publisher import generate_json_schema
+
+    public_schema = generate_json_schema()
+    internal_schema = generate_json_schema(include_internal=True)
+
+    assert public_schema["$defs"]["FAIMethod"]["enum"] == [0]
+    assert "MODELLED" not in public_schema["$defs"]["FAIMethod"]["description"]
+    assert (
+        "MODELLED"
+        not in public_schema["$defs"]["ModelPhysics"]["properties"][
+            "frontal_area_index"
+        ]["description"]
+    )
+
+    assert internal_schema["$defs"]["FAIMethod"]["enum"] == [0, 1]
+    assert "MODELLED" in internal_schema["$defs"]["FAIMethod"]["description"]
+
+
 @pytest.mark.parametrize("legacy_key", ["stebbsmethod", "stebbs_method"])
 def test_public_mode_restriction_rejects_mixed_stebbs_master_aliases(
     tmp_path: Path,

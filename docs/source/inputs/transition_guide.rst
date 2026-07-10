@@ -180,12 +180,26 @@ The sections below summarise what users see change between schemas.
 The authoritative lineage (including release-tag to schema mapping)
 lives in :ref:`schema_version_history`.
 
+Upgrading to Schema 2026.6.dev2
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Schema ``2026.6.dev2`` keeps the ``frontal_area_index`` selector shape
+introduced in ``2026.5``: ``observed`` uses site-provided frontal area
+index (FAI) values, while ``modelled`` derives FAI internally.
+
+The ``modelled`` branch is now explicitly treated as experimental.
+Public validation rejects ``frontal_area_index: modelled`` and asks
+users to use ``frontal_area_index: observed`` with supplied building and
+tree FAI values instead. The migration from ``2026.6.dev1`` to
+``2026.6.dev2`` is a no-op content migration that updates only the
+``schema_version`` marker.
+
 Upgrading to Schema 2026.6.dev1
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Schema ``2026.6.dev1`` is the current development schema for the
-SPARTACUS direct/diffuse benchmark work. It extends the ``2026.5``
-surface with default-backed controls:
+Schema ``2026.6.dev1`` is the development schema for the SPARTACUS
+direct/diffuse benchmark work. It extends the ``2026.5`` surface with
+default-backed controls:
 
 - ``model.physics.kdown_split_method`` selects forcing-provided,
   constant-fraction, or EPW-derived direct/diffuse shortwave

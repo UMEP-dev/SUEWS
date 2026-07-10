@@ -478,6 +478,7 @@ CONTAINS
       INTEGER, PARAMETER :: BSoilSurf = 6 !New surface classes: Bare soil = 6th/7 surfaces
       INTEGER, PARAMETER :: WaterSurf = 7
       REAL(KIND(1D0)), PARAMETER :: porosity_evetr = 0.32 ! assumed porosity of evergreen trees, ref: Lai et al. (2022), http://dx.doi.org/10.2139/ssrn.4058842
+      REAL(KIND(1D0)), PARAMETER :: FAI_BLDG_WIDTH = 15.0 ! assumed characteristic building width [m] for the experimental modelled building FAI scheme (FAImethod=1, gh#1594)
 
       TYPE(SUEWS_TIMER), INTENT(IN) :: timer
       TYPE(SUEWS_CONFIG), INTENT(IN) :: config
@@ -628,10 +629,16 @@ CONTAINS
                   FAIDecTree_use = FAIDecTree*(1 - porosity_dectr)
 
                ELSEIF (FAImethod == 1) THEN
-                  ! use the simple scheme, details in #192
+                  ! experimental modelled FAI scheme (gh#1594).
+                  ! Public users should prefer FAImethod==0 and provide FAI
+                  ! values from site morphology. The previous #192 building
+                  ! branch used SQRT(sfr_bldg/surfaceArea)*bldgH, making
+                  ! FAIBldg scale with grid-cell area. Here the building branch
+                  ! uses a fixed characteristic building width instead:
+                  ! FAIBldg = lambda_p * H / b0.
 
                   ! buildings
-                  FAIBldg_use = SQRT(sfr_surf(BldgSurf)/surfaceArea)*bldgH
+                  FAIBldg_use = sfr_surf(BldgSurf)*bldgH/FAI_BLDG_WIDTH
 
                   ! evergreen trees
                   FAIEveTree_use = 1.07*sfr_surf(ConifSurf)

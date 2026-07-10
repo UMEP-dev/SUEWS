@@ -481,18 +481,18 @@ class FAIMethod(Enum):
     """
     Method for calculating frontal area index (FAI) - the ratio of frontal area to plan area.
 
-    0: OBSERVED - Use FAI values provided in site parameters (FAIBldg, FAIEveTree, FAIDecTree)
-    1: MODELLED - Calculate FAI using simple scheme based on surface fractions and heights
+    0: OBSERVED - Recommended for normal use. Use FAI values provided in site parameters (FAIBldg, FAIEveTree, FAIDecTree).
+    1: MODELLED - Experimental internal parameterisation from surface fractions and heights. Public-mode validation rejects this option; use OBSERVED unless developing or testing the modelled FAI scheme.
     """
 
     OBSERVED = 0  # Use FAI values from site parameters
-    MODELLED = 1  # Calculate FAI using simple scheme (sqrt(fr)*h for buildings, empirical for trees)
+    MODELLED = 1  # Experimental internal FAI parameterisation (gh#1594)
 
     def __new__(cls, value):
         obj = object.__new__(cls)
         obj._value_ = value
-        # Mark internal options
-        if value == 0:  # ZERO (not documented)
+        # Mark internal / experimental options.
+        if value == 1:
             obj._internal = True
         else:
             obj._internal = False
@@ -1030,7 +1030,13 @@ class ModelPhysics(BaseModel):
     )
     frontal_area_index: FlexibleRefValue(FAIMethod) = Field(
         default=FAIMethod.OBSERVED,
-        description=_enum_description(FAIMethod),
+        description=(
+            "Method for calculating frontal area index (FAI) - the ratio of "
+            "frontal area to plan area. Options: 0 (OBSERVED) = Recommended "
+            "for normal use. Use FAI values provided in site parameters "
+            "(FAIBldg, FAIEveTree, FAIDecTree). The modelled FAI branch is "
+            "experimental and reserved for dev/internal validation."
+        ),
         json_schema_extra={"unit": "dimensionless"},
     )
     roughness_sublayer_level: FlexibleRefValue(RSLLevel) = Field(

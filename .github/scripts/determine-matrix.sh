@@ -11,7 +11,7 @@
 # "api_python" is the cross-version matrix used by test-api-cross-python;
 # the api marker covers the Python wrapper surface (pandas/numpy/pydantic,
 # CLI, SUEWSSimulation) and needs full (platform x Python) coverage
-# (BOOKEND for PRs, ALL for nightly/tag).
+# (BOOKEND for PRs, the abi3 floor for merge queue, ALL for nightly/tag).
 # "api_buildplat" is the platform matrix consumed by test-api-cross-python
 # (the wheel-build job keeps plain "buildplat"). Identical to "buildplat" on
 # every branch except the nightly schedule, where it drops macos-15-intel
@@ -166,6 +166,10 @@ elif [[ "${EVENT_NAME}" == "merge_group" ]]; then
   echo "api_buildplat=$PR_PLATFORMS" >> "$GITHUB_OUTPUT"
   echo "python=$BUILD_PYTHON" >> "$GITHUB_OUTPUT"
   echo "test_tier=$MERGE_TIER" >> "$GITHUB_OUTPUT"
+  # Ready-PR CI already exercises the API suite on both Python bookends. The
+  # queue's job is to validate the combined tree, so repeat it only on the
+  # abi3 floor while retaining all three OS families.
+  API_PYTHON="$BUILD_PYTHON"
 
 elif [[ "${EVENT_NAME}" == "schedule" ]]; then
   echo "Nightly - full matrix, all tests (api tests skip macos-15-intel; see NIGHTLY_API_PLATFORMS)"
@@ -243,9 +247,8 @@ else
   API_PYTHON="$ALL_PYTHON"
 fi
 
-# Cross-version api-test matrix (gh#1300): BOOKEND for PRs/merge queue,
-# ALL for nightly/tag/dispatch-full. The same single abi3 wheel is
+# Cross-version api-test matrix (gh#1300): BOOKEND for PRs, the abi3 floor for
+# merge queue, and ALL for nightly/tag/dispatch-full. The same single abi3 wheel is
 # installed into each Python version and exercised with
 # `-m "api and <tier>"` by test-api-cross-python-reusable.yml.
 echo "api_python=$API_PYTHON" >> "$GITHUB_OUTPUT"
-

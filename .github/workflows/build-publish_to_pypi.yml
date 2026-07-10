@@ -480,7 +480,13 @@ jobs:
       # api_buildplat output would otherwise hand this job an empty matrix
       # until the script change lands on master.
       buildplat_json: ${{ needs.determine_matrix.outputs.api_buildplat || needs.determine_matrix.outputs.buildplat }}
-      api_python_json: ${{ needs.determine_matrix.outputs.api_python }}
+      # A ready PR already validates both supported Python bookends. The merge
+      # queue revalidates the combined tree on the abi3 floor only, across all
+      # three supported OS families, instead of repeating the full suite twice.
+      # Use the build-Python output here as a compatibility bridge while the
+      # trusted determine-matrix script is still read from the base branch.
+      api_python_json: >-
+        ${{ github.event_name == 'merge_group' && needs.determine_matrix.outputs.python || needs.determine_matrix.outputs.api_python }}
       test_tier: ${{ needs.determine_matrix.outputs.test_tier }}
 
   # Standalone lint: every test file must declare `physics` or `api`

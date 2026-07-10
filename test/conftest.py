@@ -56,6 +56,7 @@ except ImportError:
 
 # Named constants for test clarity
 TIMESTEPS_PER_DAY = 288  # 24*60/5 = 288 five-minute intervals
+SHORT_RUN_STEPS = 24  # Two hours; enough for lifecycle/output checks
 
 
 @pytest.fixture
@@ -415,7 +416,7 @@ def sample_data_loaded():
 
 @pytest.fixture(scope="session")
 def completed_sample_sim(sample_yaml_path):
-    """A ``SUEWSSimulation`` built from the sample YAML with ``.run()`` called once.
+    """A short ``SUEWSSimulation`` with ``.run()`` called once.
 
     READ-ONLY, shared across the whole test session: consumers must not call
     ``.reset()``, any ``update_*`` method, or ``.run()`` again on this
@@ -423,8 +424,13 @@ def completed_sample_sim(sample_yaml_path):
     ``state_init``, ``state_final``, the output DataFrame, ...) in place. A
     test that needs to mutate or re-run the simulation must construct its own
     instance instead, e.g. via ``SUEWSSimulation.from_sample_data()``.
+
+    The consumers only require a completed lifecycle plus non-empty output;
+    none validates the full sample period. Limit the shared run to 24 steps so
+    it does not retain the 105,408-row sample output for the whole session.
     """
     sim = supy.SUEWSSimulation(str(sample_yaml_path))
+    sim.update_forcing(sim.forcing.df.iloc[:SHORT_RUN_STEPS].copy())
     sim.run()
     return sim
 

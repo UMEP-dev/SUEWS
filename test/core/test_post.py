@@ -20,15 +20,24 @@ pytestmark = pytest.mark.api
 class TestResampleOutput(TestCase):
     """Test output resampling functionality."""
 
-    def setUp(self):
-        """Set up test environment."""
-        # Create sample output data for testing
-        self.df_state_init, self.df_forcing = sp.load_SampleData()
+    @pytest.fixture(autouse=True, scope="class")
+    @classmethod
+    def _sample_fixtures(cls, request, sample_run_cached):
+        """Bridge the shared weekly cached sample run onto this unittest.TestCase.
 
-        # Run a short simulation to get output
-        df_forcing_short = self.df_forcing.iloc[: TIMESTEPS_PER_DAY * 7]  # One week
-        self.df_output, self.df_state = sp.run_supy(
-            df_forcing_short, self.df_state_init, check_input=False
+        Reuses the session-scoped ``sample_run_cached`` factory (see
+        conftest.py) instead of running the model afresh per test method.
+        The one-week window matches the original ``setUp`` and dedupes with
+        other files requesting the same window (e.g.
+        ``test/physics/test_core_physics.py``).
+
+        ``@classmethod``: a class-scoped fixture runs once per class, not
+        once per test instance, so it must set attributes on ``cls`` rather
+        than being bound as an instance method (pytest deprecates the
+        instance-method form; see PytestRemovedIn10Warning).
+        """
+        request.cls.df_output, request.cls.df_state = sample_run_cached(
+            TIMESTEPS_PER_DAY * 7
         )
 
     def test_resample_output_hourly(self):
@@ -283,13 +292,22 @@ class TestAggregationMethods(TestCase):
 class TestPostProcessingUtilities(TestCase):
     """Test other post-processing utilities."""
 
-    def setUp(self):
-        """Set up test environment."""
-        # Run a minimal simulation
-        df_state_init, df_forcing = sp.load_SampleData()
-        df_forcing_short = df_forcing.iloc[: TIMESTEPS_PER_DAY * 2]  # Two days
-        self.df_output, self.df_state = sp.run_supy(
-            df_forcing_short, df_state_init, check_input=False
+    @pytest.fixture(autouse=True, scope="class")
+    @classmethod
+    def _sample_fixtures(cls, request, sample_run_cached):
+        """Bridge the shared two-day cached sample run onto this unittest.TestCase.
+
+        Matches the original ``setUp``'s two-day window and dedupes with
+        other files requesting the same window (e.g.
+        ``test/io_tests/test_dailystate_output.py``).
+
+        ``@classmethod``: a class-scoped fixture runs once per class, not
+        once per test instance, so it must set attributes on ``cls`` rather
+        than being bound as an instance method (pytest deprecates the
+        instance-method form; see PytestRemovedIn10Warning).
+        """
+        request.cls.df_output, request.cls.df_state = sample_run_cached(
+            TIMESTEPS_PER_DAY * 2
         )
 
     def test_output_groups(self):
@@ -397,22 +415,36 @@ class TestPostProcessingUtilities(TestCase):
 class TestMultiGridPostProcessing(TestCase):
     """Test post-processing for multi-grid simulations."""
 
-    def setUp(self):
-        """Set up test environment."""
-        # Create multi-grid simulation
-        df_state_single, df_forcing = sp.load_SampleData()
+    @pytest.fixture(autouse=True, scope="class")
+    @classmethod
+    def _sample_fixtures(cls, request, sample_data_loaded):
+        """Build a class-scoped multi-grid run from the shared sample load.
+
+        ``sample_run_cached`` only memoises single-grid runs, so the
+        multi-grid duplication and run still happen here (once per class,
+        not once per test method as the original ``setUp`` did); only the
+        underlying ``(df_state_init, df_forcing)`` load is shared with other
+        files via ``sample_data_loaded`` - copied before mutation, since
+        that fixture is READ-ONLY (see conftest.py).
+
+        ``@classmethod``: a class-scoped fixture runs once per class, not
+        once per test instance, so it must set attributes on ``cls`` rather
+        than being bound as an instance method (pytest deprecates the
+        instance-method form; see PytestRemovedIn10Warning).
+        """
+        df_state_single, df_forcing = sample_data_loaded
 
         # Duplicate for 3 grids
         n_grids = 3
-        df_state_multi = pd.concat([df_state_single for _ in range(n_grids)])
+        df_state_multi = pd.concat([df_state_single.copy() for _ in range(n_grids)])
         df_state_multi.index = pd.RangeIndex(n_grids, name="grid")
 
         # Run short simulation
-        df_forcing_short = df_forcing.iloc[:TIMESTEPS_PER_DAY]  # One day
-        self.df_output, self.df_state = sp.run_supy(
+        df_forcing_short = df_forcing.iloc[:TIMESTEPS_PER_DAY].copy()  # One day
+        request.cls.df_output, request.cls.df_state = sp.run_supy(
             df_forcing_short, df_state_multi, check_input=False
         )
-        self.n_grids = n_grids
+        request.cls.n_grids = n_grids
 
     def test_multigrid_resample(self):
         """Test resampling multi-grid output."""
@@ -473,18 +505,31 @@ class TestMultiGridPostProcessing(TestCase):
 class TestErrorHandling(TestCase):
     """Test error handling in post-processing."""
 
+    @pytest.fixture(autouse=True, scope="class")
+    @classmethod
+    def _sample_fixtures(cls, request, sample_run_cached):
+        """Bridge the shared one-day cached sample run onto this unittest.TestCase.
+
+        Matches ``test_invalid_frequency``'s original one-day window and
+        dedupes with other files requesting the same window (e.g.
+        ``test/io_tests/test_dailystate_output.py``). ``test_empty_dataframe``
+        builds its own synthetic frame and does not need this fixture.
+
+        ``@classmethod``: a class-scoped fixture runs once per class, not
+        once per test instance, so it must set attributes on ``cls`` rather
+        than being bound as an instance method (pytest deprecates the
+        instance-method form; see PytestRemovedIn10Warning).
+        """
+        request.cls.df_output, _ = sample_run_cached(TIMESTEPS_PER_DAY)
+
     def test_invalid_frequency(self):
         """Test handling of invalid resampling frequency."""
         print("\n========================================")
         print("Testing error handling for invalid frequency...")
 
-        # Create minimal output
-        df_state, df_forcing = sp.load_SampleData()
-        df_output, _ = sp.run_supy(df_forcing.iloc[:TIMESTEPS_PER_DAY], df_state)
-
         # Test invalid frequency
         with self.assertRaises((ValueError, KeyError)):
-            resample_output(df_output, freq="invalid")
+            resample_output(self.df_output, freq="invalid")
 
         print("✓ Error handling works correctly")
 

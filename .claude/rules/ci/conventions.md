@@ -266,7 +266,25 @@ Always: PR_PLATFORMS (3), BOOKEND (2), test tier **standard**. No path-based dif
 
 ### Nightly schedule / tag push
 
-Always: FULL_PLATFORMS (4), ALL_PYTHON (6), test tier **all**.
+Always: FULL_PLATFORMS (4), ALL_PYTHON (3, clamped to the `>=3.12` floor --
+cp312/cp313/cp314), test tier **all**.
+
+**Nightly-only api-test platform trim (run 28990965739, 9 Jul 2026):** the
+nightly `api cross-CPython` job (`test_api_cross_python`) uses a separate
+platform matrix output, `api_buildplat`, distinct from the wheel-build job's
+`buildplat`. On the nightly schedule `api_buildplat` = `NIGHTLY_API_PLATFORMS`
+= FULL_PLATFORMS minus `macos-15-intel`; every other trigger (PR, merge queue,
+tag push, workflow_dispatch) sets `api_buildplat` equal to `buildplat`. This
+closes a runner-scarcity gap: in run 28990965739 the
+`api cross-CPython / cp314-macosx x86_64` job alone waited ~3h54m for a scarce
+`macos-15-intel` runner, stretching the nightly's wall clock to 4h39m while
+every other job (including the wheel build on the same runner class) finished
+within minutes. Wheel builds and physics tests still run on macOS Intel
+nightly -- `buildplat` is untouched, so Intel wheels keep shipping and the
+physics axis keeps covering that platform. Only the nightly api-test coverage
+on that runner is dropped; tag/release builds keep `api_buildplat` =
+`buildplat` = FULL_PLATFORMS, so Intel api coverage is retained at release
+time.
 
 ### Manual dispatch (`workflow_dispatch`)
 
@@ -323,8 +341,15 @@ The merge queue deliberately uses a reduced matrix rather than the full matrix. 
 
 **Safety net:**
 
-- **Nightly builds** (2 AM UTC) run the full matrix with all tests. Any platform-specific regression that slips through the merge queue is caught within 24 hours.
-- **Tag releases** also run the full matrix before publishing to PyPI.
+- **Nightly builds** (2 AM UTC) run the full wheel-build matrix (all 4
+  platforms, including macOS Intel) with all tests. Any platform-specific
+  regression that slips through the merge queue is caught within 24 hours.
+  Exception: the nightly api cross-CPython tests skip `macos-15-intel`
+  (runner scarcity -- see "Nightly schedule / tag push" above); the physics
+  axis and the wheel build itself still cover macOS Intel nightly, so this
+  only narrows the api-surface safety net on that one platform.
+- **Tag releases** also run the full matrix before publishing to PyPI,
+  including api tests on macOS Intel (`api_buildplat` = `buildplat` there).
 - If a nightly fails, the issue is visible in the Actions tab and can be addressed before the next release.
 
 **When to reconsider:** If a platform-specific bug reaches master via the merge queue and causes user impact before the nightly catches it, consider either adding macOS Intel to PR_PLATFORMS (increases merge queue from 6 to 8 jobs) or running the full matrix on merge queue for fortran-touching changes only.

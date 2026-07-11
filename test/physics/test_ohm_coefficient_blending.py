@@ -1,6 +1,9 @@
 """Regression tests for smooth OHM coefficient transitions (gh#473)."""
 
+import json
 import logging
+import subprocess
+import sys
 import warnings
 
 import numpy as np
@@ -16,6 +19,7 @@ WINTER_WET = 2
 WINTER_DRY = 3
 PAVED = 0
 GRASS = 4
+RESULT_PREFIX = "OHM_CASE_RESULTS="
 
 
 def _set_vector(state, variable, values):
@@ -32,7 +36,7 @@ def _set_ohm_coefficients(state, surface, regime_values):
             )
 
 
-def _run_ohm_case(
+def _run_ohm_case_in_process(
     sample_data_loaded,
     *,
     surface=PAVED,
@@ -86,78 +90,129 @@ def _run_ohm_case(
     return output.SUEWS["QS"].to_numpy()
 
 
-def test_temperature_threshold_is_continuous(sample_data_loaded):
+def _run_ohm_cases(cases):
+    """Run a group of cases without leaking Fortran state to other tests."""
+    completed = subprocess.run(
+        [sys.executable, __file__, json.dumps(cases)],
+        capture_output=True,
+        check=False,
+        text=True,
+        timeout=120,
+    )
+    if completed.returncode != 0:
+        pytest.fail(
+            "OHM subprocess failed with exit code "
+            f"{completed.returncode}.\nstdout:\n{completed.stdout[-2000:]}"
+            f"\nstderr:\n{completed.stderr[-2000:]}"
+        )
+
+    result_line = next(
+        (
+            line
+            for line in reversed(completed.stdout.splitlines())
+            if line.startswith(RESULT_PREFIX)
+        ),
+        None,
+    )
+    if result_line is None:
+        pytest.fail(
+            "OHM subprocess did not return results.\n"
+            f"stdout:\n{completed.stdout[-2000:]}\n"
+            f"stderr:\n{completed.stderr[-2000:]}"
+        )
+
+    return [
+        np.asarray(values, dtype=float)
+        for values in json.loads(result_line.removeprefix(RESULT_PREFIX))
+    ]
+
+
+def _subprocess_main():
+    cases = json.loads(sys.argv[1])
+    sample_data_loaded = sp.load_SampleData()
+    results = [
+        _run_ohm_case_in_process(sample_data_loaded, **case).tolist()
+        for case in cases
+    ]
+    print(f"{RESULT_PREFIX}{json.dumps(results)}")
+
+
+def test_temperature_threshold_is_continuous():
     """Tiny platform-level temperature differences must not switch regimes."""
     epsilon = 1.0e-10
-    below = _run_ohm_case(
-        sample_data_loaded, five_day_temperature=10.0 - epsilon
-    )
-    above = _run_ohm_case(
-        sample_data_loaded, five_day_temperature=10.0 + epsilon
+    below, above = _run_ohm_cases(
+        [
+            {"five_day_temperature": 10.0 - epsilon},
+            {"five_day_temperature": 10.0 + epsilon},
+        ]
     )
 
     np.testing.assert_allclose(above, below, rtol=0.0, atol=1.0e-7)
 
 
-def test_temperature_blending_recovers_far_regimes(sample_data_loaded):
+def test_temperature_blending_recovers_far_regimes():
     """Temperatures outside the transition zone retain legacy coefficients."""
-    winter_below = _run_ohm_case(
-        sample_data_loaded, five_day_temperature=7.0
-    )
-    winter_edge = _run_ohm_case(
-        sample_data_loaded, five_day_temperature=8.0
-    )
-    summer_edge = _run_ohm_case(
-        sample_data_loaded, five_day_temperature=12.0
-    )
-    summer_above = _run_ohm_case(
-        sample_data_loaded, five_day_temperature=13.0
+    winter_below, winter_edge, summer_edge, summer_above = _run_ohm_cases(
+        [
+            {"five_day_temperature": 7.0},
+            {"five_day_temperature": 8.0},
+            {"five_day_temperature": 12.0},
+            {"five_day_temperature": 13.0},
+        ]
     )
 
     np.testing.assert_allclose(winter_edge, winter_below, rtol=0.0, atol=1.0e-7)
     np.testing.assert_allclose(summer_edge, summer_above, rtol=0.0, atol=1.0e-7)
 
 
-def test_temperature_midpoint_blends_regimes(sample_data_loaded):
+def test_temperature_midpoint_blends_regimes():
     """The configured threshold must produce an interior coefficient blend."""
-    winter = _run_ohm_case(sample_data_loaded, five_day_temperature=8.0)
-    midpoint = _run_ohm_case(sample_data_loaded, five_day_temperature=10.0)
-    summer = _run_ohm_case(sample_data_loaded, five_day_temperature=12.0)
+    winter, midpoint, summer = _run_ohm_cases(
+        [
+            {"five_day_temperature": 8.0},
+            {"five_day_temperature": 10.0},
+            {"five_day_temperature": 12.0},
+        ]
+    )
 
     lower = np.minimum(winter, summer)
     upper = np.maximum(winter, summer)
     assert np.all((lower < midpoint) & (midpoint < upper))
 
 
-def test_soil_moisture_threshold_is_continuous(sample_data_loaded):
+def test_soil_moisture_threshold_is_continuous():
     """Tiny soil-moisture differences must not switch wet/dry regimes."""
     epsilon = 1.0e-10
-    below = _run_ohm_case(
-        sample_data_loaded,
-        surface=GRASS,
-        five_day_temperature=13.0,
-        soil_moisture_ratio=0.9 - epsilon,
-    )
-    above = _run_ohm_case(
-        sample_data_loaded,
-        surface=GRASS,
-        five_day_temperature=13.0,
-        soil_moisture_ratio=0.9 + epsilon,
+    below, above = _run_ohm_cases(
+        [
+            {
+                "surface": GRASS,
+                "five_day_temperature": 13.0,
+                "soil_moisture_ratio": 0.9 - epsilon,
+            },
+            {
+                "surface": GRASS,
+                "five_day_temperature": 13.0,
+                "soil_moisture_ratio": 0.9 + epsilon,
+            },
+        ]
     )
 
     np.testing.assert_allclose(above, below, rtol=0.0, atol=1.0e-7)
 
 
-def test_surface_wetness_zero_is_continuous(sample_data_loaded):
+def test_surface_wetness_zero_is_continuous():
     """A trace surface store must not switch directly to wet coefficients."""
     epsilon = 1.0e-10
-    dry = _run_ohm_case(
-        sample_data_loaded, five_day_temperature=13.0, surface_wetness=0.0
-    )
-    trace_wetness = _run_ohm_case(
-        sample_data_loaded,
-        five_day_temperature=13.0,
-        surface_wetness=epsilon,
+    dry, trace_wetness = _run_ohm_cases(
+        [
+            {"five_day_temperature": 13.0, "surface_wetness": 0.0},
+            {"five_day_temperature": 13.0, "surface_wetness": epsilon},
+        ]
     )
 
     np.testing.assert_allclose(trace_wetness, dry, rtol=0.0, atol=1.0e-7)
+
+
+if __name__ == "__main__":
+    _subprocess_main()

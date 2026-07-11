@@ -12,9 +12,9 @@ MODULE module_phys_ohm
 
    IMPLICIT NONE
 
-   REAL(KIND(1D0)), PARAMETER :: OHM_TEMP_TRANSITION_HALF_WIDTH = 2.0D0 ! [degC]
-   REAL(KIND(1D0)), PARAMETER :: OHM_SOIL_TRANSITION_HALF_WIDTH = 0.1D0 ! [-]
-   REAL(KIND(1D0)), PARAMETER :: OHM_SURFACE_WETNESS_TRANSITION_WIDTH = 0.5D0 ! [mm]
+   REAL(KIND(1D0)), PARAMETER, PRIVATE :: OHM_TEMP_TRANSITION_HALF_WIDTH = 2.0D0 ! [degC]
+   REAL(KIND(1D0)), PARAMETER, PRIVATE :: OHM_SOIL_TRANSITION_HALF_WIDTH = 0.1D0 ! [-]
+   REAL(KIND(1D0)), PARAMETER, PRIVATE :: OHM_SURFACE_WETNESS_TRANSITION_WIDTH = 0.5D0 ! [mm]
 CONTAINS
 !========================================================================================
    SUBROUTINE OHM(qn1, qn1_surf, qn_av_prev, dqndt_prev, qn_av_next, dqndt_next, &

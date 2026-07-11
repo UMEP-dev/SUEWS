@@ -118,6 +118,17 @@ def test_temperature_blending_recovers_far_regimes(sample_data_loaded):
     np.testing.assert_allclose(summer_edge, summer_above, rtol=0.0, atol=1.0e-7)
 
 
+def test_temperature_midpoint_blends_regimes(sample_data_loaded):
+    """The configured threshold must produce an interior coefficient blend."""
+    winter = _run_ohm_case(sample_data_loaded, five_day_temperature=8.0)
+    midpoint = _run_ohm_case(sample_data_loaded, five_day_temperature=10.0)
+    summer = _run_ohm_case(sample_data_loaded, five_day_temperature=12.0)
+
+    lower = np.minimum(winter, summer)
+    upper = np.maximum(winter, summer)
+    assert np.all((lower < midpoint) & (midpoint < upper))
+
+
 def test_soil_moisture_threshold_is_continuous(sample_data_loaded):
     """Tiny soil-moisture differences must not switch wet/dry regimes."""
     epsilon = 1.0e-10

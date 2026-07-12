@@ -13,13 +13,49 @@ and surface characteristics.
 -  The **SUEWS_OHMCoefficients.txt** file provides these coefficients for each surface type.
 -  A variety of values has been derived for different materials and can
    be found in the literature (see: `typical_values`).
--  Coefficients can be changed depending on:
-    #. surface wetness state (wet/dry) based on the calculated surface wetness state and soil moisture.
-    #. season (summer/winter) based on a 5-day running mean air temperature.
+-  SUEWS blends the four coefficient sets according to surface wetness and
+   season, rather than switching abruptly between them. The configured
+   summer/winter and wet/dry thresholds are the centres of transition zones.
 -  To use the same coefficients irrespective of wet/dry and
    summer/winter conditions, use the same code for all four OHM columns
    (`OHMCode_SummerWet`, `OHMCode_SummerDry`, `OHMCode_WinterWet` and
    `OHMCode_WinterDry`).
+
+.. rubric:: Smooth coefficient transitions
+
+For each of the three OHM coefficients, SUEWS calculates a summer weight
+``w_s`` and a wet weight ``w_w``. It then combines the summer-wet (SW),
+summer-dry (SD), winter-wet (WW) and winter-dry (WD) coefficient sets:
+
+.. math::
+
+   c = w_s w_w c_{SW} + w_s (1 - w_w) c_{SD}
+       + (1 - w_s) w_w c_{WW} + (1 - w_s)(1 - w_w)c_{WD}
+
+where ``c`` represents ``a1``, ``a2`` or ``a3``. The weights are clamped to
+the interval from 0 to 1, so the original coefficient sets are recovered
+outside the transition zones.
+
+- **Summer/winter transition:** ``w_s`` uses the 5-day running mean air
+  temperature. The configured ``OHMThresh_SW`` value is the centre of a
+  4 degC-wide transition. Winter coefficients have full weight at and below
+  ``OHMThresh_SW - 2 degC``; summer coefficients have full weight at and above
+  ``OHMThresh_SW + 2 degC``.
+- **Surface-wetness transition:** the calculated surface water store gives
+  zero wet weight at 0 mm, increases linearly between 0 and 0.5 mm, and gives
+  full wet weight at and above 0.5 mm. This rule applies to all non-snow
+  surfaces.
+- **Soil-moisture transition:** for evergreen trees, deciduous trees, grass
+  and bare soil with positive soil-store capacity, the soil-moisture ratio
+  also contributes a wet weight. ``OHMThresh_WD`` is the centre of a
+  0.2-wide transition: full dry weight occurs at and below
+  ``OHMThresh_WD - 0.1`` and full wet weight at and above
+  ``OHMThresh_WD + 0.1``.
+- **Combined wetness:** SUEWS uses the larger of the surface-wetness and
+  soil-moisture wet weights. A wet surface store therefore retains wet
+  coefficients even when the underlying soil is dry.
+- **Snow exception:** snow storage heat continues to use the winter-wet
+  coefficient set directly and is not included in this blending calculation.
 
 
 .. note::
@@ -60,17 +96,21 @@ This advanced example demonstrates how to derive and implement custom OHM coeffi
 
 To derive OHM coefficients, you need simultaneous measurements of:
 - Net all-wave radiation (Q*)
-- Storage heat flux (ΔQS)
+- Storage heat flux (:math:`\Delta Q_S`)
 - Temporal coverage: At least one full annual cycle
 
 **Step 2: Coefficient Derivation**
 
-The OHM equation is: ΔQS = a₁ × Q* + a₂ × (∂Q*/∂t) + a₃
+The OHM equation is:
+
+.. math::
+
+   \Delta Q_S = a_1 Q^* + a_2 \frac{\partial Q^*}{\partial t} + a_3
 
 Where:
-- a₁: Represents the fraction of net radiation contributing to storage
-- a₂: Accounts for lag effects (phase shift)
-- a₃: Residual term for non-radiation influences
+- ``a1``: Represents the fraction of net radiation contributing to storage
+- ``a2``: Accounts for lag effects (phase shift)
+- ``a3``: Residual term for non-radiation influences
 
 **Python Example using SuPy OHM utilities:**
 
@@ -149,7 +189,7 @@ Validate the derived coefficients using SuPy utilities:
 
    print(f"Performance Metrics:")
    print(f"RMSE: {rmse:.2f} W m-2")
-   print(f"R²: {r2:.3f}")
+   print(f"R^2: {r2:.3f}")
    print(f"Bias: {bias:.2f} W m-2")
 
    # Create validation plots
@@ -158,16 +198,16 @@ Validate the derived coefficients using SuPy utilities:
    # Scatter plot
    ax1.scatter(ser_QS, ser_qs_modelled, alpha=0.5)
    ax1.plot([ser_QS.min(), ser_QS.max()], [ser_QS.min(), ser_QS.max()], 'r--')
-   ax1.set_xlabel('Observed QS (W m⁻²)')
-   ax1.set_ylabel('Modelled QS (W m⁻²)')
-   ax1.set_title(f'1:1 Comparison (R² = {r2:.3f})')
+   ax1.set_xlabel('Observed QS (W m$^{-2}$)')
+   ax1.set_ylabel('Modelled QS (W m$^{-2}$)')
+   ax1.set_title(f'1:1 Comparison ($R^2$ = {r2:.3f})')
 
    # Time series comparison (sample week)
    sample_week = ser_QS.iloc[:168]  # First week
    ax2.plot(sample_week.index, sample_week, label='Observed', alpha=0.7)
    ax2.plot(sample_week.index, ser_qs_modelled.iloc[:168], label='Modelled', alpha=0.7)
    ax2.set_xlabel('Time')
-   ax2.set_ylabel('QS (W m⁻²)')
+   ax2.set_ylabel('QS (W m$^{-2}$)')
    ax2.set_title('Time Series Comparison')
    ax2.legend()
 
@@ -186,13 +226,13 @@ The complete workflow uses SuPy's public OHM utilities from ``supy.util``:
 - **Surface-specific coefficients**: Derive separate coefficients for materially different surfaces
 - **Quality control**: Remove periods with instrument errors or missing data
 - **Seasonal analysis**: Check if coefficients vary significantly between seasons
-- **Physical validation**: Ensure a₁ values are reasonable (typically 0.1-0.8 for urban surfaces)
+- **Physical validation**: Ensure ``a1`` values are reasonable (typically 0.1-0.8 for urban surfaces)
 - **Documentation**: Keep detailed records of measurement conditions and derivation methods
 
 **Common Issues:**
 
 - **Insufficient data**: Less than 6 months of data often leads to unstable coefficients
-- **Measurement errors**: ΔQS measurements are challenging; validate against energy balance closure
+- **Measurement errors**: :math:`\Delta Q_S` measurements are challenging; validate against energy balance closure
 - **Scale mismatch**: Point measurements may not represent grid-scale surface behaviour
 
 This approach enables SUEWS to better represent the thermal behaviour of specialised urban surfaces through empirically-derived storage heat flux parameterisations.

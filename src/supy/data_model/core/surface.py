@@ -215,18 +215,15 @@ class SurfaceProperties(BaseModel):
     # k_anohm is named as kkanohm in sample_data/sample_config.yml, version 08/08/2025 - consider renaming to avoid issues
     ohm_threshold_summer_winter: Optional[FlexibleRefValue(float)] = Field(
         default=0.0,
-        description="Centre of the 4 degC linear transition between winter and summer OHM coefficients; full winter weight occurs 2 degC below this value and full summer weight 2 degC above it",
-        json_schema_extra={
-            "unit": "degC",
-            "display_name": "OHM Summer/Winter Transition Centre",
-        },
+        description="Summer/winter threshold based on temperature for OHM calculation",
+        json_schema_extra={"unit": "degC", "display_name": "OHM Summer Wet Threshold"},
     )
     ohm_threshold_wet_dry: Optional[FlexibleRefValue(float)] = Field(
         default=0.0,
-        description="Centre of the 0.2-wide soil-moisture-ratio transition between dry and wet OHM coefficients for vegetation and bare soil; full dry weight occurs 0.1 below this value and full wet weight 0.1 above it",
+        description="Soil moisture threshold determining whether wet/dry OHM coefficients are applied",
         json_schema_extra={
             "unit": "dimensionless",
-            "display_name": "OHM Wet/Dry Transition Centre",
+            "display_name": "OHM Winter Dry Threshold",
         },
     )
     ohm_coef: Optional[OHM_Coefficient_season_wetness] = Field(

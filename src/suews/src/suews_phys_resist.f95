@@ -659,7 +659,9 @@ CONTAINS
                   zdm_zh = 0.7*Zh
                ELSEIF (RoughLenMomMethod == 3) THEN !MacDonald 1998
                   zdm_zh = (1 + 4.43**(-sfr_surf(BldgSurf))*(sfr_surf(BldgSurf) - 1))*Zh
-                  z0m_zh = ((1 - zdm/Zh)*EXP(-(0.5*1.0*1.2/0.4**2*(1 - zdm/Zh)*FAI)**(-0.5)))*Zh
+                  ! #1615: z0m must use the zdm_zh computed above, not the persistent `zdm`
+                  ! state (which still holds the previous timestep's PAI-blended value here)
+                  z0m_zh = ((1 - zdm_zh/Zh)*EXP(-(0.5*1.0*1.2/0.4**2*(1 - zdm_zh/Zh)*FAI)**(-0.5)))*Zh
                ELSEIF (RoughLenMomMethod == 4) THEN ! lambdaP dependent as in Fig.1a of G&O (1999)
                   ! these are derived using digitalised points
                   zdm_zh = (-0.182 + 0.722*sigmoid(-1.16 + 3.89*PAI) + 0.493*sigmoid(-5.17 + 32.7*PAI))*Zh

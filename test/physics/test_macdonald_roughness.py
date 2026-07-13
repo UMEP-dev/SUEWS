@@ -19,7 +19,7 @@ import yaml
 import supy as sp
 from supy.data_model import SUEWSConfig
 
-pytestmark = [pytest.mark.physics, pytest.mark.core]
+pytestmark = pytest.mark.physics
 
 # Roughness lengths of the non-roughness (zh = 0) surfaces, mirroring the
 # PARAMETER values in suews_phys_resist.f95.
@@ -47,6 +47,9 @@ def _tree_free_macdonald_config(tmp_path):
     raw = yaml.safe_load(src.read_text())
 
     raw["model"]["physics"]["roughness_length_momentum"] = "macdonald"
+    # Pin the FAI source: the closed form below uses the provided FAIBldg as-is,
+    # which only holds for FAImethod = 0. Do not rely on the sample default.
+    raw["model"]["physics"]["frontal_area_index"] = "observed"
 
     land_cover = raw["sites"][0]["properties"]["land_cover"]
     # Move the deciduous fraction into grass, keeping the fractions summing to 1.
@@ -106,6 +109,7 @@ def macdonald_run(tmp_path_factory):
     return df_output.loc[:, "SUEWS"], land_cover
 
 
+@pytest.mark.core
 def test_z0m_matches_macdonald_closed_form(macdonald_run):
     """z0m must follow MacDonald (1998) using this timestep's displacement height.
 
@@ -120,11 +124,14 @@ def test_z0m_matches_macdonald_closed_form(macdonald_run):
     assert df_output["z0m"].to_numpy() == pytest.approx(z0m_expected, rel=1e-6)
 
 
+@pytest.mark.core
 def test_z0m_is_not_contaminated_by_initial_state(macdonald_run):
-    """The first timestep must not see the zero-initialised `zdm` state.
+    """z0m must be constant here: the site morphology never changes.
 
-    With the bug, `zdm` is still 0 on the first timestep, so (1 - zdm/Zh) = 1 and
-    z0m takes its maximum possible value before dropping once the state fills in.
+    With the bug, `zdm` is still zero when the model starts, so (1 - zdm/Zh) = 1
+    and z0m takes its maximum possible value before settling once the state fills
+    in. That start-up transient survives the output averaging, so a flat z0m
+    series is enough to pin it.
     """
     df_output, _ = macdonald_run
     z0m = df_output["z0m"].to_numpy()

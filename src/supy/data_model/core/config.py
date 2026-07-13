@@ -2670,6 +2670,21 @@ class SUEWSConfig(BaseModel):
                         "exceeds 1.0"
                     )
 
+            first_veg_frac = _unwrap_value(veg_frac[0]) if veg_frac else None
+            upper_has_vegetation = False
+            for veg_layer_frac in veg_frac[1:]:
+                veg_layer_frac = _unwrap_value(veg_layer_frac)
+                if veg_layer_frac is not None and veg_layer_frac > tol:
+                    upper_has_vegetation = True
+                    break
+            if upper_has_vegetation and (
+                first_veg_frac is None or first_veg_frac <= tol
+            ):
+                issues.append(
+                    f"{site_name}: vertical_layers.veg_frac[0] must be greater "
+                    "than 0 when vegetation is present in upper layers"
+                )
+
         return issues
     
     def _validate_spartacus_veg_dimensions(self, site: Site, site_index: int) -> list:

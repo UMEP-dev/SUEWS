@@ -2226,6 +2226,61 @@ def test_validate_spartacus_sfr_rejects_layer_geometry_sum_above_one():
         for m in msgs
     )
 
+def test_validate_spartacus_sfr_allows_upper_vegetation_with_trunk_fraction():
+    """Upper vegetation layers are valid when the first layer has trunk fraction."""
+    cfg = SUEWSConfig.model_construct()
+    _force_set(cfg, "model", SimpleNamespace(physics=SimpleNamespace(net_radiation=1001)))
+    bldgs = SimpleNamespace(sfr=0.2)
+    lc = SimpleNamespace(bldgs=bldgs, evetr=None, dectr=None)
+    vertical_layers = SimpleNamespace(
+        building_frac=[0.2, 0.1, 0.0],
+        veg_frac=[0.05, 0.2, 0.2],
+    )
+    props = SimpleNamespace(land_cover=lc, vertical_layers=vertical_layers)
+    site = DummySite(properties=props, name="TestSite")
+
+    msgs = cfg._validate_spartacus_sfr(site, 0)
+
+    assert msgs == []
+
+def test_validate_spartacus_sfr_allows_zero_trunk_when_no_upper_vegetation():
+    """Zero first-layer vegetation is valid when all upper layers are also zero."""
+    cfg = SUEWSConfig.model_construct()
+    _force_set(cfg, "model", SimpleNamespace(physics=SimpleNamespace(net_radiation=1001)))
+    bldgs = SimpleNamespace(sfr=0.2)
+    lc = SimpleNamespace(bldgs=bldgs, evetr=None, dectr=None)
+    vertical_layers = SimpleNamespace(
+        building_frac=[0.2, 0.1, 0.0],
+        veg_frac=[0.0, 0.0, 0.0],
+    )
+    props = SimpleNamespace(land_cover=lc, vertical_layers=vertical_layers)
+    site = DummySite(properties=props, name="TestSite")
+
+    msgs = cfg._validate_spartacus_sfr(site, 0)
+
+    assert msgs == []
+
+def test_validate_spartacus_sfr_rejects_upper_vegetation_without_trunk_fraction():
+    """Upper vegetation layers require a nonzero first-layer trunk fraction."""
+    cfg = SUEWSConfig.model_construct()
+    _force_set(cfg, "model", SimpleNamespace(physics=SimpleNamespace(net_radiation=1001)))
+    bldgs = SimpleNamespace(sfr=0.2)
+    lc = SimpleNamespace(bldgs=bldgs, evetr=None, dectr=None)
+    vertical_layers = SimpleNamespace(
+        building_frac=[0.2, 0.1, 0.0],
+        veg_frac=[0.0, 0.2, 0.2],
+    )
+    props = SimpleNamespace(land_cover=lc, vertical_layers=vertical_layers)
+    site = DummySite(properties=props, name="TestSite")
+
+    msgs = cfg._validate_spartacus_sfr(site, 0)
+
+    assert any(
+        "vertical_layers.veg_frac[0] must be greater than 0 when vegetation is present in upper layers"
+        in m
+        for m in msgs
+    )
+
 def test_validate_spartacus_sfr_consistent_values():
     cfg = SUEWSConfig.model_construct()
     _force_set(cfg, "model", SimpleNamespace(physics=SimpleNamespace(net_radiation=1001)))

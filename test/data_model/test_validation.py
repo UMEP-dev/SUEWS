@@ -2188,6 +2188,44 @@ def test_validate_spartacus_sfr_rejects_building_frac_above_land_cover():
         for m in msgs
     )
 
+def test_validate_spartacus_sfr_allows_layer_geometry_sum_equal_one():
+    """SPARTACUS building and vegetation layer fractions may fill a layer."""
+    cfg = SUEWSConfig.model_construct()
+    _force_set(cfg, "model", SimpleNamespace(physics=SimpleNamespace(net_radiation=1001)))
+    bldgs = SimpleNamespace(sfr=0.7)
+    lc = SimpleNamespace(bldgs=bldgs, evetr=None, dectr=None)
+    vertical_layers = SimpleNamespace(
+        building_frac=[0.7],
+        veg_frac=[0.3],
+    )
+    props = SimpleNamespace(land_cover=lc, vertical_layers=vertical_layers)
+    site = DummySite(properties=props, name="TestSite")
+
+    msgs = cfg._validate_spartacus_sfr(site, 0)
+
+    assert msgs == []
+
+def test_validate_spartacus_sfr_rejects_layer_geometry_sum_above_one():
+    """SPARTACUS building and vegetation layer fractions cannot exceed one."""
+    cfg = SUEWSConfig.model_construct()
+    _force_set(cfg, "model", SimpleNamespace(physics=SimpleNamespace(net_radiation=1001)))
+    bldgs = SimpleNamespace(sfr=0.8)
+    lc = SimpleNamespace(bldgs=bldgs, evetr=None, dectr=None)
+    vertical_layers = SimpleNamespace(
+        building_frac=[0.5, 0.8],
+        veg_frac=[0.4, 0.25],
+    )
+    props = SimpleNamespace(land_cover=lc, vertical_layers=vertical_layers)
+    site = DummySite(properties=props, name="TestSite")
+
+    msgs = cfg._validate_spartacus_sfr(site, 0)
+
+    assert any(
+        "vertical_layers.building_frac[1] + vertical_layers.veg_frac[1] (1.05) exceeds 1.0"
+        in m
+        for m in msgs
+    )
+
 def test_validate_spartacus_sfr_consistent_values():
     cfg = SUEWSConfig.model_construct()
     _force_set(cfg, "model", SimpleNamespace(physics=SimpleNamespace(net_radiation=1001)))

@@ -44,7 +44,7 @@ def _tree_free_macdonald_config(tmp_path):
     so Zh, FAI and PAI stay constant and the closed-form check below is exact.
     """
     src = pathlib.Path(sp.__file__).parent / "sample_data" / "sample_config.yml"
-    raw = yaml.safe_load(src.read_text())
+    raw = yaml.safe_load(src.read_text(encoding="utf-8"))
 
     raw["model"]["physics"]["roughness_length_momentum"] = "macdonald"
     # Pin the FAI source: the closed form below uses the provided FAIBldg as-is,
@@ -58,7 +58,7 @@ def _tree_free_macdonald_config(tmp_path):
     land_cover["evetr"]["sfr"]["value"] = 0.0
 
     path = tmp_path / "config_macdonald.yml"
-    path.write_text(yaml.safe_dump(raw, sort_keys=False))
+    path.write_text(yaml.safe_dump(raw, sort_keys=False), encoding="utf-8")
     return path, land_cover
 
 

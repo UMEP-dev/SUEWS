@@ -2695,10 +2695,9 @@ class SUEWSConfig(BaseModel):
         are zero for all layers above the tallest tree in the site. The procedure is:
 
         1. Determine the maximum tree height (max_tree) from dectr and evetr heights.
-        2. Find the first vertical layer index (layer_index) such that
-           max_tree <= height[layer_index].
-        3. For all layers from layer_index to nlayer-1 (inclusive), check that
-           veg_scale and veg_frac are zero (within a small tolerance).
+        2. Find the first height boundary that is not below max_tree.
+        3. For all layers whose bottom boundary is at that height or above, check
+           that veg_scale and veg_frac are zero (within a small tolerance).
 
         Parameters
         ----------
@@ -2739,7 +2738,9 @@ class SUEWSConfig(BaseModel):
         if not isinstance(height_arr, (list, tuple)) or len(height_arr) < 2:
             return issues  # Not enough height info
 
-        # Find the first layer where max_tree <= height[layer] (layer index 1..nlayer)
+        # Find the first height boundary at or above max_tree. Array entries with
+        # this index and above start at or above the tree top, so vegetation
+        # dimensions must be zero there.
         layer_index = None
         for i in range(1, len(height_arr)):
             if max_tree <= height_arr[i]:
@@ -2764,7 +2765,10 @@ class SUEWSConfig(BaseModel):
                     val = arr[i]
                     if not np.isclose(val, 0, atol=1e-6):
                         issues.append(
-                            f"Site {site_name}: {arr_name}[{i}] should be zero (provided max tree height {max_tree} does not reach height {height_arr[i+1]} of layer {i+1})."
+                            f"Site {site_name}: {arr_name}[{i}] should be zero "
+                            f"(provided max tree height {max_tree} does not "
+                            f"reach the bottom of layer {i + 1} at "
+                            f"vertical_layers.height[{i}]={height_arr[i]})."
                         )
         return issues
 

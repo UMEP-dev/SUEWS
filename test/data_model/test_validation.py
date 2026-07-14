@@ -42,6 +42,7 @@ from supy.data_model.core.state import (
 from supy.data_model.core.type import RefValue
 from supy.data_model.validation.core.utils import check_missing_params
 from supy.data_model.validation.pipeline.phase_b import (
+    adjust_spartacus_tree_cover_fraction,
     adjust_seasonal_parameters,
     adjust_model_option_stebbsmethod,
     adjust_model_option_setpointmethod,
@@ -2411,6 +2412,29 @@ def test_validate_spartacus_veg_dimensions_failing_case():
     assert len(msgs) >= 1
     assert any("veg_frac[3]" in m for m in msgs)
 
+def test_validate_spartacus_veg_dimensions_reports_layer_bottom_height():
+    """Messages report the bottom boundary of the flagged layer."""
+    cfg = SUEWSConfig.model_construct()
+    _force_set(cfg, "model", SimpleNamespace(physics=SimpleNamespace(net_radiation=1001)))
+    lc = SimpleNamespace(dectr=SimpleNamespace(height_deciduous_tree=13.1), evetr=None)
+    vertical_layers = SimpleNamespace(
+        height=[0.0, 11.0, 15.0, 22.0],
+        veg_frac=[0.01, 0.02, 0.01],
+        veg_scale=[10.0, 10.0, 10.0],
+    )
+    props = SimpleNamespace(land_cover=lc, vertical_layers=vertical_layers)
+    site = DummySite(properties=props, name="KCL")
+
+    msgs = cfg._validate_spartacus_veg_dimensions(site, 0)
+
+    assert any(
+        "Site KCL: veg_scale[2] should be zero" in m
+        and "bottom of layer 3" in m
+        and "vertical_layers.height[2]=15.0" in m
+        for m in msgs
+    )
+    assert not any("height 22.0 of layer 3" in m for m in msgs)
+
 def test_validate_spartacus_veg_dimensions_boundary_case():
     """Boundary case: max_tree exactly on a layer boundary."""
     cfg = SUEWSConfig.model_construct()
@@ -3358,6 +3382,141 @@ def _get_phase_b_alb_ids(yaml_data: dict):
         ist["dectr"]["alb_id"]["value"],
         ist["evetr"]["alb_id"]["value"],
     )
+
+
+def _make_spartacus_tree_cover_yaml(
+    *,
+    veg_first: float,
+    dectr: float,
+    evetr: float,
+    grass: float,
+    bsoil: float,
+) -> dict:
+    return {
+        "model": {"physics": {"net_radiation": {"value": 1001}}},
+        "sites": [
+            {
+                "name": "TreeSync",
+                "gridiv": 1,
+                "properties": {
+                    "vertical_layers": {
+                        "veg_frac": {"value": [veg_first, 0.2, 0.2]},
+                    },
+                    "land_cover": {
+                        "paved": {"sfr": {"value": 0.2}},
+                        "bldgs": {"sfr": {"value": 0.1}},
+                        "evetr": {"sfr": {"value": evetr}},
+                        "dectr": {"sfr": {"value": dectr}},
+                        "grass": {"sfr": {"value": grass}},
+                        "bsoil": {"sfr": {"value": bsoil}},
+                        "water": {"sfr": {"value": 0.1}},
+                    },
+                },
+            }
+        ],
+    }
+
+
+def _tree_sync_land_cover(yaml_data: dict) -> dict:
+    return yaml_data["sites"][0]["properties"]["land_cover"]
+
+
+def test_phase_b_tree_cover_sync_increases_dectr_and_decreases_grass():
+    """Tree-cover increase uses dectr and donates from grass first."""
+    yaml_data = _make_spartacus_tree_cover_yaml(
+        veg_first=0.2,
+        dectr=0.1,
+        evetr=0.05,
+        grass=0.3,
+        bsoil=0.15,
+    )
+
+    updated, adjustments = adjust_spartacus_tree_cover_fraction(yaml_data)
+    land_cover = _tree_sync_land_cover(updated)
+
+    assert land_cover["dectr"]["sfr"]["value"] == pytest.approx(0.15)
+    assert land_cover["evetr"]["sfr"]["value"] == pytest.approx(0.05)
+    assert land_cover["grass"]["sfr"]["value"] == pytest.approx(0.25)
+    assert land_cover["bsoil"]["sfr"]["value"] == pytest.approx(0.15)
+    assert sum(s["sfr"]["value"] for s in land_cover.values()) == pytest.approx(1.0)
+    assert {a.parameter for a in adjustments} == {
+        "land_cover.dectr.sfr",
+        "land_cover.grass.sfr",
+    }
+
+
+def test_phase_b_tree_cover_sync_reduces_dectr_before_guarded_evetr():
+    """Tree-cover reduction uses dectr first and evetr only as guarded fallback."""
+    yaml_data = _make_spartacus_tree_cover_yaml(
+        veg_first=0.05,
+        dectr=0.04,
+        evetr=0.11,
+        grass=0.3,
+        bsoil=0.15,
+    )
+
+    updated, adjustments = adjust_spartacus_tree_cover_fraction(yaml_data)
+    land_cover = _tree_sync_land_cover(updated)
+
+    assert land_cover["dectr"]["sfr"]["value"] == pytest.approx(0.0)
+    assert land_cover["evetr"]["sfr"]["value"] == pytest.approx(0.05)
+    assert land_cover["grass"]["sfr"]["value"] == pytest.approx(0.4)
+    assert land_cover["bsoil"]["sfr"]["value"] == pytest.approx(0.15)
+    assert sum(s["sfr"]["value"] for s in land_cover.values()) == pytest.approx(1.0)
+    assert {a.parameter for a in adjustments} == {
+        "land_cover.dectr.sfr",
+        "land_cover.evetr.sfr",
+        "land_cover.grass.sfr",
+    }
+
+
+def test_phase_b_tree_cover_validator_warns_when_sync_is_feasible():
+    """Validator reports a fixable tree-cover mismatch as a warning."""
+    from supy.data_model.validation.pipeline.phase_b_rules.other_rules import (
+        validate_land_cover_consistency,
+    )
+
+    yaml_data = _make_spartacus_tree_cover_yaml(
+        veg_first=0.2,
+        dectr=0.1,
+        evetr=0.05,
+        grass=0.3,
+        bsoil=0.15,
+    )
+
+    results = validate_land_cover_consistency(ValidationContext(yaml_data=yaml_data))
+    tree_results = [r for r in results if r.parameter == "land_cover.tree_sfr"]
+
+    assert len(tree_results) == 1
+    assert tree_results[0].status == "WARNING"
+    assert "dectr.sfr + evetr.sfr = 0.1500" in tree_results[0].message
+    assert (
+        "trunk/near-ground tree fraction vertical_layers.veg_frac[0] (0.2000)"
+        in tree_results[0].message
+    )
+
+
+def test_phase_b_tree_cover_validator_errors_when_ground_guard_blocks_sync():
+    """Validator errors when grass and bare soil cannot donate enough fraction."""
+    from supy.data_model.validation.pipeline.phase_b_rules.other_rules import (
+        validate_land_cover_consistency,
+    )
+
+    yaml_data = _make_spartacus_tree_cover_yaml(
+        veg_first=0.3,
+        dectr=0.1,
+        evetr=0.05,
+        grass=0.05,
+        bsoil=0.05,
+    )
+    yaml_data["sites"][0]["properties"]["land_cover"]["paved"]["sfr"]["value"] = 0.45
+
+    results = validate_land_cover_consistency(ValidationContext(yaml_data=yaml_data))
+    tree_results = [r for r in results if r.parameter == "land_cover.tree_sfr"]
+
+    assert len(tree_results) == 1
+    assert tree_results[0].status == "ERROR"
+    assert "grass.sfr + bsoil.sfr cannot donate" in tree_results[0].message
 
 
 def test_phase_b_seasonal_albedo_summer_updates_alb_id_from_ranges():

@@ -2,7 +2,7 @@ from .rules_core import (
     RulesRegistry,
     ValidationResult,
 )
-from ...core.yaml_helpers import get_value_safe
+from ...core.yaml_helpers import get_value_safe, read_physics_key
 from collections.abc import Mapping
 import calendar
 from typing import Dict, List, Optional, Union, Any, Tuple
@@ -10,6 +10,102 @@ from typing import Dict, List, Optional, Union, Any, Tuple
 
 # Constants 
 SFR_FRACTION_TOL = 1e-4
+SPARTACUS_METHODS = {1001, 1002, 1003}
+
+
+def _as_float(value: Any) -> Optional[float]:
+    if isinstance(value, Mapping) and "value" in value:
+        value = value["value"]
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return None
+
+
+def _is_spartacus_enabled(yaml_data: Mapping) -> bool:
+    physics = yaml_data.get("model", {}).get("physics", {})
+    net_radiation = read_physics_key(physics, "net_radiation", 0)
+    if isinstance(net_radiation, Mapping):
+        if "value" in net_radiation:
+            net_radiation = net_radiation["value"]
+        elif "spartacus" in net_radiation:
+            return True
+        elif net_radiation.get("scheme") == "spartacus":
+            return True
+    try:
+        return int(net_radiation) in SPARTACUS_METHODS
+    except (TypeError, ValueError):
+        return False
+
+
+def _surface_sfr(land_cover: Mapping, surface_name: str) -> Optional[float]:
+    surface = land_cover.get(surface_name)
+    if not isinstance(surface, Mapping):
+        return None
+    sfr = surface.get("sfr")
+    return _as_float(sfr)
+
+
+def _first_veg_frac(props: Mapping) -> Optional[float]:
+    vertical_layers = props.get("vertical_layers")
+    if not isinstance(vertical_layers, Mapping):
+        return None
+    veg_frac = vertical_layers.get("veg_frac")
+    if isinstance(veg_frac, Mapping) and "value" in veg_frac:
+        veg_frac = veg_frac["value"]
+    if not isinstance(veg_frac, (list, tuple)) or not veg_frac:
+        return None
+    return _as_float(veg_frac[0])
+
+
+def _tree_cover_sync_guard(
+    land_cover: Mapping, target_tree_cover: float, current_tree_cover: float
+) -> Tuple[str, str]:
+    delta = target_tree_cover - current_tree_cover
+    dectr_sfr = _surface_sfr(land_cover, "dectr")
+    evetr_sfr = _surface_sfr(land_cover, "evetr")
+    grass_sfr = _surface_sfr(land_cover, "grass")
+    bsoil_sfr = _surface_sfr(land_cover, "bsoil")
+
+    if target_tree_cover < -SFR_FRACTION_TOL:
+        return "ERROR", "SPARTACUS veg_frac[0] must be non-negative."
+
+    if delta > SFR_FRACTION_TOL:
+        available_ground = (grass_sfr or 0.0) + (bsoil_sfr or 0.0)
+        if dectr_sfr is None:
+            return (
+                "ERROR",
+                "Cannot increase tree cover because land_cover.dectr.sfr is missing.",
+            )
+        if available_ground + SFR_FRACTION_TOL < delta:
+            return (
+                "ERROR",
+                "Cannot increase dectr.sfr enough because grass.sfr + bsoil.sfr "
+                "cannot donate the required fraction without becoming negative.",
+            )
+        return (
+            "WARNING",
+            "Increase dectr.sfr and decrease grass.sfr first, then bsoil.sfr if needed.",
+        )
+
+    reduction = -delta
+    available_tree = (dectr_sfr or 0.0) + (evetr_sfr or 0.0)
+    if available_tree + SFR_FRACTION_TOL < reduction:
+        return (
+            "ERROR",
+            "Cannot reduce tree cover enough without making dectr.sfr or evetr.sfr negative.",
+        )
+    if grass_sfr is None and bsoil_sfr is None:
+        return (
+            "ERROR",
+            "Cannot receive reduced tree fraction because both grass.sfr and bsoil.sfr are missing.",
+        )
+    if (dectr_sfr or 0.0) + SFR_FRACTION_TOL < reduction:
+        return (
+            "WARNING",
+            "Reduce dectr.sfr first, then use guarded evetr.sfr reduction for the remaining amount.",
+        )
+    return "WARNING", "Reduce dectr.sfr and add the released fraction to grass.sfr."
 
 def _check_surface_parameters(surface_props: dict, surface_type: str) -> List[str]:
     """
@@ -155,6 +251,39 @@ def validate_land_cover_consistency(context) -> List[ValidationResult]:
                         suggested_value=f"Adjust the max surface {max_surface}.sfr or other surface fractions so they sum to exactly 1.0",
                     )
                 )
+
+        if _is_spartacus_enabled(yaml_data):
+            target_tree_cover = _first_veg_frac(props)
+            if target_tree_cover is not None:
+                dectr_sfr = _surface_sfr(land_cover, "dectr") or 0.0
+                evetr_sfr = _surface_sfr(land_cover, "evetr") or 0.0
+                current_tree_cover = dectr_sfr + evetr_sfr
+                if abs(current_tree_cover - target_tree_cover) > SFR_FRACTION_TOL:
+                    status, guard_message = _tree_cover_sync_guard(
+                        land_cover, target_tree_cover, current_tree_cover
+                    )
+                    results.append(
+                        ValidationResult(
+                            status=status,
+                            category="LAND_COVER",
+                            parameter="land_cover.tree_sfr",
+                            site_index=site_idx,
+                            site_gridid=site_gridid,
+                            message=(
+                                "Tree land-cover fraction "
+                                f"(dectr.sfr + evetr.sfr = {current_tree_cover:.4f}) "
+                                "should match SPARTACUS trunk/near-ground tree "
+                                "fraction "
+                                f"vertical_layers.veg_frac[0] ({target_tree_cover:.4f}). "
+                                f"{guard_message}"
+                            ),
+                            suggested_value=(
+                                "Use dectr.sfr as the adjustable tree fraction, "
+                                "protect evetr.sfr unless dectr cannot absorb a reduction, "
+                                "and compensate with grass.sfr then bsoil.sfr."
+                            ),
+                        )
+                    )
 
         # Determine if biogenic CO2 parameters should be required
         physics = yaml_data.get("model", {}).get("physics", {})

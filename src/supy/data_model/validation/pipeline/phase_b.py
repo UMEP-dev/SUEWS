@@ -41,6 +41,7 @@ from ..core.yaml_helpers import (
     get_value_safe,
     get_stebbs_block as _get_stebbs_block,
     get_stebbsmethod_value as _get_stebbsmethod_value,
+    read_physics_key,
     HAS_TIMEZONE_FINDER,
     load_user_yaml_normalised,
 )
@@ -202,6 +203,12 @@ def _science_source(parameter: str, reason: str) -> str:
             "Seasonal vegetation albedo initialisation based on configured albedo bounds; "
             "review against observed surface state and site-specific calibration."
         )
+    if parameter_lower.endswith(".sfr") and "spartacus tree cover" in reason_lower:
+        return (
+            "SPARTACUS tree-cover consistency adjustment; review that "
+            "vertical_layers.veg_frac[0] is the intended trunk/near-ground tree "
+            "cover before applying."
+        )
     if parameter_lower == "snowalb":
         return (
             "Seasonal snow-albedo initialisation heuristic; review for observed snow cover, "
@@ -267,6 +274,64 @@ def get_site_gridid(site_data: dict) -> int:
         elif gridiv is not None:
             return gridiv
     return None
+
+
+SPARTACUS_METHODS = {1001, 1002, 1003}
+
+
+def _is_spartacus_enabled_for_adjustment(yaml_data: dict) -> bool:
+    physics = yaml_data.get("model", {}).get("physics", {})
+    net_radiation = read_physics_key(physics, "net_radiation", 0)
+    if isinstance(net_radiation, dict):
+        if "value" in net_radiation:
+            net_radiation = net_radiation["value"]
+        elif "spartacus" in net_radiation:
+            return True
+        elif net_radiation.get("scheme") == "spartacus":
+            return True
+    try:
+        return int(net_radiation) in SPARTACUS_METHODS
+    except (TypeError, ValueError):
+        return False
+
+
+def _get_sfr_value(land_cover: dict, surface_name: str) -> Optional[float]:
+    surface = land_cover.get(surface_name)
+    if not isinstance(surface, dict):
+        return None
+    sfr = surface.get("sfr")
+    if isinstance(sfr, dict):
+        sfr = sfr.get("value")
+    try:
+        return float(sfr)
+    except (TypeError, ValueError):
+        return None
+
+
+def _set_sfr_value(land_cover: dict, surface_name: str, value: float) -> bool:
+    surface = land_cover.get(surface_name)
+    if not isinstance(surface, dict) or "sfr" not in surface:
+        return False
+    if isinstance(surface["sfr"], dict):
+        surface["sfr"]["value"] = value
+    else:
+        surface["sfr"] = value
+    return True
+
+
+def _get_first_vertical_veg_frac(props: dict) -> Optional[float]:
+    vertical_layers = props.get("vertical_layers")
+    if not isinstance(vertical_layers, dict):
+        return None
+    veg_frac = vertical_layers.get("veg_frac")
+    if isinstance(veg_frac, dict):
+        veg_frac = veg_frac.get("value")
+    if not isinstance(veg_frac, list) or not veg_frac:
+        return None
+    try:
+        return float(veg_frac[0])
+    except (TypeError, ValueError):
+        return None
 
 
 def validate_phase_b_inputs(
@@ -1421,6 +1486,116 @@ def adjust_land_cover_fractions(
     return yaml_data, adjustments
 
 
+def adjust_spartacus_tree_cover_fraction(
+    yaml_data: dict,
+) -> Tuple[dict, List[ScientificAdjustment]]:
+    """
+    Sync tree land-cover fraction to the first SPARTACUS vegetation layer.
+
+    ``vertical_layers.veg_frac[0]`` represents the near-ground trunk fraction
+    and is the tree-cover target for ``dectr.sfr + evetr.sfr``. The adjustment
+    uses deciduous trees as the editable tree fraction, protects evergreen trees
+    unless a reduction cannot be absorbed by deciduous trees, and preserves the
+    total land-cover sum by compensating with grass first and bare soil second.
+    """
+    adjustments = []
+    sites = yaml_data.get("sites", [])
+
+    if not _is_spartacus_enabled_for_adjustment(yaml_data):
+        return yaml_data, adjustments
+
+    for site_idx, site in enumerate(sites):
+        props = site.get("properties", {})
+        land_cover = props.get("land_cover")
+        site_gridid = get_site_gridid(site)
+
+        if not isinstance(land_cover, dict):
+            continue
+
+        target_tree_cover = _get_first_vertical_veg_frac(props)
+        if target_tree_cover is None:
+            continue
+
+        dectr_sfr = _get_sfr_value(land_cover, "dectr")
+        evetr_sfr = _get_sfr_value(land_cover, "evetr")
+        grass_sfr = _get_sfr_value(land_cover, "grass")
+        bsoil_sfr = _get_sfr_value(land_cover, "bsoil")
+        current_tree_cover = (dectr_sfr or 0.0) + (evetr_sfr or 0.0)
+        delta = target_tree_cover - current_tree_cover
+
+        if abs(delta) <= SFR_FRACTION_TOL:
+            continue
+
+        changed: List[Tuple[str, float, float]] = []
+
+        def record(surface_name: str, old_value: float, new_value: float) -> None:
+            if abs(new_value - old_value) <= SFR_FRACTION_TOL:
+                return
+            _set_sfr_value(land_cover, surface_name, new_value)
+            changed.append((surface_name, old_value, new_value))
+
+        if delta > 0:
+            available_ground = (grass_sfr or 0.0) + (bsoil_sfr or 0.0)
+            if dectr_sfr is None or available_ground + SFR_FRACTION_TOL < delta:
+                continue
+
+            record("dectr", dectr_sfr, dectr_sfr + delta)
+
+            remaining = delta
+            if grass_sfr is not None:
+                grass_reduction = min(grass_sfr, remaining)
+                record("grass", grass_sfr, grass_sfr - grass_reduction)
+                remaining -= grass_reduction
+            if remaining > SFR_FRACTION_TOL and bsoil_sfr is not None:
+                record("bsoil", bsoil_sfr, bsoil_sfr - remaining)
+
+        else:
+            reduction = -delta
+            available_tree = (dectr_sfr or 0.0) + (evetr_sfr or 0.0)
+            if (
+                available_tree + SFR_FRACTION_TOL < reduction
+                or (grass_sfr is None and bsoil_sfr is None)
+            ):
+                continue
+
+            remaining = reduction
+            released = reduction
+            if dectr_sfr is not None:
+                dectr_reduction = min(dectr_sfr, remaining)
+                record("dectr", dectr_sfr, dectr_sfr - dectr_reduction)
+                remaining -= dectr_reduction
+            if remaining > SFR_FRACTION_TOL and evetr_sfr is not None:
+                record("evetr", evetr_sfr, evetr_sfr - remaining)
+
+            if grass_sfr is not None:
+                record("grass", grass_sfr, grass_sfr + released)
+            elif bsoil_sfr is not None:
+                record("bsoil", bsoil_sfr, bsoil_sfr + released)
+
+        if changed:
+            for surface_name, old_value, new_value in changed:
+                adjustments.append(
+                    ScientificAdjustment(
+                        parameter=f"land_cover.{surface_name}.sfr",
+                        site_index=site_idx,
+                        site_gridid=site_gridid,
+                        old_value=f"{old_value:.6f}",
+                        new_value=f"{new_value:.6f}",
+                        reason=(
+                            "Synced SPARTACUS tree cover target "
+                            f"vertical_layers.veg_frac[0]={target_tree_cover:.6f} "
+                            f"with dectr.sfr + evetr.sfr from {current_tree_cover:.6f}; "
+                            "used dectr as the adjustable tree fraction and "
+                            "compensated with grass.sfr then bsoil.sfr"
+                        ),
+                    )
+                )
+            site["properties"] = props
+            yaml_data["sites"][site_idx] = site
+
+    return yaml_data, adjustments
+
+
 def adjust_model_dependent_nullification(
     yaml_data: dict,
 ) -> Tuple[dict, List[ScientificAdjustment]]:
@@ -2303,6 +2478,7 @@ def run_scientific_adjustment_pipeline(
     for adjust_func, args in [
         (adjust_surface_temperatures, (updated_data, start_date)),
         (adjust_land_cover_fractions, (updated_data,)),
+        (adjust_spartacus_tree_cover_fraction, (updated_data,)),
         (adjust_model_dependent_nullification, (updated_data,)),
         (adjust_seasonal_parameters, (updated_data, start_date, model_year)),
         (adjust_model_option_rcmethod, (updated_data,)),

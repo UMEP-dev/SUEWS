@@ -69,7 +69,7 @@ def shade_transition(ax, centre, half_width):
         alpha=0.08,
         zorder=0,
     )
-    ax.axvline(centre, color="0.3", linewidth=0.9, linestyle=":", zorder=1)
+    ax.axvline(centre, color="#d62728", linewidth=1.0, linestyle=":", zorder=3)
 
 
 def main():
@@ -94,9 +94,9 @@ def main():
 
     # (b) wet weight against the surface water store
     ax = axes[0, 1]
-    state = np.linspace(-0.15, 1.0, 601)
+    state = np.linspace(0.0, 1.0, 601)
     ax.axvspan(0.0, SURFACE_WETNESS_WIDTH, color="#1f77b4", alpha=0.08, zorder=0)
-    ax.axvline(0.0, color="0.3", linewidth=0.9, linestyle=":", zorder=1)
+    ax.axvline(0.0, color="#d62728", linewidth=1.0, linestyle=":", zorder=3)
     ax.plot(state, (state > 0.0).astype(float), **STEP_STYLE)
     ax.plot(state, weight_surface_wet(np.clip(state, 0.0, None)), **BLEND_STYLE)
     ax.set_xlabel("Surface water store (mm)")
@@ -118,7 +118,7 @@ def main():
     ax.plot(ratio, weight_soil_wet(ratio), **BLEND_STYLE)
     ax.set_xlabel("Soil-moisture ratio (-)")
     ax.set_ylabel("Wet weight $w_w$")
-    ax.set_title("(c) Soil-moisture transition", loc="left")
+    ax.set_title("(c) Soil-moisture transition (vegetated and bare-soil only)", loc="left")
     ax.annotate(
         f"+/-{SOIL_HALF_WIDTH:.1f} about OHMThresh_WD",
         xy=(THRESH_WD, 0.5),
@@ -159,6 +159,14 @@ def main():
     fig.suptitle(
         "OHM coefficient blending: the thresholds are transition centres, not switches",
         fontsize=11,
+    )
+    fig.text(
+        0.5,
+        0.945,
+        "The effective wet weight is the larger of (b) and (c). Coefficients in (d) are illustrative.",
+        ha="center",
+        fontsize=8.5,
+        color="0.35",
     )
     fig.tight_layout(rect=(0, 0.04, 1, 0.97))
 

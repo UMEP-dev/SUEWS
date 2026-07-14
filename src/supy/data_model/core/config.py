@@ -2022,12 +2022,12 @@ class SUEWSConfig(BaseModel):
         Returns
         -------
         bool
-            True if `storage_heat_method` is set to 6 or 7 and was explicitly configured by the user,
+            True if `storage_heat_method` is set to 6, 7, or 8 and was explicitly configured by the user,
             False otherwise.
 
         Notes
         -----
-        - Validation is only triggered if `storage_heat_method` is 6 or 7 AND the value was explicitly set
+        - Validation is only triggered if `storage_heat_method` is 6, 7, or 8 AND the value was explicitly set
           (not just the default value).
         - Uses Pydantic's `model_fields_set` to distinguish user-provided values from defaults.
         """
@@ -2042,8 +2042,8 @@ class SUEWSConfig(BaseModel):
         except (TypeError, ValueError):
             pass
 
-        # Only validate if method == 6 or 7 AND it was explicitly set
-        if shm == 6 or shm == 7:
+        # Only validate if method == 6, 7, or 8 AND it was explicitly set
+        if shm in {6, 7, 8}:
             return self._is_physics_explicitly_configured("storage_heat")
         return False
     
@@ -2198,7 +2198,7 @@ class SUEWSConfig(BaseModel):
         Validate DyOHM storage-heat method requirements for a site.
 
         This function checks that all required parameters for the DyOHM storage-heat
-        method (storage_heat_method 6 or 7) are present and valid for the given site.
+        method (storage_heat_method 6, 7, or 8) are present and valid for the given site.
         It ensures that vertical_layers.walls, thermal_layers, and initial_states
         arrays are non-empty and contain only numeric values, and that lambda_c is set.
 
@@ -2234,7 +2234,7 @@ class SUEWSConfig(BaseModel):
 
         if not walls or len(walls) == 0:
             issues.append(
-                f"{site_name}: storage_heat_method 6 or 7 (DyOHM) selected → missing vertical_layers.walls"
+                f"{site_name}: storage_heat_method 6, 7, or 8 (DyOHM) selected -> missing vertical_layers.walls"
             )
             return issues
 
@@ -2249,8 +2249,8 @@ class SUEWSConfig(BaseModel):
                 or any(not isinstance(v, (int, float)) for v in vals)
             ):
                 issues.append(
-                    f"{site_name}: storage_heat_method 6 or 7 (DyOHM) selected → "
-                    f"thermal_layers.{arr} must be a non‐empty list of numeric values (no nulls)"
+                    f"{site_name}: storage_heat_method 6, 7, or 8 (DyOHM) selected -> "
+                    f"thermal_layers.{arr} must be a non-empty list of numeric values (no nulls)"
                 )
 
         for arr in ("qn_surfs", "dqndt_surf"):
@@ -2267,14 +2267,14 @@ class SUEWSConfig(BaseModel):
                 or any(not isinstance(v, (int, float)) for v in vals)
             ):
                 issues.append(
-                    f"{site_name}: storage_heat_method 6 or 7 (DyOHM) selected → "
-                    f"initial_states.{arr} must be a non‐empty list of numeric values (no nulls)"
+                    f"{site_name}: storage_heat_method 6, 7, or 8 (DyOHM) selected -> "
+                    f"initial_states.{arr} must be a non-empty list of numeric values (no nulls)"
                 )
 
         lam = getattr(getattr(props, "lambda_c", None), "value", None)
         if lam in (None, ""):
             issues.append(
-                f"{site_name}: storage_heat_method 6 or 7 (DyOHM) selected → properties.lambda_c must be set and non-null"
+                f"{site_name}: storage_heat_method 6, 7, or 8 (DyOHM) selected -> properties.lambda_c must be set and non-null"
             )
 
         return issues
@@ -2730,7 +2730,7 @@ class SUEWSConfig(BaseModel):
           `stebbs_method == 1`.
         - RSL: Validates that `bldgs.faibldg` is set when `rsl_method == 2`.
         - StorageHeat: Checks DyOHM storage-heat method requirements when
-          `storage_heat_method == 6 or 7`.
+          `storage_heat_method == 6, 7, or 8`.
         - same_albedo_wall/roof: Ensures uniform albedo across wall/roof layers and
           matches the building archetype if enabled.
         - same_emissivity_wall/roof: Ensures uniform emissivity across wall/roof

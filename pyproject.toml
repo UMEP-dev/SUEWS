@@ -106,7 +106,8 @@ dev = [
     # Testing
     "pytest",
     "pytest-cov",
-    
+    "pytest-xdist",
+
     # Code formatting
     "ruff",
     "fprettify",

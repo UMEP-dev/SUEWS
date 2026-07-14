@@ -41,7 +41,7 @@ EXAMPLES:
 
 | Year | Features | Bugfixes | Changes | Maintenance | Docs | Total |
 |------|----------|----------|---------|-------------|------|-------|
-| 2026 | 79       | 85       | 30 | 81 | 40 | 316   |
+| 2026 | 80       | 85       | 30 | 81 | 40 | 317   |
 | 2025 | 60       | 68       | 22 | 71 | 36 | 256   |
 | 2024 | 12       | 17       | 1 | 12 | 1 | 43    |
 | 2023 | 11       | 14       | 3 | 9 | 1 | 38    |
@@ -53,6 +53,17 @@ EXAMPLES:
 | 2017 | 9        | 0        | 3 | 2 | 0 | 14    |
 
 ## 2026
+
+### 13 Jul 2026
+
+- [bugfix] Fixed MacDonald (1998) momentum roughness using a stale displacement height (#1615)
+  - Under `roughness_length_momentum: macdonald` (`RoughLenMomMethod=3`), `z0m` was computed from the persistent `zdm` state, which still held the previous timestep's plan-area-blended displacement height (and zero on the first timestep), instead of the MacDonald displacement height computed alongside it. `z0m` was therefore inflated several-fold and the scheme did not reproduce MacDonald (1998) as published.
+  - Users of this option will see `z0m` drop by roughly a factor of 2 to 4, depending on plan area index, with knock-on changes to aerodynamic resistance and the near-surface diagnostics. Other roughness options are unaffected, as are all reference outputs.
+
+### 9 Jul 2026
+
+- [feature][experimental] Added the `dyohm_building` storage-heat option (#1601)
+  - Exposed `model.physics.storage_heat: dyohm_building` (`StorageHeatMethod=8`) so DyOHM determines the building storage heat flux while other land-cover surfaces continue to use ordinary OHM.
 
 ### 8 Jul 2026
 

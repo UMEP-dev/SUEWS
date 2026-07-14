@@ -7,9 +7,9 @@ add new imports, this test automatically validates them.
 
 import ast
 import json
+from pathlib import Path
 import subprocess
 import sys
-from pathlib import Path
 
 import pytest
 
@@ -23,19 +23,10 @@ import importlib
 import json
 import sys
 
-
-def purge_supy_modules():
-    for module_name in list(sys.modules):
-        if module_name == "supy" or module_name.startswith("supy."):
-            del sys.modules[module_name]
-    importlib.invalidate_caches()
-
-
 checks = json.loads(sys.stdin.read())
 failures = []
 
 for check in checks:
-    purge_supy_modules()
     files = check.get("files") or [check["file"]]
     if check["kind"] == "from":
         module_name = check["module"]
@@ -76,6 +67,16 @@ print(json.dumps(failures))
 def _run_import_checks(checks):
     """Check imports in a clean subprocess so pytest collection cannot mask bugs."""
     checks = _dedupe_checks(checks)
+    # Check the top-level public surface before importing submodules, which can
+    # add their names to the parent package. The subprocess itself starts with
+    # a clean module cache; repeated purges between checks only re-imported the
+    # same package hundreds of times without improving isolation.
+    checks.sort(
+        key=lambda check: (
+            check["module"] != "supy",
+            "suews_sim" not in check.get("names", ()),
+        )
+    )
     result = subprocess.run(
         [sys.executable, "-c", _IMPORT_CHECKER],
         input=json.dumps(checks),
@@ -130,6 +131,8 @@ def _format_report(failures):
 @pytest.mark.smoke_bridge
 def test_all_test_imports_resolve():
     """Verify every supy import used in tests actually exists."""
+    from supy import suews_sim  # noqa: F401, PLC0415 - Deliberately pollute cache.
+
     test_root = Path(__file__).parent
     checks = []
 
@@ -152,51 +155,41 @@ def test_all_test_imports_resolve():
         for node in ast.walk(tree):
             if isinstance(node, ast.ImportFrom):
                 if node.module and node.module.startswith("supy"):
-                    checks.append(
-                        {
-                            "kind": "from",
-                            "module": node.module,
-                            "names": [alias.name for alias in node.names],
-                            "file": test_file.name,
-                        }
-                    )
+                    checks.append({
+                        "kind": "from",
+                        "module": node.module,
+                        "names": [alias.name for alias in node.names],
+                        "file": test_file.name,
+                    })
             elif isinstance(node, ast.Import):
                 for alias in node.names:
                     if alias.name.startswith("supy"):
-                        checks.append(
-                            {
-                                "kind": "import",
-                                "module": alias.name,
-                                "file": test_file.name,
-                            }
-                        )
+                        checks.append({
+                            "kind": "import",
+                            "module": alias.name,
+                            "file": test_file.name,
+                        })
+
+    # The synthetic top-level import must fail in the clean subprocess even
+    # though this parent process imported the submodule above. This folds the
+    # former second subprocess test into the main surface probe.
+    synthetic_file = "synthetic_parent_cache_test.py"
+    synthetic_failure = [
+        synthetic_file,
+        "from supy import suews_sim",
+        "supy has no attribute 'suews_sim'",
+    ]
+    checks.append({
+        "kind": "from",
+        "module": "supy",
+        "names": ["suews_sim"],
+        "file": synthetic_file,
+    })
 
     failures = _run_import_checks(checks)
-    if failures:
-        report = _format_report(failures)
+    assert synthetic_failure in failures
+
+    real_failures = [failure for failure in failures if failure[0] != synthetic_file]
+    if real_failures:
+        report = _format_report(real_failures)
         pytest.fail(f"Broken supy imports in test suite:\n\n{report}")
-
-
-@pytest.mark.smoke
-def test_import_checks_ignore_parent_process_import_cache():
-    """A parent-process submodule import must not mask a missing top-level API."""
-    from supy import suews_sim  # noqa: F401, PLC0415 - Deliberately pollute cache.
-
-    failures = _run_import_checks(
-        [
-            {
-                "kind": "from",
-                "module": "supy",
-                "names": ["suews_sim"],
-                "file": "synthetic_test.py",
-            }
-        ]
-    )
-
-    assert failures == [
-        [
-            "synthetic_test.py",
-            "from supy import suews_sim",
-            "supy has no attribute 'suews_sim'",
-        ]
-    ]

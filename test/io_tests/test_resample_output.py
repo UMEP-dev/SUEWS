@@ -17,13 +17,36 @@ from conftest import (
 pytestmark = pytest.mark.api
 
 
+def _regular_output_frame(periods=6, freq="5min", start="2023-01-01", tz=None):
+    """Minimal frame for tests that exercise only index-frequency mechanics."""
+    dates = pd.date_range(start, periods=periods, freq=freq, tz=tz)
+    index = pd.MultiIndex.from_product([[1], dates], names=["grid", "datetime"])
+    columns = pd.MultiIndex.from_tuples(
+        [("SUEWS", "QH")],
+        names=["group", "var"],
+    )
+    return pd.DataFrame(np.arange(periods).reshape(-1, 1), index=index, columns=columns)
+
+
+@pytest.mark.parametrize("start", ["2024-03-31", "2024-10-27"])
+def test_native_daily_timezone_aware_freq_across_dst_is_skipped(start):
+    """Recognise daily cadence across 23- and 25-hour DST transitions."""
+    df_output = _regular_output_frame(
+        periods=4,
+        freq="D",
+        start=start,
+        tz="Europe/London",
+    )
+
+    assert resample_output(df_output, freq="D", _internal=True) is df_output
+
+
 class TestResampleOutput:
     """Test suite for resample_output functionality."""
 
-    def test_resample_accepts_suewsoutput(self):
+    def test_resample_accepts_suewsoutput(self, sample_run_cached):
         """Test that resample_output accepts SUEWSOutput instances."""
-        df_state_init, df_forcing = sp.load_SampleData()
-        df_output, df_state_final = sp.run_supy(df_forcing.iloc[:48], df_state_init)
+        df_output, df_state_final = sample_run_cached(48)
 
         output = sp.SUEWSOutput(df_output, df_state_final)
         assert output.index.equals(df_output.index)
@@ -38,15 +61,14 @@ class TestResampleOutput:
         assert isinstance(output_resampled, sp.SUEWSOutput)
         assert not output_resampled.df.empty
 
-    def test_resample_native_freq_skips_and_is_identical(self):
+    def test_resample_native_freq_skips_and_is_identical(self, sample_run_cached):
         """At the run's native frequency resample_output is a no-op (gh#1599).
 
         The save path calls resample_output with the model timestep as the
         target; when the data already has that cadence, resampling must be
         skipped and the frame returned unchanged (byte-identical), not rebuilt.
         """
-        df_state_init, df_forcing = sp.load_SampleData()
-        df_output, _ = sp.run_supy(df_forcing.iloc[:48], df_state_init)
+        df_output, _ = sample_run_cached(48)
 
         # native cadence of the run (5 min for the sample data)
         idx_dt = df_output.index.get_level_values("datetime").unique().sort_values()
@@ -61,7 +83,7 @@ class TestResampleOutput:
             assert result is df_output  # skipped -> same object, no work done
             pd.testing.assert_frame_equal(result, df_output)  # byte-identical
 
-    def test_resample_irregular_index_not_skipped(self):
+    def test_resample_irregular_index_not_skipped(self, sample_run_cached):
         """An irregular index must not be treated as a frequency match (gh#1599).
 
         infer_freq returns None for irregular cadence, so the guard falls
@@ -70,28 +92,38 @@ class TestResampleOutput:
         """
         from supy._post import _index_freq_matches
 
-        df_state_init, df_forcing = sp.load_SampleData()
-        df_output, _ = sp.run_supy(df_forcing.iloc[:48], df_state_init)
+        df_output, _ = sample_run_cached(48)
         # drop interior rows to break the regular 5-min cadence
         df_irregular = df_output.drop(df_output.index[[10, 25]])
 
         assert _index_freq_matches(df_output, "5min") is True
         assert _index_freq_matches(df_irregular, "5min") is False
 
+    def test_resample_non_native_freq_short_circuits_before_infer_freq(
+        self, monkeypatch
+    ):
+        """A clear frequency mismatch should not scan the full index."""
+        import supy._post as _post
+        from supy._post import _index_freq_matches
+
+        df_output = _regular_output_frame(freq="5min")
+
+        def fail_infer_freq(_idx):
+            raise AssertionError("infer_freq should not run for an obvious mismatch")
+
+        monkeypatch.setattr(_post.pd, "infer_freq", fail_infer_freq)
+
+        assert _index_freq_matches(df_output, "60min") is False
+
     @analyze_dailystate_nan  # Add NaN analysis even when test passes
     @debug_on_ci
     @capture_test_artifacts("dailystate_resample")
-    def test_resample_with_dailystate(self):
+    def test_resample_with_dailystate(self, sample_run_cached):
         """Test that DailyState is correctly resampled when present."""
-        # Load sample data and run simulation
-        df_state_init, df_forcing = sp.load_SampleData()
-
         # Run for more days to ensure we have DailyState data
         # DailyState needs at least a few days to generate meaningful output
-        df_forcing_multi_day = df_forcing.iloc[: TIMESTEPS_PER_DAY * 10]  # 10 days
-
-        # Run simulation
-        df_output, df_state_final = sp.run_supy(df_forcing_multi_day, df_state_init)
+        # (10 days = TIMESTEPS_PER_DAY * 10 five-minute steps)
+        df_output, df_state_final = sample_run_cached(TIMESTEPS_PER_DAY * 10)
 
         # Check DailyState exists
         assert "DailyState" in df_output.columns.get_level_values("group").unique()
@@ -164,16 +196,11 @@ class TestResampleOutput:
             "DailyState should have some non-NaN values after resampling"
         )
 
-    def test_resample_without_dailystate(self):
+    def test_resample_without_dailystate(self, sample_run_cached):
         """Test that resample works correctly when DailyState is not present."""
-        # Load sample data and run simulation
-        df_state_init, df_forcing = sp.load_SampleData()
-
-        # Run for a short period (no DailyState output expected)
-        df_forcing_short = df_forcing.iloc[:48]  # Less than a day
-
-        # Run simulation
-        df_output, df_state_final = sp.run_supy(df_forcing_short, df_state_init)
+        # Run for a short period (48 steps, less than a day; no DailyState
+        # output expected)
+        df_output, df_state_final = sample_run_cached(48)
 
         # Remove DailyState if it exists to test the scenario
         if "DailyState" in df_output.columns.get_level_values("group").unique():
@@ -191,16 +218,11 @@ class TestResampleOutput:
         assert isinstance(df_resampled, pd.DataFrame)
         assert len(df_resampled) > 0
 
-    def test_resample_dailystate_aggregation(self):
+    def test_resample_dailystate_aggregation(self, sample_run_cached):
         """Test that DailyState uses correct aggregation rules."""
-        # Load sample data and run simulation
-        df_state_init, df_forcing = sp.load_SampleData()
-
         # Run for multiple days (use more days to ensure DailyState generation)
-        df_forcing_multi_day = df_forcing.iloc[: TIMESTEPS_PER_DAY * 10]  # 10 days
-
-        # Run simulation
-        df_output, df_state_final = sp.run_supy(df_forcing_multi_day, df_state_init)
+        # (10 days = TIMESTEPS_PER_DAY * 10 five-minute steps)
+        df_output, df_state_final = sample_run_cached(TIMESTEPS_PER_DAY * 10)
 
         # Check that DailyState aggregation rules exist
         assert "DailyState" in dict_var_aggm

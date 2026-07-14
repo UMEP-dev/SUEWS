@@ -693,6 +693,7 @@ pub const PHYSICS_FAMILIES_RS: &[(&str, &[(&str, FamilyCodes)])] = &[
             ("ehc", &[5]),
             ("dyohm", &[6]),
             ("stebbs", &[7]),
+            ("dyohm_building", &[8]),
         ],
     ),
     (
@@ -785,6 +786,10 @@ pub const PHYSICS_NAME_ALIASES_RS: &[(&str, &[(&str, i64)])] = &[
             ("dyohm", 6),
             ("l25", 6),
             ("stebbs", 7),
+            ("dyohm_building", 8),
+            ("dyohm_buildings", 8),
+            ("dyohm_bldg", 8),
+            ("dyohm_bldgs", 8),
         ],
     ),
     ("ohm_inc_qf", &[("exclude", 0), ("include", 1)]),
@@ -1168,8 +1173,16 @@ fn collapse_orthogonal_emissions(map: &mut serde_yaml::Mapping) -> Result<bool, 
     Ok(true)
 }
 
-const STORAGE_HEAT_FAMILIES_RS: &[&str] =
-    &["observed", "ohm", "anohm", "estm", "ehc", "dyohm", "stebbs"];
+const STORAGE_HEAT_FAMILIES_RS: &[&str] = &[
+    "observed",
+    "ohm",
+    "anohm",
+    "estm",
+    "ehc",
+    "dyohm",
+    "stebbs",
+    "dyohm_building",
+];
 
 fn fold_storage_heat_ohm_inc_qf(root: &mut Value) -> Result<(), String> {
     let physics = match root
@@ -2526,6 +2539,17 @@ model:
             .get(Value::String("value".into()))
             .unwrap();
         assert_eq!(v.as_i64(), Some(5));
+    }
+
+    #[test]
+    fn storage_heat_dyohm_building_collapses() {
+        let yaml = "model:\n  physics:\n    storage_heat: dyohm_building\n";
+        let mut root: Value = from_str(yaml).unwrap();
+        normalize_field_names(&mut root).unwrap();
+        let v = root["model"]["physics"]["storageheatmethod"]
+            .get(Value::String("value".into()))
+            .unwrap();
+        assert_eq!(v.as_i64(), Some(8));
     }
 
     #[test]

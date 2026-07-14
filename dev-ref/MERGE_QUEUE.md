@@ -28,7 +28,7 @@ merge_group:
 
 ### Validation Matrix
 - **Platforms**: Linux (manylinux) + ARM Mac + Windows
-- **Python versions**: 3.9 and 3.14 (bookend versions)
+- **Python version**: 3.12 (the `requires-python` / abi3 floor per gh#1553)
 - **Test tier**: `standard` (more thorough than PR smoke tests)
 
 ### Gate Job
@@ -186,10 +186,17 @@ gh pr edit <FAILING_PR_NUMBER> --remove-from-merge-queue
 
 | Event | Platforms | Python Versions | Test Tier |
 |-------|-----------|-----------------|-----------|
-| Draft PR | manylinux only | 3.9, 3.14 | smoke |
-| Ready PR | Linux, ARM Mac, Win | 3.9, 3.14 | standard |
-| **Merge Queue** | Linux, ARM Mac, Win | 3.9, 3.14 | standard |
-| Nightly/Release | All (incl. x86 Mac) | 3.9-3.14 | all |
+| Draft PR | manylinux only | 3.12, 3.14 | smoke |
+| Ready PR | Linux, ARM Mac, Win | 3.12, 3.14 | standard |
+| **Merge Queue** | Linux, ARM Mac, Win | 3.12, 3.14 | standard |
+| Nightly | All (incl. x86 Mac) for the wheel build; api tests skip x86 Mac (runner scarcity -- see run 28990965739) | 3.12-3.14 | all |
+| Release (tag push) | All (incl. x86 Mac), api tests included | 3.12-3.14 | all |
+
+Ready-PR CI tests the oldest and newest supported CPython bookends. The merge
+queue revalidates the combined tree on the `requires-python` floor (3.12)
+only; nightly and release runs retain the wider cross-version matrix. The
+floor is clamped in `.github/scripts/determine-matrix.sh` and tracks
+`pyproject.toml` (gh#1553).
 
 ### Path-Based Skipping
 
@@ -200,9 +207,16 @@ Documentation-only PRs skip builds even in merge queue:
 
 ### UMEP Validation
 
-Merge queue includes UMEP variant testing:
-- Windows Python 3.12 only (QGIS 3.40 LTR compatibility)
+UMEP/QGIS tests (the `qgis` tier) do **not** run in the merge queue. The
+merge queue's `standard` test tier explicitly excludes them
+(`api and not slow and not qgis`); `qgis`-tier tests run only under the
+`all` tier -- nightly schedule, tag push, or manual dispatch (`full`):
+- Windows Python 3.12 only (current QGIS 3 LTR / QGIS 4 runtime)
 - Validates NumPy 1.x compatibility
+
+A platform-specific UMEP/QGIS regression is therefore caught by the nightly
+build, not the merge queue -- see "Safety net" in
+`.claude/rules/ci/conventions.md`.
 
 ## Workflow Integration
 

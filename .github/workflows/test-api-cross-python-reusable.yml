@@ -63,6 +63,8 @@ jobs:
       - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6
         with:
           python-version: ${{ steps.pyver.outputs.spec }}
+          cache: 'pip'
+          cache-dependency-path: pyproject.toml
 
       - name: Download wheel for this platform
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
@@ -97,4 +99,7 @@ jobs:
           python -m pip install --upgrade pip
           python -m pip install pytest
           python -m pip install wheelhouse/*.whl
-          python -m pytest test -m "$MARKER_EXPR" -v --tb=short
+          # Run in one process. xdist duplicates every session fixture per
+          # worker; the API lane contains simulation outputs large enough to
+          # exhaust hosted-runner memory even with two workers.
+          python -m pytest test -m "$MARKER_EXPR" -v --tb=short --durations=25

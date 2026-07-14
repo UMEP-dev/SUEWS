@@ -1238,8 +1238,17 @@ def _migrate_2026_5_to_2026_6_dev1(cfg: dict) -> dict:
     return cfg
 
 
+def _migrate_2026_6_dev1_to_2026_6_dev2(cfg: dict) -> dict:
+    """Stamp the DyOHM-building storage-heat selector dev schema.
+
+    The 2026.6.dev2 delta adds the opt-in ``storage_heat=dyohm_building``
+    selector. Existing 2026.6.dev1 YAML content does not need reshaping.
+    """
+    return cfg
+
+
 def _migrate_2026_4_to_current(cfg: dict) -> dict:
-    """Chain 2026.4 -> 2026.5 Cat 1 -> dev1 ext -> dev2 suffix -> dev3 STEBBS snake."""
+    """Chain 2026.4 -> 2026.5 released schema -> current dev schema."""
     cfg = _migrate_2026_4_to_2026_5(cfg)
     return _migrate_2026_5_to_current(cfg)
 
@@ -1269,13 +1278,13 @@ def _migrate_2025_12_to_2026_4(cfg: dict) -> dict:
 
 
 def _migrate_2025_12_to_current(cfg: dict) -> dict:
-    """Chain #879 clean-up -> 2026.1 delta -> 2026.5 Cat. 1 -> dev1 ext -> dev2 suffix."""
+    """Chain #879 clean-up -> 2026.1 delta -> 2026.5 -> current dev schema."""
     cfg = _migrate_2025_12_to_2026_4(cfg)
     return _migrate_2026_4_to_current(cfg)
 
 
 def _migrate_2026_1_to_current(cfg: dict) -> dict:
-    """Chain 2026.1 delta -> 2026.5 Cat. 1 -> dev1 STEBBS ext -> dev2 suffix."""
+    """Chain 2026.1 delta -> 2026.5 released schema -> current dev schema."""
     cfg = _migrate_2026_1_to_2026_4(cfg)
     return _migrate_2026_4_to_current(cfg)
 
@@ -1302,6 +1311,7 @@ _HANDLERS: dict[tuple[str, str], Handler] = {
     # gh#1456 STEBBS physics fold, and gh#1495 frontal_area_index selector.
     # _migrate_2026_4_to_current chains _migrate_2026_4_to_2026_5 (Category 1)
     # then _migrate_2026_5_to_current (the remaining dev-cycle union).
+    ("2026.6.dev1", CURRENT_SCHEMA_VERSION): _migrate_2026_6_dev1_to_2026_6_dev2,
     ("2026.5", CURRENT_SCHEMA_VERSION): _migrate_2026_5_to_2026_6_dev1,
     ("2026.4", CURRENT_SCHEMA_VERSION): _migrate_2026_4_to_current,
     ("2026.1", CURRENT_SCHEMA_VERSION): _migrate_2026_1_to_current,

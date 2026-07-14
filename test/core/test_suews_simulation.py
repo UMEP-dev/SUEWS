@@ -1010,17 +1010,14 @@ class TestRun:
 class TestSave:
     """Test result saving."""
 
-    def test_save_default(self, tmp_path):
-        """Test saving results."""
-        # Quick run
-        df_state, df_forcing = sp.load_SampleData()
-        sim = SUEWSSimulation()
-        sim._df_state_init = df_state
-        sim.update_forcing(df_forcing.iloc[:24])
-        sim.run()
+    def test_save_default(self, completed_sample_sim, tmp_path):
+        """Test saving results.
 
-        # Save
-        paths = sim.save(tmp_path)
+        ``save()`` only reads ``completed_sample_sim`` and writes to
+        ``tmp_path``; it does not mutate the simulation, so the session-
+        shared completed sim is safe to reuse here.
+        """
+        paths = completed_sample_sim.save(tmp_path)
         assert isinstance(paths, list)
         assert len(paths) > 0
         assert any(Path(p).exists() for p in paths)
@@ -1096,11 +1093,9 @@ class TestEnhancements:
         assert "site" in repr_str
         assert "timesteps" in repr_str
 
-    def test_repr_complete(self):
+    def test_repr_complete(self, completed_sample_sim):
         """Test repr after running."""
-        sim = SUEWSSimulation.from_sample_data()
-        sim.run(end_date=sim.forcing.index[23])  # Run only 24 timesteps
-        repr_str = repr(sim)
+        repr_str = repr(completed_sample_sim)
         assert "Complete" in repr_str
         assert "results" in repr_str
 
@@ -1173,47 +1168,37 @@ class TestMethodChaining:
 class TestGetVariable:
     """Test variable extraction helper method."""
 
-    def test_get_variable_with_group(self):
+    def test_get_variable_with_group(self, completed_sample_sim):
         """Test variable extraction with group specification."""
-        sim = SUEWSSimulation.from_sample_data()
-        sim.run(end_date=sim.forcing.index[23])
-
         # QH appears in multiple groups, must specify which one
-        qh = sim.get_variable("QH", group="SUEWS")
+        qh = completed_sample_sim.get_variable("QH", group="SUEWS")
         assert qh is not None
-        assert len(qh) == 24
+        assert len(qh) == len(completed_sample_sim.forcing)
 
-    def test_get_variable_ambiguous_raises(self):
+    def test_get_variable_ambiguous_raises(self, completed_sample_sim):
         """Test get_variable raises error for ambiguous variable without group."""
-        sim = SUEWSSimulation.from_sample_data()
-        sim.run(end_date=sim.forcing.index[23])
-
         # QH appears in multiple groups - should raise error
         with pytest.raises(ValueError, match="appears in multiple groups"):
-            sim.get_variable("QH")
+            completed_sample_sim.get_variable("QH")
 
     def test_get_variable_not_run(self):
         """Test get_variable fails gracefully if not run."""
+        # Must be a fresh, un-run sim (asserts pre-run behaviour), so this
+        # cannot share `completed_sample_sim`.
         sim = SUEWSSimulation.from_sample_data()
         with pytest.raises(RuntimeError, match="No results available"):
             sim.get_variable("QH")
 
-    def test_get_variable_invalid_name(self):
+    def test_get_variable_invalid_name(self, completed_sample_sim):
         """Test get_variable with invalid variable name."""
-        sim = SUEWSSimulation.from_sample_data()
-        sim.run(end_date=sim.forcing.index[23])
-
         with pytest.raises(ValueError, match="not found"):
-            sim.get_variable("INVALID_VAR")
+            completed_sample_sim.get_variable("INVALID_VAR")
 
-    def test_get_variable_wrong_group(self):
+    def test_get_variable_wrong_group(self, completed_sample_sim):
         """Test get_variable with wrong group specification."""
-        sim = SUEWSSimulation.from_sample_data()
-        sim.run(end_date=sim.forcing.index[23])
-
         # QH exists but not in a non-existent group
         with pytest.raises(ValueError, match="not found in group"):
-            sim.get_variable("QH", group="NONEXISTENT_GROUP")
+            completed_sample_sim.get_variable("QH", group="NONEXISTENT_GROUP")
 
 
 class TestPathResolution:

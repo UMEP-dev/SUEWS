@@ -3495,6 +3495,30 @@ def test_phase_b_tree_cover_sync_reduces_dectr_before_guarded_evetr():
     }
 
 
+def test_phase_b_tree_cover_sync_reduces_dectr_for_small_trunk_target():
+    """Small trunk targets reduce dectr while leaving guarded evetr unchanged."""
+    yaml_data = _make_spartacus_tree_cover_yaml(
+        veg_first=0.02,
+        dectr=0.08,
+        evetr=0.02,
+        grass=0.35,
+        bsoil=0.15,
+    )
+
+    updated, adjustments = adjust_spartacus_tree_cover_fraction(yaml_data)
+    land_cover = _tree_sync_land_cover(updated)
+
+    assert land_cover["dectr"]["sfr"]["value"] == pytest.approx(0.0)
+    assert land_cover["evetr"]["sfr"]["value"] == pytest.approx(0.02)
+    assert land_cover["grass"]["sfr"]["value"] == pytest.approx(0.43)
+    assert land_cover["bsoil"]["sfr"]["value"] == pytest.approx(0.15)
+    assert sum(s["sfr"]["value"] for s in land_cover.values()) == pytest.approx(1.0)
+    assert {a.parameter for a in adjustments} == {
+        "land_cover.dectr.sfr",
+        "land_cover.grass.sfr",
+    }
+
+
 def test_phase_b_tree_cover_sync_does_not_touch_buildings_paved_or_water():
     """Tree-cover sync preserves non-target surfaces."""
     yaml_data = _make_spartacus_tree_cover_yaml(

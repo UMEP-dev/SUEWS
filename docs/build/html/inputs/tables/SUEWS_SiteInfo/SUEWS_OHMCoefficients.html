@@ -8,8 +8,8 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <meta property="article:modified_time" content="2025-08-15T15:58:04+00:00" />
-    <title>SUEWS_OHMCoefficients.txt &#8212; SUEWS 2026.7.14.dev1 documentation</title>
+    <meta property="article:modified_time" content="2026-07-14T22:25:36+00:00" />
+    <title>SUEWS_OHMCoefficients.txt &#8212; SUEWS 2026.7.14.dev3 documentation</title>
   
   
   
@@ -45,11 +45,12 @@
   <link rel="preload" as="script" href="../../../_static/scripts/bootstrap.js?digest=8878045cc6db502f8baf" />
 <link rel="preload" as="script" href="../../../_static/scripts/pydata-sphinx-theme.js?digest=8878045cc6db502f8baf" />
 
-    <script src="../../../_static/documentation_options.js?v=a7d56c16"></script>
+    <script src="../../../_static/documentation_options.js?v=0b5d6e6d"></script>
     <script src="../../../_static/doctools.js?v=9bcbadda"></script>
     <script src="../../../_static/sphinx_highlight.js?v=dc90522c"></script>
     <script src="../../../_static/scripts/sphinx-book-theme.js?v=fab101a9"></script>
     <script src="../../../_static/design-tabs.js?v=f930bc37"></script>
+    <script async="async" src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
     <script>DOCUMENTATION_OPTIONS.pagename = 'inputs/tables/SUEWS_SiteInfo/SUEWS_OHMCoefficients';</script>
     <script defer="defer" src="../../../_static/publications-filter.js?v=c5b02298"></script>
     <link rel="icon" href="../../../_static/suews-logo.svg"/>
@@ -57,8 +58,8 @@
     <link rel="search" title="Search" href="../../../search.html" />
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
-  <meta name="docsearch:version" content="2026.7.14.dev1" />
-    <meta name="docbuild:last-update" content="2025-08-15"/>
+  <meta name="docsearch:version" content="2026.7.14.dev3" />
+    <meta name="docbuild:last-update" content="2026-07-14"/>
   </head>
   
   
@@ -100,7 +101,7 @@
   <div class="bd-header-announcement__content">
     <div style="background-color: #f0ad4e; border: 1px solid #eea236; border-radius: 4px; padding: 10px; margin: 10px 0;">
         <strong>⚠️ Development Version:</strong> This documentation was built from a development version
-        (2026.7.14.dev1, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/b36ec362a485cc20887afd8b33ae12e66594a727" style="color: #31708f;">b36ec36</a>).
+        (2026.7.14.dev3, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/2b5c01ca09779700bdb3063ba03fd4f9fdb80d20" style="color: #31708f;">2b5c01c</a>).
         Features described here may be unstable or subject to change. For stable documentation, please visit the
         <a href="https://docs.suews.io/stable/" style="color: #31708f;">latest release</a>.
     </div>
@@ -147,8 +148,8 @@
       
     
     
-    <img src="../../../_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.7.14.dev1 documentation - Home"/>
-    <img src="../../../_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.7.14.dev1 documentation - Home"/>
+    <img src="../../../_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.7.14.dev3 documentation - Home"/>
+    <img src="../../../_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.7.14.dev3 documentation - Home"/>
   
   
 </a></div>
@@ -636,19 +637,66 @@ and surface characteristics.</p>
 <li><p>The <strong>SUEWS_OHMCoefficients.txt</strong> file provides these coefficients for each surface type.</p></li>
 <li><p>A variety of values has been derived for different materials and can
 be found in the literature (see: <a class="reference internal" href="Typical_Values.html#typical-values"><span class="std std-ref">Typical Values</span></a>).</p></li>
-<li><dl class="simple">
-<dt>Coefficients can be changed depending on:</dt><dd><ol class="arabic simple">
-<li><p>surface wetness state (wet/dry) based on the calculated surface wetness state and soil moisture.</p></li>
-<li><p>season (summer/winter) based on a 5-day running mean air temperature.</p></li>
-</ol>
-</dd>
-</dl>
-</li>
+<li><p>SUEWS blends the four coefficient sets according to surface wetness and
+season, rather than switching abruptly between them. The configured
+summer/winter and wet/dry thresholds are the centres of transition zones.</p></li>
 <li><p>To use the same coefficients irrespective of wet/dry and
 summer/winter conditions, use the same code for all four OHM columns
 (<a class="reference internal" href="Input_Options.html#cmdoption-arg-OHMCode_SummerWet"><code class="xref any std std-option docutils literal notranslate"><span class="pre">OHMCode_SummerWet</span></code></a>, <a class="reference internal" href="Input_Options.html#cmdoption-arg-OHMCode_SummerDry"><code class="xref any std std-option docutils literal notranslate"><span class="pre">OHMCode_SummerDry</span></code></a>, <a class="reference internal" href="Input_Options.html#cmdoption-arg-OHMCode_WinterWet"><code class="xref any std std-option docutils literal notranslate"><span class="pre">OHMCode_WinterWet</span></code></a> and
 <a class="reference internal" href="Input_Options.html#cmdoption-arg-OHMCode_WinterDry"><code class="xref any std std-option docutils literal notranslate"><span class="pre">OHMCode_WinterDry</span></code></a>).</p></li>
 </ul>
+<p class="rubric">Smooth coefficient transitions</p>
+<p>For each of the three OHM coefficients, SUEWS calculates a summer weight
+<code class="docutils literal notranslate"><span class="pre">w_s</span></code> and a wet weight <code class="docutils literal notranslate"><span class="pre">w_w</span></code>. It then combines the summer-wet (SW),
+summer-dry (SD), winter-wet (WW) and winter-dry (WD) coefficient sets:</p>
+<div class="math notranslate nohighlight">
+\[c = w_s w_w c_{SW} + w_s (1 - w_w) c_{SD}
+    + (1 - w_s) w_w c_{WW} + (1 - w_s)(1 - w_w)c_{WD}\]</div>
+<p>where <code class="docutils literal notranslate"><span class="pre">c</span></code> represents <code class="docutils literal notranslate"><span class="pre">a1</span></code>, <code class="docutils literal notranslate"><span class="pre">a2</span></code> or <code class="docutils literal notranslate"><span class="pre">a3</span></code>. The weights are clamped to
+the interval from 0 to 1, so the original coefficient sets are recovered
+outside the transition zones.</p>
+<p>The transition bands are deliberately narrow. They exist to remove the
+discontinuity at each threshold, where an arbitrarily small change in
+temperature or wetness previously switched the whole coefficient set; they are
+not intended to re-blend the coefficients over a wide physical range. Outside
+the bands the model reproduces the unblended coefficients exactly.</p>
+<ul class="simple">
+<li><p><strong>Summer/winter transition:</strong> <code class="docutils literal notranslate"><span class="pre">w_s</span></code> uses the 5-day running mean air
+temperature. The configured <code class="docutils literal notranslate"><span class="pre">OHMThresh_SW</span></code> value is the centre of a
+0.5 degC-wide transition. Winter coefficients have full weight at and below
+<code class="docutils literal notranslate"><span class="pre">OHMThresh_SW</span> <span class="pre">-</span> <span class="pre">0.25</span> <span class="pre">degC</span></code>; summer coefficients have full weight at and
+above <code class="docutils literal notranslate"><span class="pre">OHMThresh_SW</span> <span class="pre">+</span> <span class="pre">0.25</span> <span class="pre">degC</span></code>.</p></li>
+<li><p><strong>Surface-wetness transition:</strong> the calculated surface water store gives
+zero wet weight at 0 mm, increases linearly between 0 and 0.1 mm, and gives
+full wet weight at and above 0.1 mm. This rule applies to all non-snow
+surfaces. It is the only wet/dry route for paved and building surfaces,
+which have no soil store.</p></li>
+<li><p><strong>Soil-moisture transition:</strong> for evergreen trees, deciduous trees, grass
+and bare soil with positive soil-store capacity, the soil-moisture ratio
+also contributes a wet weight. <code class="docutils literal notranslate"><span class="pre">OHMThresh_WD</span></code> is the centre of a
+0.04-wide transition: full dry weight occurs at and below
+<code class="docutils literal notranslate"><span class="pre">OHMThresh_WD</span> <span class="pre">-</span> <span class="pre">0.02</span></code> and full wet weight at and above
+<code class="docutils literal notranslate"><span class="pre">OHMThresh_WD</span> <span class="pre">+</span> <span class="pre">0.02</span></code>.</p></li>
+<li><p><strong>Combined wetness:</strong> SUEWS uses the larger of the surface-wetness and
+soil-moisture wet weights. A wet surface store therefore retains wet
+coefficients even when the underlying soil is dry.</p></li>
+<li><p><strong>Snow exception:</strong> snow storage heat continues to use the winter-wet
+coefficient set directly and is not included in this blending calculation.</p></li>
+</ul>
+<figure class="align-default" id="id2">
+<img alt="OHM coefficient transitions: previous abrupt switch compared with the clamped linear blend" src="../../../_images/ohm_coefficient_transitions.png" />
+<figcaption>
+<p><span class="caption-text">Blending of the OHM coefficient sets. Panels (a) to (c) show the summer
+weight <code class="docutils literal notranslate"><span class="pre">w_s</span></code> and the wet weight <code class="docutils literal notranslate"><span class="pre">w_w</span></code> as functions of the 5-day mean air
+temperature, the surface water store and the soil-moisture ratio. The
+configured thresholds (<code class="docutils literal notranslate"><span class="pre">OHMThresh_SW</span></code>, <code class="docutils literal notranslate"><span class="pre">OHMThresh_WD</span></code>) are the centres of
+the shaded transition zones rather than switching points, and the weights are
+clamped to 0 and 1 so the original coefficient sets are recovered outside
+those zones. Panel (d) shows the consequence for <code class="docutils literal notranslate"><span class="pre">a1</span></code> on a dry surface:
+the coefficient now varies continuously across the seasonal threshold instead
+of jumping. Generated by <code class="docutils literal notranslate"><span class="pre">docs/plot_ohm_transitions.py</span></code>.</span><a class="headerlink" href="#id2" title="Link to this image">#</a></p>
+</figcaption>
+</figure>
 <div class="admonition note">
 <p class="admonition-title">Note</p>
 <ol class="arabic simple">
@@ -768,14 +816,16 @@ Code 	 a1     	 a2      	 a3          	 !   	 Surface       type          	 Refe
 <p><strong>Step 1: Data Requirements</strong></p>
 <p>To derive OHM coefficients, you need simultaneous measurements of:
 - Net all-wave radiation (Q*)
-- Storage heat flux (ΔQS)
+- Storage heat flux (<span class="math notranslate nohighlight">\(\Delta Q_S\)</span>)
 - Temporal coverage: At least one full annual cycle</p>
 <p><strong>Step 2: Coefficient Derivation</strong></p>
-<p>The OHM equation is: ΔQS = a₁ × Q* + a₂ × (∂Q*/∂t) + a₃</p>
+<p>The OHM equation is:</p>
+<div class="math notranslate nohighlight">
+\[\Delta Q_S = a_1 Q^* + a_2 \frac{\partial Q^*}{\partial t} + a_3\]</div>
 <p>Where:
-- a₁: Represents the fraction of net radiation contributing to storage
-- a₂: Accounts for lag effects (phase shift)
-- a₃: Residual term for non-radiation influences</p>
+- <code class="docutils literal notranslate"><span class="pre">a1</span></code>: Represents the fraction of net radiation contributing to storage
+- <code class="docutils literal notranslate"><span class="pre">a2</span></code>: Accounts for lag effects (phase shift)
+- <code class="docutils literal notranslate"><span class="pre">a3</span></code>: Residual term for non-radiation influences</p>
 <p><strong>Python Example using SuPy OHM utilities:</strong></p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span><span class="w"> </span><span class="nn">pandas</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">pd</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">supy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">sp</span>
@@ -843,7 +893,7 @@ Code 	 a1     	 a2      	 a3          	 !   	 Surface       type          	 Refe
 
 <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Performance Metrics:&quot;</span><span class="p">)</span>
 <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;RMSE: </span><span class="si">{</span><span class="n">rmse</span><span class="si">:</span><span class="s2">.2f</span><span class="si">}</span><span class="s2"> W m-2&quot;</span><span class="p">)</span>
-<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;R²: </span><span class="si">{</span><span class="n">r2</span><span class="si">:</span><span class="s2">.3f</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;R^2: </span><span class="si">{</span><span class="n">r2</span><span class="si">:</span><span class="s2">.3f</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
 <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Bias: </span><span class="si">{</span><span class="n">bias</span><span class="si">:</span><span class="s2">.2f</span><span class="si">}</span><span class="s2"> W m-2&quot;</span><span class="p">)</span>
 
 <span class="c1"># Create validation plots</span>
@@ -852,16 +902,16 @@ Code 	 a1     	 a2      	 a3          	 !   	 Surface       type          	 Refe
 <span class="c1"># Scatter plot</span>
 <span class="n">ax1</span><span class="o">.</span><span class="n">scatter</span><span class="p">(</span><span class="n">ser_QS</span><span class="p">,</span> <span class="n">ser_qs_modelled</span><span class="p">,</span> <span class="n">alpha</span><span class="o">=</span><span class="mf">0.5</span><span class="p">)</span>
 <span class="n">ax1</span><span class="o">.</span><span class="n">plot</span><span class="p">([</span><span class="n">ser_QS</span><span class="o">.</span><span class="n">min</span><span class="p">(),</span> <span class="n">ser_QS</span><span class="o">.</span><span class="n">max</span><span class="p">()],</span> <span class="p">[</span><span class="n">ser_QS</span><span class="o">.</span><span class="n">min</span><span class="p">(),</span> <span class="n">ser_QS</span><span class="o">.</span><span class="n">max</span><span class="p">()],</span> <span class="s1">&#39;r--&#39;</span><span class="p">)</span>
-<span class="n">ax1</span><span class="o">.</span><span class="n">set_xlabel</span><span class="p">(</span><span class="s1">&#39;Observed QS (W m⁻²)&#39;</span><span class="p">)</span>
-<span class="n">ax1</span><span class="o">.</span><span class="n">set_ylabel</span><span class="p">(</span><span class="s1">&#39;Modelled QS (W m⁻²)&#39;</span><span class="p">)</span>
-<span class="n">ax1</span><span class="o">.</span><span class="n">set_title</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;1:1 Comparison (R² = </span><span class="si">{</span><span class="n">r2</span><span class="si">:</span><span class="s1">.3f</span><span class="si">}</span><span class="s1">)&#39;</span><span class="p">)</span>
+<span class="n">ax1</span><span class="o">.</span><span class="n">set_xlabel</span><span class="p">(</span><span class="s1">&#39;Observed QS (W m$^{-2}$)&#39;</span><span class="p">)</span>
+<span class="n">ax1</span><span class="o">.</span><span class="n">set_ylabel</span><span class="p">(</span><span class="s1">&#39;Modelled QS (W m$^{-2}$)&#39;</span><span class="p">)</span>
+<span class="n">ax1</span><span class="o">.</span><span class="n">set_title</span><span class="p">(</span><span class="sa">f</span><span class="s1">&#39;1:1 Comparison ($R^2$ = </span><span class="si">{</span><span class="n">r2</span><span class="si">:</span><span class="s1">.3f</span><span class="si">}</span><span class="s1">)&#39;</span><span class="p">)</span>
 
 <span class="c1"># Time series comparison (sample week)</span>
 <span class="n">sample_week</span> <span class="o">=</span> <span class="n">ser_QS</span><span class="o">.</span><span class="n">iloc</span><span class="p">[:</span><span class="mi">168</span><span class="p">]</span>  <span class="c1"># First week</span>
 <span class="n">ax2</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">sample_week</span><span class="o">.</span><span class="n">index</span><span class="p">,</span> <span class="n">sample_week</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="s1">&#39;Observed&#39;</span><span class="p">,</span> <span class="n">alpha</span><span class="o">=</span><span class="mf">0.7</span><span class="p">)</span>
 <span class="n">ax2</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">sample_week</span><span class="o">.</span><span class="n">index</span><span class="p">,</span> <span class="n">ser_qs_modelled</span><span class="o">.</span><span class="n">iloc</span><span class="p">[:</span><span class="mi">168</span><span class="p">],</span> <span class="n">label</span><span class="o">=</span><span class="s1">&#39;Modelled&#39;</span><span class="p">,</span> <span class="n">alpha</span><span class="o">=</span><span class="mf">0.7</span><span class="p">)</span>
 <span class="n">ax2</span><span class="o">.</span><span class="n">set_xlabel</span><span class="p">(</span><span class="s1">&#39;Time&#39;</span><span class="p">)</span>
-<span class="n">ax2</span><span class="o">.</span><span class="n">set_ylabel</span><span class="p">(</span><span class="s1">&#39;QS (W m⁻²)&#39;</span><span class="p">)</span>
+<span class="n">ax2</span><span class="o">.</span><span class="n">set_ylabel</span><span class="p">(</span><span class="s1">&#39;QS (W m$^{-2}$)&#39;</span><span class="p">)</span>
 <span class="n">ax2</span><span class="o">.</span><span class="n">set_title</span><span class="p">(</span><span class="s1">&#39;Time Series Comparison&#39;</span><span class="p">)</span>
 <span class="n">ax2</span><span class="o">.</span><span class="n">legend</span><span class="p">()</span>
 
@@ -879,13 +929,13 @@ Code 	 a1     	 a2      	 a3          	 !   	 Surface       type          	 Refe
 <li><p><strong>Surface-specific coefficients</strong>: Derive separate coefficients for materially different surfaces</p></li>
 <li><p><strong>Quality control</strong>: Remove periods with instrument errors or missing data</p></li>
 <li><p><strong>Seasonal analysis</strong>: Check if coefficients vary significantly between seasons</p></li>
-<li><p><strong>Physical validation</strong>: Ensure a₁ values are reasonable (typically 0.1-0.8 for urban surfaces)</p></li>
+<li><p><strong>Physical validation</strong>: Ensure <code class="docutils literal notranslate"><span class="pre">a1</span></code> values are reasonable (typically 0.1-0.8 for urban surfaces)</p></li>
 <li><p><strong>Documentation</strong>: Keep detailed records of measurement conditions and derivation methods</p></li>
 </ul>
 <p><strong>Common Issues:</strong></p>
 <ul class="simple">
 <li><p><strong>Insufficient data</strong>: Less than 6 months of data often leads to unstable coefficients</p></li>
-<li><p><strong>Measurement errors</strong>: ΔQS measurements are challenging; validate against energy balance closure</p></li>
+<li><p><strong>Measurement errors</strong>: <span class="math notranslate nohighlight">\(\Delta Q_S\)</span> measurements are challenging; validate against energy balance closure</p></li>
 <li><p><strong>Scale mismatch</strong>: Point measurements may not represent grid-scale surface behaviour</p></li>
 </ul>
 <p>This approach enables SUEWS to better represent the thermal behaviour of specialised urban surfaces through empirically-derived storage heat flux parameterisations.</p>
@@ -956,7 +1006,7 @@ By SUEWS dev team led by Prof Sue Grimmond
   
   <div class="footer-item">
     <p class="last-updated">
-  Last updated on 2025-08-15.
+  Last updated on 2026-07-14.
   <br/>
 </p>
   </div>
@@ -964,8 +1014,8 @@ By SUEWS dev team led by Prof Sue Grimmond
   <div class="footer-item">
     
 <div class="extra_footer">
-  <p>Version: 2026.7.14.dev1 |
-    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/b36ec362a485cc20887afd8b33ae12e66594a727">b36ec36</a> |
+  <p>Version: 2026.7.14.dev3 |
+    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/2b5c01ca09779700bdb3063ba03fd4f9fdb80d20">2b5c01c</a> |
     <a href="https://umep-dev.github.io/SUEWS/brand/showcase.html">Brand</a></p>
 </div>
   </div>

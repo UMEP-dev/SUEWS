@@ -16,6 +16,8 @@ from pathlib import Path
 
 import pytest
 
+pytestmark = pytest.mark.physics
+
 REPO_ROOT = Path(__file__).resolve().parents[2]
 FORTRAN = REPO_ROOT / "src" / "suews" / "src" / "suews_phys_ohm.f95"
 FIGURE_SCRIPT = REPO_ROOT / "docs" / "plot_ohm_transitions.py"
@@ -31,7 +33,7 @@ CONSTANT_PAIRS = {
 def _fortran_parameter(name: str) -> float:
     """Read a REAL PARAMETER's value out of the OHM Fortran source."""
     pattern = rf"{name}\s*=\s*([0-9.]+)D0"
-    match = re.search(pattern, FORTRAN.read_text())
+    match = re.search(pattern, FORTRAN.read_text(encoding="utf-8"))
     assert match is not None, f"PARAMETER {name} not found in {FORTRAN.name}"
     return float(match.group(1))
 
@@ -39,7 +41,9 @@ def _fortran_parameter(name: str) -> float:
 def _script_constant(name: str) -> float:
     """Read a module-level float constant out of the figure script."""
     pattern = rf"^{name}\s*=\s*([0-9.]+)"
-    match = re.search(pattern, FIGURE_SCRIPT.read_text(), flags=re.MULTILINE)
+    match = re.search(
+        pattern, FIGURE_SCRIPT.read_text(encoding="utf-8"), flags=re.MULTILINE
+    )
     assert match is not None, f"constant {name} not found in {FIGURE_SCRIPT.name}"
     return float(match.group(1))
 

@@ -63,7 +63,7 @@ EXAMPLES:
 ### 11 Jul 2026
 
 - [bugfix] Smoothed OHM coefficient transitions to remove platform-sensitive numerical divergence (#473)
-  - Summer/winter coefficients now blend across 2 degC on either side of the configured threshold; wet/dry coefficients blend across the 0.5 mm surface store and 0.1 soil-moisture-ratio transition bands.
+  - Summer/winter coefficients now blend across 0.25 degC on either side of the configured threshold; wet/dry coefficients blend across the 0.1 mm surface store and 0.02 soil-moisture-ratio transition bands. The bands are deliberately narrow: they remove the discontinuity while keeping results close to previous runs.
   - Updated the sample reference output and added physics regressions for temperature, surface-wetness, and soil-moisture continuity.
   - Documented the transition weights, threshold centres, surface applicability, and snow exception.
 

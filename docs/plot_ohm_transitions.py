@@ -7,9 +7,17 @@ referenced from ``docs/source/inputs/tables/SUEWS_SiteInfo/SUEWS_OHMCoefficients
 The transition widths below MUST match the parameters declared in
 ``src/suews/src/suews_phys_ohm.f95``:
 
-    OHM_TEMP_TRANSITION_HALF_WIDTH        = 2.0   [degC]
-    OHM_SOIL_TRANSITION_HALF_WIDTH        = 0.1   [-]
-    OHM_SURFACE_WETNESS_TRANSITION_WIDTH  = 0.5   [mm]
+    OHM_TEMP_TRANSITION_HALF_WIDTH        = 0.25  [degC]
+    OHM_SOIL_TRANSITION_HALF_WIDTH        = 0.02  [-]
+    OHM_SURFACE_WETNESS_TRANSITION_WIDTH  = 0.1   [mm]
+
+``test/physics/test_ohm_figure_constants.py`` enforces that agreement.
+
+The bands are deliberately narrow -- wide enough to remove the threshold
+discontinuity, narrow enough to leave results close to previous runs -- so each
+panel is scaled to a few band-widths about its threshold. Plotting these on a
+wide axis would render the ramp as a vertical line indistinguishable from the
+step it replaces.
 
 Run from the repository root:
 
@@ -25,9 +33,9 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 # Transition parameters -- keep in step with suews_phys_ohm.f95
-TEMP_HALF_WIDTH = 2.0  # degC
-SOIL_HALF_WIDTH = 0.1  # dimensionless soil-moisture ratio
-SURFACE_WETNESS_WIDTH = 0.5  # mm
+TEMP_HALF_WIDTH = 0.25  # degC
+SOIL_HALF_WIDTH = 0.02  # dimensionless soil-moisture ratio
+SURFACE_WETNESS_WIDTH = 0.1  # mm
 
 # Illustrative thresholds and coefficients (documentation only)
 THRESH_SW = 10.0  # degC, OHMThresh_SW
@@ -75,9 +83,12 @@ def shade_transition(ax, centre, half_width):
 def main():
     fig, axes = plt.subplots(2, 2, figsize=(9.6, 6.8))
 
-    # (a) summer/winter weight against 5-day mean air temperature
+    # (a) summer/winter weight against 5-day mean air temperature.
+    # Axis spans a few band-widths: on a wide axis this ramp would be a vertical
+    # line, i.e. visually identical to the step it replaces.
     ax = axes[0, 0]
-    t_air = np.linspace(THRESH_SW - 6.0, THRESH_SW + 6.0, 601)
+    t_span = 3.0 * TEMP_HALF_WIDTH
+    t_air = np.linspace(THRESH_SW - t_span, THRESH_SW + t_span, 601)
     shade_transition(ax, THRESH_SW, TEMP_HALF_WIDTH)
     ax.plot(t_air, (t_air >= THRESH_SW).astype(float), **STEP_STYLE)
     ax.plot(t_air, weight_summer(t_air), **BLEND_STYLE)
@@ -85,16 +96,16 @@ def main():
     ax.set_ylabel("Summer weight $w_s$")
     ax.set_title("(a) Summer/winter transition", loc="left")
     ax.annotate(
-        f"+/-{TEMP_HALF_WIDTH:.0f} degC about OHMThresh_SW",
+        f"+/-{TEMP_HALF_WIDTH:.2f} degC about OHMThresh_SW",
         xy=(THRESH_SW, 0.5),
-        xytext=(THRESH_SW + 0.6, 0.22),
+        xytext=(THRESH_SW + 0.25 * t_span, 0.22),
         fontsize=8,
         color="0.3",
     )
 
     # (b) wet weight against the surface water store
     ax = axes[0, 1]
-    state = np.linspace(0.0, 1.0, 601)
+    state = np.linspace(0.0, 2.0 * SURFACE_WETNESS_WIDTH, 601)
     ax.axvspan(0.0, SURFACE_WETNESS_WIDTH, color="#1f77b4", alpha=0.08, zorder=0)
     ax.axvline(0.0, color="#d62728", linewidth=1.0, linestyle=":", zorder=3)
     ax.plot(state, (state > 0.0).astype(float), **STEP_STYLE)
@@ -103,16 +114,17 @@ def main():
     ax.set_ylabel("Wet weight $w_w$")
     ax.set_title("(b) Surface-wetness transition", loc="left")
     ax.annotate(
-        f"linear over 0 to {SURFACE_WETNESS_WIDTH:.1f} mm",
-        xy=(0.25, 0.5),
-        xytext=(0.55, 0.22),
+        f"linear over 0 to {SURFACE_WETNESS_WIDTH:.2f} mm",
+        xy=(0.5 * SURFACE_WETNESS_WIDTH, 0.5),
+        xytext=(1.1 * SURFACE_WETNESS_WIDTH, 0.22),
         fontsize=8,
         color="0.3",
     )
 
     # (c) wet weight against the soil-moisture ratio
     ax = axes[1, 0]
-    ratio = np.linspace(THRESH_WD - 0.3, THRESH_WD + 0.3, 601)
+    s_span = 3.0 * SOIL_HALF_WIDTH
+    ratio = np.linspace(THRESH_WD - s_span, THRESH_WD + s_span, 601)
     shade_transition(ax, THRESH_WD, SOIL_HALF_WIDTH)
     ax.plot(ratio, (ratio >= THRESH_WD).astype(float), **STEP_STYLE)
     ax.plot(ratio, weight_soil_wet(ratio), **BLEND_STYLE)
@@ -120,9 +132,9 @@ def main():
     ax.set_ylabel("Wet weight $w_w$")
     ax.set_title("(c) Soil-moisture transition (vegetated and bare-soil only)", loc="left")
     ax.annotate(
-        f"+/-{SOIL_HALF_WIDTH:.1f} about OHMThresh_WD",
+        f"+/-{SOIL_HALF_WIDTH:.2f} about OHMThresh_WD",
         xy=(THRESH_WD, 0.5),
-        xytext=(THRESH_WD + 0.03, 0.22),
+        xytext=(THRESH_WD + 0.2 * s_span, 0.22),
         fontsize=8,
         color="0.3",
     )
@@ -141,7 +153,7 @@ def main():
     ax.annotate(
         "no discontinuity at the threshold",
         xy=(THRESH_SW, 0.5 * (A1_SUMMER_DRY + A1_WINTER_DRY)),
-        xytext=(THRESH_SW + 0.6, A1_WINTER_DRY + 0.03),
+        xytext=(THRESH_SW + 0.25 * t_span, A1_WINTER_DRY + 0.03),
         fontsize=8,
         color="0.3",
     )

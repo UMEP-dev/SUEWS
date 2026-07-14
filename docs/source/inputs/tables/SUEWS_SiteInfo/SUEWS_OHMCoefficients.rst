@@ -36,21 +36,28 @@ where ``c`` represents ``a1``, ``a2`` or ``a3``. The weights are clamped to
 the interval from 0 to 1, so the original coefficient sets are recovered
 outside the transition zones.
 
+The transition bands are deliberately narrow. They exist to remove the
+discontinuity at each threshold, where an arbitrarily small change in
+temperature or wetness previously switched the whole coefficient set; they are
+not intended to re-blend the coefficients over a wide physical range. Outside
+the bands the model reproduces the unblended coefficients exactly.
+
 - **Summer/winter transition:** ``w_s`` uses the 5-day running mean air
   temperature. The configured ``OHMThresh_SW`` value is the centre of a
-  4 degC-wide transition. Winter coefficients have full weight at and below
-  ``OHMThresh_SW - 2 degC``; summer coefficients have full weight at and above
-  ``OHMThresh_SW + 2 degC``.
+  0.5 degC-wide transition. Winter coefficients have full weight at and below
+  ``OHMThresh_SW - 0.25 degC``; summer coefficients have full weight at and
+  above ``OHMThresh_SW + 0.25 degC``.
 - **Surface-wetness transition:** the calculated surface water store gives
-  zero wet weight at 0 mm, increases linearly between 0 and 0.5 mm, and gives
-  full wet weight at and above 0.5 mm. This rule applies to all non-snow
-  surfaces.
+  zero wet weight at 0 mm, increases linearly between 0 and 0.1 mm, and gives
+  full wet weight at and above 0.1 mm. This rule applies to all non-snow
+  surfaces. It is the only wet/dry route for paved and building surfaces,
+  which have no soil store.
 - **Soil-moisture transition:** for evergreen trees, deciduous trees, grass
   and bare soil with positive soil-store capacity, the soil-moisture ratio
   also contributes a wet weight. ``OHMThresh_WD`` is the centre of a
-  0.2-wide transition: full dry weight occurs at and below
-  ``OHMThresh_WD - 0.1`` and full wet weight at and above
-  ``OHMThresh_WD + 0.1``.
+  0.04-wide transition: full dry weight occurs at and below
+  ``OHMThresh_WD - 0.02`` and full wet weight at and above
+  ``OHMThresh_WD + 0.02``.
 - **Combined wetness:** SUEWS uses the larger of the surface-wetness and
   soil-moisture wet weights. A wet surface store therefore retains wet
   coefficients even when the underlying soil is dry.

@@ -12,9 +12,9 @@ MODULE module_phys_ohm
 
    IMPLICIT NONE
 
-   REAL(KIND(1D0)), PARAMETER, PRIVATE :: OHM_TEMP_TRANSITION_HALF_WIDTH = 2.0D0 ! [degC]
-   REAL(KIND(1D0)), PARAMETER, PRIVATE :: OHM_SOIL_TRANSITION_HALF_WIDTH = 0.1D0 ! [-]
-   REAL(KIND(1D0)), PARAMETER, PRIVATE :: OHM_SURFACE_WETNESS_TRANSITION_WIDTH = 0.5D0 ! [mm]
+   REAL(KIND(1D0)), PARAMETER, PRIVATE :: OHM_TEMP_TRANSITION_HALF_WIDTH = 0.25D0 ! [degC]
+   REAL(KIND(1D0)), PARAMETER, PRIVATE :: OHM_SOIL_TRANSITION_HALF_WIDTH = 0.02D0 ! [-]
+   REAL(KIND(1D0)), PARAMETER, PRIVATE :: OHM_SURFACE_WETNESS_TRANSITION_WIDTH = 0.1D0 ! [mm]
 CONTAINS
 !========================================================================================
    SUBROUTINE OHM(qn1, qn1_surf, qn_av_prev, dqndt_prev, qn_av_next, dqndt_next, &
@@ -590,12 +590,16 @@ CONTAINS
       REAL(KIND(1D0)) :: soil_moisture_ratio
       REAL(KIND(1D0)) :: w_regime(4), w_soil_wet, w_summer, w_surface_wet, w_wet
 
-      ! Blend summer/winter coefficients across +/-2 degC around the threshold.
+      ! Blend summer/winter coefficients across +/-0.25 degC around the threshold.
+      ! The band is deliberately narrow: wide enough to remove the discontinuity,
+      ! narrow enough that results stay close to the unblended scheme.
       w_summer = (Tair_mav_5d - OHM_threshSW(is) + OHM_TEMP_TRANSITION_HALF_WIDTH) &
                  /(2.0D0*OHM_TEMP_TRANSITION_HALF_WIDTH)
       w_summer = MAX(0.0D0, MIN(1.0D0, w_summer))
 
-      ! Surface storage becomes fully wet at 0.5 mm instead of switching at zero.
+      ! Surface storage becomes fully wet at 0.1 mm instead of switching at zero.
+      ! Paved and building surfaces have no soil store, so this is their only
+      ! wet/dry route -- it cannot be dropped without losing their rain response.
       w_surface_wet = state_id(is)/OHM_SURFACE_WETNESS_TRANSITION_WIDTH
       w_surface_wet = MAX(0.0D0, MIN(1.0D0, w_surface_wet))
 

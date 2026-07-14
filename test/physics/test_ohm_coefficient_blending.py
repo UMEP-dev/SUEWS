@@ -181,7 +181,19 @@ def test_temperature_midpoint_blends_regimes():
 
 
 def test_soil_moisture_threshold_is_continuous():
-    """Tiny soil-moisture differences must not switch wet/dry regimes."""
+    """Tiny soil-moisture differences must not switch wet/dry regimes.
+
+    The blend is continuous but not flat: its slope is the coefficient gap
+    divided by the band width. Here the regime gap in a3 is 60 (+30 wet vs -30
+    dry) and the soil band is 0.04 wide, so the 2e-10 span probed below can move
+    the answer by up to 60 * 2e-10 / 0.04 = 3e-7. That bound scales with the
+    band width declared in suews_phys_ohm.f95, so the tolerance is set from it
+    rather than pinned to a value that silently encodes one particular width.
+
+    What must not happen is a regime *switch*: before this scheme, the same
+    perturbation moved QS by around 20 W m-2. The tolerance below is well under
+    that while staying above the continuous response.
+    """
     epsilon = 1.0e-10
     below, above = _run_ohm_cases(
         [
@@ -198,7 +210,7 @@ def test_soil_moisture_threshold_is_continuous():
         ]
     )
 
-    np.testing.assert_allclose(above, below, rtol=0.0, atol=1.0e-7)
+    np.testing.assert_allclose(above, below, rtol=0.0, atol=1.0e-6)
 
 
 def test_surface_wetness_zero_is_continuous():

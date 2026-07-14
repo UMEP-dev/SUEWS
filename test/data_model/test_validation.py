@@ -3445,6 +3445,31 @@ def test_phase_b_tree_cover_sync_increases_dectr_and_decreases_grass():
     }
 
 
+def test_phase_b_tree_cover_sync_uses_bsoil_after_grass_is_exhausted():
+    """Tree-cover increase drains grass before taking the remainder from bare soil."""
+    yaml_data = _make_spartacus_tree_cover_yaml(
+        veg_first=0.3,
+        dectr=0.1,
+        evetr=0.05,
+        grass=0.05,
+        bsoil=0.4,
+    )
+
+    updated, adjustments = adjust_spartacus_tree_cover_fraction(yaml_data)
+    land_cover = _tree_sync_land_cover(updated)
+
+    assert land_cover["dectr"]["sfr"]["value"] == pytest.approx(0.25)
+    assert land_cover["evetr"]["sfr"]["value"] == pytest.approx(0.05)
+    assert land_cover["grass"]["sfr"]["value"] == pytest.approx(0.0)
+    assert land_cover["bsoil"]["sfr"]["value"] == pytest.approx(0.3)
+    assert sum(s["sfr"]["value"] for s in land_cover.values()) == pytest.approx(1.0)
+    assert {a.parameter for a in adjustments} == {
+        "land_cover.dectr.sfr",
+        "land_cover.grass.sfr",
+        "land_cover.bsoil.sfr",
+    }
+
+
 def test_phase_b_tree_cover_sync_reduces_dectr_before_guarded_evetr():
     """Tree-cover reduction uses dectr first and evetr only as guarded fallback."""
     yaml_data = _make_spartacus_tree_cover_yaml(
@@ -3468,6 +3493,36 @@ def test_phase_b_tree_cover_sync_reduces_dectr_before_guarded_evetr():
         "land_cover.evetr.sfr",
         "land_cover.grass.sfr",
     }
+
+
+def test_phase_b_tree_cover_sync_does_not_touch_buildings_paved_or_water():
+    """Tree-cover sync preserves non-target surfaces."""
+    yaml_data = _make_spartacus_tree_cover_yaml(
+        veg_first=0.05,
+        dectr=0.04,
+        evetr=0.11,
+        grass=0.3,
+        bsoil=0.15,
+    )
+    before_land_cover = _tree_sync_land_cover(yaml_data)
+    protected_before = {
+        surface: before_land_cover[surface]["sfr"]["value"]
+        for surface in ("bldgs", "paved", "water")
+    }
+
+    updated, adjustments = adjust_spartacus_tree_cover_fraction(yaml_data)
+    land_cover = _tree_sync_land_cover(updated)
+
+    protected_after = {
+        surface: land_cover[surface]["sfr"]["value"]
+        for surface in ("bldgs", "paved", "water")
+    }
+    assert protected_after == protected_before
+    assert not {
+        "land_cover.bldgs.sfr",
+        "land_cover.paved.sfr",
+        "land_cover.water.sfr",
+    } & {a.parameter for a in adjustments}
 
 
 def test_phase_b_tree_cover_validator_warns_when_sync_is_feasible():

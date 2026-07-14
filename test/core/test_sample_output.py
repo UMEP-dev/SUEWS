@@ -42,7 +42,11 @@ pytestmark = pytest.mark.physics
 
 # Get the test data directory
 test_data_dir = Path(__file__).parent.parent / "fixtures" / "data_test"
-p_df_sample = Path(test_data_dir) / "sample_output.csv.gz"
+# The reference output is stored as twelve monthly plain-CSV shards;
+# load_sample_output reconstructs the full-year frame. See the split/combine
+# convention in fixtures/data_test/sample_output_io.py.
+sys.path.insert(0, str(test_data_dir))
+from sample_output_io import load_sample_output  # noqa: E402
 FAIL_FAST_STEPS_ENV = "SUEWS_FAIL_FAST_STEPS"
 # Default smoke validation to one model day. Set SUEWS_FAIL_FAST_STEPS to a
 # larger value when an exhaustive local comparison is needed.
@@ -356,7 +360,7 @@ class TestSampleOutput(TestCase):
 
         Runs only 3 days of simulation to keep execution fast.
         Compares the 8 key variables against the corresponding slice
-        of sample_output.csv.gz (the CLI-generated reference).
+        of the monthly sample-output shards (the CLI-generated reference).
         """
         sim = sp.SUEWSSimulation.from_sample_data()
         # Run 3 days only: 1 day spin-up + 2 days checked
@@ -367,9 +371,7 @@ class TestSampleOutput(TestCase):
         )
         df_output = output.df
 
-        df_ref = pd.read_csv(
-            p_df_sample, compression="gzip", index_col=[0, 1], parse_dates=[1]
-        )
+        df_ref = load_sample_output(test_data_dir)
 
         variables_to_test = list(TOLERANCE_CONFIG.keys())
         failed_variables = []
@@ -409,7 +411,7 @@ class TestSampleOutput(TestCase):
         Test SUEWS output against reference data with appropriate tolerances.
 
         Runs the Rust CLI binary on the sample YAML config and compares the 8
-        key output variables against sample_output.csv.gz using the tolerance
+        key output variables against the monthly sample-output shards using the tolerance
         framework defined in TOLERANCE_CONFIG.
 
         Skipped if the Rust binary has not been built.
@@ -449,9 +451,7 @@ class TestSampleOutput(TestCase):
 
         # Load reference first to get SUEWS variable names
         print("Loading reference output...")
-        df_ref = pd.read_csv(
-            p_df_sample, compression="gzip", index_col=[0, 1], parse_dates=[1]
-        )
+        df_ref = load_sample_output(test_data_dir)
         print(f"Reference: {df_ref.shape[0]} rows x {df_ref.shape[1]} columns")
 
         validation_steps = min(_get_fail_fast_steps(), len(df_ref))

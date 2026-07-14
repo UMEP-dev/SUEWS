@@ -54,6 +54,12 @@ EXAMPLES:
 
 ## 2026
 
+### 13 Jul 2026
+
+- [bugfix] Fixed MacDonald (1998) momentum roughness using a stale displacement height (#1615)
+  - Under `roughness_length_momentum: macdonald` (`RoughLenMomMethod=3`), `z0m` was computed from the persistent `zdm` state, which still held the previous timestep's plan-area-blended displacement height (and zero on the first timestep), instead of the MacDonald displacement height computed alongside it. `z0m` was therefore inflated several-fold and the scheme did not reproduce MacDonald (1998) as published.
+  - Users of this option will see `z0m` drop by roughly a factor of 2 to 4, depending on plan area index, with knock-on changes to aerodynamic resistance and the near-surface diagnostics. Other roughness options are unaffected, as are all reference outputs.
+
 ### 9 Jul 2026
 
 - [feature][experimental] Added the `dyohm_building` storage-heat option (#1601)

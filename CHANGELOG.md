@@ -60,6 +60,13 @@ EXAMPLES:
   - Under `roughness_length_momentum: macdonald` (`RoughLenMomMethod=3`), `z0m` was computed from the persistent `zdm` state, which still held the previous timestep's plan-area-blended displacement height (and zero on the first timestep), instead of the MacDonald displacement height computed alongside it. `z0m` was therefore inflated several-fold and the scheme did not reproduce MacDonald (1998) as published.
   - Users of this option will see `z0m` drop by roughly a factor of 2 to 4, depending on plan area index, with knock-on changes to aerodynamic resistance and the near-surface diagnostics. Other roughness options are unaffected, as are all reference outputs.
 
+### 11 Jul 2026
+
+- [bugfix] Smoothed OHM coefficient transitions to remove platform-sensitive numerical divergence (#473)
+  - Summer/winter coefficients now blend across 0.25 degC on either side of the configured threshold; wet/dry coefficients blend across the 0.1 mm surface store and 0.02 soil-moisture-ratio transition bands. The bands are deliberately narrow: they remove the discontinuity while keeping results close to previous runs.
+  - Updated the sample reference output and added physics regressions for temperature, surface-wetness, and soil-moisture continuity.
+  - Documented the transition weights, threshold centres, surface applicability, and snow exception.
+
 ### 9 Jul 2026
 
 - [feature][experimental] Added the `dyohm_building` storage-heat option (#1601)

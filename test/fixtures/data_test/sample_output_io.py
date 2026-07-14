@@ -72,7 +72,13 @@ def load_sample_output(data_dir: Path) -> pd.DataFrame:
         )
 
     frame = pd.concat(
-        pd.read_csv(p, index_col=[0, 1], parse_dates=[1]) for p in shard_paths
+        pd.read_csv(
+            p,
+            index_col=[0, 1],
+            parse_dates=[1],
+            float_precision="round_trip",
+        )
+        for p in shard_paths
     )
 
     if not frame.index.is_unique:

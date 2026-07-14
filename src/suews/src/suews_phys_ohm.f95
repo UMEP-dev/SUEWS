@@ -11,6 +11,10 @@ MODULE module_phys_ohm
    USE module_ctrl_type, ONLY: SUEWS_STATE, SUEWS_TIMER
 
    IMPLICIT NONE
+
+   REAL(KIND(1D0)), PARAMETER, PRIVATE :: OHM_TEMP_TRANSITION_HALF_WIDTH = 0.25D0 ! [degC]
+   REAL(KIND(1D0)), PARAMETER, PRIVATE :: OHM_SOIL_TRANSITION_HALF_WIDTH = 0.02D0 ! [-]
+   REAL(KIND(1D0)), PARAMETER, PRIVATE :: OHM_SURFACE_WETNESS_TRANSITION_WIDTH = 0.1D0 ! [mm]
 CONTAINS
 !========================================================================================
    SUBROUTINE OHM(qn1, qn1_surf, qn_av_prev, dqndt_prev, qn_av_next, dqndt_next, &
@@ -583,29 +587,41 @@ CONTAINS
          state_id(nsurf)
       REAL(KIND(1D0)), INTENT(out) :: a1_surf, a2_surf, a3_surf
 
-      INTEGER :: i, ii
+      REAL(KIND(1D0)) :: soil_moisture_ratio
+      REAL(KIND(1D0)) :: w_regime(4), w_soil_wet, w_summer, w_surface_wet, w_wet
 
-      IF (Tair_mav_5d >= OHM_threshSW(is)) THEN !Summer
-         ii = 0
-      ELSE !Winter
-         ii = 2
+      ! Blend summer/winter coefficients across +/-0.25 degC around the threshold.
+      ! The band is deliberately narrow: wide enough to remove the discontinuity,
+      ! narrow enough that results stay close to the unblended scheme.
+      w_summer = (Tair_mav_5d - OHM_threshSW(is) + OHM_TEMP_TRANSITION_HALF_WIDTH) &
+                 /(2.0D0*OHM_TEMP_TRANSITION_HALF_WIDTH)
+      w_summer = MAX(0.0D0, MIN(1.0D0, w_summer))
+
+      ! Surface storage becomes fully wet at 0.1 mm instead of switching at zero.
+      ! Paved and building surfaces have no soil store, so this is their only
+      ! wet/dry route -- it cannot be dropped without losing their rain response.
+      w_surface_wet = state_id(is)/OHM_SURFACE_WETNESS_TRANSITION_WIDTH
+      w_surface_wet = MAX(0.0D0, MIN(1.0D0, w_surface_wet))
+
+      ! Vegetated and bare-soil surfaces also blend across the soil-moisture threshold.
+      w_soil_wet = 0.0D0
+      IF (is > BldgSurf .AND. is /= WaterSurf .AND. SoilStoreCap(is) > 0.0D0) THEN
+         soil_moisture_ratio = soilstore_id(is)/SoilStoreCap(is)
+         w_soil_wet = (soil_moisture_ratio - OHM_threshWD(is) + OHM_SOIL_TRANSITION_HALF_WIDTH) &
+                      /(2.0D0*OHM_SOIL_TRANSITION_HALF_WIDTH)
+         w_soil_wet = MAX(0.0D0, MIN(1.0D0, w_soil_wet))
       END IF
+      w_wet = MAX(w_surface_wet, w_soil_wet)
 
-      IF (state_id(is) > 0) THEN !Wet surface
-         i = ii + 1
-      ELSE !Dry surface
-         i = ii + 2
-         ! If the surface is dry but SM is close to capacity, use coefficients for wet surfaces
-         IF (is > BldgSurf .AND. is /= WaterSurf) THEN !Wet soil (i.e. EveTr, DecTr, Grass, BSoil surfaces)
-            IF (soilstore_id(is)/SoilStoreCap(is) > OHM_threshWD(is)) THEN
-               i = ii + 1
-            END IF
-         END IF
-      END IF
+      ! OHM_coef indices: summer wet/dry, then winter wet/dry.
+      w_regime(1) = w_summer*w_wet
+      w_regime(2) = w_summer*(1.0D0 - w_wet)
+      w_regime(3) = (1.0D0 - w_summer)*w_wet
+      w_regime(4) = (1.0D0 - w_summer)*(1.0D0 - w_wet)
 
-      a1_surf = OHM_coef(is, i, 1)
-      a2_surf = OHM_coef(is, i, 2)
-      a3_surf = OHM_coef(is, i, 3)
+      a1_surf = SUM(w_regime*OHM_coef(is, :, 1))
+      a2_surf = SUM(w_regime*OHM_coef(is, :, 2))
+      a3_surf = SUM(w_regime*OHM_coef(is, :, 3))
    END SUBROUTINE OHM_coef_surface
 !========================================================================================
 

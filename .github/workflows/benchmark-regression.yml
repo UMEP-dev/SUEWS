@@ -81,6 +81,8 @@ jobs:
           persist-credentials: false
       - name: Build current SUEWS (Fortran + Rust) + install supy
         uses: ./.github/actions/build-suews
+        with:
+          metrics_host_dir: ${{ runner.temp }}/suews-ci-metrics
       - name: Install benchmark requirements
         # The benchmark stats are vendored under benchmark/ (bench_stats.py); only
         # stdlib + numpy/pandas are needed at run time.

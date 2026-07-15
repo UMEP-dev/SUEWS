@@ -16,6 +16,12 @@ import pytest
 
 pytestmark = pytest.mark.api
 
+_HISTORIC_NATIVE_ORDER_NODEIDS = (
+    "test/core/test_public_api_wrappers.py::TestPublicAPIEquivalence::test_functional_matches_oop",
+    "test/core/test_sample_output.py::TestSampleOutput::test_library_cli_parity",
+    "test/core/test_sample_output.py::TestSampleOutput::test_sample_output_validation",
+)
+
 
 class _CollectedItem:
     """Minimal pytest item surface used to exercise collection ordering."""
@@ -46,6 +52,32 @@ def test_collection_preserves_native_test_relative_order():
         "sample",
         "TestPublicAPIEquivalence::test_functional_matches_oop",
     ]
+
+
+@pytest.mark.core
+def test_historic_native_nodes_retain_requested_collection_order():
+    """Collect the exact nodes formerly moved by the native-state workaround."""
+    result = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "pytest",
+            "--collect-only",
+            "-q",
+            *_HISTORIC_NATIVE_ORDER_NODEIDS,
+        ],
+        cwd=Path(__file__).resolve().parents[1],
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+    assert result.returncode == 0, result.stderr
+    list_collected_nodeid = [
+        line
+        for line in result.stdout.splitlines()
+        if line in _HISTORIC_NATIVE_ORDER_NODEIDS
+    ]
+    assert list_collected_nodeid == list(_HISTORIC_NATIVE_ORDER_NODEIDS)
 
 
 # Files to skip when scanning for imports

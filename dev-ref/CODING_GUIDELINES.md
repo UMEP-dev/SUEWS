@@ -392,6 +392,14 @@ python -m pytest test -v                   # Run in suite
 Only the API-surface probe is prioritised via `conftest.py` so import failures fail fast.
 All other tests retain their declared collection order.
 Native simulation calls must own fresh state, while continuation tests pass prior state explicitly; tests must not rely on suite ordering for isolation.
+The removed workaround had moved every `test/core/test_sample_output.py` item plus the public API-equivalence nodes `TestPublicAPIEquivalence` and `test_functional_matches_oop`; executable collection evidence for that bounded set lives in `test/test_api_surface.py`.
+
+### 5.11 Native Mutable-State Inventory
+
+- `src/suews_bridge/src/lib.rs` exposes the active Rust entry points, and `src/suews_bridge/c_api/driver.f95::suews_cal_multitsteps_c` materialises `SUEWS_TIMER`, `SUEWS_CONFIG`, `SUEWS_SITE`, and `SUEWS_STATE` as call-local values.
+- `src/suews/src/suews_ctrl_error.f95::module_ctrl_error_state` retains the fatal-error flag, code, and message with `SAVE`; `suews_cal_multitsteps_c` calls `reset_supy_error()` at every driver entry.
+- `src/suews/src/suews_phys_anohm.f95` still contains `SAVE` declarations, but AnOHM is disabled and remains outside the active bridge path.
+  Removing or explicitly owning that state is a reactivation gate for AnOHM, not a claim that the current tree contains no `SAVE` state.
 
 ## Version Control Practices
 

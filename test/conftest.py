@@ -275,6 +275,11 @@ def pytest_collection_modifyitems(items):
     Native simulation calls own fresh state at the Rust/Fortran boundary.  Tests
     that need continuation pass the previous state explicitly, so reference and
     API-equivalence tests no longer need collection-order protection.
+
+    The removed workaround moved every ``test_sample_output.py`` item plus
+    ``TestPublicAPIEquivalence`` and ``test_functional_matches_oop`` nodes.  The
+    bounded real-node set has an executable collection regression in
+    ``test_api_surface.py``.
     """
     api_surface_tests = []
     other_tests = []

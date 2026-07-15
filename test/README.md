@@ -166,7 +166,8 @@ Subset runs (`pytest test/core/test_x.py`) are unaffected.
 The test suite only prioritises `test_api_surface.py` so broken imports fail fast.
 All other tests retain their declared collection order.
 Fresh native simulation calls own fresh state; continuation is explicit through the state returned by the previous call.
-`test_fortran_state_persistence.py` exercises the A->B, B->A, A->A and B->B order matrix at that boundary.
+The removed workaround had protected every `test_sample_output.py` item plus `TestPublicAPIEquivalence` and `test_functional_matches_oop`; `test_api_surface.py` now checks the real bounded node set retains requested order.
+`test_fortran_state_persistence.py` gives A and B independently clean process references, then exercises A->B, B->A, A->A and B->B as separate test items with both calls in each transition sharing one process.
 
 ## Adding New Tests
 

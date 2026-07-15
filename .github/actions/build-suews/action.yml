@@ -189,19 +189,24 @@ runs:
           gcc --version &&
           pip install delvewheel
         CIBW_REPAIR_WHEEL_COMMAND_WINDOWS: "delvewheel repair -w {dest_dir} {wheel}"
-        CIBW_TEST_REQUIRES: pytest pytest-xdist
+        # Pin the scheduler stack so distribution behaviour cannot drift between
+        # CI runs. Re-benchmark the fixed-worker candidates before updating.
+        CIBW_TEST_REQUIRES: pytest==9.1.1 pytest-xdist==3.8.0
         # Test tiers: choose subset based on path detection and trigger.
         # gh#1300: physics tests are binary-determined, so one run per
         # (OS, arch) on the build Python is sufficient. API tests (Python
         # wrapper surface) run separately per (platform x Python) via
         # test-api-cross-python-reusable.yml.
         # Always include --durations=10 to show slowest tests in output.
+        # Keep the runner-detected worker budget: GitHub-hosted CPU capacity is
+        # the constraint, so adding workers can increase contention. Work
+        # stealing balances long simulation tests across the existing workers.
         # After pytest, enforce bridge-manifest coverage of public Fortran types.
         # Uses run_ci_tests.py wrapper to avoid shell-level && chaining,
         # which breaks on Windows cmd.exe with quoted marker expressions.
         CIBW_TEST_COMMAND: >-
           python {project}/scripts/suews/run_ci_tests.py {project}
-          -v --tb=short --durations=10 -n auto --dist loadscope
+          -v --tb=short --durations=10 -n auto --maxprocesses=4 --dist worksteal
           ${{ inputs.test_tier == 'smoke' && '-m "physics and smoke and not slow"' ||
               inputs.test_tier == 'core' && '-m "physics and (smoke or core) and not slow"' ||
               inputs.test_tier == 'cfg' && '-m "physics and (smoke or cfg) and not slow"' ||

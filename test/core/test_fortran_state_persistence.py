@@ -1,245 +1,95 @@
-#!/usr/bin/env python3
-"""
-Test Fortran State Persistence Within Same Python Process
+"""Exercise the native simulation boundary in different in-process orders.
 
-This test suite verifies that Fortran state does not persist between multiple
-calls to sp.run_supy() within the same Python process. State persistence would
-indicate uninitialized variables or improper state reset mechanisms.
-
-These tests take ~3.6 minutes total but provide comprehensive state isolation validation.
-
-Based on user correction: "you need to test running the fortran multiple times
-within the same python script. Not calling the test 3 separate times. A new
-python kernel will reset both python and fortran states."
+Fresh ``run_suews`` calls own a fresh model state.  Continuation is explicit and
+uses ``run_suews_with_state`` with the state returned by an earlier call.  This
+test protects that lifecycle contract without relying on pytest collection order.
 """
 
-import logging
+from copy import deepcopy
+import json
 from pathlib import Path
-from unittest import TestCase
 
-from conftest import TIMESTEPS_PER_DAY
-
+from conftest import SHORT_RUN_STEPS
+import numpy as np
 import pytest
-import supy as sp
+
+from supy import SUEWSSimulation
+from supy._run_rust import (  # noqa: PLC2701 - test the native boundary directly.
+    _load_rust_module,
+    _prepare_forcing_block,
+)
 
 pytestmark = pytest.mark.physics
 
-# Suppress logging to get clean output
-logging.getLogger("SuPy").setLevel(logging.CRITICAL)
+
+@pytest.fixture(scope="module")
+def native_run_cases():
+    """Return two distinct inputs for repeated native-boundary calls."""
+    path_config = (
+        Path(__file__).resolve().parents[2]
+        / "src"
+        / "supy"
+        / "sample_data"
+        / "sample_config.yml"
+    )
+    simulation = SUEWSSimulation(str(path_config))
+    dict_config_a = simulation.config.model_dump(exclude_none=True, mode="json")
+    dict_config_b = deepcopy(dict_config_a)
+
+    # Make B physically distinct from A while retaining the same dimensions and
+    # forcing.  A large albedo contrast ensures the matrix is not a vacuous
+    # comparison between two aliases of the same input.
+    dict_config_b["sites"][0]["properties"]["land_cover"]["paved"]["alb"]["value"] = 0.8
+
+    df_forcing = simulation.forcing.df.iloc[:SHORT_RUN_STEPS]
+    forcing_flat = _prepare_forcing_block(df_forcing).ravel(order="C").tolist()
+    return (
+        _load_rust_module(),
+        {
+            "A": json.dumps(dict_config_a),
+            "B": json.dumps(dict_config_b),
+        },
+        forcing_flat,
+        len(df_forcing),
+    )
 
 
-@pytest.mark.slow
-class TestFortranStatePersistence(TestCase):
-    """Test suite for Fortran state persistence issues."""
+def _run_native_case(native_run_cases, case_name):
+    """Run one fresh native simulation and return output plus final state."""
+    rust_module, dict_config_json, forcing_flat, len_sim = native_run_cases
+    output_flat, state_json, actual_len = rust_module.run_suews(
+        dict_config_json[case_name], forcing_flat, len_sim
+    )
+    assert actual_len == len_sim
+    return np.asarray(output_flat), state_json
 
-    def setUp(self):
-        """Set up test environment."""
-        # Clear any cached data from previous tests
-        import functools
-        import gc
 
-        # Clear all LRU caches in the supy module
-        for obj in gc.get_objects():
-            if isinstance(obj, functools._lru_cache_wrapper):
-                try:
-                    obj.cache_clear()
-                except:
-                    pass
+@pytest.mark.core
+def test_native_state_isolated_across_order_matrix(native_run_cases):
+    """Fresh calls produce their isolated baseline in A/B and repeat orders."""
+    dict_baseline = {
+        case_name: _run_native_case(native_run_cases, case_name)
+        for case_name in ("A", "B")
+    }
+    output_a = dict_baseline["A"][0]
+    output_b = dict_baseline["B"][0]
+    finite_difference = (
+        np.isfinite(output_a) & np.isfinite(output_b) & (output_a != output_b)
+    )
+    assert np.any(finite_difference), "A and B need a real finite output difference"
 
-        # More aggressive cache clearing for supy._load module
-        try:
-            import supy._load
-
-            # Clear specific caches in _load module
-            for attr_name in dir(supy._load):
-                attr = getattr(supy._load, attr_name)
-                if hasattr(attr, "cache_clear"):
-                    attr.cache_clear()
-        except:
-            pass
-
-    def run_sample_year(self):
-        """Run the sample year simulation that shows pollution effects."""
-        trv_sample_data = Path(sp.__file__).parent / "sample_data"
-        path_config_default = trv_sample_data / "sample_config.yml"
-
-        df_state_init = sp.init_supy(path_config_default, force_reload=True)
-        df_forcing_tstep = sp.load_forcing_grid(
-            path_config_default, df_state_init.index[0], df_state_init=df_state_init
+    for first_case, second_case in (("A", "B"), ("B", "A"), ("A", "A"), ("B", "B")):
+        _run_native_case(native_run_cases, first_case)
+        output_observed, state_observed = _run_native_case(
+            native_run_cases, second_case
         )
+        output_expected, state_expected = dict_baseline[second_case]
 
-        # Run one year
-        df_forcing_part = df_forcing_tstep.iloc[: TIMESTEPS_PER_DAY * 366]
-        df_output, df_state = sp.run_supy(df_forcing_part, df_state_init)
-
-        return df_output.SUEWS["QE"].values[286]
-
-    def run_benchmark_test(self):
-        """Run the benchmark test that causes pollution."""
-        p_config = Path("test/fixtures/benchmark1/benchmark1.yml")
-        if p_config.exists():
-            df_state_init = sp.init_supy(p_config, force_reload=True)
-            df_forcing_tstep = sp.load_forcing_grid(
-                p_config, df_state_init.index[0], df_state_init=df_state_init
-            )
-            df_output, df_state = sp.run_supy(df_forcing_tstep, df_state_init)
-            return True
-        return False
-
-    def run_short_benchmark(self):
-        """Run a short version of benchmark test to minimize execution time."""
-        p_config = Path("test/fixtures/benchmark1/benchmark1.yml")
-        if p_config.exists():
-            df_state_init = sp.init_supy(p_config, force_reload=True)
-            df_forcing_tstep = sp.load_forcing_grid(
-                p_config, df_state_init.index[0], df_state_init=df_state_init
-            )
-            # Just run first day to minimize time
-            df_forcing_part = df_forcing_tstep.iloc[:TIMESTEPS_PER_DAY]
-            df_output, df_state = sp.run_supy(df_forcing_part, df_state_init)
-            return True
-        return False
-
-    def test_fortran_state_persistence(self):
-        """
-        Test if Fortran state persists between multiple calls in the same Python process.
-
-        This test passes if no difference is found between runs, fails if pollution is detected.
-        Runtime: ~68 seconds
-        """
-        print("\n" + "=" * 70)
-        print("FORTRAN STATE PERSISTENCE TEST")
-        print("=" * 70)
-
-        print("\n1. Clean baseline run...")
-        clean_qe = self.run_sample_year()
-        print(f"   Clean QE at timestep 286: {clean_qe:.6f}")
-
-        print("\n2. Running benchmark test (potential polluter)...")
-        benchmark_success = self.run_benchmark_test()
-        print(f"   Benchmark completed: {benchmark_success}")
-
-        print("\n3. Sample year run after benchmark (same Python process)...")
-        polluted_qe = self.run_sample_year()
-        print(f"   Polluted QE at timestep 286: {polluted_qe:.6f}")
-
-        diff = abs(clean_qe - polluted_qe)
-        print("\n*** RESULTS ***")
-        print(f"Difference: {diff:.6f}")
-
-        if diff > 1e-6:
-            print("*** FORTRAN STATE PERSISTENCE DETECTED ***")
-            print("The problem persists within the same Python process.")
-            print(
-                "This indicates Fortran module variables are not being reset between calls."
-            )
-            self.fail(f"Fortran state persistence detected: QE difference = {diff:.6f}")
-        else:
-            print("*** NO FORTRAN STATE PERSISTENCE ***")
-            print("The problem does not occur within the same Python process.")
-            print("Test PASSED: No state pollution detected.")
-
-    def test_multiple_consecutive_runs(self):
-        """
-        Test multiple consecutive runs to see if pollution accumulates.
-
-        Runtime: ~109 seconds
-        """
-        print("\n" + "=" * 70)
-        print("MULTIPLE CONSECUTIVE RUNS TEST")
-        print("=" * 70)
-
-        print("\n1. Initial clean run...")
-        baseline_qe = self.run_sample_year()
-        print(f"   Baseline QE: {baseline_qe:.6f}")
-
-        results = [baseline_qe]
-
-        # Run multiple polluter-target cycles
-        for i in range(3):
-            print(f"\n{i + 2}. Cycle {i + 1}: Polluter + Target...")
-
-            # Short polluter run
-            self.run_short_benchmark()
-
-            # Target run
-            cycle_qe = self.run_sample_year()
-            results.append(cycle_qe)
-
-            diff_from_baseline = abs(baseline_qe - cycle_qe)
-            print(
-                f"   Cycle {i + 1} QE: {cycle_qe:.6f} (diff from baseline: {diff_from_baseline:.6f})"
-            )
-
-        print("\n*** CONSECUTIVE RUNS RESULTS ***")
-        print(f"Baseline:  {results[0]:.6f}")
-        for i, qe in enumerate(results[1:], 1):
-            diff = abs(results[0] - qe)
-            print(f"Cycle {i}:   {qe:.6f} (diff: {diff:.6f})")
-
-        # Check if pollution is consistent or accumulating
-        diffs = [abs(results[0] - qe) for qe in results[1:]]
-        max_diff = max(diffs)
-        min_diff = min(diffs)
-
-        if max_diff > 1e-6:
-            print("\n*** POLLUTION CONFIRMED ***")
-            print(f"Max difference: {max_diff:.6f}")
-            print(f"Min difference: {min_diff:.6f}")
-
-            if max_diff - min_diff < 1e-8:
-                print("*** CONSISTENT POLLUTION - Same difference each time ***")
-                print("This suggests deterministic Fortran state pollution.")
-            else:
-                print("*** VARIABLE POLLUTION - Different differences ***")
-                print("This suggests accumulating or variable state pollution.")
-
-            self.fail(
-                f"Multiple consecutive runs show pollution: max diff = {max_diff:.6f}"
-            )
-        else:
-            print("*** NO POLLUTION DETECTED ***")
-            print("Test PASSED: No pollution in consecutive runs.")
-
-    def test_minimal_reproduction(self):
-        """
-        Create minimal reproduction case.
-
-        Runtime: ~42 seconds
-        """
-        print("\n" + "=" * 70)
-        print("MINIMAL REPRODUCTION TEST")
-        print("=" * 70)
-
-        print("\n1. Minimal clean run...")
-        clean_qe = self.run_sample_year()
-        print(f"   Clean QE: {clean_qe:.6f}")
-
-        print("\n2. Minimal polluter (just first day of benchmark)...")
-        success = self.run_short_benchmark()
-        print(f"   Short benchmark success: {success}")
-
-        print("\n3. Minimal target run...")
-        polluted_qe = self.run_sample_year()
-        print(f"   Polluted QE: {polluted_qe:.6f}")
-
-        diff = abs(clean_qe - polluted_qe)
-        print("\n*** MINIMAL REPRODUCTION RESULTS ***")
-        print(f"Difference: {diff:.6f}")
-
-        if diff > 1e-6:
-            print("*** MINIMAL REPRODUCTION SUCCESSFUL ***")
-            print("Even a short benchmark run causes pollution.")
-            self.fail(
-                f"Minimal reproduction shows pollution: QE difference = {diff:.6f}"
-            )
-        else:
-            print("*** MINIMAL REPRODUCTION PASSED ***")
-            print("Short benchmark run does not cause pollution.")
-            print("Test PASSED: No state pollution detected in minimal case.")
-
-
-if __name__ == "__main__":
-    import unittest
-
-    unittest.main()
+        np.testing.assert_array_equal(
+            output_observed,
+            output_expected,
+            err_msg=f"native output leaked across {first_case}->{second_case}",
+        )
+        assert state_observed == state_expected, (
+            f"native final state leaked across {first_case}->{second_case}"
+        )

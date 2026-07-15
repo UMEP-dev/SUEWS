@@ -11,9 +11,42 @@ from pathlib import Path
 import subprocess
 import sys
 
+import conftest as suite_conftest
 import pytest
 
 pytestmark = pytest.mark.api
+
+
+class _CollectedItem:
+    """Minimal pytest item surface used to exercise collection ordering."""
+
+    def __init__(self, path, nodeid):
+        self.fspath = Path(path)
+        self.nodeid = nodeid
+
+
+@pytest.mark.core
+def test_collection_preserves_native_test_relative_order():
+    """Only the import-surface probe may move ahead of declared test order."""
+    items = [
+        _CollectedItem("test/physics/test_other.py", "other"),
+        _CollectedItem("test/core/test_sample_output.py", "sample"),
+        _CollectedItem(
+            "test/core/test_public_api_wrappers.py",
+            "TestPublicAPIEquivalence::test_functional_matches_oop",
+        ),
+        _CollectedItem("test/test_api_surface.py", "api_surface"),
+    ]
+
+    suite_conftest.pytest_collection_modifyitems(items)
+
+    assert [item.nodeid for item in items] == [
+        "api_surface",
+        "other",
+        "sample",
+        "TestPublicAPIEquivalence::test_functional_matches_oop",
+    ]
+
 
 # Files to skip when scanning for imports
 _SKIP_FILES = {"conftest.py", "debug_utils.py", "__init__.py"}

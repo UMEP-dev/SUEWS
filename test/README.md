@@ -6,8 +6,8 @@ This directory contains the test suite for SUEWS/SuPy, organised by functionalit
 
 ### Core Tests (`core/`)
 Essential core functionality tests including:
-- **test_sample_output.py** - Tolerance-based validation (runs first in CI fast-fail)
-- **test_fortran_state_persistence.py** - Ensures Fortran state isolation between runs
+- **test_sample_output.py** - Tolerance-based reference-output validation
+- **test_fortran_state_persistence.py** - Exercises native-state isolation across an in-process order matrix
 - **test_floating_point_stability.py** - Numerical stability and reproducibility tests
 - **test_suews_simulation.py** - High-level API interface tests
 - **test_supy.py** - Comprehensive test suite (runs during wheel building)
@@ -163,7 +163,10 @@ Subset runs (`pytest test/core/test_x.py`) are unaffected.
 
 ## Test Order
 
-The test suite uses `conftest.py` to ensure `test_sample_output.py` runs first. This is necessary because the Fortran model maintains internal state between test runs, and running this benchmark test first ensures consistent results.
+The test suite only prioritises `test_api_surface.py` so broken imports fail fast.
+All other tests retain their declared collection order.
+Fresh native simulation calls own fresh state; continuation is explicit through the state returned by the previous call.
+`test_fortran_state_persistence.py` exercises the A->B, B->A, A->A and B->B order matrix at that boundary.
 
 ## Adding New Tests
 

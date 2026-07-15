@@ -270,40 +270,22 @@ def pytest_configure():
 
 
 def pytest_collection_modifyitems(items):
-    """Order tests to catch import breakages first, then protect Fortran state.
+    """Run the import-surface probe first and preserve all other test order.
 
-    Test ordering:
-    1. test_api_surface.py (meta validation - catches broken imports immediately)
-    2. test_sample_output.py (reference output - needs completely clean Fortran state)
-    3. API equivalence tests (need clean state, but less critical than sample output)
-    4. All other tests
+    Native simulation calls own fresh state at the Rust/Fortran boundary.  Tests
+    that need continuation pass the previous state explicitly, so reference and
+    API-equivalence tests no longer need collection-order protection.
     """
     api_surface_tests = []
-    sample_output_tests = []
-    api_equivalence_tests = []
     other_tests = []
 
     for item in items:
         if "test_api_surface" in str(item.fspath):
             api_surface_tests.append(item)
-        elif "test_sample_output" in str(item.fspath) or "core/test_sample_output" in str(
-            item.fspath
-        ):
-            sample_output_tests.append(item)
-        elif (
-            "test_functional_matches_oop" in item.nodeid
-            or "TestPublicAPIEquivalence" in item.nodeid
-        ):
-            api_equivalence_tests.append(item)
         else:
             other_tests.append(item)
 
-    items[:] = (
-        api_surface_tests
-        + sample_output_tests
-        + api_equivalence_tests
-        + other_tests
-    )
+    items[:] = api_surface_tests + other_tests
 
 
 # =============================================================================

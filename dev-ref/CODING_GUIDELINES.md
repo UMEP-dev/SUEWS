@@ -389,11 +389,9 @@ python -m pytest test -v                   # Run in suite
 
 ### 5.10 Test Execution Order
 
-Critical tests run first via `conftest.py`:
-- Sample output validation
-- Benchmark tests
-- Core functionality
-This ensures fundamental features are tested before complex scenarios.
+Only the API-surface probe is prioritised via `conftest.py` so import failures fail fast.
+All other tests retain their declared collection order.
+Native simulation calls must own fresh state, while continuation tests pass prior state explicitly; tests must not rely on suite ordering for isolation.
 
 ## Version Control Practices
 

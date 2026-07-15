@@ -66,13 +66,13 @@ def _run_native_case(native_run_cases, case_name):
 
 @pytest.mark.core
 def test_native_state_isolated_across_order_matrix(native_run_cases):
-    """Fresh calls produce their isolated baseline in A/B and repeat orders."""
-    dict_baseline = {
+    """Each case is independent of whether A or B ran immediately before it."""
+    dict_reference = {
         case_name: _run_native_case(native_run_cases, case_name)
         for case_name in ("A", "B")
     }
-    output_a = dict_baseline["A"][0]
-    output_b = dict_baseline["B"][0]
+    output_a = dict_reference["A"][0]
+    output_b = dict_reference["B"][0]
     finite_difference = (
         np.isfinite(output_a) & np.isfinite(output_b) & (output_a != output_b)
     )
@@ -83,7 +83,7 @@ def test_native_state_isolated_across_order_matrix(native_run_cases):
         output_observed, state_observed = _run_native_case(
             native_run_cases, second_case
         )
-        output_expected, state_expected = dict_baseline[second_case]
+        output_expected, state_expected = dict_reference[second_case]
 
         np.testing.assert_array_equal(
             output_observed,

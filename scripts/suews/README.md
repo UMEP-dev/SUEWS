@@ -6,10 +6,10 @@ This directory contains utility scripts for development and maintenance.
 
 **Plugin**: `pytest_ci_metrics.py`
 
-The API test workflow loads this standalone pytest plugin to publish a compact
-machine-readable artefact and append the same run's headline measurements to
-the GitHub Actions step summary. The plugin observes pytest hooks only: it does
-not perform a second collection or test pass.
+The API and physics test workflows load this standalone pytest plugin to
+publish a compact machine-readable artefact and append the same run's headline
+measurements to the GitHub Actions step summary. The plugin observes pytest
+hooks only: it does not perform a second collection or test pass.
 
 Set `SUEWS_CI_METRICS` to the JSON output path and load the plugin explicitly:
 
@@ -20,26 +20,99 @@ SUEWS_CI_METRICS=ci-metrics.json \
 
 When `GITHUB_STEP_SUMMARY` is set, the plugin also appends a Markdown summary.
 
-### Schema version 1
+### Pytest schema version 2
 
-The top-level JSON fields are:
+Schema version 2 retains the version 1 top-level fields and adds execution,
+resource and warning details. It intentionally changes warning fingerprints
+to hash normalised rather than raw text, so consumers must check
+`schema_version` before interpreting fingerprints. The deterministic consumer
+fixture is `test/fixtures/ci_metrics/schema-v2-xdist.json`.
 
 | Field | Meaning |
 |---|---|
-| `schema_version` | Integer contract version, currently `1` |
+| `schema_version` | Integer contract version, currently `2` |
 | `generated_at` | UTC timestamp at artefact creation |
 | `environment` | Python and GitHub runner/job identity when available |
-| `result` | Pytest exit code |
-| `phases` | Collection, test-loop and whole-session durations in seconds |
+| `result` | Pytest exit code and stable passed/failed/skipped/xfailed/xpassed counts |
+| `phases` | Collection, test-loop and whole-session wall durations in seconds |
 | `inventory` | Collected node count and SHA-256 of sorted node IDs |
-| `execution` | Effective worker count and whether xdist was active |
-| `warnings` | Counts grouped by warning category and message, with stable SHA-256 fingerprints |
+| `execution` | Effective worker count, xdist flag and worker timeline |
+| `resources` | Process-tree CPU seconds and peak resident bytes with availability metadata |
+| `warnings` | Counts grouped by normalised warning fingerprint, retaining one raw sample message |
 
-The node fingerprint makes two CI cells directly comparable without storing
-the full collection in every artefact. Warning fingerprints deliberately omit
-source paths and line numbers so unchanged warnings remain grouped after code
-moves. Per-worker assignments, resource-tree peaks and workflow dependency-path
-analysis remain follow-up layers under issue #1623.
+For xdist, each `execution.workers` record contains the assigned node IDs,
+their count/hash, `busy_duration_seconds` and `finished_at_seconds`.
+Assignment means a node ID observed in that worker's pytest reports. Busy time
+is the sum of setup, call and teardown report durations. Finish time is the
+arrival of the worker's last test report, relative to the controller's
+test-loop start; it is not worker shutdown time. The execution object reports
+latest-minus-earliest finish skew and latest-minus-median tail. A serial run
+deliberately has `workers: []`, `xdist: false` and effective worker count 1.
+
+Linux resource measurement samples the controller process and its descendants
+through procfs every 0.25 seconds by default. CPU values retain the last
+observed cumulative total for an exited child. Peak RSS is the largest sampled
+sum of resident bytes across the live tree. `sample_count`, interval, status,
+method and reason are always explicit. Short-lived processes between samples
+can be missed, and procfs access/exit races are ignored safely. macOS and
+Windows records are explicitly unavailable rather than reported as zero.
+
+Warning grouping replaces workspace/temp roots, memory addresses and UUIDs in
+the fingerprint input. The first unmodified message remains in `message` for
+diagnosis, and the grouped representation is in `normalised_message`. Other
+numbers and paths are preserved so scientifically different warnings do not
+collapse together.
+
+### Wheel-job phase evidence
+
+Physics wheel jobs publish three files under one
+`ci-metrics-physics-<python>-<platform>-<arch>` artefact:
+
+- the schema version 2 pytest JSON;
+- raw cross-process phase boundaries;
+- a `wheel-job-ci-metrics` JSON combining checkout, toolchain setup, build,
+  repair, install, collection, tests and session durations.
+
+Checkout is timed around `actions/checkout`. The other build phases use
+cibuildwheel's before-all, before-build, repair and before-test/test-command
+boundaries. Linux writes through an explicit host-mounted metrics directory;
+macOS and Windows write to the host directory directly. Missing boundaries
+remain `unavailable` with a reason and can never look like measured zeroes.
+
+### Workflow critical-path view
+
+`analyse_ci_run.py` consumes the GitHub Actions run and Jobs REST payloads plus
+`.github/ci-metrics-needs.json`. It resolves the explicit `PR build validation`
+target, expands declared matrix dependencies and follows the latest-finishing
+predecessor through each fan-in. The output separates:
+
+- orchestration hand-off: dependency barrier to job creation;
+- runner queue: Jobs REST `created_at` to `started_at`;
+- execution: `started_at` to `completed_at`;
+- dependency fan-in spread: earliest to latest predecessor completion.
+
+The later `CI observability summary` job is excluded from the gate path. Step
+durations remain available in the workflow JSON, but they do not substitute
+for the explicit wheel-job phase artefact.
+
+Checkout, setup and install times vary with GitHub cache/network/service load
+and are execution-phase load, not proof of a pytest scheduling improvement.
+Compare scheduler candidates in the same job with the same wheel, inventory,
+worker cap and alternating order.
+
+### Controlled overhead evidence
+
+The manual `CI metrics overhead check` workflow runs only from the default
+branch. It verifies and installs one Linux wheel once, records the source SHA
+and wheel SHA-256, and runs the standard non-slow physics selection in
+the fixed order metrics-off/on/on/off. Every run uses four workers,
+`--maxprocesses=4`, work stealing, a unique base temporary directory and no
+pytest cache. It uploads four raw JSON files, captured logs and a comparison
+manifest. The median measured test-phase overhead must be no more than 2%.
+
+This manual same-job result is the acceptance evidence. Ordinary PR runs and
+unrelated historical runs cannot establish the overhead bound because GitHub
+host load is uncontrolled.
 
 ## Naming Convention Checker
 

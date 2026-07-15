@@ -1,0 +1,94 @@
+{
+  "environment": {
+    "github_job": "build",
+    "python": "3.12.11",
+    "runner_arch": "X64",
+    "runner_os": "Linux"
+  },
+  "execution": {
+    "effective_worker_count": 2,
+    "worker_finish_skew_seconds": 0.75,
+    "worker_tail_over_median_seconds": 0.375,
+    "workers": [
+      {
+        "busy_duration_seconds": 7.25,
+        "finished_at_seconds": 8.25,
+        "node_count": 2,
+        "node_id_sha256": "22c09a963a193eaeb1718055645dc9250fa5607647580a1df6d73abc731ba36c",
+        "node_ids": [
+          "test/a.py::test_a",
+          "test/c.py::test_c"
+        ],
+        "worker_id": "gw0"
+      },
+      {
+        "busy_duration_seconds": 6.75,
+        "finished_at_seconds": 7.5,
+        "node_count": 2,
+        "node_id_sha256": "d1b76cd9f60fc21f129c64a27ea91f292750433576d060e409513b458facecf7",
+        "node_ids": [
+          "test/b.py::test_b",
+          "test/d.py::test_d"
+        ],
+        "worker_id": "gw1"
+      }
+    ],
+    "xdist": true
+  },
+  "generated_at": "2026-07-15T20:00:00Z",
+  "inventory": {
+    "node_count": 4,
+    "node_id_sha256": "9a67c523b5b7cb165dcb6962dd9e4f8fb7d13fc1d7b079e33a611ed09ad0a3cb"
+  },
+  "phases": {
+    "collection": {
+      "duration_seconds": 0.5
+    },
+    "session": {
+      "duration_seconds": 9.0
+    },
+    "tests": {
+      "duration_seconds": 8.25
+    }
+  },
+  "resources": {
+    "process_tree_cpu_seconds": {
+      "available": true,
+      "method": "linux-procfs-sampling",
+      "reason": null,
+      "status": "sampled",
+      "unit": "seconds",
+      "value": 12.5
+    },
+    "process_tree_peak_rss_bytes": {
+      "available": true,
+      "method": "linux-procfs-sampling",
+      "reason": null,
+      "status": "sampled",
+      "unit": "bytes",
+      "value": 268435456
+    },
+    "sample_count": 36,
+    "sample_interval_seconds": 0.25
+  },
+  "result": {
+    "exit_code": 0,
+    "outcomes": {
+      "failed": 0,
+      "passed": 4,
+      "skipped": 0,
+      "xfailed": 0,
+      "xpassed": 0
+    }
+  },
+  "schema_version": 2,
+  "warnings": [
+    {
+      "category": "UserWarning",
+      "count": 2,
+      "fingerprint": "2e07cfad92624957fcaac1da9015f99b45dcfd135d54bb6107286bef780268ec",
+      "message": "missing /tmp/tmp-a/forcing.csv",
+      "normalised_message": "missing <temp>/forcing.csv"
+    }
+  ]
+}

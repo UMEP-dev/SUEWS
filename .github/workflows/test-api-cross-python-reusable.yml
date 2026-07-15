@@ -98,7 +98,7 @@ jobs:
           SUEWS_CI_METRICS: ci-metrics/api-${{ matrix.python_version }}-${{ matrix.buildplat[1] }}-${{ matrix.buildplat[2] }}.json
         run: |
           python -m pip install --upgrade pip
-          python -m pip install pytest
+          python -m pip install pytest==9.1.1 pytest-xdist==3.8.0
           python -m pip install wheelhouse/*.whl
           # Run in one process. xdist duplicates every session fixture per
           # worker; the API lane contains simulation outputs large enough to

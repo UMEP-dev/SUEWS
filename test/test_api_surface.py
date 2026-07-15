@@ -16,10 +16,19 @@ import pytest
 
 pytestmark = pytest.mark.api
 
-_HISTORIC_NATIVE_ORDER_NODEIDS = (
-    "test/core/test_public_api_wrappers.py::TestPublicAPIEquivalence::test_functional_matches_oop",
+_HISTORIC_API_EQUIVALENCE_NODEID = (
+    "test/core/test_public_api_wrappers.py::TestPublicAPIEquivalence::"
+    "test_functional_matches_oop"
+)
+_HISTORIC_SAMPLE_OUTPUT_NODEIDS = (
     "test/core/test_sample_output.py::TestSampleOutput::test_library_cli_parity",
     "test/core/test_sample_output.py::TestSampleOutput::test_sample_output_validation",
+    "test/core/test_sample_output.py::TestSTEBBSOutput::"
+    "test_stebbs_building_energy_outputs",
+)
+_HISTORIC_NATIVE_ORDER_NODEIDS = (
+    _HISTORIC_API_EQUIVALENCE_NODEID,
+    *_HISTORIC_SAMPLE_OUTPUT_NODEIDS,
 )
 
 
@@ -64,11 +73,13 @@ def test_historic_native_nodes_retain_requested_collection_order():
             "pytest",
             "--collect-only",
             "-q",
-            *_HISTORIC_NATIVE_ORDER_NODEIDS,
+            _HISTORIC_API_EQUIVALENCE_NODEID,
+            "test/core/test_sample_output.py",
         ],
         cwd=Path(__file__).resolve().parents[1],
         text=True,
         capture_output=True,
+        timeout=60,
         check=False,
     )
     assert result.returncode == 0, result.stderr

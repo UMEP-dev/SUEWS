@@ -41,11 +41,30 @@ jobs:
       fail-fast: false
 
     steps:
+      - name: Start checkout phase timing
+        shell: bash
+        env:
+          SUEWS_CI_PHASES: ${{ runner.temp }}/suews-ci-metrics/physics-${{ matrix.python }}-${{ matrix.buildplat[1] }}-${{ matrix.buildplat[2] }}-phases.json
+        run: >-
+          python -c "import json, os, time; from pathlib import Path;
+          path = Path(os.environ['SUEWS_CI_PHASES']);
+          path.parent.mkdir(parents=True, exist_ok=True);
+          payload = {'schema_version': 1, 'phases': {'checkout':
+          {'source': 'runner-step-wall-clock', 'started_at_epoch_seconds': time.time(),
+          'status': 'running'}}};
+          path.write_text(json.dumps(payload, indent=2, sort_keys=True) + '\n', encoding='utf-8')"
+
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
         with:
           fetch-depth: 0
           submodules: recursive
           persist-credentials: false
+
+      - name: Stop checkout phase timing
+        shell: bash
+        env:
+          SUEWS_CI_PHASES: ${{ runner.temp }}/suews-ci-metrics/physics-${{ matrix.python }}-${{ matrix.buildplat[1] }}-${{ matrix.buildplat[2] }}-phases.json
+        run: python scripts/suews/ci_phase_metrics.py stop checkout
 
       - name: Build SUEWS wheels
         uses: ./.github/actions/build-suews
@@ -56,3 +75,4 @@ jobs:
           python: ${{ matrix.python }}
           test_tier: ${{ inputs.test_tier }}
           is_testpypi_build: ${{ inputs.is_testpypi_build }}
+          metrics_host_dir: ${{ runner.temp }}/suews-ci-metrics

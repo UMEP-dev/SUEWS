@@ -431,7 +431,7 @@ jobs:
       buildplat_json: ${{ needs.determine_matrix.outputs.buildplat }}
       python_json: ${{ needs.determine_matrix.outputs.python }}
       test_tier: ${{ needs.determine_matrix.outputs.test_tier }}
-      is_testpypi_build: ${{ github.event_name == 'schedule' || (startsWith(github.ref, 'refs/tags/') && contains(github.ref, 'dev')) }}
+      is_testpypi_build: ${{ (github.event_name == 'schedule' || (startsWith(github.ref, 'refs/tags/') && contains(github.ref, 'dev'))) && 'true' || 'false' }}
 
   build_mcp:
     name: Build MCP package
@@ -540,6 +540,52 @@ jobs:
           CHECK_MARKERS_RESULT: ${{ needs.check_test_markers.result }}
           NEEDS_BUILD: ${{ needs.detect-changes.outputs.needs-build }}
         run: bash .github/scripts/pr-gate.sh
+
+  ci_observability:
+    name: CI observability summary
+    runs-on: ubuntu-latest
+    needs: [pr-gate]
+    if: always() && (github.event_name == 'pull_request' || github.event_name == 'merge_group')
+    permissions:
+      actions: read
+      contents: read
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          sparse-checkout: |
+            .github/ci-metrics-needs.json
+            scripts/suews/analyse_ci_run.py
+          sparse-checkout-cone-mode: false
+          persist-credentials: false
+
+      - name: Download workflow and Jobs REST data
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUN_ID: ${{ github.run_id }}
+        run: |
+          mkdir -p ci-metrics-workflow
+          gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${RUN_ID}" > ci-metrics-workflow/run.json
+          gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${RUN_ID}/jobs?per_page=100" > ci-metrics-workflow/jobs.json
+
+      - name: Analyse declared workflow critical path
+        shell: bash
+        run: >-
+          python scripts/suews/analyse_ci_run.py
+          --run-json ci-metrics-workflow/run.json
+          --jobs-json ci-metrics-workflow/jobs.json
+          --needs-json .github/ci-metrics-needs.json
+          --target-job "PR build validation"
+          --output ci-metrics-workflow/workflow-ci-metrics.json
+          --summary "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload workflow CI metrics
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7
+        with:
+          name: ci-metrics-workflow-${{ github.run_id }}
+          path: ci-metrics-workflow/*.json
+          if-no-files-found: error
+          retention-days: 14
 
   deploy_testpypi:
     name: Publish to TestPyPI

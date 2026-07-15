@@ -142,7 +142,7 @@ def test_validate_produces_meaningful_output(suews_validate_exe, tmp_path):
 
 
 @pytest.mark.cfg
-@pytest.mark.smoke
+@pytest.mark.slow
 def test_validate_second_run_not_truncated(suews_validate_exe, tmp_path):
     """Repeated validation runs should not truncate reports or updated YAML files."""
     yaml_path = tmp_path / "yaml_setup.yml"
@@ -210,7 +210,6 @@ def test_validate_second_run_not_truncated(suews_validate_exe, tmp_path):
 
 
 @pytest.mark.cfg
-@pytest.mark.smoke
 def test_validate_issue_1097_fixture(suews_validate_exe, tmp_path):
     """The issue #1097 fixture should still yield non-empty, meaningful outputs."""
     fixture = Path(__file__).parent / "data" / "issue_1097" / "yaml_setup.yml"
@@ -245,7 +244,6 @@ def test_validate_issue_1097_fixture(suews_validate_exe, tmp_path):
 
 
 @pytest.mark.cfg
-@pytest.mark.smoke
 def test_validate_windows_paths(suews_validate_exe, tmp_path):
     """Windows-style paths should produce meaningful reports on every platform."""
     yaml_path = tmp_path / "windows_paths.yml"

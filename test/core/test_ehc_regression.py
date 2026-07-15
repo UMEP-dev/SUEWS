@@ -8,9 +8,7 @@ import supy as sp
 
 pytestmark = [
     pytest.mark.physics,
-    pytest.mark.core,
     pytest.mark.rust,
-    pytest.mark.smoke,
 ]
 
 
@@ -145,6 +143,7 @@ def _run_short_spartacus_ehc_with_building_cp(rho_cp):
     return output.df[("SUEWS", "QS")].to_numpy()
 
 
+@pytest.mark.core
 def test_ehc_lumped_storage_is_sensitive_to_surface_rho_cp():
     low_cp_qs = _run_short_ehc_with_surface_cp(1.0e6)
     high_cp_qs = _run_short_ehc_with_surface_cp(4.0e6)
@@ -153,6 +152,7 @@ def test_ehc_lumped_storage_is_sensitive_to_surface_rho_cp():
     assert np.max(np.abs(high_cp_qs - low_cp_qs)) > 1.0
 
 
+@pytest.mark.smoke
 def test_ehc_lumped_storage_skips_invalid_surface_without_zeroing_grid():
     qs = _run_short_ehc_with_surface_cp(1.0e6, surface_rho_cp={"bldgs": 0.0})
 
@@ -238,6 +238,7 @@ def test_ehc_direct_air_qf_mode_changes_lumped_storage_response(monkeypatch):
     assert np.max(np.abs(direct_air_qf_qs - default_qs)) > 0.1
 
 
+@pytest.mark.core
 def test_ehc_direct_air_qf_mode_changes_coupled_qe_response(monkeypatch):
     monkeypatch.delenv(EHC_EXPERIMENTAL_CONTROLS_KEY, raising=False)
     monkeypatch.delenv("SUEWS_EHC_QF_IMPERVIOUS_ONLY", raising=False)
@@ -429,6 +430,7 @@ def test_ehc_restore_best_iteration_path_runs(monkeypatch):
     assert np.max(np.abs(qs)) > 1.0
 
 
+@pytest.mark.core
 def test_ehc_spartacus_facet_storage_is_sensitive_to_building_rho_cp():
     low_cp_qs = _run_short_spartacus_ehc_with_building_cp(1.0e6)
     high_cp_qs = _run_short_spartacus_ehc_with_building_cp(4.0e6)

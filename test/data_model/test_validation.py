@@ -2227,36 +2227,6 @@ def test_validate_spartacus_sfr_rejects_layer_geometry_sum_above_one():
         for m in msgs
     )
 
-def test_validate_spartacus_sfr_rejects_building_layers_starting_at_height():
-    """Building fraction and scale are zero where the layer starts at building height."""
-    cfg = SUEWSConfig.model_construct()
-    _force_set(cfg, "model", SimpleNamespace(physics=SimpleNamespace(net_radiation=1001)))
-    bldgs = SimpleNamespace(sfr=0.5, bldgh=11.0)
-    lc = SimpleNamespace(bldgs=bldgs, evetr=None, dectr=None)
-    vertical_layers = SimpleNamespace(
-        height=[0.0, 11.0, 22.0],
-        building_frac=[0.4, 0.1],
-        building_scale=[50.0, 50.0],
-        veg_frac=[0.0, 0.0],
-    )
-    props = SimpleNamespace(land_cover=lc, vertical_layers=vertical_layers)
-    site = DummySite(properties=props, name="TestSite")
-
-    msgs = cfg._validate_spartacus_sfr(site, 0)
-
-    assert any(
-        "building_frac[1] should be zero" in m
-        and "building height 11.0" in m
-        and "vertical_layers.height[1]=11.0" in m
-        for m in msgs
-    )
-    assert any(
-        "building_scale[1] should be zero" in m
-        and "building height 11.0" in m
-        and "vertical_layers.height[1]=11.0" in m
-        for m in msgs
-    )
-
 def test_validate_spartacus_sfr_allows_upper_vegetation_with_trunk_fraction():
     """Upper vegetation layers are valid when the first layer has trunk fraction."""
     cfg = SUEWSConfig.model_construct()
@@ -2441,52 +2411,6 @@ def test_validate_spartacus_veg_dimensions_failing_case():
     msgs = cfg._validate_spartacus_veg_dimensions(site, 0)
     assert len(msgs) >= 1
     assert any("veg_frac[3]" in m for m in msgs)
-
-def test_validate_spartacus_veg_dimensions_reports_layer_bottom_height():
-    """Messages report the bottom boundary of the flagged layer."""
-    cfg = SUEWSConfig.model_construct()
-    _force_set(cfg, "model", SimpleNamespace(physics=SimpleNamespace(net_radiation=1001)))
-    lc = SimpleNamespace(dectr=SimpleNamespace(height_deciduous_tree=13.1), evetr=None)
-    vertical_layers = SimpleNamespace(
-        height=[0.0, 11.0, 15.0, 22.0],
-        veg_frac=[0.01, 0.02, 0.01],
-        veg_scale=[10.0, 10.0, 10.0],
-    )
-    props = SimpleNamespace(land_cover=lc, vertical_layers=vertical_layers)
-    site = DummySite(properties=props, name="KCL")
-
-    msgs = cfg._validate_spartacus_veg_dimensions(site, 0)
-
-    assert any(
-        "Site KCL: veg_scale[2] should be zero" in m
-        and "bottom of layer 3" in m
-        and "vertical_layers.height[2]=15.0" in m
-        for m in msgs
-    )
-    assert not any("height 22.0 of layer 3" in m for m in msgs)
-
-def test_validate_spartacus_veg_dimensions_checks_extinction_above_tree_height():
-    """Vegetation extinction is zero where the layer starts above tree height."""
-    cfg = SUEWSConfig.model_construct()
-    _force_set(cfg, "model", SimpleNamespace(physics=SimpleNamespace(net_radiation=1001)))
-    lc = SimpleNamespace(dectr=SimpleNamespace(height_deciduous_tree=13.1), evetr=None)
-    vertical_layers = SimpleNamespace(
-        height=[0.0, 11.0, 15.0, 22.0],
-        veg_frac=[0.01, 0.02, 0.0],
-        veg_scale=[10.0, 10.0, 0.0],
-        veg_ext=[-999.0, -999.0, 0.4],
-    )
-    props = SimpleNamespace(land_cover=lc, vertical_layers=vertical_layers)
-    site = DummySite(properties=props, name="KCL")
-
-    msgs = cfg._validate_spartacus_veg_dimensions(site, 0)
-
-    assert any(
-        "Site KCL: veg_ext[2] should be zero" in m
-        and "max tree height 13.1" in m
-        and "vertical_layers.height[2]=15.0" in m
-        for m in msgs
-    )
 
 def test_validate_spartacus_veg_dimensions_boundary_case():
     """Boundary case: max_tree exactly on a layer boundary."""

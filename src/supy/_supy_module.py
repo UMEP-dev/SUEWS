@@ -19,8 +19,8 @@ import os
 from pathlib import Path
 import sys
 import time
-import warnings
 from typing import Optional
+import warnings
 
 import numpy as np
 import pandas
@@ -736,8 +736,8 @@ def _run_supy(
     logger_supy.info(f"No. of grids: {n_grid}")
 
     # Build config from DataFrame state
-    from .data_model.core import SUEWSConfig
     from ._run_rust import run_suews_rust_chunked
+    from .data_model.core import SUEWSConfig
     from .util._forcing import convert_observed_soil_moisture
 
     config = SUEWSConfig.from_df_state(df_state_init)

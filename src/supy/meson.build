@@ -3,6 +3,7 @@ py.install_sources(
         '__init__.py',
         '_check.py',
         '_env.py',
+        '_filename.py',
         '_load.py',
         '_misc.py',
         '_post.py',

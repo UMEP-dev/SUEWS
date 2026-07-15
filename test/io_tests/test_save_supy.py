@@ -1,16 +1,20 @@
 """Test save_supy functionality with various output configurations."""
 
-import pytest
-import pandas as pd
-import numpy as np
 from pathlib import Path
 import tempfile
-import shutil
+from types import SimpleNamespace
+
+import pandas as pd
+import pytest
+
 import supy as sp
+from supy._filename import safe_filename_component
 from supy._supy_module import _save_supy
 from supy.data_model.core import SUEWSConfig
 from supy.data_model.core.model import OutputControl, OutputFormat
+from supy.suews_checkpoint import SUEWSCheckpoint
 from supy.suews_output import SUEWSOutput
+from supy.suews_sim import SUEWSSimulation
 
 pytestmark = pytest.mark.api
 
@@ -213,3 +217,188 @@ class TestSaveSuPy:
             assert parquet_files, (
                 "An explicit format='parquet' must override config format=txt"
             )
+
+    def test_output_save_uses_safe_site_name_for_checkpoint(self, sample_output):
+        """The modern API must apply one safe token to every saved artifact."""
+        df_output, df_state_final = sample_output
+        output_control = OutputControl(format=OutputFormat.PARQUET)
+        config = SimpleNamespace(
+            model=SimpleNamespace(control=SimpleNamespace(output=output_control)),
+            sites=[SimpleNamespace(name="grid no: 0")],
+        )
+        checkpoint = SUEWSCheckpoint.from_grid_states({0: {}})
+        output = SUEWSOutput(
+            df_output=df_output,
+            df_state_final=df_state_final,
+            config=config,
+            checkpoint=checkpoint,
+        )
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            with pytest.warns(
+                UserWarning,
+                match="output files will use 'grid no_ 0' instead",
+            ):
+                list_files = output.save(path=tmpdir)
+
+            names = {Path(path).name for path in list_files}
+            assert "grid no_ 0_SUEWS_checkpoint.json" in names
+            assert all(":" not in name for name in names)
+            path_metadata = next(
+                Path(path)
+                for path in list_files
+                if Path(path).name.endswith("_SUEWS_metadata.parquet")
+            )
+            assert pd.read_parquet(path_metadata).loc[0, "site"] == "grid no: 0"
+
+    def test_simulation_save_uses_safe_site_name_for_checkpoint(self, sample_output):
+        """The simulation API must apply the safe token to every artifact."""
+        df_output, df_state_final = sample_output
+        output_control = OutputControl(format=OutputFormat.PARQUET)
+        config = SimpleNamespace(
+            model=SimpleNamespace(control=SimpleNamespace(output=output_control)),
+            sites=[SimpleNamespace(name="grid no: 0")],
+        )
+        simulation = SUEWSSimulation.__new__(SUEWSSimulation)
+        simulation._run_completed = True
+        simulation._df_output = df_output
+        simulation._df_state_final = df_state_final
+        simulation._checkpoint = SUEWSCheckpoint.from_grid_states({0: {}})
+        simulation._config = config
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            with pytest.warns(
+                UserWarning,
+                match="output files will use 'grid no_ 0' instead",
+            ):
+                list_files = simulation.save(tmpdir, format="parquet")
+
+            names = {Path(path).name for path in list_files}
+            assert "grid no_ 0_SUEWS_checkpoint.json" in names
+            assert all(":" not in name for name in names)
+            path_metadata = next(
+                Path(path)
+                for path in list_files
+                if Path(path).name.endswith("_SUEWS_metadata.parquet")
+            )
+            assert pd.read_parquet(path_metadata).loc[0, "site"] == "grid no: 0"
+
+    def test_legacy_save_preserves_original_site_in_parquet_metadata(
+        self, sample_output
+    ):
+        """The legacy API must not replace the semantic site identifier."""
+        df_output, df_state_final = sample_output
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            with pytest.warns(UserWarning):
+                list_files = sp.save_supy(
+                    df_output,
+                    df_state_final,
+                    path_dir_save=tmpdir,
+                    site="grid no: 0",
+                    output_config=OutputControl(format=OutputFormat.PARQUET),
+                )
+
+            path_metadata = next(
+                Path(path)
+                for path in list_files
+                if Path(path).name.endswith("_SUEWS_metadata.parquet")
+            )
+            assert pd.read_parquet(path_metadata).loc[0, "site"] == "grid no: 0"
+
+    def test_save_sanitises_unsafe_site_name(self, sample_output):
+        """A site name with filename-unsafe characters must not leak into paths.
+
+        A colon in the site name is the NTFS Alternate Data Stream separator on
+        Windows, which silently writes output into a hidden stream instead of a
+        normal file (gh#1619). The saved paths must therefore be free of the
+        unsafe characters and every file must have real content, on any OS.
+        """
+        df_output, df_state_final = sample_output
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            with pytest.warns(
+                UserWarning,
+                match="output files will use 'grid no_ 0' instead",
+            ):
+                list_files = sp.save_supy(
+                    df_output,
+                    df_state_final,
+                    path_dir_save=tmpdir,
+                    site="grid no: 0",
+                )
+
+            assert list_files, "No files were created"
+            for path in list_files:
+                name = Path(path).name
+                # None of the Windows-unsafe characters may reach the filename.
+                for ch in ':<>"/\\|?*':
+                    assert ch not in name, (
+                        f"Unsafe character {ch!r} leaked into filename {name!r}"
+                    )
+                # The sanitised site token must still be present as a prefix.
+                assert "grid no_ 0" in name, (
+                    f"Sanitised site token missing from {name!r}"
+                )
+                # And the file must actually hold data, not be a 0-byte stub
+                # (the failure mode when data lands in an alternate stream).
+                assert Path(path).stat().st_size > 0, f"{name!r} is empty"
+
+
+class TestSafeFilenameComponent:
+    """Unit tests for the filesystem-safety helper (gh#1619)."""
+
+    def test_colon_replaced(self):
+        # The reporter's case: a colon must not survive into the token.
+        assert ":" not in safe_filename_component("grid no: 0")
+
+    @pytest.mark.parametrize(
+        "raw",
+        ["a<b", "a>b", "a:b", 'a"b', "a/b", "a\\b", "a|b", "a?b", "a*b", "a\x01b"],
+    )
+    def test_all_unsafe_chars_replaced(self, raw):
+        result = safe_filename_component(raw)
+        for ch in '<>:"/\\|?*':
+            assert ch not in result
+        assert "\x01" not in result
+
+    def test_empty_is_preserved(self):
+        # An empty identifier means "no site prefix" and must stay empty.
+        assert safe_filename_component("") == ""
+
+    def test_degenerate_name_uses_fallback(self):
+        # A name that reduces to nothing (only dots/spaces, which are stripped)
+        # must fall back rather than vanish.
+        assert safe_filename_component(". .") == "site"
+        assert safe_filename_component("  ") == "site"
+
+    def test_unsafe_chars_become_underscores_not_fallback(self):
+        # Unsafe characters are replaced (not stripped), so a name of them is a
+        # valid non-empty token and does not trigger the fallback.
+        assert safe_filename_component("///") == "___"
+
+    def test_trailing_dot_and_space_stripped(self):
+        # Windows silently strips these; we strip them ourselves for stability.
+        assert safe_filename_component("site .") == "site"
+
+    @pytest.mark.parametrize(
+        ("name", "expected"),
+        [
+            ("CON", "CON_"),
+            ("nul", "nul_"),
+            ("Com1", "Com1_"),
+            ("LPT9", "LPT9_"),
+            ("CON.txt", "CON_.txt"),
+            ("COM¹", "COM¹_"),
+            ("LPT³.tar.gz", "LPT³_.tar.gz"),
+            ("CONIN$.txt", "CONIN$_.txt"),
+            ("CON .txt", "CON _.txt"),
+        ],
+    )
+    def test_reserved_device_names_guarded(self, name, expected):
+        result = safe_filename_component(name)
+        assert result == expected
+
+    def test_safe_name_unchanged(self):
+        # A name that is already safe must pass through untouched.
+        assert safe_filename_component("KCL_London") == "KCL_London"

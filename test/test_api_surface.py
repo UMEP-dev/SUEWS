@@ -11,9 +11,85 @@ from pathlib import Path
 import subprocess
 import sys
 
+import conftest as suite_conftest
 import pytest
 
 pytestmark = pytest.mark.api
+
+_HISTORIC_API_EQUIVALENCE_NODEID = (
+    "test/core/test_public_api_wrappers.py::TestPublicAPIEquivalence::"
+    "test_functional_matches_oop"
+)
+_HISTORIC_SAMPLE_OUTPUT_NODEIDS = (
+    "test/core/test_sample_output.py::TestSampleOutput::test_library_cli_parity",
+    "test/core/test_sample_output.py::TestSampleOutput::test_sample_output_validation",
+    "test/core/test_sample_output.py::TestSTEBBSOutput::"
+    "test_stebbs_building_energy_outputs",
+)
+_HISTORIC_NATIVE_ORDER_NODEIDS = (
+    _HISTORIC_API_EQUIVALENCE_NODEID,
+    *_HISTORIC_SAMPLE_OUTPUT_NODEIDS,
+)
+
+
+class _CollectedItem:
+    """Minimal pytest item surface used to exercise collection ordering."""
+
+    def __init__(self, path, nodeid):
+        self.fspath = Path(path)
+        self.nodeid = nodeid
+
+
+@pytest.mark.core
+def test_collection_preserves_native_test_relative_order():
+    """Only the import-surface probe may move ahead of declared test order."""
+    items = [
+        _CollectedItem("test/physics/test_other.py", "other"),
+        _CollectedItem("test/core/test_sample_output.py", "sample"),
+        _CollectedItem(
+            "test/core/test_public_api_wrappers.py",
+            "TestPublicAPIEquivalence::test_functional_matches_oop",
+        ),
+        _CollectedItem("test/test_api_surface.py", "api_surface"),
+    ]
+
+    suite_conftest.pytest_collection_modifyitems(items)
+
+    assert [item.nodeid for item in items] == [
+        "api_surface",
+        "other",
+        "sample",
+        "TestPublicAPIEquivalence::test_functional_matches_oop",
+    ]
+
+
+@pytest.mark.core
+def test_historic_native_nodes_retain_requested_collection_order():
+    """Collect the exact nodes formerly moved by the native-state workaround."""
+    result = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "pytest",
+            "--collect-only",
+            "-q",
+            _HISTORIC_API_EQUIVALENCE_NODEID,
+            "test/core/test_sample_output.py",
+        ],
+        cwd=Path(__file__).resolve().parents[1],
+        text=True,
+        capture_output=True,
+        timeout=60,
+        check=False,
+    )
+    assert result.returncode == 0, result.stderr
+    list_collected_nodeid = [
+        line
+        for line in result.stdout.splitlines()
+        if line in _HISTORIC_NATIVE_ORDER_NODEIDS
+    ]
+    assert list_collected_nodeid == list(_HISTORIC_NATIVE_ORDER_NODEIDS)
+
 
 # Files to skip when scanning for imports
 _SKIP_FILES = {"conftest.py", "debug_utils.py", "__init__.py"}

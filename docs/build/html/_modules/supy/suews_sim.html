@@ -7,7 +7,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>supy.suews_sim &#8212; SUEWS 2026.7.14.dev3 documentation</title>
+    <title>supy.suews_sim &#8212; SUEWS 2026.7.15.dev1 documentation</title>
   
   
   
@@ -43,7 +43,7 @@
   <link rel="preload" as="script" href="../../_static/scripts/bootstrap.js?digest=8878045cc6db502f8baf" />
 <link rel="preload" as="script" href="../../_static/scripts/pydata-sphinx-theme.js?digest=8878045cc6db502f8baf" />
 
-    <script src="../../_static/documentation_options.js?v=0b5d6e6d"></script>
+    <script src="../../_static/documentation_options.js?v=c31abc52"></script>
     <script src="../../_static/doctools.js?v=9bcbadda"></script>
     <script src="../../_static/sphinx_highlight.js?v=dc90522c"></script>
     <script src="../../_static/scripts/sphinx-book-theme.js?v=fab101a9"></script>
@@ -55,7 +55,7 @@
     <link rel="search" title="Search" href="../../search.html" />
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
-  <meta name="docsearch:version" content="2026.7.14.dev3" />
+  <meta name="docsearch:version" content="2026.7.15.dev1" />
   </head>
   
   
@@ -97,7 +97,7 @@
   <div class="bd-header-announcement__content">
     <div style="background-color: #f0ad4e; border: 1px solid #eea236; border-radius: 4px; padding: 10px; margin: 10px 0;">
         <strong>⚠️ Development Version:</strong> This documentation was built from a development version
-        (2026.7.14.dev3, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/2b5c01ca09779700bdb3063ba03fd4f9fdb80d20" style="color: #31708f;">2b5c01c</a>).
+        (2026.7.15.dev1, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/377c64bd66c83223d362c8d27c3c4158eed50502" style="color: #31708f;">377c64b</a>).
         Features described here may be unstable or subject to change. For stable documentation, please visit the
         <a href="https://docs.suews.io/stable/" style="color: #31708f;">latest release</a>.
     </div>
@@ -146,8 +146,8 @@
       
     
     
-    <img src="../../_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.7.14.dev3 documentation - Home"/>
-    <img src="../../_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.7.14.dev3 documentation - Home"/>
+    <img src="../../_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.7.15.dev1 documentation - Home"/>
+    <img src="../../_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.7.15.dev1 documentation - Home"/>
   
   
 </a></div>
@@ -553,6 +553,7 @@
 
 <span class="kn">from</span><span class="w"> </span><span class="nn">._check</span><span class="w"> </span><span class="kn">import</span> <span class="n">check_forcing</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">._env</span><span class="w"> </span><span class="kn">import</span> <span class="n">logger_supy</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">._filename</span><span class="w"> </span><span class="kn">import</span> <span class="n">safe_filename_component</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">._run_rust</span><span class="w"> </span><span class="kn">import</span> <span class="n">_check_rust_available</span><span class="p">,</span> <span class="n">run_suews_rust_chunked</span>
 
 <span class="c1"># Import SuPy components directly</span>
@@ -1439,6 +1440,7 @@
             <span class="c1"># Get site name from first site</span>
             <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_config</span><span class="p">,</span> <span class="s2">&quot;sites&quot;</span><span class="p">)</span> <span class="ow">and</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_config</span><span class="o">.</span><span class="n">sites</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>
                 <span class="n">site</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_config</span><span class="o">.</span><span class="n">sites</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">name</span>
+        <span class="n">site_filename</span> <span class="o">=</span> <span class="n">safe_filename_component</span><span class="p">(</span><span class="n">site</span><span class="p">)</span>
         <span class="k">if</span> <span class="s2">&quot;format&quot;</span> <span class="ow">in</span> <span class="n">save_kwargs</span><span class="p">:</span>  <span class="c1"># TODO: When yaml format working, make elif</span>
             <span class="n">output_format</span> <span class="o">=</span> <span class="n">save_kwargs</span><span class="p">[</span><span class="s2">&quot;format&quot;</span><span class="p">]</span>
 
@@ -1457,7 +1459,9 @@
 
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_checkpoint</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
             <span class="n">checkpoint_name</span> <span class="o">=</span> <span class="p">(</span>
-                <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">site</span><span class="si">}</span><span class="s2">_SUEWS_checkpoint.json&quot;</span> <span class="k">if</span> <span class="n">site</span> <span class="k">else</span> <span class="s2">&quot;SUEWS_checkpoint.json&quot;</span>
+                <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">site_filename</span><span class="si">}</span><span class="s2">_SUEWS_checkpoint.json&quot;</span>
+                <span class="k">if</span> <span class="n">site_filename</span>
+                <span class="k">else</span> <span class="s2">&quot;SUEWS_checkpoint.json&quot;</span>
             <span class="p">)</span>
             <span class="n">checkpoint_path</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_checkpoint</span><span class="o">.</span><span class="n">to_file</span><span class="p">(</span><span class="n">output_path</span> <span class="o">/</span> <span class="n">checkpoint_name</span><span class="p">)</span>
             <span class="n">list_path_save</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">checkpoint_path</span><span class="p">)</span>
@@ -2243,8 +2247,8 @@ By SUEWS dev team led by Prof Sue Grimmond
   <div class="footer-item">
     
 <div class="extra_footer">
-  <p>Version: 2026.7.14.dev3 |
-    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/2b5c01ca09779700bdb3063ba03fd4f9fdb80d20">2b5c01c</a> |
+  <p>Version: 2026.7.15.dev1 |
+    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/377c64bd66c83223d362c8d27c3c4158eed50502">377c64b</a> |
     <a href="https://umep-dev.github.io/SUEWS/brand/showcase.html">Brand</a></p>
 </div>
   </div>

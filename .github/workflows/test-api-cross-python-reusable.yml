@@ -95,6 +95,7 @@ jobs:
         shell: bash
         env:
           MARKER_EXPR: ${{ steps.marker.outputs.expr }}
+          SUEWS_CI_METRICS: ci-metrics/api-${{ matrix.python_version }}-${{ matrix.buildplat[1] }}-${{ matrix.buildplat[2] }}.json
         run: |
           python -m pip install --upgrade pip
           python -m pip install pytest
@@ -102,4 +103,14 @@ jobs:
           # Run in one process. xdist duplicates every session fixture per
           # worker; the API lane contains simulation outputs large enough to
           # exhaust hosted-runner memory even with two workers.
-          python -m pytest test -m "$MARKER_EXPR" -v --tb=short --durations=25
+          python -m pytest -p scripts.suews.pytest_ci_metrics test \
+            -m "$MARKER_EXPR" -v --tb=short --durations=25
+
+      - name: Upload API test metrics
+        if: always()
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7
+        with:
+          name: ci-metrics-api-${{ matrix.python_version }}-${{ matrix.buildplat[1] }}-${{ matrix.buildplat[2] }}
+          path: ci-metrics/*.json
+          if-no-files-found: error
+          retention-days: 14

@@ -277,6 +277,12 @@ def get_site_gridid(site_data: dict) -> int:
 
 
 SPARTACUS_METHODS = {1001, 1002, 1003}
+TREE_COVER_GROUND_COMPENSATION_ADVISORY = (
+    "This tree-cover sync keeps total surface fraction at 1.0 by removing from "
+    "or adding to grass.sfr first and bsoil.sfr second. If the tree cover is "
+    "associated with paved.sfr, bldgs.sfr (buildings), or water.sfr instead, "
+    "review the land-cover fractions manually before applying."
+)
 
 
 def _is_spartacus_enabled_for_adjustment(yaml_data: dict) -> bool:
@@ -1586,7 +1592,8 @@ def adjust_spartacus_tree_cover_fraction(
                             f"vertical_layers.veg_frac[0]={target_tree_cover:.6f} "
                             f"with dectr.sfr + evetr.sfr from {current_tree_cover:.6f}; "
                             "used dectr as the adjustable tree fraction and "
-                            "compensated with grass.sfr then bsoil.sfr"
+                            "compensated with grass.sfr then bsoil.sfr. "
+                            f"{TREE_COVER_GROUND_COMPENSATION_ADVISORY}"
                         ),
                     )
                 )

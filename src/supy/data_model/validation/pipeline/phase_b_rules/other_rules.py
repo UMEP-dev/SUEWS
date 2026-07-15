@@ -11,6 +11,12 @@ from typing import Dict, List, Optional, Union, Any, Tuple
 # Constants 
 SFR_FRACTION_TOL = 1e-4
 SPARTACUS_METHODS = {1001, 1002, 1003}
+TREE_COVER_GROUND_COMPENSATION_ADVISORY = (
+    "This tree-cover sync keeps total surface fraction at 1.0 by removing from "
+    "or adding to grass.sfr first and bsoil.sfr second. If the tree cover is "
+    "associated with paved.sfr, bldgs.sfr (buildings), or water.sfr instead, "
+    "review the land-cover fractions manually before applying."
+)
 
 
 def _as_float(value: Any) -> Optional[float]:
@@ -262,6 +268,11 @@ def validate_land_cover_consistency(context) -> List[ValidationResult]:
                     status, guard_message = _tree_cover_sync_guard(
                         land_cover, target_tree_cover, current_tree_cover
                     )
+                    if status == "WARNING":
+                        guard_message = (
+                            f"{guard_message} "
+                            f"{TREE_COVER_GROUND_COMPENSATION_ADVISORY}"
+                        )
                     results.append(
                         ValidationResult(
                             status=status,
@@ -280,7 +291,8 @@ def validate_land_cover_consistency(context) -> List[ValidationResult]:
                             suggested_value=(
                                 "Use dectr.sfr as the adjustable tree fraction, "
                                 "protect evetr.sfr unless dectr cannot absorb a reduction, "
-                                "and compensate with grass.sfr then bsoil.sfr."
+                                "and compensate with grass.sfr then bsoil.sfr. "
+                                f"{TREE_COVER_GROUND_COMPENSATION_ADVISORY}"
                             ),
                         )
                     )

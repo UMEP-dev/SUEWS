@@ -3528,6 +3528,7 @@ def test_phase_b_tree_cover_sync_does_not_touch_buildings_paved_or_water():
 
 def test_phase_b_tree_cover_validator_warns_when_sync_is_feasible():
     """Validator reports a fixable tree-cover mismatch as a warning."""
+    from supy.data_model.validation.pipeline.phase_b import create_science_report
     from supy.data_model.validation.pipeline.phase_b_rules.other_rules import (
         validate_land_cover_consistency,
     )
@@ -3550,6 +3551,38 @@ def test_phase_b_tree_cover_validator_warns_when_sync_is_feasible():
         "trunk/near-ground tree fraction vertical_layers.veg_frac[0] (0.2000)"
         in tree_results[0].message
     )
+    report = create_science_report(
+        validation_results=tree_results,
+        adjustments=[],
+        suggestions=[],
+    )
+    assert "removing from or adding to grass.sfr first and bsoil.sfr second" in report
+    assert "paved.sfr, bldgs.sfr (buildings), or water.sfr" in report
+
+
+def test_phase_b_tree_cover_applied_report_warns_about_ground_compensation():
+    """Applied tree-cover sync reports the grass/bare-soil compensation assumption."""
+    from supy.data_model.validation.pipeline.phase_b import create_science_report
+
+    yaml_data = _make_spartacus_tree_cover_yaml(
+        veg_first=0.2,
+        dectr=0.1,
+        evetr=0.05,
+        grass=0.3,
+        bsoil=0.15,
+    )
+
+    _, adjustments = adjust_spartacus_tree_cover_fraction(yaml_data)
+    report = create_science_report(
+        validation_results=[],
+        adjustments=adjustments,
+        suggestions=[],
+        science_fixes="apply",
+    )
+
+    assert adjustments
+    assert "removing from or adding to grass.sfr first and bsoil.sfr second" in report
+    assert "paved.sfr, bldgs.sfr (buildings), or water.sfr" in report
 
 
 def test_phase_b_tree_cover_validator_errors_when_ground_guard_blocks_sync():

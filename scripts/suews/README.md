@@ -2,6 +2,45 @@
 
 This directory contains utility scripts for development and maintenance.
 
+## Pytest CI metrics
+
+**Plugin**: `pytest_ci_metrics.py`
+
+The API test workflow loads this standalone pytest plugin to publish a compact
+machine-readable artefact and append the same run's headline measurements to
+the GitHub Actions step summary. The plugin observes pytest hooks only: it does
+not perform a second collection or test pass.
+
+Set `SUEWS_CI_METRICS` to the JSON output path and load the plugin explicitly:
+
+```bash
+SUEWS_CI_METRICS=ci-metrics.json \
+  python -m pytest -p scripts.suews.pytest_ci_metrics test
+```
+
+When `GITHUB_STEP_SUMMARY` is set, the plugin also appends a Markdown summary.
+
+### Schema version 1
+
+The top-level JSON fields are:
+
+| Field | Meaning |
+|---|---|
+| `schema_version` | Integer contract version, currently `1` |
+| `generated_at` | UTC timestamp at artefact creation |
+| `environment` | Python and GitHub runner/job identity when available |
+| `result` | Pytest exit code |
+| `phases` | Collection, test-loop and whole-session durations in seconds |
+| `inventory` | Collected node count and SHA-256 of sorted node IDs |
+| `execution` | Effective worker count and whether xdist was active |
+| `warnings` | Counts grouped by warning category and message, with stable SHA-256 fingerprints |
+
+The node fingerprint makes two CI cells directly comparable without storing
+the full collection in every artefact. Warning fingerprints deliberately omit
+source paths and line numbers so unchanged warnings remain grouped after code
+moves. Per-worker assignments, resource-tree peaks and workflow dependency-path
+analysis remain follow-up layers under issue #1623.
+
 ## Naming Convention Checker
 
 **Script**: `check_naming_conventions.py`

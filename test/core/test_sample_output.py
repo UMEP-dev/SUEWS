@@ -18,8 +18,8 @@ optimizations, and library implementations. Rather than pursuing bit-for-bit
 reproducibility, this test ensures results remain within scientifically
 acceptable bounds.
 
-This test runs first in CI/CD to provide fast feedback before expensive
-wheel building operations.
+This test is independent of collection order and can run alongside other
+physics validation.
 """
 
 import os

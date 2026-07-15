@@ -1,14 +1,13 @@
 from pathlib import Path
-from typing import Tuple
+from typing import Optional, Tuple
 
 import f90nml
 import pandas as pd
 
 # import ray
-
 from ._env import logger_supy
 from ._load import load_SUEWS_dict_ModConfig
-from ._post import resample_output, df_var as df_var_out
+from ._post import df_var as df_var_out, resample_output
 
 
 def gen_df_save(df_grid_group: pd.DataFrame) -> pd.DataFrame:
@@ -606,6 +605,7 @@ def save_df_output_parquet(
     path_dir_save: Path = Path("."),
     save_tstep=False,
     save_state: bool = True,
+    site_metadata: Optional[str] = None,
 ) -> list:
     """Save supy output to Parquet format.
 
@@ -623,6 +623,9 @@ def save_df_output_parquet(
         Directory to save Parquet file
     save_tstep : bool, optional
         Whether to save at simulation timestep resolution
+    site_metadata : str, optional
+        Original site identifier to record in metadata when ``site`` is a
+        filesystem-safe filename token. Defaults to ``site``.
 
     Returns
     -------
@@ -670,7 +673,7 @@ def save_df_output_parquet(
 
     # Save with metadata
     metadata = {
-        "site": site,
+        "site": site if site_metadata is None else site_metadata,
         "output_frequency_s": freq_s,
         "save_tstep": save_tstep,
         "creation_time": pd.Timestamp.now().isoformat(),

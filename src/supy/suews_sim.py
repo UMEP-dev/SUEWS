@@ -16,6 +16,7 @@ from pydantic import BaseModel
 
 from ._check import check_forcing
 from ._env import logger_supy
+from ._filename import safe_filename_component
 from ._run_rust import _check_rust_available, run_suews_rust_chunked
 
 # Import SuPy components directly
@@ -889,6 +890,7 @@ class SUEWSSimulation:
             # Get site name from first site
             if hasattr(self._config, "sites") and len(self._config.sites) > 0:
                 site = self._config.sites[0].name
+        site_filename = safe_filename_component(site)
         if "format" in save_kwargs:  # TODO: When yaml format working, make elif
             output_format = save_kwargs["format"]
 
@@ -907,7 +909,9 @@ class SUEWSSimulation:
 
         if self._checkpoint is not None:
             checkpoint_name = (
-                f"{site}_SUEWS_checkpoint.json" if site else "SUEWS_checkpoint.json"
+                f"{site_filename}_SUEWS_checkpoint.json"
+                if site_filename
+                else "SUEWS_checkpoint.json"
             )
             checkpoint_path = self._checkpoint.to_file(output_path / checkpoint_name)
             list_path_save.append(checkpoint_path)

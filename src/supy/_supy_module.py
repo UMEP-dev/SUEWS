@@ -19,8 +19,8 @@ import os
 from pathlib import Path
 import sys
 import time
-import warnings
 from typing import Optional
+import warnings
 
 import numpy as np
 import pandas
@@ -33,6 +33,7 @@ from ._check import (
     check_state,
 )
 from ._env import logger_supy, trv_supy_module
+from ._filename import prepare_filename_component
 from ._load import (
     load_df_state,
     load_InitialCond_grid_df,
@@ -735,8 +736,8 @@ def _run_supy(
     logger_supy.info(f"No. of grids: {n_grid}")
 
     # Build config from DataFrame state
-    from .data_model.core import SUEWSConfig
     from ._run_rust import run_suews_rust_chunked
+    from .data_model.core import SUEWSConfig
     from .util._forcing import convert_observed_soil_moisture
 
     config = SUEWSConfig.from_df_state(df_state_init)
@@ -958,6 +959,16 @@ def _save_supy(
             path_runcontrol
         )
 
+    # Make the site identifier safe to embed in output filenames on every
+    # platform (gh#1619). The site name is concatenated verbatim into every
+    # filename below; a character such as a colon is the NTFS Alternate Data
+    # Stream separator on Windows and would silently write output into a hidden
+    # stream instead of a normal file. This common multi-file save boundary
+    # covers txt, state csv, InitialConditions nml, and Parquet. The modern OOP
+    # save methods apply the same helper before constructing checkpoint names.
+    site_metadata = str(site)
+    site = prepare_filename_component(site_metadata, "Site name")
+
     # Handle output configuration if provided
     # output_format = "txt"  # default - MP: Moved as argument
     output_groups = None  # default will be handled in save_df_output
@@ -978,8 +989,6 @@ def _save_supy(
                 output_groups = output_config.groups
         elif isinstance(output_config, str):
             # Legacy string format - issue deprecation warning
-            import warnings
-
             warnings.warn(
                 "The 'output_file' parameter as a string is deprecated and was never used. "
                 "Please use the new OutputControl block or remove this parameter. "
@@ -1018,6 +1027,7 @@ def _save_supy(
             path_dir_save,
             save_tstep,
             save_state=save_state,
+            site_metadata=site_metadata,
         )
     else:
         # Save as text files (existing behavior)

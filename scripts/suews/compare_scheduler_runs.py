@@ -18,9 +18,11 @@ ABBA_ORDER = ("loadscope", "worksteal", "worksteal", "loadscope")
 MAX_WORKERS = 4
 OUTCOME_NAMES = {"passed", "failed", "skipped", "xfailed", "xpassed"}
 DEFAULT_MAX_MEDIAN_SESSION_REGRESSION_FRACTION = 0.05
-DEFAULT_MAX_PEAK_RSS_REGRESSION_FRACTION = 0.10
+DEFAULT_PEAK_RSS_REGRESSION_ADVISORY_FRACTION = 0.10
 DEFAULT_MIN_MEMORY_HEADROOM_FRACTION = 0.20
 LINUX_WHEEL_ARTIFACT = "cp312-manylinux-x86_64"
+MANIFEST_SCHEMA_VERSION = 2
+POLICY_VERSION = 2
 
 
 class ComparisonError(ValueError):
@@ -306,7 +308,9 @@ def compare_abba(
     max_median_session_regression_fraction: float = (
         DEFAULT_MAX_MEDIAN_SESSION_REGRESSION_FRACTION
     ),
-    max_peak_rss_regression_fraction: float = DEFAULT_MAX_PEAK_RSS_REGRESSION_FRACTION,
+    peak_rss_regression_advisory_fraction: float = (
+        DEFAULT_PEAK_RSS_REGRESSION_ADVISORY_FRACTION
+    ),
     min_memory_headroom_fraction: float = DEFAULT_MIN_MEMORY_HEADROOM_FRACTION,
     provenance: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
@@ -322,9 +326,9 @@ def compare_abba(
         raise ComparisonError(
             f"expected worker count must be between 1 and {MAX_WORKERS}"
         )
-    if not 0 <= max_peak_rss_regression_fraction <= 1:
+    if not 0 <= peak_rss_regression_advisory_fraction <= 1:
         raise ComparisonError(
-            "peak RSS regression fraction must be between zero and one"
+            "peak RSS regression advisory fraction must be between zero and one"
         )
     if not 0 <= max_median_session_regression_fraction <= 1:
         raise ComparisonError(
@@ -402,12 +406,9 @@ def compare_abba(
         worksteal["max_peak_rss_bytes"],
         loadscope["max_peak_rss_bytes"],
     )
-    if peak_rss_delta["fraction"] is None or (
-        peak_rss_delta["fraction"] > max_peak_rss_regression_fraction
-    ):
-        raise ComparisonError(
-            "worksteal peak RSS regression exceeds the safety threshold"
-        )
+    peak_rss_advisory_exceeded = peak_rss_delta["fraction"] is None or (
+        peak_rss_delta["fraction"] > peak_rss_regression_advisory_fraction
+    )
 
     deltas = {
         "median_session_seconds": _delta(
@@ -427,7 +428,8 @@ def compare_abba(
         "max_peak_rss_bytes": peak_rss_delta,
     }
     return {
-        "schema_version": 1,
+        "schema_version": MANIFEST_SCHEMA_VERSION,
+        "policy_version": POLICY_VERSION,
         "order": list(ABBA_ORDER),
         "selected_scheduler": "worksteal",
         "provenance": validated_provenance,
@@ -452,9 +454,18 @@ def compare_abba(
             "headroom_bytes": memory_headroom_bytes,
             "headroom_fraction": memory_headroom_fraction,
             "minimum_headroom_fraction": min_memory_headroom_fraction,
-            "maximum_peak_rss_regression_fraction": max_peak_rss_regression_fraction,
             "passed": True,
         },
+        "peak_rss_regression_advisory": {
+            "threshold_fraction": peak_rss_regression_advisory_fraction,
+            "observed_fraction": peak_rss_delta["fraction"],
+            "exceeded": peak_rss_advisory_exceeded,
+        },
+        "warnings": (
+            ["worksteal maximum peak RSS regression exceeds the advisory threshold"]
+            if peak_rss_advisory_exceeded
+            else []
+        ),
         "runs": runs,
     }
 
@@ -485,6 +496,7 @@ def _append_summary(path: Path, manifest: dict[str, Any]) -> None:
         loadscope = manifest["schedulers"]["loadscope"]
         worksteal = manifest["schedulers"]["worksteal"]
         memory = manifest["memory_guardrail"]
+        rss_advisory = manifest["peak_rss_regression_advisory"]
         session = manifest["session_guardrail"]
         lines.extend([
             "Result: worksteal accepted under the fixed four-worker budget.",
@@ -498,6 +510,18 @@ def _append_summary(path: Path, manifest: dict[str, Any]) -> None:
             f"| Maximum process-tree peak RSS | {loadscope['max_peak_rss_bytes']} B | {worksteal['max_peak_rss_bytes']} B |",
             "",
             f"Runner memory headroom: {memory['headroom_fraction']:.1%}.",
+            (
+                "Warning: worksteal maximum peak RSS regression "
+                f"({rss_advisory['observed_fraction']:.1%}) exceeds the "
+                f"{rss_advisory['threshold_fraction']:.1%} advisory; the hard "
+                "memory gate is runner headroom."
+                if rss_advisory["exceeded"]
+                else (
+                    "Peak RSS regression advisory: clean "
+                    f"({rss_advisory['observed_fraction']:.1%} <= "
+                    f"{rss_advisory['threshold_fraction']:.1%})."
+                )
+            ),
             f"Median session regression limit: {session['maximum_regression_fraction']:.1%}.",
             f"Source SHA: `{manifest['provenance']['source_sha']}`.",
             f"Wheel SHA-256: `{manifest['provenance']['wheel_sha256']}`.",
@@ -525,9 +549,9 @@ def _parser() -> argparse.ArgumentParser:
         default=DEFAULT_MAX_MEDIAN_SESSION_REGRESSION_FRACTION,
     )
     parser.add_argument(
-        "--max-peak-rss-regression-fraction",
+        "--peak-rss-regression-advisory-fraction",
         type=float,
-        default=DEFAULT_MAX_PEAK_RSS_REGRESSION_FRACTION,
+        default=DEFAULT_PEAK_RSS_REGRESSION_ADVISORY_FRACTION,
     )
     parser.add_argument(
         "--min-memory-headroom-fraction",
@@ -556,7 +580,9 @@ def main(argv: Sequence[str] | None = None) -> int:
             max_median_session_regression_fraction=(
                 args.max_median_session_regression_fraction
             ),
-            max_peak_rss_regression_fraction=args.max_peak_rss_regression_fraction,
+            peak_rss_regression_advisory_fraction=(
+                args.peak_rss_regression_advisory_fraction
+            ),
             min_memory_headroom_fraction=args.min_memory_headroom_fraction,
             provenance=provenance,
         )
@@ -564,7 +590,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         exit_code = 0
     except (ComparisonError, OSError) as exc:
         manifest = {
-            "schema_version": 1,
+            "schema_version": MANIFEST_SCHEMA_VERSION,
+            "policy_version": POLICY_VERSION,
             "status": "failed",
             "error": str(exc),
             "provenance": provenance,

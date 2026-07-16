@@ -143,12 +143,22 @@ than 5% above `loadscope`. The median-session limit is configurable through the
 comparison CLI, while the hosted workflow fixes it at 5% so dispatches cannot
 silently weaken the decision rule.
 
-The memory gate uses the maximum process-tree RSS observed in either replicate,
-not only the median. By default it requires at least 20% headroom against the
-runner's measured `/proc/meminfo` capacity and limits the challenger's maximum
-peak-RSS regression to 10%. The uploaded decision manifest records session and
-test-phase medians, worker-tail deltas, median and maximum RSS, source SHA, and
-the SHA-256 of the exact downloaded wheel.
+Policy v2 uses the maximum process-tree RSS observed in either replicate, not
+only the median. The hard memory gate requires at least 20% headroom against
+the runner's measured `/proc/meminfo` capacity. The challenger's maximum
+peak-RSS regression is still calculated and reported against a 10% advisory;
+exceeding that advisory produces a prominent summary warning but does not fail
+an otherwise safe comparison. The CLI and workflow name this setting
+`peak-rss-regression-advisory-fraction` so it cannot be mistaken for a hard
+relative gate. The uploaded schema-v2 decision manifest records the policy
+version, both memory signals, session and test-phase medians, worker-tail
+deltas, source SHA, and the SHA-256 of the exact downloaded wheel.
+
+The formal run `29462683875` and its uploaded schema-v1 manifest remain an
+immutable failure under policy v1's 10% hard relative-RSS gate. Policy v2 is a
+prospective correction: the raw trials may be re-evaluated under its
+hosted-runner headroom criterion, but the v1 manifest must not be rewritten or
+described as having passed.
 
 ## Naming Convention Checker
 

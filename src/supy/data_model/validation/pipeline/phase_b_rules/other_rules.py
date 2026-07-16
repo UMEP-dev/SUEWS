@@ -64,6 +64,18 @@ def _first_veg_frac(props: Mapping) -> Optional[float]:
     return _as_float(veg_frac[0])
 
 
+def _first_building_frac(props: Mapping) -> Optional[float]:
+    vertical_layers = props.get("vertical_layers")
+    if not isinstance(vertical_layers, Mapping):
+        return None
+    building_frac = vertical_layers.get("building_frac")
+    if isinstance(building_frac, Mapping) and "value" in building_frac:
+        building_frac = building_frac["value"]
+    if not isinstance(building_frac, (list, tuple)) or not building_frac:
+        return None
+    return _as_float(building_frac[0])
+
+
 def _tree_cover_sync_guard(
     land_cover: Mapping, target_tree_cover: float, current_tree_cover: float
 ) -> Tuple[str, str]:
@@ -196,6 +208,7 @@ def validate_land_cover_consistency(context) -> List[ValidationResult]:
         props = site.get("properties", {})
         land_cover = props.get("land_cover")
         site_gridid = site.get("gridiv")
+        site_label = site.get("name") or site_gridid
 
         if not land_cover:
             results.append(
@@ -259,40 +272,64 @@ def validate_land_cover_consistency(context) -> List[ValidationResult]:
                 )
 
         if _is_spartacus_enabled(yaml_data):
+            first_building_frac = _first_building_frac(props)
+            bldgs_sfr = _surface_sfr(land_cover, "bldgs")
+            if (
+                first_building_frac is not None
+                and bldgs_sfr is not None
+                and abs(first_building_frac - bldgs_sfr) > SFR_FRACTION_TOL
+            ):
+                results.append(
+                    ValidationResult(
+                        status="WARNING",
+                        category="LAND_COVER",
+                        parameter="land_cover.bldgs.sfr",
+                        site_index=site_idx,
+                        site_gridid=site_label,
+                        message=(
+                            "Building land-cover fraction "
+                            f"(land_cover.bldgs.sfr = {bldgs_sfr:.4f}) differs "
+                            "from SPARTACUS lowest-layer building fraction "
+                            f"(vertical_layers.building_frac[0] = {first_building_frac:.4f}). "
+                            "This can be valid when the land-cover and vertical "
+                            "morphology data come from different sources. Review "
+                            "which source should be trusted before changing either "
+                            "land_cover.bldgs.sfr or vertical_layers.building_frac."
+                        ),
+                        suggested_value=(
+                            "If land_cover.bldgs.sfr is the trusted source, review "
+                            "whether the vertical_layers.building_frac profile should "
+                            "be rescaled. If vertical_layers.building_frac is the "
+                            "trusted source, review land_cover.bldgs.sfr and manually "
+                            "rebalance the affected land-cover fractions so the total "
+                            "surface fraction remains 1.0."
+                        ),
+                    )
+                )
+
             target_tree_cover = _first_veg_frac(props)
             if target_tree_cover is not None:
                 dectr_sfr = _surface_sfr(land_cover, "dectr") or 0.0
                 evetr_sfr = _surface_sfr(land_cover, "evetr") or 0.0
                 current_tree_cover = dectr_sfr + evetr_sfr
                 if abs(current_tree_cover - target_tree_cover) > SFR_FRACTION_TOL:
-                    status, guard_message = _tree_cover_sync_guard(
-                        land_cover, target_tree_cover, current_tree_cover
-                    )
-                    if status == "WARNING":
-                        guard_message = (
-                            f"{guard_message} "
-                            f"{TREE_COVER_GROUND_COMPENSATION_ADVISORY}"
-                        )
                     results.append(
                         ValidationResult(
-                            status=status,
+                            status="WARNING",
                             category="LAND_COVER",
                             parameter="land_cover.tree_sfr",
                             site_index=site_idx,
-                            site_gridid=site_gridid,
+                            site_gridid=site_label,
                             message=(
                                 "Tree land-cover fraction "
                                 f"(dectr.sfr + evetr.sfr = {current_tree_cover:.4f}) "
-                                "should match SPARTACUS trunk/near-ground tree "
-                                "fraction "
-                                f"vertical_layers.veg_frac[0] ({target_tree_cover:.4f}). "
-                                f"{guard_message}"
-                            ),
-                            suggested_value=(
-                                "Use dectr.sfr as the adjustable tree fraction, "
-                                "protect evetr.sfr unless dectr cannot absorb a reduction, "
-                                "and compensate with grass.sfr then bsoil.sfr. "
-                                f"{TREE_COVER_GROUND_COMPENSATION_ADVISORY}"
+                                "differs from SPARTACUS lowest-layer tree fraction "
+                                f"(vertical_layers.veg_frac[0] = {target_tree_cover:.4f}). "
+                                "This can be valid when the land-cover and vertical "
+                                "morphology data come from different sources or the "
+                                "lowest layer is supposed to represent a trunk fraction. "
+                                "Review which source should be trusted before changing "
+                                "either land cover fractions or vertical_layers.veg_frac."
                             ),
                         )
                     )

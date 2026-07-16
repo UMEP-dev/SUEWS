@@ -2169,8 +2169,8 @@ def test_validate_spartacus_sfr_allows_building_frac_below_land_cover():
     msgs = cfg._validate_spartacus_sfr(site, 0)
     assert msgs == []
 
-def test_validate_spartacus_sfr_rejects_building_frac_above_land_cover():
-    """SPARTACUS building geometry cannot exceed the building land-cover fraction."""
+def test_validate_spartacus_sfr_allows_building_frac_above_land_cover():
+    """SPARTACUS building geometry may exceed building land cover from another source."""
     cfg = SUEWSConfig.model_construct()
     _force_set(cfg, "model", SimpleNamespace(physics=SimpleNamespace(net_radiation=1001)))
     bldgs = SimpleNamespace(sfr=0.3)
@@ -2182,12 +2182,7 @@ def test_validate_spartacus_sfr_rejects_building_frac_above_land_cover():
     props = SimpleNamespace(land_cover=lc, vertical_layers=vertical_layers)
     site = DummySite(properties=props, name="TestSite")
     msgs = cfg._validate_spartacus_sfr(site, 0)
-    assert msgs
-    assert any(
-        "vertical_layers.building_frac[1] (0.31) exceeds land_cover.bldgs.sfr (0.3)"
-        in m
-        for m in msgs
-    )
+    assert msgs == []
 
 def test_validate_spartacus_sfr_allows_layer_geometry_sum_equal_one():
     """SPARTACUS building and vegetation layer fractions may fill a layer."""
@@ -3527,7 +3522,7 @@ def test_phase_b_tree_cover_sync_does_not_touch_buildings_paved_or_water():
 
 
 def test_phase_b_tree_cover_validator_warns_when_sync_is_feasible():
-    """Validator reports a fixable tree-cover mismatch as a warning."""
+    """Validator reports tree-cover mismatch as a review warning."""
     from supy.data_model.validation.pipeline.phase_b import create_science_report
     from supy.data_model.validation.pipeline.phase_b_rules.other_rules import (
         validate_land_cover_consistency,
@@ -3548,16 +3543,18 @@ def test_phase_b_tree_cover_validator_warns_when_sync_is_feasible():
     assert tree_results[0].status == "WARNING"
     assert "dectr.sfr + evetr.sfr = 0.1500" in tree_results[0].message
     assert (
-        "trunk/near-ground tree fraction vertical_layers.veg_frac[0] (0.2000)"
+        "differs from SPARTACUS lowest-layer tree fraction "
+        "(vertical_layers.veg_frac[0] = 0.2000)"
         in tree_results[0].message
     )
+    assert "trunk fraction" in tree_results[0].message
+    assert tree_results[0].suggested_value is None
     report = create_science_report(
         validation_results=tree_results,
         adjustments=[],
         suggestions=[],
     )
-    assert "removing from or adding to grass.sfr first and bsoil.sfr second" in report
-    assert "paved.sfr, bldgs.sfr (buildings), or water.sfr" in report
+    assert "differs from SPARTACUS lowest-layer tree fraction" in report
 
 
 def test_phase_b_tree_cover_applied_report_warns_about_ground_compensation():
@@ -3585,8 +3582,8 @@ def test_phase_b_tree_cover_applied_report_warns_about_ground_compensation():
     assert "paved.sfr, bldgs.sfr (buildings), or water.sfr" in report
 
 
-def test_phase_b_tree_cover_validator_errors_when_ground_guard_blocks_sync():
-    """Validator errors when grass and bare soil cannot donate enough fraction."""
+def test_phase_b_tree_cover_validator_warns_when_ground_rebalance_is_unclear():
+    """Validator keeps tree-cover mismatch as a warning, not an auto-sync guard error."""
     from supy.data_model.validation.pipeline.phase_b_rules.other_rules import (
         validate_land_cover_consistency,
     )
@@ -3604,8 +3601,9 @@ def test_phase_b_tree_cover_validator_errors_when_ground_guard_blocks_sync():
     tree_results = [r for r in results if r.parameter == "land_cover.tree_sfr"]
 
     assert len(tree_results) == 1
-    assert tree_results[0].status == "ERROR"
-    assert "grass.sfr + bsoil.sfr cannot donate" in tree_results[0].message
+    assert tree_results[0].status == "WARNING"
+    assert "differs from SPARTACUS lowest-layer tree fraction" in tree_results[0].message
+    assert tree_results[0].suggested_value is None
 
 
 def test_phase_b_seasonal_albedo_summer_updates_alb_id_from_ranges():

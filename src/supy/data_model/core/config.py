@@ -2615,9 +2615,8 @@ class SUEWSConfig(BaseModel):
 
         SPARTACUS vertical-layer fractions describe radiative geometry, so the
         layer fractions do not have to equal the corresponding land-cover
-        fractions. For buildings, building_frac is expected to decrease with
-        height and may be lower than bldgs.sfr, but no layer should exceed the
-        site-level building land-cover fraction.
+        fractions. Building and vegetation fractions are still checked together
+        so that no layer exceeds full occupancy.
 
         Returns
         -------
@@ -2631,9 +2630,6 @@ class SUEWSConfig(BaseModel):
             return issues
 
         lc = props.land_cover
-        bldgs = getattr(lc, "bldgs", None)
-        bldgs_sfr = _unwrap_value(getattr(bldgs, "sfr", None)) if bldgs else None
-
         vertical_layers = getattr(props, "vertical_layers", None)
         if not vertical_layers:
             return issues
@@ -2644,16 +2640,6 @@ class SUEWSConfig(BaseModel):
         veg_frac = _unwrap_value(getattr(vertical_layers, "veg_frac", None))
 
         tol = 1e-6
-        for layer_idx, layer_frac in enumerate(building_frac):
-            layer_frac = _unwrap_value(layer_frac)
-            if layer_frac is None:
-                continue
-            if bldgs_sfr is not None and layer_frac - bldgs_sfr > tol:
-                issues.append(
-                    f"{site_name}: vertical_layers.building_frac[{layer_idx}] "
-                    f"({layer_frac}) exceeds land_cover.bldgs.sfr ({bldgs_sfr})"
-                )
-
         if isinstance(veg_frac, (list, tuple)):
             for layer_idx, (building_layer_frac, veg_layer_frac) in enumerate(
                 zip(building_frac, veg_frac)

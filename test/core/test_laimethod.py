@@ -34,6 +34,18 @@ from conftest import TIMESTEPS_PER_DAY
 pytestmark = pytest.mark.physics
 
 
+@pytest.fixture(scope="module")
+def lai_runtime_inputs(sample_yaml_path):
+    """Return immutable sample inputs for independent LAI branch simulations."""
+    sim = SUEWSSimulation(str(sample_yaml_path))
+    config = sim.config.model_copy(deep=True)
+    for surf_type in ("evetr", "dectr", "grass"):
+        surf = getattr(config.sites[0].properties.land_cover, surf_type)
+        surf.lai.lai_min = 0.0
+        surf.lai.lai_max = 10.0
+    return config, sim.forcing.df
+
+
 def _base_forcing_df(n_timesteps: int = 24) -> pd.DataFrame:
     """Build a minimal hourly forcing DataFrame (mirrors the pattern in
     `test_wind_speed_validation.TestPhysicsSpecificValidation`)."""
@@ -262,11 +274,13 @@ class TestLAIMethodNegativeRejected:
 class TestLAIMethodRuntime:
     """End-to-end test that the switch actually gates the observed-LAI override.
 
-    Runs the sample-data simulation twice over ~30 days with a seasonally-varying
-    forcing `lai` column: once with laimethod=0 (expect daily LAI outputs to track
-    the forcing) and once with laimethod=1 (default; expect outputs NOT to track).
+    The core regression uses the first complete day because ``update_GDDLAI``
+    applies the switch on the final timestep of each day, immediately before the
+    DailyState write.  The longer seasonal scenario remains as slow integration
+    coverage.
     """
 
+    SHORT_N_DAYS = 1
     N_DAYS = 30
     LAI_OBS_LOW = 1.0
     LAI_OBS_HIGH = 6.0
@@ -280,25 +294,18 @@ class TestLAIMethodRuntime:
         return mid - amp * np.cos(phase)
 
     def _run_sim(
-        self, laimethod_value: int, lai_series: np.ndarray
+        self,
+        config,
+        df_forcing_base: pd.DataFrame,
+        laimethod_value: int,
+        lai_series: np.ndarray,
     ) -> pd.DataFrame:
         """Run a short simulation with the chosen laimethod and supplied lai column.
 
         Returns the DailyState sub-frame keyed by calendar date for easy alignment.
         """
-        sim = SUEWSSimulation.from_sample_data()
-
-        # Widen per-class LAI envelope so the seasonal forcing curve is not
-        # clipped at runtime — this test is about the laimethod switch, not
-        # about bound enforcement.
-        for surf_type in ("evetr", "dectr", "grass"):
-            surf = getattr(sim._config.sites[0].properties.land_cover, surf_type)
-            surf.lai.lai_min = 0.0
-            surf.lai.lai_max = 10.0
-
-        df_forcing = sim.forcing.df.copy()
-        end_index = TIMESTEPS_PER_DAY * self.N_DAYS - 1
-        df_forcing = df_forcing.iloc[: end_index + 1].copy()
+        sim = SUEWSSimulation(config.model_copy(deep=True))
+        df_forcing = df_forcing_base.iloc[: len(lai_series)].copy()
         df_forcing["lai"] = lai_series
 
         sim._config.model.physics.laimethod = LAIMethod(laimethod_value)
@@ -318,15 +325,27 @@ class TestLAIMethodRuntime:
         df_lai_daily.index = df_lai_daily.index.normalize()
         return df_lai_daily
 
-    def test_laimethod_runtime_switch(self):
-        """Observed LAI tracks forcing only when laimethod=0."""
-        sim = SUEWSSimulation.from_sample_data()
-        end_index = TIMESTEPS_PER_DAY * self.N_DAYS - 1
-        index = sim.forcing.df.index[: end_index + 1]
-        lai_series = self._seasonal_lai(index)
-
-        df_obs = self._run_sim(laimethod_value=0, lai_series=lai_series)
-        df_calc = self._run_sim(laimethod_value=1, lai_series=lai_series)
+    def _assert_runtime_switch(
+        self,
+        runtime_inputs,
+        index: pd.DatetimeIndex,
+        lai_series: np.ndarray,
+        minimum_aligned_days: int,
+    ) -> None:
+        """Assert that only the observed branch tracks the forcing LAI."""
+        config, df_forcing_base = runtime_inputs
+        df_obs = self._run_sim(
+            config,
+            df_forcing_base,
+            laimethod_value=0,
+            lai_series=lai_series,
+        )
+        df_calc = self._run_sim(
+            config,
+            df_forcing_base,
+            laimethod_value=1,
+            lai_series=lai_series,
+        )
 
         # Daily mean of forcing, keyed by normalised date.
         ser_forcing_daily = pd.Series(lai_series, index=index).resample("1D").mean()
@@ -339,8 +358,9 @@ class TestLAIMethodRuntime:
                 join="inner",
             ).dropna()
             aligned.columns = ["obs", "calc", "forcing"]
-            assert len(aligned) >= self.N_DAYS - 2, (
-                f"{column}: expected at least {self.N_DAYS - 2} aligned days, got {len(aligned)}"
+            assert len(aligned) >= minimum_aligned_days, (
+                f"{column}: expected at least {minimum_aligned_days} aligned "
+                f"days, got {len(aligned)}"
             )
 
             rmse_obs = float(
@@ -357,6 +377,35 @@ class TestLAIMethodRuntime:
                 f"{column}: laimethod=1 output (RMSE {rmse_calc:.3f}) should diverge "
                 f"from forcing more than laimethod=0 ({rmse_obs:.3f})"
             )
+
+    def test_laimethod_runtime_switch(self, lai_runtime_inputs):
+        """Observed LAI reaches the first DailyState write only for method 0."""
+        _, df_forcing_base = lai_runtime_inputs
+        n_timesteps = TIMESTEPS_PER_DAY * self.SHORT_N_DAYS
+        index = df_forcing_base.index[:n_timesteps]
+        lai_series = np.full(n_timesteps, self.LAI_OBS_HIGH)
+
+        self._assert_runtime_switch(
+            runtime_inputs=lai_runtime_inputs,
+            index=index,
+            lai_series=lai_series,
+            minimum_aligned_days=self.SHORT_N_DAYS,
+        )
+
+    @pytest.mark.slow
+    def test_laimethod_seasonal_integration(self, lai_runtime_inputs):
+        """Observed LAI continues to track a 30-day seasonal forcing curve."""
+        _, df_forcing_base = lai_runtime_inputs
+        end_index = TIMESTEPS_PER_DAY * self.N_DAYS - 1
+        index = df_forcing_base.index[: end_index + 1]
+        lai_series = self._seasonal_lai(index)
+
+        self._assert_runtime_switch(
+            runtime_inputs=lai_runtime_inputs,
+            index=index,
+            lai_series=lai_series,
+            minimum_aligned_days=self.N_DAYS - 2,
+        )
 
     def test_laimethod_runtime_tracks_per_vegetation_lai(self):
         """DailyState LAI outputs follow lai_evetr/lai_dectr/lai_grass separately."""

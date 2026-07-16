@@ -232,7 +232,7 @@ SUEWS-SPARTACUS input options
   :Description:
     Building plan area density
   :Configuration:
-    Layer 1 `building_frac` should equal SUEWS `Fr_Bldgs`
+
 
 
 
@@ -245,7 +245,7 @@ SUEWS-SPARTACUS input options
   :Description:
     Tree plan area density
   :Configuration:
-    Layer 1 `veg_frac` should equal SUEWS `Fr_EveTr` + `Fr_DecTr`
+
 
 
 

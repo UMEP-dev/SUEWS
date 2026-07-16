@@ -375,7 +375,7 @@ def pytest_collection_finish(session):
 # (`supy.run_supy`), memoising by forcing window rather than always the full
 # range - see its own docstring for the copy contract.
 #
-# All five fixtures are lazy (nothing runs at import or collection time) and
+# All six fixtures are lazy (nothing runs at import or collection time) and
 # session-scoped, so each underlying sample run happens at most once per
 # `pytest` invocation, however many tests request it.
 
@@ -387,6 +387,20 @@ def sample_yaml_path() -> Path:
     Session-scoped since the path is fixed for the process lifetime.
     """
     return Path(supy.__file__).parent / "sample_data" / "sample_config.yml"
+
+
+@pytest.fixture(scope="session")
+def sample_config_loaded(sample_yaml_path):
+    """The validated sample config, without loading its full forcing file.
+
+    READ-ONLY: consumers that mutate the config MUST take a deep model copy.
+    This supports wrapper tests whose execution backend is mocked: they need
+    a structurally real config, but repeatedly parsing 105,408 forcing rows
+    would add no coverage to their argument-forwarding contract.
+    """
+    from supy.data_model import SUEWSConfig
+
+    return SUEWSConfig.from_yaml(str(sample_yaml_path))
 
 
 @pytest.fixture(scope="session")

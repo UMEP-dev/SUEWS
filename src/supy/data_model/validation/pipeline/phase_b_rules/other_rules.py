@@ -5,18 +5,12 @@ from .rules_core import (
 from ...core.yaml_helpers import get_value_safe, read_physics_key
 from collections.abc import Mapping
 import calendar
-from typing import Dict, List, Optional, Union, Any, Tuple
+from typing import Dict, List, Optional, Union, Any
 
 
 # Constants 
 SFR_FRACTION_TOL = 1e-4
 SPARTACUS_METHODS = {1001, 1002, 1003}
-TREE_COVER_GROUND_COMPENSATION_ADVISORY = (
-    "This tree-cover sync keeps total surface fraction at 1.0 by removing from "
-    "or adding to grass.sfr first and bsoil.sfr second. If the tree cover is "
-    "associated with paved.sfr, bldgs.sfr (buildings), or water.sfr instead, "
-    "review the land-cover fractions manually before applying."
-)
 
 
 def _as_float(value: Any) -> Optional[float]:
@@ -75,55 +69,6 @@ def _first_building_frac(props: Mapping) -> Optional[float]:
         return None
     return _as_float(building_frac[0])
 
-
-def _tree_cover_sync_guard(
-    land_cover: Mapping, target_tree_cover: float, current_tree_cover: float
-) -> Tuple[str, str]:
-    delta = target_tree_cover - current_tree_cover
-    dectr_sfr = _surface_sfr(land_cover, "dectr")
-    evetr_sfr = _surface_sfr(land_cover, "evetr")
-    grass_sfr = _surface_sfr(land_cover, "grass")
-    bsoil_sfr = _surface_sfr(land_cover, "bsoil")
-
-    if target_tree_cover < -SFR_FRACTION_TOL:
-        return "ERROR", "SPARTACUS veg_frac[0] must be non-negative."
-
-    if delta > SFR_FRACTION_TOL:
-        available_ground = (grass_sfr or 0.0) + (bsoil_sfr or 0.0)
-        if dectr_sfr is None:
-            return (
-                "ERROR",
-                "Cannot increase tree cover because land_cover.dectr.sfr is missing.",
-            )
-        if available_ground + SFR_FRACTION_TOL < delta:
-            return (
-                "ERROR",
-                "Cannot increase dectr.sfr enough because grass.sfr + bsoil.sfr "
-                "cannot donate the required fraction without becoming negative.",
-            )
-        return (
-            "WARNING",
-            "Increase dectr.sfr and decrease grass.sfr first, then bsoil.sfr if needed.",
-        )
-
-    reduction = -delta
-    available_tree = (dectr_sfr or 0.0) + (evetr_sfr or 0.0)
-    if available_tree + SFR_FRACTION_TOL < reduction:
-        return (
-            "ERROR",
-            "Cannot reduce tree cover enough without making dectr.sfr or evetr.sfr negative.",
-        )
-    if grass_sfr is None and bsoil_sfr is None:
-        return (
-            "ERROR",
-            "Cannot receive reduced tree fraction because both grass.sfr and bsoil.sfr are missing.",
-        )
-    if (dectr_sfr or 0.0) + SFR_FRACTION_TOL < reduction:
-        return (
-            "WARNING",
-            "Reduce dectr.sfr first, then use guarded evetr.sfr reduction for the remaining amount.",
-        )
-    return "WARNING", "Reduce dectr.sfr and add the released fraction to grass.sfr."
 
 def _check_surface_parameters(surface_props: dict, surface_type: str) -> List[str]:
     """

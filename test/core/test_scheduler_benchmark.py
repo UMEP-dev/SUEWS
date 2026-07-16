@@ -96,6 +96,41 @@ def _metrics(
     return path
 
 
+def _memory_policy_paths(
+    tmp_path: Path,
+    *,
+    loadscope_peak_rss_bytes: int,
+    worksteal_peak_rss_bytes: int,
+) -> list[Path]:
+    """Create a valid ABBA set for memory policy boundary tests."""
+    return [
+        _metrics(
+            tmp_path / "loadscope-a.json",
+            wall_seconds=10.0,
+            finish_skew_seconds=4.0,
+            peak_rss_bytes=loadscope_peak_rss_bytes,
+        ),
+        _metrics(
+            tmp_path / "worksteal-a.json",
+            wall_seconds=9.0,
+            finish_skew_seconds=1.0,
+            peak_rss_bytes=worksteal_peak_rss_bytes,
+        ),
+        _metrics(
+            tmp_path / "worksteal-b.json",
+            wall_seconds=9.0,
+            finish_skew_seconds=1.0,
+            peak_rss_bytes=worksteal_peak_rss_bytes,
+        ),
+        _metrics(
+            tmp_path / "loadscope-b.json",
+            wall_seconds=10.0,
+            finish_skew_seconds=4.0,
+            peak_rss_bytes=loadscope_peak_rss_bytes,
+        ),
+    ]
+
+
 def test_compare_abba_accepts_merged_schema_v2_provider_fixture(
     tmp_path: Path,
 ) -> None:
@@ -457,6 +492,62 @@ def test_compare_abba_rejects_peak_rss_without_runner_headroom(tmp_path: Path) -
         compare_abba(paths, runner_memory_bytes=1_000)
 
 
+def test_peak_rss_advisory_excess_passes_with_safe_headroom(tmp_path: Path) -> None:
+    """>10% relative RSS passes and warns when hosted headroom is safe."""
+    paths = _memory_policy_paths(
+        tmp_path,
+        loadscope_peak_rss_bytes=700,
+        worksteal_peak_rss_bytes=800,
+    )
+
+    comparison = compare_abba(paths, runner_memory_bytes=1_000)
+
+    assert comparison["schema_version"] == 2
+    assert comparison["policy_version"] == 2
+    assert comparison["memory_guardrail"]["headroom_fraction"] == pytest.approx(0.20)
+    assert comparison["memory_guardrail"]["passed"] is True
+    assert comparison["peak_rss_regression_advisory"] == {
+        "threshold_fraction": pytest.approx(0.10),
+        "observed_fraction": pytest.approx(1 / 7),
+        "exceeded": True,
+    }
+    assert comparison["warnings"] == [
+        "worksteal maximum peak RSS regression exceeds the advisory threshold"
+    ]
+
+
+def test_memory_headroom_hard_gate_rejects_small_relative_delta(
+    tmp_path: Path,
+) -> None:
+    """Below 20% hosted headroom fails despite a small relative RSS delta."""
+    paths = _memory_policy_paths(
+        tmp_path,
+        loadscope_peak_rss_bytes=790,
+        worksteal_peak_rss_bytes=801,
+    )
+
+    with pytest.raises(ComparisonError, match="memory headroom"):
+        compare_abba(paths, runner_memory_bytes=1_000)
+
+
+def test_peak_rss_advisory_is_clean_at_ten_percent(tmp_path: Path) -> None:
+    """The relative RSS advisory is clean at its inclusive 10% boundary."""
+    paths = _memory_policy_paths(
+        tmp_path,
+        loadscope_peak_rss_bytes=100,
+        worksteal_peak_rss_bytes=110,
+    )
+
+    comparison = compare_abba(paths, runner_memory_bytes=1_000)
+
+    assert comparison["peak_rss_regression_advisory"] == {
+        "threshold_fraction": pytest.approx(0.10),
+        "observed_fraction": pytest.approx(0.10),
+        "exceeded": False,
+    }
+    assert comparison["warnings"] == []
+
+
 def test_compare_abba_rejects_zero_workers(tmp_path: Path) -> None:
     """A zero-worker artefact is invalid even when it claims xdist was active."""
     paths = [
@@ -654,14 +745,14 @@ def test_cli_writes_provenance_manifest_and_step_summary(tmp_path: Path) -> None
             tmp_path / "b1.json",
             wall_seconds=9.0,
             finish_skew_seconds=1.0,
-            peak_rss_bytes=102,
+            peak_rss_bytes=112,
             worker_count=4,
         ),
         _metrics(
             tmp_path / "b2.json",
             wall_seconds=9.2,
             finish_skew_seconds=1.2,
-            peak_rss_bytes=103,
+            peak_rss_bytes=113,
             worker_count=4,
         ),
         _metrics(
@@ -692,6 +783,10 @@ def test_cli_writes_provenance_manifest_and_step_summary(tmp_path: Path) -> None
         str(wheel),
         "--max-median-session-regression-fraction",
         "0.20",
+        "--peak-rss-regression-advisory-fraction",
+        "0.10",
+        "--min-memory-headroom-fraction",
+        "0.20",
         "--output",
         str(output),
         "--summary",
@@ -700,6 +795,8 @@ def test_cli_writes_provenance_manifest_and_step_summary(tmp_path: Path) -> None
 
     assert exit_code == 0
     manifest = json.loads(output.read_text(encoding="utf-8"))
+    assert manifest["schema_version"] == 2
+    assert manifest["policy_version"] == 2
     assert manifest["status"] == "passed"
     assert manifest["session_guardrail"][
         "maximum_regression_fraction"
@@ -708,4 +805,21 @@ def test_cli_writes_provenance_manifest_and_step_summary(tmp_path: Path) -> None
         manifest["provenance"]["wheel_sha256"]
         == hashlib.sha256(b"exact wheel").hexdigest()
     )
-    assert "worksteal" in summary.read_text(encoding="utf-8")
+    assert set(manifest["memory_guardrail"]) == {
+        "runner_capacity_bytes",
+        "highest_peak_rss_bytes",
+        "headroom_bytes",
+        "headroom_fraction",
+        "minimum_headroom_fraction",
+        "passed",
+    }
+    assert manifest["peak_rss_regression_advisory"] == {
+        "threshold_fraction": pytest.approx(0.10),
+        "observed_fraction": pytest.approx(12 / 101),
+        "exceeded": True,
+    }
+    assert manifest["warnings"]
+    summary_text = summary.read_text(encoding="utf-8")
+    assert "worksteal" in summary_text
+    assert "Warning: worksteal maximum peak RSS regression" in summary_text
+    assert "hard memory gate is runner headroom" in summary_text

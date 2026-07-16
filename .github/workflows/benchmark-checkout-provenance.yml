@@ -1,0 +1,249 @@
+# Evidence harness for gh#1627. This workflow never changes production checkout.
+name: Windows checkout provenance ABBA
+
+on:
+  workflow_dispatch:
+    inputs:
+      source_run_id:
+        description: Successful Build and Publish run with the exact Windows cp312 wheel
+        required: true
+        type: string
+      expected_sha:
+        description: Exact 40-character default-branch SHA built by source_run_id
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: windows-checkout-provenance-abba
+  cancel-in-progress: false
+
+jobs:
+  compare:
+    name: Same-runner full/blob:none ABBA
+    runs-on: windows-2025
+    timeout-minutes: 90
+    steps:
+      - name: Set up Python 3.12 for evidence collection
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6
+        with:
+          python-version: "3.12"
+
+      - name: Verify default-branch source run and exact SHA
+        id: source
+        shell: bash
+        env:
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+          EXPECTED_SHA: ${{ inputs.expected_sha }}
+          GH_TOKEN: ${{ github.token }}
+          REF_NAME: ${{ github.ref_name }}
+          SOURCE_RUN_ID: ${{ inputs.source_run_id }}
+          WORKFLOW_SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          if [[ ! "$SOURCE_RUN_ID" =~ ^[0-9]+$ ]]; then
+            echo "source_run_id must be a positive integer" >&2
+            exit 2
+          fi
+          gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${SOURCE_RUN_ID}" > "$RUNNER_TEMP/source-run.json"
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+          import re
+
+          expected_sha = os.environ["EXPECTED_SHA"]
+          if re.fullmatch(r"[0-9a-f]{40}", expected_sha) is None:
+              raise SystemExit("expected_sha must be a lowercase 40-character hex digest")
+          if os.environ["REF_NAME"] != os.environ["DEFAULT_BRANCH"]:
+              raise SystemExit("dispatch this evidence workflow from the default branch")
+          if expected_sha != os.environ["WORKFLOW_SHA"]:
+              raise SystemExit(
+                  "expected_sha must equal the dispatched default-branch SHA"
+              )
+          payload = json.loads(
+              (Path(os.environ["RUNNER_TEMP"]) / "source-run.json").read_text(
+                  encoding="utf-8"
+              )
+          )
+          if payload.get("conclusion") != "success":
+              raise SystemExit("source workflow run did not conclude successfully")
+          if payload.get("path") != ".github/workflows/build-publish_to_pypi.yml":
+              raise SystemExit("source_run_id is not the Build and Publish workflow")
+          if payload.get("head_sha") != expected_sha:
+              raise SystemExit("source workflow SHA does not match expected_sha")
+          with Path(os.environ["GITHUB_OUTPUT"]).open("a", encoding="utf-8") as output:
+              output.write(f"sha={expected_sha}\n")
+          PY
+
+      - name: Download full-checkout Windows wheel
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+        with:
+          name: cp312-win-AMD64
+          path: ${{ runner.temp }}/baseline-wheel
+          github-token: ${{ github.token }}
+          run-id: ${{ inputs.source_run_id }}
+
+      - name: Download full-checkout Windows phase metrics
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+        with:
+          name: ci-metrics-physics-cp312-win-AMD64
+          path: ${{ runner.temp }}/baseline-metrics
+          github-token: ${{ github.token }}
+          run-id: ${{ inputs.source_run_id }}
+
+      - name: Start A1 timer
+        shell: pwsh
+        run: |
+          $now = [DateTimeOffset]::UtcNow.ToUnixTimeMilliseconds()
+          Add-Content -Path $env:GITHUB_ENV -Value "A1_START_MS=$now"
+
+      - name: A1 - full checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          ref: ${{ steps.source.outputs.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+          path: checkout-abba/a1
+
+      - name: Record A1 checkout and provenance
+        shell: pwsh
+        run: >-
+          python checkout-abba/a1/scripts/suews/compare_checkout_provenance.py collect
+          --repository checkout-abba/a1 --label A1 --mode full
+          --expected-sha "${{ steps.source.outputs.sha }}"
+          --started-at-epoch-ms "$env:A1_START_MS"
+          --output "$env:RUNNER_TEMP/checkout-abba/trial-a1.json"
+
+      - name: Start B1 timer
+        shell: pwsh
+        run: |
+          $now = [DateTimeOffset]::UtcNow.ToUnixTimeMilliseconds()
+          Add-Content -Path $env:GITHUB_ENV -Value "B1_START_MS=$now"
+
+      - name: B1 - blob:none checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          ref: ${{ steps.source.outputs.sha }}
+          fetch-depth: 0
+          filter: blob:none
+          persist-credentials: false
+          path: checkout-abba/b1
+
+      - name: Record B1 checkout and provenance
+        shell: pwsh
+        run: >-
+          python checkout-abba/b1/scripts/suews/compare_checkout_provenance.py collect
+          --repository checkout-abba/b1 --label B1 --mode blob:none
+          --expected-sha "${{ steps.source.outputs.sha }}"
+          --started-at-epoch-ms "$env:B1_START_MS"
+          --output "$env:RUNNER_TEMP/checkout-abba/trial-b1.json"
+
+      - name: Start B2 timer
+        shell: pwsh
+        run: |
+          $now = [DateTimeOffset]::UtcNow.ToUnixTimeMilliseconds()
+          Add-Content -Path $env:GITHUB_ENV -Value "B2_START_MS=$now"
+
+      - name: B2 - blob:none checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          ref: ${{ steps.source.outputs.sha }}
+          fetch-depth: 0
+          filter: blob:none
+          persist-credentials: false
+          path: checkout-abba/b2
+
+      - name: Record B2 checkout and provenance
+        shell: pwsh
+        run: >-
+          python checkout-abba/b2/scripts/suews/compare_checkout_provenance.py collect
+          --repository checkout-abba/b2 --label B2 --mode blob:none
+          --expected-sha "${{ steps.source.outputs.sha }}"
+          --started-at-epoch-ms "$env:B2_START_MS"
+          --output "$env:RUNNER_TEMP/checkout-abba/trial-b2.json"
+
+      - name: Start A2 timer
+        shell: pwsh
+        run: |
+          $now = [DateTimeOffset]::UtcNow.ToUnixTimeMilliseconds()
+          Add-Content -Path $env:GITHUB_ENV -Value "A2_START_MS=$now"
+
+      - name: A2 - full checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          ref: ${{ steps.source.outputs.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+          path: checkout-abba/a2
+
+      - name: Record A2 checkout and provenance
+        shell: pwsh
+        run: >-
+          python checkout-abba/a2/scripts/suews/compare_checkout_provenance.py collect
+          --repository checkout-abba/a2 --label A2 --mode full
+          --expected-sha "${{ steps.source.outputs.sha }}"
+          --started-at-epoch-ms "$env:A2_START_MS"
+          --output "$env:RUNNER_TEMP/checkout-abba/trial-a2.json"
+
+      - name: Remove trial worktrees before the wheel build
+        shell: pwsh
+        run: Remove-Item -Recurse -Force checkout-abba
+
+      - name: Check out filtered source for one provenance build
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          ref: ${{ steps.source.outputs.sha }}
+          fetch-depth: 0
+          filter: blob:none
+          persist-credentials: false
+
+      - name: Build and smoke-test one blob-filtered Windows wheel
+        uses: ./.github/actions/build-suews
+        with:
+          buildplat: windows-2025
+          buildplat_name: win
+          buildplat_arch: AMD64
+          python: cp312
+          test_tier: smoke
+          is_testpypi_build: false
+          metrics_host_dir: ${{ runner.temp }}/suews-ci-metrics
+
+      - name: Resolve the two exact wheels
+        shell: pwsh
+        run: |
+          $baseline = @(Get-ChildItem "$env:RUNNER_TEMP/baseline-wheel" -Filter *.whl)
+          $filtered = @(Get-ChildItem wheelhouse -Filter *.whl)
+          if ($baseline.Count -ne 1 -or $filtered.Count -ne 1) {
+            throw "Expected one baseline and one filtered wheel; found $($baseline.Count) and $($filtered.Count)."
+          }
+          Add-Content -Path $env:GITHUB_ENV -Value "BASELINE_WHEEL=$($baseline[0].FullName)"
+          Add-Content -Path $env:GITHUB_ENV -Value "FILTERED_WHEEL=$($filtered[0].FullName)"
+
+      - name: Compare checkout, git and wheel provenance
+        shell: pwsh
+        run: >-
+          python scripts/suews/compare_checkout_provenance.py compare
+          "$env:RUNNER_TEMP/checkout-abba/trial-a1.json"
+          "$env:RUNNER_TEMP/checkout-abba/trial-b1.json"
+          "$env:RUNNER_TEMP/checkout-abba/trial-b2.json"
+          "$env:RUNNER_TEMP/checkout-abba/trial-a2.json"
+          --expected-sha "${{ steps.source.outputs.sha }}"
+          --baseline-wheel "$env:BASELINE_WHEEL"
+          --filtered-wheel "$env:FILTERED_WHEEL"
+          --baseline-metrics "$env:RUNNER_TEMP/baseline-metrics/physics-cp312-win-AMD64-wheel-job.json"
+          --filtered-metrics "$env:RUNNER_TEMP/suews-ci-metrics/physics-cp312-win-AMD64-wheel-job.json"
+          --output "$env:RUNNER_TEMP/checkout-abba/comparison.json"
+          --summary "$env:GITHUB_STEP_SUMMARY"
+
+      - name: Upload raw trials and comparison manifest
+        if: always()
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7
+        with:
+          name: windows-checkout-provenance-abba-${{ github.run_id }}
+          path: ${{ runner.temp }}/checkout-abba/
+          if-no-files-found: error
+          retention-days: 30

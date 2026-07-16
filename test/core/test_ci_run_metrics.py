@@ -6,6 +6,7 @@ from datetime import UTC, datetime
 from fnmatch import fnmatchcase
 from pathlib import Path
 import re
+import zipfile
 
 import pytest
 import yaml
@@ -15,6 +16,10 @@ from scripts.suews.benchmark_ci_metrics import (
     compute_overhead,
     file_sha256,
     validate_command,
+)
+from scripts.suews.compare_checkout_provenance import (
+    build_comparison,
+    read_wheel_provenance,
 )
 
 pytestmark = pytest.mark.api
@@ -242,6 +247,114 @@ def test_publish_jobs_download_only_cpython_wheel_artifacts() -> None:
     assert not fnmatchcase("ci-metrics-api-cp312-manylinux-x86_64", wheel_pattern)
     assert not fnmatchcase("ci-metrics-physics-cp312-macosx-arm64", wheel_pattern)
     assert not fnmatchcase("suews-mcp-dist", wheel_pattern)
+
+
+@pytest.mark.core
+def test_checkout_abba_requires_matching_git_and_wheel_provenance(
+    tmp_path: Path,
+) -> None:
+    """The checkout trial is evidence-only unless every provenance field agrees."""
+    expected_sha = "a" * 40
+    common = {
+        "commit_sha": expected_sha,
+        "derived_version": "2026.7.16.dev3",
+        "generated_commit_hash": expected_sha[:7],
+        "generated_version_file_sha256": "e" * 64,
+        "git_describe": "2026.7.16-3-gaaaaaaa",
+        "tags_sha256": "b" * 64,
+        "tree_sha": "c" * 40,
+    }
+    trials = [
+        {
+            "label": label,
+            "mode": mode,
+            "duration_seconds": duration,
+            "partial_clone_filter": "blob:none" if mode == "blob:none" else None,
+            **common,
+        }
+        for label, mode, duration in (
+            ("A1", "full", 10.0),
+            ("B1", "blob:none", 8.0),
+            ("B2", "blob:none", 7.0),
+            ("A2", "full", 11.0),
+        )
+    ]
+    baseline = _write_test_wheel(tmp_path / "baseline.whl")
+    filtered = _write_test_wheel(tmp_path / "filtered.whl")
+
+    comparison = build_comparison(
+        trials,
+        read_wheel_provenance(baseline),
+        read_wheel_provenance(filtered),
+        expected_sha=expected_sha,
+    )
+
+    assert comparison["passed"] is True
+    assert comparison["checkout"]["order"] == ["A1", "B1", "B2", "A2"]
+    assert comparison["checkout"]["performance_interpretation"] == (
+        "same-runner observational evidence; not a general hosted-runner speed-up"
+    )
+    assert comparison["checkout"]["full_median_seconds"] == pytest.approx(10.5)
+    assert comparison["checkout"]["blob_none_median_seconds"] == pytest.approx(7.5)
+    assert comparison["wheel_provenance"]["equivalent"] is True
+
+    trials[2]["tree_sha"] = "d" * 40
+    with pytest.raises(ValueError, match="tree_sha"):
+        build_comparison(
+            trials,
+            read_wheel_provenance(baseline),
+            read_wheel_provenance(filtered),
+            expected_sha=expected_sha,
+        )
+
+
+@pytest.mark.smoke
+def test_checkout_abba_workflow_is_manual_sequential_and_non_production() -> None:
+    """The blob-filter experiment stays on one Windows runner and out of CI."""
+    root = Path(__file__).resolve().parents[2]
+    workflow = (root / ".github/workflows/benchmark-checkout-provenance.yml").read_text(
+        encoding="utf-8"
+    )
+    path_filters = (root / ".github/path-filters.yml").read_text(encoding="utf-8")
+
+    assert "workflow_dispatch:" in workflow
+    assert "pull_request:" not in workflow
+    assert "push:" not in workflow
+    assert workflow.count("runs-on: windows-2025") == 1
+    assert "A1 - full checkout" in workflow
+    assert "B1 - blob:none checkout" in workflow
+    assert "B2 - blob:none checkout" in workflow
+    assert "A2 - full checkout" in workflow
+    assert (
+        workflow.index("A1 - full checkout")
+        < workflow.index("B1 - blob:none checkout")
+        < workflow.index("B2 - blob:none checkout")
+        < workflow.index("A2 - full checkout")
+    )
+    assert workflow.count("filter: blob:none") == 3  # B1, B2, final build source
+    assert "fetch-depth: 0" in workflow
+    assert "expected_sha must equal the dispatched default-branch SHA" in workflow
+    assert "test_tier: smoke" in workflow
+    assert "uses: ./.github/actions/build-suews" in workflow
+    assert "- '.github/workflows/benchmark-checkout-provenance.yml'" in path_filters
+
+
+def _write_test_wheel(path: Path) -> Path:
+    """Create a minimal deterministic wheel archive for provenance contracts."""
+    with zipfile.ZipFile(path, "w") as archive:
+        archive.writestr(
+            "supy-2026.7.16.dist-info/METADATA",
+            "Metadata-Version: 2.4\nName: supy\nVersion: 2026.7.16.dev3\n",
+        )
+        archive.writestr(
+            "supy-2026.7.16.dist-info/WHEEL",
+            "Wheel-Version: 1.0\nTag: cp312-abi3-win_amd64\n",
+        )
+        archive.writestr(
+            "supy/_version_scm.py",
+            "__version__ = '2026.7.16.dev3'\n__commit_hash__ = 'aaaaaaa'\n",
+        )
+    return path
 
 
 def _job(

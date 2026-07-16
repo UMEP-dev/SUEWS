@@ -111,10 +111,12 @@ jobs:
 
       - name: Record A1 checkout and provenance
         shell: pwsh
+        env:
+          SOURCE_SHA: ${{ steps.source.outputs.sha }}
         run: >-
           python checkout-abba/a1/scripts/suews/compare_checkout_provenance.py collect
           --repository checkout-abba/a1 --label A1 --mode full
-          --expected-sha "${{ steps.source.outputs.sha }}"
+          --expected-sha "$env:SOURCE_SHA"
           --started-at-epoch-ms "$env:A1_START_MS"
           --output "$env:RUNNER_TEMP/checkout-abba/trial-a1.json"
 
@@ -135,10 +137,12 @@ jobs:
 
       - name: Record B1 checkout and provenance
         shell: pwsh
+        env:
+          SOURCE_SHA: ${{ steps.source.outputs.sha }}
         run: >-
           python checkout-abba/b1/scripts/suews/compare_checkout_provenance.py collect
           --repository checkout-abba/b1 --label B1 --mode blob:none
-          --expected-sha "${{ steps.source.outputs.sha }}"
+          --expected-sha "$env:SOURCE_SHA"
           --started-at-epoch-ms "$env:B1_START_MS"
           --output "$env:RUNNER_TEMP/checkout-abba/trial-b1.json"
 
@@ -159,10 +163,12 @@ jobs:
 
       - name: Record B2 checkout and provenance
         shell: pwsh
+        env:
+          SOURCE_SHA: ${{ steps.source.outputs.sha }}
         run: >-
           python checkout-abba/b2/scripts/suews/compare_checkout_provenance.py collect
           --repository checkout-abba/b2 --label B2 --mode blob:none
-          --expected-sha "${{ steps.source.outputs.sha }}"
+          --expected-sha "$env:SOURCE_SHA"
           --started-at-epoch-ms "$env:B2_START_MS"
           --output "$env:RUNNER_TEMP/checkout-abba/trial-b2.json"
 
@@ -182,10 +188,12 @@ jobs:
 
       - name: Record A2 checkout and provenance
         shell: pwsh
+        env:
+          SOURCE_SHA: ${{ steps.source.outputs.sha }}
         run: >-
           python checkout-abba/a2/scripts/suews/compare_checkout_provenance.py collect
           --repository checkout-abba/a2 --label A2 --mode full
-          --expected-sha "${{ steps.source.outputs.sha }}"
+          --expected-sha "$env:SOURCE_SHA"
           --started-at-epoch-ms "$env:A2_START_MS"
           --output "$env:RUNNER_TEMP/checkout-abba/trial-a2.json"
 
@@ -225,13 +233,15 @@ jobs:
 
       - name: Compare checkout, git and wheel provenance
         shell: pwsh
+        env:
+          SOURCE_SHA: ${{ steps.source.outputs.sha }}
         run: >-
           python scripts/suews/compare_checkout_provenance.py compare
           "$env:RUNNER_TEMP/checkout-abba/trial-a1.json"
           "$env:RUNNER_TEMP/checkout-abba/trial-b1.json"
           "$env:RUNNER_TEMP/checkout-abba/trial-b2.json"
           "$env:RUNNER_TEMP/checkout-abba/trial-a2.json"
-          --expected-sha "${{ steps.source.outputs.sha }}"
+          --expected-sha "$env:SOURCE_SHA"
           --baseline-wheel "$env:BASELINE_WHEEL"
           --filtered-wheel "$env:FILTERED_WHEEL"
           --baseline-metrics "$env:RUNNER_TEMP/baseline-metrics/physics-cp312-win-AMD64-wheel-job.json"

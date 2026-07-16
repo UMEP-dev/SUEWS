@@ -42,7 +42,6 @@ from supy.data_model.core.state import (
 from supy.data_model.core.type import RefValue
 from supy.data_model.validation.core.utils import check_missing_params
 from supy.data_model.validation.pipeline.phase_b import (
-    adjust_spartacus_tree_cover_fraction,
     adjust_seasonal_parameters,
     adjust_model_option_stebbsmethod,
     adjust_model_option_setpointmethod,

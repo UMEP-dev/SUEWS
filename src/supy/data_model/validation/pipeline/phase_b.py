@@ -202,12 +202,6 @@ def _science_source(parameter: str, reason: str) -> str:
             "Seasonal vegetation albedo initialisation based on configured albedo bounds; "
             "review against observed surface state and site-specific calibration."
         )
-    if parameter_lower.endswith(".sfr") and "spartacus tree cover" in reason_lower:
-        return (
-            "SPARTACUS tree-cover consistency adjustment; review that "
-            "vertical_layers.veg_frac[0] is the intended trunk/near-ground tree "
-            "cover before applying."
-        )
     if parameter_lower == "snowalb":
         return (
             "Seasonal snow-albedo initialisation heuristic; review for observed snow cover, "
@@ -1427,20 +1421,6 @@ def adjust_land_cover_fractions(
     return yaml_data, adjustments
 
 
-def adjust_spartacus_tree_cover_fraction(
-    yaml_data: dict,
-) -> Tuple[dict, List[ScientificAdjustment]]:
-    """
-    Leave SPARTACUS tree land-cover mismatch for validator review.
-
-    ``vertical_layers.veg_frac[0]`` can differ from ``dectr.sfr + evetr.sfr``
-    when land-cover and vertical morphology data come from different sources.
-    The validator reports this mismatch, but scientific fixes do not change
-    tree, grass, or bare-soil surface fractions automatically.
-    """
-    return yaml_data, []
-
-
 def adjust_model_dependent_nullification(
     yaml_data: dict,
 ) -> Tuple[dict, List[ScientificAdjustment]]:
@@ -2323,7 +2303,6 @@ def run_scientific_adjustment_pipeline(
     for adjust_func, args in [
         (adjust_surface_temperatures, (updated_data, start_date)),
         (adjust_land_cover_fractions, (updated_data,)),
-        (adjust_spartacus_tree_cover_fraction, (updated_data,)),
         (adjust_model_dependent_nullification, (updated_data,)),
         (adjust_seasonal_parameters, (updated_data, start_date, model_year)),
         (adjust_model_option_rcmethod, (updated_data,)),

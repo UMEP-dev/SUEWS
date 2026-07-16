@@ -173,7 +173,7 @@ jobs:
               output.write(f"bytes={total_kib * 1024}\n")
           PY
 
-      - name: Compare matched ABBA evidence
+      - name: Apply policy v2 headroom gate and peak RSS advisory
         if: always()
         shell: bash
         env:
@@ -194,6 +194,8 @@ jobs:
           --expected-source-sha "$EXPECTED_SHA"
           --wheel "$WHEEL_PATH"
           --max-median-session-regression-fraction 0.05
+          --peak-rss-regression-advisory-fraction 0.10
+          --min-memory-headroom-fraction 0.20
           --output scheduler-abba/comparison.json
           --summary "$GITHUB_STEP_SUMMARY"
 

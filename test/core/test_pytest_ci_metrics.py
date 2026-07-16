@@ -6,6 +6,7 @@ import hashlib
 import json
 import os
 from pathlib import Path
+from statistics import median
 import subprocess
 import sys
 import tempfile
@@ -13,6 +14,7 @@ from typing import Any
 
 import pytest
 
+from scripts.suews import pytest_ci_metrics
 from scripts.suews.pytest_ci_metrics import ProcfsSampler, read_proc_process
 
 pytestmark = pytest.mark.api
@@ -317,9 +319,43 @@ def test_parallel(case):
     )
     assert all(worker["busy_duration_seconds"] > 0 for worker in workers)
     assert all(worker["finished_at_seconds"] >= 0 for worker in workers)
-    assert metrics["execution"]["worker_finish_skew_seconds"] >= 0
-    assert metrics["execution"]["worker_tail_over_median_seconds"] >= 0
+    finish_times = sorted(worker["finished_at_seconds"] for worker in workers)
+    assert metrics["execution"]["worker_finish_skew_seconds"] == round(
+        finish_times[-1] - finish_times[0], 6
+    )
+    assert metrics["execution"]["worker_tail_over_median_seconds"] == round(
+        finish_times[-1]
+        - (
+            finish_times[len(finish_times) // 2 - 1]
+            + finish_times[len(finish_times) // 2]
+        )
+        / 2,
+        6,
+    )
     assert metrics["result"]["outcomes"]["passed"] == 8
+
+
+def test_worker_aggregates_match_serialised_finish_times(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Aggregate tail metrics use the same precision as worker records."""
+    state = pytest_ci_metrics._MetricsState()
+    raw_finishes = [243.0789032, 243.2927244, 239.5305016, 240.1511425]
+    state.workers = {
+        f"gw{index}": pytest_ci_metrics._WorkerMetrics(
+            finished_at_seconds=finish,
+        )
+        for index, finish in enumerate(raw_finishes)
+    }
+    monkeypatch.setattr(pytest_ci_metrics, "_STATE", state)
+
+    workers, finish_skew, tail_over_median = pytest_ci_metrics._worker_records()
+    serialised_finishes = [worker["finished_at_seconds"] for worker in workers]
+
+    assert finish_skew == round(max(serialised_finishes) - min(serialised_finishes), 6)
+    assert tail_over_median == round(
+        max(serialised_finishes) - median(serialised_finishes), 6
+    )
 
 
 def _warning_test_source(temp_root: str) -> str:

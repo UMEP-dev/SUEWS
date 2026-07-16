@@ -210,8 +210,8 @@ def test_every_local_build_action_caller_passes_metrics_host_dir() -> None:
 
 
 @pytest.mark.smoke
-def test_wheel_checkout_skips_empty_submodules_but_keeps_version_history() -> None:
-    """Wheel checkout avoids empty submodules without weakening git describe."""
+def test_wheel_checkout_filters_blobs_but_keeps_provenance_safeguards() -> None:
+    """Wheel checkout filters blobs without weakening history or credentials."""
     workflow = (PROJECT_ROOT / ".github/workflows/build-wheels-reusable.yml").read_text(
         encoding="utf-8"
     )
@@ -222,6 +222,7 @@ def test_wheel_checkout_skips_empty_submodules_but_keeps_version_history() -> No
 
     assert checkout is not None
     checkout_inputs = checkout.group("inputs")
+    assert "filter: blob:none" in checkout_inputs
     assert "fetch-depth: 0" in checkout_inputs
     assert "persist-credentials: false" in checkout_inputs
     assert "submodules:" not in checkout_inputs

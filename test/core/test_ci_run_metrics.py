@@ -3,10 +3,12 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime
+from fnmatch import fnmatchcase
 from pathlib import Path
 import re
 
 import pytest
+import yaml
 
 from scripts.suews.analyse_ci_run import analyse_run
 from scripts.suews.benchmark_ci_metrics import (
@@ -213,6 +215,33 @@ def test_api_lane_installs_xdist_contract_without_parallelising_main_suite() -> 
     )
     assert main_invocation is not None
     assert re.search(r"(?:^|\s)-n(?:\s|$)", main_invocation.group()) is None
+
+
+@pytest.mark.core
+def test_publish_jobs_download_only_cpython_wheel_artifacts() -> None:
+    """PyPI publishers must not merge metrics or MCP files into ``dist``."""
+    workflow_path = (
+        Path(__file__).resolve().parents[2]
+        / ".github/workflows/build-publish_to_pypi.yml"
+    )
+    workflow = yaml.safe_load(workflow_path.read_text(encoding="utf-8"))
+    wheel_pattern = "cp[0-9][0-9][0-9]-*"
+
+    for job_name in ("deploy_testpypi", "deploy_pypi"):
+        steps = workflow["jobs"][job_name]["steps"]
+        download = next(
+            step
+            for step in steps
+            if str(step.get("uses", "")).startswith("actions/download-artifact@")
+        )
+        assert download["with"]["pattern"] == wheel_pattern
+        assert download["with"]["merge-multiple"] is True
+
+    assert fnmatchcase("cp312-manylinux-x86_64", wheel_pattern)
+    assert fnmatchcase("cp314-macosx-arm64", wheel_pattern)
+    assert not fnmatchcase("ci-metrics-api-cp312-manylinux-x86_64", wheel_pattern)
+    assert not fnmatchcase("ci-metrics-physics-cp312-macosx-arm64", wheel_pattern)
+    assert not fnmatchcase("suews-mcp-dist", wheel_pattern)
 
 
 def _job(

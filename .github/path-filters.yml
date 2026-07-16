@@ -77,6 +77,7 @@ ci:
   - '.github/path-filters.yml'
   - '.github/ci-metrics-needs.json'
   - '.github/workflows/benchmark-pytest-scheduler.yml'
+  - '.github/workflows/benchmark-checkout-provenance.yml'
   - '.github/workflows/build-publish_to_pypi.yml'
   - '.github/workflows/build-wheels-reusable.yml'
   - '.github/workflows/cibuildwheel-debug.yml'

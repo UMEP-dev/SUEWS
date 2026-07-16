@@ -680,9 +680,9 @@ class TestRun:
     """Test simulation execution."""
 
     @staticmethod
-    def _multi_site_config():
+    def _multi_site_config(sample_config_loaded):
         """Return a sample config with two distinct grids."""
-        config = SUEWSSimulation.from_sample_data().config.model_copy(deep=True)
+        config = sample_config_loaded.model_copy(deep=True)
         site2 = config.sites[0].model_copy(deep=True)
         site2.gridiv = 2
         site2.name = "Grid 2"
@@ -701,6 +701,16 @@ class TestRun:
             )
             list_df_output.append(pd.DataFrame({"QH": 0.0}, index=index))
         return pd.concat(list_df_output)
+
+    @staticmethod
+    def _sim_for_mocked_run(sample_config_loaded, sample_data_loaded):
+        """Build an isolated two-step simulation without reloading sample files."""
+        sample_state, sample_forcing = sample_data_loaded
+        sim = SUEWSSimulation()
+        sim._config = sample_config_loaded.model_copy(deep=True)
+        sim._df_state_init = sample_state.copy()
+        sim._df_forcing = sample_forcing.iloc[:2].copy()
+        return sim
 
     @staticmethod
     def _patch_run_suews_rust_chunked(monkeypatch):
@@ -737,10 +747,14 @@ class TestRun:
         )
         return captured
 
-    def test_run_n_jobs_defaults_to_rayon_default(self, monkeypatch):
+    def test_run_n_jobs_defaults_to_rayon_default(
+        self,
+        monkeypatch,
+        sample_config_loaded,
+        sample_data_loaded,
+    ):
         """Test default n_jobs preserves uncapped parallel execution."""
-        sim = SUEWSSimulation.from_sample_data()
-        sim._df_forcing = sim._df_forcing.iloc[:2]
+        sim = self._sim_for_mocked_run(sample_config_loaded, sample_data_loaded)
         captured = self._patch_run_suews_rust_chunked(monkeypatch)
 
         sim.run()
@@ -748,10 +762,14 @@ class TestRun:
         assert captured["serial_mode"] is False
         assert captured["max_workers"] is None
 
-    def test_run_n_jobs_one_forces_serial(self, monkeypatch):
+    def test_run_n_jobs_one_forces_serial(
+        self,
+        monkeypatch,
+        sample_config_loaded,
+        sample_data_loaded,
+    ):
         """Test n_jobs=1 disables the multi-grid Rayon path."""
-        sim = SUEWSSimulation.from_sample_data()
-        sim._df_forcing = sim._df_forcing.iloc[:2]
+        sim = self._sim_for_mocked_run(sample_config_loaded, sample_data_loaded)
         captured = self._patch_run_suews_rust_chunked(monkeypatch)
 
         sim.run(n_jobs=1)
@@ -759,10 +777,14 @@ class TestRun:
         assert captured["serial_mode"] is True
         assert captured["max_workers"] == 1
 
-    def test_run_n_jobs_positive_caps_workers(self, monkeypatch):
+    def test_run_n_jobs_positive_caps_workers(
+        self,
+        monkeypatch,
+        sample_config_loaded,
+        sample_data_loaded,
+    ):
         """Test positive n_jobs reaches the Rust bridge as max_workers."""
-        sim = SUEWSSimulation.from_sample_data()
-        sim._df_forcing = sim._df_forcing.iloc[:2]
+        sim = self._sim_for_mocked_run(sample_config_loaded, sample_data_loaded)
         captured = self._patch_run_suews_rust_chunked(monkeypatch)
 
         sim.run(n_jobs=3)
@@ -778,12 +800,16 @@ class TestRun:
         with pytest.raises(ValueError, match="n_jobs must be"):
             sim.run(n_jobs=n_jobs)
 
-    def test_chunked_run_forwards_worker_cap_per_chunk(self, monkeypatch):
+    def test_chunked_run_forwards_worker_cap_per_chunk(
+        self,
+        monkeypatch,
+        sample_config_loaded,
+        sample_data_loaded,
+    ):
         """Test chunked multi-grid runs keep n_jobs after the first chunk."""
-        config = self._multi_site_config()
-        df_forcing = SUEWSSimulation.from_sample_data()._df_forcing.iloc[
-            : TIMESTEPS_PER_DAY + 1
-        ]
+        config = self._multi_site_config(sample_config_loaded)
+        _, sample_forcing = sample_data_loaded
+        df_forcing = sample_forcing.iloc[: TIMESTEPS_PER_DAY + 1].copy()
         calls = []
 
         def fake_run_suews_rust_multi(
@@ -829,10 +855,16 @@ class TestRun:
 
         assert calls == [("fresh", False, 3), ("state", False, 3)]
 
-    def test_checkpointed_run_forwards_worker_cap(self, monkeypatch):
+    def test_checkpointed_run_forwards_worker_cap(
+        self,
+        monkeypatch,
+        sample_config_loaded,
+        sample_data_loaded,
+    ):
         """Test resumed multi-grid runs keep n_jobs on the first chunk."""
-        config = self._multi_site_config()
-        df_forcing = SUEWSSimulation.from_sample_data()._df_forcing.iloc[:2]
+        config = self._multi_site_config(sample_config_loaded)
+        _, sample_forcing = sample_data_loaded
+        df_forcing = sample_forcing.iloc[:2].copy()
         calls = []
 
         def fail_run_suews_rust_multi(*args, **kwargs):
@@ -872,10 +904,16 @@ class TestRun:
 
         assert calls == [("state", False, 4)]
 
-    def test_multi_with_state_passes_worker_cap_to_rust(self, monkeypatch):
+    def test_multi_with_state_passes_worker_cap_to_rust(
+        self,
+        monkeypatch,
+        sample_config_loaded,
+        sample_data_loaded,
+    ):
         """Test state-aware multi-grid wrapper forwards max_workers."""
-        config = self._multi_site_config()
-        df_forcing = SUEWSSimulation.from_sample_data()._df_forcing.iloc[:2]
+        config = self._multi_site_config(sample_config_loaded)
+        _, sample_forcing = sample_data_loaded
+        df_forcing = sample_forcing.iloc[:2].copy()
         captured = {}
 
         class FakeRustModule:

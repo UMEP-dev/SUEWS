@@ -357,12 +357,16 @@ def _worker_records() -> tuple[list[dict[str, Any]], float, float]:
     for worker_id, worker in sorted(_STATE.workers.items()):
         node_ids = sorted(worker.node_ids)
         inventory = _inventory(node_ids)
-        finish = worker.finished_at_seconds
+        finish = (
+            None
+            if worker.finished_at_seconds is None
+            else round(worker.finished_at_seconds, 6)
+        )
         if finish is not None:
             finishes.append(finish)
         records.append({
             "busy_duration_seconds": round(worker.busy_duration_seconds, 6),
-            "finished_at_seconds": None if finish is None else round(finish, 6),
+            "finished_at_seconds": finish,
             **inventory,
             "node_ids": node_ids,
             "worker_id": worker_id,

@@ -114,6 +114,42 @@ This manual same-job result is the acceptance evidence. Ordinary PR runs and
 unrelated historical runs cannot establish the overhead bound because GitHub
 host load is uncontrolled.
 
+## Hosted pytest scheduler comparison
+
+**Workflow**: `Hosted pytest scheduler ABBA`
+
+The manual workflow compares `loadscope` and `worksteal` without changing the
+fixed GitHub-hosted worker budget. It downloads one successful
+`cp312-manylinux-x86_64` wheel, checks out the exact SHA that produced it, and
+runs the same `physics and not slow` nodes four times in A/B/B/A order:
+
+1. `loadscope`
+2. `worksteal`
+3. `worksteal`
+4. `loadscope`
+
+Every trial uses `-n auto --maxprocesses=4`, a fresh `--basetemp`, and a
+disabled pytest cache provider. The workflow is `workflow_dispatch` only so
+ordinary pull requests never pay for four full physics runs. Dispatch requires
+the ID of a successful Build and Publish workflow run and its exact source SHA.
+
+`compare_scheduler_runs.py` consumes the four schema-v2 metrics artefacts. It
+fails closed when node inventories, outcomes or effective worker counts differ;
+when any worker assignment or timing fingerprint is inconsistent; or when the
+hosted run does not resolve exactly four workers. `worksteal` is accepted only
+when both its median finish spread and its median tail over the worker median
+are strictly lower than `loadscope`, and its median session duration is no more
+than 5% above `loadscope`. The median-session limit is configurable through the
+comparison CLI, while the hosted workflow fixes it at 5% so dispatches cannot
+silently weaken the decision rule.
+
+The memory gate uses the maximum process-tree RSS observed in either replicate,
+not only the median. By default it requires at least 20% headroom against the
+runner's measured `/proc/meminfo` capacity and limits the challenger's maximum
+peak-RSS regression to 10%. The uploaded decision manifest records session and
+test-phase medians, worker-tail deltas, median and maximum RSS, source SHA, and
+the SHA-256 of the exact downloaded wheel.
+
 ## Naming Convention Checker
 
 **Script**: `check_naming_conventions.py`

@@ -201,6 +201,17 @@ jobs:
         shell: pwsh
         run: Remove-Item -Recurse -Force checkout-abba
 
+      - name: Start filtered checkout phase timing
+        shell: pwsh
+        env:
+          SUEWS_CI_PHASES: ${{ runner.temp }}/suews-ci-metrics/physics-cp312-win-AMD64-phases.json
+        run: >-
+          python -c "import json, os, time; from pathlib import Path;
+          path = Path(os.environ['SUEWS_CI_PHASES']); path.parent.mkdir(parents=True, exist_ok=True);
+          path.write_text(json.dumps({'schema_version': 1, 'phases': {'checkout':
+          {'source': 'runner-step-wall-clock', 'started_at_epoch_seconds': time.time(),
+          'status': 'running'}}}, indent=2, sort_keys=True) + '\n', encoding='utf-8')"
+
       - name: Check out filtered source for one provenance build
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
         with:
@@ -208,6 +219,12 @@ jobs:
           fetch-depth: 0
           filter: blob:none
           persist-credentials: false
+
+      - name: Stop filtered checkout phase timing
+        shell: pwsh
+        env:
+          SUEWS_CI_PHASES: ${{ runner.temp }}/suews-ci-metrics/physics-cp312-win-AMD64-phases.json
+        run: python scripts/suews/ci_phase_metrics.py stop checkout
 
       - name: Build and smoke-test one blob-filtered Windows wheel
         uses: ./.github/actions/build-suews

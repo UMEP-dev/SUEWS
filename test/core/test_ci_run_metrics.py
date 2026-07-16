@@ -281,12 +281,15 @@ def test_checkout_abba_requires_matching_git_and_wheel_provenance(
     ]
     baseline = _write_test_wheel(tmp_path / "baseline.whl")
     filtered = _write_test_wheel(tmp_path / "filtered.whl")
+    metrics = _measured_wheel_metrics()
 
     comparison = build_comparison(
         trials,
         read_wheel_provenance(baseline),
         read_wheel_provenance(filtered),
         expected_sha=expected_sha,
+        baseline_metrics=metrics,
+        filtered_metrics=metrics,
     )
 
     assert comparison["passed"] is True
@@ -305,6 +308,18 @@ def test_checkout_abba_requires_matching_git_and_wheel_provenance(
             read_wheel_provenance(baseline),
             read_wheel_provenance(filtered),
             expected_sha=expected_sha,
+        )
+
+    trials[2]["tree_sha"] = common["tree_sha"]
+    metrics["phases"]["checkout"]["available"] = False
+    with pytest.raises(ValueError, match="checkout is not measured"):
+        build_comparison(
+            trials,
+            read_wheel_provenance(baseline),
+            read_wheel_provenance(filtered),
+            expected_sha=expected_sha,
+            baseline_metrics=metrics,
+            filtered_metrics=_measured_wheel_metrics(),
         )
 
 
@@ -355,6 +370,30 @@ def _write_test_wheel(path: Path) -> Path:
             "__version__ = '2026.7.16.dev3'\n__commit_hash__ = 'aaaaaaa'\n",
         )
     return path
+
+
+def _measured_wheel_metrics() -> dict[str, object]:
+    phases = {
+        phase: {"available": True, "status": "measured", "duration_seconds": 1.0}
+        for phase in (
+            "checkout",
+            "toolchain_setup",
+            "build",
+            "repair",
+            "install",
+            "tests",
+        )
+    }
+    return {
+        "schema_version": 1,
+        "kind": "wheel-job-ci-metrics",
+        "job_name": "physics-cp312-win-AMD64",
+        "phases": phases,
+        "pytest_metrics": {
+            "result": {"exit_code": 0},
+            "inventory": {"node_id_sha256": "f" * 64},
+        },
+    }
 
 
 def _job(

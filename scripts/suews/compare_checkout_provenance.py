@@ -8,6 +8,7 @@ from email.parser import BytesParser
 from email.policy import default
 import hashlib
 import json
+import math
 from pathlib import Path
 import re
 from statistics import median
@@ -279,6 +280,12 @@ def build_comparison(
 
 def _validate_wheel_metrics(metrics: dict[str, Any], *, label: str) -> None:
     """Require the existing machine-readable wheel phase evidence contract."""
+    if (
+        metrics.get("schema_version") != 1
+        or metrics.get("kind") != "wheel-job-ci-metrics"
+        or metrics.get("job_name") != "physics-cp312-win-AMD64"
+    ):
+        raise ValueError(f"{label} wheel metrics have the wrong identity")
     required = {"checkout", "toolchain_setup", "build", "repair", "install", "tests"}
     phases = metrics.get("phases")
     if not isinstance(phases, dict):
@@ -286,6 +293,22 @@ def _validate_wheel_metrics(metrics: dict[str, Any], *, label: str) -> None:
     missing = required.difference(phases)
     if missing:
         raise ValueError(f"{label} wheel metrics omit phases: {sorted(missing)}")
+    for phase in required:
+        record = phases[phase]
+        duration = record.get("duration_seconds")
+        if (
+            record.get("available") is not True
+            or record.get("status") != "measured"
+            or not isinstance(duration, (int, float))
+            or not math.isfinite(duration)
+            or duration <= 0
+        ):
+            raise ValueError(f"{label} wheel phase {phase} is not measured")
+    pytest_metrics = metrics.get("pytest_metrics") or {}
+    result = pytest_metrics.get("result") or {}
+    inventory = pytest_metrics.get("inventory") or {}
+    if result.get("exit_code") != 0 or not inventory.get("node_id_sha256"):
+        raise ValueError(f"{label} wheel pytest evidence did not pass")
 
 
 def _append_summary(path: Path, comparison: dict[str, Any]) -> None:

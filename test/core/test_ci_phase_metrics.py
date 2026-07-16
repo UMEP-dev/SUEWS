@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+import re
 
 import pytest
 
@@ -206,3 +207,22 @@ def test_every_local_build_action_caller_passes_metrics_host_dir() -> None:
                     f"{workflow.name}:{index + 1} must pass metrics_host_dir"
                 )
     assert callers
+
+
+@pytest.mark.smoke
+def test_wheel_checkout_skips_empty_submodules_but_keeps_version_history() -> None:
+    """Wheel checkout avoids empty submodules without weakening git describe."""
+    workflow = (PROJECT_ROOT / ".github/workflows/build-wheels-reusable.yml").read_text(
+        encoding="utf-8"
+    )
+    checkout = re.search(
+        r"uses: actions/checkout@[^\n]+\n(?P<inputs>(?:[ \t]+[^\n]+\n){1,8})",
+        workflow,
+    )
+
+    assert checkout is not None
+    checkout_inputs = checkout.group("inputs")
+    assert "fetch-depth: 0" in checkout_inputs
+    assert "persist-credentials: false" in checkout_inputs
+    assert "submodules:" not in checkout_inputs
+    assert not (PROJECT_ROOT / ".gitmodules").read_text(encoding="utf-8").strip()

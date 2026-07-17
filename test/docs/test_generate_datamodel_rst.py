@@ -63,6 +63,22 @@ def test_modelphysics_selector_guide_includes_dependency_graph() -> None:
     assert "EHC storage heat requires SPARTACUS net radiation" in guide
 
 
+@pytest.mark.parametrize(
+    "model_name",
+    ["ThermalLayers", "VerticalLayers", "RoofLayer", "WallLayer", "ModelPhysics"],
+)
+def test_layer_related_models_link_to_layer_conventions(model_name: str) -> None:
+    module = _load_generator_module()
+    generator = module.RSTGenerator({})
+
+    rendered = generator._format_model(
+        model_name,
+        {"title": model_name, "description": "Test model.", "fields": []},
+    )
+
+    assert "See :ref:`layer_conventions`" in rendered
+
+
 def test_relationship_targets_ref_only_documented_fields() -> None:
     module = _load_generator_module()
 

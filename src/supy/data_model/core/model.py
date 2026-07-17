@@ -257,10 +257,10 @@ class StorageHeatMethod(Enum):
     1: OHM_WITHOUT_QF - Objective Hysteresis Model using Q* only (use with OhmIncQf=0)
     3: ANOHM - Analytical OHM (Sun et al., 2017) - not recommended
     4: ESTM - Element Surface Temperature Method (Offerle et al., 2005) - not recommended
-    5: EHC - Explicit Heat Conduction model with separate roof/wall/ground temperatures
-    6: DyOHM - Dynamic Objective Hysteresis Model (Liu et al., 2025) with dynamic coefficients
-    7: STEBBS - use STEBBS storage heat flux for building, others use OHM
-    8: DyOHM_BUILDING - use DyOHM for building storage heat flux only; ordinary OHM for other land-cover surfaces
+    5: EHC - Uses all five material layers for conducting roof, wall, and land-cover facets
+    6: DyOHM - Dynamic OHM using the outermost material layer; buildings use the lowest wall vertical layer
+    7: STEBBS - STEBBS storage heat for buildings and DyOHM using the outermost material layer for non-building surfaces
+    8: DyOHM_BUILDING - DyOHM using the outermost material layer of the lowest wall vertical layer; ordinary OHM for other surfaces
     """
 
     # Note: EHC (option 5) implements explicit heat conduction
@@ -957,7 +957,16 @@ class ModelPhysics(BaseModel):
             "unit": "dimensionless",
             "depends_on": ["net_radiation", "ohm_inc_qf", "snow_use", "stebbs"],
             "provides_to": ["energy_balance"],
-            "note": "EHC (5) requires SPARTACUS net radiation; STEBBS storage heat (7) requires STEBBS enabled; OHM-like paths use OhmIncQf, with method 8 (dyohm_building) requiring OhmIncQf=0.",
+            "note": (
+                "EHC (5) uses all five material layers for its conducting roof, "
+                "wall, and solid non-building land-cover facets. DyOHM (6) "
+                "uses only the outermost material layer for each non-building "
+                "surface and the outermost material layer of the lowest wall "
+                "vertical layer for buildings. "
+                "Method 7 requires STEBBS enabled for buildings and applies "
+                "DyOHM to non-building surfaces. Method 8 applies DyOHM only to "
+                "buildings and requires OhmIncQf=0."
+            ),
         },
     )
     ohm_inc_qf: FlexibleRefValue(OhmIncQf) = Field(

@@ -100,8 +100,10 @@ Storage heat flux, ΔQ\ :sub:`S`
    -  **OHM** (Objective Hysteresis Model) :cite:`G91,GO99,GO02`. Storage heat heat flux is calculated using empirically-fitted relations with net all-wave radiation and the rate of change in net all-wave radiation.
    -  **AnOHM** (Analytical Objective Hysteresis Model) :cite:`S17`. OHM approach using analytically-derived coefficients. |NotRecmd|
    -  **ESTM** (Element Surface Temperature Method) :cite:`O05`. Heat transfer through urban facets (roof, wall, road, interior) is calculated from surface temperature measurements and knowledge of material properties. |NotRecmd|
-   -  **EHC** (Explicit Heat Conduction). Calculates storage heat flux using explicit heat conduction through urban facets with separate roof/wall/ground temperature calculations. Provides detailed surface temperature outputs for each urban element.
-   -  **DyOHM** (Dynamic Objective Hysteresis Model) (Liu et al., in prep.). Extends OHM by calculating coefficients dynamically based on material thermal properties (thermal conductivity) and meteorological conditions. Requires vertical wall layer configuration.
+   -  **EHC** (Explicit Heat Conduction). Calculates storage heat flux through roof, wall, and solid non-building land-cover facets using all five material layers and their ``dz``, ``k``, and ``rho_cp`` values. EHC resolves every configured roof and wall vertical layer; aggregate building and water thermal arrays are not used by facet-resolved EHC conduction.
+   -  **DyOHM** (Dynamic Objective Hysteresis Model) (Liu et al., in prep.). Calculates OHM coefficients dynamically from meteorological conditions and the outermost material layer. Method 6 applies DyOHM to all surfaces: buildings use material layer 0 of the lowest wall vertical layer, each non-building land cover uses its own material layer 0, and roof thermal properties are not used. Method 7 uses STEBBS storage heat for buildings and DyOHM for non-building surfaces. Method 8 uses DyOHM for buildings and ordinary OHM for non-building surfaces.
+
+   The vertical-layer and material-layer indices are independent. See :ref:`layer_conventions` for their orientation, the input structure for five material layers, and a method-by-property decision table.
 
 #. Alternatively, 'observed' storage heat flux can be supplied with the meteorological forcing data.
 
@@ -335,9 +337,13 @@ The probabilities for buildings and the ground are determined by albedos and emi
 SUEWS-SS Implementation
 ************************
 
--  Maximum of 15 vertical layers.
+-  Maximum of 15 SPARTACUS vertical layers.
 
--  Building and tree fractions, building and tree dimensions, building albedo and emissivity, and diffuse versus specular reflection, can be treated as vertically heterogenous or uniform with height depending on parameter choices.
+-  The ``vertical_layers`` input divides the height range from ground level to the maximum building height into intervals bounded by horizontal planes. Roof entries remain horizontal facets and wall entries remain vertical facets; the layer index locates them within this height range. See :ref:`layer_conventions`.
+
+-  Building and tree fractions, building and tree dimensions, building albedo and emissivity, and diffuse versus specular reflection, can be treated as vertically heterogeneous or uniform with height depending on parameter choices.
+
+-  SPARTACUS-Surface uses the height-dependent roof and wall optical properties (``alb``, ``emis``, ``roof_albedo_dir_mult_fact``, and ``wall_specular_frac``).
 
 -  As tree fraction increases towards 1 it is assumed that the tree crown merges when calculating tree perimeters.
 

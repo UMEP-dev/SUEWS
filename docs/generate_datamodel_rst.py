@@ -30,6 +30,16 @@ except ImportError:
 class RSTGenerator:
     """Generate RST documentation from extracted model documentation."""
 
+    LAYER_CONVENTION_MODELS = frozenset(
+        {
+            "ThermalLayers",
+            "VerticalLayers",
+            "RoofLayer",
+            "WallLayer",
+            "ModelPhysics",
+        }
+    )
+
     RELATIONSHIP_REF_TARGETS = frozenset(
         {
             "net_radiation",
@@ -148,6 +158,17 @@ class RSTGenerator:
         if description:
             lines.append(description)
             lines.append("")
+
+        if model_name in self.LAYER_CONVENTION_MODELS:
+            lines.extend(
+                [
+                    ".. seealso::",
+                    "",
+                    "   See :ref:`layer_conventions` for facet orientation, "
+                    "material-layer ordering, and the methods that use each property.",
+                    "",
+                ]
+            )
 
         if model_name == "ModelPhysics":
             lines.extend(self._format_modelphysics_selector_guide())
@@ -2072,7 +2093,7 @@ class RSTGenerator:
             elif model_name in {"RefValue", "Reference"}:
                 categories["utility"].append(model_name)
             # Site properties parameters (nested under site.properties like conductance, irrigation, etc.)
-            # Building/thermal layers (also under site.properties)
+            # Building/material layers (also under site.properties)
             elif any(
                 x in model_lower
                 for x in (

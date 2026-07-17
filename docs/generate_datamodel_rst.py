@@ -214,9 +214,9 @@ class RSTGenerator:
             "- ``roughness_length_momentum`` -> ``roughness_length_heat`` -> ``stability`` -> ``roughness_sublayer`` -> ``roughness_sublayer_level`` -> ``surface_conductance``",
             "",
             "Conditional compatibility checks enforce the critical branches: EHC "
-            "storage heat requires SPARTACUS net radiation, STEBBS storage heat "
-            "requires STEBBS enabled, and non-default STEBBS capacitance choices "
-            "require the STEBBS branch.",
+            "and STEBBS storage heat require SPARTACUS net radiation, STEBBS "
+            "storage heat also requires STEBBS enabled, and non-default STEBBS "
+            "capacitance choices require the STEBBS branch.",
             "",
             ".. list-table:: Net radiation",
             "   :header-rows: 1",

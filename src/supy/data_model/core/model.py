@@ -259,7 +259,7 @@ class StorageHeatMethod(Enum):
     4: ESTM - Element Surface Temperature Method (Offerle et al., 2005) - not recommended
     5: EHC - Uses all five material layers for conducting roof, wall, and land-cover facets
     6: DyOHM - Dynamic OHM using the outermost material layer of each SUEWS land-cover surface
-    7: STEBBS - STEBBS storage heat and surface temperatures for buildings; DyOHM using the outermost material layer for non-building surfaces
+    7: STEBBS - STEBBS storage heat and surface temperatures for buildings with SPARTACUS-Surface radiation; DyOHM using the outermost material layer for non-building surfaces
     8: DyOHM_BUILDING - DyOHM using the outermost building material layer; ordinary OHM for other surfaces
     """
 
@@ -914,7 +914,7 @@ class ModelPhysics(BaseModel):
             "unit": "dimensionless",
             "depends_on": ["snow_use"],
             "provides_to": ["storage_heat"],
-            "note": "Values above 1000 activate SPARTACUS-Surface and provide facet radiation required by EHC storage heat.",
+            "note": "Values 1001--1003 activate SPARTACUS-Surface and provide facet radiation required by EHC (5) and STEBBS (7) storage heat.",
         },
     )
     kdown_split_method: FlexibleRefValue(KdownSplitMethod) = Field(
@@ -964,7 +964,8 @@ class ModelPhysics(BaseModel):
                 "surface, including land_cover.bldgs for buildings. "
                 "Method 7 uses STEBBS for building storage heat and temperatures, "
                 "does not use land_cover.bldgs material layers, and applies DyOHM "
-                "to non-building surfaces. Method 8 applies DyOHM only to "
+                "to non-building surfaces; it requires SPARTACUS-Surface net "
+                "radiation (1001--1003). Method 8 applies DyOHM only to "
                 "the building surface and requires OhmIncQf=0."
             ),
         },

@@ -60,7 +60,7 @@ def test_modelphysics_selector_guide_includes_dependency_graph() -> None:
 
     assert ".. rubric:: Method dependency graph" in guide
     assert "``emissions`` -> ``ohm_inc_qf`` -> ``storage_heat``" in guide
-    assert "EHC storage heat requires SPARTACUS net radiation" in guide
+    assert "EHC and STEBBS storage heat require SPARTACUS net radiation" in guide
 
 
 @pytest.mark.parametrize(

@@ -2200,10 +2200,11 @@ class SUEWSConfig(BaseModel):
         This function checks that all required parameters for the DyOHM storage-heat
         method (storage_heat_method 6, 7, or 8) are present and valid for the given site.
         It ensures that required building material properties and initial-state
-        arrays are non-empty and contain only numeric values. Building material
+        arrays are non-empty and contain only finite numeric values. Building material
         properties and ``lambda_c`` are required only for methods 6 and 8, which
         calculate building DyOHM coefficients. STEBBS owns the building storage
-        heat and temperatures in method 7.
+        heat and temperatures in method 7, which requires SPARTACUS-Surface net
+        radiation.
 
         Parameters
         ----------
@@ -2221,9 +2222,11 @@ class SUEWSConfig(BaseModel):
         -----
         - For methods 6 and 8, checks ``land_cover.bldgs.thermal_layers`` rather
           than a SPARTACUS wall.
-        - Ensures that required material-property arrays are non-empty and numeric.
+        - Ensures that required material-property arrays are non-empty and finite.
           Methods 6 and 8 require building dz, k, and rho_cp. Method 7 does not
           use the building material layers.
+        - Requires method 7 to use SPARTACUS-Surface net radiation (1001--1003),
+          which consumes the separate STEBBS roof and wall temperatures.
         - Validates initial_states.qn_surfs and dqndt_surf arrays.
         - Checks that lambda_c is set and non-null for methods 6 and 8.
         """
@@ -2244,6 +2247,26 @@ class SUEWSConfig(BaseModel):
         except (TypeError, ValueError):
             storage_heat_method = None
 
+        if storage_heat_method == 7:
+            net_radiation = getattr(physics, "net_radiation", None)
+            net_radiation_method = getattr(
+                net_radiation, "value", net_radiation
+            )
+            net_radiation_method = getattr(
+                net_radiation_method, "value", net_radiation_method
+            )
+            try:
+                net_radiation_method = int(net_radiation_method)
+            except (TypeError, ValueError):
+                net_radiation_method = None
+            if net_radiation_method not in {1001, 1002, 1003}:
+                issues.append(
+                    f"{site_name}: storage_heat_method 7 uses separate STEBBS "
+                    "roof and wall temperatures and requires "
+                    "model.physics.net_radiation to be a SPARTACUS-Surface "
+                    "method (1001, 1002, or 1003)"
+                )
+
         land_cover = getattr(props, "land_cover", None)
         bldgs = getattr(land_cover, "bldgs", None) if land_cover else None
 
@@ -2262,15 +2285,17 @@ class SUEWSConfig(BaseModel):
                     if (
                         not isinstance(vals, list)
                         or len(vals) == 0
-                        or any(v is None for v in vals)
-                        or any(not isinstance(v, (int, float)) for v in vals)
+                        or any(
+                            not isinstance(v, (int, float)) or not np.isfinite(v)
+                            for v in vals
+                        )
                     ):
                         issues.append(
                             f"{site_name}: storage_heat_method "
                             f"{storage_heat_method} selected -> "
                             "properties.land_cover.bldgs.thermal_layers."
-                            f"{arr} must be a non-empty list of numeric values "
-                            "(no nulls)"
+                            f"{arr} must be a non-empty list of finite numeric "
+                            "values (no nulls, NaN, or infinities)"
                         )
 
         for arr in ("qn_surfs", "dqndt_surf"):
@@ -2283,12 +2308,15 @@ class SUEWSConfig(BaseModel):
             if (
                 not isinstance(vals, list)
                 or len(vals) == 0
-                or any(v is None for v in vals)
-                or any(not isinstance(v, (int, float)) for v in vals)
+                or any(
+                    not isinstance(v, (int, float)) or not np.isfinite(v)
+                    for v in vals
+                )
             ):
                 issues.append(
                     f"{site_name}: storage_heat_method 6, 7, or 8 (DyOHM) selected -> "
-                    f"initial_states.{arr} must be a non-empty list of numeric values (no nulls)"
+                    f"initial_states.{arr} must be a non-empty list of finite "
+                    "numeric values (no nulls, NaN, or infinities)"
                 )
 
         if storage_heat_method in {6, 8}:

@@ -587,6 +587,13 @@ fn validate_dyohm_material_inputs(run_cfg: &RunConfig) -> Result<(), BridgeError
         return Ok(());
     }
 
+    if storage_heat_method == 7 && !matches!(run_cfg.config.net_radiation_method, 1001..=1003) {
+        return Err(simulation_error(format!(
+            "STEBBS storage heat (method 7) requires SPARTACUS-Surface net radiation (1001, 1002, or 1003); got {}",
+            run_cfg.config.net_radiation_method
+        )));
+    }
+
     let ndepth = usize::try_from(run_cfg.ndepth)
         .ok()
         .filter(|&value| value > 0)
@@ -596,7 +603,7 @@ fn validate_dyohm_material_inputs(run_cfg: &RunConfig) -> Result<(), BridgeError
     // parameterisation uses the building surface-to-plan-area ratio.
     if matches!(storage_heat_method, 6 | 8) {
         let lambda_c = run_cfg.site_scalars.lambda_c;
-        if lambda_c <= 0.0 {
+        if !lambda_c.is_finite() || lambda_c <= 0.0 {
             return Err(simulation_error(format!(
                 "invalid site scalar for building DyOHM: lambda_c={lambda_c}"
             )));
@@ -623,7 +630,13 @@ fn validate_dyohm_material_inputs(run_cfg: &RunConfig) -> Result<(), BridgeError
         let dz = run_cfg.site.ehc.dz_surf.get(offset).copied().unwrap_or(0.0);
         let cp = run_cfg.site.ehc.cp_surf.get(offset).copied().unwrap_or(0.0);
         let k = run_cfg.site.ehc.k_surf.get(offset).copied().unwrap_or(0.0);
-        if dz <= 0.0 || cp <= 0.0 || k <= 0.0 {
+        if !dz.is_finite()
+            || !cp.is_finite()
+            || !k.is_finite()
+            || dz <= 0.0
+            || cp <= 0.0
+            || k <= 0.0
+        {
             let surface_name = if surf_idx == BUILDING_SURFACE_INDEX {
                 "bldgs"
             } else {
@@ -1046,6 +1059,32 @@ mod tests {
     }
 
     #[test]
+    fn stebbs_with_dyohm_requires_spartacus_radiation() {
+        let mut run_cfg = fixture_run_config(7);
+        run_cfg.config.net_radiation_method = 3;
+
+        let error = validate_dyohm_material_inputs(&run_cfg)
+            .expect_err("method 7 should reject non-SPARTACUS radiation")
+            .to_string();
+
+        assert!(
+            error.contains("1001, 1002, or 1003"),
+            "unexpected error: {error}"
+        );
+    }
+
+    #[test]
+    fn dyohm_methods_do_not_require_spartacus_radiation() {
+        for storage_heat_method in [6, 8] {
+            let mut run_cfg = fixture_run_config(storage_heat_method);
+            run_cfg.config.net_radiation_method = 3;
+
+            validate_dyohm_material_inputs(&run_cfg)
+                .expect("DyOHM methods 6 and 8 should allow NARP radiation");
+        }
+    }
+
+    #[test]
     fn dyohm_validation_indexes_outermost_layer_for_each_surface() {
         let mut run_cfg = fixture_run_config(6);
         let evetr_offset = 2 * run_cfg.ndepth as usize;
@@ -1064,6 +1103,25 @@ mod tests {
 
         validate_dyohm_material_inputs(&run_cfg)
             .expect("method 7 uses a fixed non-building lambda and STEBBS for buildings");
+    }
+
+    #[test]
+    fn dyohm_validation_rejects_nonfinite_inputs() {
+        let mut run_cfg = fixture_run_config(6);
+        let building_offset = BUILDING_SURFACE_INDEX * run_cfg.ndepth as usize;
+        run_cfg.site.ehc.k_surf[building_offset] = f64::NAN;
+
+        let error = validate_dyohm_material_inputs(&run_cfg)
+            .expect_err("non-finite material properties should be rejected")
+            .to_string();
+        assert!(error.contains("bldgs"), "unexpected error: {error}");
+
+        run_cfg.site.ehc.k_surf[building_offset] = 1.0;
+        run_cfg.site_scalars.lambda_c = f64::INFINITY;
+        let error = validate_dyohm_material_inputs(&run_cfg)
+            .expect_err("non-finite lambda_c should be rejected")
+            .to_string();
+        assert!(error.contains("lambda_c"), "unexpected error: {error}");
     }
 
     #[test]

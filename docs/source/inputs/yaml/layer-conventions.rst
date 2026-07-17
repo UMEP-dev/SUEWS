@@ -135,7 +135,9 @@ not use them.
      - STEBBS supplies the building storage heat and roof/wall temperatures, so
        ``land_cover.bldgs.thermal_layers`` is not used. Each non-building land
        cover uses its outermost material layer for dynamic OHM coefficients and
-       its DyOHM surface-temperature update.
+       its DyOHM surface-temperature update. This method requires
+       SPARTACUS-Surface net radiation (``1001``, ``1002``, or ``1003``), which
+       uses the separate STEBBS roof and wall temperatures.
      - Provide five-entry ``dz``, ``k``, and ``rho_cp`` arrays for the
        non-building surfaces. Material layer ``0`` supplies the properties used
        by this path. No building material-layer properties are required by

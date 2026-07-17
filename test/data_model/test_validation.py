@@ -214,7 +214,7 @@ def test_validate_storage_requires_numeric_and_lambda():
 
 
 def test_validate_storage_method7_does_not_require_building_material_or_lambda():
-    cfg = make_cfg(storage_heat=7)
+    cfg = make_cfg(storage_heat=7, net_radiation=1003)
     props = SimpleNamespace(
         land_cover=SimpleNamespace(
             bldgs=SimpleNamespace(thermal_layers=None)
@@ -228,6 +228,50 @@ def test_validate_storage_method7_does_not_require_building_material_or_lambda()
     )
 
     assert SUEWSConfig._validate_storage(cfg, site, 2) == []
+
+
+def test_validate_storage_method7_requires_spartacus_radiation():
+    cfg = make_cfg(storage_heat=7, net_radiation=3)
+    props = SimpleNamespace(
+        land_cover=SimpleNamespace(bldgs=SimpleNamespace(thermal_layers=None)),
+        lambda_c=None,
+    )
+    site = DummySite(properties=props, name="SiteS")
+    site.initial_states = SimpleNamespace(
+        qn_surfs=SimpleNamespace(value=[0.0] * 7),
+        dqndt_surf=SimpleNamespace(value=[0.0] * 7),
+    )
+
+    issues = SUEWSConfig._validate_storage(cfg, site, 2)
+
+    assert len(issues) == 1
+    assert "requires model.physics.net_radiation" in issues[0]
+    assert "1001, 1002, or 1003" in issues[0]
+
+
+def test_validate_storage_rejects_nonfinite_values():
+    cfg = make_cfg(storage_heat=6)
+    thermal_layers = SimpleNamespace(
+        dz=SimpleNamespace(value=[float("nan")]),
+        k=SimpleNamespace(value=[1.0]),
+        rho_cp=SimpleNamespace(value=[2_000_000.0]),
+    )
+    props = SimpleNamespace(
+        land_cover=SimpleNamespace(
+            bldgs=SimpleNamespace(thermal_layers=thermal_layers)
+        ),
+        lambda_c=SimpleNamespace(value=0.4),
+    )
+    site = DummySite(properties=props, name="SiteS")
+    site.initial_states = SimpleNamespace(
+        qn_surfs=SimpleNamespace(value=[0.0] * 7),
+        dqndt_surf=SimpleNamespace(value=[0.0] * 6 + [float("inf")]),
+    )
+
+    issues = SUEWSConfig._validate_storage(cfg, site, 2)
+
+    assert any("thermal_layers.dz" in issue and "finite" in issue for issue in issues)
+    assert any("dqndt_surf" in issue and "finite" in issue for issue in issues)
 
 
 def test_validate_lai_ranges_no_land_cover():
@@ -2772,6 +2816,7 @@ def test_phase_b_storageheatmethod_stebbs_requires_stebbs_enabled(registry):
         "model": {
             "physics": {
                 "storage_heat": "stebbs",
+                "net_radiation": {"spartacus": {"ldown": "air"}},
                 "ohm_inc_qf": "exclude",
                 "stebbs": {"enabled": False},
             }
@@ -2793,6 +2838,7 @@ def test_phase_b_storageheatmethod_stebbs_requires_stebbs_enabled(registry):
         "model": {
             "physics": {
                 "storage_heat": "stebbs",
+                "net_radiation": {"spartacus": {"ldown": "air"}},
                 "ohm_inc_qf": "include",
                 "stebbs": {"enabled": True, "parameters": "default"},
             }
@@ -2808,6 +2854,63 @@ def test_phase_b_storageheatmethod_stebbs_requires_stebbs_enabled(registry):
     ]
     assert len(storage_results) == 1
     assert storage_results[0].status == "PASS"
+
+    radiation_results = [
+        r for r in results if r.parameter == "storageheatmethod-netradiationmethod"
+    ]
+    assert len(radiation_results) == 1
+    assert radiation_results[0].status == "PASS"
+
+
+def test_phase_b_storageheatmethod_stebbs_requires_spartacus(registry):
+    """STEBBS storage heat requires separate SPARTACUS facet radiation."""
+    yaml_data = {
+        "model": {
+            "physics": {
+                "storage_heat": "stebbs",
+                "net_radiation": {"narp": {"ldown": "air"}},
+                "ohm_inc_qf": "include",
+                "stebbs": {"enabled": True, "parameters": "default"},
+            }
+        }
+    }
+
+    results = registry["option_dependencies"](ValidationContext(yaml_data=yaml_data))
+
+    radiation_results = [
+        r for r in results if r.parameter == "storageheatmethod-netradiationmethod"
+    ]
+    assert len(radiation_results) == 1
+    assert radiation_results[0].status == "ERROR"
+    assert "requires a SPARTACUS-Surface NetRadiationMethod" in radiation_results[0].message
+    assert "1001, 1002, or 1003" in radiation_results[0].message
+
+
+@pytest.mark.parametrize(
+    ("storage_heat", "ohm_inc_qf"),
+    [("dyohm", "include"), ("dyohm_building", "exclude")],
+)
+def test_phase_b_dyohm_methods_do_not_require_spartacus(
+    registry, storage_heat, ohm_inc_qf
+):
+    """Only STEBBS storage heat, not DyOHM methods 6 or 8, needs SPARTACUS."""
+    yaml_data = {
+        "model": {
+            "physics": {
+                "storage_heat": storage_heat,
+                "net_radiation": {"narp": {"ldown": "air"}},
+                "ohm_inc_qf": ohm_inc_qf,
+                "stebbs": {"enabled": False},
+            }
+        }
+    }
+
+    results = registry["option_dependencies"](ValidationContext(yaml_data=yaml_data))
+
+    radiation_results = [
+        r for r in results if r.parameter == "storageheatmethod-netradiationmethod"
+    ]
+    assert radiation_results == []
 
 
 def test_phase_b_ohmincqf_include_requires_ohm_like_storage(registry):

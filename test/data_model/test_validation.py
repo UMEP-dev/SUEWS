@@ -191,8 +191,8 @@ def test_needs_storage_validation_true_and_false():
 
 def test_validate_storage_requires_numeric_and_lambda():
     cfg = make_cfg(storage_heat=6)
-    # Aggregate building material layers: dz has one bad None, k is valid,
-    # and rho_cp is missing.
+    # Building material layers: dz has one bad None, k is valid, and rho_cp is
+    # missing.
     th = SimpleNamespace(
         dz=SimpleNamespace(value=[None]),
         k=SimpleNamespace(value=[1.0, 2.0]),
@@ -216,7 +216,6 @@ def test_validate_storage_requires_numeric_and_lambda():
 def test_validate_storage_method7_uses_building_not_wall_and_not_lambda():
     cfg = make_cfg(storage_heat=7)
     thermal_layers = SimpleNamespace(
-        dz=SimpleNamespace(value=[0.2]),
         k=SimpleNamespace(value=[1.2]),
         rho_cp=SimpleNamespace(value=[1_200_000.0]),
     )
@@ -233,6 +232,10 @@ def test_validate_storage_method7_uses_building_not_wall_and_not_lambda():
     )
 
     assert SUEWSConfig._validate_storage(cfg, site, 2) == []
+
+    thermal_layers.k = None
+    issues = SUEWSConfig._validate_storage(cfg, site, 2)
+    assert any("thermal_layers.k" in issue for issue in issues)
 
 
 def test_validate_lai_ranges_no_land_cover():

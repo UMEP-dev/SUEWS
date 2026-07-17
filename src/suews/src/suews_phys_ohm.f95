@@ -207,8 +207,8 @@ CONTAINS
 
             IF (first_tstep_Q .AND. new_day == 1) THEN
                IF (dyohm_all_surfaces .OR. dyohm_building_only) THEN
-                  ! The building DyOHM coefficients use the representative
-                  ! aggregate building surface, not a SPARTACUS wall layer.
+                  ! The building DyOHM coefficients use the building surface,
+                  ! not a SPARTACUS wall layer.
                   CALL OHM_yl_cal(dt_since_start, &
                                   ws_rav, T_half_bldg_C, T_prev, qn_rav(BldgSurf), & ! Input
                                   dz_surf(BldgSurf, 1), cp_surf(BldgSurf, 1), &

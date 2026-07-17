@@ -2199,7 +2199,7 @@ class SUEWSConfig(BaseModel):
 
         This function checks that all required parameters for the DyOHM storage-heat
         method (storage_heat_method 6, 7, or 8) are present and valid for the given site.
-        It ensures that the aggregate building material layers and initial-state
+        It ensures that the required building material properties and initial-state
         arrays are non-empty and contain only numeric values. ``lambda_c`` is
         required for methods 6 and 8, which calculate building DyOHM coefficients.
 
@@ -2218,7 +2218,9 @@ class SUEWSConfig(BaseModel):
         Notes
         -----
         - Checks ``land_cover.bldgs.thermal_layers`` rather than a SPARTACUS wall.
-        - Ensures that dz, k, and rho_cp arrays are non-empty and numeric.
+        - Ensures that required material-property arrays are non-empty and numeric.
+          Methods 6 and 8 require building dz, k, and rho_cp; method 7 requires
+          building k and rho_cp but does not use building dz.
         - Validates initial_states.qn_surfs and dqndt_surf arrays.
         - Checks that lambda_c is set and non-null for methods 6 and 8.
         """
@@ -2249,7 +2251,12 @@ class SUEWSConfig(BaseModel):
             )
         else:
             th = getattr(bldgs, "thermal_layers", None)
-            for arr in ("dz", "k", "rho_cp"):
+            building_material_fields = (
+                ("k", "rho_cp")
+                if storage_heat_method == 7
+                else ("dz", "k", "rho_cp")
+            )
+            for arr in building_material_fields:
                 field = getattr(th, arr, None) if th else None
                 vals = getattr(field, "value", None) if field else None
                 if (
@@ -2259,7 +2266,7 @@ class SUEWSConfig(BaseModel):
                     or any(not isinstance(v, (int, float)) for v in vals)
                 ):
                     issues.append(
-                        f"{site_name}: storage_heat_method 6, 7, or 8 (DyOHM) selected -> "
+                        f"{site_name}: storage_heat_method {storage_heat_method} selected -> "
                         f"properties.land_cover.bldgs.thermal_layers.{arr} must be "
                         "a non-empty list of numeric values (no nulls)"
                     )

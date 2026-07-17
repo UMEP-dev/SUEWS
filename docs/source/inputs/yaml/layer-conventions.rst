@@ -120,7 +120,7 @@ not use them.
    * - EHC (``5``)
      - All five material layers are used for every roof and wall vertical layer
        and for the solid non-building land covers (paved,
-       vegetation, and bare soil). The aggregate building and water thermal
+       vegetation, and bare soil). The ``land_cover.bldgs`` and water thermal
        arrays are not used by facet-resolved EHC conduction.
      - Provide complete five-entry ``dz``, ``k``, and ``rho_cp`` arrays for all
        roof and wall facets and for the solid non-building land covers.
@@ -134,11 +134,13 @@ not use them.
    * - STEBBS buildings with DyOHM non-building surfaces (``7``)
      - STEBBS supplies building storage heat. Each non-building land cover uses
        the outermost material layer for its dynamic OHM coefficients. The
-       aggregate building ``k`` and ``rho_cp`` values are used in the building
-       surface-temperature update; roof and wall material properties are not
-       used by this method.
-     - Provide five-entry arrays for the aggregate building and non-building
-       surfaces. Material layer ``0`` supplies the properties used by this path.
+       building ``k`` and ``rho_cp`` values from ``land_cover.bldgs`` are used
+       in the building surface-temperature update; roof and wall material
+       properties are not used by this method.
+     - Provide five-entry ``k`` and ``rho_cp`` arrays for
+       ``land_cover.bldgs``, and ``dz``, ``k``, and ``rho_cp`` arrays for the
+       non-building surfaces. Material layer ``0`` supplies the properties used
+       by this path; building ``dz`` does not affect method 7.
    * - Building-only DyOHM (``8``)
      - Only the outermost material layer of
        ``land_cover.bldgs.thermal_layers`` affects the building dynamic OHM

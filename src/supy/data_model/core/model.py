@@ -258,9 +258,9 @@ class StorageHeatMethod(Enum):
     3: ANOHM - Analytical OHM (Sun et al., 2017) - not recommended
     4: ESTM - Element Surface Temperature Method (Offerle et al., 2005) - not recommended
     5: EHC - Uses all five material layers for conducting roof, wall, and land-cover facets
-    6: DyOHM - Dynamic OHM using the outermost material layer of each aggregate SUEWS surface
+    6: DyOHM - Dynamic OHM using the outermost material layer of each SUEWS land-cover surface
     7: STEBBS - STEBBS storage heat for buildings and DyOHM using the outermost material layer for non-building surfaces
-    8: DyOHM_BUILDING - DyOHM using the outermost aggregate building material layer; ordinary OHM for other surfaces
+    8: DyOHM_BUILDING - DyOHM using the outermost building material layer; ordinary OHM for other surfaces
     """
 
     # Note: EHC (option 5) implements explicit heat conduction
@@ -960,11 +960,11 @@ class ModelPhysics(BaseModel):
             "note": (
                 "EHC (5) uses all five material layers for its conducting roof, "
                 "wall, and solid non-building land-cover facets. DyOHM (6) "
-                "uses only the outermost material layer of each aggregate "
-                "SUEWS surface, including land_cover.bldgs for buildings. "
+                "uses only the outermost material layer of each SUEWS land-cover "
+                "surface, including land_cover.bldgs for buildings. "
                 "Method 7 requires STEBBS enabled for buildings and applies "
                 "DyOHM to non-building surfaces. Method 8 applies DyOHM only to "
-                "the aggregate building surface and requires OhmIncQf=0."
+                "the building surface and requires OhmIncQf=0."
             ),
         },
     )

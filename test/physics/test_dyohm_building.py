@@ -141,11 +141,14 @@ def test_dyohm_building_qs_behavior_relative_to_ohm():
     not _rust_library_available(),
     reason="Rust library backend not available (install src/suews_bridge with physics feature)",
 )
-def test_dyohm_building_uses_aggregate_building_material_not_wall():
+@pytest.mark.parametrize("storage_heat_method", [6, 8])
+def test_dyohm_uses_building_material_not_wall(storage_heat_method):
     df_state_init, df_forcing_all = sp.load_SampleData()
     df_forcing = df_forcing_all.loc["2012-06-01 00:05:00":"2012-06-03 00:00:00"]
 
-    baseline = _run_storage_case(df_state_init, df_forcing, 8, building_fraction=0.3)
+    baseline = _run_storage_case(
+        df_state_init, df_forcing, storage_heat_method, building_fraction=0.3
+    )
     changed_building_state = _set_outer_material(
         df_state_init, "surf", 1, (0.35, 1_800_000.0, 0.7)
     )
@@ -153,10 +156,16 @@ def test_dyohm_building_uses_aggregate_building_material_not_wall():
         df_state_init, "wall", 0, (0.35, 1_800_000.0, 0.7)
     )
     changed_building = _run_storage_case(
-        changed_building_state, df_forcing, 8, building_fraction=0.3
+        changed_building_state,
+        df_forcing,
+        storage_heat_method,
+        building_fraction=0.3,
     )
     changed_wall = _run_storage_case(
-        changed_wall_state, df_forcing, 8, building_fraction=0.3
+        changed_wall_state,
+        df_forcing,
+        storage_heat_method,
+        building_fraction=0.3,
     )
 
     np.testing.assert_allclose(

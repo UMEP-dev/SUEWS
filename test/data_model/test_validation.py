@@ -191,15 +191,16 @@ def test_needs_storage_validation_true_and_false():
 
 def test_validate_storage_requires_numeric_and_lambda():
     cfg = make_cfg(storage_heat=6)
-    # stub thermal_layers: dz has one bad None, k OK, rho_cp missing
+    # Aggregate building material layers: dz has one bad None, k is valid,
+    # and rho_cp is missing.
     th = SimpleNamespace(
         dz=SimpleNamespace(value=[None]),
         k=SimpleNamespace(value=[1.0, 2.0]),
         # rho_cp attribute not defined → treated missing
     )
-    wall = SimpleNamespace(thermal_layers=th)
+    bldgs = SimpleNamespace(thermal_layers=th)
     props = SimpleNamespace(
-        vertical_layers=SimpleNamespace(walls=[wall]),
+        land_cover=SimpleNamespace(bldgs=bldgs),
         lambda_c=None,  # missing
     )
     site = DummySite(properties=props, name="SiteS")
@@ -210,6 +211,28 @@ def test_validate_storage_requires_numeric_and_lambda():
     assert any("properties.lambda_c must be set" in m for m in msgs)
     # should include the site name
     assert any("SiteS" in m for m in msgs)
+
+
+def test_validate_storage_method7_uses_building_not_wall_and_not_lambda():
+    cfg = make_cfg(storage_heat=7)
+    thermal_layers = SimpleNamespace(
+        dz=SimpleNamespace(value=[0.2]),
+        k=SimpleNamespace(value=[1.2]),
+        rho_cp=SimpleNamespace(value=[1_200_000.0]),
+    )
+    props = SimpleNamespace(
+        land_cover=SimpleNamespace(
+            bldgs=SimpleNamespace(thermal_layers=thermal_layers)
+        ),
+        lambda_c=None,
+    )
+    site = DummySite(properties=props, name="SiteS")
+    site.initial_states = SimpleNamespace(
+        qn_surfs=SimpleNamespace(value=[0.0] * 7),
+        dqndt_surf=SimpleNamespace(value=[0.0] * 7),
+    )
+
+    assert SUEWSConfig._validate_storage(cfg, site, 2) == []
 
 
 def test_validate_lai_ranges_no_land_cover():

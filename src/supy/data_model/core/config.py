@@ -2199,8 +2199,9 @@ class SUEWSConfig(BaseModel):
 
         This function checks that all required parameters for the DyOHM storage-heat
         method (storage_heat_method 6, 7, or 8) are present and valid for the given site.
-        It ensures that vertical_layers.walls, thermal_layers, and initial_states
-        arrays are non-empty and contain only numeric values, and that lambda_c is set.
+        It ensures that the aggregate building material layers and initial-state
+        arrays are non-empty and contain only numeric values. ``lambda_c`` is
+        required for methods 6 and 8, which calculate building DyOHM coefficients.
 
         Parameters
         ----------
@@ -2216,10 +2217,10 @@ class SUEWSConfig(BaseModel):
 
         Notes
         -----
-        - Checks for presence and validity of vertical_layers.walls and their thermal_layers.
+        - Checks ``land_cover.bldgs.thermal_layers`` rather than a SPARTACUS wall.
         - Ensures that dz, k, and rho_cp arrays are non-empty and numeric.
         - Validates initial_states.qn_surfs and dqndt_surf arrays.
-        - Checks that lambda_c is set and non-null.
+        - Checks that lambda_c is set and non-null for methods 6 and 8.
         """
         issues: List[str] = []
 
@@ -2229,29 +2230,39 @@ class SUEWSConfig(BaseModel):
         if not props:
             return issues
 
-        vl = getattr(props, "vertical_layers", None)
-        walls = getattr(vl, "walls", None) if vl else None
+        physics = getattr(getattr(self, "model", None), "physics", None)
+        storage_heat = getattr(physics, "storage_heat", None)
+        storage_heat_method = getattr(storage_heat, "value", storage_heat)
+        storage_heat_method = getattr(storage_heat_method, "value", storage_heat_method)
+        try:
+            storage_heat_method = int(storage_heat_method)
+        except (TypeError, ValueError):
+            storage_heat_method = None
 
-        if not walls or len(walls) == 0:
+        land_cover = getattr(props, "land_cover", None)
+        bldgs = getattr(land_cover, "bldgs", None) if land_cover else None
+
+        if bldgs is None:
             issues.append(
-                f"{site_name}: storage_heat_method 6, 7, or 8 (DyOHM) selected -> missing vertical_layers.walls"
+                f"{site_name}: storage_heat_method 6, 7, or 8 (DyOHM) selected -> "
+                "missing properties.land_cover.bldgs"
             )
-            return issues
-
-        th = getattr(walls[0], "thermal_layers", None)
-        for arr in ("dz", "k", "rho_cp"):
-            field = getattr(th, arr, None) if th else None
-            vals = getattr(field, "value", None) if field else None
-            if (
-                not isinstance(vals, list)
-                or len(vals) == 0
-                or any(v is None for v in vals)
-                or any(not isinstance(v, (int, float)) for v in vals)
-            ):
-                issues.append(
-                    f"{site_name}: storage_heat_method 6, 7, or 8 (DyOHM) selected -> "
-                    f"thermal_layers.{arr} must be a non-empty list of numeric values (no nulls)"
-                )
+        else:
+            th = getattr(bldgs, "thermal_layers", None)
+            for arr in ("dz", "k", "rho_cp"):
+                field = getattr(th, arr, None) if th else None
+                vals = getattr(field, "value", None) if field else None
+                if (
+                    not isinstance(vals, list)
+                    or len(vals) == 0
+                    or any(v is None for v in vals)
+                    or any(not isinstance(v, (int, float)) for v in vals)
+                ):
+                    issues.append(
+                        f"{site_name}: storage_heat_method 6, 7, or 8 (DyOHM) selected -> "
+                        f"properties.land_cover.bldgs.thermal_layers.{arr} must be "
+                        "a non-empty list of numeric values (no nulls)"
+                    )
 
         for arr in ("qn_surfs", "dqndt_surf"):
             field = getattr(states, arr, None) if states else None
@@ -2271,11 +2282,13 @@ class SUEWSConfig(BaseModel):
                     f"initial_states.{arr} must be a non-empty list of numeric values (no nulls)"
                 )
 
-        lam = getattr(getattr(props, "lambda_c", None), "value", None)
-        if lam in (None, ""):
-            issues.append(
-                f"{site_name}: storage_heat_method 6, 7, or 8 (DyOHM) selected -> properties.lambda_c must be set and non-null"
-            )
+        if storage_heat_method in {6, 8}:
+            lam = getattr(getattr(props, "lambda_c", None), "value", None)
+            if lam in (None, ""):
+                issues.append(
+                    f"{site_name}: storage_heat_method {storage_heat_method} (DyOHM building) selected -> "
+                    "properties.lambda_c must be set and non-null"
+                )
 
         return issues
 

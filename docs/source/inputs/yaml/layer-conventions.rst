@@ -126,29 +126,26 @@ not use them.
        roof and wall facets and for the solid non-building land covers.
    * - DyOHM for all surfaces (``6``)
      - Only the outermost material layer, index ``0``, affects the dynamic OHM
-       coefficients. Buildings use the outermost material layer of ``walls[0]``,
-       the lowest wall vertical layer. Each non-building land cover uses its
-       own outermost material layer. Roof thermal properties are not used.
+       coefficients. Buildings use ``land_cover.bldgs.thermal_layers``; each
+       non-building land cover uses its own ``thermal_layers``. Roof and wall
+       material properties are not used by DyOHM.
      - Keep the five-entry arrays for a consistent configuration, but only
        element ``0`` affects DyOHM results.
    * - STEBBS buildings with DyOHM non-building surfaces (``7``)
      - STEBBS supplies building storage heat. Each non-building land cover uses
-       the outermost material layer for its dynamic OHM coefficients. Building
-       roof and wall thermal properties do not affect the STEBBS building
-       storage heat.
-     - Provide five-entry arrays for the non-building surfaces. The current
-       configuration validation also expects wall thermal properties when this
-       method is selected.
+       the outermost material layer for its dynamic OHM coefficients. The
+       aggregate building ``k`` and ``rho_cp`` values are used in the building
+       surface-temperature update; roof and wall material properties are not
+       used by this method.
+     - Provide five-entry arrays for the aggregate building and non-building
+       surfaces. Material layer ``0`` supplies the properties used by this path.
    * - Building-only DyOHM (``8``)
-     - Only the outermost material layer of ``walls[0]`` affects the building
-       dynamic OHM coefficients. Roof thermal properties are not used, and
+     - Only the outermost material layer of
+       ``land_cover.bldgs.thermal_layers`` affects the building dynamic OHM
+       coefficients. Roof and wall material properties are not used, and
        non-building surfaces use ordinary OHM coefficients.
      - Keep five-entry arrays for a consistent configuration, but only
-       ``walls[0]`` element ``0`` affects the DyOHM building calculation.
-
-Here ``walls[0]`` and material-layer index ``0`` refer to different coordinates:
-the first is the lowest SPARTACUS vertical layer, while the second is the
-outermost material layer in that wall.
+       ``land_cover.bldgs`` element ``0`` affects the DyOHM building calculation.
 
 When roof and wall optical properties affect the calculation
 ------------------------------------------------------------

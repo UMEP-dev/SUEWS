@@ -2359,9 +2359,7 @@ CONTAINS
                            BldgSurf, WaterSurf, &
                            SnowUse, SnowFrac, &
                            atmState%U_hbh, atmState%T_half_bldg_C, t2_prev, &
-                           ws_rav, qn_rav, nlayer, &
-                           dz_roof, cp_roof, k_roof, &
-                           dz_wall, cp_wall, k_wall, &
+                           ws_rav, qn_rav, &
                            dz_surf, cp_surf, k_surf, &
                            lambda_c, &
                            StorageHeatMethod, DiagQS, timer, &

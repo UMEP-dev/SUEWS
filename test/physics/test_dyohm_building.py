@@ -84,6 +84,14 @@ def _run_storage_case(df_state_init, df_forcing, method: int, building_fraction:
     return df_output.SUEWS
 
 
+def _set_outer_material(df_state, surface_kind: str, first_index: int, values):
+    """Return state with one aggregate/facet outer material layer replaced."""
+    updated = df_state.copy()
+    for field, value in zip(("dz", "cp", "k"), values):
+        updated.loc[:, (f"{field}_{surface_kind}", f"({first_index}, 0)")] = value
+    return updated
+
+
 @pytest.mark.skipif(
     not _rust_library_available(),
     reason="Rust library backend not available (install src/suews_bridge with physics feature)",
@@ -126,6 +134,42 @@ def test_dyohm_building_qs_behavior_relative_to_ohm():
         rtol=0.0,
         atol=1.0e-6,
         err_msg="per-surface QS does not close against grid QS under method 8",
+    )
+
+
+@pytest.mark.skipif(
+    not _rust_library_available(),
+    reason="Rust library backend not available (install src/suews_bridge with physics feature)",
+)
+def test_dyohm_building_uses_aggregate_building_material_not_wall():
+    df_state_init, df_forcing_all = sp.load_SampleData()
+    df_forcing = df_forcing_all.loc["2012-06-01 00:05:00":"2012-06-03 00:00:00"]
+
+    baseline = _run_storage_case(df_state_init, df_forcing, 8, building_fraction=0.3)
+    changed_building_state = _set_outer_material(
+        df_state_init, "surf", 1, (0.35, 1_800_000.0, 0.7)
+    )
+    changed_wall_state = _set_outer_material(
+        df_state_init, "wall", 0, (0.35, 1_800_000.0, 0.7)
+    )
+    changed_building = _run_storage_case(
+        changed_building_state, df_forcing, 8, building_fraction=0.3
+    )
+    changed_wall = _run_storage_case(
+        changed_wall_state, df_forcing, 8, building_fraction=0.3
+    )
+
+    np.testing.assert_allclose(
+        changed_wall["QS"].to_numpy(),
+        baseline["QS"].to_numpy(),
+        rtol=0.0,
+        atol=1.0e-7,
+        err_msg="DyOHM-building must not read SPARTACUS wall material properties",
+    )
+
+    qs_delta = np.abs(changed_building["QS"].to_numpy() - baseline["QS"].to_numpy())
+    assert float(np.nanmax(qs_delta)) > 1.0e-4, (
+        "DyOHM-building did not respond to land_cover.bldgs material layer 0"
     )
 
 

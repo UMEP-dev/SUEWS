@@ -1107,8 +1107,9 @@ class VerticalLayers(BaseModel):
     veg_frac: FlexibleRefValue(List[float]) = Field(
         default=[0.0, 0.0, 0.0],
         description=(
-            "Fraction of vegetation in each SPARTACUS vertical layer; length must "
-            "be nlayer"
+            "Fraction of vegetation obstruction in each vertical layer, length must "
+            "be nlayer. The lowest layer value may represent trunk or near-ground "
+            "obstruction and is not required to equal total tree land-cover fraction."
         ),
         json_schema_extra={
             "unit": "dimensionless",

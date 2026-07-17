@@ -289,8 +289,6 @@ SPARTACUS-Surface (SS)
 
    -  New SUEWS input table containing SPARTACUS profiles
 
-   -  Add check for consistency of SUEWS and SS surface fractions
-
    -  Include snow
 
 Introduction to SS
@@ -334,7 +332,7 @@ Assumptions include:
 Each time light is intercepted it can undergo diffuse or specular reflection, be absorbed or be transmitted (as diffuse radiation).
 The probabilities for buildings and the ground are determined by albedos and emissivities, and for trees are determined by extinction coefficients and single scattering albedos.
 
-SUEWS-SS Implementation
+SUEWS-SS Characteristics
 ************************
 
 -  Maximum of 15 SPARTACUS vertical layers.
@@ -353,31 +351,20 @@ SUEWS-SS Implementation
 
 -  Vegetation extinction coefficients (calculated from leaf area index, LAI) are assumed to be the same in all vegetated layers.
 
-.. margin::
+-  SPARTACUS receives SUEWS heat-state surface-temperature arrays: ground temperature is calculated from the area-weighted non-building surface temperatures, while roof and wall temperatures are supplied from layer-resolved roof and wall surface-temperature arrays. These arrays depend on the selected storage-heat and temperature scheme, for example EHC, DyOHM, or STEBBS where enabled.
 
-  .. [#estm_coupling] Confirming the ESTM coupling will allow this to be modified.
-
-
-
--  Building facet and ground temperatures are equal to SUEWS TSfc_C (i.e.surface temperature) [#estm_coupling]_.
-
-
-.. margin::
-
-  .. [#rsl_layers] It is the forcing air temperature not RSL temperature. Future developments might make leaf temperature change with height.
-
--  Leaf temperatures are equal to SUEWS temp_C (i.e. air temperature within the canopy) [#rsl_layers]_.
+-  Vegetation (leaf) temperatures are currently set equal to the SPARTACUS vegetation-air temperature. When a valid RSL temperature profile is available, this temperature is interpolated to a representative vegetation height; otherwise it falls back to the forcing air temperature ``Temp_C``. The current implementation does not resolve separate leaf temperatures by canopy layer.
 
 
 -  Ground albedo and emissivity are an area weighted average of SUEWS paved, grass, bare soil and water values.
 
--  Inputs from SUEWS: ``sfr``, ``zenith_deg``, ``TSfc_C``, ``avKdn``, ``ldown``, ``temp_c``, ``alb_next``, ``emis``, ``LAI_id``.
+-  Inputs from SUEWS include land-cover fractions (``sfr_surf``), solar zenith angle (``zenith_deg``), surface-temperature arrays (``tsfc_surf``, ``tsfc_roof`` and ``tsfc_wall``), incoming shortwave and longwave radiation (``kdown``, ``kdown_direct``, ``kdown_diffuse`` and ``ldown``), air temperature and optional RSL temperature-profile arrays (``Tair_C``, ``rsl_z`` and ``rsl_t_C``), surface albedo and emissivity (``alb_surf`` and ``emis_surf``), vegetation LAI (``LAI_id``), and SPARTACUS vertical-layer properties such as ``height``, ``building_frac``, ``veg_frac``, ``building_scale``, ``veg_scale`` and ``veg_ext``.
 
 -  SS specific input parameters: read in from `SUEWS_SPARTACUS.nml`.
 
--  Outputs used by SUEWS: alb_spc, emis_spc, lw_emission_spc.
+-  Outputs passed back to SUEWS include net radiation and flux terms: bulk net radiation (``qn``), outgoing shortwave and longwave radiation (``kup`` and ``lup``), surface net radiation by land-cover class (``qn_surf``), layer-resolved roof and wall net radiation (``qn_roof`` and ``qn_wall``), and incoming roof and wall shortwave/longwave radiation diagnostics.
 
--  Although the radiation is calculated in multiple vertical layers within SS it is only the upwelling top-of-canopy fluxes: ``alb_spc*avKdn``, ``(emis_spc)*ldown``, and ``lw_emission_spc`` that are used by SUEWS.
+-  SPARTACUS also reports diagnostic top-of-canopy quantities such as ``alb_spc``, ``emis_spc`` and ``lw_emission_spc`` in the SPARTACUS output file. These are used internally to derive outgoing shortwave and longwave fluxes, but the quantities passed back into the SUEWS energy-balance calculations are the fluxes and net-radiation terms.
 
 .. margin::
 
@@ -388,13 +375,13 @@ SUEWS-SS Implementation
 
 
 
-RSL and SS Canopy Representation Comparison
-*******************************************
+RSL and SS Canopy Representation
+********************************
 
 
--  The RSL has 30 levels but when the average building height is <2 m, < 12 m and > 12 m there are 3, 10 and 15 evenly spaced layers in the canopy.
--  The remaining levels are evenly spaced up to the forcing level (:numref:`SUEWS-RSL`).
--  The buildings are assumed to be uniform height.
+-  The RSL diagnostic profile contains 30 height levels. When the RSL scheme is active, 20 levels are placed within the urban canopy and the remaining 10 levels extend from the canopy top to the forcing height.
+-  The RSL height levels are non-uniformly spaced, with extra resolution near the surface, around half canopy height, and near the canopy top (:numref:`SUEWS-RSL`).
+-  The RSL calculation uses a representative canopy height and morphology. This is separate from the SPARTACUS vertical-layer description, where building and vegetation fractions can vary by layer.
 
 
 .. _SUEWS-RSL:
@@ -404,9 +391,10 @@ RSL and SS Canopy Representation Comparison
    SUEWS-RSL module assumes the RSL has 30 layers that are spread between the canopy and within the atmosphere above
 
 
-A maximum of 15 layers are used by SS (:numref:`vertial_layers_SS`), with the top of the highest layer at the tallest building height.
-The layer heights are user defined and there is no limit on maximum building height.
-The buildings are allowed to vary in height.
+A maximum of 15 vertical layers can be used by SPARTACUS-Surface (:numref:`vertial_layers_SS`).
+Layer heights are user defined, and the top of the SPARTACUS domain is given by the final value in the ``height`` array.
+There is no fixed numeric maximum building height.
+Building and vegetation fractions can vary between vertical layers.
 
 
 .. _vertial_layers_SS:
@@ -504,7 +492,19 @@ Alternatively, new surfaces can be made in `SUEWS_NonVeg.txt` and `SUEWS_NonVeg.
 Consistency of SUEWS and SS parameters
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-SUEWS building and tree (evergreen+deciduous) fractions in `SUEWS_SiteSelect.txt` should be consistent with the `SUEWS_SPARTACUS.nml` `building_frac` and `veg_frac` of the lowest model layer.
+SPARTACUS-Surface uses vertical-layer plan-area fractions to describe the radiative geometry.
+These layer fractions should be interpreted separately from the SUEWS land-cover fractions.
+
+The SUEWS tree land-cover fraction is the total area fraction assigned to evergreen and deciduous trees: `Fr_EveTr` + `Fr_DecTr` in legacy input files, or ``evetr.sfr`` + ``dectr.sfr`` in YAML.
+This fraction controls the ordinary SUEWS surface mix and may come from land-cover mapping.
+
+The SPARTACUS vegetation profile, ``veg_frac``, describes the vegetation obstruction represented in each vertical layer.
+The lowest element, ``veg_frac[0]``, may represent trunk or near-ground obstruction and can therefore be smaller than the total tree land-cover fraction.
+Upper-layer ``veg_frac`` values may instead represent crown projected fraction.
+
+For this reason, ``veg_frac[0]`` is not required to equal `Fr_EveTr` + `Fr_DecTr` or ``evetr.sfr`` + ``dectr.sfr``.
+Users should review differences when land-cover and vertical morphology data come from different sources.
+The per-layer geometry bound should still be respected: ``building_frac[i]`` + ``veg_frac[i]`` <= 1.
 
 Leaf area index (LAI)
 ^^^^^^^^^^^^^^^^^^^^^^^^

@@ -4,7 +4,7 @@ use crate::atm::atm_state_from_ordered_values;
 use crate::building_archetype_prm::building_archetype_prm_from_ordered_values;
 use crate::conductance::conductance_prm_from_ordered_values;
 use crate::config::SuewsConfig;
-use crate::core::{ohm_state_from_ordered_values, NSURF, SURFACE_NAMES};
+use crate::core::{ohm_state_from_ordered_values, SURFACE_NAMES};
 use crate::ehc_prm::{ehc_prm_from_ordered_values, EhcPrm};
 use crate::error::BridgeError;
 use crate::ffi;
@@ -610,7 +610,7 @@ fn validate_dyohm_material_inputs(run_cfg: &RunConfig) -> Result<(), BridgeError
         }
     }
 
-    for surf_idx in 0..NSURF {
+    for (surf_idx, &surface_name) in SURFACE_NAMES.iter().enumerate() {
         let material_is_used = match storage_heat_method {
             // Full DyOHM uses every SUEWS surface. STEBBS owns the building
             // storage heat and temperatures in method 7, so only non-building
@@ -640,7 +640,7 @@ fn validate_dyohm_material_inputs(run_cfg: &RunConfig) -> Result<(), BridgeError
             let surface_name = if surf_idx == BUILDING_SURFACE_INDEX {
                 "bldgs"
             } else {
-                SURFACE_NAMES[surf_idx]
+                surface_name
             };
             return Err(simulation_error(format!(
                 "invalid outermost material layer for DyOHM surface `{surface_name}`: dz={dz}, rho_cp={cp}, k={k}"

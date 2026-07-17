@@ -213,15 +213,11 @@ def test_validate_storage_requires_numeric_and_lambda():
     assert any("SiteS" in m for m in msgs)
 
 
-def test_validate_storage_method7_uses_building_not_wall_and_not_lambda():
+def test_validate_storage_method7_does_not_require_building_material_or_lambda():
     cfg = make_cfg(storage_heat=7)
-    thermal_layers = SimpleNamespace(
-        k=SimpleNamespace(value=[1.2]),
-        rho_cp=SimpleNamespace(value=[1_200_000.0]),
-    )
     props = SimpleNamespace(
         land_cover=SimpleNamespace(
-            bldgs=SimpleNamespace(thermal_layers=thermal_layers)
+            bldgs=SimpleNamespace(thermal_layers=None)
         ),
         lambda_c=None,
     )
@@ -232,10 +228,6 @@ def test_validate_storage_method7_uses_building_not_wall_and_not_lambda():
     )
 
     assert SUEWSConfig._validate_storage(cfg, site, 2) == []
-
-    thermal_layers.k = None
-    issues = SUEWSConfig._validate_storage(cfg, site, 2)
-    assert any("thermal_layers.k" in issue for issue in issues)
 
 
 def test_validate_lai_ranges_no_land_cover():

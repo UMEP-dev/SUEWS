@@ -2,6 +2,7 @@
 
 from importlib import import_module
 import logging
+from pathlib import Path
 import warnings
 
 import numpy as np
@@ -210,3 +211,53 @@ def test_dyohm_tsurf_diagnostic_scope():
             f"{col} varies under storage_heat=8; dyohm_building does not "
             "calculate DyOHM conductive surface temperatures by design"
         )
+
+
+@pytest.mark.skipif(
+    not _rust_library_available(),
+    reason="Rust library backend not available (install src/suews_bridge with physics feature)",
+)
+def test_method7_stebbs_owns_building_temperature_and_materials():
+    config_path = (
+        Path(__file__).parents[1]
+        / "fixtures"
+        / "data_test"
+        / "stebbs_test"
+        / "sample_config.yml"
+    )
+    df_state = sp.init_supy(str(config_path))
+    df_forcing_all = sp.load_forcing_grid(
+        str(config_path), df_state.index[0], df_state_init=df_state
+    )
+    df_forcing = df_forcing_all.loc["2017-08-26"].iloc[:12]
+    changed_building_state = _set_outer_material(
+        df_state, "surf", 1, (0.0, 0.0, 0.0)
+    )
+
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        baseline, _ = sp.run_supy(
+            df_forcing,
+            df_state,
+            logging_level=logging.CRITICAL,
+            check_input=False,
+            save_state=False,
+        )
+        changed_building, _ = sp.run_supy(
+            df_forcing,
+            changed_building_state,
+            logging_level=logging.CRITICAL,
+            check_input=False,
+            save_state=False,
+        )
+
+    np.testing.assert_allclose(
+        changed_building.to_numpy(),
+        baseline.to_numpy(),
+        rtol=0.0,
+        atol=1.0e-10,
+        equal_nan=True,
+        err_msg="method 7 must not read land_cover.bldgs material properties",
+    )
+    assert baseline.SUEWS["Ts_Bldgs_dyohm"].nunique() == 1
+    assert baseline.SUEWS["Ts_Paved_dyohm"].nunique() > 1

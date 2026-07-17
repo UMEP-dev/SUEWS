@@ -57,7 +57,7 @@ EXAMPLES:
 ### 17 Jul 2026
 
 - [bugfix] Corrected the building material properties used by DyOHM
-  - Storage-heat methods 6 and 8 now calculate building DyOHM coefficients from material layer 0 of `land_cover.bldgs` instead of a SPARTACUS wall.
+  - Storage-heat methods 6 and 8 now calculate building DyOHM coefficients from material layer 0 of `land_cover.bldgs` instead of a SPARTACUS wall. Method 7 leaves building storage heat and temperatures to STEBBS and therefore does not use or require the `land_cover.bldgs` material layers.
 
 ### 13 Jul 2026
 

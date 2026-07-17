@@ -132,15 +132,14 @@ not use them.
      - Keep the five-entry arrays for a consistent configuration, but only
        element ``0`` affects DyOHM results.
    * - STEBBS buildings with DyOHM non-building surfaces (``7``)
-     - STEBBS supplies building storage heat. Each non-building land cover uses
-       the outermost material layer for its dynamic OHM coefficients. The
-       building ``k`` and ``rho_cp`` values from ``land_cover.bldgs`` are used
-       in the building surface-temperature update; roof and wall material
-       properties are not used by this method.
-     - Provide five-entry ``k`` and ``rho_cp`` arrays for
-       ``land_cover.bldgs``, and ``dz``, ``k``, and ``rho_cp`` arrays for the
+     - STEBBS supplies the building storage heat and roof/wall temperatures, so
+       ``land_cover.bldgs.thermal_layers`` is not used. Each non-building land
+       cover uses its outermost material layer for dynamic OHM coefficients and
+       its DyOHM surface-temperature update.
+     - Provide five-entry ``dz``, ``k``, and ``rho_cp`` arrays for the
        non-building surfaces. Material layer ``0`` supplies the properties used
-       by this path; building ``dz`` does not affect method 7.
+       by this path. No building material-layer properties are required by
+       method 7.
    * - Building-only DyOHM (``8``)
      - Only the outermost material layer of
        ``land_cover.bldgs.thermal_layers`` affects the building dynamic OHM

@@ -2199,9 +2199,11 @@ class SUEWSConfig(BaseModel):
 
         This function checks that all required parameters for the DyOHM storage-heat
         method (storage_heat_method 6, 7, or 8) are present and valid for the given site.
-        It ensures that the required building material properties and initial-state
-        arrays are non-empty and contain only numeric values. ``lambda_c`` is
-        required for methods 6 and 8, which calculate building DyOHM coefficients.
+        It ensures that required building material properties and initial-state
+        arrays are non-empty and contain only numeric values. Building material
+        properties and ``lambda_c`` are required only for methods 6 and 8, which
+        calculate building DyOHM coefficients. STEBBS owns the building storage
+        heat and temperatures in method 7.
 
         Parameters
         ----------
@@ -2217,10 +2219,11 @@ class SUEWSConfig(BaseModel):
 
         Notes
         -----
-        - Checks ``land_cover.bldgs.thermal_layers`` rather than a SPARTACUS wall.
+        - For methods 6 and 8, checks ``land_cover.bldgs.thermal_layers`` rather
+          than a SPARTACUS wall.
         - Ensures that required material-property arrays are non-empty and numeric.
-          Methods 6 and 8 require building dz, k, and rho_cp; method 7 requires
-          building k and rho_cp but does not use building dz.
+          Methods 6 and 8 require building dz, k, and rho_cp. Method 7 does not
+          use the building material layers.
         - Validates initial_states.qn_surfs and dqndt_surf arrays.
         - Checks that lambda_c is set and non-null for methods 6 and 8.
         """
@@ -2244,32 +2247,31 @@ class SUEWSConfig(BaseModel):
         land_cover = getattr(props, "land_cover", None)
         bldgs = getattr(land_cover, "bldgs", None) if land_cover else None
 
-        if bldgs is None:
-            issues.append(
-                f"{site_name}: storage_heat_method 6, 7, or 8 (DyOHM) selected -> "
-                "missing properties.land_cover.bldgs"
-            )
-        else:
-            th = getattr(bldgs, "thermal_layers", None)
-            building_material_fields = (
-                ("k", "rho_cp")
-                if storage_heat_method == 7
-                else ("dz", "k", "rho_cp")
-            )
-            for arr in building_material_fields:
-                field = getattr(th, arr, None) if th else None
-                vals = getattr(field, "value", None) if field else None
-                if (
-                    not isinstance(vals, list)
-                    or len(vals) == 0
-                    or any(v is None for v in vals)
-                    or any(not isinstance(v, (int, float)) for v in vals)
-                ):
-                    issues.append(
-                        f"{site_name}: storage_heat_method {storage_heat_method} selected -> "
-                        f"properties.land_cover.bldgs.thermal_layers.{arr} must be "
-                        "a non-empty list of numeric values (no nulls)"
-                    )
+        if storage_heat_method in {6, 8}:
+            if bldgs is None:
+                issues.append(
+                    f"{site_name}: storage_heat_method {storage_heat_method} "
+                    "(building DyOHM) selected -> missing "
+                    "properties.land_cover.bldgs"
+                )
+            else:
+                th = getattr(bldgs, "thermal_layers", None)
+                for arr in ("dz", "k", "rho_cp"):
+                    field = getattr(th, arr, None) if th else None
+                    vals = getattr(field, "value", None) if field else None
+                    if (
+                        not isinstance(vals, list)
+                        or len(vals) == 0
+                        or any(v is None for v in vals)
+                        or any(not isinstance(v, (int, float)) for v in vals)
+                    ):
+                        issues.append(
+                            f"{site_name}: storage_heat_method "
+                            f"{storage_heat_method} selected -> "
+                            "properties.land_cover.bldgs.thermal_layers."
+                            f"{arr} must be a non-empty list of numeric values "
+                            "(no nulls)"
+                        )
 
         for arr in ("qn_surfs", "dqndt_surf"):
             field = getattr(states, arr, None) if states else None

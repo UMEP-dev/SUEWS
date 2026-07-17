@@ -605,9 +605,11 @@ fn validate_dyohm_material_inputs(run_cfg: &RunConfig) -> Result<(), BridgeError
 
     for surf_idx in 0..NSURF {
         let material_is_used = match storage_heat_method {
-            // Full DyOHM and STEBBS+DyOHM update aggregate temperatures for
-            // every SUEWS surface. Building-only DyOHM uses only buildings.
-            6 | 7 => true,
+            // Full DyOHM uses every SUEWS surface. STEBBS owns the building
+            // storage heat and temperatures in method 7, so only non-building
+            // surfaces use DyOHM materials. Building-only DyOHM uses buildings.
+            6 => true,
+            7 => surf_idx != BUILDING_SURFACE_INDEX,
             8 => surf_idx == BUILDING_SURFACE_INDEX,
             _ => false,
         };
@@ -621,22 +623,14 @@ fn validate_dyohm_material_inputs(run_cfg: &RunConfig) -> Result<(), BridgeError
         let dz = run_cfg.site.ehc.dz_surf.get(offset).copied().unwrap_or(0.0);
         let cp = run_cfg.site.ehc.cp_surf.get(offset).copied().unwrap_or(0.0);
         let k = run_cfg.site.ehc.k_surf.get(offset).copied().unwrap_or(0.0);
-        // STEBBS provides the building storage heat in method 7. Its building
-        // surface-temperature update uses k and rho_cp, but not dz.
-        let dz_is_used = storage_heat_method != 7 || surf_idx != BUILDING_SURFACE_INDEX;
-        if (dz_is_used && dz <= 0.0) || cp <= 0.0 || k <= 0.0 {
+        if dz <= 0.0 || cp <= 0.0 || k <= 0.0 {
             let surface_name = if surf_idx == BUILDING_SURFACE_INDEX {
                 "bldgs"
             } else {
                 SURFACE_NAMES[surf_idx]
             };
-            let material_values = if dz_is_used {
-                format!("dz={dz}, rho_cp={cp}, k={k}")
-            } else {
-                format!("rho_cp={cp}, k={k}")
-            };
             return Err(simulation_error(format!(
-                "invalid outermost material layer for DyOHM surface `{surface_name}`: {material_values}"
+                "invalid outermost material layer for DyOHM surface `{surface_name}`: dz={dz}, rho_cp={cp}, k={k}"
             )));
         }
     }
@@ -1033,20 +1027,22 @@ mod tests {
     }
 
     #[test]
-    fn stebbs_with_dyohm_requires_building_k_and_cp_not_dz() {
+    fn stebbs_with_dyohm_does_not_require_building_material() {
         let mut run_cfg = fixture_run_config(7);
         let building_offset = BUILDING_SURFACE_INDEX * run_cfg.ndepth as usize;
         run_cfg.site.ehc.dz_surf[building_offset] = 0.0;
+        run_cfg.site.ehc.cp_surf[building_offset] = 0.0;
+        run_cfg.site.ehc.k_surf[building_offset] = 0.0;
 
         validate_dyohm_material_inputs(&run_cfg)
-            .expect("method 7 building temperature update does not use dz");
+            .expect("STEBBS owns building storage heat and temperatures in method 7");
 
-        run_cfg.site.ehc.cp_surf[building_offset] = 0.0;
+        let evetr_offset = 2 * run_cfg.ndepth as usize;
+        run_cfg.site.ehc.cp_surf[evetr_offset] = 0.0;
         let error = validate_dyohm_material_inputs(&run_cfg)
-            .expect_err("method 7 building temperature update requires rho_cp")
+            .expect_err("method 7 still requires non-building DyOHM materials")
             .to_string();
-        assert!(error.contains("bldgs"), "unexpected error: {error}");
-        assert!(!error.contains("dz="), "unexpected error: {error}");
+        assert!(error.contains("evetr"), "unexpected error: {error}");
     }
 
     #[test]

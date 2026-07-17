@@ -1207,15 +1207,17 @@ CONTAINS
 
             !============= calculate surface temperature based on QS ===============
             ! Method 8 (dyohm_building) does not calculate DyOHM conductive
-            ! surface temperatures at all; every other method keeps this
-            ! diagnostic update. Only methods 6/7 feed the temperatures back
-            ! to radiation (see the tsfc_surf_storage gating in SUEWS_cal_Qn).
+            ! surface temperatures. Method 7 leaves the building temperature
+            ! to STEBBS and updates only its non-building DyOHM surfaces.
+            ! Method 6 updates every surface. Other methods retain the
+            ! pre-existing diagnostic update.
             IF (StorageHeatMethod == 8) RETURN
 
             nz = 5
             z = (/ 0.0D0, 0.03D0, 0.1D0, 1.5D0, 3.0D0 /)
             ! Loop over surfaces
             DO i_surf = 1, nsurf
+               IF (StorageHeatMethod == 7 .AND. i_surf == BldgSurf) CYCLE
                ALLOCATE(prev_profile(nz), next_profile(nz))
                prev_profile = heatState%temp_surf_dyohm(i_surf, :)
 

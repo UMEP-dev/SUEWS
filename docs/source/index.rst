@@ -67,7 +67,7 @@ Get started immediately with the :ref:`Getting Started <getting_started>` guide,
 
 **Scientific Background:**
 
-Before performing SUEWS simulations, users should understand the :ref:`physical principles <physics_schemes>` and review `input requirements <input_files>` for their specific application.
+Before performing SUEWS simulations, users should understand the :ref:`scientific background <scientific_background>` and review `input requirements <input_files>` for their specific application.
 
 
 How to get help in using SUEWS?
@@ -159,7 +159,10 @@ How to support SUEWS?
    :numbered:
    :hidden:
 
-   parameterisations-and-sub-models
+   scientific-background
+   energy-balance
+   water-balance
+   supporting-processes
    related_publications
    references
 

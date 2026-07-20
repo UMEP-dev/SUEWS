@@ -115,6 +115,11 @@ A valid SUEWS configuration requires many parameters beyond this minimal example
 Parameter Documentation
 -----------------------
 
+Before configuring height-dependent roof and wall properties, read
+:ref:`layer_conventions`. It defines the SPARTACUS vertical-layer geometry and,
+separately, the input structure for five material layers. It also identifies
+which storage-heat and radiation methods use each property.
+
 **Complete Parameter Reference:**
 
 The full documentation for all YAML parameters is available in the :doc:`config-reference/index`. This reference includes:

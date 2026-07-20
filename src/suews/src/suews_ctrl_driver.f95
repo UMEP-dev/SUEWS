@@ -1207,15 +1207,17 @@ CONTAINS
 
             !============= calculate surface temperature based on QS ===============
             ! Method 8 (dyohm_building) does not calculate DyOHM conductive
-            ! surface temperatures at all; every other method keeps this
-            ! diagnostic update. Only methods 6/7 feed the temperatures back
-            ! to radiation (see the tsfc_surf_storage gating in SUEWS_cal_Qn).
+            ! surface temperatures. Method 7 leaves the building temperature
+            ! to STEBBS and updates only its non-building DyOHM surfaces.
+            ! Method 6 updates every surface. Other methods retain the
+            ! pre-existing diagnostic update.
             IF (StorageHeatMethod == 8) RETURN
 
             nz = 5
             z = (/ 0.0D0, 0.03D0, 0.1D0, 1.5D0, 3.0D0 /)
             ! Loop over surfaces
             DO i_surf = 1, nsurf
+               IF (StorageHeatMethod == 7 .AND. i_surf == BldgSurf) CYCLE
                ALLOCATE(prev_profile(nz), next_profile(nz))
                prev_profile = heatState%temp_surf_dyohm(i_surf, :)
 
@@ -2359,9 +2361,7 @@ CONTAINS
                            BldgSurf, WaterSurf, &
                            SnowUse, SnowFrac, &
                            atmState%U_hbh, atmState%T_half_bldg_C, t2_prev, &
-                           ws_rav, qn_rav, nlayer, &
-                           dz_roof, cp_roof, k_roof, &
-                           dz_wall, cp_wall, k_wall, &
+                           ws_rav, qn_rav, &
                            dz_surf, cp_surf, k_surf, &
                            lambda_c, &
                            StorageHeatMethod, DiagQS, timer, &
@@ -5139,6 +5139,7 @@ CONTAINS
       ! local variables
       ! length of met forcing block
       INTEGER :: ir
+      INTEGER :: i_bldg
       ! met forcing variables
       INTEGER, PARAMETER :: gridiv_x = 1 ! a dummy gridiv as this routine is only one grid
 
@@ -5912,6 +5913,13 @@ CONTAINS
       stebbsState%window_outdoor_surface_temperature = InitialOutdoorTemperature
       stebbsState%ground_floor_indoor_surface_temperature = InitialIndoorTemperature
       stebbsState%ground_floor_outdoor_surface_temperature = AnnualMeanAirTemperature
+      ! SUEWS_cal_Qn runs before the first STEBBS calculation and reads these
+      ! layer-resolved temperatures. Seed them from the YAML-derived initial
+      ! outdoor temperature rather than leaving the allocated arrays undefined.
+      DO i_bldg = 1, SIZE(stebbsState%buildings)
+         stebbsState%buildings(i_bldg)%Textwall_C = InitialOutdoorTemperature
+         stebbsState%buildings(i_bldg)%Textroof_C = InitialOutdoorTemperature
+      END DO
       stebbsState%water_tank_temperature_state = HotWaterHeatingSetpointTemperature
       stebbsState%internal_wall_water_tank_temperature = HotWaterHeatingSetpointTemperature
       stebbsState%external_wall_water_tank_temperature = InitialIndoorTemperature

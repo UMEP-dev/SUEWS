@@ -5139,6 +5139,7 @@ CONTAINS
       ! local variables
       ! length of met forcing block
       INTEGER :: ir
+      INTEGER :: i_bldg
       ! met forcing variables
       INTEGER, PARAMETER :: gridiv_x = 1 ! a dummy gridiv as this routine is only one grid
 
@@ -5912,6 +5913,13 @@ CONTAINS
       stebbsState%window_outdoor_surface_temperature = InitialOutdoorTemperature
       stebbsState%ground_floor_indoor_surface_temperature = InitialIndoorTemperature
       stebbsState%ground_floor_outdoor_surface_temperature = AnnualMeanAirTemperature
+      ! SUEWS_cal_Qn runs before the first STEBBS calculation and reads these
+      ! layer-resolved temperatures. Seed them from the YAML-derived initial
+      ! outdoor temperature rather than leaving the allocated arrays undefined.
+      DO i_bldg = 1, SIZE(stebbsState%buildings)
+         stebbsState%buildings(i_bldg)%Textwall_C = InitialOutdoorTemperature
+         stebbsState%buildings(i_bldg)%Textroof_C = InitialOutdoorTemperature
+      END DO
       stebbsState%water_tank_temperature_state = HotWaterHeatingSetpointTemperature
       stebbsState%internal_wall_water_tank_temperature = HotWaterHeatingSetpointTemperature
       stebbsState%external_wall_water_tank_temperature = InitialIndoorTemperature

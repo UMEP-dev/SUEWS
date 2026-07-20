@@ -76,9 +76,12 @@ represent the physical construction chosen for that surface.
 .. warning::
 
    The current configuration validator checks that these arrays are present
-   and non-empty but does not enforce a length of five. Treat five entries as
-   the model input requirement; a shorter or longer list should not be relied
-   upon.
+   and non-empty but does not enforce a length of five. Given that 5 entries are not required for all storage model options - currently the Validator check - is not assessing this, so "passing" this does not mean this input has been checked for your particular configuration. Therefore please read details of storage heat flux choice carefully.
+   i.e. Need to check material layers systematically by option
+   EHC (5)- expects 5 layers
+   DyOHM (6), DyOHM-building (8) and STEBBS (7) - will only use the outer layers
+   OHM (1) - not used
+   AnOHM (3) - used bulk properties (e.g. ch_anohm, rho_cp_anohm, k_anohm)
 
 The following fragment shows one wall facet. It is abbreviated and is not a
 complete site configuration.

@@ -29,9 +29,7 @@ CONTAINS
                   BldgSurf, WaterSurf, &
                   SnowUse, SnowFrac, &
                   ws, T_half_bldg_C, T_prev, &
-                  ws_rav, qn_rav, nlayer, &
-                  dz_roof, cp_roof, k_roof, &
-                  dz_wall, cp_wall, k_wall, &
+                  ws_rav, qn_rav, &
                   dz_surf, cp_surf, k_surf, &
                   lambda_c, &
                   StorageHeatMethod, DiagQS, timer, &
@@ -77,8 +75,6 @@ CONTAINS
       INTEGER, INTENT(in) :: StorageHeatMethod !
       INTEGER, INTENT(in) :: tstep ! time step [s]
       INTEGER, INTENT(in) :: dt_since_start ! time since simulation starts [s]
-
-      INTEGER, INTENT(in) :: nlayer ! number of vertical levels in urban canopy
 
       !INTEGER :: iy, id, it, imin, isec
       !new_day
@@ -131,15 +127,7 @@ CONTAINS
       REAL(KIND(1D0)), INTENT(inout) :: ws_rav ! running average of wind speed [m/s]
       REAL(KIND(1D0)), DIMENSION(nsurf), INTENT(inout) :: qn_rav ! running average of net all-wave radiation [W m-2]
 
-      ! Building material properties
-      REAL(KIND(1D0)), DIMENSION(nlayer, ndepth), INTENT(in) :: k_roof
-      REAL(KIND(1D0)), DIMENSION(nlayer, ndepth), INTENT(in) :: cp_roof
-      REAL(KIND(1D0)), DIMENSION(nlayer, ndepth), INTENT(in) :: dz_roof
-
-      REAL(KIND(1D0)), DIMENSION(nlayer, ndepth), INTENT(in) :: k_wall
-      REAL(KIND(1D0)), DIMENSION(nlayer, ndepth), INTENT(in) :: cp_wall
-      REAL(KIND(1D0)), DIMENSION(nlayer, ndepth), INTENT(in) :: dz_wall
-      !Material property of surface types
+      ! Material properties of the aggregate SUEWS surface types
       REAL(KIND(1D0)), DIMENSION(nsurf, ndepth), INTENT(in) :: k_surf
       REAL(KIND(1D0)), DIMENSION(nsurf, ndepth), INTENT(in) :: cp_surf
       REAL(KIND(1D0)), DIMENSION(nsurf, ndepth), INTENT(in) :: dz_surf
@@ -218,11 +206,16 @@ CONTAINS
             END IF
 
             IF (first_tstep_Q .AND. new_day == 1) THEN
-               CALL OHM_yl_cal(dt_since_start, &
-                               ws_rav, T_half_bldg_C, T_prev, qn_rav(2), & ! Input
-                               dz_wall(1, 1), cp_wall(1, 1), k_wall(1, 1), lambda_c, &
-                               a1_bldg, a2_bldg, a3_bldg & ! Output
-                               )
+               IF (dyohm_all_surfaces .OR. dyohm_building_only) THEN
+                  ! The building DyOHM coefficients use the building surface,
+                  ! not a SPARTACUS wall layer.
+                  CALL OHM_yl_cal(dt_since_start, &
+                                  ws_rav, T_half_bldg_C, T_prev, qn_rav(BldgSurf), & ! Input
+                                  dz_surf(BldgSurf, 1), cp_surf(BldgSurf, 1), &
+                                  k_surf(BldgSurf, 1), lambda_c, &
+                                  a1_bldg, a2_bldg, a3_bldg & ! Output
+                                  )
+               END IF
                IF (.NOT. dyohm_building_only) THEN
                   ! Fully coupled DyOHM modes update dynamic coefficients for
                   ! non-building surfaces. DyOHM-building leaves them as ordinary OHM.
@@ -485,7 +478,13 @@ CONTAINS
                                     qn_surf_next(i_surf), dqndt_surf_next(i_surf))
                END DO
                CALL OHM_QS_cal(qn1_surf(1), dqndt_surf_next(1), a1_paved, a2_paved, a3_paved, qs_surf(1))
-               CALL OHM_QS_cal(qn1_surf(2), dqndt_surf_next(2), a1_bldg, a2_bldg, a3_bldg, qs_surf(2))
+               IF (dyohm_all_surfaces) THEN
+                  CALL OHM_QS_cal(qn1_surf(BldgSurf), dqndt_surf_next(BldgSurf), &
+                                  a1_bldg, a2_bldg, a3_bldg, qs_surf(BldgSurf))
+               ELSE
+                  ! The driver replaces this placeholder with STEBBS building QS.
+                  qs_surf(BldgSurf) = 0.0D0
+               END IF
                CALL OHM_QS_cal(qn1_surf(3), dqndt_surf_next(3), a1_evetr, a2_evetr, a3_evetr, qs_surf(3))
                CALL OHM_QS_cal(qn1_surf(4), dqndt_surf_next(4), a1_dectr, a2_dectr, a3_dectr, qs_surf(4))
                CALL OHM_QS_cal(qn1_surf(5), dqndt_surf_next(5), a1_grass, a2_grass, a3_grass, qs_surf(5))

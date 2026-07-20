@@ -407,8 +407,10 @@ module module_type_stebbs
 
       CALL self%DEALLOCATE()
       ! ALLOCATE (self%buildings(ntypes))
-      ALLOCATE (self%Textroof_C(num_layer))
-      ALLOCATE (self%Textwall_C(num_layer))
+      ! Initialise defensively so allocation alone never exposes undefined
+      ! temperatures before the caller supplies the physical initial state.
+      ALLOCATE (self%Textroof_C(num_layer), source=0.0D0)
+      ALLOCATE (self%Textwall_C(num_layer), source=0.0D0)
 
    END SUBROUTINE allocSTEBBS_bldgState
 

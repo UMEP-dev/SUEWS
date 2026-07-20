@@ -257,10 +257,10 @@ class StorageHeatMethod(Enum):
     1: OHM_WITHOUT_QF - Objective Hysteresis Model using Q* only (use with OhmIncQf=0)
     3: ANOHM - Analytical OHM (Sun et al., 2017) - not recommended
     4: ESTM - Element Surface Temperature Method (Offerle et al., 2005) - not recommended
-    5: EHC - Explicit Heat Conduction model with separate roof/wall/ground temperatures
-    6: DyOHM - Dynamic Objective Hysteresis Model (Liu et al., 2025) with dynamic coefficients
-    7: STEBBS - use STEBBS storage heat flux for building, others use OHM
-    8: DyOHM_BUILDING - use DyOHM for building storage heat flux only; ordinary OHM for other land-cover surfaces
+    5: EHC - Uses all five material layers for conducting roof, wall, and land-cover facets
+    6: DyOHM - Dynamic OHM using the outermost material layer of each SUEWS land-cover surface
+    7: STEBBS - STEBBS storage heat and surface temperatures for buildings with SPARTACUS-Surface radiation; DyOHM using the outermost material layer for non-building surfaces
+    8: DyOHM_BUILDING - DyOHM using the outermost building material layer; ordinary OHM for other surfaces
     """
 
     # Note: EHC (option 5) implements explicit heat conduction
@@ -914,7 +914,7 @@ class ModelPhysics(BaseModel):
             "unit": "dimensionless",
             "depends_on": ["snow_use"],
             "provides_to": ["storage_heat"],
-            "note": "Values above 1000 activate SPARTACUS-Surface and provide facet radiation required by EHC storage heat.",
+            "note": "Values 1001--1003 activate SPARTACUS-Surface and provide facet radiation required by EHC (5) and STEBBS (7) storage heat.",
         },
     )
     kdown_split_method: FlexibleRefValue(KdownSplitMethod) = Field(
@@ -957,7 +957,17 @@ class ModelPhysics(BaseModel):
             "unit": "dimensionless",
             "depends_on": ["net_radiation", "ohm_inc_qf", "snow_use", "stebbs"],
             "provides_to": ["energy_balance"],
-            "note": "EHC (5) requires SPARTACUS net radiation; STEBBS storage heat (7) requires STEBBS enabled; OHM-like paths use OhmIncQf, with method 8 (dyohm_building) requiring OhmIncQf=0.",
+            "note": (
+                "EHC (5) uses all five material layers for its conducting roof, "
+                "wall, and solid non-building land-cover facets. DyOHM (6) "
+                "uses only the outermost material layer of each SUEWS land-cover "
+                "surface, including land_cover.bldgs for buildings. "
+                "Method 7 uses STEBBS for building storage heat and temperatures, "
+                "does not use land_cover.bldgs material layers, and applies DyOHM "
+                "to non-building surfaces; it requires SPARTACUS-Surface net "
+                "radiation (1001--1003). Method 8 applies DyOHM only to "
+                "the building surface and requires OhmIncQf=0."
+            ),
         },
     )
     ohm_inc_qf: FlexibleRefValue(OhmIncQf) = Field(

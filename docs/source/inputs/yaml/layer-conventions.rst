@@ -75,13 +75,22 @@ represent the physical construction chosen for that surface.
 
 .. warning::
 
-   The current configuration validator checks that these arrays are present
-   and non-empty but does not enforce a length of five. Given that 5 entries are not required for all storage model options - currently the Validator check - is not assessing this, so "passing" this does not mean this input has been checked for your particular configuration. Therefore please read details of storage heat flux choice carefully.
-   i.e. Need to check material layers systematically by option
-   EHC (5)- expects 5 layers
-   DyOHM (6), DyOHM-building (8) and STEBBS (7) - will only use the outer layers
-   OHM (1) - not used
-   AnOHM (3) - used bulk properties (e.g. ch_anohm, rho_cp_anohm, k_anohm)
+   The current configuration validator checks that required material-property
+   arrays are present and non-empty, but it does not enforce a length of five.
+   Passing validation therefore does not confirm that the material-layer inputs
+   are complete for the selected storage-heat method. When material-layer arrays
+   are provided, supply five entries and note how each method uses them:
+
+   - EHC (``5``) uses all five material layers of its conducting facets.
+   - DyOHM (``6``) uses material layer ``0`` of every SUEWS land-cover surface.
+   - Method ``7`` uses material layer ``0`` only for non-building DyOHM
+     surfaces. STEBBS represents the building, so
+     ``land_cover.bldgs.thermal_layers`` is not used.
+   - Building-only DyOHM (``8``) uses material layer ``0`` of
+     ``land_cover.bldgs``; non-building surfaces use ordinary OHM.
+   - Ordinary OHM (``1``) does not use material-layer properties.
+   - AnOHM (``3``) uses separate bulk properties, such as ``ch_anohm``,
+     ``rho_cp_anohm``, and ``k_anohm``.
 
 The following fragment shows one wall facet. It is abbreviated and is not a
 complete site configuration.

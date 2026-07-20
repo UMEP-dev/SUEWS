@@ -8,8 +8,8 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <meta property="article:modified_time" content="2026-01-28T15:54:16+00:00" />
-    <title>1. Parameterisations and sub-models within SUEWS &#8212; SUEWS 2026.7.15.dev1 documentation</title>
+    <meta property="article:modified_time" content="2026-07-20T14:04:55+00:00" />
+    <title>1. Parameterisations and sub-models within SUEWS &#8212; SUEWS 2026.7.20.dev1 documentation</title>
   
   
   
@@ -28,11 +28,11 @@
   </noscript>
   
   <!-- Loaded before other Sphinx assets -->
-  <link href="_static/styles/theme.css?digest=8878045cc6db502f8baf" rel="stylesheet" />
-<link href="_static/styles/pydata-sphinx-theme.css?digest=8878045cc6db502f8baf" rel="stylesheet" />
+  <link href="_static/styles/theme.css?digest=90905a2f556bf617f1a9" rel="stylesheet" />
+<link href="_static/styles/pydata-sphinx-theme.css?digest=90905a2f556bf617f1a9" rel="stylesheet" />
 
     <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=03e43079" />
-    <link rel="stylesheet" type="text/css" href="_static/styles/sphinx-book-theme.css?v=3c74b3bc" />
+    <link rel="stylesheet" type="text/css" href="_static/styles/sphinx-book-theme.css?v=4418a689" />
     <link rel="stylesheet" type="text/css" href="_static/theme_overrides.css?v=0c24fe83" />
     <link rel="stylesheet" type="text/css" href="_static/brand.css?v=6ff74816" />
     <link rel="stylesheet" type="text/css" href="_static/sg_gallery.css?v=fd6457a4" />
@@ -40,18 +40,19 @@
     <link rel="stylesheet" type="text/css" href="_static/publications-filter.css?v=fa69f4f6" />
   
   <!-- So that users can add custom icons -->
-  <script src="_static/scripts/fontawesome.js?digest=8878045cc6db502f8baf"></script>
+  <script defer src="_static/scripts/fontawesome.js?digest=90905a2f556bf617f1a9"></script>
   <!-- Pre-loaded scripts that we'll load fully later -->
-  <link rel="preload" as="script" href="_static/scripts/bootstrap.js?digest=8878045cc6db502f8baf" />
-<link rel="preload" as="script" href="_static/scripts/pydata-sphinx-theme.js?digest=8878045cc6db502f8baf" />
+  <link rel="preload" as="script" href="_static/scripts/bootstrap.js?digest=90905a2f556bf617f1a9" />
+<link rel="preload" as="script" href="_static/scripts/pydata-sphinx-theme.js?digest=90905a2f556bf617f1a9" />
 
-    <script src="_static/documentation_options.js?v=c31abc52"></script>
+    <script src="_static/documentation_options.js?v=7de4f5ac"></script>
     <script src="_static/doctools.js?v=9bcbadda"></script>
     <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
     <script src="_static/scripts/sphinx-book-theme.js?v=fab101a9"></script>
     <script src="_static/design-tabs.js?v=f930bc37"></script>
     <script async="async" src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
     <script>DOCUMENTATION_OPTIONS.pagename = 'parameterisations-and-sub-models';</script>
+    <script>DOCUMENTATION_OPTIONS.search_as_you_type = false;</script>
     <script defer="defer" src="_static/publications-filter.js?v=c5b02298"></script>
     <link rel="icon" href="_static/suews-logo.svg"/>
     <link rel="index" title="Index" href="genindex.html" />
@@ -60,22 +61,28 @@
     <link rel="prev" title="2. Acknowledgements" href="acknowledgement.html" />
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
-  <meta name="docsearch:version" content="2026.7.15.dev1" />
-    <meta name="docbuild:last-update" content="2026-01-28"/>
+  <meta name="docsearch:version" content="2026.7.20.dev1" />
+    <meta name="docbuild:last-update" content="2026-07-20"/>
+  
+    
+    <script src="_static/searchtools.js"></script>
+    <script src="_static/language_data.js"></script>
+    <script src="searchindex.js"></script>
+  
   </head>
-  
-  
-  <body data-bs-spy="scroll" data-bs-target=".bd-toc-nav" data-offset="180" data-bs-root-margin="0px 0px -60%" data-default-mode="">
-
+  <body data-default-mode="">
   
   
   <div id="pst-skip-link" class="skip-link d-print-none"><a href="#main-content">Skip to main content</a></div>
+
   
   <div id="pst-scroll-pixel-helper"></div>
   
   <button type="button" class="btn rounded-pill" id="pst-back-to-top">
     <i class="fa-solid fa-arrow-up"></i>Back to top</button>
-
+  
+  
+  
   
   <dialog id="pst-search-dialog">
     
@@ -103,7 +110,7 @@
   <div class="bd-header-announcement__content">
     <div style="background-color: #f0ad4e; border: 1px solid #eea236; border-radius: 4px; padding: 10px; margin: 10px 0;">
         <strong>⚠️ Development Version:</strong> This documentation was built from a development version
-        (2026.7.15.dev1, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/377c64bd66c83223d362c8d27c3c4158eed50502" style="color: #31708f;">377c64b</a>).
+        (2026.7.20.dev1, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/8e44254e459b5a588c853bd2e9fbfde6fdecbded" style="color: #31708f;">8e44254</a>).
         Features described here may be unstable or subject to change. For stable documentation, please visit the
         <a href="https://docs.suews.io/stable/" style="color: #31708f;">latest release</a>.
     </div>
@@ -111,7 +118,51 @@
 </aside>
 
   
-    <header class="bd-header navbar navbar-expand-lg bd-navbar d-print-none">
+    <header id="pst-header" class="bd-header navbar navbar-expand-lg bd-navbar d-print-none">
+<div class="bd-header__inner bd-page-width">
+  <button class="pst-navbar-icon sidebar-toggle primary-toggle" aria-label="Site navigation">
+    <span class="fa-solid fa-bars"></span>
+  </button>
+  
+  
+  <div class="col-lg-9 navbar-header-items">
+    
+    
+    <div class="navbar-header-items__end">
+      
+        <div class="navbar-item navbar-persistent--container">
+          
+
+<button class="btn search-button-field search-button__button pst-js-only" title="Search" aria-label="Search" data-bs-placement="bottom" data-bs-toggle="tooltip">
+ <i class="fa-solid fa-magnifying-glass"></i>
+ <span class="search-button__default-text">Search</span>
+ <span class="search-button__kbd-shortcut"><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd class="kbd-shortcut__modifier">K</kbd></span>
+</button>
+        </div>
+      
+      
+    </div>
+    
+  </div>
+  
+  
+    <div class="navbar-persistent--mobile">
+
+<button class="btn search-button-field search-button__button pst-js-only" title="Search" aria-label="Search" data-bs-placement="bottom" data-bs-toggle="tooltip">
+ <i class="fa-solid fa-magnifying-glass"></i>
+ <span class="search-button__default-text">Search</span>
+ <span class="search-button__kbd-shortcut"><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd class="kbd-shortcut__modifier">K</kbd></span>
+</button>
+    </div>
+  
+
+  
+    <button class="pst-navbar-icon sidebar-toggle secondary-toggle" aria-label="On this page">
+      <span class="fa-solid fa-outdent"></span>
+    </button>
+  
+</div>
+
     </header>
   
 
@@ -150,8 +201,8 @@
       
     
     
-    <img src="_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.7.15.dev1 documentation - Home"/>
-    <img src="_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.7.15.dev1 documentation - Home"/>
+    <img src="_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.7.20.dev1 documentation - Home"/>
+    <img src="_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.7.20.dev1 documentation - Home"/>
   
   
 </a></div>
@@ -179,88 +230,89 @@
 </details></li>
 <li class="toctree-l1 has-children"><a class="reference internal" href="inputs/index.html">4. Input Files</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
 <li class="toctree-l2"><a class="reference internal" href="inputs/yaml/index.html">4.1. YAML Configuration Format</a></li>
-<li class="toctree-l2"><a class="reference internal" href="inputs/forcing-data.html">4.2. Meteorological Forcing Data</a></li>
-<li class="toctree-l2 has-children"><a class="reference internal" href="inputs/yaml/config-reference/index.html">4.3. YAML Configuration Reference</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
-<li class="toctree-l3"><a class="reference internal" href="inputs/yaml/config-reference/anthropogenicemissions.html">4.3.1. Anthropogenic Emissions</a></li>
-<li class="toctree-l3"><a class="reference internal" href="inputs/yaml/config-reference/anthropogenicheat.html">4.3.2. Anthropogenic Heat</a></li>
-<li class="toctree-l3"><a class="reference internal" href="inputs/yaml/config-reference/archetypeproperties.html">4.3.3. Archetype Properties</a></li>
-<li class="toctree-l3"><a class="reference internal" href="inputs/yaml/config-reference/bldgsproperties.html">4.3.4. Buildings</a></li>
-<li class="toctree-l3"><a class="reference internal" href="inputs/yaml/config-reference/bsoilproperties.html">4.3.5. Bare Soil</a></li>
-<li class="toctree-l3"><a class="reference internal" href="inputs/yaml/config-reference/buildinglayer.html">4.3.6. Building Layer</a></li>
-<li class="toctree-l3"><a class="reference internal" href="inputs/yaml/config-reference/co2params.html">4.3.7. CO2 Emissions</a></li>
-<li class="toctree-l3"><a class="reference internal" href="inputs/yaml/config-reference/conductance.html">4.3.8. Conductance</a></li>
-<li class="toctree-l3"><a class="reference internal" href="inputs/yaml/config-reference/coolingsetpointprofile.html">4.3.9. Cooling Setpoint Profile</a></li>
-<li class="toctree-l3"><a class="reference internal" href="inputs/yaml/config-reference/dayprofile.html">4.3.10. Daily Profile</a></li>
-<li class="toctree-l3"><a class="reference internal" href="inputs/yaml/config-reference/dectrproperties.html">4.3.11. Deciduous Trees</a></li>
-<li class="toctree-l3"><a class="reference internal" href="inputs/yaml/config-reference/evetrproperties.html">4.3.12. Evergreen Trees</a></li>
-<li class="toctree-l3"><a class="reference internal" href="inputs/yaml/config-reference/forcingcontrol.html">4.3.13. Forcing Control</a></li>
-<li class="toctree-l3"><a class="reference internal" href="inputs/yaml/config-reference/grassproperties.html">4.3.14. Grass</a></li>
-<li class="toctree-l3"><a class="reference internal" href="inputs/yaml/config-reference/heatingsetpointprofile.html">4.3.15. Heating Setpoint Profile</a></li>
-<li class="toctree-l3"><a class="reference internal" href="inputs/yaml/config-reference/hourlyprofile.html">4.3.16. Hourly Profile</a></li>
-<li class="toctree-l3"><a class="reference internal" href="inputs/yaml/config-reference/initialstatebldgs.html">4.3.17. Buildings Surface Initial State</a></li>
-<li class="toctree-l3"><a class="reference internal" href="inputs/yaml/config-reference/initialstatebsoil.html">4.3.18. Bare Soil Surface Initial State</a></li>
-<li class="toctree-l3"><a class="reference internal" href="inputs/yaml/config-reference/initialstatedectr.html">4.3.19. Deciduous Tree Initial State</a></li>
-<li class="toctree-l3"><a class="reference internal" href="inputs/yaml/config-reference/initialstateevetr.html">4.3.20. Evergreen Tree Initial State</a></li>
-<li class="toctree-l3"><a class="reference internal" href="inputs/yaml/config-reference/initialstategrass.html">4.3.21. Grass Initial State</a></li>
-<li class="toctree-l3"><a class="reference internal" href="inputs/yaml/config-reference/initialstatepaved.html">4.3.22. Paved Surface Initial State</a></li>
-<li class="toctree-l3"><a class="reference internal" href="inputs/yaml/config-reference/initialstateveg.html">4.3.23. Vegetation Initial State</a></li>
-<li class="toctree-l3"><a class="reference internal" href="inputs/yaml/config-reference/initialstatewater.html">4.3.24. Water Surface Initial State</a></li>
-<li class="toctree-l3"><a class="reference internal" href="inputs/yaml/config-reference/initialstates.html">4.3.25. Initial States</a></li>
-<li class="toctree-l3"><a class="reference internal" href="inputs/yaml/config-reference/irrigationparams.html">4.3.26. Irrigation</a></li>
-<li class="toctree-l3"><a class="reference internal" href="inputs/yaml/config-reference/laiparams.html">4.3.27. LAI</a></li>
-<li class="toctree-l3"><a class="reference internal" href="inputs/yaml/config-reference/laipowercoefficients.html">4.3.28. LAI Power Coefficients</a></li>
-<li class="toctree-l3"><a class="reference internal" href="inputs/yaml/config-reference/lumpsparams.html">4.3.29. LUMPS Parameters</a></li>
-<li class="toctree-l3"><a class="reference internal" href="inputs/yaml/config-reference/landcover.html">4.3.30. Land Cover</a></li>
-<li class="toctree-l3"><a class="reference internal" href="inputs/yaml/config-reference/model.html">4.3.31. Model Configuration</a></li>
-<li class="toctree-l3"><a class="reference internal" href="inputs/yaml/config-reference/modelcontrol.html">4.3.32. Model Control</a></li>
-<li class="toctree-l3"><a class="reference internal" href="inputs/yaml/config-reference/modelphysics.html">4.3.33. Physics Methods</a></li>
-<li class="toctree-l3"><a class="reference internal" href="inputs/yaml/config-reference/nonvegetatedsurfaceproperties.html">4.3.34. Surface Properties</a></li>
-<li class="toctree-l3"><a class="reference internal" href="inputs/yaml/config-reference/ohmcoefficients.html">4.3.35. OHM Coefficients</a></li>
-<li class="toctree-l3"><a class="reference internal" href="inputs/yaml/config-reference/ohm_coefficient_season_wetness.html">4.3.36. Seasonal/Wetness OHM Coefficients</a></li>
-<li class="toctree-l3"><a class="reference internal" href="inputs/yaml/config-reference/outputcontrol.html">4.3.37. Output Control</a></li>
-<li class="toctree-l3"><a class="reference internal" href="inputs/yaml/config-reference/pavedproperties.html">4.3.38. Paved Surfaces</a></li>
-<li class="toctree-l3"><a class="reference internal" href="inputs/yaml/config-reference/rooflayer.html">4.3.39. Roof Layer</a></li>
-<li class="toctree-l3"><a class="reference internal" href="inputs/yaml/config-reference/spartacusparams.html">4.3.40. SPARTACUS</a></li>
-<li class="toctree-l3"><a class="reference internal" href="inputs/yaml/config-reference/suewsconfig.html">4.3.41. SUEWS Configuration</a></li>
-<li class="toctree-l3"><a class="reference internal" href="inputs/yaml/config-reference/site.html">4.3.42. Site Configuration</a></li>
-<li class="toctree-l3"><a class="reference internal" href="inputs/yaml/config-reference/siteproperties.html">4.3.43. Site Properties</a></li>
-<li class="toctree-l3"><a class="reference internal" href="inputs/yaml/config-reference/snowparams.html">4.3.44. Snow</a></li>
-<li class="toctree-l3"><a class="reference internal" href="inputs/yaml/config-reference/soilobservationconfig.html">4.3.45. Soil Observation Configuration</a></li>
-<li class="toctree-l3"><a class="reference internal" href="inputs/yaml/config-reference/stebbsphysics.html">4.3.46. STEBBS Physics Methods</a></li>
-<li class="toctree-l3"><a class="reference internal" href="inputs/yaml/config-reference/stebbsproperties.html">4.3.47. STEBBS</a></li>
-<li class="toctree-l3"><a class="reference internal" href="inputs/yaml/config-reference/storagedrainparams.html">4.3.48. Drainage Parameters</a></li>
-<li class="toctree-l3"><a class="reference internal" href="inputs/yaml/config-reference/surfaceinitialstate.html">4.3.49. Generic Surface Initial State</a></li>
-<li class="toctree-l3"><a class="reference internal" href="inputs/yaml/config-reference/surfaceproperties.html">4.3.50. Surface Properties</a></li>
-<li class="toctree-l3"><a class="reference internal" href="inputs/yaml/config-reference/tenminuteprofile.html">4.3.51. Ten Minute Profile</a></li>
-<li class="toctree-l3"><a class="reference internal" href="inputs/yaml/config-reference/thermallayers.html">4.3.52. Thermal Layers</a></li>
-<li class="toctree-l3"><a class="reference internal" href="inputs/yaml/config-reference/vegetatedsurfaceproperties.html">4.3.53. Surface Properties</a></li>
-<li class="toctree-l3"><a class="reference internal" href="inputs/yaml/config-reference/vegetationparams.html">4.3.54. Vegetation Parameters</a></li>
-<li class="toctree-l3"><a class="reference internal" href="inputs/yaml/config-reference/verticallayers.html">4.3.55. Vertical Layers</a></li>
-<li class="toctree-l3"><a class="reference internal" href="inputs/yaml/config-reference/walllayer.html">4.3.56. Wall Layer</a></li>
-<li class="toctree-l3"><a class="reference internal" href="inputs/yaml/config-reference/waterdistribution.html">4.3.57. Water Distribution</a></li>
-<li class="toctree-l3"><a class="reference internal" href="inputs/yaml/config-reference/waterproperties.html">4.3.58. Water Surfaces</a></li>
-<li class="toctree-l3"><a class="reference internal" href="inputs/yaml/config-reference/weeklyprofile.html">4.3.59. Weekly Profile</a></li>
+<li class="toctree-l2"><a class="reference internal" href="inputs/yaml/layer-conventions.html">4.2. Vertical and Material Layer Conventions</a></li>
+<li class="toctree-l2"><a class="reference internal" href="inputs/forcing-data.html">4.3. Meteorological Forcing Data</a></li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="inputs/yaml/config-reference/index.html">4.4. YAML Configuration Reference</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l3"><a class="reference internal" href="inputs/yaml/config-reference/anthropogenicemissions.html">4.4.1. Anthropogenic Emissions</a></li>
+<li class="toctree-l3"><a class="reference internal" href="inputs/yaml/config-reference/anthropogenicheat.html">4.4.2. Anthropogenic Heat</a></li>
+<li class="toctree-l3"><a class="reference internal" href="inputs/yaml/config-reference/archetypeproperties.html">4.4.3. Archetype Properties</a></li>
+<li class="toctree-l3"><a class="reference internal" href="inputs/yaml/config-reference/bldgsproperties.html">4.4.4. Buildings</a></li>
+<li class="toctree-l3"><a class="reference internal" href="inputs/yaml/config-reference/bsoilproperties.html">4.4.5. Bare Soil</a></li>
+<li class="toctree-l3"><a class="reference internal" href="inputs/yaml/config-reference/buildinglayer.html">4.4.6. Building Layer</a></li>
+<li class="toctree-l3"><a class="reference internal" href="inputs/yaml/config-reference/co2params.html">4.4.7. CO2 Emissions</a></li>
+<li class="toctree-l3"><a class="reference internal" href="inputs/yaml/config-reference/conductance.html">4.4.8. Conductance</a></li>
+<li class="toctree-l3"><a class="reference internal" href="inputs/yaml/config-reference/coolingsetpointprofile.html">4.4.9. Cooling Setpoint Profile</a></li>
+<li class="toctree-l3"><a class="reference internal" href="inputs/yaml/config-reference/dayprofile.html">4.4.10. Daily Profile</a></li>
+<li class="toctree-l3"><a class="reference internal" href="inputs/yaml/config-reference/dectrproperties.html">4.4.11. Deciduous Trees</a></li>
+<li class="toctree-l3"><a class="reference internal" href="inputs/yaml/config-reference/evetrproperties.html">4.4.12. Evergreen Trees</a></li>
+<li class="toctree-l3"><a class="reference internal" href="inputs/yaml/config-reference/forcingcontrol.html">4.4.13. Forcing Control</a></li>
+<li class="toctree-l3"><a class="reference internal" href="inputs/yaml/config-reference/grassproperties.html">4.4.14. Grass</a></li>
+<li class="toctree-l3"><a class="reference internal" href="inputs/yaml/config-reference/heatingsetpointprofile.html">4.4.15. Heating Setpoint Profile</a></li>
+<li class="toctree-l3"><a class="reference internal" href="inputs/yaml/config-reference/hourlyprofile.html">4.4.16. Hourly Profile</a></li>
+<li class="toctree-l3"><a class="reference internal" href="inputs/yaml/config-reference/initialstatebldgs.html">4.4.17. Buildings Surface Initial State</a></li>
+<li class="toctree-l3"><a class="reference internal" href="inputs/yaml/config-reference/initialstatebsoil.html">4.4.18. Bare Soil Surface Initial State</a></li>
+<li class="toctree-l3"><a class="reference internal" href="inputs/yaml/config-reference/initialstatedectr.html">4.4.19. Deciduous Tree Initial State</a></li>
+<li class="toctree-l3"><a class="reference internal" href="inputs/yaml/config-reference/initialstateevetr.html">4.4.20. Evergreen Tree Initial State</a></li>
+<li class="toctree-l3"><a class="reference internal" href="inputs/yaml/config-reference/initialstategrass.html">4.4.21. Grass Initial State</a></li>
+<li class="toctree-l3"><a class="reference internal" href="inputs/yaml/config-reference/initialstatepaved.html">4.4.22. Paved Surface Initial State</a></li>
+<li class="toctree-l3"><a class="reference internal" href="inputs/yaml/config-reference/initialstateveg.html">4.4.23. Vegetation Initial State</a></li>
+<li class="toctree-l3"><a class="reference internal" href="inputs/yaml/config-reference/initialstatewater.html">4.4.24. Water Surface Initial State</a></li>
+<li class="toctree-l3"><a class="reference internal" href="inputs/yaml/config-reference/initialstates.html">4.4.25. Initial States</a></li>
+<li class="toctree-l3"><a class="reference internal" href="inputs/yaml/config-reference/irrigationparams.html">4.4.26. Irrigation</a></li>
+<li class="toctree-l3"><a class="reference internal" href="inputs/yaml/config-reference/laiparams.html">4.4.27. LAI</a></li>
+<li class="toctree-l3"><a class="reference internal" href="inputs/yaml/config-reference/laipowercoefficients.html">4.4.28. LAI Power Coefficients</a></li>
+<li class="toctree-l3"><a class="reference internal" href="inputs/yaml/config-reference/lumpsparams.html">4.4.29. LUMPS Parameters</a></li>
+<li class="toctree-l3"><a class="reference internal" href="inputs/yaml/config-reference/landcover.html">4.4.30. Land Cover</a></li>
+<li class="toctree-l3"><a class="reference internal" href="inputs/yaml/config-reference/model.html">4.4.31. Model Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="inputs/yaml/config-reference/modelcontrol.html">4.4.32. Model Control</a></li>
+<li class="toctree-l3"><a class="reference internal" href="inputs/yaml/config-reference/modelphysics.html">4.4.33. Physics Methods</a></li>
+<li class="toctree-l3"><a class="reference internal" href="inputs/yaml/config-reference/nonvegetatedsurfaceproperties.html">4.4.34. Surface Properties</a></li>
+<li class="toctree-l3"><a class="reference internal" href="inputs/yaml/config-reference/ohmcoefficients.html">4.4.35. OHM Coefficients</a></li>
+<li class="toctree-l3"><a class="reference internal" href="inputs/yaml/config-reference/ohm_coefficient_season_wetness.html">4.4.36. Seasonal/Wetness OHM Coefficients</a></li>
+<li class="toctree-l3"><a class="reference internal" href="inputs/yaml/config-reference/outputcontrol.html">4.4.37. Output Control</a></li>
+<li class="toctree-l3"><a class="reference internal" href="inputs/yaml/config-reference/pavedproperties.html">4.4.38. Paved Surfaces</a></li>
+<li class="toctree-l3"><a class="reference internal" href="inputs/yaml/config-reference/rooflayer.html">4.4.39. Roof Layer</a></li>
+<li class="toctree-l3"><a class="reference internal" href="inputs/yaml/config-reference/spartacusparams.html">4.4.40. SPARTACUS</a></li>
+<li class="toctree-l3"><a class="reference internal" href="inputs/yaml/config-reference/suewsconfig.html">4.4.41. SUEWS Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="inputs/yaml/config-reference/site.html">4.4.42. Site Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="inputs/yaml/config-reference/siteproperties.html">4.4.43. Site Properties</a></li>
+<li class="toctree-l3"><a class="reference internal" href="inputs/yaml/config-reference/snowparams.html">4.4.44. Snow</a></li>
+<li class="toctree-l3"><a class="reference internal" href="inputs/yaml/config-reference/soilobservationconfig.html">4.4.45. Soil Observation Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="inputs/yaml/config-reference/stebbsphysics.html">4.4.46. STEBBS Physics Methods</a></li>
+<li class="toctree-l3"><a class="reference internal" href="inputs/yaml/config-reference/stebbsproperties.html">4.4.47. STEBBS</a></li>
+<li class="toctree-l3"><a class="reference internal" href="inputs/yaml/config-reference/storagedrainparams.html">4.4.48. Drainage Parameters</a></li>
+<li class="toctree-l3"><a class="reference internal" href="inputs/yaml/config-reference/surfaceinitialstate.html">4.4.49. Generic Surface Initial State</a></li>
+<li class="toctree-l3"><a class="reference internal" href="inputs/yaml/config-reference/surfaceproperties.html">4.4.50. Surface Properties</a></li>
+<li class="toctree-l3"><a class="reference internal" href="inputs/yaml/config-reference/tenminuteprofile.html">4.4.51. Ten Minute Profile</a></li>
+<li class="toctree-l3"><a class="reference internal" href="inputs/yaml/config-reference/thermallayers.html">4.4.52. Material Layers</a></li>
+<li class="toctree-l3"><a class="reference internal" href="inputs/yaml/config-reference/vegetatedsurfaceproperties.html">4.4.53. Surface Properties</a></li>
+<li class="toctree-l3"><a class="reference internal" href="inputs/yaml/config-reference/vegetationparams.html">4.4.54. Vegetation Parameters</a></li>
+<li class="toctree-l3"><a class="reference internal" href="inputs/yaml/config-reference/verticallayers.html">4.4.55. SPARTACUS Vertical Layers</a></li>
+<li class="toctree-l3"><a class="reference internal" href="inputs/yaml/config-reference/walllayer.html">4.4.56. Wall Layer</a></li>
+<li class="toctree-l3"><a class="reference internal" href="inputs/yaml/config-reference/waterdistribution.html">4.4.57. Water Distribution</a></li>
+<li class="toctree-l3"><a class="reference internal" href="inputs/yaml/config-reference/waterproperties.html">4.4.58. Water Surfaces</a></li>
+<li class="toctree-l3"><a class="reference internal" href="inputs/yaml/config-reference/weeklyprofile.html">4.4.59. Weekly Profile</a></li>
 </ul>
 </details></li>
-<li class="toctree-l2"><a class="reference internal" href="inputs/converter.html">4.4. SUEWS Format Converter</a></li>
-<li class="toctree-l2"><a class="reference internal" href="inputs/transition_guide.html">4.5. Transitioning to YAML-based Configuration</a></li>
-<li class="toctree-l2"><a class="reference internal" href="inputs/yaml/validation.html">4.6. Validation Tool Reference</a></li>
-<li class="toctree-l2 has-children"><a class="reference internal" href="inputs/tables/index.html">4.7. Table-based Input Files (Legacy Format)</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
-<li class="toctree-l3"><a class="reference internal" href="inputs/tables/met_input.html">4.7.3.1. Meteorological Input File</a></li>
-<li class="toctree-l3 has-children"><a class="reference internal" href="inputs/tables/RunControl/RunControl.html">4.7.3.2. RunControl.nml</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
-<li class="toctree-l4"><a class="reference internal" href="inputs/tables/RunControl/scheme_options.html">4.7.3.2.1. Scheme options</a></li>
-<li class="toctree-l4"><a class="reference internal" href="inputs/tables/RunControl/Time_related_options.html">4.7.3.2.2. Time related options</a></li>
-<li class="toctree-l4"><a class="reference internal" href="inputs/tables/RunControl/File_related_options.html">4.7.3.2.3. File related options</a></li>
-<li class="toctree-l4"><a class="reference internal" href="inputs/tables/RunControl/Options_related_to_disaggregation_of_input_data.html">4.7.3.2.4. Options related to disaggregation of input data</a></li>
+<li class="toctree-l2"><a class="reference internal" href="inputs/converter.html">4.5. SUEWS Format Converter</a></li>
+<li class="toctree-l2"><a class="reference internal" href="inputs/transition_guide.html">4.6. Transitioning to YAML-based Configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="inputs/yaml/validation.html">4.7. Validation Tool Reference</a></li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="inputs/tables/index.html">4.8. Table-based Input Files (Legacy Format)</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l3"><a class="reference internal" href="inputs/tables/met_input.html">4.8.3.1. Meteorological Input File</a></li>
+<li class="toctree-l3 has-children"><a class="reference internal" href="inputs/tables/RunControl/RunControl.html">4.8.3.2. RunControl.nml</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l4"><a class="reference internal" href="inputs/tables/RunControl/scheme_options.html">4.8.3.2.1. Scheme options</a></li>
+<li class="toctree-l4"><a class="reference internal" href="inputs/tables/RunControl/Time_related_options.html">4.8.3.2.2. Time related options</a></li>
+<li class="toctree-l4"><a class="reference internal" href="inputs/tables/RunControl/File_related_options.html">4.8.3.2.3. File related options</a></li>
+<li class="toctree-l4"><a class="reference internal" href="inputs/tables/RunControl/Options_related_to_disaggregation_of_input_data.html">4.8.3.2.4. Options related to disaggregation of input data</a></li>
 </ul>
 </details></li>
-<li class="toctree-l3"><a class="reference internal" href="inputs/tables/SUEWS_SiteInfo/SUEWS_SiteSelect.html">4.7.3.3. SUEWS_SiteSelect.txt</a></li>
-<li class="toctree-l3 has-children"><a class="reference internal" href="inputs/tables/Initial_Conditions/Initial_Conditions.html">4.7.3.4. Initial Conditions file</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
-<li class="toctree-l4"><a class="reference internal" href="inputs/tables/Initial_Conditions/Soil_moisture_states.html">4.7.3.4.1. Soil moisture states</a></li>
-<li class="toctree-l4"><a class="reference internal" href="inputs/tables/Initial_Conditions/Vegetation_parameters.html">4.7.3.4.2. Vegetation parameters</a></li>
-<li class="toctree-l4"><a class="reference internal" href="inputs/tables/Initial_Conditions/Recent_meteorology.html">4.7.3.4.3. Recent meteorology</a></li>
-<li class="toctree-l4"><a class="reference internal" href="inputs/tables/Initial_Conditions/Above_ground_state.html">4.7.3.4.4. Above ground state</a></li>
-<li class="toctree-l4"><a class="reference internal" href="inputs/tables/Initial_Conditions/Snow_related_parameters.html">4.7.3.4.5. Snow related parameters</a></li>
+<li class="toctree-l3"><a class="reference internal" href="inputs/tables/SUEWS_SiteInfo/SUEWS_SiteSelect.html">4.8.3.3. SUEWS_SiteSelect.txt</a></li>
+<li class="toctree-l3 has-children"><a class="reference internal" href="inputs/tables/Initial_Conditions/Initial_Conditions.html">4.8.3.4. Initial Conditions file</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l4"><a class="reference internal" href="inputs/tables/Initial_Conditions/Soil_moisture_states.html">4.8.3.4.1. Soil moisture states</a></li>
+<li class="toctree-l4"><a class="reference internal" href="inputs/tables/Initial_Conditions/Vegetation_parameters.html">4.8.3.4.2. Vegetation parameters</a></li>
+<li class="toctree-l4"><a class="reference internal" href="inputs/tables/Initial_Conditions/Recent_meteorology.html">4.8.3.4.3. Recent meteorology</a></li>
+<li class="toctree-l4"><a class="reference internal" href="inputs/tables/Initial_Conditions/Above_ground_state.html">4.8.3.4.4. Above ground state</a></li>
+<li class="toctree-l4"><a class="reference internal" href="inputs/tables/Initial_Conditions/Snow_related_parameters.html">4.8.3.4.5. Snow related parameters</a></li>
 </ul>
 </details></li>
 </ul>
@@ -568,11 +620,18 @@
 
 
 
-<button class="btn btn-sm nav-link pst-navbar-icon theme-switch-button pst-js-only" aria-label="Color mode" data-bs-title="Color mode"  data-bs-placement="bottom" data-bs-toggle="tooltip">
-  <i class="theme-switch fa-solid fa-sun                fa-lg" data-mode="light" title="Light"></i>
-  <i class="theme-switch fa-solid fa-moon               fa-lg" data-mode="dark"  title="Dark"></i>
-  <i class="theme-switch fa-solid fa-circle-half-stroke fa-lg" data-mode="auto"  title="System Settings"></i>
-</button>
+<div class="theme-switch-container dropdown pst-js-only" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Color mode">
+  <button class="btn btn-sm nav-link pst-navbar-icon theme-switch-button dropdown-toggle" aria-label="Color mode" data-bs-toggle="dropdown">
+    <i class="theme-switch fa-solid fa-sun fa-lg fa-fw" data-mode="light" title="Light"></i>
+    <i class="theme-switch fa-solid fa-moon fa-lg fa-fw" data-mode="dark" title="Dark"></i>
+    <i class="theme-switch fa-solid fa-circle-half-stroke fa-lg fa-fw" data-mode="auto" title="System Settings"></i>
+  </button>
+  <ul class="dropdown-menu dropdown-menu-end">
+    <li><button class="dropdown-item d-flex align-items-center theme-change-button" data-mode="auto"><i class="fa-solid fa-circle-half-stroke fa-lg fa-fw me-1"></i>System Settings</button></li>
+    <li><button class="dropdown-item d-flex align-items-center theme-change-button" data-mode="light"><i class="fa-solid fa-sun fa-lg fa-fw me-1"></i>Light</button></li>
+    <li><button class="dropdown-item d-flex align-items-center theme-change-button" data-mode="dark"><i class="fa-solid fa-moon fa-lg fa-fw me-1"></i>Dark</button></li>
+  </ul>
+</div>
 
 
 <button class="btn btn-sm pst-navbar-icon search-button search-button__button pst-js-only" title="Search" aria-label="Search" data-bs-placement="bottom" data-bs-toggle="tooltip">
@@ -600,7 +659,7 @@
                 <h2> Contents </h2>
             </div>
             <nav aria-label="Page">
-                <ul class="visible nav section-nav flex-column">
+                <ul class="pst-show_toc_level nav section-nav flex-column">
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#net-all-wave-radiation-q">1.1. Net all-wave radiation, Q*</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#beers-building-envelope-energy-radiation-scheme">1.2. BEERS (Building Envelope Energy Radiation Scheme)</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#anthropogenic-heat-flux-qf">1.3. Anthropogenic heat flux, Q<sub>F</sub></a></li>
@@ -738,15 +797,16 @@ and surface characteristics (albedo, emissivity).</p></li>
 </section>
 <section id="storage-heat-flux-qs">
 <h2><span class="section-number">1.4. </span>Storage heat flux, ΔQ<sub>S</sub><a class="headerlink" href="#storage-heat-flux-qs" title="Link to this heading">#</a></h2>
-<ol class="arabic simple">
+<ol class="arabic">
 <li><p>Several sub-models are available to estimate the storage heat flux:</p>
 <ul class="simple">
 <li><p><strong>OHM</strong> (Objective Hysteresis Model) <span class="bibtex-citation" id="id6">[<a class="reference internal" href="references.html#id11" title="Grimmond, C. S. B. and Oke, T. R. Heat storage in urban areas: Local-scale observations and evaluation of a simple model. J. Appl. Meteor., 38(7):922-940, July 1999. doi:10.1175/1520-0450(1999)038&lt;0922:hsiual&gt;2.0.co;2.">Grimmond and Oke, 1999</a>, <a class="reference internal" href="references.html#id14" title="Grimmond, C. S. B. and Oke, T. R. Turbulent heat fluxes in urban areas: Observations and a local-scale urban meteorological parameterization scheme (LUMPS). J. Appl. Meteor., 41(7):792-810, July 2002. doi:10.1175/1520-0450(2002)041&lt;0792:thfiua&gt;2.0.co;2.">Grimmond and Oke, 2002</a>, <a class="reference internal" href="references.html#id9" title="Grimmond, C.S.B., Cleugh, H.A., and Oke, T.R. An objective urban heat storage model and its comparison with other schemes. Atmospheric Environment. Part B. Urban Atmosphere, 25(3):311-326, January 1991. doi:10.1016/0957-1272(91)90003-w.">Grimmond <em>et al.</em>, 1991</a>]</span>. Storage heat heat flux is calculated using empirically-fitted relations with net all-wave radiation and the rate of change in net all-wave radiation.</p></li>
 <li><p><strong>AnOHM</strong> (Analytical Objective Hysteresis Model) <span class="bibtex-citation" id="id7">[<a class="reference internal" href="references.html#id13" title="Sun, Ting, Wang, Zhi-Hua, Oechel, Walter C., and Grimmond, Sue. The analytical objective hysteresis model (AnOHM v1.0): Methodology to determine bulk storage heat flux coefficients. Geosci. Model Dev., 10(7):2875-2890, July 2017. doi:10.5194/gmd-10-2875-2017.">Sun <em>et al.</em>, 2017</a>]</span>. OHM approach using analytically-derived coefficients. <strong>Not recommended in this version.</strong></p></li>
 <li><p><strong>ESTM</strong> (Element Surface Temperature Method) <span class="bibtex-citation" id="id8">[<a class="reference internal" href="references.html#id12" title="Offerle, B., Grimmond, C. S. B., and Fortuniak, K. Heat storage and anthropogenic heat flux in relation to the energy balance of a central European city centre. Int. J. Climatol., 25(10):1405-1419, August 2005. doi:10.1002/joc.1198.">Offerle <em>et al.</em>, 2005</a>]</span>. Heat transfer through urban facets (roof, wall, road, interior) is calculated from surface temperature measurements and knowledge of material properties. <strong>Not recommended in this version.</strong></p></li>
-<li><p><strong>EHC</strong> (Explicit Heat Conduction). Calculates storage heat flux using explicit heat conduction through urban facets with separate roof/wall/ground temperature calculations. Provides detailed surface temperature outputs for each urban element.</p></li>
-<li><p><strong>DyOHM</strong> (Dynamic Objective Hysteresis Model) (Liu et al., in prep.). Extends OHM by calculating coefficients dynamically based on material thermal properties (thermal conductivity) and meteorological conditions. Requires vertical wall layer configuration.</p></li>
+<li><p><strong>EHC</strong> (Explicit Heat Conduction). Calculates storage heat flux through roof, wall, and solid non-building land-cover facets using all five material layers and their <code class="docutils literal notranslate"><span class="pre">dz</span></code>, <code class="docutils literal notranslate"><span class="pre">k</span></code>, and <code class="docutils literal notranslate"><span class="pre">rho_cp</span></code> values. EHC resolves every configured roof and wall vertical layer; the <code class="docutils literal notranslate"><span class="pre">land_cover.bldgs</span></code> and water thermal arrays are not used by facet-resolved EHC conduction.</p></li>
+<li><p><strong>DyOHM</strong> (Dynamic Objective Hysteresis Model) (Liu et al., in prep.). Calculates OHM coefficients dynamically from meteorological conditions and the outermost material layer. Method 6 applies DyOHM to all SUEWS land-cover surfaces: buildings use material layer 0 of <code class="docutils literal notranslate"><span class="pre">land_cover.bldgs</span></code>, and each non-building land cover uses its own material layer 0. Method 7 uses STEBBS storage heat and temperatures for buildings, does not use <code class="docutils literal notranslate"><span class="pre">land_cover.bldgs</span></code> material layers, and applies DyOHM to non-building surfaces. Method 8 uses material layer 0 of <code class="docutils literal notranslate"><span class="pre">land_cover.bldgs</span></code> for building DyOHM and ordinary OHM for non-building surfaces. Roof and wall material properties are not used by DyOHM.</p></li>
 </ul>
+<p>The vertical-layer and material-layer indices are independent. See <a class="reference internal" href="inputs/yaml/layer-conventions.html#layer-conventions"><span class="std std-ref">Vertical and Material Layer Conventions</span></a> for their orientation, the input structure for five material layers, and a method-by-property decision table.</p>
 </li>
 <li><p>Alternatively, ‘observed’ storage heat flux can be supplied with the meteorological forcing data.</p></li>
 </ol>
@@ -925,8 +985,10 @@ Assumptions include:</p>
 <p>Each time light is intercepted it can undergo diffuse or specular reflection, be absorbed or be transmitted (as diffuse radiation).
 The probabilities for buildings and the ground are determined by albedos and emissivities, and for trees are determined by extinction coefficients and single scattering albedos.</p>
 <ul class="simple">
-<li><p>Maximum of 15 vertical layers.</p></li>
-<li><p>Building and tree fractions, building and tree dimensions, building albedo and emissivity, and diffuse versus specular reflection, can be treated as vertically heterogenous or uniform with height depending on parameter choices.</p></li>
+<li><p>Maximum of 15 SPARTACUS vertical layers.</p></li>
+<li><p>The <code class="docutils literal notranslate"><span class="pre">vertical_layers</span></code> input divides the height range from ground level to the maximum building height into intervals bounded by horizontal planes. Roof entries remain horizontal facets and wall entries remain vertical facets; the layer index locates them within this height range. See <a class="reference internal" href="inputs/yaml/layer-conventions.html#layer-conventions"><span class="std std-ref">Vertical and Material Layer Conventions</span></a>.</p></li>
+<li><p>Building and tree fractions, building and tree dimensions, building albedo and emissivity, and diffuse versus specular reflection, can be treated as vertically heterogeneous or uniform with height depending on parameter choices.</p></li>
+<li><p>SPARTACUS-Surface uses the height-dependent roof and wall optical properties (<code class="docutils literal notranslate"><span class="pre">alb</span></code>, <code class="docutils literal notranslate"><span class="pre">emis</span></code>, <code class="docutils literal notranslate"><span class="pre">roof_albedo_dir_mult_fact</span></code>, and <code class="docutils literal notranslate"><span class="pre">wall_specular_frac</span></code>).</p></li>
 <li><p>As tree fraction increases towards 1 it is assumed that the tree crown merges when calculating tree perimeters.</p></li>
 <li><p>Representing horizontal heterogeneity in the tree crowns is optional. When represented it is assumed that heterogeneity in leaf area index is between the core and periphery of the tree, not between trees.</p></li>
 <li><p>When calculating building perimeters it is assumed that buildings do not touch (analogous to crown shyness) as building fraction increases towards 1.</p></li>
@@ -1110,7 +1172,7 @@ Surface codes in <a class="reference internal" href="inputs/tables/SUEWS_SiteInf
     <i class="fa-solid fa-list"></i> Contents
   </div>
   <nav id="pst-page-toc-nav" class="page-toc" aria-labelledby="pst-page-navigation-heading-2">
-    <ul class="visible nav section-nav flex-column">
+    <ul class="pst-show_toc_level nav section-nav flex-column">
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#net-all-wave-radiation-q">1.1. Net all-wave radiation, Q*</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#beers-building-envelope-energy-radiation-scheme">1.2. BEERS (Building Envelope Energy Radiation Scheme)</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#anthropogenic-heat-flux-qf">1.3. Anthropogenic heat flux, Q<sub>F</sub></a></li>
@@ -1169,7 +1231,7 @@ By SUEWS dev team led by Prof Sue Grimmond
   
   <div class="footer-item">
     <p class="last-updated">
-  Last updated on 2026-01-28.
+  Last updated on 2026-07-20.
   <br/>
 </p>
   </div>
@@ -1177,8 +1239,8 @@ By SUEWS dev team led by Prof Sue Grimmond
   <div class="footer-item">
     
 <div class="extra_footer">
-  <p>Version: 2026.7.15.dev1 |
-    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/377c64bd66c83223d362c8d27c3c4158eed50502">377c64b</a> |
+  <p>Version: 2026.7.20.dev1 |
+    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/8e44254e459b5a588c853bd2e9fbfde6fdecbded">8e44254</a> |
     <a href="https://umep-dev.github.io/SUEWS/brand/showcase.html">Brand</a></p>
 </div>
   </div>
@@ -1192,8 +1254,8 @@ By SUEWS dev team led by Prof Sue Grimmond
   </div>
   
   <!-- Scripts loaded after <body> so the DOM is not blocked -->
-  <script defer src="_static/scripts/bootstrap.js?digest=8878045cc6db502f8baf"></script>
-<script defer src="_static/scripts/pydata-sphinx-theme.js?digest=8878045cc6db502f8baf"></script>
+  <script defer src="_static/scripts/bootstrap.js?digest=90905a2f556bf617f1a9"></script>
+<script defer src="_static/scripts/pydata-sphinx-theme.js?digest=90905a2f556bf617f1a9"></script>
 
   <footer class="bd-footer">
   </footer>

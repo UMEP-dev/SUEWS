@@ -9,7 +9,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
     <meta property="article:modified_time" content="2026-05-31T07:06:43+00:00" />
-    <title>4.6. Validation Tool Reference &#8212; SUEWS 2026.7.15.dev1 documentation</title>
+    <title>4.7. Validation Tool Reference &#8212; SUEWS 2026.7.20.dev1 documentation</title>
   
   
   
@@ -28,11 +28,11 @@
   </noscript>
   
   <!-- Loaded before other Sphinx assets -->
-  <link href="../../_static/styles/theme.css?digest=8878045cc6db502f8baf" rel="stylesheet" />
-<link href="../../_static/styles/pydata-sphinx-theme.css?digest=8878045cc6db502f8baf" rel="stylesheet" />
+  <link href="../../_static/styles/theme.css?digest=90905a2f556bf617f1a9" rel="stylesheet" />
+<link href="../../_static/styles/pydata-sphinx-theme.css?digest=90905a2f556bf617f1a9" rel="stylesheet" />
 
     <link rel="stylesheet" type="text/css" href="../../_static/pygments.css?v=03e43079" />
-    <link rel="stylesheet" type="text/css" href="../../_static/styles/sphinx-book-theme.css?v=3c74b3bc" />
+    <link rel="stylesheet" type="text/css" href="../../_static/styles/sphinx-book-theme.css?v=4418a689" />
     <link rel="stylesheet" type="text/css" href="../../_static/theme_overrides.css?v=0c24fe83" />
     <link rel="stylesheet" type="text/css" href="../../_static/brand.css?v=6ff74816" />
     <link rel="stylesheet" type="text/css" href="../../_static/sg_gallery.css?v=fd6457a4" />
@@ -40,41 +40,48 @@
     <link rel="stylesheet" type="text/css" href="../../_static/publications-filter.css?v=fa69f4f6" />
   
   <!-- So that users can add custom icons -->
-  <script src="../../_static/scripts/fontawesome.js?digest=8878045cc6db502f8baf"></script>
+  <script defer src="../../_static/scripts/fontawesome.js?digest=90905a2f556bf617f1a9"></script>
   <!-- Pre-loaded scripts that we'll load fully later -->
-  <link rel="preload" as="script" href="../../_static/scripts/bootstrap.js?digest=8878045cc6db502f8baf" />
-<link rel="preload" as="script" href="../../_static/scripts/pydata-sphinx-theme.js?digest=8878045cc6db502f8baf" />
+  <link rel="preload" as="script" href="../../_static/scripts/bootstrap.js?digest=90905a2f556bf617f1a9" />
+<link rel="preload" as="script" href="../../_static/scripts/pydata-sphinx-theme.js?digest=90905a2f556bf617f1a9" />
 
-    <script src="../../_static/documentation_options.js?v=c31abc52"></script>
+    <script src="../../_static/documentation_options.js?v=7de4f5ac"></script>
     <script src="../../_static/doctools.js?v=9bcbadda"></script>
     <script src="../../_static/sphinx_highlight.js?v=dc90522c"></script>
     <script src="../../_static/scripts/sphinx-book-theme.js?v=fab101a9"></script>
     <script src="../../_static/design-tabs.js?v=f930bc37"></script>
     <script>DOCUMENTATION_OPTIONS.pagename = 'inputs/yaml/validation';</script>
+    <script>DOCUMENTATION_OPTIONS.search_as_you_type = false;</script>
     <script defer="defer" src="../../_static/publications-filter.js?v=c5b02298"></script>
     <link rel="icon" href="../../_static/suews-logo.svg"/>
     <link rel="index" title="Index" href="../../genindex.html" />
     <link rel="search" title="Search" href="../../search.html" />
-    <link rel="next" title="4.7. Table-based Input Files (Legacy Format)" href="../tables/index.html" />
-    <link rel="prev" title="4.5. Transitioning to YAML-based Configuration" href="../transition_guide.html" />
+    <link rel="next" title="4.8. Table-based Input Files (Legacy Format)" href="../tables/index.html" />
+    <link rel="prev" title="4.6. Transitioning to YAML-based Configuration" href="../transition_guide.html" />
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
-  <meta name="docsearch:version" content="2026.7.15.dev1" />
+  <meta name="docsearch:version" content="2026.7.20.dev1" />
     <meta name="docbuild:last-update" content="2026-05-31"/>
+  
+    
+    <script src="../../_static/searchtools.js"></script>
+    <script src="../../_static/language_data.js"></script>
+    <script src="../../searchindex.js"></script>
+  
   </head>
-  
-  
-  <body data-bs-spy="scroll" data-bs-target=".bd-toc-nav" data-offset="180" data-bs-root-margin="0px 0px -60%" data-default-mode="">
-
+  <body data-default-mode="">
   
   
   <div id="pst-skip-link" class="skip-link d-print-none"><a href="#main-content">Skip to main content</a></div>
+
   
   <div id="pst-scroll-pixel-helper"></div>
   
   <button type="button" class="btn rounded-pill" id="pst-back-to-top">
     <i class="fa-solid fa-arrow-up"></i>Back to top</button>
-
+  
+  
+  
   
   <dialog id="pst-search-dialog">
     
@@ -102,7 +109,7 @@
   <div class="bd-header-announcement__content">
     <div style="background-color: #f0ad4e; border: 1px solid #eea236; border-radius: 4px; padding: 10px; margin: 10px 0;">
         <strong>⚠️ Development Version:</strong> This documentation was built from a development version
-        (2026.7.15.dev1, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/377c64bd66c83223d362c8d27c3c4158eed50502" style="color: #31708f;">377c64b</a>).
+        (2026.7.20.dev1, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/8e44254e459b5a588c853bd2e9fbfde6fdecbded" style="color: #31708f;">8e44254</a>).
         Features described here may be unstable or subject to change. For stable documentation, please visit the
         <a href="https://docs.suews.io/stable/" style="color: #31708f;">latest release</a>.
     </div>
@@ -110,7 +117,51 @@
 </aside>
 
   
-    <header class="bd-header navbar navbar-expand-lg bd-navbar d-print-none">
+    <header id="pst-header" class="bd-header navbar navbar-expand-lg bd-navbar d-print-none">
+<div class="bd-header__inner bd-page-width">
+  <button class="pst-navbar-icon sidebar-toggle primary-toggle" aria-label="Site navigation">
+    <span class="fa-solid fa-bars"></span>
+  </button>
+  
+  
+  <div class="col-lg-9 navbar-header-items">
+    
+    
+    <div class="navbar-header-items__end">
+      
+        <div class="navbar-item navbar-persistent--container">
+          
+
+<button class="btn search-button-field search-button__button pst-js-only" title="Search" aria-label="Search" data-bs-placement="bottom" data-bs-toggle="tooltip">
+ <i class="fa-solid fa-magnifying-glass"></i>
+ <span class="search-button__default-text">Search</span>
+ <span class="search-button__kbd-shortcut"><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd class="kbd-shortcut__modifier">K</kbd></span>
+</button>
+        </div>
+      
+      
+    </div>
+    
+  </div>
+  
+  
+    <div class="navbar-persistent--mobile">
+
+<button class="btn search-button-field search-button__button pst-js-only" title="Search" aria-label="Search" data-bs-placement="bottom" data-bs-toggle="tooltip">
+ <i class="fa-solid fa-magnifying-glass"></i>
+ <span class="search-button__default-text">Search</span>
+ <span class="search-button__kbd-shortcut"><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd class="kbd-shortcut__modifier">K</kbd></span>
+</button>
+    </div>
+  
+
+  
+    <button class="pst-navbar-icon sidebar-toggle secondary-toggle" aria-label="On this page">
+      <span class="fa-solid fa-outdent"></span>
+    </button>
+  
+</div>
+
     </header>
   
 
@@ -149,8 +200,8 @@
       
     
     
-    <img src="../../_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.7.15.dev1 documentation - Home"/>
-    <img src="../../_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.7.15.dev1 documentation - Home"/>
+    <img src="../../_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.7.20.dev1 documentation - Home"/>
+    <img src="../../_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.7.20.dev1 documentation - Home"/>
   
   
 </a></div>
@@ -178,88 +229,89 @@
 </details></li>
 <li class="toctree-l1 current active has-children"><a class="reference internal" href="../index.html">4. Input Files</a><details open="open"><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul class="current">
 <li class="toctree-l2"><a class="reference internal" href="index.html">4.1. YAML Configuration Format</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../forcing-data.html">4.2. Meteorological Forcing Data</a></li>
-<li class="toctree-l2 has-children"><a class="reference internal" href="config-reference/index.html">4.3. YAML Configuration Reference</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
-<li class="toctree-l3"><a class="reference internal" href="config-reference/anthropogenicemissions.html">4.3.1. Anthropogenic Emissions</a></li>
-<li class="toctree-l3"><a class="reference internal" href="config-reference/anthropogenicheat.html">4.3.2. Anthropogenic Heat</a></li>
-<li class="toctree-l3"><a class="reference internal" href="config-reference/archetypeproperties.html">4.3.3. Archetype Properties</a></li>
-<li class="toctree-l3"><a class="reference internal" href="config-reference/bldgsproperties.html">4.3.4. Buildings</a></li>
-<li class="toctree-l3"><a class="reference internal" href="config-reference/bsoilproperties.html">4.3.5. Bare Soil</a></li>
-<li class="toctree-l3"><a class="reference internal" href="config-reference/buildinglayer.html">4.3.6. Building Layer</a></li>
-<li class="toctree-l3"><a class="reference internal" href="config-reference/co2params.html">4.3.7. CO2 Emissions</a></li>
-<li class="toctree-l3"><a class="reference internal" href="config-reference/conductance.html">4.3.8. Conductance</a></li>
-<li class="toctree-l3"><a class="reference internal" href="config-reference/coolingsetpointprofile.html">4.3.9. Cooling Setpoint Profile</a></li>
-<li class="toctree-l3"><a class="reference internal" href="config-reference/dayprofile.html">4.3.10. Daily Profile</a></li>
-<li class="toctree-l3"><a class="reference internal" href="config-reference/dectrproperties.html">4.3.11. Deciduous Trees</a></li>
-<li class="toctree-l3"><a class="reference internal" href="config-reference/evetrproperties.html">4.3.12. Evergreen Trees</a></li>
-<li class="toctree-l3"><a class="reference internal" href="config-reference/forcingcontrol.html">4.3.13. Forcing Control</a></li>
-<li class="toctree-l3"><a class="reference internal" href="config-reference/grassproperties.html">4.3.14. Grass</a></li>
-<li class="toctree-l3"><a class="reference internal" href="config-reference/heatingsetpointprofile.html">4.3.15. Heating Setpoint Profile</a></li>
-<li class="toctree-l3"><a class="reference internal" href="config-reference/hourlyprofile.html">4.3.16. Hourly Profile</a></li>
-<li class="toctree-l3"><a class="reference internal" href="config-reference/initialstatebldgs.html">4.3.17. Buildings Surface Initial State</a></li>
-<li class="toctree-l3"><a class="reference internal" href="config-reference/initialstatebsoil.html">4.3.18. Bare Soil Surface Initial State</a></li>
-<li class="toctree-l3"><a class="reference internal" href="config-reference/initialstatedectr.html">4.3.19. Deciduous Tree Initial State</a></li>
-<li class="toctree-l3"><a class="reference internal" href="config-reference/initialstateevetr.html">4.3.20. Evergreen Tree Initial State</a></li>
-<li class="toctree-l3"><a class="reference internal" href="config-reference/initialstategrass.html">4.3.21. Grass Initial State</a></li>
-<li class="toctree-l3"><a class="reference internal" href="config-reference/initialstatepaved.html">4.3.22. Paved Surface Initial State</a></li>
-<li class="toctree-l3"><a class="reference internal" href="config-reference/initialstateveg.html">4.3.23. Vegetation Initial State</a></li>
-<li class="toctree-l3"><a class="reference internal" href="config-reference/initialstatewater.html">4.3.24. Water Surface Initial State</a></li>
-<li class="toctree-l3"><a class="reference internal" href="config-reference/initialstates.html">4.3.25. Initial States</a></li>
-<li class="toctree-l3"><a class="reference internal" href="config-reference/irrigationparams.html">4.3.26. Irrigation</a></li>
-<li class="toctree-l3"><a class="reference internal" href="config-reference/laiparams.html">4.3.27. LAI</a></li>
-<li class="toctree-l3"><a class="reference internal" href="config-reference/laipowercoefficients.html">4.3.28. LAI Power Coefficients</a></li>
-<li class="toctree-l3"><a class="reference internal" href="config-reference/lumpsparams.html">4.3.29. LUMPS Parameters</a></li>
-<li class="toctree-l3"><a class="reference internal" href="config-reference/landcover.html">4.3.30. Land Cover</a></li>
-<li class="toctree-l3"><a class="reference internal" href="config-reference/model.html">4.3.31. Model Configuration</a></li>
-<li class="toctree-l3"><a class="reference internal" href="config-reference/modelcontrol.html">4.3.32. Model Control</a></li>
-<li class="toctree-l3"><a class="reference internal" href="config-reference/modelphysics.html">4.3.33. Physics Methods</a></li>
-<li class="toctree-l3"><a class="reference internal" href="config-reference/nonvegetatedsurfaceproperties.html">4.3.34. Surface Properties</a></li>
-<li class="toctree-l3"><a class="reference internal" href="config-reference/ohmcoefficients.html">4.3.35. OHM Coefficients</a></li>
-<li class="toctree-l3"><a class="reference internal" href="config-reference/ohm_coefficient_season_wetness.html">4.3.36. Seasonal/Wetness OHM Coefficients</a></li>
-<li class="toctree-l3"><a class="reference internal" href="config-reference/outputcontrol.html">4.3.37. Output Control</a></li>
-<li class="toctree-l3"><a class="reference internal" href="config-reference/pavedproperties.html">4.3.38. Paved Surfaces</a></li>
-<li class="toctree-l3"><a class="reference internal" href="config-reference/rooflayer.html">4.3.39. Roof Layer</a></li>
-<li class="toctree-l3"><a class="reference internal" href="config-reference/spartacusparams.html">4.3.40. SPARTACUS</a></li>
-<li class="toctree-l3"><a class="reference internal" href="config-reference/suewsconfig.html">4.3.41. SUEWS Configuration</a></li>
-<li class="toctree-l3"><a class="reference internal" href="config-reference/site.html">4.3.42. Site Configuration</a></li>
-<li class="toctree-l3"><a class="reference internal" href="config-reference/siteproperties.html">4.3.43. Site Properties</a></li>
-<li class="toctree-l3"><a class="reference internal" href="config-reference/snowparams.html">4.3.44. Snow</a></li>
-<li class="toctree-l3"><a class="reference internal" href="config-reference/soilobservationconfig.html">4.3.45. Soil Observation Configuration</a></li>
-<li class="toctree-l3"><a class="reference internal" href="config-reference/stebbsphysics.html">4.3.46. STEBBS Physics Methods</a></li>
-<li class="toctree-l3"><a class="reference internal" href="config-reference/stebbsproperties.html">4.3.47. STEBBS</a></li>
-<li class="toctree-l3"><a class="reference internal" href="config-reference/storagedrainparams.html">4.3.48. Drainage Parameters</a></li>
-<li class="toctree-l3"><a class="reference internal" href="config-reference/surfaceinitialstate.html">4.3.49. Generic Surface Initial State</a></li>
-<li class="toctree-l3"><a class="reference internal" href="config-reference/surfaceproperties.html">4.3.50. Surface Properties</a></li>
-<li class="toctree-l3"><a class="reference internal" href="config-reference/tenminuteprofile.html">4.3.51. Ten Minute Profile</a></li>
-<li class="toctree-l3"><a class="reference internal" href="config-reference/thermallayers.html">4.3.52. Thermal Layers</a></li>
-<li class="toctree-l3"><a class="reference internal" href="config-reference/vegetatedsurfaceproperties.html">4.3.53. Surface Properties</a></li>
-<li class="toctree-l3"><a class="reference internal" href="config-reference/vegetationparams.html">4.3.54. Vegetation Parameters</a></li>
-<li class="toctree-l3"><a class="reference internal" href="config-reference/verticallayers.html">4.3.55. Vertical Layers</a></li>
-<li class="toctree-l3"><a class="reference internal" href="config-reference/walllayer.html">4.3.56. Wall Layer</a></li>
-<li class="toctree-l3"><a class="reference internal" href="config-reference/waterdistribution.html">4.3.57. Water Distribution</a></li>
-<li class="toctree-l3"><a class="reference internal" href="config-reference/waterproperties.html">4.3.58. Water Surfaces</a></li>
-<li class="toctree-l3"><a class="reference internal" href="config-reference/weeklyprofile.html">4.3.59. Weekly Profile</a></li>
+<li class="toctree-l2"><a class="reference internal" href="layer-conventions.html">4.2. Vertical and Material Layer Conventions</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../forcing-data.html">4.3. Meteorological Forcing Data</a></li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="config-reference/index.html">4.4. YAML Configuration Reference</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l3"><a class="reference internal" href="config-reference/anthropogenicemissions.html">4.4.1. Anthropogenic Emissions</a></li>
+<li class="toctree-l3"><a class="reference internal" href="config-reference/anthropogenicheat.html">4.4.2. Anthropogenic Heat</a></li>
+<li class="toctree-l3"><a class="reference internal" href="config-reference/archetypeproperties.html">4.4.3. Archetype Properties</a></li>
+<li class="toctree-l3"><a class="reference internal" href="config-reference/bldgsproperties.html">4.4.4. Buildings</a></li>
+<li class="toctree-l3"><a class="reference internal" href="config-reference/bsoilproperties.html">4.4.5. Bare Soil</a></li>
+<li class="toctree-l3"><a class="reference internal" href="config-reference/buildinglayer.html">4.4.6. Building Layer</a></li>
+<li class="toctree-l3"><a class="reference internal" href="config-reference/co2params.html">4.4.7. CO2 Emissions</a></li>
+<li class="toctree-l3"><a class="reference internal" href="config-reference/conductance.html">4.4.8. Conductance</a></li>
+<li class="toctree-l3"><a class="reference internal" href="config-reference/coolingsetpointprofile.html">4.4.9. Cooling Setpoint Profile</a></li>
+<li class="toctree-l3"><a class="reference internal" href="config-reference/dayprofile.html">4.4.10. Daily Profile</a></li>
+<li class="toctree-l3"><a class="reference internal" href="config-reference/dectrproperties.html">4.4.11. Deciduous Trees</a></li>
+<li class="toctree-l3"><a class="reference internal" href="config-reference/evetrproperties.html">4.4.12. Evergreen Trees</a></li>
+<li class="toctree-l3"><a class="reference internal" href="config-reference/forcingcontrol.html">4.4.13. Forcing Control</a></li>
+<li class="toctree-l3"><a class="reference internal" href="config-reference/grassproperties.html">4.4.14. Grass</a></li>
+<li class="toctree-l3"><a class="reference internal" href="config-reference/heatingsetpointprofile.html">4.4.15. Heating Setpoint Profile</a></li>
+<li class="toctree-l3"><a class="reference internal" href="config-reference/hourlyprofile.html">4.4.16. Hourly Profile</a></li>
+<li class="toctree-l3"><a class="reference internal" href="config-reference/initialstatebldgs.html">4.4.17. Buildings Surface Initial State</a></li>
+<li class="toctree-l3"><a class="reference internal" href="config-reference/initialstatebsoil.html">4.4.18. Bare Soil Surface Initial State</a></li>
+<li class="toctree-l3"><a class="reference internal" href="config-reference/initialstatedectr.html">4.4.19. Deciduous Tree Initial State</a></li>
+<li class="toctree-l3"><a class="reference internal" href="config-reference/initialstateevetr.html">4.4.20. Evergreen Tree Initial State</a></li>
+<li class="toctree-l3"><a class="reference internal" href="config-reference/initialstategrass.html">4.4.21. Grass Initial State</a></li>
+<li class="toctree-l3"><a class="reference internal" href="config-reference/initialstatepaved.html">4.4.22. Paved Surface Initial State</a></li>
+<li class="toctree-l3"><a class="reference internal" href="config-reference/initialstateveg.html">4.4.23. Vegetation Initial State</a></li>
+<li class="toctree-l3"><a class="reference internal" href="config-reference/initialstatewater.html">4.4.24. Water Surface Initial State</a></li>
+<li class="toctree-l3"><a class="reference internal" href="config-reference/initialstates.html">4.4.25. Initial States</a></li>
+<li class="toctree-l3"><a class="reference internal" href="config-reference/irrigationparams.html">4.4.26. Irrigation</a></li>
+<li class="toctree-l3"><a class="reference internal" href="config-reference/laiparams.html">4.4.27. LAI</a></li>
+<li class="toctree-l3"><a class="reference internal" href="config-reference/laipowercoefficients.html">4.4.28. LAI Power Coefficients</a></li>
+<li class="toctree-l3"><a class="reference internal" href="config-reference/lumpsparams.html">4.4.29. LUMPS Parameters</a></li>
+<li class="toctree-l3"><a class="reference internal" href="config-reference/landcover.html">4.4.30. Land Cover</a></li>
+<li class="toctree-l3"><a class="reference internal" href="config-reference/model.html">4.4.31. Model Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="config-reference/modelcontrol.html">4.4.32. Model Control</a></li>
+<li class="toctree-l3"><a class="reference internal" href="config-reference/modelphysics.html">4.4.33. Physics Methods</a></li>
+<li class="toctree-l3"><a class="reference internal" href="config-reference/nonvegetatedsurfaceproperties.html">4.4.34. Surface Properties</a></li>
+<li class="toctree-l3"><a class="reference internal" href="config-reference/ohmcoefficients.html">4.4.35. OHM Coefficients</a></li>
+<li class="toctree-l3"><a class="reference internal" href="config-reference/ohm_coefficient_season_wetness.html">4.4.36. Seasonal/Wetness OHM Coefficients</a></li>
+<li class="toctree-l3"><a class="reference internal" href="config-reference/outputcontrol.html">4.4.37. Output Control</a></li>
+<li class="toctree-l3"><a class="reference internal" href="config-reference/pavedproperties.html">4.4.38. Paved Surfaces</a></li>
+<li class="toctree-l3"><a class="reference internal" href="config-reference/rooflayer.html">4.4.39. Roof Layer</a></li>
+<li class="toctree-l3"><a class="reference internal" href="config-reference/spartacusparams.html">4.4.40. SPARTACUS</a></li>
+<li class="toctree-l3"><a class="reference internal" href="config-reference/suewsconfig.html">4.4.41. SUEWS Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="config-reference/site.html">4.4.42. Site Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="config-reference/siteproperties.html">4.4.43. Site Properties</a></li>
+<li class="toctree-l3"><a class="reference internal" href="config-reference/snowparams.html">4.4.44. Snow</a></li>
+<li class="toctree-l3"><a class="reference internal" href="config-reference/soilobservationconfig.html">4.4.45. Soil Observation Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="config-reference/stebbsphysics.html">4.4.46. STEBBS Physics Methods</a></li>
+<li class="toctree-l3"><a class="reference internal" href="config-reference/stebbsproperties.html">4.4.47. STEBBS</a></li>
+<li class="toctree-l3"><a class="reference internal" href="config-reference/storagedrainparams.html">4.4.48. Drainage Parameters</a></li>
+<li class="toctree-l3"><a class="reference internal" href="config-reference/surfaceinitialstate.html">4.4.49. Generic Surface Initial State</a></li>
+<li class="toctree-l3"><a class="reference internal" href="config-reference/surfaceproperties.html">4.4.50. Surface Properties</a></li>
+<li class="toctree-l3"><a class="reference internal" href="config-reference/tenminuteprofile.html">4.4.51. Ten Minute Profile</a></li>
+<li class="toctree-l3"><a class="reference internal" href="config-reference/thermallayers.html">4.4.52. Material Layers</a></li>
+<li class="toctree-l3"><a class="reference internal" href="config-reference/vegetatedsurfaceproperties.html">4.4.53. Surface Properties</a></li>
+<li class="toctree-l3"><a class="reference internal" href="config-reference/vegetationparams.html">4.4.54. Vegetation Parameters</a></li>
+<li class="toctree-l3"><a class="reference internal" href="config-reference/verticallayers.html">4.4.55. SPARTACUS Vertical Layers</a></li>
+<li class="toctree-l3"><a class="reference internal" href="config-reference/walllayer.html">4.4.56. Wall Layer</a></li>
+<li class="toctree-l3"><a class="reference internal" href="config-reference/waterdistribution.html">4.4.57. Water Distribution</a></li>
+<li class="toctree-l3"><a class="reference internal" href="config-reference/waterproperties.html">4.4.58. Water Surfaces</a></li>
+<li class="toctree-l3"><a class="reference internal" href="config-reference/weeklyprofile.html">4.4.59. Weekly Profile</a></li>
 </ul>
 </details></li>
-<li class="toctree-l2"><a class="reference internal" href="../converter.html">4.4. SUEWS Format Converter</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../transition_guide.html">4.5. Transitioning to YAML-based Configuration</a></li>
-<li class="toctree-l2 current active"><a class="current reference internal" href="#">4.6. Validation Tool Reference</a></li>
-<li class="toctree-l2 has-children"><a class="reference internal" href="../tables/index.html">4.7. Table-based Input Files (Legacy Format)</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
-<li class="toctree-l3"><a class="reference internal" href="../tables/met_input.html">4.7.3.1. Meteorological Input File</a></li>
-<li class="toctree-l3 has-children"><a class="reference internal" href="../tables/RunControl/RunControl.html">4.7.3.2. RunControl.nml</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
-<li class="toctree-l4"><a class="reference internal" href="../tables/RunControl/scheme_options.html">4.7.3.2.1. Scheme options</a></li>
-<li class="toctree-l4"><a class="reference internal" href="../tables/RunControl/Time_related_options.html">4.7.3.2.2. Time related options</a></li>
-<li class="toctree-l4"><a class="reference internal" href="../tables/RunControl/File_related_options.html">4.7.3.2.3. File related options</a></li>
-<li class="toctree-l4"><a class="reference internal" href="../tables/RunControl/Options_related_to_disaggregation_of_input_data.html">4.7.3.2.4. Options related to disaggregation of input data</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../converter.html">4.5. SUEWS Format Converter</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../transition_guide.html">4.6. Transitioning to YAML-based Configuration</a></li>
+<li class="toctree-l2 current active"><a class="current reference internal" href="#">4.7. Validation Tool Reference</a></li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../tables/index.html">4.8. Table-based Input Files (Legacy Format)</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l3"><a class="reference internal" href="../tables/met_input.html">4.8.3.1. Meteorological Input File</a></li>
+<li class="toctree-l3 has-children"><a class="reference internal" href="../tables/RunControl/RunControl.html">4.8.3.2. RunControl.nml</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l4"><a class="reference internal" href="../tables/RunControl/scheme_options.html">4.8.3.2.1. Scheme options</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../tables/RunControl/Time_related_options.html">4.8.3.2.2. Time related options</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../tables/RunControl/File_related_options.html">4.8.3.2.3. File related options</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../tables/RunControl/Options_related_to_disaggregation_of_input_data.html">4.8.3.2.4. Options related to disaggregation of input data</a></li>
 </ul>
 </details></li>
-<li class="toctree-l3"><a class="reference internal" href="../tables/SUEWS_SiteInfo/SUEWS_SiteSelect.html">4.7.3.3. SUEWS_SiteSelect.txt</a></li>
-<li class="toctree-l3 has-children"><a class="reference internal" href="../tables/Initial_Conditions/Initial_Conditions.html">4.7.3.4. Initial Conditions file</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
-<li class="toctree-l4"><a class="reference internal" href="../tables/Initial_Conditions/Soil_moisture_states.html">4.7.3.4.1. Soil moisture states</a></li>
-<li class="toctree-l4"><a class="reference internal" href="../tables/Initial_Conditions/Vegetation_parameters.html">4.7.3.4.2. Vegetation parameters</a></li>
-<li class="toctree-l4"><a class="reference internal" href="../tables/Initial_Conditions/Recent_meteorology.html">4.7.3.4.3. Recent meteorology</a></li>
-<li class="toctree-l4"><a class="reference internal" href="../tables/Initial_Conditions/Above_ground_state.html">4.7.3.4.4. Above ground state</a></li>
-<li class="toctree-l4"><a class="reference internal" href="../tables/Initial_Conditions/Snow_related_parameters.html">4.7.3.4.5. Snow related parameters</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../tables/SUEWS_SiteInfo/SUEWS_SiteSelect.html">4.8.3.3. SUEWS_SiteSelect.txt</a></li>
+<li class="toctree-l3 has-children"><a class="reference internal" href="../tables/Initial_Conditions/Initial_Conditions.html">4.8.3.4. Initial Conditions file</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l4"><a class="reference internal" href="../tables/Initial_Conditions/Soil_moisture_states.html">4.8.3.4.1. Soil moisture states</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../tables/Initial_Conditions/Vegetation_parameters.html">4.8.3.4.2. Vegetation parameters</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../tables/Initial_Conditions/Recent_meteorology.html">4.8.3.4.3. Recent meteorology</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../tables/Initial_Conditions/Above_ground_state.html">4.8.3.4.4. Above ground state</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../tables/Initial_Conditions/Snow_related_parameters.html">4.8.3.4.5. Snow related parameters</a></li>
 </ul>
 </details></li>
 </ul>
@@ -567,11 +619,18 @@
 
 
 
-<button class="btn btn-sm nav-link pst-navbar-icon theme-switch-button pst-js-only" aria-label="Color mode" data-bs-title="Color mode"  data-bs-placement="bottom" data-bs-toggle="tooltip">
-  <i class="theme-switch fa-solid fa-sun                fa-lg" data-mode="light" title="Light"></i>
-  <i class="theme-switch fa-solid fa-moon               fa-lg" data-mode="dark"  title="Dark"></i>
-  <i class="theme-switch fa-solid fa-circle-half-stroke fa-lg" data-mode="auto"  title="System Settings"></i>
-</button>
+<div class="theme-switch-container dropdown pst-js-only" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Color mode">
+  <button class="btn btn-sm nav-link pst-navbar-icon theme-switch-button dropdown-toggle" aria-label="Color mode" data-bs-toggle="dropdown">
+    <i class="theme-switch fa-solid fa-sun fa-lg fa-fw" data-mode="light" title="Light"></i>
+    <i class="theme-switch fa-solid fa-moon fa-lg fa-fw" data-mode="dark" title="Dark"></i>
+    <i class="theme-switch fa-solid fa-circle-half-stroke fa-lg fa-fw" data-mode="auto" title="System Settings"></i>
+  </button>
+  <ul class="dropdown-menu dropdown-menu-end">
+    <li><button class="dropdown-item d-flex align-items-center theme-change-button" data-mode="auto"><i class="fa-solid fa-circle-half-stroke fa-lg fa-fw me-1"></i>System Settings</button></li>
+    <li><button class="dropdown-item d-flex align-items-center theme-change-button" data-mode="light"><i class="fa-solid fa-sun fa-lg fa-fw me-1"></i>Light</button></li>
+    <li><button class="dropdown-item d-flex align-items-center theme-change-button" data-mode="dark"><i class="fa-solid fa-moon fa-lg fa-fw me-1"></i>Dark</button></li>
+  </ul>
+</div>
 
 
 <button class="btn btn-sm pst-navbar-icon search-button search-button__button pst-js-only" title="Search" aria-label="Search" data-bs-placement="bottom" data-bs-toggle="tooltip">
@@ -599,19 +658,19 @@
                 <h2> Contents </h2>
             </div>
             <nav aria-label="Page">
-                <ul class="visible nav section-nav flex-column">
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#what-the-validator-does">4.6.1. What the Validator Does</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#basic-usage">4.6.2. Basic Usage</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#phase-b-scientific-fix-policy">4.6.3. Phase B Scientific Fix Policy</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#output-files">4.6.4. Output Files</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#understanding-reports">4.6.5. Understanding Reports</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#exit-codes">4.6.6. Exit Codes</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#json-output">4.6.7. JSON Output</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#ci-cd-integration">4.6.8. CI/CD Integration</a><ul class="nav section-nav flex-column">
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#batch-processing">4.6.8.1. Batch Processing</a></li>
+                <ul class="pst-show_toc_level nav section-nav flex-column">
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#what-the-validator-does">4.7.1. What the Validator Does</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#basic-usage">4.7.2. Basic Usage</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#phase-b-scientific-fix-policy">4.7.3. Phase B Scientific Fix Policy</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#output-files">4.7.4. Output Files</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#understanding-reports">4.7.5. Understanding Reports</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#exit-codes">4.7.6. Exit Codes</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#json-output">4.7.7. JSON Output</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#ci-cd-integration">4.7.8. CI/CD Integration</a><ul class="nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#batch-processing">4.7.8.1. Batch Processing</a></li>
 </ul>
 </li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#troubleshooting">4.6.9. Troubleshooting</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#troubleshooting">4.7.9. Troubleshooting</a></li>
 </ul>
             </nav>
         </div>
@@ -632,13 +691,13 @@
 </ol>
 </div>
 <section id="validation-tool-reference">
-<span id="validation"></span><h1><span class="section-number">4.6. </span>Validation Tool Reference<a class="headerlink" href="#validation-tool-reference" title="Link to this heading">#</a></h1>
+<span id="validation"></span><h1><span class="section-number">4.7. </span>Validation Tool Reference<a class="headerlink" href="#validation-tool-reference" title="Link to this heading">#</a></h1>
 <p>The <code class="docutils literal notranslate"><span class="pre">suews-validate</span></code> command checks SUEWS YAML configuration files and writes
 an updated YAML file plus a validation report. It is a validator first: structural
 updates are applied where they are mechanical, while scientific initialisation
 changes are only applied when explicitly requested.</p>
 <section id="what-the-validator-does">
-<h2><span class="section-number">4.6.1. </span>What the Validator Does<a class="headerlink" href="#what-the-validator-does" title="Link to this heading">#</a></h2>
+<h2><span class="section-number">4.7.1. </span>What the Validator Does<a class="headerlink" href="#what-the-validator-does" title="Link to this heading">#</a></h2>
 <p>The validation system performs three groups of checks:</p>
 <ul class="simple">
 <li><p><strong>Completeness check</strong>: detects missing parameters, updates deprecated parameter
@@ -653,7 +712,7 @@ SUEWS data model.</p></li>
 </ul>
 </section>
 <section id="basic-usage">
-<h2><span class="section-number">4.6.2. </span>Basic Usage<a class="headerlink" href="#basic-usage" title="Link to this heading">#</a></h2>
+<h2><span class="section-number">4.7.2. </span>Basic Usage<a class="headerlink" href="#basic-usage" title="Link to this heading">#</a></h2>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="c1"># Validate configuration and write updated_config.yml plus report_config.txt</span>
 suews-validate<span class="w"> </span>config.yml
 
@@ -679,7 +738,7 @@ suews-validate<span class="w"> </span>version<span class="w"> </span>--help
 </div>
 </section>
 <section id="phase-b-scientific-fix-policy">
-<h2><span class="section-number">4.6.3. </span>Phase B Scientific Fix Policy<a class="headerlink" href="#phase-b-scientific-fix-policy" title="Link to this heading">#</a></h2>
+<h2><span class="section-number">4.7.3. </span>Phase B Scientific Fix Policy<a class="headerlink" href="#phase-b-scientific-fix-policy" title="Link to this heading">#</a></h2>
 <p><code class="docutils literal notranslate"><span class="pre">--science-fixes</span></code> controls transformations that can change scientific or
 user-provided values:</p>
 <ul class="simple">
@@ -698,7 +757,7 @@ They may be inappropriate for observed initial states, spin-up workflows,
 historical timezone settings, or specialist case studies.</p>
 </section>
 <section id="output-files">
-<h2><span class="section-number">4.6.4. </span>Output Files<a class="headerlink" href="#output-files" title="Link to this heading">#</a></h2>
+<h2><span class="section-number">4.7.4. </span>Output Files<a class="headerlink" href="#output-files" title="Link to this heading">#</a></h2>
 <p>When you run <code class="docutils literal notranslate"><span class="pre">suews-validate</span> <span class="pre">config.yml</span></code>, it creates:</p>
 <ul class="simple">
 <li><p><code class="docutils literal notranslate"><span class="pre">updated_config.yml</span></code> - the updated configuration from the last successful
@@ -713,7 +772,7 @@ the <code class="docutils literal notranslate"><span class="pre">data.validation
 </ul>
 </section>
 <section id="understanding-reports">
-<h2><span class="section-number">4.6.5. </span>Understanding Reports<a class="headerlink" href="#understanding-reports" title="Link to this heading">#</a></h2>
+<h2><span class="section-number">4.7.5. </span>Understanding Reports<a class="headerlink" href="#understanding-reports" title="Link to this heading">#</a></h2>
 <p>Reports use stable action sections:</p>
 <ul class="simple">
 <li><p><strong>ACTION NEEDED</strong>: blocking validation errors that must be fixed before the
@@ -756,7 +815,7 @@ applied because <code class="docutils literal notranslate"><span class="pre">--s
 </div>
 </section>
 <section id="exit-codes">
-<h2><span class="section-number">4.6.6. </span>Exit Codes<a class="headerlink" href="#exit-codes" title="Link to this heading">#</a></h2>
+<h2><span class="section-number">4.7.6. </span>Exit Codes<a class="headerlink" href="#exit-codes" title="Link to this heading">#</a></h2>
 <p>For scripting and CI/CD:</p>
 <ul class="simple">
 <li><p><code class="docutils literal notranslate"><span class="pre">0</span></code> - configuration is valid, including configurations with warnings or
@@ -766,14 +825,14 @@ suggestions</p></li>
 </ul>
 </section>
 <section id="json-output">
-<h2><span class="section-number">4.6.7. </span>JSON Output<a class="headerlink" href="#json-output" title="Link to this heading">#</a></h2>
+<h2><span class="section-number">4.7.7. </span>JSON Output<a class="headerlink" href="#json-output" title="Link to this heading">#</a></h2>
 <p>JSON output exposes separate issue arrays with stable fields:
 <code class="docutils literal notranslate"><span class="pre">errors</span></code>, <code class="docutils literal notranslate"><span class="pre">warnings</span></code>, <code class="docutils literal notranslate"><span class="pre">suggestions</span></code>, <code class="docutils literal notranslate"><span class="pre">applied_fixes</span></code>, and <code class="docutils literal notranslate"><span class="pre">info</span></code>.
 Each issue includes <code class="docutils literal notranslate"><span class="pre">code</span></code>, <code class="docutils literal notranslate"><span class="pre">severity</span></code>, <code class="docutils literal notranslate"><span class="pre">path</span></code>, <code class="docutils literal notranslate"><span class="pre">site_gridid</span></code>,
 <code class="docutils literal notranslate"><span class="pre">message</span></code>, <code class="docutils literal notranslate"><span class="pre">suggested_value</span></code>, and <code class="docutils literal notranslate"><span class="pre">source</span></code> where available.</p>
 </section>
 <section id="ci-cd-integration">
-<h2><span class="section-number">4.6.8. </span>CI/CD Integration<a class="headerlink" href="#ci-cd-integration" title="Link to this heading">#</a></h2>
+<h2><span class="section-number">4.7.8. </span>CI/CD Integration<a class="headerlink" href="#ci-cd-integration" title="Link to this heading">#</a></h2>
 <div class="highlight-yaml notranslate"><div class="highlight"><pre><span></span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Validate SUEWS Configuration</span>
 <span class="w">  </span><span class="nt">run</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">|</span>
 <span class="w">    </span><span class="no">suews-validate validate config.yml --format json &gt; results.json</span>
@@ -784,7 +843,7 @@ Each issue includes <code class="docutils literal notranslate"><span class="pre"
 </pre></div>
 </div>
 <section id="batch-processing">
-<h3><span class="section-number">4.6.8.1. </span>Batch Processing<a class="headerlink" href="#batch-processing" title="Link to this heading">#</a></h3>
+<h3><span class="section-number">4.7.8.1. </span>Batch Processing<a class="headerlink" href="#batch-processing" title="Link to this heading">#</a></h3>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="ch">#!/bin/bash</span>
 <span class="k">for</span><span class="w"> </span>config<span class="w"> </span><span class="k">in</span><span class="w"> </span>configs/*.yml<span class="p">;</span><span class="w"> </span><span class="k">do</span>
 <span class="w">    </span><span class="k">if</span><span class="w"> </span>suews-validate<span class="w"> </span>validate<span class="w"> </span><span class="s2">&quot;</span><span class="nv">$config</span><span class="s2">&quot;</span><span class="w"> </span>--quiet<span class="p">;</span><span class="w"> </span><span class="k">then</span>
@@ -798,7 +857,7 @@ Each issue includes <code class="docutils literal notranslate"><span class="pre"
 </section>
 </section>
 <section id="troubleshooting">
-<h2><span class="section-number">4.6.9. </span>Troubleshooting<a class="headerlink" href="#troubleshooting" title="Link to this heading">#</a></h2>
+<h2><span class="section-number">4.7.9. </span>Troubleshooting<a class="headerlink" href="#troubleshooting" title="Link to this heading">#</a></h2>
 <dl class="simple">
 <dt><strong>“Command not found”</strong></dt><dd><p>Install SuPy: <code class="docutils literal notranslate"><span class="pre">pip</span> <span class="pre">install</span> <span class="pre">supy</span></code></p>
 </dd>
@@ -831,7 +890,7 @@ validator reports renamed parameters using current snake_case names.</p>
       <i class="fa-solid fa-angle-left"></i>
       <div class="prev-next-info">
         <p class="prev-next-subtitle">previous</p>
-        <p class="prev-next-title"><span class="section-number">4.5. </span>Transitioning to YAML-based Configuration</p>
+        <p class="prev-next-title"><span class="section-number">4.6. </span>Transitioning to YAML-based Configuration</p>
       </div>
     </a>
     <a class="right-next"
@@ -839,7 +898,7 @@ validator reports renamed parameters using current snake_case names.</p>
        title="next page">
       <div class="prev-next-info">
         <p class="prev-next-subtitle">next</p>
-        <p class="prev-next-title"><span class="section-number">4.7. </span>Table-based Input Files (Legacy Format)</p>
+        <p class="prev-next-title"><span class="section-number">4.8. </span>Table-based Input Files (Legacy Format)</p>
       </div>
       <i class="fa-solid fa-angle-right"></i>
     </a>
@@ -860,19 +919,19 @@ validator reports renamed parameters using current snake_case names.</p>
     <i class="fa-solid fa-list"></i> Contents
   </div>
   <nav id="pst-page-toc-nav" class="page-toc" aria-labelledby="pst-page-navigation-heading-2">
-    <ul class="visible nav section-nav flex-column">
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#what-the-validator-does">4.6.1. What the Validator Does</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#basic-usage">4.6.2. Basic Usage</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#phase-b-scientific-fix-policy">4.6.3. Phase B Scientific Fix Policy</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#output-files">4.6.4. Output Files</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#understanding-reports">4.6.5. Understanding Reports</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#exit-codes">4.6.6. Exit Codes</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#json-output">4.6.7. JSON Output</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#ci-cd-integration">4.6.8. CI/CD Integration</a><ul class="nav section-nav flex-column">
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#batch-processing">4.6.8.1. Batch Processing</a></li>
+    <ul class="pst-show_toc_level nav section-nav flex-column">
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#what-the-validator-does">4.7.1. What the Validator Does</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#basic-usage">4.7.2. Basic Usage</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#phase-b-scientific-fix-policy">4.7.3. Phase B Scientific Fix Policy</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#output-files">4.7.4. Output Files</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#understanding-reports">4.7.5. Understanding Reports</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#exit-codes">4.7.6. Exit Codes</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#json-output">4.7.7. JSON Output</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#ci-cd-integration">4.7.8. CI/CD Integration</a><ul class="nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#batch-processing">4.7.8.1. Batch Processing</a></li>
 </ul>
 </li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#troubleshooting">4.6.9. Troubleshooting</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#troubleshooting">4.7.9. Troubleshooting</a></li>
 </ul>
   </nav></div>
 
@@ -914,8 +973,8 @@ By SUEWS dev team led by Prof Sue Grimmond
   <div class="footer-item">
     
 <div class="extra_footer">
-  <p>Version: 2026.7.15.dev1 |
-    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/377c64bd66c83223d362c8d27c3c4158eed50502">377c64b</a> |
+  <p>Version: 2026.7.20.dev1 |
+    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/8e44254e459b5a588c853bd2e9fbfde6fdecbded">8e44254</a> |
     <a href="https://umep-dev.github.io/SUEWS/brand/showcase.html">Brand</a></p>
 </div>
   </div>
@@ -929,8 +988,8 @@ By SUEWS dev team led by Prof Sue Grimmond
   </div>
   
   <!-- Scripts loaded after <body> so the DOM is not blocked -->
-  <script defer src="../../_static/scripts/bootstrap.js?digest=8878045cc6db502f8baf"></script>
-<script defer src="../../_static/scripts/pydata-sphinx-theme.js?digest=8878045cc6db502f8baf"></script>
+  <script defer src="../../_static/scripts/bootstrap.js?digest=90905a2f556bf617f1a9"></script>
+<script defer src="../../_static/scripts/pydata-sphinx-theme.js?digest=90905a2f556bf617f1a9"></script>
 
   <footer class="bd-footer">
   </footer>

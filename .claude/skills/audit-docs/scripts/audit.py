@@ -32,10 +32,9 @@ VOCAB: set[str] = {
 }
 
 SLUG_RE = re.compile(r"^[a-z][a-z0-9]*(-[a-z0-9]+)*$")
-ENTRY_START = re.compile(r"^@([A-Za-z]+)\{([^,\s]+)\s*,", re.MULTILINE)
+ENTRY_START = re.compile(r"^@[A-Za-z]+\{([^,\s]+)\s*,", re.MULTILINE)
 
-REQUIRED_FIELDS = ("title", "author", "year")
-DOI_OPTIONAL_ENTRY_TYPES = {"unpublished"}
+REQUIRED_FIELDS = ("title", "author", "year", "doi")
 
 
 def _line_number(text: str, offset: int) -> int:
@@ -103,12 +102,8 @@ def audit_entry(entry: dict, file_path: str, all_keys: dict[str, str],
                     f"(allowed: {', '.join(sorted(VOCAB))})"
                 )
 
-    # Required fields. Unpublished manuscripts do not normally have a DOI;
-    # requiring one would encourage invalid placeholder identifiers.
-    required_fields = REQUIRED_FIELDS
-    if entry["type"] not in DOI_OPTIONAL_ENTRY_TYPES:
-        required_fields += ("doi",)
-    for field in required_fields:
+    # Required fields
+    for field in REQUIRED_FIELDS:
         val = extract_field(body, field)
         if val is None or not val.strip():
             violations.append(f"{prefix}: missing or empty `{field}`")
@@ -126,8 +121,7 @@ def find_entries(text: str) -> list[dict]:
         start = m.start()
         end = starts[i + 1].start() if i + 1 < len(starts) else len(text)
         entries.append({
-            "type": m.group(1).lower(),
-            "key": m.group(2),
+            "key": m.group(1),
             "start": start,
             "end": end,
             "body": text[start:end],

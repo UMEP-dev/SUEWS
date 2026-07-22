@@ -2153,21 +2153,146 @@ def test_validate_spartacus_building_height_stebbs_off():
     msgs = cfg._validate_spartacus_building_height(site, 0)
     assert msgs == []
 
-def test_validate_spartacus_sfr_mismatch_bldgs_frac():
+def test_validate_spartacus_sfr_allows_building_frac_below_land_cover():
+    """SPARTACUS allows lower first-layer building geometry smaller than building land cover."""
     cfg = SUEWSConfig.model_construct()
     _force_set(cfg, "model", SimpleNamespace(physics=SimpleNamespace(net_radiation=1001)))
-    bldgs = SimpleNamespace(sfr=0.6)  
+    bldgs = SimpleNamespace(sfr=0.259018017683188)
     lc = SimpleNamespace(bldgs=bldgs, evetr=None, dectr=None)
     vertical_layers = SimpleNamespace(
-        building_frac=[0.3],  
+        building_frac=[0.2533775454108994],
         veg_frac=[0.0],
     )
     props = SimpleNamespace(land_cover=lc, vertical_layers=vertical_layers)
     site = DummySite(properties=props, name="TestSite")
     msgs = cfg._validate_spartacus_sfr(site, 0)
-    assert msgs  
+    assert msgs == []
+
+def test_validate_spartacus_sfr_allows_building_frac_above_land_cover():
+    """SPARTACUS building geometry may exceed building land cover from another source."""
+    cfg = SUEWSConfig.model_construct()
+    _force_set(cfg, "model", SimpleNamespace(physics=SimpleNamespace(net_radiation=1001)))
+    bldgs = SimpleNamespace(sfr=0.3)
+    lc = SimpleNamespace(bldgs=bldgs, evetr=None, dectr=None)
+    vertical_layers = SimpleNamespace(
+        building_frac=[0.3, 0.31],
+        veg_frac=[0.0, 0.0],
+    )
+    props = SimpleNamespace(land_cover=lc, vertical_layers=vertical_layers)
+    site = DummySite(properties=props, name="TestSite")
+    msgs = cfg._validate_spartacus_sfr(site, 0)
+    assert msgs == []
+
+def test_validate_spartacus_sfr_allows_layer_geometry_sum_equal_one():
+    """SPARTACUS building and vegetation layer fractions may fill a layer."""
+    cfg = SUEWSConfig.model_construct()
+    _force_set(cfg, "model", SimpleNamespace(physics=SimpleNamespace(net_radiation=1001)))
+    bldgs = SimpleNamespace(sfr=0.7)
+    lc = SimpleNamespace(bldgs=bldgs, evetr=None, dectr=None)
+    vertical_layers = SimpleNamespace(
+        building_frac=[0.7],
+        veg_frac=[0.3],
+    )
+    props = SimpleNamespace(land_cover=lc, vertical_layers=vertical_layers)
+    site = DummySite(properties=props, name="TestSite")
+
+    msgs = cfg._validate_spartacus_sfr(site, 0)
+
+    assert msgs == []
+
+def test_validate_spartacus_sfr_rejects_layer_geometry_sum_above_one():
+    """SPARTACUS building and vegetation layer fractions cannot exceed one."""
+    cfg = SUEWSConfig.model_construct()
+    _force_set(cfg, "model", SimpleNamespace(physics=SimpleNamespace(net_radiation=1001)))
+    bldgs = SimpleNamespace(sfr=0.8)
+    lc = SimpleNamespace(bldgs=bldgs, evetr=None, dectr=None)
+    vertical_layers = SimpleNamespace(
+        building_frac=[0.5, 0.8],
+        veg_frac=[0.4, 0.25],
+    )
+    props = SimpleNamespace(land_cover=lc, vertical_layers=vertical_layers)
+    site = DummySite(properties=props, name="TestSite")
+
+    msgs = cfg._validate_spartacus_sfr(site, 0)
+
     assert any(
-        "bldgs.sfr (0.6) does not match vertical_layers.building_frac[0] (0.3)"
+        "vertical_layers.building_frac[1] + vertical_layers.veg_frac[1] (1.05) exceeds 1.0"
+        in m
+        for m in msgs
+    )
+
+def test_validate_spartacus_sfr_rejects_unpaired_layer_geometry_above_one():
+    """SPARTACUS occupancy checks extra layers in the longer fraction array."""
+    cfg = SUEWSConfig.model_construct()
+    _force_set(cfg, "model", SimpleNamespace(physics=SimpleNamespace(net_radiation=1001)))
+    bldgs = SimpleNamespace(sfr=0.5)
+    lc = SimpleNamespace(bldgs=bldgs, evetr=None, dectr=None)
+    vertical_layers = SimpleNamespace(
+        building_frac=[0.5],
+        veg_frac=[0.4, 1.05],
+    )
+    props = SimpleNamespace(land_cover=lc, vertical_layers=vertical_layers)
+    site = DummySite(properties=props, name="TestSite")
+
+    msgs = cfg._validate_spartacus_sfr(site, 0)
+
+    assert any(
+        "vertical_layers.building_frac[1] + vertical_layers.veg_frac[1] (1.05) exceeds 1.0"
+        in m
+        for m in msgs
+    )
+
+def test_validate_spartacus_sfr_allows_upper_vegetation_with_trunk_fraction():
+    """Upper vegetation layers are valid when the first layer has trunk fraction."""
+    cfg = SUEWSConfig.model_construct()
+    _force_set(cfg, "model", SimpleNamespace(physics=SimpleNamespace(net_radiation=1001)))
+    bldgs = SimpleNamespace(sfr=0.2)
+    lc = SimpleNamespace(bldgs=bldgs, evetr=None, dectr=None)
+    vertical_layers = SimpleNamespace(
+        building_frac=[0.2, 0.1, 0.0],
+        veg_frac=[0.05, 0.2, 0.2],
+    )
+    props = SimpleNamespace(land_cover=lc, vertical_layers=vertical_layers)
+    site = DummySite(properties=props, name="TestSite")
+
+    msgs = cfg._validate_spartacus_sfr(site, 0)
+
+    assert msgs == []
+
+def test_validate_spartacus_sfr_allows_zero_trunk_when_no_upper_vegetation():
+    """Zero first-layer vegetation is valid when all upper layers are also zero."""
+    cfg = SUEWSConfig.model_construct()
+    _force_set(cfg, "model", SimpleNamespace(physics=SimpleNamespace(net_radiation=1001)))
+    bldgs = SimpleNamespace(sfr=0.2)
+    lc = SimpleNamespace(bldgs=bldgs, evetr=None, dectr=None)
+    vertical_layers = SimpleNamespace(
+        building_frac=[0.2, 0.1, 0.0],
+        veg_frac=[0.0, 0.0, 0.0],
+    )
+    props = SimpleNamespace(land_cover=lc, vertical_layers=vertical_layers)
+    site = DummySite(properties=props, name="TestSite")
+
+    msgs = cfg._validate_spartacus_sfr(site, 0)
+
+    assert msgs == []
+
+def test_validate_spartacus_sfr_rejects_upper_vegetation_without_trunk_fraction():
+    """Upper vegetation layers require a nonzero first-layer trunk fraction."""
+    cfg = SUEWSConfig.model_construct()
+    _force_set(cfg, "model", SimpleNamespace(physics=SimpleNamespace(net_radiation=1001)))
+    bldgs = SimpleNamespace(sfr=0.2)
+    lc = SimpleNamespace(bldgs=bldgs, evetr=None, dectr=None)
+    vertical_layers = SimpleNamespace(
+        building_frac=[0.2, 0.1, 0.0],
+        veg_frac=[0.0, 0.2, 0.2],
+    )
+    props = SimpleNamespace(land_cover=lc, vertical_layers=vertical_layers)
+    site = DummySite(properties=props, name="TestSite")
+
+    msgs = cfg._validate_spartacus_sfr(site, 0)
+
+    assert any(
+        "vertical_layers.veg_frac[0] must be greater than 0 when vegetation is present in upper layers"
         in m
         for m in msgs
     )
@@ -2188,32 +2313,28 @@ def test_validate_spartacus_sfr_consistent_values():
     msgs = cfg._validate_spartacus_sfr(site, 0)
     assert msgs == []
 
-def test_validate_spartacus_sfr_mismatch_veg_frac():
-    """SPARTACUS SFR validation flags mismatch between evetr.sfr + dectr.sfr and veg_frac[0]."""
+def test_validate_spartacus_sfr_allows_trunk_crown_veg_frac():
+    """SPARTACUS allows lower first-layer vegetation geometry smaller than tree land cover."""
     cfg = SUEWSConfig.model_construct()
     _force_set(cfg, "model", SimpleNamespace(physics=SimpleNamespace(net_radiation=1001)))
 
-    # land_cover vegetation: evetr + dectr = 0.4
-    evetr = SimpleNamespace(sfr=0.1)
-    dectr = SimpleNamespace(sfr=0.3)
+    # land_cover vegetation: evetr + dectr = 0.20
+    evetr = SimpleNamespace(sfr=0.05)
+    dectr = SimpleNamespace(sfr=0.15)
     bldgs = SimpleNamespace(sfr=0.2)
     lc = SimpleNamespace(bldgs=bldgs, evetr=evetr, dectr=dectr)
 
-    # vertical_layers veg_frac: [0.1] -> mismatch with 0.4
+    # The first layer can represent trunk/near-ground obstruction, with
+    # upper layers representing the crown projected fraction.
     vertical_layers = SimpleNamespace(
         building_frac=[0.2],
-        veg_frac=[0.1],  # veg_frac[0] = 0.1
+        veg_frac=[0.06, 0.20, 0.20],
     )
     props = SimpleNamespace(land_cover=lc, vertical_layers=vertical_layers)
     site = DummySite(properties=props, name="TestSite")
 
     msgs = cfg._validate_spartacus_sfr(site, 0)
-    assert msgs
-    assert any(
-        "evetr.sfr + dectr.sfr (0.4) does not match vertical_layers.veg_frac[0] (0.1)"
-        in m
-        for m in msgs
-    )
+    assert msgs == []
 
 def test_validate_spartacus_veg_dimensions_valid():
     """Test validate_spartacus_veg_dimensions passes with matching veg_frac and nlayer."""
@@ -3253,6 +3374,103 @@ def _get_phase_b_alb_ids(yaml_data: dict):
         ist["dectr"]["alb_id"]["value"],
         ist["evetr"]["alb_id"]["value"],
     )
+
+
+def _make_spartacus_tree_cover_yaml(
+    *,
+    veg_first: float,
+    dectr: float,
+    evetr: float,
+    grass: float,
+    bsoil: float,
+) -> dict:
+    return {
+        "model": {"physics": {"net_radiation": {"value": 1001}}},
+        "sites": [
+            {
+                "name": "TreeSync",
+                "gridiv": 1,
+                "properties": {
+                    "vertical_layers": {
+                        "veg_frac": {"value": [veg_first, 0.2, 0.2]},
+                    },
+                    "land_cover": {
+                        "paved": {"sfr": {"value": 0.2}},
+                        "bldgs": {"sfr": {"value": 0.1}},
+                        "evetr": {"sfr": {"value": evetr}},
+                        "dectr": {"sfr": {"value": dectr}},
+                        "grass": {"sfr": {"value": grass}},
+                        "bsoil": {"sfr": {"value": bsoil}},
+                        "water": {"sfr": {"value": 0.1}},
+                    },
+                },
+            }
+        ],
+    }
+
+
+def _tree_sync_land_cover(yaml_data: dict) -> dict:
+    return yaml_data["sites"][0]["properties"]["land_cover"]
+
+
+def test_phase_b_tree_cover_validator_warns_when_sync_is_feasible():
+    """Validator reports tree-cover mismatch as a review warning."""
+    from supy.data_model.validation.pipeline.phase_b import create_science_report
+    from supy.data_model.validation.pipeline.phase_b_rules.other_rules import (
+        validate_land_cover_consistency,
+    )
+
+    yaml_data = _make_spartacus_tree_cover_yaml(
+        veg_first=0.2,
+        dectr=0.1,
+        evetr=0.05,
+        grass=0.3,
+        bsoil=0.15,
+    )
+
+    results = validate_land_cover_consistency(ValidationContext(yaml_data=yaml_data))
+    tree_results = [r for r in results if r.parameter == "land_cover.tree_sfr"]
+
+    assert len(tree_results) == 1
+    assert tree_results[0].status == "WARNING"
+    assert "dectr.sfr + evetr.sfr = 0.1500" in tree_results[0].message
+    assert (
+        "differs from SPARTACUS lowest-layer tree fraction "
+        "(vertical_layers.veg_frac[0] = 0.2000)"
+        in tree_results[0].message
+    )
+    assert "trunk fraction" in tree_results[0].message
+    assert tree_results[0].suggested_value is None
+    report = create_science_report(
+        validation_results=tree_results,
+        adjustments=[],
+        suggestions=[],
+    )
+    assert "differs from SPARTACUS lowest-layer tree fraction" in report
+
+
+def test_phase_b_tree_cover_validator_warns_when_ground_rebalance_is_unclear():
+    """Validator keeps tree-cover mismatch as a warning, not an auto-sync guard error."""
+    from supy.data_model.validation.pipeline.phase_b_rules.other_rules import (
+        validate_land_cover_consistency,
+    )
+
+    yaml_data = _make_spartacus_tree_cover_yaml(
+        veg_first=0.3,
+        dectr=0.1,
+        evetr=0.05,
+        grass=0.05,
+        bsoil=0.05,
+    )
+    yaml_data["sites"][0]["properties"]["land_cover"]["paved"]["sfr"]["value"] = 0.45
+
+    results = validate_land_cover_consistency(ValidationContext(yaml_data=yaml_data))
+    tree_results = [r for r in results if r.parameter == "land_cover.tree_sfr"]
+
+    assert len(tree_results) == 1
+    assert tree_results[0].status == "WARNING"
+    assert "differs from SPARTACUS lowest-layer tree fraction" in tree_results[0].message
+    assert tree_results[0].suggested_value is None
 
 
 def test_phase_b_seasonal_albedo_summer_updates_alb_id_from_ranges():

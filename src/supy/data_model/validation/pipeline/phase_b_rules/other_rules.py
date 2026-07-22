@@ -230,7 +230,7 @@ def validate_land_cover_consistency(context) -> List[ValidationResult]:
                         category="LAND_COVER",
                         parameter="land_cover.bldgs.sfr",
                         site_index=site_idx,
-                        site_gridid=site_label,
+                        site_gridid=site_gridid,
                         message=(
                             "Building land-cover fraction "
                             f"(land_cover.bldgs.sfr = {bldgs_sfr:.4f}) differs "
@@ -264,7 +264,7 @@ def validate_land_cover_consistency(context) -> List[ValidationResult]:
                             category="LAND_COVER",
                             parameter="land_cover.tree_sfr",
                             site_index=site_idx,
-                            site_gridid=site_label,
+                            site_gridid=site_gridid,
                             message=(
                                 "Tree land-cover fraction "
                                 f"(dectr.sfr + evetr.sfr = {current_tree_cover:.4f}) "

@@ -8,8 +8,8 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <meta property="article:modified_time" content="2026-07-20T14:04:55+00:00" />
-    <title>1. Parameterisations and sub-models within SUEWS &#8212; SUEWS 2026.7.20.dev1 documentation</title>
+    <meta property="article:modified_time" content="2026-07-22T17:48:57+00:00" />
+    <title>1. Parameterisations and sub-models within SUEWS &#8212; SUEWS 2026.7.22.dev1 documentation</title>
   
   
   
@@ -45,7 +45,7 @@
   <link rel="preload" as="script" href="_static/scripts/bootstrap.js?digest=90905a2f556bf617f1a9" />
 <link rel="preload" as="script" href="_static/scripts/pydata-sphinx-theme.js?digest=90905a2f556bf617f1a9" />
 
-    <script src="_static/documentation_options.js?v=7de4f5ac"></script>
+    <script src="_static/documentation_options.js?v=b47b5524"></script>
     <script src="_static/doctools.js?v=9bcbadda"></script>
     <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
     <script src="_static/scripts/sphinx-book-theme.js?v=fab101a9"></script>
@@ -61,8 +61,8 @@
     <link rel="prev" title="2. Acknowledgements" href="acknowledgement.html" />
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
-  <meta name="docsearch:version" content="2026.7.20.dev1" />
-    <meta name="docbuild:last-update" content="2026-07-20"/>
+  <meta name="docsearch:version" content="2026.7.22.dev1" />
+    <meta name="docbuild:last-update" content="2026-07-22"/>
   
     
     <script src="_static/searchtools.js"></script>
@@ -110,7 +110,7 @@
   <div class="bd-header-announcement__content">
     <div style="background-color: #f0ad4e; border: 1px solid #eea236; border-radius: 4px; padding: 10px; margin: 10px 0;">
         <strong>⚠️ Development Version:</strong> This documentation was built from a development version
-        (2026.7.20.dev1, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/8e44254e459b5a588c853bd2e9fbfde6fdecbded" style="color: #31708f;">8e44254</a>).
+        (2026.7.22.dev1, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/57b1cc7992a147c0657236ad47372e71eb02e2a2" style="color: #31708f;">57b1cc7</a>).
         Features described here may be unstable or subject to change. For stable documentation, please visit the
         <a href="https://docs.suews.io/stable/" style="color: #31708f;">latest release</a>.
     </div>
@@ -201,8 +201,8 @@
       
     
     
-    <img src="_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.7.20.dev1 documentation - Home"/>
-    <img src="_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.7.20.dev1 documentation - Home"/>
+    <img src="_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.7.22.dev1 documentation - Home"/>
+    <img src="_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.7.22.dev1 documentation - Home"/>
   
   
 </a></div>
@@ -952,15 +952,14 @@ are above the blending height.</p>
 <p>Future Work</p>
 <ul class="simple">
 <li><p>New SUEWS input table containing SPARTACUS profiles</p></li>
-<li><p>Add check for consistency of SUEWS and SS surface fractions</p></li>
 <li><p>Include snow</p></li>
 </ul>
 </div>
 <p>The <a class="reference external" href="https://github.com/ecmwf/spartacus-surface">SPARTACUS-Surface module</a> computes the 3D interaction of shortwave and longwave radiation with complex surface canopies, including vegetated and urban canopies (with or without vegetation).</p>
-<figure class="align-default" id="id27">
+<figure class="align-default" id="id25">
 <span id="spartacus-surface"></span><img alt="Multi-layer structure of SS" src="_images/SUEWS002.jpg" />
 <figcaption>
-<p><span class="caption-number">Fig. 1.1 </span><span class="caption-text">Multi-layer structure (horizontal dashed lines) used in SS to characterise differences in the canopy (Cyan building, Green – vegetation). Source: <a class="reference external" href="https://github.com/ecmwf/spartacus-surface">SPARTACUS-Surface GH page</a></span><a class="headerlink" href="#id27" title="Link to this image">#</a></p>
+<p><span class="caption-number">Fig. 1.1 </span><span class="caption-text">Multi-layer structure (horizontal dashed lines) used in SS to characterise differences in the canopy (Cyan building, Green – vegetation). Source: <a class="reference external" href="https://github.com/ecmwf/spartacus-surface">SPARTACUS-Surface GH page</a></span><a class="headerlink" href="#id25" title="Link to this image">#</a></p>
 </figcaption>
 </figure>
 <p>It uses a multi-layer description of the canopy (<a class="reference internal" href="#spartacus-surface"><span class="std std-numref">Fig. 1.1</span></a>), with a statistical description of the horizontal distribution of trees and buildings.
@@ -976,10 +975,10 @@ Assumptions include:</p>
 <li><p>The rate of exchange of radiation between the clear and vegetated parts of a layer are assumed to be proportional to the length of the interface between them.</p></li>
 <li><p>Likewise for the rate of interception of radiation by building walls.</p></li>
 </ul>
-<figure class="align-default" id="id28">
+<figure class="align-default" id="id26">
 <span id="schematic-tree-canopy"></span><img alt="Areas between trees" src="_images/SUEWS003.jpg" />
 <figcaption>
-<p><span class="caption-number">Fig. 1.2 </span><span class="caption-text">Areas between trees. Source: <a class="reference external" href="https://github.com/ecmwf/spartacus-surface">SPARTACUS-Surface GH page</a></span><a class="headerlink" href="#id28" title="Link to this image">#</a></p>
+<p><span class="caption-number">Fig. 1.2 </span><span class="caption-text">Areas between trees. Source: <a class="reference external" href="https://github.com/ecmwf/spartacus-surface">SPARTACUS-Surface GH page</a></span><a class="headerlink" href="#id26" title="Link to this image">#</a></p>
 </figcaption>
 </figure>
 <p>Each time light is intercepted it can undergo diffuse or specular reflection, be absorbed or be transmitted (as diffuse radiation).
@@ -993,66 +992,45 @@ The probabilities for buildings and the ground are determined by albedos and emi
 <li><p>Representing horizontal heterogeneity in the tree crowns is optional. When represented it is assumed that heterogeneity in leaf area index is between the core and periphery of the tree, not between trees.</p></li>
 <li><p>When calculating building perimeters it is assumed that buildings do not touch (analogous to crown shyness) as building fraction increases towards 1.</p></li>
 <li><p>Vegetation extinction coefficients (calculated from leaf area index, LAI) are assumed to be the same in all vegetated layers.</p></li>
-</ul>
-<aside class="margin sidebar">
-<p class="sidebar-title"></p>
-<aside class="footnote-list brackets">
-<aside class="footnote brackets" id="estm-coupling" role="doc-footnote">
-<span class="label"><span class="fn-bracket">[</span><a role="doc-backlink" href="#id21">1</a><span class="fn-bracket">]</span></span>
-<p>Confirming the ESTM coupling will allow this to be modified.</p>
-</aside>
-</aside>
-</aside>
-<ul class="simple">
-<li><p>Building facet and ground temperatures are equal to SUEWS TSfc_C (i.e.surface temperature) <a class="footnote-reference brackets" href="#estm-coupling" id="id21" role="doc-noteref"><span class="fn-bracket">[</span>1<span class="fn-bracket">]</span></a>.</p></li>
-</ul>
-<aside class="margin sidebar">
-<p class="sidebar-title"></p>
-<aside class="footnote-list brackets">
-<aside class="footnote brackets" id="rsl-layers" role="doc-footnote">
-<span class="label"><span class="fn-bracket">[</span><a role="doc-backlink" href="#id22">2</a><span class="fn-bracket">]</span></span>
-<p>It is the forcing air temperature not RSL temperature. Future developments might make leaf temperature change with height.</p>
-</aside>
-</aside>
-</aside>
-<ul class="simple">
-<li><p>Leaf temperatures are equal to SUEWS temp_C (i.e. air temperature within the canopy) <a class="footnote-reference brackets" href="#rsl-layers" id="id22" role="doc-noteref"><span class="fn-bracket">[</span>2<span class="fn-bracket">]</span></a>.</p></li>
+<li><p>SPARTACUS receives SUEWS heat-state surface-temperature arrays: ground temperature is calculated from the area-weighted non-building surface temperatures, while roof and wall temperatures are supplied from layer-resolved roof and wall surface-temperature arrays. These arrays depend on the selected storage-heat and temperature scheme, for example EHC, DyOHM, or STEBBS where enabled.</p></li>
+<li><p>Vegetation (leaf) temperatures are currently set equal to the SPARTACUS vegetation-air temperature. When a valid RSL temperature profile is available, this temperature is interpolated to a representative vegetation height; otherwise it falls back to the forcing air temperature <code class="docutils literal notranslate"><span class="pre">Temp_C</span></code>. The current implementation does not resolve separate leaf temperatures by canopy layer.</p></li>
 <li><p>Ground albedo and emissivity are an area weighted average of SUEWS paved, grass, bare soil and water values.</p></li>
-<li><p>Inputs from SUEWS: <code class="docutils literal notranslate"><span class="pre">sfr</span></code>, <code class="docutils literal notranslate"><span class="pre">zenith_deg</span></code>, <code class="docutils literal notranslate"><span class="pre">TSfc_C</span></code>, <code class="docutils literal notranslate"><span class="pre">avKdn</span></code>, <code class="docutils literal notranslate"><span class="pre">ldown</span></code>, <code class="docutils literal notranslate"><span class="pre">temp_c</span></code>, <code class="docutils literal notranslate"><span class="pre">alb_next</span></code>, <code class="docutils literal notranslate"><span class="pre">emis</span></code>, <code class="docutils literal notranslate"><span class="pre">LAI_id</span></code>.</p></li>
+<li><p>Inputs from SUEWS include land-cover fractions (<code class="docutils literal notranslate"><span class="pre">sfr_surf</span></code>), solar zenith angle (<code class="docutils literal notranslate"><span class="pre">zenith_deg</span></code>), surface-temperature arrays (<code class="docutils literal notranslate"><span class="pre">tsfc_surf</span></code>, <code class="docutils literal notranslate"><span class="pre">tsfc_roof</span></code> and <code class="docutils literal notranslate"><span class="pre">tsfc_wall</span></code>), incoming shortwave and longwave radiation (<code class="docutils literal notranslate"><span class="pre">kdown</span></code>, <code class="docutils literal notranslate"><span class="pre">kdown_direct</span></code>, <code class="docutils literal notranslate"><span class="pre">kdown_diffuse</span></code> and <code class="docutils literal notranslate"><span class="pre">ldown</span></code>), air temperature and optional RSL temperature-profile arrays (<code class="docutils literal notranslate"><span class="pre">Tair_C</span></code>, <code class="docutils literal notranslate"><span class="pre">rsl_z</span></code> and <code class="docutils literal notranslate"><span class="pre">rsl_t_C</span></code>), surface albedo and emissivity (<code class="docutils literal notranslate"><span class="pre">alb_surf</span></code> and <code class="docutils literal notranslate"><span class="pre">emis_surf</span></code>), vegetation LAI (<code class="docutils literal notranslate"><span class="pre">LAI_id</span></code>), and SPARTACUS vertical-layer properties such as <code class="docutils literal notranslate"><span class="pre">height</span></code>, <code class="docutils literal notranslate"><span class="pre">building_frac</span></code>, <code class="docutils literal notranslate"><span class="pre">veg_frac</span></code>, <code class="docutils literal notranslate"><span class="pre">building_scale</span></code>, <code class="docutils literal notranslate"><span class="pre">veg_scale</span></code> and <code class="docutils literal notranslate"><span class="pre">veg_ext</span></code>.</p></li>
 <li><p>SS specific input parameters: read in from <a class="reference internal" href="inputs/tables/SS_input/SS_input.html#suews-spartacus-nml"><span class="std std-ref">SUEWS_SPARTACUS.nml</span></a>.</p></li>
-<li><p>Outputs used by SUEWS: alb_spc, emis_spc, lw_emission_spc.</p></li>
-<li><p>Although the radiation is calculated in multiple vertical layers within SS it is only the upwelling top-of-canopy fluxes: <code class="docutils literal notranslate"><span class="pre">alb_spc*avKdn</span></code>, <code class="docutils literal notranslate"><span class="pre">(emis_spc)*ldown</span></code>, and <code class="docutils literal notranslate"><span class="pre">lw_emission_spc</span></code> that are used by SUEWS.</p></li>
+<li><p>Outputs passed back to SUEWS include net radiation and flux terms: bulk net radiation (<code class="docutils literal notranslate"><span class="pre">qn</span></code>), outgoing shortwave and longwave radiation (<code class="docutils literal notranslate"><span class="pre">kup</span></code> and <code class="docutils literal notranslate"><span class="pre">lup</span></code>), surface net radiation by land-cover class (<code class="docutils literal notranslate"><span class="pre">qn_surf</span></code>), layer-resolved roof and wall net radiation (<code class="docutils literal notranslate"><span class="pre">qn_roof</span></code> and <code class="docutils literal notranslate"><span class="pre">qn_wall</span></code>), and incoming roof and wall shortwave/longwave radiation diagnostics.</p></li>
+<li><p>SPARTACUS also reports diagnostic top-of-canopy quantities such as <code class="docutils literal notranslate"><span class="pre">alb_spc</span></code>, <code class="docutils literal notranslate"><span class="pre">emis_spc</span></code> and <code class="docutils literal notranslate"><span class="pre">lw_emission_spc</span></code> in the SPARTACUS output file. These are used internally to derive outgoing shortwave and longwave fluxes, but the quantities passed back into the SUEWS energy-balance calculations are the fluxes and net-radiation terms.</p></li>
 </ul>
 <aside class="margin sidebar">
 <p class="sidebar-title"></p>
 <aside class="footnote-list brackets">
 <aside class="footnote brackets" id="ss-output" role="doc-footnote">
-<span class="label"><span class="fn-bracket">[</span><a role="doc-backlink" href="#id23">3</a><span class="fn-bracket">]</span></span>
+<span class="label"><span class="fn-bracket">[</span><a role="doc-backlink" href="#id21">1</a><span class="fn-bracket">]</span></span>
 <p>this will be updated but requires other updates first as of December 2021</p>
 </aside>
 </aside>
 </aside>
 <ul class="simple">
-<li><p>Output variables (including multi-layer ones) are in SUEWS-SS output file <code class="docutils literal notranslate"><span class="pre">SSss_YYYY_SPARTACUS.txt</span></code>. <a class="footnote-reference brackets" href="#ss-output" id="id23" role="doc-noteref"><span class="fn-bracket">[</span>3<span class="fn-bracket">]</span></a></p></li>
+<li><p>Output variables (including multi-layer ones) are in SUEWS-SS output file <code class="docutils literal notranslate"><span class="pre">SSss_YYYY_SPARTACUS.txt</span></code>. <a class="footnote-reference brackets" href="#ss-output" id="id21" role="doc-noteref"><span class="fn-bracket">[</span>1<span class="fn-bracket">]</span></a></p></li>
 </ul>
 <ul class="simple">
-<li><p>The RSL has 30 levels but when the average building height is &lt;2 m, &lt; 12 m and &gt; 12 m there are 3, 10 and 15 evenly spaced layers in the canopy.</p></li>
-<li><p>The remaining levels are evenly spaced up to the forcing level (<a class="reference internal" href="#suews-rsl"><span class="std std-numref">Fig. 1.3</span></a>).</p></li>
-<li><p>The buildings are assumed to be uniform height.</p></li>
+<li><p>The RSL diagnostic profile contains 30 height levels. When the RSL scheme is active, 20 levels are placed within the urban canopy and the remaining 10 levels extend from the canopy top to the forcing height.</p></li>
+<li><p>The RSL height levels are non-uniformly spaced, with extra resolution near the surface, around half canopy height, and near the canopy top (<a class="reference internal" href="#suews-rsl"><span class="std std-numref">Fig. 1.3</span></a>).</p></li>
+<li><p>The RSL calculation uses a representative canopy height and morphology. This is separate from the SPARTACUS vertical-layer description, where building and vegetation fractions can vary by layer.</p></li>
 </ul>
-<figure class="align-default" id="id29">
+<figure class="align-default" id="id27">
 <span id="suews-rsl"></span><img alt="SUEWS-RSL" src="_images/SUEWS004.png" />
 <figcaption>
-<p><span class="caption-number">Fig. 1.3 </span><span class="caption-text">SUEWS-RSL module assumes the RSL has 30 layers that are spread between the canopy and within the atmosphere above</span><a class="headerlink" href="#id29" title="Link to this image">#</a></p>
+<p><span class="caption-number">Fig. 1.3 </span><span class="caption-text">SUEWS-RSL module assumes the RSL has 30 layers that are spread between the canopy and within the atmosphere above</span><a class="headerlink" href="#id27" title="Link to this image">#</a></p>
 </figcaption>
 </figure>
-<p>A maximum of 15 layers are used by SS (<a class="reference internal" href="#vertial-layers-ss"><span class="std std-numref">Fig. 1.4</span></a>), with the top of the highest layer at the tallest building height.
-The layer heights are user defined and there is no limit on maximum building height.
-The buildings are allowed to vary in height.</p>
-<figure class="align-default" id="id30">
+<p>A maximum of 15 vertical layers can be used by SPARTACUS-Surface (<a class="reference internal" href="#vertial-layers-ss"><span class="std std-numref">Fig. 1.4</span></a>).
+Layer heights are user defined, and the top of the SPARTACUS domain is given by the final value in the <code class="docutils literal notranslate"><span class="pre">height</span></code> array.
+There is no fixed numeric maximum building height.
+Building and vegetation fractions can vary between vertical layers.</p>
+<figure class="align-default" id="id28">
 <span id="vertial-layers-ss"></span><img alt="Vertical layers used by SS" src="_images/SUEWS005.png" />
 <figcaption>
-<p><span class="caption-number">Fig. 1.4 </span><span class="caption-text">Vertical layers used by SS</span><a class="headerlink" href="#id30" title="Link to this image">#</a></p>
+<p><span class="caption-number">Fig. 1.4 </span><span class="caption-text">Vertical layers used by SS</span><a class="headerlink" href="#id28" title="Link to this image">#</a></p>
 </figcaption>
 </figure>
 <section id="inputs">
@@ -1077,7 +1055,7 @@ For example, LAI, albedos and emissivities are used by SUEWS-SS as explained in 
 </section>
 <section id="vegetation-single-scattering-albedo-ssa">
 <h3><span class="section-number">1.10.3. </span>Vegetation single scattering albedo (SSA)<a class="headerlink" href="#vegetation-single-scattering-albedo-ssa" title="Link to this heading">#</a></h3>
-<p>The <strong>shortwave</strong> broadband SSA is equal to the sum of the broadband reflectance <span class="math notranslate nohighlight">\(R\)</span> and broadband transmittance <span class="math notranslate nohighlight">\(T\)</span> <span class="bibtex-citation" id="id24">[<a class="reference internal" href="references.html#id104" title="Yang, Bin, He, Yuhao, and Chen, Wei. A simple method for estimation of leaf dry matter content in fresh leaves using leaf scattering albedo. Global Ecol. Conserv., 23:e01201, Sep 2020. doi:10.1016/j.gecco.2020.e01201.">Yang <em>et al.</em>, 2020</a>]</span>.
+<p>The <strong>shortwave</strong> broadband SSA is equal to the sum of the broadband reflectance <span class="math notranslate nohighlight">\(R\)</span> and broadband transmittance <span class="math notranslate nohighlight">\(T\)</span> <span class="bibtex-citation" id="id22">[<a class="reference internal" href="references.html#id104" title="Yang, Bin, He, Yuhao, and Chen, Wei. A simple method for estimation of leaf dry matter content in fresh leaves using leaf scattering albedo. Global Ecol. Conserv., 23:e01201, Sep 2020. doi:10.1016/j.gecco.2020.e01201.">Yang <em>et al.</em>, 2020</a>]</span>.
 Given reflectance <span class="math notranslate nohighlight">\(r\)</span> and transmittance <span class="math notranslate nohighlight">\(t\)</span> spectra the SSA is calculated to modify equation</p>
 <div class="math notranslate nohighlight">
 \[\text{SSA} = \ \frac{\int_{\sim 400\ \text{nm}}^{\sim 2200\ \text{nm}}{r \times S}\text{dλ}}{\int_{\sim 400\ \text{nm}}^{\sim 2200\ \text{nm}}S\text{dλ}} + \frac{\int_{\sim 400\ \text{nm}}^{\sim 2200\ \text{nm}}{t \times S}\text{dλ}}{\int_{\sim 400\ \text{nm}}^{\sim 2200\ \text{nm}}S\text{dλ}}\]</div>
@@ -1086,10 +1064,10 @@ Given reflectance <span class="math notranslate nohighlight">\(r\)</span> and tr
 This is a reasonable approximation since it is where the majority of incoming SW energy resides (as seen from the clear-sky surface spectrum in Fig. 6).</p>
 <p>Users can use the default value of 0.46, from RAMI5 Järvselja birch stand forest tree types or calculate their own SSA (<a class="reference internal" href="#rami5"><span class="std std-numref">Fig. 1.5</span></a>).
 There are more tree R and T profiles <a class="reference external" href="https://rami-benchmark.jrc.ec.europa.eu/_www/phase_descr.php?strPhase=RAMI5">here</a><sup>5</sup>,</p>
-<figure class="align-default" id="id31">
+<figure class="align-default" id="id29">
 <span id="rami5"></span><img alt="Overview of SUEWS" src="_images/SUEWS006.png" />
 <figcaption>
-<p><span class="caption-number">Fig. 1.5 </span><span class="caption-text">RAMI5<sup>5</sup> data used to calculate R, T, and SSA, and R, T, and SSA values: (a) top-of-atmosphere incoming solar flux and clear-sky surface spectrum <span class="bibtex-citation" id="id25">[<a class="reference internal" href="references.html#id101" title="Hogan, Robin J. and Matricardi, Marco. Evaluating and improving the treatment of gases in radiation schemes: the Correlated K-Distribution Model Intercomparison Project (CKDMIP). Geosci. Model Dev., 13(12):6501–6521, Dec 2020. doi:10.5194/gmd-13-6501-2020.">Hogan and Matricardi, 2020</a>]</span> (b) RAMI5 r and t spectra, and (c) calculated broadband R, T, and SSA values.</span><a class="headerlink" href="#id31" title="Link to this image">#</a></p>
+<p><span class="caption-number">Fig. 1.5 </span><span class="caption-text">RAMI5<sup>5</sup> data used to calculate R, T, and SSA, and R, T, and SSA values: (a) top-of-atmosphere incoming solar flux and clear-sky surface spectrum <span class="bibtex-citation" id="id23">[<a class="reference internal" href="references.html#id101" title="Hogan, Robin J. and Matricardi, Marco. Evaluating and improving the treatment of gases in radiation schemes: the Correlated K-Distribution Model Intercomparison Project (CKDMIP). Geosci. Model Dev., 13(12):6501–6521, Dec 2020. doi:10.5194/gmd-13-6501-2020.">Hogan and Matricardi, 2020</a>]</span> (b) RAMI5 r and t spectra, and (c) calculated broadband R, T, and SSA values.</span><a class="headerlink" href="#id29" title="Link to this image">#</a></p>
 </figcaption>
 </figure>
 <p>The <strong>longwave</strong> broadband SSA could be calculated in the same way but with the integral over the thermal infra-red (8-14 𝜇m), S replaced with the Plank function at Earth surface temperature, and r and t for the spectra for the thermal infra-red.
@@ -1100,7 +1078,7 @@ Based on inspection of r profiles for several tree species SSA=0.06 is the defau
 </section>
 <section id="building-albedo-and-emissivity">
 <h3><span class="section-number">1.10.4. </span>Building albedo and emissivity<a class="headerlink" href="#building-albedo-and-emissivity" title="Link to this heading">#</a></h3>
-<p>Use broadband values in Table C.1 of <span class="bibtex-citation" id="id26">Kotthaus <em>et al.</em> [<a class="reference internal" href="references.html#id102" title="Kotthaus, Simone, Smith, Thomas E. L., Wooster, Martin J., and Grimmond, C. S. B. Derivation of an urban materials spectral library through emittance and reflectance spectroscopy. ISPRS J. Photogramm. Remote Sens., 94:194–212, Aug 2014. doi:10.1016/j.isprsjprs.2014.05.005.">2014</a>]</span>.
+<p>Use broadband values in Table C.1 of <span class="bibtex-citation" id="id24">Kotthaus <em>et al.</em> [<a class="reference internal" href="references.html#id102" title="Kotthaus, Simone, Smith, Thomas E. L., Wooster, Martin J., and Grimmond, C. S. B. Derivation of an urban materials spectral library through emittance and reflectance spectroscopy. ISPRS J. Photogramm. Remote Sens., 94:194–212, Aug 2014. doi:10.1016/j.isprsjprs.2014.05.005.">2014</a>]</span>.
 Full spectra can be found in the <a class="reference external" href="http://micromet.reading.ac.uk/spectral-library/">spectral library documentation</a>.</p>
 </section>
 <section id="ground-albedo-and-emissivity">
@@ -1116,7 +1094,16 @@ Alternatively, new surfaces can be made in <a class="reference internal" href="i
 </section>
 <section id="consistency-of-suews-and-ss-parameters">
 <h3><span class="section-number">1.10.6. </span>Consistency of SUEWS and SS parameters<a class="headerlink" href="#consistency-of-suews-and-ss-parameters" title="Link to this heading">#</a></h3>
-<p>SUEWS building and tree (evergreen+deciduous) fractions in <a class="reference internal" href="inputs/tables/SUEWS_SiteInfo/SUEWS_SiteSelect.html#suews-siteselect-txt"><span class="std std-ref">SUEWS_SiteSelect.txt</span></a> should be consistent with the <a class="reference internal" href="inputs/tables/SS_input/SS_input.html#suews-spartacus-nml"><span class="std std-ref">SUEWS_SPARTACUS.nml</span></a> <a class="reference internal" href="inputs/tables/SS_input/SUEWS_SPARTACUS.html#cmdoption-arg-building_frac"><code class="xref any std std-option docutils literal notranslate"><span class="pre">building_frac</span></code></a> and <a class="reference internal" href="inputs/tables/SS_input/SUEWS_SPARTACUS.html#cmdoption-arg-veg_frac"><code class="xref any std std-option docutils literal notranslate"><span class="pre">veg_frac</span></code></a> of the lowest model layer.</p>
+<p>SPARTACUS-Surface uses vertical-layer plan-area fractions to describe the radiative geometry.
+These layer fractions should be interpreted separately from the SUEWS land-cover fractions.</p>
+<p>The SUEWS tree land-cover fraction is the total area fraction assigned to evergreen and deciduous trees: <a class="reference internal" href="inputs/tables/SUEWS_SiteInfo/Input_Options.html#cmdoption-arg-Fr_EveTr"><code class="xref any std std-option docutils literal notranslate"><span class="pre">Fr_EveTr</span></code></a> + <a class="reference internal" href="inputs/tables/SUEWS_SiteInfo/Input_Options.html#cmdoption-arg-Fr_DecTr"><code class="xref any std std-option docutils literal notranslate"><span class="pre">Fr_DecTr</span></code></a> in legacy input files, or <code class="docutils literal notranslate"><span class="pre">evetr.sfr</span></code> + <code class="docutils literal notranslate"><span class="pre">dectr.sfr</span></code> in YAML.
+This fraction controls the ordinary SUEWS surface mix and may come from land-cover mapping.</p>
+<p>The SPARTACUS vegetation profile, <code class="docutils literal notranslate"><span class="pre">veg_frac</span></code>, describes the vegetation obstruction represented in each vertical layer.
+The lowest element, <code class="docutils literal notranslate"><span class="pre">veg_frac[0]</span></code>, may represent trunk or near-ground obstruction and can therefore be smaller than the total tree land-cover fraction.
+Upper-layer <code class="docutils literal notranslate"><span class="pre">veg_frac</span></code> values may instead represent crown projected fraction.</p>
+<p>For this reason, <code class="docutils literal notranslate"><span class="pre">veg_frac[0]</span></code> is not required to equal <a class="reference internal" href="inputs/tables/SUEWS_SiteInfo/Input_Options.html#cmdoption-arg-Fr_EveTr"><code class="xref any std std-option docutils literal notranslate"><span class="pre">Fr_EveTr</span></code></a> + <a class="reference internal" href="inputs/tables/SUEWS_SiteInfo/Input_Options.html#cmdoption-arg-Fr_DecTr"><code class="xref any std std-option docutils literal notranslate"><span class="pre">Fr_DecTr</span></code></a> or <code class="docutils literal notranslate"><span class="pre">evetr.sfr</span></code> + <code class="docutils literal notranslate"><span class="pre">dectr.sfr</span></code>.
+Users should review differences when land-cover and vertical morphology data come from different sources.
+The per-layer geometry bound should still be respected: <code class="docutils literal notranslate"><span class="pre">building_frac[i]</span></code> + <code class="docutils literal notranslate"><span class="pre">veg_frac[i]</span></code> &lt;= 1.</p>
 </section>
 <section id="leaf-area-index-lai">
 <h3><span class="section-number">1.10.7. </span>Leaf area index (LAI)<a class="headerlink" href="#leaf-area-index-lai" title="Link to this heading">#</a></h3>
@@ -1231,7 +1218,7 @@ By SUEWS dev team led by Prof Sue Grimmond
   
   <div class="footer-item">
     <p class="last-updated">
-  Last updated on 2026-07-20.
+  Last updated on 2026-07-22.
   <br/>
 </p>
   </div>
@@ -1239,8 +1226,8 @@ By SUEWS dev team led by Prof Sue Grimmond
   <div class="footer-item">
     
 <div class="extra_footer">
-  <p>Version: 2026.7.20.dev1 |
-    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/8e44254e459b5a588c853bd2e9fbfde6fdecbded">8e44254</a> |
+  <p>Version: 2026.7.22.dev1 |
+    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/57b1cc7992a147c0657236ad47372e71eb02e2a2">57b1cc7</a> |
     <a href="https://umep-dev.github.io/SUEWS/brand/showcase.html">Brand</a></p>
 </div>
   </div>

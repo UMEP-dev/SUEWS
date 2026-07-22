@@ -153,7 +153,6 @@ def validate_land_cover_consistency(context) -> List[ValidationResult]:
         props = site.get("properties", {})
         land_cover = props.get("land_cover")
         site_gridid = site.get("gridiv")
-        site_label = site.get("name") or site_gridid
 
         if not land_cover:
             results.append(

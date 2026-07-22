@@ -2629,7 +2629,6 @@ class SUEWSConfig(BaseModel):
         if not props or not hasattr(props, "land_cover") or not props.land_cover:
             return issues
 
-        lc = props.land_cover
         vertical_layers = getattr(props, "vertical_layers", None)
         if not vertical_layers:
             return issues

@@ -2611,73 +2611,75 @@ class SUEWSConfig(BaseModel):
 
     def _validate_spartacus_sfr(self, site: Site, site_index: int) -> list:
         """
-        Validate SPARTACUS building and vegetation surface fractions for a site.
+        Validate SPARTACUS surface-fraction bounds for a site.
 
-        If SPARTACUS is enabled, this function checks that:
-        - The building surface fraction (bldgs.sfr) matches the first entry of vertical_layers.building_frac.
-        - The sum of evergreen and deciduous tree surface fractions (evetr.sfr + dectr.sfr)
-          matches the first entry of vertical_layers.veg_frac.
+        SPARTACUS vertical-layer fractions describe radiative geometry, so the
+        layer fractions do not have to equal the corresponding land-cover
+        fractions. Building and vegetation fractions are still checked together
+        so that no layer exceeds full occupancy.
 
         Returns
         -------
         list of str
             List of issue messages if validation fails; empty if valid.
-
-        Notes
-        -----
-        - Uses a tolerance of 1e-6 for floating point comparisons.
-        - Returns early if required properties are missing.
         """
         issues: list = []
         site_name = getattr(site, "name", f"Site {site_index}")
         props = getattr(site, "properties", None)
-        if not props or not hasattr(props, "land_cover") or not props.land_cover:
+        if not props:
             return issues
 
-        lc = props.land_cover
-        bldgs = getattr(lc, "bldgs", None)
-        evetr = getattr(lc, "evetr", None)
-        dectr = getattr(lc, "dectr", None)
         vertical_layers = getattr(props, "vertical_layers", None)
         if not vertical_layers:
             return issues
 
-        # Unwrap values
-        bldgs_sfr = _unwrap_value(getattr(bldgs, "sfr", None)) if bldgs else None
-        evetr_sfr = _unwrap_value(getattr(evetr, "sfr", None)) if evetr else 0.0
-        dectr_sfr = _unwrap_value(getattr(dectr, "sfr", None)) if dectr else 0.0
-        veg_sfr = (evetr_sfr or 0.0) + (dectr_sfr or 0.0)
-
         building_frac = _unwrap_value(getattr(vertical_layers, "building_frac", None))
         veg_frac = _unwrap_value(getattr(vertical_layers, "veg_frac", None))
+        if not isinstance(veg_frac, (list, tuple)):
+            return issues
 
         tol = 1e-6
 
-        # Buildings: surface fraction vs first SPARTACUS layer
-        if (
-            isinstance(building_frac, (list, tuple))
-            and len(building_frac) > 0
-            and bldgs_sfr is not None
-        ):
-            if not np.isclose(bldgs_sfr, building_frac[0], atol=tol):
-                issues.append(
-                    f"{site_name}: bldgs.sfr ({bldgs_sfr}) does not match "
-                    f"vertical_layers.building_frac[0] ({building_frac[0]})"
-                )
+        def _layer_fraction_at(values: list | tuple, layer_idx: int) -> float | None:
+            if layer_idx >= len(values):
+                return 0.0
+            return _unwrap_value(values[layer_idx])
 
-        # Vegetation: sum of fractions vs first veg_frac entry
-        if (
-            isinstance(veg_frac, (list, tuple))
-            and len(veg_frac) > 0
+        # Per-layer occupancy bound: buildings and vegetation together cannot
+        # exceed full occupancy in any layer. Needs both fraction arrays.
+        if isinstance(building_frac, (list, tuple)):
+            for layer_idx in range(max(len(building_frac), len(veg_frac))):
+                building_layer_frac = _layer_fraction_at(building_frac, layer_idx)
+                veg_layer_frac = _layer_fraction_at(veg_frac, layer_idx)
+                if building_layer_frac is None or veg_layer_frac is None:
+                    continue
+                layer_total = building_layer_frac + veg_layer_frac
+                if layer_total - 1.0 > tol:
+                    issues.append(
+                        f"{site_name}: vertical_layers.building_frac[{layer_idx}] "
+                        f"+ vertical_layers.veg_frac[{layer_idx}] ({layer_total}) "
+                        "exceeds 1.0"
+                    )
+
+        # Trunk / near-ground rule needs only the vegetation profile: if any
+        # upper layer carries vegetation, the lowest layer must be non-zero.
+        first_veg_frac = _unwrap_value(veg_frac[0]) if veg_frac else None
+        upper_has_vegetation = False
+        for veg_layer_frac in veg_frac[1:]:
+            veg_layer_frac = _unwrap_value(veg_layer_frac)
+            if veg_layer_frac is not None and veg_layer_frac > tol:
+                upper_has_vegetation = True
+                break
+        if upper_has_vegetation and (
+            first_veg_frac is None or first_veg_frac <= tol
         ):
-            if not np.isclose(veg_sfr, veg_frac[0], atol=tol):
-                issues.append(
-                    f"{site_name}: evetr.sfr + dectr.sfr ({veg_sfr}) does not match "
-                    f"vertical_layers.veg_frac[0] ({veg_frac[0]})"
-                )
+            issues.append(
+                f"{site_name}: vertical_layers.veg_frac[0] must be greater "
+                "than 0 when vegetation is present in upper layers"
+            )
 
         return issues
-    
+
     def _validate_spartacus_veg_dimensions(self, site: Site, site_index: int) -> list:
         """
         Validate that veg_scale and veg_frac are zero above the tree canopy layer.

@@ -232,9 +232,7 @@ SUEWS-SPARTACUS input options
   :Description:
     Building plan area density
   :Configuration:
-    Layer 1 `building_frac` should equal SUEWS `Fr_Bldgs`
-
-
+    Building plan area fraction for each SPARTACUS layer. This describes radiative geometry and is not required to equal the SUEWS land-cover building fraction; see the SPARTACUS-Surface section for guidance on layer versus land-cover fractions.
 
 .. option:: veg_frac
 
@@ -245,9 +243,7 @@ SUEWS-SPARTACUS input options
   :Description:
     Tree plan area density
   :Configuration:
-    Layer 1 `veg_frac` should equal SUEWS `Fr_EveTr` + `Fr_DecTr`
-
-
+    Vegetation plan area fraction for each SPARTACUS layer. The lowest layer may represent trunk or near-ground obstruction, so it is not required to equal the SUEWS tree land-cover fraction; see the SPARTACUS-Surface section for guidance.
 
 .. option:: building_scale
 

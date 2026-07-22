@@ -2221,6 +2221,27 @@ def test_validate_spartacus_sfr_rejects_layer_geometry_sum_above_one():
         for m in msgs
     )
 
+def test_validate_spartacus_sfr_rejects_unpaired_layer_geometry_above_one():
+    """SPARTACUS occupancy checks extra layers in the longer fraction array."""
+    cfg = SUEWSConfig.model_construct()
+    _force_set(cfg, "model", SimpleNamespace(physics=SimpleNamespace(net_radiation=1001)))
+    bldgs = SimpleNamespace(sfr=0.5)
+    lc = SimpleNamespace(bldgs=bldgs, evetr=None, dectr=None)
+    vertical_layers = SimpleNamespace(
+        building_frac=[0.5],
+        veg_frac=[0.4, 1.05],
+    )
+    props = SimpleNamespace(land_cover=lc, vertical_layers=vertical_layers)
+    site = DummySite(properties=props, name="TestSite")
+
+    msgs = cfg._validate_spartacus_sfr(site, 0)
+
+    assert any(
+        "vertical_layers.building_frac[1] + vertical_layers.veg_frac[1] (1.05) exceeds 1.0"
+        in m
+        for m in msgs
+    )
+
 def test_validate_spartacus_sfr_allows_upper_vegetation_with_trunk_fraction():
     """Upper vegetation layers are valid when the first layer has trunk fraction."""
     cfg = SUEWSConfig.model_construct()

@@ -2641,11 +2641,14 @@ class SUEWSConfig(BaseModel):
 
         tol = 1e-6
         if isinstance(veg_frac, (list, tuple)):
-            for layer_idx, (building_layer_frac, veg_layer_frac) in enumerate(
-                zip(building_frac, veg_frac)
-            ):
-                building_layer_frac = _unwrap_value(building_layer_frac)
-                veg_layer_frac = _unwrap_value(veg_layer_frac)
+            def _layer_fraction_at(values: list | tuple, layer_idx: int) -> float | None:
+                if layer_idx >= len(values):
+                    return 0.0
+                return _unwrap_value(values[layer_idx])
+
+            for layer_idx in range(max(len(building_frac), len(veg_frac))):
+                building_layer_frac = _layer_fraction_at(building_frac, layer_idx)
+                veg_layer_frac = _layer_fraction_at(veg_frac, layer_idx)
                 if building_layer_frac is None or veg_layer_frac is None:
                     continue
                 layer_total = building_layer_frac + veg_layer_frac

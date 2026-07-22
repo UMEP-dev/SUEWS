@@ -41,7 +41,7 @@ EXAMPLES:
 
 | Year | Features | Bugfixes | Changes | Maintenance | Docs | Total |
 |------|----------|----------|---------|-------------|------|-------|
-| 2026 | 80       | 85       | 31 | 81 | 40 | 318   |
+| 2026 | 80       | 86       | 31 | 81 | 40 | 319   |
 | 2025 | 60       | 68       | 22 | 71 | 36 | 256   |
 | 2024 | 12       | 17       | 1 | 12 | 1 | 43    |
 | 2023 | 11       | 14       | 3 | 9 | 1 | 38    |
@@ -53,6 +53,13 @@ EXAMPLES:
 | 2017 | 9        | 0        | 3 | 2 | 0 | 14    |
 
 ## 2026
+
+### 22 Jul 2026
+
+- [bugfix] Relaxed SPARTACUS-Surface land-cover fraction validation so lowest-layer geometry no longer has to equal SUEWS land-cover fractions (#1642)
+  - `vertical_layers.building_frac[0]` and `vertical_layers.veg_frac[0]` can now differ from `land_cover.bldgs.sfr` and `dectr.sfr + evetr.sfr` when land-cover and vertical-morphology data come from different sources; mismatches are reported as review warnings instead of being blocked or automatically corrected.
+  - The validator still enforces per-layer occupancy (`building_frac[i] + veg_frac[i] <= 1`) and the trunk/near-ground vegetation rule, with regression coverage for unmatched layer arrays.
+  - Updated SPARTACUS-Surface documentation and YAML field descriptions to distinguish SUEWS tree land-cover fraction, lowest-layer trunk or near-ground obstruction, and upper-layer crown projected fraction.
 
 ### 20 Jul 2026
 

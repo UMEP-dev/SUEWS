@@ -2626,7 +2626,7 @@ class SUEWSConfig(BaseModel):
         issues: list = []
         site_name = getattr(site, "name", f"Site {site_index}")
         props = getattr(site, "properties", None)
-        if not props or not hasattr(props, "land_cover") or not props.land_cover:
+        if not props:
             return issues
 
         vertical_layers = getattr(props, "vertical_layers", None)
@@ -2634,17 +2634,20 @@ class SUEWSConfig(BaseModel):
             return issues
 
         building_frac = _unwrap_value(getattr(vertical_layers, "building_frac", None))
-        if not isinstance(building_frac, (list, tuple)):
-            return issues
         veg_frac = _unwrap_value(getattr(vertical_layers, "veg_frac", None))
+        if not isinstance(veg_frac, (list, tuple)):
+            return issues
 
         tol = 1e-6
-        if isinstance(veg_frac, (list, tuple)):
-            def _layer_fraction_at(values: list | tuple, layer_idx: int) -> float | None:
-                if layer_idx >= len(values):
-                    return 0.0
-                return _unwrap_value(values[layer_idx])
 
+        def _layer_fraction_at(values: list | tuple, layer_idx: int) -> float | None:
+            if layer_idx >= len(values):
+                return 0.0
+            return _unwrap_value(values[layer_idx])
+
+        # Per-layer occupancy bound: buildings and vegetation together cannot
+        # exceed full occupancy in any layer. Needs both fraction arrays.
+        if isinstance(building_frac, (list, tuple)):
             for layer_idx in range(max(len(building_frac), len(veg_frac))):
                 building_layer_frac = _layer_fraction_at(building_frac, layer_idx)
                 veg_layer_frac = _layer_fraction_at(veg_frac, layer_idx)
@@ -2658,20 +2661,22 @@ class SUEWSConfig(BaseModel):
                         "exceeds 1.0"
                     )
 
-            first_veg_frac = _unwrap_value(veg_frac[0]) if veg_frac else None
-            upper_has_vegetation = False
-            for veg_layer_frac in veg_frac[1:]:
-                veg_layer_frac = _unwrap_value(veg_layer_frac)
-                if veg_layer_frac is not None and veg_layer_frac > tol:
-                    upper_has_vegetation = True
-                    break
-            if upper_has_vegetation and (
-                first_veg_frac is None or first_veg_frac <= tol
-            ):
-                issues.append(
-                    f"{site_name}: vertical_layers.veg_frac[0] must be greater "
-                    "than 0 when vegetation is present in upper layers"
-                )
+        # Trunk / near-ground rule needs only the vegetation profile: if any
+        # upper layer carries vegetation, the lowest layer must be non-zero.
+        first_veg_frac = _unwrap_value(veg_frac[0]) if veg_frac else None
+        upper_has_vegetation = False
+        for veg_layer_frac in veg_frac[1:]:
+            veg_layer_frac = _unwrap_value(veg_layer_frac)
+            if veg_layer_frac is not None and veg_layer_frac > tol:
+                upper_has_vegetation = True
+                break
+        if upper_has_vegetation and (
+            first_veg_frac is None or first_veg_frac <= tol
+        ):
+            issues.append(
+                f"{site_name}: vertical_layers.veg_frac[0] must be greater "
+                "than 0 when vegetation is present in upper layers"
+            )
 
         return issues
 

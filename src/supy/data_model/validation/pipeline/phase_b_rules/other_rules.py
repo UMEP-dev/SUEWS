@@ -32,6 +32,8 @@ def _is_spartacus_enabled(yaml_data: Mapping) -> bool:
             return True
         elif net_radiation.get("scheme") == "spartacus":
             return True
+    if isinstance(net_radiation, str):
+        return "spartacus" in net_radiation.strip().lower()
     try:
         return int(net_radiation) in SPARTACUS_METHODS
     except (TypeError, ValueError):
@@ -251,12 +253,12 @@ def validate_land_cover_consistency(context) -> List[ValidationResult]:
                     )
                 )
 
-            target_tree_cover = _first_veg_frac(props)
-            if target_tree_cover is not None:
+            lowest_layer_veg_frac = _first_veg_frac(props)
+            if lowest_layer_veg_frac is not None:
                 dectr_sfr = _surface_sfr(land_cover, "dectr") or 0.0
                 evetr_sfr = _surface_sfr(land_cover, "evetr") or 0.0
                 current_tree_cover = dectr_sfr + evetr_sfr
-                if abs(current_tree_cover - target_tree_cover) > SFR_FRACTION_TOL:
+                if abs(current_tree_cover - lowest_layer_veg_frac) > SFR_FRACTION_TOL:
                     results.append(
                         ValidationResult(
                             status="WARNING",
@@ -268,7 +270,7 @@ def validate_land_cover_consistency(context) -> List[ValidationResult]:
                                 "Tree land-cover fraction "
                                 f"(dectr.sfr + evetr.sfr = {current_tree_cover:.4f}) "
                                 "differs from SPARTACUS lowest-layer tree fraction "
-                                f"(vertical_layers.veg_frac[0] = {target_tree_cover:.4f}). "
+                                f"(vertical_layers.veg_frac[0] = {lowest_layer_veg_frac:.4f}). "
                                 "This can be valid when the land-cover and vertical "
                                 "morphology data come from different sources or the "
                                 "lowest layer is supposed to represent a trunk fraction. "

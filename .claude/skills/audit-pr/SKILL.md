@@ -47,10 +47,50 @@ recommendation instead of spending the review on an unreviewable diff:
   them in the draft summary without treating them as automatic blockers.
 - **Schema version audit**: If the PR touches `src/supy/data_model/`, apply the triggers in `.claude/rules/python/schema-versioning.md`. Field rename, removal, type change, or required-field addition should be accompanied by a bump to `CURRENT_SCHEMA_VERSION`, a new `SCHEMA_VERSIONS` entry, a matching handler in `src/supy/util/converter/yaml_upgrade.py`, and a `sample_config.yml` resync. Flag any of these that are missing. CI gate `.github/workflows/schema-version-audit.yml` runs the automated check; if the PR carries the `0-ci:schema-audit-ok` bypass label, verify from the diff yourself that the reason is genuinely cosmetic before approving.
 - **Physics-change evidence audit**: If the diff touches physics source (`suews_phys_*.f95`, Rust physics backend), moves a reference fixture (`test/fixtures/data_test/sample_output.csv.gz`, `.../stebbs_test/sample_output_stebbs.csv`, `test/fixtures/benchmark1/*.pkl`), or changes a physics-affecting data-model default, apply `.claude/rules/physics-change-evidence.md`. Confirm the `0-physics:change` label is present (apply or flag if missing), the PR body has a `## Scientific evidence` section (quantities + mechanism, before/after comparison, sign/magnitude reasoning -- a bare "outputs changed" is blocking), the owner sign-off is present for any owned subsystem (STEBBS -> `@yiqing1021`), any moved fixture is refreshed in this PR (or a linked PR), and the full `-m physics` tier (including `slow`) has run green.
-- **Build**: CI status, meson.build
+- **Build**: meson.build inclusion for new source files
+- **CI gate audit**: see "CI Gate Audit" below -- every non-green check gets a named
+  remedy in the draft, not just a status
 - **Draft**: Comments for approval
 - **Approval**: Wait for human confirmation
 - **Post**: Only after approval
+
+## CI Gate Audit
+
+A review that audits the diff but ignores the checks hands back a PR that still
+cannot move. Every non-green check gets a diagnosis and a named remedy in the draft.
+
+1. **Read the checks**, the ruleset's required contexts, and the failing job logs:
+
+   ```bash
+   gh pr checks {pr} --repo UMEP-dev/SUEWS --json name,state,bucket,workflow,link
+   gh run view --repo UMEP-dev/SUEWS --job {job-id} --log-failed
+   ```
+
+   Query which contexts are actually required rather than assuming, and read the
+   `<!-- ci-build-plan -->` bot comment for which lanes this PR's paths selected.
+
+2. **Classify each non-green check by who can clear it** -- author-fixable (a
+   specific edit, in this PR), maintainer-gated (a documented bypass label, with the
+   reason the diff qualifies), re-trigger mechanics (correct already, run is stale),
+   or infrastructure/flake (unrelated to the diff). The classification is the
+   actionable part; state it.
+
+3. **Report it as a finding** with a severity: red required or convention-blocking
+   check -> `[blocking]`; red informational check, or a bypass label applied for a
+   reason the diff does not support -> `[major]`; pending required checks -> a note
+   in the summary.
+
+4. **Propose, never perform.** Applying a bypass label, re-running a workflow,
+   closing/reopening, or pushing a fix onto a PR you do not own are author or
+   maintainer actions. Name them; do not do them.
+
+Two gates (`schema-version-audit`, `knowledge-pack-audit`) read their bypass label
+from the static event payload, so a label added after the run started leaves the
+gate red and `gh run rerun` replays the stale payload. Push a commit or
+close/reopen instead.
+
+Gate-by-gate remedies, the required-vs-blocking distinction, and the payload race:
+`references/ci-gates.md`.
 
 ## Governance Check
 
@@ -112,6 +152,7 @@ Details: `references/style-checks.md`
 **Status**: Needs attention / Ready
 Verdict: clean | needs-attention
 Size gate: pass | split-recommended
+CI gate: green | near-green | red
 
 | Category | Status |
 |----------|--------|
@@ -119,12 +160,21 @@ Size gate: pass | split-recommended
 | Scientific | PASS/FAIL/N/A |
 | Testing | PASS/FAIL |
 | Docs | PASS/FAIL |
+| CI | PASS/FAIL/PENDING |
 
 ### Key Findings
 - [severity] finding (severity = blocking | major | minor | false-positive)
 
-The `Verdict`, `Size gate`, and per-finding `[severity]` tags are the fields a
-consuming skill (e.g. `fix-issue` step 5) branches on; keep them explicit.
+### CI Findings
+- [severity] {check name} -- enforces {what}; red because {cause for this diff}.
+  Remedy: {concrete action} ({author-fixable | maintainer-gated | re-trigger |
+  infrastructure})
+
+Omit the CI Findings section when every check is green. Never list a red check
+without a remedy line.
+
+The `Verdict`, `Size gate`, `CI gate`, and per-finding `[severity]` tags are the
+fields a consuming skill (e.g. `fix-issue` step 5) branches on; keep them explicit.
 
 ### Suggested Reviewers
 - @reviewer (source: dev-ref reviewer guide; reason: changed area)
@@ -151,13 +201,18 @@ every outward write" rule in `.claude/rules/autonomous-workflow.md`.
 audit-pr is a read-only review stage in the issue -> PR -> merge pipeline. Under
 an autonomous orchestrator it NEVER posts to GitHub; its terminal output is the
 drafted review plus the machine-readable handoff block (`Verdict`, `Size gate`,
-per-finding `[severity]`).
+`CI gate`, per-finding `[severity]`).
 
 - Auto-applicable (read-only / self-scoped): gather context, run the Size Gate,
-  perform the review, and emit the verdict block. This review-and-emit tier is the
-  only one an opt-in standing approval can cover.
+  read the checks and failing job logs, perform the review, and emit the verdict
+  block. This review-and-emit tier is the only one an opt-in standing approval can
+  cover.
 - Human-gated, always escalate (never auto-applied, in any mode): posting any line
-  comment or review onto the PR. The "Wait for human confirmation" step is NOT
+  comment or review onto the PR, and every CI remedy that mutates the PR --
+  applying a bypass label, re-running a workflow, closing/reopening to refresh the
+  event payload, or pushing a fix. Naming such a remedy in the draft is part of the
+  read-only review tier; carrying it out never is. The "Wait for human
+  confirmation" step is NOT
   satisfied by a batch standing approval; there is no standing approval for
   posting. The autonomous terminal is escalate-with-draft, the same shape as
   `triage-issue`'s needs-discussion and `queue-pr`'s merge escalation.
@@ -166,6 +221,7 @@ per-finding `[severity]`).
 
 - `references/review-checklist.md` - Detailed checklist
 - `references/workflow-steps.md` - Full workflow
+- `references/ci-gates.md` - CI gate diagnosis, remedies, and bypass-label policy
 - `references/style-checks.md` - Style rules
 - `dev-ref/CODING_GUIDELINES.md`
 - `dev-ref/REVIEW_PROCESS.md`

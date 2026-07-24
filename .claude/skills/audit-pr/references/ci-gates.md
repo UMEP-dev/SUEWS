@@ -123,8 +123,8 @@ are the job display names as they appear in `gh pr checks` -- which is the job's
 `name:` where it has one, and the job *key* where it does not (see `validate`
 below). "Fires on" lists the principal trigger paths, not the exhaustive set; most
 gates also list their own workflow file and lint script, but not all do
-(`validate-claude-md.yml` lists neither). Read the workflow's `paths:` rather than
-assuming.
+(`validate-claude-md.yml` omits its own workflow file, and lists its lint script
+under `pull_request` only). Read the workflow's `paths:` rather than assuming.
 
 - **`Require schema version bump`** (`schema-version-audit.yml`)
   - Fires on: `src/supy/data_model/**`, `sample_config.yml`, the two schema doc
@@ -194,7 +194,8 @@ assuming.
     case -- stop and escalate.
 - **`validate`** (`validate-claude-md.yml`; the job has no display name, so it
   renders as `validate` under the "Validate CLAUDE.md" workflow)
-  - Fires on: `CLAUDE.md`, `.claude/rules/**`.
+  - Fires on: `CLAUDE.md`, `.claude/rules/**`, and (on `pull_request` only) its own
+    lint script.
   - Enforces: integrity plus a content-reduction guard. The guard fails only when
     the reduction exceeds 20% **and** one or more of the required rule files is
     missing; a large reduction with all rule files present is accepted as

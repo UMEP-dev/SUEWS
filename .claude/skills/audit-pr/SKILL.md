@@ -90,9 +90,9 @@ from the static event payload, so a label added after the run started leaves the
 gate red and `gh run rerun` replays the stale payload. Push a commit or
 close/reopen instead.
 
-Gate-by-gate remedies, the required-vs-blocking distinction, the green/near-green/
-red vocabulary (Part C of `triage-pr`'s rubric, plus its one named amendment), and
-the payload race: `references/ci-gates.md`.
+Gate-by-gate remedies, the required-vs-blocking distinction, the
+green/near-green/red vocabulary (Part C of `triage-pr`'s rubric, plus its one
+named amendment), and the payload race: `references/ci-gates.md`.
 
 ## Governance Check
 

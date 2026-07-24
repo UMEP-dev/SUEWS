@@ -16,8 +16,9 @@ Read it alongside `work-sizing.md` (sizing and umbrella decomposition).
 1. `triage-issue` -- issue governance. Emits a `[triage-issue] verdict` block.
 2. `fix-issue` -- one triaged issue to a PR-ready branch. Consumes the verdict
    block; emits a `[fix-issue] PR-ready report`.
-3. `audit-pr` -- reviews the PR; runs a Size Gate first. Emits `Verdict`,
-   `Size gate`, and per-finding `[severity]` tags.
+3. `audit-pr` -- reviews the PR; runs a Size Gate first, and audits the CI gates
+   alongside the diff. Emits `Verdict`, `Size gate`, `CI gate`, and per-finding
+   `[severity]` tags.
 4. `split-pr` -- carves an oversized PR into a stacked series. Emits a
    `[split-pr] stack plan`. Invoked when audit-pr's Size Gate recommends a split.
 5. `queue-pr` -- orders ready PRs and (human-gated) enters the merge queue.
@@ -60,8 +61,11 @@ without reading prose:
 - fix-issue -> audit-pr / merge: `[fix-issue] PR-ready report` with `Audit loop:`
   and `Remaining:`. fix-issue terminates at PR-ready; it never merges.
 - audit-pr -> fix-issue / split-pr: `Verdict: clean|needs-attention`,
-  `Size gate: pass|split-recommended`, per-finding `[severity]`. fix-issue's audit
-  loop branches on these; `split-recommended` routes to split-pr.
+  `Size gate: pass|split-recommended`, `CI gate: green|near-green|red`, per-finding
+  `[severity]`. fix-issue's audit loop branches on these; `split-recommended` routes
+  to split-pr. `CI gate: red` means the PR cannot advance even on a clean diff; each
+  red check must arrive with a named remedy and its tier (author-fixable /
+  maintainer-gated / re-trigger / infrastructure), never as a bare status.
 - split-pr -> queue-pr: `[split-pr] stack plan` with `Completeness:` and
   `Concerns -> Children`.
 - triage-pr -> downstream skills: `[triage-pr] verdict` block per PR. Downstream

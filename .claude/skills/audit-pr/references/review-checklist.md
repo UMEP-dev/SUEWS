@@ -174,6 +174,21 @@ block it anyway, and surfacing it in review saves a round trip.
 - [ ] No regression in test coverage
 - [ ] Documentation builds successfully
 
+### CI gate remedies (when any check is not green)
+
+- [ ] Required contexts queried from the branch ruleset, not assumed
+- [ ] Each red check diagnosed from its job log, not from its name alone
+- [ ] Each red check classified: author-fixable / maintainer-gated /
+      re-trigger mechanics / infrastructure
+- [ ] Each red check carries a concrete remedy in the draft, and a severity
+      (red required or convention-blocking -> `[blocking]`)
+- [ ] Any bypass label proposed (not applied), with the reason the diff
+      genuinely qualifies as non-structural or cosmetic
+- [ ] For `schema-version-audit` / `knowledge-pack-audit`, the re-trigger advice
+      is "push a commit or close/reopen", never `gh run rerun`
+- [ ] No bypass proposed for a `0-physics:change` evidence gate (no bypass exists)
+- [ ] Ref: `ci-gates.md`
+
 ---
 
 ## Refactoring Review

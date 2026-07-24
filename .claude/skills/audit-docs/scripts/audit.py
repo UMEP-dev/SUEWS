@@ -104,10 +104,11 @@ def audit_entry(entry: dict, file_path: str, all_keys: dict[str, str],
                     f"(allowed: {', '.join(sorted(VOCAB))})"
                 )
 
-    # DOI is optional only for manuscripts that are explicitly unpublished.
-    required_fields = COMMON_REQUIRED_FIELDS
-    if entry["entry_type"] != "unpublished":
-        required_fields += ("doi",)
+    # Unpublished manuscripts use a status note instead of a DOI.
+    if entry["entry_type"] == "unpublished":
+        required_fields = (*COMMON_REQUIRED_FIELDS, "note")
+    else:
+        required_fields = (*COMMON_REQUIRED_FIELDS, "doi")
 
     for field in required_fields:
         val = extract_field(body, field)

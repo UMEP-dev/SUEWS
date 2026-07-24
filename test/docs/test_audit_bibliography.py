@@ -32,6 +32,7 @@ def _bib_entry(
     *,
     omit: tuple[str, ...] = (),
     keywords: str = "storage-heat",
+    note: str = "In preparation",
     include_doi: bool = False,
 ) -> str:
     fields = {
@@ -41,6 +42,8 @@ def _bib_entry(
         "keywords": keywords,
         "abstract": "An example abstract.",
     }
+    if entry_type.lower() == "unpublished":
+        fields["note"] = note
     if include_doi:
         fields["doi"] = "10.0000/example"
 
@@ -64,9 +67,12 @@ def test_parser_records_normalized_entry_type() -> None:
     assert entries[0]["key"] == "Example2026"
 
 
-def test_unpublished_entry_without_doi_passes(tmp_path: Path) -> None:
+@pytest.mark.parametrize("note", ["In preparation", "Under review"])
+def test_unpublished_entry_without_doi_passes(
+    tmp_path: Path, note: str
+) -> None:
     count, violations, warnings = _audit_text(
-        tmp_path, _bib_entry("unpublished")
+        tmp_path, _bib_entry("unpublished", note=note)
     )
 
     assert count == 1
@@ -92,8 +98,8 @@ def test_other_entry_type_with_doi_passes(tmp_path: Path) -> None:
     assert warnings == []
 
 
-@pytest.mark.parametrize("field", ["title", "author", "year"])
-def test_unpublished_entry_still_requires_common_fields(
+@pytest.mark.parametrize("field", ["title", "author", "year", "note"])
+def test_unpublished_entry_still_requires_required_fields(
     tmp_path: Path, field: str
 ) -> None:
     _, violations, _ = _audit_text(

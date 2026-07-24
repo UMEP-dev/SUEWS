@@ -221,7 +221,7 @@ Branch: <branch>
 PR: <url or not created: reason>
 Scope: <one-line summary>
 Validation: <commands and pass/blocked status>
-Audit loop: <clean after N iters | stopped after 3 iters: persisting | stopped on recurring finding: signature | split: handed to split-pr | not run: reason>
+Audit loop: <clean after N iters | stopped after 3 iters: persisting | stopped on recurring finding: signature | stopped on red CI gate: check | split: handed to split-pr | not run: reason>
 Public GitHub edits: <none | drafted | approved and applied>
 Remaining: <none | explicit blocker>
 Next: ready for the normal review/merge workflow.

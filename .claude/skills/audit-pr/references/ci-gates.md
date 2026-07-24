@@ -104,9 +104,11 @@ Fold CI findings into the same severity vocabulary as the rest of the review:
   support -> `[major]`. The label is doing work the diff has not earned.
 - Red informational check -> `[minor]`, or a note. Do not use `[major]`:
   `fix-issue` step 5 treats blocking/major as must-fix-before-ready, so a `[major]`
-  on a check that does not gate the merge would block the PR on nothing. In
-  practice this class is nearly empty -- `continue-on-error` jobs (zizmor in
-  `workflow-security.yml`, the advisory pip-audit step) report green regardless.
+  on a check that does not gate the merge would block the PR on nothing. Note that
+  the `continue-on-error` subset of this class (zizmor in `workflow-security.yml`,
+  the advisory pip-audit step) reports green regardless, so it never surfaces at
+  all; the observability jobs (`Post CI summary comment`, `CI observability
+  summary`) carry no such guard and can genuinely go red.
 - Pending required checks at review time -> note in the summary, not a finding.
 
 Each CI finding states, in one line: the check name, what it is enforcing, why it
@@ -119,8 +121,10 @@ is red *for this diff*, the remedy, and who can apply it.
 Workflow-to-remedy map for the gates that most often stop a SUEWS PR. Check names
 are the job display names as they appear in `gh pr checks` -- which is the job's
 `name:` where it has one, and the job *key* where it does not (see `validate`
-below). "Fires on" lists the principal trigger paths, not the exhaustive set; each
-gate also re-runs on changes to its own workflow file and lint script.
+below). "Fires on" lists the principal trigger paths, not the exhaustive set; most
+gates also list their own workflow file and lint script, but not all do
+(`validate-claude-md.yml` lists neither). Read the workflow's `paths:` rather than
+assuming.
 
 - **`Require schema version bump`** (`schema-version-audit.yml`)
   - Fires on: `src/supy/data_model/**`, `sample_config.yml`, the two schema doc
@@ -171,6 +175,9 @@ gate also re-runs on changes to its own workflow file and lint script.
     - legacy fused identifiers in Rust parameter structs -> rename the Rust struct
       field to the canonical snake_case spelling (the failure prints
       `path:line: 'legacy' -> should be 'canonical'`).
+  - Same asymmetry as the knowledge pack: that third check scans the Rust parameter
+    modules (`soil.rs`, `lai.rs`, `ohm_prm.rs` and siblings), none of which are
+    trigger paths -- so a diff touching only those files never fires the gate.
   - Author-fixable only -- no bypass label exists.
 - **`Enforce SHA-pinned actions`** (`workflow-security.yml`)
   - Fires on: `.github/workflows/**`, `.github/actions/**`.

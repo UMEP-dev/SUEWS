@@ -16,9 +16,9 @@ Exit codes:
 from __future__ import annotations
 
 import argparse
+from pathlib import Path
 import re
 import sys
-from pathlib import Path
 
 VOCAB: set[str] = {
     "energy-balance",
@@ -32,9 +32,11 @@ VOCAB: set[str] = {
 }
 
 SLUG_RE = re.compile(r"^[a-z][a-z0-9]*(-[a-z0-9]+)*$")
-ENTRY_START = re.compile(r"^@[A-Za-z]+\{([^,\s]+)\s*,", re.MULTILINE)
+ENTRY_START = re.compile(
+    r"^@(?P<entry_type>[A-Za-z]+)\{(?P<key>[^,\s]+)\s*,", re.MULTILINE
+)
 
-REQUIRED_FIELDS = ("title", "author", "year", "doi")
+COMMON_REQUIRED_FIELDS = ("title", "author", "year")
 
 
 def _line_number(text: str, offset: int) -> int:
@@ -102,8 +104,12 @@ def audit_entry(entry: dict, file_path: str, all_keys: dict[str, str],
                     f"(allowed: {', '.join(sorted(VOCAB))})"
                 )
 
-    # Required fields
-    for field in REQUIRED_FIELDS:
+    # DOI is optional only for manuscripts that are explicitly unpublished.
+    required_fields = COMMON_REQUIRED_FIELDS
+    if entry["entry_type"] != "unpublished":
+        required_fields += ("doi",)
+
+    for field in required_fields:
         val = extract_field(body, field)
         if val is None or not val.strip():
             violations.append(f"{prefix}: missing or empty `{field}`")
@@ -121,7 +127,8 @@ def find_entries(text: str) -> list[dict]:
         start = m.start()
         end = starts[i + 1].start() if i + 1 < len(starts) else len(text)
         entries.append({
-            "key": m.group(1),
+            "entry_type": m.group("entry_type").lower(),
+            "key": m.group("key"),
             "start": start,
             "end": end,
             "body": text[start:end],

@@ -68,7 +68,7 @@ SUEWS requires the following meteorological variables:
    * - Incoming shortwave
      - W/m²
      - kdown
-     - Must be > 0
+     - Must be ≥ 0 (0 at night)
    * - Incoming longwave
      - W/m²
      - ldown
@@ -119,8 +119,8 @@ Where:
 
 .. _named_column_forcing:
 
-Named-column forcing files (gh#1372)
-------------------------------------
+Named-column forcing files
+--------------------------
 
 Since schema 2026.5, SUEWS reads forcing files by **column name**,
 not by column position. The header line is required and its content is

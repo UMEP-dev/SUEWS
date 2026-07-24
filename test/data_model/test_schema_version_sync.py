@@ -47,3 +47,42 @@ def test_sample_config_schema_version_matches_current():
         ".claude/rules/python/schema-versioning.md for when structural "
         "changes require a CURRENT_SCHEMA_VERSION bump."
     )
+
+
+def _iter_ref_blocks(value, path=""):
+    if isinstance(value, dict):
+        ref = value.get("ref")
+        if isinstance(ref, dict):
+            yield f"{path}.ref" if path else "ref", ref
+        for key, child in value.items():
+            child_path = f"{path}.{key}" if path else str(key)
+            yield from _iter_ref_blocks(child, child_path)
+    elif isinstance(value, list):
+        for index, child in enumerate(value):
+            yield from _iter_ref_blocks(child, f"{path}[{index}]")
+
+
+@pytest.mark.cfg
+def test_sample_config_includes_complete_reference_metadata_example():
+    """`sample_config.yml` should demonstrate refs at several config levels."""
+    assert SAMPLE_CONFIG.exists(), SAMPLE_CONFIG
+
+    payload = yaml.safe_load(SAMPLE_CONFIG.read_text(encoding="utf-8"))
+    complete_ref_paths = {
+        path
+        for path, ref in _iter_ref_blocks(payload)
+        if {"desc", "ID", "DOI"}.issubset(ref)
+    }
+
+    expected_ref_paths = {
+        "model.control.ref",
+        "model.physics.ref",
+        "sites[0].properties.ref",
+        "sites[0].properties.conductance.ref",
+        "sites[0].properties.land_cover.ref",
+    }
+
+    assert expected_ref_paths.issubset(complete_ref_paths), (
+        "sample_config.yml should include complete reference metadata examples "
+        f"with desc, ID, and DOI at: {sorted(expected_ref_paths)}"
+    )

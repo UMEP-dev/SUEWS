@@ -11,6 +11,7 @@ from typing import Any, Dict, List, Optional, Union
 
 import pandas as pd
 
+from ._filename import safe_filename_component
 from .suews_checkpoint import SUEWSCheckpoint
 
 
@@ -482,6 +483,8 @@ class SUEWSOutput:
             except AttributeError:
                 pass
 
+        site_filename = safe_filename_component(site)
+
         list_path_save = _save_supy(
             df_output=self._df_output,
             df_state_final=self._df_state_final,
@@ -495,7 +498,9 @@ class SUEWSOutput:
 
         if self._checkpoint is not None:
             checkpoint_name = (
-                f"{site}_SUEWS_checkpoint.json" if site else "SUEWS_checkpoint.json"
+                f"{site_filename}_SUEWS_checkpoint.json"
+                if site_filename
+                else "SUEWS_checkpoint.json"
             )
             checkpoint_path = self._checkpoint.to_file(path / checkpoint_name)
             list_path_save.append(checkpoint_path)

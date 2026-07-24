@@ -42,6 +42,18 @@ Detailed checklist for comprehensive PR review.
 - Test files have relaxed requirements
 - Generated files excluded (`_suews_driver.py`, `_version.py`)
 
+### Design and Placement (not just correctness)
+
+- [ ] A new guard/special-case/optimisation lives in the function that owns the
+      operation, not bolted onto one call site
+- [ ] Grep the callers: if the diff patches one of several call sites, flag the
+      unpatched ones (including the recommended OOP path)
+- [ ] New code does not re-derive a value already carried by data/config/state
+      (e.g. native freq via `.diff().median()` instead of `index.freq` / `tstep` /
+      `pd.infer_freq`)
+- [ ] "Output is identical" is not used to conclude "design is fine"
+- [ ] Ref: `.claude/rules/code-design.md` -> "Fix Placement and Encapsulation"
+
 ---
 
 ## Scientific Review Checklist
@@ -206,21 +218,8 @@ PR can be merged when ALL of:
 
 ---
 
-## Module → Reviewer Mapping
+## Module Reviewer Mapping
 
-| Module Label | Files | Reviewers |
-|--------------|-------|-----------|
-| `module:stebbs` | `suews_phys_stebbs*` | @yiqing1021, @denisehertwig |
-| `module:rslprof` | `suews_phys_rslprof*` | @vitorlavor, @suegrimmond |
-| `module:spartacus` | `suews_phys_spartacus*` | @suegrimmond, @yiqing1021 |
-| `module:biogenco2` | `suews_phys_biogen*` | @havum, @ljarvi |
-| `module:snow` | `suews_phys_snow*` | @havum, @ljarvi |
-| `module:ehc` | `suews_phys_ehc*` | @sunt05 |
-| `module:anohm` | `suews_phys_anohm*` | @sunt05 |
-| `module:ohm` | `suews_phys_ohm*` | Seeking reviewer |
-| `module:estm` | `suews_phys_estm*` | Seeking reviewer |
-| `module:lumps` | `suews_phys_lumps*` | Seeking reviewer |
-| `module:narp` | `suews_phys_narp*` | Seeking reviewer |
-| `module:evap` | `suews_phys_evap*` | Seeking reviewer |
-| `module:waterdist` | `suews_phys_waterdist*` | Seeking reviewer |
-| Overall | General PRs | @sunt05, @MatthewPaskin, @dayantur |
+Use `dev-ref/SCIENTIFIC_REVIEWERS.md` as the operational source for suggested
+scientific reviewers in the audit summary. Use `dev-ref/REVIEW_PROCESS.md` for
+manual code-governance maintainer suggestions.

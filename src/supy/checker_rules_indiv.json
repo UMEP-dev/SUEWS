@@ -1095,6 +1095,15 @@
         },
         "unit": "m3"
     },
+    "n_stream_lw_forest": {
+        "cat": "grid",
+        "logic": "range",
+        "param": {
+            "max": 10,
+            "min": 0
+        },
+        "unit": "m3"
+    },
     "n_stream_sw_urban": {
         "cat": "grid",
         "logic": "range",
@@ -1104,7 +1113,25 @@
         },
         "unit": "m3"
     },
+    "n_stream_sw_forest": {
+        "cat": "grid",
+        "logic": "range",
+        "param": {
+            "max": 10,
+            "min": 0
+        },
+        "unit": "m3"
+    },
     "n_vegetation_region_urban": {
+        "cat": "grid",
+        "logic": "range",
+        "param": {
+            "max": 10,
+            "min": 0
+        },
+        "unit": "m3"
+    },
+    "n_vegetation_region_forest": {
         "cat": "grid",
         "logic": "range",
         "param": {
@@ -2117,6 +2144,15 @@
             "min": 0
         },
         "unit": "m3"
+    },
+    "veg_ext": {
+        "cat": "grid",
+        "logic": "range",
+        "param": {
+            "max": "inf",
+            "min": -999
+        },
+        "unit": "m-1"
     },
     "veg_ssa_lw": {
         "cat": "grid",

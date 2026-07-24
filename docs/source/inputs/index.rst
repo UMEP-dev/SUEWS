@@ -15,6 +15,7 @@ SUEWS supports two formats for providing input parameters:
    :caption: YAML-based Input Format
 
    yaml/index
+   yaml/layer-conventions
    forcing-data
    yaml/config-reference/index
 
@@ -31,4 +32,3 @@ SUEWS supports two formats for providing input parameters:
    :caption: Table-based Input Format (Legacy - Deprecated)
 
    tables/index
-

@@ -1,6 +1,6 @@
 ---
 name: triage-issue
-description: Use whenever auditing, clarifying, rewriting, or batch-reviewing SUEWS GitHub issue descriptions so they become maintainer-ready. Trigger for requests like "audit this issue", "make this issue agent-ready", "rewrite issue #123", "clean up open issues", "summarise comments into the issue body", "preserve the original report", or "triage SUEWS backlog". This skill preserves issue-author context, summarises discussion, drafts a clarified issue body, and requires explicit approval before editing GitHub.
+description: Use whenever auditing, clarifying, rewriting, labelling, or batch-reviewing SUEWS GitHub issues so they become maintainer-ready. Trigger for requests like "audit this issue", "make this issue agent-ready", "rewrite issue #123", "clean up open issues", "check issue labels", "audit label hierarchy", "summarise comments into the issue body", "preserve the original report", or "triage SUEWS backlog". This skill preserves issue-author context, summarises discussion, drafts a clarified issue body, audits the SUEWS 1/2/3/4 label hierarchy, and requires explicit approval before editing GitHub.
 ---
 
 # Triage Issue
@@ -22,7 +22,9 @@ an issue body no longer reflects discoveries made in comments.
 - Audit an issue body against a type-specific rubric.
 - Summarise comments into maintainer-ready context.
 - Preserve the original report while drafting a clarified issue body.
-- Propose issue title, label, readiness, and follow-up changes.
+- Propose issue title, label hierarchy, readiness, and follow-up changes.
+- Audit every issue for the SUEWS `1-*` type, `2-*` area, `3-*` priority, and
+  `4-*` status label layers using `references/label-hierarchy.md`.
 - Recommend splitting an oversized or multi-concern issue into focused child
   issues under a parent, and propose that decomposition
   (see `.claude/rules/work-sizing.md`).
@@ -82,7 +84,7 @@ gh issue edit <number> --repo UMEP-dev/SUEWS --body-file <approved-body.md>
 1. Fetch the issue body, labels, assignees, state, comments, and linked PR
    context needed to understand scope.
 2. Classify the issue type and readiness using `references/rubric.md`.
-3. Audit what is missing from the title/body and what has only been clarified
+3. Audit what is missing from the title/body, labels, and what has only been clarified
    in comments.
 4. Preserve the original body, summarise the discussion, and draft a clearer
    maintainer-ready body using `references/rewrite-template.md`.
@@ -92,7 +94,8 @@ gh issue edit <number> --repo UMEP-dev/SUEWS --body-file <approved-body.md>
    approved explanatory comment.
 
 Read `references/methodology.md` for the full step-by-step procedure and
-output format before performing a rewrite or batch audit.
+output format before performing a rewrite or batch audit. Read
+`references/label-hierarchy.md` before any label audit or backlog sweep.
 
 ## Output Format
 
@@ -110,6 +113,10 @@ autonomous mode, end with the machine-readable verdict block defined there.
 - Suggest follow-up categories: add reproduction, add maintainer summary,
   clarify scope, split into focused child issues, supersede, close as duplicate,
   or leave as ready.
+- For whole-backlog audits, include a label-hierarchy coverage pass. Report
+  missing or conflicting `1-*`, `2-*`, `3-*`, and `4-*` layers separately from
+  issue-body readiness, and propose exact label add/remove changes with
+  reasoning.
 - Whenever the input set is bounded (label filter, recency window, `--limit`, or
   gh's default cap), emit a `Scope:` line stating the filter and the returned
   count against an independently-obtained total open count (see Quick Start), and
@@ -145,6 +152,8 @@ Auto-applicable (additive, reversible):
   for idempotency.
 - Apply a readiness label only if that exact label already exists in the repo.
   Never create labels.
+- For label-hierarchy audits, default to report-only in autonomous mode unless
+  the user has explicitly approved the exact add/remove set for that batch.
 - Mark the issue as processed: apply the `0-auto:audited` label if it exists in
   the repo. It records that an autonomous pass handled the issue so batch re-runs
   can skip it unless it is later updated. It is bookkeeping, not substantive work,
@@ -244,5 +253,7 @@ internal tracker IDs or private paths reach a posted comment or body.
 ## References
 
 - `references/rubric.md` - Issue type rubric and readiness statuses.
+- `references/label-hierarchy.md` - Four-layer SUEWS issue label taxonomy and
+  audit rules.
 - `references/rewrite-template.md` - Maintainer-ready body template.
 - `references/methodology.md` - Detailed audit workflow and output formats.

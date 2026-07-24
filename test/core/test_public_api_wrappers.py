@@ -16,6 +16,7 @@ import pandas as pd
 
 # Import the module to access both versions
 import supy as sp
+import supy._supy_module as supy_module
 from supy.suews_sim import SUEWSSimulation
 
 # The conftest.py saves deprecated versions before monkeypatching
@@ -222,51 +223,108 @@ class TestPublicAPIDeprecationMessages:
             "save_supy",
         ],
     )
-    def test_all_functions_emit_warnings(self, func_name, tmp_path):
-        """Test each deprecated function emits a warning."""
-        # Setup minimal data for testing (use monkeypatched for speed)
-        with warnings.catch_warnings():
-            warnings.simplefilter("ignore")
-            df_state, df_forcing = sp.load_sample_data()
-            df_output, df_state_final = sp.run_supy(df_forcing.iloc[:24], df_state)
+    def test_all_functions_emit_warnings(self, func_name, monkeypatch):
+        """Each public wrapper warns and forwards its complete call contract."""
+        implementation_result = object()
+        calls = []
 
-        # Get the deprecated function
-        func_map = {
-            "load_SampleData": sp.load_SampleData,
-            "load_sample_data": sp._deprecated_load_sample_data,
-            "init_supy": sp._deprecated_init_supy,
-            "load_config_from_df": sp.load_config_from_df,
-            "init_config": sp._deprecated_init_config,
-            "run_supy": sp._deprecated_run_supy,
-            "save_supy": sp._deprecated_save_supy,
-        }
-        func = func_map[func_name]
+        implementation_name = {
+            "load_SampleData": "_load_sample_data",
+            "load_sample_data": "_load_sample_data",
+            "init_supy": "_init_supy",
+            "load_config_from_df": "_config_from_df_state",
+            "init_config": "_init_config",
+            "run_supy": "_run_supy",
+            "save_supy": "_save_supy",
+        }[func_name]
 
-        # Test the specific function
+        def fake_implementation(*args, **kwargs):
+            calls.append((args, kwargs))
+            return implementation_result
+
+        monkeypatch.setattr(
+            supy_module,
+            implementation_name,
+            fake_implementation,
+        )
+
+        func = getattr(supy_module, func_name)
+
+        df_state = object()
+        df_forcing = object()
+        df_output = object()
+        output_config = object()
+
+        if func_name in {"load_sample_data", "load_SampleData"}:
+            call_args = ()
+            call_kwargs = {}
+            expected_call = ((), {})
+        elif func_name == "init_supy":
+            call_args = ("sample.yml",)
+            call_kwargs = {"force_reload": False, "check_input": True}
+            expected_call = (
+                ("sample.yml",),
+                {"force_reload": False, "check_input": True},
+            )
+        elif func_name in {"load_config_from_df", "init_config"}:
+            call_args = (df_state,)
+            call_kwargs = {}
+            expected_call = ((df_state,), {})
+        elif func_name == "run_supy":
+            call_args = (df_forcing, df_state)
+            call_kwargs = {
+                "save_state": True,
+                "chunk_day": 2,
+                "logging_level": 10,
+                "check_input": True,
+                "serial_mode": True,
+                "debug_mode": True,
+            }
+            expected_call = (
+                (),
+                {
+                    "df_forcing": df_forcing,
+                    "df_state_init": df_state,
+                    **call_kwargs,
+                },
+            )
+        else:
+            call_args = (df_output, df_state)
+            call_kwargs = {
+                "freq_s": 1800,
+                "site": "Test",
+                "path_dir_save": "output",
+                "path_runcontrol": "RunControl.nml",
+                "save_tstep": True,
+                "logging_level": 10,
+                "output_level": 2,
+                "debug": True,
+                "output_config": output_config,
+                "output_format": "parquet",
+            }
+            expected_call = (
+                (),
+                {
+                    "df_output": df_output,
+                    "df_state_final": df_state,
+                    **call_kwargs,
+                },
+            )
+
         with warnings.catch_warnings(record=True) as w:
             warnings.simplefilter("always")
+            result = func(*call_args, **call_kwargs)
 
-            if func_name in {"load_sample_data", "load_SampleData"}:
-                func()
-            elif func_name == "init_supy":
-                from supy._env import trv_supy_module
-
-                config_path = trv_supy_module / "sample_data" / "sample_config.yml"
-                func(str(config_path))
-            elif func_name in {"load_config_from_df", "init_config"}:
-                func(df_state)
-            elif func_name == "run_supy":
-                func(df_forcing.iloc[:24], df_state)
-            elif func_name == "save_supy":
-                func(df_output, df_state_final, path_dir_save=str(tmp_path))
-
-            # Verify warning was emitted
-            expected = f"`supy.{func_name}`"
-            assert any(
-                issubclass(warning.category, FutureWarning)
-                and expected in str(warning.message)
-                for warning in w
-            ), f"{func_name} should emit FutureWarning"
+        expected_message = (
+            f"`supy.{func_name}` is deprecated and will be removed in a future "
+            "release. Please migrate to "
+            f"{supy_module._FUNCTIONAL_DEPRECATIONS[func_name]}."
+        )
+        assert result is implementation_result
+        assert calls == [expected_call]
+        assert [(warning.category, str(warning.message)) for warning in w] == [
+            (FutureWarning, expected_message)
+        ]
 
     def test_init_config_does_not_warn_via_load_config_from_df(self):
         """Test init_config(df_state) does not emit nested public API warnings."""

@@ -23,17 +23,29 @@ from .field_renames import SURFACEPROPERTIES_RENAMES, apply_field_renames
 
 
 class ThermalLayers(BaseModel):
-    """Thermal properties of surface layers."""
+    """Five material layers and their thermal properties for a surface facet.
 
-    model_config = ConfigDict(populate_by_name=True, title="Thermal Layers")
+    The material layers are ordered from the exposed surface inward. They extend
+    downward for horizontal ground and roof facets and horizontally into vertical
+    wall facets.
+    """
+
+    model_config = ConfigDict(populate_by_name=True, title="Material Layers")
     dz: Optional[FlexibleRefValue(List[Optional[float]])] = Field(
         default=None,
-        description="Thickness of thermal layers from surface to depth",
+        description=(
+            "Individual thickness of each of the five material layers, ordered "
+            "from the exposed surface inward; values "
+            "are not cumulative depths"
+        ),
         json_schema_extra={"unit": "m", "display_name": "Layer Thickness"},
     )
     k: Optional[FlexibleRefValue(List[Optional[float]])] = Field(
         default=None,
-        description="Thermal conductivity of each thermal layer",
+        description=(
+            "Thermal conductivity of each of the five material layers, in the "
+            "same exposed-surface-to-interior order as dz"
+        ),
         json_schema_extra={
             "unit": "W m^-1 K^-1",
             "display_name": "Thermal Conductivity",
@@ -41,7 +53,10 @@ class ThermalLayers(BaseModel):
     )
     rho_cp: Optional[FlexibleRefValue(List[Optional[float]])] = Field(
         default=None,
-        description="Volumetric heat capacity of each thermal layer",
+        description=(
+            "Volumetric heat capacity of each of the five material layers, in "
+            "the same exposed-surface-to-interior order as dz"
+        ),
         json_schema_extra={
             "unit": "J m^-3 K^-1",
             "display_name": "Volumetric Heat Capacity",
@@ -66,14 +81,14 @@ class ThermalLayers(BaseModel):
             "wall",
         ],
     ) -> pd.DataFrame:
-        """Convert thermal layer parameters to DataFrame state format.
+        """Convert material-layer parameters to DataFrame state format.
 
         Args:
             grid_id: Grid ID for the DataFrame index
             surf_type: Surface type or facet type ("roof" or "wall")
 
         Returns:
-            pd.DataFrame: DataFrame containing thermal layer parameters
+            pd.DataFrame: DataFrame containing material-layer parameters
         """
         if surf_type == "roof":
             suffix = "roof"
@@ -82,7 +97,7 @@ class ThermalLayers(BaseModel):
         else:
             suffix = "surf"
 
-        # Add thermal layer parameters
+        # Add material-layer parameters
         cols = {("gridiv", "0"): grid_id}
         for i in range(5):
             if self.dz is not None:
@@ -127,7 +142,7 @@ class ThermalLayers(BaseModel):
         """Reconstruct ThermalLayers instance from DataFrame.
 
         Args:
-            df: DataFrame containing thermal layer parameters.
+            df: DataFrame containing material-layer parameters.
             grid_id: Grid ID for the DataFrame index.
             idx: Surface index for identifying columns.
             surf_type: Surface type or facet type ("roof" or "wall").
@@ -147,7 +162,7 @@ class ThermalLayers(BaseModel):
         else:
             suffix = "surf"
 
-        # Extract thermal layer parameters for each of the 5 layers
+        # Extract material-layer parameters for each of the five layers
         for i in range(5):
             dz.append(df.loc[grid_id, (f"dz_{suffix}", f"({idx}, {i})")])
             k.append(df.loc[grid_id, (f"k_{suffix}", f"({idx}, {i})")])
@@ -282,7 +297,11 @@ class SurfaceProperties(BaseModel):
         json_schema_extra={"unit": "mm", "display_name": "Snow Pack Limit"},
     )
     thermal_layers: ThermalLayers = Field(
-        default_factory=ThermalLayers, description="Thermal layers for the surface"
+        default_factory=ThermalLayers,
+        description=(
+            "Five material layers for the surface, ordered from the exposed "
+            "surface inward"
+        ),
     )
     irrigation_fraction: Optional[FlexibleRefValue(float)] = Field(
         default=0.0,
@@ -667,7 +686,7 @@ class PavedProperties(
 
 class BuildingLayer(
     BaseModel
-):  # May need to move VWD for thermal layers here for referencing
+):  # May need to move VWD for material layers here for referencing
     @model_validator(mode="before")
     @classmethod
     def _rename_building_layer_fields(cls, values):
@@ -691,7 +710,10 @@ class BuildingLayer(
     )
     thermal_layers: ThermalLayers = Field(
         default_factory=ThermalLayers,
-        description="Thermal layers for the surface",
+        description=(
+            "Five material layers for this facet, ordered from the exposed "
+            "surface inward"
+        ),
     )
     state_limit: FlexibleRefValue(float) = Field(
         default=10.0,
@@ -714,7 +736,10 @@ class BuildingLayer(
     roof_albedo_dir_mult_fact: Optional[FlexibleRefValue(float)] = Field(
         default=0.1,
         ge=0.0,
-        description="Directional albedo multiplication factor for roofs",
+        description=(
+            "SPARTACUS-Surface direct-beam albedo multiplier for roof facets; "
+            "ignored for wall facets"
+        ),
         json_schema_extra={
             "unit": "dimensionless",
             "display_name": "Roof Albedo Direct Multiplier",
@@ -722,7 +747,10 @@ class BuildingLayer(
     )
     wall_specular_frac: Optional[FlexibleRefValue(float)] = Field(
         default=0.1,
-        description="Specular reflection fraction for walls",
+        description=(
+            "SPARTACUS-Surface specular reflection fraction for wall facets; "
+            "ignored for roof facets"
+        ),
         json_schema_extra={
             "unit": "dimensionless",
             "display_name": "Wall Specular Fraction",
@@ -792,7 +820,7 @@ class BuildingLayer(
                 else self.wall_specular_frac
             )
 
-        # Add thermal layers
+        # Add material layers
         df_thermal = self.thermal_layers.to_df_state(grid_id, layer_idx, facet_type)
         df_state = df_from_cols(cols, index=pd.Index([grid_id], name="grid"))
         df_state = pd.concat([df_state, df_thermal], axis=1)
@@ -1036,33 +1064,53 @@ class WaterProperties(NonVegetatedSurfaceProperties):
 
 
 class RoofLayer(BuildingLayer):
+    """Properties of a horizontal roof facet in a SPARTACUS vertical layer."""
+
     _facet_type: Literal["roof"] = "roof"
 
 
 class WallLayer(BuildingLayer):
+    """Properties of a vertical wall facet in a SPARTACUS vertical layer."""
+
     _facet_type: Literal["wall"] = "wall"
 
 
 class VerticalLayers(BaseModel):
-    """Vertical structure of surface layers."""
+    """SPARTACUS-Surface vertical layers and their roof and wall facets.
 
-    model_config = ConfigDict(title="Vertical Layers")
+    The layers divide the height range from ground level to the maximum building
+    height into intervals bounded by horizontal planes and ordered upward. Roof
+    entries describe horizontal facets associated with each layer; wall entries
+    describe vertical facets spanning each layer.
+    """
+
+    model_config = ConfigDict(title="SPARTACUS Vertical Layers")
 
     nlayer: FlexibleRefValue(int) = Field(
         default=3,
-        description="Number of vertical layers in the urban canopy",
+        description=(
+            "Number of SPARTACUS vertical layers between ground level and the "
+            "maximum building height"
+        ),
         json_schema_extra={"unit": "dimensionless", "display_name": "Number of Layers"},
         ge=1,
-        le = 15 #Number of available layers in SPARTACUS is 15, so we set this as an upper limit to prevent indexing issues in the model
+        le=15,  # SPARTACUS-Surface supports at most 15 vertical layers.
     )
     height: FlexibleRefValue(List[float]) = Field(
         default=[0.0, 10.0, 20.0, 30.0],
-        description="Heights of layer boundaries, length must be nlayer+1",
+        description=(
+            "Heights of the horizontal boundaries between vertical layers, "
+            "ordered from ground upward; length must be nlayer+1"
+        ),
         json_schema_extra={"unit": "m", "display_name": "Layer Heights"},
     )
     veg_frac: FlexibleRefValue(List[float]) = Field(
         default=[0.0, 0.0, 0.0],
-        description="Fraction of vegetation in each layer, length must be nlayer",
+        description=(
+            "Fraction of vegetation obstruction in each vertical layer, length must "
+            "be nlayer. The lowest layer value may represent trunk or near-ground "
+            "obstruction and is not required to equal total tree land-cover fraction."
+        ),
         json_schema_extra={
             "unit": "dimensionless",
             "display_name": "Vegetation Fraction",
@@ -1070,12 +1118,29 @@ class VerticalLayers(BaseModel):
     )
     veg_scale: FlexibleRefValue(List[float]) = Field(
         default=[1.0, 1.0, 1.0],
-        description="Scaling factor for vegetation in each layer, length must be nlayer",
+        description=(
+            "Scaling factor for vegetation in each SPARTACUS vertical layer; "
+            "length must be nlayer"
+        ),
         json_schema_extra={"unit": "dimensionless", "display_name": "Vegetation Scale"},
+    )
+    veg_ext: FlexibleRefValue(List[float]) = Field(
+        default=[-999.0, -999.0, -999.0],
+        description=(
+            "Optional vegetation extinction coefficient override in each "
+            "SPARTACUS vertical layer; -999 derives from LAI"
+        ),
+        json_schema_extra={
+            "unit": "m-1",
+            "display_name": "Vegetation Extinction",
+        },
     )
     building_frac: FlexibleRefValue(List[float]) = Field(
         default=[0.4, 0.3, 0.2],
-        description="Cumulative grid building fraction at each vertical layer (decreasing with height), length must be nlayer",
+        description=(
+            "Cumulative grid building fraction at each SPARTACUS vertical layer, "
+            "decreasing with height; length must be nlayer"
+        ),
         json_schema_extra={
             "unit": "-",
             "display_name": "Building Fraction",
@@ -1083,17 +1148,27 @@ class VerticalLayers(BaseModel):
     )
     building_scale: FlexibleRefValue(List[float]) = Field(
         default=[10.0, 10.0, 10.0],
-        description="Diameter of buildings at each vertical layer, length must be nlayer",
+        description=(
+            "Diameter of buildings at each SPARTACUS vertical layer; length must "
+            "be nlayer"
+        ),
         json_schema_extra={"unit": "m", "display_name": "Building Scale"},
     )
     roofs: List[RoofLayer] = Field(
         default_factory=lambda: [RoofLayer(), RoofLayer(), RoofLayer()],
-        description="Properties for roof surfaces in each layer, length must be nlayer",
+        description=(
+            "Properties of horizontal roof facets at the upper boundary of "
+            "each SPARTACUS vertical layer, ordered from the lowest layer upward; "
+            "length must be nlayer"
+        ),
         json_schema_extra={"display_name": "Roofs"},
     )
     walls: List[WallLayer] = Field(
         default_factory=lambda: [WallLayer(), WallLayer(), WallLayer()],
-        description="Properties for wall surfaces in each layer, length must be nlayer",
+        description=(
+            "Properties of vertical wall facets spanning each SPARTACUS vertical "
+            "layer, ordered from the lowest layer upward; length must be nlayer"
+        ),
         json_schema_extra={"display_name": "Walls"},
     )
 
@@ -1118,7 +1193,7 @@ class VerticalLayers(BaseModel):
             cols[("height", f"({i},)")] = height_val[i]
 
         # Set vegetation and building parameters for each layer
-        for var in ["veg_frac", "veg_scale", "building_frac", "building_scale"]:
+        for var in ["veg_frac", "veg_scale", "veg_ext", "building_frac", "building_scale"]:
             field_val = getattr(self, var)
             var_values = (
                 field_val.value if isinstance(field_val, RefValue) else field_val
@@ -1161,6 +1236,12 @@ class VerticalLayers(BaseModel):
             df.loc[grid_id, ("veg_scale", get_layer_index(i, nlayer))]
             for i in range(nlayer)
         ]
+        veg_ext = [
+            df.loc[grid_id, ("veg_ext", get_layer_index(i, nlayer))]
+            if ("veg_ext", get_layer_index(i, nlayer)) in df.columns
+            else -999.0
+            for i in range(nlayer)
+        ]
         building_frac = [
             df.loc[grid_id, ("building_frac", get_layer_index(i, nlayer))]
             for i in range(nlayer)
@@ -1180,6 +1261,7 @@ class VerticalLayers(BaseModel):
             height=RefValue(height),
             veg_frac=RefValue(veg_frac),
             veg_scale=RefValue(veg_scale),
+            veg_ext=RefValue(veg_ext),
             building_frac=RefValue(building_frac),
             building_scale=RefValue(building_scale),
             roofs=roofs,

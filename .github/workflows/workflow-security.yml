@@ -6,14 +6,12 @@ on:
       - '.github/workflows/**'
       - '.github/actions/**'
       - '.github/scripts/check_action_pins.py'
-      - '.github/CODEOWNERS'
   push:
     branches: [master]
     paths:
       - '.github/workflows/**'
       - '.github/actions/**'
       - '.github/scripts/check_action_pins.py'
-      - '.github/CODEOWNERS'
   schedule:
     - cron: '15 6 * * 1'
   workflow_dispatch:

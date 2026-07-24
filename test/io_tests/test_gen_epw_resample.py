@@ -22,13 +22,12 @@ def pvlib_available():
 class TestGenEpwResample:
     """Tests for gen_epw with frequency parameter and resample_output exposure."""
 
-    def test_resample_output_in_util(self):
+    def test_resample_output_in_util(self, sample_run_cached):
         """Test that resample_output is accessible via supy.util."""
         assert hasattr(sp.util, "resample_output")
 
         # Test it works with actual data
-        df_state_init, df_forcing = sp.load_SampleData()
-        df_output, _ = sp.run_supy(df_forcing.iloc[:48], df_state_init)
+        df_output, _ = sample_run_cached(48)
 
         df_hourly = sp.util.resample_output(df_output, freq="h")
 
@@ -39,10 +38,9 @@ class TestGenEpwResample:
         assert isinstance(df_hourly.index, pd.MultiIndex)
         assert "grid" in df_hourly.index.names
 
-    def test_resample_output_frequency_aliases(self):
+    def test_resample_output_frequency_aliases(self, sample_run_cached):
         """Test that different frequency aliases work correctly."""
-        df_state_init, df_forcing = sp.load_SampleData()
-        df_output, _ = sp.run_supy(df_forcing.iloc[:144], df_state_init)  # 12 hours
+        df_output, _ = sample_run_cached(144)  # 12 hours
 
         # Test various frequency aliases
         for freq in ["30min", "60min", "h", "1h"]:
@@ -54,12 +52,9 @@ class TestGenEpwResample:
         df_hourly = sp.util.resample_output(df_output, freq="h")
         assert len(df_hourly) < len(df_30min)
 
-    def test_resample_aggregation_methods(self):
+    def test_resample_aggregation_methods(self, sample_run_cached):
         """Test that aggregation methods are applied correctly."""
-        df_state_init, df_forcing = sp.load_SampleData()
-        df_output, _ = sp.run_supy(
-            df_forcing.iloc[:TIMESTEPS_PER_DAY], df_state_init
-        )  # 1 day
+        df_output, _ = sample_run_cached(TIMESTEPS_PER_DAY)  # 1 day
 
         df_hourly = sp.util.resample_output(df_output, freq="h")
 
@@ -80,13 +75,14 @@ class TestGenEpwMultiIndexInput:
     """Tests for gen_epw handling MultiIndex input directly."""
 
     @pytest.fixture
-    def sample_output(self):
-        """Create sample SUEWS output for testing."""
-        df_state_init, df_forcing = sp.load_SampleData()
-        # Use enough data for meaningful test but not too much
-        df_output, _ = sp.run_supy(
-            df_forcing.iloc[:TIMESTEPS_PER_DAY], df_state_init
-        )  # 1 day
+    def sample_output(self, sample_run_cached):
+        """Create sample SUEWS output for testing.
+
+        1 day (``TIMESTEPS_PER_DAY`` steps) - enough data for a meaningful
+        test but not too much. Function-scoped so each test gets its own
+        copy, backed by the shared session cache.
+        """
+        df_output, _ = sample_run_cached(TIMESTEPS_PER_DAY)  # 1 day
         return df_output
 
     def test_gen_epw_accepts_multiindex(self, sample_output, tmp_path):

@@ -22,7 +22,7 @@ CLI Command
 
 .. note::
    The CLI command currently only supports the deprecated namelist format.
-   YAML support is being added - see `Issue #834 <https://github.com/UMEP-dev/SUEWS/issues/834>`_.
+   YAML support is still being added.
 
    For YAML configurations, use the Python API below.
 

@@ -2617,6 +2617,22 @@ class SPARTACUSParams(BaseModel):
             "display_name": "N Stream Sw Urban",
         },
     )
+    n_stream_lw_forest: FlexibleRefValue(int) = Field(
+        default=2,
+        description="Number of streams for longwave radiation in forest columns",
+        json_schema_extra={
+            "unit": "dimensionless",
+            "display_name": "N Stream Lw Forest",
+        },
+    )
+    n_stream_sw_forest: FlexibleRefValue(int) = Field(
+        default=1,
+        description="Number of streams for shortwave radiation in forest columns",
+        json_schema_extra={
+            "unit": "dimensionless",
+            "display_name": "N Stream Sw Forest",
+        },
+    )
     n_vegetation_region_urban: FlexibleRefValue(int) = Field(
         default=1,
         description="Number of vegetation regions in urban areas",
@@ -2625,12 +2641,21 @@ class SPARTACUSParams(BaseModel):
             "display_name": "N Vegetation Region Urban",
         },
     )
+    n_vegetation_region_forest: FlexibleRefValue(int) = Field(
+        default=1,
+        description="Number of vegetation regions in forest columns",
+        json_schema_extra={
+            "unit": "dimensionless",
+            "display_name": "N Vegetation Region Forest",
+        },
+    )
     sw_dn_direct_frac: FlexibleRefValue(float) = Field(
         default=0.5,
         description="Fraction of downward shortwave radiation that is direct",
         json_schema_extra={
             "unit": "dimensionless",
             "display_name": "Sw Dn Direct Frac",
+            "internal_only": True,
         },
     )
     use_sw_direct_albedo: FlexibleRefValue(float) = Field(
@@ -2690,7 +2715,10 @@ class SPARTACUSParams(BaseModel):
             "ground_albedo_dir_mult_fact": self.ground_albedo_dir_mult_fact,
             "n_stream_lw_urban": self.n_stream_lw_urban,
             "n_stream_sw_urban": self.n_stream_sw_urban,
+            "n_stream_lw_forest": self.n_stream_lw_forest,
+            "n_stream_sw_forest": self.n_stream_sw_forest,
             "n_vegetation_region_urban": self.n_vegetation_region_urban,
+            "n_vegetation_region_forest": self.n_vegetation_region_forest,
             "sw_dn_direct_frac": self.sw_dn_direct_frac,
             "use_sw_direct_albedo": self.use_sw_direct_albedo,
             "veg_contact_fraction_const": self.veg_contact_fraction_const,
@@ -2720,7 +2748,7 @@ class SPARTACUSParams(BaseModel):
             SPARTACUSParams: An instance of SPARTACUSParams
         """
 
-        spartacus_params = {
+        spartacus_params = [
             "air_ext_lw",
             "air_ext_sw",
             "air_ssa_lw",
@@ -2728,18 +2756,26 @@ class SPARTACUSParams(BaseModel):
             "ground_albedo_dir_mult_fact",
             "n_stream_lw_urban",
             "n_stream_sw_urban",
+            "n_stream_lw_forest",
+            "n_stream_sw_forest",
             "n_vegetation_region_urban",
+            "n_vegetation_region_forest",
             "sw_dn_direct_frac",
             "use_sw_direct_albedo",
             "veg_contact_fraction_const",
             "veg_fsd_const",
             "veg_ssa_lw",
             "veg_ssa_sw",
-        }
+        ]
 
-        params = {
-            param: RefValue(df.loc[grid_id, (param, "0")]) for param in spartacus_params
-        }
+        default_instance = cls()
+        params = {}
+        for param in spartacus_params:
+            col = (param, "0")
+            if col in df.columns:
+                params[param] = RefValue(df.loc[grid_id, col])
+            else:
+                params[param] = getattr(default_instance, param)
 
         return cls(**params)
 

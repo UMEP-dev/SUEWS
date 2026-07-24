@@ -20,7 +20,7 @@ Schema Versioning Basics
   is the single source of truth for compatibility:
   ``is_schema_compatible(old, current)`` returns ``True`` iff
   ``(old, current)`` has a registered handler (or the labels match).
-  There is no separate compatibility table (gh#1304).
+  There is no separate compatibility table.
 
 When a Schema Bump Is Required
 ------------------------------

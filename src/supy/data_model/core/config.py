@@ -141,6 +141,70 @@ def _assign_trusted(model_obj, field, value):
     model_obj.__pydantic_fields_set__.add(field)
 
 
+_MISSING = object()
+
+
+def _raw_refvalue(value):
+    """Unwrap a YAML RefValue-shaped mapping without normalising nested blocks."""
+    if isinstance(value, dict) and "value" in value:
+        return value["value"]
+    return value
+
+
+def _normalise_legacy_kdown_direct_fraction(value):
+    """Return a comparable key for raw legacy direct-fraction values."""
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        try:
+            hash(value)
+        except TypeError:
+            return repr(value)
+        return value
+
+
+def _find_legacy_spartacus_kdown_direct_fractions(values):
+    """Return legacy SPARTACUS direct-fraction values in raw YAML."""
+    fractions = []
+    sites = values.get("sites") if isinstance(values, dict) else None
+    if not isinstance(sites, list):
+        return fractions
+    for site in sites:
+        if not isinstance(site, dict):
+            continue
+        spartacus = (
+            site.get("properties", {})
+            .get("spartacus", {})
+            if isinstance(site.get("properties"), dict)
+            else {}
+        )
+        if isinstance(spartacus, dict) and "sw_dn_direct_frac" in spartacus:
+            fractions.append(_raw_refvalue(spartacus["sw_dn_direct_frac"]))
+    return fractions
+
+
+def _raw_physics_has_kdown_direct_fraction(physics):
+    """Detect new direct-fraction spellings in a raw ``model.physics`` dict."""
+    if not isinstance(physics, dict):
+        return False
+    if any(
+        key in physics
+        for key in (
+            "kdown_split_constant_direct_fraction",
+            "sw_dn_direct_frac",
+        )
+    ):
+        return True
+    split = physics.get("kdown_split_method")
+    if not isinstance(split, dict):
+        return False
+    constant = split.get("constant")
+    return isinstance(constant, dict) and any(
+        key in constant
+        for key in ("sw_dn_direct_frac",)
+    )
+
+
 def _strip_internal_fields(data, model_cls):
     """Recursively remove fields marked with internal_only=True from a model_dump dict.
 
@@ -220,6 +284,37 @@ class SUEWSConfig(BaseModel):
                 )
         return values
 
+    @model_validator(mode="before")
+    @classmethod
+    def _migrate_legacy_spartacus_kdown_direct_fraction(cls, values):
+        """Accept legacy ``properties.spartacus.sw_dn_direct_frac`` YAML input."""
+        if not isinstance(values, dict):
+            return values
+        model = values.setdefault("model", {})
+        if not isinstance(model, dict):
+            return values
+        physics = model.setdefault("physics", {})
+        if not isinstance(physics, dict) or _raw_physics_has_kdown_direct_fraction(
+            physics
+        ):
+            return values
+
+        legacy_fractions = _find_legacy_spartacus_kdown_direct_fractions(values)
+        if legacy_fractions:
+            distinct_fractions = {
+                _normalise_legacy_kdown_direct_fraction(fraction)
+                for fraction in legacy_fractions
+            }
+            if len(distinct_fractions) > 1:
+                raise ValueError(
+                    "Legacy sites[*].properties.spartacus.sw_dn_direct_frac "
+                    "contains multiple distinct values. Set the shared "
+                    "model.physics.kdown_split_method.constant.sw_dn_direct_frac "
+                    "value explicitly before migrating."
+                )
+            physics["sw_dn_direct_frac"] = legacy_fractions[0]
+        return values
+
     name: str = Field(
         default="sample config",
         description="Name of the SUEWS configuration",
@@ -257,6 +352,18 @@ class SUEWSConfig(BaseModel):
         min_length=1,
         json_schema_extra={"display_name": "Sites"},
     )
+
+    @model_validator(mode="after")
+    def _sync_kdown_direct_fraction_to_spartacus(self) -> "SUEWSConfig":
+        """Mirror model-owned k-down split fraction to the legacy bridge slot."""
+        fraction = _unwrap_value(self.model.physics.sw_dn_direct_frac)
+        for site in self.sites:
+            _assign_trusted(
+                site.properties.spartacus,
+                "sw_dn_direct_frac",
+                float(fraction),
+            )
+        return self
 
     # Class-level constant for STEBBS validation parameters
     STEBBS_REQUIRED_PARAMS: ClassVar[List[str]] = [
@@ -1915,12 +2022,12 @@ class SUEWSConfig(BaseModel):
         Returns
         -------
         bool
-            True if `storage_heat_method` is set to 6 or 7 and was explicitly configured by the user,
+            True if `storage_heat_method` is set to 6, 7, or 8 and was explicitly configured by the user,
             False otherwise.
 
         Notes
         -----
-        - Validation is only triggered if `storage_heat_method` is 6 or 7 AND the value was explicitly set
+        - Validation is only triggered if `storage_heat_method` is 6, 7, or 8 AND the value was explicitly set
           (not just the default value).
         - Uses Pydantic's `model_fields_set` to distinguish user-provided values from defaults.
         """
@@ -1935,8 +2042,8 @@ class SUEWSConfig(BaseModel):
         except (TypeError, ValueError):
             pass
 
-        # Only validate if method == 6 or 7 AND it was explicitly set
-        if shm == 6 or shm == 7:
+        # Only validate if method == 6, 7, or 8 AND it was explicitly set
+        if shm in {6, 7, 8}:
             return self._is_physics_explicitly_configured("storage_heat")
         return False
     
@@ -2091,9 +2198,13 @@ class SUEWSConfig(BaseModel):
         Validate DyOHM storage-heat method requirements for a site.
 
         This function checks that all required parameters for the DyOHM storage-heat
-        method (storage_heat_method 6 or 7) are present and valid for the given site.
-        It ensures that vertical_layers.walls, thermal_layers, and initial_states
-        arrays are non-empty and contain only numeric values, and that lambda_c is set.
+        method (storage_heat_method 6, 7, or 8) are present and valid for the given site.
+        It ensures that required building material properties and initial-state
+        arrays are non-empty and contain only finite numeric values. Building material
+        properties and ``lambda_c`` are required only for methods 6 and 8, which
+        calculate building DyOHM coefficients. STEBBS owns the building storage
+        heat and temperatures in method 7, which requires SPARTACUS-Surface net
+        radiation.
 
         Parameters
         ----------
@@ -2109,10 +2220,15 @@ class SUEWSConfig(BaseModel):
 
         Notes
         -----
-        - Checks for presence and validity of vertical_layers.walls and their thermal_layers.
-        - Ensures that dz, k, and rho_cp arrays are non-empty and numeric.
+        - For methods 6 and 8, checks ``land_cover.bldgs.thermal_layers`` rather
+          than a SPARTACUS wall.
+        - Ensures that required material-property arrays are non-empty and finite.
+          Methods 6 and 8 require building dz, k, and rho_cp. Method 7 does not
+          use the building material layers.
+        - Requires method 7 to use SPARTACUS-Surface net radiation (1001--1003),
+          which consumes the separate STEBBS roof and wall temperatures.
         - Validates initial_states.qn_surfs and dqndt_surf arrays.
-        - Checks that lambda_c is set and non-null.
+        - Checks that lambda_c is set and non-null for methods 6 and 8.
         """
         issues: List[str] = []
 
@@ -2122,29 +2238,65 @@ class SUEWSConfig(BaseModel):
         if not props:
             return issues
 
-        vl = getattr(props, "vertical_layers", None)
-        walls = getattr(vl, "walls", None) if vl else None
+        physics = getattr(getattr(self, "model", None), "physics", None)
+        storage_heat = getattr(physics, "storage_heat", None)
+        storage_heat_method = getattr(storage_heat, "value", storage_heat)
+        storage_heat_method = getattr(storage_heat_method, "value", storage_heat_method)
+        try:
+            storage_heat_method = int(storage_heat_method)
+        except (TypeError, ValueError):
+            storage_heat_method = None
 
-        if not walls or len(walls) == 0:
-            issues.append(
-                f"{site_name}: storage_heat_method 6 or 7 (DyOHM) selected → missing vertical_layers.walls"
+        if storage_heat_method == 7:
+            net_radiation = getattr(physics, "net_radiation", None)
+            net_radiation_method = getattr(
+                net_radiation, "value", net_radiation
             )
-            return issues
-
-        th = getattr(walls[0], "thermal_layers", None)
-        for arr in ("dz", "k", "rho_cp"):
-            field = getattr(th, arr, None) if th else None
-            vals = getattr(field, "value", None) if field else None
-            if (
-                not isinstance(vals, list)
-                or len(vals) == 0
-                or any(v is None for v in vals)
-                or any(not isinstance(v, (int, float)) for v in vals)
-            ):
+            net_radiation_method = getattr(
+                net_radiation_method, "value", net_radiation_method
+            )
+            try:
+                net_radiation_method = int(net_radiation_method)
+            except (TypeError, ValueError):
+                net_radiation_method = None
+            if net_radiation_method not in {1001, 1002, 1003}:
                 issues.append(
-                    f"{site_name}: storage_heat_method 6 or 7 (DyOHM) selected → "
-                    f"thermal_layers.{arr} must be a non‐empty list of numeric values (no nulls)"
+                    f"{site_name}: storage_heat_method 7 uses separate STEBBS "
+                    "roof and wall temperatures and requires "
+                    "model.physics.net_radiation to be a SPARTACUS-Surface "
+                    "method (1001, 1002, or 1003)"
                 )
+
+        land_cover = getattr(props, "land_cover", None)
+        bldgs = getattr(land_cover, "bldgs", None) if land_cover else None
+
+        if storage_heat_method in {6, 8}:
+            if bldgs is None:
+                issues.append(
+                    f"{site_name}: storage_heat_method {storage_heat_method} "
+                    "(building DyOHM) selected -> missing "
+                    "properties.land_cover.bldgs"
+                )
+            else:
+                th = getattr(bldgs, "thermal_layers", None)
+                for arr in ("dz", "k", "rho_cp"):
+                    field = getattr(th, arr, None) if th else None
+                    vals = getattr(field, "value", None) if field else None
+                    if (
+                        not isinstance(vals, list)
+                        or len(vals) == 0
+                        or any(
+                            not isinstance(v, (int, float)) or not np.isfinite(v)
+                            for v in vals
+                        )
+                    ):
+                        issues.append(
+                            f"{site_name}: storage_heat_method "
+                            f"{storage_heat_method} selected -> "
+                            "properties.land_cover.bldgs.thermal_layers."
+                            f"{arr} must be a non-empty list of finite numeric "
+                            "values (no nulls, NaN, or infinities)"
+                        )
 
         for arr in ("qn_surfs", "dqndt_surf"):
             field = getattr(states, arr, None) if states else None
@@ -2156,19 +2308,24 @@ class SUEWSConfig(BaseModel):
             if (
                 not isinstance(vals, list)
                 or len(vals) == 0
-                or any(v is None for v in vals)
-                or any(not isinstance(v, (int, float)) for v in vals)
+                or any(
+                    not isinstance(v, (int, float)) or not np.isfinite(v)
+                    for v in vals
+                )
             ):
                 issues.append(
-                    f"{site_name}: storage_heat_method 6 or 7 (DyOHM) selected → "
-                    f"initial_states.{arr} must be a non‐empty list of numeric values (no nulls)"
+                    f"{site_name}: storage_heat_method 6, 7, or 8 (DyOHM) selected -> "
+                    f"initial_states.{arr} must be a non-empty list of finite "
+                    "numeric values (no nulls, NaN, or infinities)"
                 )
 
-        lam = getattr(getattr(props, "lambda_c", None), "value", None)
-        if lam in (None, ""):
-            issues.append(
-                f"{site_name}: storage_heat_method 6 or 7 (DyOHM) selected → properties.lambda_c must be set and non-null"
-            )
+        if storage_heat_method in {6, 8}:
+            lam = getattr(getattr(props, "lambda_c", None), "value", None)
+            if lam in (None, ""):
+                issues.append(
+                    f"{site_name}: storage_heat_method {storage_heat_method} (DyOHM building) selected -> "
+                    "properties.lambda_c must be set and non-null"
+                )
 
         return issues
 
@@ -2454,73 +2611,75 @@ class SUEWSConfig(BaseModel):
 
     def _validate_spartacus_sfr(self, site: Site, site_index: int) -> list:
         """
-        Validate SPARTACUS building and vegetation surface fractions for a site.
+        Validate SPARTACUS surface-fraction bounds for a site.
 
-        If SPARTACUS is enabled, this function checks that:
-        - The building surface fraction (bldgs.sfr) matches the first entry of vertical_layers.building_frac.
-        - The sum of evergreen and deciduous tree surface fractions (evetr.sfr + dectr.sfr)
-          matches the first entry of vertical_layers.veg_frac.
+        SPARTACUS vertical-layer fractions describe radiative geometry, so the
+        layer fractions do not have to equal the corresponding land-cover
+        fractions. Building and vegetation fractions are still checked together
+        so that no layer exceeds full occupancy.
 
         Returns
         -------
         list of str
             List of issue messages if validation fails; empty if valid.
-
-        Notes
-        -----
-        - Uses a tolerance of 1e-6 for floating point comparisons.
-        - Returns early if required properties are missing.
         """
         issues: list = []
         site_name = getattr(site, "name", f"Site {site_index}")
         props = getattr(site, "properties", None)
-        if not props or not hasattr(props, "land_cover") or not props.land_cover:
+        if not props:
             return issues
 
-        lc = props.land_cover
-        bldgs = getattr(lc, "bldgs", None)
-        evetr = getattr(lc, "evetr", None)
-        dectr = getattr(lc, "dectr", None)
         vertical_layers = getattr(props, "vertical_layers", None)
         if not vertical_layers:
             return issues
 
-        # Unwrap values
-        bldgs_sfr = _unwrap_value(getattr(bldgs, "sfr", None)) if bldgs else None
-        evetr_sfr = _unwrap_value(getattr(evetr, "sfr", None)) if evetr else 0.0
-        dectr_sfr = _unwrap_value(getattr(dectr, "sfr", None)) if dectr else 0.0
-        veg_sfr = (evetr_sfr or 0.0) + (dectr_sfr or 0.0)
-
         building_frac = _unwrap_value(getattr(vertical_layers, "building_frac", None))
         veg_frac = _unwrap_value(getattr(vertical_layers, "veg_frac", None))
+        if not isinstance(veg_frac, (list, tuple)):
+            return issues
 
         tol = 1e-6
 
-        # Buildings: surface fraction vs first SPARTACUS layer
-        if (
-            isinstance(building_frac, (list, tuple))
-            and len(building_frac) > 0
-            and bldgs_sfr is not None
-        ):
-            if not np.isclose(bldgs_sfr, building_frac[0], atol=tol):
-                issues.append(
-                    f"{site_name}: bldgs.sfr ({bldgs_sfr}) does not match "
-                    f"vertical_layers.building_frac[0] ({building_frac[0]})"
-                )
+        def _layer_fraction_at(values: list | tuple, layer_idx: int) -> float | None:
+            if layer_idx >= len(values):
+                return 0.0
+            return _unwrap_value(values[layer_idx])
 
-        # Vegetation: sum of fractions vs first veg_frac entry
-        if (
-            isinstance(veg_frac, (list, tuple))
-            and len(veg_frac) > 0
+        # Per-layer occupancy bound: buildings and vegetation together cannot
+        # exceed full occupancy in any layer. Needs both fraction arrays.
+        if isinstance(building_frac, (list, tuple)):
+            for layer_idx in range(max(len(building_frac), len(veg_frac))):
+                building_layer_frac = _layer_fraction_at(building_frac, layer_idx)
+                veg_layer_frac = _layer_fraction_at(veg_frac, layer_idx)
+                if building_layer_frac is None or veg_layer_frac is None:
+                    continue
+                layer_total = building_layer_frac + veg_layer_frac
+                if layer_total - 1.0 > tol:
+                    issues.append(
+                        f"{site_name}: vertical_layers.building_frac[{layer_idx}] "
+                        f"+ vertical_layers.veg_frac[{layer_idx}] ({layer_total}) "
+                        "exceeds 1.0"
+                    )
+
+        # Trunk / near-ground rule needs only the vegetation profile: if any
+        # upper layer carries vegetation, the lowest layer must be non-zero.
+        first_veg_frac = _unwrap_value(veg_frac[0]) if veg_frac else None
+        upper_has_vegetation = False
+        for veg_layer_frac in veg_frac[1:]:
+            veg_layer_frac = _unwrap_value(veg_layer_frac)
+            if veg_layer_frac is not None and veg_layer_frac > tol:
+                upper_has_vegetation = True
+                break
+        if upper_has_vegetation and (
+            first_veg_frac is None or first_veg_frac <= tol
         ):
-            if not np.isclose(veg_sfr, veg_frac[0], atol=tol):
-                issues.append(
-                    f"{site_name}: evetr.sfr + dectr.sfr ({veg_sfr}) does not match "
-                    f"vertical_layers.veg_frac[0] ({veg_frac[0]})"
-                )
+            issues.append(
+                f"{site_name}: vertical_layers.veg_frac[0] must be greater "
+                "than 0 when vegetation is present in upper layers"
+            )
 
         return issues
-    
+
     def _validate_spartacus_veg_dimensions(self, site: Site, site_index: int) -> list:
         """
         Validate that veg_scale and veg_frac are zero above the tree canopy layer.
@@ -2623,7 +2782,7 @@ class SUEWSConfig(BaseModel):
           `stebbs_method == 1`.
         - RSL: Validates that `bldgs.faibldg` is set when `rsl_method == 2`.
         - StorageHeat: Checks DyOHM storage-heat method requirements when
-          `storage_heat_method == 6 or 7`.
+          `storage_heat_method == 6, 7, or 8`.
         - same_albedo_wall/roof: Ensures uniform albedo across wall/roof layers and
           matches the building archetype if enabled.
         - same_emissivity_wall/roof: Ensures uniform emissivity across wall/roof
@@ -4561,6 +4720,14 @@ class SUEWSConfig(BaseModel):
                 grid_id = self.sites[i].gridiv
                 df_site = self.sites[i].to_df_state(grid_id)
                 df_model = self.model.to_df_state(grid_id)
+                direct_fraction_positions = [
+                    idx
+                    for idx, col in enumerate(df_model.columns)
+                    if col == ("sw_dn_direct_frac", "0")
+                ]
+                if direct_fraction_positions:
+                    direct_fraction = df_model.iloc[0, direct_fraction_positions[0]]
+                    df_site[("sw_dn_direct_frac", "0")] = direct_fraction
                 df_site = pd.concat([df_site, df_model], axis=1)
                 # Remove duplicate columns immediately after combining site+model
                 # This prevents InvalidIndexError when concatenating multiple sites (axis=0)

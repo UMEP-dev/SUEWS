@@ -30,7 +30,11 @@ from numbers import Integral, Real
 import re
 from typing import Any
 
-from .physics_orthogonal import coerce_orthogonal_to_flat, fold_storage_heat_ohm_inc_qf
+from .physics_orthogonal import (
+    coerce_orthogonal_to_flat,
+    fold_kdown_split_constant_direct_fraction,
+    fold_storage_heat_ohm_inc_qf,
+)
 
 PHYSICS_FAMILIES: dict[str, dict[str, frozenset[int]]] = {
     "net_radiation": {
@@ -46,6 +50,7 @@ PHYSICS_FAMILIES: dict[str, dict[str, frozenset[int]]] = {
         "ehc": frozenset({5}),
         "dyohm": frozenset({6}),
         "stebbs": frozenset({7}),
+        "dyohm_building": frozenset({8}),
     },
     "emissions": {
         "observed": frozenset({0}),
@@ -83,6 +88,11 @@ _PHYSICS_NAME_SPECS: dict[str, list[tuple[int, str, tuple[str, ...]]]] = {
         (1001, "ldown_ss_observed", ()),
         (1002, "ldown_ss_cloud", ()),
         (1003, "ldown_ss_air", ()),
+    ],
+    "kdown_split_method": [
+        (1, "forcing", ()),
+        (2, "constant", ()),
+        (3, "epw", ()),
     ],
     "emissions": [
         (0, "observed", ()),
@@ -125,6 +135,7 @@ _PHYSICS_NAME_SPECS: dict[str, list[tuple[int, str, tuple[str, ...]]]] = {
         (5, "ehc", ()),
         (6, "dyohm", ("l25",)),
         (7, "stebbs", ()),
+        (8, "dyohm_building", ("dyohm_buildings", "dyohm_bldg", "dyohm_bldgs")),
     ],
     "ohm_inc_qf": [(0, "exclude", ()), (1, "include", ())],
     "roughness_length_momentum": [
@@ -200,6 +211,7 @@ _PHYSICS_NAME_SPECS: dict[str, list[tuple[int, str, tuple[str, ...]]]] = {
 
 MODEL_PHYSICS_ENUM_FIELDS: tuple[str, ...] = (
     "net_radiation",
+    "kdown_split_method",
     "emissions",
     "storage_heat",
     "ohm_inc_qf",
@@ -477,6 +489,10 @@ def flatten_physics_in_config(data: Any) -> Any:
 
     with suppress(TypeError, ValueError):
         fold_storage_heat_ohm_inc_qf(physics, "ModelPhysics")
+    with suppress(TypeError, ValueError):
+        fold_kdown_split_constant_direct_fraction(
+            physics, "ModelPhysics", store_fraction=False
+        )
 
     for field_name in MODEL_PHYSICS_ENUM_FIELDS:
         if field_name not in physics:

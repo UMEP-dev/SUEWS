@@ -20,7 +20,11 @@ from .physics_families import (
     fold_public_physics_key_aliases,
     fold_stebbs_public_key_aliases,
 )
-from .physics_orthogonal import coerce_orthogonal_to_flat, fold_storage_heat_ohm_inc_qf
+from .physics_orthogonal import (
+    coerce_orthogonal_to_flat,
+    fold_kdown_split_constant_direct_fraction,
+    fold_storage_heat_ohm_inc_qf,
+)
 from .type import FlexibleRefValue, Reference, RefValue, df_from_cols
 
 
@@ -225,6 +229,26 @@ class NetRadiationMethod(Enum):
         return str(self.value)
 
 
+class KdownSplitMethod(Enum):
+    """
+    Method for partitioning global horizontal irradiance into direct and diffuse components.
+
+    1: FORCING - Uses direct normal and diffuse horizontal irradiance from forcing data, with EPW fallback when invalid
+    2: CONSTANT - Uses the configured sw_dn_direct_frac direct-horizontal fraction
+    3: EPW - Uses the pressure-corrected DISC/static-DIRINT approach
+    """
+
+    FORCING = 1
+    CONSTANT = 2
+    EPW = 3
+
+    def __int__(self):
+        return self.value
+
+    def __repr__(self):
+        return str(self.value)
+
+
 class StorageHeatMethod(Enum):
     """
     Method for calculating storage heat flux (ΔQS).
@@ -233,9 +257,10 @@ class StorageHeatMethod(Enum):
     1: OHM_WITHOUT_QF - Objective Hysteresis Model using Q* only (use with OhmIncQf=0)
     3: ANOHM - Analytical OHM (Sun et al., 2017) - not recommended
     4: ESTM - Element Surface Temperature Method (Offerle et al., 2005) - not recommended
-    5: EHC - Explicit Heat Conduction model with separate roof/wall/ground temperatures
-    6: DyOHM - Dynamic Objective Hysteresis Model (Liu et al., 2025) with dynamic coefficients
-    7: STEBBS - use STEBBS storage heat flux for building, others use OHM
+    5: EHC - Uses all five material layers for conducting roof, wall, and land-cover facets
+    6: DyOHM - Dynamic OHM using the outermost material layer of each SUEWS land-cover surface
+    7: STEBBS - STEBBS storage heat and surface temperatures for buildings with SPARTACUS-Surface radiation; DyOHM using the outermost material layer for non-building surfaces
+    8: DyOHM_BUILDING - DyOHM using the outermost building material layer; ordinary OHM for other surfaces
     """
 
     # Note: EHC (option 5) implements explicit heat conduction
@@ -249,6 +274,7 @@ class StorageHeatMethod(Enum):
     EHC = 5
     DyOHM = 6
     STEBBS = 7
+    DyOHM_BUILDING = 8
 
     def __new__(cls, value):
         obj = object.__new__(cls)
@@ -458,7 +484,7 @@ class FAIMethod(Enum):
     Method for calculating frontal area index (FAI) - the ratio of frontal area to plan area.
 
     0: OBSERVED - Use FAI values provided in site parameters (FAIBldg, FAIEveTree, FAIDecTree)
-    1: MODELLED - Calculate FAI using simple scheme based on surface fractions and heights (see issue #192)
+    1: MODELLED - Calculate FAI using simple scheme based on surface fractions and heights
     """
 
     OBSERVED = 0  # Use FAI values from site parameters
@@ -534,7 +560,7 @@ class StebbsMethod(Enum):
     column the Fortran bridge reads). On the YAML / data-model surface this
     tri-state is split into ``stebbs.enabled`` (bool) and ``stebbs.parameters``
     (StebbsParameterSource); the two compose back to this integer code via
-    ``to_df_state`` / decompose on ``from_df_state`` (gh#1456).
+    ``to_df_state`` / decompose on ``from_df_state``.
     """
 
     NONE = 0
@@ -554,7 +580,7 @@ class StebbsParameterSource(Enum):
 
     Only consulted when STEBBS is enabled; ignored otherwise. The values equal
     the non-zero ``StebbsMethod`` codes so the composed ``stebbsmethod`` column
-    is simply ``int(parameters)`` whenever STEBBS is enabled (gh#1456).
+    is simply ``int(parameters)`` whenever STEBBS is enabled.
 
     1: DEFAULT - STEBBS uses default parameters
     2: PROVIDED - STEBBS uses user-specified parameters
@@ -575,7 +601,7 @@ class RCMethod(Enum):
     Method to determine the two weighting factors (wall_outer_heat_capacity_fraction and roof_outer_heat_capacity_fraction) splitting heat capacity of building envelope into two nodes in STEBBS.
 
     Exposed on the YAML / data-model surface as ``stebbs.capacitance`` (the
-    field formerly named ``outer_cap_fraction``, gh#1456). The ``rcmethod``
+    field formerly named ``outer_cap_fraction``). The ``rcmethod``
     DataFrame column the Fortran bridge reads is unchanged.
 
     0: DEFAULT - Default value of 0.5 is used
@@ -723,6 +749,7 @@ def yaml_equivalent_of_default(dumper, data):
 # Register YAML representers for all enums
 for enum_class in [
     NetRadiationMethod,
+    KdownSplitMethod,
     EmissionsMethod,
     StorageHeatMethod,
     MomentumRoughnessMethod,
@@ -754,7 +781,7 @@ class StebbsPhysics(BaseModel):
     STEBBS (Surface Temperature Energy Balance Based Scheme) physics switches.
 
     Groups the six STEBBS-scoped method switches that previously sat flat on
-    ``model.physics`` (gh#1456). The master on/off toggle is split into
+    ``model.physics``. The master on/off toggle is split into
     ``enabled`` (bool) and ``parameters`` (StebbsParameterSource); the two
     compose back to the single legacy ``stebbsmethod`` integer column on
     ``ModelPhysics.to_df_state`` and are decomposed on ``from_df_state``. The
@@ -862,6 +889,7 @@ class ModelPhysics(BaseModel):
             # gh#1483: expose OHMIncQF under the storage_heat selector while
             # preserving the flat field used by the internal/Fortran state.
             values = fold_storage_heat_ohm_inc_qf(values, cls.__name__)
+            values = fold_kdown_split_constant_direct_fraction(values, cls.__name__)
             # gh#1456: fold the legacy flat STEBBS switches into the nested
             # `stebbs` object. Runs after the key renames so a YAML carrying
             # either fused or snake_case legacy spellings lands here. The fold
@@ -886,7 +914,31 @@ class ModelPhysics(BaseModel):
             "unit": "dimensionless",
             "depends_on": ["snow_use"],
             "provides_to": ["storage_heat"],
-            "note": "Values above 1000 activate SPARTACUS-Surface and provide facet radiation required by EHC storage heat.",
+            "note": "Values 1001--1003 activate SPARTACUS-Surface and provide facet radiation required by EHC (5) and STEBBS (7) storage heat.",
+        },
+    )
+    kdown_split_method: FlexibleRefValue(KdownSplitMethod) = Field(
+        default=KdownSplitMethod.EPW,
+        description=_enum_description(KdownSplitMethod),
+        json_schema_extra={
+            "unit": "dimensionless",
+            "depends_on": ["net_radiation"],
+            "note": "Use kdown_split_method.constant.sw_dn_direct_frac when selecting the constant split.",
+        },
+    )
+    sw_dn_direct_frac: FlexibleRefValue(float) = Field(
+        default=0.5,
+        description=(
+            "Direct-horizontal fraction of global shortwave radiation used by "
+            "the constant direct/diffuse split."
+        ),
+        ge=0.0,
+        le=1.0,
+        json_schema_extra={
+            "unit": "dimensionless",
+            "depends_on": ["kdown_split_method"],
+            "display_name": "Sw Dn Direct Frac",
+            "internal_only": True,
         },
     )
     emissions: FlexibleRefValue(EmissionsMethod) = Field(
@@ -905,7 +957,17 @@ class ModelPhysics(BaseModel):
             "unit": "dimensionless",
             "depends_on": ["net_radiation", "ohm_inc_qf", "snow_use", "stebbs"],
             "provides_to": ["energy_balance"],
-            "note": "EHC (5) requires SPARTACUS net radiation; STEBBS storage heat (7) requires STEBBS enabled; OHM-like paths use OhmIncQf.",
+            "note": (
+                "EHC (5) uses all five material layers for its conducting roof, "
+                "wall, and solid non-building land-cover facets. DyOHM (6) "
+                "uses only the outermost material layer of each SUEWS land-cover "
+                "surface, including land_cover.bldgs for buildings. "
+                "Method 7 uses STEBBS for building storage heat and temperatures, "
+                "does not use land_cover.bldgs material layers, and applies DyOHM "
+                "to non-building surfaces; it requires SPARTACUS-Surface net "
+                "radiation (1001--1003). Method 8 applies DyOHM only to "
+                "the building surface and requires OhmIncQf=0."
+            ),
         },
     )
     ohm_inc_qf: FlexibleRefValue(OhmIncQf) = Field(
@@ -1018,8 +1080,8 @@ class ModelPhysics(BaseModel):
     stebbs: StebbsPhysics = Field(
         default_factory=StebbsPhysics,
         description=(
-            "STEBBS physics switches (gh#1456): master toggle (enabled + "
-            "parameters), capacitance method, setpoint method, and the "
+            "STEBBS physics switches: master toggle (enabled + parameters), "
+            "capacitance method, setpoint method, and the "
             "same-albedo / same-emissivity wall/roof switches."
         ),
         json_schema_extra={
@@ -1039,6 +1101,7 @@ class ModelPhysics(BaseModel):
     # reads state by positional/fused keys. Only the left column moves.
     _FIELD_COL_PAIRS = [
         ("net_radiation", "netradiationmethod"),
+        ("kdown_split_method", "kdown_split_method"),
         ("emissions", "emissionsmethod"),
         ("storage_heat", "storageheatmethod"),
         ("ohm_inc_qf", "ohmincqf"),
@@ -1075,6 +1138,14 @@ class ModelPhysics(BaseModel):
             value = getattr(self, field_name)
             val = value.value if isinstance(value, RefValue) else value
             cols[(col_name, "0")] = int(val)
+
+        direct_fraction = self.sw_dn_direct_frac
+        direct_fraction = (
+            direct_fraction.value
+            if isinstance(direct_fraction, RefValue)
+            else direct_fraction
+        )
+        cols[("sw_dn_direct_frac", "0")] = float(direct_fraction)
 
         # gh#1456: compose the legacy `stebbsmethod` integer column from the
         # nested (enabled, parameters) pair, and write the remaining STEBBS
@@ -1129,6 +1200,10 @@ class ModelPhysics(BaseModel):
         # New options: optional in legacy DataFrames, default if missing
         optional_new_attrs_with_defaults = {
             "laimethod": LAIMethod.MODELLED,
+            "kdown_split_method": KdownSplitMethod.EPW,
+        }
+        optional_float_attrs_with_defaults = {
+            "sw_dn_direct_frac": (("sw_dn_direct_frac",), 0.5),
         }
 
         for attr in required_attrs:
@@ -1144,6 +1219,17 @@ class ModelPhysics(BaseModel):
                 properties[attr] = RefValue(int(value))
             except KeyError:
                 properties[attr] = RefValue(int(default_enum))
+
+        for field_name, (col_names, default_value) in (
+            optional_float_attrs_with_defaults.items()
+        ):
+            for col_name in col_names:
+                col = (col_name, "0")
+                if col in df.columns:
+                    properties[field_name] = RefValue(float(df.loc[grid_id, col]))
+                    break
+            else:
+                properties[field_name] = RefValue(default_value)
 
         # gh#1456 / gh#1500: reconstruct the nested StebbsPhysics from the
         # unchanged fused columns. A DataFrame predating STEBBS lacks the
@@ -1213,10 +1299,9 @@ class OutputControl(BaseModel):
     """Configuration block for model output files.
 
     Renamed from ``OutputConfig`` and lifted out of the legacy
-    ``Union[str, OutputConfig]`` ``output_file`` field in gh#1372 follow-up,
-    so the ``model.control`` surface is uniform with the new ``forcing:``
-    sub-object. The legacy string form (silently ignored since 2025.10.15)
-    is dropped.
+    ``Union[str, OutputConfig]`` ``output_file`` field so the
+    ``model.control`` surface is uniform with the new ``forcing:`` sub-object.
+    The legacy string form (silently ignored since 2025.10.15) is dropped.
     """
 
     model_config = ConfigDict(title="Output Control")
@@ -1243,9 +1328,8 @@ class OutputControl(BaseModel):
         """Deprecated alias for ``OutputControl.dir``.
 
         External Python consumers (UMEP postprocessor, etc.) that still
-        read ``config.model.control.output_file.path`` keep working
-        through the gh#1372 migration window. Scheduled for removal in
-        2026.6.
+        read ``config.model.control.output_file.path`` keep working through the
+        migration window. Scheduled for removal in 2026.6.
         """
         import warnings
 
@@ -1273,10 +1357,9 @@ class OutputControl(BaseModel):
 class ForcingControl(BaseModel):
     """Configuration block for meteorological forcing input.
 
-    Created in gh#1372 so future forcing-related fields (sub-hourly
-    disaggregation, gh#1373; resampling policy; etc.) have a stable
-    home rather than accreting flat ``forcing_*`` siblings under
-    :class:`ModelControl`.
+    Groups forcing-related fields, such as sub-hourly disaggregation and
+    resampling policy, under a stable home rather than accreting flat
+    ``forcing_*`` siblings under :class:`ModelControl`.
     """
 
     model_config = ConfigDict(title="Forcing Control")
@@ -1426,8 +1509,8 @@ class ModelControl(BaseModel):
         """Deprecated alias for ``model.control.output``.
 
         External Python consumers (UMEP postprocessor, etc.) that still
-        read ``config.model.control.output_file`` keep working through
-        the gh#1372 migration window. Scheduled for removal in 2026.6.
+        read ``config.model.control.output_file`` keep working through the
+        migration window. Scheduled for removal in 2026.6.
         """
         import warnings
 

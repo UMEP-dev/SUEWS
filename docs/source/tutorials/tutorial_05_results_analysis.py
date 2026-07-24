@@ -56,7 +56,7 @@ qh = output.get_variable("QH", group="SUEWS")
 print(f"QH shape: {qh.shape}")
 
 # Method 2: Direct MultiIndex access on raw DataFrame
-qn = results[("SUEWS", "QN")]
+qn = results["SUEWS", "QN"]
 print(f"QN shape: {qn.shape}")
 
 # List available groups and variables
@@ -85,7 +85,8 @@ def get_var(out, name, group="SUEWS"):
         if n_grids != 1:
             raise ValueError(
                 f"Expected single-grid output, but found {n_grids} grids. "
-                "Use MultiIndex indexing directly for multi-grid runs."
+                "Use MultiIndex indexing directly for multi-grid runs "
+                "(see tutorial_08_parallel_multi_grid for a worked example)."
             )
         ser = ser.droplevel("grid")
     return ser
@@ -113,10 +114,20 @@ print("Annual Energy Balance Statistics (W/m2):")
 print(energy_df.describe().round(1))
 
 # Seasonal means using meteorological seasons (month-based grouping)
-season_map = {12: "Winter (DJF)", 1: "Winter (DJF)", 2: "Winter (DJF)",
-              3: "Spring (MAM)", 4: "Spring (MAM)", 5: "Spring (MAM)",
-              6: "Summer (JJA)", 7: "Summer (JJA)", 8: "Summer (JJA)",
-              9: "Autumn (SON)", 10: "Autumn (SON)", 11: "Autumn (SON)"}
+season_map = {
+    12: "Winter (DJF)",
+    1: "Winter (DJF)",
+    2: "Winter (DJF)",
+    3: "Spring (MAM)",
+    4: "Spring (MAM)",
+    5: "Spring (MAM)",
+    6: "Summer (JJA)",
+    7: "Summer (JJA)",
+    8: "Summer (JJA)",
+    9: "Autumn (SON)",
+    10: "Autumn (SON)",
+    11: "Autumn (SON)",
+}
 season_order = ["Winter (DJF)", "Spring (MAM)", "Summer (JJA)", "Autumn (SON)"]
 seasonal = energy_df.groupby(energy_df.index.month.map(season_map)).mean()
 seasonal = seasonal.loc[[s for s in season_order if s in seasonal.index]]
@@ -164,7 +175,13 @@ print(f"    Runoff:        {runoff.sum():.1f}")
 print(f"    Drainage:      {drainage.sum():.1f}")
 print(f"  Storage change:  {storage_change.sum():.1f}")
 
-water_residual = (rain.sum() + irr.sum()) - evap.sum() - runoff.sum() - drainage.sum() - storage_change.sum()
+water_residual = (
+    (rain.sum() + irr.sum())
+    - evap.sum()
+    - runoff.sum()
+    - drainage.sum()
+    - storage_change.sum()
+)
 print(f"  Residual:        {water_residual:.1f}")
 
 # %%
@@ -278,8 +295,24 @@ ax.set_xlabel("Hour of Day")
 ax.set_ylabel("Tsurf - T2 (degC)")
 ax.set_title("Surface-Air Temperature Difference")
 ax.axhline(y=0, color="r", linestyle="--", alpha=0.5)
-ax.fill_between(delta_t_hourly.index, 0, delta_t_hourly.values, where=delta_t_hourly.values > 0, alpha=0.3, color="red", label="Surface warmer")
-ax.fill_between(delta_t_hourly.index, 0, delta_t_hourly.values, where=delta_t_hourly.values < 0, alpha=0.3, color="blue", label="Air warmer")
+ax.fill_between(
+    delta_t_hourly.index,
+    0,
+    delta_t_hourly.values,
+    where=delta_t_hourly.values > 0,
+    alpha=0.3,
+    color="red",
+    label="Surface warmer",
+)
+ax.fill_between(
+    delta_t_hourly.index,
+    0,
+    delta_t_hourly.values,
+    where=delta_t_hourly.values < 0,
+    alpha=0.3,
+    color="blue",
+    label="Air warmer",
+)
 ax.legend()
 
 plt.tight_layout()
@@ -375,7 +408,7 @@ for key, val in stats_t2.items():
 def validation_scatter(observed, modelled, variable_name, units="", ax=None):
     """Create validation scatter plot with statistics."""
     if ax is None:
-        fig, ax = plt.subplots(figsize=(8, 8))
+        _fig, ax = plt.subplots(figsize=(8, 8))
 
     obs, mod = observed.align(modelled, join="inner")
     obs = obs.dropna()
@@ -390,12 +423,31 @@ def validation_scatter(observed, modelled, variable_name, units="", ax=None):
 
     # Regression line
     slope, intercept = np.polyfit(obs, mod, 1)
-    ax.plot(lims, [slope * x + intercept for x in lims], "r-", label=f"Fit: y = {slope:.2f}x + {intercept:.2f}", linewidth=2)
+    ax.plot(
+        lims,
+        [slope * x + intercept for x in lims],
+        "r-",
+        label=f"Fit: y = {slope:.2f}x + {intercept:.2f}",
+        linewidth=2,
+    )
 
     # Statistics annotation
     stats_dict = validation_statistics(observed, modelled)
-    stats_text = f"n = {stats_dict['n']}\n" f"$R^2$ = {stats_dict['r2']:.3f}\n" f"RMSE = {stats_dict['rmse']:.2f}\n" f"Bias = {stats_dict['bias']:.2f}"
-    ax.text(0.05, 0.95, stats_text, transform=ax.transAxes, verticalalignment="top", fontsize=10, bbox=dict(boxstyle="round", facecolor="wheat", alpha=0.8))
+    stats_text = (
+        f"n = {stats_dict['n']}\n"
+        f"$R^2$ = {stats_dict['r2']:.3f}\n"
+        f"RMSE = {stats_dict['rmse']:.2f}\n"
+        f"Bias = {stats_dict['bias']:.2f}"
+    )
+    ax.text(
+        0.05,
+        0.95,
+        stats_text,
+        transform=ax.transAxes,
+        verticalalignment="top",
+        fontsize=10,
+        bbox={"boxstyle": "round", "facecolor": "wheat", "alpha": 0.8},
+    )
 
     ax.set_xlabel(f"Observed {variable_name} ({units})")
     ax.set_ylabel(f"Modelled {variable_name} ({units})")
@@ -421,7 +473,7 @@ export_vars = ["QN", "QH", "QE", "QS", "T2", "RH2"]
 export_df = get_vars(output, export_vars)
 # export_df.to_csv('suews_output.csv')  # Uncomment to save
 print(f"Export DataFrame shape: {export_df.shape}")
-print(f"Ready to save with: export_df.to_csv('suews_output.csv')")
+print("Ready to save with: export_df.to_csv('suews_output.csv')")
 
 # Save typed checkpoint for restart runs
 checkpoint = output.checkpoint

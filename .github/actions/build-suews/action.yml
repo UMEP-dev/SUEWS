@@ -15,13 +15,16 @@ inputs:
     description: 'Python version to build for (always cp312 — emits cp312-abi3 wheel)'
     required: true
   test_tier:
-    description: 'Test tier: smoke, core, cfg, standard, or all'
+    description: 'Test tier: smoke, core, cfg, standard, physics-full, or all'
     required: false
     default: 'standard'
   is_testpypi_build:
     description: 'Whether this is a TestPyPI build (adds notice to README)'
     required: false
     default: 'false'
+  metrics_host_dir:
+    description: 'Host directory persisted across cibuildwheel containers for CI metrics'
+    required: true
 
 runs:
   using: 'composite'
@@ -57,9 +60,11 @@ runs:
         python3 get_ver_git.py
         echo "Generated version: $(cat src/supy/_version_scm.py | grep __version__)"
 
-    - name: Prepare Rust cache directories
+    - name: Prepare cache directories
       shell: bash
-      run: mkdir -p .cargo-cache .rust-target-cache
+      env:
+        METRICS_HOST_DIR: ${{ inputs.metrics_host_dir }}
+      run: mkdir -p .cargo-cache .rust-target-cache .pip-cache "$METRICS_HOST_DIR"
 
     - name: Cache Rust/Cargo dependencies
       uses: actions/cache@668228422ae6a00e4ad889ee87cd7109ec5666a7 # v5
@@ -71,6 +76,27 @@ runs:
         restore-keys: |
           cargo-${{ inputs.buildplat_name }}-${{ inputs.buildplat_arch }}-${{ inputs.python }}-
 
+    - name: Cache pip downloads
+      uses: actions/cache@668228422ae6a00e4ad889ee87cd7109ec5666a7 # v5
+      with:
+        path: .pip-cache
+        key: pip-${{ inputs.buildplat_name }}-${{ inputs.buildplat_arch }}-${{ hashFiles('pyproject.toml') }}
+        restore-keys: |
+          pip-${{ inputs.buildplat_name }}-${{ inputs.buildplat_arch }}-
+
+    - name: Cache MSYS2 pacman packages (Windows)
+      if: runner.os == 'Windows'
+      uses: actions/cache@668228422ae6a00e4ad889ee87cd7109ec5666a7 # v5
+      with:
+        path: C:\msys64\var\cache\pacman\pkg
+        # No hashFiles source exists for pacman package state, so the key
+        # uses a coarse manual epoch instead of a content hash. Bump the
+        # `msys2-cache-v1` literal below to force-invalidate this cache
+        # (e.g. if it becomes stale or corrupt).
+        key: msys2-pkg-${{ runner.os }}-msys2-cache-v1
+        restore-keys: |
+          msys2-pkg-${{ runner.os }}-
+
     - name: Build wheels
       uses: pypa/cibuildwheel@9c00cb4f6b517705a3794b22395aedc36257242c # v3.2
       env:
@@ -78,15 +104,18 @@ runs:
         CIBW_BUILD: ${{ inputs.python }}-${{ inputs.buildplat_name }}*
         CIBW_ARCHS: ${{ inputs.buildplat_arch }}
         # Mount host cache directories into the Linux Docker container so that
-        # cargo artifacts survive container teardown and can be saved by actions/cache.
+        # cargo artifacts and pip downloads survive container teardown and can
+        # be saved by actions/cache.
         # cibuildwheel uses `docker cp` (not bind mount) for the project, so without
         # explicit volume mounts the compiled deps are lost when the container exits.
         CIBW_CONTAINER_ENGINE: >-
           docker; create_args:
           --volume ${{ github.workspace }}/.cargo-cache:/cargo-cache
           --volume ${{ github.workspace }}/.rust-target-cache:/rust-target-cache
+          --volume ${{ github.workspace }}/.pip-cache:/pip-cache
+          --volume ${{ inputs.metrics_host_dir }}:/ci-metrics
         # CIBW_ENABLE: ${{ inputs.python == 'cp314' && 'cp314' || '' }}
-        CIBW_ENVIRONMENT_PASS_LINUX: RUNNER_OS
+        CIBW_ENVIRONMENT_PASS_LINUX: RUNNER_OS RUNNER_ARCH GITHUB_JOB
         # Use manylinux_2_28 for Python 3.13+ (newer dependencies require it), manylinux2014 for 3.12 (older Linux compatibility)
         CIBW_MANYLINUX_X86_64_IMAGE: ${{ (inputs.python == 'cp313' || inputs.python == 'cp314') && 'manylinux_2_28' || 'manylinux2014' }}
         CIBW_MANYLINUX_AARCH64_IMAGE: ${{ (inputs.python == 'cp313' || inputs.python == 'cp314') && 'manylinux_2_28' || 'manylinux2014' }}
@@ -97,39 +126,54 @@ runs:
         CIBW_ENVIRONMENT: >
           PIP_ONLY_BINARY=:all:
           PIP_PREFER_BINARY=1
+          PIP_CACHE_DIR=${{ github.workspace }}/.pip-cache
           CARGO_HOME=${{ github.workspace }}/.cargo-cache
           CARGO_TARGET_DIR=${{ github.workspace }}/.rust-target-cache
           SUEWS_KNOWLEDGE_GIT_SHA=${{ github.sha }}
+          SUEWS_CI_PHASES='${{ inputs.metrics_host_dir }}/physics-${{ inputs.python }}-${{ inputs.buildplat_name }}-${{ inputs.buildplat_arch }}-phases.json'
+          SUEWS_CI_METRICS_DIR='${{ inputs.metrics_host_dir }}'
+          SUEWS_CI_METRICS_NAME=physics-${{ inputs.python }}-${{ inputs.buildplat_name }}-${{ inputs.buildplat_arch }}
         # Platform-specific: Linux Fortran compiler and Rust toolchain settings
         # NOTE: CIBW_ENVIRONMENT_{PLATFORM} replaces (not merges with) CIBW_ENVIRONMENT,
-        # so PIP_PREFER_BINARY must be repeated here.
+        # so PIP_PREFER_BINARY and PIP_CACHE_DIR must be repeated here.
         CIBW_ENVIRONMENT_LINUX: >
           FCFLAGS="-fno-optimize-sibling-calls -ffree-line-length-none"
           F90=gfortran
           PIP_ONLY_BINARY=:all:
           PIP_PREFER_BINARY=1
+          PIP_CACHE_DIR=/pip-cache
           CARGO_HOME=/cargo-cache
           CARGO_TARGET_DIR=/rust-target-cache
           SUEWS_KNOWLEDGE_GIT_SHA=${{ github.sha }}
+          SUEWS_CI_PHASES=/ci-metrics/physics-${{ inputs.python }}-${{ inputs.buildplat_name }}-${{ inputs.buildplat_arch }}-phases.json
+          SUEWS_CI_METRICS_DIR=/ci-metrics
+          SUEWS_CI_METRICS_NAME=physics-${{ inputs.python }}-${{ inputs.buildplat_name }}-${{ inputs.buildplat_arch }}
           PATH="/cargo-cache/bin:$PATH"
         CIBW_BEFORE_ALL_LINUX: >
+          python "{package}/scripts/suews/ci_phase_metrics.py" start toolchain_setup &&
           curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y &&
-          pip install --upgrade pip setuptools wheel
+          pip install --upgrade pip setuptools wheel &&
+          python "{package}/scripts/suews/ci_phase_metrics.py" stop toolchain_setup
         CIBW_BEFORE_ALL_MACOS: >
+          python "{package}/scripts/suews/ci_phase_metrics.py" start toolchain_setup &&
           brew install gfortran &&
           brew unlink gfortran &&
-          brew link gfortran
+          brew link gfortran &&
+          python "{package}/scripts/suews/ci_phase_metrics.py" stop toolchain_setup
         # Windows MSYS2/pacman setup with two workarounds:
         # 1. Core package updates (pacman, msys2-runtime) terminate bash.exe via taskkill - use Windows-level
         #    error suppression (|| ver >nul) since bash can't execute || true when forcibly killed
         # 2. Mirror timeouts cause "Operation too slow" errors - use --disable-download-timeout + retry
         CIBW_BEFORE_ALL_WINDOWS: >
+          python "{package}/scripts/suews/ci_phase_metrics.py" start toolchain_setup &&
           (C:\msys64\usr\bin\bash.exe -lc "pacman -Syu --noconfirm --disable-download-timeout" || ver >nul) &&
           C:\msys64\usr\bin\bash.exe -lc "pacman -Syu --noconfirm --disable-download-timeout" &&
-          C:\msys64\usr\bin\bash.exe -lc "for i in 1 2 3; do pacman -S --needed --noconfirm --disable-download-timeout mingw-w64-ucrt-x86_64-gcc mingw-w64-ucrt-x86_64-gcc-fortran mingw-w64-ucrt-x86_64-binutils mingw-w64-ucrt-x86_64-make mingw-w64-ucrt-x86_64-openblas && break || { echo Retry $i/3 && sleep 15; }; done"
+          C:\msys64\usr\bin\bash.exe -lc "for i in 1 2 3; do pacman -S --needed --noconfirm --disable-download-timeout mingw-w64-ucrt-x86_64-gcc mingw-w64-ucrt-x86_64-gcc-fortran mingw-w64-ucrt-x86_64-binutils mingw-w64-ucrt-x86_64-make mingw-w64-ucrt-x86_64-openblas && break || { echo Retry $i/3 && sleep 15; }; done" &&
+          python "{package}/scripts/suews/ci_phase_metrics.py" stop toolchain_setup
         # Platform-specific: Windows compiler and toolchain settings
         # NOTE: CIBW_ENVIRONMENT_{PLATFORM} replaces (not merges with) CIBW_ENVIRONMENT,
-        # so CARGO_HOME/CARGO_TARGET_DIR and PIP_PREFER_BINARY must be repeated here.
+        # so CARGO_HOME/CARGO_TARGET_DIR, PIP_PREFER_BINARY, and PIP_CACHE_DIR
+        # must be repeated here.
         CIBW_ENVIRONMENT_WINDOWS: >
           PATH="C:\\msys64\\ucrt64\\bin;$PATH"
           CC=gcc
@@ -141,10 +185,17 @@ runs:
           LDFLAGS="-lucrt -static-libgcc -static-libgfortran -LC:/msys64/ucrt64/lib -lsetjmp_compat"
           PIP_ONLY_BINARY=:all:
           PIP_PREFER_BINARY=1
+          PIP_CACHE_DIR='${{ github.workspace }}/.pip-cache'
           CARGO_HOME='${{ github.workspace }}/.cargo-cache'
           CARGO_TARGET_DIR='${{ github.workspace }}/.rust-target-cache'
           SUEWS_KNOWLEDGE_GIT_SHA='${{ github.sha }}'
+          SUEWS_CI_PHASES='${{ inputs.metrics_host_dir }}\physics-${{ inputs.python }}-${{ inputs.buildplat_name }}-${{ inputs.buildplat_arch }}-phases.json'
+          SUEWS_CI_METRICS_DIR='${{ inputs.metrics_host_dir }}'
+          SUEWS_CI_METRICS_NAME=physics-${{ inputs.python }}-${{ inputs.buildplat_name }}-${{ inputs.buildplat_arch }}
+        CIBW_BEFORE_BUILD: >
+          python "{package}/scripts/suews/ci_phase_metrics.py" start build
         CIBW_BEFORE_BUILD_WINDOWS: >
+          python "{package}/scripts/suews/ci_phase_metrics.py" start build &&
           echo Creating setjmp compatibility library... &&
           echo int _setjmpex(void* buf) { extern int __intrinsic_setjmpex(void*); return __intrinsic_setjmpex(buf); } > setjmp_compat.c &&
           C:\msys64\ucrt64\bin\gcc.exe -c setjmp_compat.c -o setjmp_compat.o &&
@@ -161,27 +212,70 @@ runs:
           where gcc &&
           gcc --version &&
           pip install delvewheel
-        CIBW_REPAIR_WHEEL_COMMAND_WINDOWS: "delvewheel repair -w {dest_dir} {wheel}"
-        CIBW_TEST_REQUIRES: pytest
+        CIBW_REPAIR_WHEEL_COMMAND_LINUX: >-
+          python scripts/suews/ci_phase_metrics.py transition build repair &&
+          auditwheel repair -w {dest_dir} {wheel} &&
+          python scripts/suews/ci_phase_metrics.py stop repair
+        CIBW_REPAIR_WHEEL_COMMAND_MACOS: >-
+          python scripts/suews/ci_phase_metrics.py transition build repair &&
+          delocate-wheel --require-archs {delocate_archs} -w {dest_dir} -v {wheel} &&
+          python scripts/suews/ci_phase_metrics.py stop repair
+        CIBW_REPAIR_WHEEL_COMMAND_WINDOWS: >-
+          python scripts/suews/ci_phase_metrics.py transition build repair &&
+          delvewheel repair -w {dest_dir} {wheel} &&
+          python scripts/suews/ci_phase_metrics.py stop repair
+        CIBW_BEFORE_TEST: >-
+          python "{package}/scripts/suews/ci_phase_metrics.py" start install
+        # Pin the scheduler stack so distribution behaviour cannot drift between
+        # CI runs. Re-benchmark the fixed-worker candidates before updating.
+        CIBW_TEST_REQUIRES: pytest==9.1.1 pytest-xdist==3.8.0
         # Test tiers: choose subset based on path detection and trigger.
         # gh#1300: physics tests are binary-determined, so one run per
         # (OS, arch) on the build Python is sufficient. API tests (Python
         # wrapper surface) run separately per (platform x Python) via
         # test-api-cross-python-reusable.yml.
         # Always include --durations=10 to show slowest tests in output.
+        # Keep the runner-detected worker budget: GitHub-hosted CPU capacity is
+        # the constraint, so adding workers can increase contention. Work
+        # stealing balances long simulation tests across the existing workers.
         # After pytest, enforce bridge-manifest coverage of public Fortran types.
         # Uses run_ci_tests.py wrapper to avoid shell-level && chaining,
         # which breaks on Windows cmd.exe with quoted marker expressions.
         CIBW_TEST_COMMAND: >-
           python {project}/scripts/suews/run_ci_tests.py {project}
-          -v --tb=short --durations=10
+          -v --tb=short --durations=10 -n auto --maxprocesses=4 --dist worksteal
           ${{ inputs.test_tier == 'smoke' && '-m "physics and smoke and not slow"' ||
               inputs.test_tier == 'core' && '-m "physics and (smoke or core) and not slow"' ||
               inputs.test_tier == 'cfg' && '-m "physics and (smoke or cfg) and not slow"' ||
               inputs.test_tier == 'standard' && '-m "physics and not slow"' ||
+              inputs.test_tier == 'physics-full' && '-m physics' ||
               inputs.test_tier == 'all' && '-m physics' ||
               '-m physics' }}
         MACOSX_DEPLOYMENT_TARGET: '15.0'
+
+    - name: Finalise wheel CI metrics
+      if: always()
+      shell: bash
+      env:
+        SUEWS_CI_PHASES: ${{ inputs.metrics_host_dir }}/physics-${{ inputs.python }}-${{ inputs.buildplat_name }}-${{ inputs.buildplat_arch }}-phases.json
+        PYTEST_METRICS: ${{ inputs.metrics_host_dir }}/physics-${{ inputs.python }}-${{ inputs.buildplat_name }}-${{ inputs.buildplat_arch }}-pytest.json
+        WHEEL_METRICS: ${{ inputs.metrics_host_dir }}/physics-${{ inputs.python }}-${{ inputs.buildplat_name }}-${{ inputs.buildplat_arch }}-wheel-job.json
+        PHYSICS_JOB_NAME: physics-${{ inputs.python }}-${{ inputs.buildplat_name }}-${{ inputs.buildplat_arch }}
+      run: >-
+        python scripts/suews/ci_phase_metrics.py
+        --state "$SUEWS_CI_PHASES" finalise
+        --pytest "$PYTEST_METRICS"
+        --output "$WHEEL_METRICS"
+        --job-name "$PHYSICS_JOB_NAME"
+
+    - name: Upload wheel CI metrics
+      if: always()
+      uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7
+      with:
+        name: ci-metrics-physics-${{ inputs.python }}-${{ inputs.buildplat_name }}-${{ inputs.buildplat_arch }}
+        path: ${{ inputs.metrics_host_dir }}/*.json
+        if-no-files-found: error
+        retention-days: 14
 
     - name: Upload wheels
       uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7

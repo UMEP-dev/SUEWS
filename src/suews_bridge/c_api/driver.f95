@@ -20,7 +20,8 @@ use module_ctrl_type, only: SUEWS_TIMER, SUEWS_CONFIG, SUEWS_SITE, SUEWS_STATE, 
                             flag_STATE, anthroEmis_STATE, OHM_STATE, solar_State, atm_state, PHENOLOGY_STATE, &
                             SNOW_STATE, HYDRO_STATE, HEAT_STATE, ROUGHNESS_STATE, STEBBS_STATE, NHOOD_STATE
 use module_ctrl_error_state, only: reset_supy_error
-use module_c_api_spartacus_prm, only: spartacus_prm_unpack
+use module_c_api_spartacus_prm, only: SUEWS_CAPI_SPARTACUS_PRM_BASE_LEN, &
+                                      spartacus_prm_unpack
 use module_c_api_lumps, only: lumps_prm_unpack
 use module_c_api_ehc_prm, only: ehc_prm_unpack, ehc_surface_len
 use module_c_api_spartacus_layer_prm, only: spartacus_layer_prm_unpack
@@ -57,9 +58,9 @@ implicit none
 private
 
 integer(c_int), parameter :: SUEWS_CAPI_TIMER_LEN = 18_c_int
-integer(c_int), parameter :: SUEWS_CAPI_CONFIG_LEN = 22_c_int
+integer(c_int), parameter :: SUEWS_CAPI_CONFIG_LEN = 23_c_int
 integer(c_int), parameter :: SUEWS_CAPI_SITE_SCALARS_LEN = 24_c_int
-integer(c_int), parameter :: SUEWS_CAPI_FORCING_COLS = 30_c_int
+integer(c_int), parameter :: SUEWS_CAPI_FORCING_COLS = 32_c_int
 
 integer(c_int), parameter :: SUEWS_CAPI_SITE_MEMBER_COUNT = 18_c_int
 integer(c_int), parameter :: SUEWS_CAPI_STATE_MEMBER_COUNT = 13_c_int
@@ -530,7 +531,7 @@ subroutine unpack_site_members( &
       err = local_err
       return
    end if
-   required_len = 14_c_int + int(nlayer, c_int) + 1_c_int
+   required_len = SUEWS_CAPI_SPARTACUS_PRM_BASE_LEN + int(nlayer, c_int) + 1_c_int
    if (member_len>=required_len) then
       call spartacus_prm_unpack(site_flat(int(member_offset) + 1), member_len, int(nlayer, c_int), site%spartacus, local_err)
       if (local_err/=SUEWS_CAPI_OK) then
@@ -575,7 +576,7 @@ subroutine unpack_site_members( &
       err = local_err
       return
    end if
-   required_len = 8_c_int * int(nlayer, c_int) + 2_c_int * int(nspec, c_int) * int(nlayer, c_int)
+   required_len = 9_c_int * int(nlayer, c_int) + 2_c_int * int(nspec, c_int) * int(nlayer, c_int)
    if (member_len>=required_len) then
       call spartacus_layer_prm_unpack(site_flat(int(member_offset) + 1), member_len, int(nlayer, c_int), &
                                       int(nspec, c_int), site%spartacus_layer, local_err)
@@ -1052,6 +1053,7 @@ subroutine unpack_config(flat, n_flat, config, err)
    config%rcmethod = int(nint(flat(20)))
    config%setpointmethod = int(nint(flat(21)))
    config%flag_test = flat(22)>=0.5_c_double
+   config%KdownSplitMethod = int(nint(flat(23)))
 
    err = SUEWS_CAPI_OK
 

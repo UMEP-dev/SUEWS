@@ -16,13 +16,14 @@ public :: SUEWS_CAPI_OK
 public :: SUEWS_CAPI_BAD_BUFFER
 public :: SUEWS_CAPI_BAD_STATE
 
-integer(c_int), parameter, public :: SUEWS_CAPI_SPARTACUS_LAYER_PRM_SCHEMA_VERSION = 1_c_int
+integer(c_int), parameter, public :: SUEWS_CAPI_SPARTACUS_LAYER_PRM_SCHEMA_VERSION = 2_c_int
 
 type :: spartacus_layer_prm_shadow
    real(c_double), dimension(:), allocatable :: building_frac
    real(c_double), dimension(:), allocatable :: building_scale
    real(c_double), dimension(:), allocatable :: veg_frac
    real(c_double), dimension(:), allocatable :: veg_scale
+   real(c_double), dimension(:), allocatable :: veg_ext
    real(c_double), dimension(:), allocatable :: alb_roof
    real(c_double), dimension(:), allocatable :: emis_roof
    real(c_double), dimension(:), allocatable :: alb_wall
@@ -191,6 +192,7 @@ subroutine spartacus_layer_prm_layout(state, n_flat, nlayer, nspec, err)
    call update_len_from_vec(state%building_scale, nlayer, err)
    call update_len_from_vec(state%veg_frac, nlayer, err)
    call update_len_from_vec(state%veg_scale, nlayer, err)
+   call update_len_from_vec(state%veg_ext, nlayer, err)
    call update_len_from_vec(state%alb_roof, nlayer, err)
    call update_len_from_vec(state%emis_roof, nlayer, err)
    call update_len_from_vec(state%alb_wall, nlayer, err)
@@ -203,6 +205,7 @@ subroutine spartacus_layer_prm_layout(state, n_flat, nlayer, nspec, err)
    call require_vec_layout(state%building_scale, nlayer, err)
    call require_vec_layout(state%veg_frac, nlayer, err)
    call require_vec_layout(state%veg_scale, nlayer, err)
+   call require_vec_layout(state%veg_ext, nlayer, err)
    call require_vec_layout(state%alb_roof, nlayer, err)
    call require_vec_layout(state%emis_roof, nlayer, err)
    call require_vec_layout(state%alb_wall, nlayer, err)
@@ -218,7 +221,7 @@ subroutine spartacus_layer_prm_layout(state, n_flat, nlayer, nspec, err)
 
    if (nlayer==0_c_int) nspec = 0_c_int
 
-   n_flat = 8_c_int * nlayer + 2_c_int * nspec * nlayer
+   n_flat = 9_c_int * nlayer + 2_c_int * nspec * nlayer
    err = SUEWS_CAPI_OK
 
 end subroutine spartacus_layer_prm_layout
@@ -376,6 +379,7 @@ subroutine spartacus_layer_prm_pack(state, flat, n_flat, nlayer, nspec, err)
    call pack_vec(state%building_scale, flat, idx, nlayer)
    call pack_vec(state%veg_frac, flat, idx, nlayer)
    call pack_vec(state%veg_scale, flat, idx, nlayer)
+   call pack_vec(state%veg_ext, flat, idx, nlayer)
    call pack_vec(state%alb_roof, flat, idx, nlayer)
    call pack_vec(state%emis_roof, flat, idx, nlayer)
    call pack_vec(state%alb_wall, flat, idx, nlayer)
@@ -406,7 +410,7 @@ subroutine spartacus_layer_prm_unpack(flat, n_flat, nlayer, nspec, state, err)
       return
    end if
 
-   n_expected = 8_c_int * nlayer + 2_c_int * nspec * nlayer
+   n_expected = 9_c_int * nlayer + 2_c_int * nspec * nlayer
    if (n_flat<n_expected) then
       err = SUEWS_CAPI_BAD_BUFFER
       return
@@ -417,6 +421,7 @@ subroutine spartacus_layer_prm_unpack(flat, n_flat, nlayer, nspec, state, err)
    call ensure_vec_alloc(state%building_scale, nlayer, err)
    call ensure_vec_alloc(state%veg_frac, nlayer, err)
    call ensure_vec_alloc(state%veg_scale, nlayer, err)
+   call ensure_vec_alloc(state%veg_ext, nlayer, err)
    call ensure_vec_alloc(state%alb_roof, nlayer, err)
    call ensure_vec_alloc(state%emis_roof, nlayer, err)
    call ensure_vec_alloc(state%alb_wall, nlayer, err)
@@ -431,6 +436,7 @@ subroutine spartacus_layer_prm_unpack(flat, n_flat, nlayer, nspec, state, err)
    call unpack_vec(flat, idx, state%building_scale, nlayer)
    call unpack_vec(flat, idx, state%veg_frac, nlayer)
    call unpack_vec(flat, idx, state%veg_scale, nlayer)
+   call unpack_vec(flat, idx, state%veg_ext, nlayer)
    call unpack_vec(flat, idx, state%alb_roof, nlayer)
    call unpack_vec(flat, idx, state%emis_roof, nlayer)
    call unpack_vec(flat, idx, state%alb_wall, nlayer)

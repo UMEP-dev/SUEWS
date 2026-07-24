@@ -184,19 +184,23 @@ def test_needs_storage_validation_true_and_false():
     assert cfg._needs_storage_validation() is False  # Disabled by default now
     cfg2 = make_cfg(storage_heat=1)
     assert cfg2._needs_storage_validation() is False
+    cfg3 = make_cfg(storage_heat=8)
+    cfg3.model.physics.model_fields_set = {"storage_heat"}
+    assert cfg3._needs_storage_validation() is True
 
 
 def test_validate_storage_requires_numeric_and_lambda():
     cfg = make_cfg(storage_heat=6)
-    # stub thermal_layers: dz has one bad None, k OK, rho_cp missing
+    # Building material layers: dz has one bad None, k is valid, and rho_cp is
+    # missing.
     th = SimpleNamespace(
         dz=SimpleNamespace(value=[None]),
         k=SimpleNamespace(value=[1.0, 2.0]),
         # rho_cp attribute not defined → treated missing
     )
-    wall = SimpleNamespace(thermal_layers=th)
+    bldgs = SimpleNamespace(thermal_layers=th)
     props = SimpleNamespace(
-        vertical_layers=SimpleNamespace(walls=[wall]),
+        land_cover=SimpleNamespace(bldgs=bldgs),
         lambda_c=None,  # missing
     )
     site = DummySite(properties=props, name="SiteS")
@@ -207,6 +211,67 @@ def test_validate_storage_requires_numeric_and_lambda():
     assert any("properties.lambda_c must be set" in m for m in msgs)
     # should include the site name
     assert any("SiteS" in m for m in msgs)
+
+
+def test_validate_storage_method7_does_not_require_building_material_or_lambda():
+    cfg = make_cfg(storage_heat=7, net_radiation=1003)
+    props = SimpleNamespace(
+        land_cover=SimpleNamespace(
+            bldgs=SimpleNamespace(thermal_layers=None)
+        ),
+        lambda_c=None,
+    )
+    site = DummySite(properties=props, name="SiteS")
+    site.initial_states = SimpleNamespace(
+        qn_surfs=SimpleNamespace(value=[0.0] * 7),
+        dqndt_surf=SimpleNamespace(value=[0.0] * 7),
+    )
+
+    assert SUEWSConfig._validate_storage(cfg, site, 2) == []
+
+
+def test_validate_storage_method7_requires_spartacus_radiation():
+    cfg = make_cfg(storage_heat=7, net_radiation=3)
+    props = SimpleNamespace(
+        land_cover=SimpleNamespace(bldgs=SimpleNamespace(thermal_layers=None)),
+        lambda_c=None,
+    )
+    site = DummySite(properties=props, name="SiteS")
+    site.initial_states = SimpleNamespace(
+        qn_surfs=SimpleNamespace(value=[0.0] * 7),
+        dqndt_surf=SimpleNamespace(value=[0.0] * 7),
+    )
+
+    issues = SUEWSConfig._validate_storage(cfg, site, 2)
+
+    assert len(issues) == 1
+    assert "requires model.physics.net_radiation" in issues[0]
+    assert "1001, 1002, or 1003" in issues[0]
+
+
+def test_validate_storage_rejects_nonfinite_values():
+    cfg = make_cfg(storage_heat=6)
+    thermal_layers = SimpleNamespace(
+        dz=SimpleNamespace(value=[float("nan")]),
+        k=SimpleNamespace(value=[1.0]),
+        rho_cp=SimpleNamespace(value=[2_000_000.0]),
+    )
+    props = SimpleNamespace(
+        land_cover=SimpleNamespace(
+            bldgs=SimpleNamespace(thermal_layers=thermal_layers)
+        ),
+        lambda_c=SimpleNamespace(value=0.4),
+    )
+    site = DummySite(properties=props, name="SiteS")
+    site.initial_states = SimpleNamespace(
+        qn_surfs=SimpleNamespace(value=[0.0] * 7),
+        dqndt_surf=SimpleNamespace(value=[0.0] * 6 + [float("inf")]),
+    )
+
+    issues = SUEWSConfig._validate_storage(cfg, site, 2)
+
+    assert any("thermal_layers.dz" in issue and "finite" in issue for issue in issues)
+    assert any("dqndt_surf" in issue and "finite" in issue for issue in issues)
 
 
 def test_validate_lai_ranges_no_land_cover():
@@ -2088,21 +2153,146 @@ def test_validate_spartacus_building_height_stebbs_off():
     msgs = cfg._validate_spartacus_building_height(site, 0)
     assert msgs == []
 
-def test_validate_spartacus_sfr_mismatch_bldgs_frac():
+def test_validate_spartacus_sfr_allows_building_frac_below_land_cover():
+    """SPARTACUS allows lower first-layer building geometry smaller than building land cover."""
     cfg = SUEWSConfig.model_construct()
     _force_set(cfg, "model", SimpleNamespace(physics=SimpleNamespace(net_radiation=1001)))
-    bldgs = SimpleNamespace(sfr=0.6)  
+    bldgs = SimpleNamespace(sfr=0.259018017683188)
     lc = SimpleNamespace(bldgs=bldgs, evetr=None, dectr=None)
     vertical_layers = SimpleNamespace(
-        building_frac=[0.3],  
+        building_frac=[0.2533775454108994],
         veg_frac=[0.0],
     )
     props = SimpleNamespace(land_cover=lc, vertical_layers=vertical_layers)
     site = DummySite(properties=props, name="TestSite")
     msgs = cfg._validate_spartacus_sfr(site, 0)
-    assert msgs  
+    assert msgs == []
+
+def test_validate_spartacus_sfr_allows_building_frac_above_land_cover():
+    """SPARTACUS building geometry may exceed building land cover from another source."""
+    cfg = SUEWSConfig.model_construct()
+    _force_set(cfg, "model", SimpleNamespace(physics=SimpleNamespace(net_radiation=1001)))
+    bldgs = SimpleNamespace(sfr=0.3)
+    lc = SimpleNamespace(bldgs=bldgs, evetr=None, dectr=None)
+    vertical_layers = SimpleNamespace(
+        building_frac=[0.3, 0.31],
+        veg_frac=[0.0, 0.0],
+    )
+    props = SimpleNamespace(land_cover=lc, vertical_layers=vertical_layers)
+    site = DummySite(properties=props, name="TestSite")
+    msgs = cfg._validate_spartacus_sfr(site, 0)
+    assert msgs == []
+
+def test_validate_spartacus_sfr_allows_layer_geometry_sum_equal_one():
+    """SPARTACUS building and vegetation layer fractions may fill a layer."""
+    cfg = SUEWSConfig.model_construct()
+    _force_set(cfg, "model", SimpleNamespace(physics=SimpleNamespace(net_radiation=1001)))
+    bldgs = SimpleNamespace(sfr=0.7)
+    lc = SimpleNamespace(bldgs=bldgs, evetr=None, dectr=None)
+    vertical_layers = SimpleNamespace(
+        building_frac=[0.7],
+        veg_frac=[0.3],
+    )
+    props = SimpleNamespace(land_cover=lc, vertical_layers=vertical_layers)
+    site = DummySite(properties=props, name="TestSite")
+
+    msgs = cfg._validate_spartacus_sfr(site, 0)
+
+    assert msgs == []
+
+def test_validate_spartacus_sfr_rejects_layer_geometry_sum_above_one():
+    """SPARTACUS building and vegetation layer fractions cannot exceed one."""
+    cfg = SUEWSConfig.model_construct()
+    _force_set(cfg, "model", SimpleNamespace(physics=SimpleNamespace(net_radiation=1001)))
+    bldgs = SimpleNamespace(sfr=0.8)
+    lc = SimpleNamespace(bldgs=bldgs, evetr=None, dectr=None)
+    vertical_layers = SimpleNamespace(
+        building_frac=[0.5, 0.8],
+        veg_frac=[0.4, 0.25],
+    )
+    props = SimpleNamespace(land_cover=lc, vertical_layers=vertical_layers)
+    site = DummySite(properties=props, name="TestSite")
+
+    msgs = cfg._validate_spartacus_sfr(site, 0)
+
     assert any(
-        "bldgs.sfr (0.6) does not match vertical_layers.building_frac[0] (0.3)"
+        "vertical_layers.building_frac[1] + vertical_layers.veg_frac[1] (1.05) exceeds 1.0"
+        in m
+        for m in msgs
+    )
+
+def test_validate_spartacus_sfr_rejects_unpaired_layer_geometry_above_one():
+    """SPARTACUS occupancy checks extra layers in the longer fraction array."""
+    cfg = SUEWSConfig.model_construct()
+    _force_set(cfg, "model", SimpleNamespace(physics=SimpleNamespace(net_radiation=1001)))
+    bldgs = SimpleNamespace(sfr=0.5)
+    lc = SimpleNamespace(bldgs=bldgs, evetr=None, dectr=None)
+    vertical_layers = SimpleNamespace(
+        building_frac=[0.5],
+        veg_frac=[0.4, 1.05],
+    )
+    props = SimpleNamespace(land_cover=lc, vertical_layers=vertical_layers)
+    site = DummySite(properties=props, name="TestSite")
+
+    msgs = cfg._validate_spartacus_sfr(site, 0)
+
+    assert any(
+        "vertical_layers.building_frac[1] + vertical_layers.veg_frac[1] (1.05) exceeds 1.0"
+        in m
+        for m in msgs
+    )
+
+def test_validate_spartacus_sfr_allows_upper_vegetation_with_trunk_fraction():
+    """Upper vegetation layers are valid when the first layer has trunk fraction."""
+    cfg = SUEWSConfig.model_construct()
+    _force_set(cfg, "model", SimpleNamespace(physics=SimpleNamespace(net_radiation=1001)))
+    bldgs = SimpleNamespace(sfr=0.2)
+    lc = SimpleNamespace(bldgs=bldgs, evetr=None, dectr=None)
+    vertical_layers = SimpleNamespace(
+        building_frac=[0.2, 0.1, 0.0],
+        veg_frac=[0.05, 0.2, 0.2],
+    )
+    props = SimpleNamespace(land_cover=lc, vertical_layers=vertical_layers)
+    site = DummySite(properties=props, name="TestSite")
+
+    msgs = cfg._validate_spartacus_sfr(site, 0)
+
+    assert msgs == []
+
+def test_validate_spartacus_sfr_allows_zero_trunk_when_no_upper_vegetation():
+    """Zero first-layer vegetation is valid when all upper layers are also zero."""
+    cfg = SUEWSConfig.model_construct()
+    _force_set(cfg, "model", SimpleNamespace(physics=SimpleNamespace(net_radiation=1001)))
+    bldgs = SimpleNamespace(sfr=0.2)
+    lc = SimpleNamespace(bldgs=bldgs, evetr=None, dectr=None)
+    vertical_layers = SimpleNamespace(
+        building_frac=[0.2, 0.1, 0.0],
+        veg_frac=[0.0, 0.0, 0.0],
+    )
+    props = SimpleNamespace(land_cover=lc, vertical_layers=vertical_layers)
+    site = DummySite(properties=props, name="TestSite")
+
+    msgs = cfg._validate_spartacus_sfr(site, 0)
+
+    assert msgs == []
+
+def test_validate_spartacus_sfr_rejects_upper_vegetation_without_trunk_fraction():
+    """Upper vegetation layers require a nonzero first-layer trunk fraction."""
+    cfg = SUEWSConfig.model_construct()
+    _force_set(cfg, "model", SimpleNamespace(physics=SimpleNamespace(net_radiation=1001)))
+    bldgs = SimpleNamespace(sfr=0.2)
+    lc = SimpleNamespace(bldgs=bldgs, evetr=None, dectr=None)
+    vertical_layers = SimpleNamespace(
+        building_frac=[0.2, 0.1, 0.0],
+        veg_frac=[0.0, 0.2, 0.2],
+    )
+    props = SimpleNamespace(land_cover=lc, vertical_layers=vertical_layers)
+    site = DummySite(properties=props, name="TestSite")
+
+    msgs = cfg._validate_spartacus_sfr(site, 0)
+
+    assert any(
+        "vertical_layers.veg_frac[0] must be greater than 0 when vegetation is present in upper layers"
         in m
         for m in msgs
     )
@@ -2123,32 +2313,28 @@ def test_validate_spartacus_sfr_consistent_values():
     msgs = cfg._validate_spartacus_sfr(site, 0)
     assert msgs == []
 
-def test_validate_spartacus_sfr_mismatch_veg_frac():
-    """SPARTACUS SFR validation flags mismatch between evetr.sfr + dectr.sfr and veg_frac[0]."""
+def test_validate_spartacus_sfr_allows_trunk_crown_veg_frac():
+    """SPARTACUS allows lower first-layer vegetation geometry smaller than tree land cover."""
     cfg = SUEWSConfig.model_construct()
     _force_set(cfg, "model", SimpleNamespace(physics=SimpleNamespace(net_radiation=1001)))
 
-    # land_cover vegetation: evetr + dectr = 0.4
-    evetr = SimpleNamespace(sfr=0.1)
-    dectr = SimpleNamespace(sfr=0.3)
+    # land_cover vegetation: evetr + dectr = 0.20
+    evetr = SimpleNamespace(sfr=0.05)
+    dectr = SimpleNamespace(sfr=0.15)
     bldgs = SimpleNamespace(sfr=0.2)
     lc = SimpleNamespace(bldgs=bldgs, evetr=evetr, dectr=dectr)
 
-    # vertical_layers veg_frac: [0.1] -> mismatch with 0.4
+    # The first layer can represent trunk/near-ground obstruction, with
+    # upper layers representing the crown projected fraction.
     vertical_layers = SimpleNamespace(
         building_frac=[0.2],
-        veg_frac=[0.1],  # veg_frac[0] = 0.1
+        veg_frac=[0.06, 0.20, 0.20],
     )
     props = SimpleNamespace(land_cover=lc, vertical_layers=vertical_layers)
     site = DummySite(properties=props, name="TestSite")
 
     msgs = cfg._validate_spartacus_sfr(site, 0)
-    assert msgs
-    assert any(
-        "evetr.sfr + dectr.sfr (0.4) does not match vertical_layers.veg_frac[0] (0.1)"
-        in m
-        for m in msgs
-    )
+    assert msgs == []
 
 def test_validate_spartacus_veg_dimensions_valid():
     """Test validate_spartacus_veg_dimensions passes with matching veg_frac and nlayer."""
@@ -2661,6 +2847,45 @@ def test_phase_b_storageheatmethod_ohmincqf_validation(registry):
         in storage_results[0].message
     )
 
+    yaml_data_dyohm_building = {
+        "model": {
+            "physics": {
+                "storage_heat": "dyohm_building",
+                "ohm_inc_qf": "exclude",
+            }
+        }
+    }
+
+    results = registry["option_dependencies"](
+        ValidationContext(yaml_data=yaml_data_dyohm_building)
+    )
+
+    storage_results = [
+        r for r in results if r.parameter == "storageheatmethod-ohmincqf"
+    ]
+    assert len(storage_results) == 1
+    assert storage_results[0].status == "PASS"
+
+    yaml_data_dyohm_building_include_qf = {
+        "model": {
+            "physics": {
+                "storage_heat": "dyohm_building",
+                "ohm_inc_qf": "include",
+            }
+        }
+    }
+
+    results = registry["option_dependencies"](
+        ValidationContext(yaml_data=yaml_data_dyohm_building_include_qf)
+    )
+
+    storage_results = [
+        r for r in results if r.parameter == "storageheatmethod-ohmincqf"
+    ]
+    assert len(storage_results) == 1
+    assert storage_results[0].status == "ERROR"
+    assert "uses DyOHM only for the building storage heat flux" in storage_results[0].message
+
 
 def test_phase_b_storageheatmethod_ehc_requires_spartacus(registry):
     """EHC storage heat needs SPARTACUS facet radiation."""
@@ -2712,6 +2937,7 @@ def test_phase_b_storageheatmethod_stebbs_requires_stebbs_enabled(registry):
         "model": {
             "physics": {
                 "storage_heat": "stebbs",
+                "net_radiation": {"spartacus": {"ldown": "air"}},
                 "ohm_inc_qf": "exclude",
                 "stebbs": {"enabled": False},
             }
@@ -2733,6 +2959,7 @@ def test_phase_b_storageheatmethod_stebbs_requires_stebbs_enabled(registry):
         "model": {
             "physics": {
                 "storage_heat": "stebbs",
+                "net_radiation": {"spartacus": {"ldown": "air"}},
                 "ohm_inc_qf": "include",
                 "stebbs": {"enabled": True, "parameters": "default"},
             }
@@ -2748,6 +2975,63 @@ def test_phase_b_storageheatmethod_stebbs_requires_stebbs_enabled(registry):
     ]
     assert len(storage_results) == 1
     assert storage_results[0].status == "PASS"
+
+    radiation_results = [
+        r for r in results if r.parameter == "storageheatmethod-netradiationmethod"
+    ]
+    assert len(radiation_results) == 1
+    assert radiation_results[0].status == "PASS"
+
+
+def test_phase_b_storageheatmethod_stebbs_requires_spartacus(registry):
+    """STEBBS storage heat requires separate SPARTACUS facet radiation."""
+    yaml_data = {
+        "model": {
+            "physics": {
+                "storage_heat": "stebbs",
+                "net_radiation": {"narp": {"ldown": "air"}},
+                "ohm_inc_qf": "include",
+                "stebbs": {"enabled": True, "parameters": "default"},
+            }
+        }
+    }
+
+    results = registry["option_dependencies"](ValidationContext(yaml_data=yaml_data))
+
+    radiation_results = [
+        r for r in results if r.parameter == "storageheatmethod-netradiationmethod"
+    ]
+    assert len(radiation_results) == 1
+    assert radiation_results[0].status == "ERROR"
+    assert "requires a SPARTACUS-Surface NetRadiationMethod" in radiation_results[0].message
+    assert "1001, 1002, or 1003" in radiation_results[0].message
+
+
+@pytest.mark.parametrize(
+    ("storage_heat", "ohm_inc_qf"),
+    [("dyohm", "include"), ("dyohm_building", "exclude")],
+)
+def test_phase_b_dyohm_methods_do_not_require_spartacus(
+    registry, storage_heat, ohm_inc_qf
+):
+    """Only STEBBS storage heat, not DyOHM methods 6 or 8, needs SPARTACUS."""
+    yaml_data = {
+        "model": {
+            "physics": {
+                "storage_heat": storage_heat,
+                "net_radiation": {"narp": {"ldown": "air"}},
+                "ohm_inc_qf": ohm_inc_qf,
+                "stebbs": {"enabled": False},
+            }
+        }
+    }
+
+    results = registry["option_dependencies"](ValidationContext(yaml_data=yaml_data))
+
+    radiation_results = [
+        r for r in results if r.parameter == "storageheatmethod-netradiationmethod"
+    ]
+    assert radiation_results == []
 
 
 def test_phase_b_ohmincqf_include_requires_ohm_like_storage(registry):
@@ -3090,6 +3374,103 @@ def _get_phase_b_alb_ids(yaml_data: dict):
         ist["dectr"]["alb_id"]["value"],
         ist["evetr"]["alb_id"]["value"],
     )
+
+
+def _make_spartacus_tree_cover_yaml(
+    *,
+    veg_first: float,
+    dectr: float,
+    evetr: float,
+    grass: float,
+    bsoil: float,
+) -> dict:
+    return {
+        "model": {"physics": {"net_radiation": {"value": 1001}}},
+        "sites": [
+            {
+                "name": "TreeSync",
+                "gridiv": 1,
+                "properties": {
+                    "vertical_layers": {
+                        "veg_frac": {"value": [veg_first, 0.2, 0.2]},
+                    },
+                    "land_cover": {
+                        "paved": {"sfr": {"value": 0.2}},
+                        "bldgs": {"sfr": {"value": 0.1}},
+                        "evetr": {"sfr": {"value": evetr}},
+                        "dectr": {"sfr": {"value": dectr}},
+                        "grass": {"sfr": {"value": grass}},
+                        "bsoil": {"sfr": {"value": bsoil}},
+                        "water": {"sfr": {"value": 0.1}},
+                    },
+                },
+            }
+        ],
+    }
+
+
+def _tree_sync_land_cover(yaml_data: dict) -> dict:
+    return yaml_data["sites"][0]["properties"]["land_cover"]
+
+
+def test_phase_b_tree_cover_validator_warns_when_sync_is_feasible():
+    """Validator reports tree-cover mismatch as a review warning."""
+    from supy.data_model.validation.pipeline.phase_b import create_science_report
+    from supy.data_model.validation.pipeline.phase_b_rules.other_rules import (
+        validate_land_cover_consistency,
+    )
+
+    yaml_data = _make_spartacus_tree_cover_yaml(
+        veg_first=0.2,
+        dectr=0.1,
+        evetr=0.05,
+        grass=0.3,
+        bsoil=0.15,
+    )
+
+    results = validate_land_cover_consistency(ValidationContext(yaml_data=yaml_data))
+    tree_results = [r for r in results if r.parameter == "land_cover.tree_sfr"]
+
+    assert len(tree_results) == 1
+    assert tree_results[0].status == "WARNING"
+    assert "dectr.sfr + evetr.sfr = 0.1500" in tree_results[0].message
+    assert (
+        "differs from SPARTACUS lowest-layer tree fraction "
+        "(vertical_layers.veg_frac[0] = 0.2000)"
+        in tree_results[0].message
+    )
+    assert "trunk fraction" in tree_results[0].message
+    assert tree_results[0].suggested_value is None
+    report = create_science_report(
+        validation_results=tree_results,
+        adjustments=[],
+        suggestions=[],
+    )
+    assert "differs from SPARTACUS lowest-layer tree fraction" in report
+
+
+def test_phase_b_tree_cover_validator_warns_when_ground_rebalance_is_unclear():
+    """Validator keeps tree-cover mismatch as a warning, not an auto-sync guard error."""
+    from supy.data_model.validation.pipeline.phase_b_rules.other_rules import (
+        validate_land_cover_consistency,
+    )
+
+    yaml_data = _make_spartacus_tree_cover_yaml(
+        veg_first=0.3,
+        dectr=0.1,
+        evetr=0.05,
+        grass=0.05,
+        bsoil=0.05,
+    )
+    yaml_data["sites"][0]["properties"]["land_cover"]["paved"]["sfr"]["value"] = 0.45
+
+    results = validate_land_cover_consistency(ValidationContext(yaml_data=yaml_data))
+    tree_results = [r for r in results if r.parameter == "land_cover.tree_sfr"]
+
+    assert len(tree_results) == 1
+    assert tree_results[0].status == "WARNING"
+    assert "differs from SPARTACUS lowest-layer tree fraction" in tree_results[0].message
+    assert tree_results[0].suggested_value is None
 
 
 def test_phase_b_seasonal_albedo_summer_updates_alb_id_from_ranges():

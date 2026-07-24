@@ -63,6 +63,8 @@ jobs:
       - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6
         with:
           python-version: ${{ steps.pyver.outputs.spec }}
+          cache: 'pip'
+          cache-dependency-path: pyproject.toml
 
       - name: Download wheel for this platform
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
@@ -81,6 +83,9 @@ jobs:
             core)     EXPR='api and (smoke or core) and not slow and not qgis' ;;
             cfg)      EXPR='api and (smoke or cfg) and not slow and not qgis' ;;
             standard) EXPR='api and not slow and not qgis' ;;
+            # physics-full (gh#1576): expand only the physics axis to include
+            # slow; the api axis stays identical to standard.
+            physics-full) EXPR='api and not slow and not qgis' ;;
             all)      EXPR='api' ;;
             *)        echo "::error::Unknown test_tier: $TIER"; exit 1 ;;
           esac
@@ -90,8 +95,22 @@ jobs:
         shell: bash
         env:
           MARKER_EXPR: ${{ steps.marker.outputs.expr }}
+          SUEWS_CI_METRICS: ci-metrics/api-${{ matrix.python_version }}-${{ matrix.buildplat[1] }}-${{ matrix.buildplat[2] }}.json
         run: |
           python -m pip install --upgrade pip
-          python -m pip install pytest
+          python -m pip install pytest==9.1.1 pytest-xdist==3.8.0
           python -m pip install wheelhouse/*.whl
-          python -m pytest test -m "$MARKER_EXPR" -v --tb=short
+          # Run in one process. xdist duplicates every session fixture per
+          # worker; the API lane contains simulation outputs large enough to
+          # exhaust hosted-runner memory even with two workers.
+          python -m pytest -p scripts.suews.pytest_ci_metrics test \
+            -m "$MARKER_EXPR" -v --tb=short --durations=25
+
+      - name: Upload API test metrics
+        if: always()
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7
+        with:
+          name: ci-metrics-api-${{ matrix.python_version }}-${{ matrix.buildplat[1] }}-${{ matrix.buildplat[2] }}
+          path: ci-metrics/*.json
+          if-no-files-found: error
+          retention-days: 14

@@ -143,21 +143,76 @@ test/physics/
 
 ## 5. pytest Markers and Configuration
 
-### Standard Markers
+### Two-Axis Marker System (gh#1300)
+
+Markers sit on two orthogonal axes, declared in `pyproject.toml` (see
+`.claude/rules/tests/patterns.md` for the full authoring guide):
+
+- **Nature axis** -- what the test actually exercises. Every test file must
+  declare exactly one (or, rarely, both) at module level via `pytestmark`:
+  - `physics` -- numerical/binary correctness; sufficient to run once per
+    `(OS, arch)` on the canonical build Python (the compiled artefact
+    determines the result, not the interpreter).
+  - `api` -- Python wrapper correctness (pandas/numpy/pydantic, CLI,
+    `SUEWSSimulation`); run across `(platform x Python)` because the
+    dependency surface varies per interpreter.
+- **Tier axis** -- how fast/expensive the test is, applied as a per-test
+  decorator on top of the nature marker:
+  - `smoke` -- minimal wheel validation (~6 tests, ~60s)
+  - `smoke_bridge` -- bridge-loading subset run across `cp312..cp3xx` after a
+    single abi3 build
+  - `core` -- core physics and logic tests (Fortran, driver)
+  - `cfg` -- config/schema validation tests
+  - `util` -- utility function tests (non-critical)
+  - `rust` -- Rust bridge backend tests (requires `suews_bridge` built with
+    the `physics` feature)
+  - `slow` -- tests taking >30s individually
+  - `qgis` -- UMEP plugin integration tests in `test/umep/`, targeting
+    Windows + Python 3.12 (current QGIS 3 LTR / QGIS 4 runtime); auto-applied
+    by `test/umep/conftest.py`, stays out of normal PR/merge-queue tiers
+
 ```python
-# pyproject.toml
+# pyproject.toml (abbreviated -- see pyproject.toml for the authoritative list)
 [tool.pytest.ini_options]
 markers = [
-    "essential: Core tests that must pass (Tier 1)",
-    "critical: Critical functionality tests (Tier 1)",
-    "smoke: Basic smoke tests (Tier 1)",
-    "extended: Extended validation tests (Tier 2)",
-    "integration: Integration tests (Tier 2+)",
-    "slow: Tests that take > 10 seconds (Tier 3)",
-    "performance: Performance benchmarks (Tier 3)",
-    "platform: Platform-specific tests (Tier 4)",
+    # Nature axis
+    "physics: Numerical/binary correctness; sufficient to run once per (OS, arch) on the canonical Python",
+    "api: Python wrapper correctness; run across (platform x Python) because pandas/numpy/pydantic surface varies",
+    # Tier axis
+    "smoke: Minimal wheel validation (~6 tests, ~60s)",
+    "smoke_bridge: Bridge-loading subset run across cp312..cp3xx after a single abi3 build",
+    "core: Core physics & logic tests (Fortran, driver)",
+    "rust: Rust bridge backend tests (requires suews_bridge with physics feature)",
+    "util: Utility function tests (non-critical)",
+    "cfg: Config/schema validation tests",
+    "slow: Tests taking >30s individually",
+    "qgis: UMEP plugin integration tests in test/umep/ (Windows + Python 3.12 target)",
 ]
 ```
+
+A CI expression composes the two axes, e.g. `-m "api and smoke"` or
+`-m "physics and not slow"`. A static lint
+(`scripts/lint/check_test_markers.py`) plus a `pytest_collection_finish` hook
+in `test/conftest.py` fail any PR that adds a test file without a nature
+marker.
+
+### Tier -> CI Mapping
+
+Tier names map onto CI wall-clock budgets and the events that run them (see
+`.claude/rules/ci/conventions.md` "Test Tier Definitions" and "Test Tier
+Assignment by Event" for the authoritative mapping):
+
+| Tier | Approx. duration | Runs on |
+|------|-------------------|---------|
+| `smoke` | ~60s | Draft PRs (python/util/ci/tests-only changes), ready PRs (ci/tests-only) |
+| `core` / `cfg` | ~2-3 min | Draft PRs (fortran/rust -> core; build-system -> cfg) |
+| `standard` | ~5-10 min | Ready PRs, merge queue |
+| `physics-full` | physics axis widens to include `slow`; api axis stays `standard` | Ready PR / merge queue when the PR carries `0-physics:change` (gh#1576) |
+| `all` | ~15-30 min | Nightly schedule, tag push, manual dispatch (`full`) |
+
+`qgis`-tier tests run only under the `all` tier (nightly/release/manual
+`full`); every other tier expression explicitly excludes them
+(`and not qgis`), so they never gate a PR or the merge queue.
 
 ## 6. Coverage Standards
 
@@ -195,16 +250,45 @@ def test_urban_canyon_radiation(self):
 ## 8. CI Test Tier Principles
 
 ### Tier Structure
-- **Tier 1 (PR)**: < 5 minutes, essential correctness
-- **Tier 2 (Merge)**: < 15 minutes, extended validation
-- **Tier 3 (Nightly)**: < 2 hours, comprehensive
-- **Tier 4 (Weekly)**: < 4 hours, platform matrix
+
+CI tiers are driven by the two-axis marker system in Section 5, not a
+separate taxonomy. The `determine_matrix` job in
+`.github/workflows/build-publish_to_pypi.yml` assigns a tier per event; see
+`.claude/rules/ci/conventions.md` ("Test Tier Definitions" and "Test Tier
+Assignment by Event") for the authoritative mapping:
+
+- **Draft PR**: `smoke`, `core`, or `cfg` depending on what changed -- fastest
+  feedback (~60s-3 min)
+- **Ready PR / merge queue**: `standard` (all non-`slow` tests, ~5-10 min), or
+  `physics-full` when the PR carries `0-physics:change` (gh#1576)
+- **Nightly / tag push / manual dispatch (`full`)**: `all` -- the complete
+  suite including `slow` and `qgis` (~15-30 min)
 
 ### Test Selection Criteria for PR
 - Fast (< 10 seconds per test)
 - Focused (test one functionality)
 - Stable (no flaky failures)
 - Critical (block merging if fail)
+
+### Session-Scoped Sample Fixtures (Required for Sample Runs)
+
+Tests that need the bundled sample simulation should use the session-scoped
+fixtures in `test/conftest.py` rather than building or running a fresh
+`SUEWSSimulation` per test:
+
+- `sample_data_loaded` -- the bundled `(df_state_init, df_forcing)`, loaded
+  once per session (read-only; `.copy()` before mutating)
+- `completed_sample_sim` -- a short `SUEWSSimulation` built from the sample
+  YAML with `.run()` already called (read-only; do not `.reset()`, mutate, or
+  re-run)
+- `sample_run_cached` -- a session-scoped factory memoising functional-API
+  (`supy.run_supy`) sample runs by forcing window
+
+Use these for any test that only *reads* a completed run's config, forcing,
+state, or output. Tests exercising running, mutation, or lifecycle behaviour
+(reset, checkpoint continuation, chunking, parallelism, before/after-run
+state) must still construct and run their own instance -- see each fixture's
+docstring in `test/conftest.py` for the full contract.
 
 ---
 

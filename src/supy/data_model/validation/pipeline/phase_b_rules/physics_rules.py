@@ -271,7 +271,8 @@ def validate_storageheatmethod_dependencies(
     - If StorageHeatMethod == 1, OhmIncQf must be 0.
     - If OhmIncQf == 1, an OHM-like storage heat branch must be active.
     - If StorageHeatMethod == 5, NetRadiationMethod must be a SPARTACUS code.
-    - If StorageHeatMethod == 7, STEBBS must be active.
+    - If StorageHeatMethod == 7, NetRadiationMethod must be a SPARTACUS code
+      and STEBBS must be active.
     """
     storageheatmethod = _method_code(storageheatmethod, "storage_heat")
     ohmincqf = _method_code(ohmincqf, "ohm_inc_qf")
@@ -287,6 +288,20 @@ def validate_storageheatmethod_dependencies(
                 category="MODEL_OPTIONS",
                 parameter="storageheatmethod-ohmincqf",
                 message=f"StorageHeatMethod is set to {storageheatmethod} and OhmIncQf is set to {ohmincqf}. You should switch to OhmIncQf=0.",
+                suggested_value="Set OhmIncQf to 0",
+            )
+        )
+    elif storageheatmethod == 8 and ohmincqf != 0:
+        results.append(
+            ValidationResult(
+                status="ERROR",
+                category="MODEL_OPTIONS",
+                parameter="storageheatmethod-ohmincqf",
+                message=(
+                    "StorageHeatMethod 8 (dyohm_building) uses DyOHM only for "
+                    "the building storage heat flux; all other land-cover "
+                    "surfaces use ordinary OHM, which requires OhmIncQf=0."
+                ),
                 suggested_value="Set OhmIncQf to 0",
             )
         )
@@ -340,6 +355,35 @@ def validate_storageheatmethod_dependencies(
             )
 
     if storageheatmethod == 7:
+        if netradiationmethod not in {1001, 1002, 1003}:
+            results.append(
+                ValidationResult(
+                    status="ERROR",
+                    category="MODEL_OPTIONS",
+                    parameter="storageheatmethod-netradiationmethod",
+                    message=(
+                        "StorageHeatMethod=7 uses separate STEBBS roof and wall "
+                        "temperatures and therefore requires a SPARTACUS-Surface "
+                        "NetRadiationMethod (1001, 1002, or 1003)."
+                    ),
+                    suggested_value=(
+                        "Set net_radiation to a SPARTACUS method such as 1003 "
+                        "or net_radiation.spartacus.ldown=air."
+                    ),
+                )
+            )
+        else:
+            results.append(
+                ValidationResult(
+                    status="PASS",
+                    category="MODEL_OPTIONS",
+                    parameter="storageheatmethod-netradiationmethod",
+                    message=(
+                        "StorageHeatMethod STEBBS-SPARTACUS compatibility validated"
+                    ),
+                )
+            )
+
         if stebbsmethod not in {1, 2}:
             results.append(
                 ValidationResult(

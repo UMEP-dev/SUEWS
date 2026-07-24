@@ -5,6 +5,7 @@ Verifies both lossless round-tripping and clean-export behaviour.
 """
 
 import tempfile
+import warnings
 from pathlib import Path
 
 import pytest
@@ -213,3 +214,101 @@ class TestToYamlRoundTrip:
                 getattr(reloaded_land_cover, surface_type).alpha_enh_bioco2.value
                 is None
             )
+
+
+@pytest.mark.cfg
+class TestRefValueSerialisationNoWarnings:
+    """gh#1569: serialising a config must not flood serializer warnings.
+
+    ``FlexibleRefValue(T)`` is ``Union[RefValue[T], T]``. Pydantic's union
+    serializer only routes a value cleanly to the ``RefValue[T]`` branch when the
+    instance carries the matching generic parameter. A bare, unparametrised
+    ``RefValue`` (from ``RefValue(value)``) matches neither branch and triggers a
+    ``PydanticSerializationUnexpectedValue`` warning per field on dump -- hundreds
+    for a config rebuilt from ``df_state``. ``RefValue.__new__`` now
+    auto-parametrises bare construction (``RefValue(x)`` -> ``RefValue[type(x)]``)
+    so the warnings never arise; nothing is suppressed.
+    """
+
+    @staticmethod
+    def _serialization_warnings(func):
+        """Return the serializer warnings emitted by calling ``func``."""
+        with warnings.catch_warnings(record=True) as caught:
+            warnings.simplefilter("always")
+            func()
+        return [
+            w
+            for w in caught
+            if "PydanticSerializationUnexpectedValue" in str(w.message)
+            or "serialized value may not be as expected" in str(w.message)
+        ]
+
+    def test_bare_construction_is_parametrised(self):
+        """``RefValue(x)`` yields ``RefValue[type(x)]`` so unions serialise cleanly."""
+        assert type(RefValue(0.4)).__name__ == "RefValue[float]"
+        assert type(RefValue(3)).__name__ == "RefValue[int]"
+        # value is preserved unchanged
+        assert RefValue(0.4).value == pytest.approx(0.4)
+        assert RefValue(3).value == 3
+
+    def test_none_construction_stays_bare(self):
+        """``RefValue(None)`` has no inferable type, so it stays the bare generic."""
+        rv = RefValue(None)
+        assert type(rv).__name__ == "RefValue"
+        assert rv.value is None
+
+    def test_parametrised_construction_unchanged(self):
+        """Explicit ``RefValue[T](x)`` is left exactly as-is."""
+        rv = RefValue[float](1.0)
+        assert type(rv).__name__ == "RefValue[float]"
+        assert rv.value == pytest.approx(1.0)
+
+    @pytest.fixture
+    def df_state_config(self, sample_config):
+        """A config reconstructed from a ``df_state`` round-trip.
+
+        ``from_df_state`` rebuilds ``RefValue`` fields via bare ``RefValue(value)``
+        constructions -- the path that triggered the warning flood before the
+        auto-parametrisation fix.
+        """
+        return SUEWSConfig.from_df_state(sample_config.to_df_state())
+
+    def test_model_dump_emits_no_serialization_warnings(self, df_state_config):
+        warns = self._serialization_warnings(
+            lambda: df_state_config.model_dump(mode="json")
+        )
+        assert warns == [], (
+            f"model_dump() emitted {len(warns)} serializer warning(s); "
+            "expected none (gh#1569)"
+        )
+
+    def test_model_dump_json_emits_no_serialization_warnings(self, df_state_config):
+        warns = self._serialization_warnings(df_state_config.model_dump_json)
+        assert warns == [], (
+            f"model_dump_json() emitted {len(warns)} serializer warning(s); "
+            "expected none (gh#1569)"
+        )
+
+    def test_to_yaml_emits_no_serialization_warnings(self, df_state_config, tmp_path):
+        out_path = tmp_path / "gh1569.yml"
+        warns = self._serialization_warnings(
+            lambda: df_state_config.to_yaml(str(out_path))
+        )
+        assert warns == [], (
+            f"to_yaml() emitted {len(warns)} serializer warning(s); "
+            "expected none (gh#1569)"
+        )
+
+    def test_df_state_roundtrip_preserves_values(self, df_state_config, tmp_path):
+        """The clean dump must still round-trip the data losslessly."""
+        # ARRANGE
+        out_path = tmp_path / "gh1569-roundtrip.yml"
+        before = df_state_config.sites[0].properties.land_cover.paved.sfr.value
+
+        # ACT
+        df_state_config.to_yaml(str(out_path))
+        reloaded = SUEWSConfig.from_yaml(str(out_path))
+
+        # ASSERT
+        after = reloaded.sites[0].properties.land_cover.paved.sfr.value
+        assert after == pytest.approx(before)

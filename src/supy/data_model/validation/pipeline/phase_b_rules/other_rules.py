@@ -2,14 +2,75 @@ from .rules_core import (
     RulesRegistry,
     ValidationResult,
 )
-from ...core.yaml_helpers import get_value_safe
+from ...core.yaml_helpers import get_value_safe, read_physics_key
 from collections.abc import Mapping
 import calendar
-from typing import Dict, List, Optional, Union, Any, Tuple
+from typing import Dict, List, Optional, Union, Any
 
 
 # Constants 
 SFR_FRACTION_TOL = 1e-4
+SPARTACUS_METHODS = {1001, 1002, 1003}
+
+
+def _as_float(value: Any) -> Optional[float]:
+    if isinstance(value, Mapping) and "value" in value:
+        value = value["value"]
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return None
+
+
+def _is_spartacus_enabled(yaml_data: Mapping) -> bool:
+    physics = yaml_data.get("model", {}).get("physics", {})
+    net_radiation = read_physics_key(physics, "net_radiation", 0)
+    if isinstance(net_radiation, Mapping):
+        if "value" in net_radiation:
+            net_radiation = net_radiation["value"]
+        elif "spartacus" in net_radiation:
+            return True
+        elif net_radiation.get("scheme") == "spartacus":
+            return True
+    if isinstance(net_radiation, str):
+        return "spartacus" in net_radiation.strip().lower()
+    try:
+        return int(net_radiation) in SPARTACUS_METHODS
+    except (TypeError, ValueError):
+        return False
+
+
+def _surface_sfr(land_cover: Mapping, surface_name: str) -> Optional[float]:
+    surface = land_cover.get(surface_name)
+    if not isinstance(surface, Mapping):
+        return None
+    sfr = surface.get("sfr")
+    return _as_float(sfr)
+
+
+def _first_veg_frac(props: Mapping) -> Optional[float]:
+    vertical_layers = props.get("vertical_layers")
+    if not isinstance(vertical_layers, Mapping):
+        return None
+    veg_frac = vertical_layers.get("veg_frac")
+    if isinstance(veg_frac, Mapping) and "value" in veg_frac:
+        veg_frac = veg_frac["value"]
+    if not isinstance(veg_frac, (list, tuple)) or not veg_frac:
+        return None
+    return _as_float(veg_frac[0])
+
+
+def _first_building_frac(props: Mapping) -> Optional[float]:
+    vertical_layers = props.get("vertical_layers")
+    if not isinstance(vertical_layers, Mapping):
+        return None
+    building_frac = vertical_layers.get("building_frac")
+    if isinstance(building_frac, Mapping) and "value" in building_frac:
+        building_frac = building_frac["value"]
+    if not isinstance(building_frac, (list, tuple)) or not building_frac:
+        return None
+    return _as_float(building_frac[0])
+
 
 def _check_surface_parameters(surface_props: dict, surface_type: str) -> List[str]:
     """
@@ -155,6 +216,69 @@ def validate_land_cover_consistency(context) -> List[ValidationResult]:
                         suggested_value=f"Adjust the max surface {max_surface}.sfr or other surface fractions so they sum to exactly 1.0",
                     )
                 )
+
+        if _is_spartacus_enabled(yaml_data):
+            first_building_frac = _first_building_frac(props)
+            bldgs_sfr = _surface_sfr(land_cover, "bldgs")
+            if (
+                first_building_frac is not None
+                and bldgs_sfr is not None
+                and abs(first_building_frac - bldgs_sfr) > SFR_FRACTION_TOL
+            ):
+                results.append(
+                    ValidationResult(
+                        status="WARNING",
+                        category="LAND_COVER",
+                        parameter="land_cover.bldgs.sfr",
+                        site_index=site_idx,
+                        site_gridid=site_gridid,
+                        message=(
+                            "Building land-cover fraction "
+                            f"(land_cover.bldgs.sfr = {bldgs_sfr:.4f}) differs "
+                            "from SPARTACUS lowest-layer building fraction "
+                            f"(vertical_layers.building_frac[0] = {first_building_frac:.4f}). "
+                            "This can be valid when the land-cover and vertical "
+                            "morphology data come from different sources. Review "
+                            "which source should be trusted before changing either "
+                            "land_cover.bldgs.sfr or vertical_layers.building_frac."
+                        ),
+                        suggested_value=(
+                            "If land_cover.bldgs.sfr is the trusted source, review "
+                            "whether the vertical_layers.building_frac profile should "
+                            "be rescaled. If vertical_layers.building_frac is the "
+                            "trusted source, review land_cover.bldgs.sfr and manually "
+                            "rebalance the affected land-cover fractions so the total "
+                            "surface fraction remains 1.0."
+                        ),
+                    )
+                )
+
+            lowest_layer_veg_frac = _first_veg_frac(props)
+            if lowest_layer_veg_frac is not None:
+                dectr_sfr = _surface_sfr(land_cover, "dectr") or 0.0
+                evetr_sfr = _surface_sfr(land_cover, "evetr") or 0.0
+                current_tree_cover = dectr_sfr + evetr_sfr
+                if abs(current_tree_cover - lowest_layer_veg_frac) > SFR_FRACTION_TOL:
+                    results.append(
+                        ValidationResult(
+                            status="WARNING",
+                            category="LAND_COVER",
+                            parameter="land_cover.tree_sfr",
+                            site_index=site_idx,
+                            site_gridid=site_gridid,
+                            message=(
+                                "Tree land-cover fraction "
+                                f"(dectr.sfr + evetr.sfr = {current_tree_cover:.4f}) "
+                                "differs from SPARTACUS lowest-layer tree fraction "
+                                f"(vertical_layers.veg_frac[0] = {lowest_layer_veg_frac:.4f}). "
+                                "This can be valid when the land-cover and vertical "
+                                "morphology data come from different sources or the "
+                                "lowest layer is supposed to represent a trunk fraction. "
+                                "Review which source should be trusted before changing "
+                                "either land cover fractions or vertical_layers.veg_frac."
+                            ),
+                        )
+                    )
 
         # Determine if biogenic CO2 parameters should be required
         physics = yaml_data.get("model", {}).get("physics", {})

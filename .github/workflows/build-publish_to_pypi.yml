@@ -275,6 +275,7 @@ jobs:
     if: always() && (needs.detect-changes.result == 'success' || needs.detect-changes.result == 'skipped')
     outputs:
       buildplat: ${{ steps.set-matrix.outputs.buildplat }}
+      api_buildplat: ${{ steps.set-matrix.outputs.api_buildplat }}
       python: ${{ steps.set-matrix.outputs.python }}
       api_python: ${{ steps.set-matrix.outputs.api_python }}
       test_tier: ${{ steps.set-matrix.outputs.test_tier }}
@@ -300,10 +301,52 @@ jobs:
           persist-credentials: false
           path: _pr_meta
 
+      # gh#1576: detect the 0-physics:change label so the matrix can run the
+      # full -m physics tier (incl. slow) before merge rather than only in the
+      # nightly. On a PR the labels are in the event payload; in the merge queue
+      # the queue ref (gh-readonly-queue/<base>/pr-<n>-<sha>) carries the PR
+      # number, which we validate before querying the API.
+      - name: Detect physics-change label
+        id: physics-label
+        if: github.event_name == 'pull_request' || github.event_name == 'merge_group'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EVENT_NAME: ${{ github.event_name }}
+          PR_LABELS_JSON: ${{ github.event_name == 'pull_request' && toJSON(github.event.pull_request.labels.*.name) || '[]' }}
+          MERGE_HEAD_REF: ${{ github.event.merge_group.head_ref }}
+          REPO: ${{ github.repository }}
+          LABEL: '0-physics:change'
+        run: |
+          set -euo pipefail
+          found=false
+          if [[ "$EVENT_NAME" == "pull_request" ]]; then
+            # Labels arrive as a JSON array; match exactly via jq (label names
+            # may contain spaces or colons, so avoid newline/word splitting).
+            if printf '%s' "$PR_LABELS_JSON" | jq -e --arg l "$LABEL" 'any(.[]; . == $l)' >/dev/null; then
+              found=true
+            fi
+          elif [[ "$EVENT_NAME" == "merge_group" ]]; then
+            pr_num="$(printf '%s' "$MERGE_HEAD_REF" | sed -nE 's#.*/pr-([0-9]+)-[0-9a-f]+$#\1#p')"
+            if [[ "$pr_num" =~ ^[0-9]+$ ]]; then
+              if gh api "repos/${REPO}/issues/${pr_num}/labels" --jq '[.[].name]' \
+                   | jq -e --arg l "$LABEL" 'any(.[]; . == $l)' >/dev/null; then
+                found=true
+              fi
+            else
+              # Could not identify the queued PR (e.g. a batched group). Fail
+              # safe: run the full physics tier rather than risk missing a shift.
+              echo "::notice::merge_group PR number not parsed from queue ref; running full physics tier as a safe default"
+              found=true
+            fi
+          fi
+          echo "found=$found" >> "$GITHUB_OUTPUT"
+          echo "physics-change label present: $found"
+
       - name: Set matrix based on trigger type
         id: set-matrix
         env:
           EVENT_NAME: ${{ github.event_name }}
+          PHYSICS_CHANGE: ${{ steps.physics-label.outputs.found || 'false' }}
           IS_DRAFT: ${{ github.event.pull_request.draft }}
           FORTRAN_CHANGED: ${{ needs.detect-changes.outputs.fortran-changed || 'false' }}
           RUST_CHANGED: ${{ needs.detect-changes.outputs.rust-changed || 'false' }}
@@ -388,7 +431,7 @@ jobs:
       buildplat_json: ${{ needs.determine_matrix.outputs.buildplat }}
       python_json: ${{ needs.determine_matrix.outputs.python }}
       test_tier: ${{ needs.determine_matrix.outputs.test_tier }}
-      is_testpypi_build: ${{ github.event_name == 'schedule' || (startsWith(github.ref, 'refs/tags/') && contains(github.ref, 'dev')) }}
+      is_testpypi_build: ${{ (github.event_name == 'schedule' || (startsWith(github.ref, 'refs/tags/') && contains(github.ref, 'dev'))) && 'true' || 'false' }}
 
   build_mcp:
     name: Build MCP package
@@ -431,8 +474,19 @@ jobs:
     if: always() && needs.build_wheels.result == 'success'
     uses: ./.github/workflows/test-api-cross-python-reusable.yml
     with:
-      buildplat_json: ${{ needs.determine_matrix.outputs.buildplat }}
-      api_python_json: ${{ needs.determine_matrix.outputs.api_python }}
+      # Fall back to the full buildplat when api_buildplat is empty: the
+      # determine_matrix job runs determine-matrix.sh from the BASE branch
+      # (trusted-script design), so a PR that introduces or extends the
+      # api_buildplat output would otherwise hand this job an empty matrix
+      # until the script change lands on master.
+      buildplat_json: ${{ needs.determine_matrix.outputs.api_buildplat || needs.determine_matrix.outputs.buildplat }}
+      # A ready PR already validates both supported Python bookends. The merge
+      # queue revalidates the combined tree on the abi3 floor only, across all
+      # three supported OS families, instead of repeating the full suite twice.
+      # Use the build-Python output here as a compatibility bridge while the
+      # trusted determine-matrix script is still read from the base branch.
+      api_python_json: >-
+        ${{ github.event_name == 'merge_group' && needs.determine_matrix.outputs.python || needs.determine_matrix.outputs.api_python }}
       test_tier: ${{ needs.determine_matrix.outputs.test_tier }}
 
   # Standalone lint: every test file must declare `physics` or `api`
@@ -487,6 +541,52 @@ jobs:
           NEEDS_BUILD: ${{ needs.detect-changes.outputs.needs-build }}
         run: bash .github/scripts/pr-gate.sh
 
+  ci_observability:
+    name: CI observability summary
+    runs-on: ubuntu-latest
+    needs: [pr-gate]
+    if: always() && (github.event_name == 'pull_request' || github.event_name == 'merge_group')
+    permissions:
+      actions: read
+      contents: read
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          sparse-checkout: |
+            .github/ci-metrics-needs.json
+            scripts/suews/analyse_ci_run.py
+          sparse-checkout-cone-mode: false
+          persist-credentials: false
+
+      - name: Download workflow and Jobs REST data
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUN_ID: ${{ github.run_id }}
+        run: |
+          mkdir -p ci-metrics-workflow
+          gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${RUN_ID}" > ci-metrics-workflow/run.json
+          gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${RUN_ID}/jobs?per_page=100" > ci-metrics-workflow/jobs.json
+
+      - name: Analyse declared workflow critical path
+        shell: bash
+        run: >-
+          python scripts/suews/analyse_ci_run.py
+          --run-json ci-metrics-workflow/run.json
+          --jobs-json ci-metrics-workflow/jobs.json
+          --needs-json .github/ci-metrics-needs.json
+          --target-job "PR build validation"
+          --output ci-metrics-workflow/workflow-ci-metrics.json
+          --summary "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload workflow CI metrics
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7
+        with:
+          name: ci-metrics-workflow-${{ github.run_id }}
+          path: ci-metrics-workflow/*.json
+          if-no-files-found: error
+          retention-days: 14
+
   deploy_testpypi:
     name: Publish to TestPyPI
     runs-on: ubuntu-latest
@@ -521,6 +621,7 @@ jobs:
       - name: Download all wheels for TestPyPI
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
         with:
+          pattern: 'cp[0-9][0-9][0-9]-*'
           path: dist/
           merge-multiple: true
 
@@ -565,6 +666,7 @@ jobs:
       - name: Download all wheels
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
         with:
+          pattern: 'cp[0-9][0-9][0-9]-*'
           path: dist/
           merge-multiple: true
 

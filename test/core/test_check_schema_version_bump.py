@@ -92,7 +92,10 @@ def branched_repo(tmp_path: Path) -> Path:
     """
     repo = tmp_path / "repo"
     repo.mkdir()
-    _git(repo, "init", "-q", "-b", "master")
+    # Git 2.28 added `git init -b`; set the unborn branch explicitly so this
+    # fixture also works with older Git versions used by supported platforms.
+    _git(repo, "init", "-q")
+    _git(repo, "symbolic-ref", "HEAD", "refs/heads/master")
 
     version_rel = "src/supy/data_model/schema/version.py"
     sibling_rel = "src/supy/data_model/sample.py"

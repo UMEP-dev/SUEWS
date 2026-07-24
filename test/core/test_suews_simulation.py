@@ -680,9 +680,9 @@ class TestRun:
     """Test simulation execution."""
 
     @staticmethod
-    def _multi_site_config():
+    def _multi_site_config(sample_config_loaded):
         """Return a sample config with two distinct grids."""
-        config = SUEWSSimulation.from_sample_data().config.model_copy(deep=True)
+        config = sample_config_loaded.model_copy(deep=True)
         site2 = config.sites[0].model_copy(deep=True)
         site2.gridiv = 2
         site2.name = "Grid 2"
@@ -701,6 +701,16 @@ class TestRun:
             )
             list_df_output.append(pd.DataFrame({"QH": 0.0}, index=index))
         return pd.concat(list_df_output)
+
+    @staticmethod
+    def _sim_for_mocked_run(sample_config_loaded, sample_data_loaded):
+        """Build an isolated two-step simulation without reloading sample files."""
+        sample_state, sample_forcing = sample_data_loaded
+        sim = SUEWSSimulation()
+        sim._config = sample_config_loaded.model_copy(deep=True)
+        sim._df_state_init = sample_state.copy()
+        sim._df_forcing = sample_forcing.iloc[:2].copy()
+        return sim
 
     @staticmethod
     def _patch_run_suews_rust_chunked(monkeypatch):
@@ -737,10 +747,14 @@ class TestRun:
         )
         return captured
 
-    def test_run_n_jobs_defaults_to_rayon_default(self, monkeypatch):
+    def test_run_n_jobs_defaults_to_rayon_default(
+        self,
+        monkeypatch,
+        sample_config_loaded,
+        sample_data_loaded,
+    ):
         """Test default n_jobs preserves uncapped parallel execution."""
-        sim = SUEWSSimulation.from_sample_data()
-        sim._df_forcing = sim._df_forcing.iloc[:2]
+        sim = self._sim_for_mocked_run(sample_config_loaded, sample_data_loaded)
         captured = self._patch_run_suews_rust_chunked(monkeypatch)
 
         sim.run()
@@ -748,10 +762,14 @@ class TestRun:
         assert captured["serial_mode"] is False
         assert captured["max_workers"] is None
 
-    def test_run_n_jobs_one_forces_serial(self, monkeypatch):
+    def test_run_n_jobs_one_forces_serial(
+        self,
+        monkeypatch,
+        sample_config_loaded,
+        sample_data_loaded,
+    ):
         """Test n_jobs=1 disables the multi-grid Rayon path."""
-        sim = SUEWSSimulation.from_sample_data()
-        sim._df_forcing = sim._df_forcing.iloc[:2]
+        sim = self._sim_for_mocked_run(sample_config_loaded, sample_data_loaded)
         captured = self._patch_run_suews_rust_chunked(monkeypatch)
 
         sim.run(n_jobs=1)
@@ -759,10 +777,14 @@ class TestRun:
         assert captured["serial_mode"] is True
         assert captured["max_workers"] == 1
 
-    def test_run_n_jobs_positive_caps_workers(self, monkeypatch):
+    def test_run_n_jobs_positive_caps_workers(
+        self,
+        monkeypatch,
+        sample_config_loaded,
+        sample_data_loaded,
+    ):
         """Test positive n_jobs reaches the Rust bridge as max_workers."""
-        sim = SUEWSSimulation.from_sample_data()
-        sim._df_forcing = sim._df_forcing.iloc[:2]
+        sim = self._sim_for_mocked_run(sample_config_loaded, sample_data_loaded)
         captured = self._patch_run_suews_rust_chunked(monkeypatch)
 
         sim.run(n_jobs=3)
@@ -778,12 +800,16 @@ class TestRun:
         with pytest.raises(ValueError, match="n_jobs must be"):
             sim.run(n_jobs=n_jobs)
 
-    def test_chunked_run_forwards_worker_cap_per_chunk(self, monkeypatch):
+    def test_chunked_run_forwards_worker_cap_per_chunk(
+        self,
+        monkeypatch,
+        sample_config_loaded,
+        sample_data_loaded,
+    ):
         """Test chunked multi-grid runs keep n_jobs after the first chunk."""
-        config = self._multi_site_config()
-        df_forcing = SUEWSSimulation.from_sample_data()._df_forcing.iloc[
-            : TIMESTEPS_PER_DAY + 1
-        ]
+        config = self._multi_site_config(sample_config_loaded)
+        _, sample_forcing = sample_data_loaded
+        df_forcing = sample_forcing.iloc[: TIMESTEPS_PER_DAY + 1].copy()
         calls = []
 
         def fake_run_suews_rust_multi(
@@ -829,10 +855,16 @@ class TestRun:
 
         assert calls == [("fresh", False, 3), ("state", False, 3)]
 
-    def test_checkpointed_run_forwards_worker_cap(self, monkeypatch):
+    def test_checkpointed_run_forwards_worker_cap(
+        self,
+        monkeypatch,
+        sample_config_loaded,
+        sample_data_loaded,
+    ):
         """Test resumed multi-grid runs keep n_jobs on the first chunk."""
-        config = self._multi_site_config()
-        df_forcing = SUEWSSimulation.from_sample_data()._df_forcing.iloc[:2]
+        config = self._multi_site_config(sample_config_loaded)
+        _, sample_forcing = sample_data_loaded
+        df_forcing = sample_forcing.iloc[:2].copy()
         calls = []
 
         def fail_run_suews_rust_multi(*args, **kwargs):
@@ -872,10 +904,16 @@ class TestRun:
 
         assert calls == [("state", False, 4)]
 
-    def test_multi_with_state_passes_worker_cap_to_rust(self, monkeypatch):
+    def test_multi_with_state_passes_worker_cap_to_rust(
+        self,
+        monkeypatch,
+        sample_config_loaded,
+        sample_data_loaded,
+    ):
         """Test state-aware multi-grid wrapper forwards max_workers."""
-        config = self._multi_site_config()
-        df_forcing = SUEWSSimulation.from_sample_data()._df_forcing.iloc[:2]
+        config = self._multi_site_config(sample_config_loaded)
+        _, sample_forcing = sample_data_loaded
+        df_forcing = sample_forcing.iloc[:2].copy()
         captured = {}
 
         class FakeRustModule:
@@ -1010,17 +1048,14 @@ class TestRun:
 class TestSave:
     """Test result saving."""
 
-    def test_save_default(self, tmp_path):
-        """Test saving results."""
-        # Quick run
-        df_state, df_forcing = sp.load_SampleData()
-        sim = SUEWSSimulation()
-        sim._df_state_init = df_state
-        sim.update_forcing(df_forcing.iloc[:24])
-        sim.run()
+    def test_save_default(self, completed_sample_sim, tmp_path):
+        """Test saving results.
 
-        # Save
-        paths = sim.save(tmp_path)
+        ``save()`` only reads ``completed_sample_sim`` and writes to
+        ``tmp_path``; it does not mutate the simulation, so the session-
+        shared completed sim is safe to reuse here.
+        """
+        paths = completed_sample_sim.save(tmp_path)
         assert isinstance(paths, list)
         assert len(paths) > 0
         assert any(Path(p).exists() for p in paths)
@@ -1096,11 +1131,9 @@ class TestEnhancements:
         assert "site" in repr_str
         assert "timesteps" in repr_str
 
-    def test_repr_complete(self):
+    def test_repr_complete(self, completed_sample_sim):
         """Test repr after running."""
-        sim = SUEWSSimulation.from_sample_data()
-        sim.run(end_date=sim.forcing.index[23])  # Run only 24 timesteps
-        repr_str = repr(sim)
+        repr_str = repr(completed_sample_sim)
         assert "Complete" in repr_str
         assert "results" in repr_str
 
@@ -1173,47 +1206,37 @@ class TestMethodChaining:
 class TestGetVariable:
     """Test variable extraction helper method."""
 
-    def test_get_variable_with_group(self):
+    def test_get_variable_with_group(self, completed_sample_sim):
         """Test variable extraction with group specification."""
-        sim = SUEWSSimulation.from_sample_data()
-        sim.run(end_date=sim.forcing.index[23])
-
         # QH appears in multiple groups, must specify which one
-        qh = sim.get_variable("QH", group="SUEWS")
+        qh = completed_sample_sim.get_variable("QH", group="SUEWS")
         assert qh is not None
-        assert len(qh) == 24
+        assert len(qh) == len(completed_sample_sim.forcing)
 
-    def test_get_variable_ambiguous_raises(self):
+    def test_get_variable_ambiguous_raises(self, completed_sample_sim):
         """Test get_variable raises error for ambiguous variable without group."""
-        sim = SUEWSSimulation.from_sample_data()
-        sim.run(end_date=sim.forcing.index[23])
-
         # QH appears in multiple groups - should raise error
         with pytest.raises(ValueError, match="appears in multiple groups"):
-            sim.get_variable("QH")
+            completed_sample_sim.get_variable("QH")
 
     def test_get_variable_not_run(self):
         """Test get_variable fails gracefully if not run."""
+        # Must be a fresh, un-run sim (asserts pre-run behaviour), so this
+        # cannot share `completed_sample_sim`.
         sim = SUEWSSimulation.from_sample_data()
         with pytest.raises(RuntimeError, match="No results available"):
             sim.get_variable("QH")
 
-    def test_get_variable_invalid_name(self):
+    def test_get_variable_invalid_name(self, completed_sample_sim):
         """Test get_variable with invalid variable name."""
-        sim = SUEWSSimulation.from_sample_data()
-        sim.run(end_date=sim.forcing.index[23])
-
         with pytest.raises(ValueError, match="not found"):
-            sim.get_variable("INVALID_VAR")
+            completed_sample_sim.get_variable("INVALID_VAR")
 
-    def test_get_variable_wrong_group(self):
+    def test_get_variable_wrong_group(self, completed_sample_sim):
         """Test get_variable with wrong group specification."""
-        sim = SUEWSSimulation.from_sample_data()
-        sim.run(end_date=sim.forcing.index[23])
-
         # QH exists but not in a non-existent group
         with pytest.raises(ValueError, match="not found in group"):
-            sim.get_variable("QH", group="NONEXISTENT_GROUP")
+            completed_sample_sim.get_variable("QH", group="NONEXISTENT_GROUP")
 
 
 class TestPathResolution:

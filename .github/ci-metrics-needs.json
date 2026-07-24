@@ -1,0 +1,31 @@
+{
+  "API cross-CPython tests / *": [
+    "Determine build matrix",
+    "Build standard wheels / *"
+  ],
+  "Build MCP package": [
+    "Create nightly tag for scheduled builds",
+    "Detect code changes",
+    "Verify tag is on master"
+  ],
+  "Build standard wheels / *": [
+    "Create nightly tag for scheduled builds",
+    "Detect code changes",
+    "Determine build matrix",
+    "Verify tag is on master"
+  ],
+  "Determine build matrix": [
+    "Detect code changes"
+  ],
+  "Post CI summary comment": [
+    "Detect code changes",
+    "Determine build matrix"
+  ],
+  "PR build validation": [
+    "API cross-CPython tests / *",
+    "Build MCP package",
+    "Build standard wheels / *",
+    "Check pytest marker axis",
+    "Detect code changes"
+  ]
+}

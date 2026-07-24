@@ -16,6 +16,7 @@ from pydantic import BaseModel
 
 from ._check import check_forcing
 from ._env import logger_supy
+from ._filename import safe_filename_component
 from ._run_rust import _check_rust_available, run_suews_rust_chunked
 
 # Import SuPy components directly
@@ -113,15 +114,14 @@ class SUEWSSimulation:
         Parameters
         ----------
         config : str, Path, dict, or SUEWSConfig
-            Configuration source:
-            - Path to YAML file
-            - Dictionary with parameters: a full configuration dict when no
-              config is loaded yet, or a partial update merged onto the
-              existing config. Either way the result is re-validated through
-              ``SUEWSConfig``, so enum/RefValue coercion and range checks
-              apply exactly as for YAML input. Unknown keys raise
-              ``ValueError``; list values replace the existing list.
-            - SUEWSConfig object
+            Configuration source. Pass a path to a YAML file, a
+            ``SUEWSConfig`` object, or a dictionary with parameters. A
+            dictionary is treated as a full configuration when no config is
+            loaded yet, or as a partial update merged onto the existing config.
+            Either way the result is re-validated through ``SUEWSConfig``, so
+            enum/RefValue coercion and range checks apply exactly as for YAML
+            input. Unknown keys raise ``ValueError``; list values replace the
+            existing list.
         auto_load_forcing : bool, optional
             If True (default), automatically load forcing data specified in the
             config file. If False, forcing must be loaded explicitly using
@@ -169,8 +169,8 @@ class SUEWSSimulation:
             if self._config is None:
                 # No existing config: treat the dict as a full configuration
                 # and build it through the validated SUEWSConfig path
-                # (gh#1530). Partial dicts are only meaningful as updates to
-                # an existing configuration.
+                # Partial dicts are only meaningful as updates to an existing
+                # configuration.
                 candidate = SUEWSConfig.from_dict(config)
                 if not candidate.sites:
                     raise ValueError(
@@ -189,7 +189,7 @@ class SUEWSSimulation:
             else:
                 # Merge the partial update onto the existing config, then
                 # re-validate the whole configuration so enum coercion,
-                # RefValue wrapping, and range checks all apply (gh#1530).
+                # RefValue wrapping, and range checks all apply.
                 # The merged dict is the user's effective input (original
                 # explicitly-set fields plus this update), so from_dict's
                 # default raw snapshot of it is the correct record for
@@ -217,7 +217,7 @@ class SUEWSSimulation:
         Returns a plain dict ready for re-validation through
         ``SUEWSConfig.from_dict``; the configuration is never mutated in
         place, so enum coercion, RefValue wrapping, and range checks always
-        apply to the merged result (gh#1530).
+        apply to the merged result.
 
         Merge semantics:
         - dicts merge recursively into model-backed nodes; unknown field
@@ -251,7 +251,7 @@ class SUEWSSimulation:
             ``stability``, the ``output_file``/``forcing_file`` lifts)
             through each model's before-validators. Partial updates must
             accept the same forms, so the patch is run through the same
-            machinery before the unknown-key check (gh#1530 follow-up).
+            machinery before the unknown-key check.
             """
             decorators = getattr(model_cls, "__pydantic_decorators__", None)
             if decorators is None:
@@ -423,8 +423,7 @@ class SUEWSSimulation:
         rejected with a clear error otherwise. Unlike file loading, no column
         renaming or unit conversion is applied to in-memory inputs; build them
         with :func:`supy.util.read_forcing` or
-        :meth:`supy.SUEWSForcing.from_file` to guarantee that contract
-        (gh#1537).
+        :meth:`supy.SUEWSForcing.from_file` to guarantee that contract.
 
         Examples
         --------
@@ -735,7 +734,7 @@ class SUEWSSimulation:
             physics = getattr(self._config.model, "physics", None)
             if physics is not None and hasattr(physics, "model_dump"):
                 physics_dict = physics.model_dump(mode="python")
-            # Cross-check physics path against forcing columns (gh#1372).
+            # Cross-check physics path against forcing columns.
             # Helper is silent on success; raises ValueError on mismatch.
             if physics is not None:
                 from .data_model.core.forcing_validation import (
@@ -891,6 +890,7 @@ class SUEWSSimulation:
             # Get site name from first site
             if hasattr(self._config, "sites") and len(self._config.sites) > 0:
                 site = self._config.sites[0].name
+        site_filename = safe_filename_component(site)
         if "format" in save_kwargs:  # TODO: When yaml format working, make elif
             output_format = save_kwargs["format"]
 
@@ -909,7 +909,9 @@ class SUEWSSimulation:
 
         if self._checkpoint is not None:
             checkpoint_name = (
-                f"{site}_SUEWS_checkpoint.json" if site else "SUEWS_checkpoint.json"
+                f"{site_filename}_SUEWS_checkpoint.json"
+                if site_filename
+                else "SUEWS_checkpoint.json"
             )
             checkpoint_path = self._checkpoint.to_file(output_path / checkpoint_name)
             list_path_save.append(checkpoint_path)

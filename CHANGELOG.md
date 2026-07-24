@@ -41,26 +41,99 @@ EXAMPLES:
 
 | Year | Features | Bugfixes | Changes | Maintenance | Docs | Total |
 |------|----------|----------|---------|-------------|------|-------|
-| 2026 | 77 | 84 | 30 | 81 | 40 | 313 |
-| 2025 | 60 | 68 | 22 | 71 | 36 | 256 |
-| 2024 | 12 | 17 | 1 | 12 | 1 | 43 |
-| 2023 | 11 | 14 | 3 | 9 | 1 | 38 |
-| 2022 | 15 | 18 | 0 | 7 | 0 | 40 |
-| 2021 | 4 | 5 | 1 | 3 | 6 | 19 |
-| 2020 | 7 | 6 | 0 | 3 | 2 | 18 |
-| 2019 | 4 | 8 | 1 | 6 | 1 | 20 |
-| 2018 | 7 | 1 | 6 | 5 | 0 | 19 |
-| 2017 | 9 | 0 | 3 | 2 | 0 | 14 |
+| 2026 | 80       | 86       | 31 | 81 | 40 | 319   |
+| 2025 | 60       | 68       | 22 | 71 | 36 | 256   |
+| 2024 | 12       | 17       | 1 | 12 | 1 | 43    |
+| 2023 | 11       | 14       | 3 | 9 | 1 | 38    |
+| 2022 | 15       | 18       | 0 | 7 | 0 | 40    |
+| 2021 | 4        | 5        | 1 | 3 | 6 | 19    |
+| 2020 | 7        | 6        | 0 | 3 | 2 | 18    |
+| 2019 | 4        | 8        | 1 | 6 | 1 | 20    |
+| 2018 | 7        | 1        | 6 | 5 | 0 | 19    |
+| 2017 | 9        | 0        | 3 | 2 | 0 | 14    |
 
 ## 2026
 
+### 22 Jul 2026
+
+- [bugfix] Relaxed SPARTACUS-Surface land-cover fraction validation so lowest-layer geometry no longer has to equal SUEWS land-cover fractions (#1642)
+  - `vertical_layers.building_frac[0]` and `vertical_layers.veg_frac[0]` can now differ from `land_cover.bldgs.sfr` and `dectr.sfr + evetr.sfr` when land-cover and vertical-morphology data come from different sources; mismatches are reported as review warnings instead of being blocked or automatically corrected.
+  - The validator still enforces per-layer occupancy (`building_frac[i] + veg_frac[i] <= 1`) and the trunk/near-ground vegetation rule, with regression coverage for unmatched layer arrays.
+  - Updated SPARTACUS-Surface documentation and YAML field descriptions to distinguish SUEWS tree land-cover fraction, lowest-layer trunk or near-ground obstruction, and upper-layer crown projected fraction.
+
+### 20 Jul 2026
+
+- [change][experimental] Corrected the building material properties used by DyOHM (#1643)
+  - Storage-heat methods 6 and 8 now calculate building DyOHM coefficients from material layer 0 of `land_cover.bldgs` instead of a SPARTACUS wall.
+  - Method 7 leaves building storage heat and temperatures to STEBBS, does not use or require the `land_cover.bldgs` material layers, and now requires SPARTACUS-Surface net radiation (methods 1001--1003) so its separate roof and wall temperatures are used.
+
+### 13 Jul 2026
+
+- [bugfix] Fixed MacDonald (1998) momentum roughness using a stale displacement height (#1615)
+  - Under `roughness_length_momentum: macdonald` (`RoughLenMomMethod=3`), `z0m` was computed from the persistent `zdm` state, which still held the previous timestep's plan-area-blended displacement height (and zero on the first timestep), instead of the MacDonald displacement height computed alongside it. `z0m` was therefore inflated several-fold and the scheme did not reproduce MacDonald (1998) as published.
+  - Users of this option will see `z0m` drop by roughly a factor of 2 to 4, depending on plan area index, with knock-on changes to aerodynamic resistance and the near-surface diagnostics. Other roughness options are unaffected, as are all reference outputs.
+
+### 11 Jul 2026
+
+- [bugfix] Smoothed OHM coefficient transitions to remove platform-sensitive numerical divergence (#473)
+  - Summer/winter coefficients now blend across 0.25 degC on either side of the configured threshold; wet/dry coefficients blend across the 0.1 mm surface store and 0.02 soil-moisture-ratio transition bands. The bands are deliberately narrow: they remove the discontinuity while keeping results close to previous runs.
+  - Updated the sample reference output and added physics regressions for temperature, surface-wetness, and soil-moisture continuity.
+  - Documented the transition weights, threshold centres, surface applicability, and snow exception.
+
+### 9 Jul 2026
+
+- [feature][experimental] Added the `dyohm_building` storage-heat option (#1601)
+  - Exposed `model.physics.storage_heat: dyohm_building` (`StorageHeatMethod=8`) so DyOHM determines the building storage heat flux while other land-cover surfaces continue to use ordinary OHM.
+
+### 8 Jul 2026
+
+- [change][experimental] Skip output resampling when it is a no-op (#1599)
+  - Saving multi-year sub-hourly runs spent ~80% of the time resampling even when the requested output frequency already matched the model timestep. `resample_output` now returns the frame unchanged (byte-identical) when the data is already at the target frequency.
+  - The guard lives inside `resample_output`, so every caller benefits (`save_supy`, `SUEWSOutput.resample`, the TMY/EPW generator), and uses `pandas.infer_freq` so an irregular index is never falsely treated as a match.
+
+### 29 Jun 2026
+
+- [bugfix] Capped `pandas<3` on the manylinux2014 matrix to stop a numpy/pandas ABI segfault
+  - On CPython 3.10-3.12 Linux, `scipy<1.15` (pinned to retain manylinux2014 wheels) transitively pins `numpy<2.3`. With `pandas` left unpinned, the resolver pulled pandas 3.0.x, whose wheels are ABI-built against numpy>=2.3; running them against numpy 2.2.6 segfaulted inside `DatetimeIndex.shift` (reached via `supy._load.resample_linear_inst`), crashing the nightly `cp312-manylinux` API test job with exit 139.
+  - `pandas` is now constrained to `<3` under exactly the same environment marker as the `scipy<1.15` cap; newer interpreters and non-Linux platforms (which resolve numpy>=2.3) continue to use pandas 3.
+
+### 28 Jun 2026
+
+- [bugfix] Fixed the flood of `PydanticSerializationUnexpectedValue` warnings when serialising a `SUEWSConfig` (#1569)
+  - `FlexibleRefValue(T)` is `Union[RefValue[T], T]`; Pydantic's union serializer only routes a value to the `RefValue[T]` branch cleanly when the instance is parametrised. Bare `RefValue(value)` constructions (used throughout the `df_state` reconstruction path) produced unparametrised instances, emitting one spurious warning per populated field — hundreds for a config rebuilt via `from_state`/`from_output`.
+  - `RefValue(value)` now auto-parametrises to `RefValue[type(value)]`, matching what validation from YAML already produces, so the warnings no longer arise. No diagnostics are suppressed; serialized output is unchanged.
+
 ### 26 Jun 2026
 
+- [maintenance] Added a recorded-scientific-evidence policy for physics-changing PRs (#1576)
+  - New `.claude/rules/physics-change-evidence.md`: PRs that change model physics or move a reference output must carry a `## Scientific evidence` PR-body section, obtain domain-owner sign-off, refresh moved fixtures in the same PR, and run the full `-m physics` CI tier before merge.
+  - Wired the `0-physics:change` classification label into `audit-pr`, `triage-pr`, and `triage-issue`; documented it in the `0-` automation namespace and added a contributor pointer in `CONTRIBUTING.md`.
+- [maintenance] CI: run the full physics test tier (incl. `slow`) on `0-physics:change` PRs and in the merge queue (#1576)
+  - Added a `physics-full` test tier that widens only the physics axis to include `slow` (the api axis stays as `standard`); `determine-matrix.sh` selects it when the `0-physics:change` label is present, in both the ready-PR and `merge_group` contexts. This closes the gap where the merge queue's `standard` tier excluded `slow` physics, so a known output-changing PR (#1570) merged without the shift being caught until the nightly.
+- [maintenance] Refreshed the STEBBS building-energy regression fixture for the SPARTACUS longwave changes in #1570
+  - Regenerated `test/fixtures/data_test/stebbs_test/sample_output_stebbs.csv` so `QHload_cooling_FA` matches the updated longwave environment around the building. #1570 switched the SPARTACUS canyon clear-air longwave source from the forcing air temperature to the RSL-interpolated in-canopy temperature, which runs ~1 K warmer by day; incoming longwave on the wall rises, indoor air temperature increases ~0.5 K, and the threshold-driven cooling load switches on earlier (peak 28 W vs 19 W). Shortwave inputs, heating, lighting and water-mains outputs are unchanged.
 - [feature][experimental] Revived the AnOHM analytical storage-heat scheme (`StorageHeatMethod=3`), disabled since 2023, kept as an internal / not-recommended option (supersedes the stalled #1018)
   - Replaced the future-data forcing dependency with a rolling trailing-day buffer on `OHM_STATE`, so coefficients are diagnosed from the most recently completed day
   - Removed the minpack dependency: the diurnal sinusoid fit is now closed-form least squares and the Bowen-ratio fixed point a bounded damped iteration, both QGIS-safe (no stdout writes)
   - Fixed an inverted `MIN`/`MAX` clamp on surface temperature in the Bowen-ratio residual that forced it to <= -40 degC
   - Added `test/core/test_anohm_revival.py` (runs end-to-end, finite QS, AnOHM path engaged, stays internal)
+
+### 24 Jun 2026
+
+- [feature][experimental] Added configurable partitioning of global horizontal irradiance into direct and diffuse components for SPARTACUS-Surface (#1567)
+  - Wired forcing-file `kdir` (direct-normal irradiance) and `kdiff` (diffuse-horizontal irradiance) through the Python, Rust, C, and Fortran interfaces.
+  - Moved the partition calculation outside SPARTACUS-Surface so it receives prepared direct-horizontal and diffuse-horizontal canopy-top forcing.
+  - Added `model.physics.kdown_split_method` with readable options `forcing`, `constant`, and `epw`. (#1570)
+
+- [feature][experimental] Expanded SPARTACUS radiation diagnostics and vegetation-control inputs (#1570)
+  - Added layer-resolved SW/LW diagnostics, vegetation absorption diagnostics, layer top/base fluxes, and additional ground/top radiation outputs; the SuPy SPARTACUS output metadata now reflects the expanded output schema.
+  - Exposed vegetation-specific SPARTACUS controls through YAML, SuPy, the Rust bridge, and Fortran: `n_stream_lw_forest`, `n_stream_sw_forest`, `n_vegetation_region_forest`, `veg_ext` in vertical layers
+
+- [bugfix] Fixed SPARTACUS mixed-tree and non-urban edge cases (#1570)
+  - Fixed mixed evergreen/deciduous RSL temperature sampling to use weighted half-tree height (from RSL).
+  - Guarded non-urban/forest-only SPARTACUS paths so direct-albedo and longwave fallback logic no longer touch urban-only roof/wall arrays.
+  - Added tests for mixed-tree RSL sampling height and non-urban direct-albedo SPARTACUS runs.
+
 
 ### 20 Jun 2026
 

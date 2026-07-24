@@ -187,8 +187,9 @@ jobs:
         with:
           python-version: 3.12
 
-      - name: Install and Configure Claude Code CLI
-        # Install Claude Code and configure it for AI-assisted debugging
+      - name: Install and Configure Claude Code CLI # zizmor: ignore[adhoc-packages]
+        # Manual debug runs intentionally install the latest Claude Code CLI for
+        # interactive troubleshooting rather than using a project lockfile.
         shell: bash
         run: |
           echo "Installing Claude Code CLI..."

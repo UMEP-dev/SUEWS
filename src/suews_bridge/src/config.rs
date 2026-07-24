@@ -6,15 +6,14 @@ use crate::error::BridgeError;
 use crate::ffi;
 use std::collections::BTreeMap;
 
-pub const SUEWS_CONFIG_FLAT_LEN: usize = 22;
-pub const SUEWS_CONFIG_SCHEMA_VERSION: u32 = 2;
+pub const SUEWS_CONFIG_FLAT_LEN: usize = 23;
+pub const SUEWS_CONFIG_SCHEMA_VERSION: u32 = 3;
 
 pub type SuewsConfigSchema = crate::codec::SimpleSchema;
 
 pub type SuewsConfigValuesPayload = ValuesPayload;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-#[derive(Default)]
 pub struct SuewsConfig {
     pub rsl_method: i32,
     pub emissions_method: i32,
@@ -38,6 +37,37 @@ pub struct SuewsConfig {
     pub rc_method: i32,
     pub setpoint_method: i32,
     pub flag_test: bool,
+    pub kdown_split_method: i32,
+}
+
+impl Default for SuewsConfig {
+    fn default() -> Self {
+        Self {
+            rsl_method: 0,
+            emissions_method: 0,
+            rough_len_heat_method: 0,
+            rough_len_mom_method: 0,
+            fai_method: 0,
+            smd_method: 0,
+            water_use_method: 0,
+            net_radiation_method: 0,
+            stability_method: 0,
+            storage_heat_method: 0,
+            diagnose: 0,
+            snow_use: 0,
+            use_sw_direct_albedo: false,
+            ohm_inc_qf: 0,
+            diag_qs: 0,
+            evap_method: 0,
+            lai_method: 0,
+            rsl_level: 0,
+            stebbs_method: 0,
+            rc_method: 0,
+            setpoint_method: 0,
+            flag_test: false,
+            kdown_split_method: 3,
+        }
+    }
 }
 
 
@@ -85,6 +115,7 @@ impl SuewsConfig {
             rc_method: decode_int(flat[19])?,
             setpoint_method: decode_int(flat[20])?,
             flag_test: flat[21] >= 0.5,
+            kdown_split_method: decode_int(flat[22])?,
         })
     }
 
@@ -112,6 +143,7 @@ impl SuewsConfig {
             self.rc_method as f64,
             self.setpoint_method as f64,
             if self.flag_test { 1.0 } else { 0.0 },
+            self.kdown_split_method as f64,
         ]
     }
 }
@@ -190,6 +222,7 @@ pub fn suews_config_field_names() -> Vec<String> {
         "rc_method".to_string(),
         "setpoint_method".to_string(),
         "flag_test".to_string(),
+        "kdown_split_method".to_string(),
     ]
 }
 

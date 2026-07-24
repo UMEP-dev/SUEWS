@@ -20,17 +20,22 @@ Apply lint-code checks. See `style-checks.md`.
 
 **Only for physics changes** (`suews_phys_*.f95`).
 
-### Module Reviewers
+### Suggested Reviewers
 
-| File Pattern | Module | Reviewers |
-|--------------|--------|-----------|
-| `suews_phys_stebbs` | module:stebbs | @yiqing1021, @denisehertwig |
-| `suews_phys_rslprof` | module:rslprof | @vitorlavor, @suegrimmond |
-| `suews_phys_spartacus` | module:spartacus | @suegrimmond, @yiqing1021 |
-| `suews_phys_snow` | module:snow | @havum, @ljarvi |
-| `suews_phys_ehc` | module:ehc | @sunt05 |
-| `suews_phys_anohm` | module:anohm | @sunt05 |
-| General | Overall | @sunt05, @MatthewPaskin |
+Reviewer suggestions are advisory metadata in the audit summary. Derive them
+from changed files, `dev-ref/SCIENTIFIC_REVIEWERS.md`, and
+`dev-ref/REVIEW_PROCESS.md`; do not request reviews or post comments without
+explicit approval.
+
+For changed paths:
+
+1. For physics modules, use the maintained panel in
+   `dev-ref/SCIENTIFIC_REVIEWERS.md`.
+2. If the module is not listed with named reviewers, suggest the default
+   scientific review owners documented in that guide.
+3. For coding style, linting, naming conventions, issue triage, or review
+   process changes, use the code-governance maintainer table in
+   `dev-ref/REVIEW_PROCESS.md`.
 
 ### Validation Checks
 

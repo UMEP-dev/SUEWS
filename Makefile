@@ -202,7 +202,7 @@ rebuild-meson:
 # - test-qgis: UMEP/QGIS compatibility tests (Windows + Python 3.12 target)
 test:
 	@echo "Running standard tests (excluding slow tests)..."
-	@echo "NOTE: Slow tests (e.g., Fortran state persistence ~3-4 min) are skipped."
+	@echo "NOTE: Long-running regression tests are skipped."
 	@echo "      Run 'make test-all' for comprehensive testing."
 	@echo ""
 	$(PYTHON) -m pytest test -m "not slow and not qgis" -v --tb=short --durations=10

@@ -73,12 +73,13 @@ cannot move. Every non-green check gets a diagnosis and a named remedy in the dr
    specific edit, in this PR), maintainer-gated (a documented bypass label, with the
    reason the diff qualifies), re-trigger mechanics (correct already, run is stale),
    or infrastructure/flake (unrelated to the diff). The classification is the
-   actionable part; state it.
+   actionable part; state it. Remedies compound: gh#1642 needed
+   `maintainer-gated -> re-trigger`, and neither half alone cleared the gate.
 
 3. **Report it as a finding** with a severity: red required or convention-blocking
-   check -> `[blocking]`; red informational check, or a bypass label applied for a
-   reason the diff does not support -> `[major]`; pending required checks -> a note
-   in the summary.
+   check -> `[blocking]`; a bypass label applied for a reason the diff does not
+   support -> `[major]`; red informational check -> `[minor]` or a note; pending
+   required checks -> a note in the summary.
 
 4. **Propose, never perform.** Applying a bypass label, re-running a workflow,
    closing/reopening, or pushing a fix onto a PR you do not own are author or
@@ -168,7 +169,8 @@ CI gate: green | near-green | red
 ### CI Findings
 - [severity] {check name} -- enforces {what}; red because {cause for this diff}.
   Remedy: {concrete action} ({author-fixable | maintainer-gated | re-trigger |
-  infrastructure})
+  infrastructure}; compound remedies chain, e.g. `maintainer-gated -> re-trigger`,
+  with the actor named at each step)
 
 Omit the CI Findings section when every check is green. Never list a red check
 without a remedy line.

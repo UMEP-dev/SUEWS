@@ -189,10 +189,17 @@ recurring-signature check is the oscillation guard.
      bundled): stop the address-and-re-audit loop and hand off to `split-pr`
      rather than fixing findings against an unreviewable diff. This mirrors the
      pre-implementation split guard in step 2.5.
+   - if `audit-pr` reports `CI gate: red`: the PR is not ready regardless of the
+     diff verdict. Treat each red check's remedy by its tier -- apply an
+     `author-fixable` remedy in this loop like any blocking finding; a
+     `maintainer-gated` (bypass label), `re-trigger` or `infrastructure` remedy is
+     outside fix-issue's authority, so stop and record it in `Remaining` naming
+     the check and the action needed. Never call the PR ready over a red CI gate.
 3. Address all valid blocking/major findings in the branch, run the relevant
    validation again, commit scoped fixes, and push.
 4. Re-run `audit-pr` on the updated PR/head. Repeat this address-and-re-audit loop
-   until `audit-pr` returns `Verdict: clean`, to a maximum of 3 iterations. The
+   until `audit-pr` returns `Verdict: clean` **and** `CI gate` is not `red`, to a
+   maximum of 3 iterations. The
    operative gate is whether any valid blocking/major finding remains, which the
    per-finding `[severity]` field reports: a `needs-attention` verdict carrying
    only minor/false-positive findings still resolves to PR-ready once each is

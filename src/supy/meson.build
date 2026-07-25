@@ -156,6 +156,7 @@ py.install_sources(
             'data_model/validation/core/__init__.py',
             'data_model/validation/core/controller.py',
             'data_model/validation/core/feedback.py',
+            'data_model/validation/core/unknown_keys.py',
             'data_model/validation/core/utils.py',
             'data_model/validation/core/yaml_helpers.py',
             'data_model/validation/pipeline/__init__.py',

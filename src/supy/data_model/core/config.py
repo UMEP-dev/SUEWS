@@ -4554,6 +4554,29 @@ class SUEWSConfig(BaseModel):
         )
 
     @classmethod
+    def _warn_unknown_keys(cls, config_data: dict) -> None:
+        """Warn about configuration keys the data model would silently drop.
+
+        Best-effort: a failure to introspect the model tree must never stop a
+        config from loading, so any exception is downgraded to a debug note.
+        """
+        try:
+            from ..validation.core.unknown_keys import (
+                collect_unknown_keys,
+                format_unknown_keys_report,
+            )
+
+            report = format_unknown_keys_report(
+                collect_unknown_keys(config_data, cls)
+            )
+        except Exception as exc:  # noqa: BLE001 - advisory check, never fatal
+            logger_supy.debug(f"Unknown-key check skipped: {exc}")
+            return
+
+        if report:
+            logger_supy.warning(report)
+
+    @classmethod
     def from_yaml(
         cls,
         path: str,
@@ -4645,6 +4668,15 @@ class SUEWSConfig(BaseModel):
             )
             # Set default schema version
             config_data["schema_version"] = CURRENT_SCHEMA_VERSION
+
+        # Report keys the model does not recognise before validation runs
+        # (gh#1647). Pydantic's default `extra="ignore"` would otherwise drop
+        # a mistyped or outdated field name without a word, leaving the user
+        # with the default value and no signal. This is deliberately a
+        # warning, not an error: a YAML carrying harmless annotations must
+        # keep loading. The pristine snapshot is used so the internal
+        # bookkeeping keys added above are never considered.
+        cls._warn_unknown_keys(yaml_raw_snapshot)
 
         if use_conditional_validation:
             logger_supy.debug(

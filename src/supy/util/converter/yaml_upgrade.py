@@ -792,13 +792,11 @@ _STEBBS_PHYSICS_LEAF_RENAMES_TO_DEV12: tuple[tuple[str, str], ...] = (
 
 def _stebbs_flat_leaf_siblings(physics: dict) -> list[str]:
     """Return flat STEBBS leaf keys present beside a nested ``stebbs`` block."""
-    return sorted(
-        {
-            old_key
-            for old_key, _leaf in _STEBBS_PHYSICS_LEAF_RENAMES_TO_DEV12
-            if old_key in physics
-        }
-    )
+    return sorted({
+        old_key
+        for old_key, _leaf in _STEBBS_PHYSICS_LEAF_RENAMES_TO_DEV12
+        if old_key in physics
+    })
 
 
 def _stebbs_leaf_alias_conflicts(physics: dict) -> list[tuple[str, list[str]]]:
@@ -818,9 +816,7 @@ def _format_stebbs_leaf_alias_conflicts(
     conflicts: list[tuple[str, list[str]]],
 ) -> str:
     """Format colliding flat STEBBS aliases for migration errors."""
-    return "; ".join(
-        f"{', '.join(keys)} -> stebbs.{leaf}" for leaf, keys in conflicts
-    )
+    return "; ".join(f"{', '.join(keys)} -> stebbs.{leaf}" for leaf, keys in conflicts)
 
 
 def _decompose_stebbs_master_value(entry):
@@ -851,9 +847,7 @@ def _decompose_stebbs_master_value(entry):
     elif isinstance(raw, float) and raw.is_integer():
         code = int(raw)
     else:
-        raise ValueError(
-            "Legacy 'stebbs' master toggle expects integer 0, 1, or 2."
-        )
+        raise ValueError("Legacy 'stebbs' master toggle expects integer 0, 1, or 2.")
     if code == 0:
         return _wrapped(False, carry_ref=True), _wrapped(1)
     if code == 1:
@@ -959,9 +953,7 @@ def _apply_stebbs_physics_fold(cfg: dict) -> None:
                 )
             else:
                 stebbs_block[nested_leaf] = physics.pop(old_flat)
-                _log(
-                    f"[yaml-upgrade]   moved {old_flat!r} -> 'stebbs.{nested_leaf}'"
-                )
+                _log(f"[yaml-upgrade]   moved {old_flat!r} -> 'stebbs.{nested_leaf}'")
 
     if stebbs_block:
         physics["stebbs"] = stebbs_block
@@ -1462,7 +1454,10 @@ def upgrade_yaml(
         _log(f"[yaml-upgrade] Detected schema version from file: {signature}")
     else:
         source_schema = _resolve_package_to_schema(from_ver)
-        if signature is not None and _resolve_package_to_schema(signature) != source_schema:
+        if (
+            signature is not None
+            and _resolve_package_to_schema(signature) != source_schema
+        ):
             _log(
                 f"[yaml-upgrade] WARNING: user-supplied --from={from_ver} "
                 f"(schema {source_schema}) disagrees with file signature "
@@ -1473,8 +1468,7 @@ def upgrade_yaml(
 
     target_schema = CURRENT_SCHEMA_VERSION
     _log(
-        f"[yaml-upgrade] Source schema: {source_schema}  "
-        f"Target schema: {target_schema}"
+        f"[yaml-upgrade] Source schema: {source_schema}  Target schema: {target_schema}"
     )
 
     if source_schema == target_schema:
@@ -1484,9 +1478,7 @@ def upgrade_yaml(
             f"{output_path}."
         )
 
-    for (from_s, to_s), handler in _resolve_handler_chain(
-        source_schema, target_schema
-    ):
+    for (from_s, to_s), handler in _resolve_handler_chain(source_schema, target_schema):
         _log(f"[yaml-upgrade] Applying handler {from_s} -> {to_s}: {handler.__name__}")
         cfg = handler(cfg)
 

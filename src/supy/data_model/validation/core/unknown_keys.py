@@ -16,9 +16,10 @@ suggestion where one can be made:
 - otherwise a close-match search over the sibling field names catches an
   ordinary typo.
 
-Detection is advisory: it emits warnings rather than rejecting the config,
-because a YAML carrying harmless annotations is legitimate and must keep
-loading.
+An unrecognised key means the model never applied something the user asked
+for, so the caller rejects the config rather than warning -- the same
+treatment an unrecognised option *value* has always had. This module only
+finds and describes the keys; raising is the loader's decision.
 """
 
 import difflib
@@ -124,8 +125,7 @@ class UnknownKey:
             return f"{base}."
         if self.reason == "legacy":
             return (
-                f"{base} in the current schema; "
-                f"it was renamed to '{self.suggestion}'."
+                f"{base} in the current schema; it was renamed to '{self.suggestion}'."
             )
         return f"{base}; did you mean '{self.suggestion}'?"
 
@@ -367,7 +367,6 @@ def format_unknown_keys_report(unknown: List[UnknownKey]) -> str:
     lines.append(
         "The model has no field of this name, so the value would have no "
         "effect on the run. Correct the name, or remove the key if it is "
-        "not needed. To upgrade a configuration written for an older "
-        "release, run: suews-convert -i <old.yml> -o <new.yml>"
+        "not needed."
     )
     return "\n".join(lines)

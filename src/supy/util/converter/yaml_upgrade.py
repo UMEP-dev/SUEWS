@@ -154,6 +154,72 @@ def _walk_site_container(cfg: dict, name: str) -> Iterable[dict]:
             yield container
 
 
+_VEGETATED_SURFACES: tuple[str, ...] = ("evetr", "dectr", "grass")
+
+# Fields whose removal the per-version handlers missed, so they survived
+# migration and were then discarded without comment by the validator
+# (gh#1647). Swept on every chain rather than pinned to one source version,
+# because they persisted across several releases.
+_RETIRED_STEBBS_FIELDS: tuple[tuple[str, str], ...] = (
+    ("HotWaterTankBuildingWallViewFactor", "moved to runtime solver state (#879)"),
+    ("HotWaterTankInternalMassViewFactor", "moved to runtime solver state (#879)"),
+)
+
+_RETIRED_ARCHETYPE_FIELDS: tuple[tuple[str, str], ...] = (
+    # `BuildingName` carries the archetype's identity (-> `archetype_name`);
+    # the separate `BuildingType` classifier has no modern equivalent.
+    ("BuildingType", "no longer part of the archetype schema"),
+    ("OccupantsProfile", "replaced by profile_metabolism"),
+)
+
+
+def _drop_retired_fields(cfg: dict) -> dict:
+    """Remove fields that outlived their removal from the schema.
+
+    Two cases, both invisible until unrecognised keys started being
+    rejected (gh#1647):
+
+    * hot-water-tank view factors, absorbed into the runtime solver by #879
+      alongside the wall view factors, but never added to the drop table,
+      and two archetype fields retired without a drop entry;
+    * the bulk ``alb`` on a vegetated land-cover block. A vegetated
+      surface's albedo is the seasonal pair ``alb_min`` / ``alb_max``, with
+      the starting value carried separately as
+      ``initial_states.<surface>.alb_id``, so the single bulk value has no
+      field to land in.
+
+    Dropping them here makes the loss explicit in the converter log and
+    leaves the converter's output loadable.
+    """
+    for stebbs in _walk_site_container(cfg, "stebbs"):
+        for name, reason in _RETIRED_STEBBS_FIELDS:
+            _drop_obsolete_field(stebbs, name, reason)
+
+    for arch in _walk_site_container(cfg, "building_archetype"):
+        for name, reason in _RETIRED_ARCHETYPE_FIELDS:
+            _drop_obsolete_field(arch, name, reason)
+
+    for site in cfg.get("sites", []) or []:
+        if not isinstance(site, dict):
+            continue
+        props = site.get("properties")
+        if not isinstance(props, dict):
+            continue
+        land_cover = props.get("land_cover")
+        if not isinstance(land_cover, dict):
+            continue
+        for surface in _VEGETATED_SURFACES:
+            block = land_cover.get(surface)
+            if isinstance(block, dict):
+                _drop_obsolete_field(
+                    block,
+                    "alb",
+                    f"{surface} albedo is set by alb_min/alb_max, with the "
+                    f"starting value in initial_states.{surface}.alb_id",
+                )
+    return cfg
+
+
 def _rename_field(arch: dict, old_name: str, new_name: str) -> bool:
     """Rename `old_name` to `new_name` in-place on `arch`.
 
@@ -1423,6 +1489,11 @@ def upgrade_yaml(
     ):
         _log(f"[yaml-upgrade] Applying handler {from_s} -> {to_s}: {handler.__name__}")
         cfg = handler(cfg)
+
+    # Runs whichever chain was taken, including the no-upgrade-needed case,
+    # so a field that outlived its removal cannot reach the validator and be
+    # rejected there instead (gh#1647).
+    cfg = _drop_retired_fields(cfg)
 
     cfg["schema_version"] = target_schema
 

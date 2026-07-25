@@ -8,7 +8,6 @@ the model genuinely honours.
 """
 
 import copy
-import logging
 from pathlib import Path
 
 import pytest
@@ -147,7 +146,7 @@ class TestSuggestions:
         ]
         assert found.suggestion == "water_use"
         assert found.reason == "legacy"
-        assert "did you mean 'water_use'?" in found.describe()
+        assert "renamed to 'water_use'" in found.describe()
 
     def test_plain_typo_matches_sibling_field(self, sample_config_data):
         data = copy.deepcopy(sample_config_data)
@@ -171,7 +170,7 @@ class TestSuggestions:
             if item.key == "zzzz_nothing_like_a_field"
         ]
         assert found.suggestion is None
-        assert "will be ignored" in found.describe()
+        assert found.describe().endswith("is not a recognised field.")
 
 
 class TestReport:
@@ -193,22 +192,31 @@ class TestLoadPathIntegration:
     """The detection is worthless if it only runs in the opt-in validator:
     the silent drop happens on the ordinary load path (gh#1647)."""
 
-    def test_from_dict_warns_about_unknown_key(self, sample_config_data, caplog):
+    def test_from_dict_rejects_unknown_key(self, sample_config_data):
         data = copy.deepcopy(sample_config_data)
         data["model"]["physics"]["WaterUseMethod"] = 1
 
-        with caplog.at_level(logging.WARNING, logger="SuPy"):
-            config = SUEWSConfig.from_dict(data, strict=False)
+        with pytest.raises(ValueError, match="model.physics.WaterUseMethod"):
+            SUEWSConfig.from_dict(data)
 
-        assert "model.physics.WaterUseMethod" in caplog.text
-        assert "water_use" in caplog.text
-        # The config still loads: this is advisory, not a rejection.
-        assert config is not None
+    def test_rejection_names_the_current_field(self, sample_config_data):
+        data = copy.deepcopy(sample_config_data)
+        data["model"]["physics"]["WaterUseMethod"] = 1
 
-    def test_clean_config_produces_no_unknown_key_warning(
-        self, sample_config_data, caplog
+        with pytest.raises(ValueError, match="renamed to 'water_use'"):
+            SUEWSConfig.from_dict(data)
+
+    def test_rejection_survives_disabled_conditional_validation(
+        self, sample_config_data
     ):
-        with caplog.at_level(logging.WARNING, logger="SuPy"):
-            SUEWSConfig.from_dict(copy.deepcopy(sample_config_data), strict=False)
+        """`use_conditional_validation=False` waives physics checks, not the
+        structural guarantee that every key the user wrote is honoured."""
+        data = copy.deepcopy(sample_config_data)
+        data["model"]["physics"]["totally_bogus_key"] = 42
 
-        assert "unrecognised configuration" not in caplog.text
+        with pytest.raises(ValueError, match="totally_bogus_key"):
+            SUEWSConfig.from_dict(data, use_conditional_validation=False)
+
+    def test_clean_config_still_loads(self, sample_config_data):
+        config = SUEWSConfig.from_dict(copy.deepcopy(sample_config_data))
+        assert config is not None

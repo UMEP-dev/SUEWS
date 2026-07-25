@@ -121,12 +121,11 @@ class UnknownKey:
         """Render a single-line, user-facing description of this key."""
         base = f"{self.path} is not a recognised field"
         if self.suggestion is None:
-            return f"{base}; it will be ignored."
+            return f"{base}."
         if self.reason == "legacy":
             return (
                 f"{base} in the current schema; "
-                f"did you mean '{self.suggestion}'? "
-                f"(it was renamed; the old name is now ignored)"
+                f"it was renamed to '{self.suggestion}'."
             )
         return f"{base}; did you mean '{self.suggestion}'?"
 
@@ -363,14 +362,12 @@ def format_unknown_keys_report(unknown: List[UnknownKey]) -> str:
 
     count = len(unknown)
     noun = "key" if count == 1 else "keys"
-    lines = [
-        f"{count} unrecognised configuration {noun} found; "
-        f"{'it' if count == 1 else 'they'} will be ignored:"
-    ]
+    lines = [f"{count} unrecognised configuration {noun}:"]
     lines.extend(f"  - {item.describe()}" for item in unknown)
     lines.append(
-        "Unrecognised keys have no effect on the run. "
-        "If a value above was meant to change the model, correct the name "
-        "and re-run; see `suews-convert` for upgrading an older config."
+        "The model has no field of this name, so the value would have no "
+        "effect on the run. Correct the name, or remove the key if it is "
+        "not needed. To upgrade a configuration written for an older "
+        "release, run: suews-convert -i <old.yml> -o <new.yml>"
     )
     return "\n".join(lines)

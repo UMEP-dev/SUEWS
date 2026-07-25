@@ -4673,11 +4673,12 @@ class SUEWSConfig(BaseModel):
             )
 
             unknown = collect_unknown_keys(config_data, cls)
-        except ValueError:
-            raise
         except Exception as exc:  # noqa: BLE001 - introspection is best-effort
             # Failing to introspect the model tree must not block a load that
             # would otherwise succeed; the check is a guard, not the schema.
+            # Every exception is swallowed deliberately, including ValueError:
+            # a fault in the walk is a bug here, not a fault in the user's
+            # config, and must not be reported to them as one.
             logger_supy.debug(f"Unknown-key check skipped: {exc}")
             return
 

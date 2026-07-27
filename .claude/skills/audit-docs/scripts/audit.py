@@ -13,6 +13,7 @@ Exit codes:
     0   all convention checks passed (abstract warnings may appear)
     1   one or more convention violations found
 """
+
 from __future__ import annotations
 
 import argparse
@@ -60,7 +61,7 @@ def _match_field(body: str, name: str) -> tuple[int, int, str] | None:
         i += 1
     if depth != 0:
         return None
-    return m.start() + len(m.group(1)), i - 1, body[open_brace + 1:i - 1]
+    return m.start() + len(m.group(1)), i - 1, body[open_brace + 1 : i - 1]
 
 
 def extract_field(body: str, name: str) -> str | None:
@@ -72,8 +73,13 @@ def parse_slugs(raw: str) -> list[str]:
     return [s.strip() for s in raw.split(",") if s.strip()]
 
 
-def audit_entry(entry: dict, file_path: str, all_keys: dict[str, str],
-                violations: list[str], warnings: list[str]) -> None:
+def audit_entry(
+    entry: dict,
+    file_path: str,
+    all_keys: dict[str, str],
+    violations: list[str],
+    warnings: list[str],
+) -> None:
     key = entry["key"]
     body = entry["body"]
     line = entry["line"]
@@ -118,7 +124,9 @@ def audit_entry(entry: dict, file_path: str, all_keys: dict[str, str],
     # Abstract (warning only — collaborators without WoS access can still pass)
     abstract = extract_field(body, "abstract")
     if abstract is None or not abstract.strip():
-        warnings.append(f"{prefix}: missing `abstract` (run `/audit-docs` refs enrichment if you have WoS/Crossref access)")
+        warnings.append(
+            f"{prefix}: missing `abstract` (run `/audit-docs` refs enrichment if you have WoS/Crossref access)"
+        )
 
 
 def find_entries(text: str) -> list[dict]:
@@ -138,7 +146,9 @@ def find_entries(text: str) -> list[dict]:
     return entries
 
 
-def audit_file(path: Path, all_keys: dict[str, str]) -> tuple[int, list[str], list[str]]:
+def audit_file(
+    path: Path, all_keys: dict[str, str]
+) -> tuple[int, list[str], list[str]]:
     text = path.read_text(encoding="utf-8")
     entries = find_entries(text)
     violations: list[str] = []
@@ -151,8 +161,11 @@ def audit_file(path: Path, all_keys: dict[str, str]) -> tuple[int, list[str], li
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0] if __doc__ else "")
     ap.add_argument("paths", nargs="+", help="Bib files to audit")
-    ap.add_argument("--quiet", action="store_true",
-                    help="Suppress per-file summary (only show violations/warnings/total)")
+    ap.add_argument(
+        "--quiet",
+        action="store_true",
+        help="Suppress per-file summary (only show violations/warnings/total)",
+    )
     args = ap.parse_args()
 
     all_keys: dict[str, str] = {}
@@ -170,7 +183,9 @@ def main() -> int:
         all_violations.extend(violations)
         all_warnings.extend(warnings)
         if not args.quiet:
-            print(f"  {p}: {n} entries, {len(violations)} violations, {len(warnings)} warnings")
+            print(
+                f"  {p}: {n} entries, {len(violations)} violations, {len(warnings)} warnings"
+            )
 
     if all_warnings:
         print("\n=== warnings ===")
@@ -181,11 +196,15 @@ def main() -> int:
         print("\n=== violations ===")
         for v in all_violations:
             print(f"  {v}")
-        print(f"\n[FAIL] {len(all_violations)} violation(s) across {total_entries} entries")
+        print(
+            f"\n[FAIL] {len(all_violations)} violation(s) across {total_entries} entries"
+        )
         return 1
 
-    print(f"\n[OK] {total_entries} entries pass convention audit"
-          f" ({len(all_warnings)} warning(s))")
+    print(
+        f"\n[OK] {total_entries} entries pass convention audit"
+        f" ({len(all_warnings)} warning(s))"
+    )
     return 0
 
 

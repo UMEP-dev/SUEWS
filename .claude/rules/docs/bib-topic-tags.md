@@ -9,9 +9,10 @@ These bib files drive `docs/source/related_publications.rst` and `docs/source/co
 ## Required metadata
 
 Every entry MUST include non-empty `title`, `author`, and `year` fields.
-Published entries MUST also include a non-empty `doi`. An `@unpublished`
-entry MUST instead include a non-empty `note` describing its publication
-status, such as `In preparation` or `Under review`; its `doi` is optional.
+All entry types other than `@unpublished` MUST also include a non-empty `doi`.
+An `@unpublished` entry MUST instead include a non-empty `note` describing its
+publication status, such as `In preparation` or `Under review`; its `doi` is
+optional.
 
 ## Every entry MUST carry at least one topic slug
 

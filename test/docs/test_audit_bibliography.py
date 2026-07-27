@@ -10,8 +10,10 @@ import pytest
 pytestmark = pytest.mark.api
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
-AUDIT_PATH = (
-    PROJECT_ROOT / ".claude" / "skills" / "audit-docs" / "scripts" / "audit.py"
+AUDIT_PATH = PROJECT_ROOT / ".claude" / "skills" / "audit-docs" / "scripts" / "audit.py"
+BIB_PATHS = (
+    PROJECT_ROOT / "docs" / "source" / "assets" / "refs" / "refs-SUEWS.bib",
+    PROJECT_ROOT / "docs" / "source" / "assets" / "refs" / "refs-community.bib",
 )
 
 
@@ -59,6 +61,18 @@ def _audit_text(tmp_path: Path, text: str):
     return AUDIT.audit_file(bib_path, {})
 
 
+@pytest.mark.parametrize("bib_path", BIB_PATHS, ids=lambda path: path.name)
+def test_bibliography_comment_header_has_no_nested_commands(
+    bib_path: Path,
+) -> None:
+    text = bib_path.read_text(encoding="utf-8")
+    header, separator, _ = text.partition("\n}\n")
+
+    assert separator
+    assert header.startswith("@comment{")
+    assert header.count("@") == 1
+
+
 def test_parser_records_lowercased_entry_type() -> None:
     entries = AUDIT.find_entries(_bib_entry("Unpublished"))
 
@@ -68,9 +82,7 @@ def test_parser_records_lowercased_entry_type() -> None:
 
 
 @pytest.mark.parametrize("note", ["In preparation", "Under review"])
-def test_unpublished_entry_without_doi_passes(
-    tmp_path: Path, note: str
-) -> None:
+def test_unpublished_entry_without_doi_passes(tmp_path: Path, note: str) -> None:
     count, violations, warnings = _audit_text(
         tmp_path, _bib_entry("unpublished", note=note)
     )
@@ -91,9 +103,7 @@ def test_unpublished_entry_with_doi_passes(tmp_path: Path) -> None:
 
 
 @pytest.mark.parametrize("entry_type", ["article", "inproceedings"])
-def test_other_entry_types_without_doi_fail(
-    tmp_path: Path, entry_type: str
-) -> None:
+def test_other_entry_types_without_doi_fail(tmp_path: Path, entry_type: str) -> None:
     _, violations, _ = _audit_text(tmp_path, _bib_entry(entry_type))
 
     assert any("missing or empty `doi`" in violation for violation in violations)
@@ -112,9 +122,7 @@ def test_other_entry_type_with_doi_passes(tmp_path: Path) -> None:
 def test_unpublished_entry_still_requires_required_fields(
     tmp_path: Path, field: str
 ) -> None:
-    _, violations, _ = _audit_text(
-        tmp_path, _bib_entry("unpublished", omit=(field,))
-    )
+    _, violations, _ = _audit_text(tmp_path, _bib_entry("unpublished", omit=(field,)))
 
     assert any(f"missing or empty `{field}`" in violation for violation in violations)
 

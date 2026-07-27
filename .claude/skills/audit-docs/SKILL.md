@@ -85,8 +85,11 @@ subsections via `sphinxcontrib-bibtex`'s `:filter:` on the `keywords` field.
 
 - Checks **convention compliance**: every entry has a `keywords` field, every
   slug is in the approved vocabulary, slug format is lowercase-hyphen, no
-  duplicate citation keys, required fields present, abstracts populated
-  (informational, not a failure).
+  duplicate citation keys, and required fields are present. Every entry
+  requires `title`, `author`, and `year`; published entries also require
+  `doi`, while `@unpublished` entries require a publication-status `note`
+  (for example, `In preparation` or `Under review`) and may omit `doi`.
+  Missing abstracts are reported as informational warnings, not failures.
 - Does **not** verify DOI-to-paper correctness -- use the user-level
   `refs-checker` skill for that.
 

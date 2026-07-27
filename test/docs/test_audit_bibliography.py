@@ -80,6 +80,16 @@ def test_unpublished_entry_without_doi_passes(
     assert warnings == []
 
 
+def test_unpublished_entry_with_doi_passes(tmp_path: Path) -> None:
+    count, violations, warnings = _audit_text(
+        tmp_path, _bib_entry("unpublished", include_doi=True)
+    )
+
+    assert count == 1
+    assert violations == []
+    assert warnings == []
+
+
 @pytest.mark.parametrize("entry_type", ["article", "inproceedings"])
 def test_other_entry_types_without_doi_fail(
     tmp_path: Path, entry_type: str

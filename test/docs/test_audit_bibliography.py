@@ -59,7 +59,7 @@ def _audit_text(tmp_path: Path, text: str):
     return AUDIT.audit_file(bib_path, {})
 
 
-def test_parser_records_normalized_entry_type() -> None:
+def test_parser_records_lowercased_entry_type() -> None:
     entries = AUDIT.find_entries(_bib_entry("Unpublished"))
 
     assert len(entries) == 1

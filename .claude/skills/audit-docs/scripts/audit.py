@@ -105,7 +105,7 @@ def audit_entry(entry: dict, file_path: str, all_keys: dict[str, str],
                 )
 
     # Unpublished manuscripts use a status note instead of a DOI.
-    if entry["entry_type"] == "unpublished":
+    if entry.get("entry_type") == "unpublished":
         required_fields = (*COMMON_REQUIRED_FIELDS, "note")
     else:
         required_fields = (*COMMON_REQUIRED_FIELDS, "doi")

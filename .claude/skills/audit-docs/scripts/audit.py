@@ -13,12 +13,13 @@ Exit codes:
     0   all convention checks passed (abstract warnings may appear)
     1   one or more convention violations found
 """
+
 from __future__ import annotations
 
 import argparse
+from pathlib import Path
 import re
 import sys
-from pathlib import Path
 
 VOCAB: set[str] = {
     "energy-balance",
@@ -32,9 +33,11 @@ VOCAB: set[str] = {
 }
 
 SLUG_RE = re.compile(r"^[a-z][a-z0-9]*(-[a-z0-9]+)*$")
-ENTRY_START = re.compile(r"^@[A-Za-z]+\{([^,\s]+)\s*,", re.MULTILINE)
+ENTRY_START = re.compile(
+    r"^@(?P<entry_type>[A-Za-z]+)\{(?P<key>[^,\s]+)\s*,", re.MULTILINE
+)
 
-REQUIRED_FIELDS = ("title", "author", "year", "doi")
+COMMON_REQUIRED_FIELDS = ("title", "author", "year")
 
 
 def _line_number(text: str, offset: int) -> int:
@@ -58,7 +61,7 @@ def _match_field(body: str, name: str) -> tuple[int, int, str] | None:
         i += 1
     if depth != 0:
         return None
-    return m.start() + len(m.group(1)), i - 1, body[open_brace + 1:i - 1]
+    return m.start() + len(m.group(1)), i - 1, body[open_brace + 1 : i - 1]
 
 
 def extract_field(body: str, name: str) -> str | None:
@@ -70,8 +73,13 @@ def parse_slugs(raw: str) -> list[str]:
     return [s.strip() for s in raw.split(",") if s.strip()]
 
 
-def audit_entry(entry: dict, file_path: str, all_keys: dict[str, str],
-                violations: list[str], warnings: list[str]) -> None:
+def audit_entry(
+    entry: dict,
+    file_path: str,
+    all_keys: dict[str, str],
+    violations: list[str],
+    warnings: list[str],
+) -> None:
     key = entry["key"]
     body = entry["body"]
     line = entry["line"]
@@ -102,8 +110,13 @@ def audit_entry(entry: dict, file_path: str, all_keys: dict[str, str],
                     f"(allowed: {', '.join(sorted(VOCAB))})"
                 )
 
-    # Required fields
-    for field in REQUIRED_FIELDS:
+    # Unpublished manuscripts use a status note instead of a DOI.
+    if entry.get("entry_type") == "unpublished":
+        required_fields = (*COMMON_REQUIRED_FIELDS, "note")
+    else:
+        required_fields = (*COMMON_REQUIRED_FIELDS, "doi")
+
+    for field in required_fields:
         val = extract_field(body, field)
         if val is None or not val.strip():
             violations.append(f"{prefix}: missing or empty `{field}`")
@@ -111,7 +124,9 @@ def audit_entry(entry: dict, file_path: str, all_keys: dict[str, str],
     # Abstract (warning only — collaborators without WoS access can still pass)
     abstract = extract_field(body, "abstract")
     if abstract is None or not abstract.strip():
-        warnings.append(f"{prefix}: missing `abstract` (run `/audit-docs` refs enrichment if you have WoS/Crossref access)")
+        warnings.append(
+            f"{prefix}: missing `abstract` (run `/audit-docs` refs enrichment if you have WoS/Crossref access)"
+        )
 
 
 def find_entries(text: str) -> list[dict]:
@@ -121,7 +136,8 @@ def find_entries(text: str) -> list[dict]:
         start = m.start()
         end = starts[i + 1].start() if i + 1 < len(starts) else len(text)
         entries.append({
-            "key": m.group(1),
+            "entry_type": m.group("entry_type").lower(),
+            "key": m.group("key"),
             "start": start,
             "end": end,
             "body": text[start:end],
@@ -130,7 +146,9 @@ def find_entries(text: str) -> list[dict]:
     return entries
 
 
-def audit_file(path: Path, all_keys: dict[str, str]) -> tuple[int, list[str], list[str]]:
+def audit_file(
+    path: Path, all_keys: dict[str, str]
+) -> tuple[int, list[str], list[str]]:
     text = path.read_text(encoding="utf-8")
     entries = find_entries(text)
     violations: list[str] = []
@@ -143,8 +161,11 @@ def audit_file(path: Path, all_keys: dict[str, str]) -> tuple[int, list[str], li
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0] if __doc__ else "")
     ap.add_argument("paths", nargs="+", help="Bib files to audit")
-    ap.add_argument("--quiet", action="store_true",
-                    help="Suppress per-file summary (only show violations/warnings/total)")
+    ap.add_argument(
+        "--quiet",
+        action="store_true",
+        help="Suppress per-file summary (only show violations/warnings/total)",
+    )
     args = ap.parse_args()
 
     all_keys: dict[str, str] = {}
@@ -162,7 +183,9 @@ def main() -> int:
         all_violations.extend(violations)
         all_warnings.extend(warnings)
         if not args.quiet:
-            print(f"  {p}: {n} entries, {len(violations)} violations, {len(warnings)} warnings")
+            print(
+                f"  {p}: {n} entries, {len(violations)} violations, {len(warnings)} warnings"
+            )
 
     if all_warnings:
         print("\n=== warnings ===")
@@ -173,11 +196,15 @@ def main() -> int:
         print("\n=== violations ===")
         for v in all_violations:
             print(f"  {v}")
-        print(f"\n[FAIL] {len(all_violations)} violation(s) across {total_entries} entries")
+        print(
+            f"\n[FAIL] {len(all_violations)} violation(s) across {total_entries} entries"
+        )
         return 1
 
-    print(f"\n[OK] {total_entries} entries pass convention audit"
-          f" ({len(all_warnings)} warning(s))")
+    print(
+        f"\n[OK] {total_entries} entries pass convention audit"
+        f" ({len(all_warnings)} warning(s))"
+    )
     return 0
 
 

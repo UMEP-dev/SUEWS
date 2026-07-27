@@ -1,10 +1,18 @@
-# Bibliography topic tags
+# Bibliography conventions
 
-Rules for the `keywords` field on entries in `docs/source/assets/refs/refs-SUEWS.bib` and `docs/source/assets/refs/refs-community.bib`.
+Rules for entries in `docs/source/assets/refs/refs-SUEWS.bib` and `docs/source/assets/refs/refs-community.bib`.
 
 These bib files drive `docs/source/related_publications.rst` and `docs/source/community_publications.rst`, which render per-topic subsections with stable `.. _pub-<slug>:` anchors for external deep-linking. The `audit-docs` skill (`.claude/skills/audit-docs/`) enforces this convention and backfills missing metadata.
 
 ---
+
+## Required metadata
+
+Every entry MUST include non-empty `title`, `author`, and `year` fields.
+All entry types other than `@unpublished` MUST also include a non-empty `doi`.
+An `@unpublished` entry MUST instead include a non-empty `note` describing its
+publication status, such as `In preparation` or `Under review`; its `doi` is
+optional.
 
 ## Every entry MUST carry at least one topic slug
 

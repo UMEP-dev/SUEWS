@@ -3100,6 +3100,18 @@ class SiteProperties(BaseModel):
         ge=0,
     )
 
+    theta_r: FlexibleRefValue(float) = Field(
+        default=0.1,
+        description="Residual volumetric soil moisture [m3 m-3]",
+        json_schema_extra={"unit": "m^3 m^-3", "display_name": "theta_r"},
+    )
+
+    porosity: FlexibleRefValue(float) = Field(
+        default=0.451,
+        description="Volumetric soil moisture capacity [m3 m-3] (i.e. saturated VWC)",
+        json_schema_extra={"unit": "m^3 m^-3", "display_name": "porosity"}
+    )
+
     ref: Optional[Reference] = None
 
     @model_validator(mode="before")

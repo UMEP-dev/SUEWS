@@ -121,7 +121,7 @@ CONTAINS
       id, it, & ! input:
       SMDMethod, SnowFrac, sfr_surf, avkdn, Tair, dq, xsmd, vsmd, MaxConductance, &
       LAIMax, LAI_id, gsModel, Kmax, &
-      G_max, G_k, g_q_base, g_q_shape, G_t, G_sm, TH, TL, S1, S2, &
+      G_max, G_k, g_q_base, g_q_shape, G_t, G_sm, TH, TL, S1, S2, theta_r, &
       g_kdown, g_dq, g_ta, g_smd, g_lai, & ! output:
       gfunc, gsc, RS, & ! output:
       modState) ! optional: thread-safe error state
@@ -179,6 +179,8 @@ CONTAINS
       REAL(KIND(1D0)), INTENT(in) :: dq !Specific humidity deficit
       REAL(KIND(1D0)), INTENT(in) :: xsmd !Measured soil moisture deficit
       REAL(KIND(1D0)), INTENT(in) :: vsmd !QUESTION: Soil moisture deficit for vegetated surfaces only (what about BSoil?)
+      
+      REAL(KIND(1D0)), INTENT(in) :: theta_r ! 
 
       REAL(KIND(1D0)), DIMENSION(3), INTENT(in) :: MaxConductance !Max conductance [mm s-1]
       REAL(KIND(1D0)), DIMENSION(3), INTENT(in) :: LAIMax !Max LAI [m2 m-2]
@@ -367,7 +369,8 @@ CONTAINS
             g_ta = (Tair - TL)*(TH - Tair)**Tc/Tc2
          END IF
          ! ---- g(smd) ----
-         sdp = S1/G_sm + S2
+         ! sdp = S1/G_sm + S2
+         sdp = theta_r * 1000
          IF (SMDMethod > 0) THEN !Modified from ==1 to > 0 by HCW 31/07/2014
             g_smd = (1 - EXP(G_sm*(xsmd - sdp)))/(1 - EXP(G_sm*(-sdp))) !Use measured smd
          ELSE

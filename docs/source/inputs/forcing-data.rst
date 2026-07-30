@@ -289,8 +289,8 @@ These additional variables can enhance model performance but are not required:
      - fcld
      - For radiation calculations
    * - External water use
-     - m³
-     - Wuh
+     - mm
+     - Wuh or Wuh_{Surf}
      - For irrigation
    * - Soil moisture
      - m³/m³

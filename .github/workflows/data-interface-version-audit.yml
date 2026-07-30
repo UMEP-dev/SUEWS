@@ -1,0 +1,56 @@
+name: Data-interface version audit
+
+# Forcing and output are public data interfaces, independently versioned from
+# the YAML configuration schema. This workflow rejects governed contract
+# changes that do not move the matching interface version.
+
+on:
+  # Run unconditionally so a required check succeeds for unrelated PRs and so
+  # path-filter edge cases (especially renames) still reach the audit script.
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  check-interface-version:
+    name: Require data-interface version bump
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout full history
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6
+        with:
+          python-version: '3.12'
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@d0cc045d04ccac9d8b7881df0226f9e82c39688e # v6
+        with:
+          enable-cache: true
+
+      - name: Install locked validator dependencies
+        run: uv sync --frozen --no-install-project --python 3.12
+
+      - name: Fetch base ref
+        env:
+          BASE_REF: ${{ github.event.pull_request.base.ref }}
+        run: |
+          set -eu
+          git fetch --no-tags origin "$BASE_REF"
+
+      - name: Validate version registries
+        run: .venv/bin/python src/supy/data_model/interfaces/version.py
+
+      - name: Run data-interface audit
+        env:
+          BASE_REF: ${{ github.event.pull_request.base.ref }}
+          PYTHONPATH: src
+        run: |
+          set -eu
+          .venv/bin/python scripts/lint/check_data_interface_version_bump.py \
+            --base "origin/$BASE_REF"

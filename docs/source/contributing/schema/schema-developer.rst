@@ -25,8 +25,9 @@ Schema Versioning Basics
 When a Schema Bump Is Required
 ------------------------------
 
-Bump when a PR touches ``src/supy/data_model/`` in a way that prevents
-a previously valid YAML from round-tripping:
+Bump when a PR changes a YAML-owned model under
+``src/supy/data_model/core/`` in a way that prevents a previously valid
+YAML from round-tripping:
 
 - Rename a public field (for example ``DeepSoilTemperature`` →
   ``AnnualMeanAirTemperature``).
@@ -87,12 +88,11 @@ Two automated gates defend the invariant that a schema bump lands
 with everything it needs:
 
 **CI workflow: schema-version-audit**
-   ``.github/workflows/schema-version-audit.yml`` runs on every PR
-   that touches ``src/supy/data_model/**``,
-   ``src/supy/sample_data/sample_config.yml``, or the schema
-   documentation. It invokes
+   ``.github/workflows/schema-version-audit.yml`` runs on every PR and
+   fast-skips when no YAML-owned model under ``src/supy/data_model/core/``
+   or shipped sample configuration changed. It invokes
    ``scripts/lint/check_schema_version_bump.py``, which fails if
-   either (a) the data model changed but
+   either (a) the YAML configuration shape changed but
    ``CURRENT_SCHEMA_VERSION`` did not, or (b)
    ``CURRENT_SCHEMA_VERSION`` moved but neither
    ``docs/source/contributing/schema/schema_versioning.rst`` nor
@@ -110,6 +110,10 @@ with everything it needs:
 The ``prep-release`` and ``audit-pr`` skills encode the same
 checklist so a release or a review-in-progress cannot silently drift
 past a missing bump.
+
+Forcing and output contract changes follow the independent semantic-version
+policy in :ref:`data_interface_versioning` and are checked by the
+``data-interface-version-audit`` workflow.
 
 Schema Management Commands
 --------------------------
@@ -157,8 +161,10 @@ Python API
 Implementation Map
 ------------------
 
-- ``src/supy/data_model/schema/`` — schema version registry and
+- ``src/supy/data_model/schema/`` — YAML schema version registry and
   compatibility helpers.
+- ``src/supy/data_model/interfaces/`` — forcing/output interface
+  version registries, canonicalisation and immutable snapshots.
 - ``src/supy/data_model/schema/migration.py`` — ``SchemaMigrator``
   that consults the handler registry.
 - ``src/supy/util/converter/yaml_upgrade.py`` — migration handlers

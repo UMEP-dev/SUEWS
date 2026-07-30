@@ -1,5 +1,3 @@
-:orphan:
-
 Schema Development
 ==================
 
@@ -10,4 +8,5 @@ This section documents the SUEWS schema system for developers.
 
    schema-developer
    schema_versioning
+   data_interface_versioning
    schema_cli

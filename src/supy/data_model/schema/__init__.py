@@ -41,6 +41,12 @@ from .publisher import (
 
 # Export functionality
 from .exporter import export_schema
+from .interfaces import (
+    DATA_INTERFACE_VERSION,
+    export_data_interface_artifacts,
+    generate_data_interface_catalogue,
+    generate_data_interface_schema,
+)
 
 __all__ = [
     # Version management
@@ -62,4 +68,9 @@ __all__ = [
     "validate_config_against_schema",
     # Export
     "export_schema",
+    # Data interfaces
+    "DATA_INTERFACE_VERSION",
+    "export_data_interface_artifacts",
+    "generate_data_interface_catalogue",
+    "generate_data_interface_schema",
 ]

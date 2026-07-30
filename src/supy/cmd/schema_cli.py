@@ -29,6 +29,11 @@ import yaml
 try:
     from ..data_model.core.config import SUEWSConfig
     from ..data_model.schema.migration import SchemaMigrator, check_migration_needed
+    from ..data_model.schema.interfaces import (
+        DATA_INTERFACE_VERSION,
+        generate_data_interface_catalogue,
+        generate_data_interface_schema,
+    )
     from ..data_model.schema.publisher import generate_json_schema, save_schema
     from ..data_model.schema.version import (
         CURRENT_SCHEMA_VERSION,
@@ -43,6 +48,11 @@ except ImportError:
     sys.path.append(str(Path(__file__).parent.parent.parent))
     from supy.data_model.core.config import SUEWSConfig
     from supy.data_model.schema.migration import SchemaMigrator, check_migration_needed
+    from supy.data_model.schema.interfaces import (
+        DATA_INTERFACE_VERSION,
+        generate_data_interface_catalogue,
+        generate_data_interface_schema,
+    )
     from supy.data_model.schema.publisher import generate_json_schema, save_schema
     from supy.data_model.schema.version import (
         CURRENT_SCHEMA_VERSION,
@@ -59,6 +69,26 @@ except ImportError:  # pragma: no cover - direct script execution fallback
 
 console = Console()
 logger = logging.getLogger(__name__)
+
+
+def _generate_artifact(
+    kind: str,
+    artifact: str,
+    version: str | None,
+) -> tuple[dict, str]:
+    """Generate one configuration or data-interface artefact."""
+    if kind == "config":
+        if artifact != "schema":
+            raise ValueError(
+                "configuration catalogues are not supported; use --artifact schema"
+            )
+        target = version or CURRENT_SCHEMA_VERSION
+        return generate_json_schema(version=target), target
+
+    target = version or DATA_INTERFACE_VERSION
+    if artifact == "schema":
+        return generate_data_interface_schema(kind, target), target
+    return generate_data_interface_catalogue(kind, target), target
 
 
 def read_yaml_file(file_path: Path) -> Tuple[dict, Optional[str]]:
@@ -155,8 +185,22 @@ def validate_file_against_schema(
         "'json' emits the canonical SUEWS envelope on stdout."
     ),
 )
+@click.option(
+    "--kind",
+    type=click.Choice(["config", "forcing", "output"], case_sensitive=False),
+    default="config",
+    show_default=True,
+    help="Interface whose schema or catalogue should be emitted.",
+)
+@click.option(
+    "--artifact",
+    type=click.Choice(["schema", "catalogue"], case_sensitive=False),
+    default="schema",
+    show_default=True,
+    help="Emit a JSON Schema or a versioned variable catalogue.",
+)
 @click.pass_context
-def cli(ctx, verbose, quiet, schema_version, out_format):
+def cli(ctx, verbose, quiet, schema_version, out_format, kind, artifact):
     """
     SUEWS Schema Management - Manage YAML configuration schemas.
 
@@ -165,7 +209,7 @@ def cli(ctx, verbose, quiet, schema_version, out_format):
 
     When invoked without a subcommand (``suews schema [--version V]
     [--format json|text]``), it returns a single envelope wrapping the
-    JSON Schema for the requested (or current) version.
+    JSON Schema or variable catalogue for the requested interface.
     """
     ctx.ensure_object(dict)
     ctx.obj["verbose"] = verbose
@@ -184,18 +228,26 @@ def cli(ctx, verbose, quiet, schema_version, out_format):
         return
 
     started_at = _now_iso()
-    target_version = schema_version or CURRENT_SCHEMA_VERSION
+    target_version = schema_version
     command_str = " ".join(sys.argv) if sys.argv else "suews schema"
 
     try:
-        schema_dict = generate_json_schema(version=target_version)
+        artifact_dict, resolved_version = _generate_artifact(
+            kind.lower(),
+            artifact.lower(),
+            target_version,
+        )
     except Exception as exc:  # noqa: BLE001 - surface generator output verbatim
-        message = f"Failed to generate schema for version {target_version!r}: {exc}"
+        message = f"Failed to generate {kind} {artifact}: {exc}"
         if out_format.lower() == "json":
             Envelope.error(
                 errors=[message],
                 command=command_str,
-                data={"requested_version": target_version},
+                data={
+                    "kind": kind,
+                    "artifact": artifact,
+                    "requested_version": target_version,
+                },
                 started_at=started_at,
             ).emit()
         else:
@@ -204,17 +256,24 @@ def cli(ctx, verbose, quiet, schema_version, out_format):
 
     if out_format.lower() == "json":
         Envelope.success(
-            data=schema_dict, command=command_str, started_at=started_at
+            data=artifact_dict, command=command_str, started_at=started_at
         ).emit()
         ctx.exit(0)
 
-    # Text mode: a compact human-readable summary of the schema metadata.
-    title = schema_dict.get("title", "SUEWS Schema")
-    schema_id = schema_dict.get("$id", "(no $id)")
-    schema_version_tag = schema_dict.get("version", target_version)
-    description = schema_dict.get("description", "")
-    required = schema_dict.get("required", []) or []
-    properties = list((schema_dict.get("properties") or {}).keys())
+    if artifact.lower() == "catalogue":
+        console.print(f"[bold]SUEWS {kind.title()} Variable Catalogue[/bold]")
+        console.print(f"  version  : {resolved_version}")
+        console.print(f"  $id      : {artifact_dict.get('$id', '(no $id)')}")
+        console.print(f"  variables: {len(artifact_dict.get('variables', []))}")
+        ctx.exit(0)
+
+    # Text mode: a compact human-readable summary of schema metadata.
+    title = artifact_dict.get("title", "SUEWS Schema")
+    schema_id = artifact_dict.get("$id", "(no $id)")
+    schema_version_tag = artifact_dict.get("version", resolved_version)
+    description = artifact_dict.get("description", "")
+    required = artifact_dict.get("required", []) or []
+    properties = list((artifact_dict.get("properties") or {}).keys())
 
     console.print(f"[bold]{title}[/bold]")
     console.print(f"  version : {schema_version_tag}")
@@ -438,8 +497,22 @@ def migrate(ctx, files, target_version, output_dir, backup, dry_run):
     default="json",
     help="Output format",
 )
+@click.option(
+    "--kind",
+    type=click.Choice(["config", "forcing", "output"], case_sensitive=False),
+    default="config",
+    show_default=True,
+    help="Interface to export.",
+)
+@click.option(
+    "--artifact",
+    type=click.Choice(["schema", "catalogue"], case_sensitive=False),
+    default="schema",
+    show_default=True,
+    help="Export a JSON Schema or a variable catalogue.",
+)
 @click.pass_context
-def export(ctx, output, version, format):
+def export(ctx, output, version, format, kind, artifact):
     """
     Export the JSON Schema for SUEWS configurations.
 
@@ -450,24 +523,30 @@ def export(ctx, output, version, format):
     verbose = ctx.obj.get("verbose", False)
     quiet = ctx.obj.get("quiet", False)
 
-    schema_version = version or CURRENT_SCHEMA_VERSION
-
     if not quiet:
-        console.print(f"[bold blue]Exporting schema v{schema_version}[/bold blue]\n")
+        console.print(
+            f"[bold blue]Exporting {kind} {artifact}[/bold blue]\n"
+        )
 
     try:
-        # Generate schema
-        schema = generate_json_schema(version=schema_version)
+        artifact_dict, resolved_version = _generate_artifact(
+            kind.lower(),
+            artifact.lower(),
+            version,
+        )
 
         # Convert to desired format
         if format == "yaml":
             output_content = yaml.dump(
-                schema, default_flow_style=False, sort_keys=False
+                artifact_dict, default_flow_style=False, sort_keys=False
             )
-            default_filename = f"suews-schema-v{schema_version}.yaml"
+            extension = "yaml"
         else:
-            output_content = json.dumps(schema, indent=2)
-            default_filename = f"suews-schema-v{schema_version}.json"
+            output_content = json.dumps(artifact_dict, indent=2)
+            extension = "json"
+        default_filename = (
+            f"suews-{kind}-{artifact}-v{resolved_version}.{extension}"
+        )
 
         # Write to file or stdout
         if output:
@@ -482,7 +561,7 @@ def export(ctx, output, version, format):
                 console.print(
                     Panel(
                         Syntax(output_content, format, theme="monokai"),
-                        title=f"Schema v{schema_version}",
+                        title=f"{kind.title()} {artifact.title()} v{resolved_version}",
                         subtitle=f"Save as: {default_filename}",
                     )
                 )

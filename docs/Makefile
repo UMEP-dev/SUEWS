@@ -12,6 +12,10 @@ RST_STAMP     = $(RST_OUTDIR)/.generated.stamp
 OUTPUT_RST_OUTDIR = $(SOURCEDIR)/outputs/variables
 OUTPUT_RST_STAMP  = $(OUTPUT_RST_OUTDIR)/.generated.stamp
 
+# RST generation outputs and deps - forcing variables
+FORCING_RST_OUTDIR = $(SOURCEDIR)/inputs/forcing-variables
+FORCING_RST_STAMP  = $(FORCING_RST_OUTDIR)/.generated.stamp
+
 # Data model sources that affect generated RST
 DM_SRC        = $(shell find ../src/supy/data_model -type f -name '*.py' 2>/dev/null)
 
@@ -22,7 +26,7 @@ help:
 	@$(SPHINXBUILD) -M help "$(SOURCEDIR)" "$(BUILDDIR)" $(SPHINXOPTS)
 
 # Build HTML documentation (most common use case)
-html: $(RST_STAMP) $(OUTPUT_RST_STAMP)
+html: $(RST_STAMP) $(OUTPUT_RST_STAMP) $(FORCING_RST_STAMP)
 	@$(SPHINXBUILD) -M html "$(SOURCEDIR)" "$(BUILDDIR)" $(SPHINXOPTS)
 
 # Clean build artifacts
@@ -37,7 +41,7 @@ LIVEHTML_OPEN_BROWSER ?= --open-browser
 LIVEHTML_PORT ?= 8000
 
 # Live-reloading server with incremental builds
-livehtml: $(RST_STAMP) $(OUTPUT_RST_STAMP)
+livehtml: $(RST_STAMP) $(OUTPUT_RST_STAMP) $(FORCING_RST_STAMP)
 	@echo "Starting live-reload server with incremental builds..."
 	@echo "Tip: Edit .rst files and see changes instantly (2-5s rebuilds)"
 	@echo "     Data model RST auto-regenerates when Python sources change"
@@ -63,10 +67,16 @@ $(OUTPUT_RST_STAMP): generate_output_variable_rst.py $(DM_SRC)
 	@python3 generate_output_variable_rst.py --output-dir $(OUTPUT_RST_OUTDIR)
 	@touch $(OUTPUT_RST_STAMP)
 
+# Generate RST from forcing variable registry only when sources change
+$(FORCING_RST_STAMP): generate_forcing_variable_rst.py $(DM_SRC)
+	@echo "Generating RST files for forcing variables..."
+	@python3 generate_forcing_variable_rst.py --output-dir $(FORCING_RST_OUTDIR)
+	@touch $(FORCING_RST_STAMP)
+
 # Convenience target: preserve existing name, now non-phony
 # Provide a no-op recipe so it won't be picked up by the generic
 # "%:" rule (which would try to call sphinx with a non-existent builder).
-generate-rst: $(RST_STAMP) $(OUTPUT_RST_STAMP)
+generate-rst: $(RST_STAMP) $(OUTPUT_RST_STAMP) $(FORCING_RST_STAMP)
 	@:
 
 # Catch remaining sphinx targets without auto-generation

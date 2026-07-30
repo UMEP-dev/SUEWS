@@ -22,6 +22,14 @@ See :doc:`../inputs/yaml/index` for configuration details.
 
    variables/index
 
+The same ``OUTPUT_REGISTRY`` also provides deterministic machine-readable
+artefacts:
+
+.. code-block:: console
+
+   suews schema --kind output --artifact schema --format json
+   suews schema --kind output --artifact catalogue --format json
+
 .. toctree::
    :maxdepth: 1
    :caption: Legacy Documentation

@@ -16,6 +16,7 @@ from packaging import version
 
 from ._env import logger_supy, trv_supy_module, ISSUES_URL
 from ._misc import path_insensitive 
+from .data_model.forcing import FORCING_REGISTRY, MISSING_VALUE
 
 # choose different second representation to accommodate different pandas versions
 # pandas version <1.5
@@ -98,38 +99,12 @@ dict_varSiteSelect2File = {
 dict_Code2File.update(dict_varSiteSelect2File)
 
 
-# define data types for different resampling schemes
+# Compatibility projection from the canonical typed forcing registry.
 # time: temporal info
 # avg: average values of period ending at timestamps
 # inst: instantaneous values at timestamps
 # sum: sum of period ending at timestamps
-dict_var_type_forcing = {
-    "iy": "time",
-    "id": "time",
-    "it": "time",
-    "imin": "time",
-    "qn": "avg",
-    "qh": "avg",
-    "qe": "avg",
-    "qs": "avg",
-    "qf": "avg",
-    "U": "inst",
-    "RH": "inst",
-    "Tair": "inst",
-    "pres": "inst",
-    "rain": "sum",
-    "kdown": "avg",
-    "snow": "inst",
-    "ldown": "avg",
-    "fcld": "inst",
-    "Wuh": "sum",
-    "xsmd": "inst",
-    "lai": "inst",
-    "kdiff": "avg",
-    "kdir": "avg",
-    "wdir": "inst",
-    "isec": "time",
-}
+dict_var_type_forcing = FORCING_REGISTRY.temporal_types
 
 
 # gh#1372 -- canonical forcing column name set (Python side, 24 cols),
@@ -139,38 +114,33 @@ dict_var_type_forcing = {
 # lower-cased canonical set; the DataFrame uses the canonical (cased)
 # names below. Whitelist must stay in sync with the Rust constants in
 # src/suews_bridge/src/forcing_io.rs.
-BASELINE_DATETIME_FORCING_COLUMNS: tuple[str, ...] = ("iy", "id", "it", "imin")
+BASELINE_DATETIME_FORCING_COLUMNS = FORCING_REGISTRY.datetime_names
 BASELINE_DATETIME_FORCING_SET: frozenset[str] = frozenset(BASELINE_DATETIME_FORCING_COLUMNS)
 
-BASELINE_FORCING_COLUMNS: tuple[str, ...] = ("Tair", "RH", "U", "pres", "kdown", "rain")
+BASELINE_FORCING_COLUMNS = FORCING_REGISTRY.baseline_names
 BASELINE_FORCING_COLUMNS_SET: frozenset[str] = frozenset(BASELINE_FORCING_COLUMNS)
 
-OPTIONAL_FORCING_COLUMNS: list[str] = [
-    "qn", "qh", "qe", "qs", "qf",
-    "snow", "ldown", "fcld", "Wuh", "xsmd", "lai",
-    "kdiff", "kdir", "wdir",
-]
+OPTIONAL_FORCING_COLUMNS = list(FORCING_REGISTRY.optional_names)
 
-CANONICAL_FORCING_COLUMNS = BASELINE_DATETIME_FORCING_SET | BASELINE_FORCING_COLUMNS_SET | frozenset(OPTIONAL_FORCING_COLUMNS)
+CANONICAL_FORCING_COLUMNS = frozenset(FORCING_REGISTRY.canonical_names)
 
-PER_LANDCOVER_FORCING_VARS: frozenset[str] = frozenset({"lai", "wuh"})
-LANDCOVER_SUFFIXES: tuple[str, ...] = (
-    "paved", "bldgs", "evetr", "dectr", "grass", "bsoil", "water",
+PER_LANDCOVER_ALLOWED_SUFFIXES = FORCING_REGISTRY.per_landcover_suffixes
+PER_LANDCOVER_FORCING_VARS = frozenset(PER_LANDCOVER_ALLOWED_SUFFIXES)
+LANDCOVER_SUFFIXES = tuple(
+    dict.fromkeys(
+        suffix
+        for suffixes in PER_LANDCOVER_ALLOWED_SUFFIXES.values()
+        for suffix in suffixes
+    )
 )
 # LAI is only meaningful for vegetated surfaces; the other four surface
 # types do not carry a leaf-area-index value. wuh (external water use)
 # is accepted on every surface — irrigation and impervious-surface
 # washing on land surfaces, fountains and ornamental water features on
 # the open-water surface (gh#1372 follow-up; see meeting 2026-05-01).
-LAI_LANDCOVER_SUFFIXES: tuple[str, ...] = ("evetr", "dectr", "grass")
-WUH_LANDCOVER_SUFFIXES: tuple[str, ...] = (
-    "paved", "bldgs", "evetr", "dectr", "grass", "bsoil", "water",
-)
-PER_LANDCOVER_ALLOWED_SUFFIXES: dict[str, tuple[str, ...]] = {
-    "lai": LAI_LANDCOVER_SUFFIXES,
-    "wuh": WUH_LANDCOVER_SUFFIXES,
-}
-FORCING_OPTIONAL_FILL: float = -999.0
+LAI_LANDCOVER_SUFFIXES = PER_LANDCOVER_ALLOWED_SUFFIXES["lai"]
+WUH_LANDCOVER_SUFFIXES = PER_LANDCOVER_ALLOWED_SUFFIXES["wuh"]
+FORCING_OPTIONAL_FILL = MISSING_VALUE
 
 
 def _is_per_landcover_column(name: str) -> bool:

@@ -33,46 +33,12 @@ SUEWS requires continuous meteorological data representative of the neighbourhoo
 Data Requirements
 -----------------
 
-**Essential Variables**
-
-SUEWS requires the following meteorological variables:
-
-.. list-table::
-   :header-rows: 1
-   :widths: 20 20 20 40
-
-   * - Variable
-     - Units
-     - Column Name
-     - Notes
-   * - Wind speed
-     - m/s
-     - U
-     - Minimum 0.01 m/s (to avoid division by zero)
-   * - Relative humidity
-     - %
-     - RH
-     - 0-100%
-   * - Air temperature
-     - °C
-     - Tair
-     - 
-   * - Atmospheric pressure
-     - kPa
-     - pres
-     - 
-   * - Rainfall
-     - mm
-     - rain
-     - Per time step
-   * - Incoming shortwave
-     - W/m²
-     - kdown
-     - Must be ≥ 0 (0 at night)
-   * - Incoming longwave
-     - W/m²
-     - ldown
-     - Optional (use -999 if not available)
+The authoritative names, units, temporal semantics, aliases, per-land-cover
+suffixes and physics-dependent requirements are generated from the runtime
+registry in the :doc:`forcing variable reference <forcing-variables/index>`.
+The baseline meteorological columns are ``Tair``, ``RH``, ``U``, ``pres``,
+``kdown`` and ``rain``. Other variables may become mandatory for a selected
+physics path.
 
 **Time Information**
 
@@ -90,12 +56,13 @@ File Format
 
 - **Format**: Space or tab-delimited text file
 - **Extension**: ``.txt``
-- **Header**: No header row - data starts from first line
+- **Header**: A header row containing canonical column names is required
 - **Missing values**: Use ``-999`` for optional variables
 
-**Column Order**
+**Legacy Column Order**
 
-The columns must appear in this exact order:
+The historical 24-column layout used the following order. Named-column files
+may use any order; this sequence remains useful when converting legacy files:
 
 .. code-block:: text
 
@@ -250,68 +217,11 @@ order):
 Optional Variables
 ------------------
 
-These additional variables can enhance model performance but are not required:
-
-.. list-table::
-   :header-rows: 1
-   :widths: 25 15 15 45
-
-   * - Variable
-     - Units
-     - Column
-     - Usage
-   * - Net radiation
-     - W/m²
-     - qn
-     - If NetRadiationMethod = 0
-   * - Sensible heat flux
-     - W/m²
-     - qh
-     - For validation/comparison
-   * - Latent heat flux
-     - W/m²
-     - qe
-     - For validation/comparison
-   * - Storage heat flux
-     - W/m²
-     - qs
-     - For validation/comparison
-   * - Anthropogenic heat
-     - W/m²
-     - qf
-     - If not modeled
-   * - Snow fraction
-     - 0-1
-     - snow
-     - If SnowUse = 1
-   * - Cloud fraction
-     - tenths
-     - fcld
-     - For radiation calculations
-   * - External water use
-     - m³
-     - Wuh
-     - For irrigation
-   * - Soil moisture
-     - m³/m³
-     - xsmd
-     - For initialization
-   * - Leaf area index
-     - m²/m²
-     - lai
-     - If ``model.physics.laimethod = 0`` (see :ref:`prescribed-lai`)
-   * - Diffuse radiation
-     - W/m²
-     - kdiff
-     - For SOLWEIG
-   * - Direct radiation
-     - W/m²
-     - kdir
-     - For SOLWEIG
-   * - Wind direction
-     - degrees
-     - wdir
-     - Currently not used
+See the generated :ref:`forcing-variable-reference` for the complete list.
+The reference distinguishes always-optional columns from columns that become
+required for a selected physics path. In particular, ``Wuh`` and its
+per-land-cover variants use ``mm`` accumulated over each forcing interval,
+not a volume unit.
 
 .. _prescribed-lai:
 

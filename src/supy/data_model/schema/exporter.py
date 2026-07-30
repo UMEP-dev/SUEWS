@@ -21,6 +21,7 @@ from typing import Optional
 from .version import CURRENT_SCHEMA_VERSION, SCHEMA_VERSIONS
 from ..core import SUEWSConfig
 from .registry import SchemaRegistry
+from .interfaces import export_data_interface_artifacts
 
 logger = logging.getLogger(__name__)
 
@@ -78,6 +79,7 @@ def export_schema(
     pr_number: Optional[int] = None,
     base_url: Optional[str] = None,
     template_path: Optional[Path] = None,
+    interface_output_root: Optional[Path] = None,
 ) -> dict:
     """
     Export JSON Schema to the specified directory.
@@ -90,6 +92,9 @@ def export_schema(
         pr_number: PR number if this is a preview build
         base_url: Base URL for schema hosting (default: https://suews.io)
         template_path: Path to HTML template (auto-detected if not provided)
+        interface_output_root: Publication root for forcing/output artefacts.
+            Defaults to the site root when output_dir uses the standard
+            ``schemas/suews-config`` layout.
 
     Returns:
         The generated schema dict
@@ -188,6 +193,25 @@ def export_schema(
     )
     index_html.write_text(index_content, encoding="utf-8")
     print(f"[OK] Generated {index_html}")
+
+    if interface_output_root is None:
+        if output_dir.name == "suews-config" and output_dir.parent.name == "schemas":
+            interface_output_root = output_dir.parent.parent
+        else:
+            interface_output_root = output_dir / "data-interfaces"
+    interface_base_url = (
+        f"{base_url.rstrip('/')}/preview/pr-{pr_number}"
+        if is_preview and pr_number
+        else base_url
+    )
+    export_data_interface_artifacts(
+        Path(interface_output_root),
+        base_url=interface_base_url,
+    )
+    print(
+        "[OK] Exported forcing/output schemas and catalogues to "
+        f"{interface_output_root}"
+    )
 
     return schema
 

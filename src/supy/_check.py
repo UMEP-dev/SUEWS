@@ -15,6 +15,7 @@ from ._load import (
     dict_var_type_forcing,
     set_var_use,
 )
+from .data_model.forcing import FORCING_REGISTRY
 
 LAI_VEG_COLUMNS = ("lai_evetr", "lai_dectr", "lai_grass")
 
@@ -40,6 +41,9 @@ def load_rules(path_rules) -> Dict:
 
 # store rules as a dict
 dict_rules_indiv = load_rules(path_rules_indiv)
+for forcing_name in FORCING_REGISTRY.canonical_names:
+    dict_rules_indiv.pop(forcing_name.casefold(), None)
+dict_rules_indiv.update(FORCING_REGISTRY.checker_rules)
 
 
 # checking the range of each parameter
@@ -157,18 +161,8 @@ list_col_forcing = list(dict_var_type_forcing.keys())
 # Reference: https://docs.suews.io/stable/inputs/tables/RunControl/RunControl.html
 # and https://docs.suews.io/stable/inputs/forcing-data.html
 FORCING_REQUIREMENTS = {
-    ("netradiationmethod", 0): ["qn"],  # Uses observed Q*
-    ("netradiationmethod", 1): ["ldown"],  # Q* modelled with L↓ observations
-    ("netradiationmethod", 2): [
-        "kdown",
-        "fcld",
-    ],  # Q* modelled with L↓ from cloud fraction
-    ("netradiationmethod", 3): ["kdown"],  # Q* modelled with L↓ from Tair and RH
-    ("storageheatmethod", 0): ["qs"],  # Uses observed storage heat flux
-    ("emissionsmethod", 0): ["qf"],  # Uses observed anthropogenic heat flux
-    ("smdmethod", 1): ["xsmd"],  # Uses observed volumetric soil moisture
-    ("smdmethod", 2): ["xsmd"],  # Uses observed gravimetric soil moisture
-    ("laimethod", 0): ["lai"],  # Uses observed LAI from forcing
+    key: sorted(columns)
+    for key, columns in FORCING_REGISTRY.physics_requirements(legacy=True).items()
 }
 
 

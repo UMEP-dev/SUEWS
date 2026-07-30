@@ -17,6 +17,7 @@ SUEWS supports two formats for providing input parameters:
    yaml/index
    yaml/layer-conventions
    forcing-data
+   forcing-variables/index
    yaml/config-reference/index
 
 .. toctree::

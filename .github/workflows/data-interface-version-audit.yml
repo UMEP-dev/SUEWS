@@ -28,14 +28,6 @@ jobs:
         with:
           python-version: '3.12'
 
-      - name: Set up uv
-        uses: astral-sh/setup-uv@d0cc045d04ccac9d8b7881df0226f9e82c39688e # v6
-        with:
-          enable-cache: true
-
-      - name: Install locked validator dependencies
-        run: uv sync --frozen --no-install-project --python 3.12
-
       - name: Fetch base ref
         env:
           BASE_REF: ${{ github.event.pull_request.base.ref }}
@@ -44,7 +36,7 @@ jobs:
           git fetch --no-tags origin "$BASE_REF"
 
       - name: Validate version registries
-        run: .venv/bin/python src/supy/data_model/interfaces/version.py
+        run: python src/supy/data_model/interfaces/version.py
 
       - name: Run data-interface audit
         env:
@@ -52,5 +44,5 @@ jobs:
           PYTHONPATH: src
         run: |
           set -eu
-          .venv/bin/python scripts/lint/check_data_interface_version_bump.py \
+          python scripts/lint/check_data_interface_version_bump.py \
             --base "origin/$BASE_REF"

@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
-"""Guard: PRs touching data_model must bump CURRENT_SCHEMA_VERSION
-AND sync the user-facing schema documentation.
+"""Guard YAML configuration shape changes with CURRENT_SCHEMA_VERSION.
 
 Usage
 -----
@@ -9,8 +8,9 @@ Usage
 Compares the working tree (or HEAD in CI) against `BASE_REF` (defaults
 to `origin/master`). The script enforces two coupled invariants:
 
-1. Schema bump invariant — if any file under `src/supy/data_model/` or
-   the `src/supy/sample_data/sample_config.yml` sample has changed
+1. Schema bump invariant — if a YAML-owned Pydantic model under
+   `src/supy/data_model/core/` or the
+   `src/supy/sample_data/sample_config.yml` sample has changed
    *and* `CURRENT_SCHEMA_VERSION` in
    `src/supy/data_model/schema/version.py` has *not* changed, exit
    non-zero with remediation guidance.
@@ -64,11 +64,20 @@ import re
 import subprocess
 import sys
 
-# Paths whose change implies a schema change (relative to repo root).
+# Paths that own the public YAML configuration shape (relative to repo root).
+# Output registries, forcing contracts and validation implementation are
+# deliberately governed elsewhere and must not consume YAML schema versions.
 _WATCHED_PREFIXES: tuple[str, ...] = (
-    "src/supy/data_model/",
+    "src/supy/data_model/core/",
     "src/supy/sample_data/sample_config.yml",
 )
+
+# These core helpers do not contribute fields to SUEWSConfig.model_json_schema().
+_EXCLUDED_PATHS: frozenset[str] = frozenset({
+    "src/supy/data_model/core/__init__.py",
+    "src/supy/data_model/core/df_column_renames.py",
+    "src/supy/data_model/core/forcing_validation.py",
+})
 
 # The file that must be touched when any of the watched paths changes.
 _SCHEMA_VERSION_FILE = "src/supy/data_model/schema/version.py"
@@ -107,6 +116,24 @@ def _merge_base(base_ref: str) -> str:
     return _run(["git", "merge-base", base_ref, "HEAD"]).strip()
 
 
+def _paths_from_name_status(output: str) -> set[str]:
+    """Return both paths from NUL-delimited ``git --name-status -z`` output."""
+    paths: set[str] = set()
+    fields = output.split("\0")
+    if fields and not fields[-1]:
+        fields.pop()
+    index = 0
+    while index < len(fields):
+        status = fields[index]
+        path_count = 2 if status.startswith(("R", "C")) else 1
+        record_end = index + 1 + path_count
+        if not status or record_end > len(fields):
+            raise ValueError("cannot parse NUL-delimited git name-status output")
+        paths.update(fields[index + 1 : record_end])
+        index = record_end
+    return paths
+
+
 def _list_changed_files(base_ref: str, include_worktree: bool) -> list[str]:
     """Return files changed between `base_ref` and the branch tip.
 
@@ -116,16 +143,36 @@ def _list_changed_files(base_ref: str, include_worktree: bool) -> list[str]:
     against the merge-base so uncommitted edits are included but
     unrelated commits on `base_ref` are still filtered out.
     """
+    comparison = _merge_base(base_ref) if include_worktree else f"{base_ref}...HEAD"
+    output = _run([
+        "git",
+        "diff",
+        "--name-status",
+        "-z",
+        "--find-renames",
+        comparison,
+    ])
+    paths = _paths_from_name_status(output)
     if include_worktree:
-        output = _run(["git", "diff", "--name-only", _merge_base(base_ref)])
-    else:
-        output = _run(["git", "diff", "--name-only", f"{base_ref}...HEAD"])
-    return [line.strip() for line in output.splitlines() if line.strip()]
+        paths.update(
+            path
+            for path in _run([
+                "git",
+                "ls-files",
+                "--others",
+                "--exclude-standard",
+                "-z",
+            ]).split("\0")
+            if path
+        )
+    return sorted(paths)
 
 
 def _is_watched(path: str) -> bool:
     """Return True if `path` falls under the schema-monitored prefix set."""
-    return any(path == p or path.startswith(p) for p in _WATCHED_PREFIXES)
+    return path not in _EXCLUDED_PATHS and any(
+        path == prefix or path.startswith(prefix) for prefix in _WATCHED_PREFIXES
+    )
 
 
 _CURRENT_SCHEMA_VERSION_PATTERN = re.compile(

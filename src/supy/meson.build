@@ -135,11 +135,10 @@ py.install_sources(
             'data_model/schema/publisher.py',
             'data_model/schema/exporter.py',
             'data_model/schema/registry.py',
-            'data_model/interfaces/__init__.py',
-            'data_model/interfaces/canonical.py',
-            'data_model/interfaces/snapshots.py',
-            'data_model/interfaces/version.py',
+            'data_model/forcing/__init__.py',
+            'data_model/forcing/version.py',
             'data_model/output/__init__.py',
+            'data_model/output/version.py',
             'data_model/output/variables.py',
             'data_model/output/datetime_vars.py',
             'data_model/output/suews_vars.py',
@@ -182,11 +181,6 @@ py.install_sources(
     ],
     subdir: 'supy',
     preserve_path: true,
-)
-
-install_subdir(
-  'data_model/interfaces/artefacts',
-  install_dir: py.get_install_dir() / 'supy/data_model/interfaces',
 )
 
 knowledge_pack = custom_target(

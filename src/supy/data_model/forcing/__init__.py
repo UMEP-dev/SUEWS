@@ -1,0 +1,1 @@
+"""Forcing data contract definitions."""

@@ -298,7 +298,7 @@ These additional variables can enhance model performance but are not required:
      - For initialization
    * - Leaf area index
      - m²/m²
-     - lai or lai_{surf}
+- ``lai`` or ``lai_evetr`` / ``lai_dectr`` / ``lai_grass``
      - If ``model.physics.laimethod = 0`` (see :ref:`prescribed-lai`)
    * - Diffuse radiation
      - W/m²

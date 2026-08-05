@@ -290,7 +290,7 @@ These additional variables can enhance model performance but are not required:
      - For radiation calculations
    * - External water use
 - mm per forcing interval (accumulated)
-     - Wuh or Wuh_{Surf}
+- ``Wuh`` or ``wuh_<surface>``
      - For irrigation
    * - Soil moisture
      - m³/m³

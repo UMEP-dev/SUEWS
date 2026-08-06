@@ -8,8 +8,8 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <meta property="article:modified_time" content="2026-06-30T22:50:11+00:00" />
-    <title>4.3. Meteorological Forcing Data &#8212; SUEWS 2026.8.6.dev2 documentation</title>
+    <meta property="article:modified_time" content="2026-08-06T15:25:05+00:00" />
+    <title>4.3. Meteorological Forcing Data &#8212; SUEWS 2026.8.6.dev3 documentation</title>
   
   
   
@@ -45,7 +45,7 @@
   <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=90905a2f556bf617f1a9" />
 <link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=90905a2f556bf617f1a9" />
 
-    <script src="../_static/documentation_options.js?v=9a3a7334"></script>
+    <script src="../_static/documentation_options.js?v=21c6f129"></script>
     <script src="../_static/doctools.js?v=9bcbadda"></script>
     <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
     <script src="../_static/scripts/sphinx-book-theme.js?v=fab101a9"></script>
@@ -60,8 +60,8 @@
     <link rel="prev" title="4.2. Vertical and Material Layer Conventions" href="yaml/layer-conventions.html" />
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
-  <meta name="docsearch:version" content="2026.8.6.dev2" />
-    <meta name="docbuild:last-update" content="2026-06-30"/>
+  <meta name="docsearch:version" content="2026.8.6.dev3" />
+    <meta name="docbuild:last-update" content="2026-08-06"/>
   
     
     <script src="../_static/searchtools.js"></script>
@@ -109,7 +109,7 @@
   <div class="bd-header-announcement__content">
     <div style="background-color: #f0ad4e; border: 1px solid #eea236; border-radius: 4px; padding: 10px; margin: 10px 0;">
         <strong>⚠️ Development Version:</strong> This documentation was built from a development version
-        (2026.8.6.dev2, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/aa0e8eb73202040c41e7f06db4134b0668146cdf" style="color: #31708f;">aa0e8eb</a>).
+        (2026.8.6.dev3, commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/0760c0d81694e363eb7f6ff1427b600b7c403cd0" style="color: #31708f;">0760c0d</a>).
         Features described here may be unstable or subject to change. For stable documentation, please visit the
         <a href="https://docs.suews.io/stable/" style="color: #31708f;">latest release</a>.
     </div>
@@ -200,8 +200,8 @@
       
     
     
-    <img src="../_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.8.6.dev2 documentation - Home"/>
-    <img src="../_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.8.6.dev2 documentation - Home"/>
+    <img src="../_static/suews-logo-stacked-light.svg" class="logo__image only-light" alt="SUEWS 2026.8.6.dev3 documentation - Home"/>
+    <img src="../_static/suews-logo-stacked-dark.svg" class="logo__image only-dark pst-js-only" alt="SUEWS 2026.8.6.dev3 documentation - Home"/>
   
   
 </a></div>
@@ -865,9 +865,14 @@ extra rescaling.</p>
 </li>
 </ul>
 <p>Whitelisted columns are preserved on <code class="docutils literal notranslate"><span class="pre">SUEWSForcing.extras</span></code> for
-downstream physics work; the kernel itself continues to use the bulk
-<code class="docutils literal notranslate"><span class="pre">lai</span></code> and <code class="docutils literal notranslate"><span class="pre">Wuh</span></code> columns. Soil-moisture deficit (<code class="docutils literal notranslate"><span class="pre">xsmd</span></code>) is a
-bulk site-level quantity and is intentionally not per-landcover.</p>
+downstream physics work. Surface-specific <code class="docutils literal notranslate"><span class="pre">lai_&lt;surface&gt;</span></code> and
+<code class="docutils literal notranslate"><span class="pre">wuh_&lt;surface&gt;</span></code> columns are passed through to the kernel, which
+continues to use the bulk <code class="docutils literal notranslate"><span class="pre">lai</span></code> and <code class="docutils literal notranslate"><span class="pre">Wuh</span></code> columns as default
+values for legacy or bulk calculations. These bulk values are applied
+to all applicable surfaces unless a corresponding land-cover-specific
+value is provided, in which case the surface-specific value overrides
+the bulk value. Soil-moisture deficit (<code class="docutils literal notranslate"><span class="pre">xsmd</span></code>) is a bulk site-level
+quantity and is intentionally not per-landcover.</p>
 </li>
 <li><p><strong>Unknown columns</strong>: any column not in the canonical or whitelisted
 sets emits a <code class="docutils literal notranslate"><span class="pre">UserWarning</span></code> and is dropped.</p></li>
@@ -995,8 +1000,8 @@ order):</p>
 <td><p>For radiation calculations</p></td>
 </tr>
 <tr class="row-odd"><td><p>External water use</p></td>
-<td><p>m³</p></td>
-<td><p>Wuh</p></td>
+<td><p>mm per forcing interval (accumulated)</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Wuh</span></code> or <code class="docutils literal notranslate"><span class="pre">wuh_&lt;surface&gt;</span></code></p></td>
 <td><p>For irrigation</p></td>
 </tr>
 <tr class="row-even"><td><p>Soil moisture</p></td>
@@ -1006,7 +1011,7 @@ order):</p>
 </tr>
 <tr class="row-odd"><td><p>Leaf area index</p></td>
 <td><p>m²/m²</p></td>
-<td><p>lai</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">lai</span></code> or <code class="docutils literal notranslate"><span class="pre">lai_evetr</span></code> / <code class="docutils literal notranslate"><span class="pre">lai_dectr</span></code> / <code class="docutils literal notranslate"><span class="pre">lai_grass</span></code></p></td>
 <td><p>If <code class="docutils literal notranslate"><span class="pre">model.physics.laimethod</span> <span class="pre">=</span> <span class="pre">0</span></code> (see <a class="reference internal" href="#prescribed-lai"><span class="std std-ref">Prescribing Observed LAI</span></a>)</p></td>
 </tr>
 <tr class="row-even"><td><p>Diffuse radiation</p></td>
@@ -1537,7 +1542,7 @@ By SUEWS dev team led by Prof Sue Grimmond
   
   <div class="footer-item">
     <p class="last-updated">
-  Last updated on 2026-06-30.
+  Last updated on 2026-08-06.
   <br/>
 </p>
   </div>
@@ -1545,8 +1550,8 @@ By SUEWS dev team led by Prof Sue Grimmond
   <div class="footer-item">
     
 <div class="extra_footer">
-  <p>Version: 2026.8.6.dev2 |
-    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/aa0e8eb73202040c41e7f06db4134b0668146cdf">aa0e8eb</a> |
+  <p>Version: 2026.8.6.dev3 |
+    Commit: <a href="https://github.com/UMEP-dev/SUEWS/commit/0760c0d81694e363eb7f6ff1427b600b7c403cd0">0760c0d</a> |
     <a href="https://umep-dev.github.io/SUEWS/brand/showcase.html">Brand</a></p>
 </div>
   </div>

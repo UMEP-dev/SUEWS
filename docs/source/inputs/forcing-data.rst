@@ -165,9 +165,14 @@ matched, case-insensitively, against the canonical column list above.
     extra rescaling.
 
   Whitelisted columns are preserved on ``SUEWSForcing.extras`` for
-  downstream physics work; the kernel itself continues to use the bulk
-  ``lai`` and ``Wuh`` columns. Soil-moisture deficit (``xsmd``) is a
-  bulk site-level quantity and is intentionally not per-landcover.
+  downstream physics work. Surface-specific ``lai_<surface>`` and
+  ``wuh_<surface>`` columns are passed through to the kernel, which
+  continues to use the bulk ``lai`` and ``Wuh`` columns as default
+  values for legacy or bulk calculations. These bulk values are applied
+  to all applicable surfaces unless a corresponding land-cover-specific
+  value is provided, in which case the surface-specific value overrides
+  the bulk value. Soil-moisture deficit (``xsmd``) is a bulk site-level
+  quantity and is intentionally not per-landcover.
 * **Unknown columns**: any column not in the canonical or whitelisted
   sets emits a ``UserWarning`` and is dropped.
 

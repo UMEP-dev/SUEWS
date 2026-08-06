@@ -87,7 +87,7 @@ MODULE module_ctrl_const_allocate
                          ncolumnsdataOutBL = 22, &
                          ncolumnsDataOutESTM = 5 + 27, &
                          ncolumnsDataOutEHC = 5 + 7*2 + 15*(1 + 4 + 2)*2, &
-                         ncolumnsDataOutDailyState = 52, &
+                         ncolumnsDataOutDailyState = 58, &
                          ncolumnsDataOutRSL = 30*4 + 5 + 13 + 2, &
                          ncolumnsDataOutDebug = 1 + 5 + 103 + 14 + 5 + 4 + 3 + 1, &
                          ncolumnsDataOutSPARTACUS = 5 + 8 + 8*15 + 3 + 6*15 + 2*15 + 4 + 1 + 2*15 + 2 + 8*15, &

@@ -1490,6 +1490,7 @@ CONTAINS
             LAI_id => phenState%LAI_id, &
             gfunc => phenState%g_func, &
             vsmd => hydroState%vsmd, &
+            smd => hydroState%smd, &
             id => timer%id, &
             it => timer%it, &
             dectime => timer%dectime, &
@@ -1558,7 +1559,7 @@ CONTAINS
                         dummy3, dummy4, dummy5, dummy6, dq, dummy7, dummy8, dummy9)
                      CALL SurfaceResistance( &
                         id, it, & ! input:
-                        SMDMethod, SnowFrac, sfr_surf, avkdn, Tair_local, dq, xsmd, vsmd, MaxConductance, &
+                        SMDMethod, SnowFrac, sfr_surf, avkdn, Tair_local, dq, smd, xsmd, vsmd, MaxConductance, &
                         LAIMax, LAI_id, gsModel, Kmax, &
                         G_max, G_k, G_q_base, G_q_shape, G_t, G_sm, TH, TL, S1, S2, theta_r, &
                         unused_gc1, unused_gc2, unused_gc3, unused_gc4, unused_gc5, & ! output: (unused conductances)
@@ -1584,7 +1585,7 @@ CONTAINS
                      ! Surface resistance calculation for gfunc2
                      CALL SurfaceResistance( &
                         id, it, & ! input:
-                        SMDMethod, SnowFrac, sfr_surf, avkdn, t2, dq, xsmd, vsmd, MaxConductance, &
+                        SMDMethod, SnowFrac, sfr_surf, avkdn, t2, dq, smd, xsmd, vsmd, MaxConductance, &
                         LAIMax, LAI_id, gsModel, Kmax, &
                         G_max, G_k, G_q_base, G_q_shape, G_t, G_sm, TH, TL, S1, S2, theta_r, &
                         unused_gc1, unused_gc2, unused_gc3, unused_gc4, unused_gc5, & ! output: (unused conductances)
@@ -3633,6 +3634,7 @@ CONTAINS
             avkdn => forcing%kdown, &
             xsmd => forcing%xsmd, &
             vsmd => hydroState%vsmd, &
+            smd => hydroState%smd, &
             avdens => atmState%av_density, &
             avcp => atmState%av_cp, &
             dq => atmState%dq, &
@@ -3819,7 +3821,7 @@ CONTAINS
                Tair = MERGE(T_half_bldg_C, MERGE(T2_C, Temp_C, RSLLevel == 1), RSLLevel == 2)
                CALL SurfaceResistance( &
                   id, it, & ! input:
-                  SMDMethod, SnowFrac, sfr_surf, avkdn, Tair, dq, xsmd, vsmd, MaxConductance, &
+                  SMDMethod, SnowFrac, sfr_surf, avkdn, Tair, dq, smd, xsmd, vsmd, MaxConductance, &
                   LAIMax, LAI_id, gsModel, Kmax, &
                   G_max, G_k, G_q_base, G_q_shape, G_t, G_sm, TH, TL, S1, S2, theta_r, &
                   g_kdown, g_dq, g_ta, g_smd, g_lai, & ! output:

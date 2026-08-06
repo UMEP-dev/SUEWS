@@ -294,8 +294,8 @@ These additional variables can enhance model performance but are not required:
      - fcld
      - For radiation calculations
    * - External water use
-- mm per forcing interval (accumulated)
-- ``Wuh`` or ``wuh_<surface>``
+     - mm per forcing interval (accumulated)
+     - ``Wuh`` or ``wuh_<surface>``
      - For irrigation
    * - Soil moisture
      - m³/m³
@@ -303,7 +303,7 @@ These additional variables can enhance model performance but are not required:
      - For initialization
    * - Leaf area index
      - m²/m²
-- ``lai`` or ``lai_evetr`` / ``lai_dectr`` / ``lai_grass``
+     - ``lai`` or ``lai_evetr`` / ``lai_dectr`` / ``lai_grass``
      - If ``model.physics.laimethod = 0`` (see :ref:`prescribed-lai`)
    * - Diffuse radiation
      - W/m²
